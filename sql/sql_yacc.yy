@@ -56,12 +56,17 @@ const LEX_STRING null_lex_str={0,0};
   }
 
 /* Helper for parsing "IS [NOT] truth_value" */
-inline Item *is_truth_value(Item *A, bool v1, bool v2)
+inline Item *is_truth_value(THD *thd, Item *A, bool v1, bool v2)
 {
-  return new Item_func_if(create_func_ifnull(A,
-	new Item_int((char *) (v2 ? "TRUE" : "FALSE"), v2, 1)),
-	new Item_int((char *) (v1 ? "TRUE" : "FALSE"), v1, 1),
-	new Item_int((char *) (v1 ? "FALSE" : "TRUE"),!v1, 1));
+  Item *v1_t= new (thd->mem_root) Item_int((char *) (v1 ? "TRUE" : "FALSE"),
+                                           v1, 1);
+  Item *v1_f= new (thd->mem_root) Item_int((char *) (v1 ? "FALSE" : "TRUE"),
+                                           !v1, 1);
+  Item *v2_t= new (thd->mem_root) Item_int((char *) (v2 ? "TRUE" : "FALSE"),
+                                           v2, 1);
+  Item *ifnull= new (thd->mem_root) Item_func_ifnull(A, v2_t);
+
+  return new (thd->mem_root) Item_func_if(ifnull, v1_t, v1_f);
 }
 
 #ifndef DBUG_OFF
@@ -142,213 +147,209 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %pure_parser					/* We have threads */
 
-%token  END_OF_INPUT
+/*
+   Comments for TOKENS.
+   For each token, please include in the same line a comment that contains
+   the following tags:
+   SQL-2003-R : Reserved keyword as per SQL-2003
+   SQL-2003-N : Non Reserved keyword as per SQL-2003
+   SQL-1999-R : Reserved keyword as per SQL-1999
+   SQL-1999-N : Non Reserved keyword as per SQL-1999
+   MYSQL      : MySQL extention (unspecified)
+   MYSQL-FUNC : MySQL extention, function
+   INTERNAL   : Not a real token, lex optimization
+   OPERATOR   : SQL operator
+   FUTURE-USE : Reserved for futur use
 
-%token  ABORT_SYM
+   This makes the code grep-able, and helps maintenance.
+*/
+
+%token  ABORT_SYM                     /* INTERNAL (used in lex) */
 %token  ACCESSIBLE_SYM
-%token  ACTION
-%token  ADD
-%token  ADDDATE_SYM
-%token  AFTER_SYM
+%token  ACTION                        /* SQL-2003-N */
+%token  ADD                           /* SQL-2003-R */
+%token  ADDDATE_SYM                   /* MYSQL-FUNC */
+%token  AFTER_SYM                     /* SQL-2003-N */
 %token  AGAINST
 %token  AGGREGATE_SYM
 %token  ALGORITHM_SYM
-%token  ALL
-%token  ALTER
+%token  ALL                           /* SQL-2003-R */
+%token  ALTER                         /* SQL-2003-R */
 %token  ANALYZE_SYM
-%token  AND_AND_SYM
-%token  AND_SYM
-%token  ANY_SYM
-%token  AS
-%token  ASC
-%token  ASCII_SYM
-%token  ASENSITIVE_SYM
-%token  AT_SYM
-%token  ATAN
+%token  AND_AND_SYM                   /* OPERATOR */
+%token  AND_SYM                       /* SQL-2003-R */
+%token  ANY_SYM                       /* SQL-2003-R */
+%token  AS                            /* SQL-2003-R */
+%token  ASC                           /* SQL-2003-N */
+%token  ASCII_SYM                     /* MYSQL-FUNC */
+%token  ASENSITIVE_SYM                /* FUTURE-USE */
+%token  AT_SYM                        /* SQL-2003-R */
 %token  AUTHORS_SYM
-%token  AUTO_INC
 %token  AUTOEXTEND_SIZE_SYM
+%token  AUTO_INC
 %token  AVG_ROW_LENGTH
-%token  AVG_SYM
+%token  AVG_SYM                       /* SQL-2003-N */
 %token  BACKUP_SYM
-%token  BEFORE_SYM
-%token  BEGIN_SYM
-%token  BENCHMARK_SYM
-%token  BIGINT
-%token  BINARY
+%token  BEFORE_SYM                    /* SQL-2003-N */
+%token  BEGIN_SYM                     /* SQL-2003-R */
+%token  BETWEEN_SYM                   /* SQL-2003-R */
+%token  BIGINT                        /* SQL-2003-R */
+%token  BINARY                        /* SQL-2003-R */
 %token  BINLOG_SYM
 %token  BIN_NUM
-%token  BIT_AND
-%token  BIT_OR
-%token  BIT_SYM
-%token  BIT_XOR
-%token  BLOB_SYM
-%token  BOOLEAN_SYM
+%token  BIT_AND                       /* MYSQL-FUNC */
+%token  BIT_OR                        /* MYSQL-FUNC */
+%token  BIT_SYM                       /* MYSQL-FUNC */
+%token  BIT_XOR                       /* MYSQL-FUNC */
+%token  BLOB_SYM                      /* SQL-2003-R */
+%token  BOOLEAN_SYM                   /* SQL-2003-R */
 %token  BOOL_SYM
-%token  BOTH
+%token  BOTH                          /* SQL-2003-R */
 %token  BTREE_SYM
-%token  BY
+%token  BY                            /* SQL-2003-R */
 %token  BYTE_SYM
 %token  CACHE_SYM
-%token  CALL_SYM
-%token  CASCADE
-%token  CASCADED
-%token  CAST_SYM
-%token  CHAIN_SYM
+%token  CALL_SYM                      /* SQL-2003-R */
+%token  CASCADE                       /* SQL-2003-N */
+%token  CASCADED                      /* SQL-2003-R */
+%token  CASE_SYM                      /* SQL-2003-R */
+%token  CAST_SYM                      /* SQL-2003-R */
+%token  CHAIN_SYM                     /* SQL-2003-N */
 %token  CHANGE
 %token  CHANGED
 %token  CHARSET
-%token  CHAR_SYM
+%token  CHAR_SYM                      /* SQL-2003-R */
 %token  CHECKSUM_SYM
-%token  CHECK_SYM
+%token  CHECK_SYM                     /* SQL-2003-R */
 %token  CIPHER_SYM
 %token  CLIENT_SYM
-%token  CLOSE_SYM
-%token  COALESCE
+%token  CLOSE_SYM                     /* SQL-2003-R */
+%token  COALESCE                      /* SQL-2003-N */
 %token  CODE_SYM
-%token  COLLATE_SYM
-%token  COLLATION_SYM
+%token  COLLATE_SYM                   /* SQL-2003-R */
+%token  COLLATION_SYM                 /* SQL-2003-N */
 %token  COLUMNS
-%token  COLUMN_SYM
+%token  COLUMN_SYM                    /* SQL-2003-R */
 %token  COMMENT_SYM
-%token  COMMITTED_SYM
-%token  COMMIT_SYM
+%token  COMMITTED_SYM                 /* SQL-2003-N */
+%token  COMMIT_SYM                    /* SQL-2003-R */
 %token  COMPACT_SYM
 %token  COMPLETION_SYM
 %token  COMPRESSED_SYM
-%token  CONCAT
-%token  CONCAT_WS
 %token  CONCURRENT
-%token  CONDITION_SYM
+%token  CONDITION_SYM                 /* SQL-2003-N */
 %token  CONNECTION_SYM
 %token  CONSISTENT_SYM
-%token  CONSTRAINT
-%token  CONTAINS_SYM
-%token  CONTINUE_SYM
+%token  CONSTRAINT                    /* SQL-2003-R */
+%token  CONTAINS_SYM                  /* SQL-2003-N */
+%token  CONTINUE_SYM                  /* SQL-2003-R */
 %token  CONTRIBUTORS_SYM
-%token  CONVERT_SYM
-%token  CONVERT_TZ_SYM
-%token  COUNT_SYM
-%token  CREATE
-%token  CROSS
-%token  CUBE_SYM
-%token  CURDATE
-%token  CURRENT_USER
-%token  CURSOR_SYM
-%token  CURTIME
+%token  CONVERT_SYM                   /* SQL-2003-N */
+%token  COUNT_SYM                     /* SQL-2003-N */
+%token  CREATE                        /* SQL-2003-R */
+%token  CROSS                         /* SQL-2003-R */
+%token  CUBE_SYM                      /* SQL-2003-R */
+%token  CURDATE                       /* MYSQL-FUNC */
+%token  CURRENT_USER                  /* SQL-2003-R */
+%token  CURSOR_SYM                    /* SQL-2003-R */
+%token  CURTIME                       /* MYSQL-FUNC */
 %token  DATABASE
 %token  DATABASES
 %token  DATAFILE_SYM
-%token  DATA_SYM
+%token  DATA_SYM                      /* SQL-2003-N */
 %token  DATETIME
-%token  DATE_ADD_INTERVAL
-%token  DATE_SUB_INTERVAL
-%token  DATE_SYM
+%token  DATE_ADD_INTERVAL             /* MYSQL-FUNC */
+%token  DATE_SUB_INTERVAL             /* MYSQL-FUNC */
+%token  DATE_SYM                      /* SQL-2003-R */
 %token  DAY_HOUR_SYM
 %token  DAY_MICROSECOND_SYM
 %token  DAY_MINUTE_SYM
 %token  DAY_SECOND_SYM
-%token  DAY_SYM
-%token  DEALLOCATE_SYM
+%token  DAY_SYM                       /* SQL-2003-R */
+%token  DEALLOCATE_SYM                /* SQL-2003-R */
 %token  DECIMAL_NUM
-%token  DECIMAL_SYM
-%token  DECLARE_SYM
-%token  DECODE_SYM
-%token  DEFAULT
+%token  DECIMAL_SYM                   /* SQL-2003-R */
+%token  DECLARE_SYM                   /* SQL-2003-R */
+%token  DEFAULT                       /* SQL-2003-R */
 %token  DEFINER_SYM
 %token  DELAYED_SYM
 %token  DELAY_KEY_WRITE_SYM
-%token  DELETE_SYM
-%token  DESC
-%token  DESCRIBE
-%token  DES_DECRYPT_SYM
-%token  DES_ENCRYPT_SYM
+%token  DELETE_SYM                    /* SQL-2003-R */
+%token  DESC                          /* SQL-2003-N */
+%token  DESCRIBE                      /* SQL-2003-R */
 %token  DES_KEY_FILE
-%token  DETERMINISTIC_SYM
+%token  DETERMINISTIC_SYM             /* SQL-2003-R */
 %token  DIRECTORY_SYM
 %token  DISABLE_SYM
 %token  DISCARD
 %token  DISK_SYM
-%token  DISTINCT
+%token  DISTINCT                      /* SQL-2003-R */
 %token  DIV_SYM
-%token  DOUBLE_SYM
+%token  DOUBLE_SYM                    /* SQL-2003-R */
 %token  DO_SYM
-%token  DROP
+%token  DROP                          /* SQL-2003-R */
 %token  DUAL_SYM
 %token  DUMPFILE
 %token  DUPLICATE_SYM
-%token  DYNAMIC_SYM
-%token  EACH_SYM
+%token  DYNAMIC_SYM                   /* SQL-2003-R */
+%token  EACH_SYM                      /* SQL-2003-R */
+%token  ELSE                          /* SQL-2003-R */
 %token  ELSEIF_SYM
-%token  ELT_FUNC
 %token  ENABLE_SYM
 %token  ENCLOSED
-%token  ENCODE_SYM
-%token  ENCRYPT
-%token  END
+%token  END                           /* SQL-2003-R */
 %token  ENDS_SYM
+%token  END_OF_INPUT                  /* INTERNAL */
 %token  ENGINES_SYM
 %token  ENGINE_SYM
 %token  ENUM
-%token  EQ
-%token  EQUAL_SYM
+%token  EQ                            /* OPERATOR */
+%token  EQUAL_SYM                     /* OPERATOR */
 %token  ERRORS
 %token  ESCAPED
-%token  ESCAPE_SYM
-%token  EVENT_SYM
+%token  ESCAPE_SYM                    /* SQL-2003-R */
 %token  EVENTS_SYM
-%token  EVERY_SYM
-%token  EXECUTE_SYM
-%token  EXISTS
+%token  EVENT_SYM
+%token  EVERY_SYM                     /* SQL-2003-N */
+%token  EXECUTE_SYM                   /* SQL-2003-R */
+%token  EXISTS                        /* SQL-2003-R */
 %token  EXIT_SYM
 %token  EXPANSION_SYM
-%token  EXPORT_SET
 %token  EXTENDED_SYM
 %token  EXTENT_SIZE_SYM
-%token  EXTRACT_SYM
-%token  FALSE_SYM
+%token  EXTRACT_SYM                   /* SQL-2003-N */
+%token  FALSE_SYM                     /* SQL-2003-R */
 %token  FAST_SYM
-%token  FETCH_SYM
-%token  FIELD_FUNC
+%token  FETCH_SYM                     /* SQL-2003-R */
 %token  FILE_SYM
-%token  FIRST_SYM
+%token  FIRST_SYM                     /* SQL-2003-N */
 %token  FIXED_SYM
 %token  FLOAT_NUM
-%token  FLOAT_SYM
+%token  FLOAT_SYM                     /* SQL-2003-R */
 %token  FLUSH_SYM
 %token  FORCE_SYM
-%token  FOREIGN
-%token  FORMAT_SYM
-%token  FOR_SYM
-%token  FOUND_SYM
+%token  FOREIGN                       /* SQL-2003-R */
+%token  FOR_SYM                       /* SQL-2003-R */
+%token  FOUND_SYM                     /* SQL-2003-R */
 %token  FRAC_SECOND_SYM
 %token  FROM
-%token  FROM_UNIXTIME
-%token  FULL
+%token  FULL                          /* SQL-2003-R */
 %token  FULLTEXT_SYM
-%token  FUNCTION_SYM
-%token  FUNC_ARG0
-%token  FUNC_ARG1
-%token  FUNC_ARG2
-%token  FUNC_ARG3
+%token  FUNCTION_SYM                  /* SQL-2003-R */
 %token  GE
-%token  GEOMCOLLFROMTEXT
 %token  GEOMETRYCOLLECTION
 %token  GEOMETRY_SYM
-%token  GEOMFROMTEXT
-%token  GEOMFROMWKB
-%token  GET_FORMAT
-%token  GLOBAL_SYM
-%token  GRANT
+%token  GET_FORMAT                    /* MYSQL-FUNC */
+%token  GLOBAL_SYM                    /* SQL-2003-R */
+%token  GRANT                         /* SQL-2003-R */
 %token  GRANTS
-%token  GREATEST_SYM
-%token  GROUP
+%token  GROUP                         /* SQL-2003-R */
 %token  GROUP_CONCAT_SYM
 %token  GROUP_UNIQUE_USERS
-%token  GT_SYM
+%token  GT_SYM                        /* OPERATOR */
 %token  HANDLER_SYM
 %token  HASH_SYM
-%token  HAVING
+%token  HAVING                        /* SQL-2003-R */
 %token  HELP_SYM
 %token  HEX_NUM
 %token  HIGH_PRIORITY
@@ -356,7 +357,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  HOUR_MICROSECOND_SYM
 %token  HOUR_MINUTE_SYM
 %token  HOUR_SECOND_SYM
-%token  HOUR_SYM
+%token  HOUR_SYM                      /* SQL-2003-R */
 %token  IDENT
 %token  IDENTIFIED_SYM
 %token  IDENT_QUOTED
@@ -367,70 +368,63 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  INDEX_SYM
 %token  INFILE
 %token  INITIAL_SIZE_SYM
-%token  INNER_SYM
+%token  INNER_SYM                     /* SQL-2003-R */
 %token  INNOBASE_SYM
-%token  INOUT_SYM
-%token  INSENSITIVE_SYM
-%token  INSERT
+%token  INOUT_SYM                     /* SQL-2003-R */
+%token  INSENSITIVE_SYM               /* SQL-2003-R */
+%token  INSERT                        /* SQL-2003-R */
 %token  INSERT_METHOD
 %token  INSTALL_SYM
-%token  INTERVAL_SYM
-%token  INTO
-%token  INT_SYM
+%token  INTERVAL_SYM                  /* SQL-2003-R */
+%token  INTO                          /* SQL-2003-R */
+%token  INT_SYM                       /* SQL-2003-R */
 %token  INVOKER_SYM
-%token  IN_SYM
-%token  IS
-%token  ISOLATION
+%token  IN_SYM                        /* SQL-2003-R */
+%token  IS                            /* SQL-2003-R */
+%token  ISOLATION                     /* SQL-2003-R */
 %token  ISSUER_SYM
 %token  ITERATE_SYM
-%token  JOIN_SYM
+%token  JOIN_SYM                      /* SQL-2003-R */
 %token  KEYS
-%token  KEY_SYM
 %token  KEY_BLOCK_SIZE
+%token  KEY_SYM                       /* SQL-2003-N */
 %token  KILL_SYM
-%token  LANGUAGE_SYM
-%token  LAST_INSERT_ID
-%token  LAST_SYM
-%token  LE
-%token  LEADING
-%token  LEAST_SYM
+%token  LANGUAGE_SYM                  /* SQL-2003-R */
+%token  LAST_SYM                      /* SQL-2003-N */
+%token  LE                            /* OPERATOR */
+%token  LEADING                       /* SQL-2003-R */
 %token  LEAVES
 %token  LEAVE_SYM
-%token  LEFT
+%token  LEFT                          /* SQL-2003-R */
 %token  LESS_SYM
 %token  LEVEL_SYM
 %token  LEX_HOSTNAME
-%token  LIKE
+%token  LIKE                          /* SQL-2003-R */
 %token  LIMIT
 %token  LINEAR_SYM
-%token  LINEFROMTEXT
 %token  LINES
 %token  LINESTRING
 %token  LIST_SYM
 %token  LOAD
-%token  LOCAL_SYM
-%token  LOCATE
-%token  LOCATOR_SYM
+%token  LOCAL_SYM                     /* SQL-2003-R */
+%token  LOCATOR_SYM                   /* SQL-2003-N */
 %token  LOCKS_SYM
 %token  LOCK_SYM
 %token  LOGFILE_SYM
 %token  LOGS_SYM
-%token  LOG_SYM
 %token  LONGBLOB
 %token  LONGTEXT
 %token  LONG_NUM
 %token  LONG_SYM
 %token  LOOP_SYM
 %token  LOW_PRIORITY
-%token  LT
-%token  MAKE_SET_SYM
+%token  LT                            /* OPERATOR */
 %token  MASTER_CONNECT_RETRY_SYM
 %token  MASTER_HOST_SYM
 %token  MASTER_LOG_FILE_SYM
 %token  MASTER_LOG_POS_SYM
 %token  MASTER_PASSWORD_SYM
 %token  MASTER_PORT_SYM
-%token  MASTER_POS_WAIT
 %token  MASTER_SERVER_ID_SYM
 %token  MASTER_SSL_CAPATH_SYM
 %token  MASTER_SSL_CA_SYM
@@ -440,134 +434,128 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  MASTER_SSL_SYM
 %token  MASTER_SYM
 %token  MASTER_USER_SYM
-%token  MATCH
+%token  MATCH                         /* SQL-2003-R */
 %token  MAX_CONNECTIONS_PER_HOUR
 %token  MAX_QUERIES_PER_HOUR
 %token  MAX_ROWS
 %token  MAX_SIZE_SYM
-%token  MAX_SYM
+%token  MAX_SYM                       /* SQL-2003-N */
 %token  MAX_UPDATES_PER_HOUR
 %token  MAX_USER_CONNECTIONS_SYM
-%token  MAX_VALUE_SYM
+%token  MAX_VALUE_SYM                 /* SQL-2003-N */
 %token  MEDIUMBLOB
 %token  MEDIUMINT
 %token  MEDIUMTEXT
 %token  MEDIUM_SYM
 %token  MEMORY_SYM
-%token  MERGE_SYM
-%token  MICROSECOND_SYM
+%token  MERGE_SYM                     /* SQL-2003-R */
+%token  MICROSECOND_SYM               /* MYSQL-FUNC */
 %token  MIGRATE_SYM
 %token  MINUTE_MICROSECOND_SYM
 %token  MINUTE_SECOND_SYM
-%token  MINUTE_SYM
+%token  MINUTE_SYM                    /* SQL-2003-R */
 %token  MIN_ROWS
-%token  MIN_SYM
-%token  MLINEFROMTEXT
+%token  MIN_SYM                       /* SQL-2003-N */
 %token  MODE_SYM
-%token  MODIFIES_SYM
+%token  MODIFIES_SYM                  /* SQL-2003-R */
 %token  MODIFY_SYM
-%token  MOD_SYM
-%token  MONTH_SYM
-%token  MPOINTFROMTEXT
-%token  MPOLYFROMTEXT
+%token  MOD_SYM                       /* SQL-2003-N */
+%token  MONTH_SYM                     /* SQL-2003-R */
 %token  MULTILINESTRING
 %token  MULTIPOINT
 %token  MULTIPOLYGON
 %token  MUTEX_SYM
-%token  NAMES_SYM
-%token  NAME_SYM
-%token  NATIONAL_SYM
-%token  NATURAL
+%token  NAMES_SYM                     /* SQL-2003-N */
+%token  NAME_SYM                      /* SQL-2003-N */
+%token  NATIONAL_SYM                  /* SQL-2003-R */
+%token  NATURAL                       /* SQL-2003-R */
 %token  NCHAR_STRING
-%token  NCHAR_SYM
+%token  NCHAR_SYM                     /* SQL-2003-R */
 %token  NDBCLUSTER_SYM
-%token  NE
-%token  NEW_SYM
-%token  NEXT_SYM
+%token  NE                            /* OPERATOR */
+%token  NEG
+%token  NEW_SYM                       /* SQL-2003-R */
+%token  NEXT_SYM                      /* SQL-2003-N */
 %token  NODEGROUP_SYM
-%token  NONE_SYM
+%token  NONE_SYM                      /* SQL-2003-R */
 %token  NOT2_SYM
-%token  NOT_SYM
+%token  NOT_SYM                       /* SQL-2003-R */
 %token  NOW_SYM
-%token  NO_SYM
+%token  NO_SYM                        /* SQL-2003-R */
 %token  NO_WAIT_SYM
 %token  NO_WRITE_TO_BINLOG
-%token  NULL_SYM
+%token  NULL_SYM                      /* SQL-2003-R */
 %token  NUM
-%token  NUMERIC_SYM
+%token  NUMERIC_SYM                   /* SQL-2003-R */
 %token  NVARCHAR_SYM
 %token  OFFSET_SYM
-%token  OJ_SYM
 %token  OLD_PASSWORD
-%token  ON
+%token  ON                            /* SQL-2003-R */
 %token  ONE_SHOT_SYM
 %token  ONE_SYM
-%token  OPEN_SYM
+%token  OPEN_SYM                      /* SQL-2003-R */
 %token  OPTIMIZE
-%token  OPTION
+%token  OPTION                        /* SQL-2003-N */
 %token  OPTIONALLY
 %token  OR2_SYM
-%token  ORDER_SYM
-%token  OR_OR_SYM
-%token  OR_SYM
+%token  ORDER_SYM                     /* SQL-2003-R */
+%token  OR_OR_SYM                     /* OPERATOR */
+%token  OR_SYM                        /* SQL-2003-R */
 %token  OUTER
 %token  OUTFILE
-%token  OUT_SYM
+%token  OUT_SYM                       /* SQL-2003-R */
 %token  PACK_KEYS_SYM
+%token  PARAM_MARKER
 %token  PARSER_SYM
-%token  PARTIAL
-%token  PARTITION_SYM
+%token  PARTIAL                       /* SQL-2003-N */
 %token  PARTITIONING_SYM
 %token  PARTITIONS_SYM
+%token  PARTITION_SYM                 /* SQL-2003-R */
 %token  PASSWORD
-%token  PARAM_MARKER
 %token  PHASE_SYM
-%token  PLUGIN_SYM
 %token  PLUGINS_SYM
-%token  POINTFROMTEXT
+%token  PLUGIN_SYM
 %token  POINT_SYM
-%token  POLYFROMTEXT
 %token  POLYGON
-%token  POSITION_SYM
-%token  PRECISION
-%token  PREPARE_SYM
+%token  POSITION_SYM                  /* SQL-2003-N */
+%token  PRECISION                     /* SQL-2003-R */
+%token  PREPARE_SYM                   /* SQL-2003-R */
 %token  PRESERVE_SYM
 %token  PREV_SYM
-%token  PRIMARY_SYM
-%token  PRIVILEGES
-%token  PROCEDURE
+%token  PRIMARY_SYM                   /* SQL-2003-R */
+%token  PRIVILEGES                    /* SQL-2003-N */
+%token  PROCEDURE                     /* SQL-2003-R */
 %token  PROCESS
 %token  PROCESSLIST_SYM
 %token  PURGE
 %token  QUARTER_SYM
 %token  QUERY_SYM
 %token  QUICK
-%token  RAND
-%token  RANGE_SYM
-%token  READS_SYM
+%token  RANGE_SYM                     /* SQL-2003-R */
+%token  READS_SYM                     /* SQL-2003-R */
 %token  READ_ONLY_SYM
-%token  READ_SYM
+%token  READ_SYM                      /* SQL-2003-N */
 %token  READ_WRITE_SYM
-%token  REAL
+%token  REAL                          /* SQL-2003-R */
 %token  REBUILD_SYM
 %token  RECOVER_SYM
-%token  REDO_BUFFER_SIZE_SYM
 %token  REDOFILE_SYM
+%token  REDO_BUFFER_SIZE_SYM
 %token  REDUNDANT_SYM
-%token  REFERENCES
+%token  REFERENCES                    /* SQL-2003-R */
 %token  REGEXP
 %token  RELAY_LOG_FILE_SYM
 %token  RELAY_LOG_POS_SYM
 %token  RELAY_THREAD
-%token  RELEASE_SYM
+%token  RELEASE_SYM                   /* SQL-2003-R */
 %token  RELOAD
 %token  REMOVE_SYM
 %token  RENAME
 %token  REORGANIZE_SYM
 %token  REPAIR
-%token  REPEATABLE_SYM
-%token  REPEAT_SYM
-%token  REPLACE
+%token  REPEATABLE_SYM                /* SQL-2003-N */
+%token  REPEAT_SYM                    /* MYSQL-FUNC */
+%token  REPLACE                       /* MYSQL-FUNC */
 %token  REPLICATION
 %token  REQUIRE_SYM
 %token  RESET_SYM
@@ -575,158 +563,154 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  RESTORE_SYM
 %token  RESTRICT
 %token  RESUME_SYM
-%token  RETURNS_SYM
-%token  RETURN_SYM
-%token  REVOKE
-%token  RIGHT
-%token  ROLLBACK_SYM
-%token  ROLLUP_SYM
-%token  ROUND
-%token  ROUTINE_SYM
-%token  ROWS_SYM
-%token  ROW_COUNT_SYM
+%token  RETURNS_SYM                   /* SQL-2003-R */
+%token  RETURN_SYM                    /* SQL-2003-R */
+%token  REVOKE                        /* SQL-2003-R */
+%token  RIGHT                         /* SQL-2003-R */
+%token  ROLLBACK_SYM                  /* SQL-2003-R */
+%token  ROLLUP_SYM                    /* SQL-2003-R */
+%token  ROUTINE_SYM                   /* SQL-2003-N */
+%token  ROWS_SYM                      /* SQL-2003-R */
 %token  ROW_FORMAT_SYM
-%token  ROW_SYM
+%token  ROW_SYM                       /* SQL-2003-R */
 %token  RTREE_SYM
-%token  SAVEPOINT_SYM
+%token  SAVEPOINT_SYM                 /* SQL-2003-R */
 %token  SCHEDULE_SYM
 %token  SECOND_MICROSECOND_SYM
-%token  SECOND_SYM
-%token  SECURITY_SYM
-%token  SELECT_SYM
-%token  SENSITIVE_SYM
+%token  SECOND_SYM                    /* SQL-2003-R */
+%token  SECURITY_SYM                  /* SQL-2003-N */
+%token  SELECT_SYM                    /* SQL-2003-R */
+%token  SENSITIVE_SYM                 /* FUTURE-USE */
 %token  SEPARATOR_SYM
-%token  SERIALIZABLE_SYM
+%token  SERIALIZABLE_SYM              /* SQL-2003-N */
 %token  SERIAL_SYM
-%token  SESSION_SYM
-%token  SET
+%token  SESSION_SYM                   /* SQL-2003-N */
+%token  SET                           /* SQL-2003-R */
 %token  SET_VAR
 %token  SHARE_SYM
-%token  SHIFT_LEFT
-%token  SHIFT_RIGHT
+%token  SHIFT_LEFT                    /* OPERATOR */
+%token  SHIFT_RIGHT                   /* OPERATOR */
 %token  SHOW
 %token  SHUTDOWN
 %token  SIGNED_SYM
-%token  SIMPLE_SYM
+%token  SIMPLE_SYM                    /* SQL-2003-N */
 %token  SLAVE
-%token  SMALLINT
+%token  SMALLINT                      /* SQL-2003-R */
 %token  SNAPSHOT_SYM
 %token  SONAME_SYM
 %token  SOUNDS_SYM
 %token  SPATIAL_SYM
-%token  SPECIFIC_SYM
-%token  SQLEXCEPTION_SYM
-%token  SQLSTATE_SYM
-%token  SQLWARNING_SYM
+%token  SPECIFIC_SYM                  /* SQL-2003-R */
+%token  SQLEXCEPTION_SYM              /* SQL-2003-R */
+%token  SQLSTATE_SYM                  /* SQL-2003-R */
+%token  SQLWARNING_SYM                /* SQL-2003-R */
 %token  SQL_BIG_RESULT
 %token  SQL_BUFFER_RESULT
 %token  SQL_CACHE_SYM
 %token  SQL_CALC_FOUND_ROWS
 %token  SQL_NO_CACHE_SYM
 %token  SQL_SMALL_RESULT
-%token  SQL_SYM
+%token  SQL_SYM                       /* SQL-2003-R */
 %token  SQL_THREAD
 %token  SSL_SYM
 %token  STARTING
-%token  START_SYM
 %token  STARTS_SYM
+%token  START_SYM                     /* SQL-2003-R */
 %token  STATUS_SYM
+%token  STDDEV_SAMP_SYM               /* SQL-2003-N */
 %token  STD_SYM
-%token  STDDEV_SAMP_SYM
 %token  STOP_SYM
 %token  STORAGE_SYM
 %token  STRAIGHT_JOIN
 %token  STRING_SYM
 %token  SUBDATE_SYM
 %token  SUBJECT_SYM
-%token  SUBPARTITION_SYM
 %token  SUBPARTITIONS_SYM
-%token  SUBSTRING
-%token  SUBSTRING_INDEX
-%token  SUM_SYM
+%token  SUBPARTITION_SYM
+%token  SUBSTRING                     /* SQL-2003-N */
+%token  SUM_SYM                       /* SQL-2003-N */
 %token  SUPER_SYM
 %token  SUSPEND_SYM
 %token  SYSDATE
 %token  TABLES
 %token  TABLESPACE
-%token  TABLE_SYM
-%token  TEMPORARY
+%token  TABLE_REF_PRIORITY
+%token  TABLE_SYM                     /* SQL-2003-R */
+%token  TEMPORARY                     /* SQL-2003-N */
 %token  TEMPTABLE_SYM
 %token  TERMINATED
 %token  TEXT_STRING
 %token  TEXT_SYM
-%token  TIMESTAMP
+%token  THAN_SYM
+%token  THEN_SYM                      /* SQL-2003-R */
+%token  TIMESTAMP                     /* SQL-2003-R */
 %token  TIMESTAMP_ADD
 %token  TIMESTAMP_DIFF
-%token  TIME_SYM
+%token  TIME_SYM                      /* SQL-2003-R */
 %token  TINYBLOB
 %token  TINYINT
 %token  TINYTEXT
-%token  THAN_SYM
-%token  TO_SYM
-%token  TRAILING
+%token  TO_SYM                        /* SQL-2003-R */
+%token  TRAILING                      /* SQL-2003-R */
 %token  TRANSACTION_SYM
-%token  TRIGGER_SYM
 %token  TRIGGERS_SYM
-%token  TRIM
-%token  TRUE_SYM
+%token  TRIGGER_SYM                   /* SQL-2003-R */
+%token  TRIM                          /* SQL-2003-N */
+%token  TRUE_SYM                      /* SQL-2003-R */
 %token  TRUNCATE_SYM
 %token  TYPES_SYM
-%token  TYPE_SYM
+%token  TYPE_SYM                      /* SQL-2003-N */
 %token  UDF_RETURNS_SYM
 %token  ULONGLONG_NUM
-%token  UNCOMMITTED_SYM
+%token  UNCOMMITTED_SYM               /* SQL-2003-N */
 %token  UNDEFINED_SYM
-%token  UNDO_BUFFER_SIZE_SYM
-%token  UNDOFILE_SYM
 %token  UNDERSCORE_CHARSET
-%token  UNDO_SYM
+%token  UNDOFILE_SYM
+%token  UNDO_BUFFER_SIZE_SYM
+%token  UNDO_SYM                      /* FUTURE-USE */
 %token  UNICODE_SYM
 %token  UNINSTALL_SYM
-%token  UNION_SYM
+%token  UNION_SYM                     /* SQL-2003-R */
 %token  UNIQUE_SYM
 %token  UNIQUE_USERS
-%token  UNIX_TIMESTAMP
-%token  UNKNOWN_SYM
+%token  UNKNOWN_SYM                   /* SQL-2003-R */
 %token  UNLOCK_SYM
 %token  UNSIGNED
 %token  UNTIL_SYM
-%token  UPDATE_SYM
+%token  UPDATE_SYM                    /* SQL-2003-R */
 %token  UPGRADE_SYM
-%token  USAGE
-%token  USER
+%token  USAGE                         /* SQL-2003-N */
+%token  USER                          /* SQL-2003-R */
 %token  USE_FRM
 %token  USE_SYM
-%token  USING
+%token  USING                         /* SQL-2003-R */
 %token  UTC_DATE_SYM
 %token  UTC_TIMESTAMP_SYM
 %token  UTC_TIME_SYM
-%token  VAR_SAMP_SYM
-%token  VALUES
-%token  VALUE_SYM
+%token  VALUES                        /* SQL-2003-R */
+%token  VALUE_SYM                     /* SQL-2003-R */
 %token  VARBINARY
-%token  VARCHAR
+%token  VARCHAR                       /* SQL-2003-R */
 %token  VARIABLES
 %token  VARIANCE_SYM
-%token  VARYING
-%token  VIEW_SYM
+%token  VARYING                       /* SQL-2003-R */
+%token  VAR_SAMP_SYM
+%token  VIEW_SYM                      /* SQL-2003-N */
 %token  WAIT_SYM
 %token  WARNINGS
 %token  WEEK_SYM
-%token  WHEN_SYM
-%token  WHERE
+%token  WHEN_SYM                      /* SQL-2003-R */
+%token  WHERE                         /* SQL-2003-R */
 %token  WHILE_SYM
-%token  WITH
-%token  WORK_SYM
-%token  WRITE_SYM
+%token  WITH                          /* SQL-2003-R */
+%token  WORK_SYM                      /* SQL-2003-N */
+%token  WRITE_SYM                     /* SQL-2003-N */
 %token  X509_SYM
 %token  XA_SYM
 %token  XOR
-%token  YEARWEEK
 %token  YEAR_MONTH_SYM
-%token  YEAR_SYM
+%token  YEAR_SYM                      /* SQL-2003-R */
 %token  ZEROFILL
-
 
 %left   JOIN_SYM INNER_SYM STRAIGHT_JOIN CROSS LEFT RIGHT
 /* A dummy token to force the priority of table_ref production in a join. */
@@ -803,6 +787,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	simple_ident_nospvar simple_ident_q
         field_or_var limit_option
         part_func_expr
+        function_call_keyword
+        function_call_nonkeyword
+        function_call_generic
+        function_call_conflict
 
 %type <item_num>
 	NUM_literal
@@ -810,6 +798,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %type <item_list>
 	expr_list udf_expr_list udf_expr_list2 when_list
 	ident_list ident_list_arg
+        expr_list_opt
 
 %type <var_type>
         option_type opt_var_type opt_var_ident_type
@@ -848,7 +837,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <udf_type> udf_func_type
 
-%type <symbol> FUNC_ARG0 FUNC_ARG1 FUNC_ARG2 FUNC_ARG3 keyword keyword_sp
+%type <symbol> keyword keyword_sp
 
 %type <lex_user> user grant_user
 
@@ -5821,10 +5810,10 @@ bool_factor:
 	| bool_test ;
 
 bool_test:
-	bool_pri IS TRUE_SYM	{ $$= is_truth_value($1,1,0); }
-	| bool_pri IS not TRUE_SYM { $$= is_truth_value($1,0,0); }
-	| bool_pri IS FALSE_SYM	{ $$= is_truth_value($1,0,1); }
-	| bool_pri IS not FALSE_SYM { $$= is_truth_value($1,1,1); }
+	bool_pri IS TRUE_SYM	{ $$= is_truth_value(YYTHD, $1,1,0); }
+	| bool_pri IS not TRUE_SYM { $$= is_truth_value(YYTHD, $1,0,0); }
+	| bool_pri IS FALSE_SYM	{ $$= is_truth_value(YYTHD, $1,0,1); }
+	| bool_pri IS not FALSE_SYM { $$= is_truth_value(YYTHD, $1,1,1); }
 	| bool_pri IS UNKNOWN_SYM { $$= new Item_func_isnull($1); }
 	| bool_pri IS not UNKNOWN_SYM { $$= new Item_func_isnotnull($1); }
 	| bool_pri ;
@@ -5945,56 +5934,67 @@ interval_expr:
 
 simple_expr:
 	simple_ident
+        | function_call_keyword
+        | function_call_nonkeyword
+        | function_call_generic
+        | function_call_conflict
  	| simple_expr COLLATE_SYM ident_or_text %prec NEG
 	  {
-	    $$= new Item_func_set_collation($1,
-					    new Item_string($3.str,
-							    $3.length,
-                                                            YYTHD->charset()));
+            THD *thd= YYTHD;
+            Item *i1= new (thd->mem_root) Item_string($3.str,
+                                                      $3.length,
+                                                      thd->charset());
+	    $$= new (thd->mem_root) Item_func_set_collation($1, i1);
 	  }
 	| literal
 	| param_marker
 	| variable
 	| sum_expr
 	| simple_expr OR_OR_SYM simple_expr
-	  { $$= new Item_func_concat($1, $3); }
+	  { $$= new (YYTHD->mem_root) Item_func_concat($1, $3); }
 	| '+' simple_expr %prec NEG	{ $$= $2; }
-	| '-' simple_expr %prec NEG	{ $$= new Item_func_neg($2); }
-	| '~' simple_expr %prec NEG	{ $$= new Item_func_bit_neg($2); }
-	| not2 simple_expr %prec NEG	{ $$= negate_expression(YYTHD, $2); }
+	| '-' simple_expr %prec NEG
+          { $$= new (YYTHD->mem_root) Item_func_neg($2); }
+	| '~' simple_expr %prec NEG
+          { $$= new (YYTHD->mem_root) Item_func_bit_neg($2); }
+	| not2 simple_expr %prec NEG
+          { $$= negate_expression(YYTHD, $2); }
 	| '(' subselect ')'   
           { 
-            $$= new Item_singlerow_subselect($2); 
+            $$= new (YYTHD->mem_root) Item_singlerow_subselect($2); 
           }
 	| '(' expr ')'		{ $$= $2; }
 	| '(' expr ',' expr_list ')'
 	  {
 	    $4->push_front($2);
-	    $$= new Item_row(*$4);
+	    $$= new (YYTHD->mem_root) Item_row(*$4);
 	  }
 	| ROW_SYM '(' expr ',' expr_list ')'
 	  {
 	    $5->push_front($3);
-	    $$= new Item_row(*$5);
+	    $$= new (YYTHD->mem_root) Item_row(*$5);
 	  }
 	| EXISTS '(' subselect ')' 
           {
-            $$= new Item_exists_subselect($3); 
+            $$= new (YYTHD->mem_root) Item_exists_subselect($3); 
           }
 	| '{' ident expr '}'	{ $$= $3; }
         | MATCH ident_list_arg AGAINST '(' bit_expr fulltext_options ')'
-          { $2->push_front($5);
-            Select->add_ftfunc_to_list((Item_func_match*)
-                                        ($$=new Item_func_match(*$2,$6))); }
-	| ASCII_SYM '(' expr ')' { $$= new Item_func_ascii($3); }
+          {
+            $2->push_front($5);
+            Item_func_match *i1= new (YYTHD->mem_root) Item_func_match(*$2, $6);
+            Select->add_ftfunc_to_list(i1);
+            $$= i1;
+          }
 	| BINARY simple_expr %prec NEG
 	  {
-            $$= create_func_cast($2, ITEM_CAST_CHAR, -1, 0, &my_charset_bin);
+            $$= create_func_cast(YYTHD, $2, ITEM_CAST_CHAR, -1, 0,
+                                 &my_charset_bin);
 	  }
 	| CAST_SYM '(' expr AS cast_type ')'
 	  {
             LEX *lex= Lex;
-	    $$= create_func_cast($3, $5,
+	    $$= create_func_cast(YYTHD, $3, $5,
                                  lex->length ? atoi(lex->length) : -1,
                                  lex->dec ? atoi(lex->dec) : 0,
                                  lex->charset);
@@ -6002,10 +6002,10 @@ simple_expr:
               YYABORT;
 	  }
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
-	  { $$= new Item_func_case(* $4, $2, $5 ); }
+	  { $$= new (YYTHD->mem_root) Item_func_case(* $4, $2, $5 ); }
 	| CONVERT_SYM '(' expr ',' cast_type ')'
 	  {
-	    $$= create_func_cast($3, $5,
+	    $$= create_func_cast(YYTHD, $3, $5,
 				 Lex->length ? atoi(Lex->length) : -1,
                                  Lex->dec ? atoi(Lex->dec) : 0,
 				 Lex->charset);
@@ -6013,7 +6013,7 @@ simple_expr:
               YYABORT;
 	  }
 	| CONVERT_SYM '(' expr USING charset_name ')'
-	  { $$= new Item_func_conv_charset($3,$5); }
+	  { $$= new (YYTHD->mem_root) Item_func_conv_charset($3,$5); }
 	| DEFAULT '(' simple_ident ')'
 	  {
 	    if ($3->is_splocal())
@@ -6023,170 +6023,15 @@ simple_expr:
 	      my_error(ER_WRONG_COLUMN_NAME, MYF(0), il->my_name()->str);
 	      YYABORT;
 	    }
-	    $$= new Item_default_value(Lex->current_context(), $3);
+	    $$= new (YYTHD->mem_root) Item_default_value(Lex->current_context(),
+                                                         $3);
 	  }
 	| VALUES '(' simple_ident_nospvar ')'
-	  { $$= new Item_insert_value(Lex->current_context(), $3); }
-	| FUNC_ARG0 '(' ')'
-	  {
-	    if (!$1.symbol->create_func)
-	    {
-              my_error(ER_FEATURE_DISABLED, MYF(0),
-                       $1.symbol->group->name,
-                       $1.symbol->group->needed_define);
-	      YYABORT;
-	    }
-	    $$= ((Item*(*)(void))($1.symbol->create_func))();
-	  }
-	| FUNC_ARG1 '(' expr ')'
-	  {
-	    if (!$1.symbol->create_func)
-	    {
-              my_error(ER_FEATURE_DISABLED, MYF(0),
-                       $1.symbol->group->name,
-                       $1.symbol->group->needed_define);
-	      YYABORT;
-	    }
-	    $$= ((Item*(*)(Item*))($1.symbol->create_func))($3);
-	  }
-	| FUNC_ARG2 '(' expr ',' expr ')'
-	  {
-	    if (!$1.symbol->create_func)
-	    {
-	      my_error(ER_FEATURE_DISABLED, MYF(0),
-                       $1.symbol->group->name,
-                       $1.symbol->group->needed_define);
-	      YYABORT;
-	    }
-	    $$= ((Item*(*)(Item*,Item*))($1.symbol->create_func))($3,$5);
-	  }
-	| FUNC_ARG3 '(' expr ',' expr ',' expr ')'
-	  {
-	    if (!$1.symbol->create_func)
-	    {
-              my_error(ER_FEATURE_DISABLED, MYF(0),
-                       $1.symbol->group->name,
-                       $1.symbol->group->needed_define);
-	      YYABORT;
-	    }
-	    $$= ((Item*(*)(Item*,Item*,Item*))($1.symbol->create_func))($3,$5,$7);
-	  }
-	| ADDDATE_SYM '(' expr ',' expr ')'
-	  { $$= new Item_date_add_interval($3, $5, INTERVAL_DAY, 0);}
-	| ADDDATE_SYM '(' expr ',' INTERVAL_SYM expr interval ')'
-	  { $$= new Item_date_add_interval($3, $6, $7, 0); }
-	| REPEAT_SYM '(' expr ',' expr ')'
-	  { $$= new Item_func_repeat($3,$5); }
-	| ATAN	'(' expr ')'
-	  { $$= new Item_func_atan($3); }
-	| ATAN	'(' expr ',' expr ')'
-	  { $$= new Item_func_atan($3,$5); }
-	| CHAR_SYM '(' expr_list ')'
-	  { $$= new Item_func_char(*$3); }
-	| CHAR_SYM '(' expr_list USING charset_name ')'
-	  { $$= new Item_func_char(*$3, $5); }
-	| CHARSET '(' expr ')'
-	  { $$= new Item_func_charset($3); }
-	| COALESCE '(' expr_list ')'
-	  { $$= new Item_func_coalesce(* $3); }
-	| COLLATION_SYM '(' expr ')'
-	  { $$= new Item_func_collation($3); }
-	| CONCAT '(' expr_list ')'
-	  { $$= new Item_func_concat(* $3); }
-	| CONCAT_WS '(' expr ',' expr_list ')'
-	  { $5->push_front($3); $$= new Item_func_concat_ws(*$5); }
-	| CONVERT_TZ_SYM '(' expr ',' expr ',' expr ')'
-	  {
-            if (Lex->add_time_zone_tables_to_query_tables(YYTHD))
-              YYABORT;
-	    $$= new Item_func_convert_tz($3, $5, $7);
-	  }
-	| CURDATE optional_braces
-	  { $$= new Item_func_curdate_local(); Lex->safe_to_cache_query=0; }
-	| CURTIME optional_braces
-	  { $$= new Item_func_curtime_local(); Lex->safe_to_cache_query=0; }
-	| CURTIME '(' expr ')'
-	  {
-	    $$= new Item_func_curtime_local($3);
-	    Lex->safe_to_cache_query=0;
-	  }
-	| CURRENT_USER optional_braces
-          {
-            $$= new Item_func_current_user(Lex->current_context());
-            Lex->safe_to_cache_query= 0;
-          }
-	| DATE_ADD_INTERVAL '(' expr ',' interval_expr interval ')'
-	  { $$= new Item_date_add_interval($3,$5,$6,0); }
-	| DATE_SUB_INTERVAL '(' expr ',' interval_expr interval ')'
-	  { $$= new Item_date_add_interval($3,$5,$6,1); }
-	| DATABASE '(' ')'
-	  {
-	    $$= new Item_func_database();
-            Lex->safe_to_cache_query=0;
-	  }
-	| DATE_SYM '(' expr ')'
-	  { $$= new Item_date_typecast($3); }
-	| DAY_SYM '(' expr ')'
-	  { $$= new Item_func_dayofmonth($3); }
-	| ELT_FUNC '(' expr ',' expr_list ')'
-	  { $5->push_front($3); $$= new Item_func_elt(*$5); }
-	| MAKE_SET_SYM '(' expr ',' expr_list ')'
-	  { $$= new Item_func_make_set($3, *$5); }
-	| ENCRYPT '(' expr ')'
-	  {
-	    $$= new Item_func_encrypt($3);
-	    Lex->uncacheable(UNCACHEABLE_RAND);
-	  }
-	| ENCRYPT '(' expr ',' expr ')'   { $$= new Item_func_encrypt($3,$5); }
-	| DECODE_SYM '(' expr ',' TEXT_STRING_literal ')'
-	  { $$= new Item_func_decode($3,$5.str); }
-	| ENCODE_SYM '(' expr ',' TEXT_STRING_literal ')'
-	 { $$= new Item_func_encode($3,$5.str); }
-	| DES_DECRYPT_SYM '(' expr ')'
-        { $$= new Item_func_des_decrypt($3); }
-	| DES_DECRYPT_SYM '(' expr ',' expr ')'
-        { $$= new Item_func_des_decrypt($3,$5); }
-	| DES_ENCRYPT_SYM '(' expr ')'
-        { $$= new Item_func_des_encrypt($3); }
-	| DES_ENCRYPT_SYM '(' expr ',' expr ')'
-        { $$= new Item_func_des_encrypt($3,$5); }
-	| EXPORT_SET '(' expr ',' expr ',' expr ')'
-		{ $$= new Item_func_export_set($3, $5, $7); }
-	| EXPORT_SET '(' expr ',' expr ',' expr ',' expr ')'
-		{ $$= new Item_func_export_set($3, $5, $7, $9); }
-	| EXPORT_SET '(' expr ',' expr ',' expr ',' expr ',' expr ')'
-		{ $$= new Item_func_export_set($3, $5, $7, $9, $11); }
-	| FORMAT_SYM '(' expr ',' NUM ')'
-	  { $$= new Item_func_format($3,atoi($5.str)); }
-	| FROM_UNIXTIME '(' expr ')'
-	  { $$= new Item_func_from_unixtime($3); }
-	| FROM_UNIXTIME '(' expr ',' expr ')'
-	  {
-	    $$= new Item_func_date_format (new Item_func_from_unixtime($3),$5,0);
-	  }
-	| FIELD_FUNC '(' expr ',' expr_list ')'
-	  { $5->push_front($3); $$= new Item_func_field(*$5); }
-	| geometry_function
-	  {
-#ifdef HAVE_SPATIAL
-	    $$= $1;
-#else
-	    my_error(ER_FEATURE_DISABLED, MYF(0),
-                     sym_group_geom.name, sym_group_geom.needed_define);
-	    YYABORT;
-#endif
-	  }
-	| GET_FORMAT '(' date_time_type  ',' expr ')'
-	  { $$= new Item_func_get_format($3, $5); }
-	| HOUR_SYM '(' expr ')'
-	  { $$= new Item_func_hour($3); }
-	| IF '(' expr ',' expr ',' expr ')'
-	  { $$= new Item_func_if($3,$5,$7); }
-	| INSERT '(' expr ',' expr ',' expr ',' expr ')'
-	  { $$= new Item_func_insert($3,$5,$7,$9); }
+	  { $$= new (YYTHD->mem_root) Item_insert_value(Lex->current_context(),
+                                                        $3); }
 	| interval_expr interval '+' expr
 	  /* we cannot put interval before - */
-	  { $$= new Item_date_add_interval($4,$1,$2,0); }
+	  { $$= new (YYTHD->mem_root) Item_date_add_interval($4,$1,$2,0); }
 	| interval_expr
 	  {
             if ($1->type() != Item::ROW_ITEM)
@@ -6194,374 +6039,416 @@ simple_expr:
               yyerror(ER(ER_SYNTAX_ERROR));
               YYABORT;
             }
-            $$= new Item_func_interval((Item_row *)$1);
-          }
-	| LAST_INSERT_ID '(' ')'
-	  {
-	    $$= new Item_func_last_insert_id();
-	    Lex->safe_to_cache_query= 0;
-	  }
-	| LAST_INSERT_ID '(' expr ')'
-	  {
-	    $$= new Item_func_last_insert_id($3);
-	    Lex->safe_to_cache_query= 0;
-	  }
-	| LEFT '(' expr ',' expr ')'
-	  { $$= new Item_func_left($3,$5); }
-	| LOCATE '(' expr ',' expr ')'
-	  { $$= new Item_func_locate($5,$3); }
-	| LOCATE '(' expr ',' expr ',' expr ')'
-	  { $$= new Item_func_locate($5,$3,$7); }
-	| GREATEST_SYM '(' expr ',' expr_list ')'
-	  { $5->push_front($3); $$= new Item_func_max(*$5); }
-	| LEAST_SYM '(' expr ',' expr_list ')'
-	  { $5->push_front($3); $$= new Item_func_min(*$5); }
-	| LOG_SYM '(' expr ')'
-	  { $$= new Item_func_log($3); }
-	| LOG_SYM '(' expr ',' expr ')'
-	  { $$= new Item_func_log($3, $5); }
-	| MASTER_POS_WAIT '(' expr ',' expr ')'
-	  {
-	    $$= new Item_master_pos_wait($3, $5);
-	    Lex->safe_to_cache_query=0;
-		  }
-	| MASTER_POS_WAIT '(' expr ',' expr ',' expr ')'
-	  {
-	    $$= new Item_master_pos_wait($3, $5, $7);
-	    Lex->safe_to_cache_query=0;
-	  }
-	| MICROSECOND_SYM '(' expr ')'
-	  { $$= new Item_func_microsecond($3); }
-	| MINUTE_SYM '(' expr ')'
-	  { $$= new Item_func_minute($3); }
-	| MOD_SYM '(' expr ',' expr ')'
-	  { $$ = new Item_func_mod( $3, $5); }
-	| MONTH_SYM '(' expr ')'
-	  { $$= new Item_func_month($3); }
-	| NOW_SYM optional_braces
-	  { $$= new Item_func_now_local(); Lex->safe_to_cache_query=0;}
-	| NOW_SYM '(' expr ')'
-	  { $$= new Item_func_now_local($3); Lex->safe_to_cache_query=0;}
-	| PASSWORD '(' expr ')'
-	  {
-	    $$= YYTHD->variables.old_passwords ?
-              (Item *) new Item_func_old_password($3) :
-	      (Item *) new Item_func_password($3);
-	  }
-	| OLD_PASSWORD '(' expr ')'
-	  { $$=  new Item_func_old_password($3); }
-	| POSITION_SYM '(' bit_expr IN_SYM expr ')'
-	  { $$ = new Item_func_locate($5,$3); }
-	| QUARTER_SYM '(' expr ')'
-	  { $$ = new Item_func_quarter($3); }
-	| RAND '(' expr ')'
-	  { $$= new Item_func_rand($3); Lex->uncacheable(UNCACHEABLE_RAND);}
-	| RAND '(' ')'
-	  { $$= new Item_func_rand(); Lex->uncacheable(UNCACHEABLE_RAND);}
-	| REPLACE '(' expr ',' expr ',' expr ')'
-	  { $$= new Item_func_replace($3,$5,$7); }
-	| RIGHT '(' expr ',' expr ')'
-	  { $$= new Item_func_right($3,$5); }
-	| ROUND '(' expr ')'
-	  { $$= new Item_func_round($3, new Item_int((char*)"0",0,1),0); }
-	| ROUND '(' expr ',' expr ')' { $$= new Item_func_round($3,$5,0); }
-	| ROW_COUNT_SYM '(' ')'
-	  {
-	    $$= new Item_func_row_count();
-	    Lex->safe_to_cache_query= 0;
-	  }
-	| SUBDATE_SYM '(' expr ',' expr ')'
-	  { $$= new Item_date_add_interval($3, $5, INTERVAL_DAY, 1);}
-	| SUBDATE_SYM '(' expr ',' INTERVAL_SYM expr interval ')'
-	  { $$= new Item_date_add_interval($3, $6, $7, 1); }
-	| SECOND_SYM '(' expr ')'
-	  { $$= new Item_func_second($3); }
-	| SUBSTRING '(' expr ',' expr ',' expr ')'
-	  { $$= new Item_func_substr($3,$5,$7); }
-	| SUBSTRING '(' expr ',' expr ')'
-	  { $$= new Item_func_substr($3,$5); }
-	| SUBSTRING '(' expr FROM expr FOR_SYM expr ')'
-	  { $$= new Item_func_substr($3,$5,$7); }
-	| SUBSTRING '(' expr FROM expr ')'
-	  { $$= new Item_func_substr($3,$5); }
-	| SUBSTRING_INDEX '(' expr ',' expr ',' expr ')'
-	  { $$= new Item_func_substr_index($3,$5,$7); }
-	| SYSDATE optional_braces
-          {
-            if (global_system_variables.sysdate_is_now == 0)
-              $$= new Item_func_sysdate_local();
-            else $$= new Item_func_now_local();
-            Lex->safe_to_cache_query=0;
-          }
-	| SYSDATE '(' expr ')'
-          {
-            if (global_system_variables.sysdate_is_now == 0)
-              $$= new Item_func_sysdate_local($3);
-            else $$= new Item_func_now_local($3);
-            Lex->safe_to_cache_query=0;
-          }
-	| TIME_SYM '(' expr ')'
-	  { $$= new Item_time_typecast($3); }
-	| TIMESTAMP '(' expr ')'
-	  { $$= new Item_datetime_typecast($3); }
-	| TIMESTAMP '(' expr ',' expr ')'
-	  { $$= new Item_func_add_time($3, $5, 1, 0); }
-	| TIMESTAMP_ADD '(' interval_time_st ',' expr ',' expr ')'
-	  { $$= new Item_date_add_interval($7,$5,$3,0); }
-	| TIMESTAMP_DIFF '(' interval_time_st ',' expr ',' expr ')'
-	  { $$= new Item_func_timestamp_diff($5,$7,$3); }
-	| TRIM '(' expr ')'
-	  { $$= new Item_func_trim($3); }
-	| TRIM '(' LEADING expr FROM expr ')'
-	  { $$= new Item_func_ltrim($6,$4); }
-	| TRIM '(' TRAILING expr FROM expr ')'
-	  { $$= new Item_func_rtrim($6,$4); }
-	| TRIM '(' BOTH expr FROM expr ')'
-	  { $$= new Item_func_trim($6,$4); }
-	| TRIM '(' LEADING FROM expr ')'
-	 { $$= new Item_func_ltrim($5); }
-	| TRIM '(' TRAILING FROM expr ')'
-	  { $$= new Item_func_rtrim($5); }
-	| TRIM '(' BOTH FROM expr ')'
-	  { $$= new Item_func_trim($5); }
-	| TRIM '(' expr FROM expr ')'
-	  { $$= new Item_func_trim($5,$3); }
-	| TRUNCATE_SYM '(' expr ',' expr ')'
-	  { $$= new Item_func_round($3,$5,1); }
-	| ident '.' ident '(' udf_expr_list ')'
-	  {
-	    LEX *lex= Lex;
-	    sp_name *name= new sp_name($1, $3);
-
-	    name->init_qname(YYTHD);
-	    sp_add_used_routine(lex, YYTHD, name, TYPE_ENUM_FUNCTION);
-	    if ($5)
-	      $$= new Item_func_sp(Lex->current_context(), name, *$5);
-	    else
-	      $$= new Item_func_sp(Lex->current_context(), name);
-	    lex->safe_to_cache_query=0;
-	  }
-	| IDENT_sys '(' 
-          {
-#ifdef HAVE_DLOPEN
-            udf_func *udf= 0;
-            if (using_udf_functions &&
-                (udf= find_udf($1.str, $1.length)) &&
-                udf->type == UDFTYPE_AGGREGATE)
-            {
-              LEX *lex= Lex;
-              if (lex->current_select->inc_in_sum_expr())
-              {
-                yyerror(ER(ER_SYNTAX_ERROR));
-                YYABORT;
-              }
-            }
-            $<udf>$= udf;
-#endif
-          }
-          udf_expr_list ')'
-          {
-#ifdef HAVE_DLOPEN
-            udf_func *udf= $<udf>3;
-            SELECT_LEX *sel= Select;
-
-            if (udf)
-            {
-              if (udf->type == UDFTYPE_AGGREGATE)
-                Select->in_sum_expr--;
-
-              Lex->binlog_row_based_if_mixed= TRUE;
-
-              switch (udf->returns) {
-              case STRING_RESULT:
-                if (udf->type == UDFTYPE_FUNCTION)
-                {
-                  if ($4 != NULL)
-                    $$ = new Item_func_udf_str(udf, *$4);
-                  else
-                    $$ = new Item_func_udf_str(udf);
-                }
-                else
-                {
-                  if ($4 != NULL)
-                    $$ = new Item_sum_udf_str(udf, *$4);
-                  else
-                    $$ = new Item_sum_udf_str(udf);
-                }
-                break;
-              case REAL_RESULT:
-                if (udf->type == UDFTYPE_FUNCTION)
-                {
-                  if ($4 != NULL)
-                    $$ = new Item_func_udf_float(udf, *$4);
-                  else
-                    $$ = new Item_func_udf_float(udf);
-                }
-                else
-                {
-                  if ($4 != NULL)
-                    $$ = new Item_sum_udf_float(udf, *$4);
-                  else
-                    $$ = new Item_sum_udf_float(udf);
-                }
-                break;
-              case INT_RESULT:
-                if (udf->type == UDFTYPE_FUNCTION)
-                {
-                  if ($4 != NULL)
-                    $$ = new Item_func_udf_int(udf, *$4);
-                  else
-                    $$ = new Item_func_udf_int(udf);
-                }
-                else
-                {
-                  if ($4 != NULL)
-                    $$ = new Item_sum_udf_int(udf, *$4);
-                  else
-                    $$ = new Item_sum_udf_int(udf);
-                }
-                break;
-              case DECIMAL_RESULT:
-                if (udf->type == UDFTYPE_FUNCTION)
-                {
-                  if ($4 != NULL)
-                    $$ = new Item_func_udf_decimal(udf, *$4);
-                  else
-                    $$ = new Item_func_udf_decimal(udf);
-                }
-                else
-                {
-                  if ($4 != NULL)
-                    $$ = new Item_sum_udf_decimal(udf, *$4);
-                  else
-                    $$ = new Item_sum_udf_decimal(udf);
-                }
-                break;
-              default:
-                YYABORT;
-              }
-            }
-            else
-#endif /* HAVE_DLOPEN */
-            {
-	      LEX *lex= Lex;
-              THD *thd= lex->thd;
-              LEX_STRING db;
-              if (thd->copy_db_to(&db.str, &db.length))
-                YYABORT;
-              sp_name *name= new sp_name(db, $1);
-              if (name)
-                name->init_qname(thd);
-
-              sp_add_used_routine(lex, YYTHD, name, TYPE_ENUM_FUNCTION);
-              if ($4)
-                $$= new Item_func_sp(Lex->current_context(), name, *$4);
-              else
-                $$= new Item_func_sp(Lex->current_context(), name);
-	      lex->safe_to_cache_query=0;
-	    }
+            $$= new (YYTHD->mem_root) Item_func_interval((Item_row *)$1);
           }
 	| UNIQUE_USERS '(' text_literal ',' NUM ',' NUM ',' expr_list ')'
 	  {
             $$= new Item_func_unique_users($3,atoi($5.str),atoi($7.str), * $9);
 	  }
-	| UNIX_TIMESTAMP '(' ')'
+        ;
+
+/*
+  Function call syntax using official SQL 2003 keywords.
+  Because the function name is an official token,
+  a dedicated grammar rule is needed in the parser.
+  There is no potential for conflicts
+*/
+function_call_keyword:
+	  CHAR_SYM '(' expr_list ')'
+	  { $$= new (YYTHD->mem_root) Item_func_char(*$3); }
+	| CHAR_SYM '(' expr_list USING charset_name ')'
+	  { $$= new (YYTHD->mem_root) Item_func_char(*$3, $5); }
+	| CURRENT_USER optional_braces
+          {
+            $$= new (YYTHD->mem_root) Item_func_current_user(Lex->current_context());
+            Lex->safe_to_cache_query= 0;
+          }
+	| DATE_SYM '(' expr ')'
+	  { $$= new (YYTHD->mem_root) Item_date_typecast($3); }
+	| DAY_SYM '(' expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_dayofmonth($3); }
+	| HOUR_SYM '(' expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_hour($3); }
+	| INSERT '(' expr ',' expr ',' expr ',' expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_insert($3,$5,$7,$9); }
+	| LEFT '(' expr ',' expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_left($3,$5); }
+	| MINUTE_SYM '(' expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_minute($3); }
+	| MONTH_SYM '(' expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_month($3); }
+	| RIGHT '(' expr ',' expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_right($3,$5); }
+	| SECOND_SYM '(' expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_second($3); }
+	| TIME_SYM '(' expr ')'
+	  { $$= new (YYTHD->mem_root) Item_time_typecast($3); }
+	| TIMESTAMP '(' expr ')'
+	  { $$= new (YYTHD->mem_root) Item_datetime_typecast($3); }
+	| TIMESTAMP '(' expr ',' expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_add_time($3, $5, 1, 0); }
+	| TRIM '(' expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_trim($3); }
+	| TRIM '(' LEADING expr FROM expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_ltrim($6,$4); }
+	| TRIM '(' TRAILING expr FROM expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_rtrim($6,$4); }
+	| TRIM '(' BOTH expr FROM expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_trim($6,$4); }
+	| TRIM '(' LEADING FROM expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_ltrim($5); }
+	| TRIM '(' TRAILING FROM expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_rtrim($5); }
+	| TRIM '(' BOTH FROM expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_trim($5); }
+	| TRIM '(' expr FROM expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_trim($5,$3); }
+	| USER '(' ')'
 	  {
-	    $$= new Item_func_unix_timestamp();
+            $$= new (YYTHD->mem_root) Item_func_user();
+            Lex->safe_to_cache_query=0;
+          }
+	| YEAR_SYM '(' expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_year($3); }
+        ;
+
+/*
+  Function calls using non reserved keywords, with special syntaxic forms.
+  Dedicated grammar rules are needed because of the syntax,
+  but also have the potential to cause incompatibilities with other
+  parts of the language.
+  MAINTAINER:
+  The only reasons a function should be added here are:
+  - for compatibility reasons with another SQL syntax (CURDATE),
+  - for typing reasons (GET_FORMAT)
+  Any other 'Syntaxic sugar' enhancements should be *STRONGLY*
+  discouraged.
+*/
+function_call_nonkeyword:
+	  ADDDATE_SYM '(' expr ',' expr ')'
+	  {
+            $$= new (YYTHD->mem_root) Item_date_add_interval($3, $5,
+                                                             INTERVAL_DAY, 0);
+          }
+	| ADDDATE_SYM '(' expr ',' INTERVAL_SYM expr interval ')'
+	  { $$= new (YYTHD->mem_root) Item_date_add_interval($3, $6, $7, 0); }
+	| CURDATE optional_braces
+	  {
+            $$= new (YYTHD->mem_root) Item_func_curdate_local();
+            Lex->safe_to_cache_query=0;
+          }
+	| CURTIME optional_braces
+	  {
+            $$= new (YYTHD->mem_root) Item_func_curtime_local();
+            Lex->safe_to_cache_query=0;
+          }
+	| CURTIME '(' expr ')'
+	  {
+	    $$= new (YYTHD->mem_root) Item_func_curtime_local($3);
 	    Lex->safe_to_cache_query=0;
 	  }
-	| UNIX_TIMESTAMP '(' expr ')'
-	  { $$= new Item_func_unix_timestamp($3); }
-	| USER '(' ')'
-	  { $$= new Item_func_user(); Lex->safe_to_cache_query=0; }
+	| DATE_ADD_INTERVAL '(' expr ',' interval_expr interval ')'
+	  { $$= new (YYTHD->mem_root) Item_date_add_interval($3,$5,$6,0); }
+	| DATE_SUB_INTERVAL '(' expr ',' interval_expr interval ')'
+	  { $$= new (YYTHD->mem_root) Item_date_add_interval($3,$5,$6,1); }
+	| EXTRACT_SYM '(' interval FROM expr ')'
+	  { $$=new (YYTHD->mem_root) Item_extract( $3, $5); }
+	| GET_FORMAT '(' date_time_type  ',' expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_get_format($3, $5); }
+	| NOW_SYM optional_braces
+	  {
+            $$= new (YYTHD->mem_root) Item_func_now_local();
+            Lex->safe_to_cache_query=0;
+          }
+	| NOW_SYM '(' expr ')'
+	  {
+            $$= new (YYTHD->mem_root) Item_func_now_local($3);
+            Lex->safe_to_cache_query=0;
+          }
+	| POSITION_SYM '(' bit_expr IN_SYM expr ')'
+	  { $$ = new (YYTHD->mem_root) Item_func_locate($5,$3); }
+	| SUBDATE_SYM '(' expr ',' expr ')'
+	  {
+            $$= new (YYTHD->mem_root) Item_date_add_interval($3, $5,
+                                                             INTERVAL_DAY, 1);
+          }
+	| SUBDATE_SYM '(' expr ',' INTERVAL_SYM expr interval ')'
+	  { $$= new (YYTHD->mem_root) Item_date_add_interval($3, $6, $7, 1); }
+	| SUBSTRING '(' expr ',' expr ',' expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_substr($3,$5,$7); }
+	| SUBSTRING '(' expr ',' expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_substr($3,$5); }
+	| SUBSTRING '(' expr FROM expr FOR_SYM expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_substr($3,$5,$7); }
+	| SUBSTRING '(' expr FROM expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_substr($3,$5); }
+	| SYSDATE optional_braces
+          {
+            if (global_system_variables.sysdate_is_now == 0)
+              $$= new (YYTHD->mem_root) Item_func_sysdate_local();
+            else
+              $$= new (YYTHD->mem_root) Item_func_now_local();
+            Lex->safe_to_cache_query=0;
+          }
+	| SYSDATE '(' expr ')'
+          {
+            if (global_system_variables.sysdate_is_now == 0)
+              $$= new (YYTHD->mem_root) Item_func_sysdate_local($3);
+            else
+              $$= new (YYTHD->mem_root) Item_func_now_local($3);
+            Lex->safe_to_cache_query=0;
+          }
+	| TIMESTAMP_ADD '(' interval_time_st ',' expr ',' expr ')'
+	  { $$= new (YYTHD->mem_root) Item_date_add_interval($7,$5,$3,0); }
+	| TIMESTAMP_DIFF '(' interval_time_st ',' expr ',' expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_timestamp_diff($5,$7,$3); }
 	| UTC_DATE_SYM optional_braces
-	  { $$= new Item_func_curdate_utc(); Lex->safe_to_cache_query=0;}
+	  {
+            $$= new (YYTHD->mem_root) Item_func_curdate_utc();
+            Lex->safe_to_cache_query=0;
+          }
 	| UTC_TIME_SYM optional_braces
-	  { $$= new Item_func_curtime_utc(); Lex->safe_to_cache_query=0;}
+	  {
+            $$= new (YYTHD->mem_root) Item_func_curtime_utc();
+            Lex->safe_to_cache_query=0;
+          }
 	| UTC_TIMESTAMP_SYM optional_braces
-	  { $$= new Item_func_now_utc(); Lex->safe_to_cache_query=0;}
+	  {
+            $$= new (YYTHD->mem_root) Item_func_now_utc();
+            Lex->safe_to_cache_query=0;
+          }
+        ;
+
+/*
+  Functions calls using a non reserved keywork, and using a regular syntax.
+  Because the non reserved keyword is used in another part of the grammar,
+  a dedicated rule is needed here.
+*/
+function_call_conflict:
+	  ASCII_SYM '(' expr ')'
+          { $$= new (YYTHD->mem_root) Item_func_ascii($3); }
+	| CHARSET '(' expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_charset($3); }
+	| COALESCE '(' expr_list ')'
+	  { $$= new (YYTHD->mem_root) Item_func_coalesce(* $3); }
+	| COLLATION_SYM '(' expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_collation($3); }
+	| DATABASE '(' ')'
+	  {
+	    $$= new (YYTHD->mem_root) Item_func_database();
+            Lex->safe_to_cache_query=0;
+	  }
+	| IF '(' expr ',' expr ',' expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_if($3,$5,$7); }
+	| MICROSECOND_SYM '(' expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_microsecond($3); }
+	| MOD_SYM '(' expr ',' expr ')'
+	  { $$ = new (YYTHD->mem_root) Item_func_mod( $3, $5); }
+	| OLD_PASSWORD '(' expr ')'
+	  { $$=  new (YYTHD->mem_root) Item_func_old_password($3); }
+	| PASSWORD '(' expr ')'
+	  {
+            THD *thd= YYTHD;
+            Item* i1;
+            if (thd->variables.old_passwords)
+              i1= new (thd->mem_root) Item_func_old_password($3);
+            else
+              i1= new (thd->mem_root) Item_func_password($3);
+            $$= i1;
+	  }
+	| QUARTER_SYM '(' expr ')'
+	  { $$ = new (YYTHD->mem_root) Item_func_quarter($3); }
+	| REPEAT_SYM '(' expr ',' expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_repeat($3,$5); }
+	| REPLACE '(' expr ',' expr ',' expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_replace($3,$5,$7); }
+	| TRUNCATE_SYM '(' expr ',' expr ')'
+	  { $$= new (YYTHD->mem_root) Item_func_round($3,$5,1); }
 	| WEEK_SYM '(' expr ')'
 	  {
-            $$= new Item_func_week($3,new Item_int((char*) "0",
-				   YYTHD->variables.default_week_format,1));
+            THD *thd= YYTHD;
+            Item *i1= new (thd->mem_root) Item_int((char*) "0",
+                                           thd->variables.default_week_format,
+                                                   1);
+
+            $$= new (thd->mem_root) Item_func_week($3, i1);
           }
 	| WEEK_SYM '(' expr ',' expr ')'
-	  { $$= new Item_func_week($3,$5); }
-	| YEAR_SYM '(' expr ')'
-	  { $$= new Item_func_year($3); }
-	| YEARWEEK '(' expr ')'
-	  { $$= new Item_func_yearweek($3,new Item_int((char*) "0",0,1)); }
-	| YEARWEEK '(' expr ',' expr ')'
-	  { $$= new Item_func_yearweek($3, $5); }
-	| BENCHMARK_SYM '(' ulong_num ',' expr ')'
-	  {
-	    $$=new Item_func_benchmark($3,$5);
-	    Lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
-	  }
-	| EXTRACT_SYM '(' interval FROM expr ')'
-	{ $$=new Item_extract( $3, $5); };
+	  { $$= new (YYTHD->mem_root) Item_func_week($3,$5); }
+        | geometry_function
+          {
+#ifdef HAVE_SPATIAL
+            $$= $1;
+#else
+            my_error(ER_FEATURE_DISABLED, MYF(0),
+                     sym_group_geom.name, sym_group_geom.needed_define);
+            YYABORT;
+#endif
+          }
+        ;
 
 geometry_function:
 	  CONTAINS_SYM '(' expr ',' expr ')'
-	  { $$= GEOM_NEW(Item_func_spatial_rel($3, $5, Item_func::SP_CONTAINS_FUNC)); }
-	| GEOMFROMTEXT '(' expr ')'
-	  { $$= GEOM_NEW(Item_func_geometry_from_text($3)); }
-	| GEOMFROMTEXT '(' expr ',' expr ')'
-	  { $$= GEOM_NEW(Item_func_geometry_from_text($3, $5)); }
-	| GEOMFROMWKB '(' expr ')'
-	  { $$= GEOM_NEW(Item_func_geometry_from_wkb($3)); }
-	| GEOMFROMWKB '(' expr ',' expr ')'
-	  { $$= GEOM_NEW(Item_func_geometry_from_wkb($3, $5)); }
+	  {
+            $$= GEOM_NEW(YYTHD,
+                         Item_func_spatial_rel($3, $5,
+                                               Item_func::SP_CONTAINS_FUNC));
+          }
 	| GEOMETRYCOLLECTION '(' expr_list ')'
-	  { $$= GEOM_NEW(Item_func_spatial_collection(* $3,
+	  {
+            $$= GEOM_NEW(YYTHD,
+                         Item_func_spatial_collection(* $3,
                            Geometry::wkb_geometrycollection,
-                           Geometry::wkb_point)); }
+                           Geometry::wkb_point));
+          }
 	| LINESTRING '(' expr_list ')'
-	  { $$= GEOM_NEW(Item_func_spatial_collection(* $3,
-                  Geometry::wkb_linestring, Geometry::wkb_point)); }
+	  {
+            $$= GEOM_NEW(YYTHD,
+                         Item_func_spatial_collection(* $3,
+                           Geometry::wkb_linestring,
+                           Geometry::wkb_point));
+          }
  	| MULTILINESTRING '(' expr_list ')'
-	  { $$= GEOM_NEW( Item_func_spatial_collection(* $3,
-                   Geometry::wkb_multilinestring, Geometry::wkb_linestring)); }
- 	| MLINEFROMTEXT '(' expr ')'
-	  { $$= GEOM_NEW(Item_func_geometry_from_text($3)); }
-	| MLINEFROMTEXT '(' expr ',' expr ')'
-	  { $$= GEOM_NEW(Item_func_geometry_from_text($3, $5)); }
-	| MPOINTFROMTEXT '(' expr ')'
-	  { $$= GEOM_NEW(Item_func_geometry_from_text($3)); }
-	| MPOINTFROMTEXT '(' expr ',' expr ')'
-	  { $$= GEOM_NEW(Item_func_geometry_from_text($3, $5)); }
-	| MPOLYFROMTEXT '(' expr ')'
-	  { $$= GEOM_NEW(Item_func_geometry_from_text($3)); }
-	| MPOLYFROMTEXT '(' expr ',' expr ')'
-	  { $$= GEOM_NEW(Item_func_geometry_from_text($3, $5)); }
+	  {
+            $$= GEOM_NEW(YYTHD,
+                         Item_func_spatial_collection(* $3,
+                           Geometry::wkb_multilinestring,
+                           Geometry::wkb_linestring));
+          }
 	| MULTIPOINT '(' expr_list ')'
-	  { $$= GEOM_NEW(Item_func_spatial_collection(* $3,
-                  Geometry::wkb_multipoint, Geometry::wkb_point)); }
+	  {
+            $$= GEOM_NEW(YYTHD,
+                         Item_func_spatial_collection(* $3,
+                           Geometry::wkb_multipoint,
+                           Geometry::wkb_point));
+          }
  	| MULTIPOLYGON '(' expr_list ')'
-	  { $$= GEOM_NEW(Item_func_spatial_collection(* $3,
-                  Geometry::wkb_multipolygon, Geometry::wkb_polygon)); }
+	  {
+            $$= GEOM_NEW(YYTHD,
+                         Item_func_spatial_collection(* $3,
+                           Geometry::wkb_multipolygon,
+                           Geometry::wkb_polygon));
+          }
 	| POINT_SYM '(' expr ',' expr ')'
-	  { $$= GEOM_NEW(Item_func_point($3,$5)); }
- 	| POINTFROMTEXT '(' expr ')'
-	  { $$= GEOM_NEW(Item_func_geometry_from_text($3)); }
-	| POINTFROMTEXT '(' expr ',' expr ')'
-	  { $$= GEOM_NEW(Item_func_geometry_from_text($3, $5)); }
-	| POLYFROMTEXT '(' expr ')'
-	  { $$= GEOM_NEW(Item_func_geometry_from_text($3)); }
-	| POLYFROMTEXT '(' expr ',' expr ')'
-	  { $$= GEOM_NEW(Item_func_geometry_from_text($3, $5)); }
+	  { $$= GEOM_NEW(YYTHD, Item_func_point($3,$5)); }
 	| POLYGON '(' expr_list ')'
-	  { $$= GEOM_NEW(Item_func_spatial_collection(* $3,
-	          Geometry::wkb_polygon, Geometry::wkb_linestring)); }
- 	| GEOMCOLLFROMTEXT '(' expr ')'
-	  { $$= GEOM_NEW(Item_func_geometry_from_text($3)); }
-	| GEOMCOLLFROMTEXT '(' expr ',' expr ')'
-	  { $$= GEOM_NEW(Item_func_geometry_from_text($3, $5)); }
- 	| LINEFROMTEXT '(' expr ')'
-	  { $$= GEOM_NEW(Item_func_geometry_from_text($3)); }
-	| LINEFROMTEXT '(' expr ',' expr ')'
-	  { $$= GEOM_NEW(Item_func_geometry_from_text($3, $5)); }
-	;
+	  {
+            $$= GEOM_NEW(YYTHD,
+                         Item_func_spatial_collection(* $3,
+	                   Geometry::wkb_polygon,
+                           Geometry::wkb_linestring));
+          }
+        ;
+
+/*
+  Regular function calls.
+  The function name is *not* a token, and therefore is guaranteed to not
+  introduce side effects to the language in general.
+  MAINTAINER:
+  All the new functions implemented for new features should fit into
+  this category. The place to implement the function itself is
+  in sql/item_create.cc
+*/
+function_call_generic:
+        IDENT_sys '('
+        {
+#ifdef HAVE_DLOPEN
+          udf_func *udf= 0;
+          if (using_udf_functions &&
+              (udf= find_udf($1.str, $1.length)) &&
+              udf->type == UDFTYPE_AGGREGATE)
+          {
+            LEX *lex= Lex;
+            if (lex->current_select->inc_in_sum_expr())
+            {
+              yyerror(ER(ER_SYNTAX_ERROR));
+              YYABORT;
+            }
+          }
+          /* Temporary placing the result of find_udf in $3 */
+          $<udf>$= udf;
+#endif
+        }
+        expr_list_opt ')'
+        {
+          THD *thd= YYTHD;
+          LEX *lex= Lex;
+          Create_func *builder;
+          Item *item= NULL;
+
+          /*
+            Implementation note:
+            names are resolved with the following order:
+            - MySQL native functions,
+            - User Defined Functions,
+            - Stored Functions (assuming the current <use> database)
+
+            This will be revised with WL#2128 (SQL PATH)
+          */
+          builder= find_native_function_builder(thd, $1);
+          if (builder)
+          {
+            item= builder->create(thd, $1, $4);
+          }
+          else
+          {
+#ifdef HAVE_DLOPEN
+            /* Retrieving the result of find_udf */
+            udf_func *udf= $<udf>3;
+
+            if (udf)
+            {
+              if (udf->type == UDFTYPE_AGGREGATE)
+              {
+                Select->in_sum_expr--;
+              }
+
+              item= Create_udf_func::s_singleton.create(thd, udf, $4);
+            }
+            else
+#endif
+            {
+              builder= find_qualified_function_builder(thd);
+              DBUG_ASSERT(builder);
+              item= builder->create(thd, $1, $4);
+            }
+          }
+
+          if (! ($$= item))
+          {
+            YYABORT;
+          }
+        }
+	| ident '.' ident '(' udf_expr_list ')'
+	{
+          THD *thd= YYTHD;
+          Create_qfunc *builder;
+          Item *item= NULL;
+
+          /*
+            The following in practice calls:
+            <code>Create_sp_func::create()</code>
+            and builds a stored function.
+
+            However, it's important to maintain the interface between the
+            parser and the implementation in item_create.cc clean,
+            since this will change with WL#2128 (SQL PATH):
+            - INFORMATION_SCHEMA.version() is the SQL 99 syntax for the native
+            funtion version(),
+            - MySQL.version() is the SQL 2003 syntax for the native function
+            version() (a vendor can specify any schema).
+          */
+
+          builder= find_qualified_function_builder(thd);
+          DBUG_ASSERT(builder);
+          item= builder->create(thd, $1, $3, $5);
+
+          if (! ($$= item))
+          {
+            YYABORT;
+          }
+	}
+        ;
 
 fulltext_options:
           opt_natural_language_mode opt_query_expansion
@@ -6770,6 +6657,13 @@ cast_type:
         | DATETIME		{ $$=ITEM_CAST_DATETIME; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
         | DECIMAL_SYM float_options { $$=ITEM_CAST_DECIMAL; Lex->charset= NULL; }
 	;
+
+expr_list_opt:
+        /* empty */
+          { $$ = NULL; }
+        | expr_list
+          { $$ = $1;}
+        ;
 
 expr_list:
 	{ Select->expr_list.push_front(new List<Item>); }

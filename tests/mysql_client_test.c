@@ -8685,7 +8685,7 @@ static void test_sqlmode()
   if (!opt_silent)
     fprintf(stdout, "\n  query: %s", query);
   stmt= mysql_simple_prepare(mysql, query);
-  check_stmt_r(stmt);
+  check_stmt(stmt);
 
   /* ANSI */
   strmov(query, "SET SQL_MODE= \"ANSI\"");

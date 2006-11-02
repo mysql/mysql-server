@@ -698,11 +698,11 @@ drop function `f``1`;
 #
 # tested problem when function name length close to ALIGN_SIZE
 #
-create function x () returns int return 5;
-create view v1 as select x ();
+create function a() returns int return 5;
+create view v1 as select a();
 select * from v1;
 drop view v1;
-drop function x;
+drop function a;
 
 #
 # VIEW with collation
