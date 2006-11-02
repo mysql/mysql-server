@@ -101,33 +101,12 @@ ThreadConfig::scanTimeQueue()
 void ThreadConfig::ipControlLoop()
 {
 
-#if defined NDB_OSE || defined NDB_SOFTOSE
-//--------------------------------------------------------------------
-// To let the Cello Watchdog do it's work NDB must sleep a short 
-// period every 10 minutes. If this is not done, the watchdog will 
-// reboot the board NDB is running on when the load is high. 
-//--------------------------------------------------------------------
-  int loopCounter = 0;
-#endif
-
 //--------------------------------------------------------------------
 // initialise the counter that keeps track of the current millisecond
 //--------------------------------------------------------------------
   globalData.internalMillisecCounter = NdbTick_CurrentMillisecond();
   Uint32 i = 0;
   while (globalData.theRestartFlag != perform_stop)  { 
-
-#if defined NDB_OSE || defined NDB_SOFTOSE
-    loopCounter++;
-    if(loopCounter > 1000){
-//--------------------------------------------------------------------
-// This is done to allow OSE do a context switch to let the watchdog 
-// do it's stuff.
-//--------------------------------------------------------------------
-      NdbSleep_MilliSleep(1);
-      loopCounter = 0;
-    }
-#endif
 
     Uint32 timeOutMillis = 0;
     if (LEVEL_IDLE == globalData.highestAvailablePrio) {

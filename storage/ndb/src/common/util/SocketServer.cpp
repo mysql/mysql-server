@@ -264,21 +264,6 @@ SocketServer::startSession(SessionInstance & si){
 				 NDB_THREAD_PRIO_LOW);
 }
 
-static
-bool 
-transfer(NDB_SOCKET_TYPE sock){
-#if defined NDB_OSE || defined NDB_SOFTOSE
-  const PROCESS p = current_process();
-  const size_t ps = sizeof(PROCESS);
-  int res = setsockopt(sock, SOL_SOCKET, SO_OSEOWNER, &p, ps);
-  if(res != 0){
-    ndbout << "Failed to transfer ownership of socket" << endl;
-    return false;
-  }
-#endif
-  return true;
-}
-
 void
 SocketServer::foreachSession(void (*func)(SocketServer::Session*, void *), void *data)
 {
@@ -350,11 +335,6 @@ void*
 sessionThread_C(void* _sc){
   SocketServer::Session * si = (SocketServer::Session *)_sc;
 
-  if(!transfer(si->m_socket)){
-    si->m_stopped = true;
-    return 0;
-  }
-  
   /**
    * may have m_stopped set if we're transforming a mgm
    * connection into a transporter connection.

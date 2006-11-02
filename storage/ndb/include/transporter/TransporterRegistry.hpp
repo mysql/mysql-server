@@ -49,8 +49,8 @@ enum IOState {
 enum TransporterType {
   tt_TCP_TRANSPORTER = 1,
   tt_SCI_TRANSPORTER = 2,
-  tt_SHM_TRANSPORTER = 3,
-  tt_OSE_TRANSPORTER = 4
+  tt_SHM_TRANSPORTER = 3
+  // ID 4 was OSE Transporter which has been removed. Don't use ID 4.
 };
 
 static const char *performStateString[] = 
@@ -63,7 +63,6 @@ class Transporter;
 class TCP_Transporter;
 class SCI_Transporter;
 class SHM_Transporter;
-class OSE_Transporter;
 
 class TransporterRegistry;
 class SocketAuthenticator;
@@ -89,7 +88,6 @@ public:
  * @brief ...
  */
 class TransporterRegistry {
-  friend class OSE_Receiver;
   friend class SHM_Transporter;
   friend class Transporter;
   friend class TransporterService;
@@ -202,7 +200,6 @@ public:
   bool createTCPTransporter(struct TransporterConfiguration * config);
   bool createSCITransporter(struct TransporterConfiguration * config);
   bool createSHMTransporter(struct TransporterConfiguration * config);
-  bool createOSETransporter(struct TransporterConfiguration * config);
 
   /**
    * Get free buffer space
@@ -288,7 +285,6 @@ private:
   int nTCPTransporters;
   int nSCITransporters;
   int nSHMTransporters;
-  int nOSETransporters;
 
   /**
    * Arrays holding all transporters in the order they are created
@@ -296,7 +292,6 @@ private:
   TCP_Transporter** theTCPTransporters;
   SCI_Transporter** theSCITransporters;
   SHM_Transporter** theSHMTransporters;
-  OSE_Transporter** theOSETransporters;
   
   /**
    * Array, indexed by nodeId, holding all transporters
@@ -304,24 +299,6 @@ private:
   TransporterType* theTransporterTypes;
   Transporter**    theTransporters;
 
-  /**
-   * OSE Receiver
-   */
-  class OSE_Receiver * theOSEReceiver;
-
-  /**
-   * In OSE you for some bizar reason needs to create a socket
-   *  the first thing you do when using inet functions.
-   *
-   * Furthermore a process doing select has to "own" a socket
-   * 
-   */  
-  int theOSEJunkSocketSend;
-  int theOSEJunkSocketRecv;
-#if defined NDB_OSE || defined NDB_SOFTOSE
-  PROCESS theReceiverPid;
-#endif
-  
   /** 
    * State arrays, index by host id
    */
@@ -355,7 +332,6 @@ private:
   int tcpReadSelectReply;
   fd_set tcpReadset;
   
-  Uint32 poll_OSE(Uint32 timeOutMillis);
   Uint32 poll_TCP(Uint32 timeOutMillis);
   Uint32 poll_SCI(Uint32 timeOutMillis);
   Uint32 poll_SHM(Uint32 timeOutMillis);

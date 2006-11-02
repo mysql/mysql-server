@@ -155,8 +155,6 @@ public:
   /**
    * Create a default handler that logs to the syslog.
    *
-   * On OSE a ConsoleHandler will be created since there is no syslog support.
-   *
    * @return true if successful.
    */
   bool createSyslogHandler();	

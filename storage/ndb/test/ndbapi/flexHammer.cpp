@@ -63,9 +63,6 @@ Revision history:
 
 ErrorData * flexHammerErrorData;
 
-#if defined NDB_OSE || defined NDB_SOFTOSE
-#include <outfmt.h> 
-#endif
 
 #define MAXSTRLEN 16 
 #define MAXATTR 64
@@ -775,24 +772,11 @@ createTables(Ndb* pMyNdb)
       } // if
       
       // Create tables, rest of parameters are default right now
-#if defined NDB_OSE || defined NDB_SOFTOSE
-      check = MySchemaOp->createTable(tableName[i],
-				      8,		// Table Size
-				      TupleKey,	// Key Type
-				      40,		// Nr of Pages
-				      All, 
-				      6,
-				      78,
-				      80,
-				      1,
-				      false);
-
-#else
       check = MySchemaOp->createTable(tableName[i],
 				      8,		// Table Size
 				      TupleKey,	// Key Type
 				      40);		// Nr of Pages
-#endif
+
       if (check == -1) { 
 	// Clean up opened schema transaction
 	NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
