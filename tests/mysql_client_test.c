@@ -121,8 +121,9 @@ static void client_disconnect();
 
 void die(const char *file, int line, const char *expr)
 {
+  fflush(stdout);
   fprintf(stderr, "%s:%d: check failed: '%s'\n", file, line, expr);
-  fflush(NULL);
+  fflush(stderr);
   abort();
 }
 
@@ -7496,10 +7497,22 @@ static void test_explain_bug()
                        MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
                        0, 0, "", 3, 0);
 
-  verify_prepare_field(result, 4, "Default", "COLUMN_DEFAULT",
-                       mysql_get_server_version(mysql) <= 50000 ?
-                       MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
-                       0, 0, "", 64, 0);
+  if ( mysql_get_server_version(mysql) >= 50027 )
+  {
+    /*  The patch for bug#23037 changes column type of DEAULT to blob */
+    verify_prepare_field(result, 4, "Default", "COLUMN_DEFAULT",
+                         MYSQL_TYPE_BLOB, 0, 0, "", 0, 0);
+  }
+  else
+  {
+    verify_prepare_field(result, 4, "Default", "COLUMN_DEFAULT",
+                         mysql_get_server_version(mysql) >= 50027 ?
+                         MYSQL_TYPE_BLOB :
+                         mysql_get_server_version(mysql) <= 50000 ?
+                         MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
+                         0, 0, "",
+                         mysql_get_server_version(mysql) >= 50027 ? 0 :64, 0);
+  }
 
   verify_prepare_field(result, 5, "Extra", "EXTRA",
                        mysql_get_server_version(mysql) <= 50000 ?
@@ -11977,6 +11990,19 @@ static void test_cursors_with_union()
   fetch_n(queries, sizeof(queries)/sizeof(*queries), USE_STORE_RESULT);
 }
 
+
+static void test_cursors_with_procedure()
+{
+  const char *queries[]=
+  {
+    "SELECT * FROM t1 procedure analyse()"
+  };
+  myheader("test_cursors_with_procedure");
+  fetch_n(queries, sizeof(queries)/sizeof(*queries), USE_ROW_BY_ROW_FETCH);
+  fetch_n(queries, sizeof(queries)/sizeof(*queries), USE_STORE_RESULT);
+}
+
+
 /*
   Altough mysql_create_db(), mysql_rm_db() are deprecated since 4.0 they
   should not crash server and should not hang in case of errors.
@@ -14454,6 +14480,7 @@ static void test_bug11718()
     printf("return type: %s", (res->fields[0].type == MYSQL_TYPE_DATE)?"DATE":
            "not DATE");
   DIE_UNLESS(res->fields[0].type == MYSQL_TYPE_DATE);
+  mysql_free_result(res);
   rc= mysql_query(mysql, "drop table t1, t2");
   myquery(rc);
 }
@@ -14920,6 +14947,8 @@ static void test_bug15613()
   DIE_UNLESS(field[4].length == 255);
   DIE_UNLESS(field[5].length == 255);
   DIE_UNLESS(field[6].length == 255);
+  mysql_free_result(metadata);
+  mysql_stmt_free_result(stmt);
 
   /* III. Cleanup */
   rc= mysql_query(mysql, "drop table t1");
@@ -15096,6 +15125,9 @@ static void test_bug14169()
   if (!opt_silent)
     printf("GROUP_CONCAT() result type %i", field[1].type);
   DIE_UNLESS(field[1].type == MYSQL_TYPE_BLOB);
+  mysql_free_result(res);
+  mysql_stmt_free_result(stmt);
+  mysql_stmt_close(stmt);
 
   rc= mysql_query(mysql, "drop table t1");
   myquery(rc);
@@ -15343,7 +15375,7 @@ static void test_bug15752()
   MYSQL mysql_local;
   int rc, i;
   const int ITERATION_COUNT= 100;
-  char *query= "CALL p1()";
+  const char *query= "CALL p1()";
 
   myheader("test_bug15752");
 
@@ -15702,6 +15734,7 @@ static struct my_tests_st my_tests[]= {
   { "test_view_insert_fields", test_view_insert_fields },
   { "test_basic_cursors", test_basic_cursors },
   { "test_cursors_with_union", test_cursors_with_union },
+  { "test_cursors_with_procedure", test_cursors_with_procedure },
   { "test_truncation", test_truncation },
   { "test_truncation_option", test_truncation_option },
   { "test_client_character_set", test_client_character_set },

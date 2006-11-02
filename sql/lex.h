@@ -45,6 +45,10 @@ SYM_GROUP sym_group_rtree= {"RTree keys", "HAVE_RTREE_KEYS"};
   Symbols are broken into separated arrays to allow field names with
   same name as functions.
   These are kept sorted for human lookup (the symbols are hashed).
+
+  NOTE! The symbol tables should be the same regardless of what features
+  are compiled into the server. Don't add ifdef'ed symbols to the
+  lists
 */
 
 static SYMBOL symbols[] = {
@@ -383,11 +387,9 @@ static SYMBOL symbols[] = {
   { "PACK_KEYS",	SYM(PACK_KEYS_SYM)},
   { "PARSER",           SYM(PARSER_SYM)},
   { "PARTIAL",		SYM(PARTIAL)},
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   { "PARTITION",        SYM(PARTITION_SYM)},
   { "PARTITIONING",     SYM(PARTITIONING_SYM)},
   { "PARTITIONS",       SYM(PARTITIONS_SYM)},
-#endif
   { "PASSWORD",		SYM(PASSWORD)},
   { "PHASE",            SYM(PHASE_SYM)},
   { "PLUGIN",           SYM(PLUGIN_SYM)},

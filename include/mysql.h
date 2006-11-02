@@ -14,6 +14,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/*
+  This file defines the client API to MySQL and also the ABI of the
+  dynamically linked libmysqlclient.
+
+  The ABI should never be changed in a released product of MySQL
+  thus you need to take great care when changing the file. In case
+  the file is changed so the ABI is broken, you must also
+  update the SHAREDLIB_MAJOR_VERSION in configure.in .
+
+*/
+
 #ifndef _mysql_h
 #define _mysql_h
 

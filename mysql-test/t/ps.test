@@ -1531,6 +1531,19 @@ while ($iterations > 0)
 --enable_query_log
 --enable_result_log
 
+#
+# Bug 19764:  SHOW commands end up in the slow log as table scans
+#
+
+flush status;
+prepare sq from 'show status like "slow_queries"';
+execute sq;
+prepare no_index from 'select 1 from information_schema.tables limit 1';
+execute sq;
+execute no_index;
+execute sq;
+deallocate prepare no_index;
+deallocate prepare sq;
 
 --echo End of 5.0 tests.
 
