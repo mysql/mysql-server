@@ -206,13 +206,13 @@ drop event events_test.mysqltest_user1;
 drop user mysqltest_user1@localhost;
 drop database mysqltest_db1;
 create event e_53 on schedule at (select s1 from ttx) do drop table t;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select s1 from ttx) do drop table t' at line 1
+ERROR 42000: This version of MySQL doesn't yet support 'Usage of subqueries or stored function calls as part of this statement'
 create event e_53 on schedule every (select s1 from ttx) second do drop table t;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select s1 from ttx) second do drop table t' at line 1
+ERROR 42000: This version of MySQL doesn't yet support 'Usage of subqueries or stored function calls as part of this statement'
 create event e_53 on schedule every 5 second starts (select s1 from ttx) do drop table t;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select s1 from ttx) do drop table t' at line 1
+ERROR 42000: This version of MySQL doesn't yet support 'Usage of subqueries or stored function calls as part of this statement'
 create event e_53 on schedule every 5 second ends (select s1 from ttx) do drop table t;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select s1 from ttx) do drop table t' at line 1
+ERROR 42000: This version of MySQL doesn't yet support 'Usage of subqueries or stored function calls as part of this statement'
 drop event if exists e_16;
 drop procedure if exists p_16;
 create event e_16 on schedule every 1 second do set @a=5;
@@ -226,4 +226,46 @@ set @a= 6;
 call p_16();
 drop procedure p_16;
 drop event e_16;
+drop function if exists f22830;
+drop event if exists e22830;
+drop event if exists e22830_1;
+drop event if exists e22830_2;
+drop event if exists e22830_3;
+drop event if exists e22830_4;
+drop table if exists t1;
+drop table if exists t2;
+create table t1 (a int);
+insert into t1 values (2);
+create table t2 (a char(20));
+insert into t2 values ("e22830_1");
+create function f22830 () returns int return 5;
+create event e22830 on schedule every f22830() second do select 123;
+ERROR 42000: This version of MySQL doesn't yet support 'Usage of subqueries or stored function calls as part of this statement'
+create event e22830_1 on schedule every 1 hour do alter event e22830_1 on schedule every (select 8 from dual) hour;
+create event e22830_2 on schedule every 1 hour do alter event e22830_2 on schedule every (select 8 from t1) hour;
+create event e22830_3 on schedule every 1 hour do alter event e22830_3 on schedule every f22830() hour;
+create event e22830_4 on schedule every 1 hour do alter event e22830_4 on schedule every (select f22830() from dual) hour;
+select event_name, event_definition, interval_value, interval_field from information_schema.events order by event_name;
+event_name	event_definition	interval_value	interval_field
+e22830_1	alter event e22830_1 on schedule every (select 8 from dual) hour	1	HOUR
+e22830_2	alter event e22830_2 on schedule every (select 8 from t1) hour	1	HOUR
+e22830_3	alter event e22830_3 on schedule every f22830() hour	1	HOUR
+e22830_4	alter event e22830_4 on schedule every (select f22830() from dual) hour	1	HOUR
+set global event_scheduler=on;
+set global event_scheduler=off;
+select event_name, event_definition, interval_value, interval_field from information_schema.events order by event_name;
+event_name	event_definition	interval_value	interval_field
+e22830_1	alter event e22830_1 on schedule every (select 8 from dual) hour	8	HOUR
+e22830_2	alter event e22830_2 on schedule every (select 8 from t1) hour	1	HOUR
+e22830_3	alter event e22830_3 on schedule every f22830() hour	1	HOUR
+e22830_4	alter event e22830_4 on schedule every (select f22830() from dual) hour	1	HOUR
+drop function f22830;
+drop event (select a from t2);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select a from t2)' at line 1
+drop event e22830_1;
+drop event e22830_2;
+drop event e22830_3;
+drop event e22830_4;
+drop table t1;
+drop table t2;
 drop database events_test;
