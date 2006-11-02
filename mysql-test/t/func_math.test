@@ -34,6 +34,11 @@ select pi(),format(sin(pi()/2),6),format(cos(pi()/2),6),format(abs(tan(pi())),6)
 explain extended select pi(),format(sin(pi()/2),6),format(cos(pi()/2),6),format(abs(tan(pi())),6),format(cot(1),6),format(asin(1),6),format(acos(0),6),format(atan(1),6);
 select degrees(pi()),radians(360);
 
+select format(atan(-2, 2), 6);
+select format(atan(pi(), 0), 6);
+select format(atan2(-2, 2), 6);
+select format(atan2(pi(), 0), 6);
+
 #
 # Bug #2338 Trignometric arithmatic problems 
 #
