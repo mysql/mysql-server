@@ -100,6 +100,8 @@ int my_TIME_to_str(const MYSQL_TIME *l_time, char *to);
 /*
   The following must be sorted so that simple intervals comes first.
   (get_interval_value() depends on this)
+  When updating this enum please update 
+  LEX_STRING interval_type_to_name[] in sql/time.cc
 */
 
 enum interval_type

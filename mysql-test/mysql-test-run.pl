@@ -1425,6 +1425,7 @@ sub environment_setup () {
 # $ENV{'MYSQL_TCP_PORT'}=     '@MYSQL_TCP_PORT@'; # FIXME
   $ENV{'MYSQL_TCP_PORT'}=     3306;
 
+  $ENV{'EXE_MYSQL'}=          $exe_mysql;
   $ENV{MTR_BUILD_THREAD}= 0 unless $ENV{MTR_BUILD_THREAD}; # Set if not set
 
   # ----------------------------------------------------
@@ -1456,6 +1457,9 @@ sub environment_setup () {
   $ENV{'IM_PORT'}=            $instance_manager->{port};
   $ENV{'IM_DEFAULTS_PATH'}=   $instance_manager->{defaults_file};
   $ENV{'IM_PASSWORD_PATH'}=   $instance_manager->{password_file};
+  $ENV{'IM_PATH_SOCK'}=       $instance_manager->{path_sock};
+  $ENV{'IM_USERNAME'}=        $instance_manager->{admin_login};
+  $ENV{'IM_PASSWORD'}=        $instance_manager->{admin_password};
 
   $ENV{'IM_MYSQLD1_SOCK'}=    $instance_manager->{instances}->[0]->{path_sock};
   $ENV{'IM_MYSQLD1_PORT'}=    $instance_manager->{instances}->[0]->{port};
@@ -1464,9 +1468,9 @@ sub environment_setup () {
   $ENV{'IM_MYSQLD2_PORT'}=    $instance_manager->{instances}->[1]->{port};
   $ENV{'IM_MYSQLD2_PATH_PID'}=$instance_manager->{instances}->[1]->{path_pid};
 
-  # ----------------------------------------------------
-  # Setup env so childs can execute mysqlcheck
-  # ----------------------------------------------------
+# ----------------------------------------------------
+# Setup env so childs can execute mysqlcheck
+# ----------------------------------------------------
   my $cmdline_mysqlcheck=
     "$exe_mysqlcheck --no-defaults -uroot " .
     "--port=$master->[0]->{'port'} " .
@@ -1630,9 +1634,9 @@ sub environment_setup () {
       ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
 
 
-  # ----------------------------------------------------
-  # We are nice and report a bit about our settings
-  # ----------------------------------------------------
+# ----------------------------------------------------
+# We are nice and report a bit about our settings
+# ----------------------------------------------------
   if (!$opt_extern)
   {
     print "Using MTR_BUILD_THREAD      = $ENV{MTR_BUILD_THREAD}\n";
