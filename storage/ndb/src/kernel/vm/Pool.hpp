@@ -305,7 +305,11 @@ inline
 bool
 RecordPool<T, P>::seize(Ptr<T> & ptr)
 {
-  return m_pool.seize(*(Ptr<void>*)&ptr);
+  Ptr<void> tmp;
+  bool ret = m_pool.seize(tmp);
+  ptr.i = tmp.i;
+  ptr.p = static_cast<T*>(tmp.p);
+  return ret;
 }
 
 template <typename T, typename P>

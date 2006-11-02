@@ -3,3 +3,4 @@ MYSQL_STORAGE_ENGINE(myisammrg,no,[MyISAM MERGE Engine],
 MYSQL_PLUGIN_DIRECTORY(myisammrg,[storage/myisammrg])
 MYSQL_PLUGIN_STATIC(myisammrg,  [libmyisammrg.a])
 MYSQL_PLUGIN_MANDATORY(myisammrg)
+MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS(myisammrg, [ha_myisammrg.cc])
