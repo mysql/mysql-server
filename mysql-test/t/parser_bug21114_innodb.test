@@ -11,11 +11,11 @@ let $engine_type=InnoDb;
 
 let $verbose=1;
 
-let $FCT=ABS;
+let $FCT=abs;
 -- source include/parser_bug21114.inc
-let $FCT=FIELD;
+let $FCT=field;
 -- source include/parser_bug21114.inc
-let $FCT=FORMAT;
+let $FCT=format;
 -- source include/parser_bug21114.inc
 
 # Ignoring the result of SHOW CREATE (this generates too much noise)
@@ -23,400 +23,400 @@ let $FCT=FORMAT;
 
 let verbose=0;
 
-let $FCT=ACOS;
+let $FCT=acos;
 -- source include/parser_bug21114.inc
-let $FCT=ADDDATE;
+let $FCT=adddate;
 -- source include/parser_bug21114.inc
-let $FCT=ADDTIME;
+let $FCT=addtime;
 -- source include/parser_bug21114.inc
-let $FCT=AES_DECRYPT;
+let $FCT=aes_decrypt;
 -- source include/parser_bug21114.inc
-let $FCT=AES_ENCRYPT;
+let $FCT=aes_encrypt;
 -- source include/parser_bug21114.inc
-let $FCT=AREA;
+let $FCT=area;
 -- source include/parser_bug21114.inc
-let $FCT=ASBINARY;
+let $FCT=asbinary;
 -- source include/parser_bug21114.inc
-let $FCT=ASIN;
+let $FCT=asin;
 -- source include/parser_bug21114.inc
-let $FCT=ASTEXT;
+let $FCT=astext;
 -- source include/parser_bug21114.inc
-let $FCT=ASWKB;
+let $FCT=aswkb;
 -- source include/parser_bug21114.inc
-let $FCT=ASWKT;
+let $FCT=aswkt;
 -- source include/parser_bug21114.inc
-let $FCT=ATAN;
+let $FCT=atan;
 -- source include/parser_bug21114.inc
-let $FCT=ATAN2;
+let $FCT=atan2;
 -- source include/parser_bug21114.inc
-let $FCT=BENCHMARK;
+let $FCT=benchmark;
 -- source include/parser_bug21114.inc
-let $FCT=BIN;
+let $FCT=bin;
 -- source include/parser_bug21114.inc
-let $FCT=BIT_COUNT;
+let $FCT=bit_count;
 -- source include/parser_bug21114.inc
-let $FCT=BIT_LENGTH;
+let $FCT=bit_length;
 -- source include/parser_bug21114.inc
-let $FCT=CEIL;
+let $FCT=ceil;
 -- source include/parser_bug21114.inc
-let $FCT=CEILING;
+let $FCT=ceiling;
 -- source include/parser_bug21114.inc
-let $FCT=CENTROID;
+let $FCT=centroid;
 -- source include/parser_bug21114.inc
-let $FCT=CHARACTER_LENGTH;
+let $FCT=character_length;
 -- source include/parser_bug21114.inc
-let $FCT=CHAR_LENGTH;
+let $FCT=char_length;
 -- source include/parser_bug21114.inc
-let $FCT=COERCIBILITY;
+let $FCT=coercibility;
 -- source include/parser_bug21114.inc
-let $FCT=COMPRESS;
+let $FCT=compress;
 -- source include/parser_bug21114.inc
-let $FCT=CONCAT;
+let $FCT=concat;
 -- source include/parser_bug21114.inc
-let $FCT=CONCAT_WS;
+let $FCT=concat_ws;
 -- source include/parser_bug21114.inc
-let $FCT=CONNECTION_ID;
+let $FCT=connection_id;
 -- source include/parser_bug21114.inc
-let $FCT=CONV;
+let $FCT=conv;
 -- source include/parser_bug21114.inc
-let $FCT=CONVERT_TZ;
+let $FCT=convert_tz;
 -- source include/parser_bug21114.inc
-let $FCT=COS;
+let $FCT=cos;
 -- source include/parser_bug21114.inc
-let $FCT=COT;
+let $FCT=cot;
 -- source include/parser_bug21114.inc
-let $FCT=CRC32;
+let $FCT=crc32;
 -- source include/parser_bug21114.inc
-let $FCT=CROSSES;
+let $FCT=crosses;
 -- source include/parser_bug21114.inc
-let $FCT=DATEDIFF;
+let $FCT=datediff;
 -- source include/parser_bug21114.inc
-let $FCT=DATE_FORMAT;
+let $FCT=date_format;
 -- source include/parser_bug21114.inc
-let $FCT=DAYNAME;
+let $FCT=dayname;
 -- source include/parser_bug21114.inc
-let $FCT=DAYOFMONTH;
+let $FCT=dayofmonth;
 -- source include/parser_bug21114.inc
-let $FCT=DAYOFWEEK;
+let $FCT=dayofweek;
 -- source include/parser_bug21114.inc
-let $FCT=DAYOFYEAR;
+let $FCT=dayofyear;
 -- source include/parser_bug21114.inc
-let $FCT=DECODE;
+let $FCT=decode;
 -- source include/parser_bug21114.inc
-let $FCT=DEGREES;
+let $FCT=degrees;
 -- source include/parser_bug21114.inc
-let $FCT=DES_DECRYPT;
+let $FCT=des_decrypt;
 -- source include/parser_bug21114.inc
-let $FCT=DES_ENCRYPT;
+let $FCT=des_encrypt;
 -- source include/parser_bug21114.inc
-let $FCT=DIMENSION;
+let $FCT=dimension;
 -- source include/parser_bug21114.inc
-let $FCT=DISJOINT;
+let $FCT=disjoint;
 -- source include/parser_bug21114.inc
-let $FCT=ELT;
+let $FCT=elt;
 -- source include/parser_bug21114.inc
-let $FCT=ENCODE;
+let $FCT=encode;
 -- source include/parser_bug21114.inc
-let $FCT=ENCRYPT;
+let $FCT=encrypt;
 -- source include/parser_bug21114.inc
-let $FCT=ENDPOINT;
+let $FCT=endpoint;
 -- source include/parser_bug21114.inc
-let $FCT=ENVELOPE;
+let $FCT=envelope;
 -- source include/parser_bug21114.inc
-let $FCT=EQUALS;
+let $FCT=equals;
 -- source include/parser_bug21114.inc
-let $FCT=EXP;
+let $FCT=exp;
 -- source include/parser_bug21114.inc
-let $FCT=EXPORT_SET;
+let $FCT=export_set;
 -- source include/parser_bug21114.inc
-let $FCT=EXTERIORRING;
+let $FCT=exteriorring;
 -- source include/parser_bug21114.inc
-let $FCT=EXTRACTVALUE;
+let $FCT=extractvalue;
 -- source include/parser_bug21114.inc
-let $FCT=FIND_IN_SET;
+let $FCT=find_in_set;
 -- source include/parser_bug21114.inc
-let $FCT=FLOOR;
+let $FCT=floor;
 -- source include/parser_bug21114.inc
-let $FCT=FOUND_ROWS;
+let $FCT=found_rows;
 -- source include/parser_bug21114.inc
-let $FCT=FROM_DAYS;
+let $FCT=from_days;
 -- source include/parser_bug21114.inc
-let $FCT=FROM_UNIXTIME;
+let $FCT=from_unixtime;
 -- source include/parser_bug21114.inc
-let $FCT=GEOMCOLLFROMTEXT;
+let $FCT=geomcollfromtext;
 -- source include/parser_bug21114.inc
-let $FCT=GEOMCOLLFROMWKB;
+let $FCT=geomcollfromwkb;
 -- source include/parser_bug21114.inc
-let $FCT=GEOMETRYCOLLECTIONFROMTEXT;
+let $FCT=geometrycollectionfromtext;
 -- source include/parser_bug21114.inc
-let $FCT=GEOMETRYCOLLECTIONFROMWKB;
+let $FCT=geometrycollectionfromwkb;
 -- source include/parser_bug21114.inc
-let $FCT=GEOMETRYFROMTEXT;
+let $FCT=geometryfromtext;
 -- source include/parser_bug21114.inc
-let $FCT=GEOMETRYFROMWKB;
+let $FCT=geometryfromwkb;
 -- source include/parser_bug21114.inc
-let $FCT=GEOMETRYN;
+let $FCT=geometryn;
 -- source include/parser_bug21114.inc
-let $FCT=GEOMETRYTYPE;
+let $FCT=geometrytype;
 -- source include/parser_bug21114.inc
-let $FCT=GEOMFROMTEXT;
+let $FCT=geomfromtext;
 -- source include/parser_bug21114.inc
-let $FCT=GEOMFROMWKB;
+let $FCT=geomfromwkb;
 -- source include/parser_bug21114.inc
-let $FCT=GET_LOCK;
+let $FCT=get_lock;
 -- source include/parser_bug21114.inc
-let $FCT=GLENGTH;
+let $FCT=glength;
 -- source include/parser_bug21114.inc
-let $FCT=GREATEST;
+let $FCT=greatest;
 -- source include/parser_bug21114.inc
-let $FCT=HEX;
+let $FCT=hex;
 -- source include/parser_bug21114.inc
-let $FCT=IFNULL;
+let $FCT=ifnull;
 -- source include/parser_bug21114.inc
-let $FCT=INET_ATON;
+let $FCT=inet_aton;
 -- source include/parser_bug21114.inc
-let $FCT=INET_NTOA;
+let $FCT=inet_ntoa;
 -- source include/parser_bug21114.inc
-let $FCT=INSTR;
+let $FCT=instr;
 -- source include/parser_bug21114.inc
-let $FCT=INTERIORRINGN;
+let $FCT=interiorringn;
 -- source include/parser_bug21114.inc
-let $FCT=INTERSECTS;
+let $FCT=intersects;
 -- source include/parser_bug21114.inc
-let $FCT=ISCLOSED;
+let $FCT=isclosed;
 -- source include/parser_bug21114.inc
-let $FCT=ISEMPTY;
+let $FCT=isempty;
 -- source include/parser_bug21114.inc
-let $FCT=ISNULL;
+let $FCT=isnull;
 -- source include/parser_bug21114.inc
-let $FCT=ISSIMPLE;
+let $FCT=issimple;
 -- source include/parser_bug21114.inc
-let $FCT=IS_FREE_LOCK;
+let $FCT=is_free_lock;
 -- source include/parser_bug21114.inc
-let $FCT=IS_USED_LOCK;
+let $FCT=is_used_lock;
 -- source include/parser_bug21114.inc
-let $FCT=LAST_DAY;
+let $FCT=last_day;
 -- source include/parser_bug21114.inc
-let $FCT=LAST_INSERT_ID;
+let $FCT=last_insert_id;
 -- source include/parser_bug21114.inc
-let $FCT=LCASE;
+let $FCT=lcase;
 -- source include/parser_bug21114.inc
-let $FCT=LEAST;
+let $FCT=least;
 -- source include/parser_bug21114.inc
-let $FCT=LENGTH;
+let $FCT=length;
 -- source include/parser_bug21114.inc
-let $FCT=LINEFROMTEXT;
+let $FCT=linefromtext;
 -- source include/parser_bug21114.inc
-let $FCT=LINEFROMWKB;
+let $FCT=linefromwkb;
 -- source include/parser_bug21114.inc
-let $FCT=LINESTRINGFROMTEXT;
+let $FCT=linestringfromtext;
 -- source include/parser_bug21114.inc
-let $FCT=LINESTRINGFROMWKB;
+let $FCT=linestringfromwkb;
 -- source include/parser_bug21114.inc
-let $FCT=LN;
+let $FCT=ln;
 -- source include/parser_bug21114.inc
-let $FCT=LOAD_FILE;
+let $FCT=load_file;
 -- source include/parser_bug21114.inc
-let $FCT=LOCATE;
+let $FCT=locate;
 -- source include/parser_bug21114.inc
-let $FCT=LOG;
+let $FCT=log;
 -- source include/parser_bug21114.inc
-let $FCT=LOG10;
+let $FCT=log10;
 -- source include/parser_bug21114.inc
-let $FCT=LOG2;
+let $FCT=log2;
 -- source include/parser_bug21114.inc
-let $FCT=LOWER;
+let $FCT=lower;
 -- source include/parser_bug21114.inc
-let $FCT=LPAD;
+let $FCT=lpad;
 -- source include/parser_bug21114.inc
-let $FCT=LTRIM;
+let $FCT=ltrim;
 -- source include/parser_bug21114.inc
-let $FCT=MAKEDATE;
+let $FCT=makedate;
 -- source include/parser_bug21114.inc
-let $FCT=MAKETIME;
+let $FCT=maketime;
 -- source include/parser_bug21114.inc
-let $FCT=MAKE_SET;
+let $FCT=make_set;
 -- source include/parser_bug21114.inc
-let $FCT=MASTER_POS_WAIT;
+let $FCT=master_pos_wait;
 -- source include/parser_bug21114.inc
-let $FCT=MBRCONTAINS;
+let $FCT=mbrcontains;
 -- source include/parser_bug21114.inc
-let $FCT=MBRDISJOINT;
+let $FCT=mbrdisjoint;
 -- source include/parser_bug21114.inc
-let $FCT=MBREQUAL;
+let $FCT=mbrequal;
 -- source include/parser_bug21114.inc
-let $FCT=MBRINTERSECTS;
+let $FCT=mbrintersects;
 -- source include/parser_bug21114.inc
-let $FCT=MBROVERLAPS;
+let $FCT=mbroverlaps;
 -- source include/parser_bug21114.inc
-let $FCT=MBRTOUCHES;
+let $FCT=mbrtouches;
 -- source include/parser_bug21114.inc
-let $FCT=MBRWITHIN;
+let $FCT=mbrwithin;
 -- source include/parser_bug21114.inc
-let $FCT=MD5;
+let $FCT=md5;
 -- source include/parser_bug21114.inc
-let $FCT=MLINEFROMTEXT;
+let $FCT=mlinefromtext;
 -- source include/parser_bug21114.inc
-let $FCT=MLINEFROMWKB;
+let $FCT=mlinefromwkb;
 -- source include/parser_bug21114.inc
-let $FCT=MONTHNAME;
+let $FCT=monthname;
 -- source include/parser_bug21114.inc
-let $FCT=MPOINTFROMTEXT;
+let $FCT=mpointfromtext;
 -- source include/parser_bug21114.inc
-let $FCT=MPOINTFROMWKB;
+let $FCT=mpointfromwkb;
 -- source include/parser_bug21114.inc
-let $FCT=MPOLYFROMTEXT;
+let $FCT=mpolyfromtext;
 -- source include/parser_bug21114.inc
-let $FCT=MPOLYFROMWKB;
+let $FCT=mpolyfromwkb;
 -- source include/parser_bug21114.inc
-let $FCT=MULTILINESTRINGFROMTEXT;
+let $FCT=multilinestringfromtext;
 -- source include/parser_bug21114.inc
-let $FCT=MULTILINESTRINGFROMWKB;
+let $FCT=multilinestringfromwkb;
 -- source include/parser_bug21114.inc
-let $FCT=MULTIPOINTFROMTEXT;
+let $FCT=multipointfromtext;
 -- source include/parser_bug21114.inc
-let $FCT=MULTIPOINTFROMWKB;
+let $FCT=multipointfromwkb;
 -- source include/parser_bug21114.inc
-let $FCT=MULTIPOLYGONFROMTEXT;
+let $FCT=multipolygonfromtext;
 -- source include/parser_bug21114.inc
-let $FCT=MULTIPOLYGONFROMWKB;
+let $FCT=multipolygonfromwkb;
 -- source include/parser_bug21114.inc
-let $FCT=NAME_CONST;
+let $FCT=name_const;
 -- source include/parser_bug21114.inc
-let $FCT=NULLIF;
+let $FCT=nullif;
 -- source include/parser_bug21114.inc
-let $FCT=NUMGEOMETRIES;
+let $FCT=numgeometries;
 -- source include/parser_bug21114.inc
-let $FCT=NUMINTERIORRINGS;
+let $FCT=numinteriorrings;
 -- source include/parser_bug21114.inc
-let $FCT=NUMPOINTS;
+let $FCT=numpoints;
 -- source include/parser_bug21114.inc
-let $FCT=OCT;
+let $FCT=oct;
 -- source include/parser_bug21114.inc
-let $FCT=OCTET_LENGTH;
+let $FCT=octet_length;
 -- source include/parser_bug21114.inc
-let $FCT=ORD;
+let $FCT=ord;
 -- source include/parser_bug21114.inc
-let $FCT=OVERLAPS;
+let $FCT=overlaps;
 -- source include/parser_bug21114.inc
-let $FCT=PERIOD_ADD;
+let $FCT=period_add;
 -- source include/parser_bug21114.inc
-let $FCT=PERIOD_DIFF;
+let $FCT=period_diff;
 -- source include/parser_bug21114.inc
-let $FCT=PI;
+let $FCT=pi;
 -- source include/parser_bug21114.inc
-let $FCT=POINTFROMTEXT;
+let $FCT=pointfromtext;
 -- source include/parser_bug21114.inc
-let $FCT=POINTFROMWKB;
+let $FCT=pointfromwkb;
 -- source include/parser_bug21114.inc
-let $FCT=POINTN;
+let $FCT=pointn;
 -- source include/parser_bug21114.inc
-let $FCT=POLYFROMTEXT;
+let $FCT=polyfromtext;
 -- source include/parser_bug21114.inc
-let $FCT=POLYFROMWKB;
+let $FCT=polyfromwkb;
 -- source include/parser_bug21114.inc
-let $FCT=POLYGONFROMTEXT;
+let $FCT=polygonfromtext;
 -- source include/parser_bug21114.inc
-let $FCT=POLYGONFROMWKB;
+let $FCT=polygonfromwkb;
 -- source include/parser_bug21114.inc
-let $FCT=POW;
+let $FCT=pow;
 -- source include/parser_bug21114.inc
-let $FCT=POWER;
+let $FCT=power;
 -- source include/parser_bug21114.inc
-let $FCT=QUOTE;
+let $FCT=quote;
 -- source include/parser_bug21114.inc
-let $FCT=RADIANS;
+let $FCT=radians;
 -- source include/parser_bug21114.inc
-let $FCT=RAND;
+let $FCT=rand;
 -- source include/parser_bug21114.inc
-let $FCT=RELEASE_LOCK;
+let $FCT=release_lock;
 -- source include/parser_bug21114.inc
-let $FCT=REVERSE;
+let $FCT=reverse;
 -- source include/parser_bug21114.inc
-let $FCT=ROUND;
+let $FCT=round;
 -- source include/parser_bug21114.inc
-let $FCT=ROW_COUNT;
+let $FCT=row_count;
 -- source include/parser_bug21114.inc
-let $FCT=RPAD;
+let $FCT=rpad;
 -- source include/parser_bug21114.inc
-let $FCT=RTRIM;
+let $FCT=rtrim;
 -- source include/parser_bug21114.inc
-let $FCT=SEC_TO_TIME;
+let $FCT=sec_to_time;
 -- source include/parser_bug21114.inc
-let $FCT=SESSION_USER;
+let $FCT=session_user;
 -- source include/parser_bug21114.inc
-let $FCT=SHA;
+let $FCT=sha;
 -- source include/parser_bug21114.inc
-let $FCT=SHA1;
+let $FCT=sha1;
 -- source include/parser_bug21114.inc
-let $FCT=SIGN;
+let $FCT=sign;
 -- source include/parser_bug21114.inc
-let $FCT=SIN;
+let $FCT=sin;
 -- source include/parser_bug21114.inc
-let $FCT=SLEEP;
+let $FCT=sleep;
 -- source include/parser_bug21114.inc
-let $FCT=SOUNDEX;
+let $FCT=soundex;
 -- source include/parser_bug21114.inc
-let $FCT=SPACE;
+let $FCT=space;
 -- source include/parser_bug21114.inc
-let $FCT=SQRT;
+let $FCT=sqrt;
 -- source include/parser_bug21114.inc
-let $FCT=SRID;
+let $FCT=srid;
 -- source include/parser_bug21114.inc
-let $FCT=STARTPOINT;
+let $FCT=startpoint;
 -- source include/parser_bug21114.inc
-let $FCT=STRCMP;
+let $FCT=strcmp;
 -- source include/parser_bug21114.inc
-let $FCT=STR_TO_DATE;
+let $FCT=str_to_date;
 -- source include/parser_bug21114.inc
-let $FCT=SUBDATE;
+let $FCT=subdate;
 -- source include/parser_bug21114.inc
-let $FCT=SUBSTRING_INDEX;
+let $FCT=substring_index;
 -- source include/parser_bug21114.inc
-let $FCT=SUBTIME;
+let $FCT=subtime;
 -- source include/parser_bug21114.inc
-let $FCT=SYSTEM_USER;
+let $FCT=system_user;
 -- source include/parser_bug21114.inc
-let $FCT=TAN;
+let $FCT=tan;
 -- source include/parser_bug21114.inc
-let $FCT=TIMEDIFF;
+let $FCT=timediff;
 -- source include/parser_bug21114.inc
-let $FCT=TIME_FORMAT;
+let $FCT=time_format;
 -- source include/parser_bug21114.inc
-let $FCT=TIME_TO_SEC;
+let $FCT=time_to_sec;
 -- source include/parser_bug21114.inc
-let $FCT=TOUCHES;
+let $FCT=touches;
 -- source include/parser_bug21114.inc
-let $FCT=TO_DAYS;
+let $FCT=to_days;
 -- source include/parser_bug21114.inc
-let $FCT=UCASE;
+let $FCT=ucase;
 -- source include/parser_bug21114.inc
-let $FCT=UNCOMPRESS;
+let $FCT=uncompress;
 -- source include/parser_bug21114.inc
-let $FCT=UNCOMPRESSED_LENGTH;
+let $FCT=uncompressed_length;
 -- source include/parser_bug21114.inc
-let $FCT=UNHEX;
+let $FCT=unhex;
 -- source include/parser_bug21114.inc
-let $FCT=UNIX_TIMESTAMP;
+let $FCT=unix_timestamp;
 -- source include/parser_bug21114.inc
-let $FCT=UPDATEXML;
+let $FCT=updatexml;
 -- source include/parser_bug21114.inc
-let $FCT=UPPER;
+let $FCT=upper;
 -- source include/parser_bug21114.inc
-let $FCT=UUID;
+let $FCT=uuid;
 -- source include/parser_bug21114.inc
-let $FCT=VERSION;
+let $FCT=version;
 -- source include/parser_bug21114.inc
-let $FCT=WEEKDAY;
+let $FCT=weekday;
 -- source include/parser_bug21114.inc
-let $FCT=WEEKOFYEAR;
+let $FCT=weekofyear;
 -- source include/parser_bug21114.inc
-let $FCT=WITHIN;
+let $FCT=within;
 -- source include/parser_bug21114.inc
-let $FCT=X;
+let $FCT=x;
 -- source include/parser_bug21114.inc
-let $FCT=Y;
+let $FCT=y;
 -- source include/parser_bug21114.inc
-let $FCT=YEARWEEK;
+let $FCT=yearweek;
 -- source include/parser_bug21114.inc
 
