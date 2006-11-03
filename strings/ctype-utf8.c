@@ -2047,6 +2047,52 @@ static int my_utf8_uni(CHARSET_INFO *cs __attribute__((unused)),
   return MY_CS_ILSEQ;
 }
 
+
+/*
+  The same as above, but without range check
+  for example, for a null-terminated string
+*/
+static int my_utf8_uni_no_range(CHARSET_INFO *cs __attribute__((unused)),
+                                my_wc_t * pwc, const uchar *s)
+{
+  unsigned char c;
+
+  c= s[0];
+  if (c < 0x80)
+  {
+    *pwc = c;
+    return 1;
+  }
+
+  if (c < 0xc2)
+    return MY_CS_ILSEQ;
+
+  if (c < 0xe0)
+  {
+    if (!((s[1] ^ 0x80) < 0x40))
+      return MY_CS_ILSEQ;
+
+    *pwc = ((my_wc_t) (c & 0x1f) << 6) | (my_wc_t) (s[1] ^ 0x80);
+    return 2;
+  }
+  
+  if (c < 0xf0)
+  {
+    if (!((s[1] ^ 0x80) < 0x40 &&
+          (s[2] ^ 0x80) < 0x40 &&
+          (c >= 0xe1 || s[1] >= 0xa0)))
+      return MY_CS_ILSEQ;
+
+    *pwc= ((my_wc_t) (c & 0x0f) << 12)   |
+          ((my_wc_t) (s[1] ^ 0x80) << 6) |
+           (my_wc_t) (s[2] ^ 0x80);
+
+    return 3;
+  }
+  return MY_CS_ILSEQ;
+}
+
+
 static int my_uni_utf8 (CHARSET_INFO *cs __attribute__((unused)) ,
                  my_wc_t wc, uchar *r, uchar *e)
 {
@@ -2088,6 +2134,34 @@ static int my_uni_utf8 (CHARSET_INFO *cs __attribute__((unused)) ,
     case 3: r[2] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x800;
     case 2: r[1] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0xc0;
     case 1: r[0] = (uchar) wc;
+  }
+  return count;
+}
+
+
+/*
+  The same as above, but without range check.
+*/
+static int my_uni_utf8_no_range(CHARSET_INFO *cs __attribute__((unused)),
+                                my_wc_t wc, uchar *r)
+{
+  int count;
+
+  if (wc < 0x80)
+    count= 1;
+  else if (wc < 0x800)
+    count= 2;
+  else if (wc < 0x10000)
+    count= 3;
+  else
+    return MY_CS_ILUNI;
+
+  switch (count)
+  {
+    /* Fall through all cases!!! */
+    case 3: r[2]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0x800;
+    case 2: r[1]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0xc0;
+    case 1: r[0]= (uchar) wc;
   }
   return count;
 }
@@ -2143,10 +2217,26 @@ static void my_hash_sort_utf8(CHARSET_INFO *cs, const uchar *s, uint slen,
 }
 
 
-static void my_caseup_str_utf8(CHARSET_INFO * cs, char * s)
+static uint my_caseup_str_utf8(CHARSET_INFO *cs, char *src)
 {
-  uint len= (uint) strlen(s);
-  my_caseup_utf8(cs, s, len, s, len);
+  my_wc_t wc;
+  int srcres, dstres;
+  char *dst= src, *dst0= src;
+  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  DBUG_ASSERT(cs->caseup_multiply == 1);
+
+  while (*src &&
+         (srcres= my_utf8_uni_no_range(cs, &wc, (uchar *) src)) > 0)
+  {
+    int plane= (wc>>8) & 0xFF;
+    wc= uni_plane[plane] ? uni_plane[plane][wc & 0xFF].toupper : wc;
+    if ((dstres= my_uni_utf8_no_range(cs, wc, (uchar*) dst)) <= 0)
+      break;
+    src+= srcres;
+    dst+= dstres;
+  }
+  *dst= '\0';
+  return (uint) (dst - dst0);
 }
 
 
@@ -2172,10 +2262,43 @@ static uint my_casedn_utf8(CHARSET_INFO *cs, char *src, uint srclen,
   return (uint) (dst - dst0);
 }
 
-static void my_casedn_str_utf8(CHARSET_INFO *cs, char * s)
+
+static uint my_casedn_str_utf8(CHARSET_INFO *cs, char *src)
 {
-  uint len= (uint) strlen(s);
-  my_casedn_utf8(cs, s, len, s, len);
+  my_wc_t wc;
+  int srcres, dstres;
+  char *dst= src, *dst0= src;
+  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  DBUG_ASSERT(cs->casedn_multiply == 1);
+
+  while (*src &&
+         (srcres= my_utf8_uni_no_range(cs, &wc, (uchar *) src)) > 0)
+  {
+    int plane= (wc>>8) & 0xFF;
+    wc= uni_plane[plane] ? uni_plane[plane][wc & 0xFF].tolower : wc;
+    if ((dstres= my_uni_utf8_no_range(cs, wc, (uchar*) dst)) <= 0)
+      break;
+    src+= srcres;
+    dst+= dstres;
+  }
+
+  /*
+   In rare cases lower string can be shorter than
+   the original string, for example:
+
+   "U+0130 LATIN CAPITAL LETTER I WITH DOT ABOVE"
+   (which is 0xC4B0 in utf8, i.e. two bytes)
+
+   is converted into
+
+   "U+0069 LATIN SMALL LETTER I"
+   (which is 0x69 in utf8, i.e. one byte)
+
+   So, we need to put '\0' terminator after converting.
+  */
+
+  *dst= '\0';
+  return (uint) (dst - dst0);
 }
 
 
