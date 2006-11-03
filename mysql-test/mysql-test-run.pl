@@ -670,7 +670,8 @@ sub command_line_setup () {
   $path_client_bindir= mtr_path_exists(vs_config_dirs('client', ''),
 				       "$glob_basedir/client_release",
 				       "$glob_basedir/client_debug",
-				       "$glob_basedir/client");
+				       "$glob_basedir/client",
+				       "$glob_basedir/bin");
 
   $exe_mysqld=         mtr_exe_exists (vs_config_dirs('sql', 'mysqld'),
 				       "$glob_basedir/sql/mysqld",
@@ -1615,18 +1616,14 @@ sub environment_setup () {
   $ENV{'SLAVE_MYPORT2'}=      $slave->[2]->{'port'};
   $ENV{'MYSQL_TCP_PORT'}=     $mysqld_variables{'port'};
 
-  $ENV{'EXE_MYSQL'}=          $exe_mysql;
-  $ENV{'IM_DEFAULTS_PATH'}=   $instance_manager->{defaults_file};
-  $ENV{'IM_PASSWORD_PATH'}=   $instance_manager->{password_file};
   $ENV{'IM_PATH_SOCK'}=       $instance_manager->{path_sock};
   $ENV{'IM_USERNAME'}=        $instance_manager->{admin_login};
   $ENV{'IM_PASSWORD'}=        $instance_manager->{admin_password};
   $ENV{MTR_BUILD_THREAD}= 0 unless $ENV{MTR_BUILD_THREAD}; # Set if not set
 
+  $ENV{'EXE_MYSQL'}=          $exe_mysql;
 
-# ----------------------------------------------------
-# Setup env so childs can execute mysqlcheck
-# ----------------------------------------------------
+
   # ----------------------------------------------------
   # Setup env for NDB
   # ----------------------------------------------------
@@ -1832,8 +1829,8 @@ sub environment_setup () {
 
 
   # ----------------------------------------------------
-# We are nice and report a bit about our settings
-# ----------------------------------------------------
+  # We are nice and report a bit about our settings
+  # ----------------------------------------------------
   if (!$opt_extern)
   {
     print "Using MTR_BUILD_THREAD      = $ENV{MTR_BUILD_THREAD}\n";

@@ -66,9 +66,10 @@ sub mtr_add_arg ($$@) {
 
 ##############################################################################
 
-# Note - More specific paths should be given before less specific.  For examle
-# /client/debug should be listed before /client
-
+#
+# NOTE! More specific paths should be given before less specific.
+# For example /client/debug should be listed before /client
+#
 sub mtr_path_exists (@) {
   foreach my $path ( @_ )
   {
@@ -84,9 +85,11 @@ sub mtr_path_exists (@) {
   }
 }
 
-# Note - More specific paths should be given before less specific.  For examle
-# /client/debug should be listed before /client
 
+#
+# NOTE! More specific paths should be given before less specific.
+# For example /client/debug should be listed before /client
+#
 sub mtr_script_exists (@) {
   foreach my $path ( @_ )
   {
@@ -109,6 +112,11 @@ sub mtr_script_exists (@) {
   }
 }
 
+
+#
+# NOTE! More specific paths should be given before less specific.
+# For example /client/debug should be listed before /client
+#
 sub mtr_file_exists (@) {
   foreach my $path ( @_ )
   {
@@ -117,20 +125,11 @@ sub mtr_file_exists (@) {
   return "";
 }
 
-# Note - More specific paths should be given before less specific.  For examle
-# /client/debug should be listed before /client
 
-sub mtr_file_exists (@) {
-  foreach my $path ( @_ )
-  {
-    return $path if -e $path;
-  }
-  return "";
-}
-
-# Note - More specific paths should be given before less specific.  For examle
-# /client/debug should be listed before /client
-
+#
+# NOTE! More specific paths should be given before less specific.
+# For example /client/debug should be listed before /client
+#
 sub mtr_exe_maybe_exists (@) {
   my @path= @_;
 
@@ -149,9 +148,11 @@ sub mtr_exe_maybe_exists (@) {
   return "";
 }
 
-# Note - More specific paths should be given before less specific.  For examle
-# /client/debug should be listed before /client
 
+#
+# NOTE! More specific paths should be given before less specific.
+# For example /client/debug should be listed before /client
+#
 sub mtr_exe_exists (@) {
   my @path= @_;
   if (my $path= mtr_exe_maybe_exists(@path))
@@ -174,7 +175,7 @@ sub mtr_copy_dir($$) {
   my $from_dir= shift;
   my $to_dir= shift;
 
-#  mtr_verbose("Copying from $from_dir to $to_dir");
+  # mtr_verbose("Copying from $from_dir to $to_dir");
 
   mkpath("$to_dir");
   opendir(DIR, "$from_dir")
