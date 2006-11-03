@@ -33,6 +33,7 @@ sync_slave_with_master;
 # bug#22877 replication character sets get out of sync
 # using replicate-wild-ignore-table
 #
+connection master;
 --disable_warnings
 DROP TABLE IF EXISTS t5;
 --enable_warnings
@@ -50,3 +51,4 @@ SELECT HEX(word) FROM t5;
 SELECT * FROM tmptbl504451f4258$1;
 connection master;
 DROP TABLE t5;
+sync_slave_with_master;
