@@ -3075,11 +3075,6 @@ end_with_restore_list:
 
   case SQLCOM_ALTER_TABLE:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-#if defined(DONT_ALLOW_SHOW_COMMANDS)
-    my_message(ER_NOT_ALLOWED_COMMAND, ER(ER_NOT_ALLOWED_COMMAND),
-               MYF(0)); /* purecov: inspected */
-    goto error;
-#else
     {
       ulong priv=0;
       ulong priv_needed= ALTER_ACL;
@@ -3148,7 +3143,6 @@ end_with_restore_list:
                              lex->ignore, &lex->alter_info, 1);
       break;
     }
-#endif /*DONT_ALLOW_SHOW_COMMANDS*/
   case SQLCOM_RENAME_TABLE:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
@@ -3394,9 +3388,17 @@ end_with_restore_list:
     res= mysql_insert(thd, all_tables, lex->field_list, lex->many_values,
 		      lex->update_list, lex->value_list,
                       lex->duplicates, lex->ignore);
-    /* do not show last insert ID if VIEW does not have auto_inc */
+
+    /*
+      If we have inserted into a VIEW, and the base table has
+      AUTO_INCREMENT column, but this column is not accessible through
+      a view, then we should restore LAST_INSERT_ID to the value it
+      had before the statement.
+    */
     if (first_table->view && !first_table->contain_auto_increment)
-      thd->first_successful_insert_id_in_cur_stmt= 0;
+      thd->first_successful_insert_id_in_cur_stmt=
+        thd->first_successful_insert_id_in_prev_stmt;
+
     break;
   }
   case SQLCOM_REPLACE_SELECT:
@@ -3456,9 +3458,17 @@ end_with_restore_list:
       /* revert changes for SP */
       select_lex->table_list.first= (byte*) first_table;
     }
-    /* do not show last insert ID if VIEW does not have auto_inc */
+
+    /*
+      If we have inserted into a VIEW, and the base table has
+      AUTO_INCREMENT column, but this column is not accessible through
+      a view, then we should restore LAST_INSERT_ID to the value it
+      had before the statement.
+    */
     if (first_table->view && !first_table->contain_auto_increment)
-      thd->first_successful_insert_id_in_cur_stmt= 0;
+      thd->first_successful_insert_id_in_cur_stmt=
+        thd->first_successful_insert_id_in_prev_stmt;
+
     break;
   }
   case SQLCOM_TRUNCATE:
@@ -3890,6 +3900,12 @@ end_with_restore_list:
   case SQLCOM_ALTER_EVENT:
   {
     DBUG_ASSERT(lex->event_parse_data);
+    if (lex->table_or_sp_used())
+    {
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Usage of subqueries or stored "
+               "function calls as part of this statement");
+      break;
+    }
     switch (lex->sql_command) {
     case SQLCOM_CREATE_EVENT:
       res= Events::get_instance()->
@@ -4190,6 +4206,13 @@ end_with_restore_list:
   case SQLCOM_KILL:
   {
     Item *it= (Item *)lex->value_list.head();
+
+    if (lex->table_or_sp_used())
+    {
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Usage of subqueries or stored "
+               "function calls as part of this statement");
+      break;
+    }
 
     if ((!it->fixed && it->fix_fields(lex->thd, &it)) || it->check_cols(1))
     {
@@ -6091,14 +6114,19 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
       DBUG_ASSERT(thd->net.report_error);
       DBUG_PRINT("info",("Command aborted. Fatal_error: %d",
 			 thd->is_fatal_error));
-      query_cache_abort(&thd->net);
-      lex->unit.cleanup();
+
+      /*
+        The first thing we do after parse error is freeing sp_head to
+        ensure that we have restored original memroot.
+      */
       if (lex->sphead)
       {
 	/* Clean up after failed stored procedure/function */
 	delete lex->sphead;
 	lex->sphead= NULL;
       }
+      query_cache_abort(&thd->net);
+      lex->unit.cleanup();
     }
     thd->proc_info="freeing items";
     thd->end_statement();

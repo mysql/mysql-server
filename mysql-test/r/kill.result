@@ -16,7 +16,7 @@ select 4;
 4
 drop table t1;
 kill (select count(*) from mysql.user);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select count(*) from mysql.user)' at line 1
+ERROR 42000: This version of MySQL doesn't yet support 'Usage of subqueries or stored function calls as part of this statement'
 create table t1 (id int primary key);
 create table t2 (id int unsigned not null);
 insert into t2 select id from t1;

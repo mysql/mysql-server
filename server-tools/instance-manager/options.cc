@@ -41,7 +41,6 @@
 static char win_dflt_config_file_name[FN_REFLEN];
 static char win_dflt_password_file_name[FN_REFLEN];
 static char win_dflt_pid_file_name[FN_REFLEN];
-static char win_dflt_socket_file_name[FN_REFLEN];
 
 static char win_dflt_mysqld_path[FN_REFLEN];
 
@@ -54,7 +53,6 @@ my_bool Options::Service::stand_alone;
 const char *Options::Main::config_file= win_dflt_config_file_name;
 const char *Options::Main::password_file_name= win_dflt_password_file_name;
 const char *Options::Main::pid_file_name= win_dflt_pid_file_name;
-const char *Options::Main::socket_file_name= win_dflt_socket_file_name;
 
 const char *Options::Main::default_mysqld_path= win_dflt_mysqld_path;
 
@@ -262,10 +260,12 @@ static struct my_option my_long_options[] =
     0, 0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
 #endif
 
+#ifndef __WIN__
   { "socket", OPT_SOCKET, "Socket file to use for connection.",
     (gptr *) &Options::Main::socket_file_name,
     (gptr *) &Options::Main::socket_file_name,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+#endif
 
 #ifdef __WIN__
   { "standalone", OPT_STAND_ALONE, "Run the application in stand alone mode.",
@@ -550,8 +550,6 @@ static int setup_windows_defaults()
   strxmov(win_dflt_password_file_name, dir_name, im_name, DFLT_PASSWD_FILE_EXT,
           NullS);
   strxmov(win_dflt_pid_file_name, dir_name, im_name, DFLT_PID_FILE_EXT, NullS);
-  strxmov(win_dflt_socket_file_name, dir_name, im_name, DFLT_SOCKET_FILE_EXT,
-          NullS);
 
   return 0;
 }
