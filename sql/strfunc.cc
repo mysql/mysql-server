@@ -312,3 +312,33 @@ outp:
   return (uint32) (to - to_start);
 
 }
+
+
+/*
+  Searches for a LEX_STRING in an LEX_STRING array.
+
+  SYNOPSIS
+    find_string_in_array()
+      heap    The array
+      needle  The string to search for
+
+  NOTE
+    The last LEX_STRING in the array should have str member set to NULL
+
+  RETURN VALUES
+    -1   Not found
+    >=0  Ordinal position
+*/
+
+int find_string_in_array(LEX_STRING * const haystack, LEX_STRING * const needle,
+                         CHARSET_INFO * const cs)
+{
+  const LEX_STRING *pos;
+  for (pos= haystack; pos->str; pos++)
+    if (!cs->coll->strnncollsp(cs, (uchar *) pos->str, pos->length,
+                               (uchar *) needle->str, needle->length, 0))
+    {
+      return (pos - haystack);
+    }
+  return -1;
+}

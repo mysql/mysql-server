@@ -363,25 +363,24 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
     error= open_binary_frm(thd, share, head, file);
     *root_ptr= old_root;
 
-    if (share->db.length == 5 &&
-        !my_strcasecmp(system_charset_info, share->db.str, "mysql"))
+    if (share->db.length == 5 && !(lower_case_table_names ?
+        my_strcasecmp(system_charset_info, share->db.str, "mysql") :
+        strcmp(share->db.str, "mysql")))
     {
       /*
         We can't mark all tables in 'mysql' database as system since we don't
         allow to lock such tables for writing with any other tables (even with
         other system tables) and some privilege tables need this.
       */
-      if (!my_strcasecmp(system_charset_info, share->table_name.str, "proc"))
+      if (!(lower_case_table_names ?
+            my_strcasecmp(system_charset_info, share->table_name.str, "proc") :
+            strcmp(share->table_name.str, "proc")))
         share->system_table= 1;
       else
       {
-        if (!my_strcasecmp(system_charset_info, share->table_name.str,
-                           "general_log"))
-          share->log_table= QUERY_LOG_GENERAL;
-        else
-          if (!my_strcasecmp(system_charset_info, share->table_name.str,
-                             "slow_log"))
-            share->log_table= QUERY_LOG_SLOW;
+        share->log_table= check_if_log_table(share->db.length, share->db.str,
+                                             share->table_name.length,
+                                             share->table_name.str, 0);
       }
     }
     error_given= 1;
