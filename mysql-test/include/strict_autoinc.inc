@@ -2,6 +2,10 @@
 # Test for strict-mode autoincrement
 #
 
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
 set @org_mode=@@sql_mode;
 eval create table t1
 (
