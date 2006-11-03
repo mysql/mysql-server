@@ -15,14 +15,14 @@
 # Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 # MA 02111-1307, USA
 
-BUILT_SOURCES =		mysql_version.h my_config.h mysql_h.ic
+BUILT_SOURCES =		mysql_version.h my_config.h abi_check
 pkginclude_HEADERS =	my_dbug.h m_string.h my_sys.h my_list.h my_xml.h \
 			mysql.h mysql_com.h mysql_embed.h \
 		  	my_semaphore.h my_pthread.h my_no_pthread.h raid.h \
 			errmsg.h my_global.h my_net.h my_alloc.h \
 			my_getopt.h sslopt-longopts.h my_dir.h typelib.h \
 			sslopt-vars.h sslopt-case.h sql_common.h keycache.h \
-			mysql_time.h m_ctype.h $(BUILT_SOURCES)
+			sql_state.h mysql_time.h m_ctype.h $(BUILT_SOURCES)
 noinst_HEADERS =	config-win.h config-os2.h config-netware.h \
 			heap.h my_bitmap.h\
 			myisam.h myisampack.h myisammrg.h ft_global.h\
@@ -35,6 +35,8 @@ noinst_HEADERS =	config-win.h config-os2.h config-netware.h \
 
 # Remove built files and the symlinked directories
 CLEANFILES =            $(BUILT_SOURCES) readline openssl
+
+EXTRA_DIST =            mysql_h.ic
 
 # Some include files that may be moved and patched by configure
 DISTCLEANFILES =	sched.h $(CLEANFILES)
@@ -56,25 +58,17 @@ dist-hook:
 # Rules for checking that ABI has not changed
 #
 
-# Create a icheck file for mysql.h
-mysql_h.ic: mysql.h mysql_version.h mysql_com.h mysql_time.h my_list.h \
-            my_alloc.h typelib.h
-	@set -x; \
-	if [ @ICHECK@ != no ] ; then \
-	  @ICHECK@ --canonify --skip-from-re /usr/ -o $@ mysql.h; \
-	else \
-	  touch $@; \
-	fi;
-
-# Compare the icheck file to the reference
-check_abi: mysql_h.ic
+# Create a icheck file and compare it to the reference
+abi_check: mysql.h mysql_version.h mysql_com.h mysql_time.h my_list.h \
+           my_alloc.h typelib.h
 	@set -ex; \
 	if [ @ICHECK@ != no ] ; then \
-	  @ICHECK@ --compare mysql_h.ic mysql_h_abi.ic; \
+	  @ICHECK@ --canonify --skip-from-re /usr/ -o $@.ic mysql.h; \
+	  @ICHECK@ --compare mysql_h.ic $@.ic; \
 	fi; \
-	touch check_abi;
+	touch abi_check;
 
-all: check_abi
+all: abi_check
 
 
 # Don't update the files from bitkeeper
