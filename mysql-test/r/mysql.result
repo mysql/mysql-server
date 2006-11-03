@@ -174,7 +174,6 @@ ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'invalid_hostname' (errn
 ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'invalid_hostname' (errno)
 The commands reported in the bug report
 ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'cyril has found a bug :)XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' (errno)
-ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'cyril has found a bug :)XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' (errno)
 Too long dbname
 ERROR 1049 (42000) at line 1: Unknown database 'test_really_long_dbnamexxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 Too long hostname
