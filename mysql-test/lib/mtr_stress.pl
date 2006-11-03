@@ -122,7 +122,7 @@ sub run_stress_test ()
 
   mtr_init_args(\$args);
   
-  mtr_add_arg($args, "--server-socket=%s", $::master->[0]->{'path_mysock'});
+  mtr_add_arg($args, "--server-socket=%s", $::master->[0]->{'path_sock'});
   mtr_add_arg($args, "--server-user=%s", $::opt_user);
   mtr_add_arg($args, "--server-database=%s", "test");  
   mtr_add_arg($args, "--stress-suite-basedir=%s", $::glob_mysql_test_dir);  
@@ -168,10 +168,9 @@ sub run_stress_test ()
 
   #Run stress test
   mtr_run("$::glob_mysql_test_dir/mysql-stress-test.pl", $args, "", "", "", "");
-   
   if ( ! $::glob_use_embedded_server )
   {
-    stop_masters();
+    stop_all_servers();
   }
 }
 
