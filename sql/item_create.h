@@ -14,148 +14,154 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Functions to create an item. Used by lex.h */
+/* Functions to create an item. Used by sql/sql_yacc.yy */
 
-Item *create_func_abs(Item* a);
-Item *create_func_acos(Item* a);
-Item *create_func_aes_encrypt(Item* a, Item* b);
-Item *create_func_aes_decrypt(Item* a, Item* b);
-Item *create_func_ascii(Item* a);
-Item *create_func_asin(Item* a);
-Item *create_func_bin(Item* a);
-Item *create_func_bit_count(Item* a);
-Item *create_func_bit_length(Item* a);
-Item *create_func_coercibility(Item* a);
-Item *create_func_ceiling(Item* a);
-Item *create_func_char_length(Item* a);
-Item *create_func_cast(Item *a, Cast_target cast_type, int len, int dec,
-                       CHARSET_INFO *cs);
-Item *create_func_connection_id(void);
-Item *create_func_conv(Item* a, Item *b, Item *c);
-Item *create_func_cos(Item* a);
-Item *create_func_cot(Item* a);
-Item *create_func_crc32(Item* a);
-Item *create_func_date_format(Item* a,Item *b);
-Item *create_func_dayname(Item* a);
-Item *create_func_dayofmonth(Item* a);
-Item *create_func_dayofweek(Item* a);
-Item *create_func_dayofyear(Item* a);
-Item *create_func_degrees(Item *);
-Item *create_func_exp(Item* a);
-Item *create_func_find_in_set(Item* a, Item *b);
-Item *create_func_floor(Item* a);
-Item *create_func_found_rows(void);
-Item *create_func_from_days(Item* a);
-Item *create_func_get_lock(Item* a, Item *b);
-Item *create_func_hex(Item *a);
-Item *create_func_inet_aton(Item* a);
-Item *create_func_inet_ntoa(Item* a);
+#ifndef ITEM_CREATE_H
+#define ITEM_CREATE_H
 
-Item *create_func_ifnull(Item* a, Item *b);
-Item *create_func_instr(Item* a, Item *b);
-Item *create_func_isnull(Item* a);
-Item *create_func_lcase(Item* a);
-Item *create_func_length(Item* a);
-Item *create_func_ln(Item* a);
-Item *create_func_locate(Item* a, Item *b);
-Item *create_func_log2(Item* a);
-Item *create_func_log10(Item* a);
-Item *create_func_lpad(Item* a, Item *b, Item *c);
-Item *create_func_ltrim(Item* a);
-Item *create_func_md5(Item* a);
-Item *create_func_mod(Item* a, Item *b);
-Item *create_func_monthname(Item* a);
-Item *create_func_name_const(Item *a, Item *b);
-Item *create_func_nullif(Item* a, Item *b);
-Item *create_func_oct(Item *);
-Item *create_func_ord(Item* a);
-Item *create_func_period_add(Item* a, Item *b);
-Item *create_func_period_diff(Item* a, Item *b);
-Item *create_func_pi(void);
-Item *create_func_pow(Item* a, Item *b);
-Item *create_func_radians(Item *a);
-Item *create_func_release_lock(Item* a);
-Item *create_func_repeat(Item* a, Item *b);
-Item *create_func_reverse(Item* a);
-Item *create_func_rpad(Item* a, Item *b, Item *c);
-Item *create_func_rtrim(Item* a);
-Item *create_func_sec_to_time(Item* a);
-Item *create_func_sign(Item* a);
-Item *create_func_sin(Item* a);
-Item *create_func_sha(Item* a);
-Item *create_func_sleep(Item* a);
-Item *create_func_soundex(Item* a);
-Item *create_func_space(Item *);
-Item *create_func_sqrt(Item* a);
-Item *create_func_strcmp(Item* a, Item *b);
-Item *create_func_tan(Item* a);
-Item *create_func_time_format(Item *a, Item *b);
-Item *create_func_time_to_sec(Item* a);
-Item *create_func_to_days(Item* a);
-Item *create_func_ucase(Item* a);
-Item *create_func_unhex(Item* a);
-Item *create_func_uuid(void);
-Item *create_func_version(void);
-Item *create_func_weekday(Item* a);
-Item *create_load_file(Item* a);
-Item *create_func_is_free_lock(Item* a);
-Item *create_func_is_used_lock(Item* a);
-Item *create_func_quote(Item* a);
-Item *create_func_xml_extractvalue(Item *a, Item *b);
-Item *create_func_xml_update(Item *a, Item *b, Item *c);
-#ifdef HAVE_SPATIAL
+/**
+  Public function builder interface.
+  The parser (sql/sql_yacc.yy) uses a factory / builder pattern to
+  construct an <code>Item</code> object for each function call.
+  All the concrete function builders implements this interface,
+  either directly or indirectly with some adapter helpers.
+  Keeping the function creation separated from the bison grammar allows
+  to simplify the parser, and avoid the need to introduce a new token
+  for each function, which has undesirable side effects in the grammar.
+*/
 
-Item *create_func_geometry_from_text(Item *a);
-Item *create_func_as_wkt(Item *a);
-Item *create_func_as_wkb(Item *a);
-Item *create_func_srid(Item *a);
-Item *create_func_startpoint(Item *a);
-Item *create_func_endpoint(Item *a);
-Item *create_func_exteriorring(Item *a);
-Item *create_func_centroid(Item *a);
-Item *create_func_envelope(Item *a);
-Item *create_func_pointn(Item *a, Item *b);
-Item *create_func_interiorringn(Item *a, Item *b);
-Item *create_func_geometryn(Item *a, Item *b);
+class Create_func
+{
+public:
+  /**
+    The builder create method.
+    Given the function name and list or arguments, this method creates
+    an <code>Item</code> that represents the function call.
+    In case or errors, a NULL item is returned, and an error is reported.
+    Note that the <code>thd</code> object may be modified by the builder.
+    In particular, the following members/methods can be set/called,
+    depending on the function called and the function possible side effects.
+    <ul>
+      <li><code>thd->lex->binlog_row_based_if_mixed</code></li>
+      <li><code>thd->lex->current_context()</code></li>
+      <li><code>thd->lex->safe_to_cache_query</code></li>
+      <li><code>thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT)</code></li>
+      <li><code>thd->lex->uncacheable(UNCACHEABLE_RAND)</code></li>
+      <li><code>thd->lex->add_time_zone_tables_to_query_tables(thd)</code></li>
+    </ul>
+    @param thd The current thread
+    @param name The function name
+    @param item_list The list of arguments to the function, can be NULL
+    @return An item representing the parsed function call, or NULL
+  */
+  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list) = 0;
 
-Item *create_func_equals(Item *a, Item *b);
-Item *create_func_disjoint(Item *a, Item *b);
-Item *create_func_intersects(Item *a, Item *b);
-Item *create_func_touches(Item *a, Item *b);
-Item *create_func_crosses(Item *a, Item *b);
-Item *create_func_within(Item *a, Item *b);
-Item *create_func_contains(Item *a, Item *b);
-Item *create_func_overlaps(Item *a, Item *b);
+protected:
+  /** Constructor */
+  Create_func() {}
+  /** Destructor */
+  virtual ~Create_func() {}
+};
 
-Item *create_func_isempty(Item *a);
-Item *create_func_issimple(Item *a);
-Item *create_func_isclosed(Item *a);
 
-Item *create_func_geometry_type(Item *a);
-Item *create_func_dimension(Item *a);
-Item *create_func_x(Item *a);
-Item *create_func_y(Item *a);
-Item *create_func_area(Item *a);
-Item *create_func_glength(Item *a);
+/**
+  Function builder for qualified functions.
+  This builder is used with functions call using a qualified function name
+  syntax, as in <code>db.func(expr, expr, ...)</code>.
+*/
 
-Item *create_func_numpoints(Item *a);
-Item *create_func_numinteriorring(Item *a);
-Item *create_func_numgeometries(Item *a);
+class Create_qfunc : public Create_func
+{
+public:
+  /**
+    The builder create method, for unqualified functions.
+    This builder will use the current database for the database name.
+    @param thd The current thread
+    @param name The function name
+    @param item_list The list of arguments to the function, can be NULL
+    @return An item representing the parsed function call
+  */
+  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
 
-Item *create_func_point(Item *a, Item *b);
+  /**
+    The builder create method, for qualified functions.
+    @param thd The current thread
+    @param db The database name
+    @param name The function name
+    @param item_list The list of arguments to the function, can be NULL
+    @return An item representing the parsed function call
+  */
+  virtual Item* create(THD *thd, LEX_STRING db, LEX_STRING name,
+                       List<Item> *item_list) = 0;
 
-#endif /*HAVE_SPATIAL*/
+protected:
+  /** Constructor. */
+  Create_qfunc() {}
+  /** Destructor. */
+  virtual ~Create_qfunc() {}
+};
 
-Item *create_func_compress(Item *a);
-Item *create_func_uncompress(Item *a);
-Item *create_func_uncompressed_length(Item *a);
 
-Item *create_func_datediff(Item *a, Item *b);
-Item *create_func_weekofyear(Item *a);
-Item *create_func_makedate(Item* a,Item* b);
-Item *create_func_addtime(Item* a,Item* b);
-Item *create_func_subtime(Item* a,Item* b);
-Item *create_func_timediff(Item* a,Item* b);
-Item *create_func_maketime(Item* a,Item* b,Item* c);
-Item *create_func_str_to_date(Item* a,Item* b);
-Item *create_func_last_day(Item *a);
+/**
+  Find the native function builder associated with a given function name.
+  @param thd The current thread
+  @param name The native function name
+  @return The native function builder associated with the name, or NULL
+*/
+extern Create_func * find_native_function_builder(THD *thd, LEX_STRING name);
+
+
+/**
+  Find the function builder for qualified functions.
+  @param thd The current thread
+  @return A function builder for qualified functions
+*/
+extern Create_qfunc * find_qualified_function_builder(THD *thd);
+
+
+#ifdef HAVE_DLOPEN
+/**
+  Function builder for User Defined Functions.
+*/
+
+class Create_udf_func : public Create_func
+{
+public:
+  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+
+  /**
+    The builder create method, for User Defined Functions.
+    @param thd The current thread
+    @param fct The User Defined Function metadata
+    @param item_list The list of arguments to the function, can be NULL
+    @return An item representing the parsed function call
+  */
+  Item* create(THD *thd, udf_func *fct, List<Item> *item_list);
+
+  /** Singleton. */
+  static Create_udf_func s_singleton;
+
+protected:
+  /** Constructor. */
+  Create_udf_func() {}
+  /** Destructor. */
+  virtual ~Create_udf_func() {}
+};
+#endif
+
+
+/**
+  Builder for cast expressions.
+  @param thd The current thread
+  @param a The item to cast
+  @param cast_type the type casted into
+  @param len TODO
+  @param dec TODO
+  @param cs The character set
+*/
+Item*
+create_func_cast(THD *thd, Item *a, Cast_target cast_type, int len, int dec,
+                 CHARSET_INFO *cs);
+
+#endif
+

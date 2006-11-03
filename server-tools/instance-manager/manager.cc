@@ -120,6 +120,19 @@ int my_sigwait(const sigset_t *set, int *sig)
 #endif
 
 
+void stop_all(Guardian_thread *guardian, Thread_registry *registry)
+{
+  /*
+    Let guardian thread know that it should break it's processing cycle,
+    once it wakes up.
+  */
+  guardian->request_shutdown();
+  /* wake guardian */
+  pthread_cond_signal(&guardian->COND_guardian);
+  /* stop all threads */
+  registry->deliver_shutdown();
+}
+
 /*
   manager - entry point to the main instance manager process: start
   listener thread, write pid file and enter into signal handling.
@@ -143,7 +156,8 @@ void manager()
   */
 
   User_map user_map;
-  Instance_map instance_map(Options::Main::default_mysqld_path);
+  Instance_map instance_map(Options::Main::default_mysqld_path,
+                            thread_registry);
   Guardian_thread guardian_thread(thread_registry,
                                   &instance_map,
                                   Options::Main::monitoring_interval);
@@ -251,7 +265,6 @@ void manager()
 
   /* Load instances. */
 
-
   {
     instance_map.guardian->lock();
     instance_map.lock();
@@ -266,7 +279,8 @@ void manager()
       log_error("Cannot init instances repository. This might be caused by "
         "the wrong config file options. For instance, missing mysqld "
         "binary. Aborting.");
-      return;
+      stop_all(&guardian_thread, &thread_registry);
+      goto err;
     }
   }
 
@@ -284,6 +298,7 @@ void manager()
     if (rc)
     {
       log_error("manager(): set_stacksize_n_create_thread(listener) failed");
+      stop_all(&guardian_thread, &thread_registry);
       goto err;
     }
   }
@@ -294,6 +309,8 @@ void manager()
   */
   pthread_cond_signal(&guardian_thread.COND_guardian);
 
+  log_info("Main loop: started.");
+
   while (!shutdown_complete)
   {
     int signo;
@@ -302,8 +319,23 @@ void manager()
     if ((status= my_sigwait(&mask, &signo)) != 0)
     {
       log_error("sigwait() failed");
+      stop_all(&guardian_thread, &thread_registry);
       goto err;
     }
+
+    /*
+      The general idea in this loop is the following:
+        - we are waiting for SIGINT, SIGTERM -- signals that mean we should
+          shutdown;
+        - as shutdown signal is caught, we stop Guardian thread (by calling
+          Guardian_thread::request_shutdown());
+        - as Guardian_thread is stopped, it sends SIGTERM to this thread
+          (by calling Thread_registry::request_shutdown()), so that the
+          my_sigwait() above returns;
+        - as we catch the second SIGTERM, we send signals to all threads
+          registered in Thread_registry (by calling
+          Thread_registry::deliver_shutdown()) and waiting for threads to stop;
+    */
 
 #ifndef __WIN__
 /*
@@ -321,10 +353,11 @@ void manager()
     else
 #endif
     {
+      log_info("Main loop: got shutdown signal.");
+
       if (!guardian_thread.is_stopped())
       {
-        bool stop_instances= TRUE;
-        guardian_thread.request_shutdown(stop_instances);
+        guardian_thread.request_shutdown();
         pthread_cond_signal(&guardian_thread.COND_guardian);
       }
       else
@@ -334,6 +367,8 @@ void manager()
       }
     }
   }
+
+  log_info("Main loop: finished.");
 
 err:
   /* delete the pid file */

@@ -98,7 +98,7 @@ select ifnull(group_concat(concat(t1.id, ':', t1.name)), 'shortname') as 'withou
 select distinct ifnull(group_concat(concat(t1.id, ':', t1.name)), 'shortname') as 'with distinct: cutoff at length of shortname' from t1;
 drop table t1;
 
-# check zero rows
+# check zero rows (bug#836)
 create table t1(id int);
 create table t2(id int);
 insert into t1 values(0),(1);

@@ -886,14 +886,29 @@ Event_queue_element::load_from_row(TABLE *table)
     goto error;
 
   /*
-    In DB the values start from 1 but enum interval_type starts
-    from 0
+    We load the interval type from disk as string and then map it to
+    an integer. This decouples the values of enum interval_type
+    and values actually stored on disk. Therefore the type can be
+    reordered without risking incompatibilities of data between versions.
   */
   if (!table->field[ET_FIELD_TRANSIENT_INTERVAL]->is_null())
-    interval= (interval_type) ((ulonglong)
-          table->field[ET_FIELD_TRANSIENT_INTERVAL]->val_int() - 1);
-  else
-    interval= (interval_type) 0;
+  {
+    int i;
+    char buff[MAX_FIELD_WIDTH];
+    String str(buff, sizeof(buff), &my_charset_bin);
+    LEX_STRING tmp;
+
+    table->field[ET_FIELD_TRANSIENT_INTERVAL]->val_str(&str);
+    if (!(tmp.length= str.length()))
+      goto error;
+
+    tmp.str= str.c_ptr_safe();
+
+    i= find_string_in_array(interval_type_to_name, &tmp, system_charset_info);
+    if (i < 0)
+      goto error;
+    interval= (interval_type) i;
+  }
 
   table->field[ET_FIELD_LAST_EXECUTED]->get_date(&last_executed,
                                                  TIME_NO_ZERO_DATE);

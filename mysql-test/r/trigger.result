@@ -1073,10 +1073,11 @@ SELECT @x;
 NULL
 SET @x=2;
 UPDATE t1 SET i1 = @x;
-ERROR 22012: Division by 0
+Warnings:
+Error	1365	Division by 0
 SELECT @x;
 @x
-2
+NULL
 SET SQL_MODE='';
 SET @x=3;
 INSERT INTO t1 VALUES (@x);
@@ -1085,10 +1086,12 @@ SELECT @x;
 NULL
 SET @x=4;
 UPDATE t1 SET i1 = @x;
-ERROR 22012: Division by 0
+Warnings:
+Error	1365	Division by 0
+Error	1365	Division by 0
 SELECT @x;
 @x
-4
+NULL
 SET @@sql_mode=@save_sql_mode;
 DROP TRIGGER t1_ai;
 DROP TRIGGER t1_au;
@@ -1173,6 +1176,59 @@ TRIGGER t2_bi BEFORE INSERT ON t2 FOR EACH ROW SET @a = 2;
 ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY' is too long for host name (should be no longer than 60)
 DROP TABLE t1;
 DROP TABLE t2;
+drop table if exists t1;
+drop table if exists t2;
+drop table if exists t3;
+drop table if exists t4;
+SET @save_sql_mode=@@sql_mode;
+SET sql_mode='TRADITIONAL'|
+create table t1 (id int(10) not null primary key, v int(10) )|
+create table t2 (id int(10) not null primary key, v int(10) )|
+create table t3 (id int(10) not null primary key, v int(10) )|
+create table t4 (c int)|
+create trigger t4_bi before insert on t4 for each row set @t4_bi_called:=1|
+create trigger t4_bu before update on t4 for each row set @t4_bu_called:=1|
+insert into t1 values(10, 10)|
+set @a:=1/0|
+Warnings:
+Error	1365	Division by 0
+select 1/0 from t1|
+1/0
+NULL
+Warnings:
+Error	1365	Division by 0
+create trigger t1_bi before insert on t1 for each row set @a:=1/0|
+insert into t1 values(20, 20)|
+Warnings:
+Error	1365	Division by 0
+drop trigger t1_bi|
+create trigger t1_bi before insert on t1 for each row
+begin
+insert into t2 values (new.id, new.v);
+update t2 set v=v+1 where id= new.id;
+replace t3 values (new.id, 0);
+update t2, t3 set t2.v=new.v, t3.v=new.v where t2.id=t3.id;
+create temporary table t5 select * from t1;
+delete from t5;
+insert into t5 select * from t1;
+insert into t4 values (0);
+set @check= (select count(*) from t5);
+update t4 set c= @check;
+drop temporary table t5;
+set @a:=1/0;
+end|
+set @check=0, @t4_bi_called=0, @t4_bu_called=0|
+insert into t1 values(30, 30)|
+Warnings:
+Error	1365	Division by 0
+select @check, @t4_bi_called, @t4_bu_called|
+@check	@t4_bi_called	@t4_bu_called
+2	1	1
+SET @@sql_mode=@save_sql_mode;
+drop table t1;
+drop table t2;
+drop table t3;
+drop table t4;
 drop table if exists t1;
 create table t1 (i int, j int key);
 insert into t1 values (1,1), (2,2), (3,3);
