@@ -670,7 +670,8 @@ sub command_line_setup () {
   $path_client_bindir= mtr_path_exists(vs_config_dirs('client', ''),
 				       "$glob_basedir/client_release",
 				       "$glob_basedir/client_debug",
-				       "$glob_basedir/client");
+				       "$glob_basedir/client",
+				       "$glob_basedir/bin");
 
   $exe_mysqld=         mtr_exe_exists (vs_config_dirs('sql', 'mysqld'),
 				       "$glob_basedir/sql/mysqld",
