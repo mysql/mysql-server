@@ -36,7 +36,6 @@ st_relay_log_info::st_relay_log_info()
    inited(0), abort_slave(0), slave_running(0), until_condition(UNTIL_NONE),
    until_log_pos(0), retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
-   m_reload_flags(RELOAD_NONE_F),
    unsafe_to_stop_at(0)
 {
   DBUG_ENTER("st_relay_log_info::st_relay_log_info");
@@ -1070,88 +1069,14 @@ bool st_relay_log_info::cached_charset_compare(char *charset)
 }
 
 
-/*
-  Some system tables needed to be re-read by the MySQL server after it has
-  updated them; in statement-based replication, the GRANT and other commands
-  are sent verbatim to the slave which then reloads; in row-based replication,
-  changes to these tables are done through ordinary Rows binlog events, so
-  master must add some flag for the slave to know it has to reload the tables.
-*/
-struct st_reload_entry
-{
-  char const *table;
-  st_relay_log_info::enum_reload_flag flag;
-};
-
-/*
-  Sorted array of table names, please keep it sorted since we are
-  using bsearch() on it below.
- */
-static st_reload_entry s_mysql_tables[] =
-{
-  { "columns_priv", st_relay_log_info::RELOAD_GRANT_F },
-  { "db",           st_relay_log_info::RELOAD_ACCESS_F },
-  { "host",         st_relay_log_info::RELOAD_ACCESS_F },
-  { "procs_priv",   st_relay_log_info::RELOAD_GRANT_F },
-  { "tables_priv",  st_relay_log_info::RELOAD_GRANT_F },
-  { "user",         st_relay_log_info::RELOAD_ACCESS_F }
-};
-
-static const my_size_t s_mysql_tables_size =
-  sizeof(s_mysql_tables)/sizeof(*s_mysql_tables);
-
-static int reload_entry_compare(const void *lhs, const void *rhs)
-{
-  const char *lstr = static_cast<const char *>(lhs);
-  const char *rstr = static_cast<const st_reload_entry*>(rhs)->table;
-  DBUG_ENTER("reload_entry_compare");
-
-  DBUG_RETURN(strcmp(lstr, rstr));
-}
-
-
-void st_relay_log_info::touching_table(char const* db, char const* table,
-                                       ulong table_id)
-{
-  DBUG_ENTER("st_relay_log_info::touching_table");
-
-  if (strcmp(db,"mysql") == 0)
-  {
-#if defined(HAVE_BSEARCH) && defined(HAVE_SIZE_T)
-    void *const ptr= bsearch(table, s_mysql_tables,
-                             s_mysql_tables_size,
-                             sizeof(*s_mysql_tables), reload_entry_compare);
-    st_reload_entry const *const entry= static_cast<st_reload_entry*>(ptr);
-#else
-    /*
-      Fall back to full scan, there are few rows anyway and updating the
-      "mysql" database is rare.
-    */
-    st_reload_entry const *entry= s_mysql_tables;
-    for ( ; entry < s_mysql_tables + s_mysql_tables_size ; entry++)
-      if (reload_entry_compare(table, entry) == 0)
-        break;
-#endif
-    if (entry)
-      m_reload_flags|= entry->flag;
-  }
-  DBUG_VOID_RETURN;
-}
-
 void st_relay_log_info::transaction_end(THD* thd)
 {
   DBUG_ENTER("st_relay_log_info::transaction_end");
 
-  if (m_reload_flags != RELOAD_NONE_F)
-  {
-    if (m_reload_flags & RELOAD_ACCESS_F)
-      acl_reload(thd);
+  /*
+    Nothing to do here right now.
+   */
 
-    if (m_reload_flags & RELOAD_GRANT_F)
-      grant_reload(thd);
-
-    m_reload_flags= RELOAD_NONE_F;
-  }
   DBUG_VOID_RETURN;
 }
 
