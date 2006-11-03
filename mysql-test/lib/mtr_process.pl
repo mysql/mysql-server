@@ -441,7 +441,6 @@ sub mtr_kill_leftovers () {
       # Only read pid from files that end with .pid
       if ( $elem =~ /.*[.]pid$/)
       {
-
 	my $pidfile= "$rundir/$elem";
 
 	if ( -f $pidfile )
@@ -465,7 +464,8 @@ sub mtr_kill_leftovers () {
       }
       else
       {
-	mtr_warning("Found non pid file $elem in $rundir");
+	mtr_warning("Found non pid file $elem in $rundir")
+	  if -f "$rundir/$elem";
 	next;
       }
     }
