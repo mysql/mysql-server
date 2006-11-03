@@ -140,7 +140,7 @@ sub run_stress_test ()
 
   if ( $::opt_stress_init_file )
   {
-    mtr_add_arg($args, "--stress-init-file=%", $::opt_stress_init_file);
+    mtr_add_arg($args, "--stress-init-file=%s", $::opt_stress_init_file);
   }
 
   if ( !$::opt_stress_loop_count && !$::opt_stress_test_count &&
