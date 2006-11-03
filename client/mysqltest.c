@@ -1511,7 +1511,7 @@ void do_exec(struct st_command *command)
   do_eval(&ds_cmd, cmd, command->end, TRUE);
 
   DBUG_PRINT("info", ("Executing '%s' as '%s'",
-                      command->first_argument, cmd));
+                      command->first_argument, ds_cmd.str));
 
   if (!(res_file= my_popen(&ds_cmd, "r")) && command->abort_on_error)
     die("popen(\"%s\", \"r\") failed", command->first_argument);
