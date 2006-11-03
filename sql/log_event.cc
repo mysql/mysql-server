@@ -6229,8 +6229,7 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
 
     /*
       We record in the slave's information that the table should be
-      locked by linking the table into the list of tables to lock, and
-      tell the RLI that we are touching a table.
+      locked by linking the table into the list of tables to lock.
     */
     table_list->next_global= table_list->next_local= rli->tables_to_lock;
     rli->tables_to_lock= table_list;
