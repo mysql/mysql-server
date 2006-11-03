@@ -323,7 +323,6 @@ pthread_handler_t thr_find_all_keys(void *arg)
   if (my_thread_init())
     goto err;
 
-
   { /* Add extra block since DBUG_ENTER declare variables */
     DBUG_ENTER("thr_find_all_keys");
     DBUG_PRINT("enter", ("master: %d", sort_param->master));
