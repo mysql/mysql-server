@@ -72,6 +72,10 @@ disconnect con2;
 disconnect con1;
 connection default;
 
+
+--echo End of 4.1 tests
+
+
 #
 # Bug#14959: ALTER TABLE isn't able to rename a view
 #
@@ -85,4 +89,6 @@ rename table v2 to v1;
 rename table v2 to v1;
 drop view v1;
 drop table t1;
-# End of 4.1 tests
+
+
+--echo End of 5.0 tests
