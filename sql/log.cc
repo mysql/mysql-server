@@ -386,6 +386,18 @@ bool Log_to_csv_event_handler::
 {
   TABLE *table= general_log.table;
 
+  /*
+    "INSERT INTO general_log" can generate warning sometimes.
+    Let's reset warnings from previous queries,
+    otherwise warning list can grow too much,
+    so thd->query gets spoiled as some point in time,
+    and mysql_parse() receives a broken query.
+    QQ: this problem needs to be studied in more details.
+    Probably it's better to suppress warnings in logging INSERTs at all.
+    Comment this line and run "cast.test" to see what's happening:
+  */
+  mysql_reset_errors(table->in_use, 1);
+
   /* below should never happen */
   if (unlikely(!logger.is_log_tables_initialized))
     return FALSE;
