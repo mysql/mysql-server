@@ -21,40 +21,44 @@
 #ifdef USE_MB
 
 
-void my_caseup_str_mb(CHARSET_INFO * cs, char *str)
+uint my_caseup_str_mb(CHARSET_INFO * cs, char *str)
 {
   register uint32 l;
-  register uchar *map=cs->to_upper;
+  register uchar *map= cs->to_upper;
+  char *str_orig= str;
   
   while (*str)
   {
     /* Pointing after the '\0' is safe here. */
-    if ((l=my_ismbchar(cs, str, str + cs->mbmaxlen)))
-      str+=l;
+    if ((l= my_ismbchar(cs, str, str + cs->mbmaxlen)))
+      str+= l;
     else
     { 
-      *str=(char) map[(uchar)*str];
+      *str= (char) map[(uchar)*str];
       str++;
     }
   }
+  return str - str_orig;
 }
 
-void my_casedn_str_mb(CHARSET_INFO * cs, char *str)
+uint my_casedn_str_mb(CHARSET_INFO * cs, char *str)
 {
   register uint32 l;
-  register uchar *map=cs->to_lower;
+  register uchar *map= cs->to_lower;
+  char *str_orig= str;
   
   while (*str)
   {
     /* Pointing after the '\0' is safe here. */
-    if ((l=my_ismbchar(cs, str, str + cs->mbmaxlen)))
-      str+=l;
+    if ((l= my_ismbchar(cs, str, str + cs->mbmaxlen)))
+      str+= l;
     else
     {
-      *str=(char) map[(uchar)*str];
+      *str= (char) map[(uchar)*str];
       str++;
     }
   }
+  return str - str_orig;
 }
 
 uint my_caseup_mb(CHARSET_INFO * cs, char *src, uint srclen,
