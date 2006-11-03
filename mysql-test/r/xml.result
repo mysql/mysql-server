@@ -736,3 +736,76 @@ test
 select extractValue('<x.-_:>test</x.-_:>','//*');
 extractValue('<x.-_:>test</x.-_:>','//*')
 test
+set @xml= "<entry><id>pt10</id><pt>10</pt></entry><entry><id>pt50</id><pt>50</pt></entry>";
+select ExtractValue(@xml, "/entry[(pt=10)]/id");
+ExtractValue(@xml, "/entry[(pt=10)]/id")
+pt10
+select ExtractValue(@xml, "/entry[(pt!=10)]/id");
+ExtractValue(@xml, "/entry[(pt!=10)]/id")
+pt50
+select ExtractValue(@xml, "/entry[(pt<10)]/id");
+ExtractValue(@xml, "/entry[(pt<10)]/id")
+
+select ExtractValue(@xml, "/entry[(pt<=10)]/id");
+ExtractValue(@xml, "/entry[(pt<=10)]/id")
+pt10
+select ExtractValue(@xml, "/entry[(pt>10)]/id");
+ExtractValue(@xml, "/entry[(pt>10)]/id")
+pt50
+select ExtractValue(@xml, "/entry[(pt>=10)]/id");
+ExtractValue(@xml, "/entry[(pt>=10)]/id")
+pt10 pt50
+select ExtractValue(@xml, "/entry[(pt=50)]/id");
+ExtractValue(@xml, "/entry[(pt=50)]/id")
+pt50
+select ExtractValue(@xml, "/entry[(pt!=50)]/id");
+ExtractValue(@xml, "/entry[(pt!=50)]/id")
+pt10
+select ExtractValue(@xml, "/entry[(pt<50)]/id");
+ExtractValue(@xml, "/entry[(pt<50)]/id")
+pt10
+select ExtractValue(@xml, "/entry[(pt<=50)]/id");
+ExtractValue(@xml, "/entry[(pt<=50)]/id")
+pt10 pt50
+select ExtractValue(@xml, "/entry[(pt>50)]/id");
+ExtractValue(@xml, "/entry[(pt>50)]/id")
+
+select ExtractValue(@xml, "/entry[(pt>=50)]/id");
+ExtractValue(@xml, "/entry[(pt>=50)]/id")
+pt50
+select ExtractValue(@xml, "/entry[(10=pt)]/id");
+ExtractValue(@xml, "/entry[(10=pt)]/id")
+pt10
+select ExtractValue(@xml, "/entry[(10!=pt)]/id");
+ExtractValue(@xml, "/entry[(10!=pt)]/id")
+pt50
+select ExtractValue(@xml, "/entry[(10>pt)]/id");
+ExtractValue(@xml, "/entry[(10>pt)]/id")
+
+select ExtractValue(@xml, "/entry[(10>=pt)]/id");
+ExtractValue(@xml, "/entry[(10>=pt)]/id")
+pt10
+select ExtractValue(@xml, "/entry[(10<pt)]/id");
+ExtractValue(@xml, "/entry[(10<pt)]/id")
+pt50
+select ExtractValue(@xml, "/entry[(10<=pt)]/id");
+ExtractValue(@xml, "/entry[(10<=pt)]/id")
+pt10 pt50
+select ExtractValue(@xml, "/entry[(50=pt)]/id");
+ExtractValue(@xml, "/entry[(50=pt)]/id")
+pt50
+select ExtractValue(@xml, "/entry[(50!=pt)]/id");
+ExtractValue(@xml, "/entry[(50!=pt)]/id")
+pt10
+select ExtractValue(@xml, "/entry[(50>pt)]/id");
+ExtractValue(@xml, "/entry[(50>pt)]/id")
+pt10
+select ExtractValue(@xml, "/entry[(50>=pt)]/id");
+ExtractValue(@xml, "/entry[(50>=pt)]/id")
+pt10 pt50
+select ExtractValue(@xml, "/entry[(50<pt)]/id");
+ExtractValue(@xml, "/entry[(50<pt)]/id")
+
+select ExtractValue(@xml, "/entry[(50<=pt)]/id");
+ExtractValue(@xml, "/entry[(50<=pt)]/id")
+pt50
