@@ -15,7 +15,7 @@
 # Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 # MA 02111-1307, USA
 
-BUILT_SOURCES =		mysql_version.h my_config.h abi_check
+BUILT_SOURCES =		mysql_version.h my_config.h
 pkginclude_HEADERS =	my_dbug.h m_string.h my_sys.h my_list.h my_xml.h \
 			mysql.h mysql_com.h mysql_embed.h \
 		  	my_semaphore.h my_pthread.h my_no_pthread.h raid.h \
@@ -60,7 +60,7 @@ dist-hook:
 
 # Create a icheck file and compare it to the reference
 abi_check: mysql.h mysql_version.h mysql_com.h mysql_time.h my_list.h \
-           my_alloc.h typelib.h
+           my_alloc.h typelib.h mysql_h.ic
 	@set -ex; \
 	if [ @ICHECK@ != no ] ; then \
 	  @ICHECK@ --canonify --skip-from-re /usr/ -o $@.ic mysql.h; \
