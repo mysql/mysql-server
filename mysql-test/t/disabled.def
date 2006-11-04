@@ -11,3 +11,5 @@
 ##############################################################################
 
 ndb_load        : Bug#17233
+user_limits     : Bug#23921 random failure of user_limits.test
+
