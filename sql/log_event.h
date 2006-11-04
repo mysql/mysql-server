@@ -477,6 +477,7 @@ class THD;
 class Format_description_log_event;
 
 struct st_relay_log_info;
+typedef st_relay_log_info RELAY_LOG_INFO;
 
 #ifdef MYSQL_CLIENT
 /*
@@ -631,16 +632,48 @@ public:
   static void init_show_field_list(List<Item>* field_list);
 #ifdef HAVE_REPLICATION
   int net_send(Protocol *protocol, const char* log_name, my_off_t pos);
+
+
+  /**
+     Execute the event to change the database and update the binary
+     log coordinates.
+
+     @param rli Pointer to relay log information
+
+     @retval 0     The event was successfully executed.
+     @retval errno Error code when the execution failed
+   */
+
+  int exec_event(RELAY_LOG_INFO *rli)
+  {
+    // !!! Just chaining the calls in this first patch
+    return apply_event_impl(rli);
+  }
+
+
+  /**
+     Skip the event by just updating the binary log coordinates.
+
+     @param rli Pointer to relay log information
+
+     @retval 0     The event was successfully executed.
+     @retval errno Error code when the execution failed
+   */
+
+  int skip_event(RELAY_LOG_INFO *rli)
+  {
+    // !!! Nothing yet. This is just the reorgainization patch.
+    return 0;
+  }
+
+
   /*
     pack_info() is used by SHOW BINLOG EVENTS; as print() it prepares and sends
     a string to display to the user, so it resembles print().
   */
+
   virtual void pack_info(Protocol *protocol);
-  /*
-    The SQL slave thread calls exec_event() to execute the event; this is where
-    the slave's data is modified.
-  */
-  virtual int exec_event(struct st_relay_log_info* rli);
+
 #endif /* HAVE_REPLICATION */
   virtual const char* get_db()
   {
@@ -713,6 +746,38 @@ public:
                                    *description_event);
   /* returns the human readable name of the event's type */
   const char* get_type_str();
+
+protected:        /* !!! Protected in this patch to allow old usage */
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  /**
+    Primitive to apply an event to the database.
+
+    This is where the change to the database is made.
+
+    @param rli Pointer to relay log info structure
+
+    @retval 0     Event applied successfully
+    @retval errno Error code if event application failed
+  */
+  virtual int apply_event_impl(RELAY_LOG_INFO *rli);
+
+  /**
+     Advance binary log coordinates.
+
+     This function is called to advance the binary log or relay log
+     coordinates to just after the event.
+
+     @param rli Pointer to relay log info structure
+
+     @retval 0     Coordinates changed successfully
+     @retval errno Error code if advancing failed
+   */
+  virtual int advance_coord_impl(RELAY_LOG_INFO *rli)
+  {
+    // !!! Dummy implementation for this patch only
+    return 0;
+  }
+#endif
 };
 
 /*
@@ -753,10 +818,10 @@ public:
   uint16 error_code;
   ulong thread_id;
   /*
-    For events created by Query_log_event::exec_event (and
-    Load_log_event::exec_event()) we need the *original* thread id, to be able
-    to log the event with the original (=master's) thread id (fix for
-    BUG#1686).
+    For events created by Query_log_event::apply_event_impl (and
+    Load_log_event::apply_event_impl()) we need the *original* thread
+    id, to be able to log the event with the original (=master's)
+    thread id (fix for BUG#1686).
   */
   ulong slave_proxy_id;
 
@@ -817,9 +882,6 @@ public:
   const char* get_db() { return db; }
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
-  int exec_event(struct st_relay_log_info* rli);
-  int exec_event(struct st_relay_log_info* rli, const char *query_arg,
-                 uint32 q_len_arg);
 #endif /* HAVE_REPLICATION */
 #else
   void print_query_header(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info);
@@ -848,6 +910,14 @@ public:
   */
   virtual ulong get_post_header_size_for_derived() { return 0; }
   /* Writes derived event-specific part of post header. */
+
+public:        /* !!! Public in this patch to allow old usage */
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+  int apply_event_impl(RELAY_LOG_INFO* rli,
+                       const char *query_arg,
+                       uint32 q_len_arg);
+#endif /* HAVE_REPLICATION */
 };
 
 
@@ -894,9 +964,8 @@ public:
   uint16 master_port;
 
 #ifndef MYSQL_CLIENT
-  Slave_log_event(THD* thd_arg, struct st_relay_log_info* rli);
+  Slave_log_event(THD* thd_arg, RELAY_LOG_INFO* rli);
   void pack_info(Protocol* protocol);
-  int exec_event(struct st_relay_log_info* rli);
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
@@ -908,6 +977,11 @@ public:
   Log_event_type get_type_code() { return SLAVE_EVENT; }
 #ifndef MYSQL_CLIENT
   bool write(IO_CACHE* file);
+#endif
+
+private:
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
 #endif
 };
 
@@ -978,12 +1052,6 @@ public:
   const char* get_db() { return db; }
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
-  int exec_event(struct st_relay_log_info* rli)
-  {
-    return exec_event(thd->slave_net,rli,0);
-  }
-  int exec_event(NET* net, struct st_relay_log_info* rli,
-		 bool use_rli_only_for_errors);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -1015,6 +1083,17 @@ public:
 	    + LOAD_HEADER_LEN
 	    + sql_ex.data_size() + field_block_len + num_fields);
   }
+
+public:        /* !!! Public in this patch to allow old usage */
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual int apply_event_impl(RELAY_LOG_INFO* rli)
+  {
+    return apply_event_impl(thd->slave_net,rli,0);
+  }
+
+  int apply_event_impl(NET* net, RELAY_LOG_INFO* rli,
+                       bool use_rli_only_for_errors);
+#endif
 };
 
 extern char server_version[SERVER_VERSION_LENGTH];
@@ -1072,7 +1151,6 @@ public:
   Start_log_event_v3();
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
-  int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
   Start_log_event_v3() {}
@@ -1092,6 +1170,11 @@ public:
     return START_V3_HEADER_LEN; //no variable-sized part
   }
   virtual bool is_artificial_event() { return artificial_event; }
+
+protected:        /* !!! Protected in this patch to allow old usage */
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+#endif
 };
 
 
@@ -1116,13 +1199,6 @@ public:
   uint8 *post_header_len;
 
   Format_description_log_event(uint8 binlog_ver, const char* server_ver=0);
-
-#ifndef MYSQL_CLIENT
-#ifdef HAVE_REPLICATION
-  int exec_event(struct st_relay_log_info* rli);
-#endif /* HAVE_REPLICATION */
-#endif
-
   Format_description_log_event(const char* buf, uint event_len,
                                const Format_description_log_event* description_event);
   ~Format_description_log_event() { my_free((gptr)post_header_len, MYF(0)); }
@@ -1145,6 +1221,11 @@ public:
     */
     return FORMAT_DESCRIPTION_HEADER_LEN;
   }
+
+private:
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+#endif
 };
 
 
@@ -1168,7 +1249,6 @@ public:
   {}
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
-  int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -1183,6 +1263,11 @@ public:
   bool write(IO_CACHE* file);
 #endif
   bool is_valid() const { return 1; }
+
+private:
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+#endif
 };
 
 
@@ -1209,7 +1294,6 @@ class Rand_log_event: public Log_event
   {}
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
-  int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -1223,6 +1307,11 @@ class Rand_log_event: public Log_event
   bool write(IO_CACHE* file);
 #endif
   bool is_valid() const { return 1; }
+
+private:
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+#endif
 };
 
 /*****************************************************************************
@@ -1246,7 +1335,6 @@ class Xid_log_event: public Log_event
   Xid_log_event(THD* thd_arg, my_xid x): Log_event(thd_arg,0,0), xid(x) {}
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
-  int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -1260,6 +1348,11 @@ class Xid_log_event: public Log_event
   bool write(IO_CACHE* file);
 #endif
   bool is_valid() const { return 1; }
+
+private:
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+#endif
 };
 
 /*****************************************************************************
@@ -1289,7 +1382,6 @@ public:
     val_len(val_len_arg), type(type_arg), charset_number(charset_number_arg)
     { is_null= !val; }
   void pack_info(Protocol* protocol);
-  int exec_event(struct st_relay_log_info* rli);
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
@@ -1301,6 +1393,11 @@ public:
   bool write(IO_CACHE* file);
 #endif
   bool is_valid() const { return 1; }
+
+private:
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+#endif
 };
 
 
@@ -1315,7 +1412,6 @@ public:
 #ifndef MYSQL_CLIENT
   Stop_log_event() :Log_event()
   {}
-  int exec_event(struct st_relay_log_info* rli);
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
@@ -1326,6 +1422,11 @@ public:
   ~Stop_log_event() {}
   Log_event_type get_type_code() { return STOP_EVENT;}
   bool is_valid() const { return 1; }
+
+private:
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+#endif
 };
 
 /*****************************************************************************
@@ -1352,7 +1453,6 @@ public:
 		   ulonglong pos_arg, uint flags);
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
-  int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -1370,6 +1470,11 @@ public:
   bool is_valid() const { return new_log_ident != 0; }
 #ifndef MYSQL_CLIENT
   bool write(IO_CACHE* file);
+#endif
+
+private:
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
 #endif
 };
 
@@ -1405,7 +1510,6 @@ public:
 			bool using_trans);
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
-  int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -1439,6 +1543,11 @@ public:
   */
   bool write_base(IO_CACHE* file);
 #endif
+
+private:
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+#endif
 };
 
 
@@ -1471,7 +1580,6 @@ public:
   Append_block_log_event(THD* thd, const char* db_arg, char* block_arg,
 			 uint block_len_arg, bool using_trans);
 #ifdef HAVE_REPLICATION
-  int exec_event(struct st_relay_log_info* rli);
   void pack_info(Protocol* protocol);
   virtual int get_create_or_append() const;
 #endif /* HAVE_REPLICATION */
@@ -1488,6 +1596,11 @@ public:
 #ifndef MYSQL_CLIENT
   bool write(IO_CACHE* file);
   const char* get_db() { return db; }
+#endif
+
+private:
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
 #endif
 };
 
@@ -1508,7 +1621,6 @@ public:
   Delete_file_log_event(THD* thd, const char* db_arg, bool using_trans);
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
-  int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -1524,6 +1636,11 @@ public:
 #ifndef MYSQL_CLIENT
   bool write(IO_CACHE* file);
   const char* get_db() { return db; }
+#endif
+
+private:
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
 #endif
 };
 
@@ -1544,7 +1661,6 @@ public:
   Execute_load_log_event(THD* thd, const char* db_arg, bool using_trans);
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
-  int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -1559,6 +1675,11 @@ public:
 #ifndef MYSQL_CLIENT
   bool write(IO_CACHE* file);
   const char* get_db() { return db; }
+#endif
+
+private:
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
 #endif
 };
 
@@ -1629,7 +1750,6 @@ public:
                        bool using_trans, bool suppress_use);
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
-  int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -1648,7 +1768,12 @@ public:
 #ifndef MYSQL_CLIENT
   bool write_post_header_for_derived(IO_CACHE* file);
 #endif
- };
+
+private:
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+#endif
+};
 
 
 #ifdef MYSQL_CLIENT
@@ -1745,7 +1870,6 @@ public:
 #endif
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual int exec_event(struct st_relay_log_info *rli);
   virtual void pack_info(Protocol *protocol);
 #endif
 
@@ -1755,6 +1879,10 @@ public:
 
 
 private:
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+#endif
+
 #ifndef MYSQL_CLIENT
   TABLE      *m_table;
 #endif
@@ -1826,7 +1954,6 @@ public:
   flag_set get_flags(flag_set flags) const { return m_flags & flags; }
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual int exec_event(struct st_relay_log_info *rli);
   virtual void pack_info(Protocol *protocol);
 #endif
 
@@ -1910,6 +2037,8 @@ protected:
 private:
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+
   /*
     Primitive to prepare for a sequence of row executions.
 
