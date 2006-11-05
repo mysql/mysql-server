@@ -116,7 +116,7 @@ create table t1 (ts timestamp);
 set time_zone='UTC';
 insert into t1 values ('0000-00-00 00:00:00'),('1969-12-31 23:59:59'),
 ('1970-01-01 00:00:00'),('1970-01-01 00:00:01'),
-('2037-12-31 23:59:59'),('2038-01-01 00:00:00');
+('2038-01-19 03:14:07'),('2038-01-19 03:14:08');
 Warnings:
 Warning	1264	Out of range value adjusted for column 'ts' at row 2
 Warning	1264	Out of range value adjusted for column 'ts' at row 3
@@ -127,13 +127,13 @@ ts
 0000-00-00 00:00:00
 0000-00-00 00:00:00
 1970-01-01 00:00:01
-2037-12-31 23:59:59
+2038-01-19 03:14:07
 0000-00-00 00:00:00
 delete from t1;
 set time_zone='MET';
 insert into t1 values ('0000-00-00 00:00:00'),('1970-01-01 00:30:00'),
 ('1970-01-01 01:00:00'),('1970-01-01 01:00:01'),
-('2038-01-01 00:59:59'),('2038-01-01 01:00:00');
+('2038-01-19 04:14:07'),('2038-01-19 04:14:08');
 Warnings:
 Warning	1264	Out of range value adjusted for column 'ts' at row 2
 Warning	1264	Out of range value adjusted for column 'ts' at row 3
@@ -144,13 +144,13 @@ ts
 0000-00-00 00:00:00
 0000-00-00 00:00:00
 1970-01-01 01:00:01
-2038-01-01 00:59:59
+2038-01-19 04:14:07
 0000-00-00 00:00:00
 delete from t1;
 set time_zone='+01:30';
 insert into t1 values ('0000-00-00 00:00:00'),('1970-01-01 01:00:00'),
 ('1970-01-01 01:30:00'),('1970-01-01 01:30:01'),
-('2038-01-01 01:29:59'),('2038-01-01 01:30:00');
+('2038-01-19 04:44:07'),('2038-01-19 04:44:08');
 Warnings:
 Warning	1264	Out of range value adjusted for column 'ts' at row 2
 Warning	1264	Out of range value adjusted for column 'ts' at row 3
@@ -161,7 +161,7 @@ ts
 0000-00-00 00:00:00
 0000-00-00 00:00:00
 1970-01-01 01:30:01
-2038-01-01 01:29:59
+2038-01-19 04:44:07
 0000-00-00 00:00:00
 drop table t1;
 show variables like 'time_zone';
@@ -223,12 +223,12 @@ convert_tz('2003-10-26 02:59:59', 'MET', 'UTC')
 select convert_tz('2003-10-26 04:00:00', 'MET', 'UTC');
 convert_tz('2003-10-26 04:00:00', 'MET', 'UTC')
 2003-10-26 03:00:00
-select convert_tz('2038-01-01 00:59:59', 'MET', 'UTC');
-convert_tz('2038-01-01 00:59:59', 'MET', 'UTC')
-2037-12-31 23:59:59
-select convert_tz('2038-01-01 01:00:00', 'MET', 'UTC');
-convert_tz('2038-01-01 01:00:00', 'MET', 'UTC')
-2038-01-01 01:00:00
+select convert_tz('2038-01-19 04:14:07', 'MET', 'UTC');
+convert_tz('2038-01-19 04:14:07', 'MET', 'UTC')
+2038-01-19 03:14:07
+select convert_tz('2038-01-19 04:14:08', 'MET', 'UTC');
+convert_tz('2038-01-19 04:14:08', 'MET', 'UTC')
+2038-01-19 04:14:08
 select convert_tz('2103-01-01 04:00:00', 'MET', 'UTC');
 convert_tz('2103-01-01 04:00:00', 'MET', 'UTC')
 2103-01-01 04:00:00
