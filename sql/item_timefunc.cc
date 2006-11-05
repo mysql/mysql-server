@@ -1911,17 +1911,14 @@ bool Item_func_convert_tz::get_date(TIME *ltime,
     return 1;
   }
 
-  /* Check if we in range where we treat datetime values as non-UTC */
-  if (ltime->year < TIMESTAMP_MAX_YEAR && ltime->year > TIMESTAMP_MIN_YEAR ||
-      ltime->year==TIMESTAMP_MAX_YEAR && ltime->month==1 && ltime->day==1 ||
-      ltime->year==TIMESTAMP_MIN_YEAR && ltime->month==12 && ltime->day==31)
   {
     my_bool not_used;
     my_time_tmp= from_tz->TIME_to_gmt_sec(ltime, &not_used);
-    if (my_time_tmp >= TIMESTAMP_MIN_VALUE && my_time_tmp <= TIMESTAMP_MAX_VALUE)
+    /* my_time_tmp is guranteed to be in the allowed range */
+    if (my_time_tmp)
       to_tz->gmt_sec_to_TIME(ltime, my_time_tmp);
   }
-  
+
   null_value= 0;
   return 0;
 }
