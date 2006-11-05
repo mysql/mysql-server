@@ -3621,6 +3621,14 @@ sub run_testcase_start_servers($) {
     return;
   }
 
+  #
+  # Set the timezone, in the case it was specified in the test
+  # We need to do this before the server is started, as mysqld
+  # uses this information at startup
+  #
+  
+  $ENV{'TZ'}= $tinfo->{'timezone'};
+  
   if ( $tinfo->{'component_id'} eq 'mysqld' )
   {
     if ( ! $opt_skip_ndbcluster and
@@ -3985,7 +3993,6 @@ sub run_mysqltest ($) {
   # -------------------------------------------------------
   # Init variables that change for each testcase
   # -------------------------------------------------------
-  $ENV{'TZ'}= $tinfo->{'timezone'};
 
   my $res = mtr_run_test($exe,$args,"","",$path_timefile,"");
 
