@@ -890,7 +890,7 @@ TIME_to_gmt_sec(const TIME *t, const TIME_ZONE_INFO *sp, bool *in_dst_time_gap)
   DBUG_ENTER("TIME_to_gmt_sec");
 
   if (!validate_timestamp_range(t))
-    return 0;
+    DBUG_RETURN(0);
 
 
   /* We need this for correct leap seconds handling */
