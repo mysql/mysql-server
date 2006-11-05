@@ -898,7 +898,13 @@ TIME_to_gmt_sec(const TIME *t, const TIME_ZONE_INFO *sp,
   my_time_t local_t;
   uint saved_seconds;
   uint i;
+  int shift= 0;
+
   DBUG_ENTER("TIME_to_gmt_sec");
+
+  if (!validate_timestamp_range(t))
+    DBUG_RETURN(0);
+
 
   /* We need this for correct leap seconds handling */
   if (t->second < SECS_PER_MIN)
@@ -907,11 +913,29 @@ TIME_to_gmt_sec(const TIME *t, const TIME_ZONE_INFO *sp,
     saved_seconds= t->second;
 
   /*
-    NOTE If we want to convert full my_time_t range without MySQL
-    restrictions we should catch overflow here somehow.
+    NOTE: to convert full my_time_t range we do a shift of the
+    boundary dates here to avoid overflow of my_time_t.
+    We use alike approach in my_system_gmt_sec().
+
+    However in that function we also have to take into account
+    overflow near 0 on some platforms. That's because my_system_gmt_sec
+    uses localtime_r(), which doesn't work with negative values correctly
+    on platforms with unsigned time_t (QNX). Here we don't use localtime()
+    => we negative values of local_t are ok.
   */
 
-  local_t= sec_since_epoch(t->year, t->month, t->day,
+  if ((t->year == TIMESTAMP_MAX_YEAR) && (t->month == 1) && t->day > 4)
+  {
+    /*
+      We will pass (t->day - shift) to sec_since_epoch(), and
+      want this value to be a positive number, so we shift
+      only dates > 4.01.2038 (to avoid owerflow).
+    */
+    shift= 2;
+  }
+
+
+  local_t= sec_since_epoch(t->year, t->month, (t->day - shift),
                            t->hour, t->minute,
                            saved_seconds ? 0 : t->second);
 
@@ -930,6 +954,22 @@ TIME_to_gmt_sec(const TIME *t, const TIME_ZONE_INFO *sp,
   /* binary search for our range */
   i= find_time_range(local_t, sp->revts, sp->revcnt);
 
+  /*
+    As there are no offset switches at the end of TIMESTAMP range,
+    we could simply check for overflow here (and don't need to bother
+    about DST gaps etc)
+  */
+  if (shift)
+  {
+    if (local_t > (TIMESTAMP_MAX_VALUE - shift*86400L +
+                   sp->revtis[i].rt_offset - saved_seconds))
+    {
+      DBUG_RETURN(0);                           /* my_time_t overflow */
+    }
+    else
+     local_t+= shift*86400L;
+  }
+
   if (sp->revtis[i].rt_type)
   {
     /*
@@ -939,10 +979,16 @@ TIME_to_gmt_sec(const TIME *t, const TIME_ZONE_INFO *sp,
       beginning of the gap.
     */
     *in_dst_time_gap= 1;
-    DBUG_RETURN(sp->revts[i] - sp->revtis[i].rt_offset + saved_seconds);
+    local_t= sp->revts[i] - sp->revtis[i].rt_offset + saved_seconds;
   }
   else
-    DBUG_RETURN(local_t - sp->revtis[i].rt_offset + saved_seconds);
+    local_t= local_t - sp->revtis[i].rt_offset + saved_seconds;
+
+  /* check for TIMESTAMP_MAX_VALUE was already done above */
+  if (local_t < TIMESTAMP_MIN_VALUE)
+    local_t= 0;
+
+  DBUG_RETURN(local_t);
 }
 
 
@@ -1308,9 +1354,24 @@ Time_zone_offset::Time_zone_offset(long tz_offset_arg):
 my_time_t
 Time_zone_offset::TIME_to_gmt_sec(const TIME *t, my_bool *in_dst_time_gap) const
 {
-  return sec_since_epoch(t->year, t->month, t->day,
-                         t->hour, t->minute, t->second) -
-         offset;
+  my_time_t local_t;
+
+  /*
+    Check timestamp range.we have to do this as calling function relies on
+    us to make all validation checks here.
+  */
+  if (!validate_timestamp_range(t))
+    return 0;
+
+  local_t= sec_since_epoch(t->year, t->month, t->day,
+                           t->hour, t->minute, t->second) -
+           offset;
+
+  if (local_t >= TIMESTAMP_MIN_VALUE && local_t <= TIMESTAMP_MAX_VALUE)
+    return local_t;
+
+  /* range error*/
+  return 0;
 }
 
 

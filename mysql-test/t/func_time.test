@@ -255,15 +255,55 @@ select unix_timestamp(@a);
 select unix_timestamp('1969-12-01 19:00:01');
 
 #
-# Test for bug #6439 "unix_timestamp() function returns wrong datetime 
-# values for too big argument" and bug #7515 "from_unixtime(0) now
-# returns NULL instead of the epoch". unix_timestamp() should return error
-# for too big or negative argument. It should return Epoch value for zero
-# argument since it seems that many user's rely on this fact.
+# Tests for bug #6439 "unix_timestamp() function returns wrong datetime 
+# values for too big argument", bug #7515 "from_unixtime(0) now
+# returns NULL instead of the epoch" and bug #9191
+# "TIMESTAMP/from_unixtime() no longer accepts 2^31-1."
+# unix_timestamp() should return error for too big or negative argument.
+# It should return Epoch value for zero argument since it seems that many
+# users rely on this fact, from_unixtime() should work with values
+# up to INT_MAX32 because of the same reason.
 #
 select from_unixtime(-1);
-select from_unixtime(2145916800);
+# check for from_unixtime(2^31-1) and from_unixtime(2^31)
+select from_unixtime(2147483647);
+select from_unixtime(2147483648);
 select from_unixtime(0);
+
+#
+# Some more tests for bug #9191 "TIMESTAMP/from_unixtime() no
+# longer accepts 2^31-1". Here we test that from_unixtime and
+# unix_timestamp are consistent, when working with boundary dates.
+#
+select unix_timestamp(from_unixtime(2147483647));
+select unix_timestamp(from_unixtime(2147483648));
+
+# check for invalid dates
+
+# bad year
+select unix_timestamp('2039-01-20 01:00:00');
+select unix_timestamp('1968-01-20 01:00:00');
+# bad month
+select unix_timestamp('2038-02-10 01:00:00');
+select unix_timestamp('1969-11-20 01:00:00');
+# bad day
+select unix_timestamp('2038-01-20 01:00:00');
+select unix_timestamp('1969-12-30 01:00:00');
+
+#
+# Check negative shift (we subtract several days for boundary dates during
+# conversion).
+select unix_timestamp('2038-01-17 12:00:00');
+
+#
+# Check positive shift. (it happens only on
+# platfroms with unsigned time_t, such as QNX)
+#
+select unix_timestamp('1970-01-01 03:00:01');
+
+# check bad date, close to the boundary (we cut them off in the very end)
+select unix_timestamp('2038-01-19 07:14:07');
+
 
 #
 # Test types from + INTERVAL
