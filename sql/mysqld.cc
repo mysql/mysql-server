@@ -372,7 +372,6 @@ extern longlong innobase_log_file_size;
 extern long innobase_log_buffer_size;
 extern longlong innobase_buffer_pool_size;
 extern long innobase_additional_mem_pool_size;
-extern long innobase_buffer_pool_awe_mem_mb;
 extern long innobase_file_io_threads, innobase_lock_wait_timeout;
 extern long innobase_force_recovery;
 extern long innobase_open_files;
@@ -5774,10 +5773,6 @@ log and this option does nothing anymore.",
    (gptr*) &srv_auto_extend_increment,
    (gptr*) &srv_auto_extend_increment,
    0, GET_LONG, REQUIRED_ARG, 8L, 1L, 1000L, 0, 1L, 0},
-  {"innodb_buffer_pool_awe_mem_mb", OPT_INNODB_BUFFER_POOL_AWE_MEM_MB,
-   "If Windows AWE is used, the size of InnoDB buffer pool allocated from the AWE memory.",
-   (gptr*) &innobase_buffer_pool_awe_mem_mb, (gptr*) &innobase_buffer_pool_awe_mem_mb, 0,
-   GET_LONG, REQUIRED_ARG, 0, 0, 63000, 0, 1, 0},
   {"innodb_buffer_pool_size", OPT_INNODB_BUFFER_POOL_SIZE,
    "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
    (gptr*) &innobase_buffer_pool_size, (gptr*) &innobase_buffer_pool_size, 0,
@@ -8132,7 +8127,6 @@ longlong innobase_log_file_size;
 long innobase_log_buffer_size;
 longlong innobase_buffer_pool_size;
 long innobase_additional_mem_pool_size;
-long innobase_buffer_pool_awe_mem_mb;
 long innobase_file_io_threads, innobase_lock_wait_timeout;
 long innobase_force_recovery;
 long innobase_open_files;
