@@ -38,6 +38,14 @@ typedef long my_time_t;
 #define MY_TIME_T_MAX LONG_MAX
 #define MY_TIME_T_MIN LONG_MIN
 
+
+/* Time handling defaults */
+#define TIMESTAMP_MAX_YEAR 2038
+#define YY_PART_YEAR	   70
+#define TIMESTAMP_MIN_YEAR (1900 + YY_PART_YEAR - 1)
+#define TIMESTAMP_MAX_VALUE INT_MAX32
+#define TIMESTAMP_MIN_VALUE 1
+
 #define YY_PART_YEAR	   70
 
 /* Flags to str_to_datetime */
@@ -67,6 +75,30 @@ long calc_daynr(uint year,uint month,uint day);
 uint calc_days_in_year(uint year);
 
 void init_time(void);
+
+
+/*
+  Function to check sanity of a TIMESTAMP value
+
+  DESCRIPTION
+    Check if a given MYSQL_TIME value fits in TIMESTAMP range.
+    This function doesn't make precise check, but rather a rough
+    estimate.
+
+  RETURN VALUES
+    FALSE   The value seems sane
+    TRUE    The MYSQL_TIME value is definitely out of range
+*/
+
+static inline bool validate_timestamp_range(const MYSQL_TIME *t)
+{
+  if ((t->year > TIMESTAMP_MAX_YEAR || t->year < TIMESTAMP_MIN_YEAR) ||
+      (t->year == TIMESTAMP_MAX_YEAR && (t->month > 1 || t->day > 19)) ||
+      (t->year == TIMESTAMP_MIN_YEAR && (t->month < 12 || t->day < 31)))
+    return FALSE;
+
+  return TRUE;
+}
 
 my_time_t 
 my_system_gmt_sec(const MYSQL_TIME *t, long *my_timezone,
