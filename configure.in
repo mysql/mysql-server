@@ -1820,6 +1820,13 @@ then
   AC_MSG_ERROR("MySQL needs a off_t type.")
 fi
 
+dnl
+dnl check if time_t is unsigned
+dnl
+
+MYSQL_CHECK_TIME_T
+
+
 # do we need #pragma interface/#pragma implementation ?
 # yes if it's gcc 2.x, and not icc pretending to be gcc, and not cygwin
 AC_MSG_CHECKING(the need for @%:@pragma interface/implementation)
