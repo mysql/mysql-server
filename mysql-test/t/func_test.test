@@ -108,4 +108,36 @@ select 5.1 mod 3, 5.1 mod -3, -5.1 mod 3, -5.1 mod -3;
 
 select 5 mod 3, 5 mod -3, -5 mod 3, -5 mod -3;
 
+#
+# Bug#23411: The "%" (MOD) operator is not documented; MOD-ing zero returns strange result
+# Manual: "Division by zero produces a NULL result"
+#
+select (12%0) <=> null      as '1';
+select (12%0) is null       as '1';
+select 12%0                 as 'NULL';
+select 12%2                 as '0';
+select 12%NULL              as 'NULL';
+select 12 % null            as 'NULL';
+select null % 12            as 'NULL';
+select null % 0             as 'NULL';
+select 0 % null             as 'NULL';
+select null % null          as 'NULL';
+
+select (12 mod 0) <=> null  as '1';
+select (12 mod 0) is null   as '1';
+select 12 mod 0             as 'NULL';
+select 12 mod 2             as '0';
+select 12 mod null          as 'NULL';
+select null mod 12          as 'NULL';
+select null mod 0           as 'NULL';
+select 0 mod null           as 'NULL';
+select null mod null        as 'NULL';
+
+select mod(12.0, 0)         as 'NULL';
+select mod(12, 0.0)         as 'NULL';
+select mod(12, NULL)        as 'NULL';
+select mod(12.0, NULL)      as 'NULL';
+select mod(NULL, 2)         as 'NULL';
+select mod(NULL, 2.0)       as 'NULL';
+
 # End of 4.1 tests
