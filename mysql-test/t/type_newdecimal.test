@@ -1108,3 +1108,11 @@ insert into t1 values (1,1), (1,2), (2,3), (2,4);
 select i, count(distinct j) from t1 group by i;
 select i+0.0 as i2, count(distinct j) from t1 group by i2;
 drop table t1;
+
+
+create table t1(f1 decimal(20,6));
+insert into t1 values (CAST('10:11:12' AS date) + interval 14 microsecond);
+insert into t1 values (CAST('10:11:12' AS time));
+select * from t1;
+drop table t1;
+
