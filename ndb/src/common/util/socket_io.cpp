@@ -53,10 +53,6 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
   if(buflen <= 1)
     return 0;
 
-  int sock_flags= fcntl(socket, F_GETFL);
-  if(fcntl(socket, F_SETFL, sock_flags | O_NONBLOCK) == -1)
-    return -1;
-
   fd_set readset;
   FD_ZERO(&readset);
   FD_SET(socket, &readset);
@@ -71,43 +67,65 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
   }
 
   if(selectRes == -1){
-    fcntl(socket, F_SETFL, sock_flags);
     return -1;
   }
 
-  buf[0] = 0;
-  const int t = recv(socket, buf, buflen, MSG_PEEK);
-
-  if(t < 1)
+  char* ptr = buf;
+  int len = buflen;
+  do
   {
-    fcntl(socket, F_SETFL, sock_flags);
-    return -1;
-  }
-
-  for(int i=0; i< t;i++)
-  {
-    if(buf[i] == '\n'){
-      recv(socket, buf, i+1, 0);
-      buf[i] = 0;
-
-      if(i > 0 && buf[i-1] == '\r'){
-        i--;
-        buf[i] = 0;
-      }
-
-      fcntl(socket, F_SETFL, sock_flags);
-      return t;
+    int t;
+    while((t = recv(socket, ptr, len, MSG_PEEK)) == -1 && errno == EINTR);
+    
+    if(t < 1)
+    {
+      return -1;
     }
-  }
 
-  if(t == (buflen - 1)){
-    recv(socket, buf, t, 0);
-    buf[t] = 0;
-    fcntl(socket, F_SETFL, sock_flags);
-    return buflen;
-  }
+    
+    for(int i = 0; i<t; i++)
+    {
+      if(ptr[i] == '\n')
+      {
+	/**
+	 * Now consume
+	 */
+	for (len = 1 + i; len; )
+	{
+	  while ((t = recv(socket, ptr, len, 0)) == -1 && errno == EINTR);
+	  if (t < 1)
+	    return -1;
+	  ptr += t;
+	  len -= t;
+	}
+	ptr[0]= 0;
+	return ptr - buf;
+      }
+    }
+    
+    for (int tmp = t; tmp; )
+    {
+      while ((t = recv(socket, ptr, tmp, 0)) == -1 && errno == EINTR);
+      if (t < 1)
+      {
+	return -1;
+      }
+      ptr += t;
+      len -= t;
+      tmp -= t;
+    }
 
-  return 0;
+    FD_ZERO(&readset);
+    FD_SET(socket, &readset);
+    timeout.tv_sec  = (timeout_millis / 1000);
+    timeout.tv_usec = (timeout_millis % 1000) * 1000;
+    const int selectRes = select(socket + 1, &readset, 0, 0, &timeout);
+    if(selectRes != 1){
+      return -1;
+    }
+  } while (len > 0);
+  
+  return -1;
 }
 
 extern "C"
