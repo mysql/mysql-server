@@ -489,6 +489,7 @@ public:
   int  store(const char *to, uint length, CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
+  int store_time(TIME *ltime, timestamp_type t_type);
   int  store_decimal(const my_decimal *);
   double val_real(void);
   longlong val_int(void);
