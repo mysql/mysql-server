@@ -182,6 +182,80 @@ select 5.1 mod 3, 5.1 mod -3, -5.1 mod 3, -5.1 mod -3;
 select 5 mod 3, 5 mod -3, -5 mod 3, -5 mod -3;
 5 mod 3	5 mod -3	-5 mod 3	-5 mod -3
 2	2	-2	-2
+select (12%0) <=> null      as '1';
+1
+1
+select (12%0) is null       as '1';
+1
+1
+select 12%0                 as 'NULL';
+NULL
+NULL
+select 12%2                 as '0';
+0
+0
+select 12%NULL              as 'NULL';
+NULL
+NULL
+select 12 % null            as 'NULL';
+NULL
+NULL
+select null % 12            as 'NULL';
+NULL
+NULL
+select null % 0             as 'NULL';
+NULL
+NULL
+select 0 % null             as 'NULL';
+NULL
+NULL
+select null % null          as 'NULL';
+NULL
+NULL
+select (12 mod 0) <=> null  as '1';
+1
+1
+select (12 mod 0) is null   as '1';
+1
+1
+select 12 mod 0             as 'NULL';
+NULL
+NULL
+select 12 mod 2             as '0';
+0
+0
+select 12 mod null          as 'NULL';
+NULL
+NULL
+select null mod 12          as 'NULL';
+NULL
+NULL
+select null mod 0           as 'NULL';
+NULL
+NULL
+select 0 mod null           as 'NULL';
+NULL
+NULL
+select null mod null        as 'NULL';
+NULL
+NULL
+select mod(12.0, 0)         as 'NULL';
+NULL
+NULL
+select mod(12, 0.0)         as 'NULL';
+NULL
+NULL
+select mod(12, NULL)        as 'NULL';
+NULL
+NULL
+select mod(12.0, NULL)      as 'NULL';
+NULL
+NULL
+select mod(NULL, 2)         as 'NULL';
+NULL
+NULL
+select mod(NULL, 2.0)       as 'NULL';
+NULL
 create table t1 (a int, b int);
 insert into t1 values (1,2), (2,3), (3,4), (4,5);
 select * from t1 where a not between 1 and 2;
