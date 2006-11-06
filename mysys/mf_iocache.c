@@ -313,7 +313,11 @@ my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
       if (info->type == READ_CACHE)
       {
 	info->write_end=info->write_buffer+info->buffer_length;
-	info->seek_not_done=1;
+        /*
+          Trigger a new seek only if we have a valid
+          file handle.
+        */
+        info->seek_not_done= (info->file >= 0);
       }
       info->end_of_file = ~(my_off_t) 0;
     }
