@@ -30,6 +30,11 @@ my_off_t my_seek(File fd, my_off_t pos, int whence,
 		   whence, MyFlags));
   DBUG_ASSERT(pos != MY_FILEPOS_ERROR);		/* safety check */
 
+  /*
+    Make sure we are using a valid file descriptor
+  */
+  DBUG_ASSERT(fd >= 0);
+  
   newpos=lseek(fd, pos, whence);
   if (newpos == (os_off_t) -1)
   {
