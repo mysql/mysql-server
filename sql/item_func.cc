@@ -96,7 +96,7 @@ Item_func::Item_func(THD *thd, Item_func *item)
 
 
 /*
-  Resolve references to table column for a function and it's argument
+  Resolve references to table column for a function and its argument
 
   SYNOPSIS:
   fix_fields()
@@ -707,6 +707,7 @@ longlong Item_func_mod::val_int()
 void Item_func_mod::fix_length_and_dec()
 {
   Item_num_op::fix_length_and_dec();
+  maybe_null= 1;
 }
 
 
