@@ -1130,3 +1130,8 @@ select cast(-3.4 as decimal(2,1));
 select cast(99.6 as decimal(2,0));
 select cast(-13.4 as decimal(2,1));
 select cast(98.6 as decimal(2,0));
+
+# Bug #8663 (cant use bigint as input to CAST)
+#
+select cast(19999999999999999999 as unsigned);
+
