@@ -49,6 +49,8 @@ typedef long my_time_t;
 #define TIME_NO_ZERO_DATE	(TIME_NO_ZERO_IN_DATE*2)
 #define TIME_INVALID_DATES	(TIME_NO_ZERO_DATE*2)
 
+my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
+                   ulong flags, int *was_cut);
 enum enum_mysql_timestamp_type
 str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
                 uint flags, int *was_cut);
