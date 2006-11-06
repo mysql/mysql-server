@@ -1449,3 +1449,8 @@ Error	1264	Out of range value for column 'cast(-13.4 as decimal(2,1))' at row 1
 select cast(98.6 as decimal(2,0));
 cast(98.6 as decimal(2,0))
 99
+select cast(19999999999999999999 as unsigned);
+cast(19999999999999999999 as unsigned)
+18446744073709551615
+Warnings:
+Error	1292	Truncated incorrect DECIMAL value: ''
