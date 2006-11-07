@@ -190,8 +190,8 @@ typedef struct my_charset_handler_st
                const unsigned char *s, const unsigned char *e);
   
   /* Functions for case and sort conversion */
-  void    (*caseup_str)(struct charset_info_st *, char *);
-  void    (*casedn_str)(struct charset_info_st *, char *);
+  uint    (*caseup_str)(struct charset_info_st *, char *);
+  uint    (*casedn_str)(struct charset_info_st *, char *);
   uint    (*caseup)(struct charset_info_st *, char *src, uint srclen,
                                               char *dst, uint dstlen);
   uint    (*casedn)(struct charset_info_st *, char *src, uint srclen,
@@ -324,8 +324,8 @@ extern uint my_instr_simple(struct charset_info_st *,
 
 
 /* Functions for 8bit */
-extern void my_caseup_str_8bit(CHARSET_INFO *, char *);
-extern void my_casedn_str_8bit(CHARSET_INFO *, char *);
+extern uint my_caseup_str_8bit(CHARSET_INFO *, char *);
+extern uint my_casedn_str_8bit(CHARSET_INFO *, char *);
 extern uint my_caseup_8bit(CHARSET_INFO *, char *src, uint srclen,
                                            char *dst, uint dstlen);
 extern uint my_casedn_8bit(CHARSET_INFO *, char *src, uint srclen,
@@ -415,8 +415,8 @@ int my_mbcharlen_8bit(CHARSET_INFO *, uint c);
 
 
 /* Functions for multibyte charsets */
-extern void my_caseup_str_mb(CHARSET_INFO *, char *);
-extern void my_casedn_str_mb(CHARSET_INFO *, char *);
+extern uint my_caseup_str_mb(CHARSET_INFO *, char *);
+extern uint my_casedn_str_mb(CHARSET_INFO *, char *);
 extern uint my_caseup_mb(CHARSET_INFO *, char *src, uint srclen,
                                          char *dst, uint dstlen);
 extern uint my_casedn_mb(CHARSET_INFO *, char *src, uint srclen,

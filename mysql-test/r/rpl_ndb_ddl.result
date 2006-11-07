@@ -359,8 +359,6 @@ MAX(f1)
 
 -------- switch to master -------
 ROLLBACK;
-Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 5
@@ -370,9 +368,9 @@ TEST-INFO: MASTER: The INSERT is not committed (Succeeded)
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
-6
+5
 
-TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
+TEST-INFO: SLAVE:  The INSERT is not committed (Succeeded)
 
 -------- switch to master -------
 flush logs;
@@ -401,7 +399,7 @@ MAX(f1)
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
-6
+5
 
 -------- switch to master -------
 RENAME TABLE mysqltest1.t3 to mysqltest1.t20;
@@ -506,7 +504,7 @@ f2	bigint(20)	YES		NULL
 
 -------- switch to master -------
 
-######## CREATE TABLE mysqltest1.t21 (f1 BIGINT) ENGINE= "InnoDB"  ########
+######## CREATE TABLE mysqltest1.t21 (f1 BIGINT) ENGINE= "NDB"  ########
 
 -------- switch to master -------
 INSERT INTO t1 SET f1= 7 + 1;
@@ -520,7 +518,7 @@ MAX(f1)
 7
 
 -------- switch to master -------
-CREATE TABLE mysqltest1.t21 (f1 BIGINT) ENGINE= "InnoDB";
+CREATE TABLE mysqltest1.t21 (f1 BIGINT) ENGINE= "NDB";
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 8
@@ -579,8 +577,6 @@ MAX(f1)
 
 -------- switch to master -------
 ROLLBACK;
-Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 8
@@ -590,9 +586,9 @@ TEST-INFO: MASTER: The INSERT is not committed (Succeeded)
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
-9
+8
 
-TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
+TEST-INFO: SLAVE:  The INSERT is not committed (Succeeded)
 
 -------- switch to master -------
 flush logs;
@@ -613,7 +609,7 @@ MAX(f1)
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
-9
+8
 
 -------- switch to master -------
 TRUNCATE TABLE mysqltest1.t7;
@@ -650,11 +646,9 @@ flush logs;
 -------- switch to master -------
 SELECT * FROM mysqltest1.t7;
 f1
-
 -------- switch to slave --------
 SELECT * FROM mysqltest1.t7;
 f1
-
 -------- switch to master -------
 
 ######## LOCK TABLES mysqltest1.t1 WRITE, mysqltest1.t8 READ  ########
@@ -957,7 +951,7 @@ t5	1	my_idx5	1	f1	A	0	NULL	NULL	YES	BTREE
 -------- switch to slave --------
 SHOW INDEX FROM mysqltest1.t5;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t5	1	my_idx5	1	f1	A	NULL	NULL	NULL	YES	BTREE	
+t5	1	my_idx5	1	f1	A	0	NULL	NULL	YES	BTREE	
 
 -------- switch to master -------
 
@@ -1691,3 +1685,4 @@ user
 DROP DATABASE IF EXISTS mysqltest1;
 DROP DATABASE IF EXISTS mysqltest2;
 DROP DATABASE IF EXISTS mysqltest3;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction

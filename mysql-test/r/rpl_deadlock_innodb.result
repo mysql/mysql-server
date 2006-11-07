@@ -6,7 +6,7 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 CREATE TABLE t1 (a INT NOT NULL, KEY(a)) ENGINE=innodb;
 CREATE TABLE t2 (a INT NOT NULL, KEY(a)) ENGINE=innodb;
-CREATE TABLE t3 (a INT) ENGINE=innodb;
+CREATE TABLE t3 (a INT  UNIQUE) ENGINE=innodb;
 CREATE TABLE t4 (a INT) ENGINE=innodb;
 show variables like 'slave_transaction_retries';
 Variable_name	Value
@@ -35,14 +35,14 @@ begin;
 select * from t1 for update;
 a
 start slave;
-insert into t2 values(22);
+insert into t2 values(201);
 commit;
 select * from t1;
 a
 1
 select * from t2;
 a
-22
+201
 show slave status;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -78,12 +78,16 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 stop slave;
-change master to master_log_pos=536;
+delete from t3;
+change master to master_log_pos=544;
 begin;
 select * from t2 for update;
 a
-22
+201
 start slave;
+select count(*) from t3  /* must be zero */;
+count(*)
+0
 commit;
 select * from t1;
 a
@@ -91,7 +95,7 @@ a
 1
 select * from t2;
 a
-22
+201
 show slave status;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -128,12 +132,16 @@ Master_SSL_Key
 Seconds_Behind_Master	#
 set global max_relay_log_size=0;
 stop slave;
-change master to master_log_pos=536;
+delete from t3;
+change master to master_log_pos=544;
 begin;
 select * from t2 for update;
 a
-22
+201
 start slave;
+select count(*) from t3  /* must be zero */;
+count(*)
+0
 commit;
 select * from t1;
 a
@@ -142,7 +150,7 @@ a
 1
 select * from t2;
 a
-22
+201
 show slave status;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -178,3 +186,4 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 drop table t1,t2,t3,t4;
+End of 5.1 tests
