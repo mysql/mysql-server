@@ -47,11 +47,11 @@ show binlog events limit 1,100;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000001	#	Query	1	#	use `test`; create table t1 (a int)
 slave-bin.000001	#	Query	1	#	use `test`; insert into t1 values (1)
-slave-bin.000001	#	Query	1	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=root@localhost SQL SECURITY DEFINER VIEW v1 AS select a from t1
+slave-bin.000001	#	Query	1	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select a from t1
 slave-bin.000001	#	Query	1	#	use `test`; insert into v1 values (2)
 slave-bin.000001	#	Query	1	#	use `test`; update v1 set a=3 where a=1
 slave-bin.000001	#	Query	1	#	use `test`; delete from v1 where a=2
-slave-bin.000001	#	Query	1	#	use `test`; ALTER ALGORITHM=UNDEFINED DEFINER=root@localhost SQL SECURITY DEFINER VIEW v1 AS select a as b from t1
+slave-bin.000001	#	Query	1	#	use `test`; ALTER ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select a as b from t1
 slave-bin.000001	#	Query	1	#	use `test`; drop view v1
 slave-bin.000001	#	Query	1	#	use `test`; drop table t1
 
