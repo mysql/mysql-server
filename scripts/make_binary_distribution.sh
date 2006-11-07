@@ -85,7 +85,7 @@ do
 done
 
 for i in COPYING COPYING.LIB README Docs/INSTALL-BINARY \
-         EXCEPTIONS-CLIENT MySQLEULA.txt LICENSE.doc README.NW
+         EXCEPTIONS-CLIENT LICENSE.mysql LICENSE.doc
 do
   if [ -f $i ]
   then
@@ -245,15 +245,6 @@ fi
 
 rm -f $BASE/bin/Makefile* $BASE/bin/*.in $BASE/bin/*.sh $BASE/bin/mysql_install_db $BASE/bin/make_binary_distribution $BASE/bin/setsomevars $BASE/support-files/Makefile* $BASE/support-files/*.sh
 
-
-#
-# Remove system dependent files
-#
-if [ $BASE_SYSTEM = "netware" ] ; then
-    rm -f $BASE/MySQLEULA.txt
-else
-    rm -f $BASE/README.NW
-fi
 
 # Make safe_mysqld a symlink to mysqld_safe for backwards portability
 (cd $BASE/bin ; ln -s mysqld_safe safe_mysqld )
