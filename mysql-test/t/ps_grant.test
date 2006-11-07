@@ -35,7 +35,7 @@ use mysqltest;
 --source include/ps_create.inc
 --source include/ps_renew.inc
 --enable_query_log
-eval use $DB;
+use test;
 grant usage on mysqltest.* to second_user@localhost
 identified by 'looser' ;
 grant select on mysqltest.t9 to second_user@localhost

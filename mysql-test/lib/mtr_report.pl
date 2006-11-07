@@ -10,6 +10,7 @@ sub mtr_report_test_name($);
 sub mtr_report_test_passed($);
 sub mtr_report_test_failed($);
 sub mtr_report_test_skipped($);
+sub mtr_report_test_not_skipped_though_disabled($);
 
 sub mtr_show_failed_diff ($);
 sub mtr_report_stats ($);
@@ -21,6 +22,7 @@ sub mtr_warning (@);
 sub mtr_error (@);
 sub mtr_child_error (@);
 sub mtr_debug (@);
+sub mtr_verbose (@);
 
 
 ##############################################################################
@@ -50,13 +52,6 @@ sub mtr_show_failed_diff ($) {
   if ( -f $eval_file )
   {
     $result_file=  $eval_file;
-  }
-  elsif ( $::opt_result_ext and
-          ( $::opt_record or -f "$result_file$::opt_result_ext" ))
-  {
-    # If we have an special externsion for result files we use it if we are
-    # recording or a result file with that extension exists.
-    $result_file=  "$result_file$::opt_result_ext";
   }
 
   my $diffopts= $::opt_udiff ? "-u" : "-c";
@@ -96,7 +91,24 @@ sub mtr_report_test_skipped ($) {
   }
   else
   {
-    print "[ skipped ]\n";
+    print "[ skipped ]   $tinfo->{'comment'}\n";
+  }
+}
+
+sub mtr_report_tests_not_skipped_though_disabled ($) {
+  my $tests= shift;
+
+  if ( $::opt_enable_disabled )
+  {
+    my @disabled_tests= grep {$_->{'dont_skip_though_disabled'}} @$tests;
+    if ( @disabled_tests )
+    {
+      print "\nTest(s) which will be run though they are marked as disabled:\n";
+      foreach my $tinfo ( sort {$a->{'name'} cmp $b->{'name'}} @disabled_tests )
+      {
+        printf "  %-20s : %s\n", $tinfo->{'name'}, $tinfo->{'comment'};
+      }
+    }
   }
 }
 
@@ -107,7 +119,7 @@ sub mtr_report_test_passed ($) {
   if ( $::opt_timer and -f "$::opt_vardir/log/timer" )
   {
     $timer= mtr_fromfile("$::opt_vardir/log/timer");
-    $::glob_tot_real_time += $timer;
+    $::glob_tot_real_time += ($timer/1000);
     $timer= sprintf "%12s", $timer;
   }
   $tinfo->{'result'}= 'MTR_RES_PASSED';
@@ -118,13 +130,9 @@ sub mtr_report_test_failed ($) {
   my $tinfo= shift;
 
   $tinfo->{'result'}= 'MTR_RES_FAILED';
-  if ( $tinfo->{'timeout'} )
+  if ( defined $tinfo->{'timeout'} )
   {
     print "[ fail ]  timeout\n";
-  }
-  elsif ( $tinfo->{'ndb_test'} and  !$::flag_ndb_status_ok)
-  {
-    print "[ fail ]  ndbcluster start failure\n";
     return;
   }
   else
@@ -132,9 +140,11 @@ sub mtr_report_test_failed ($) {
     print "[ fail ]\n";
   }
 
-  # FIXME Instead of this test, and meaningless error message in 'else'
-  # we should write out into $::path_timefile when the error occurs.
-  if ( -f $::path_timefile )
+  if ( $tinfo->{'comment'} )
+  {
+    print "\nERROR: $tinfo->{'comment'}\n";
+  }
+  elsif ( -f $::path_timefile )
   {
     print "\nErrors are (from $::path_timefile) :\n";
     print mtr_fromfile($::path_timefile); # FIXME print_file() instead
@@ -157,7 +167,8 @@ sub mtr_report_stats ($) {
   my $tot_passed= 0;
   my $tot_failed= 0;
   my $tot_tests=  0;
-  my $found_problems= 0;            # Some warnings are errors...
+  my $tot_restarts= 0;
+  my $found_problems= 0; # Some warnings in the logfiles are errors...
 
   foreach my $tinfo (@$tests)
   {
@@ -175,6 +186,10 @@ sub mtr_report_stats ($) {
       $tot_tests++;
       $tot_failed++;
     }
+    if ( $tinfo->{'restarted'} )
+    {
+      $tot_restarts++;
+    }
   }
 
   # ----------------------------------------------------------------------
@@ -188,14 +203,23 @@ sub mtr_report_stats ($) {
   else
   {
     my $ratio=  $tot_passed * 100 / $tot_tests;
-    printf "Failed $tot_failed/$tot_tests tests, " .
-      "%.2f\% were successful.\n\n", $ratio;
+    print "Failed $tot_failed/$tot_tests tests, ";
+    printf("%.2f", $ratio);
+    print "\% were successful.\n\n";
     print
       "The log files in var/log may give you some hint\n",
       "of what went wrong.\n",
       "If you want to report this error, please read first ",
       "the documentation at\n",
       "http://www.mysql.com/doc/en/MySQL_test_suite.html\n";
+  }
+  print
+      "The servers were restarted $tot_restarts times\n";
+
+  if ( $::opt_timer )
+  {
+    print
+      "Spent $::glob_tot_real_time seconds actually executing testcases\n"
   }
 
   # ----------------------------------------------------------------------
@@ -216,7 +240,10 @@ sub mtr_report_stats ($) {
     else
     {
       # We report different types of problems in order
-      foreach my $pattern ( "^Warning:", "^Error:", "^==.* at 0x" )
+      foreach my $pattern ( "^Warning:", "^Error:", "^==.* at 0x",
+			    "InnoDB: Warning", "missing DBUG_RETURN",
+			    "mysqld: Warning",
+			    "Attempting backtrace", "Assertion .* failed" )
       {
         foreach my $errlog ( sort glob("$::opt_vardir/log/*.err") )
         {
@@ -230,7 +257,8 @@ sub mtr_report_stats ($) {
             # Skip some non fatal warnings from the log files
             if ( /Warning:\s+Table:.* on (delete|rename)/ or
                  /Warning:\s+Setting lower_case_table_names=2/ or
-                 /Warning:\s+One can only use the --user.*root/ )
+                 /Warning:\s+One can only use the --user.*root/ or
+	         /InnoDB: Warning: we did not need to do crash recovery/)
             {
               next;                       # Skip these lines
             }
@@ -241,17 +269,18 @@ sub mtr_report_stats ($) {
             }
           }
         }
-        if ( $found_problems )
-        {
-          mtr_warning("Got errors/warnings while running tests, please examine",
-                      "\"$warnlog\" for details.");
-        }
+      }
+      if ( $found_problems )
+      {
+	mtr_warning("Got errors/warnings while running tests, please examine",
+		    "\"$warnlog\" for details.");
       }
     }
   }
 
   print "\n";
 
+  # Print a list of testcases that failed
   if ( $tot_failed != 0 )
   {
     my $test_mode= join(" ", @::glob_test_mode) || "default";
@@ -265,7 +294,30 @@ sub mtr_report_stats ($) {
       }
     }
     print "\n";
+
   }
+
+  # Print a list of check_testcases that failed(if any)
+  if ( $::opt_check_testcases )
+  {
+    my @check_testcases= ();
+
+    foreach my $tinfo (@$tests)
+    {
+      if ( defined $tinfo->{'check_testcase_failed'} )
+      {
+	push(@check_testcases, $tinfo->{'name'});
+      }
+    }
+
+    if ( @check_testcases )
+    {
+      print "Check of testcase failed for: ";
+      print join(" ", @check_testcases);
+      print "\n\n";
+    }
+  }
+
   if ( $tot_failed != 0 || $found_problems)
   {
     mtr_error("there where failing test cases");
@@ -329,6 +381,12 @@ sub mtr_debug (@) {
   if ( $::opt_script_debug )
   {
     print STDERR "####: ",join(" ", @_),"\n";
+  }
+}
+sub mtr_verbose (@) {
+  if ( $::opt_verbose )
+  {
+    print STDERR "> ",join(" ", @_),"\n";
   }
 }
 
