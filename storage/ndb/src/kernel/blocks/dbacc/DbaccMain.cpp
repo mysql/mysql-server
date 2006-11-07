@@ -4394,7 +4394,8 @@ void Dbacc::commitOperation(Signal* signal)
   Uint32 opbits = operationRecPtr.p->m_op_bits;
   Uint32 op = opbits & Operationrec::OP_MASK;
   ndbrequire((opbits & Operationrec::OP_STATE_MASK) == Operationrec::OP_STATE_EXECUTED);
-  if ((opbits & Operationrec::OP_COMMIT_DELETE_CHECK) == 0 && (op != ZREAD))
+  if ((opbits & Operationrec::OP_COMMIT_DELETE_CHECK) == 0 && 
+      (op != ZREAD && op != ZSCAN_OP))
   {
     jam();
     /*  This method is used to check whether the end result of the transaction
