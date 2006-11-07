@@ -2476,7 +2476,7 @@ sub run_suite () {
       next;
     }
 
-    mtr_timer_start($glob_timers,"testcase", $opt_testcase_timeout);
+    mtr_timer_start($glob_timers,"testcase", 60 * $opt_testcase_timeout);
     run_testcase($tinfo);
     mtr_timer_stop($glob_timers,"testcase");
   }
