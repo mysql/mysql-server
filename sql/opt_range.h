@@ -27,6 +27,8 @@
 typedef struct st_key_part {
   uint16           key,part, store_length, length;
   uint8            null_bit;
+  /* Keypart flags (0 if partition pruning is used) */
+  uint8 flag;
   Field            *field;
   Field::imagetype image_type;
 } KEY_PART;

@@ -1,0 +1,1 @@
+--log-slow-queries --log-long-format --log-queries-not-using-indexes

@@ -42,7 +42,7 @@ CREATE TABLE db (
   KEY User (User)
 )
 engine=MyISAM;
---enable-warnings
+--enable_warnings
 
 INSERT INTO db VALUES ('%','test',   '','Y','Y','Y','Y','Y','Y');
 INSERT INTO db VALUES ('%','test\_%','','Y','Y','Y','Y','Y','Y');
@@ -60,7 +60,7 @@ CREATE TABLE host (
   PRIMARY KEY Host (Host,Db)
 )
 engine=MyISAM;
---enable-warnings
+--enable_warnings
 
 --disable_warnings
 CREATE TABLE user (
@@ -79,7 +79,7 @@ CREATE TABLE user (
   PRIMARY KEY Host (Host,User)
 )
 engine=MyISAM;
---enable-warnings
+--enable_warnings
 
 INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y');
 INSERT INTO user VALUES ('localhost','',    '','N','N','N','N','N','N','N','N','N');
