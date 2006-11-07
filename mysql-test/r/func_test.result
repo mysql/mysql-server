@@ -256,6 +256,7 @@ NULL
 NULL
 select mod(NULL, 2.0)       as 'NULL';
 NULL
+NULL
 create table t1 (a int, b int);
 insert into t1 values (1,2), (2,3), (3,4), (4,5);
 select * from t1 where a not between 1 and 2;
