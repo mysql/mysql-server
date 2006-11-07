@@ -31,13 +31,6 @@ eval SET SESSION STORAGE_ENGINE = $engine_type;
 drop table if exists t1,t2,t1m,t1i,t2m,t2i,t4;
 --enable_warnings
 
-#
-# Bug#17530: Incorrect key truncation on table creation caused server crash.
-#
-create table t1(f1 varchar(800) binary not null, key(f1))
-  character set utf8 collate utf8_general_ci;
-insert into t1 values('aaa');
-drop table t1;
 
 # BUG#16798: Uninitialized row buffer reads in ref-or-null optimizer
 # (repeatable only w/innodb).
@@ -152,6 +145,31 @@ INSERT INTO `t2`(`id1`,`id2`,`id3`,`id4`) VALUES
 
 SELECT `id1` FROM `t1` WHERE `id1` NOT IN (SELECT `id1` FROM `t2` WHERE `id2` = 1 AND `id3` = 2);
 DROP TABLE t1, t2;
+
+#
+# Bug #22728 - Handler_rollback value is growing
+#
+
+let $before= `show /*!50002 GLOBAL */ status like 'Handler_rollback'`;
+create table t1 (c1 int) engine=innodb;
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connection con2;
+handler t1 open;
+handler t1 read first;
+disconnect con2;
+connection con1;
+let $after= `show /*!50002 GLOBAL */ status like 'Handler_rollback'`;
+# Compare the before and after value, it should be equal
+--disable_query_log
+eval select STRCMP("$before", "$after") as "Before and after comparison";
+--enable_query_log
+connection default;
+drop table t1;
+disconnect con1;
+
+--echo End of 4.1 tests
+
 
 #
 # Bug #12882  	min/max inconsistent on empty table
@@ -425,6 +443,28 @@ create table t1(f1 varchar(800) binary not null, key(f1))
 insert into t1 values('aaa');
 drop table t1;
 
+
+#
+# Bug#22781: SQL_BIG_RESULT fails to influence sort plan
+#
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c FLOAT, KEY b(b)) ENGINE = INNODB;
+
+INSERT INTO t1 VALUES (    1 , 1              , 1);
+INSERT INTO t1 SELECT  a + 1 , MOD(a + 1 , 20), 1 FROM t1;
+INSERT INTO t1 SELECT  a + 2 , MOD(a + 2 , 20), 1 FROM t1;
+INSERT INTO t1 SELECT  a + 4 , MOD(a + 4 , 20), 1 FROM t1;
+INSERT INTO t1 SELECT  a + 8 , MOD(a + 8 , 20), 1 FROM t1;
+INSERT INTO t1 SELECT  a + 16, MOD(a + 16, 20), 1 FROM t1;
+INSERT INTO t1 SELECT  a + 32, MOD(a + 32, 20), 1 FROM t1;
+INSERT INTO t1 SELECT  a + 64, MOD(a + 64, 20), 1 FROM t1;
+
+EXPLAIN SELECT b, SUM(c) FROM t1 GROUP BY b;
+EXPLAIN SELECT SQL_BIG_RESULT b, SUM(c) FROM t1 GROUP BY b;
+DROP TABLE t1;
+
+--echo End of 5.0 tests
+
+
 # Fix for BUG#19243 "wrong LAST_INSERT_ID() after ON DUPLICATE KEY
 # UPDATE": if the row is updated, it's like a regular UPDATE:
 # LAST_INSERT_ID() is not affected.
@@ -476,3 +516,5 @@ select last_insert_id();
 select * from t2;
 
 drop table t2;
+
+--echo End of 5.1 tests

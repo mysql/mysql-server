@@ -415,6 +415,10 @@ AC_SUBST(HOSTNAME)
 AC_SUBST(PERL)
 AC_SUBST(PERL5)
 
+# icheck, used for ABI check
+AC_PATH_PROG(ICHECK, icheck, no)
+AC_SUBST(ICHECK)
+
 # Lock for PS
 AC_PATH_PROG(PS, ps, ps)
 AC_MSG_CHECKING("how to check if pid exists")
@@ -1058,6 +1062,18 @@ EOF
         extra/Makefile.in)
           cat > $filesed << EOF
 s,\(extra/comp_err\)\$(EXEEXT),\1.linux,
+EOF
+          ;;
+        libmysql/Makefile.in)
+          cat > $filesed << EOF
+s,libyassl.la,.libs/libyassl.a,
+s,libtaocrypt.la,.libs/libtaocrypt.a,
+EOF
+          ;;
+        libmysql_r/Makefile.in)
+          cat > $filesed << EOF
+s,libyassl.la,.libs/libyassl.a,
+s,libtaocrypt.la,.libs/libtaocrypt.a,
 EOF
           ;;
         client/Makefile.in)

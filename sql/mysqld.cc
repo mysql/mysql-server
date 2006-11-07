@@ -6595,6 +6595,10 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff)
 #endif /* HAVE_OPENSSL */
 
 
+/*
+  Variables shown by SHOW STATUS in alphabetical order
+*/
+
 SHOW_VAR status_vars[]= {
   {"Aborted_clients",          (char*) &aborted_threads,        SHOW_LONG},
   {"Aborted_connects",         (char*) &aborted_connects,       SHOW_LONG},
@@ -8102,16 +8106,20 @@ void refresh_status(THD *thd)
 {
   pthread_mutex_lock(&LOCK_status);
 
-  /* We must update the global status before cleaning up the thread */
+  /* Add thread's status variabes to global status */
   add_to_status(&global_status_var, &thd->status_var);
+
+  /* Reset thread's status variables */
   bzero((char*) &thd->status_var, sizeof(thd->status_var));
 
+  /* Reset some global variables */
   for (SHOW_VAR *ptr= status_vars; ptr->name; ptr++)
   {
     /* Note that SHOW_LONG_NOFLUSH variables are not reset */
     if (ptr->type == SHOW_LONG)
       *(ulong*) ptr->value= 0;
   }
+
   /* Reset the counters of all key caches (default and named). */
   process_key_caches(reset_key_cache_counters);
   pthread_mutex_unlock(&LOCK_status);

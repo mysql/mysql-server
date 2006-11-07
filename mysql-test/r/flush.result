@@ -9,13 +9,13 @@ n
 flush tables with read lock;
 drop table t2;
 ERROR HY000: Can't execute the query because you have a conflicting read lock
- drop table t2;
+drop table t2;
 unlock tables;
 create database mysqltest;
 create table mysqltest.t1(n int);
 insert into mysqltest.t1 values (23);
 flush tables with read lock;
- drop database mysqltest;
+drop database mysqltest;
 select * from mysqltest.t1;
 n
 23
@@ -51,7 +51,7 @@ drop table t1, t2, t3;
 create table t1 (c1 int);
 create table t2 (c1 int);
 lock table t1 write;
- flush tables with read lock;
- insert into t2 values(1);
+flush tables with read lock;
+insert into t2 values(1);
 unlock tables;
 drop table t1, t2;

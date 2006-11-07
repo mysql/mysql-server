@@ -1,21 +1,4 @@
-drop table if exists t1;
-Warnings:
-Note	1051	Unknown table 't1'
-drop table if exists t2;
-Warnings:
-Note	1051	Unknown table 't2'
-drop table if exists t3;
-Warnings:
-Note	1051	Unknown table 't3'
-drop table if exists t4;
-Warnings:
-Note	1051	Unknown table 't4'
-drop table if exists t5;
-Warnings:
-Note	1051	Unknown table 't5'
-drop table if exists t6;
-Warnings:
-Note	1051	Unknown table 't6'
+drop table if exists t1, t2, t3, t4, t5, t6;
 create table t1 (id int(8), name varchar(32));
 create table t2 (id int(8), name varchar(32)) ENGINE="MyISAM";
 create table t3 (id int(8), name varchar(32)) ENGINE="MEMORY";
