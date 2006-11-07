@@ -1664,6 +1664,7 @@ int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
 {
   char buff[MAX_FIELD_WIDTH];
   String tmp((char *)&buff,sizeof(buff),default_charset_info), tmp2;
+  uint old_length= item->result.length();
 
   if (item->no_appended)
     item->no_appended= FALSE;
@@ -1702,8 +1703,22 @@ int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
   /* stop if length of result more than group_concat_max_len */  
   if (item->result.length() > item->group_concat_max_len)
   {
+    int well_formed_error;
+    CHARSET_INFO *cs= item->collation.collation;
+    const char *ptr= item->result.ptr();
+    uint add_length;
+    /*
+      It's ok to use item->result.length() as the fourth argument
+      as this is never used to limit the length of the data.
+      Cut is done with the third argument.
+    */
+    add_length= cs->cset->well_formed_len(cs,
+                                          ptr + old_length,
+                                          ptr + item->group_concat_max_len,
+                                          item->result.length(),
+                                          &well_formed_error);
+    item->result.length(old_length + add_length);
     item->count_cut_values++;
-    item->result.length(item->group_concat_max_len);
     item->warning_for_row= TRUE;
     return 1;
   }
@@ -1893,8 +1908,7 @@ bool Item_func_group_concat::add()
     we can dump the row here in case of GROUP_CONCAT(DISTINCT...)
     instead of doing tree traverse later.
   */
-  if (result.length() <= group_concat_max_len && 
-      !warning_for_row &&
+  if (!warning_for_row &&
       (!tree_mode || (el->count == 1 && distinct && !arg_count_order)))
     dump_leaf_key(table->record[0], 1, this);
 
