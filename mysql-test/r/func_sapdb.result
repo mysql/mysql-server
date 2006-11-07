@@ -107,7 +107,9 @@ subtime("02:01:01.999999", "01:01:01.999999")
 01:00:00.000000
 select timediff("1997-01-01 23:59:59.000001","1995-12-31 23:59:59.000002");
 timediff("1997-01-01 23:59:59.000001","1995-12-31 23:59:59.000002")
-8807:59:59.999999
+838:59:59
+Warnings:
+Warning	1292	Truncated incorrect time value: '8807:59:59.999999'
 select timediff("1997-12-31 23:59:59.000001","1997-12-30 01:01:01.000002");
 timediff("1997-12-31 23:59:59.000001","1997-12-30 01:01:01.000002")
 46:58:57.999999
@@ -219,13 +221,16 @@ SELECT TIMEDIFF(t1, t4) As ttt, TIMEDIFF(t2, t3) As qqq,
 TIMEDIFF(t3, t2) As eee, TIMEDIFF(t2, t4) As rrr from test;
 ttt	qqq	eee	rrr
 -744:00:00	NULL	NULL	NULL
-26305:01:02	22:58:58	-22:58:58	NULL
--26305:01:02	-22:58:58	22:58:58	NULL
+838:59:59	22:58:58	-22:58:58	NULL
+-838:59:59	-22:58:58	22:58:58	NULL
 NULL	26:02:02	-26:02:02	NULL
 00:00:00	-26:02:02	26:02:02	NULL
 NULL	NULL	NULL	NULL
 NULL	NULL	NULL	NULL
 00:00:00	-24:00:00	24:00:00	NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '26305:01:02'
+Warning	1292	Truncated incorrect time value: '-26305:01:02'
 drop table t1, test;
 select addtime("-01:01:01.01", "-23:59:59.1") as a;
 a
@@ -235,7 +240,9 @@ a
 10000
 select microsecond(19971231235959.01) as a;
 a
-10000
+0
+Warnings:
+Warning	1292	Truncated incorrect time value: '19971231235959.01'
 select date_add("1997-12-31",INTERVAL "10.09" SECOND_MICROSECOND) as a;
 a
 1997-12-31 00:00:10.090000

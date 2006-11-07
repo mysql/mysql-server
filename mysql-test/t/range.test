@@ -515,7 +515,17 @@ OR ((pk4 =1) AND (((pk1 IN ( 7, 2, 1 ))) OR (pk1 =522)) AND ((pk2 IN ( 0, 2635))
 ) AND (pk3 >=1000000);
 drop table t1, t2;
 
-# End of 4.1 tests
+#
+# Bug #20732: Partial index and long sjis search with '>' fails sometimes
+#
+
+create table t1(a char(2), key(a(1)));
+insert into t1 values ('x'), ('xx');
+explain select a from t1 where a > 'x';
+select a from t1 where a > 'x';
+drop table t1;
+
+--echo End of 4.1 tests
 
 #
 # Test for optimization request #10561: to use keys for

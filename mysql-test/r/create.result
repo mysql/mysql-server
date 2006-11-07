@@ -767,11 +767,5 @@ t1	CREATE TABLE `t1` (
   `i` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 MAX_ROWS=4294967295
 drop table t1;
-create table t1(f1 varchar(800) binary not null, key(f1)) engine = innodb 
-character set utf8 collate utf8_general_ci;
-Warnings:
-Warning	1071	Specified key was too long; max key length is 765 bytes
-insert into t1 values('aaa');
-drop table t1;
 create table t1 (upgrade int);
 drop table t1;
