@@ -77,7 +77,7 @@ my_bool vio_peer_addr(Vio* vio, char *buf, uint16 *port);
 /* Remotes in_addr */
 void vio_in_addr(Vio *vio, struct in_addr *in);
 my_bool vio_poll_read(Vio *vio,uint timeout);
-void vio_timeout(Vio *vio,uint timeout);
+void vio_timeout(Vio *vio, uint which, uint timeout);
 
 #ifdef HAVE_OPENSSL
 #include <openssl/opensslv.h>
@@ -140,7 +140,7 @@ Vio *new_VioSSL(struct st_VioSSLAcceptorFd *fd, Vio *sd, int state);
 #define vio_close(vio)				((vio)->vioclose)(vio)
 #define vio_peer_addr(vio, buf, prt)		(vio)->peer_addr(vio, buf, prt)
 #define vio_in_addr(vio, in)			(vio)->in_addr(vio, in)
-#define vio_timeout(vio, seconds)			(vio)->timeout(vio, seconds)
+#define vio_timeout(vio, which, seconds)	(vio)->timeout(vio, which, seconds)
 #endif /* defined(HAVE_VIO) && !defined(DONT_MAP_VIO) */
 
 /* This enumerator is used in parser - should be always visible */
@@ -180,7 +180,7 @@ struct st_vio
   my_bool (*should_retry)(Vio*);
   my_bool (*was_interrupted)(Vio*);
   int     (*vioclose)(Vio*);
-  void	  (*timeout)(Vio*, unsigned int timeout);
+  void	  (*timeout)(Vio*, unsigned int which, unsigned int timeout);
   void	  *ssl_arg;
 #endif /* HAVE_VIO */
 };
