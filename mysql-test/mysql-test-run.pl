@@ -3347,6 +3347,11 @@ sub mysqld_arguments ($$$$$) {
   if ( $opt_valgrind_mysqld )
   {
     mtr_add_arg($args, "%s--skip-safemalloc", $prefix);
+
+    if ( $mysql_version_id < 50100 )
+    {
+      mtr_add_arg($args, "%s--skip-bdb", $prefix);
+    }
   }
 
   my $pidfile;
