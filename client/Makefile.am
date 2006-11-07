@@ -38,7 +38,9 @@ noinst_HEADERS =		sql_string.h completion_hash.h my_readline.h \
 mysql_SOURCES =			mysql.cc readline.cc sql_string.cc completion_hash.cc
 mysqladmin_SOURCES =		mysqladmin.cc
 mysql_LDADD =			@readline_link@ @TERMCAP_LIB@ $(LDADD) $(CXXLDFLAGS)
-mysqltest_SOURCES=              mysqltest.c $(top_srcdir)/mysys/my_getsystime.c \
+mysqltest_SOURCES=              mysqltest.c \
+				$(top_srcdir)/mysys/my_getsystime.c \
+				$(top_srcdir)/mysys/my_copy.c \
                                 $(yassl_dummy_link_fix)
 mysqltest_LDADD =		$(top_builddir)/regex/libregex.a $(LDADD)
 mysqlbinlog_SOURCES =   mysqlbinlog.cc $(top_srcdir)/mysys/mf_tempdir.c $(top_srcdir)/mysys/my_new.cc
