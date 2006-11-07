@@ -1181,8 +1181,6 @@ void kill_delayed_threads(void)
   delayed_insert *tmp;
   while ((tmp=it++))
   {
-    /* Ensure that the thread doesn't kill itself while we are looking at it */
-    pthread_mutex_lock(&tmp->mutex);
     tmp->thd.killed=1;
     if (tmp->thd.mysys_var)
     {
@@ -1201,7 +1199,6 @@ void kill_delayed_threads(void)
       }
       pthread_mutex_unlock(&tmp->thd.mysys_var->mutex);
     }
-    pthread_mutex_unlock(&tmp->mutex);
   }
   VOID(pthread_mutex_unlock(&LOCK_delayed_insert)); // For unlink from list
 }
