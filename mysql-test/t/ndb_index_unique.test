@@ -85,13 +85,26 @@ select * from t2 order by a;
 
 drop table t2;
 
--- error 1121
 CREATE TABLE t2 (
   a int unsigned NOT NULL PRIMARY KEY,
   b int unsigned not null,
   c int unsigned,
   UNIQUE USING HASH (b, c)	
 ) engine=ndbcluster;
+
+
+insert t2 values(1,1,NULL),(2,2,2),(3,3,NULL),(4,4,4),(5,5,NULL),(6,6,6),(7,7,NULL),(8,3,NULL),(9,3,NULL);
+
+select * from t2 where c IS NULL order by a;
+select * from t2 where b = 3 AND c IS NULL order by a;
+select * from t2 where (b = 3 OR b = 5) AND c IS NULL order by a;
+set @old_ecpd = @@session.engine_condition_pushdown;
+set engine_condition_pushdown = true;
+explain select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
+select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
+set engine_condition_pushdown = @old_ecpd;
+
+drop table t2;
 
 #
 # Show use of PRIMARY KEY USING HASH indexes 
