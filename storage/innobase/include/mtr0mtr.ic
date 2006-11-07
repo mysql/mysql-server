@@ -113,6 +113,7 @@ mtr_release_s_latch_at_savepoint(
 	slot->object = NULL;
 }
 
+#ifdef UNIV_DEBUG
 /**************************************************************
 Checks if memo contains the given item. */
 UNIV_INLINE
@@ -148,6 +149,7 @@ mtr_memo_contains(
 
 	return(FALSE);
 }
+#endif /* UNIV_DEBUG */
 
 /*******************************************************************
 Returns the log object of a mini-transaction buffer. */

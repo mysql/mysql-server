@@ -43,7 +43,7 @@ Note	1051	Unknown table 't4'
 CREATE TABLE t1 (a int);
 CREATE TABLE t3 (a int);
 FLUSH TABLES WITH READ LOCK;
- RENAME TABLE t1 TO t2, t3 to t4;
+RENAME TABLE t1 TO t2, t3 to t4;
 show tables;
 Tables_in_test
 t1

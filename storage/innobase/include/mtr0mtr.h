@@ -265,6 +265,7 @@ mtr_memo_release(
 	mtr_t*	mtr,	/* in: mtr */
 	void*	object,	/* in: object */
 	ulint	type);	/* in: object type: MTR_MEMO_S_LOCK, ... */
+#ifdef UNIV_DEBUG
 /**************************************************************
 Checks if memo contains the given item. */
 UNIV_INLINE
@@ -282,6 +283,7 @@ void
 mtr_print(
 /*======*/
 	mtr_t*	mtr);	/* in: mtr */
+#endif /* UNIV_DEBUG */
 /*######################################################################*/
 
 #define	MTR_BUF_MEMO_SIZE	200	/* number of slots in memo */

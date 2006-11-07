@@ -1,0 +1,62 @@
+--disable_abort_on_error
+# Run this tets only when mysqld don't has partitioning
+# the statements are not expected to work, just check that we
+# can't crash the server
+-- require r/not_partition.require
+disable_query_log;
+show variables like "have_partitioning";
+enable_query_log;
+
+
+--error ER_FEATURE_DISABLED
+CREATE TABLE t1 (
+    firstname VARCHAR(25) NOT NULL,
+    lastname VARCHAR(25) NOT NULL,
+    username VARCHAR(16) NOT NULL,
+    email VARCHAR(35),
+    joined DATE NOT NULL
+)
+PARTITION BY KEY(joined)
+PARTITIONS 6;
+
+--error ER_FEATURE_DISABLED
+ALTER TABLE t1 PARTITION BY KEY(joined) PARTITIONS 2;
+
+--error ER_BAD_TABLE_ERROR
+drop table t1;
+
+--error ER_FEATURE_DISABLED
+CREATE TABLE t1 (
+    firstname VARCHAR(25) NOT NULL,
+    lastname VARCHAR(25) NOT NULL,
+    username VARCHAR(16) NOT NULL,
+    email VARCHAR(35),
+    joined DATE NOT NULL
+)
+PARTITION BY RANGE( YEAR(joined) ) (
+    PARTITION p0 VALUES LESS THAN (1960),
+    PARTITION p1 VALUES LESS THAN (1970),
+    PARTITION p2 VALUES LESS THAN (1980),
+    PARTITION p3 VALUES LESS THAN (1990),
+    PARTITION p4 VALUES LESS THAN MAXVALUE
+);
+--error ER_BAD_TABLE_ERROR
+drop table t1;
+
+--error ER_FEATURE_DISABLED
+CREATE TABLE t1 (id INT, purchased DATE)
+    PARTITION BY RANGE( YEAR(purchased) )
+    SUBPARTITION BY HASH( TO_DAYS(purchased) )
+    SUBPARTITIONS 2 (
+        PARTITION p0 VALUES LESS THAN (1990),
+        PARTITION p1 VALUES LESS THAN (2000),
+        PARTITION p2 VALUES LESS THAN MAXVALUE
+    );
+--error ER_BAD_TABLE_ERROR
+drop table t1;
+
+# Create a table without partitions to test "EXPLAIN PARTITIONS"
+create table t1 (a varchar(10) charset latin1 collate latin1_bin);
+insert into t1 values (''),(' '),('a'),('a '),('a  ');
+explain partitions select * from t1 where a='a ' OR a='a';
+drop table t1;
