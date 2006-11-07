@@ -646,12 +646,17 @@ typedef struct system_status_var
   ulong com_stmt_reset;
   ulong com_stmt_close;
 
+  /*
+    Status variables which it does not make sense to add to
+    global status variable counter
+  */
   double last_query_cost;
 } STATUS_VAR;
 
 /*
-  This is used for 'show status'. It must be updated to the last ulong
-  variable in system_status_var
+  This is used for 'SHOW STATUS'. It must be updated to the last ulong
+  variable in system_status_var which is makes sens to add to the global
+  counter
 */
 
 #define last_system_status_var com_stmt_close
