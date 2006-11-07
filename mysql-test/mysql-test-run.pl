@@ -181,7 +181,7 @@ our $opt_fast;
 our $opt_force;
 our $opt_reorder= 0;
 our $opt_enable_disabled;
-our $opt_mem;
+our $opt_mem= $ENV{'MTR_MEM'};
 
 our $opt_gcov;
 our $opt_gcov_err;
@@ -667,7 +667,7 @@ sub command_line_setup () {
              'tmpdir=s'                 => \$opt_tmpdir,
              'vardir=s'                 => \$opt_vardir,
              'benchdir=s'               => \$glob_mysql_bench_dir,
-             'mem'                      => \$opt_mem,
+             'mem=s'                    => \$opt_mem,
 
              # Misc
              'comment=s'                => \$opt_comment,
@@ -756,7 +756,7 @@ sub command_line_setup () {
 
     # Use /dev/shm as the preferred location for vardir and
     # thus implicitly also tmpdir. Add other locations to list
-    my @tmpfs_locations= ("/dev/shm");
+    my @tmpfs_locations= ($opt_mem, "/dev/shm");
     # One could maybe use "mount" to find tmpfs location(s)
     foreach my $fs (@tmpfs_locations)
     {
@@ -2476,7 +2476,7 @@ sub run_suite () {
       next;
     }
 
-    mtr_timer_start($glob_timers,"testcase", 60 * $opt_testcase_timeout);
+    mtr_timer_start($glob_timers,"testcase", $opt_testcase_timeout);
     run_testcase($tinfo);
     mtr_timer_stop($glob_timers,"testcase");
   }
@@ -4629,7 +4629,7 @@ Options to control directories to use
                         tmpfs will speed up tests.
   mem=DIR               Run testsuite in "memory" using tmpfs if
                         available(default: /dev/shm)
-
+                        reads from MTR_MEM environment variable
 
 Options to control what test suites or cases to run
 
