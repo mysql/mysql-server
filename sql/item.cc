@@ -3727,16 +3727,16 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
               Item_ref to point to the Item in the select list and replace the
               Item_field created by the parser with the new Item_ref.
             */
-            Item_ref *rf= new Item_ref(db_name,table_name,field_name);
+            Item_ref *rf= new Item_ref(context, db_name,table_name,field_name);
             if (!rf)
               return 1;
-            thd->change_item_tree(ref, rf);
+            thd->change_item_tree(reference, rf);
             /*
               Because Item_ref never substitutes itself with other items 
               in Item_ref::fix_fields(), we can safely use the original 
               pointer to it even after fix_fields()
              */
-            return rf->fix_fields(thd, tables, ref) ||  rf->check_cols(1);
+            return rf->fix_fields(thd, reference) ||  rf->check_cols(1);
           }
         }
       }
