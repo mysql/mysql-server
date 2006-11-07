@@ -57,6 +57,16 @@ typedef long my_time_t;
 #define TIME_NO_ZERO_DATE	(TIME_NO_ZERO_IN_DATE*2)
 #define TIME_INVALID_DATES	(TIME_NO_ZERO_DATE*2)
 
+#define MYSQL_TIME_WARN_TRUNCATED    1
+#define MYSQL_TIME_WARN_OUT_OF_RANGE 2
+
+/* Limits for the TIME data type */
+#define TIME_MAX_HOUR 838
+#define TIME_MAX_MINUTE 59
+#define TIME_MAX_SECOND 59
+#define TIME_MAX_VALUE (TIME_MAX_HOUR*10000 + TIME_MAX_MINUTE*100 + \
+                        TIME_MAX_SECOND)
+
 enum enum_mysql_timestamp_type
 str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
                 uint flags, int *was_cut);
@@ -69,7 +79,9 @@ ulonglong TIME_to_ulonglong(const MYSQL_TIME *time);
 
 
 my_bool str_to_time(const char *str,uint length, MYSQL_TIME *l_time,
-                    int *was_cut);
+                    int *warning);
+
+int check_time_range(struct st_mysql_time *time, int *warning);
 
 long calc_daynr(uint year,uint month,uint day);
 uint calc_days_in_year(uint year);
