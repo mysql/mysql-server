@@ -211,9 +211,10 @@ static int my_strnncollsp_8bit_bin(CHARSET_INFO * cs __attribute__((unused)),
 
 /* This function is used for all conversion functions */
 
-static void my_case_str_bin(CHARSET_INFO *cs __attribute__((unused)),
+static uint my_case_str_bin(CHARSET_INFO *cs __attribute__((unused)),
 			    char *str __attribute__((unused)))
 {
+  return 0;
 }
 
 static uint my_case_bin(CHARSET_INFO *cs __attribute__((unused)),
