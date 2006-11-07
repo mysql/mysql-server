@@ -46,6 +46,8 @@ test won't be executed by 'make test' !
 Documentation
 -------------
 
-There is Doxygen-generated documentation available at:
+The generated documentation is temporarily placed at:
 
-      https://intranet.mysql.com/~mkindahl/mytap/html/
+      http://www.kindahl.net/mytap/doc/
+
+I will move it to a better place once I figure out where and how.

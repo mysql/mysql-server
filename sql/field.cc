@@ -5921,38 +5921,149 @@ void Field_datetime::sql_type(String &res) const
 ** A string may be varchar or binary
 ****************************************************************************/
 
+/*
+  Report "not well formed" or "cannot convert" error
+  after storing a character string info a field.
+
+  SYNOPSIS
+    check_string_copy_error()
+    field                    - Field
+    well_formed_error_pos    - where not well formed data was first met
+    cannot_convert_error_pos - where a not-convertable character was first met
+    end                      - end of the string
+
+  NOTES
+    As of version 5.0 both cases return the same error:
+  
+      "Invalid string value: 'xxx' for column 't' at row 1"
+  
+  Future versions will possibly introduce a new error message:
+
+      "Cannot convert character string: 'xxx' for column 't' at row 1"
+
+  RETURN
+    FALSE - If errors didn't happen
+    TRUE  - If an error happened
+*/
+
+static bool
+check_string_copy_error(Field_str *field,
+                        const char *well_formed_error_pos,
+                        const char *cannot_convert_error_pos,
+                        const char *end)
+{
+  const char *pos, *end_orig;
+  char tmp[64], *t;
+  
+  if (!(pos= well_formed_error_pos) &&
+      !(pos= cannot_convert_error_pos))
+    return FALSE;
+
+  end_orig= end;
+  set_if_smaller(end, pos + 6);
+
+  for (t= tmp; pos < end; pos++)
+  {
+    if (((unsigned char) *pos) >= 0x20 &&
+        ((unsigned char) *pos) <= 0x7F)
+    {
+      *t++= *pos;
+    }
+    else
+    {
+      *t++= '\\';
+      *t++= 'x';
+      *t++= _dig_vec_upper[((unsigned char) *pos) >> 4];
+      *t++= _dig_vec_upper[((unsigned char) *pos) & 15];
+    }
+  }
+  if (end_orig > end)
+  {
+    *t++= '.';
+    *t++= '.';
+    *t++= '.';
+  }
+  *t= '\0';
+  push_warning_printf(field->table->in_use, 
+                      field->table->in_use->abort_on_warning ?
+                      MYSQL_ERROR::WARN_LEVEL_ERROR :
+                      MYSQL_ERROR::WARN_LEVEL_WARN,
+                      ER_TRUNCATED_WRONG_VALUE_FOR_FIELD, 
+                      ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                      "string", tmp, field->field_name,
+                      (ulong) field->table->in_use->row_count);
+  return TRUE;
+}
+
+
+
+/*
+  Send a truncation warning or a truncation error
+  after storing a too long character string info a field.
+
+  SYNOPSIS
+    report_data_too_long()
+    field                    - Field
+
+  RETURN
+    N/A
+*/
+
+inline void
+report_data_too_long(Field_str *field)
+{
+  if (field->table->in_use->abort_on_warning)
+    field->set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);
+  else
+    field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+}
+
+
+/*
+  Test if the given string contains important data:
+  not spaces for character string,
+  or any data for binary string.
+
+  SYNOPSIS
+    test_if_important_data()
+    cs          Character set
+    str         String to test
+    strend      String end
+
+  RETURN
+    FALSE - If string does not have important data
+    TRUE  - If string has some important data
+*/
+
+static bool
+test_if_important_data(CHARSET_INFO *cs, const char *str, const char *strend)
+{
+  if (cs != &my_charset_bin)
+    str+= cs->cset->scan(cs, str, strend, MY_SEQ_SPACES);
+  return (str < strend);
+}
+
+
 	/* Copy a string and fill with space */
 
 int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  int error= 0, well_formed_error;
-  uint32 not_used;
-  char buff[STRING_BUFFER_USUAL_SIZE];
-  String tmpstr(buff,sizeof(buff), &my_charset_bin);
   uint copy_length;
+  const char *well_formed_error_pos;
+  const char *cannot_convert_error_pos;
+  const char *from_end_pos;
 
   /* See the comment for Field_long::store(long long) */
   DBUG_ASSERT(table->in_use == current_thd);
 
-  /* Convert character set if necessary */
-  if (String::needs_conversion(length, cs, field_charset, &not_used))
-  {
-    uint conv_errors;
-    tmpstr.copy(from, length, cs, field_charset, &conv_errors);
-    from= tmpstr.ptr();
-    length= tmpstr.length();
-    if (conv_errors)
-      error= 2;
-  }
-
-  /* Make sure we don't break a multibyte sequence or copy malformed data. */
-  copy_length= field_charset->cset->well_formed_len(field_charset,
-                                                    from,from+length,
-                                                    field_length/
-                                                    field_charset->mbmaxlen,
-                                                    &well_formed_error);
-  memmove(ptr, from, copy_length);
+  copy_length= well_formed_copy_nchars(field_charset,
+                                       ptr, field_length,
+                                       cs, from, length,
+                                       field_length / field_charset->mbmaxlen,
+                                       &well_formed_error_pos,
+                                       &cannot_convert_error_pos,
+                                       &from_end_pos);
 
   /* Append spaces if the string was shorter than the field. */
   if (copy_length < field_length)
@@ -5960,32 +6071,23 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
                               field_length-copy_length,
                               field_charset->pad_char);
 
+  if (check_string_copy_error(this, well_formed_error_pos,
+                              cannot_convert_error_pos, from + length))
+    return 2;
+
   /*
     Check if we lost any important data (anything in a binary string,
     or any non-space in others).
   */
-  if ((copy_length < length) && table->in_use->count_cuted_fields)
+  if ((from_end_pos < from + length) && table->in_use->count_cuted_fields)
   {
-    if (binary())
-      error= 2;
-    else
+    if (test_if_important_data(field_charset, from_end_pos, from + length))
     {
-      const char *end=from+length;
-      from+= copy_length;
-      from+= field_charset->cset->scan(field_charset, from, end,
-                                       MY_SEQ_SPACES);
-      if (from != end)
-        error= 2;
+      report_data_too_long(this);
+      return 2;
     }
   }
-  if (error)
-  {
-    if (table->in_use->abort_on_warning)
-      set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);
-    else
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
-  }
-  return error;
+  return 0;
 }
 
 
@@ -6343,58 +6445,35 @@ Field *Field_string::new_field(MEM_ROOT *root, struct st_table *new_table,
 int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  uint32 not_used, copy_length;
-  char buff[STRING_BUFFER_USUAL_SIZE];
-  String tmpstr(buff,sizeof(buff), &my_charset_bin);
-  int error_code= 0, well_formed_error;
-  enum MYSQL_ERROR::enum_warning_level level= MYSQL_ERROR::WARN_LEVEL_WARN;
+  uint copy_length;
+  const char *well_formed_error_pos;
+  const char *cannot_convert_error_pos;
+  const char *from_end_pos;
 
-  /* Convert character set if necessary */
-  if (String::needs_conversion(length, cs, field_charset, &not_used))
-  { 
-    uint conv_errors;
-    tmpstr.copy(from, length, cs, field_charset, &conv_errors);
-    from= tmpstr.ptr();
-    length=  tmpstr.length();
-    if (conv_errors)
-      error_code= WARN_DATA_TRUNCATED;
-  }
-  /* 
-    Make sure we don't break a multibyte sequence
-    as well as don't copy a malformed data.
-  */
-  copy_length= field_charset->cset->well_formed_len(field_charset,
-						    from,from+length,
-						    field_length/
-						    field_charset->mbmaxlen,
-                                                    &well_formed_error);
-  memmove(ptr + length_bytes, from, copy_length);
+  copy_length= well_formed_copy_nchars(field_charset,
+                                       ptr + length_bytes, field_length,
+                                       cs, from, length,
+                                       field_length / field_charset->mbmaxlen,
+                                       &well_formed_error_pos,
+                                       &cannot_convert_error_pos,
+                                       &from_end_pos);
+
   if (length_bytes == 1)
     *ptr= (uchar) copy_length;
   else
     int2store(ptr, copy_length);
 
+  if (check_string_copy_error(this, well_formed_error_pos,
+                              cannot_convert_error_pos, from + length))
+    return 2;
+
   // Check if we lost something other than just trailing spaces
-  if ((copy_length < length) && table->in_use->count_cuted_fields &&
-      !error_code)
+  if ((from_end_pos < from + length) && table->in_use->count_cuted_fields)
   {
-    if (!binary())
-    {
-      const char *end= from + length;
-      from+= copy_length;
-      from+= field_charset->cset->scan(field_charset, from, end, MY_SEQ_SPACES);
-      /* If we lost only spaces then produce a NOTE, not a WARNING */
-      if (from == end)
-        level= MYSQL_ERROR::WARN_LEVEL_NOTE;
-    }
-    error_code= WARN_DATA_TRUNCATED;
-  }
-  if (error_code)
-  {
-    if (level == MYSQL_ERROR::WARN_LEVEL_WARN &&
-        table->in_use->abort_on_warning)
-      error_code= ER_DATA_TOO_LONG;
-    set_warning(level, error_code, 1);
+    if (test_if_important_data(field_charset, from_end_pos, from + length))
+      report_data_too_long(this);
+    else /* If we lost only spaces then produce a NOTE, not a WARNING */
+      set_warning(MYSQL_ERROR::WARN_LEVEL_NOTE, WARN_DATA_TRUNCATED, 1);
     return 2;
   }
   return 0;
@@ -7012,68 +7091,70 @@ void Field_blob::put_length(char *pos, uint32 length)
 int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  int error= 0, well_formed_error;
+  uint copy_length, new_length;
+  const char *well_formed_error_pos;
+  const char *cannot_convert_error_pos;
+  const char *from_end_pos, *tmp;
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  String tmpstr(buff,sizeof(buff), &my_charset_bin);
+
   if (!length)
   {
     bzero(ptr,Field_blob::pack_length());
+    return 0;
   }
-  else
-  {
-    bool was_conversion;
-    char buff[STRING_BUFFER_USUAL_SIZE];
-    String tmpstr(buff,sizeof(buff), &my_charset_bin);
-    uint copy_length;
-    uint32 not_used;
 
-    /* Convert character set if necessary */
-    if ((was_conversion= String::needs_conversion(length, cs, field_charset,
-						  &not_used)))
-    { 
-      uint conv_errors;
-      if (tmpstr.copy(from, length, cs, field_charset, &conv_errors))
-      {
-        /* Fatal OOM error */
-        bzero(ptr,Field_blob::pack_length());
-        return -1;
-      }
-      from= tmpstr.ptr();
-      length=  tmpstr.length();
-      if (conv_errors)
-        error= 2;
-    }
-    
-    copy_length= max_data_length();
-    /*
-      copy_length is OK as last argument to well_formed_len as this is never
-      used to limit the length of the data. The cut of long data is done with
-      the 'min()' call below.
-    */
-    copy_length= field_charset->cset->well_formed_len(field_charset,
-                                                      from,from +
-                                                      min(length, copy_length),
-                                                      copy_length,
-                                                      &well_formed_error);
-    if (copy_length < length)
-      error= 2;
-    Field_blob::store_length(copy_length);
-    if (was_conversion || table->copy_blobs || copy_length <= MAX_FIELD_WIDTH)
-    {						// Must make a copy
-      if (from != value.ptr())			// For valgrind
-      {
-	value.copy(from,copy_length,charset());
-	from=value.ptr();
-      }
-    }
-    bmove(ptr+packlength,(char*) &from,sizeof(char*));
-  }
-  if (error)
+  if (from == value.ptr())
   {
-    if (table->in_use->abort_on_warning)
-      set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);
-    else
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+    uint32 dummy_offset;
+    if (!String::needs_conversion(length, cs, field_charset, &dummy_offset))
+    {
+      Field_blob::store_length(length);
+      bmove(ptr+packlength,(char*) &from,sizeof(char*));
+      return 0;
+    }
+    if (tmpstr.copy(from, length, cs))
+      goto oom_error;
+    from= tmpstr.ptr();
   }
+
+  new_length= min(max_data_length(), field_charset->mbmaxlen * length);
+  if (value.alloc(new_length))
+    goto oom_error;
+
+  /*
+    "length" is OK as "nchars" argument to well_formed_copy_nchars as this
+    is never used to limit the length of the data. The cut of long data
+    is done with the new_length value.
+  */
+  copy_length= well_formed_copy_nchars(field_charset,
+                                       (char*) value.ptr(), new_length,
+                                       cs, from, length,
+                                       length,
+                                       &well_formed_error_pos,
+                                       &cannot_convert_error_pos,
+                                       &from_end_pos);
+
+  Field_blob::store_length(copy_length);
+  tmp= value.ptr();
+  bmove(ptr+packlength,(char*) &tmp,sizeof(char*));
+
+  if (check_string_copy_error(this, well_formed_error_pos,
+                              cannot_convert_error_pos, from + length))
+    return 2;
+
+  if (copy_length < length)
+  {
+    report_data_too_long(this);
+    return 2;
+  }
+
   return 0;
+
+oom_error:
+  /* Fatal OOM error */
+  bzero(ptr,Field_blob::pack_length());
+  return -1; 
 }
 
 

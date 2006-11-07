@@ -14,3 +14,19 @@ SELECT * FROM t4;
 a
 DROP TABLE t1;
 DROP TABLE t4;
+DROP TABLE IF EXISTS t5;
+CREATE TABLE t5 (
+word varchar(50) collate utf8_unicode_ci NOT NULL default ''
+) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+SET @@session.character_set_client=33,@@session.collation_connection=192;
+CREATE TEMPORARY TABLE tmptbl504451f4258$1 (id INT NOT NULL) ENGINE=MEMORY;
+INSERT INTO t5 (word)  VALUES ('TEST’');
+SELECT HEX(word) FROM t5;
+HEX(word)
+54455354E28099
+SELECT HEX(word) FROM t5;
+HEX(word)
+54455354E28099
+SELECT * FROM tmptbl504451f4258$1;
+ERROR 42S02: Table 'test.tmptbl504451f4258$1' doesn't exist
+DROP TABLE t5;
