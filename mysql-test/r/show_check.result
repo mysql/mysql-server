@@ -148,12 +148,14 @@ flush tables;
 show open tables;
 Database	Table	In_use	Name_locked
 mysql	general_log	1	0
+mysql	slow_log	1	0
 create table t1(n int);
 insert into t1 values (1);
 show open tables;
 Database	Table	In_use	Name_locked
-test	t1	0	0
 mysql	general_log	1	0
+mysql	slow_log	1	0
+test	t1	0	0
 drop table t1;
 create table t1 (a int not null, b VARCHAR(10), INDEX (b) ) AVG_ROW_LENGTH=10 CHECKSUM=1 COMMENT="test" ENGINE=MYISAM MIN_ROWS=10 MAX_ROWS=100 PACK_KEYS=1 DELAY_KEY_WRITE=1 ROW_FORMAT=fixed;
 show create table t1;
@@ -566,21 +568,23 @@ SELECT 1 FROM mysql.db, mysql.proc, mysql.user, mysql.time_zone, mysql.time_zone
 1
 SHOW OPEN TABLES;
 Database	Table	In_use	Name_locked
-mysql	db	0	0
+mysql	proc	0	0
 test	urkunde	0	0
 mysql	time_zone	0	0
-mysql	general_log	1	0
+mysql	db	0	0
 test	txt1	0	0
-mysql	proc	0	0
+mysql	slow_log	1	0
 test	tyt2	0	0
+mysql	general_log	1	0
 mysql	user	0	0
 mysql	time_zone_name	0	0
 SHOW OPEN TABLES FROM mysql;
 Database	Table	In_use	Name_locked
-mysql	db	0	0
-mysql	time_zone	0	0
-mysql	general_log	1	0
 mysql	proc	0	0
+mysql	time_zone	0	0
+mysql	db	0	0
+mysql	slow_log	1	0
+mysql	general_log	1	0
 mysql	user	0	0
 mysql	time_zone_name	0	0
 SHOW OPEN TABLES FROM mysql LIKE 'u%';
@@ -594,14 +598,16 @@ test	tyt2	0	0
 mysql	time_zone_name	0	0
 SHOW OPEN TABLES LIKE '%o%';
 Database	Table	In_use	Name_locked
-mysql	time_zone	0	0
-mysql	general_log	1	0
 mysql	proc	0	0
+mysql	time_zone	0	0
+mysql	slow_log	1	0
+mysql	general_log	1	0
 mysql	time_zone_name	0	0
 FLUSH TABLES;
 SHOW OPEN TABLES;
 Database	Table	In_use	Name_locked
 mysql	general_log	1	0
+mysql	slow_log	1	0
 DROP TABLE txt1;
 DROP TABLE tyt2;
 DROP TABLE urkunde;
@@ -672,6 +678,21 @@ SHOW TABLES FROM no_such_database;
 ERROR 42000: Unknown database 'no_such_database'
 SHOW COLUMNS FROM no_such_table;
 ERROR 42S02: Table 'test.no_such_table' doesn't exist
+flush status;
+show status like 'slow_queries';
+Variable_name	Value
+Slow_queries	0
+show tables;
+Tables_in_test
+show status like 'slow_queries';
+Variable_name	Value
+Slow_queries	1
+select 1 from information_schema.tables limit 1;
+1
+1
+show status like 'slow_queries';
+Variable_name	Value
+Slow_queries	2
 End of 5.0 tests.
 SHOW AUTHORS;
 create database mysqltest;

@@ -2207,7 +2207,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
       continue;
     }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-    bool no_partitions_used= table->no_partitions_used;
+    const bool no_partitions_used= table->no_partitions_used;
 #else
     const bool no_partitions_used= FALSE;
 #endif
@@ -11792,7 +11792,7 @@ part_of_refkey(TABLE *table,Field *field)
 
     for (uint part=0 ; part < ref_parts ; part++,key_part++)
       if (field->eq(key_part->field) &&
-	  !(key_part->key_part_flag & HA_PART_KEY_SEG))
+	  !(key_part->key_part_flag & (HA_PART_KEY_SEG | HA_NULL_PART)))
 	return table->reginfo.join_tab->ref.items[part];
   }
   return (Item*) 0;

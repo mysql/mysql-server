@@ -186,7 +186,7 @@ terribly wrong...\n");
 
 #if defined(__alpha__) && defined(__GNUC__)
     uchar** new_fp = find_prev_fp(pc, fp);
-    if (frame_count == SIGRETURN_FRAME_COUNT - 1)
+    if (frame_count == sigreturn_frame_count - 1)
     {
       new_fp += 90;
     }

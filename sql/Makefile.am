@@ -30,12 +30,13 @@ libexec_PROGRAMS =	mysqld
 noinst_PROGRAMS =	gen_lex_hash
 bin_PROGRAMS =		mysql_tzinfo_to_sql
 gen_lex_hash_LDFLAGS =  @NOINST_LDFLAGS@
-LDADD =			$(top_builddir)/vio/libvio.a \
+SUPPORTING_LIBS =			$(top_builddir)/vio/libvio.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/regex/libregex.a \
-			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
-mysqld_DEPENDENCIES=	@mysql_plugin_libs@ $(LDADD)
+			$(top_builddir)/strings/libmystrings.a
+mysqld_DEPENDENCIES=	@mysql_plugin_libs@ $(SUPPORTING_LIBS)
+LDADD = $(SUPPORTING_LIBS) @ZLIB_LIBS@
 mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ \
 			@pstack_libs@ \
 			@mysql_plugin_libs@ \

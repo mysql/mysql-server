@@ -9,7 +9,7 @@ test.t1	check	status	OK
 unlock tables;
 lock table t1 read;
 lock table t1 read;
- flush table t1;
+flush table t1;
 select * from t1;
 a
 1
@@ -19,7 +19,7 @@ a
 1
 unlock tables;
 lock table t1 write;
- lock table t1 read;
+lock table t1 read;
 flush table t1;
 select * from t1;
 a
@@ -27,7 +27,7 @@ a
 unlock tables;
 unlock tables;
 lock table t1 read;
- lock table t1 write;
+lock table t1 write;
 flush table t1;
 select * from t1;
 a
