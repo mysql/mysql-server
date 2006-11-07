@@ -1728,7 +1728,7 @@ select (select a from t1) = (1,2);
 select (1,2,3) = (select * from t1);
 -- error 1241
 select (select * from t1) = (1,2,3);
-drop table t1
+drop table t1;
 
 #
 # Item_int_with_ref check (BUG#10020)

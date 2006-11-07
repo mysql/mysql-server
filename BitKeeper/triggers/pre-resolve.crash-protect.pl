@@ -9,8 +9,6 @@ unless($event eq 'outgoing pull' || $event eq 'outgoing push' ||
   exit 0;
 }
 
-print "Checking for bad changesets from old crashed 5.1 tree...\n";
-
 my @bad_csets=
     ( 'monty@mysql.com|ChangeSet|20060418090255|16983',
       'monty@mysql.com|ChangeSet|20060418090458|02628',
@@ -79,7 +77,5 @@ END
     exit 1;
   }
 }
-
-print "No bad changesets found, proceeding.\n";
 
 exit 0;
