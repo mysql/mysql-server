@@ -229,6 +229,7 @@ my_bool vio_poll_read(Vio *vio,uint timeout)
 
 
 void vio_timeout(Vio *vio __attribute__((unused)),
+		 uint which __attribute__((unused)),
 		 uint timeout __attribute__((unused)))
 {
 }
