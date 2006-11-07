@@ -25,10 +25,9 @@ sub run_stress_test ()
 
   mtr_report("Starting stress testing\n");
 
-  if ( ! $::glob_use_embedded_server and ! $::opt_local_master )
+  if ( ! $::glob_use_embedded_server )
   {
-    $::master->[0]->{'pid'}= mysqld_start('master',0,[],[],0);
-    if ( ! $::master->[0]->{'pid'} )
+    if ( ! mysqld_start($::master->[0],[],[]) )
     {
       mtr_error("Can't start the mysqld server");
     }
@@ -123,7 +122,7 @@ sub run_stress_test ()
 
   mtr_init_args(\$args);
   
-  mtr_add_arg($args, "--server-socket=%s", $::master->[0]->{'path_mysock'});
+  mtr_add_arg($args, "--server-socket=%s", $::master->[0]->{'path_sock'});
   mtr_add_arg($args, "--server-user=%s", $::opt_user);
   mtr_add_arg($args, "--server-database=%s", "test");  
   mtr_add_arg($args, "--stress-suite-basedir=%s", $::glob_mysql_test_dir);  
@@ -141,7 +140,7 @@ sub run_stress_test ()
 
   if ( $::opt_stress_init_file )
   {
-    mtr_add_arg($args, "--stress-init-file=%", $::opt_stress_init_file);
+    mtr_add_arg($args, "--stress-init-file=%s", $::opt_stress_init_file);
   }
 
   if ( !$::opt_stress_loop_count && !$::opt_stress_test_count &&
@@ -169,10 +168,9 @@ sub run_stress_test ()
 
   #Run stress test
   mtr_run("$::glob_mysql_test_dir/mysql-stress-test.pl", $args, "", "", "", "");
-   
   if ( ! $::glob_use_embedded_server )
   {
-    stop_masters();
+    stop_all_servers();
   }
 }
 

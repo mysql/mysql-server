@@ -388,6 +388,21 @@ int main(int argc,char *argv[])
   else
     status.add_to_history=1;
   status.exit_status=1;
+
+  {
+    /* 
+     The file descriptor-layer may be out-of-sync with the file-number layer,
+     so we make sure that "stdout" is really open.  If its file is closed then
+     explicitly close the FD layer. 
+    */
+    int stdout_fileno_copy;
+    stdout_fileno_copy= dup(fileno(stdout)); /* Okay if fileno fails. */
+    if (stdout_fileno_copy == -1)
+      fclose(stdout);
+    else
+      close(stdout_fileno_copy);             /* Clean up dup(). */
+  }
+
   load_defaults("my",load_default_groups,&argc,&argv);
   defaults_argv=argv;
   if (get_options(argc, (char **) argv))
@@ -2109,6 +2124,8 @@ com_go(String *buffer,char *line __attribute__((unused)))
 		(long) mysql_num_rows(result),
 		(long) mysql_num_rows(result) == 1 ? "row" : "rows");
 	end_pager();
+        if (mysql_errno(&mysql))
+          error= put_error(&mysql);
       }
     }
     else if (mysql_affected_rows(&mysql) == ~(ulonglong) 0)
@@ -2919,7 +2936,11 @@ com_connect(String *buffer, char *line)
   bzero(buff, sizeof(buff));
   if (buffer)
   {
-    strmake(buff, line, sizeof(buff) - 1);
+    /*
+      Two null bytes are needed in the end of buff to allow
+      get_arg to find end of string the second time it's called.
+    */
+    strmake(buff, line, sizeof(buff)-2);
     tmp= get_arg(buff, 0);
     if (tmp && *tmp)
     {
