@@ -180,11 +180,15 @@ void netware_ssl_cleanup()
   /* free memory from SSL_library_init() */
   EVP_cleanup();
 
+/* OpenSSL NetWare port specific functions */
+#ifndef HAVE_YASSL
+
   /* free global X509 method */
   X509_STORE_method_cleanup();
 
   /* free the thread_hash error table */
   ERR_free_state_table();
+#endif
 }
 
 

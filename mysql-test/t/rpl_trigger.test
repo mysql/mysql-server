@@ -70,7 +70,7 @@ select get_lock("bug12480",2);
 connection default;
 
 create table t1 (a datetime,b  datetime, c datetime);
---ignore_warnings
+--disable_warnings
 drop function if exists bug12480;
 --enable_warnings
 

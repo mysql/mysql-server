@@ -3218,6 +3218,7 @@ opt_partitioning:
 partitioning:
         PARTITION_SYM
         {
+#ifdef WITH_PARTITION_STORAGE_ENGINE
           LEX *lex= Lex;
           lex->part_info= new partition_info();
           if (!lex->part_info)
@@ -3229,6 +3230,12 @@ partitioning:
           {
             lex->alter_info.flags|= ALTER_PARTITION;
           }
+#else
+          my_error(ER_FEATURE_DISABLED, MYF(0),
+       	           "partitioning", "--with-partition");
+          YYABORT;
+#endif
+
         }
         partition
         ;

@@ -53,13 +53,6 @@ sub mtr_show_failed_diff ($) {
   {
     $result_file=  $eval_file;
   }
-  elsif ( $::opt_result_ext and
-          ( $::opt_record or -f "$result_file$::opt_result_ext" ))
-  {
-    # If we have an special externsion for result files we use it if we are
-    # recording or a result file with that extension exists.
-    $result_file=  "$result_file$::opt_result_ext";
-  }
 
   my $diffopts= $::opt_udiff ? "-u" : "-c";
 
@@ -137,13 +130,9 @@ sub mtr_report_test_failed ($) {
   my $tinfo= shift;
 
   $tinfo->{'result'}= 'MTR_RES_FAILED';
-  if ( $tinfo->{'timeout'} )
+  if ( defined $tinfo->{'timeout'} )
   {
     print "[ fail ]  timeout\n";
-  }
-  elsif ( $tinfo->{'ndb_test'} and $::cluster->[0]->{'installed_ok'} eq "NO")
-  {
-    print "[ fail ]  ndbcluster start failure\n";
     return;
   }
   else
@@ -151,9 +140,11 @@ sub mtr_report_test_failed ($) {
     print "[ fail ]\n";
   }
 
-  # FIXME Instead of this test, and meaningless error message in 'else'
-  # we should write out into $::path_timefile when the error occurs.
-  if ( -f $::path_timefile )
+  if ( $tinfo->{'comment'} )
+  {
+    print "\nERROR: $tinfo->{'comment'}\n";
+  }
+  elsif ( -f $::path_timefile )
   {
     print "\nErrors are (from $::path_timefile) :\n";
     print mtr_fromfile($::path_timefile); # FIXME print_file() instead
@@ -177,7 +168,7 @@ sub mtr_report_stats ($) {
   my $tot_failed= 0;
   my $tot_tests=  0;
   my $tot_restarts= 0;
-  my $found_problems= 0;            # Some warnings are errors...
+  my $found_problems= 0; # Some warnings in the logfiles are errors...
 
   foreach my $tinfo (@$tests)
   {
@@ -212,8 +203,9 @@ sub mtr_report_stats ($) {
   else
   {
     my $ratio=  $tot_passed * 100 / $tot_tests;
-    printf "Failed $tot_failed/$tot_tests tests, " .
-      "%.2f\% were successful.\n\n", $ratio;
+    print "Failed $tot_failed/$tot_tests tests, ";
+    printf("%.2f", $ratio);
+    print "\% were successful.\n\n";
     print
       "The log files in var/log may give you some hint\n",
       "of what went wrong.\n",
@@ -288,6 +280,7 @@ sub mtr_report_stats ($) {
 
   print "\n";
 
+  # Print a list of testcases that failed
   if ( $tot_failed != 0 )
   {
     my $test_mode= join(" ", @::glob_test_mode) || "default";
@@ -301,7 +294,30 @@ sub mtr_report_stats ($) {
       }
     }
     print "\n";
+
   }
+
+  # Print a list of check_testcases that failed(if any)
+  if ( $::opt_check_testcases )
+  {
+    my @check_testcases= ();
+
+    foreach my $tinfo (@$tests)
+    {
+      if ( defined $tinfo->{'check_testcase_failed'} )
+      {
+	push(@check_testcases, $tinfo->{'name'});
+      }
+    }
+
+    if ( @check_testcases )
+    {
+      print "Check of testcase failed for: ";
+      print join(" ", @check_testcases);
+      print "\n\n";
+    }
+  }
+
   if ( $tot_failed != 0 || $found_problems)
   {
     mtr_error("there where failing test cases");
