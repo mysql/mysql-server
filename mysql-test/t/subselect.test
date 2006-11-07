@@ -1965,4 +1965,20 @@ SELECT a, a IN (SELECT a FROM t1) FROM t2;
 
 DROP TABLE t1,t2;
 
+#
+# Bug #11302: getObject() returns a String for a sub-query of type datetime
+#
+CREATE TABLE t1 (a DATETIME);
+INSERT INTO t1 VALUES ('1998-09-23'), ('2003-03-25');
+
+CREATE TABLE t2 AS SELECT 
+  (SELECT a FROM t1 WHERE a < '2000-01-01') AS sub_a 
+   FROM t1 WHERE a > '2000-01-01';
+SHOW CREATE TABLE t2;
+
+CREATE TABLE t3 AS (SELECT a FROM t1 WHERE a < '2000-01-01') UNION (SELECT a FROM t1 WHERE a > '2000-01-01'); 
+SHOW CREATE TABLE t3;
+
+DROP TABLE t1,t2,t3;
+
 # End of 4.1 tests

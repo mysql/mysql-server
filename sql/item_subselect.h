@@ -142,6 +142,7 @@ public:
   longlong val_int ();
   String *val_str (String *);
   enum Item_result result_type() const;
+  enum_field_types field_type() const;
   void fix_length_and_dec();
 
   uint cols();
@@ -273,6 +274,7 @@ protected:
   THD *thd; /* pointer to current THD */
   Item_subselect *item; /* item, that use this engine */
   enum Item_result res_type; /* type of results */
+  enum_field_types res_field_type; /* column type of the results */
   bool maybe_null; /* may be null (first item in select) */
 public:
 
@@ -282,6 +284,7 @@ public:
     result= res;
     item= si;
     res_type= STRING_RESULT;
+    res_field_type= FIELD_TYPE_VAR_STRING;
     maybe_null= 0;
   }
   virtual ~subselect_engine() {}; // to satisfy compiler
@@ -296,6 +299,7 @@ public:
   virtual uint cols()= 0; /* return number of columnss in select */
   virtual uint8 uncacheable()= 0; /* query is uncacheable */
   enum Item_result type() { return res_type; }
+  enum_field_types field_type() { return res_field_type; }
   virtual void exclude()= 0;
   bool may_be_null() { return maybe_null; };
   virtual table_map upper_select_const_tables()= 0;
@@ -303,6 +307,9 @@ public:
   virtual void print(String *str)= 0;
   virtual int change_item(Item_subselect *si, select_subselect *result)= 0;
   virtual bool no_tables()= 0;
+
+protected:
+  void set_row(List<Item> &item_list, Item_cache **row);
 };
 
 
