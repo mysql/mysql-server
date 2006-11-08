@@ -4293,13 +4293,11 @@ sub run_mysqltest ($) {
   if ( $opt_ssl )
   {
     # Turn on SSL for _all_ test cases if option --ssl was used
-    mtr_add_arg($args, "--ssl",
-		$glob_mysql_test_dir);
+    mtr_add_arg($args, "--ssl");
   }
   elsif ( $opt_ssl_supported )
   {
-    mtr_add_arg($args, "--skip-ssl",
-		$glob_mysql_test_dir);
+    mtr_add_arg($args, "--skip-ssl");
   }
 
   # ----------------------------------------------------------------------
