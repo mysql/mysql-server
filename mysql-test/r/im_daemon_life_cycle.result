@@ -18,6 +18,7 @@ Success: the process has been started.
 Killing the process...
 Sleeping...
 Success: the process was restarted.
+Success: server is ready to accept connection on socket.
 SHOW INSTANCE STATUS mysqld1;
 instance_name	state	version_number	version	mysqld_compatible
 mysqld1	online	VERSION_NUMBER	VERSION	no
