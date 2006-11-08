@@ -3248,9 +3248,15 @@ Dbdict::restartCreateTab_dihComplete(Signal* signal,
   
   CreateTableRecordPtr createTabPtr;  
   ndbrequire(c_opCreateTable.find(createTabPtr, callbackData));
-  
-  //@todo check error
-  ndbrequire(createTabPtr.p->m_errorCode == 0);
+
+  if(createTabPtr.p->m_errorCode)
+  {
+    char buf[100];
+    BaseString::snprintf(buf, sizeof(buf), "Failed to create table during"
+                         " restart, Error: %u",
+                         createTabPtr.p->m_errorCode);
+    progError(__LINE__, NDBD_EXIT_RESOURCE_ALLOC_ERROR, buf);
+  }
 
   Callback callback;
   callback.m_callbackData = callbackData;

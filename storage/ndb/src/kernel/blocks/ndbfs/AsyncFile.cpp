@@ -36,7 +36,7 @@
 #undef HAVE_PREAD
 #endif
 
-#if defined NDB_WIN32 || defined NDB_OSE || defined NDB_SOFTOSE
+#if defined NDB_WIN32
 #else
 // For readv and writev
 #include <sys/uio.h> 
@@ -60,11 +60,7 @@ void printErrorAndFlags(Uint32 used_flags);
 #endif
 
 // Define the size of the write buffer (for each thread)
-#if defined NDB_SOFTOSE || defined NDB_OSE
-#define WRITEBUFFERSIZE 65536
-#else 
 #define WRITEBUFFERSIZE 262144
-#endif
 
 const char *actionName[] = {
   "open",
@@ -1142,7 +1138,6 @@ void printErrorAndFlags(Uint32 used_flags) {
   case     EOPNOTSUPP:
     strcat(buf, "EOPNOTSUPP");
     break;
-#if !defined NDB_OSE && !defined NDB_SOFTOSE
   case     EMULTIHOP :
     strcat(buf, "EMULTIHOP");
     break;
@@ -1155,7 +1150,6 @@ void printErrorAndFlags(Uint32 used_flags) {
   case     EOVERFLOW :
     strcat(buf,  "EOVERFLOW");
     break;
-#endif
   case     EROFS    :
     strcat(buf,  "EROFS");
     break;
@@ -1188,9 +1182,6 @@ void printErrorAndFlags(Uint32 used_flags) {
     break;
   }
   strcat(buf, "\" ");
-#if defined NDB_OSE
-  strcat(buf, strerror(errno) << " ");
-#endif
   strcat(buf, " flags: ");
   switch(used_flags & 3){
   case O_RDONLY:
@@ -1218,7 +1209,6 @@ void printErrorAndFlags(Uint32 used_flags) {
     strcat(buf, "O_NONBLOCK, ");
   if((used_flags & O_TRUNC)==O_TRUNC)
     strcat(buf, "O_TRUNC, ");
-#if !defined NDB_OSE && !defined NDB_SOFTOSE
   if((used_flags & O_DSYNC)==O_DSYNC)
     strcat(buf, "O_DSYNC, ");
   if((used_flags & O_NDELAY)==O_NDELAY)
@@ -1230,7 +1220,6 @@ void printErrorAndFlags(Uint32 used_flags) {
     strcat(buf, "O_SYNC, ");
 #endif
   DEBUG(ndbout_c(buf));
-#endif
 
 }
 #endif

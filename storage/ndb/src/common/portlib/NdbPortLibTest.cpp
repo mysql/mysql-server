@@ -474,11 +474,6 @@ NDB_COMMAND(PortLibTest, "portlibtest", "portlibtest", "Test the portable functi
   testMicros(iter);
   ndbout << "Testing microsecond timer - COMPLETED" << endl;
 
-#if defined NDB_OSE || defined NDB_SOFTOSE
-  ndbout << "system_tick() = " << system_tick() << " us per tick" << endl;
-#endif
-
-
   ndbout << "= TEST10 ===============================" << endl;
 
   testmutex = NdbMutex_Create();

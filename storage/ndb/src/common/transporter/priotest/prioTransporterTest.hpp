@@ -20,7 +20,6 @@
 
 enum TestType {
   TestTCP,
-  TestOSE,
   TestSCI,
   TestSHM
 };

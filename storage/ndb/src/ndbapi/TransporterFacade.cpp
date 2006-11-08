@@ -398,7 +398,7 @@ TransporterFacade::start_instance(int nodeId,
    * This due to the fact that a socket connection might have
    * been closed in between a select and a corresponding send
    */
-#if !defined NDB_OSE && !defined NDB_SOFTOSE && !defined NDB_WIN32
+#if !defined NDB_WIN32
   signal(SIGPIPE, SIG_IGN);
 #endif
 

@@ -96,24 +96,11 @@ NDB_COMMAND(initronja, "initronja", "initronja", "initronja", 65535){
   if(!MySchemaTransaction) goto error_handler;
   MySchemaOp = MySchemaTransaction->getNdbSchemaOp();	
   if(!MySchemaOp) goto error_handler;
-#if defined NDB_OSE || defined NDB_SOFTOSE
-  check = MySchemaOp->createTable( "SHORT_REC"
-				   ,8		// Table Size
-				   ,TupleKey	// Key Type
-				   ,40		// Nr of Pages
-				   ,All
-				   ,6
-				   ,78
-				   ,80
-				   ,1
-				   ,false);				  
-#else
   check = MySchemaOp->createTable( "SHORT_REC"
 				   ,8		// Table Size
 				   ,TupleKey	// Key Type
 				   ,40		// Nr of Pages
 				   );
-#endif
   if (check == -1) goto error_handler;
 
   ndbout << "Key attribute..." ;
@@ -159,24 +146,11 @@ NDB_COMMAND(initronja, "initronja", "initronja", "initronja", 65535){
    
   MySchemaOp = MySchemaTransaction->getNdbSchemaOp();	
   if(!MySchemaOp) goto error_handler;
-#if defined NDB_OSE || defined NDB_SOFTOSE
-  check = MySchemaOp->createTable( "LONG_REC"
-				   ,8		// Table Size
-				   ,TupleKey	// Key Type
-				   ,40		// Nr of Pages
-				   ,All 
-				   ,6
-				   ,78
-				   ,80
-				   ,1
-				   ,false);				       
-#else
   check = MySchemaOp->createTable( "LONG_REC"
 				       ,8		// Table Size
 				       ,TupleKey	// Key Type
 				       ,40		// Nr of Pages
 				       );
-#endif
 
   if (check == -1) goto error_handler;
 

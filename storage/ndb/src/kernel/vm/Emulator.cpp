@@ -140,15 +140,15 @@ NdbShutdown(NdbShutdownType type,
     globalData.theRestartFlag = perform_stop;
 
     bool restart = false;
-#if ! ( defined NDB_OSE || defined NDB_SOFTOSE) 
+
     if((type != NST_Normal && 
 	globalEmulatorData.theConfiguration->stopOnError() == false) ||
        type == NST_Restart) {
       
       restart  = true;
     }
-#endif
-    
+
+
     const char * shutting = "shutting down";
     if(restart){
       shutting = "restarting";
@@ -278,7 +278,7 @@ NdbShutdown(NdbShutdownType type,
      */
     if (type== NST_Watchdog){
       g_eventLogger.info("Watchdog is killing system the hard way");
-#if defined VM_TRACE && ( ! ( defined NDB_OSE || defined NDB_SOFTOSE) )
+#if defined VM_TRACE
       childAbort(-1,g_currentStartPhase);
 #else
       childExit(-1,g_currentStartPhase);

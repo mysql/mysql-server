@@ -64,36 +64,3 @@ SocketOutputStream::println(const char * fmt, ...){
   va_end(ap);
   return ret;
 }
-
-#ifdef NDB_SOFTOSE
-#include <dbgprintf.h>
-int
-SoftOseOutputStream::print(const char * fmt, ...){
-  va_list ap;
-  char buf[1000];
-  
-  va_start(ap, fmt);
-  if (fmt != 0)
-    BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
-  else
-    buf[0] = 0;
-  va_end(ap);
-  dbgprintf(buf);
-}
-
-int
-SoftOseOutputStream::println(const char * fmt, ...){
-  va_list ap;
-  char buf[1000];
-  
-  va_start(ap, fmt);
-  if (fmt != 0)
-    BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
-  else
-    buf[0] = 0;
-  va_end(ap);
-  
-  strcat(buf, "\n\r");
-  dbgprintf(buf);
-}
-#endif

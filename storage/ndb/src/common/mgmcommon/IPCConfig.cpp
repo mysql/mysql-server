@@ -358,18 +358,6 @@ IPCConfig::configureTransporters(Uint32 nodeId,
 			  "maxReceiveSize = %d", conf.tcp.sendBufferSize,
 			  conf.tcp.maxReceiveSize));
       break;
-    case CONNECTION_TYPE_OSE:
-      if(iter.get(CFG_OSE_PRIO_A_SIZE, &conf.ose.prioASignalSize)) break;
-      if(iter.get(CFG_OSE_PRIO_B_SIZE, &conf.ose.prioBSignalSize)) break;
-      
-      if(!tr.createOSETransporter(&conf)){
-	ndbout << "Failed to create OSE Transporter from: " 
-	       << nodeId << " to: " << remoteNodeId << endl;
-      } else {
-	noOfTransportersCreated++;
-      }
-      break;
-
     default:
       ndbout << "Unknown transporter type from: " << nodeId << 
 	" to: " << remoteNodeId << endl;
