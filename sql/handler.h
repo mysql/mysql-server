@@ -1658,6 +1658,7 @@ static inline bool ha_storage_engine_is_enabled(const handlerton *db_type)
 
 /* basic stuff */
 int ha_init(void);
+int ha_end(void);
 int ha_initialize_handlerton(st_plugin_int *plugin);
 int ha_finalize_handlerton(st_plugin_int *plugin);
 

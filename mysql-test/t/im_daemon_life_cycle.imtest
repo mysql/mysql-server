@@ -46,9 +46,12 @@ START INSTANCE mysqld2;
 # FIXME: START INSTANCE should be synchronous.
 --exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 started
 
-# 2. Restart IM-main: kill it and IM-angel will restart it.
+# 2. Restart IM-main: kill it and IM-angel will restart it; wait for IM to
+# start accepting connections again.
 
 --exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_PATH_PID restarted 30
+
+--exec $MYSQL_TEST_DIR/t/wait_for_socket.sh $EXE_MYSQL $IM_PATH_SOCK $IM_USERNAME $IM_PASSWORD '' 30
 
 # 3. Issue some statement -- connection should be re-established.
 
