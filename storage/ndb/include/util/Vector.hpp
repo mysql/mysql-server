@@ -96,6 +96,8 @@ void
 Vector<T>::push_back(const T & t){
   if(m_size == m_arraySize){
     T * tmp = new T [m_arraySize + m_incSize];
+    if(!tmp)
+      abort();
     for (unsigned k = 0; k < m_size; k++)
       tmp[k] = m_items[k];
     delete[] m_items;
