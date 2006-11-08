@@ -76,8 +76,8 @@ uint calc_days_in_year(uint year)
     1  error
 */
 
-static my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
-                          ulong flags, int *was_cut)
+my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
+                   ulong flags, int *was_cut)
 {
   if (not_zero_date)
   {
