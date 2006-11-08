@@ -1570,8 +1570,10 @@ public:
       or trigger is decided when it starts executing, depending for example on
       the caller (for a stored function: if caller is SELECT or
       INSERT/UPDATE/DELETE...).
+      Don't reset binlog format for NDB binlog injector thread.
     */
-    if ((temporary_tables == NULL) && (in_sub_stmt == 0))
+    if ((temporary_tables == NULL) && (in_sub_stmt == 0) &&
+	(system_thread != SYSTEM_THREAD_NDBCLUSTER_BINLOG))
     {
       current_stmt_binlog_row_based= 
         test(variables.binlog_format == BINLOG_FORMAT_ROW);
