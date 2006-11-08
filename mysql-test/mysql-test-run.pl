@@ -2974,7 +2974,6 @@ sub analyze_testcase_failure_sync_with_master($)
 
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--silent");
-  mtr_add_arg($args, "-v");
   mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
 
@@ -4160,7 +4159,6 @@ sub run_check_testcase ($$) {
 
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--silent");
-  mtr_add_arg($args, "-v");
   mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
 
@@ -4206,7 +4204,6 @@ sub run_mysqltest ($) {
 
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--silent");
-  mtr_add_arg($args, "-v");
   mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
 
