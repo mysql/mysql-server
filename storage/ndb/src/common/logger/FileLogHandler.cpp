@@ -125,8 +125,6 @@ FileLogHandler::writeFooter()
   }
   callCount++;
 
-  // Needed on Cello since writes to the flash disk does not happen until 
-  // we flush and fsync.
   m_pLogFile->flush();
 }
 

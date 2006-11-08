@@ -71,33 +71,14 @@ TCP_TransporterConfiguration tcpTemplate = {
   true            // signalId;
 };
 
-OSE_TransporterConfiguration oseTemplate = {
-  "",    // remoteHostName;
-  "",    // localHostName;
-  0,     // remoteNodeId;
-  0,     // localNodeId;
-  false, // compression;
-  true,  // checksum;
-  true,  // signalId;
-  0,     // byteOrder;
-  
-  2000,  // prioASignalSize;
-  2000,  // prioBSignalSize;
-  10     // Recv buf size
-};
-
 TransporterRegistry *tReg = 0;
 
-#ifndef OSE_DELTA
 #include <signal.h>
-#endif
 
 extern "C"
 void
 signalHandler(int signo){
-#ifndef OSE_DELTA
   ::signal(13, signalHandler);
-#endif
   char buf[255];
   sprintf(buf,"Signal: %d\n", signo);
   ndbout << buf << endl;
@@ -118,43 +99,6 @@ typedef void (* CreateTransporterFunc)(void * conf,
 				       const char * remoteHostName,
 				       int sendBuf,
 				       int recvBuf);
-
-void
-createOSETransporter(void * _conf,
-		     NodeId localNodeId,
-		     NodeId remoteNodeId,
-		     const char * localHostName,
-		     const char * remoteHostName,
-		     int sendBuf,
-		     int recvBuf){
-  
-  ndbout << "Creating OSE transporter from node " 
-	 << localNodeId << "(" << localHostName << ") to "
-	 << remoteNodeId << "(" << remoteHostName << ")..." << endl;;
-  
-  OSE_TransporterConfiguration * conf = (OSE_TransporterConfiguration*)_conf;
-  
-  if(sendBuf != -1){
-    conf->prioBSignalSize = sendBuf;
-  }
-  if(recvBuf != -1){
-    conf->receiveBufferSize = recvBuf;
-  }
-
-  ndbout << "\tSendBufferSize:    " << conf->prioBSignalSize << endl;
-  ndbout << "\tReceiveBufferSize: " << conf->receiveBufferSize << endl;
-
-  conf->localNodeId    = localNodeId;
-  conf->localHostName  = localHostName;
-  conf->remoteNodeId   = remoteNodeId;
-  conf->remoteHostName = remoteHostName;
-  bool res = tReg->createTransporter(conf);
-  if(res)
-    ndbout << "... -- Success " << endl;
-  else
-    ndbout << "... -- Failure " << endl;
-}
-
 
 void
 createSCITransporter(void * _conf,
@@ -577,10 +521,6 @@ prioTransporterTest(TestType tt, const char * progName,
   case TestTCP:
     func = createTCPTransporter;
     confTemplate = &tcpTemplate;
-    break;
-  case TestOSE:
-    func = createOSETransporter;
-    confTemplate = &oseTemplate;
     break;
   case TestSCI:
     func = createSCITransporter;

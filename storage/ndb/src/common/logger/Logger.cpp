@@ -23,7 +23,7 @@
 #include <FileLogHandler.hpp>
 #include "LogHandlerList.hpp"
 
-#if !defined NDB_OSE || !defined NDB_SOFTOSE || !defined NDB_WIN32
+#if !defined NDB_WIN32
 #include <SysLogHandler.hpp>
 #endif
 
@@ -46,6 +46,8 @@ Logger::Logger() :
   m_pSyslogHandler(NULL)
 {
   m_pHandlerList = new LogHandlerList();
+  m_mutex= NdbMutex_Create();
+  m_handler_mutex= NdbMutex_Create();
   disable(LL_ALL);
   enable(LL_ON);
   enable(LL_INFO);
@@ -53,20 +55,25 @@ Logger::Logger() :
 
 Logger::~Logger()
 {
-  removeAllHandlers();  
+  removeAllHandlers();
   delete m_pHandlerList;
+  NdbMutex_Destroy(m_handler_mutex);
+  NdbMutex_Destroy(m_mutex);
 }
 
 void 
 Logger::setCategory(const char* pCategory)
 {
+  Guard g(m_mutex);
   m_pCategory = pCategory;
 }
 
 bool
 Logger::createConsoleHandler()
 {
+  Guard g(m_handler_mutex);
   bool rc = true;
+
   if (m_pConsoleHandler == NULL)
   {
     m_pConsoleHandler = new ConsoleLogHandler(); 
@@ -84,6 +91,7 @@ Logger::createConsoleHandler()
 void 
 Logger::removeConsoleHandler()
 {
+  Guard g(m_handler_mutex);
   if (removeHandler(m_pConsoleHandler))
   {
     m_pConsoleHandler = NULL;
@@ -93,6 +101,7 @@ Logger::removeConsoleHandler()
 bool
 Logger::createFileHandler()
 {
+  Guard g(m_handler_mutex);
   bool rc = true;
   if (m_pFileHandler == NULL)
   {
@@ -111,6 +120,7 @@ Logger::createFileHandler()
 void 
 Logger::removeFileHandler()
 {
+  Guard g(m_handler_mutex);
   if (removeHandler(m_pFileHandler))
   {
     m_pFileHandler = NULL;
@@ -120,10 +130,11 @@ Logger::removeFileHandler()
 bool
 Logger::createSyslogHandler()
 {
+  Guard g(m_handler_mutex);
   bool rc = true;
   if (m_pSyslogHandler == NULL)
   {
-#if defined NDB_OSE || defined NDB_SOFTOSE || defined NDB_WIN32
+#if defined NDB_WIN32
     m_pSyslogHandler = new ConsoleLogHandler(); 
 #else
     m_pSyslogHandler = new SysLogHandler(); 
@@ -142,6 +153,7 @@ Logger::createSyslogHandler()
 void 
 Logger::removeSyslogHandler()
 {
+  Guard g(m_handler_mutex);
   if (removeHandler(m_pSyslogHandler))
   {
     m_pSyslogHandler = NULL;
@@ -151,6 +163,7 @@ Logger::removeSyslogHandler()
 bool
 Logger::addHandler(LogHandler* pHandler)
 {
+  Guard g(m_mutex);
   assert(pHandler != NULL);
 
   bool rc = pHandler->open();	
@@ -224,6 +237,7 @@ Logger::addHandler(const BaseString &logstring, int *err, int len, char* errStr)
 bool
 Logger::removeHandler(LogHandler* pHandler)
 {
+  Guard g(m_mutex);
   int rc = false;
   if (pHandler != NULL)
   {
@@ -236,12 +250,14 @@ Logger::removeHandler(LogHandler* pHandler)
 void
 Logger::removeAllHandlers()
 {
+  Guard g(m_mutex);
   m_pHandlerList->removeAll();
 }
 
 bool
 Logger::isEnable(LoggerLevel logLevel) const
 {
+  Guard g(m_mutex);
   if (logLevel == LL_ALL)
   {
     for (unsigned i = 1; i < MAX_LOG_LEVELS; i++)
@@ -255,6 +271,7 @@ Logger::isEnable(LoggerLevel logLevel) const
 void
 Logger::enable(LoggerLevel logLevel)
 {
+  Guard g(m_mutex);
   if (logLevel == LL_ALL)
   {
     for (unsigned i = 0; i < MAX_LOG_LEVELS; i++)
@@ -271,6 +288,7 @@ Logger::enable(LoggerLevel logLevel)
 void 
 Logger::enable(LoggerLevel fromLogLevel, LoggerLevel toLogLevel)
 {
+  Guard g(m_mutex);
   if (fromLogLevel > toLogLevel)
   {
     LoggerLevel tmp = toLogLevel;
@@ -287,6 +305,7 @@ Logger::enable(LoggerLevel fromLogLevel, LoggerLevel toLogLevel)
 void
 Logger::disable(LoggerLevel logLevel)
 {
+  Guard g(m_mutex);
   if (logLevel == LL_ALL)
   {
     for (unsigned i = 0; i < MAX_LOG_LEVELS; i++)
@@ -359,6 +378,7 @@ Logger::debug(const char* pMsg, ...) const
 void 
 Logger::log(LoggerLevel logLevel, const char* pMsg, va_list ap) const
 {
+  Guard g(m_mutex);
   if (m_logLevels[LL_ON] && m_logLevels[logLevel])
   {
     char buf[MAX_LOG_MESSAGE_SIZE];

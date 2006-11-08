@@ -162,18 +162,6 @@ Ndb::~Ndb()
 
   delete theImpl;
 
-  /** 
-   *  This sleep is to make sure that the transporter 
-   *  send thread will come in and send any
-   *  signal buffers that this thread may have allocated.
-   *  If that doesn't happen an error will occur in OSE
-   *  when trying to restore a signal buffer allocated by a thread
-   *  that have been killed.
-   */
-#ifdef NDB_OSE
-  NdbSleep_MilliSleep(50);
-#endif
-
 #ifdef POORMANSPURIFY
 #ifdef POORMANSGUI
   ndbout << "cnewSignals=" << cnewSignals << endl;

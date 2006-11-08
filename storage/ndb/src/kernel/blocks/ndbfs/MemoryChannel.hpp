@@ -65,10 +65,6 @@
 //                      T : item from the channel or zero if channel is empty.
 //
 
-#if defined NDB_OSE || defined NDB_SOFTOSE
-#include "MemoryChannelOSE.hpp"
-#else
-
 #include "ErrorHandlingMacros.hpp"
 #include "CircularIndex.hpp"
 #include "NdbMutex.h"
@@ -178,8 +174,6 @@ template <class T> T* MemoryChannel<T>::tryReadChannel()
   NdbMutex_Unlock(theMutexPtr);
   return tmp;
 }
-
-#endif
 
 #endif // MemoryChannel_H
 
