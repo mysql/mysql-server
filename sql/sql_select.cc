@@ -158,8 +158,8 @@ static int join_read_prev_same(READ_RECORD *info);
 static int join_read_prev(READ_RECORD *info);
 static int join_ft_read_first(JOIN_TAB *tab);
 static int join_ft_read_next(READ_RECORD *info);
-static int join_read_always_key_or_null(JOIN_TAB *tab);
-static int join_read_next_same_or_null(READ_RECORD *info);
+int join_read_always_key_or_null(JOIN_TAB *tab);
+int join_read_next_same_or_null(READ_RECORD *info);
 static COND *make_cond_for_table(COND *cond,table_map table,
 				 table_map used_table);
 static Item* part_of_refkey(TABLE *form,Field *field);
@@ -505,11 +505,12 @@ err:
   DBUG_RETURN(-1);				/* purecov: inspected */
 }
 
+
 /*
   test if it is known for optimisation IN subquery
 
-  SYNOPSYS
-    JOIN::test_in_subselect
+  SYNOPSIS
+    JOIN::test_in_subselect()
     where - pointer for variable in which conditions should be
             stored if subquery is known
 
@@ -542,6 +543,35 @@ bool JOIN::test_in_subselect(Item **where)
   return 0;
 }
 
+
+/*
+  Check if the passed HAVING clause is a clause added by subquery optimizer
+
+  SYNOPSIS
+    is_having_subq_predicates()
+      having  Having clause
+
+  RETURN
+    TRUE   The passed HAVING clause was added by the subquery optimizer
+    FALSE  Otherwise
+*/
+
+bool is_having_subq_predicates(Item *having)
+{
+  if (having->type() == Item::FUNC_ITEM)
+  {
+    if (((Item_func *) having)->functype() == Item_func::ISNOTNULLTEST_FUNC)
+      return TRUE;
+    if (((Item_func *) having)->functype() == Item_func::TRIG_COND_FUNC)
+    {
+      having= ((Item_func*)having)->arguments()[0];
+      if (((Item_func *) having)->functype() == Item_func::ISNOTNULLTEST_FUNC)
+        return TRUE;
+    }
+    return TRUE;
+  }
+  return FALSE;
+}
 
 /*
   global select optimisation.
@@ -1026,9 +1056,7 @@ JOIN::optimize()
       }
     } else if (join_tab[0].type == JT_REF_OR_NULL &&
 	       join_tab[0].ref.items[0]->name == in_left_expr_name &&
-	       having->type() == Item::FUNC_ITEM &&
-	       ((Item_func *) having)->functype() ==
-	       Item_func::ISNOTNULLTEST_FUNC)
+               is_having_subq_predicates(having))
     {
       join_tab[0].type= JT_INDEX_SUBQUERY;
       error= 0;
@@ -1274,14 +1302,14 @@ JOIN::reinit()
     exec_tmp_table1->file->extra(HA_EXTRA_RESET_STATE);
     exec_tmp_table1->file->delete_all_rows();
     free_io_cache(exec_tmp_table1);
-    filesort_free_buffers(exec_tmp_table1);
+    filesort_free_buffers(exec_tmp_table1,0);
   }
   if (exec_tmp_table2)
   {
     exec_tmp_table2->file->extra(HA_EXTRA_RESET_STATE);
     exec_tmp_table2->file->delete_all_rows();
     free_io_cache(exec_tmp_table2);
-    filesort_free_buffers(exec_tmp_table2);
+    filesort_free_buffers(exec_tmp_table2,0);
   }
   if (items0)
     set_items_ref_array(items0);
@@ -2540,6 +2568,9 @@ typedef struct key_field_t {		// Used when finding key fields
     when val IS NULL.
   */
   bool          null_rejecting; 
+
+  /* TRUE<=> This ref access is an outer subquery reference access */
+  bool          outer_ref;
 } KEY_FIELD;
 
 /* Values in optimize */
@@ -2841,6 +2872,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
                                    cond->functype() == Item_func::MULT_EQUAL_FUNC) &&
                                   ((*value)->type() == Item::FIELD_ITEM) &&
                                   ((Item_field*)*value)->field->maybe_null());
+  (*key_fields)->outer_ref=      FALSE;
   (*key_fields)++;
 }
 
@@ -2899,7 +2931,7 @@ add_key_equal_fields(KEY_FIELD **key_fields, uint and_level,
 }
 
 static void
-add_key_fields(KEY_FIELD **key_fields,uint *and_level,
+add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
                COND *cond, table_map usable_tables,
                SARGABLE_PARAM **sargables)
 {
@@ -2912,28 +2944,56 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
     {
       Item *item;
       while ((item=li++))
-	add_key_fields(key_fields,and_level,item,usable_tables,sargables);
+        add_key_fields(join, key_fields, and_level, item, usable_tables,
+                       sargables);
       for (; org_key_fields != *key_fields ; org_key_fields++)
 	org_key_fields->level= *and_level;
     }
     else
     {
       (*and_level)++;
-      add_key_fields(key_fields,and_level,li++,usable_tables,sargables);
+      add_key_fields(join, key_fields, and_level, li++, usable_tables,
+                     sargables);
       Item *item;
       while ((item=li++))
       {
 	KEY_FIELD *start_key_fields= *key_fields;
 	(*and_level)++;
-	add_key_fields(key_fields,and_level,item,usable_tables,sargables);
+        add_key_fields(join, key_fields, and_level, item, usable_tables,
+                       sargables);
 	*key_fields=merge_key_fields(org_key_fields,start_key_fields,
 				     *key_fields,++(*and_level));
       }
     }
     return;
   }
-  /* If item is of type 'field op field/constant' add it to key_fields */
 
+  /* 
+    Subquery optimization: check if the encountered condition is one
+    added by condition push down into subquery.
+  */
+  {
+    if (cond->type() == Item::FUNC_ITEM &&
+        ((Item_func*)cond)->functype() == Item_func::TRIG_COND_FUNC)
+    {
+      cond= ((Item_func*)cond)->arguments()[0];
+      if (!join->group_list && !join->order &&
+          join->unit->item && 
+          join->unit->item->substype() == Item_subselect::IN_SUBS &&
+          !join->unit->first_select()->next_select())
+      {
+        KEY_FIELD *save= *key_fields;
+        add_key_fields(join, key_fields, and_level, cond, usable_tables,
+                       sargables);
+        // Indicate that this ref access candidate is for subquery lookup:
+        for (; save != *key_fields; save++)
+          save->outer_ref= TRUE;
+      }
+      return;
+    }
+  }
+
+  /* If item is of type 'field op field/constant' add it to key_fields */
   if (cond->type() != Item::FUNC_ITEM)
     return;
   Item_func *cond_func= (Item_func*) cond;
@@ -3107,6 +3167,7 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
 	  keyuse.used_tables=key_field->val->used_tables();
 	  keyuse.optimize= key_field->optimize & KEY_OPTIMIZE_REF_OR_NULL;
           keyuse.null_rejecting= key_field->null_rejecting;
+          keyuse.outer_ref= key_field->outer_ref;
 	  VOID(insert_dynamic(keyuse_array,(gptr) &keyuse));
 	}
       }
@@ -3229,7 +3290,7 @@ sort_keyuse(KEYUSE *a,KEYUSE *b)
     Here we can add 'ref' access candidates for t1 and t2, but not for t3.
 */
 
-static void add_key_fields_for_nj(TABLE_LIST *nested_join_table,
+static void add_key_fields_for_nj(JOIN *join, TABLE_LIST *nested_join_table,
                                   KEY_FIELD **end, uint *and_level,
                                   SARGABLE_PARAM **sargables)
 {
@@ -3241,12 +3302,13 @@ static void add_key_fields_for_nj(TABLE_LIST *nested_join_table,
   while ((table= li++))
   {
     if (table->nested_join)
-      add_key_fields_for_nj(table, end, and_level, sargables);
+      add_key_fields_for_nj(join, table, end, and_level, sargables);
     else
       if (!table->on_expr)
         tables |= table->table->map;
   }
-  add_key_fields(end, and_level, nested_join_table->on_expr, tables, sargables);
+  add_key_fields(join, end, and_level, nested_join_table->on_expr, tables,
+                 sargables);
 }
 
 
@@ -3321,7 +3383,8 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
     return TRUE;
   if (cond)
   {
-    add_key_fields(&end,&and_level,cond,normal_tables,sargables);
+    add_key_fields(join_tab->join, &end, &and_level, cond, normal_tables,
+                   sargables);
     for (; field != end ; field++)
     {
       add_key_part(keyuse,field);
@@ -3343,8 +3406,9 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
       into account as well.
     */ 
     if (*join_tab[i].on_expr_ref)
-      add_key_fields(&end,&and_level,*join_tab[i].on_expr_ref,
-                     join_tab[i].table->map,sargables);
+      add_key_fields(join_tab->join, &end, &and_level, 
+                     *join_tab[i].on_expr_ref,
+                     join_tab[i].table->map, sargables);
   }
 
   /* Process ON conditions for the nested joins */
@@ -3354,7 +3418,8 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
     while ((table= li++))
     {
       if (table->nested_join)
-	add_key_fields_for_nj(table, &end, &and_level, sargables);
+        add_key_fields_for_nj(join_tab->join, table, &end, &and_level, 
+                              sargables);
     }
   }
 
@@ -6250,7 +6315,7 @@ void JOIN::cleanup(bool full)
     if (tables > const_tables) // Test for not-const tables
     {
       free_io_cache(table[const_tables]);
-      filesort_free_buffers(table[const_tables]);
+      filesort_free_buffers(table[const_tables],full);
     }
 
     if (full)
@@ -11001,6 +11066,13 @@ join_init_quick_read_record(JOIN_TAB *tab)
 }
 
 
+int rr_sequential(READ_RECORD *info);
+int init_read_record_seq(JOIN_TAB *tab)
+{
+  tab->read_record.read_record= rr_sequential;
+  return tab->read_record.file->ha_rnd_init(1);
+}
+
 static int
 test_if_quick_select(JOIN_TAB *tab)
 {
@@ -11130,7 +11202,7 @@ join_ft_read_next(READ_RECORD *info)
   Reading of key with key reference and one part that may be NULL
 */
 
-static int
+int
 join_read_always_key_or_null(JOIN_TAB *tab)
 {
   int res;
@@ -11146,7 +11218,7 @@ join_read_always_key_or_null(JOIN_TAB *tab)
 }
 
 
-static int
+int
 join_read_next_same_or_null(READ_RECORD *info)
 {
   int error;
