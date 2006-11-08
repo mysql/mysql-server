@@ -1004,6 +1004,7 @@ EventLogger::log(int eventType, const Uint32* theData, NodeId nodeId,
   Logger::LoggerLevel severity = Logger::LL_WARNING;
   LogLevel::EventCategory cat= LogLevel::llInvalid;
   EventTextFunction textF;
+  char log_text[MAX_TEXT_LENGTH];
 
   DBUG_ENTER("EventLogger::log");
   DBUG_PRINT("enter",("eventType=%d, nodeid=%d", eventType, nodeId));
@@ -1017,29 +1018,29 @@ EventLogger::log(int eventType, const Uint32* theData, NodeId nodeId,
     DBUG_PRINT("info",("m_logLevel.getLogLevel=%d", m_logLevel.getLogLevel(cat)));
 
   if (threshold <= set){
-    getText(m_text,sizeof(m_text),textF,theData,nodeId);
+    getText(log_text,sizeof(log_text),textF,theData,nodeId);
 
     switch (severity){
     case Logger::LL_ALERT:
-      alert(m_text);
+      alert(log_text);
       break;
     case Logger::LL_CRITICAL:
-      critical(m_text); 
+      critical(log_text); 
       break;
     case Logger::LL_WARNING:
-      warning(m_text); 
+      warning(log_text); 
       break;
     case Logger::LL_ERROR:
-      error(m_text); 
+      error(log_text); 
       break;
     case Logger::LL_INFO:
-      info(m_text); 
+      info(log_text); 
       break;
     case Logger::LL_DEBUG:
-      debug(m_text); 
+      debug(log_text); 
       break;
     default:
-      info(m_text); 
+      info(log_text); 
       break;
     }
   } // if (..
@@ -1057,7 +1058,3 @@ EventLogger::setFilterLevel(int filterLevel)
 {
   m_filterLevel = filterLevel;
 }
-
-//
-// PRIVATE
-//

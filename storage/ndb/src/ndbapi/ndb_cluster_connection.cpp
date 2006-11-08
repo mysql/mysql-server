@@ -459,9 +459,6 @@ Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
 	group--; // upgrade group value
       break;
     }
-    case CONNECTION_TYPE_OSE:{
-      break;
-    }
     }
     m_impl.m_all_nodes.push_back(Node(group,remoteNodeId));
     DBUG_PRINT("info",("saved %d %d", group,remoteNodeId));

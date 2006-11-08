@@ -776,23 +776,11 @@ static int createTables(Ndb* pMyNdb)
 	return (-1);
       } // if
 
-#if defined NDB_OSE || defined NDB_SOFTOSE
-      check = MySchemaOp->createTable(tableName[i - 1],
-				      8,		// Table Size
-				      TupleKey,	        // Key Type
-				      40,		// Nr of Pages
-				      All,
-				      6,
-				      78,
-				      80,
-				      1,
-				      false);
-#else
       check = MySchemaOp->createTable(tableName[i - 1]
 				      ,8		// Table Size
 				      ,TupleKey	        // Key Type
 				      ,40);		// Nr of Pages
-#endif		     
+
       if (check == -1) {
 	NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
 	return -1;

@@ -31,10 +31,6 @@
 #define NDB_SCI_TRANSPORTER
 #endif
 
-#ifdef HAVE_NDB_OSE
-#define NDB_OSE_TRANSPORTER
-#endif
-
 #ifdef DEBUG_TRANSPORTER
 #define DEBUG(x) ndbout << x << endl
 #else

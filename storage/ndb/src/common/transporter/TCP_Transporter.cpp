@@ -22,12 +22,6 @@
 #include <NdbSleep.h>
 // End of stuff to be moved
 
-#if defined NDB_OSE || defined NDB_SOFTOSE
-#define inet_send inet_send
-#else
-#define inet_send send
-#endif
-
 #ifdef NDB_WIN32
 class ndbstrerror
 {
@@ -221,22 +215,6 @@ TCP_Transporter::setSocketNonBlocking(NDB_SOCKET_TYPE socket){
 
 bool
 TCP_Transporter::sendIsPossible(struct timeval * timeout) {
-#ifdef NDB_OSE
-  /**
-   * In OSE you cant do select without owning a socket,
-   * and since this method might be called by any thread in the api
-   * we choose not to implementet and always return true after sleeping
-   * a while.
-   *
-   * Note that this only sensible as long as the sockets are non blocking
-   */
-  if(theSocket >= 0){
-    Uint32 timeOutMillis = timeout->tv_sec * 1000 + timeout->tv_usec / 1000;
-    NdbSleep_MilliSleep(timeOutMillis);
-    return true;
-  }
-  return false;
-#else
   if(theSocket != NDB_INVALID_SOCKET){
     fd_set   writeset;
     FD_ZERO(&writeset);
@@ -250,7 +228,6 @@ TCP_Transporter::sendIsPossible(struct timeval * timeout) {
       return false;
   }
   return false;
-#endif
 }
 
 Uint32
@@ -334,7 +311,7 @@ TCP_Transporter::doSend() {
   const char * const sendPtr = m_sendBuffer.sendPtr;
   const Uint32 sizeToSend    = m_sendBuffer.sendDataSize;
   if (sizeToSend > 0){
-    const int nBytesSent = inet_send(theSocket, sendPtr, sizeToSend, 0);
+    const int nBytesSent = send(theSocket, sendPtr, sizeToSend, 0);
     
     if (nBytesSent > 0) {
       m_sendBuffer.bytesSent(nBytesSent);

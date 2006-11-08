@@ -39,7 +39,7 @@ class ConfigInfo;
  * - Connections between nodes and computers the nodes will execute on.
  *
  * The following categories (sections) of configuration parameters exists:
- * - COMPUTER, DB, MGM, API, TCP, SCI, SHM, OSE
+ * - COMPUTER, DB, MGM, API, TCP, SCI, SHM
  *
  */
 

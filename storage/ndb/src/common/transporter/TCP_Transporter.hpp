@@ -153,10 +153,6 @@ private:
   Uint64 sendSize;
 
   ReceiveBuffer receiveBuffer;
-
-#if defined NDB_OSE || defined NDB_SOFTOSE
-  PROCESS theReceiverPid;
-#endif
 };
 
 inline
