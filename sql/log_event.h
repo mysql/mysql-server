@@ -147,6 +147,12 @@ struct sql_ex_info
 #define EXEC_LOAD_HEADER_LEN   4
 #define DELETE_FILE_HEADER_LEN 4
 
+/* amount of byte is contribution of replicaton protocol to a query
+   received from user when the query goes to binlog */
+#define MAX_LOG_EVENT_HEADER   (LOG_EVENT_HEADER_LEN + /* write_header */ \
+				QUERY_HEADER_LEN     + /* write_data */   \
+				NAME_LEN + 1)
+
 /* 
    Event header offsets; 
    these point to places inside the fixed header.
