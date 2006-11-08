@@ -31,7 +31,6 @@
 
 #define MAX_DBL_EXP	308
 #define MAX_RESULT_FOR_MAX_EXP 1.7976931348623157
-#define MIN_RESULT_FOR_MIN_EXP 2.225073858507202
 static double scaler10[] = {
   1.0, 1e10, 1e20, 1e30, 1e40, 1e50, 1e60, 1e70, 1e80, 1e90
 };
@@ -161,26 +160,15 @@ double my_strtod(const char *str, char **end_ptr, int *error)
     order= exp + (neg_exp ? -1 : 1) * (ndigits - 1);
     if (order < 0)
       order= -order;
-    if (order >= MAX_DBL_EXP && result)
+    if (order >= MAX_DBL_EXP && !neg_exp && result)
     {
       double c;
       /* Compute modulus of C (see comment above) */
       c= result / scaler * 10.0;
-      if (neg_exp)
+      if (order > MAX_DBL_EXP || c > MAX_RESULT_FOR_MAX_EXP)
       {
-        if (order > MAX_DBL_EXP || c < MIN_RESULT_FOR_MIN_EXP)
-        {
-          result= 0.0;
-          goto done;
-        }
-      }
-      else
-      {
-        if (order > MAX_DBL_EXP || c > MAX_RESULT_FOR_MAX_EXP)
-        {
-          overflow= 1;
-          goto done;
-        }
+        overflow= 1;
+        goto done;
       }
     }
 
