@@ -4926,7 +4926,7 @@ int Field_time::store_time(TIME *ltime, timestamp_type type)
             (ltime->minute * 100 + ltime->second);
   if (ltime->neg)
     tmp= -tmp;
-  return Field_time::store((longlong) tmp, TRUE);
+  return Field_time::store((longlong) tmp, FALSE);
 }
 
 
