@@ -378,7 +378,7 @@ find_file(const char *name, const char *root, uint flags, char *result, size_t l
 {
   int ret;
   va_list va;
-  FILEINFO key= { name };
+  FILEINFO key= { (char*)name, NULL };
   const char *subdir;
   char *cp;
   
@@ -395,7 +395,6 @@ find_file(const char *name, const char *root, uint flags, char *result, size_t l
   {
     MY_DIR *dir;
     FILEINFO *match;
-    uint i;
     char *cp1;
     
     cp1= strnmov(cp + 1, subdir, len - (cp - result) - 1);
