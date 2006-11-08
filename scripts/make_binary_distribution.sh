@@ -123,7 +123,7 @@ copyfileto()
 copyfileto $BASE/docs ChangeLog Docs/mysql.info
 
 copyfileto $BASE COPYING COPYING.LIB README Docs/INSTALL-BINARY \
-         EXCEPTIONS-CLIENT MySQLEULA.txt LICENSE.doc README.NW
+         EXCEPTIONS-CLIENT LICENSE.mysql
 
 # Non platform-specific bin dir files:
 BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
@@ -308,10 +308,7 @@ if [ $BASE_SYSTEM = "netware" ] ; then
         $BASE/support-files/build-tags \
 	$BASE/support-files/MySQL-shared-compat.spec \
         $BASE/support-files/ndb-config-2-node.ini \
-        $BASE/INSTALL-BINARY \
-        $BASE/MySQLEULA.txt
-else
-    rm -f $BASE/README.NW
+        $BASE/INSTALL-BINARY
 fi
 
 # Make safe_mysqld a symlink to mysqld_safe for backwards portability
