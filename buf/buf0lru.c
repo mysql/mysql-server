@@ -86,8 +86,10 @@ scan_again:
 	block = UT_LIST_GET_LAST(buf_pool->LRU);
 
 	while (block != NULL) {
+		buf_block_t*	prev_block;
 
 		mutex_enter(&block->mutex);
+		prev_block = UT_LIST_GET_PREV(LRU, block);
 
 		ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
@@ -144,7 +146,7 @@ scan_again:
 		}
 next_page:
 		mutex_exit(&block->mutex);
-		block = UT_LIST_GET_PREV(LRU, block);
+		block = prev_block;
 	}
 
 	mutex_exit(&(buf_pool->mutex));
