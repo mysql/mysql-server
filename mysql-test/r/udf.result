@@ -105,6 +105,85 @@ explain select myfunc_int(f1) from t1 order by 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
 drop table t1;
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 values (1,1),(2,2);
+CREATE FUNCTION fn(a int) RETURNS int DETERMINISTIC
+BEGIN
+RETURN a;
+END
+||
+CREATE VIEW v1 AS SELECT a, fn(MIN(b)) as c FROM t1 GROUP BY a;
+SELECT myfunc_int(a AS attr_name) FROM t1;
+myfunc_int(a AS attr_name)
+1
+2
+EXPLAIN EXTENDED SELECT myfunc_int(a AS attr_name) FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+Warnings:
+Note	1003	select myfunc_int(`test`.`t1`.`a` AS `attr_name`) AS `myfunc_int(a AS attr_name)` from `test`.`t1`
+EXPLAIN EXTENDED SELECT myfunc_int(a) FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+Warnings:
+Note	1003	select myfunc_int(`test`.`t1`.`a` AS `a`) AS `myfunc_int(a)` from `test`.`t1`
+SELECT a,c FROM v1;
+a	c
+1	1
+2	2
+SELECT a, fn(MIN(b) xx) as c FROM t1 GROUP BY a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xx) as c FROM t1 GROUP BY a' at line 1
+SELECT myfunc_int(fn(MIN(b) xx)) as c FROM t1 GROUP BY a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xx)) as c FROM t1 GROUP BY a' at line 1
+SELECT myfunc_int(test.fn(MIN(b) xx)) as c FROM t1 GROUP BY a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xx)) as c FROM t1 GROUP BY a' at line 1
+SELECT myfunc_int(fn(MIN(b)) xx) as c FROM t1 GROUP BY a;
+c
+1
+2
+SELECT myfunc_int(test.fn(MIN(b)) xx) as c FROM t1 GROUP BY a;
+c
+1
+2
+EXPLAIN EXTENDED SELECT myfunc_int(MIN(b) xx) as c FROM t1 GROUP BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+Warnings:
+Note	1003	select myfunc_int(min(`test`.`t1`.`b`) AS `xx`) AS `c` from `test`.`t1` group by `test`.`t1`.`a`
+EXPLAIN EXTENDED SELECT test.fn(MIN(b)) as c FROM t1 GROUP BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+Warnings:
+Note	1003	select `test`.`fn`(min(`test`.`t1`.`b`)) AS `c` from `test`.`t1` group by `test`.`t1`.`a`
+EXPLAIN EXTENDED SELECT myfunc_int(fn(MIN(b))) as c FROM t1 GROUP BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+Warnings:
+Note	1003	select myfunc_int(`test`.`fn`(min(`test`.`t1`.`b`)) AS `fn(MIN(b))`) AS `c` from `test`.`t1` group by `test`.`t1`.`a`
+EXPLAIN EXTENDED SELECT myfunc_int(test.fn(MIN(b))) as c FROM t1 GROUP BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+Warnings:
+Note	1003	select myfunc_int(`test`.`fn`(min(`test`.`t1`.`b`)) AS `test.fn(MIN(b))`) AS `c` from `test`.`t1` group by `test`.`t1`.`a`
+SELECT myfunc_int(MIN(b) xx) as c FROM t1 GROUP BY a;
+c
+1
+2
+SELECT test.fn(MIN(b)) as c FROM t1 GROUP BY a;
+c
+1
+2
+SELECT myfunc_int(fn(MIN(b))) as c FROM t1 GROUP BY a;
+c
+1
+2
+SELECT myfunc_int(test.fn(MIN(b))) as c FROM t1 GROUP BY a;
+c
+1
+2
+DROP VIEW v1;
+DROP TABLE t1;
+DROP FUNCTION fn;
 End of 5.0 tests.
 DROP FUNCTION metaphon;
 DROP FUNCTION myfunc_double;

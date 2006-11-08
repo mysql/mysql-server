@@ -4097,6 +4097,23 @@ void st_table_list::reinit_before_use(THD *thd)
          embedding->nested_join->join_list.head() == embedded);
 }
 
+/*
+  Return subselect that contains the FROM list this table is taken from
+
+  SYNOPSIS
+    st_table_list::containing_subselect()
+ 
+  RETURN
+    Subselect item for the subquery that contains the FROM list
+    this table is taken from if there is any
+    0 - otherwise
+
+*/
+
+Item_subselect *st_table_list::containing_subselect()
+{    
+  return (select_lex ? select_lex->master_unit()->item : 0);
+}
 
 /*****************************************************************************
 ** Instansiate templates
