@@ -80,13 +80,13 @@ enum {
   OPT_SSL_CA, OPT_SSL_CAPATH, OPT_SSL_CIPHER, OPT_PS_PROTOCOL,
   OPT_SP_PROTOCOL, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL,
   OPT_SSL_VERIFY_SERVER_CERT, OPT_MAX_CONNECT_RETRIES,
-  OPT_MARK_PROGRESS
+  OPT_MARK_PROGRESS, OPT_CHARSETS_DIR
 };
 
 static int record= 0, opt_sleep= -1;
 static char *db= 0, *pass= 0;
 const char *user= 0, *host= 0, *unix_sock= 0, *opt_basedir= "./";
-const char *opt_include= 0;
+const char *opt_include= 0, *opt_charsets_dir;
 static int port= 0;
 static int opt_max_connect_retries;
 static my_bool opt_compress= 0, silent= 0, verbose= 0;
@@ -145,7 +145,6 @@ static struct st_test_file* file_stack_end;
 
 
 static CHARSET_INFO *charset_info= &my_charset_latin1; /* Default charset */
-static const char *charset_name= "latin1"; /* Default character set name */
 
 static const char *embedded_server_groups[]=
 {
@@ -3093,7 +3092,11 @@ void do_connect(struct st_command *command)
   if (opt_compress || con_compress)
     mysql_options(&next_con->mysql, MYSQL_OPT_COMPRESS, NullS);
   mysql_options(&next_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
-  mysql_options(&next_con->mysql, MYSQL_SET_CHARSET_NAME, charset_name);
+  mysql_options(&next_con->mysql, MYSQL_SET_CHARSET_NAME,
+                charset_info->csname);
+  if (opt_charsets_dir)
+    mysql_options(&cur_con->mysql, MYSQL_SET_CHARSET_DIR,
+                  opt_charsets_dir);
 
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl || con_ssl)
@@ -3779,6 +3782,9 @@ static struct my_option my_long_options[] =
    0, 0, 0, 0, 0, 0},
   {"basedir", 'b', "Basedir for tests.", (gptr*) &opt_basedir,
    (gptr*) &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"character-sets-dir", OPT_CHARSETS_DIR,
+   "Directory where character sets are.", (gptr*) &opt_charsets_dir,
+   (gptr*) &opt_charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use the compressed server/client protocol.",
    (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
@@ -5511,7 +5517,11 @@ int main(int argc, char **argv)
   if (opt_compress)
     mysql_options(&cur_con->mysql,MYSQL_OPT_COMPRESS,NullS);
   mysql_options(&cur_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
-  mysql_options(&cur_con->mysql, MYSQL_SET_CHARSET_NAME, charset_name);
+  mysql_options(&cur_con->mysql, MYSQL_SET_CHARSET_NAME,
+                charset_info->csname);
+  if (opt_charsets_dir)
+    mysql_options(&cur_con->mysql, MYSQL_SET_CHARSET_DIR,
+                  opt_charsets_dir);
 
 #ifdef HAVE_OPENSSL
 
