@@ -2988,9 +2988,9 @@ sub analyze_testcase_failure_sync_with_master($)
 
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--silent");
-  mtr_add_arg($args, "-v");
   mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
+  mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
 
   mtr_add_arg($args, "--socket=%s", $master->[0]->{'path_sock'});
   mtr_add_arg($args, "--port=%d", $master->[0]->{'port'});
@@ -4174,9 +4174,9 @@ sub run_check_testcase ($$) {
 
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--silent");
-  mtr_add_arg($args, "-v");
   mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
+  mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
 
   mtr_add_arg($args, "--socket=%s", $mysqld->{'path_sock'});
   mtr_add_arg($args, "--port=%d", $mysqld->{'port'});
@@ -4220,9 +4220,9 @@ sub run_mysqltest ($) {
 
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--silent");
-  mtr_add_arg($args, "-v");
   mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
+  mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
 
   if ($tinfo->{'component_id'} eq 'im')
   {
