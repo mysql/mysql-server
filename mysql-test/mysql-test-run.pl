@@ -431,7 +431,7 @@ sub initial_setup () {
 
   $glob_hostname=  mtr_short_hostname();
 
-  # 'basedir' is always parent of "mysql-test" directory
+  # 'basedir' is always above "mysql-test" directory ...
   $glob_mysql_test_dir=  cwd();
   if ( $glob_cygwin_perl )
   {
@@ -442,8 +442,19 @@ sub initial_setup () {
     chomp($glob_mysql_test_dir);
     chomp($glob_cygwin_shell);
   }
+  # ... direct parent for "tar.gz" installations, ...
   $glob_basedir=         dirname($glob_mysql_test_dir);
+  # ... or one more level up, for RPM installations.
+  if ( ! -d "$glob_basedir/bin" )
+  {
+    $glob_basedir=       dirname($glob_basedir);
+  }
+  # "mysql-bench" might be installed, but need not be.
   $glob_mysql_bench_dir= "$glob_basedir/mysql-bench"; # FIXME make configurable
+  if ( ! -d "$glob_mysql_bench_dir" )
+  {
+    $glob_mysql_bench_dir= undef;
+  }
 
   # needs to be same length to test logging (FIXME what???)
   $path_slave_load_tmpdir=  "../../var/tmp";
@@ -644,6 +655,13 @@ sub command_line_setup () {
   {
     # Make absolute path, relative test dir
     $opt_vardir= "$glob_mysql_test_dir/$opt_vardir";
+  }
+
+  # Ensure a proper error message 
+  mkpath("$opt_vardir");
+  unless ( -d $opt_vardir and -w $opt_vardir )
+  {
+    mtr_error("Writable 'var' directory is needed, use the '--vardir' option");
   }
 
   # --------------------------------------------------------------------------
@@ -984,7 +1002,8 @@ sub executable_setup () {
     else
     {
       $exe_mysqld=         mtr_exe_exists ("$glob_basedir/libexec/mysqld",
-                                           "$glob_basedir/bin/mysqld");
+                                           "$glob_basedir/bin/mysqld",
+                                           "$glob_basedir/sbin/mysqld");
     }
 
     if ( $glob_use_embedded_server )
