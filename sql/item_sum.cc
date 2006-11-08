@@ -3038,7 +3038,7 @@ int dump_leaf_key(byte* key, element_count count __attribute__((unused)),
   {
     int well_formed_error;
     CHARSET_INFO *cs= item->collation.collation;
-    const char *ptr= item->result.ptr();
+    const char *ptr= result->ptr();
     uint add_length;
     /*
       It's ok to use item->result.length() as the fourth argument
@@ -3047,10 +3047,10 @@ int dump_leaf_key(byte* key, element_count count __attribute__((unused)),
     */
     add_length= cs->cset->well_formed_len(cs,
                                           ptr + old_length,
-                                          ptr + item->group_concat_max_len,
-                                          item->result.length(),
+                                          ptr + item->max_length,
+                                          result->length(),
                                           &well_formed_error);
-    item->result.length(old_length + add_length);
+    result->length(old_length + add_length);
     item->count_cut_values++;
     item->warning_for_row= TRUE;
     return 1;
@@ -3310,7 +3310,8 @@ bool Item_func_group_concat::setup(THD *thd)
     DBUG_RETURN(TRUE);
 
   /* We'll convert all blobs to varchar fields in the temporary table */
-  tmp_table_param->convert_blob_length= max_length;
+  tmp_table_param->convert_blob_length= max_length *
+                                        collation.collation->mbmaxlen;
   /* Push all not constant fields to the list and create a temp table */
   always_null= 0;
   for (uint i= 0; i < arg_count_field; i++)
