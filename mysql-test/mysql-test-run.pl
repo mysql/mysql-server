@@ -185,7 +185,7 @@ our $opt_fast;
 our $opt_force;
 our $opt_reorder= 0;
 our $opt_enable_disabled;
-our $opt_mem;
+our $opt_mem= $ENV{'MTR_MEM'};
 
 our $opt_gcov;
 our $opt_gcov_err;
@@ -743,7 +743,7 @@ sub command_line_setup () {
 
     # Use /dev/shm as the preferred location for vardir and
     # thus implicitly also tmpdir. Add other locations to list
-    my @tmpfs_locations= ("/dev/shm");
+    my @tmpfs_locations= ($opt_mem, "/dev/shm");
     # One could maybe use "mount" to find tmpfs location(s)
     foreach my $fs (@tmpfs_locations)
     {
@@ -3369,6 +3369,11 @@ sub mysqld_arguments ($$$$$) {
   if ( $opt_valgrind_mysqld )
   {
     mtr_add_arg($args, "%s--skip-safemalloc", $prefix);
+
+    if ( $mysql_version_id < 50100 )
+    {
+      mtr_add_arg($args, "%s--skip-bdb", $prefix);
+    }
   }
 
   my $pidfile;
@@ -4649,9 +4654,9 @@ Options to control directories to use
   vardir=DIR            The directory where files generated from the test run
                         is stored (default: ./var). Specifying a ramdisk or
                         tmpfs will speed up tests.
-  mem=DIR               Run testsuite in "memory" using tmpfs if
+  mem                   Run testsuite in "memory" using tmpfs if
                         available(default: /dev/shm)
-
+                        reads path from MTR_MEM environment variable
 
 Options to control what test suites or cases to run
 

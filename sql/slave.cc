@@ -2618,9 +2618,21 @@ improper_arguments: %d  timed_out: %d",
 void set_slave_thread_options(THD* thd)
 {
   DBUG_ENTER("set_slave_thread_options");
-
-  thd->options = ((opt_log_slave_updates) ? OPTION_BIN_LOG:0) |
-    OPTION_AUTO_IS_NULL;
+  /*
+     It's nonsense to constrain the slave threads with max_join_size; if a
+     query succeeded on master, we HAVE to execute it. So set
+     OPTION_BIG_SELECTS. Setting max_join_size to HA_POS_ERROR is not enough
+     (and it's not needed if we have OPTION_BIG_SELECTS) because an INSERT
+     SELECT examining more than 4 billion rows would still fail (yes, because
+     when max_join_size is 4G, OPTION_BIG_SELECTS is automatically set, but
+     only for client threads.
+  */
+  ulonglong options= thd->options | OPTION_BIG_SELECTS;
+  if (opt_log_slave_updates)
+    options|= OPTION_BIN_LOG;
+  else
+    options&= ~OPTION_BIN_LOG;
+  thd->options= options;
   thd->variables.completion_type= 0;
   DBUG_VOID_RETURN;
 }
@@ -2654,17 +2666,6 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->net.read_timeout = slave_net_timeout;
   thd->slave_thread = 1;
   set_slave_thread_options(thd);
-  /*
-     It's nonsense to constrain the slave threads with max_join_size; if a
-     query succeeded on master, we HAVE to execute it. So set
-     OPTION_BIG_SELECTS. Setting max_join_size to HA_POS_ERROR is not enough
-     (and it's not needed if we have OPTION_BIG_SELECTS) because an INSERT
-     SELECT examining more than 4 billion rows would still fail (yes, because
-     when max_join_size is 4G, OPTION_BIG_SELECTS is automatically set, but
-     only for client threads.
-  */
-  thd->options = ((opt_log_slave_updates) ? OPTION_BIN_LOG:0) |
-    OPTION_AUTO_IS_NULL | OPTION_BIG_SELECTS;
   thd->client_capabilities = CLIENT_LOCAL_FILES;
   thd->real_id=pthread_self();
   pthread_mutex_lock(&LOCK_thread_count);
