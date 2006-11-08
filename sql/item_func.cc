@@ -2330,21 +2330,27 @@ longlong Item_func_locate::val_int()
     return 0; /* purecov: inspected */
   }
   null_value=0;
-  uint start=0;
-  uint start0=0;
+  /* must be longlong to avoid truncation */
+  longlong start=  0; 
+  longlong start0= 0;
   my_match_t match;
 
   if (arg_count == 3)
   {
-    start0= start =(uint) args[2]->val_int()-1;
-    start=a->charpos(start);
-    
-    if (start > a->length() || start+b->length() > a->length())
+    start0= start= args[2]->val_int() - 1;
+
+    if ((start < 0) || (start > a->length()))
+      return 0;
+
+    /* start is now sufficiently valid to pass to charpos function */
+    start= a->charpos(start);
+
+    if (start + b->length() > a->length())
       return 0;
   }
 
   if (!b->length())				// Found empty string at start
-    return (longlong) (start+1);
+    return start + 1;
   
   if (!cmp_collation.collation->coll->instr(cmp_collation.collation,
                                             a->ptr()+start, a->length()-start,

@@ -951,22 +951,33 @@ String *Item_func_insert::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *res,*res2;
-  uint start,length;
+  longlong start, length;  /* must be longlong to avoid truncation */
 
   null_value=0;
   res=args[0]->val_str(str);
   res2=args[3]->val_str(&tmp_value);
-  start=(uint) args[1]->val_int()-1;
-  length=(uint) args[2]->val_int();
+  start= args[1]->val_int() - 1;
+  length= args[2]->val_int();
+
   if (args[0]->null_value || args[1]->null_value || args[2]->null_value ||
       args[3]->null_value)
     goto null; /* purecov: inspected */
-  start=res->charpos(start);
-  length=res->charpos(length,start);
-  if (start > res->length()+1)
-    return res;					// Wrong param; skip insert
-  if (length > res->length()-start)
-    length=res->length()-start;
+
+  if ((start < 0) || (start > res->length() + 1))
+    return res;                                 // Wrong param; skip insert
+  if ((length < 0) || (length > res->length() + 1))
+    length= res->length() + 1;
+
+  /* start and length are now sufficiently valid to pass to charpos function */
+  start= res->charpos(start);
+  length= res->charpos(length, start);
+
+  /* Re-testing with corrected params */
+  if (start > res->length() + 1)
+    return res;                                 // Wrong param; skip insert
+  if (length > res->length() - start)
+    length= res->length() - start;
+
   if (res->length() - length + res2->length() >
       current_thd->variables.max_allowed_packet)
   {
@@ -1039,16 +1050,21 @@ String *Item_str_conv::val_str(String *str)
 String *Item_func_left::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *res  =args[0]->val_str(str);
-  long length  =(long) args[1]->val_int();
+  String *res= args[0]->val_str(str);
+
+  /* must be longlong to avoid truncation */
+  longlong length= args[1]->val_int();
   uint char_pos;
 
   if ((null_value=(args[0]->null_value || args[1]->null_value)))
     return 0;
-  if (length <= 0)
+
+  /* if "unsigned_flag" is set, we have a *huge* positive number. */
+  if ((length <= 0) && (!args[1]->unsigned_flag))
     return &my_empty_string;
-  if (res->length() <= (uint) length ||
-      res->length() <= (char_pos= res->charpos(length)))
+
+  if ((res->length() <= (ulonglong) length) ||
+      (res->length() <= (char_pos= res->charpos(length))))
     return res;
 
   tmp_value.set(*res, 0, char_pos);
@@ -1080,14 +1096,18 @@ void Item_func_left::fix_length_and_dec()
 String *Item_func_right::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *res  =args[0]->val_str(str);
-  long length  =(long) args[1]->val_int();
+  String *res= args[0]->val_str(str);
+  /* must be longlong to avoid truncation */
+  longlong length= args[1]->val_int();
 
   if ((null_value=(args[0]->null_value || args[1]->null_value)))
     return 0; /* purecov: inspected */
-  if (length <= 0)
+
+  /* if "unsigned_flag" is set, we have a *huge* positive number. */
+  if ((length <= 0) && (!args[1]->unsigned_flag))
     return &my_empty_string; /* purecov: inspected */
-  if (res->length() <= (uint) length)
+
+  if (res->length() <= (ulonglong) length)
     return res; /* purecov: inspected */
 
   uint start=res->numchars();
@@ -1110,25 +1130,43 @@ String *Item_func_substr::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *res  = args[0]->val_str(str);
-  int32 start	= (int32) args[1]->val_int();
-  int32 length	= arg_count == 3 ? (int32) args[2]->val_int() : INT_MAX32;
-  int32 tmp_length;
+  /* must be longlong to avoid truncation */
+  longlong start= args[1]->val_int();
+  /* Assumes that the maximum length of a String is < INT_MAX32. */
+  /* Limit so that code sees out-of-bound value properly. */
+  longlong length= arg_count == 3 ? args[2]->val_int() : INT_MAX32;
+  longlong tmp_length;
 
   if ((null_value=(args[0]->null_value || args[1]->null_value ||
 		   (arg_count == 3 && args[2]->null_value))))
     return 0; /* purecov: inspected */
-  start= (int32)((start < 0) ? res->numchars() + start : start -1);
-  start=res->charpos(start);
-  length=res->charpos(length,start);
-  if (start < 0 || (uint) start+1 > res->length() || length <= 0)
+
+  /* Negative length, will return empty string. */
+  if ((arg_count == 3) && (length <= 0) && !args[2]->unsigned_flag)
     return &my_empty_string;
 
-  tmp_length=(int32) res->length()-start;
-  length=min(length,tmp_length);
+  /* Assumes that the maximum length of a String is < INT_MAX32. */
+  /* Set here so that rest of code sees out-of-bound value as such. */
+  if ((length <= 0) || (length > INT_MAX32))
+    length= INT_MAX32;
 
-  if (!start && res->length() == (uint) length)
+  /* if "unsigned_flag" is set, we have a *huge* positive number. */
+  /* Assumes that the maximum length of a String is < INT_MAX32. */
+  if ((args[1]->unsigned_flag) || (start < INT_MIN32) || (start > INT_MAX32))
+    return &my_empty_string;
+
+  start= ((start < 0) ? res->numchars() + start : start - 1);
+  start= res->charpos(start);
+  if ((start < 0) || ((uint) start + 1 > res->length()))
+    return &my_empty_string;
+
+  length= res->charpos(length, start);
+  tmp_length= res->length() - start;
+  length= min(length, tmp_length);
+
+  if (!start && res->length() == (ulonglong) length)
     return res;
-  tmp_value.set(*res,(uint) start,(uint) length);
+  tmp_value.set(*res, (ulonglong) start, (ulonglong) length);
   return &tmp_value;
 }
 
@@ -2141,8 +2179,15 @@ void Item_func_repeat::fix_length_and_dec()
   collation.set(args[0]->collation);
   if (args[1]->const_item())
   {
-    ulonglong max_result_length= ((ulonglong) args[0]->max_length *
-                                  args[1]->val_int());
+    /* must be longlong to avoid truncation */
+    longlong count= args[1]->val_int();
+
+    /* Assumes that the maximum length of a String is < INT_MAX32. */
+    /* Set here so that rest of code sees out-of-bound value as such. */
+    if (count > INT_MAX32)
+      count= INT_MAX32;
+
+    ulonglong max_result_length= (ulonglong) args[0]->max_length * count;
     if (max_result_length >= MAX_BLOB_WIDTH)
     {
       max_result_length= MAX_BLOB_WIDTH;
@@ -2167,13 +2212,20 @@ String *Item_func_repeat::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   uint length,tot_length;
   char *to;
-  long count= (long) args[1]->val_int();
-  String *res =args[0]->val_str(str);
+  /* must be longlong to avoid truncation */
+  longlong tmp_count= args[1]->val_int();
+  long count= tmp_count;
+  String *res= args[0]->val_str(str);
+
+  /* Assumes that the maximum length of a String is < INT_MAX32. */
+  /* Bounds check on count:  If this is triggered, we will error. */
+  if ((tmp_count > INT_MAX32) || args[1]->unsigned_flag)
+    count= INT_MAX32;
 
   if (args[0]->null_value || args[1]->null_value)
     goto err;				// string and/or delim are null
-  null_value=0;
-  if (count <= 0)			// For nicer SQL code
+  null_value= 0;
+  if ((tmp_count <= 0) && !args[1]->unsigned_flag)	// For nicer SQL code
     return &my_empty_string;
   if (count == 1)			// To avoid reallocs
     return res;
@@ -2212,8 +2264,20 @@ void Item_func_rpad::fix_length_and_dec()
     return;
   if (args[1]->const_item())
   {
-    ulonglong length= ((ulonglong) args[1]->val_int() *
-                       collation.collation->mbmaxlen);
+    ulonglong length= 0;
+
+    if (collation.collation->mbmaxlen > 0)
+    {
+      ulonglong temp= (ulonglong) args[1]->val_int();
+
+      /* Assumes that the maximum length of a String is < INT_MAX32. */
+      /* Set here so that rest of code sees out-of-bound value as such. */
+      if (temp > INT_MAX32)
+	temp = INT_MAX32;
+
+      length= temp * collation.collation->mbmaxlen;
+    }
+
     if (length >= MAX_BLOB_WIDTH)
     {
       length= MAX_BLOB_WIDTH;
@@ -2235,21 +2299,30 @@ String *Item_func_rpad::val_str(String *str)
   uint32 res_byte_length,res_char_length,pad_char_length,pad_byte_length;
   char *to;
   const char *ptr_pad;
-  int32 count= (int32) args[1]->val_int();
-  int32 byte_count= count * collation.collation->mbmaxlen;
-  String *res =args[0]->val_str(str);
-  String *rpad = args[2]->val_str(&rpad_str);
+  /* must be longlong to avoid truncation */
+  longlong count= args[1]->val_int();
+  longlong byte_count;
+  String *res= args[0]->val_str(str);
+  String *rpad= args[2]->val_str(&rpad_str);
+
+  /* Assumes that the maximum length of a String is < INT_MAX32. */
+  /* Set here so that rest of code sees out-of-bound value as such. */
+  if ((count > INT_MAX32) || args[1]->unsigned_flag)
+    count= INT_MAX32;
 
   if (!res || args[1]->null_value || !rpad || count < 0)
     goto err;
   null_value=0;
-  if (count <= (int32) (res_char_length=res->numchars()))
+
+  if (count <= (res_char_length= res->numchars()))
   {						// String to pad is big enough
     res->length(res->charpos(count));		// Shorten result if longer
     return (res);
   }
   pad_char_length= rpad->numchars();
-  if ((ulong) byte_count > current_thd->variables.max_allowed_packet)
+
+  byte_count= count * collation.collation->mbmaxlen;
+  if ((ulonglong) byte_count > current_thd->variables.max_allowed_packet)
   {
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
@@ -2295,8 +2368,20 @@ void Item_func_lpad::fix_length_and_dec()
   
   if (args[1]->const_item())
   {
-    ulonglong length= ((ulonglong) args[1]->val_int() *
-                       collation.collation->mbmaxlen);
+    ulonglong length= 0;
+
+    if (collation.collation->mbmaxlen > 0)
+    {
+      ulonglong temp= (ulonglong) args[1]->val_int();
+
+      /* Assumes that the maximum length of a String is < INT_MAX32. */
+      /* Set here so that rest of code sees out-of-bound value as such. */
+      if (temp > INT_MAX32)
+        temp= INT_MAX32;
+
+      length= temp * collation.collation->mbmaxlen;
+    }
+
     if (length >= MAX_BLOB_WIDTH)
     {
       length= MAX_BLOB_WIDTH;
@@ -2316,13 +2401,19 @@ String *Item_func_lpad::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   uint32 res_char_length,pad_char_length;
-  ulong count= (long) args[1]->val_int(), byte_count;
+  /* must be longlong to avoid truncation */
+  longlong count= args[1]->val_int();
+  longlong byte_count;
   String *res= args[0]->val_str(&tmp_value);
   String *pad= args[2]->val_str(&lpad_str);
 
-  if (!res || args[1]->null_value || !pad)
-    goto err;
+  /* Assumes that the maximum length of a String is < INT_MAX32. */
+  /* Set here so that rest of code sees out-of-bound value as such. */
+  if ((count > INT_MAX32) || args[1]->unsigned_flag)
+    count= INT_MAX32;
 
+  if (!res || args[1]->null_value || !pad || count < 0)
+    goto err;
   null_value=0;
   res_char_length= res->numchars();
 
