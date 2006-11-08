@@ -3979,10 +3979,12 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
     {
       char *ts= showing_table->file->get_tablespace_name(thd);
       if(ts)
+      {
         table->field[24]->store(ts, strlen(ts), cs);
+        my_free(ts, MYF(0));
+      }
       else
         table->field[24]->set_null();
-      my_free(ts, MYF(0));
     }
   }
   return;
