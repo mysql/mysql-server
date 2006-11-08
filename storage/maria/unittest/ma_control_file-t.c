@@ -346,13 +346,13 @@ static int test_bad_checksum()
                           MYF(MY_WME))) >= 0);
   RET_ERR_UNLESS(my_pread(fd, buffer, 1, 4, MYF(MY_FNABP |  MY_WME)) == 0);
   buffer[0]+= 3; /* mangle checksum */
-  RET_ERR_UNLESS(my_pwrite(fd, buffer+1, 1, 4, MYF(MY_FNABP |  MY_WME)) == 0);
+  RET_ERR_UNLESS(my_pwrite(fd, buffer, 1, 4, MYF(MY_FNABP |  MY_WME)) == 0);
   /* Check that control file module sees the problem */
   RET_ERR_UNLESS(ma_control_file_create_or_open() ==
                  CONTROL_FILE_BAD_CHECKSUM);
   /* Restore checksum */
   buffer[0]-= 3;
-  RET_ERR_UNLESS(my_pwrite(fd, buffer+1, 1, 4, MYF(MY_FNABP |  MY_WME)) == 0);
+  RET_ERR_UNLESS(my_pwrite(fd, buffer, 1, 4, MYF(MY_FNABP |  MY_WME)) == 0);
   RET_ERR_UNLESS(my_close(fd, MYF(MY_WME)) == 0);
 
   return 0;
