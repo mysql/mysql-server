@@ -965,8 +965,7 @@ bool ha_ndbcluster::uses_blob_value()
   blob_index_end= blob_index + table_share->blob_fields;
   do
   {
-    if (bitmap_is_set(table->write_set,
-                      table->field[*blob_index]->field_index))
+    if (bitmap_is_set(bitmap, table->field[*blob_index]->field_index))
       return TRUE;
   } while (++blob_index != blob_index_end);
   return FALSE;
