@@ -18,6 +18,10 @@
 #include <my_sys.h>
 #include <my_pthread.h>
 
+#ifdef HAVE_XFS_XFS_H
+#include <xfs/xfs.h>
+#endif
+
 #include "AsyncFile.hpp"
 
 #include <ErrorHandlingMacros.hpp>
@@ -459,6 +463,18 @@ no_odirect:
     Uint32 index = 0;
     Uint32 block = refToBlock(request->theUserReference);
 
+#ifdef HAVE_XFS_XFS_H
+    if(platform_test_xfs_fd(theFd))
+    {
+      ndbout_c("Using xfsctl(XFS_IOC_RESVSP64) to allocate disk space");
+      xfs_flock64_t fl;
+      fl.l_whence= 0;
+      fl.l_start= 0;
+      fl.l_len= (off64_t)sz;
+      if(xfsctl(NULL, theFd, XFS_IOC_RESVSP64, &fl) < 0)
+        ndbout_c("failed to optimally allocate disk space");
+    }
+#endif
 #ifdef HAVE_POSIX_FALLOCATE
     posix_fallocate(theFd, 0, sz);
 #endif
