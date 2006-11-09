@@ -2,8 +2,9 @@ This is a release of MySQL, a dual-license SQL database server.
 MySQL is brought to you by the MySQL team at MySQL AB.
 
 License information can be found in these files:
-- For GPL (free) distributions, see the COPYING file.
-- For commercial distributions, see the MySQLEULA.txt file.
+- For GPL (free) distributions, see the COPYING file and
+  the EXCEPTIONS-CLIENT file.
+- For commercial distributions, see the LICENSE.mysql file.
 
 
 For further information about MySQL or additional documentation, see:
@@ -15,11 +16,10 @@ Some manual sections of special interest:
 - If you are migrating from an older version of MySQL, please read the
   "Upgrading from..." section first!
 - To see what MySQL can do, take a look at the features section.
-- For installation instructions, see the Installation chapter.
-- For future plans, see the TODO appendix.
-- For the new features/bugfix history, see the News appendix.
-- For the currently known bugs/misfeatures (known errors) see the problems
-  appendix.
+- For installation instructions, see the Installing and Upgrading chapter.
+- For the new features/bugfix history, see the Change History appendix.
+- For the currently known bugs/misfeatures (known errors) see the Problems
+  and Common Errors appendix.
 - For a list of developers and other contributors, see the Credits
   appendix.
 
