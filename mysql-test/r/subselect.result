@@ -3025,13 +3025,13 @@ FROM t1 WHERE a > '2000-01-01';
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `sub_a` datetime default NULL
+  `sub_a` datetime DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 CREATE TABLE t3 AS (SELECT a FROM t1 WHERE a < '2000-01-01') UNION (SELECT a FROM t1 WHERE a > '2000-01-01');
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` datetime default NULL
+  `a` datetime DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1,t2,t3;
 create table t1 (df decimal(5,1));
