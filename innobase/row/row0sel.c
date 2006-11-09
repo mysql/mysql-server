@@ -1323,6 +1323,12 @@ rec_loop:
 						ULINT_UNDEFINED, &heap);
 
 		if (srv_locks_unsafe_for_binlog) {
+
+			if (page_rec_is_supremum(rec)) {
+
+				goto next_rec;
+			}
+
 			lock_type = LOCK_REC_NOT_GAP;
 		} else {
 			lock_type = LOCK_ORDINARY;
