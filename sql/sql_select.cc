@@ -2951,10 +2951,12 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
           join->unit->item->substype() == Item_subselect::IN_SUBS &&
           !join->unit->first_select()->next_select())
       {
+        KEY_FIELD *save= *key_fields;
         add_key_fields(join, key_fields, and_level, cond, usable_tables,
                        sargables);
         // Indicate that this ref access candidate is for subquery lookup:
-        (*key_fields)[-1].outer_ref= TRUE;
+        for (; save != *key_fields; save++)
+          save->outer_ref= TRUE;
       }
       return;
     }
