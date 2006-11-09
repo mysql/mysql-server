@@ -124,7 +124,7 @@ name, NODE1 and NODE2 are pointers to nodes. */
 }\
 
 /* Invalidate the pointers in a list node. */
-#ifdef UNIV_DEBUG
+#ifdef UNIV_LIST_DEBUG
 # define UT_LIST_REMOVE_CLEAR(NAME, N)		\
 ((N)->NAME.prev = (N)->NAME.next = (void*) -1)
 #else
