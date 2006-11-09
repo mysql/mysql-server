@@ -96,6 +96,17 @@ extern CHARSET_INFO *system_charset_info, *files_charset_info ;
 extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 
 
+enum Derivation
+{
+  DERIVATION_IGNORABLE= 5,
+  DERIVATION_COERCIBLE= 4,
+  DERIVATION_SYSCONST= 3,
+  DERIVATION_IMPLICIT= 2,
+  DERIVATION_NONE= 1,
+  DERIVATION_EXPLICIT= 0
+};
+
+
 typedef struct my_locale_st
 {
   const char *name;

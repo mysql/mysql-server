@@ -1228,6 +1228,30 @@ set @a:=null;
 execute my_stmt using @a;
 drop table if exists t1;
 
+
+#
+# Bug#21505 Create view - illegal mix of collation for operation 'UNION'
+#
+--disable_warnings
+drop table if exists t1;
+drop view if exists v1, v2;
+--enable_warnings
+set names utf8;
+create table t1(col1 varchar(12) character set utf8 collate utf8_unicode_ci);
+insert into t1 values('t1_val');
+create view v1 as select 'v1_val' as col1;
+select coercibility(col1), collation(col1) from v1;
+create view v2 as select col1 from v1 union select col1 from t1;
+select coercibility(col1), collation(col1)from v2;
+drop view v1, v2;
+create view v1 as select 'v1_val' collate utf8_swedish_ci as col1;
+select coercibility(col1), collation(col1) from v1;
+create view v2 as select col1 from v1 union select col1 from t1;
+select coercibility(col1), collation(col1) from v2;
+drop view v1, v2;
+drop table t1;
+
+
 #
 # Bug#19960: Inconsistent results when joining
 # InnoDB tables using partial UTF8 indexes
