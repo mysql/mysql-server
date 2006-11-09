@@ -1655,7 +1655,7 @@ void Item_field::set_field(Field *field_par)
   db_name= field_par->table->s->db.str;
   alias_name_used= field_par->table->alias_name_used;
   unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
-  collation.set(field_par->charset(), DERIVATION_IMPLICIT);
+  collation.set(field_par->charset(), field_par->derivation());
   fixed= 1;
 }
 
