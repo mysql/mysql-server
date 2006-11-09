@@ -1142,10 +1142,7 @@ innobase_start_or_create_for_mysql(void)
 
 #if defined(__NETWARE__)
 
-/* Create less event semaphores because Win 98/ME had difficulty creating
-40000 event semaphores.
-Comment from Novell, Inc.: also, these just take a lot of memory on
-NetWare. */
+	/* Comment from Novell, Inc.: These take a lot of memory on NetWare.*/
         srv_max_n_threads = 1000;
 #else
         if (srv_pool_size >= 1000 * 1024) {
