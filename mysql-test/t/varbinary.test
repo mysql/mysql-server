@@ -37,3 +37,43 @@ select x,xx from t1;
 drop table t1;
 
 # End of 4.1 tests
+
+#
+# Bug #19371 VARBINARY() have trailing zeros after upgrade from 4.1
+#
+
+# Test with a saved table from 4.1
+copy_file std_data/bug19371.frm $MYSQLTEST_VARDIR/master-data/test/t1.frm;
+copy_file std_data/bug19371.MYD $MYSQLTEST_VARDIR/master-data/test/t1.MYD;
+copy_file std_data/bug19371.MYI $MYSQLTEST_VARDIR/master-data/test/t1.MYI;
+
+# Everything _looks_ fine
+show create table t1;
+
+# But the length of the varbinary columns are too long
+select length(a), length(b) from t1;
+
+# Run CHECK TABLE, it should indicate table need a REPAIR TABLE
+CHECK TABLE t1 FOR UPGRADE;
+
+# Run REPAIR TABLE to alter the table and repair
+# the varbinary fields
+REPAIR TABLE t1;
+
+# Now check it's back to normal
+show create table t1;
+select length(a), length(b) from t1;
+insert into t1 values("ccc", "ddd");
+select length(a), length(b) from t1;
+select hex(a), hex(b) from t1;
+select concat("'", a, "'"), concat("'", b, "'") from t1;
+
+drop table t1;
+
+# Check that the fix does not affect table created with current version
+create table t1(a varbinary(255));
+insert into t1 values("aaa   ");
+select length(a) from t1;
+alter table t1 modify a varchar(255);
+select length(a) from t1;
+
