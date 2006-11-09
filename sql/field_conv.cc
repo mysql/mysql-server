@@ -309,6 +309,21 @@ static void do_field_string(Copy_field *copy)
 }
 
 
+static void do_field_varbinary_pre50(Copy_field *copy)
+{
+  char buff[MAX_FIELD_WIDTH];
+  copy->tmp.set_quick(buff,sizeof(buff),copy->tmp.charset());
+  copy->from_field->val_str(&copy->tmp);
+
+  /* Use the same function as in 4.1 to trim trailing spaces */
+  uint length= my_lengthsp_8bit(&my_charset_bin, copy->tmp.c_ptr_quick(),
+                                copy->from_field->field_length);
+
+  copy->to_field->store(copy->tmp.c_ptr_quick(), length,
+                        copy->tmp.charset());
+}
+
+
 static void do_field_int(Copy_field *copy)
 {
   longlong value= copy->from_field->val_int();
@@ -570,6 +585,15 @@ void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
     // Check if identical fields
     if (from->result_type() == STRING_RESULT)
     {
+      /*
+        Detect copy from pre 5.0 varbinary to varbinary as of 5.0 and
+        use special copy function that removes trailing spaces and thus
+        repairs data.
+      */
+      if (from->type() == MYSQL_TYPE_VAR_STRING && !from->has_charset() &&
+          to->type() == MYSQL_TYPE_VARCHAR && !to->has_charset())
+        return do_field_varbinary_pre50;
+
       /*
         If we are copying date or datetime's we have to check the dates
         if we don't allow 'all' dates.
