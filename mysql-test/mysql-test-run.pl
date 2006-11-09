@@ -1484,7 +1484,7 @@ sub executable_setup () {
       mtr_exe_maybe_exists("$glob_basedir/tests/mysql_client_test",
 			   "$glob_basedir/tests/release/mysql_client_test",
 			   "$glob_basedir/tests/debug/mysql_client_test",
-			   "$glob_basedir/bin");
+			   "$glob_basedir/bin/mysql_client_test");
   }
 }
 
