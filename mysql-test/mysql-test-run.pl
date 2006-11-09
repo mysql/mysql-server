@@ -190,7 +190,7 @@ our $opt_fast;
 our $opt_force;
 our $opt_reorder= 0;
 our $opt_enable_disabled;
-our $opt_mem;
+our $opt_mem= $ENV{'MTR_MEM'};
 
 our $opt_gcov;
 our $opt_gcov_err;
@@ -596,7 +596,7 @@ sub command_line_setup () {
              'tmpdir=s'                 => \$opt_tmpdir,
              'vardir=s'                 => \$opt_vardir,
              'benchdir=s'               => \$glob_mysql_bench_dir,
-             'mem'                      => \$opt_mem,
+             'mem:s'                    => \$opt_mem,
 
              # Misc
              'comment=s'                => \$opt_comment,
@@ -738,17 +738,18 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   # Check if we should speed up tests by trying to run on tmpfs
   # --------------------------------------------------------------------------
-  if ( $opt_mem )
+  if ( defined $opt_mem )
   {
     mtr_error("Can't use --mem and --vardir at the same time ")
       if $opt_vardir;
     mtr_error("Can't use --mem and --tmpdir at the same time ")
       if $opt_tmpdir;
 
-    # Use /dev/shm as the preferred location for vardir and
-    # thus implicitly also tmpdir. Add other locations to list
-    my @tmpfs_locations= ("/dev/shm");
-    # One could maybe use "mount" to find tmpfs location(s)
+    # Search through list of locations that are known
+    # to be "fast disks" to list to find a suitable location
+    # Use --mem=<dir> as first location to look.
+    my @tmpfs_locations= ($opt_mem, "/dev/shm", "/tmp");
+
     foreach my $fs (@tmpfs_locations)
     {
       if ( -d $fs )
@@ -2986,9 +2987,9 @@ sub analyze_testcase_failure_sync_with_master($)
 
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--silent");
-  mtr_add_arg($args, "-v");
   mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
+  mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
 
   mtr_add_arg($args, "--socket=%s", $master->[0]->{'path_sock'});
   mtr_add_arg($args, "--port=%d", $master->[0]->{'port'});
@@ -3359,6 +3360,11 @@ sub mysqld_arguments ($$$$$) {
   if ( $opt_valgrind_mysqld )
   {
     mtr_add_arg($args, "%s--skip-safemalloc", $prefix);
+
+    if ( $mysql_version_id < 50100 )
+    {
+      mtr_add_arg($args, "%s--skip-bdb", $prefix);
+    }
   }
 
   my $pidfile;
@@ -4167,9 +4173,9 @@ sub run_check_testcase ($$) {
 
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--silent");
-  mtr_add_arg($args, "-v");
   mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
+  mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
 
   mtr_add_arg($args, "--socket=%s", $mysqld->{'path_sock'});
   mtr_add_arg($args, "--port=%d", $mysqld->{'port'});
@@ -4213,9 +4219,9 @@ sub run_mysqltest ($) {
 
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--silent");
-  mtr_add_arg($args, "-v");
   mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
+  mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
 
   if ($tinfo->{'component_id'} eq 'im')
   {
@@ -4300,13 +4306,11 @@ sub run_mysqltest ($) {
   if ( $opt_ssl )
   {
     # Turn on SSL for _all_ test cases if option --ssl was used
-    mtr_add_arg($args, "--ssl",
-		$glob_mysql_test_dir);
+    mtr_add_arg($args, "--ssl");
   }
   elsif ( $opt_ssl_supported )
   {
-    mtr_add_arg($args, "--skip-ssl",
-		$glob_mysql_test_dir);
+    mtr_add_arg($args, "--skip-ssl");
   }
 
   # ----------------------------------------------------------------------
@@ -4641,9 +4645,12 @@ Options to control directories to use
   vardir=DIR            The directory where files generated from the test run
                         is stored (default: ./var). Specifying a ramdisk or
                         tmpfs will speed up tests.
-  mem=DIR               Run testsuite in "memory" using tmpfs if
-                        available(default: /dev/shm)
-
+  mem[=DIR]             Run testsuite in "memory" using tmpfs or ramdisk
+                        Attempts to use DIR first if specified else
+                        uses as builtin list of standard locations
+                        for tmpfs (/dev/shm)
+                        The option can also be set using environment
+                        variable MTR_MEM=[DIR]
 
 Options to control what test suites or cases to run
 
