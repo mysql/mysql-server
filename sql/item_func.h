@@ -979,6 +979,7 @@ public:
   Item_result result_type () const { return udf.result_type(); }
   table_map not_null_tables() const { return 0; }
   bool is_expensive() { return 1; }
+  void print(String *str);
 };
 
 

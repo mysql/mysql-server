@@ -100,25 +100,44 @@ public:
 };
 
 class Item_cache;
+#define UNKNOWN ((my_bool)-1)
+
+
+/*
+  Item_in_optimizer(left_expr, Item_in_subselect(...))
+
+  Item_in_optimizer is used to wrap an instance of Item_in_subselect. This
+  class does the following:
+   - Evaluate the left expression and store it in Item_cache_* object (to
+     avoid re-evaluating it many times during subquery execution)
+   - Shortcut the evaluation of "NULL IN (...)" to NULL in the cases where we
+     don't care if the result is NULL or FALSE.
+
+  NOTE
+    It is not quite clear why the above listed functionality should be
+    placed into a separate class called 'Item_in_optimizer'.
+*/
+
 class Item_in_optimizer: public Item_bool_func
 {
 protected:
   Item_cache *cache;
   bool save_cache;
+  /* 
+    Stores the value of "NULL IN (SELECT ...)" for uncorrelated subqueries:
+      UNKNOWN - "NULL in (SELECT ...)" has not yet been evaluated
+      FALSE   - result is FALSE
+      TRUE    - result is NULL
+  */
+  my_bool result_for_null_param;
 public:
   Item_in_optimizer(Item *a, Item_in_subselect *b):
-    Item_bool_func(a, my_reinterpret_cast(Item *)(b)), cache(0), save_cache(0)
+    Item_bool_func(a, my_reinterpret_cast(Item *)(b)), cache(0),
+    save_cache(0), result_for_null_param(UNKNOWN)
   {}
   bool fix_fields(THD *, Item **);
   bool fix_left(THD *thd, Item **ref);
   bool is_null();
-  /*
-    Item_in_optimizer item is special boolean function. On value request 
-    (one of val, val_int or val_str methods) it evaluate left expression 
-    of IN by storing it value in cache item (one of Item_cache* items), 
-    then it test cache is it NULL. If left expression (cache) is NULL then
-    Item_in_optimizer return NULL, else it evaluate Item_in_subselect.
-  */
   longlong val_int();
   void cleanup();
   const char *func_name() const { return "<in_optimizer>"; }
@@ -258,9 +277,11 @@ public:
 class Item_maxmin_subselect;
 
 /*
+  trigcond<param>(arg) ::= param? arg : TRUE
+
   The class Item_func_trig_cond is used for guarded predicates 
   which are employed only for internal purposes.
-  A guarded predicates is an object consisting of an a regular or
+  A guarded predicate is an object consisting of an a regular or
   a guarded predicate P and a pointer to a boolean guard variable g. 
   A guarded predicate P/g is evaluated to true if the value of the
   guard g is false, otherwise it is evaluated to the same value that
@@ -278,6 +299,10 @@ class Item_maxmin_subselect;
   Objects of this class are built only for query execution after
   the execution plan has been already selected. That's why this
   class needs only val_int out of generic methods. 
+ 
+  Current uses of Item_func_trig_cond objects:
+   - To wrap selection conditions when executing outer joins
+   - To wrap condition that is pushed down into subquery
 */
 
 class Item_func_trig_cond: public Item_bool_func
@@ -1095,6 +1120,11 @@ public:
 /* Functions used by HAVING for rewriting IN subquery */
 
 class Item_in_subselect;
+
+/* 
+  This is like IS NOT NULL but it also remembers if it ever has
+  encountered a NULL.
+*/
 class Item_is_not_null_test :public Item_func_isnull
 {
   Item_in_subselect* owner;
