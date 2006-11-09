@@ -23,16 +23,21 @@
 #include <my_atomic.h>
 #include <lf.h>
 #include "../lockman.h"
+#include "../tablockman.h"
 
 #define Nlos 100
+#define Ntbls 10
 LOCK_OWNER loarray[Nlos];
+TABLE_LOCK_OWNER loarray1[Nlos];
 pthread_mutex_t mutexes[Nlos];
 pthread_cond_t conds[Nlos];
+LOCKED_TABLE ltarray[Ntbls];
 LOCKMAN lockman;
+TABLOCKMAN tablockman;
 
 #ifndef EXTRA_VERBOSE
-#define print_lockhash(X)       /* no-op */
-#define DIAG(X)                 /* no-op */
+#define print_lo1(X)       /* no-op */
+#define DIAG(X)            /* no-op */
 #else
 #define DIAG(X) diag X
 #endif
@@ -41,13 +46,17 @@ LOCK_OWNER *loid2lo(uint16 loid)
 {
   return loarray+loid-1;
 }
+TABLE_LOCK_OWNER *loid2lo1(uint16 loid)
+{
+  return loarray1+loid-1;
+}
 
 #define unlock_all(O) diag("lo" #O "> release all locks");              \
-  lockman_release_locks(&lockman, loid2lo(O));print_lockhash(&lockman)
+  tablockman_release_locks(&tablockman, loid2lo1(O));
 #define test_lock(O, R, L, S, RES)                                      \
-  ok(lockman_getlock(&lockman, loid2lo(O), R, L) == RES,                \
+  ok(tablockman_getlock(&tablockman, loid2lo1(O), &ltarray[R], L) == RES,   \
      "lo" #O "> " S "lock resource " #R " with " #L "-lock");           \
-  print_lockhash(&lockman)
+  print_lo1(loid2lo1(O));
 #define lock_ok_a(O, R, L)                                              \
   test_lock(O, R, L, "", GOT_THE_LOCK)
 #define lock_ok_i(O, R, L)                                              \
@@ -57,7 +66,7 @@ LOCK_OWNER *loid2lo(uint16 loid)
 #define lock_conflict(O, R, L)                                          \
   test_lock(O, R, L, "cannot ", DIDNT_GET_THE_LOCK);
 
-void test_lockman_simple()
+void test_tablockman_simple()
 {
   /* simple */
   lock_ok_a(1, 1, S);
@@ -164,12 +173,12 @@ pthread_handler_t test_lockman(void *arg)
 {
   int    m= (*(int *)arg);
   uint   x, loid, row, table, res, locklevel, timeout= 0;
-  LOCK_OWNER *lo;
+  LOCK_OWNER *lo; TABLE_LOCK_OWNER *lo1; DBUG_ASSERT(Ntables <= Ntbls);
 
   pthread_mutex_lock(&rt_mutex);
   loid= ++thread_number;
   pthread_mutex_unlock(&rt_mutex);
-  lo= loid2lo(loid);
+  lo= loid2lo(loid); lo1= loid2lo1(loid);
 
   for (x= ((int)(intptr)(&m)); m > 0; m--)
   {
@@ -179,12 +188,12 @@ pthread_handler_t test_lockman(void *arg)
     locklevel= (x/Nrows) & 3;
     if (table_lock_ratio && (x/Nrows/4) % table_lock_ratio == 0)
     { /* table lock */
-      res= lockman_getlock(&lockman, lo, table, lock_array[locklevel]);
+      res= tablockman_getlock(&tablockman, lo1, ltarray+table, lock_array[locklevel]);
       DIAG(("loid %2d, table %d, lock %s, res %s", loid, table,
             lock2str[locklevel], res2str[res]));
       if (res == DIDNT_GET_THE_LOCK)
       {
-        lockman_release_locks(&lockman, lo);
+        lockman_release_locks(&lockman, lo); tablockman_release_locks(&tablockman, lo1);
         DIAG(("loid %2d, release all locks", loid));
         timeout++;
         continue;
@@ -194,13 +203,13 @@ pthread_handler_t test_lockman(void *arg)
     else
     { /* row lock */
       locklevel&= 1;
-      res= lockman_getlock(&lockman, lo, table, lock_array[locklevel + 4]);
+      res= tablockman_getlock(&tablockman, lo1, ltarray+table, lock_array[locklevel + 4]);
       DIAG(("loid %2d, row %d, lock %s, res %s", loid, row,
             lock2str[locklevel+4], res2str[res]));
       switch (res)
       {
       case DIDNT_GET_THE_LOCK:
-        lockman_release_locks(&lockman, lo);
+        lockman_release_locks(&lockman, lo); tablockman_release_locks(&tablockman, lo1);
         DIAG(("loid %2d, release all locks", loid));
         timeout++;
         continue;
@@ -215,6 +224,7 @@ pthread_handler_t test_lockman(void *arg)
         if (res == DIDNT_GET_THE_LOCK)
         {
           lockman_release_locks(&lockman, lo);
+          tablockman_release_locks(&tablockman, lo1);
           DIAG(("loid %2d, release all locks", loid));
           timeout++;
           continue;
@@ -228,6 +238,7 @@ pthread_handler_t test_lockman(void *arg)
   }
 
   lockman_release_locks(&lockman, lo);
+  tablockman_release_locks(&tablockman, lo1);
 
   pthread_mutex_lock(&rt_mutex);
   rt_num_threads--;
@@ -253,20 +264,34 @@ int main()
 
 
   lockman_init(&lockman, &loid2lo, 50);
+  tablockman_init(&tablockman, &loid2lo1, 50);
 
   for (i= 0; i < Nlos; i++)
   {
+    pthread_mutex_init(&mutexes[i], MY_MUTEX_INIT_FAST);
+    pthread_cond_init (&conds[i], 0);
+
     loarray[i].pins= lf_alloc_get_pins(&lockman.alloc);
     loarray[i].all_locks= 0;
     loarray[i].waiting_for= 0;
-    pthread_mutex_init(&mutexes[i], MY_MUTEX_INIT_FAST);
-    pthread_cond_init (&conds[i], 0);
     loarray[i].mutex= &mutexes[i];
     loarray[i].cond= &conds[i];
     loarray[i].loid= i+1;
+
+    loarray1[i].active_locks= 0;
+    loarray1[i].waiting_lock= 0;
+    loarray1[i].waiting_for= 0;
+    loarray1[i].mutex= &mutexes[i];
+    loarray1[i].cond= &conds[i];
+    loarray1[i].loid= i+1;
   }
 
-  test_lockman_simple();
+  for (i= 0; i < Ntbls; i++)
+  {
+    tablockman_init_locked_table(ltarray+i);
+  }
+
+  //test_tablockman_simple();
 
 #define CYCLES 10000
 #define THREADS Nlos /* don't change this line */

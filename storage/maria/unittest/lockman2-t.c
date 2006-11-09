@@ -22,32 +22,34 @@
 #include <my_sys.h>
 #include <my_atomic.h>
 #include <lf.h>
-#include "../lockman.h"
+#include "../tablockman.h"
 
 #define Nlos 100
-LOCK_OWNER loarray[Nlos];
+#define Ntbls 110
+TABLE_LOCK_OWNER loarray1[Nlos];
 pthread_mutex_t mutexes[Nlos];
 pthread_cond_t conds[Nlos];
-LOCKMAN lockman;
+LOCKED_TABLE ltarray[Ntbls];
+TABLOCKMAN tablockman;
 
 #ifndef EXTRA_VERBOSE
-#define print_lockhash(X)       /* no-op */
-#define DIAG(X)                 /* no-op */
+#define print_lo1(X)       /* no-op */
+#define DIAG(X)            /* no-op */
 #else
 #define DIAG(X) diag X
 #endif
 
-LOCK_OWNER *loid2lo(uint16 loid)
+TABLE_LOCK_OWNER *loid2lo1(uint16 loid)
 {
-  return loarray+loid-1;
+  return loarray1+loid-1;
 }
 
 #define unlock_all(O) diag("lo" #O "> release all locks");              \
-  lockman_release_locks(&lockman, loid2lo(O));print_lockhash(&lockman)
+  tablockman_release_locks(&tablockman, loid2lo1(O));
 #define test_lock(O, R, L, S, RES)                                      \
-  ok(lockman_getlock(&lockman, loid2lo(O), R, L) == RES,                \
+  ok(tablockman_getlock(&tablockman, loid2lo1(O), &ltarray[R], L) == RES,   \
      "lo" #O "> " S "lock resource " #R " with " #L "-lock");           \
-  print_lockhash(&lockman)
+  print_lo1(loid2lo1(O));
 #define lock_ok_a(O, R, L)                                              \
   test_lock(O, R, L, "", GOT_THE_LOCK)
 #define lock_ok_i(O, R, L)                                              \
@@ -57,7 +59,7 @@ LOCK_OWNER *loid2lo(uint16 loid)
 #define lock_conflict(O, R, L)                                          \
   test_lock(O, R, L, "cannot ", DIDNT_GET_THE_LOCK);
 
-void test_lockman_simple()
+void test_tablockman_simple()
 {
   /* simple */
   lock_ok_a(1, 1, S);
@@ -164,12 +166,14 @@ pthread_handler_t test_lockman(void *arg)
 {
   int    m= (*(int *)arg);
   uint   x, loid, row, table, res, locklevel, timeout= 0;
-  LOCK_OWNER *lo;
+  TABLE_LOCK_OWNER *lo1;
+  DBUG_ASSERT(Ntables <= Ntbls);
+  DBUG_ASSERT(Nrows + Ntables <= Ntbls);
 
   pthread_mutex_lock(&rt_mutex);
   loid= ++thread_number;
   pthread_mutex_unlock(&rt_mutex);
-  lo= loid2lo(loid);
+  lo1= loid2lo1(loid);
 
   for (x= ((int)(intptr)(&m)); m > 0; m--)
   {
@@ -179,12 +183,12 @@ pthread_handler_t test_lockman(void *arg)
     locklevel= (x/Nrows) & 3;
     if (table_lock_ratio && (x/Nrows/4) % table_lock_ratio == 0)
     { /* table lock */
-      res= lockman_getlock(&lockman, lo, table, lock_array[locklevel]);
+      res= tablockman_getlock(&tablockman, lo1, ltarray+table, lock_array[locklevel]);
       DIAG(("loid %2d, table %d, lock %s, res %s", loid, table,
             lock2str[locklevel], res2str[res]));
       if (res == DIDNT_GET_THE_LOCK)
       {
-        lockman_release_locks(&lockman, lo);
+        tablockman_release_locks(&tablockman, lo1);
         DIAG(("loid %2d, release all locks", loid));
         timeout++;
         continue;
@@ -194,13 +198,13 @@ pthread_handler_t test_lockman(void *arg)
     else
     { /* row lock */
       locklevel&= 1;
-      res= lockman_getlock(&lockman, lo, table, lock_array[locklevel + 4]);
+      res= tablockman_getlock(&tablockman, lo1, ltarray+table, lock_array[locklevel + 4]);
       DIAG(("loid %2d, row %d, lock %s, res %s", loid, row,
             lock2str[locklevel+4], res2str[res]));
       switch (res)
       {
       case DIDNT_GET_THE_LOCK:
-        lockman_release_locks(&lockman, lo);
+        tablockman_release_locks(&tablockman, lo1);
         DIAG(("loid %2d, release all locks", loid));
         timeout++;
         continue;
@@ -209,12 +213,12 @@ pthread_handler_t test_lockman(void *arg)
       case GOT_THE_LOCK_NEED_TO_INSTANT_LOCK_A_SUBRESOURCE:
         /* not implemented, so take a regular lock */
       case GOT_THE_LOCK_NEED_TO_LOCK_A_SUBRESOURCE:
-        res= lockman_getlock(&lockman, lo, row, lock_array[locklevel]);
+        res= tablockman_getlock(&tablockman, lo1, ltarray+row, lock_array[locklevel]);
         DIAG(("loid %2d, ROW %d, lock %s, res %s", loid, row,
               lock2str[locklevel], res2str[res]));
         if (res == DIDNT_GET_THE_LOCK)
         {
-          lockman_release_locks(&lockman, lo);
+          tablockman_release_locks(&tablockman, lo1);
           DIAG(("loid %2d, release all locks", loid));
           timeout++;
           continue;
@@ -227,7 +231,7 @@ pthread_handler_t test_lockman(void *arg)
     }
   }
 
-  lockman_release_locks(&lockman, lo);
+  tablockman_release_locks(&tablockman, lo1);
 
   pthread_mutex_lock(&rt_mutex);
   rt_num_threads--;
@@ -252,21 +256,27 @@ int main()
     return exit_status();
 
 
-  lockman_init(&lockman, &loid2lo, 50);
+  tablockman_init(&tablockman, &loid2lo1, 50);
 
   for (i= 0; i < Nlos; i++)
   {
-    loarray[i].pins= lf_alloc_get_pins(&lockman.alloc);
-    loarray[i].all_locks= 0;
-    loarray[i].waiting_for= 0;
     pthread_mutex_init(&mutexes[i], MY_MUTEX_INIT_FAST);
     pthread_cond_init (&conds[i], 0);
-    loarray[i].mutex= &mutexes[i];
-    loarray[i].cond= &conds[i];
-    loarray[i].loid= i+1;
+
+    loarray1[i].active_locks= 0;
+    loarray1[i].waiting_lock= 0;
+    loarray1[i].waiting_for= 0;
+    loarray1[i].mutex= &mutexes[i];
+    loarray1[i].cond= &conds[i];
+    loarray1[i].loid= i+1;
   }
 
-  test_lockman_simple();
+  for (i= 0; i < Ntbls; i++)
+  {
+    tablockman_init_locked_table(ltarray+i);
+  }
+
+  test_tablockman_simple();
 
 #define CYCLES 10000
 #define THREADS Nlos /* don't change this line */
@@ -276,24 +286,27 @@ int main()
   Ntables= 10;
   table_lock_ratio= 10;
   run_test("\"random lock\" stress test", test_lockman, THREADS, CYCLES);
-
+#if 0
   /* "real-life" simulation - many rows, no table locks */
   Nrows= 1000000;
   Ntables= 10;
   table_lock_ratio= 0;
   run_test("\"real-life\" simulation test", test_lockman, THREADS, CYCLES*10);
-
+#endif
   for (i= 0; i < Nlos; i++)
   {
-    lockman_release_locks(&lockman, &loarray[i]);
-    pthread_mutex_destroy(loarray[i].mutex);
-    pthread_cond_destroy(loarray[i].cond);
-    lf_pinbox_put_pins(loarray[i].pins);
+    tablockman_release_locks(&tablockman, &loarray1[i]);
+    pthread_mutex_destroy(loarray1[i].mutex);
+    pthread_cond_destroy(loarray1[i].cond);
   }
 
   {
     ulonglong now= my_getsystime();
-    lockman_destroy(&lockman);
+    for (i= 0; i < Ntbls; i++)
+    {
+      tablockman_destroy_locked_table(ltarray+i);
+    }
+    tablockman_destroy(&tablockman);
     now= my_getsystime()-now;
     diag("lockman_destroy: %g secs", ((double)now)/1e7);
   }

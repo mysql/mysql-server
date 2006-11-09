@@ -1,10 +1,6 @@
+// TODO - allocate everything from dynarrays !!! (benchmark)
 // TODO instant duration locks
 // automatically place S instead of LS if possible
-/*
-  TODO optimization: table locks - they have completely
-  different characteristics. long lists, few distinct resources -
-  slow to scan, [possibly] high retry rate
-*/
 /* Copyright (C) 2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -68,9 +64,9 @@
   it will wait for other locks. Here's an exception to "locks are added
   to the end" rule - upgraded locks are added after the last active lock
   but before all waiting locks. Old lock (the one we upgraded from) is
-  not removed from the list, indeed we may need to return to it later if
-  the new lock was in a savepoint that gets rolled back. So old lock is
-  marked as "ignored" (IGNORE_ME flag). New lock gets an UPGRADED flag.
+  not removed from the list, indeed it may be needed if the new lock was
+  in a savepoint that gets rolled back. So old lock is marked as "ignored"
+  (IGNORE_ME flag). New lock gets an UPGRADED flag.
 
   Loose locks add an important exception to the above. Loose locks do not
   always commute with other locks. In the list IX-LS both locks are active,
@@ -90,12 +86,12 @@
   variable a conflicting lock is returned and the calling thread waits on a
   pthread condition in the LOCK_OWNER structure of the owner of the
   conflicting lock. Or a new lock is compatible with all locks, but some
-  existing locks are not compatible with previous locks (example: request IS,
+  existing locks are not compatible with each other (example: request IS,
   when the list is S-IX) - that is not all locks are active. In this case a
-  first waiting lock is returned in the 'blocker' variable,
-  lockman_getlock() notices that a "blocker" does not conflict with the
-  requested lock, and "dereferences" it, to find the lock that it's waiting
-  on.  The calling thread than begins to wait on the same lock.
+  first waiting lock is returned in the 'blocker' variable, lockman_getlock()
+  notices that a "blocker" does not conflict with the requested lock, and
+  "dereferences" it, to find the lock that it's waiting on.  The calling
+  thread than begins to wait on the same lock.
 
   To better support table-row relations where one needs to lock the table
   with an intention lock before locking the row, extended diagnostics is
@@ -107,6 +103,10 @@
   whether it's possible to lock the row, but no need to lock it - perhaps
   the thread has a loose lock on this table). This is defined by
   getlock_result[] table.
+
+  TODO optimization: table locks - they have completely
+  different characteristics. long lists, few distinct resources -
+  slow to scan, [possibly] high retry rate
 */
 
 #include <my_global.h>
@@ -316,7 +316,7 @@ retry:
             DBUG_ASSERT(prev_active == TRUE);
           else
             cur_active&= lock_compatibility_matrix[prev_lock][cur_lock];
-          if (upgrading && !cur_active)
+          if (upgrading && !cur_active /*&& !(cur_flags & UPGRADED)*/)
             break;
           if (prev_active && !cur_active)
           {
@@ -327,7 +327,7 @@ retry:
           {
             /* we already have a lock on this resource */
             DBUG_ASSERT(lock_combining_matrix[cur_lock][lock] != N);
-            DBUG_ASSERT(!upgrading); /* can happen only once */
+            DBUG_ASSERT(!upgrading || (flags & IGNORE_ME));
             if (lock_combining_matrix[cur_lock][lock] == cur_lock)
             {
               /* new lock is compatible */
@@ -380,7 +380,7 @@ retry:
   */
   if (upgrading)
   {
-    if (compatible)
+    if (compatible /*&& prev_active*/)
       return PLACE_NEW_DISABLE_OLD;
     else
       return REQUEST_NEW_DISABLE_OLD;
@@ -431,6 +431,9 @@ static int lockinsert(LOCK * volatile *head, LOCK *node, LF_PINS *pins,
       }
       if (res & LOCK_UPGRADE)
         cursor.upgrade_from->flags|= IGNORE_ME;
+#warning is this OK ? if a reader has already read upgrade_from, \
+         it may find it conflicting with node :(
+//#error another bug - see the last test from test_lockman_simple()
     }
 
   } while (res == REPEAT_ONCE_MORE);
@@ -439,8 +442,8 @@ static int lockinsert(LOCK * volatile *head, LOCK *node, LF_PINS *pins,
   _lf_unpin(pins, 2);
   /*
     note that blocker is not necessarily pinned here (when it's == curr).
-    this is ok as it's either a dummy node then for initialize_bucket
-    and dummy nodes don't need pinning,
+    this is ok as in such a case it's either a dummy node for
+    initialize_bucket() and dummy nodes don't need pinning,
     or it's a lock of the same transaction for lockman_getlock,
     and it cannot be removed by another thread
   */
@@ -484,9 +487,15 @@ static int lockdelete(LOCK * volatile *head, LOCK *node, LF_PINS *pins)
     res= lockfind(head, node, &cursor, pins);
     DBUG_ASSERT(res & ALREADY_HAVE);
 
-    if (cursor.upgrade_from)
-      cursor.upgrade_from->flags&= ~IGNORE_ME;
-
+    /*
+      XXX this does not work with savepoints, as old lock is left ignored.
+      It cannot be unignored, as would basically mean moving the lock back
+      in the lock chain (from upgraded). And the latter is not allowed -
+      because it breaks list scanning. So old ignored lock must be deleted,
+      new - same - lock must be installed right after the lock we're deleting,
+      then we can delete. Good news is - this is only required when rolling
+      back a savepoint.
+    */
     if (my_atomic_casptr((void **)&(cursor.curr->link),
                          (void **)&cursor.next, 1+(char *)cursor.next))
     {
@@ -497,11 +506,7 @@ static int lockdelete(LOCK * volatile *head, LOCK *node, LF_PINS *pins)
         lockfind(head, node, &cursor, pins);
     }
     else
-    {
       res= REPEAT_ONCE_MORE;
-      if (cursor.upgrade_from) /* to satisfy the assert in lockfind */
-        cursor.upgrade_from->flags|= IGNORE_ME;
-    }
   } while (res == REPEAT_ONCE_MORE);
   _lf_unpin(pins, 0);
   _lf_unpin(pins, 1);
