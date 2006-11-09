@@ -26,9 +26,9 @@ NULL	2	NULL
 explain extended
 select a, oref, a in (select max(ie) 
 from t1 where oref=t2.oref group by grp) from t2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	5	
-2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	6	Using where; Using temporary; Using filesort
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
 Warnings:
 Note	1276	Field or reference 't2.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`oref` AS `oref`,<in_optimizer>(`test`.`t2`.`a`,<exists>(select max(`test`.`t1`.`ie`) AS `max(ie)` from `test`.`t1` where (`test`.`t1`.`oref` = `test`.`t2`.`oref`) group by `test`.`t1`.`grp` having trigcond((<cache>(`test`.`t2`.`a`) = <ref_null_helper>(max(`test`.`t1`.`ie`)))))) AS `a in (select max(ie) 
@@ -36,9 +36,9 @@ from t1 where oref=t2.oref group by grp)` from `test`.`t2`
 explain extended
 select a, oref from t2 
 where a in (select max(ie) from t1 where oref=t2.oref group by grp);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
-2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	6	Using where; Using temporary; Using filesort
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
 Warnings:
 Note	1276	Field or reference 't2.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`oref` AS `oref` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(select max(`test`.`t1`.`ie`) AS `max(ie)` from `test`.`t1` where (`test`.`t1`.`oref` = `test`.`t2`.`oref`) group by `test`.`t1`.`grp` having (<cache>(`test`.`t2`.`a`) = <ref_null_helper>(max(`test`.`t1`.`ie`)))))
@@ -56,9 +56,9 @@ select ' ^ This must show 11' Z;
 Z
  ^ This must show 11
 explain extended select a in (select max(ie) from t1 where oref=4 group by grp) from t3;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	
-2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	6	Using where; Using temporary; Using filesort
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
 Warnings:
 Note	1003	select <in_optimizer>(`test`.`t3`.`a`,<exists>(select max(`test`.`t1`.`ie`) AS `max(ie)` from `test`.`t1` where (`test`.`t1`.`oref` = 4) group by `test`.`t1`.`grp` having trigcond((<cache>(`test`.`t3`.`a`) = <ref_null_helper>(max(`test`.`t1`.`ie`)))))) AS `a in (select max(ie) from t1 where oref=4 group by grp)` from `test`.`t3`
 drop table t1, t2, t3;
@@ -79,9 +79,9 @@ oref	a	Z
 4	NULL	0
 explain extended 
 select oref, a, a in (select a from t1 where oref=t2.oref) Z from t2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	4	
-2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	2	Using index; Using where
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	4	100.00	
+2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	2	100.00	Using index; Using where
 Warnings:
 Note	1276	Field or reference 't2.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a checking NULL where (`test`.`t1`.`oref` = `test`.`t2`.`oref`)))) AS `Z` from `test`.`t2`
@@ -143,10 +143,10 @@ explain extended
 select a, oref, 
 t3.a in (select t1.a from t1, t2 where t1.b=t2.a and t2.b=t3.oref) Z 
 from t3;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	
-2	DEPENDENT SUBQUERY	t1	ref_or_null	a	a	5	func	4	Using where
-2	DEPENDENT SUBQUERY	t2	ref	a	a	5	test.t1.b	1	Using where
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	
+2	DEPENDENT SUBQUERY	t1	ref_or_null	a	a	5	func	4	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	ref	a	a	5	test.t1.b	1	100.00	Using where
 Warnings:
 Note	1276	Field or reference 't3.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t3`.`a` AS `a`,`test`.`t3`.`oref` AS `oref`,<in_optimizer>(`test`.`t3`.`a`,<exists>(select 1 AS `Not_used` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t3`.`oref`) and trigcond(((<cache>(`test`.`t3`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)))) having trigcond(<is_not_null_test>(`test`.`t1`.`a`)))) AS `Z` from `test`.`t3`
