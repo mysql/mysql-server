@@ -3707,10 +3707,37 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
         Item** res= find_item_in_list(this, thd->lex->current_select->item_list,
                                       &counter, REPORT_EXCEPT_NOT_FOUND,
                                       &not_used);
-        if (res != (Item **)not_found_item && (*res)->type() == Item::FIELD_ITEM)
+        if (res != (Item **)not_found_item)
         {
-          set_field((*((Item_field**)res))->field);
-          return 0;
+          if ((*res)->type() == Item::FIELD_ITEM)
+          {
+            /*
+             It's an Item_field referencing another Item_field in the select
+             list.
+             use the field from the Item_field in the select list and leave
+             the Item_field instance in place.
+            */
+            set_field((*((Item_field**)res))->field);
+            return 0;
+          }
+          else
+          {
+            /*
+              It's not an Item_field in the select list so we must make a new
+              Item_ref to point to the Item in the select list and replace the
+              Item_field created by the parser with the new Item_ref.
+            */
+            Item_ref *rf= new Item_ref(context, db_name,table_name,field_name);
+            if (!rf)
+              return 1;
+            thd->change_item_tree(reference, rf);
+            /*
+              Because Item_ref never substitutes itself with other items 
+              in Item_ref::fix_fields(), we can safely use the original 
+              pointer to it even after fix_fields()
+             */
+            return rf->fix_fields(thd, reference) ||  rf->check_cols(1);
+          }
         }
       }
       if ((ret= fix_outer_field(thd, &from_field, reference)) < 0)

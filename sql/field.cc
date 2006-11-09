@@ -5639,7 +5639,7 @@ int Field_datetime::store_time(TIME *ltime,timestamp_type type)
                               (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
                                MODE_INVALID_DATES))), &error))
     {
-      char buff[12];
+      char buff[19];
       String str(buff, sizeof(buff), &my_charset_latin1);
       make_datetime((DATE_TIME_FORMAT *) 0, ltime, &str);
       set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
