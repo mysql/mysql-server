@@ -21,7 +21,7 @@ END|
 SELECT get_lock("test", 200);
 get_lock("test", 200)
 1
- CALL test.p1();
+CALL test.p1();
 CALL test.p2();
 SELECT release_lock("test");
 release_lock("test")

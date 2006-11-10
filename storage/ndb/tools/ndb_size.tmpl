@@ -15,6 +15,8 @@ td,th { border: 1px solid black }
 
 <p>This information should be valid for MySQL 4.1 and 5.0. Since 5.1 is not a final release yet, the numbers should be used as a guide only.</p>
 
+<p>5.1-dd is for tables stored on disk. The ndb_size.pl estimates are <b>experimental</b> and should not be trusted. Notably we don't take into account indexed columns being in DataMemory versus non-indexed on disk.</p>
+
 <h2>Parameter Settings</h2>
 <p><b>NOTE</b> the configuration parameters below do not take into account system tables and other requirements.</p>
 <table>
@@ -69,6 +71,7 @@ td,th { border: 1px solid black }
   <tr>
     <th>Column</th>
     <th>Type</th>
+    <th>VARSIZE</th>
     <th>Size</th>
     <th>Key</th>
     <TMPL_LOOP NAME=releases>
@@ -79,6 +82,7 @@ td,th { border: 1px solid black }
     <tr>
       <td><TMPL_VAR NAME=name></td>
       <td><TMPL_VAR NAME=type></td>
+      <td><TMPL_IF NAME=is_varsize>YES<TMPL_ELSE>&nbsp;</TMPL_IF></td>
       <td><TMPL_VAR NAME=size></td>
       <td><TMPL_VAR NAME=key></td>
       <TMPL_LOOP NAME=datamemory>
@@ -129,9 +133,21 @@ td,th { border: 1px solid black }
  </TMPL_LOOP>
 </tr>
 <tr>
+ <th>Nr Varsized Attributes</th>
+ <TMPL_LOOP NAME=nrvarsize>
+  <td><TMPL_VAR NAME=val></td>
+ </TMPL_LOOP>
+</tr>
+<tr>
  <th>Row Overhead</th>
- <TMPL_LOOP NAME=releases>
-  <td>16</td>
+ <TMPL_LOOP NAME=RowOverhead>
+  <td><TMPL_VAR NAME=val></td>
+ </TMPL_LOOP>
+</tr>
+<tr>
+ <th>Varsized Overhead</th>
+ <TMPL_LOOP NAME=nrvarsize_mem>
+  <td><TMPL_VAR NAME=val></td>
  </TMPL_LOOP>
 </tr>
 <tr>

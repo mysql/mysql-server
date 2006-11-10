@@ -45,7 +45,7 @@ static const char *mysqld_error_message(unsigned sql_errno)
            " corresponds to your MySQL Instance Manager version for the right"
            " syntax to use";
   case ER_BAD_INSTANCE_NAME:
-    return "Bad instance name. Check that the instance with such a name exists";
+    return "Unknown instance name";
   case ER_INSTANCE_IS_NOT_STARTED:
     return "Cannot stop instance. Perhaps the instance is not started, or was"
            " started manually, so IM cannot find the pidfile.";

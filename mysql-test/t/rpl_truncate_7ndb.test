@@ -39,6 +39,7 @@ SELECT * FROM t1 ORDER BY a,b;
 --echo **** On Master ****
 connection master;
 DROP TABLE t1;
+let SERVER_VERSION=`select version()`;
 --replace_regex /\/\* xid=[0-9]+ \*\//\/* xid= *\// /table_id: [0-9]+/table_id: #/
 --replace_result $SERVER_VERSION SERVER_VERSION
 SHOW BINLOG EVENTS;

@@ -105,7 +105,7 @@ Item_func::Item_func(THD *thd, Item_func *item)
 
 
 /*
-  Resolve references to table column for a function and it's argument
+  Resolve references to table column for a function and its argument
 
   SYNOPSIS:
   fix_fields()
@@ -1394,6 +1394,13 @@ void Item_func_mod::result_precision()
 {
   decimals= max(args[0]->decimals, args[1]->decimals);
   max_length= max(args[0]->max_length, args[1]->max_length);
+}
+
+
+void Item_func_mod::fix_length_and_dec()
+{
+  Item_num_op::fix_length_and_dec();
+  maybe_null= 1;
 }
 
 

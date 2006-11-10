@@ -36,17 +36,17 @@ static File_option triggers_file_parameters[]=
 {
   {
     { C_STRING_WITH_LEN("triggers") },
-    offsetof(class Table_triggers_list, definitions_list),
+    my_offsetof(class Table_triggers_list, definitions_list),
     FILE_OPTIONS_STRLIST
   },
   {
     { C_STRING_WITH_LEN("sql_modes") },
-    offsetof(class Table_triggers_list, definition_modes_list),
+    my_offsetof(class Table_triggers_list, definition_modes_list),
     FILE_OPTIONS_ULLLIST
   },
   {
     { C_STRING_WITH_LEN("definers") },
-    offsetof(class Table_triggers_list, definers_list),
+    my_offsetof(class Table_triggers_list, definers_list),
     FILE_OPTIONS_STRLIST
   },
   { { 0, 0 }, 0, FILE_OPTIONS_STRING }
@@ -55,7 +55,7 @@ static File_option triggers_file_parameters[]=
 File_option sql_modes_parameters=
 {
   { C_STRING_WITH_LEN("sql_modes") },
-  offsetof(class Table_triggers_list, definition_modes_list),
+  my_offsetof(class Table_triggers_list, definition_modes_list),
   FILE_OPTIONS_ULLLIST
 };
 
@@ -276,8 +276,6 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
            table->triggers->drop_trigger(thd, tables, &stmt_query));
 
 end:
-  VOID(pthread_mutex_unlock(&LOCK_open));
-  start_waiting_global_read_lock(thd);
 
   if (!result)
   {
@@ -286,13 +284,16 @@ end:
       thd->clear_error();
 
       /* Such a statement can always go directly to binlog, no trans cache. */
-      Query_log_event qinfo(thd, stmt_query.ptr(), stmt_query.length(), 0,
-                            FALSE);
-      mysql_bin_log.write(&qinfo);
+      thd->binlog_query(THD::STMT_QUERY_TYPE,
+                        stmt_query.ptr(), stmt_query.length(), FALSE, FALSE);
     }
-
-    send_ok(thd);
   }
+
+  VOID(pthread_mutex_unlock(&LOCK_open));
+  start_waiting_global_read_lock(thd);
+
+  if (!result)
+    send_ok(thd);
 
   DBUG_RETURN(result);
 }

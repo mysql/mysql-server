@@ -27,6 +27,7 @@
 #endif
 
 class Instance_map;
+class Thread_registry;
 
 
 /*
@@ -87,7 +88,7 @@ public:
   static bool is_mysqld_compatible_name(const LEX_STRING *name);
 
 public:
-  Instance();
+  Instance(Thread_registry &thread_registry_arg);
 
   ~Instance();
   int init(const LEX_STRING *name_arg);
@@ -120,6 +121,7 @@ public:
 public:
   enum { DEFAULT_SHUTDOWN_DELAY= 35 };
   Instance_options options;
+  Thread_registry &thread_registry;
 
 private:
   /* This attributes is a flag, specifies if the instance has been crashed. */

@@ -2101,6 +2101,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 	key_parts->null_bit=	 key_part_info->null_bit;
         key_parts->image_type =
           (key_info->flags & HA_SPATIAL) ? Field::itMBR : Field::itRAW;
+        key_parts->flag=         key_part_info->key_part_flag;
       }
       param.real_keynr[param.keys++]=idx;
     }
@@ -3236,6 +3237,11 @@ static bool create_partition_index_description(PART_PRUNE_PARAM *ppar)
 
     key_part->field=        (*field);
     key_part->image_type =  Field::itRAW;
+    /* 
+      We set keypart flag to 0 here as the only HA_PART_KEY_SEG is checked
+      in the RangeAnalysisModule.
+    */
+    key_part->flag=         0;
     /* We don't set key_parts->null_bit as it will not be used */
 
     ppar->is_part_keypart[part]= !in_subpart_fields;
@@ -5655,7 +5661,9 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
     }
     break;
   case Item_func::GT_FUNC:
-    if (field_is_equal_to_item(field,value))
+    /* Don't use open ranges for partial key_segments */
+    if (field_is_equal_to_item(field,value) &&
+        !(key_part->flag & HA_PART_KEY_SEG))
       tree->min_flag=NEAR_MIN;
     /* fall through */
   case Item_func::GE_FUNC:
@@ -7644,6 +7652,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
     key_part->length=  	    key_info->key_part[part].length;
     key_part->store_length= key_info->key_part[part].store_length;
     key_part->null_bit=     key_info->key_part[part].null_bit;
+    key_part->flag=         key_info->key_part[part].key_part_flag;
   }
   if (insert_dynamic(&quick->ranges,(gptr)&range))
     goto err;

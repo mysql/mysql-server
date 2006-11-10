@@ -65,7 +65,7 @@ __MYSQL_DECLARE_PLUGIN(NAME, \
                  builtin_ ## NAME ## _sizeof_struct_st_plugin, \
                  builtin_ ## NAME ## _plugin)
 
-#define mysql_declare_plugin_end ,{0,0,0,0,0,0,0,0,0,0,0}}
+#define mysql_declare_plugin_end ,{0,0,0,0,0,0,0,0,0,0,0,0}}
 
 /*
   declarations for SHOW STATUS support in plugins

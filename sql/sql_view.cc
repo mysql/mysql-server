@@ -212,6 +212,7 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
   SYNOPSIS
     mysql_create_view()
     thd		- thread handler
+    views	- views to create
     mode	- VIEW_CREATE_NEW, VIEW_ALTER, VIEW_CREATE_OR_REPLACE
 
   RETURN VALUE
@@ -219,7 +220,7 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
      TRUE  Error
 */
 
-bool mysql_create_view(THD *thd,
+bool mysql_create_view(THD *thd, TABLE_LIST *views, 
                        enum_view_create_mode mode)
 {
   LEX *lex= thd->lex;
@@ -236,25 +237,9 @@ bool mysql_create_view(THD *thd,
   bool res= FALSE;
   DBUG_ENTER("mysql_create_view");
 
-  if (lex->proc_list.first ||
-      lex->result)
-  {
-    my_error(ER_VIEW_SELECT_CLAUSE, MYF(0), (lex->result ?
-                                             "INTO" :
-                                             "PROCEDURE"));
-    res= TRUE;
-    goto err;
-  }
-  if (lex->derived_tables ||
-      lex->variables_used || lex->param_list.elements)
-  {
-    int err= (lex->derived_tables ?
-              ER_VIEW_SELECT_DERIVED :
-              ER_VIEW_SELECT_VARIABLE);
-    my_message(err, ER(err), MYF(0));
-    res= TRUE;
-    goto err;
-  }
+  /* This is ensured in the parser. */
+  DBUG_ASSERT(!lex->proc_list.first && !lex->result &&
+              !lex->param_list.elements && !lex->derived_tables);
 
   if (mode != VIEW_CREATE_NEW)
   {
@@ -548,6 +533,49 @@ bool mysql_create_view(THD *thd,
   }
   VOID(pthread_mutex_lock(&LOCK_open));
   res= mysql_register_view(thd, view, mode);
+
+  if (mysql_bin_log.is_open())
+  {
+    String buff;
+    const LEX_STRING command[3]=
+      {{ C_STRING_WITH_LEN("CREATE ") },
+       { C_STRING_WITH_LEN("ALTER ") },
+       { C_STRING_WITH_LEN("CREATE OR REPLACE ") }};
+
+    buff.append(command[thd->lex->create_view_mode].str,
+                command[thd->lex->create_view_mode].length);
+    view_store_options(thd, views, &buff);
+    buff.append(STRING_WITH_LEN("VIEW "));
+    /* Test if user supplied a db (ie: we did not use thd->db) */
+    if (views->db && views->db[0] &&
+        (thd->db == NULL || strcmp(views->db, thd->db)))
+    {
+      append_identifier(thd, &buff, views->db,
+                        views->db_length);
+      buff.append('.');
+    }
+    append_identifier(thd, &buff, views->table_name,
+                      views->table_name_length);
+    if (lex->view_list.elements)
+    {
+      List_iterator_fast<LEX_STRING> names(lex->view_list);
+      LEX_STRING *name;
+      int i;
+      
+      for (i= 0; (name= names++); i++)
+      {
+        buff.append(i ? ", " : "(");
+        append_identifier(thd, &buff, name->str, name->length);
+      }
+      buff.append(')');
+    }
+    buff.append(STRING_WITH_LEN(" AS "));
+    buff.append(views->source.str, views->source.length);
+
+    thd->binlog_query(THD::STMT_QUERY_TYPE,
+                      buff.ptr(), buff.length(), FALSE, FALSE);
+  }
+
   VOID(pthread_mutex_unlock(&LOCK_open));
   if (view->revision != 1)
     query_cache_invalidate3(thd, view, 0);
@@ -582,40 +610,40 @@ static const int num_view_backups= 3;
 */
 static File_option view_parameters[]=
 {{{ C_STRING_WITH_LEN("query")},
-  offsetof(TABLE_LIST, query),
+  my_offsetof(TABLE_LIST, query),
   FILE_OPTIONS_ESTRING},
  {{ C_STRING_WITH_LEN("md5")},
-  offsetof(TABLE_LIST, md5),
+  my_offsetof(TABLE_LIST, md5),
   FILE_OPTIONS_STRING},
  {{ C_STRING_WITH_LEN("updatable")},
-  offsetof(TABLE_LIST, updatable_view),
+  my_offsetof(TABLE_LIST, updatable_view),
   FILE_OPTIONS_ULONGLONG},
  {{ C_STRING_WITH_LEN("algorithm")},
-  offsetof(TABLE_LIST, algorithm),
+  my_offsetof(TABLE_LIST, algorithm),
   FILE_OPTIONS_ULONGLONG},
  {{ C_STRING_WITH_LEN("definer_user")},
-  offsetof(TABLE_LIST, definer.user),
+  my_offsetof(TABLE_LIST, definer.user),
   FILE_OPTIONS_STRING},
  {{ C_STRING_WITH_LEN("definer_host")},
-  offsetof(TABLE_LIST, definer.host),
+  my_offsetof(TABLE_LIST, definer.host),
   FILE_OPTIONS_STRING},
  {{ C_STRING_WITH_LEN("suid")},
-  offsetof(TABLE_LIST, view_suid),
+  my_offsetof(TABLE_LIST, view_suid),
   FILE_OPTIONS_ULONGLONG},
  {{ C_STRING_WITH_LEN("with_check_option")},
-  offsetof(TABLE_LIST, with_check),
+  my_offsetof(TABLE_LIST, with_check),
   FILE_OPTIONS_ULONGLONG},
  {{ C_STRING_WITH_LEN("revision")},
-  offsetof(TABLE_LIST, revision),
+  my_offsetof(TABLE_LIST, revision),
   FILE_OPTIONS_REV},
  {{ C_STRING_WITH_LEN("timestamp")},
-  offsetof(TABLE_LIST, timestamp),
+  my_offsetof(TABLE_LIST, timestamp),
   FILE_OPTIONS_TIMESTAMP},
  {{ C_STRING_WITH_LEN("create-version")},
-  offsetof(TABLE_LIST, file_version),
+  my_offsetof(TABLE_LIST, file_version),
   FILE_OPTIONS_ULONGLONG},
  {{ C_STRING_WITH_LEN("source")},
-  offsetof(TABLE_LIST, source),
+  my_offsetof(TABLE_LIST, source),
   FILE_OPTIONS_ESTRING},
  {{NullS, 0},			0,
   FILE_OPTIONS_STRING}
@@ -1073,6 +1101,8 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     bool view_is_mergeable= (table->algorithm != VIEW_ALGORITHM_TMPTABLE &&
                              lex->can_be_merged());
     TABLE_LIST *view_main_select_tables;
+    LINT_INIT(view_main_select_tables);
+
     if (view_is_mergeable)
     {
       /*
@@ -1318,13 +1348,13 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
   enum legacy_db_type not_used;
   DBUG_ENTER("mysql_drop_view");
 
+  VOID(pthread_mutex_lock(&LOCK_open));
   for (view= views; view; view= view->next_local)
   {
     TABLE_SHARE *share;
     frm_type_enum type= FRMTYPE_ERROR;
     build_table_filename(path, sizeof(path),
                          view->db, view->table_name, reg_ext, 0);
-    VOID(pthread_mutex_lock(&LOCK_open));
 
     if (access(path, F_OK) || 
         FRMTYPE_VIEW != (type= mysql_frm_type(thd, path, &not_used)))
@@ -1336,7 +1366,6 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
 	push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			    ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
 			    name);
-	VOID(pthread_mutex_unlock(&LOCK_open));
 	continue;
       }
       if (type == FRMTYPE_TABLE)
@@ -1353,7 +1382,6 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
           non_existant_views.append(',');
         non_existant_views.append(String(view->table_name,system_charset_info));
       }
-      VOID(pthread_mutex_unlock(&LOCK_open));
       continue;
     }
     if (my_delete(path, MYF(MY_WME)))
@@ -1374,24 +1402,36 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     }
     query_cache_invalidate3(thd, view, 0);
     sp_cache_invalidate();
-    VOID(pthread_mutex_unlock(&LOCK_open));
   }
+
   if (error)
   {
+    VOID(pthread_mutex_unlock(&LOCK_open));
     DBUG_RETURN(TRUE);
   }
   if (wrong_object_name)
   {
+    VOID(pthread_mutex_unlock(&LOCK_open));
     my_error(ER_WRONG_OBJECT, MYF(0), wrong_object_db, wrong_object_name, 
              "VIEW");
     DBUG_RETURN(TRUE);
   }
   if (non_existant_views.length())
   {
+    VOID(pthread_mutex_unlock(&LOCK_open));
     my_error(ER_BAD_TABLE_ERROR, MYF(0), non_existant_views.c_ptr());
     DBUG_RETURN(TRUE);
   }
+
+  if (mysql_bin_log.is_open())
+  {
+    thd->clear_error();
+    thd->binlog_query(THD::STMT_QUERY_TYPE,
+                      thd->query, thd->query_length, FALSE, FALSE);
+  }
+
   send_ok(thd);
+  VOID(pthread_mutex_unlock(&LOCK_open));
   DBUG_RETURN(FALSE);
 }
 

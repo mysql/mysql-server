@@ -140,6 +140,8 @@ MY_LOCALE *my_locale_by_name(const char *name);
 #define MAX_ACCEPT_RETRY	10	// Test accept this many times
 #define MAX_FIELDS_BEFORE_HASH	32
 #define USER_VARS_HASH_SIZE     16
+#define TABLE_OPEN_CACHE_MIN    64
+#define TABLE_OPEN_CACHE_DEFAULT 64
 
 /* 
  Value of 9236 discovered through binary search 2006-09-26 on Ubuntu Dapper
@@ -221,12 +223,6 @@ MY_LOCALE *my_locale_by_name(const char *name);
 /* Characters shown for the command in 'information_schema.processlist' */
 #define PROCESS_LIST_INFO_WIDTH 65535
 
-/* Time handling defaults */
-#define TIMESTAMP_MAX_YEAR 2038
-#define YY_PART_YEAR	   70
-#define TIMESTAMP_MIN_YEAR (1900 + YY_PART_YEAR - 1)
-#define TIMESTAMP_MAX_VALUE 2145916799
-#define TIMESTAMP_MIN_VALUE 1
 #define PRECISION_FOR_DOUBLE 53
 #define PRECISION_FOR_FLOAT  24
 
@@ -1451,10 +1447,6 @@ typedef void (*sql_print_message_func)(const char *format, ...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
 extern sql_print_message_func sql_print_message_handlers[];
 
-/* type of the log table */
-#define QUERY_LOG_SLOW 1
-#define QUERY_LOG_GENERAL 2
-
 int error_log_print(enum loglevel level, const char *format,
                     va_list args);
 
@@ -1485,6 +1477,8 @@ uint find_type2(TYPELIB *lib, const char *find, uint length, CHARSET_INFO *cs);
 void unhex_type2(TYPELIB *lib);
 uint check_word(TYPELIB *lib, const char *val, const char *end,
 		const char **end_of_word);
+int find_string_in_array(LEX_STRING * const haystack, LEX_STRING * const needle,
+                         CHARSET_INFO * const cs);
 
 
 bool is_keyword(const char *name, uint len);
@@ -2051,6 +2045,10 @@ inline void kill_delayed_threads(void) {}
 #define IS_FILES_EXTRA               37
 void init_fill_schema_files_row(TABLE* table);
 bool schema_table_store_record(THD *thd, TABLE *table);
+
+/* sql/item_create.cc */
+int item_create_init();
+void item_create_cleanup();
 
 #endif /* MYSQL_SERVER */
 #endif /* MYSQL_CLIENT */

@@ -25,7 +25,7 @@ Success: the process has been stopped.
 -- 1.1.4.
 --------------------------------------------------------------------
 START INSTANCE mysqld3;
-ERROR HY000: Bad instance name. Check that the instance with such a name exists
+ERROR HY000: Unknown instance name
 START INSTANCE mysqld1;
 ERROR HY000: The instance is already started
 
@@ -33,7 +33,7 @@ ERROR HY000: The instance is already started
 -- 1.1.5.
 --------------------------------------------------------------------
 STOP INSTANCE mysqld3;
-ERROR HY000: Bad instance name. Check that the instance with such a name exists
+ERROR HY000: Unknown instance name
 
 --------------------------------------------------------------------
 -- 1.1.6.

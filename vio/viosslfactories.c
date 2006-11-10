@@ -86,8 +86,7 @@ vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file, const char *key_file)
     if (SSL_CTX_use_certificate_file(ctx, cert_file, SSL_FILETYPE_PEM) <= 0)
     {
       DBUG_PRINT("error",("unable to get certificate from '%s'\n", cert_file));
-      /* FIX stderr */
-      fprintf(stderr,"Error when connection to server using SSL:");
+      fprintf(stderr,"SSL error: ");
       ERR_print_errors_fp(stderr);
       fprintf(stderr,"Unable to get certificate from '%s'\n", cert_file);
       fflush(stderr);
@@ -100,8 +99,7 @@ vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file, const char *key_file)
     if (SSL_CTX_use_PrivateKey_file(ctx, key_file, SSL_FILETYPE_PEM) <= 0)
     {
       DBUG_PRINT("error", ("unable to get private key from '%s'\n", key_file));
-      /* FIX stderr */
-      fprintf(stderr,"Error when connection to server using SSL:");
+      fprintf(stderr,"SSL error: ");
       ERR_print_errors_fp(stderr);
       fprintf(stderr,"Unable to get private key from '%s'\n", key_file);
       fflush(stderr);
@@ -180,11 +178,15 @@ void netware_ssl_cleanup()
   /* free memory from SSL_library_init() */
   EVP_cleanup();
 
+/* OpenSSL NetWare port specific functions */
+#ifndef HAVE_YASSL
+
   /* free global X509 method */
   X509_STORE_method_cleanup();
 
   /* free the thread_hash error table */
   ERR_free_state_table();
+#endif
 }
 
 
@@ -248,6 +250,7 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
   {
     DBUG_PRINT("error", ("failed to set ciphers to use"));
     report_errors();
+    SSL_CTX_free(ssl_fd->ssl_context);
     my_free((void*)ssl_fd,MYF(0));
     DBUG_RETURN(0);
   }
@@ -260,6 +263,7 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
     {
       DBUG_PRINT("error", ("SSL_CTX_set_default_verify_paths failed"));
       report_errors();
+      SSL_CTX_free(ssl_fd->ssl_context);
       my_free((void*)ssl_fd,MYF(0));
       DBUG_RETURN(0);
     }
@@ -269,6 +273,7 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
   {
     DBUG_PRINT("error", ("vio_set_cert_stuff failed"));
     report_errors();
+    SSL_CTX_free(ssl_fd->ssl_context);
     my_free((void*)ssl_fd,MYF(0));
     DBUG_RETURN(0);
   }
