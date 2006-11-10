@@ -1315,7 +1315,8 @@ sub executable_setup_im () {
   $exe_im=
     mtr_exe_maybe_exists(
       "$glob_basedir/server-tools/instance-manager/mysqlmanager",
-      "$glob_basedir/libexec/mysqlmanager");
+      "$glob_basedir/libexec/mysqlmanager",
+      "$glob_basedir/bin/mysqlmanager");
 
   return ($exe_im eq "");
 }
@@ -3054,7 +3055,7 @@ sub run_testcase ($) {
   # -------------------------------------------------------
 
   $ENV{'TZ'}= $tinfo->{'timezone'};
-  mtr_verbose("Starting server with timezone: $tinfo->{'timezone'}");
+  mtr_verbose("Setting timezone: $tinfo->{'timezone'}");
 
   my $master_restart= run_testcase_need_master_restart($tinfo);
   my $slave_restart= run_testcase_need_slave_restart($tinfo);
