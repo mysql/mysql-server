@@ -79,7 +79,8 @@ if test -f ma_test1$MACH ; then suffix=$MACH ; else suffix=""; fi
 
 # check of maria_pack / maria_chk
 ./maria_pack$suffix --force -s test1
-./maria_chk$suffix -es test1
+# Ignore error for index file
+./maria_chk$suffix -es test1 2>&1 >& /dev/null
 ./maria_chk$suffix -rqs test1
 ./maria_chk$suffix -es test1
 ./maria_chk$suffix -rs test1
