@@ -185,7 +185,6 @@ our $opt_fast;
 our $opt_force;
 our $opt_reorder= 0;
 our $opt_enable_disabled;
-our $opt_report_features;
 our $opt_mem= $ENV{'MTR_MEM'};
 
 our $opt_gcov;
