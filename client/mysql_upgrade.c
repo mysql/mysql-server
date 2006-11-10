@@ -386,18 +386,18 @@ find_file(const char *name, const char *root, uint flags, char *result, size_t l
 
   cp= strmake(result, root, len);
   if (cp[-1] != FN_LIBCHAR) 
-    *cp= FN_LIBCHAR; 
+    *cp++= FN_LIBCHAR; 
   
   ret= 1;
   va_start(va, len);
   subdir= (!(flags & MY_SEARCH_SELF)) ? va_arg(va, char *) : "";
-  while (ret && subdir)
+  while (subdir)
   {
     MY_DIR *dir;
     FILEINFO *match;
     char *cp1;
     
-    cp1= strnmov(cp + 1, subdir, len - (cp - result) - 1);
+    cp1= strnmov(cp, subdir, len - (cp - result) - 1);
     
     dir= my_dir(result, (flags & MY_ISDIR) ? MY_WANT_STAT : MYF(0));  
     if (dir) 
@@ -406,25 +406,20 @@ find_file(const char *name, const char *root, uint flags, char *result, size_t l
                       sizeof(FILEINFO), (qsort_cmp)comp_names);
       if (match)
       {
-        if (!(flags & MY_PARENT)) 
-        {
-          if (cp1[-1] != FN_LIBCHAR)  
+        ret= (flags & MY_ISDIR) ? !MY_S_ISDIR(match->mystat->st_mode) : 0;
+        if (!ret)
+        { 
+          if (cp1[-1] != FN_LIBCHAR)
             *cp1++= FN_LIBCHAR;
-          strnmov(cp1, name, len - (cp1 - result));
+          
+          if (!(flags & MY_PARENT)) 
+            strnmov(cp1, name, len - (cp1 - result));
+          else
+            *cp1= '\0';
+          
+          my_dirend(dir);
+          break;
         }
-        else
-        {
-          if (cp1[-1] == FN_LIBCHAR)
-            --cp1;
-          while (*--cp1 == FN_LIBCHAR)
-          {}
-          *++cp1= FN_LIBCHAR;
-          *++cp1= '\0';
-        }
-        if (flags & MY_ISDIR)
-          ret= !MY_S_ISDIR(match->mystat->st_mode);
-        else
-          ret= 0;
       }
       my_dirend(dir);
     }
@@ -484,7 +479,7 @@ int main(int argc, char **argv)
        || find_file(mysqld_name, basedir, MYF(0), path, sizeof(path),
                               "bin", "libexec", NullS))
     {
-      my_strdup((gptr)basedir, MYF(0));
+      my_free((gptr)basedir, MYF(0));
       basedir= (char *)DEFAULT_MYSQL_HOME;
     }
   }
