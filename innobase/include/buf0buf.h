@@ -455,8 +455,8 @@ Gets the mutex number protecting the page record lock hash chain in the lock
 table. */
 UNIV_INLINE
 mutex_t*
-buf_frame_get_lock_mutex(
-/*=====================*/
+buf_frame_get_mutex(
+/*================*/
 			/* out: mutex */
 	byte*	ptr);	/* in: pointer to within a buffer frame */
 /***********************************************************************
@@ -699,7 +699,10 @@ struct buf_block_struct{
 
 	ulint		magic_n;	/* magic number to check */
 	ulint		state;		/* state of the control block:
-					BUF_BLOCK_NOT_USED, ... */
+					BUF_BLOCK_NOT_USED, ...; changing
+					this is only allowed when a thread
+					has BOTH the buffer pool mutex AND
+					block->mutex locked */
 	byte*		frame;		/* pointer to buffer frame which
 					is of size UNIV_PAGE_SIZE, and
 					aligned to an address divisible by
@@ -717,8 +720,12 @@ struct buf_block_struct{
 	ulint		offset;		/* page number within the space */
 	ulint		lock_hash_val;	/* hashed value of the page address
 					in the record lock hash table */
-	mutex_t*	lock_mutex;	/* mutex protecting the chain in the
-					record lock hash table */
+	mutex_t		mutex;		/* mutex protecting this block:
+					state (also protected by the buffer
+					pool mutex), io_fix, buf_fix_count,
+					and accessed; we introduce this new
+					mutex in InnoDB-5.1 to relieve
+					contention on the buffer pool mutex */
 	rw_lock_t	lock;		/* read-write lock of the buffer
 					frame */
 	buf_block_t*	hash;		/* node used in chaining to the page
@@ -774,20 +781,27 @@ struct buf_block_struct{
 					in heuristic algorithms, because of
 					the possibility of a wrap-around! */
 	ulint		freed_page_clock;/* the value of freed_page_clock
-					buffer pool when this block was
-					last time put to the head of the
-					LRU list */
+					of the buffer pool when this block was
+					the last time put to the head of the
+					LRU list; a thread is allowed to
+					read this for heuristic purposes
+					without holding any mutex or latch */
 	ibool		old;		/* TRUE if the block is in the old
 					blocks in the LRU list */
 	ibool		accessed;	/* TRUE if the page has been accessed
 					while in the buffer pool: read-ahead
 					may read in pages which have not been
-					accessed yet */
+					accessed yet; this is protected by
+					block->mutex; a thread is allowed to
+					read this for heuristic purposes
+					without holding any mutex or latch */
 	ulint		buf_fix_count;	/* count of how manyfold this block
-					is currently bufferfixed */
+					is currently bufferfixed; this is
+					protected by block->mutex */
 	ulint		io_fix;		/* if a read is pending to the frame,
 					io_fix is BUF_IO_READ, in the case
-					of a write BUF_IO_WRITE, otherwise 0 */
+					of a write BUF_IO_WRITE, otherwise 0;
+					this is protected by block->mutex */
 	/* 4. Optimistic search field */
 
 	dulint		modify_clock;	/* this clock is incremented every
@@ -940,7 +954,9 @@ struct buf_pool_struct{
 					number of buffer blocks removed from
 					the end of the LRU list; NOTE that
 					this counter may wrap around at 4
-					billion! */
+					billion! A thread is allowed to
+					read this for heuristic purposes
+					without holding any mutex or latch */
 	ulint		LRU_flush_ended;/* when an LRU flush ends for a page,
 					this is incremented by one; this is
 					set to zero when a buffer block is
