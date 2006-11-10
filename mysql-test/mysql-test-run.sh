@@ -158,18 +158,29 @@ fi
 # Misc. Definitions
 #--
 
-if [ -d ../sql ] ; then
+# BASEDIR is always above mysql-test directory ...
+MYSQL_TEST_DIR=`pwd`
+cd ..
+
+if [ -d ./sql ] ; then
    SOURCE_DIST=1
 else
    BINARY_DIST=1
 fi
 
-#BASEDIR is always one above mysql-test directory
-CWD=`pwd`
-cd ..
-BASEDIR=`pwd`
-cd $CWD
-MYSQL_TEST_DIR=$BASEDIR/mysql-test
+# ... one level for tar.gz, two levels for a RPM installation
+if [ -d ./bin ] ; then
+   # this is not perfect: we have 
+   #   /usr/share/mysql/   # mysql-test-run  is here, so this is "$MYSQL_TEST_DIR"
+   #   /usr/bin/           # with MySQL client programs
+   # so the existence of "/usr/share/bin/" would make this test fail.
+   BASEDIR=`pwd`
+else
+   cd ..
+   BASEDIR=`pwd`
+fi
+
+cd $MYSQL_TEST_DIR
 MYSQL_TEST_WINDIR=$MYSQL_TEST_DIR
 MYSQLTEST_VARDIR=$MYSQL_TEST_DIR/var
 export MYSQL_TEST_DIR MYSQL_TEST_WINDIR MYSQLTEST_VARDIR
@@ -648,8 +659,15 @@ else
  if test -x "$BASEDIR/libexec/mysqld"
  then
    MYSQLD="$VALGRIND $BASEDIR/libexec/mysqld"
- else
+ elif test -x "$BASEDIR/bin/mysqld"
+ then
    MYSQLD="$VALGRIND $BASEDIR/bin/mysqld"
+ elif test -x "$BASEDIR/sbin/mysqld"
+ then
+   MYSQLD="$VALGRIND $BASEDIR/sbin/mysqld"
+ else
+   $ECHO "Fatal error: Cannot find program mysqld in $BASEDIR/{libexec,bin,sbin}" 1>&2
+   exit 1
  fi
  CLIENT_BINDIR="$BASEDIR/bin"
  if test -d "$BASEDIR/tests"
@@ -1261,7 +1279,7 @@ start_master()
     then
       $ECHO "set args $master_args" > $GDB_MASTER_INIT$1
       $ECHO "To start gdb for the master , type in another window:"
-      $ECHO "cd $CWD ; gdb -x $GDB_MASTER_INIT$1 $MASTER_MYSQLD"
+      $ECHO "cd $MYSQL_TEST_DIR ; gdb -x $GDB_MASTER_INIT$1 $MASTER_MYSQLD"
       wait_for_master=1500
     else
       ( $ECHO set args $master_args;
@@ -1377,7 +1395,7 @@ start_slave()
     then
       $ECHO "set args $slave_args" > $GDB_SLAVE_INIT
       echo "To start gdb for the slave, type in another window:"
-      echo "cd $CWD ; gdb -x $GDB_SLAVE_INIT $SLAVE_MYSQLD"
+      echo "cd $MYSQL_TEST_DIR ; gdb -x $GDB_SLAVE_INIT $SLAVE_MYSQLD"
       wait_for_slave=1500
     else
       ( $ECHO set args $slave_args;
