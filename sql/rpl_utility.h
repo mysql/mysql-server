@@ -116,7 +116,7 @@ public:
       1  if the table definition is not compatible with 'table'
       0  if the table definition is compatible with 'table'
   */
-  int compatible_with(RELAY_LOG_INFO *rli, TABLE *table) const;
+  int compatible_with(RELAY_LOG_INFO const *rli, TABLE *table) const;
 
 private:
   my_size_t m_size;           // Number of elements in the types array

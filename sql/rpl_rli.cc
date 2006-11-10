@@ -1056,29 +1056,18 @@ void st_relay_log_info::cached_charset_invalidate()
 }
 
 
-bool st_relay_log_info::cached_charset_compare(char *charset)
+bool st_relay_log_info::cached_charset_compare(char *charset) const
 {
   DBUG_ENTER("st_relay_log_info::cached_charset_compare");
 
   if (bcmp(cached_charset, charset, sizeof(cached_charset)))
   {
-    memcpy(cached_charset, charset, sizeof(cached_charset));
+    memcpy(const_cast<char*>(cached_charset), charset, sizeof(cached_charset));
     DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
 }
 
-
-void st_relay_log_info::transaction_end(THD* thd)
-{
-  DBUG_ENTER("st_relay_log_info::transaction_end");
-
-  /*
-    Nothing to do here right now.
-   */
-
-  DBUG_VOID_RETURN;
-}
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 void st_relay_log_info::cleanup_context(THD *thd, bool error)

@@ -555,7 +555,7 @@ static bool sql_slave_killed(THD* thd, RELAY_LOG_INFO* rli)
     void
 */
 
-void slave_print_msg(enum loglevel level, RELAY_LOG_INFO* rli,
+void slave_print_msg(enum loglevel level, RELAY_LOG_INFO const *rli,
                      int err_code, const char* msg, ...)
 {
   void (*report_function)(const char *, ...);
@@ -577,9 +577,9 @@ void slave_print_msg(enum loglevel level, RELAY_LOG_INFO* rli,
       It's an error, it must be reported in Last_error and Last_errno in SHOW
       SLAVE STATUS.
     */
-    pbuff= rli->last_slave_error;
+    pbuff= const_cast<RELAY_LOG_INFO*>(rli)->last_slave_error;
     pbuffsize= sizeof(rli->last_slave_error);
-    rli->last_slave_errno = err_code;
+    const_cast<RELAY_LOG_INFO*>(rli)->last_slave_errno = err_code;
     report_function= sql_print_error;
     break;
   case WARNING_LEVEL:
@@ -1376,7 +1376,7 @@ void set_slave_thread_options(THD* thd)
   DBUG_VOID_RETURN;
 }
 
-void set_slave_thread_default_charset(THD* thd, RELAY_LOG_INFO *rli)
+void set_slave_thread_default_charset(THD* thd, RELAY_LOG_INFO const *rli)
 {
   DBUG_ENTER("set_slave_thread_default_charset");
 
@@ -1387,7 +1387,14 @@ void set_slave_thread_default_charset(THD* thd, RELAY_LOG_INFO *rli)
   thd->variables.collation_server=
     global_system_variables.collation_server;
   thd->update_charset();
-  rli->cached_charset_invalidate();
+
+  /*
+    We use a const cast here since the conceptual (and externally
+    visible) behavior of the function is to set the default charset of
+    the thread.  That the cache has to be invalidated is a secondary
+    effect.
+   */
+  const_cast<RELAY_LOG_INFO*>(rli)->cached_charset_invalidate();
   DBUG_VOID_RETURN;
 }
 
@@ -1607,7 +1614,8 @@ static ulong read_event(MYSQL* mysql, MASTER_INFO *mi, bool* suppress_warnings)
 }
 
 
-int check_expected_error(THD* thd, RELAY_LOG_INFO* rli, int expected_error)
+int check_expected_error(THD* thd, RELAY_LOG_INFO const *rli,
+                         int expected_error)
 {
   DBUG_ENTER("check_expected_error");
 
