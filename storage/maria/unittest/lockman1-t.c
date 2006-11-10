@@ -288,10 +288,10 @@ int main()
 
   for (i= 0; i < Ntbls; i++)
   {
-    tablockman_init_locked_table(ltarray+i);
+    tablockman_init_locked_table(ltarray+i, Nlos);
   }
 
-  //test_tablockman_simple();
+  test_tablockman_simple();
 
 #define CYCLES 10000
 #define THREADS Nlos /* don't change this line */

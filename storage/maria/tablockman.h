@@ -51,34 +51,38 @@ typedef TABLE_LOCK_OWNER *loid_to_tlo_func(uint16);
 
 typedef struct {
   pthread_mutex_t pool_mutex;
-  TABLE_LOCK *pool;
+  TABLE_LOCK *pool;                             /* lifo pool of free locks      */
   uint lock_timeout;
-  loid_to_tlo_func *loid_to_lo;
+  loid_to_tlo_func *loid_to_tlo;        /* for mapping loid to TABLE_LOCK_OWNER */
 } TABLOCKMAN;
 
 struct st_table_lock_owner {
-  TABLE_LOCK *active_locks, *waiting_lock;
-  TABLE_LOCK_OWNER  *waiting_for;
-  pthread_cond_t  *cond;    /* transactions waiting for this, wait on 'cond' */
-  pthread_mutex_t *mutex;   /* mutex is required to use 'cond'               */
-  uint16    loid;
+  TABLE_LOCK *active_locks;                     /* list of active locks         */
+  TABLE_LOCK *waiting_lock;                     /* waiting lock (one lock only) */
+  TABLE_LOCK_OWNER  *waiting_for;               /* transaction we're wating for */
+  pthread_cond_t  *cond;      /* transactions waiting for us, wait on 'cond'    */
+  pthread_mutex_t *mutex;     /* mutex is required to use 'cond'                */
+  uint16    loid;                               /* Lock Owner IDentifier        */
 };
 
 struct st_locked_table {
-  pthread_mutex_t mutex;
-  HASH active;                              // fast to remove
-  TABLE_LOCK *active_locks[LOCK_TYPES];     // fast to see a conflict
-  TABLE_LOCK *wait_queue_in, *wait_queue_out;
+  pthread_mutex_t mutex;                        /* mutex for everything below   */
+  HASH active;                                  /* active locks ina hash        */
+  TABLE_LOCK *active_locks[LOCK_TYPES];         /* dl-list of locks per type    */
+  TABLE_LOCK *wait_queue_in, *wait_queue_out;   /* wait deque                   */
 };
 
 void tablockman_init(TABLOCKMAN *, loid_to_tlo_func *, uint);
 void tablockman_destroy(TABLOCKMAN *);
 enum lockman_getlock_result tablockman_getlock(TABLOCKMAN *, TABLE_LOCK_OWNER *,
-                                             LOCKED_TABLE *,
-                                             enum lock_type lock);
+                                               LOCKED_TABLE *, enum lock_type);
 void tablockman_release_locks(TABLOCKMAN *, TABLE_LOCK_OWNER *);
-void tablockman_init_locked_table(LOCKED_TABLE *);
+void tablockman_init_locked_table(LOCKED_TABLE *, int);
+void tablockman_destroy_locked_table(LOCKED_TABLE *);
+
+#ifdef EXTRA_DEBUG
 void print_tlo(TABLE_LOCK_OWNER *);
+#endif
 
 #endif
 

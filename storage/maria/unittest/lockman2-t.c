@@ -115,6 +115,20 @@ void test_tablockman_simple()
   lock_conflict(2, 1, X);
   unlock_all(1);
   unlock_all(2);
+
+  lock_ok_i(1, 1, IS);
+  lock_conflict(2, 1, X);
+  lock_conflict(3, 1, IS);
+  unlock_all(1);
+  unlock_all(2);
+  unlock_all(3);
+
+  lock_ok_a(1, 1, S);
+  lock_conflict(2, 1, IX);
+  lock_conflict(3, 1, IS);
+  unlock_all(1);
+  unlock_all(2);
+  unlock_all(3);
 }
 
 int rt_num_threads;
@@ -273,7 +287,7 @@ int main()
 
   for (i= 0; i < Ntbls; i++)
   {
-    tablockman_init_locked_table(ltarray+i);
+    tablockman_init_locked_table(ltarray+i, Nlos);
   }
 
   test_tablockman_simple();
@@ -285,7 +299,7 @@ int main()
   Nrows= 100;
   Ntables= 10;
   table_lock_ratio= 10;
-  run_test("\"random lock\" stress test", test_lockman, THREADS, CYCLES);
+  //run_test("\"random lock\" stress test", test_lockman, THREADS, CYCLES);
 #if 0
   /* "real-life" simulation - many rows, no table locks */
   Nrows= 1000000;
