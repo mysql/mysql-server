@@ -1761,11 +1761,10 @@ trx_print(
 	    || mem_heap_get_size(trx->lock_heap) > 400) {
 		newline = TRUE;
 
-		fprintf(f, "%lu lock struct(s), heap size %lu",
+		fprintf(f, "%lu lock struct(s), heap size %lu,"
+			" %lu row lock(s)",
 			(ulong) UT_LIST_GET_LEN(trx->trx_locks),
-			(ulong) mem_heap_get_size(trx->lock_heap));
-
-		fprintf(f, "%lu row lock(s)",
+			(ulong) mem_heap_get_size(trx->lock_heap),
 			(ulong) lock_number_of_rows_locked(trx));
 	}
 

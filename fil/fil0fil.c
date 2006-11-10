@@ -4582,29 +4582,47 @@ fil_flush_file_spaces(
 {
 	fil_system_t*	system	= fil_system;
 	fil_space_t*	space;
+	ulint*		space_ids;
+	ulint		n_space_ids;
+	ulint		i;
 
 	mutex_enter(&(system->mutex));
 
-	space = UT_LIST_GET_FIRST(system->unflushed_spaces);
+	n_space_ids = UT_LIST_GET_LEN(system->unflushed_spaces);
+	if (n_space_ids == 0) {
 
-	while (space) {
-		if (space->purpose == purpose && !space->is_being_deleted) {
-
-			space->n_pending_flushes++; /* prevent dropping of
-						    the space while we are
-						    flushing */
-			mutex_exit(&(system->mutex));
-
-			fil_flush(space->id);
-
-			mutex_enter(&(system->mutex));
-
-			space->n_pending_flushes--;
-		}
-		space = UT_LIST_GET_NEXT(unflushed_spaces, space);
+		mutex_exit(&system->mutex);
+		return;
 	}
 
-	mutex_exit(&(system->mutex));
+	/* Assemble a list of space ids to flush.  Previously, we
+	traversed system->unflushed_spaces and called UT_LIST_GET_NEXT()
+	on a space that was just removed from the list by fil_flush().
+	Thus, the space could be dropped and the memory overwritten. */
+	space_ids = mem_alloc(n_space_ids * sizeof *space_ids);
+
+	n_space_ids = 0;
+
+	for (space = UT_LIST_GET_FIRST(system->unflushed_spaces);
+	     space;
+	     space = UT_LIST_GET_NEXT(unflushed_spaces, space)) {
+
+		if (space->purpose == purpose && !space->is_being_deleted) {
+
+			space_ids[n_space_ids++] = space->id;
+		}
+	}
+
+	mutex_exit(&system->mutex);
+
+	/* Flush the spaces.  It will not hurt to call fil_flush() on
+	a non-existing space id. */
+	for (i = 0; i < n_space_ids; i++) {
+
+		fil_flush(space_ids[i]);
+	}
+
+	mem_free(space_ids);
 }
 
 /**********************************************************************

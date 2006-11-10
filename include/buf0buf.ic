@@ -285,11 +285,15 @@ buf_block_free(
 /*===========*/
 	buf_block_t*	block)	/* in, own: block to be freed */
 {
-	ut_a(block->state != BUF_BLOCK_FILE_PAGE);
-
 	mutex_enter(&(buf_pool->mutex));
 
+	mutex_enter(&block->mutex);
+
+	ut_a(block->state != BUF_BLOCK_FILE_PAGE);
+
 	buf_LRU_block_free_non_file_page(block);
+
+	mutex_exit(&block->mutex);
 
 	mutex_exit(&(buf_pool->mutex));
 }
@@ -427,7 +431,7 @@ buf_block_buf_fix_inc_debug(
 
 	ret = rw_lock_s_lock_func_nowait(&(block->debug_latch), file, line);
 	ut_a(ret);
-
+	ut_a(mutex_own(&block->mutex));
 	block->buf_fix_count++;
 }
 #else /* UNIV_SYNC_DEBUG */
@@ -531,22 +535,23 @@ buf_page_release(
 {
 	ut_ad(block);
 
-	mutex_enter_fast(&(buf_pool->mutex));
-
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 	ut_a(block->buf_fix_count > 0);
 
 	if (rw_latch == RW_X_LATCH && mtr->modifications) {
-
+		mutex_enter(&buf_pool->mutex);
 		buf_flush_note_modification(block, mtr);
+		mutex_exit(&buf_pool->mutex);
 	}
+
+	mutex_enter(&block->mutex);
 
 #ifdef UNIV_SYNC_DEBUG
 	rw_lock_s_unlock(&(block->debug_latch));
 #endif
 	block->buf_fix_count--;
 
-	mutex_exit(&(buf_pool->mutex));
+	mutex_exit(&block->mutex);
 
 	if (rw_latch == RW_S_LATCH) {
 		rw_lock_s_unlock(&(block->lock));

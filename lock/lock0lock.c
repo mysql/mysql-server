@@ -4548,10 +4548,6 @@ loop:
 					trx->read_view->up_limit_id));
 		}
 
-		fprintf(file,
-			"Trx has approximately %lu row locks\n",
-			(ulong) lock_number_of_rows_locked(trx));
-
 		if (trx->que_state == TRX_QUE_LOCK_WAIT) {
 			fprintf(file,
 				"------- TRX HAS BEEN WAITING %lu SEC"
