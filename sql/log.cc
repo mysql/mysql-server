@@ -1453,7 +1453,7 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all)
     do nothing.
     just pretend we can do 2pc, so that MySQL won't
     switch to 1pc.
-    real work will be done in MYSQL_BIN_LOG::log()
+    real work will be done in TC_LOG_BINLOG::log()
   */
   return 0;
 }
@@ -1467,9 +1467,15 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
   IO_CACHE *trans_log= &trx_data->trans_log;
   DBUG_ASSERT(mysql_bin_log.is_open());
 
-  if (all && trx_data->empty())
+  /*
+    The condition here has to be identical to the one inside
+    binlog_end_trans(), guarding the write of the transaction cache to
+    the binary log.
+   */
+  if ((all || !(thd->options & (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT))) &&
+      trx_data->empty())
   {
-    // we're here because trans_log was flushed in MYSQL_BIN_LOG::log()
+    // we're here because trans_log was flushed in TC_LOG_BINLOG::log()
     trx_data->reset();
     DBUG_RETURN(0);
   }
@@ -3117,8 +3123,10 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
   {
     tc_log_page_waits++;
     pthread_mutex_lock(&LOCK_prep_xids);
-    while (prepared_xids)
+    while (prepared_xids) {
+      DBUG_PRINT("info", ("prepared_xids=%lu", prepared_xids));
       pthread_cond_wait(&COND_prep_xids, &LOCK_prep_xids);
+    }
     pthread_mutex_unlock(&LOCK_prep_xids);
   }
 
@@ -4905,8 +4913,10 @@ void TC_LOG_BINLOG::unlog(ulong cookie, my_xid xid)
 {
   pthread_mutex_lock(&LOCK_prep_xids);
   DBUG_ASSERT(prepared_xids > 0);
-  if (--prepared_xids == 0)
+  if (--prepared_xids == 0) {
+    DBUG_PRINT("info", ("prepared_xids=%lu", prepared_xids));
     pthread_cond_signal(&COND_prep_xids);
+  }
   pthread_mutex_unlock(&LOCK_prep_xids);
   rotate_and_purge(0);     // as ::write() did not rotate
 }
