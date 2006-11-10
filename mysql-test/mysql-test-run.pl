@@ -182,6 +182,7 @@ our $opt_force;
 our $opt_reorder= 0;
 our $opt_enable_disabled;
 our $opt_mem;
+our $opt_report_features;
 
 our $opt_gcov;
 our $opt_gcov_err;
@@ -423,9 +424,13 @@ sub main () {
     if ( ! $need_im )
     {
      $opt_skip_im= 1;
-   }
+    }
 
     initialize_servers();
+
+    if ( $opt_report_features ) {
+      run_report_features();
+    }
 
     run_suite($opt_suite, $tests);
   }
@@ -670,6 +675,7 @@ sub command_line_setup () {
              'mem'                      => \$opt_mem,
 
              # Misc
+             'report-features'          => \$opt_report_features,
              'comment=s'                => \$opt_comment,
              'debug'                    => \$opt_debug,
              'fast'                     => \$opt_fast,
@@ -4190,6 +4196,43 @@ sub run_check_testcase ($$) {
   return $res;
 }
 
+##############################################################################
+#
+#  Report the features that were compiled in
+#
+##############################################################################
+
+sub run_report_features () {
+  my $args;
+
+  if ( ! $glob_use_embedded_server )
+  {
+    mysqld_start($master->[0],[],[]);
+    if ( ! $master->[0]->{'pid'} )
+    {
+      mtr_error("Can't start the mysqld server");
+    }
+    mysqld_wait_started($master->[0]);
+  }
+
+  my $tinfo = {};
+  $tinfo->{'name'} = 'report features';
+  $tinfo->{'result_file'} = undef;
+  $tinfo->{'component_id'} = 'mysqld';
+  $tinfo->{'path'} = 'include/report-features.test';
+  $tinfo->{'timezone'}=  "GMT-3";
+  $tinfo->{'slave_num'} = 0;
+  $tinfo->{'master_opt'} = [];
+  $tinfo->{'slave_opt'} = [];
+  $tinfo->{'slave_mi'} = [];
+  $tinfo->{'comment'} = 'report server features';
+  run_mysqltest($tinfo);
+
+  if ( ! $glob_use_embedded_server )
+  {
+    stop_all_servers();
+  }
+}
 
 
 sub run_mysqltest ($) {
@@ -4329,8 +4372,10 @@ sub run_mysqltest ($) {
   mtr_add_arg($args, "--test-file");
   mtr_add_arg($args, $tinfo->{'path'});
 
-  mtr_add_arg($args, "--result-file");
-  mtr_add_arg($args, $tinfo->{'result_file'});
+  if ( defined $tinfo->{'result_file'} ) {
+    mtr_add_arg($args, "--result-file");
+    mtr_add_arg($args, $tinfo->{'result_file'});
+  }
 
   if ( $opt_record )
   {
@@ -4739,3 +4784,4 @@ HERE
   mtr_exit(1);
 
 }
+
