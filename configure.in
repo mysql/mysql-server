@@ -415,6 +415,10 @@ AC_SUBST(HOSTNAME)
 AC_SUBST(PERL)
 AC_SUBST(PERL5)
 
+# icheck, used for ABI check
+AC_PATH_PROG(ICHECK, icheck, no)
+AC_SUBST(ICHECK)
+
 # Lock for PS
 AC_PATH_PROG(PS, ps, ps)
 AC_MSG_CHECKING("how to check if pid exists")
@@ -1060,6 +1064,18 @@ EOF
 s,\(extra/comp_err\)\$(EXEEXT),\1.linux,
 EOF
           ;;
+        libmysql/Makefile.in)
+          cat > $filesed << EOF
+s,libyassl.la,.libs/libyassl.a,
+s,libtaocrypt.la,.libs/libtaocrypt.a,
+EOF
+          ;;
+        libmysql_r/Makefile.in)
+          cat > $filesed << EOF
+s,libyassl.la,.libs/libyassl.a,
+s,libtaocrypt.la,.libs/libtaocrypt.a,
+EOF
+          ;;
         client/Makefile.in)
           #
           cat > $filesed << EOF
@@ -1695,6 +1711,13 @@ if test "$ac_cv_sizeof_off_t" -eq 0
 then
   AC_MSG_ERROR("MySQL needs a off_t type.")
 fi
+
+dnl
+dnl check if time_t is unsigned
+dnl
+
+MYSQL_CHECK_TIME_T
+
 
 # do we need #pragma interface/#pragma implementation ?
 # yes if it's gcc 2.x, and not icc pretending to be gcc, and not cygwin

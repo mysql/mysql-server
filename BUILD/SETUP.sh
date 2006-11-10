@@ -106,7 +106,7 @@ else
   cxx_warnings="$warnings -std=c++98"
 # NOTE: warning mode should not influence optimize/debug mode.
 # Please feel free to add a separate option if you don't feel it's an overkill.
-  debug_extra_flags="-O0"
+  debug_extra_cflags="-O0"
 # Reset CPU flags (-mtune), they don't work in -pedantic mode
   check_cpu_cflags=""
 fi

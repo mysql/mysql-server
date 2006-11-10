@@ -265,7 +265,7 @@ err:
 bool ha_myisam::check_if_locking_is_allowed(uint sql_command,
                                             ulong type, TABLE *table,
                                             uint count,
-                                            bool called_by_logger_thread)
+                                            bool called_by_privileged_thread)
 {
   /*
     To be able to open and lock for reading system tables like 'mysql.proc',
@@ -283,10 +283,10 @@ bool ha_myisam::check_if_locking_is_allowed(uint sql_command,
 
   /*
     Deny locking of the log tables, which is incompatible with
-    concurrent insert. Unless called from a logger THD:
-    general_log_thd or slow_log_thd.
+    concurrent insert. Unless called from a logger THD (general_log_thd
+    or slow_log_thd) or by a privileged thread.
   */
-  if (!called_by_logger_thread)
+  if (!called_by_privileged_thread)
     return check_if_log_table_locking_is_allowed(sql_command, type, table);
 
   return TRUE;

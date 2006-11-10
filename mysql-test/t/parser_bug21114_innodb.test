@@ -1,0 +1,422 @@
+-- source include/have_innodb.inc
+
+let $engine_type=InnoDb;
+
+#
+# Bug#21114 (Foreign key creation fails to table with name format)
+# 
+
+# Testing with the full log for only a few functions,
+# including FORMAT for witch the bug was reported.
+
+let $verbose=1;
+
+let $FCT=abs;
+-- source include/parser_bug21114.inc
+let $FCT=field;
+-- source include/parser_bug21114.inc
+let $FCT=format;
+-- source include/parser_bug21114.inc
+
+# Ignoring the result of SHOW CREATE (this generates too much noise)
+# Tests will fail if the create table statement can not be parsed
+
+let verbose=0;
+
+let $FCT=acos;
+-- source include/parser_bug21114.inc
+let $FCT=adddate;
+-- source include/parser_bug21114.inc
+let $FCT=addtime;
+-- source include/parser_bug21114.inc
+let $FCT=aes_decrypt;
+-- source include/parser_bug21114.inc
+let $FCT=aes_encrypt;
+-- source include/parser_bug21114.inc
+let $FCT=area;
+-- source include/parser_bug21114.inc
+let $FCT=asbinary;
+-- source include/parser_bug21114.inc
+let $FCT=asin;
+-- source include/parser_bug21114.inc
+let $FCT=astext;
+-- source include/parser_bug21114.inc
+let $FCT=aswkb;
+-- source include/parser_bug21114.inc
+let $FCT=aswkt;
+-- source include/parser_bug21114.inc
+let $FCT=atan;
+-- source include/parser_bug21114.inc
+let $FCT=atan2;
+-- source include/parser_bug21114.inc
+let $FCT=benchmark;
+-- source include/parser_bug21114.inc
+let $FCT=bin;
+-- source include/parser_bug21114.inc
+let $FCT=bit_count;
+-- source include/parser_bug21114.inc
+let $FCT=bit_length;
+-- source include/parser_bug21114.inc
+let $FCT=ceil;
+-- source include/parser_bug21114.inc
+let $FCT=ceiling;
+-- source include/parser_bug21114.inc
+let $FCT=centroid;
+-- source include/parser_bug21114.inc
+let $FCT=character_length;
+-- source include/parser_bug21114.inc
+let $FCT=char_length;
+-- source include/parser_bug21114.inc
+let $FCT=coercibility;
+-- source include/parser_bug21114.inc
+let $FCT=compress;
+-- source include/parser_bug21114.inc
+let $FCT=concat;
+-- source include/parser_bug21114.inc
+let $FCT=concat_ws;
+-- source include/parser_bug21114.inc
+let $FCT=connection_id;
+-- source include/parser_bug21114.inc
+let $FCT=conv;
+-- source include/parser_bug21114.inc
+let $FCT=convert_tz;
+-- source include/parser_bug21114.inc
+let $FCT=cos;
+-- source include/parser_bug21114.inc
+let $FCT=cot;
+-- source include/parser_bug21114.inc
+let $FCT=crc32;
+-- source include/parser_bug21114.inc
+let $FCT=crosses;
+-- source include/parser_bug21114.inc
+let $FCT=datediff;
+-- source include/parser_bug21114.inc
+let $FCT=date_format;
+-- source include/parser_bug21114.inc
+let $FCT=dayname;
+-- source include/parser_bug21114.inc
+let $FCT=dayofmonth;
+-- source include/parser_bug21114.inc
+let $FCT=dayofweek;
+-- source include/parser_bug21114.inc
+let $FCT=dayofyear;
+-- source include/parser_bug21114.inc
+let $FCT=decode;
+-- source include/parser_bug21114.inc
+let $FCT=degrees;
+-- source include/parser_bug21114.inc
+let $FCT=des_decrypt;
+-- source include/parser_bug21114.inc
+let $FCT=des_encrypt;
+-- source include/parser_bug21114.inc
+let $FCT=dimension;
+-- source include/parser_bug21114.inc
+let $FCT=disjoint;
+-- source include/parser_bug21114.inc
+let $FCT=elt;
+-- source include/parser_bug21114.inc
+let $FCT=encode;
+-- source include/parser_bug21114.inc
+let $FCT=encrypt;
+-- source include/parser_bug21114.inc
+let $FCT=endpoint;
+-- source include/parser_bug21114.inc
+let $FCT=envelope;
+-- source include/parser_bug21114.inc
+let $FCT=equals;
+-- source include/parser_bug21114.inc
+let $FCT=exp;
+-- source include/parser_bug21114.inc
+let $FCT=export_set;
+-- source include/parser_bug21114.inc
+let $FCT=exteriorring;
+-- source include/parser_bug21114.inc
+let $FCT=extractvalue;
+-- source include/parser_bug21114.inc
+let $FCT=find_in_set;
+-- source include/parser_bug21114.inc
+let $FCT=floor;
+-- source include/parser_bug21114.inc
+let $FCT=found_rows;
+-- source include/parser_bug21114.inc
+let $FCT=from_days;
+-- source include/parser_bug21114.inc
+let $FCT=from_unixtime;
+-- source include/parser_bug21114.inc
+let $FCT=geomcollfromtext;
+-- source include/parser_bug21114.inc
+let $FCT=geomcollfromwkb;
+-- source include/parser_bug21114.inc
+let $FCT=geometrycollectionfromtext;
+-- source include/parser_bug21114.inc
+let $FCT=geometrycollectionfromwkb;
+-- source include/parser_bug21114.inc
+let $FCT=geometryfromtext;
+-- source include/parser_bug21114.inc
+let $FCT=geometryfromwkb;
+-- source include/parser_bug21114.inc
+let $FCT=geometryn;
+-- source include/parser_bug21114.inc
+let $FCT=geometrytype;
+-- source include/parser_bug21114.inc
+let $FCT=geomfromtext;
+-- source include/parser_bug21114.inc
+let $FCT=geomfromwkb;
+-- source include/parser_bug21114.inc
+let $FCT=get_lock;
+-- source include/parser_bug21114.inc
+let $FCT=glength;
+-- source include/parser_bug21114.inc
+let $FCT=greatest;
+-- source include/parser_bug21114.inc
+let $FCT=hex;
+-- source include/parser_bug21114.inc
+let $FCT=ifnull;
+-- source include/parser_bug21114.inc
+let $FCT=inet_aton;
+-- source include/parser_bug21114.inc
+let $FCT=inet_ntoa;
+-- source include/parser_bug21114.inc
+let $FCT=instr;
+-- source include/parser_bug21114.inc
+let $FCT=interiorringn;
+-- source include/parser_bug21114.inc
+let $FCT=intersects;
+-- source include/parser_bug21114.inc
+let $FCT=isclosed;
+-- source include/parser_bug21114.inc
+let $FCT=isempty;
+-- source include/parser_bug21114.inc
+let $FCT=isnull;
+-- source include/parser_bug21114.inc
+let $FCT=issimple;
+-- source include/parser_bug21114.inc
+let $FCT=is_free_lock;
+-- source include/parser_bug21114.inc
+let $FCT=is_used_lock;
+-- source include/parser_bug21114.inc
+let $FCT=last_day;
+-- source include/parser_bug21114.inc
+let $FCT=last_insert_id;
+-- source include/parser_bug21114.inc
+let $FCT=lcase;
+-- source include/parser_bug21114.inc
+let $FCT=least;
+-- source include/parser_bug21114.inc
+let $FCT=length;
+-- source include/parser_bug21114.inc
+let $FCT=linefromtext;
+-- source include/parser_bug21114.inc
+let $FCT=linefromwkb;
+-- source include/parser_bug21114.inc
+let $FCT=linestringfromtext;
+-- source include/parser_bug21114.inc
+let $FCT=linestringfromwkb;
+-- source include/parser_bug21114.inc
+let $FCT=ln;
+-- source include/parser_bug21114.inc
+let $FCT=load_file;
+-- source include/parser_bug21114.inc
+let $FCT=locate;
+-- source include/parser_bug21114.inc
+let $FCT=log;
+-- source include/parser_bug21114.inc
+let $FCT=log10;
+-- source include/parser_bug21114.inc
+let $FCT=log2;
+-- source include/parser_bug21114.inc
+let $FCT=lower;
+-- source include/parser_bug21114.inc
+let $FCT=lpad;
+-- source include/parser_bug21114.inc
+let $FCT=ltrim;
+-- source include/parser_bug21114.inc
+let $FCT=makedate;
+-- source include/parser_bug21114.inc
+let $FCT=maketime;
+-- source include/parser_bug21114.inc
+let $FCT=make_set;
+-- source include/parser_bug21114.inc
+let $FCT=master_pos_wait;
+-- source include/parser_bug21114.inc
+let $FCT=mbrcontains;
+-- source include/parser_bug21114.inc
+let $FCT=mbrdisjoint;
+-- source include/parser_bug21114.inc
+let $FCT=mbrequal;
+-- source include/parser_bug21114.inc
+let $FCT=mbrintersects;
+-- source include/parser_bug21114.inc
+let $FCT=mbroverlaps;
+-- source include/parser_bug21114.inc
+let $FCT=mbrtouches;
+-- source include/parser_bug21114.inc
+let $FCT=mbrwithin;
+-- source include/parser_bug21114.inc
+let $FCT=md5;
+-- source include/parser_bug21114.inc
+let $FCT=mlinefromtext;
+-- source include/parser_bug21114.inc
+let $FCT=mlinefromwkb;
+-- source include/parser_bug21114.inc
+let $FCT=monthname;
+-- source include/parser_bug21114.inc
+let $FCT=mpointfromtext;
+-- source include/parser_bug21114.inc
+let $FCT=mpointfromwkb;
+-- source include/parser_bug21114.inc
+let $FCT=mpolyfromtext;
+-- source include/parser_bug21114.inc
+let $FCT=mpolyfromwkb;
+-- source include/parser_bug21114.inc
+let $FCT=multilinestringfromtext;
+-- source include/parser_bug21114.inc
+let $FCT=multilinestringfromwkb;
+-- source include/parser_bug21114.inc
+let $FCT=multipointfromtext;
+-- source include/parser_bug21114.inc
+let $FCT=multipointfromwkb;
+-- source include/parser_bug21114.inc
+let $FCT=multipolygonfromtext;
+-- source include/parser_bug21114.inc
+let $FCT=multipolygonfromwkb;
+-- source include/parser_bug21114.inc
+let $FCT=name_const;
+-- source include/parser_bug21114.inc
+let $FCT=nullif;
+-- source include/parser_bug21114.inc
+let $FCT=numgeometries;
+-- source include/parser_bug21114.inc
+let $FCT=numinteriorrings;
+-- source include/parser_bug21114.inc
+let $FCT=numpoints;
+-- source include/parser_bug21114.inc
+let $FCT=oct;
+-- source include/parser_bug21114.inc
+let $FCT=octet_length;
+-- source include/parser_bug21114.inc
+let $FCT=ord;
+-- source include/parser_bug21114.inc
+let $FCT=overlaps;
+-- source include/parser_bug21114.inc
+let $FCT=period_add;
+-- source include/parser_bug21114.inc
+let $FCT=period_diff;
+-- source include/parser_bug21114.inc
+let $FCT=pi;
+-- source include/parser_bug21114.inc
+let $FCT=pointfromtext;
+-- source include/parser_bug21114.inc
+let $FCT=pointfromwkb;
+-- source include/parser_bug21114.inc
+let $FCT=pointn;
+-- source include/parser_bug21114.inc
+let $FCT=polyfromtext;
+-- source include/parser_bug21114.inc
+let $FCT=polyfromwkb;
+-- source include/parser_bug21114.inc
+let $FCT=polygonfromtext;
+-- source include/parser_bug21114.inc
+let $FCT=polygonfromwkb;
+-- source include/parser_bug21114.inc
+let $FCT=pow;
+-- source include/parser_bug21114.inc
+let $FCT=power;
+-- source include/parser_bug21114.inc
+let $FCT=quote;
+-- source include/parser_bug21114.inc
+let $FCT=radians;
+-- source include/parser_bug21114.inc
+let $FCT=rand;
+-- source include/parser_bug21114.inc
+let $FCT=release_lock;
+-- source include/parser_bug21114.inc
+let $FCT=reverse;
+-- source include/parser_bug21114.inc
+let $FCT=round;
+-- source include/parser_bug21114.inc
+let $FCT=row_count;
+-- source include/parser_bug21114.inc
+let $FCT=rpad;
+-- source include/parser_bug21114.inc
+let $FCT=rtrim;
+-- source include/parser_bug21114.inc
+let $FCT=sec_to_time;
+-- source include/parser_bug21114.inc
+let $FCT=session_user;
+-- source include/parser_bug21114.inc
+let $FCT=sha;
+-- source include/parser_bug21114.inc
+let $FCT=sha1;
+-- source include/parser_bug21114.inc
+let $FCT=sign;
+-- source include/parser_bug21114.inc
+let $FCT=sin;
+-- source include/parser_bug21114.inc
+let $FCT=sleep;
+-- source include/parser_bug21114.inc
+let $FCT=soundex;
+-- source include/parser_bug21114.inc
+let $FCT=space;
+-- source include/parser_bug21114.inc
+let $FCT=sqrt;
+-- source include/parser_bug21114.inc
+let $FCT=srid;
+-- source include/parser_bug21114.inc
+let $FCT=startpoint;
+-- source include/parser_bug21114.inc
+let $FCT=strcmp;
+-- source include/parser_bug21114.inc
+let $FCT=str_to_date;
+-- source include/parser_bug21114.inc
+let $FCT=subdate;
+-- source include/parser_bug21114.inc
+let $FCT=substring_index;
+-- source include/parser_bug21114.inc
+let $FCT=subtime;
+-- source include/parser_bug21114.inc
+let $FCT=system_user;
+-- source include/parser_bug21114.inc
+let $FCT=tan;
+-- source include/parser_bug21114.inc
+let $FCT=timediff;
+-- source include/parser_bug21114.inc
+let $FCT=time_format;
+-- source include/parser_bug21114.inc
+let $FCT=time_to_sec;
+-- source include/parser_bug21114.inc
+let $FCT=touches;
+-- source include/parser_bug21114.inc
+let $FCT=to_days;
+-- source include/parser_bug21114.inc
+let $FCT=ucase;
+-- source include/parser_bug21114.inc
+let $FCT=uncompress;
+-- source include/parser_bug21114.inc
+let $FCT=uncompressed_length;
+-- source include/parser_bug21114.inc
+let $FCT=unhex;
+-- source include/parser_bug21114.inc
+let $FCT=unix_timestamp;
+-- source include/parser_bug21114.inc
+let $FCT=updatexml;
+-- source include/parser_bug21114.inc
+let $FCT=upper;
+-- source include/parser_bug21114.inc
+let $FCT=uuid;
+-- source include/parser_bug21114.inc
+let $FCT=version;
+-- source include/parser_bug21114.inc
+let $FCT=weekday;
+-- source include/parser_bug21114.inc
+let $FCT=weekofyear;
+-- source include/parser_bug21114.inc
+let $FCT=within;
+-- source include/parser_bug21114.inc
+let $FCT=x;
+-- source include/parser_bug21114.inc
+let $FCT=y;
+-- source include/parser_bug21114.inc
+let $FCT=yearweek;
+-- source include/parser_bug21114.inc
+

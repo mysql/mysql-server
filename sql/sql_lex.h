@@ -792,7 +792,11 @@ public:
     0 - indicates that this query does not need prelocking.
   */
   TABLE_LIST **query_tables_own_last;
-  /* Set of stored routines called by statement. */
+  /*
+    Set of stored routines called by statement.
+    (Note that we use lazy-initialization for this hash).
+  */
+  enum { START_SROUTINES_HASH_SIZE= 16 };
   HASH sroutines;
   /*
     List linking elements of 'sroutines' set. Allows you to add new elements
@@ -864,6 +868,25 @@ public:
       query_tables_own_last= 0;
     }
   }
+};
+
+
+/*
+  st_parsing_options contains the flags for constructions that are
+  allowed in the current statement.
+*/
+
+struct st_parsing_options
+{
+  bool allows_variable;
+  bool allows_select_into;
+  bool allows_select_procedure;
+  bool allows_derived;
+
+  st_parsing_options()
+    : allows_variable(TRUE), allows_select_into(TRUE),
+      allows_select_procedure(TRUE), allows_derived(TRUE)
+  {}
 };
 
 
@@ -1023,7 +1046,7 @@ typedef struct st_lex : public Query_tables_list
   bool stmt_prepare_mode;
   bool safe_to_cache_query;
   bool subqueries, ignore;
-  bool variables_used;
+  st_parsing_options parsing_options;
   ALTER_INFO alter_info;
   /* Prepared statements SQL syntax:*/
   LEX_STRING prepared_stmt_name; /* Statement name (in all queries) */
@@ -1180,6 +1203,8 @@ typedef struct st_lex : public Query_tables_list
 
   void reset_n_backup_query_tables_list(Query_tables_list *backup);
   void restore_backup_query_tables_list(Query_tables_list *backup);
+
+  bool table_or_sp_used();
 } LEX;
 
 struct st_lex_local: public st_lex

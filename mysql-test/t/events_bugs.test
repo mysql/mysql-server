@@ -222,13 +222,13 @@ drop database mysqltest_db1;
 #
 # START - BUG#16394: Events: Crash if schedule contains SELECT
 #
---error ER_PARSE_ERROR
+--error ER_NOT_SUPPORTED_YET
 create event e_53 on schedule at (select s1 from ttx) do drop table t;
---error ER_PARSE_ERROR
+--error ER_NOT_SUPPORTED_YET
 create event e_53 on schedule every (select s1 from ttx) second do drop table t;
---error ER_PARSE_ERROR
+--error ER_NOT_SUPPORTED_YET
 create event e_53 on schedule every 5 second starts (select s1 from ttx) do drop table t;
---error ER_PARSE_ERROR
+--error ER_NOT_SUPPORTED_YET
 create event e_53 on schedule every 5 second ends (select s1 from ttx) do drop table t;
 #
 # END   - BUG#16394: Events: Crash if schedule contains SELECT
@@ -253,4 +253,47 @@ call p_16();
 
 drop procedure p_16;
 drop event e_16;
+
+#
+# START - BUG#22830 Events: crash with procedure which alters events with function
+#
+--disable_warnings
+drop function if exists f22830;
+drop event if exists e22830;
+drop event if exists e22830_1;
+drop event if exists e22830_2;
+drop event if exists e22830_3;
+drop event if exists e22830_4;
+drop table if exists t1;
+drop table if exists t2;
+--enable_warnings
+create table t1 (a int);
+insert into t1 values (2);
+create table t2 (a char(20));
+insert into t2 values ("e22830_1");
+create function f22830 () returns int return 5;
+--error ER_NOT_SUPPORTED_YET
+create event e22830 on schedule every f22830() second do select 123;
+create event e22830_1 on schedule every 1 hour do alter event e22830_1 on schedule every (select 8 from dual) hour;
+create event e22830_2 on schedule every 1 hour do alter event e22830_2 on schedule every (select 8 from t1) hour;
+create event e22830_3 on schedule every 1 hour do alter event e22830_3 on schedule every f22830() hour;
+create event e22830_4 on schedule every 1 hour do alter event e22830_4 on schedule every (select f22830() from dual) hour;
+select event_name, event_definition, interval_value, interval_field from information_schema.events order by event_name;
+set global event_scheduler=on;
+--sleep 0.7
+set global event_scheduler=off;
+select event_name, event_definition, interval_value, interval_field from information_schema.events order by event_name;
+drop function f22830;
+--error ER_PARSE_ERROR
+drop event (select a from t2);
+drop event e22830_1;
+drop event e22830_2;
+drop event e22830_3;
+drop event e22830_4;
+drop table t1;
+drop table t2;
+
+#
+# End of tests
+#
 drop database events_test;

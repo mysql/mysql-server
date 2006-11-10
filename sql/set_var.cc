@@ -67,7 +67,6 @@ extern longlong innobase_log_file_size;
 extern long innobase_log_buffer_size;
 extern longlong innobase_buffer_pool_size;
 extern long innobase_additional_mem_pool_size;
-extern long innobase_buffer_pool_awe_mem_mb;
 extern long innobase_file_io_threads, innobase_lock_wait_timeout;
 extern long innobase_force_recovery;
 extern long innobase_open_files;
@@ -743,7 +742,7 @@ static int show_slave_skip_errors(THD *thd, SHOW_VAR *var, char *buff)
 #endif /* HAVE_REPLICATION */
 
 /*
-  Variables shown by SHOW variables in alphabetical order
+  Variables shown by SHOW VARIABLES in alphabetical order
 */
 
 SHOW_VAR init_vars[]= {
@@ -819,7 +818,6 @@ SHOW_VAR init_vars[]= {
 #ifdef WITH_INNOBASE_STORAGE_ENGINE
   {"innodb_additional_mem_pool_size", (char*) &innobase_additional_mem_pool_size, SHOW_LONG },
   {sys_innodb_autoextend_increment.name, (char*) &sys_innodb_autoextend_increment, SHOW_SYS},
-  {"innodb_buffer_pool_awe_mem_mb", (char*) &innobase_buffer_pool_awe_mem_mb, SHOW_LONG },
   {"innodb_buffer_pool_size", (char*) &innobase_buffer_pool_size, SHOW_LONGLONG },
   {"innodb_checksums", (char*) &innobase_use_checksums, SHOW_MY_BOOL},
   {sys_innodb_commit_concurrency.name, (char*) &sys_innodb_commit_concurrency, SHOW_SYS},
@@ -3141,6 +3139,7 @@ static byte *get_warning_count(THD *thd)
 {
   thd->sys_var_tmp.long_value=
     (thd->warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_NOTE] +
+     thd->warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_ERROR] +
      thd->warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_WARN]);
   return (byte*) &thd->sys_var_tmp.long_value;
 }

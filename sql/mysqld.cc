@@ -372,7 +372,6 @@ extern longlong innobase_log_file_size;
 extern long innobase_log_buffer_size;
 extern longlong innobase_buffer_pool_size;
 extern long innobase_additional_mem_pool_size;
-extern long innobase_buffer_pool_awe_mem_mb;
 extern long innobase_file_io_threads, innobase_lock_wait_timeout;
 extern long innobase_force_recovery;
 extern long innobase_open_files;
@@ -1184,9 +1183,9 @@ void clean_up(bool print_message)
   hostname_cache_free();
   item_user_lock_free();
   lex_free();				/* Free some memory */
+  item_create_cleanup();
   set_var_free();
   free_charsets();
-  (void) ha_panic(HA_PANIC_CLOSE);	/* close all tables and logs */
   if (!opt_noacl)
   {
 #ifdef HAVE_DLOPEN
@@ -1194,6 +1193,7 @@ void clean_up(bool print_message)
 #endif
   }
   plugin_shutdown();
+  ha_end();
   if (tc_log)
     tc_log->close();
   xid_cache_free();
@@ -1609,7 +1609,7 @@ static void network_init(void)
 
     if (strlen(mysqld_unix_port) > (sizeof(UNIXaddr.sun_path) - 1))
     {
-      sql_print_error("The socket file path is too long (> %lu): %s",
+      sql_print_error("The socket file path is too long (> %u): %s",
                       sizeof(UNIXaddr.sun_path) - 1, mysqld_unix_port);
       unireg_abort(1);
     }
@@ -2663,19 +2663,43 @@ static int init_common_variables(const char *conf_file_name, int argc,
 
   /* connections and databases needs lots of files */
   {
-    uint files, wanted_files;
+    uint files, wanted_files, max_open_files;
 
-    wanted_files= 10+(uint) max(max_connections*5,
-				 max_connections+table_cache_size*2);
-    set_if_bigger(wanted_files, open_files_limit);
-    files= my_set_max_open_files(wanted_files);
+    /* MyISAM requires two file handles per table. */
+    wanted_files= 10+max_connections+table_cache_size*2;
+    /*
+      We are trying to allocate no less than max_connections*5 file
+      handles (i.e. we are trying to set the limit so that they will
+      be available).  In addition, we allocate no less than how much
+      was already allocated.  However below we report a warning and
+      recompute values only if we got less file handles than were
+      explicitly requested.  No warning and re-computation occur if we
+      can't get max_connections*5 but still got no less than was
+      requested (value of wanted_files).
+    */
+    max_open_files= max(max(wanted_files, max_connections*5),
+                        open_files_limit);
+    files= my_set_max_open_files(max_open_files);
 
     if (files < wanted_files)
     {
       if (!open_files_limit)
       {
-	max_connections=	(ulong) min((files-10),max_connections);
-	table_cache_size= (ulong) max((files-10-max_connections)/2,64);
+        /*
+          If we have requested too much file handles than we bring
+          max_connections in supported bounds.
+        */
+        max_connections= (ulong) min(files-10-TABLE_OPEN_CACHE_MIN*2,
+                                     max_connections);
+        /*
+          Decrease table_cache_size according to max_connections, but
+          not below TABLE_OPEN_CACHE_MIN.  Outer min() ensures that we
+          never increase table_cache_size automatically (that could
+          happen if max_connections is decreased above).
+        */
+        table_cache_size= (ulong) min(max((files-10-max_connections)/2,
+                                          TABLE_OPEN_CACHE_MIN),
+                                      table_cache_size);    
 	DBUG_PRINT("warning",
 		   ("Changed limits: max_open_files: %u  max_connections: %ld  table_cache: %ld",
 		    files, max_connections, table_cache_size));
@@ -2693,6 +2717,8 @@ static int init_common_variables(const char *conf_file_name, int argc,
     return 1;
   init_client_errs();
   lex_init();
+  if (item_create_init())
+    return 1;
   item_init();
   set_var_init();
   mysys_uses_curses=0;
@@ -3506,7 +3532,7 @@ int main(int argc, char **argv)
     {
       if (global_system_variables.log_warnings)
 	sql_print_warning("Asked for %ld thread stack, but got %ld",
-			  thread_stack, stack_size);
+			  thread_stack, (long) stack_size);
 #if defined(__ia64__) || defined(__ia64)
       thread_stack= stack_size*2;
 #else
@@ -5315,7 +5341,7 @@ master-ssl",
    (gptr*) &locked_in_memory, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"merge", OPT_MERGE, "Enable Merge storage engine. Disable with \
 --skip-merge.",
-   (gptr*) &opt_merge, (gptr*) &opt_merge, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0},
+   (gptr*) &opt_merge, (gptr*) &opt_merge, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"myisam-recover", OPT_MYISAM_RECOVER,
    "Syntax: myisam-recover[=option[,option...]], where option can be DEFAULT, BACKUP, FORCE or QUICK.",
    (gptr*) &myisam_recover_options_str, (gptr*) &myisam_recover_options_str, 0,
@@ -5774,10 +5800,6 @@ log and this option does nothing anymore.",
    (gptr*) &srv_auto_extend_increment,
    (gptr*) &srv_auto_extend_increment,
    0, GET_LONG, REQUIRED_ARG, 8L, 1L, 1000L, 0, 1L, 0},
-  {"innodb_buffer_pool_awe_mem_mb", OPT_INNODB_BUFFER_POOL_AWE_MEM_MB,
-   "If Windows AWE is used, the size of InnoDB buffer pool allocated from the AWE memory.",
-   (gptr*) &innobase_buffer_pool_awe_mem_mb, (gptr*) &innobase_buffer_pool_awe_mem_mb, 0,
-   GET_LONG, REQUIRED_ARG, 0, 0, 63000, 0, 1, 0},
   {"innodb_buffer_pool_size", OPT_INNODB_BUFFER_POOL_SIZE,
    "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
    (gptr*) &innobase_buffer_pool_size, (gptr*) &innobase_buffer_pool_size, 0,
@@ -6185,15 +6207,15 @@ The minimum value for this variable is 4096.",
   {"table_cache", OPT_TABLE_OPEN_CACHE,
    "Deprecated; use --table_open_cache instead.",
    (gptr*) &table_cache_size, (gptr*) &table_cache_size, 0, GET_ULONG,
-   REQUIRED_ARG, 64, 1, 512*1024L, 0, 1, 0},
+   REQUIRED_ARG, TABLE_OPEN_CACHE_DEFAULT, 1, 512*1024L, 0, 1, 0},
   {"table_definition_cache", OPT_TABLE_DEF_CACHE,
    "The number of cached table definitions.",
    (gptr*) &table_def_size, (gptr*) &table_def_size,
    0, GET_ULONG, REQUIRED_ARG, 128, 1, 512*1024L, 0, 1, 0},
   {"table_open_cache", OPT_TABLE_OPEN_CACHE,
    "The number of cached open tables.",
-   (gptr*) &table_cache_size, (gptr*) &table_cache_size,
-   0, GET_ULONG, REQUIRED_ARG, 64, 1, 512*1024L, 0, 1, 0},
+   (gptr*) &table_cache_size, (gptr*) &table_cache_size, 0, GET_ULONG,
+   REQUIRED_ARG, TABLE_OPEN_CACHE_DEFAULT, 1, 512*1024L, 0, 1, 0},
   {"table_lock_wait_timeout", OPT_TABLE_LOCK_WAIT_TIMEOUT,
    "Timeout in seconds to wait for a table level lock before returning an "
    "error. Used only if the connection has active cursors.",
@@ -6567,6 +6589,10 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff)
 
 #endif /* HAVE_OPENSSL */
 
+
+/*
+  Variables shown by SHOW STATUS in alphabetical order
+*/
 
 SHOW_VAR status_vars[]= {
   {"Aborted_clients",          (char*) &aborted_threads,        SHOW_LONG},
@@ -8075,16 +8101,20 @@ void refresh_status(THD *thd)
 {
   pthread_mutex_lock(&LOCK_status);
 
-  /* We must update the global status before cleaning up the thread */
+  /* Add thread's status variabes to global status */
   add_to_status(&global_status_var, &thd->status_var);
+
+  /* Reset thread's status variables */
   bzero((char*) &thd->status_var, sizeof(thd->status_var));
 
+  /* Reset some global variables */
   for (SHOW_VAR *ptr= status_vars; ptr->name; ptr++)
   {
     /* Note that SHOW_LONG_NOFLUSH variables are not reset */
     if (ptr->type == SHOW_LONG)
       *(ulong*) ptr->value= 0;
   }
+
   /* Reset the counters of all key caches (default and named). */
   process_key_caches(reset_key_cache_counters);
   pthread_mutex_unlock(&LOCK_status);
@@ -8132,7 +8162,6 @@ longlong innobase_log_file_size;
 long innobase_log_buffer_size;
 longlong innobase_buffer_pool_size;
 long innobase_additional_mem_pool_size;
-long innobase_buffer_pool_awe_mem_mb;
 long innobase_file_io_threads, innobase_lock_wait_timeout;
 long innobase_force_recovery;
 long innobase_open_files;

@@ -6004,4 +6004,10 @@ ER_BAD_LOG_STATEMENT
         ger "Sie können eine Logtabelle nicht '%s', wenn Loggen angeschaltet ist"
 ER_NON_INSERTABLE_TABLE  
         eng "The target table %-.100s of the %s is not insertable-into"
+ER_CANT_RENAME_LOG_TABLE
+        eng "Cannot rename '%s'. When logging enabled, rename to/from log table must rename two tables: the log table to an archive table and another table back to '%s'"
+ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT 42000
+        eng "Incorrect parameter count in the call to native function '%-.64s'"
+ER_WRONG_PARAMETERS_TO_NATIVE_FCT 42000
+        eng "Incorrect parameters in the call to native function '%-.64s'"
 

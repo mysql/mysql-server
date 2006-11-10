@@ -188,11 +188,11 @@ mysql_event_fill_row(THD *thd, TABLE *table, Event_parse_data *et,
     fields[ET_FIELD_INTERVAL_EXPR]->store((longlong)et->expression, TRUE);
 
     fields[ET_FIELD_TRANSIENT_INTERVAL]->set_notnull();
-    /*
-      In the enum (C) intervals start from 0 but in mysql enum valid values
-      start from 1. Thus +1 offset is needed!
-    */
-    fields[ET_FIELD_TRANSIENT_INTERVAL]->store((longlong)et->interval+1, TRUE);
+
+    fields[ET_FIELD_TRANSIENT_INTERVAL]->
+                            store(interval_type_to_name[et->interval].str,
+                                  interval_type_to_name[et->interval].length,
+                                  scs);
 
     fields[ET_FIELD_EXECUTE_AT]->set_null();
 

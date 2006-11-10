@@ -27,8 +27,11 @@
 #endif /* _WIN32 */
 
 
-#if !defined(_SOCKLEN_T) && (defined(_WIN32) || defined(__NETWARE__))
+#if !defined(_SOCKLEN_T) && defined(_WIN32)
     typedef int socklen_t;
+#endif
+#if !defined(_SOCKLEN_T) && defined(__NETWARE__)
+    typedef size_t socklen_t;
 #endif
 
 

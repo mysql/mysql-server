@@ -144,6 +144,8 @@ select @@version;
 --replace_column 1 #
 select @@global.version;
 
+--echo End of 4.1 tests
+
 # Bug #6598: problem with cast(NULL as signed integer);
 #
 
@@ -210,4 +212,10 @@ select @var:=f2 from t1 group by f1 order by f2 desc limit 1;
 select @var;
 drop table t1;
 
-# End of 4.1 tests
+#
+# Bug#19024 - SHOW COUNT(*) WARNINGS not return Errors 
+#
+--error 1064
+insert into city 'blah';
+SHOW COUNT(*) WARNINGS;
+SHOW COUNT(*) ERRORS;
