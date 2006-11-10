@@ -60,9 +60,6 @@ send RENAME TABLE t1 TO t2, t3 to t4;
 connection con2;
 show tables;
 UNLOCK TABLES;
-connection con1;
-reap;
-connection con2;
 
 # Wait for the the tables to be renamed
 # i.e the query below succeds
