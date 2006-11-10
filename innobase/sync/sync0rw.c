@@ -123,6 +123,7 @@ rw_lock_create_func(
 	lock->last_x_file_name = "not yet reserved";
 	lock->last_s_line = 0;
 	lock->last_x_line = 0;
+	lock->event = os_event_create(NULL);
 
 	mutex_enter(&rw_lock_list_mutex);
 	
@@ -158,6 +159,7 @@ rw_lock_free(
 	mutex_free(rw_lock_get_mutex(lock));
 
 	mutex_enter(&rw_lock_list_mutex);
+	os_event_free(lock->event);
 
 	if (UT_LIST_GET_PREV(list, lock)) {
 		ut_a(UT_LIST_GET_PREV(list, lock)->magic_n == RW_LOCK_MAGIC_N);
