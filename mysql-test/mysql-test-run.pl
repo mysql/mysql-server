@@ -220,6 +220,7 @@ our $opt_ndbconnectstring_slave;
 
 our $opt_record;
 our $opt_check_testcases;
+my  $opt_report_features;
 
 our $opt_skip;
 our $opt_skip_rpl;
@@ -642,7 +643,7 @@ sub command_line_setup () {
 
   $glob_hostname=  mtr_short_hostname();
 
-  # 'basedir' is always parent of "mysql-test" directory
+  # 'basedir' is always above "mysql-test" directory ...
   $glob_mysql_test_dir=  cwd();
   if ( $glob_cygwin_perl )
   {
@@ -650,11 +651,19 @@ sub command_line_setup () {
     $glob_mysql_test_dir= `cygpath -m "$glob_mysql_test_dir"`;
     chomp($glob_mysql_test_dir);
   }
+  # ... direct parent for "tar.gz" installations, ...
   $glob_basedir=         dirname($glob_mysql_test_dir);
+  # ... or one more level up, for RPM installations.
+  if ( ! -d "$glob_basedir/bin" )
+  {
+    $glob_basedir=       dirname($glob_basedir);
+  }
 
   # Expect mysql-bench to be located adjacent to the source tree, by default
   $glob_mysql_bench_dir= "$glob_basedir/../mysql-bench"
     unless defined $glob_mysql_bench_dir;
+  $glob_mysql_bench_dir= undef
+    unless -d $glob_mysql_bench_dir;
 
   $path_my_basedir=
     $opt_source_dist ? $glob_mysql_test_dir : $glob_basedir;
@@ -682,7 +691,8 @@ sub command_line_setup () {
 				       "$path_client_bindir/mysqld-debug",
 				       "$path_client_bindir/mysqld-max",
 				       "$glob_basedir/libexec/mysqld",
-				       "$glob_basedir/bin/mysqld");
+				       "$glob_basedir/bin/mysqld",
+				       "$glob_basedir/sbin/mysqld");
 
   # Use the mysqld found above to find out what features are available
   collect_mysqld_features();
@@ -797,6 +807,13 @@ sub command_line_setup () {
   {
     # Make absolute path, relative test dir
     $opt_vardir= "$glob_mysql_test_dir/$opt_vardir";
+  }
+
+  # Ensure a proper error message 
+  mkpath("$opt_vardir");
+  unless ( -d $opt_vardir and -w $opt_vardir )
+  {
+    mtr_error("Writable 'var' directory is needed, use the '--vardir' option");
   }
 
   # --------------------------------------------------------------------------
@@ -1320,7 +1337,9 @@ sub executable_setup_im () {
   $exe_im=
     mtr_exe_maybe_exists(
       "$glob_basedir/server-tools/instance-manager/mysqlmanager",
-      "$glob_basedir/libexec/mysqlmanager");
+      "$glob_basedir/libexec/mysqlmanager",
+      "$glob_basedir/bin/mysqlmanager",
+      "$glob_basedir/sbin/mysqlmanager");
 
   return ($exe_im eq "");
 }
