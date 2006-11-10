@@ -102,6 +102,18 @@ Note	1003	select pi() AS `pi()`,format(sin((pi() / 2)),6) AS `format(sin(pi()/2)
 select degrees(pi()),radians(360);
 degrees(pi())	radians(360)
 180	6.2831853071796
+select format(atan(-2, 2), 6);
+format(atan(-2, 2), 6)
+-0.785398
+select format(atan(pi(), 0), 6);
+format(atan(pi(), 0), 6)
+1.570796
+select format(atan2(-2, 2), 6);
+format(atan2(-2, 2), 6)
+-0.785398
+select format(atan2(pi(), 0), 6);
+format(atan2(pi(), 0), 6)
+1.570796
 SELECT ACOS(1.0);
 ACOS(1.0)
 0

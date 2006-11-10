@@ -337,12 +337,17 @@ typedef struct system_status_var
   ulong com_stmt_reset;
   ulong com_stmt_close;
 
+  /*
+    Status variables which it does not make sense to add to
+    global status variable counter
+  */
   double last_query_cost;
 } STATUS_VAR;
 
 /*
-  This is used for 'show status'. It must be updated to the last ulong
-  variable in system_status_var
+  This is used for 'SHOW STATUS'. It must be updated to the last ulong
+  variable in system_status_var which is makes sens to add to the global
+  counter
 */
 
 #define last_system_status_var com_stmt_close
@@ -1449,10 +1454,12 @@ public:
 #ifndef EMBEDDED_LIBRARY
   inline void clear_error()
   {
+    DBUG_ENTER("clear_error");
     net.last_error[0]= 0;
     net.last_errno= 0;
     net.report_error= 0;
     query_error= 0;
+    DBUG_VOID_RETURN;
   }
   inline bool vio_ok() const { return net.vio != 0; }
 #else
@@ -1570,10 +1577,11 @@ public:
       or trigger is decided when it starts executing, depending for example on
       the caller (for a stored function: if caller is SELECT or
       INSERT/UPDATE/DELETE...).
+
       Don't reset binlog format for NDB binlog injector thread.
     */
     if ((temporary_tables == NULL) && (in_sub_stmt == 0) &&
-	(system_thread != SYSTEM_THREAD_NDBCLUSTER_BINLOG))
+        (system_thread != SYSTEM_THREAD_NDBCLUSTER_BINLOG))
     {
       current_stmt_binlog_row_based= 
         test(variables.binlog_format == BINLOG_FORMAT_ROW);

@@ -244,7 +244,10 @@ DROP DATABASE mysqltest_1;
 # Bug #17264: MySQL Server freeze
 #
 connection locker;
+# Disable warnings to allow test to run also without InnoDB
+--disable_warnings
 create table t1 (f1 int(12) unsigned not null auto_increment, primary key(f1)) engine=innodb;
+--enable_warnings
 lock tables t1 write;
 connection writer;
 --sleep 2

@@ -47,7 +47,7 @@ drop table t1;
 mysqltest: Could not open connection 'default': 2026 SSL connection error
 mysqltest: Could not open connection 'default': 2026 SSL connection error
 mysqltest: Could not open connection 'default': 2026 SSL connection error
-Error when connection to server using SSL:Unable to get private key from ''
+SSL error: Unable to get private key from ''
 mysqltest: Could not open connection 'default': 2026 SSL connection error
-Error when connection to server using SSL:Unable to get certificate from ''
+SSL error: Unable to get certificate from ''
 mysqltest: Could not open connection 'default': 2026 SSL connection error

@@ -25,14 +25,25 @@
 
 #ifndef TESTTIME
 
+/*
+  Name description of interval names used in statements.
+
+  'interval_type_to_name' is ordered and sorted on interval size and
+  interval complexity.
+  Order of elements in 'interval_type_to_name' should correspond to 
+  the order of elements in 'interval_type' enum
+  
+  See also interval_type, interval_names
+*/
+
 LEX_STRING interval_type_to_name[INTERVAL_LAST] = {
   { C_STRING_WITH_LEN("YEAR")},
   { C_STRING_WITH_LEN("QUARTER")},
   { C_STRING_WITH_LEN("MONTH")},
+  { C_STRING_WITH_LEN("WEEK")},
   { C_STRING_WITH_LEN("DAY")},
   { C_STRING_WITH_LEN("HOUR")},
   { C_STRING_WITH_LEN("MINUTE")},
-  { C_STRING_WITH_LEN("WEEK")},
   { C_STRING_WITH_LEN("SECOND")},
   { C_STRING_WITH_LEN("MICROSECOND")},
   { C_STRING_WITH_LEN("YEAR_MONTH")},
@@ -253,14 +264,11 @@ my_time_t TIME_to_timestamp(THD *thd, const TIME *t, my_bool *in_dst_time_gap)
 
   *in_dst_time_gap= 0;
 
-  if (t->year < TIMESTAMP_MAX_YEAR && t->year > TIMESTAMP_MIN_YEAR ||
-      t->year == TIMESTAMP_MAX_YEAR && t->month == 1 && t->day == 1 ||
-      t->year == TIMESTAMP_MIN_YEAR && t->month == 12 && t->day == 31)
+  timestamp= thd->variables.time_zone->TIME_to_gmt_sec(t, in_dst_time_gap);
+  if (timestamp)
   {
     thd->time_zone_used= 1;
-    timestamp= thd->variables.time_zone->TIME_to_gmt_sec(t, in_dst_time_gap);
-    if (timestamp >= TIMESTAMP_MIN_VALUE && timestamp <= TIMESTAMP_MAX_VALUE)
-      return timestamp;
+    return timestamp;
   }
 
   /* If we are here we have range error. */
@@ -278,9 +286,9 @@ my_time_t TIME_to_timestamp(THD *thd, const TIME *t, my_bool *in_dst_time_gap)
 bool
 str_to_time_with_warn(const char *str, uint length, TIME *l_time)
 {
-  int was_cut;
-  bool ret_val= str_to_time(str, length, l_time, &was_cut);
-  if (was_cut)
+  int warning;
+  bool ret_val= str_to_time(str, length, l_time, &warning);
+  if (ret_val || warning)
     make_truncated_value_warning(current_thd, str, length,
                                  MYSQL_TIMESTAMP_TIME, NullS);
   return ret_val;

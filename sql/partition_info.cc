@@ -485,6 +485,8 @@ bool partition_info::check_range_constants()
   DBUG_ENTER("partition_info::check_range_constants");
   DBUG_PRINT("enter", ("INT_RESULT with %d parts", no_parts));
 
+  LINT_INIT(current_largest);
+
   part_result_type= INT_RESULT;
   range_int_array= (longlong*)sql_alloc(no_parts * sizeof(longlong));
   if (unlikely(range_int_array == NULL))
@@ -877,7 +879,6 @@ void partition_info::print_no_partition_found(TABLE *table)
 bool partition_info::set_up_charset_field_preps()
 {
   Field *field, **ptr;
-  char *field_buf;
   char **char_ptrs;
   unsigned i;
   bool found;
@@ -919,6 +920,7 @@ bool partition_info::set_up_charset_field_preps()
     {
       if (field_is_partition_charset(field))
       {
+        char *field_buf;
         CHARSET_INFO *cs= ((Field_str*)field)->charset();
         size= field->pack_length();
         if (!(field_buf= sql_calloc(size)))
@@ -956,6 +958,8 @@ bool partition_info::set_up_charset_field_preps()
       unsigned j= 0;
       Field *part_field;
       CHARSET_INFO *cs;
+      char *field_buf;
+      LINT_INIT(field_buf);
 
       if (!field_is_partition_charset(field))
         continue;

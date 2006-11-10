@@ -30,7 +30,14 @@
 #include <nks/fsio.h>
 #endif
 
-	/* Lock a part of a file */
+/* 
+  Lock a part of a file 
+
+  RETURN VALUE
+    0   Success
+    -1  An error has occured and 'my_errno' is set
+        to indicate the actual error code.
+*/
 
 int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
 	    myf MyFlags)
@@ -94,10 +101,22 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
 #elif defined(HAVE_LOCKING)
   /* Windows */
   {
-    my_bool error;
+    my_bool error= FALSE;
     pthread_mutex_lock(&my_file_info[fd].mutex);
-    if (MyFlags & MY_SEEK_NOT_DONE)
-      VOID(my_seek(fd,start,MY_SEEK_SET,MYF(MyFlags & ~MY_SEEK_NOT_DONE)));
+    if (MyFlags & MY_SEEK_NOT_DONE) 
+    {
+      if( my_seek(fd,start,MY_SEEK_SET,MYF(MyFlags & ~MY_SEEK_NOT_DONE))
+           == MY_FILEPOS_ERROR )
+      {
+        /*
+          If my_seek fails my_errno will already contain an error code;
+          just unlock and return error code.
+         */
+        DBUG_PRINT("error",("my_errno: %d (%d)",my_errno,errno));
+        pthread_mutex_unlock(&my_file_info[fd].mutex);
+        DBUG_RETURN(-1);
+      }
+    }
     error= locking(fd,locktype,(ulong) length) && errno != EINVAL;
     pthread_mutex_unlock(&my_file_info[fd].mutex);
     if (!error)
@@ -135,7 +154,17 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
   }
 #else
   if (MyFlags & MY_SEEK_NOT_DONE)
-    VOID(my_seek(fd,start,MY_SEEK_SET,MYF(MyFlags & ~MY_SEEK_NOT_DONE)));
+  {
+    if (my_seek(fd,start,MY_SEEK_SET,MYF(MyFlags & ~MY_SEEK_NOT_DONE))
+        == MY_FILEPOS_ERROR)
+    {
+      /*
+        If an error has occured in my_seek then we will already
+        have an error code in my_errno; Just return error code.
+      */
+      DBUG_RETURN(-1);
+    }
+  }
   if (lockf(fd,locktype,length) != -1)
     DBUG_RETURN(0);
 #endif /* HAVE_FCNTL */

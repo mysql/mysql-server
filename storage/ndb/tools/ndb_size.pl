@@ -57,7 +57,7 @@ if(@ARGV < 3 || $ARGV[0] eq '--usage' || $ARGV[0] eq '--help')
     $template->param(dsn => $dsn);
 }
 
-my @releases = ({rel=>'4.1'},{rel=>'5.0'},{rel=>'5.1'});
+my @releases = ({rel=>'4.1'},{rel=>'5.0'},{rel=>'5.1'}); #,{rel=>'5.1-dd'});
 $template->param(releases => \@releases);
 
 my $tables  = $dbh->selectall_arrayref("show tables");
@@ -81,25 +81,29 @@ sub align {
     return @aligned;
 }
 
-foreach(@{$tables})
-{
-    my $table= @{$_}[0];
-    my @columns;
-    my $info= $dbh->selectall_hashref('describe `'.$table.'`',"Field");
-    my @count  = $dbh->selectrow_array('select count(*) from `'.$table.'`');
-    my %columnsize; # used for index calculations
+sub do_table {
+    my $table= shift;
+    my $info= shift;
+    my %indexes= %{$_[0]};
+    my @count= @{$_[1]};
 
+    my @columns;
+    my %columnsize; # used for index calculations
     # We now work out the DataMemory usage
     
-    # sizes for   4.1, 5.0, 5.1
-    my @totalsize= (0,0,0);
+    # sizes for   4.1, 5.0, 5.1 and 5.1-dd
+    my @totalsize= (0,0,0,0);
+    @totalsize= @totalsize[0..$#releases]; # limit to releases we're outputting
+    my $nrvarsize= 0;
 
     foreach(keys %$info)
     {
-	my @realsize = (0,0,0);
+	my @realsize = (0,0,0,0);
+	my @varsize  = (0,0,0,0);
 	my $type;
 	my $size;
 	my $name= $_;
+	my $is_varsize= 0;
 
 	if($$info{$_}{Type} =~ /^(.*?)\((\d+)\)/)
 	{
@@ -112,54 +116,86 @@ foreach(@{$tables})
 	}
 
 	if($type =~ /tinyint/)
-	{@realsize=(1,1,1)}
+	{@realsize=(1,1,1,1)}
 	elsif($type =~ /smallint/)
-	{@realsize=(2,2,2)}
+	{@realsize=(2,2,2,2)}
 	elsif($type =~ /mediumint/)
-	{@realsize=(3,3,3)}
+	{@realsize=(3,3,3,3)}
 	elsif($type =~ /bigint/)
-	{@realsize=(8,8,8)}
+	{@realsize=(8,8,8,8)}
 	elsif($type =~ /int/)
-	{@realsize=(4,4,4)}
+	{@realsize=(4,4,4,4)}
 	elsif($type =~ /float/)
 	{
 	    if($size<=24)
-	    {@realsize=(4,4,4)}
+	    {@realsize=(4,4,4,4)}
 	    else
-	    {@realsize=(8,8,8)}
+	    {@realsize=(8,8,8,8)}
 	}
 	elsif($type =~ /double/ || $type =~ /real/)
-	{@realsize=(8,8,8)}
+	{@realsize=(8,8,8,8)}
 	elsif($type =~ /bit/)
 	{
 	    my $a=($size+7)/8;
-	    @realsize = ($a,$a,$a);
+	    @realsize = ($a,$a,$a,$a);
 	}
 	elsif($type =~ /datetime/)
-	{@realsize=(8,8,8)}
+	{@realsize=(8,8,8,8)}
 	elsif($type =~ /timestamp/)
-	{@realsize=(4,4,4)}
+	{@realsize=(4,4,4,4)}
 	elsif($type =~ /date/ || $type =~ /time/)
-	{@realsize=(3,3,3)}
+	{@realsize=(3,3,3,3)}
 	elsif($type =~ /year/)
-	{@realsize=(1,1,1)}
+	{@realsize=(1,1,1,1)}
 	elsif($type =~ /varchar/ || $type =~ /varbinary/)
 	{
-	    my $fixed= 1+$size;
+	    my $fixed=$size+ceil($size/256);
 	    my @dynamic=$dbh->selectrow_array("select avg(length(`"
 					      .$name
 					      ."`)) from `".$table.'`');
 	    $dynamic[0]=0 if !$dynamic[0];
-	    @realsize= ($fixed,$fixed,ceil($dynamic[0]));
+	    $dynamic[0]+=ceil($dynamic[0]/256); # size bit
+	    $nrvarsize++;
+	    $is_varsize= 1;
+	    $varsize[3]= ceil($dynamic[0]);
+	    @realsize= ($fixed,$fixed,ceil($dynamic[0]),$fixed);
 	}
 	elsif($type =~ /binary/ || $type =~ /char/)
-	{@realsize=($size,$size,$size)}
+	{@realsize=($size,$size,$size,$size)}
 	elsif($type =~ /text/ || $type =~ /blob/)
 	{
-	    @realsize=(256,256,1);
-	    $NoOfTables[$_]{val} += 1 foreach 0..$#releases; # blob uses table
-	} # FIXME check if 5.1 is correct
+	    @realsize=(8+256,8+256,8+256,8+256);
 
+	    my $blobhunk= 2000;
+	    $blobhunk= 8000 if $type=~ /longblob/;
+	    $blobhunk= 4000 if $type=~ /mediumblob/;
+
+	    my @blobsize=$dbh->selectrow_array("select SUM(CEILING(".
+					       "length(`$name`)/$blobhunk))".
+					       "from `".$table."`");
+	    $blobsize[0]=0 if !defined($blobsize[0]);
+	    #$NoOfTables[$_]{val} += 1 foreach 0..$#releases; # blob uses table
+	    do_table($table."\$BLOB_$name",
+		     {'PK'=>{Type=>'int'},
+		      'DIST'=>{Type=>'int'},
+		      'PART'=>{Type=>'int'},
+		      'DATA'=>{Type=>"binary($blobhunk)"}
+		  },
+		     {'PRIMARY' => {
+                         'unique' => 1,
+                         'comment' => '',
+                         'columns' => [
+                                        'PK',
+				        'DIST',
+				        'PART',
+                                      ],
+			 'type' => 'HASH'
+				    }
+		  },
+		     \@blobsize);
+	}
+
+	@realsize= @realsize[0..$#releases];
 	@realsize= align(4,@realsize);
 
 	$totalsize[$_]+=$realsize[$_] foreach 0..$#totalsize;
@@ -170,6 +206,7 @@ foreach(@{$tables})
 	push @columns, {
 	    name=>$name,
 	    type=>$type,
+	    is_varsize=>$is_varsize,
 	    size=>$size,
 	    key=>$$info{$_}{Key},
 	    datamemory=>\@realout,
@@ -183,24 +220,10 @@ foreach(@{$tables})
     # Firstly, we assemble some information about the indexes.
     # We use SHOW INDEX instead of using INFORMATION_SCHEMA so
     # we can still connect to pre-5.0 mysqlds.
-    my %indexes;
-    {
-	my $sth= $dbh->prepare("show index from `".$table.'`');
-	$sth->execute;
-	while(my $i = $sth->fetchrow_hashref)
-	{    
-	    $indexes{${%$i}{Key_name}}= {
-		type=>${%$i}{Index_type},
-		unique=>!${%$i}{Non_unique},
-		comment=>${%$i}{Comment},
-	    } if !defined($indexes{${%$i}{Key_name}});
-
-	    $indexes{${%$i}{Key_name}}{columns}[${%$i}{Seq_in_index}-1]= 
-		${%$i}{Column_name};
-	}
-    }
 
     if(!defined($indexes{PRIMARY})) {
+	my @usage= ({val=>8},{val=>8},{val=>8},{val=>8});
+	@usage= @usage[0..$#releases];
 	$indexes{PRIMARY}= {
 	    type=>'BTREE',
 	    unique=>1,
@@ -212,20 +235,22 @@ foreach(@{$tables})
 	    type=>'bigint',
 	    size=>8,
 	    key=>'PRI',
-	    datamemory=>[{val=>8},{val=>8},{val=>8}],
+	    datamemory=>\@usage,
 	};
 	$columnsize{'HIDDEN_NDB_PKEY'}= [8,8,8];
     }
 
-    my @IndexDataMemory= ({val=>0},{val=>0},{val=>0});
-    my @RowIndexMemory= ({val=>0},{val=>0},{val=>0});
+    my @IndexDataMemory= ({val=>0},{val=>0},{val=>0},{val=>0});
+    my @RowIndexMemory= ({val=>0},{val=>0},{val=>0},{val=>0});
+    @IndexDataMemory= @IndexDataMemory[0..$#releases];
+    @RowIndexMemory= @RowIndexMemory[0..$#releases];
 
     my @indexes;
     foreach my $index (keys %indexes) {
 	my $im41= 25;
 	$im41+=$columnsize{$_}[0] foreach @{$indexes{$index}{columns}};
-	my @im = ({val=>$im41},{val=>25},{val=>25});
-	my @dm = ({val=>10},{val=>10},{val=>10});
+	my @im = ({val=>$im41},{val=>25},{val=>25}); #,{val=>25});
+	my @dm = ({val=>10},{val=>10},{val=>10}); #,{val=>10});
 	push @indexes, {
 	    name=>$index,
 	    type=>$indexes{$index}{type},
@@ -233,13 +258,22 @@ foreach(@{$tables})
 	    indexmemory=>\@im,
 	    datamemory=>\@dm,
 	};
-	$IndexDataMemory[$_]{val}+=$dm[$_]{val} foreach 0..2;
-	$RowIndexMemory[$_]{val}+=$im[$_]{val} foreach 0..2;
+	$IndexDataMemory[$_]{val}+=$dm[$_]{val} foreach 0..$#releases;
+	$RowIndexMemory[$_]{val}+=$im[$_]{val} foreach 0..$#releases;
     }
 
     # total size + 16 bytes overhead
     my @TotalDataMemory;
-    $TotalDataMemory[$_]{val}=$IndexDataMemory[$_]{val}+$totalsize[$_]+16 foreach 0..2;
+    my @RowOverhead = ({val=>16},{val=>16},{val=>16}); #,{val=>24});
+    # 5.1 has ptr to varsize page, and per-varsize overhead
+    my @nrvarsize_mem= ({val=>0},{val=>0},
+			{val=>8}); #,{val=>0});
+    {
+	my @a= align(4,$nrvarsize*2);
+	$nrvarsize_mem[2]{val}+=$a[0]+$nrvarsize*4;
+    }
+
+    $TotalDataMemory[$_]{val}=$IndexDataMemory[$_]{val}+$totalsize[$_]+$RowOverhead[$_]{val}+$nrvarsize_mem[$_]{val} foreach 0..$#releases;
 
     my @RowDataMemory;
     push @RowDataMemory,{val=>$_} foreach @totalsize;
@@ -260,12 +294,18 @@ foreach(@{$tables})
     my @counts;
     $counts[$_]{val}= $count foreach 0..$#releases;
 
+    my @nrvarsize_rel= ({val=>0},{val=>0},
+			{val=>$nrvarsize}); #,{val=>0});
+
     push @table_size, {
 	table=>$table,
 	indexes=>\@indexes,
 	columns=>\@columns,
 	count=>\@counts,
+	RowOverhead=>\@RowOverhead,
 	RowDataMemory=>\@RowDataMemory,
+	nrvarsize=>\@nrvarsize_rel,
+	nrvarsize_mem=>\@nrvarsize_mem,
 	releases=>\@releases,
 	IndexDataMemory=>\@IndexDataMemory,
 	TotalDataMemory=>\@TotalDataMemory,
@@ -281,6 +321,31 @@ foreach(@{$tables})
     $dbIndexMemory[$_]{val} += $IndexMemory[$_]{val} foreach 0..$#releases;
     $NoOfAttributes[$_]{val} += @columns foreach 0..$#releases;
     $NoOfIndexes[$_]{val} += @indexes foreach 0..$#releases;
+}
+
+foreach(@{$tables})
+{
+    my $table= @{$_}[0];
+    my $info= $dbh->selectall_hashref('describe `'.$table.'`',"Field");
+    my @count  = $dbh->selectrow_array('select count(*) from `'.$table.'`');
+
+    my %indexes;
+    {
+	my $sth= $dbh->prepare("show index from `".$table.'`');
+	$sth->execute;
+	while(my $i = $sth->fetchrow_hashref)
+	{    
+	    $indexes{${%$i}{Key_name}}= {
+		type=>${%$i}{Index_type},
+		unique=>!${%$i}{Non_unique},
+		comment=>${%$i}{Comment},
+	    } if !defined($indexes{${%$i}{Key_name}});
+
+	    $indexes{${%$i}{Key_name}}{columns}[${%$i}{Seq_in_index}-1]= 
+		${%$i}{Column_name};
+	}
+    }
+    do_table($table, $info, \%indexes, \@count);
 }
 
 my @NoOfTriggers;

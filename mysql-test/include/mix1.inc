@@ -31,13 +31,6 @@ eval SET SESSION STORAGE_ENGINE = $engine_type;
 drop table if exists t1,t2,t1m,t1i,t2m,t2i,t4;
 --enable_warnings
 
-#
-# Bug#17530: Incorrect key truncation on table creation caused server crash.
-#
-create table t1(f1 varchar(800) binary not null, key(f1))
-  character set utf8 collate utf8_general_ci;
-insert into t1 values('aaa');
-drop table t1;
 
 # BUG#16798: Uninitialized row buffer reads in ref-or-null optimizer
 # (repeatable only w/innodb).
@@ -154,6 +147,31 @@ SELECT `id1` FROM `t1` WHERE `id1` NOT IN (SELECT `id1` FROM `t2` WHERE `id2` = 
 DROP TABLE t1, t2;
 
 #
+# Bug #22728 - Handler_rollback value is growing
+#
+
+let $before= `show /*!50002 GLOBAL */ status like 'Handler_rollback'`;
+create table t1 (c1 int) engine=innodb;
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connection con2;
+handler t1 open;
+handler t1 read first;
+disconnect con2;
+connection con1;
+let $after= `show /*!50002 GLOBAL */ status like 'Handler_rollback'`;
+# Compare the before and after value, it should be equal
+--disable_query_log
+eval select STRCMP("$before", "$after") as "Before and after comparison";
+--enable_query_log
+connection default;
+drop table t1;
+disconnect con1;
+
+--echo End of 4.1 tests
+
+
+#
 # Bug #12882  	min/max inconsistent on empty table
 #
 
@@ -258,6 +276,36 @@ analyze table t4;
 select distinct a1 from t4 where pk_col not in (1,2,3,4);
 
 drop table t1,t4;
+
+
+#
+# BUG#18819: DELETE IGNORE hangs on foreign key parent delete
+#
+# The bug itself does not relate to InnoDB, but we have to use foreign
+# keys to reproduce it.
+#
+--disable_warnings
+DROP TABLE IF EXISTS t2, t1;
+--enable_warnings
+
+CREATE TABLE t1 (i INT NOT NULL PRIMARY KEY) ENGINE= InnoDB;
+CREATE TABLE t2 (
+  i INT NOT NULL,
+  FOREIGN KEY (i) REFERENCES t1 (i) ON DELETE NO ACTION
+) ENGINE= InnoDB;
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+
+DELETE IGNORE FROM t1 WHERE i = 1;
+
+SELECT * FROM t1, t2;
+
+DROP TABLE t2, t1;
+
+
+--echo End of 4.1 tests.
+
 
 #
 # Bug #6142: a problem with the empty innodb table
@@ -395,6 +443,28 @@ create table t1(f1 varchar(800) binary not null, key(f1))
 insert into t1 values('aaa');
 drop table t1;
 
+
+#
+# Bug#22781: SQL_BIG_RESULT fails to influence sort plan
+#
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c FLOAT, KEY b(b)) ENGINE = INNODB;
+
+INSERT INTO t1 VALUES (    1 , 1              , 1);
+INSERT INTO t1 SELECT  a + 1 , MOD(a + 1 , 20), 1 FROM t1;
+INSERT INTO t1 SELECT  a + 2 , MOD(a + 2 , 20), 1 FROM t1;
+INSERT INTO t1 SELECT  a + 4 , MOD(a + 4 , 20), 1 FROM t1;
+INSERT INTO t1 SELECT  a + 8 , MOD(a + 8 , 20), 1 FROM t1;
+INSERT INTO t1 SELECT  a + 16, MOD(a + 16, 20), 1 FROM t1;
+INSERT INTO t1 SELECT  a + 32, MOD(a + 32, 20), 1 FROM t1;
+INSERT INTO t1 SELECT  a + 64, MOD(a + 64, 20), 1 FROM t1;
+
+EXPLAIN SELECT b, SUM(c) FROM t1 GROUP BY b;
+EXPLAIN SELECT SQL_BIG_RESULT b, SUM(c) FROM t1 GROUP BY b;
+DROP TABLE t1;
+
+--echo End of 5.0 tests
+
+
 # Fix for BUG#19243 "wrong LAST_INSERT_ID() after ON DUPLICATE KEY
 # UPDATE": if the row is updated, it's like a regular UPDATE:
 # LAST_INSERT_ID() is not affected.
@@ -446,3 +516,5 @@ select last_insert_id();
 select * from t2;
 
 drop table t2;
+
+--echo End of 5.1 tests
