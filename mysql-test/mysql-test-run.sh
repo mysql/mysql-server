@@ -1750,10 +1750,13 @@ run_testcase ()
        --result-file=*)
          result_file=`$ECHO "$EXTRA_MASTER_OPT" | $SED -e "s;--result-file=;;"`
          result_file="r/$result_file.result"
-         # Note that this must be set to space, not "" for test-reset to
-# work
+         # Note that this must be set to space, not "" for test-reset to work
 	 EXTRA_MASTER_OPT=" "
          ;;
+       --force-restart)
+         # Note that this must be set to space, not "" for test-reset to work
+	 EXTRA_MASTER_OPT=" "
+	 ;;
      esac
      stop_master
      stop_master 1
