@@ -485,12 +485,48 @@ unix_timestamp('1969-12-01 19:00:01')
 select from_unixtime(-1);
 from_unixtime(-1)
 NULL
-select from_unixtime(2145916800);
-from_unixtime(2145916800)
+select from_unixtime(2147483647);
+from_unixtime(2147483647)
+2038-01-19 06:14:07
+select from_unixtime(2147483648);
+from_unixtime(2147483648)
 NULL
 select from_unixtime(0);
 from_unixtime(0)
 1970-01-01 03:00:00
+select unix_timestamp(from_unixtime(2147483647));
+unix_timestamp(from_unixtime(2147483647))
+2147483647
+select unix_timestamp(from_unixtime(2147483648));
+unix_timestamp(from_unixtime(2147483648))
+NULL
+select unix_timestamp('2039-01-20 01:00:00');
+unix_timestamp('2039-01-20 01:00:00')
+0
+select unix_timestamp('1968-01-20 01:00:00');
+unix_timestamp('1968-01-20 01:00:00')
+0
+select unix_timestamp('2038-02-10 01:00:00');
+unix_timestamp('2038-02-10 01:00:00')
+0
+select unix_timestamp('1969-11-20 01:00:00');
+unix_timestamp('1969-11-20 01:00:00')
+0
+select unix_timestamp('2038-01-20 01:00:00');
+unix_timestamp('2038-01-20 01:00:00')
+0
+select unix_timestamp('1969-12-30 01:00:00');
+unix_timestamp('1969-12-30 01:00:00')
+0
+select unix_timestamp('2038-01-17 12:00:00');
+unix_timestamp('2038-01-17 12:00:00')
+2147331600
+select unix_timestamp('1970-01-01 03:00:01');
+unix_timestamp('1970-01-01 03:00:01')
+1
+select unix_timestamp('2038-01-19 07:14:07');
+unix_timestamp('2038-01-19 07:14:07')
+0
 CREATE TABLE t1 (datetime datetime, timestamp timestamp, date date, time time);
 INSERT INTO t1 values ("2001-01-02 03:04:05", "2002-01-02 03:04:05", "2003-01-02", "06:07:08");
 SELECT * from t1;
