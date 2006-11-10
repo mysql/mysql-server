@@ -1,11 +1,5 @@
 SET SESSION STORAGE_ENGINE = InnoDB;
 drop table if exists t1,t2,t1m,t1i,t2m,t2i,t4;
-create table t1(f1 varchar(800) binary not null, key(f1))
-character set utf8 collate utf8_general_ci;
-Warnings:
-Warning	1071	Specified key was too long; max key length is 765 bytes
-insert into t1 values('aaa');
-drop table t1;
 create table t1 (
 c_id int(11) not null default '0',
 org_id int(11) default null,
@@ -111,6 +105,14 @@ SELECT `id1` FROM `t1` WHERE `id1` NOT IN (SELECT `id1` FROM `t2` WHERE `id2` = 
 id1
 2
 DROP TABLE t1, t2;
+create table t1 (c1 int) engine=innodb;
+handler t1 open;
+handler t1 read first;
+c1
+Before and after comparison
+0
+drop table t1;
+End of 4.1 tests
 create table t1m (a int) engine = MEMORY;
 create table t1i (a int);
 create table t2m (a int) engine = MEMORY;
@@ -248,6 +250,22 @@ b
 c
 d
 drop table t1,t4;
+DROP TABLE IF EXISTS t2, t1;
+CREATE TABLE t1 (i INT NOT NULL PRIMARY KEY) ENGINE= InnoDB;
+CREATE TABLE t2 (
+i INT NOT NULL,
+FOREIGN KEY (i) REFERENCES t1 (i) ON DELETE NO ACTION
+) ENGINE= InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+DELETE IGNORE FROM t1 WHERE i = 1;
+Warnings:
+Error	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`) ON DELETE NO ACTION)
+SELECT * FROM t1, t2;
+i	i
+1	1
+DROP TABLE t2, t1;
+End of 4.1 tests.
 create table t1 (
 a varchar(30), b varchar(30), primary key(a), key(b)
 );
@@ -369,6 +387,23 @@ Warnings:
 Warning	1071	Specified key was too long; max key length is 765 bytes
 insert into t1 values('aaa');
 drop table t1;
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c FLOAT, KEY b(b)) ENGINE = INNODB;
+INSERT INTO t1 VALUES (    1 , 1              , 1);
+INSERT INTO t1 SELECT  a + 1 , MOD(a + 1 , 20), 1 FROM t1;
+INSERT INTO t1 SELECT  a + 2 , MOD(a + 2 , 20), 1 FROM t1;
+INSERT INTO t1 SELECT  a + 4 , MOD(a + 4 , 20), 1 FROM t1;
+INSERT INTO t1 SELECT  a + 8 , MOD(a + 8 , 20), 1 FROM t1;
+INSERT INTO t1 SELECT  a + 16, MOD(a + 16, 20), 1 FROM t1;
+INSERT INTO t1 SELECT  a + 32, MOD(a + 32, 20), 1 FROM t1;
+INSERT INTO t1 SELECT  a + 64, MOD(a + 64, 20), 1 FROM t1;
+EXPLAIN SELECT b, SUM(c) FROM t1 GROUP BY b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	b	5	NULL	128	
+EXPLAIN SELECT SQL_BIG_RESULT b, SUM(c) FROM t1 GROUP BY b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	128	Using filesort
+DROP TABLE t1;
+End of 5.0 tests
 CREATE TABLE `t2` (
 `k` int(11) NOT NULL auto_increment,
 `a` int(11) default NULL,
@@ -437,3 +472,4 @@ k	a	c
 11	15	1
 12	20	1
 drop table t2;
+End of 5.1 tests

@@ -80,6 +80,7 @@ memory is read outside the allocated blocks. */
 #define UNIV_DEBUG_VALGRIND
 #define UNIV_DEBUG_PRINT
 #define UNIV_DEBUG
+#define UNIV_LIST_DEBUG
 #define UNIV_MEM_DEBUG
 #define UNIV_IBUF_DEBUG
 #define UNIV_SYNC_DEBUG
