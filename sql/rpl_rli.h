@@ -291,9 +291,7 @@ typedef struct st_relay_log_info
     When the 6 bytes are equal to 0 is used to mean "cache is invalidated".
   */
   void cached_charset_invalidate();
-  bool cached_charset_compare(char *charset);
-
-  void transaction_end(THD*);
+  bool cached_charset_compare(char *charset) const;
 
   void cleanup_context(THD *, bool);
   void clear_tables_to_lock() {
