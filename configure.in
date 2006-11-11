@@ -2157,10 +2157,6 @@ MYSQL_CHECK_SSL
 # Has to be done late, as the plugin may need to check for existence of
 # functions tested above
 #--------------------------------------------------------------------
-MYSQL_PLUGIN(ftexample,         [Simple Parser],
-        [Simple full-text parser plugin])
-MYSQL_PLUGIN_DIRECTORY(ftexample, [plugin/fulltext])
-MYSQL_PLUGIN_DYNAMIC(ftexample, [mypluglib.la])
 
 MYSQL_STORAGE_ENGINE(partition, partition, [Partition Support],
         [MySQL Partitioning Support], [max,max-no-ndb])
