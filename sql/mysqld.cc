@@ -274,7 +274,7 @@ bool opt_disable_networking=0, opt_skip_show_db=0;
 bool opt_character_set_client_handshake= 1;
 bool lower_case_table_names_used= 0;
 bool server_id_supplied = 0;
-bool opt_endinfo,using_udf_functions, locked_in_memory;
+bool opt_endinfo, using_udf_functions, locked_in_memory;
 bool opt_using_transactions, using_update_log;
 bool volatile abort_loop, select_thread_in_use, signal_thread_in_use;
 bool volatile ready_to_exit, shutdown_in_progress, grant_option;
@@ -2015,13 +2015,24 @@ later when used with nscd), disable LDAP in your nsswitch.conf, or use a\n\
 mysqld that is not statically linked.\n");
 #endif
 
- if (test_flags & TEST_CORE_ON_SIGNAL)
- {
-   fprintf(stderr, "Writing a core file\n");
-   fflush(stderr);
-   write_core(sig);
- }
- exit(1);
+  if (locked_in_memory)
+  {
+    fprintf(stderr, "\n\
+The \"--memlock\" argument, which was enabled, uses system calls that are\n\
+unreliable and unstable on some operating systems and operating-system\n\
+versions (notably, some versions of Linux).  This crash could be due to use\n\
+of those buggy OS calls.  You should consider whether you really need the\n\
+\"--memlock\" parameter and/or consult the OS distributer about \"mlockall\"\n\
+bugs.\n");
+  }
+
+  if (test_flags & TEST_CORE_ON_SIGNAL)
+  {
+    fprintf(stderr, "Writing a core file\n");
+    fflush(stderr);
+    write_core(sig);
+  }
+  exit(1);
 }
 
 #ifndef SA_RESETHAND
