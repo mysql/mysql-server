@@ -7023,11 +7023,6 @@ static void mysql_init_variables(void)
 #else
   have_innodb= SHOW_OPTION_NO;
 #endif
-#ifdef WITH_EXAMPLE_STORAGE_ENGINE
-  have_example_db= SHOW_OPTION_YES;
-#else
-  have_example_db= SHOW_OPTION_NO;
-#endif
 #ifdef WITH_ARCHIVE_STORAGE_ENGINE
   have_archive_db= SHOW_OPTION_YES;
 #else
@@ -8133,7 +8128,6 @@ void refresh_status(THD *thd)
 *****************************************************************************/
 #undef have_innodb
 #undef have_ndbcluster
-#undef have_example_db
 #undef have_archive_db
 #undef have_csv_db
 #undef have_federated_db
@@ -8143,7 +8137,6 @@ void refresh_status(THD *thd)
 
 SHOW_COMP_OPTION have_innodb= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_ndbcluster= SHOW_OPTION_NO;
-SHOW_COMP_OPTION have_example_db= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_archive_db= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_csv_db= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_federated_db= SHOW_OPTION_NO;
