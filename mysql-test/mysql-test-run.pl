@@ -643,7 +643,7 @@ sub command_line_setup () {
 
   $glob_hostname=  mtr_short_hostname();
 
-  # 'basedir' is always above "mysql-test" directory ...
+  # Find the absolute path to the test directory
   $glob_mysql_test_dir=  cwd();
   if ( $glob_cygwin_perl )
   {
@@ -651,12 +651,20 @@ sub command_line_setup () {
     $glob_mysql_test_dir= `cygpath -m "$glob_mysql_test_dir"`;
     chomp($glob_mysql_test_dir);
   }
-  # ... direct parent for "tar.gz" installations, ...
-  $glob_basedir=         dirname($glob_mysql_test_dir);
-  # ... or one more level up, for RPM installations.
-  if ( ! -d "$glob_basedir/bin" )
+
+  # In most cases, the base directory we find everything relative to,
+  # is the parent directory of the "mysql-test" directory. For source
+  # distributions, TAR binary distributions and some other packages.
+  $glob_basedir= dirname($glob_mysql_test_dir);
+
+  # In the RPM case, binaries and libraries are installed in the
+  # default system locations, instead of having our own private base
+  # directory. And we install "/usr/share/mysql-test". Moving up one
+  # more directory relative to "mysql-test" gives us a usable base
+  # directory for RPM installs.
+  if ( ! $opt_source_dist and ! -d "$glob_basedir/bin" )
   {
-    $glob_basedir=       dirname($glob_basedir);
+    $glob_basedir= dirname($glob_basedir);
   }
 
   # Expect mysql-bench to be located adjacent to the source tree, by default
