@@ -103,10 +103,6 @@
   whether it's possible to lock the row, but no need to lock it - perhaps
   the thread has a loose lock on this table). This is defined by
   getlock_result[] table.
-
-  TODO optimization: table locks - they have completely
-  different characteristics. long lists, few distinct resources -
-  slow to scan, [possibly] high retry rate
 */
 
 #include <my_global.h>
@@ -487,6 +483,9 @@ static int lockdelete(LOCK * volatile *head, LOCK *node, LF_PINS *pins)
     res= lockfind(head, node, &cursor, pins);
     DBUG_ASSERT(res & ALREADY_HAVE);
 
+    if (cursor.upgrade_from)
+      cursor.upgrade_from->flags&= ~IGNORE_ME;
+
     /*
       XXX this does not work with savepoints, as old lock is left ignored.
       It cannot be unignored, as would basically mean moving the lock back
@@ -506,7 +505,11 @@ static int lockdelete(LOCK * volatile *head, LOCK *node, LF_PINS *pins)
         lockfind(head, node, &cursor, pins);
     }
     else
+    {
       res= REPEAT_ONCE_MORE;
+      if (cursor.upgrade_from)
+        cursor.upgrade_from->flags|= IGNORE_ME;
+    }
   } while (res == REPEAT_ONCE_MORE);
   _lf_unpin(pins, 0);
   _lf_unpin(pins, 1);
