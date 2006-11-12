@@ -119,14 +119,14 @@ typedef struct st_pagecache
   ulonglong time;                /* total number of block link operations    */
   uint hash_entries;             /* max number of entries in the hash table  */
   int hash_links;                /* max number of hash links                 */
-  int hash_links_used;           /* number of hash links currently used      */
+  int hash_links_used;    /* number of hash links taken from free links pool */
   int disk_blocks;               /* max number of blocks in the cache        */
   ulong blocks_used;           /* maximum number of concurrently used blocks */
   ulong blocks_unused;           /* number of currently unused blocks        */
   ulong blocks_changed;          /* number of currently dirty blocks         */
   ulong warm_blocks;             /* number of blocks in warm sub-chain       */
   ulong cnt_for_resize_op;       /* counter to block resize operation        */
-  long blocks_available;      /* number of blocks available in the LRU chain */
+  ulong blocks_available;     /* number of blocks available in the LRU chain */
   PAGECACHE_HASH_LINK **hash_root;/* arr. of entries into hash table buckets */
   PAGECACHE_HASH_LINK *hash_link_root;/* memory for hash table links         */
   PAGECACHE_HASH_LINK *free_hash_list;/* list of free hash links             */
@@ -194,32 +194,32 @@ extern my_bool pagecache_write(PAGECACHE *pagecache,
                                enum pagecache_page_pin pin,
                                enum pagecache_write_mode write_mode,
                                PAGECACHE_PAGE_LINK *link);
-void pagecache_unlock_page(PAGECACHE *pagecache,
-                           PAGECACHE_FILE *file,
-                           maria_page_no_t pageno,
-                           enum pagecache_page_lock lock,
-                           enum pagecache_page_pin pin,
-                           my_bool stamp_this_page,
-                           LSN first_REDO_LSN_for_page);
-void pagecache_unlock(PAGECACHE *pagecache,
-                      PAGECACHE_PAGE_LINK *link,
-                      enum pagecache_page_lock lock,
-                      enum pagecache_page_pin pin,
-                      my_bool stamp_this_page,
-                      LSN first_REDO_LSN_for_page);
-void pagecache_unpin_page(PAGECACHE *pagecache,
-                          PAGECACHE_FILE *file,
-                          maria_page_no_t pageno);
-void pagecache_unpin(PAGECACHE *pagecache,
-                     PAGECACHE_PAGE_LINK *link);
+extern void pagecache_unlock_page(PAGECACHE *pagecache,
+                                  PAGECACHE_FILE *file,
+                                  maria_page_no_t pageno,
+                                  enum pagecache_page_lock lock,
+                                  enum pagecache_page_pin pin,
+                                  my_bool stamp_this_page,
+                                  LSN first_REDO_LSN_for_page);
+extern void pagecache_unlock(PAGECACHE *pagecache,
+                             PAGECACHE_PAGE_LINK *link,
+                             enum pagecache_page_lock lock,
+                             enum pagecache_page_pin pin,
+                             my_bool stamp_this_page,
+                             LSN first_REDO_LSN_for_page);
+extern void pagecache_unpin_page(PAGECACHE *pagecache,
+                                 PAGECACHE_FILE *file,
+                                 maria_page_no_t pageno);
+extern void pagecache_unpin(PAGECACHE *pagecache,
+                            PAGECACHE_PAGE_LINK *link);
 extern int flush_pagecache_blocks(PAGECACHE *keycache,
                                   PAGECACHE_FILE *file,
                                   enum flush_type type);
-my_bool pagecache_delete_page(PAGECACHE *pagecache,
-                              PAGECACHE_FILE *file,
-                              maria_page_no_t pageno,
-                              enum pagecache_page_lock lock,
-                              my_bool flush);
+extern my_bool pagecache_delete_page(PAGECACHE *pagecache,
+                                     PAGECACHE_FILE *file,
+                                     maria_page_no_t pageno,
+                                     enum pagecache_page_lock lock,
+                                     my_bool flush);
 extern void end_pagecache(PAGECACHE *keycache, my_bool cleanup);
 
 C_MODE_END
