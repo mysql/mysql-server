@@ -1534,7 +1534,7 @@ int ha_federated::close(void)
       0    otherwise
 */
 
-inline uint field_in_record_is_null(TABLE *table,
+static inline uint field_in_record_is_null(TABLE *table,
                                     Field *field,
                                     char *record)
 {
