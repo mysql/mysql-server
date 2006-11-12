@@ -147,8 +147,10 @@ struct sql_ex_info
 #define EXEC_LOAD_HEADER_LEN   4
 #define DELETE_FILE_HEADER_LEN 4
 
-/* amount of byte is contribution of replicaton protocol to a query
-   received from user when the query goes to binlog */
+/* 
+  Max number of possible extra bytes in a replication event compared to a
+  packet (i.e. a query) sent from client to master.
+*/
 #define MAX_LOG_EVENT_HEADER   (LOG_EVENT_HEADER_LEN + /* write_header */ \
 				QUERY_HEADER_LEN     + /* write_data */   \
 				NAME_LEN + 1)
