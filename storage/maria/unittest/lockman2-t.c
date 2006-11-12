@@ -264,7 +264,7 @@ int main()
   my_init();
   pthread_mutex_init(&rt_mutex, 0);
 
-  plan(35);
+  plan(39);
 
   if (my_atomic_initialize())
     return exit_status();
