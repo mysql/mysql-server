@@ -5802,9 +5802,10 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
       STMT_END_F.
       For now we code, knowing that error is not skippable and so slave SQL
       thread is certainly going to stop.
+      rollback at the caller along with sbr.
     */
     thd->reset_current_stmt_binlog_row_based();
-    rli->cleanup_context(thd, 1);
+    rli->cleanup_context(thd, 0);  /* rollback at caller in step with sbr */
     thd->query_error= 1;
     DBUG_RETURN(error);
   }
@@ -6593,6 +6594,11 @@ replace_record(THD *thd, TABLE *table,
 
   while ((error= table->file->ha_write_row(table->record[0])))
   {
+    if (error == HA_ERR_LOCK_DEADLOCK || error == HA_ERR_LOCK_WAIT_TIMEOUT)
+    {
+      table->file->print_error(error, MYF(0)); /* to check at exec_relay_log_event */
+      DBUG_RETURN(error);
+    }
     if ((keynum= table->file->get_dup_key(error)) < 0)
     {
       /* We failed to retrieve the duplicate key */
