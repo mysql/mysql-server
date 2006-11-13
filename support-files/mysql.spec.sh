@@ -318,6 +318,7 @@ BuildMySQL "--enable-shared \
 		--with-example-storage-engine \
 		--with-blackhole-storage-engine \
 		--with-federated-storage-engine \
+	        --with-partition \
 	        --with-big-tables \
 		--with-comment=\"MySQL Community Server - Debug (GPL)\"")
 
@@ -348,6 +349,7 @@ BuildMySQL "--enable-shared \
 		--with-example-storage-engine \
 		--with-blackhole-storage-engine \
 		--with-federated-storage-engine \
+	        --with-partition \
 		--with-embedded-server \
 	        --with-big-tables \
 		--with-comment=\"MySQL Community Server (GPL)\"")
