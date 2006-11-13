@@ -657,7 +657,7 @@ SimulatedBlock::getBatSize(Uint16 blockNo){
 }
 
 void* 
-SimulatedBlock::allocRecord(const char * type, size_t s, size_t n, bool clear) 
+SimulatedBlock::allocRecord(const char * type, size_t s, size_t n, bool clear, Uint32 paramId) 
 {
 
   void * p = NULL;
@@ -678,8 +678,16 @@ SimulatedBlock::allocRecord(const char * type, size_t s, size_t n, bool clear)
     if (p == NULL){
       char buf1[255];
       char buf2[255];
-      BaseString::snprintf(buf1, sizeof(buf1), "%s could not allocate memory for %s", 
-	       getBlockName(number()), type);
+      struct ndb_mgm_param_info param_info;
+      size_t size = sizeof(ndb_mgm_param_info);
+
+      if(0 != paramId && 0 == ndb_mgm_get_db_parameter_info(paramId, &param_info, &size)) {
+        BaseString::snprintf(buf1, sizeof(buf1), "%s could not allocate memory for parameter %s", 
+	         getBlockName(number()), param_info.m_name);
+      } else {
+        BaseString::snprintf(buf1, sizeof(buf1), "%s could not allocate memory for %s", 
+	         getBlockName(number()), type);
+      }
       BaseString::snprintf(buf2, sizeof(buf2), "Requested: %ux%u = %llu bytes", 
 	       (Uint32)s, (Uint32)n, (Uint64)real_size);
       ERROR_SET(fatal, NDBD_EXIT_MEMALLOC, buf1, buf2);
