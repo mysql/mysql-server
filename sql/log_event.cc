@@ -5694,7 +5694,6 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
     for (ptr= rli->tables_to_lock ; ptr ; ptr= ptr->next_global)
     {
       rli->m_table_map.set_table(ptr->table_id, ptr->table);
-      rli->touching_table(ptr->db, ptr->table_name, ptr->table_id);
     }
 #ifdef HAVE_QUERY_CACHE
     query_cache.invalidate_locked_for_write(rli->tables_to_lock);
@@ -5803,9 +5802,10 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
       STMT_END_F.
       For now we code, knowing that error is not skippable and so slave SQL
       thread is certainly going to stop.
+      rollback at the caller along with sbr.
     */
     thd->reset_current_stmt_binlog_row_based();
-    rli->cleanup_context(thd, 1);
+    rli->cleanup_context(thd, 0);  /* rollback at caller in step with sbr */
     thd->query_error= 1;
     DBUG_RETURN(error);
   }
@@ -6230,8 +6230,7 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
 
     /*
       We record in the slave's information that the table should be
-      locked by linking the table into the list of tables to lock, and
-      tell the RLI that we are touching a table.
+      locked by linking the table into the list of tables to lock.
     */
     table_list->next_global= table_list->next_local= rli->tables_to_lock;
     rli->tables_to_lock= table_list;
@@ -6595,6 +6594,11 @@ replace_record(THD *thd, TABLE *table,
 
   while ((error= table->file->ha_write_row(table->record[0])))
   {
+    if (error == HA_ERR_LOCK_DEADLOCK || error == HA_ERR_LOCK_WAIT_TIMEOUT)
+    {
+      table->file->print_error(error, MYF(0)); /* to check at exec_relay_log_event */
+      DBUG_RETURN(error);
+    }
     if ((keynum= table->file->get_dup_key(error)) < 0)
     {
       /* We failed to retrieve the duplicate key */

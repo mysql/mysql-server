@@ -24,6 +24,7 @@
 #include "rpl_filter.h"
 #include "rpl_tblmap.h"
 #include "rpl_rli.h"
+#include "rpl_mi.h"
 
 #define SLAVE_NET_TIMEOUT  3600
 
@@ -38,11 +39,11 @@
     I/O Thread - One of these threads is started for each master server.
                  They maintain a connection to their master server, read log
                  events from the master as they arrive, and queues them into
-                 a single, shared relay log file.  A MASTER_INFO struct
+                 a single, shared relay log file.  A MASTER_INFO 
                  represents each of these threads.
 
     SQL Thread - One of these threads is started and reads from the relay log
-                 file, executing each event.  A RELAY_LOG_INFO struct
+                 file, executing each event.  A RELAY_LOG_INFO 
                  represents this thread.
 
   Buffering in the relay log file makes it unnecessary to reread events from
@@ -95,7 +96,6 @@ extern my_string opt_relay_logname, opt_relaylog_index_name;
 extern my_bool opt_skip_slave_start, opt_reckless_slave;
 extern my_bool opt_log_slave_updates;
 extern ulonglong relay_log_space_limit;
-struct st_master_info;
 
 /*
   3 possible values for MASTER_INFO::slave_running and
@@ -114,110 +114,6 @@ struct st_master_info;
 
 static Log_event* next_event(RELAY_LOG_INFO* rli);
 
-/*****************************************************************************
-
-  Replication IO Thread
-
-  st_master_info contains:
-    - information about how to connect to a master
-    - current master log name
-    - current master log offset
-    - misc control variables
-
-  st_master_info is initialized once from the master.info file if such
-  exists. Otherwise, data members corresponding to master.info fields
-  are initialized with defaults specified by master-* options. The
-  initialization is done through init_master_info() call.
-
-  The format of master.info file:
-
-  log_name
-  log_pos
-  master_host
-  master_user
-  master_pass
-  master_port
-  master_connect_retry
-
-  To write out the contents of master.info file to disk ( needed every
-  time we read and queue data from the master ), a call to
-  flush_master_info() is required.
-
-  To clean up, call end_master_info()
-
-*****************************************************************************/
-
-typedef struct st_master_info
-{
-  /* the variables below are needed because we can change masters on the fly */
-  char master_log_name[FN_REFLEN];
-  char host[HOSTNAME_LENGTH+1];
-  char user[USERNAME_LENGTH+1];
-  char password[MAX_PASSWORD_LENGTH+1];
-  my_bool ssl; // enables use of SSL connection if true
-  char ssl_ca[FN_REFLEN], ssl_capath[FN_REFLEN], ssl_cert[FN_REFLEN];
-  char ssl_cipher[FN_REFLEN], ssl_key[FN_REFLEN];
-
-  my_off_t master_log_pos;
-  File fd; // we keep the file open, so we need to remember the file pointer
-  IO_CACHE file;
-
-  pthread_mutex_t data_lock,run_lock;
-  pthread_cond_t data_cond,start_cond,stop_cond;
-  THD *io_thd;
-  MYSQL* mysql;
-  uint32 file_id;				/* for 3.23 load data infile */
-  RELAY_LOG_INFO rli;
-  uint port;
-  uint connect_retry;
-#ifndef DBUG_OFF
-  int events_till_disconnect;
-#endif
-  bool inited;
-  volatile bool abort_slave;
-  volatile uint slave_running;
-  volatile ulong slave_run_id;
-  /*
-     The difference in seconds between the clock of the master and the clock of
-     the slave (second - first). It must be signed as it may be <0 or >0.
-     clock_diff_with_master is computed when the I/O thread starts; for this the
-     I/O thread does a SELECT UNIX_TIMESTAMP() on the master.
-     "how late the slave is compared to the master" is computed like this:
-     clock_of_slave - last_timestamp_executed_by_SQL_thread - clock_diff_with_master
-
-  */
-  long clock_diff_with_master;
-
-  st_master_info()
-    :ssl(0), fd(-1),  io_thd(0), inited(0),
-     abort_slave(0),slave_running(0), slave_run_id(0)
-  {
-    host[0] = 0; user[0] = 0; password[0] = 0;
-    ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
-    ssl_cipher[0]= 0; ssl_key[0]= 0;
-
-    bzero((char*) &file, sizeof(file));
-    pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
-    pthread_mutex_init(&data_lock, MY_MUTEX_INIT_FAST);
-    pthread_cond_init(&data_cond, NULL);
-    pthread_cond_init(&start_cond, NULL);
-    pthread_cond_init(&stop_cond, NULL);
-  }
-
-  ~st_master_info()
-  {
-    pthread_mutex_destroy(&run_lock);
-    pthread_mutex_destroy(&data_lock);
-    pthread_cond_destroy(&data_cond);
-    pthread_cond_destroy(&start_cond);
-    pthread_cond_destroy(&stop_cond);
-  }
-
-} MASTER_INFO;
-
-
-int queue_event(MASTER_INFO* mi,const char* buf,ulong event_len);
-
 #define RPL_LOG_NAME (rli->group_master_log_name[0] ? rli->group_master_log_name :\
  "FIRST")
 #define IO_RPL_LOG_NAME (mi->master_log_name[0] ? mi->master_log_name :\
@@ -231,7 +127,6 @@ int queue_event(MASTER_INFO* mi,const char* buf,ulong event_len);
 
 int init_slave();
 void init_slave_skip_errors(const char* arg);
-int flush_master_info(MASTER_INFO* mi, bool flush_relay_log_cache);
 bool flush_relay_log_info(RELAY_LOG_INFO* rli);
 int register_slave_on_master(MYSQL* mysql);
 int terminate_slave_threads(MASTER_INFO* mi, int thread_mask,
@@ -276,14 +171,8 @@ void slave_print_msg(enum loglevel level, RELAY_LOG_INFO* rli,
   ATTRIBUTE_FORMAT(printf, 4, 5);
 
 void end_slave(); /* clean up */
-void init_master_info_with_options(MASTER_INFO* mi);
 void clear_until_condition(RELAY_LOG_INFO* rli);
 void clear_slave_error(RELAY_LOG_INFO* rli);
-int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
-		     const char* slave_info_fname,
-		     bool abort_if_no_master_info_file,
-		     int thread_mask);
-void end_master_info(MASTER_INFO* mi);
 void end_relay_log_info(RELAY_LOG_INFO* rli);
 void lock_slave_threads(MASTER_INFO* mi);
 void unlock_slave_threads(MASTER_INFO* mi);
