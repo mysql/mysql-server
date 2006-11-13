@@ -73,6 +73,7 @@ typedef struct ndb_index_data {
   const NdbDictionary::Index *index;
   const NdbDictionary::Index *unique_index;
   unsigned char *unique_index_attrid_map;
+  bool null_in_unique_index;
   // In this version stats are not shared between threads
   NdbIndexStat* index_stat;
   uint index_stat_cache_entries;
@@ -670,6 +671,9 @@ class ha_ndbcluster: public handler
                              KEY_MULTI_RANGE*ranges, uint range_count,
                              bool sorted, HANDLER_BUFFER *buffer);
   int read_multi_range_next(KEY_MULTI_RANGE **found_range_p);
+  bool null_value_index_search(KEY_MULTI_RANGE *ranges,
+			       KEY_MULTI_RANGE *end_range,
+			       HANDLER_BUFFER *buffer);
 
   bool get_error_message(int error, String *buf);
   ha_rows records();
@@ -814,7 +818,8 @@ private:
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
   NDB_INDEX_TYPE get_index_type_from_key(uint index_no, KEY *key_info, 
                                          bool primary) const;
-  int check_index_fields_not_null(KEY *key_info);
+  bool has_null_in_unique_index(uint idx_no) const;
+  bool check_index_fields_not_null(KEY *key_info);
 
   uint set_up_partition_info(partition_info *part_info,
                              TABLE *table,
@@ -829,6 +834,12 @@ private:
                          const key_range *end_key,
                          bool sorted, bool descending, byte* buf,
                          part_id_range *part_spec);
+  int unique_index_read(const byte *key, uint key_len, 
+                        byte *buf);
+  int unique_index_scan(const KEY* key_info, 
+			const byte *key, 
+			uint key_len,
+			byte *buf);
   int full_table_scan(byte * buf);
 
   bool check_all_operations_for_error(NdbTransaction *trans,
@@ -836,8 +847,6 @@ private:
                                       const NdbOperation *last,
                                       uint errcode);
   int peek_indexed_rows(const byte *record);
-  int unique_index_read(const byte *key, uint key_len, 
-                        byte *buf);
   int fetch_next(NdbScanOperation* op);
   int next_result(byte *buf); 
   int define_read_attrs(byte* buf, NdbOperation* op);
@@ -903,6 +912,13 @@ private:
   int build_scan_filter(Ndb_cond* &cond, NdbScanFilter* filter);
   int generate_scan_filter(Ndb_cond_stack* cond_stack, 
                            NdbScanOperation* op);
+  int generate_scan_filter_from_cond(Ndb_cond_stack* cond_stack, 
+				     NdbScanFilter& filter);
+  int generate_scan_filter_from_key(NdbScanOperation* op,
+                                   const KEY* key_info, 
+                                   const byte *key, 
+                                   uint key_len,
+                                   byte *buf);
 
   friend int execute_commit(ha_ndbcluster*, NdbTransaction*);
   friend int execute_no_commit_ignore_no_key(ha_ndbcluster*, NdbTransaction*);

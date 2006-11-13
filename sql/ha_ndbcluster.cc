@@ -1254,6 +1254,9 @@ int ha_ndbcluster::open_indexes(Ndb *ndb, TABLE *tab, bool ignore_error)
         m_index[i].index= m_index[i].unique_index= NULL;
       else
         break;
+    m_index[i].null_in_unique_index= false;
+    if (check_index_fields_not_null(key_info))
+      m_index[i].null_in_unique_index= true;
   }
 
   if (error && !ignore_error)
@@ -1396,7 +1399,7 @@ NDB_INDEX_TYPE ha_ndbcluster::get_index_type_from_key(uint inx,
           ORDERED_INDEX);
 } 
 
-int ha_ndbcluster::check_index_fields_not_null(KEY* key_info)
+bool ha_ndbcluster::check_index_fields_not_null(KEY* key_info)
 {
   KEY_PART_INFO* key_part= key_info->key_part;
   KEY_PART_INFO* end= key_part+key_info->key_parts;
@@ -1406,14 +1409,10 @@ int ha_ndbcluster::check_index_fields_not_null(KEY* key_info)
     {
       Field* field= key_part->field;
       if (field->maybe_null())
-      {
-        my_printf_error(ER_NULL_COLUMN_IN_INDEX,ER(ER_NULL_COLUMN_IN_INDEX),
-                        MYF(0),field->field_name);
-        DBUG_RETURN(ER_NULL_COLUMN_IN_INDEX);
-      }
+	DBUG_RETURN(true);
     }
   
-  DBUG_RETURN(0);
+  DBUG_RETURN(false);
 }
 
 void ha_ndbcluster::release_metadata(THD *thd, Ndb *ndb)
@@ -1511,6 +1510,12 @@ inline NDB_INDEX_TYPE ha_ndbcluster::get_index_type(uint idx_no) const
 {
   DBUG_ASSERT(idx_no < MAX_KEY);
   return m_index[idx_no].type;
+}
+
+inline bool ha_ndbcluster::has_null_in_unique_index(uint idx_no) const
+{
+  DBUG_ASSERT(idx_no < MAX_KEY);
+  return m_index[idx_no].null_in_unique_index;
 }
 
 
@@ -2432,6 +2437,78 @@ guess_scan_flags(NdbOperation::LockMode lm,
   }
   return flags;
 }
+
+
+/*
+  Unique index scan in NDB (full table scan with scan filter)
+ */
+
+int ha_ndbcluster::unique_index_scan(const KEY* key_info, 
+				     const byte *key, 
+				     uint key_len,
+				     byte *buf)
+{
+  int res;
+  NdbScanOperation *op;
+  NdbTransaction *trans= m_active_trans;
+  part_id_range part_spec;
+
+  DBUG_ENTER("unique_index_scan");  
+  DBUG_PRINT("enter", ("Starting new scan on %s", m_tabname));
+
+  NdbOperation::LockMode lm=
+    (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
+  int flags= guess_scan_flags(lm, m_table, table->read_set);
+  if (!(op=trans->getNdbScanOperation((const NDBTAB *) m_table)) ||
+      op->readTuples(lm, flags, parallelism))
+    ERR_RETURN(trans->getNdbError());
+  m_active_cursor= op;
+
+  if (m_use_partition_function)
+  {
+    part_spec.start_part= 0;
+    part_spec.end_part= m_part_info->get_tot_partitions() - 1;
+    prune_partition_set(table, &part_spec);
+    DBUG_PRINT("info", ("part_spec.start_part = %u, part_spec.end_part = %u",
+                        part_spec.start_part, part_spec.end_part));
+    /*
+      If partition pruning has found no partition in set
+      we can return HA_ERR_END_OF_FILE
+      If partition pruning has found exactly one partition in set
+      we can optimize scan to run towards that partition only.
+    */
+    if (part_spec.start_part > part_spec.end_part)
+    {
+      DBUG_RETURN(HA_ERR_END_OF_FILE);
+    }
+    else if (part_spec.start_part == part_spec.end_part)
+    {
+      /*
+        Only one partition is required to scan, if sorted is required we
+        don't need it any more since output from one ordered partitioned
+        index is always sorted.
+      */
+      m_active_cursor->setPartitionId(part_spec.start_part);
+    }
+    // If table has user defined partitioning
+    // and no primary key, we need to read the partition id
+    // to support ORDER BY queries
+    if ((table_share->primary_key == MAX_KEY) && 
+        (get_ndb_partition_id(op)))
+      ERR_RETURN(trans->getNdbError());
+  }
+
+  if (generate_scan_filter_from_key(op, key_info, key, key_len, buf))
+    DBUG_RETURN(ndb_err(trans));
+  if ((res= define_read_attrs(buf, op)))
+    DBUG_RETURN(res);
+
+  if (execute_no_commit(this,trans,false) != 0)
+    DBUG_RETURN(ndb_err(trans));
+  DBUG_PRINT("exit", ("Scan started successfully"));
+  DBUG_RETURN(next_result(buf));
+}
+
 
 /*
   Start full table scan in NDB
@@ -3396,6 +3473,11 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
         DBUG_RETURN(error);
       DBUG_RETURN(unique_index_read(start_key->key, start_key->length, buf));
     }
+    else if (type == UNIQUE_INDEX)
+      DBUG_RETURN(unique_index_scan(key_info, 
+				    start_key->key, 
+				    start_key->length, 
+				    buf));
     break;
   default:
     break;
@@ -5014,8 +5096,13 @@ int ha_ndbcluster::create_index(const char *name, KEY *key_info,
       error= create_unique_index(unique_name, key_info);
     break;
   case UNIQUE_INDEX:
-    if (!(error= check_index_fields_not_null(key_info)))
-      error= create_unique_index(unique_name, key_info);
+    if (check_index_fields_not_null(key_info))
+    {
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			  ER_NULL_COLUMN_IN_INDEX,
+			  "Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan");
+    }
+    error= create_unique_index(unique_name, key_info);
     break;
   case ORDERED_INDEX:
     error= create_ordered_index(name, key_info);
@@ -7739,6 +7826,30 @@ ha_ndbcluster::release_completed_operations(NdbTransaction *trans,
   trans->releaseCompletedOperations();
 }
 
+bool 
+ha_ndbcluster::null_value_index_search(KEY_MULTI_RANGE *ranges,
+				       KEY_MULTI_RANGE *end_range,
+				       HANDLER_BUFFER *buffer)
+{
+  DBUG_ENTER("null_value_index_search");
+  KEY* key_info= table->key_info + active_index;
+  KEY_MULTI_RANGE *range= ranges;
+  ulong reclength= table->s->reclength;
+  byte *curr= (byte*)buffer->buffer;
+  byte *end_of_buffer= (byte*)buffer->buffer_end;
+  
+  for (; range<end_range && curr+reclength <= end_of_buffer; 
+       range++)
+  {
+    const byte *key= range->start_key.key;
+    uint key_len= range->start_key.length;
+    if (check_null_in_key(key_info, key, key_len))
+      DBUG_RETURN(true);
+    curr += reclength;
+  }
+  DBUG_RETURN(false);
+}
+
 int
 ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
                                       KEY_MULTI_RANGE *ranges, 
@@ -7756,11 +7867,14 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   NdbOperation* op;
   Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
 
-  if (uses_blob_value())
+  /**
+   * blobs and unique hash index with NULL can't be batched currently
+   */
+  if (uses_blob_value() ||
+      (index_type ==  UNIQUE_INDEX &&
+       has_null_in_unique_index(active_index) &&
+       null_value_index_search(ranges, ranges+range_count, buffer)))
   {
-    /**
-     * blobs can't be batched currently
-     */
     m_disable_multi_read= TRUE;
     DBUG_RETURN(handler::read_multi_range_first(found_range_p, 
                                                 ranges, 
@@ -9712,31 +9826,12 @@ ha_ndbcluster::generate_scan_filter(Ndb_cond_stack *ndb_cond_stack,
                                     NdbScanOperation *op)
 {
   DBUG_ENTER("generate_scan_filter");
+
   if (ndb_cond_stack)
   {
-    DBUG_PRINT("info", ("Generating scan filter"));
     NdbScanFilter filter(op);
-    bool multiple_cond= FALSE;
-    // Wrap an AND group around multiple conditions
-    if (ndb_cond_stack->next) {
-      multiple_cond= TRUE;
-      if (filter.begin() == -1)
-        DBUG_RETURN(1); 
-    }
-    for (Ndb_cond_stack *stack= ndb_cond_stack; 
-         (stack); 
-         stack= stack->next)
-      {
-        Ndb_cond *cond= stack->ndb_cond;
-
-        if (build_scan_filter(cond, &filter))
-        {
-          DBUG_PRINT("info", ("build_scan_filter failed"));
-          DBUG_RETURN(1);
-        }
-      }
-    if (multiple_cond && filter.end() == -1)
-      DBUG_RETURN(1);
+    
+    DBUG_RETURN(generate_scan_filter_from_cond(ndb_cond_stack, filter));
   }
   else
   {  
@@ -9745,6 +9840,89 @@ ha_ndbcluster::generate_scan_filter(Ndb_cond_stack *ndb_cond_stack,
 
   DBUG_RETURN(0);
 }
+
+int
+ha_ndbcluster::generate_scan_filter_from_cond(Ndb_cond_stack *ndb_cond_stack,
+					      NdbScanFilter& filter)
+{
+  DBUG_ENTER("generate_scan_filter_from_cond");
+  bool multiple_cond= FALSE;
+  
+  DBUG_PRINT("info", ("Generating scan filter"));
+  // Wrap an AND group around multiple conditions
+  if (ndb_cond_stack->next) 
+  {
+    multiple_cond= TRUE;
+    if (filter.begin() == -1)
+      DBUG_RETURN(1); 
+  }
+  for (Ndb_cond_stack *stack= ndb_cond_stack; 
+       (stack); 
+       stack= stack->next)
+  {
+    Ndb_cond *cond= stack->ndb_cond;
+    
+    if (build_scan_filter(cond, &filter))
+    {
+      DBUG_PRINT("info", ("build_scan_filter failed"));
+      DBUG_RETURN(1);
+    }
+  }
+  if (multiple_cond && filter.end() == -1)
+    DBUG_RETURN(1);
+
+  DBUG_RETURN(0);
+}
+
+int ha_ndbcluster::generate_scan_filter_from_key(NdbScanOperation *op,
+						 const KEY* key_info, 
+						 const byte *key, 
+						 uint key_len,
+						 byte *buf)
+{
+  KEY_PART_INFO* key_part= key_info->key_part;
+  KEY_PART_INFO* end= key_part+key_info->key_parts;
+  NdbScanFilter filter(op);
+  int res;
+
+  DBUG_ENTER("generate_scan_filter_from_key");
+  filter.begin(NdbScanFilter::AND);
+  for (; key_part != end; key_part++) 
+  {
+    Field* field= key_part->field;
+    uint32 pack_len= field->pack_length();
+    const byte* ptr= key;
+    char buf[256];
+    DBUG_PRINT("info", ("Filtering value for %s", field->field_name));
+    DBUG_DUMP("key", (char*)ptr, pack_len);
+    if (key_part->null_bit)
+    {
+      DBUG_PRINT("info", ("Generating ISNULL filter"));
+      if (filter.isnull(key_part->fieldnr-1) == -1)
+	DBUG_RETURN(1);
+    }
+    else
+    {
+      DBUG_PRINT("info", ("Generating EQ filter"));
+      if (filter.cmp(NdbScanFilter::COND_EQ, 
+		     key_part->fieldnr-1,
+		     ptr,
+		     pack_len) == -1)
+	DBUG_RETURN(1);
+    }
+    key += key_part->store_length;
+  }      
+  // Add any pushed condition
+  if (m_cond_stack &&
+      (res= generate_scan_filter_from_cond(m_cond_stack, filter)))
+    DBUG_RETURN(res);
+    
+  if (filter.end() == -1)
+    DBUG_RETURN(1);
+
+  DBUG_RETURN(0);
+}
+
 
 /*
   get table space info for SHOW CREATE TABLE
