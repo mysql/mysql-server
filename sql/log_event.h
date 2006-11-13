@@ -200,8 +200,16 @@ struct sql_ex_info
 #define EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN (4 + 4 + 4 + 1)
 #define EXECUTE_LOAD_QUERY_HEADER_LEN  (QUERY_HEADER_LEN + EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN)
 
-/*
-   Event header offsets;
+/* 
+  Max number of possible extra bytes in a replication event compared to a
+  packet (i.e. a query) sent from client to master.
+*/
+#define MAX_LOG_EVENT_HEADER   (LOG_EVENT_HEADER_LEN + /* write_header */ \
+				QUERY_HEADER_LEN     + /* write_data */   \
+				NAME_LEN + 1)
+
+/* 
+   Event header offsets; 
    these point to places inside the fixed header.
 */
 
