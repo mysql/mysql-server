@@ -58,6 +58,7 @@ mysql_SOURCES =			mysql.cc readline.cc sql_string.cc \
 				completion_hash.cc
 mysql_LDADD =			@readline_link@ @TERMCAP_LIB@ \
 				$(LDADD) $(CXXLDFLAGS)
+mysqladmin_SOURCES =		mysqladmin.cc
 
 mysqlbinlog_SOURCES =		mysqlbinlog.cc \
 				$(top_srcdir)/mysys/mf_tempdir.c \
