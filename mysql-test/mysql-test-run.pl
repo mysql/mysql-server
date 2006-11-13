@@ -667,7 +667,7 @@ sub command_line_setup () {
              'tmpdir=s'                 => \$opt_tmpdir,
              'vardir=s'                 => \$opt_vardir,
              'benchdir=s'               => \$glob_mysql_bench_dir,
-             'mem:s'                    => \$opt_mem,
+             'mem'                      => \$opt_mem,
 
              # Misc
              'comment=s'                => \$opt_comment,
@@ -4632,9 +4632,9 @@ Options to control directories to use
   vardir=DIR            The directory where files generated from the test run
                         is stored (default: ./var). Specifying a ramdisk or
                         tmpfs will speed up tests.
-  mem[=DIR]             Run testsuite in "memory" using tmpfs or ramdisk
-                        Attempts to use DIR first if specified else
-                        uses as builtin list of standard locations
+  mem                   Run testsuite in "memory" using tmpfs or ramdisk
+                        Attempts to find a suitable location
+                        using a builtin list of standard locations
                         for tmpfs (/dev/shm)
                         The option can also be set using environment
                         variable MTR_MEM=[DIR]
