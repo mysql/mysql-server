@@ -16,12 +16,6 @@
 
 # This file is public domain and comes with NO WARRANTY of any kind
 
-if HAVE_YASSL
-  yassl_dummy_link_fix= $(top_srcdir)/extra/yassl/src/dummy.cpp
-else
-  yassl_dummy_link_fix=
-endif
-
 if THREAD_SAFE_CLIENT
 LIBMYSQLCLIENT_LA =		$(top_builddir)/libmysql_r/libmysqlclient_r.la
 else
@@ -71,19 +65,18 @@ mysqlbinlog_LDADD =		$(LDADD) $(CXXLDFLAGS)
 
 mysqldump_SOURCES=              mysqldump.c \
 				my_user.c \
-	                        $(top_srcdir)/mysys/mf_getdate.c \
-                                $(yassl_dummy_link_fix)
+	                        $(top_srcdir)/mysys/mf_getdate.c
 
-mysqlimport_SOURCES=		mysqlimport.c $(yassl_dummy_link_fix)
+mysqlimport_SOURCES=		mysqlimport.c
 
 mysqlimport_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 				@CLIENT_EXTRA_LDFLAGS@ \
 				$(LIBMYSQLCLIENT_LA) \
 				$(top_builddir)/mysys/libmysys.a
 
-mysqlshow_SOURCES=		mysqlshow.c $(yassl_dummy_link_fix)
+mysqlshow_SOURCES=		mysqlshow.c
 
-mysqlslap_SOURCES=		mysqlslap.c $(yassl_dummy_link_fix)
+mysqlslap_SOURCES=		mysqlslap.c
 mysqlslap_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 				@CLIENT_EXTRA_LDFLAGS@ \
 				$(LIBMYSQLCLIENT_LA) \
@@ -91,11 +84,10 @@ mysqlslap_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 
 mysqltest_SOURCES=		mysqltest.c \
 				$(top_srcdir)/mysys/my_getsystime.c \
-				$(top_srcdir)/mysys/my_copy.c \
-				$(yassl_dummy_link_fix)
+				$(top_srcdir)/mysys/my_copy.c
 mysqltest_LDADD =		$(top_builddir)/regex/libregex.a $(LDADD)
 
-mysql_upgrade_SOURCES=          mysql_upgrade.c $(yassl_dummy_link_fix)
+mysql_upgrade_SOURCES=          mysql_upgrade.c
 
 # Fix for mit-threads
 DEFS =			-DUNDEF_THREADS_HACK \
