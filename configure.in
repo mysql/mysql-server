@@ -701,6 +701,8 @@ AC_CHECK_HEADERS(fcntl.h float.h floatingpoint.h ieeefp.h limits.h \
  sys/ioctl.h malloc.h sys/malloc.h sys/ipc.h sys/shm.h linux/config.h \
  sys/resource.h sys/param.h)
 
+AC_CHECK_HEADERS([xfs/xfs.h])
+
 #--------------------------------------------------------------------
 # Check for system libraries. Adds the library to $LIBS
 # and defines HAVE_LIBM etc
