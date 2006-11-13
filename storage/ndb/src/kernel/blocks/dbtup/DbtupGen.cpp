@@ -342,6 +342,7 @@ void Dbtup::initRecords()
 {
   unsigned i;
   Uint32 tmp;
+  Uint32 tmp1 = 0;
   const ndb_mgm_configuration_iterator * p = 
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
@@ -349,7 +350,7 @@ void Dbtup::initRecords()
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE, &tmp));
 
   // Records with dynamic sizes
-  Page* ptr =(Page*)allocRecord("Page", sizeof(Page), tmp, false);
+  Page* ptr =(Page*)allocRecord("Page", sizeof(Page), tmp, false, CFG_DB_DATA_MEM);
   c_page_pool.set(ptr, tmp);
   
   attrbufrec = (Attrbufrec*)allocRecord("Attrbufrec", 
@@ -373,7 +374,9 @@ void Dbtup::initRecords()
 						  cnoOfTabDescrRec);
 
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_OP_RECS, &tmp));
-  c_operation_pool.setSize(tmp);
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_LOCAL_OPS, &tmp1);
+  c_operation_pool.setSize(tmp, false, true, true, 
+      tmp1 == 0 ? CFG_DB_NO_OPS : CFG_DB_NO_LOCAL_OPS);
   
   pageRange = (PageRange*)allocRecord("PageRange",
 				      sizeof(PageRange), 
