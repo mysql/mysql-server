@@ -517,6 +517,7 @@ void *create_embedded_thd(int client_flag)
   thd->set_time();
   thd->init_for_queries();
   thd->client_capabilities= client_flag;
+  thd->real_id= (pthread_t) thd;
 
   thd->db= NULL;
   thd->db_length= 0;
@@ -814,6 +815,9 @@ void Protocol_simple::prepare_for_resend()
   MYSQL_DATA *data= thd->data;
 
   DBUG_ENTER("send_data");
+
+  if (!thd->mysql)            // bootstrap file handling
+    DBUG_VOID_RETURN;
 
   if (!data)
   {

@@ -10,7 +10,7 @@
 top_builddir=../..
 mysql_test_dir=$top_builddir/mysql-test
 examples=$top_builddir/libmysqld/examples
-mysqltest=$examples/mysqltest
+mysqltest=$examples/mysqltest_embedded
 datadir=$mysql_test_dir/var/master-data
 test_data_dir=test
 gdb=0
