@@ -114,6 +114,12 @@ test-force:
 	./mysql-test-run --force && \
 	./mysql-test-run --ps-protocol --force
 
+test-force-mem:
+	cd mysql-test; \
+	./mysql-test-run --force --mem && \
+	./mysql-test-run --ps-protocol --force --mem
+
+
 # We are testing a new Perl version of the test script
 test-pl:
 	cd mysql-test; \
@@ -125,7 +131,3 @@ test-force-pl:
 	./mysql-test-run.pl --force && \
 	./mysql-test-run.pl --ps-protocol --force
 
-test-force-pl-mem:
-	cd mysql-test; \
-	./mysql-test-run.pl --force --mem && \
-	./mysql-test-run.pl --ps-protocol --force --mem
