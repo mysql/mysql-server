@@ -16,11 +16,6 @@
 
 # This file is public domain and comes with NO WARRANTY of any kind
 
-if HAVE_YASSL
-  yassl_dummy_link_fix= $(top_srcdir)/extra/yassl/src/dummy.cpp
-else
-  yassl_dummy_link_fix=
-endif
 #AUTOMAKE_OPTIONS =              nostdinc
 INCLUDES =			-I$(top_builddir)/include \
 				-I$(top_srcdir)/include \
@@ -40,27 +35,28 @@ mysqladmin_SOURCES =		mysqladmin.cc
 mysql_LDADD =			@readline_link@ @TERMCAP_LIB@ $(LDADD) $(CXXLDFLAGS)
 mysqltest_SOURCES=              mysqltest.c \
 				$(top_srcdir)/mysys/my_getsystime.c \
-				$(top_srcdir)/mysys/my_copy.c \
-                                $(yassl_dummy_link_fix)
+				$(top_srcdir)/mysys/my_copy.c
+
 mysqltest_LDADD =		$(top_builddir)/regex/libregex.a $(LDADD)
-mysqlbinlog_SOURCES =   mysqlbinlog.cc $(top_srcdir)/mysys/mf_tempdir.c $(top_srcdir)/mysys/my_new.cc
+mysqlbinlog_SOURCES =   	mysqlbinlog.cc \
+				$(top_srcdir)/mysys/mf_tempdir.c \
+				$(top_srcdir)/mysys/my_new.cc
 mysqlbinlog_LDADD =		$(LDADD) $(CXXLDFLAGS)
-mysqltestmanager_pwgen_SOURCES =   mysqlmanager-pwgen.c 
-mysqltestmanagerc_SOURCES=      mysqlmanagerc.c $(yassl_dummy_link_fix)
-mysqlcheck_SOURCES=             mysqlcheck.c $(yassl_dummy_link_fix)
-mysqlshow_SOURCES=              mysqlshow.c $(yassl_dummy_link_fix)
+mysqltestmanager_pwgen_SOURCES =   mysqlmanager-pwgen.c
+mysqltestmanagerc_SOURCES=      mysqlmanagerc.c
+mysqlcheck_SOURCES=             mysqlcheck.c
+mysqlshow_SOURCES=              mysqlshow.c
 mysqldump_SOURCES=              mysqldump.c my_user.c \
-	                        $(top_srcdir)/mysys/mf_getdate.c \
-                                $(yassl_dummy_link_fix)
-mysqlimport_SOURCES=            mysqlimport.c $(yassl_dummy_link_fix)
-mysql_upgrade_SOURCES=          mysql_upgrade.c $(yassl_dummy_link_fix)
+	                        $(top_srcdir)/mysys/mf_getdate.c
+mysqlimport_SOURCES=            mysqlimport.c
+mysql_upgrade_SOURCES=          mysql_upgrade.c
 sql_src=log_event.h mysql_priv.h log_event.cc my_decimal.h my_decimal.cc
 strings_src=decimal.c
 
 # Fix for mit-threads
 DEFS =			-DUNDEF_THREADS_HACK \
 			-DDEFAULT_MYSQL_HOME="\"$(prefix)\"" \
-			-DDATADIR="\"$(localstatedir)\"" 
+			-DDATADIR="\"$(localstatedir)\""
 
 EXTRA_DIST =		get_password.c CMakeLists.txt
 
