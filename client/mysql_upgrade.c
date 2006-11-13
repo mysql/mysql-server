@@ -541,7 +541,7 @@ int main(int argc, char **argv)
   }
   
   if (find_file(mysqlcheck_name, basedir, MYF(0), path, sizeof(path),
-                          "bin", NullS))
+                "bin", "client", NullS))
   {
      ret= 1;
      printf("Can't find program '%s'\n", mysqlcheck_name);
@@ -578,7 +578,7 @@ int main(int argc, char **argv)
 
 fix_priv_tables:
   if (find_file(mysql_name, basedir, MYF(0), path, sizeof(path), 
-                          "bin", NullS))
+                "bin", "client", NullS))
   {
     ret= 1;
     puts("Could not find MySQL command-line client (mysql).\n"
