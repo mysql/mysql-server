@@ -142,6 +142,7 @@ our $opt_verbose= 0;  # Verbose output, enable with --verbose
 our $exe_master_mysqld;
 our $exe_mysql;
 our $exe_mysqladmin;
+our $exe_mysql_upgrade;
 our $exe_mysqlbinlog;
 our $exe_mysql_client_test;
 our $exe_mysqld;
@@ -1403,7 +1404,15 @@ sub executable_setup () {
   $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
   if ( $mysql_version_id >= 50100 )
   {
-    $exe_mysqlslap=      mtr_exe_exists("$path_client_bindir/mysqlslap");
+    $exe_mysqlslap=    mtr_exe_exists("$path_client_bindir/mysqlslap");
+  }
+  if ( $mysql_version_id >= 50000 and !$glob_use_embedded_server )
+  {
+    $exe_mysql_upgrade= mtr_exe_exists("$path_client_bindir/mysql_upgrade")
+  }
+  else
+  {
+    $exe_mysql_upgrade= "";
   }
 
   if ( ! $glob_win32 )
@@ -1444,13 +1453,13 @@ sub executable_setup () {
   if ( $glob_use_embedded_server )
   {
     $exe_mysqltest=
-      mtr_exe_exists(vs_config_dirs('libmysqld/examples', 'mysqltest_embedded'),
-                     "$glob_basedir/libmysqld/examples/mysqltest_embedded",                     
+      mtr_exe_exists(vs_config_dirs('libmysqld/examples','mysqltest_embedded'),
+                     "$glob_basedir/libmysqld/examples/mysqltest_embedded",
                      "$path_client_bindir/mysqltest_embedded");
   }
   else
   {
-      $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest");
+    $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest");
   }
 
   # Look for mysql_client_test executable which may _not_ exist in
@@ -1467,7 +1476,7 @@ sub executable_setup () {
     $exe_mysql_client_test=
       mtr_exe_maybe_exists(vs_config_dirs('tests', 'mysql_client_test'),
                            "$glob_basedir/tests/mysql_client_test",
-                           "$glob_basedir/bin");
+                           "$glob_basedir/bin/mysql_client_test");
   }
 }
 
@@ -1524,6 +1533,33 @@ sub mysql_client_test_arguments()
       " -A --datadir=$slave->[0]->{'path_myddir'}");
     mtr_add_arg($args,
       " -A --character-sets-dir=$path_charsetsdir");
+  }
+
+  return join(" ", $exe, @$args);
+}
+
+sub mysql_upgrade_arguments()
+{
+  my $exe= $exe_mysql_upgrade;
+
+  my $args;
+  mtr_init_args(\$args);
+#  if ( $opt_valgrind_mysql_ugrade )
+#  {
+#    valgrind_arguments($args, \$exe);
+#  }
+
+  mtr_add_arg($args, "--no-defaults");
+  mtr_add_arg($args, "--user=root");
+  mtr_add_arg($args, "--port=$master->[0]->{'port'}");
+  mtr_add_arg($args, "--socket=$master->[0]->{'path_sock'}");
+  mtr_add_arg($args, "--datadir=$master->[0]->{'path_myddir'}");
+  mtr_add_arg($args, "--basedir=$glob_basedir");
+
+  if ( $opt_debug )
+  {
+    mtr_add_arg($args,
+      "--debug=d:t:A,$path_vardir_trace/log/mysql_upgrade.trace");
   }
 
   return join(" ", $exe, @$args);
@@ -1787,6 +1823,14 @@ sub environment_setup () {
   # Setup env so childs can execute mysql_client_test
   # ----------------------------------------------------
   $ENV{'MYSQL_CLIENT_TEST'}=  mysql_client_test_arguments();
+
+  # ----------------------------------------------------
+  # Setup env so childs can execute mysql_upgrade
+  # ----------------------------------------------------
+  if ( $mysql_version_id >= 50000 )
+  {
+    $ENV{'MYSQL_UPGRADE'}= mysql_upgrade_arguments();
+  }
 
   # ----------------------------------------------------
   # Setup env so childs can execute mysql_fix_system_tables
