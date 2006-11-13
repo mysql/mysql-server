@@ -432,7 +432,7 @@ FILE_PATTERNS          =
 # subdirectories should be searched for input files as well. Possible
 # values are YES and NO.  If left blank NO is used.
 
-RECURSIVE              = YES
+RECURSIVE              = NO
 
 # The EXCLUDE tag can be used to specify files and/or directories that
 # should excluded from the INPUT source files. This way you can easily
@@ -457,14 +457,14 @@ EXCLUDE_PATTERNS       =
 # directories that contain example code fragments that are included (see 
 # the \include command).
 
-EXAMPLE_PATH           = 
+EXAMPLE_PATH           = e
 
 # If the value of the EXAMPLE_PATH tag contains directories, you can use the 
 # EXAMPLE_PATTERNS tag to specify one or more wildcard pattern (like *.cpp 
 # and *.h) to filter out the source-files in the directories. If left 
 # blank all files are included.
 
-EXAMPLE_PATTERNS       = 
+EXAMPLE_PATTERNS       = *.c
 
 # If the EXAMPLE_RECURSIVE tag is set to YES then subdirectories will be 
 # searched for input files to be used with the \include or \dontinclude 
@@ -926,7 +926,7 @@ MACRO_EXPANSION        = YES
 # then the macro expansion is limited to the macros specified with the 
 # PREDEFINED and EXPAND_AS_PREDEFINED tags.
 
-EXPAND_ONLY_PREDEF     = NO
+EXPAND_ONLY_PREDEF     = YES
 
 # If the SEARCH_INCLUDES tag is set to YES (the default) the includes files 
 # in the INCLUDE_PATH (see below) will be search if a #include is found.
@@ -939,33 +939,34 @@ SEARCH_INCLUDES        = YES
 
 INCLUDE_PATH           = 
 
-# You can use the INCLUDE_FILE_PATTERNS tag to specify one or more wildcard 
-# patterns (like *.h and *.hpp) to filter out the header-files in the 
-# directories. If left blank, the patterns specified with FILE_PATTERNS will 
-# be used.
+# You can use the INCLUDE_FILE_PATTERNS tag to specify one or more
+# wildcard patterns (like *.h and *.hpp) to filter out the
+# header-files in the directories. If left blank, the patterns
+# specified with FILE_PATTERNS will be used.
 
 INCLUDE_FILE_PATTERNS  = 
 
-# The PREDEFINED tag can be used to specify one or more macro names that 
-# are defined before the preprocessor is started (similar to the -D option of 
-# gcc). The argument of the tag is a list of macros of the form: name 
-# or name=definition (no spaces). If the definition and the = are 
-# omitted =1 is assumed.
+# The PREDEFINED tag can be used to specify one or more macro names
+# that are defined before the preprocessor is started (similar to the
+# -D option of gcc). The argument of the tag is a list of macros of
+# the form: name or name=definition (no spaces). If the definition and
+# the = are omitted =1 is assumed.
 
 PREDEFINED             = 
 
-# If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then 
-# this tag can be used to specify a list of macro names that should be expanded. 
-# The macro definition that is found in the sources will be used. 
-# Use the PREDEFINED tag if you want to use a different macro definition.
+# If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES
+# then this tag can be used to specify a list of macro names that
+# should be expanded.  The macro definition that is found in the
+# sources will be used.  Use the PREDEFINED tag if you want to use a
+# different macro definition.
 
-EXPAND_AS_DEFINED      = 
+EXPAND_AS_DEFINED      = __attribute__
 
-# If the SKIP_FUNCTION_MACROS tag is set to YES (the default) then 
-# doxygen's preprocessor will remove all function-like macros that are alone 
-# on a line, have an all uppercase name, and do not end with a semicolon. Such 
-# function macros are typically used for boiler-plate code, and will confuse the 
-# parser if not removed.
+# If the SKIP_FUNCTION_MACROS tag is set to YES (the default) then
+# doxygen's preprocessor will remove all function-like macros that are
+# alone on a line, have an all uppercase name, and do not end with a
+# semicolon. Such function macros are typically used for boiler-plate
+# code, and will confuse the parser if not removed.
 
 SKIP_FUNCTION_MACROS   = YES
 

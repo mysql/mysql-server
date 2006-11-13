@@ -2550,7 +2550,23 @@ mysql_execute_command(THD *thd)
     {
       /* we warn the slave SQL thread */
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
-      reset_one_shot_variables(thd);
+      if (thd->one_shot_set)
+      {
+        /*
+          It's ok to check thd->one_shot_set here:
+
+          The charsets in a MySQL 5.0 slave can change by both a binlogged
+          SET ONE_SHOT statement and the event-internal charset setting, 
+          and these two ways to change charsets do not seems to work
+          together.
+
+          At least there seems to be problems in the rli cache for
+          charsets if we are using ONE_SHOT.  Note that this is normally no
+          problem because either the >= 5.0 slave reads a 4.1 binlog (with
+          ONE_SHOT) *or* or 5.0 binlog (without ONE_SHOT) but never both."
+        */
+        reset_one_shot_variables(thd);
+      }
       DBUG_RETURN(0);
     }
   }
@@ -6319,7 +6335,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 
   ptr->alias= alias_str;
   if (lower_case_table_names && table->table.length)
-    my_casedn_str(files_charset_info, table->table.str);
+    table->table.length= my_casedn_str(files_charset_info, table->table.str);
   ptr->table_name=table->table.str;
   ptr->table_name_length=table->table.length;
   ptr->lock_type=   lock_type;
