@@ -31,12 +31,23 @@ Looks for an element when we know the pointer to the data and updates
 the pointer to data if found. */
 
 void
-ha_search_and_update_if_found(
-/*==========================*/
+ha_search_and_update_if_found_func(
+/*===============================*/
 	hash_table_t*	table,	/* in: hash table */
 	ulint		fold,	/* in: folded value of the searched data */
 	void*		data,	/* in: pointer to the data */
+#ifdef UNIV_DEBUG
+	buf_block_t*	new_block,/* in: block containing new_data */
+#endif
 	void*		new_data);/* in: new pointer to the data */
+
+#ifdef UNIV_DEBUG
+# define ha_search_and_update_if_found(table,fold,data,new_block,new_data) \
+	ha_search_and_update_if_found_func(table,fold,data,new_block,new_data)
+#else
+# define ha_search_and_update_if_found(table,fold,data,new_block,new_data) \
+	ha_search_and_update_if_found_func(table,fold,data,new_data)
+#endif
 /*****************************************************************
 Creates a hash table with >= n array cells. The actual number of cells is
 chosen to be a prime number slightly bigger than n. */
@@ -56,8 +67,8 @@ is found, its node is updated to point to the new data, and no new node
 is inserted. */
 
 ibool
-ha_insert_for_fold(
-/*===============*/
+ha_insert_for_fold_func(
+/*====================*/
 				/* out: TRUE if succeed, FALSE if no more
 				memory could be allocated */
 	hash_table_t*	table,	/* in: hash table */
@@ -65,7 +76,17 @@ ha_insert_for_fold(
 				the same fold value already exists, it is
 				updated to point to the same data, and no new
 				node is created! */
+#ifdef UNIV_DEBUG
+	buf_block_t*	block,	/* in: buffer block containing the data */
+#endif /* UNIV_DEBUG */
 	void*		data);	/* in: data, must not be NULL */
+
+#ifdef UNIV_DEBUG
+# define ha_insert_for_fold(t,f,b,d) ha_insert_for_fold_func(t,f,b,d)
+#else
+# define ha_insert_for_fold(t,f,b,d) ha_insert_for_fold_func(t,f,d)
+#endif
+
 /*****************************************************************
 Deletes an entry from a hash table. */
 
@@ -123,9 +144,10 @@ ha_print_info(
 
 typedef struct ha_node_struct ha_node_t;
 struct ha_node_struct {
-	ha_node_t* next; /* next chain node or NULL if none */
-	void*	data;	/* pointer to the data */
-	ulint	fold;	/* fold value for the data */
+	ha_node_t*	next;	/* next chain node or NULL if none */
+	buf_block_t*	block;	/* buffer block containing the data, or NULL */
+	void*		data;	/* pointer to the data */
+	ulint		fold;	/* fold value for the data */
 };
 
 #ifndef UNIV_NONINL

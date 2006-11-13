@@ -38,8 +38,14 @@ void
 ha_node_set_data(
 /*=============*/
 	ha_node_t*	node,	/* in: hash chain node */
+#ifdef UNIV_DEBUG
+	buf_block_t*	block,	/* in: buffer block containing the data */
+#endif /* UNIV_DEBUG */
 	void*		data)	/* in: pointer to the data */
 {
+#ifdef UNIV_DEBUG
+	node->block = block;
+#endif /* UNIV_DEBUG */
 	node->data = data;
 }
 

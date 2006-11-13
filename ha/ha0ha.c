@@ -66,8 +66,8 @@ is found, its node is updated to point to the new data, and no new node
 is inserted. */
 
 ibool
-ha_insert_for_fold(
-/*===============*/
+ha_insert_for_fold_func(
+/*====================*/
 				/* out: TRUE if succeed, FALSE if no more
 				memory could be allocated */
 	hash_table_t*	table,	/* in: hash table */
@@ -75,17 +75,18 @@ ha_insert_for_fold(
 				the same fold value already exists, it is
 				updated to point to the same data, and no new
 				node is created! */
+#ifdef UNIV_DEBUG
+	buf_block_t*	block,	/* in: buffer block containing the data */
+#endif /* UNIV_DEBUG */
 	void*		data)	/* in: data, must not be NULL */
 {
 	hash_cell_t*	cell;
 	ha_node_t*	node;
 	ha_node_t*	prev_node;
-#ifdef UNIV_DEBUG
-	buf_block_t*	prev_block;
-#endif /* UNIV_DEBUG */
 	ulint		hash;
 
 	ut_ad(table && data);
+	ut_ad(block->frame == page_align(data));
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
 #endif /* UNIV_SYNC_DEBUG */
@@ -99,12 +100,10 @@ ha_insert_for_fold(
 		if (prev_node->fold == fold) {
 #ifdef UNIV_DEBUG
 			if (table->adaptive) {
-				mutex_enter(&buf_pool->mutex);
-				prev_block = buf_block_align(prev_node->data);
+				buf_block_t* prev_block = prev_node->block;
 				ut_a(prev_block->n_pointers > 0);
 				prev_block->n_pointers--;
-				buf_block_align(data)->n_pointers++;
-				mutex_exit(&buf_pool->mutex);
+				block->n_pointers++;
 			}
 #endif /* UNIV_DEBUG */
 			prev_node->data = data;
@@ -128,13 +127,15 @@ ha_insert_for_fold(
 		return(FALSE);
 	}
 
-	ha_node_set_data(node, data);
+	ha_node_set_data(node,
+#ifdef UNIV_DEBUG
+			 block,
+#endif /* UNIV_DEBUG */
+			 data);
 
 #ifdef UNIV_DEBUG
 	if (table->adaptive) {
-		mutex_enter(&buf_pool->mutex);
-		buf_block_align(data)->n_pointers++;
-		mutex_exit(&buf_pool->mutex);
+		block->n_pointers++;
 	}
 #endif /* UNIV_DEBUG */
 	node->fold = fold;
@@ -211,11 +212,14 @@ Looks for an element when we know the pointer to the data, and updates
 the pointer to data, if found. */
 
 void
-ha_search_and_update_if_found(
-/*==========================*/
+ha_search_and_update_if_found_func(
+/*===============================*/
 	hash_table_t*	table,	/* in: hash table */
 	ulint		fold,	/* in: folded value of the searched data */
 	void*		data,	/* in: pointer to the data */
+#ifdef UNIV_DEBUG
+	buf_block_t*	new_block,/* in: block containing new_data */
+#endif
 	void*		new_data)/* in: new pointer to the data */
 {
 	ha_node_t*	node;
@@ -223,17 +227,16 @@ ha_search_and_update_if_found(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
 #endif /* UNIV_SYNC_DEBUG */
+	ut_ad(new_block->frame == page_align(new_data));
 
 	node = ha_search_with_data(table, fold, data);
 
 	if (node) {
 #ifdef UNIV_DEBUG
 		if (table->adaptive) {
-			mutex_enter(&buf_pool->mutex);
-			ut_a(buf_block_align(node->data)->n_pointers > 0);
-			buf_block_align(node->data)->n_pointers--;
-			buf_block_align(new_data)->n_pointers++;
-			mutex_exit(&buf_pool->mutex);
+			ut_a(node->block->n_pointers > 0);
+			node->block->n_pointers--;
+			new_block->n_pointers++;
 		}
 #endif /* UNIV_DEBUG */
 		node->data = new_data;
