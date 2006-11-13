@@ -941,3 +941,30 @@ c
 ---> Cleaning up...
 DROP TABLE t1;
 DROP TABLE t2;
+drop table if exists t1;
+create table t1(a int, b varchar(50));
+drop trigger not_a_trigger;
+ERROR HY000: Trigger does not exist
+drop trigger if exists not_a_trigger;
+Warnings:
+Note	1360	Trigger does not exist
+create trigger t1_bi before insert on t1
+for each row set NEW.b := "In trigger t1_bi";
+insert into t1 values (1, "a");
+drop trigger if exists t1_bi;
+insert into t1 values (2, "b");
+drop trigger if exists t1_bi;
+Warnings:
+Note	1360	Trigger does not exist
+insert into t1 values (3, "c");
+select * from t1;
+a	b
+1	In trigger t1_bi
+2	b
+3	c
+select * from t1;
+a	b
+1	In trigger t1_bi
+2	b
+3	c
+drop table t1;

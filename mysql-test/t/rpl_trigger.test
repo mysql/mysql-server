@@ -423,6 +423,43 @@ DROP TABLE t2;
 --sync_with_master
 --connection master
 
+#
+# BUG#23703: DROP TRIGGER needs an IF EXISTS
+#
+
+connection master;
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1(a int, b varchar(50));
+
+-- error ER_TRG_DOES_NOT_EXIST
+drop trigger not_a_trigger;
+
+drop trigger if exists not_a_trigger;
+
+create trigger t1_bi before insert on t1
+for each row set NEW.b := "In trigger t1_bi";
+
+insert into t1 values (1, "a");
+drop trigger if exists t1_bi;
+insert into t1 values (2, "b");
+drop trigger if exists t1_bi;
+insert into t1 values (3, "c");
+
+select * from t1;
+
+save_master_pos;
+connection slave;
+sync_with_master;
+
+select * from t1;
+
+connection master;
+
+drop table t1;
 
 #
 # End of tests
