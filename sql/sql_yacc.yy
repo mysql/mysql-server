@@ -6098,11 +6098,12 @@ drop:
 	    lex->sql_command= SQLCOM_DROP_VIEW;
 	    lex->drop_if_exists= $3;
 	  }
-        | DROP TRIGGER_SYM sp_name
+        | DROP TRIGGER_SYM if_exists sp_name
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_DROP_TRIGGER;
-            lex->spname= $3;
+            lex->drop_if_exists= $3;
+            lex->spname= $4;
           }
 	;
 
