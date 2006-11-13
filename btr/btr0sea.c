@@ -441,7 +441,8 @@ btr_search_update_hash_ref(
 		ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-		ha_insert_for_fold(btr_search_sys->hash_index, fold, rec);
+		ha_insert_for_fold(btr_search_sys->hash_index, fold,
+				   block, rec);
 	}
 }
 
@@ -1273,7 +1274,7 @@ btr_search_build_page_hash_index(
 
 	for (i = 0; i < n_cached; i++) {
 
-		ha_insert_for_fold(table, folds[i], recs[i]);
+		ha_insert_for_fold(table, folds[i], block, recs[i]);
 	}
 
 exit_func:
@@ -1442,7 +1443,7 @@ btr_search_update_hash_node_on_insert(
 		table = btr_search_sys->hash_index;
 
 		ha_search_and_update_if_found(table, cursor->fold, rec,
-					      page_rec_get_next(rec));
+					      block, page_rec_get_next(rec));
 
 		rw_lock_x_unlock(&btr_search_latch);
 	} else {
@@ -1531,7 +1532,7 @@ btr_search_update_hash_on_insert(
 
 			locked = TRUE;
 
-			ha_insert_for_fold(table, ins_fold, ins_rec);
+			ha_insert_for_fold(table, ins_fold, block, ins_rec);
 		}
 
 		goto check_next_rec;
@@ -1547,9 +1548,9 @@ btr_search_update_hash_on_insert(
 		}
 
 		if (!left_side) {
-			ha_insert_for_fold(table, fold, rec);
+			ha_insert_for_fold(table, fold, block, rec);
 		} else {
-			ha_insert_for_fold(table, ins_fold, ins_rec);
+			ha_insert_for_fold(table, ins_fold, block, ins_rec);
 		}
 	}
 
@@ -1564,7 +1565,7 @@ check_next_rec:
 				locked = TRUE;
 			}
 
-			ha_insert_for_fold(table, ins_fold, ins_rec);
+			ha_insert_for_fold(table, ins_fold, block, ins_rec);
 		}
 
 		goto function_exit;
@@ -1581,14 +1582,14 @@ check_next_rec:
 
 		if (!left_side) {
 
-			ha_insert_for_fold(table, ins_fold, ins_rec);
+			ha_insert_for_fold(table, ins_fold, block, ins_rec);
 			/*
 			fputs("Hash insert for ", stderr);
 			dict_index_name_print(stderr, cursor->index);
 			fprintf(stderr, " fold %lu\n", ins_fold);
 			*/
 		} else {
-			ha_insert_for_fold(table, next_fold, next_rec);
+			ha_insert_for_fold(table, next_fold, block, next_rec);
 		}
 	}
 
