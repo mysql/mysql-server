@@ -65,6 +65,7 @@ abi_check: mysql.h mysql_version.h mysql_com.h mysql_time.h my_list.h \
 	if [ @ICHECK@ != no ] ; then \
 	  @ICHECK@ --canonify --skip-from-re /usr/ -o $@.ic mysql.h; \
 	  @ICHECK@ --compare mysql_h.ic $@.ic; \
+	  $(RM) -f $@.ic; \
 	fi; \
 	touch abi_check;
 
