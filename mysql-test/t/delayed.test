@@ -1,3 +1,5 @@
+# delayed works differently in embedded server
+--source include/not_embedded.inc
 #
 # test of DELAYED insert and timestamps
 # (Can't be tested with purify :( )
