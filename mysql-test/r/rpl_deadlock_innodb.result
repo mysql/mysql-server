@@ -28,21 +28,22 @@ Variable_name	Value
 slave_transaction_retries	2
 stop slave;
 begin;
-insert into t3 select * from t2 for update;
+insert into t2 values (0);
 insert into t1 values(1);
 commit;
 begin;
 select * from t1 for update;
 a
 start slave;
-insert into t2 values(201);
+select * from t2 for update /* dl */;
+a
 commit;
 select * from t1;
 a
 1
-select * from t2;
+select * from t2 /* must be 1 */;
 a
-201
+0
 show slave status;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -83,7 +84,7 @@ change master to master_log_pos=544;
 begin;
 select * from t2 for update;
 a
-201
+0
 start slave;
 select count(*) from t3  /* must be zero */;
 count(*)
@@ -95,7 +96,8 @@ a
 1
 select * from t2;
 a
-201
+0
+0
 show slave status;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -137,7 +139,8 @@ change master to master_log_pos=544;
 begin;
 select * from t2 for update;
 a
-201
+0
+0
 start slave;
 select count(*) from t3  /* must be zero */;
 count(*)
@@ -150,7 +153,9 @@ a
 1
 select * from t2;
 a
-201
+0
+0
+0
 show slave status;
 Slave_IO_State	#
 Master_Host	127.0.0.1
