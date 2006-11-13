@@ -770,6 +770,8 @@ MYSQL_DATA *THD::alloc_new_dataset()
 
 static void write_eof_packet(THD *thd)
 {
+  if (!thd->mysql)            // bootstrap file handling
+    return;
   /*
     The following test should never be true, but it's better to do it
     because if 'is_fatal_error' is set the server is not going to execute

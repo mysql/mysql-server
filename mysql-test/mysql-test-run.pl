@@ -750,6 +750,7 @@ sub command_line_setup () {
     push(@glob_test_mode, "embedded");
     $opt_skip_rpl= 1;              # We never run replication with embedded
     $opt_skip_ndbcluster= 1;
+    $opt_skip_ssl= 1;
 
     if ( $opt_extern )
     {
