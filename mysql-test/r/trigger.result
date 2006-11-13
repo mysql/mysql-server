@@ -1241,4 +1241,19 @@ i	j
 2	2
 13	13
 drop table t1;
+drop table if exists t1;
+drop function if exists f1;
+create table t1 (i int);
+create function f1() returns int return 10;
+create trigger t1_bi before insert on t1 for each row set @a:= f1() + 10;
+insert into t1 values ();
+select @a;
+@a
+20
+insert into t1 values ();
+select @a;
+@a
+20
+drop table t1;
+drop function f1;
 End of 5.0 tests
