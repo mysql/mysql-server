@@ -165,6 +165,9 @@ void avgcost_reset( UDF_INIT* initid, UDF_ARGS* args, char* is_null, char *error
 void avgcost_clear( UDF_INIT* initid, char* is_null, char *error );
 void avgcost_add( UDF_INIT* initid, UDF_ARGS* args, char* is_null, char *error );
 double avgcost( UDF_INIT* initid, UDF_ARGS* args, char* is_null, char *error );
+my_bool is_const_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
+char *is_const(UDF_INIT *initid, UDF_ARGS *args, char *result, unsigned long
+               *length, char *is_null, char *error);
 
 
 /*************************************************************************
@@ -1074,5 +1077,32 @@ char *myfunc_argument_name(UDF_INIT *initid __attribute__((unused)),
   result[*length]= 0;
   return result;
 }
+
+
+
+my_bool is_const_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
+{
+  if (args->arg_count != 1)
+  {
+    strmov(message, "IS_CONST accepts only one argument");
+    return 1;
+  }
+  initid->ptr= (args->args[0] != NULL) ? 1 : 0;
+  return 0;
+}
+
+char * is_const(UDF_INIT *initid, UDF_ARGS *args, char *result, unsigned long
+                *length, char *is_null, char *error)
+{
+  if (initid->ptr != 0) {
+    sprintf(result, "const");
+  } else {
+    sprintf(result, "not const");
+  }
+  *is_null= 0;
+  *length= strlen(result);
+  return result;
+}
+
 
 #endif /* HAVE_DLOPEN */
