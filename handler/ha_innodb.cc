@@ -152,7 +152,7 @@ ulong	innobase_large_page_size = 0;
 parameters are declared in mysqld.cc: */
 
 long innobase_mirrored_log_groups, innobase_log_files_in_group,
-	innobase_log_buffer_size, innobase_buffer_pool_awe_mem_mb,
+	innobase_log_buffer_size,
 	innobase_additional_mem_pool_size, innobase_file_io_threads,
 	innobase_lock_wait_timeout, innobase_force_recovery,
 	innobase_open_files;
