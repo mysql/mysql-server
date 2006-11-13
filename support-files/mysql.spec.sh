@@ -329,7 +329,7 @@ then
 fi
 
 (cd mysql-debug-%{mysql_version}/mysql-test ; \
- ./mysql-test-run.pl --comment=debug --skip-rpl --skip-ndbcluster --force ; \
+ ./mysql-test-run.pl --comment=debug --skip-rpl --skip-ndbcluster --force --report-features ; \
  true)
 
 ##############################################################################
@@ -360,7 +360,7 @@ then
 fi
 
 cd mysql-release-%{mysql_version}/mysql-test
-./mysql-test-run.pl --comment=normal --force --skip-ndbcluster --timer || true
+./mysql-test-run.pl --comment=normal --force --skip-ndbcluster --timer --report-features || true
 ./mysql-test-run.pl --comment=ps --ps-protocol --force --skip-ndbcluster --timer || true
 ./mysql-test-run.pl --comment=normal+rowrepl --mysqld=--binlog-format=row --force --skip-ndbcluster --timer || true
 ./mysql-test-run.pl --comment=ps+rowrepl+NDB --ps-protocol --mysqld=--binlog-format=row --force --timer || true
@@ -687,6 +687,12 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Mon Nov 13 2006 Joerg Bruehe <joerg@mysql.com>
+
+- Add "--with-partition" to all server builds.
+
+- Use "--report-features" in one test run per server build.
+
 * Tue Aug 15 2006 Joerg Bruehe <joerg@mysql.com>
 
 - The "max" server is removed from packages, effective from 5.1.12-beta.
