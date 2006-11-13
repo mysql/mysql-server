@@ -2238,7 +2238,11 @@ longlong Item_func_release_lock::val_int()
   }
   else
   {
+#ifdef EMBEDDED_LIBRARY
+    if (ull->locked && pthread_equal(current_thd->real_id,ull->thread))
+#else
     if (ull->locked && pthread_equal(pthread_self(),ull->thread))
+#endif
     {
       result=1;					// Release is ok
       item_user_lock_release(ull);
