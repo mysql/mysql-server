@@ -4852,6 +4852,7 @@ Item_func_sp::cleanup()
     result_field= NULL;
   }
   m_sp= NULL;
+  dummy_table->s= NULL;
   Item_func::cleanup();
 }
 
