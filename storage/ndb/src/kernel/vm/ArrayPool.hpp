@@ -257,7 +257,7 @@ ArrayPool<T>::setSize(Uint32 noOfElements,
 
       if(0 != paramId && 0 == ndb_mgm_get_db_parameter_info(paramId, &param_info, &size)) {
         BaseString::snprintf(errmsg, sizeof(errmsg), 
-                "ArrayPool<T>::setSize malloc parameter %s failed", param_info.m_name);
+                "Malloc memory for %s failed", param_info.m_name);
       }
 
       ErrorReporter::handleAssert(errmsg,
