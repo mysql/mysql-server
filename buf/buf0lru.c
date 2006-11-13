@@ -854,6 +854,10 @@ buf_LRU_block_free_non_file_page(
 	/* Wipe contents of page to reveal possible stale pointers to it */
 	memset(block->frame, '\0', UNIV_PAGE_SIZE);
 	memset(block->page_zip.data, 0xff, block->page_zip.size);
+#else
+	/* Wipe page_no and space_id */
+	memset(block->frame + FIL_PAGE_OFFSET, 0xfe, 4);
+	memset(block->frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 0xfe, 4);
 #endif
 	UT_LIST_ADD_FIRST(free, buf_pool->free, block);
 	block->in_free_list = TRUE;
@@ -920,6 +924,8 @@ buf_LRU_block_remove_hashed_page(
 	HASH_DELETE(buf_block_t, hash, buf_pool->page_hash,
 		    buf_page_address_fold(block->space, block->offset),
 		    block);
+	memset(block->frame + FIL_PAGE_OFFSET, 0xff, 4);
+	memset(block->frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 0xff, 4);
 
 	block->state = BUF_BLOCK_REMOVE_HASH;
 }
