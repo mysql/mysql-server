@@ -1499,7 +1499,7 @@ sub executable_setup () {
     $exe_mysql_client_test=
       mtr_exe_maybe_exists(vs_config_dirs('tests', 'mysql_client_test'),
                            "$glob_basedir/tests/mysql_client_test",
-                           "$glob_basedir/bin");
+                           "$glob_basedir/bin/mysql_client_test");
   }
 }
 
