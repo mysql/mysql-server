@@ -1499,4 +1499,24 @@ select * from t1;
 drop table t1;
 
 
+#
+# Bug #23651 "Server crashes when trigger which uses stored function
+#             invoked from different connections".
+#
+--disable_warnings
+drop table if exists t1;
+drop function if exists f1;
+--enable_warnings
+create table t1 (i int);
+create function f1() returns int return 10;
+create trigger t1_bi before insert on t1 for each row set @a:= f1() + 10;
+insert into t1 values ();
+select @a;
+connection addconroot1;
+insert into t1 values ();
+select @a;
+connection default;
+drop table t1;
+drop function f1;
+
 --echo End of 5.0 tests
