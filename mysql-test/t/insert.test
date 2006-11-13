@@ -201,16 +201,6 @@ insert into t1 (b,b) select 1,2;
 --error 1110
 INSERT INTO t1 (b,b) SELECT 0,0 ON DUPLICATE KEY UPDATE a = a + VALUES (a);
 drop table t1;
-# Test for INSERT DELAYED INTO a <view>
-# BUG#13683: INSERT DELAYED into a view creates an infinite loop
-#
-
-create table t1 (n int);
-create view  v1 as select * from t1;
---error 1347
-insert delayed into v1 values (1);
-drop table t1;
-drop view  v1;
 
 #
 # Test for values returned by ROW_COUNT() function

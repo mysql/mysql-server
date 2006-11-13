@@ -1735,8 +1735,13 @@ bool Item_func_current_user::fix_fields(THD *thd, Item **ref)
   if (Item_func_sysconst::fix_fields(thd, ref))
     return TRUE;
 
-  Security_context *ctx= (context->security_ctx
+  Security_context *ctx=
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+                         (context->security_ctx
                           ? context->security_ctx : thd->security_ctx);
+#else
+                         thd->security_ctx;
+#endif /*NO_EMBEDDED_ACCESS_CHECKS*/
   return init(ctx->priv_user, ctx->priv_host);
 }
 
