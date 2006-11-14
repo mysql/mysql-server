@@ -32,7 +32,8 @@ endif
 
 benchdir_root=		$(prefix)
 testdir =	        $(benchdir_root)/mysql-test
-EXTRA_SCRIPTS = 	mysql-test-run.sh install_test_db.sh $(PRESCRIPTS)
+EXTRA_SCRIPTS = 	mysql-test-run-shell.sh install_test_db.sh \
+			 $(PRESCRIPTS)
 EXTRA_DIST = 		$(EXTRA_SCRIPTS)
 GENSCRIPTS =		mysql-test-run-shell mysql-test-run install_test_db mtr
 PRESCRIPTS =		mysql-test-run.pl
