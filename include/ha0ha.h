@@ -95,7 +95,6 @@ ha_delete(
 /*======*/
 	hash_table_t*	table,	/* in: hash table */
 	ulint		fold,	/* in: folded value of data */
-	buf_block_t*	block,	/* in: buffer block, or NULL */
 	void*		data);	/* in: data, must not be NULL and must exist
 				in the hash table */
 /*************************************************************
@@ -108,7 +107,6 @@ ha_search_and_delete_if_found(
 				/* out: TRUE if found */
 	hash_table_t*	table,	/* in: hash table */
 	ulint		fold,	/* in: folded value of the searched data */
-	buf_block_t*	block,	/* in: buffer block, or NULL */
 	void*		data);	/* in: pointer to the data */
 /*********************************************************************
 Removes from the chain determined by fold all nodes whose data pointer
@@ -119,7 +117,6 @@ ha_remove_all_nodes_to_page(
 /*========================*/
 	hash_table_t*	table,	/* in: hash table */
 	ulint		fold,	/* in: fold value */
-	buf_block_t*	block,	/* in: buffer block */
 	const page_t*	page);	/* in: buffer page */
 /*****************************************************************
 Validates a given range of the cells in hash table. */
