@@ -4610,8 +4610,6 @@ end_with_restore_list:
 	select_limit= thd->variables.select_limit;
 	thd->variables.select_limit= HA_POS_ERROR;
 
-        thd->row_count_func= 0;
-        
         /* 
           We never write CALL statements into binlog:
            - If the mode is non-prelocked, each statement will be logged
