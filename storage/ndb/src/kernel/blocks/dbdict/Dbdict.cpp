@@ -3249,8 +3249,20 @@ Dbdict::restartCreateTab_dihComplete(Signal* signal,
   CreateTableRecordPtr createTabPtr;  
   ndbrequire(c_opCreateTable.find(createTabPtr, callbackData));
   
-  //@todo check error
-  ndbrequire(createTabPtr.p->m_errorCode == 0);
+  fprintf(stderr,"Dbdict:restartCreateTab_dihComplete:, errorCode=%d\n", createTabPtr.p->m_errorCode);
+  if (createTabPtr.p->m_errorCode != 0)
+  {
+    char buf[255];
+    BaseString::snprintf(buf, sizeof(buf), 
+			 "Unable to restart, fail while creating table"
+			 " error: %d. Most likely change of configuration",
+			 createTabPtr.p->m_errorCode);
+    progError(__LINE__, 
+	      NDBD_EXIT_INVALID_CONFIG,
+	      buf);
+    ndbrequire(createTabPtr.p->m_errorCode == 0);
+  }
+
 
   Callback callback;
   callback.m_callbackData = callbackData;
