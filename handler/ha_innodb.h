@@ -207,7 +207,7 @@ extern SHOW_VAR innodb_status_variables[];
 extern ulong innobase_fast_shutdown;
 extern ulong innobase_large_page_size;
 extern long innobase_mirrored_log_groups, innobase_log_files_in_group;
-extern longlong innobase_buffer_pool_size, innobase_log_file_size;
+extern longlong innobase_log_file_size;
 extern long innobase_log_buffer_size;
 extern long innobase_additional_mem_pool_size;
 extern long innobase_file_io_threads, innobase_lock_wait_timeout;
@@ -225,6 +225,8 @@ extern my_bool innobase_log_archive,
 	innobase_file_per_table, innobase_locks_unsafe_for_binlog,
 	innobase_create_status_file;
 extern "C" {
+extern ulong srv_buf_pool_curr_size;
+extern ulong srv_buf_pool_size;
 extern ulong srv_max_buf_pool_modified_pct;
 extern ulong srv_max_purge_lag;
 extern ulong srv_auto_extend_increment;

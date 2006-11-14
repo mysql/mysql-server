@@ -42,22 +42,6 @@ buf_pool_get_curr_size(void)
 	return(buf_pool->curr_size * UNIV_PAGE_SIZE);
 }
 
-/***********************************************************************
-Accessor function for block array. */
-UNIV_INLINE
-buf_block_t*
-buf_pool_get_nth_block(
-/*===================*/
-				/* out: pointer to block */
-	buf_pool_t*	buf_pool,/* in: buf_pool */
-	ulint		i)	/* in: index of the block */
-{
-	ut_ad(buf_pool);
-	ut_ad(i < buf_pool->curr_size);
-
-	return(i + buf_pool->blocks);
-}
-
 /************************************************************************
 Gets the smallest oldest_modification lsn for any page in the pool. Returns
 ut_dulint_zero if all modified pages have been flushed to disk. */
@@ -114,8 +98,6 @@ buf_block_get_frame(
 	buf_block_t*	block)	/* in: pointer to the control block */
 {
 	ut_ad(block);
-	ut_ad(block >= buf_pool->blocks);
-	ut_ad(block < buf_pool->blocks + buf_pool->curr_size);
 	ut_ad(block->state != BUF_BLOCK_NOT_USED);
 	ut_ad((block->state != BUF_BLOCK_FILE_PAGE)
 	      || (block->buf_fix_count > 0));
@@ -133,8 +115,6 @@ buf_block_get_space(
 	const buf_block_t*	block)	/* in: pointer to the control block */
 {
 	ut_ad(block);
-	ut_ad(block >= buf_pool->blocks);
-	ut_ad(block < buf_pool->blocks + buf_pool->curr_size);
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 	ut_ad(block->buf_fix_count > 0);
 
@@ -151,8 +131,6 @@ buf_block_get_page_no(
 	const buf_block_t*	block)	/* in: pointer to the control block */
 {
 	ut_ad(block);
-	ut_ad(block >= buf_pool->blocks);
-	ut_ad(block < buf_pool->blocks + buf_pool->curr_size);
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 	ut_ad(block->buf_fix_count > 0);
 

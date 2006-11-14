@@ -69,11 +69,16 @@ extern ulint srv_buf_pool_write_requests; /* variable to count write request
 Creates the buffer pool. */
 
 buf_pool_t*
-buf_pool_init(
-/*==========*/
+buf_pool_init(void);
+/*===============*/
 				/* out, own: buf_pool object, NULL if not
 				enough memory or error */
-	ulint	curr_size);	/* in: current size to use */
+/************************************************************************
+Resizes the buffer pool. */
+
+void
+buf_pool_resize(void);
+/*=================*/
 /*************************************************************************
 Gets the current size of buffer buf_pool in bytes. */
 UNIV_INLINE
@@ -833,11 +838,8 @@ struct buf_pool_struct{
 	mutex_t		mutex;		/* mutex protecting the buffer pool
 					struct and control blocks, except the
 					read-write lock in them */
-	byte*		frame_mem;	/* pointer to the memory area which
-					was allocated for the frames */
-	ulint		frame_mem_size;	/* allocated length of frame_mem
-					in bytes */
-	buf_block_t*	blocks;		/* array of buffer control blocks */
+	ulint		n_chunks;	/* number of buffer pool chunks */
+	buf_chunk_t*	chunks;		/* buffer pool chunks */
 	ulint		curr_size;	/* current pool size in pages */
 	hash_table_t*	page_hash;	/* hash table of the file pages */
 
