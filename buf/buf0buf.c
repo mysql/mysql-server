@@ -215,6 +215,15 @@ ibool		buf_debug_prints = FALSE; /* If this is set TRUE,
 					read-ahead or flush occurs */
 #endif /* UNIV_DEBUG */
 
+/* A chunk of buffers.  The buffer pool is allocated in chunks. */
+struct buf_chunk_struct{
+	ulint		mem_size;	/* allocated size of the chunk */
+	ulint		size;		/* size of frames[] and blocks[] */
+	void*		mem;		/* pointer to the memory area which
+					was allocated for the frames */
+	buf_block_t*	blocks;		/* array of buffer control blocks */
+};
+
 /************************************************************************
 Calculates a page checksum which is stored to the page when it is written
 to a file. Note that we must be careful to calculate the same value on
@@ -627,18 +636,194 @@ buf_block_init(
 }
 
 /************************************************************************
+Allocates a chunk of buffer frames. */
+static
+buf_chunk_t*
+buf_chunk_init(
+/*===========*/
+					/* out: chunk, or NULL on failure */
+	buf_chunk_t*	chunk,		/* out: chunk of buffers */
+	ulint		mem_size)	/* in: requested size in bytes */
+{
+	buf_block_t*	block;
+	byte*		frame;
+	ulint		i;
+
+	/* Round down to a multiple of page size,
+	although it already should be. */
+	mem_size = ut_2pow_round(mem_size, UNIV_PAGE_SIZE);
+	/* Reserve space for the block descriptors. */
+	mem_size += ut_2pow_round((mem_size / UNIV_PAGE_SIZE) * (sizeof *block)
+				  + (UNIV_PAGE_SIZE - 1), UNIV_PAGE_SIZE);
+
+	chunk->mem_size = mem_size;
+	chunk->mem = os_mem_alloc_large(&chunk->mem_size);
+
+	if (UNIV_UNLIKELY(chunk->mem == NULL)) {
+
+		return(NULL);
+	}
+
+	/* Allocate the block descriptors from
+	the start of the memory block. */
+	chunk->blocks = chunk->mem;
+
+	/* Align pointer to the first frame */
+
+	frame = ut_align(chunk->mem, UNIV_PAGE_SIZE);
+	chunk->size = chunk->mem_size / UNIV_PAGE_SIZE
+		- (frame != chunk->mem);
+
+	/* Subtract the space needed for block descriptors. */
+	{
+		ulint	size = chunk->size;
+
+		while (frame < (byte*) (chunk->blocks + size)) {
+			frame += UNIV_PAGE_SIZE;
+			size--;
+		}
+
+		chunk->size = size;
+	}
+
+	/* Init block structs and assign frames for them. Then we
+	assign the frames to the first blocks (we already mapped the
+	memory above). */
+
+	block = chunk->blocks;
+
+	for (i = chunk->size; i--; ) {
+
+		buf_block_init(block, frame);
+
+#ifdef HAVE_purify
+		/* Wipe contents of frame to eliminate a Purify warning */
+		memset(block->frame, '\0', UNIV_PAGE_SIZE);
+#endif
+		/* Add the block to the free list */
+		UT_LIST_ADD_LAST(free, buf_pool->free, block);
+		block->in_free_list = TRUE;
+
+		block++;
+		frame += UNIV_PAGE_SIZE;
+	}
+
+	return(chunk);
+}
+
+/*************************************************************************
+Checks that all file pages in the buffer chunk are in a replaceable state. */
+static
+const buf_block_t*
+buf_chunk_not_freed(
+/*================*/
+				/* out: address of a non-free block,
+				or NULL if all freed */
+	buf_chunk_t*	chunk)	/* in: chunk being checked */
+{
+	buf_block_t*	block;
+	ulint		i;
+
+	ut_ad(buf_pool);
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
+
+	block = chunk->blocks;
+
+	for (i = chunk->size; i--; block++) {
+		mutex_enter(&block->mutex);
+
+		if (block->state == BUF_BLOCK_FILE_PAGE
+		    && !buf_flush_ready_for_replace(block)) {
+
+			mutex_exit(&block->mutex);
+			return(block);
+		}
+
+		mutex_exit(&block->mutex);
+	}
+
+	return(NULL);
+}
+
+/*************************************************************************
+Checks that all blocks in the buffer chunk are in BUF_BLOCK_NOT_USED state. */
+static
+ibool
+buf_chunk_all_free(
+/*===============*/
+					/* out: TRUE if all freed */
+	const buf_chunk_t*	chunk)	/* in: chunk being checked */
+{
+	const buf_block_t*	block;
+	ulint			i;
+
+	ut_ad(buf_pool);
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
+
+	block = chunk->blocks;
+
+	for (i = chunk->size; i--; block++) {
+
+		if (block->state != BUF_BLOCK_NOT_USED) {
+
+			return(FALSE);
+		}
+	}
+
+	return(TRUE);
+}
+
+/************************************************************************
+Frees a chunk of buffer frames. */
+static
+void
+buf_chunk_free(
+/*===========*/
+	buf_chunk_t*	chunk)		/* out: chunk of buffers */
+{
+	buf_block_t*		block;
+	const buf_block_t*	block_end;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
+
+	block_end = chunk->blocks + chunk->size;
+
+	for (block = chunk->blocks; block < block_end; block++) {
+		ut_a(block->state == BUF_BLOCK_NOT_USED);
+		ut_a(!block->page_zip.data);
+
+		/* Remove the block from the free list. */
+		ut_a(block->in_free_list);
+		UT_LIST_REMOVE(free, buf_pool->free, block);
+
+		/* Free the latches. */
+		mutex_free(&block->mutex);
+		rw_lock_free(&block->lock);
+#ifdef UNIV_SYNC_DEBUG
+		rw_lock_free(&block->debug_latch);
+#endif /* UNIV_SYNC_DEBUG */
+	}
+
+	os_mem_free_large(chunk->mem, chunk->mem_size);
+}
+
+/************************************************************************
 Creates the buffer pool. */
 
 buf_pool_t*
-buf_pool_init(
-/*==========*/
+buf_pool_init(void)
+/*===============*/
 				/* out, own: buf_pool object, NULL if not
 				enough memory or error */
-	ulint	curr_size)	/* in: current size to use */
 {
-	byte*		frame;
+	buf_chunk_t*	chunk;
 	ulint		i;
-	buf_block_t*	block;
 
 	buf_pool = mem_alloc(sizeof(buf_pool_t));
 
@@ -648,49 +833,23 @@ buf_pool_init(
 
 	mutex_enter(&(buf_pool->mutex));
 
-	buf_pool->frame_mem_size = (curr_size + 1) * UNIV_PAGE_SIZE;
+	buf_pool->n_chunks = 1;
+	buf_pool->chunks = chunk = mem_alloc(sizeof *chunk);
 
-	buf_pool->frame_mem = os_mem_alloc_large(&buf_pool->frame_mem_size);
+	UT_LIST_INIT(buf_pool->free);
 
-	if (UNIV_UNLIKELY(buf_pool->frame_mem == NULL)) {
-
+	if (!buf_chunk_init(chunk, srv_buf_pool_size)) {
+		mem_free(chunk);
+		mem_free(buf_pool);
+		buf_pool = NULL;
 		return(NULL);
 	}
 
-	/* Align pointer to the first frame */
+	srv_buf_pool_old_size = srv_buf_pool_size;
+	buf_pool->curr_size = chunk->size;
+	srv_buf_pool_curr_size = buf_pool->curr_size * UNIV_PAGE_SIZE;
 
-	frame = ut_align(buf_pool->frame_mem, UNIV_PAGE_SIZE);
-
-	curr_size = buf_pool->frame_mem_size / UNIV_PAGE_SIZE
-		- (frame != buf_pool->frame_mem);
-
-	buf_pool->blocks = ut_malloc(sizeof(buf_block_t) * curr_size);
-
-	if (UNIV_UNLIKELY(buf_pool->blocks == NULL)) {
-
-		os_mem_free_large(buf_pool->frame_mem,
-				  buf_pool->frame_mem_size);
-		buf_pool->frame_mem = NULL;
-
-		return(NULL);
-	}
-
-	buf_pool->curr_size = curr_size;
-
-	/* Init block structs and assign frames for them. Then we
-	assign the frames to the first blocks (we already mapped the
-	memory above). */
-
-	for (i = 0; i < curr_size; i++) {
-
-		block = buf_pool_get_nth_block(buf_pool, i);
-
-		buf_block_init(block, frame);
-
-		frame += UNIV_PAGE_SIZE;
-	}
-
-	buf_pool->page_hash = hash_create(2 * curr_size);
+	buf_pool->page_hash = hash_create(2 * buf_pool->curr_size);
 
 	buf_pool->n_pend_reads = 0;
 
@@ -727,31 +886,128 @@ buf_pool_init(
 
 	buf_pool->LRU_old = NULL;
 
-	/* Add control blocks to the free list */
-	UT_LIST_INIT(buf_pool->free);
-
-	for (i = 0; i < curr_size; i++) {
-
-		block = buf_pool_get_nth_block(buf_pool, i);
-
-		if (block->frame) {
-			/* Wipe contents of frame to eliminate a Purify
-			warning */
-
-#ifdef HAVE_purify
-			memset(block->frame, '\0', UNIV_PAGE_SIZE);
-#endif
-		}
-
-		UT_LIST_ADD_LAST(free, buf_pool->free, block);
-		block->in_free_list = TRUE;
-	}
-
 	mutex_exit(&(buf_pool->mutex));
 
-	btr_search_sys_create(curr_size * UNIV_PAGE_SIZE / sizeof(void*) / 64);
+	btr_search_sys_create(buf_pool->curr_size
+			      * UNIV_PAGE_SIZE / sizeof(void*) / 64);
 
 	return(buf_pool);
+}
+
+/************************************************************************
+Resizes the buffer pool. */
+
+void
+buf_pool_resize(void)
+/*=================*/
+{
+	buf_chunk_t*	chunks;
+	buf_chunk_t*	chunk;
+
+	mutex_enter(&buf_pool->mutex);
+
+	if (srv_buf_pool_old_size == srv_buf_pool_size) {
+
+		goto func_exit;
+	}
+
+	if (srv_buf_pool_curr_size + 1048576 > srv_buf_pool_size) {
+
+		/* Shrink the buffer pool by at least one megabyte */
+
+		ulint		chunk_size
+			= (srv_buf_pool_curr_size - srv_buf_pool_size) 
+			/ UNIV_PAGE_SIZE;
+		ulint		max_size;
+		buf_chunk_t*	max_chunk;
+
+shrink_again:
+		if (buf_pool->n_chunks <= 1) {
+
+			/* Cannot shrink if there is only one chunk */
+			goto func_done;
+		}
+
+		/* Search for the largest free chunk
+		not larger than the size difference */
+		chunks = buf_pool->chunks;
+		chunk = chunks + buf_pool->n_chunks;
+		max_size = 0;
+		max_chunk = NULL;
+
+		while (--chunk >= chunks) {
+			if (chunk->size <= chunk_size
+			    && chunk->size > max_size
+			    && buf_chunk_all_free(chunk)) {
+				max_size = chunk->size;
+				max_chunk = chunk;
+			}
+		}
+
+		if (!max_size) {
+
+			/* Cannot shrink: try again later
+			(do not assign srv_buf_pool_old_size) */
+			goto func_exit;
+		}
+
+		srv_buf_pool_old_size = srv_buf_pool_size;
+
+		/* Rewrite buf_pool->chunks.  Copy everything but max_chunk. */
+		chunks = mem_alloc((buf_pool->n_chunks - 1) * sizeof *chunks);
+		memcpy(chunks, buf_pool->chunks,
+		       (max_chunk - buf_pool->chunks) * sizeof *chunks);
+		memcpy(chunks + (max_chunk - buf_pool->chunks),
+		       max_chunk + 1,
+		       buf_pool->chunks + buf_pool->n_chunks
+		       - (max_chunk + 1));
+		ut_a(buf_pool->curr_size > max_chunk->size);
+		buf_pool->curr_size -= max_chunk->size;
+		srv_buf_pool_curr_size = buf_pool->curr_size * UNIV_PAGE_SIZE;
+		chunk_size -= max_chunk->size;
+		buf_chunk_free(max_chunk);
+		mem_free(buf_pool->chunks);
+		buf_pool->chunks = chunks;
+		buf_pool->n_chunks--;
+
+		/* Allow a slack of one megabyte. */
+		if (chunk_size > 1048576 / UNIV_PAGE_SIZE) {
+
+			goto shrink_again;
+		}
+	} else if (srv_buf_pool_curr_size + 1048576 < srv_buf_pool_size) {
+
+		/* Enlarge the buffer pool by at least one megabyte */
+
+		ulint		mem_size
+			= srv_buf_pool_size - srv_buf_pool_curr_size;
+
+		chunks = mem_alloc((buf_pool->n_chunks + 1) * sizeof *chunks);
+
+		memcpy(chunks, buf_pool->chunks, buf_pool->n_chunks
+		       * sizeof *chunks);
+
+		chunk = &chunks[buf_pool->n_chunks];
+
+		if (!buf_chunk_init(chunk, mem_size)) {
+			mem_free(chunks);
+		} else {
+			buf_pool->curr_size += chunk->size;
+			srv_buf_pool_curr_size = buf_pool->curr_size
+				* UNIV_PAGE_SIZE;
+			mem_free(buf_pool->chunks);
+			buf_pool->chunks = chunks;
+			buf_pool->n_chunks++;
+		}
+	}
+
+	/* TODO: reinitialize buf_pool->page_hash */
+
+func_done:
+	srv_buf_pool_old_size = srv_buf_pool_size;
+
+func_exit:
+	mutex_exit(&buf_pool->mutex);
 }
 
 /************************************************************************
@@ -1979,7 +2235,7 @@ ibool
 buf_validate(void)
 /*==============*/
 {
-	buf_block_t*	block;
+	buf_chunk_t*	chunk;
 	ulint		i;
 	ulint		n_single_flush	= 0;
 	ulint		n_lru_flush	= 0;
@@ -1993,58 +2249,67 @@ buf_validate(void)
 
 	mutex_enter(&(buf_pool->mutex));
 
-	for (i = 0; i < buf_pool->curr_size; i++) {
+	chunk = buf_pool->chunks;
 
-		block = buf_pool_get_nth_block(buf_pool, i);
+	for (i = buf_pool->n_chunks; i--; chunk++) {
 
-		mutex_enter(&block->mutex);
+		ulint		j;
+		buf_block_t*	block = chunk->blocks;
 
-		if (block->state == BUF_BLOCK_FILE_PAGE) {
+		for (j = chunk->size; j--; block++) {
 
-			ut_a(buf_page_hash_get(block->space,
-					       block->offset) == block);
-			n_page++;
+			mutex_enter(&block->mutex);
+
+			if (block->state == BUF_BLOCK_FILE_PAGE) {
+
+				ut_a(buf_page_hash_get(block->space,
+						       block->offset)
+				     == block);
+				n_page++;
 
 #ifdef UNIV_IBUF_DEBUG
-			ut_a((block->io_fix == BUF_IO_READ)
-			     || ibuf_count_get(block->space, block->offset)
-			     == 0);
+				ut_a((block->io_fix == BUF_IO_READ)
+				     || !ibuf_count_get(block->space,
+							block->offset));
 #endif
-			if (block->io_fix == BUF_IO_WRITE) {
+				if (block->io_fix == BUF_IO_WRITE) {
 
-				if (block->flush_type == BUF_FLUSH_LRU) {
-					n_lru_flush++;
-					ut_a(rw_lock_is_locked(
-						     &block->lock,
-						     RW_LOCK_SHARED));
-				} else if (block->flush_type
-					   == BUF_FLUSH_LIST) {
-					n_list_flush++;
-				} else if (block->flush_type
-					   == BUF_FLUSH_SINGLE_PAGE) {
-					n_single_flush++;
-				} else {
-					ut_error;
+					switch (block->flush_type) {
+					case BUF_FLUSH_LRU:
+						n_lru_flush++;
+						ut_a(rw_lock_is_locked(
+							     &block->lock,
+							     RW_LOCK_SHARED));
+						break;
+					case BUF_FLUSH_LIST:
+						n_list_flush++;
+						break;
+					case BUF_FLUSH_SINGLE_PAGE:
+						n_single_flush++;
+						break;
+					default:
+						ut_error;
+					}
+
+				} else if (block->io_fix == BUF_IO_READ) {
+
+					ut_a(rw_lock_is_locked(&block->lock,
+							       RW_LOCK_EX));
 				}
 
-			} else if (block->io_fix == BUF_IO_READ) {
+				n_lru++;
 
-				ut_a(rw_lock_is_locked(&(block->lock),
-						       RW_LOCK_EX));
+				if (ut_dulint_cmp(block->oldest_modification,
+						  ut_dulint_zero) > 0) {
+					n_flush++;
+				}
+
+			} else if (block->state == BUF_BLOCK_NOT_USED) {
+				n_free++;
 			}
 
-			n_lru++;
-
-			if (ut_dulint_cmp(block->oldest_modification,
-					  ut_dulint_zero) > 0) {
-				n_flush++;
-			}
-
-		} else if (block->state == BUF_BLOCK_NOT_USED) {
-			n_free++;
+			mutex_exit(&block->mutex);
 		}
-
-		mutex_exit(&block->mutex);
 	}
 
 	if (n_lru + n_free > buf_pool->curr_size) {
@@ -2090,7 +2355,7 @@ buf_print(void)
 	ulint		j;
 	dulint		id;
 	ulint		n_found;
-	buf_frame_t*	frame;
+	buf_chunk_t*	chunk;
 	dict_index_t*	index;
 
 	ut_ad(buf_pool);
@@ -2125,30 +2390,38 @@ buf_print(void)
 
 	n_found = 0;
 
-	for (i = 0; i < size; i++) {
-		frame = buf_pool_get_nth_block(buf_pool, i)->frame;
+	chunk = buf_pool->chunks;
 
-		if (fil_page_get_type(frame) == FIL_PAGE_INDEX) {
+	for (i = buf_pool->n_chunks; i--; chunk++) {
+		buf_block_t*	block		= chunk->blocks;
+		ulint		n_blocks	= chunk->size;
 
-			id = btr_page_get_index_id(frame);
+		for (; n_blocks--; block++) {
+			const buf_frame_t* frame = block->frame;
 
-			/* Look for the id in the index_ids array */
-			j = 0;
+			if (fil_page_get_type(frame) == FIL_PAGE_INDEX) {
 
-			while (j < n_found) {
+				id = btr_page_get_index_id(frame);
 
-				if (ut_dulint_cmp(index_ids[j], id) == 0) {
-					counts[j]++;
+				/* Look for the id in the index_ids array */
+				j = 0;
 
-					break;
+				while (j < n_found) {
+
+					if (ut_dulint_cmp(index_ids[j],
+							  id) == 0) {
+						counts[j]++;
+
+						break;
+					}
+					j++;
 				}
-				j++;
-			}
 
-			if (j == n_found) {
-				n_found++;
-				index_ids[j] = id;
-				counts[j] = 1;
+				if (j == n_found) {
+					n_found++;
+					index_ids[j] = id;
+					counts[j] = 1;
+				}
 			}
 		}
 	}
@@ -2184,17 +2457,26 @@ Returns the number of latched pages in the buffer pool. */
 ulint
 buf_get_latched_pages_number(void)
 {
-	buf_block_t*	block;
+	buf_chunk_t*	chunk;
 	ulint		i;
 	ulint		fixed_pages_number = 0;
 
 	mutex_enter(&(buf_pool->mutex));
 
-	for (i = 0; i < buf_pool->curr_size; i++) {
+	chunk = buf_pool->chunks;
 
-		block = buf_pool_get_nth_block(buf_pool, i);
+	for (i = buf_pool->n_chunks; i--; chunk++) {
+		buf_block_t*	block;
+		ulint		j;
 
-		if (block->magic_n == BUF_BLOCK_MAGIC_N) {
+		block = chunk->blocks;
+
+		for (j = chunk->size; j--; block++) {
+			if (block->magic_n != BUF_BLOCK_MAGIC_N) {
+
+				continue;
+			}
+
 			mutex_enter(&block->mutex);
 
 			if (block->buf_fix_count != 0 || block->io_fix != 0) {
@@ -2340,32 +2622,26 @@ ibool
 buf_all_freed(void)
 /*===============*/
 {
-	buf_block_t*	block;
+	buf_chunk_t*	chunk;
 	ulint		i;
 
 	ut_ad(buf_pool);
 
 	mutex_enter(&(buf_pool->mutex));
 
-	for (i = 0; i < buf_pool->curr_size; i++) {
+	chunk = buf_pool->chunks;
 
-		block = buf_pool_get_nth_block(buf_pool, i);
+	for (i = buf_pool->n_chunks; i--; chunk++) {
 
-		mutex_enter(&block->mutex);
+		const buf_block_t* block = buf_chunk_not_freed(chunk);
 
-		if (block->state == BUF_BLOCK_FILE_PAGE) {
-
-			if (!buf_flush_ready_for_replace(block)) {
-
-				fprintf(stderr,
-					"Page %lu %lu still fixed or dirty\n",
-					(ulong) block->space,
-					(ulong) block->offset);
-				ut_error;
-			}
+		if (UNIV_LIKELY_NULL(block)) {
+			fprintf(stderr,
+				"Page %lu %lu still fixed or dirty\n",
+				(ulong) block->space,
+				(ulong) block->offset);
+			ut_error;
 		}
-
-		mutex_exit(&block->mutex);
 	}
 
 	mutex_exit(&(buf_pool->mutex));

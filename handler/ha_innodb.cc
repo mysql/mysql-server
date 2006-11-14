@@ -157,7 +157,7 @@ long innobase_mirrored_log_groups, innobase_log_files_in_group,
 	innobase_lock_wait_timeout, innobase_force_recovery,
 	innobase_open_files;
 
-longlong innobase_buffer_pool_size, innobase_log_file_size;
+longlong innobase_log_file_size;
 
 /* The default values for the following char* start-up parameters
 are determined in innobase_init below: */
@@ -1404,7 +1404,7 @@ innobase_init(void *p)
 
 	/* Check that values don't overflow on 32-bit systems. */
 	if (sizeof(ulint) == 4) {
-		if (innobase_buffer_pool_size > UINT_MAX32) {
+		if (srv_buf_pool_size > UINT_MAX32) {
 			sql_print_error(
 				"innobase_buffer_pool_size can't be over 4GB"
 				" on 32-bit systems");
@@ -1532,14 +1532,6 @@ innobase_init(void *p)
 	srv_log_archive_on = (ulint) innobase_log_archive;
 #endif /* UNIV_LOG_ARCHIVE */
 	srv_log_buffer_size = (ulint) innobase_log_buffer_size;
-
-	/* We set srv_pool_size here in units of 1 kB. InnoDB internally
-	changes the value so that it becomes the number of database pages. */
-
-	/* Careful here: we first convert the signed long int to ulint
-	   and only after that divide */
-
-	srv_pool_size = ((ulint) innobase_buffer_pool_size) / 1024;
 
 	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
 

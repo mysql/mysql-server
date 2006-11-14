@@ -94,8 +94,9 @@ ibool
 buf_flush_ready_for_replace(
 /*========================*/
 				/* out: TRUE if can replace immediately */
-	buf_block_t*	block);	/* in: buffer control block, must be in state
-				BUF_BLOCK_FILE_PAGE and in the LRU list */
+	buf_block_t*	block);	/* in: buffer control block, must
+				be in state BUF_BLOCK_FILE_PAGE
+				and in the LRU list */
 /**********************************************************************
 Validates the flush list. */
 

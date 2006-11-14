@@ -159,10 +159,11 @@ byte	srv_latin1_ordering[256]	/* The sort order table of the latin1
 , 0xD8, 0x55, 0x55, 0x55, 0x59, 0x59, 0xDE, 0xFF
 };
 
-ulint	srv_pool_size		= ULINT_MAX;	/* size in pages; MySQL inits
-						this to size in kilobytes but
-						we normalize this to pages in
-						srv_boot() */
+ulong	srv_buf_pool_size	= ULINT_MAX;	/* requested size
+						in kilobytes */
+ulong	srv_buf_pool_old_size;			/* previously requested size */
+ulong	srv_buf_pool_curr_size	= 0;		/* current size
+						in kilobytes */
 ulint	srv_mem_pool_size	= ULINT_MAX;	/* size in bytes */
 ulint	srv_lock_table_size	= ULINT_MAX;
 
@@ -1233,9 +1234,7 @@ srv_normalize_init_values(void)
 
 	srv_log_buffer_size = srv_log_buffer_size / UNIV_PAGE_SIZE;
 
-	srv_pool_size = srv_pool_size / (UNIV_PAGE_SIZE / 1024);
-
-	srv_lock_table_size = 5 * srv_pool_size;
+	srv_lock_table_size = 5 * (srv_buf_pool_size / UNIV_PAGE_SIZE);
 
 	return(DB_SUCCESS);
 }

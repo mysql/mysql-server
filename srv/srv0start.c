@@ -1132,7 +1132,7 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	/* Note that the call srv_boot() also changes the values of
-	srv_pool_size etc. to the units used by InnoDB internally */
+	some variables to the units used by InnoDB internally */
 
 	/* Set the maximum number of threads which can wait for a semaphore
 	inside InnoDB: this is the 'sync wait array' size, as well as the
@@ -1147,15 +1147,12 @@ innobase_start_or_create_for_mysql(void)
 	NetWare. */
 	srv_max_n_threads = 1000;
 #else
-	if (srv_pool_size >= 1000 * 1024) {
-		/* Here we still have srv_pool_size counted
-		in kilobytes (in 4.0 this was in bytes)
-		srv_boot() converts the value to
-		pages; if buffer pool is less than 1000 MB,
+	if (srv_buf_pool_size >= 1000 * 1024 * 1024) {
+		/* If buffer pool is less than 1000 MB,
 		assume fewer threads. */
 		srv_max_n_threads = 50000;
 
-	} else if (srv_pool_size >= 8 * 1024) {
+	} else if (srv_buf_pool_size >= 8 * 1024 * 1024) {
 
 		srv_max_n_threads = 10000;
 	} else {
@@ -1164,7 +1161,7 @@ innobase_start_or_create_for_mysql(void)
 						computers */
 	}
 #endif
-	err = srv_boot(); /* This changes srv_pool_size to units of a page */
+	err = srv_boot();
 
 	if (err != DB_SUCCESS) {
 
@@ -1230,7 +1227,7 @@ innobase_start_or_create_for_mysql(void)
 
 	fil_init(srv_max_n_open_files);
 
-	ret = buf_pool_init(srv_pool_size);
+	ret = buf_pool_init();
 
 	if (ret == NULL) {
 		fprintf(stderr,
