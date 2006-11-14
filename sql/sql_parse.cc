@@ -3421,8 +3421,12 @@ end_with_restore_list:
         if (first_table->lock_type ==  TL_WRITE_CONCURRENT_INSERT &&
             thd->lock)
         {
+          /* INSERT ... SELECT should invalidate only the very first table */
+          TABLE_LIST *save_table= first_table->next_local;
+          first_table->next_local= 0;
           mysql_unlock_tables(thd, thd->lock);
           query_cache_invalidate3(thd, first_table, 1);
+          first_table->next_local= save_table;
           thd->lock=0;
         }
         delete result;
