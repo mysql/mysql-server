@@ -2696,39 +2696,47 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
     char *to=num_buffer;
     for (uint i=0; i < arg_count; i++)
     {
-      f_args.args[i]=0;
+      /*
+       For a constant argument i, args->args[i] points to the argument value. 
+       For non-constant, args->args[i] is NULL.
+      */
+      f_args.args[i]= NULL;         /* Non-const unless updated below. */
+
       f_args.lengths[i]= arguments[i]->max_length;
       f_args.maybe_null[i]= (char) arguments[i]->maybe_null;
       f_args.attributes[i]= arguments[i]->name;
       f_args.attribute_lengths[i]= arguments[i]->name_length;
 
-      switch(arguments[i]->type()) {
-      case Item::STRING_ITEM:			// Constant string !
+      if (arguments[i]->const_item())
       {
-	String *res=arguments[i]->val_str(&buffers[i]);
-	if (arguments[i]->null_value)
-	  continue;
-	f_args.args[i]=    (char*) res->ptr();
-	break;
-      }
-      case Item::INT_ITEM:
-	*((longlong*) to) = arguments[i]->val_int();
-	if (!arguments[i]->null_value)
-	{
-	  f_args.args[i]=to;
-	  to+= ALIGN_SIZE(sizeof(longlong));
-	}
-	break;
-      case Item::REAL_ITEM:
-	*((double*) to)= arguments[i]->val_real();
-	if (!arguments[i]->null_value)
-	{
-	  f_args.args[i]=to;
-	  to+= ALIGN_SIZE(sizeof(double));
-	}
-	break;
-      default:					// Skip these
-	break;
+        if (arguments[i]->null_value)
+          continue;
+
+        switch (arguments[i]->result_type()) 
+        {
+        case STRING_RESULT:
+        case DECIMAL_RESULT:
+        {
+          String *res= arguments[i]->val_str(&buffers[i]);
+          f_args.args[i]= (char*) res->ptr();
+          break;
+        }
+        case INT_RESULT:
+          *((longlong*) to)= arguments[i]->val_int();
+          f_args.args[i]= to;
+          to+= ALIGN_SIZE(sizeof(longlong));
+          break;
+        case REAL_RESULT:
+          *((double*) to)= arguments[i]->val_real();
+          f_args.args[i]= to;
+          to+= ALIGN_SIZE(sizeof(double));
+          break;
+        case ROW_RESULT:
+        default:
+          // This case should never be chosen
+          DBUG_ASSERT(0);
+          break;
+        }
       }
     }
     thd->net.last_error[0]=0;
