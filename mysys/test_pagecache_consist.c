@@ -11,7 +11,7 @@
 #include <my_pthread.h>
 
 /*#define PAGE_SIZE 65536*/
-#define PCACHE_SIZE (PAGE_SIZE*1024*20)
+#define PCACHE_SIZE (PAGE_SIZE*1024*8)
 
 #ifndef DBUG_OFF
 static const char* default_dbug_option;
@@ -59,7 +59,7 @@ static uint flush_divider= 1000;
 #endif /*TEST_HIGH_CONCURENCY*/
 
 
-/* check page consistemcy */
+/* check page consistency */
 uint check_page(uchar *buff, ulong offset, int page_locked, int page_no,
                 int tag)
 {
