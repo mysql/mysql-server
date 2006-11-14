@@ -1398,6 +1398,7 @@ bool Query_log_event::write(IO_CACHE* file)
   
   /* Store length of status variables */
   status_vars_len= (uint) (start-start_of_status);
+  DBUG_ASSERT(status_vars_len <= MAX_SIZE_LOG_EVENT_STATUS);
   int2store(buf + Q_STATUS_VARS_LEN_OFFSET, status_vars_len);
 
   /*
