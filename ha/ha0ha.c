@@ -101,10 +101,14 @@ ha_insert_for_fold_func(
 #ifdef UNIV_DEBUG
 			if (table->adaptive) {
 				buf_block_t* prev_block = prev_node->block;
+				ut_a(prev_block->frame
+				     == page_align(prev_node->data));
 				ut_a(prev_block->n_pointers > 0);
 				prev_block->n_pointers--;
 				block->n_pointers++;
 			}
+
+			prev_node->block = block;
 #endif /* UNIV_DEBUG */
 			prev_node->data = data;
 
@@ -168,15 +172,13 @@ void
 ha_delete_hash_node(
 /*================*/
 	hash_table_t*	table,		/* in: hash table */
-	buf_block_t*	block __attribute__((unused)),
-					/* in: buffer block, or NULL */
 	ha_node_t*	del_node)	/* in: node to be deleted */
 {
 #ifdef UNIV_DEBUG
 	if (table->adaptive) {
-		ut_a(block->frame = page_align(del_node->data));
-		ut_a(block->n_pointers > 0);
-		block->n_pointers--;
+		ut_a(del_node->block->frame = page_align(del_node->data));
+		ut_a(del_node->block->n_pointers > 0);
+		del_node->block->n_pointers--;
 	}
 #endif /* UNIV_DEBUG */
 	HASH_DELETE_AND_COMPACT(ha_node_t, next, table, del_node);
@@ -190,8 +192,6 @@ ha_delete(
 /*======*/
 	hash_table_t*	table,	/* in: hash table */
 	ulint		fold,	/* in: folded value of data */
-	buf_block_t*	block __attribute__((unused)),
-					/* in: buffer block, or NULL */
 	void*		data)	/* in: data, must not be NULL and must exist
 				in the hash table */
 {
@@ -204,7 +204,7 @@ ha_delete(
 
 	ut_a(node);
 
-	ha_delete_hash_node(table, block, node);
+	ha_delete_hash_node(table, node);
 }
 
 /*************************************************************
@@ -238,6 +238,8 @@ ha_search_and_update_if_found_func(
 			node->block->n_pointers--;
 			new_block->n_pointers++;
 		}
+
+		node->block = new_block;
 #endif /* UNIV_DEBUG */
 		node->data = new_data;
 	}
@@ -252,12 +254,10 @@ ha_remove_all_nodes_to_page(
 /*========================*/
 	hash_table_t*	table,	/* in: hash table */
 	ulint		fold,	/* in: fold value */
-	buf_block_t*	block,	/* in: buffer block */
 	const page_t*	page)	/* in: buffer page */
 {
 	ha_node_t*	node;
 
-	ut_ad(block->frame == page);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
 #endif /* UNIV_SYNC_DEBUG */
@@ -268,7 +268,7 @@ ha_remove_all_nodes_to_page(
 
 			/* Remove the hash node */
 
-			ha_delete_hash_node(table, block, node);
+			ha_delete_hash_node(table, node);
 
 			/* Start again from the first node in the chain
 			because the deletion may compact the heap of
