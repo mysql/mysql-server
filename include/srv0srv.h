@@ -84,7 +84,9 @@ extern ulong	srv_flush_log_at_trx_commit;
 
 extern byte	srv_latin1_ordering[256];/* The sort order table of the latin1
 					character set */
-extern ulint	srv_pool_size;
+extern ulong	srv_buf_pool_size;	/* requested size in kilobytes */
+extern ulong	srv_buf_pool_old_size;	/* previously requested size */
+extern ulong	srv_buf_pool_curr_size;	/* current size in kilobytes */
 extern ulint	srv_mem_pool_size;
 extern ulint	srv_lock_table_size;
 
@@ -153,7 +155,6 @@ extern ulong	srv_thread_sleep_delay;
 extern ulint	srv_spin_wait_delay;
 extern ibool	srv_priority_boost;
 
-extern	ulint	srv_pool_size;
 extern	ulint	srv_mem_pool_size;
 extern	ulint	srv_lock_table_size;
 

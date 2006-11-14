@@ -10,6 +10,7 @@ Created 11/17/1995 Heikki Tuuri
 #define buf0types_h
 
 typedef	struct buf_block_struct		buf_block_t;
+typedef struct buf_chunk_struct		buf_chunk_t;
 typedef	struct buf_pool_struct		buf_pool_t;
 
 /* The 'type' used of a buffer frame */

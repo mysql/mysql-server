@@ -1,0 +1,72 @@
+diff -pu mysql-5.1-bk/sql/mysqld.cc mysql-5.1-zip/sql/mysqld.cc
+--- mysql-5.1-bk/sql/mysqld.cc	2006-11-09 16:01:19.000000000 +0200
++++ mysql-5.1-zip/sql/mysqld.cc	2006-11-13 12:54:04.000000000 +0200
+@@ -370,7 +370,6 @@ extern long innobase_lock_scan_time;
+ extern long innobase_mirrored_log_groups, innobase_log_files_in_group;
+ extern longlong innobase_log_file_size;
+ extern long innobase_log_buffer_size;
+-extern longlong innobase_buffer_pool_size;
+ extern long innobase_additional_mem_pool_size;
+ extern long innobase_file_io_threads, innobase_lock_wait_timeout;
+ extern long innobase_force_recovery;
+@@ -390,6 +389,8 @@ extern "C" {
+ extern ulong srv_max_buf_pool_modified_pct;
+ extern ulong srv_max_purge_lag;
+ extern ulong srv_auto_extend_increment;
++extern ulong srv_buf_pool_curr_size;
++extern ulong srv_buf_pool_size;
+ extern ulong srv_n_spin_wait_rounds;
+ extern ulong srv_n_free_tickets_to_enter;
+ extern ulong srv_thread_sleep_delay;
+@@ -5801,9 +5802,9 @@ log and this option does nothing anymore
+    (gptr*) &srv_auto_extend_increment,
+    0, GET_LONG, REQUIRED_ARG, 8L, 1L, 1000L, 0, 1L, 0},
+   {"innodb_buffer_pool_size", OPT_INNODB_BUFFER_POOL_SIZE,
+-   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
+-   (gptr*) &innobase_buffer_pool_size, (gptr*) &innobase_buffer_pool_size, 0,
+-   GET_LL, REQUIRED_ARG, 8*1024*1024L, 1024*1024L, LONGLONG_MAX, 0,
++   "The requested size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
++   (gptr*) &srv_buf_pool_size, (gptr*) &srv_buf_pool_size, 0,
++   GET_LL, REQUIRED_ARG, 8*1024*1024L, 5*1024*1024L, LONGLONG_MAX, 0,
+    1024*1024L, 0},
+   {"innodb_commit_concurrency", OPT_INNODB_COMMIT_CONCURRENCY,
+    "Helps in performance tuning in heavily concurrent environments.",
+diff -pu mysql-5.1-bk/sql/set_var.cc mysql-5.1-zip/sql/set_var.cc
+--- mysql-5.1-bk/sql/set_var.cc	2006-11-09 16:01:19.000000000 +0200
++++ mysql-5.1-zip/sql/set_var.cc	2006-11-13 12:54:05.000000000 +0200
+@@ -65,7 +65,6 @@ extern ulong innobase_fast_shutdown;
+ extern long innobase_mirrored_log_groups, innobase_log_files_in_group;
+ extern longlong innobase_log_file_size;
+ extern long innobase_log_buffer_size;
+-extern longlong innobase_buffer_pool_size;
+ extern long innobase_additional_mem_pool_size;
+ extern long innobase_file_io_threads, innobase_lock_wait_timeout;
+ extern long innobase_force_recovery;
+@@ -81,6 +80,8 @@ extern my_bool innobase_log_archive,
+                innobase_locks_unsafe_for_binlog;
+ 
+ extern "C" {
++extern ulong srv_buf_pool_curr_size;
++extern ulong srv_buf_pool_size;
+ extern ulong srv_max_buf_pool_modified_pct;
+ extern ulong srv_max_purge_lag;
+ extern ulong srv_auto_extend_increment;
+@@ -499,6 +500,8 @@ sys_var_thd_bool	sys_innodb_support_xa("
+                                                &SV::innodb_support_xa);
+ sys_var_long_ptr	sys_innodb_autoextend_increment("innodb_autoextend_increment",
+ 							&srv_auto_extend_increment);
++sys_var_long_ptr	sys_innodb_buffer_pool_size("innodb_buffer_pool_size",
++						    &srv_buf_pool_size);
+ sys_var_long_ptr	sys_innodb_sync_spin_loops("innodb_sync_spin_loops",
+                                              &srv_n_spin_wait_rounds);
+ sys_var_long_ptr  sys_innodb_concurrency_tickets("innodb_concurrency_tickets",
+@@ -818,7 +821,8 @@ SHOW_VAR init_vars[]= {
+ #ifdef WITH_INNOBASE_STORAGE_ENGINE
+   {"innodb_additional_mem_pool_size", (char*) &innobase_additional_mem_pool_size, SHOW_LONG },
+   {sys_innodb_autoextend_increment.name, (char*) &sys_innodb_autoextend_increment, SHOW_SYS},
+-  {"innodb_buffer_pool_size", (char*) &innobase_buffer_pool_size, SHOW_LONGLONG },
++  {sys_innodb_buffer_pool_size.name, (char*) &sys_innodb_buffer_pool_size, SHOW_SYS },
++  {"innodb_buffer_pool_curr_size", (char*) &srv_buf_pool_curr_size, SHOW_LONGLONG },
+   {"innodb_checksums", (char*) &innobase_use_checksums, SHOW_MY_BOOL},
+   {sys_innodb_commit_concurrency.name, (char*) &sys_innodb_commit_concurrency, SHOW_SYS},
+   {sys_innodb_concurrency_tickets.name, (char*) &sys_innodb_concurrency_tickets, SHOW_SYS},
