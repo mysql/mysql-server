@@ -220,6 +220,7 @@ our $opt_ndbconnectstring_slave;
 
 our $opt_record;
 our $opt_check_testcases;
+my  $opt_report_features;
 
 our $opt_skip;
 our $opt_skip_rpl;
@@ -426,9 +427,13 @@ sub main () {
     if ( ! $need_im )
     {
      $opt_skip_im= 1;
-   }
+    }
 
     initialize_servers();
+
+    if ( $opt_report_features ) {
+      run_report_features();
+    }
 
     run_suite($opt_suite, $tests);
   }
@@ -594,6 +599,7 @@ sub command_line_setup () {
              'mem:s'                    => \$opt_mem,
 
              # Misc
+             'report-features'          => \$opt_report_features,
              'comment=s'                => \$opt_comment,
              'debug'                    => \$opt_debug,
              'fast'                     => \$opt_fast,
@@ -637,7 +643,7 @@ sub command_line_setup () {
 
   $glob_hostname=  mtr_short_hostname();
 
-  # 'basedir' is always parent of "mysql-test" directory
+  # Find the absolute path to the test directory
   $glob_mysql_test_dir=  cwd();
   if ( $glob_cygwin_perl )
   {
@@ -645,11 +651,27 @@ sub command_line_setup () {
     $glob_mysql_test_dir= `cygpath -m "$glob_mysql_test_dir"`;
     chomp($glob_mysql_test_dir);
   }
-  $glob_basedir=         dirname($glob_mysql_test_dir);
+
+  # In most cases, the base directory we find everything relative to,
+  # is the parent directory of the "mysql-test" directory. For source
+  # distributions, TAR binary distributions and some other packages.
+  $glob_basedir= dirname($glob_mysql_test_dir);
+
+  # In the RPM case, binaries and libraries are installed in the
+  # default system locations, instead of having our own private base
+  # directory. And we install "/usr/share/mysql-test". Moving up one
+  # more directory relative to "mysql-test" gives us a usable base
+  # directory for RPM installs.
+  if ( ! $opt_source_dist and ! -d "$glob_basedir/bin" )
+  {
+    $glob_basedir= dirname($glob_basedir);
+  }
 
   # Expect mysql-bench to be located adjacent to the source tree, by default
   $glob_mysql_bench_dir= "$glob_basedir/../mysql-bench"
     unless defined $glob_mysql_bench_dir;
+  $glob_mysql_bench_dir= undef
+    unless -d $glob_mysql_bench_dir;
 
   $path_my_basedir=
     $opt_source_dist ? $glob_mysql_test_dir : $glob_basedir;
@@ -677,7 +699,8 @@ sub command_line_setup () {
 				       "$path_client_bindir/mysqld-debug",
 				       "$path_client_bindir/mysqld-max",
 				       "$glob_basedir/libexec/mysqld",
-				       "$glob_basedir/bin/mysqld");
+				       "$glob_basedir/bin/mysqld",
+				       "$glob_basedir/sbin/mysqld");
 
   # Use the mysqld found above to find out what features are available
   collect_mysqld_features();
@@ -792,6 +815,13 @@ sub command_line_setup () {
   {
     # Make absolute path, relative test dir
     $opt_vardir= "$glob_mysql_test_dir/$opt_vardir";
+  }
+
+  # Ensure a proper error message 
+  mkpath("$opt_vardir");
+  unless ( -d $opt_vardir and -w $opt_vardir )
+  {
+    mtr_error("Writable 'var' directory is needed, use the '--vardir' option");
   }
 
   # --------------------------------------------------------------------------
@@ -1315,7 +1345,9 @@ sub executable_setup_im () {
   $exe_im=
     mtr_exe_maybe_exists(
       "$glob_basedir/server-tools/instance-manager/mysqlmanager",
-      "$glob_basedir/libexec/mysqlmanager");
+      "$glob_basedir/libexec/mysqlmanager",
+      "$glob_basedir/bin/mysqlmanager",
+      "$glob_basedir/sbin/mysqlmanager");
 
   return ($exe_im eq "");
 }
@@ -4210,6 +4242,43 @@ sub run_check_testcase ($$) {
   return $res;
 }
 
+##############################################################################
+#
+#  Report the features that were compiled in
+#
+##############################################################################
+
+sub run_report_features () {
+  my $args;
+
+  if ( ! $glob_use_embedded_server )
+  {
+    mysqld_start($master->[0],[],[]);
+    if ( ! $master->[0]->{'pid'} )
+    {
+      mtr_error("Can't start the mysqld server");
+    }
+    mysqld_wait_started($master->[0]);
+  }
+
+  my $tinfo = {};
+  $tinfo->{'name'} = 'report features';
+  $tinfo->{'result_file'} = undef;
+  $tinfo->{'component_id'} = 'mysqld';
+  $tinfo->{'path'} = 'include/report-features.test';
+  $tinfo->{'timezone'}=  "GMT-3";
+  $tinfo->{'slave_num'} = 0;
+  $tinfo->{'master_opt'} = [];
+  $tinfo->{'slave_opt'} = [];
+  $tinfo->{'slave_mi'} = [];
+  $tinfo->{'comment'} = 'report server features';
+  run_mysqltest($tinfo);
+
+  if ( ! $glob_use_embedded_server )
+  {
+    stop_all_servers();
+  }
+}
 
 
 sub run_mysqltest ($) {
@@ -4347,8 +4416,10 @@ sub run_mysqltest ($) {
   mtr_add_arg($args, "--test-file");
   mtr_add_arg($args, $tinfo->{'path'});
 
-  mtr_add_arg($args, "--result-file");
-  mtr_add_arg($args, $tinfo->{'result_file'});
+  if ( defined $tinfo->{'result_file'} ) {
+    mtr_add_arg($args, "--result-file");
+    mtr_add_arg($args, $tinfo->{'result_file'});
+  }
 
   if ( $opt_record )
   {
@@ -4762,3 +4833,4 @@ HERE
   mtr_exit(1);
 
 }
+
