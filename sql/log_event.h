@@ -202,11 +202,21 @@ struct sql_ex_info
 
 /* 
   Max number of possible extra bytes in a replication event compared to a
-  packet (i.e. a query) sent from client to master.
+  packet (i.e. a query) sent from client to master;
+  First, an auxiliary log_event status vars estimation:
 */
-#define MAX_LOG_EVENT_HEADER   (LOG_EVENT_HEADER_LEN + /* write_header */ \
-				QUERY_HEADER_LEN     + /* write_data */   \
-				NAME_LEN + 1)
+#define MAX_SIZE_LOG_EVENT_STATUS (4 /* flags2 */   + \
+                                   8 /* sql mode */ + \
+                                   1 + 1 + 255 /* catalog */ + \
+                                   4 /* autoinc */ + \
+                                   6 /* charset */ + \
+                                   MAX_TIME_ZONE_NAME_LENGTH)
+#define MAX_LOG_EVENT_HEADER   ( /* in order of Query_log_event::write */ \
+  LOG_EVENT_HEADER_LEN + /* write_header */ \
+  QUERY_HEADER_LEN     + /* write_data */   \
+  EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN + /*write_post_header_for_derived */ \
+  MAX_SIZE_LOG_EVENT_STATUS + /* status */ \
+  NAME_LEN + 1)
 
 /* 
    Event header offsets; 
