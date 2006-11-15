@@ -87,3 +87,40 @@ connection server1;
 select * from t1 order by c1;
 drop table t1;
 # End of 4.1 tests
+
+# Check distributed drop of database in 5.1
+create database db;
+use db;
+create table t1(x int) engine=ndb;
+
+connection server2;
+use db;
+show tables;
+
+connection server1;
+drop database db;
+
+connection server2;
+--error 1049
+show tables;
+
+connection server1;
+
+# bug#21495
+create database db;
+use db;
+create table t1(x int) engine=ndb;
+
+connection server2;
+use db;
+create table t2(x int) engine=myisam;
+show tables;
+
+connection server1;
+drop database db;
+
+connection server2;
+show tables;
+drop database db;
+
+connection server1;
