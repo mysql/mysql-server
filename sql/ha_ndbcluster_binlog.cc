@@ -16,6 +16,7 @@
 */
 
 #include "mysql_priv.h"
+#include "sql_show.h"
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include "ha_ndbcluster.h"
 
@@ -1828,14 +1829,25 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           log_query= 1;
           break;
         case SOT_DROP_DB:
-          run_query(thd, schema->query,
-                    schema->query + schema->query_length,
-                    TRUE,    /* print error */
-                    TRUE);   /* don't binlog the query */
-          /* binlog dropping database after any table operations */
-          post_epoch_log_list->push_back(schema, mem_root);
-          /* acknowledge this query _after_ epoch completion */
-          post_epoch_unlock= 1;
+	  /* Drop the database locally if it only contains ndb tables */
+	  if (! ndbcluster_check_if_local_tables_in_db(thd, schema->db))
+	  {
+	    run_query(thd, schema->query,
+		      schema->query + schema->query_length,
+		      TRUE,    /* print error */
+		      TRUE);   /* don't binlog the query */
+	    /* binlog dropping database after any table operations */
+	    post_epoch_log_list->push_back(schema, mem_root);
+	    /* acknowledge this query _after_ epoch completion */
+	    post_epoch_unlock= 1;
+	  }
+	  else
+	  {
+	    /*
+	      Database contained local tables, leave it
+	     */
+	    log_query= 1;
+	  }
           break;
         case SOT_CREATE_DB:
           /* fall through */
@@ -2331,6 +2343,32 @@ ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
     DBUG_RETURN(true);
   }
 
+  DBUG_RETURN(false);
+}
+
+bool
+ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname)
+{
+  DBUG_ENTER("ndbcluster_check_if_local_tables_in_db");
+  DBUG_PRINT("info", ("Looking for files in directory %s", dbname));
+  char *tabname;
+  List<char> files;
+  char path[FN_REFLEN];
+
+  build_table_filename(path, sizeof(path), dbname, "", "", 0);
+  if (find_files(thd, &files, dbname, path, NullS, 0) != FIND_FILES_OK)
+  {
+    DBUG_PRINT("info", ("Failed to find files"));
+    DBUG_RETURN(true);
+  }
+  DBUG_PRINT("info",("found: %d files", files.elements));
+  while ((tabname= files.pop()))
+  {
+    DBUG_PRINT("info", ("Found table %s", tabname));
+    if (ndbcluster_check_if_local_table(dbname, tabname))
+      DBUG_RETURN(true);
+  }
+  
   DBUG_RETURN(false);
 }
 

@@ -491,13 +491,7 @@ bool mysqld_show_column_types(THD *thd)
     FIND_FILES_DIR      no such directory, or directory can't be read
 */
 
-enum find_files_result {
-  FIND_FILES_OK,
-  FIND_FILES_OOM,
-  FIND_FILES_DIR
-};
 
-static
 find_files_result
 find_files(THD *thd, List<char> *files, const char *db,
            const char *path, const char *wild, bool dir)
