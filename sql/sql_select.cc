@@ -8723,6 +8723,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
                                      item->collation.collation);
     else
       new_field= item->make_string_field(table);
+    new_field->set_derivation(item->collation.derivation);
     break;
   case DECIMAL_RESULT:
     new_field= new Field_new_decimal(item->max_length, maybe_null, item->name,
@@ -8908,7 +8909,9 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                                       (make_copy_field ? 0 : copy_func),
                                        modify_item, convert_blob_length);
   case Item::TYPE_HOLDER:  
-    return ((Item_type_holder *)item)->make_field_by_type(table);
+    result= ((Item_type_holder *)item)->make_field_by_type(table);
+    result->set_derivation(item->collation.derivation);
+    return result;
   default:					// Dosen't have to be stored
     return 0;
   }
