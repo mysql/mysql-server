@@ -6010,4 +6010,6 @@ ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT 42000
         eng "Incorrect parameter count in the call to native function '%-.64s'"
 ER_WRONG_PARAMETERS_TO_NATIVE_FCT 42000
         eng "Incorrect parameters in the call to native function '%-.64s'"
+ER_NATIVE_FCT_NAME_COLLISION
+        eng "This function '%-.64s' has the same name as a native function."
 

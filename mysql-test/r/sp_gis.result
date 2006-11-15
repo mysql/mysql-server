@@ -1,0 +1,33 @@
+use test;
+drop function if exists a;
+drop function if exists x;
+drop function if exists y;
+create function a() returns int
+return 1;
+create function x() returns int
+return 2;
+Warnings:
+Note	1578	This function 'x' has the same name as a native function.
+create function y() returns int
+return 3;
+Warnings:
+Note	1578	This function 'y' has the same name as a native function.
+select a();
+a()
+1
+select x();
+ERROR 42000: Incorrect parameter count in the call to native function 'x'
+select y();
+ERROR 42000: Incorrect parameter count in the call to native function 'y'
+select x(PointFromText("POINT(10 20)")), y(PointFromText("POINT(10 20)"));
+x(PointFromText("POINT(10 20)"))	y(PointFromText("POINT(10 20)"))
+10	20
+select test.a(), test.x(), test.y();
+test.a()	test.x()	test.y()
+1	2	3
+Warnings:
+Note	1578	This function 'x' has the same name as a native function.
+Note	1578	This function 'y' has the same name as a native function.
+drop function a;
+drop function x;
+drop function y;
