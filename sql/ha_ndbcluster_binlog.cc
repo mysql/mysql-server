@@ -1843,9 +1843,11 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
 	  }
 	  else
 	  {
-	    /*
-	      Database contained local tables, leave it
-	     */
+	    /* Database contained local tables, leave it */
+	    sql_print_error("NDB binlog: Skipping drop database '%s' since it contained local tables "
+                            "binlog schema event '%s' from node %d. ",
+                            schema->db, schema->query,
+                            schema->node_id);
 	    log_query= 1;
 	  }
           break;
