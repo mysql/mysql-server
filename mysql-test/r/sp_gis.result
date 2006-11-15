@@ -25,9 +25,6 @@ x(PointFromText("POINT(10 20)"))	y(PointFromText("POINT(10 20)"))
 select test.a(), test.x(), test.y();
 test.a()	test.x()	test.y()
 1	2	3
-Warnings:
-Note	1578	This function 'x' has the same name as a native function.
-Note	1578	This function 'y' has the same name as a native function.
 drop function a;
 drop function x;
 drop function y;
