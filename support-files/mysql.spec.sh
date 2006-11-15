@@ -317,7 +317,10 @@ then
   cp -fp config.log "$MYSQL_MAXCONFLOG_DEST"
 fi
 
-make -i test-force || true
+( cd mysql-test
+  perl ./mysql-test-run.pl --force --report-features
+  perl ./mysql-test-run.pl --force --ps-protocol
+  true )
 
 # Save mysqld-max
 ./libtool --mode=execute cp sql/mysqld sql/mysqld-max
@@ -380,7 +383,10 @@ then
   cp -fp config.log "$MYSQL_CONFLOG_DEST"
 fi
 
-make -i test-force || true
+( cd mysql-test
+  perl ./mysql-test-run.pl --force --report-features
+  perl ./mysql-test-run.pl --force --ps-protocol
+  true )
 
 %install
 RBR=$RPM_BUILD_ROOT
@@ -716,6 +722,11 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Wed Nov 15 2006 Joerg Bruehe <joerg@mysql.com>
+
+- Switch from "make test*" to explicit calls of the test suite,
+  so that "report features" can be used.
+
 * Tue Jun 27 2006 Joerg Bruehe <joerg@mysql.com>
 
 - move "mysqldumpslow" from the client RPM to the server RPM (bug#20216)
