@@ -8,6 +8,7 @@
 # still accepted (this test also checks that the new name is
 # accepted). The old name could be removed in 5.1 or 6.0.
 
+source include/have_binlog_format_mixed.inc;
 source include/master-slave.inc;
 
 # we need a db != test, where we don't have automatic grants
@@ -172,6 +173,15 @@ select * from mysql.proc where name="foo4" and db='mysqltest1';
 sync_slave_with_master;
 select * from mysql.proc where name="foo4" and db='mysqltest1';
 
+# fail if non-deterministic SP is called in SBR, bug#16456
+let $oblf=`select @@SESSION.BINLOG_FORMAT`;
+set binlog_format=STATEMENT;
+--error ER_BINLOG_ROW_RBR_TO_SBR
+call foo();
+--disable_query_log
+eval set binlog_format=$oblf;
+--enable_query_log
+
 # ********************** PART 2 : FUNCTIONS ***************
 
 connection master;
@@ -316,10 +326,31 @@ sync_slave_with_master;
 # check that this failed-in-the-middle replicated right:
 select * from t2;
 
+# fail if non-deterministic SF is called in SBR, bug#16456
+connection master;
+let $oblf=`select @@SESSION.BINLOG_FORMAT`;
+set binlog_format=STATEMENT;
+delimiter |;
+create function fn16456()
+       returns int
+begin
+       return unix_timestamp();
+end|
+delimiter ;|
+--error ER_BINLOG_ROW_RBR_TO_SBR
+select fn16456();
+--disable_query_log
+eval set binlog_format=$oblf;
+--enable_query_log
+drop function fn16456;
+
+
 # ********************** PART 3 : TRIGGERS ***************
 
 connection con1;
---error 1227
+# now fails due to missing trigger grant (err 1142 i/o 1227) due to new
+# check in sql_trigger.cc (v1.44) by anozdrin on 2006/02/01  --azundris
+--error ER_TABLEACCESS_DENIED_ERROR
 create trigger trg before insert on t1 for each row set new.a= 10;
 
 connection master;
