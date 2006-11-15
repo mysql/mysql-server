@@ -27,19 +27,7 @@ class Item_field;
 /*
    "Declared Type Collation"
    A combination of collation and its derivation.
-*/
 
-enum Derivation
-{
-  DERIVATION_IGNORABLE= 5,
-  DERIVATION_COERCIBLE= 4,
-  DERIVATION_SYSCONST= 3,
-  DERIVATION_IMPLICIT= 2,
-  DERIVATION_NONE= 1,
-  DERIVATION_EXPLICIT= 0
-};
-
-/*
   Flags for collation aggregation modes:
   MY_COLL_ALLOW_SUPERSET_CONV  - allow conversion to a superset
   MY_COLL_ALLOW_COERCIBLE_CONV - allow conversion of a coercible value
