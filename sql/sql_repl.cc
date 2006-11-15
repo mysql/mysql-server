@@ -431,6 +431,12 @@ impossible position";
     goto err;
   }
   packet->set("\0", 1, &my_charset_bin);
+  /*
+    Adding MAX_LOG_EVENT_HEADER_LEN, since a binlog event can become
+    this larger than the corresponding packet (query) sent 
+    from client to master.
+  */
+  thd->variables.max_allowed_packet+= MAX_LOG_EVENT_HEADER;
 
   /*
     We can set log_lock now, it does not move (it's a member of
@@ -805,7 +811,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
                   sizeof(mi->rli.until_log_name)-1);
         }
         else
-          clear_until_condition(&mi->rli);
+          mi->rli.clear_until_condition();
 
         if (mi->rli.until_condition != RELAY_LOG_INFO::UNTIL_NONE)
         {
@@ -978,8 +984,8 @@ int reset_slave(THD *thd, MASTER_INFO* mi)
      Reset errors (the idea is that we forget about the
      old master).
   */
-  clear_slave_error(&mi->rli);
-  clear_until_condition(&mi->rli);
+  mi->rli.clear_slave_error();
+  mi->rli.clear_until_condition();
 
   // close master_info_file, relay_log_info_file, set mi->inited=rli->inited=0
   end_master_info(mi);
@@ -1244,8 +1250,8 @@ bool change_master(THD* thd, MASTER_INFO* mi)
   pthread_mutex_lock(&mi->rli.data_lock);
   mi->rli.abort_pos_wait++; /* for MASTER_POS_WAIT() to abort */
   /* Clear the errors, for a clean start */
-  clear_slave_error(&mi->rli);
-  clear_until_condition(&mi->rli);
+  mi->rli.clear_slave_error();
+  mi->rli.clear_until_condition();
   /*
     If we don't write new coordinates to disk now, then old will remain in
     relay-log.info until START SLAVE is issued; but if mysqld is shutdown
