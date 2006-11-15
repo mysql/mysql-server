@@ -1346,6 +1346,10 @@ longlong Item_func_mod::int_op()
     signal_divide_by_null();
     return 0;
   }
+
+  if (args[0]->unsigned_flag)
+    return ((ulonglong) value) % val2;
+
   return value % val2;
 }
 
