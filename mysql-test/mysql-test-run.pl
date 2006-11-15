@@ -709,12 +709,16 @@ sub command_line_setup () {
   # Find out type of logging that are being used
   # --------------------------------------------------------------------------
   # NOTE if the default binlog format is changed, this has to be changed
-  $used_binlog_format= "stmt";
+  $used_binlog_format= "mixed";
   foreach my $arg ( @opt_extra_mysqld_opt )
   {
     if ( defined mtr_match_substring($arg,"binlog-format=row"))
     {
       $used_binlog_format= "row";
+    }
+    elsif ( defined mtr_match_substring($arg,"binlog-format=statement"))
+    {
+      $used_binlog_format= "stmt";
     }
   }
   mtr_report("Using binlog format '$used_binlog_format'");
