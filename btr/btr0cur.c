@@ -3734,6 +3734,27 @@ btr_store_big_rec_extern_fields(
 				/* Initialize the unused "prev page" pointer */
 				mlog_write_ulint(page + FIL_PAGE_PREV,
 						 FIL_NULL, MLOG_4BYTES, &mtr);
+				/* Write a back pointer to the record
+				into the otherwise unused area.  This
+				information could be useful in
+				debugging.  Later, we might want to
+				implement the possibility to relocate
+				BLOB pages.  Then, we would need to be
+				able to adjust the BLOB pointer in the
+				record.  We do not store the heap
+				number of the record, because it can
+				change in page_zip_reorganize() or
+				btr_page_reorganize(). */
+				mlog_write_ulint(page
+						 + FIL_PAGE_FILE_FLUSH_LSN,
+						 space_id,
+						 MLOG_4BYTES, &mtr);
+				mlog_write_ulint(page
+						 + FIL_PAGE_FILE_FLUSH_LSN + 4,
+						 rec_page_no,
+						 MLOG_4BYTES, &mtr);
+				mlog_write_ulint(page
+
 				/* Zero out the unused part of the page. */
 				memset(page + page_zip->size
 				       - c_stream.avail_out,
