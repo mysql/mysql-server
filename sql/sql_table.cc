@@ -4745,8 +4745,9 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   my_copy(src_path, dst_path, MYF(MY_DONT_OVERWRITE_FILE));
 #endif
   dst_path[dst_path_length - reg_ext_length]= '\0';  // Remove .frm
+  pthread_mutex_lock(&LOCK_open);  
   err= ha_create_table(thd, dst_path, db, table_name, create_info, 1);
-
+  pthread_mutex_unlock(&LOCK_open);
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
     if (err || !open_temporary_table(thd, dst_path, db, table_name, 1))
