@@ -1343,7 +1343,7 @@ connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection root;
 create database mysqldump_myDB;
 use mysqldump_myDB;
-create user myDB_User;
+create user myDB_User@localhost;
 grant create, create view, select, insert on mysqldump_myDB.* to myDB_User@localhost;
 create table t1 (c1 int);
 insert into t1 values (3);
@@ -1366,7 +1366,7 @@ drop view v1;
 drop table t1;
 drop table u1;
 revoke all privileges on mysqldump_myDB.* from myDB_User@localhost;
-drop user myDB_User;
+drop user myDB_User@localhost;
 drop database mysqldump_myDB;
 flush privileges;
 
@@ -1391,7 +1391,7 @@ drop view v1;
 drop table t1;
 drop table u1;
 revoke all privileges on mysqldump_myDB.* from myDB_User@localhost;
-drop user myDB_User;
+drop user myDB_User@localhost;
 drop database mysqldump_myDB;
 use test;
 

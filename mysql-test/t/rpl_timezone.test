@@ -17,6 +17,9 @@
 
 source include/master-slave.inc;
 
+# Save original timezone
+set @my_time_zone= @@global.time_zone;
+
 # Some preparations
 let $VERSION=`select version()`;
 set timestamp=100000000; # for fixed output of mysqlbinlog
@@ -133,3 +136,7 @@ connection master;
 drop table t1, t2;
 sync_slave_with_master;
 
+
+# Restore original timezone
+connection master;
+set global time_zone= @my_time_zone;

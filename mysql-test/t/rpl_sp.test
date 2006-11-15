@@ -519,6 +519,10 @@ connection master;
 drop table t1;
 sync_slave_with_master;
 
+# Restore log_bin_trust_function_creators to original value
+set global log_bin_trust_function_creators=0;
+connection master;
+set global log_bin_trust_function_creators=0;
 --echo End of 5.0 tests
 --echo End of 5.1 tests
 
