@@ -461,3 +461,38 @@ SELECT GROUP_CONCAT(a), x
     GROUP BY x;
 
 DROP TABLE t1;
+#
+# Bug#23451 GROUP_CONCAT truncates a multibyte utf8 character
+#
+set names utf8;
+create table t1
+(
+  x text character set utf8 not null,
+  y integer not null
+);
+insert into t1 values (repeat('a', 1022), 0), (repeat(_utf8 0xc3b7, 4), 0);
+let $1= 10;
+while ($1)
+{
+  eval set group_concat_max_len= 1022 + $1;
+  --disable_result_log
+  select @x:=group_concat(x) from t1 group by y;
+  --enable_result_log
+  select @@group_concat_max_len, length(@x), char_length(@x), right(@x,12), right(HEX(@x),12);
+  dec $1;
+}
+drop table t1;
+set group_concat_max_len=1024;
+set names latin1;
+
+#
+# Bug#14169 type of group_concat() result changed to blob if tmp_table was used
+#
+create table t1 (f1 int unsigned, f2 varchar(255));
+insert into t1 values (1,repeat('a',255)),(2,repeat('b',255));
+--enable_metadata
+select f2,group_concat(f1) from t1 group by f2;
+--disable_metadata
+drop table t1;
+
+# End of 4.1 tests

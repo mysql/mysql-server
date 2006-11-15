@@ -21,6 +21,7 @@
 
 #include "rpl_tblmap.h"
 
+
 /****************************************************************************
 
   Replication SQL Thread
@@ -98,8 +99,8 @@ typedef struct st_relay_log_info
   */
   pthread_cond_t start_cond, stop_cond, data_cond;
 
-  /* parent master info structure */
-  struct st_master_info *mi;
+  /* parent MASTER_INFO structure */
+  class MASTER_INFO *mi;
 
   /*
     Needed to deal properly with cur_log getting closed and re-opened with
@@ -163,6 +164,9 @@ typedef struct st_relay_log_info
 #endif
 
   time_t last_master_timestamp; 
+
+  void clear_slave_error();
+  void clear_until_condition();
 
   /*
     Needed for problems when slave stops and we want to restart it
@@ -289,22 +293,6 @@ typedef struct st_relay_log_info
   void cached_charset_invalidate();
   bool cached_charset_compare(char *charset);
 
-  /*
-    To reload special tables when they are changes, we introduce a set
-    of functions that will mark whenever special functions need to be
-    called after modifying tables.  Right now, the tables are either
-    ACL tables or grants tables.
-  */
-  enum enum_reload_flag
-  {
-    RELOAD_NONE_F   = 0UL,
-    RELOAD_GRANT_F  = (1UL << 0), 
-    RELOAD_ACCESS_F = (1UL << 1)
-  };
-
-  ulong m_reload_flags;
-
-  void touching_table(char const* db, char const* table, ulong table_id);
   void transaction_end(THD*);
 
   void cleanup_context(THD *, bool);
@@ -321,5 +309,10 @@ typedef struct st_relay_log_info
 
   time_t unsafe_to_stop_at;
 } RELAY_LOG_INFO;
+
+
+// Defined in rpl_rli.cc
+int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname);
+
 
 #endif /* RPL_RLI_H */
