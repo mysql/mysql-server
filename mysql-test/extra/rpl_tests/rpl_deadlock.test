@@ -91,7 +91,7 @@ show slave status;
 
 # Now we repeat 2), but with BEGIN in the same relay log as
 # COMMIT (to see if seeking into hot log is ok).
-
+set @my_max_relay_log_size= @@global.max_relay_log_size;
 set global max_relay_log_size=0;
 
 # This is really copy-paste of 2) of above
@@ -114,5 +114,6 @@ show slave status;
 connection master;
 drop table t1,t2,t3,t4;
 sync_slave_with_master;
+set global max_relay_log_size= @my_max_relay_log_size;
 
 # End of 4.1 tests
