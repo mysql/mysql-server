@@ -758,4 +758,19 @@ c VARCHAR(255) NOT NULL,
 CONSTRAINT pk_b_c_id PRIMARY KEY (b,c),
 CONSTRAINT fk_a FOREIGN KEY(a) REFERENCES t1(a))engine=ndb;
 drop table t1, t2;
+create table t1 (a int not null primary key, b int) engine=ndb;
+insert into t1 values(1,1),(2,2),(3,3);
+create table t2 like t1;
+insert into t2 select * from t1;
+select * from t1 order by a;
+a	b
+1	1
+2	2
+3	3
+select * from t2 order by a;
+a	b
+1	1
+2	2
+3	3
+drop table t1, t2;
 End of 5.1 tests
