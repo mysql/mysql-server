@@ -798,6 +798,7 @@ buf_chunk_free(
 		ut_a(block->state == BUF_BLOCK_NOT_USED);
 		ut_a(!block->page_zip.data);
 
+		ut_a(!block->in_LRU_list);
 		/* Remove the block from the free list. */
 		ut_a(block->in_free_list);
 		UT_LIST_REMOVE(free, buf_pool->free, block);
@@ -904,6 +905,7 @@ buf_pool_resize(void)
 	buf_chunk_t*	chunks;
 	buf_chunk_t*	chunk;
 
+try_again:
 	mutex_enter(&buf_pool->mutex);
 
 	if (srv_buf_pool_old_size == srv_buf_pool_size) {
@@ -919,7 +921,9 @@ buf_pool_resize(void)
 			= (srv_buf_pool_curr_size - srv_buf_pool_size) 
 			/ UNIV_PAGE_SIZE;
 		ulint		max_size;
+		ulint		max_free_size;
 		buf_chunk_t*	max_chunk;
+		buf_chunk_t*	max_free_chunk;
 
 shrink_again:
 		if (buf_pool->n_chunks <= 1) {
@@ -932,25 +936,86 @@ shrink_again:
 		not larger than the size difference */
 		chunks = buf_pool->chunks;
 		chunk = chunks + buf_pool->n_chunks;
-		max_size = 0;
-		max_chunk = NULL;
+		max_size = max_free_size = 0;
+		max_chunk = max_free_chunk = NULL;
 
 		while (--chunk >= chunks) {
 			if (chunk->size <= chunk_size
-			    && chunk->size > max_size
-			    && buf_chunk_all_free(chunk)) {
-				max_size = chunk->size;
-				max_chunk = chunk;
+			    && chunk->size > max_free_size) {
+				if (chunk->size > max_size) {
+					max_size = chunk->size;
+					max_chunk = chunk;
+				}
+
+				if (buf_chunk_all_free(chunk)) {
+					max_free_size = chunk->size;
+					max_free_chunk = chunk;
+				}
 			}
 		}
 
-		if (!max_size) {
+		if (!max_free_size) {
+
+			ulint		dirty	= 0;
+			ulint		nonfree	= 0;
+			buf_block_t*	block;
+			buf_block_t*	bend;
 
 			/* Cannot shrink: try again later
 			(do not assign srv_buf_pool_old_size) */
-			goto func_exit;
+			if (!max_chunk) {
+
+				goto func_exit;
+			}
+
+			block = max_chunk->blocks;
+			bend = block + max_chunk->size;
+
+			/* Move the blocks of chunk to the end of the
+			LRU list and try to flush them. */
+			for (; block < bend; block++) {
+				if (block->state != BUF_BLOCK_FILE_PAGE) {
+
+					continue;
+				}
+
+				mutex_enter(&block->mutex);
+
+				if (!buf_flush_ready_for_replace(block)) {
+
+					buf_LRU_make_block_old(block);
+					dirty++;
+				} else if (!buf_LRU_free_block(block)) {
+					nonfree++;
+				}
+
+				mutex_exit(&block->mutex);
+			}
+
+			/* See if the chunk was in fact free. */
+			if (!dirty && !nonfree) {
+
+				goto is_free;
+			}
+
+			mutex_exit(&buf_pool->mutex);
+
+			/* Request for a flush of the chunk. */
+			if (buf_flush_batch(BUF_FLUSH_LRU, dirty,
+					    ut_dulint_zero)
+			    == ULINT_UNDEFINED) {
+
+				buf_flush_wait_batch_end(BUF_FLUSH_LRU);
+			}
+
+			/* Retry after flushing. */
+			goto try_again;
 		}
 
+		max_size = max_free_size;
+		max_chunk = max_free_chunk;
+
+is_free:
 		srv_buf_pool_old_size = srv_buf_pool_size;
 
 		/* Rewrite buf_pool->chunks.  Copy everything but max_chunk. */
