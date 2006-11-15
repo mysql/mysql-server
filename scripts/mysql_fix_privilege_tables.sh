@@ -120,9 +120,6 @@ then
 fi
 
 cmd="$bindir/mysql --no-defaults --force --user=$user --host=$host"
-if test ! -z "$password" ; then
-  cmd="$cmd --password=$password"
-fi
 if test ! -z "$port"; then
   cmd="$cmd --port=$port"
 fi
@@ -178,11 +175,22 @@ then
   s_echo ""
 fi
 
+run_cmd() {
+  # Password argument is added here to allow for spaces in password.
+  
+  if test ! -z "$password"
+  then
+    cat $sql_file | $cmd --password="$password"
+  else
+    cat $sql_file | $cmd
+  fi
+}
+
 if test $verbose = 0
 then
-  cat $sql_file | $cmd > /dev/null 2>&1
+  run_cmd > /dev/null 2>&1
 else
-  cat $sql_file | $cmd > /dev/null
+  run_cmd > /dev/null
 fi
 if test $? = 0
 then
