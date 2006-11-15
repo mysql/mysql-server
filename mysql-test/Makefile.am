@@ -55,6 +55,7 @@ dist-hook:
 	-$(INSTALL_DATA) $(srcdir)/t/*.disabled $(distdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.opt $(srcdir)/t/*.sh $(srcdir)/t/*.slave-mi $(distdir)/t
 	$(INSTALL_DATA) $(srcdir)/include/*.inc $(distdir)/include
+	$(INSTALL_DATA) $(srcdir)/include/*.test $(distdir)/include
 	$(INSTALL_DATA) $(srcdir)/r/*.result $(srcdir)/r/*.require $(distdir)/r
 	$(INSTALL_DATA) $(srcdir)/std_data/Moscow_leap $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.dat $(srcdir)/std_data/*.000001 $(distdir)/std_data
@@ -82,6 +83,7 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/r/*.result $(DESTDIR)$(testdir)/r
 	$(INSTALL_DATA) $(srcdir)/r/*.require $(DESTDIR)$(testdir)/r
 	$(INSTALL_DATA) $(srcdir)/include/*.inc $(DESTDIR)$(testdir)/include
+	$(INSTALL_DATA) $(srcdir)/include/*.test $(DESTDIR)$(testdir)/include
 	$(INSTALL_DATA) $(srcdir)/std_data/*.dat $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.*001 $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.cnf $(DESTDIR)$(testdir)/std_data
