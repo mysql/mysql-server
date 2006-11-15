@@ -97,3 +97,27 @@ c1
 3
 5
 drop table t1;
+create database db;
+use db;
+create table t1(x int) engine=ndb;
+use db;
+show tables;
+Tables_in_db
+t1
+drop database db;
+show tables;
+ERROR 42000: Unknown database 'db'
+create database db;
+use db;
+create table t1(x int) engine=ndb;
+use db;
+create table t2(x int) engine=myisam;
+show tables;
+Tables_in_db
+t1
+t2
+drop database db;
+show tables;
+Tables_in_db
+t2
+drop database db;
