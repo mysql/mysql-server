@@ -2776,6 +2776,12 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
 #endif /*HAVE_ROW_BASED_REPLICATION*/
 
   switch (qtype) {
+  case THD::ROW_QUERY_TYPE:
+#ifdef HAVE_ROW_BASED_REPLICATION
+    if (current_stmt_binlog_row_based)
+      DBUG_RETURN(0);
+#endif
+    /* Otherwise, we fall through */
   case THD::MYSQL_QUERY_TYPE:
     /*
       Using this query type is a conveniece hack, since we have been
@@ -2785,12 +2791,6 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
       Make sure to change in check_table_binlog_row_based() according
       to how you treat this.
     */
-  case THD::ROW_QUERY_TYPE:
-#ifdef HAVE_ROW_BASED_REPLICATION
-    if (current_stmt_binlog_row_based)
-      DBUG_RETURN(0);
-#endif
-    /* Otherwise, we fall through */
   case THD::STMT_QUERY_TYPE:
     /*
       The MYSQL_LOG::write() function will set the STMT_END_F flag and
