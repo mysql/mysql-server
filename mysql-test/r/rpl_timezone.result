@@ -4,6 +4,7 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+set @my_time_zone= @@global.time_zone;
 set timestamp=100000000;
 create table t1 (t timestamp);
 create table t2 (t char(32));
@@ -126,3 +127,4 @@ t
 2003-12-31 23:00:00
 2005-01-01 08:00:00
 drop table t1, t2;
+set global time_zone= @my_time_zone;

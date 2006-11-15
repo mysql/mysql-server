@@ -53,5 +53,10 @@ sync_slave_with_master;
 #cleanup
 connection slave;
 stop slave;
-system rm -rf $MYSQLTEST_VARDIR/master-data/mysqltest1;
+drop database mysqltest1;
+
+connection master;
+# Remove the "extra" file created above
+--remove_file $MYSQLTEST_VARDIR/master-data/mysqltest1/f1.txt
+drop database mysqltest1;
 

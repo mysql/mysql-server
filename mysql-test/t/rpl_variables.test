@@ -1,5 +1,8 @@
 source include/master-slave.inc;
 
+# Init for rstore of variable values
+set @my_slave_net_timeout         =@@global.slave_net_timeout;
+
 set global slave_net_timeout=100;
 set global sql_slave_skip_counter=100;
 
@@ -12,3 +15,6 @@ show variables like 'slave_load_tmpdir';
 # We just set some arbitrary values in variables-master.opt so we can test
 # that a list of values works correctly
 show variables like 'slave_skip_errors';
+
+# Restore touched values
+set global slave_net_timeout      =@my_slave_net_timeout;
