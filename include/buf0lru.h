@@ -66,6 +66,14 @@ buf_LRU_get_recent_limit(void);
 /*==========================*/
 			/* out: the limit; zero if could not determine it */
 /**********************************************************************
+Try to free a block. */
+
+ibool
+buf_LRU_free_block(
+/*===============*/
+				/* out: TRUE if freed */
+	buf_block_t*	block);	/* in: block to be freed */
+/**********************************************************************
 Look for a replaceable block from the end of the LRU list and put it to
 the free list if found. */
 

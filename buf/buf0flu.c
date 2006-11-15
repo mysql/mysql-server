@@ -116,7 +116,7 @@ buf_flush_ready_for_replace(
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 	ut_ad(mutex_own(&block->mutex));
 #endif /* UNIV_SYNC_DEBUG */
-	if (block->state != BUF_BLOCK_FILE_PAGE) {
+	if (UNIV_UNLIKELY(block->state != BUF_BLOCK_FILE_PAGE)) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"  InnoDB: Error: buffer block state %lu"
