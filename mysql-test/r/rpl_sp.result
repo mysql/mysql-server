@@ -104,10 +104,10 @@ begin
 insert into t2 values(20),(20);
 end|
 call foo4();
-ERROR 23000: Duplicate entry '20' for key 1
+ERROR 23000: Duplicate entry '20' for key 'a'
 show warnings;
 Level	Code	Message
-Error	1062	Duplicate entry '20' for key 1
+Error	1062	Duplicate entry '20' for key 'a'
 select * from t2;
 a
 20
@@ -124,6 +124,9 @@ select * from mysql.proc where name="foo4" and db='mysqltest1';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment
 select * from mysql.proc where name="foo4" and db='mysqltest1';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment
+set binlog_format=STATEMENT;
+call foo();
+ERROR HY000: Slave running with --log-slave-updates must use row-based binary logging to be able to replicate row-based binary log events
 drop procedure foo;
 drop procedure foo2;
 drop procedure foo3;
@@ -181,7 +184,7 @@ end|
 ERROR HY000: You do not have the SUPER privilege and binary logging is enabled (you *might* want to use the less safe log_bin_trust_function_creators variable)
 set global log_bin_trust_routine_creators=1;
 Warnings:
-Warning	1287	'log_bin_trust_routine_creators' is deprecated; use 'log_bin_trust_function_creators' instead
+Warning	1541	The syntax 'log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 5.2. Please use 'log_bin_trust_function_creators' instead
 set global log_bin_trust_function_creators=0;
 set global log_bin_trust_function_creators=1;
 set global log_bin_trust_function_creators=1;
@@ -241,9 +244,9 @@ return 10;
 end|
 do fn1(100);
 Warnings:
-Error	1062	Duplicate entry '100' for key 1
+Error	1062	Duplicate entry '100' for key 'a'
 select fn1(20);
-ERROR 23000: Duplicate entry '20' for key 1
+ERROR 23000: Duplicate entry '20' for key 'a'
 select * from t2;
 a
 20
@@ -252,8 +255,17 @@ select * from t2;
 a
 20
 100
+set binlog_format=STATEMENT;
+create function fn16456()
+returns int
+begin
+return unix_timestamp();
+end|
+select fn16456();
+ERROR HY000: Slave running with --log-slave-updates must use row-based binary logging to be able to replicate row-based binary log events
+drop function fn16456;
 create trigger trg before insert on t1 for each row set new.a= 10;
-ERROR 42000: Access denied; you need the SUPER privilege for this operation
+ERROR 42000: TRIGGER command denied to user 'zedjzlcsjhd'@'localhost' for table 't1'
 delete from t1;
 create trigger trg before insert on t1 for each row set new.a= 10;
 insert into t1 values (1);
@@ -364,6 +376,12 @@ return 10;
 end
 master-bin.000001	#	Query	1	#	use `mysqltest1`; SELECT `fn1`(100)
 master-bin.000001	#	Query	1	#	use `mysqltest1`; SELECT `fn1`(20)
+master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` function fn16456()
+returns int
+begin
+return unix_timestamp();
+end
+master-bin.000001	#	Query	1	#	use `mysqltest1`; drop function fn16456
 master-bin.000001	#	Query	1	#	use `mysqltest1`; delete from t1
 master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` trigger trg before insert on t1 for each row set new.a= 10
 master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t1 values (1)
@@ -467,3 +485,5 @@ DROP FUNCTION f1;
 drop table t1;
 set global log_bin_trust_function_creators=0;
 set global log_bin_trust_function_creators=0;
+End of 5.0 tests
+End of 5.1 tests
