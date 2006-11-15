@@ -194,6 +194,53 @@ buf_LRU_get_recent_limit(void)
 }
 
 /**********************************************************************
+Try to free a block. */
+
+ibool
+buf_LRU_free_block(
+/*===============*/
+				/* out: TRUE if freed */
+	buf_block_t*	block)	/* in: block to be freed */
+{
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&buf_pool->mutex));
+	ut_ad(mutex_own(&block->mutex));
+#endif /* UNIV_SYNC_DEBUG */
+
+	ut_a(block->in_LRU_list);
+
+	if (!buf_flush_ready_for_replace(block)) {
+
+		return(FALSE);
+	}
+
+#ifdef UNIV_DEBUG
+	if (buf_debug_prints) {
+		fprintf(stderr, "Putting space %lu page %lu to free list\n",
+			(ulong) block->space, (ulong) block->offset);
+	}
+#endif /* UNIV_DEBUG */
+
+	buf_LRU_block_remove_hashed_page(block);
+
+	mutex_exit(&(buf_pool->mutex));
+	mutex_exit(&block->mutex);
+
+	/* Remove possible adaptive hash index on the page */
+
+	btr_search_drop_page_hash_index(block);
+
+	ut_a(block->buf_fix_count == 0);
+
+	mutex_enter(&(buf_pool->mutex));
+	mutex_enter(&block->mutex);
+
+	buf_LRU_block_free_hashed_page(block);
+
+	return(TRUE);
+}
+
+/**********************************************************************
 Look for a replaceable block from the end of the LRU list and put it to
 the free list if found. */
 
@@ -218,62 +265,30 @@ buf_LRU_search_and_free_block(
 	block = UT_LIST_GET_LAST(buf_pool->LRU);
 
 	while (block != NULL) {
-		ut_a(block->in_LRU_list);
-
 		mutex_enter(&block->mutex);
+		freed = buf_LRU_free_block(block);
+		mutex_exit(&block->mutex);
 
-		if (buf_flush_ready_for_replace(block)) {
-
-#ifdef UNIV_DEBUG
-			if (buf_debug_prints) {
-				fprintf(stderr,
-					"Putting space %lu page %lu"
-					" to free list\n",
-					(ulong) block->space,
-					(ulong) block->offset);
-			}
-#endif /* UNIV_DEBUG */
-
-			buf_LRU_block_remove_hashed_page(block);
-
-			mutex_exit(&(buf_pool->mutex));
-			mutex_exit(&block->mutex);
-
-			/* Remove possible adaptive hash index on the page */
-
-			btr_search_drop_page_hash_index(block);
-
-
-			ut_a(block->buf_fix_count == 0);
-
-			mutex_enter(&(buf_pool->mutex));
-			mutex_enter(&block->mutex);
-
-			buf_LRU_block_free_hashed_page(block);
-			freed = TRUE;
-			mutex_exit(&block->mutex);
+		if (freed) {
 
 			break;
 		}
 
-		mutex_exit(&block->mutex);
-
 		block = UT_LIST_GET_PREV(LRU, block);
 		distance++;
 
-		if (!freed && n_iterations <= 10
+		if (n_iterations <= 10
 		    && distance > 100 + (n_iterations * buf_pool->curr_size)
 		    / 10) {
-			buf_pool->LRU_flush_ended = 0;
-
-			mutex_exit(&(buf_pool->mutex));
-
-			return(FALSE);
+			goto func_exit;
 		}
 	}
+
 	if (buf_pool->LRU_flush_ended > 0) {
 		buf_pool->LRU_flush_ended--;
 	}
+
+func_exit:
 	if (!freed) {
 		buf_pool->LRU_flush_ended = 0;
 	}
