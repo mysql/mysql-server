@@ -1230,4 +1230,6 @@ extern void lex_end(LEX *lex);
 extern int MYSQLlex(void *arg, void *yythd);
 extern const uchar *skip_rear_comments(const uchar *ubegin, const uchar *uend);
 
+extern bool is_lex_native_function(const LEX_STRING *name);
+
 #endif /* MYSQL_SERVER */
