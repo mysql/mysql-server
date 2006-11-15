@@ -6609,12 +6609,20 @@ SET @save_sql_mode=@@sql_mode;
 SET SQL_MODE='IGNORE_SPACE';
 
 select pi(), pi ();
+
+# Non deterministic warnings from db_load_routine
+--disable_warnings
 select test.pi(), test.pi ();
+--enable_warnings
 
 SET SQL_MODE='';
 
 select pi(), pi ();
+
+# Non deterministic warnings from db_load_routine
+--disable_warnings
 select test.pi(), test.pi ();
+--enable_warnings
 
 SET @@sql_mode=@save_sql_mode;
 
@@ -6666,9 +6674,12 @@ select database(), database ();
 select current_user(), current_user ();
 select md5("aaa"), md5 ("aaa");
 
+# Non deterministic warnings from db_load_routine
+--disable_warnings
 select test.database(), test.database ();
 select test.current_user(), test.current_user ();
 select test.md5("aaa"), test.md5 ("aaa");
+--enable_warnings
 
 SET SQL_MODE='';
 
@@ -6676,9 +6687,12 @@ select database(), database ();
 select current_user(), current_user ();
 select md5("aaa"), md5 ("aaa");
 
+# Non deterministic warnings from db_load_routine
+--disable_warnings
 select test.database(), test.database ();
 select test.current_user(), test.current_user ();
 select test.md5("aaa"), test.md5 ("aaa");
+--enable_warnings
 
 SET @@sql_mode=@save_sql_mode;
 
