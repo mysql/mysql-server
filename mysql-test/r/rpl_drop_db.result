@@ -31,7 +31,6 @@ use test;
 select * from t1;
 n
 1234
-DROP DATABASE mysqltest1;
 stop slave;
 drop database mysqltest1;
 drop database mysqltest1;
