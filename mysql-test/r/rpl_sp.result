@@ -465,3 +465,5 @@ RETURN 0
 DROP PROCEDURE p1;
 DROP FUNCTION f1;
 drop table t1;
+set global log_bin_trust_function_creators=0;
+set global log_bin_trust_function_creators=0;
