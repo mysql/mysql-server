@@ -33,3 +33,5 @@ n
 1234
 drop table t1;
 stop slave;
+drop database mysqltest1;
+drop database mysqltest1;

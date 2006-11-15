@@ -284,12 +284,15 @@ insert t1 values ('aaabbb');
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+set @my_key_cache_block_size= @@global.key_cache_block_size;
 set GLOBAL key_cache_block_size=2048;
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
+set global key_cache_block_size= @my_key_cache_block_size;
 CREATE TABLE t1(a int NOT NULL AUTO_INCREMENT PRIMARY KEY);
+SET @my_key_cache_block_size= @@global.key_cache_block_size;
 SET GLOBAL key_cache_block_size=1536;
 INSERT INTO t1 VALUES (1);
 SELECT @@key_cache_block_size;
@@ -331,6 +334,7 @@ CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1,t2;
+set global key_cache_block_size= @my_key_cache_block_size;
 set @@global.key_buffer_size=0;
 Warnings:
 Warning	1438	Cannot drop default keycache

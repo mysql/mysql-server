@@ -32,6 +32,7 @@ reset slave;
 --echo # Test 1
 --echo #
 
+set @my_max_binlog_size= @@global.max_binlog_size;
 set global max_binlog_size=8192;
 set global max_relay_log_size=8192-1; # mapped to 4096
 select @@global.max_relay_log_size;
@@ -126,6 +127,10 @@ connection master;
 # test that the absence of relay logs does not make a master crash
 flush logs;
 show master status;
+
+# Restore max_binlog_size
+connection slave;
+set global max_binlog_size= @my_max_binlog_size;
 
 --echo #
 --echo # End of 4.1 tests
