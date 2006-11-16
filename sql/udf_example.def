@@ -22,3 +22,5 @@ EXPORTS
   avgcost_add
   avgcost_clear
   avgcost
+  is_const
+  is_const_init
