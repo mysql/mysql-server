@@ -1191,6 +1191,8 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
     for (row=data->data; row ; row = row->next,field++)
     {
       uchar *pos;
+      /* fields count may be wrong */
+      DBUG_ASSERT ((field - result) < fields);
       cli_fetch_lengths(&lengths[0], row->data, default_value ? 8 : 7);
       field->catalog  = strdup_root(alloc,(char*) row->data[0]);
       field->db       = strdup_root(alloc,(char*) row->data[1]);

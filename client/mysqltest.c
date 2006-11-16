@@ -29,6 +29,7 @@
   Matt Wagner  <matt@mysql.com>
   Monty
   Jani
+  Holyfoot
 */
 
 #define MTEST_VERSION "3.0"
@@ -220,6 +221,12 @@ struct st_connection
   MYSQL* util_mysql;
   char *name;
   MYSQL_STMT* stmt;
+
+  const char *cur_query;
+  int cur_query_len;
+  pthread_mutex_t mutex;
+  pthread_cond_t cond;
+  int query_done;
 };
 struct st_connection connections[128];
 struct st_connection* cur_con, *next_con, *connections_end;
@@ -458,7 +465,6 @@ void mysql_disable_rpl_parse(MYSQL* mysql __attribute__((unused))) {}
 int mysql_rpl_parse_enabled(MYSQL* mysql __attribute__((unused))) { return 1; }
 my_bool mysql_rpl_probe(MYSQL *mysql __attribute__((unused))) { return 1; }
 #endif
-
 void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
                                int len);
 void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val);
@@ -470,6 +476,56 @@ void handle_error(struct st_command*,
 void handle_no_error(struct st_command*);
 
 
+#ifdef EMBEDDED_LIBRARY
+/*
+  send_one_query executes query in separate thread what is
+  necessary in embedded library to run 'send' in proper way.
+  This implementation doesn't handle errors returned
+  by mysql_send_query. It's technically possible, though
+  i don't see where it is needed.
+*/
+pthread_handler_decl(send_one_query, arg)
+{
+  struct st_connection *cn= (struct st_connection*)arg;
+
+  mysql_thread_init();
+  VOID(mysql_send_query(&cn->mysql, cn->cur_query, cn->cur_query_len));
+
+  mysql_thread_end();
+  pthread_mutex_lock(&cn->mutex);
+  cn->query_done= 1;
+  VOID(pthread_cond_signal(&cn->cond));
+  pthread_mutex_unlock(&cn->mutex);
+  pthread_exit(0);
+  return 0;
+}
+
+static int do_send_query(struct st_connection *cn, const char *q, int q_len,
+                         int flags)
+{
+  pthread_t tid;
+
+  if (flags & QUERY_REAP_FLAG)
+    return mysql_send_query(&cn->mysql, q, q_len);
+
+  if (pthread_mutex_init(&cn->mutex, NULL) ||
+      pthread_cond_init(&cn->cond, NULL))
+    die("Error in the thread library");
+
+  cn->cur_query= q;
+  cn->cur_query_len= q_len;
+  cn->query_done= 0;
+  if (pthread_create(&tid, NULL, send_one_query, (void*)cn))
+    die("Cannot start new thread for query");
+
+  return 0;
+}
+
+#else /*EMBEDDED_LIBRARY*/
+
+#define do_send_query(cn,q,q_len,flags) mysql_send_query(&cn->mysql, q, q_len)
+
+#endif /*EMBEDDED_LIBRARY*/
 
 void do_eval(DYNAMIC_STRING *query_eval, const char *query,
              const char *query_end, my_bool pass_through_escape_chars)
@@ -4498,7 +4554,6 @@ int append_warnings(DYNAMIC_STRING *ds, MYSQL* mysql)
 }
 
 
-
 /*
   Run query using MySQL C API
 
@@ -4515,10 +4570,11 @@ int append_warnings(DYNAMIC_STRING *ds, MYSQL* mysql)
   error - function will not return
 */
 
-void run_query_normal(MYSQL *mysql, struct st_command *command,
+void run_query_normal(struct st_connection *cn, struct st_command *command,
                       int flags, char *query, int query_len,
                       DYNAMIC_STRING *ds, DYNAMIC_STRING *ds_warnings)
 {
+  MYSQL *mysql= &cn->mysql;
   MYSQL_RES *res= 0;
   int err= 0, counter= 0;
   DBUG_ENTER("run_query_normal");
@@ -4530,14 +4586,26 @@ void run_query_normal(MYSQL *mysql, struct st_command *command,
     /*
       Send the query
     */
-    if (mysql_send_query(mysql, query, query_len))
+    if (do_send_query(cn, query, query_len, flags))
     {
       handle_error(command, mysql_errno(mysql), mysql_error(mysql),
 		   mysql_sqlstate(mysql), ds);
       goto end;
     }
   }
-
+#ifdef EMBEDDED_LIBRARY
+  /*
+   Here we handle 'reap' command, so we need to check if the
+   query's thread was finished and probably wait
+  */
+  else if (flags & QUERY_REAP_FLAG)
+  {
+    pthread_mutex_lock(&cn->mutex);
+    while (!cn->query_done)
+      pthread_cond_wait(&cn->cond, &cn->mutex);
+    pthread_mutex_unlock(&cn->mutex);
+  }
+#endif /*EMBEDDED_LIBRARY*/
   if (!(flags & QUERY_REAP_FLAG))
     DBUG_VOID_RETURN;
 
@@ -5028,8 +5096,9 @@ int util_query(MYSQL* org_mysql, const char* query){
 
 */
 
-void run_query(MYSQL *mysql, struct st_command *command, int flags)
+void run_query(struct st_connection *cn, struct st_command *command, int flags)
 {
+  MYSQL *mysql= &cn->mysql;
   DYNAMIC_STRING *ds;
   DYNAMIC_STRING ds_result;
   DYNAMIC_STRING ds_warnings;
@@ -5186,7 +5255,7 @@ void run_query(MYSQL *mysql, struct st_command *command, int flags)
       match_re(&ps_re, query))
     run_query_stmt(mysql, command, query, query_len, ds, &ds_warnings);
   else
-    run_query_normal(mysql, command, flags, query, query_len,
+    run_query_normal(cn, command, flags, query, query_len,
 		     ds, &ds_warnings);
 
   if (sp_created)
@@ -5651,7 +5720,7 @@ int main(int argc, char **argv)
 	  strmake(command->require_file, save_file, sizeof(save_file));
 	  save_file[0]= 0;
 	}
-	run_query(&cur_con->mysql, command, QUERY_REAP_FLAG|QUERY_SEND_FLAG);
+	run_query(cur_con, command, QUERY_REAP_FLAG|QUERY_SEND_FLAG);
 	display_result_vertically= old_display_result_vertically;
         command->last_argument= command->end;
         command_executed++;
@@ -5682,7 +5751,7 @@ int main(int argc, char **argv)
 	  strmake(command->require_file, save_file, sizeof(save_file));
 	  save_file[0]= 0;
 	}
-	run_query(&cur_con->mysql, command, flags);
+	run_query(cur_con, command, flags);
 	command_executed++;
         command->last_argument= command->end;
 	break;
@@ -5708,7 +5777,7 @@ int main(int argc, char **argv)
           the query and read the result some time later when reap instruction
 	  is given on this connection.
         */
-	run_query(&cur_con->mysql, command, QUERY_SEND_FLAG);
+	run_query(cur_con, command, QUERY_SEND_FLAG);
 	command_executed++;
         command->last_argument= command->end;
 	break;
