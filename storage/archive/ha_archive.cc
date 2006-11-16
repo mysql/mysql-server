@@ -470,7 +470,7 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name,
       Since we now possibly no real_path, we will use it instead if it exists.
     */
     if (*share->real_path)
-      fn_format(share->data_file_name, share->real_path, "", ARZ,
+      fn_format(share->data_file_name, table_name, share->real_path, ARZ,
                 MY_REPLACE_EXT|MY_UNPACK_FILENAME);
     VOID(my_hash_insert(&archive_open_tables, (byte*) share));
     thr_lock_init(&share->lock);
@@ -698,9 +698,13 @@ int ha_archive::create(const char *name, TABLE *table_arg,
     goto error;
   }
 
+  /* 
+    We reuse name_buff since it is available.
+  */
   write_meta_file(create_file, 0, stats.auto_increment_value, 0, 
-                  (char *)create_info->data_file_name,
-                  FALSE);
+                  (create_info->data_file_name &&
+                   dirname_part(name_buff, (char*)create_info->data_file_name))
+                  ? name_buff : 0, FALSE);
   my_close(create_file,MYF(0));
 
   /* 
