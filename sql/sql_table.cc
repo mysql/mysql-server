@@ -3300,13 +3300,35 @@ view_err:
   if (!(alter_info->flags & ~(ALTER_RENAME | ALTER_KEYS_ONOFF)) &&
       !table->s->tmp_table) // no need to touch frm
   {
-    error=0;
     VOID(pthread_mutex_lock(&LOCK_open));
-    if (new_name != table_name || new_db != db)
+
+    switch (alter_info->keys_onoff) {
+    case LEAVE_AS_IS:
+      error= 0;
+      break;
+    case ENABLE:
+      wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
+      error= table->file->enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
+      /* COND_refresh will be signaled in close_thread_tables() */
+      break;
+    case DISABLE:
+      wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
+      error=table->file->disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
+      /* COND_refresh will be signaled in close_thread_tables() */
+      break;
+    }
+    if (error == HA_ERR_WRONG_COMMAND)
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+			  ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
+			  table->alias);
+      error= 0;
+    }
+
+    if (!error && (new_name != table_name || new_db != db))
     {
       thd->proc_info="rename";
       /* Then do a 'simple' rename of the table */
-      error=0;
       if (!access(new_name_buff,F_OK))
       {
 	my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_name);
@@ -3328,31 +3350,14 @@ view_err:
       }
     }
 
-    if (!error)
-    {
-      switch (alter_info->keys_onoff) {
-      case LEAVE_AS_IS:
-        break;
-      case ENABLE:
-        wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
-        error= table->file->enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
-        /* COND_refresh will be signaled in close_thread_tables() */
-        break;
-      case DISABLE:
-        wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
-        error=table->file->disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
-        /* COND_refresh will be signaled in close_thread_tables() */
-        break;
-      }
-    }
-
     if (error == HA_ERR_WRONG_COMMAND)
     {
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			  ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
 			  table->alias);
-      error=0;
+      error= 0;
     }
+
     if (!error)
     {
       if (mysql_bin_log.is_open())
@@ -3370,7 +3375,7 @@ view_err:
       error= -1;
     }
     VOID(pthread_mutex_unlock(&LOCK_open));
-    table_list->table=0;				// For query cache
+    table_list->table= NULL;                    // For query cache
     query_cache_invalidate3(thd, table_list, 0);
     DBUG_RETURN(error);
   }
