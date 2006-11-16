@@ -428,42 +428,42 @@ t1	MyISAM	10	Fixed	1	37	X	X	X	X	X	X	X	X	latin1_swedish_ci	NULL
 drop table t1;
 set names koi8r;
 create table t1 (a char(10) character set koi8r);
-insert into t1 values ('√î√Ö√ì√î');
+insert into t1 values ('‘≈”‘');
 select a,hex(a) from t1;
 a	hex(a)
-√î√Ö√ì√î	D4C5D3D4
+‘≈”‘	D4C5D3D4
 alter table t1 change a a char(10) character set cp1251;
 select a,hex(a) from t1;
 a	hex(a)
-√î√Ö√ì√î	F2E5F1F2
+‘≈”‘	F2E5F1F2
 alter table t1 change a a binary(4);
 select a,hex(a) from t1;
 a	hex(a)
-√≤√•√±√≤	F2E5F1F2
+ÚÂÒÚ	F2E5F1F2
 alter table t1 change a a char(10) character set cp1251;
 select a,hex(a) from t1;
 a	hex(a)
-√î√Ö√ì√î	F2E5F1F2
+‘≈”‘	F2E5F1F2
 alter table t1 change a a char(10) character set koi8r;
 select a,hex(a) from t1;
 a	hex(a)
-√î√Ö√ì√î	D4C5D3D4
+‘≈”‘	D4C5D3D4
 alter table t1 change a a varchar(10) character set cp1251;
 select a,hex(a) from t1;
 a	hex(a)
-√î√Ö√ì√î	F2E5F1F2
+‘≈”‘	F2E5F1F2
 alter table t1 change a a char(10) character set koi8r;
 select a,hex(a) from t1;
 a	hex(a)
-√î√Ö√ì√î	D4C5D3D4
+‘≈”‘	D4C5D3D4
 alter table t1 change a a text character set cp1251;
 select a,hex(a) from t1;
 a	hex(a)
-√î√Ö√ì√î	F2E5F1F2
+‘≈”‘	F2E5F1F2
 alter table t1 change a a char(10) character set koi8r;
 select a,hex(a) from t1;
 a	hex(a)
-√î√Ö√ì√î	D4C5D3D4
+‘≈”‘	D4C5D3D4
 delete from t1;
 show create table t1;
 Table	Create Table
@@ -528,7 +528,7 @@ ALTER TABLE T12207 DISCARD TABLESPACE;
 ERROR HY000: Table storage engine for 'T12207' doesn't have this option
 DROP TABLE T12207;
 create table t1 (a text) character set koi8r;
-insert into t1 values (_koi8r'√î√Ö√ì√î');
+insert into t1 values (_koi8r'‘≈”‘');
 select hex(a) from t1;
 hex(a)
 D4C5D3D4
@@ -556,16 +556,6 @@ ERROR 3D000: No database selected
 alter table test.t1 rename test.t1;
 use test;
 drop table t1;
-create table t1 (mycol int(10) not null);
-alter table t1 alter column mycol set default 0;
-desc t1;
-Field	Type	Null	Key	Default	Extra
-mycol	int(10)	NO		0	
-drop table t1;
-create table t1 (t varchar(255) default null, key t (t(80)))
-engine=myisam default charset=latin1;
-alter table t1 change t t text;
-drop table t1;
 DROP TABLE IF EXISTS bug24219;
 DROP TABLE IF EXISTS bug24219_2;
 CREATE TABLE bug24219 (a INT, INDEX(a));
@@ -577,3 +567,13 @@ SHOW INDEX FROM bug24219_2;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 bug24219_2	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled
 DROP TABLE bug24219_2;
+create table t1 (mycol int(10) not null);
+alter table t1 alter column mycol set default 0;
+desc t1;
+Field	Type	Null	Key	Default	Extra
+mycol	int(10)	NO		0	
+drop table t1;
+create table t1 (t varchar(255) default null, key t (t(80)))
+engine=myisam default charset=latin1;
+alter table t1 change t t text;
+drop table t1;
