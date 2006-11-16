@@ -37,6 +37,7 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   void left_right_max_length();
   String *check_well_formed_result(String *str);
+  bool fix_fields(THD *thd, Item **ref);
 };
 
 class Item_func_md5 :public Item_str_func
@@ -525,9 +526,8 @@ public:
   { collation.set(cs); }  
   String *val_str(String *);
   void fix_length_and_dec() 
-  { 
-    maybe_null=0;
-    max_length=arg_count * collation.collation->mbmaxlen;
+  {
+    max_length= arg_count * collation.collation->mbmaxlen;
   }
   const char *func_name() const { return "char"; }
 };
