@@ -612,7 +612,9 @@ buf_block_init(
 
 	block->modify_clock = ut_dulint_zero;
 
+#ifdef UNIV_DEBUG_FILE_ACCESSES
 	block->file_page_was_freed = FALSE;
+#endif /* UNIV_DEBUG_FILE_ACCESSES */
 
 	block->check_index_page_at_flush = FALSE;
 	block->index = NULL;
@@ -1222,6 +1224,7 @@ buf_page_peek(
 	return(FALSE);
 }
 
+#ifdef UNIV_DEBUG_FILE_ACCESSES
 /************************************************************************
 Sets file_page_was_freed TRUE if the page is found in the buffer pool.
 This function should be called when we free a file page and want the
@@ -1279,6 +1282,7 @@ buf_page_reset_file_page_was_freed(
 
 	return(block);
 }
+#endif /* UNIV_DEBUG_FILE_ACCESSES */
 
 /************************************************************************
 This is the general function used to get access to a database page. */
@@ -1750,8 +1754,9 @@ buf_page_init_for_backup_restore(
 	ut_ad(zip_size <= UNIV_PAGE_SIZE);
 	ut_ad(ut_is_2pow(zip_size));
 	block->page_zip.size = zip_size;
-
+#ifdef UNIV_DEBUG_FILE_ACCESSES
 	block->file_page_was_freed = FALSE;
+#endif /* UNIV_DEBUG_FILE_ACCESSES */
 }
 #endif /* UNIV_HOTBACKUP */
 
@@ -1819,7 +1824,9 @@ buf_page_init(
 	block->n_bytes		= 0;
 	block->left_side	= TRUE;
 
+#ifdef UNIV_DEBUG_FILE_ACCESSES
 	block->file_page_was_freed = FALSE;
+#endif /* UNIV_DEBUG_FILE_ACCESSES */
 }
 
 /************************************************************************
@@ -1969,7 +1976,9 @@ buf_page_create(
 #ifdef UNIV_IBUF_DEBUG
 		ut_a(ibuf_count_get(block->space, block->offset) == 0);
 #endif
+#ifdef UNIV_DEBUG_FILE_ACCESSES
 		block->file_page_was_freed = FALSE;
+#endif /* UNIV_DEBUG_FILE_ACCESSES */
 
 		/* Page can be found in buf_pool */
 		mutex_exit(&(buf_pool->mutex));
