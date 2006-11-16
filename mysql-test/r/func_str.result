@@ -1148,4 +1148,17 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 Warnings:
 Note	1003	select `test`.`t1`.`code` AS `code`,`test`.`t2`.`id` AS `id` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`code` = _latin1'a12') and (length(`test`.`t1`.`code`) = 5))
 DROP TABLE t1,t2;
+SET @orig_sql_mode = @@SQL_MODE;
+SET SQL_MODE=traditional;
+SELECT CHAR(0xff,0x8f USING utf8);
+CHAR(0xff,0x8f USING utf8)
+NULL
+Warnings:
+Error	1300	Invalid utf8 character string: 'FF8F'
+SELECT CHAR(0xff,0x8f USING utf8) IS NULL;
+CHAR(0xff,0x8f USING utf8) IS NULL
+1
+Warnings:
+Error	1300	Invalid utf8 character string: 'FF8F'
+SET SQL_MODE=@orig_sql_mode;
 End of 5.0 tests

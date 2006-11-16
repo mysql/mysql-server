@@ -780,4 +780,18 @@ SELECT * FROM t1 INNER JOIN t2 ON code=id
 
 DROP TABLE t1,t2;
 
+
+#
+# BUG#17047: CHAR() and IN() can return NULL without signaling NULL
+# result
+#
+SET @orig_sql_mode = @@SQL_MODE;
+SET SQL_MODE=traditional;
+
+SELECT CHAR(0xff,0x8f USING utf8);
+SELECT CHAR(0xff,0x8f USING utf8) IS NULL;
+
+SET SQL_MODE=@orig_sql_mode;
+
+
 --echo End of 5.0 tests
