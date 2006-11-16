@@ -978,12 +978,21 @@ shrink_again:
 			/* Move the blocks of chunk to the end of the
 			LRU list and try to flush them. */
 			for (; block < bend; block++) {
-				if (block->state != BUF_BLOCK_FILE_PAGE) {
-
+				switch (block->state) {
+				case BUF_BLOCK_NOT_USED:
+					continue;
+				case BUF_BLOCK_FILE_PAGE:
+					break;
+				default:
+					nonfree++;
 					continue;
 				}
 
 				mutex_enter(&block->mutex);
+				/* The following calls will temporarily
+				release block->mutex and buf_pool->mutex.
+				Therefore, we have to always retry,
+				even if !dirty && !nonfree. */
 
 				if (!buf_flush_ready_for_replace(block)) {
 
@@ -996,30 +1005,28 @@ shrink_again:
 				mutex_exit(&block->mutex);
 			}
 
-			/* See if the chunk was in fact free. */
-			if (!dirty && !nonfree) {
-
-				goto is_free;
-			}
-
 			mutex_exit(&buf_pool->mutex);
 
-			/* Request for a flush of the chunk. */
-			if (buf_flush_batch(BUF_FLUSH_LRU, dirty,
-					    ut_dulint_zero)
-			    == ULINT_UNDEFINED) {
+			/* Request for a flush of the chunk if it helps.
+			Do not flush if there are non-free blocks, since
+			flushing will not make the chunk freeable. */
+			if (nonfree) {
+				/* Avoid busy-waiting. */
+				os_thread_sleep(100000);
+			} else if (dirty
+				   && buf_flush_batch(BUF_FLUSH_LRU, dirty,
+						      ut_dulint_zero)
+				   == ULINT_UNDEFINED) {
 
 				buf_flush_wait_batch_end(BUF_FLUSH_LRU);
 			}
 
-			/* Retry after flushing. */
 			goto try_again;
 		}
 
 		max_size = max_free_size;
 		max_chunk = max_free_chunk;
 
-is_free:
 		srv_buf_pool_old_size = srv_buf_pool_size;
 
 		/* Rewrite buf_pool->chunks.  Copy everything but max_chunk. */
