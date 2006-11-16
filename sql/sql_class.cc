@@ -2552,6 +2552,128 @@ my_size_t THD::pack_row(TABLE *table, MY_BITMAP const* cols, byte *row_data,
 }
 
 
+namespace {
+  /**
+     Class to handle temporary allocation of memory for row data.
+
+     The responsibilities of the class is to provide memory for
+     packing one or two rows of packed data (depending on what
+     constructor is called).
+
+     In order to make the allocation more efficient for "simple" rows,
+     i.e., rows that do not contain any blobs, a pointer to the
+     allocated memory is of memory is stored in the table structure
+     for simple rows.  If memory for a table containing a blob field
+     is requested, only memory for that is allocated, and subsequently
+     released when the object is destroyed.
+
+   */
+  class Row_data_memory {
+  public:
+    /**
+      Build an object to keep track of a block-local piece of memory
+      for storing a row of data.
+
+      @param table
+      Table where the pre-allocated memory is stored.
+
+      @param length
+      Length of data that is needed, if the record contain blobs.
+     */
+    Row_data_memory(TABLE *table, my_size_t const len1)
+      : m_memory(0)
+    {
+#ifndef DBUG_OFF
+      m_alloc_checked= false;
+#endif
+      allocate_memory(table, len1);
+      m_ptr[0]= has_memory() ? m_memory : 0;
+      m_ptr[1]= 0;
+    }
+
+    Row_data_memory(TABLE *table, my_size_t const len1, my_size_t const len2)
+      : m_memory(0)
+    {
+#ifndef DBUG_OFF
+      m_alloc_checked= false;
+#endif
+      allocate_memory(table, len1 + len2);
+      m_ptr[0]= has_memory() ? m_memory        : 0;
+      m_ptr[1]= has_memory() ? m_memory + len1 : 0;
+    }
+
+    ~Row_data_memory()
+    {
+      if (m_memory != 0 && m_release_memory_on_destruction)
+        my_free((gptr) m_memory, MYF(MY_WME));
+    }
+
+    /**
+       Is there memory allocated?
+
+       @retval true There is memory allocated
+       @retval false Memory allocation failed
+     */
+    bool has_memory() const {
+#ifndef DBUG_OFF
+      m_alloc_checked= true;
+#endif
+      return m_memory != 0;
+    }
+
+    byte *slot(int const s)
+    {
+      DBUG_ASSERT(0 <= s && s < sizeof(m_ptr)/sizeof(*m_ptr));
+      DBUG_ASSERT(m_ptr[s] != 0);
+      DBUG_ASSERT(m_alloc_checked == true);
+      return m_ptr[s];
+    }
+
+  private:
+    void allocate_memory(TABLE *const table, my_size_t const total_length)
+    {
+      if (table->s->blob_fields == 0)
+      {
+        /*
+          The maximum length of a packed record is less than this
+          length. We use this value instead of the supplied length
+          when allocating memory for records, since we don't know how
+          the memory will be used in future allocations.
+
+          Since table->s->reclength is for unpacked records, we have
+          to add two bytes for each field, which can potentially be
+          added to hold the length of a packed field.
+        */
+        my_size_t const maxlen= table->s->reclength + 2 * table->s->fields;
+
+        /*
+          Allocate memory for two records if memory hasn't been
+          allocated. We allocate memory for two records so that it can
+          be used when processing update rows as well.
+        */
+        if (table->write_row_record == 0)
+          table->write_row_record=
+            (byte *) alloc_root(&table->mem_root, 2 * maxlen);
+        m_memory= table->write_row_record;
+        m_release_memory_on_destruction= false;
+      }
+      else
+      {
+        m_memory= (byte *) my_malloc(total_length, MYF(MY_WME));
+        m_release_memory_on_destruction= true;
+      }
+    }
+
+#ifndef DBUG_OFF
+    mutable bool m_alloc_checked;
+#endif
+    bool m_release_memory_on_destruction;
+    byte *m_memory;
+    byte *m_ptr[2];
+  };
+}
+
+
 int THD::binlog_write_row(TABLE* table, bool is_trans, 
                           MY_BITMAP const* cols, my_size_t colcnt, 
                           byte const *record) 
@@ -2562,40 +2684,25 @@ int THD::binlog_write_row(TABLE* table, bool is_trans,
     Pack records into format for transfer. We are allocating more
     memory than needed, but that doesn't matter.
   */
-  bool error= 0;
-  byte *row_data= table->write_row_record;
-  my_size_t const max_len= max_row_length(table, record);
-  my_size_t len;
-  Rows_log_event *ev;
-  
-  /* Allocate room for a row (if needed) */
-  if (!row_data)
-  {
-    if (!table->s->blob_fields)
-    {
-      /* multiply max_len by 2 so it can be used for update_row as well */
-      table->write_row_record= (byte *) alloc_root(&table->mem_root,
-                                                   2*max_len);
-      if (!table->write_row_record)
-        return HA_ERR_OUT_OF_MEM;
-      row_data= table->write_row_record;
-    }
-    else if (unlikely(!(row_data= (byte *) my_malloc(max_len, MYF(MY_WME)))))
-      return HA_ERR_OUT_OF_MEM;
-  }
-  len= pack_row(table, cols, row_data, record);
+  int error= 0;
 
-  ev= binlog_prepare_pending_rows_event(table, server_id, cols, colcnt,
-                                        len, is_trans,
-                                        static_cast<Write_rows_log_event*>(0));
+  Row_data_memory memory(table, max_row_length(table, record));
+  if (!memory.has_memory())
+    return HA_ERR_OUT_OF_MEM;
 
-  /* add_row_data copies row_data to internal buffer */
-  error= likely(ev != 0) ? ev->add_row_data(row_data,len) : HA_ERR_OUT_OF_MEM ;
+  byte *row_data= memory.slot(0);
 
-  if (table->write_row_record == 0)
-    my_free((gptr) row_data, MYF(MY_WME));
+  my_size_t const len= pack_row(table, cols, row_data, record);
 
-  return error;
+  Rows_log_event* const ev=
+    binlog_prepare_pending_rows_event(table, server_id, cols, colcnt,
+                                      len, is_trans,
+                                      static_cast<Write_rows_log_event*>(0));
+
+  if (unlikely(ev == 0))
+    return HA_ERR_OUT_OF_MEM;
+
+  return ev->add_row_data(row_data, len);
 }
 
 int THD::binlog_update_row(TABLE* table, bool is_trans,
@@ -2605,25 +2712,16 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
 { 
   DBUG_ASSERT(current_stmt_binlog_row_based && mysql_bin_log.is_open());
 
-  bool error= 0;
+  int error= 0;
   my_size_t const before_maxlen = max_row_length(table, before_record);
   my_size_t const after_maxlen  = max_row_length(table, after_record);
 
-  byte *row_data= table->write_row_record;
-  byte *before_row, *after_row;
-  if (row_data != 0)
-  {
-    before_row= row_data;
-    after_row= before_row + before_maxlen;
-  }
-  else
-  {
-    if (unlikely(!(row_data= (byte*)my_multi_malloc(MYF(MY_WME),
-                                             &before_row, before_maxlen,
-                                             &after_row, after_maxlen,
-                                             NULL))))
-      return HA_ERR_OUT_OF_MEM;
-  }
+  Row_data_memory row_data(table, before_maxlen, after_maxlen);
+  if (!row_data.has_memory())
+    return HA_ERR_OUT_OF_MEM;
+
+  byte *before_row= row_data.slot(0);
+  byte *after_row= row_data.slot(1);
 
   my_size_t const before_size= pack_row(table, cols, before_row, 
                                         before_record);
@@ -2640,18 +2738,12 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
 				      before_size + after_size, is_trans,
 				      static_cast<Update_rows_log_event*>(0));
 
-  error=
-    unlikely(!ev) ||
+  if (unlikely(ev == 0))
+    return HA_ERR_OUT_OF_MEM;
+
+  return
     ev->add_row_data(before_row, before_size) ||
     ev->add_row_data(after_row, after_size);
-
-  if (!table->write_row_record)
-  {
-    /* add_row_data copies row_data to internal buffer */
-    my_free((gptr)row_data, MYF(MY_WME));
-  }
-  
-  return error;
 }
 
 int THD::binlog_delete_row(TABLE* table, bool is_trans, 
@@ -2664,11 +2756,14 @@ int THD::binlog_delete_row(TABLE* table, bool is_trans,
      Pack records into format for transfer. We are allocating more
      memory than needed, but that doesn't matter.
   */
-  bool error= 0;
-  my_size_t const max_len= max_row_length(table, record);
-  byte *row_data= table->write_row_record;
-  if (!row_data && unlikely(!(row_data= (byte*)my_malloc(max_len, MYF(MY_WME)))))
+  int error= 0;
+
+  Row_data_memory memory(table, max_row_length(table, record));
+  if (unlikely(!memory.has_memory()))
     return HA_ERR_OUT_OF_MEM;
+
+  byte *row_data= memory.slot(0);
+
   my_size_t const len= pack_row(table, cols, row_data, record);
 
   Rows_log_event* const ev=
@@ -2676,13 +2771,10 @@ int THD::binlog_delete_row(TABLE* table, bool is_trans,
 				      len, is_trans,
 				      static_cast<Delete_rows_log_event*>(0));
 
-  error= (unlikely(!ev)) || ev->add_row_data(row_data, len);
+  if (unlikely(ev == 0))
+    return HA_ERR_OUT_OF_MEM;
 
-  /* add_row_data copies row_data */
-  if (table->write_row_record == 0)
-    my_free((gptr)row_data, MYF(MY_WME));
-
-  return error;
+  return ev->add_row_data(row_data, len);
 }
 
 
