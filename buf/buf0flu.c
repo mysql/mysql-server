@@ -33,6 +33,7 @@ flushed along with the original page. */
 #define BUF_FLUSH_AREA		ut_min(BUF_READ_AHEAD_AREA,\
 		buf_pool->curr_size / 16)
 
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**********************************************************************
 Validates the flush list. */
 static
@@ -40,6 +41,7 @@ ibool
 buf_flush_validate_low(void);
 /*========================*/
 		/* out: TRUE if ok */
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 /************************************************************************
 Inserts a modified block into the flush list. */
@@ -62,7 +64,9 @@ buf_flush_insert_into_flush_list(
 
 	UT_LIST_ADD_FIRST(flush_list, buf_pool->flush_list, block);
 
-	ut_ad(buf_flush_validate_low());
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+	ut_a(buf_flush_validate_low());
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 }
 
 /************************************************************************
@@ -98,7 +102,9 @@ buf_flush_insert_sorted_into_flush_list(
 				     block);
 	}
 
-	ut_ad(buf_flush_validate_low());
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+	ut_a(buf_flush_validate_low());
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 }
 
 /************************************************************************
@@ -1112,6 +1118,7 @@ buf_flush_free_margin(void)
 	}
 }
 
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**********************************************************************
 Validates the flush list. */
 static
@@ -1161,3 +1168,4 @@ buf_flush_validate(void)
 
 	return(ret);
 }
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
