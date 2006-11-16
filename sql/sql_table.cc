@@ -2949,8 +2949,35 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   thd->proc_info="setup";
   if (alter_info->is_simple && !table->tmp_table)
   {
-    error=0;
-    if (new_name != table_name || new_db != db)
+    switch (alter_info->keys_onoff) {
+    case LEAVE_AS_IS:
+      error= 0;
+      break;
+    case ENABLE:
+      VOID(pthread_mutex_lock(&LOCK_open));
+      wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
+      VOID(pthread_mutex_unlock(&LOCK_open));
+      error= table->file->enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
+      /* COND_refresh will be signaled in close_thread_tables() */
+      break;
+    case DISABLE:
+      VOID(pthread_mutex_lock(&LOCK_open));
+      wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
+      VOID(pthread_mutex_unlock(&LOCK_open));
+      error= table->file->disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
+      /* COND_refresh will be signaled in close_thread_tables() */
+      break;
+    }
+
+    if (error == HA_ERR_WRONG_COMMAND)
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+			  ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
+			  table->table_name);
+      error= 0;
+    }
+
+    if (!error && (new_name != table_name || new_db != db))
     {
       thd->proc_info="rename";
       VOID(pthread_mutex_lock(&LOCK_open));
@@ -2971,27 +2998,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       VOID(pthread_mutex_unlock(&LOCK_open));
     }
 
-    if (!error)
-    {
-      switch (alter_info->keys_onoff) {
-      case LEAVE_AS_IS:
-	break;
-      case ENABLE:
-	VOID(pthread_mutex_lock(&LOCK_open));
-	wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
-	VOID(pthread_mutex_unlock(&LOCK_open));
-	error= table->file->enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
-	/* COND_refresh will be signaled in close_thread_tables() */
-	break;
-      case DISABLE:
-	VOID(pthread_mutex_lock(&LOCK_open));
-	wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
-	VOID(pthread_mutex_unlock(&LOCK_open));
-	error=table->file->disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
-	/* COND_refresh will be signaled in close_thread_tables() */
-	break;
-      }
-    }
     if (error == HA_ERR_WRONG_COMMAND)
     {
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
@@ -2999,6 +3005,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 			  table->table_name);
       error=0;
     }
+
     if (!error)
     {
       mysql_update_log.write(thd, thd->query, thd->query_length);
