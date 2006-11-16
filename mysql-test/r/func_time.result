@@ -1047,6 +1047,9 @@ union
 (select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 HOUR)),'%k') As H);
 H
 5
+select last_day('0000-00-00');
+last_day('0000-00-00')
+NULL
 End of 4.1 tests
 explain extended select timestampdiff(SQL_TSI_WEEK, '2001-02-01', '2001-05-01') as a1,
 timestampdiff(SQL_TSI_FRAC_SECOND, '2001-02-01 12:59:59.120000', '2001-05-01 12:58:58.119999') as a2;
