@@ -1998,7 +1998,6 @@ void Item_func_in::fix_length_and_dec()
     if (cmp_type  == STRING_RESULT)
       in_item->cmp_charset= cmp_collation.collation;
   }
-  maybe_null= args[0]->maybe_null;
   max_length= 1;
 }
 
