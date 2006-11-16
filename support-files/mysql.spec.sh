@@ -194,6 +194,8 @@ necessary to develop MySQL client applications.
 %package shared
 Summary: MySQL - Shared libraries
 Group: Applications/Databases
+Provides: mysql-shared
+Obsoletes: mysql-shared
 
 %description shared
 This package contains the shared libraries (*.so*) which certain
@@ -751,6 +753,12 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Thu Nov 16 2006 Joerg Bruehe <joerg@mysql.com>
+
+- Explicitly note that the "MySQL-shared" RPMs (as built by MySQL AB) 
+  replace "mysql-shared" (as distributed by SuSE) to allow easy upgrading
+  (bug#22081).
+
 * Wed Nov 15 2006 Joerg Bruehe <joerg@mysql.com>
 
 - Switch from "make test*" to explicit calls of the test suite,
