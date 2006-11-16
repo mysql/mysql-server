@@ -1673,21 +1673,33 @@ String *Item_func_encrypt::val_str(String *str)
 void Item_func_encode::fix_length_and_dec()
 {
   max_length=args[0]->max_length;
-  maybe_null=args[0]->maybe_null;
+  maybe_null=args[0]->maybe_null || args[1]->maybe_null;
   collation.set(&my_charset_bin);
 }
 
 String *Item_func_encode::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
   String *res;
+  char pw_buff[80];
+  String tmp_pw_value(pw_buff, sizeof(pw_buff), system_charset_info);
+  String *password;
+  DBUG_ASSERT(fixed == 1);
+
   if (!(res=args[0]->val_str(str)))
   {
     null_value=1; /* purecov: inspected */
     return 0; /* purecov: inspected */
   }
+
+  if (!(password=args[1]->val_str(& tmp_pw_value)))
+  {
+    null_value=1;
+    return 0;
+  }
+
   null_value=0;
   res=copy_if_not_alloced(str,res,res->length());
+  SQL_CRYPT sql_crypt(password->ptr());
   sql_crypt.init();
   sql_crypt.encode((char*) res->ptr(),res->length());
   res->set_charset(&my_charset_bin);
@@ -1696,15 +1708,27 @@ String *Item_func_encode::val_str(String *str)
 
 String *Item_func_decode::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
   String *res;
+  char pw_buff[80];
+  String tmp_pw_value(pw_buff, sizeof(pw_buff), system_charset_info);
+  String *password;
+  DBUG_ASSERT(fixed == 1);
+
   if (!(res=args[0]->val_str(str)))
   {
     null_value=1; /* purecov: inspected */
     return 0; /* purecov: inspected */
   }
+
+  if (!(password=args[1]->val_str(& tmp_pw_value)))
+  {
+    null_value=1;
+    return 0;
+  }
+
   null_value=0;
   res=copy_if_not_alloced(str,res,res->length());
+  SQL_CRYPT sql_crypt(password->ptr());
   sql_crypt.init();
   sql_crypt.decode((char*) res->ptr(),res->length());
   return res;
@@ -1874,9 +1898,19 @@ String *Item_func_soundex::val_str(String *str)
 ** This should be 'internationalized' sometimes.
 */
 
-Item_func_format::Item_func_format(Item *org,int dec) :Item_str_func(org)
+const int FORMAT_MAX_DECIMALS= 30;
+
+Item_func_format::Item_func_format(Item *org, Item *dec)
+: Item_str_func(org, dec)
 {
-  decimals=(uint) set_zone(dec,0,30);
+}
+
+void Item_func_format::fix_length_and_dec()
+{
+  collation.set(default_charset());
+  uint char_length= args[0]->max_length/args[0]->collation.collation->mbmaxlen;
+  max_length= ((char_length + (char_length-args[0]->decimals)/3) *
+               collation.collation->mbmaxlen);
 }
 
 
@@ -1887,10 +1921,25 @@ Item_func_format::Item_func_format(Item *org,int dec) :Item_str_func(org)
 
 String *Item_func_format::val_str(String *str)
 {
-  uint32 length, str_length ,dec;
+  uint32 length;
+  uint32 str_length;
+  /* Number of decimal digits */
+  int dec;
+  /* Number of characters used to represent the decimals, including '.' */
+  uint32 dec_length;
   int diff;
   DBUG_ASSERT(fixed == 1);
-  dec= decimals ? decimals+1 : 0;
+
+  dec= args[1]->val_int();
+  if (args[1]->null_value)
+  {
+    null_value=1;
+    return NULL;
+  }
+
+  dec= set_zone(dec, 0, FORMAT_MAX_DECIMALS);
+  dec_length= dec ? dec+1 : 0;
+  null_value=0;
 
   if (args[0]->result_type() == DECIMAL_RESULT ||
       args[0]->result_type() == INT_RESULT)
@@ -1899,7 +1948,7 @@ String *Item_func_format::val_str(String *str)
     res= args[0]->val_decimal(&dec_val);
     if ((null_value=args[0]->null_value))
       return 0; /* purecov: inspected */
-    my_decimal_round(E_DEC_FATAL_ERROR, res, decimals, false, &rnd_dec);
+    my_decimal_round(E_DEC_FATAL_ERROR, res, dec, false, &rnd_dec);
     my_decimal2string(E_DEC_FATAL_ERROR, &rnd_dec, 0, 0, 0, str);
     str_length= str->length();
     if (rnd_dec.sign())
@@ -1910,9 +1959,9 @@ String *Item_func_format::val_str(String *str)
     double nr= args[0]->val_real();
     if ((null_value=args[0]->null_value))
       return 0; /* purecov: inspected */
-    nr= my_double_round(nr, decimals, FALSE);
+    nr= my_double_round(nr, dec, FALSE);
     /* Here default_charset() is right as this is not an automatic conversion */
-    str->set_real(nr,decimals, default_charset());
+    str->set_real(nr, dec, default_charset());
     if (isnan(nr))
       return str;
     str_length=str->length();
@@ -1920,13 +1969,13 @@ String *Item_func_format::val_str(String *str)
       str_length--;				// Don't count sign
   }
   /* We need this test to handle 'nan' values */
-  if (str_length >= dec+4)
+  if (str_length >= dec_length+4)
   {
     char *tmp,*pos;
-    length= str->length()+(diff=((int)(str_length- dec-1))/3);
+    length= str->length()+(diff=((int)(str_length- dec_length-1))/3);
     str= copy_if_not_alloced(&tmp_str,str,length);
     str->length(length);
-    tmp= (char*) str->ptr()+length - dec-1;
+    tmp= (char*) str->ptr()+length - dec_length-1;
     for (pos= (char*) str->ptr()+length-1; pos != tmp; pos--)
       pos[0]= pos[-diff];
     while (diff)
@@ -1950,12 +1999,8 @@ void Item_func_format::print(String *str)
 {
   str->append(STRING_WITH_LEN("format("));
   args[0]->print(str);
-  str->append(',');  
-  // my_charset_bin is good enough for numbers
-  char buffer[20];
-  String st(buffer, sizeof(buffer), &my_charset_bin);
-  st.set((ulonglong)decimals, &my_charset_bin);
-  str->append(st);
+  str->append(',');
+  args[1]->print(str);
   str->append(')');
 }
 

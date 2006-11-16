@@ -2612,15 +2612,8 @@ Create_func_benchmark Create_func_benchmark::s_singleton;
 Item*
 Create_func_benchmark::create(THD *thd, Item *arg1, Item *arg2)
 {
-  /* TODO: Known limitation, see Bug#22684 */
-  if ((arg1->type() != Item::INT_ITEM) || ! arg1->basic_const_item())
-  {
-    my_error(ER_WRONG_PARAMETERS_TO_NATIVE_FCT, MYF(0), "BENCHMARK");
-    return NULL;
-  }
-
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
-  return new (thd->mem_root) Item_func_benchmark(arg1->val_int(), arg2);
+  return new (thd->mem_root) Item_func_benchmark(arg1, arg2);
 }
 
 
@@ -2887,17 +2880,7 @@ Create_func_decode Create_func_decode::s_singleton;
 Item*
 Create_func_decode::create(THD *thd, Item *arg1, Item *arg2)
 {
-  /* TODO: Known limitation, see Bug#22684 */
-  if ((arg2->type() != Item::STRING_ITEM) || ! arg2->basic_const_item())
-  {
-    my_error(ER_WRONG_PARAMETERS_TO_NATIVE_FCT, MYF(0), "DECODE");
-    return NULL;
-  }
-
-  String dummy;
-  String *val = arg2->val_str(& dummy);
-  DBUG_ASSERT(val);
-  return new (thd->mem_root) Item_func_decode(arg1, val->c_ptr());
+  return new (thd->mem_root) Item_func_decode(arg1, arg2);
 }
 
 
@@ -3033,17 +3016,7 @@ Create_func_encode Create_func_encode::s_singleton;
 Item*
 Create_func_encode::create(THD *thd, Item *arg1, Item *arg2)
 {
-  /* TODO: Known limitation, see Bug#22684 */
-  if ((arg2->type() != Item::STRING_ITEM) || ! arg2->basic_const_item())
-  {
-    my_error(ER_WRONG_PARAMETERS_TO_NATIVE_FCT, MYF(0), "ENCODE");
-    return NULL;
-  }
-
-  String dummy;
-  String *val = arg2->val_str(& dummy);
-  DBUG_ASSERT(val);
-  return new (thd->mem_root) Item_func_encode(arg1, val->c_ptr());
+  return new (thd->mem_root) Item_func_encode(arg1, arg2);
 }
 
 
@@ -3235,14 +3208,7 @@ Create_func_format Create_func_format::s_singleton;
 Item*
 Create_func_format::create(THD *thd, Item *arg1, Item *arg2)
 {
-  /* TODO: Known limitation, see Bug#22684 */
-  if ((arg2->type() != Item::INT_ITEM) || ! arg2->basic_const_item())
-  {
-    my_error(ER_WRONG_PARAMETERS_TO_NATIVE_FCT, MYF(0), "FORMAT");
-    return NULL;
-  }
-
-  return new (thd->mem_root) Item_func_format(arg1, arg2->val_int());
+  return new (thd->mem_root) Item_func_format(arg1, arg2);
 }
 
 
