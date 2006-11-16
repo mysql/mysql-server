@@ -6578,9 +6578,9 @@ void Field_varstring::sql_type(String &res) const
 }
 
 
-uint32 Field_varstring::data_length(const char *from)
+uint32 Field_varstring::data_length()
 {
-  return length_bytes == 1 ? (uint) (uchar) *ptr : uint2korr(ptr);
+  return length_bytes == 1 ? (uint32) (uchar) *ptr : uint2korr(ptr);
 }
 
 /*
