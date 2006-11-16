@@ -1368,11 +1368,9 @@ bool get_interval_value(Item *args,interval_type int_type,
     interval->second= array[0];
     interval->second_part= array[1];
     break;
-    /* purecov: begin deadcode */
-  case INTERVAL_LAST:
-    DBUG_ASSERT(0);
-    break;
-    /* purecov: end */
+  case INTERVAL_LAST: /* purecov: begin deadcode */
+    DBUG_ASSERT(0); 
+    break;            /* purecov: end */
   }
   return 0;
 }
@@ -2199,7 +2197,7 @@ void Item_extract::fix_length_and_dec()
   case INTERVAL_HOUR_MICROSECOND: max_length=13; date_value=0; break;
   case INTERVAL_MINUTE_MICROSECOND: max_length=11; date_value=0; break;
   case INTERVAL_SECOND_MICROSECOND: max_length=9; date_value=0; break;
-  case INTERVAL_LAST: DBUG_ASSERT(0); break;    /* purecov: deadcode */
+  case INTERVAL_LAST: DBUG_ASSERT(0); break; /* purecov: deadcode */
   }
 }
 
@@ -2269,8 +2267,7 @@ longlong Item_extract::val_int()
 					    ltime.second_part)*neg;
   case INTERVAL_SECOND_MICROSECOND: return ((longlong)ltime.second*1000000L+
 					    ltime.second_part)*neg;
-  case INTERVAL_LAST: DBUG_ASSERT(0); return(0); /* purecov: deadcode */
-    /* purecov: end */
+  case INTERVAL_LAST: DBUG_ASSERT(0); break;  /* purecov: deadcode */
   }
   return 0;					// Impossible
 }
