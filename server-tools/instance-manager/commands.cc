@@ -242,10 +242,8 @@ int Flush_instances::execute(st_net *net, ulong connection_id)
  Implementation of Abstract_instance_cmd.
 **************************************************************************/
 
-Abstract_instance_cmd::Abstract_instance_cmd(
-  Instance_map *instance_map_arg, const LEX_STRING *instance_name_arg)
-  :Command(instance_map_arg),
-  instance_name(instance_name_arg)
+Abstract_instance_cmd::Abstract_instance_cmd(const LEX_STRING *instance_name_arg)
+  :instance_name(instance_name_arg)
 {
   /*
     MT-NOTE: we can not make a search for Instance object here,
@@ -285,9 +283,8 @@ int Abstract_instance_cmd::execute(st_net *net, ulong connection_id)
  Implementation of Show_instance_status.
 **************************************************************************/
 
-Show_instance_status::Show_instance_status(Instance_map *instance_map_arg,
-                                           const LEX_STRING *instance_name_arg)
-  :Abstract_instance_cmd(instance_map_arg, instance_name_arg)
+Show_instance_status::Show_instance_status(const LEX_STRING *instance_name_arg)
+  :Abstract_instance_cmd(instance_name_arg)
 {
 }
 
@@ -406,8 +403,8 @@ int Show_instance_status::write_data(st_net *net, Instance *instance)
 **************************************************************************/
 
 Show_instance_options::Show_instance_options(
-  Instance_map *instance_map_arg, const LEX_STRING *instance_name_arg)
-  :Abstract_instance_cmd(instance_map_arg, instance_name_arg)
+  const LEX_STRING *instance_name_arg)
+  :Abstract_instance_cmd(instance_name_arg)
 {
 }
 
@@ -501,9 +498,8 @@ int Show_instance_options::write_data(st_net *net, Instance *instance)
  Implementation of Start_instance.
 **************************************************************************/
 
-Start_instance::Start_instance(Instance_map *instance_map_arg,
-                               const LEX_STRING *instance_name_arg)
-  :Abstract_instance_cmd(instance_map_arg, instance_name_arg)
+Start_instance::Start_instance(const LEX_STRING *instance_name_arg)
+  :Abstract_instance_cmd(instance_name_arg)
 {
 }
 
@@ -543,9 +539,8 @@ int Start_instance::send_ok_response(st_net *net, ulong connection_id)
  Implementation of Stop_instance.
 **************************************************************************/
 
-Stop_instance::Stop_instance(Instance_map *instance_map_arg,
-                             const LEX_STRING *instance_name_arg)
-  :Abstract_instance_cmd(instance_map_arg, instance_name_arg)
+Stop_instance::Stop_instance(const LEX_STRING *instance_name_arg)
+  :Abstract_instance_cmd(instance_name_arg)
 {
 }
 
@@ -585,10 +580,8 @@ int Stop_instance::send_ok_response(st_net *net, ulong connection_id)
  Implementation for Create_instance.
 **************************************************************************/
 
-Create_instance::Create_instance(Instance_map *instance_map_arg,
-                                 const LEX_STRING *instance_name_arg)
-  :Command(instance_map_arg),
-  instance_name(instance_name_arg)
+Create_instance::Create_instance(const LEX_STRING *instance_name_arg)
+  :instance_name(instance_name_arg)
 {
 }
 
@@ -795,9 +788,8 @@ int Create_instance::execute(st_net *net, ulong connection_id)
  Implementation for Drop_instance.
 **************************************************************************/
 
-Drop_instance::Drop_instance(Instance_map *instance_map_arg,
-                             const LEX_STRING *instance_name_arg)
-  :Abstract_instance_cmd(instance_map_arg, instance_name_arg)
+Drop_instance::Drop_instance(const LEX_STRING *instance_name_arg)
+  :Abstract_instance_cmd(instance_name_arg)
 {
 }
 
@@ -863,11 +855,10 @@ int Drop_instance::send_ok_response(st_net *net, ulong connection_id)
  Implementation for Show_instance_log.
 **************************************************************************/
 
-Show_instance_log::Show_instance_log(Instance_map *instance_map_arg,
-                                     const LEX_STRING *instance_name_arg,
+Show_instance_log::Show_instance_log(const LEX_STRING *instance_name_arg,
                                      Log_type log_type_arg,
                                      uint size_arg, uint offset_arg)
-  :Abstract_instance_cmd(instance_map_arg, instance_name_arg),
+  :Abstract_instance_cmd(instance_name_arg),
   log_type(log_type_arg),
   size(size_arg),
   offset(offset_arg)
@@ -1013,9 +1004,8 @@ int Show_instance_log::write_data(st_net *net, Instance *instance)
 **************************************************************************/
 
 Show_instance_log_files::Show_instance_log_files
-              (Instance_map *instance_map_arg,
-               const LEX_STRING *instance_name_arg)
-  :Abstract_instance_cmd(instance_map_arg, instance_name_arg)
+              (const LEX_STRING *instance_name_arg)
+  :Abstract_instance_cmd(instance_name_arg)
 {
 }
 
@@ -1214,9 +1204,8 @@ C_MODE_END
 
 /**************************************************************************/
 
-Abstract_option_cmd::Abstract_option_cmd(Instance_map *instance_map_arg)
-  :Command(instance_map_arg),
-  initialized(FALSE)
+Abstract_option_cmd::Abstract_option_cmd()
+  :initialized(FALSE)
 {
 }
 
@@ -1400,12 +1389,6 @@ int Abstract_option_cmd::execute_impl(st_net *net, ulong connection_id)
  Implementation of Set_option.
 **************************************************************************/
 
-Set_option::Set_option(Instance_map *instance_map_arg)
-  :Abstract_option_cmd(instance_map_arg)
-{
-}
-
-
 /*
   This operation parses SET options.
 
@@ -1579,12 +1562,6 @@ int Set_option::process_option(Instance *instance, Named_value *option)
 /**************************************************************************
  Implementation of Unset_option.
 **************************************************************************/
-
-Unset_option::Unset_option(Instance_map *instance_map_arg)
-  :Abstract_option_cmd(instance_map_arg)
-{
-}
-
 
 /*
   This operation parses UNSET options.

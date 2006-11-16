@@ -18,6 +18,9 @@
 
 #include <my_global.h>
 #include <mysql_com.h>
+#include <my_sys.h>
+
+#include "log.h"
 
 #if defined(__ia64__) || defined(__ia64)
 /*
@@ -89,4 +92,33 @@ int set_stacksize_n_create_thread(pthread_t  *thread, pthread_attr_t *attr,
   if (!rc)
     rc= pthread_create(thread, attr, start_routine, arg);
   return rc;
+}
+
+
+int create_pid_file(const char *pid_file_name, int pid)
+{
+  FILE *pid_file;
+
+  if (!(pid_file= my_fopen(pid_file_name, O_WRONLY | O_CREAT | O_BINARY,
+                           MYF(0))))
+  {
+    log_error("Error: can not create pid file '%s': %s (errno: %d)",
+              (const char *) pid_file_name,
+              (const char *) strerror(errno),
+              (int) errno);
+    return 1;
+  }
+
+  if (fprintf(pid_file, "%d\n", (int) pid) <= 0)
+  {
+    log_error("Error: can not write to pid file '%s': %s (errno: %d)",
+              (const char *) pid_file_name,
+              (const char *) strerror(errno),
+              (int) errno);
+    return 1;
+  }
+
+  my_fclose(pid_file, MYF(0));
+
+  return 0;
 }

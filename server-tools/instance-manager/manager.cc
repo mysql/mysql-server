@@ -37,33 +37,6 @@
 #include "user_map.h"
 
 
-int create_pid_file(const char *pid_file_name, int pid)
-{
-  FILE *pid_file;
-
-  if (!(pid_file= my_fopen(pid_file_name, O_WRONLY | O_CREAT | O_BINARY,
-                           MYF(0))))
-  {
-    log_error("Error: can not create pid file '%s': %s (errno: %d)",
-              (const char *) pid_file_name,
-              (const char *) strerror(errno),
-              (int) errno);
-    return 1;
-  }
-
-  if (fprintf(pid_file, "%d\n", (int) pid) <= 0)
-  {
-    log_error("Error: can not write to pid file '%s': %s (errno: %d)",
-              (const char *) pid_file_name,
-              (const char *) strerror(errno),
-              (int) errno);
-    return 1;
-  }
-
-  my_fclose(pid_file, MYF(0));
-
-  return 0;
-}
 
 #ifndef __WIN__
 void set_signals(sigset_t *mask)
@@ -120,7 +93,7 @@ int my_sigwait(const sigset_t *set, int *sig)
 #endif
 
 
-void stop_all(Guardian_thread *guardian, Thread_registry *registry)
+void stop_all(Guardian *guardian, Thread_registry *registry)
 {
   /*
     Let guardian thread know that it should break it's processing cycle,
@@ -133,6 +106,13 @@ void stop_all(Guardian_thread *guardian, Thread_registry *registry)
   registry->deliver_shutdown();
 }
 
+/**********************************************************************
+  Manager implementation
+***********************************************************************/
+
+Guardian *Manager::p_guardian;
+Instance_map *Manager::p_instance_map;
+
 /*
   manager - entry point to the main instance manager process: start
   listener thread, write pid file and enter into signal handling.
@@ -142,9 +122,10 @@ void stop_all(Guardian_thread *guardian, Thread_registry *registry)
   TODO: how about returning error status.
 */
 
-void manager()
+int Manager::main()
 {
   int err_code;
+  int rc= 1;
   const char *err_msg;
   bool shutdown_complete= FALSE;
 
@@ -158,21 +139,21 @@ void manager()
   User_map user_map;
   Instance_map instance_map(Options::Main::default_mysqld_path,
                             thread_registry);
-  Guardian_thread guardian_thread(thread_registry,
-                                  &instance_map,
-                                  Options::Main::monitoring_interval);
+  Guardian guardian(thread_registry, &instance_map,
+                    Options::Main::monitoring_interval);
 
   Listener_thread_args listener_args(thread_registry, user_map, instance_map);
 
   manager_pid= getpid();
-  instance_map.guardian= &guardian_thread;
+  p_instance_map= &instance_map;
+  p_guardian= instance_map.guardian= &guardian;
 
   /* Initialize instance map. */
 
   if (instance_map.init())
   {
     log_error("Error: can not initialize instance list: out of memory.");
-    return;
+    return 1;
   }
 
   /* Initialize user map and load password file. */
@@ -180,7 +161,7 @@ void manager()
   if (user_map.init())
   {
     log_error("Error: can not initialize user list: out of memory.");
-    return;
+    return 1;
   }
 
   if ((err_code= user_map.load(Options::Main::password_file_name, &err_msg)))
@@ -199,7 +180,7 @@ void manager()
     else
     {
       log_error("Error: %s.", (const char *) err_msg);
-      return;
+      return 1;
     }
   }
 
@@ -210,7 +191,7 @@ void manager()
            (int) manager_pid);
 
   if (create_pid_file(Options::Main::pid_file_name, manager_pid))
-    return; /* necessary logging has been already done. */
+    return 1; /* necessary logging has been already done. */
 
   /*
     Initialize signals and alarm-infrastructure.
@@ -253,7 +234,7 @@ void manager()
     pthread_attr_init(&guardian_thd_attr);
     pthread_attr_setdetachstate(&guardian_thd_attr, PTHREAD_CREATE_DETACHED);
     rc= set_stacksize_n_create_thread(&guardian_thd_id, &guardian_thd_attr,
-                                      guardian, &guardian_thread);
+                                      guardian_thread_func, &guardian);
     pthread_attr_destroy(&guardian_thd_attr);
     if (rc)
     {
@@ -279,7 +260,7 @@ void manager()
       log_error("Cannot init instances repository. This might be caused by "
         "the wrong config file options. For instance, missing mysqld "
         "binary. Aborting.");
-      stop_all(&guardian_thread, &thread_registry);
+      stop_all(&guardian, &thread_registry);
       goto err;
     }
   }
@@ -298,7 +279,7 @@ void manager()
     if (rc)
     {
       log_error("manager(): set_stacksize_n_create_thread(listener) failed");
-      stop_all(&guardian_thread, &thread_registry);
+      stop_all(&guardian, &thread_registry);
       goto err;
     }
   }
@@ -307,7 +288,7 @@ void manager()
     After the list of guarded instances have been initialized,
     Guardian should start them.
   */
-  pthread_cond_signal(&guardian_thread.COND_guardian);
+  pthread_cond_signal(&guardian.COND_guardian);
 
   log_info("Main loop: started.");
 
@@ -319,7 +300,7 @@ void manager()
     if ((status= my_sigwait(&mask, &signo)) != 0)
     {
       log_error("sigwait() failed");
-      stop_all(&guardian_thread, &thread_registry);
+      stop_all(&guardian, &thread_registry);
       goto err;
     }
 
@@ -328,8 +309,8 @@ void manager()
         - we are waiting for SIGINT, SIGTERM -- signals that mean we should
           shutdown;
         - as shutdown signal is caught, we stop Guardian thread (by calling
-          Guardian_thread::request_shutdown());
-        - as Guardian_thread is stopped, it sends SIGTERM to this thread
+          Guardian::request_shutdown());
+        - as Guardian is stopped, it sends SIGTERM to this thread
           (by calling Thread_registry::request_shutdown()), so that the
           my_sigwait() above returns;
         - as we catch the second SIGTERM, we send signals to all threads
@@ -355,10 +336,10 @@ void manager()
     {
       log_info("Main loop: got shutdown signal.");
 
-      if (!guardian_thread.is_stopped())
+      if (!guardian.is_stopped())
       {
-        guardian_thread.request_shutdown();
-        pthread_cond_signal(&guardian_thread.COND_guardian);
+        guardian.request_shutdown();
+        pthread_cond_signal(&guardian.COND_guardian);
       }
       else
       {
@@ -370,6 +351,8 @@ void manager()
 
   log_info("Main loop: finished.");
 
+  rc= 0;
+
 err:
   /* delete the pid file */
   my_delete(Options::Main::pid_file_name, MYF(0));
@@ -379,4 +362,5 @@ err:
   end_thr_alarm(1);
   /* don't pthread_exit to kill all threads who did not shut down in time */
 #endif
+  return rc;
 }

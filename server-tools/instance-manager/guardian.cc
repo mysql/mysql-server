@@ -31,16 +31,16 @@
 #include "mysql_manager_error.h"
 
 
-pthread_handler_t guardian(void *arg)
+pthread_handler_t guardian_thread_func(void *arg)
 {
-  Guardian_thread *guardian_thread= (Guardian_thread *) arg;
-  guardian_thread->run();
+  Guardian *guardian= (Guardian *) arg;
+  guardian->run();
   return 0;
 }
 
 
 const char *
-Guardian_thread::get_instance_state_name(enum_instance_state state)
+Guardian::get_instance_state_name(enum_instance_state state)
 {
   switch (state) {
   case NOT_STARTED:
@@ -69,10 +69,10 @@ Guardian_thread::get_instance_state_name(enum_instance_state state)
 }
 
 
-Guardian_thread::Guardian_thread(Thread_registry &thread_registry_arg,
+Guardian::Guardian(Thread_registry &thread_registry_arg,
                                  Instance_map *instance_map_arg,
                                  uint monitoring_interval_arg) :
-  Guardian_thread_args(thread_registry_arg, instance_map_arg,
+  Guardian_args(thread_registry_arg, instance_map_arg,
                        monitoring_interval_arg),
   thread_info(pthread_self(), TRUE), guarded_instances(0)
 {
@@ -84,7 +84,7 @@ Guardian_thread::Guardian_thread(Thread_registry &thread_registry_arg,
 }
 
 
-Guardian_thread::~Guardian_thread()
+Guardian::~Guardian()
 {
   /* delay guardian destruction to the moment when no one needs it */
   pthread_mutex_lock(&LOCK_guardian);
@@ -95,7 +95,7 @@ Guardian_thread::~Guardian_thread()
 }
 
 
-void Guardian_thread::request_shutdown()
+void Guardian::request_shutdown()
 {
   pthread_mutex_lock(&LOCK_guardian);
   /* stop instances or just clean up Guardian repository */
@@ -105,7 +105,7 @@ void Guardian_thread::request_shutdown()
 }
 
 
-void Guardian_thread::process_instance(Instance *instance,
+void Guardian::process_instance(Instance *instance,
                                        GUARD_NODE *current_node,
                                        LIST **guarded_instances,
                                        LIST *node)
@@ -244,7 +244,7 @@ void Guardian_thread::process_instance(Instance *instance,
     is fine go and sleep for some time.
 */
 
-void Guardian_thread::run()
+void Guardian::run()
 {
   Instance *instance;
   LIST *node;
@@ -292,7 +292,7 @@ void Guardian_thread::run()
 }
 
 
-int Guardian_thread::is_stopped()
+int Guardian::is_stopped()
 {
   int var;
   pthread_mutex_lock(&LOCK_guardian);
@@ -307,10 +307,10 @@ int Guardian_thread::is_stopped()
   add all of the instances, which don't have 'nonguarded' option specified.
 
   SYNOPSYS
-    Guardian_thread::init()
+    Guardian::init()
 
   NOTE: The operation should be invoked with the following locks acquired:
-    - Guardian_thread;
+    - Guardian;
     - Instance_map;
 
   RETURN
@@ -318,7 +318,7 @@ int Guardian_thread::is_stopped()
     1 - error occured
 */
 
-int Guardian_thread::init()
+int Guardian::init()
 {
   Instance *instance;
   Instance_map::Iterator iterator(instance_map);
@@ -360,7 +360,7 @@ int Guardian_thread::init()
     1 - error occured
 */
 
-int Guardian_thread::guard(Instance *instance, bool nolock)
+int Guardian::guard(Instance *instance, bool nolock)
 {
   LIST *node;
   GUARD_NODE *content;
@@ -397,7 +397,7 @@ int Guardian_thread::guard(Instance *instance, bool nolock)
   a piece of the MEM_ROOT).
 */
 
-int Guardian_thread::stop_guard(Instance *instance)
+int Guardian::stop_guard(Instance *instance)
 {
   LIST *node;
 
@@ -434,7 +434,7 @@ int Guardian_thread::stop_guard(Instance *instance)
     1 - error occured
 */
 
-int Guardian_thread::stop_instances()
+int Guardian::stop_instances()
 {
   LIST *node;
   node= guarded_instances;
@@ -462,19 +462,19 @@ int Guardian_thread::stop_instances()
 }
 
 
-void Guardian_thread::lock()
+void Guardian::lock()
 {
   pthread_mutex_lock(&LOCK_guardian);
 }
 
 
-void Guardian_thread::unlock()
+void Guardian::unlock()
 {
   pthread_mutex_unlock(&LOCK_guardian);
 }
 
 
-LIST *Guardian_thread::find_instance_node(Instance *instance)
+LIST *Guardian::find_instance_node(Instance *instance)
 {
   LIST *node= guarded_instances;
 
@@ -494,7 +494,7 @@ LIST *Guardian_thread::find_instance_node(Instance *instance)
 }
 
 
-bool Guardian_thread::is_active(Instance *instance)
+bool Guardian::is_active(Instance *instance)
 {
   bool guarded;
 
