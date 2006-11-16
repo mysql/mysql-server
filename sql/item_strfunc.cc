@@ -80,6 +80,20 @@ String *Item_str_func::check_well_formed_result(String *str)
 }
 
 
+bool Item_str_func::fix_fields(THD *thd, Item **ref)
+{
+  bool res= Item_func::fix_fields(thd, ref);
+  /*
+    In Item_str_func::check_well_formed_result() we may set null_value
+    flag on the same condition as in test() below.
+  */
+  maybe_null= (maybe_null ||
+               test(thd->variables.sql_mode &
+                    (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)));
+  return res;
+}
+
+
 my_decimal *Item_str_func::val_decimal(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed == 1);
