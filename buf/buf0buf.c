@@ -206,10 +206,12 @@ static const int WAIT_FOR_READ	= 20000;
 
 buf_pool_t*	buf_pool = NULL; /* The buffer buf_pool of the database */
 
-#ifdef UNIV_DEBUG
-ulint		buf_dbg_counter	= 0; /* This is used to insert validation
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+static ulint	buf_dbg_counter	= 0; /* This is used to insert validation
 					operations in excution in the
 					debug version */
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+#ifdef UNIV_DEBUG
 ibool		buf_debug_prints = FALSE; /* If this is set TRUE,
 					the program prints info whenever
 					read-ahead or flush occurs */
@@ -1349,13 +1351,9 @@ loop:
 
 		buf_read_page(space, fil_space_get_zip_size(space), offset);
 
-#ifdef UNIV_DEBUG
-		buf_dbg_counter++;
-
-		if (buf_dbg_counter % 37 == 0) {
-			ut_ad(buf_validate());
-		}
-#endif
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+		ut_a(++buf_dbg_counter % 37 || buf_validate());
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 		goto loop;
 	}
 
@@ -1399,15 +1397,11 @@ loop:
 	ut_a(block->file_page_was_freed == FALSE);
 #endif
 
-#ifdef UNIV_DEBUG
-	buf_dbg_counter++;
-
-	if (buf_dbg_counter % 5771 == 0) {
-		ut_ad(buf_validate());
-	}
-#endif
-	ut_ad(block->buf_fix_count > 0);
-	ut_ad(block->state == BUF_BLOCK_FILE_PAGE);
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+	ut_a(++buf_dbg_counter % 5771 || buf_validate());
+	ut_a(block->buf_fix_count > 0);
+	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 	if (mode == BUF_GET_NOWAIT) {
 		if (rw_latch == RW_S_LATCH) {
@@ -1581,15 +1575,11 @@ buf_page_optimistic_get_func(
 
 	mtr_memo_push(mtr, block, fix_type);
 
-#ifdef UNIV_DEBUG
-	buf_dbg_counter++;
-
-	if (buf_dbg_counter % 5771 == 0) {
-		ut_ad(buf_validate());
-	}
-#endif
-	ut_ad(block->buf_fix_count > 0);
-	ut_ad(block->state == BUF_BLOCK_FILE_PAGE);
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+	ut_a(++buf_dbg_counter % 5771 || buf_validate());
+	ut_a(block->buf_fix_count > 0);
+	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 #ifdef UNIV_DEBUG_FILE_ACCESSES
 	ut_a(block->file_page_was_freed == FALSE);
@@ -1689,15 +1679,11 @@ buf_page_get_known_nowait(
 
 	mtr_memo_push(mtr, block, fix_type);
 
-#ifdef UNIV_DEBUG
-	buf_dbg_counter++;
-
-	if (buf_dbg_counter % 5771 == 0) {
-		ut_ad(buf_validate());
-	}
-#endif
-	ut_ad(block->buf_fix_count > 0);
-	ut_ad(block->state == BUF_BLOCK_FILE_PAGE);
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+	ut_a(++buf_dbg_counter % 5771 || buf_validate());
+	ut_a(block->buf_fix_count > 0);
+	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #ifdef UNIV_DEBUG_FILE_ACCESSES
 	ut_a(block->file_page_was_freed == FALSE);
 #endif
@@ -1797,12 +1783,12 @@ buf_page_init(
 			" in the hash table\n",
 			(ulong) space,
 			(ulong) offset);
-#ifdef UNIV_DEBUG
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 		buf_print();
 		buf_LRU_print();
 		buf_validate();
 		buf_LRU_validate();
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 		ut_error;
 	}
 
@@ -2043,13 +2029,9 @@ buf_page_create(
 
 	memset(frame + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
 
-#ifdef UNIV_DEBUG
-	buf_dbg_counter++;
-
-	if (buf_dbg_counter % 357 == 0) {
-		ut_ad(buf_validate());
-	}
-#endif
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+	ut_a(++buf_dbg_counter % 357 || buf_validate());
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #ifdef UNIV_IBUF_DEBUG
 	ut_a(ibuf_count_get(block->space, block->offset) == 0);
 #endif
@@ -2301,7 +2283,7 @@ buf_pool_invalidate(void)
 	mutex_exit(&(buf_pool->mutex));
 }
 
-#ifdef UNIV_DEBUG
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /*************************************************************************
 Validates the buffer buf_pool data structure. */
 
@@ -2412,9 +2394,9 @@ buf_validate(void)
 
 	return(TRUE);
 }
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
-#if defined UNIV_DEBUG || defined UNIV_DEBUG_PRINT
+#if defined UNIV_DEBUG_PRINT || defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /*************************************************************************
 Prints info of the buffer buf_pool data structure. */
 
@@ -2521,9 +2503,9 @@ buf_print(void)
 	mem_free(index_ids);
 	mem_free(counts);
 
-	ut_ad(buf_validate());
+	ut_a(buf_validate());
 }
-#endif /* UNIV_DEBUG || UNIV_DEBUG_PRINT */
+#endif /* UNIV_DEBUG_PRINT || UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 /*************************************************************************
 Returns the number of latched pages in the buffer pool. */
