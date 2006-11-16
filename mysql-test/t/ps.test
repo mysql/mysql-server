@@ -2414,3 +2414,38 @@ execute abc;
 drop table if exists t1, t2;
 execute abc;
 deallocate prepare abc;
+
+#
+# Bug#22684: The Functions ENCODE, DECODE and FORMAT are not real functions
+#
+
+set @my_password="password";
+set @my_data="clear text to encode";
+
+prepare stmt1 from 'select decode(encode(?, ?), ?)';
+execute stmt1 using @my_data, @my_password, @my_password;
+set @my_data="more text to encode";
+execute stmt1 using @my_data, @my_password, @my_password;
+set @my_password="new password";
+execute stmt1 using @my_data, @my_password, @my_password;
+deallocate prepare stmt1;
+
+set @to_format="123456789.123456789";
+set @dec=0;
+
+prepare stmt2 from 'select format(?, ?)';
+execute stmt2 using @to_format, @dec;
+set @dec=4;
+execute stmt2 using @to_format, @dec;
+set @dec=6;
+execute stmt2 using @to_format, @dec;
+set @dec=2;
+execute stmt2 using @to_format, @dec;
+set @to_format="100";
+execute stmt2 using @to_format, @dec;
+set @to_format="1000000";
+execute stmt2 using @to_format, @dec;
+set @to_format="10000";
+execute stmt2 using @to_format, @dec;
+deallocate prepare stmt2;
+
