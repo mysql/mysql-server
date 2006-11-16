@@ -2391,3 +2391,49 @@ Level	Code	Message
 Note	1051	Unknown table 't1'
 Note	1051	Unknown table 't2'
 deallocate prepare abc;
+set @my_password="password";
+set @my_data="clear text to encode";
+prepare stmt1 from 'select decode(encode(?, ?), ?)';
+execute stmt1 using @my_data, @my_password, @my_password;
+decode(encode(?, ?), ?)
+clear text to encode
+set @my_data="more text to encode";
+execute stmt1 using @my_data, @my_password, @my_password;
+decode(encode(?, ?), ?)
+more text to encode
+set @my_password="new password";
+execute stmt1 using @my_data, @my_password, @my_password;
+decode(encode(?, ?), ?)
+more text to encode
+deallocate prepare stmt1;
+set @to_format="123456789.123456789";
+set @dec=0;
+prepare stmt2 from 'select format(?, ?)';
+execute stmt2 using @to_format, @dec;
+format(?, ?)
+123,456,789
+set @dec=4;
+execute stmt2 using @to_format, @dec;
+format(?, ?)
+123,456,789.1235
+set @dec=6;
+execute stmt2 using @to_format, @dec;
+format(?, ?)
+123,456,789.123457
+set @dec=2;
+execute stmt2 using @to_format, @dec;
+format(?, ?)
+123,456,789.12
+set @to_format="100";
+execute stmt2 using @to_format, @dec;
+format(?, ?)
+100.00
+set @to_format="1000000";
+execute stmt2 using @to_format, @dec;
+format(?, ?)
+1,000,000.00
+set @to_format="10000";
+execute stmt2 using @to_format, @dec;
+format(?, ?)
+10,000.00
+deallocate prepare stmt2;

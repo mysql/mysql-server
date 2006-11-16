@@ -361,11 +361,9 @@ public:
 
 class Item_func_encode :public Item_str_func
 {
- protected:
-  SQL_CRYPT sql_crypt;
 public:
-  Item_func_encode(Item *a, char *seed):
-    Item_str_func(a),sql_crypt(seed) {}
+  Item_func_encode(Item *a, Item *seed):
+    Item_str_func(a, seed) {}
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "encode"; }
@@ -375,7 +373,7 @@ public:
 class Item_func_decode :public Item_func_encode
 {
 public:
-  Item_func_decode(Item *a, char *seed): Item_func_encode(a,seed) {}
+  Item_func_decode(Item *a, Item *seed): Item_func_encode(a, seed) {}
   String *val_str(String *);
   const char *func_name() const { return "decode"; }
 };
@@ -508,15 +506,9 @@ class Item_func_format :public Item_str_func
 {
   String tmp_str;
 public:
-  Item_func_format(Item *org,int dec);
+  Item_func_format(Item *org, Item *dec);
   String *val_str(String *);
-  void fix_length_and_dec()
-  {
-    collation.set(default_charset());
-    uint char_length= args[0]->max_length/args[0]->collation.collation->mbmaxlen;
-    max_length= ((char_length + (char_length-args[0]->decimals)/3) *
-                 collation.collation->mbmaxlen);
-  }
+  void fix_length_and_dec();
   const char *func_name() const { return "format"; }
   void print(String *);
 };
