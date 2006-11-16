@@ -543,3 +543,14 @@ ERROR 3D000: No database selected
 alter table test.t1 rename test.t1;
 use test;
 drop table t1;
+DROP TABLE IF EXISTS bug24219;
+DROP TABLE IF EXISTS bug24219_2;
+CREATE TABLE bug24219 (a INT, INDEX(a));
+SHOW INDEX FROM bug24219;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+bug24219	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+ALTER TABLE bug24219 RENAME TO bug24219_2, DISABLE KEYS;
+SHOW INDEX FROM bug24219_2;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+bug24219_2	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled
+DROP TABLE bug24219_2;
