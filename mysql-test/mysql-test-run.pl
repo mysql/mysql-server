@@ -669,9 +669,9 @@ sub command_line_setup () {
   #
 
   # Look for the client binaries
-  $path_client_bindir= mtr_path_exists(vs_config_dirs('client', ''),
-				       "$glob_basedir/client_release",
+  $path_client_bindir= mtr_path_exists("$glob_basedir/client_release",
 				       "$glob_basedir/client_debug",
+				       vs_config_dirs('client', ''),
 				       "$glob_basedir/client",
 				       "$glob_basedir/bin");
 
