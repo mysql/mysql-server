@@ -153,7 +153,7 @@ public:
   /*
     data_length() return the "real size" of the data in memory.
   */
-  virtual uint32 data_length(const char *from) { return pack_length(); }
+  virtual uint32 data_length() { return pack_length(); }
   virtual uint32 sort_length() const { return pack_length(); }
   virtual void reset(void) { bzero(ptr,pack_length()); }
   virtual void reset_fields() {}
@@ -239,7 +239,7 @@ public:
    */
   my_size_t last_null_byte() const {
     my_size_t bytes= do_last_null_byte();
-    DBUG_PRINT("debug", ("last_null_byte() ==> %d", bytes));
+    DBUG_PRINT("debug", ("last_null_byte() ==> %d", (uint32)bytes));
     DBUG_ASSERT(bytes <= table->s->null_bytes);
     return bytes;
   }
@@ -1167,7 +1167,7 @@ public:
   int key_cmp(const byte *str, uint length);
   uint packed_col_length(const char *to, uint length);
   uint max_packed_col_length(uint max_length);
-  uint32 data_length(const char *from);
+  uint32 data_length();
   uint size_of() const { return sizeof(*this); }
   enum_field_types real_type() const { return MYSQL_TYPE_VARCHAR; }
   bool has_charset(void) const
