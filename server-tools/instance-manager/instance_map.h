@@ -25,7 +25,7 @@
 #pragma interface
 #endif
 
-class Guardian_thread;
+class Guardian;
 class Instance;
 class Named_value_arr;
 class Thread_registry;
@@ -115,13 +115,13 @@ public:
     MT-NOTE: the options must be called under acquired locks of the following
     objects:
       - Instance_map;
-      - Guardian_thread;
+      - Guardian;
   */
   const char *get_instance_state_name(Instance *instance);
 
 public:
   const char *mysqld_path;
-  Guardian_thread *guardian;
+  Guardian *guardian;
 
 private:
   /* loads options from config files */

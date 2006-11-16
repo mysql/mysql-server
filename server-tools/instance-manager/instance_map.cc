@@ -276,7 +276,7 @@ void Instance_map::unlock()
     FLUSH INSTANCES without prior stop of all running instances.
 
   NOTE: The operation should be invoked with the following locks acquired:
-    - Guardian_thread;
+    - Guardian;
     - Instance_map;
 */
 
@@ -537,7 +537,7 @@ const char *Instance_map::get_instance_state_name(Instance *instance)
   {
     /* The instance is managed by Guardian: we can report precise state. */
 
-    return Guardian_thread::get_instance_state_name(
+    return Guardian::get_instance_state_name(
       guardian->get_instance_state(instance_node));
   }
 

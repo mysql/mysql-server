@@ -61,6 +61,8 @@ client_settings.h:
 
 libexec_PROGRAMS= mysqlmanager
 
+mysqlmanager_CXXFLAGS=  -Werror
+
 mysqlmanager_SOURCES=	command.cc command.h mysqlmanager.cc \
 			manager.h manager.cc log.h log.cc \
 			thread_registry.h thread_registry.cc \

@@ -31,15 +31,15 @@ class Instance_map;
 class Thread_registry;
 struct GUARD_NODE;
 
-pthread_handler_t guardian(void *arg);
+pthread_handler_t guardian_thread_func(void *arg);
 
-struct Guardian_thread_args
+struct Guardian_args
 {
   Thread_registry &thread_registry;
   Instance_map *instance_map;
   int monitoring_interval;
 
-  Guardian_thread_args(Thread_registry &thread_registry_arg,
+  Guardian_args(Thread_registry &thread_registry_arg,
                        Instance_map *instance_map_arg,
                        uint monitoring_interval_arg) :
     thread_registry(thread_registry_arg),
@@ -54,7 +54,7 @@ struct Guardian_thread_args
   instances.
 */
 
-class Guardian_thread: public Guardian_thread_args
+class Guardian: public Guardian_args
 {
 public:
   /* states of an instance */
@@ -82,10 +82,10 @@ public:
   /* Return client state name. */
   static const char *get_instance_state_name(enum_instance_state state);
 
-  Guardian_thread(Thread_registry &thread_registry_arg,
+  Guardian(Thread_registry &thread_registry_arg,
                   Instance_map *instance_map_arg,
                   uint monitoring_interval_arg);
-  ~Guardian_thread();
+  ~Guardian();
   /* Main funtion of the thread */
   void run();
   /* Initialize or refresh the list of guarded instances */
@@ -140,8 +140,8 @@ private:
 };
 
 
-inline Guardian_thread::enum_instance_state
-Guardian_thread::get_instance_state(LIST *instance_node)
+inline Guardian::enum_instance_state
+Guardian::get_instance_state(LIST *instance_node)
 {
   return ((GUARD_NODE *) instance_node->data)->state;
 }

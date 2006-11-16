@@ -101,6 +101,7 @@ public:
                  pthread_mutex_t *mutex);
   int cond_timedwait(Thread_info *info, pthread_cond_t *cond,
                      pthread_mutex_t *mutex, struct timespec *wait_time);
+
 private:
   void interrupt_threads();
   void wait_for_threads_to_unregister();
@@ -111,6 +112,10 @@ private:
   pthread_mutex_t LOCK_thread_registry;
   pthread_cond_t COND_thread_registry_is_empty;
   pthread_t sigwait_thread_pid;
+
+private:
+  Thread_registry(const Thread_registry &);
+  Thread_registry &operator =(const Thread_registry &);
 };
 
 
