@@ -295,6 +295,7 @@ buf_reset_check_index_page_at_flush(
 /*================================*/
 	ulint	space,	/* in: space id */
 	ulint	offset);/* in: page number */
+#ifdef UNIV_DEBUG_FILE_ACCESSES
 /************************************************************************
 Sets file_page_was_freed TRUE if the page is found in the buffer pool.
 This function should be called when we free a file page and want the
@@ -307,7 +308,7 @@ buf_page_set_file_page_was_freed(
 			/* out: control block if found from page hash table,
 			otherwise NULL */
 	ulint	space,	/* in: space id */
-	ulint	offset);	/* in: page number */
+	ulint	offset);/* in: page number */
 /************************************************************************
 Sets file_page_was_freed FALSE if the page is found in the buffer pool.
 This function should be called when we free a file page and want the
@@ -321,6 +322,7 @@ buf_page_reset_file_page_was_freed(
 			otherwise NULL */
 	ulint	space,	/* in: space id */
 	ulint	offset);	/* in: page number */
+#endif /* UNIV_DEBUG_FILE_ACCESSES */
 /************************************************************************
 Recommends a move of a block to the start of the LRU list if there is danger
 of dropping from the buffer pool. NOTE: does not reserve the buffer pool
@@ -821,9 +823,11 @@ struct buf_block_struct{
 					an s-latch here; so we can use the
 					debug utilities in sync0rw */
 #endif
+#ifdef UNIV_DEBUG_FILE_ACCESSES
 	ibool		file_page_was_freed;
 					/* this is set to TRUE when fsp
 					frees a page in buffer pool */
+#endif /* UNIV_DEBUG_FILE_ACCESSES */
 };
 
 #define BUF_BLOCK_MAGIC_N	41526563
