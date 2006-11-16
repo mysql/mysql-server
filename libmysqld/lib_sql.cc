@@ -94,7 +94,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   mysql->affected_rows= ~(my_ulonglong) 0;
   mysql->field_count= 0;
   net->last_errno= 0;
-  mysql->current_stmt= stmt;
+  thd->current_stmt= stmt;
 
   thd->store_globals();				// Fix if more than one connect
   /* 
@@ -644,8 +644,8 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
     DBUG_RETURN(0);
 
   field_count= list->elements;
-  field_alloc= mysql->current_stmt ? &mysql->current_stmt->mem_root :
-                                     &mysql->field_alloc;
+  field_alloc= thd->current_stmt ? &thd->current_stmt->mem_root :
+                                   &mysql->field_alloc;
   if (!(client_field= mysql->fields= 
 	(MYSQL_FIELD *)alloc_root(field_alloc, 
 				  sizeof(MYSQL_FIELD) * field_count)))
@@ -751,8 +751,8 @@ bool Protocol_prep::write()
   {
     MYSQL *mysql= thd->mysql;
 
-    if (mysql->current_stmt)
-      data= &mysql->current_stmt->result;
+    if (thd->current_stmt)
+      data= &thd->current_stmt->result;
     else
     {
       if (!(data= (MYSQL_DATA*) my_malloc(sizeof(MYSQL_DATA),
