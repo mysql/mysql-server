@@ -933,12 +933,12 @@ buf_LRU_block_remove_hashed_page(
 				(void*) block);
 		}
 
-#ifdef UNIV_DEBUG
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 		buf_print();
 		buf_LRU_print();
 		buf_validate();
 		buf_LRU_validate();
-#endif
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 		ut_error;
 	}
 
@@ -971,7 +971,7 @@ buf_LRU_block_free_hashed_page(
 	buf_LRU_block_free_non_file_page(block);
 }
 
-#ifdef UNIV_DEBUG
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**************************************************************************
 Validates the LRU list. */
 
@@ -1043,9 +1043,9 @@ buf_LRU_validate(void)
 	mutex_exit(&(buf_pool->mutex));
 	return(TRUE);
 }
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
-#if defined UNIV_DEBUG || defined UNIV_DEBUG_PRINT
+#if defined UNIV_DEBUG_PRINT || defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**************************************************************************
 Prints the LRU list. */
 
@@ -1098,4 +1098,4 @@ buf_LRU_print(void)
 
 	mutex_exit(&(buf_pool->mutex));
 }
-#endif /* UNIV_DEBUG || UNIV_DEBUG_PRINT */
+#endif /* UNIV_DEBUG_PRINT || UNIV_DEBUG || UNIV_BUF_DEBUG */

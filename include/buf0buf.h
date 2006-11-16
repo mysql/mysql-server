@@ -425,20 +425,22 @@ buf_block_get_lock_hash_val(
 					/* out: lock hash value */
 	const buf_block_t*	block)	/* in: block */
 	__attribute__((const));
-#ifdef UNIV_DEBUG
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /*************************************************************************
 Validates the buffer pool data structure. */
 
 ibool
 buf_validate(void);
 /*==============*/
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+#if defined UNIV_DEBUG_PRINT || defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /*************************************************************************
 Prints info of the buffer pool data structure. */
 
 void
 buf_print(void);
 /*============*/
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_DEBUG_PRINT || UNIV_DEBUG || UNIV_BUF_DEBUG */
 /************************************************************************
 Prints a page to stderr. */
 
