@@ -782,22 +782,6 @@ DROP TABLE t1,t2;
 
 
 #
-# BUG#17047: CHAR() and IN() can return NULL without signaling NULL
-# result
-#
-SET @orig_sql_mode = @@SQL_MODE;
-SET SQL_MODE=traditional;
-
-SELECT CHAR(0xff,0x8f USING utf8);
-SELECT CHAR(0xff,0x8f USING utf8) IS NULL;
-
-SET SQL_MODE=@orig_sql_mode;
-
-
---echo End of 5.0 tests
-
-
-#
 # Bug #10963
 # 4294967296 18446744073709551616
 
@@ -987,4 +971,17 @@ select lpad('hello', -18446744073709551617, '1');
 select lpad('hello', 18446744073709551617, '1');
 
 
---echo End of 5.1 tests
+#
+# BUG#17047: CHAR() and IN() can return NULL without signaling NULL
+# result
+#
+SET @orig_sql_mode = @@SQL_MODE;
+SET SQL_MODE=traditional;
+
+SELECT CHAR(0xff,0x8f USING utf8);
+SELECT CHAR(0xff,0x8f USING utf8) IS NULL;
+
+SET SQL_MODE=@orig_sql_mode;
+
+
+--echo End of 5.0 tests
