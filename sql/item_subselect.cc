@@ -391,6 +391,15 @@ enum Item_result Item_singlerow_subselect::result_type() const
   return engine->type();
 }
 
+/* 
+ Don't rely on the result type to calculate field type. 
+ Ask the engine instead.
+*/
+enum_field_types Item_singlerow_subselect::field_type() const
+{
+  return engine->field_type();
+}
+
 void Item_singlerow_subselect::fix_length_and_dec()
 {
   if ((max_columns= engine->cols()) == 1)
@@ -667,6 +676,7 @@ double Item_in_subselect::val_real()
   */
   DBUG_ASSERT(0);
   DBUG_ASSERT(fixed == 1);
+  null_value= 0;
   if (exec())
   {
     reset();
@@ -687,6 +697,7 @@ longlong Item_in_subselect::val_int()
   */
   DBUG_ASSERT(0);
   DBUG_ASSERT(fixed == 1);
+  null_value= 0;
   if (exec())
   {
     reset();
@@ -707,6 +718,7 @@ String *Item_in_subselect::val_str(String *str)
   */
   DBUG_ASSERT(0);
   DBUG_ASSERT(fixed == 1);
+  null_value= 0;
   if (exec())
   {
     reset();
@@ -1499,32 +1511,36 @@ int subselect_uniquesubquery_engine::prepare()
   return 1;
 }
 
-static Item_result set_row(List<Item> &item_list, Item *item,
-			   Item_cache **row, bool *maybe_null)
+/* 
+ makes storage for the output values for the subquery and calcuates 
+ their data and column types and their nullability.
+*/ 
+void subselect_engine::set_row(List<Item> &item_list, Item_cache **row)
 {
-  Item_result res_type= STRING_RESULT;
   Item *sel_item;
   List_iterator_fast<Item> li(item_list);
+  res_type= STRING_RESULT;
+  res_field_type= FIELD_TYPE_VAR_STRING;
   for (uint i= 0; (sel_item= li++); i++)
   {
     item->max_length= sel_item->max_length;
     res_type= sel_item->result_type();
+    res_field_type= sel_item->field_type();
     item->decimals= sel_item->decimals;
     item->unsigned_flag= sel_item->unsigned_flag;
     *maybe_null= sel_item->maybe_null;
     if (!(row[i]= Item_cache::get_cache(res_type)))
-      return STRING_RESULT; // we should return something
+      return;
     row[i]->setup(sel_item);
   }
   if (item_list.elements > 1)
     res_type= ROW_RESULT;
-  return res_type;
 }
 
 void subselect_single_select_engine::fix_length_and_dec(Item_cache **row)
 {
   DBUG_ASSERT(row || select_lex->item_list.elements==1);
-  res_type= set_row(select_lex->item_list, item, row, &maybe_null);
+  set_row(select_lex->item_list, row);
   item->collation.set(row[0]->collation);
   if (cols() != 1)
     maybe_null= 0;
@@ -1536,13 +1552,14 @@ void subselect_union_engine::fix_length_and_dec(Item_cache **row)
 
   if (unit->first_select()->item_list.elements == 1)
   {
-    res_type= set_row(unit->types, item, row, &maybe_null);
+    set_row(unit->types, row);
     item->collation.set(row[0]->collation);
   }
   else
   {
-    bool fake= 0;
-    res_type= set_row(unit->types, item, row, &fake);
+    bool maybe_null_saved= maybe_null;
+    set_row(unit->types, row);
+    maybe_null= maybe_null_saved;
   }
 }
 
