@@ -3390,18 +3390,28 @@ longlong Item_func_benchmark::val_int()
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff,sizeof(buff), &my_charset_bin);
   THD *thd=current_thd;
+  ulong loop_count;
 
+  loop_count= args[0]->val_int();
+
+  if (args[0]->null_value)
+  {
+    null_value= 1;
+    return 0;
+  }
+
+  null_value=0;
   for (ulong loop=0 ; loop < loop_count && !thd->killed; loop++)
   {
-    switch (args[0]->result_type()) {
+    switch (args[1]->result_type()) {
     case REAL_RESULT:
-      (void) args[0]->val_real();
+      (void) args[1]->val_real();
       break;
     case INT_RESULT:
-      (void) args[0]->val_int();
+      (void) args[1]->val_int();
       break;
     case STRING_RESULT:
-      (void) args[0]->val_str(&tmp);
+      (void) args[1]->val_str(&tmp);
       break;
     case ROW_RESULT:
     default:
@@ -3417,13 +3427,9 @@ longlong Item_func_benchmark::val_int()
 void Item_func_benchmark::print(String *str)
 {
   str->append(STRING_WITH_LEN("benchmark("));
-  char buffer[20];
-  // my_charset_bin is good enough for numbers
-  String st(buffer, sizeof(buffer), &my_charset_bin);
-  st.set((ulonglong)loop_count, &my_charset_bin);
-  str->append(st);
-  str->append(',');
   args[0]->print(str);
+  str->append(',');
+  args[1]->print(str);
   str->append(')');
 }
 
