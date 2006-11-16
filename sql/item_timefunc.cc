@@ -3369,7 +3369,8 @@ String *Item_func_str_to_date::val_str(String *str)
 
 bool Item_func_last_day::get_date(TIME *ltime, uint fuzzy_date)
 {
-  if (get_arg0_date(ltime, fuzzy_date & ~TIME_FUZZY_DATE))
+  if (get_arg0_date(ltime, fuzzy_date & ~TIME_FUZZY_DATE) ||
+      (ltime->month == 0))
     return 1;
   uint month_idx= ltime->month-1;
   ltime->day= days_in_month[month_idx];
