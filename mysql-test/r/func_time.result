@@ -815,4 +815,7 @@ union
 (select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 HOUR)),'%k') As H);
 H
 5
+select last_day('0000-00-00');
+last_day('0000-00-00')
+NULL
 End of 4.1 tests
