@@ -3246,7 +3246,11 @@ bool Item_func_last_day::get_date(TIME *ltime, uint fuzzy_date)
 {
   if (get_arg0_date(ltime, fuzzy_date & ~TIME_FUZZY_DATE) ||
       (ltime->month == 0))
+  {
+    null_value= 1;
     return 1;
+  }
+  null_value= 0;
   uint month_idx= ltime->month-1;
   ltime->day= days_in_month[month_idx];
   if ( month_idx == 1 && calc_days_in_year(ltime->year) == 366)
