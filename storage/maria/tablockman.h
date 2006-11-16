@@ -33,44 +33,44 @@
   LSIX - Loose Shared + Intention eXclusive
 */
 #ifndef _lockman_h
-enum lock_type { N, S, X, IS, IX, SIX, LS, LX, SLX, LSIX };
+#warning TODO remove N-locks
+enum lock_type { N, S, X, IS, IX, SIX, LS, LX, SLX, LSIX, LOCK_TYPE_LAST };
 enum lockman_getlock_result {
-  DIDNT_GET_THE_LOCK=0, GOT_THE_LOCK,
+  NO_MEMORY_FOR_LOCK=1, DEADLOCK, LOCK_TIMEOUT,
+  GOT_THE_LOCK,
   GOT_THE_LOCK_NEED_TO_LOCK_A_SUBRESOURCE,
   GOT_THE_LOCK_NEED_TO_INSTANT_LOCK_A_SUBRESOURCE
 };
-
 #endif
 
-#define LOCK_TYPES LSIX
+#define LOCK_TYPES (LOCK_TYPE_LAST-1)
 
-typedef struct st_table_lock_owner TABLE_LOCK_OWNER;
 typedef struct st_table_lock TABLE_LOCK;
-typedef struct st_locked_table LOCKED_TABLE;
+
+typedef struct st_table_lock_owner {
+  TABLE_LOCK *active_locks;                          /* list of active locks */
+  TABLE_LOCK *waiting_lock;                  /* waiting lock (one lock only) */
+  struct st_table_lock_owner *waiting_for; /* transaction we're waiting for  */
+  pthread_cond_t  *cond;      /* transactions waiting for us, wait on 'cond' */
+  pthread_mutex_t *mutex;                 /* mutex is required to use 'cond' */
+  uint16    loid, waiting_for_loid;                 /* Lock Owner IDentifier */
+} TABLE_LOCK_OWNER;
+
+typedef struct st_locked_table {
+  pthread_mutex_t mutex;                        /* mutex for everything below */
+  HASH latest_locks;                                /* latest locks in a hash */
+  TABLE_LOCK *active_locks[LOCK_TYPES];          /* dl-list of locks per type */
+  TABLE_LOCK *wait_queue_in, *wait_queue_out; /* wait deque (double-end queue)*/
+} LOCKED_TABLE;
+
 typedef TABLE_LOCK_OWNER *loid_to_tlo_func(uint16);
 
 typedef struct {
   pthread_mutex_t pool_mutex;
-  TABLE_LOCK *pool;                             /* lifo pool of free locks      */
-  uint lock_timeout;
-  loid_to_tlo_func *loid_to_tlo;        /* for mapping loid to TABLE_LOCK_OWNER */
+  TABLE_LOCK *pool;                                /* lifo pool of free locks */
+  uint lock_timeout;                          /* lock timeout in milliseconds */
+  loid_to_tlo_func *loid_to_tlo;      /* for mapping loid to TABLE_LOCK_OWNER */
 } TABLOCKMAN;
-
-struct st_table_lock_owner {
-  TABLE_LOCK *active_locks;                     /* list of active locks         */
-  TABLE_LOCK *waiting_lock;                     /* waiting lock (one lock only) */
-  TABLE_LOCK_OWNER  *waiting_for;               /* transaction we're wating for */
-  pthread_cond_t  *cond;      /* transactions waiting for us, wait on 'cond'    */
-  pthread_mutex_t *mutex;     /* mutex is required to use 'cond'                */
-  uint16    loid;                               /* Lock Owner IDentifier        */
-};
-
-struct st_locked_table {
-  pthread_mutex_t mutex;                        /* mutex for everything below   */
-  HASH active;                                  /* active locks ina hash        */
-  TABLE_LOCK *active_locks[LOCK_TYPES];         /* dl-list of locks per type    */
-  TABLE_LOCK *wait_queue_in, *wait_queue_out;   /* wait deque                   */
-};
 
 void tablockman_init(TABLOCKMAN *, loid_to_tlo_func *, uint);
 void tablockman_destroy(TABLOCKMAN *);
@@ -81,7 +81,7 @@ void tablockman_init_locked_table(LOCKED_TABLE *, int);
 void tablockman_destroy_locked_table(LOCKED_TABLE *);
 
 #ifdef EXTRA_DEBUG
-void print_tlo(TABLE_LOCK_OWNER *);
+void tablockman_print_tlo(TABLE_LOCK_OWNER *);
 #endif
 
 #endif

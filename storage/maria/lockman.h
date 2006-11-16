@@ -32,7 +32,7 @@
   SLX  - Shared + Loose eXclusive
   LSIX - Loose Shared + Intention eXclusive
 */
-enum lock_type { N, S, X, IS, IX, SIX, LS, LX, SLX, LSIX };
+enum lock_type { N, S, X, IS, IX, SIX, LS, LX, SLX, LSIX, LOCK_TYPE_LAST };
 
 struct lockman_lock;
 
@@ -55,9 +55,10 @@ typedef struct {
   uint lock_timeout;
   loid_to_lo_func *loid_to_lo;
 } LOCKMAN;
-
+#define DIDNT_GET_THE_LOCK 0
 enum lockman_getlock_result {
-  DIDNT_GET_THE_LOCK=0, GOT_THE_LOCK,
+  NO_MEMORY_FOR_LOCK=1, DEADLOCK, LOCK_TIMEOUT,
+  GOT_THE_LOCK,
   GOT_THE_LOCK_NEED_TO_LOCK_A_SUBRESOURCE,
   GOT_THE_LOCK_NEED_TO_INSTANT_LOCK_A_SUBRESOURCE
 };

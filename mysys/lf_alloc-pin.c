@@ -91,7 +91,7 @@ static void _lf_pinbox_real_free(LF_PINS *pins);
   See the latter for details.
 */
 void lf_pinbox_init(LF_PINBOX *pinbox, uint free_ptr_offset,
-                    lf_pinbox_free_func *free_func,void *free_func_arg)
+                    lf_pinbox_free_func *free_func, void *free_func_arg)
 {
   DBUG_ASSERT(sizeof(LF_PINS) == 128);
   DBUG_ASSERT(free_ptr_offset % sizeof(void *) == 0);
@@ -306,7 +306,7 @@ static void _lf_pinbox_real_free(LF_PINS *pins)
     {
       if (addr) /* use binary search */
       {
-        void **a,**b,**c;
+        void **a, **b, **c;
         for (a= addr, b= addr+npins-1, c= a+(b-a)/2; b-a>1; c= a+(b-a)/2)
           if (cur == *c)
             a= b= c;
@@ -337,13 +337,13 @@ found:
   callback for _lf_pinbox_real_free to free an unpinned object -
   add it back to the allocator stack
 */
-static void alloc_free(void *node, LF_ALLOCATOR *allocator)
+static void alloc_free(struct st_lf_alloc_node *node, LF_ALLOCATOR *allocator)
 {
-  void *tmp;
+  struct st_lf_alloc_node *tmp;
   tmp= allocator->top;
   do
   {
-    (*(void **)node)= tmp;
+    node->next= tmp;
   } while (!my_atomic_casptr((void **)&allocator->top, (void **)&tmp, node) &&
            LF_BACKOFF);
 }
@@ -379,12 +379,12 @@ void lf_alloc_init(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset)
 */
 void lf_alloc_destroy(LF_ALLOCATOR *allocator)
 {
-  void *el= allocator->top;
-  while (el)
+  struct st_lf_alloc_node *node= allocator->top;
+  while (node)
   {
-    void *tmp= *(void **)el;
-    my_free(el, MYF(0));
-    el= tmp;
+    struct st_lf_alloc_node *tmp= node->next;
+    my_free((void *)node, MYF(0));
+    node= tmp;
   }
   lf_pinbox_destroy(&allocator->pinbox);
   allocator->top= 0;
@@ -400,7 +400,7 @@ void lf_alloc_destroy(LF_ALLOCATOR *allocator)
 void *_lf_alloc_new(LF_PINS *pins)
 {
   LF_ALLOCATOR *allocator= (LF_ALLOCATOR *)(pins->pinbox->free_func_arg);
-  void *node;
+  struct st_lf_alloc_node *node;
   for (;;)
   {
     do
@@ -410,7 +410,8 @@ void *_lf_alloc_new(LF_PINS *pins)
     } while (node != allocator->top && LF_BACKOFF);
     if (!node)
     {
-      if (!(node= my_malloc(allocator->element_size, MYF(MY_WME|MY_ZEROFILL))))
+      if (!(node= (void *)my_malloc(allocator->element_size,
+                                    MYF(MY_WME|MY_ZEROFILL))))
         break;
 #ifdef MY_LF_EXTRA_DEBUG
       my_atomic_add32(&allocator->mallocs, 1);
@@ -434,8 +435,8 @@ void *_lf_alloc_new(LF_PINS *pins)
 uint lf_alloc_in_pool(LF_ALLOCATOR *allocator)
 {
   uint i;
-  void *node;
-  for (node= allocator->top, i= 0; node; node= *(void **)node, i++)
+  struct st_lf_alloc_node *node;
+  for (node= allocator->top, i= 0; node; node= node->next, i++)
     /* no op */;
   return i;
 }

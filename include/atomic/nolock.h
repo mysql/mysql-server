@@ -32,7 +32,7 @@
 
 #ifdef make_atomic_cas_body
 
-typedef struct { } my_atomic_rwlock_t;
+typedef struct { } my_atomic_rwlock_t __attribute__ ((unused));
 #define my_atomic_rwlock_destroy(name)
 #define my_atomic_rwlock_init(name)
 #define my_atomic_rwlock_rdlock(name)

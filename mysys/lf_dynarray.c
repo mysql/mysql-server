@@ -19,9 +19,9 @@
   (so no pointer into the array may ever become invalid).
 
   Memory is allocated in non-contiguous chunks.
-  This data structure is not space efficient for sparce arrays.
+  This data structure is not space efficient for sparse arrays.
 
-  The number of elements is limited to 2^16
+  The number of elements is limited to 4311810304
 
   Every element is aligned to sizeof(element) boundary
   (to avoid false sharing if element is big enough).
@@ -49,7 +49,8 @@ void lf_dynarray_init(LF_DYNARRAY *array, uint element_size)
 
 static void recursive_free(void **alloc, int level)
 {
-  if (!alloc) return;
+  if (!alloc)
+    return;
 
   if (level)
   {
@@ -68,10 +69,9 @@ void lf_dynarray_destroy(LF_DYNARRAY *array)
   for (i= 0; i < LF_DYNARRAY_LEVELS; i++)
     recursive_free(array->level[i], i);
   my_atomic_rwlock_destroy(&array->lock);
-  bzero(array, sizeof(*array));
 }
 
-static const long dynarray_idxes_in_prev_level[LF_DYNARRAY_LEVELS]=
+static const ulong dynarray_idxes_in_prev_levels[LF_DYNARRAY_LEVELS]=
 {
   0, /* +1 here to to avoid -1's below */
   LF_DYNARRAY_LEVEL_LENGTH,
@@ -80,6 +80,15 @@ static const long dynarray_idxes_in_prev_level[LF_DYNARRAY_LEVELS]=
   LF_DYNARRAY_LEVEL_LENGTH * LF_DYNARRAY_LEVEL_LENGTH *
     LF_DYNARRAY_LEVEL_LENGTH + LF_DYNARRAY_LEVEL_LENGTH *
     LF_DYNARRAY_LEVEL_LENGTH + LF_DYNARRAY_LEVEL_LENGTH
+};
+
+static const ulong dynarray_idxes_in_prev_level[LF_DYNARRAY_LEVELS]=
+{
+  0, /* +1 here to to avoid -1's below */
+  LF_DYNARRAY_LEVEL_LENGTH,
+  LF_DYNARRAY_LEVEL_LENGTH * LF_DYNARRAY_LEVEL_LENGTH,
+  LF_DYNARRAY_LEVEL_LENGTH * LF_DYNARRAY_LEVEL_LENGTH *
+    LF_DYNARRAY_LEVEL_LENGTH,
 };
 
 /*
@@ -91,16 +100,17 @@ void *_lf_dynarray_lvalue(LF_DYNARRAY *array, uint idx)
   void * ptr, * volatile * ptr_ptr= 0;
   int i;
 
-  for (i= 3; idx < dynarray_idxes_in_prev_level[i]; i--) /* no-op */;
+  for (i= LF_DYNARRAY_LEVELS-1; idx < dynarray_idxes_in_prev_levels[i]; i--)
+    /* no-op */;
   ptr_ptr= &array->level[i];
-  idx-= dynarray_idxes_in_prev_level[i];
+  idx-= dynarray_idxes_in_prev_levels[i];
   for (; i > 0; i--)
   {
     if (!(ptr= *ptr_ptr))
     {
       void *alloc= my_malloc(LF_DYNARRAY_LEVEL_LENGTH * sizeof(void *),
-                            MYF(MY_WME|MY_ZEROFILL));
-      if (!alloc)
+                             MYF(MY_WME|MY_ZEROFILL));
+      if (unlikely(!alloc))
         return(NULL);
       if (my_atomic_casptr(ptr_ptr, &ptr, alloc))
         ptr= alloc;
@@ -116,7 +126,7 @@ void *_lf_dynarray_lvalue(LF_DYNARRAY *array, uint idx)
     alloc= my_malloc(LF_DYNARRAY_LEVEL_LENGTH * array->size_of_element +
                     max(array->size_of_element, sizeof(void *)),
                     MYF(MY_WME|MY_ZEROFILL));
-    if (!alloc)
+    if (unlikely(!alloc))
       return(NULL);
     /* reserve the space for free() address */
     data= alloc + sizeof(void *);
@@ -143,9 +153,10 @@ void *_lf_dynarray_value(LF_DYNARRAY *array, uint idx)
   void * ptr, * volatile * ptr_ptr= 0;
   int i;
 
-  for (i= 3; idx < dynarray_idxes_in_prev_level[i]; i--) /* no-op */;
+  for (i= LF_DYNARRAY_LEVELS-1; idx < dynarray_idxes_in_prev_levels[i]; i--)
+    /* no-op */;
   ptr_ptr= &array->level[i];
-  idx-= dynarray_idxes_in_prev_level[i];
+  idx-= dynarray_idxes_in_prev_levels[i];
   for (; i > 0; i--)
   {
     if (!(ptr= *ptr_ptr))

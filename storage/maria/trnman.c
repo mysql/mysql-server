@@ -69,7 +69,8 @@ static TRN *short_trid_to_TRN(uint16 short_trid)
   return (TRN *)trn;
 }
 
-static byte *trn_get_hash_key(const byte *trn, uint* len, my_bool unused)
+static byte *trn_get_hash_key(const byte *trn, uint* len,
+                              my_bool unused __attribute__ ((unused)))
 {
   *len= sizeof(TrID);
   return (byte *) & ((*((TRN **)trn))->trid);

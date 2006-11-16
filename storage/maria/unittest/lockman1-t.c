@@ -14,6 +14,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/*
+  lockman for row locks, tablockman for table locks
+*/
+
 //#define EXTRA_VERBOSE
 
 #include <tap.h>
@@ -64,7 +68,7 @@ TABLE_LOCK_OWNER *loid2lo1(uint16 loid)
 #define lock_ok_l(O, R, L)                                              \
   test_lock(O, R, L, "", GOT_THE_LOCK_NEED_TO_INSTANT_LOCK_A_SUBRESOURCE)
 #define lock_conflict(O, R, L)                                          \
-  test_lock(O, R, L, "cannot ", DIDNT_GET_THE_LOCK);
+  test_lock(O, R, L, "cannot ", LOCK_TIMEOUT);
 
 void test_tablockman_simple()
 {
@@ -164,8 +168,11 @@ int Ntables= 10;
 int table_lock_ratio= 10;
 enum lock_type lock_array[6]= {S, X, LS, LX, IS, IX};
 char *lock2str[6]= {"S", "X", "LS", "LX", "IS", "IX"};
-char *res2str[4]= {
+char *res2str[]= {
   "DIDN'T GET THE LOCK",
+  "OUT OF MEMORY",
+  "DEADLOCK",
+  "LOCK TIMEOUT",
   "GOT THE LOCK",
   "GOT THE LOCK NEED TO LOCK A SUBRESOURCE",
   "GOT THE LOCK NEED TO INSTANT LOCK A SUBRESOURCE"};
@@ -191,7 +198,7 @@ pthread_handler_t test_lockman(void *arg)
       res= tablockman_getlock(&tablockman, lo1, ltarray+table, lock_array[locklevel]);
       DIAG(("loid %2d, table %d, lock %s, res %s", loid, table,
             lock2str[locklevel], res2str[res]));
-      if (res == DIDNT_GET_THE_LOCK)
+      if (res < GOT_THE_LOCK)
       {
         lockman_release_locks(&lockman, lo); tablockman_release_locks(&tablockman, lo1);
         DIAG(("loid %2d, release all locks", loid));
@@ -208,11 +215,6 @@ pthread_handler_t test_lockman(void *arg)
             lock2str[locklevel+4], res2str[res]));
       switch (res)
       {
-      case DIDNT_GET_THE_LOCK:
-        lockman_release_locks(&lockman, lo); tablockman_release_locks(&tablockman, lo1);
-        DIAG(("loid %2d, release all locks", loid));
-        timeout++;
-        continue;
       case GOT_THE_LOCK:
         continue;
       case GOT_THE_LOCK_NEED_TO_INSTANT_LOCK_A_SUBRESOURCE:
@@ -232,7 +234,10 @@ pthread_handler_t test_lockman(void *arg)
         DBUG_ASSERT(res == GOT_THE_LOCK);
         continue;
       default:
-        DBUG_ASSERT(0);
+        lockman_release_locks(&lockman, lo); tablockman_release_locks(&tablockman, lo1);
+        DIAG(("loid %2d, release all locks", loid));
+        timeout++;
+        continue;
       }
     }
   }
