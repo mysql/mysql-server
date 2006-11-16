@@ -1,8 +1,6 @@
-#include "mysys_priv.h"
-#include "my_dir.h"
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <pagecache.h>
+#include <tap.h>
+#include <my_sys.h>
+#include <my_dir.h>
 #include "test_file.h"
 
 

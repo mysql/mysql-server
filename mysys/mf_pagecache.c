@@ -45,6 +45,8 @@
 #include <m_string.h>
 #include <errno.h>
 #include <stdarg.h>
+#include <my_bit.h>
+
 
 /*
   Some compilation flags have been added specifically for this module

@@ -1,16 +1,14 @@
-#include "mysys_priv.h"
-#include "../include/my_pthread.h"
-#include "../include/pagecache.h"
-#include <string.h>
-#include "my_dir.h"
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include "../unittest/mytap/tap.h"
-#include <my_pthread.h>
+/*
+  TODO: use pthread_join instead of wait_for_thread_count_to_be_zero, like in
+  my_atomic-t.c (see BUG#22320).
+  Use diag() instead of fprintf(stderr). Use ok() and plan().
+*/
 
-/*#define PAGE_SIZE 65536*/
+#include <tap.h>
+#include <my_sys.h>
+#include <m_string.h>
+#include "test_file.h"
+
 #define PCACHE_SIZE (PAGE_SIZE*1024*8)
 
 #ifndef DBUG_OFF
@@ -443,5 +441,5 @@ int main(int argc, char **argv __attribute__((unused)))
 
   DBUG_PRINT("info", ("Program end"));
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(exit_status());
 }

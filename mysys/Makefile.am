@@ -130,61 +130,6 @@ test_base64$(EXEEXT): base64.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN  ./test_base64.c $(LDADD) $(LIBS)
 	$(RM) -f ./test_base64.c
 
-test_mf_pagecache.o: mf_pagecache.c ../include/pagecache.h $(LIBRARIES)
-	$(CP) $(srcdir)/mf_pagecache.c test_mf_pagecache.c
-	$(COMPILE) $(FLAGS) -DPAGECACHE_DEBUG -DEXTRA_DEBUG -c test_mf_pagecache.c
-
-test_file.o: test_file.c test_file.h
-	$(COMPILE) $(FLAGS) -DPAGECACHE_DEBUG -DEXTRA_DEBUG -c test_file.c
-
-test_pagecache_single1k$(EXEEXT): test_pagecache_single.c test_mf_pagecache.o ../unittest/mytap/tap.o test_file.o $(LIBRARIES)
-	$(LINK) $(FLAGS) -DMAIN -DPAGECACHE_DEBUG -DPAGE_SIZE=1024 -DEXTRA_DEBUG $(srcdir)/test_pagecache_single.c test_mf_pagecache.o ../unittest/mytap/tap.o  test_file.o $(LDADD) $(LIBS)
-
-test_pagecache_single8k$(EXEEXT): test_pagecache_single.c test_mf_pagecache.o ../unittest/mytap/tap.o test_file.o $(LIBRARIES)
-	$(LINK) $(FLAGS) -DMAIN -DPAGECACHE_DEBUG -DPAGE_SIZE=8192 -DEXTRA_DEBUG $(srcdir)/test_pagecache_single.c test_mf_pagecache.o ../unittest/mytap/tap.o  test_file.o $(LDADD) $(LIBS)
-
-test_pagecache_single64k$(EXEEXT): test_pagecache_single.c test_mf_pagecache.o ../unittest/mytap/tap.o test_file.o $(LIBRARIES)
-	$(LINK) $(FLAGS) -DMAIN -DPAGECACHE_DEBUG -DPAGE_SIZE=65536 -DEXTRA_DEBUG $(srcdir)/test_pagecache_single.c test_mf_pagecache.o ../unittest/mytap/tap.o  test_file.o $(LDADD) $(LIBS)
-
-test_pagecache_single: test_pagecache_single1k$(EXEEXT) test_pagecache_single8k$(EXEEXT) test_pagecache_single64k$(EXEEXT)
-	./test_pagecache_single64k$(EXEEXT)
-	./test_pagecache_single8k$(EXEEXT)
-	./test_pagecache_single1k$(EXEEXT)
-
-test_pagecache_consist1k$(EXEEXT): test_pagecache_consist.c test_mf_pagecache.o ../unittest/mytap/tap.o $(LIBRARIES)
-	$(LINK) $(FLAGS) -DMAIN -DPAGECACHE_DEBUG -DPAGE_SIZE=1024 -DEXTRA_DEBUG $(srcdir)/test_pagecache_consist.c test_mf_pagecache.o ../unittest/mytap/tap.o $(LDADD) $(LIBS)
-
-test_pagecache_consist64k$(EXEEXT): test_pagecache_consist.c test_mf_pagecache.o ../unittest/mytap/tap.o $(LIBRARIES)
-	$(LINK) $(FLAGS) -DMAIN -DPAGECACHE_DEBUG -DPAGE_SIZE=65536 -DEXTRA_DEBUG $(srcdir)/test_pagecache_consist.c test_mf_pagecache.o ../unittest/mytap/tap.o $(LDADD) $(LIBS)
-
-test_pagecache_consist1kHC$(EXEEXT): test_pagecache_consist.c test_mf_pagecache.o ../unittest/mytap/tap.o $(LIBRARIES)
-	$(LINK) $(FLAGS) -DMAIN -DPAGECACHE_DEBUG -DTEST_HIGH_CONCURENCY -DPAGE_SIZE=1024 -DEXTRA_DEBUG $(srcdir)/test_pagecache_consist.c test_mf_pagecache.o ../unittest/mytap/tap.o $(LDADD) $(LIBS)
-
-test_pagecache_consist64kHC$(EXEEXT): test_pagecache_consist.c test_mf_pagecache.o ../unittest/mytap/tap.o $(LIBRARIES)
-	$(LINK) $(FLAGS) -DMAIN -DPAGECACHE_DEBUG -DTEST_HIGH_CONCURENCY -DPAGE_SIZE=65536 -DEXTRA_DEBUG $(srcdir)/test_pagecache_consist.c test_mf_pagecache.o ../unittest/mytap/tap.o $(LDADD) $(LIBS)
-
-test_pagecache_consist1kRD$(EXEEXT): test_pagecache_consist.c test_mf_pagecache.o ../unittest/mytap/tap.o $(LIBRARIES)
-	$(LINK) $(FLAGS) -DMAIN -DPAGECACHE_DEBUG -DTEST_READERS -DPAGE_SIZE=1024 -DEXTRA_DEBUG $(srcdir)/test_pagecache_consist.c test_mf_pagecache.o ../unittest/mytap/tap.o $(LDADD) $(LIBS)
-
-test_pagecache_consist64kRD$(EXEEXT): test_pagecache_consist.c test_mf_pagecache.o ../unittest/mytap/tap.o $(LIBRARIES)
-	$(LINK) $(FLAGS) -DMAIN -DPAGECACHE_DEBUG -DTEST_READERS -DPAGE_SIZE=65536 -DEXTRA_DEBUG $(srcdir)/test_pagecache_consist.c test_mf_pagecache.o ../unittest/mytap/tap.o $(LDADD) $(LIBS)
-
-test_pagecache_consist1kWR$(EXEEXT): test_pagecache_consist.c test_mf_pagecache.o ../unittest/mytap/tap.o $(LIBRARIES)
-	$(LINK) $(FLAGS) -DMAIN -DPAGECACHE_DEBUG -DTEST_WRITERS -DPAGE_SIZE=1024 -DEXTRA_DEBUG $(srcdir)/test_pagecache_consist.c test_mf_pagecache.o ../unittest/mytap/tap.o $(LDADD) $(LIBS)
-
-test_pagecache_consist64kWR$(EXEEXT): test_pagecache_consist.c test_mf_pagecache.o ../unittest/mytap/tap.o $(LIBRARIES)
-	$(LINK) $(FLAGS) -DMAIN -DPAGECACHE_DEBUG -DTEST_WRITERS -DPAGE_SIZE=65536 -DEXTRA_DEBUG $(srcdir)/test_pagecache_consist.c test_mf_pagecache.o ../unittest/mytap/tap.o $(LDADD) $(LIBS)
-
-test_pagecache_consist: test_pagecache_consist1k$(EXEEXT) test_pagecache_consist64k$(EXEEXT) test_pagecache_consist1kHC$(EXEEXT) test_pagecache_consist64kHC$(EXEEXT) test_pagecache_consist1kRD$(EXEEXT) test_pagecache_consist64kRD$(EXEEXT) test_pagecache_consist1kWR$(EXEEXT) test_pagecache_consist64kWR$(EXEEXT)
-	./test_pagecache_consist1k$(EXEEXT)
-	./test_pagecache_consist64k$(EXEEXT)
-	./test_pagecache_consist1kHC$(EXEEXT)
-	./test_pagecache_consist64kHC$(EXEEXT)
-	./test_pagecache_consist1kRD$(EXEEXT)
-	./test_pagecache_consist64kRD$(EXEEXT)
-	./test_pagecache_consist1kWR$(EXEEXT)
-	./test_pagecache_consist64kWR$(EXEEXT)
-
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

@@ -1,16 +1,13 @@
-#include "mysys_priv.h"
-#include "../include/my_pthread.h"
-#include "../include/pagecache.h"
-#include "my_dir.h"
-#include <string.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include "../unittest/mytap/tap.h"
+/*
+  TODO: use pthread_join instead of wait_for_thread_count_to_be_zero, like in
+  my_atomic-t.c (see BUG#22320).
+  Use diag() instead of fprintf(stderr).
+*/
+#include <tap.h>
+#include <my_sys.h>
+#include <m_string.h>
 #include "test_file.h"
 
-/* #define PAGE_SIZE 1024 */
 #define PCACHE_SIZE (PAGE_SIZE*1024*10)
 
 #ifndef DBUG_OFF
@@ -100,7 +97,7 @@ int simple_read_write_test()
   unsigned char *buffr= malloc(PAGE_SIZE);
   int res;
   DBUG_ENTER("simple_read_write_test");
-  memset(buffw, '\1', PAGE_SIZE);
+  bfill(buffw, PAGE_SIZE, '\1');
   pagecache_write(&pagecache, &file1, 0, 3, (char*)buffw,
                   PAGECACHE_PLAIN_PAGE,
                   PAGECACHE_LOCK_LEFT_UNLOCKED,
@@ -136,7 +133,7 @@ int simple_read_change_write_read_test()
   int res;
   DBUG_ENTER("simple_read_change_write_read_test");
   /* prepare the file */
-  memset(buffw, '\1', PAGE_SIZE);
+  bfill(buffw, PAGE_SIZE, '\1');
   pagecache_write(&pagecache, &file1, 0, 3, (char*)buffw,
                   PAGECACHE_PLAIN_PAGE,
                   PAGECACHE_LOCK_LEFT_UNLOCKED,
@@ -149,7 +146,7 @@ int simple_read_change_write_read_test()
                  PAGECACHE_PLAIN_PAGE,
                  PAGECACHE_LOCK_WRITE,
                  0);
-  memset(buffw, '\65', PAGE_SIZE/2);
+  bfill(buffw, PAGE_SIZE/2, '\65');
   pagecache_write(&pagecache, &file1, 0, 3, (char*)buffw,
                   PAGECACHE_PLAIN_PAGE,
                   PAGECACHE_LOCK_WRITE_UNLOCK,
@@ -190,7 +187,7 @@ int simple_pin_test()
   int res;
   DBUG_ENTER("simple_pin_test");
   /* prepare the file */
-  memset(buffw, '\1', PAGE_SIZE);
+  bfill(buffw, PAGE_SIZE, '\1');
   pagecache_write(&pagecache, &file1, 0, 3, (char*)buffw,
                   PAGECACHE_PLAIN_PAGE,
                   PAGECACHE_LOCK_LEFT_UNLOCKED,
@@ -213,7 +210,7 @@ int simple_pin_test()
                   PAGECACHE_PIN_LEFT_UNPINNED,
                   PAGECACHE_WRITE_DELAY,
                   0);
-  memset(buffw + PAGE_SIZE/2, ((unsigned char) 129), PAGE_SIZE/2);
+  bfill(buffw + PAGE_SIZE/2, PAGE_SIZE/2, ((unsigned char) 129));
   pagecache_write(&pagecache, &file1, 0, 3, (char*)buffw,
                   PAGECACHE_PLAIN_PAGE,
                   PAGECACHE_LOCK_WRITE_TO_READ,
@@ -268,7 +265,7 @@ int simple_delete_forget_test()
   int res;
   DBUG_ENTER("simple_delete_forget_test");
   /* prepare the file */
-  memset(buffw, '\1', PAGE_SIZE);
+  bfill(buffw, PAGE_SIZE, '\1');
   pagecache_write(&pagecache, &file1, 0, 3, (char*)buffw,
                   PAGECACHE_PLAIN_PAGE,
                   PAGECACHE_LOCK_LEFT_UNLOCKED,
@@ -277,7 +274,7 @@ int simple_delete_forget_test()
                   0);
   flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
   /* test */
-  memset(buffw, '\2', PAGE_SIZE);
+  bfill(buffw, PAGE_SIZE, '\2');
   pagecache_write(&pagecache, &file1, 0, 3, (char*)buffw,
                   PAGECACHE_PLAIN_PAGE,
                   PAGECACHE_LOCK_LEFT_UNLOCKED,
@@ -310,7 +307,7 @@ int simple_delete_flush_test()
   int res;
   DBUG_ENTER("simple_delete_flush_test");
   /* prepare the file */
-  memset(buffw, '\1', PAGE_SIZE);
+  bfill(buffw, PAGE_SIZE, '\1');
   pagecache_write(&pagecache, &file1, 0, 3, (char*)buffw,
                   PAGECACHE_PLAIN_PAGE,
                   PAGECACHE_LOCK_WRITE,
@@ -319,7 +316,7 @@ int simple_delete_flush_test()
                   0);
   flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
   /* test */
-  memset(buffw, '\2', PAGE_SIZE);
+  bfill(buffw, PAGE_SIZE, '\2');
   pagecache_write(&pagecache, &file1, 0, 3, (char*)buffw,
                   PAGECACHE_PLAIN_PAGE,
                   PAGECACHE_LOCK_LEFT_WRITELOCKED,
@@ -356,7 +353,7 @@ int simple_big_test()
   /* prepare the file twice larger then cache */
   for (i= 0; i < PCACHE_SIZE/(PAGE_SIZE/2); i++)
   {
-    memset(buffw, (unsigned char) (i & 0xff), PAGE_SIZE);
+    bfill(buffw, PAGE_SIZE, (unsigned char) (i & 0xff));
     desc[i].length= PAGE_SIZE;
     desc[i].content= (i & 0xff);
     pagecache_write(&pagecache, &file1, i, 3, (char*)buffw,
@@ -528,6 +525,7 @@ int main(int argc, char **argv __attribute__((unused)))
 
   my_thread_global_init();
 
+  plan(12);
 
   if ((pagen= init_pagecache(&pagecache, PCACHE_SIZE, 0, 0,
                              PAGE_SIZE, 0)) == 0)
@@ -585,5 +583,5 @@ int main(int argc, char **argv __attribute__((unused)))
 
   DBUG_PRINT("info", ("Program end"));
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(exit_status());
 }
