@@ -43,7 +43,7 @@ bool Protocol_prep::net_store_data(const char *from, uint length)
       packet->realloc(packet_length+9+length))
     return 1;
   char *to=(char*) net_store_length((char*) packet->ptr()+packet_length,
-				    (ulonglong) length);
+				    length);
   memcpy(to,from,length);
   packet->length((uint) (to+length-packet->ptr()));
   return 0;
@@ -297,8 +297,8 @@ send_ok(THD *thd, ha_rows affected_rows, ulonglong id, const char *message)
     DBUG_VOID_RETURN;
 
   buff[0]=0;					// No fields
-  pos=net_store_length(buff+1,(ulonglong) affected_rows);
-  pos=net_store_length(pos, (ulonglong) id);
+  pos=net_store_length(buff+1,affected_rows);
+  pos=net_store_length(pos, id);
   if (thd->client_capabilities & CLIENT_PROTOCOL_41)
   {
     DBUG_PRINT("info",
@@ -416,7 +416,7 @@ bool send_old_password_request(THD *thd)
   ulonglong for bigger numbers.
 */
 
-char *net_store_length(char *pkg, uint length)
+static char *net_store_length_fast(char *pkg, uint length)
 {
   uchar *packet=(uchar*) pkg;
   if (length < 251)
@@ -439,7 +439,7 @@ char *net_store_length(char *pkg, uint length)
 
 char *net_store_data(char *to,const char *from, uint length)
 {
-  to=net_store_length(to,length);
+  to=net_store_length_fast(to,length);
   memcpy(to,from,length);
   return to+length;
 }
@@ -448,7 +448,7 @@ char *net_store_data(char *to,int32 from)
 {
   char buff[20];
   uint length=(uint) (int10_to_str(from,buff,10)-buff);
-  to=net_store_length(to,length);
+  to=net_store_length_fast(to,length);
   memcpy(to,buff,length);
   return to+length;
 }
@@ -457,7 +457,7 @@ char *net_store_data(char *to,longlong from)
 {
   char buff[22];
   uint length=(uint) (longlong10_to_str(from,buff,10)-buff);
-  to=net_store_length(to,length);
+  to=net_store_length_fast(to,length);
   memcpy(to,buff,length);
   return to+length;
 }
@@ -520,7 +520,7 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
 
   if (flag & 1)
   {				// Packet with number of elements
-    char *pos=net_store_length(buff, (uint) list->elements);
+    char *pos=net_store_length(buff, list->elements);
     (void) my_net_write(&thd->net, buff,(uint) (pos-buff));
   }
 
@@ -648,7 +648,7 @@ bool Protocol::send_records_num(List<Item> *list, ulonglong records)
 {
   char *pos;
   char buff[20];
-  pos=net_store_length(buff, (uint) list->elements);
+  pos=net_store_length(buff, list->elements);
   pos=net_store_length(pos, records);
   return my_net_write(&thd->net, buff,(uint) (pos-buff));
 }
