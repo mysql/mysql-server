@@ -699,7 +699,7 @@ int init_pagecache(PAGECACHE *pagecache, my_size_t use_mem,
   pagecache->shift= my_bit_log2(block_size);
   DBUG_PRINT("info", ("block_size: %u",
 		      block_size));
-  DBUG_ASSERT((1 << pagecache->shift) == block_size);
+  DBUG_ASSERT(((uint)(1 << pagecache->shift)) == block_size);
 
   blocks= (int) (use_mem / (sizeof(PAGECACHE_BLOCK_LINK) +
                             2 * sizeof(PAGECACHE_HASH_LINK) +
@@ -3259,6 +3259,7 @@ restart:
 #ifndef DBUG_OFF
       int rc=
 #endif
+#warning we are doing an unlock here, so need to give the page its rec_lsn!
         pagecache_make_lock_and_pin(pagecache, block,
                                     write_lock_change_table[lock].unlock_lock,
                                     write_pin_change_table[pin].unlock_pin);
@@ -3614,6 +3615,11 @@ restart:
         else
         {
 	  /* Link the block into a list of blocks 'in switch' */
+#warning this unlink_changed() is a serious problem for Maria's Checkpoint: it \
+removes a page from the list of dirty pages, while it's still dirty. A  \
+  solution is to abandon first_in_switch, just wait for this page to be \
+  flushed by somebody else, and loop. TODO: check all places where we remove a \
+  page from the list of dirty pages
           unlink_changed(block);
           link_changed(block, &first_in_switch);
         }
