@@ -183,18 +183,6 @@ DYNAMIC_ARRAY q_lines;
 
 #include "sslopt-vars.h"
 
-struct connection
-{
-  MYSQL mysql;
-  char *name;
-
-  const char *cur_query;
-  int cur_query_len;
-  pthread_mutex_t mutex;
-  pthread_cond_t cond;
-  int query_done;
-};
-
 struct
 {
   int read_lines,current_line;
@@ -234,6 +222,12 @@ struct st_connection
   MYSQL* util_mysql;
   char *name;
   MYSQL_STMT* stmt;
+
+  const char *cur_query;
+  int cur_query_len;
+  pthread_mutex_t mutex;
+  pthread_cond_t cond;
+  int query_done;
 };
 struct st_connection connections[128];
 struct st_connection* cur_con, *next_con, *connections_end;
@@ -493,7 +487,7 @@ void handle_no_error(struct st_command*);
 */
 pthread_handler_decl(send_one_query, arg)
 {
-  struct connection *cn= (struct connection*)arg;
+  struct st_connection *cn= (struct st_connection*)arg;
 
   mysql_thread_init();
   VOID(mysql_send_query(&cn->mysql, cn->cur_query, cn->cur_query_len));
@@ -507,7 +501,7 @@ pthread_handler_decl(send_one_query, arg)
   return 0;
 }
 
-static int do_send_query(struct connection *cn, const char *q, int q_len,
+static int do_send_query(struct st_connection *cn, const char *q, int q_len,
                          int flags)
 {
   pthread_t tid;
@@ -4570,7 +4564,7 @@ int append_warnings(DYNAMIC_STRING *ds, MYSQL* mysql)
   error - function will not return
 */
 
-void run_query_normal(struct connection *cn, *mysql, struct st_command *command,
+void run_query_normal(struct st_connection *cn, struct st_command *command,
                       int flags, char *query, int query_len,
                       DYNAMIC_STRING *ds, DYNAMIC_STRING *ds_warnings)
 {
@@ -4598,7 +4592,7 @@ void run_query_normal(struct connection *cn, *mysql, struct st_command *command,
    Here we handle 'reap' command, so we need to check if the
    query's thread was finished and probably wait
   */
-  else if (flags & QUERY_REAP)
+  else if (flags & QUERY_REAP_FLAG)
   {
     pthread_mutex_lock(&cn->mutex);
     while (!cn->query_done)
@@ -5096,8 +5090,9 @@ int util_query(MYSQL* org_mysql, const char* query){
 
 */
 
-void run_query(MYSQL *mysql, struct st_command *command, int flags)
+void run_query(struct st_connection *cn, struct st_command *command, int flags)
 {
+  MYSQL *mysql= &cn->mysql;
   DYNAMIC_STRING *ds;
   DYNAMIC_STRING ds_result;
   DYNAMIC_STRING ds_warnings;
@@ -5254,7 +5249,7 @@ void run_query(MYSQL *mysql, struct st_command *command, int flags)
       match_re(&ps_re, query))
     run_query_stmt(mysql, command, query, query_len, ds, &ds_warnings);
   else
-    run_query_normal(mysql, command, flags, query, query_len,
+    run_query_normal(cn, command, flags, query, query_len,
 		     ds, &ds_warnings);
 
   if (sp_created)
@@ -5746,7 +5741,7 @@ int main(int argc, char **argv)
 	  strmake(command->require_file, save_file, sizeof(save_file));
 	  save_file[0]= 0;
 	}
-	run_query(cur, command, flags);
+	run_query(cur_con, command, flags);
 	command_executed++;
         command->last_argument= command->end;
 	break;
