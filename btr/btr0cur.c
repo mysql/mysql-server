@@ -3753,7 +3753,6 @@ btr_store_big_rec_extern_fields(
 						 + FIL_PAGE_FILE_FLUSH_LSN + 4,
 						 rec_page_no,
 						 MLOG_4BYTES, &mtr);
-				mlog_write_ulint(page
 
 				/* Zero out the unused part of the page. */
 				memset(page + page_zip->size
