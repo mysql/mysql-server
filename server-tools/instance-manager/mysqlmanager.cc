@@ -31,6 +31,7 @@
 #include "log.h"
 #include "manager.h"
 #include "options.h"
+#include "priv.h"
 #include "user_management_commands.h"
 
 #ifdef __WIN__
@@ -117,7 +118,7 @@ int main(int argc, char *argv[])
     angel();
   }
 
-  manager();
+  (void) Manager::main(); /* ignore the return value for now */
 
 #else
 
@@ -131,7 +132,7 @@ int main(int argc, char *argv[])
   }
   else
   {
-    manager();
+    (void) Manager::main(); /* ignore the return value for now */
   }
 
 #endif
@@ -384,8 +385,8 @@ spawn:
     }
     /*
       mysqlmanager successfully exited, let's silently evaporate
-      If we return to main we fall into the manager() function, so let's
-      simply exit().
+      If we return to main we will fall into the manager functionality,
+      so let's simply exit().
     */
     exit(0);
   }

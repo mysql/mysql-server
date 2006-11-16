@@ -21,22 +21,22 @@ void IMService::Stop()
 {
   ReportStatus(SERVICE_STOP_PENDING);
 
-  // stop the IM work
+  /* stop the IM work */
   raise(SIGTERM);
 }
 
 void IMService::Run(DWORD argc, LPTSTR *argv)
 {
-  // report to the SCM that we're about to start
+  /* report to the SCM that we're about to start */
   ReportStatus((DWORD)SERVICE_START_PENDING);
 
   Options::load(argc, argv);
 
-  // init goes here
+  /* init goes here */
   ReportStatus((DWORD)SERVICE_RUNNING);
 
-  // wait for main loop to terminate
-  manager();
+  /* wait for main loop to terminate */
+  (void) Manager::main();
   Options::cleanup();
 }
 

@@ -24,6 +24,7 @@
 
 /* Class responsible for allocation of IM commands. */
 
+class Guardian;
 class Instance_map;
 
 struct st_net;
@@ -36,7 +37,7 @@ struct st_net;
 class Command
 {
 public:
-  Command(Instance_map *instance_map_arg= 0);
+  Command();
   virtual ~Command();
 
   /*
@@ -53,6 +54,7 @@ public:
   virtual int execute(st_net *net, ulong connection_id) = 0;
 
 protected:
+  Guardian *guardian;
   Instance_map *instance_map;
 };
 

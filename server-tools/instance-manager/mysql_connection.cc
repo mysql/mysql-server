@@ -315,7 +315,7 @@ int Mysql_connection_thread::do_command()
     packet= (char*) net.read_pos;
     enum enum_server_command command= (enum enum_server_command)
                                       (uchar) *packet;
-    log_info("connection %lu: packet_length=%lu, command=%d",
+    log_info("connection %d: packet_length=%d, command=%d",
              (int) connection_id, (int) packet_length, (int) command);
     return dispatch_command(command, packet + 1, packet_length - 1);
   }
@@ -336,10 +336,10 @@ int Mysql_connection_thread::dispatch_command(enum enum_server_command command,
     break;
   case COM_QUERY:
   {
-    log_info("query for connection %lu : ----\n%s\n-------------------------",
+    log_info("query for connection %d : ----\n%s\n-------------------------",
 	     (int) connection_id,
              (const char *) packet);
-    if (Command *command= parse_command(&instance_map, packet))
+    if (Command *command= parse_command(packet))
     {
       int res= 0;
       log_info("query for connection %lu successfully parsed",

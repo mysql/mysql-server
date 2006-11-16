@@ -109,4 +109,6 @@ extern unsigned long open_files_limit;
 int set_stacksize_n_create_thread(pthread_t  *thread, pthread_attr_t *attr,
                                   void *(*start_routine)(void *), void *arg);
 
+int create_pid_file(const char *pid_file_name, int pid);
+
 #endif // INCLUDES_MYSQL_INSTANCE_MANAGER_PRIV_H
