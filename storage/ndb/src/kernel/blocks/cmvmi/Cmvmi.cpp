@@ -719,6 +719,7 @@ Cmvmi::execTEST_ORD(Signal * signal){
       // Do nothing
       break;
     }
+    globalSignalLoggers.flushSignalLog();
   }
 
 #endif
