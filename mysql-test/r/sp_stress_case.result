@@ -1,0 +1,42 @@
+DROP PROCEDURE IF EXISTS bug_19194_a;
+DROP PROCEDURE IF EXISTS bug_19194_b;
+'Silently creating PROCEDURE bug_19194_a'
+'Silently creating PROCEDURE bug_19194_b'
+CALL bug_19194_a(1);
+str
+1
+CALL bug_19194_a(2);
+str
+2
+CALL bug_19194_a(1000);
+str
+1000
+CALL bug_19194_a(4998);
+str
+4998
+CALL bug_19194_a(4999);
+str
+4999
+CALL bug_19194_a(9999);
+str
+unknown
+CALL bug_19194_b(1);
+str
+1
+CALL bug_19194_b(2);
+str
+2
+CALL bug_19194_b(1000);
+str
+1000
+CALL bug_19194_b(4998);
+str
+4998
+CALL bug_19194_b(4999);
+str
+4999
+CALL bug_19194_b(9999);
+str
+unknown
+DROP PROCEDURE bug_19194_a;
+DROP PROCEDURE bug_19194_b;

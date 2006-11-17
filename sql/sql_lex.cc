@@ -1163,7 +1163,6 @@ void st_select_lex::init_select()
   options= 0;
   sql_cache= SQL_CACHE_UNSPECIFIED;
   braces= 0;
-  when_list.empty();
   expr_list.empty();
   interval_list.empty();
   use_index.empty();

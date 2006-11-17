@@ -1,0 +1,35 @@
+
+# The production code tested is not platform specific,
+# but /bin/sh is needed to run the test case.
+
+--source include/not_windows.inc
+
+#
+# Bug#19194 (Right recursion in parser for CASE causes excessive stack
+#   usage, limitation)
+#
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS bug_19194_a;
+DROP PROCEDURE IF EXISTS bug_19194_b;
+--enable_warnings
+
+--exec $MYSQL_TEST_DIR/t/sp_stress_case.sh | $MYSQL_TEST 2>&1
+
+CALL bug_19194_a(1);
+CALL bug_19194_a(2);
+CALL bug_19194_a(1000);
+CALL bug_19194_a(4998);
+CALL bug_19194_a(4999);
+CALL bug_19194_a(9999);
+
+CALL bug_19194_b(1);
+CALL bug_19194_b(2);
+CALL bug_19194_b(1000);
+CALL bug_19194_b(4998);
+CALL bug_19194_b(4999);
+CALL bug_19194_b(9999);
+
+DROP PROCEDURE bug_19194_a;
+DROP PROCEDURE bug_19194_b;
+
