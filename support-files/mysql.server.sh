@@ -82,7 +82,7 @@ datadir_set=
 #
 lsb_functions="/lib/lsb/init-functions"
 if test -f $lsb_functions ; then
-  source $lsb_functions
+  . $lsb_functions
 else
   log_success_msg()
   {
