@@ -593,6 +593,7 @@ sub mtr_options_from_test_file($$) {
 
   while ( my $line= <$F> )
   {
+
     # Skip line if it start's with #
     next if ( $line =~ /^#/ );
 
