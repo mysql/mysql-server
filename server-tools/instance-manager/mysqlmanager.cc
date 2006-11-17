@@ -71,6 +71,7 @@ static void daemonize(const char *log_file_name);
 static void angel();
 static struct passwd *check_user(const char *user);
 static int set_user(const char *user, struct passwd *user_info);
+static bool check_if_linuxthreads();
 #endif
 
 
@@ -109,6 +110,9 @@ int main(int argc, char *argv[])
         goto main_end;
       }
   }
+
+  if (check_if_linuxthreads())
+    goto main_end; /* out of resources */
 
   if (Options::Daemon::run_as_service)
   {
@@ -232,7 +236,7 @@ static void init_environment(char *progname)
 #ifndef __WIN__
 /*
   Become a UNIX service
-  SYNOPSYS
+  SYNOPSIS
     daemonize()
 */
 
@@ -392,4 +396,27 @@ spawn:
   }
 }
 
+extern "C" {
+static void *check_if_linuxthreads_thread_func(void *arg)
+{
+  pid_t main_pid= *(pid_t*) arg;
+  linuxthreads= getpid() != main_pid;
+  return NULL; 
+}
+} /* extern "C" */
+
+
+static bool check_if_linuxthreads()
+{
+  pid_t pid= getpid();
+  pthread_t thread_id;
+  int rc;
+
+  rc= pthread_create(&thread_id, NULL, check_if_linuxthreads_thread_func,
+                     (void*) &pid);
+  if (rc == 0)
+    rc= pthread_join(thread_id, NULL);
+
+  return test(rc);
+}
 #endif

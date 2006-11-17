@@ -91,7 +91,7 @@ Guardian::~Guardian()
 void Guardian::request_shutdown()
 {
   pthread_mutex_lock(&LOCK_guardian);
-  /* stop instances or just clean up Guardian repository */
+  /* STOP Instances or just clean up Guardian repository */
   stop_instances();
   shutdown_requested= TRUE;
   pthread_mutex_unlock(&LOCK_guardian);
@@ -110,23 +110,14 @@ void Guardian::process_instance(Instance *instance,
 
   if (current_node->state == STOPPING)
   {
-    /* this branch is executed during shutdown */
-    if (instance->options.shutdown_delay)
-    {
-      /*
-        NOTE: it is important to check shutdown_delay here, but use
-        shutdown_delay_val. The idea is that if the option is unset,
-        shutdown_delay will be NULL, but shutdown_delay_val will not be reset.
-      */
-      waitchild= instance->options.shutdown_delay_val;
-    }
+    waitchild= instance->options.get_shutdown_delay();
 
     /* this returns TRUE if and only if an instance was stopped for sure */
     if (instance->is_crashed())
       *guarded_instances= list_delete(*guarded_instances, node);
     else if ( (uint) (current_time - current_node->last_checked) > waitchild)
     {
-      instance->kill_instance(SIGKILL);
+      instance->kill_mysqld(SIGKILL);
       /*
         Later we do node= node->next. This is ok, as we are only removing
         the node from the list. The pointer to the next one is still valid.
@@ -137,20 +128,20 @@ void Guardian::process_instance(Instance *instance,
     return;
   }
 
-  if (instance->is_running())
+  if (instance->is_mysqld_running())
   {
     /* The instance can be contacted  on it's port */
 
     /* If STARTING also check that pidfile has been created */
     if (current_node->state == STARTING &&
-        current_node->instance->options.get_pid() == 0)
+        current_node->instance->options.load_pid() == 0)
     {
       /* Pid file not created yet, don't go to STARTED state yet  */
     }
     else if (current_node->state != STARTED)
     {
       /* clear status fields */
-      log_info("guardian: instance '%s' is running, set state to STARTED.",
+      log_info("Guardian: '%s' is running, set state to STARTED.",
                (const char *) instance->options.instance_name.str);
       current_node->restart_counter= 0;
       current_node->crash_moment= 0;
@@ -161,7 +152,7 @@ void Guardian::process_instance(Instance *instance,
   {
     switch (current_node->state) {
     case NOT_STARTED:
-      log_info("guardian: starting instance '%s'...",
+      log_info("Guardian: starting '%s'...",
                (const char *) instance->options.instance_name.str);
 
       /* NOTE, set state to STARTING _before_ start() is called */
@@ -186,7 +177,7 @@ void Guardian::process_instance(Instance *instance,
         if (instance->is_crashed())
         {
           instance->start();
-          log_info("guardian: starting instance '%s'...",
+          log_info("Guardian: starting '%s'...",
                    (const char *) instance->options.instance_name.str);
         }
       }
@@ -204,14 +195,15 @@ void Guardian::process_instance(Instance *instance,
             instance->start();
             current_node->last_checked= current_time;
             current_node->restart_counter++;
-            log_info("guardian: restarting instance '%s'...",
+            log_info("Guardian: restarting '%s'...",
                      (const char *) instance->options.instance_name.str);
           }
         }
         else
         {
-          log_info("guardian: cannot start instance %s. Abandoning attempts "
-                   "to (re)start it", instance->options.instance_name.str);
+          log_info("Guardian: can not start '%s'. "
+                   "Abandoning attempts to (re)start it",
+                   (const char *) instance->options.instance_name.str);
           current_node->state= CRASHED_AND_ABANDONED;
         }
       }
@@ -226,13 +218,12 @@ void Guardian::process_instance(Instance *instance,
 
 
 /*
-  Run guardian thread
+  Main function of Guardian thread.
 
   SYNOPSIS
     run()
 
   DESCRIPTION
-
     Check for all guarded instances and restart them if needed. If everything
     is fine go and sleep for some time.
 */
@@ -436,7 +427,7 @@ int Guardian::stop_instances()
       If instance is running or was running (and now probably hanging),
       request stop.
     */
-    if (current_node->instance->is_running() ||
+    if (current_node->instance->is_mysqld_running() ||
         (current_node->state == STARTED))
     {
       current_node->state= STOPPING;
@@ -446,7 +437,7 @@ int Guardian::stop_instances()
       /* otherwise remove it from the list */
       guarded_instances= list_delete(guarded_instances, node);
     /* But try to kill it anyway. Just in case */
-    current_node->instance->kill_instance(SIGTERM);
+    current_node->instance->kill_mysqld(SIGTERM);
     node= node->next;
   }
   return 0;
@@ -499,5 +490,5 @@ bool Guardian::is_active(Instance *instance)
   if (guarded)
     return true;
 
-  return instance->is_running();
+  return instance->is_mysqld_running();
 }

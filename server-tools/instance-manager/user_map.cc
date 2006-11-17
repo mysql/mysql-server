@@ -159,7 +159,7 @@ User_map::~User_map()
 /*
   Load password database.
 
-  SYNOPSYS
+  SYNOPSIS
     load()
     password_file_name  [IN] password file path
     err_msg             [OUT] error message
