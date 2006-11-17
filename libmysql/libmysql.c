@@ -2478,6 +2478,8 @@ static my_bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
   NET	*net= &mysql->net;
   char buff[4 /* size of stmt id */ +
             5 /* execution flags */];
+  my_bool res;
+
   DBUG_ENTER("execute");
   DBUG_DUMP("packet", packet, length);
 
@@ -2485,16 +2487,18 @@ static my_bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
   int4store(buff, stmt->stmt_id);		/* Send stmt id to server */
   buff[4]= (char) stmt->flags;
   int4store(buff+5, 1);                         /* iteration count */
-  if (cli_advanced_command(mysql, COM_STMT_EXECUTE, buff, sizeof(buff),
-                           packet, length, 1, NULL) ||
-      (*mysql->methods->read_query_result)(mysql))
+
+  res= test(cli_advanced_command(mysql, COM_STMT_EXECUTE, buff, sizeof(buff),
+                                 packet, length, 1, NULL) ||
+            (*mysql->methods->read_query_result)(mysql));
+  stmt->affected_rows= mysql->affected_rows;
+  stmt->server_status= mysql->server_status;
+  stmt->insert_id= mysql->insert_id;
+  if (res)
   {
     set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
     DBUG_RETURN(1);
   }
-  stmt->affected_rows= mysql->affected_rows;
-  stmt->server_status= mysql->server_status;
-  stmt->insert_id= mysql->insert_id;
   DBUG_RETURN(0);
 }
 
