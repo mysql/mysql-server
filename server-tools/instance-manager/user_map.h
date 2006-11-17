@@ -60,7 +60,7 @@ public:
   {
   public:
     Iterator(User_map *user_map_arg) :
-      cur_idx(0), user_map(user_map_arg)
+      user_map(user_map_arg), cur_idx(0)
     { }
 
   public:
