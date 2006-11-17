@@ -104,7 +104,6 @@ our $glob_mysql_bench_dir=        undef;
 our $glob_hostname=               undef;
 our $glob_scriptname=             undef;
 our $glob_timers=                 undef;
-our $glob_use_running_server=     0;
 our $glob_use_running_ndbcluster= 0;
 our $glob_use_running_ndbcluster_slave= 0;
 our $glob_use_embedded_server=    0;
@@ -180,7 +179,10 @@ our $opt_debug;
 our $opt_do_test;
 our @opt_cases;                  # The test cases names in argv
 our $opt_embedded_server;
-our $opt_extern;
+
+our $opt_extern= 0;
+our $opt_socket;
+
 our $opt_fast;
 our $opt_force;
 our $opt_reorder= 0;
@@ -237,8 +239,6 @@ our $opt_testcase_timeout;
 our $opt_suite_timeout;
 my  $default_testcase_timeout=     15; # 15 min max
 my  $default_suite_timeout=       180; # 3 hours max
-
-our $opt_socket;
 
 our $opt_source_dist;
 
@@ -801,14 +801,6 @@ sub command_line_setup () {
   $opt_tmpdir =~ s,/+$,,;       # Remove ending slash if any
 
   # --------------------------------------------------------------------------
-  # Set socket
-  # --------------------------------------------------------------------------
-  if (!$opt_socket)
-  {
-    $opt_socket=  $mysqld_variables{'socket'};
-  }
-
-  # --------------------------------------------------------------------------
   # Check im suport
   # --------------------------------------------------------------------------
   if ( $mysql_version_id < 50000 )
@@ -1013,7 +1005,7 @@ sub command_line_setup () {
 
   if ( ! $opt_user )
   {
-    if ( $glob_use_running_server )
+    if ( $opt_extern )
     {
       $opt_user= "test";
     }
@@ -1195,9 +1187,16 @@ sub command_line_setup () {
 
   if ( $opt_extern )
   {
-    $glob_use_running_server=  1;
-    $opt_skip_rpl= 1;                   # We don't run rpl test cases
-    $master->[0]->{'path_sock'}=  $opt_socket;
+    # Turn off features not supported when running with extern server
+    $opt_skip_rpl= 1;
+
+    # Setup master->[0] with the settings for the extern server
+    $master->[0]->{'path_sock'}=  $opt_socket if $opt_socket;
+  }
+  else
+  {
+    mtr_error("--socket can only be used in combination with --extern")
+      if $opt_socket;
   }
 
   $path_timefile=  "$opt_vardir/log/mysqltest-time";
@@ -1607,7 +1606,7 @@ sub environment_setup () {
   $ENV{'UMASK'}=              "0660"; # The octal *string*
   $ENV{'UMASK_DIR'}=          "0770"; # The octal *string*
   $ENV{'LC_COLLATE'}=         "C";
-  $ENV{'USE_RUNNING_SERVER'}= $glob_use_running_server;
+  $ENV{'USE_RUNNING_SERVER'}= $opt_extern;
   $ENV{'MYSQL_TEST_DIR'}=     $glob_mysql_test_dir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
   $ENV{'MYSQL_TMP_DIR'}=      $opt_tmpdir;
@@ -2502,7 +2501,7 @@ sub run_suite () {
   mtr_print_line();
 
   if ( ! $glob_debugger and
-       ! $glob_use_running_server and
+       ! $opt_extern and
        ! $glob_use_embedded_server )
   {
     stop_all_servers();
@@ -2533,7 +2532,7 @@ sub initialize_servers () {
 
   datadir_setup();
 
-  if ( ! $glob_use_running_server )
+  if ( ! $opt_extern )
   {
     kill_running_servers();
 
@@ -3065,7 +3064,7 @@ sub run_testcase ($) {
   if ($master_restart or $slave_restart)
   {
     # Can't restart a running server that may be in use
-    if ( $glob_use_running_server )
+    if ( $opt_extern )
     {
       mtr_report_test_name($tinfo);
       $tinfo->{comment}= "Can't restart a running server";
@@ -3244,7 +3243,7 @@ sub report_failure_and_restart ($) {
   print "Aborting: $tinfo->{'name'} failed in $test_mode mode. ";
   print "To continue, re-run with '--force'.\n";
   if ( ! $glob_debugger and
-       ! $glob_use_running_server and
+       ! $opt_extern and
        ! $glob_use_embedded_server )
   {
     stop_all_servers();
@@ -4696,7 +4695,8 @@ Options to run test on running server
   extern                Use running server for tests FIXME DANGEROUS
   ndb-connectstring=STR Use running cluster, and connect using STR
   ndb-connectstring-slave=STR Use running slave cluster, and connect using STR
-  user=USER             User for connect to server
+  user=USER             User for connection to extern server
+  socket=PATH           Socket for connection to extern server
 
 Options for debugging the product
 
@@ -4756,7 +4756,7 @@ Options not yet described, or that I want to look into more
   local                 
   netware               
   sleep=SECONDS         
-  socket=PATH           
+
   user-test=s           
   wait-timeout=SECONDS  
   warnings              
