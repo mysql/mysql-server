@@ -233,8 +233,6 @@ our $opt_skip_im;
 
 our $opt_sleep;
 
-our $opt_sleep_time_after_restart=  1;
-our $opt_sleep_time_for_delete=    10;
 our $opt_testcase_timeout;
 our $opt_suite_timeout;
 my  $default_testcase_timeout=     15; # 15 min max
@@ -251,7 +249,6 @@ our $opt_strace_client;
 our $opt_timer= 1;
 
 our $opt_user;
-our $opt_user_test;
 
 our $opt_valgrind= 0;
 our $opt_valgrind_mysqld= 0;
@@ -273,7 +270,6 @@ our $opt_stress_test_file=     "";
 
 our $opt_wait_for_master;
 our $opt_wait_for_slave;
-our $opt_wait_timeout=  10;
 
 our $opt_warnings;
 
@@ -608,9 +604,7 @@ sub command_line_setup () {
              'start-and-exit'           => \$opt_start_and_exit,
              'timer!'                   => \$opt_timer,
              'unified-diff|udiff'       => \$opt_udiff,
-             'user-test=s'              => \$opt_user_test,
              'user=s'                   => \$opt_user,
-             'wait-timeout=i'           => \$opt_wait_timeout,
              'testcase-timeout=i'       => \$opt_testcase_timeout,
              'suite-timeout=i'          => \$opt_suite_timeout,
              'warnings|log-warnings'    => \$opt_warnings,
@@ -897,14 +891,6 @@ sub command_line_setup () {
   }
 
   # --------------------------------------------------------------------------
-  # Sleep flag
-  # --------------------------------------------------------------------------
-  if ( $opt_sleep )
-  {
-    $opt_sleep_time_after_restart= $opt_sleep;
-  }
-
-  # --------------------------------------------------------------------------
   # Big test flags
   # --------------------------------------------------------------------------
    if ( $opt_big_test )
@@ -929,8 +915,6 @@ sub command_line_setup () {
   {
     # Indicate that we are using debugger
     $glob_debugger= 1;
-    # Increase timeouts
-    $opt_wait_timeout=  300;
     if ( $opt_extern )
     {
       mtr_error("Can't use --extern when using debugger");
@@ -994,13 +978,6 @@ sub command_line_setup () {
   {
     $opt_suite_timeout= $default_suite_timeout;
     $opt_suite_timeout*= 6 if $opt_valgrind;
-  }
-
-  # Increase times to wait for executables to start if using valgrind
-  if ( $opt_valgrind )
-  {
-    $opt_sleep_time_after_restart= 10;
-    $opt_sleep_time_for_delete= 60;
   }
 
   if ( ! $opt_user )
@@ -4745,22 +4722,14 @@ Misc options
   unified-diff | udiff  When presenting differences, use unified diff
 
   testcase-timeout=MINUTES Max test case run time (default $default_testcase_timeout)
-  suite-timeout=MINUTES    Max test suite run time (default $default_suite_timeout)
+  suite-timeout=MINUTES Max test suite run time (default $default_suite_timeout)
+  warnings | log-warnings Pass --log-warnings to mysqld
 
+  sleep=SECONDS         Passed to mysqltest, will be used as fixed sleep time
 
 Deprecated options
   with-openssl          Deprecated option for ssl
 
-
-Options not yet described, or that I want to look into more
-  local                 
-  netware               
-  sleep=SECONDS         
-
-  user-test=s           
-  wait-timeout=SECONDS  
-  warnings              
-  log-warnings          
 
 HERE
   mtr_exit(1);
