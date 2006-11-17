@@ -142,6 +142,10 @@ test-force:
 test-force-full:
 	$(MAKE) force=--force test-full
 
+#used by autopush.pl to run memory based tests
+test-force-mem:
+	$(MAKE) 'force=--force --mem' test
+
 # Keep these for a while
 test-pl:	test
 test-full-pl:	test-full
