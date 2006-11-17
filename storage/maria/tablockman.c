@@ -1,5 +1,5 @@
-// TODO - allocate everything from dynarrays !!! (benchmark)
-// automatically place S instead of LS if possible
+#warning TODO - allocate everything from dynarrays !!! (benchmark)
+#warning automatically place S instead of LS if possible
 /* Copyright (C) 2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -16,10 +16,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <my_global.h>
-#include <my_sys.h>
-#include <my_bit.h>
-#include <lf.h>
+#include <my_base.h>
+#include <hash.h>
 #include "tablockman.h"
 
 /*
@@ -53,45 +51,54 @@
   resource, check if a conflicting lock exists, if yes - find who owns it.
 
   Solution: every resource has a structure with
-  1. Hash of "active" (see below for the description of "active") granted
-     locks with loid as a key. Thus, checking if a given transaction has a
-     lock on this resource is O(1) operation.
+  1. Hash of latest (see the lock upgrade section below) granted locks with
+     loid as a key. Thus, checking if a given transaction has a lock on
+     this resource is O(1) operation.
   2. Doubly-linked lists of all granted locks - one list for every lock
      type. Thus, checking if a conflicting lock exists is a check whether
      an appropriate list head pointer is not null, also O(1).
   3. Every lock has a loid of the owner, thus checking who owns a
      conflicting lock is also O(1).
-  4. Deque of waiting locks. It's a deque not a fifo, because for lock
-     upgrades requests are added to the queue head, not tail. There's never
-     a need to scan the queue.
-
-  Result: adding or removing a lock is always a O(1) operation, it does not
-  depend on the number of locks on the resource, or number of transactions,
-  or number of resources. It _does_ depend on the number of different lock
-  levels - O(number_of_lock_levels) - but it's a constant.
+  4. Deque of waiting locks. It's a deque (double-ended queue) not a fifo,
+     because for lock upgrades requests are added to the queue head, not
+     tail. This is a single place where there it gets O(N) on number
+     of locks - when a transaction wakes up from waiting on a condition,
+     it may need to scan the queue backward to the beginning to find
+     a conflicting lock. It is guaranteed though that "all transactions
+     before it" received the same - or earlier - signal.  In other words a
+     transaction needs to scan all transactions before it that received the
+     signal but didn't have a chance to resume the execution yet, so
+     practically OS scheduler won't let the scan to be O(N).
 
   Waiting: if there is a conflicting lock or if wait queue is not empty, a
   requested lock cannot be granted at once. It is added to the end of the
-  wait queue. If there is a conflicting lock - the "blocker" transaction is
-  the owner of this lock. If there's no conflict but a queue was not empty,
-  than the "blocker" is the transaction that the owner of the lock at the
-  end of the queue is waiting for (in other words, our lock is added to the
-  end of the wait queue, and our blocker is the same as of the lock right
-  before us).
+  wait queue. If a queue was empty and there is a conflicting lock - the
+  "blocker" transaction is the owner of this lock. If a queue is not empty,
+  an owner of the previous lock in the queue is the "blocker". But if the
+  previous lock is compatible with the request, then the "blocker" is the
+  transaction that the owner of the lock at the end of the queue is waiting
+  for (in other words, our lock is added to the end of the wait queue, and
+  our blocker is the same as of the lock right before us).
 
   Lock upgrades: when a thread that has a lock on a given resource,
   requests a new lock on the same resource and the old lock is not enough
   to satisfy new lock requirements (which is defined by
   lock_combining_matrix[old_lock][new_lock] != old_lock), a new lock
-  (defineded by lock_combining_matrix as above) is placed. Depending on
-  other granted locks it is immediately active or it has to wait.  Here the
+  (defined by lock_combining_matrix as above) is placed. Depending on
+  other granted locks it is immediately granted or it has to wait.  Here the
   lock is added to the start of the waiting queue, not to the end.  Old
   lock, is removed from the hash, but not from the doubly-linked lists.
   (indeed, a transaction checks "do I have a lock on this resource ?" by
   looking in a hash, and it should find a latest lock, so old locks must be
-  removed; but a transaction checks "are the conflicting locks ?" by
+  removed; but a transaction checks "are there conflicting locks ?" by
   checking doubly-linked lists, it doesn't matter if it will find an old
   lock - if it would be removed, a new lock would be also a conflict).
+  So, a hash contains only "latest" locks - there can be only one latest
+  lock per resource per transaction. But doubly-linked lists contain all
+  locks, even "obsolete" ones, because it doesnt't hurt. Note that old
+  locks can not be freed early, in particular they stay in the
+  'active_locks' list of a lock owner, because they may be "re-enabled"
+  on a savepoint rollback.
 
   To better support table-row relations where one needs to lock the table
   with an intention lock before locking the row, extended diagnostics is
@@ -107,6 +114,18 @@
   Instant duration locks are not supported. Though they're trivial to add,
   they are normally only used on rows, not on tables. So, presumably,
   they are not needed here.
+
+  Mutexes: there're table mutexes (LOCKED_TABLE::mutex), lock owner mutexes
+  (TABLE_LOCK_OWNER::mutex), and a pool mutex (TABLOCKMAN::pool_mutex).
+  table mutex protects operations on the table lock structures, and lock
+  owner pointers waiting_for and waiting_for_loid.
+  lock owner mutex is only used to wait on lock owner condition
+  (TABLE_LOCK_OWNER::cond), there's no need to protect owner's lock
+  structures, and only lock owner itself may access them.
+  The pool mutex protects a pool of unused locks. Note the locking order:
+  first the table mutex, then the owner mutex or a pool mutex.
+  Table mutex lock cannot be attempted when owner or pool mutex are locked.
+  No mutex lock can be attempted if owner or pool mutex are locked.
 */
 
 /*
@@ -122,9 +141,9 @@
   0  - incompatible
   -1 - "impossible", so that we can assert the impossibility.
 */
-static int lock_compatibility_matrix[10][10]=
+static const int lock_compatibility_matrix[10][10]=
 { /* N    S   X  IS  IX  SIX LS  LX  SLX LSIX          */
-  {  -1,  1,  1,  1,  1,  1,  1,  1,  1,  1 }, /* N    */
+  {  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 }, /* N    */
   {  -1,  1,  0,  1,  0,  0,  1,  0,  0,  0 }, /* S    */
   {  -1,  0,  0,  0,  0,  0,  0,  0,  0,  0 }, /* X    */
   {  -1,  1,  0,  1,  1,  1,  1,  1,  1,  1 }, /* IS   */
@@ -144,18 +163,18 @@ static int lock_compatibility_matrix[10][10]=
 
   One should never get N from it, we assert the impossibility
 */
-static enum lock_type lock_combining_matrix[10][10]=
+static const enum lock_type lock_combining_matrix[10][10]=
 {/*    N    S   X    IS    IX  SIX    LS    LX   SLX   LSIX         */
-  {    N,   S,  X,   IS,   IX, SIX,    S,  SLX, SLX,  SIX}, /* N    */
-  {    S,   S,  X,    S,  SIX, SIX,    S,  SLX, SLX,  SIX}, /* S    */
-  {    X,   X,  X,    X,    X,   X,    X,    X,   X,    X}, /* X    */
-  {   IS,   S,  X,   IS,   IX, SIX,   LS,   LX, SLX, LSIX}, /* IS   */
-  {   IX, SIX,  X,   IX,   IX, SIX, LSIX,   LX, SLX, LSIX}, /* IX   */
-  {  SIX, SIX,  X,  SIX,  SIX, SIX,  SIX,  SLX, SLX,  SIX}, /* SIX  */
-  {   LS,   S,  X,   LS, LSIX, SIX,   LS,   LX, SLX, LSIX}, /* LS   */
-  {   LX, SLX,  X,   LX,   LX, SLX,   LX,   LX, SLX,   LX}, /* LX   */
-  {  SLX, SLX,  X,  SLX,  SLX, SLX,  SLX,  SLX, SLX,  SLX}, /* SLX  */
-  { LSIX, SIX,  X, LSIX, LSIX, SIX, LSIX,   LX, SLX, LSIX}  /* LSIX */
+  {    N,   N,  N,    N,    N,   N,    N,    N,   N,    N}, /* N    */
+  {    N,   S,  X,    S,  SIX, SIX,    S,  SLX, SLX,  SIX}, /* S    */
+  {    N,   X,  X,    X,    X,   X,    X,    X,   X,    X}, /* X    */
+  {    N,   S,  X,   IS,   IX, SIX,   LS,   LX, SLX, LSIX}, /* IS   */
+  {    N, SIX,  X,   IX,   IX, SIX, LSIX,   LX, SLX, LSIX}, /* IX   */
+  {    N, SIX,  X,  SIX,  SIX, SIX,  SIX,  SLX, SLX,  SIX}, /* SIX  */
+  {    N,   S,  X,   LS, LSIX, SIX,   LS,   LX, SLX, LSIX}, /* LS   */
+  {    N, SLX,  X,   LX,   LX, SLX,   LX,   LX, SLX,   LX}, /* LX   */
+  {    N, SLX,  X,  SLX,  SLX, SLX,  SLX,  SLX, SLX,  SLX}, /* SLX  */
+  {    N, SIX,  X, LSIX, LSIX, SIX, LSIX,   LX, SLX, LSIX}  /* LSIX */
 };
 
 /*
@@ -176,7 +195,7 @@ static enum lock_type lock_combining_matrix[10][10]=
 #define L GOT_THE_LOCK_NEED_TO_INSTANT_LOCK_A_SUBRESOURCE
 #define A GOT_THE_LOCK
 #define x GOT_THE_LOCK
-static enum lockman_getlock_result getlock_result[10][10]=
+static const enum lockman_getlock_result getlock_result[10][10]=
 {/*    N    S   X    IS    IX  SIX    LS    LX   SLX   LSIX         */
   {    0,   0,  0,    0,    0,   0,    0,    0,   0,    0}, /* N    */
   {    0,   x,  0,    A,    0,   0,    x,    0,   0,    0}, /* S    */
@@ -200,37 +219,47 @@ static enum lockman_getlock_result getlock_result[10][10]=
 */
 
 struct st_table_lock {
+#warning do we need upgraded_from ?
   struct st_table_lock *next_in_lo, *upgraded_from, *next, *prev;
   struct st_locked_table *table;
   uint16 loid;
-  char   lock_type;
+  uchar  lock_type;
 };
 
 #define hash_insert my_hash_insert /* for consistency :) */
-#define remove_from_wait_queue(LOCK, TABLE)                     \
-  do                                                            \
-  {                                                             \
-    if ((LOCK)->prev)                                           \
-    {                                                           \
-      DBUG_ASSERT((TABLE)->wait_queue_out != (LOCK));           \
-      (LOCK)->prev->next= (LOCK)->next;                         \
-    }                                                           \
-    else                                                        \
-    {                                                           \
-      DBUG_ASSERT((TABLE)->wait_queue_out == (LOCK));           \
-      (TABLE)->wait_queue_out= (LOCK)->next;                    \
-    }                                                           \
-    if ((LOCK)->next)                                           \
-    {                                                           \
-      DBUG_ASSERT((TABLE)->wait_queue_in != (LOCK));            \
-      (LOCK)->next->prev= (LOCK)->prev;                         \
-    }                                                           \
-    else                                                        \
-    {                                                           \
-      DBUG_ASSERT((TABLE)->wait_queue_in == (LOCK));            \
-      (TABLE)->wait_queue_in= (LOCK)->prev;                     \
-    }                                                           \
-  } while (0)
+
+static inline
+TABLE_LOCK *find_loid(LOCKED_TABLE *table, uint16 loid)
+{
+  return (TABLE_LOCK *)hash_search(& table->latest_locks,
+                                   (byte *)& loid, sizeof(loid));
+}
+
+static inline
+void remove_from_wait_queue(TABLE_LOCK *lock, LOCKED_TABLE *table)
+{
+  DBUG_ASSERT(table == lock->table);
+  if (lock->prev)
+  {
+    DBUG_ASSERT(table->wait_queue_out != lock);
+    lock->prev->next= lock->next;
+  }
+  else
+  {
+    DBUG_ASSERT(table->wait_queue_out == lock);
+    table->wait_queue_out= lock->next;
+  }
+  if (lock->next)
+  {
+    DBUG_ASSERT(table->wait_queue_in != lock);
+    lock->next->prev= lock->prev;
+  }
+  else
+  {
+    DBUG_ASSERT(table->wait_queue_in == lock);
+    table->wait_queue_in= lock->prev;
+  }
+}
 
 /*
   DESCRIPTION
@@ -243,24 +272,31 @@ enum lockman_getlock_result
 tablockman_getlock(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo,
                    LOCKED_TABLE *table, enum lock_type lock)
 {
-  TABLE_LOCK *old, *new, *blocker;
+  TABLE_LOCK *old, *new, *blocker, *blocker2;
   TABLE_LOCK_OWNER *wait_for;
   ulonglong deadline;
   struct timespec timeout;
   enum lock_type new_lock;
+  enum lockman_getlock_result res;
   int i;
 
-  pthread_mutex_lock(& table->mutex);
-  /* do we alreasy have a lock on this resource ? */
-  old= (TABLE_LOCK *)hash_search(& table->active, (byte *)&lo->loid,
-                                 sizeof(lo->loid));
+  DBUG_ASSERT(lo->waiting_lock == 0);
+  DBUG_ASSERT(lo->waiting_for == 0);
+  DBUG_ASSERT(lo->waiting_for_loid == 0);
 
-  /* and if yes, is it enough to satisfy the new request */
-  if (old && lock_combining_matrix[old->lock_type][lock] == old->lock_type)
+  pthread_mutex_lock(& table->mutex);
+  /* do we already have a lock on this resource ? */
+  old= find_loid(table, lo->loid);
+
+  /* calculate the level of the upgraded lock, if yes */
+  new_lock= old ? lock_combining_matrix[old->lock_type][lock] : lock;
+
+  /* and check if old lock is enough to satisfy the new request */
+  if (old && new_lock == old->lock_type)
   {
     /* yes */
-    pthread_mutex_unlock(& table->mutex);
-    return getlock_result[old->lock_type][lock];
+    res= getlock_result[old->lock_type][lock];
+    goto ret;
   }
 
   /* no, placing a new lock. first - take a free lock structure from the pool */
@@ -275,48 +311,81 @@ tablockman_getlock(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo,
   {
     pthread_mutex_unlock(& lm->pool_mutex);
     new= (TABLE_LOCK *)my_malloc(sizeof(*new), MYF(MY_WME));
-    if (!new)
+    if (unlikely(!new))
     {
-      pthread_mutex_unlock(& table->mutex);
-      return DIDNT_GET_THE_LOCK;
+      res= NO_MEMORY_FOR_LOCK;
+      goto ret;
     }
   }
-
-  /* calculate the level of the upgraded lock */
-  new_lock= old ? lock_combining_matrix[old->lock_type][lock] : lock;
 
   new->loid= lo->loid;
   new->lock_type= new_lock;
   new->table= table;
 
   /* and try to place it */
-  for (new->prev= table->wait_queue_in ; ; )
+  for (new->prev= table->wait_queue_in;;)
   {
-    /* waiting queue is not empty and we're not upgrading */
-    if (!old && new->prev)
+    wait_for= 0;
+    if (!old)
     {
-      /* need to wait */
-      DBUG_ASSERT(table->wait_queue_out);
-      DBUG_ASSERT(table->wait_queue_in);
-      blocker= new->prev;
-      /* wait for a previous lock in the queue or for a lock it's waiting for */
-      if (lock_compatibility_matrix[blocker->lock_type][lock])
-        wait_for= lm->loid_to_tlo(blocker->loid)->waiting_for;
-      else
-        wait_for= lm->loid_to_tlo(blocker->loid);
+      /* not upgrading - a lock must be added to the _end_ of the wait queue */
+      for (blocker= new->prev; blocker && !wait_for; blocker= blocker->prev)
+      {
+        TABLE_LOCK_OWNER *tmp= lm->loid_to_tlo(blocker->loid);
+
+        /* find a blocking lock */
+        DBUG_ASSERT(table->wait_queue_out);
+        DBUG_ASSERT(table->wait_queue_in);
+        if (!lock_compatibility_matrix[blocker->lock_type][lock])
+        {
+          /* found! */
+          wait_for= tmp;
+        }
+        else
+        {
+          /*
+            hmm, the lock before doesn't block us, let's look one step further.
+            the condition below means:
+
+              if we never waited on a condition yet
+              OR
+              the lock before ours (blocker) waits on a lock (blocker2) that is
+                 present in the hash AND and conflicts with 'blocker'
+
+              the condition after OR may fail if 'blocker2' was removed from
+              the hash, its signal woke us up, but 'blocker' itself didn't see
+              the signal yet.
+          */
+          if (!lo->waiting_lock ||
+              ((blocker2= find_loid(table, tmp->waiting_for_loid)) &&
+              !lock_compatibility_matrix[blocker2->lock_type]
+                                        [blocker->lock_type]))
+          {
+            /* but it's waiting for a real lock. we'll wait for the same lock */
+            wait_for= tmp->waiting_for;
+          }
+          /*
+            otherwise - a lock it's waiting for doesn't exist.
+            We've no choice but to scan the wait queue backwards, looking
+            for a conflicting lock or a lock waiting for a real lock.
+            QQ is there a way to avoid this scanning ?
+          */
+        }
+      }
     }
-    else
+
+    if (wait_for == 0)
     {
       /* checking for compatibility with existing locks */
       for (blocker= 0, i= 0; i < LOCK_TYPES; i++)
       {
         if (table->active_locks[i] && !lock_compatibility_matrix[i+1][lock])
         {
-          /* the first lock in the list may be our own - skip it */
-          for (blocker= table->active_locks[i];
-               blocker && blocker->loid == lo->loid;
-               blocker= blocker->next) /* no-op */;
-          if (blocker)
+          blocker= table->active_locks[i];
+          /* if the first lock in the list is our own - skip it */
+          if (blocker->loid == lo->loid)
+            blocker= blocker->next;
+          if (blocker) /* found a conflicting lock, need to wait */
             break;
         }
       }
@@ -327,6 +396,7 @@ tablockman_getlock(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo,
 
     /* ok, we're here - the wait is inevitable */
     lo->waiting_for= wait_for;
+    lo->waiting_for_loid= wait_for->loid;
     if (!lo->waiting_lock) /* first iteration of the for() loop */
     {
       /* lock upgrade or new lock request ? */
@@ -338,7 +408,7 @@ tablockman_getlock(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo,
           new->next->prev= new;
         table->wait_queue_out= new;
         if (!table->wait_queue_in)
-          table->wait_queue_in=table->wait_queue_out;
+          table->wait_queue_in= table->wait_queue_out;
       }
       else
       {
@@ -348,7 +418,7 @@ tablockman_getlock(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo,
           new->prev->next= new;
         table->wait_queue_in= new;
         if (!table->wait_queue_out)
-          table->wait_queue_out=table->wait_queue_in;
+          table->wait_queue_out= table->wait_queue_in;
       }
       lo->waiting_lock= new;
 
@@ -356,22 +426,28 @@ tablockman_getlock(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo,
       timeout.tv_sec= deadline/10000000;
       timeout.tv_nsec= (deadline % 10000000) * 100;
     }
-    else
-    {
-      if (my_getsystime() > deadline)
-      {
-        pthread_mutex_unlock(& table->mutex);
-        return DIDNT_GET_THE_LOCK;
-      }
-    }
 
-    /* now really wait */
+    /*
+      prepare to wait.
+      we must lock blocker's mutex to wait on blocker's cond.
+      and we must release table's mutex.
+      note that blocker's mutex is locked _before_ table's mutex is released
+    */
     pthread_mutex_lock(wait_for->mutex);
     pthread_mutex_unlock(& table->mutex);
 
-    pthread_cond_timedwait(wait_for->cond, wait_for->mutex, &timeout);
+    /* now really wait */
+    i= pthread_cond_timedwait(wait_for->cond, wait_for->mutex, & timeout);
 
     pthread_mutex_unlock(wait_for->mutex);
+
+    if (i == ETIMEDOUT || i == ETIME)
+    {
+      /* we rely on the caller to rollback and release all locks */
+      res= LOCK_TIMEOUT;
+      goto ret2;
+    }
+
     pthread_mutex_lock(& table->mutex);
 
     /* ... and repeat from the beginning */
@@ -384,6 +460,7 @@ tablockman_getlock(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo,
     remove_from_wait_queue(new, table);
     lo->waiting_lock= 0;
     lo->waiting_for= 0;
+    lo->waiting_for_loid= 0;
   }
 
   /* add it to the list of all locks of this lock owner */
@@ -396,20 +473,20 @@ tablockman_getlock(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo,
     new->next->prev= new;
   table->active_locks[new_lock-1]= new;
 
-  /* remove the old lock from the hash, if upgrading */
+  /* update the latest_locks hash */
   if (old)
-  {
-    new->upgraded_from= old;
-    hash_delete(& table->active, (byte *)old);
-  }
-  else
-    new->upgraded_from= 0;
+    hash_delete(& table->latest_locks, (byte *)old);
+  hash_insert(& table->latest_locks, (byte *)new);
 
-  /* and add a new lock to the hash, voila */
-  hash_insert(& table->active, (byte *)new);
+  new->upgraded_from= old;
 
+  res= getlock_result[lock][lock];
+
+ret:
   pthread_mutex_unlock(& table->mutex);
-  return getlock_result[lock][lock];
+ret2:
+  DBUG_ASSERT(res);
+  return res;
 }
 
 /*
@@ -443,6 +520,17 @@ void tablockman_release_locks(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo)
       Signal our blocker to release this next lock (after we removed our
       lock from the wait queue, of course).
     */
+    /*
+      An example to clarify the above:
+        trn1> S-lock the table. Granted.
+        trn2> IX-lock the table. Added to the wait queue. trn2 waits on trn1
+        trn3> IS-lock the table.  The queue is not empty, so IS-lock is added
+              to the queue. It's compatible with the waiting IX-lock, so trn3
+              waits for trn2->waiting_for, that is trn1.
+      if trn1 releases the lock it signals trn1->cond and both waiting
+      transactions are awaken. But if trn2 times out, trn3 must be notified
+      too (as IS and S locks are compatible). So trn2 must signal trn1->cond.
+    */
     if (lock->prev &&
         lock_compatibility_matrix[lock->prev->lock_type][lock->lock_type])
     {
@@ -451,6 +539,7 @@ void tablockman_release_locks(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo)
       pthread_mutex_unlock(lo->waiting_for->mutex);
     }
     lo->waiting_for= 0;
+    lo->waiting_for_loid= 0;
     pthread_mutex_unlock(& lock->table->mutex);
 
     lock->next= local_pool;
@@ -465,11 +554,12 @@ void tablockman_release_locks(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo)
     pthread_mutex_t *mutex= & lock->table->mutex;
     DBUG_ASSERT(cur->loid == lo->loid);
 
+    DBUG_ASSERT(lock != lock->next_in_lo);
     lock= lock->next_in_lo;
 
     /* TODO ? group locks by table to reduce the number of mutex locks */
     pthread_mutex_lock(mutex);
-    hash_delete(& cur->table->active, (byte *)cur);
+    hash_delete(& cur->table->latest_locks, (byte *)cur);
 
     if (cur->prev)
       cur->prev->next= cur->next;
@@ -506,7 +596,8 @@ void tablockman_init(TABLOCKMAN *lm, loid_to_tlo_func *func, uint timeout)
   lm->pool= 0;
   lm->loid_to_tlo= func;
   lm->lock_timeout= timeout;
-  pthread_mutex_init(&lm->pool_mutex, MY_MUTEX_INIT_FAST);
+  pthread_mutex_init(& lm->pool_mutex, MY_MUTEX_INIT_FAST);
+  my_getsystime(); /* ensure that my_getsystime() is initialized */
 }
 
 void tablockman_destroy(TABLOCKMAN *lm)
@@ -517,36 +608,54 @@ void tablockman_destroy(TABLOCKMAN *lm)
     lm->pool= tmp->next;
     my_free((void *)tmp, MYF(0));
   }
-  pthread_mutex_destroy(&lm->pool_mutex);
+  pthread_mutex_destroy(& lm->pool_mutex);
 }
 
+/*
+  initialize a LOCKED_TABLE structure
+
+  SYNOPSYS
+    lt                          a LOCKED_TABLE to initialize
+    initial_hash_size           initial size for 'latest_locks' hash
+*/
 void tablockman_init_locked_table(LOCKED_TABLE *lt, int initial_hash_size)
 {
-  TABLE_LOCK *unused;
   bzero(lt, sizeof(*lt));
   pthread_mutex_init(& lt->mutex, MY_MUTEX_INIT_FAST);
-  hash_init(& lt->active, &my_charset_bin, initial_hash_size,
-            offsetof(TABLE_LOCK, loid), sizeof(unused->loid), 0, 0, 0);
+  hash_init(& lt->latest_locks, & my_charset_bin, initial_hash_size,
+            offsetof(TABLE_LOCK, loid),
+            sizeof(((TABLE_LOCK*)0)->loid), 0, 0, 0);
 }
 
 void tablockman_destroy_locked_table(LOCKED_TABLE *lt)
 {
-  hash_free(& lt->active);
+  int i;
+
+  DBUG_ASSERT(lt->wait_queue_out == 0);
+  DBUG_ASSERT(lt->wait_queue_in == 0);
+  DBUG_ASSERT(lt->latest_locks.records == 0);
+  for (i= 0; i<LOCK_TYPES; i++)
+     DBUG_ASSERT(lt->active_locks[i] == 0);
+
+  hash_free(& lt->latest_locks);
   pthread_mutex_destroy(& lt->mutex);
 }
 
 #ifdef EXTRA_DEBUG
-static char *lock2str[LOCK_TYPES+1]= {"N", "S", "X", "IS", "IX", "SIX",
+static const char *lock2str[LOCK_TYPES+1]= {"N", "S", "X", "IS", "IX", "SIX",
   "LS", "LX", "SLX", "LSIX"};
 
-void print_tlo(TABLE_LOCK_OWNER *lo)
+void tablockman_print_tlo(TABLE_LOCK_OWNER *lo)
 {
   TABLE_LOCK *lock;
+
   printf("lo%d>", lo->loid);
   if ((lock= lo->waiting_lock))
-    printf(" (%s.%p)", lock2str[lock->lock_type], lock->table);
-  for (lock= lo->active_locks; lock && lock != lock->next_in_lo; lock= lock->next_in_lo)
-    printf(" %s.%p", lock2str[lock->lock_type], lock->table);
+    printf(" (%s.0x%lx)", lock2str[lock->lock_type], (intptr)lock->table);
+  for (lock= lo->active_locks;
+       lock && lock != lock->next_in_lo;
+       lock= lock->next_in_lo)
+    printf(" %s.0x%lx", lock2str[lock->lock_type], (intptr)lock->table);
   if (lock && lock == lock->next_in_lo)
     printf("!");
   printf("\n");

@@ -432,7 +432,8 @@ C_MODE_END
 #define compile_time_assert(X)                                  \
   do                                                            \
   {                                                             \
-    char compile_time_assert[(X) ? 1 : -1];                     \
+    char compile_time_assert[(X) ? 1 : -1]                      \
+                             __attribute__ ((unused));          \
   } while(0)
 
 /* Go around some bugs in different OS and compilers */
@@ -962,6 +963,14 @@ typedef unsigned long my_ulonglong;
 typedef unsigned __int64 my_ulonglong;
 #else
 typedef unsigned long long my_ulonglong;
+#endif
+
+#if SIZEOF_CHARP == SIZEOF_INT
+typedef int intptr;
+#elif SIZEOF_CHARP == SIZEOF_LONG
+typedef long intptr;
+#else
+#error
 #endif
 
 #ifdef USE_RAID

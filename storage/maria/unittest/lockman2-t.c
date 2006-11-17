@@ -14,6 +14,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/*
+  tablockman for row and table locks
+*/
+
 //#define EXTRA_VERBOSE
 
 #include <tap.h>
@@ -57,7 +61,7 @@ TABLE_LOCK_OWNER *loid2lo1(uint16 loid)
 #define lock_ok_l(O, R, L)                                              \
   test_lock(O, R, L, "", GOT_THE_LOCK_NEED_TO_INSTANT_LOCK_A_SUBRESOURCE)
 #define lock_conflict(O, R, L)                                          \
-  test_lock(O, R, L, "cannot ", DIDNT_GET_THE_LOCK);
+  test_lock(O, R, L, "cannot ", LOCK_TIMEOUT);
 
 void test_tablockman_simple()
 {
@@ -165,14 +169,34 @@ void run_test(const char *test, pthread_handler handler, int n, int m)
   my_free((void*)threads, MYF(0));
 }
 
+static void reinit_tlo(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo)
+{
+  TABLE_LOCK_OWNER backup= *lo;
+
+  tablockman_release_locks(lm, lo);
+  /*
+  pthread_mutex_destroy(lo->mutex);
+  pthread_cond_destroy(lo->cond);
+  bzero(lo, sizeof(*lo));
+
+  lo->mutex= backup.mutex;
+  lo->cond= backup.cond;
+  lo->loid= backup.loid;
+  pthread_mutex_init(lo->mutex, MY_MUTEX_INIT_FAST);
+  pthread_cond_init(lo->cond, 0);*/
+}
+
 pthread_mutex_t rt_mutex;
 int Nrows= 100;
 int Ntables= 10;
 int table_lock_ratio= 10;
 enum lock_type lock_array[6]= {S, X, LS, LX, IS, IX};
 char *lock2str[6]= {"S", "X", "LS", "LX", "IS", "IX"};
-char *res2str[4]= {
-  "DIDN'T GET THE LOCK",
+char *res2str[]= {
+  0,
+  "OUT OF MEMORY",
+  "DEADLOCK",
+  "LOCK TIMEOUT",
   "GOT THE LOCK",
   "GOT THE LOCK NEED TO LOCK A SUBRESOURCE",
   "GOT THE LOCK NEED TO INSTANT LOCK A SUBRESOURCE"};
@@ -200,9 +224,9 @@ pthread_handler_t test_lockman(void *arg)
       res= tablockman_getlock(&tablockman, lo1, ltarray+table, lock_array[locklevel]);
       DIAG(("loid %2d, table %d, lock %s, res %s", loid, table,
             lock2str[locklevel], res2str[res]));
-      if (res == DIDNT_GET_THE_LOCK)
+      if (res < GOT_THE_LOCK)
       {
-        tablockman_release_locks(&tablockman, lo1);
+        reinit_tlo(&tablockman, lo1);
         DIAG(("loid %2d, release all locks", loid));
         timeout++;
         continue;
@@ -217,11 +241,6 @@ pthread_handler_t test_lockman(void *arg)
             lock2str[locklevel+4], res2str[res]));
       switch (res)
       {
-      case DIDNT_GET_THE_LOCK:
-        tablockman_release_locks(&tablockman, lo1);
-        DIAG(("loid %2d, release all locks", loid));
-        timeout++;
-        continue;
       case GOT_THE_LOCK:
         continue;
       case GOT_THE_LOCK_NEED_TO_INSTANT_LOCK_A_SUBRESOURCE:
@@ -230,9 +249,9 @@ pthread_handler_t test_lockman(void *arg)
         res= tablockman_getlock(&tablockman, lo1, ltarray+row, lock_array[locklevel]);
         DIAG(("loid %2d, ROW %d, lock %s, res %s", loid, row,
               lock2str[locklevel], res2str[res]));
-        if (res == DIDNT_GET_THE_LOCK)
+        if (res < GOT_THE_LOCK)
         {
-          tablockman_release_locks(&tablockman, lo1);
+          reinit_tlo(&tablockman, lo1);
           DIAG(("loid %2d, release all locks", loid));
           timeout++;
           continue;
@@ -240,12 +259,15 @@ pthread_handler_t test_lockman(void *arg)
         DBUG_ASSERT(res == GOT_THE_LOCK);
         continue;
       default:
-        DBUG_ASSERT(0);
+        reinit_tlo(&tablockman, lo1);
+        DIAG(("loid %2d, release all locks", loid));
+        timeout++;
+        continue;
       }
     }
   }
 
-  tablockman_release_locks(&tablockman, lo1);
+  reinit_tlo(&tablockman, lo1);
 
   pthread_mutex_lock(&rt_mutex);
   rt_num_threads--;
@@ -264,7 +286,7 @@ int main()
   my_init();
   pthread_mutex_init(&rt_mutex, 0);
 
-  plan(39);
+  plan(40);
 
   if (my_atomic_initialize())
     return exit_status();
@@ -299,7 +321,7 @@ int main()
   Nrows= 100;
   Ntables= 10;
   table_lock_ratio= 10;
-  //run_test("\"random lock\" stress test", test_lockman, THREADS, CYCLES);
+  run_test("\"random lock\" stress test", test_lockman, THREADS, CYCLES);
 #if 0
   /* "real-life" simulation - many rows, no table locks */
   Nrows= 1000000;
