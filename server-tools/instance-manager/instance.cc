@@ -429,7 +429,7 @@ void Instance::set_crash_flag_n_wake_all()
 
 
 Instance::Instance(Thread_registry &thread_registry_arg):
-  crashed(FALSE), configured(FALSE), thread_registry(thread_registry_arg)
+  thread_registry(thread_registry_arg), crashed(FALSE), configured(FALSE)
 {
   pthread_mutex_init(&LOCK_instance, 0);
   pthread_cond_init(&COND_instance_stopped, 0);

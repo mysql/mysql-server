@@ -86,7 +86,7 @@ private:
   int check_connection();
   int do_command();
   int dispatch_command(enum enum_server_command command,
-                       const char *text, uint len);
+                       const char *text);
 };
 
 
@@ -317,12 +317,12 @@ int Mysql_connection_thread::do_command()
                                       (uchar) *packet;
     log_info("connection %d: packet_length=%d, command=%d",
              (int) connection_id, (int) packet_length, (int) command);
-    return dispatch_command(command, packet + 1, packet_length - 1);
+    return dispatch_command(command, packet + 1);
   }
 }
 
 int Mysql_connection_thread::dispatch_command(enum enum_server_command command,
-                                              const char *packet, uint len)
+                                              const char *packet)
 {
   switch (command) {
   case COM_QUIT:                                // client exit
