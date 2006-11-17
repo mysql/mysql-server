@@ -49,7 +49,7 @@ static const int modify_defaults_to_im_error[]= { 0, ER_OUT_OF_RESOURCES,
 /*
   Add a string to a buffer.
 
-  SYNOPSYS
+  SYNOPSIS
     put_to_buff()
     buff              buffer to add the string
     str               string to add
@@ -590,7 +590,7 @@ Create_instance::Create_instance(const LEX_STRING *instance_name_arg)
 /*
   This operation initializes Create_instance object.
 
-  SYNOPSYS
+  SYNOPSIS
     text            [IN/OUT] a pointer to the text containing instance options.
 
   RETURN
@@ -607,7 +607,7 @@ bool Create_instance::init(const char **text)
 /*
   This operation parses CREATE INSTANCE options.
 
-  SYNOPSYS
+  SYNOPSIS
     text            [IN/OUT] a pointer to the text containing instance options.
 
   RETURN
@@ -1255,7 +1255,7 @@ bool Abstract_option_cmd::init(const char **text)
   Correct the option file. The "skip" option is used to remove the found
   option.
 
-  SYNOPSYS
+  SYNOPSIS
   Abstract_option_cmd::correct_file()
     skip     Skip the option, being searched while writing the result file.
              That is, to delete it.
@@ -1395,7 +1395,7 @@ int Abstract_option_cmd::execute_impl(st_net *net, ulong connection_id)
 /*
   This operation parses SET options.
 
-  SYNOPSYS
+  SYNOPSIS
     text            [IN/OUT] a pointer to the text containing options.
 
   RETURN
@@ -1569,7 +1569,7 @@ int Set_option::process_option(Instance *instance, Named_value *option)
 /*
   This operation parses UNSET options.
 
-  SYNOPSYS
+  SYNOPSIS
     text            [IN/OUT] a pointer to the text containing options.
 
   RETURN

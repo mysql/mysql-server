@@ -85,14 +85,7 @@ void Listener::run()
   log_info("Listener: started.");
 
 #ifndef __WIN__
-  /* we use this var to check whether we are running on LinuxThreads */
-  pid_t thread_pid;
-
-  thread_pid= getpid();
-
   struct sockaddr_un unix_socket_address;
-  /* set global variable */
-  linuxthreads= (thread_pid != manager_pid);
 #endif
 
   thread_registry->register_thread(&thread_info);
@@ -151,10 +144,12 @@ void Listener::run()
         {
           set_no_inherit(client_fd);
 
-          Vio *vio= vio_new(client_fd, socket_index == 0 ?
-                            VIO_TYPE_SOCKET : VIO_TYPE_TCPIP,
-                            socket_index == 0 ? 1 : 0);
-          if (vio != 0)
+          struct st_vio *vio=
+            vio_new(client_fd,
+                    socket_index == 0 ?  VIO_TYPE_SOCKET : VIO_TYPE_TCPIP,
+                    socket_index == 0 ? 1 : 0);
+
+          if (vio != NULL)
             handle_new_mysql_connection(vio);
           else
           {
@@ -318,12 +313,12 @@ create_unix_socket(struct sockaddr_un &unix_socket_address)
 
 /*
   Create new mysql connection. Created thread is responsible for deletion of
-  the Mysql_connection_thread_args and Vio instances passed to it.
-  SYNOPSYS
+  the Mysql_connection and Vio instances passed to it.
+  SYNOPSIS
     handle_new_mysql_connection()
 */
 
-void Listener::handle_new_mysql_connection(Vio *vio)
+void Listener::handle_new_mysql_connection(struct st_vio *vio)
 {
   Mysql_connection *mysql_connection=
     new Mysql_connection(thread_registry, user_map,

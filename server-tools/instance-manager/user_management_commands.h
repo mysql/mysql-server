@@ -49,7 +49,7 @@ public:
   /*
     Executes user-management command.
 
-    SYNOPSYS
+    SYNOPSIS
       execute()
 
     RETURN

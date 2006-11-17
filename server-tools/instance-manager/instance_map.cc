@@ -63,7 +63,7 @@ static void delete_instance(void *u)
 /*
   The option handler to pass to the process_default_option_files finction.
 
-  SYNOPSYS
+  SYNOPSIS
     process_option()
     ctx               Handler context. Here it is an instance_map structure.
     group_name        The name of the group the option belongs to.
@@ -169,7 +169,7 @@ int Instance_map::process_one_option(const LEX_STRING *group,
   if (!(instance= (Instance *) hash_search(&hash, (byte *) group->str,
                                            group->length)))
   {
-    if (!(instance= new Instance(thread_registry)))
+    if (!(instance= new Instance()))
       return 1;
 
     if (instance->init(group) || add_instance(instance))
@@ -213,16 +213,13 @@ int Instance_map::process_one_option(const LEX_STRING *group,
 }
 
 
-Instance_map::Instance_map(const char *default_mysqld_path_arg,
-                           Thread_registry &thread_registry_arg):
-  mysqld_path(default_mysqld_path_arg),
-  thread_registry(thread_registry_arg)
+Instance_map::Instance_map()
 {
   pthread_mutex_init(&LOCK_instance_map, 0);
 }
 
 
-int Instance_map::init()
+bool Instance_map::init()
 {
   return hash_init(&hash, default_charset_info, START_HASH_SIZE, 0, 0,
                    get_instance_key, delete_instance, 0);
@@ -310,7 +307,7 @@ bool Instance_map::is_there_active_instance()
   while ((instance= iterator.next()))
   {
     if (guardian->find_instance_node(instance) != NULL ||
-        instance->is_running())
+        instance->is_mysqld_running())
     {
       return TRUE;
     }
@@ -335,18 +332,18 @@ int Instance_map::remove_instance(Instance *instance)
 int Instance_map::create_instance(const LEX_STRING *instance_name,
                                   const Named_value_arr *options)
 {
-  Instance *instance= new Instance(thread_registry);
+  Instance *instance= new Instance();
 
   if (!instance)
   {
-    log_error("Error: can not initialize (name: '%s').",
+    log_error("Error: can not allocate instance (name: '%s').",
               (const char *) instance_name->str);
     return ER_OUT_OF_RESOURCES;
   }
 
   if (instance->init(instance_name))
   {
-    log_error("Error: can not initialize (name: '%s').",
+    log_error("Error: can not initialize instance (name: '%s').",
               (const char *) instance_name->str);
     delete instance;
     return ER_OUT_OF_RESOURCES;
@@ -374,7 +371,7 @@ int Instance_map::create_instance(const LEX_STRING *instance_name,
     log_info("Warning: instance name '%s' is mysqld-compatible.",
              (const char *) instance_name->str);
 
-  if (instance->complete_initialization(this, mysqld_path))
+  if (instance->complete_initialization())
   {
     log_error("Error: can not complete initialization of instance (name: '%s').",
               (const char *) instance_name->str);
@@ -411,7 +408,7 @@ bool Instance_map::complete_initialization()
   {
     Instance *instance= (Instance *) hash_element(&hash, i);
 
-    if (instance->complete_initialization(this, mysqld_path))
+    if (instance->complete_initialization())
       return TRUE;
   }
 
@@ -543,14 +540,14 @@ const char *Instance_map::get_instance_state_name(Instance *instance)
 
   /* The instance is not managed by Guardian: we can report status only.  */
 
-  return instance->is_running() ? "online" : "offline";
+  return instance->is_mysqld_running() ? "online" : "offline";
 }
 
 
 /*
   Create a new configuration section for mysqld-instance in the config file.
 
-  SYNOPSYS
+  SYNOPSIS
     create_instance_in_file()
     instance_name       mysqld-instance name
     options             options for the new mysqld-instance
