@@ -518,7 +518,6 @@ public:
 
   SQL_LIST order_list;                /* ORDER clause */
   List<List_item>     expr_list;
-  List<List_item>     when_list;      /* WHEN clause (expression) */
   SQL_LIST *gorder_list;
   Item *select_limit, *offset_limit;  /* LIMIT clause parameters */
   // Arrays of pointers to top elements of all_fields list
