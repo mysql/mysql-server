@@ -139,10 +139,10 @@ int Manager::main()
   User_map user_map;
   Instance_map instance_map(Options::Main::default_mysqld_path,
                             thread_registry);
-  Guardian guardian(thread_registry, &instance_map,
+  Guardian guardian(&thread_registry, &instance_map,
                     Options::Main::monitoring_interval);
 
-  Listener_thread_args listener_args(thread_registry, user_map, instance_map);
+  Listener listener(&thread_registry, &user_map);
 
   manager_pid= getpid();
   p_instance_map= &instance_map;
@@ -212,40 +212,29 @@ int Manager::main()
   sigset_t mask;
   set_signals(&mask);
 
-  /* create guardian thread */
+  /*
+    Create the guardian thread. The newly started thread will block until
+    we actually load instances.
+
+    NOTE: Guardian should be shutdown first. Only then all other threads
+    can be stopped. This should be done in this order because the guardian
+    is responsible for shutting down all the guarded instances, and this
+    is a long operation.
+
+    NOTE: Guardian uses thr_alarm() when detects the current state of an
+    instance (is_running()), but this does not interfere with
+    flush_instances() call later in the code, because until
+    flush_instances() completes in the main thread, Guardian thread is not
+    permitted to process instances. And before flush_instances() has
+    completed, there are no instances to guard.
+  */
+  if (guardian.start_detached())
   {
-    pthread_t guardian_thd_id;
-    pthread_attr_t guardian_thd_attr;
-    int rc;
-
-    /*
-      NOTE: Guardian should be shutdown first. Only then all other threads
-      need to be stopped. This should be done, as guardian is responsible
-      for shutting down the instances, and this is a long operation.
-
-      NOTE: Guardian uses thr_alarm() when detects current state of
-      instances (is_running()), but it is not interfere with
-      flush_instances() later in the code, because until flush_instances()
-      complete in the main thread, Guardian thread is not permitted to
-      process instances. And before flush_instances() there is no instances
-      to proceed.
-    */
-
-    pthread_attr_init(&guardian_thd_attr);
-    pthread_attr_setdetachstate(&guardian_thd_attr, PTHREAD_CREATE_DETACHED);
-    rc= set_stacksize_n_create_thread(&guardian_thd_id, &guardian_thd_attr,
-                                      guardian_thread_func, &guardian);
-    pthread_attr_destroy(&guardian_thd_attr);
-    if (rc)
-    {
-      log_error("manager(): set_stacksize_n_create_thread(guardian) failed");
-      goto err;
-    }
-
+    log_error("manager(): Failed to create the guardian thread");
+    goto err;
   }
 
   /* Load instances. */
-
   {
     instance_map.guardian->lock();
     instance_map.lock();
@@ -265,23 +254,12 @@ int Manager::main()
     }
   }
 
-  /* create the listener */
+  /* start the listener */
+  if (listener.start_detached())
   {
-    pthread_t listener_thd_id;
-    pthread_attr_t listener_thd_attr;
-    int rc;
-
-    pthread_attr_init(&listener_thd_attr);
-    pthread_attr_setdetachstate(&listener_thd_attr, PTHREAD_CREATE_DETACHED);
-    rc= set_stacksize_n_create_thread(&listener_thd_id, &listener_thd_attr,
-                                      listener, &listener_args);
-    pthread_attr_destroy(&listener_thd_attr);
-    if (rc)
-    {
-      log_error("manager(): set_stacksize_n_create_thread(listener) failed");
-      stop_all(&guardian, &thread_registry);
-      goto err;
-    }
+    log_error("manager(): set_stacksize_n_create_thread(listener) failed");
+    stop_all(&guardian, &thread_registry);
+    goto err;
   }
 
   /*
