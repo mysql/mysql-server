@@ -15308,6 +15308,83 @@ static void test_bug21726()
 
 
 /*
+  BUG#23383: mysql_affected_rows() returns different values than
+  mysql_stmt_affected_rows()
+
+  Test that both mysql_affected_rows() and mysql_stmt_affected_rows()
+  return -1 on error, 0 when no rows were affected, and (positive) row
+  count when some rows were affected.
+*/
+static void test_bug23383()
+{
+  const char *insert_query= "INSERT INTO t1 VALUES (1), (2)";
+  const char *update_query= "UPDATE t1 SET i= 4 WHERE i = 3";
+  MYSQL_STMT *stmt;
+  my_ulonglong row_count;
+  int rc;
+
+  DBUG_ENTER("test_bug23383");
+  myheader("test_bug23383");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE TABLE t1 (i INT UNIQUE)");
+  myquery(rc);
+
+  rc= mysql_query(mysql, insert_query);
+  myquery(rc);
+  row_count= mysql_affected_rows(mysql);
+  DIE_UNLESS(row_count == 2);
+
+  rc= mysql_query(mysql, insert_query);
+  DIE_UNLESS(rc != 0);
+  row_count= mysql_affected_rows(mysql);
+  DIE_UNLESS(row_count == (my_ulonglong)-1);
+
+  rc= mysql_query(mysql, update_query);
+  myquery(rc);
+  row_count= mysql_affected_rows(mysql);
+  DIE_UNLESS(row_count == 0);
+
+  rc= mysql_query(mysql, "DELETE FROM t1");
+  myquery(rc);
+
+  stmt= mysql_stmt_init(mysql);
+  DIE_UNLESS(stmt != 0);
+
+  rc= mysql_stmt_prepare(stmt, insert_query, strlen(insert_query));
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  row_count= mysql_stmt_affected_rows(stmt);
+  DIE_UNLESS(row_count == 2);
+
+  rc= mysql_stmt_execute(stmt);
+  DIE_UNLESS(rc != 0);
+  row_count= mysql_stmt_affected_rows(stmt);
+  DIE_UNLESS(row_count == (my_ulonglong)-1);
+
+  rc= mysql_stmt_prepare(stmt, update_query, strlen(update_query));
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  row_count= mysql_stmt_affected_rows(stmt);
+  DIE_UNLESS(row_count == 0);
+
+  rc= mysql_stmt_close(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/*
   Read and parse arguments and MySQL options from my.cnf
 */
 
@@ -15583,6 +15660,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug15752", test_bug15752 },
   { "test_bug21206", test_bug21206 },
   { "test_bug21726", test_bug21726 },
+  { "test_bug23383", test_bug23383 },
   { 0, 0 }
 };
 
