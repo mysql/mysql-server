@@ -3868,8 +3868,16 @@ sub run_testcase_need_master_restart($)
   }
   elsif( ! $master->[0]->{'pid'} )
   {
-    $do_restart= 1;
-    mtr_verbose("Restart master: master is not started");
+    if ( $opt_extern )
+    {
+      $do_restart= 0;
+      mtr_verbose("No restart: using extern master");
+    }
+    else
+    {
+      $do_restart= 1;
+      mtr_verbose("Restart master: master is not started");
+    }
   }
 
   return $do_restart;
