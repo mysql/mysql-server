@@ -57,7 +57,7 @@
 #pragma interface
 #endif
 
-/*
+/**
   Thread_info - repository entry for each worker thread
   All entries comprise double-linked list like:
      0 -- entry -- entry -- entry - 0
@@ -67,12 +67,10 @@
 class Thread_info
 {
 public:
-  Thread_info(pthread_t thread_id_arg, bool send_signal_on_shutdown_arg);
+  Thread_info() {}
   friend class Thread_registry;
-
 private:
-  Thread_info();
-
+  void init(bool send_signal_on_shutdown);
 private:
   pthread_cond_t *current_cond;
   Thread_info *prev, *next;
@@ -81,7 +79,26 @@ private:
 };
 
 
-/*
+/**
+  A base class for a detached thread.
+*/
+
+class Thread
+{
+public:
+  Thread() {}
+  bool start_detached();
+protected:
+  virtual void run()= 0;
+  virtual ~Thread();
+private:
+  static void *thread_func(void *arg);
+  Thread(const Thread & /* rhs */);            /* not implemented */
+  Thread &operator=(const Thread & /* rhs */); /* not implemented */
+};
+
+
+/**
   Thread_registry - contains handles for each worker thread to deliver
   signal information to workers.
 */
@@ -92,7 +109,7 @@ public:
   Thread_registry();
   ~Thread_registry();
 
-  void register_thread(Thread_info *info);
+  void register_thread(Thread_info *info, bool send_signal_on_shutdown= TRUE);
   void unregister_thread(Thread_info *info);
   void deliver_shutdown();
   void request_shutdown();
