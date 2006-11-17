@@ -1639,7 +1639,7 @@ void subselect_engine::set_row(List<Item> &item_list, Item_cache **row)
     res_field_type= sel_item->field_type();
     item->decimals= sel_item->decimals;
     item->unsigned_flag= sel_item->unsigned_flag;
-    *maybe_null= sel_item->maybe_null;
+    maybe_null= sel_item->maybe_null;
     if (!(row[i]= Item_cache::get_cache(res_type)))
       return;
     row[i]->setup(sel_item);
