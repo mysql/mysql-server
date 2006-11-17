@@ -269,6 +269,34 @@ my_decimal *Item::val_decimal_from_string(my_decimal *decimal_value)
 }
 
 
+my_decimal *Item::val_decimal_from_date(my_decimal *decimal_value)
+{
+  DBUG_ASSERT(fixed == 1);
+  TIME ltime;
+  longlong date;
+  if (get_date(&ltime, TIME_FUZZY_DATE))
+  {
+    my_decimal_set_zero(decimal_value);
+    return 0;
+  }
+  return date2my_decimal(&ltime, decimal_value);
+}
+
+
+my_decimal *Item::val_decimal_from_time(my_decimal *decimal_value)
+{
+  DBUG_ASSERT(fixed == 1);
+  TIME ltime;
+  longlong date;
+  if (get_time(&ltime))
+  {
+    my_decimal_set_zero(decimal_value);
+    return 0;
+  }
+  return date2my_decimal(&ltime, decimal_value);
+}
+
+
 double Item::val_real_from_decimal()
 {
   /* Note that fix_fields may not be called for Item_avg_field items */
@@ -290,6 +318,25 @@ longlong Item::val_int_from_decimal()
     return 0;
   my_decimal2int(E_DEC_FATAL_ERROR, dec_val, unsigned_flag, &result);
   return result;
+}
+
+int Item::save_time_in_field(Field *field)
+{
+  TIME ltime;
+  if (get_time(&ltime))
+    return set_field_to_null(field);
+  field->set_notnull();
+  return field->store_time(&ltime, MYSQL_TIMESTAMP_TIME);
+}
+
+
+int Item::save_date_in_field(Field *field)
+{
+  TIME ltime;
+  if (get_date(&ltime, TIME_FUZZY_DATE))
+    return set_field_to_null(field);
+  field->set_notnull();
+  return field->store_time(&ltime, MYSQL_TIMESTAMP_DATETIME);
 }
 
 
@@ -1176,6 +1223,28 @@ void Item_name_const::print(String *str)
 
 
 /*
+ need a special class to adjust printing : references to aggregate functions 
+ must not be printed as refs because the aggregate functions that are added to
+ the front of select list are not printed as well.
+*/
+class Item_aggregate_ref : public Item_ref
+{
+public:
+  Item_aggregate_ref(Name_resolution_context *context_arg, Item **item,
+                  const char *table_name_arg, const char *field_name_arg)
+    :Item_ref(context_arg, item, table_name_arg, field_name_arg) {}
+
+  void print (String *str)
+  {
+    if (ref)
+      (*ref)->print(str);
+    else
+      Item_ident::print(str);
+  }
+};
+
+
+/*
   Move SUM items out from item tree and replace with reference
 
   SYNOPSIS
@@ -1228,8 +1297,8 @@ void Item::split_sum_func2(THD *thd, Item **ref_pointer_array,
     Item *new_item, *real_itm= real_item();
 
     ref_pointer_array[el]= real_itm;
-    if (!(new_item= new Item_ref(&thd->lex->current_select->context,
-                                 ref_pointer_array + el, 0, name)))
+    if (!(new_item= new Item_aggregate_ref(&thd->lex->current_select->context,
+                                           ref_pointer_array + el, 0, name)))
       return;                                   // fatal_error is set
     fields.push_front(real_itm);
     thd->change_item_tree(ref, new_item);
@@ -3692,16 +3761,16 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
               Item_ref to point to the Item in the select list and replace the
               Item_field created by the parser with the new Item_ref.
             */
-            Item_ref *rf= new Item_ref(db_name,table_name,field_name);
+            Item_ref *rf= new Item_ref(context, db_name,table_name,field_name);
             if (!rf)
               return 1;
-            thd->change_item_tree(ref, rf);
+            thd->change_item_tree(reference, rf);
             /*
               Because Item_ref never substitutes itself with other items 
               in Item_ref::fix_fields(), we can safely use the original 
               pointer to it even after fix_fields()
              */
-            return rf->fix_fields(thd, tables, ref) ||  rf->check_cols(1);
+            return rf->fix_fields(thd, reference) ||  rf->check_cols(1);
           }
         }
       }
