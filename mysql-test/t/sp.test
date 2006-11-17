@@ -358,7 +358,7 @@ end|
 --disable_warnings
 drop procedure if exists sub3|
 --enable_warnings
-create function sub3(i int) returns int
+create function sub3(i int) returns int deterministic
   return i+1|
 
 call sub1("sub1a", (select 7))|

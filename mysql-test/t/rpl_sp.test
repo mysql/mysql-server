@@ -173,15 +173,6 @@ select * from mysql.proc where name="foo4" and db='mysqltest1';
 sync_slave_with_master;
 select * from mysql.proc where name="foo4" and db='mysqltest1';
 
-# fail if non-deterministic SP is called in SBR, bug#16456
-let $oblf=`select @@SESSION.BINLOG_FORMAT`;
-set binlog_format=STATEMENT;
---error ER_BINLOG_ROW_RBR_TO_SBR
-call foo();
---disable_query_log
-eval set binlog_format=$oblf;
---enable_query_log
-
 # ********************** PART 2 : FUNCTIONS ***************
 
 connection master;
@@ -325,25 +316,6 @@ sync_slave_with_master;
 
 # check that this failed-in-the-middle replicated right:
 select * from t2;
-
-# fail if non-deterministic SF is called in SBR, bug#16456
-connection master;
-let $oblf=`select @@SESSION.BINLOG_FORMAT`;
-set binlog_format=STATEMENT;
-delimiter |;
-create function fn16456()
-       returns int
-begin
-       return unix_timestamp();
-end|
-delimiter ;|
---error ER_BINLOG_ROW_RBR_TO_SBR
-select fn16456();
---disable_query_log
-eval set binlog_format=$oblf;
---enable_query_log
-drop function fn16456;
-
 
 # ********************** PART 3 : TRIGGERS ***************
 
@@ -555,5 +527,5 @@ set global log_bin_trust_function_creators=0;
 connection master;
 set global log_bin_trust_function_creators=0;
 --echo End of 5.0 tests
---echo End of 5.1 tests
 
+--echo End of 5.1 tests
