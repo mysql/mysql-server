@@ -277,7 +277,6 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
 {
   DBUG_ENTER("emb_stmt_execute");
   char header[5];
-  MYSQL_DATA *res;
   THD *thd;
   my_bool res;
 
