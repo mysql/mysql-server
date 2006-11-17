@@ -243,7 +243,7 @@ set x = (select sum(t.i) from test.t2 t);
 insert into test.t1 values (id, x);
 end|
 drop procedure if exists sub3|
-create function sub3(i int) returns int
+create function sub3(i int) returns int deterministic
 return i+1|
 call sub1("sub1a", (select 7))|
 call sub1("sub1b", (select max(i) from t2))|

@@ -4576,18 +4576,6 @@ end_with_restore_list:
             goto error;
         }
 
-        /*
-          Throw an error if a non-deterministic procedure is called while
-          statement-based replication (SBR) is active.
-         */
-        if (!sp->m_chistics->detistic &&
-            (mysql_bin_log.is_open() &&
-             thd->variables.binlog_format == BINLOG_FORMAT_STMT))
-        {
-          my_error(ER_BINLOG_ROW_RBR_TO_SBR, MYF(0));
-          goto error;
-        }
-
 	my_bool nsok= thd->net.no_send_ok;
 	thd->net.no_send_ok= TRUE;
 	if (sp->m_flags & sp_head::MULTI_RESULTS)
