@@ -146,12 +146,13 @@ Ndb::~Ndb()
   }
   doDisconnect();
 
-  delete theEventBuffer;
-
+  /* Disconnect from transporter to stop signals from coming in */
   if (theImpl->m_transporter_facade != NULL && theNdbBlockNumber > 0){
     theImpl->m_transporter_facade->close(theNdbBlockNumber, theFirstTransId);
   }
-  
+
+  delete theEventBuffer;
+
   releaseTransactionArrays();
 
   delete []theConnectionArray;
