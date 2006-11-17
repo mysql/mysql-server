@@ -104,7 +104,6 @@ our $glob_mysql_bench_dir=        undef;
 our $glob_hostname=               undef;
 our $glob_scriptname=             undef;
 our $glob_timers=                 undef;
-our $glob_use_running_server=     0;
 our $glob_use_running_ndbcluster= 0;
 our $glob_use_running_ndbcluster_slave= 0;
 our $glob_use_embedded_server=    0;
@@ -181,7 +180,10 @@ our $opt_debug;
 our $opt_do_test;
 our @opt_cases;                  # The test cases names in argv
 our $opt_embedded_server;
-our $opt_extern;
+
+our $opt_extern= 0;
+our $opt_socket;
+
 our $opt_fast;
 our $opt_force;
 our $opt_reorder= 0;
@@ -232,14 +234,10 @@ our $opt_skip_im;
 
 our $opt_sleep;
 
-our $opt_sleep_time_after_restart=  1;
-our $opt_sleep_time_for_delete=    10;
 our $opt_testcase_timeout;
 our $opt_suite_timeout;
 my  $default_testcase_timeout=     15; # 15 min max
 my  $default_suite_timeout=       180; # 3 hours max
-
-our $opt_socket;
 
 our $opt_source_dist;
 
@@ -252,7 +250,6 @@ our $opt_strace_client;
 our $opt_timer= 1;
 
 our $opt_user;
-our $opt_user_test;
 
 our $opt_valgrind= 0;
 our $opt_valgrind_mysqld= 0;
@@ -274,7 +271,6 @@ our $opt_stress_test_file=     "";
 
 our $opt_wait_for_master;
 our $opt_wait_for_slave;
-our $opt_wait_timeout=  10;
 
 our $opt_warnings;
 
@@ -614,9 +610,7 @@ sub command_line_setup () {
              'start-and-exit'           => \$opt_start_and_exit,
              'timer!'                   => \$opt_timer,
              'unified-diff|udiff'       => \$opt_udiff,
-             'user-test=s'              => \$opt_user_test,
              'user=s'                   => \$opt_user,
-             'wait-timeout=i'           => \$opt_wait_timeout,
              'testcase-timeout=i'       => \$opt_testcase_timeout,
              'suite-timeout=i'          => \$opt_suite_timeout,
              'warnings|log-warnings'    => \$opt_warnings,
@@ -808,14 +802,6 @@ sub command_line_setup () {
   $opt_tmpdir =~ s,/+$,,;       # Remove ending slash if any
 
   # --------------------------------------------------------------------------
-  # Set socket
-  # --------------------------------------------------------------------------
-  if (!$opt_socket)
-  {
-    $opt_socket=  $mysqld_variables{'socket'};
-  }
-
-  # --------------------------------------------------------------------------
   # Check im suport
   # --------------------------------------------------------------------------
   if ( $mysql_version_id < 50000 )
@@ -912,20 +898,12 @@ sub command_line_setup () {
   }
 
   # --------------------------------------------------------------------------
-  # Sleep flag
-  # --------------------------------------------------------------------------
-  if ( $opt_sleep )
-  {
-    $opt_sleep_time_after_restart= $opt_sleep;
-  }
-
-  # --------------------------------------------------------------------------
   # Big test flags
   # --------------------------------------------------------------------------
-  if ( $opt_big_test )
-  {
-    $ENV{'BIG_TEST'}= 1;
-  }
+   if ( $opt_big_test )
+   {
+     $ENV{'BIG_TEST'}= 1;
+   }
 
   # --------------------------------------------------------------------------
   # Gcov flag
@@ -944,8 +922,6 @@ sub command_line_setup () {
   {
     # Indicate that we are using debugger
     $glob_debugger= 1;
-    # Increase timeouts
-    $opt_wait_timeout=  300;
     if ( $opt_extern )
     {
       mtr_error("Can't use --extern when using debugger");
@@ -1011,16 +987,9 @@ sub command_line_setup () {
     $opt_suite_timeout*= 6 if $opt_valgrind;
   }
 
-  # Increase times to wait for executables to start if using valgrind
-  if ( $opt_valgrind )
-  {
-    $opt_sleep_time_after_restart= 10;
-    $opt_sleep_time_for_delete= 60;
-  }
-
   if ( ! $opt_user )
   {
-    if ( $glob_use_running_server )
+    if ( $opt_extern )
     {
       $opt_user= "test";
     }
@@ -1202,9 +1171,16 @@ sub command_line_setup () {
 
   if ( $opt_extern )
   {
-    $glob_use_running_server=  1;
-    $opt_skip_rpl= 1;                   # We don't run rpl test cases
-    $master->[0]->{'path_sock'}=  $opt_socket;
+    # Turn off features not supported when running with extern server
+    $opt_skip_rpl= 1;
+
+    # Setup master->[0] with the settings for the extern server
+    $master->[0]->{'path_sock'}=  $opt_socket if $opt_socket;
+  }
+  else
+  {
+    mtr_error("--socket can only be used in combination with --extern")
+      if $opt_socket;
   }
 
   $path_timefile=  "$opt_vardir/log/mysqltest-time";
@@ -1649,7 +1625,7 @@ sub environment_setup () {
   $ENV{'UMASK'}=              "0660"; # The octal *string*
   $ENV{'UMASK_DIR'}=          "0770"; # The octal *string*
   $ENV{'LC_COLLATE'}=         "C";
-  $ENV{'USE_RUNNING_SERVER'}= $glob_use_running_server;
+  $ENV{'USE_RUNNING_SERVER'}= $opt_extern;
   $ENV{'MYSQL_TEST_DIR'}=     $glob_mysql_test_dir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
   $ENV{'MYSQL_TMP_DIR'}=      $opt_tmpdir;
@@ -2558,7 +2534,7 @@ sub run_suite () {
   mtr_print_line();
 
   if ( ! $glob_debugger and
-       ! $glob_use_running_server and
+       ! $opt_extern and
        ! $glob_use_embedded_server )
   {
     stop_all_servers();
@@ -2589,7 +2565,7 @@ sub initialize_servers () {
 
   datadir_setup();
 
-  if ( ! $glob_use_running_server )
+  if ( ! $opt_extern )
   {
     kill_running_servers();
 
@@ -3121,7 +3097,7 @@ sub run_testcase ($) {
   if ($master_restart or $slave_restart)
   {
     # Can't restart a running server that may be in use
-    if ( $glob_use_running_server )
+    if ( $opt_extern )
     {
       mtr_report_test_name($tinfo);
       $tinfo->{comment}= "Can't restart a running server";
@@ -3300,7 +3276,7 @@ sub report_failure_and_restart ($) {
   print "Aborting: $tinfo->{'name'} failed in $test_mode mode. ";
   print "To continue, re-run with '--force'.\n";
   if ( ! $glob_debugger and
-       ! $glob_use_running_server and
+       ! $opt_extern and
        ! $glob_use_embedded_server )
   {
     stop_all_servers();
@@ -3887,7 +3863,6 @@ sub run_testcase_need_master_restart($)
       mtr_verbose("Restart master: master is not started");
     }
   }
-
   return $do_restart;
 }
 
@@ -4792,7 +4767,8 @@ Options to run test on running server
   extern                Use running server for tests FIXME DANGEROUS
   ndb-connectstring=STR Use running cluster, and connect using STR
   ndb-connectstring-slave=STR Use running slave cluster, and connect using STR
-  user=USER             User for connect to server
+  user=USER             User for connection to extern server
+  socket=PATH           Socket for connection to extern server
 
 Options for debugging the product
 
@@ -4841,22 +4817,14 @@ Misc options
   unified-diff | udiff  When presenting differences, use unified diff
 
   testcase-timeout=MINUTES Max test case run time (default $default_testcase_timeout)
-  suite-timeout=MINUTES    Max test suite run time (default $default_suite_timeout)
+  suite-timeout=MINUTES Max test suite run time (default $default_suite_timeout)
+  warnings | log-warnings Pass --log-warnings to mysqld
 
+  sleep=SECONDS         Passed to mysqltest, will be used as fixed sleep time
 
 Deprecated options
   with-openssl          Deprecated option for ssl
 
-
-Options not yet described, or that I want to look into more
-  local                 
-  netware               
-  sleep=SECONDS         
-  socket=PATH           
-  user-test=s           
-  wait-timeout=SECONDS  
-  warnings              
-  log-warnings          
 
 HERE
   mtr_exit(1);
