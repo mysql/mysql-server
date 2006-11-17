@@ -186,7 +186,6 @@ int User_map::load(const char *password_file_name, const char **err_msg)
             2 +                               /* for newline */
             1];                               /* for trailing zero */
   User *user;
-  int rc= 1;
 
   if (my_access(password_file_name, F_OK) != 0)
   {

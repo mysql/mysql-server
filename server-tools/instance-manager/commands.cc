@@ -130,7 +130,7 @@ Instance_name::Instance_name(const LEX_STRING *name)
     ER_OUT_OF_RESOURCES         Not enough resources to complete the operation
 */
 
-int Show_instances::execute(st_net *net, ulong connection_id)
+int Show_instances::execute(st_net *net, ulong /* connection_id */)
 {
   int err_code;
 
@@ -309,7 +309,8 @@ int Show_instance_status::execute_impl(st_net *net, Instance *instance)
 }
 
 
-int Show_instance_status::send_ok_response(st_net *net, ulong connection_id)
+int Show_instance_status::send_ok_response(st_net *net,
+                                           ulong /* connection_id */)
 {
   if (send_eof(net) || net_flush(net))
     return ER_OUT_OF_RESOURCES;
@@ -429,7 +430,8 @@ int Show_instance_options::execute_impl(st_net *net, Instance *instance)
 }
 
 
-int Show_instance_options::send_ok_response(st_net *net, ulong connection_id)
+int Show_instance_options::send_ok_response(st_net *net,
+                                            ulong /* connection_id */)
 {
   if (send_eof(net) || net_flush(net))
     return ER_OUT_OF_RESOURCES;
@@ -512,7 +514,7 @@ Start_instance::Start_instance(const LEX_STRING *instance_name_arg)
     ER_OUT_OF_RESOURCES         Not enough resources to complete the operation
 */
 
-int Start_instance::execute_impl(st_net *net, Instance *instance)
+int Start_instance::execute_impl(st_net * /* net */, Instance *instance)
 {
   int err_code;
 
@@ -553,7 +555,7 @@ Stop_instance::Stop_instance(const LEX_STRING *instance_name_arg)
     ER_OUT_OF_RESOURCES         Not enough resources to complete the operation
 */
 
-int Stop_instance::execute_impl(st_net *net, Instance *instance)
+int Stop_instance::execute_impl(st_net * /* net */, Instance *instance)
 {
   int err_code;
 
@@ -803,7 +805,7 @@ Drop_instance::Drop_instance(const LEX_STRING *instance_name_arg)
     ER_OUT_OF_RESOURCES         Not enough resources to complete the operation
 */
 
-int Drop_instance::execute_impl(st_net *net, Instance *instance)
+int Drop_instance::execute_impl(st_net * /* net */, Instance *instance)
 {
   int err_code;
 
@@ -899,7 +901,8 @@ int Show_instance_log::execute_impl(st_net *net, Instance *instance)
 }
 
 
-int Show_instance_log::send_ok_response(st_net *net, ulong connection_id)
+int Show_instance_log::send_ok_response(st_net *net,
+                                        ulong /* connection_id */)
 {
   if (send_eof(net) || net_flush(net))
     return ER_OUT_OF_RESOURCES;
@@ -1030,7 +1033,8 @@ int Show_instance_log_files::execute_impl(st_net *net, Instance *instance)
 }
 
 
-int Show_instance_log_files::send_ok_response(st_net *net, ulong connection_id)
+int Show_instance_log_files::send_ok_response(st_net *net,
+                                              ulong /* connection_id */)
 {
   if (send_eof(net) || net_flush(net))
     return ER_OUT_OF_RESOURCES;
@@ -1689,7 +1693,7 @@ int Unset_option::process_option(Instance *instance, Named_value *option)
  Implementation of Syntax_error.
 **************************************************************************/
 
-int Syntax_error::execute(st_net *net, ulong connection_id)
+int Syntax_error::execute(st_net * /* net */, ulong /* connection_id */)
 {
   return ER_SYNTAX_ERROR;
 }

@@ -274,7 +274,6 @@ Command *parse_command(const char *text)
   uint word_len;
   LEX_STRING instance_name;
   Command *command= 0;
-  const char *saved_text= text;
 
   Token tok1= shift_token(&text, &word_len);
 
