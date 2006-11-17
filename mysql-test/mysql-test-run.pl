@@ -97,11 +97,6 @@ $Devel::Trace::TRACE= 1;
 #
 ##############################################################################
 
-# We are to use handle_options() in "mysys/my_getopt.c" for the C version
-#
-# In the C version we want to use structs and, in some cases, arrays of
-# structs. We let each struct be a separate hash.
-
 # Misc global variables
 our $mysql_version_id;
 our $glob_mysql_test_dir=         undef;
