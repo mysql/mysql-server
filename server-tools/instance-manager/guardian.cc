@@ -63,11 +63,11 @@ Guardian::get_instance_state_name(enum_instance_state state)
 Guardian::Guardian(Thread_registry *thread_registry_arg,
                    Instance_map *instance_map_arg,
                    uint monitoring_interval_arg)
-  :monitoring_interval(monitoring_interval_arg),
-  shutdown_requested(FALSE),
-  stopped(FALSE),
+  :stopped(FALSE),
+  monitoring_interval(monitoring_interval_arg),
   thread_registry(thread_registry_arg),
-  instance_map(instance_map_arg)
+  instance_map(instance_map_arg),
+  shutdown_requested(FALSE)
 {
   pthread_mutex_init(&LOCK_guardian, 0);
   pthread_cond_init(&COND_guardian, 0);
