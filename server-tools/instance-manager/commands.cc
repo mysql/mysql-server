@@ -29,7 +29,6 @@
 #include "guardian.h"
 #include "instance_map.h"
 #include "log.h"
-#include "manager.h"
 #include "messages.h"
 #include "mysqld_error.h"
 #include "mysql_manager_error.h"

@@ -20,7 +20,6 @@
 #endif
 
 #include "guardian.h"
-
 #include <string.h>
 #include <sys/types.h>
 #include <signal.h>
@@ -29,15 +28,6 @@
 #include "instance_map.h"
 #include "log.h"
 #include "mysql_manager_error.h"
-
-
-pthread_handler_t guardian_thread_func(void *arg)
-{
-  Guardian *guardian= (Guardian *) arg;
-  guardian->run();
-  return 0;
-}
-
 
 const char *
 Guardian::get_instance_state_name(enum_instance_state state)
@@ -68,18 +58,19 @@ Guardian::get_instance_state_name(enum_instance_state state)
   return NULL; /* just to ignore compiler warning. */
 }
 
+/* {{{ Constructor & destructor. */
 
-Guardian::Guardian(Thread_registry &thread_registry_arg,
-                                 Instance_map *instance_map_arg,
-                                 uint monitoring_interval_arg) :
-  Guardian_args(thread_registry_arg, instance_map_arg,
-                       monitoring_interval_arg),
-  thread_info(pthread_self(), TRUE), guarded_instances(0)
+Guardian::Guardian(Thread_registry *thread_registry_arg,
+                   Instance_map *instance_map_arg,
+                   uint monitoring_interval_arg)
+  :monitoring_interval(monitoring_interval_arg),
+  shutdown_requested(FALSE),
+  stopped(FALSE),
+  thread_registry(thread_registry_arg),
+  instance_map(instance_map_arg)
 {
   pthread_mutex_init(&LOCK_guardian, 0);
   pthread_cond_init(&COND_guardian, 0);
-  shutdown_requested= FALSE;
-  stopped= FALSE;
   init_alloc_root(&alloc, MEM_ROOT_BLOCK_SIZE, 0);
 }
 
@@ -94,6 +85,8 @@ Guardian::~Guardian()
   pthread_cond_destroy(&COND_guardian);
 }
 
+/* }}} */
+
 
 void Guardian::request_shutdown()
 {
@@ -106,9 +99,9 @@ void Guardian::request_shutdown()
 
 
 void Guardian::process_instance(Instance *instance,
-                                       GUARD_NODE *current_node,
-                                       LIST **guarded_instances,
-                                       LIST *node)
+                                GUARD_NODE *current_node,
+                                LIST **guarded_instances,
+                                LIST *node)
 {
   uint waitchild= (uint) Instance::DEFAULT_SHUTDOWN_DELAY;
   /* The amount of times, Guardian attempts to restart an instance */
@@ -117,7 +110,7 @@ void Guardian::process_instance(Instance *instance,
 
   if (current_node->state == STOPPING)
   {
-    /* this brach is executed during shutdown */
+    /* this branch is executed during shutdown */
     if (instance->options.shutdown_delay)
     {
       /*
@@ -235,7 +228,7 @@ void Guardian::process_instance(Instance *instance,
 /*
   Run guardian thread
 
-  SYNOPSYS
+  SYNOPSIS
     run()
 
   DESCRIPTION
@@ -252,9 +245,8 @@ void Guardian::run()
 
   log_info("Guardian: started.");
 
-  thread_registry.register_thread(&thread_info);
+  thread_registry->register_thread(&thread_info);
 
-  my_thread_init();
   pthread_mutex_lock(&LOCK_guardian);
 
   /* loop, until all instances were shut down at the end */
@@ -275,8 +267,8 @@ void Guardian::run()
 
     /* check the loop predicate before sleeping */
     if (!(shutdown_requested && (!(guarded_instances))))
-      thread_registry.cond_timedwait(&thread_info, &COND_guardian,
-                                     &LOCK_guardian, &timeout);
+      thread_registry->cond_timedwait(&thread_info, &COND_guardian,
+                                      &LOCK_guardian, &timeout);
   }
 
   log_info("Guardian: stopped.");
@@ -284,9 +276,8 @@ void Guardian::run()
   stopped= TRUE;
   pthread_mutex_unlock(&LOCK_guardian);
   /* now, when the Guardian is stopped we can stop the IM */
-  thread_registry.unregister_thread(&thread_info);
-  thread_registry.request_shutdown();
-  my_thread_end();
+  thread_registry->unregister_thread(&thread_info);
+  thread_registry->request_shutdown();
 
   log_info("Guardian: finished.");
 }
@@ -306,7 +297,7 @@ int Guardian::is_stopped()
   Initialize the list of guarded instances: loop through the Instance_map and
   add all of the instances, which don't have 'nonguarded' option specified.
 
-  SYNOPSYS
+  SYNOPSIS
     Guardian::init()
 
   NOTE: The operation should be invoked with the following locks acquired:
@@ -315,7 +306,7 @@ int Guardian::is_stopped()
 
   RETURN
     0 - ok
-    1 - error occured
+    1 - error occurred
 */
 
 int Guardian::init()
@@ -344,7 +335,7 @@ int Guardian::init()
 /*
   Add instance to the Guardian list
 
-  SYNOPSYS
+  SYNOPSIS
     guard()
     instance           the instance to be guarded
     nolock             whether we prefer do not lock Guardian here,
@@ -357,7 +348,7 @@ int Guardian::init()
 
   RETURN
     0 - ok
-    1 - error occured
+    1 - error occurred
 */
 
 int Guardian::guard(Instance *instance, bool nolock)
@@ -418,7 +409,7 @@ int Guardian::stop_guard(Instance *instance)
   An internal method which is called at shutdown to unregister instances and
   attempt to stop them if requested.
 
-  SYNOPSYS
+  SYNOPSIS
     stop_instances()
 
   DESCRIPTION
@@ -431,7 +422,7 @@ int Guardian::stop_guard(Instance *instance)
 
   RETURN
     0 - ok
-    1 - error occured
+    1 - error occurred
 */
 
 int Guardian::stop_instances()

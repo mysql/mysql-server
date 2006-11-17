@@ -44,9 +44,6 @@ static const char * const INSTANCE_NAME_PREFIX= Instance::DFLT_INSTANCE_NAME.str
 static const int INSTANCE_NAME_PREFIX_LEN= Instance::DFLT_INSTANCE_NAME.length;
 
 
-static void start_and_monitor_instance(Instance_options *old_instance_options,
-                                       Instance_map *instance_map,
-                                       Thread_registry *thread_registry);
 
 #ifndef __WIN__
 typedef pid_t My_process_info;
@@ -61,13 +58,24 @@ typedef PROCESS_INFORMATION My_process_info;
   to do it in a portable way.
 */
 
-pthread_handler_t proxy(void *arg)
+class Instance_monitor: public Thread
 {
-  Instance *instance= (Instance *) arg;
-  start_and_monitor_instance(&instance->options,
-                             instance->get_map(),
+public:
+  Instance_monitor(Instance *instance_arg) :instance(instance_arg) {}
+protected:
+  virtual void run();
+  void start_and_monitor_instance(Instance_options *old_instance_options,
+                                  Instance_map *instance_map,
+                                  Thread_registry *thread_registry);
+private:
+  Instance *instance;
+};
+
+void Instance_monitor::run()
+{
+  start_and_monitor_instance(&instance->options, instance->get_map(),
                              &instance->thread_registry);
-  return 0;
+  delete this;
 }
 
 /*
@@ -242,14 +250,16 @@ static int start_process(Instance_options *instance_options,
     Function returns no value
 */
 
-static void start_and_monitor_instance(Instance_options *old_instance_options,
-                                       Instance_map *instance_map,
-                                       Thread_registry *thread_registry)
+void
+Instance_monitor::
+start_and_monitor_instance(Instance_options *old_instance_options,
+                           Instance_map *instance_map,
+                           Thread_registry *thread_registry)
 {
   Instance_name instance_name(&old_instance_options->instance_name);
   Instance *current_instance;
   My_process_info process_info;
-  Thread_info thread_info(pthread_self(), FALSE);
+  Thread_info thread_info;
 
   log_info("Monitoring thread (instance: '%s'): started.",
            (const char *) instance_name.get_c_str());
@@ -258,12 +268,10 @@ static void start_and_monitor_instance(Instance_options *old_instance_options,
   {
     /*
       Register thread in Thread_registry to wait for it to stop on shutdown
-      only if instance is nuarded. If instance is guarded, the thread will not
+      only if instance is guarded. If instance is guarded, the thread will not
       finish, because nonguarded instances are not stopped on shutdown.
     */
-
-    thread_registry->register_thread(&thread_info);
-    my_thread_init();
+    thread_registry->register_thread(&thread_info, FALSE);
   }
 
   /*
@@ -302,10 +310,7 @@ static void start_and_monitor_instance(Instance_options *old_instance_options,
   instance_map->unlock();
 
   if (!old_instance_options->nonguarded)
-  {
     thread_registry->unregister_thread(&thread_info);
-    my_thread_end();
-  }
 
   log_info("Monitoring thread (instance: '%s'): finished.",
            (const char *) instance_name.get_c_str());
@@ -369,22 +374,19 @@ int Instance::start()
 
   if (configured && !is_running())
   {
+    Instance_monitor *instance_monitor;
     remove_pid();
 
-    pthread_t proxy_thd_id;
-    pthread_attr_t proxy_thd_attr;
-    int rc;
+    instance_monitor= new Instance_monitor(this);
 
-    pthread_attr_init(&proxy_thd_attr);
-    pthread_attr_setdetachstate(&proxy_thd_attr, PTHREAD_CREATE_DETACHED);
-    rc= pthread_create(&proxy_thd_id, &proxy_thd_attr, proxy,
-                       this);
-    pthread_attr_destroy(&proxy_thd_attr);
-    if (rc)
+    if (instance_monitor == NULL || instance_monitor->start_detached())
     {
-      log_error("Instance::start(): pthread_create(proxy) failed");
+      delete instance_monitor;
+      log_error("Instance::start(): failed to create the monitoring thread"
+                " to start an instance");
       return ER_CANNOT_START_INSTANCE;
     }
+    /* The monitoring thread will delete itself when it's finished. */
 
     return 0;
   }
