@@ -68,8 +68,7 @@ private:
   /* Names are conventionally the same as in mysqld */
   int check_connection();
   int do_command();
-  int dispatch_command(enum enum_server_command command,
-                       const char *text, uint len);
+  int dispatch_command(enum enum_server_command command, const char *text);
 };
 
 #endif // INCLUDES_MYSQL_INSTANCE_MANAGER_MYSQL_CONNECTION_H
