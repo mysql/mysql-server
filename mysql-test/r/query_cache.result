@@ -1077,10 +1077,12 @@ create procedure `p1`()
 begin
 select a, f1() from t1;
 end//
+SET GLOBAL log_bin_trust_function_creators = 1;
 call p1()//
 a	f1()
 1	2
 2	2
+SET GLOBAL log_bin_trust_function_creators = 0;
 drop procedure p1//
 drop function f1//
 drop table t1//
