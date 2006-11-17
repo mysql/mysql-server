@@ -702,6 +702,7 @@ void query_cache_abort(NET *net)
 
 void query_cache_end_of_result(THD *thd)
 {
+  Query_cache_block *query_block;
   DBUG_ENTER("query_cache_end_of_result");
 
   /* See the comment on double-check locking usage above. */
@@ -717,13 +718,9 @@ void query_cache_end_of_result(THD *thd)
 
   if (unlikely(query_cache.query_cache_size == 0 ||
                query_cache.flush_in_progress))
-  {
-    STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
-    DBUG_VOID_RETURN;
-  }
+    goto end;
 
-  Query_cache_block *query_block= ((Query_cache_block*)
-                                   thd->net.query_cache_query);
+  query_block= ((Query_cache_block*) thd->net.query_cache_query);
   if (query_block)
   {
     DUMP(&query_cache);
@@ -742,27 +739,25 @@ void query_cache_end_of_result(THD *thd)
                            header->query()));
       query_cache.wreck(__LINE__, "");
 
-      STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
-
-      DBUG_VOID_RETURN;
+      /*
+        We do not need call of BLOCK_UNLOCK_WR(query_block); here because
+        query_cache.wreck() switched query cache off but left content
+        untouched for investigation (it is debugging method).
+      */
+      goto end;
     }
 #endif
     header->found_rows(current_thd->limit_found_rows);
     header->result()->type= Query_cache_block::RESULT;
     header->writer(0);
     thd->net.query_cache_query= 0;
+    BLOCK_UNLOCK_WR(query_block);
     DBUG_EXECUTE("check_querycache",query_cache.check_integrity(1););
 
-    STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
-
-    BLOCK_UNLOCK_WR(query_block);
-  }
-  else
-  {
-    // Cache was flushed or resized and query was deleted => do nothing
-    STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
   }
 
+end:
+  STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
   DBUG_VOID_RETURN;
 }
 
@@ -3529,7 +3524,7 @@ uint Query_cache::filename_2_table_key (char *key, const char *path,
 
 #if defined(DBUG_OFF) && !defined(USE_QUERY_CACHE_INTEGRITY_CHECK)
 
-void wreck(uint line, const char *message) {}
+void wreck(uint line, const char *message) { query_cache_size = 0; }
 void bins_dump() {}
 void cache_dump() {}
 void queries_dump() {}
@@ -3540,6 +3535,17 @@ my_bool in_list(Query_cache_block * root, Query_cache_block * point,
 my_bool in_blocks(Query_cache_block * point) { return 0; }
 
 #else
+
+
+/*
+  Debug method which switch query cache off but left content for
+  investigation.
+
+  SYNOPSIS
+    Query_cache::wreck()
+    line                 line of the wreck() call
+    message              message for logging
+*/
 
 void Query_cache::wreck(uint line, const char *message)
 {
