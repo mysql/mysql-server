@@ -163,7 +163,7 @@ our $exe_libtool;
 
 our $opt_bench= 0;
 our $opt_small_bench= 0;
-our $opt_big_test= 0;            # Send --big-test to mysqltest
+our $opt_big_test= 0;
 
 our @opt_extra_mysqld_opt;
 
@@ -911,6 +911,14 @@ sub command_line_setup () {
   {
     $opt_sleep_time_after_restart= $opt_sleep;
   }
+
+  # --------------------------------------------------------------------------
+  # Big test flags
+  # --------------------------------------------------------------------------
+   if ( $opt_big_test )
+   {
+     $ENV{'BIG_TEST'}= 1;
+   }
 
   # --------------------------------------------------------------------------
   # Gcov flag
@@ -4269,11 +4277,6 @@ sub run_mysqltest ($) {
     mtr_add_arg($args, "--timer-file=%s/log/timer", $opt_vardir);
   }
 
-  if ( $opt_big_test )
-  {
-    mtr_add_arg($args, "--big-test");
-  }
-
   if ( $opt_compress )
   {
     mtr_add_arg($args, "--compress");
@@ -4662,9 +4665,8 @@ Options to control what test suites or cases to run
   skip-rpl              Skip the replication test cases.
   skip-im               Don't start IM, and skip the IM test cases
   skip-test=PREFIX      Skip test cases which name are prefixed with PREFIX
-  big-test              Pass "--big-test" to mysqltest which will set the
-                        environment variable BIG_TEST, which can be checked
-                        from test cases.
+  big-test              Set the environment variable BIG_TEST, which can be
+                        checked from test cases.
 
 Options that specify ports
 
