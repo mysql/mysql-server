@@ -5003,7 +5003,7 @@ Item_func_sp::execute_impl(THD *thd, Field *return_value_fld)
     Throw an error if a non-deterministic function is called while
     statement-based replication (SBR) is active.
   */
-  if (!m_sp->m_chistics->detistic &&
+  if (!m_sp->m_chistics->detistic && !trust_function_creators &&
       (mysql_bin_log.is_open() &&
        thd->variables.binlog_format == BINLOG_FORMAT_STMT))
   {

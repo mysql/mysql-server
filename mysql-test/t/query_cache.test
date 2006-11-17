@@ -788,7 +788,9 @@ create procedure `p1`()
 begin
  select a, f1() from t1;
 end//
+SET GLOBAL log_bin_trust_function_creators = 1;
 call p1()//
+SET GLOBAL log_bin_trust_function_creators = 0;
 drop procedure p1//
 drop function f1//
 

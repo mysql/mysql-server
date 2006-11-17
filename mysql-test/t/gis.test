@@ -393,7 +393,7 @@ drop table t1;
 --disable_warnings
 drop procedure if exists fn3;
 --enable_warnings
-create function fn3 () returns point return GeomFromText("point(1 1)"); 
+create function fn3 () returns point deterministic return GeomFromText("point(1 1)"); 
 show create function fn3;
 select astext(fn3());
 drop function fn3;
