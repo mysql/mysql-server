@@ -2092,14 +2092,6 @@ drop view v1;
 drop table t1;
 
 
-create procedure proc_1() install plugin my_plug soname '/root/some_plugin.so';
---error ER_UDF_NO_PATHS
-call proc_1();
---error ER_UDF_NO_PATHS
-call proc_1();
---error ER_UDF_NO_PATHS
-call proc_1();
-drop procedure proc_1;
 create procedure proc_1() install plugin my_plug soname 'some_plugin.so';
 --replace_regex /(Can\'t open shared library).*$/\1/
 --error ER_CANT_OPEN_LIBRARY
@@ -2119,12 +2111,6 @@ delimiter ;|
 select func_1(), func_1(), func_1() from dual;
 --error ER_SP_DOES_NOT_EXIST
 drop function func_1;
-prepare abc from "install plugin my_plug soname '/root/some_plugin.so'";
---error ER_UDF_NO_PATHS
-execute abc;
---error ER_UDF_NO_PATHS
-execute abc;
-deallocate prepare abc;
 prepare abc from "install plugin my_plug soname 'some_plugin.so'";
 deallocate prepare abc;
 
