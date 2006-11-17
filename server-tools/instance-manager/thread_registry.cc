@@ -38,15 +38,13 @@ static void handle_signal(int __attribute__((unused)) sig_no)
 }
 #endif
 
-/*
-  Thread_info initializer methods
-*/
+/* Thread_info initializer methods */
 
-Thread_info::Thread_info() {}
-Thread_info::Thread_info(pthread_t thread_id_arg,
-                         bool send_signal_on_shutdown_arg) :
-  thread_id(thread_id_arg),
-  send_signal_on_shutdown(send_signal_on_shutdown_arg) {}
+void Thread_info::init(bool send_signal_on_shutdown_arg)
+{
+  thread_id= pthread_self();
+  send_signal_on_shutdown= send_signal_on_shutdown_arg;
+}
 
 /*
   TODO: think about moving signal information (now it's shutdown_in_progress)
@@ -86,10 +84,13 @@ Thread_registry::~Thread_registry()
   points to the last node.
 */
 
-void Thread_registry::register_thread(Thread_info *info)
+void Thread_registry::register_thread(Thread_info *info,
+                                      bool send_signal_on_shutdown)
 {
   log_info("Thread_registry: registering thread %d...",
            (int) info->thread_id);
+
+  info->init(send_signal_on_shutdown);
 
 #ifndef __WIN__
   struct sigaction sa;
@@ -297,4 +298,81 @@ void Thread_registry::wait_for_threads_to_unregister()
       return;
     }
   }
+}
+
+
+/*********************************************************************
+  class Thread
+*********************************************************************/
+
+#if defined(__ia64__) || defined(__ia64)
+/*
+  We can live with 32K, but reserve 64K. Just to be safe.
+  On ia64 we need to reserve double of the size.
+*/
+#define IM_THREAD_STACK_SIZE    (128*1024L)
+#else
+#define IM_THREAD_STACK_SIZE    (64*1024)
+#endif
+
+/*
+  Change the stack size and start a thread. Return an error if either
+  pthread_attr_setstacksize or pthread_create fails.
+  Arguments are the same as for pthread_create().
+*/
+
+static
+int set_stacksize_and_create_thread(pthread_t  *thread, pthread_attr_t *attr,
+                                    void *(*start_routine)(void *), void *arg)
+{
+  int rc= 0;
+
+#ifndef __WIN__
+#ifndef PTHREAD_STACK_MIN
+#define PTHREAD_STACK_MIN      32768
+#endif
+  /*
+    Set stack size to be safe on the platforms with too small
+    default thread stack.
+  */
+  rc= pthread_attr_setstacksize(attr,
+                                (size_t) (PTHREAD_STACK_MIN +
+                                          IM_THREAD_STACK_SIZE));
+#endif
+  if (!rc)
+    rc= pthread_create(thread, attr, start_routine, arg);
+  return rc;
+}
+
+
+Thread::~Thread()
+{
+}
+
+
+void *Thread::thread_func(void *arg)
+{
+  Thread *thread= (Thread *) arg;
+  my_thread_init();
+
+  thread->run();
+
+  my_thread_end();
+  return NULL;
+}
+
+
+bool Thread::start_detached()
+{
+  pthread_t thd_id;
+  pthread_attr_t attr;
+  int rc;
+
+  pthread_attr_init(&attr);
+  pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+  rc= set_stacksize_and_create_thread(&thd_id, &attr,
+                                    Thread::thread_func, this);
+  pthread_attr_destroy(&attr);
+
+  return rc != 0;
 }
