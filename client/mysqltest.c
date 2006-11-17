@@ -475,7 +475,6 @@ void handle_error(struct st_command*,
                   const char *err_sqlstate, DYNAMIC_STRING *ds);
 void handle_no_error(struct st_command*);
 
-
 #ifdef EMBEDDED_LIBRARY
 /*
   send_one_query executes query in separate thread what is
@@ -484,7 +483,7 @@ void handle_no_error(struct st_command*);
   by mysql_send_query. It's technically possible, though
   i don't see where it is needed.
 */
-pthread_handler_decl(send_one_query, arg)
+pthread_handler_t send_one_query(void *arg)
 {
   struct st_connection *cn= (struct st_connection*)arg;
 
@@ -4574,8 +4573,8 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
                       int flags, char *query, int query_len,
                       DYNAMIC_STRING *ds, DYNAMIC_STRING *ds_warnings)
 {
-  MYSQL *mysql= &cn->mysql;
   MYSQL_RES *res= 0;
+  MYSQL *mysql= &cn->mysql;
   int err= 0, counter= 0;
   DBUG_ENTER("run_query_normal");
   DBUG_PRINT("enter",("flags: %d", flags));
