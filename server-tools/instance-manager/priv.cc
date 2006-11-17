@@ -22,14 +22,13 @@
 
 #include "log.h"
 
-/* the pid of the manager process (of the signal thread on the LinuxThreads) */
-pid_t manager_pid;
-
+#ifndef __WIN__
 /*
   This flag is set if mysqlmanager has detected that it is running on the
   system using LinuxThreads
 */
 bool linuxthreads;
+#endif
 
 /*
   The following string must be less then 80 characters, as

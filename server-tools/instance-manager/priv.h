@@ -50,9 +50,6 @@ const int MAX_VERSION_LENGTH= 160;
 
 const int MAX_INSTANCE_NAME_SIZE= FN_REFLEN;
 
-/* the pid of the manager process (of the signal thread on the LinuxThreads) */
-extern pid_t manager_pid;
-
 #ifndef __WIN__
 /*
   This flag is set if mysqlmanager has detected that it is running on the

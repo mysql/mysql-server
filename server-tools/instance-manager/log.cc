@@ -33,7 +33,7 @@
 
 /*
   Format log entry and write it to the given stream.
-  SYNOPSYS
+  SYNOPSIS
     log()
 */
 

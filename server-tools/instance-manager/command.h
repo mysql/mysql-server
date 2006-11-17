@@ -43,7 +43,7 @@ public:
   /*
     This operation incapsulates behaviour of the command.
 
-    SYNOPSYS
+    SYNOPSIS
       net             The network connection to the client.
       connection_id   Client connection ID
 

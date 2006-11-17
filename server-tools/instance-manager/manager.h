@@ -19,9 +19,12 @@
 #if defined(__GNUC__) && defined(USE_PRAGMA_INTERFACE)
 #pragma interface
 #endif
+#include <my_global.h>
 
 class Guardian;
 class Instance_map;
+class Thread_registry;
+class User_map;
 
 class Manager
 {
@@ -33,12 +36,18 @@ public:
   */
   static Instance_map *get_instance_map() { return p_instance_map; }
   static Guardian *get_guardian() { return p_guardian; }
+  static Thread_registry *get_thread_registry() { return p_thread_registry; }
+  static User_map *get_user_map() { return p_user_map; }
+  static pid_t get_manager_pid() { return manager_pid; }
 
 private:
-  static int manager_impl();
+  static void stop_all_threads();
 private:
+  static pid_t manager_pid;
   static Guardian *p_guardian;
   static Instance_map *p_instance_map;
+  static Thread_registry *p_thread_registry;
+  static User_map *p_user_map;
 };
 
 #endif // INCLUDES_MYSQL_INSTANCE_MANAGER_MANAGER_H

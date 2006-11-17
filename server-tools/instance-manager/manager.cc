@@ -93,17 +93,17 @@ int my_sigwait(const sigset_t *set, int *sig)
 #endif
 
 
-void stop_all(Guardian *guardian, Thread_registry *registry)
+void Manager::stop_all_threads()
 {
   /*
     Let guardian thread know that it should break it's processing cycle,
     once it wakes up.
   */
-  guardian->request_shutdown();
+  p_guardian->request_shutdown();
   /* wake guardian */
-  pthread_cond_signal(&guardian->COND_guardian);
+  pthread_cond_signal(&p_guardian->COND_guardian);
   /* stop all threads */
-  registry->deliver_shutdown();
+  p_thread_registry->deliver_shutdown();
 }
 
 /**********************************************************************
@@ -112,6 +112,9 @@ void stop_all(Guardian *guardian, Thread_registry *registry)
 
 Guardian *Manager::p_guardian;
 Instance_map *Manager::p_instance_map;
+Thread_registry *Manager::p_thread_registry;
+User_map *Manager::p_user_map;
+pid_t Manager::manager_pid;
 
 /*
   manager - entry point to the main instance manager process: start
@@ -137,8 +140,7 @@ int Manager::main()
   */
 
   User_map user_map;
-  Instance_map instance_map(Options::Main::default_mysqld_path,
-                            thread_registry);
+  Instance_map instance_map;
   Guardian guardian(&thread_registry, &instance_map,
                     Options::Main::monitoring_interval);
 
@@ -147,6 +149,8 @@ int Manager::main()
   manager_pid= getpid();
   p_instance_map= &instance_map;
   p_guardian= instance_map.guardian= &guardian;
+  p_thread_registry= &thread_registry;
+  p_user_map= &user_map;
 
   /* Initialize instance map. */
 
@@ -199,14 +203,11 @@ int Manager::main()
     NOTE: To work nicely with LinuxThreads, the signal thread is the first
     thread in the process.
 
-    NOTE:
-      After init_thr_alarm() call it's possible to call thr_alarm() (from
-      different threads), that results in sending ALARM signal to the alarm
-      thread (which can be the main thread). That signal can interrupt
-      blocking calls.
-
-      In other words, a blocking call can be interrupted in the main thread
-      after init_thr_alarm().
+    NOTE: After init_thr_alarm() call it's possible to call thr_alarm()
+    (from different threads), that results in sending ALARM signal to the
+    alarm thread (which can be the main thread). That signal can interrupt
+    blocking calls. In other words, a blocking call can be interrupted in
+    the main thread after init_thr_alarm().
   */
 
   sigset_t mask;
@@ -230,11 +231,12 @@ int Manager::main()
   */
   if (guardian.start_detached())
   {
-    log_error("manager(): Failed to create the guardian thread");
+    log_error("Error: can not start Guardian thread.");
     goto err;
   }
 
   /* Load instances. */
+
   {
     instance_map.guardian->lock();
     instance_map.lock();
@@ -246,19 +248,18 @@ int Manager::main()
 
     if (flush_instances_status)
     {
-      log_error("Cannot init instances repository. This might be caused by "
-        "the wrong config file options. For instance, missing mysqld "
-        "binary. Aborting.");
-      stop_all(&guardian, &thread_registry);
+      log_error("Error: can not init instances repository.");
+      stop_all_threads();
       goto err;
     }
   }
 
-  /* start the listener */
+  /* Initialize the Listener. */
+
   if (listener.start_detached())
   {
-    log_error("manager(): set_stacksize_n_create_thread(listener) failed");
-    stop_all(&guardian, &thread_registry);
+    log_error("Error: can not start Listener thread.");
+    stop_all_threads();
     goto err;
   }
 
@@ -268,7 +269,9 @@ int Manager::main()
   */
   pthread_cond_signal(&guardian.COND_guardian);
 
-  log_info("Main loop: started.");
+  /* Main loop. */
+
+  log_info("Manager: started.");
 
   while (!shutdown_complete)
   {
@@ -277,8 +280,8 @@ int Manager::main()
 
     if ((status= my_sigwait(&mask, &signo)) != 0)
     {
-      log_error("sigwait() failed");
-      stop_all(&guardian, &thread_registry);
+      log_error("Error: sigwait() failed");
+      stop_all_threads();
       goto err;
     }
 
@@ -304,7 +307,7 @@ int Manager::main()
   Bug #14164 IM tests fail on MacOS X (powermacg5)
 */
 #ifdef IGNORE_SIGHUP_SIGQUIT
-    if ( SIGHUP == signo )
+    if (SIGHUP == signo)
       continue;
 #endif
     if (THR_SERVER_ALARM == signo)
@@ -312,7 +315,7 @@ int Manager::main()
     else
 #endif
     {
-      log_info("Main loop: got shutdown signal.");
+      log_info("Manager: got shutdown signal.");
 
       if (!guardian.is_stopped())
       {
@@ -327,7 +330,7 @@ int Manager::main()
     }
   }
 
-  log_info("Main loop: finished.");
+  log_info("Manager: finished.");
 
   rc= 0;
 
