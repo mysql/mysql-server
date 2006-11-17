@@ -23,7 +23,6 @@
 #include <m_string.h>
 #include <m_string.h>
 #include <my_global.h>
-#include <mysql_com.h>
 #include <mysql.h>
 #include <my_sys.h>
 #include <violite.h>
@@ -40,66 +39,15 @@
 #include "user_map.h"
 
 
-Mysql_connection_thread_args::Mysql_connection_thread_args(
-                             struct st_vio *vio_arg,
-                             Thread_registry &thread_registry_arg,
-                             const User_map &user_map_arg,
-                             ulong connection_id_arg,
-                             Instance_map &instance_map_arg) :
-    vio(vio_arg)
-    ,thread_registry(thread_registry_arg)
-    ,user_map(user_map_arg)
-    ,connection_id(connection_id_arg)
-    ,instance_map(instance_map_arg)
-  {}
-
-/*
-  MySQL connection - handle one connection with mysql command line client
-  See also comments in mysqlmanager.cc to picture general Instance Manager
-  architecture.
-  We use conventional technique to work with classes without exceptions:
-  class acquires all vital resource in init(); Thus if init() succeed,
-  a user must call cleanup(). All other methods are valid only between
-  init() and cleanup().
-*/
-
-class Mysql_connection_thread: public Mysql_connection_thread_args
+Mysql_connection::Mysql_connection(Thread_registry *thread_registry_arg,
+                                   User_map *user_map_arg,
+                                   struct st_vio *vio_arg, ulong
+                                   connection_id_arg)
+  :vio(vio_arg),
+  connection_id(connection_id_arg),
+  thread_registry(thread_registry_arg),
+  user_map(user_map_arg)
 {
-public:
-  Mysql_connection_thread(const Mysql_connection_thread_args &args);
-
-  int init();
-  void cleanup();
-
-  void run();
-
-  ~Mysql_connection_thread();
-private:
-  Thread_info thread_info;
-  NET net;
-  struct rand_struct rand_st;
-  char scramble[SCRAMBLE_LENGTH + 1];
-  uint status;
-  ulong client_capabilities;
-private:
-  /* Names are conventionally the same as in mysqld */
-  int check_connection();
-  int do_command();
-  int dispatch_command(enum enum_server_command command,
-                       const char *text, uint len);
-};
-
-
-Mysql_connection_thread::Mysql_connection_thread(
-                                   const Mysql_connection_thread_args &args) :
-  Mysql_connection_thread_args(args.vio,
-                               args.thread_registry,
-                               args.user_map,
-                               args.connection_id,
-                               args.instance_map)
-  ,thread_info(pthread_self(), TRUE)
-{
-  thread_registry.register_thread(&thread_info);
 }
 
 
@@ -129,7 +77,7 @@ C_MODE_END
   This function is complementary to cleanup().
 */
 
-int Mysql_connection_thread::init()
+int Mysql_connection::init()
 {
   /* Allocate buffers for network I/O */
   if (my_net_init(&net, vio))
@@ -145,52 +93,46 @@ int Mysql_connection_thread::init()
   create_random_string(scramble, SCRAMBLE_LENGTH, &rand_st);
   /* We don't support transactions, every query is atomic */
   status= SERVER_STATUS_AUTOCOMMIT;
+  thread_registry->register_thread(&thread_info);
   return 0;
 }
 
 
-void Mysql_connection_thread::cleanup()
+void Mysql_connection::cleanup()
 {
   net_end(&net);
+  thread_registry->unregister_thread(&thread_info);
 }
 
 
-Mysql_connection_thread::~Mysql_connection_thread()
+Mysql_connection::~Mysql_connection()
 {
   /* vio_delete closes the socket if necessary */
   vio_delete(vio);
-  thread_registry.unregister_thread(&thread_info);
 }
 
 
-void Mysql_connection_thread::run()
+void Mysql_connection::main()
 {
   log_info("accepted mysql connection %lu", (unsigned long) connection_id);
 
-  my_thread_init();
-
   if (check_connection())
-  {
-    my_thread_end();
     return;
-  }
 
   log_info("connection %lu is checked successfully",
            (unsigned long) connection_id);
 
   vio_keepalive(vio, TRUE);
 
-  while (!net.error && net.vio && !thread_registry.is_shutdown())
+  while (!net.error && net.vio && !thread_registry->is_shutdown())
   {
     if (do_command())
       break;
   }
-
-  my_thread_end();
 }
 
 
-int Mysql_connection_thread::check_connection()
+int Mysql_connection::check_connection()
 {
   ulong pkt_len=0;                              // to hold client reply length
 
@@ -279,7 +221,7 @@ int Mysql_connection_thread::check_connection()
     net_send_error(&net, ER_ACCESS_DENIED_ERROR);
     return 1;
   }
-  if (user_map.authenticate(&user_name, password, scramble))
+  if (user_map->authenticate(&user_name, password, scramble))
   {
     net_send_error(&net, ER_ACCESS_DENIED_ERROR);
     return 1;
@@ -289,7 +231,7 @@ int Mysql_connection_thread::check_connection()
 }
 
 
-int Mysql_connection_thread::do_command()
+int Mysql_connection::do_command()
 {
   char *packet;
   ulong packet_length;
@@ -302,7 +244,7 @@ int Mysql_connection_thread::do_command()
     /* Check if we can continue without closing the connection */
     if (net.error != 3) // what is 3 - find out
       return 1;
-    if (thread_registry.is_shutdown())
+    if (thread_registry->is_shutdown())
       return 1;
     net_send_error(&net, net.last_errno);
     net.error= 0;
@@ -310,7 +252,7 @@ int Mysql_connection_thread::do_command()
   }
   else
   {
-    if (thread_registry.is_shutdown())
+    if (thread_registry->is_shutdown())
       return 1;
     packet= (char*) net.read_pos;
     enum enum_server_command command= (enum enum_server_command)
@@ -321,8 +263,8 @@ int Mysql_connection_thread::do_command()
   }
 }
 
-int Mysql_connection_thread::dispatch_command(enum enum_server_command command,
-                                              const char *packet, uint len)
+int Mysql_connection::dispatch_command(enum enum_server_command command,
+                                       const char *packet, uint len)
 {
   switch (command) {
   case COM_QUIT:                                // client exit
@@ -374,19 +316,16 @@ int Mysql_connection_thread::dispatch_command(enum enum_server_command command,
 }
 
 
-pthread_handler_t mysql_connection(void *arg)
+void Mysql_connection::run()
 {
-  Mysql_connection_thread_args *args= (Mysql_connection_thread_args *) arg;
-  Mysql_connection_thread mysql_connection_thread(*args);
-  delete args;
-  if (mysql_connection_thread.init())
-    log_info("mysql_connection(): error initializing thread");
+  if (init())
+    log_info("Mysql_connection::run(): error initializing thread");
   else
   {
-    mysql_connection_thread.run();
-    mysql_connection_thread.cleanup();
+    main();
+    cleanup();
   }
-  return 0;
+  delete this;
 }
 
 /*
