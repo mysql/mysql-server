@@ -18,3 +18,26 @@ create table nu (a int);
 drop table nu;
 
 # End of 4.1 tests
+
+#
+# Bug #20665: All commands supported in Stored Procedures should work in
+# Prepared Statements
+#
+
+create procedure proc_1() install plugin my_plug soname '\\root\\some_plugin.dll';
+--error ER_UDF_NO_PATHS
+call proc_1();
+--error ER_UDF_NO_PATHS
+call proc_1();
+--error ER_UDF_NO_PATHS
+call proc_1();
+drop procedure proc_1;
+
+create procedure proc_1() install plugin my_plug soname '\\root\\some_plugin.dll';
+--error ER_UDF_NO_PATHS
+call proc_1();
+--error ER_UDF_NO_PATHS
+call proc_1();
+--error ER_UDF_NO_PATHS
+call proc_1();
+drop procedure proc_1;
