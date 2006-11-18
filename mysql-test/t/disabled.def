@@ -32,3 +32,4 @@ rpl_multi_engine         : BUG#22583 2006-09-23 lars
 #ndb_binlog_ddl_multi     : BUG#18976 2006-04-10 kent    CRBR: multiple binlog, second binlog may miss schema log events
 ndb_binlog_discover      : bug#21806 2006-08-24
 ndb_autodiscover3        : bug#21806
+udf                      : for GKodinov to fix. Your fix for #21809 stopped working in 5.1 after the merge.

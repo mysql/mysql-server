@@ -798,7 +798,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %type <item_list>
 	expr_list udf_expr_list udf_expr_list2 when_list
 	ident_list ident_list_arg opt_expr_list
-        expr_list_opt
 
 %type <var_type>
         option_type opt_var_type opt_var_ident_type
@@ -6377,7 +6376,7 @@ function_call_generic:
           lex->current_select->udf_list.push_front(udf);
 #endif
         }
-        expr_list_opt ')'
+        opt_expr_list ')'
         {
           THD *thd= YYTHD;
           LEX *lex= Lex;
