@@ -475,7 +475,6 @@ void handle_error(struct st_command*,
                   const char *err_sqlstate, DYNAMIC_STRING *ds);
 void handle_no_error(struct st_command*);
 
-
 #ifdef EMBEDDED_LIBRARY
 /*
   send_one_query executes query in separate thread what is
