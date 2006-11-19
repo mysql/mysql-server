@@ -229,7 +229,7 @@ struct st_table_lock {
 #define hash_insert my_hash_insert /* for consistency :) */
 
 static inline
-TABLE_LOCK *find_loid(LOCKED_TABLE *table, uint16 loid)
+TABLE_LOCK *find_by_loid(LOCKED_TABLE *table, uint16 loid)
 {
   return (TABLE_LOCK *)hash_search(& table->latest_locks,
                                    (byte *)& loid, sizeof(loid));
@@ -286,7 +286,7 @@ tablockman_getlock(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo,
 
   pthread_mutex_lock(& table->mutex);
   /* do we already have a lock on this resource ? */
-  old= find_loid(table, lo->loid);
+  old= find_by_loid(table, lo->loid);
 
   /* calculate the level of the upgraded lock, if yes */
   new_lock= old ? lock_combining_matrix[old->lock_type][lock] : lock;
@@ -340,37 +340,50 @@ tablockman_getlock(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo,
         {
           /* found! */
           wait_for= tmp;
+          break;
         }
-        else
+
+        /*
+          hmm, the lock before doesn't block us, let's look one step further.
+          the condition below means:
+
+            if we never waited on a condition yet
+            OR
+            the lock before ours (blocker) waits on a lock (blocker2) that is
+               present in the hash AND and conflicts with 'blocker'
+
+            the condition after OR may fail if 'blocker2' was removed from
+            the hash, its signal woke us up, but 'blocker' itself didn't see
+            the signal yet.
+        */
+        if (!lo->waiting_lock ||
+            ((blocker2= find_by_loid(table, tmp->waiting_for_loid)) &&
+            !lock_compatibility_matrix[blocker2->lock_type]
+                                      [blocker->lock_type]))
         {
+          /* but it's waiting for a real lock. we'll wait for the same lock */
+          wait_for= tmp->waiting_for;
           /*
-            hmm, the lock before doesn't block us, let's look one step further.
-            the condition below means:
-
-              if we never waited on a condition yet
-              OR
-              the lock before ours (blocker) waits on a lock (blocker2) that is
-                 present in the hash AND and conflicts with 'blocker'
-
-              the condition after OR may fail if 'blocker2' was removed from
-              the hash, its signal woke us up, but 'blocker' itself didn't see
-              the signal yet.
+            We don't really need tmp->waiting_for, as tmp->waiting_for_loid
+            is enough.  waiting_for is just a local cache to avoid calling
+            loid_to_tlo().
+            But it's essensial that tmp->waiting_for pointer can ONLY
+            be dereferenced if find_by_loid() above returns a non-null
+            pointer, because a TABLE_LOCK_OWNER object that it points to
+            may've been freed when we come here after a signal.
+            In particular tmp->waiting_for_loid cannot be replaced
+            with tmp->waiting_for->loid.
           */
-          if (!lo->waiting_lock ||
-              ((blocker2= find_loid(table, tmp->waiting_for_loid)) &&
-              !lock_compatibility_matrix[blocker2->lock_type]
-                                        [blocker->lock_type]))
-          {
-            /* but it's waiting for a real lock. we'll wait for the same lock */
-            wait_for= tmp->waiting_for;
-          }
-          /*
-            otherwise - a lock it's waiting for doesn't exist.
-            We've no choice but to scan the wait queue backwards, looking
-            for a conflicting lock or a lock waiting for a real lock.
-            QQ is there a way to avoid this scanning ?
-          */
+          DBUG_ASSERT(wait_for == lm->loid_to_tlo(tmp->waiting_for_loid));
+          break;
         }
+
+        /*
+          otherwise - a lock it's waiting for doesn't exist.
+          We've no choice but to scan the wait queue backwards, looking
+          for a conflicting lock or a lock waiting for a real lock.
+          QQ is there a way to avoid this scanning ?
+        */
       }
     }
 
@@ -531,8 +544,8 @@ void tablockman_release_locks(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo)
       transactions are awaken. But if trn2 times out, trn3 must be notified
       too (as IS and S locks are compatible). So trn2 must signal trn1->cond.
     */
-    if (lock->prev &&
-        lock_compatibility_matrix[lock->prev->lock_type][lock->lock_type])
+    if (lock->next &&
+        lock_compatibility_matrix[lock->next->lock_type][lock->lock_type])
     {
       pthread_mutex_lock(lo->waiting_for->mutex);
       pthread_cond_broadcast(lo->waiting_for->cond);
