@@ -13833,9 +13833,16 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
     if (real_pos->type() == Item::FIELD_ITEM)
     {
       Item_field *item;
-      pos= real_pos;
-      if (!(item= new Item_field(thd, ((Item_field*) pos))))
+      if (!(item= new Item_field(thd, ((Item_field*) real_pos))))
 	goto err;
+      if (pos->type() == Item::REF_ITEM)
+      {
+        /* preserve the names of the ref when dereferncing */
+        Item_ref *ref= (Item_ref *) pos;
+        item->db_name= ref->db_name;
+        item->table_name= ref->table_name;
+        item->name= ref->name;
+      }
       pos= item;
       if (item->field->flags & BLOB_FLAG)
       {

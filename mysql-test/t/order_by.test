@@ -514,11 +514,6 @@ set max_sort_length=20;
 select a from t1 order by a;
 drop table t1;
 
-create table t1 (a int not null, b  int not null, c int not null);
-insert t1 values (1,1,1),(1,1,2),(1,2,1);
-select a, b from t1 group by a, b order by sum(c);
-drop table t1;
-
 #
 # Bug #7331
 #
@@ -594,6 +589,10 @@ SELECT a.a + 1 AS num FROM t1 a JOIN t1 b ON num = b.a;
 DROP TABLE t1;
 
 # End of 4.1 tests
+create table t1 (a int not null, b  int not null, c int not null);
+insert t1 values (1,1,1),(1,1,2),(1,2,1);
+select a, b from t1 group by a, b order by sum(c);
+drop table t1;
 
 #
 # Bug#21302: Result not properly sorted when using an ORDER BY on a second 
