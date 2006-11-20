@@ -569,7 +569,7 @@ int mysql_update(THD *thd,
       (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
     send_ok(thd, (ulong) thd->row_count_func,
 	    thd->insert_id_used ? thd->last_insert_id : 0L,buff);
-    DBUG_PRINT("info",("%d records updated",updated));
+    DBUG_PRINT("info",("%ld records updated", (long) updated));
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		/* calc cuted fields */
   thd->abort_on_warning= 0;
@@ -667,7 +667,7 @@ static table_map get_table_map(List<Item> *items)
 
   while ((item= (Item_field *) item_it++)) 
     map|= item->used_tables();
-  DBUG_PRINT("info",("table_map: 0x%08x", map));
+  DBUG_PRINT("info", ("table_map: 0x%08lx", (long) map));
   return map;
 }
 

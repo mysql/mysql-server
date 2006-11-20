@@ -262,7 +262,7 @@ Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(const char *
     m_name(0)
 {
   DBUG_ENTER("Ndb_cluster_connection");
-  DBUG_PRINT("enter",("Ndb_cluster_connection this=0x%x", this));
+  DBUG_PRINT("enter",("Ndb_cluster_connection this=0x%lx", (long) this));
 
   g_eventLogger.createConsoleHandler();
   g_eventLogger.setCategory("NdbApi");
