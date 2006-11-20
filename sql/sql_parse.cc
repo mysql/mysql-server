@@ -2515,12 +2515,13 @@ mysql_execute_command(THD *thd)
       tables. Except for the replication thread and the 'super' users.
     */
     if (opt_readonly &&
-	!(thd->security_ctx->master_access & SUPER_ACL) &&
-	uc_update_queries[lex->sql_command] &&
-	!((lex->sql_command == SQLCOM_CREATE_TABLE) &&
-	  (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)) &&
-	((lex->sql_command != SQLCOM_UPDATE_MULTI) &&
-	 some_non_temp_table_to_be_updated(thd, all_tables)))
+        !(thd->security_ctx->master_access & SUPER_ACL) &&
+        uc_update_queries[lex->sql_command] &&
+        !((lex->sql_command == SQLCOM_CREATE_TABLE) &&
+          (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)) &&
+        !((lex->sql_command == SQLCOM_DROP_TABLE) && lex->drop_temporary) &&
+        ((lex->sql_command != SQLCOM_UPDATE_MULTI) &&
+          some_non_temp_table_to_be_updated(thd, all_tables)))
     {
       my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
       DBUG_RETURN(-1);
