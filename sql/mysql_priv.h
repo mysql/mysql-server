@@ -1640,14 +1640,9 @@ extern TYPELIB log_output_typelib;
 /* optional things, have_* variables */
 
 extern SHOW_COMP_OPTION have_innodb;
-extern SHOW_COMP_OPTION have_example_db;
-extern SHOW_COMP_OPTION have_archive_db;
 extern SHOW_COMP_OPTION have_csv_db;
-extern SHOW_COMP_OPTION have_federated_db;
-extern SHOW_COMP_OPTION have_blackhole_db;
 extern SHOW_COMP_OPTION have_ndbcluster;
 extern SHOW_COMP_OPTION have_partition_db;
-extern SHOW_COMP_OPTION have_merge_db;
 
 extern handlerton *partition_hton;
 extern handlerton *myisam_hton;
