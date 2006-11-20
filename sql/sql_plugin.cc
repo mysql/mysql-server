@@ -515,7 +515,7 @@ void plugin_deinitialize(struct st_plugin_int *plugin)
   else if (plugin->plugin->deinit)
   {
     DBUG_PRINT("info", ("Deinitializing plugin: '%s'", plugin->name.str));
-    if (plugin->plugin->deinit(NULL))
+    if (plugin->plugin->deinit(plugin))
     {
       DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
                              plugin->name.str));
@@ -575,7 +575,7 @@ static int plugin_initialize(struct st_plugin_int *plugin)
   }
   else if (plugin->plugin->init)
   {
-    if (plugin->plugin->init(NULL))
+    if (plugin->plugin->init(plugin))
     {
       sql_print_error("Plugin '%s' init function returned error.",
                       plugin->name.str);

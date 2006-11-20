@@ -77,8 +77,6 @@ static handler *example_create_handler(handlerton *hton,
                                        TABLE_SHARE *table, 
                                        MEM_ROOT *mem_root);
 static int example_init_func();
-static bool example_init_func_for_handlerton();
-static int example_panic(enum ha_panic_function flag);
 
 handlerton *example_hton;
 
@@ -101,19 +99,17 @@ static byte* example_get_key(EXAMPLE_SHARE *share,uint *length,
 static int example_init_func(void *p)
 {
   DBUG_ENTER("example_init_func");
-  if (!example_init)
-  {
-    example_hton= (handlerton *)p;
-    example_init= 1;
-    VOID(pthread_mutex_init(&example_mutex,MY_MUTEX_INIT_FAST));
-    (void) hash_init(&example_open_tables,system_charset_info,32,0,0,
-                     (hash_get_key) example_get_key,0,0);
 
-    example_hton->state=   SHOW_OPTION_YES;
-    example_hton->db_type= DB_TYPE_EXAMPLE_DB;
-    example_hton->create=  example_create_handler;
-    example_hton->flags=   HTON_CAN_RECREATE;
-  }
+  example_hton= (handlerton *)p;
+  VOID(pthread_mutex_init(&example_mutex,MY_MUTEX_INIT_FAST));
+  (void) hash_init(&example_open_tables,system_charset_info,32,0,0,
+                   (hash_get_key) example_get_key,0,0);
+
+  example_hton->state=   SHOW_OPTION_YES;
+  example_hton->db_type= DB_TYPE_EXAMPLE_DB;
+  example_hton->create=  example_create_handler;
+  example_hton->flags=   HTON_CAN_RECREATE;
+
   DBUG_RETURN(0);
 }
 
@@ -122,14 +118,11 @@ static int example_done_func(void *p)
   int error= 0;
   DBUG_ENTER("example_done_func");
 
-  if (example_init)
-  {
-    example_init= 0;
-    if (example_open_tables.records)
-      error= 1;
-    hash_free(&example_open_tables);
-    pthread_mutex_destroy(&example_mutex);
-  }
+  if (example_open_tables.records)
+    error= 1;
+  hash_free(&example_open_tables);
+  pthread_mutex_destroy(&example_mutex);
+
   DBUG_RETURN(0);
 }
 
@@ -354,20 +347,6 @@ int ha_example::index_read(byte * buf, const byte * key,
 
 
 /*
-  Positions an index cursor to the index specified in key. Fetches the
-  row if any.  This is only used to read whole keys.
-*/
-int ha_example::index_read_idx(byte * buf, uint index, const byte * key,
-                               uint key_len __attribute__((unused)),
-                               enum ha_rkey_function find_flag
-                               __attribute__((unused)))
-{
-  DBUG_ENTER("ha_example::index_read_idx");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
-}
-
-
-/*
   Used to read forward through the index.
 */
 int ha_example::index_next(byte * buf)
@@ -545,19 +524,6 @@ int ha_example::info(uint flag)
 int ha_example::extra(enum ha_extra_function operation)
 {
   DBUG_ENTER("ha_example::extra");
-  DBUG_RETURN(0);
-}
-
-
-/*
-  Deprecated and likely to be removed in the future. Storage engines normally
-  just make a call like:
-  ha_example::extra(HA_EXTRA_RESET);
-  to handle it.
-*/
-int ha_example::reset(void)
-{
-  DBUG_ENTER("ha_example::reset");
   DBUG_RETURN(0);
 }
 

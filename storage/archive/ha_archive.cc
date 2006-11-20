@@ -114,8 +114,6 @@
   data - The data is stored in a "row +blobs" format.
 */
 
-/* If the archive storage engine has been inited */
-static bool archive_inited= FALSE;
 /* Variables for archive share methods */
 pthread_mutex_t archive_mutex;
 static HASH archive_open_tables;
@@ -142,7 +140,6 @@ static HASH archive_open_tables;
 static handler *archive_create_handler(handlerton *hton, 
                                        TABLE_SHARE *table, 
                                        MEM_ROOT *mem_root);
-int archive_db_end(handlerton *hton, ha_panic_function type);
 
 /*
   Number of rows that will force a bulk insert.
@@ -183,13 +180,11 @@ int archive_db_init(void *p)
 {
   DBUG_ENTER("archive_db_init");
   handlerton *archive_hton;
-  if (archive_inited)
-    DBUG_RETURN(FALSE);
+
   archive_hton= (handlerton *)p;
   archive_hton->state=SHOW_OPTION_YES;
   archive_hton->db_type=DB_TYPE_ARCHIVE_DB;
   archive_hton->create=archive_create_handler;
-  archive_hton->panic=archive_db_end;
   archive_hton->flags=HTON_NO_FLAGS;
 
   if (pthread_mutex_init(&archive_mutex, MY_MUTEX_INIT_FAST))
@@ -201,7 +196,6 @@ int archive_db_init(void *p)
   }
   else
   {
-    archive_inited= TRUE;
     DBUG_RETURN(FALSE);
   }
 error:
@@ -221,20 +215,12 @@ error:
 
 int archive_db_done(void *p)
 {
-  if (archive_inited)
-  {
-    hash_free(&archive_open_tables);
-    VOID(pthread_mutex_destroy(&archive_mutex));
-  }
-  archive_inited= 0;
+  hash_free(&archive_open_tables);
+  VOID(pthread_mutex_destroy(&archive_mutex));
+
   return 0;
 }
 
-
-int archive_db_end(handlerton *hton, ha_panic_function type)
-{
-  return archive_db_done(NULL);
-}
 
 ha_archive::ha_archive(handlerton *hton, TABLE_SHARE *table_arg)
   :handler(hton, table_arg), delayed_insert(0), bulk_insert(0)
