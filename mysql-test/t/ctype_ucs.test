@@ -298,7 +298,7 @@ INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
 SELECT HEX(a) FROM t1;
 DROP TABLE t1;
 
--- the same should be also done with enum and set
+# the same should be also done with enum and set
 
 
 #

@@ -653,7 +653,7 @@ static const char* helpTextDebug =
 ;
 #endif
 
-struct {
+struct st_cmd_help {
   const char *cmd;
   const char * help;
 }help_items[]={
@@ -2466,7 +2466,7 @@ CommandInterpreter::executeEventReporting(int processId,
   Vector<BaseString> specs;
   tmp.split(specs, " ");
 
-  for (int i=0; i < specs.size(); i++)
+  for (int i=0; i < (int) specs.size(); i++)
   {
     Vector<BaseString> spec;
     specs[i].split(spec, "=");
