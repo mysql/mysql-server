@@ -357,8 +357,8 @@ Gets the mutex number protecting the page record lock hash chain in the lock
 table. */
 UNIV_INLINE
 mutex_t*
-buf_frame_get_lock_mutex(
-/*=====================*/
+buf_frame_get_mutex(
+/*================*/
 			/* out: mutex */
 	byte*	ptr)	/* in: pointer to within a buffer frame */
 {
@@ -366,7 +366,7 @@ buf_frame_get_lock_mutex(
 
 	block = buf_block_align(ptr);
 
-	return(block->lock_mutex);
+	return(&block->mutex);
 }
 
 /*************************************************************************
@@ -523,6 +523,7 @@ buf_block_buf_fix_inc_debug(
 	ret = rw_lock_s_lock_func_nowait(&(block->debug_latch), file, line);
 
 	ut_ad(ret == TRUE);
+	ut_ad(mutex_own(&block->mutex));
 
 	block->buf_fix_count++;
 }
@@ -623,27 +624,25 @@ buf_page_release(
 					RW_NO_LATCH */
 	mtr_t*		mtr)		/* in: mtr */
 {
-	ulint	buf_fix_count;
-	
 	ut_ad(block);
-
-	mutex_enter_fast(&(buf_pool->mutex));
 
 	ut_ad(block->state == BUF_BLOCK_FILE_PAGE);
 	ut_ad(block->buf_fix_count > 0);
 
 	if (rw_latch == RW_X_LATCH && mtr->modifications) {
-
+		mutex_enter(&buf_pool->mutex);
 		buf_flush_note_modification(block, mtr);
+		mutex_exit(&buf_pool->mutex);
 	}
+
+	mutex_enter(&block->mutex);
 
 #ifdef UNIV_SYNC_DEBUG
 	rw_lock_s_unlock(&(block->debug_latch));
 #endif
-	buf_fix_count = block->buf_fix_count;
-	block->buf_fix_count = buf_fix_count - 1;
+	block->buf_fix_count--;
 
-	mutex_exit(&(buf_pool->mutex));
+	mutex_exit(&block->mutex);
 
 	if (rw_latch == RW_S_LATCH) {
 		rw_lock_s_unlock(&(block->lock));
