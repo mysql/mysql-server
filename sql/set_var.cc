@@ -660,18 +660,12 @@ sys_var_thd_time_zone            sys_time_zone("time_zone");
 
 /* Read only variables */
 
-sys_var_have_variable sys_have_archive_db("have_archive", &have_archive_db);
-sys_var_have_variable sys_have_blackhole_db("have_blackhole_engine",
-                                            &have_blackhole_db);
 sys_var_have_variable sys_have_compress("have_compress", &have_compress);
 sys_var_have_variable sys_have_crypt("have_crypt", &have_crypt);
 sys_var_have_variable sys_have_csv_db("have_csv", &have_csv_db);
 sys_var_have_variable sys_have_dlopen("have_dynamic_loading", &have_dlopen);
-sys_var_have_variable sys_have_federated_db("have_federated_engine",
-                                            &have_federated_db);
 sys_var_have_variable sys_have_geometry("have_geometry", &have_geometry);
 sys_var_have_variable sys_have_innodb("have_innodb", &have_innodb);
-sys_var_have_variable sys_have_merge_db("have_merge", &have_merge_db);
 sys_var_have_variable sys_have_ndbcluster("have_ndbcluster", &have_ndbcluster);
 sys_var_have_variable sys_have_openssl("have_openssl", &have_openssl);
 sys_var_have_variable sys_have_partition_db("have_partitioning",
@@ -792,16 +786,12 @@ SHOW_VAR init_vars[]= {
   {sys_var_general_log.name, (char*) &opt_log,                      SHOW_MY_BOOL},
   {sys_var_general_log_path.name, (char*) &sys_var_general_log_path,  SHOW_SYS},
   {sys_group_concat_max_len.name, (char*) &sys_group_concat_max_len,  SHOW_SYS},
-  {sys_have_archive_db.name,  (char*) &have_archive_db,             SHOW_HAVE},
-  {sys_have_blackhole_db.name,(char*) &have_blackhole_db,           SHOW_HAVE},
   {sys_have_compress.name,    (char*) &have_compress,               SHOW_HAVE},
   {sys_have_crypt.name,       (char*) &have_crypt,                  SHOW_HAVE},
   {sys_have_csv_db.name,      (char*) &have_csv_db,                 SHOW_HAVE},
   {sys_have_dlopen.name,      (char*) &have_dlopen,                 SHOW_HAVE},
-  {sys_have_federated_db.name,(char*) &have_federated_db,           SHOW_HAVE},
   {sys_have_geometry.name,    (char*) &have_geometry,               SHOW_HAVE},
   {sys_have_innodb.name,      (char*) &have_innodb,                 SHOW_HAVE},
-  {sys_have_merge_db.name,    (char*) &have_merge_db,               SHOW_HAVE},
   {sys_have_ndbcluster.name,  (char*) &have_ndbcluster,             SHOW_HAVE},
   {sys_have_openssl.name,     (char*) &have_openssl,                SHOW_HAVE},
   {sys_have_partition_db.name,(char*) &have_partition_db,           SHOW_HAVE},
