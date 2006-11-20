@@ -3726,7 +3726,7 @@ bool check_grant_column(THD *thd, GRANT_INFO *grant,
   GRANT_COLUMN *grant_column;
   ulong want_access= grant->want_privilege & ~grant->privilege;
   DBUG_ENTER("check_grant_column");
-  DBUG_PRINT("enter", ("table: %s  want_access: %u", table_name, want_access));
+  DBUG_PRINT("enter", ("table: %s  want_access: %lu", table_name, want_access));
 
   if (!want_access)
     DBUG_RETURN(0);				// Already checked

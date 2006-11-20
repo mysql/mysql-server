@@ -88,7 +88,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   MEM_ROOT **root_ptr, *old_root;
   TABLE_SHARE *share;
   DBUG_ENTER("openfrm");
-  DBUG_PRINT("enter",("name: '%s'  form: 0x%lx",name,outparam));
+  DBUG_PRINT("enter",("name: '%s'  form: 0x%lx", name, (long) outparam));
 
   error= 1;
   disk_buff= NULL;
