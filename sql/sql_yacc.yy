@@ -6372,11 +6372,10 @@ function_call_generic:
             }
           }
           /* Temporary placing the result of find_udf in $3 */
-          $<udf>$= udf;
           lex->current_select->udf_list.push_front(udf);
 #endif
         }
-        opt_expr_list ')'
+        udf_expr_list ')'
         {
           THD *thd= YYTHD;
           LEX *lex= Lex;
@@ -6401,7 +6400,7 @@ function_call_generic:
           {
 #ifdef HAVE_DLOPEN
             /* Retrieving the result of find_udf */
-            udf_func *udf= $<udf>3;
+            udf_func *udf;
             LEX *lex= Lex;
 
             if (NULL != (udf= lex->current_select->udf_list.pop()))
@@ -6427,7 +6426,7 @@ function_call_generic:
             YYABORT;
           }
         }
-	| ident '.' ident '(' udf_expr_list ')'
+	| ident '.' ident '(' opt_expr_list ')'
 	{
           THD *thd= YYTHD;
           Create_qfunc *builder;
