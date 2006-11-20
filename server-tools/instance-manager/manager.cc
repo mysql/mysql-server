@@ -114,7 +114,6 @@ Guardian *Manager::p_guardian;
 Instance_map *Manager::p_instance_map;
 Thread_registry *Manager::p_thread_registry;
 User_map *Manager::p_user_map;
-pid_t Manager::manager_pid;
 
 /*
   manager - entry point to the main instance manager process: start
@@ -131,6 +130,7 @@ int Manager::main()
   int rc= 1;
   const char *err_msg;
   bool shutdown_complete= FALSE;
+  pid_t manager_pid= getpid();
 
   Thread_registry thread_registry;
   /*
@@ -146,7 +146,6 @@ int Manager::main()
 
   Listener listener(&thread_registry, &user_map);
 
-  manager_pid= getpid();
   p_instance_map= &instance_map;
   p_guardian= instance_map.guardian= &guardian;
   p_thread_registry= &thread_registry;

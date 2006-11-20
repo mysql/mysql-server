@@ -82,11 +82,11 @@ void Listener::run()
 {
   int i, n= 0;
 
-  log_info("Listener: started.");
-
 #ifndef __WIN__
   struct sockaddr_un unix_socket_address;
 #endif
+
+  log_info("Listener: started.");
 
   thread_registry->register_thread(&thread_info);
 
