@@ -150,6 +150,7 @@ test-force-mem:
 test-pl:	test
 test-full-pl:	test-full
 test-force-pl:	test-force
+test-force-pl-mem:  test-force-mem
 test-force-full-pl: test-force-full
 
 # Don't update the files from bitkeeper
