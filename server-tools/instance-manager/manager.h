@@ -38,12 +38,11 @@ public:
   static Guardian *get_guardian() { return p_guardian; }
   static Thread_registry *get_thread_registry() { return p_thread_registry; }
   static User_map *get_user_map() { return p_user_map; }
-  static pid_t get_manager_pid() { return manager_pid; }
 
 private:
   static void stop_all_threads();
+
 private:
-  static pid_t manager_pid;
   static Guardian *p_guardian;
   static Instance_map *p_instance_map;
   static Thread_registry *p_thread_registry;

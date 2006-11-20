@@ -34,21 +34,28 @@ class Listener: public Thread
 {
 public:
   Listener(Thread_registry *thread_registry_arg, User_map *user_map_arg);
+
 protected:
   virtual void run();
+
+private:
+  static const int LISTEN_BACK_LOG_SIZE= 5;     /* standard backlog size */
+
 private:
   Thread_info thread_info;
   Thread_registry *thread_registry;
   User_map *user_map;
-  static const int LISTEN_BACK_LOG_SIZE= 5;     /* standard backlog size */
+
   ulong total_connection_count;
 
-  int     sockets[2];
-  int     num_sockets;
-  fd_set  read_fds;
+  int sockets[2];
+  int num_sockets;
+  fd_set read_fds;
+
+private:
   void handle_new_mysql_connection(struct st_vio *vio);
-  int   create_tcp_socket();
-  int   create_unix_socket(struct sockaddr_un &unix_socket_address);
+  int create_tcp_socket();
+  int create_unix_socket(struct sockaddr_un &unix_socket_address);
 };
 
 #endif // INCLUDES_MYSQL_INSTANCE_MANAGER_LISTENER_H

@@ -371,7 +371,7 @@ bool Thread::start_detached()
   pthread_attr_init(&attr);
   pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
   rc= set_stacksize_and_create_thread(&thd_id, &attr,
-                                    Thread::thread_func, this);
+                                      Thread::thread_func, this);
   pthread_attr_destroy(&attr);
 
   return rc != 0;
