@@ -1664,7 +1664,7 @@ static bool check_prepared_statement(Prepared_statement *stmt,
   enum enum_sql_command sql_command= lex->sql_command;
   int res= 0;
   DBUG_ENTER("check_prepared_statement");
-  DBUG_PRINT("enter",("command: %d, param_count: %ld",
+  DBUG_PRINT("enter",("command: %d, param_count: %u",
                       sql_command, stmt->param_count));
 
   lex->first_lists_tables_same();
@@ -1877,9 +1877,12 @@ void mysql_stmt_prepare(THD *thd, const char *packet, uint packet_length)
     thd->stmt_map.erase(stmt);
   }
   else
-    mysql_log.write(thd, COM_STMT_PREPARE, "[%lu] %.*b", stmt->id,
+  {
+    const char *format= "[%lu] %.*b";
+    mysql_log.write(thd, COM_STMT_PREPARE, format, stmt->id,
                     stmt->query_length, stmt->query);
 
+  }
   /* check_prepared_statemnt sends the metadata packet in case of success */
   DBUG_VOID_RETURN;
 }
@@ -2261,8 +2264,11 @@ void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
   if (error == 0)
-    mysql_log.write(thd, COM_STMT_EXECUTE, "[%lu] %.*b", stmt->id,
+  {
+    const char *format= "[%lu] %.*b";
+    mysql_log.write(thd, COM_STMT_EXECUTE, format, stmt->id,
                     thd->query_length, thd->query);
+  }
 
   DBUG_VOID_RETURN;
 

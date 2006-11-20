@@ -48,7 +48,8 @@ void init_alloc_root(MEM_ROOT *mem_root, uint block_size,
 		     uint pre_alloc_size __attribute__((unused)))
 {
   DBUG_ENTER("init_alloc_root");
-  DBUG_PRINT("enter",("root: 0x%lx", mem_root));
+  DBUG_PRINT("enter",("root: 0x%lx", (long) mem_root));
+
   mem_root->free= mem_root->used= mem_root->pre_alloc= 0;
   mem_root->min_malloc= 32;
   mem_root->block_size= block_size - ALLOC_ROOT_MIN_BLOCK_SIZE;
@@ -146,7 +147,7 @@ gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size)
 #if defined(HAVE_purify) && defined(EXTRA_DEBUG)
   reg1 USED_MEM *next;
   DBUG_ENTER("alloc_root");
-  DBUG_PRINT("enter",("root: 0x%lx", mem_root));
+  DBUG_PRINT("enter",("root: 0x%lx", (long) mem_root));
 
   DBUG_ASSERT(alloc_root_inited(mem_root));
 
@@ -160,8 +161,8 @@ gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size)
   next->next= mem_root->used;
   next->size= Size;
   mem_root->used= next;
-  DBUG_PRINT("exit",("ptr: 0x%lx", (((char*) next)+
-                                    ALIGN_SIZE(sizeof(USED_MEM)))));
+  DBUG_PRINT("exit",("ptr: 0x%lx", (long) (((char*) next)+
+                                           ALIGN_SIZE(sizeof(USED_MEM)))));
   DBUG_RETURN((gptr) (((char*) next)+ALIGN_SIZE(sizeof(USED_MEM))));
 #else
   uint get_size, block_size;
@@ -169,7 +170,7 @@ gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size)
   reg1 USED_MEM *next= 0;
   reg2 USED_MEM **prev;
   DBUG_ENTER("alloc_root");
-  DBUG_PRINT("enter",("root: 0x%lx", mem_root));
+  DBUG_PRINT("enter",("root: 0x%lx", (long) mem_root));
   DBUG_ASSERT(alloc_root_inited(mem_root));
 
   Size= ALIGN_SIZE(Size);
@@ -328,7 +329,7 @@ void free_root(MEM_ROOT *root, myf MyFlags)
 {
   reg1 USED_MEM *next,*old;
   DBUG_ENTER("free_root");
-  DBUG_PRINT("enter",("root: 0x%lx  flags: %u", root, (uint) MyFlags));
+  DBUG_PRINT("enter",("root: 0x%lx  flags: %u", (long) root, (uint) MyFlags));
 
   if (!root)					/* QQ: Should be deleted */
     DBUG_VOID_RETURN; /* purecov: inspected */

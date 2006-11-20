@@ -149,6 +149,8 @@ sql_yacc.cc:	sql_yacc.yy
 sql_yacc.h:	sql_yacc.yy
 
 sql_yacc.o:	sql_yacc.cc sql_yacc.h $(HEADERS)
+		@SED@ -e 's/__attribute__ ((__unused__))//' sql_yacc.cc > sql_yacc.cc-new
+		@MV@ sql_yacc.cc-new sql_yacc.cc
 		@echo "Note: The following compile may take a long time."
 		@echo "If it fails, re-run configure with --with-low-memory"
 		$(CXXCOMPILE) $(LM_CFLAGS) -c $<
