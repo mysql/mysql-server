@@ -577,7 +577,7 @@ static int myisammrg_init(void *p)
 
   myisammrg_hton= (handlerton *)p;
 
-  myisammrg_hton->state= have_merge_db;
+  myisammrg_hton->state= SHOW_OPTION_YES;
   myisammrg_hton->db_type= DB_TYPE_MRG_MYISAM;
   myisammrg_hton->create= myisammrg_create_handler;
   myisammrg_hton->panic= myisammrg_panic;

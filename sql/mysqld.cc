@@ -310,7 +310,7 @@ static bool lower_case_table_names_used= 0;
 static bool volatile select_thread_in_use, signal_thread_in_use;
 static bool volatile ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
-static my_bool opt_isam, opt_ndbcluster, opt_merge;
+static my_bool opt_ndbcluster;
 static my_bool opt_short_log_format= 0;
 static uint kill_cached_threads, wake_thread;
 static ulong killed_threads, thread_created;
@@ -5165,9 +5165,6 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    (gptr*) &global_system_variables.innodb_table_locks,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
 #endif /* End WITH_INNOBASE_STORAGE_ENGINE */
-  {"isam", OPT_ISAM, "Obsolete. ISAM storage engine is no longer supported.",
-   (gptr*) &opt_isam, (gptr*) &opt_isam, 0, GET_BOOL, NO_ARG, 0, 0, 0,
-   0, 0, 0},
    {"language", 'L',
    "Client error messages in given language. May be given as a full path.",
    (gptr*) &language_ptr, (gptr*) &language_ptr, 0, GET_STR, REQUIRED_ARG,
@@ -5339,9 +5336,6 @@ master-ssl",
 #endif /* HAVE_REPLICATION */
   {"memlock", OPT_MEMLOCK, "Lock mysqld in memory.", (gptr*) &locked_in_memory,
    (gptr*) &locked_in_memory, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"merge", OPT_MERGE, "Enable Merge storage engine. Disable with \
---skip-merge.",
-   (gptr*) &opt_merge, (gptr*) &opt_merge, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"myisam-recover", OPT_MYISAM_RECOVER,
    "Syntax: myisam-recover[=option[,option...]], where option can be DEFAULT, BACKUP, FORCE or QUICK.",
    (gptr*) &myisam_recover_options_str, (gptr*) &myisam_recover_options_str, 0,
@@ -7016,30 +7010,10 @@ static void mysql_init_variables(void)
 			     "d:t:i:o,/tmp/mysqld.trace");
 #endif
   opt_error_log= IF_WIN(1,0);
-#ifdef WITH_MYISAMMRG_STORAGE_ENGINE
-  have_merge_db= SHOW_OPTION_YES;
-#else
-  have_merge_db= SHOW_OPTION_NO;
-#endif
 #ifdef WITH_INNOBASE_STORAGE_ENGINE
   have_innodb= SHOW_OPTION_YES;
 #else
   have_innodb= SHOW_OPTION_NO;
-#endif
-#ifdef WITH_ARCHIVE_STORAGE_ENGINE
-  have_archive_db= SHOW_OPTION_YES;
-#else
-  have_archive_db= SHOW_OPTION_NO;
-#endif
-#ifdef WITH_BLACKHOLE_STORAGE_ENGINE
-  have_blackhole_db= SHOW_OPTION_YES;
-#else
-  have_blackhole_db= SHOW_OPTION_NO;
-#endif
-#ifdef WITH_FEDERATED_STORAGE_ENGINE
-  have_federated_db= SHOW_OPTION_YES;
-#else
-  have_federated_db= SHOW_OPTION_NO;
 #endif
 #ifdef WITH_CSV_STORAGE_ENGINE
   have_csv_db= SHOW_OPTION_YES;
@@ -7544,10 +7518,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   }
   case OPT_MERGE:
-    if (opt_merge)
-      have_merge_db= SHOW_OPTION_YES;
-    else
-      have_merge_db= SHOW_OPTION_DISABLED;
   case OPT_BDB:
     break;
   case OPT_NDBCLUSTER:
@@ -7778,10 +7748,6 @@ static void get_options(int argc,char **argv)
 #ifndef WITH_INNOBASE_STORAGE_ENGINE
   if (opt_innodb)
     sql_print_warning("this binary does not contain INNODB storage engine");
-#endif
-#ifndef WITH_ISAM_STORAGE_ENGINE
-  if (opt_isam)
-    sql_print_warning("this binary does not contain ISAM storage engine");
 #endif
   if ((opt_log_slow_admin_statements || opt_log_queries_not_using_indexes) &&
       !opt_slow_log)
@@ -8131,21 +8097,12 @@ void refresh_status(THD *thd)
 *****************************************************************************/
 #undef have_innodb
 #undef have_ndbcluster
-#undef have_archive_db
 #undef have_csv_db
-#undef have_federated_db
-#undef have_partition_db
-#undef have_blackhole_db
-#undef have_merge_db
 
 SHOW_COMP_OPTION have_innodb= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_ndbcluster= SHOW_OPTION_NO;
-SHOW_COMP_OPTION have_archive_db= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_csv_db= SHOW_OPTION_NO;
-SHOW_COMP_OPTION have_federated_db= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_partition_db= SHOW_OPTION_NO;
-SHOW_COMP_OPTION have_blackhole_db= SHOW_OPTION_NO;
-SHOW_COMP_OPTION have_merge_db= SHOW_OPTION_NO;
 
 #ifndef WITH_INNOBASE_STORAGE_ENGINE
 uint innobase_flush_log_at_trx_commit;

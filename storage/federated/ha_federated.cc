@@ -418,7 +418,6 @@ int federated_db_init(void *p)
 
   VOID(pthread_mutex_destroy(&federated_mutex));
 error:
-  have_federated_db= SHOW_OPTION_DISABLED;	// If we couldn't use handler
   DBUG_RETURN(TRUE);
 }
 
