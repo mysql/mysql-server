@@ -213,7 +213,7 @@ int Listener::create_tcp_socket()
   {
     im_bind_addr= (ulong) inet_addr(Options::Main::bind_address);
 
-    if (im_bind_addr == INADDR_NONE)
+    if (im_bind_addr == (ulong) INADDR_NONE)
       im_bind_addr= htonl(INADDR_ANY);
   }
   else
