@@ -682,7 +682,8 @@ int ha_archive::real_write_row(byte *buf, gzFile writer)
   }
   share->approx_file_size+= total_row_length;
   written= gzwrite(writer, buf, table->s->reclength);
-  DBUG_PRINT("ha_archive::real_write_row", ("Wrote %d bytes expected %d", written, table->s->reclength));
+  DBUG_PRINT("ha_archive::real_write_row", ("Wrote %d bytes expected %lu", (int) written,
+                                            table->s->reclength));
   if (!delayed_insert || !bulk_insert)
     share->dirty= TRUE;
 
@@ -822,7 +823,8 @@ int ha_archive::get_row(gzFile file_to_read, byte *buf)
   DBUG_ENTER("ha_archive::get_row");
 
   read= gzread(file_to_read, buf, table->s->reclength);
-  DBUG_PRINT("ha_archive::get_row", ("Read %d bytes expected %d", read, table->s->reclength));
+  DBUG_PRINT("ha_archive::get_row", ("Read %d bytes expected %lu", (int) read,
+                                     table->s->reclength));
 
   if (read == Z_STREAM_ERROR)
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
