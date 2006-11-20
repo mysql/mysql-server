@@ -350,7 +350,6 @@
 /* Variables for federated share methods */
 static HASH federated_open_tables;              // To track open tables
 pthread_mutex_t federated_mutex;                // To init the hash
-static int federated_init= FALSE;               // Checking the state of hash
 
 /* Variables used when chopping off trailing characters */
 static const uint sizeof_trailing_comma= sizeof(", ") - 1;
@@ -365,7 +364,6 @@ static handler *federated_create_handler(handlerton *hton,
 static int federated_commit(handlerton *hton, THD *thd, bool all);
 static int federated_rollback(handlerton *hton, THD *thd, bool all);
 static int federated_db_init(void);
-static int federated_db_end(handlerton *hton, ha_panic_function type);
 
 
 /* Federated storage engine handlerton */
@@ -408,7 +406,6 @@ int federated_db_init(void *p)
   federated_hton->commit= federated_commit;
   federated_hton->rollback= federated_rollback;
   federated_hton->create= federated_create_handler;
-  federated_hton->panic= federated_db_end;
   federated_hton->flags= HTON_ALTER_NOT_SUPPORTED;
 
   if (pthread_mutex_init(&federated_mutex, MY_MUTEX_INIT_FAST))
@@ -416,7 +413,6 @@ int federated_db_init(void *p)
   if (!hash_init(&federated_open_tables, &my_charset_bin, 32, 0, 0,
                     (hash_get_key) federated_get_key, 0, 0))
   {
-    federated_init= TRUE;
     DBUG_RETURN(FALSE);
   }
 
@@ -437,14 +433,11 @@ error:
     FALSE       OK
 */
 
-int federated_db_end(handlerton *hton, ha_panic_function type)
+int federated_done(void *p)
 {
-  if (federated_init)
-  {
-    hash_free(&federated_open_tables);
-    VOID(pthread_mutex_destroy(&federated_mutex));
-  }
-  federated_init= 0;
+  hash_free(&federated_open_tables);
+  VOID(pthread_mutex_destroy(&federated_mutex));
+
   return 0;
 }
 
@@ -2897,7 +2890,7 @@ mysql_declare_plugin(federated)
   "Federated MySQL storage engine",
   PLUGIN_LICENSE_GPL,
   federated_db_init, /* Plugin Init */
-  NULL, /* Plugin Deinit */
+  federated_done, /* Plugin Deinit */
   0x0100 /* 1.0 */,
   NULL,                       /* status variables                */
   NULL,                       /* system variables                */
