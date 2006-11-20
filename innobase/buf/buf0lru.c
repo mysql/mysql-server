@@ -123,6 +123,8 @@ buf_LRU_search_and_free_block(
 
 	while (block != NULL) {
 
+		mutex_enter(&block->mutex);
+
 		if (buf_flush_ready_for_replace(block)) {
 
 			if (buf_debug_prints) {
@@ -134,19 +136,23 @@ buf_LRU_search_and_free_block(
 			buf_LRU_block_remove_hashed_page(block);
 
 			mutex_exit(&(buf_pool->mutex));
+			mutex_exit(&block->mutex);
 
 			btr_search_drop_page_hash_index(block->frame);
 
-			mutex_enter(&(buf_pool->mutex));
-
 			ut_a(block->buf_fix_count == 0);
 
-			buf_LRU_block_free_hashed_page(block);
+			mutex_enter(&(buf_pool->mutex));
+			mutex_enter(&block->mutex);
 
+			buf_LRU_block_free_hashed_page(block);
 			freed = TRUE;
+			mutex_exit(&block->mutex);
 
 			break;
 		}
+
+		mutex_exit(&block->mutex);
 
 		block = UT_LIST_GET_PREV(LRU, block);
 		distance++;
@@ -274,7 +280,10 @@ loop:
 		
 		block = UT_LIST_GET_FIRST(buf_pool->free);
 		UT_LIST_REMOVE(free, buf_pool->free, block);
+
+		mutex_enter(&block->mutex);
 		block->state = BUF_BLOCK_READY_FOR_USE;
+		mutex_exit(&block->mutex);
 
 		mutex_exit(&(buf_pool->mutex));
 
@@ -636,6 +645,7 @@ buf_LRU_block_free_non_file_page(
 {
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+	ut_ad(mutex_own(&block->mutex));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(block);
 	
@@ -664,6 +674,7 @@ buf_LRU_block_remove_hashed_page(
 {
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+	ut_ad(mutex_own(&block->mutex));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(block);
 	
@@ -697,6 +708,7 @@ buf_LRU_block_free_hashed_page(
 {
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+	ut_ad(mutex_own(&block->mutex));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(block->state == BUF_BLOCK_REMOVE_HASH);
 
