@@ -140,6 +140,21 @@ static void pretty_print_str(IO_CACHE* cache, char* str, int len)
 }
 #endif /* MYSQL_CLIENT */
 
+#ifdef HAVE_purify
+static void
+valgrind_check_mem(void *ptr, size_t len)
+{
+  static volatile uchar dummy;
+  for (volatile uchar *p= (uchar*) ptr ; p != (uchar*) ptr + len ; ++p)
+  {
+    int const c = *p;
+    if (c < 128)
+      dummy= c + 1;
+    else
+      dummy = c - 1;
+  }
+}
+#endif
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 
@@ -5530,6 +5545,8 @@ unpack_row(RELAY_LOG_INFO *rli,
 
     if (bitmap_is_set(cols, field_ptr -  begin_ptr))
     {
+      DBUG_ASSERT(table->record[0] <= f->ptr);
+      DBUG_ASSERT(f->ptr < table->record[0] + table->s->reclength + (f->pack_length_in_rec() == 0));
       f->move_field_offset(offset);
       ptr= f->unpack(f->ptr, ptr);
       f->move_field_offset(-offset);
@@ -5563,10 +5580,6 @@ unpack_row(RELAY_LOG_INFO *rli,
   for ( ; *field_ptr ; ++field_ptr)
   {
     uint32 const mask= NOT_NULL_FLAG | NO_DEFAULT_VALUE_FLAG;
-
-    DBUG_PRINT("debug", ("flags = 0x%x, mask = 0x%x, flags & mask = 0x%x",
-                         (*field_ptr)->flags, mask,
-                         (*field_ptr)->flags & mask));
 
     if (event_type == WRITE_ROWS_EVENT &&
         ((*field_ptr)->flags & mask) == mask)
@@ -5690,7 +5703,6 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
       We also invalidate the query cache for all the tables, since
       they will now be changed.
      */
-    
     TABLE_LIST *ptr;
     for (ptr= rli->tables_to_lock ; ptr ; ptr= ptr->next_global)
     {
@@ -5747,7 +5759,7 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
       if ((error= do_prepare_row(thd, rli, table, row_start, &row_end)))
         break; // We should perform the after-row operation even in
                // the case of error
-      
+
       DBUG_ASSERT(row_end != NULL); // cannot happen
       DBUG_ASSERT(row_end <= (const char*)m_rows_end);
 
@@ -6423,8 +6435,8 @@ int Write_rows_log_event::do_after_row_operations(TABLE *table, int error)
 
 int Write_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO *rli,
                                          TABLE *table,
-                                         char const *row_start,
-                                         char const **row_end)
+                                         char const *const row_start,
+                                         char const **const row_end)
 {
   DBUG_ASSERT(table != NULL);
   DBUG_ASSERT(row_start && row_end);
@@ -6495,7 +6507,7 @@ copy_extra_record_fields(TABLE *table,
                          my_ptrdiff_t master_fields)
 {
   DBUG_PRINT("info", ("Copying to %p "
-                      "from field %d at offset %u "
+                      "from field %ld at offset %u "
                       "to field %d at offset %u",
                       table->record[0],
                       master_fields, master_reclength,
@@ -6733,8 +6745,26 @@ static bool record_compare(TABLE *table)
 
 /*
   Find the row given by 'key', if the table has keys, or else use a table scan
-  to find (and fetch) the row.  If the engine allows random access of the
-  records, a combination of position() and rnd_pos() will be used.
+  to find (and fetch) the row.
+
+  If the engine allows random access of the records, a combination of
+  position() and rnd_pos() will be used.
+
+  @param table Pointer to table to search
+  @param key   Pointer to key to use for search, if table has key
+
+  @pre <code>table->record[0]</code> shall contain the row to locate
+  and <code>key</code> shall contain a key to use for searching, if
+  the engine has a key.
+
+  @post If the return value is zero, <code>table->record[1]</code>
+  will contain the fetched row and the internal "cursor" will refer to
+  the row. If the return value is non-zero,
+  <code>table->record[1]</code> is undefined.  In either case,
+  <code>table->record[0]</code> is undefined.
+
+  @return Zero if the row was successfully fetched into
+  <code>table->record[1]</code>, error code otherwise.
  */
 
 static int find_and_fetch_row(TABLE *table, byte *key)
@@ -6756,7 +6786,17 @@ static int find_and_fetch_row(TABLE *table, byte *key)
       the "cursor" (i.e., record[0] in this case) at the correct row.
     */
     table->file->position(table->record[0]);
-    DBUG_RETURN(table->file->rnd_pos(table->record[0], table->file->ref));
+    int error= table->file->rnd_pos(table->record[0], table->file->ref);
+    /*
+      rnd_pos() returns the record in table->record[0], so we have to
+      move it to table->record[1].
+     */
+    bmove_align(table->record[1], table->record[0], table->s->reclength);
+#ifdef HAVE_purify
+    if (error == 0)
+      valgrind_check_mem(table->record[1], table->s->reclength);
+#endif
+    DBUG_RETURN(error);
   }
 
   DBUG_ASSERT(table->record[1]);
@@ -6770,7 +6810,7 @@ static int find_and_fetch_row(TABLE *table, byte *key)
     int error;
     /* We have a key: search the table using the index */
     if (!table->file->inited && (error= table->file->ha_index_init(0, FALSE)))
-      return error;
+      DBUG_RETURN(error);
 
     /*
       We need to set the null bytes to ensure that the filler bit are
@@ -6807,6 +6847,9 @@ static int find_and_fetch_row(TABLE *table, byte *key)
     if (table->key_info->flags & HA_NOSAME)
     {
       table->file->ha_index_end();
+#ifdef HAVE_purify
+      valgrind_check_mem(table->record[1], table->s->reclength);
+#endif
       DBUG_RETURN(0);
     }
 
@@ -6883,9 +6926,16 @@ static int find_and_fetch_row(TABLE *table, byte *key)
     table->file->ha_rnd_end();
 
     DBUG_ASSERT(error == HA_ERR_END_OF_FILE || error == 0);
+#ifdef HAVE_purify
+    if (error == 0)
+      valgrind_check_mem(table->record[1], table->s->reclength);
+#endif
     DBUG_RETURN(error);
   }
 
+#ifdef HAVE_purify
+  valgrind_check_mem(table->record[1], table->s->reclength);
+#endif
   DBUG_RETURN(0);
 }
 #endif
@@ -6974,8 +7024,8 @@ int Delete_rows_log_event::do_after_row_operations(TABLE *table, int error)
 
 int Delete_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO *rli,
                                           TABLE *table,
-                                          char const *row_start,
-                                          char const **row_end)
+                                          char const *const row_start,
+                                          char const **const row_end)
 {
   int error;
   DBUG_ASSERT(row_start && row_end);
@@ -7111,8 +7161,8 @@ int Update_rows_log_event::do_after_row_operations(TABLE *table, int error)
 
 int Update_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO *rli,
                                           TABLE *table,
-                                          char const *row_start,
-                                          char const **row_end)
+                                          char const *const row_start,
+                                          char const **const row_end)
 {
   int error;
   DBUG_ASSERT(row_start && row_end);
@@ -7127,11 +7177,11 @@ int Update_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO *rli,
                     table, m_width, table->record[0],
                     row_start, &m_cols, row_end, &m_master_reclength,
                     table->read_set, UPDATE_ROWS_EVENT);
-  row_start = *row_end;
+  char const *next_start = *row_end;
   /* m_after_image is the after image for the update */
   error= unpack_row(rli,
                     table, m_width, m_after_image,
-                    row_start, &m_cols, row_end, &m_master_reclength,
+                    next_start, &m_cols, row_end, &m_master_reclength,
                     table->write_set, UPDATE_ROWS_EVENT);
 
   DBUG_DUMP("record[0]", (const char *)table->record[0], table->s->reclength);
