@@ -87,8 +87,8 @@ int vio_ssl_read(Vio *vio, gptr buf, int size)
 {
   int r;
   DBUG_ENTER("vio_ssl_read");
-  DBUG_PRINT("enter", ("sd: %d, buf: 0x%lx, size: %d, ssl_: 0x%lx",
-		       vio->sd, buf, size, vio->ssl_arg));
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %d  ssl: 0x%lx",
+		       vio->sd, (long) buf, size, (long) vio->ssl_arg));
 
   r= SSL_read((SSL*) vio->ssl_arg, buf, size);
 #ifndef DBUG_OFF
@@ -104,7 +104,7 @@ int vio_ssl_write(Vio *vio, const gptr buf, int size)
 {
   int r;
   DBUG_ENTER("vio_ssl_write");
-  DBUG_PRINT("enter", ("sd: %d, buf: 0x%lx, size: %d", vio->sd, buf, size));
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %d", vio->sd, (long) buf, size));
 
   r= SSL_write((SSL*) vio->ssl_arg, buf, size);
 #ifndef DBUG_OFF
@@ -133,7 +133,7 @@ int vio_ssl_close(Vio *vio)
         break;
       /* Fallthrough */
     default: /* Shutdown failed */
-      DBUG_PRINT("vio_error", ("SSL_shutdown() failed, error: %s",
+      DBUG_PRINT("vio_error", ("SSL_shutdown() failed, error: %d",
                                SSL_get_error(ssl, r)));
       break;
     }
@@ -151,8 +151,8 @@ int sslaccept(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
   my_bool net_blocking;
   enum enum_vio_type old_type;
   DBUG_ENTER("sslaccept");
-  DBUG_PRINT("enter", ("sd: %d  ptr: %p, timeout: %d",
-                       vio->sd, ptr, timeout));
+  DBUG_PRINT("enter", ("sd: %d  ptr: 0x%lx, timeout: %ld",
+                       vio->sd, (long) ptr, timeout));
 
   old_type= vio->type;
   net_blocking= vio_is_blocking(vio);
@@ -168,7 +168,7 @@ int sslaccept(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
     DBUG_RETURN(1);
   }
   vio->ssl_arg= (void*)ssl;
-  DBUG_PRINT("info", ("ssl_: %p  timeout: %ld", ssl, timeout));
+  DBUG_PRINT("info", ("ssl: 0x%lx  timeout: %ld", (long) ssl, timeout));
   SSL_clear(ssl);
   SSL_SESSION_set_timeout(SSL_get_session(ssl), timeout);
   SSL_set_fd(ssl, vio->sd);
@@ -226,8 +226,8 @@ int sslconnect(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
   enum enum_vio_type old_type;
 
   DBUG_ENTER("sslconnect");
-  DBUG_PRINT("enter", ("sd: %d,  ptr: %p, ctx: %p",
-                       vio->sd, ptr, ptr->ssl_context));
+  DBUG_PRINT("enter", ("sd: %d  ptr: 0x%lx  ctx: 0x%lx",
+                       vio->sd, (long) ptr, (long) ptr->ssl_context));
 
   old_type= vio->type;
   net_blocking= vio_is_blocking(vio);
@@ -242,7 +242,7 @@ int sslconnect(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
     DBUG_RETURN(1);
   }
   vio->ssl_arg= (void*)ssl;
-  DBUG_PRINT("info", ("ssl: %p, timeout: %ld", ssl, timeout));
+  DBUG_PRINT("info", ("ssl: 0x%lx timeout: %ld", (long) ssl, timeout));
   SSL_clear(ssl);
   SSL_SESSION_set_timeout(SSL_get_session(ssl), timeout);
   SSL_set_fd(ssl, vio->sd);

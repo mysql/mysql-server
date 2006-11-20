@@ -2045,6 +2045,12 @@ sub cleanup_stale_files () {
     }
     closedir(DIR);
   }
+
+  # Remove old log files
+  foreach my $name (glob("r/*.reject r/*.progress r/*.log r/*.warnings"))
+  {
+    unlink($name);
+  }
 }
 
 
@@ -2425,8 +2431,8 @@ sub ndbcluster_start ($$) {
 
 sub rm_ndbcluster_tables ($) {
   my $dir=       shift;
-  foreach my $bin ( glob("$dir/cluster/apply_status*"),
-                    glob("$dir/cluster/schema*") )
+  foreach my $bin ( glob("$dir/mysql/apply_status*"),
+                    glob("$dir/mysql/schema*"))
   {
     unlink($bin);
   }
@@ -4089,12 +4095,12 @@ sub run_testcase_start_servers($) {
 	# tables ok FIXME This is a workaround so that only one mysqld
 	# create the tables
 	if ( ! sleep_until_file_created(
-		  "$master->[0]->{'path_myddir'}/cluster/apply_status.ndb",
+		  "$master->[0]->{'path_myddir'}/mysql/apply_status.ndb",
 					$master->[0]->{'start_timeout'},
 					$master->[0]->{'pid'}))
 	{
 
-	  $tinfo->{'comment'}= "Failed to create 'cluster/apply_status' table";
+	  $tinfo->{'comment'}= "Failed to create 'mysql/apply_status' table";
 	  return 1;
 	}
       }

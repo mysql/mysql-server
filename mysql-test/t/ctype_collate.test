@@ -59,7 +59,7 @@ INSERT INTO t1 (latin1_f) VALUES (_latin1'Z');
 INSERT INTO t1 (latin1_f) VALUES (_latin1'z');
 
 
--- ORDER BY
+# ORDER BY
 
 SELECT latin1_f FROM t1 ORDER BY latin1_f;
 SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_swedish_ci;
@@ -69,9 +69,9 @@ SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_bin;
 --error 1253
 SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE koi8r_general_ci;
 
---SELECT latin1_f COLLATE koi8r FROM t1 ;
+# SELECT latin1_f COLLATE koi8r FROM t1 ;
 
--- AS + ORDER BY
+# AS + ORDER BY
 SELECT latin1_f COLLATE latin1_swedish_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
 SELECT latin1_f COLLATE latin1_german2_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
 SELECT latin1_f COLLATE latin1_general_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
@@ -80,7 +80,7 @@ SELECT latin1_f COLLATE latin1_bin        AS latin1_f_as FROM t1 ORDER BY latin1
 SELECT latin1_f COLLATE koi8r_general_ci  AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
 
 
--- GROUP BY
+# GROUP BY
 
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f;
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_swedish_ci;
@@ -91,7 +91,7 @@ SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_bin;
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE koi8r_general_ci;
 
 
---  DISTINCT
+# DISTINCT
 
 SELECT DISTINCT latin1_f                           FROM t1;
 SELECT DISTINCT latin1_f COLLATE latin1_swedish_ci FROM t1;
@@ -102,21 +102,20 @@ SELECT DISTINCT latin1_f COLLATE latin1_bin        FROM t1;
 SELECT DISTINCT latin1_f COLLATE koi8r             FROM t1;
 
 
--- Aggregates
---SELECT MAX(k COLLATE latin1_german2_ci)
---FROM t1
+# Aggregates
 
-
--- WHERE
---SELECT *
---FROM t1 
---WHERE (_latin1'Mu"ller' COLLATE latin1_german2_ci) = k 
-
---HAVING
---SELECT *
---FROM t1 
---HAVING (_latin1'Mu"ller' COLLATE latin1_german2_ci) = k 
-
+--disable_parsing
+SELECT MAX(k COLLATE latin1_german2_ci)
+FROM t1
+WHERE
+SELECT *
+FROM t1 
+WHERE (_latin1'Mu"ller' COLLATE latin1_german2_ci) = k 
+HAVING
+SELECT *
+FROM t1 
+HAVING (_latin1'Mu"ller' COLLATE latin1_german2_ci) = k;
+--enable_parsing
 
 #
 # Check that SHOW displays COLLATE clause
