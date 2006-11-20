@@ -1,12 +1,4 @@
-use lpt1;
-ERROR 42000: Unknown database 'lpt1'
-use com1;
-ERROR 42000: Unknown database 'com1'
-use prn;
-ERROR 42000: Unknown database 'prn'
-create table nu (a int);
-drop table nu;
-create procedure proc_1() install plugin my_plug soname '\\root\\some_plugin.dll';
+create procedure proc_1() install plugin my_plug soname '/root/some_plugin.so';
 call proc_1();
 ERROR HY000: No paths allowed for shared library
 call proc_1();
@@ -14,7 +6,7 @@ ERROR HY000: No paths allowed for shared library
 call proc_1();
 ERROR HY000: No paths allowed for shared library
 drop procedure proc_1;
-prepare abc from "install plugin my_plug soname '\\\\root\\\\some_plugin.dll'";
+prepare abc from "install plugin my_plug soname '/root/some_plugin.so'";
 execute abc;
 ERROR HY000: No paths allowed for shared library
 execute abc;
