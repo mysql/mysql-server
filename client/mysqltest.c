@@ -4140,7 +4140,7 @@ void init_win_path_patterns()
                           "$MYSQL_TMP_DIR",
                           "$MYSQLTEST_VARDIR",
                           "./test/" };
-  int num_paths= sizeof(paths)/sizeof(char*),
+  int num_paths= sizeof(paths)/sizeof(char*);
   int i;
   char* p;
 
