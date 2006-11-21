@@ -369,6 +369,7 @@ btr_cur_search_to_nth_level(
 #ifdef PAGE_CUR_LE_OR_EXTENDS
 	    && mode != PAGE_CUR_LE_OR_EXTENDS
 #endif /* PAGE_CUR_LE_OR_EXTENDS */
+	    && !UNIV_UNLIKELY(btr_search_disabled)
 	    && btr_search_guess_on_hash(index, info, tuple, mode,
 					latch_mode, cursor,
 					has_search_latch, mtr)) {
@@ -603,7 +604,10 @@ retry_page_get:
 		cursor->up_bytes = up_bytes;
 
 #ifdef BTR_CUR_ADAPT
-		btr_search_info_update(index, cursor);
+		if (!UNIV_UNLIKELY(btr_search_disabled)) {
+
+			btr_search_info_update(index, cursor);
+		}
 #endif
 		ut_ad(cursor->up_match != ULINT_UNDEFINED
 		      || mode != PAGE_CUR_GE);

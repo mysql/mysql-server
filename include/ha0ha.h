@@ -68,6 +68,15 @@ ha_create_func(
 #else /* UNIV_SYNC_DEBUG */
 # define ha_create(n_c,n_m,level) ha_create_func(n_c,n_m)
 #endif /* UNIV_SYNC_DEBUG */
+
+/*****************************************************************
+Empties a hash table and frees the memory heaps. */
+
+void
+ha_clear(
+/*=====*/
+	hash_table_t*	table);	/* in, own: hash table */
+
 /*****************************************************************
 Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node

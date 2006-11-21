@@ -900,163 +900,191 @@ buf_pool_init(void)
 }
 
 /************************************************************************
+Shrinks the buffer pool. */
+static
+void
+buf_pool_shrink(
+/*============*/
+				/* out: TRUE if shrunk */
+	ulint	chunk_size)	/* in: number of pages to remove */
+{
+	buf_chunk_t*	chunks;
+	buf_chunk_t*	chunk;
+	ulint		max_size;
+	ulint		max_free_size;
+	buf_chunk_t*	max_chunk;
+	buf_chunk_t*	max_free_chunk;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!mutex_own(&buf_pool->mutex));
+#endif /* UNIV_SYNC_DEBUG */
+
+try_again:
+	btr_search_disable(); /* Empty the adaptive hash index again */
+	mutex_enter(&buf_pool->mutex);
+
+shrink_again:
+	if (buf_pool->n_chunks <= 1) {
+
+		/* Cannot shrink if there is only one chunk */
+		goto func_done;
+	}
+
+	/* Search for the largest free chunk
+	not larger than the size difference */
+	chunks = buf_pool->chunks;
+	chunk = chunks + buf_pool->n_chunks;
+	max_size = max_free_size = 0;
+	max_chunk = max_free_chunk = NULL;
+
+	while (--chunk >= chunks) {
+		if (chunk->size <= chunk_size
+		    && chunk->size > max_free_size) {
+			if (chunk->size > max_size) {
+				max_size = chunk->size;
+				max_chunk = chunk;
+			}
+
+			if (buf_chunk_all_free(chunk)) {
+				max_free_size = chunk->size;
+				max_free_chunk = chunk;
+			}
+		}
+	}
+
+	if (!max_free_size) {
+
+		ulint		dirty	= 0;
+		ulint		nonfree	= 0;
+		buf_block_t*	block;
+		buf_block_t*	bend;
+
+		/* Cannot shrink: try again later
+		(do not assign srv_buf_pool_old_size) */
+		if (!max_chunk) {
+
+			goto func_exit;
+		}
+
+		block = max_chunk->blocks;
+		bend = block + max_chunk->size;
+
+		/* Move the blocks of chunk to the end of the
+		LRU list and try to flush them. */
+		for (; block < bend; block++) {
+			switch (block->state) {
+			case BUF_BLOCK_NOT_USED:
+				continue;
+			case BUF_BLOCK_FILE_PAGE:
+				break;
+			default:
+				nonfree++;
+				continue;
+			}
+
+			mutex_enter(&block->mutex);
+			/* The following calls will temporarily
+			release block->mutex and buf_pool->mutex.
+			Therefore, we have to always retry,
+			even if !dirty && !nonfree. */
+
+			if (!buf_flush_ready_for_replace(block)) {
+
+				buf_LRU_make_block_old(block);
+				dirty++;
+			} else if (!buf_LRU_free_block(block)) {
+				nonfree++;
+			}
+
+			mutex_exit(&block->mutex);
+		}
+
+		mutex_exit(&buf_pool->mutex);
+
+		/* Request for a flush of the chunk if it helps.
+		Do not flush if there are non-free blocks, since
+		flushing will not make the chunk freeable. */
+		if (nonfree) {
+			/* Avoid busy-waiting. */
+			os_thread_sleep(100000);
+		} else if (dirty
+			   && buf_flush_batch(BUF_FLUSH_LRU, dirty,
+					      ut_dulint_zero)
+			   == ULINT_UNDEFINED) {
+
+			buf_flush_wait_batch_end(BUF_FLUSH_LRU);
+		}
+
+		goto try_again;
+	}
+
+	max_size = max_free_size;
+	max_chunk = max_free_chunk;
+
+	srv_buf_pool_old_size = srv_buf_pool_size;
+
+	/* Rewrite buf_pool->chunks.  Copy everything but max_chunk. */
+	chunks = mem_alloc((buf_pool->n_chunks - 1) * sizeof *chunks);
+	memcpy(chunks, buf_pool->chunks,
+	       (max_chunk - buf_pool->chunks) * sizeof *chunks);
+	memcpy(chunks + (max_chunk - buf_pool->chunks),
+	       max_chunk + 1,
+	       buf_pool->chunks + buf_pool->n_chunks
+	       - (max_chunk + 1));
+	ut_a(buf_pool->curr_size > max_chunk->size);
+	buf_pool->curr_size -= max_chunk->size;
+	srv_buf_pool_curr_size = buf_pool->curr_size * UNIV_PAGE_SIZE;
+	chunk_size -= max_chunk->size;
+	buf_chunk_free(max_chunk);
+	mem_free(buf_pool->chunks);
+	buf_pool->chunks = chunks;
+	buf_pool->n_chunks--;
+
+	/* Allow a slack of one megabyte. */
+	if (chunk_size > 1048576 / UNIV_PAGE_SIZE) {
+
+		goto shrink_again;
+	}
+
+func_done:
+	srv_buf_pool_old_size = srv_buf_pool_size;
+func_exit:
+	mutex_exit(&buf_pool->mutex);
+	btr_search_enable();
+}
+
+/************************************************************************
 Resizes the buffer pool. */
 
 void
 buf_pool_resize(void)
 /*=================*/
 {
-	buf_chunk_t*	chunks;
-	buf_chunk_t*	chunk;
-
-try_again:
 	mutex_enter(&buf_pool->mutex);
 
 	if (srv_buf_pool_old_size == srv_buf_pool_size) {
 
-		goto func_exit;
+		mutex_exit(&buf_pool->mutex);
+		return;
 	}
 
 	if (srv_buf_pool_curr_size + 1048576 > srv_buf_pool_size) {
 
-		/* Shrink the buffer pool by at least one megabyte */
+		mutex_exit(&buf_pool->mutex);
 
-		ulint		chunk_size
-			= (srv_buf_pool_curr_size - srv_buf_pool_size) 
-			/ UNIV_PAGE_SIZE;
-		ulint		max_size;
-		ulint		max_free_size;
-		buf_chunk_t*	max_chunk;
-		buf_chunk_t*	max_free_chunk;
-
-shrink_again:
-		if (buf_pool->n_chunks <= 1) {
-
-			/* Cannot shrink if there is only one chunk */
-			goto func_done;
-		}
-
-		/* Search for the largest free chunk
-		not larger than the size difference */
-		chunks = buf_pool->chunks;
-		chunk = chunks + buf_pool->n_chunks;
-		max_size = max_free_size = 0;
-		max_chunk = max_free_chunk = NULL;
-
-		while (--chunk >= chunks) {
-			if (chunk->size <= chunk_size
-			    && chunk->size > max_free_size) {
-				if (chunk->size > max_size) {
-					max_size = chunk->size;
-					max_chunk = chunk;
-				}
-
-				if (buf_chunk_all_free(chunk)) {
-					max_free_size = chunk->size;
-					max_free_chunk = chunk;
-				}
-			}
-		}
-
-		if (!max_free_size) {
-
-			ulint		dirty	= 0;
-			ulint		nonfree	= 0;
-			buf_block_t*	block;
-			buf_block_t*	bend;
-
-			/* Cannot shrink: try again later
-			(do not assign srv_buf_pool_old_size) */
-			if (!max_chunk) {
-
-				goto func_exit;
-			}
-
-			block = max_chunk->blocks;
-			bend = block + max_chunk->size;
-
-			/* Move the blocks of chunk to the end of the
-			LRU list and try to flush them. */
-			for (; block < bend; block++) {
-				switch (block->state) {
-				case BUF_BLOCK_NOT_USED:
-					continue;
-				case BUF_BLOCK_FILE_PAGE:
-					break;
-				default:
-					nonfree++;
-					continue;
-				}
-
-				mutex_enter(&block->mutex);
-				/* The following calls will temporarily
-				release block->mutex and buf_pool->mutex.
-				Therefore, we have to always retry,
-				even if !dirty && !nonfree. */
-
-				if (!buf_flush_ready_for_replace(block)) {
-
-					buf_LRU_make_block_old(block);
-					dirty++;
-				} else if (!buf_LRU_free_block(block)) {
-					nonfree++;
-				}
-
-				mutex_exit(&block->mutex);
-			}
-
-			mutex_exit(&buf_pool->mutex);
-
-			/* Request for a flush of the chunk if it helps.
-			Do not flush if there are non-free blocks, since
-			flushing will not make the chunk freeable. */
-			if (nonfree) {
-				/* Avoid busy-waiting. */
-				os_thread_sleep(100000);
-			} else if (dirty
-				   && buf_flush_batch(BUF_FLUSH_LRU, dirty,
-						      ut_dulint_zero)
-				   == ULINT_UNDEFINED) {
-
-				buf_flush_wait_batch_end(BUF_FLUSH_LRU);
-			}
-
-			goto try_again;
-		}
-
-		max_size = max_free_size;
-		max_chunk = max_free_chunk;
-
-		srv_buf_pool_old_size = srv_buf_pool_size;
-
-		/* Rewrite buf_pool->chunks.  Copy everything but max_chunk. */
-		chunks = mem_alloc((buf_pool->n_chunks - 1) * sizeof *chunks);
-		memcpy(chunks, buf_pool->chunks,
-		       (max_chunk - buf_pool->chunks) * sizeof *chunks);
-		memcpy(chunks + (max_chunk - buf_pool->chunks),
-		       max_chunk + 1,
-		       buf_pool->chunks + buf_pool->n_chunks
-		       - (max_chunk + 1));
-		ut_a(buf_pool->curr_size > max_chunk->size);
-		buf_pool->curr_size -= max_chunk->size;
-		srv_buf_pool_curr_size = buf_pool->curr_size * UNIV_PAGE_SIZE;
-		chunk_size -= max_chunk->size;
-		buf_chunk_free(max_chunk);
-		mem_free(buf_pool->chunks);
-		buf_pool->chunks = chunks;
-		buf_pool->n_chunks--;
-
-		/* Allow a slack of one megabyte. */
-		if (chunk_size > 1048576 / UNIV_PAGE_SIZE) {
-
-			goto shrink_again;
-		}
+		/* Disable adaptive hash indexes and empty the index
+		in order to free up memory in the buffer pool chunks. */
+		buf_pool_shrink((srv_buf_pool_curr_size - srv_buf_pool_size)
+				/ UNIV_PAGE_SIZE);
+		return;
 	} else if (srv_buf_pool_curr_size + 1048576 < srv_buf_pool_size) {
 
 		/* Enlarge the buffer pool by at least one megabyte */
 
 		ulint		mem_size
 			= srv_buf_pool_size - srv_buf_pool_curr_size;
+		buf_chunk_t*	chunks;
+		buf_chunk_t*	chunk;
 
 		chunks = mem_alloc((buf_pool->n_chunks + 1) * sizeof *chunks);
 
@@ -1075,15 +1103,12 @@ shrink_again:
 			buf_pool->chunks = chunks;
 			buf_pool->n_chunks++;
 		}
+
+		srv_buf_pool_old_size = srv_buf_pool_size;
+		mutex_exit(&buf_pool->mutex);
 	}
 
 	/* TODO: reinitialize buf_pool->page_hash */
-
-func_done:
-	srv_buf_pool_old_size = srv_buf_pool_size;
-
-func_exit:
-	mutex_exit(&buf_pool->mutex);
 }
 
 /************************************************************************
