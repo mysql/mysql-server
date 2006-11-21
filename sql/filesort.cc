@@ -974,7 +974,7 @@ uint read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
     Put all room used by freed buffer to use in adjacent buffer.  Note, that
     we can't simply distribute memory evenly between all buffers, because
     new areas must not overlap with old ones.
-  SYNOPSYS
+  SYNOPSIS
     reuse_freed_buff()
     queue      IN  list of non-empty buffers, without freed buffer
     reuse      IN  empty buffer
