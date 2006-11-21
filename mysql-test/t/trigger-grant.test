@@ -60,8 +60,8 @@ CREATE TABLE t2(user_str TEXT);
 --echo
 --echo ---> connection: default
 
-GRANT INSERT, DELETE ON mysqltest_db1.t1 TO mysqltest_dfn@localhost;
-GRANT INSERT, DELETE ON mysqltest_db1.t2 TO mysqltest_dfn@localhost;
+GRANT INSERT, DROP ON mysqltest_db1.t1 TO mysqltest_dfn@localhost;
+GRANT INSERT, DROP ON mysqltest_db1.t2 TO mysqltest_dfn@localhost;
 
 #
 # Check that the user must have TRIGGER privilege to create a trigger.
