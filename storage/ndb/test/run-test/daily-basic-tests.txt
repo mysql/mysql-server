@@ -451,6 +451,10 @@ args: -n ScanParallelism
 
 max-time: 500
 cmd: testScan
+args: -n Bug24447 T1
+
+max-time: 500
+cmd: testScan
 args: -n ScanVariants
 
 max-time: 500
