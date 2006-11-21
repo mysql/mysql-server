@@ -1970,8 +1970,10 @@ NdbTransaction::receiveTCINDXCONF(const TcIndxConf * indxConf,
     if (tCommitFlag == 1) {
       theCommitStatus = Committed;
       theGlobalCheckpointId = tGCI;
-      assert(tGCI);
-      *p_latest_trans_gci = tGCI;
+      if (tGCI) // Read(dirty) only transaction doesnt get GCI
+      {
+	*p_latest_trans_gci = tGCI;
+      }
     } else if ((tNoComp >= tNoSent) &&
                (theLastExecOpInList->theCommitIndicator == 1)){
       /**********************************************************************/

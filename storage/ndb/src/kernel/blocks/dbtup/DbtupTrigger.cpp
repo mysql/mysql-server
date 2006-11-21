@@ -833,6 +833,15 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
 //--------------------------------------------------------------------
 // Read Primary Key Values
 //--------------------------------------------------------------------
+  Tuple_header *save0= req_struct->m_tuple_ptr;
+  if (regOperPtr->op_struct.op_type == ZDELETE && 
+      !regOperPtr->is_first_operation())
+  {
+    jam();
+    req_struct->m_tuple_ptr= (Tuple_header*)
+      c_undo_buffer.get_ptr(&req_struct->prevOpPtr.p->m_copy_tuple_location);
+  }
+
   if (regTabPtr->need_expand()) 
     prepare_read(req_struct, regTabPtr, true);
   
@@ -844,6 +853,9 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
 			   false);
   ndbrequire(ret != -1);
   noPrimKey= ret;
+  
+  req_struct->m_tuple_ptr = save0;
+  
   Uint32 numAttrsToRead;
   if ((regOperPtr->op_struct.op_type == ZUPDATE) &&
       (trigPtr->sendOnlyChangedAttributes)) {
