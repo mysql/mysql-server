@@ -18,16 +18,18 @@ Creates a hash table with >= n array cells. The actual number of cells is
 chosen to be a prime number slightly bigger than n. */
 
 hash_table_t*
-ha_create(
-/*======*/
+ha_create_func(
+/*===========*/
 				/* out, own: created table */
 	ibool	in_btr_search,	/* in: TRUE if the hash table is used in
 				the btr_search module */
 	ulint	n,		/* in: number of array cells */
-	ulint	n_mutexes,	/* in: number of mutexes to protect the
-				hash table: must be a power of 2, or 0 */
-	ulint	mutex_level)	/* in: level of the mutexes in the latching
+#ifdef UNIV_SYNC_DEBUG
+	ulint	mutex_level,	/* in: level of the mutexes in the latching
 				order: this is used in the debug version */
+#endif /* UNIV_SYNC_DEBUG */
+	ulint	n_mutexes)	/* in: number of mutexes to protect the
+				hash table: must be a power of 2, or 0 */
 {
 	hash_table_t*	table;
 	ulint		i;
