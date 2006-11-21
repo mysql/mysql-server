@@ -85,10 +85,10 @@ Thread_registry::~Thread_registry()
 void Thread_registry::register_thread(Thread_info *info,
                                       bool send_signal_on_shutdown)
 {
-  DBUG_PRINT("info", ("Thread_registry: registering thread %d...",
-                      (int) info->thread_id));
-
   info->init(send_signal_on_shutdown);
+
+  DBUG_PRINT("info", ("Thread_registry: registering thread %lu...",
+                      (unsigned long) info->thread_id));
 
 #ifndef __WIN__
   struct sigaction sa;
@@ -116,8 +116,8 @@ void Thread_registry::register_thread(Thread_info *info,
 
 void Thread_registry::unregister_thread(Thread_info *info)
 {
-  DBUG_PRINT("info", ("Thread_registry: unregistering thread %d...",
-                      (int) info->thread_id));
+  DBUG_PRINT("info", ("Thread_registry: unregistering thread %lu...",
+                      (unsigned long) info->thread_id));
 
   pthread_mutex_lock(&LOCK_thread_registry);
   info->prev->next= info->next;

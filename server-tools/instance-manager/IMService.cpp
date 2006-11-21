@@ -54,24 +54,24 @@ int HandleServiceOptions()
   if (Options::Service::install_as_service)
   {
     if (winService.IsInstalled())
-      log_info("Service is already installed");
+      log_info("Service is already installed.");
     else if (winService.Install())
-      log_info("Service installed successfully");
+      log_info("Service installed successfully.");
     else
     {
-      log_info("Service failed to install");
+      log_error("Service failed to install.");
       ret_val= 1;
     }
   }
   else if (Options::Service::remove_service)
   {
     if (! winService.IsInstalled())
-      log_info("Service is not installed");
+      log_info("Service is not installed.");
     else if (winService.Remove())
-      log_info("Service removed successfully");
+      log_info("Service removed successfully.");
     else
     {
-      log_info("Service failed to remove");
+      log_error("Service failed to remove.");
       ret_val= 1;
     }
   }
@@ -81,7 +81,7 @@ int HandleServiceOptions()
 
     if (!winService.Init())
     {
-      log_info("Service failed to initialize.");
+      log_error("Service failed to initialize.");
       fprintf(stderr,
               "The service should be started by Windows Service Manager.\n"
               "The MySQL Manager should be started with '--standalone'\n"

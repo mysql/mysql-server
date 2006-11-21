@@ -37,7 +37,8 @@
     log()
 */
 
-static inline void log(FILE *file,  const char *format, va_list args)
+static void log(FILE *file,const char *level_tag, const char *format,
+                va_list args)
 {
   /*
     log() should be thread-safe; it implies that we either call fprintf()
@@ -53,15 +54,16 @@ static inline void log(FILE *file,  const char *format, va_list args)
   localtime_r(&now, &bd_time);
 
   char buff_date[128];
-  sprintf(buff_date, "[%d/%lu] [%02d/%02d/%02d %02d:%02d:%02d] ",
+  sprintf(buff_date, "[%d/%lu] [%02d/%02d/%02d %02d:%02d:%02d] [%s] ",
           (int) getpid(),
           (unsigned long) pthread_self(),
-          bd_time.tm_year % 100,
-          bd_time.tm_mon + 1,
-          bd_time.tm_mday,
-          bd_time.tm_hour,
-          bd_time.tm_min,
-          bd_time.tm_sec);
+          (int) bd_time.tm_year % 100,
+          (int) bd_time.tm_mon + 1,
+          (int) bd_time.tm_mday,
+          (int) bd_time.tm_hour,
+          (int) bd_time.tm_min,
+          (int) bd_time.tm_sec,
+          (const char *) level_tag);
   /* Format the message */
   char buff_stack[256];
 
@@ -109,46 +111,15 @@ static inline void log(FILE *file,  const char *format, va_list args)
   /* don't fflush() the file: buffering strategy is set in log_init() */
 }
 
-
-void log_error(const char *format, ...)
-{
-  va_list args;
-  va_start(args, format);
-  log(stderr, format, args);
-  va_end(args);
-}
-
-
-void log_info(const char *format, ...) 
-{
-  va_list args;
-  va_start(args, format);
-  log(stdout, format, args);
-  va_end(args);
-}
-
-/* TODO: rewrite with buffering print */
-void print_info(const char *format, ...)
-{
-  va_list args;
-  va_start(args, format);
-  vfprintf(stdout, format, args);
-  va_end(args);
-}
-
-void print_error(const char *format, ...)
-{
-  va_list args;
-  va_start(args, format);
-  vfprintf(stderr, format, args);
-  va_end(args);
-}
+/**************************************************************************
+  Logging: implementation of public interface.
+**************************************************************************/
 
 /*
+  The function initializes logging sub-system.
+
+  SYNOPSIS
     log_init()
-  RETURN VALUE
-    0 ok
-   !0 error
 */
 
 void log_init()
@@ -160,6 +131,53 @@ void log_init()
   */
   setbuf(stdout, 0);
 }
+
+
+/*
+  The function is intended to log error messages. It precedes a message
+  with date, time and [ERROR] tag and print it to the stderr.
+
+  SYNOPSIS
+    log_error()
+    format      [IN] format string
+    ...         [IN] arguments to format
+*/
+
+void log_error(const char *format, ...)
+{
+  va_list args;
+  va_start(args, format);
+  log(stderr, "ERROR", format, args);
+  va_end(args);
+}
+
+
+/*
+  The function is intended to log information messages. It precedes
+  a message with date, time and [INFO] tag and print it to the stdout.
+
+  SYNOPSIS
+    log_error()
+    format      [IN] format string
+    ...         [IN] arguments to format
+*/
+
+void log_info(const char *format, ...)
+{
+  va_list args;
+  va_start(args, format);
+  log(stdout, "INFO", format, args);
+  va_end(args);
+}
+
+/*
+  The function prints information to the error log and eixt(1).
+
+  SYNOPSIS
+    die()
+    format      [IN] format string
+    ...         [IN] arguments to format
+*/
 
 void die(const char *format, ...)
 {

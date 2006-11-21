@@ -127,8 +127,8 @@ void Listener::run()
     if (rc == 0 || rc == -1)
     {
       if (rc == -1 && errno != EINTR)
-        log_error("Listener: select() failed, %s",
-                  strerror(errno));
+        log_error("Listener: select() failed: %s.",
+                  (const char *) strerror(errno));
       continue;
     }
 
@@ -195,8 +195,8 @@ int Listener::create_tcp_socket()
   int ip_socket= socket(AF_INET, SOCK_STREAM, 0);
   if (ip_socket == INVALID_SOCKET)
   {
-    log_error("Listener_thead: socket(AF_INET) failed, %s",
-              strerror(errno));
+    log_error("Listener: socket(AF_INET) failed: %s.",
+              (const char *) strerror(errno));
     return -1;
   }
 
@@ -226,16 +226,16 @@ int Listener::create_tcp_socket()
   if (bind(ip_socket, (struct sockaddr *) &ip_socket_address,
            sizeof(ip_socket_address)))
   {
-    log_error("Listener: bind(ip socket) failed, '%s'",
-              strerror(errno));
+    log_error("Listener: bind(ip socket) failed: %s.",
+              (const char *) strerror(errno));
     close(ip_socket);
     return -1;
   }
 
   if (listen(ip_socket, LISTEN_BACK_LOG_SIZE))
   {
-    log_error("Listener: listen(ip socket) failed, %s",
-              strerror(errno));
+    log_error("Listener: listen(ip socket) failed: %s.",
+              (const char *) strerror(errno));
     close(ip_socket);
     return -1;
   }
@@ -248,7 +248,8 @@ int Listener::create_tcp_socket()
 
   FD_SET(ip_socket, &read_fds);
   sockets[num_sockets++]= ip_socket;
-  log_info("accepting connections on ip socket (port: %d)", (int) im_port);
+  log_info("Listener: accepting connections on ip socket (port: %d)...",
+           (int) im_port);
   return 0;
 }
 
@@ -259,8 +260,8 @@ create_unix_socket(struct sockaddr_un &unix_socket_address)
   int unix_socket= socket(AF_UNIX, SOCK_STREAM, 0);
   if (unix_socket == INVALID_SOCKET)
   {
-    log_error("Listener_thead: socket(AF_UNIX) failed, %s",
-              strerror(errno));
+    log_error("Listener: socket(AF_UNIX) failed: %s.",
+              (const char *) strerror(errno));
     return -1;
   }
 
@@ -279,9 +280,9 @@ create_unix_socket(struct sockaddr_un &unix_socket_address)
   if (bind(unix_socket, (struct sockaddr *) &unix_socket_address,
            sizeof(unix_socket_address)))
   {
-    log_error("Listener: bind(unix socket) failed, "
-              "socket file name is '%s', error '%s'",
-              unix_socket_address.sun_path, strerror(errno));
+    log_error("Listener: bind(unix socket) failed for '%s': %s.",
+              (const char *) unix_socket_address.sun_path,
+              (const char *) strerror(errno));
     close(unix_socket);
     return -1;
   }
@@ -290,8 +291,8 @@ create_unix_socket(struct sockaddr_un &unix_socket_address)
 
   if (listen(unix_socket, LISTEN_BACK_LOG_SIZE))
   {
-    log_error("Listener: listen(unix socket) failed, %s",
-              strerror(errno));
+    log_error("Listener: listen(unix socket) failed: %s.",
+              (const char *) strerror(errno));
     close(unix_socket);
     return -1;
   }
@@ -302,8 +303,8 @@ create_unix_socket(struct sockaddr_un &unix_socket_address)
   /* make sure that instances won't be listening our sockets */
   set_no_inherit(unix_socket);
 
-  log_info("accepting connections on unix socket '%s'",
-           unix_socket_address.sun_path);
+  log_info("Listener: accepting connections on unix socket '%s'...",
+           (const char *) unix_socket_address.sun_path);
   sockets[num_sockets++]= unix_socket;
   FD_SET(unix_socket, &read_fds);
   return 0;
@@ -325,7 +326,7 @@ void Listener::handle_new_mysql_connection(struct st_vio *vio)
                          vio, ++total_connection_count);
   if (mysql_connection == NULL || mysql_connection->start(Thread::DETACHED))
   {
-    log_error("handle_one_mysql_connection() failed");
+    log_error("Listener: can not start connection handler.");
     delete mysql_connection;
     vio_delete(vio);
   }

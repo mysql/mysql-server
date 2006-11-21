@@ -336,14 +336,14 @@ int Instance_map::create_instance(const LEX_STRING *instance_name,
 
   if (!instance)
   {
-    log_error("Error: can not allocate instance (name: '%s').",
+    log_error("Can not allocate instance (name: '%s').",
               (const char *) instance_name->str);
     return ER_OUT_OF_RESOURCES;
   }
 
   if (instance->init(instance_name))
   {
-    log_error("Error: can not initialize instance (name: '%s').",
+    log_error("Can not initialize instance (name: '%s').",
               (const char *) instance_name->str);
     delete instance;
     return ER_OUT_OF_RESOURCES;
@@ -356,7 +356,7 @@ int Instance_map::create_instance(const LEX_STRING *instance_name,
     if (instance->is_mysqld_compatible() &&
         Instance_options::is_option_im_specific(option.get_name()))
     {
-      log_error("Error: IM-option (%s) can not be used "
+      log_error("IM-option (%s) can not be used "
                 "in configuration of mysqld-compatible instance (%s).",
                 (const char *) option.get_name(),
                 (const char *) instance_name->str);
@@ -373,7 +373,7 @@ int Instance_map::create_instance(const LEX_STRING *instance_name,
 
   if (instance->complete_initialization())
   {
-    log_error("Error: can not complete initialization of instance (name: '%s').",
+    log_error("Can not complete initialization of instance (name: '%s').",
               (const char *) instance_name->str);
     delete instance;
     return ER_OUT_OF_RESOURCES;
@@ -382,7 +382,7 @@ int Instance_map::create_instance(const LEX_STRING *instance_name,
 
   if (add_instance(instance))
   {
-    log_error("Error: can not register instance (name: '%s').",
+    log_error("Can not register instance (name: '%s').",
               (const char *) instance_name->str);
     delete instance;
     return ER_OUT_OF_RESOURCES;
@@ -426,7 +426,7 @@ bool Instance_map::complete_initialization()
 
   if (create_instance(&Instance::DFLT_INSTANCE_NAME, NULL))
   {
-    log_error("Error: could not create default instance.");
+    log_error("Can not create default instance.");
     return TRUE;
   }
 
@@ -441,7 +441,7 @@ bool Instance_map::complete_initialization()
     break;
 
   default:
-    log_error("Error: could not add default instance to the config file.");
+    log_error("Can not add default instance to the config file.");
 
     Instance *instance= find(&Instance::DFLT_INSTANCE_NAME);
 
@@ -499,7 +499,7 @@ int Instance_map::load()
   if (my_search_option_files(Options::Main::config_file, &argc,
                              (char ***) &argv, &args_used,
                              process_option, (void*) this))
-    log_info("Falling back to compiled-in defaults");
+    log_info("Falling back to compiled-in defaults.");
 
   return complete_initialization();
 }
@@ -566,7 +566,7 @@ int create_instance_in_file(const LEX_STRING *instance_name,
 
   if (my_access(Options::Main::config_file, W_OK))
   {
-    log_error("Error: configuration file (%s) does not exist.",
+    log_error("Configuration file (%s) does not exist.",
               (const char *) Options::Main::config_file);
     return ER_CONF_FILE_DOES_NOT_EXIST;
   }
@@ -575,7 +575,7 @@ int create_instance_in_file(const LEX_STRING *instance_name,
 
   if (cnf_file <= 0)
   {
-    log_error("Error: can not open configuration file (%s): %s.",
+    log_error("Can not open configuration file (%s): %s.",
               (const char *) Options::Main::config_file,
               (const char *) strerror(errno));
     return ER_ACCESS_OPTION_FILE;
@@ -588,7 +588,7 @@ int create_instance_in_file(const LEX_STRING *instance_name,
       my_write(cnf_file, (byte*)"]", 1,   MYF(MY_NABP)) ||
       my_write(cnf_file, (byte*)NEWLINE, NEWLINE_LEN, MYF(MY_NABP)))
   {
-    log_error("Error: can not write to configuration file (%s): %s.",
+    log_error("Can not write to configuration file (%s): %s.",
               (const char *) Options::Main::config_file,
               (const char *) strerror(errno));
     my_close(cnf_file, MYF(0));
@@ -612,7 +612,7 @@ int create_instance_in_file(const LEX_STRING *instance_name,
     if (my_write(cnf_file, (byte*)option_str, option_str_len, MYF(MY_NABP)) ||
         my_write(cnf_file, (byte*)NEWLINE, NEWLINE_LEN, MYF(MY_NABP)))
     {
-      log_error("Error: can not write to configuration file (%s): %s.",
+      log_error("Can not write to configuration file (%s): %s.",
                 (const char *) Options::Main::config_file,
                 (const char *) strerror(errno));
       my_close(cnf_file, MYF(0));
