@@ -8619,6 +8619,20 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
    * IF ANY TO RECEIVE.
    **********************************************************/
   scanptr.p->scanState = ScanRecord::WAIT_AI;
+  
+  if (ERROR_INSERTED(8038))
+  {
+    /**
+     * Force API_FAILREQ
+     */
+    DisconnectRep * const  rep = (DisconnectRep *)signal->getDataPtrSend();
+    rep->nodeId = refToNode(apiConnectptr.p->ndbapiBlockref);
+    rep->err = 8038;
+    
+    EXECUTE_DIRECT(CMVMI, GSN_DISCONNECT_REP, signal, 2);
+    CLEAR_ERROR_INSERT_VALUE;
+  }
+  
   return;
 
  SCAN_error_check:
@@ -8706,6 +8720,7 @@ void Dbtc::initScanrec(ScanRecordPtr scanptr,
     jam();
     ScanFragRecPtr ptr;
     ndbrequire(list.seize(ptr));
+    ptr.p->scanFragState = ScanFragRec::IDLE;
     ptr.p->scanRec = scanptr.i;
     ptr.p->scanFragId = 0;
     ptr.p->m_apiPtr = cdata[i];
@@ -9457,9 +9472,17 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
 
   ScanRecord* scanP = scanPtr.p;
   ndbrequire(scanPtr.p->scanState != ScanRecord::IDLE);  
+  ScanRecord::ScanState old = scanPtr.p->scanState;
   scanPtr.p->scanState = ScanRecord::CLOSING_SCAN;
   scanPtr.p->m_close_scan_req = req_received;
 
+  if (old == ScanRecord::WAIT_FRAGMENT_COUNT)
+  {
+    jam();
+    scanPtr.p->scanState = old;
+    return; // Will continue on execDI_FCOUNTCONF
+  }
+  
   /**
    * Queue         : Action
    * ============= : =================
@@ -9487,11 +9510,22 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
       ScanFragRecPtr curr = ptr; // Remove while iterating...
       running.next(ptr);
 
-      if(curr.p->scanFragState == ScanFragRec::WAIT_GET_PRIMCONF){
+      switch(curr.p->scanFragState){
+      case ScanFragRec::IDLE:
+	jam(); // real early abort
+	ndbrequire(old == ScanRecord::WAIT_AI);
+	running.release(curr);
+	continue;
+      case ScanFragRec::WAIT_GET_PRIMCONF:
 	jam();
 	continue;
+      case ScanFragRec::LQH_ACTIVE:
+	jam();
+	break;
+      default:
+	jamLine(curr.p->scanFragState);
+	ndbrequire(false);
       }
-      ndbrequire(curr.p->scanFragState == ScanFragRec::LQH_ACTIVE);
       
       curr.p->startFragTimer(ctcTimer);
       curr.p->scanFragState = ScanFragRec::LQH_ACTIVE;

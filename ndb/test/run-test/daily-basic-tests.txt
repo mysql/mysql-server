@@ -439,6 +439,10 @@ cmd: testScan
 args: -l 100 -n Scan-bug8262 T7
 
 max-time: 500
+cmd: testScan
+args: -n Bug24447 T1
+
+max-time: 500
 cmd: testNodeRestart
 args: -n Bug15587 T1
 
