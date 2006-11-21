@@ -155,7 +155,6 @@ static KEY_CACHE *create_key_cache(const char *name, uint length);
 void fix_sql_mode_var(THD *thd, enum_var_type type);
 static byte *get_error_count(THD *thd);
 static byte *get_warning_count(THD *thd);
-static byte *get_prepared_stmt_count(THD *thd);
 static byte *get_tmpdir(THD *thd);
 static int  sys_check_log_path(THD *thd,  set_var *var);
 static bool sys_update_general_log_path(THD *thd, set_var * var);
@@ -639,9 +638,6 @@ static sys_var_readonly		sys_warning_count("warning_count",
 						  OPT_SESSION,
 						  SHOW_LONG,
 						  get_warning_count);
-static sys_var_readonly	sys_prepared_stmt_count("prepared_stmt_count",
-                                                OPT_GLOBAL, SHOW_LONG,
-                                                get_prepared_stmt_count);
 
 /* alias for last_insert_id() to be compatible with Sybase */
 #ifdef HAVE_REPLICATION
@@ -956,7 +952,6 @@ SHOW_VAR init_vars[]= {
   {"plugin_dir",              (char*) opt_plugin_dir,               SHOW_CHAR},
   {"port",                    (char*) &mysqld_port,                  SHOW_INT},
   {sys_preload_buff_size.name, (char*) &sys_preload_buff_size,      SHOW_SYS},
-  {sys_prepared_stmt_count.name, (char*) &sys_prepared_stmt_count, SHOW_SYS},
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {sys_query_alloc_block_size.name, (char*) &sys_query_alloc_block_size,
    SHOW_SYS},
@@ -3149,14 +3144,6 @@ static byte *get_error_count(THD *thd)
   thd->sys_var_tmp.long_value= 
     thd->warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_ERROR];
   return (byte*) &thd->sys_var_tmp.long_value;
-}
-
-static byte *get_prepared_stmt_count(THD *thd)
-{
-  pthread_mutex_lock(&LOCK_prepared_stmt_count);
-  thd->sys_var_tmp.ulong_value= prepared_stmt_count;
-  pthread_mutex_unlock(&LOCK_prepared_stmt_count);
-  return (byte*) &thd->sys_var_tmp.ulong_value;
 }
 
 
