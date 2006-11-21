@@ -51,7 +51,7 @@ private:
   Grammar: FLUSH INSTANCES
 */
 
-class Flush_instances : public Command
+class Flush_instances: public Command
 {
 public:
   int execute(st_net *net, ulong connection_id);
@@ -62,7 +62,7 @@ public:
   Abstract class for Instance-specific commands.
 */
 
-class Abstract_instance_cmd : public Command
+class Abstract_instance_cmd: public Command
 {
 public:
   Abstract_instance_cmd(const LEX_STRING *instance_name_arg);
@@ -98,7 +98,7 @@ private:
   Grammar: SHOW INSTANCE STATUS <instance_name>
 */
 
-class Show_instance_status : public Abstract_instance_cmd
+class Show_instance_status: public Abstract_instance_cmd
 {
 public:
   Show_instance_status(const LEX_STRING *instance_name_arg);
@@ -118,7 +118,7 @@ private:
   Grammar: SHOW INSTANCE OPTIONS <instance_name>
 */
 
-class Show_instance_options : public Abstract_instance_cmd
+class Show_instance_options: public Abstract_instance_cmd
 {
 public:
   Show_instance_options(const LEX_STRING *instance_name_arg);
@@ -138,7 +138,7 @@ private:
   Grammar: START INSTANCE <instance_name>
 */
 
-class Start_instance : public Abstract_instance_cmd
+class Start_instance: public Abstract_instance_cmd
 {
 public:
   Start_instance(const LEX_STRING *instance_name_arg);
@@ -154,7 +154,7 @@ protected:
   Grammar: STOP INSTANCE <instance_name>
 */
 
-class Stop_instance : public Abstract_instance_cmd
+class Stop_instance: public Abstract_instance_cmd
 {
 public:
   Stop_instance(const LEX_STRING *instance_name_arg);
@@ -170,7 +170,7 @@ protected:
   Grammar: CREATE INSTANCE <instance_name> [<options>]
 */
 
-class Create_instance : public Command
+class Create_instance: public Command
 {
 public:
   Create_instance(const LEX_STRING *instance_name_arg);
@@ -205,7 +205,7 @@ private:
   is removed from the instance map.
 */
 
-class Drop_instance : public Abstract_instance_cmd
+class Drop_instance: public Abstract_instance_cmd
 {
 public:
   Drop_instance(const LEX_STRING *instance_name_arg);
@@ -222,7 +222,7 @@ protected:
     SHOW <instance_name> LOG {ERROR | SLOW | GENERAL} size[, offset_from_end]
 */
 
-class Show_instance_log : public Abstract_instance_cmd
+class Show_instance_log: public Abstract_instance_cmd
 {
 public:
   Show_instance_log(const LEX_STRING *instance_name_arg,
@@ -249,7 +249,7 @@ private:
   Grammar: SHOW <instance_name> LOG FILES
 */
 
-class Show_instance_log_files : public Abstract_instance_cmd
+class Show_instance_log_files: public Abstract_instance_cmd
 {
 public:
   Show_instance_log_files(const LEX_STRING *instance_name_arg);
@@ -270,7 +270,7 @@ private:
 
 class Instance_options_list;
 
-class Abstract_option_cmd : public Command
+class Abstract_option_cmd: public Command
 {
 public:
   ~Abstract_option_cmd();
@@ -309,7 +309,7 @@ private:
   Grammar: SET instance_name.option[=option_value][, ...]
 */
 
-class Set_option : public Abstract_option_cmd
+class Set_option: public Abstract_option_cmd
 {
 protected:
   virtual bool parse_args(const char **text);
@@ -339,7 +339,7 @@ protected:
   just returns NULL.
 */
 
-class Syntax_error : public Command
+class Syntax_error: public Command
 {
 public:
   int execute(st_net *net, ulong connection_id);
