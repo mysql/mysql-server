@@ -34,8 +34,8 @@ ha_node_get_data(
 Sets hash node data. */
 UNIV_INLINE
 void
-ha_node_set_data(
-/*=============*/
+ha_node_set_data_func(
+/*==================*/
 	ha_node_t*	node,	/* in: hash chain node */
 #ifdef UNIV_DEBUG
 	buf_block_t*	block,	/* in: buffer block containing the data */
@@ -47,6 +47,12 @@ ha_node_set_data(
 #endif /* UNIV_DEBUG */
 	node->data = data;
 }
+
+#ifdef UNIV_DEBUG
+# define ha_node_set_data(n,b,d) ha_node_set_data_func(n,b,d)
+#else /* UNIV_DEBUG */
+# define ha_node_set_data(n,b,d) ha_node_set_data_func(n,d)
+#endif /* UNIV_DEBUG */
 
 /**********************************************************************
 Gets the next node in a hash chain. */

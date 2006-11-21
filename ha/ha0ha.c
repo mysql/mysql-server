@@ -133,11 +133,7 @@ ha_insert_for_fold_func(
 		return(FALSE);
 	}
 
-	ha_node_set_data(node,
-#ifdef UNIV_DEBUG
-			 block,
-#endif /* UNIV_DEBUG */
-			 data);
+	ha_node_set_data(node, block, data);
 
 #ifdef UNIV_DEBUG
 	if (table->adaptive) {
