@@ -50,14 +50,6 @@ const int MAX_VERSION_LENGTH= 160;
 
 const int MAX_INSTANCE_NAME_SIZE= FN_REFLEN;
 
-#ifndef __WIN__
-/*
-  This flag is set if mysqlmanager has detected that it is running on the
-  system using LinuxThreads
-*/
-extern bool linuxthreads;
-#endif
-
 extern const LEX_STRING mysqlmanager_version;
 
 /* MySQL client-server protocol version: substituted from configure */

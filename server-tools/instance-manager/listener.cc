@@ -323,7 +323,7 @@ void Listener::handle_new_mysql_connection(struct st_vio *vio)
   Mysql_connection *mysql_connection=
     new Mysql_connection(thread_registry, user_map,
                          vio, ++total_connection_count);
-  if (mysql_connection == NULL || mysql_connection->start_detached())
+  if (mysql_connection == NULL || mysql_connection->start(Thread::DETACHED))
   {
     log_error("handle_one_mysql_connection() failed");
     delete mysql_connection;

@@ -86,16 +86,41 @@ private:
 class Thread
 {
 public:
-  Thread() {}
-  bool start_detached();
+  enum enum_thread_type
+  {
+    DETACHED,
+    JOINABLE
+  };
+public:
+  Thread()
+  { }
+
+public:
+  inline bool is_detached() const;
+
+  bool start(enum_thread_type thread_type = JOINABLE);
+  bool join();
+
 protected:
   virtual void run()= 0;
   virtual ~Thread();
+
+private:
+  pthread_t id;
+  bool detached;
+
 private:
   static void *thread_func(void *arg);
+
+private:
   Thread(const Thread & /* rhs */);            /* not implemented */
   Thread &operator=(const Thread & /* rhs */); /* not implemented */
 };
+
+inline bool Thread::is_detached() const
+{
+  return detached;
+}
 
 
 /**

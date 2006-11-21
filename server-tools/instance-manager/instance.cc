@@ -105,7 +105,7 @@ static int wait_process(My_process_info *pi)
     couldn't use wait(), because it could return in any wait() in the program.
   */
 
-  if (linuxthreads)
+  if (Manager::is_linux_threads())
     wait(NULL);                               /* LinuxThreads were detected */
   else
     waitpid(*pi, NULL, 0);
@@ -564,7 +564,7 @@ int Instance::start()
 
     instance_monitor= new Instance_monitor(this);
 
-    if (instance_monitor == NULL || instance_monitor->start_detached())
+    if (instance_monitor == NULL || instance_monitor->start(Thread::DETACHED))
     {
       delete instance_monitor;
       log_error("Instance::start(): failed to create the monitoring thread"
