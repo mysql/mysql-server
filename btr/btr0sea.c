@@ -19,6 +19,9 @@ Created 2/17/1996 Heikki Tuuri
 #include "btr0btr.h"
 #include "ha0ha.h"
 
+/* Flag: has the search system been disabled? */
+ibool	btr_search_disabled	= FALSE;
+
 ulint	btr_search_this_is_zero = 0;	/* A dummy variable to fool the
 					compiler */
 
@@ -141,6 +144,31 @@ btr_search_sys_create(
 
 	btr_search_sys->hash_index = ha_create(hash_size, 0, 0);
 
+}
+
+/************************************************************************
+Disable the adaptive hash search system and empty the index. */
+
+void
+btr_search_disable(void)
+/*====================*/
+{
+	btr_search_disabled = TRUE;
+	rw_lock_x_lock(&btr_search_latch);
+
+	ha_clear(btr_search_sys->hash_index);
+
+	rw_lock_x_unlock(&btr_search_latch);
+}
+
+/************************************************************************
+Enable the adaptive hash search system. */
+
+void
+btr_search_enable(void)
+/*====================*/
+{
+	btr_search_disabled = FALSE;
 }
 
 /*********************************************************************

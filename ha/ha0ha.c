@@ -63,6 +63,36 @@ ha_create_func(
 }
 
 /*****************************************************************
+Empties a hash table and frees the memory heaps. */
+
+void
+ha_clear(
+/*=====*/
+	hash_table_t*	table)	/* in, own: hash table */
+{
+	ulint	i;
+	ulint	n;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EXCLUSIVE));
+#endif /* UNIV_SYNC_DEBUG */
+
+	/* Free the memory heaps. */
+	n = table->n_mutexes;
+
+	for (i = 0; i < n; i++) {
+		mem_heap_free(table->heaps[i]);
+	}
+
+	/* Clear the hash table. */
+	n = hash_get_n_cells(table);
+
+	for (i = 0; i < n; i++) {
+		hash_get_nth_cell(table, i)->node = NULL;
+	}
+}
+
+/*****************************************************************
 Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
 is inserted. */
