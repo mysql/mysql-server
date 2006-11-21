@@ -6456,7 +6456,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
 {
   my_regex_t r;
   my_regmatch_t *subs;
-  char *buf_end, *replace_end;
+  char *replace_end;
   char *buf= *buf_p;
   int len;
   int buf_len, need_buf_len;
@@ -6475,8 +6475,6 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
   res_p= buf;
 
   SECURE_REG_BUF
-
-    buf_end= buf + buf_len;
 
   if (icase)
     cflags|= REG_ICASE;
