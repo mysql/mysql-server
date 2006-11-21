@@ -831,7 +831,7 @@ show status like 'prepared_stmt_count';
 Variable_name	Value
 Prepared_stmt_count	0
 prepare stmt from "select 1";
-ERROR HY000: Unknown error
+ERROR 42000: Can't create more than max_prepared_stmt_count statements (current value: 0)
 show status like 'prepared_stmt_count';
 Variable_name	Value
 Prepared_stmt_count	0
@@ -841,7 +841,7 @@ show status like 'prepared_stmt_count';
 Variable_name	Value
 Prepared_stmt_count	1
 prepare stmt1 from "select 1";
-ERROR HY000: Unknown error
+ERROR 42000: Can't create more than max_prepared_stmt_count statements (current value: 1)
 show status like 'prepared_stmt_count';
 Variable_name	Value
 Prepared_stmt_count	1
@@ -865,14 +865,14 @@ select @@max_prepared_stmt_count;
 1
 set global max_prepared_stmt_count=0;
 prepare stmt from "select 1";
-ERROR HY000: Unknown error
+ERROR 42000: Can't create more than max_prepared_stmt_count statements (current value: 0)
 execute stmt;
 ERROR HY000: Unknown prepared statement handler (stmt) given to EXECUTE
 show status like 'prepared_stmt_count';
 Variable_name	Value
 Prepared_stmt_count	0
 prepare stmt from "select 1";
-ERROR HY000: Unknown error
+ERROR 42000: Can't create more than max_prepared_stmt_count statements (current value: 0)
 show status like 'prepared_stmt_count';
 Variable_name	Value
 Prepared_stmt_count	0
@@ -887,9 +887,9 @@ prepare stmt from "select 1";
 prepare stmt from "select 2";
 prepare stmt1 from "select 3";
 prepare stmt2 from "select 4";
-ERROR HY000: Unknown error
+ERROR 42000: Can't create more than max_prepared_stmt_count statements (current value: 3)
 prepare stmt2 from "select 4";
-ERROR HY000: Unknown error
+ERROR 42000: Can't create more than max_prepared_stmt_count statements (current value: 3)
 select @@max_prepared_stmt_count;
 @@max_prepared_stmt_count
 3
