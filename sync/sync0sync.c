@@ -201,10 +201,14 @@ void
 mutex_create_func(
 /*==============*/
 	mutex_t*	mutex,		/* in: pointer to memory */
+#ifdef UNIV_DEBUG
+	const char*	cmutex_name,	/* in: mutex name */
+# ifdef UNIV_SYNC_DEBUG
 	ulint		level,		/* in: level */
+# endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_DEBUG */
 	const char*	cfile_name,	/* in: file name where created */
-  ulint cline,	/* in: file line where created */
-  const char* cmutex_name)  /* in: mutex name */
+	ulint		cline)		/* in: file line where created */
 {
 #if defined(_WIN32) && defined(UNIV_CAN_USE_X86_ASSEMBLER)
 	mutex_reset_lock_word(mutex);
@@ -213,15 +217,19 @@ mutex_create_func(
 	mutex->lock_word = 0;
 #endif
 	mutex_set_waiters(mutex, 0);
+#ifdef UNIV_DEBUG
 	mutex->magic_n = MUTEX_MAGIC_N;
+#endif /* UNIV_DEBUG */
 #ifdef UNIV_SYNC_DEBUG
 	mutex->line = 0;
 	mutex->file_name = "not yet reserved";
-#endif /* UNIV_SYNC_DEBUG */
 	mutex->level = level;
+#endif /* UNIV_SYNC_DEBUG */
 	mutex->cfile_name = cfile_name;
 	mutex->cline = cline;
 #ifndef UNIV_HOTBACKUP
+	mutex->count_os_wait = 0;
+# ifdef UNIV_DEBUG
 	mutex->cmutex_name=	  cmutex_name;
 	mutex->count_using=	  0;
 	mutex->mutex_type=	  0;
@@ -229,8 +237,8 @@ mutex_create_func(
 	mutex->lmax_spent_time=     0;
 	mutex->count_spin_loop= 0;
 	mutex->count_spin_rounds=   0;
-	mutex->count_os_wait=	  0;
 	mutex->count_os_yield=  0;
+# endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
 	/* Check that lock_word is aligned; this is important on Intel */
@@ -249,9 +257,8 @@ mutex_create_func(
 
 	mutex_enter(&mutex_list_mutex);
 
-	if (UT_LIST_GET_LEN(mutex_list) > 0) {
-		ut_a(UT_LIST_GET_FIRST(mutex_list)->magic_n == MUTEX_MAGIC_N);
-	}
+	ut_ad(UT_LIST_GET_LEN(mutex_list) == 0
+	      || UT_LIST_GET_FIRST(mutex_list)->magic_n == MUTEX_MAGIC_N);
 
 	UT_LIST_ADD_FIRST(list, mutex_list, mutex);
 
@@ -280,14 +287,12 @@ mutex_free(
 
 		mutex_enter(&mutex_list_mutex);
 
-		if (UT_LIST_GET_PREV(list, mutex)) {
-			ut_a(UT_LIST_GET_PREV(list, mutex)->magic_n
-			     == MUTEX_MAGIC_N);
-		}
-		if (UT_LIST_GET_NEXT(list, mutex)) {
-			ut_a(UT_LIST_GET_NEXT(list, mutex)->magic_n
-			     == MUTEX_MAGIC_N);
-		}
+		ut_ad(!UT_LIST_GET_PREV(list, mutex)
+		      || UT_LIST_GET_PREV(list, mutex)->magic_n
+		      == MUTEX_MAGIC_N);
+		ut_ad(!UT_LIST_GET_NEXT(list, mutex)
+		      || UT_LIST_GET_NEXT(list, mutex)->magic_n
+		      == MUTEX_MAGIC_N);
 
 		UT_LIST_REMOVE(list, mutex_list, mutex);
 
@@ -300,8 +305,9 @@ mutex_free(
 	/* If we free the mutex protecting the mutex list (freeing is
 	not necessary), we have to reset the magic number AFTER removing
 	it from the list. */
-
+#ifdef UNIV_DEBUG
 	mutex->magic_n = 0;
+#endif /* UNIV_DEBUG */
 }
 
 /************************************************************************
@@ -333,6 +339,7 @@ mutex_enter_nowait(
 	return(1);
 }
 
+#ifdef UNIV_DEBUG
 /**********************************************************************
 Checks that the mutex has been initialized. */
 
@@ -346,6 +353,7 @@ mutex_validate(
 
 	return(TRUE);
 }
+#endif /* UNIV_DEBUG */
 
 /**********************************************************************
 Sets the waiters field in a mutex. */
@@ -381,13 +389,13 @@ mutex_spin_wait(
 {
 	ulint	   index; /* index of the reserved wait cell */
 	ulint	   i;	  /* spin round count */
-#ifndef UNIV_HOTBACKUP
+#if defined UNIV_DEBUG && !defined UNIV_HOTBACKUP
 	ib_longlong lstart_time = 0, lfinish_time; /* for timing os_wait */
 	ulint ltime_diff;
 	ulint sec;
 	ulint ms;
 	uint timer_started = 0;
-#endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 	ut_ad(mutex);
 
 mutex_loop:
@@ -401,10 +409,10 @@ mutex_loop:
 	a memory word. */
 
 spin_loop:
-#ifndef UNIV_HOTBACKUP
+#if defined UNIV_DEBUG && !defined UNIV_HOTBACKUP
 	mutex_spin_wait_count++;
 	mutex->count_spin_loop++;
-#endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 
 	while (mutex_get_lock_word(mutex) != 0 && i < SYNC_SPIN_ROUNDS) {
 		if (srv_spin_wait_delay) {
@@ -415,14 +423,14 @@ spin_loop:
 	}
 
 	if (i == SYNC_SPIN_ROUNDS) {
-#ifndef UNIV_HOTBACKUP
+#if defined UNIV_DEBUG && !defined UNIV_HOTBACKUP
 		mutex->count_os_yield++;
 		if (timed_mutexes == 1 && timer_started==0) {
 			ut_usectime(&sec, &ms);
 			lstart_time= (ib_longlong)sec * 1000000 + ms;
 			timer_started = 1;
 		}
-#endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 		os_thread_yield();
 	}
 
@@ -436,9 +444,9 @@ spin_loop:
 
 	mutex_spin_round_count += i;
 
-#ifndef UNIV_HOTBACKUP
+#if defined UNIV_DEBUG && !defined UNIV_HOTBACKUP
 	mutex->count_spin_rounds += i;
-#endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 
 	if (mutex_test_and_set(mutex) == 0) {
 		/* Succeeded! */
@@ -519,6 +527,7 @@ spin_loop:
 
 #ifndef UNIV_HOTBACKUP
 	mutex->count_os_wait++;
+# ifdef UNIV_DEBUG
 	/* !!!!! Sometimes os_wait can be called without os_thread_yield */
 
 	if (timed_mutexes == 1 && timer_started==0) {
@@ -526,13 +535,14 @@ spin_loop:
 		lstart_time= (ib_longlong)sec * 1000000 + ms;
 		timer_started = 1;
 	}
+# endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
 	sync_array_wait_event(sync_primary_wait_array, index);
 	goto mutex_loop;
 
 finish_timing:
-#ifndef UNIV_HOTBACKUP
+#if defined UNIV_DEBUG && !defined UNIV_HOTBACKUP
 	if (timed_mutexes == 1 && timer_started==1) {
 		ut_usectime(&sec, &ms);
 		lfinish_time= (ib_longlong)sec * 1000000 + ms;
@@ -544,7 +554,7 @@ finish_timing:
 			mutex->lmax_spent_time= ltime_diff;
 		}
 	}
-#endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 	return;
 }
 
