@@ -91,9 +91,9 @@ public:
   char *logs[3];
 
 private:
-  int fill_log_options();
-  int fill_instance_version();
-  int fill_mysqld_real_path();
+  bool fill_log_options();
+  bool fill_instance_version();
+  bool fill_mysqld_real_path();
   int add_to_argv(const char *option);
   int get_default_option(char *result, size_t result_len,
                          const char *option_name);

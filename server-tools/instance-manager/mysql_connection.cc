@@ -77,24 +77,30 @@ C_MODE_END
   This function is complementary to cleanup().
 */
 
-int Mysql_connection::init()
+bool Mysql_connection::init()
 {
   /* Allocate buffers for network I/O */
   if (my_net_init(&net, vio))
-    return 1;
+    return TRUE;
+
   net.return_status= &status;
+
   /* Initialize random number generator */
   {
     ulong seed1= (ulong) &rand_st + rand();
     ulong seed2= (ulong) rand() + time(0);
     randominit(&rand_st, seed1, seed2);
   }
+
   /* Fill scramble - server's random message used for handshake */
   create_random_string(scramble, SCRAMBLE_LENGTH, &rand_st);
+
   /* We don't support transactions, every query is atomic */
   status= SERVER_STATUS_AUTOCOMMIT;
+
   thread_registry->register_thread(&thread_info);
-  return 0;
+
+  return FALSE;
 }
 
 
@@ -114,12 +120,17 @@ Mysql_connection::~Mysql_connection()
 
 void Mysql_connection::main()
 {
-  log_info("accepted mysql connection %lu", (unsigned long) connection_id);
+  log_info("Connection %lu: accepted.", (unsigned long) connection_id);
 
   if (check_connection())
-    return;
+  {
+    log_info("Connection %lu: failed to authorize the user.",
+            (unsigned long) connection_id);
 
-  log_info("connection %lu is checked successfully",
+    return;
+  }
+
+  log_info("Connection %lu: the user was authorized successfully.",
            (unsigned long) connection_id);
 
   vio_keepalive(vio, TRUE);
@@ -257,8 +268,11 @@ int Mysql_connection::do_command()
     packet= (char*) net.read_pos;
     enum enum_server_command command= (enum enum_server_command)
                                       (uchar) *packet;
-    log_info("connection %d: packet_length=%d, command=%d",
-             (int) connection_id, (int) packet_length, (int) command);
+    log_info("Connection %lu: received packet (length: %lu; command: %d).",
+             (unsigned long) connection_id,
+             (unsigned long) packet_length,
+             (int) command);
+
     return dispatch_command(command, packet + 1);
   }
 }
@@ -268,63 +282,81 @@ int Mysql_connection::dispatch_command(enum enum_server_command command,
 {
   switch (command) {
   case COM_QUIT:                                // client exit
-    log_info("query for connection %lu received quit command",
+    log_info("Connection %lu: received QUIT command.",
              (unsigned long) connection_id);
     return 1;
+
   case COM_PING:
-    log_info("query for connection %lu received ping command",
+    log_info("Connection %lu: received PING command.",
              (unsigned long) connection_id);
     net_send_ok(&net, connection_id, NULL);
-    break;
+    return 0;
+
   case COM_QUERY:
   {
-    log_info("query for connection %d : ----\n%s\n-------------------------",
-	     (int) connection_id,
+    log_info("Connection %lu: received QUERY command: '%s'.",
+	     (unsigned long) connection_id,
              (const char *) packet);
+
     if (Command *command= parse_command(packet))
     {
       int res= 0;
-      log_info("query for connection %lu successfully parsed",
+
+      log_info("Connection %lu: query parsed successfully.",
                (unsigned long) connection_id);
+
       res= command->execute(&net, connection_id);
       delete command;
+
       if (!res)
-        log_info("query for connection %lu executed ok",
+      {
+        log_info("Connection %lu: query executed successfully",
                  (unsigned long) connection_id);
+      }
       else
       {
-        log_info("query for connection %lu executed err=%d",
-                 (unsigned long) connection_id, (int) res);
+        log_info("Connection %lu: can not execute query (error: %d).",
+                 (unsigned long) connection_id,
+                 (int) res);
+
         net_send_error(&net, res);
-        return 0;
       }
     }
     else
     {
+      log_error("Connection %lu: can not parse query: out ot resources.",
+                (unsigned long) connection_id);
+
       net_send_error(&net,ER_OUT_OF_RESOURCES);
-      return 0;
     }
-    break;
+
+    return 0;
   }
+
   default:
-    log_info("query for connection %lu received unknown command",
-             (unsigned long) connection_id);
+    log_info("Connection %lu: received unsupported command (%d).",
+              (unsigned long) connection_id,
+              (int) command);
+
     net_send_error(&net, ER_UNKNOWN_COM_ERROR);
-    break;
+    return 0;
   }
-  return 0;
+
+  return 0; /* Just to make compiler happy. */
 }
 
 
 void Mysql_connection::run()
 {
   if (init())
-    log_info("Mysql_connection::run(): error initializing thread");
+    log_error("Connection %lu: can not init handler.",
+              (unsigned long) connection_id);
   else
   {
     main();
     cleanup();
   }
+
   delete this;
 }
 

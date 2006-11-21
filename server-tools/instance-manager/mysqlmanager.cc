@@ -191,7 +191,8 @@ static struct passwd *check_user(const char *user)
     return user_info;
 
 err:
-  log_error("Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n", user);
+  log_error("Can not start under user '%s'.",
+            (const char *) user);
   return NULL;
 }
 

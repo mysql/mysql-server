@@ -55,7 +55,7 @@ int create_pid_file(const char *pid_file_name, int pid)
   if (!(pid_file= my_fopen(pid_file_name, O_WRONLY | O_CREAT | O_BINARY,
                            MYF(0))))
   {
-    log_error("Error: can not create pid file '%s': %s (errno: %d)",
+    log_error("Can not create pid file '%s': %s (errno: %d)",
               (const char *) pid_file_name,
               (const char *) strerror(errno),
               (int) errno);
@@ -64,7 +64,7 @@ int create_pid_file(const char *pid_file_name, int pid)
 
   if (fprintf(pid_file, "%d\n", (int) pid) <= 0)
   {
-    log_error("Error: can not write to pid file '%s': %s (errno: %d)",
+    log_error("Can not write to pid file '%s': %s (errno: %d)",
               (const char *) pid_file_name,
               (const char *) strerror(errno),
               (int) errno);
