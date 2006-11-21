@@ -36,7 +36,7 @@
 
 /* Create "mysqld ..." command in the buffer */
 
-static inline int create_mysqld_command(Buffer *buf,
+static inline bool create_mysqld_command(Buffer *buf,
                                         const LEX_STRING *mysqld_path,
                                         const LEX_STRING *option)
 {
@@ -55,9 +55,9 @@ static inline int create_mysqld_command(Buffer *buf,
     /* here the '\0' character is copied from the option string */
     buf->append(position, option->str, option->length + 1);
 
-    return buf->is_error();
+    return buf->is_error() ? TRUE : FALSE;
   }
-  return 1;
+  return TRUE;
 }
 
 
@@ -152,27 +152,36 @@ err:
   Get mysqld version string from "mysqld --version" output.
 
   RETURN
-    0 - ok
-    1 - error occured
+    FALSE - ok
+    TRUE  - error occured
 */
 
-int Instance_options::fill_instance_version()
+bool Instance_options::fill_instance_version()
 {
   char result[MAX_VERSION_LENGTH];
   LEX_STRING version_option=
     { C_STRING_WITH_LEN(" --no-defaults --version") };
-  int rc= 1;
   Buffer cmd(mysqld_path.length + version_option.length + 1);
 
   if (create_mysqld_command(&cmd, &mysqld_path, &version_option))
-    goto err;
+  {
+    log_error("Failed to get version of '%s': out of memory.",
+              (const char *) mysqld_path.str);
+    return TRUE;
+  }
 
   bzero(result, MAX_VERSION_LENGTH);
 
-  rc= parse_output_and_get_value(cmd.buffer, "Ver", result,
-                                 MAX_VERSION_LENGTH, GET_LINE);
+  if (parse_output_and_get_value(cmd.buffer, "Ver", result,
+                                 MAX_VERSION_LENGTH, GET_LINE))
+  {
+    log_error("Failed to get version of '%s': unexpected output.",
+              (const char *) mysqld_path.str);
+    return TRUE;
+  }
 
-  if (*result != '\0')
+  DBUG_ASSERT(*result != '\0');
+
   {
     char *start;
     /* chop the newline from the end of the version string */
@@ -184,11 +193,8 @@ int Instance_options::fill_instance_version()
 
     mysqld_version= strdup_root(&alloc, start);
   }
-err:
-  if (rc)
-    log_error("fill_instance_version: Failed to get version of '%s'",
-              (const char *) mysqld_path.str);
-  return rc;
+
+  return FALSE;
 }
 
 
@@ -207,28 +213,37 @@ err:
   script(for example libtool) or a symlink.
 
   RETURN
-    0 - ok
-    1 - error occured
+    FALSE - ok
+    TRUE  - error occured
 */
 
-int Instance_options::fill_mysqld_real_path()
+bool Instance_options::fill_mysqld_real_path()
 {
   char result[FN_REFLEN];
   LEX_STRING help_option=
     { C_STRING_WITH_LEN(" --no-defaults --help") };
-  int rc= 1;
   Buffer cmd(mysqld_path.length + help_option.length);
 
   if (create_mysqld_command(&cmd, &mysqld_path, &help_option))
-    goto err;
+  {
+    log_error("Failed to get real path of '%s': out of memory.",
+              (const char *) mysqld_path.str);
+    return TRUE;
+  }
 
   bzero(result, FN_REFLEN);
 
-  rc= parse_output_and_get_value(cmd.buffer, "Usage: ",
+  if (parse_output_and_get_value(cmd.buffer, "Usage: ",
                                  result, FN_REFLEN,
-                                 GET_LINE);
+                                 GET_LINE))
+  {
+    log_error("Failed to get real path of '%s': unexpected output.",
+              (const char *) mysqld_path.str);
+    return TRUE;
+  }
 
-  if (*result != '\0')
+  DBUG_ASSERT(*result != '\0');
+
   {
     char* options_str;
     /* chop the path of at [OPTIONS] */
@@ -237,10 +252,8 @@ int Instance_options::fill_mysqld_real_path()
     mysqld_real_path.str= strdup_root(&alloc, result);
     mysqld_real_path.length= strlen(mysqld_real_path.str);
   }
-err:
-  if (rc)
-    log_error("fill_mysqld_real_path: Failed to get real path of mysqld");
-  return rc;
+
+  return FALSE;
 }
 
 
@@ -257,11 +270,11 @@ err:
   file name and placement.
 
   RETURN
-    0 - ok
-    1 - error occured
+    FALSE - ok
+    TRUE  - error occured
 */
 
-int Instance_options::fill_log_options()
+bool Instance_options::fill_log_options()
 {
   Buffer buff;
   enum { MAX_LOG_OPTION_LENGTH= 256 };
@@ -287,7 +300,7 @@ int Instance_options::fill_log_options()
   if (mysqld_datadir == NULL)
   {
     if (get_default_option(datadir, MAX_LOG_OPTION_LENGTH, "--datadir"))
-      goto err;
+      return TRUE;
   }
   else
   {
@@ -325,7 +338,7 @@ int Instance_options::fill_log_options()
 
           if ((MAX_LOG_OPTION_LENGTH - strlen(full_name)) <=
               strlen(log_files->default_suffix))
-            goto err;
+            return TRUE;
 
           strmov(full_name + strlen(full_name), log_files->default_suffix);
 
@@ -345,15 +358,13 @@ int Instance_options::fill_log_options()
                     datadir, "", MY_UNPACK_FILENAME | MY_SAFE_PATH);
 
           if (!(*(log_files->value)= strdup_root(&alloc, full_name)))
-            goto err;
+            return TRUE;
         }
       }
     }
   }
 
-  return 0;
-err:
-  return 1;
+  return FALSE;
 }
 
 

@@ -61,7 +61,7 @@ private:
   ulong client_capabilities;
 private:
   /* The main loop implementation triad */
-  int init();
+  bool init();
   void main();
   void cleanup();
 

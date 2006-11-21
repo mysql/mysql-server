@@ -185,7 +185,7 @@ int Manager::main()
 
   if (check_if_linux_threads(&linux_threads))
   {
-    log_error("Error: can not check if Linux Threads are used.");
+    log_error("Can not determine thread model.");
     return 1;
   }
 
@@ -215,7 +215,7 @@ int Manager::main()
 
   if (instance_map.init())
   {
-    log_error("Error: can not initialize instance list: out of memory.");
+    log_error("Can not initialize instance list: out of memory.");
     return 1;
   }
 
@@ -223,7 +223,7 @@ int Manager::main()
 
   if (user_map.init())
   {
-    log_error("Error: can not initialize user list: out of memory.");
+    log_error("Can not initialize user list: out of memory.");
     return 1;
   }
 
@@ -237,12 +237,12 @@ int Manager::main()
         mysqld_safe-compatible mode. Continue, but complain in log.
       */
 
-      log_error("Warning: password file does not exist, "
-                "nobody will be able to connect to Instance Manager.");
+      log_info("Warning: password file does not exist, "
+               "nobody will be able to connect to Instance Manager.");
     }
     else
     {
-      log_error("Error: %s.", (const char *) err_msg);
+      log_error("%s.", (const char *) err_msg);
       return 1;
     }
   }
@@ -290,7 +290,7 @@ int Manager::main()
   */
   if (guardian.start(Thread::DETACHED))
   {
-    log_error("Error: can not start Guardian thread.");
+    log_error("Can not start Guardian thread.");
     goto err;
   }
 
@@ -307,7 +307,7 @@ int Manager::main()
 
     if (flush_instances_status)
     {
-      log_error("Error: can not init instances repository.");
+      log_error("Can not init instances repository.");
       stop_all_threads();
       goto err;
     }
@@ -317,7 +317,7 @@ int Manager::main()
 
   if (listener.start(Thread::DETACHED))
   {
-    log_error("Error: can not start Listener thread.");
+    log_error("Can not start Listener thread.");
     stop_all_threads();
     goto err;
   }
@@ -339,7 +339,7 @@ int Manager::main()
 
     if ((status= my_sigwait(&mask, &signo)) != 0)
     {
-      log_error("Error: sigwait() failed");
+      log_error("sigwait() failed");
       stop_all_threads();
       goto err;
     }

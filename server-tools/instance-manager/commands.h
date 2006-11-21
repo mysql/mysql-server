@@ -38,6 +38,10 @@
 class Show_instances: public Command
 {
 public:
+  Show_instances()
+  { }
+
+public:
   int execute(st_net *net, ulong connection_id);
 
 private:
@@ -53,6 +57,10 @@ private:
 
 class Flush_instances: public Command
 {
+public:
+  Flush_instances()
+  { }
+
 public:
   int execute(st_net *net, ulong connection_id);
 };
@@ -311,6 +319,10 @@ private:
 
 class Set_option: public Abstract_option_cmd
 {
+public:
+  Set_option()
+  { }
+
 protected:
   virtual bool parse_args(const char **text);
   virtual int process_option(Instance *instance, Named_value *option);
@@ -324,6 +336,10 @@ protected:
 
 class Unset_option: public Abstract_option_cmd
 {
+public:
+  Unset_option()
+  { }
+
 protected:
   virtual bool parse_args(const char **text);
   virtual int process_option(Instance *instance, Named_value *option);
@@ -341,6 +357,10 @@ protected:
 
 class Syntax_error: public Command
 {
+public:
+  Syntax_error()
+  { }
+
 public:
   int execute(st_net *net, ulong connection_id);
 };

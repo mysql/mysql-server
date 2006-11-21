@@ -170,8 +170,8 @@ static bool start_process(Instance_options *instance_options,
     /* exec never returns */
     exit(1);
   case -1:
-    log_info("Instance '%s': can not start mysqld: fork() failed.",
-             (const char *) instance_options->instance_name.str);
+    log_error("Instance '%s': can not start mysqld: fork() failed.",
+              (const char *) instance_options->instance_name.str);
     return TRUE;
   }
 
@@ -699,10 +699,9 @@ void Instance::kill_mysqld(int signum)
   /* Kill suceeded */
   if (signum == SIGKILL)      /* really killed instance with SIGKILL */
   {
-    log_error("The instance '%s' is being stopped forcibly. Normally"
-              "it should not happen. Probably the instance has been"
-              "hanging. You should also check your IM setup",
+    log_error("Instance '%s': killed.",
               (const char *) options.instance_name.str);
+
     /* After sucessful hard kill the pidfile need to be removed */
     options.unlink_pidfile();
   }

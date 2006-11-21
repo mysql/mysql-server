@@ -1539,7 +1539,7 @@ int Set_option::process_option(Instance *instance, Named_value *option)
   if (instance->is_mysqld_compatible() &&
       Instance_options::is_option_im_specific(option->get_name()))
   {
-      log_error("Error: IM-option (%s) can not be used "
+      log_error("IM-option (%s) can not be used "
                 "in the configuration of mysqld-compatible instance (%s).",
                 (const char *) option->get_name(),
                 (const char *) instance->get_name()->str);
