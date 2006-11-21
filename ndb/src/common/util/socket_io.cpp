@@ -98,6 +98,11 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
 	  ptr += t;
 	  len -= t;
 	}
+	if (i > 0 && buf[i-1] == '\r')
+	{
+	  buf[i-1] = '\n';
+	  ptr--;
+	}
 	ptr[0]= 0;
 	return ptr - buf;
       }
