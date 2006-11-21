@@ -65,6 +65,5 @@ SocketInputStream::gets(char * buf, int bufLen) {
 
   if(res == -1)
     return 0;
-
   return buf;
 }
