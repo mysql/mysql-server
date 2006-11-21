@@ -6337,6 +6337,16 @@ static int show_open_tables(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
+static int show_prepared_stmt_count(THD *thd, SHOW_VAR *var, char *buff)
+{
+  var->type= SHOW_LONG;
+  var->value= buff;
+  pthread_mutex_lock(&LOCK_prepared_stmt_count);
+  *((long *)buff)= (long)prepared_stmt_count;
+  pthread_mutex_unlock(&LOCK_prepared_stmt_count);
+  return 0;
+}
+
 static int show_table_definitions(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
@@ -6747,7 +6757,7 @@ SHOW_VAR status_vars[]= {
   {"Open_table_definitions",   (char*) &show_table_definitions, SHOW_FUNC},
   {"Open_tables",              (char*) &show_open_tables,       SHOW_FUNC},
   {"Opened_tables",            (char*) offsetof(STATUS_VAR, opened_tables), SHOW_LONG_STATUS},
-  {"Prepared_stmt_count",      (char*) &prepared_stmt_count,    SHOW_LONG_CONST},
+  {"Prepared_stmt_count",      (char*) &show_prepared_stmt_count, SHOW_FUNC},
 #ifdef HAVE_QUERY_CACHE
   {"Qcache_free_blocks",       (char*) &query_cache.free_memory_blocks, SHOW_LONG_NOFLUSH},
   {"Qcache_free_memory",       (char*) &query_cache.free_memory, SHOW_LONG_NOFLUSH},

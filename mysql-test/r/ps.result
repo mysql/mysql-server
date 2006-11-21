@@ -898,6 +898,12 @@ show status like 'prepared_stmt_count';
 Variable_name	Value
 Prepared_stmt_count	3
 deallocate prepare stmt;
+select @@max_prepared_stmt_count;
+@@max_prepared_stmt_count
+3
+show status like 'prepared_stmt_count';
+Variable_name	Value
+Prepared_stmt_count	0
 set global max_prepared_stmt_count= @old_max_prepared_stmt_count;
 drop table if exists t1;
 create temporary table if not exists t1 (a1 int);
