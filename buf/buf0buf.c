@@ -1054,6 +1054,45 @@ func_exit:
 }
 
 /************************************************************************
+Rebuild buf_pool->page_hash. */
+static
+void
+buf_pool_page_hash_rebuild(void)
+/*============================*/
+{
+	ulint		i;
+	ulint		n_chunks;
+	buf_chunk_t*	chunk;
+	hash_table_t*	page_hash;
+
+	mutex_enter(&buf_pool->mutex);
+
+	/* Free, create, and populate the hash table. */
+	hash_table_free(buf_pool->page_hash);
+	buf_pool->page_hash = page_hash = hash_create(2 * buf_pool->curr_size);
+
+	chunk = buf_pool->chunks;
+	n_chunks = buf_pool->n_chunks;
+
+	for (i = 0; i < n_chunks; i++, chunk++) {
+		ulint		j;
+		buf_block_t*	block = chunk->blocks;
+
+		for (j = 0; j < chunk->size; j++, block++) {
+			if (block->state == BUF_BLOCK_FILE_PAGE) {
+				HASH_INSERT(buf_block_t, hash, page_hash,
+					    buf_page_address_fold(
+						    block->space,
+						    block->offset),
+					    block);
+			}
+		}
+	}
+
+	mutex_exit(&buf_pool->mutex);
+}
+
+/************************************************************************
 Resizes the buffer pool. */
 
 void
@@ -1076,7 +1115,6 @@ buf_pool_resize(void)
 		in order to free up memory in the buffer pool chunks. */
 		buf_pool_shrink((srv_buf_pool_curr_size - srv_buf_pool_size)
 				/ UNIV_PAGE_SIZE);
-		return;
 	} else if (srv_buf_pool_curr_size + 1048576 < srv_buf_pool_size) {
 
 		/* Enlarge the buffer pool by at least one megabyte */
@@ -1108,7 +1146,7 @@ buf_pool_resize(void)
 		mutex_exit(&buf_pool->mutex);
 	}
 
-	/* TODO: reinitialize buf_pool->page_hash */
+	buf_pool_page_hash_rebuild();
 }
 
 /************************************************************************
