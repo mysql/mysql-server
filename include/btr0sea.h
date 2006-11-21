@@ -24,6 +24,20 @@ void
 btr_search_sys_create(
 /*==================*/
 	ulint	hash_size);	/* in: hash index hash table size */
+
+/************************************************************************
+Disable the adaptive hash search system and empty the index. */
+
+void
+btr_search_disable(void);
+/*====================*/
+/************************************************************************
+Enable the adaptive hash search system. */
+
+void
+btr_search_enable(void);
+/*====================*/
+
 /************************************************************************
 Returns search info for an index. */
 UNIV_INLINE
@@ -139,6 +153,9 @@ ibool
 btr_search_validate(void);
 /*======================*/
 				/* out: TRUE if ok */
+
+/* Flag: has the search system been disabled? */
+extern ibool btr_search_disabled;
 
 /* The search info struct in an index */
 
