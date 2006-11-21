@@ -796,12 +796,12 @@ set @old_max_prepared_stmt_count= @@max_prepared_stmt_count;
 show variables like 'max_prepared_stmt_count';
 Variable_name	Value
 max_prepared_stmt_count	16382
-show variables like 'prepared_stmt_count';
+show status like 'prepared_stmt_count';
 Variable_name	Value
-prepared_stmt_count	0
-select @@max_prepared_stmt_count, @@prepared_stmt_count;
-@@max_prepared_stmt_count	@@prepared_stmt_count
-16382	0
+Prepared_stmt_count	0
+select @@max_prepared_stmt_count;
+@@max_prepared_stmt_count
+16382
 set global max_prepared_stmt_count=-1;
 select @@max_prepared_stmt_count;
 @@max_prepared_stmt_count
@@ -820,67 +820,70 @@ set max_prepared_stmt_count=1;
 ERROR HY000: Variable 'max_prepared_stmt_count' is a GLOBAL variable and should be set with SET GLOBAL
 set local max_prepared_stmt_count=1;
 ERROR HY000: Variable 'max_prepared_stmt_count' is a GLOBAL variable and should be set with SET GLOBAL
-set local prepared_stmt_count=0;
-ERROR HY000: Variable 'prepared_stmt_count' is a read only variable
-set @@prepared_stmt_count=0;
-ERROR HY000: Variable 'prepared_stmt_count' is a read only variable
-set global prepared_stmt_count=1;
-ERROR HY000: Variable 'prepared_stmt_count' is a read only variable
 set global max_prepared_stmt_count=1;
 select @@max_prepared_stmt_count;
 @@max_prepared_stmt_count
 1
 set global max_prepared_stmt_count=0;
-select @@max_prepared_stmt_count, @@prepared_stmt_count;
-@@max_prepared_stmt_count	@@prepared_stmt_count
-0	0
+select @@max_prepared_stmt_count;
+@@max_prepared_stmt_count
+0
+show status like 'prepared_stmt_count';
+Variable_name	Value
+Prepared_stmt_count	0
 prepare stmt from "select 1";
 ERROR 42000: Can't create more than max_prepared_stmt_count statements (current value: 0)
-select @@prepared_stmt_count;
-@@prepared_stmt_count
-0
+show status like 'prepared_stmt_count';
+Variable_name	Value
+Prepared_stmt_count	0
 set global max_prepared_stmt_count=1;
 prepare stmt from "select 1";
-select @@prepared_stmt_count;
-@@prepared_stmt_count
-1
+show status like 'prepared_stmt_count';
+Variable_name	Value
+Prepared_stmt_count	1
 prepare stmt1 from "select 1";
 ERROR 42000: Can't create more than max_prepared_stmt_count statements (current value: 1)
-select @@prepared_stmt_count;
-@@prepared_stmt_count
-1
+show status like 'prepared_stmt_count';
+Variable_name	Value
+Prepared_stmt_count	1
 deallocate prepare stmt;
-select @@prepared_stmt_count;
-@@prepared_stmt_count
-0
+show status like 'prepared_stmt_count';
+Variable_name	Value
+Prepared_stmt_count	0
 prepare stmt from "select 1";
-select @@prepared_stmt_count;
-@@prepared_stmt_count
-1
+show status like 'prepared_stmt_count';
+Variable_name	Value
+Prepared_stmt_count	1
 prepare stmt from "select 2";
-select @@prepared_stmt_count;
-@@prepared_stmt_count
+show status like 'prepared_stmt_count';
+Variable_name	Value
+Prepared_stmt_count	1
+show status like 'prepared_stmt_count';
+Variable_name	Value
+Prepared_stmt_count	1
+select @@max_prepared_stmt_count;
+@@max_prepared_stmt_count
 1
-select @@prepared_stmt_count, @@max_prepared_stmt_count;
-@@prepared_stmt_count	@@max_prepared_stmt_count
-1	1
 set global max_prepared_stmt_count=0;
 prepare stmt from "select 1";
 ERROR 42000: Can't create more than max_prepared_stmt_count statements (current value: 0)
 execute stmt;
 ERROR HY000: Unknown prepared statement handler (stmt) given to EXECUTE
-select @@prepared_stmt_count;
-@@prepared_stmt_count
-0
+show status like 'prepared_stmt_count';
+Variable_name	Value
+Prepared_stmt_count	0
 prepare stmt from "select 1";
 ERROR 42000: Can't create more than max_prepared_stmt_count statements (current value: 0)
-select @@prepared_stmt_count;
-@@prepared_stmt_count
-0
+show status like 'prepared_stmt_count';
+Variable_name	Value
+Prepared_stmt_count	0
 set global max_prepared_stmt_count=3;
-select @@max_prepared_stmt_count, @@prepared_stmt_count;
-@@max_prepared_stmt_count	@@prepared_stmt_count
-3	0
+select @@max_prepared_stmt_count;
+@@max_prepared_stmt_count
+3
+show status like 'prepared_stmt_count';
+Variable_name	Value
+Prepared_stmt_count	0
 prepare stmt from "select 1";
 prepare stmt from "select 2";
 prepare stmt1 from "select 3";
@@ -888,13 +891,19 @@ prepare stmt2 from "select 4";
 ERROR 42000: Can't create more than max_prepared_stmt_count statements (current value: 3)
 prepare stmt2 from "select 4";
 ERROR 42000: Can't create more than max_prepared_stmt_count statements (current value: 3)
-select @@max_prepared_stmt_count, @@prepared_stmt_count;
-@@max_prepared_stmt_count	@@prepared_stmt_count
-3	3
+select @@max_prepared_stmt_count;
+@@max_prepared_stmt_count
+3
+show status like 'prepared_stmt_count';
+Variable_name	Value
+Prepared_stmt_count	3
 deallocate prepare stmt;
-select @@max_prepared_stmt_count, @@prepared_stmt_count;
-@@max_prepared_stmt_count	@@prepared_stmt_count
-3	0
+select @@max_prepared_stmt_count;
+@@max_prepared_stmt_count
+3
+show status like 'prepared_stmt_count';
+Variable_name	Value
+Prepared_stmt_count	0
 set global max_prepared_stmt_count= @old_max_prepared_stmt_count;
 drop table if exists t1;
 create temporary table if not exists t1 (a1 int);
