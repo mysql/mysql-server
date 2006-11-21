@@ -692,6 +692,15 @@ int ha_commit_trans(THD *thd, bool all)
       ha_rollback_trans(thd, all);
       DBUG_RETURN(1);
     }
+
+    if (is_real_trans && opt_readonly)
+    {
+      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
+      ha_rollback_trans(thd, all);
+      error= 1;
+      goto end;
+    }
+
     DBUG_EXECUTE_IF("crash_commit_before", abort(););
 
     /* Close all cursors that can not survive COMMIT */
