@@ -37,7 +37,7 @@ extern ulong myisam_recover_options;
 class ha_myisam: public handler
 {
   MI_INFO *file;
-  ulong   int_table_flags;
+  ulonglong int_table_flags;
   char    *data_file_name, *index_file_name;
   bool can_enable_indexes;
   int repair(THD *thd, MI_CHECK &param, bool optimize);

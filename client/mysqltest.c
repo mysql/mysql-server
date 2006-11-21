@@ -97,7 +97,7 @@ enum {OPT_SKIP_SAFEMALLOC=256, OPT_SSL_SSL, OPT_SSL_KEY, OPT_SSL_CERT,
       OPT_SSL_CA, OPT_SSL_CAPATH, OPT_SSL_CIPHER, OPT_PS_PROTOCOL,
       OPT_SP_PROTOCOL, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL,
       OPT_SSL_VERIFY_SERVER_CERT, OPT_MAX_CONNECT_RETRIES,
-      OPT_MARK_PROGRESS};
+      OPT_MARK_PROGRESS, OPT_LOG_DIR, OPT_DEBUG_INFO};
 
 /* ************************************************************************ */
 /*
@@ -145,6 +145,7 @@ static uint global_expected_errors;
 static int record= 0, opt_sleep= -1;
 static char *db = 0, *pass=0;
 const char *user = 0, *host = 0, *unix_sock = 0, *opt_basedir="./";
+const char *opt_logdir= "";
 const char *opt_include= 0;
 static int port = 0;
 static int opt_max_connect_retries;
@@ -155,7 +156,7 @@ static my_bool ps_protocol= 0, ps_protocol_enabled= 0;
 static my_bool sp_protocol= 0, sp_protocol_enabled= 0;
 static my_bool view_protocol= 0, view_protocol_enabled= 0;
 static my_bool cursor_protocol= 0, cursor_protocol_enabled= 0;
-static my_bool opt_valgrind_test= 0;
+static my_bool opt_valgrind_test= 0, info_flag;
 static int parsing_disabled= 0;
 
 static char **default_argv;
@@ -658,7 +659,7 @@ static void die(const char *fmt, ...)
 
   /* Clean up and exit */
   free_used_memory();
-  my_end(MY_CHECK_ERROR);
+  my_end(info_flag ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
 
   if (!silent)
     printf("not ok\n");
@@ -698,7 +699,7 @@ static void abort_not_supported_test(const char *fmt, ...)
 
   /* Clean up and exit */
   free_used_memory();
-  my_end(MY_CHECK_ERROR);
+  my_end(info_flag ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
 
   if (!silent)
     printf("skipped\n");
@@ -3295,12 +3296,16 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.", (gptr*) &info_flag,
+   (gptr*) &info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host.", (gptr*) &host, (gptr*) &host, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"include", 'i', "Include SQL before each test case.", (gptr*) &opt_include,
    (gptr*) &opt_include, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"logdir", OPT_LOG_DIR, "Directory for log files", (gptr*) &opt_logdir,
+   (gptr*) &opt_logdir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"mark-progress", OPT_MARK_PROGRESS,
-   "Write linenumber and elapsed time to <testname>.progress ",
+   "Write linenumber and elapsed time to <testname>.progress",
    (gptr*) &opt_mark_progress, (gptr*) &opt_mark_progress, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"max-connect-retries", OPT_MAX_CONNECT_RETRIES,
@@ -3538,7 +3543,8 @@ void dump_result_to_reject_file(const char *record_file, char *buf, int size)
 void dump_result_to_log_file(const char *record_file, char *buf, int size)
 {
   char log_file[FN_REFLEN];
-  str_to_file(fn_format(log_file, record_file, "", ".log",
+  str_to_file(fn_format(log_file, record_file, opt_logdir, ".log",
+                        *opt_logdir ? MY_REPLACE_DIR | MY_REPLACE_EXT:
                         MY_REPLACE_EXT),
               buf, size);
 }
@@ -3546,7 +3552,8 @@ void dump_result_to_log_file(const char *record_file, char *buf, int size)
 void dump_progress(const char *record_file)
 {
   char log_file[FN_REFLEN];
-  str_to_file(fn_format(log_file, record_file, "", ".progress",
+  str_to_file(fn_format(log_file, record_file, opt_logdir, ".progress",
+                        *opt_logdir ? MY_REPLACE_DIR | MY_REPLACE_EXT:
                         MY_REPLACE_EXT),
               ds_progress.str, ds_progress.length);
 }
@@ -5600,7 +5607,7 @@ int main(int argc, char **argv)
   if (!got_end_timer)
     timer_output();				/* No end_timer cmd, end it */
   free_used_memory();
-  my_end(MY_CHECK_ERROR);
+  my_end(info_flag ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
 
   /* Yes, if we got this far the test has suceeded! Sakila smiles */
   if (!silent)
