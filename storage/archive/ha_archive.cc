@@ -817,10 +817,11 @@ int ha_archive::write_row(byte *buf)
   int rc;
   byte *read_buf= NULL;
   ulonglong temp_auto;
+  byte *record=  table->record[0];
   DBUG_ENTER("ha_archive::write_row");
 
   if (share->crashed)
-      DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
   ha_statistic_increment(&SSV::ha_write_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
@@ -883,7 +884,8 @@ int ha_archive::write_row(byte *buf)
 
       while (!(get_row(&archive, read_buf)))
       {
-        if (!memcmp(read_buf + mfield->offset(), table->next_number_field->ptr,
+        if (!memcmp(read_buf + mfield->offset(record),
+                    table->next_number_field->ptr,
                     mfield->max_length()))
         {
           rc= HA_ERR_FOUND_DUPP_KEY;
@@ -914,15 +916,16 @@ int ha_archive::write_row(byte *buf)
   for (Field **field=table->field ; *field ; field++)
   {
     DBUG_PRINT("archive",("Pack is %d\n", (*field)->pack_length()));
-    DBUG_PRINT("archive",("MyPack is %d\n", (*field)->data_length((char*) buf + (*field)->offset())));
+    DBUG_PRINT("archive",("MyPack is %d\n", (*field)->data_length((char*) buf + (*field)->offset(record))));
     if ((*field)->real_type() == MYSQL_TYPE_VARCHAR) 
     {
-      uint actual_length= (*field)->data_length((char*) buf + (*field)->offset());
-      uint offset= (*field)->offset() + actual_length + 
+      uint actual_length= (*field)->data_length((char*) buf +
+                                                (*field)->offset(record));
+      uint offset= (*field)->offset(record) + actual_length + 
         (actual_length > 255 ? 2 : 1);
       DBUG_PRINT("archive",("Offset is %d -> %d\n", actual_length, offset));
       /*
-      if ((*field)->pack_length() + (*field)->offset() != offset)
+      if ((*field)->pack_length() + (*field)->offset(record) != offset)
         bzero(buf + offset, (size_t)((*field)->pack_length() + (actual_length > 255 ? 2 : 1) - (*field)->data_length));
     */
     }
@@ -1306,7 +1309,8 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
         {
           Field *field= table->found_next_number_field;
           ulonglong auto_value=
-            (ulonglong) field->val_int((char*)(buf + field->offset()));
+            (ulonglong) field->val_int((char*)(buf +
+                                               field->offset(table->record[0])));
           if (share->auto_increment_value < auto_value)
             stats.auto_increment_value= share->auto_increment_value=
               auto_value;
