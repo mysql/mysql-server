@@ -435,7 +435,7 @@ PRIMARY KEY TranTime (Transition_time)
 
 
 #
-# Create proc table if it doesn't exists
+# Create proc table if it does not exists
 #
 
 CREATE TABLE IF NOT EXISTS proc (
