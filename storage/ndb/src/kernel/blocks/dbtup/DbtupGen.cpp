@@ -329,6 +329,7 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
 
   ScanOpPtr lcp;
   ndbrequire(c_scanOpPool.seize(lcp));
+  new (lcp.p) ScanOp();
   c_lcp_scan_op= lcp.i;
 
   czero = 0;
