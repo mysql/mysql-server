@@ -30,7 +30,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
                            uchar *head, File file);
 static void fix_type_pointers(const char ***array, TYPELIB *point_to_type,
 			      uint types, char **names);
-static uint find_field(Field **fields, uint start, uint length);
+static uint find_field(Field **fields, byte *record, uint start, uint length);
 
 
 /* Get column name from column hash */
@@ -1069,6 +1069,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         Field *field;
 	if (new_field_pack_flag <= 1)
 	  key_part->fieldnr= (uint16) find_field(share->field,
+                                                 share->default_values,
                                                  (uint) key_part->offset,
                                                  (uint) key_part->length);
 	if (!key_part->fieldnr)
@@ -1232,24 +1233,19 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
   if (share->found_next_number_field)
   {
-    /*
-      We must have a table object for find_ref_key to calculate field offset
-    */
-    TABLE tmp_table;
-    tmp_table.record[0]= share->default_values;
-
     reg_field= *share->found_next_number_field;
-    reg_field->table= &tmp_table;
     if ((int) (share->next_number_index= (uint)
-	       find_ref_key(share->key_info, share->keys, reg_field,
+	       find_ref_key(share->key_info, share->keys,
+                            share->default_values, reg_field,
 			    &share->next_number_key_offset)) < 0)
     {
+      /* Wrong field definition */
+      DBUG_ASSERT(0);
       reg_field->unireg_check= Field::NONE;	/* purecov: inspected */
       share->found_next_number_field= 0;
     }
     else
       reg_field->flags |= AUTO_INCREMENT_FLAG;
-    reg_field->table= 0;
   }
 
   if (share->blob_fields)
@@ -1969,7 +1965,7 @@ TYPELIB *typelib(MEM_ROOT *mem_root, List<String> &strings)
    #  field number +1
 */
 
-static uint find_field(Field **fields, uint start, uint length)
+static uint find_field(Field **fields, byte *record, uint start, uint length)
 {
   Field **field;
   uint i, pos;
@@ -1977,7 +1973,7 @@ static uint find_field(Field **fields, uint start, uint length)
   pos= 0;
   for (field= fields, i=1 ; *field ; i++,field++)
   {
-    if ((*field)->offset() == start)
+    if ((*field)->offset(record) == start)
     {
       if ((*field)->key_length() == length)
 	return (i);

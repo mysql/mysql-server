@@ -66,7 +66,7 @@ static bool one_database=0, to_last_remote_log= 0, disable_log_bin= 0;
 static bool opt_hexdump= 0;
 static bool opt_base64_output= 0;
 static const char* database= 0;
-static my_bool force_opt= 0, short_form= 0, remote_opt= 0;
+static my_bool force_opt= 0, short_form= 0, remote_opt= 0, info_flag;
 static ulonglong offset = 0;
 static const char* host = 0;
 static int port= 0;
@@ -716,6 +716,8 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Output debug log.", (gptr*) &default_dbug_option,
    (gptr*) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.", (gptr*) &info_flag,
+   (gptr*) &info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"disable-log-bin", 'D', "Disable binary log. This is useful, if you "
     "enabled --to-last-log and are sending the output to the same MySQL server. "
     "This way you could avoid an endless loop. You would also like to use it "
@@ -844,7 +846,7 @@ static void die(const char* fmt, ...)
   va_end(args);
   cleanup();
   /* We cannot free DBUG, it is used in global destructors after exit(). */
-  my_end(MY_DONT_FREE_DBUG);
+  my_end((info_flag ? MY_CHECK_ERROR : 0) | MY_DONT_FREE_DBUG);
   exit(1);
 }
 
@@ -852,7 +854,7 @@ static void die(const char* fmt, ...)
 
 static void print_version()
 {
-  printf("%s Ver 3.1 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
+  printf("%s Ver 3.2 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
   NETWARE_SET_SCREEN_MODE(1);
 }
 
@@ -1545,7 +1547,7 @@ int main(int argc, char** argv)
   free_defaults(defaults_argv);
   my_free_open_file_info();
   /* We cannot free DBUG, it is used in global destructors after exit(). */
-  my_end(MY_DONT_FREE_DBUG);
+  my_end((info_flag ? MY_CHECK_ERROR : 0) | MY_DONT_FREE_DBUG);
   exit(exit_value);
   DBUG_RETURN(exit_value);			// Keep compilers happy
 }

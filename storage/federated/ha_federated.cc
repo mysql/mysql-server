@@ -1856,6 +1856,7 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
   String where_string(where_buffer,
                       sizeof(where_buffer),
                       &my_charset_bin);
+  byte *record= table->record[0];
   DBUG_ENTER("ha_federated::update_row");
   /*
     set string lengths to 0 to avoid misc chars in string
@@ -1914,7 +1915,7 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
         bool needs_quote= (*field)->str_needs_quotes();
         where_string.append(STRING_WITH_LEN(" = "));
         (*field)->val_str(&field_value,
-                          (char*) (old_data + (*field)->offset()));
+                          (char*) (old_data + (*field)->offset(record)));
         if (needs_quote)
           where_string.append('\'');
         field_value.print(&where_string);

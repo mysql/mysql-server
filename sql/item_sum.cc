@@ -2929,13 +2929,14 @@ int group_concat_key_cmp_with_distinct(void* arg, byte* key1,
     */
     Field *field= (*field_item)->get_tmp_table_field();
     /* 
-      If field_item is a const item then either get_tp_table_field returns 0
+      If field_item is a const item then either get_tmp_table_field returns 0
       or it is an item over a const table. 
     */
     if (field && !(*field_item)->const_item())
     {
       int res;
-      uint offset= field->offset() - table->s->null_bytes;
+      uint offset= (field->offset(field->table->record[0]) - 
+                    table->s->null_bytes);
       if ((res= field->cmp((char *) key1 + offset, (char *) key2 + offset)))
 	return res;
     }
@@ -2973,7 +2974,8 @@ int group_concat_key_cmp_with_order(void* arg, byte* key1, byte* key2)
     if (field && !item->const_item())
     {
       int res;
-      uint offset= field->offset() - table->s->null_bytes;
+      uint offset= (field->offset(field->table->record[0]) -
+                    table->s->null_bytes);
       if ((res= field->cmp((char *) key1 + offset, (char *) key2 + offset)))
         return (*order_item)->asc ? res : -res;
     }
@@ -3041,7 +3043,8 @@ int dump_leaf_key(byte* key, element_count count __attribute__((unused)),
         because it contains both order and arg list fields.
       */
       Field *field= (*arg)->get_tmp_table_field();
-      uint offset= field->offset() - table->s->null_bytes;
+      uint offset= (field->offset(field->table->record[0]) -
+                    table->s->null_bytes);
       DBUG_ASSERT(offset < table->s->reclength);
       res= field->val_str(&tmp, (char *) key + offset);
     }
