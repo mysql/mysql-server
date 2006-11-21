@@ -39,8 +39,18 @@ location (which must be appropriately aligned). The mutex is initialized
 in the reset state. Explicit freeing of the mutex with mutex_free is
 necessary only if the memory block containing it is freed. */
 
-#define mutex_create(M, level)					\
-	mutex_create_func((M), (level), __FILE__, __LINE__, #M)
+#ifdef UNIV_DEBUG
+# ifdef UNIV_SYNC_DEBUG
+#  define mutex_create(M, level)					\
+	mutex_create_func((M), #M, (level), __FILE__, __LINE__)
+# else
+#  define mutex_create(M, level)					\
+	mutex_create_func((M), #M, __FILE__, __LINE__)
+# endif
+#else
+# define mutex_create(M, level)					\
+	mutex_create_func((M), __FILE__, __LINE__)
+#endif
 
 /**********************************************************************
 Creates, or rather, initializes a mutex object in a specified memory
@@ -52,10 +62,14 @@ void
 mutex_create_func(
 /*==============*/
 	mutex_t*	mutex,		/* in: pointer to memory */
+#ifdef UNIV_DEBUG
+	const char*	cmutex_name,	/* in: mutex name */
+# ifdef UNIV_SYNC_DEBUG
 	ulint		level,		/* in: level */
+# endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_DEBUG */
 	const char*	cfile_name,	/* in: file name where created */
-  ulint cline,	/* in: file line where created */
-  const char* cmutex_name); /* in: mutex name */
+	ulint		cline);		/* in: file line where created */
 /**********************************************************************
 Calling this function is obligatory only if the memory buffer containing
 the mutex is freed. Removes a mutex object from the mutex list. The mutex
@@ -451,7 +465,8 @@ implementation of a mutual exclusion semaphore. */
 struct mutex_struct {
 	ulint	lock_word;	/* This ulint is the target of the atomic
 				test-and-set instruction in Win32 */
-#if !defined(_WIN32) || !defined(UNIV_CAN_USE_X86_ASSEMBLER)
+#if defined WIN32 && defined UNIV_CAN_USE_X86_ASSEMBLER
+#else
 	os_fast_mutex_t
 		os_fast_mutex;	/* In other systems we use this OS mutex
 				in place of lock_word */
@@ -467,25 +482,28 @@ struct mutex_struct {
 	ulint	line;		/* Line where the mutex was locked */
 	os_thread_id_t thread_id; /* Debug version: The thread id of the
 				thread which locked the mutex. */
-#endif /* UNIV_SYNC_DEBUG */
 	ulint	level;		/* Level in the global latching order */
+#endif /* UNIV_SYNC_DEBUG */
 	const char*	cfile_name;/* File name where mutex created */
-	ulint	cline;		/* Line where created */
-	ulint	magic_n;
+	ulint		cline;	/* Line where created */
+#ifdef UNIV_DEBUG
+	ulint		magic_n;
+# define MUTEX_MAGIC_N	(ulint)979585
+#endif /* UNIV_DEBUG */
 #ifndef UNIV_HOTBACKUP
-  ulong count_using; /* count of times mutex used */
-  ulong count_spin_loop; /* count of spin loops */
-  ulong count_spin_rounds; /* count of spin rounds */
-  ulong count_os_wait; /* count of os_wait */
-  ulong count_os_yield; /* count of os_wait */
-  ulonglong lspent_time; /* mutex os_wait timer msec */
-  ulonglong lmax_spent_time; /* mutex os_wait timer msec */
-  const char* cmutex_name;/* mutex name	 */
-  ulint mutex_type;/* 0 - usual mutex 1 - rw_lock mutex	 */
+	ulong		count_os_wait; /* count of os_wait */
+# ifdef UNIV_DEBUG
+	ulong		count_using; /* count of times mutex used */
+	ulong		count_spin_loop; /* count of spin loops */
+	ulong		count_spin_rounds; /* count of spin rounds */
+	ulong		count_os_yield; /* count of os_wait */
+	ulonglong	lspent_time; /* mutex os_wait timer msec */
+	ulonglong	lmax_spent_time; /* mutex os_wait timer msec */
+	const char*	cmutex_name;/* mutex name */
+	ulint		mutex_type;/* 0 - usual mutex 1 - rw_lock mutex	 */
+# endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 };
-
-#define MUTEX_MAGIC_N	(ulint)979585
 
 /* The global array of wait cells for implementation of the databases own
 mutexes and read-write locks. Appears here for debugging purposes only! */
