@@ -950,7 +950,18 @@ select @@max_prepared_stmt_count;
 show status like 'prepared_stmt_count';
 disconnect con1;
 connection default;
+# Wait for the connection to die: deal with a possible race
 deallocate prepare stmt;
+let $query= select variable_value from information_schema.global_status
+            where variable_name = 'prepared_stmt_count';
+let $count= `$query`;
+if ($count)
+{
+--sleep 1
+  let $count= `$query`;
+}
+select @@max_prepared_stmt_count;
+show status like 'prepared_stmt_count';
 #
 # Restore the old value.
 #
