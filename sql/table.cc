@@ -1377,9 +1377,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   if (!(record= (byte*) alloc_root(&outparam->mem_root,
                                    share->rec_buff_length * records)))
     goto err;                                   /* purecov: inspected */
-#ifdef HAVE_purify
-     bzero(record, share->rec_buff_length * records);
-#endif  
+
   if (records == 0)
   {
     /* We are probably in hard repair, and the buffers should not be used */
