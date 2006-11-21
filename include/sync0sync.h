@@ -510,8 +510,10 @@ monitoring. */
 extern	ulint	mutex_system_call_count;
 extern	ulint	mutex_exit_count;
 
+#ifdef UNIV_SYNC_DEBUG
 /* Latching order checks start when this is set TRUE */
 extern ibool	sync_order_checks_on;
+#endif /* UNIV_SYNC_DEBUG */
 
 /* This variable is set to TRUE when sync_init is called */
 extern ibool	sync_initialized;
