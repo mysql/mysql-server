@@ -8156,9 +8156,9 @@ ha_ndbcluster::update_table_comment(
 pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
 {
   THD *thd; /* needs to be first for thread_stack */
-  Ndb* ndb;
   struct timespec abstime;
   List<NDB_SHARE> util_open_tables;
+  Thd_ndb *thd_ndb;
 
   my_thread_init();
   DBUG_ENTER("ndb_util_thread");
@@ -8166,17 +8166,15 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
 
   thd= new THD; /* note that contructor of THD uses DBUG_ */
   THD_CHECK_SENTRY(thd);
-  ndb= new Ndb(g_ndb_cluster_connection, "");
 
   pthread_detach_this_thread();
   ndb_util_thread= pthread_self();
 
   thd->thread_stack= (char*)&thd; /* remember where our stack is */
-  if (thd->store_globals() || (ndb->init() != 0))
+  if (thd->store_globals())
   {
     thd->cleanup();
     delete thd;
-    delete ndb;
     DBUG_RETURN(NULL);
   }
   thd->init_for_queries();
@@ -8218,16 +8216,14 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   }
   pthread_mutex_unlock(&LOCK_ndb_util_thread);
 
+  /* Get thd_ndb for this thread */
+  if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb()))
   {
-    Thd_ndb *thd_ndb;
-    if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb()))
-    {
-      sql_print_error("Could not allocate Thd_ndb object");
-      goto ndb_util_thread_end;
-    }
-    set_thd_ndb(thd, thd_ndb);
-    thd_ndb->options|= TNO_NO_LOG_SCHEMA_OP;
+    sql_print_error("Could not allocate Thd_ndb object");
+    goto ndb_util_thread_end;
   }
+  set_thd_ndb(thd, thd_ndb);
+  thd_ndb->options|= TNO_NO_LOG_SCHEMA_OP;
 
 #ifdef HAVE_NDB_BINLOG
   if (ndb_extra_logging && ndb_binlog_running)
@@ -8310,22 +8306,22 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
       }
 #endif /* HAVE_NDB_BINLOG */
       DBUG_PRINT("ndb_util_thread",
-                 ("Fetching commit count for: %s",
-                  share->key));
+                 ("Fetching commit count for: %s", share->key));
 
-      /* Contact NDB to get commit count for table */
-      ndb->setDatabaseName(share->db);
       struct Ndb_statistics stat;
-
       uint lock;
       pthread_mutex_lock(&share->mutex);
       lock= share->commit_count_lock;
       pthread_mutex_unlock(&share->mutex);
 
       {
+        /* Contact NDB to get commit count for table */
+        Ndb* ndb= thd_ndb->ndb;
+        ndb->setDatabaseName(share->db);
         Ndb_table_guard ndbtab_g(ndb->getDictionary(), share->table_name);
         if (ndbtab_g.get_table() &&
-            ndb_get_table_statistics(NULL, false, ndb, ndbtab_g.get_table(), &stat) == 0)
+            ndb_get_table_statistics(NULL, false, ndb,
+                                     ndbtab_g.get_table(), &stat) == 0)
         {
           char buff[22], buff2[22];
           DBUG_PRINT("ndb_util_thread",
@@ -8381,7 +8377,6 @@ ndb_util_thread_end:
   net_end(&thd->net);
   thd->cleanup();
   delete thd;
-  delete ndb;
   DBUG_PRINT("exit", ("ndb_util_thread"));
   my_thread_end();
   pthread_exit(0);
