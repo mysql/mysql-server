@@ -5417,7 +5417,13 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
   DBUG_ENTER("Rows_log_event::do_add_row_data");
   DBUG_PRINT("enter", ("row_data: 0x%lx  length: %lu", (ulong) row_data,
                        length));
+  /*
+    Don't print debug messages when running valgrind since they can
+    trigger false warnings.
+   */
+#ifndef HAVE_purify
   DBUG_DUMP("row_data", (const char*)row_data, min(length, 32));
+#endif
 
   DBUG_ASSERT(m_rows_buf <= m_rows_cur);
   DBUG_ASSERT(!m_rows_buf || m_rows_end && m_rows_buf < m_rows_end);
@@ -5504,7 +5510,9 @@ unpack_row(RELAY_LOG_INFO *rli,
            char const **row_end, ulong *master_reclength,
            MY_BITMAP* const rw_set, Log_event_type const event_type)
 {
+  DBUG_ENTER("unpack_row");
   DBUG_ASSERT(record && row);
+  DBUG_PRINT("enter", ("row=0x%lx; record=0x%lx", row, record));
   my_ptrdiff_t const offset= record - (byte*) table->record[0];
   my_size_t master_null_bytes= table->s->null_bytes;
 
@@ -5548,6 +5556,8 @@ unpack_row(RELAY_LOG_INFO *rli,
       DBUG_ASSERT(table->record[0] <= f->ptr);
       DBUG_ASSERT(f->ptr < table->record[0] + table->s->reclength + (f->pack_length_in_rec() == 0));
       f->move_field_offset(offset);
+
+      DBUG_PRINT("info", ("unpacking column '%s' to 0x%lx", f->field_name, f->ptr));
       ptr= f->unpack(f->ptr, ptr);
       f->move_field_offset(-offset);
       /* Field...::unpack() cannot return 0 */
@@ -5595,7 +5605,7 @@ unpack_row(RELAY_LOG_INFO *rli,
       (*field_ptr)->set_default();
   }
 
-  return error;
+  DBUG_RETURN(error);
 }
 
 int Rows_log_event::exec_event(st_relay_log_info *rli)
@@ -6060,7 +6070,13 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
   DBUG_PRINT("info",("event_len=%ld, common_header_len=%d, post_header_len=%d",
                      event_len, common_header_len, post_header_len));
 
+  /*
+    Don't print debug messages when running valgrind since they can
+    trigger false warnings.
+   */
+#ifndef HAVE_purify
   DBUG_DUMP("event buffer", buf, event_len);
+#endif
 
   /* Read the post-header */
   const char *post_start= buf + common_header_len;
@@ -6784,6 +6800,17 @@ static int find_and_fetch_row(TABLE *table, byte *key)
       row reference using the position() member function (it will be
       stored in table->file->ref) and the use rnd_pos() to position
       the "cursor" (i.e., record[0] in this case) at the correct row.
+
+      TODO: Add a check that the correct record has been fetched by
+      comparing with the original record. Take into account that the
+      record on the master and slave can be of different
+      length. Something along these lines should work:
+
+      ADD>>>  store_record(table,record[1]);
+              int error= table->file->rnd_pos(table->record[0], table->file->ref);
+      ADD>>>  DBUG_ASSERT(memcmp(table->record[1], table->record[0],
+                                 table->s->reclength) == 0);
+
     */
     table->file->position(table->record[0]);
     int error= table->file->rnd_pos(table->record[0], table->file->ref);
@@ -6792,14 +6819,8 @@ static int find_and_fetch_row(TABLE *table, byte *key)
       move it to table->record[1].
      */
     bmove_align(table->record[1], table->record[0], table->s->reclength);
-#ifdef HAVE_purify
-    if (error == 0)
-      valgrind_check_mem(table->record[1], table->s->reclength);
-#endif
     DBUG_RETURN(error);
   }
-
-  DBUG_ASSERT(table->record[1]);
 
   /* We need to retrieve all fields */
   /* TODO: Move this out from this function to main loop */
@@ -6811,6 +6832,15 @@ static int find_and_fetch_row(TABLE *table, byte *key)
     /* We have a key: search the table using the index */
     if (!table->file->inited && (error= table->file->ha_index_init(0, FALSE)))
       DBUG_RETURN(error);
+
+  /*
+    Don't print debug messages when running valgrind since they can
+    trigger false warnings.
+   */
+#ifndef HAVE_purify
+    DBUG_DUMP("table->record[0]", table->record[0], table->s->reclength);
+    DBUG_DUMP("table->record[1]", table->record[1], table->s->reclength);
+#endif
 
     /*
       We need to set the null bytes to ensure that the filler bit are
@@ -6830,6 +6860,14 @@ static int find_and_fetch_row(TABLE *table, byte *key)
       DBUG_RETURN(error);
     }
 
+  /*
+    Don't print debug messages when running valgrind since they can
+    trigger false warnings.
+   */
+#ifndef HAVE_purify
+    DBUG_DUMP("table->record[0]", table->record[0], table->s->reclength);
+    DBUG_DUMP("table->record[1]", table->record[1], table->s->reclength);
+#endif
     /*
       Below is a minor "optimization".  If the key (i.e., key number
       0) has the HA_NOSAME flag set, we know that we have found the
@@ -6847,9 +6885,6 @@ static int find_and_fetch_row(TABLE *table, byte *key)
     if (table->key_info->flags & HA_NOSAME)
     {
       table->file->ha_index_end();
-#ifdef HAVE_purify
-      valgrind_check_mem(table->record[1], table->s->reclength);
-#endif
       DBUG_RETURN(0);
     }
 
@@ -6926,16 +6961,9 @@ static int find_and_fetch_row(TABLE *table, byte *key)
     table->file->ha_rnd_end();
 
     DBUG_ASSERT(error == HA_ERR_END_OF_FILE || error == 0);
-#ifdef HAVE_purify
-    if (error == 0)
-      valgrind_check_mem(table->record[1], table->s->reclength);
-#endif
     DBUG_RETURN(error);
   }
 
-#ifdef HAVE_purify
-  valgrind_check_mem(table->record[1], table->s->reclength);
-#endif
   DBUG_RETURN(0);
 }
 #endif
@@ -7184,9 +7212,14 @@ int Update_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO *rli,
                     next_start, &m_cols, row_end, &m_master_reclength,
                     table->write_set, UPDATE_ROWS_EVENT);
 
-  DBUG_DUMP("record[0]", (const char *)table->record[0], table->s->reclength);
-  DBUG_DUMP("m_after_image", (const char *)m_after_image, table->s->reclength);
-
+  /*
+    Don't print debug messages when running valgrind since they can
+    trigger false warnings.
+   */
+#ifndef HAVE_purify
+  DBUG_DUMP("record[0]", (const char *)table->record[0], m_master_reclength);
+  DBUG_DUMP("m_after_image", (const char *)m_after_image, m_master_reclength);
+#endif
 
   /*
     If we will access rows using the random access method, m_key will
