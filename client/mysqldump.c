@@ -2589,6 +2589,8 @@ static char *primary_key_fields(const char *table_name)
   char show_keys_buff[15 + 64 * 2 + 3];
   uint result_length = 0;
   char *result = 0;
+  char buff[NAME_LEN * 2 + 3];
+  char *quoted_field;
 
   my_snprintf(show_keys_buff, sizeof(show_keys_buff), 
 	      "SHOW KEYS FROM %s", table_name);
@@ -2612,8 +2614,10 @@ static char *primary_key_fields(const char *table_name)
   {
     /* Key is unique */
     do
-      result_length += strlen(row[4]) + 1;      /* + 1 for ',' or \0 */
-    while ((row = mysql_fetch_row(res)) && atoi(row[3]) > 1);
+    {
+      quoted_field= quote_name(row[4], buff, 0);
+      result_length+= strlen(quoted_field) + 1; /* + 1 for ',' or \0 */
+    } while ((row= mysql_fetch_row(res)) && atoi(row[3]) > 1);
   }
 
   /* Build the ORDER BY clause result */
@@ -2627,9 +2631,13 @@ static char *primary_key_fields(const char *table_name)
     }
     mysql_data_seek(res, 0);
     row = mysql_fetch_row(res);
-    end = strmov(result, row[4]);
-    while ((row = mysql_fetch_row(res)) && atoi(row[3]) > 1)
-      end = strxmov(end, ",", row[4], NullS);
+    quoted_field= quote_name(row[4], buff, 0);
+    end= strmov(result, quoted_field);
+    while ((row= mysql_fetch_row(res)) && atoi(row[3]) > 1)
+    {
+      quoted_field= quote_name(row[4], buff, 0);
+      end= strxmov(end, ",", quoted_field, NullS);
+    }
   }
 
 cleanup:
