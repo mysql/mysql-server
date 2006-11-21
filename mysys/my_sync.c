@@ -49,6 +49,12 @@ int my_sync(File fd, myf my_flags)
 
   do
   {
+#if defined(F_FULLFSYNC)
+    /* Recent Mac OS X versions insist this call is safer than fsync() */
+    if (!(res= fcntl(fd, F_FULLFSYNC, 0)))
+      break; /* ok */
+    /* Some fs don't support F_FULLFSYNC and fail above, fallback: */
+#endif
 #if defined(HAVE_FDATASYNC)
     res= fdatasync(fd);
 #elif defined(HAVE_FSYNC)
@@ -56,6 +62,7 @@ int my_sync(File fd, myf my_flags)
 #elif defined(__WIN__)
     res= _commit(fd);
 #else
+#warning Cannot find a way to sync a file, durability in danger
     res= 0;					/* No sync (strange OS) */
 #endif
   } while (res == -1 && errno == EINTR);
@@ -73,4 +80,71 @@ int my_sync(File fd, myf my_flags)
   }
   DBUG_RETURN(res);
 } /* my_sync */
+
+
+/*
+  Force directory information to disk. Only Linux is known to need this to
+  make sure a file creation/deletion/renaming in(from,to) this directory
+  durable.
+
+  SYNOPSIS
+    my_sync_dir()
+    dir_name             the name of the directory
+    my_flags             unused
+
+  RETURN
+    nothing (the sync may fail sometimes).
+*/
+void my_sync_dir(const char *dir_name, myf my_flags __attribute__((unused)))
+{
+#ifdef TARGET_OS_LINUX
+  DBUG_ENTER("my_sync_dir");
+  DBUG_PRINT("my",("Dir: '%s'  my_flags: %d", dir_name, my_flags));
+  File dir_fd;
+  int error= 0;
+  /*
+    Syncing a dir does not work on all filesystems (e.g. tmpfs->EINVAL) :
+    ignore errors. But print them to the debug log.
+  */
+  if (((dir_fd= my_open(dir_name, O_RDONLY, MYF(0))) >= 0))
+  {
+    if (my_sync(dir_fd, MYF(0)))
+    {
+      error= errno;
+      DBUG_PRINT("info",("my_sync failed errno: %d", error));
+    }
+    my_close(dir_fd, MYF(0));
+  }
+  else
+  {
+    error= errno;
+    DBUG_PRINT("info",("my_open failed errno: %d", error));
+  }
+  DBUG_VOID_RETURN;
+#endif
+}
+
+
+/*
+  Force directory information to disk. Only Linux is known to need this to
+  make sure a file creation/deletion/renaming in(from,to) this directory
+  durable.
+
+  SYNOPSIS
+    my_sync_dir_by_file()
+    file_name            the name of a file in the directory
+    my_flags             unused
+
+  RETURN
+    nothing (the sync may fail sometimes).
+*/
+void my_sync_dir_by_file(const char *file_name,
+                         myf my_flags __attribute__((unused)))
+{
+#ifdef TARGET_OS_LINUX
+  char dir_name[FN_REFLEN];
+  dirname_part(dir_name, file_name);
+  return my_sync_dir(dir_name, my_flags);
+#endif
+}
 

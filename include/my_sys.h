@@ -55,6 +55,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_WME		16	/* Write message on error */
 #define MY_WAIT_IF_FULL 32	/* Wait and try again if disk full error */
 #define MY_IGNORE_BADFD 32      /* my_sync: ignore 'bad descriptor' errors */
+#define MY_SYNC_DIR     1024    /* my_create/delete/rename: sync directory */
 #define MY_RAID         64      /* Support for RAID */
 #define MY_FULL_IO     512      /* For my_read - loop intil I/O is complete */
 #define MY_DONT_CHECK_FILESIZE 128 /* Option to init_io_cache() */
@@ -622,6 +623,8 @@ extern FILE *my_fdopen(File Filedes,const char *name, int Flags,myf MyFlags);
 extern int my_fclose(FILE *fd,myf MyFlags);
 extern int my_chsize(File fd,my_off_t newlength, int filler, myf MyFlags);
 extern int my_sync(File fd, myf my_flags);
+extern void my_sync_dir(const char *dir_name, myf my_flags);
+extern void my_sync_dir_by_file(const char *file_name, myf my_flags);
 extern int my_error _VARARGS((int nr,myf MyFlags, ...));
 extern int my_printf_error _VARARGS((uint my_err, const char *format,
 				     myf MyFlags, ...))

@@ -30,6 +30,8 @@ int my_delete(const char *name, myf MyFlags)
       my_error(EE_DELETE,MYF(ME_BELL+ME_WAITTANG+(MyFlags & ME_NOINPUT)),
 	       name,errno);
   }
+  else if (MyFlags & MY_SYNC_DIR)
+    my_sync_dir_by_file(name, MyFlags);
   DBUG_RETURN(err);
 } /* my_delete */
 
