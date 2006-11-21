@@ -93,6 +93,65 @@ int my_sigwait(const sigset_t *set, int *sig)
 #endif
 
 
+/**********************************************************************
+  Implementation of checking the actual thread model.
+***********************************************************************/
+
+namespace { /* no-indent */
+
+class ThreadModelChecker: public Thread
+{
+public:
+  ThreadModelChecker()
+    :main_pid(getpid())
+  { }
+
+public:
+  inline bool is_linux_threads() const
+  {
+    return linux_threads;
+  }
+
+protected:
+  virtual void run()
+  {
+    linux_threads= main_pid != getpid();
+  }
+
+private:
+  pid_t main_pid;
+  bool linux_threads;
+};
+
+bool check_if_linux_threads(bool *linux_threads)
+{
+  ThreadModelChecker checker;
+
+  if (checker.start() || checker.join())
+    return TRUE;
+
+  *linux_threads= checker.is_linux_threads();
+
+  return FALSE;
+}
+
+}
+
+
+/**********************************************************************
+  Manager implementation
+***********************************************************************/
+
+Guardian *Manager::p_guardian;
+Instance_map *Manager::p_instance_map;
+Thread_registry *Manager::p_thread_registry;
+User_map *Manager::p_user_map;
+
+#ifndef __WIN__
+bool Manager::linux_threads;
+#endif // __WIN__
+
+
 void Manager::stop_all_threads()
 {
   /*
@@ -106,14 +165,6 @@ void Manager::stop_all_threads()
   p_thread_registry->deliver_shutdown();
 }
 
-/**********************************************************************
-  Manager implementation
-***********************************************************************/
-
-Guardian *Manager::p_guardian;
-Instance_map *Manager::p_instance_map;
-Thread_registry *Manager::p_thread_registry;
-User_map *Manager::p_user_map;
 
 /*
   manager - entry point to the main instance manager process: start
@@ -131,6 +182,15 @@ int Manager::main()
   const char *err_msg;
   bool shutdown_complete= FALSE;
   pid_t manager_pid= getpid();
+
+  if (check_if_linux_threads(&linux_threads))
+  {
+    log_error("Error: can not check if Linux Threads are used.");
+    return 1;
+  }
+
+  log_info("Detected threads model: %s.",
+           (const char *) (linux_threads ? "LINUX threads" : "POSIX threads"));
 
   Thread_registry thread_registry;
   /*
@@ -228,7 +288,7 @@ int Manager::main()
     permitted to process instances. And before flush_instances() has
     completed, there are no instances to guard.
   */
-  if (guardian.start_detached())
+  if (guardian.start(Thread::DETACHED))
   {
     log_error("Error: can not start Guardian thread.");
     goto err;
@@ -255,7 +315,7 @@ int Manager::main()
 
   /* Initialize the Listener. */
 
-  if (listener.start_detached())
+  if (listener.start(Thread::DETACHED))
   {
     log_error("Error: can not start Listener thread.");
     stop_all_threads();

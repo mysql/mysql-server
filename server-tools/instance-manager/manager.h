@@ -39,6 +39,10 @@ public:
   static Thread_registry *get_thread_registry() { return p_thread_registry; }
   static User_map *get_user_map() { return p_user_map; }
 
+#ifndef __WIN__
+  static bool is_linux_threads() { return linux_threads; }
+#endif // __WIN__
+
 private:
   static void stop_all_threads();
 
@@ -47,6 +51,14 @@ private:
   static Instance_map *p_instance_map;
   static Thread_registry *p_thread_registry;
   static User_map *p_user_map;
+
+#ifndef __WIN__
+  /*
+    This flag is set if Instance Manager is running on the system using
+    LinuxThreads.
+  */
+  static bool linux_threads;
+#endif // __WIN__
 };
 
 #endif // INCLUDES_MYSQL_INSTANCE_MANAGER_MANAGER_H

@@ -25,8 +25,6 @@
 
 #include <signal.h>
 
-#include "log.h"
-
 
 #ifndef __WIN__
 /* Kick-off signal handler */
@@ -87,8 +85,8 @@ Thread_registry::~Thread_registry()
 void Thread_registry::register_thread(Thread_info *info,
                                       bool send_signal_on_shutdown)
 {
-  log_info("Thread_registry: registering thread %d...",
-           (int) info->thread_id);
+  DBUG_PRINT("info", ("Thread_registry: registering thread %d...",
+                      (int) info->thread_id));
 
   info->init(send_signal_on_shutdown);
 
@@ -118,8 +116,8 @@ void Thread_registry::register_thread(Thread_info *info,
 
 void Thread_registry::unregister_thread(Thread_info *info)
 {
-  log_info("Thread_registry: unregistering thread %d...",
-           (int) info->thread_id);
+  DBUG_PRINT("info", ("Thread_registry: unregistering thread %d...",
+                      (int) info->thread_id));
 
   pthread_mutex_lock(&LOCK_thread_registry);
   info->prev->next= info->next;
@@ -127,7 +125,7 @@ void Thread_registry::unregister_thread(Thread_info *info)
 
   if (head.next == &head)
   {
-    log_info("Thread_registry: thread registry is empty!");
+    DBUG_PRINT("info", ("Thread_registry: thread registry is empty!"));
     pthread_cond_signal(&COND_thread_registry_is_empty);
   }
 
@@ -231,6 +229,7 @@ void Thread_registry::deliver_shutdown()
 
   wait_for_threads_to_unregister();
 
+#ifndef DBUG_OFF
   /*
     Print out threads, that didn't stopped. Thread_registry destructor will
     probably abort the program if there is still any alive thread.
@@ -238,15 +237,16 @@ void Thread_registry::deliver_shutdown()
 
   if (head.next != &head)
   {
-    log_info("Thread_registry: non-stopped threads:");
+    DBUG_PRINT("info", ("Thread_registry: non-stopped threads:"));
 
     for (Thread_info *info= head.next; info != &head; info= info->next)
-      log_info("  - %ld", (long int) info->thread_id);
+      DBUG_PRINT("info", ("  - %lu", (unsigned long) info->thread_id));
   }
   else
   {
-    log_info("Thread_registry: all threads stopped.");
+    DBUG_PRINT("info", ("Thread_registry: all threads stopped."));
   }
+#endif // DBUG_OFF
 
   pthread_mutex_unlock(&LOCK_thread_registry);
 }
@@ -278,13 +278,13 @@ void Thread_registry::wait_for_threads_to_unregister()
 
   set_timespec(shutdown_time, 1);
 
-  log_info("Thread_registry: joining threads...");
+  DBUG_PRINT("info", ("Thread_registry: joining threads..."));
 
   while (true)
   {
     if (head.next == &head)
     {
-      log_info("Thread_registry: emptied.");
+      DBUG_PRINT("info", ("Thread_registry: emptied."));
       return;
     }
 
@@ -294,7 +294,7 @@ void Thread_registry::wait_for_threads_to_unregister()
 
     if (error == ETIMEDOUT || error == ETIME)
     {
-      log_info("Thread_registry: threads shutdown timed out.");
+      DBUG_PRINT("info", ("Thread_registry: threads shutdown timed out."));
       return;
     }
   }
@@ -362,17 +362,33 @@ void *Thread::thread_func(void *arg)
 }
 
 
-bool Thread::start_detached()
+bool Thread::start(enum_thread_type thread_type)
 {
-  pthread_t thd_id;
   pthread_attr_t attr;
   int rc;
 
   pthread_attr_init(&attr);
-  pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-  rc= set_stacksize_and_create_thread(&thd_id, &attr,
-                                      Thread::thread_func, this);
+
+  if (thread_type == DETACHED)
+  {
+    detached = TRUE;
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+  }
+  else
+  {
+    detached = FALSE;
+  }
+
+  rc= set_stacksize_and_create_thread(&id, &attr, Thread::thread_func, this);
   pthread_attr_destroy(&attr);
 
   return rc != 0;
+}
+
+
+bool Thread::join()
+{
+  DBUG_ASSERT(!detached);
+
+  return pthread_join(id, NULL) != 0;
 }
