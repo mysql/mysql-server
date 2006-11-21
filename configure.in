@@ -2031,7 +2031,7 @@ fi
 
 # Check definition of gethostbyname_r (glibc2.0.100 is different from Solaris)
 ac_save_CXXFLAGS="$CXXFLAGS"
-AC_CACHE_CHECK([style of gethostname_r routines], mysql_cv_gethostname_style,
+AC_CACHE_CHECK([style of gethostbyname_r routines], mysql_cv_gethostbyname_style,
 AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
 if test "$ac_cv_prog_gxx" = "yes" -a "$with_other_libc" = "no"
@@ -2053,10 +2053,10 @@ AC_TRY_COMPILE(
 
  skr = gethostbyname_r((const char *) 0,
   (struct hostent*) 0, (char*) 0, 0, (struct hostent **) 0, &skr);],
-mysql_cv_gethostname_style=glibc2, mysql_cv_gethostname_style=other))
+mysql_cv_gethostbyname_style=glibc2, mysql_cv_gethostbyname_style=other))
 AC_LANG_RESTORE
 CXXFLAGS="$ac_save_CXXFLAGS"
-if test "$mysql_cv_gethostname_style" = "glibc2"
+if test "$mysql_cv_gethostbyname_style" = "glibc2"
 then
   AC_DEFINE([HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE], [1],
             [Solaris define gethostbyname_r with 5 arguments. glibc2 defines this with 6 arguments])
@@ -2064,7 +2064,7 @@ fi
 
 # Check 3rd argument of getthostbyname_r
 ac_save_CXXFLAGS="$CXXFLAGS"
-AC_CACHE_CHECK([3 argument to gethostname_r routines], mysql_cv_gethostname_arg,
+AC_CACHE_CHECK([3 argument to gethostbyname_r routines], mysql_cv_gethostbyname_arg,
 AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
 if test "$ac_cv_prog_gxx" = "yes" -a "$with_other_libc" = "no"
@@ -2085,13 +2085,13 @@ AC_TRY_COMPILE(
 [int skr;
 
  skr = gethostbyname_r((const char *) 0, (struct hostent*) 0, (struct hostent_data*) 0);],
-mysql_cv_gethostname_arg=hostent_data, mysql_cv_gethostname_arg=char))
+mysql_cv_gethostbyname_arg=hostent_data, mysql_cv_gethostbyname_arg=char))
 AC_LANG_RESTORE
 CXXFLAGS="$ac_save_CXXFLAGS"
-if test "$mysql_cv_gethostname_arg" = "hostent_data"
+if test "$mysql_cv_gethostbyname_arg" = "hostent_data"
 then
   AC_DEFINE([HAVE_GETHOSTBYNAME_R_RETURN_INT], [1],
-            [In OSF 4.0f the 3'd argument to gethostname_r is hostent_data *])
+            [In OSF 4.0f the 3'd argument to gethostbyname_r is hostent_data *])
 fi
 
 
