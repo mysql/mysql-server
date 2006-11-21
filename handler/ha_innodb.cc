@@ -6599,22 +6599,23 @@ innodb_mutex_show_status(
 {
 	char buf1[IO_SIZE], buf2[IO_SIZE];
 	mutex_t*  mutex;
+#ifdef UNIV_DEBUG
 	ulint	  rw_lock_count= 0;
 	ulint	  rw_lock_count_spin_loop= 0;
 	ulint	  rw_lock_count_spin_rounds= 0;
 	ulint	  rw_lock_count_os_wait= 0;
 	ulint	  rw_lock_count_os_yield= 0;
 	ulonglong rw_lock_wait_time= 0;
+#endif /* UNIV_DEBUG */
 	uint	  hton_name_len= strlen(innobase_hton_name), buf1len, buf2len;
 	DBUG_ENTER("innodb_mutex_show_status");
 
-#ifdef MUTEX_PROTECT_TO_BE_ADDED_LATER
-	mutex_enter(&mutex_list_mutex);
-#endif
+	mutex_enter_noninline(&mutex_list_mutex);
 
 	mutex = UT_LIST_GET_FIRST(mutex_list);
 
 	while (mutex != NULL) {
+#ifdef UNIV_DEBUG
 		if (mutex->mutex_type != 1) {
 			if (mutex->count_using > 0) {
 				buf1len= my_snprintf(buf1, sizeof(buf1),
@@ -6635,9 +6636,8 @@ innodb_mutex_show_status(
 				if (stat_print(thd, innobase_hton_name,
 						hton_name_len, buf1, buf1len,
 						buf2, buf2len)) {
-#ifdef MUTEX_PROTECT_TO_BE_ADDED_LATER
-					mutex_exit(&mutex_list_mutex);
-#endif
+					mutex_exit_noninline(
+						&mutex_list_mutex);
 					DBUG_RETURN(1);
 				}
 			}
@@ -6650,10 +6650,26 @@ innodb_mutex_show_status(
 			rw_lock_count_os_yield += mutex->count_os_yield;
 			rw_lock_wait_time += mutex->lspent_time;
 		}
+#else /* UNIV_DEBUG */
+		buf1len= my_snprintf(buf1, sizeof(buf1), "%s:%lu",
+				     mutex->cfile_name, (ulong) mutex->cline);
+		buf2len= my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
+				     mutex->count_os_wait);
+
+		if (stat_print(thd, innobase_hton_name,
+			       hton_name_len, buf1, buf1len,
+			       buf2, buf2len)) {
+			mutex_exit_noninline(&mutex_list_mutex);
+			DBUG_RETURN(1);
+		}
+#endif /* UNIV_DEBUG */
 
 		mutex = UT_LIST_GET_NEXT(list, mutex);
 	}
 
+	mutex_exit_noninline(&mutex_list_mutex);
+
+#ifdef UNIV_DEBUG
 	buf2len= my_snprintf(buf2, sizeof(buf2),
 		"count=%lu, spin_waits=%lu, spin_rounds=%lu, "
 		"os_waits=%lu, os_yields=%lu, os_wait_times=%lu",
@@ -6666,10 +6682,7 @@ innodb_mutex_show_status(
 			STRING_WITH_LEN("rw_lock_mutexes"), buf2, buf2len)) {
 		DBUG_RETURN(1);
 	}
-
-#ifdef MUTEX_PROTECT_TO_BE_ADDED_LATER
-	mutex_exit(&mutex_list_mutex);
-#endif
+#endif /* UNIV_DEBUG */
 
 	DBUG_RETURN(FALSE);
 }
