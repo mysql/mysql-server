@@ -183,6 +183,7 @@ int Manager::main()
   bool shutdown_complete= FALSE;
   pid_t manager_pid= getpid();
 
+#ifndef __WIN__
   if (check_if_linux_threads(&linux_threads))
   {
     log_error("Can not determine thread model.");
@@ -191,6 +192,7 @@ int Manager::main()
 
   log_info("Detected threads model: %s.",
            (const char *) (linux_threads ? "LINUX threads" : "POSIX threads"));
+#endif // __WIN__
 
   Thread_registry thread_registry;
   /*
