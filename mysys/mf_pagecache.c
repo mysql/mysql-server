@@ -127,11 +127,10 @@ my_bool my_disable_flush_pagecache_blocks= 0;
           (TYPE *) ((char *) (a) - offsetof(TYPE, MEMBER))
 
 /* types of condition variables */
-#define  COND_FOR_REQUESTED 0
-#define  COND_FOR_SAVED     1
-#define  COND_FOR_WRLOCK    2
-#define  COND_FOR_COPY      3
-#define  COND_SIZE          4
+#define  COND_FOR_REQUESTED 0  /* queue of thread waiting for read operation */
+#define  COND_FOR_SAVED     1  /* queue of thread waiting for flush */
+#define  COND_FOR_WRLOCK    2  /* queue of write lock */
+#define  COND_SIZE          3  /* number of COND_* queues */
 
 typedef pthread_cond_t KEYCACHE_CONDVAR;
 
@@ -296,8 +295,8 @@ struct st_pagecache_block_link
     wqueue[COND_SIZE];    /* queues on waiting requests for new/old pages    */
   uint requests;          /* number of requests for the block                */
   byte *buffer;           /* buffer for the block page                       */
-  volatile uint status;   /* state of the block                              */
-  volatile uint pins;     /* pin counter                                     */
+  uint status;            /* state of the block                              */
+  uint pins;              /* pin counter                                     */
 #ifdef PAGECACHE_DEBUG
   PAGECACHE_PIN_INFO *pin_list;
   PAGECACHE_LOCK_INFO *lock_list;
@@ -354,6 +353,20 @@ my_bool info_check_pin(PAGECACHE_BLOCK_LINK *block,
   DBUG_RETURN(0);
 }
 
+
+/*
+  Debug function which checks current lock/pin state and requested changes
+
+  SYNOPSIS
+    info_check_lock()
+    lock                 requested lock changes
+    pin                  requested pin changes
+
+  RETURN
+    0 - OK
+    1 - Error
+*/
+
 my_bool info_check_lock(PAGECACHE_BLOCK_LINK *block,
                         enum pagecache_page_lock lock,
                         enum pagecache_page_pin pin)
@@ -368,90 +381,58 @@ my_bool info_check_lock(PAGECACHE_BLOCK_LINK *block,
   case PAGECACHE_LOCK_LEFT_UNLOCKED:
     DBUG_ASSERT(pin == PAGECACHE_PIN_LEFT_UNPINNED);
     if (info)
-    {
-      DBUG_PRINT("info",
-                 ("info_check_lock: thread: 0x%lx block 0x%lx: %c : U->U",
-		  (ulong)thread, (ulong)block, (info->write_lock?'W':'R')));
-      DBUG_RETURN(1);
-    }
+      goto error;
     break;
   case PAGECACHE_LOCK_LEFT_READLOCKED:
     DBUG_ASSERT(pin == PAGECACHE_PIN_LEFT_UNPINNED ||
                 pin == PAGECACHE_PIN_LEFT_PINNED);
     if (info == 0 || info->write_lock)
-    {
-      DBUG_PRINT("info",
-                 ("info_check_lock: thread: 0x%lx block 0x%lx: %c : R->R",
-		  (ulong)thread, (ulong)block, (info?'W':'U')));
-      DBUG_RETURN(1);
-    }
+      goto error;
     break;
   case PAGECACHE_LOCK_LEFT_WRITELOCKED:
     DBUG_ASSERT(pin == PAGECACHE_PIN_LEFT_PINNED);
     if (info == 0 || !info->write_lock)
-    {
-      DBUG_PRINT("info",
-                 ("info_check_lock: thread: 0x%lx block 0x%lx: %c : W->W",
-		  (ulong)thread, (ulong)block, (info?'R':'U')));
-      DBUG_RETURN(1);
-    }
+      goto error;
     break;
   case PAGECACHE_LOCK_READ:
     DBUG_ASSERT(pin == PAGECACHE_PIN_LEFT_UNPINNED ||
                 pin == PAGECACHE_PIN);
     if (info != 0)
-    {
-      DBUG_PRINT("info",
-                 ("info_check_lock: thread: 0x%lx block 0x%lx: %c : U->R",
-		  (ulong)thread, (ulong)block, (info->write_lock?'W':'R')));
-      DBUG_RETURN(1);
-    }
+      goto error;
     break;
   case PAGECACHE_LOCK_WRITE:
     DBUG_ASSERT(pin == PAGECACHE_PIN);
     if (info != 0)
-    {
-      DBUG_PRINT("info",
-                 ("info_check_lock: thread: 0x%lx block 0x%lx: %c : U->W",
-		  (ulong)thread, (ulong)block, (info->write_lock?'W':'R')));
-      DBUG_RETURN(1);
-    }
+      goto error;
     break;
-
   case PAGECACHE_LOCK_READ_UNLOCK:
     DBUG_ASSERT(pin == PAGECACHE_PIN_LEFT_UNPINNED ||
                 pin == PAGECACHE_UNPIN);
     if (info == 0 || info->write_lock)
-    {
-      DBUG_PRINT("info",
-                 ("info_check_lock: thread: 0x%lx block 0x%lx: %c : R->U",
-		  (ulong)thread, (ulong)block, (info?'W':'U')));
-      DBUG_RETURN(1);
-    }
+      goto error;
     break;
   case PAGECACHE_LOCK_WRITE_UNLOCK:
     DBUG_ASSERT(pin == PAGECACHE_UNPIN);
     if (info == 0 || !info->write_lock)
-    {
-      DBUG_PRINT("info",
-                 ("info_check_lock: thread: 0x%lx block 0x%lx: %c : W->U",
-		  (ulong)thread, (ulong)block, (info?'R':'U')));
-      DBUG_RETURN(1);
-    }
+      goto error;
     break;
   case PAGECACHE_LOCK_WRITE_TO_READ:
     DBUG_ASSERT(pin == PAGECACHE_PIN_LEFT_PINNED ||
                 pin == PAGECACHE_UNPIN);
     if (info == 0 || !info->write_lock)
-    {
-      DBUG_PRINT("info",
-                 ("info_check_lock: thread: 0x%lx block 0x%lx: %c : W->U",
-		  (ulong)thread, (ulong)block, (info?'R':'U')));
-      DBUG_RETURN(1);
-    }
+      goto error;
     break;
   }
   DBUG_RETURN(0);
+error:
+  DBUG_PRINT("info",
+             ("info_check_lock: thread: 0x%lx block 0x%lx: info: %d wrt: %d,"
+              "to lock: %s, to pin: %s",
+              (ulong)thread, (ulong)block, test(info),
+              (info ? info->write_lock : 0),
+              page_cache_page_lock_str[lock],
+              page_cache_page_pin_str[pin]));
+  DBUG_RETURN(1);
 }
 #endif
 
@@ -1629,7 +1610,8 @@ static void unlink_hash(PAGECACHE *pagecache, PAGECACHE_HASH_LINK *hash_link)
 
 
 /*
-  Get the hash link for the page if it is in the cache
+  Get the hash link for the page if it is in the cache (do not put the
+  page in the cache if it is absent there)
 
   SYNOPSIS
     get_present_hash_link()
@@ -2982,6 +2964,7 @@ restart:
     if (!link)
     {
       DBUG_PRINT("info", ("There is no such page in the cache"));
+      pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
       DBUG_RETURN(0);
     }
     block= link->block;
@@ -2998,32 +2981,31 @@ restart:
 
     if (block->status & BLOCK_CHANGED && flush)
     {
-      if (flush)
+      /* The block contains a dirty page - push it out of the cache */
+
+      KEYCACHE_DBUG_PRINT("find_key_block", ("block is dirty"));
+
+      pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
+      /*
+        The call is thread safe because only the current
+        thread might change the block->hash_link value
+      */
+      DBUG_ASSERT(block->pins == 1);
+      error= pagecache_fwrite(pagecache,
+                              &block->hash_link->file,
+                              block->buffer,
+                              block->hash_link->pageno,
+                              block->type,
+                              MYF(MY_NABP | MY_WAIT_IF_FULL));
+      pagecache_pthread_mutex_lock(&pagecache->cache_lock);
+      pagecache->global_cache_write++;
+
+      if (error)
       {
-        /* The block contains a dirty page - push it out of the cache */
-
-        KEYCACHE_DBUG_PRINT("find_key_block", ("block is dirty"));
-
-        pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
-        /*
-          The call is thread safe because only the current
-          thread might change the block->hash_link value
-        */
-        DBUG_ASSERT(block->pins == 1);
-        error= pagecache_fwrite(pagecache,
-                                &block->hash_link->file,
-                                block->buffer,
-                                block->hash_link->pageno,
-                                block->type,
-                                MYF(MY_NABP | MY_WAIT_IF_FULL));
-        pagecache_pthread_mutex_lock(&pagecache->cache_lock);
-        pagecache->global_cache_write++;
-        if (error)
-        {
-          block->status|= BLOCK_ERROR;
-          goto err;
-        }
+        block->status|= BLOCK_ERROR;
+        goto err;
       }
+
       pagecache->blocks_changed--;
       pagecache->global_blocks_changed--;
       /*
