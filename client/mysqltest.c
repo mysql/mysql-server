@@ -4138,8 +4138,9 @@ void init_win_path_patterns()
   /* List of string patterns to match in order to find paths */
   const char* paths[] = { "$MYSQL_TEST_DIR",
                           "$MYSQL_TMP_DIR",
-                          "./test/", 0 };
-  int num_paths= 3;
+                          "$MYSQLTEST_VARDIR",
+                          "./test/" };
+  int num_paths= sizeof(paths)/sizeof(char*);
   int i;
   char* p;
 
@@ -4158,6 +4159,13 @@ void init_win_path_patterns()
     }
     else
       p= my_strdup(paths[i], MYF(MY_FAE));
+
+    /* Don't insert zero length strings in patterns array */
+    if (strlen(p) == 0)
+    {
+      my_free(p, MYF(0));
+      continue;
+    }
 
     if (insert_dynamic(&patterns, (gptr) &p))
       die(NullS);
@@ -4208,7 +4216,7 @@ void fix_win_paths(const char *val, int len)
   {
     const char** pattern= dynamic_element(&patterns, i, const char**);
     DBUG_PRINT("info", ("pattern: %s", *pattern));
-    if (strlen(*pattern) == 0) continue;
+
     /* Search for the path in string */
     while ((p= strstr(val, *pattern)))
     {
@@ -6448,7 +6456,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
 {
   my_regex_t r;
   my_regmatch_t *subs;
-  char *buf_end, *replace_end;
+  char *replace_end;
   char *buf= *buf_p;
   int len;
   int buf_len, need_buf_len;
@@ -6467,8 +6475,6 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
   res_p= buf;
 
   SECURE_REG_BUF
-
-    buf_end= buf + buf_len;
 
   if (icase)
     cflags|= REG_ICASE;
