@@ -47,15 +47,9 @@ SocketInputStream::gets(char * buf, int bufLen) {
   int res = readln_socket(m_socket, m_timeout, buf, bufLen - 1);
   if(res == -1)
     return 0;
-  if(res == 0 && buf[0] == 77){ // select return 0
+  if(res == 0 && buf[0] == 77)
+  { // select return 0
     buf[0] = 0;
-  } else if(res == 0 && buf[0] == 0){ // only newline
-    buf[0] = '\n';
-    buf[1] = 0;
-  } else {
-    int len = strlen(buf);
-    buf[len + 1] = '\0';
-    buf[len] = '\n';
   }
   return buf;
 }
