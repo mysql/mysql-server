@@ -3203,7 +3203,7 @@ sub report_failure_and_restart ($) {
   my $tinfo= shift;
 
   mtr_report_test_failed($tinfo);
-  mtr_show_failed_diff($tinfo->{'name'});
+  mtr_show_failed_diff($tinfo->{'result_file'});
   print "\n";
   if ( $opt_force )
   {
