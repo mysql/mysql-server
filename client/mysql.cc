@@ -44,7 +44,7 @@
 #include <locale.h>
 #endif
 
-const char *VER= "14.12";
+const char *VER= "14.13";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -140,6 +140,7 @@ static my_bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
 	       default_charset_used= 0, opt_secure_auth= 0,
                default_pager_set= 0, opt_sigint_ignore= 0,
                show_warnings= 0, executing_query= 0, interrupted_query= 0;
+static my_bool column_types_flag;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static my_string opt_mysql_unix_port=0;
@@ -530,7 +531,7 @@ sig_handler mysql_end(int sig)
   my_free(current_prompt,MYF(MY_ALLOW_ZERO_PTR));
   mysql_server_end();
   free_defaults(defaults_argv);
-  my_end(info_flag ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
+  my_end(info_flag ? MY_CHECK_ERROR : 0);
   exit(status.exit_status);
 }
 
@@ -585,12 +586,13 @@ static struct my_option my_long_options[] =
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory where character sets are.", (gptr*) &charsets_dir,
    (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"default-character-set", OPT_DEFAULT_CHARSET,
-   "Set the default character set.", (gptr*) &default_charset,
-   (gptr*) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"column-type-info", OPT_COLUMN_TYPES, "Display column type information.",
+   (gptr*) &column_types_flag, (gptr*) &column_types_flag,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use compression in server/client protocol.",
    (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
+
 #ifdef DBUG_OFF
   {"debug", '#', "This is a non-debug version. Catch this and exit",
    0,0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -598,8 +600,13 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Output debug log", (gptr*) &default_dbug_option,
    (gptr*) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"debug-info", 'T', "Print some debug info at exit.", (gptr*) &info_flag,
+   (gptr*) &info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"database", 'D', "Database to use.", (gptr*) &current_db,
    (gptr*) &current_db, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"default-character-set", OPT_DEFAULT_CHARSET,
+   "Set the default character set.", (gptr*) &default_charset,
+   (gptr*) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"delimiter", OPT_DELIMITER, "Delimiter to be used.", (gptr*) &delimiter_str,
    (gptr*) &delimiter_str, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"execute", 'e', "Execute command and quit. (Disables --force and history file)", 0,
@@ -696,8 +703,6 @@ static struct my_option my_long_options[] =
 #include "sslopt-longopts.h"
   {"table", 't', "Output in table format.", (gptr*) &output_tables,
    (gptr*) &output_tables, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"debug-info", 'T', "Print some debug info at exit.", (gptr*) &info_flag,
-   (gptr*) &info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"tee", OPT_TEE,
    "Append everything into outfile. See interactive help (\\h) also. Does not work in batch mode. Disable with --disable-tee. This option is disabled by default.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -2070,7 +2075,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
       time_buff[0]=0;
     if (result)
     {
-      if (!mysql_num_rows(result) && ! quick && !info_flag)
+      if (!mysql_num_rows(result) && ! quick && !column_types_flag)
       {
 	strmov(buff, "Empty set");
       }
@@ -2307,7 +2312,7 @@ print_table_data(MYSQL_RES *result)
   bool		*num_flag;
 
   num_flag=(bool*) my_alloca(sizeof(bool)*mysql_num_fields(result));
-  if (info_flag)
+  if (column_types_flag)
   {
     print_field_types(result);
     if (!mysql_num_rows(result))

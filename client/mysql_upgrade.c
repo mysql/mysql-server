@@ -418,6 +418,6 @@ fix_priv_tables:
 err_exit:
   if (upgrade_defaults_created)
     my_delete(upgrade_defaults_path, MYF(0));
-  my_end(info_flag ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
+  my_end(info_flag ? MY_CHECK_ERROR : 0);
   return error;
 }                                               /* main */

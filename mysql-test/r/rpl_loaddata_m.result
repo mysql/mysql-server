@@ -21,7 +21,6 @@ COUNT(*)
 SHOW DATABASES;
 Database
 information_schema
-cluster
 mysql
 mysqltest
 test

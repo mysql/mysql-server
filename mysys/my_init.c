@@ -154,6 +154,7 @@ void my_end(int infoflag)
     }
   }
   free_charsets();
+  my_error_unregister_all();
   my_once_free();
 
   if ((infoflag & MY_GIVE_INFO) || print_info)
@@ -208,7 +209,8 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
     Check on destroying of mutexes. A few may be left that will get cleaned
     up by C++ destructors
   */
-  safe_mutex_end(infoflag & MY_GIVE_INFO ? stderr : (FILE *) 0);
+  safe_mutex_end((infoflag & (MY_GIVE_INFO | MY_CHECK_ERROR)) ? stderr :
+                 (FILE *) 0);
 #endif /* defined(SAFE_MUTEX) */
 #endif /* THREAD */
 

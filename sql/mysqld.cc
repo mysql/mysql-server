@@ -3187,7 +3187,7 @@ server.");
     using_update_log=1;
   }
 
-  if (plugin_init(0))
+  if (plugin_init(opt_bootstrap))
   {
     sql_print_error("Failed to init plugins.");
     return 1;
