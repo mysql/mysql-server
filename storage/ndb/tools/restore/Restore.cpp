@@ -317,7 +317,7 @@ RestoreMetaData::markSysTables()
       Uint32 j;
       for (j = 0; j < getNoOfTables(); j++) {
         TableS* table = allTables[j];
-        if (table->getTableId() == id1) {
+        if (table->getTableId() == (Uint32) id1) {
           if (table->isSysTable)
             blobTable->isSysTable = true;
           break;

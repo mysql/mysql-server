@@ -176,16 +176,15 @@ void STDCALL mysql_server_end()
   end_embedded_server();
 #endif
   /* If library called my_init(), free memory allocated by it */
+  finish_client_errs();
   if (!org_my_init_done)
   {
     my_end(MY_DONT_FREE_DBUG);
-  /* Remove TRACING, if enabled by mysql_debug() */
+    /* Remove TRACING, if enabled by mysql_debug() */
     DBUG_POP();
   }
   else
     mysql_thread_end();
-  finish_client_errs();
-  free_charsets();
   vio_end();
   mysql_client_init= org_my_init_done= 0;
 #ifdef EMBEDDED_SERVER

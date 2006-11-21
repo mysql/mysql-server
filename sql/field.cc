@@ -1237,12 +1237,6 @@ Field::Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
 }
 
 
-uint Field::offset()
-{
-  return (uint) (ptr - (char*) table->record[0]);
-}
-
-
 void Field::hash(ulong *nr, ulong *nr2)
 {
   if (is_null())

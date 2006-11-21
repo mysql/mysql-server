@@ -6630,7 +6630,7 @@ innodb_mutex_show_status(
 					mutex->count_spin_rounds,
 					mutex->count_os_wait,
 					mutex->count_os_yield,
-					mutex->lspent_time/1000);
+                                        (ulong) (mutex->lspent_time/1000));
 
 				if (stat_print(thd, innobase_hton_name,
 						hton_name_len, buf1, buf1len,
@@ -6660,7 +6660,7 @@ innodb_mutex_show_status(
 		rw_lock_count, rw_lock_count_spin_loop,
 		rw_lock_count_spin_rounds,
 		rw_lock_count_os_wait, rw_lock_count_os_yield,
-		rw_lock_wait_time/1000);
+                (ulong) (rw_lock_wait_time/1000));
 
 	if (stat_print(thd, innobase_hton_name, hton_name_len,
 			STRING_WITH_LEN("rw_lock_mutexes"), buf2, buf2len)) {
