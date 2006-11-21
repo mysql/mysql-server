@@ -6,7 +6,7 @@
 
 #
 # Currently test only works with ndb since it retrieves "old"
-# binlog positions with cluster.binlog_index and apply_status;
+# binlog positions with mysql.binlog_index and apply_status;
 #
 
 # stop the save
@@ -94,11 +94,11 @@ STOP SLAVE;
 --connection master
 reset master;
 # should now contain nothing
-select * from cluster.binlog_index;
+select * from mysql.binlog_index;
 
 --connection slave
 reset slave;
 # should now contain nothing
-select * from cluster.apply_status;
+select * from mysql.apply_status;
 
 # End 5.1 Test

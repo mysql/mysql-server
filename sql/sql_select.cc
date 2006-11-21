@@ -9491,7 +9491,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       bool maybe_null=(*cur_group->item)->maybe_null;
       key_part_info->null_bit=0;
       key_part_info->field=  field;
-      key_part_info->offset= field->offset();
+      key_part_info->offset= field->offset(table->record[0]);
       key_part_info->length= (uint16) field->key_length();
       key_part_info->type=   (uint8) field->key_type();
       key_part_info->key_type =
@@ -9588,7 +9588,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     {
       key_part_info->null_bit=0;
       key_part_info->field=    *reg_field;
-      key_part_info->offset=   (*reg_field)->offset();
+      key_part_info->offset=   (*reg_field)->offset(table->record[0]);
       key_part_info->length=   (uint16) (*reg_field)->pack_length();
       key_part_info->type=     (uint8) (*reg_field)->key_type();
       key_part_info->key_type =
@@ -12560,8 +12560,9 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields, Item *having)
     DBUG_RETURN(0);
   }
   Field **first_field=entry->field+entry->s->fields - field_count;
-  offset= field_count ? 
-          entry->field[entry->s->fields - field_count]->offset() : 0;
+  offset= (field_count ? 
+           entry->field[entry->s->fields - field_count]->
+           offset(entry->record[0]) : 0);
   reclength=entry->s->reclength-offset;
 
   free_io_cache(entry);				// Safety

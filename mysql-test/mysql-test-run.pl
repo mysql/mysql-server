@@ -1507,7 +1507,7 @@ sub executable_setup () {
 sub generate_cmdline_mysqldump ($) {
   my($mysqld) = @_;
   return
-    "$exe_mysqldump --no-defaults -uroot " .
+    "$exe_mysqldump --no-defaults --debug-info -uroot " .
       "--port=$mysqld->{'port'} " .
       "--socket=$mysqld->{'path_sock'} --password=";
 }
@@ -1708,7 +1708,7 @@ sub environment_setup () {
   # Setup env so childs can execute mysqlcheck
   # ----------------------------------------------------
   my $cmdline_mysqlcheck=
-    "$exe_mysqlcheck --no-defaults -uroot " .
+    "$exe_mysqlcheck --no-defaults --debug-info -uroot " .
     "--port=$master->[0]->{'port'} " .
     "--socket=$master->[0]->{'path_sock'} --password=";
 
@@ -1759,7 +1759,7 @@ sub environment_setup () {
   # Setup env so childs can execute mysqlimport
   # ----------------------------------------------------
   my $cmdline_mysqlimport=
-    "$exe_mysqlimport -uroot " .
+    "$exe_mysqlimport --debug-info -uroot " .
     "--port=$master->[0]->{'port'} " .
     "--socket=$master->[0]->{'path_sock'} --password=";
 
@@ -1775,7 +1775,7 @@ sub environment_setup () {
   # Setup env so childs can execute mysqlshow
   # ----------------------------------------------------
   my $cmdline_mysqlshow=
-    "$exe_mysqlshow -uroot " .
+    "$exe_mysqlshow --debug-info -uroot " .
     "--port=$master->[0]->{'port'} " .
     "--socket=$master->[0]->{'path_sock'} --password=";
 
@@ -1791,7 +1791,7 @@ sub environment_setup () {
   # ----------------------------------------------------
   my $cmdline_mysqlbinlog=
     "$exe_mysqlbinlog" .
-      " --no-defaults --local-load=$opt_tmpdir";
+      " --no-defaults --debug-info --local-load=$opt_tmpdir";
   if ( $mysql_version_id >= 50000 )
   {
     $cmdline_mysqlbinlog .=" --character-sets-dir=$path_charsetsdir";
@@ -1808,7 +1808,7 @@ sub environment_setup () {
   # Setup env so childs can execute mysql
   # ----------------------------------------------------
   my $cmdline_mysql=
-    "$exe_mysql --no-defaults --host=localhost  --user=root --password= " .
+    "$exe_mysql --no-defaults --debug-info --host=localhost  --user=root --password= " .
     "--port=$master->[0]->{'port'} " .
     "--socket=$master->[0]->{'path_sock'} ".
     "--character-sets-dir=$path_charsetsdir";
@@ -2425,8 +2425,8 @@ sub ndbcluster_start ($$) {
 
 sub rm_ndbcluster_tables ($) {
   my $dir=       shift;
-  foreach my $bin ( glob("$dir/cluster/apply_status*"),
-                    glob("$dir/cluster/schema*") )
+  foreach my $bin ( glob("$dir/mysql/apply_status*"),
+                    glob("$dir/mysql/schema*") )
   {
     unlink($bin);
   }
@@ -3139,6 +3139,9 @@ sub run_testcase ($) {
 
     my $res= run_mysqltest($tinfo);
     mtr_report_test_name($tinfo);
+
+    do_after_run_mysqltest($tinfo);
+
     if ( $res == 0 )
     {
       mtr_report_test_passed($tinfo);
@@ -3172,8 +3175,6 @@ sub run_testcase ($) {
 	"mysqltest returned unexpected code $res, it has probably crashed";
       report_failure_and_restart($tinfo);
     }
-
-    do_after_run_mysqltest($tinfo);
   }
 
   # ----------------------------------------------------------------------
@@ -4088,6 +4089,7 @@ sub run_testcase_start_servers($) {
 
     if ( $clusters->[0]->{'pid'} and ! $master->[1]->{'pid'} )
     {
+    {
       # Test needs cluster, start an extra mysqld connected to cluster
 
       if ( $mysql_version_id >= 50100 )
@@ -4096,12 +4098,12 @@ sub run_testcase_start_servers($) {
 	# tables ok FIXME This is a workaround so that only one mysqld
 	# create the tables
 	if ( ! sleep_until_file_created(
-		  "$master->[0]->{'path_myddir'}/cluster/apply_status.ndb",
+		  "$master->[0]->{'path_myddir'}/mysql/apply_status.ndb",
 					$master->[0]->{'start_timeout'},
 					$master->[0]->{'pid'}))
 	{
 
-	  $tinfo->{'comment'}= "Failed to create 'cluster/apply_status' table";
+	  $tinfo->{'comment'}= "Failed to create 'mysql/apply_status' table";
 	  return 1;
 	}
       }
@@ -4300,6 +4302,7 @@ sub run_mysqltest ($) {
   mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
   mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
+  mtr_add_arg($args, "--logdir=%s/log", $opt_vardir);
 
   if ($tinfo->{'component_id'} eq 'im')
   {

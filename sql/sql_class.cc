@@ -2518,7 +2518,9 @@ my_size_t THD::max_row_length_blob(TABLE *table, const byte *data) const
   for (uint *ptr= beg ; ptr != end ; ++ptr)
   {
     Field_blob* const blob= (Field_blob*) table->field[*ptr];
-    length+= blob->get_length((const char *) (data + blob->offset())) + 2;
+    length+= blob->get_length((const char*) (data +
+                                             blob->offset(table->record[0]))) +
+      HA_KEY_BLOB_LENGTH;
   }
 
   return length;
