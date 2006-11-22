@@ -71,9 +71,13 @@ void Item_sum::make_field(Send_field *tmp_field)
   if (args[0]->type() == Item::FIELD_ITEM && keep_field_type())
   {
     ((Item_field*) args[0])->field->make_field(tmp_field);
-    tmp_field->db_name=(char*)"";
-    tmp_field->org_table_name=tmp_field->table_name=(char*)"";
-    tmp_field->org_col_name=tmp_field->col_name=name;
+    /* For expressions only col_name should be non-empty string. */
+    char *empty_string= (char*)"";
+    tmp_field->db_name= empty_string;
+    tmp_field->org_table_name= empty_string;
+    tmp_field->table_name= empty_string;
+    tmp_field->org_col_name= empty_string;
+    tmp_field->col_name= name;
     if (maybe_null)
       tmp_field->flags&= ~NOT_NULL_FLAG;
   }
