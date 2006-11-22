@@ -50,10 +50,14 @@ int my_sync(File fd, myf my_flags)
   do
   {
 #if defined(F_FULLFSYNC)
-    /* Recent Mac OS X versions insist this call is safer than fsync() */
+    /*
+      In Mac OS X >= 10.3 this call is safer than fsync() (it forces the
+      disk's cache).
+    */
     if (!(res= fcntl(fd, F_FULLFSYNC, 0)))
       break; /* ok */
-    /* Some fs don't support F_FULLFSYNC and fail above, fallback: */
+    /* Some file systems don't support F_FULLFSYNC and fail above: */
+    DBUG_PRINT("info",("fcntl(F_FULLFSYNC) failed, falling back"));
 #endif
 #if defined(HAVE_FDATASYNC)
     res= fdatasync(fd);
@@ -62,7 +66,7 @@ int my_sync(File fd, myf my_flags)
 #elif defined(__WIN__)
     res= _commit(fd);
 #else
-#warning Cannot find a way to sync a file, durability in danger
+#error Cannot find a way to sync a file, durability in danger
     res= 0;					/* No sync (strange OS) */
 #endif
   } while (res == -1 && errno == EINTR);
@@ -74,7 +78,10 @@ int my_sync(File fd, myf my_flags)
       my_errno= -1;                             /* Unknown error */
     if ((my_flags & MY_IGNORE_BADFD) &&
         (er == EBADF || er == EINVAL || er == EROFS))
+    {
+      DBUG_PRINT("info", ("ignoring errno %d", er));
       res= 0;
+    }
     else if (my_flags & MY_WME)
       my_error(EE_SYNC, MYF(ME_BELL+ME_WAITTANG), my_filename(fd), my_errno);
   }
@@ -83,68 +90,62 @@ int my_sync(File fd, myf my_flags)
 
 
 /*
-  Force directory information to disk. Only Linux is known to need this to
-  make sure a file creation/deletion/renaming in(from,to) this directory
-  durable.
+  Force directory information to disk.
 
   SYNOPSIS
     my_sync_dir()
     dir_name             the name of the directory
-    my_flags             unused
+    my_flags             flags (MY_WME etc)
 
   RETURN
-    nothing (the sync may fail sometimes).
+    0 if ok, !=0 if error
 */
-void my_sync_dir(const char *dir_name, myf my_flags __attribute__((unused)))
+int my_sync_dir(const char *dir_name, myf my_flags)
 {
-#ifdef TARGET_OS_LINUX
+#ifdef NEED_EXPLICIT_SYNC_DIR
   DBUG_ENTER("my_sync_dir");
   DBUG_PRINT("my",("Dir: '%s'  my_flags: %d", dir_name, my_flags));
   File dir_fd;
-  int error= 0;
+  int res= 0;
   /*
-    Syncing a dir does not work on all filesystems (e.g. tmpfs->EINVAL) :
-    ignore errors. But print them to the debug log.
+    Syncing a dir may give EINVAL on tmpfs on Linux, which is ok.
+    EIO on the other hand is very important. Hence MY_IGNORE_BADFD.
   */
-  if (((dir_fd= my_open(dir_name, O_RDONLY, MYF(0))) >= 0))
+  if ((dir_fd= my_open(dir_name, O_RDONLY, MYF(my_flags))) >= 0)
   {
-    if (my_sync(dir_fd, MYF(0)))
-    {
-      error= errno;
-      DBUG_PRINT("info",("my_sync failed errno: %d", error));
-    }
-    my_close(dir_fd, MYF(0));
+    if (my_sync(dir_fd, MYF(my_flags | MY_IGNORE_BADFD)))
+      res= 2;
+    if (my_close(dir_fd, MYF(my_flags)))
+      res= 3;
   }
   else
-  {
-    error= errno;
-    DBUG_PRINT("info",("my_open failed errno: %d", error));
-  }
-  DBUG_VOID_RETURN;
+    res= 1;
+  DBUG_RETURN(res);
+#else
+  return 0;
 #endif
 }
 
 
 /*
-  Force directory information to disk. Only Linux is known to need this to
-  make sure a file creation/deletion/renaming in(from,to) this directory
-  durable.
+  Force directory information to disk.
 
   SYNOPSIS
     my_sync_dir_by_file()
     file_name            the name of a file in the directory
-    my_flags             unused
+    my_flags             flags (MY_WME etc)
 
   RETURN
-    nothing (the sync may fail sometimes).
+    0 if ok, !=0 if error
 */
-void my_sync_dir_by_file(const char *file_name,
-                         myf my_flags __attribute__((unused)))
+int my_sync_dir_by_file(const char *file_name, myf my_flags)
 {
-#ifdef TARGET_OS_LINUX
+#ifdef NEED_EXPLICIT_SYNC_DIR
   char dir_name[FN_REFLEN];
   dirname_part(dir_name, file_name);
   return my_sync_dir(dir_name, my_flags);
+#else
+  return 0;
 #endif
 }
 

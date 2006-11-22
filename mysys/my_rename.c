@@ -63,8 +63,16 @@ int my_rename(const char *from, const char *to, myf MyFlags)
   }
   else if (MyFlags & MY_SYNC_DIR)
   {
-    my_sync_dir_by_file(from, MyFlags);
-    my_sync_dir_by_file(to, MyFlags);
+#ifdef NEED_EXPLICIT_SYNC_DIR
+    /* do only the needed amount of syncs: */
+    char dir_from[FN_REFLEN], dir_to[FN_REFLEN];
+    dirname_part(dir_from, from);
+    dirname_part(dir_to, to);
+    if (my_sync_dir(dir_from, MyFlags) ||
+        (strcmp(dir_from, dir_to) &&
+         my_sync_dir(dir_to, MyFlags)))
+      error= -1;
+#endif
   }
   DBUG_RETURN(error);
 } /* my_rename */

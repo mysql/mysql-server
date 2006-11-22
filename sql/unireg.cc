@@ -285,12 +285,11 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   my_free((gptr) screen_buff,MYF(0));
   my_free((gptr) keybuff, MYF(0));
 
-  if (opt_sync_frm && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
-  {
-    if (my_sync(file, MYF(MY_WME)))
+  if (opt_sync_frm && !(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+      (my_sync(file, MYF(MY_WME)) ||
+       my_sync_dir_by_file(file_name, MYF(MY_WME))))
       goto err2;
-    my_sync_dir_by_file(file_name, MYF(0));
-  }
+
   if (my_close(file,MYF(MY_WME)))
     goto err3;
 

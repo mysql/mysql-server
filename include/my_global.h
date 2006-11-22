@@ -1468,4 +1468,12 @@ do { doubleget_union _tmp; \
 #define dlerror() ""
 #endif
 
+/*
+  Only Linux is known to need an explicit sync of the directory to make sure a
+  file creation/deletion/renaming in(from,to) this directory durable.
+*/
+#ifdef TARGET_OS_LINUX
+#define NEED_EXPLICIT_SYNC_DIR 1
+#endif
+
 #endif /* my_global_h */
