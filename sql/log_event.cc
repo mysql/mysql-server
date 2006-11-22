@@ -373,7 +373,7 @@ append_query_string(CHARSET_INFO *csinfo,
   else
   {
     *ptr++= '\'';
-    ptr+= escape_string_for_mysql(from->charset(), ptr, 0,
+    ptr+= escape_string_for_mysql(csinfo, ptr, 0,
                                   from->ptr(), from->length());
     *ptr++='\'';
   }
