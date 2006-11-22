@@ -38,6 +38,7 @@ t2
 t3
 Database
 information_schema
+cluster
 mysql
 test
 _
