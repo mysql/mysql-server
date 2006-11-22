@@ -59,6 +59,29 @@ static inline int create_mysqld_command(Buffer *buf,
   return 1;
 }
 
+static inline bool is_path_separator(char ch)
+{
+#if defined(__WIN__) || defined(__NETWARE__)
+  /* On windows and netware more delimiters are possible */
+  return ch == FN_LIBCHAR || ch == FN_DEVCHAR || ch == '/';
+#else
+  return ch == FN_LIBCHAR;                      /* Unixes */
+#endif
+}
+
+
+static char *find_last_path_separator(char *path, uint length)
+{
+  while (length)
+  {
+    if (is_path_separator(path[length]))
+      return path + length;
+    length--;
+  }
+  return NULL; /* No path separator found */
+}
+
+
 
 bool Instance_options::is_option_im_specific(const char *option_name)
 {
@@ -420,20 +443,46 @@ int Instance_options::complete_initialization(const char *default_path)
   int arg_idx;
   const char *tmp;
   char *end;
+  char bin_name_firstchar;
 
   if (!mysqld_path.str)
   {
-    // Need one extra byte, as convert_dirname() adds a slash at the end.
-    if (!(mysqld_path.str= alloc_root(&alloc, strlen(default_path) + 2)))
+    /*
+      Need to copy the path to allocated memory, as convert_dirname() might
+      need to change it
+    */
+    if (!(mysqld_path.str= alloc_root(&alloc, strlen(default_path) + 1)))
       goto err;
     strcpy(mysqld_path.str, default_path);
   }
 
-  // it's safe to cast this to char* since this is a buffer we are allocating
-  end= convert_dirname((char*)mysqld_path.str, mysqld_path.str, NullS);
-  end[-1]= 0;
-
   mysqld_path.length= strlen(mysqld_path.str);
+
+  /*
+    If we found path with no slashes (end == NULL), we should not call
+    convert_dirname() at all. As we have got relative path to the binary.
+    That is, user supposes that mysqld resides in the same dir as
+    mysqlmanager.
+  */
+  if ((end= find_last_path_separator(mysqld_path.str, mysqld_path.length)))
+  {
+    bin_name_firstchar= end[1];
+
+    /*
+      Below we will conver the path to mysqld in the case, it was given
+      in a format of another OS (e.g. uses '/' instead of '\' etc).
+      Here we strip the path to get rid of the binary name ("mysqld"),
+      we do it by removing first letter of the binary name (e.g. 'm'
+      in "mysqld"). Later we put it back.
+    */
+    end[1]= 0;
+
+    /* convert dirname to the format of current OS */
+    convert_dirname((char*)mysqld_path.str, mysqld_path.str, NullS);
+
+    /* put back the first character of the binary name*/
+    end[1]= bin_name_firstchar;
+  }
 
   if (mysqld_port)
     mysqld_port_val= atoi(mysqld_port);
