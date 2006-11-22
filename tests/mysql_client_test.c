@@ -12045,7 +12045,7 @@ static void test_bug21635()
     "COUNT(i)", "COUNT(i)",
     "COUNT(i) AS A3", "A3",
   };
-  const char *query_end;
+  char *query_end;
   MYSQL_RES *result;
   MYSQL_FIELD *field;
   unsigned int field_count, i;
