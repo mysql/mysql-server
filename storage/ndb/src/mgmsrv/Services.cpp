@@ -1716,7 +1716,7 @@ MgmApiSession::report_event(Parser_t::Context &ctx,
   BaseString tmp(data_string);
   Vector<BaseString> item;
   tmp.split(item, " ");
-  for (int i = 0; i < length ; i++)
+  for (int i = 0; (Uint32) i < length ; i++)
   {
     sscanf(item[i].c_str(), "%u", data+i);
   }

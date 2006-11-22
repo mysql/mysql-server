@@ -218,7 +218,7 @@ expand_prompt (pmt, lp, lip, niflp, vlp)
       if (niflp)
 	*niflp = 0;
       if (vlp)
-	*vlp = lp ? *lp : strlen (r);
+	*vlp = lp ? *lp : (int) strlen (r);
       return r;
     }
 
@@ -435,7 +435,7 @@ rl_redisplay ()
     return;
 
   if (!rl_display_prompt)
-    rl_display_prompt = "";
+    rl_display_prompt = (char*) "";
 
   if (invisible_line == 0)
     {
@@ -757,7 +757,7 @@ rl_redisplay ()
 		  c_pos = out;
 		  lb_linenum = newlines;
 		}
-	      for (i = in; i < in+wc_bytes; i++)
+	      for (i = in; i < (int) (in+wc_bytes); i++)
 		line[out++] = rl_line_buffer[i];
 	      for (i = 0; i < wc_width; i++)
 		CHECK_LPOS();
@@ -835,7 +835,7 @@ rl_redisplay ()
 #define VIS_LLEN(l)	((l) > _rl_vis_botlin ? 0 : (vis_lbreaks[l+1] - vis_lbreaks[l]))
 #define INV_LLEN(l)	(inv_lbreaks[l+1] - inv_lbreaks[l])
 #define VIS_CHARS(line) (visible_line + vis_lbreaks[line])
-#define VIS_LINE(line) ((line) > _rl_vis_botlin) ? "" : VIS_CHARS(line)
+#define VIS_LINE(line) ((line) > _rl_vis_botlin) ? (char*) "" : VIS_CHARS(line)
 #define INV_LINE(line) (invisible_line + inv_lbreaks[line])
 
 	  /* For each line in the buffer, do the updating display. */
@@ -876,7 +876,7 @@ rl_redisplay ()
 		  _rl_move_vert (linenum);
 		  _rl_move_cursor_relative (0, tt);
 		  _rl_clear_to_eol
-		    ((linenum == _rl_vis_botlin) ? strlen (tt) : _rl_screenwidth);
+		    ((linenum == _rl_vis_botlin) ? (int) strlen (tt) : _rl_screenwidth);
 		}
 	    }
 	  _rl_vis_botlin = inv_botlin;
@@ -1086,7 +1086,7 @@ update_line (old, new, current_line, omax, nmax, inv_botlin)
   int col_lendiff, col_temp;
 #if defined (HANDLE_MULTIBYTE)
   mbstate_t ps_new, ps_old;
-  int new_offset, old_offset, tmp;
+  int new_offset, old_offset;
 #endif
 
   /* If we're at the right edge of a terminal that supports xn, we're
@@ -1837,7 +1837,7 @@ rl_reset_line_state ()
 {
   rl_on_new_line ();
 
-  rl_display_prompt = rl_prompt ? rl_prompt : "";
+  rl_display_prompt = rl_prompt ? rl_prompt : (char*) "";
   forced_display = 1;
   return 0;
 }
@@ -2212,7 +2212,7 @@ _rl_col_width (str, start, end)
      int start, end;
 {
   wchar_t wc;
-  mbstate_t ps = {0};
+  mbstate_t ps;
   int tmp, point, width, max;
 
   if (end <= start)
@@ -2221,6 +2221,7 @@ _rl_col_width (str, start, end)
   point = 0;
   max = end;
 
+  memset (&ps, 0, sizeof(ps));
   while (point < start)
     {
       tmp = mbrlen (str + point, max, &ps);

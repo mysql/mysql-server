@@ -206,7 +206,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     }
   }
 
-  DBUG_PRINT("exit",("Mysql handler: %lx",mysql));
+  DBUG_PRINT("exit",("Mysql handler: 0x%lx", (long) mysql));
   DBUG_RETURN(mysql);
 
 error:

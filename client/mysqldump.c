@@ -30,14 +30,14 @@
 ** master/autocommit code by Brian Aker <brian@tangent.org>
 ** SSL by
 ** Andrei Errapart <andreie@no.spam.ee>
-** TÃµnu Samuel  <tonu@please.do.not.remove.this.spam.ee>
+** TÃÂµnu Samuel  <tonu@please.do.not.remove.this.spam.ee>
 ** XML by Gary Huntress <ghuntress@mediaone.net> 10/10/01, cleaned up
 ** and adapted to mysqldump 05/11/01 by Jani Tolonen
 ** Added --single-transaction option 06/06/2002 by Peter Zaitsev
 ** 10 Jun 2003: SET NAMES and --no-set-names by Alexander Barkov
 */
 
-#define DUMP_VERSION "10.10"
+#define DUMP_VERSION "10.11"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -103,7 +103,7 @@ static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 opt_alltspcs=0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*mysql=0;
-static my_bool insert_pat_inited=0;
+static my_bool insert_pat_inited= 0, info_flag;
 static DYNAMIC_STRING insert_pat;
 static char  *opt_password=0,*current_user=0,
              *current_host=0,*path=0,*fields_terminated=0,
@@ -111,6 +111,7 @@ static char  *opt_password=0,*current_user=0,
              *where=0, *order_by=0,
              *opt_compatible_mode_str= 0,
              *err_ptr= 0;
+static char **defaults_argv= 0;
 static char compatible_mode_normal_str[255];
 static ulong opt_compatible_mode= 0;
 #define MYSQL_OPT_MASTER_DATA_EFFECTIVE_SQL 1
@@ -120,7 +121,7 @@ static my_string opt_mysql_unix_port=0;
 static int   first_error=0;
 static DYNAMIC_STRING extended_row;
 #include <sslopt-vars.h>
-FILE  *md_result_file;
+FILE  *md_result_file= 0;
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
 #endif
@@ -222,6 +223,8 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Output debug log", (gptr*) &default_dbug_option,
    (gptr*) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.", (gptr*) &info_flag,
+   (gptr*) &info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"default-character-set", OPT_DEFAULT_CHARSET,
    "Set the default character set.", (gptr*) &default_charset,
    (gptr*) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -641,14 +644,6 @@ byte* get_table_key(const char *entry, uint *length,
 }
 
 
-void init_table_rule_hash(HASH* h)
-{
-  if (hash_init(h, charset_info, 16, 0, 0,
-                (hash_get_key) get_table_key,
-                (hash_free_key) free_table_ent, 0))
-    exit(EX_EOM);
-}
-
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
                char *argument)
@@ -691,6 +686,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case '#':
     DBUG_PUSH(argument ? argument : default_dbug_option);
+    info_flag= 1;
     break;
 #include <sslopt-case.h>
   case 'V': print_version(); exit(0);
@@ -731,9 +727,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       fprintf(stderr, "Illegal use of option --ignore-table=<database>.<table>\n");
       exit(1);
     }
-    if (!hash_inited(&ignore_table))
-      init_table_rule_hash(&ignore_table);
-
     if (my_hash_insert(&ignore_table, (byte*)my_strdup(argument, MYF(0))))
       exit(EX_EOM);
     break;
@@ -809,9 +802,21 @@ static int get_options(int *argc, char ***argv)
 
   md_result_file= stdout;
   load_defaults("my",load_default_groups,argc,argv);
+  defaults_argv= *argv;
 
-  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
-    exit(ho_error);
+  if (hash_init(&ignore_table, charset_info, 16, 0, 0,
+                (hash_get_key) get_table_key,
+                (hash_free_key) free_table_ent, 0))
+    return(EX_EOM);
+  /* Don't copy cluster internal log tables */
+  if (my_hash_insert(&ignore_table,
+                     (byte*) my_strdup("mysql.apply_status", MYF(MY_WME))) ||
+      my_hash_insert(&ignore_table,
+                     (byte*) my_strdup("mysql.schema", MYF(MY_WME))))
+    return(EX_EOM);
+
+  if ((ho_error= handle_options(argc, argv, my_long_options, get_one_option)))
+    return(ho_error);
 
   *mysql_params->p_max_allowed_packet= opt_max_allowed_packet;
   *mysql_params->p_net_buffer_length= opt_net_buffer_length;
@@ -823,7 +828,7 @@ static int get_options(int *argc, char ***argv)
   {
     fprintf(stderr,
             "%s: You must use option --tab with --fields-...\n", my_progname);
-    return(1);
+    return(EX_USAGE);
   }
 
   /* Ensure consistency of the set of binlog & locking options */
@@ -833,7 +838,7 @@ static int get_options(int *argc, char ***argv)
   {
     fprintf(stderr, "%s: You can't use --single-transaction and "
             "--lock-all-tables at the same time.\n", my_progname);
-    return(1);
+    return(EX_USAGE);
   }
   if (opt_master_data)
     opt_lock_all_tables= !opt_single_transaction;
@@ -842,14 +847,14 @@ static int get_options(int *argc, char ***argv)
   if (enclosed && opt_enclosed)
   {
     fprintf(stderr, "%s: You can't use ..enclosed.. and ..optionally-enclosed.. at the same time.\n", my_progname);
-    return(1);
+    return(EX_USAGE);
   }
   if ((opt_databases || opt_alldbs) && path)
   {
     fprintf(stderr,
             "%s: --databases or --all-databases can't be used with --tab.\n",
             my_progname);
-    return(1);
+    return(EX_USAGE);
   }
   if (strcmp(default_charset, charset_info->csname) &&
       !(charset_info= get_charset_by_csname(default_charset,
@@ -858,7 +863,7 @@ static int get_options(int *argc, char ***argv)
   if ((*argc < 1 && !opt_alldbs) || (*argc > 0 && opt_alldbs))
   {
     short_usage();
-    return 1;
+    return EX_USAGE;
   }
   if (tty_password)
     opt_password=get_tty_password(NullS);
@@ -933,6 +938,23 @@ static FILE* open_sql_file_for_table(const char* table)
 }
 
 
+static void free_resources()
+{
+  if (md_result_file && md_result_file != stdout)
+    my_fclose(md_result_file, MYF(0));
+  my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
+  if (hash_inited(&ignore_table))
+    hash_free(&ignore_table);
+  if (extended_insert)
+    dynstr_free(&extended_row);
+  if (insert_pat_inited)
+    dynstr_free(&insert_pat);
+  if (defaults_argv)
+    free_defaults(defaults_argv);
+  my_end(info_flag ? MY_CHECK_ERROR : 0);
+}
+
+
 static void safe_exit(int error)
 {
   if (!first_error)
@@ -941,18 +963,19 @@ static void safe_exit(int error)
     return;
   if (mysql)
     mysql_close(mysql);
+  free_resources();
   exit(error);
 }
-/* safe_exit */
 
 
 /*
-** dbConnect -- connects to the host and selects DB.
+  db_connect -- connects to the host and selects DB.
 */
-static int dbConnect(char *host, char *user,char *passwd)
+
+static int connect_to_db(char *host, char *user,char *passwd)
 {
   char buff[20+FN_REFLEN];
-  DBUG_ENTER("dbConnect");
+  DBUG_ENTER("connect_to_db");
 
   verbose_msg("-- Connecting to %s...\n", host ? host : "localhost");
   mysql_init(&mysql_connection);
@@ -973,11 +996,11 @@ static int dbConnect(char *host, char *user,char *passwd)
 #endif
   mysql_options(&mysql_connection, MYSQL_SET_CHARSET_NAME, default_charset);
   if (!(mysql= mysql_real_connect(&mysql_connection,host,user,passwd,
-         NULL,opt_mysql_port,opt_mysql_unix_port,
-         0)))
+                                  NULL,opt_mysql_port,opt_mysql_unix_port,
+                                  0)))
   {
     DB_error(&mysql_connection, "when trying to connect");
-    return 1;
+    DBUG_RETURN(1);
   }
   /*
     Don't dump SET NAMES with a pre-4.1 server (bug#7997).
@@ -994,7 +1017,7 @@ static int dbConnect(char *host, char *user,char *passwd)
   if (mysql_query_with_error_report(mysql, 0, buff))
   {
     safe_exit(EX_MYSQLERR);
-    return 1;
+    DBUG_RETURN(1);
   }
   /*
     set time_zone to UTC to allow dumping date types between servers with
@@ -1006,11 +1029,11 @@ static int dbConnect(char *host, char *user,char *passwd)
     if (mysql_query_with_error_report(mysql, 0, buff))
     {
       safe_exit(EX_MYSQLERR);
-      return 1;
+      DBUG_RETURN(1);
     }
   }
-  return 0;
-} /* dbConnect */
+  DBUG_RETURN(0);
+} /* connect_to_db */
 
 
 /*
@@ -1659,7 +1682,11 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   {
     complete_insert= opt_complete_insert;
     if (!insert_pat_inited)
-      insert_pat_inited= init_dynamic_string(&insert_pat, "", 1024, 1024);
+    {
+      insert_pat_inited= 1;
+      if (init_dynamic_string(&insert_pat, "", 1024, 1024))
+        safe_exit(EX_MYSQLERR);
+    }
     else
       dynstr_set(&insert_pat, "");
   }
@@ -2134,7 +2161,7 @@ continue_xml:
 
 */
 
-static void dump_triggers_for_table (char *table, char *db)
+static void dump_triggers_for_table(char *table, char *db)
 {
   char       *result_table;
   char       name_buff[NAME_LEN*4+3], table_buff[NAME_LEN*2+3];
@@ -2980,6 +3007,8 @@ static int dump_databases(char **db_names)
 {
   int result=0;
   char **db;
+  DBUG_ENTER("dump_databases");
+
   for (db= db_names ; *db ; db++)
   {
     if (dump_all_tables_in_db(*db))
@@ -2993,7 +3022,7 @@ static int dump_databases(char **db_names)
         result=1;
     }
   }
-  return result;
+  DBUG_RETURN(result);
 } /* dump_databases */
 
 
@@ -3008,7 +3037,7 @@ RETURN VALUES
   0        Success.
   1        Failure.
 */
-int init_dumping_views(char *qdatabase)
+int init_dumping_views(char *qdatabase __attribute__((unused)))
 {
     return 0;
 } /* init_dumping_views */
@@ -3105,12 +3134,11 @@ static int init_dumping(char *database, int init_func(char*))
 } /* init_dumping */
 
 
+/* Return 1 if we should copy the table */
+
 my_bool include_table(byte* hash_key, uint len)
 {
-  if (hash_search(&ignore_table, (byte*) hash_key, len))
-    return FALSE;
-
-  return TRUE;
+  return !hash_search(&ignore_table, (byte*) hash_key, len);
 }
 
 
@@ -3119,10 +3147,10 @@ static int dump_all_tables_in_db(char *database)
   char *table;
   uint numrows;
   char table_buff[NAME_LEN*2+3];
-
   char hash_key[2*NAME_LEN+2];  /* "db.tablename" */
   char *afterdot;
   int using_mysql_db= my_strcasecmp(&my_charset_latin1, database, "mysql");
+  DBUG_ENTER("dump_all_tables_in_db");
 
   afterdot= strmov(hash_key, database);
   *afterdot++= '.';
@@ -3558,7 +3586,6 @@ static void print_value(FILE *file, MYSQL_RES  *result, MYSQL_ROW row,
 
 
 /*
-
   SYNOPSIS
 
   Check if we the table is one of the table types that should be ignored:
@@ -3598,8 +3625,8 @@ char check_if_ignore_table(const char *table_name, char *table_type)
   {
     if (mysql_errno(mysql) != ER_PARSE_ERROR)
     {                                   /* If old MySQL version */
-      verbose_msg("-- Warning: Couldn't get status information for " \
-                  "table %s (%s)\n", table_name,mysql_error(mysql));
+      verbose_msg("-- Warning: Couldn't get status information for "
+                  "table %s (%s)\n", table_name, mysql_error(mysql));
       DBUG_RETURN(result);                       /* assume table is ok */
     }
   }
@@ -3954,19 +3981,24 @@ static my_bool get_view_structure(char *table, char* db)
 
 int main(int argc, char **argv)
 {
+  int exit_code;
   MY_INIT("mysqldump");
 
   compatible_mode_normal_str[0]= 0;
   default_charset= (char *)mysql_universal_client_charset;
   bzero((char*) &ignore_table, sizeof(ignore_table));
 
-  if (get_options(&argc, &argv))
+  exit_code= get_options(&argc, &argv);
+  if (exit_code)
   {
-    my_end(0);
-    exit(EX_USAGE);
+    free_resources(0);
+    exit(exit_code);
   }
-  if (dbConnect(current_host, current_user, opt_password))
+  if (connect_to_db(current_host, current_user, opt_password))
+  {
+    free_resources(0);
     exit(EX_MYSQLERR);
+  }
   if (!path)
     write_header(md_result_file, *argv);
 
@@ -4016,15 +4048,6 @@ err:
   dbDisconnect(current_host);
   if (!path)
     write_footer(md_result_file);
-  if (md_result_file != stdout)
-    my_fclose(md_result_file, MYF(0));
-  my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
-  if (hash_inited(&ignore_table))
-    hash_free(&ignore_table);
-  if (extended_insert)
-    dynstr_free(&extended_row);
-  if (insert_pat_inited)
-    dynstr_free(&insert_pat);
-  my_end(0);
+  free_resources();
   return(first_error);
 } /* main */

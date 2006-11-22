@@ -153,6 +153,7 @@ public:
     ValueType m_type;
   protected:
     Reader();
+    virtual ~Reader() {}
     virtual void reset() = 0;
     
     virtual bool step(Uint32 len) = 0;
@@ -174,6 +175,7 @@ public:
     bool add(Uint16 key, const char * value);
     bool add(Uint16 key, const void* value, int len);
   protected:
+    virtual ~Writer() {}
     virtual bool reset() = 0;
     virtual bool putWord(Uint32 val) = 0;
     virtual bool putWords(const Uint32 * src, Uint32 len) = 0;
@@ -190,6 +192,7 @@ public:
   SimplePropertiesLinearReader(const Uint32 * src, Uint32 len);
   virtual ~SimplePropertiesLinearReader() {}
   
+  virtual ~SimplePropertiesLinearReader() {}
   virtual void reset();
   virtual bool step(Uint32 len);
   virtual bool getWord(Uint32 * dst);
@@ -227,6 +230,7 @@ public:
   UtilBufferWriter(class UtilBuffer & buf);
   virtual ~UtilBufferWriter() {}
   
+  virtual ~UtilBufferWriter() {}
   virtual bool reset();
   virtual bool putWord(Uint32 val);
   virtual bool putWords(const Uint32 * src, Uint32 len);
@@ -247,7 +251,6 @@ public:
 				class SectionSegmentPool &);
   virtual ~SimplePropertiesSectionReader() {}
   
-
   virtual void reset();
   virtual bool step(Uint32 len);
   virtual bool getWord(Uint32 * dst);
@@ -281,6 +284,7 @@ public:
   SimplePropertiesSectionWriter(class SectionSegmentPool &);
   virtual ~SimplePropertiesSectionWriter() {}
 
+  virtual ~SimplePropertiesSectionWriter() {}
   virtual bool reset();
   virtual bool putWord(Uint32 val);
   virtual bool putWords(const Uint32 * src, Uint32 len);

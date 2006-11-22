@@ -83,7 +83,9 @@ static void bind_arrow_keys_internal PARAMS((Keymap));
 static void bind_arrow_keys PARAMS((void));
 
 static void readline_default_bindings PARAMS((void));
+#ifdef NOT_USED
 static void reset_default_bindings PARAMS((void));
+#endif
 
 /* **************************************************************** */
 /*								    */
@@ -866,12 +868,14 @@ readline_default_bindings ()
 
 /* Reset the default bindings for the terminal special characters we're
    interested in back to rl_insert and read the new ones. */
+#ifdef NOT_USED
 static void
 reset_default_bindings ()
 {
   rl_tty_unset_default_bindings (_rl_keymap);
   rl_tty_set_default_bindings (_rl_keymap);
 }
+#endif
 
 /* Bind some common arrow key sequences in MAP. */
 static void

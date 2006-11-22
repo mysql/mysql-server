@@ -2604,7 +2604,7 @@ static int process_io_rotate(MASTER_INFO *mi, Rotate_log_event *rev)
   /* Safe copy as 'rev' has been "sanitized" in Rotate_log_event's ctor */
   memcpy(mi->master_log_name, rev->new_log_ident, rev->ident_len+1);
   mi->master_log_pos= rev->pos;
-  DBUG_PRINT("info", ("master_log_pos: '%s' %d",
+  DBUG_PRINT("info", ("master_log_pos: '%s' %lu",
                       mi->master_log_name, (ulong) mi->master_log_pos));
 #ifndef DBUG_OFF
   /*
@@ -2721,7 +2721,7 @@ static int queue_binlog_ver_1_event(MASTER_INFO *mi, const char *buf,
     int error = process_io_create_file(mi,(Create_file_log_event*)ev);
     delete ev;
     mi->master_log_pos += inc_pos;
-    DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
+    DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
     pthread_mutex_unlock(&mi->data_lock);
     my_free((char*)tmp_buf, MYF(0));
     DBUG_RETURN(error);
@@ -2748,7 +2748,7 @@ static int queue_binlog_ver_1_event(MASTER_INFO *mi, const char *buf,
   }
   delete ev;
   mi->master_log_pos+= inc_pos;
-  DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
+  DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
   pthread_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(0);
 }
@@ -2804,7 +2804,7 @@ static int queue_binlog_ver_3_event(MASTER_INFO *mi, const char *buf,
   delete ev;
   mi->master_log_pos+= inc_pos;
 err:
-  DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
+  DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
   pthread_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(0);
 }
@@ -2977,7 +2977,8 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
       rli->ign_master_log_pos_end= mi->master_log_pos;
     }
     rli->relay_log.signal_update(); // the slave SQL thread needs to re-check
-    DBUG_PRINT("info", ("master_log_pos: %d, event originating from the same server, ignored", (ulong) mi->master_log_pos));
+    DBUG_PRINT("info", ("master_log_pos: %lu, event originating from the same server, ignored",
+                        (ulong) mi->master_log_pos));
   }
   else
   {
@@ -2985,7 +2986,7 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
     if (likely(!(rli->relay_log.appendv(buf,event_len,0))))
     {
       mi->master_log_pos+= inc_pos;
-      DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
+      DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
     }
     else
