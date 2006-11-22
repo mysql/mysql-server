@@ -2045,6 +2045,12 @@ sub cleanup_stale_files () {
     }
     closedir(DIR);
   }
+
+  # Remove old log files
+  foreach my $name (glob("r/*.reject r/*.progress r/*.log r/*.warnings"))
+  {
+    unlink($name);
+  }
 }
 
 
@@ -2426,7 +2432,7 @@ sub ndbcluster_start ($$) {
 sub rm_ndbcluster_tables ($) {
   my $dir=       shift;
   foreach my $bin ( glob("$dir/mysql/apply_status*"),
-                    glob("$dir/mysql/schema*") )
+                    glob("$dir/mysql/schema*"))
   {
     unlink($bin);
   }

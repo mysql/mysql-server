@@ -394,9 +394,9 @@ int check_user(THD *thd, enum enum_server_command command,
           NO_ACCESS)) // authentication is OK
     {
       DBUG_PRINT("info",
-                 ("Capabilities: %lx  packet_length: %ld  Host: '%s'  "
+                 ("Capabilities: %lu  packet_length: %ld  Host: '%s'  "
                   "Login user: '%s' Priv_user: '%s'  Using password: %s "
-                  "Access: %u  db: '%s'",
+                  "Access: %lu  db: '%s'",
                   thd->client_capabilities,
                   thd->max_client_packet_length,
                   thd->main_security_ctx.host_or_ip,
@@ -1002,7 +1002,7 @@ static int check_connection(THD *thd)
   if (thd->client_capabilities & CLIENT_IGNORE_SPACE)
     thd->variables.sql_mode|= MODE_IGNORE_SPACE;
 #ifdef HAVE_OPENSSL
-  DBUG_PRINT("info", ("client capabilities: %d", thd->client_capabilities));
+  DBUG_PRINT("info", ("client capabilities: %lu", thd->client_capabilities));
   if (thd->client_capabilities & CLIENT_SSL)
   {
     /* Do the SSL layering. */
@@ -1158,7 +1158,7 @@ pthread_handler_t handle_one_connection(void *arg)
     of handle_one_connection, which is thd. We need to know the
     start of the stack so that we could check for stack overruns.
   */
-  DBUG_PRINT("info", ("handle_one_connection called by thread %d\n",
+  DBUG_PRINT("info", ("handle_one_connection called by thread %lu\n",
 		      thd->thread_id));
   /* now that we've called my_thread_init(), it is safe to call DBUG_* */
 
@@ -1826,7 +1826,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (alloc_query(thd, packet, packet_length))
       break;					// fatal error is set
     char *packet_end= thd->query + thd->query_length;
-    general_log_print(thd, command, "%.*b", thd->query_length, thd->query);
+    /* 'b' stands for 'buffer' parameter', special for 'my_snprintf' */
+    const char *format= "%.*b";
+    general_log.write(thd, command, format, thd->query_length, thd->query);
     DBUG_PRINT("query",("%-.4096s",thd->query));
 
     if (!(specialflag & SPECIAL_NO_PRIOR))

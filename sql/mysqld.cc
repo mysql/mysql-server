@@ -3526,7 +3526,7 @@ int main(int argc, char **argv)
     if (stack_size && stack_size < thread_stack)
     {
       if (global_system_variables.log_warnings)
-	sql_print_warning("Asked for %ld thread stack, but got %ld",
+	sql_print_warning("Asked for %lu thread stack, but got %ld",
 			  thread_stack, (long) stack_size);
 #if defined(__ia64__) || defined(__ia64)
       thread_stack= stack_size*2;
@@ -4072,7 +4072,7 @@ static void create_new_thread(THD *thd)
       int error;
       thread_created++;
       threads.append(thd);
-      DBUG_PRINT("info",(("creating thread %d"), thd->thread_id));
+      DBUG_PRINT("info",(("creating thread %lu"), thd->thread_id));
       thd->connect_time = time(NULL);
       if ((error=pthread_create(&thd->real_id,&connection_attrib,
 				handle_one_connection,

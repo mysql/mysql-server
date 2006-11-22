@@ -10180,7 +10180,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
       if (join->result->send_eof())
 	rc= 1;                                  // Don't send error
     }
-    DBUG_PRINT("info",("%ld records output",join->send_records));
+    DBUG_PRINT("info",("%ld records output", (long) join->send_records));
   }
   else
     rc= -1;

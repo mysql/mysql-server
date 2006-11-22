@@ -13686,7 +13686,8 @@ static void test_bug11172()
                hired.year, hired.month, hired.day);
     }
     DIE_UNLESS(rc == MYSQL_NO_DATA);
-    mysql_stmt_free_result(stmt) || mysql_stmt_reset(stmt);
+    if (!mysql_stmt_free_result(stmt))
+      mysql_stmt_reset(stmt);
   }
   mysql_stmt_close(stmt);
   mysql_rollback(mysql);
@@ -14828,6 +14829,8 @@ static void test_opt_reconnect()
 }
 
 
+#ifndef EMBEDDED_LIBRARY
+
 static void test_bug12744()
 {
   MYSQL_STMT *prep_stmt = NULL;
@@ -14858,6 +14861,8 @@ static void test_bug12744()
   rc= mysql_stmt_close(prep_stmt);
   client_connect(0);
 }
+
+#endif /* EMBEDDED_LIBRARY */
 
 /* Bug #16143: mysql_stmt_sqlstate returns an empty string instead of '00000' */
 
