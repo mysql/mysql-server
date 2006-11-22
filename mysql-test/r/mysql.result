@@ -36,6 +36,10 @@ Tables_in_test
 t1
 t2
 t3
+Database
+information_schema
+mysql
+test
 _
 Test delimiter : from command line
 a
