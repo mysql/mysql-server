@@ -56,5 +56,6 @@ delimiter ; # Reset delimiter
 #             with Windows style line endings.
 #
 source t/mysql_delimiter_19799.sql
-show databases//
+use test//
+show tables//
 delimiter ; # Reset delimiter
