@@ -330,9 +330,6 @@ void Cmvmi::execSTTOR(Signal* signal)
     signal->theData[2] = NodeInfo::REP;
     execOPEN_COMREQ(signal);    
     globalData.theStartLevel = NodeState::SL_STARTED;
-    sendSTTORRY(signal);
-  } else {
-    jam();
 
     if(theConfig.lockPagesInMainMemory()){
       int res = NdbMem_MemLockAll();
@@ -341,7 +338,6 @@ void Cmvmi::execSTTOR(Signal* signal)
 	warningEvent("Failed to memlock pages");
       }
     }
-    
     sendSTTORRY(signal);
   }
 }
