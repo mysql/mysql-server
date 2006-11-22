@@ -133,6 +133,11 @@ extern "C" {
 #define PATH_MAX 1024
 #endif
 
+#if defined(_lint) || defined(FORCE_INIT_OF_VARS)
+#define LINT_SET_PTR = {0,0}
+#else
+#define LINT_SET_PTR
+
 #ifndef MIN
 #define MIN(x,y) (((x)<(y))?(x):(y))
 #endif

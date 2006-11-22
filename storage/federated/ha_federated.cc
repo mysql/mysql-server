@@ -560,8 +560,8 @@ static int parse_url_error(FEDERATED_SHARE *share, TABLE *table, int error_num)
   if (share->scheme)
   {
     DBUG_PRINT("info",
-               ("error: parse_url. Returning error code %d \
-                freeing share->scheme %lx", error_num, share->scheme));
+               ("error: parse_url. Returning error code %d freeing share->scheme 0x%lx",
+                error_num, (long) share->scheme));
     my_free((gptr) share->scheme, MYF(0));
     share->scheme= 0;
   }
@@ -627,7 +627,7 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
                             MYF(0));
 
   share->connect_string_length= table->s->connect_string.length;
-  DBUG_PRINT("info",("parse_url alloced share->scheme %lx", share->scheme));
+  DBUG_PRINT("info",("parse_url alloced share->scheme 0x%lx", (long) share->scheme));
 
   /*
     remove addition of null terminator and store length
@@ -1750,7 +1750,7 @@ void ha_federated::update_auto_increment(void)
 
   thd->first_successful_insert_id_in_cur_stmt= 
     mysql->last_used_con->insert_id;
-  DBUG_PRINT("info",("last_insert_id %d", stats.auto_increment_value));
+  DBUG_PRINT("info",("last_insert_id: %ld", (long) stats.auto_increment_value));
 
   DBUG_VOID_RETURN;
 }
@@ -2023,8 +2023,8 @@ int ha_federated::delete_row(const byte *buf)
   stats.deleted+= (ha_rows)mysql->affected_rows;
   stats.records-= (ha_rows)mysql->affected_rows;
   DBUG_PRINT("info",
-             ("rows deleted %d rows deleted for all time %d",
-             int(mysql->affected_rows), stats.deleted));
+             ("rows deleted %ld  rows deleted for all time %ld",
+              (long) mysql->affected_rows, (long) stats.deleted));
 
   DBUG_RETURN(0);
 }

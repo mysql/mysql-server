@@ -2544,8 +2544,8 @@ int ndb_mgm_report_event(NdbMgmHandle handle, Uint32 *data, Uint32 length)
   args.put("length", length);
   BaseString data_string;
 
-  for (int i = 0; i < length; i++)
-    data_string.appfmt(" %u", data[i]);
+  for (int i = 0; i < (int) length; i++)
+    data_string.appfmt(" %lu", (ulong) data[i]);
 
   args.put("data", data_string.c_str());
 
