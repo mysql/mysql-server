@@ -1,3 +1,4 @@
+drop table if exists t1;
 set @org_mode=@@sql_mode;
 create table t1
 (

@@ -2510,7 +2510,7 @@ get_field_offset(
 /******************************************************************
 Checks if a field in a record is SQL NULL. Uses the record format
 information in table to track the null bit in record. */
-inline
+static inline
 uint
 field_in_record_is_null(
 /*====================*/
