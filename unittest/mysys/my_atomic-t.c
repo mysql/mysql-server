@@ -21,7 +21,8 @@
 #include <my_atomic.h>
 #include <lf.h>
 
-volatile uint32 a32,b32,c32, N;
+volatile uint32 a32,b32;
+volatile int32  c32, N;
 my_atomic_rwlock_t rwl;
 LF_ALLOCATOR lf_allocator;
 LF_HASH lf_hash;
@@ -98,7 +99,7 @@ pthread_handler_t test_atomic_cas_handler(void *arg)
     x= (x*m+0x87654321) & INT_MAX32;
     do {
       my_atomic_rwlock_wrlock(&rwl);
-      ok= my_atomic_cas32(&a32, &y, y+x);
+      ok= my_atomic_cas32(&a32, &y, (uint32)y+x);
       my_atomic_rwlock_wrunlock(&rwl);
     } while (!ok) ;
     do {

@@ -61,70 +61,115 @@
 #endif
 
 #ifndef make_atomic_add_body
-#define make_atomic_add_body(S)					\
+#define make_atomic_add_body(S)                                 \
   int ## S tmp=*a;                                              \
   while (!my_atomic_cas ## S(a, &tmp, tmp+v));                  \
   v=tmp;
 #endif
 
+#ifdef __GNUC__
+/*
+  we want to be able to use my_atomic_xxx functions with
+  both signed and unsigned integers. But gcc will issue a warning
+  "passing arg N of `my_atomic_XXX' as [un]signed due to prototype"
+  if the signedness of the argument doesn't match the prototype, or
+  "pointer targets in passing argument N of my_atomic_XXX differ in signedness"
+  if int* is used where uint* is expected (or vice versa).
+  Let's shut these warnings up
+*/
+#define make_transparent_unions(S)                              \
+        typedef union {                                         \
+          int  ## S  i;                                         \
+          uint ## S  u;                                         \
+        } U_ ## S   __attribute__ ((transparent_union));        \
+        typedef union {                                         \
+          int  ## S volatile *i;                                \
+          uint ## S volatile *u;                                \
+        } Uv_ ## S   __attribute__ ((transparent_union));
+#define uintptr intptr
+make_transparent_unions(8)
+make_transparent_unions(16)
+make_transparent_unions(32)
+make_transparent_unions(ptr)
+#undef uintptr
+#undef make_transparent_unions
+#define a       U_a.i
+#define cmp     U_cmp.i
+#define v       U_v.i
+#define set     U_set.i
+#else
+#define U_8    int8
+#define U_16   int16
+#define U_32   int32
+#define U_ptr  intptr
+#define Uv_8   int8
+#define Uv_16  int16
+#define Uv_32  int32
+#define Uv_ptr intptr
+#define U_a    volatile *a
+#define U_cmp  *cmp
+#define U_v    v
+#define U_set  set
+#endif /* __GCC__ transparent_union magic */
+
 #ifdef HAVE_INLINE
 
-#define make_atomic_add(S)					\
-STATIC_INLINE int ## S my_atomic_add ## S(			\
-                        int ## S volatile *a, int ## S v)	\
-{								\
-  make_atomic_add_body(S);					\
-  return v;							\
+#define make_atomic_add(S)                                      \
+STATIC_INLINE int ## S my_atomic_add ## S(                      \
+                        Uv_ ## S U_a, U_ ## S U_v)              \
+{                                                               \
+  make_atomic_add_body(S);                                      \
+  return v;                                                     \
 }
 
-#define make_atomic_fas(S)					\
-STATIC_INLINE int ## S my_atomic_fas ## S(			\
-                         int ## S volatile *a, int ## S v)	\
-{								\
-  make_atomic_fas_body(S);					\
-  return v;							\
+#define make_atomic_fas(S)                                      \
+STATIC_INLINE int ## S my_atomic_fas ## S(                      \
+                         Uv_ ## S U_a, U_ ## S U_v)             \
+{                                                               \
+  make_atomic_fas_body(S);                                      \
+  return v;                                                     \
 }
 
-#define make_atomic_cas(S)					\
-STATIC_INLINE int my_atomic_cas ## S(int ## S volatile *a,	\
-                            int ## S *cmp, int ## S set)	\
-{								\
-  int8 ret;							\
-  make_atomic_cas_body(S);					\
-  return ret;							\
+#define make_atomic_cas(S)                                      \
+STATIC_INLINE int my_atomic_cas ## S(Uv_ ## S U_a,              \
+                            Uv_ ## S U_cmp, U_ ## S U_set)      \
+{                                                               \
+  int8 ret;                                                     \
+  make_atomic_cas_body(S);                                      \
+  return ret;                                                   \
 }
 
-#define make_atomic_load(S)					\
-STATIC_INLINE int ## S my_atomic_load ## S(int ## S volatile *a) \
-{								\
-  int ## S ret;						\
-  make_atomic_load_body(S);					\
-  return ret;							\
+#define make_atomic_load(S)                                     \
+STATIC_INLINE int ## S my_atomic_load ## S(Uv_ ## S U_a)        \
+{                                                               \
+  int ## S ret;                                                 \
+  make_atomic_load_body(S);                                     \
+  return ret;                                                   \
 }
 
-#define make_atomic_store(S)					\
-STATIC_INLINE void my_atomic_store ## S(			\
-                     int ## S volatile *a, int ## S v)	\
-{								\
-  make_atomic_store_body(S);					\
+#define make_atomic_store(S)                                    \
+STATIC_INLINE void my_atomic_store ## S(                        \
+                     Uv_ ## S U_a, U_ ## S U_v)                 \
+{                                                               \
+  make_atomic_store_body(S);                                    \
 }
 
 #else /* no inline functions */
 
-#define make_atomic_add(S)					\
-extern int ## S my_atomic_add ## S(int ## S volatile *a, int ## S v);
+#define make_atomic_add(S)                                      \
+extern int ## S my_atomic_add ## S(Uv_ ## S, U_ ## S);
 
-#define make_atomic_fas(S)					\
-extern int ## S my_atomic_fas ## S(int ## S volatile *a, int ## S v);
+#define make_atomic_fas(S)                                      \
+extern int ## S my_atomic_fas ## S(Uv_ ## S, U_ ## S);
 
-#define make_atomic_cas(S)					\
-extern int my_atomic_cas ## S(int ## S volatile *a, int ## S *cmp, int ## S set);
+#define make_atomic_cas(S)                                      \
+extern int my_atomic_cas ## S(Uv_ ## S, Uv_ ## S, U_ ## S);
 
-#define make_atomic_load(S)					\
-extern int ## S my_atomic_load ## S(int ## S volatile *a);
+#define make_atomic_load(S)                                     \
+extern int ## S my_atomic_load ## S(Uv_ ## S);
 
-#define make_atomic_store(S)					\
-extern void my_atomic_store ## S(int ## S volatile *a, int ## S v);
+#define make_atomic_store(S)                                    \
+extern void my_atomic_store ## S(Uv_ ## S, U_ ## S);
 
 #endif
 
@@ -157,6 +202,18 @@ make_atomic_fas(ptr)
 #undef _atomic_h_cleanup_
 #endif
 
+#undef U_8
+#undef U_16
+#undef U_32
+#undef U_ptr
+#undef a
+#undef cmp
+#undef v
+#undef set
+#undef U_a
+#undef U_cmp
+#undef U_v
+#undef U_set
 #undef make_atomic_add
 #undef make_atomic_cas
 #undef make_atomic_load
