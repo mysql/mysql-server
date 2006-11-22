@@ -685,15 +685,6 @@ NdbSqlUtil::cmpBit(const void* info, const void* p1, unsigned n1, const void* p2
   char* c1 = (char*)p1;
   char* c2 = (char*)p2;
   int ret = memcmp(p1, p2, n);
-  printf(" p1: ");
-  for (Uint32 i = 0; i<n1; i++)
-    printf("%d ", c1[i]);
-
-  printf(" p2: ");
-  for (Uint32 i = 0; i<n2; i++)
-    printf("%d ", c2[i]);
-
-  ndbout_c(" -> %d", ret);
   return ret;
 }
 
