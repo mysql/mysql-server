@@ -1,5 +1,5 @@
 -- This script converts any old privilege tables to privilege tables suitable
--- for MySQL 4.0.
+-- for MySQL 4.1
 
 -- You can safely ignore all 'Duplicate column' and 'Unknown column' errors"
 -- because these just mean that your tables are already up to date.
@@ -100,7 +100,7 @@ ALTER TABLE columns_priv change Type Column_priv set('Select','Insert','Update',
 ALTER TABLE func add type enum ('function','aggregate') COLLATE utf8_general_ci NOT NULL;
 
 --
---  Change the user,db and host tables to MySQL 4.0 format
+--  Change the user,db and host tables to current format
 --
 
 # Detect whether we had Show_db_priv
