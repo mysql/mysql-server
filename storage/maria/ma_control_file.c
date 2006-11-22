@@ -134,16 +134,11 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
 
   if (create_file)
   {
-    if ((control_file_fd= my_create(name, 0, open_flags, MYF(0))) < 0)
+    if ((control_file_fd= my_create(name, 0,
+                                    open_flags, MYF(MY_SYNC_DIR))) < 0)
       DBUG_RETURN(CONTROL_FILE_UNKNOWN_ERROR);
-    /*
-      TODO: from "man fsync" on Linux:
-      "fsync does not necessarily ensure that the entry in  the  directory
-      containing  the file has also reached disk.  For that an explicit
-      fsync on the file descriptor of the directory is also needed."
-      So if we just created the file we should sync the directory.
-      Maybe there should be a flag of my_create() to do this.
 
+    /*
       To be safer we should make sure that there are no logs or data/index
       files around (indeed it could be that the control file alone was deleted
       or not restored, and we should not go on with life at this point).

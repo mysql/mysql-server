@@ -61,5 +61,10 @@ int my_rename(const char *from, const char *to, myf MyFlags)
     if (MyFlags & (MY_FAE+MY_WME))
       my_error(EE_LINK, MYF(ME_BELL+ME_WAITTANG),from,to,my_errno);
   }
+  else if (MyFlags & MY_SYNC_DIR)
+  {
+    my_sync_dir_by_file(from, MyFlags);
+    my_sync_dir_by_file(to, MyFlags);
+  }
   DBUG_RETURN(error);
 } /* my_rename */
