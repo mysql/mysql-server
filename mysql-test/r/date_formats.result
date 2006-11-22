@@ -212,12 +212,12 @@ Tuesday 52 2001	%W %V %X	2002-01-01 00:00:00
 15-01-20	%d-%m-%y	2020-01-15 00:00:00
 15-2001-1	%d-%Y-%c	2001-01-15 00:00:00
 Warnings:
-Warning	1292	Truncated incorrect datetime value: '0000-00-00 10:20:10'
-Warning	1292	Truncated incorrect datetime value: '0000-00-00 10:20:10'
-Warning	1292	Truncated incorrect datetime value: '0000-00-00 10:20:10'
-Warning	1292	Truncated incorrect datetime value: '0000-00-00 10:20:10'
-Warning	1292	Truncated incorrect datetime value: '0000-00-00 10:20:10'
-Warning	1292	Truncated incorrect datetime value: '0000-00-00 10:20:10.440000'
+Warning	1292	Incorrect datetime value: '0000-00-00 10:20:10'
+Warning	1292	Incorrect datetime value: '0000-00-00 10:20:10'
+Warning	1292	Incorrect datetime value: '0000-00-00 10:20:10'
+Warning	1292	Incorrect datetime value: '0000-00-00 10:20:10'
+Warning	1292	Incorrect datetime value: '0000-00-00 10:20:10'
+Warning	1292	Incorrect datetime value: '0000-00-00 10:20:10.440000'
 select date,format,DATE(str_to_date(date, format)) as date2 from t1;
 date	format	date2
 2003-01-02 10:11:12	%Y-%m-%d %H:%i:%S	2003-01-02
