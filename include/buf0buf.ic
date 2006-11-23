@@ -187,7 +187,6 @@ buf_block_get_space(
 {
 	ut_ad(block);
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-	ut_ad(block->buf_fix_count > 0);
 
 	return(block->space);
 }
@@ -203,7 +202,6 @@ buf_block_get_page_no(
 {
 	ut_ad(block);
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-	ut_ad(block->buf_fix_count > 0);
 
 	return(block->offset);
 }
