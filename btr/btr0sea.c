@@ -835,7 +835,7 @@ btr_search_guess_on_hash(
 		goto failure;
 	}
 
-	ut_ad(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	ut_ad(page_rec_is_user_rec(rec));
 
 	btr_cur_position(index, rec, block, cursor);
