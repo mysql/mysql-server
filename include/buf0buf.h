@@ -543,6 +543,23 @@ buf_block_get_state(
 	const buf_block_t*	block)	/* in: pointer to the control block */
 	__attribute__((pure));
 /*************************************************************************
+Sets the state of a block. */
+UNIV_INLINE
+void
+buf_block_set_state(
+/*================*/
+	buf_block_t*		block,	/* in/out: pointer to control block */
+	enum buf_block_state	state);	/* in: state */
+/*************************************************************************
+Map a block to a file page. */
+UNIV_INLINE
+void
+buf_block_set_file_page(
+/*====================*/
+	buf_block_t*		block,	/* in/out: pointer to control block */
+	ulint			space,	/* in: tablespace id */
+	ulint			page_no);/* in: page number */
+/*************************************************************************
 Gets a pointer to the memory frame of a block. */
 UNIV_INLINE
 buf_frame_t*

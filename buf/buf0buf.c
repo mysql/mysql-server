@@ -1400,7 +1400,7 @@ loop:
 		block = guess;
 
 		if ((offset != block->offset) || (space != block->space)
-		    || (block->state != BUF_BLOCK_FILE_PAGE)) {
+		    || buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE) {
 
 			block = NULL;
 		}
@@ -1471,7 +1471,7 @@ loop:
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	ut_a(++buf_dbg_counter % 5771 || buf_validate());
 	ut_a(block->buf_fix_count > 0);
-	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 	if (mode == BUF_GET_NOWAIT) {
@@ -1649,7 +1649,7 @@ buf_page_optimistic_get_func(
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	ut_a(++buf_dbg_counter % 5771 || buf_validate());
 	ut_a(block->buf_fix_count > 0);
-	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 #ifdef UNIV_DEBUG_FILE_ACCESSES
@@ -1753,7 +1753,7 @@ buf_page_get_known_nowait(
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	ut_a(++buf_dbg_counter % 5771 || buf_validate());
 	ut_a(block->buf_fix_count > 0);
-	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #ifdef UNIV_DEBUG_FILE_ACCESSES
 	ut_a(block->file_page_was_freed == FALSE);
@@ -1785,9 +1785,7 @@ buf_page_init_for_backup_restore(
 	/* Set the state of the block */
 	block->magic_n		= BUF_BLOCK_MAGIC_N;
 
-	block->state		= BUF_BLOCK_FILE_PAGE;
-	block->space		= space;
-	block->offset		= offset;
+	buf_block_set_file_page(block, space, offset);
 
 	block->lock_hash_val	= 0;
 
@@ -1837,9 +1835,7 @@ buf_page_init(
 	/* Set the state of the block */
 	block->magic_n		= BUF_BLOCK_MAGIC_N;
 
-	block->state		= BUF_BLOCK_FILE_PAGE;
-	block->space		= space;
-	block->offset		= offset;
+	buf_block_set_file_page(block, space, offset);
 
 	block->check_index_page_at_flush = FALSE;
 	block->index		= NULL;
@@ -2438,6 +2434,12 @@ buf_validate(void)
 			case BUF_BLOCK_NOT_USED:
 				n_free++;
 				break;
+
+			case BUF_BLOCK_READY_FOR_USE:
+			case BUF_BLOCK_MEMORY:
+			case BUF_BLOCK_REMOVE_HASH:
+				/* do nothing */
+				break;
 			}
 
 			mutex_exit(&block->mutex);
@@ -2604,7 +2606,8 @@ buf_get_latched_pages_number(void)
 		block = chunk->blocks;
 
 		for (j = chunk->size; j--; block++) {
-			if (block->magic_n != BUF_BLOCK_MAGIC_N) {
+			if (buf_block_get_state(block)
+			    != BUF_BLOCK_FILE_PAGE) {
 
 				continue;
 			}
