@@ -385,12 +385,12 @@ while ($j)
 --connection slave
 STOP SLAVE;
 RESET SLAVE;
-DROP PROCEDURE tpcb.load;
-DROP PROCEDURE tpcb.trans;
-DROP TABLE tpcb.account;
-DROP TABLE tpcb.teller;
-DROP TABLE tpcb.branch;
-DROP TABLE tpcb.history;
+DROP PROCEDURE IF EXISTS tpcb.load;
+DROP PROCEDURE IF EXISTS tpcb.trans;
+DROP TABLE IF EXISTS tpcb.account;
+DROP TABLE IF EXISTS tpcb.teller;
+DROP TABLE IF EXISTS tpcb.branch;
+DROP TABLE IF EXISTS tpcb.history;
 DROP DATABASE tpcb;
 
 ALTER TABLESPACE ts1
@@ -534,8 +534,8 @@ SELECT COUNT(*) FROM history;
 
 --echo *************** TEST 2 CLEANUP SECTION ********************
 connection master;
-DROP PROCEDURE tpcb.load;
-DROP PROCEDURE tpcb.trans;
+DROP PROCEDURE IF EXISTS tpcb.load;
+DROP PROCEDURE IF EXISTS tpcb.trans;
 DROP TABLE tpcb.account;
 DROP TABLE tpcb.teller;
 DROP TABLE tpcb.branch;

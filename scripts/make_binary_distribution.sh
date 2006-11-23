@@ -243,6 +243,7 @@ $CP mysql-test/lib/*.pl  $BASE/mysql-test/lib
 $CP mysql-test/lib/*.sql $BASE/mysql-test/lib
 $CP mysql-test/t/*.def $BASE/mysql-test/t
 $CP mysql-test/include/*.inc $BASE/mysql-test/include
+$CP mysql-test/include/*.test $BASE/mysql-test/include
 $CP mysql-test/t/*.def $BASE/mysql-test/t
 $CP mysql-test/std_data/*.dat mysql-test/std_data/*.frm \
     mysql-test/std_data/*.pem mysql-test/std_data/Moscow_leap \
