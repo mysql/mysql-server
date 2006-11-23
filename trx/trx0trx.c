@@ -1598,6 +1598,20 @@ trx_commit_for_mysql(
 
 	trx->op_info = "committing";
 
+	/* If we are doing the XA recovery of prepared transactions, then
+	the transaction object does not have an InnoDB session object, and we
+	set the dummy session that we use for all MySQL transactions. */
+
+	if (trx->sess == NULL) {
+		/* Open a dummy session */
+
+		if (!trx_dummy_sess) {
+			trx_dummy_sess = sess_open();
+		}
+
+		trx->sess = trx_dummy_sess;
+	}
+	
 	trx_start_if_not_started(trx);
 
 	mutex_enter(&kernel_mutex);
