@@ -753,6 +753,29 @@ void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate)
   DBUG_VOID_RETURN;
 }
 
+
+static void set_mysql_extended_error(MYSQL *mysql, int errcode,
+                                     const char *sqlstate,
+                                     const char *format, ...)
+{
+  NET *net;
+  va_list args;
+  DBUG_ENTER("set_mysql_extended_error");
+  DBUG_PRINT("enter", ("error :%d '%s'", errcode, format));
+  DBUG_ASSERT(mysql != 0);
+
+  net= &mysql->net;
+  net->last_errno= errcode;
+  va_start(args, format);
+  my_vsnprintf(net->last_error, sizeof(net->last_error)-1,
+               format, args);
+  va_end(args);
+  strmov(net->sqlstate, sqlstate);
+
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   Flush result set sent from server
 */
@@ -850,6 +873,7 @@ static int check_license(MYSQL *mysql)
 
 void end_server(MYSQL *mysql)
 {
+  int save_errno= errno;
   DBUG_ENTER("end_server");
   if (mysql->net.vio != 0)
   {
@@ -862,6 +886,7 @@ void end_server(MYSQL *mysql)
   }
   net_end(&mysql->net);
   free_old_query(mysql);
+  errno= save_errno;
   DBUG_VOID_RETURN;
 }
 
@@ -2031,7 +2056,10 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   if (mysql->options.connect_timeout &&
       vio_poll_read(net->vio, mysql->options.connect_timeout))
   {
-    set_mysql_error(mysql, CR_SERVER_LOST, unknown_sqlstate);
+    set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
+                             ER(CR_SERVER_LOST_EXTENDED),
+                             "waiting for initial communication packet",
+                             errno);
     goto error;
   }
 
@@ -2040,8 +2068,14 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   */
 
   if ((pkt_length=cli_safe_read(mysql)) == packet_error)
+  {
+    if (mysql->net.last_errno == CR_SERVER_LOST)
+      set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
+                               ER(CR_SERVER_LOST_EXTENDED),
+                               "reading initial communication packet",
+                               errno);
     goto error;
-
+  }
   /* Check if version of protocol matches current one */
 
   mysql->protocol_version= net->read_pos[0];
@@ -2175,7 +2209,10 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     */
     if (my_net_write(net,buff,(uint) (end-buff)) || net_flush(net))
     {
-      set_mysql_error(mysql, CR_SERVER_LOST, unknown_sqlstate);
+      set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
+                               ER(CR_SERVER_LOST_EXTENDED),
+                               "sending connection information to server",
+                               errno);
       goto error;
     }
 
@@ -2254,7 +2291,10 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   /* Write authentication package */
   if (my_net_write(net,buff,(ulong) (end-buff)) || net_flush(net))
   {
-    set_mysql_error(mysql, CR_SERVER_LOST, unknown_sqlstate);
+    set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
+                             ER(CR_SERVER_LOST_EXTENDED),
+                             "sending authentication information",
+                             errno);
     goto error;
   }
   
@@ -2264,7 +2304,14 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   */
 
   if ((pkt_length=cli_safe_read(mysql)) == packet_error)
+  {
+    if (mysql->net.last_errno == CR_SERVER_LOST)
+      set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
+                               ER(CR_SERVER_LOST_EXTENDED),
+                               "reading authorization packet",
+                               errno);
     goto error;
+  }
 
   if (pkt_length == 1 && net->read_pos[0] == 254 && 
       mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
@@ -2276,12 +2323,22 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     scramble_323(buff, mysql->scramble, passwd);
     if (my_net_write(net, buff, SCRAMBLE_LENGTH_323 + 1) || net_flush(net))
     {
-      set_mysql_error(mysql, CR_SERVER_LOST, unknown_sqlstate);
+      set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
+                               ER(CR_SERVER_LOST_EXTENDED),
+                               "sending password information",
+                               errno);
       goto error;
     }
     /* Read what server thinks about out new auth message report */
     if (cli_safe_read(mysql) == packet_error)
+    {
+      if (mysql->net.last_errno == CR_SERVER_LOST)
+        set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
+                                 ER(CR_SERVER_LOST_EXTENDED),
+                                 "reading final connect information",
+                                 errno);
       goto error;
+    }
   }
 
   if (client_flag & CLIENT_COMPRESS)		/* We will use compression */
@@ -2292,8 +2349,15 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     goto error;
 #endif
 
-  if (db && mysql_select_db(mysql,db))
+  if (db && mysql_select_db(mysql, db))
+  {
+    if (mysql->net.last_errno == CR_SERVER_LOST)
+        set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
+                                 ER(CR_SERVER_LOST_EXTENDED),
+                                 "Setting intital database",
+                                 errno);
     goto error;
+  }
 
   if (mysql->options.init_commands)
   {

@@ -2047,7 +2047,7 @@ sub cleanup_stale_files () {
   }
 
   # Remove old log files
-  foreach my $name (glob("r/*.reject r/*.progress r/*.log r/*.warnings"))
+  foreach my $name (glob("r/*.progress r/*.log r/*.warnings"))
   {
     unlink($name);
   }
@@ -2995,14 +2995,14 @@ sub find_testcase_skipped_reason($)
 {
   my ($tinfo)= @_;
 
-  # Open mysqltest.log
+  # Open mysqltest-time
   my $F= IO::File->new($path_timefile) or
     mtr_error("can't open file \"$path_timefile\": $!");
   my $reason;
 
   while ( my $line= <$F> )
   {
-    # Look for "reason: <reason fo skiping test>"
+    # Look for "reason: <reason for skipping test>"
     if ( $line =~ /reason: (.*)/ )
     {
       $reason= $1;

@@ -2203,7 +2203,7 @@ static void dump_table(char *table, char *db)
     The "table" could be a view.  If so, we don't do anything here.
   */
   if (strcmp (table_type, "VIEW") == 0)
-    return;
+    DBUG_VOID_RETURN;
 
   /* Check --no-data flag */
   if (opt_no_data)
@@ -2869,7 +2869,7 @@ static int dump_all_tables_in_db(char *database)
   *afterdot++= '.';
 
   if (init_dumping(database, init_dumping_tables))
-    return 1;
+    DBUG_RETURN(1);
   if (opt_xml)
     print_xml_tag(md_result_file, "", "\n", "database", "name=", database, NullS);
   if (lock_tables)
@@ -2923,7 +2923,7 @@ static int dump_all_tables_in_db(char *database)
     fprintf(md_result_file,"\n--\n-- Flush Grant Tables \n--\n");
     fprintf(md_result_file,"\n/*! FLUSH PRIVILEGES */;\n");
   }
-  return 0;
+  DBUG_RETURN(0);
 } /* dump_all_tables_in_db */
 
 
