@@ -818,33 +818,32 @@ fsp_init_file_page_low(
 	buf_block_t*	block)	/* in: pointer to a page */
 {
 	page_t*		page	= buf_block_get_frame(block);
-	page_zip_des_t*	page_zip;
+	page_zip_des_t*	page_zip= buf_block_get_page_zip(block);
 
 	block->check_index_page_at_flush = FALSE;
-
-	page_zip = buf_block_get_page_zip(block);
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		memset(page, 0, UNIV_PAGE_SIZE);
 		memset(page_zip->data, 0, page_zip->size);
-		mach_write_to_4(page + FIL_PAGE_OFFSET, block->offset);
+		mach_write_to_4(page + FIL_PAGE_OFFSET,
+				buf_block_get_page_no(block));
 		mach_write_to_4(page
 				+ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
-				block->space);
-		mach_write_to_4(page_zip->data
-				+ FIL_PAGE_OFFSET, block->offset);
-		mach_write_to_4(page_zip->data
-				+ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
-				block->space);
+				buf_block_get_space(block));
+		memcpy(page_zip->data + FIL_PAGE_OFFSET,
+		       page + FIL_PAGE_OFFSET, 4);
+		memcpy(page_zip->data + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
+		       page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 4);
 		return;
 	}
 
 #ifdef UNIV_BASIC_LOG_DEBUG
 	memset(page, 0xff, UNIV_PAGE_SIZE);
 #endif
-	mach_write_to_4(page + FIL_PAGE_OFFSET, block->offset);
+	mach_write_to_4(page + FIL_PAGE_OFFSET, buf_block_get_page_no(block));
 	memset(page + FIL_PAGE_LSN, 0, 8);
-	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, block->space);
+	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
+			buf_block_get_space(block));
 	memset(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM, 0, 8);
 }
 

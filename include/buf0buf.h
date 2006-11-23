@@ -65,6 +65,17 @@ extern ibool		buf_debug_prints;/* If this is set TRUE, the program
 extern ulint srv_buf_pool_write_requests; /* variable to count write request
 					  issued */
 
+/* States of a control block */
+enum buf_block_state {
+	BUF_BLOCK_NOT_USED = 211,	/* is in the free list */
+	BUF_BLOCK_READY_FOR_USE,	/* when buf_get_free_block returns
+					a block, it is in this state */
+	BUF_BLOCK_FILE_PAGE,		/* contains a buffered file page */
+	BUF_BLOCK_MEMORY,		/* contains some main memory object */
+	BUF_BLOCK_REMOVE_HASH		/* hash index should be removed
+					before putting to the free list */
+};
+
 /************************************************************************
 Creates the buffer pool. */
 
@@ -523,13 +534,23 @@ buf_block_dbg_add_level(
 	ulint		level);	/* in: latching order level */
 #endif /* UNIV_SYNC_DEBUG */
 /*************************************************************************
+Gets the state of a block. */
+UNIV_INLINE
+enum buf_block_state
+buf_block_get_state(
+/*================*/
+					/* out: state */
+	const buf_block_t*	block)	/* in: pointer to the control block */
+	__attribute__((pure));
+/*************************************************************************
 Gets a pointer to the memory frame of a block. */
 UNIV_INLINE
 buf_frame_t*
 buf_block_get_frame(
 /*================*/
 				/* out: pointer to the frame */
-	buf_block_t*	block);	/* in: pointer to the control block */
+	buf_block_t*	block)	/* in: pointer to the control block */
+	__attribute__((const));
 /*************************************************************************
 Gets the space id of a block. */
 UNIV_INLINE
@@ -918,15 +939,6 @@ struct buf_pool_struct{
 					on this value; not defined if
 					LRU_old == NULL */
 };
-
-/* States of a control block */
-#define	BUF_BLOCK_NOT_USED	211	/* is in the free list */
-#define BUF_BLOCK_READY_FOR_USE	212	/* when buf_get_free_block returns
-					a block, it is in this state */
-#define	BUF_BLOCK_FILE_PAGE	213	/* contains a buffered file page */
-#define	BUF_BLOCK_MEMORY	214	/* contains some main memory object */
-#define BUF_BLOCK_REMOVE_HASH	215	/* hash index should be removed
-					before putting to the free list */
 
 /* Io_fix states of a control block; these must be != 0 */
 #define BUF_IO_READ		561

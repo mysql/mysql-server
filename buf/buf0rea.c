@@ -129,7 +129,7 @@ buf_read_page_low(
 	}
 #endif
 
-	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
 	if (zip_size) {
 		*err = fil_io(OS_FILE_READ | wake_later,
