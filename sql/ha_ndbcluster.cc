@@ -4706,10 +4706,18 @@ int ha_ndbcluster::create(const char *name,
   }
 
   if (info->store_on_disk)
+  { 
     if (info->tablespace)
       tab.setTablespace(info->tablespace);
     else
       tab.setTablespace("DEFAULT-TS");
+  }
+  else if (info->tablespace)
+  {
+    tab.setTablespace(info->tablespace);
+    info->store_on_disk = true;  //if use tablespace, that also means store on disk
+  }
+
   // No primary key, create shadow key as 64 bit, auto increment  
   if (form->s->primary_key == MAX_KEY) 
   {
