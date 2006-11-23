@@ -131,7 +131,25 @@ trx_rollback_for_mysql(
 
 	trx->op_info = "rollback";
 
+	/* If we are doing the XA recovery of prepared transactions, then
+	the transaction object does not have an InnoDB session object, and we
+	must use a dummy session to get our rollback code to work. */
+
+	if (trx->sess == NULL) {
+		/* Open a dummy session */
+
+		if (!trx_dummy_sess) {
+			trx_dummy_sess = sess_open();
+		}
+
+		trx->sess = trx_dummy_sess;
+	}
+
 	err = trx_general_rollback_for_mysql(trx, FALSE, NULL);
+	
+	if (trx->sess == trx_dummy_sess) {
+		trx->sess = NULL;
+	}
 
 	trx->op_info = "";
 
