@@ -2051,7 +2051,10 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id, enum ndb_mgm_node_type type)
       ndbout_c("Node %d fail completed", rep->failedNodeId);
 #endif
       if (rep->failedNodeId == nodeId)
+      {
+	do_send = 1;
         nodeId = 0;
+      }
       continue;
     }
     case GSN_NODE_FAILREP:{

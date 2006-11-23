@@ -966,6 +966,37 @@ runBug21271(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int 
+runBug24543(NDBT_Context* ctx, NDBT_Step* step){
+  NdbRestarter restarter;
+  
+  int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+  if (restarter.dumpStateAllNodes(val2, 2))
+    return NDBT_FAILED;
+
+  int nodes[2];
+  nodes[0] = restarter.getMasterNodeId();
+  restarter.insertErrorInNode(nodes[0], 934);
+
+  nodes[1] = restarter.getRandomNodeOtherNodeGroup(nodes[0], rand());
+  if (nodes[1] == -1)
+  {
+    nodes[1] = restarter.getRandomNodeSameNodeGroup(nodes[0], rand());
+  }
+  
+  restarter.restartOneDbNode(nodes[1], false, true, true);
+  if (restarter.waitNodesNoStart(nodes, 2))
+    return NDBT_FAILED;
+  
+  restarter.startNodes(nodes, 2);
+  if (restarter.waitNodesStarted(nodes, 2))
+  {
+    return NDBT_FAILED;
+  }
+  
+  return NDBT_OK;
+}
+
 
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
@@ -1278,6 +1309,10 @@ TESTCASE("Bug20185",
   INITIALIZER(runLoadTable);
   STEP(runBug20185);
   FINALIZER(runClearTable);
+}
+TESTCASE("Bug24543", "")
+{
+  INITIALIZER(runBug24543);
 }
 TESTCASE("Bug21271",
 	 ""){
