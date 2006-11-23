@@ -762,7 +762,7 @@ TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
 void
 TransporterFacade::for_each(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 {
-  DBUG_ENTER("TransporterFacade::connected");
+  DBUG_ENTER("TransporterFacade::for_each");
   Uint32 sz = m_threads.m_statusNext.size();
   TransporterFacade::ThreadData::Object_Execute oe; 
   for (Uint32 i = 0; i < sz ; i ++) 
