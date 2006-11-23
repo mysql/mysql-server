@@ -223,9 +223,8 @@ our $opt_ndbcluster_port_slave;
 our $opt_ndbconnectstring_slave;
 
 our $opt_record;
-our $opt_report_features;
+my $opt_report_features;
 our $opt_check_testcases;
-my  $opt_report_features;
 
 our $opt_skip;
 our $opt_skip_rpl;
