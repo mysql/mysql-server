@@ -658,7 +658,7 @@ sub command_line_setup () {
   # directory. And we install "/usr/share/mysql-test". Moving up one
   # more directory relative to "mysql-test" gives us a usable base
   # directory for RPM installs.
-  if ( ! $opt_source_dist and ! -d "$glob_basedir/bin" )
+  if ( ! $source_dist and ! -d "$glob_basedir/bin" )
   {
     $glob_basedir= dirname($glob_basedir);
   }
