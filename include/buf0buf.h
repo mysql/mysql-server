@@ -708,7 +708,6 @@ struct buf_block_struct{
 
 	/* 1. General fields */
 
-	ulint		magic_n;	/* magic number to check */
 	ulint		state;		/* state of the control block:
 					BUF_BLOCK_NOT_USED, ...; changing
 					this is only allowed when a thread
@@ -870,7 +869,10 @@ struct buf_block_struct{
 #endif /* UNIV_DEBUG_FILE_ACCESSES */
 };
 
-#define BUF_BLOCK_MAGIC_N	41526563
+/* Check if a block is in a valid state. */
+#define buf_block_state_valid(block)		\
+(buf_block_get_state(block) >= BUF_BLOCK_NOT_USED		\
+ && (buf_block_get_state(block) <= BUF_BLOCK_REMOVE_HASH))
 
 /* The buffer pool structure. NOTE! The definition appears here only for
 other modules of this directory (buf) to see it. Do not use from outside! */
