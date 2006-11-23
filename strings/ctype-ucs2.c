@@ -159,11 +159,11 @@ static void my_hash_sort_ucs2(CHARSET_INFO *cs, const uchar *s, uint slen,
 }
 
 
-static void my_caseup_str_ucs2(CHARSET_INFO * cs  __attribute__((unused)), 
+static uint my_caseup_str_ucs2(CHARSET_INFO * cs  __attribute__((unused)), 
 			       char * s __attribute__((unused)))
 {
+  return 0;
 }
-
 
 
 static uint my_casedn_ucs2(CHARSET_INFO *cs, char *src, uint srclen,
@@ -188,9 +188,11 @@ static uint my_casedn_ucs2(CHARSET_INFO *cs, char *src, uint srclen,
   return srclen;
 }
 
-static void my_casedn_str_ucs2(CHARSET_INFO *cs __attribute__((unused)), 
+
+static uint my_casedn_str_ucs2(CHARSET_INFO *cs __attribute__((unused)), 
 			       char * s __attribute__((unused)))
 {
+  return 0;
 }
 
 
