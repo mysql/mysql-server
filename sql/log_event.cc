@@ -7263,9 +7263,6 @@ int Update_rows_log_event::do_exec_row(TABLE *table)
   bmove_align(table->record[0], m_after_image, table->s->reclength);
   copy_extra_record_fields(table, m_master_reclength, m_width);
 
-  valgrind_check_mem(table->record[0], table->s->reclength);
-  valgrind_check_mem(table->record[1], table->s->reclength);
-
   /*
     Now we have the right row to update.  The old row (the one we're
     looking for) is in record[1] and the new row has is in record[0].
