@@ -238,8 +238,6 @@ our $opt_suite_timeout;
 my  $default_testcase_timeout=     15; # 15 min max
 my  $default_suite_timeout=       180; # 3 hours max
 
-our $opt_source_dist;
-
 our $opt_start_and_exit;
 our $opt_start_dirty;
 our $opt_start_from;
@@ -298,6 +296,8 @@ our $debug_compiled_binaries;
 our $glob_tot_real_time= 0;
 
 our %mysqld_variables;
+
+my $source_dist= 0;
 
 
 ######################################################################
@@ -627,7 +627,7 @@ sub command_line_setup () {
 
   if ( -d "../sql" )
   {
-    $opt_source_dist=  1;
+    $source_dist=  1;
   }
 
   $glob_hostname=  mtr_short_hostname();
@@ -647,7 +647,7 @@ sub command_line_setup () {
     unless defined $glob_mysql_bench_dir;
 
   $path_my_basedir=
-    $opt_source_dist ? $glob_mysql_test_dir : $glob_basedir;
+    $source_dist ? $glob_mysql_test_dir : $glob_basedir;
 
   $glob_timers= mtr_init_timers();
 
@@ -901,7 +901,7 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   # Gcov flag
   # --------------------------------------------------------------------------
-  if ( $opt_gcov and ! $opt_source_dist )
+  if ( $opt_gcov and ! $source_dist )
   {
     mtr_error("Coverage test needs the source - please use source dist");
   }
@@ -1526,7 +1526,7 @@ sub environment_setup () {
   # Setup LD_LIBRARY_PATH so the libraries from this distro/clone
   # are used in favor of the system installed ones
   # --------------------------------------------------------------------------
-  if ( $opt_source_dist )
+  if ( $source_dist )
   {
     push(@ld_library_paths, "$glob_basedir/libmysql/.libs/",
                             "$glob_basedir/libmysql_r/.libs/");
