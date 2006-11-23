@@ -597,7 +597,7 @@ fix_priv_tables:
 
   if (find_file(MYSQL_FIX_PRIV_TABLES_NAME, basedir, MYF(0), 
                           path, sizeof(path), 
-                          "support_files", "share/mysql", "scripts", 
+                          "support_files", "share", "share/mysql", "scripts",
                           NullS)
      && find_file(MYSQL_FIX_PRIV_TABLES_NAME, "/usr/local/mysql", MYF(0),
                           path, sizeof(path),
