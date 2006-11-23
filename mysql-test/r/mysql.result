@@ -36,6 +36,8 @@ Tables_in_test
 t1
 t2
 t3
+Tables_in_test
+t1
 _
 Test delimiter : from command line
 a
