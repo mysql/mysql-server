@@ -55,7 +55,7 @@ buf_flush_insert_into_flush_list(
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
-	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
 	ut_ad((UT_LIST_GET_FIRST(buf_pool->flush_list) == NULL)
 	      || (ut_dulint_cmp((UT_LIST_GET_FIRST(buf_pool->flush_list))
@@ -122,12 +122,12 @@ buf_flush_ready_for_replace(
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 	ut_ad(mutex_own(&block->mutex));
 #endif /* UNIV_SYNC_DEBUG */
-	if (UNIV_UNLIKELY(block->state != BUF_BLOCK_FILE_PAGE)) {
+	if (UNIV_UNLIKELY(buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE)) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"  InnoDB: Error: buffer block state %lu"
 			" in the LRU list!\n",
-			(ulong)block->state);
+			(ulong) buf_block_get_state(block));
 		ut_print_buf(stderr, block, sizeof(buf_block_t));
 
 		return(FALSE);
@@ -158,7 +158,7 @@ buf_flush_ready_for_flush(
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 	ut_ad(mutex_own(&(block->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
 	if ((ut_dulint_cmp(block->oldest_modification, ut_dulint_zero) > 0)
 	    && (block->io_fix == 0)) {
@@ -191,7 +191,7 @@ buf_flush_write_complete(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
 	block->oldest_modification = ut_dulint_zero;
 
@@ -261,7 +261,7 @@ buf_flush_buffered_writes(void)
 	for (i = 0; i < trx_doublewrite->first_free; i++) {
 
 		block = trx_doublewrite->buf_block_arr[i];
-		ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+		ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
 		if (UNIV_LIKELY_NULL(block->page_zip.data)) {
 			/* No simple validate for compressed pages exists. */
@@ -299,8 +299,8 @@ corrupted_page:
 					"InnoDB: to prevent corrupt data"
 					" from ending up in data\n"
 					"InnoDB: files.\n",
-					(ulong) block->offset,
-					(ulong) block->space);
+					(ulong) buf_block_get_page_no(block),
+					(ulong) buf_block_get_space(block));
 
 				ut_error;
 			}
@@ -388,12 +388,12 @@ flush:
 
 	for (i = 0; i < trx_doublewrite->first_free; i++) {
 		block = trx_doublewrite->buf_block_arr[i];
-		ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+		ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 		if (UNIV_UNLIKELY(block->page_zip.size)) {
 			fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
-			       FALSE, block->space,
+			       FALSE, buf_block_get_space(block),
 			       block->page_zip.size,
-			       block->offset, 0,
+			       buf_block_get_page_no(block), 0,
 			       block->page_zip.size,
 			       (void*)block->page_zip.data,
 			       (void*)block);
@@ -416,12 +416,12 @@ flush:
 				" io fix %lu, state %lu\n",
 				(ulong)block->buf_fix_count,
 				(ulong)block->io_fix,
-				(ulong)block->state);
+				(ulong)buf_block_get_state(block));
 		}
 
 		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
-		       FALSE, block->space, 0,
-		       block->offset, 0, UNIV_PAGE_SIZE,
+		       FALSE, buf_block_get_space(block), 0,
+		       buf_block_get_page_no(block), 0, UNIV_PAGE_SIZE,
 		       (void*)block->frame, (void*)block);
 	}
 
@@ -460,7 +460,7 @@ buf_flush_post_to_doublewrite_buf(
 try_again:
 	mutex_enter(&(trx_doublewrite->mutex));
 
-	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
 	if (trx_doublewrite->first_free
 	    >= 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
@@ -583,7 +583,7 @@ buf_flush_write_block_low(
 #ifdef UNIV_LOG_DEBUG
 	static ibool univ_log_debug_warned;
 #endif /* UNIV_LOG_DEBUG */
-	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
 #ifdef UNIV_IBUF_DEBUG
 	ut_a(ibuf_count_get(block->space, block->offset) == 0);
@@ -607,8 +607,8 @@ buf_flush_write_block_low(
 				   block->newest_modification);
 	if (!srv_use_doublewrite_buf || !trx_doublewrite) {
 		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
-		       FALSE, block->space, block->page_zip.size,
-		       block->offset, 0, block->page_zip.size
+		       FALSE, buf_block_get_space(block), block->page_zip.size,
+		       buf_block_get_page_no(block), 0, block->page_zip.size
 		       ? block->page_zip.size : UNIV_PAGE_SIZE,
 		       (void*)block->frame, (void*)block);
 	} else {
@@ -641,7 +641,7 @@ buf_flush_try_page(
 
 	block = buf_page_hash_get(space, offset);
 
-	ut_a(!block || block->state == BUF_BLOCK_FILE_PAGE);
+	ut_a(!block || buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
 	if (!block) {
 		mutex_exit(&(buf_pool->mutex));
@@ -812,7 +812,7 @@ buf_flush_try_neighbors(
 	for (i = low; i < high; i++) {
 
 		block = buf_page_hash_get(space, i);
-		ut_a(!block || block->state == BUF_BLOCK_FILE_PAGE);
+		ut_a(!block || buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
 		if (!block) {
 
@@ -949,15 +949,15 @@ buf_flush_batch(
 		function a pointer to a block in the list! */
 
 		while ((block != NULL) && !found) {
-			ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+			ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
 			mutex_enter(&block->mutex);
 
 			if (buf_flush_ready_for_flush(block, flush_type)) {
 
 				found = TRUE;
-				space = block->space;
-				offset = block->offset;
+				space = buf_block_get_space(block);
+				offset = buf_block_get_page_no(block);
 
 				mutex_exit(&block->mutex);
 				mutex_exit(&(buf_pool->mutex));
@@ -1136,7 +1136,7 @@ buf_flush_validate_low(void)
 
 	while (block != NULL) {
 		om = block->oldest_modification;
-		ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+		ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 		ut_a(ut_dulint_cmp(om, ut_dulint_zero) > 0);
 
 		block = UT_LIST_GET_NEXT(flush_list, block);

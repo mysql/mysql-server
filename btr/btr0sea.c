@@ -825,7 +825,8 @@ btr_search_guess_on_hash(
 #endif /* UNIV_SYNC_DEBUG */
 	}
 
-	if (UNIV_UNLIKELY(block->state == BUF_BLOCK_REMOVE_HASH)) {
+	if (UNIV_UNLIKELY(buf_block_get_state(block)
+			  == BUF_BLOCK_REMOVE_HASH)) {
 		if (UNIV_LIKELY(!has_search_latch)) {
 
 			btr_leaf_page_release(block, latch_mode, mtr);
