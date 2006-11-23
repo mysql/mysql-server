@@ -280,7 +280,7 @@ create event e22830_3 on schedule every 1 hour do alter event e22830_3 on schedu
 create event e22830_4 on schedule every 1 hour do alter event e22830_4 on schedule every (select f22830() from dual) hour;
 select event_name, event_definition, interval_value, interval_field from information_schema.events order by event_name;
 set global event_scheduler=on;
---sleep 0.7
+--sleep 2.4
 set global event_scheduler=off;
 select event_name, event_definition, interval_value, interval_field from information_schema.events order by event_name;
 drop function f22830;
