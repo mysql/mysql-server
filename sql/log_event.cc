@@ -5467,14 +5467,13 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 /*
-  Unpack a row into a record.
+  Unpack a row into table->record[0].
   
   SYNOPSIS
     unpack_row()
     rli     Relay log info
     table   Table to unpack into
     colcnt  Number of columns to read from record
-    record  Record where the data should be unpacked
     row     Packed row data
     cols    Pointer to columns data to fill in
     row_end Pointer to variable that will hold the value of the
@@ -5486,6 +5485,11 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
             write_set of the table
 
   DESCRIPTION
+
+      The function will always unpack into the table->record[0]
+      record.  This is because there are too many dependencies on
+      where the various member functions of Field and subclasses
+      expect to write.
 
       The row is assumed to only consist of the fields for which the
       bitset represented by 'arr' and 'bits'; the other parts of the
@@ -5505,15 +5509,15 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
  */
 static int
 unpack_row(RELAY_LOG_INFO *rli,
-           TABLE *table, uint const colcnt, byte *record,
+           TABLE *table, uint const colcnt,
            char const *row, MY_BITMAP const *cols,
            char const **row_end, ulong *master_reclength,
            MY_BITMAP* const rw_set, Log_event_type const event_type)
 {
+  byte *const record= table->record[0];
   DBUG_ENTER("unpack_row");
   DBUG_ASSERT(record && row);
-  DBUG_PRINT("enter", ("row=0x%lx; record=0x%lx", row, record));
-  my_ptrdiff_t const offset= record - (byte*) table->record[0];
+  DBUG_PRINT("enter", ("row=0x%lx; table->record[0]=0x%lx", row, record));
   my_size_t master_null_bytes= table->s->null_bytes;
 
   if (colcnt != table->s->fields)
@@ -5555,11 +5559,9 @@ unpack_row(RELAY_LOG_INFO *rli,
     {
       DBUG_ASSERT(table->record[0] <= f->ptr);
       DBUG_ASSERT(f->ptr < table->record[0] + table->s->reclength + (f->pack_length_in_rec() == 0));
-      f->move_field_offset(offset);
 
       DBUG_PRINT("info", ("unpacking column '%s' to 0x%lx", f->field_name, f->ptr));
       ptr= f->unpack(f->ptr, ptr);
-      f->move_field_offset(-offset);
       /* Field...::unpack() cannot return 0 */
       DBUG_ASSERT(ptr != NULL);
     }
@@ -5590,9 +5592,10 @@ unpack_row(RELAY_LOG_INFO *rli,
   for ( ; *field_ptr ; ++field_ptr)
   {
     uint32 const mask= NOT_NULL_FLAG | NO_DEFAULT_VALUE_FLAG;
+    Field *const f= *field_ptr;
 
-    if (event_type == WRITE_ROWS_EVENT &&
-        ((*field_ptr)->flags & mask) == mask)
+    DBUG_PRINT("info", ("processing column '%s' @ 0x%lx", f->field_name, f->ptr));
+    if (event_type == WRITE_ROWS_EVENT && (f->flags & mask) == mask)
     {
       slave_print_msg(ERROR_LEVEL, rli, ER_NO_DEFAULT_FOR_FIELD,
                       "Field `%s` of table `%s`.`%s` "
@@ -5602,7 +5605,7 @@ unpack_row(RELAY_LOG_INFO *rli,
       error = ER_NO_DEFAULT_FOR_FIELD;
     }
     else
-      (*field_ptr)->set_default();
+      f->set_default();
   }
 
   DBUG_RETURN(error);
@@ -6458,10 +6461,8 @@ int Write_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO *rli,
   DBUG_ASSERT(row_start && row_end);
 
   int error;
-  error= unpack_row(rli,
-                    table, m_width, table->record[0],
-                    row_start, &m_cols, row_end, &m_master_reclength,
-                    table->write_set, WRITE_ROWS_EVENT);
+  error= unpack_row(rli, table, m_width, row_start, &m_cols, row_end,
+                    &m_master_reclength, table->write_set, WRITE_ROWS_EVENT);
   bitmap_copy(table->read_set, table->write_set);
   return error;
 }
@@ -6682,7 +6683,7 @@ replace_record(THD *thd, TABLE *table,
        present on the master from table->record[1], if there are any.
     */
     copy_extra_record_fields(table, master_reclength, master_fields);
-    
+
     /*
        REPLACE is defined as either INSERT or DELETE + INSERT.  If
        possible, we can replace it with an UPDATE, but that will not
@@ -7063,10 +7064,8 @@ int Delete_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO *rli,
   */
   DBUG_ASSERT(table->s->fields >= m_width);
 
-  error= unpack_row(rli,
-                    table, m_width, table->record[0], 
-                    row_start, &m_cols, row_end, &m_master_reclength,
-                    table->read_set, DELETE_ROWS_EVENT);
+  error= unpack_row(rli, table, m_width, row_start, &m_cols, row_end,
+                    &m_master_reclength, table->read_set, DELETE_ROWS_EVENT);
   /*
     If we will access rows using the random access method, m_key will
     be set to NULL, so we do not need to make a key copy in that case.
@@ -7200,25 +7199,30 @@ int Update_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO *rli,
   */
   DBUG_ASSERT(table->s->fields >= m_width);
 
+  /*
+    We need to perform some juggling below since unpack_row() always
+    unpacks into table->record[0]. For more information, see the
+    comments for unpack_row().
+  */
+
   /* record[0] is the before image for the update */
-  error= unpack_row(rli,
-                    table, m_width, table->record[0],
-                    row_start, &m_cols, row_end, &m_master_reclength,
-                    table->read_set, UPDATE_ROWS_EVENT);
+  error= unpack_row(rli, table, m_width, row_start, &m_cols, row_end,
+                    &m_master_reclength, table->read_set, UPDATE_ROWS_EVENT);
+  store_record(table, record[1]);
   char const *next_start = *row_end;
   /* m_after_image is the after image for the update */
-  error= unpack_row(rli,
-                    table, m_width, m_after_image,
-                    next_start, &m_cols, row_end, &m_master_reclength,
-                    table->write_set, UPDATE_ROWS_EVENT);
+  error= unpack_row(rli, table, m_width, next_start, &m_cols, row_end,
+                    &m_master_reclength, table->write_set, UPDATE_ROWS_EVENT);
+  bmove_align(m_after_image, table->record[0], table->s->reclength);
+  restore_record(table, record[1]);
 
   /*
     Don't print debug messages when running valgrind since they can
     trigger false warnings.
    */
 #ifndef HAVE_purify
-  DBUG_DUMP("record[0]", (const char *)table->record[0], m_master_reclength);
-  DBUG_DUMP("m_after_image", (const char *)m_after_image, m_master_reclength);
+  DBUG_DUMP("record[0]", (const char *)table->record[0], table->s->reclength);
+  DBUG_DUMP("m_after_image", (const char *)m_after_image, table->s->reclength);
 #endif
 
   /*
@@ -7258,6 +7262,9 @@ int Update_rows_log_event::do_exec_row(TABLE *table)
   */
   bmove_align(table->record[0], m_after_image, table->s->reclength);
   copy_extra_record_fields(table, m_master_reclength, m_width);
+
+  valgrind_check_mem(table->record[0], table->s->reclength);
+  valgrind_check_mem(table->record[1], table->s->reclength);
 
   /*
     Now we have the right row to update.  The old row (the one we're
