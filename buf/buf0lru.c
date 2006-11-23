@@ -463,7 +463,7 @@ loop:
 
 		mutex_enter(&block->mutex);
 
-		block->state = BUF_BLOCK_READY_FOR_USE;
+		buf_block_set_state(block, BUF_BLOCK_READY_FOR_USE);
 		UNIV_MEM_VALID(block->frame, UNIV_PAGE_SIZE);
 
 		mutex_exit(&block->mutex);
@@ -868,7 +868,7 @@ buf_LRU_block_free_non_file_page(
 	ut_ad(block->n_pointers == 0);
 	ut_a(!block->in_free_list);
 
-	block->state = BUF_BLOCK_NOT_USED;
+	buf_block_set_state(block, BUF_BLOCK_NOT_USED);
 
 #ifdef UNIV_DEBUG
 	/* Wipe contents of page to reveal possible stale pointers to it */
@@ -953,7 +953,7 @@ buf_LRU_block_remove_hashed_page(
 	memset(block->frame + FIL_PAGE_OFFSET, 0xff, 4);
 	memset(block->frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 0xff, 4);
 
-	block->state = BUF_BLOCK_REMOVE_HASH;
+	buf_block_set_state(block, BUF_BLOCK_REMOVE_HASH);
 }
 
 /**********************************************************************
@@ -971,7 +971,7 @@ buf_LRU_block_free_hashed_page(
 #endif /* UNIV_SYNC_DEBUG */
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_REMOVE_HASH);
 
-	block->state = BUF_BLOCK_MEMORY;
+	buf_block_set_state(block, BUF_BLOCK_MEMORY);
 
 	buf_LRU_block_free_non_file_page(block);
 }

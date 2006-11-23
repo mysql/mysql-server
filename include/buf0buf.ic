@@ -109,6 +109,55 @@ buf_block_get_state(
 
 	return(state);
 }
+/*************************************************************************
+Sets the state of a block. */
+UNIV_INLINE
+void
+buf_block_set_state(
+/*================*/
+	buf_block_t*		block,	/* in/out: pointer to control block */
+	enum buf_block_state	state)	/* in: state */
+{
+#ifdef UNIV_DEBUG
+	enum buf_block_state	old_state	= buf_block_get_state(block);
+
+	switch (old_state) {
+	case BUF_BLOCK_NOT_USED:
+		ut_a(state == BUF_BLOCK_READY_FOR_USE);
+		break;
+	case BUF_BLOCK_READY_FOR_USE:
+		ut_a(state == BUF_BLOCK_MEMORY
+		      || state == BUF_BLOCK_FILE_PAGE);
+		break;
+	case BUF_BLOCK_MEMORY:
+		ut_a(state == BUF_BLOCK_NOT_USED);
+		break;
+	case BUF_BLOCK_FILE_PAGE:
+		ut_a(state == BUF_BLOCK_NOT_USED
+		      || state == BUF_BLOCK_REMOVE_HASH);
+		break;
+	case BUF_BLOCK_REMOVE_HASH:
+		ut_a(state == BUF_BLOCK_MEMORY);
+		break;
+	}
+#endif /* UNIV_DEBUG */
+	block->state = state;
+	ut_ad(buf_block_get_state(block) == state);
+}
+/*************************************************************************
+Map a block to a file page. */
+UNIV_INLINE
+void
+buf_block_set_file_page(
+/*====================*/
+	buf_block_t*		block,	/* in/out: pointer to control block */
+	ulint			space,	/* in: tablespace id */
+	ulint			page_no)/* in: page number */
+{
+	buf_block_set_state(block, BUF_BLOCK_FILE_PAGE);
+	block->space = space;
+	block->offset = page_no;
+}
 
 /*************************************************************************
 Gets a pointer to the memory frame of a block. */
@@ -120,8 +169,8 @@ buf_block_get_frame(
 	buf_block_t*	block)	/* in: pointer to the control block */
 {
 	ut_ad(block);
-	ut_ad(block->state != BUF_BLOCK_NOT_USED);
-	ut_ad((block->state != BUF_BLOCK_FILE_PAGE)
+	ut_ad(buf_block_get_state(block) != BUF_BLOCK_NOT_USED);
+	ut_ad(buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE
 	      || (block->buf_fix_count > 0));
 
 	return(block->frame);
@@ -137,7 +186,7 @@ buf_block_get_space(
 	const buf_block_t*	block)	/* in: pointer to the control block */
 {
 	ut_ad(block);
-	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	ut_ad(block->buf_fix_count > 0);
 
 	return(block->space);
@@ -153,7 +202,7 @@ buf_block_get_page_no(
 	const buf_block_t*	block)	/* in: pointer to the control block */
 {
 	ut_ad(block);
-	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	ut_ad(block->buf_fix_count > 0);
 
 	return(block->offset);
@@ -341,7 +390,7 @@ buf_page_io_query(
 {
 	mutex_enter(&(buf_pool->mutex));
 
-	ut_ad(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	ut_ad(block->buf_fix_count > 0);
 
 	if (block->io_fix != 0) {
