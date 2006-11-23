@@ -21,6 +21,9 @@ Crash president when he starts to run in ArbitState 1-9.
 
 910: Crash new president after node crash
 
+934 : Crash president in ALLOC_NODE_ID_REQ
+
+
 ERROR CODES FOR TESTING NODE FAILURE, GLOBAL CHECKPOINT HANDLING:
 -----------------------------------------------------------------
 

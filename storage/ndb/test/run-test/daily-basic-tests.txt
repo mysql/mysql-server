@@ -744,6 +744,10 @@ max-time: 1000
 cmd: testSRBank
 args: -n Mix -l 300 -r 15 T1
 
+max-time: 300
+cmd: testNodeRestart
+args: -n Bug24543 T1
+
 # OLD FLEX
 max-time: 500
 cmd: flexBench
