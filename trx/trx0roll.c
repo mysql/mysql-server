@@ -147,10 +147,6 @@ trx_rollback_for_mysql(
 
 	err = trx_general_rollback_for_mysql(trx, FALSE, NULL);
 	
-	if (trx->sess == trx_dummy_sess) {
-		trx->sess = NULL;
-	}
-
 	trx->op_info = "";
 
 	return(err);
