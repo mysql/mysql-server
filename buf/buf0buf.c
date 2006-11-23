@@ -738,7 +738,7 @@ buf_chunk_not_freed(
 	for (i = chunk->size; i--; block++) {
 		mutex_enter(&block->mutex);
 
-		if (block->state == BUF_BLOCK_FILE_PAGE
+		if (buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE
 		    && !buf_flush_ready_for_replace(block)) {
 
 			mutex_exit(&block->mutex);
@@ -772,7 +772,7 @@ buf_chunk_all_free(
 
 	for (i = chunk->size; i--; block++) {
 
-		if (block->state != BUF_BLOCK_NOT_USED) {
+		if (buf_block_get_state(block) != BUF_BLOCK_NOT_USED) {
 
 			return(FALSE);
 		}
@@ -799,7 +799,7 @@ buf_chunk_free(
 	block_end = chunk->blocks + chunk->size;
 
 	for (block = chunk->blocks; block < block_end; block++) {
-		ut_a(block->state == BUF_BLOCK_NOT_USED);
+		ut_a(buf_block_get_state(block) == BUF_BLOCK_NOT_USED);
 		ut_a(!block->page_zip.data);
 
 		ut_a(!block->in_LRU_list);
@@ -972,7 +972,7 @@ shrink_again:
 		/* Move the blocks of chunk to the end of the
 		LRU list and try to flush them. */
 		for (; block < bend; block++) {
-			switch (block->state) {
+			switch (buf_block_get_state(block)) {
 			case BUF_BLOCK_NOT_USED:
 				continue;
 			case BUF_BLOCK_FILE_PAGE:
@@ -1079,7 +1079,8 @@ buf_pool_page_hash_rebuild(void)
 		buf_block_t*	block = chunk->blocks;
 
 		for (j = 0; j < chunk->size; j++, block++) {
-			if (block->state == BUF_BLOCK_FILE_PAGE) {
+			if (buf_block_get_state(block)
+			    == BUF_BLOCK_FILE_PAGE) {
 				HASH_INSERT(buf_block_t, hash, page_hash,
 					    buf_page_address_fold(
 						    block->space,
@@ -1189,7 +1190,7 @@ buf_page_make_young(
 {
 	mutex_enter(&(buf_pool->mutex));
 
-	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
 	buf_LRU_make_block_young(block);
 
@@ -1429,7 +1430,7 @@ loop:
 
 	mutex_enter(&block->mutex);
 
-	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
 	must_read = FALSE;
 
@@ -1573,7 +1574,7 @@ buf_page_optimistic_get_func(
 
 	mutex_enter(&block->mutex);
 
-	if (UNIV_UNLIKELY(block->state != BUF_BLOCK_FILE_PAGE)) {
+	if (UNIV_UNLIKELY(buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE)) {
 
 		mutex_exit(&block->mutex);
 
@@ -1695,7 +1696,7 @@ buf_page_get_known_nowait(
 
 	mutex_enter(&block->mutex);
 
-	if (block->state == BUF_BLOCK_REMOVE_HASH) {
+	if (buf_block_get_state(block) == BUF_BLOCK_REMOVE_HASH) {
 		/* Another thread is just freeing the block from the LRU list
 		of the buffer pool: do not try to access this page; this
 		attempt to access the page can only come through the hash
@@ -1708,7 +1709,7 @@ buf_page_get_known_nowait(
 		return(FALSE);
 	}
 
-	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
 #ifdef UNIV_SYNC_DEBUG
 	buf_block_buf_fix_inc_debug(block, file, line);
@@ -1831,7 +1832,7 @@ buf_page_init(
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 	ut_ad(mutex_own(&(block->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_a(block->state != BUF_BLOCK_FILE_PAGE);
+	ut_a(buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE);
 
 	/* Set the state of the block */
 	block->magic_n		= BUF_BLOCK_MAGIC_N;
@@ -2121,7 +2122,7 @@ buf_page_io_complete(
 
 	ut_ad(block);
 
-	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
 	/* We do not need protect block->io_fix here by block->mutex to read
 	it because this is the only function where we can change the value
@@ -2137,7 +2138,7 @@ buf_page_io_complete(
 		byte*	frame;
 
 		if (block->page_zip.size) {
-			ut_a(block->space);
+			ut_a(buf_block_get_space(block) != 0);
 
 			frame = block->page_zip.data;
 
@@ -2180,15 +2181,16 @@ buf_page_io_complete(
 		read_space_id = mach_read_from_4(
 			frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
-		if (!block->space
-		    && trx_doublewrite_page_inside(block->offset)) {
+		if (buf_block_get_space(block) == TRX_SYS_SPACE
+		    && trx_doublewrite_page_inside(
+			    buf_block_get_page_no(block))) {
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
 				"  InnoDB: Error: reading page %lu\n"
 				"InnoDB: which is in the"
 				" doublewrite buffer!\n",
-				(ulong) block->offset);
+				(ulong) buf_block_get_page_no(block));
 		} else if (!read_space_id && !read_page_no) {
 			/* This is likely an uninitialized page. */
 		} else if ((block->space && block->space != read_space_id)
@@ -2386,7 +2388,8 @@ buf_validate(void)
 
 			mutex_enter(&block->mutex);
 
-			if (block->state == BUF_BLOCK_FILE_PAGE) {
+			switch (buf_block_get_state(block)) {
+			case BUF_BLOCK_FILE_PAGE:
 
 				ut_a(buf_page_hash_get(block->space,
 						       block->offset)
@@ -2430,8 +2433,11 @@ buf_validate(void)
 					n_flush++;
 				}
 
-			} else if (block->state == BUF_BLOCK_NOT_USED) {
+				break;
+
+			case BUF_BLOCK_NOT_USED:
 				n_free++;
+				break;
 			}
 
 			mutex_exit(&block->mutex);

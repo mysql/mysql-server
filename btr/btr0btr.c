@@ -2323,7 +2323,8 @@ btr_compress(
 					    mtr);
 		merge_page = buf_block_get_frame(merge_block);
 #ifdef UNIV_BTR_DEBUG
-		ut_a(btr_page_get_next(merge_page, mtr) == block->offset);
+		ut_a(btr_page_get_next(merge_page, mtr)
+		     == buf_block_get_page_no(block));
 #endif /* UNIV_BTR_DEBUG */
 	} else if (right_page_no != FIL_NULL) {
 
@@ -2331,7 +2332,8 @@ btr_compress(
 					    mtr);
 		merge_page = buf_block_get_frame(merge_block);
 #ifdef UNIV_BTR_DEBUG
-		ut_a(btr_page_get_prev(merge_page, mtr) == block->offset);
+		ut_a(btr_page_get_prev(merge_page, mtr)
+		     == buf_block_get_page_no(block));
 #endif /* UNIV_BTR_DEBUG */
 	} else {
 		/* The page is the only one on the level, lift the records
@@ -2580,14 +2582,16 @@ btr_discard_page(
 					    mtr);
 		merge_page = buf_block_get_frame(merge_block);
 #ifdef UNIV_BTR_DEBUG
-		ut_a(btr_page_get_next(merge_page, mtr) == block->offset);
+		ut_a(btr_page_get_next(merge_page, mtr)
+		     == buf_block_get_page_no(block));
 #endif /* UNIV_BTR_DEBUG */
 	} else if (right_page_no != FIL_NULL) {
 		merge_block = btr_block_get(space, right_page_no, RW_X_LATCH,
 					    mtr);
 		merge_page = buf_block_get_frame(merge_block);
 #ifdef UNIV_BTR_DEBUG
-		ut_a(btr_page_get_prev(merge_page, mtr) == block->offset);
+		ut_a(btr_page_get_prev(merge_page, mtr)
+		     == buf_block_get_page_no(block));
 #endif /* UNIV_BTR_DEBUG */
 	} else {
 		btr_discard_only_page_on_level(index, block, mtr);
