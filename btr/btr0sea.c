@@ -356,7 +356,7 @@ btr_search_update_block_hash_info(
 
 	info->last_hash_succ = FALSE;
 
-	ut_a(block->magic_n == BUF_BLOCK_MAGIC_N);
+	ut_a(buf_block_state_valid(block));
 	ut_ad(info->magic_n == BTR_SEARCH_MAGIC_N);
 
 	if ((block->n_hash_helps > 0)

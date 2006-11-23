@@ -603,8 +603,6 @@ buf_block_init(
 	buf_block_t*	block,	/* in: pointer to control block */
 	byte*		frame)	/* in: pointer to buffer frame */
 {
-	block->magic_n = 0;
-
 	block->state = BUF_BLOCK_NOT_USED;
 
 	block->frame = frame;
@@ -1783,8 +1781,6 @@ buf_page_init_for_backup_restore(
 	buf_block_t*	block)	/* in: block to init */
 {
 	/* Set the state of the block */
-	block->magic_n		= BUF_BLOCK_MAGIC_N;
-
 	buf_block_set_file_page(block, space, offset);
 
 	block->lock_hash_val	= 0;
@@ -1833,8 +1829,6 @@ buf_page_init(
 	ut_a(buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE);
 
 	/* Set the state of the block */
-	block->magic_n		= BUF_BLOCK_MAGIC_N;
-
 	buf_block_set_file_page(block, space, offset);
 
 	block->check_index_page_at_flush = FALSE;
