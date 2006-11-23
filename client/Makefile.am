@@ -49,7 +49,8 @@ mysqlshow_SOURCES=              mysqlshow.c
 mysqldump_SOURCES=              mysqldump.c my_user.c \
 	                        $(top_srcdir)/mysys/mf_getdate.c
 mysqlimport_SOURCES=            mysqlimport.c
-mysql_upgrade_SOURCES=          mysql_upgrade.c
+mysql_upgrade_SOURCES=          mysql_upgrade.c \
+                                $(top_srcdir)/mysys/my_getpagesize.c
 sql_src=log_event.h mysql_priv.h log_event.cc my_decimal.h my_decimal.cc
 strings_src=decimal.c
 
