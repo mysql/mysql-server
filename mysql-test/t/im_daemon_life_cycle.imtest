@@ -6,59 +6,73 @@
 #
 ###########################################################################
 
+--exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle im_daemon_life_cycle.imtest started.
+
+###########################################################################
+
 --source include/im_check_env.inc
 
-# Turn on reconnect, not on by default anymore
+# Turn on reconnect, not on by default anymore.
 --enable_reconnect
 
 ###########################################################################
-
-# Kill the IM main process and check that the IM Angel will restart the main
-# process.
-
---exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_PATH_PID restarted 30
-
+#
+# The main daemon-life-cycle test case -- check that IM-angel will restart
+# IM-main if it got killed:
+#   - kill IM-main and check that IM-angel will restart it;
+#   - wait for IM-main to start accepting connections before continue test
+#     case;
+#
 ###########################################################################
 
-# Wait for IM to start accepting connections.
+--exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle Main-test: starting...
 
---exec $MYSQL_TEST_DIR/t/wait_for_socket.sh $EXE_MYSQL $IM_PATH_SOCK $IM_USERNAME $IM_PASSWORD '' 30
+--exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle Killing IM-main...
+--exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_PATH_PID restarted 30 im_daemon_life_cycle
+
+--exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle Waiting for IM-main to start accepting connections...
+--exec $MYSQL_TEST_DIR/t/wait_for_socket.sh $EXE_MYSQL $IM_PATH_SOCK $IM_USERNAME $IM_PASSWORD '' 30 im_daemon_life_cycle
+
+--exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle Main-test: done.
 
 ###########################################################################
-
 #
 # BUG#12751: Instance Manager: client hangs
+#   - start nonguarded instance (mysqld2);
+#   - kill IM-main and get it restarted by IM-angel;
+#   - check that guarded instance (mysqld1) is accepting connections.
+#   - check that non-guarded instance (mysqld2) were not stopped.
 #
+###########################################################################
 
 --echo
 --echo --------------------------------------------------------------------
 --echo -- Test for BUG#12751
 --echo --------------------------------------------------------------------
 
-# Give some time to begin accepting connections after restart.
-# FIXME: race condition here.
-
---sleep 3
+--exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle BUG12751: starting...
 
 # 1. Start mysqld;
 
+--exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle mysqld2: starting...
 START INSTANCE mysqld2;
-# FIXME: START INSTANCE should be synchronous.
---exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 started
 
-# 2. Restart IM-main: kill it and IM-angel will restart it; wait for IM to
-# start accepting connections again.
+--exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle mysqld2: waiting to start...
+--exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 started im_daemon_life_cycle
 
---exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_PATH_PID restarted 30
+--exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle mysqld2: started.
 
---exec $MYSQL_TEST_DIR/t/wait_for_socket.sh $EXE_MYSQL $IM_PATH_SOCK $IM_USERNAME $IM_PASSWORD '' 30
+# 2. Restart IM-main;
+
+--exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle Killing IM-main...
+--exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_PATH_PID restarted 30 im_daemon_life_cycle
+
+--exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle Waiting for IM-main to start accepting connections...
+--exec $MYSQL_TEST_DIR/t/wait_for_socket.sh $EXE_MYSQL $IM_PATH_SOCK $IM_USERNAME $IM_PASSWORD '' 30 im_daemon_life_cycle
 
 # 3. Issue some statement -- connection should be re-established.
 
-# Give some time to begin accepting connections after restart.
-# FIXME: race condition here.
-
---sleep 3
+--exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle Checking that IM-main processing commands...
 
 --replace_column 3 VERSION
 SHOW INSTANCE STATUS mysqld1;
@@ -67,6 +81,13 @@ SHOW INSTANCE STATUS mysqld1;
 # So, if it we do not stop it, it will be stopped by mysql-test-run.pl with
 # warning.
 
+--exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle mysqld2: stopping...
 STOP INSTANCE mysqld2;
-# FIXME: STOP INSTANCE should be synchronous.
---exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 stopped
+
+--exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle mysqld2: waiting to stop...
+--exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 stopped im_daemon_life_cycle
+--exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle mysqld2: stopped.
+
+###########################################################################
+
+--exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle BUG12751: done.
