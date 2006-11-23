@@ -375,22 +375,24 @@ static int comp_names(struct fileinfo *a, struct fileinfo *b)
 }
 
 
-static int 
-find_file(const char *name, const char *root, uint flags, char *result, size_t len, ...)
+static int find_file(const char *name, const char *root,
+                     uint flags, char *result, size_t len, ...)
 {
-  int ret;
+  int ret= 1;
   va_list va;
-  FILEINFO key= { (char*)name, NULL };
   const char *subdir;
   char *cp;
-  
+  FILEINFO key;
+
+  /* Init key with name of the file to look for */
+  key.name= (char*)name;
+
   DBUG_ASSERT(root != NULL);
 
   cp= strmake(result, root, len);
   if (cp[-1] != FN_LIBCHAR) 
     *cp++= FN_LIBCHAR; 
   
-  ret= 1;
   va_start(va, len);
   subdir= (!(flags & MY_SEARCH_SELF)) ? va_arg(va, char *) : "";
   while (subdir)
