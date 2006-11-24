@@ -444,20 +444,20 @@ loop:
 		ut_a(buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE);
 		ut_a(!block->in_LRU_list);
 
-		if (block->page_zip.size != zip_size) {
-			block->page_zip.size = zip_size;
-			block->page_zip.n_blobs = 0;
-			block->page_zip.m_start = 0;
-			block->page_zip.m_end = 0;
-			if (block->page_zip.data) {
-				ut_free(block->page_zip.data);
+		if (block->page.zip.size != zip_size) {
+			block->page.zip.size = zip_size;
+			block->page.zip.n_blobs = 0;
+			block->page.zip.m_start = 0;
+			block->page.zip.m_end = 0;
+			if (block->page.zip.data) {
+				ut_free(block->page.zip.data);
 			}
 
 			if (zip_size) {
 				/* TODO: allocate zip from an aligned pool */
-				block->page_zip.data = ut_malloc(zip_size);
+				block->page.zip.data = ut_malloc(zip_size);
 			} else {
-				block->page_zip.data = NULL;
+				block->page.zip.data = NULL;
 			}
 		}
 
@@ -878,11 +878,11 @@ buf_LRU_block_free_non_file_page(
 	memset(block->frame + FIL_PAGE_OFFSET, 0xfe, 4);
 	memset(block->frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 0xfe, 4);
 #endif
-	if (block->page_zip.data) {
+	if (block->page.zip.data) {
 		/* TODO: return zip to an aligned pool */
-		ut_free(block->page_zip.data);
-		block->page_zip.data = NULL;
-		block->page_zip.size = 0;
+		ut_free(block->page.zip.data);
+		block->page.zip.data = NULL;
+		block->page.zip.size = 0;
 	}
 
 	UT_LIST_ADD_FIRST(free, buf_pool->free, block);
@@ -920,21 +920,22 @@ buf_LRU_block_remove_hashed_page(
 
 	buf_block_modify_clock_inc(block);
 
-	hashed_block = buf_page_hash_get(block->space, block->offset);
+	hashed_block = buf_page_hash_get(block->page.space,
+					 block->page.offset);
 
 	if (UNIV_UNLIKELY(block != hashed_block)) {
 		fprintf(stderr,
 			"InnoDB: Error: page %lu %lu not found"
 			" in the hash table\n",
-			(ulong) block->space,
-			(ulong) block->offset);
+			(ulong) block->page.space,
+			(ulong) block->page.offset);
 		if (hashed_block) {
 			fprintf(stderr,
 				"InnoDB: In hash table we find block"
 				" %p of %lu %lu which is not %p\n",
 				(const void*) hashed_block,
-				(ulong) hashed_block->space,
-				(ulong) hashed_block->offset,
+				(ulong) hashed_block->page.space,
+				(ulong) hashed_block->page.offset,
 				(void*) block);
 		}
 
@@ -948,7 +949,8 @@ buf_LRU_block_remove_hashed_page(
 	}
 
 	HASH_DELETE(buf_block_t, hash, buf_pool->page_hash,
-		    buf_page_address_fold(block->space, block->offset),
+		    buf_page_address_fold(block->page.space,
+					  block->page.offset),
 		    block);
 	memset(block->frame + FIL_PAGE_OFFSET, 0xff, 4);
 	memset(block->frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 0xff, 4);

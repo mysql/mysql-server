@@ -86,16 +86,17 @@ buf_pool_clock_tic(void)
 /*************************************************************************
 Gets the state of a block. */
 UNIV_INLINE
-enum buf_block_state
+enum buf_page_state
 buf_block_get_state(
 /*================*/
 					/* out: state */
 	const buf_block_t*	block)	/* in: pointer to the control block */
 {
-	enum buf_block_state	state = block->state;
+	enum buf_page_state	state = block->page.zip.state;
 
 #ifdef UNIV_DEBUG
 	switch (state) {
+	case BUF_BLOCK_ZIP_PAGE:
 	case BUF_BLOCK_NOT_USED:
 	case BUF_BLOCK_READY_FOR_USE:
 	case BUF_BLOCK_FILE_PAGE:
@@ -116,12 +117,15 @@ void
 buf_block_set_state(
 /*================*/
 	buf_block_t*		block,	/* in/out: pointer to control block */
-	enum buf_block_state	state)	/* in: state */
+	enum buf_page_state	state)	/* in: state */
 {
 #ifdef UNIV_DEBUG
-	enum buf_block_state	old_state	= buf_block_get_state(block);
+	enum buf_page_state	old_state	= buf_block_get_state(block);
 
 	switch (old_state) {
+	case BUF_BLOCK_ZIP_PAGE:
+		ut_error;
+		break;
 	case BUF_BLOCK_NOT_USED:
 		ut_a(state == BUF_BLOCK_READY_FOR_USE);
 		break;
@@ -142,7 +146,7 @@ buf_block_set_state(
 		break;
 	}
 #endif /* UNIV_DEBUG */
-	block->state = state;
+	block->page.zip.state = state;
 	ut_ad(buf_block_get_state(block) == state);
 }
 /*************************************************************************
@@ -156,8 +160,8 @@ buf_block_set_file_page(
 	ulint			page_no)/* in: page number */
 {
 	buf_block_set_state(block, BUF_BLOCK_FILE_PAGE);
-	block->space = space;
-	block->offset = page_no;
+	block->page.space = space;
+	block->page.offset = page_no;
 }
 
 /*************************************************************************
@@ -189,7 +193,7 @@ buf_block_get_space(
 	ut_ad(block);
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
-	return(block->space);
+	return(block->page.space);
 }
 
 /*************************************************************************
@@ -204,7 +208,7 @@ buf_block_get_page_no(
 	ut_ad(block);
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
-	return(block->offset);
+	return(block->page.offset);
 }
 
 /*************************************************************************
@@ -216,7 +220,7 @@ buf_block_get_zip_size(
 					/* out: compressed page size, or 0 */
 	const buf_block_t*	block)	/* in: pointer to the control block */
 {
-	return(block->page_zip.size);
+	return(block->page.zip.size);
 }
 
 /*************************************************************************
@@ -229,8 +233,8 @@ buf_block_get_page_zip(
 				/* out: compressed page descriptor, or NULL */
 	buf_block_t*	block)	/* in: pointer to the control block */
 {
-	if (UNIV_LIKELY_NULL(block->page_zip.data)) {
-		return(&block->page_zip);
+	if (UNIV_LIKELY_NULL(block->page.zip.data)) {
+		return(&block->page.zip);
 	}
 
 	return(NULL);
@@ -517,7 +521,8 @@ buf_page_hash_get(
 	fold = buf_page_address_fold(space, offset);
 
 	HASH_SEARCH(hash, buf_pool->page_hash, fold, block,
-		    (block->space == space) && (block->offset == offset));
+		    block->page.space == space
+		    && block->page.offset == offset);
 	ut_a(!block || buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
 	return(block);
