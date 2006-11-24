@@ -3140,8 +3140,8 @@ ibuf_merge_or_delete_for_page(
 	ibool		corruption_noticed	= FALSE;
 	mtr_t		mtr;
 
-	ut_ad(!block || block->space == space);
-	ut_ad(!block || block->offset == page_no);
+	ut_ad(!block || buf_block_get_space(block) == space);
+	ut_ad(!block || buf_block_get_page_no(block) == page_no);
 	ut_ad(!block || buf_block_get_zip_size(block) == zip_size);
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
