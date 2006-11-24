@@ -39,6 +39,11 @@ delete t1 from t1,t3 where t1.a=t3.a;
 drop table t1;
 insert into t1 values(1);
 ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+drop temporary table ttt;
+ERROR 42S02: Unknown table 'ttt'
+drop temporary table if exists ttt;
+Warnings:
+Note	1051	Unknown table 'ttt'
 drop table t1,t2;
 drop user test@localhost;
 set global read_only=0;
