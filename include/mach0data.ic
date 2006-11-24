@@ -273,6 +273,22 @@ mach_write_to_8(
 	mach_write_to_4(b + 4, ut_dulint_get_low(n));
 }
 
+/***********************************************************
+The following function is used to store data in 8 consecutive
+bytes. We store the most significant byte to the lowest address. */
+UNIV_INLINE
+void
+mach_write_ull(
+/*===========*/
+	byte*		b,	/* in: pointer to 8 bytes where to store */
+	ib_ulonglong	n)	/* in: 64-bit integer to be stored */
+{
+	ut_ad(b);
+
+	mach_write_to_4(b, n >> 32);
+	mach_write_to_4(b + 4, n);
+}
+
 /************************************************************
 The following function is used to fetch data from 8 consecutive
 bytes. The most significant byte is at the lowest address. */
@@ -292,6 +308,24 @@ mach_read_from_8(
 	low = mach_read_from_4(b + 4);
 
 	return(ut_dulint_create(high, low));
+}
+
+/************************************************************
+The following function is used to fetch data from 8 consecutive
+bytes. The most significant byte is at the lowest address. */
+UNIV_INLINE
+ib_ulonglong
+mach_read_ull(
+/*==========*/
+				/* out: 64-bit integer */
+	const byte*	b)	/* in: pointer to 8 bytes */
+{
+	ib_ulonglong	ull;
+
+	ull = ((ib_ulonglong) mach_read_from_4(b)) << 32;
+	ull |= (ib_ulonglong) mach_read_from_4(b + 4);
+
+	return(ull);
 }
 
 /***********************************************************

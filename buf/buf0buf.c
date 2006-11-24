@@ -291,10 +291,10 @@ buf_page_is_corrupted(
 	ulint		zip_size)	/* in: size of compressed page;
 					0 for uncompressed pages */
 {
-	ulint	checksum_field;
-	ulint	old_checksum_field;
+	ulint		checksum_field;
+	ulint		old_checksum_field;
 #ifndef UNIV_HOTBACKUP
-	dulint	current_lsn;
+	ib_ulonglong	current_lsn;
 #endif
 	if (UNIV_LIKELY(!zip_size)
 	    && memcmp(read_buf + FIL_PAGE_LSN + 4,
@@ -309,16 +309,14 @@ buf_page_is_corrupted(
 
 #ifndef UNIV_HOTBACKUP
 	if (recv_lsn_checks_on && log_peek_lsn(&current_lsn)) {
-		if (ut_dulint_cmp(current_lsn,
-				  mach_read_from_8(read_buf + FIL_PAGE_LSN))
-		    < 0) {
+		if (current_lsn < mach_read_ull(read_buf + FIL_PAGE_LSN)) {
 			ut_print_timestamp(stderr);
 
 			fprintf(stderr,
 				"  InnoDB: Error: page %lu log sequence number"
-				" %lu %lu\n"
+				" %llu\n"
 				"InnoDB: is in the future! Current system "
-				"log sequence number %lu %lu.\n"
+				"log sequence number %llu.\n"
 				"InnoDB: Your database may be corrupt or "
 				"you may have copied the InnoDB\n"
 				"InnoDB: tablespace but not the InnoDB "
@@ -328,14 +326,8 @@ buf_page_is_corrupted(
 				"InnoDB: for more information.\n",
 				(ulong) mach_read_from_4(read_buf
 							 + FIL_PAGE_OFFSET),
-				(ulong) ut_dulint_get_high(
-					mach_read_from_8(read_buf
-							 + FIL_PAGE_LSN)),
-				(ulong) ut_dulint_get_low(
-					mach_read_from_8(read_buf
-							 + FIL_PAGE_LSN)),
-				(ulong) ut_dulint_get_high(current_lsn),
-				(ulong) ut_dulint_get_low(current_lsn));
+				mach_read_ull(read_buf + FIL_PAGE_LSN),
+				current_lsn);
 		}
 	}
 #endif
@@ -608,7 +600,7 @@ buf_block_init(
 	block->buf_fix_count = 0;
 	block->io_fix = 0;
 
-	block->modify_clock = ut_dulint_zero;
+	block->modify_clock = 0;
 
 #ifdef UNIV_DEBUG_FILE_ACCESSES
 	block->file_page_was_freed = FALSE;
@@ -1005,8 +997,7 @@ shrink_again:
 			/* Avoid busy-waiting. */
 			os_thread_sleep(100000);
 		} else if (dirty
-			   && buf_flush_batch(BUF_FLUSH_LRU, dirty,
-					      ut_dulint_zero)
+			   && buf_flush_batch(BUF_FLUSH_LRU, dirty, 0)
 			   == ULINT_UNDEFINED) {
 
 			buf_flush_wait_batch_end(BUF_FLUSH_LRU);
@@ -1558,7 +1549,7 @@ buf_page_optimistic_get_func(
 				/* out: TRUE if success */
 	ulint		rw_latch,/* in: RW_S_LATCH, RW_X_LATCH */
 	buf_block_t*	block,	/* in: guessed buffer block */
-	dulint		modify_clock,/* in: modify clock value if mode is
+	ib_ulonglong	modify_clock,/* in: modify clock value if mode is
 				..._GUESS_ON_CLOCK */
 	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line where called */
@@ -1622,7 +1613,7 @@ buf_page_optimistic_get_func(
 		return(FALSE);
 	}
 
-	if (UNIV_UNLIKELY(!UT_DULINT_EQ(modify_clock, block->modify_clock))) {
+	if (UNIV_UNLIKELY(modify_clock != block->modify_clock)) {
 #ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
@@ -1791,8 +1782,8 @@ buf_page_init_for_backup_restore(
 
 	block->freed_page_clock = 0;
 
-	block->newest_modification = ut_dulint_zero;
-	block->oldest_modification = ut_dulint_zero;
+	block->newest_modification = 0;
+	block->oldest_modification = 0;
 
 	block->accessed		= FALSE;
 	block->buf_fix_count	= 0;
@@ -1864,8 +1855,8 @@ buf_page_init(
 
 	block->freed_page_clock = 0;
 
-	block->newest_modification = ut_dulint_zero;
-	block->oldest_modification = ut_dulint_zero;
+	block->newest_modification = 0;
+	block->oldest_modification = 0;
 
 	block->accessed		= FALSE;
 	block->buf_fix_count	= 0;
@@ -2438,8 +2429,7 @@ buf_validate(void)
 
 				n_lru++;
 
-				if (ut_dulint_cmp(block->oldest_modification,
-						  ut_dulint_zero) > 0) {
+				if (block->oldest_modification > 0) {
 					n_flush++;
 				}
 

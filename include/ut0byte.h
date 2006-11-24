@@ -148,6 +148,26 @@ ut_dulint_align_up(
 	dulint	 n,		/* in: number to be rounded */
 	ulint	 align_no);	/* in: align by this number which must be a
 				power of 2 */
+/************************************************************
+Rounds a dulint downward to a multiple of a power of 2. */
+UNIV_INLINE
+ib_ulonglong
+ut_ulonglong_align_down(
+/*====================*/
+					/* out: rounded value */
+	ib_ulonglong	 n,		/* in: number to be rounded */
+	ulint		 align_no);	/* in: align by this number
+					which must be a power of 2 */
+/************************************************************
+Rounds ib_ulonglong upward to a multiple of a power of 2. */
+UNIV_INLINE
+ib_ulonglong
+ut_ulonglong_align_up(
+/*==================*/
+					/* out: rounded value */
+	ib_ulonglong	 n,		/* in: number to be rounded */
+	ulint		 align_no);	/* in: align by this number
+					which must be a power of 2 */
 /***********************************************************
 Increments a dulint variable by 1. */
 #define UT_DULINT_INC(D)\
