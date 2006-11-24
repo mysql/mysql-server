@@ -236,21 +236,24 @@ buf_read_ahead_random(
 		block = buf_page_hash_get(space, i);
 
 		if ((block)
-		    && (block->LRU_position > LRU_recent_limit)
-		    && block->accessed) {
+		    && block->accessed
+		    && (block->LRU_position > LRU_recent_limit)) {
 
 			recent_blocks++;
+
+			if (recent_blocks >= BUF_READ_AHEAD_RANDOM_THRESHOLD) {
+
+				mutex_exit(&buf_pool->mutex);
+				goto read_ahead;
+			}
 		}
 	}
 
 	mutex_exit(&(buf_pool->mutex));
+	/* Do nothing */
+	return(0);
 
-	if (recent_blocks < BUF_READ_AHEAD_RANDOM_THRESHOLD) {
-		/* Do nothing */
-
-		return(0);
-	}
-
+read_ahead:
 	/* Read all the suitable blocks within the area */
 
 	if (ibuf_inside()) {
