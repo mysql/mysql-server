@@ -315,6 +315,7 @@ pthread_handler_decl(thr_find_all_keys,arg)
   uint memavl,old_memavl,keys,sort_length;
   uint idx, maxbuffer;
   uchar **sort_keys=0;
+  DBUG_ENTER("thr_find_all_keys");              /* FIXME why no matching DBUG_RETURN ? */
 
   LINT_INIT(keys);
 
@@ -322,8 +323,9 @@ pthread_handler_decl(thr_find_all_keys,arg)
 
   if (my_thread_init())
     goto err;
-  DBUG_ENTER("thr_find_all_keys");
+
   DBUG_PRINT("enter", ("master: %d", sort_param->master));
+
   if (sort_param->sort_info->got_error)
     goto err;
 

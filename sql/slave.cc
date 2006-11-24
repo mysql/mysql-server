@@ -2618,6 +2618,13 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
     SYSTEM_THREAD_SLAVE_SQL : SYSTEM_THREAD_SLAVE_IO; 
   thd->host_or_ip= "";
   my_net_init(&thd->net, 0);
+/*
+  Adding MAX_LOG_EVENT_HEADER_LEN to the max_allowed_packet on all
+  slave threads, since a replication event can become this much larger
+  than the corresponding packet (query) sent from client to master.
+*/
+  thd->variables.max_allowed_packet= global_system_variables.max_allowed_packet
+    + MAX_LOG_EVENT_HEADER;  /* note, incr over the global not session var */
   thd->net.read_timeout = slave_net_timeout;
   thd->master_access= ~(ulong)0;
   thd->priv_user = 0;
@@ -3143,16 +3150,24 @@ slave_begin:
     sql_print_error("Slave I/O thread: error in mysql_init()");
     goto err;
   }
-  
+
 
   thd->proc_info = "Connecting to master";
   // we can get killed during safe_connect
   if (!safe_connect(thd, mysql, mi))
+  {
     sql_print_information("Slave I/O thread: connected to master '%s@%s:%d',\
   replication started in log '%s' at position %s", mi->user,
-		    mi->host, mi->port,
-		    IO_RPL_LOG_NAME,
-		    llstr(mi->master_log_pos,llbuff));
+			  mi->host, mi->port,
+			  IO_RPL_LOG_NAME,
+			  llstr(mi->master_log_pos,llbuff));
+  /*
+    Adding MAX_LOG_EVENT_HEADER_LEN to the max_packet_size on the I/O
+    thread, since a replication event can become this much larger than
+    the corresponding packet (query) sent from client to master.
+  */
+    mysql->net.max_packet_size= thd->net.max_packet_size+= MAX_LOG_EVENT_HEADER;
+  }
   else
   {
     sql_print_error("Slave I/O thread killed while connecting to master");
