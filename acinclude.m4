@@ -1835,6 +1835,30 @@ dnl END OF MYSQL_CHECK_NDBCLUSTER SECTION
 dnl ---------------------------------------------------------------------------
 
 
+dnl
+dnl  Macro to check time_t range: according to C standard
+dnl  array index myst be greater then 0 => if time_t is signed
+dnl  the code in the macros below won't compile.
+dnl
+
+AC_DEFUN([MYSQL_CHECK_TIME_T],[
+    AC_MSG_CHECKING(if time_t is unsigned)
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+        [[
+#include <time.h>
+        ]],
+        [[
+        int array[(((time_t)-1) > 0) ? 1 : -1];
+        ]] )
+    ], [
+    AC_DEFINE([TIME_T_UNSIGNED], 1, [Define to 1 if time_t is unsigned])
+    AC_MSG_RESULT(yes)
+    ],
+    [AC_MSG_RESULT(no)]
+    )
+])
+
+
 dnl By default, many hosts won't let programs access large files;
 dnl one must use special compiler options to get large-file access to work.
 dnl For more details about this brain damage please see:
