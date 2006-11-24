@@ -2564,10 +2564,11 @@ mysql_execute_command(THD *thd)
     if (opt_readonly &&
 	!(thd->security_ctx->master_access & SUPER_ACL) &&
 	(sql_command_flags[lex->sql_command] & CF_CHANGES_DATA) &&
-	!((lex->sql_command == SQLCOM_CREATE_TABLE) &&
-	  (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)) &&
-	((lex->sql_command != SQLCOM_UPDATE_MULTI) &&
-	 some_non_temp_table_to_be_updated(thd, all_tables)))
+        !((lex->sql_command == SQLCOM_CREATE_TABLE) &&
+          (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)) &&
+        !((lex->sql_command == SQLCOM_DROP_TABLE) && lex->drop_temporary) &&
+        ((lex->sql_command != SQLCOM_UPDATE_MULTI) &&
+          some_non_temp_table_to_be_updated(thd, all_tables)))
     {
       my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
       DBUG_RETURN(-1);
