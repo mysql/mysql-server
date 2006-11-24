@@ -39,23 +39,23 @@ buf_pool_get_curr_size(void)
 
 /************************************************************************
 Gets the smallest oldest_modification lsn for any page in the pool. Returns
-ut_dulint_zero if all modified pages have been flushed to disk. */
+zero if all modified pages have been flushed to disk. */
 UNIV_INLINE
-dulint
+ib_ulonglong
 buf_pool_get_oldest_modification(void)
 /*==================================*/
 				/* out: oldest modification in pool,
-				ut_dulint_zero if none */
+				zero if none */
 {
 	buf_block_t*	block;
-	dulint		lsn;
+	ib_ulonglong	lsn;
 
 	mutex_enter(&(buf_pool->mutex));
 
 	block = UT_LIST_GET_LAST(buf_pool->flush_list);
 
 	if (block == NULL) {
-		lsn = ut_dulint_zero;
+		lsn = 0;
 	} else {
 		lsn = block->oldest_modification;
 	}
@@ -408,23 +408,23 @@ buf_page_io_query(
 }
 
 /************************************************************************
-Gets the youngest modification log sequence number for a frame. Returns zero
-if not a file page or no modification occurred yet. */
+Gets the youngest modification log sequence number for a frame.
+Returns zero if not file page or no modification occurred yet. */
 UNIV_INLINE
-dulint
+ib_ulonglong
 buf_block_get_newest_modification(
 /*==============================*/
-				/* out: newest modification to the page */
+				/* out: newest modification to page */
 	buf_block_t*	block)	/* in: block containing the page frame */
 {
-	dulint		lsn;
+	ib_ulonglong	lsn;
 
 	mutex_enter(&(buf_pool->mutex));
 
 	if (buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE) {
 		lsn = block->newest_modification;
 	} else {
-		lsn = ut_dulint_zero;
+		lsn = 0;
 	}
 
 	mutex_exit(&(buf_pool->mutex));
@@ -447,14 +447,14 @@ buf_block_modify_clock_inc(
 	      || rw_lock_own(&(block->lock), RW_LOCK_EXCLUSIVE));
 #endif /* UNIV_SYNC_DEBUG */
 
-	UT_DULINT_INC(block->modify_clock);
+	block->modify_clock++;
 }
 
 /************************************************************************
 Returns the value of the modify clock. The caller must have an s-lock
 or x-lock on the block. */
 UNIV_INLINE
-dulint
+ib_ulonglong
 buf_block_get_modify_clock(
 /*=======================*/
 				/* out: value */

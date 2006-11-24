@@ -57,9 +57,9 @@ Created 2/16/1996 Heikki Tuuri
 #include "que0que.h"
 
 /* Log sequence number immediately after startup */
-dulint		srv_start_lsn;
+ib_ulonglong	srv_start_lsn;
 /* Log sequence number at shutdown */
-dulint		srv_shutdown_lsn;
+ib_ulonglong	srv_shutdown_lsn;
 
 #ifdef HAVE_DARWIN_THREADS
 # include <sys/utsname.h>
@@ -689,18 +689,21 @@ static
 ulint
 open_or_create_data_files(
 /*======================*/
-				/* out: DB_SUCCESS or error code */
-	ibool*	create_new_db,	/* out: TRUE if new database should be
-								created */
+					/* out: DB_SUCCESS or error code */
+	ibool*		create_new_db,	/* out: TRUE if new database should be
+					created */
 #ifdef UNIV_LOG_ARCHIVE
-	ulint*	min_arch_log_no,/* out: min of archived log numbers in data
-				files */
-	ulint*	max_arch_log_no,/* out: */
+	ulint*		min_arch_log_no,/* out: min of archived log
+					numbers in data files */
+	ulint*		max_arch_log_no,/* out: max of archived log
+					numbers in data files */
 #endif /* UNIV_LOG_ARCHIVE */
-	dulint*	min_flushed_lsn,/* out: min of flushed lsn values in data
-				files */
-	dulint*	max_flushed_lsn,/* out: */
-	ulint*	sum_of_new_sizes)/* out: sum of sizes of the new files added */
+	ib_ulonglong*	min_flushed_lsn,/* out: min of flushed lsn
+					values in data files */
+	ib_ulonglong*	max_flushed_lsn,/* out: max of flushed lsn
+					values in data files */
+	ulint*		sum_of_new_sizes)/* out: sum of sizes of the
+					new files added */
 {
 	ibool	ret;
 	ulint	i;
@@ -963,23 +966,24 @@ innobase_start_or_create_for_mysql(void)
 				/* out: DB_SUCCESS or error code */
 {
 	buf_pool_t*	ret;
-	ibool	create_new_db;
-	ibool	log_file_created;
-	ibool	log_created	= FALSE;
-	ibool	log_opened	= FALSE;
-	dulint	min_flushed_lsn;
-	dulint	max_flushed_lsn;
+	ibool		create_new_db;
+	ibool		log_file_created;
+	ibool		log_created	= FALSE;
+	ibool		log_opened	= FALSE;
+	ib_ulonglong	min_flushed_lsn;
+	ib_ulonglong	max_flushed_lsn;
 #ifdef UNIV_LOG_ARCHIVE
-	ulint	min_arch_log_no;
-	ulint	max_arch_log_no;
+	ulint		min_arch_log_no;
+	ulint		max_arch_log_no;
 #endif /* UNIV_LOG_ARCHIVE */
-	ulint	sum_of_new_sizes;
-	ulint	sum_of_data_file_sizes;
-	ulint	tablespace_size_in_header;
-	ulint	err;
-	ulint	i;
-	ibool	srv_file_per_table_original_value  = srv_file_per_table;
-	mtr_t	mtr;
+	ulint		sum_of_new_sizes;
+	ulint		sum_of_data_file_sizes;
+	ulint		tablespace_size_in_header;
+	ulint		err;
+	ulint		i;
+	ibool		srv_file_per_table_original_value
+		= srv_file_per_table;
+	mtr_t		mtr;
 #ifdef HAVE_DARWIN_THREADS
 # ifdef F_FULLFSYNC
 	/* This executable has been compiled on Mac OS X 10.3 or later.
@@ -1366,7 +1370,7 @@ innobase_start_or_create_for_mysql(void)
 	    && !srv_archive_recovery
 #endif /* UNIV_LOG_ARCHIVE */
 	    ) {
-		if (ut_dulint_cmp(max_flushed_lsn, min_flushed_lsn) != 0
+		if (max_flushed_lsn != min_flushed_lsn
 #ifdef UNIV_LOG_ARCHIVE
 		    || max_arch_log_no != min_arch_log_no
 #endif /* UNIV_LOG_ARCHIVE */
@@ -1381,8 +1385,7 @@ innobase_start_or_create_for_mysql(void)
 			return(DB_ERROR);
 		}
 
-		if (ut_dulint_cmp(max_flushed_lsn, ut_dulint_create(0, 1000))
-		    < 0) {
+		if (max_flushed_lsn < (ib_ulonglong) 1000) {
 			fprintf(stderr,
 				"InnoDB: Cannot initialize created"
 				" log files because\n"
@@ -1450,7 +1453,7 @@ innobase_start_or_create_for_mysql(void)
 		been shut down normally: this is the normal startup path */
 
 		err = recv_recovery_from_checkpoint_start(LOG_CHECKPOINT,
-							  ut_dulint_max,
+							  IB_ULONGLONG_MAX,
 							  min_flushed_lsn,
 							  max_flushed_lsn);
 		if (err != DB_SUCCESS) {
@@ -1676,9 +1679,8 @@ innobase_start_or_create_for_mysql(void)
 	if (srv_print_verbose_log) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"  InnoDB: Started; log sequence number %lu %lu\n",
-			(ulong) ut_dulint_get_high(srv_start_lsn),
-			(ulong) ut_dulint_get_low(srv_start_lsn));
+			"  InnoDB: Started; log sequence number %llu\n",
+			srv_start_lsn);
 	}
 
 	if (srv_force_recovery > 0) {
@@ -1938,9 +1940,8 @@ innobase_shutdown_for_mysql(void)
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"  InnoDB: Shutdown completed;"
-			" log sequence number %lu %lu\n",
-			(ulong) ut_dulint_get_high(srv_shutdown_lsn),
-			(ulong) ut_dulint_get_low(srv_shutdown_lsn));
+			" log sequence number %llu\n",
+			srv_shutdown_lsn);
 	}
 
 	return((int) DB_SUCCESS);

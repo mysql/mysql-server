@@ -179,6 +179,15 @@ mach_write_to_8(
 /*============*/
 	byte*	b,	/* in: pointer to 8 bytes where to store */
 	dulint	n);	/* in: dulint integer to be stored */
+/***********************************************************
+The following function is used to store data in 8 consecutive
+bytes. We store the most significant byte to the lowest address. */
+UNIV_INLINE
+void
+mach_write_ull(
+/*===========*/
+	byte*		b,	/* in: pointer to 8 bytes where to store */
+	ib_ulonglong	n);	/* in: 64-bit integer to be stored */
 /************************************************************
 The following function is used to fetch data from 8 consecutive
 bytes. The most significant byte is at the lowest address. */
@@ -187,6 +196,15 @@ dulint
 mach_read_from_8(
 /*=============*/
 				/* out: dulint integer */
+	const byte*	b);	/* in: pointer to 8 bytes */
+/************************************************************
+The following function is used to fetch data from 8 consecutive
+bytes. The most significant byte is at the lowest address. */
+UNIV_INLINE
+ib_ulonglong
+mach_read_ull(
+/*==========*/
+				/* out: 64-bit integer */
 	const byte*	b);	/* in: pointer to 8 bytes */
 /*************************************************************
 Writes a dulint in a compressed form (5..9 bytes). */
