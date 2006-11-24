@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (C) 1997-2002 MySQL AB
+# Copyright (C) 1997-2006 MySQL AB
 # For a more info consult the file COPYRIGHT distributed with this file
 
 # This scripts creates the privilege tables db, host, user, tables_priv,
@@ -7,19 +7,26 @@
 
 if [ x$1 = x"--bin" ]; then
   shift 1
+  BINARY_DIST=1
+
+  bindir=../bin
+  scriptdir=../bin
+  libexecdir=../libexec
 
   # Check if it's a binary distribution or a 'make install'
   if test -x ../libexec/mysqld
   then
     execdir=../libexec
+  elif test -x ../../sbin/mysqld  # RPM installation
+  then
+    execdir=../../sbin
+    bindir=../../bin
+    scriptdir=../../bin
+    libexecdir=../../libexec
   else
     execdir=../bin
   fi
-  bindir=../bin
-  BINARY_DIST=1
   fix_bin=mysql-test
-  scriptdir=../bin
-  libexecdir=../libexec
 else
   execdir=../sql
   bindir=../client

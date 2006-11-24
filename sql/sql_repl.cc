@@ -420,6 +420,12 @@ impossible position";
     goto err;
   }
   packet->set("\0", 1, &my_charset_bin);
+  /*
+    Adding MAX_LOG_EVENT_HEADER_LEN, since a binlog event can become
+    this larger than the corresponding packet (query) sent 
+    from client to master.
+  */
+  thd->variables.max_allowed_packet+= MAX_LOG_EVENT_HEADER;
 
   while (!net->error && net->vio != 0 && !thd->killed)
   {
