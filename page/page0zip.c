@@ -2416,19 +2416,19 @@ page_zip_validate(
 	}
 	if (page_zip->n_blobs != temp_page_zip.n_blobs) {
 		fprintf(stderr,
-			"page_zip_validate(): n_blobs mismatch: %lu!=%lu\n",
+			"page_zip_validate(): n_blobs mismatch: %d!=%d\n",
 			page_zip->n_blobs, temp_page_zip.n_blobs);
 		valid = FALSE;
 	}
 	if (page_zip->m_start != temp_page_zip.m_start) {
 		fprintf(stderr,
-			"page_zip_validate(): m_start mismatch: %lu!=%lu\n",
+			"page_zip_validate(): m_start mismatch: %d!=%d\n",
 			page_zip->m_start, temp_page_zip.m_start);
 		valid = FALSE;
 	}
 	if (page_zip->m_end != temp_page_zip.m_end) {
 		fprintf(stderr,
-			"page_zip_validate(): m_end mismatch: %lu!=%lu\n",
+			"page_zip_validate(): m_end mismatch: %d!=%d\n",
 			page_zip->m_end, temp_page_zip.m_end);
 		valid = FALSE;
 	}
