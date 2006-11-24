@@ -140,6 +140,21 @@ static void pretty_print_str(IO_CACHE* cache, char* str, int len)
 }
 #endif /* MYSQL_CLIENT */
 
+#ifdef HAVE_purify
+static void
+valgrind_check_mem(void *ptr, size_t len)
+{
+  static volatile uchar dummy;
+  for (volatile uchar *p= (uchar*) ptr ; p != (uchar*) ptr + len ; ++p)
+  {
+    int const c = *p;
+    if (c < 128)
+      dummy= c + 1;
+    else
+      dummy = c - 1;
+  }
+}
+#endif
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 
@@ -5402,7 +5417,13 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
   DBUG_ENTER("Rows_log_event::do_add_row_data");
   DBUG_PRINT("enter", ("row_data: 0x%lx  length: %lu", (ulong) row_data,
                        length));
+  /*
+    Don't print debug messages when running valgrind since they can
+    trigger false warnings.
+   */
+#ifndef HAVE_purify
   DBUG_DUMP("row_data", (const char*)row_data, min(length, 32));
+#endif
 
   DBUG_ASSERT(m_rows_buf <= m_rows_cur);
   DBUG_ASSERT(!m_rows_buf || m_rows_end && m_rows_buf < m_rows_end);
@@ -5446,14 +5467,13 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 /*
-  Unpack a row into a record.
+  Unpack a row into table->record[0].
   
   SYNOPSIS
     unpack_row()
     rli     Relay log info
     table   Table to unpack into
     colcnt  Number of columns to read from record
-    record  Record where the data should be unpacked
     row     Packed row data
     cols    Pointer to columns data to fill in
     row_end Pointer to variable that will hold the value of the
@@ -5465,6 +5485,11 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
             write_set of the table
 
   DESCRIPTION
+
+      The function will always unpack into the table->record[0]
+      record.  This is because there are too many dependencies on
+      where the various member functions of Field and subclasses
+      expect to write.
 
       The row is assumed to only consist of the fields for which the
       bitset represented by 'arr' and 'bits'; the other parts of the
@@ -5484,13 +5509,15 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
  */
 static int
 unpack_row(RELAY_LOG_INFO *rli,
-           TABLE *table, uint const colcnt, byte *record,
+           TABLE *table, uint const colcnt,
            char const *row, MY_BITMAP const *cols,
            char const **row_end, ulong *master_reclength,
            MY_BITMAP* const rw_set, Log_event_type const event_type)
 {
+  byte *const record= table->record[0];
+  DBUG_ENTER("unpack_row");
   DBUG_ASSERT(record && row);
-  my_ptrdiff_t const offset= record - (byte*) table->record[0];
+  DBUG_PRINT("enter", ("row=0x%lx; table->record[0]=0x%lx", row, record));
   my_size_t master_null_bytes= table->s->null_bytes;
 
   if (colcnt != table->s->fields)
@@ -5530,9 +5557,11 @@ unpack_row(RELAY_LOG_INFO *rli,
 
     if (bitmap_is_set(cols, field_ptr -  begin_ptr))
     {
-      f->move_field_offset(offset);
+      DBUG_ASSERT(table->record[0] <= f->ptr);
+      DBUG_ASSERT(f->ptr < table->record[0] + table->s->reclength + (f->pack_length_in_rec() == 0));
+
+      DBUG_PRINT("info", ("unpacking column '%s' to 0x%lx", f->field_name, f->ptr));
       ptr= f->unpack(f->ptr, ptr);
-      f->move_field_offset(-offset);
       /* Field...::unpack() cannot return 0 */
       DBUG_ASSERT(ptr != NULL);
     }
@@ -5563,13 +5592,10 @@ unpack_row(RELAY_LOG_INFO *rli,
   for ( ; *field_ptr ; ++field_ptr)
   {
     uint32 const mask= NOT_NULL_FLAG | NO_DEFAULT_VALUE_FLAG;
+    Field *const f= *field_ptr;
 
-    DBUG_PRINT("debug", ("flags = 0x%x, mask = 0x%x, flags & mask = 0x%x",
-                         (*field_ptr)->flags, mask,
-                         (*field_ptr)->flags & mask));
-
-    if (event_type == WRITE_ROWS_EVENT &&
-        ((*field_ptr)->flags & mask) == mask)
+    DBUG_PRINT("info", ("processing column '%s' @ 0x%lx", f->field_name, f->ptr));
+    if (event_type == WRITE_ROWS_EVENT && (f->flags & mask) == mask)
     {
       slave_print_msg(ERROR_LEVEL, rli, ER_NO_DEFAULT_FOR_FIELD,
                       "Field `%s` of table `%s`.`%s` "
@@ -5579,10 +5605,10 @@ unpack_row(RELAY_LOG_INFO *rli,
       error = ER_NO_DEFAULT_FOR_FIELD;
     }
     else
-      (*field_ptr)->set_default();
+      f->set_default();
   }
 
-  return error;
+  DBUG_RETURN(error);
 }
 
 int Rows_log_event::exec_event(st_relay_log_info *rli)
@@ -5690,7 +5716,6 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
       We also invalidate the query cache for all the tables, since
       they will now be changed.
      */
-    
     TABLE_LIST *ptr;
     for (ptr= rli->tables_to_lock ; ptr ; ptr= ptr->next_global)
     {
@@ -5747,7 +5772,7 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
       if ((error= do_prepare_row(thd, rli, table, row_start, &row_end)))
         break; // We should perform the after-row operation even in
                // the case of error
-      
+
       DBUG_ASSERT(row_end != NULL); // cannot happen
       DBUG_ASSERT(row_end <= (const char*)m_rows_end);
 
@@ -6048,7 +6073,13 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
   DBUG_PRINT("info",("event_len=%ld, common_header_len=%d, post_header_len=%d",
                      event_len, common_header_len, post_header_len));
 
+  /*
+    Don't print debug messages when running valgrind since they can
+    trigger false warnings.
+   */
+#ifndef HAVE_purify
   DBUG_DUMP("event buffer", buf, event_len);
+#endif
 
   /* Read the post-header */
   const char *post_start= buf + common_header_len;
@@ -6423,17 +6454,15 @@ int Write_rows_log_event::do_after_row_operations(TABLE *table, int error)
 
 int Write_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO *rli,
                                          TABLE *table,
-                                         char const *row_start,
-                                         char const **row_end)
+                                         char const *const row_start,
+                                         char const **const row_end)
 {
   DBUG_ASSERT(table != NULL);
   DBUG_ASSERT(row_start && row_end);
 
   int error;
-  error= unpack_row(rli,
-                    table, m_width, table->record[0],
-                    row_start, &m_cols, row_end, &m_master_reclength,
-                    table->write_set, WRITE_ROWS_EVENT);
+  error= unpack_row(rli, table, m_width, row_start, &m_cols, row_end,
+                    &m_master_reclength, table->write_set, WRITE_ROWS_EVENT);
   bitmap_copy(table->read_set, table->write_set);
   return error;
 }
@@ -6495,7 +6524,7 @@ copy_extra_record_fields(TABLE *table,
                          my_ptrdiff_t master_fields)
 {
   DBUG_PRINT("info", ("Copying to %p "
-                      "from field %d at offset %u "
+                      "from field %ld at offset %u "
                       "to field %d at offset %u",
                       table->record[0],
                       master_fields, master_reclength,
@@ -6654,7 +6683,7 @@ replace_record(THD *thd, TABLE *table,
        present on the master from table->record[1], if there are any.
     */
     copy_extra_record_fields(table, master_reclength, master_fields);
-    
+
     /*
        REPLACE is defined as either INSERT or DELETE + INSERT.  If
        possible, we can replace it with an UPDATE, but that will not
@@ -6733,8 +6762,26 @@ static bool record_compare(TABLE *table)
 
 /*
   Find the row given by 'key', if the table has keys, or else use a table scan
-  to find (and fetch) the row.  If the engine allows random access of the
-  records, a combination of position() and rnd_pos() will be used.
+  to find (and fetch) the row.
+
+  If the engine allows random access of the records, a combination of
+  position() and rnd_pos() will be used.
+
+  @param table Pointer to table to search
+  @param key   Pointer to key to use for search, if table has key
+
+  @pre <code>table->record[0]</code> shall contain the row to locate
+  and <code>key</code> shall contain a key to use for searching, if
+  the engine has a key.
+
+  @post If the return value is zero, <code>table->record[1]</code>
+  will contain the fetched row and the internal "cursor" will refer to
+  the row. If the return value is non-zero,
+  <code>table->record[1]</code> is undefined.  In either case,
+  <code>table->record[0]</code> is undefined.
+
+  @return Zero if the row was successfully fetched into
+  <code>table->record[1]</code>, error code otherwise.
  */
 
 static int find_and_fetch_row(TABLE *table, byte *key)
@@ -6754,12 +6801,27 @@ static int find_and_fetch_row(TABLE *table, byte *key)
       row reference using the position() member function (it will be
       stored in table->file->ref) and the use rnd_pos() to position
       the "cursor" (i.e., record[0] in this case) at the correct row.
+
+      TODO: Add a check that the correct record has been fetched by
+      comparing with the original record. Take into account that the
+      record on the master and slave can be of different
+      length. Something along these lines should work:
+
+      ADD>>>  store_record(table,record[1]);
+              int error= table->file->rnd_pos(table->record[0], table->file->ref);
+      ADD>>>  DBUG_ASSERT(memcmp(table->record[1], table->record[0],
+                                 table->s->reclength) == 0);
+
     */
     table->file->position(table->record[0]);
-    DBUG_RETURN(table->file->rnd_pos(table->record[0], table->file->ref));
+    int error= table->file->rnd_pos(table->record[0], table->file->ref);
+    /*
+      rnd_pos() returns the record in table->record[0], so we have to
+      move it to table->record[1].
+     */
+    bmove_align(table->record[1], table->record[0], table->s->reclength);
+    DBUG_RETURN(error);
   }
-
-  DBUG_ASSERT(table->record[1]);
 
   /* We need to retrieve all fields */
   /* TODO: Move this out from this function to main loop */
@@ -6770,7 +6832,16 @@ static int find_and_fetch_row(TABLE *table, byte *key)
     int error;
     /* We have a key: search the table using the index */
     if (!table->file->inited && (error= table->file->ha_index_init(0, FALSE)))
-      return error;
+      DBUG_RETURN(error);
+
+  /*
+    Don't print debug messages when running valgrind since they can
+    trigger false warnings.
+   */
+#ifndef HAVE_purify
+    DBUG_DUMP("table->record[0]", table->record[0], table->s->reclength);
+    DBUG_DUMP("table->record[1]", table->record[1], table->s->reclength);
+#endif
 
     /*
       We need to set the null bytes to ensure that the filler bit are
@@ -6790,6 +6861,14 @@ static int find_and_fetch_row(TABLE *table, byte *key)
       DBUG_RETURN(error);
     }
 
+  /*
+    Don't print debug messages when running valgrind since they can
+    trigger false warnings.
+   */
+#ifndef HAVE_purify
+    DBUG_DUMP("table->record[0]", table->record[0], table->s->reclength);
+    DBUG_DUMP("table->record[1]", table->record[1], table->s->reclength);
+#endif
     /*
       Below is a minor "optimization".  If the key (i.e., key number
       0) has the HA_NOSAME flag set, we know that we have found the
@@ -6974,8 +7053,8 @@ int Delete_rows_log_event::do_after_row_operations(TABLE *table, int error)
 
 int Delete_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO *rli,
                                           TABLE *table,
-                                          char const *row_start,
-                                          char const **row_end)
+                                          char const *const row_start,
+                                          char const **const row_end)
 {
   int error;
   DBUG_ASSERT(row_start && row_end);
@@ -6985,10 +7064,8 @@ int Delete_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO *rli,
   */
   DBUG_ASSERT(table->s->fields >= m_width);
 
-  error= unpack_row(rli,
-                    table, m_width, table->record[0], 
-                    row_start, &m_cols, row_end, &m_master_reclength,
-                    table->read_set, DELETE_ROWS_EVENT);
+  error= unpack_row(rli, table, m_width, row_start, &m_cols, row_end,
+                    &m_master_reclength, table->read_set, DELETE_ROWS_EVENT);
   /*
     If we will access rows using the random access method, m_key will
     be set to NULL, so we do not need to make a key copy in that case.
@@ -7111,8 +7188,8 @@ int Update_rows_log_event::do_after_row_operations(TABLE *table, int error)
 
 int Update_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO *rli,
                                           TABLE *table,
-                                          char const *row_start,
-                                          char const **row_end)
+                                          char const *const row_start,
+                                          char const **const row_end)
 {
   int error;
   DBUG_ASSERT(row_start && row_end);
@@ -7122,21 +7199,31 @@ int Update_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO *rli,
   */
   DBUG_ASSERT(table->s->fields >= m_width);
 
-  /* record[0] is the before image for the update */
-  error= unpack_row(rli,
-                    table, m_width, table->record[0],
-                    row_start, &m_cols, row_end, &m_master_reclength,
-                    table->read_set, UPDATE_ROWS_EVENT);
-  row_start = *row_end;
-  /* m_after_image is the after image for the update */
-  error= unpack_row(rli,
-                    table, m_width, m_after_image,
-                    row_start, &m_cols, row_end, &m_master_reclength,
-                    table->write_set, UPDATE_ROWS_EVENT);
+  /*
+    We need to perform some juggling below since unpack_row() always
+    unpacks into table->record[0]. For more information, see the
+    comments for unpack_row().
+  */
 
+  /* record[0] is the before image for the update */
+  error= unpack_row(rli, table, m_width, row_start, &m_cols, row_end,
+                    &m_master_reclength, table->read_set, UPDATE_ROWS_EVENT);
+  store_record(table, record[1]);
+  char const *next_start = *row_end;
+  /* m_after_image is the after image for the update */
+  error= unpack_row(rli, table, m_width, next_start, &m_cols, row_end,
+                    &m_master_reclength, table->write_set, UPDATE_ROWS_EVENT);
+  bmove_align(m_after_image, table->record[0], table->s->reclength);
+  restore_record(table, record[1]);
+
+  /*
+    Don't print debug messages when running valgrind since they can
+    trigger false warnings.
+   */
+#ifndef HAVE_purify
   DBUG_DUMP("record[0]", (const char *)table->record[0], table->s->reclength);
   DBUG_DUMP("m_after_image", (const char *)m_after_image, table->s->reclength);
-
+#endif
 
   /*
     If we will access rows using the random access method, m_key will
