@@ -34,9 +34,10 @@ Initializes a page for writing to the tablespace. */
 void
 buf_flush_init_for_writing(
 /*=======================*/
-	byte*	page,		/* in/out: page */
-	void*	page_zip,	/* in/out: compressed page, or NULL */
-	dulint	newest_lsn);	/* in: newest modification lsn to the page */
+	byte*		page,		/* in/out: page */
+	void*		page_zip_,	/* in/out: compressed page, or NULL */
+	ib_ulonglong	newest_lsn);	/* in: newest modification lsn
+					to the page */
 /***********************************************************************
 This utility flushes dirty blocks from the end of the LRU list or flush_list.
 NOTE 1: in the case of an LRU flush the calling thread may own latches to
@@ -47,18 +48,22 @@ the calling thread is not allowed to own any latches on pages! */
 ulint
 buf_flush_batch(
 /*============*/
-				/* out: number of blocks for which the write
-				request was queued */
-	ulint	flush_type,	/* in: BUF_FLUSH_LRU or BUF_FLUSH_LIST; if
-				BUF_FLUSH_LIST, then the caller must not own
-				any latches on pages */
-	ulint	min_n,		/* in: wished minimum mumber of blocks flushed
-				(it is not guaranteed that the actual number
-				is that big, though) */
-	dulint	lsn_limit);	/* in the case BUF_FLUSH_LIST all blocks whose
-				oldest_modification is smaller than this
-				should be flushed (if their number does not
-				exceed min_n), otherwise ignored */
+					/* out: number of blocks for which the
+					write request was queued;
+					ULINT_UNDEFINED if there was a flush
+					of the same type already running */
+	ulint		flush_type,	/* in: BUF_FLUSH_LRU or
+					BUF_FLUSH_LIST; if BUF_FLUSH_LIST,
+					then the caller must not own any
+					latches on pages */
+	ulint		min_n,		/* in: wished minimum mumber of blocks
+					flushed (it is not guaranteed that the
+					actual number is that big, though) */
+	ib_ulonglong	lsn_limit);	/* in the case BUF_FLUSH_LIST all
+					blocks whose oldest_modification is
+					smaller than this should be flushed
+					(if their number does not exceed
+					min_n), otherwise ignored */
 /**********************************************************************
 Waits until a flush batch of the given type ends */
 
@@ -83,9 +88,9 @@ void
 buf_flush_recv_note_modification(
 /*=============================*/
 	buf_block_t*	block,		/* in: block which is modified */
-	dulint		start_lsn,	/* in: start lsn of the first mtr in a
+	ib_ulonglong	start_lsn,	/* in: start lsn of the first mtr in a
 					set of mtr's */
-	dulint		end_lsn);	/* in: end lsn of the last mtr in the
+	ib_ulonglong	end_lsn);	/* in: end lsn of the last mtr in the
 					set of mtr's */
 /************************************************************************
 Returns TRUE if the file page block is immediately suitable for replacement,

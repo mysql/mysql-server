@@ -446,7 +446,7 @@ struct trx_struct{
 					were modifications by the transaction;
 					in that case we must flush the log
 					in trx_commit_complete_for_mysql() */
-	dulint		commit_lsn;	/* lsn at the time of the commit */
+	ib_ulonglong	commit_lsn;	/* lsn at the time of the commit */
 	ibool		dict_operation;	/* TRUE if the trx is used to create
 					a table, create an index, or drop a
 					table.	This is a hint that the table

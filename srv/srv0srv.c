@@ -170,9 +170,9 @@ ulint	srv_lock_table_size	= ULINT_MAX;
 ulint	srv_n_file_io_threads	= ULINT_MAX;
 
 #ifdef UNIV_LOG_ARCHIVE
-ibool	srv_log_archive_on	= FALSE;
-ibool	srv_archive_recovery	= 0;
-dulint	srv_archive_recovery_limit_lsn;
+ibool		srv_log_archive_on	= FALSE;
+ibool		srv_archive_recovery	= 0;
+ib_ulonglong	srv_archive_recovery_limit_lsn;
 #endif /* UNIV_LOG_ARCHIVE */
 
 ulint	srv_lock_wait_timeout	= 1024 * 1024 * 1024;
@@ -2016,9 +2016,9 @@ srv_error_monitor_thread(
 			os_thread_create */
 {
 	/* number of successive fatal timeouts observed */
-	ulint	fatal_cnt	= 0;
-	dulint	old_lsn;
-	dulint	new_lsn;
+	ulint		fatal_cnt	= 0;
+	ib_ulonglong	old_lsn;
+	ib_ulonglong	new_lsn;
 
 	old_lsn = srv_start_lsn;
 
@@ -2034,18 +2034,15 @@ loop:
 
 	new_lsn = log_get_lsn();
 
-	if (ut_dulint_cmp(new_lsn, old_lsn) < 0) {
+	if (new_lsn < old_lsn) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"  InnoDB: Error: old log sequence number %lu %lu"
+			"  InnoDB: Error: old log sequence number %llu"
 			" was greater\n"
-			"InnoDB: than the new log sequence number %lu %lu!\n"
+			"InnoDB: than the new log sequence number %llu!\n"
 			"InnoDB: Please submit a bug report"
 			" to http://bugs.mysql.com\n",
-			(ulong) ut_dulint_get_high(old_lsn),
-			(ulong) ut_dulint_get_low(old_lsn),
-			(ulong) ut_dulint_get_high(new_lsn),
-			(ulong) ut_dulint_get_low(new_lsn));
+			old_lsn, new_lsn);
 	}
 
 	old_lsn = new_lsn;
@@ -2265,7 +2262,7 @@ loop:
 			buffer pool under the limit wished by the user */
 
 			n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 100,
-							  ut_dulint_max);
+							  IB_ULONGLONG_MAX);
 
 			/* If we had to do the flush, it may have taken
 			even more than 1 second, and also, there may be more
@@ -2302,7 +2299,7 @@ loop:
 	if (n_pend_ios < 3 && (n_ios - n_ios_very_old < 200)) {
 
 		srv_main_thread_op_info = "flushing buffer pool pages";
-		buf_flush_batch(BUF_FLUSH_LIST, 100, ut_dulint_max);
+		buf_flush_batch(BUF_FLUSH_LIST, 100, IB_ULONGLONG_MAX);
 
 		srv_main_thread_op_info = "flushing log";
 		log_buffer_flush_to_disk();
@@ -2353,14 +2350,14 @@ loop:
 		the time it requires to flush 100 pages */
 
 		n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 100,
-						  ut_dulint_max);
+						  IB_ULONGLONG_MAX);
 	} else {
 		/* Otherwise, we only flush a small number of pages so that
 		we do not unnecessarily use much disk i/o capacity from
 		other work */
 
 		n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 10,
-						  ut_dulint_max);
+						  IB_ULONGLONG_MAX);
 	}
 
 	srv_main_thread_op_info = "making checkpoint";
@@ -2463,7 +2460,7 @@ flush_loop:
 
 	if (srv_fast_shutdown < 2) {
 		n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 100,
-						  ut_dulint_max);
+						  IB_ULONGLONG_MAX);
 	} else {
 		/* In the fastest shutdown we do not flush the buffer pool
 		to data files: we set n_pages_flushed to 0 artificially. */

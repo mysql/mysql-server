@@ -285,9 +285,10 @@ header of the first page of each data file in the system tablespace. */
 ulint
 fil_write_flushed_lsn_to_data_files(
 /*================================*/
-				/* out: DB_SUCCESS or error number */
-	dulint	lsn,		/* in: lsn to write */
-	ulint	arch_log_no);	/* in: latest archived log file number */
+					/* out: DB_SUCCESS or error number */
+	ib_ulonglong	lsn,		/* in: lsn to write */
+	ulint		arch_log_no);	/* in: latest archived log
+					file number */
 /***********************************************************************
 Reads the flushed lsn and arch no fields from a data file at database
 startup. */
@@ -295,15 +296,16 @@ startup. */
 void
 fil_read_flushed_lsn_and_arch_log_no(
 /*=================================*/
-	os_file_t data_file,		/* in: open data file */
-	ibool	one_read_already,	/* in: TRUE if min and max parameters
-					below already contain sensible data */
+	os_file_t	data_file,		/* in: open data file */
+	ibool		one_read_already,	/* in: TRUE if min and max
+						parameters below already
+						contain sensible data */
 #ifdef UNIV_LOG_ARCHIVE
-	ulint*	min_arch_log_no,	/* in/out: */
-	ulint*	max_arch_log_no,	/* in/out: */
+	ulint*		min_arch_log_no,	/* in/out: */
+	ulint*		max_arch_log_no,	/* in/out: */
 #endif /* UNIV_LOG_ARCHIVE */
-	dulint*	min_flushed_lsn,	/* in/out: */
-	dulint*	max_flushed_lsn);	/* in/out: */
+	ib_ulonglong*	min_flushed_lsn,	/* in/out: */
+	ib_ulonglong*	max_flushed_lsn);	/* in/out: */
 /***********************************************************************
 Increments the count of pending insert buffer page merges, if space is not
 being deleted. */
@@ -455,7 +457,7 @@ fil_reset_too_high_lsns(
 					/* out: TRUE if success */
 	const char*	name,		/* in: table name in the
 					databasename/tablename format */
-	dulint		current_lsn);	/* in: reset lsn's if the lsn stamped
+	ib_ulonglong	current_lsn);	/* in: reset lsn's if the lsn stamped
 					to FIL_PAGE_FILE_FLUSH_LSN in the
 					first page is too high */
 /************************************************************************

@@ -2512,7 +2512,7 @@ row_import_tablespace_for_mysql(
 {
 	dict_table_t*	table;
 	ibool		success;
-	dulint		current_lsn;
+	ib_ulonglong	current_lsn;
 	ulint		err		= DB_SUCCESS;
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());

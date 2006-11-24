@@ -1639,10 +1639,10 @@ static
 ulint
 fil_write_lsn_and_arch_no_to_file(
 /*==============================*/
-	ulint	sum_of_sizes,	/* in: combined size of previous files in
-				space, in database pages */
-	dulint	lsn,		/* in: lsn to write */
-	ulint	arch_log_no	/* in: archived log number to write */
+	ulint		sum_of_sizes,	/* in: combined size of previous files
+					in space, in database pages */
+	ib_ulonglong	lsn,		/* in: lsn to write */
+	ulint		arch_log_no	/* in: archived log number to write */
 	__attribute__((unused)))
 {
 	byte*	buf1;
@@ -1653,7 +1653,7 @@ fil_write_lsn_and_arch_no_to_file(
 
 	fil_read(TRUE, 0, 0, sum_of_sizes, 0, UNIV_PAGE_SIZE, buf, NULL);
 
-	mach_write_to_8(buf + FIL_PAGE_FILE_FLUSH_LSN, lsn);
+	mach_write_ull(buf + FIL_PAGE_FILE_FLUSH_LSN, lsn);
 
 	fil_write(TRUE, 0, 0, sum_of_sizes, 0, UNIV_PAGE_SIZE, buf, NULL);
 
@@ -1667,9 +1667,10 @@ header of the first page of each data file in the system tablespace. */
 ulint
 fil_write_flushed_lsn_to_data_files(
 /*================================*/
-				/* out: DB_SUCCESS or error number */
-	dulint	lsn,		/* in: lsn to write */
-	ulint	arch_log_no)	/* in: latest archived log file number */
+					/* out: DB_SUCCESS or error number */
+	ib_ulonglong	lsn,		/* in: lsn to write */
+	ulint		arch_log_no)	/* in: latest archived log
+					file number */
 {
 	fil_space_t*	space;
 	fil_node_t*	node;
@@ -1723,19 +1724,20 @@ startup. */
 void
 fil_read_flushed_lsn_and_arch_log_no(
 /*=================================*/
-	os_file_t data_file,		/* in: open data file */
-	ibool	one_read_already,	/* in: TRUE if min and max parameters
-					below already contain sensible data */
+	os_file_t	data_file,		/* in: open data file */
+	ibool		one_read_already,	/* in: TRUE if min and max
+						parameters below already
+						contain sensible data */
 #ifdef UNIV_LOG_ARCHIVE
-	ulint*	min_arch_log_no,	/* in/out: */
-	ulint*	max_arch_log_no,	/* in/out: */
+	ulint*		min_arch_log_no,	/* in/out: */
+	ulint*		max_arch_log_no,	/* in/out: */
 #endif /* UNIV_LOG_ARCHIVE */
-	dulint*	min_flushed_lsn,	/* in/out: */
-	dulint*	max_flushed_lsn)	/* in/out: */
+	ib_ulonglong*	min_flushed_lsn,	/* in/out: */
+	ib_ulonglong*	max_flushed_lsn)	/* in/out: */
 {
-	byte*	buf;
-	byte*	buf2;
-	dulint	flushed_lsn;
+	byte*		buf;
+	byte*		buf2;
+	ib_ulonglong	flushed_lsn;
 
 	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
 	/* Align the memory for a possible read from a raw device */
@@ -1743,7 +1745,7 @@ fil_read_flushed_lsn_and_arch_log_no(
 
 	os_file_read(data_file, buf, 0, 0, UNIV_PAGE_SIZE);
 
-	flushed_lsn = mach_read_from_8(buf + FIL_PAGE_FILE_FLUSH_LSN);
+	flushed_lsn = mach_read_ull(buf + FIL_PAGE_FILE_FLUSH_LSN);
 
 	ut_free(buf2);
 
@@ -1757,10 +1759,10 @@ fil_read_flushed_lsn_and_arch_log_no(
 		return;
 	}
 
-	if (ut_dulint_cmp(*min_flushed_lsn, flushed_lsn) > 0) {
+	if (*min_flushed_lsn > flushed_lsn) {
 		*min_flushed_lsn = flushed_lsn;
 	}
-	if (ut_dulint_cmp(*max_flushed_lsn, flushed_lsn) < 0) {
+	if (*max_flushed_lsn < flushed_lsn) {
 		*max_flushed_lsn = flushed_lsn;
 	}
 #ifdef UNIV_LOG_ARCHIVE
@@ -2654,7 +2656,7 @@ error_exit2:
 	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, *space_id);
 
 	if (!zip_size) {
-		buf_flush_init_for_writing(page, NULL, ut_dulint_zero);
+		buf_flush_init_for_writing(page, NULL, 0);
 		ret = os_file_write(path, file, page, 0, 0, UNIV_PAGE_SIZE);
 	} else {
 		page_zip_des_t	page_zip;
@@ -2662,7 +2664,7 @@ error_exit2:
 		page_zip.data = page + UNIV_PAGE_SIZE;
 		page_zip.state = page_zip.n_blobs
 			= page_zip.m_start = page_zip.m_end = 0;
-		buf_flush_init_for_writing(page, &page_zip, ut_dulint_zero);
+		buf_flush_init_for_writing(page, &page_zip, 0);
 		ret = os_file_write(path, file, page_zip.data, 0, 0, zip_size);
 	}
 
@@ -2734,7 +2736,7 @@ fil_reset_too_high_lsns(
 					/* out: TRUE if success */
 	const char*	name,		/* in: table name in the
 					databasename/tablename format */
-	dulint		current_lsn)	/* in: reset lsn's if the lsn stamped
+	ib_ulonglong	current_lsn)	/* in: reset lsn's if the lsn stamped
 					to FIL_PAGE_FILE_FLUSH_LSN in the
 					first page is too high */
 {
@@ -2742,7 +2744,7 @@ fil_reset_too_high_lsns(
 	char*		filepath;
 	byte*		page;
 	byte*		buf2;
-	dulint		flush_lsn;
+	ib_ulonglong	flush_lsn;
 	ulint		space_id;
 	ib_longlong	file_size;
 	ib_longlong	offset;
@@ -2783,9 +2785,9 @@ fil_reset_too_high_lsns(
 
 	/* We have to read the file flush lsn from the header of the file */
 
-	flush_lsn = mach_read_from_8(page + FIL_PAGE_FILE_FLUSH_LSN);
+	flush_lsn = mach_read_ull(page + FIL_PAGE_FILE_FLUSH_LSN);
 
-	if (ut_dulint_cmp(current_lsn, flush_lsn) >= 0) {
+	if (current_lsn >= flush_lsn) {
 		/* Ok */
 		success = TRUE;
 
@@ -2799,14 +2801,11 @@ fil_reset_too_high_lsns(
 	fprintf(stderr,
 		"  InnoDB: Flush lsn in the tablespace file %lu"
 		" to be imported\n"
-		"InnoDB: is %lu %lu, which exceeds current"
-		" system lsn %lu %lu.\n"
+		"InnoDB: is %llu, which exceeds current"
+		" system lsn %llu.\n"
 		"InnoDB: We reset the lsn's in the file ",
 		(ulong) space_id,
-		(ulong) ut_dulint_get_high(flush_lsn),
-		(ulong) ut_dulint_get_low(flush_lsn),
-		(ulong) ut_dulint_get_high(current_lsn),
-		(ulong) ut_dulint_get_low(current_lsn));
+		flush_lsn, current_lsn);
 	ut_print_filename(stderr, filepath);
 	fputs(".\n", stderr);
 
@@ -2828,8 +2827,7 @@ fil_reset_too_high_lsns(
 
 			goto func_exit;
 		}
-		if (ut_dulint_cmp(mach_read_from_8(page + FIL_PAGE_LSN),
-				  current_lsn) > 0) {
+		if (mach_read_ull(page + FIL_PAGE_LSN) > current_lsn) {
 			/* We have to reset the lsn */
 
 			if (zip_size) {
@@ -2868,7 +2866,7 @@ fil_reset_too_high_lsns(
 		goto func_exit;
 	}
 
-	mach_write_to_8(page + FIL_PAGE_FILE_FLUSH_LSN, current_lsn);
+	mach_write_ull(page + FIL_PAGE_FILE_FLUSH_LSN, current_lsn);
 
 	success = os_file_write(filepath, file, page, 0, 0,
 				zip_size ? zip_size : UNIV_PAGE_SIZE);
