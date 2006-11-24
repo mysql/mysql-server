@@ -66,8 +66,12 @@ extern ulint srv_buf_pool_write_requests; /* variable to count write request
 					  issued */
 
 /* States of a control block */
-enum buf_block_state {
-	BUF_BLOCK_NOT_USED = 211,	/* is in the free list */
+enum buf_page_state {
+	BUF_BLOCK_ZIP_PAGE = 1,		/* contains a compressed page only;
+					must be smaller than
+					BUF_BLOCK_NOT_USED;
+					cf. buf_block_state_valid() */
+	BUF_BLOCK_NOT_USED,		/* is in the free list */
 	BUF_BLOCK_READY_FOR_USE,	/* when buf_get_free_block returns
 					a block, it is in this state */
 	BUF_BLOCK_FILE_PAGE,		/* contains a buffered file page */
@@ -536,7 +540,7 @@ buf_block_dbg_add_level(
 /*************************************************************************
 Gets the state of a block. */
 UNIV_INLINE
-enum buf_block_state
+enum buf_page_state
 buf_block_get_state(
 /*================*/
 					/* out: state */
@@ -549,7 +553,7 @@ void
 buf_block_set_state(
 /*================*/
 	buf_block_t*		block,	/* in/out: pointer to control block */
-	enum buf_block_state	state);	/* in: state */
+	enum buf_page_state	state);	/* in: state */
 /*************************************************************************
 Map a block to a file page. */
 UNIV_INLINE
@@ -702,25 +706,30 @@ buf_get_free_list_len(void);
 
 
 
+/* The common buffer control block structure
+for compressed and uncompressed frames */
+
+struct buf_page_struct{
+	ulint		space:32;	/* tablespace id */
+	ulint		offset:32;	/* page number */
+	page_zip_des_t	zip;		/* compressed page; zip.state
+					is relevant for all pages */
+};
+
 /* The buffer control block structure */
 
 struct buf_block_struct{
 
 	/* 1. General fields */
 
-	ulint		state;		/* state of the control block:
-					BUF_BLOCK_NOT_USED, ...; changing
-					this is only allowed when a thread
-					has BOTH the buffer pool mutex AND
-					block->mutex locked */
+	buf_page_t	page;		/* page information; this must
+					be the first field, so that
+					buf_pool->page_hash can point
+					to buf_page_t or buf_block_t */
 	byte*		frame;		/* pointer to buffer frame which
 					is of size UNIV_PAGE_SIZE, and
 					aligned to an address divisible by
 					UNIV_PAGE_SIZE */
-	ulint		space;		/* space id of the page */
-	ulint		offset;		/* page number within the space */
-	ulint		lock_hash_val;	/* hashed value of the page address
-					in the record lock hash table */
 	mutex_t		mutex;		/* mutex protecting this block:
 					state (also protected by the buffer
 					pool mutex), io_fix, buf_fix_count,
@@ -731,7 +740,9 @@ struct buf_block_struct{
 					frame */
 	buf_block_t*	hash;		/* node used in chaining to the page
 					hash table */
-	ibool		check_index_page_at_flush;
+	ulint		lock_hash_val:32;/* hashed value of the page address
+					in the record lock hash table */
+	ulint		check_index_page_at_flush:1;
 					/* TRUE if we know that this is
 					an index page, and want the database
 					to check its consistency before flush;
@@ -785,20 +796,20 @@ struct buf_block_struct{
 					without holding any mutex or latch */
 	ibool		old;		/* TRUE if the block is in the old
 					blocks in the LRU list */
-	ibool		accessed;	/* TRUE if the page has been accessed
+	ulint		accessed:1;	/* TRUE if the page has been accessed
 					while in the buffer pool: read-ahead
 					may read in pages which have not been
 					accessed yet; this is protected by
 					block->mutex; a thread is allowed to
 					read this for heuristic purposes
 					without holding any mutex or latch */
-	ulint		buf_fix_count;	/* count of how manyfold this block
-					is currently bufferfixed; this is
-					protected by block->mutex */
-	ulint		io_fix;		/* if a read is pending to the frame,
+	ulint		io_fix:2;	/* if a read is pending to the frame,
 					io_fix is BUF_IO_READ, in the case
 					of a write BUF_IO_WRITE, otherwise 0;
 					this is protected by block->mutex */
+	ulint		buf_fix_count:29;/* count of how manyfold this block
+					is currently bufferfixed; this is
+					protected by block->mutex */
 	/* 4. Optimistic search field */
 
 	dulint		modify_clock;	/* this clock is incremented every
@@ -835,26 +846,23 @@ struct buf_block_struct{
 	An exception to this is when we init or create a page
 	in the buffer pool in buf0buf.c. */
 
-	ibool		is_hashed;	/* TRUE if hash index has already been
-					built on this page; note that it does
-					not guarantee that the index is
-					complete, though: there may have been
-					hash collisions, record deletions,
-					etc. */
 #ifdef UNIV_DEBUG
 	ulint		n_pointers;	/* used in debugging: the number of
 					pointers in the adaptive hash index
 					pointing to this frame */
 #endif /* UNIV_DEBUG */
-	ulint		curr_n_fields;	/* prefix length for hash indexing:
+	ulint		is_hashed:1;	/* TRUE if hash index has already been
+					built on this page; note that it does
+					not guarantee that the index is
+					complete, though: there may have been
+					hash collisions, record deletions,
+					etc. */
+	ulint		curr_n_fields:10;/* prefix length for hash indexing:
 					number of full fields */
-	ulint		curr_n_bytes;	/* number of bytes in hash indexing */
-	ibool		curr_left_side;	/* TRUE or FALSE in hash indexing */
+	ulint		curr_n_bytes:15;/* number of bytes in hash indexing */
+	ibool		curr_left_side:1;/* TRUE or FALSE in hash indexing */
 	dict_index_t*	index;		/* Index for which the adaptive
 					hash index has been created. */
-	/* TODO: how to protect this? */
-	page_zip_des_t	page_zip;	/* compressed page info */
-
 	/* 6. Debug fields */
 #ifdef UNIV_SYNC_DEBUG
 	rw_lock_t	debug_latch;	/* in the debug version, each thread
@@ -959,9 +967,9 @@ struct buf_pool_struct{
 					LRU_old == NULL */
 };
 
-/* Io_fix states of a control block; these must be != 0 */
-#define BUF_IO_READ		561
-#define BUF_IO_WRITE		562
+/* Io_fix states of a control block; these must be 1..3 */
+#define BUF_IO_READ		1
+#define BUF_IO_WRITE		2
 
 /************************************************************************
 Let us list the consistency conditions for different control block states.

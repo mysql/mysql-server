@@ -3571,7 +3571,9 @@ Copy a page byte for byte, except for the file page header and trailer. */
 void
 page_zip_copy(
 /*==========*/
-	page_zip_des_t*		page_zip,	/* out: copy of src_zip */
+	page_zip_des_t*		page_zip,	/* out: copy of src_zip
+						(n_blobs, m_start, m_end,
+						data[0..size-1]) */
 	page_t*			page,		/* out: copy of src */
 	const page_zip_des_t*	src_zip,	/* in: compressed page */
 	const page_t*		src,		/* in: page */

@@ -2660,7 +2660,8 @@ error_exit2:
 		page_zip_des_t	page_zip;
 		page_zip.size = zip_size;
 		page_zip.data = page + UNIV_PAGE_SIZE;
-		page_zip.n_blobs = page_zip.m_start = page_zip.m_end = 0;
+		page_zip.state = page_zip.n_blobs
+			= page_zip.m_start = page_zip.m_end = 0;
 		buf_flush_init_for_writing(page, &page_zip, ut_dulint_zero);
 		ret = os_file_write(path, file, page_zip.data, 0, 0, zip_size);
 	}

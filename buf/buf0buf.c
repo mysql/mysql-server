@@ -603,7 +603,7 @@ buf_block_init(
 	buf_block_t*	block,	/* in: pointer to control block */
 	byte*		frame)	/* in: pointer to buffer frame */
 {
-	block->state = BUF_BLOCK_NOT_USED;
+	block->page.zip.state = BUF_BLOCK_NOT_USED;
 
 	block->frame = frame;
 
@@ -625,7 +625,7 @@ buf_block_init(
 #ifdef UNIV_DEBUG
 	block->n_pointers = 0;
 #endif /* UNIV_DEBUG */
-	page_zip_des_init(&block->page_zip);
+	page_zip_des_init(&block->page.zip);
 
 	mutex_create(&block->mutex, SYNC_BUF_BLOCK);
 
@@ -798,7 +798,7 @@ buf_chunk_free(
 
 	for (block = chunk->blocks; block < block_end; block++) {
 		ut_a(buf_block_get_state(block) == BUF_BLOCK_NOT_USED);
-		ut_a(!block->page_zip.data);
+		ut_a(!block->page.zip.data);
 
 		ut_a(!block->in_LRU_list);
 		/* Remove the block from the free list. */
@@ -1081,8 +1081,8 @@ buf_pool_page_hash_rebuild(void)
 			    == BUF_BLOCK_FILE_PAGE) {
 				HASH_INSERT(buf_block_t, hash, page_hash,
 					    buf_page_address_fold(
-						    block->space,
-						    block->offset),
+						    block->page.space,
+						    block->page.offset),
 					    block);
 			}
 		}
@@ -1397,7 +1397,8 @@ loop:
 	if (guess) {
 		block = guess;
 
-		if ((offset != block->offset) || (space != block->space)
+		if (offset != block->page.offset
+		    || space != block->page.space
 		    || buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE) {
 
 			block = NULL;
@@ -1799,12 +1800,12 @@ buf_page_init_for_backup_restore(
 	block->n_fields		= 1;
 	block->n_bytes		= 0;
 	block->left_side	= TRUE;
-	page_zip_des_init(&block->page_zip);
-	/* We assume that block->page_zip.data has been allocated
+	page_zip_des_init(&block->page);
+	/* We assume that block->page.data has been allocated
 	with zip_size == UNIV_PAGE_SIZE. */
 	ut_ad(zip_size <= UNIV_PAGE_SIZE);
 	ut_ad(ut_is_2pow(zip_size));
-	block->page_zip.size = zip_size;
+	block->page.size = zip_size;
 #ifdef UNIV_DEBUG_FILE_ACCESSES
 	block->file_page_was_freed = FALSE;
 #endif /* UNIV_DEBUG_FILE_ACCESSES */
@@ -2127,16 +2128,16 @@ buf_page_io_complete(
 		ulint	read_space_id;
 		byte*	frame;
 
-		if (block->page_zip.size) {
+		if (block->page.zip.size) {
 			ut_a(buf_block_get_space(block) != 0);
 
-			frame = block->page_zip.data;
+			frame = block->page.zip.data;
 
 			switch (fil_page_get_type(frame)) {
 			case FIL_PAGE_INDEX:
 				if (block->frame) {
 					if (!page_zip_decompress(
-						    &block->page_zip,
+						    &block->page.zip,
 						    block->frame)) {
 						goto corrupt;
 					}
@@ -2150,7 +2151,7 @@ buf_page_io_complete(
 			case FIL_PAGE_TYPE_ZBLOB:
 				/* Copy to uncompressed storage. */
 				memcpy(block->frame, frame,
-				       block->page_zip.size);
+				       block->page.zip.size);
 				break;
 			default:
 				ut_print_timestamp(stderr);
@@ -2183,8 +2184,9 @@ buf_page_io_complete(
 				(ulong) buf_block_get_page_no(block));
 		} else if (!read_space_id && !read_page_no) {
 			/* This is likely an uninitialized page. */
-		} else if ((block->space && block->space != read_space_id)
-			   || block->offset != read_page_no) {
+		} else if ((block->page.space
+			    && block->page.space != read_space_id)
+			   || block->page.offset != read_page_no) {
 			/* We did not compare space_id to read_space_id
 			if block->space == 0, because the field on the
 			page may contain garbage in MySQL < 4.1.1,
@@ -2197,13 +2199,14 @@ buf_page_io_complete(
 				"InnoDB: read in are %lu:%lu,"
 				" should be %lu:%lu!\n",
 				(ulong) read_space_id, (ulong) read_page_no,
-				(ulong) block->space, (ulong) block->offset);
+				(ulong) block->page.space,
+				(ulong) block->page.offset);
 		}
 
 		/* From version 3.23.38 up we store the page checksum
 		to the 4 first bytes of the page end lsn field */
 
-		if (buf_page_is_corrupted(frame, block->page_zip.size)) {
+		if (buf_page_is_corrupted(frame, block->page.zip.size)) {
 corrupt:
 			fprintf(stderr,
 				"InnoDB: Database page corruption on disk"
@@ -2211,15 +2214,15 @@ corrupt:
 				"InnoDB: file read of page %lu.\n"
 				"InnoDB: You may have to recover"
 				" from a backup.\n",
-				(ulong) block->offset);
-			buf_page_print(frame, block->page_zip.size);
+				(ulong) block->page.offset);
+			buf_page_print(frame, block->page.zip.size);
 			fprintf(stderr,
 				"InnoDB: Database page corruption on disk"
 				" or a failed\n"
 				"InnoDB: file read of page %lu.\n"
 				"InnoDB: You may have to recover"
 				" from a backup.\n",
-				(ulong) block->offset);
+				(ulong) block->page.offset);
 			fputs("InnoDB: It is also possible that"
 			      " your operating\n"
 			      "InnoDB: system has corrupted its"
@@ -2255,7 +2258,7 @@ corrupt:
 
 		if (!recv_no_ibuf_operations) {
 			ibuf_merge_or_delete_for_page(
-				block, block->space, block->offset,
+				block, block->page.space, block->page.offset,
 				buf_block_get_zip_size(block), TRUE);
 		}
 	}
@@ -2767,8 +2770,8 @@ buf_all_freed(void)
 		if (UNIV_LIKELY_NULL(block)) {
 			fprintf(stderr,
 				"Page %lu %lu still fixed or dirty\n",
-				(ulong) block->space,
-				(ulong) block->offset);
+				(ulong) block->page.space,
+				(ulong) block->page.offset);
 			ut_error;
 		}
 	}

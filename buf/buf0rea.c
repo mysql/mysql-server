@@ -134,7 +134,7 @@ buf_read_page_low(
 	if (zip_size) {
 		*err = fil_io(OS_FILE_READ | wake_later,
 			      sync, space, zip_size, offset, 0, zip_size,
-			      (void*) block->page_zip.data, (void*) block);
+			      (void*) block->page.zip.data, (void*) block);
 	} else {
 		*err = fil_io(OS_FILE_READ | wake_later,
 			      sync, space, 0, offset, 0, UNIV_PAGE_SIZE,
