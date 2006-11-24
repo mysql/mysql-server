@@ -110,8 +110,8 @@ scan_again:
 			if (buf_debug_prints) {
 				fprintf(stderr,
 					"Dropping space %lu page %lu\n",
-					(ulong) block->space,
-					(ulong) block->offset);
+					(ulong) buf_block_get_space(block),
+					(ulong) buf_block_get_page_no(block));
 			}
 #endif
 			if (block->is_hashed) {
@@ -217,7 +217,8 @@ buf_LRU_free_block(
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
 		fprintf(stderr, "Putting space %lu page %lu to free list\n",
-			(ulong) block->space, (ulong) block->offset);
+			(ulong) buf_block_get_space(block),
+			(ulong) buf_block_get_page_no(block));
 	}
 #endif /* UNIV_DEBUG */
 
@@ -1073,7 +1074,9 @@ buf_LRU_print(void)
 
 	while (block != NULL) {
 
-		fprintf(stderr, "BLOCK %lu ", (ulong) block->offset);
+		fprintf(stderr, "BLOCK space %lu page %lu ",
+			(ulong) buf_block_get_space(block),
+			(ulong) buf_block_get_page_no(block));
 
 		if (block->old) {
 			fputs("old ", stderr);

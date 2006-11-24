@@ -2566,7 +2566,7 @@ btr_discard_page(
 	block = btr_cur_get_block(cursor);
 	index = btr_cur_get_index(cursor);
 
-	ut_ad(dict_index_get_page(index) != block->offset);
+	ut_ad(dict_index_get_page(index) != buf_block_get_page_no(block));
 	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
@@ -2802,7 +2802,7 @@ btr_check_node_ptr(
 	page_t*		page = buf_block_get_frame(block);
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
-	if (dict_index_get_page(index) == block->offset) {
+	if (dict_index_get_page(index) == buf_block_get_page_no(block)) {
 
 		return(TRUE);
 	}
