@@ -586,7 +586,8 @@ buf_flush_write_block_low(
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
 #ifdef UNIV_IBUF_DEBUG
-	ut_a(ibuf_count_get(block->space, block->offset) == 0);
+	ut_a(ibuf_count_get(buf_block_get_space(block),
+			    buf_block_get_page_no(block)) == 0);
 #endif
 	ut_ad(!ut_dulint_is_zero(block->newest_modification));
 
@@ -689,7 +690,8 @@ buf_flush_try_page(
 		if (buf_debug_prints) {
 			fprintf(stderr,
 				"Flushing page space %lu, page no %lu \n",
-				(ulong) block->space, (ulong) block->offset);
+				(ulong) buf_block_get_space(block),
+				(ulong) buf_block_get_page_no(block));
 		}
 #endif /* UNIV_DEBUG */
 
@@ -756,8 +758,8 @@ buf_flush_try_page(
 			fprintf(stderr,
 				"Flushing single page space %lu,"
 				" page no %lu \n",
-				(ulong) block->space,
-				(ulong) block->offset);
+				(ulong) buf_block_get_space(block),
+				(ulong) buf_block_get_page_no(block));
 		}
 #endif /* UNIV_DEBUG */
 

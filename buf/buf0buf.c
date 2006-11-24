@@ -1543,7 +1543,8 @@ loop:
 	}
 
 #ifdef UNIV_IBUF_DEBUG
-	ut_a(ibuf_count_get(block->space, block->offset) == 0);
+	ut_a(ibuf_count_get(buf_block_get_space(block),
+			    buf_block_get_page_no(block)) == 0);
 #endif
 	return(block);
 }
@@ -1595,8 +1596,9 @@ buf_page_optimistic_get_func(
 	/* Check if this is the first access to the page */
 
 	ut_ad(!ibuf_inside()
-	      || ibuf_page(block->space, buf_block_get_zip_size(block),
-			   block->offset));
+	      || ibuf_page(buf_block_get_space(block),
+			   buf_block_get_zip_size(block),
+			   buf_block_get_page_no(block)));
 
 	if (rw_latch == RW_S_LATCH) {
 		success = rw_lock_s_lock_func_nowait(&(block->lock),
@@ -1664,7 +1666,8 @@ buf_page_optimistic_get_func(
 	}
 
 #ifdef UNIV_IBUF_DEBUG
-	ut_a(ibuf_count_get(block->space, block->offset) == 0);
+	ut_a(ibuf_count_get(buf_block_get_space(block),
+			    buf_block_get_page_no(block)) == 0);
 #endif
 	buf_pool->n_page_gets++;
 
@@ -1760,7 +1763,8 @@ buf_page_get_known_nowait(
 
 #ifdef UNIV_IBUF_DEBUG
 	ut_a((mode == BUF_KEEP_OLD)
-	     || (ibuf_count_get(block->space, block->offset) == 0));
+	     || (ibuf_count_get(buf_block_get_space(block),
+				buf_block_get_page_no(block)) == 0));
 #endif
 	buf_pool->n_page_gets++;
 
@@ -2022,7 +2026,8 @@ buf_page_create(
 
 	if (block != NULL) {
 #ifdef UNIV_IBUF_DEBUG
-		ut_a(ibuf_count_get(block->space, block->offset) == 0);
+		ut_a(ibuf_count_get(buf_block_get_space(block),
+				    buf_block_get_page_no(block)) == 0);
 #endif
 #ifdef UNIV_DEBUG_FILE_ACCESSES
 		block->file_page_was_freed = FALSE;
@@ -2095,7 +2100,8 @@ buf_page_create(
 	ut_a(++buf_dbg_counter % 357 || buf_validate());
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #ifdef UNIV_IBUF_DEBUG
-	ut_a(ibuf_count_get(block->space, block->offset) == 0);
+	ut_a(ibuf_count_get(buf_block_get_space(block),
+			    buf_block_get_page_no(block)) == 0);
 #endif
 	return(block);
 }
@@ -2188,9 +2194,9 @@ buf_page_io_complete(
 			    && block->page.space != read_space_id)
 			   || block->page.offset != read_page_no) {
 			/* We did not compare space_id to read_space_id
-			if block->space == 0, because the field on the
+			if block->page.space == 0, because the field on the
 			page may contain garbage in MySQL < 4.1.1,
-			which only supported block->space == 0. */
+			which only supported block->page.space == 0. */
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
@@ -2267,7 +2273,8 @@ corrupt:
 	mutex_enter(&block->mutex);
 
 #ifdef UNIV_IBUF_DEBUG
-	ut_a(ibuf_count_get(block->space, block->offset) == 0);
+	ut_a(ibuf_count_get(buf_block_get_space(block),
+			    buf_block_get_page_no(block)) == 0);
 #endif
 	/* Because this thread which does the unlocking is not the same that
 	did the locking, we use a pass value != 0 in unlock, which simply
@@ -2317,7 +2324,8 @@ corrupt:
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
 		fprintf(stderr, "page space %lu page no %lu\n",
-			(ulong) block->space, (ulong) block->offset);
+			(ulong) buf_block_get_space(block),
+			(ulong) buf_block_get_page_no(block));
 	}
 #endif /* UNIV_DEBUG */
 }
@@ -2382,17 +2390,25 @@ buf_validate(void)
 			mutex_enter(&block->mutex);
 
 			switch (buf_block_get_state(block)) {
+			case BUF_BLOCK_ZIP_PAGE:
+				/* TODO: validate page_zip */
+				ut_error;
+				break;
 			case BUF_BLOCK_FILE_PAGE:
 
-				ut_a(buf_page_hash_get(block->space,
-						       block->offset)
+				ut_a(buf_page_hash_get(buf_block_get_space(
+							       block),
+						       buf_block_get_page_no(
+							       block))
 				     == block);
 				n_page++;
 
 #ifdef UNIV_IBUF_DEBUG
 				ut_a((block->io_fix == BUF_IO_READ)
-				     || !ibuf_count_get(block->space,
-							block->offset));
+				     || !ibuf_count_get(buf_block_get_space(
+								block),
+							buf_block_get_page_no(
+								block)));
 #endif
 				if (block->io_fix == BUF_IO_WRITE) {
 
