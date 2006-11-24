@@ -31,11 +31,17 @@ page0*.h includes rem0rec.h and may include rem0rec.ic. */
 struct page_zip_des_struct
 {
 	page_zip_t*	data;		/* compressed page data */
-	ulint		size;		/* total size of compressed page */
-	ulint		n_blobs;	/* number of externally stored
-					columns */
-	ulint		m_start;	/* start offset of modification log */
-	ulint		m_end;		/* end offset of modification log */
+	ulint		state:3;	/* state of the control block
+					(cf. enum buf_page_state) */
+	ulint		:1;		/* reserved */
+	ulint		n_blobs:12;	/* number of externally stored
+					columns on the page; the maximum
+					is 744 on a 16 KiB page */
+	ulint		size:16;	/* compressed page size in bytes;
+					must be a power of 2 and
+					at least PAGE_ZIP_MIN_SIZE */
+	ulint		m_start:16;	/* start offset of modification log */
+	ulint		m_end:16;	/* end offset of modification log */
 };
 
 #define PAGE_ZIP_MIN_SIZE	1024	/* smallest page_zip_des_struct.size */

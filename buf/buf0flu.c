@@ -263,7 +263,7 @@ buf_flush_buffered_writes(void)
 		block = trx_doublewrite->buf_block_arr[i];
 		ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
-		if (UNIV_LIKELY_NULL(block->page_zip.data)) {
+		if (UNIV_LIKELY_NULL(block->page.zip.data)) {
 			/* No simple validate for compressed pages exists. */
 			continue;
 		}
@@ -328,7 +328,7 @@ corrupted_page:
 	for (len2 = 0; len2 + UNIV_PAGE_SIZE <= len;
 	     len2 += UNIV_PAGE_SIZE, i++) {
 		block = trx_doublewrite->buf_block_arr[i];
-		if (UNIV_LIKELY(!block->page_zip.data)
+		if (UNIV_LIKELY(!block->page.zip.data)
 		    && UNIV_UNLIKELY
 		    (memcmp(write_buf + len2 + (FIL_PAGE_LSN + 4),
 			    write_buf + len2
@@ -361,7 +361,7 @@ corrupted_page:
 	for (len2 = 0; len2 + UNIV_PAGE_SIZE <= len;
 	     len2 += UNIV_PAGE_SIZE, i++) {
 		block = trx_doublewrite->buf_block_arr[i];
-		if (UNIV_LIKELY(!block->page_zip.data)
+		if (UNIV_LIKELY(!block->page.zip.data)
 		    && UNIV_UNLIKELY
 		    (memcmp(write_buf + len2 + (FIL_PAGE_LSN + 4),
 			    write_buf + len2
@@ -389,13 +389,13 @@ flush:
 	for (i = 0; i < trx_doublewrite->first_free; i++) {
 		block = trx_doublewrite->buf_block_arr[i];
 		ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-		if (UNIV_UNLIKELY(block->page_zip.size)) {
+		if (UNIV_UNLIKELY(block->page.zip.size)) {
 			fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
 			       FALSE, buf_block_get_space(block),
-			       block->page_zip.size,
+			       block->page.zip.size,
 			       buf_block_get_page_no(block), 0,
-			       block->page_zip.size,
-			       (void*)block->page_zip.data,
+			       block->page.zip.size,
+			       (void*)block->page.zip.data,
 			       (void*)block);
 			continue;
 		} else if (UNIV_UNLIKELY
@@ -471,13 +471,13 @@ try_again:
 		goto try_again;
 	}
 
-	zip_size = block->page_zip.size;
+	zip_size = block->page.zip.size;
 
 	if (UNIV_UNLIKELY(zip_size)) {
 		/* Copy the compressed page and clear the rest. */
 		memcpy(trx_doublewrite->write_buf
 		       + UNIV_PAGE_SIZE * trx_doublewrite->first_free,
-		       block->page_zip.data, zip_size);
+		       block->page.zip.data, zip_size);
 		memset(trx_doublewrite->write_buf
 		       + UNIV_PAGE_SIZE * trx_doublewrite->first_free
 		       + zip_size, 0, UNIV_PAGE_SIZE - zip_size);
@@ -607,9 +607,9 @@ buf_flush_write_block_low(
 				   block->newest_modification);
 	if (!srv_use_doublewrite_buf || !trx_doublewrite) {
 		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
-		       FALSE, buf_block_get_space(block), block->page_zip.size,
-		       buf_block_get_page_no(block), 0, block->page_zip.size
-		       ? block->page_zip.size : UNIV_PAGE_SIZE,
+		       FALSE, buf_block_get_space(block), block->page.zip.size,
+		       buf_block_get_page_no(block), 0, block->page.zip.size
+		       ? block->page.zip.size : UNIV_PAGE_SIZE,
 		       (void*)block->frame, (void*)block);
 	} else {
 		buf_flush_post_to_doublewrite_buf(block);
