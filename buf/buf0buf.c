@@ -603,8 +603,6 @@ buf_block_init(
 	buf_block_t*	block,	/* in: pointer to control block */
 	byte*		frame)	/* in: pointer to buffer frame */
 {
-	block->page.zip.state = BUF_BLOCK_NOT_USED;
-
 	block->frame = frame;
 
 	block->buf_fix_count = 0;
@@ -626,6 +624,7 @@ buf_block_init(
 	block->n_pointers = 0;
 #endif /* UNIV_DEBUG */
 	page_zip_des_init(&block->page.zip);
+	block->page.zip.state = BUF_BLOCK_NOT_USED;
 
 	mutex_create(&block->mutex, SYNC_BUF_BLOCK);
 
@@ -1805,6 +1804,8 @@ buf_page_init_for_backup_restore(
 	block->n_bytes		= 0;
 	block->left_side	= TRUE;
 	page_zip_des_init(&block->page);
+	block->page.zip.state	= BUF_BLOCK_FILE_PAGE;
+
 	/* We assume that block->page.data has been allocated
 	with zip_size == UNIV_PAGE_SIZE. */
 	ut_ad(zip_size <= UNIV_PAGE_SIZE);
