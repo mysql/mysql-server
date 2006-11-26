@@ -2495,7 +2495,7 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted)
       const BackupCompleteRep * const rep = 
 	CAST_CONSTPTR(BackupCompleteRep, signal->getDataPtr());
 #ifdef VM_TRACE
-      ndbout_c("Backup(%d) completed %d", rep->backupId);
+      ndbout_c("Backup(%d) completed", rep->backupId);
 #endif
       event.Event = BackupEvent::BackupCompleted;
       event.Completed.BackupId = rep->backupId;
@@ -2751,7 +2751,7 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
       break;
     case 1:
       res = i2.set(param, val_64);
-      ndbout_c("Updating node %d param: %d to %Ld",  node, param, val_32);
+      ndbout_c("Updating node %d param: %d to %u",  node, param, val_32);
       break;
     case 2:
       res = i2.set(param, val_char);

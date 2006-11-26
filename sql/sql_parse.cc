@@ -1604,7 +1604,7 @@ bool do_command(THD *thd)
       command= COM_END;				// Wrong command
     DBUG_PRINT("info",("Command on %s = %d (%s)",
 		       vio_description(net->vio), command,
-		       command_name[command]));
+		       command_name[command].str));
   }
   net->read_timeout=old_timeout;		// restore it
   /*
@@ -1828,7 +1828,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     char *packet_end= thd->query + thd->query_length;
     /* 'b' stands for 'buffer' parameter', special for 'my_snprintf' */
     const char *format= "%.*b";
-    general_log.write(thd, command, format, thd->query_length, thd->query);
+    general_log_print(thd, command, format, thd->query_length, thd->query);
     DBUG_PRINT("query",("%-.4096s",thd->query));
 
     if (!(specialflag & SPECIAL_NO_PRIOR))

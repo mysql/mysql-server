@@ -161,16 +161,16 @@ static void dbug_print_table(const char *info, TABLE *table)
   }
   DBUG_PRINT("info",
              ("%s: %s.%s s->fields: %d  "
-              "reclength: %d  rec_buff_length: %d  record[0]: %lx  "
-              "record[1]: %lx",
+              "reclength: %lu  rec_buff_length: %u  record[0]: 0x%lx  "
+              "record[1]: 0x%lx",
               info,
               table->s->db.str,
               table->s->table_name.str,
               table->s->fields,
               table->s->reclength,
               table->s->rec_buff_length,
-              table->record[0],
-              table->record[1]));
+              (long) table->record[0],
+              (long) table->record[1]));
 
   for (unsigned int i= 0; i < table->s->fields; i++) 
   {
@@ -180,7 +180,7 @@ static void dbug_print_table(const char *info, TABLE *table)
                 "ptr: 0x%lx[+%d]  null_bit: %u  null_ptr: 0x%lx[+%d]",
                 i,
                 f->field_name,
-                f->flags,
+                (long) f->flags,
                 (f->flags & PRI_KEY_FLAG)  ? "pri"       : "attr",
                 (f->flags & NOT_NULL_FLAG) ? ""          : ",nullable",
                 (f->flags & UNSIGNED_FLAG) ? ",unsigned" : ",signed",
@@ -189,16 +189,18 @@ static void dbug_print_table(const char *info, TABLE *table)
                 (f->flags & BINARY_FLAG)   ? ",binary"   : "",
                 f->real_type(),
                 f->pack_length(),
-                f->ptr, f->ptr - table->record[0],
+                (long) f->ptr, (int) (f->ptr - table->record[0]),
                 f->null_bit,
-                f->null_ptr, (byte*) f->null_ptr - table->record[0]));
+                (long) f->null_ptr,
+                (int) ((byte*) f->null_ptr - table->record[0])));
     if (f->type() == MYSQL_TYPE_BIT)
     {
       Field_bit *g= (Field_bit*) f;
       DBUG_PRINT("MYSQL_TYPE_BIT",("field_length: %d  bit_ptr: 0x%lx[+%d] "
-                                   "bit_ofs: %u  bit_len: %u",
-                                   g->field_length, g->bit_ptr,
-                                   (byte*) g->bit_ptr-table->record[0],
+                                   "bit_ofs: %d  bit_len: %u",
+                                   g->field_length, (long) g->bit_ptr,
+                                   (int) ((byte*) g->bit_ptr -
+                                          table->record[0]),
                                    g->bit_ofs, g->bit_len));
     }
   }
@@ -605,11 +607,11 @@ static int ndbcluster_binlog_end(THD *thd)
       {
         DBUG_PRINT("share",
                    ("[%d] 0x%lx  key: %s  key_length: %d",
-                    i, share, share->key, share->key_length));
+                    i, (long) share, share->key, share->key_length));
         DBUG_PRINT("share",
-                   ("db.tablename: %s.%s  use_count: %d  commit_count: %d",
+                   ("db.tablename: %s.%s  use_count: %d  commit_count: %lu",
                     share->db, share->table_name,
-                    share->use_count, share->commit_count));
+                    share->use_count, (long) share->commit_count));
       }
     }
     pthread_mutex_unlock(&ndbcluster_mutex);
@@ -685,8 +687,8 @@ static NDB_SHARE *ndbcluster_check_apply_status_share()
   void *share= hash_search(&ndbcluster_open_tables, 
                            NDB_APPLY_TABLE_FILE,
                            sizeof(NDB_APPLY_TABLE_FILE) - 1);
-  DBUG_PRINT("info",("ndbcluster_check_apply_status_share %s %p",
-                     NDB_APPLY_TABLE_FILE, share));
+  DBUG_PRINT("info",("ndbcluster_check_apply_status_share %s 0x%lx",
+                     NDB_APPLY_TABLE_FILE, (long) share));
   pthread_mutex_unlock(&ndbcluster_mutex);
   return (NDB_SHARE*) share;
 }
@@ -703,8 +705,8 @@ static NDB_SHARE *ndbcluster_check_schema_share()
   void *share= hash_search(&ndbcluster_open_tables, 
                            NDB_SCHEMA_TABLE_FILE,
                            sizeof(NDB_SCHEMA_TABLE_FILE) - 1);
-  DBUG_PRINT("info",("ndbcluster_check_schema_share %s %p",
-                     NDB_SCHEMA_TABLE_FILE, share));
+  DBUG_PRINT("info",("ndbcluster_check_schema_share %s 0x%lx",
+                     NDB_SCHEMA_TABLE_FILE, (long) share));
   pthread_mutex_unlock(&ndbcluster_mutex);
   return (NDB_SHARE*) share;
 }
@@ -2721,10 +2723,9 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
     if (share->flags & NSF_BLOB_FLAG)
       op->mergeEvents(TRUE); // currently not inherited from event
 
-    DBUG_PRINT("info", ("share->ndb_value[0]: 0x%x",
-                        share->ndb_value[0]));
-    DBUG_PRINT("info", ("share->ndb_value[1]: 0x%x",
-                        share->ndb_value[1]));
+    DBUG_PRINT("info", ("share->ndb_value[0]: 0x%lx  share->ndb_value[1]: 0x%lx",
+                        (long) share->ndb_value[0],
+                        (long) share->ndb_value[1]));
     int n_columns= ndbtab->getNoOfColumns();
     int n_fields= table ? table->s->fields : 0; // XXX ???
     for (int j= 0; j < n_columns; j++)
@@ -2778,12 +2779,14 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
       }
       share->ndb_value[0][j].ptr= attr0.ptr;
       share->ndb_value[1][j].ptr= attr1.ptr;
-      DBUG_PRINT("info", ("&share->ndb_value[0][%d]: 0x%x  "
-                          "share->ndb_value[0][%d]: 0x%x",
-                          j, &share->ndb_value[0][j], j, attr0.ptr));
-      DBUG_PRINT("info", ("&share->ndb_value[1][%d]: 0x%x  "
-                          "share->ndb_value[1][%d]: 0x%x",
-                          j, &share->ndb_value[0][j], j, attr1.ptr));
+      DBUG_PRINT("info", ("&share->ndb_value[0][%d]: 0x%lx  "
+                          "share->ndb_value[0][%d]: 0x%lx",
+                          j, (long) &share->ndb_value[0][j],
+                          j, (long) attr0.ptr));
+      DBUG_PRINT("info", ("&share->ndb_value[1][%d]: 0x%lx  "
+                          "share->ndb_value[1][%d]: 0x%lx",
+                          j, (long) &share->ndb_value[0][j],
+                          j, (long) attr1.ptr));
     }
     op->setCustomData((void *) share); // set before execute
     share->op= op; // assign op in NDB_SHARE
@@ -2826,8 +2829,8 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
     (void) pthread_cond_signal(&injector_cond);
   }
 
-  DBUG_PRINT("info",("%s share->op: 0x%lx, share->use_count: %u",
-                     share->key, share->op, share->use_count));
+  DBUG_PRINT("info",("%s share->op: 0x%lx  share->use_count: %u",
+                     share->key, (long) share->op, share->use_count));
 
   if (ndb_extra_logging)
     sql_print_information("NDB Binlog: logging %s", share->key);
@@ -3012,10 +3015,11 @@ ndb_binlog_thread_handle_non_data_event(THD *thd, Ndb *ndb,
       free_share(&apply_status_share);
       apply_status_share= 0;
     }
-    DBUG_PRINT("info", ("CLUSTER FAILURE EVENT: "
-                        "%s  received share: 0x%lx  op: %lx  share op: %lx  "
-                        "op_old: %lx",
-                       share->key, share, pOp, share->op, share->op_old));
+    DBUG_PRINT("error", ("CLUSTER FAILURE EVENT: "
+                        "%s  received share: 0x%lx  op: 0x%lx  share op: 0x%lx  "
+                        "op_old: 0x%lx",
+                         share->key, (long) share, (long) pOp,
+                         (long) share->op, (long) share->op_old));
     break;
   case NDBEVENT::TE_DROP:
     if (apply_status_share == share)
@@ -3033,10 +3037,11 @@ ndb_binlog_thread_handle_non_data_event(THD *thd, Ndb *ndb,
     // fall through
   case NDBEVENT::TE_ALTER:
     row.n_schemaops++;
-    DBUG_PRINT("info", ("TABLE %s EVENT: %s  received share: 0x%lx  op: %lx  "
-                        "share op: %lx  op_old: %lx",
-                       type == NDBEVENT::TE_DROP ? "DROP" : "ALTER",
-                       share->key, share, pOp, share->op, share->op_old));
+    DBUG_PRINT("info", ("TABLE %s  EVENT: %s  received share: 0x%lx  op: 0x%lx  "
+                        "share op: 0x%lx  op_old: 0x%lx",
+                        type == NDBEVENT::TE_DROP ? "DROP" : "ALTER",
+                        share->key, (long) share, (long) pOp,
+                        (long) share->op, (long) share->op_old));
     break;
   case NDBEVENT::TE_NODE_FAILURE:
     /* fall through */
@@ -3513,7 +3518,8 @@ restart:
       }
     }
     // now check that we have epochs consistant with what we had before the restart
-    DBUG_PRINT("info", ("schema_res: %d  schema_gci: %d", schema_res, schema_gci));
+    DBUG_PRINT("info", ("schema_res: %d  schema_gci: %lu", schema_res,
+                        (long) schema_gci));
     {
       i_ndb->flushIncompleteEvents(schema_gci);
       s_ndb->flushIncompleteEvents(schema_gci);
@@ -3697,8 +3703,8 @@ restart:
                  != NULL)
           {
             NDB_SHARE *share= (NDB_SHARE*)gci_op->getCustomData();
-            DBUG_PRINT("info", ("per gci_op: %p  share: %p  event_types: 0x%x",
-                                gci_op, share, event_types));
+            DBUG_PRINT("info", ("per gci_op: 0x%lx  share: 0x%lx  event_types: 0x%x",
+                                (long) gci_op, (long) share, event_types));
             // workaround for interface returning TE_STOP events
             // which are normally filtered out below in the nextEvent loop
             if ((event_types & ~NdbDictionary::Event::TE_STOP) == 0)
@@ -3784,11 +3790,13 @@ restart:
           {
             NDB_SHARE *share= (NDB_SHARE*) pOp->getCustomData();
             DBUG_PRINT("info",
-                       ("EVENT TYPE: %d  GCI: %lld  last applied: %lld  "
-                        "share: 0x%lx (%s.%s)", pOp->getEventType(), gci,
-                        ndb_latest_applied_binlog_epoch, share,
-                        share ? share->db :  "share == NULL",
-                        share ? share->table_name : ""));
+                       ("EVENT TYPE: %d  GCI: %ld  last applied: %ld  "
+                        "share: 0x%lx (%s.%s)", pOp->getEventType(),
+                        (long) gci,
+                        (long) ndb_latest_applied_binlog_epoch,
+                        (long) share,
+                        share ? share->db :  "'NULL'",
+                        share ? share->table_name : "'NULL'"));
             DBUG_ASSERT(share != 0);
           }
           // assert that there is consistancy between gci op list

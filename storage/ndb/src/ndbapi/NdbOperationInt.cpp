@@ -1091,53 +1091,61 @@ NdbOperation::branch_col(Uint32 type,
 int 
 NdbOperation::branch_col_eq(Uint32 ColId, const void * val, Uint32 len, 
 			    bool nopad, Uint32 Label){
-  INT_DEBUG(("branch_col_eq %u %.*s(%u,%d) -> %u", ColId, len, val, len, nopad, Label));
+  INT_DEBUG(("branch_col_eq %u %.*s(%u,%d) -> %u", ColId, len, (char*) val, len,
+             nopad, Label));
   return branch_col(Interpreter::EQ, ColId, val, len, nopad, Label);
 }
 
 int
 NdbOperation::branch_col_ne(Uint32 ColId, const void * val, Uint32 len, 
 			    bool nopad, Uint32 Label){
-  INT_DEBUG(("branch_col_ne %u %.*s(%u,%d) -> %u", ColId, len, val, len, nopad, Label));
+  INT_DEBUG(("branch_col_ne %u %.*s(%u,%d) -> %u", ColId, len, (char*) val, len,
+             nopad, Label));
   return branch_col(Interpreter::NE, ColId, val, len, nopad, Label);
 }
 int
 NdbOperation::branch_col_lt(Uint32 ColId, const void * val, Uint32 len, 
 			    bool nopad, Uint32 Label){
-  INT_DEBUG(("branch_col_lt %u %.*s(%u,%d) -> %u", ColId, len, val, len, nopad, Label));
+  INT_DEBUG(("branch_col_lt %u %.*s(%u,%d) -> %u", ColId, len, (char*) val, len,
+             nopad, Label));
   return branch_col(Interpreter::LT, ColId, val, len, nopad, Label);
 }
 int
 NdbOperation::branch_col_le(Uint32 ColId, const void * val, Uint32 len, 
 			    bool nopad, Uint32 Label){
-  INT_DEBUG(("branch_col_le %u %.*s(%u,%d) -> %u", ColId, len, val, len, nopad, Label));
+  INT_DEBUG(("branch_col_le %u %.*s(%u,%d) -> %u", ColId, len, (char*) val, len,
+             nopad, Label));
   return branch_col(Interpreter::LE, ColId, val, len, nopad, Label);
 }
 int
 NdbOperation::branch_col_gt(Uint32 ColId, const void * val, Uint32 len, 
 			    bool nopad, Uint32 Label){
-  INT_DEBUG(("branch_col_gt %u %.*s(%u,%d) -> %u", ColId, len, val, len, nopad, Label));
+  INT_DEBUG(("branch_col_gt %u %.*s(%u,%d) -> %u", ColId, len, (char*) val, len,
+             nopad, Label));
   return branch_col(Interpreter::GT, ColId, val, len, nopad, Label);
 }
 
 int
 NdbOperation::branch_col_ge(Uint32 ColId, const void * val, Uint32 len, 
 			    bool nopad, Uint32 Label){
-  INT_DEBUG(("branch_col_ge %u %.*s(%u,%d) -> %u", ColId, len, val, len, nopad, Label));
+  INT_DEBUG(("branch_col_ge %u %.*s(%u,%d) -> %u", ColId, len, (char*) val, len,
+             nopad, Label));
   return branch_col(Interpreter::GE, ColId, val, len, nopad, Label);
 }
 
 int
 NdbOperation::branch_col_like(Uint32 ColId, const void * val, Uint32 len, 
 			      bool nopad, Uint32 Label){
-  INT_DEBUG(("branch_col_like %u %.*s(%u,%d) -> %u", ColId, len, val, len, nopad, Label));
+  INT_DEBUG(("branch_col_like %u %.*s(%u,%d) -> %u", ColId, len, (char*) val, len,
+             nopad, Label));
   return branch_col(Interpreter::LIKE, ColId, val, len, nopad, Label);
 }
 
 int
 NdbOperation::branch_col_notlike(Uint32 ColId, const void * val, Uint32 len, 
 				 bool nopad, Uint32 Label){
-  INT_DEBUG(("branch_col_notlike %u %.*s(%u,%d) -> %u", ColId,len,val,len,nopad,Label));
+  INT_DEBUG(("branch_col_notlike %u %.*s(%u,%d) -> %u", ColId, len, (char*) val, len,
+             nopad, Label));
   return branch_col(Interpreter::NOT_LIKE, ColId, val, len, nopad, Label);
 }
 

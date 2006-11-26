@@ -1339,7 +1339,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   Field **field_ptr;
   DBUG_ENTER("open_table_from_share");
   DBUG_PRINT("enter",("name: '%s.%s'  form: 0x%lx", share->db.str,
-                      share->table_name.str, outparam));
+                      share->table_name.str, (long) outparam));
 
   error= 1;
   bzero((char*) outparam, sizeof(*outparam));
@@ -2401,8 +2401,8 @@ table_check_intact(TABLE *table, const uint table_f_count,
   my_bool error= FALSE;
   my_bool fields_diff_count;
   DBUG_ENTER("table_check_intact");
-  DBUG_PRINT("info",("table=%s expected_count=%d",table->alias, table_f_count));
-  DBUG_PRINT("info",("last_create_time=%d", *last_create_time));
+  DBUG_PRINT("info",("table: %s  expected_count: %d  last_create_time: %ld",
+                     table->alias, table_f_count, *last_create_time));
   
   if ((fields_diff_count= (table->s->fields != table_f_count)) ||
       (*last_create_time != table->file->stats.create_time))
