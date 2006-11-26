@@ -51,9 +51,6 @@ int main(int argc, char** argv){
   NDB_INIT(argv[0]);
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
-#ifndef DBUG_OFF
-  "d:t:O,/tmp/ndb_drop_index.trace";
-#endif
   if ((ho_error=handle_options(&argc, &argv, my_long_options,
 			       ndb_std_get_one_option)))
     return NDBT_ProgramExit(NDBT_WRONGARGS);

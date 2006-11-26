@@ -193,11 +193,11 @@ void Ndb::connected(Uint32 ref)
     ((Uint64)tmpTheNode << 40);
   theFirstTransId += theFacade->m_max_trans_id;
   //      assert(0);
-  DBUG_PRINT("info",("connected with ref=%x, id=%d, no_db_nodes=%d, first_trans_id=%lx",
+  DBUG_PRINT("info",("connected with ref=%x, id=%d, no_db_nodes=%d, first_trans_id: 0x%lx",
 		     theMyRef,
 		     tmpTheNode,
 		     theImpl->theNoOfDBnodes,
-		     theFirstTransId));
+		     (long) theFirstTransId));
   theCommitAckSignal = new NdbApiSignal(theMyRef);
 
   theDictionary->m_receiver.m_reference= theMyRef;
