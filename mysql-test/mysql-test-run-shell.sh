@@ -129,7 +129,7 @@ find_valgrind()
   fi
   # >=2.1.2 requires the --tool option, some versions write to stdout, some to stderr
   valgrind --help 2>&1 | grep "\-\-tool" > /dev/null && FIND_VALGRIND="$FIND_VALGRIND --tool=memcheck"
-  FIND_VALGRIND="$FIND_VALGRIND --alignment=8 --leak-check=yes --num-callers=16 --suppressions=$CWD/valgrind.supp"
+  FIND_VALGRIND="$FIND_VALGRIND --alignment=8 --leak-check=yes --num-callers=16 --suppressions=$MYSQL_TEST_DIR/valgrind.supp"
 }
 
 # No paths below as we can't be sure where the program is!
@@ -2177,7 +2177,7 @@ then
   # Remove files that can cause problems
   $RM -rf $MYSQL_TEST_DIR/var/ndbcluster
   $RM -rf $MYSQL_TEST_DIR/var/tmp/snapshot*
-  $RM -f $MYSQL_TEST_DIR/var/run/* $MYSQL_TEST_DIR/var/tmp/*
+  $RM -rf $MYSQL_TEST_DIR/var/run/* $MYSQL_TEST_DIR/var/tmp/*
 
   # Remove old berkeley db log files that can confuse the server
   $RM -f $MASTER_MYDDIR/log.*
