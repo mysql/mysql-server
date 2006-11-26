@@ -3061,7 +3061,7 @@ longlong Item_is_not_null_test::val_int()
   if (!used_tables_cache)
   {
     owner->was_null|= (!cached_value);
-    DBUG_PRINT("info", ("cached :%ld", (long) cached_value));
+    DBUG_PRINT("info", ("cached: %ld", (long) cached_value));
     DBUG_RETURN(cached_value);
   }
   if (args[0]->is_null())

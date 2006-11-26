@@ -958,7 +958,7 @@ Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname,
   Open_tables_state backup;
 
   DBUG_ENTER("Event_db_repository::load_named_event");
-  DBUG_PRINT("enter",("thd=0x%lx name:%*s",thd, name.length, name.str));
+  DBUG_PRINT("enter",("thd: 0x%lx  name: %*s", (long) thd, name.length, name.str));
 
   thd->reset_n_backup_open_tables_state(&backup);
 

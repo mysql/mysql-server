@@ -137,6 +137,7 @@ extern "C" {
 #define LINT_SET_PTR = {0,0}
 #else
 #define LINT_SET_PTR
+#endif
 
 #ifndef MIN
 #define MIN(x,y) (((x)<(y))?(x):(y))

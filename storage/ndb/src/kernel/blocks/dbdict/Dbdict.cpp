@@ -189,7 +189,7 @@ struct {
     &Dbdict::drop_undofile_prepare_start, 0,
     0,
     0, 0,
-    0, 0
+    0, 0, 0
   }
 };
 

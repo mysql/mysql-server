@@ -2157,7 +2157,7 @@ error:
 int ha_federated::index_init(uint keynr, bool sorted)
 {
   DBUG_ENTER("ha_federated::index_init");
-  DBUG_PRINT("info", ("table: '%s'  key: %u", table->s->table_name, keynr));
+  DBUG_PRINT("info", ("table: '%s'  key: %u", table->s->table_name.str, keynr));
   active_index= keynr;
   DBUG_RETURN(0);
 }

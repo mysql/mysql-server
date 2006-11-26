@@ -1590,6 +1590,9 @@ Suma::execGET_TABINFOREF(Signal* signal){
     break;
   case GetTabInfoRef::TableNameTooLong:
     ndbrequire(false);
+    break;
+  case GetTabInfoRef::NoFetchByName:
+    break;
   }
   if (do_resend_request)
   {
@@ -4306,7 +4309,7 @@ Suma::Restart::sendSubStartReq(SubscriptionPtr subPtr, SubscriberPtr subbPtr,
 
   // restarting suma will not respond to this until startphase 5
   // since it is not until then data copying has been completed
-  DBUG_PRINT("info",("Restarting subscriber: %u on key: [%u,%u]",
+  DBUG_PRINT("info",("Restarting subscriber: %u on key: [%u,%u] %u",
 		     subbPtr.i,
 		     subPtr.p->m_subscriptionId,
 		     subPtr.p->m_subscriptionKey,

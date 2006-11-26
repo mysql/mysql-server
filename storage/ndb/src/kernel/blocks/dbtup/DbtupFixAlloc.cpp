@@ -284,4 +284,5 @@ Dbtup::alloc_fix_rowid(Fragrecord* regFragPtr,
   case ZEMPTY_MM:
     ndbrequire(false);
   }
+  return 0;                                     /* purify: deadcode */
 }

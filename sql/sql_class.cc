@@ -551,7 +551,7 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
 void THD::awake(THD::killed_state state_to_set)
 {
   DBUG_ENTER("THD::awake");
-  DBUG_PRINT("enter", ("this=0x%lx", this));
+  DBUG_PRINT("enter", ("this: 0x%lx", (long) this));
   THD_CHECK_SENTRY(this);
   safe_mutex_assert_owner(&LOCK_delete); 
 
@@ -2623,9 +2623,9 @@ namespace {
       return m_memory != 0;
     }
 
-    byte *slot(int const s)
+    byte *slot(uint s)
     {
-      DBUG_ASSERT(0 <= s && s < sizeof(m_ptr)/sizeof(*m_ptr));
+      DBUG_ASSERT(s < sizeof(m_ptr)/sizeof(*m_ptr));
       DBUG_ASSERT(m_ptr[s] != 0);
       DBUG_ASSERT(m_alloc_checked == true);
       return m_ptr[s];
