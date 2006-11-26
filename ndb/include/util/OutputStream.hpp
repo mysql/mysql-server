@@ -25,6 +25,7 @@
  */
 class OutputStream {
 public:
+  virtual ~OutputStream() {}
   virtual int print(const char * fmt, ...) = 0;
   virtual int println(const char * fmt, ...) = 0;
   virtual void flush() {};
