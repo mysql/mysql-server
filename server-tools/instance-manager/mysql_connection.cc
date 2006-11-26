@@ -334,7 +334,6 @@ int Mysql_connection_thread::dispatch_command(enum enum_server_command command,
   case COM_QUERY:
   {
     log_info("query for connection %lu : ----\n%s\n-------------------------",
-    log_info("query for connection %d : ----\n%s\n-------------------------",
 	     connection_id,packet);
     if (Command *command= parse_command(&instance_map, packet))
     {

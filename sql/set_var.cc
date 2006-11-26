@@ -3943,7 +3943,7 @@ sys_var_event_scheduler::update(THD *thd, set_var *var)
     DBUG_RETURN(TRUE);
   }
 
-  DBUG_PRINT("new_value", ("%lu", (bool)var->save_result.ulong_value));
+  DBUG_PRINT("info", ("new_value: %d", (int) var->save_result.ulong_value));
 
   Item_result var_type= var->value->result_type();
 

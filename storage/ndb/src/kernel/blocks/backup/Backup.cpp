@@ -2118,7 +2118,7 @@ Backup::execDROP_TRIG_REF(Signal* signal)
   BackupRecordPtr ptr LINT_SET_PTR;
   c_backupPool.getPtr(ptr, ptrI);
 
-  if(ref->getConf()->getTriggerId() != -1)
+  if(ref->getConf()->getTriggerId() != ~(Uint32) 0)
   {
     ndbout << "ERROR DROPPING TRIGGER: " << ref->getConf()->getTriggerId();
     ndbout << " Err: " << (Uint32)ref->getErrorCode() << endl << endl;

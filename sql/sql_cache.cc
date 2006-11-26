@@ -2981,7 +2981,7 @@ static TABLE_COUNTER_TYPE process_and_count_tables(TABLE_LIST *tables_used,
       DBUG_PRINT("qcache", ("table: %s  db:  %s  type: %u",
                             tables_used->table->s->table_name.str,
                             tables_used->table->s->db.str,
-                            tables_used->table->s->db_type));
+                            tables_used->table->s->db_type->db_type));
       if (tables_used->derived)
       {
         table_count--;
@@ -3037,7 +3037,7 @@ Query_cache::is_cacheable(THD *thd, uint32 query_len, char *query, LEX *lex,
       lex->safe_to_cache_query)
   {
     DBUG_PRINT("qcache", ("options: %lx  %lx  type: %u",
-                          OPTION_TO_QUERY_CACHE,
+                          (long) OPTION_TO_QUERY_CACHE,
                           (long) lex->select_lex.options,
                           (int) thd->variables.query_cache_type));
 
@@ -3057,7 +3057,7 @@ Query_cache::is_cacheable(THD *thd, uint32 query_len, char *query, LEX *lex,
   DBUG_PRINT("qcache",
 	     ("not interesting query: %d or not cacheable, options %lx %lx  type: %u",
 	      (int) lex->sql_command,
-	      OPTION_TO_QUERY_CACHE,
+	      (long) OPTION_TO_QUERY_CACHE,
 	      (long) lex->select_lex.options,
 	      (int) thd->variables.query_cache_type));
   DBUG_RETURN(0);

@@ -1609,7 +1609,7 @@ static ulong read_event(MYSQL* mysql, MASTER_INFO *mi, bool* suppress_warnings)
      DBUG_RETURN(packet_error);
   }
 
-  DBUG_PRINT("info",( "len=%u, net->read_pos[4] = %d\n",
+  DBUG_PRINT("exit", ("len: %lu  net->read_pos[4]: %d",
                       len, mysql->net.read_pos[4]));
   DBUG_RETURN(len - 1);
 }
@@ -1800,7 +1800,7 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
       ev->when = time(NULL);
     ev->thd = thd; // because up to this point, ev->thd == 0
     exec_res = ev->exec_event(rli);
-    DBUG_PRINT("info", ("exec_event result = %d", exec_res));
+    DBUG_PRINT("info", ("exec_event result: %d", exec_res));
     DBUG_ASSERT(rli->sql_thd==thd);
     /*
        Format_description_log_event should not be deleted because it will be
@@ -1951,9 +1951,9 @@ pthread_handler_t handle_slave_io(void *arg)
   // we can get killed during safe_connect
   if (!safe_connect(thd, mysql, mi))
   {
-    sql_print_information("Slave I/O thread: connected to master '%s@%s:%d',\
-  replication started in log '%s' at position %s", mi->user,
-			  mi->host, mi->port,
+    sql_print_information("Slave I/O thread: connected to master '%s@%s:%d',"
+                          "replication started in log '%s' at position %s",
+                          mi->user, mi->host, mi->port,
 			  IO_RPL_LOG_NAME,
 			  llstr(mi->master_log_pos,llbuff));
   /*
@@ -3107,8 +3107,8 @@ static int connect_to_master(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
     {
       last_errno=mysql_errno(mysql);
       suppress_warnings= 0;
-      sql_print_error("Slave I/O thread: error %s to master \
-'%s@%s:%d': \
+      sql_print_error("Slave I/O thread: error %s to master "
+                      "'%s@%s:%d':                       \
 Error: '%s'  errno: %d  retry-time: %d  retries: %lu",
                       (reconnect ? "reconnecting" : "connecting"),
                       mi->user, mi->host, mi->port,

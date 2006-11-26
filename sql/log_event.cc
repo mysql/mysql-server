@@ -5345,8 +5345,8 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
   uint8 const common_header_len= description_event->common_header_len;
   uint8 const post_header_len= description_event->post_header_len[event_type-1];
 
-  DBUG_PRINT("enter",("event_len=%ld, common_header_len=%d, "
-		      "post_header_len=%d",
+  DBUG_PRINT("enter",("event_len: %u  common_header_len: %d  "
+		      "post_header_len: %d",
 		      event_len, common_header_len,
 		      post_header_len));
 
@@ -5376,7 +5376,7 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
   const byte* const ptr_rows_data= var_start + byte_count + 1;
 
   my_size_t const data_size= event_len - (ptr_rows_data - (const byte *) buf);
-  DBUG_PRINT("info",("m_table_id=%lu, m_flags=%d, m_width=%u, data_size=%lu",
+  DBUG_PRINT("info",("m_table_id: %lu  m_flags: %d  m_width: %lu  data_size: %u",
                      m_table_id, m_flags, m_width, data_size));
 
   m_rows_buf= (byte*)my_malloc(data_size, MYF(MY_WME));
@@ -5416,7 +5416,7 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
     would save binlog space. TODO
   */
   DBUG_ENTER("Rows_log_event::do_add_row_data");
-  DBUG_PRINT("enter", ("row_data: 0x%lx  length: %lu", (ulong) row_data,
+  DBUG_PRINT("enter", ("row_data: 0x%lx  length: %u", (ulong) row_data,
                        length));
   /*
     Don't print debug messages when running valgrind since they can
@@ -5513,7 +5513,7 @@ unpack_row(RELAY_LOG_INFO *rli,
 {
   DBUG_ENTER("unpack_row");
   DBUG_ASSERT(record && row);
-  DBUG_PRINT("enter", ("row=0x%lx; record=0x%lx", row, record));
+  DBUG_PRINT("enter", ("row: 0x%lx  record: 0x%lx", (long) row, (long) record));
   my_ptrdiff_t const offset= record - (byte*) table->record[0];
   my_size_t master_null_bytes= table->s->null_bytes;
 
@@ -5555,10 +5555,12 @@ unpack_row(RELAY_LOG_INFO *rli,
     if (bitmap_is_set(cols, field_ptr -  begin_ptr))
     {
       DBUG_ASSERT(table->record[0] <= f->ptr);
-      DBUG_ASSERT(f->ptr < table->record[0] + table->s->reclength + (f->pack_length_in_rec() == 0));
+      DBUG_ASSERT(f->ptr < (table->record[0] + table->s->reclength +
+                            (f->pack_length_in_rec() == 0)));
       f->move_field_offset(offset);
 
-      DBUG_PRINT("info", ("unpacking column '%s' to 0x%lx", f->field_name, f->ptr));
+      DBUG_PRINT("info", ("unpacking column '%s' to 0x%lx", f->field_name,
+                          (long) f->ptr));
       ptr= f->unpack(f->ptr, ptr);
       f->move_field_offset(-offset);
       /* Field...::unpack() cannot return 0 */
@@ -6068,7 +6070,7 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
 
   uint8 common_header_len= description_event->common_header_len;
   uint8 post_header_len= description_event->post_header_len[TABLE_MAP_EVENT-1];
-  DBUG_PRINT("info",("event_len=%ld, common_header_len=%d, post_header_len=%d",
+  DBUG_PRINT("info",("event_len: %u  common_header_len: %d  post_header_len: %d",
                      event_len, common_header_len, post_header_len));
 
   /*
@@ -6116,10 +6118,10 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
   uchar *ptr_after_colcnt= (uchar*) ptr_colcnt;
   m_colcnt= net_field_length(&ptr_after_colcnt);
 
-  DBUG_PRINT("info",("m_dblen=%d off=%d m_tbllen=%d off=%d m_colcnt=%d off=%d",
-                     m_dblen, ptr_dblen-(const byte*)vpart, 
-                     m_tbllen, ptr_tbllen-(const byte*)vpart,
-                     m_colcnt, ptr_colcnt-(const byte*)vpart));
+  DBUG_PRINT("info",("m_dblen: %d  off: %ld  m_tbllen: %d  off: %ld  m_colcnt: %lu  off: %ld",
+                     m_dblen, (long) (ptr_dblen-(const byte*)vpart), 
+                     m_tbllen, (long) (ptr_tbllen-(const byte*)vpart),
+                     m_colcnt, (long) (ptr_colcnt-(const byte*)vpart)));
 
   /* Allocate mem for all fields in one go. If fails, catched in is_valid() */
   m_memory= my_multi_malloc(MYF(MY_WME),
@@ -6523,10 +6525,10 @@ copy_extra_record_fields(TABLE *table,
                          my_size_t master_reclength,
                          my_ptrdiff_t master_fields)
 {
-  DBUG_PRINT("info", ("Copying to %p "
+  DBUG_PRINT("info", ("Copying to 0x%lx "
                       "from field %ld at offset %u "
-                      "to field %d at offset %u",
-                      table->record[0],
+                      "to field %d at offset %lu",
+                      (long) table->record[0],
                       master_fields, master_reclength,
                       table->s->fields, table->s->reclength));
   /*

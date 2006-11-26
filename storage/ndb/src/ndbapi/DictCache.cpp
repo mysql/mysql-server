@@ -417,7 +417,7 @@ GlobalDictCache::alter_table_rep(const char * name,
   {
     TableVersion & ver = (* vers)[i];
     if(ver.m_version == tableVersion && ver.m_impl && 
-       ver.m_impl->m_id == tableId)
+       (Uint32) ver.m_impl->m_id == tableId)
     {
       ver.m_status = DROPPED;
       ver.m_impl->m_status = altered ? 

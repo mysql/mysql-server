@@ -4480,7 +4480,7 @@ that are reorganised.
       {
         if (!alt_part_info->use_default_partitions)
         {
-          DBUG_PRINT("info", ("part_info= %x", tab_part_info));
+          DBUG_PRINT("info", ("part_info: 0x%lx", (long) tab_part_info));
           tab_part_info->use_default_partitions= FALSE;
         }
         tab_part_info->use_default_no_partitions= FALSE;

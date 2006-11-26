@@ -1576,7 +1576,8 @@ sub environment_setup () {
   if ( $opt_source_dist )
   {
     push(@ld_library_paths, "$glob_basedir/libmysql/.libs/",
-                            "$glob_basedir/libmysql_r/.libs/");
+                            "$glob_basedir/libmysql_r/.libs/",
+                            "$glob_basedir/zlib.libs/");
   }
   else
   {
@@ -2992,10 +2993,6 @@ sub do_after_run_mysqltest($)
   # Save info from this testcase run to mysqltest.log
   mtr_appendfile_to_file($path_timefile, $path_mysqltest_log)
     if -f $path_timefile;
-
-  # Remove the file that mysqltest writes info to
-  unlink($path_timefile);
-
 }
 
 
@@ -3182,6 +3179,9 @@ sub run_testcase ($) {
       report_failure_and_restart($tinfo);
     }
   }
+
+  # Remove the file that mysqltest writes info to
+  unlink($path_timefile);
 
   # ----------------------------------------------------------------------
   # Stop Instance Manager if we are processing an IM-test case.
@@ -4095,7 +4095,6 @@ sub run_testcase_start_servers($) {
 
     if ( $clusters->[0]->{'pid'} and ! $master->[1]->{'pid'} )
     {
-    {
       # Test needs cluster, start an extra mysqld connected to cluster
 
       if ( $mysql_version_id >= 50100 )
@@ -4848,4 +4847,3 @@ HERE
   mtr_exit(1);
 
 }
-

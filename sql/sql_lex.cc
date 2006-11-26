@@ -1443,7 +1443,7 @@ bool st_select_lex::add_order_to_list(THD *thd, Item *item, bool asc)
 bool st_select_lex::add_item_to_list(THD *thd, Item *item)
 {
   DBUG_ENTER("st_select_lex::add_item_to_list");
-  DBUG_PRINT("info", ("Item: %p", item));
+  DBUG_PRINT("info", ("Item: 0x%lx", (long) item));
   DBUG_RETURN(item_list.push_back(item));
 }
 

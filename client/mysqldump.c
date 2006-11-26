@@ -30,14 +30,14 @@
 ** master/autocommit code by Brian Aker <brian@tangent.org>
 ** SSL by
 ** Andrei Errapart <andreie@no.spam.ee>
-** TÃÂµnu Samuel  <tonu@please.do.not.remove.this.spam.ee>
+** TÃµnu Samuel  <tonu@please.do.not.remove.this.spam.ee>
 ** XML by Gary Huntress <ghuntress@mediaone.net> 10/10/01, cleaned up
 ** and adapted to mysqldump 05/11/01 by Jani Tolonen
 ** Added --single-transaction option 06/06/2002 by Peter Zaitsev
 ** 10 Jun 2003: SET NAMES and --no-set-names by Alexander Barkov
 */
 
-#define DUMP_VERSION "10.11"
+#define DUMP_VERSION "10.12"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -540,8 +540,10 @@ static void write_header(FILE *sql_file, char *db_name)
   if (opt_xml)
   {
     fputs("<?xml version=\"1.0\"?>\n", sql_file);
-    /* Schema reference.  Allows use of xsi:nil for NULL values and 
-       xsi:type to define an element's data type. */
+    /*
+      Schema reference.  Allows use of xsi:nil for NULL values and 
+      xsi:type to define an element's data type.
+    */
     fputs("<mysqldump ", sql_file);
     fputs("xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"",
           sql_file);
@@ -2349,7 +2351,7 @@ static void dump_table(char *table, char *db)
     The "table" could be a view.  If so, we don't do anything here.
   */
   if (strcmp (table_type, "VIEW") == 0)
-    return;
+    DBUG_VOID_RETURN;
 
   /* Check --no-data flag */
   if (opt_no_data)
@@ -2657,16 +2659,16 @@ static void dump_table(char *table, char *db)
               {
                 if (opt_hex_blob && is_blob && length)
                 {
-                    /* Define xsi:type="xs:hexBinary" for hex encoded data */
-                    print_xml_tag(md_result_file, "\t\t", "", "field", "name=",
-                            field->name, "xsi:type=", "xs:hexBinary", NullS);
-                    print_blob_as_hex(md_result_file, row[i], length);
+                  /* Define xsi:type="xs:hexBinary" for hex encoded data */
+                  print_xml_tag(md_result_file, "\t\t", "", "field", "name=",
+                                field->name, "xsi:type=", "xs:hexBinary", NullS);
+                  print_blob_as_hex(md_result_file, row[i], length);
                 }
                 else
                 {
-                    print_xml_tag(md_result_file, "\t\t", "", "field", "name=", 
-                            field->name, NullS);
-                    print_quoted_xml(md_result_file, row[i], length);
+                  print_xml_tag(md_result_file, "\t\t", "", "field", "name=", 
+                                field->name, NullS);
+                  print_quoted_xml(md_result_file, row[i], length);
                 }
                 fputs("</field>\n", md_result_file);
               }
@@ -3155,10 +3157,8 @@ static int dump_all_tables_in_db(char *database)
   afterdot= strmov(hash_key, database);
   *afterdot++= '.';
 
-  if (!strcmp(database, NDB_REP_DB)) /* Skip cluster internal database */
-    return 0;
   if (init_dumping(database, init_dumping_tables))
-    return 1;
+    DBUG_RETURN(1);
   if (opt_xml)
     print_xml_tag(md_result_file, "", "\n", "database", "name=", database, NullS);
   if (lock_tables)
@@ -3218,7 +3218,7 @@ static int dump_all_tables_in_db(char *database)
     fprintf(md_result_file,"\n--\n-- Flush Grant Tables \n--\n");
     fprintf(md_result_file,"\n/*! FLUSH PRIVILEGES */;\n");
   }
-  return 0;
+  DBUG_RETURN(0);
 } /* dump_all_tables_in_db */
 
 

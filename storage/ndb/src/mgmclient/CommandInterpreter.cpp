@@ -1558,6 +1558,8 @@ CommandInterpreter::executeShow(char* parameters)
       case NDB_MGM_NODE_TYPE_UNKNOWN:
         ndbout << "Error: Unknown Node Type" << endl;
         return -1;
+      case NDB_MGM_NODE_TYPE_MAX:
+        break;                                  /* purify: deadcode */
       }
     }
 

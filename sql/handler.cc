@@ -1513,7 +1513,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
   DBUG_ENTER("handler::ha_open");
   DBUG_PRINT("enter",
              ("name: %s  db_type: %d  db_stat: %d  mode: %d  lock_test: %d",
-              name, table_share->db_type, table_arg->db_stat, mode,
+              name, ht->db_type, table_arg->db_stat, mode,
               test_if_locked));
 
   table= table_arg;
@@ -1927,8 +1927,8 @@ int handler::update_auto_increment()
 void handler::column_bitmaps_signal()
 {
   DBUG_ENTER("column_bitmaps_signal");
-  DBUG_PRINT("info", ("read_set: 0x%lx  write_set: 0x%lx", table->read_set,
-                      table->write_set));
+  DBUG_PRINT("info", ("read_set: 0x%lx  write_set: 0x%lx", (long) table->read_set,
+                      (long) table->write_set));
   DBUG_VOID_RETURN;
 }
 
@@ -3507,8 +3507,10 @@ namespace
   int write_locked_table_maps(THD *thd)
   {
     DBUG_ENTER("write_locked_table_maps");
-    DBUG_PRINT("enter", ("thd=%p, thd->lock=%p, thd->locked_tables=%p, thd->extra_lock",
-                         thd, thd->lock, thd->locked_tables, thd->extra_lock));
+    DBUG_PRINT("enter", ("thd: 0x%lx  thd->lock: 0x%lx  thd->locked_tables: 0x%lx  "
+                         "thd->extra_lock: 0x%lx",
+                         (long) thd, (long) thd->lock,
+                         (long) thd->locked_tables, (long) thd->extra_lock));
 
     if (thd->get_binlog_table_maps() == 0)
     {
@@ -3528,7 +3530,7 @@ namespace
              ++table_ptr)
         {
           TABLE *const table= *table_ptr;
-          DBUG_PRINT("info", ("Checking table %s", table->s->table_name));
+          DBUG_PRINT("info", ("Checking table %s", table->s->table_name.str));
           if (table->current_lock == F_WRLCK &&
               check_table_binlog_row_based(thd, table))
           {

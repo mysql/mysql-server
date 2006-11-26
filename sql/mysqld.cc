@@ -2121,7 +2121,7 @@ the thread stack. Please read http://www.mysql.com/doc/en/Linux.html\n\n",
 #ifdef HAVE_STACKTRACE
   if (!(test_flags & TEST_NO_STACKTRACE))
   {
-    fprintf(stderr,"thd=%p\n",thd);
+    fprintf(stderr,"thd: 0x%lx\n",(long) thd);
     print_stacktrace(thd ? (gptr) thd->thread_stack : (gptr) 0,
 		     thread_stack);
   }

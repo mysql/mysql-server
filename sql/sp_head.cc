@@ -899,7 +899,7 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
         break;
 
       val= (*splocal)->this_item();
-      DBUG_PRINT("info", ("print %p", val));
+      DBUG_PRINT("info", ("print 0x%lx", (long) val));
       str_value= sp_get_item_value(val, &str_value_holder);
       if (str_value)
         res|= qbuf.append(*str_value);
