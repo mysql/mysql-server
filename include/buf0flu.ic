@@ -15,7 +15,7 @@ Inserts a modified block into the flush list. */
 void
 buf_flush_insert_into_flush_list(
 /*=============================*/
-	buf_block_t*	block);	/* in: block which is modified */
+	buf_page_t*	block);	/* in: block which is modified */
 /************************************************************************
 Inserts a modified block into the flush list in the right sorted position.
 This function is used by recovery, because there the modifications do not
@@ -24,7 +24,7 @@ necessarily come in the order of lsn's. */
 void
 buf_flush_insert_sorted_into_flush_list(
 /*====================================*/
-	buf_block_t*	block);	/* in: block which is modified */
+	buf_page_t*	block);	/* in: block which is modified */
 
 /************************************************************************
 This function should be called at a mini-transaction commit, if a page was
@@ -49,16 +49,16 @@ buf_flush_note_modification(
 	ut_ad(mtr->modifications);
 	ut_ad(block->newest_modification <= mtr->end_lsn);
 
-	block->newest_modification = mtr->end_lsn;
+	block->page.newest_modification = mtr->end_lsn;
 
-	if (!block->oldest_modification) {
+	if (!block->page.oldest_modification) {
 
-		block->oldest_modification = mtr->start_lsn;
-		ut_ad(block->oldest_modification != 0);
+		block->page.oldest_modification = mtr->start_lsn;
+		ut_ad(block->page.oldest_modification != 0);
 
-		buf_flush_insert_into_flush_list(block);
+		buf_flush_insert_into_flush_list(&block->page);
 	} else {
-		ut_ad(block->oldest_modification <= mtr->start_lsn);
+		ut_ad(block->page.oldest_modification <= mtr->start_lsn);
 	}
 
 	++srv_buf_pool_write_requests;
@@ -85,19 +85,19 @@ buf_flush_recv_note_modification(
 
 	mutex_enter(&(buf_pool->mutex));
 
-	ut_ad(block->newest_modification <= end_lsn);
+	ut_ad(block->page.newest_modification <= end_lsn);
 
-	block->newest_modification = end_lsn;
+	block->page.newest_modification = end_lsn;
 
-	if (!block->oldest_modification) {
+	if (!block->page.oldest_modification) {
 
-		block->oldest_modification = start_lsn;
+		block->page.oldest_modification = start_lsn;
 
-		ut_ad(block->oldest_modification != 0);
+		ut_ad(block->page.oldest_modification != 0);
 
-		buf_flush_insert_sorted_into_flush_list(block);
+		buf_flush_insert_sorted_into_flush_list(&block->page);
 	} else {
-		ut_ad(block->oldest_modification <= start_lsn);
+		ut_ad(block->page.oldest_modification <= start_lsn);
 	}
 
 	mutex_exit(&(buf_pool->mutex));

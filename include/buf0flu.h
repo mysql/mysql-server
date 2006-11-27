@@ -52,7 +52,7 @@ buf_flush_batch(
 					write request was queued;
 					ULINT_UNDEFINED if there was a flush
 					of the same type already running */
-	ulint		flush_type,	/* in: BUF_FLUSH_LRU or
+	enum buf_flush	flush_type,	/* in: BUF_FLUSH_LRU or
 					BUF_FLUSH_LIST; if BUF_FLUSH_LIST,
 					then the caller must not own any
 					latches on pages */
@@ -70,7 +70,7 @@ Waits until a flush batch of the given type ends */
 void
 buf_flush_wait_batch_end(
 /*=====================*/
-	ulint	type);	/* in: BUF_FLUSH_LRU or BUF_FLUSH_LIST */
+	enum buf_flush	type);	/* in: BUF_FLUSH_LRU or BUF_FLUSH_LIST */
 /************************************************************************
 This function should be called at a mini-transaction commit, if a page was
 modified in it. Puts the block to the list of modified blocks, if it not

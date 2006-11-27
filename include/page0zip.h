@@ -28,7 +28,7 @@ page_zip_get_size(
 /*==============*/
 						/* out: size in bytes */
 	const page_zip_des_t*	page_zip)	/* in: compressed page */
-	__attribute__((nonnull, const));
+	__attribute__((nonnull, pure));
 /**************************************************************************
 Set the size of a compressed page in bytes. */
 UNIV_INLINE
