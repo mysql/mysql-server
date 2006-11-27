@@ -1624,6 +1624,11 @@ innobase_start_or_create_for_mysql(void)
 		return((int)DB_ERROR);
 	}
 
+	/* Create the master thread which does purge and other utility
+	operations */
+
+	os_thread_create(&srv_master_thread, NULL, thread_ids
+			 + (1 + SRV_MAX_N_IO_THREADS));
 #ifdef UNIV_DEBUG
 	/* buf_debug_prints = TRUE; */
 #endif /* UNIV_DEBUG */
@@ -1730,12 +1735,6 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	fflush(stderr);
-
-	/* Create the master thread which does purge and other utility
-	operations */
-
-	os_thread_create(&srv_master_thread, NULL, thread_ids
-			 + (1 + SRV_MAX_N_IO_THREADS));
 
 	if (trx_doublewrite_must_reset_space_ids) {
 		/* Actually, we did not change the undo log format between
