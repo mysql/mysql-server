@@ -303,8 +303,7 @@ noninc_search (dir, pchar)
 /* Search forward through the history list for a string.  If the vi-mode
    code calls this, KEY will be `?'. */
 int
-rl_noninc_forward_search (count, key)
-     int count, key;
+rl_noninc_forward_search (int count __attribute__((unused)), int key)
 {
   noninc_search (1, (key == '?') ? '?' : 0);
   return 0;
@@ -313,8 +312,7 @@ rl_noninc_forward_search (count, key)
 /* Reverse search the history list for a string.  If the vi-mode code
    calls this, KEY will be `/'. */
 int
-rl_noninc_reverse_search (count, key)
-     int count, key;
+rl_noninc_reverse_search (int count __attribute__((unused)), int key)
 {
   noninc_search (-1, (key == '/') ? '/' : 0);
   return 0;
@@ -323,8 +321,8 @@ rl_noninc_reverse_search (count, key)
 /* Search forward through the history list for the last string searched
    for.  If there is no saved search string, abort. */
 int
-rl_noninc_forward_search_again (count, key)
-     int count, key;
+rl_noninc_forward_search_again (int count __attribute__((unused)),
+                                int key  __attribute__((unused)))
 {
   if (!noninc_search_string)
     {
@@ -338,8 +336,8 @@ rl_noninc_forward_search_again (count, key)
 /* Reverse search in the history list for the last string searched
    for.  If there is no saved search string, abort. */
 int
-rl_noninc_reverse_search_again (count, key)
-     int count, key;
+rl_noninc_reverse_search_again (int count __attribute__((unused)),
+                                int key  __attribute__((unused)))
 {
   if (!noninc_search_string)
     {

@@ -189,8 +189,8 @@ _rl_kill_kbd_macro ()
    definition to the end of the existing macro, and start by
    re-executing the existing macro. */
 int
-rl_start_kbd_macro (ignore1, ignore2)
-     int ignore1, ignore2;
+rl_start_kbd_macro (int ignore1 __attribute__((unused)),
+                    int ignore2 __attribute__((unused)))
 {
   if (RL_ISSTATE (RL_STATE_MACRODEF))
     {
@@ -214,8 +214,7 @@ rl_start_kbd_macro (ignore1, ignore2)
    A numeric argument says to execute the macro right now,
    that many times, counting the definition as the first time. */
 int
-rl_end_kbd_macro (count, ignore)
-     int count, ignore;
+rl_end_kbd_macro (int count, int ignore __attribute__((unused)))
 {
   if (RL_ISSTATE (RL_STATE_MACRODEF) == 0)
     {
@@ -234,8 +233,7 @@ rl_end_kbd_macro (count, ignore)
 /* Execute the most recently defined keyboard macro.
    COUNT says how many times to execute it. */
 int
-rl_call_last_kbd_macro (count, ignore)
-     int count, ignore;
+rl_call_last_kbd_macro (int count, int ignore __attribute__((unused)))
 {
   if (current_macro == 0)
     _rl_abort_internal ();
