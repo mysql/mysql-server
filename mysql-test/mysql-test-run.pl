@@ -223,9 +223,8 @@ our $opt_ndbcluster_port_slave;
 our $opt_ndbconnectstring_slave;
 
 our $opt_record;
-our $opt_report_features;
+my $opt_report_features;
 our $opt_check_testcases;
-my  $opt_report_features;
 
 our $opt_skip;
 our $opt_skip_rpl;
@@ -240,8 +239,6 @@ our $opt_testcase_timeout;
 our $opt_suite_timeout;
 my  $default_testcase_timeout=     15; # 15 min max
 my  $default_suite_timeout=       180; # 3 hours max
-
-our $opt_source_dist;
 
 our $opt_start_and_exit;
 our $opt_start_dirty;
@@ -301,6 +298,8 @@ our $debug_compiled_binaries;
 our $glob_tot_real_time= 0;
 
 our %mysqld_variables;
+
+my $source_dist= 0;
 
 
 ######################################################################
@@ -635,7 +634,7 @@ sub command_line_setup () {
 
   if ( -d "../sql" )
   {
-    $opt_source_dist=  1;
+    $source_dist=  1;
   }
 
   $glob_hostname=  mtr_short_hostname();
@@ -659,7 +658,7 @@ sub command_line_setup () {
   # directory. And we install "/usr/share/mysql-test". Moving up one
   # more directory relative to "mysql-test" gives us a usable base
   # directory for RPM installs.
-  if ( ! $opt_source_dist and ! -d "$glob_basedir/bin" )
+  if ( ! $source_dist and ! -d "$glob_basedir/bin" )
   {
     $glob_basedir= dirname($glob_basedir);
   }
@@ -671,7 +670,7 @@ sub command_line_setup () {
     unless -d $glob_mysql_bench_dir;
 
   $path_my_basedir=
-    $opt_source_dist ? $glob_mysql_test_dir : $glob_basedir;
+    $source_dist ? $glob_mysql_test_dir : $glob_basedir;
 
   $glob_timers= mtr_init_timers();
 
@@ -934,7 +933,7 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   # Gcov flag
   # --------------------------------------------------------------------------
-  if ( $opt_gcov and ! $opt_source_dist )
+  if ( $opt_gcov and ! $source_dist )
   {
     mtr_error("Coverage test needs the source - please use source dist");
   }
@@ -1444,7 +1443,7 @@ sub executable_setup () {
   # Look for mysql_fix_privilege_tables.sql script
   $file_mysql_fix_privilege_tables=
     mtr_file_exists("$glob_basedir/scripts/mysql_fix_privilege_tables.sql",
-		    "$path_share/mysql_fix_privilege_tables.sql");
+		    "$glob_basedir/share/mysql_fix_privilege_tables.sql");
 
   if ( ! $opt_skip_ndbcluster and executable_setup_ndb())
   {
@@ -1599,7 +1598,7 @@ sub environment_setup () {
   # Setup LD_LIBRARY_PATH so the libraries from this distro/clone
   # are used in favor of the system installed ones
   # --------------------------------------------------------------------------
-  if ( $opt_source_dist )
+  if ( $source_dist )
   {
     push(@ld_library_paths, "$glob_basedir/libmysql/.libs/",
                             "$glob_basedir/libmysql_r/.libs/");
