@@ -130,14 +130,15 @@ scan_again:
 				goto scan_again;
 			}
 
-			if (block->oldest_modification != 0) {
+			if (block->page.oldest_modification != 0) {
 
 				/* Remove from the flush list of modified
 				blocks */
-				block->oldest_modification = 0;
+				block->page.oldest_modification = 0;
 
 				UT_LIST_REMOVE(flush_list,
-					       buf_pool->flush_list, block);
+					       buf_pool->flush_list,
+					       &(block->page));
 			}
 
 			/* Remove from the LRU list */
@@ -913,7 +914,7 @@ buf_LRU_block_remove_hashed_page(
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	ut_a(block->io_fix == 0);
 	ut_a(block->buf_fix_count == 0);
-	ut_a(block->oldest_modification == 0);
+	ut_a(block->page.oldest_modification == 0);
 
 	buf_LRU_remove_block(block);
 
@@ -1091,7 +1092,7 @@ buf_LRU_print(void)
 			fprintf(stderr, "io_fix %lu ", (ulong) block->io_fix);
 		}
 
-		if (block->oldest_modification) {
+		if (block->page.oldest_modification) {
 			fputs("modif. ", stderr);
 		}
 

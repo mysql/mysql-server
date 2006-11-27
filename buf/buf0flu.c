@@ -49,19 +49,19 @@ Inserts a modified block into the flush list. */
 void
 buf_flush_insert_into_flush_list(
 /*=============================*/
-	buf_block_t*	block)	/* in: block which is modified */
+	buf_page_t*	bpage)	/* in: block which is modified */
 {
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
-	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+	ut_a(buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
 
 	ut_ad((UT_LIST_GET_FIRST(buf_pool->flush_list) == NULL)
 	      || (UT_LIST_GET_FIRST(buf_pool->flush_list)->oldest_modification
-		  <= block->oldest_modification));
+		  <= bpage->oldest_modification));
 
-	UT_LIST_ADD_FIRST(flush_list, buf_pool->flush_list, block);
+	UT_LIST_ADD_FIRST(flush_list, buf_pool->flush_list, bpage);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	ut_a(buf_flush_validate_low());
@@ -76,10 +76,10 @@ necessarily come in the order of lsn's. */
 void
 buf_flush_insert_sorted_into_flush_list(
 /*====================================*/
-	buf_block_t*	block)	/* in: block which is modified */
+	buf_page_t*	bpage)	/* in: block which is modified */
 {
-	buf_block_t*	prev_b;
-	buf_block_t*	b;
+	buf_page_t*	prev_b;
+	buf_page_t*	b;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
@@ -88,16 +88,16 @@ buf_flush_insert_sorted_into_flush_list(
 	prev_b = NULL;
 	b = UT_LIST_GET_FIRST(buf_pool->flush_list);
 
-	while (b && b->oldest_modification > block->oldest_modification) {
+	while (b && b->oldest_modification > bpage->oldest_modification) {
 		prev_b = b;
 		b = UT_LIST_GET_NEXT(flush_list, b);
 	}
 
 	if (prev_b == NULL) {
-		UT_LIST_ADD_FIRST(flush_list, buf_pool->flush_list, block);
+		UT_LIST_ADD_FIRST(flush_list, buf_pool->flush_list, bpage);
 	} else {
 		UT_LIST_INSERT_AFTER(flush_list, buf_pool->flush_list, prev_b,
-				     block);
+				     bpage);
 	}
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -131,7 +131,7 @@ buf_flush_ready_for_replace(
 		return(FALSE);
 	}
 
-	return(block->oldest_modification == 0
+	return(block->page.oldest_modification == 0
 	       && block->buf_fix_count == 0
 	       && block->io_fix == 0);
 }
@@ -145,7 +145,7 @@ buf_flush_ready_for_flush(
 				/* out: TRUE if can flush immediately */
 	buf_block_t*	block,	/* in: buffer control block, must be in state
 				BUF_BLOCK_FILE_PAGE */
-	ulint		flush_type)/* in: BUF_FLUSH_LRU or BUF_FLUSH_LIST */
+	enum buf_flush	flush_type)/* in: BUF_FLUSH_LRU or BUF_FLUSH_LIST */
 {
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
@@ -153,7 +153,7 @@ buf_flush_ready_for_flush(
 #endif /* UNIV_SYNC_DEBUG */
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
-	if (block->oldest_modification != 0 && block->io_fix == 0) {
+	if (block->page.oldest_modification != 0 && block->io_fix == 0) {
 		if (flush_type != BUF_FLUSH_LRU) {
 
 			return(TRUE);
@@ -179,21 +179,24 @@ buf_flush_write_complete(
 /*=====================*/
 	buf_block_t*	block)	/* in: pointer to the block in question */
 {
+	enum buf_flush	flush_type;
+
 	ut_ad(block);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
-	block->oldest_modification = 0;
+	block->page.oldest_modification = 0;
 
-	UT_LIST_REMOVE(flush_list, buf_pool->flush_list, block);
+	UT_LIST_REMOVE(flush_list, buf_pool->flush_list, &(block->page));
 
 	ut_d(UT_LIST_VALIDATE(flush_list, buf_block_t, buf_pool->flush_list));
 
-	buf_pool->n_flush[block->flush_type]--;
+	flush_type = buf_page_get_flush_type(&block->page);
+	buf_pool->n_flush[flush_type]--;
 
-	if (block->flush_type == BUF_FLUSH_LRU) {
+	if (flush_type == BUF_FLUSH_LRU) {
 		/* Put the block to the end of the LRU list to wait to be
 		moved to the free list */
 
@@ -203,14 +206,14 @@ buf_flush_write_complete(
 	}
 
 	/* fprintf(stderr, "n pending flush %lu\n",
-	buf_pool->n_flush[block->flush_type]); */
+	buf_pool->n_flush[flush_type]); */
 
-	if ((buf_pool->n_flush[block->flush_type] == 0)
-	    && (buf_pool->init_flush[block->flush_type] == FALSE)) {
+	if ((buf_pool->n_flush[flush_type] == 0)
+	    && (buf_pool->init_flush[flush_type] == FALSE)) {
 
 		/* The running flush batch has ended */
 
-		os_event_set(buf_pool->no_flush[block->flush_type]);
+		os_event_set(buf_pool->no_flush[flush_type]);
 	}
 }
 
@@ -582,7 +585,7 @@ buf_flush_write_block_low(
 	ut_a(ibuf_count_get(buf_block_get_space(block),
 			    buf_block_get_page_no(block)) == 0);
 #endif
-	ut_ad(block->newest_modification != 0);
+	ut_ad(block->page.newest_modification != 0);
 
 #ifdef UNIV_LOG_DEBUG
 	if (!univ_log_debug_warned) {
@@ -594,11 +597,12 @@ buf_flush_write_block_low(
 	}
 #else
 	/* Force the log to the disk before writing the modified block */
-	log_write_up_to(block->newest_modification, LOG_WAIT_ALL_GROUPS, TRUE);
+	log_write_up_to(block->page.newest_modification,
+			LOG_WAIT_ALL_GROUPS, TRUE);
 #endif
 	buf_flush_init_for_writing(block->frame,
 				   buf_block_get_page_zip(block),
-				   block->newest_modification);
+				   block->page.newest_modification);
 	if (!srv_use_doublewrite_buf || !trx_doublewrite) {
 		ulint	zip_size = buf_block_get_zip_size(block);
 
@@ -621,11 +625,12 @@ static
 ulint
 buf_flush_try_page(
 /*===============*/
-				/* out: 1 if a page was flushed, 0 otherwise */
-	ulint	space,		/* in: space id */
-	ulint	offset,		/* in: page offset */
-	ulint	flush_type)	/* in: BUF_FLUSH_LRU, BUF_FLUSH_LIST, or
-				BUF_FLUSH_SINGLE_PAGE */
+					/* out: 1 if a page was
+					flushed, 0 otherwise */
+	ulint		space,		/* in: space id */
+	ulint		offset,		/* in: page offset */
+	enum buf_flush	flush_type)	/* in: BUF_FLUSH_LRU, BUF_FLUSH_LIST,
+					or BUF_FLUSH_SINGLE_PAGE */
 {
 	buf_block_t*	block;
 	ibool		locked;
@@ -651,7 +656,7 @@ buf_flush_try_page(
 
 		block->io_fix = BUF_IO_WRITE;
 
-		block->flush_type = flush_type;
+		buf_page_set_flush_type(&block->page, flush_type);
 
 		if (buf_pool->n_flush[flush_type] == 0) {
 
@@ -707,7 +712,7 @@ buf_flush_try_page(
 
 		block->io_fix = BUF_IO_WRITE;
 
-		block->flush_type = flush_type;
+		buf_page_set_flush_type(&block->page, flush_type);
 
 		if (buf_pool->n_flush[flush_type] == 0) {
 
@@ -734,11 +739,11 @@ buf_flush_try_page(
 
 		block->io_fix = BUF_IO_WRITE;
 
-		block->flush_type = flush_type;
+		buf_page_set_flush_type(&block->page, flush_type);
 
-		if (buf_pool->n_flush[block->flush_type] == 0) {
+		if (buf_pool->n_flush[flush_type] == 0) {
 
-			os_event_reset(buf_pool->no_flush[block->flush_type]);
+			os_event_reset(buf_pool->no_flush[flush_type]);
 		}
 
 		buf_pool->n_flush[flush_type]++;
@@ -775,10 +780,11 @@ static
 ulint
 buf_flush_try_neighbors(
 /*====================*/
-				/* out: number of pages flushed */
-	ulint	space,		/* in: space id */
-	ulint	offset,		/* in: page offset */
-	ulint	flush_type)	/* in: BUF_FLUSH_LRU or BUF_FLUSH_LIST */
+					/* out: number of pages flushed */
+	ulint		space,		/* in: space id */
+	ulint		offset,		/* in: page offset */
+	enum buf_flush	flush_type)	/* in: BUF_FLUSH_LRU or
+					BUF_FLUSH_LIST */
 {
 	buf_block_t*	block;
 	ulint		low, high;
@@ -875,7 +881,7 @@ buf_flush_batch(
 					write request was queued;
 					ULINT_UNDEFINED if there was a flush
 					of the same type already running */
-	ulint		flush_type,	/* in: BUF_FLUSH_LRU or
+	enum buf_flush	flush_type,	/* in: BUF_FLUSH_LRU or
 					BUF_FLUSH_LIST; if BUF_FLUSH_LIST,
 					then the caller must not own any
 					latches on pages */
@@ -932,7 +938,7 @@ buf_flush_batch(
 
 			block = UT_LIST_GET_LAST(buf_pool->flush_list);
 			if (!block
-			    || block->oldest_modification >= lsn_limit) {
+			    || block->page.oldest_modification >= lsn_limit) {
 				/* We have flushed enough */
 
 				break;
@@ -983,7 +989,8 @@ buf_flush_batch(
 
 				mutex_exit(&block->mutex);
 
-				block = UT_LIST_GET_PREV(flush_list, block);
+				block = UT_LIST_GET_PREV(flush_list,
+							 (&block->page));
 			}
 		}
 
@@ -1032,7 +1039,7 @@ Waits until a flush batch of the given type ends */
 void
 buf_flush_wait_batch_end(
 /*=====================*/
-	ulint	type)	/* in: BUF_FLUSH_LRU or BUF_FLUSH_LIST */
+	enum buf_flush	type)	/* in: BUF_FLUSH_LRU or BUF_FLUSH_LIST */
 {
 	ut_ad((type == BUF_FLUSH_LRU) || (type == BUF_FLUSH_LIST));
 
@@ -1125,22 +1132,22 @@ buf_flush_validate_low(void)
 /*========================*/
 		/* out: TRUE if ok */
 {
-	buf_block_t*	block;
+	buf_page_t*	bpage;
 	ib_ulonglong	om;
 
-	UT_LIST_VALIDATE(flush_list, buf_block_t, buf_pool->flush_list);
+	UT_LIST_VALIDATE(flush_list, buf_page_t, buf_pool->flush_list);
 
-	block = UT_LIST_GET_FIRST(buf_pool->flush_list);
+	bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
 
-	while (block != NULL) {
-		om = block->oldest_modification;
-		ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+	while (bpage != NULL) {
+		om = bpage->oldest_modification;
+		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
 		ut_a(om > 0);
 
-		block = UT_LIST_GET_NEXT(flush_list, block);
+		bpage = UT_LIST_GET_NEXT(flush_list, bpage);
 
-		if (block) {
-			ut_a(om >= block->oldest_modification);
+		if (bpage) {
+			ut_a(om >= bpage->oldest_modification);
 		}
 	}
 

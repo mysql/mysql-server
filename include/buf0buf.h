@@ -33,13 +33,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "os0proc.h"
 #include "page0types.h"
 
-/* Flags for flush types */
-#define BUF_FLUSH_LRU		1
-#define BUF_FLUSH_SINGLE_PAGE	2
-#define BUF_FLUSH_LIST		3	/* An array in the pool struct
-					has size BUF_FLUSH_LIST + 1: if you
-					add more flush types, put them in
-					the middle! */
 /* Modes for buf_page_get_gen */
 #define BUF_GET			10	/* get always */
 #define	BUF_GET_IF_IN_POOL	11	/* get if in pool */
@@ -541,6 +534,14 @@ buf_block_dbg_add_level(
 Gets the state of a block. */
 UNIV_INLINE
 enum buf_page_state
+buf_page_get_state(
+/*===============*/
+					/* out: state */
+	const buf_page_t*	bpage);	/* in: pointer to the control block */
+/*************************************************************************
+Gets the state of a block. */
+UNIV_INLINE
+enum buf_page_state
 buf_block_get_state(
 /*================*/
 					/* out: state */
@@ -554,6 +555,23 @@ buf_block_set_state(
 /*================*/
 	buf_block_t*		block,	/* in/out: pointer to control block */
 	enum buf_page_state	state);	/* in: state */
+/*************************************************************************
+Get the flush type of a page. */
+UNIV_INLINE
+enum buf_flush
+buf_page_get_flush_type(
+/*====================*/
+					/* out: flush type */
+	const buf_page_t*	bpage)	/* in: buffer page */
+	__attribute__((pure));
+/*************************************************************************
+Set the flush type of a page. */
+UNIV_INLINE
+void
+buf_page_set_flush_type(
+/*====================*/
+	buf_page_t*	bpage,		/* in: buffer page */
+	enum buf_flush	flush_type);	/* in: flush type */
 /*************************************************************************
 Map a block to a file page. */
 UNIV_INLINE
@@ -713,7 +731,24 @@ struct buf_page_struct{
 	ulint		space:32;	/* tablespace id */
 	ulint		offset:32;	/* page number */
 	page_zip_des_t	zip;		/* compressed page; zip.state
-					is relevant for all pages */
+					and zip.flush_type are relevant
+					for all pages */
+
+	/* 2. Page flushing fields; protected by buf_pool->mutex */
+
+	UT_LIST_NODE_T(buf_page_t) flush_list;
+					/* node of the modified, not yet
+					flushed blocks list */
+	ib_ulonglong	newest_modification;
+					/* log sequence number of the youngest
+					modification to this block, zero if
+					not modified */
+	ib_ulonglong	oldest_modification;
+					/* log sequence number of the START of
+					the log entry written of the oldest
+					modification to this block which has
+					not yet been flushed on disk; zero if
+					all modifications are on disk */
 };
 
 /* The buffer control block structure */
@@ -750,25 +785,6 @@ struct buf_block_struct{
 					buffer pool which are index pages,
 					but this flag is not set because
 					we do not keep track of all pages */
-	/* 2. Page flushing fields */
-
-	UT_LIST_NODE_T(buf_block_t) flush_list;
-					/* node of the modified, not yet
-					flushed blocks list */
-	ib_ulonglong	newest_modification;
-					/* log sequence number of the youngest
-					modification to this block, zero if
-					not modified */
-	ib_ulonglong	oldest_modification;
-					/* log sequence number of the START of
-					the log entry written of the oldest
-					modification to this block which has
-					not yet been flushed on disk; zero if
-					all modifications are on disk */
-	ulint		flush_type;	/* if this block is currently being
-					flushed to disk, this tells the
-					flush_type: BUF_FLUSH_LRU or
-					BUF_FLUSH_LIST */
 
 	/* 3. LRU replacement algorithm fields */
 
@@ -921,16 +937,16 @@ struct buf_pool_struct{
 					the pool with no read */
 	/* 2. Page flushing algorithm fields */
 
-	UT_LIST_BASE_NODE_T(buf_block_t) flush_list;
+	UT_LIST_BASE_NODE_T(buf_page_t) flush_list;
 					/* base node of the modified block
 					list */
-	ibool		init_flush[BUF_FLUSH_LIST + 1];
+	ibool		init_flush[BUF_FLUSH_N_TYPES];
 					/* this is TRUE when a flush of the
 					given type is being initialized */
-	ulint		n_flush[BUF_FLUSH_LIST + 1];
+	ulint		n_flush[BUF_FLUSH_N_TYPES];
 					/* this is the number of pending
 					writes in the given flush type */
-	os_event_t	no_flush[BUF_FLUSH_LIST + 1];
+	os_event_t	no_flush[BUF_FLUSH_N_TYPES];
 					/* this is in the set state when there
 					is no flush batch of the given type
 					running */

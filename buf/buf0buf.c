@@ -863,7 +863,7 @@ buf_pool_init(void)
 	-------------------------------- */
 	UT_LIST_INIT(buf_pool->flush_list);
 
-	for (i = BUF_FLUSH_LRU; i <= BUF_FLUSH_LIST; i++) {
+	for (i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; i++) {
 		buf_pool->n_flush[i] = 0;
 		buf_pool->init_flush[i] = FALSE;
 		buf_pool->no_flush[i] = os_event_create(NULL);
@@ -1855,8 +1855,8 @@ buf_page_init(
 
 	block->freed_page_clock = 0;
 
-	block->newest_modification = 0;
-	block->oldest_modification = 0;
+	block->page.newest_modification = 0;
+	block->page.oldest_modification = 0;
 
 	block->accessed		= FALSE;
 	block->buf_fix_count	= 0;

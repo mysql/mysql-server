@@ -47,17 +47,17 @@ buf_pool_get_oldest_modification(void)
 				/* out: oldest modification in pool,
 				zero if none */
 {
-	buf_block_t*	block;
+	buf_page_t*	bpage;
 	ib_ulonglong	lsn;
 
 	mutex_enter(&(buf_pool->mutex));
 
-	block = UT_LIST_GET_LAST(buf_pool->flush_list);
+	bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
 
-	if (block == NULL) {
+	if (bpage == NULL) {
 		lsn = 0;
 	} else {
-		lsn = block->oldest_modification;
+		lsn = bpage->oldest_modification;
 	}
 
 	mutex_exit(&(buf_pool->mutex));
@@ -87,12 +87,12 @@ buf_pool_clock_tic(void)
 Gets the state of a block. */
 UNIV_INLINE
 enum buf_page_state
-buf_block_get_state(
-/*================*/
+buf_page_get_state(
+/*===============*/
 					/* out: state */
-	const buf_block_t*	block)	/* in: pointer to the control block */
+	const buf_page_t*	bpage)	/* in: pointer to the control block */
 {
-	enum buf_page_state	state = block->page.zip.state;
+	enum buf_page_state	state = bpage->zip.state;
 
 #ifdef UNIV_DEBUG
 	switch (state) {
@@ -109,6 +109,17 @@ buf_block_get_state(
 #endif /* UNIV_DEBUG */
 
 	return(state);
+}
+/*************************************************************************
+Gets the state of a block. */
+UNIV_INLINE
+enum buf_page_state
+buf_block_get_state(
+/*================*/
+					/* out: state */
+	const buf_block_t*	block)	/* in: pointer to the control block */
+{
+	return(buf_page_get_state(&block->page));
 }
 /*************************************************************************
 Sets the state of a block. */
@@ -149,6 +160,43 @@ buf_block_set_state(
 	block->page.zip.state = state;
 	ut_ad(buf_block_get_state(block) == state);
 }
+
+/*************************************************************************
+Get the flush type of a page. */
+UNIV_INLINE
+enum buf_flush
+buf_page_get_flush_type(
+/*====================*/
+					/* out: flush type */
+	const buf_page_t*	bpage)	/* in: buffer page */
+{
+	enum buf_flush	flush_type = bpage->zip.flush_type;
+
+#ifdef UNIV_DEBUG
+	switch (flush_type) {
+	case BUF_FLUSH_LRU:
+	case BUF_FLUSH_SINGLE_PAGE:
+	case BUF_FLUSH_LIST:
+		return(flush_type);
+	case BUF_FLUSH_N_TYPES:
+	}
+	ut_error;
+#endif /* UNIV_DEBUG */
+	return(flush_type);
+}
+/*************************************************************************
+Set the flush type of a page. */
+UNIV_INLINE
+void
+buf_page_set_flush_type(
+/*====================*/
+	buf_page_t*	bpage,		/* in: buffer page */
+	enum buf_flush	flush_type)	/* in: flush type */
+{
+	bpage->zip.flush_type = flush_type;
+	ut_ad(buf_page_get_flush_type(bpage) == flush_type);
+}
+
 /*************************************************************************
 Map a block to a file page. */
 UNIV_INLINE
@@ -422,7 +470,7 @@ buf_block_get_newest_modification(
 	mutex_enter(&(buf_pool->mutex));
 
 	if (buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE) {
-		lsn = block->newest_modification;
+		lsn = block->page.newest_modification;
 	} else {
 		lsn = 0;
 	}

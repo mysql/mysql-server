@@ -17,6 +17,13 @@ typedef	struct buf_pool_struct		buf_pool_t;
 /* The 'type' used of a buffer frame */
 typedef	byte	buf_frame_t;
 
+/* Flags for flush types */
+enum buf_flush {
+	BUF_FLUSH_LRU = 0,
+	BUF_FLUSH_SINGLE_PAGE,
+	BUF_FLUSH_LIST,
+	BUF_FLUSH_N_TYPES		/* index of last element + 1  */
+};
 
 #endif
 
