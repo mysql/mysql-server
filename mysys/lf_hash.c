@@ -85,7 +85,8 @@ retry:
   {
     if (!cursor->curr)
       return 0;
-    do { // XXX or goto retry ?
+    do {
+#warning XXX or goto retry ?
       link= cursor->curr->link;
       cursor->next= PTR(link);
       _lf_pin(pins, 0, cursor->next);

@@ -1,4 +1,4 @@
-// TODO multi-pinbox
+#warning TODO multi-pinbox
 /* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
