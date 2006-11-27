@@ -46,8 +46,8 @@ typedef struct st_heapinfo		/* Struct from heap_info */
   ulong records;			/* Records in database */
   ulong deleted;			/* Deleted records in database */
   ulong max_records;
-  ulong data_length;
-  ulong index_length;
+  ulonglong data_length;
+  ulonglong index_length;
   uint reclength;			/* Length of one record */
   int errkey;
   ulonglong auto_increment;
@@ -135,7 +135,7 @@ typedef struct st_heap_share
   HP_BLOCK block;
   HP_KEYDEF  *keydef;
   ulong min_records,max_records;	/* Params to open */
-  ulong data_length,index_length,max_table_size;
+  ulonglong data_length,index_length,max_table_size;
   uint key_stat_version;                /* version to indicate insert/delete */
   uint records;				/* records */
   uint blength;				/* records rounded up to 2^n */
@@ -187,7 +187,7 @@ typedef struct st_heap_create_info
 {
   uint auto_key;                        /* keynr [1 - maxkey] for auto key */
   uint auto_key_type;
-  ulong max_table_size;
+  ulonglong max_table_size;
   ulonglong auto_increment;
   my_bool with_auto_increment;
 } HP_CREATE_INFO;
