@@ -1731,23 +1731,6 @@ innobase_start_or_create_for_mysql(void)
 
 	fflush(stderr);
 
-	/* Advance the lsn and make a checkpoint so that if mysqld crashes
-	very quickly after the startup, InnoDB in the next startup notices
-	the mismatch in the lsn in the checkpoint and in ibdata1, and knows
-	that a crash recovery is needed. */
-
-	mutex_enter(&kernel_mutex);
-
-	/* This call advances the lsn because it writes the new trx id to
-	the trx sys header in ibdata1 */
-	trx_sys_get_new_trx_id();
-
-	mutex_exit(&kernel_mutex);
-
-	printf("DOING CHECKPOINT\n");
-
-	log_checkpoint(TRUE, FALSE);
-
 	/* Create the master thread which does purge and other utility
 	operations */
 
