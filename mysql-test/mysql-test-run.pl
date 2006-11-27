@@ -66,7 +66,6 @@ use IO::Socket::INET;
 use Data::Dumper;
 use strict;
 use warnings;
-use diagnostics;
 
 select(STDOUT);
 $| = 1; # Automatically flush STDOUT
@@ -88,6 +87,7 @@ require "lib/mtr_diff.pl";
 require "lib/mtr_match.pl";
 require "lib/mtr_misc.pl";
 require "lib/mtr_stress.pl";
+require "lib/mtr_unique.pl";
 
 $Devel::Trace::TRACE= 1;
 
@@ -447,7 +447,6 @@ sub main () {
 
   mtr_exit(0);
 }
-
 
 ##############################################################################
 #
@@ -1525,7 +1524,7 @@ sub executable_setup () {
     $exe_mysql_client_test=
       mtr_exe_maybe_exists(vs_config_dirs('tests', 'mysql_client_test'),
                            "$glob_basedir/tests/mysql_client_test",
-                           "$glob_basedir/bin");
+                           "$glob_basedir/bin/mysql_client_test");
   }
 }
 
