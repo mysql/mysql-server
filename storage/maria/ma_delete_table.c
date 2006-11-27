@@ -31,6 +31,7 @@ int maria_delete_table(const char *name)
 #ifdef EXTRA_DEBUG
   _ma_check_table_is_closed(name,"delete");
 #endif
+  /* LOCKTODO take X-lock on table here */
 #ifdef USE_RAID
   {
     MARIA_HA *info;
@@ -59,12 +60,22 @@ int maria_delete_table(const char *name)
 #endif /* USE_RAID */
 
   fn_format(from,name,"",MARIA_NAME_IEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
-  if (my_delete_with_symlink(from, MYF(MY_WME)))
+  /*
+    RECOVERYTODO log the two deletes below.
+    Then do the file deletions.
+    For this log record to be of any use for Recovery, we need the upper MySQL
+    layer to be crash-safe in DDLs; when it is we should reconsider the moment
+    of writing this log record, how to use it in Recovery, and force the log.
+    For now this record is only informative.
+  */
+  if (my_delete_with_symlink(from, MYF(MY_WME | MY_SYNC_DIR)))
     DBUG_RETURN(my_errno);
   fn_format(from,name,"",MARIA_NAME_DEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
 #ifdef USE_RAID
   if (raid_type)
-    DBUG_RETURN(my_raid_delete(from, raid_chunks, MYF(MY_WME)) ? my_errno : 0);
+    DBUG_RETURN(my_raid_delete(from, raid_chunks, MYF(MY_WME | MY_SYNC_DIR)) ?
+                my_errno : 0);
 #endif
-  DBUG_RETURN(my_delete_with_symlink(from, MYF(MY_WME)) ? my_errno : 0);
+  DBUG_RETURN(my_delete_with_symlink(from, MYF(MY_WME | MY_SYNC_DIR)) ?
+              my_errno : 0);
 }

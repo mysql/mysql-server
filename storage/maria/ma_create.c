@@ -60,6 +60,8 @@ int maria_create(const char *name,uint keys,MARIA_KEYDEF *keydefs,
   ulong *rec_per_key_part;
   my_off_t key_root[HA_MAX_POSSIBLE_KEY],key_del[MARIA_MAX_KEY_BLOCK_SIZE];
   MARIA_CREATE_INFO tmp_create_info;
+  my_bool tmp_table= FALSE; /* cache for presence of HA_OPTION_TMP_TABLE */
+  myf     sync_dir=  MY_SYNC_DIR;
   DBUG_ENTER("maria_create");
   DBUG_PRINT("enter", ("keys: %u  columns: %u  uniques: %u  flags: %u",
                       keys, columns, uniques, flags));
@@ -560,7 +562,11 @@ int maria_create(const char *name,uint keys,MARIA_KEYDEF *keydefs,
 
   /* max_data_file_length and max_key_file_length are recalculated on open */
   if (options & HA_OPTION_TMP_TABLE)
+  {
+    tmp_table= TRUE;
+    sync_dir= 0;
     share.base.max_data_file_length=(my_off_t) ci->data_file_length;
+  }
 
   share.base.min_block_length=
     (share.base.pack_reclength+3 < MARIA_EXTEND_BLOCK_LENGTH &&
@@ -576,7 +582,7 @@ int maria_create(const char *name,uint keys,MARIA_KEYDEF *keydefs,
   {
     char *iext= strrchr(ci->index_file_name, '.');
     int have_iext= iext && !strcmp(iext, MARIA_NAME_IEXT);
-    if (options & HA_OPTION_TMP_TABLE)
+    if (tmp_table)
     {
       char *path;
       /* chop off the table name, tempory tables use generated name */
@@ -597,8 +603,11 @@ int maria_create(const char *name,uint keys,MARIA_KEYDEF *keydefs,
     /*
       Don't create the table if the link or file exists to ensure that one
       doesn't accidently destroy another table.
+      Don't sync dir now if the data file has the same path.
     */
-    create_flag=0;
+    create_flag=
+      (ci->data_file_name &&
+       !strcmp(ci->index_file_name, ci->data_file_name)) ? 0 : sync_dir;
   }
   else
   {
@@ -607,8 +616,11 @@ int maria_create(const char *name,uint keys,MARIA_KEYDEF *keydefs,
                (flags & HA_DONT_TOUCH_DATA) ? MY_RETURN_REAL_PATH : 0) |
                 MY_APPEND_EXT);
     linkname_ptr=0;
-    /* Replace the current file */
-    create_flag=MY_DELETE_OLD;
+    /*
+      Replace the current file.
+      Don't sync dir now if the data file has the same path.
+    */
+    create_flag= MY_DELETE_OLD | (!ci->data_file_name ? 0 : sync_dir);
   }
 
   /*
@@ -627,7 +639,7 @@ int maria_create(const char *name,uint keys,MARIA_KEYDEF *keydefs,
   }
 
   if ((file= my_create_with_symlink(linkname_ptr, filename, 0, create_mode,
-				    MYF(MY_WME | create_flag))) < 0)
+				    MYF(MY_WME|create_flag))) < 0)
     goto err;
   errpos=1;
 
@@ -653,7 +665,7 @@ int maria_create(const char *name,uint keys,MARIA_KEYDEF *keydefs,
         char *dext= strrchr(ci->data_file_name, '.');
         int have_dext= dext && !strcmp(dext, MARIA_NAME_DEXT);
 
-        if (options & HA_OPTION_TMP_TABLE)
+        if (tmp_table)
         {
           char *path;
           /* chop off the table name, tempory tables use generated name */
@@ -682,7 +694,7 @@ int maria_create(const char *name,uint keys,MARIA_KEYDEF *keydefs,
       }
       if ((dfile=
 	   my_create_with_symlink(linkname_ptr, filename, 0, create_mode,
-				  MYF(MY_WME | create_flag))) < 0)
+				  MYF(MY_WME | create_flag | sync_dir))) < 0)
 	goto err;
     }
     errpos=3;
@@ -802,12 +814,18 @@ int maria_create(const char *name,uint keys,MARIA_KEYDEF *keydefs,
   if (my_chsize(file,(ulong) share.base.keystart,0,MYF(0)))
     goto err;
 
+  if (!tmp_table && my_sync(file, MYF(0)))
+    goto err;
+
   if (! (flags & HA_DONT_TOUCH_DATA))
   {
 #ifdef USE_RELOC
     if (my_chsize(dfile,share.base.min_pack_length*ci->reloc_rows,0,MYF(0)))
       goto err;
+    if (!tmp_table && my_sync(dfile, MYF(0)))
+      goto err;
 #endif
+    /* if !USE_RELOC, there was no write to the file, no need to sync it */
     errpos=2;
     if (my_close(dfile,MYF(0)))
       goto err;
@@ -816,6 +834,19 @@ int maria_create(const char *name,uint keys,MARIA_KEYDEF *keydefs,
   pthread_mutex_unlock(&THR_LOCK_maria);
   if (my_close(file,MYF(0)))
     goto err;
+  /*
+    RECOVERYTODO
+    Write a log record describing the CREATE operation (just the file
+    names, link names, and the full header's content).
+    For this record to be of any use for Recovery, we need the upper
+    MySQL layer to be crash-safe, which it is not now (that would require work
+    using the ddl_log of sql/sql_table.cc); when is is, we should reconsider
+    the moment of writing this log record (before or after op, under
+    THR_LOCK_maria or not...), how to use it in Recovery, and force the log.
+    For now this record is just informative.
+    If operation failed earlier, we clean up in "err:" and the MySQL layer
+    will clean up the frm, so we needn't write anything to the log.
+  */
   my_free((char*) rec_per_key_part,MYF(0));
   DBUG_RETURN(0);
 
@@ -831,14 +862,14 @@ err:
   if (! (flags & HA_DONT_TOUCH_DATA))
     my_delete_with_symlink(fn_format(filename,name,"",MARIA_NAME_DEXT,
                                      MY_UNPACK_FILENAME | MY_APPEND_EXT),
-			   MYF(0));
+			   MYF(sync_dir));
     /* fall through */
   case 1:
     VOID(my_close(file,MYF(0)));
     if (! (flags & HA_DONT_TOUCH_DATA))
       my_delete_with_symlink(fn_format(filename,name,"",MARIA_NAME_IEXT,
                                        MY_UNPACK_FILENAME | MY_APPEND_EXT),
-			     MYF(0));
+			     MYF(sync_dir));
   }
   my_free((char*) rec_per_key_part, MYF(0));
   DBUG_RETURN(my_errno=save_errno);		/* return the fatal errno */

@@ -52,7 +52,7 @@ int my_sync(File fd, myf my_flags)
 #if defined(F_FULLFSYNC)
     /*
       In Mac OS X >= 10.3 this call is safer than fsync() (it forces the
-      disk's cache).
+      disk's cache and guarantees ordered writes).
     */
     if (!(res= fcntl(fd, F_FULLFSYNC, 0)))
       break; /* ok */
@@ -89,6 +89,7 @@ int my_sync(File fd, myf my_flags)
 } /* my_sync */
 
 
+static const char cur_dir_name[]= {FN_CURLIB, 0};
 /*
   Force directory information to disk.
 
@@ -107,11 +108,14 @@ int my_sync_dir(const char *dir_name, myf my_flags)
   DBUG_PRINT("my",("Dir: '%s'  my_flags: %d", dir_name, my_flags));
   File dir_fd;
   int res= 0;
+  const char *correct_dir_name;
+  /* Sometimes the path does not contain an explicit directory */
+  correct_dir_name= (dir_name[0] == 0) ? cur_dir_name : dir_name;
   /*
     Syncing a dir may give EINVAL on tmpfs on Linux, which is ok.
     EIO on the other hand is very important. Hence MY_IGNORE_BADFD.
   */
-  if ((dir_fd= my_open(dir_name, O_RDONLY, MYF(my_flags))) >= 0)
+  if ((dir_fd= my_open(correct_dir_name, O_RDONLY, MYF(my_flags))) >= 0)
   {
     if (my_sync(dir_fd, MYF(my_flags | MY_IGNORE_BADFD)))
       res= 2;

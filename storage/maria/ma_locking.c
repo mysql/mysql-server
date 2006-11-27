@@ -103,9 +103,7 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
 	  share->changed=0;
 	  if (maria_flush)
 	  {
-	    if (my_sync(share->kfile, MYF(0)))
-	      error= my_errno;
-	    if (my_sync(info->dfile, MYF(0)))
+            if (_ma_sync_table_files(info))
 	      error= my_errno;
 	  }
 	  else

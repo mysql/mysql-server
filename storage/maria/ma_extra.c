@@ -316,9 +316,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function, void *extra_arg
     if (share->not_flushed)
     {
       share->not_flushed=0;
-      if (my_sync(share->kfile, MYF(0)))
-	error= my_errno;
-      if (my_sync(info->dfile, MYF(0)))
+      if (_ma_sync_table_files(info))
 	error= my_errno;
       if (error)
       {
@@ -438,4 +436,11 @@ int maria_reset(MARIA_HA *info)
   info->update= ((info->update & HA_STATE_CHANGED) | HA_STATE_NEXT_FOUND |
                  HA_STATE_PREV_FOUND);
   DBUG_RETURN(error);
+}
+
+
+int _ma_sync_table_files(const MARIA_HA *info)
+{
+  return (my_sync(info->dfile, MYF(0)) ||
+          my_sync(info->s->kfile, MYF(0)));
 }

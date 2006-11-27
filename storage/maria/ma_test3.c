@@ -65,6 +65,10 @@ int main(int argc,char **argv)
   MY_INIT(argv[0]);
   get_options(argc,argv);
 
+  fprintf(stderr, "WARNING! this program is to test 'external locking'"
+          " (when several processes share a table through file locking)"
+          " which is not supported by Maria at all; expect errors."
+          " We may soon remove this program.\n");
   maria_init();
   bzero((char*) keyinfo,sizeof(keyinfo));
   bzero((char*) recinfo,sizeof(recinfo));

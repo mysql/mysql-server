@@ -23,6 +23,7 @@
 int maria_rename(const char *old_name, const char *new_name)
 {
   char from[FN_REFLEN],to[FN_REFLEN];
+  int data_file_rename_error;
 #ifdef USE_RAID
   uint raid_type=0,raid_chunks=0;
 #endif
@@ -32,6 +33,7 @@ int maria_rename(const char *old_name, const char *new_name)
   _ma_check_table_is_closed(old_name,"rename old_table");
   _ma_check_table_is_closed(new_name,"rename new table2");
 #endif
+  /* LOCKTODO take X-lock on table here */
 #ifdef USE_RAID
   {
     MARIA_HA *info;
@@ -48,14 +50,40 @@ int maria_rename(const char *old_name, const char *new_name)
 
   fn_format(from,old_name,"",MARIA_NAME_IEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
   fn_format(to,new_name,"",MARIA_NAME_IEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
-  if (my_rename_with_symlink(from, to, MYF(MY_WME)))
+  /*
+    RECOVERYTODO log the two renames below. Update
+    ZeroDirtyPagesLSN of the table on disk (=> sync the files), this is
+    needed so that Recovery does not pick a wrong table.
+    Then do the file renames.
+    For this log record to be of any use for Recovery, we need the upper MySQL
+    layer to be crash-safe in DDLs; when it is we should reconsider the moment
+    of writing this log record, how to use it in Recovery, and force the log.
+    For now this record is only informative. But ZeroDirtyPagesLSN is
+    critically needed!
+  */
+  if (my_rename_with_symlink(from, to, MYF(MY_WME | MY_SYNC_DIR)))
     DBUG_RETURN(my_errno);
   fn_format(from,old_name,"",MARIA_NAME_DEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
   fn_format(to,new_name,"",MARIA_NAME_DEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
 #ifdef USE_RAID
   if (raid_type)
-    DBUG_RETURN(my_raid_rename(from, to, raid_chunks, MYF(MY_WME)) ? my_errno :
-		0);
+    data_file_rename_error= my_raid_rename(from, to, raid_chunks,
+                                           MYF(MY_WME | MY_SYNC_DIR));
+  else
 #endif
-  DBUG_RETURN(my_rename_with_symlink(from, to,MYF(MY_WME)) ? my_errno : 0);
+    data_file_rename_error=
+      my_rename_with_symlink(from, to, MYF(MY_WME | MY_SYNC_DIR));
+  if (data_file_rename_error)
+  {
+    /*
+      now we have a renamed index file and a non-renamed data file, try to
+      undo the rename of the index file.
+    */
+    data_file_rename_error= my_errno;
+    fn_format(from, old_name, "", MARIA_NAME_IEXT, MYF(MY_UNPACK_FILENAME|MY_APPEND_EXT));
+    fn_format(to, new_name, "", MARIA_NAME_IEXT, MYF(MY_UNPACK_FILENAME|MY_APPEND_EXT));
+    my_rename_with_symlink(to, from, MYF(MY_WME | MY_SYNC_DIR));
+  }
+  DBUG_RETURN(data_file_rename_error);
+
 }
