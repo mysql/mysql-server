@@ -949,13 +949,12 @@ TIME_to_gmt_sec(const TIME *t, const TIME_ZONE_INFO *sp,
   */
   if (shift)
   {
-    if (local_t > (TIMESTAMP_MAX_VALUE - shift*86400L +
-                   sp->revtis[i].rt_offset - saved_seconds))
+    if (local_t > (my_time_t) (TIMESTAMP_MAX_VALUE - shift*86400L +
+                               sp->revtis[i].rt_offset - saved_seconds))
     {
       DBUG_RETURN(0);                           /* my_time_t overflow */
     }
-    else
-     local_t+= shift*86400L;
+    local_t+= shift*86400L;
   }
 
   if (sp->revtis[i].rt_type)

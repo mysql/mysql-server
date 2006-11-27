@@ -29,7 +29,7 @@ public:
   static void setErrorHandlerShutdownType(NdbShutdownType nst = NST_ErrorHandler);
   static void handleAssert(const char* message, 
 			   const char* file, 
-			   int line, int ec = NDBD_EXIT_PRGERR);
+			   int line, int ec = NDBD_EXIT_PRGERR)  __attribute__((__noreturn__));
   
   static void handleError(int faultID, 
 			  const char* problemData,

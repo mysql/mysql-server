@@ -613,7 +613,7 @@ select truncate(99.999999999999999999999999999999999999,31);
 #-- should return 99.9999999999999999999999999999999
 #
 select truncate(99999999999999999999999999999999999999,-31);
--- should return 90000000000000000000000000000000
+# should return 90000000000000000000000000000000
 #
 #-- 6. Set functions (AVG, SUM, COUNT) should work.
 #
@@ -810,7 +810,7 @@ select 1 / 0;
 #BUG#6048 Stored procedure causes operating system reboot
 #BUG#6053 DOUBLE PRECISION literal
 
--- Tests from 'traditional' mode tests
+# Tests from 'traditional' mode tests
 #
 set sql_mode='ansi,traditional';
 #
