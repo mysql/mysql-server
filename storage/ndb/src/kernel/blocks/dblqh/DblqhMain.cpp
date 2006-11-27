@@ -3417,9 +3417,9 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   }
   else
   {
-    regTcPtr->operation = op == ZREAD_EX ? ZREAD : op;
+    regTcPtr->operation = (Operation_t) op == ZREAD_EX ? ZREAD : (Operation_t) op;
     regTcPtr->lockType = 
-      op == ZREAD_EX ? ZUPDATE : op == ZWRITE ? ZINSERT : op;
+      op == ZREAD_EX ? ZUPDATE : (Operation_t) op == ZWRITE ? ZINSERT : (Operation_t) op;
   }
   
   CRASH_INSERTION2(5041, regTcPtr->simpleRead && 
@@ -18520,7 +18520,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
       do
       {
 	ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
-	ndbout_c("  file %d(%d) FileChangeState: %d logFileStatus: %d currentMbyte: %d currentFilepage", 
+	ndbout_c("  file %d(%d)  FileChangeState: %d  logFileStatus: %d  currentMbyte: %d  currentFilepage %d", 
 		 logFilePtr.p->fileNo,
 		 logFilePtr.i,
 		 logFilePtr.p->fileChangeState,

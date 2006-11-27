@@ -1188,7 +1188,7 @@ Pgman::process_lcp(Signal* signal)
     pl_hash.next(m_lcp_curr_bucket, iter);
     Uint32 loop = 0;
     while (iter.curr.i != RNIL && 
-	   m_lcp_outstanding < max_count &&
+	   m_lcp_outstanding < (Uint32) max_count &&
 	   (loop ++ < 32 || iter.bucket == m_lcp_curr_bucket))
     {
       Ptr<Page_entry>& ptr = iter.curr;
@@ -2324,7 +2324,7 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
 
   if (signal->theData[0] == 11004)
   {
-    ndbout << "Dump LCP bucket m_lcp_outstanding: %d", m_lcp_outstanding;
+    ndbout << "Dump LCP bucket m_lcp_outstanding: " << m_lcp_outstanding;
     if (m_lcp_curr_bucket != ~(Uint32)0)
     {
       Page_hashlist::Iterator iter;

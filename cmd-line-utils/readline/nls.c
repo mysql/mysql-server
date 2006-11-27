@@ -111,7 +111,7 @@ _rl_init_eightbit ()
   if (lspec == 0 || *lspec == 0)
     lspec = setlocale (LC_CTYPE, (char *)NULL);
   if (lspec == 0)
-    lspec = "";
+    lspec = (char*) "";
   t = setlocale (LC_CTYPE, lspec);
 
   if (t && *t && (t[0] != 'C' || t[1]) && (STREQ (t, "POSIX") == 0))

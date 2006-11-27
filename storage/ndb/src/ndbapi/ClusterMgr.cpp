@@ -203,7 +203,7 @@ ClusterMgr::forceHB()
 
     int nodeId= 0;
     for(int i=0;
-        NodeBitmask::NotFound!=(nodeId= waitForHBFromNodes.find(i));
+        (int) NodeBitmask::NotFound != (nodeId= waitForHBFromNodes.find(i));
         i= nodeId+1)
     {
 #ifdef DEBUG_REG

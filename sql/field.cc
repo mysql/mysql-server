@@ -1237,12 +1237,6 @@ Field::Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
 }
 
 
-uint Field::offset()
-{
-  return (uint) (ptr - (char*) table->record[0]);
-}
-
-
 void Field::hash(ulong *nr, ulong *nr2)
 {
   if (is_null())
@@ -8186,8 +8180,8 @@ Field_bit::do_last_null_byte() const
     bits. On systems with CHAR_BIT > 8 (not very common), the storage
     will lose the extra bits.
   */
-  DBUG_PRINT("debug", ("bit_ofs=%d, bit_len=%d, bit_ptr=%p",
-                       bit_ofs, bit_len, bit_ptr));
+  DBUG_PRINT("test", ("bit_ofs: %d, bit_len: %d  bit_ptr: 0x%lx",
+                      bit_ofs, bit_len, (long) bit_ptr));
   uchar *result;
   if (bit_len == 0)
     result= null_ptr;

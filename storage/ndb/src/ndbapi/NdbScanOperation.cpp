@@ -181,7 +181,8 @@ NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
   }
   
   bool rangeScan = false;
-  if (m_accessTable->m_indexType == NdbDictionary::Index::OrderedIndex)
+  if ( (int) m_accessTable->m_indexType ==
+       (int) NdbDictionary::Index::OrderedIndex)
   {
     if (m_currentTable == m_accessTable){
       // Old way of scanning indexes, should not be allowed
@@ -588,7 +589,7 @@ err4:
     
   theNdbCon->theTransactionIsStarted = false;
   theNdbCon->theReleaseOnClose = true;
-  if(DEBUG_NEXT_RESULT) ndbout_c("return -1", retVal);
+  if(DEBUG_NEXT_RESULT) ndbout_c("return %d", retVal);
   return -1;
 }
 

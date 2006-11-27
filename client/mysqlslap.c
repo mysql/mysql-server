@@ -1031,7 +1031,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
     for (x= 0; x < concur; x++)
     {
       int pid;
-      DBUG_PRINT("info", ("x %d concurrency %d", x, concurrency));
+      DBUG_PRINT("info", ("x: %d  concurrency: %u", x, *concurrency));
       pid= fork();
       switch(pid)
       {

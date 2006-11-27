@@ -2229,7 +2229,7 @@ cmp_item* cmp_item_row::make_same()
 cmp_item_row::~cmp_item_row()
 {
   DBUG_ENTER("~cmp_item_row");
-  DBUG_PRINT("enter",("this: 0x%lx", this));
+  DBUG_PRINT("enter",("this: 0x%lx", (long) this));
   if (comparators)
   {
     for (uint i= 0; i < n; i++)
@@ -3061,7 +3061,7 @@ longlong Item_is_not_null_test::val_int()
   if (!used_tables_cache)
   {
     owner->was_null|= (!cached_value);
-    DBUG_PRINT("info", ("cached :%d", cached_value));
+    DBUG_PRINT("info", ("cached: %ld", (long) cached_value));
     DBUG_RETURN(cached_value);
   }
   if (args[0]->is_null())

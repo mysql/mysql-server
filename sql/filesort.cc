@@ -302,7 +302,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   DBUG_POP();			/* Ok to DBUG */
 #endif
   memcpy(&table->sort, &table_sort, sizeof(FILESORT_INFO));
-  DBUG_PRINT("exit",("records: %ld",records));
+  DBUG_PRINT("exit",("records: %ld", (long) records));
   DBUG_RETURN(error ? HA_POS_ERROR : records);
 } /* filesort */
 

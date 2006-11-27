@@ -43,7 +43,7 @@ void Dbtup::execTUP_DEALLOCREQ(Signal* signal)
   getFragmentrec(regFragPtr, frag_id, regTabPtr.p);
   ndbassert(regFragPtr.p != NULL);
   
-  if (! (((frag_page_id << MAX_TUPLES_BITS) + page_index) == ~0))
+  if (! (((frag_page_id << MAX_TUPLES_BITS) + page_index) == ~ (Uint32) 0))
   {
     Local_key tmp;
     tmp.m_page_no= getRealpid(regFragPtr.p, frag_page_id); 
