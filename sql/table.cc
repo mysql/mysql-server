@@ -2458,7 +2458,18 @@ bool st_table_list::prepare_view_securety_context(THD *thd)
       }
       else
       {
-        my_error(ER_NO_SUCH_USER, MYF(0), definer.user.str, definer.host.str);
+        if (thd->security_ctx->master_access & SUPER_ACL)
+        {
+          my_error(ER_NO_SUCH_USER, MYF(0), definer.user.str, definer.host.str);
+
+        }
+        else
+        {
+           my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
+                    thd->security_ctx->priv_user,
+                    thd->security_ctx->priv_host,
+                    (thd->password ?  ER(ER_YES) : ER(ER_NO)));
+        }
         DBUG_RETURN(TRUE);
       }
     }
