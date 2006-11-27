@@ -79,9 +79,15 @@ void mysql_client_binlog_statement(THD* thd)
     char const *endptr= 0;
     int bytes_decoded= base64_decode(strptr, coded_len, buf, &endptr);
 
+#ifndef HAVE_purify
+      /*
+        This debug printout should not be used for valgrind builds
+        since it will read from unassigned memory.
+      */
     DBUG_PRINT("info",
                ("bytes_decoded=%d; strptr=0x%lu; endptr=0x%lu ('%c':%d)",
                 bytes_decoded, strptr, endptr, *endptr, *endptr));
+#endif
 
     if (bytes_decoded < 0)
     {
@@ -147,8 +153,14 @@ void mysql_client_binlog_statement(THD* thd)
       DBUG_PRINT("info",("ev->get_type_code()=%d", ev->get_type_code()));
       DBUG_PRINT("info",("bufptr+EVENT_TYPE_OFFSET=0x%lx",
                          bufptr+EVENT_TYPE_OFFSET));
+#ifndef HAVE_purify
+      /*
+        This debug printout should not be used for valgrind builds
+        since it will read from unassigned memory.
+      */
       DBUG_PRINT("info", ("bytes_decoded=%d; bufptr=0x%lx; buf[EVENT_LEN_OFFSET]=%u",
                           bytes_decoded, bufptr, uint4korr(bufptr+EVENT_LEN_OFFSET)));
+#endif
       ev->thd= thd;
       if (int err= ev->exec_event(thd->rli_fake))
       {
