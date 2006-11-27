@@ -1602,6 +1602,8 @@ trx_commit_for_mysql(
 	the transaction object does not have an InnoDB session object, and we
 	set the dummy session that we use for all MySQL transactions. */
 
+	mutex_enter(&kernel_mutex);
+
 	if (trx->sess == NULL) {
 		/* Open a dummy session */
 
@@ -1612,6 +1614,8 @@ trx_commit_for_mysql(
 		trx->sess = trx_dummy_sess;
 	}
 	
+	mutex_exit(&kernel_mutex);
+
 	trx_start_if_not_started(trx);
 
 	mutex_enter(&kernel_mutex);

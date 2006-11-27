@@ -135,6 +135,8 @@ trx_rollback_for_mysql(
 	the transaction object does not have an InnoDB session object, and we
 	set a dummy session that we use for all MySQL transactions. */
 
+	mutex_enter(&kernel_mutex);
+
 	if (trx->sess == NULL) {
 		/* Open a dummy session */
 
@@ -144,6 +146,8 @@ trx_rollback_for_mysql(
 
 		trx->sess = trx_dummy_sess;
 	}
+
+	mutex_exit(&kernel_mutex);
 
 	err = trx_general_rollback_for_mysql(trx, FALSE, NULL);
 	
