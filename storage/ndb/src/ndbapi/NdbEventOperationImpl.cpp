@@ -1508,9 +1508,9 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep)
     else
     {
       /** out of order something */
-      ndbout_c("out of order bucket: %d gci: %lld m_latestGCI: %lld", 
-	       bucket-(Gci_container*)m_active_gci.getBase(), 
-	       gci, m_latestGCI);
+      ndbout_c("out of order bucket: %d  gci: %ld  m_latestGCI: %ld", 
+	       (int) (bucket-(Gci_container*)m_active_gci.getBase()), 
+	       (long) gci, (long) m_latestGCI);
       bucket->m_state = Gci_container::GC_COMPLETE;
       bucket->m_gcp_complete_rep_count = 1; // Prevent from being reused
       m_latest_complete_GCI = gci;

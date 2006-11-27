@@ -1227,9 +1227,9 @@ sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
       if (engine_data != table->engine_data())
       {
         DBUG_PRINT("qcache",
-                   ("Handler require invalidation queries of %s.%s %lld-%lld",
-                              table_list.db, table_list.alias,
-                              engine_data, table->engine_data()));
+                   ("Handler require invalidation queries of %s.%s %lu-%lu",
+                    table_list.db, table_list.alias,
+                    (ulong) engine_data, (ulong) table->engine_data()));
         invalidate_table((byte *) table->db(), table->key_length());
       }
       else
@@ -1250,10 +1250,10 @@ sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
 #ifndef EMBEDDED_LIBRARY
   do
   {
-    DBUG_PRINT("qcache", ("Results  (len: %lu  used: %lu  headers: %u)",
+    DBUG_PRINT("qcache", ("Results  (len: %lu  used: %lu  headers: %lu)",
 			  result_block->length, result_block->used,
-			  result_block->headers_len()+
-			  ALIGN_SIZE(sizeof(Query_cache_result))));
+			  (ulong) (result_block->headers_len()+
+                                   ALIGN_SIZE(sizeof(Query_cache_result)))));
     
     Query_cache_result *result = result_block->result();
     if (net_real_write(&thd->net, result->data(),
@@ -2469,11 +2469,11 @@ Query_cache::insert_table(uint key_len, char *key,
       table_block->table()->engine_data() != engine_data)
   {
     DBUG_PRINT("qcache",
-               ("Handler require invalidation queries of %s.%s %lld-%lld",
+               ("Handler require invalidation queries of %s.%s %lu-%lu",
                 table_block->table()->db(),
                 table_block->table()->table(),
-                engine_data,
-                table_block->table()->engine_data()));
+                (ulong) engine_data,
+                (ulong) table_block->table()->engine_data()));
     /*
       as far as we delete all queries with this table, table block will be
       deleted, too
@@ -3759,7 +3759,7 @@ my_bool Query_cache::check_integrity(bool locked)
     {
       DBUG_PRINT("error",
 		 ("block 0x%lx do not aligned by %d", (ulong) block,
-		  ALIGN_SIZE(1)));
+		  (int) ALIGN_SIZE(1)));
       result = 1;
     }
     // Check memory allocation

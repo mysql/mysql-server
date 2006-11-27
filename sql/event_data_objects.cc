@@ -1218,7 +1218,8 @@ Event_queue_element::compute_next_execution_time()
 
   my_tz_UTC->gmt_sec_to_TIME(&time_now, current_thd->query_start());
 
-  DBUG_PRINT("info",("NOW=[%llu]", TIME_to_ulonglong_datetime(&time_now)));
+  DBUG_PRINT("info",("NOW: [%lu]",
+                     (ulong) TIME_to_ulonglong_datetime(&time_now)));
 
   /* if time_now is after ends don't execute anymore */
   if (!ends_null && (tmp= my_time_compare(&ends, &time_now)) == -1)
@@ -1300,7 +1301,8 @@ Event_queue_element::compute_next_execution_time()
       }
       else
       {
-        DBUG_PRINT("info",("Next[%llu]",TIME_to_ulonglong_datetime(&next_exec)));
+        DBUG_PRINT("info",("Next[%lu]",
+                           (ulong) TIME_to_ulonglong_datetime(&next_exec)));
         execute_at= next_exec;
         execute_at_null= FALSE;
       }
@@ -1322,7 +1324,8 @@ Event_queue_element::compute_next_execution_time()
                         expression, interval))
         goto err;
       execute_at= next_exec;
-      DBUG_PRINT("info",("Next[%llu]",TIME_to_ulonglong_datetime(&next_exec)));
+      DBUG_PRINT("info",("Next[%lu]",
+                         (ulong) TIME_to_ulonglong_datetime(&next_exec)));
     }
     else
     {
@@ -1356,7 +1359,8 @@ Event_queue_element::compute_next_execution_time()
                           expression, interval))
           goto err;
         execute_at= next_exec;
-        DBUG_PRINT("info",("Next[%llu]",TIME_to_ulonglong_datetime(&next_exec)));
+        DBUG_PRINT("info",("Next[%lu]",
+                           (ulong) TIME_to_ulonglong_datetime(&next_exec)));
       }
       execute_at_null= FALSE;
     }
@@ -1393,8 +1397,8 @@ Event_queue_element::compute_next_execution_time()
         }
         else
         {
-          DBUG_PRINT("info", ("Next[%llu]",
-                              TIME_to_ulonglong_datetime(&next_exec)));
+          DBUG_PRINT("info", ("Next[%lu]",
+                              (ulong) TIME_to_ulonglong_datetime(&next_exec)));
           execute_at= next_exec;
           execute_at_null= FALSE;
         }

@@ -735,7 +735,8 @@ _rl_read_file (filename, sizep)
   file_size = (size_t)finfo.st_size;
 
   /* check for overflow on very large files */
-  if (file_size != finfo.st_size || file_size + 1 < file_size)
+  if ((long long) file_size != (long long) finfo.st_size ||
+      file_size + 1 < file_size)
     {
       if (file >= 0)
 	close (file);

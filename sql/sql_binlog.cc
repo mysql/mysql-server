@@ -114,8 +114,8 @@ void mysql_client_binlog_statement(THD* thd)
       order to be able to read exactly what is necessary.
     */
 
-    DBUG_PRINT("info",("binlog base64 decoded_len=%d, bytes_decoded=%d",
-                       decoded_len, bytes_decoded));
+    DBUG_PRINT("info",("binlog base64 decoded_len: %lu  bytes_decoded: %d",
+                       (ulong) decoded_len, bytes_decoded));
 
     /*
       Now we start to read events of the buffer, until there are no
@@ -161,7 +161,7 @@ void mysql_client_binlog_statement(THD* thd)
                          (long) (bufptr+EVENT_TYPE_OFFSET)));
       DBUG_PRINT("info", ("bytes_decoded: %d   bufptr: 0x%lx  buf[EVENT_LEN_OFFSET]: %lu",
                           bytes_decoded, (long) bufptr,
-                          uint4korr(bufptr+EVENT_LEN_OFFSET)));
+                          (ulong) uint4korr(bufptr+EVENT_LEN_OFFSET)));
 #endif
       ev->thd= thd;
       if (int err= ev->exec_event(thd->rli_fake))
