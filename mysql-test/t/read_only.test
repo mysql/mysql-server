@@ -101,6 +101,18 @@ drop table t1;
 --error 1290
 insert into t1 values(1);
 
+#
+# BUG #22077 "DROP TEMPORARY TABLE fails with wrong error if read_only is set"
+#
+# check if DROP TEMPORARY on a non-existing temporary table returns the right
+# error
+
+--error ER_BAD_TABLE_ERROR
+drop temporary table ttt;
+
+# check if DROP TEMPORARY TABLE IF EXISTS produces a warning with read_only set
+drop temporary table if exists ttt;
+
 connection default;
 drop table t1,t2;
 drop user test@localhost;
