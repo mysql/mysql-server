@@ -7197,6 +7197,8 @@ static void print_ndbcluster_open_tables()
   DBUG_UNLOCK_FILE;
 }
 
+#endif
+
 
 #define dbug_print_open_tables()                \
   DBUG_EXECUTE("info",                          \
@@ -7208,7 +7210,6 @@ static void print_ndbcluster_open_tables()
                print_share((t), (s)););         \
   DBUG_UNLOCK_FILE;
 
-#endif
 
 #ifdef HAVE_NDB_BINLOG
 /*
