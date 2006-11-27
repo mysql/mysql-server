@@ -329,10 +329,12 @@ int ha_archive::read_meta_file(File meta_file, ha_rows *rows,
 
   DBUG_PRINT("ha_archive::read_meta_file", ("Check %d", (uint)meta_buffer[0]));
   DBUG_PRINT("ha_archive::read_meta_file", ("Version %d", (uint)meta_buffer[1]));
-  DBUG_PRINT("ha_archive::read_meta_file", ("Rows %llu", *rows));
-  DBUG_PRINT("ha_archive::read_meta_file", ("Checkpoint %llu", check_point));
-  DBUG_PRINT("ha_archive::read_meta_file", ("Auto-Increment %llu", *auto_increment));
-  DBUG_PRINT("ha_archive::read_meta_file", ("Forced Flushes %llu", *forced_flushes));
+  DBUG_PRINT("ha_archive::read_meta_file", ("Rows %lu", (ulong) *rows));
+  DBUG_PRINT("ha_archive::read_meta_file", ("Checkpoint %lu", (ulong) check_point));
+  DBUG_PRINT("ha_archive::read_meta_file", ("Auto-Increment %lu",
+                                            (ulong) *auto_increment));
+  DBUG_PRINT("ha_archive::read_meta_file", ("Forced Flushes %lu",
+                                            (ulong) *forced_flushes));
   DBUG_PRINT("ha_archive::read_meta_file", ("Real Path %s", real_path));
   DBUG_PRINT("ha_archive::read_meta_file", ("Dirty %d", (int)(*ptr)));
 
@@ -385,12 +387,12 @@ int ha_archive::write_meta_file(File meta_file, ha_rows rows,
                                              (uint)ARCHIVE_CHECK_HEADER));
   DBUG_PRINT("ha_archive::write_meta_file", ("Version %d", 
                                              (uint)ARCHIVE_VERSION));
-  DBUG_PRINT("ha_archive::write_meta_file", ("Rows %llu", (ulonglong)rows));
-  DBUG_PRINT("ha_archive::write_meta_file", ("Checkpoint %llu", check_point));
-  DBUG_PRINT("ha_archive::write_meta_file", ("Auto Increment %llu",
-                                             auto_increment));
-  DBUG_PRINT("ha_archive::write_meta_file", ("Forced Flushes %llu", 
-                                            forced_flushes));
+  DBUG_PRINT("ha_archive::write_meta_file", ("Rows %lu", (ulong) rows));
+  DBUG_PRINT("ha_archive::write_meta_file", ("Checkpoint %lu", (ulong) check_point));
+  DBUG_PRINT("ha_archive::write_meta_file", ("Auto Increment %lu",
+                                             (ulong) auto_increment));
+  DBUG_PRINT("ha_archive::write_meta_file", ("Forced Flushes %lu", 
+                                             (ulong) forced_flushes));
   DBUG_PRINT("ha_archive::write_meta_file", ("Real path %s", 
                                             real_path));
   DBUG_PRINT("ha_archive::write_meta_file", ("Dirty %d", (uint)dirty));
@@ -1057,7 +1059,7 @@ int ha_archive::rnd_init(bool scan)
   if (scan)
   {
     scan_rows= share->rows_recorded;
-    DBUG_PRINT("info", ("archive will retrieve %llu rows", scan_rows));
+    DBUG_PRINT("info", ("archive will retrieve %lu rows", (ulong) scan_rows));
     stats.records= 0;
 
     /* 
@@ -1318,7 +1320,7 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
         share->rows_recorded++;
       }
     }
-    DBUG_PRINT("info", ("recovered %llu archive rows", share->rows_recorded));
+    DBUG_PRINT("info", ("recovered %lu archive rows", (ulong) share->rows_recorded));
 
     my_free((char*)buf, MYF(0));
     if (rc && rc != HA_ERR_END_OF_FILE)

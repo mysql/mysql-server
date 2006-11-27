@@ -1105,18 +1105,18 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
     my_off_t  total_count;
     char      llbuf[32];
 
-    DBUG_PRINT("info", ("column: %3u", count - huff_counts + 1));
+    DBUG_PRINT("info", ("column: %3u", (uint) (count - huff_counts) + 1));
     if (verbose >= 2)
-      VOID(printf("column: %3u\n", count - huff_counts + 1));
+      VOID(printf("column: %3u\n", (uint) (count - huff_counts) + 1));
     if (count->tree_buff)
     {
       DBUG_PRINT("info", ("number of distinct values: %u",
-                          (count->tree_pos - count->tree_buff) /
-                          count->field_length));
+                          (uint) ((count->tree_pos - count->tree_buff) /
+                                  count->field_length)));
       if (verbose >= 2)
         VOID(printf("number of distinct values: %u\n",
-                    (count->tree_pos - count->tree_buff) /
-                    count->field_length));
+                    (uint) ((count->tree_pos - count->tree_buff) /
+                            count->field_length)));
     }
     total_count= 0;
     for (idx= 0; idx < 256; idx++)
@@ -2279,8 +2279,8 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
         if (bits > 8 * sizeof(code))
         {
           VOID(fflush(stdout));
-          VOID(fprintf(stderr, "error: Huffman code too long: %u/%u\n",
-                       bits, 8 * sizeof(code)));
+          VOID(fprintf(stderr, "error: Huffman code too long: %u/%lu\n",
+                       bits, (ulong) (8 * sizeof(code))));
           errors++;
           break;
         }

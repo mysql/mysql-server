@@ -1560,8 +1560,8 @@ static uint dump_routines_for_db(char *db)
             if the user has EXECUTE privilege he see routine names, but NOT the
             routine body of other routines that are not the creator of!
           */
-          DBUG_PRINT("info",("length of body for %s row[2] '%s' is %d",
-                             routine_name, row[2], strlen(row[2])));
+          DBUG_PRINT("info",("length of body for %s row[2] '%s' is %ld",
+                             routine_name, row[2], (long) strlen(row[2])));
           if (strlen(row[2]))
           {
             char *query_str= NULL;
