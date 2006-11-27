@@ -264,8 +264,9 @@ event_worker_thread(void *arg)
 
   if (!post_init_event_thread(thd))
   {
-    DBUG_PRINT("info", ("Baikonur, time is %d, BURAN reporting and operational."
-               "THD=0x%lx", time(NULL), thd));
+    DBUG_PRINT("info", ("Baikonur, time is %ld, BURAN reporting and operational."
+                        "THD: 0x%lx",
+                        (long) time(NULL), (long) thd));
 
     sql_print_information("SCHEDULER: [%s.%s of %s] executing in thread %lu. "
                           "Execution %u",
@@ -378,7 +379,7 @@ Event_scheduler::start()
   DBUG_ENTER("Event_scheduler::start");
 
   LOCK_DATA();
-  DBUG_PRINT("info", ("state before action %s", scheduler_states_names[state]));
+  DBUG_PRINT("info", ("state before action %s", scheduler_states_names[state].str));
   if (state > INITIALIZED)
     goto end;
 
@@ -400,7 +401,7 @@ Event_scheduler::start()
   scheduler_thd= new_thd;
   DBUG_PRINT("info", ("Setting state go RUNNING"));
   state= RUNNING;
-  DBUG_PRINT("info", ("Forking new thread for scheduduler. THD=0x%lx", new_thd));
+  DBUG_PRINT("info", ("Forking new thread for scheduduler. THD: 0x%lx", (long) new_thd));
   if (pthread_create(&th, &connection_attrib, event_scheduler_thread,
                     (void*)scheduler_param_value))
   {
@@ -463,7 +464,7 @@ Event_scheduler::run(THD *thd)
       break;
     }
 
-    DBUG_PRINT("info", ("get_top returned job_data=0x%lx", job_data));
+    DBUG_PRINT("info", ("get_top returned job_data: 0x%lx", (long) job_data));
     if (job_data)
     {
       if ((res= execute_top(thd, job_data)))
@@ -522,11 +523,11 @@ Event_scheduler::execute_top(THD *thd, Event_job_data *job_data)
 
   ++started_events;
 
-  DBUG_PRINT("info", ("Launch succeeded. BURAN is in THD=0x%lx", new_thd));
+  DBUG_PRINT("info", ("Launch succeeded. BURAN is in THD: 0x%lx", (long) new_thd));
   DBUG_RETURN(FALSE);
 
 error:
-  DBUG_PRINT("error", ("Baikonur, we have a problem! res=%d", res));
+  DBUG_PRINT("error", ("Baikonur, we have a problem! res: %d", res));
   if (new_thd)
   {
     new_thd->proc_info= "Clearing";
@@ -581,10 +582,10 @@ Event_scheduler::stop()
 {
   THD *thd= current_thd;
   DBUG_ENTER("Event_scheduler::stop");
-  DBUG_PRINT("enter", ("thd=0x%lx", current_thd));
+  DBUG_PRINT("enter", ("thd: 0x%lx", (long) thd));
 
   LOCK_DATA();
-  DBUG_PRINT("info", ("state before action %s", scheduler_states_names[state]));
+  DBUG_PRINT("info", ("state before action %s", scheduler_states_names[state].str));
   if (state != RUNNING)
     goto end;
 
@@ -605,7 +606,7 @@ Event_scheduler::stop()
     */
 
     state= STOPPING;
-    DBUG_PRINT("info", ("Manager thread has id %d", scheduler_thd->thread_id));
+    DBUG_PRINT("info", ("Manager thread has id %lu", scheduler_thd->thread_id));
     /* Lock from delete */
     pthread_mutex_lock(&scheduler_thd->LOCK_delete);
     /* This will wake up the thread if it waits on Queue's conditional */

@@ -131,7 +131,7 @@ int desc_logfilegroup(Ndb *myndb, char* name)
   assert(dict);
   NdbDictionary::LogfileGroup lfg= dict->getLogfileGroup(name);
   NdbError err= dict->getNdbError();
-  if(err.classification!=ndberror_cl_none)
+  if( (int) err.classification != (int) ndberror_cl_none)
     return 0;
 
   ndbout << "Type: LogfileGroup" << endl;
@@ -153,7 +153,7 @@ int desc_tablespace(Ndb *myndb, char* name)
   assert(dict);
   NdbDictionary::Tablespace ts= dict->getTablespace(name);
   NdbError err= dict->getNdbError();
-  if(err.classification!=ndberror_cl_none)
+  if ((int) err.classification != (int) ndberror_cl_none)
     return 0;
 
   ndbout << "Type: Tablespace" << endl;
@@ -175,11 +175,11 @@ int desc_undofile(Ndb_cluster_connection &con, Ndb *myndb, char* name)
 
   con.init_get_next_node(iter);
 
-  while(id= con.get_next_node(iter))
+  while ((id= con.get_next_node(iter)))
   {
     NdbDictionary::Undofile uf= dict->getUndofile(0, name);
     NdbError err= dict->getNdbError();
-    if(err.classification!=ndberror_cl_none)
+    if ((int) err.classification != (int) ndberror_cl_none)
       return 0;
 
     ndbout << "Type: Undofile" << endl;
@@ -211,11 +211,11 @@ int desc_datafile(Ndb_cluster_connection &con, Ndb *myndb, char* name)
 
   con.init_get_next_node(iter);
 
-  while(id= con.get_next_node(iter))
+  while ((id= con.get_next_node(iter)))
   {
     NdbDictionary::Datafile df= dict->getDatafile(id, name);
     NdbError err= dict->getNdbError();
-    if(err.classification!=ndberror_cl_none)
+    if ((int) err.classification != (int) ndberror_cl_none)
       return 0;
 
     ndbout << "Type: Datafile" << endl;

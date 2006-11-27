@@ -1665,7 +1665,7 @@ static bool check_prepared_statement(Prepared_statement *stmt,
   enum enum_sql_command sql_command= lex->sql_command;
   int res= 0;
   DBUG_ENTER("check_prepared_statement");
-  DBUG_PRINT("enter",("command: %d, param_count: %ld",
+  DBUG_PRINT("enter",("command: %d, param_count: %u",
                       sql_command, stmt->param_count));
 
   lex->first_lists_tables_same();
@@ -1916,9 +1916,12 @@ void mysql_stmt_prepare(THD *thd, const char *packet, uint packet_length)
     thd->stmt_map.erase(stmt);
   }
   else
-    general_log_print(thd, COM_STMT_PREPARE, "[%lu] %.*b", stmt->id,
+  {
+    const char *format= "[%lu] %.*b";
+    general_log_print(thd, COM_STMT_PREPARE, format, stmt->id,
                       stmt->query_length, stmt->query);
 
+  }
   /* check_prepared_statemnt sends the metadata packet in case of success */
   DBUG_VOID_RETURN;
 }
@@ -2262,7 +2265,7 @@ void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
     DBUG_VOID_RETURN;
 
   DBUG_PRINT("exec_query", ("%s", stmt->query));
-  DBUG_PRINT("info",("stmt: %p", stmt));
+  DBUG_PRINT("info",("stmt: 0x%lx", (long) stmt));
 
   sp_cache_flush_obsolete(&thd->sp_proc_cache);
   sp_cache_flush_obsolete(&thd->sp_func_cache);
@@ -2300,9 +2303,11 @@ void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
   if (error == 0)
-    general_log_print(thd, COM_STMT_EXECUTE, "[%lu] %.*b", stmt->id,
+  {
+    const char *format= "[%lu] %.*b";
+    general_log_print(thd, COM_STMT_EXECUTE, format, stmt->id,
                       thd->query_length, thd->query);
-
+  }
   DBUG_VOID_RETURN;
 
 set_params_data_err:
@@ -2355,7 +2360,7 @@ void mysql_sql_stmt_execute(THD *thd)
     DBUG_VOID_RETURN;
   }
 
-  DBUG_PRINT("info",("stmt: %p", stmt));
+  DBUG_PRINT("info",("stmt: 0x%lx", (long) stmt));
 
   /*
     If the free_list is not empty, we'll wrongly free some externally
@@ -2719,7 +2724,8 @@ void Prepared_statement::setup_set_params()
 Prepared_statement::~Prepared_statement()
 {
   DBUG_ENTER("Prepared_statement::~Prepared_statement");
-  DBUG_PRINT("enter",("stmt: %p  cursor: %p", this, cursor));
+  DBUG_PRINT("enter",("stmt: 0x%lx  cursor: 0x%lx",
+                      (long) this, (long) cursor));
   delete cursor;
   /*
     We have to call free on the items even if cleanup is called as some items,
@@ -2740,7 +2746,7 @@ Query_arena::Type Prepared_statement::type() const
 void Prepared_statement::cleanup_stmt()
 {
   DBUG_ENTER("Prepared_statement::cleanup_stmt");
-  DBUG_PRINT("enter",("stmt: %p", this));
+  DBUG_PRINT("enter",("stmt: 0x%lx", (long) this));
 
   /* The order is important */
   lex->unit.cleanup();

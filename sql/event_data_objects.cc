@@ -124,8 +124,8 @@ void
 Event_parse_data::init_body(THD *thd)
 {
   DBUG_ENTER("Event_parse_data::init_body");
-  DBUG_PRINT("info", ("body=[%s] body_begin=0x%lx end=0x%lx", body_begin,
-             body_begin, thd->lex->ptr));
+  DBUG_PRINT("info", ("body: '%s'  body_begin: 0x%lx end: 0x%lx", body_begin,
+                      (long) body_begin, (long) thd->lex->ptr));
 
   body.length= thd->lex->ptr - body_begin;
   const uchar *body_end= body_begin + body.length - 1;
@@ -399,8 +399,9 @@ Event_parse_data::init_starts(THD *thd)
   thd->variables.time_zone->gmt_sec_to_TIME(&time_tmp,
                                             (my_time_t) thd->query_start());
 
-  DBUG_PRINT("info",("now   =%lld", TIME_to_ulonglong_datetime(&time_tmp)));
-  DBUG_PRINT("info",("starts=%lld", TIME_to_ulonglong_datetime(&ltime)));
+  DBUG_PRINT("info",("now: %ld  starts: %ld",
+                     (long) TIME_to_ulonglong_datetime(&time_tmp),
+                     (long) TIME_to_ulonglong_datetime(&ltime)));
   if (TIME_to_ulonglong_datetime(&ltime) <
       TIME_to_ulonglong_datetime(&time_tmp))
     goto wrong_value;
@@ -536,8 +537,9 @@ Event_parse_data::check_parse_data(THD *thd)
 {
   bool ret;
   DBUG_ENTER("Event_parse_data::check_parse_data");
-  DBUG_PRINT("info", ("execute_at=0x%lx expr=0x%lx starts=0x%lx ends=0x%lx",
-             item_execute_at, item_expression, item_starts, item_ends));
+  DBUG_PRINT("info", ("execute_at: 0x%lx  expr=0x%lx  starts=0x%lx  ends=0x%lx",
+                      (long) item_execute_at, (long) item_expression,
+                      (long) item_starts, (long) item_ends));
 
   init_name(thd, identifier);
 
@@ -564,9 +566,9 @@ Event_parse_data::init_definer(THD *thd)
   int definer_host_len;
   DBUG_ENTER("Event_parse_data::init_definer");
 
-  DBUG_PRINT("info",("init definer_user thd->mem_root=0x%lx "
-                     "thd->sec_ctx->priv_user=0x%lx", thd->mem_root,
-                     thd->security_ctx->priv_user));
+  DBUG_PRINT("info",("init definer_user thd->mem_root: 0x%lx  "
+                     "thd->sec_ctx->priv_user: 0x%lx", (long) thd->mem_root,
+                     (long) thd->security_ctx->priv_user));
 
   definer_user_len= strlen(thd->security_ctx->priv_user);
   definer_host_len= strlen(thd->security_ctx->priv_host);
@@ -1032,8 +1034,9 @@ bool get_next_time(TIME *next, TIME *start, TIME *time_now, TIME *last_exec,
   TIME tmp;
   longlong months=0, seconds=0;
   DBUG_ENTER("get_next_time");
-  DBUG_PRINT("enter", ("start=%llu now=%llu", TIME_to_ulonglong_datetime(start),
-                      TIME_to_ulonglong_datetime(time_now)));
+  DBUG_PRINT("enter", ("start: %lu  now: %lu",
+                       (long) TIME_to_ulonglong_datetime(start),
+                       (long) TIME_to_ulonglong_datetime(time_now)));
 
   bzero(&interval, sizeof(interval));
 
@@ -1081,7 +1084,7 @@ bool get_next_time(TIME *next, TIME *start, TIME *time_now, TIME *last_exec,
   case INTERVAL_LAST:
     DBUG_ASSERT(0);
   }
-  DBUG_PRINT("info", ("seconds=%ld months=%ld", seconds, months));
+  DBUG_PRINT("info", ("seconds: %ld  months: %ld", (long) seconds, (long) months));
   if (seconds)
   {
     longlong seconds_diff;
@@ -1099,14 +1102,14 @@ bool get_next_time(TIME *next, TIME *start, TIME *time_now, TIME *last_exec,
       event two times for the same time
       get the next exec if the modulus is not
     */
-    DBUG_PRINT("info", ("multiplier=%d", multiplier));
+    DBUG_PRINT("info", ("multiplier: %d", multiplier));
     if (seconds_diff % seconds || (!seconds_diff && last_exec->year) ||
         TIME_to_ulonglong_datetime(time_now) ==
           TIME_to_ulonglong_datetime(last_exec))
       ++multiplier;
     interval.second= seconds * multiplier;
-    DBUG_PRINT("info", ("multiplier=%u interval.second=%u", multiplier,
-                        interval.second));
+    DBUG_PRINT("info", ("multiplier: %lu  interval.second: %lu", (ulong) multiplier,
+                        (ulong) interval.second));
     tmp= *start;
     if (!(ret= date_add_interval(&tmp, INTERVAL_SECOND, interval)))
       *next= tmp;
@@ -1158,7 +1161,7 @@ bool get_next_time(TIME *next, TIME *start, TIME *time_now, TIME *last_exec,
   }
 
 done:
-  DBUG_PRINT("info", ("next=%llu", TIME_to_ulonglong_datetime(next)));
+  DBUG_PRINT("info", ("next: %lu", (long) TIME_to_ulonglong_datetime(next)));
   DBUG_RETURN(ret);
 }
 
@@ -1183,17 +1186,17 @@ Event_queue_element::compute_next_execution_time()
 {
   TIME time_now;
   int tmp;
-
   DBUG_ENTER("Event_queue_element::compute_next_execution_time");
-  DBUG_PRINT("enter", ("starts=%llu ends=%llu last_executed=%llu this=0x%lx",
-                        TIME_to_ulonglong_datetime(&starts),
-                        TIME_to_ulonglong_datetime(&ends),
-                        TIME_to_ulonglong_datetime(&last_executed), this));
+  DBUG_PRINT("enter", ("starts: %lu  ends: %lu  last_executed: %lu  this: 0x%lx",
+                       (long) TIME_to_ulonglong_datetime(&starts),
+                       (long) TIME_to_ulonglong_datetime(&ends),
+                       (long) TIME_to_ulonglong_datetime(&last_executed),
+                       (long) this));
 
   if (status == Event_queue_element::DISABLED)
   {
     DBUG_PRINT("compute_next_execution_time",
-                  ("Event %s is DISABLED", name.str));
+               ("Event %s is DISABLED", name.str));
     goto ret;
   }
   /* If one-time, no need to do computation */
@@ -1203,9 +1206,9 @@ Event_queue_element::compute_next_execution_time()
     if (last_executed.year)
     {
       DBUG_PRINT("info",("One-time event %s.%s of was already executed",
-                         dbname.str, name.str, definer.str));
+                         dbname.str, name.str));
       dropped= (on_completion == Event_queue_element::ON_COMPLETION_DROP);
-      DBUG_PRINT("info",("One-time event will be dropped=%d.", dropped));
+      DBUG_PRINT("info",("One-time event will be dropped: %d.", dropped));
 
       status= Event_queue_element::DISABLED;
       status_changed= TRUE;
@@ -1226,7 +1229,7 @@ Event_queue_element::compute_next_execution_time()
     execute_at_null= TRUE;
     if (on_completion == Event_queue_element::ON_COMPLETION_DROP)
       dropped= TRUE;
-    DBUG_PRINT("info", ("Dropped=%d", dropped));
+    DBUG_PRINT("info", ("Dropped: %d", dropped));
     status= Event_queue_element::DISABLED;
     status_changed= TRUE;
 
@@ -1400,8 +1403,8 @@ Event_queue_element::compute_next_execution_time()
     goto ret;
   }
 ret:
-  DBUG_PRINT("info", ("ret=0 execute_at=%llu",
-             TIME_to_ulonglong_datetime(&execute_at)));
+  DBUG_PRINT("info", ("ret: 0 execute_at: %lu",
+                      (long) TIME_to_ulonglong_datetime(&execute_at)));
   DBUG_RETURN(FALSE);
 err:
   DBUG_PRINT("info", ("ret=1"));
@@ -1688,7 +1691,7 @@ done:
   thd->end_statement();
   thd->cleanup_after_query();
 
-  DBUG_PRINT("info", ("EXECUTED %s.%s ret=%d", dbname.str, name.str, ret));
+  DBUG_PRINT("info", ("EXECUTED %s.%s  ret: %d", dbname.str, name.str, ret));
 
   DBUG_RETURN(ret);
 }
@@ -1752,7 +1755,7 @@ Event_job_data::compile(THD *thd, MEM_ROOT *mem_root)
 
   thd->update_charset();
 
-  DBUG_PRINT("info",("old_sql_mode=%d new_sql_mode=%d",old_sql_mode, sql_mode));
+  DBUG_PRINT("info",("old_sql_mode: %lu  new_sql_mode: %lu",old_sql_mode, sql_mode));
   thd->variables.sql_mode= this->sql_mode;
   /* Change the memory root for the execution time */
   if (mem_root)
@@ -1769,7 +1772,7 @@ Event_job_data::compile(THD *thd, MEM_ROOT *mem_root)
 
   thd->query= show_create.c_ptr_safe();
   thd->query_length= show_create.length();
-  DBUG_PRINT("info", ("query:%s",thd->query));
+  DBUG_PRINT("info", ("query: %s",thd->query));
 
   event_change_security_context(thd, definer_user, definer_host, dbname,
                                 &save_ctx);
@@ -1777,14 +1780,14 @@ Event_job_data::compile(THD *thd, MEM_ROOT *mem_root)
   mysql_init_query(thd, (uchar*) thd->query, thd->query_length);
   if (MYSQLparse((void *)thd) || thd->is_fatal_error)
   {
-    DBUG_PRINT("error", ("error during compile or thd->is_fatal_error=%d",
+    DBUG_PRINT("error", ("error during compile or thd->is_fatal_error: %d",
                           thd->is_fatal_error));
     /*
       Free lex associated resources
       QQ: Do we really need all this stuff here?
     */
     sql_print_error("SCHEDULER: Error during compilation of %s.%s or "
-                    "thd->is_fatal_error=%d",
+                    "thd->is_fatal_error: %d",
                     dbname.str, name.str, thd->is_fatal_error);
 
     lex.unit.cleanup();

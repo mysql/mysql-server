@@ -2121,7 +2121,7 @@ the thread stack. Please read http://www.mysql.com/doc/en/Linux.html\n\n",
 #ifdef HAVE_STACKTRACE
   if (!(test_flags & TEST_NO_STACKTRACE))
   {
-    fprintf(stderr,"thd=%p\n",thd);
+    fprintf(stderr,"thd: 0x%lx\n",(long) thd);
     print_stacktrace(thd ? (gptr) thd->thread_stack : (gptr) 0,
 		     thread_stack);
   }
@@ -3208,7 +3208,7 @@ server.");
     using_update_log=1;
   }
 
-  if (plugin_init(0))
+  if (plugin_init(opt_bootstrap))
   {
     sql_print_error("Failed to init plugins.");
     return 1;
@@ -3526,7 +3526,7 @@ int main(int argc, char **argv)
     if (stack_size && stack_size < thread_stack)
     {
       if (global_system_variables.log_warnings)
-	sql_print_warning("Asked for %ld thread stack, but got %ld",
+	sql_print_warning("Asked for %lu thread stack, but got %ld",
 			  thread_stack, (long) stack_size);
 #if defined(__ia64__) || defined(__ia64)
       thread_stack= stack_size*2;
@@ -4072,7 +4072,7 @@ static void create_new_thread(THD *thd)
       int error;
       thread_created++;
       threads.append(thd);
-      DBUG_PRINT("info",(("creating thread %d"), thd->thread_id));
+      DBUG_PRINT("info",(("creating thread %lu"), thd->thread_id));
       thd->connect_time = time(NULL);
       if ((error=pthread_create(&thd->real_id,&connection_attrib,
 				handle_one_connection,

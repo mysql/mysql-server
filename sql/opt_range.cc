@@ -1003,7 +1003,7 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
       range_end();
       if (free_file)
       {
-        DBUG_PRINT("info", ("Freeing separate handler %p (free=%d)", file,
+        DBUG_PRINT("info", ("Freeing separate handler 0x%lx (free: %d)", (long) file,
                             free_file));
         file->ha_external_lock(current_thd, F_UNLCK);
         file->close();
@@ -2011,7 +2011,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   double scan_time;
   DBUG_ENTER("SQL_SELECT::test_quick_select");
   DBUG_PRINT("enter",("keys_to_use: %lu  prev_tables: %lu  const_tables: %lu",
-		      keys_to_use.to_ulonglong(), (ulong) prev_tables,
+		      (ulong) keys_to_use.to_ulonglong(), (ulong) prev_tables,
 		      (ulong) const_tables));
   DBUG_PRINT("info", ("records: %lu", (ulong) head->file->stats.records));
   delete quick;
@@ -3396,7 +3396,7 @@ double get_sweep_read_cost(const PARAM *param, ha_rows records)
       n_blocks * (1.0 - pow(1.0 - 1.0/n_blocks, rows2double(records)));
     if (busy_blocks < 1.0)
       busy_blocks= 1.0;
-    DBUG_PRINT("info",("sweep: nblocks=%g, busy_blocks=%g", n_blocks,
+    DBUG_PRINT("info",("sweep: nblocks: %g, busy_blocks: %g", n_blocks,
                        busy_blocks));
     /*
       Disabled: Bail out if # of blocks to read is bigger than # of blocks in
@@ -3420,7 +3420,7 @@ double get_sweep_read_cost(const PARAM *param, ha_rows records)
       result= busy_blocks;
     }
   }
-  DBUG_PRINT("info",("returning cost=%g", result));
+  DBUG_PRINT("return",("cost: %g", result));
   DBUG_RETURN(result);
 }
 
@@ -3514,7 +3514,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   ha_rows roru_total_records;
   double roru_intersect_part= 1.0;
   DBUG_ENTER("get_best_disjunct_quick");
-  DBUG_PRINT("info", ("Full table scan cost =%g", read_time));
+  DBUG_PRINT("info", ("Full table scan cost: %g", read_time));
 
   if (!(range_scans= (TRP_RANGE**)alloc_root(param->mem_root,
                                              sizeof(TRP_RANGE*)*
@@ -3558,7 +3558,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
       non_cpk_scan_records += (*cur_child)->records;
   }
 
-  DBUG_PRINT("info", ("index_merge scans cost=%g", imerge_cost));
+  DBUG_PRINT("info", ("index_merge scans cost %g", imerge_cost));
   if (imerge_too_expensive || (imerge_cost > read_time) ||
       (non_cpk_scan_records+cpk_scan_records >= param->table->file->stats.records) &&
       read_time != DBL_MAX)
@@ -4172,7 +4172,7 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
   DBUG_PRINT("info", ("Current out_rows= %g", info->out_rows));
   DBUG_PRINT("info", ("Adding scan on %s",
                       info->param->table->key_info[ror_scan->keynr].name));
-  DBUG_PRINT("info", ("is_cpk_scan=%d",is_cpk_scan));
+  DBUG_PRINT("info", ("is_cpk_scan: %d",is_cpk_scan));
 
   selectivity_mult = ror_scan_selectivity(info, ror_scan);
   if (selectivity_mult == 1.0)
@@ -9700,8 +9700,8 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
   *records= num_groups;
 
   DBUG_PRINT("info",
-             ("table rows=%u, keys/block=%u, keys/group=%u, result rows=%u, blocks=%u",
-              table_records, keys_per_block, keys_per_group, *records,
+             ("table rows: %u  keys/block: %u  keys/group: %u  result rows: %lu  blocks: %u",
+              table_records, keys_per_block, keys_per_group, (ulong) *records,
               num_blocks));
   DBUG_VOID_RETURN;
 }
@@ -10814,7 +10814,7 @@ static void print_sel_tree(PARAM *param, SEL_TREE *tree, key_map *tree_map,
   if (!tmp.length())
     tmp.append(STRING_WITH_LEN("(empty)"));
 
-  DBUG_PRINT("info", ("SEL_TREE %p (%s) scans:%s", tree, msg, tmp.ptr()));
+  DBUG_PRINT("info", ("SEL_TREE: 0x%lx (%s)  scans: %s", (long) tree, msg, tmp.ptr()));
 
   DBUG_VOID_RETURN;
 }

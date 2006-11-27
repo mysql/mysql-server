@@ -300,7 +300,13 @@ RestoreMetaData::markSysTables()
         strcmp(tableName, "NDB$EVENTS_0") == 0 ||
         strcmp(tableName, "sys/def/SYSTAB_0") == 0 ||
         strcmp(tableName, "sys/def/NDB$EVENTS_0") == 0 ||
+        /*
+          The following is for old MySQL versions,
+           before we changed the database name of the tables from
+           "cluster_replication" -> "cluster" -> "mysql"
+        */
         strcmp(tableName, "cluster_replication/def/" NDB_APPLY_TABLE) == 0 ||
+        strcmp(tableName, "cluster/def/" NDB_APPLY_TABLE) == 0 ||
         strcmp(tableName, NDB_REP_DB "/def/" NDB_APPLY_TABLE) == 0 ||
         strcmp(tableName, NDB_REP_DB "/def/" NDB_SCHEMA_TABLE)== 0 )
       table->isSysTable = true;
@@ -317,7 +323,7 @@ RestoreMetaData::markSysTables()
       Uint32 j;
       for (j = 0; j < getNoOfTables(); j++) {
         TableS* table = allTables[j];
-        if (table->getTableId() == id1) {
+        if (table->getTableId() == (Uint32) id1) {
           if (table->isSysTable)
             blobTable->isSysTable = true;
           break;

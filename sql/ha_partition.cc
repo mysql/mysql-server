@@ -2027,7 +2027,7 @@ bool ha_partition::create_handlers(MEM_ROOT *mem_root)
     if (!(m_file[i]= get_new_handler(table_share, mem_root,
                                      m_engine_array[i])))
       DBUG_RETURN(TRUE);
-    DBUG_PRINT("info", ("engine_type: %u", m_engine_array[i]));
+    DBUG_PRINT("info", ("engine_type: %u", m_engine_array[i]->db_type));
   }
   /* For the moment we only support partition over the same table engine */
   if (m_engine_array[0] == myisam_hton)
@@ -2939,8 +2939,8 @@ int ha_partition::rnd_init(bool scan)
   include_partition_fields_in_used_fields();
   
   /* Now we see what the index of our first important partition is */
-  DBUG_PRINT("info", ("m_part_info->used_partitions 0x%x",
-                      m_part_info->used_partitions.bitmap));
+  DBUG_PRINT("info", ("m_part_info->used_partitions: 0x%lx",
+                      (long) m_part_info->used_partitions.bitmap));
   part_id= bitmap_get_first_set(&(m_part_info->used_partitions));
   DBUG_PRINT("info", ("m_part_spec.start_part %d", part_id));
 
