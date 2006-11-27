@@ -592,7 +592,7 @@ get_random_string(char *buf)
   DBUG_ENTER("get_random_string");
   for (x= RAND_STRING_SIZE; x > 0; x--)
     *buf_ptr++= ALPHANUMERICS[random() % ALPHANUMERICS_SIZE];
-  DBUG_PRINT("info", ("random string: '%*s'", buf_ptr - buf, buf));
+  DBUG_PRINT("info", ("random string: '%*s'", (int) (buf_ptr - buf), buf));
   DBUG_RETURN(buf_ptr - buf);
 }
 

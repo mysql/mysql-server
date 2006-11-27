@@ -776,7 +776,7 @@ Event_scheduler::dump_internal_status()
                                  mutex_last_unlocked_at_line);
   printf("WOC        : %s\n", waiting_on_cond? "YES":"NO");
   printf("Workers    : %u\n", workers_count());
-  printf("Executed   : %llu\n", started_events);
+  printf("Executed   : %lu\n", (ulong) started_events);
   printf("Data locked: %s\n", mutex_scheduler_data_locked ? "YES":"NO");
 
   DBUG_VOID_RETURN;

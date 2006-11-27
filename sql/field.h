@@ -239,7 +239,7 @@ public:
    */
   my_size_t last_null_byte() const {
     my_size_t bytes= do_last_null_byte();
-    DBUG_PRINT("debug", ("last_null_byte() ==> %d", bytes));
+    DBUG_PRINT("debug", ("last_null_byte() ==> %ld", (long) bytes));
     DBUG_ASSERT(bytes <= table->s->null_bytes);
     return bytes;
   }

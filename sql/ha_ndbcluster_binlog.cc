@@ -3563,9 +3563,11 @@ restart:
     if (do_ndbcluster_binlog_close_connection)
     {
       DBUG_PRINT("info", ("do_ndbcluster_binlog_close_connection: %d, "
-                          "ndb_latest_handled_binlog_epoch: %llu, "
-                          "*p_latest_trans_gci: %llu", do_ndbcluster_binlog_close_connection,
-                          ndb_latest_handled_binlog_epoch, *p_latest_trans_gci));
+                          "ndb_latest_handled_binlog_epoch: %lu, "
+                          "*p_latest_trans_gci: %lu",
+                          do_ndbcluster_binlog_close_connection,
+                          (ulong) ndb_latest_handled_binlog_epoch,
+                          (ulong) *p_latest_trans_gci));
     }
 #endif
 #ifdef RUN_NDB_BINLOG_TIMER
@@ -3653,9 +3655,10 @@ restart:
             do_ndbcluster_binlog_close_connection= BCCC_restart;
             if (ndb_latest_received_binlog_epoch < *p_latest_trans_gci && ndb_binlog_running)
             {
-              sql_print_error("NDB Binlog: latest transaction in epoch %lld not in binlog "
-                              "as latest received epoch is %lld",
-                              *p_latest_trans_gci, ndb_latest_received_binlog_epoch);
+              sql_print_error("NDB Binlog: latest transaction in epoch %lu not in binlog "
+                              "as latest received epoch is %lu",
+                              (ulong) *p_latest_trans_gci,
+                              (ulong) ndb_latest_received_binlog_epoch);
             }
           }
         }
@@ -3841,9 +3844,10 @@ restart:
               do_ndbcluster_binlog_close_connection= BCCC_restart;
               if (ndb_latest_received_binlog_epoch < *p_latest_trans_gci && ndb_binlog_running)
               {
-                sql_print_error("NDB Binlog: latest transaction in epoch %lld not in binlog "
-                                "as latest received epoch is %lld",
-                                *p_latest_trans_gci, ndb_latest_received_binlog_epoch);
+                sql_print_error("NDB Binlog: latest transaction in epoch %lu not in binlog "
+                                "as latest received epoch is %lu",
+                                (ulong) *p_latest_trans_gci,
+                                (ulong) ndb_latest_received_binlog_epoch);
               }
             }
           }
@@ -3875,7 +3879,7 @@ restart:
           row.master_log_file= start.file_name();
           row.master_log_pos= start.file_pos();
 
-          DBUG_PRINT("info", ("COMMIT gci: %lld", gci));
+          DBUG_PRINT("info", ("COMMIT gci: %lu", (ulong) gci));
           if (ndb_update_binlog_index)
             ndb_add_binlog_index(thd, &row);
           ndb_latest_applied_binlog_epoch= gci;
