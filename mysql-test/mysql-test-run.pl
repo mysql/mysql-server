@@ -1235,7 +1235,7 @@ sub command_line_setup () {
 # But a fairly safe range seems to be 5001 - 32767
 #
 
-sub set_mtr_build_thread_ports() {
+sub set_mtr_build_thread_ports($) {
   my $mtr_build_thread= shift;
 
   # Up to two masters, up to three slaves
