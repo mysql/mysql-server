@@ -1448,20 +1448,20 @@ bdb_version_ok=yes
 ])
 
 AC_DEFUN([MYSQL_TOP_BUILDDIR], [
+  # Remove trailing "./" if any
+  [$1]=`echo $[$1] | sed -e 's,^\./,,'`
   case "$[$1]" in
-    /* ) ;;		# don't do anything with an absolute path
-    "$srcdir"/* )
+    "bdb" | "$srcdir/bdb" | "$top_srcdir/bdb" | "$abs_top_srcdir/bdb" )
       # If BDB is under the source directory, we need to look under the
       # build directory for bdb/build_unix.
-      # NOTE: I'm being lazy, and assuming the user did not specify
-      # something like --with-berkeley-db=bdb (it would be missing "./").
-      [$1]="\$(top_builddir)/"`echo "$[$1]" | sed -e "s,^$srcdir/,,"`
+      [$1]="\$(top_builddir)/bdb"
       ;;
+    /* ) ;;  # Other absolute path is assume to be external BDB directory
     * )
       AC_MSG_ERROR([The BDB directory must be directly under the MySQL source directory, or be specified using the full path. ('$srcdir'; '$[$1]')])
       ;;
   esac
-  if test X"$[$1]" != "/"
+  if test X"$[$1]" != X"/"
   then
     [$1]=`echo $[$1] | sed -e 's,/$,,'`
   fi
@@ -1493,7 +1493,7 @@ AC_DEFUN([MYSQL_CHECK_INNODB], [
       AC_MSG_RESULT([Using Innodb])
       AC_DEFINE([HAVE_INNOBASE_DB], [1], [Using Innobase DB])
       have_innodb="yes"
-      innodb_includes="-I../innobase/include"
+      innodb_includes="-I\$(top_builddir)/innobase/include -I\$(top_srcdir)/innobase/include"
       innodb_system_libs=""
 dnl Some libs are listed several times, in order for gcc to sort out
 dnl circular references.
@@ -1812,7 +1812,7 @@ AC_DEFUN([MYSQL_CHECK_NDBCLUSTER], [
       AC_MSG_RESULT([Using NDB Cluster])
       AC_DEFINE([HAVE_NDBCLUSTER_DB], [1], [Using Ndb Cluster DB])
       have_ndbcluster="yes"
-      ndbcluster_includes="-I../ndb/include -I../ndb/include/ndbapi"
+      ndbcluster_includes="-I\$(top_builddir)/ndb/include -I\$(top_srcdir)/ndb/include -I\$(top_srcdir)/ndb/include/ndbapi"
       ndbcluster_libs="\$(top_builddir)/ndb/src/.libs/libndbclient.a"
       ndbcluster_system_libs=""
       ndb_mgmclient_libs="\$(top_builddir)/ndb/src/mgmclient/libndbmgmclient.la"
