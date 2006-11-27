@@ -220,7 +220,7 @@ buf_block_get_zip_size(
 					/* out: compressed page size, or 0 */
 	const buf_block_t*	block)	/* in: pointer to the control block */
 {
-	return(block->page.zip.size);
+	return(block->page.zip.ssize ? 512 << block->page.zip.ssize : 0);
 }
 
 /*************************************************************************

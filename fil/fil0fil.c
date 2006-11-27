@@ -26,6 +26,7 @@ Created 10/25/1995 Heikki Tuuri
 #include "mtr0mtr.h"
 #include "mtr0log.h"
 #include "dict0dict.h"
+#include "page0zip.h"
 
 
 /*
@@ -2660,7 +2661,7 @@ error_exit2:
 		ret = os_file_write(path, file, page, 0, 0, UNIV_PAGE_SIZE);
 	} else {
 		page_zip_des_t	page_zip;
-		page_zip.size = zip_size;
+		page_zip_set_size(&page_zip, zip_size);
 		page_zip.data = page + UNIV_PAGE_SIZE;
 		page_zip.state = page_zip.n_blobs
 			= page_zip.m_start = page_zip.m_end = 0;

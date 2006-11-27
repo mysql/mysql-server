@@ -21,6 +21,24 @@ Created June 2005 by Marko Makela
 #include "ut0byte.h"
 
 /**************************************************************************
+Determine the size of a compressed page in bytes. */
+UNIV_INLINE
+ulint
+page_zip_get_size(
+/*==============*/
+						/* out: size in bytes */
+	const page_zip_des_t*	page_zip)	/* in: compressed page */
+	__attribute__((nonnull, const));
+/**************************************************************************
+Set the size of a compressed page in bytes. */
+UNIV_INLINE
+void
+page_zip_set_size(
+/*==============*/
+	page_zip_des_t*	page_zip,	/* in/out: compressed page */
+	ulint		size);		/* in: size in bytes */
+
+/**************************************************************************
 Determine if a record is so big that it needs to be stored externally. */
 UNIV_INLINE
 ibool

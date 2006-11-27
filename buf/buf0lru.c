@@ -26,6 +26,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0rea.h"
 #include "btr0sea.h"
 #include "os0file.h"
+#include "page0zip.h"
 #include "log0recv.h"
 #include "srv0srv.h"
 
@@ -444,8 +445,8 @@ loop:
 		ut_a(buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE);
 		ut_a(!block->in_LRU_list);
 
-		if (block->page.zip.size != zip_size) {
-			block->page.zip.size = zip_size;
+		if (buf_block_get_zip_size(block) != zip_size) {
+			page_zip_set_size(&block->page.zip, zip_size);
 			block->page.zip.n_blobs = 0;
 			block->page.zip.m_start = 0;
 			block->page.zip.m_end = 0;
@@ -882,7 +883,7 @@ buf_LRU_block_free_non_file_page(
 		/* TODO: return zip to an aligned pool */
 		ut_free(block->page.zip.data);
 		block->page.zip.data = NULL;
-		block->page.zip.size = 0;
+		page_zip_set_size(&block->page.zip, 0);
 	}
 
 	UT_LIST_ADD_FIRST(free, buf_pool->free, block);
