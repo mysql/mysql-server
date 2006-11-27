@@ -194,6 +194,8 @@ necessary to develop MySQL client applications.
 %package shared
 Summary: MySQL - Shared libraries
 Group: Applications/Databases
+Provides: mysql-shared
+Obsoletes: mysql-shared
 
 %description shared
 This package contains the shared libraries (*.so*) which certain
@@ -342,7 +344,10 @@ then
   cp -fp config.log "$MYSQL_MAXCONFLOG_DEST"
 fi
 
-make -i test-force-pl || true
+( cd mysql-test
+  perl ./mysql-test-run.pl --force --report-features
+  perl ./mysql-test-run.pl --force --ps-protocol
+  true )
 
 # Save mysqld-max
 ./libtool --mode=execute cp sql/mysqld sql/mysqld-max
@@ -401,7 +406,10 @@ then
   cp -fp config.log "$MYSQL_CONFLOG_DEST"
 fi
 
-make -i test-force-pl || true
+( cd mysql-test
+  perl ./mysql-test-run.pl --force --report-features
+  perl ./mysql-test-run.pl --force --ps-protocol
+  true )
 
 %install
 RBR=$RPM_BUILD_ROOT
@@ -745,6 +753,17 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Thu Nov 16 2006 Joerg Bruehe <joerg@mysql.com>
+
+- Explicitly note that the "MySQL-shared" RPMs (as built by MySQL AB) 
+  replace "mysql-shared" (as distributed by SuSE) to allow easy upgrading
+  (bug#22081).
+
+* Wed Nov 15 2006 Joerg Bruehe <joerg@mysql.com>
+
+- Switch from "make test*" to explicit calls of the test suite,
+  so that "report features" can be used.
+
 * Mon Jul 10 2006 Joerg Bruehe <joerg@mysql.com>
 
 - Fix a typing error in the "make" target for the Perl script to run the tests.
