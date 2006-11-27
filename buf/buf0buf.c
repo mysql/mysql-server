@@ -2126,7 +2126,7 @@ buf_page_io_complete(
 		ulint	read_space_id;
 		byte*	frame;
 
-		if (block->page.zip.size) {
+		if (buf_block_get_zip_size(block)) {
 			ut_a(buf_block_get_space(block) != 0);
 
 			frame = block->page.zip.data;
@@ -2149,7 +2149,7 @@ buf_page_io_complete(
 			case FIL_PAGE_TYPE_ZBLOB:
 				/* Copy to uncompressed storage. */
 				memcpy(block->frame, frame,
-				       block->page.zip.size);
+				       buf_block_get_zip_size(block));
 				break;
 			default:
 				ut_print_timestamp(stderr);
@@ -2204,7 +2204,8 @@ buf_page_io_complete(
 		/* From version 3.23.38 up we store the page checksum
 		to the 4 first bytes of the page end lsn field */
 
-		if (buf_page_is_corrupted(frame, block->page.zip.size)) {
+		if (buf_page_is_corrupted(frame,
+					  buf_block_get_zip_size(block))) {
 corrupt:
 			fprintf(stderr,
 				"InnoDB: Database page corruption on disk"
@@ -2213,7 +2214,7 @@ corrupt:
 				"InnoDB: You may have to recover"
 				" from a backup.\n",
 				(ulong) block->page.offset);
-			buf_page_print(frame, block->page.zip.size);
+			buf_page_print(frame, buf_block_get_zip_size(block));
 			fprintf(stderr,
 				"InnoDB: Database page corruption on disk"
 				" or a failed\n"

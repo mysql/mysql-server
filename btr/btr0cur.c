@@ -1077,8 +1077,8 @@ btr_cur_optimistic_insert(
 	/* Calculate the record size when entry is converted to a record */
 	rec_size = rec_get_converted_size(index, entry, ext, n_ext);
 
-	if (page_zip_rec_needs_ext(rec_size, page_is_comp(page),
-				   page_zip ? page_zip->size : 0)) {
+	if (page_zip_rec_needs_ext(rec_size, page_is_comp(page), page_zip
+				   ? page_zip_get_size(page_zip) : 0)) {
 
 		/* The record is so big that we have to store some fields
 		externally on separate database pages */
@@ -2103,8 +2103,8 @@ btr_cur_pessimistic_update(
 	if (page_zip_rec_needs_ext(rec_get_converted_size(index, new_entry,
 							  ext_vect,
 							  n_ext_vect),
-				   page_is_comp(page),
-				   page_zip ? page_zip->size : 0)) {
+				   page_is_comp(page), page_zip
+				   ? page_zip_get_size(page_zip) : 0)) {
 		big_rec_vec = dtuple_convert_big_rec(index, new_entry,
 						     ext_vect, n_ext_vect);
 		if (UNIV_UNLIKELY(big_rec_vec == NULL)) {
@@ -3724,7 +3724,8 @@ btr_store_big_rec_extern_fields(
 
 				c_stream.next_out = page
 					+ FIL_PAGE_DATA;
-				c_stream.avail_out = page_zip->size
+				c_stream.avail_out
+					= page_zip_get_size(page_zip)
 					- FIL_PAGE_DATA;
 
 				err = deflate(&c_stream, Z_FINISH);
@@ -3759,20 +3760,22 @@ btr_store_big_rec_extern_fields(
 						 MLOG_4BYTES, &mtr);
 
 				/* Zero out the unused part of the page. */
-				memset(page + page_zip->size
+				memset(page + page_zip_get_size(page_zip)
 				       - c_stream.avail_out,
 				       0, c_stream.avail_out);
 				mlog_log_string(page + FIL_PAGE_TYPE,
-						page_zip->size - FIL_PAGE_TYPE,
+						page_zip_get_size(page_zip)
+						- FIL_PAGE_TYPE,
 						&mtr);
 				/* Copy the page to compressed storage,
 				because it will be flushed to disk
 				from there. */
 				blob_page_zip = buf_block_get_page_zip(block);
 				ut_ad(blob_page_zip);
-				ut_ad(blob_page_zip->size == page_zip->size);
+				ut_ad(page_zip_get_size(blob_page_zip)
+				      == page_zip_get_size(page_zip));
 				memcpy(blob_page_zip->data, page,
-				       page_zip->size);
+				       page_zip_get_size(page_zip));
 				/* TODO: retain blob_page_zip, release page */
 
 				if (err == Z_OK && prev_page_no != FIL_NULL) {

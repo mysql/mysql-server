@@ -19,7 +19,7 @@ Created 11/29/1995 Heikki Tuuri
 #include "fut0fut.h"
 #include "ut0byte.h"
 #include "srv0srv.h"
-#include "page0types.h"
+#include "page0zip.h"
 #include "ibuf0ibuf.h"
 #include "btr0btr.h"
 #include "btr0sea.h"
@@ -824,7 +824,7 @@ fsp_init_file_page_low(
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		memset(page, 0, UNIV_PAGE_SIZE);
-		memset(page_zip->data, 0, page_zip->size);
+		memset(page_zip->data, 0, page_zip_get_size(page_zip));
 		mach_write_to_4(page + FIL_PAGE_OFFSET,
 				buf_block_get_page_no(block));
 		mach_write_to_4(page

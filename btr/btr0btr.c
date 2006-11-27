@@ -1096,7 +1096,9 @@ btr_root_raise_and_insert(
 	new_page = buf_block_get_frame(new_block);
 	new_page_zip = buf_block_get_page_zip(new_block);
 	ut_a(!new_page_zip == !root_page_zip);
-	ut_a(!new_page_zip || new_page_zip->size == root_page_zip->size);
+	ut_a(!new_page_zip
+	     || page_zip_get_size(new_page_zip)
+	     == page_zip_get_size(root_page_zip));
 
 	btr_page_create(new_block, new_page_zip, index, level, mtr);
 
@@ -1335,7 +1337,8 @@ btr_page_get_sure_split_rec(
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		/* Estimate the free space of an empty compressed page. */
 		ulint	free_space_zip = page_zip_empty_size(
-			cursor->index->n_fields, page_zip->size);
+			cursor->index->n_fields,
+			page_zip_get_size(page_zip));
 
 		if (UNIV_LIKELY(free_space > (ulint) free_space_zip)) {
 			free_space = (ulint) free_space_zip;

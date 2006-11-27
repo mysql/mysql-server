@@ -33,13 +33,12 @@ struct page_zip_des_struct
 	page_zip_t*	data;		/* compressed page data */
 	ulint		state:3;	/* state of the control block
 					(cf. enum buf_page_state) */
-	ulint		:1;		/* reserved */
+	ulint		:11;		/* reserved */
 	ulint		n_blobs:12;	/* number of externally stored
 					columns on the page; the maximum
 					is 744 on a 16 KiB page */
-	ulint		size:16;	/* compressed page size in bytes;
-					must be a power of 2 and
-					at least PAGE_ZIP_MIN_SIZE */
+	ulint		ssize:3;	/* 0 or compressed page size;
+					the size in bytes is 512<<ssize. */
 	ulint		m_start:16;	/* start offset of modification log */
 	ulint		m_end:16;	/* end offset of modification log */
 };
