@@ -100,4 +100,82 @@ eval set GLOBAL query_cache_size=$save_query_cache_size;
 --enable_query_log
 }
 
-# End of 4.1 tests
+#
+# Test query cache with two interleaving transactions
+#
+
+# Establish connection1
+connect (connection1,localhost,root,,);
+eval SET SESSION STORAGE_ENGINE = $engine_type;
+SET @@autocommit=1;
+
+connection default;
+--echo connection default
+-- This should be 'YES'.
+SHOW VARIABLES LIKE 'have_query_cache';
+
+SET GLOBAL query_cache_size = 200000;
+flush status;
+SET @@autocommit=1;
+eval SET SESSION STORAGE_ENGINE = $engine_type;
+CREATE TABLE t2 (s1 int, s2 varchar(1000), key(s1));
+INSERT INTO t2 VALUES (1,repeat('a',10)),(2,repeat('a',10)),(3,repeat('a',10)),(4,repeat('a',10));
+COMMIT;
+START TRANSACTION;
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+UPDATE t2 SET s2 = 'w' WHERE s1 = 3;
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+show status like "Qcache_queries_in_cache";
+
+connection connection1;
+--echo connection connection1
+START TRANSACTION;
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+INSERT INTO t2 VALUES (5,'w');
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+COMMIT;
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+
+show status like "Qcache_queries_in_cache";
+
+connection default;
+--echo connection default
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+COMMIT;
+
+show status like "Qcache_queries_in_cache";
+
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+show status like "Qcache_queries_in_cache";
+
+connection connection1;
+--echo connection connection1
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+
+START TRANSACTION;
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+INSERT INTO t2 VALUES (6,'w');
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+
+connection default;
+--echo connection default
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+START TRANSACTION;
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+DELETE from t2 WHERE s1=3;
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+COMMIT;
+
+connection connection1;
+--echo connection connection1
+
+COMMIT;
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_hits";
+
+# Final cleanup
+connection default;
+drop table t2;
+disconnect connection1;

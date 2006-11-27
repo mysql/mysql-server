@@ -2070,7 +2070,7 @@ public:
   inline bool unique_add(void *ptr)
   {
     DBUG_ENTER("unique_add");
-    DBUG_PRINT("info", ("tree %u - %u", tree.elements_in_tree, max_elements));
+    DBUG_PRINT("info", ("tree %u - %lu", tree.elements_in_tree, max_elements));
     if (tree.elements_in_tree > max_elements && flush())
       DBUG_RETURN(1);
     DBUG_RETURN(!tree_insert(&tree, ptr, 0, tree.custom_arg));

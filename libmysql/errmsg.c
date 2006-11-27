@@ -82,6 +82,7 @@ const char *client_errors[]=
   "Prepared statement contains no metadata",
   "Attempt to read a row while there is no result set associated with the statement",
   "This feature is not implemented yet",
+  "Lost connection to MySQL server at '%s', system error: %d",
   ""
 };
 
@@ -145,6 +146,7 @@ const char *client_errors[]=
   "Prepared statement contains no metadata",
   "Attempt to read a row while there is no result set associated with the statement",
   "This feature is not implemented yet",
+  "Lost connection to MySQL server at '%s', system error: %d",
   ""
 };
 
@@ -206,6 +208,7 @@ const char *client_errors[]=
   "Prepared statement contains no metadata",
   "Attempt to read a row while there is no result set associated with the statement",
   "This feature is not implemented yet",
+  "Lost connection to MySQL server at '%s', system error: %d",
   ""
 };
 #endif

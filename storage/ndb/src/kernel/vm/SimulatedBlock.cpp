@@ -1930,6 +1930,7 @@ SimulatedBlock::xfrm_attr(Uint32 attrDesc, CHARSET_INFO* cs,
   {
     jam();
     Uint32 len;
+    LINT_INIT(len);
     switch(array){
     case NDB_ARRAYTYPE_SHORT_VAR:
       len = 1 + srcPtr[0];
