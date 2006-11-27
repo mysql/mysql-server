@@ -2299,7 +2299,7 @@ NdbDictionaryImpl::createTable(NdbTableImpl &t)
   // blob tables - use "t2" to get values set by kernel
   if (t2->m_noOfBlobs != 0 && createBlobTables(*t2) != 0) {
     int save_code = m_error.code;
-    (void)dropTable(*t2);
+    (void)dropTableGlobal(*t2);
     m_error.code = save_code;
     delete t2;
     DBUG_RETURN(-1);
