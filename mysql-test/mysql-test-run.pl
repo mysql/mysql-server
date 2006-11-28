@@ -308,7 +308,7 @@ my $source_dist= 0;
 sub main ();
 sub initial_setup ();
 sub command_line_setup ();
-sub datadir_setup ();
+sub datadir_list_setup ();
 sub executable_setup ();
 sub environment_setup ();
 sub kill_running_servers ();
@@ -1212,7 +1212,7 @@ sub command_line_setup () {
   $path_snapshot= "$opt_tmpdir/snapshot_$opt_master_myport/";
 }
 
-sub datadir_setup () {
+sub datadir_list_setup () {
 
   # Make a list of all data_dirs
   @data_dir_lst = (
@@ -1921,10 +1921,6 @@ sub kill_running_servers () {
    }
 }
 
-sub created_by_mem_filename(){
-  return "$glob_mysql_test_dir/var/created_by_mem";
-}
-
 
 #
 # Remove var and any directories in var/ created by previous
@@ -1947,14 +1943,16 @@ sub remove_stale_vardir () {
     if ( -l $opt_vardir)
     {
       # var is a symlink
-      if (-f created_by_mem_filename() )
+      if ( readlink($opt_vardir) eq $opt_mem )
       {
 	# Remove the directory which the link points at
 	mtr_verbose("Removing " . readlink($opt_vardir));
 	rmtree(readlink($opt_vardir));
+
 	# Remove the entire "var" dir
 	mtr_verbose("Removing $opt_vardir/");
 	rmtree("$opt_vardir/");
+
 	# Remove the "var" symlink
 	mtr_verbose("unlink($opt_vardir)");
 	unlink($opt_vardir);
@@ -2004,18 +2002,28 @@ sub remove_stale_vardir () {
 sub setup_vardir() {
   mtr_report("Creating Directories");
 
-  if ( $opt_mem )
+  if ( $opt_vardir eq $default_vardir )
   {
-    # Runinng with var as a link to some "memory" location, normally tmpfs
-    mtr_verbose("Creating $opt_mem");
-    mkpath($opt_mem);
+    #
+    # Running with "var" in mysql-test dir
+    #
+    if ( -l $opt_vardir )
+    {
+      #  it's a symlink
 
-    mtr_report("Symlinking 'var' to '$opt_mem'");
-    symlink($opt_mem, $opt_vardir);
+      # Make sure the directory where it points exist
+      mtr_error("The destination for symlink $opt_vardir does not exist")
+	if ! -d readlink($opt_vardir);
+    }
+    elsif ( $opt_mem )
+    {
+      # Runinng with "var" as a link to some "memory" location, normally tmpfs
+      mtr_verbose("Creating $opt_mem");
+      mkpath($opt_mem);
 
-    # Put a small file to recognize this dir was created by --mem
-    mtr_verbose("Creating " . created_by_mem_filename());
-    mtr_tofile(created_by_mem_filename(), $opt_mem);
+      mtr_report("Symlinking 'var' to '$opt_mem'");
+      symlink($opt_mem, $opt_vardir);
+    }
   }
 
   mkpath("$opt_vardir/log");
@@ -2562,7 +2570,7 @@ sub run_suite () {
 
 sub initialize_servers () {
 
-  datadir_setup();
+  datadir_list_setup();
 
   if ( $opt_extern )
   {
