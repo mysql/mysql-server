@@ -1216,26 +1216,15 @@ sub datadir_list_setup () {
 
 
 sub collect_mysqld_features () {
-  #
-  # Execute "mysqld --no-defaults --help --verbose", that will
-  # print out version and a list of all features and settings
-  #
   my $found_variable_list_start= 0;
-  my $spec_file= "$glob_mysql_test_dir/mysqld.spec.$$";
-  if ( mtr_run($exe_mysqld,
-	       ["--no-defaults",
-	        "--verbose",
-	        "--help"],
-	       "", "$spec_file", "$spec_file", "") != 0 )
-  {
-    mtr_error("Failed to get version and list of features from %s",
-	      $exe_mysqld);
-  }
 
-  my $F= IO::File->new($spec_file) or
-    mtr_error("can't open file \"$spec_file\": $!");
+  #
+  # Execute "mysqld --no-defaults --help --verbose" to get a
+  # of all features and settings
+  #
+  my $list= `$exe_mysqld --no-defaults --verbose --help`;
 
-  while ( my $line= <$F> )
+  foreach my $line (split('\n', $list))
   {
     # First look for version
     if ( !$mysql_version_id )
@@ -1288,7 +1277,7 @@ sub collect_mysqld_features () {
       }
     }
   }
-  unlink($spec_file);
+
   mtr_error("Could not find version of MySQL") unless $mysql_version_id;
   mtr_error("Could not find variabes list") unless $found_variable_list_start;
 
