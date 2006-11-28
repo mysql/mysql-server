@@ -11056,7 +11056,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::dbug_dump(int indent, bool verbose)
 #endif /* NOT_USED */
 
 /*****************************************************************************
-** Instantiate templates
+** Instantiate templates 
 *****************************************************************************/
 
 #ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION

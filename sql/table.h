@@ -18,6 +18,7 @@
 /* Structs that defines the TABLE */
 
 class Item;				/* Needed by ORDER */
+class Item_subselect;
 class GRANT_TABLE;
 class st_select_lex_unit;
 class st_select_lex;
@@ -74,6 +75,9 @@ enum release_type { RELEASE_NORMAL, RELEASE_WAIT_FOR_DROP };
 typedef struct st_filesort_info
 {
   IO_CACHE *io_cache;           /* If sorted through filebyte                */
+  uchar   **sort_keys;          /* Buffer for sorting keys                   */
+  byte     *buffpek;            /* Buffer for buffpek structures             */
+  uint      buffpek_len;        /* Max number of buffpeks in the buffer      */
   byte     *addon_buf;          /* Pointer to a buffer if sorted with fields */
   uint      addon_length;       /* Length of the buffer                      */
   struct st_sort_addon_field *addon_field;     /* Pointer to the fields info */
@@ -859,6 +863,7 @@ typedef struct st_table_list
     procedure.
   */
   void reinit_before_use(THD *thd);
+  Item_subselect *containing_subselect();
 
 private:
   bool prep_check_option(THD *thd, uint8 check_opt_type);
