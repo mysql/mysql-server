@@ -1050,7 +1050,7 @@ bool Item_sum_count::add()
     count++;
   else
   {
-    (void) args[0]->val_int();
+    args[0]->update_null_value();
     if (!args[0]->null_value)
       count++;
   }
@@ -1957,7 +1957,7 @@ void Item_sum_count::reset_field()
     nr=1;
   else
   {
-    (void) args[0]->val_int();
+    args[0]->update_null_value();
     if (!args[0]->null_value)
       nr=1;
   }
@@ -2067,7 +2067,7 @@ void Item_sum_count::update_field()
     nr++;
   else
   {
-    (void) args[0]->val_int();
+    args[0]->update_null_value();
     if (!args[0]->null_value)
       nr++;
   }
@@ -2547,7 +2547,7 @@ bool Item_sum_count_distinct::setup(THD *thd)
       return TRUE;                              // End of memory
     if (item->const_item())
     {
-      (void) item->val_int();
+      item->update_null_value();
       if (item->null_value)
 	always_null=1;
     }
