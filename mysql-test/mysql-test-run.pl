@@ -1943,17 +1943,22 @@ sub remove_stale_vardir () {
     if ( -l $opt_vardir)
     {
       # var is a symlink
-      if ( readlink($opt_vardir) eq $opt_mem )
+
+      if ( $opt_mem and readlink($opt_vardir) eq $opt_mem )
       {
 	# Remove the directory which the link points at
 	mtr_verbose("Removing " . readlink($opt_vardir));
 	rmtree(readlink($opt_vardir));
 
-	# Remove the entire "var" dir
-	mtr_verbose("Removing $opt_vardir/");
-	rmtree("$opt_vardir/");
-
 	# Remove the "var" symlink
+	mtr_verbose("unlink($opt_vardir)");
+	unlink($opt_vardir);
+      }
+      elsif ( $opt_mem )
+      {
+	# Just remove the "var" symlink
+	mtr_report("WARNING: Removing '$opt_vardir' symlink it's wrong");
+
 	mtr_verbose("unlink($opt_vardir)");
 	unlink($opt_vardir);
       }
@@ -1963,6 +1968,10 @@ sub remove_stale_vardir () {
 	# - allow it, but remove all files in it
 
 	mtr_report("WARNING: Using the 'mysql-test/var' symlink");
+
+	# Make sure the directory where it points exist
+	mtr_error("The destination for symlink $opt_vardir does not exist")
+	  if ! -d readlink($opt_vardir);
 
 	my $dir=       shift;
 	foreach my $bin ( glob("$opt_vardir/*") )
