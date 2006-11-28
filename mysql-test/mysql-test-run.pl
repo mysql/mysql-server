@@ -1974,14 +1974,28 @@ sub remove_stale_vardir () {
 sub setup_vardir() {
   mtr_report("Creating Directories");
 
-  if ( $opt_mem )
+  if ( $opt_vardir eq $default_vardir )
   {
-    # Runinng with var as a link to some "memory" location, normally tmpfs
-    mtr_verbose("Creating $opt_mem");
-    mkpath($opt_mem);
+    #
+    # Running with "var" in mysql-test dir
+    #
+    if ( -l $opt_vardir )
+    {
+      #  it's a symlink
 
-    mtr_report("Symlinking 'var' to '$opt_mem'");
-    symlink($opt_mem, $opt_vardir);
+      # Make sure the directory where it points exist
+      mtr_error("The destination for symlink $opt_vardir does not exist")
+	if ! -d readlink($opt_vardir);
+    }
+    elsif ( $opt_mem )
+    {
+      # Runinng with "var" as a link to some "memory" location, normally tmpfs
+      mtr_verbose("Creating $opt_mem");
+      mkpath($opt_mem);
+
+      mtr_report("Symlinking 'var' to '$opt_mem'");
+      symlink($opt_mem, $opt_vardir);
+    }
   }
 
   mkpath("$opt_vardir/log");
