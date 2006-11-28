@@ -314,7 +314,8 @@ sub datadir_setup ();
 sub executable_setup ();
 sub environment_setup ();
 sub kill_running_servers ();
-sub cleanup_stale_files ();
+sub remove_stale_vardir ();
+sub setup_vardir ();
 sub check_ssl_support ($);
 sub check_running_as_root();
 sub check_ndbcluster_support ($);
@@ -1200,6 +1201,7 @@ sub command_line_setup () {
 
     # Setup master->[0] with the settings for the extern server
     $master->[0]->{'path_sock'}=  $opt_socket if $opt_socket;
+    mtr_report("Using extern server at '$master->[0]->{path_sock}'");
   }
   else
   {
@@ -1979,12 +1981,24 @@ sub kill_running_servers () {
    }
 }
 
-sub cleanup_stale_files () {
+sub created_by_mem_filename(){
+  return "$glob_mysql_test_dir/var/created_by_mem";
+}
 
-  my $created_by_mem_file= "$glob_mysql_test_dir/var/created_by_mem";
+
+#
+# Remove var and any directories in var/ created by previous
+# tests
+#
+sub remove_stale_vardir () {
 
   mtr_report("Removing Stale Files");
 
+  # Safety!
+  mtr_error("No, don't remove the vardir when running with --extern")
+    if $opt_extern;
+
+  mtr_verbose("opt_vardir: $opt_vardir");
   if ( $opt_vardir eq $default_vardir )
   {
     #
@@ -1993,29 +2007,37 @@ sub cleanup_stale_files () {
     if ( -l $opt_vardir)
     {
       # var is a symlink
-      if (-f $created_by_mem_file)
+      if (-f created_by_mem_filename() )
       {
 	# Remove the directory which the link points at
+	mtr_verbose("Removing " . readlink($opt_vardir));
 	rmtree(readlink($opt_vardir));
 	# Remove the entire "var" dir
+	mtr_verbose("Removing $opt_vardir/");
 	rmtree("$opt_vardir/");
 	# Remove the "var" symlink
+	mtr_verbose("unlink($opt_vardir)");
 	unlink($opt_vardir);
       }
       else
       {
 	# Some users creates a soft link in mysql-test/var to another area
-	# - allow it
+	# - allow it, but remove all files in it
+
 	mtr_report("WARNING: Using the 'mysql-test/var' symlink");
-	rmtree("$opt_vardir/log");
-	rmtree("$opt_vardir/ndbcluster-$opt_ndbcluster_port");
-	rmtree("$opt_vardir/run");
-	rmtree("$opt_vardir/tmp");
+
+	my $dir=       shift;
+	foreach my $bin ( glob("$opt_vardir/*") )
+	{
+	  mtr_verbose("Removing bin $bin");
+	  rmtree($bin);
+	}
       }
     }
     else
     {
       # Remove the entire "var" dir
+      mtr_verbose("Removing $opt_vardir/");
       rmtree("$opt_vardir/");
     }
   }
@@ -2027,21 +2049,33 @@ sub cleanup_stale_files () {
 
     # Remove the var/ dir in mysql-test dir if any
     # this could be an old symlink that shouldn't be there
+    mtr_verbose("Removing $default_vardir");
     rmtree($default_vardir);
 
     # Remove the "var" dir
+    mtr_verbose("Removing $opt_vardir/");
     rmtree("$opt_vardir/");
   }
+}
+
+#
+# Create var and the directories needed in var
+#
+sub setup_vardir() {
+  mtr_report("Creating Directories");
 
   if ( $opt_mem )
   {
     # Runinng with var as a link to some "memory" location, normally tmpfs
-    rmtree($opt_mem);
+    mtr_verbose("Creating $opt_mem");
     mkpath($opt_mem);
-    mtr_report("Creating symlink from $opt_vardir to $opt_mem");
+
+    mtr_report("Symlinking 'var' to '$opt_mem'");
     symlink($opt_mem, $opt_vardir);
+
     # Put a small file to recognize this dir was created by --mem
-    mtr_tofile($created_by_mem_file, $opt_mem);
+    mtr_verbose("Creating " . created_by_mem_filename());
+    mtr_tofile(created_by_mem_filename(), $opt_mem);
   }
 
   mkpath("$opt_vardir/log");
@@ -2049,10 +2083,9 @@ sub cleanup_stale_files () {
   mkpath("$opt_vardir/tmp");
   mkpath($opt_tmpdir) if $opt_tmpdir ne "$opt_vardir/tmp";
 
-  # Remove old and create new data dirs
+  # Create new data dirs
   foreach my $data_dir (@data_dir_lst)
   {
-    rmtree("$data_dir");
     mkpath("$data_dir/mysql");
     mkpath("$data_dir/test");
   }
@@ -2591,21 +2624,39 @@ sub initialize_servers () {
 
   datadir_setup();
 
-  if ( ! $opt_extern )
+  if ( $opt_extern )
+  {
+    # Running against an already started server, if the specified
+    # vardir does not already exist it should be created
+    if ( ! -d $opt_vardir )
+    {
+      mtr_report("Creating '$opt_vardir'");
+      setup_vardir();
+    }
+    else
+    {
+      mtr_report("No need to create '$opt_vardir' it already exists");
+    }
+  }
+  else
   {
     kill_running_servers();
 
     if ( ! $opt_start_dirty )
     {
-      cleanup_stale_files();
+      remove_stale_vardir();
+      setup_vardir();
+
       mysql_install_db();
       if ( $opt_force )
       {
+	# Save a snapshot of the freshly installed db
+	# to make it possible to restore to a known point in time
 	save_installed_db();
       }
     }
-    check_running_as_root();
   }
+  check_running_as_root();
 }
 
 sub mysql_install_db () {
@@ -4790,7 +4841,7 @@ Options that pass on options
 
 Options to run test on running server
 
-  extern                Use running server for tests FIXME DANGEROUS
+  extern                Use running server for tests
   ndb-connectstring=STR Use running cluster, and connect using STR
   ndb-connectstring-slave=STR Use running slave cluster, and connect using STR
   user=USER             User for connection to extern server
