@@ -1553,32 +1553,32 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                        outparam->file->auto_repair() &&
                        !(ha_open_flags & HA_OPEN_FOR_REPAIR));
 
-      if (ha_err == HA_ERR_NO_SUCH_TABLE)
+      switch (ha_err)
       {
-	/*
-          The table did not exists in storage engine, use same error message
-          as if the .frm file didn't exist
-        */
-	error= 1;
-	my_errno= ENOENT;
-      }
-      else if (ha_err == EMFILE)
-      {
-	/*
-          Too many files opened, use same error message as if the .frm
-           file can't open
-         */
-        DBUG_PRINT("error", ("open file: %s failed, too many files opened (errno: %d)", 
-		share->normalized_path.str, ha_err));
-	error= 1;
-	my_errno= EMFILE;
-      }
-      else
-      {
-        outparam->file->print_error(ha_err, MYF(0));
-        error_reported= TRUE;
-        if (ha_err == HA_ERR_TABLE_DEF_CHANGED)
-          error= 7;
+        case HA_ERR_NO_SUCH_TABLE:
+	  /*
+            The table did not exists in storage engine, use same error message
+            as if the .frm file didn't exist
+          */
+	  error= 1;
+	  my_errno= ENOENT;
+          break;
+        case EMFILE:
+	  /*
+            Too many files opened, use same error message as if the .frm
+            file can't open
+           */
+          DBUG_PRINT("error", ("open file: %s failed, too many files opened (errno: %d)", 
+		  share->normalized_path.str, ha_err));
+	  error= 1;
+	  my_errno= EMFILE;
+          break;
+        default:
+          outparam->file->print_error(ha_err, MYF(0));
+          error_reported= TRUE;
+          if (ha_err == HA_ERR_TABLE_DEF_CHANGED)
+            error= 7;
+          break;
       }
       goto err;                                 /* purecov: inspected */
     }
