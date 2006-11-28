@@ -35,6 +35,24 @@
 --exec echo 'help ' | $MYSQL  >  $MYSQLTEST_VARDIR/tmp/bug20328.tmp
 
 #
+# Bug #19216: Client crashes on long SELECT
+#
+--exec echo "select" > $MYSQLTEST_VARDIR/tmp/b19216.tmp
+# 3400 * 20 makes 68000 columns that is more than the max number that can fit 
+# in a 16 bit number.
+let $i= 3400;
+while ($i)
+{
+  --exec echo "'a','a','a','a','a','a','a','a','a','a','a','a','a','a','a','a','a','a','a','a'," >> $MYSQLTEST_VARDIR/tmp/b19216.tmp
+  dec $i;
+}
+
+--exec echo "'b';" >> $MYSQLTEST_VARDIR/tmp/b19216.tmp
+--disable_query_log
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/b19216.tmp >/dev/null
+--enable_query_log
+
+#
 # Bug#17583: mysql drops connection when stdout is not writable
 #
 create table t17583 (a int);
@@ -51,4 +69,21 @@ select count(*) from t17583;
 --exec echo "select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; " |$MYSQL test >&-
 drop table t17583;
 
+#
+# Bug #19216: Client crashes on long SELECT
+#
+--exec echo "select" > $MYSQLTEST_VARDIR/tmp/b19216.tmp
+# 3400 * 20 makes 68000 columns that is more than the max number that can fit 
+# in a 16 bit number.
+let $i= 3400;
+while ($i)
+{
+  --exec echo "'a','a','a','a','a','a','a','a','a','a','a','a','a','a','a','a','a','a','a','a'," >> $MYSQLTEST_VARDIR/tmp/b19216.tmp
+  dec $i;
+}
+
+--exec echo "'b';" >> $MYSQLTEST_VARDIR/tmp/b19216.tmp
+--disable_query_log
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/b19216.tmp >/dev/null
+--enable_query_log
 --echo End of 4.1 tests.
