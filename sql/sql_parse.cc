@@ -3968,6 +3968,7 @@ end_with_restore_list:
   }
   case SQLCOM_CREATE_EVENT:
   case SQLCOM_ALTER_EVENT:
+  do
   {
     DBUG_ASSERT(lex->event_parse_data);
     if (lex->table_or_sp_used())
@@ -3993,16 +3994,15 @@ end_with_restore_list:
     if (!res)
       send_ok(thd);
 
-    /* Don't do it, if we are inside a SP */
-    if (!thd->spcont)
-    {
-      delete lex->sphead;
-      lex->sphead= NULL;
-    }
-
-    /* lex->unit.cleanup() is called outside, no need to call it here */
-    break;
+  } while (0);
+  /* Don't do it, if we are inside a SP */
+  if (!thd->spcont)
+  {
+    delete lex->sphead;
+    lex->sphead= NULL;
   }
+  /* lex->unit.cleanup() is called outside, no need to call it here */
+  break;
   case SQLCOM_DROP_EVENT:
   case SQLCOM_SHOW_CREATE_EVENT:
   {
