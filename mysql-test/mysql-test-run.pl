@@ -3040,26 +3040,15 @@ sub do_before_run_mysqltest($)
   unlink("$result_dir/$tname.log");
   unlink("$result_dir/$tname.warnings");
 
-  mtr_tonewfile($path_current_test_log,"$tname\n"); # Always tell where we are
-
-  # output current test to ndbcluster log file to enable diagnostics
-  mtr_tofile($path_ndb_testrun_log,"CURRENT TEST $tname\n");
-
-  mtr_tofile($master->[0]->{'path_myerr'},"CURRENT_TEST: $tname\n");
-  if ( $master->[1]->{'pid'} )
-  {
-    mtr_tofile($master->[1]->{'path_myerr'},"CURRENT_TEST: $tname\n");
-  }
-
   if ( $mysql_version_id < 50000 )
   {
-    # Set envirnoment variable NDB_STATUS_OK to 1
+    # Set environment variable NDB_STATUS_OK to 1
     # if script decided to run mysqltest cluster _is_ installed ok
     $ENV{'NDB_STATUS_OK'} = "1";
   }
   elsif ( $mysql_version_id < 50100 )
   {
-    # Set envirnoment variable NDB_STATUS_OK to YES
+    # Set environment variable NDB_STATUS_OK to YES
     # if script decided to run mysqltest cluster _is_ installed ok
     $ENV{'NDB_STATUS_OK'} = "YES";
   }
@@ -3070,9 +3059,9 @@ sub do_after_run_mysqltest($)
   my $tinfo= shift;
   my $tname= $tinfo->{'name'};
 
-  mtr_tofile($path_mysqltest_log,"CURRENT TEST $tname\n");
-
   # Save info from this testcase run to mysqltest.log
+  mtr_appendfile_to_file($path_current_test_log, $path_mysqltest_log)
+    if -f $path_current_test_log;
   mtr_appendfile_to_file($path_timefile, $path_mysqltest_log)
     if -f $path_timefile;
 
@@ -3081,6 +3070,26 @@ sub do_after_run_mysqltest($)
 
 }
 
+
+sub run_testcase_mark_logs($)
+{
+  my ($log_msg)= @_;
+
+  # Write a marker to all log files
+
+  # The file indicating current test name
+  mtr_tonewfile($path_current_test_log, $log_msg);
+
+  # each mysqld's .err file
+  foreach my $mysqld (@{$master}, @{$slave})
+  {
+    mtr_tofile($mysqld->{path_myerr}, $log_msg);
+  }
+
+  # ndbcluster log file
+  mtr_tofile($path_ndb_testrun_log, $log_msg);
+
+}
 
 sub find_testcase_skipped_reason($)
 {
@@ -3201,6 +3210,10 @@ sub run_testcase ($) {
 
     run_testcase_stop_servers($tinfo, $master_restart, $slave_restart);
   }
+
+  # Write to all log files to indicate start of testcase
+  run_testcase_mark_logs("CURRENT_TEST: $tinfo->{name}\n");
+
   my $died= mtr_record_dead_children();
   if ($died or $master_restart or $slave_restart)
   {
@@ -4212,8 +4225,6 @@ sub run_testcase_start_servers($) {
 	  return 1;
 	}
       }
-      mtr_tofile($master->[1]->{'path_myerr'},"CURRENT_TEST: $tname\n");
-
       mysqld_start($master->[1],$tinfo->{'master_opt'},[]);
     }
 
@@ -4241,8 +4252,6 @@ sub run_testcase_start_servers($) {
   # ----------------------------------------------------------------------
   if ( $tinfo->{'slave_num'} )
   {
-    mtr_tofile($slave->[0]->{'path_myerr'},"CURRENT_TEST: $tname\n");
-
     restore_slave_databases($tinfo->{'slave_num'});
 
     do_before_start_slave($tinfo);
