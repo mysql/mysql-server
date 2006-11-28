@@ -131,3 +131,9 @@ test-force-pl:
 	./mysql-test-run.pl --force && \
 	./mysql-test-run.pl --ps-protocol --force
 
+#used by autopush.pl to run memory based tests
+test-force-pl-mem:
+	cd mysql-test; \
+	./mysql-test-run.pl --force --mem && \
+	./mysql-test-run.pl --ps-protocol --force --mem
+

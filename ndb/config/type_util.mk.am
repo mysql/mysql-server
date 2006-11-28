@@ -1,5 +1,8 @@
 
-INCLUDES += -I$(srcdir) -I$(top_srcdir)/include \
+INCLUDES += -I$(srcdir) \
+	-I$(top_builddir)/include \
+	-I$(top_builddir)/ndb/include \
+	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/ndb/include \
         -I$(top_srcdir)/ndb/include/util \
         -I$(top_srcdir)/ndb/include/portlib \

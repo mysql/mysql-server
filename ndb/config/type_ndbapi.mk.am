@@ -1,6 +1,10 @@
 
 INCLUDES += \
-        -I$(srcdir) -I$(top_srcdir)/include -I$(top_srcdir)/ndb/include \
+        -I$(srcdir) \
+	-I$(top_builddir)/include \
+	-I$(top_builddir)/ndb/include \
+	-I$(top_srcdir)/include \
+	-I$(top_srcdir)/ndb/include \
 	-I$(top_srcdir)/ndb/include/kernel \
 	-I$(top_srcdir)/ndb/include/transporter \
 	-I$(top_srcdir)/ndb/include/debugger \

@@ -87,6 +87,7 @@ require "lib/mtr_diff.pl";
 require "lib/mtr_match.pl";
 require "lib/mtr_misc.pl";
 require "lib/mtr_stress.pl";
+require "lib/mtr_unique.pl";
 
 $Devel::Trace::TRACE= 1;
 
@@ -437,6 +438,7 @@ sub main () {
   mtr_exit(0);
 }
 
+
 ##############################################################################
 #
 #  Default settings
@@ -472,6 +474,16 @@ sub command_line_setup () {
   # differs between operating systems and configuration, see
   # http://www.ncftp.com/ncftpd/doc/misc/ephemeral_ports.html
   # But a fairly safe range seems to be 5001 - 32767
+  
+  # If so requested, we try to avail ourselves of a unique build thread number.
+  if ( $ENV{'MTR_BUILD_THREAD'} ) {
+    if ( lc($ENV{'MTR_BUILD_THREAD'}) eq 'auto' ) {
+      print "Requesting build thread... ";
+      $ENV{'MTR_BUILD_THREAD'} = mtr_require_unique_id_and_wait("/tmp/mysql-test-ports", 200, 299);
+      print "got ".$ENV{'MTR_BUILD_THREAD'}."\n";
+    }
+  }
+
   if ( $ENV{'MTR_BUILD_THREAD'} )
   {
     # Up to two masters, up to three slaves
