@@ -1002,8 +1002,8 @@ MEMORY:		is not in free list, LRU list, or flush list, nor page
 		hash table
 FILE_PAGE:	space and offset are defined, is in page hash table
 		if io_fix == BUF_IO_WRITE,
-			pool: no_flush[block->flush_type] is in reset state,
-			pool: n_flush[block->flush_type] > 0
+			pool: no_flush[flush_type] is in reset state,
+			pool: n_flush[flush_type] > 0
 
 		(1) if buf_fix_count == 0, then
 			is in LRU list, not in free list

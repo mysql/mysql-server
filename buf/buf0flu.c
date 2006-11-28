@@ -191,7 +191,7 @@ buf_flush_write_complete(
 
 	UT_LIST_REMOVE(flush_list, buf_pool->flush_list, &(block->page));
 
-	ut_d(UT_LIST_VALIDATE(flush_list, buf_block_t, buf_pool->flush_list));
+	ut_d(UT_LIST_VALIDATE(flush_list, buf_page_t, buf_pool->flush_list));
 
 	flush_type = buf_page_get_flush_type(&block->page);
 	buf_pool->n_flush[flush_type]--;
