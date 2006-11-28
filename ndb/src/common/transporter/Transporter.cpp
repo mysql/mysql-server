@@ -39,8 +39,8 @@ Transporter::Transporter(TransporterRegistry &t_reg,
 			 int _byteorder, 
 			 bool _compression, bool _checksum, bool _signalId)
   : m_s_port(s_port), remoteNodeId(rNodeId), localNodeId(lNodeId),
-    isServer(lNodeId==serverNodeId), isMgmConnection(_isMgmConnection),
-    m_packer(_signalId, _checksum),
+    isServer(lNodeId==serverNodeId),
+    m_packer(_signalId, _checksum),  isMgmConnection(_isMgmConnection),
     m_type(_type),
     m_transporter_registry(t_reg)
 {

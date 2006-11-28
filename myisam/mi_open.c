@@ -336,6 +336,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	      goto err;
 	    }
 	  }
+	  else if (pos->type == HA_KEYTYPE_BINARY)
+	    pos->charset= &my_charset_bin;
 	}
 	if (share->keyinfo[i].flag & HA_SPATIAL)
 	{

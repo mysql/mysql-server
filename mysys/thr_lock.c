@@ -483,8 +483,8 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
   data->owner= owner;                           /* Must be reset ! */
   VOID(pthread_mutex_lock(&lock->mutex));
   DBUG_PRINT("lock",("data: 0x%lx  thread: %ld  lock: 0x%lx  type: %d",
-		      data, data->owner->info->thread_id,
-                      lock, (int) lock_type));
+                     (long) data, data->owner->info->thread_id,
+                     (long) lock, (int) lock_type));
   check_locks(lock,(uint) lock_type <= (uint) TL_READ_NO_INSERT ?
 	      "enter read_lock" : "enter write_lock",0);
   if ((int) lock_type <= (int) TL_READ_NO_INSERT)
@@ -659,7 +659,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
 	  goto end;
 	}
       }
-      DBUG_PRINT("lock",("write locked by thread: %ld, type: %ld",
+      DBUG_PRINT("lock",("write locked by thread: %ld, type: %d",
 			 lock->read.data->owner->info->thread_id, data->type));
     }
     wait_queue= &lock->write_wait;
@@ -740,7 +740,7 @@ void thr_unlock(THR_LOCK_DATA *data)
   enum thr_lock_type lock_type=data->type;
   DBUG_ENTER("thr_unlock");
   DBUG_PRINT("lock",("data: 0x%lx  thread: %ld  lock: 0x%lx",
-		     data, data->owner->info->thread_id, lock));
+                     (long) data, data->owner->info->thread_id, (long) lock));
   pthread_mutex_lock(&lock->mutex);
   check_locks(lock,"start of release lock",0);
 
@@ -913,7 +913,7 @@ thr_multi_lock(THR_LOCK_DATA **data, uint count, THR_LOCK_OWNER *owner)
 {
   THR_LOCK_DATA **pos,**end;
   DBUG_ENTER("thr_multi_lock");
-  DBUG_PRINT("lock",("data: 0x%lx  count: %d",data,count));
+  DBUG_PRINT("lock",("data: 0x%lx  count: %d", (long) data, count));
   if (count > 1)
     sort_locks(data,count);
   /* lock everything */
@@ -986,7 +986,7 @@ void thr_multi_unlock(THR_LOCK_DATA **data,uint count)
 {
   THR_LOCK_DATA **pos,**end;
   DBUG_ENTER("thr_multi_unlock");
-  DBUG_PRINT("lock",("data: 0x%lx  count: %d",data,count));
+  DBUG_PRINT("lock",("data: 0x%lx  count: %d", (long) data, count));
 
   for (pos=data,end=data+count; pos < end ; pos++)
   {
@@ -1000,7 +1000,8 @@ void thr_multi_unlock(THR_LOCK_DATA **data,uint count)
     else
     {
       DBUG_PRINT("lock",("Free lock: data: 0x%lx  thread: %ld  lock: 0x%lx",
-			 *pos, (*pos)->owner->info->thread_id, (*pos)->lock));
+                         (long) *pos, (*pos)->owner->info->thread_id,
+                         (long) (*pos)->lock));
     }
   }
   DBUG_VOID_RETURN;
