@@ -813,13 +813,6 @@ sub command_line_setup () {
     $opt_vardir= "$glob_mysql_test_dir/$opt_vardir";
   }
 
-  # Ensure a proper error message 
-  mkpath("$opt_vardir");
-  unless ( -d $opt_vardir and -w $opt_vardir )
-  {
-    mtr_error("Writable 'var' directory is needed, use the '--vardir' option");
-  }
-
   # --------------------------------------------------------------------------
   # Set tmpdir
   # --------------------------------------------------------------------------
@@ -1970,7 +1963,6 @@ sub kill_running_servers () {
    }
 }
 
-
 #
 # Remove var and any directories in var/ created by previous
 # tests
@@ -2022,7 +2014,6 @@ sub remove_stale_vardir () {
 	mtr_error("The destination for symlink $opt_vardir does not exist")
 	  if ! -d readlink($opt_vardir);
 
-	my $dir=       shift;
 	foreach my $bin ( glob("$opt_vardir/*") )
 	{
 	  mtr_verbose("Removing bin $bin");
@@ -2082,6 +2073,19 @@ sub setup_vardir() {
       mtr_report("Symlinking 'var' to '$opt_mem'");
       symlink($opt_mem, $opt_vardir);
     }
+  }
+
+  if ( ! -d $opt_vardir )
+  {
+    mtr_verbose("Creating $opt_vardir");
+    mkpath($opt_vardir);
+  }
+
+  # Ensure a proper error message if vardir couldn't be created
+  unless ( -d $opt_vardir and -w $opt_vardir )
+  {
+    mtr_error("Writable 'var' directory is needed, use the " .
+	      "'--vardir=<path>' option");
   }
 
   mkpath("$opt_vardir/log");
