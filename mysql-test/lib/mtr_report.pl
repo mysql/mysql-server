@@ -94,9 +94,13 @@ sub mtr_report_test_skipped ($) {
   {
     print "[ disabled ]  $tinfo->{'comment'}\n";
   }
-  else
+  elsif ( $tinfo->{'comment'} )
   {
     print "[ skipped ]   $tinfo->{'comment'}\n";
+  }
+  else
+  {
+    print "[ skipped ]\n";
   }
 }
 
