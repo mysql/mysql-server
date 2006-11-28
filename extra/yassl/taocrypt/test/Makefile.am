@@ -1,4 +1,4 @@
-INCLUDES = -I../include -I../mySTL
+INCLUDES = -I$(srcdir)/../include -I$(srcdir)/../mySTL
 bin_PROGRAMS = test
 test_SOURCES = test.cpp
 test_LDADD    = $(top_builddir)/extra/yassl/taocrypt/src/libtaocrypt.la
