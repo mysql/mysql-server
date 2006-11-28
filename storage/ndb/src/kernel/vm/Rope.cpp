@@ -115,7 +115,7 @@ Rope::compare(const char * str, size_t len) const {
     int res = memcmp(str, (const char*)curr.p->data, left);
     if(res){
       if(DEBUG_ROPE)
-	ndbout_c("Rope::compare(%s, %d) -> %d", str, len, res);
+	ndbout_c("Rope::compare(%s, %d) -> %d", str, (int) len, res);
       return res;
     }
   }
