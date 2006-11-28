@@ -2858,6 +2858,10 @@ recv_recovery_from_checkpoint_finish(void)
 #endif
 
 #ifdef UNIV_SYNC_DEBUG
+	/* Wait for a while so that created threads have time to suspend
+	themselves before we switch the latching order checks on */
+	os_thread_sleep(1000000);
+
 	/* Switch latching order checks on in sync0sync.c */
 	sync_order_checks_on = TRUE;
 #endif
