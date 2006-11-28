@@ -36,15 +36,15 @@ set @s0 = 'rggurloniukyehuxdbfkkyzlceixzrehqhvxvxbpwizzvjzpucqmzrhzxzfau';
 set @s1 = 'ykyymbzqgqlcjhlhmyqelfoaaohvtbekvifukdtnvcrrjveevfakxarxexomz';
 set @s2 = 'dbnfqyzgtqxalcrwtfsqabknvtfcbpoonxsjiqvmhnfikxxhcgoexlkoezvah';
 
-set @v1 = repeat(@s0, 100); -- 1d42dd9090cf78314a06665d4ea938c35cc760f4
-set @v2 = repeat(@s1, 200); -- 10d3c783026b310218d10b7188da96a2401648c6
-set @v3 = repeat(@s2, 300); -- a33549d9844092289a58ac348dd59f09fc28406a
-set @v4 = repeat(@s0, 400); -- daa61c6de36a0526f0d47dc29d6b9de7e6d2630c
-set @v5 = repeat(@s1, 500); -- 70fc9a7d08beebc522258bfb02000a30c77a8f1d
-set @v6 = repeat(@s2, 600); -- 090565c580809efed3d369481a4bbb168b20713e
-set @v7 = repeat(@s0, 700); -- 1e0070bec426871a46291de27b9bd6e4255ab4e5
-set @v8 = repeat(@s1, 800); -- acbaba01bc2e682f015f40e79d9cbe475db3002e
-set @v9 = repeat(@s2, 900); -- 9ee30d99162574f79c66ae95cdf132dcf9cbc259
+set @v1 = repeat(@s0, 100); # 1d42dd9090cf78314a06665d4ea938c35cc760f4
+set @v2 = repeat(@s1, 200); # 10d3c783026b310218d10b7188da96a2401648c6
+set @v3 = repeat(@s2, 300); # a33549d9844092289a58ac348dd59f09fc28406a
+set @v4 = repeat(@s0, 400); # daa61c6de36a0526f0d47dc29d6b9de7e6d2630c
+set @v5 = repeat(@s1, 500); # 70fc9a7d08beebc522258bfb02000a30c77a8f1d
+set @v6 = repeat(@s2, 600); # 090565c580809efed3d369481a4bbb168b20713e
+set @v7 = repeat(@s0, 700); # 1e0070bec426871a46291de27b9bd6e4255ab4e5
+set @v8 = repeat(@s1, 800); # acbaba01bc2e682f015f40e79d9cbe475db3002e
+set @v9 = repeat(@s2, 900); # 9ee30d99162574f79c66ae95cdf132dcf9cbc259
 --enable_query_log
 
 # -- insert --

@@ -92,7 +92,7 @@ int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
 
   if (table->s->reclength != stats.mean_rec_length && stats.mean_rec_length)
   {
-    DBUG_PRINT("error",("reclength: %d  mean_rec_length: %d",
+    DBUG_PRINT("error",("reclength: %lu  mean_rec_length: %lu",
 			table->s->reclength, stats.mean_rec_length));
     goto err;
   }

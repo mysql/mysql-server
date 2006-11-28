@@ -1588,7 +1588,7 @@ INSERT INTO t1 (id) VALUES (NULL);
 SELECT * FROM t1;
 DROP TABLE t2, t1;
 
--- Test that foreign keys in temporary tables are not accepted (bug #12084)
+# Test that foreign keys in temporary tables are not accepted (bug #12084)
 eval CREATE TABLE t1
 (
  id INT PRIMARY KEY

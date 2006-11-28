@@ -494,7 +494,7 @@ BackupRestore::object(Uint32 type, const void * ptr)
     
     NdbDictionary::Tablespace curr = dict->getTablespace(old.getName());
     NdbError errobj = dict->getNdbError();
-    if(errobj.classification == ndberror_cl_none)
+    if ((int) errobj.classification == (int) ndberror_cl_none)
     {
       NdbDictionary::Tablespace* currptr = new NdbDictionary::Tablespace(curr);
       NdbDictionary::Tablespace * null = 0;
@@ -533,7 +533,7 @@ BackupRestore::object(Uint32 type, const void * ptr)
     
     NdbDictionary::LogfileGroup curr = dict->getLogfileGroup(old.getName());
     NdbError errobj = dict->getNdbError();
-    if(errobj.classification == ndberror_cl_none)
+    if ((int) errobj.classification == (int) ndberror_cl_none)
     {
       NdbDictionary::LogfileGroup* currptr = 
 	new NdbDictionary::LogfileGroup(curr);
@@ -680,7 +680,7 @@ BackupRestore::table(const TableS & table){
     return true;
   
   const NdbTableImpl & tmptab = NdbTableImpl::getImpl(* table.m_dictTable);
-  if(tmptab.m_indexType != NdbDictionary::Index::Undefined){
+  if ((int) tmptab.m_indexType != (int) NdbDictionary::Index::Undefined){
     m_indexes.push_back(table.m_dictTable);
     return true;
   }

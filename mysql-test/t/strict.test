@@ -327,14 +327,14 @@ INSERT INTO t1 (col2) VALUES(CAST('0000-00-00' AS DATETIME));
 #       SQLSTATE 22007 <invalid datetime value>
 --error 1292
 INSERT INTO t1 (col3) VALUES(CAST('0000-10-31 15:30' AS DATETIME));
--- should return OK
--- We accept this to be a failure
+# should return OK
+# We accept this to be a failure
 
 --error 1292
 INSERT INTO t1 (col3) VALUES(CAST('2004-10-0 15:30' AS DATETIME));
 --error 1292
 INSERT INTO t1 (col3) VALUES(CAST('2004-0-10 15:30' AS DATETIME));
--- should return SQLSTATE 22007 <invalid datetime value>
+# should return SQLSTATE 22007 <invalid datetime value>
 
 # deactivated because of Bug#8294
 # Bug#8294 Traditional: Misleading error message for invalid CAST to DATE
@@ -422,8 +422,8 @@ INSERT INTO t1 (col2) VALUES(CONVERT('0000-00-00',DATETIME));
 #       SQLSTATE 22007 <invalid datetime value>
 --error 1292
 INSERT INTO t1 (col3) VALUES(CONVERT('0000-10-31 15:30',DATETIME));
--- should return OK
--- We accept this to be a failure
+# should return OK
+# We accept this to be a failure
 
 --error 1292
 INSERT INTO t1 (col3) VALUES(CONVERT('2004-10-0 15:30',DATETIME));
@@ -729,11 +729,11 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (col1 NUMERIC(4,2));
 INSERT INTO t1 VALUES (10.55),(10.5555),(0),(-10.55),(-10.5555),(11),(1e+01);
--- Note that the +/-10.5555 is inserted as +/-10.55, not +/-10.56 !
+# Note that the +/-10.5555 is inserted as +/-10.55, not +/-10.56 !
 INSERT INTO t1 VALUES ('10.55'),('10.5555'),('-10.55'),('-10.5555'),('11'),('1e+01');
 
--- The 2 following inserts should generate a warning, but doesn't yet
--- because NUMERIC works like DECIMAL
+# The 2 following inserts should generate a warning, but doesn't yet
+# because NUMERIC works like DECIMAL
 --error 1264
 INSERT INTO t1 VALUES (101.55);
 --error 1264
@@ -744,8 +744,8 @@ INSERT INTO t1 VALUES (-101.55);
 INSERT INTO t1 VALUES (1010.55);
 --error 1264
 INSERT INTO t1 VALUES (1010);
--- The 2 following inserts should generate a warning, but doesn't yet
--- because NUMERIC works like DECIMAL
+# The 2 following inserts should generate a warning, but doesn't yet
+# because NUMERIC works like DECIMAL
 --error 1264
 INSERT INTO t1 VALUES ('101.55');
 --error 1264

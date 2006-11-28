@@ -138,14 +138,14 @@ int packfrm(const void *data, uint len,
   uint blob_len;
   struct frm_blob_struct *blob;
   DBUG_ENTER("packfrm");
-  DBUG_PRINT("enter", ("data: %x, len: %d", data, len));
+  DBUG_PRINT("enter", ("data: 0x%lx, len: %d", (long) data, len));
 
   error= 1;
   org_len= len;
   if (my_compress((byte*)data, &org_len, &comp_len))
     goto err;
 
-  DBUG_PRINT("info", ("org_len: %d, comp_len: %d", org_len, comp_len));
+  DBUG_PRINT("info", ("org_len: %lu  comp_len: %lu", org_len, comp_len));
   DBUG_DUMP("compressed", (char*)data, org_len);
 
   error= 2;
@@ -165,7 +165,8 @@ int packfrm(const void *data, uint len,
   *pack_len= blob_len;
   error= 0;
 
-  DBUG_PRINT("exit", ("pack_data: %x, pack_len: %d", *pack_data, *pack_len));
+  DBUG_PRINT("exit", ("pack_data: 0x%lx  pack_len: %d",
+                      (long) *pack_data, *pack_len));
 err:
   DBUG_RETURN(error);
 
@@ -194,13 +195,13 @@ int unpackfrm(const void **unpack_data, uint *unpack_len,
    byte *data;
    ulong complen, orglen, ver;
    DBUG_ENTER("unpackfrm");
-   DBUG_PRINT("enter", ("pack_data: %x", pack_data));
+   DBUG_PRINT("enter", ("pack_data: 0x%lx", (long) pack_data));
 
    complen=     uint4korr((char*)&blob->head.complen);
    orglen=      uint4korr((char*)&blob->head.orglen);
    ver=         uint4korr((char*)&blob->head.ver);
 
-   DBUG_PRINT("blob",("ver: %d complen: %d orglen: %d",
+   DBUG_PRINT("blob",("ver: %lu  complen: %lu  orglen: %lu",
                      ver,complen,orglen));
    DBUG_DUMP("blob->data", (char*) blob->data, complen);
 
@@ -220,7 +221,7 @@ int unpackfrm(const void **unpack_data, uint *unpack_len,
    *unpack_data= data;
    *unpack_len= complen;
 
-   DBUG_PRINT("exit", ("frmdata: %x, len: %d", *unpack_data, *unpack_len));
+   DBUG_PRINT("exit", ("frmdata: 0x%lx  len: %d", (long) *unpack_data, *unpack_len));
    DBUG_RETURN(0);
 }
 #endif /* HAVE_COMPRESS */

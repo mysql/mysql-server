@@ -971,10 +971,10 @@ void Dbacc::initOpRec(Signal* signal)
 
   Uint32 opbits = 0;
   opbits |= Treqinfo & 0x7;
-  opbits |= ((Treqinfo >> 4) & 0x3) ? Operationrec::OP_LOCK_MODE : 0;
-  opbits |= ((Treqinfo >> 4) & 0x3) ? Operationrec::OP_ACC_LOCK_MODE : 0;
-  opbits |= (dirtyReadFlag) ? Operationrec::OP_DIRTY_READ : 0;
-  opbits |= ((Treqinfo >> 31) & 0x1) ? Operationrec::OP_LOCK_REQ : 0;
+  opbits |= ((Treqinfo >> 4) & 0x3) ? (Uint32) Operationrec::OP_LOCK_MODE : 0;
+  opbits |= ((Treqinfo >> 4) & 0x3) ? (Uint32) Operationrec::OP_ACC_LOCK_MODE : 0;
+  opbits |= (dirtyReadFlag) ? (Uint32) Operationrec::OP_DIRTY_READ : 0;
+  opbits |= ((Treqinfo >> 31) & 0x1) ? (Uint32) Operationrec::OP_LOCK_REQ : 0;
   
   //operationRecPtr.p->nodeType = (Treqinfo >> 7) & 0x3;
   operationRecPtr.p->fid = fragrecptr.p->myfid;
@@ -6947,10 +6947,10 @@ void Dbacc::initScanOpRec(Signal* signal)
 
   Uint32 opbits = 0;
   opbits |= ZSCAN_OP;
-  opbits |= scanPtr.p->scanLockMode ? Operationrec::OP_LOCK_MODE : 0;
-  opbits |= scanPtr.p->scanLockMode ? Operationrec::OP_ACC_LOCK_MODE : 0;
-  opbits |= scanPtr.p->scanReadCommittedFlag ? 
-    Operationrec::OP_EXECUTED_DIRTY_READ : 0;
+  opbits |= scanPtr.p->scanLockMode ? (Uint32) Operationrec::OP_LOCK_MODE : 0;
+  opbits |= scanPtr.p->scanLockMode ? (Uint32) Operationrec::OP_ACC_LOCK_MODE : 0;
+  opbits |= (scanPtr.p->scanReadCommittedFlag ? 
+             (Uint32) Operationrec::OP_EXECUTED_DIRTY_READ : 0);
   opbits |= Operationrec::OP_COMMIT_DELETE_CHECK;
   operationRecPtr.p->userptr = RNIL;
   operationRecPtr.p->scanRecPtr = scanPtr.i;
@@ -7700,6 +7700,7 @@ void Dbacc::putOverflowRecInFrag(Signal* signal)
   OverflowRecordPtr tpifPrevOverrecPtr;
 
   tpifNextOverrecPtr.i = fragrecptr.p->firstOverflowRec;
+  LINT_INIT(tpifPrevOverrecPtr.p);
   tpifPrevOverrecPtr.i = RNIL;
   while (tpifNextOverrecPtr.i != RNIL) {
     ptrCheckGuard(tpifNextOverrecPtr, coverflowrecsize, overflowRecord);
@@ -7749,6 +7750,7 @@ void Dbacc::putRecInFreeOverdir(Signal* signal)
   OverflowRecordPtr tpfoPrevOverrecPtr;
 
   tpfoNextOverrecPtr.i = fragrecptr.p->firstFreeDirindexRec;
+  LINT_INIT(tpfoPrevOverrecPtr.p);
   tpfoPrevOverrecPtr.i = RNIL;
   while (tpfoNextOverrecPtr.i != RNIL) {
     ptrCheckGuard(tpfoNextOverrecPtr, coverflowrecsize, overflowRecord);

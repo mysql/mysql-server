@@ -830,7 +830,7 @@ MgmtSrvr::sendVersionReq(int v_nodeId, Uint32 &version, const char **address)
     case GSN_API_VERSION_CONF: {
       const ApiVersionConf * const conf = 
 	CAST_CONSTPTR(ApiVersionConf, signal->getDataPtr());
-      assert(conf->nodeId == v_nodeId);
+      assert((int) conf->nodeId == v_nodeId);
       version = conf->version;
       struct in_addr in;
       in.s_addr= conf->inet_addr;
@@ -1568,7 +1568,7 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId,
   NodeBitmask nodes;
   nodes.clear();
   Uint32 max = (nodeId == 0) ? (nodeId = 1, MAX_NDB_NODES) : nodeId;
-  for(; nodeId <= max; nodeId++)
+  for(; (Uint32) nodeId <= max; nodeId++)
   {
     if (nodeTypes[nodeId] != NODE_TYPE_DB)
       continue;
@@ -2075,8 +2075,8 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
                         int log_event)
 {
   DBUG_ENTER("MgmtSrvr::alloc_node_id");
-  DBUG_PRINT("enter", ("nodeid=%d, type=%d, client_addr=%d",
-		       *nodeId, type, client_addr));
+  DBUG_PRINT("enter", ("nodeid: %d  type: %d  client_addr: 0x%ld",
+		       *nodeId, type, (long) client_addr));
   if (g_no_nodeid_checks) {
     if (*nodeId == 0) {
       error_string.appfmt("no-nodeid-checks set in management server.\n"
@@ -2495,7 +2495,7 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted)
       const BackupCompleteRep * const rep = 
 	CAST_CONSTPTR(BackupCompleteRep, signal->getDataPtr());
 #ifdef VM_TRACE
-      ndbout_c("Backup(%d) completed %d", rep->backupId);
+      ndbout_c("Backup(%d) completed", rep->backupId);
 #endif
       event.Event = BackupEvent::BackupCompleted;
       event.Completed.BackupId = rep->backupId;
@@ -2751,7 +2751,7 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
       break;
     case 1:
       res = i2.set(param, val_64);
-      ndbout_c("Updating node %d param: %d to %Ld",  node, param, val_32);
+      ndbout_c("Updating node %d param: %d to %u",  node, param, val_32);
       break;
     case 2:
       res = i2.set(param, val_char);
