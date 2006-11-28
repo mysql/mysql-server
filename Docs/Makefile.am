@@ -45,22 +45,22 @@ CLEAN_FILES:		$(TXT_FILES)
 GT = $(srcdir)/generate-text-files.pl
 
 ../INSTALL-SOURCE:	mysql.info $(GT)
-	perl -w $(GT) mysql.info "installing-source" "windows-source-build" > $@
+	perl -w $(GT) $(srcdir)/mysql.info "installing-source" "windows-source-build" > $@
 
 ../INSTALL-WIN-SOURCE:	mysql.info $(GT)
-	perl -w $(GT) mysql.info "windows-source-build" "post-installation" > $@
+	perl -w $(GT) $(srcdir)/mysql.info "windows-source-build" "post-installation" > $@
 
 # We put the description for the binary installation here so that
 # people who download source wont have to see it. It is moved up to
 # the toplevel by the script that makes the binary tar files.
 INSTALL-BINARY:	mysql.info $(GT)
-	perl -w $(GT) mysql.info "installing-binary" "installing-source" > $@
+	perl -w $(GT) $(srcdir)/mysql.info "installing-binary" "installing-source" > $@
 
 ../EXCEPTIONS-CLIENT: mysql.info $(GT)
-	perl -w $(GT) mysql.info "mysql-floss-license-exception" "function-index" > $@
+	perl -w $(GT) $(srcdir)/mysql.info "mysql-floss-license-exception" "function-index" > $@
 
 ../support-files/MacOSX/ReadMe.txt:	mysql.info $(GT)
-	perl -w $(GT) mysql.info "mac-os-x-installation" "netware-installation" > $@
+	perl -w $(GT) $(srcdir)/mysql.info "mac-os-x-installation" "netware-installation" > $@
 
 # Include the Windows manual.chm in source .tar.gz only if available.
 # It is not in BitKeeper, but is downloaded from intranet by Bootstrap.
