@@ -16,7 +16,7 @@ Variable_name	Value
 init_slave	
 show variables like 'max_connections';
 Variable_name	Value
-max_connections	100
+max_connections	151
 set @my_global_init_connect= @@global.init_connect;
 set global init_connect="set @c=1";
 show variables like 'init_connect';
