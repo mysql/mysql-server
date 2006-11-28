@@ -2175,12 +2175,6 @@ void Item_string::print(String *str)
 }
 
 
-inline bool check_if_only_end_space(CHARSET_INFO *cs, char *str, char *end)
-{
-  return str+ cs->cset->scan(cs, str, end, MY_SEQ_SPACES) == end;
-}
-
-
 double Item_string::val_real()
 {
   DBUG_ASSERT(fixed == 1);
@@ -4764,6 +4758,22 @@ bool Item_field::send(Protocol *protocol, String *buffer)
 }
 
 
+void Item_field::update_null_value() 
+{ 
+  /* 
+    need to set no_errors to prevent warnings about type conversion 
+    popping up.
+  */
+  THD *thd= field->table->in_use;
+  int no_errors;
+
+  no_errors= thd->no_errors;
+  thd->no_errors= 1;
+  Item::update_null_value();
+  thd->no_errors= no_errors;
+}
+
+
 Item_ref::Item_ref(Name_resolution_context *context_arg,
                    Item **item, const char *table_name_arg,
                    const char *field_name_arg)
@@ -6120,7 +6130,7 @@ bool Item_cache_row::null_inside()
     }
     else
     {
-      values[i]->val_int();
+      values[i]->update_null_value();
       if (values[i]->null_value)
 	return 1;
     }
