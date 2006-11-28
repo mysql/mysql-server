@@ -111,7 +111,7 @@ SET @@autocommit=1;
 
 connection default;
 --echo connection default
--- This should be 'YES'.
+# This should be 'YES'.
 SHOW VARIABLES LIKE 'have_query_cache';
 
 SET GLOBAL query_cache_size = 200000;

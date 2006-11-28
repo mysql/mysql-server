@@ -23,7 +23,7 @@ reset master;
 alter table t2 add column (b int);
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin1.000001	#	Query	#	#	use `test`; alter table t2 add column (b int)
+master-bin.000001	#	Query	#	#	use `test`; alter table t2 add column (b int)
 reset master;
 reset master;
 ALTER DATABASE mysqltest CHARACTER SET latin1;
