@@ -188,19 +188,25 @@ int my_strnncollsp_simple(CHARSET_INFO * cs, const uchar *a, uint a_length,
 }
 
 
-void my_caseup_str_8bit(CHARSET_INFO * cs,char *str)
+uint my_caseup_str_8bit(CHARSET_INFO * cs,char *str)
 {
-  register uchar *map=cs->to_upper;
-  while ((*str = (char) map[(uchar) *str]) != 0)
+  register uchar *map= cs->to_upper;
+  char *str_orig= str;
+  while ((*str= (char) map[(uchar) *str]) != 0)
     str++;
+  return str - str_orig;
 }
 
-void my_casedn_str_8bit(CHARSET_INFO * cs,char *str)
+
+uint my_casedn_str_8bit(CHARSET_INFO * cs,char *str)
 {
-  register uchar *map=cs->to_lower;
-  while ((*str = (char) map[(uchar)*str]) != 0)
+  register uchar *map= cs->to_lower;
+  char *str_orig= str;
+  while ((*str= (char) map[(uchar) *str]) != 0)
     str++;
+  return str - str_orig;
 }
+
 
 uint my_caseup_8bit(CHARSET_INFO * cs, char *src, uint srclen,
                     char *dst __attribute__((unused)),

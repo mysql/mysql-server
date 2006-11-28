@@ -96,6 +96,17 @@ extern CHARSET_INFO *system_charset_info, *files_charset_info ;
 extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 
 
+enum Derivation
+{
+  DERIVATION_IGNORABLE= 5,
+  DERIVATION_COERCIBLE= 4,
+  DERIVATION_SYSCONST= 3,
+  DERIVATION_IMPLICIT= 2,
+  DERIVATION_NONE= 1,
+  DERIVATION_EXPLICIT= 0
+};
+
+
 typedef struct my_locale_st
 {
   const char *name;
@@ -1472,7 +1483,7 @@ void end_read_record(READ_RECORD *info);
 ha_rows filesort(THD *thd, TABLE *form,struct st_sort_field *sortorder,
 		 uint s_length, SQL_SELECT *select,
 		 ha_rows max_rows, ha_rows *examined_rows);
-void filesort_free_buffers(TABLE *table);
+void filesort_free_buffers(TABLE *table, bool full);
 void change_double_for_sort(double nr,byte *to);
 double my_double_round(double value, int dec, bool truncate);
 int get_quick_record(SQL_SELECT *select);

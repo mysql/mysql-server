@@ -129,5 +129,6 @@ test-force-mem:
 	./mysql-test-run --force --mem && \
 	./mysql-test-run --ps-protocol --force --mem
 
+#used by autopush.pl to run memory based tests
 
 

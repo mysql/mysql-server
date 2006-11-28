@@ -1491,6 +1491,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->file->ft_handler= 0;
   if (table->timestamp_field)
     table->timestamp_field_type= table->timestamp_field->get_auto_set_type();
+  table->pos_in_table_list= table_list;
   table_list->updatable= 1; // It is not derived table nor non-updatable VIEW
   DBUG_ASSERT(table->key_read == 0);
   DBUG_RETURN(table);
@@ -2775,6 +2776,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
     if (thd->slave_thread)
       slave_open_temp_tables++;
   }
+  tmp_table->pos_in_table_list= 0;
   DBUG_RETURN(tmp_table);
 }
 

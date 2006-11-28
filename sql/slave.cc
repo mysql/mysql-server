@@ -247,7 +247,7 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,
                        bool look_for_description_event)
 {
   DBUG_ENTER("init_relay_log_pos");
-  DBUG_PRINT("info", ("pos=%lu", pos));
+  DBUG_PRINT("info", ("pos: %lu", (long) pos));
 
   *errmsg=0;
   pthread_mutex_t *log_lock=rli->relay_log.get_log_lock();
@@ -2895,6 +2895,13 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
     SYSTEM_THREAD_SLAVE_SQL : SYSTEM_THREAD_SLAVE_IO; 
   thd->security_ctx->skip_grants();
   my_net_init(&thd->net, 0);
+/*
+  Adding MAX_LOG_EVENT_HEADER_LEN to the max_allowed_packet on all
+  slave threads, since a replication event can become this much larger
+  than the corresponding packet (query) sent from client to master.
+*/
+  thd->variables.max_allowed_packet= global_system_variables.max_allowed_packet
+    + MAX_LOG_EVENT_HEADER;  /* note, incr over the global not session var */
   thd->net.read_timeout = slave_net_timeout;
   thd->slave_thread = 1;
   set_slave_thread_options(thd);
@@ -3080,7 +3087,7 @@ static ulong read_event(MYSQL* mysql, MASTER_INFO *mi, bool* suppress_warnings)
      return packet_error;
   }
   
-  DBUG_PRINT("info",( "len=%u, net->read_pos[4] = %d\n",
+  DBUG_PRINT("info",( "len: %lu  net->read_pos[4]: %d\n",
 		      len, mysql->net.read_pos[4]));
   return len - 1;   
 }
@@ -3347,9 +3354,9 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
         const char *errmsg;
         /*
           We were in a transaction which has been rolled back because of a
-          deadlock (currently, InnoDB deadlock detected by InnoDB) or lock
-          wait timeout (innodb_lock_wait_timeout exceeded); let's seek back to
-          BEGIN log event and retry it all again.
+        Sonera  deadlock. if lock wait timeout (innodb_lock_wait_timeout exceeded)
+	  there is no rollback since 5.0.13 (ref: manual).
+	  let's seek back to BEGIN log event and retry it all again.
           We have to not only seek but also
           a) init_master_info(), to seek back to hot relay log's start for later
           (for when we will come back to this hot log after re-processing the
@@ -3371,6 +3378,7 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
           else
           {
             exec_res= 0;
+	    end_trans(thd, ROLLBACK);
 	    /* chance for concurrent connection to get more locks */
             safe_sleep(thd, min(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
 		       (CHECK_KILLED_FUNC)sql_slave_killed, (void*)rli);
@@ -3388,9 +3396,17 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
                           "the slave_transaction_retries variable.",
                           slave_trans_retries);
       }
-      if (!((thd->options & OPTION_BEGIN) && opt_using_transactions))
-         rli->trans_retries= 0; // restart from fresh
-     }
+      else if (!((thd->options & OPTION_BEGIN) && opt_using_transactions))
+      {
+        /*
+          Only reset the retry counter if the event succeeded or
+          failed with a non-transient error.  On a successful event,
+          the execution will proceed as usual; in the case of a
+          non-transient error, the slave will stop with an error.
+	*/
+        rli->trans_retries= 0; // restart from fresh
+      }
+    }
     return exec_res;
   }
   else
@@ -3474,11 +3490,19 @@ slave_begin:
   thd->proc_info = "Connecting to master";
   // we can get killed during safe_connect
   if (!safe_connect(thd, mysql, mi))
+  {
     sql_print_information("Slave I/O thread: connected to master '%s@%s:%d',\
   replication started in log '%s' at position %s", mi->user,
-		    mi->host, mi->port,
-		    IO_RPL_LOG_NAME,
-		    llstr(mi->master_log_pos,llbuff));
+			  mi->host, mi->port,
+			  IO_RPL_LOG_NAME,
+			  llstr(mi->master_log_pos,llbuff));
+  /*
+    Adding MAX_LOG_EVENT_HEADER_LEN to the max_packet_size on the I/O
+    thread, since a replication event can become this much larger than
+    the corresponding packet (query) sent from client to master.
+  */
+    mysql->net.max_packet_size= thd->net.max_packet_size+= MAX_LOG_EVENT_HEADER;
+  }
   else
   {
     sql_print_information("Slave I/O thread killed while connecting to master");
@@ -4116,7 +4140,7 @@ static int process_io_rotate(MASTER_INFO *mi, Rotate_log_event *rev)
   /* Safe copy as 'rev' has been "sanitized" in Rotate_log_event's ctor */
   memcpy(mi->master_log_name, rev->new_log_ident, rev->ident_len+1);
   mi->master_log_pos= rev->pos;
-  DBUG_PRINT("info", ("master_log_pos: '%s' %d",
+  DBUG_PRINT("info", ("master_log_pos: '%s' %lu",
 		      mi->master_log_name, (ulong) mi->master_log_pos));
 #ifndef DBUG_OFF
   /*
@@ -4233,7 +4257,7 @@ static int queue_binlog_ver_1_event(MASTER_INFO *mi, const char *buf,
     int error = process_io_create_file(mi,(Create_file_log_event*)ev);
     delete ev;
     mi->master_log_pos += inc_pos;
-    DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
+    DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
     pthread_mutex_unlock(&mi->data_lock);
     my_free((char*)tmp_buf, MYF(0));
     DBUG_RETURN(error);
@@ -4260,7 +4284,7 @@ static int queue_binlog_ver_1_event(MASTER_INFO *mi, const char *buf,
   }
   delete ev;
   mi->master_log_pos+= inc_pos;
-  DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
+  DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
   pthread_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(0);
 }
@@ -4316,7 +4340,7 @@ static int queue_binlog_ver_3_event(MASTER_INFO *mi, const char *buf,
   delete ev;
   mi->master_log_pos+= inc_pos;
 err:
-  DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
+  DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
   pthread_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(0);
 }
@@ -4486,7 +4510,8 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
       rli->ign_master_log_pos_end= mi->master_log_pos;
     }
     rli->relay_log.signal_update(); // the slave SQL thread needs to re-check
-    DBUG_PRINT("info", ("master_log_pos: %d, event originating from the same server, ignored", (ulong) mi->master_log_pos));
+    DBUG_PRINT("info", ("master_log_pos: %lu  event originating from the same server, ignored",
+                        (ulong) mi->master_log_pos));
   }  
   else
   {
@@ -4494,7 +4519,7 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
     if (likely(!(rli->relay_log.appendv(buf,event_len,0))))
     {
       mi->master_log_pos+= inc_pos;
-      DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
+      DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
     }
     else
