@@ -610,9 +610,9 @@ buf_block_init(
 	block->index = NULL;
 
 	block->in_free_list = FALSE;
-	block->in_LRU_list = FALSE;
 
 #ifdef UNIV_DEBUG
+	block->in_LRU_list = FALSE;
 	block->n_pointers = 0;
 #endif /* UNIV_DEBUG */
 	page_zip_des_init(&block->page.zip);
@@ -791,7 +791,7 @@ buf_chunk_free(
 		ut_a(buf_block_get_state(block) == BUF_BLOCK_NOT_USED);
 		ut_a(!block->page.zip.data);
 
-		ut_a(!block->in_LRU_list);
+		ut_ad(!block->in_LRU_list);
 		/* Remove the block from the free list. */
 		ut_a(block->in_free_list);
 		UT_LIST_REMOVE(free, buf_pool->free, block);
