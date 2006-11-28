@@ -66,7 +66,6 @@ use IO::Socket::INET;
 use Data::Dumper;
 use strict;
 use warnings;
-use diagnostics;
 
 select(STDOUT);
 $| = 1; # Automatically flush STDOUT
@@ -1976,19 +1975,6 @@ sub kill_running_servers () {
     # This is different from terminating processes we have
     # started from this run of the script, this is terminating
     # leftovers from previous runs.
-
-    if ( ! -d $opt_vardir )
-    {
-      if ( -l $opt_vardir and ! -d readlink($opt_vardir) )
-      {
-	mtr_report("Removing $opt_vardir symlink without destination");
-	unlink($opt_vardir);
-      }
-      # The "var" dir does not exist already
-      # the processes that mtr_kill_leftovers start will write
-      # their log files to var/log so it should be created
-      mkpath("$opt_vardir/log");
-    }
     mtr_kill_leftovers();
    }
 }
