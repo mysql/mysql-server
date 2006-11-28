@@ -154,8 +154,7 @@ rl_digit_loop ()
 
 /* Add the current digit to the argument in progress. */
 int
-rl_digit_argument (ignore, key)
-     int ignore, key;
+rl_digit_argument (int ignore __attribute__((unused)), int key)
 {
   rl_execute_next (key);
   return (rl_digit_loop ());
@@ -184,8 +183,8 @@ _rl_init_argument ()
    Read a key.  If the key has nothing to do with arguments, then
    dispatch on it.  If the key is the abort character then abort. */
 int
-rl_universal_argument (count, key)
-     int count, key;
+rl_universal_argument (int count __attribute__((unused)),
+                       int key  __attribute__((unused)))
 {
   rl_numeric_arg *= 4;
   return (rl_digit_loop ());
@@ -314,9 +313,7 @@ _rl_history_set_point ()
 }
 
 void
-rl_replace_from_history (entry, flags)
-     HIST_ENTRY *entry;
-     int flags;			/* currently unused */
+rl_replace_from_history (HIST_ENTRY *entry, int flags __attribute__((unused)))
 {
   /* Can't call with `1' because rl_undo_list might point to an undo list
      from a history entry, just like we're setting up here. */
@@ -342,16 +339,15 @@ rl_replace_from_history (entry, flags)
 
 /* Meta-< goes to the start of the history. */
 int
-rl_beginning_of_history (count, key)
-     int count, key;
+rl_beginning_of_history (int count __attribute__((unused)), int key)
 {
   return (rl_get_previous_history (1 + where_history (), key));
 }
 
 /* Meta-> goes to the end of the history.  (The current line). */
 int
-rl_end_of_history (count, key)
-     int count, key;
+rl_end_of_history (int count __attribute__((unused)),
+                   int key __attribute__((unused)))
 {
   rl_maybe_replace_line ();
   using_history ();
@@ -455,8 +451,7 @@ rl_get_previous_history (count, key)
 /* **************************************************************** */
 /* How to toggle back and forth between editing modes. */
 int
-rl_vi_editing_mode (count, key)
-     int count, key;
+rl_vi_editing_mode (int count __attribute__((unused)), int key)
 {
 #if defined (VI_MODE)
   _rl_set_insert_mode (RL_IM_INSERT, 1);	/* vi mode ignores insert mode */
@@ -468,8 +463,8 @@ rl_vi_editing_mode (count, key)
 }
 
 int
-rl_emacs_editing_mode (count, key)
-     int count, key;
+rl_emacs_editing_mode (int count __attribute__((unused)),
+                       int key __attribute__((unused)))
 {
   rl_editing_mode = emacs_mode;
   _rl_set_insert_mode (RL_IM_INSERT, 1); /* emacs mode default is insert mode */
@@ -479,8 +474,7 @@ rl_emacs_editing_mode (count, key)
 
 /* Function for the rest of the library to use to set insert/overwrite mode. */
 void
-_rl_set_insert_mode (im, force)
-     int im, force;
+_rl_set_insert_mode (int im, int force __attribute__((unused)))
 {
 #ifdef CURSOR_MODE
   _rl_set_cursor (im, force);
@@ -492,8 +486,7 @@ _rl_set_insert_mode (im, force)
 /* Toggle overwrite mode.  A positive explicit argument selects overwrite
    mode.  A negative or zero explicit argument selects insert mode. */
 int
-rl_overwrite_mode (count, key)
-     int count, key;
+rl_overwrite_mode (int count, int key __attribute__((unused)))
 {
   if (rl_explicit_arg == 0)
     _rl_set_insert_mode (rl_insert_mode ^ 1, 0);

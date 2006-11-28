@@ -355,8 +355,9 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
 
     {
       NdbTransaction *trans= startTransactionLocal(0, nodeId);
-      DBUG_PRINT("exit",("start trans: 0x%x transid: 0x%llx",
-			 trans, trans ? trans->getTransactionId() : 0));
+      DBUG_PRINT("exit",("start trans: 0x%lx  transid: 0x%lx",
+			 (long) trans,
+                         (long) (trans ? trans->getTransactionId() : 0)));
       DBUG_RETURN(trans);
     }
   } else {
@@ -377,7 +378,7 @@ Ndb::hupp(NdbTransaction* pBuddyTrans)
 {
   DBUG_ENTER("Ndb::hupp");
 
-  DBUG_PRINT("enter", ("trans: 0x%x",pBuddyTrans));
+  DBUG_PRINT("enter", ("trans: 0x%lx", (long) pBuddyTrans));
 
   Uint32 aPriority = 0;
   if (pBuddyTrans == NULL){
@@ -402,8 +403,9 @@ Ndb::hupp(NdbTransaction* pBuddyTrans)
     }
     pCon->setTransactionId(pBuddyTrans->getTransactionId());
     pCon->setBuddyConPtr((Uint32)pBuddyTrans->getTC_ConnectPtr());
-    DBUG_PRINT("exit", ("hupp trans: 0x%x transid: 0x%llx",
-			pCon, pCon ? pCon->getTransactionId() : 0));
+    DBUG_PRINT("exit", ("hupp trans: 0x%lx transid: 0x%lx",
+                        (long) pCon,
+                        (long) (pCon ? pCon->getTransactionId() : 0)));
     DBUG_RETURN(pCon);
   } else {
     DBUG_RETURN(NULL);
@@ -490,8 +492,9 @@ Ndb::closeTransaction(NdbTransaction* aConnection)
   tCon = theTransactionList;
   theRemainingStartTransactions++;
   
-  DBUG_PRINT("info",("close trans: 0x%x transid: 0x%llx",
-		     aConnection, aConnection->getTransactionId()));
+  DBUG_PRINT("info",("close trans: 0x%lx  transid: 0x%lx",
+                     (long) aConnection,
+                     (long) aConnection->getTransactionId()));
   DBUG_PRINT("info",("magic number: 0x%x TCConPtr: 0x%x theMyRef: 0x%x 0x%x",
 		     aConnection->theMagicNumber, aConnection->theTCConPtr,
 		     aConnection->theMyRef, getReference()));

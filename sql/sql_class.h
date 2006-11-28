@@ -1102,6 +1102,12 @@ public:
   struct st_mysql_data **data_tail;
   void clear_data_list();
   struct st_mysql_data *alloc_new_dataset();
+  /*
+    In embedded server it points to the statement that is processed
+    in the current query. We store some results directly in statement
+    fields then.
+  */
+  struct st_mysql_stmt *current_stmt;
 #endif
   NET	  net;				// client connection descriptor
   MEM_ROOT warn_root;			// For warnings and errors
@@ -2084,7 +2090,7 @@ public:
   inline bool unique_add(void *ptr)
   {
     DBUG_ENTER("unique_add");
-    DBUG_PRINT("info", ("tree %u - %u", tree.elements_in_tree, max_elements));
+    DBUG_PRINT("info", ("tree %u - %lu", tree.elements_in_tree, max_elements));
     if (tree.elements_in_tree > max_elements && flush())
       DBUG_RETURN(1);
     DBUG_RETURN(!tree_insert(&tree, ptr, 0, tree.custom_arg));

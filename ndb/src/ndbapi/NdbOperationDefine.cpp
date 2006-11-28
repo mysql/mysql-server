@@ -407,10 +407,10 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
 			const char* aValuePassed, Uint32 len)
 {
   DBUG_ENTER("NdbOperation::setValue");
-  DBUG_PRINT("enter", ("col=%s op=%d val=0x%x len=%u",
+  DBUG_PRINT("enter", ("col: %s  op: %d  val: 0x%lx  len: %u",
                        tAttrInfo->m_name.c_str(),
                        theOperationType,
-                       aValuePassed, len));
+                       (long) aValuePassed, len));
   if (aValuePassed != NULL)
     DBUG_DUMP("value", (char*)aValuePassed, len);
 

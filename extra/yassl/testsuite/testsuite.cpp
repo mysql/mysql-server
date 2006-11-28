@@ -86,8 +86,8 @@ int main(int argc, char** argv)
             // input output compare
     byte input[TaoCrypt::MD5::DIGEST_SIZE];
     byte output[TaoCrypt::MD5::DIGEST_SIZE];
-    file_test("input", input);
-    file_test("output", output);
+    file_test((char*) "input", input);
+    file_test((char*) "output", output);
     assert(memcmp(input, output, sizeof(input)) == 0);
 
     printf("\nAll tests passed!\n");

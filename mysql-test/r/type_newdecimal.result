@@ -1410,3 +1410,16 @@ i2	count(distinct j)
 1.0	2
 2.0	2
 drop table t1;
+create table t1(f1 decimal(20,6));
+insert into t1 values (CAST('10:11:12' AS date) + interval 14 microsecond);
+insert into t1 values (CAST('10:11:12' AS time));
+select * from t1;
+f1
+20101112000000.000014
+101112.000000
+drop table t1;
+select cast(19999999999999999999 as unsigned);
+cast(19999999999999999999 as unsigned)
+18446744073709551615
+Warnings:
+Error	1292	Truncated incorrect DECIMAL value: ''

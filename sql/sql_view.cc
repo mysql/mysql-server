@@ -563,7 +563,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       LEX_STRING *name;
       int i;
 
-      for (i= 0; name= names++; i++)
+      for (i= 0; (name= names++); i++)
       {
         buff.append(i ? ", " : "(");
         append_identifier(thd, &buff, name->str, name->length);
