@@ -208,7 +208,7 @@ buf_LRU_free_block(
 	ut_ad(mutex_own(&block->mutex));
 #endif /* UNIV_SYNC_DEBUG */
 
-	ut_a(block->in_LRU_list);
+	ut_ad(block->in_LRU_list);
 
 	if (!buf_flush_ready_for_replace(block)) {
 
@@ -444,7 +444,7 @@ loop:
 		UT_LIST_REMOVE(free, buf_pool->free, block);
 		block->in_free_list = FALSE;
 		ut_a(buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE);
-		ut_a(!block->in_LRU_list);
+		ut_ad(!block->in_LRU_list);
 
 		if (buf_block_get_zip_size(block) != zip_size) {
 			page_zip_set_size(&block->page.zip, zip_size);
@@ -576,7 +576,7 @@ buf_LRU_old_adjust_len(void)
 		old_len = buf_pool->LRU_old_len;
 		new_len = 3 * (UT_LIST_GET_LEN(buf_pool->LRU) / 8);
 
-		ut_a(buf_pool->LRU_old->in_LRU_list);
+		ut_ad(buf_pool->LRU_old->in_LRU_list);
 
 		/* Update the LRU_old pointer if necessary */
 
@@ -621,7 +621,7 @@ buf_LRU_old_init(void)
 
 	while (block != NULL) {
 		ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-		ut_a(block->in_LRU_list);
+		ut_ad(block->in_LRU_list);
 		block->old = TRUE;
 		block = UT_LIST_GET_NEXT(LRU, block);
 	}
@@ -647,7 +647,7 @@ buf_LRU_remove_block(
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-	ut_a(block->in_LRU_list);
+	ut_ad(block->in_LRU_list);
 
 	/* If the LRU_old pointer is defined and points to just this block,
 	move it backward one step */
@@ -667,7 +667,9 @@ buf_LRU_remove_block(
 
 	/* Remove the block from the LRU list */
 	UT_LIST_REMOVE(LRU, buf_pool->LRU, block);
+#ifdef UNIV_DEBUG
 	block->in_LRU_list = FALSE;
+#endif /* UNIV_DEBUG */
 
 	/* If the LRU list is so short that LRU_old not defined, return */
 	if (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN) {
@@ -717,9 +719,11 @@ buf_LRU_add_block_to_end_low(
 		block->LRU_position = buf_pool_clock_tic();
 	}
 
-	ut_a(!block->in_LRU_list);
+	ut_ad(!block->in_LRU_list);
 	UT_LIST_ADD_LAST(LRU, buf_pool->LRU, block);
+#ifdef UNIV_DEBUG
 	block->in_LRU_list = TRUE;
+#endif /* UNIV_DEBUG */
 
 	if (UT_LIST_GET_LEN(buf_pool->LRU) >= BUF_LRU_OLD_MIN_LEN) {
 
@@ -764,7 +768,7 @@ buf_LRU_add_block_low(
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-	ut_a(!block->in_LRU_list);
+	ut_ad(!block->in_LRU_list);
 
 	block->old = old;
 	cl = buf_pool_clock_tic();
@@ -786,7 +790,9 @@ buf_LRU_add_block_low(
 		block->LRU_position = (buf_pool->LRU_old)->LRU_position;
 	}
 
+#ifdef UNIV_DEBUG
 	block->in_LRU_list = TRUE;
+#endif /* UNIV_DEBUG */
 
 	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
 

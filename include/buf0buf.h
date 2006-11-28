@@ -794,8 +794,10 @@ struct buf_block_struct{
 					debugging */
 	UT_LIST_NODE_T(buf_block_t) LRU;
 					/* node of the LRU list */
+#ifdef UNIV_DEBUG
 	ibool		in_LRU_list;	/* TRUE of the page is in the LRU list;
 					used in debugging */
+#endif /* UNIV_DEBUG */
 	ulint		LRU_position;	/* value which monotonically
 					decreases (or may stay constant if
 					the block is in the old blocks) toward
