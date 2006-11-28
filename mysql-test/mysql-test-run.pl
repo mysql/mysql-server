@@ -66,7 +66,6 @@ use IO::Socket::INET;
 use Data::Dumper;
 use strict;
 use warnings;
-use diagnostics;
 
 select(STDOUT);
 $| = 1; # Automatically flush STDOUT
