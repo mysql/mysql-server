@@ -308,7 +308,7 @@ our %mysqld_variables;
 sub main ();
 sub initial_setup ();
 sub command_line_setup ();
-sub datadir_setup ();
+sub datadir_list_setup ();
 sub executable_setup ();
 sub environment_setup ();
 sub kill_running_servers ();
@@ -1185,7 +1185,7 @@ sub command_line_setup () {
   $path_snapshot= "$opt_tmpdir/snapshot_$opt_master_myport/";
 }
 
-sub datadir_setup () {
+sub datadir_list_setup () {
 
   # Make a list of all data_dirs
   @data_dir_lst = (
@@ -2534,7 +2534,7 @@ sub run_suite () {
 
 sub initialize_servers () {
 
-  datadir_setup();
+  datadir_list_setup();
 
   if ( $opt_extern )
   {
