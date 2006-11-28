@@ -686,6 +686,12 @@ public:
   char *extra_data;
   ulong extra_length;
   String query_rest;
+  /*
+    In embedded server it points to the statement that is processed
+    in the current query. We store some results directly in statement
+    fields then.
+  */
+  struct st_mysql_stmt *current_stmt;
 #endif
   NET	  net;				// client connection descriptor
   MEM_ROOT warn_root;			// For warnings and errors

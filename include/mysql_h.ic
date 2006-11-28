@@ -154,7 +154,6 @@ struct __attribute__((aligned(__alignof__(void *)), aligned(__alignof__(unsigned
     struct st_mysql_methods const * methods;
     void * thd;
     my_bool * unbuffered_fetch_owner;
-    struct st_mysql_stmt * current_stmt;
   };
 # 571 "mysql.h"
 struct __attribute__((aligned(__alignof__(void *)), aligned(__alignof__(unsigned long int)))) st_mysql_bind
