@@ -3542,6 +3542,12 @@ sub mysqld_arguments ($$$$$) {
 	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
       }
     }
+
+    if ( $mysql_version_id <= 50106 )
+    {
+      # Force mysqld to use log files up until 5.1.6
+      mtr_add_arg($args, "%s--log=%s", $prefix, $master->[0]->{'path_mylog'});
+    }
   }
 
   if ( $type eq 'slave' )
@@ -3559,8 +3565,6 @@ sub mysqld_arguments ($$$$$) {
       mtr_add_arg($args, "%s--log-slave-updates", $prefix);
     }
 
-    mtr_add_arg($args, "%s--log=%s", $prefix,
-                $slave->[$idx]->{'path_mylog'});
     mtr_add_arg($args, "%s--master-retry-count=10", $prefix);
     mtr_add_arg($args, "%s--pid-file=%s", $prefix,
                 $slave->[$idx]->{'path_pid'});
@@ -3621,6 +3625,13 @@ sub mysqld_arguments ($$$$$) {
 	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
       }
     }
+
+    if ( $mysql_version_id <= 50106 )
+    {
+      # Force mysqld to use log files up until 5.1.6
+      mtr_add_arg($args, "%s--log=%s", $prefix, $master->[0]->{'path_mylog'});
+    }
+
   } # end slave
 
   if ( $opt_debug )
@@ -3697,7 +3708,6 @@ sub mysqld_arguments ($$$$$) {
   elsif ( $type eq 'master' )
   {
     mtr_add_arg($args, "%s--open-files-limit=1024", $prefix);
-    mtr_add_arg($args, "%s--log=%s", $prefix, $master->[0]->{'path_mylog'});
   }
 
   return $args;
