@@ -494,16 +494,9 @@ db_create_routine(THD *thd, int type, sp_head *sp)
   char definer[USER_HOST_BUFF_SIZE];
   char old_db_buf[NAME_LEN+1];
   LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
-  bool dbchanged;
   DBUG_ENTER("db_create_routine");
   DBUG_PRINT("enter", ("type: %d name: %.*s",type,sp->m_name.length,
                        sp->m_name.str));
-
-  if ((ret= sp_use_new_db(thd, sp->m_db, &old_db, 0, &dbchanged)))
-  {
-    ret= SP_NO_DB_ERROR;
-    goto done;
-  }
 
   if (!(table= open_proc_table_for_update(thd)))
     ret= SP_OPEN_TABLE_FAILED;
@@ -629,8 +622,6 @@ db_create_routine(THD *thd, int type, sp_head *sp)
 
 done:
   close_thread_tables(thd);
-  if (dbchanged)
-    (void) mysql_change_db(thd, old_db.str, 1);
   DBUG_RETURN(ret);
 }
 
