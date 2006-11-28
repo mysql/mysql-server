@@ -119,7 +119,7 @@ public:
   int  executeStatus(int processId, const char* parameters, bool all);
   int  executeEventReporting(int processId, const char* parameters, bool all);
   int  executeDumpState(int processId, const char* parameters, bool all);
-  int  executeStartBackup(char * parameters);
+  int  executeStartBackup(char * parameters, bool interactive);
   int  executeAbortBackup(char * parameters);
   int  executeStop(Vector<BaseString> &command_list, unsigned command_pos,
                    int *node_ids, int no_of_nodes);
@@ -991,7 +991,7 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
   else if(strcasecmp(firstToken, "START") == 0 &&
 	  allAfterFirstToken != NULL &&
 	  strncasecmp(allAfterFirstToken, "BACKUP", sizeof("BACKUP") - 1) == 0){
-    m_error= executeStartBackup(allAfterFirstToken);
+    m_error= executeStartBackup(allAfterFirstToken, interactive);
     DBUG_RETURN(true);
   }
   else if(strcasecmp(firstToken, "ABORT") == 0 &&
@@ -2442,24 +2442,17 @@ CommandInterpreter::executeEventReporting(int processId,
   return retval;
 }
 
+
 /*****************************************************************************
  * Backup
  *****************************************************************************/
 int
-CommandInterpreter::executeStartBackup(char* parameters)
+CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
 {
   struct ndb_mgm_reply reply;
   unsigned int backupId;
-#if 0
-  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP, 0 };
-  int fd = ndb_mgm_listen_event(m_mgmsrv, filter);
-  if (fd < 0)
-  {
-    ndbout << "Initializing start of backup failed" << endl;
-    printError();
-    return fd;
-  }
-#endif
+  int fd = -1;
+  
   Vector<BaseString> args;
   {
     BaseString(parameters).split(args);
@@ -2472,25 +2465,21 @@ CommandInterpreter::executeStartBackup(char* parameters)
   int sz= args.size();
 
   int result;
-  if (sz == 2 &&
-      args[1] == "NOWAIT")
+  int flags = 2;
+  if (sz == 2 && args[1] == "NOWAIT")
   {
+    flags = 0;
     result = ndb_mgm_start_backup(m_mgmsrv, 0, &backupId, &reply);
   }
-  else if (sz == 1 ||
-	   (sz == 3 &&
-	    args[1] == "WAIT" &&
-	    args[2] == "COMPLETED"))
+  else if (sz == 1 || (sz == 3 && args[1] == "WAIT" && args[2] == "COMPLETED"))
   {
+    flags = 2;
     ndbout_c("Waiting for completed, this may take several minutes");
-    result = ndb_mgm_start_backup(m_mgmsrv, 2, &backupId, &reply);
   }
-  else if (sz == 3 &&
-	   args[1] == "WAIT" &&
-	   args[2] == "STARTED")
+  else if (sz == 3 && args[1] == "WAIT" && args[2] == "STARTED")
   {
     ndbout_c("Waiting for started, this may take several minutes");
-    result = ndb_mgm_start_backup(m_mgmsrv, 1, &backupId, &reply);
+    flags = 1;
   }
   else
   {
@@ -2498,45 +2487,63 @@ CommandInterpreter::executeStartBackup(char* parameters)
     return -1;
   }
 
+  /**
+   * If interactive...event listner is already running
+   */
+  if (flags == 2 && !interactive)
+  {
+    int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP, 0, 0 };
+    fd = ndb_mgm_listen_event(m_mgmsrv, filter);
+    if (fd < 0)
+    {
+      ndbout << "Initializing start of backup failed" << endl;
+      printError();
+      return fd;
+    }
+  }
+  result = ndb_mgm_start_backup(m_mgmsrv, flags, &backupId, &reply);
+
   if (result != 0) {
     ndbout << "Backup failed" << endl;
     printError();
-#if 0
-    close(fd);
-#endif
+
+    if (fd >= 0) 
+      close(fd);
     return result;
   }
-#if 0
-  ndbout_c("Waiting for completed, this may take several minutes");
-  char *tmp;
-  char buf[1024];
+
+  if (fd >= 0)
   {
-    SocketInputStream in(fd);
-    int count = 0;
+    char *tmp;
+    char buf[1024];
+    {
+      SocketInputStream in(fd);
+      int count = 0;
+      do {
+	tmp = in.gets(buf, 1024);
+	if(tmp)
+	{
+	  ndbout << tmp;
+	  unsigned int id;
+	  if(sscanf(tmp, "%*[^:]: Backup %d ", &id) == 1 && id == backupId){
+	    count++;
+	  }
+	}
+      } while(count < 2);
+    }
+    
+    SocketInputStream in(fd, 10);
     do {
       tmp = in.gets(buf, 1024);
-      if(tmp)
+      if(tmp && tmp[0] != 0)
       {
 	ndbout << tmp;
-	unsigned int id;
-	if(sscanf(tmp, "%*[^:]: Backup %d ", &id) == 1 && id == backupId){
-	  count++;
-	}
       }
-    } while(count < 2);
+    } while(tmp && tmp[0] != 0);
+    
+    close(fd);
   }
 
-  SocketInputStream in(fd, 10);
-  do {
-    tmp = in.gets(buf, 1024);
-    if(tmp && tmp[0] != 0)
-    {
-      ndbout << tmp;
-    }
-  } while(tmp && tmp[0] != 0);
-
-  close(fd);
-#endif  
   return 0;
 }
 

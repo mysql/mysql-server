@@ -131,15 +131,6 @@ SignalSender::getNoOfConnectedNodes() const {
   return theFacade->theClusterMgr->getNoOfConnectedNodes();
 }
 
-SendStatus
-SignalSender::sendSignal(Uint16 nodeId, const SimpleSignal * s){
-  return theFacade->theTransporterRegistry->prepareSend(&s->header,
-							1, // JBB
-							&s->theData[0],
-							nodeId, 
-							&s->ptr[0]);
-}
-
 template<class T>
 SimpleSignal *
 SignalSender::waitFor(Uint32 timeOutMillis, T & t)
