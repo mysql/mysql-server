@@ -1676,6 +1676,7 @@ sub environment_setup () {
   $ENV{'SLAVE_MYPORT1'}=      $slave->[1]->{'port'};
   $ENV{'SLAVE_MYPORT2'}=      $slave->[2]->{'port'};
   $ENV{'MYSQL_TCP_PORT'}=     $mysqld_variables{'port'};
+  $ENV{'DEFAULT_MASTER_PORT'}= $mysqld_variables{'master-port'};
 
   $ENV{'IM_PATH_SOCK'}=       $instance_manager->{path_sock};
   $ENV{'IM_USERNAME'}=        $instance_manager->{admin_login};
