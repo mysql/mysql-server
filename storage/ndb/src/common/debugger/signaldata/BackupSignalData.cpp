@@ -20,9 +20,10 @@
 bool 
 printBACKUP_REQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 bno){
   BackupReq* sig = (BackupReq*)theData;
-  fprintf(output, " senderData: %d DataLength: %d\n", 
+  fprintf(output, " senderData: %d DataLength: %d flags: %d\n", 
 	  sig->senderData,
-	  sig->backupDataLen);
+	  sig->backupDataLen,
+	  sig->flags);
   return true;
 }
 
