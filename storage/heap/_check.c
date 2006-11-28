@@ -88,7 +88,8 @@ int heap_check_heap(HP_INFO *info, my_bool print_status)
   if (records != share->records || deleted != share->deleted)
   {
     DBUG_PRINT("error",("Found rows: %lu (%lu)  deleted %lu (%lu)",
-			records, share->records, deleted, share->deleted));
+			records, (ulong) share->records,
+                        deleted, (ulong) share->deleted));
     error= 1;
   }
   *info= save_info;
@@ -100,9 +101,9 @@ static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
 			 ulong blength, my_bool print_status)
 {
   int error;
-  uint i,found,max_links,seek,links;
-  uint rec_link;				/* Only used with debugging */
-  uint hash_buckets_found;
+  ulong i,found,max_links,seek,links;
+  ulong rec_link;				/* Only used with debugging */
+  ulong hash_buckets_found;
   HASH_INFO *hash_info;
 
   error=0;
@@ -123,7 +124,9 @@ static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
 			        blength, records))
 	    != i)
 	{
-	  DBUG_PRINT("error",("Record in wrong link: Link %d  Record: 0x%lx  Record-link %d", i,hash_info->ptr_to_rec,rec_link));
+	  DBUG_PRINT("error",
+                     ("Record in wrong link: Link %lu  Record: 0x%lx  Record-link %lu",
+                      i, (long) hash_info->ptr_to_rec, rec_link));
 	  error=1;
 	}
 	else
@@ -141,18 +144,18 @@ static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
   if (keydef->hash_buckets != hash_buckets_found)
   {
     DBUG_PRINT("error",("Found %ld buckets, stats shows %ld buckets",
-                        hash_buckets_found, keydef->hash_buckets));
+                        hash_buckets_found, (long) keydef->hash_buckets));
     error=1;
   }
   DBUG_PRINT("info",
-	     ("records: %ld   seeks: %d   max links: %d   hitrate: %.2f   "
-              "buckets: %d",
+	     ("records: %ld   seeks: %lu   max links: %lu   hitrate: %.2f   "
+              "buckets: %lu",
 	      records,seek,max_links,
 	      (float) seek / (float) (records ? records : 1), 
               hash_buckets_found));
   if (print_status)
-    printf("Key: %d  records: %ld   seeks: %d   max links: %d   "
-           "hitrate: %.2f   buckets: %d\n",
+    printf("Key: %d  records: %ld   seeks: %lu   max links: %lu   "
+           "hitrate: %.2f   buckets: %lu\n",
 	   keynr, records, seek, max_links,
 	   (float) seek / (float) (records ? records : 1), 
            hash_buckets_found);
@@ -180,8 +183,8 @@ static int check_one_rb_key(HP_INFO *info, uint keynr, ulong records,
 		     key_length, SEARCH_FIND | SEARCH_SAME, not_used))
       {
 	error= 1;
-	DBUG_PRINT("error",("Record in wrong link:  key: %d  Record: 0x%lx\n", 
-			    keynr, recpos));
+	DBUG_PRINT("error",("Record in wrong link:  key: %u  Record: 0x%lx\n", 
+			    keynr, (long) recpos));
       }
       else
 	found++;

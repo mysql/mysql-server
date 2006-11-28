@@ -1,11 +1,20 @@
 #! /bin/sh
 
+# Need to disable ccache, or we loose the gcov-needed compiler output files.
+
+CCACHE_GCOV_VERSION_ENABLED=0
+if ccache -V > /dev/null 2>&1
+then
+  CCACHE_VER=`ccache -V | head -1 | sed s/"ccache version "//`
+  if test "$CCACHE_VER" == "2.4-gcov"
+  then
+    CCACHE_GCOV_VERSION_ENABLED=1
+  fi
+fi
+export CCACHE_GCOV_VERSION_ENABLED
+
 path=`dirname $0`
 . "$path/SETUP.sh"
-
-# Need to disable ccache, or we loose the gcov-needed compiler output files.
-CCACHE_DISABLE=1
-export CCACHE_DISABLE
 
 # GCC4 needs -fprofile-arcs -ftest-coverage on the linker command line (as well
 # as on the compiler command line), and this requires setting LDFLAGS for BDB.
@@ -14,7 +23,7 @@ export LDFLAGS="-fprofile-arcs -ftest-coverage"
 # The  -fprofile-arcs and -ftest-coverage options cause GCC to instrument the
 # code with profiling information used by gcov.
 # the -DDISABLE_TAO_ASM is needed to avoid build failures in Yassl.
-extra_flags="$pentium_cflags -fprofile-arcs -ftest-coverage -DDISABLE_TAO_ASM -DHAVE_MUTEX_THREAD_ONLY"
+extra_flags="$pentium_cflags -fprofile-arcs -ftest-coverage -DDISABLE_TAO_ASM -DHAVE_MUTEX_THREAD_ONLY $debug_extra_flags"
 extra_configs="$pentium_configs $debug_configs --disable-shared $static_link"
 extra_configs="$extra_configs $max_configs"
 

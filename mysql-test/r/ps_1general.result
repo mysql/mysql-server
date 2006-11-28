@@ -259,7 +259,6 @@ prepare stmt4 from ' show databases ';
 execute stmt4;
 Database
 information_schema
-cluster
 mysql
 test
 prepare stmt4 from ' show tables from test like ''t2%'' ';

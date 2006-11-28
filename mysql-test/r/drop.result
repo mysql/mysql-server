@@ -47,7 +47,6 @@ create database mysqltest;
 show databases;
 Database
 information_schema
-cluster
 mysql
 mysqltest
 test
@@ -59,7 +58,6 @@ drop database mysqltest;
 show databases;
 Database
 information_schema
-cluster
 mysql
 test
 drop database mysqltest;

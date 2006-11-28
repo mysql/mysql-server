@@ -280,6 +280,7 @@ create table general_log_new like general_log;
 create table slow_log_new like slow_log;
 show tables like "%log%";
 Tables_in_mysql (%log%)
+binlog_index
 general_log
 general_log_new
 slow_log

@@ -846,7 +846,7 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
                         LOG_EVENT_MINIMAL_HEADER_LEN);
 
   LOCK_MUTEX;
-  DBUG_PRINT("info", ("my_b_tell=%lu", my_b_tell(file)));
+  DBUG_PRINT("info", ("my_b_tell: %lu", (ulong) my_b_tell(file)));
   if (my_b_read(file, (byte *) head, header_size))
   {
     DBUG_PRINT("info", ("Log_event::read_log_event(IO_CACHE*,Format_desc*) \
@@ -1499,7 +1499,8 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   }
   else
     time_zone_len= 0;
-  DBUG_PRINT("info",("Query_log_event has flags2=%lu sql_mode=%lu",flags2,sql_mode));
+  DBUG_PRINT("info",("Query_log_event has flags2: %lu  sql_mode: %lu",
+                     (ulong) flags2, sql_mode));
 }
 #endif /* MYSQL_CLIENT */
 
@@ -1547,7 +1548,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
 
   common_header_len= description_event->common_header_len;
   post_header_len= description_event->post_header_len[event_type-1];
-  DBUG_PRINT("info",("event_len=%ld, common_header_len=%d, post_header_len=%d",
+  DBUG_PRINT("info",("event_len: %u  common_header_len: %d  post_header_len: %d",
                      event_len, common_header_len, post_header_len));
   
   /*
@@ -1595,7 +1596,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     case Q_FLAGS2_CODE:
       flags2_inited= 1;
       flags2= uint4korr(pos);
-      DBUG_PRINT("info",("In Query_log_event, read flags2: %lu", flags2));
+      DBUG_PRINT("info",("In Query_log_event, read flags2: %lu", (ulong) flags2));
       pos+= 4;
       break;
     case Q_SQL_MODE_CODE:
@@ -3370,8 +3371,8 @@ Rotate_log_event::Rotate_log_event(const char* new_log_ident_arg,
 #ifndef DBUG_OFF
   char buff[22];
   DBUG_ENTER("Rotate_log_event::Rotate_log_event(...,flags)");
-  DBUG_PRINT("enter",("new_log_ident %s pos %s flags %lu", new_log_ident_arg,
-                      llstr(pos_arg, buff), flags));
+  DBUG_PRINT("enter",("new_log_ident: %s  pos: %s  flags: %lu", new_log_ident_arg,
+                      llstr(pos_arg, buff), (ulong) flags));
 #endif
   if (flags & DUP_NAME)
     new_log_ident= my_strndup(new_log_ident_arg, ident_len, MYF(MY_WME));
@@ -4152,7 +4153,7 @@ Slave_log_event::Slave_log_event(THD* thd_arg,
     memcpy(master_log, rli->group_master_log_name, master_log_len + 1);
     master_port = mi->port;
     master_pos = rli->group_master_log_pos;
-    DBUG_PRINT("info", ("master_log: %s  pos: %d", master_log,
+    DBUG_PRINT("info", ("master_log: %s  pos: %lu", master_log,
 			(ulong) master_pos));
   }
   else
@@ -5344,8 +5345,8 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
   uint8 const common_header_len= description_event->common_header_len;
   uint8 const post_header_len= description_event->post_header_len[event_type-1];
 
-  DBUG_PRINT("enter",("event_len=%ld, common_header_len=%d, "
-		      "post_header_len=%d",
+  DBUG_PRINT("enter",("event_len: %u  common_header_len: %d  "
+		      "post_header_len: %d",
 		      event_len, common_header_len,
 		      post_header_len));
 
@@ -5375,7 +5376,7 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
   const byte* const ptr_rows_data= var_start + byte_count + 1;
 
   my_size_t const data_size= event_len - (ptr_rows_data - (const byte *) buf);
-  DBUG_PRINT("info",("m_table_id=%lu, m_flags=%d, m_width=%u, data_size=%lu",
+  DBUG_PRINT("info",("m_table_id: %lu  m_flags: %d  m_width: %lu  data_size: %lu",
                      m_table_id, m_flags, m_width, data_size));
 
   m_rows_buf= (byte*)my_malloc(data_size, MYF(MY_WME));
@@ -5416,7 +5417,7 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
   */
   DBUG_ENTER("Rows_log_event::do_add_row_data");
   DBUG_PRINT("enter", ("row_data: 0x%lx  length: %lu", (ulong) row_data,
-                       length));
+                       (ulong) length));
   /*
     Don't print debug messages when running valgrind since they can
     trigger false warnings.
@@ -5517,7 +5518,7 @@ unpack_row(RELAY_LOG_INFO *rli,
   byte *const record= table->record[0];
   DBUG_ENTER("unpack_row");
   DBUG_ASSERT(record && row);
-  DBUG_PRINT("enter", ("row=0x%lx; table->record[0]=0x%lx", row, record));
+  DBUG_PRINT("enter", ("row: 0x%lx  table->record[0]: 0x%lx", (long) row, (long) record));
   my_size_t master_null_bytes= table->s->null_bytes;
 
   if (colcnt != table->s->fields)
@@ -5558,9 +5559,11 @@ unpack_row(RELAY_LOG_INFO *rli,
     if (bitmap_is_set(cols, field_ptr -  begin_ptr))
     {
       DBUG_ASSERT(table->record[0] <= f->ptr);
-      DBUG_ASSERT(f->ptr < table->record[0] + table->s->reclength + (f->pack_length_in_rec() == 0));
+      DBUG_ASSERT(f->ptr < (table->record[0] + table->s->reclength +
+                            (f->pack_length_in_rec() == 0)));
 
-      DBUG_PRINT("info", ("unpacking column '%s' to 0x%lx", f->field_name, f->ptr));
+      DBUG_PRINT("info", ("unpacking column '%s' to 0x%lx", f->field_name,
+                          (long) f->ptr));
       ptr= f->unpack(f->ptr, ptr);
       /* Field...::unpack() cannot return 0 */
       DBUG_ASSERT(ptr != NULL);
@@ -5594,7 +5597,8 @@ unpack_row(RELAY_LOG_INFO *rli,
     uint32 const mask= NOT_NULL_FLAG | NO_DEFAULT_VALUE_FLAG;
     Field *const f= *field_ptr;
 
-    DBUG_PRINT("info", ("processing column '%s' @ 0x%lx", f->field_name, f->ptr));
+    DBUG_PRINT("info", ("processing column '%s' @ 0x%lx", f->field_name,
+                        (long) f->ptr));
     if (event_type == WRITE_ROWS_EVENT && (f->flags & mask) == mask)
     {
       slave_print_msg(ERROR_LEVEL, rli, ER_NO_DEFAULT_FOR_FIELD,
@@ -6070,7 +6074,7 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
 
   uint8 common_header_len= description_event->common_header_len;
   uint8 post_header_len= description_event->post_header_len[TABLE_MAP_EVENT-1];
-  DBUG_PRINT("info",("event_len=%ld, common_header_len=%d, post_header_len=%d",
+  DBUG_PRINT("info",("event_len: %u  common_header_len: %d  post_header_len: %d",
                      event_len, common_header_len, post_header_len));
 
   /*
@@ -6118,10 +6122,10 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
   uchar *ptr_after_colcnt= (uchar*) ptr_colcnt;
   m_colcnt= net_field_length(&ptr_after_colcnt);
 
-  DBUG_PRINT("info",("m_dblen=%d off=%d m_tbllen=%d off=%d m_colcnt=%d off=%d",
-                     m_dblen, ptr_dblen-(const byte*)vpart, 
-                     m_tbllen, ptr_tbllen-(const byte*)vpart,
-                     m_colcnt, ptr_colcnt-(const byte*)vpart));
+  DBUG_PRINT("info",("m_dblen: %lu  off: %ld  m_tbllen: %lu  off: %ld  m_colcnt: %lu  off: %ld",
+                     m_dblen, (long) (ptr_dblen-(const byte*)vpart), 
+                     m_tbllen, (long) (ptr_tbllen-(const byte*)vpart),
+                     m_colcnt, (long) (ptr_colcnt-(const byte*)vpart)));
 
   /* Allocate mem for all fields in one go. If fails, catched in is_valid() */
   m_memory= my_multi_malloc(MYF(MY_WME),
@@ -6523,11 +6527,11 @@ copy_extra_record_fields(TABLE *table,
                          my_size_t master_reclength,
                          my_ptrdiff_t master_fields)
 {
-  DBUG_PRINT("info", ("Copying to %p "
-                      "from field %ld at offset %u "
-                      "to field %d at offset %u",
-                      table->record[0],
-                      master_fields, master_reclength,
+  DBUG_PRINT("info", ("Copying to 0x%lx "
+                      "from field %lu at offset %lu "
+                      "to field %d at offset %lu",
+                      (long) table->record[0],
+                      (ulong) master_fields, (ulong) master_reclength,
                       table->s->fields, table->s->reclength));
   /*
     Copying the extra fields of the slave that does not exist on

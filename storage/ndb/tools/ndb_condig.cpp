@@ -114,6 +114,7 @@ struct Match
   int m_key;
   BaseString m_value;
   virtual int eval(const Iter&);
+  virtual ~Match() {}
 };
 
 struct HostMatch : public Match
@@ -127,6 +128,7 @@ struct Apply
   Apply(int val) { m_key = val;}
   int m_key;
   virtual int apply(const Iter&);
+  virtual ~Apply() {}
 };
 
 struct NodeTypeApply : public Apply

@@ -3743,7 +3743,7 @@ static void wait_while_table_is_used(THD *thd,TABLE *table,
 				     enum ha_extra_function function)
 {
   DBUG_ENTER("wait_while_table_is_used");
-  DBUG_PRINT("enter", ("table: '%s'  share: 0x%lx  db_stat: %u  version: %u",
+  DBUG_PRINT("enter", ("table: '%s'  share: 0x%lx  db_stat: %u  version: %lu",
                        table->s->table_name.str, (ulong) table->s,
                        table->db_stat, table->s->version));
 
@@ -4631,7 +4631,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
     my_error(ER_WRONG_TABLE_NAME, MYF(0), src_table);
     DBUG_RETURN(TRUE);
   }
-  if (!src_db || check_db_name(src_db))
+  if (!src_db || check_db_name(&table_ident->db))
   {
     my_error(ER_WRONG_DB_NAME, MYF(0), src_db ? src_db : "NULL");
     DBUG_RETURN(-1);

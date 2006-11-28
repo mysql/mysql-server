@@ -425,6 +425,12 @@ public:
   { return strdup_root(mem_root,str); }
   inline char *strmake(const char *str, uint size)
   { return strmake_root(mem_root,str,size); }
+  inline bool LEX_STRING_make(LEX_STRING *lex_str, const char *str, uint size)
+  {
+    return ((lex_str->str= 
+             strmake_root(mem_root, str, (lex_str->length= size)))) == 0;
+  }
+
   inline char *memdup(const char *str, uint size)
   { return memdup_root(mem_root,str,size); }
   inline char *memdup_w_gap(const char *str, uint size, uint gap)
@@ -1628,8 +1634,7 @@ public:
       return TRUE;
     }
     *p_db= strmake(db, db_length);
-    if (p_db_length)
-      *p_db_length= db_length;
+    *p_db_length= db_length;
     return FALSE;
   }
 };
@@ -2065,7 +2070,7 @@ public:
   inline bool unique_add(void *ptr)
   {
     DBUG_ENTER("unique_add");
-    DBUG_PRINT("info", ("tree %u - %u", tree.elements_in_tree, max_elements));
+    DBUG_PRINT("info", ("tree %u - %lu", tree.elements_in_tree, max_elements));
     if (tree.elements_in_tree > max_elements && flush())
       DBUG_RETURN(1);
     DBUG_RETURN(!tree_insert(&tree, ptr, 0, tree.custom_arg));

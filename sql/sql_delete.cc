@@ -354,7 +354,7 @@ cleanup:
   {
     thd->row_count_func= deleted;
     send_ok(thd,deleted);
-    DBUG_PRINT("info",("%d records deleted",deleted));
+    DBUG_PRINT("info",("%ld records deleted",(long) deleted));
   }
   DBUG_RETURN(error >= 0 || thd->net.report_error);
 }

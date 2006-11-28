@@ -25,7 +25,7 @@
 **			   *			   *
 **			   *************************
 */
-#define IMPORT_VERSION "3.5"
+#define IMPORT_VERSION "3.6"
 
 #include "client_priv.h"
 #include "mysql_version.h"
@@ -50,7 +50,7 @@ static char *add_load_option(char *ptr,const char *object,
 static my_bool	verbose=0,lock_tables=0,ignore_errors=0,opt_delete=0,
 		replace=0,silent=0,ignore=0,opt_compress=0,
                 opt_low_priority= 0, tty_password= 0;
-static my_bool opt_use_threads= 0;
+static my_bool opt_use_threads= 0, info_flag= 0;
 static uint     opt_local_file=0;
 static char	*opt_password=0, *current_user=0,
 		*current_host=0, *current_db=0, *fields_terminated=0,
@@ -88,6 +88,8 @@ static struct my_option my_long_options[] =
    0, 0, 0},
   {"debug",'#', "Output debug log. Often this is 'd:t:o,filename'.", 0, 0, 0,
    GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.", (gptr*) &info_flag,
+   (gptr*) &info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"delete", 'd', "First delete all rows from table.", (gptr*) &opt_delete,
    (gptr*) &opt_delete, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"fields-terminated-by", OPT_FTB,
@@ -663,6 +665,6 @@ int main(int argc, char **argv)
   my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
 #endif
   free_defaults(argv_to_free);
-  my_end(0);
+  my_end(info_flag ? MY_CHECK_ERROR : 0);
   return(exitcode);
 }
