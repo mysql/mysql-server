@@ -611,6 +611,9 @@ buf_LRU_old_init(void)
 {
 	buf_block_t*	block;
 
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_a(UT_LIST_GET_LEN(buf_pool->LRU) == BUF_LRU_OLD_MIN_LEN);
 
 	/* We first initialize all blocks in the LRU list as old and then use

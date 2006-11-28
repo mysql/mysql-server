@@ -809,11 +809,13 @@ struct buf_block_struct{
 	ulint		freed_page_clock;/* the value of freed_page_clock
 					of the buffer pool when this block was
 					the last time put to the head of the
-					LRU list; a thread is allowed to
-					read this for heuristic purposes
-					without holding any mutex or latch */
-	ibool		old;		/* TRUE if the block is in the old
-					blocks in the LRU list */
+					LRU list; protected by buf_pool->mutex;
+					a thread is allowed to read this for
+					heuristic purposes without holding any
+					mutex or latch */
+	ulint		old:1;		/* TRUE if the block is in the old
+					blocks in the LRU list; protected
+					by buf_pool->mutex */
 	ulint		accessed:1;	/* TRUE if the page has been accessed
 					while in the buffer pool: read-ahead
 					may read in pages which have not been
