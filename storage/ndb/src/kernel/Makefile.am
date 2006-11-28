@@ -9,22 +9,22 @@ ndbd_SOURCES = main.cpp SimBlockList.cpp
 include $(top_srcdir)/storage/ndb/config/type_kernel.mk.am
 
 INCLUDES += \
-              -Iblocks/cmvmi \
-              -Iblocks/dbacc \
-              -Iblocks/dbdict \
-              -Iblocks/dbdih \
-              -Iblocks/dblqh \
-              -Iblocks/dbtc \
-              -Iblocks/dbtup \
-              -Iblocks/ndbfs \
-              -Iblocks/ndbcntr \
-              -Iblocks/qmgr \
-              -Iblocks/trix \
-              -Iblocks/backup \
-              -Iblocks/dbutil \
-              -Iblocks/suma \
-              -Iblocks/dbtux \
-              -Iblocks
+	-I$(srcdir)/blocks/cmvmi \
+	-I$(srcdir)/blocks/dbacc \
+	-I$(srcdir)/blocks/dbdict \
+	-I$(srcdir)/blocks/dbdih \
+	-I$(srcdir)/blocks/dblqh \
+	-I$(srcdir)/blocks/dbtc \
+	-I$(srcdir)/blocks/dbtup \
+	-I$(srcdir)/blocks/ndbfs \
+	-I$(srcdir)/blocks/ndbcntr \
+	-I$(srcdir)/blocks/qmgr \
+	-I$(srcdir)/blocks/trix \
+	-I$(srcdir)/blocks/backup \
+	-I$(srcdir)/blocks/dbutil \
+	-I$(srcdir)/blocks/suma \
+	-I$(srcdir)/blocks/dbtux \
+	-I$(srcdir)/blocks
 
 LDADD +=  \
               blocks/libblocks.a \
