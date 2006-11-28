@@ -813,13 +813,6 @@ sub command_line_setup () {
     $opt_vardir= "$glob_mysql_test_dir/$opt_vardir";
   }
 
-  # Ensure a proper error message 
-  mkpath("$opt_vardir");
-  unless ( -d $opt_vardir and -w $opt_vardir )
-  {
-    mtr_error("Writable 'var' directory is needed, use the '--vardir' option");
-  }
-
   # --------------------------------------------------------------------------
   # Set tmpdir
   # --------------------------------------------------------------------------
