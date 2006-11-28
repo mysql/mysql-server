@@ -315,14 +315,12 @@ int ha_archive::read_meta_file(File meta_file, ha_rows *rows,
 
   DBUG_PRINT("ha_archive::read_meta_file", ("Check %d", (uint)meta_buffer[0]));
   DBUG_PRINT("ha_archive::read_meta_file", ("Version %d", (uint)meta_buffer[1]));
-  DBUG_PRINT("ha_archive::read_meta_file", ("Rows %llu", 
-                                            (long long unsigned)*rows));
-  DBUG_PRINT("ha_archive::read_meta_file", ("Checkpoint %llu", 
-                                            (long long unsigned) check_point));
-  DBUG_PRINT("ha_archive::read_meta_file", ("Auto-Increment %llu", 
-                                            (long long unsigned)*auto_increment));
-  DBUG_PRINT("ha_archive::read_meta_file", ("Forced Flushes %llu", 
-                                            (long long unsigned)*forced_flushes));
+  DBUG_PRINT("ha_archive::read_meta_file", ("Rows %lu", (ulong) *rows));
+  DBUG_PRINT("ha_archive::read_meta_file", ("Checkpoint %lu", (ulong) check_point));
+  DBUG_PRINT("ha_archive::read_meta_file", ("Auto-Increment %lu",
+                                            (ulong) *auto_increment));
+  DBUG_PRINT("ha_archive::read_meta_file", ("Forced Flushes %lu",
+                                            (ulong) *forced_flushes));
   DBUG_PRINT("ha_archive::read_meta_file", ("Real Path %s", real_path));
   DBUG_PRINT("ha_archive::read_meta_file", ("Dirty %d", (int)(*ptr)));
 
@@ -375,14 +373,12 @@ int ha_archive::write_meta_file(File meta_file, ha_rows rows,
                                              (uint)ARCHIVE_CHECK_HEADER));
   DBUG_PRINT("ha_archive::write_meta_file", ("Version %d", 
                                              (uint)ARCHIVE_VERSION));
-  DBUG_PRINT("ha_archive::write_meta_file", ("Rows %llu", 
-                                             (unsigned long long)rows));
-  DBUG_PRINT("ha_archive::write_meta_file", ("Checkpoint %llu", 
-                                             (unsigned long long)check_point));
-  DBUG_PRINT("ha_archive::write_meta_file", ("Auto Increment %llu",
-                                             (unsigned long long)auto_increment));
-  DBUG_PRINT("ha_archive::write_meta_file", ("Forced Flushes %llu", 
-                                            (unsigned long long)forced_flushes));
+  DBUG_PRINT("ha_archive::write_meta_file", ("Rows %lu", (ulong) rows));
+  DBUG_PRINT("ha_archive::write_meta_file", ("Checkpoint %lu", (ulong) check_point));
+  DBUG_PRINT("ha_archive::write_meta_file", ("Auto Increment %lu",
+                                             (ulong) auto_increment));
+  DBUG_PRINT("ha_archive::write_meta_file", ("Forced Flushes %lu", 
+                                             (ulong) forced_flushes));
   DBUG_PRINT("ha_archive::write_meta_file", ("Real path %s", 
                                             real_path));
   DBUG_PRINT("ha_archive::write_meta_file", ("Dirty %d", (uint)dirty));
@@ -765,9 +761,8 @@ int ha_archive::real_write_row(byte *buf, azio_stream *writer)
   DBUG_ENTER("ha_archive::real_write_row");
 
   written= azwrite(writer, buf, table->s->reclength);
-  DBUG_PRINT("ha_archive::real_write_row", ("Wrote %d bytes expected %d", 
-                                            (uint32)written, 
-                                            (uint32)table->s->reclength));
+  DBUG_PRINT("ha_archive::real_write_row", ("Wrote %d bytes expected %lu", 
+                                            (int) written, table->s->reclength));
   if (!delayed_insert || !bulk_insert)
     share->dirty= TRUE;
 
@@ -810,10 +805,11 @@ int ha_archive::write_row(byte *buf)
   int rc;
   byte *read_buf= NULL;
   ulonglong temp_auto;
+  byte *record=  table->record[0];
   DBUG_ENTER("ha_archive::write_row");
 
   if (share->crashed)
-      DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
   ha_statistic_increment(&SSV::ha_write_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
@@ -876,7 +872,8 @@ int ha_archive::write_row(byte *buf)
 
       while (!(get_row(&archive, read_buf)))
       {
-        if (!memcmp(read_buf + mfield->offset(), table->next_number_field->ptr,
+        if (!memcmp(read_buf + mfield->offset(record),
+                    table->next_number_field->ptr,
                     mfield->max_length()))
         {
           rc= HA_ERR_FOUND_DUPP_KEY;
@@ -906,16 +903,8 @@ int ha_archive::write_row(byte *buf)
   */
   for (Field **field=table->field ; *field ; field++)
   {
-    /* 
-      Pack length will report 256 when you have 255 bytes 
-      of data plus the single byte for length. 
-
-      Probably could have added a method to say the number
-      of bytes taken up by field for the length data.
-    */
-    uint32 actual_length= (*field)->data_length() +
-       ((*field)->pack_length() > 256 ? 2 : 1);
-
+    DBUG_PRINT("archive",("Pack is %d\n", (*field)->pack_length()));
+    DBUG_PRINT("archive",("MyPack is %d\n", (*field)->data_length((char*) buf + (*field)->offset(record))));
     if ((*field)->real_type() == MYSQL_TYPE_VARCHAR)
     {
       char *ptr= (*field)->ptr + actual_length;
@@ -1054,8 +1043,7 @@ int ha_archive::rnd_init(bool scan)
   if (scan)
   {
     scan_rows= share->rows_recorded;
-    DBUG_PRINT("info", ("archive will retrieve %llu rows", 
-                        (unsigned long long)scan_rows));
+    DBUG_PRINT("info", ("archive will retrieve %lu rows", (ulong) scan_rows));
     stats.records= 0;
 
     /* 
@@ -1097,8 +1085,8 @@ int ha_archive::get_row(azio_stream *file_to_read, byte *buf)
   DBUG_ENTER("ha_archive::get_row");
 
   read= azread(file_to_read, buf, table->s->reclength);
-  DBUG_PRINT("ha_archive::get_row", ("Read %d bytes expected %lu", read, 
-                                     (unsigned long)table->s->reclength));
+  DBUG_PRINT("ha_archive::get_row", ("Read %d bytes expected %lu", (int) read, 
+                                     table->s->reclength));
 
   if (read == Z_STREAM_ERROR)
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
@@ -1307,7 +1295,8 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
         {
           Field *field= table->found_next_number_field;
           ulonglong auto_value=
-            (ulonglong) field->val_int((char*)(buf + field->offset()));
+            (ulonglong) field->val_int((char*)(buf +
+                                               field->offset(table->record[0])));
           if (share->auto_increment_value < auto_value)
             stats.auto_increment_value= share->auto_increment_value=
               auto_value;
@@ -1315,8 +1304,7 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
         share->rows_recorded++;
       }
     }
-    DBUG_PRINT("info", ("recovered %llu archive rows", 
-                        (unsigned long long)share->rows_recorded));
+    DBUG_PRINT("info", ("recovered %lu archive rows", (ulong) share->rows_recorded));
 
     my_free((char*)buf, MYF(0));
     if (rc && rc != HA_ERR_END_OF_FILE)

@@ -119,12 +119,12 @@ set_field_to_null(Field *field)
     return 0;
   }
   field->reset();
-  if (current_thd->count_cuted_fields == CHECK_FIELD_WARN)
+  if (field->table->in_use->count_cuted_fields == CHECK_FIELD_WARN)
   {
     field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
     return 0;
   }
-  if (!current_thd->no_errors)
+  if (!field->table->in_use->no_errors)
     my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
   return -1;
 }
@@ -176,12 +176,12 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     field->table->auto_increment_field_not_null= FALSE;
     return 0;					// field is set in handler.cc
   }
-  if (current_thd->count_cuted_fields == CHECK_FIELD_WARN)
+  if (field->table->in_use->count_cuted_fields == CHECK_FIELD_WARN)
   {
     field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_BAD_NULL_ERROR, 1);
     return 0;
   }
-  if (!current_thd->no_errors)
+  if (!field->table->in_use->no_errors)
     my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
   return -1;
 }
@@ -403,7 +403,7 @@ static void do_varstring1(Copy_field *copy)
   if (length > copy->to_length- 1)
   {
     length=copy->to_length - 1;
-    if (current_thd->count_cuted_fields)
+    if (copy->from_field->table->in_use->count_cuted_fields)
       copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
                                   WARN_DATA_TRUNCATED, 1);
   }
@@ -418,7 +418,7 @@ static void do_varstring2(Copy_field *copy)
   if (length > copy->to_length- HA_KEY_BLOB_LENGTH)
   {
     length=copy->to_length-HA_KEY_BLOB_LENGTH;
-    if (current_thd->count_cuted_fields)
+    if (copy->from_field->table->in_use->count_cuted_fields)
       copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
                                   WARN_DATA_TRUNCATED, 1);
   }

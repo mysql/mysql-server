@@ -68,7 +68,7 @@ static char *prev_line_found;
 static char *last_isearch_string;
 static int last_isearch_string_len;
 
-static char *default_isearch_terminators = "\033\012";
+static char *default_isearch_terminators = (char*) "\033\012";
 
 /* Search backwards through the history looking for a string which is typed
    interactively.  Start with the current line. */
@@ -94,9 +94,8 @@ rl_forward_search_history (sign, key)
    WHERE is the history list number of the current line.  If it is
    -1, then this line is the starting one. */
 static void
-rl_display_search (search_string, reverse_p, where)
-     char *search_string;
-     int reverse_p, where;
+rl_display_search (char *search_string, int reverse_p,
+                   int where __attribute__((unused)))
 {
   char *message;
   int msglen, searchlen;
@@ -143,8 +142,7 @@ rl_display_search (search_string, reverse_p, where)
    DIRECTION is which direction to search; >= 0 means forward, < 0 means
    backwards. */
 static int
-rl_search_history (direction, invoking_key)
-     int direction, invoking_key;
+rl_search_history (int direction, int invoking_key __attribute__((unused)))
 {
   /* The string that the user types in to search for. */
   char *search_string;

@@ -68,7 +68,7 @@ print_head(const char * filename, const SchemaFile * sf)
   if (! checkonly) {
     ndbout << "----- Schemafile: " << filename << " -----" << endl;
     ndbout_c("Magic: %.*s ByteOrder: %.8x NdbVersion: %s FileSize: %d",
-             sizeof(sf->Magic),
+             (int) sizeof(sf->Magic),
              sf->Magic, 
              sf->ByteOrder, 
              version(sf->NdbVersion),

@@ -106,7 +106,7 @@ inline NdbOut& dec(NdbOut& _NdbOut) {
   return _NdbOut.setHexFormat(0);
 }
 extern "C"
-void ndbout_c(const char * fmt, ...);
+void ndbout_c(const char * fmt, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 
 class FilteredNdbOut : public NdbOut {
 public:

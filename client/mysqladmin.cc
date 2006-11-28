@@ -28,7 +28,7 @@
 #include "../ndb/src/mgmclient/ndb_mgmclient.h"
 #endif
 
-#define ADMIN_VERSION "8.41"
+#define ADMIN_VERSION "8.42"
 #define MAX_MYSQL_VAR 256
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -41,7 +41,7 @@ ulonglong last_values[MAX_MYSQL_VAR];
 static int interval=0;
 static my_bool option_force=0,interrupted=0,new_line=0,
                opt_compress=0, opt_relative=0, opt_verbose=0, opt_vertical=0,
-               tty_password=0;
+               tty_password= 0, info_flag= 0;
 static uint tcp_port = 0, option_wait = 0, option_silent=0, nr_iterations,
             opt_count_iterations= 0;
 static ulong opt_connect_timeout, opt_shutdown_timeout;
@@ -136,6 +136,8 @@ static struct my_option my_long_options[] =
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.", (gptr*) &info_flag,
+   (gptr*) &info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"force", 'f',
    "Don't ask for confirmation on drop database; with multiple commands, continue even if an error occurs.",
    (gptr*) &option_force, (gptr*) &option_force, 0, GET_BOOL, NO_ARG, 0, 0,
@@ -412,7 +414,7 @@ int main(int argc,char *argv[])
   my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
 #endif
   free_defaults(save_argv);
-  my_end(0);
+  my_end(info_flag ? MY_CHECK_ERROR : 0);
   exit(error ? 1 : 0);
   return 0;
 }

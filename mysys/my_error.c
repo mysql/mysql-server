@@ -252,3 +252,15 @@ const char **my_error_unregister(int first, int last)
   
   return errmsgs;
 }
+
+
+void my_error_unregister_all(void)
+{
+  struct my_err_head    *list, *next;
+  for (list= my_errmsgs_globerrs.meh_next; list; list= next)
+  {
+    next= list->meh_next;
+    my_free((gptr) list, MYF(0));
+  }
+  my_errmsgs_list= &my_errmsgs_globerrs;
+}

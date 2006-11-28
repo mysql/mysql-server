@@ -118,12 +118,12 @@ RESET MASTER;
 
 # there is no neat way to find the backupid, this is a hack to find it...
 --exec $NDB_TOOLS_DIR/ndb_select_all --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -d sys --delimiter=',' SYSTAB_0 | grep 520093696 > $MYSQLTEST_VARDIR/tmp.dat
-CREATE TABLE IF NOT EXISTS cluster.backup_info (id INT, backup_id INT) ENGINE = HEAP;
-DELETE FROM cluster.backup_info;
-LOAD DATA INFILE '../tmp.dat' INTO TABLE cluster.backup_info FIELDS TERMINATED BY ',';
+CREATE TABLE IF NOT EXISTS mysql.backup_info (id INT, backup_id INT) ENGINE = HEAP;
+DELETE FROM mysql.backup_info;
+LOAD DATA INFILE '../tmp.dat' INTO TABLE mysql.backup_info FIELDS TERMINATED BY ',';
 --exec rm $MYSQLTEST_VARDIR/tmp.dat || true
 --replace_column 1 <the_backup_id>
-SELECT @the_backup_id:=backup_id FROM cluster.backup_info;
+SELECT @the_backup_id:=backup_id FROM mysql.backup_info;
 let the_backup_id=`select @the_backup_id`;
 
 # restore on slave, first check that nothing is there

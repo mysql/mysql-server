@@ -869,9 +869,8 @@ typedef long		my_ptrdiff_t;
 typedef long long	my_ptrdiff_t;
 #endif
 
-#if HAVE_SIZE_T
-typedef size_t             my_size_t;
-#elif SIZEOF_CHARP <= SIZEOF_LONG
+/* We can't set my_size_t to size_t as we want my_size_t to be unsigned */
+#if SIZEOF_CHARP <= SIZEOF_LONG
 typedef unsigned long      my_size_t;
 #else
 typedef unsigned long long my_size_t;
@@ -885,6 +884,22 @@ typedef unsigned long long my_size_t;
 #define OFFSET(t, f)	((size_t)(char *)&((t *)0)->f)
 #define ADD_TO_PTR(ptr,size,type) (type) ((byte*) (ptr)+size)
 #define PTR_BYTE_DIFF(A,B) (my_ptrdiff_t) ((byte*) (A) - (byte*) (B))
+
+/*
+  Custom version of standard offsetof() macro which can be used to get
+  offsets of members in class for non-POD types (according to the current
+  version of C++ standard offsetof() macro can't be used in such cases and
+  attempt to do so causes warnings to be emitted, OTOH in many cases it is
+  still OK to assume that all instances of the class has the same offsets
+  for the same members).
+
+  This is temporary solution which should be removed once File_parser class
+  and related routines are refactored.
+*/
+
+#define my_offsetof(TYPE, MEMBER) \
+        ((size_t)((char *)&(((TYPE *)0x10)->MEMBER) - (char*)0x10))
+
 
 #define NullS		(char *) 0
 /* Nowdays we do not support MessyDos */

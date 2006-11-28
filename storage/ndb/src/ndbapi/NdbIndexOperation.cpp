@@ -64,6 +64,9 @@ NdbIndexOperation::indxInit(const NdbIndexImpl * anIndex,
   case(NdbDictionary::Index::OrderedIndex):
     setErrorCodeAbort(4003);
     return -1;
+  default:
+    DBUG_ASSERT(0);
+    break;
   }
   m_theIndex = anIndex;
   m_accessTable = anIndex->m_table;
