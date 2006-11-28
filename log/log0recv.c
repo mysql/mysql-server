@@ -33,6 +33,7 @@ Created 9/20/1997 Heikki Tuuri
 #include "btr0cur.h"
 #include "dict0boot.h"
 #include "fil0fil.h"
+#include "sync0sync.h"
 
 #ifdef UNIV_HOTBACKUP
 /* This is set to FALSE if the backup was originally taken with the
@@ -2854,6 +2855,11 @@ recv_recovery_from_checkpoint_finish(void)
 
 #ifndef UNIV_LOG_DEBUG
 	recv_sys_free();
+#endif
+
+#ifdef UNIV_SYNC_DEBUG
+	/* Switch latching order checks on in sync0sync.c */
+	sync_order_checks_on = TRUE;
 #endif
 	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO) {
 		/* Rollback the uncommitted transactions which have no user
