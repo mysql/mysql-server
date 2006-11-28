@@ -209,7 +209,7 @@ select f3() //
 
 call sp1() //
 
----------------
+# ---------------
 drop procedure sp1//
 drop function f3//
 

@@ -20,7 +20,7 @@ AC_DEFUN([MYSQL_CHECK_INNODB], [
       AC_MSG_RESULT([Using Innodb])
       AC_DEFINE([HAVE_INNOBASE_DB], [1], [Using Innobase DB])
       have_innodb="yes"
-      innodb_includes="-I../innobase/include"
+      innodb_includes="-I\$(top_builddir)/innobase/include -I\$(top_srcdir)/innobase/include"
       innodb_system_libs=""
 dnl Some libs are listed several times, in order for gcc to sort out
 dnl circular references.
