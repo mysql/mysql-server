@@ -1557,7 +1557,7 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
       }
     }
     DBUG_PRINT("loop",("found: 0x%lx  recpos: %d  minpos: %d  length: %d",
-		       found,recpos,minpos,length));
+		       (long) found, recpos, minpos, length));
     if (recpos != minpos)
     {						// Reserved space (Null bits?)
       bzero((char*) recinfo_pos,sizeof(*recinfo_pos));

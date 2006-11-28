@@ -20,7 +20,7 @@
 #include "mysql_priv.h"
 
 static int rr_quick(READ_RECORD *info);
-static int rr_sequential(READ_RECORD *info);
+int rr_sequential(READ_RECORD *info);
 static int rr_from_tempfile(READ_RECORD *info);
 static int rr_unpack_from_tempfile(READ_RECORD *info);
 static int rr_unpack_from_buffer(READ_RECORD *info);
@@ -184,6 +184,7 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
 } /* init_read_record */
 
 
+
 void end_read_record(READ_RECORD *info)
 {                   /* free cache if used */
   if (info->cache)
@@ -193,7 +194,7 @@ void end_read_record(READ_RECORD *info)
   }
   if (info->table)
   {
-    filesort_free_buffers(info->table);
+    filesort_free_buffers(info->table,0);
     (void) info->file->extra(HA_EXTRA_NO_CACHE);
     if (info->read_record != rr_quick) // otherwise quick_range does it
       (void) info->file->ha_index_or_rnd_end();
@@ -289,7 +290,7 @@ static int rr_index(READ_RECORD *info)
 }
 
 
-static int rr_sequential(READ_RECORD *info)
+int rr_sequential(READ_RECORD *info)
 {
   int tmp;
   while ((tmp=info->file->rnd_next(info->record)))

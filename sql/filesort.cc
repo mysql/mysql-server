@@ -109,6 +109,8 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   DBUG_PUSH("");		/* No DBUG here */
 #endif
   FILESORT_INFO table_sort;
+  TABLE_LIST *tab= table->pos_in_table_list;
+  Item_subselect *subselect= tab ? tab->containing_subselect() : 0;
   /* 
     Don't use table->sort in filesort as it is also used by 
     QUICK_INDEX_MERGE_SELECT. Work with a copy and put it back at the end 
@@ -121,7 +123,6 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   my_b_clear(&tempfile);
   my_b_clear(&buffpek_pointers);
   buffpek=0;
-  sort_keys= (uchar **) NULL;
   error= 1;
   bzero((char*) &param,sizeof(param));
   param.sort_length= sortlength(thd, sortorder, s_length, &multi_byte_charset);
@@ -202,13 +203,15 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
     ulong old_memavl;
     ulong keys= memavl/(param.rec_length+sizeof(char*));
     param.keys=(uint) min(records+1, keys);
-    if ((sort_keys= (uchar **) make_char_array(param.keys, param.rec_length,
-					       MYF(0))))
+    if (table_sort.sort_keys ||
+        (table_sort.sort_keys= (uchar **) make_char_array(param.keys, param.rec_length,
+                                               MYF(0))))
       break;
     old_memavl=memavl;
     if ((memavl=memavl/4*3) < min_sort_memory && old_memavl > min_sort_memory)
       memavl= min_sort_memory;
   }
+  sort_keys= table_sort.sort_keys;
   if (memavl < min_sort_memory)
   {
     my_error(ER_OUTOFMEMORY,MYF(ME_ERROR+ME_WAITTANG),
@@ -235,8 +238,12 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   }
   else
   {
-    if (!(buffpek=read_buffpek_from_file(&buffpek_pointers, maxbuffer)))
+    if (!table_sort.buffpek && table_sort.buffpek_len < maxbuffer &&
+        !(table_sort.buffpek=
+          (byte *) read_buffpek_from_file(&buffpek_pointers, maxbuffer)))
       goto err;
+    buffpek= (BUFFPEK *) table_sort.buffpek;
+    table_sort.buffpek_len= maxbuffer;
     close_cached_file(&buffpek_pointers);
 	/* Open cached file if it isn't open */
     if (! my_b_inited(outfile) &&
@@ -269,8 +276,14 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
  err:
   if (param.tmp_buffer)
     x_free(param.tmp_buffer);
-  x_free((gptr) sort_keys);
-  x_free((gptr) buffpek);
+  if (!subselect || !subselect->is_uncacheable())
+  {
+    x_free((gptr) sort_keys);
+    table_sort.sort_keys= 0;
+    x_free((gptr) buffpek);
+    table_sort.buffpek= 0;
+    table_sort.buffpek_len= 0;
+  }
   close_cached_file(&tempfile);
   close_cached_file(&buffpek_pointers);
   if (my_b_inited(outfile))
@@ -296,17 +309,31 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   DBUG_POP();			/* Ok to DBUG */
 #endif
   memcpy(&table->sort, &table_sort, sizeof(FILESORT_INFO));
-  DBUG_PRINT("exit",("records: %ld",records));
+  DBUG_PRINT("exit",("records: %ld", (long) records));
   DBUG_RETURN(error ? HA_POS_ERROR : records);
 } /* filesort */
 
 
-void filesort_free_buffers(TABLE *table)
+void filesort_free_buffers(TABLE *table, bool full)
 {
   if (table->sort.record_pointers)
   {
     my_free((gptr) table->sort.record_pointers,MYF(0));
     table->sort.record_pointers=0;
+  }
+  if (full)
+  {
+    if (table->sort.sort_keys )
+    {
+      x_free((gptr) table->sort.sort_keys);
+      table->sort.sort_keys= 0;
+    }
+    if (table->sort.buffpek)
+    {
+      x_free((gptr) table->sort.buffpek);
+      table->sort.buffpek= 0;
+      table->sort.buffpek_len= 0;
+    }
   }
   if (table->sort.addon_buf)
   {
@@ -947,7 +974,7 @@ uint read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
     Put all room used by freed buffer to use in adjacent buffer.  Note, that
     we can't simply distribute memory evenly between all buffers, because
     new areas must not overlap with old ones.
-  SYNOPSYS
+  SYNOPSIS
     reuse_freed_buff()
     queue      IN  list of non-empty buffers, without freed buffer
     reuse      IN  empty buffer
