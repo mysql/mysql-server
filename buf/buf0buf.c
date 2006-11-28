@@ -2405,7 +2405,8 @@ buf_validate(void)
 #endif
 				if (block->io_fix == BUF_IO_WRITE) {
 
-					switch (block->flush_type) {
+					switch (buf_page_get_flush_type(
+							&block->page)) {
 					case BUF_FLUSH_LRU:
 						n_lru_flush++;
 						ut_a(rw_lock_is_locked(
@@ -2430,7 +2431,7 @@ buf_validate(void)
 
 				n_lru++;
 
-				if (block->oldest_modification > 0) {
+				if (block->page.oldest_modification > 0) {
 					n_flush++;
 				}
 
