@@ -528,6 +528,127 @@ create table t1 ( a timestamp );
 alter table t1 add unique ( a(1) );
 ERROR HY000: Incorrect sub part key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique sub keys
 drop table t1;
+drop table if exists t1;
+create table t1 (a int, key(a));
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+"this used not to disable the index"
+alter table t1 modify a int, disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled
+alter table t1 enable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+alter table t1 modify a bigint, disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled
+alter table t1 enable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+alter table t1 add b char(10), disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled
+alter table t1 add c decimal(10,2), enable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+"this however did"
+alter table t1 disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	bigint(20)	YES	MUL	NULL	
+b	char(10)	YES		NULL	
+c	decimal(10,2)	YES		NULL	
+alter table t1 add d decimal(15,5);
+"The key should still be disabled"
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled
+drop table t1;
+"Now will test with one unique index"
+create table t1(a int, b char(10), unique(a));
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+alter table t1 disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+alter table t1 enable keys;
+"If no copy on noop change, this won't touch the data file"
+"Unique index, no change"
+alter table t1 modify a int, disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+"Change the type implying data copy"
+"Unique index, no change"
+alter table t1 modify a bigint, disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+alter table t1 modify a bigint;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+alter table t1 modify a int;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+drop table t1;
+"Now will test with one unique and one non-unique index"
+create table t1(a int, b char(10), unique(a), key(b));
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	
+alter table t1 disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled
+alter table t1 enable keys;
+"If no copy on noop change, this won't touch the data file"
+"The non-unique index will be disabled"
+alter table t1 modify a int, disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled
+alter table t1 enable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	
+"Change the type implying data copy"
+"The non-unique index will be disabled"
+alter table t1 modify a bigint, disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled
+"Change again the type, but leave the indexes as_is"
+alter table t1 modify a int;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled
+"Try the same. When data is no copied on similar tables, this is noop"
+alter table t1 modify a int;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled
+drop table t1;
 create database mysqltest1;
 create table t1 (c1 int);
 alter table t1 rename mysqltest1.t1;
