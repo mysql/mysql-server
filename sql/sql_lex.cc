@@ -162,6 +162,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->select_lex.ftfunc_list= &lex->select_lex.ftfunc_list_alloc;
   lex->select_lex.group_list.empty();
   lex->select_lex.order_list.empty();
+  lex->select_lex.udf_list.empty();
   lex->current_select= &lex->select_lex;
   lex->yacc_yyss=lex->yacc_yyvs=0;
   lex->ignore_space=test(thd->variables.sql_mode & MODE_IGNORE_SPACE);
@@ -1165,6 +1166,7 @@ void st_select_lex::init_select()
   braces= 0;
   when_list.empty();
   expr_list.empty();
+  udf_list.empty();
   interval_list.empty();
   use_index.empty();
   ftfunc_list_alloc.empty();
@@ -1178,7 +1180,7 @@ void st_select_lex::init_select()
   select_limit= 0;      /* denotes the default limit = HA_POS_ERROR */
   offset_limit= 0;      /* denotes the default offset = 0 */
   with_sum_func= 0;
-
+  is_correlated= 0;
 }
 
 /*
@@ -1372,6 +1374,8 @@ void st_select_lex::mark_as_dependent(SELECT_LEX *last)
       SELECT_LEX_UNIT *munit= s->master_unit();
       munit->uncacheable|= UNCACHEABLE_DEPENDENT;
     }
+  is_correlated= TRUE;
+  this->master_unit()->item->is_correlated= TRUE;
 }
 
 bool st_select_lex_node::set_braces(bool value)      { return 1; }

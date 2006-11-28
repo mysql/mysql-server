@@ -381,9 +381,9 @@ int check_user(THD *thd, enum enum_server_command command,
           NO_ACCESS)) // authentication is OK
     {
       DBUG_PRINT("info",
-                 ("Capabilities: %d  packet_length: %ld  Host: '%s'  "
+                 ("Capabilities: %lu  packet_length: %ld  Host: '%s'  "
                   "Login user: '%s' Priv_user: '%s'  Using password: %s "
-                  "Access: %u  db: '%s'",
+                  "Access: %lu  db: '%s'",
                   thd->client_capabilities,
                   thd->max_client_packet_length,
                   thd->main_security_ctx.host_or_ip,
@@ -956,7 +956,7 @@ static int check_connection(THD *thd)
   if (thd->client_capabilities & CLIENT_IGNORE_SPACE)
     thd->variables.sql_mode|= MODE_IGNORE_SPACE;
 #ifdef HAVE_OPENSSL
-  DBUG_PRINT("info", ("client capabilities: %d", thd->client_capabilities));
+  DBUG_PRINT("info", ("client capabilities: %lu", thd->client_capabilities));
   if (thd->client_capabilities & CLIENT_SSL)
   {
     /* Do the SSL layering. */
@@ -1112,7 +1112,7 @@ pthread_handler_t handle_one_connection(void *arg)
     of handle_one_connection, which is thd. We need to know the
     start of the stack so that we could check for stack overruns.
   */
-  DBUG_PRINT("info", ("handle_one_connection called by thread %d\n",
+  DBUG_PRINT("info", ("handle_one_connection called by thread %lu\n",
 		      thd->thread_id));
   /* now that we've called my_thread_init(), it is safe to call DBUG_* */
 
@@ -1764,7 +1764,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (alloc_query(thd, packet, packet_length))
       break;					// fatal error is set
     char *packet_end= thd->query + thd->query_length;
-    mysql_log.write(thd,command, "%.*b", thd->query_length, thd->query);
+    /* 'b' stands for 'buffer' parameter', special for 'my_snprintf' */
+    const char *format= "%.*b";
+    mysql_log.write(thd,command, format, thd->query_length, thd->query);
     DBUG_PRINT("query",("%-.4096s",thd->query));
 
     if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -2503,7 +2505,23 @@ mysql_execute_command(THD *thd)
     {
       /* we warn the slave SQL thread */
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
-      reset_one_shot_variables(thd);
+      if (thd->one_shot_set)
+      {
+        /*
+          It's ok to check thd->one_shot_set here:
+
+          The charsets in a MySQL 5.0 slave can change by both a binlogged
+          SET ONE_SHOT statement and the event-internal charset setting, 
+          and these two ways to change charsets do not seems to work
+          together.
+
+          At least there seems to be problems in the rli cache for
+          charsets if we are using ONE_SHOT.  Note that this is normally no
+          problem because either the >= 5.0 slave reads a 4.1 binlog (with
+          ONE_SHOT) *or* or 5.0 binlog (without ONE_SHOT) but never both."
+        */
+        reset_one_shot_variables(thd);
+      }
       DBUG_RETURN(0);
     }
   }
@@ -3436,8 +3454,12 @@ end_with_restore_list:
         if (first_table->lock_type ==  TL_WRITE_CONCURRENT_INSERT &&
             thd->lock)
         {
+          /* INSERT ... SELECT should invalidate only the very first table */
+          TABLE_LIST *save_table= first_table->next_local;
+          first_table->next_local= 0;
           mysql_unlock_tables(thd, thd->lock);
           query_cache_invalidate3(thd, first_table, 1);
+          first_table->next_local= save_table;
           thd->lock=0;
         }
         delete result;
@@ -6120,7 +6142,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 
   ptr->alias= alias_str;
   if (lower_case_table_names && table->table.length)
-    my_casedn_str(files_charset_info, table->table.str);
+    table->table.length= my_casedn_str(files_charset_info, table->table.str);
   ptr->table_name=table->table.str;
   ptr->table_name_length=table->table.length;
   ptr->lock_type=   lock_type;

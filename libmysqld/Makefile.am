@@ -25,9 +25,10 @@ DEFS =			-DEMBEDDED_LIBRARY -DMYSQL_SERVER \
 			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\""
-INCLUDES=		@bdb_includes@ \
+INCLUDES=		@bdb_includes@  @innodb_includes@ @ndbcluster_includes@ \
 			-I$(top_builddir)/include -I$(top_srcdir)/include \
-			-I$(top_srcdir)/sql -I$(top_srcdir)/sql/examples \
+			-I$(top_builddir)/sql -I$(top_srcdir)/sql \
+			-I$(top_srcdir)/sql/examples \
 			-I$(top_srcdir)/regex \
 			$(openssl_includes) @ZLIB_INCLUDES@
 
@@ -118,16 +119,28 @@ endif
 #libmysqld_la_LDFLAGS = -version-info @SHARED_LIB_VERSION@
 #CLEANFILES =		$(libmysqld_la_LIBADD) libmysqld.la
 
-# This is called from the toplevel makefile
+# This is called from the toplevel makefile. If we can link now
+# to an existing file in source, we do that, else we assume it
+# will show up in the build tree eventually (generated file).
 link_sources:
 	  set -x; \
 	  for f in $(sqlsources); do \
 	    rm -f $$f; \
-	    @LN_CP_F@ $(top_srcdir)/sql/$$f $$f; \
+	    if test -e $(top_srcdir)/sql/$$f ; \
+            then \
+	      @LN_CP_F@ $(top_srcdir)/sql/$$f $$f; \
+            else \
+	      @LN_CP_F@ $(top_builddir)/sql/$$f $$f; \
+            fi ; \
 	  done; \
 	  for f in $(libmysqlsources); do \
 	    rm -f $$f; \
-	    @LN_CP_F@ $(top_srcdir)/libmysql/$$f $$f; \
+	    if test -e $(top_srcdir)/libmysql/$$f ; \
+	    then \
+	      @LN_CP_F@ $(top_srcdir)/libmysql/$$f $$f; \
+	    else \
+	      @LN_CP_F@ $(top_builddir)/libmysql/$$f $$f; \
+	    fi ; \
 	  done; \
 	  for f in $(sqlexamplessources); do \
 	    rm -f $$f; \

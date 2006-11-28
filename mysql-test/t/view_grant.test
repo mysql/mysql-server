@@ -800,7 +800,7 @@ DROP DATABASE mysqltest1;
 CREATE TABLE t1 (a INT PRIMARY KEY);
 INSERT INTO t1 VALUES (1), (2), (3);
 CREATE DEFINER = 'no-such-user'@localhost VIEW v AS SELECT a from t1;
---warning 1448
+#--warning 1448
 SHOW CREATE VIEW v;
 --error 1449
 SELECT * FROM v;
