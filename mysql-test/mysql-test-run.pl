@@ -1893,10 +1893,6 @@ sub kill_running_servers () {
    }
 }
 
-sub created_by_mem_filename(){
-  return "$glob_mysql_test_dir/var/created_by_mem";
-}
-
 
 #
 # Remove var and any directories in var/ created by previous
@@ -1919,14 +1915,16 @@ sub remove_stale_vardir () {
     if ( -l $opt_vardir)
     {
       # var is a symlink
-      if (-f created_by_mem_filename() )
+      if ( readlink($opt_vardir) eq $opt_mem )
       {
 	# Remove the directory which the link points at
 	mtr_verbose("Removing " . readlink($opt_vardir));
 	rmtree(readlink($opt_vardir));
+
 	# Remove the entire "var" dir
 	mtr_verbose("Removing $opt_vardir/");
 	rmtree("$opt_vardir/");
+
 	# Remove the "var" symlink
 	mtr_verbose("unlink($opt_vardir)");
 	unlink($opt_vardir);
@@ -1984,10 +1982,6 @@ sub setup_vardir() {
 
     mtr_report("Symlinking 'var' to '$opt_mem'");
     symlink($opt_mem, $opt_vardir);
-
-    # Put a small file to recognize this dir was created by --mem
-    mtr_verbose("Creating " . created_by_mem_filename());
-    mtr_tofile(created_by_mem_filename(), $opt_mem);
   }
 
   mkpath("$opt_vardir/log");
