@@ -91,7 +91,7 @@ public:
   enum Type type() const;
   bool is_null()
   {
-    val_int();
+    update_null_value();
     return null_value;
   }
   bool fix_fields(THD *thd, Item **ref);

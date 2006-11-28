@@ -716,6 +716,11 @@ public:
   virtual bool is_null() { return 0; }
 
   /*
+   Make sure the null_value member has a correct value.
+  */
+  virtual void update_null_value () { (void) val_int(); }
+
+  /*
     Inform the item that there will be no distinction between its result
     being FALSE or NULL.
 
@@ -1282,6 +1287,7 @@ public:
   bool get_date_result(TIME *ltime,uint fuzzydate);
   bool get_time(TIME *ltime);
   bool is_null() { return field->is_null(); }
+  void update_null_value();
   Item *get_tmp_table_item(THD *thd);
   bool collect_item_field_processor(byte * arg);
   bool find_item_in_field_list_processor(byte *arg);

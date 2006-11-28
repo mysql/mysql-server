@@ -355,3 +355,9 @@ public:
     return (s->alloced && Ptr >= s->Ptr && Ptr < s->Ptr + s->str_length);
   }
 };
+
+static inline bool check_if_only_end_space(CHARSET_INFO *cs, char *str, 
+                                           char *end)
+{
+  return str+ cs->cset->scan(cs, str, end, MY_SEQ_SPACES) == end;
+}
