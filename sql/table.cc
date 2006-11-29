@@ -1078,6 +1078,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           goto err;
         }
         field= key_part->field= share->field[key_part->fieldnr-1];
+        key_part->type= field->key_type();
         if (field->null_ptr)
         {
           key_part->null_offset=(uint) ((byte*) field->null_ptr -
