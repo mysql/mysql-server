@@ -349,16 +349,22 @@ select f1 from t1 where f1 in ('a',1);
 f1
 a
 1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'b'
 select f1, case f1 when 'a' then '+' when 1 then '-' end from t1;
 f1	case f1 when 'a' then '+' when 1 then '-' end
 a	+
 b	NULL
 1	-
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'b'
 create index t1f1_idx on t1(f1);
 select f1 from t1 where f1 in ('a',1);
 f1
 1
 a
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'b'
 explain select f1 from t1 where f1 in ('a',1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	t1f1_idx	2	NULL	3	Using where; Using index
@@ -372,6 +378,9 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 select f1 from t1 where f1 in (2,1);
 f1
 1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+Warning	1292	Truncated incorrect DOUBLE value: 'b'
 explain select f1 from t1 where f1 in (2,1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	t1f1_idx	t1f1_idx	2	NULL	3	Using where; Using index
