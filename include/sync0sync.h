@@ -515,12 +515,6 @@ to 20 microseconds. */
 
 #define	SYNC_SPIN_ROUNDS	srv_n_spin_wait_rounds
 
-#define SYNC_INFINITE_TIME	((ulint)(-1))
-
-/* Means that a timeout elapsed when waiting */
-
-#define SYNC_TIME_EXCEEDED	(ulint)1
-
 /* The number of system calls made in this module. Intended for performance
 monitoring. */
 
