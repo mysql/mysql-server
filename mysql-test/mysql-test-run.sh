@@ -123,7 +123,7 @@ find_valgrind()
   fi
   # >=2.1.2 requires the --tool option, some versions write to stdout, some to stderr
   valgrind --help 2>&1 | grep "\-\-tool" > /dev/null && FIND_VALGRIND="$FIND_VALGRIND --tool=memcheck"
-  FIND_VALGRIND="$FIND_VALGRIND --alignment=8 --leak-check=yes --num-callers=16 --suppressions=$CWD/valgrind.supp"
+  FIND_VALGRIND="$FIND_VALGRIND --alignment=8 --leak-check=yes --num-callers=16 --suppressions=$MYSQL_TEST_DIR/valgrind.supp"
 }
 
 # No paths below as we can't be sure where the program is!
@@ -182,19 +182,14 @@ if [ -d ./sql ] ; then
    SOURCE_DIST=1
 else
    BINARY_DIST=1
-fi
 
-# ... one level for tar.gz, two levels for a RPM installation
-if [ -d ./bin ] ; then
-   # this is not perfect: we have 
-   #   /usr/share/mysql/   # mysql-test-run  is here, so this is "$MYSQL_TEST_DIR"
-   #   /usr/bin/           # with MySQL client programs
-   # so the existence of "/usr/share/bin/" would make this test fail.
-   BASEDIR=`pwd`
-else
-   cd ..
-   BASEDIR=`pwd`
+  # ... one level for tar.gz, two levels for a RPM installation
+  if [ ! -f ./bin/mysql_upgrade ] ; then
+     # Has to be RPM installation
+    cd ..
+  fi
 fi
+BASEDIR=`pwd`
 
 cd $MYSQL_TEST_DIR
 MYSQL_TEST_WINDIR=$MYSQL_TEST_DIR
@@ -2092,11 +2087,14 @@ then
 
   # Remove files that can cause problems
   $RM -rf $MYSQL_TEST_DIR/var/ndbcluster
-  $RM -f $MYSQL_TEST_DIR/var/run/* $MYSQL_TEST_DIR/var/tmp/*
+  $RM -rf $MYSQL_TEST_DIR/var/run/* $MYSQL_TEST_DIR/var/tmp/*
 
   # Remove old berkeley db log files that can confuse the server
   $RM -f $MASTER_MYDDIR/log.*
   $RM -f $MASTER_MYDDIR"1"/log.*
+
+  # Remove old log and reject files
+  $RM -f r/*.reject r/*.progress r/*.log r/*.warnings
 
   wait_for_master=$SLEEP_TIME_FOR_FIRST_MASTER
   wait_for_slave=$SLEEP_TIME_FOR_FIRST_SLAVE

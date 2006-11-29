@@ -164,9 +164,9 @@ LogHandler::getErrorStr()
 }
 
 void
-LogHandler::setErrorStr(char* str)
+LogHandler::setErrorStr(const char* str)
 {
-  m_errorStr= str;
+  m_errorStr= (char*) str;
 }
 
 bool

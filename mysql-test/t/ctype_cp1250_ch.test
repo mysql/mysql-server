@@ -1,5 +1,9 @@
 -- source include/have_cp1250_ch.inc
 
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
 SHOW COLLATION LIKE 'cp1250_czech_cs';
 
 #

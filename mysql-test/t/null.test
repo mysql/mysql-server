@@ -177,7 +177,7 @@ drop table t1;
 # non-null string collation, i.e. case insensitively,
 # rather than according to NULL's collation, i.e. case sensitively
 #
--- in field
+# in field
 select 
   case 'str' when 'STR' then 'str' when null then 'null' end as c01,
   case 'str' when null then 'null' when 'STR' then 'str' end as c02,
