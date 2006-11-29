@@ -92,6 +92,7 @@ bin-dist:		all
 # Create initial database files for Windows installations.
 dist-hook:
 	rm -rf `find $(distdir) -type d -name SCCS -print`
+	mkdir -p "$(distdir)/win"
 	if echo "$(distdir)" | grep -q '^/' ; then \
 	  scripts/mysql_install_db --no-defaults --windows \
 		--basedir=$(top_srcdir) \
