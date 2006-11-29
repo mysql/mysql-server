@@ -5051,7 +5051,7 @@ Item_func_sp::result_type() const
 {
   Field *field;
   DBUG_ENTER("Item_func_sp::result_type");
-  DBUG_PRINT("info", ("m_sp = %p", m_sp));
+  DBUG_PRINT("info", ("m_sp: 0x%lx", (long) m_sp));
 
   if (result_field)
     DBUG_RETURN(result_field->result_type());

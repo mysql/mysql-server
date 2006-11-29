@@ -31,4 +31,5 @@
 --source include/have_ndb.inc
 --source include/master-slave.inc
 let $engine_type= "NDB";
--- source extra/rpl_tests/rpl_ddl.test
+-- source extra/rpl_tests/rpl_ndb_ddl.test
+

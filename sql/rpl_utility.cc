@@ -25,7 +25,7 @@ field_length_from_packed(enum_field_types const field_type,
   switch (field_type) {
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
-    length= ~0UL;
+    length= ~(uint32) 0;
     break;
   case MYSQL_TYPE_YEAR:
   case MYSQL_TYPE_TINY:
@@ -71,7 +71,7 @@ field_length_from_packed(enum_field_types const field_type,
     break;
     break;
   case MYSQL_TYPE_BIT:
-    length= ~0UL;
+    length= ~(uint32) 0;
     break;
   default:
     /* This case should never be chosen */
@@ -85,7 +85,7 @@ field_length_from_packed(enum_field_types const field_type,
   case MYSQL_TYPE_SET:
   case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_VARCHAR:
-    length= ~0UL;                               // NYI
+    length= ~(uint32) 0;                               // NYI
     break;
 
   case MYSQL_TYPE_TINY_BLOB:
@@ -93,7 +93,7 @@ field_length_from_packed(enum_field_types const field_type,
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_GEOMETRY:
-    length= ~0UL;                               // NYI
+    length= ~(uint32) 0;                               // NYI
     break;
   }
 
@@ -131,7 +131,8 @@ table_def::compatible_with(RELAY_LOG_INFO *rli, TABLE *table)
     slave_print_msg(ERROR_LEVEL, rli, ER_BINLOG_ROW_WRONG_TABLE_DEF,
                     "Table width mismatch - "
                     "received %u columns, %s.%s has %u columns",
-                    size(), tsh->db.str, tsh->table_name.str, tsh->fields);
+                    (uint) size(), tsh->db.str, tsh->table_name.str,
+                    tsh->fields);
   }
 
   for (uint col= 0 ; col < cols_to_check ; ++col)

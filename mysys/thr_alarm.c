@@ -276,7 +276,7 @@ sig_handler process_alarm(int sig __attribute__((unused)))
   if (!pthread_equal(pthread_self(),alarm_thread))
   {
 #if defined(MAIN) && !defined(__bsdi__)
-    printf("thread_alarm\n"); fflush(stdout);
+    printf("thread_alarm in process_alarm\n"); fflush(stdout);
 #endif
 #ifdef DONT_REMEMBER_SIGNAL
     my_sigset(THR_CLIENT_ALARM,process_alarm);	/* int. thread system calls */
@@ -848,8 +848,9 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
   MY_INIT(argv[0]);
 
   if (argc > 1 && argv[1][0] == '-' && argv[1][1] == '#')
+  {
     DBUG_PUSH(argv[1]+2);
-
+  }
   pthread_mutex_init(&LOCK_thread_count,MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND_thread_count,NULL);
 
@@ -917,8 +918,8 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
     }
   }
   pthread_mutex_unlock(&LOCK_thread_count);
-  end_thr_alarm(1);
   thr_alarm_info(&alarm_info);
+  end_thr_alarm(1);
   printf("Main_thread:  Alarms: %u  max_alarms: %u  next_alarm_time: %lu\n",
 	 alarm_info.active_alarms, alarm_info.max_used_alarms,
 	 alarm_info.next_alarm_time);

@@ -254,8 +254,8 @@ int _mi_read_rnd_static_record(MI_INFO *info, byte *buf,
   if (filepos >= info->state->data_file_length)
   {
     DBUG_PRINT("test",("filepos: %ld (%ld)  records: %ld  del: %ld",
-		       filepos/share->base.reclength,filepos,
-		       info->state->records, info->state->del));
+		       (long) filepos/share->base.reclength, (long) filepos,
+		       (long) info->state->records, (long) info->state->del));
     fast_mi_writeinfo(info);
     DBUG_RETURN(my_errno=HA_ERR_END_OF_FILE);
   }

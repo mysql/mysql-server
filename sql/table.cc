@@ -30,7 +30,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
                            uchar *head, File file);
 static void fix_type_pointers(const char ***array, TYPELIB *point_to_type,
 			      uint types, char **names);
-static uint find_field(Field **fields, uint start, uint length);
+static uint find_field(Field **fields, byte *record, uint start, uint length);
 
 
 /* Get column name from column hash */
@@ -1069,6 +1069,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         Field *field;
 	if (new_field_pack_flag <= 1)
 	  key_part->fieldnr= (uint16) find_field(share->field,
+                                                 share->default_values,
                                                  (uint) key_part->offset,
                                                  (uint) key_part->length);
 	if (!key_part->fieldnr)
@@ -1232,24 +1233,19 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
   if (share->found_next_number_field)
   {
-    /*
-      We must have a table object for find_ref_key to calculate field offset
-    */
-    TABLE tmp_table;
-    tmp_table.record[0]= share->default_values;
-
     reg_field= *share->found_next_number_field;
-    reg_field->table= &tmp_table;
     if ((int) (share->next_number_index= (uint)
-	       find_ref_key(share->key_info, share->keys, reg_field,
+	       find_ref_key(share->key_info, share->keys,
+                            share->default_values, reg_field,
 			    &share->next_number_key_offset)) < 0)
     {
+      /* Wrong field definition */
+      DBUG_ASSERT(0);
       reg_field->unireg_check= Field::NONE;	/* purecov: inspected */
       share->found_next_number_field= 0;
     }
     else
       reg_field->flags |= AUTO_INCREMENT_FLAG;
-    reg_field->table= 0;
   }
 
   if (share->blob_fields)
@@ -1343,7 +1339,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   Field **field_ptr;
   DBUG_ENTER("open_table_from_share");
   DBUG_PRINT("enter",("name: '%s.%s'  form: 0x%lx", share->db.str,
-                      share->table_name.str, outparam));
+                      share->table_name.str, (long) outparam));
 
   error= 1;
   bzero((char*) outparam, sizeof(*outparam));
@@ -1969,7 +1965,7 @@ TYPELIB *typelib(MEM_ROOT *mem_root, List<String> &strings)
    #  field number +1
 */
 
-static uint find_field(Field **fields, uint start, uint length)
+static uint find_field(Field **fields, byte *record, uint start, uint length)
 {
   Field **field;
   uint i, pos;
@@ -1977,7 +1973,7 @@ static uint find_field(Field **fields, uint start, uint length)
   pos= 0;
   for (field= fields, i=1 ; *field ; i++,field++)
   {
-    if ((*field)->offset() == start)
+    if ((*field)->offset(record) == start)
     {
       if ((*field)->key_length() == length)
 	return (i);
@@ -2258,7 +2254,7 @@ char *get_field(MEM_ROOT *mem, Field *field)
 
   SYNPOSIS
     check_db_name()
-    name		Name of database
+    org_name		Name of database and length
 
   NOTES
     If lower_case_table_names is set then database is converted to lower case
@@ -2268,35 +2264,35 @@ char *get_field(MEM_ROOT *mem, Field *field)
     1   error
 */
 
-bool check_db_name(char *name)
+bool check_db_name(LEX_STRING *org_name)
 {
-  char *start= name;
-  /* Used to catch empty names and names with end space */
-  bool last_char_is_space= TRUE;
+  char *name= org_name->str;
+
+  if (!org_name->length || org_name->length > NAME_LEN)
+    return 1;
 
   if (lower_case_table_names && name != any_db)
     my_casedn_str(files_charset_info, name);
 
-  while (*name)
-  {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
-    last_char_is_space= my_isspace(system_charset_info, *name);
-    if (use_mb(system_charset_info))
+  if (use_mb(system_charset_info))
+  {
+    bool last_char_is_space= TRUE;
+    char *end= name + org_name->length;
+    while (name < end)
     {
-      int len=my_ismbchar(system_charset_info, name, 
-                          name+system_charset_info->mbmaxlen);
-      if (len)
-      {
-        name += len;
-        continue;
-      }
+      int len;
+      last_char_is_space= my_isspace(system_charset_info, *name);
+      len= my_ismbchar(system_charset_info, name, end);
+      if (!len)
+        len= 1;
+      name+= len;
     }
-#else
-    last_char_is_space= *name==' ';
-#endif
-    name++;
+    return last_char_is_space;
   }
-  return last_char_is_space || (uint) (name - start) > NAME_LEN;
+  else
+#endif
+    return org_name->str[org_name->length - 1] != ' '; /* purecov: inspected */
 }
 
 
@@ -2405,8 +2401,8 @@ table_check_intact(TABLE *table, const uint table_f_count,
   my_bool error= FALSE;
   my_bool fields_diff_count;
   DBUG_ENTER("table_check_intact");
-  DBUG_PRINT("info",("table=%s expected_count=%d",table->alias, table_f_count));
-  DBUG_PRINT("info",("last_create_time=%d", *last_create_time));
+  DBUG_PRINT("info",("table: %s  expected_count: %d  last_create_time: %ld",
+                     table->alias, table_f_count, *last_create_time));
   
   if ((fields_diff_count= (table->s->fields != table_f_count)) ||
       (*last_create_time != table->file->stats.create_time))

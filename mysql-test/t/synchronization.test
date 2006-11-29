@@ -4,7 +4,7 @@
 #
 
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1,t2;
 --enable_warnings
 
 connect (con1,localhost,root,,);

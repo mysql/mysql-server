@@ -239,7 +239,7 @@ public:
    */
   my_size_t last_null_byte() const {
     my_size_t bytes= do_last_null_byte();
-    DBUG_PRINT("debug", ("last_null_byte() ==> %d", bytes));
+    DBUG_PRINT("debug", ("last_null_byte() ==> %ld", (long) bytes));
     DBUG_ASSERT(bytes <= table->s->null_bytes);
     return bytes;
   }
@@ -342,7 +342,10 @@ public:
   virtual int pack_cmp(const char *b, uint key_length_arg,
                        my_bool insert_or_update)
   { return cmp(ptr,b); }
-  uint offset();			// Should be inline ...
+  uint offset(byte *record)
+  {
+    return (uint) (ptr - (char*) record);
+  }
   void copy_from_tmp(int offset);
   uint fill_cache_field(struct st_cache_field *copy);
   virtual bool get_date(TIME *ltime,uint fuzzydate);
@@ -351,6 +354,9 @@ public:
   virtual CHARSET_INFO *sort_charset(void) const { return charset(); }
   virtual bool has_charset(void) const { return FALSE; }
   virtual void set_charset(CHARSET_INFO *charset) { }
+  virtual enum Derivation derivation(void) const
+  { return DERIVATION_IMPLICIT; }
+  virtual void set_derivation(enum Derivation derivation) { }
   bool set_warning(MYSQL_ERROR::enum_warning_level, unsigned int code,
                    int cuted_increment);
   bool check_int(const char *str, int length, const char *int_end,
@@ -446,6 +452,7 @@ public:
 class Field_str :public Field {
 protected:
   CHARSET_INFO *field_charset;
+  enum Derivation field_derivation;
 public:
   Field_str(char *ptr_arg,uint32 len_arg, uchar *null_ptr_arg,
 	    uchar null_bit_arg, utype unireg_check_arg,
@@ -459,6 +466,9 @@ public:
   uint size_of() const { return sizeof(*this); }
   CHARSET_INFO *charset(void) const { return field_charset; }
   void set_charset(CHARSET_INFO *charset) { field_charset=charset; }
+  enum Derivation derivation(void) const { return field_derivation; }
+  virtual void set_derivation(enum Derivation derivation_arg)
+  { field_derivation= derivation_arg; }
   bool binary() const { return field_charset == &my_charset_bin; }
   uint32 max_length() { return field_length; }
   friend class create_field;

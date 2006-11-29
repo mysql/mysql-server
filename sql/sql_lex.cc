@@ -176,7 +176,8 @@ void lex_start(THD *thd, const uchar *buf, uint length)
   lex->reset_query_tables_list(FALSE);
   lex->expr_allows_subselect= TRUE;
 
-  lex->name= 0;
+  lex->name.str= 0;
+  lex->name.length= 0;
   lex->event_parse_data= NULL;
 
   lex->nest_level=0 ;
@@ -1449,7 +1450,7 @@ bool st_select_lex::add_order_to_list(THD *thd, Item *item, bool asc)
 bool st_select_lex::add_item_to_list(THD *thd, Item *item)
 {
   DBUG_ENTER("st_select_lex::add_item_to_list");
-  DBUG_PRINT("info", ("Item: %p", item));
+  DBUG_PRINT("info", ("Item: 0x%lx", (long) item));
   DBUG_RETURN(item_list.push_back(item));
 }
 

@@ -2027,7 +2027,7 @@ bool ha_partition::create_handlers(MEM_ROOT *mem_root)
     if (!(m_file[i]= get_new_handler(table_share, mem_root,
                                      m_engine_array[i])))
       DBUG_RETURN(TRUE);
-    DBUG_PRINT("info", ("engine_type: %u", m_engine_array[i]));
+    DBUG_PRINT("info", ("engine_type: %u", m_engine_array[i]->db_type));
   }
   /* For the moment we only support partition over the same table engine */
   if (m_engine_array[0] == myisam_hton)
@@ -2427,7 +2427,7 @@ repeat:
   do
   {
     DBUG_PRINT("info", ("external_lock(thd, %d) iteration %d",
-                        lock_type, (file - m_file)));
+                        lock_type, (int) (file - m_file)));
     if ((error= (*file)->external_lock(thd, lock_type)))
     {
       if (F_UNLCK != lock_type)
@@ -2508,7 +2508,7 @@ THR_LOCK_DATA **ha_partition::store_lock(THD *thd,
   file= m_file;
   do
   {
-    DBUG_PRINT("info", ("store lock %d iteration", (file - m_file)));
+    DBUG_PRINT("info", ("store lock %d iteration", (int) (file - m_file)));
     to= (*file)->store_lock(thd, to, lock_type);
   } while (*(++file));
   DBUG_RETURN(to);
@@ -2939,8 +2939,8 @@ int ha_partition::rnd_init(bool scan)
   include_partition_fields_in_used_fields();
   
   /* Now we see what the index of our first important partition is */
-  DBUG_PRINT("info", ("m_part_info->used_partitions 0x%x",
-                      m_part_info->used_partitions.bitmap));
+  DBUG_PRINT("info", ("m_part_info->used_partitions: 0x%lx",
+                      (long) m_part_info->used_partitions.bitmap));
   part_id= bitmap_get_first_set(&(m_part_info->used_partitions));
   DBUG_PRINT("info", ("m_part_spec.start_part %d", part_id));
 
