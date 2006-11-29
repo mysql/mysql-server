@@ -638,7 +638,7 @@ error:
   if (upgrade_defaults_created)
     my_delete(upgrade_defaults_path, MYF(0));
   
-  my_end(info_flag ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
+  my_end(info_flag ? MY_CHECK_ERROR : 0);
   return ret;
 }
 

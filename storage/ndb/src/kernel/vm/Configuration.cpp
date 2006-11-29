@@ -191,7 +191,7 @@ Configuration::init(int argc, char** argv)
       }
       if (! (val > 0 && val < MAX_NDB_NODES))
       {
-	ndbout_c("Invalid nodeid specified in nowait-nodes: %d : %s", 
+	ndbout_c("Invalid nodeid specified in nowait-nodes: %ld : %s", 
 		 val, _nowait_nodes);
 	exit(-1);
       }
