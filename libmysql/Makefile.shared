@@ -89,8 +89,8 @@ DEFS =			-DDEFAULT_CHARSET_HOME="\"$(MYSQLBASEdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" $(target_defs)
 
 if HAVE_YASSL
-yassl_las = $(top_srcdir)/extra/yassl/src/libyassl.la \
-	    $(top_srcdir)/extra/yassl/taocrypt/src/libtaocrypt.la
+yassl_las = $(top_builddir)/extra/yassl/src/libyassl.la \
+	    $(top_builddir)/extra/yassl/taocrypt/src/libtaocrypt.la
 endif
 
 # The automatic dependencies miss this

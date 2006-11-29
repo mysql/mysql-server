@@ -1120,6 +1120,12 @@ select i, count(distinct j) from t1 group by i;
 select i+0.0 as i2, count(distinct j) from t1 group by i2;
 drop table t1;
 
+create table t1(f1 decimal(20,6));
+insert into t1 values (CAST('10:11:12' AS date) + interval 14 microsecond);
+insert into t1 values (CAST('10:11:12' AS time));
+select * from t1;
+drop table t1;
+
 #
 # Bug#16172 DECIMAL data type processed incorrectly
 #
@@ -1130,3 +1136,8 @@ select cast(-3.4 as decimal(2,1));
 select cast(99.6 as decimal(2,0));
 select cast(-13.4 as decimal(2,1));
 select cast(98.6 as decimal(2,0));
+
+# Bug #8663 (cant use bigint as input to CAST)
+#
+select cast(19999999999999999999 as unsigned);
+
