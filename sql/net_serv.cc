@@ -294,7 +294,7 @@ void net_clear(NET *net)
       DBUG_PRINT("info",("skipped %d bytes from file: %s",
                          count, vio_description(net->vio)));
 #ifdef EXTRA_DEBUG
-      fprintf(stderr,"skipped %d bytes from file: %s\n",
+      fprintf(stderr,"MySQL: net_clear() skipped %d bytes from file: %s\n",
               count, vio_description(net->vio));
 #endif
     }
