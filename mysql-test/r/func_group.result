@@ -62,6 +62,13 @@ NULL	NULL
 1	7
 2	20.25
 3	45.483163247594
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a         '
+Warning	1292	Truncated incorrect DOUBLE value: 'a         '
+Warning	1292	Truncated incorrect DOUBLE value: 'b         '
+Warning	1292	Truncated incorrect DOUBLE value: 'c         '
+Warning	1292	Truncated incorrect DOUBLE value: 'C         '
+Warning	1292	Truncated incorrect DOUBLE value: 'E         '
 create table t2 (grp int, a bigint unsigned, c char(10));
 insert into t2 select grp,max(a)+max(grp),max(c) from t1 group by grp;
 replace into t2 select grp, a, c from t1 limit 2,1;
