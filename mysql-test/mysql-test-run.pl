@@ -1916,7 +1916,6 @@ sub kill_running_servers () {
    }
 }
 
-
 #
 # Remove var and any directories in var/ created by previous
 # tests
@@ -1968,7 +1967,6 @@ sub remove_stale_vardir () {
 	mtr_error("The destination for symlink $opt_vardir does not exist")
 	  if ! -d readlink($opt_vardir);
 
-	my $dir=       shift;
 	foreach my $bin ( glob("$opt_vardir/*") )
 	{
 	  mtr_verbose("Removing bin $bin");
@@ -2028,6 +2026,19 @@ sub setup_vardir() {
       mtr_report("Symlinking 'var' to '$opt_mem'");
       symlink($opt_mem, $opt_vardir);
     }
+  }
+
+  if ( ! -d $opt_vardir )
+  {
+    mtr_verbose("Creating $opt_vardir");
+    mkpath($opt_vardir);
+  }
+
+  # Ensure a proper error message if vardir couldn't be created
+  unless ( -d $opt_vardir and -w $opt_vardir )
+  {
+    mtr_error("Writable 'var' directory is needed, use the " .
+	      "'--vardir=<path>' option");
   }
 
   mkpath("$opt_vardir/log");
@@ -3496,6 +3507,11 @@ sub mysqld_arguments ($$$$$) {
       # Force mysqld to use log files up until 5.1.6
       mtr_add_arg($args, "%s--log=%s", $prefix, $master->[0]->{'path_mylog'});
     }
+    else
+    {
+      # Turn on logging, will be sent to tables
+      mtr_add_arg($args, "%s--log=", $prefix);
+    }
   }
 
   if ( $type eq 'slave' )
@@ -3578,6 +3594,11 @@ sub mysqld_arguments ($$$$$) {
     {
       # Force mysqld to use log files up until 5.1.6
       mtr_add_arg($args, "%s--log=%s", $prefix, $master->[0]->{'path_mylog'});
+    }
+    else
+    {
+      # Turn on logging, will be sent to tables
+      mtr_add_arg($args, "%s--log=", $prefix);
     }
 
   } # end slave
