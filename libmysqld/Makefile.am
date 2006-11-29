@@ -94,8 +94,8 @@ INC_LIB=	$(top_builddir)/regex/libregex.a \
 		$(yassl_inc_libs)
 
 if HAVE_YASSL
-yassl_inc_libs=	$(top_srcdir)/extra/yassl/src/.libs/libyassl.a \
-		$(top_srcdir)/extra/yassl/taocrypt/src/.libs/libtaocrypt.a
+yassl_inc_libs=	$(top_builddir)/extra/yassl/src/.libs/libyassl.a \
+		$(top_builddir)/extra/yassl/taocrypt/src/.libs/libtaocrypt.a
 endif
 
 # Storage engine specific compilation options

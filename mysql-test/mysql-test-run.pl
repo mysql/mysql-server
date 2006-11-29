@@ -470,12 +470,6 @@ sub command_line_setup () {
 
   if ( $ENV{'MTR_BUILD_THREAD'} )
   {
-    # If so requested, we try to avail ourselves of a unique build thread number.
-    if ( lc($ENV{'MTR_BUILD_THREAD'}) eq 'auto' ) {
-      print "Requesting build thread... ";
-      $ENV{'MTR_BUILD_THREAD'} = mtr_require_unique_id_and_wait("/tmp/mysql-test-ports", 200, 299);
-      print "got ".$ENV{'MTR_BUILD_THREAD'}."\n";
-    }
     set_mtr_build_thread_ports($ENV{'MTR_BUILD_THREAD'});
   }
 
