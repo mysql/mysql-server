@@ -97,7 +97,7 @@ ulint	recv_n_pool_free_frames		= 256;
 is bigger than the lsn we are able to scan up to, that is an indication that
 the recovery failed and the database may be corrupt. */
 
-ib_ulonglong	recv_max_page_lsn;
+ib_uint64_t	recv_max_page_lsn;
 
 /************************************************************
 Creates the recovery system. */
@@ -218,20 +218,20 @@ void
 recv_truncate_group(
 /*================*/
 	log_group_t*	group,		/* in: log group */
-	ib_ulonglong	recovered_lsn,	/* in: recovery succeeded up to this
+	ib_uint64_t	recovered_lsn,	/* in: recovery succeeded up to this
 					lsn */
-	ib_ulonglong	limit_lsn,	/* in: this was the limit for
+	ib_uint64_t	limit_lsn,	/* in: this was the limit for
 					recovery */
-	ib_ulonglong	checkpoint_lsn,	/* in: recovery was started from this
+	ib_uint64_t	checkpoint_lsn,	/* in: recovery was started from this
 					checkpoint */
-	ib_ulonglong	archived_lsn)	/* in: the log has been archived up to
+	ib_uint64_t	archived_lsn)	/* in: the log has been archived up to
 					this lsn */
 {
-	ib_ulonglong	start_lsn;
-	ib_ulonglong	end_lsn;
-	ib_ulonglong	finish_lsn1;
-	ib_ulonglong	finish_lsn2;
-	ib_ulonglong	finish_lsn;
+	ib_uint64_t	start_lsn;
+	ib_uint64_t	end_lsn;
+	ib_uint64_t	finish_lsn1;
+	ib_uint64_t	finish_lsn2;
+	ib_uint64_t	finish_lsn;
 	ulint		len;
 	ulint		i;
 
@@ -322,11 +322,11 @@ recv_copy_group(
 						group */
 	log_group_t*	group,			/* in: copy to this log
 						group */
-	ib_ulonglong	recovered_lsn)		/* in: recovery succeeded up
+	ib_uint64_t	recovered_lsn)		/* in: recovery succeeded up
 						to this lsn */
 {
-	ib_ulonglong	start_lsn;
-	ib_ulonglong	end_lsn;
+	ib_uint64_t	start_lsn;
+	ib_uint64_t	end_lsn;
 	ulint		len;
 
 	if (group->scanned_lsn >= recovered_lsn) {
@@ -375,10 +375,10 @@ recv_synchronize_groups(
 						log group */
 {
 	log_group_t*	group;
-	ib_ulonglong	start_lsn;
-	ib_ulonglong	end_lsn;
-	ib_ulonglong	recovered_lsn;
-	ib_ulonglong	limit_lsn;
+	ib_uint64_t	start_lsn;
+	ib_uint64_t	end_lsn;
+	ib_uint64_t	recovered_lsn;
+	ib_uint64_t	limit_lsn;
 
 	recovered_lsn = recv_sys->recovered_lsn;
 	limit_lsn = recv_sys->limit_lsn;
@@ -471,8 +471,8 @@ recv_find_max_checkpoint(
 					LOG_CHECKPOINT_2 */
 {
 	log_group_t*	group;
-	ib_ulonglong	max_no;
-	ib_ulonglong	checkpoint_no;
+	ib_uint64_t	max_no;
+	ib_uint64_t	checkpoint_no;
 	ulint		field;
 	byte*		buf;
 
@@ -569,18 +569,18 @@ recv_read_cp_info_for_backup(
 				/* out: TRUE if success */
 	byte*		hdr,	/* in: buffer containing the log group
 				header */
-	ib_ulonglong*	lsn,	/* out: checkpoint lsn */
+	ib_uint64_t*	lsn,	/* out: checkpoint lsn */
 	ulint*		offset,	/* out: checkpoint offset in the log group */
 	ulint*		fsp_limit,/* out: fsp limit of space 0,
 				1000000000 if the database is running
 				with < version 3.23.50 of InnoDB */
-	ib_ulonglong*	cp_no,	/* out: checkpoint number */
-	ib_ulonglong*	first_header_lsn)
+	ib_uint64_t*	cp_no,	/* out: checkpoint number */
+	ib_uint64_t*	first_header_lsn)
 				/* out: lsn of of the start of the
 				first log file */
 {
 	ulint		max_cp		= 0;
-	ib_ulonglong	max_cp_no	= 0;
+	ib_uint64_t	max_cp_no	= 0;
 	byte*		cp_buf;
 
 	cp_buf = hdr + LOG_CHECKPOINT_1;
@@ -676,7 +676,7 @@ recv_scan_log_seg_for_backup(
 /*=========================*/
 	byte*		buf,		/* in: buffer containing log data */
 	ulint		buf_len,	/* in: data length in that buffer */
-	ib_ulonglong*	scanned_lsn,	/* in/out: lsn of buffer start,
+	ib_uint64_t*	scanned_lsn,	/* in/out: lsn of buffer start,
 					we return scanned lsn */
 	ulint*		scanned_checkpoint_no,
 					/* in/out: 4 lowest bytes of the
@@ -1040,8 +1040,8 @@ recv_add_to_hash_table(
 	ulint		page_no,	/* in: page number */
 	byte*		body,		/* in: log record body */
 	byte*		rec_end,	/* in: log record end */
-	ib_ulonglong	start_lsn,	/* in: start lsn of the mtr */
-	ib_ulonglong	end_lsn)	/* in: end lsn of the mtr */
+	ib_uint64_t	start_lsn,	/* in: start lsn of the mtr */
+	ib_uint64_t	end_lsn)	/* in: end lsn of the mtr */
 {
 	recv_t*		recv;
 	ulint		len;
@@ -1168,10 +1168,10 @@ recv_recover_page(
 	recv_addr_t*	recv_addr;
 	recv_t*		recv;
 	byte*		buf;
-	ib_ulonglong	start_lsn;
-	ib_ulonglong	end_lsn;
-	ib_ulonglong	page_lsn;
-	ib_ulonglong	page_newest_lsn;
+	ib_uint64_t	start_lsn;
+	ib_uint64_t	end_lsn;
+	ib_uint64_t	page_lsn;
+	ib_uint64_t	page_newest_lsn;
 	ibool		modification_to_page;
 	ibool		success;
 	mtr_t		mtr;
@@ -1764,11 +1764,11 @@ recv_parse_log_rec(
 /***********************************************************
 Calculates the new value for lsn when more data is added to the log. */
 static
-ib_ulonglong
+ib_uint64_t
 recv_calc_lsn_on_data_add(
 /*======================*/
-	ib_ulonglong	lsn,	/* in: old lsn */
-	ib_ulonglong	len)	/* in: this many bytes of data is
+	ib_uint64_t	lsn,	/* in: old lsn */
+	ib_uint64_t	len)	/* in: this many bytes of data is
 				added, log block headers not included */
 {
 	ulint	frag_len;
@@ -1883,8 +1883,8 @@ recv_parse_log_recs(
 	ulint		single_rec;
 	ulint		len;
 	ulint		total_len;
-	ib_ulonglong	new_recovered_lsn;
-	ib_ulonglong	old_lsn;
+	ib_uint64_t	new_recovered_lsn;
+	ib_uint64_t	old_lsn;
 	byte		type;
 	ulint		space;
 	ulint		page_no;
@@ -2118,7 +2118,7 @@ recv_sys_add_to_parsing_buf(
 /*========================*/
 					/* out: TRUE if more data added */
 	byte*		log_block,	/* in: log block */
-	ib_ulonglong	scanned_lsn)	/* in: lsn of how far we were able
+	ib_uint64_t	scanned_lsn)	/* in: lsn of how far we were able
 					to find data in this log block */
 {
 	ulint	more_len;
@@ -2224,16 +2224,16 @@ recv_scan_log_recs(
 	byte*		buf,		/* in: buffer containing a log segment
 					or garbage */
 	ulint		len,		/* in: buffer length */
-	ib_ulonglong	start_lsn,	/* in: buffer start lsn */
-	ib_ulonglong*	contiguous_lsn,	/* in/out: it is known that all log
+	ib_uint64_t	start_lsn,	/* in: buffer start lsn */
+	ib_uint64_t*	contiguous_lsn,	/* in/out: it is known that all log
 					groups contain contiguous log data up
 					to this lsn */
-	ib_ulonglong*	group_scanned_lsn)/* out: scanning succeeded up to
+	ib_uint64_t*	group_scanned_lsn)/* out: scanning succeeded up to
 					this lsn */
 {
 	byte*		log_block;
 	ulint		no;
-	ib_ulonglong	scanned_lsn;
+	ib_uint64_t	scanned_lsn;
 	ibool		finished;
 	ulint		data_len;
 	ibool		more_data;
@@ -2421,15 +2421,15 @@ void
 recv_group_scan_log_recs(
 /*=====================*/
 	log_group_t*	group,		/* in: log group */
-	ib_ulonglong*	contiguous_lsn,	/* in/out: it is known that all log
+	ib_uint64_t*	contiguous_lsn,	/* in/out: it is known that all log
 					groups contain contiguous log data up
 					to this lsn */
-	ib_ulonglong*	group_scanned_lsn)/* out: scanning succeeded up to
+	ib_uint64_t*	group_scanned_lsn)/* out: scanning succeeded up to
 					this lsn */
 {
 	ibool		finished;
-	ib_ulonglong	start_lsn;
-	ib_ulonglong	end_lsn;
+	ib_uint64_t	start_lsn;
+	ib_uint64_t	end_lsn;
 
 	finished = FALSE;
 
@@ -2470,23 +2470,23 @@ recv_recovery_from_checkpoint_start(
 /*================================*/
 					/* out: error code or DB_SUCCESS */
 	ulint		type,		/* in: LOG_CHECKPOINT or LOG_ARCHIVE */
-	ib_ulonglong	limit_lsn,	/* in: recover up to this lsn
+	ib_uint64_t	limit_lsn,	/* in: recover up to this lsn
 					if possible */
-	ib_ulonglong	min_flushed_lsn,/* in: min flushed lsn from
+	ib_uint64_t	min_flushed_lsn,/* in: min flushed lsn from
 					data files */
-	ib_ulonglong	max_flushed_lsn)/* in: max flushed lsn from
+	ib_uint64_t	max_flushed_lsn)/* in: max flushed lsn from
 					data files */
 {
 	log_group_t*	group;
 	log_group_t*	max_cp_group;
 	log_group_t*	up_to_date_group;
 	ulint		max_cp_field;
-	ib_ulonglong	checkpoint_lsn;
-	ib_ulonglong	checkpoint_no;
-	ib_ulonglong	old_scanned_lsn;
-	ib_ulonglong	group_scanned_lsn;
-	ib_ulonglong	contiguous_lsn;
-	ib_ulonglong	archived_lsn;
+	ib_uint64_t	checkpoint_lsn;
+	ib_uint64_t	checkpoint_no;
+	ib_uint64_t	old_scanned_lsn;
+	ib_uint64_t	group_scanned_lsn;
+	ib_uint64_t	contiguous_lsn;
+	ib_uint64_t	archived_lsn;
 	ulint		capacity;
 	byte*		buf;
 	byte		log_hdr_buf[LOG_FILE_HDR_SIZE];
@@ -2901,7 +2901,7 @@ Resets the logs. The contents of log files will be lost! */
 void
 recv_reset_logs(
 /*============*/
-	ib_ulonglong	lsn,		/* in: reset to this lsn
+	ib_uint64_t	lsn,		/* in: reset to this lsn
 					rounded up to be divisible by
 					OS_FILE_LOG_BLOCK_SIZE, after
 					which we add
@@ -2976,7 +2976,7 @@ recv_reset_log_files_for_backup(
 	const char*	log_dir,	/* in: log file directory path */
 	ulint		n_log_files,	/* in: number of log files */
 	ulint		log_file_size,	/* in: log file size */
-	ib_ulonglong	lsn)		/* in: new start lsn, must be
+	ib_uint64_t	lsn)		/* in: new start lsn, must be
 					divisible by OS_FILE_LOG_BLOCK_SIZE */
 {
 	os_file_t	log_file;
@@ -3070,10 +3070,10 @@ log_group_recover_from_archive_file(
 	log_group_t*	group)		/* in: log group */
 {
 	os_file_t	file_handle;
-	ib_ulonglong	start_lsn;
-	ib_ulonglong	file_end_lsn;
-	ib_ulonglong	dummy_lsn;
-	ib_ulonglong	scanned_lsn;
+	ib_uint64_t	start_lsn;
+	ib_uint64_t	file_end_lsn;
+	ib_uint64_t	dummy_lsn;
+	ib_uint64_t	scanned_lsn;
 	ulint		len;
 	ibool		ret;
 	byte*		buf;
@@ -3257,9 +3257,9 @@ ulint
 recv_recovery_from_archive_start(
 /*=============================*/
 					/* out: error code or DB_SUCCESS */
-	ib_ulonglong	min_flushed_lsn,/* in: min flushed lsn field from the
+	ib_uint64_t	min_flushed_lsn,/* in: min flushed lsn field from the
 					data files */
-	ib_ulonglong	limit_lsn,	/* in: recover up to this lsn if
+	ib_uint64_t	limit_lsn,	/* in: recover up to this lsn if
 					possible */
 	ulint		first_log_no)	/* in: number of the first archived
 					log file to use in the recovery; the

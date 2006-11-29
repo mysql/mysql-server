@@ -41,14 +41,14 @@ buf_pool_get_curr_size(void)
 Gets the smallest oldest_modification lsn for any page in the pool. Returns
 zero if all modified pages have been flushed to disk. */
 UNIV_INLINE
-ib_ulonglong
+ib_uint64_t
 buf_pool_get_oldest_modification(void)
 /*==================================*/
 				/* out: oldest modification in pool,
 				zero if none */
 {
 	buf_page_t*	bpage;
-	ib_ulonglong	lsn;
+	ib_uint64_t	lsn;
 
 	mutex_enter(&(buf_pool->mutex));
 
@@ -484,13 +484,13 @@ buf_page_io_query(
 Gets the youngest modification log sequence number for a frame.
 Returns zero if not file page or no modification occurred yet. */
 UNIV_INLINE
-ib_ulonglong
+ib_uint64_t
 buf_block_get_newest_modification(
 /*==============================*/
 				/* out: newest modification to page */
 	buf_block_t*	block)	/* in: block containing the page frame */
 {
-	ib_ulonglong	lsn;
+	ib_uint64_t	lsn;
 
 	mutex_enter(&(buf_pool->mutex));
 
@@ -527,7 +527,7 @@ buf_block_modify_clock_inc(
 Returns the value of the modify clock. The caller must have an s-lock
 or x-lock on the block. */
 UNIV_INLINE
-ib_ulonglong
+ib_uint64_t
 buf_block_get_modify_clock(
 /*=======================*/
 				/* out: value */

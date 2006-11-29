@@ -202,10 +202,10 @@ typedef long int		lint;
 
 #ifdef __WIN__
 typedef __int64			ib_longlong;
-typedef unsigned __int64	ib_ulonglong;
+typedef unsigned __int64	ib_uint64_t;
 #else
 typedef longlong		ib_longlong;
-typedef ulonglong		ib_ulonglong;
+typedef ulonglong		ib_uint64_t;
 #endif
 
 #ifndef __WIN__
@@ -223,8 +223,8 @@ typedef ulonglong		ib_ulonglong;
 /* Maximum value for a ulint */
 #define ULINT_MAX		((ulint)(-2))
 
-/* Maximum value for ib_ulonglong */
-#define IB_ULONGLONG_MAX	((ib_ulonglong) (~0ULL))
+/* Maximum value for ib_uint64_t */
+#define IB_ULONGLONG_MAX	((ib_uint64_t) (~0ULL))
 
 /* This 'ibool' type is used within Innobase. Remember that different included
 headers may define 'bool' differently. Do not assume that 'bool' is a ulint! */

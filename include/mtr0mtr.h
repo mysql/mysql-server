@@ -350,9 +350,9 @@ struct mtr_struct{
 				have been written to the mtr log */
 	ulint		log_mode; /* specifies which operations should be
 				logged; default value MTR_LOG_ALL */
-	ib_ulonglong	start_lsn;/* start lsn of the possible log entry for
+	ib_uint64_t	start_lsn;/* start lsn of the possible log entry for
 				this mtr */
-	ib_ulonglong	end_lsn;/* end lsn of the possible log entry for
+	ib_uint64_t	end_lsn;/* end lsn of the possible log entry for
 				this mtr */
 	ulint		magic_n;
 };

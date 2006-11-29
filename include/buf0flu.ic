@@ -71,9 +71,9 @@ void
 buf_flush_recv_note_modification(
 /*=============================*/
 	buf_block_t*	block,		/* in: block which is modified */
-	ib_ulonglong	start_lsn,	/* in: start lsn of the first mtr in a
+	ib_uint64_t	start_lsn,	/* in: start lsn of the first mtr in a
 					set of mtr's */
-	ib_ulonglong	end_lsn)	/* in: end lsn of the last mtr in the
+	ib_uint64_t	end_lsn)	/* in: end lsn of the last mtr in the
 					set of mtr's */
 {
 	ut_ad(block);

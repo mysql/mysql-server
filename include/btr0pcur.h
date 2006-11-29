@@ -477,7 +477,7 @@ struct btr_pcur_struct{
 					old_rec record */
 	buf_block_t*	block_when_stored;/* buffer block when the position was
 					stored */
-	ib_ulonglong	modify_clock;	/* the modify clock value of the
+	ib_uint64_t	modify_clock;	/* the modify clock value of the
 					buffer block when the cursor position
 					was stored */
 	ulint		pos_state;	/* see TODO note below!

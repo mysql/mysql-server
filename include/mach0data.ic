@@ -281,7 +281,7 @@ void
 mach_write_ull(
 /*===========*/
 	byte*		b,	/* in: pointer to 8 bytes where to store */
-	ib_ulonglong	n)	/* in: 64-bit integer to be stored */
+	ib_uint64_t	n)	/* in: 64-bit integer to be stored */
 {
 	ut_ad(b);
 
@@ -314,16 +314,16 @@ mach_read_from_8(
 The following function is used to fetch data from 8 consecutive
 bytes. The most significant byte is at the lowest address. */
 UNIV_INLINE
-ib_ulonglong
+ib_uint64_t
 mach_read_ull(
 /*==========*/
 				/* out: 64-bit integer */
 	const byte*	b)	/* in: pointer to 8 bytes */
 {
-	ib_ulonglong	ull;
+	ib_uint64_t	ull;
 
-	ull = ((ib_ulonglong) mach_read_from_4(b)) << 32;
-	ull |= (ib_ulonglong) mach_read_from_4(b + 4);
+	ull = ((ib_uint64_t) mach_read_from_4(b)) << 32;
+	ull |= (ib_uint64_t) mach_read_from_4(b + 4);
 
 	return(ull);
 }
