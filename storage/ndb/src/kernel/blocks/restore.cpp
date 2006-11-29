@@ -1137,7 +1137,7 @@ Restore::reorder_key(const KeyDescriptor* desc,
     }
     dst += sz;
   }
-  ndbassert((dst - Tmp) == len);
+  ndbassert((Uint32) (dst - Tmp) == len);
   memcpy(data, Tmp, 4*len);
 }
 

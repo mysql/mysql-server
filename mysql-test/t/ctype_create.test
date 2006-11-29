@@ -100,3 +100,8 @@ drop database mysqltest2;
 ALTER DATABASE DEFAULT CHARACTER SET latin2;
 
 # End of 4.1 tests
+
+--error 1102
+ALTER DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa DEFAULT CHARACTER SET latin2;
+--error 1102
+ALTER DATABASE `` DEFAULT CHARACTER SET latin2;

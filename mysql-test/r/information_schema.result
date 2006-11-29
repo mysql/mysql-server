@@ -14,7 +14,6 @@ NULL	test	latin1	latin1_swedish_ci	NULL
 select schema_name from information_schema.schemata;
 schema_name
 information_schema
-cluster
 mysql
 test
 show databases like 't%';
@@ -23,7 +22,6 @@ test
 show databases;
 Database
 information_schema
-cluster
 mysql
 test
 show databases where `database` = 't%';
@@ -35,7 +33,7 @@ create table t3(a int, KEY a_data (a));
 create table mysqltest.t4(a int);
 create table t5 (id int auto_increment primary key);
 insert into t5 values (10);
-create view v1 (c) as select table_name from information_schema.TABLES where table_schema!='cluster';
+create view v1 (c) as select table_name from information_schema.TABLES where table_name<>'binlog_index' AND table_name<>'apply_status';
 select * from v1;
 c
 CHARACTER_SETS
@@ -352,7 +350,6 @@ create view v0 (c) as select schema_name from information_schema.schemata;
 select * from v0;
 c
 information_schema
-cluster
 mysql
 test
 explain select * from v0;
@@ -852,7 +849,7 @@ VIEWS	TABLE_NAME	select
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 flush privileges;
-SELECT table_schema, count(*) FROM information_schema.TABLES where TABLE_SCHEMA!='cluster' GROUP BY TABLE_SCHEMA;
+SELECT table_schema, count(*) FROM information_schema.TABLES where table_name<>'binlog_index' AND table_name<>'apply_status' GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
 information_schema	27
 mysql	21

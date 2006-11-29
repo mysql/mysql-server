@@ -424,6 +424,18 @@ bool Log_to_csv_event_handler::
 {
   TABLE *table= general_log.table;
 
+  /*
+    "INSERT INTO general_log" can generate warning sometimes.
+    Let's reset warnings from previous queries,
+    otherwise warning list can grow too much,
+    so thd->query gets spoiled as some point in time,
+    and mysql_parse() receives a broken query.
+    QQ: this problem needs to be studied in more details.
+    Probably it's better to suppress warnings in logging INSERTs at all.
+    Comment this line and run "cast.test" to see what's happening:
+  */
+  mysql_reset_errors(table->in_use, 1);
+
   /* below should never happen */
   if (unlikely(!logger.is_log_tables_initialized))
     return FALSE;
@@ -1332,7 +1344,7 @@ binlog_trans_log_savepos(THD *thd, my_off_t *pos)
     (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
   DBUG_ASSERT(mysql_bin_log.is_open());
   *pos= trx_data->position();
-  DBUG_PRINT("return", ("*pos=%u", *pos));
+  DBUG_PRINT("return", ("*pos: %lu", (ulong) *pos));
   DBUG_VOID_RETURN;
 }
 
@@ -1356,7 +1368,7 @@ static void
 binlog_trans_log_truncate(THD *thd, my_off_t pos)
 {
   DBUG_ENTER("binlog_trans_log_truncate");
-  DBUG_PRINT("enter", ("pos=%u", pos));
+  DBUG_PRINT("enter", ("pos: %lu", (ulong) pos));
 
   DBUG_ASSERT(thd->ha_data[binlog_hton->slot] != NULL);
   /* Only true if binlog_trans_log_savepos() wasn't called before */
@@ -1432,8 +1444,8 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
   DBUG_ENTER("binlog_end_trans");
   int error=0;
   IO_CACHE *trans_log= &trx_data->trans_log;
-  DBUG_PRINT("enter", ("transaction: %s, end_ev=%p",
-                       all ? "all" : "stmt", end_ev));
+  DBUG_PRINT("enter", ("transaction: %s  end_ev: 0x%lx",
+                       all ? "all" : "stmt", (long) end_ev));
   DBUG_PRINT("info", ("thd->options={ %s%s}",
                       FLAGSTR(thd->options, OPTION_NOT_AUTOCOMMIT),
                       FLAGSTR(thd->options, OPTION_BEGIN)));
@@ -3405,12 +3417,13 @@ int THD::binlog_setup_trx_data()
 void
 THD::binlog_start_trans_and_stmt()
 {
-  DBUG_ENTER("binlog_start_trans_and_stmt");
   binlog_trx_data *trx_data= (binlog_trx_data*) ha_data[binlog_hton->slot];
-  DBUG_PRINT("enter", ("trx_data=0x%lu", trx_data));
-  if (trx_data)
-    DBUG_PRINT("enter", ("trx_data->before_stmt_pos=%u",
-                         trx_data->before_stmt_pos));
+  DBUG_ENTER("binlog_start_trans_and_stmt");
+  DBUG_PRINT("enter", ("trx_data: 0x%lx  trx_data->before_stmt_pos: %lu",
+                       (long) trx_data,
+                       (trx_data ? (ulong) trx_data->before_stmt_pos :
+                        (ulong) 0)));
+
   if (trx_data == NULL ||
       trx_data->before_stmt_pos == MY_OFF_T_UNDEF)
   {
@@ -3441,8 +3454,8 @@ int THD::binlog_write_table_map(TABLE *table, bool is_trans)
 {
   int error;
   DBUG_ENTER("THD::binlog_write_table_map");
-  DBUG_PRINT("enter", ("table: %0xlx  (%s: #%u)",
-                       (long) table, table->s->table_name,
+  DBUG_PRINT("enter", ("table: 0x%lx  (%s: #%lu)",
+                       (long) table, table->s->table_name.str,
                        table->s->table_map_id));
 
   /* Pre-conditions */
@@ -3505,7 +3518,7 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
 {
   DBUG_ENTER("MYSQL_BIN_LOG::flush_and_set_pending_rows_event(event)");
   DBUG_ASSERT(mysql_bin_log.is_open());
-  DBUG_PRINT("enter", ("event=%p", event));
+  DBUG_PRINT("enter", ("event: 0x%lx", (long) event));
 
   int error= 0;
 
@@ -3514,7 +3527,7 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
 
   DBUG_ASSERT(trx_data);
 
-  DBUG_PRINT("info", ("trx_data->pending()=%p", trx_data->pending()));
+  DBUG_PRINT("info", ("trx_data->pending(): 0x%lx", (long) trx_data->pending()));
 
   if (Rows_log_event* pending= trx_data->pending())
   {
@@ -3669,9 +3682,9 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
       my_off_t trans_log_pos= my_b_tell(trans_log);
       if (event_info->get_cache_stmt() || trans_log_pos != 0)
       {
-        DBUG_PRINT("info", ("Using trans_log: cache=%d, trans_log_pos=%u",
+        DBUG_PRINT("info", ("Using trans_log: cache: %d, trans_log_pos: %lu",
                             event_info->get_cache_stmt(),
-                            trans_log_pos));
+                            (ulong) trans_log_pos));
         if (trans_log_pos == 0)
           thd->binlog_start_trans_and_stmt();
         file= trans_log;
@@ -3713,15 +3726,17 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
         }
         if (thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements() > 0)
         {
-          DBUG_PRINT("info",("number of auto_inc intervals: %lu",
-                             thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements()));
+          DBUG_PRINT("info",("number of auto_inc intervals: %u",
+                             thd->auto_inc_intervals_in_cur_stmt_for_binlog.
+                             nb_elements()));
           /*
             If the auto_increment was second in a table's index (possible with
             MyISAM or BDB) (table->next_number_key_offset != 0), such event is
             in fact not necessary. We could avoid logging it.
           */
-          Intvar_log_event e(thd,(uchar) INSERT_ID_EVENT,
-                             thd->auto_inc_intervals_in_cur_stmt_for_binlog.minimum());
+          Intvar_log_event e(thd, (uchar) INSERT_ID_EVENT,
+                             thd->auto_inc_intervals_in_cur_stmt_for_binlog.
+                             minimum());
           if (e.write(file))
             goto err;
         }

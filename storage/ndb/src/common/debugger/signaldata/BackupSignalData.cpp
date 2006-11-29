@@ -124,6 +124,9 @@ printABORT_BACKUP_ORD(FILE * out, const Uint32 * data, Uint32 len, Uint16 b){
 	    sig->backupPtr, sig->backupId);
     return true;
     break;
+  case AbortBackupOrd::AbortScan:
+  case AbortBackupOrd::IncompatibleVersions:
+    return false;
   }
   return false;
 }

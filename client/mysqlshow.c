@@ -16,7 +16,7 @@
 
 /* Show databases, tables or columns */
 
-#define SHOW_VERSION "9.5"
+#define SHOW_VERSION "9.6"
 
 #include "client_priv.h"
 #include <my_sys.h>
@@ -28,8 +28,8 @@
 #include <sslopt-vars.h>
 
 static my_string host=0,opt_password=0,user=0;
-static my_bool opt_show_keys= 0, opt_compress= 0, opt_count=0, opt_status= 0, 
-  tty_password= 0, opt_table_type= 0;
+static my_bool opt_show_keys= 0, opt_compress= 0, opt_count=0, opt_status= 0;
+static my_bool tty_password= 0, opt_table_type= 0, info_flag= 0;
 static uint opt_verbose=0;
 static char *default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
 
@@ -129,8 +129,7 @@ int main(int argc, char **argv)
   }
   mysql.reconnect= 1;
 
-  switch (argc)
-  {
+  switch (argc) {
   case 0:  error=list_dbs(&mysql,wild); break;
   case 1:
     if (opt_status)
@@ -151,7 +150,7 @@ int main(int argc, char **argv)
 #ifdef HAVE_SMEM
   my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
 #endif
-  my_end(0);
+  my_end(info_flag ? MY_CHECK_ERROR : 0);
   exit(error ? 1 : 0);
   return 0;				/* No compiler warnings */
 }
@@ -177,6 +176,8 @@ static struct my_option my_long_options[] =
    0, 0, 0},
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.", (gptr*) &info_flag,
+   (gptr*) &info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host.", (gptr*) &host, (gptr*) &host, 0, GET_STR,

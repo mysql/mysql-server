@@ -45,7 +45,7 @@ reset master;
 --connection server2
 alter table t2 add column (b int);
 
---connections server1
+--connection server1
 --source include/show_binlog_events.inc
 
 # alter database

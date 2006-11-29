@@ -57,3 +57,5 @@ s1
 1
 drop table `txu@0023p@0023p1`;
 drop table `txu#p#p1`;
+truncate t1;
+drop table t1;
