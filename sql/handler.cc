@@ -1513,7 +1513,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
   DBUG_ENTER("handler::ha_open");
   DBUG_PRINT("enter",
              ("name: %s  db_type: %d  db_stat: %d  mode: %d  lock_test: %d",
-              name, table_share->db_type, table_arg->db_stat, mode,
+              name, ht->db_type, table_arg->db_stat, mode,
               test_if_locked));
 
   table= table_arg;
@@ -1654,7 +1654,7 @@ prev_insert_id(ulonglong nr, struct system_variables *variables)
     */
     DBUG_PRINT("info",("auto_increment: nr: %lu cannot honour "
                        "auto_increment_offset: %lu",
-                       nr, variables->auto_increment_offset));
+                       (ulong) nr, variables->auto_increment_offset));
     return nr;
   }
   if (variables->auto_increment_increment == 1)
@@ -1927,8 +1927,8 @@ int handler::update_auto_increment()
 void handler::column_bitmaps_signal()
 {
   DBUG_ENTER("column_bitmaps_signal");
-  DBUG_PRINT("info", ("read_set: 0x%lx  write_set: 0x%lx", table->read_set,
-                      table->write_set));
+  DBUG_PRINT("info", ("read_set: 0x%lx  write_set: 0x%lx", (long) table->read_set,
+                      (long) table->write_set));
   DBUG_VOID_RETURN;
 }
 
@@ -3460,38 +3460,15 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
    declared static, but it works by putting it into an anonymous
    namespace. */
 namespace {
-  struct st_table_data {
-    char const *db;
-    char const *name;
-  };
-
-  static int table_name_compare(void const *a, void const *b)
-  {
-    st_table_data const *x = (st_table_data const*) a;
-    st_table_data const *y = (st_table_data const*) b;
-
-    /* Doing lexical compare in order (db,name) */
-    int const res= strcmp(x->db, y->db);
-    return res != 0 ? res : strcmp(x->name, y->name);
-  }
-
   bool check_table_binlog_row_based(THD *thd, TABLE *table)
   {
-    static st_table_data const ignore[] = {
-      { "mysql", "event" },
-      { "mysql", "general_log" },
-      { "mysql", "slow_log" }
-    };
-
-    my_size_t const ignore_size = sizeof(ignore)/sizeof(*ignore);
-    st_table_data const item = { table->s->db.str, table->s->table_name.str };
-
     if (table->s->cached_row_logging_check == -1)
-      table->s->cached_row_logging_check=
-        (table->s->tmp_table == NO_TMP_TABLE) &&
-        binlog_filter->db_ok(table->s->db.str) &&
-        bsearch(&item, ignore, ignore_size,
-                sizeof(st_table_data), table_name_compare) == NULL;
+    {
+      int const check(table->s->tmp_table == NO_TMP_TABLE &&
+                      binlog_filter->db_ok(table->s->db.str) &&
+                      strcmp("mysql", table->s->db.str) != 0);
+      table->s->cached_row_logging_check= check;
+    }
 
     DBUG_ASSERT(table->s->cached_row_logging_check == 0 ||
                 table->s->cached_row_logging_check == 1);
@@ -3530,8 +3507,10 @@ namespace
   int write_locked_table_maps(THD *thd)
   {
     DBUG_ENTER("write_locked_table_maps");
-    DBUG_PRINT("enter", ("thd=%p, thd->lock=%p, thd->locked_tables=%p, thd->extra_lock",
-                         thd, thd->lock, thd->locked_tables, thd->extra_lock));
+    DBUG_PRINT("enter", ("thd: 0x%lx  thd->lock: 0x%lx  thd->locked_tables: 0x%lx  "
+                         "thd->extra_lock: 0x%lx",
+                         (long) thd, (long) thd->lock,
+                         (long) thd->locked_tables, (long) thd->extra_lock));
 
     if (thd->get_binlog_table_maps() == 0)
     {
@@ -3551,7 +3530,7 @@ namespace
              ++table_ptr)
         {
           TABLE *const table= *table_ptr;
-          DBUG_PRINT("info", ("Checking table %s", table->s->table_name));
+          DBUG_PRINT("info", ("Checking table %s", table->s->table_name.str));
           if (table->current_lock == F_WRLCK &&
               check_table_binlog_row_based(thd, table))
           {

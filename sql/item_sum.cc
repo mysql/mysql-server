@@ -2933,13 +2933,14 @@ int group_concat_key_cmp_with_distinct(void* arg, byte* key1,
     */
     Field *field= (*field_item)->get_tmp_table_field();
     /* 
-      If field_item is a const item then either get_tp_table_field returns 0
+      If field_item is a const item then either get_tmp_table_field returns 0
       or it is an item over a const table. 
     */
     if (field && !(*field_item)->const_item())
     {
       int res;
-      uint offset= field->offset() - table->s->null_bytes;
+      uint offset= (field->offset(field->table->record[0]) - 
+                    table->s->null_bytes);
       if ((res= field->cmp((char *) key1 + offset, (char *) key2 + offset)))
 	return res;
     }
@@ -2977,7 +2978,8 @@ int group_concat_key_cmp_with_order(void* arg, byte* key1, byte* key2)
     if (field && !item->const_item())
     {
       int res;
-      uint offset= field->offset() - table->s->null_bytes;
+      uint offset= (field->offset(field->table->record[0]) -
+                    table->s->null_bytes);
       if ((res= field->cmp((char *) key1 + offset, (char *) key2 + offset)))
         return (*order_item)->asc ? res : -res;
     }
@@ -3023,6 +3025,7 @@ int dump_leaf_key(byte* key, element_count count __attribute__((unused)),
   String tmp2;
   String *result= &item->result;
   Item **arg= item->args, **arg_end= item->args + item->arg_count_field;
+  uint old_length= result->length();
 
   if (item->no_appended)
     item->no_appended= FALSE;
@@ -3044,7 +3047,8 @@ int dump_leaf_key(byte* key, element_count count __attribute__((unused)),
         because it contains both order and arg list fields.
       */
       Field *field= (*arg)->get_tmp_table_field();
-      uint offset= field->offset() - table->s->null_bytes;
+      uint offset= (field->offset(field->table->record[0]) -
+                    table->s->null_bytes);
       DBUG_ASSERT(offset < table->s->reclength);
       res= field->val_str(&tmp, (char *) key + offset);
     }
@@ -3057,8 +3061,22 @@ int dump_leaf_key(byte* key, element_count count __attribute__((unused)),
   /* stop if length of result more than max_length */
   if (result->length() > item->max_length)
   {
+    int well_formed_error;
+    CHARSET_INFO *cs= item->collation.collation;
+    const char *ptr= result->ptr();
+    uint add_length;
+    /*
+      It's ok to use item->result.length() as the fourth argument
+      as this is never used to limit the length of the data.
+      Cut is done with the third argument.
+    */
+    add_length= cs->cset->well_formed_len(cs,
+                                          ptr + old_length,
+                                          ptr + item->max_length,
+                                          result->length(),
+                                          &well_formed_error);
+    result->length(old_length + add_length);
     item->count_cut_values++;
-    result->length(item->max_length);
     item->warning_for_row= TRUE;
     return 1;
   }
@@ -3248,8 +3266,7 @@ bool Item_func_group_concat::add()
     we can dump the row here in case of GROUP_CONCAT(DISTINCT...)
     instead of doing tree traverse later.
   */
-  if (result.length() <= max_length &&
-      !warning_for_row &&
+  if (!warning_for_row &&
       (!tree || (el->count == 1 && distinct && !arg_count_order)))
     dump_leaf_key(table->record[0] + table->s->null_bytes, 1, this);
 
@@ -3318,7 +3335,8 @@ bool Item_func_group_concat::setup(THD *thd)
     DBUG_RETURN(TRUE);
 
   /* We'll convert all blobs to varchar fields in the temporary table */
-  tmp_table_param->convert_blob_length= max_length;
+  tmp_table_param->convert_blob_length= max_length *
+                                        collation.collation->mbmaxlen;
   /* Push all not constant fields to the list and create a temp table */
   always_null= 0;
   for (uint i= 0; i < arg_count_field; i++)

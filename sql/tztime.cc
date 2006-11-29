@@ -961,13 +961,12 @@ TIME_to_gmt_sec(const TIME *t, const TIME_ZONE_INFO *sp,
   */
   if (shift)
   {
-    if (local_t > (TIMESTAMP_MAX_VALUE - shift*86400L +
-                   sp->revtis[i].rt_offset - saved_seconds))
+    if (local_t > (my_time_t) (TIMESTAMP_MAX_VALUE - shift*86400L +
+                               sp->revtis[i].rt_offset - saved_seconds))
     {
       DBUG_RETURN(0);                           /* my_time_t overflow */
     }
-    else
-     local_t+= shift*86400L;
+    local_t+= shift*86400L;
   }
 
   if (sp->revtis[i].rt_type)
@@ -1744,8 +1743,8 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
     tz_leapcnt++;
 
     DBUG_PRINT("info",
-      ("time_zone_leap_second table: tz_leapcnt=%u tt_time=%lld offset=%ld",
-       tz_leapcnt, (longlong)tz_lsis[tz_leapcnt-1].ls_trans,
+      ("time_zone_leap_second table: tz_leapcnt:%u  tt_time: %lu  offset: %ld",
+       tz_leapcnt, (ulong) tz_lsis[tz_leapcnt-1].ls_trans,
        tz_lsis[tz_leapcnt-1].ls_corr));
 
     res= table->file->index_next(table->record[0]);
@@ -2058,8 +2057,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
     tz_info->timecnt++;
 
     DBUG_PRINT("info",
-      ("time_zone_transition table: tz_id=%u tt_time=%lld tt_id=%u",
-       tzid, (longlong)ttime, ttid));
+      ("time_zone_transition table: tz_id: %u  tt_time:%lu  tt_id: %u",
+       tzid, (ulong) ttime, ttid));
 
     res= table->file->index_next_same(table->record[0],
                                       (byte*)table->field[0]->ptr, 4);

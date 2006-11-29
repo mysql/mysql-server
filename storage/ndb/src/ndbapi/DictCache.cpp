@@ -129,7 +129,8 @@ void GlobalDictCache::printCache()
   NdbElement_t<Vector<TableVersion> > * curr = m_tableHash.getNext(0);
   while(curr != 0){
     DBUG_PRINT("curr", ("len: %d, hash: %d, lk: %d, str: %s",
-                        curr->len, curr->hash, curr->localkey1, curr->str));
+                        curr->len, curr->hash, curr->localkey1,
+                        (char*) curr->str));
     if (curr->theData){
       Vector<TableVersion> * vers = curr->theData;
       const unsigned sz = vers->size();
@@ -416,7 +417,7 @@ GlobalDictCache::alter_table_rep(const char * name,
   {
     TableVersion & ver = (* vers)[i];
     if(ver.m_version == tableVersion && ver.m_impl && 
-       ver.m_impl->m_id == tableId)
+       (Uint32) ver.m_impl->m_id == tableId)
     {
       ver.m_status = DROPPED;
       ver.m_impl->m_status = altered ? 

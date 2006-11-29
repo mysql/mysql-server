@@ -8723,6 +8723,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
                                      item->collation.collation);
     else
       new_field= item->make_string_field(table);
+    new_field->set_derivation(item->collation.derivation);
     break;
   case DECIMAL_RESULT:
     new_field= new Field_new_decimal(item->max_length, maybe_null, item->name,
@@ -8908,7 +8909,9 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                                       (make_copy_field ? 0 : copy_func),
                                        modify_item, convert_blob_length);
   case Item::TYPE_HOLDER:  
-    return ((Item_type_holder *)item)->make_field_by_type(table);
+    result= ((Item_type_holder *)item)->make_field_by_type(table);
+    result->set_derivation(item->collation.derivation);
+    return result;
   default:					// Dosen't have to be stored
     return 0;
   }
@@ -9488,7 +9491,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       bool maybe_null=(*cur_group->item)->maybe_null;
       key_part_info->null_bit=0;
       key_part_info->field=  field;
-      key_part_info->offset= field->offset();
+      key_part_info->offset= field->offset(table->record[0]);
       key_part_info->length= (uint16) field->key_length();
       key_part_info->type=   (uint8) field->key_type();
       key_part_info->key_type =
@@ -9585,7 +9588,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     {
       key_part_info->null_bit=0;
       key_part_info->field=    *reg_field;
-      key_part_info->offset=   (*reg_field)->offset();
+      key_part_info->offset=   (*reg_field)->offset(table->record[0]);
       key_part_info->length=   (uint16) (*reg_field)->pack_length();
       key_part_info->type=     (uint8) (*reg_field)->key_type();
       key_part_info->key_type =
@@ -10177,7 +10180,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
       if (join->result->send_eof())
 	rc= 1;                                  // Don't send error
     }
-    DBUG_PRINT("info",("%ld records output",join->send_records));
+    DBUG_PRINT("info",("%ld records output", (long) join->send_records));
   }
   else
     rc= -1;
@@ -12557,8 +12560,9 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields, Item *having)
     DBUG_RETURN(0);
   }
   Field **first_field=entry->field+entry->s->fields - field_count;
-  offset= field_count ? 
-          entry->field[entry->s->fields - field_count]->offset() : 0;
+  offset= (field_count ? 
+           entry->field[entry->s->fields - field_count]->
+           offset(entry->record[0]) : 0);
   reclength=entry->s->reclength-offset;
 
   free_io_cache(entry);				// Safety

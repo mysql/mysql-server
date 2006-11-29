@@ -2909,7 +2909,7 @@ Dbdih::nr_start_fragment(Signal* signal,
     }
   }
   
-  if (maxLcpIndex == ~0)
+  if (maxLcpIndex == ~ (Uint32) 0)
   {
     ndbout_c("Didnt find any LCP for node: %d tab: %d frag: %d",
 	     takeOverPtr.p->toStartingNode,
@@ -5968,6 +5968,7 @@ Dbdih::sendMASTER_LCPCONF(Signal * signal){
     break;
   default:
     ndbrequire(false);
+    lcpState= MasterLCPConf::LCP_STATUS_IDLE; // remove warning
   }//switch
 
   Uint32 failedNodeId = c_lcpState.m_MASTER_LCPREQ_FailedNodeId;
@@ -6892,6 +6893,8 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
     Uint32 align;
   };
   SegmentedSectionPtr fragDataPtr;
+  LINT_INIT(fragDataPtr.i);
+  LINT_INIT(fragDataPtr.sz);
   signal->getSection(fragDataPtr, DiAddTabReq::FRAGMENTATION);
   copy((Uint32*)fragments, fragDataPtr);
   releaseSections(signal);
@@ -6981,7 +6984,9 @@ Dbdih::sendAddFragreq(Signal* signal, ConnectRecordPtr connectPtr,
 		      TabRecordPtr tabPtr, Uint32 fragId){
   jam();
   const Uint32 fragCount = tabPtr.p->totalfragments;
-  ReplicaRecordPtr replicaPtr; replicaPtr.i = RNIL;
+  ReplicaRecordPtr replicaPtr;
+  LINT_INIT(replicaPtr.p);
+  replicaPtr.i = RNIL;
   FragmentstorePtr fragPtr;
   for(; fragId<fragCount; fragId++){
     jam();
@@ -7541,7 +7546,11 @@ void Dbdih::execDI_FCOUNTREQ(Signal* signal)
     if(connectPtr.i == RNIL)
       ref->m_connectionData = RNIL;
     else
+    {
+      jam();
+      ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
       ref->m_connectionData = connectPtr.p->userpointer;
+    }
     ref->m_tableRef = tabPtr.i;
     ref->m_senderData = senderData;
     ref->m_error = DihFragCountRef::ErroneousTableState;
@@ -11443,6 +11452,7 @@ Dbdih::findBestLogNode(CreateReplicaRecord* createReplica,
 {
   ConstPtr<ReplicaRecord> fblFoundReplicaPtr;
   ConstPtr<ReplicaRecord> fblReplicaPtr;
+  LINT_INIT(fblFoundReplicaPtr.p);
   
   /* --------------------------------------------------------------------- */
   /*       WE START WITH ZERO AS FOUND TO ENSURE THAT FIRST HIT WILL BE    */

@@ -184,7 +184,7 @@ ndb_mgm_create_handle()
   h->mgmd_version_minor= -1;
   h->mgmd_version_build= -1;
 
-  DBUG_PRINT("info", ("handle=0x%x", (UintPtr)h));
+  DBUG_PRINT("info", ("handle: 0x%lx",  (ulong) h));
   DBUG_RETURN(h);
 }
 
@@ -201,7 +201,7 @@ int
 ndb_mgm_set_connectstring(NdbMgmHandle handle, const char * mgmsrv)
 {
   DBUG_ENTER("ndb_mgm_set_connectstring");
-  DBUG_PRINT("info", ("handle=0x%x", (UintPtr)handle));
+  DBUG_PRINT("info", ("handle: 0x%lx", (ulong) handle));
   handle->cfg.~LocalConfig();
   new (&(handle->cfg)) LocalConfig;
   if (!handle->cfg.init(mgmsrv, 0) ||
@@ -243,7 +243,7 @@ ndb_mgm_destroy_handle(NdbMgmHandle * handle)
   DBUG_ENTER("ndb_mgm_destroy_handle");
   if(!handle)
     DBUG_VOID_RETURN;
-  DBUG_PRINT("info", ("handle=0x%x", (UintPtr)(* handle)));
+  DBUG_PRINT("info", ("handle: 0x%lx", (ulong) (* handle)));
   /**
    * important! only disconnect if connected
    * other code relies on this
@@ -2544,8 +2544,8 @@ int ndb_mgm_report_event(NdbMgmHandle handle, Uint32 *data, Uint32 length)
   args.put("length", length);
   BaseString data_string;
 
-  for (int i = 0; i < length; i++)
-    data_string.appfmt(" %u", data[i]);
+  for (int i = 0; i < (int) length; i++)
+    data_string.appfmt(" %lu", (ulong) data[i]);
 
   args.put("data", data_string.c_str());
 

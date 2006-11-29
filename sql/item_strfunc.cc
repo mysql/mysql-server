@@ -992,8 +992,8 @@ String *Item_func_insert::val_str(String *str)
   if (length > res->length() - start)
     length= res->length() - start;
 
-  if (res->length() - length + res2->length() >
-      current_thd->variables.max_allowed_packet)
+  if ((ulonglong) (res->length() - length + res2->length()) >
+      (ulonglong) current_thd->variables.max_allowed_packet)
   {
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
@@ -2485,7 +2485,7 @@ String *Item_func_lpad::val_str(String *str)
   pad_char_length= pad->numchars();
   byte_count= count * collation.collation->mbmaxlen;
   
-  if (byte_count > current_thd->variables.max_allowed_packet)
+  if ((ulonglong) byte_count > current_thd->variables.max_allowed_packet)
   {
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,

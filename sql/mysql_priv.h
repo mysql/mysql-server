@@ -105,6 +105,17 @@ extern CHARSET_INFO *system_charset_info, *files_charset_info ;
 extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 
 
+enum Derivation
+{
+  DERIVATION_IGNORABLE= 5,
+  DERIVATION_COERCIBLE= 4,
+  DERIVATION_SYSCONST= 3,
+  DERIVATION_IMPLICIT= 2,
+  DERIVATION_NONE= 1,
+  DERIVATION_EXPLICIT= 0
+};
+
+
 typedef struct my_locale_st
 {
   const char *name;
@@ -1423,7 +1434,8 @@ void print_plan(JOIN* join,uint idx, double record_count, double read_time,
 #endif
 void mysql_print_status();
 /* key.cc */
-int find_ref_key(KEY *key, uint key_count, Field *field, uint *key_length);
+int find_ref_key(KEY *key, uint key_count, byte *record, Field *field,
+                 uint *key_length);
 void key_copy(byte *to_key, byte *from_record, KEY *key_info, uint key_length);
 void key_restore(byte *to_record, byte *from_key, KEY *key_info,
                  uint key_length);
@@ -1812,7 +1824,7 @@ int create_frm(THD *thd, const char *name, const char *db, const char *table,
 	       HA_CREATE_INFO *create_info, uint keys);
 void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
 int rename_file_ext(const char * from,const char * to,const char * ext);
-bool check_db_name(char *db);
+bool check_db_name(LEX_STRING *db);
 bool check_column_name(const char *name);
 bool check_table_name(const char *name, uint length);
 char *get_field(MEM_ROOT *mem, Field *field);
