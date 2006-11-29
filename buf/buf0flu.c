@@ -640,14 +640,14 @@ buf_flush_try_page(
 
 	mutex_enter(&(buf_pool->mutex));
 
-	block = buf_page_hash_get(space, offset);
-
-	ut_a(!block || buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+	block = (buf_block_t*) buf_page_hash_get(space, offset);
 
 	if (!block) {
 		mutex_exit(&(buf_pool->mutex));
 		return(0);
 	}
+
+	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE); /* TODO */
 
 	mutex_enter(&block->mutex);
 
@@ -814,8 +814,9 @@ buf_flush_try_neighbors(
 
 	for (i = low; i < high; i++) {
 
-		block = buf_page_hash_get(space, i);
-		ut_a(!block || buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+		block = (buf_block_t*) buf_page_hash_get(space, i);
+		ut_a(!block
+		     || buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
 		if (!block) {
 

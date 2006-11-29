@@ -791,11 +791,13 @@ btr_search_guess_on_hash(
 		ulint	space_id	= page_get_space_id(page);
 
 		mutex_enter(&buf_pool->mutex);
-		block = buf_page_hash_get(space_id, page_no);
+		block = (buf_block_t*) buf_page_hash_get(space_id, page_no);
 		mutex_exit(&buf_pool->mutex);
 	}
 
-	if (UNIV_UNLIKELY(!block)) {
+	if (UNIV_UNLIKELY(!block)
+	    || UNIV_UNLIKELY(buf_block_get_state(block)
+			     != BUF_BLOCK_FILE_PAGE)) {
 
 		/* The block is most probably being freed.
 		The function buf_LRU_search_and_free_block()
@@ -1680,10 +1682,13 @@ btr_search_validate(void)
 				ulint	page_no	= page_get_page_no(page);
 				ulint	space_id= page_get_space_id(page);
 
-				block = buf_page_hash_get(space_id, page_no);
+				block = (buf_block_t*)
+					buf_page_hash_get(space_id, page_no);
 			}
 
-			if (UNIV_UNLIKELY(!block)) {
+			if (UNIV_UNLIKELY(!block)
+			    || UNIV_UNLIKELY(buf_block_get_state(block)
+					     != BUF_BLOCK_FILE_PAGE)) {
 
 				/* The block is most probably being freed.
 				The function buf_LRU_search_and_free_block()

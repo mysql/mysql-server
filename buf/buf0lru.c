@@ -959,10 +959,10 @@ buf_LRU_block_remove_hashed_page(
 		ut_error;
 	}
 
-	HASH_DELETE(buf_block_t, hash, buf_pool->page_hash,
+	HASH_DELETE(buf_page_t, hash, buf_pool->page_hash,
 		    buf_page_address_fold(block->page.space,
 					  block->page.offset),
-		    block);
+		    (&block->page));
 	memset(block->frame + FIL_PAGE_OFFSET, 0xff, 4);
 	memset(block->frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 0xff, 4);
 
