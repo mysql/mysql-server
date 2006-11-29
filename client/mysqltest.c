@@ -265,6 +265,7 @@ enum enum_commands {
   Q_DISABLE_PARSING, Q_ENABLE_PARSING,
   Q_REPLACE_REGEX, Q_REMOVE_FILE, Q_FILE_EXIST,
   Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE,
+  Q_CHMOD_FILE,
 
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
@@ -345,6 +346,7 @@ const char *command_names[]=
   "copy_file",
   "perl",
   "die",
+  "chmod",
   0
 };
 
@@ -1747,6 +1749,48 @@ void do_copy_file(struct st_command *command)
   handle_command_error(command, error);
   dynstr_free(&ds_from_file);
   dynstr_free(&ds_to_file);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  SYNOPSIS
+  do_chmod_file
+  command	command handle
+
+  DESCRIPTION
+  chmod  <octal>  <file>
+  Change file permission of <file>
+
+  NOTE!  Simplified version, only supports +r, -r, +w, -w
+*/
+
+void do_chmod_file(struct st_command *command)
+{
+  mode_t mode= 0;
+  DYNAMIC_STRING ds_mode;
+  DYNAMIC_STRING ds_file;
+  const struct command_arg chmod_file_args[] = {
+    "mode", ARG_STRING, TRUE, &ds_mode, "Mode of file",
+    "file", ARG_STRING, TRUE, &ds_file, "Filename of file to modify"
+  };
+  DBUG_ENTER("do_chmod_file");
+
+  check_command_args(command, command->first_argument,
+                     chmod_file_args,
+                     sizeof(chmod_file_args)/sizeof(struct command_arg),
+                     ' ');
+
+  /* Parse what mode to set */
+  if (ds_mode.length != 4)
+    die("You must write a 4 digit octal number for mode");
+
+  str2int(ds_mode.str, 8, 0, INT_MAX, (long*)&mode);
+
+  DBUG_PRINT("info", ("chmod %o %s", mode, ds_file.str));
+  handle_command_error(command, chmod(ds_file.str, mode));
+  dynstr_free(&ds_mode);
+  dynstr_free(&ds_file);
   DBUG_VOID_RETURN;
 }
 
@@ -5604,6 +5648,7 @@ int main(int argc, char **argv)
       case Q_FILE_EXIST: do_file_exist(command); break;
       case Q_WRITE_FILE: do_write_file(command); break;
       case Q_COPY_FILE: do_copy_file(command); break;
+      case Q_CHMOD_FILE: do_chmod_file(command); break;
       case Q_PERL: do_perl(command); break;
       case Q_DELIMITER:
         do_delimiter(command);
