@@ -3595,6 +3595,11 @@ sub mysqld_arguments ($$$$$) {
       # Force mysqld to use log files up until 5.1.6
       mtr_add_arg($args, "%s--log=%s", $prefix, $master->[0]->{'path_mylog'});
     }
+    else
+    {
+      # Turn on logging, will be sent to tables
+      mtr_add_arg($args, "%s--log=", $prefix);
+    }
   }
 
   if ( $type eq 'slave' )
@@ -3677,6 +3682,11 @@ sub mysqld_arguments ($$$$$) {
     {
       # Force mysqld to use log files up until 5.1.6
       mtr_add_arg($args, "%s--log=%s", $prefix, $master->[0]->{'path_mylog'});
+    }
+    else
+    {
+      # Turn on logging, will be sent to tables
+      mtr_add_arg($args, "%s--log=", $prefix);
     }
 
   } # end slave
