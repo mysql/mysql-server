@@ -28,15 +28,16 @@
 
 #include "runtime.hpp"
 #include "md5.hpp"
-#include STL_ALGORITHM_FILE
+#ifdef USE_SYS_STL
+    #include <algorithm>
+#else
+    #include "algorithm.hpp"
+#endif
 
 
 namespace STL = STL_NAMESPACE;
 
    
-#if defined(TAOCRYPT_X86ASM_AVAILABLE) && defined(TAO_ASM)
-    #define DO_MD5_ASM
-#endif
 
 namespace TaoCrypt {
 
@@ -84,10 +85,17 @@ void MD5::Swap(MD5& other)
 }
 
 
-// Update digest with data of size len, do in blocks
+#ifdef DO_MD5_ASM
+
+// Update digest with data of size len
 void MD5::Update(const byte* data, word32 len)
 {
-    byte* local = (byte*)buffer_;
+    if (!isMMX) {
+        HASHwithTransform::Update(data, len);
+        return;
+    }
+
+    byte* local = reinterpret_cast<byte*>(buffer_);
 
     // remove buffered data if possible
     if (buffLen_)  {   
@@ -99,27 +107,14 @@ void MD5::Update(const byte* data, word32 len)
         len      -= add;
 
         if (buffLen_ == BLOCK_SIZE) {
-            ByteReverseIf(local, local, BLOCK_SIZE, LittleEndianOrder);
             Transform();
             AddLength(BLOCK_SIZE);
             buffLen_ = 0;
         }
     }
 
-    // do block size transforms or all at once for asm
+    // at once for asm
     if (buffLen_ == 0) {
-        #ifndef DO_MD5_ASM
-            while (len >= BLOCK_SIZE) {
-                memcpy(&local[0], data, BLOCK_SIZE);
-
-                data     += BLOCK_SIZE;
-                len      -= BLOCK_SIZE;
-
-                ByteReverseIf(local, local, BLOCK_SIZE, LittleEndianOrder);
-                Transform();
-                AddLength(BLOCK_SIZE);
-            }
-        #else
             word32 times = len / BLOCK_SIZE;
             if (times) {
                 AsmTransform(data, times);
@@ -128,7 +123,6 @@ void MD5::Update(const byte* data, word32 len)
                 len  -= add;
                 data += add;
             }
-        #endif
     }
 
     // cache any data left
@@ -139,7 +133,6 @@ void MD5::Update(const byte* data, word32 len)
 }
 
 
-#ifdef DO_MD5_ASM
 
 
 /*

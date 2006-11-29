@@ -3,6 +3,15 @@
 #include "../../testsuite/test.hpp"
 
 
+void EchoClientError(SSL_CTX* ctx, SSL* ssl, SOCKET_T& sockfd, const char* msg)
+{
+    SSL_CTX_free(ctx);
+    SSL_free(ssl);
+    tcp_close(sockfd);
+    err_sys(msg);
+}
+
+
 void echoclient_test(void* args)
 {
 #ifdef _WIN32
@@ -35,7 +44,7 @@ void echoclient_test(void* args)
 
     tcp_connect(sockfd);
 
-    SSL_METHOD* method = TLSv1_client_method();
+    SSL_METHOD* method = SSLv23_client_method();
     SSL_CTX*    ctx = SSL_CTX_new(method);
     set_certs(ctx);
     SSL*        ssl = SSL_new(ctx);
@@ -43,12 +52,7 @@ void echoclient_test(void* args)
     SSL_set_fd(ssl, sockfd);
 
     if (SSL_connect(ssl) != SSL_SUCCESS)
-    {
-        SSL_CTX_free(ctx);
-        SSL_free(ssl);
-        tcp_close(sockfd);
-        err_sys("SSL_connect failed");
-    }
+        EchoClientError(ctx, ssl, sockfd, "SSL_connect failed");
 
     char send[1024];
     char reply[1024];
@@ -57,12 +61,7 @@ void echoclient_test(void* args)
 
         int sendSz = strlen(send) + 1;
         if (SSL_write(ssl, send, sendSz) != sendSz)
-        {
-            SSL_CTX_free(ctx);
-            SSL_free(ssl);
-            tcp_close(sockfd);
-            err_sys("SSL_write failed");
-        }
+            EchoClientError(ctx, ssl, sockfd, "SSL_write failed");
 
         if (strncmp(send, "quit", 4) == 0) {
             fputs("sending server shutdown command: quit!\n", fout);

@@ -56,7 +56,7 @@ THREAD_RETURN YASSL_API echoserver_test(void* args)
 
     tcp_listen(sockfd);
 
-    SSL_METHOD* method = TLSv1_server_method();
+    SSL_METHOD* method = SSLv23_server_method();
     SSL_CTX*    ctx    = SSL_CTX_new(method);
 
     set_serverCerts(ctx);
@@ -87,8 +87,12 @@ THREAD_RETURN YASSL_API echoserver_test(void* args)
 
         SSL* ssl = SSL_new(ctx);
         SSL_set_fd(ssl, clientfd);
-        if (SSL_accept(ssl) != SSL_SUCCESS)
-            EchoError(ctx, ssl, sockfd, clientfd, "SSL_accept failed");
+        if (SSL_accept(ssl) != SSL_SUCCESS) {
+            printf("SSL_accept failed\n");
+            SSL_free(ssl);
+            tcp_close(clientfd);
+            continue; 
+        }
 
         char command[1024];
         int echoSz(0);
@@ -130,6 +134,7 @@ THREAD_RETURN YASSL_API echoserver_test(void* args)
             if (SSL_write(ssl, command, echoSz) != echoSz)
                 EchoError(ctx, ssl, sockfd, clientfd, "SSL_write failed");
         }
+        SSL_shutdown(ssl);
         SSL_free(ssl);
         tcp_close(clientfd);
     }
