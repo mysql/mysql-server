@@ -7741,11 +7741,12 @@ drop:
             Lex->spname= $4;
             Lex->sql_command = SQLCOM_DROP_EVENT;
           }
-        | DROP TRIGGER_SYM sp_name
+        | DROP TRIGGER_SYM if_exists sp_name
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_DROP_TRIGGER;
-            lex->spname= $3;
+            lex->drop_if_exists= $3;
+            lex->spname= $4;
 	  }
         | DROP TABLESPACE tablespace_name opt_ts_engine opt_ts_wait
           {
@@ -7756,7 +7757,7 @@ drop:
           {
             LEX *lex= Lex;
             lex->alter_tablespace_info->ts_cmd_type= DROP_LOGFILE_GROUP;
-          }
+         }
 	;
 
 table_list:
