@@ -727,8 +727,7 @@ CREATE VIEW v1 AS SELECT * FROM t1;
 DROP USER def_17254@localhost;
 for a user
 SELECT * FROM v1;
-ERROR 42000: SELECT command denied to user 'inv_17254'@'localhost' for table 'v1
-'
+ERROR 42000: SELECT command denied to user 'inv_17254'@'localhost' for table 'v1'
 for a superuser
 SELECT * FROM v1;
 ERROR HY000: There is no 'def_17254'@'localhost' registered
