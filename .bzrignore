@@ -1323,3 +1323,10 @@ win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
 mysql-test/r/*.warnings
+bdb/dist/db.h
+bdb/dist/db_config.h
+bdb/dist/db_cxx.h
+bdb/dist/db_int.h
+bdb/dist/include.tcl
+*.gcda
+*.gcno
