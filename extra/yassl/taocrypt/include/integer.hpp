@@ -45,7 +45,11 @@
 #include "random.hpp"
 #include "file.hpp"
 #include <string.h>
-#include STL_ALGORITHM_FILE
+#ifdef USE_SYS_STL
+    #include <algorithm>
+#else
+    #include "algorithm.hpp"
+#endif
 
 
 #ifdef TAOCRYPT_X86ASM_AVAILABLE
@@ -67,7 +71,8 @@
 #endif
 
 // SSE2 intrinsics work in GCC 3.3 or later
-#if defined(__SSE2__) && (__GNUC_MAJOR__ > 3 || __GNUC_MINOR__ > 2)
+#if defined(__SSE2__) && (__GNUC__ == 4 || __GNUC_MAJOR__ > 3 ||  \
+                          __GNUC_MINOR__ > 2)
     #define SSE2_INTRINSICS_AVAILABLE
 #endif
 
@@ -106,7 +111,6 @@ namespace TaoCrypt {
     #endif
     };
 
-    template class TAOCRYPT_DLL AlignedAllocator<word>;
     typedef Block<word, AlignedAllocator<word> > AlignedWordBlock;
 #else
     typedef WordBlock AlignedWordBlock;
