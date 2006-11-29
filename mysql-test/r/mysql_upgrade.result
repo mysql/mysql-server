@@ -1,5 +1,5 @@
 Run mysql_upgrade once
-cluster.binlog_index                               OK
+mysql.binlog_index                                 OK
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
@@ -107,7 +107,7 @@ Run it again - should say already completed
 1
 1
 Force should run it regardless of wheter it's been run before
-cluster.binlog_index                               OK
+mysql.binlog_index                                 OK
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
