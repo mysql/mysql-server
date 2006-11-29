@@ -1,4 +1,56 @@
-yaSSL Release notes, version 1.4.0 (08/13/06)
+yaSSL Release notes, version 1.5.0 (11/09/06)
+
+    This release of yaSSL contains bug fixes, portability enhancements,
+    and full TLS 1.1 support.  Use the functions:
+
+        SSL_METHOD *TLSv1_1_server_method(void);
+        SSL_METHOD *TLSv1_1_client_method(void);
+    
+    or the SSLv23 versions (even though yaSSL doesn't support SSL 2.0 the v23
+    means to pick the highest of SSL 3.0, TLS 1.0, or TLS 1.1.
+
+
+See normal  build instructions below under 1.0.6.
+See libcurl build instructions below under 1.3.0.
+
+
+
+****************yaSSL Release notes, version 1.4.5 (10/15/06)
+
+
+    This release of yaSSL contains bug fixes, portability enhancements,
+    zlib compression support, removal of assembly instructions at runtime if
+    not supported, and initial TLS 1.1 support.
+
+
+    Compression Notes:  yaSSL uses zlib for compression and the compression
+    should only be used if yaSSL is at both ends because the implementation
+    details aren't yet standard.  If you'd like to turn compression on use
+    the SSL_set_compression() function on the client before calling
+    SSL_connect().  If both the client and server were built with zlib support
+    then the connection will use compression.  If the client isn't built with
+    support then SSL_set_compression() will return an error (-1).
+
+    To build yaSSL with zlib support on Unix simply have zlib support on your
+    system and configure will find it if it's in the standard locations.  If
+    it's somewhere else use the option ./configure --with-zlib=DIR.  If you'd
+    like to disable compression support in yaSSL use ./configure --without-zlib.
+
+    To build yaSSL with zlib support on Windows:
+
+        1) download zlib from http://www.zlib.net/
+        2) follow the instructions in zlib from projects/visualc6/README.txt
+           for how to add the zlib project into the yaSSL workspace noting that
+           you'll need to add configuration support for "Win32 Debug" and
+           "Win32 Release" in note 3 under "To use:". 
+        3) define HAVE_LIBZ when building yaSSL
+
+
+See normal  build instructions below under 1.0.6.
+See libcurl build instructions below under 1.3.0.
+
+
+********************yaSSL Release notes, version 1.4.0 (08/13/06)
 
 
     This release of yaSSL contains bug fixes, portability enhancements,
@@ -121,18 +173,6 @@ Choose (Re)Build All from the project workspace
 
 run Debug\testsuite.exe from yaSSL-Home\testsuite to test the build
 
-
---To enable ia32 assembly for TaoCrypt ciphers and message digests
-
-    On MSVC this is always on
-
-    On GCC **, use ./configure --enable-ia32-asm
-    
-    ** This isn't on by default because of the use of intel syntax and the
-    problem that olders versions of gas have with some addressing statements.
-    If you enable this and get assemler errors during compilation or can't
-    pass the TaoCrypt tests, please send todd@yassl.com a message and disable
-    this option in the meantime.
 
 
 ***************** yaSSL Release notes, version 1.0.5
