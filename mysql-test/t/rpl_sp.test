@@ -528,4 +528,26 @@ connection master;
 set global log_bin_trust_function_creators=0;
 --echo End of 5.0 tests
 
+#
+# Bug22043: MySQL don't add "USE <DATABASE>" before "DROP PROCEDURE IF EXISTS"
+#
+connection master;
+--disable_warnings
+drop database if exists mysqltest;
+drop database if exists mysqltest2;
+--enable_warnings
+create database mysqltest;
+create database mysqltest2;
+use mysqltest2;
+create table t ( t integer );
+create procedure mysqltest.test() begin end;
+insert into t values ( 1 );
+show binlog events in 'master-bin.000001' from 8657;
+--error ER_BAD_DB_ERROR
+create procedure `\\`.test() begin end;
+# Clean up
+drop database mysqltest;
+drop database mysqltest2;
+
 --echo End of 5.1 tests
+
