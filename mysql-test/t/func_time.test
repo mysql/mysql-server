@@ -653,6 +653,12 @@ DROP TABLE t1,t2;
 
 # Restore timezone to default
 set time_zone= @@global.time_zone;
+
+#
+# Bug #22229: bug in DATE_ADD()
+#
+
+select str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE;
 --echo End of 5.0 tests
 
 #
