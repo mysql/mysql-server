@@ -780,7 +780,7 @@ long calc_daynr(uint year,uint month,uint day)
 */
 my_time_t
 my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone,
-                  bool *in_dst_time_gap)
+                  my_bool *in_dst_time_gap)
 {
   uint loop;
   time_t tmp= 0;
@@ -963,7 +963,7 @@ my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone,
   */
   if ((tmp < TIMESTAMP_MIN_VALUE) || (tmp > TIMESTAMP_MAX_VALUE))
     tmp= 0;
-end:
+
   return (my_time_t) tmp;
 } /* my_system_gmt_sec */
 
