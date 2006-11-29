@@ -527,7 +527,8 @@ void Query_cache_query::init_n_lock()
   my_rwlock_init(&lock, NULL);
   lock_writing();
   DBUG_PRINT("qcache", ("inited & locked query for block 0x%lx",
-			((byte*) this)-ALIGN_SIZE(sizeof(Query_cache_block))));
+			(long) (((byte*) this) -
+                                ALIGN_SIZE(sizeof(Query_cache_block)))));
   DBUG_VOID_RETURN;
 }
 
@@ -536,7 +537,8 @@ void Query_cache_query::unlock_n_destroy()
 {
   DBUG_ENTER("Query_cache_query::unlock_n_destroy");
   DBUG_PRINT("qcache", ("destroyed & unlocked query for block 0x%lx",
-			((byte*)this)-ALIGN_SIZE(sizeof(Query_cache_block))));
+			(long) (((byte*) this) -
+                                ALIGN_SIZE(sizeof(Query_cache_block)))));
   /*
     The following call is not needed on system where one can destroy an
     active semaphore
@@ -874,8 +876,8 @@ sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
                           flags.character_set_client_num,
                           flags.character_set_results_num,
                           flags.collation_connection_num,
-                          flags.limit,
-                          (ulong)flags.time_zone,
+                          (ulong) flags.limit,
+                          (ulong) flags.time_zone,
                           flags.sql_mode,
                           flags.max_sort_length,
                           flags.group_concat_max_len));
@@ -1117,8 +1119,8 @@ sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
                           flags.character_set_client_num,
                           flags.character_set_results_num,
                           flags.collation_connection_num,
-                          flags.limit,
-                          (ulong)flags.time_zone,
+                          (ulong) flags.limit,
+                          (ulong) flags.time_zone,
                           flags.sql_mode,
                           flags.max_sort_length,
                           flags.group_concat_max_len));
@@ -1255,7 +1257,7 @@ sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
 #ifndef EMBEDDED_LIBRARY
   do
   {
-    DBUG_PRINT("qcache", ("Results  (len %lu, used %lu, headers %lu)",
+    DBUG_PRINT("qcache", ("Results  (len: %lu  used: %lu  headers: %u)",
 			  result_block->length, result_block->used,
 			  result_block->headers_len()+
 			  ALIGN_SIZE(sizeof(Query_cache_result))));
@@ -2032,7 +2034,7 @@ Query_cache::append_result_data(Query_cache_block **current_block,
 {
   DBUG_ENTER("Query_cache::append_result_data");
   DBUG_PRINT("qcache", ("append %lu bytes to 0x%lx query",
-		      data_len, query_block));
+		      data_len, (long) query_block));
 
   if (query_block->query()->add(data_len) > query_cache_limit)
   {
@@ -3039,10 +3041,10 @@ Query_cache::is_cacheable(THD *thd, uint32 query_len, char *query, LEX *lex,
 						 OPTION_TO_QUERY_CACHE))) &&
       lex->safe_to_cache_query)
   {
-    DBUG_PRINT("qcache", ("options %lx %lx, type %u",
-			OPTION_TO_QUERY_CACHE,
-			lex->select_lex.options,
-			(int) thd->variables.query_cache_type));
+    DBUG_PRINT("qcache", ("options: %lx  %lx  type: %u",
+                          OPTION_TO_QUERY_CACHE,
+                          (long) lex->select_lex.options,
+                          (int) thd->variables.query_cache_type));
 
     if (!(table_count= process_and_count_tables(tables_used, tables_type)))
       DBUG_RETURN(0);
@@ -3058,10 +3060,10 @@ Query_cache::is_cacheable(THD *thd, uint32 query_len, char *query, LEX *lex,
   }
 
   DBUG_PRINT("qcache",
-	     ("not interesting query: %d or not cacheable, options %lx %lx, type %u",
+	     ("not interesting query: %d or not cacheable, options %lx %lx  type: %u",
 	      (int) lex->sql_command,
 	      OPTION_TO_QUERY_CACHE,
-	      lex->select_lex.options,
+	      (long) lex->select_lex.options,
 	      (int) thd->variables.query_cache_type));
   DBUG_RETURN(0);
 }
@@ -3661,7 +3663,8 @@ void Query_cache::queries_dump()
       DBUG_PRINT("qcache", ("F:%u C:%u L:%lu T:'%s' (%u) '%s' '%s'",
 			    flags.client_long_flag,
 			    flags.character_set_client_num, 
-                            (ulong)flags.limit, flags.time_zone->get_name(),
+                            (ulong)flags.limit,
+                            flags.time_zone->get_name()->ptr(),
 			    len, str, strend(str)+1));
       DBUG_PRINT("qcache", ("-b- 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", (ulong) block,
 			    (ulong) block->next, (ulong) block->prev,
@@ -3881,9 +3884,8 @@ my_bool Query_cache::check_integrity(bool locked)
       break;
     }
     default:
-      DBUG_PRINT("error",
-		 ("block 0x%lx have incorrect type %u",
-		  block, block->type));
+      DBUG_PRINT("error", ("block 0x%lx have incorrect type %u",
+                           (long) block, block->type));
       result = 1;
     }
     
@@ -3981,8 +3983,8 @@ my_bool Query_cache::check_integrity(bool locked)
       } while (block != bins[i].free_blocks);
       if (count != bins[i].number)
       {
-	DBUG_PRINT("error", ("bin[%d].number is %d, but bin have %d blocks",
-			     bins[i].number,  count));
+	DBUG_PRINT("error", ("bins[%d].number = %d, but bin have %d blocks",
+			     i, bins[i].number,  count));
 	result = 1;
       }
     }

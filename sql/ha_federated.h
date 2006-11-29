@@ -232,8 +232,7 @@ public:
   */
   double scan_time()
   {
-    DBUG_PRINT("info",
-               ("records %d", records));
+    DBUG_PRINT("info", ("records %ld", (long) records));
     return (double)(records*1000); 
   }
   /*

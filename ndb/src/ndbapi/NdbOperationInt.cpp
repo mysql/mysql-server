@@ -1015,8 +1015,8 @@ NdbOperation::branch_col(Uint32 type,
 			 bool nopad, Uint32 Label){
 
   DBUG_ENTER("NdbOperation::branch_col");
-  DBUG_PRINT("enter", ("type=%u col=%u val=0x%x len=%u label=%u",
-                       type, ColId, val, len, Label));
+  DBUG_PRINT("enter", ("type: %u  col:%u  val: 0x%lx  len: %u  label: %u",
+                       type, ColId, (long) val, len, Label));
   if (val != NULL)
     DBUG_DUMP("value", (char*)val, len);
 

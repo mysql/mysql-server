@@ -132,7 +132,7 @@ Dbtux::searchToAdd(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& 
     treePos.m_pos = hi;
     return true;
   }
-  if (hi < currNode.getOccup()) {
+  if ((uint) hi < currNode.getOccup()) {
     jam();
     treePos.m_pos = hi;
     return true;

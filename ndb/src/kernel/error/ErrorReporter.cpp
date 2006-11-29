@@ -185,6 +185,7 @@ ErrorReporter::handleAssert(const char* message, const char* file, int line, int
   childReportError(ec);
 
   NdbShutdown(s_errorHandlerShutdownType);
+  exit(1);                                      // Deadcode
 }
 
 void
