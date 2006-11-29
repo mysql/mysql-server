@@ -1510,53 +1510,21 @@ bool select_exists_subselect::send_data(List<Item> &items)
 
 int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
-  List_iterator_fast<Item> li(list);
-  List_iterator_fast<my_var> gl(var_list);
-  Item *item;
-
-  local_vars.empty();				// Clear list if SP
   unit= u;
-  row_count= 0;
-
+  
   if (var_list.elements != list.elements)
   {
     my_message(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT,
                ER(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT), MYF(0));
     return 1;
-  }
-  while ((item=li++))
-  {
-    my_var *mv= gl++;
-    if (mv->local)
-    {
-      Item_splocal *var= new Item_splocal(mv->s, mv->offset, mv->type);
-      (void)local_vars.push_back(var);
-#ifndef DBUG_OFF
-      var->m_sp= mv->sp;
-#endif
-    }
-    else
-    {
-      Item_func_set_user_var *var= new Item_func_set_user_var(mv->s, item);
-      /*
-        Item_func_set_user_var can't substitute something else on its place =>
-        0 can be passed as last argument (reference on item)
-        Item_func_set_user_var can't be fixed after creation, so we do not
-        check var->fixed
-      */
-      var->fix_fields(thd, 0);
-      var->fix_length_and_dec();
-      vars.push_back(var);
-    }
-  }
+  }               
   return 0;
 }
 
 
 void select_dumpvar::cleanup()
 {
-  vars.empty();
-  row_count=0;
+  row_count= 0;
 }
 
 
@@ -1865,13 +1833,10 @@ Statement_map::~Statement_map()
 
 bool select_dumpvar::send_data(List<Item> &items)
 {
-  List_iterator_fast<Item_func_set_user_var> li(vars);
-  List_iterator_fast<Item_splocal> var_li(local_vars);
-  List_iterator_fast<my_var> my_li(var_list);
+  List_iterator_fast<my_var> var_li(var_list);
   List_iterator<Item> it(items);
-  Item_func_set_user_var *xx;
-  Item_splocal *yy;
-  my_var *zz;
+  Item *item;
+  my_var *mv;
   DBUG_ENTER("select_dumpvar::send_data");
 
   if (unit->offset_limit_cnt)
@@ -1884,24 +1849,29 @@ bool select_dumpvar::send_data(List<Item> &items)
     my_message(ER_TOO_MANY_ROWS, ER(ER_TOO_MANY_ROWS), MYF(0));
     DBUG_RETURN(1);
   }
-  while ((zz=my_li++) && (it++))
+  while ((mv= var_li++) && (item= it++))
   {
-    if (zz->local)
+    if (mv->local)
     {
-      if ((yy=var_li++)) 
-      {
-	if (thd->spcont->set_variable(current_thd, yy->get_var_idx(),
+      if (thd->spcont->set_variable(current_thd, yy->get_var_idx(),
                                       it.ref()))
 	  DBUG_RETURN(1);
-      }
     }
     else
     {
-      if ((xx=li++))
-      {
-        xx->check(0);
-	xx->update();
-      }
+      Item_func_set_user_var *suv= new Item_func_set_user_var(*ls, item);
+
+      /*
+        Item_func_set_user_var can't substitute something else on its
+        place => NULL may be passed as last argument (reference on
+        item) Item_func_set_user_var can't be fixed after creation, so
+        we do not check var->fixed
+      */
+
+      suv->fix_fields(thd, (TABLE_LIST *) thd->lex->select_lex.table_list.first,
+            0);
+      suv->check();
+      suv->update();
     }
   }
   DBUG_RETURN(0);
