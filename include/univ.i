@@ -74,20 +74,26 @@ memory is read outside the allocated blocks. */
 /* Make a non-inline debug version */
 
 #if 0
-#define UNIV_DEBUG
-#define UNIV_LIST_DEBUG
-#define UNIV_MEM_DEBUG
-#define UNIV_IBUF_DEBUG
-#define UNIV_SYNC_DEBUG
-#define UNIV_SEARCH_DEBUG
-#define UNIV_SYNC_PERF_STAT
-#define UNIV_SEARCH_PERF_STAT
-#define UNIV_SRV_PRINT_LATCH_WAITS
-#define UNIV_BTR_PRINT
+#define UNIV_DEBUG				/* Enable ut_ad() assertions */
+#define UNIV_LIST_DEBUG				/* debug UT_LIST_ macros */
+#define UNIV_MEM_DEBUG				/* detect memory leaks etc */
+#define UNIV_IBUF_DEBUG				/* debug the insert buffer;
+this limits the database to IBUF_COUNT_N_SPACES and IBUF_COUNT_N_PAGES,
+and the insert buffer must be empty when the database is started */
+#define UNIV_SYNC_DEBUG				/* debug mutex and latch
+operations (very slow); also UNIV_DEBUG must be defined */
+#define UNIV_SEARCH_DEBUG			/* debug B-tree comparisons */
+#define UNIV_SYNC_PERF_STAT			/* operation counts for
+						rw-locks and mutexes */
+#define UNIV_SEARCH_PERF_STAT			/* statistics for the
+						adaptive hash index */
+#define UNIV_SRV_PRINT_LATCH_WAITS		/* cf. sync0sync.c */
+#define UNIV_BTR_PRINT				/* enable functions for
+						printing B-trees */
 #endif
 
-#define UNIV_BTR_DEBUG
-#define UNIV_LIGHT_MEM_DEBUG
+#define UNIV_BTR_DEBUG				/* check B-tree links */
+#define UNIV_LIGHT_MEM_DEBUG			/* light memory debugging */
 
 #ifdef HAVE_purify
 /* The following sets all new allocated memory to zero before use:
