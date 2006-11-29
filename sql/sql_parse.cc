@@ -4384,6 +4384,30 @@ end_with_restore_list:
     DBUG_ASSERT(lex->sphead != 0);
     DBUG_ASSERT(lex->sphead->m_db.str); /* Must be initialized in the parser */
 
+    /*
+      Verify that the database name is allowed, optionally
+      lowercase it.
+    */
+    if (check_db_name(lex->sphead->m_db.str))
+    {
+      my_error(ER_WRONG_DB_NAME, MYF(0), lex->sphead->m_db.str);
+      delete lex->sphead;
+      lex->sphead= 0;
+      goto error;
+    }
+
+    /*
+      Check that a database with this name
+      exists.
+    */
+    if (check_db_dir_existence(lex->sphead->m_db.str))
+    {
+      my_error(ER_BAD_DB_ERROR, MYF(0), lex->sphead->m_db.str);
+      delete lex->sphead;
+      lex->sphead= 0;
+      goto error;
+    }
+
     if (check_access(thd, CREATE_PROC_ACL, lex->sphead->m_db.str, 0, 0, 0,
                      is_schema_db(lex->sphead->m_db.str)))
     {
