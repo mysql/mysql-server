@@ -425,6 +425,12 @@ public:
   { return strdup_root(mem_root,str); }
   inline char *strmake(const char *str, uint size)
   { return strmake_root(mem_root,str,size); }
+  inline bool LEX_STRING_make(LEX_STRING *lex_str, const char *str, uint size)
+  {
+    return ((lex_str->str= 
+             strmake_root(mem_root, str, (lex_str->length= size)))) == 0;
+  }
+
   inline char *memdup(const char *str, uint size)
   { return memdup_root(mem_root,str,size); }
   inline char *memdup_w_gap(const char *str, uint size, uint gap)
@@ -838,6 +844,12 @@ public:
   struct st_mysql_data **data_tail;
   void clear_data_list();
   struct st_mysql_data *alloc_new_dataset();
+  /*
+    In embedded server it points to the statement that is processed
+    in the current query. We store some results directly in statement
+    fields then.
+  */
+  struct st_mysql_stmt *current_stmt;
 #endif
   NET	  net;				// client connection descriptor
   MEM_ROOT warn_root;			// For warnings and errors
@@ -1628,8 +1640,7 @@ public:
       return TRUE;
     }
     *p_db= strmake(db, db_length);
-    if (p_db_length)
-      *p_db_length= db_length;
+    *p_db_length= db_length;
     return FALSE;
   }
 };
@@ -2065,7 +2076,7 @@ public:
   inline bool unique_add(void *ptr)
   {
     DBUG_ENTER("unique_add");
-    DBUG_PRINT("info", ("tree %u - %u", tree.elements_in_tree, max_elements));
+    DBUG_PRINT("info", ("tree %u - %lu", tree.elements_in_tree, max_elements));
     if (tree.elements_in_tree > max_elements && flush())
       DBUG_RETURN(1);
     DBUG_RETURN(!tree_insert(&tree, ptr, 0, tree.custom_arg));

@@ -164,6 +164,7 @@ void lex_start(THD *thd, const uchar *buf, uint length)
   lex->select_lex.ftfunc_list= &lex->select_lex.ftfunc_list_alloc;
   lex->select_lex.group_list.empty();
   lex->select_lex.order_list.empty();
+  lex->select_lex.udf_list.empty();
   lex->ignore_space=test(thd->variables.sql_mode & MODE_IGNORE_SPACE);
   lex->sql_command= SQLCOM_END;
   lex->duplicates= DUP_ERROR;
@@ -176,7 +177,8 @@ void lex_start(THD *thd, const uchar *buf, uint length)
   lex->reset_query_tables_list(FALSE);
   lex->expr_allows_subselect= TRUE;
 
-  lex->name= 0;
+  lex->name.str= 0;
+  lex->name.length= 0;
   lex->event_parse_data= NULL;
 
   lex->nest_level=0 ;
@@ -1174,6 +1176,7 @@ void st_select_lex::init_select()
   braces= 0;
   when_list.empty();
   expr_list.empty();
+  udf_list.empty();
   interval_list.empty();
   use_index.empty();
   ftfunc_list_alloc.empty();
@@ -1187,7 +1190,7 @@ void st_select_lex::init_select()
   select_limit= 0;      /* denotes the default limit = HA_POS_ERROR */
   offset_limit= 0;      /* denotes the default offset = 0 */
   with_sum_func= 0;
-
+  is_correlated= 0;
 }
 
 /*
@@ -1381,6 +1384,8 @@ void st_select_lex::mark_as_dependent(SELECT_LEX *last)
       SELECT_LEX_UNIT *munit= s->master_unit();
       munit->uncacheable|= UNCACHEABLE_DEPENDENT;
     }
+  is_correlated= TRUE;
+  this->master_unit()->item->is_correlated= TRUE;
 }
 
 bool st_select_lex_node::set_braces(bool value)      { return 1; }
@@ -1443,7 +1448,7 @@ bool st_select_lex::add_order_to_list(THD *thd, Item *item, bool asc)
 bool st_select_lex::add_item_to_list(THD *thd, Item *item)
 {
   DBUG_ENTER("st_select_lex::add_item_to_list");
-  DBUG_PRINT("info", ("Item: %p", item));
+  DBUG_PRINT("info", ("Item: 0x%lx", (long) item));
   DBUG_RETURN(item_list.push_back(item));
 }
 

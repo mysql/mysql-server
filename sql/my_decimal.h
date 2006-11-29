@@ -295,7 +295,12 @@ int string2my_decimal(uint mask, const String *str, my_decimal *d)
 {
   return str2my_decimal(mask, str->ptr(), str->length(), str->charset(), d);
 }
-#endif
+
+
+my_decimal *date2my_decimal(TIME *ltime, my_decimal *dec);
+
+
+#endif /*defined(MYSQL_SERVER) || defined(EMBEDDED_LIBRARY) */
 
 inline
 int double2my_decimal(uint mask, double val, my_decimal *d)

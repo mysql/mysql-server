@@ -19,37 +19,54 @@
 
 #include "mysql_priv.h"
 
-	/*
-	** Search after with key field is. If no key starts with field test
-	** if field is part of some key.
-	**
-	** returns number of key. keylength is set to length of key before
-	** (not including) field
-	** Used when calculating key for NEXT_NUMBER
-	*/
+/*
+  Search after a key that starts with 'field'
 
-int find_ref_key(KEY *key, uint key_count, Field *field, uint *key_length)
+  SYNOPSIS
+    find_ref_key()
+    key			First key to check
+    key_count		How many keys to check
+    record		Start of record
+    field		Field to search after
+    key_length		On partial match, contains length of fields before
+			field
+
+  NOTES
+   Used when calculating key for NEXT_NUMBER
+
+  IMPLEMENTATION
+    If no key starts with field test if field is part of some key. If we find
+    one, then return first key and set key_length to the number of bytes
+    preceding 'field'.
+
+  RETURN
+   -1  field is not part of the key
+   #   Key part for key matching key.
+       key_length is set to length of key before (not including) field
+*/
+
+int find_ref_key(KEY *key, uint key_count, byte *record, Field *field,
+                 uint *key_length)
 {
   reg2 int i;
   reg3 KEY *key_info;
   uint fieldpos;
 
-  fieldpos=    field->offset();
+  fieldpos= field->offset(record);
 
-	/* Test if some key starts as fieldpos */
-
+  /* Test if some key starts as fieldpos */
   for (i= 0, key_info= key ;
        i < (int) key_count ;
        i++, key_info++)
   {
     if (key_info->key_part[0].offset == fieldpos)
-    {						/* Found key. Calc keylength */
+    {                                  		/* Found key. Calc keylength */
       *key_length=0;
-      return(i);			/* Use this key */
+      return(i);                                /* Use this key */
     }
   }
-	/* Test if some key contains fieldpos */
 
+  /* Test if some key contains fieldpos */
   for (i= 0, key_info= key;
        i < (int) key_count ;
        i++, key_info++)
@@ -62,7 +79,7 @@ int find_ref_key(KEY *key, uint key_count, Field *field, uint *key_length)
 	 j++, key_part++)
     {
       if (key_part->offset == fieldpos)
-	return(i);			/* Use this key */
+	return(i);                              /* Use this key */
       *key_length+=key_part->store_length;
     }
   }

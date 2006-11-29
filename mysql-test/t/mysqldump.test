@@ -1394,6 +1394,9 @@ revoke all privileges on mysqldump_myDB.* from myDB_User@localhost;
 drop user myDB_User@localhost;
 drop database mysqldump_myDB;
 use test;
+connection default;
+disconnect root;
+disconnect user1;
 
 --echo #
 --echo # BUG#13926: --order-by-primary fails if PKEY contains quote character

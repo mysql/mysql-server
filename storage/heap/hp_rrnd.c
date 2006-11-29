@@ -29,7 +29,7 @@ int heap_rrnd(register HP_INFO *info, byte *record, byte *pos)
 {
   HP_SHARE *share=info->s;
   DBUG_ENTER("heap_rrnd");
-  DBUG_PRINT("enter",("info: 0x%lx  pos: %lx",info,pos));
+  DBUG_PRINT("enter",("info: 0x%lx  pos: %lx",(long) info, (long) pos));
 
   info->lastinx= -1;
   if (!(info->current_ptr= pos))
@@ -44,7 +44,7 @@ int heap_rrnd(register HP_INFO *info, byte *record, byte *pos)
   }
   info->update=HA_STATE_PREV_FOUND | HA_STATE_NEXT_FOUND | HA_STATE_AKTIV;
   memcpy(record,info->current_ptr,(size_t) share->reclength);
-  DBUG_PRINT("exit",("found record at 0x%lx",info->current_ptr));
+  DBUG_PRINT("exit", ("found record at 0x%lx", (long) info->current_ptr));
   info->current_hash_ptr=0;			/* Can't use rnext */
   DBUG_RETURN(0);
 } /* heap_rrnd */

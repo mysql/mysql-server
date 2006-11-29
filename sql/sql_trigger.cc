@@ -1612,7 +1612,7 @@ Handle_old_incorrect_sql_modes_hook::process_unknown_string(char *&unknown_key,
                                                             char *end)
 {
   DBUG_ENTER("Handle_old_incorrect_sql_modes_hook::process_unknown_string");
-  DBUG_PRINT("info", ("unknown key:%60s", unknown_key));
+  DBUG_PRINT("info", ("unknown key: %60s", unknown_key));
 
   if (unknown_key + INVALID_SQL_MODES_LENGTH + 1 < end &&
       unknown_key[INVALID_SQL_MODES_LENGTH] == '=' &&
@@ -1654,7 +1654,7 @@ process_unknown_string(char *&unknown_key, gptr base, MEM_ROOT *mem_root,
                        char *end)
 {
   DBUG_ENTER("Handle_old_incorrect_trigger_table_hook::process_unknown_string");
-  DBUG_PRINT("info", ("unknown key:%60s", unknown_key));
+  DBUG_PRINT("info", ("unknown key: %60s", unknown_key));
 
   if (unknown_key + INVALID_TRIGGER_TABLE_LENGTH + 1 < end &&
       unknown_key[INVALID_TRIGGER_TABLE_LENGTH] == '=' &&

@@ -79,7 +79,7 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags)
       my_stream_opened++;
       my_file_info[fileno(fd)].type = STREAM_BY_FOPEN;
       pthread_mutex_unlock(&THR_LOCK_open);
-      DBUG_PRINT("exit",("stream: 0x%lx",fd));
+      DBUG_PRINT("exit",("stream: 0x%lx", (long) fd));
       DBUG_RETURN(fd);
     }
     pthread_mutex_unlock(&THR_LOCK_open);
@@ -103,7 +103,7 @@ int my_fclose(FILE *fd, myf MyFlags)
 {
   int err,file;
   DBUG_ENTER("my_fclose");
-  DBUG_PRINT("my",("stream: 0x%lx  MyFlags: %d",fd, MyFlags));
+  DBUG_PRINT("my",("stream: 0x%lx  MyFlags: %d", (long) fd, MyFlags));
 
   pthread_mutex_lock(&THR_LOCK_open);
   file=fileno(fd);
@@ -163,7 +163,7 @@ FILE *my_fdopen(File Filedes, const char *name, int Flags, myf MyFlags)
     pthread_mutex_unlock(&THR_LOCK_open);
   }
 
-  DBUG_PRINT("exit",("stream: 0x%lx",fd));
+  DBUG_PRINT("exit",("stream: 0x%lx", (long) fd));
   DBUG_RETURN(fd);
 } /* my_fdopen */
 

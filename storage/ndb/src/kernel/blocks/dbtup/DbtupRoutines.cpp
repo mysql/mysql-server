@@ -1066,6 +1066,7 @@ Dbtup::updateVarSizeNotNULL(Uint32* in_buffer,
     terrorCode= ZAI_INCONSISTENCY_ERROR;
     return false;
   }
+  return false;
 }
 
 bool
@@ -1485,6 +1486,7 @@ Dbtup::updateDiskVarSizeNotNULL(Uint32* in_buffer,
     terrorCode= ZAI_INCONSISTENCY_ERROR;
     return false;
   }
+  return false;
 }
 
 bool

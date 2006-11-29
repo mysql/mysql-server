@@ -372,7 +372,12 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
       j = length;
     }
     break;
-  unknown:
+
+    case NdbDictionary::Column::Undefined:
+    case NdbDictionary::Column::Mediumint:
+    case NdbDictionary::Column::Mediumunsigned:
+    case NdbDictionary::Column::Longvarbinary:
+    unknown:
     //default: /* no print functions for the rest, just print type */
     out << (int) r.getType();
     j = length;

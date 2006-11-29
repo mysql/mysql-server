@@ -1609,7 +1609,7 @@ static ulong read_event(MYSQL* mysql, MASTER_INFO *mi, bool* suppress_warnings)
      DBUG_RETURN(packet_error);
   }
 
-  DBUG_PRINT("info",( "len=%u, net->read_pos[4] = %d\n",
+  DBUG_PRINT("exit", ("len: %lu  net->read_pos[4]: %d",
                       len, mysql->net.read_pos[4]));
   DBUG_RETURN(len - 1);
 }
@@ -1800,7 +1800,7 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
       ev->when = time(NULL);
     ev->thd = thd; // because up to this point, ev->thd == 0
     exec_res = ev->exec_event(rli);
-    DBUG_PRINT("info", ("exec_event result = %d", exec_res));
+    DBUG_PRINT("info", ("exec_event result: %d", exec_res));
     DBUG_ASSERT(rli->sql_thd==thd);
     /*
        Format_description_log_event should not be deleted because it will be
@@ -1951,9 +1951,9 @@ pthread_handler_t handle_slave_io(void *arg)
   // we can get killed during safe_connect
   if (!safe_connect(thd, mysql, mi))
   {
-    sql_print_information("Slave I/O thread: connected to master '%s@%s:%d',\
-  replication started in log '%s' at position %s", mi->user,
-			  mi->host, mi->port,
+    sql_print_information("Slave I/O thread: connected to master '%s@%s:%d',"
+                          "replication started in log '%s' at position %s",
+                          mi->user, mi->host, mi->port,
 			  IO_RPL_LOG_NAME,
 			  llstr(mi->master_log_pos,llbuff));
   /*
@@ -2604,7 +2604,7 @@ static int process_io_rotate(MASTER_INFO *mi, Rotate_log_event *rev)
   /* Safe copy as 'rev' has been "sanitized" in Rotate_log_event's ctor */
   memcpy(mi->master_log_name, rev->new_log_ident, rev->ident_len+1);
   mi->master_log_pos= rev->pos;
-  DBUG_PRINT("info", ("master_log_pos: '%s' %d",
+  DBUG_PRINT("info", ("master_log_pos: '%s' %lu",
                       mi->master_log_name, (ulong) mi->master_log_pos));
 #ifndef DBUG_OFF
   /*
@@ -2721,7 +2721,7 @@ static int queue_binlog_ver_1_event(MASTER_INFO *mi, const char *buf,
     int error = process_io_create_file(mi,(Create_file_log_event*)ev);
     delete ev;
     mi->master_log_pos += inc_pos;
-    DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
+    DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
     pthread_mutex_unlock(&mi->data_lock);
     my_free((char*)tmp_buf, MYF(0));
     DBUG_RETURN(error);
@@ -2748,7 +2748,7 @@ static int queue_binlog_ver_1_event(MASTER_INFO *mi, const char *buf,
   }
   delete ev;
   mi->master_log_pos+= inc_pos;
-  DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
+  DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
   pthread_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(0);
 }
@@ -2804,7 +2804,7 @@ static int queue_binlog_ver_3_event(MASTER_INFO *mi, const char *buf,
   delete ev;
   mi->master_log_pos+= inc_pos;
 err:
-  DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
+  DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
   pthread_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(0);
 }
@@ -2977,7 +2977,8 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
       rli->ign_master_log_pos_end= mi->master_log_pos;
     }
     rli->relay_log.signal_update(); // the slave SQL thread needs to re-check
-    DBUG_PRINT("info", ("master_log_pos: %d, event originating from the same server, ignored", (ulong) mi->master_log_pos));
+    DBUG_PRINT("info", ("master_log_pos: %lu, event originating from the same server, ignored",
+                        (ulong) mi->master_log_pos));
   }
   else
   {
@@ -2985,7 +2986,7 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
     if (likely(!(rli->relay_log.appendv(buf,event_len,0))))
     {
       mi->master_log_pos+= inc_pos;
-      DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
+      DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
     }
     else
@@ -3106,8 +3107,8 @@ static int connect_to_master(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
     {
       last_errno=mysql_errno(mysql);
       suppress_warnings= 0;
-      sql_print_error("Slave I/O thread: error %s to master \
-'%s@%s:%d': \
+      sql_print_error("Slave I/O thread: error %s to master "
+                      "'%s@%s:%d':                       \
 Error: '%s'  errno: %d  retry-time: %d  retries: %lu",
                       (reconnect ? "reconnecting" : "connecting"),
                       mi->user, mi->host, mi->port,
