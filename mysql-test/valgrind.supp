@@ -470,15 +470,6 @@
 #
 
 {
-   dbug initialization
-   Memcheck:Leak
-   fun:malloc
-   fun:DbugMalloc
-   fun:ListAdd
-   fun:_db_set_
-}
-
-{
    dbug initialization by kill_server
    Memcheck:Leak
    fun:malloc
