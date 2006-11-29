@@ -162,6 +162,29 @@ buf_block_set_state(
 }
 
 /*************************************************************************
+Determines if a block is mapped to a tablespace. */
+UNIV_INLINE
+ibool
+buf_page_in_file(
+/*=============*/
+					/* out: TRUE if mapped */
+	const buf_page_t*	bpage)	/* in: pointer to control block */
+{
+	switch (buf_page_get_state(bpage)) {
+	case BUF_BLOCK_ZIP_PAGE:
+	case BUF_BLOCK_FILE_PAGE:
+		return(TRUE);
+	case BUF_BLOCK_NOT_USED:
+	case BUF_BLOCK_READY_FOR_USE:
+	case BUF_BLOCK_MEMORY:
+	case BUF_BLOCK_REMOVE_HASH:
+		break;
+	}
+
+	return(FALSE);
+}
+
+/*************************************************************************
 Get the flush type of a page. */
 UNIV_INLINE
 enum buf_flush
@@ -306,8 +329,9 @@ buf_block_align(
 	page_no = mach_read_from_4(ptr + FIL_PAGE_OFFSET);
 	space_id = mach_read_from_4(ptr + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
-	block = buf_page_hash_get(space_id, page_no);
+	block = (buf_block_t*) buf_page_hash_get(space_id, page_no);
 	ut_ad(block);
+	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	ut_ad(block->frame == ptr);
 	return(block);
 }
@@ -550,14 +574,14 @@ buf_block_buf_fix_inc(
 /**********************************************************************
 Returns the control block of a file page, NULL if not found. */
 UNIV_INLINE
-buf_block_t*
+buf_page_t*
 buf_page_hash_get(
 /*==============*/
 			/* out: block, NULL if not found */
 	ulint	space,	/* in: space id */
 	ulint	offset)	/* in: offset of the page within space */
 {
-	buf_block_t*	block;
+	buf_page_t*	bpage;
 	ulint		fold;
 
 	ut_ad(buf_pool);
@@ -569,12 +593,11 @@ buf_page_hash_get(
 
 	fold = buf_page_address_fold(space, offset);
 
-	HASH_SEARCH(hash, buf_pool->page_hash, fold, block,
-		    block->page.space == space
-		    && block->page.offset == offset);
-	ut_a(!block || buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+	HASH_SEARCH(hash, buf_pool->page_hash, fold, bpage,
+		    bpage->space == space && bpage->offset == offset);
+	ut_a(!bpage || buf_page_in_file(bpage));
 
-	return(block);
+	return(bpage);
 }
 
 /************************************************************************

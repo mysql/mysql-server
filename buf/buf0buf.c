@@ -603,7 +603,7 @@ buf_block_init(
 	block->modify_clock = 0;
 
 #ifdef UNIV_DEBUG_FILE_ACCESSES
-	block->file_page_was_freed = FALSE;
+	block->page.file_page_was_freed = FALSE;
 #endif /* UNIV_DEBUG_FILE_ACCESSES */
 
 	block->check_index_page_at_flush = FALSE;
@@ -1069,11 +1069,11 @@ buf_pool_page_hash_rebuild(void)
 		for (j = 0; j < chunk->size; j++, block++) {
 			if (buf_block_get_state(block)
 			    == BUF_BLOCK_FILE_PAGE) {
-				HASH_INSERT(buf_block_t, hash, page_hash,
+				HASH_INSERT(buf_page_t, hash, page_hash,
 					    buf_page_address_fold(
 						    block->page.space,
 						    block->page.offset),
-					    block);
+					    &block->page);
 			}
 		}
 	}
@@ -1203,9 +1203,13 @@ buf_page_peek_block(
 
 	mutex_enter_fast(&(buf_pool->mutex));
 
-	block = buf_page_hash_get(space, offset);
+	block = (buf_block_t*) buf_page_hash_get(space, offset);
 
 	mutex_exit(&(buf_pool->mutex));
+
+	if (UNIV_UNLIKELY(buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE)) {
+		block = NULL;
+	}
 
 	return(block);
 }
@@ -1224,9 +1228,9 @@ buf_reset_check_index_page_at_flush(
 
 	mutex_enter_fast(&(buf_pool->mutex));
 
-	block = buf_page_hash_get(space, offset);
+	block = (buf_block_t*) buf_page_hash_get(space, offset);
 
-	if (block) {
+	if (block && buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE) {
 		block->check_index_page_at_flush = FALSE;
 	}
 
@@ -1251,9 +1255,9 @@ buf_page_peek_if_search_hashed(
 
 	mutex_enter_fast(&(buf_pool->mutex));
 
-	block = buf_page_hash_get(space, offset);
+	block = (buf_block_t*) buf_page_hash_get(space, offset);
 
-	if (!block) {
+	if (!block || buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE) {
 		is_hashed = FALSE;
 	} else {
 		is_hashed = block->is_hashed;
@@ -1292,27 +1296,27 @@ This function should be called when we free a file page and want the
 debug version to check that it is not accessed any more unless
 reallocated. */
 
-buf_block_t*
+buf_page_t*
 buf_page_set_file_page_was_freed(
 /*=============================*/
-			/* out: control block if found from page hash table,
+			/* out: control block if found in page hash table,
 			otherwise NULL */
 	ulint	space,	/* in: space id */
 	ulint	offset)	/* in: page number */
 {
-	buf_block_t*	block;
+	buf_page_t*	bpage;
 
 	mutex_enter_fast(&(buf_pool->mutex));
 
-	block = buf_page_hash_get(space, offset);
+	bpage = buf_page_hash_get(space, offset);
 
-	if (block) {
-		block->file_page_was_freed = TRUE;
+	if (bpage) {
+		bpage->file_page_was_freed = TRUE;
 	}
 
 	mutex_exit(&(buf_pool->mutex));
 
-	return(block);
+	return(bpage);
 }
 
 /************************************************************************
@@ -1321,27 +1325,27 @@ This function should be called when we free a file page and want the
 debug version to check that it is not accessed any more unless
 reallocated. */
 
-buf_block_t*
+buf_page_t*
 buf_page_reset_file_page_was_freed(
 /*===============================*/
-			/* out: control block if found from page hash table,
+			/* out: control block if found in page hash table,
 			otherwise NULL */
 	ulint	space,	/* in: space id */
 	ulint	offset)	/* in: page number */
 {
-	buf_block_t*	block;
+	buf_page_t*	bpage;
 
 	mutex_enter_fast(&(buf_pool->mutex));
 
-	block = buf_page_hash_get(space, offset);
+	bpage = buf_page_hash_get(space, offset);
 
-	if (block) {
-		block->file_page_was_freed = FALSE;
+	if (bpage) {
+		bpage->file_page_was_freed = FALSE;
 	}
 
 	mutex_exit(&(buf_pool->mutex));
 
-	return(block);
+	return(bpage);
 }
 #endif /* UNIV_DEBUG_FILE_ACCESSES */
 
@@ -1388,18 +1392,19 @@ loop:
 		block = guess;
 
 		if (offset != block->page.offset
-		    || space != block->page.space
-		    || buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE) {
+		    || space != block->page.space) {
 
 			block = NULL;
 		}
 	}
 
 	if (block == NULL) {
-		block = buf_page_hash_get(space, offset);
+		block = (buf_block_t*) buf_page_hash_get(space, offset);
 	}
 
-	if (block == NULL) {
+	if (block == NULL
+	    || UNIV_UNLIKELY(buf_block_get_state(block)
+			     != BUF_BLOCK_FILE_PAGE)) {
 		/* Page not in buf_pool: needs to be read from file */
 
 		mutex_exit(&(buf_pool->mutex));
@@ -1454,7 +1459,7 @@ loop:
 	buf_block_make_young(block);
 
 #ifdef UNIV_DEBUG_FILE_ACCESSES
-	ut_a(block->file_page_was_freed == FALSE);
+	ut_a(!block->page.file_page_was_freed);
 #endif
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -1644,7 +1649,7 @@ buf_page_optimistic_get_func(
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 #ifdef UNIV_DEBUG_FILE_ACCESSES
-	ut_a(block->file_page_was_freed == FALSE);
+	ut_a(block->page.file_page_was_freed == FALSE);
 #endif
 	if (UNIV_UNLIKELY(!accessed)) {
 		/* In the case of a first access, try to apply linear
@@ -1748,7 +1753,7 @@ buf_page_get_known_nowait(
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #ifdef UNIV_DEBUG_FILE_ACCESSES
-	ut_a(block->file_page_was_freed == FALSE);
+	ut_a(block->page.file_page_was_freed == FALSE);
 #endif
 
 #ifdef UNIV_IBUF_DEBUG
@@ -1850,8 +1855,8 @@ buf_page_init(
 		ut_error;
 	}
 
-	HASH_INSERT(buf_block_t, hash, buf_pool->page_hash,
-		    buf_page_address_fold(space, offset), block);
+	HASH_INSERT(buf_page_t, hash, buf_pool->page_hash,
+		    buf_page_address_fold(space, offset), &block->page);
 
 	block->freed_page_clock = 0;
 
@@ -1869,7 +1874,7 @@ buf_page_init(
 	block->left_side	= TRUE;
 
 #ifdef UNIV_DEBUG_FILE_ACCESSES
-	block->file_page_was_freed = FALSE;
+	block->page.file_page_was_freed = FALSE;
 #endif /* UNIV_DEBUG_FILE_ACCESSES */
 }
 
@@ -2014,15 +2019,16 @@ buf_page_create(
 
 	mutex_enter(&(buf_pool->mutex));
 
-	block = buf_page_hash_get(space, offset);
+	block = (buf_block_t*) buf_page_hash_get(space, offset);
 
-	if (block != NULL) {
+	if (block != NULL
+	    && buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE) {
 #ifdef UNIV_IBUF_DEBUG
 		ut_a(ibuf_count_get(buf_block_get_space(block),
 				    buf_block_get_page_no(block)) == 0);
 #endif
 #ifdef UNIV_DEBUG_FILE_ACCESSES
-		block->file_page_was_freed = FALSE;
+		block->page.file_page_was_freed = FALSE;
 #endif /* UNIV_DEBUG_FILE_ACCESSES */
 
 		/* Page can be found in buf_pool */
@@ -2393,7 +2399,7 @@ buf_validate(void)
 							       block),
 						       buf_block_get_page_no(
 							       block))
-				     == block);
+				     == &block->page);
 				n_page++;
 
 #ifdef UNIV_IBUF_DEBUG

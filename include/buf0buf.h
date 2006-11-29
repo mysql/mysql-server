@@ -310,10 +310,10 @@ This function should be called when we free a file page and want the
 debug version to check that it is not accessed any more unless
 reallocated. */
 
-buf_block_t*
+buf_page_t*
 buf_page_set_file_page_was_freed(
 /*=============================*/
-			/* out: control block if found from page hash table,
+			/* out: control block if found in page hash table,
 			otherwise NULL */
 	ulint	space,	/* in: space id */
 	ulint	offset);/* in: page number */
@@ -323,10 +323,10 @@ This function should be called when we free a file page and want the
 debug version to check that it is not accessed any more unless
 reallocated. */
 
-buf_block_t*
+buf_page_t*
 buf_page_reset_file_page_was_freed(
 /*===============================*/
-			/* out: control block if found from page hash table,
+			/* out: control block if found in page hash table,
 			otherwise NULL */
 	ulint	space,	/* in: space id */
 	ulint	offset);	/* in: page number */
@@ -556,6 +556,15 @@ buf_block_set_state(
 	buf_block_t*		block,	/* in/out: pointer to control block */
 	enum buf_page_state	state);	/* in: state */
 /*************************************************************************
+Determines if a block is mapped to a tablespace. */
+UNIV_INLINE
+ibool
+buf_page_in_file(
+/*=============*/
+					/* out: TRUE if mapped */
+	const buf_page_t*	bpage)	/* in: pointer to control block */
+	__attribute__((pure));
+/*************************************************************************
 Get the flush type of a page. */
 UNIV_INLINE
 enum buf_flush
@@ -701,7 +710,7 @@ buf_page_address_fold(
 /**********************************************************************
 Returns the control block of a file page, NULL if not found. */
 UNIV_INLINE
-buf_block_t*
+buf_page_t*
 buf_page_hash_get(
 /*==============*/
 			/* out: block, NULL if not found */
@@ -733,6 +742,8 @@ struct buf_page_struct{
 	page_zip_des_t	zip;		/* compressed page; zip.state
 					and zip.flush_type are relevant
 					for all pages */
+	buf_page_t*	hash;		/* node used in chaining to the page
+					hash table */
 
 	/* 2. Page flushing fields; protected by buf_pool->mutex */
 
@@ -749,6 +760,11 @@ struct buf_page_struct{
 					modification to this block which has
 					not yet been flushed on disk; zero if
 					all modifications are on disk */
+#ifdef UNIV_DEBUG_FILE_ACCESSES
+	ibool		file_page_was_freed;
+					/* this is set to TRUE when fsp
+					frees a page in buffer pool */
+#endif /* UNIV_DEBUG_FILE_ACCESSES */
 };
 
 /* The buffer control block structure */
@@ -773,8 +789,6 @@ struct buf_block_struct{
 					contention on the buffer pool mutex */
 	rw_lock_t	lock;		/* read-write lock of the buffer
 					frame */
-	buf_block_t*	hash;		/* node used in chaining to the page
-					hash table */
 	ulint		lock_hash_val:32;/* hashed value of the page address
 					in the record lock hash table */
 	ulint		check_index_page_at_flush:1;
@@ -890,11 +904,6 @@ struct buf_block_struct{
 					an s-latch here; so we can use the
 					debug utilities in sync0rw */
 #endif
-#ifdef UNIV_DEBUG_FILE_ACCESSES
-	ibool		file_page_was_freed;
-					/* this is set to TRUE when fsp
-					frees a page in buffer pool */
-#endif /* UNIV_DEBUG_FILE_ACCESSES */
 };
 
 /* Check if a block is in a valid state. */
