@@ -2701,7 +2701,7 @@ insert into t2 values ('58013'),('58014'),('58015'),('58016');
 create table t3 (a_id int(11) not null, b_id char(16) character set utf8);
 insert into t3 values (123,null),(123,null),(123,null),(123,null),(123,null),(123,'58013');
 
--- both queries are equivalent
+# both queries are equivalent
 select count(*)
 from t1 inner join (t3 left join t2 on t2.id = t3.b_id) on t1.id = t3.a_id;
 
@@ -2941,7 +2941,7 @@ create table t2 (
 insert into t1 (b,c) values (0,1), (0,1);
 insert into t2 (b,c) values (0,1);
 
--- Row 1 should succeed.  Row 2 should fail.  Both fail.
+# Row 1 should succeed.  Row 2 should fail.  Both fail.
 select t1.a, t1.b + 0, t1.c + 0, t2.a, t2.b + 0, t2.c, t2.d
 from t1 left outer join t2 on t1.a = t2.c and t2.b <> 1
 where t1.b <> 1 order by t1.a;

@@ -207,7 +207,7 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64 aTransId)
   tcKeyReq->setKeyLength(tReqInfo, tTupKeyLen);
   
   // A simple read is always ignore error
-  abortOption = tSimpleIndicator ? AO_IgnoreError : abortOption;
+  abortOption = tSimpleIndicator ? (Uint8) AO_IgnoreError : abortOption;
   tcKeyReq->setAbortOption(tReqInfo, abortOption);
   
   Uint8 tDistrKeyIndicator = theDistrKeyIndicator_;

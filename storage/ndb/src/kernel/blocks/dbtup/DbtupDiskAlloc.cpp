@@ -82,7 +82,7 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
     {
       ndbout << ptr << " ";
     }
-    ndbout_c("");
+    ndbout_c(" ");
   }
   ndbout_c("page requests");
   for(Uint32 i = 0; i<MAX_FREE_LIST; i++)
@@ -95,7 +95,7 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
     {
       ndbout << ptr << " ";
     }
-    ndbout_c("");
+    ndbout_c(" ");
   }
 
   ndbout_c("Extent matrix");
@@ -108,7 +108,7 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
     {
       ndbout << ptr << " ";
     }
-    ndbout_c("");
+    ndbout_c(" ");
   }
 
   if (alloc.m_curr_extent_info_ptr_i != RNIL)

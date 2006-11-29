@@ -1,0 +1,29 @@
+show databases;
+Database
+information_schema
+mysql
+test
+show tables in mysql;
+Tables_in_mysql
+binlog_index
+columns_priv
+db
+event
+func
+general_log
+help_category
+help_keyword
+help_relation
+help_topic
+host
+plugin
+proc
+procs_priv
+slow_log
+tables_priv
+time_zone
+time_zone_leap_second
+time_zone_name
+time_zone_transition
+time_zone_transition_type
+user

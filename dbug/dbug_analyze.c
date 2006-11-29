@@ -169,7 +169,7 @@ register unsigned long *child_time;
 	*name_pos = temp->pos;
 	*time_entered = temp->time;
 	*child_time = temp->children;
-	DBUG_PRINT ("pop", ("%d %d %d",*name_pos,*time_entered,*child_time));
+	DBUG_PRINT ("pop", ("%d %lu %lu",*name_pos,*time_entered,*child_time));
 	rtnval = stacktop--;
     }
     DBUG_RETURN (rtnval);
@@ -334,12 +334,12 @@ FILE *inf;
        * function is found on the stack.
        */
       while (pop (&oldpos, &oldtime, &oldchild)) {
-	DBUG_PRINT ("popped", ("%d %d", oldtime, oldchild));
+	DBUG_PRINT ("popped", ("%lu %lu", oldtime, oldchild));
 	time = fn_time - oldtime;
 	t = top ();
 	t -> children += time;
 	DBUG_PRINT ("update", ("%s", modules[t -> pos].name));
-	DBUG_PRINT ("update", ("%d", t -> children));
+	DBUG_PRINT ("update", ("%lu", t -> children));
 	time -= oldchild;
 	modules[oldpos].m_time += time;
 	modules[oldpos].m_calls++;
@@ -520,19 +520,19 @@ register unsigned long int *s_calls, *s_time;
     unsigned long int calls, time;
 
     DBUG_ENTER ("out_body");
-    DBUG_PRINT ("out_body", ("%d,%d",*s_calls,*s_time));
+    DBUG_PRINT ("out_body", ("%lu,%lu",*s_calls,*s_time));
     if (root == MAXPROCS) {
-	DBUG_PRINT ("out_body", ("%d,%d",*s_calls,*s_time));
+	DBUG_PRINT ("out_body", ("%lu,%lu",*s_calls,*s_time));
     } else {
 	while (root != MAXPROCS) {
 	    out_body (outf, s_table[root].lchild,s_calls,s_time);
 	    out_item (outf, &modules[s_table[root].pos],&calls,&time);
-	    DBUG_PRINT ("out_body", ("-- %d -- %d --", calls, time));
+	    DBUG_PRINT ("out_body", ("-- %lu -- %lu --", calls, time));
 	    *s_calls += calls;
 	    *s_time += time;
 	    root = s_table[root].rchild;
 	}
-	DBUG_PRINT ("out_body", ("%d,%d", *s_calls, *s_time));
+	DBUG_PRINT ("out_body", ("%lu,%lu", *s_calls, *s_time));
     }
     DBUG_VOID_RETURN;
 }

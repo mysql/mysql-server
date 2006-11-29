@@ -239,7 +239,7 @@ public:
    */
   my_size_t last_null_byte() const {
     my_size_t bytes= do_last_null_byte();
-    DBUG_PRINT("debug", ("last_null_byte() ==> %d", bytes));
+    DBUG_PRINT("debug", ("last_null_byte() ==> %ld", (long) bytes));
     DBUG_ASSERT(bytes <= table->s->null_bytes);
     return bytes;
   }
@@ -342,7 +342,10 @@ public:
   virtual int pack_cmp(const char *b, uint key_length_arg,
                        my_bool insert_or_update)
   { return cmp(ptr,b); }
-  uint offset();			// Should be inline ...
+  uint offset(byte *record)
+  {
+    return (uint) (ptr - (char*) record);
+  }
   void copy_from_tmp(int offset);
   uint fill_cache_field(struct st_cache_field *copy);
   virtual bool get_date(TIME *ltime,uint fuzzydate);
@@ -562,6 +565,7 @@ public:
   int  store(const char *to, uint length, CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
+  int store_time(TIME *ltime, timestamp_type t_type);
   int  store_decimal(const my_decimal *);
   double val_real(void);
   longlong val_int(void);

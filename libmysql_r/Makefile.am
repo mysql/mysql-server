@@ -36,12 +36,9 @@ libmysqlclient_r_la_LDFLAGS = $(target_ldflags)
 # This is called from the toplevel makefile
 link_sources:
 	set -x; \
-	for f in `cd $(top_srcdir)/libmysql && echo *.[ch]`; do \
-	  rm -f $$f; \
-	  @LN_CP_F@ $(top_srcdir)/libmysql/$$f $$f; \
+	for d in $(top_srcdir)/libmysql $(top_builddir)/libmysql; do \
+	  for f in `cd $$d && echo *.[ch]`; do \
+	    rm -f $$f; \
+	    @LN_CP_F@ $$d/$$f $$f; \
+	  done; \
 	done
-	for f in `cd $(top_builddir)/libmysql && echo *.[ch]`; do \
-	  rm -f $$f; \
-	  @LN_CP_F@ $(top_builddir)/libmysql/$$f $$f; \
-	done
-

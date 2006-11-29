@@ -37,7 +37,7 @@ create table t3(a int, KEY a_data (a));
 create table mysqltest.t4(a int);
 create table t5 (id int auto_increment primary key);
 insert into t5 values (10);
-create view v1 (c) as select table_name from information_schema.TABLES where table_schema!='cluster';
+create view v1 (c) as select table_name from information_schema.TABLES where table_name<>'binlog_index' AND table_name<>'apply_status';
 select * from v1;
 
 select c,table_name from v1 
@@ -528,7 +528,7 @@ flush privileges;
 # Bug #9404  information_schema: Weird error messages
 # with SELECT SUM() ... GROUP BY queries
 #
-SELECT table_schema, count(*) FROM information_schema.TABLES where TABLE_SCHEMA!='cluster' GROUP BY TABLE_SCHEMA;
+SELECT table_schema, count(*) FROM information_schema.TABLES where table_name<>'binlog_index' AND table_name<>'apply_status' GROUP BY TABLE_SCHEMA;
 
 
 #
@@ -974,6 +974,20 @@ SELECT COLUMN_NAME, MD5(COLUMN_DEFAULT), LENGTH(COLUMN_DEFAULT), COLUMN_DEFAULT=
 
 DROP TABLE bug23037;
 DROP FUNCTION get_value;
+
+#
+# Bug#22413: EXPLAIN SELECT FROM view with ORDER BY yield server crash
+#
+create view v1 as
+select table_schema as object_schema,
+       table_name   as object_name,
+       table_type   as object_type
+from information_schema.tables
+order by object_schema;
+explain select * from v1;
+explain select * from (select table_name from information_schema.tables) as a;
+drop view v1;
+
 --echo End of 5.0 tests.
 #
 # Show engines

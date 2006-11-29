@@ -7,7 +7,7 @@
 # 1.
 --connection slave
 --replace_column 1 <the_epoch>
-SELECT @the_epoch:=MAX(epoch) FROM cluster.apply_status;
+SELECT @the_epoch:=MAX(epoch) FROM mysql.apply_status;
 --let $the_epoch= `select @the_epoch`
 
 # 2.
@@ -15,7 +15,7 @@ SELECT @the_epoch:=MAX(epoch) FROM cluster.apply_status;
 --replace_result $the_epoch <the_epoch>
 --replace_column 1 <the_pos>
 eval SELECT @the_pos:=Position,@the_file:=SUBSTRING_INDEX(FILE, '/', -1)
-   FROM cluster.binlog_index WHERE epoch > $the_epoch ORDER BY epoch ASC LIMIT 1;
+   FROM mysql.binlog_index WHERE epoch > $the_epoch ORDER BY epoch ASC LIMIT 1;
 --let $the_pos= `SELECT @the_pos`
 --let $the_file= `SELECT @the_file`
 

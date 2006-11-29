@@ -30,8 +30,8 @@ ConstRope::copy(char* buf) const {
 int
 ConstRope::compare(const char * str, size_t len) const {
   if(DEBUG_ROPE)
-    ndbout_c("ConstRope[ %d 0x%x 0x%x ]::compare(%s, %d)", 
-	     head.used, head.firstItem, head.lastItem, str, len);
+    ndbout_c("ConstRope[ %d  0x%x  0x%x ]::compare(%s, %d)", 
+	     head.used, head.firstItem, head.lastItem, str, (int) len);
   Uint32 left = head.used > len ? len : head.used;
   Ptr<Segment> curr;
   curr.i = head.firstItem;
@@ -60,7 +60,7 @@ ConstRope::compare(const char * str, size_t len) const {
     }
   }
   if(DEBUG_ROPE)
-    ndbout_c("ConstRope::compare(%s, %d) -> %d", str, len, head.used > len);
+    ndbout_c("ConstRope::compare(%s, %d) -> %d", str, (int) len, head.used > len);
   return head.used > len;
 }
 
@@ -91,7 +91,7 @@ Rope::copy(char* buf) const {
 int
 Rope::compare(const char * str, size_t len) const {
   if(DEBUG_ROPE)
-    ndbout_c("Rope::compare(%s, %d)", str, len);
+    ndbout_c("Rope::compare(%s, %d)", str, (int) len);
   Uint32 left = head.used > len ? len : head.used;
   Ptr<Segment> curr;
   curr.i = head.firstItem;
@@ -100,7 +100,7 @@ Rope::compare(const char * str, size_t len) const {
     int res = memcmp(str, (const char*)curr.p->data, 4 * getSegmentSize());
     if(res != 0){
       if(DEBUG_ROPE)
-	ndbout_c("Rope::compare(%s, %d, %s) -> %d", str, len, 
+	ndbout_c("Rope::compare(%s, %d, %s) -> %d", str, (int) len, 
 		 (const char*)curr.p->data, res);
       return res;
     }
@@ -115,19 +115,19 @@ Rope::compare(const char * str, size_t len) const {
     int res = memcmp(str, (const char*)curr.p->data, left);
     if(res){
       if(DEBUG_ROPE)
-	ndbout_c("Rope::compare(%s, %d) -> %d", str, len, res);
+	ndbout_c("Rope::compare(%s, %d) -> %d", str, (int) len, res);
       return res;
     }
   }
   if(DEBUG_ROPE)
-    ndbout_c("Rope::compare(%s, %d) -> %d", str, len, head.used > len);
+    ndbout_c("Rope::compare(%s, %d) -> %d", str, (int) len, head.used > len);
   return head.used > len;
 }
 
 bool
 Rope::assign(const char * s, size_t len, Uint32 hash){
   if(DEBUG_ROPE)
-    ndbout_c("Rope::assign(%s, %d, 0x%x)", s, len, hash);
+    ndbout_c("Rope::assign(%s, %d, 0x%x)", s, (int) len, hash);
   m_hash = hash;
   head.used = (head.used + 3) / 4;
   release();
