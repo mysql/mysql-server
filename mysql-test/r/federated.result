@@ -1821,11 +1821,11 @@ insert into federated.t1 values (0x6DC3A56E6164);
 select hex(a) from federated.t1;
 hex(a)
 6DC3A56E6164
-set names utf8;
 create table federated.t1 (a varchar(64))
 ENGINE=FEDERATED 
-CONNECTION='mysql://root@127.0.0.1:9308/federated/t1'
+connection='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1'
 DEFAULT CHARSET=utf8;
+set names utf8;
 select hex(a) from federated.t1;
 hex(a)
 6DC3A56E6164
