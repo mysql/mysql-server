@@ -737,7 +737,11 @@ void query_cache_end_of_result(THD *thd)
                            header->query()));
       query_cache.wreck(__LINE__, "");
 
-      BLOCK_UNLOCK_WR(query_block);
+      /*
+        We do not need call of BLOCK_UNLOCK_WR(query_block); here because
+        query_cache.wreck() switched query cache off but left content
+        untouched for investigation (it is debugging method).
+      */
       goto end;
     }
 #endif
@@ -3523,7 +3527,7 @@ uint Query_cache::filename_2_table_key (char *key, const char *path,
 
 #if defined(DBUG_OFF) && !defined(USE_QUERY_CACHE_INTEGRITY_CHECK)
 
-void wreck(uint line, const char *message) {}
+void wreck(uint line, const char *message) { query_cache_size = 0; }
 void bins_dump() {}
 void cache_dump() {}
 void queries_dump() {}
@@ -3534,6 +3538,17 @@ my_bool in_list(Query_cache_block * root, Query_cache_block * point,
 my_bool in_blocks(Query_cache_block * point) { return 0; }
 
 #else
+
+
+/*
+  Debug method which switch query cache off but left content for
+  investigation.
+
+  SYNOPSIS
+    Query_cache::wreck()
+    line                 line of the wreck() call
+    message              message for logging
+*/
 
 void Query_cache::wreck(uint line, const char *message)
 {
