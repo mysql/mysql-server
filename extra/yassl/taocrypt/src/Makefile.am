@@ -1,4 +1,4 @@
-INCLUDES = -I../include -I../mySTL
+INCLUDES = -I$(srcdir)/../include -I$(srcdir)/../mySTL
 
 noinst_LTLIBRARIES = libtaocrypt.la
 

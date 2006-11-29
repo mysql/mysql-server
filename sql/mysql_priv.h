@@ -1804,7 +1804,7 @@ ha_rows filesort(THD *thd, TABLE *form,struct st_sort_field *sortorder,
 		 uint s_length, SQL_SELECT *select,
 		 ha_rows max_rows, bool sort_positions,
                  ha_rows *examined_rows);
-void filesort_free_buffers(TABLE *table);
+void filesort_free_buffers(TABLE *table, bool full);
 void change_double_for_sort(double nr,byte *to);
 double my_double_round(double value, int dec, bool truncate);
 int get_quick_record(SQL_SELECT *select);
