@@ -1533,7 +1533,7 @@ prev_insert_id(ulonglong nr, struct system_variables *variables)
     */
     DBUG_PRINT("info",("auto_increment: nr: %lu cannot honour "
                        "auto_increment_offset: %lu",
-                       nr, variables->auto_increment_offset));
+                       (ulong) nr, variables->auto_increment_offset));
     return nr;
   }
   if (variables->auto_increment_increment == 1)

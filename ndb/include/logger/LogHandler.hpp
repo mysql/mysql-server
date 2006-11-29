@@ -135,7 +135,7 @@ public:
    *
    * @param str the error string.
    */
-  void setErrorStr(char* str);
+  void setErrorStr(const char* str);
 
   /**
    * Parse logstring parameters

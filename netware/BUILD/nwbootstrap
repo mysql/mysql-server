@@ -25,7 +25,7 @@ revision=""
 rev=""
 build=""
 suffix=""
-mwenv=""
+#obsolete   mwenv=""
 
 # show usage
 show_usage()
@@ -151,14 +151,14 @@ echo "making files writable..."
 cd $target_dir
 chmod -R u+rw,g+rw .
 
-# edit the mvenv file
-echo "updating the mwenv environment file..."
-mwenv="./netware/BUILD/mwenv"
-mv -f $mwenv $mwenv.org
-sed -e "s;WINE_BUILD_DIR;$wine_build_dir;g" \
-	-e "s;BUILD_DIR;$build_dir;g" \
-  -e "s;VERSION;$version;g" $mwenv.org > $mwenv
-chmod +rwx $mwenv
+#obsolete   # edit the mvenv file
+#obsolete   echo "updating the mwenv environment file..."
+#obsolete   mwenv="./netware/BUILD/mwenv"
+#obsolete   mv -f $mwenv $mwenv.org
+#obsolete   sed -e "s;WINE_BUILD_DIR;$wine_build_dir;g" \
+#obsolete   	-e "s;BUILD_DIR;$build_dir;g" \
+#obsolete     -e "s;VERSION;$version;g" $mwenv.org > $mwenv
+#obsolete   chmod +rwx $mwenv
 
 # edit the def file versions
 echo "updating *.def file versions..."
