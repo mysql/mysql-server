@@ -294,7 +294,7 @@ buf_page_is_corrupted(
 	ulint		checksum_field;
 	ulint		old_checksum_field;
 #ifndef UNIV_HOTBACKUP
-	ib_ulonglong	current_lsn;
+	ib_uint64_t	current_lsn;
 #endif
 	if (UNIV_LIKELY(!zip_size)
 	    && memcmp(read_buf + FIL_PAGE_LSN + 4,
@@ -1554,7 +1554,7 @@ buf_page_optimistic_get_func(
 				/* out: TRUE if success */
 	ulint		rw_latch,/* in: RW_S_LATCH, RW_X_LATCH */
 	buf_block_t*	block,	/* in: guessed buffer block */
-	ib_ulonglong	modify_clock,/* in: modify clock value if mode is
+	ib_uint64_t	modify_clock,/* in: modify clock value if mode is
 				..._GUESS_ON_CLOCK */
 	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line where called */

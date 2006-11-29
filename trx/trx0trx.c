@@ -743,7 +743,7 @@ trx_commit_off_kernel(
 	trx_t*	trx)	/* in: transaction */
 {
 	page_t*		update_hdr_page;
-	ib_ulonglong	lsn;
+	ib_uint64_t	lsn;
 	trx_rseg_t*	rseg;
 	trx_undo_t*	undo;
 	ibool		must_flush_log	= FALSE;
@@ -1621,7 +1621,7 @@ trx_commit_complete_for_mysql(
 			/* out: 0 or error number */
 	trx_t*	trx)	/* in: trx handle */
 {
-	ib_ulonglong	lsn	= trx->commit_lsn;
+	ib_uint64_t	lsn	= trx->commit_lsn;
 
 	ut_a(trx);
 
@@ -1799,7 +1799,7 @@ trx_prepare_off_kernel(
 	page_t*		update_hdr_page;
 	trx_rseg_t*	rseg;
 	ibool		must_flush_log	= FALSE;
-	ib_ulonglong	lsn;
+	ib_uint64_t	lsn;
 	mtr_t		mtr;
 
 #ifdef UNIV_SYNC_DEBUG

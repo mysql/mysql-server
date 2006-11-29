@@ -36,7 +36,7 @@ buf_flush_init_for_writing(
 /*=======================*/
 	byte*		page,		/* in/out: page */
 	void*		page_zip_,	/* in/out: compressed page, or NULL */
-	ib_ulonglong	newest_lsn);	/* in: newest modification lsn
+	ib_uint64_t	newest_lsn);	/* in: newest modification lsn
 					to the page */
 /***********************************************************************
 This utility flushes dirty blocks from the end of the LRU list or flush_list.
@@ -59,7 +59,7 @@ buf_flush_batch(
 	ulint		min_n,		/* in: wished minimum mumber of blocks
 					flushed (it is not guaranteed that the
 					actual number is that big, though) */
-	ib_ulonglong	lsn_limit);	/* in the case BUF_FLUSH_LIST all
+	ib_uint64_t	lsn_limit);	/* in the case BUF_FLUSH_LIST all
 					blocks whose oldest_modification is
 					smaller than this should be flushed
 					(if their number does not exceed
@@ -88,9 +88,9 @@ void
 buf_flush_recv_note_modification(
 /*=============================*/
 	buf_block_t*	block,		/* in: block which is modified */
-	ib_ulonglong	start_lsn,	/* in: start lsn of the first mtr in a
+	ib_uint64_t	start_lsn,	/* in: start lsn of the first mtr in a
 					set of mtr's */
-	ib_ulonglong	end_lsn);	/* in: end lsn of the last mtr in the
+	ib_uint64_t	end_lsn);	/* in: end lsn of the last mtr in the
 					set of mtr's */
 /************************************************************************
 Returns TRUE if the file page block is immediately suitable for replacement,

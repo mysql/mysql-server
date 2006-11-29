@@ -21,7 +21,7 @@ log_check_log_recs(
 					the log segment in the
 					log_sys->buf log buffer */
 	ulint		len,		/* in: segment length in bytes */
-	ib_ulonglong	buf_start_lsn);	/* in: buffer start lsn */
+	ib_uint64_t	buf_start_lsn);	/* in: buffer start lsn */
 
 /****************************************************************
 Gets a log block flush bit. */
@@ -164,7 +164,7 @@ void
 log_block_set_checkpoint_no(
 /*========================*/
 	byte*		log_block,	/* in: log block */
-	ib_ulonglong	no)		/* in: checkpoint no */
+	ib_uint64_t	no)		/* in: checkpoint no */
 {
 	mach_write_to_4(log_block + LOG_BLOCK_CHECKPOINT_NO, (ulint) no);
 }
@@ -177,7 +177,7 @@ log_block_convert_lsn_to_no(
 /*========================*/
 				/* out: log block number,
 				it is > 0 and <= 1G */
-	ib_ulonglong	lsn)	/* in: lsn of a byte within the block */
+	ib_uint64_t	lsn)	/* in: lsn of a byte within the block */
 {
 	return(((ulint) (lsn / OS_FILE_LOG_BLOCK_SIZE) & 0x3FFFFFFFUL) + 1);
 }
@@ -244,7 +244,7 @@ void
 log_block_init(
 /*===========*/
 	byte*		log_block,	/* in: pointer to the log buffer */
-	ib_ulonglong	lsn)		/* in: lsn within the log block */
+	ib_uint64_t	lsn)		/* in: lsn within the log block */
 {
 	ulint	no;
 
@@ -268,7 +268,7 @@ void
 log_block_init_in_old_format(
 /*=========================*/
 	byte*		log_block,	/* in: pointer to the log buffer */
-	ib_ulonglong	lsn)		/* in: lsn within the log block */
+	ib_uint64_t	lsn)		/* in: lsn within the log block */
 {
 	ulint	no;
 
@@ -289,19 +289,19 @@ log_block_init_in_old_format(
 Writes to the log the string given. The log must be released with
 log_release. */
 UNIV_INLINE
-ib_ulonglong
+ib_uint64_t
 log_reserve_and_write_fast(
 /*=======================*/
 				/* out: end lsn of the log record,
 				zero if did not succeed */
 	byte*		str,	/* in: string */
 	ulint		len,	/* in: string length */
-	ib_ulonglong*	start_lsn,/* out: start lsn of the log record */
+	ib_uint64_t*	start_lsn,/* out: start lsn of the log record */
 	ibool*		success)/* out: TRUE if success */
 {
 	log_t*		log	= log_sys;
 	ulint		data_len;
-	ib_ulonglong	lsn;
+	ib_uint64_t	lsn;
 
 	*success = TRUE;
 
@@ -358,12 +358,12 @@ log_release(void)
 /****************************************************************
 Gets the current lsn. */
 UNIV_INLINE
-ib_ulonglong
+ib_uint64_t
 log_get_lsn(void)
 /*=============*/
 			/* out: current lsn */
 {
-	ib_ulonglong	lsn;
+	ib_uint64_t	lsn;
 
 	mutex_enter(&(log_sys->mutex));
 

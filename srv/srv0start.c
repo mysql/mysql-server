@@ -57,9 +57,9 @@ Created 2/16/1996 Heikki Tuuri
 #include "que0que.h"
 
 /* Log sequence number immediately after startup */
-ib_ulonglong	srv_start_lsn;
+ib_uint64_t	srv_start_lsn;
 /* Log sequence number at shutdown */
-ib_ulonglong	srv_shutdown_lsn;
+ib_uint64_t	srv_shutdown_lsn;
 
 #ifdef HAVE_DARWIN_THREADS
 # include <sys/utsname.h>
@@ -698,9 +698,9 @@ open_or_create_data_files(
 	ulint*		max_arch_log_no,/* out: max of archived log
 					numbers in data files */
 #endif /* UNIV_LOG_ARCHIVE */
-	ib_ulonglong*	min_flushed_lsn,/* out: min of flushed lsn
+	ib_uint64_t*	min_flushed_lsn,/* out: min of flushed lsn
 					values in data files */
-	ib_ulonglong*	max_flushed_lsn,/* out: max of flushed lsn
+	ib_uint64_t*	max_flushed_lsn,/* out: max of flushed lsn
 					values in data files */
 	ulint*		sum_of_new_sizes)/* out: sum of sizes of the
 					new files added */
@@ -970,8 +970,8 @@ innobase_start_or_create_for_mysql(void)
 	ibool		log_file_created;
 	ibool		log_created	= FALSE;
 	ibool		log_opened	= FALSE;
-	ib_ulonglong	min_flushed_lsn;
-	ib_ulonglong	max_flushed_lsn;
+	ib_uint64_t	min_flushed_lsn;
+	ib_uint64_t	max_flushed_lsn;
 #ifdef UNIV_LOG_ARCHIVE
 	ulint		min_arch_log_no;
 	ulint		max_arch_log_no;
@@ -1385,7 +1385,7 @@ innobase_start_or_create_for_mysql(void)
 			return(DB_ERROR);
 		}
 
-		if (max_flushed_lsn < (ib_ulonglong) 1000) {
+		if (max_flushed_lsn < (ib_uint64_t) 1000) {
 			fprintf(stderr,
 				"InnoDB: Cannot initialize created"
 				" log files because\n"
