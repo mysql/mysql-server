@@ -708,7 +708,7 @@ sub mtr_wait_blocking($) {
   }
 }
 
-# Start "mysqladmin shutdown" for a specific mysqld
+# Start "mysqladmin <command>" for a specific mysqld
 sub mtr_mysqladmin_start($$$) {
   my $srv= shift;
   my $command= shift;
@@ -738,9 +738,8 @@ sub mtr_mysqladmin_start($$$) {
   # Shutdown time must be high as slave may be in reconnect
   mtr_add_arg($args, "--shutdown_timeout=$adm_shutdown_tmo");
   mtr_add_arg($args, "$command");
-  my $path_mysqladmin_log= "$::opt_vardir/log/mysqladmin.log";
   my $pid= mtr_spawn($::exe_mysqladmin, $args,
-		     "", $path_mysqladmin_log, $path_mysqladmin_log, "",
+		     "", "", "", "",
 		     { append_log_file => 1 });
   mtr_verbose("mtr_mysqladmin_start, pid: $pid");
   return $pid;
