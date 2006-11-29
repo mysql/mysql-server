@@ -42,12 +42,7 @@
 namespace STL = STL_NAMESPACE;
 
 
-// VC60 workaround: it doesn't allow typename in some places
-#if defined(_MSC_VER) && (_MSC_VER < 1300)
-    #define CPP_TYPENAME
-#else
-    #define CPP_TYPENAME typename
-#endif
+
 
 
 namespace yaSSL {
