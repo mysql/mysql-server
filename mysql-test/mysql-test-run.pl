@@ -63,7 +63,6 @@ use Getopt::Long;
 use Sys::Hostname;
 use IO::Socket;
 use IO::Socket::INET;
-use Data::Dumper;
 use strict;
 use warnings;
 
