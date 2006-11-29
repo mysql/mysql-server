@@ -682,7 +682,13 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
   mysql->net.report_error=0;
   mysql->info=0;
   mysql->affected_rows= ~(my_ulonglong) 0;
-  net_clear(&mysql->net);			/* Clear receive buffer */
+  /*
+    We don't want to clear the protocol buffer on COM_QUIT, beacsue if
+    the previous command was a shutdown command, we may have the
+    response for the COM_QUIT already in the communication buffer
+  */
+  if (command != COM_QUIT)
+    net_clear(&mysql->net);			/* Clear receive buffer */
 
   if (net_write_command(net,(uchar) command, header, header_length,
 			arg, arg_length))

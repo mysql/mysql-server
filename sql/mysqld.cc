@@ -1056,9 +1056,6 @@ static void __cdecl kill_server(int sig_ptr)
   }
 #endif  
   
-#if defined(__NETWARE__) || (defined(USE_ONE_SIGNAL_HAND) && !defined(__WIN__))
-  my_thread_init();				// If this is a new thread
-#endif
   close_connections();
   if (sig != MYSQL_KILL_SIGNAL &&
 #ifdef __WIN__
@@ -1069,16 +1066,15 @@ static void __cdecl kill_server(int sig_ptr)
   else
     unireg_end();
 
+  /* purecov: begin deadcode */
 #ifdef __NETWARE__
   if (!event_flag)
     pthread_join(select_thread, NULL);		// wait for main thread
 #endif /* __NETWARE__ */
 
-#if defined(__NETWARE__) || (defined(USE_ONE_SIGNAL_HAND) && !defined(__WIN__) && !defined(OS2))
   my_thread_end();
-#endif
-
-  pthread_exit(0);				/* purecov: deadcode */
+  pthread_exit(0);
+  /* purecov: end */
 
 #endif /* EMBEDDED_LIBRARY */
   RETURN_FROM_KILL_SERVER;
@@ -1090,10 +1086,14 @@ pthread_handler_t kill_server_thread(void *arg __attribute__((unused)))
 {
   my_thread_init();				// Initialize new thread
   kill_server(0);
-  my_thread_end();				// Normally never reached
+  /* purecov: begin deadcode */
+  my_thread_end();
+  pthread_exit(0);
   return 0;
+  /* purecov: end */
 }
 #endif
+
 
 extern "C" sig_handler print_signal_warning(int sig)
 {
@@ -7151,7 +7151,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   switch(optid) {
   case '#':
 #ifndef DBUG_OFF
-    DBUG_SET(argument ? argument : default_dbug_option);
     DBUG_SET_INITIAL(argument ? argument : default_dbug_option);
 #endif
     opt_endinfo=1;				/* unireg: memory allocation */
