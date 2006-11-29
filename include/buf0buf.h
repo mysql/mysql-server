@@ -98,7 +98,7 @@ buf_pool_get_curr_size(void);
 Gets the smallest oldest_modification lsn for any page in the pool. Returns
 zero if all modified pages have been flushed to disk. */
 UNIV_INLINE
-ib_ulonglong
+ib_uint64_t
 buf_pool_get_oldest_modification(void);
 /*==================================*/
 				/* out: oldest modification in pool,
@@ -166,7 +166,7 @@ buf_page_optimistic_get_func(
 				/* out: TRUE if success */
 	ulint		rw_latch,/* in: RW_S_LATCH, RW_X_LATCH */
 	buf_block_t*	block,	/* in: guessed block */
-	ib_ulonglong	modify_clock,/* in: modify clock value if mode is
+	ib_uint64_t	modify_clock,/* in: modify clock value if mode is
 				..._GUESS_ON_CLOCK */
 	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line where called */
@@ -357,7 +357,7 @@ buf_page_peek_if_search_hashed(
 Gets the youngest modification log sequence number for a frame.
 Returns zero if not file page or no modification occurred yet. */
 UNIV_INLINE
-ib_ulonglong
+ib_uint64_t
 buf_block_get_newest_modification(
 /*==============================*/
 				/* out: newest modification to page */
@@ -375,7 +375,7 @@ buf_block_modify_clock_inc(
 Returns the value of the modify clock. The caller must have an s-lock
 or x-lock on the block. */
 UNIV_INLINE
-ib_ulonglong
+ib_uint64_t
 buf_block_get_modify_clock(
 /*=======================*/
 				/* out: value */
@@ -750,11 +750,11 @@ struct buf_page_struct{
 	UT_LIST_NODE_T(buf_page_t) flush_list;
 					/* node of the modified, not yet
 					flushed blocks list */
-	ib_ulonglong	newest_modification;
+	ib_uint64_t	newest_modification;
 					/* log sequence number of the youngest
 					modification to this block, zero if
 					not modified */
-	ib_ulonglong	oldest_modification;
+	ib_uint64_t	oldest_modification;
 					/* log sequence number of the START of
 					the log entry written of the oldest
 					modification to this block which has
@@ -846,7 +846,7 @@ struct buf_block_struct{
 					protected by block->mutex */
 	/* 4. Optimistic search field */
 
-	ib_ulonglong	modify_clock;	/* this clock is incremented every
+	ib_uint64_t	modify_clock;	/* this clock is incremented every
 					time a pointer to a record on the
 					page may become obsolete; this is
 					used in the optimistic cursor

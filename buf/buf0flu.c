@@ -506,7 +506,7 @@ buf_flush_init_for_writing(
 /*=======================*/
 	byte*		page,		/* in/out: page */
 	void*		page_zip_,	/* in/out: compressed page, or NULL */
-	ib_ulonglong	newest_lsn)	/* in: newest modification lsn
+	ib_uint64_t	newest_lsn)	/* in: newest modification lsn
 					to the page */
 {
 	if (page_zip_) {
@@ -889,7 +889,7 @@ buf_flush_batch(
 	ulint		min_n,		/* in: wished minimum mumber of blocks
 					flushed (it is not guaranteed that the
 					actual number is that big, though) */
-	ib_ulonglong	lsn_limit)	/* in the case BUF_FLUSH_LIST all
+	ib_uint64_t	lsn_limit)	/* in the case BUF_FLUSH_LIST all
 					blocks whose oldest_modification is
 					smaller than this should be flushed
 					(if their number does not exceed
@@ -1134,7 +1134,7 @@ buf_flush_validate_low(void)
 		/* out: TRUE if ok */
 {
 	buf_page_t*	bpage;
-	ib_ulonglong	om;
+	ib_uint64_t	om;
 
 	UT_LIST_VALIDATE(flush_list, buf_page_t, buf_pool->flush_list);
 

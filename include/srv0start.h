@@ -78,8 +78,8 @@ int
 innobase_shutdown_for_mysql(void);
 /*=============================*/
 				/* out: DB_SUCCESS or error code */
-extern	ib_ulonglong	srv_shutdown_lsn;
-extern	ib_ulonglong	srv_start_lsn;
+extern	ib_uint64_t	srv_shutdown_lsn;
+extern	ib_uint64_t	srv_start_lsn;
 
 #ifdef __NETWARE__
 void set_panic_flag_for_netware(void);

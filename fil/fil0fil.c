@@ -1642,7 +1642,7 @@ fil_write_lsn_and_arch_no_to_file(
 /*==============================*/
 	ulint		sum_of_sizes,	/* in: combined size of previous files
 					in space, in database pages */
-	ib_ulonglong	lsn,		/* in: lsn to write */
+	ib_uint64_t	lsn,		/* in: lsn to write */
 	ulint		arch_log_no	/* in: archived log number to write */
 	__attribute__((unused)))
 {
@@ -1669,7 +1669,7 @@ ulint
 fil_write_flushed_lsn_to_data_files(
 /*================================*/
 					/* out: DB_SUCCESS or error number */
-	ib_ulonglong	lsn,		/* in: lsn to write */
+	ib_uint64_t	lsn,		/* in: lsn to write */
 	ulint		arch_log_no)	/* in: latest archived log
 					file number */
 {
@@ -1733,12 +1733,12 @@ fil_read_flushed_lsn_and_arch_log_no(
 	ulint*		min_arch_log_no,	/* in/out: */
 	ulint*		max_arch_log_no,	/* in/out: */
 #endif /* UNIV_LOG_ARCHIVE */
-	ib_ulonglong*	min_flushed_lsn,	/* in/out: */
-	ib_ulonglong*	max_flushed_lsn)	/* in/out: */
+	ib_uint64_t*	min_flushed_lsn,	/* in/out: */
+	ib_uint64_t*	max_flushed_lsn)	/* in/out: */
 {
 	byte*		buf;
 	byte*		buf2;
-	ib_ulonglong	flushed_lsn;
+	ib_uint64_t	flushed_lsn;
 
 	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
 	/* Align the memory for a possible read from a raw device */
@@ -2737,7 +2737,7 @@ fil_reset_too_high_lsns(
 					/* out: TRUE if success */
 	const char*	name,		/* in: table name in the
 					databasename/tablename format */
-	ib_ulonglong	current_lsn)	/* in: reset lsn's if the lsn stamped
+	ib_uint64_t	current_lsn)	/* in: reset lsn's if the lsn stamped
 					to FIL_PAGE_FILE_FLUSH_LSN in the
 					first page is too high */
 {
@@ -2745,7 +2745,7 @@ fil_reset_too_high_lsns(
 	char*		filepath;
 	byte*		page;
 	byte*		buf2;
-	ib_ulonglong	flush_lsn;
+	ib_uint64_t	flush_lsn;
 	ulint		space_id;
 	ib_longlong	file_size;
 	ib_longlong	offset;

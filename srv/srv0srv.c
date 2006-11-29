@@ -172,7 +172,7 @@ ulint	srv_n_file_io_threads	= ULINT_MAX;
 #ifdef UNIV_LOG_ARCHIVE
 ibool		srv_log_archive_on	= FALSE;
 ibool		srv_archive_recovery	= 0;
-ib_ulonglong	srv_archive_recovery_limit_lsn;
+ib_uint64_t	srv_archive_recovery_limit_lsn;
 #endif /* UNIV_LOG_ARCHIVE */
 
 ulint	srv_lock_wait_timeout	= 1024 * 1024 * 1024;
@@ -2017,8 +2017,8 @@ srv_error_monitor_thread(
 {
 	/* number of successive fatal timeouts observed */
 	ulint		fatal_cnt	= 0;
-	ib_ulonglong	old_lsn;
-	ib_ulonglong	new_lsn;
+	ib_uint64_t	old_lsn;
+	ib_uint64_t	new_lsn;
 
 	old_lsn = srv_start_lsn;
 

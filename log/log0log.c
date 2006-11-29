@@ -159,11 +159,11 @@ log_fsp_current_free_limit_set_and_checkpoint(
 Returns the oldest modified block lsn in the pool, or log_sys->lsn if none
 exists. */
 static
-ib_ulonglong
+ib_uint64_t
 log_buf_pool_get_oldest_modification(void)
 /*======================================*/
 {
-	ib_ulonglong	lsn;
+	ib_uint64_t	lsn;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
@@ -183,7 +183,7 @@ log_buf_pool_get_oldest_modification(void)
 Opens the log for log_write_low. The log must be closed with log_close and
 released with log_release. */
 
-ib_ulonglong
+ib_uint64_t
 log_reserve_and_open(
 /*=================*/
 			/* out: start lsn of the log record */
@@ -327,15 +327,15 @@ part_loop:
 /****************************************************************
 Closes the log. */
 
-ib_ulonglong
+ib_uint64_t
 log_close(void)
 /*===========*/
 			/* out: lsn */
 {
 	byte*		log_block;
 	ulint		first_rec_group;
-	ib_ulonglong	oldest_lsn;
-	ib_ulonglong	lsn;
+	ib_uint64_t	oldest_lsn;
+	ib_uint64_t	lsn;
 	log_t*		log	= log_sys;
 	ulint		checkpoint_age;
 
@@ -429,7 +429,7 @@ log_pad_current_log_block(void)
 	byte		b		= MLOG_DUMMY_RECORD;
 	ulint		pad_length;
 	ulint		i;
-	ib_ulonglong	lsn;
+	ib_uint64_t	lsn;
 
 	/* We retrieve lsn only because otherwise gcc crashed on HP-UX */
 	lsn = log_reserve_and_open(OS_FILE_LOG_BLOCK_SIZE);
@@ -512,11 +512,11 @@ ulint
 log_group_calc_lsn_offset(
 /*======================*/
 				/* out: offset within the log group */
-	ib_ulonglong	lsn,	/* in: lsn, must be within 4 GB of
+	ib_uint64_t	lsn,	/* in: lsn, must be within 4 GB of
 				group->lsn */
 	log_group_t*	group)	/* in: log group */
 {
-	ib_ulonglong	gr_lsn;
+	ib_uint64_t	gr_lsn;
 	ib_longlong	gr_lsn_size_offset;
 	ib_longlong	difference;
 	ib_longlong	group_size;
@@ -568,9 +568,9 @@ log_calc_where_lsn_is(
 						/* out: log file number */
 	ib_longlong*	log_file_offset,	/* out: offset in that file
 						(including the header) */
-	ib_ulonglong	first_header_lsn,	/* in: first log file start
+	ib_uint64_t	first_header_lsn,	/* in: first log file start
 						lsn */
-	ib_ulonglong	lsn,			/* in: lsn whose position to
+	ib_uint64_t	lsn,			/* in: lsn whose position to
 						determine */
 	ulint		n_log_files,		/* in: total number of log
 						files */
@@ -608,7 +608,7 @@ void
 log_group_set_fields(
 /*=================*/
 	log_group_t*	group,	/* in: group */
-	ib_ulonglong	lsn)	/* in: lsn for which the values should be
+	ib_uint64_t	lsn)	/* in: lsn for which the values should be
 				set */
 {
 	group->lsn_offset = log_group_calc_lsn_offset(lsn, group);
@@ -1116,7 +1116,7 @@ log_group_file_header_flush(
 	log_group_t*	group,		/* in: log group */
 	ulint		nth_file,	/* in: header to the nth file in the
 					log file space */
-	ib_ulonglong	start_lsn)	/* in: log file data starts at this
+	ib_uint64_t	start_lsn)	/* in: log file data starts at this
 					lsn */
 {
 	byte*	buf;
@@ -1182,7 +1182,7 @@ log_group_write_buf(
 	byte*		buf,		/* in: buffer */
 	ulint		len,		/* in: buffer len; must be divisible
 					by OS_FILE_LOG_BLOCK_SIZE */
-	ib_ulonglong	start_lsn,	/* in: start lsn of the buffer; must
+	ib_uint64_t	start_lsn,	/* in: start lsn of the buffer; must
 					be divisible by
 					OS_FILE_LOG_BLOCK_SIZE */
 	ulint		new_data_offset)/* in: start offset of new data in
@@ -1300,7 +1300,7 @@ flush flushed enough. If not, starts a new flush. */
 void
 log_write_up_to(
 /*============*/
-	ib_ulonglong	lsn,	/* in: log sequence number up to which
+	ib_uint64_t	lsn,	/* in: log sequence number up to which
 				the log should be written,
 				IB_ULONGLONG_MAX if not specified */
 	ulint		wait,	/* in: LOG_NO_WAIT, LOG_WAIT_ONE_GROUP,
@@ -1517,7 +1517,7 @@ void
 log_buffer_flush_to_disk(void)
 /*==========================*/
 {
-	ib_ulonglong	lsn;
+	ib_uint64_t	lsn;
 
 	mutex_enter(&(log_sys->mutex));
 
@@ -1538,7 +1538,7 @@ log_flush_margin(void)
 {
 	ibool		do_flush	= FALSE;
 	log_t*		log		= log_sys;
-	ib_ulonglong	lsn;
+	ib_uint64_t	lsn;
 
 	mutex_enter(&(log->mutex));
 
@@ -1573,7 +1573,7 @@ log_preflush_pool_modified_pages(
 					running, which means that we
 					could not start this flush
 					batch */
-	ib_ulonglong	new_oldest,	/* in: try to advance
+	ib_uint64_t	new_oldest,	/* in: try to advance
 					oldest_modified_lsn at least
 					to this lsn */
 	ibool		sync)		/* in: TRUE if synchronous
@@ -1695,8 +1695,8 @@ log_group_checkpoint(
 {
 	log_group_t*	group2;
 #ifdef UNIV_LOG_ARCHIVE
-	ib_ulonglong	archived_lsn;
-	ib_ulonglong	next_archived_lsn;
+	ib_uint64_t	archived_lsn;
+	ib_uint64_t	next_archived_lsn;
 #endif /* UNIV_LOG_ARCHIVE */
 	ulint		write_offset;
 	ulint		fold;
@@ -1816,13 +1816,13 @@ log_reset_first_header_and_checkpoint(
 /*==================================*/
 	byte*		hdr_buf,/* in: buffer which will be written to the
 				start of the first log file */
-	ib_ulonglong	start)	/* in: lsn of the start of the first log file;
+	ib_uint64_t	start)	/* in: lsn of the start of the first log file;
 				we pretend that there is a checkpoint at
 				start + LOG_BLOCK_HDR_SIZE */
 {
 	ulint		fold;
 	byte*		buf;
-	ib_ulonglong	lsn;
+	ib_uint64_t	lsn;
 
 	mach_write_to_4(hdr_buf + LOG_GROUP_ID, 0);
 	mach_write_ull(hdr_buf + LOG_FILE_START_LSN, start);
@@ -1921,7 +1921,7 @@ log_checkpoint(
 				parameter TRUE, a physical write will always be
 				made to log files */
 {
-	ib_ulonglong	oldest_lsn;
+	ib_uint64_t	oldest_lsn;
 
 	if (recv_recovery_is_on()) {
 		recv_apply_hashed_log_recs(TRUE);
@@ -2002,7 +2002,7 @@ Makes a checkpoint at a given lsn or later. */
 void
 log_make_checkpoint_at(
 /*===================*/
-	ib_ulonglong	lsn,		/* in: make a checkpoint at this or a
+	ib_uint64_t	lsn,		/* in: make a checkpoint at this or a
 					later lsn, if IB_ULONGLONG_MAX, makes
 					a checkpoint at the latest lsn */
 	ibool		write_always)	/* in: the function normally checks if
@@ -2034,7 +2034,7 @@ log_checkpoint_margin(void)
 	ulint		age;
 	ulint		checkpoint_age;
 	ulint		advance;
-	ib_ulonglong	oldest_lsn;
+	ib_uint64_t	oldest_lsn;
 	ibool		sync;
 	ibool		checkpoint_sync;
 	ibool		do_checkpoint;
@@ -2092,7 +2092,7 @@ loop:
 	mutex_exit(&(log->mutex));
 
 	if (advance) {
-		ib_ulonglong	new_oldest = oldest_lsn + advance;
+		ib_uint64_t	new_oldest = oldest_lsn + advance;
 
 		success = log_preflush_pool_modified_pages(new_oldest, sync);
 
@@ -2131,8 +2131,8 @@ log_group_read_log_seg(
 	ulint		type,		/* in: LOG_ARCHIVE or LOG_RECOVER */
 	byte*		buf,		/* in: buffer where to read */
 	log_group_t*	group,		/* in: log group */
-	ib_ulonglong	start_lsn,	/* in: read area start */
-	ib_ulonglong	end_lsn)	/* in: read area end */
+	ib_uint64_t	start_lsn,	/* in: read area start */
+	ib_uint64_t	end_lsn)	/* in: read area end */
 {
 	ulint	len;
 	ulint	source_offset;
@@ -2203,7 +2203,7 @@ log_group_archive_file_header_write(
 	ulint		nth_file,	/* in: header to the nth file in the
 					archive log file space */
 	ulint		file_no,	/* in: archived file number */
-	ib_ulonglong	start_lsn)	/* in: log file data starts at this
+	ib_uint64_t	start_lsn)	/* in: log file data starts at this
 					lsn */
 {
 	byte*	buf;
@@ -2243,7 +2243,7 @@ log_group_archive_completed_header_write(
 	log_group_t*	group,		/* in: log group */
 	ulint		nth_file,	/* in: header to the nth file in the
 					archive log file space */
-	ib_ulonglong	end_lsn)	/* in: end lsn of the file */
+	ib_uint64_t	end_lsn)	/* in: end lsn of the file */
 {
 	byte*	buf;
 	ulint	dest_offset;
@@ -2279,8 +2279,8 @@ log_group_archive(
 	log_group_t*	group)	/* in: log group */
 {
 	os_file_t	 file_handle;
-	ib_ulonglong	start_lsn;
-	ib_ulonglong	end_lsn;
+	ib_uint64_t	start_lsn;
+	ib_uint64_t	end_lsn;
 	char		name[1024];
 	byte*		buf;
 	ulint		len;
@@ -2444,8 +2444,8 @@ log_archive_write_complete_groups(void)
 	ulint		end_offset;
 	ulint		trunc_files;
 	ulint		n_files;
-	ib_ulonglong	start_lsn;
-	ib_ulonglong	end_lsn;
+	ib_uint64_t	start_lsn;
+	ib_uint64_t	end_lsn;
 	ulint		i;
 
 #ifdef UNIV_SYNC_DEBUG
@@ -2587,8 +2587,8 @@ log_archive_do(
 			archive */
 {
 	ibool		calc_new_limit;
-	ib_ulonglong	start_lsn;
-	ib_ulonglong	limit_lsn;
+	ib_uint64_t	start_lsn;
+	ib_uint64_t	limit_lsn;
 
 	calc_new_limit = TRUE;
 loop:
@@ -2703,7 +2703,7 @@ void
 log_archive_all(void)
 /*=================*/
 {
-	ib_ulonglong	present_lsn;
+	ib_uint64_t	present_lsn;
 	ulint		dummy;
 
 	mutex_enter(&(log_sys->mutex));
@@ -3038,7 +3038,7 @@ void
 logs_empty_and_mark_files_at_shutdown(void)
 /*=======================================*/
 {
-	ib_ulonglong	lsn;
+	ib_uint64_t	lsn;
 	ulint		arch_log_no;
 
 	if (srv_print_verbose_log) {
@@ -3229,10 +3229,10 @@ log_check_log_recs(
 					the log segment in the
 					log_sys->buf log buffer */
 	ulint		len,		/* in: segment length in bytes */
-	ib_ulonglong	buf_start_lsn)	/* in: buffer start lsn */
+	ib_uint64_t	buf_start_lsn)	/* in: buffer start lsn */
 {
-	ib_ulonglong	contiguous_lsn;
-	ib_ulonglong	scanned_lsn;
+	ib_uint64_t	contiguous_lsn;
+	ib_uint64_t	scanned_lsn;
 	byte*		start;
 	byte*		end;
 	byte*		buf1;
@@ -3279,7 +3279,7 @@ log_peek_lsn(
 /*=========*/
 				/* out: TRUE if success, FALSE if
 				could not get the log system mutex */
-	ib_ulonglong*	lsn)	/* out: if returns TRUE, current lsn is here */
+	ib_uint64_t*	lsn)	/* out: if returns TRUE, current lsn is here */
 {
 	if (0 == mutex_enter_nowait(&(log_sys->mutex), __FILE__, __LINE__)) {
 		*lsn = log_sys->lsn;
