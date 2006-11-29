@@ -29,8 +29,8 @@ drop table t1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varbinary(255) default NULL,
-  `b` varchar(255) default NULL
+  `a` varbinary(255) DEFAULT NULL,
+  `b` varchar(255) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select length(a), length(b) from t1;
 length(a)	length(b)
@@ -45,8 +45,8 @@ test.t1	repair	status	OK
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varbinary(255) default NULL,
-  `b` varchar(255) default NULL
+  `a` varbinary(255) DEFAULT NULL,
+  `b` varchar(255) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select length(a), length(b) from t1;
 length(a)	length(b)
