@@ -564,8 +564,8 @@ err:
     mysql_free_result(res);
   if (error)
   {
-    sql_print_error("While trying to obtain the list of slaves from the master \
-'%s:%d', user '%s' got the following error: '%s'", 
+    sql_print_error("While trying to obtain the list of slaves from the master "
+                    "'%s:%d', user '%s' got the following error: '%s'", 
                     mi->host, mi->port, mi->user, error);
     DBUG_RETURN(1);
   }

@@ -1042,7 +1042,7 @@ int decimal2ulonglong(decimal_t *from, ulonglong *to)
     x=x*DIG_BASE + *buf++;
     if (unlikely(y > ((ulonglong) ULONGLONG_MAX/DIG_BASE) || x < y))
     {
-      *to=y;
+      *to=ULONGLONG_MAX;
       return E_DEC_OVERFLOW;
     }
   }
@@ -1354,7 +1354,7 @@ int bin2decimal(char *from, decimal_t *to, int precision, int scale)
     }
     from+=i;
     *buf=x ^ mask;
-    if (((ulonglong)*buf) >=  (ulonglong) powers10[intg0x+1])
+    if (((ulonglong)*buf) >= (ulonglong) powers10[intg0x+1])
       goto err;
     if (buf > to->buf || *buf != 0)
       buf++;

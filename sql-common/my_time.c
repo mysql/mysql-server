@@ -76,8 +76,8 @@ uint calc_days_in_year(uint year)
     1  error
 */
 
-static my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
-                          ulong flags, int *was_cut)
+my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
+                   ulong flags, int *was_cut)
 {
   if (not_zero_date)
   {
@@ -965,7 +965,7 @@ my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone,
   */
   if ((tmp < TIMESTAMP_MIN_VALUE) || (tmp > TIMESTAMP_MAX_VALUE))
     tmp= 0;
-end:
+
   return (my_time_t) tmp;
 } /* my_system_gmt_sec */
 

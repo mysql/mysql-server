@@ -551,7 +551,7 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
 void THD::awake(THD::killed_state state_to_set)
 {
   DBUG_ENTER("THD::awake");
-  DBUG_PRINT("enter", ("this=0x%lx", this));
+  DBUG_PRINT("enter", ("this: 0x%lx", (long) this));
   THD_CHECK_SENTRY(this);
   safe_mutex_assert_owner(&LOCK_delete); 
 
@@ -799,7 +799,7 @@ void THD::add_changed_table(const char *key, long key_length)
     {
       list_include(prev_changed, curr, changed_table_dup(key, key_length));
       DBUG_PRINT("info", 
-		 ("key_length %u %u", key_length, (*prev_changed)->key_length));
+		 ("key_length %ld %u", key_length, (*prev_changed)->key_length));
       DBUG_VOID_RETURN;
     }
     else if (cmp == 0)
@@ -809,7 +809,7 @@ void THD::add_changed_table(const char *key, long key_length)
       {
 	list_include(prev_changed, curr, changed_table_dup(key, key_length));
 	DBUG_PRINT("info", 
-		   ("key_length %u %u", key_length,
+		   ("key_length %ld %u", key_length,
 		    (*prev_changed)->key_length));
 	DBUG_VOID_RETURN;
       }
@@ -821,7 +821,7 @@ void THD::add_changed_table(const char *key, long key_length)
     }
   }
   *prev_changed = changed_table_dup(key, key_length);
-  DBUG_PRINT("info", ("key_length %u %u", key_length,
+  DBUG_PRINT("info", ("key_length %ld %u", key_length,
 		      (*prev_changed)->key_length));
   DBUG_VOID_RETURN;
 }
@@ -2518,7 +2518,9 @@ my_size_t THD::max_row_length_blob(TABLE *table, const byte *data) const
   for (uint *ptr= beg ; ptr != end ; ++ptr)
   {
     Field_blob* const blob= (Field_blob*) table->field[*ptr];
-    length+= blob->get_length((const char *) (data + blob->offset())) + 2;
+    length+= blob->get_length((const char*) (data +
+                                             blob->offset(table->record[0]))) +
+      HA_KEY_BLOB_LENGTH;
   }
 
   return length;
@@ -2621,9 +2623,9 @@ namespace {
       return m_memory != 0;
     }
 
-    byte *slot(int const s)
+    byte *slot(uint s)
     {
-      DBUG_ASSERT(0 <= s && s < sizeof(m_ptr)/sizeof(*m_ptr));
+      DBUG_ASSERT(s < sizeof(m_ptr)/sizeof(*m_ptr));
       DBUG_ASSERT(m_ptr[s] != 0);
       DBUG_ASSERT(m_alloc_checked == true);
       return m_ptr[s];

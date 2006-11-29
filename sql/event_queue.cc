@@ -143,7 +143,7 @@ Event_queue::init_queue(THD *thd, Event_db_repository *db_repo)
   struct event_queue_param *event_queue_param_value= NULL;
 
   DBUG_ENTER("Event_queue::init_queue");
-  DBUG_PRINT("enter", ("this=0x%lx", this));
+  DBUG_PRINT("enter", ("this: 0x%lx", (long) this));
 
   LOCK_QUEUE_DATA();
   db_repository= db_repo;
@@ -218,7 +218,7 @@ Event_queue::create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
   int res;
   Event_queue_element *new_element;
   DBUG_ENTER("Event_queue::create_event");
-  DBUG_PRINT("enter", ("thd=0x%lx et=%s.%s",thd, dbname.str, name.str));
+  DBUG_PRINT("enter", ("thd: 0x%lx  et=%s.%s", (long) thd, dbname.str, name.str));
 
   new_element= new Event_queue_element();
   res= db_repository->load_named_event(thd, dbname, name, new_element);
@@ -229,7 +229,7 @@ Event_queue::create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
     new_element->compute_next_execution_time();
 
     LOCK_QUEUE_DATA();
-    DBUG_PRINT("info", ("new event in the queue 0x%lx", new_element));
+    DBUG_PRINT("info", ("new event in the queue: 0x%lx", (long) new_element));
     queue_insert_safe(&queue, (byte *) new_element);
     dbug_dump_queue(thd->query_start());
     pthread_cond_broadcast(&COND_queue_state);  
@@ -264,7 +264,7 @@ Event_queue::update_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
   Event_queue_element *new_element;
 
   DBUG_ENTER("Event_queue::update_event");
-  DBUG_PRINT("enter", ("thd=0x%lx et=[%s.%s]", thd, dbname.str, name.str));
+  DBUG_PRINT("enter", ("thd: 0x%lx  et=[%s.%s]", (long) thd, dbname.str, name.str));
 
   new_element= new Event_queue_element();
 
@@ -294,7 +294,7 @@ Event_queue::update_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
   /* If not disabled event */
   if (new_element)
   {
-    DBUG_PRINT("info", ("new event in the Q 0x%lx", new_element));
+    DBUG_PRINT("info", ("new event in the queue: 0x%lx", (long) new_element));
     queue_insert_safe(&queue, (byte *) new_element);
     pthread_cond_broadcast(&COND_queue_state);  
   }
@@ -322,7 +322,8 @@ void
 Event_queue::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
 {
   DBUG_ENTER("Event_queue::drop_event");
-  DBUG_PRINT("enter", ("thd=0x%lx db=%s name=%s", thd, dbname.str, name.str));
+  DBUG_PRINT("enter", ("thd: 0x%lx  db :%s  name: %s", (long) thd,
+                       dbname.str, name.str));
 
   LOCK_QUEUE_DATA();
   find_n_remove_event(dbname, name);
@@ -484,7 +485,7 @@ Event_queue::load_events_from_db(THD *thd)
   bool clean_the_queue= TRUE;
 
   DBUG_ENTER("Event_queue::load_events_from_db");
-  DBUG_PRINT("enter", ("thd=0x%lx", thd));
+  DBUG_PRINT("enter", ("thd: 0x%lx", (long) thd));
 
   if ((ret= db_repository->open_event_table(thd, TL_READ, &table)))
   {
@@ -555,7 +556,6 @@ Event_queue::load_events_from_db(THD *thd)
       goto end;
     }
 
-    DBUG_PRINT("load_events_from_db", ("Adding 0x%lx to the exec list."));
     queue_insert_safe(&queue,  (byte *) et);
     count++;
   }
@@ -663,16 +663,20 @@ Event_queue::dbug_dump_queue(time_t now)
   for (i = 0; i < queue.elements; i++)
   {
     et= ((Event_queue_element*)queue_element(&queue, i));
-    DBUG_PRINT("info",("et=0x%lx db=%s name=%s",et, et->dbname.str, et->name.str));
-    DBUG_PRINT("info", ("exec_at=%llu starts=%llu ends=%llu execs_so_far=%u"
-               " expr=%lld et.exec_at=%d now=%d (et.exec_at - now)=%d if=%d",
-               TIME_to_ulonglong_datetime(&et->execute_at),
-               TIME_to_ulonglong_datetime(&et->starts),
-               TIME_to_ulonglong_datetime(&et->ends),
-               et->execution_count,
-               et->expression, sec_since_epoch_TIME(&et->execute_at), now,
-               (int)(sec_since_epoch_TIME(&et->execute_at) - now),
-               sec_since_epoch_TIME(&et->execute_at) <= now));
+    DBUG_PRINT("info", ("et: 0x%lx  name: %s.%s", (long) et,
+                        et->dbname.str, et->name.str));
+    DBUG_PRINT("info", ("exec_at: %lu  starts: %lu  ends: %lu  execs_so_far: %u  "
+                        "expr: %ld  et.exec_at: %ld  now: %ld  "
+                        "(et.exec_at - now): %d  if: %d",
+                        (long) TIME_to_ulonglong_datetime(&et->execute_at),
+                        (long) TIME_to_ulonglong_datetime(&et->starts),
+                        (long) TIME_to_ulonglong_datetime(&et->ends),
+                        et->execution_count,
+                        (long) et->expression,
+                        (long) (sec_since_epoch_TIME(&et->execute_at)),
+                        (long) now,
+                        (int) (sec_since_epoch_TIME(&et->execute_at) - now),
+                        sec_since_epoch_TIME(&et->execute_at) <= now));
   }
   DBUG_VOID_RETURN;
 #endif
@@ -812,11 +816,11 @@ end:
   if (to_free)
     delete top;
 
-  DBUG_PRINT("info", ("returning %d. et_new=0x%lx abstime.tv_sec=%d ",
-             ret, *job_data, abstime? abstime->tv_sec:0));
+  DBUG_PRINT("info", ("returning %d  et_new: 0x%lx  abstime.tv_sec: %ld ",
+             ret, (long) *job_data, abstime ? abstime->tv_sec : 0));
 
   if (*job_data)
-    DBUG_PRINT("info", ("db=%s  name=%s definer=%s", (*job_data)->dbname.str,
+    DBUG_PRINT("info", ("db: %s  name: %s  definer=%s", (*job_data)->dbname.str,
                (*job_data)->name.str, (*job_data)->definer.str));
 
   DBUG_RETURN(ret);

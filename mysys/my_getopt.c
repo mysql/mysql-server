@@ -936,8 +936,8 @@ void my_print_variables(const struct my_option *options)
 		  (*getopt_get_addr)("", 0, optp) : optp->value);
     if (value)
     {
-      printf("%s", optp->name);
-      length= (uint) strlen(optp->name);
+      printf("%s ", optp->name);
+      length= (uint) strlen(optp->name)+1;
       for (; length < name_space; length++)
 	putchar(' ');
       switch ((optp->var_type & GET_TYPE_MASK)) {

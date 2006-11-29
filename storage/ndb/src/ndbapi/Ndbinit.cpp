@@ -43,7 +43,7 @@ Ndb::Ndb( Ndb_cluster_connection *ndb_cluster_connection,
   : theImpl(NULL)
 {
   DBUG_ENTER("Ndb::Ndb()");
-  DBUG_PRINT("enter",("Ndb::Ndb this=0x%x", this));
+  DBUG_PRINT("enter",("Ndb::Ndb this: 0x%lx", (long) this));
   setup(ndb_cluster_connection, aDataBase, aSchema);
   DBUG_VOID_RETURN;
 }
@@ -132,7 +132,7 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
 Ndb::~Ndb()
 { 
   DBUG_ENTER("Ndb::~Ndb()");
-  DBUG_PRINT("enter",("this=0x%x",this));
+  DBUG_PRINT("enter",("this: 0x%lx", (long) this));
 
   if (m_sys_tab_0)
     getDictionary()->removeTableGlobal(*m_sys_tab_0, 0);
