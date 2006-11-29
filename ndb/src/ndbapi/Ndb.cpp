@@ -980,6 +980,8 @@ Ndb::opTupleIdOnNdb(Ndb_local_table_info* info, Uint64 & opValue, Uint32 op)
   Uint64             tValue;
   NdbRecAttr*        tRecAttrResult;
 
+  NdbError savedError;
+
   CHECK_STATUS_MACRO_ZERO;
 
   BaseString currentDb(getDatabaseName());
@@ -1074,7 +1076,12 @@ Ndb::opTupleIdOnNdb(Ndb_local_table_info* info, Uint64 & opValue, Uint32 op)
 
   error_handler:
     theError.code = tConnection->theError.code;
+
+    savedError = theError;
+
     this->closeTransaction(tConnection);
+    theError = savedError;
+
   error_return:
     // Restore current name space
     setDatabaseName(currentDb.c_str());
