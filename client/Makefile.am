@@ -87,7 +87,8 @@ mysqltest_SOURCES=		mysqltest.c \
 				$(top_srcdir)/mysys/my_copy.c
 mysqltest_LDADD =		$(top_builddir)/regex/libregex.a $(LDADD)
 
-mysql_upgrade_SOURCES=          mysql_upgrade.c
+mysql_upgrade_SOURCES=          mysql_upgrade.c \
+                                $(top_srcdir)/mysys/my_getpagesize.c
 
 # Fix for mit-threads
 DEFS =			-DUNDEF_THREADS_HACK \

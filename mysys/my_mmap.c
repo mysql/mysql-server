@@ -33,13 +33,6 @@ int my_msync(int fd, void *addr, size_t len, int flags)
 static SECURITY_ATTRIBUTES mmap_security_attributes=
   {sizeof(SECURITY_ATTRIBUTES), 0, TRUE};
 
-int my_getpagesize(void)
-{
-  SYSTEM_INFO si;
-  GetSystemInfo(&si);
-  return si.dwPageSize;
-}
-
 void *my_mmap(void *addr, size_t len, int prot,
                int flags, int fd, my_off_t offset)
 {
