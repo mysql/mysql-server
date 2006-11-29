@@ -76,8 +76,8 @@ uint calc_days_in_year(uint year)
     1  error
 */
 
-static my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
-                          ulong flags, int *was_cut)
+my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
+                   ulong flags, int *was_cut)
 {
   if (not_zero_date)
   {
@@ -780,7 +780,7 @@ long calc_daynr(uint year,uint month,uint day)
 */
 my_time_t
 my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone,
-                  bool *in_dst_time_gap)
+                  my_bool *in_dst_time_gap)
 {
   uint loop;
   time_t tmp= 0;
