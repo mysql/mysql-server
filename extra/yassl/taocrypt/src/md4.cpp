@@ -28,7 +28,11 @@
 
 #include "runtime.hpp"
 #include "md4.hpp"
-#include STL_ALGORITHM_FILE
+#ifdef USE_SYS_STL
+    #include <algorithm>
+#else
+    #include "algorithm.hpp"
+#endif
 
    
 namespace STL = STL_NAMESPACE;

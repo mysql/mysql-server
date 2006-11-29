@@ -38,6 +38,7 @@ namespace TaoCrypt {
 enum Mode { ECB, CBC };
 
 
+
 // BlockCipher abstraction
 template<CipherDir DIR, class T, Mode MODE>
 class BlockCipher {
@@ -63,13 +64,15 @@ class Mode_BASE : public virtual_base {
 public:
     enum { MaxBlockSz = 16 };
 
-    explicit Mode_BASE(int sz) 
+    explicit Mode_BASE(int sz, CipherDir dir, Mode mode) 
         : blockSz_(sz), reg_(reinterpret_cast<byte*>(r_)),
-                        tmp_(reinterpret_cast<byte*>(t_))
+          tmp_(reinterpret_cast<byte*>(t_)), dir_(dir), mode_(mode)
     { 
         assert(sz <= MaxBlockSz);
     }
     virtual ~Mode_BASE() {}
+
+    virtual void Process(byte*, const byte*, word32);
 
     void SetIV(const byte* iv) { memcpy(reg_, iv, blockSz_); }
 protected:
@@ -79,6 +82,9 @@ protected:
 
     word32 r_[MaxBlockSz / sizeof(word32)];  // align reg_ on word32
     word32 t_[MaxBlockSz / sizeof(word32)];  // align tmp_ on word32
+
+    CipherDir dir_;
+    Mode      mode_;
 
     void ECB_Process(byte*, const byte*, word32);
     void CBC_Encrypt(byte*, const byte*, word32);
@@ -90,6 +96,18 @@ protected:
 private:
     virtual void ProcessAndXorBlock(const byte*, const byte*, byte*) const = 0;
 };
+
+
+inline void Mode_BASE::Process(byte* out, const byte* in, word32 sz)
+{
+    if (mode_ == ECB)
+        ECB_Process(out, in, sz);
+    else if (mode_ == CBC)
+        if (dir_ == ENCRYPTION)
+            CBC_Encrypt(out, in, sz);
+        else
+            CBC_Decrypt(out, in, sz);
+}
 
 
 // ECB Process blocks
