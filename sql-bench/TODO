@@ -1,0 +1,21 @@
+When comparing with ms-sql:
+
+Check how to get MySQL faster         mysql   ms-sql
+
+count_distinct (2000)               |  89.00|  39.00|
+count_distinct_big (120)            | 324.00| 121.00|
+count_distinct_group (1000)         | 158.00| 107.00|
+count_distinct_group_on_key (1000)  |  49.00|  17.00|
+count_distinct_group_on_key_parts (1| 157.00| 108.00|
+order_by_big (10)                   | 197.00|  89.00|
+order_by_big_key (10)               | 170.00|  82.00|
+order_by_big_key2 (10)              | 163.00|  73.00|
+order_by_big_key_desc (10)          | 172.00|  84.00|
+order_by_big_key_diff (10)          | 193.00|  89.00|
+order_by_big_key_prefix (10)        | 165.00|  72.00|                          
+
+
+Why is the following slow on NT:
+				        NT     Linux
+update_of_primary_key_many_keys (256| 560.00|  65.00|
+
