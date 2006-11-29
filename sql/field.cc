@@ -1237,12 +1237,6 @@ Field::Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
 }
 
 
-uint Field::offset()
-{
-  return (uint) (ptr - (char*) table->record[0]);
-}
-
-
 void Field::hash(ulong *nr, ulong *nr2)
 {
   if (is_null())
@@ -2475,6 +2469,13 @@ int Field_new_decimal::store_decimal(const my_decimal *decimal_value)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   return store_value(decimal_value);
+}
+
+
+int Field_new_decimal::store_time(TIME *ltime, timestamp_type t_type)
+{
+    my_decimal decimal_value;
+    return store_value(date2my_decimal(ltime, &decimal_value));
 }
 
 
@@ -4919,7 +4920,7 @@ int Field_time::store_time(TIME *ltime, timestamp_type type)
             (ltime->minute * 100 + ltime->second);
   if (ltime->neg)
     tmp= -tmp;
-  return Field_time::store((longlong) tmp, TRUE);
+  return Field_time::store((longlong) tmp, FALSE);
 }
 
 
@@ -5530,7 +5531,21 @@ int Field_newdate::store_time(TIME *ltime,timestamp_type type)
   long tmp;
   int error= 0;
   if (type == MYSQL_TIMESTAMP_DATE || type == MYSQL_TIMESTAMP_DATETIME)
+  {
     tmp=ltime->year*16*32+ltime->month*32+ltime->day;
+    if ((my_bool)check_date(ltime, tmp,
+                            (TIME_FUZZY_DATE |
+                             (current_thd->variables.sql_mode &
+                              (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
+                               MODE_INVALID_DATES))), &error))
+    {
+      char buff[12];
+      String str(buff, sizeof(buff), &my_charset_latin1);
+      make_date((DATE_TIME_FORMAT *) 0, ltime, &str);
+      set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
+                           str.ptr(), str.length(), MYSQL_TIMESTAMP_DATE, 1);
+    }
+  }
   else
   {
     tmp=0;
@@ -5745,8 +5760,22 @@ int Field_datetime::store_time(TIME *ltime,timestamp_type type)
     structure always fit into DATETIME range.
   */
   if (type == MYSQL_TIMESTAMP_DATE || type == MYSQL_TIMESTAMP_DATETIME)
+  {
     tmp=((ltime->year*10000L+ltime->month*100+ltime->day)*LL(1000000)+
 	 (ltime->hour*10000L+ltime->minute*100+ltime->second));
+    if ((my_bool)check_date(ltime, tmp,
+                            (TIME_FUZZY_DATE |
+                             (current_thd->variables.sql_mode &
+                              (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
+                               MODE_INVALID_DATES))), &error))
+    {
+      char buff[19];
+      String str(buff, sizeof(buff), &my_charset_latin1);
+      make_datetime((DATE_TIME_FORMAT *) 0, ltime, &str);
+      set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
+                           str.ptr(), str.length(), MYSQL_TIMESTAMP_DATETIME,1);
+    }
+  }
   else
   {
     tmp=0;
@@ -8186,8 +8215,8 @@ Field_bit::do_last_null_byte() const
     bits. On systems with CHAR_BIT > 8 (not very common), the storage
     will lose the extra bits.
   */
-  DBUG_PRINT("debug", ("bit_ofs=%d, bit_len=%d, bit_ptr=%p",
-                       bit_ofs, bit_len, bit_ptr));
+  DBUG_PRINT("test", ("bit_ofs: %d, bit_len: %d  bit_ptr: 0x%lx",
+                      bit_ofs, bit_len, (long) bit_ptr));
   uchar *result;
   if (bit_len == 0)
     result= null_ptr;

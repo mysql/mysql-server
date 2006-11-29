@@ -47,3 +47,12 @@ select * from `txu@0023p@0023p1`;
 select * from `txu#p#p1`;
 drop table `txu@0023p@0023p1`;
 drop table `txu#p#p1`;
+
+#
+# Check if old tables work
+#
+
+system cp $MYSQL_TEST_DIR/std_data/old_table-323.frm $MYSQLTEST_VARDIR/master-data/test/t1.frm;
+truncate t1;
+drop table t1;
+

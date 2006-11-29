@@ -181,7 +181,8 @@ NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
   }
   
   bool rangeScan = false;
-  if (m_accessTable->m_indexType == NdbDictionary::Index::OrderedIndex)
+  if ( (int) m_accessTable->m_indexType ==
+       (int) NdbDictionary::Index::OrderedIndex)
   {
     if (m_currentTable == m_accessTable){
       // Old way of scanning indexes, should not be allowed
@@ -588,7 +589,7 @@ err4:
     
   theNdbCon->theTransactionIsStarted = false;
   theNdbCon->theReleaseOnClose = true;
-  if(DEBUG_NEXT_RESULT) ndbout_c("return -1", retVal);
+  if(DEBUG_NEXT_RESULT) ndbout_c("return %d", retVal);
   return -1;
 }
 
@@ -668,9 +669,9 @@ NdbScanOperation::doSend(int ProcessorId)
 void NdbScanOperation::close(bool forceSend, bool releaseOp)
 {
   DBUG_ENTER("NdbScanOperation::close");
-  DBUG_PRINT("enter", ("this=%x tcon=%x con=%x force=%d release=%d",
-                       (UintPtr)this,
-                       (UintPtr)m_transConnection, (UintPtr)theNdbCon,
+  DBUG_PRINT("enter", ("this: 0x%lx  tcon: 0x%lx  con: 0x%lx  force: %d  release: %d",
+                       (long) this,
+                       (long) m_transConnection, (long) theNdbCon,
                        forceSend, releaseOp));
 
   if(m_transConnection){

@@ -4445,7 +4445,7 @@ ha_innobase::rnd_pos(
 	}
 
 	if (error) {
-		DBUG_PRINT("error", ("Got error: %ld", error));
+	        DBUG_PRINT("error", ("Got error: %d", error));
 		DBUG_RETURN(error);
 	}
 
@@ -4455,7 +4455,7 @@ ha_innobase::rnd_pos(
 	error = index_read(buf, pos, ref_length, HA_READ_KEY_EXACT);
 
 	if (error) {
-		DBUG_PRINT("error", ("Got error: %ld", error));
+		DBUG_PRINT("error", ("Got error: %d", error));
 	}
 
 	change_active_index(keynr);
@@ -6630,7 +6630,7 @@ innodb_mutex_show_status(
 					mutex->count_spin_rounds,
 					mutex->count_os_wait,
 					mutex->count_os_yield,
-					(ulong) mutex->lspent_time/1000);
+                                        (ulong) (mutex->lspent_time/1000));
 
 				if (stat_print(thd, innobase_hton_name,
 						hton_name_len, buf1, buf1len,
@@ -6660,7 +6660,7 @@ innodb_mutex_show_status(
 		rw_lock_count, rw_lock_count_spin_loop,
 		rw_lock_count_spin_rounds,
 		rw_lock_count_os_wait, rw_lock_count_os_yield,
-		(ulong) rw_lock_wait_time/1000);
+                (ulong) (rw_lock_wait_time/1000));
 
 	if (stat_print(thd, innobase_hton_name, hton_name_len,
 			STRING_WITH_LEN("rw_lock_mutexes"), buf2, buf2len)) {

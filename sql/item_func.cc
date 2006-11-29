@@ -961,7 +961,14 @@ longlong Item_func_unsigned::val_int()
   longlong value;
   int error;
 
-  if (args[0]->cast_to_int_type() != STRING_RESULT)
+  if (args[0]->cast_to_int_type() == DECIMAL_RESULT)
+  {
+    my_decimal tmp, *dec= args[0]->val_decimal(&tmp);
+    if (!(null_value= args[0]->null_value))
+      my_decimal2int(E_DEC_FATAL_ERROR, dec, 1, &value);
+    return value;
+  }
+  else if (args[0]->cast_to_int_type() != STRING_RESULT)
   {
     value= args[0]->val_int();
     null_value= args[0]->null_value; 
@@ -2908,6 +2915,20 @@ void Item_udf_func::cleanup()
 {
   udf.cleanup();
   Item_func::cleanup();
+}
+
+
+void Item_udf_func::print(String *str)
+{
+  str->append(func_name());
+  str->append('(');
+  for (uint i=0 ; i < arg_count ; i++)
+  {
+    if (i != 0)
+      str->append(',');
+    args[i]->print_item_w_name(str);
+  }
+  str->append(')');
 }
 
 
@@ -5068,7 +5089,7 @@ Item_func_sp::result_type() const
 {
   Field *field;
   DBUG_ENTER("Item_func_sp::result_type");
-  DBUG_PRINT("info", ("m_sp = %p", m_sp));
+  DBUG_PRINT("info", ("m_sp: 0x%lx", (long) m_sp));
 
   if (result_field)
     DBUG_RETURN(result_field->result_type());

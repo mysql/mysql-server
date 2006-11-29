@@ -50,17 +50,17 @@ table_mapping::~table_mapping()
 st_table* table_mapping::get_table(ulong table_id)
 {
   DBUG_ENTER("table_mapping::get_table(ulong)");
-  DBUG_PRINT("enter", ("table_id=%d", table_id));
+  DBUG_PRINT("enter", ("table_id: %lu", table_id));
   entry *e= find_entry(table_id);
   if (e) 
   {
-    DBUG_PRINT("info", ("tid %d -> table %p (%s)", 
-			table_id, e->table,
+    DBUG_PRINT("info", ("tid %lu -> table 0x%lx (%s)", 
+			table_id, (long) e->table,
 			MAYBE_TABLE_NAME(e->table)));
     DBUG_RETURN(e->table);
   }
 
-  DBUG_PRINT("info", ("tid %d is not mapped!", table_id));
+  DBUG_PRINT("info", ("tid %lu is not mapped!", table_id));
   DBUG_RETURN(NULL);
 }
 
@@ -93,9 +93,9 @@ int table_mapping::expand()
 int table_mapping::set_table(ulong table_id, TABLE* table)
 {
   DBUG_ENTER("table_mapping::set_table(ulong,TABLE*)");
-  DBUG_PRINT("enter", ("table_id=%d, table=%p (%s)", 
+  DBUG_PRINT("enter", ("table_id: %lu  table: 0x%lx (%s)", 
 		       table_id, 
-		       table, MAYBE_TABLE_NAME(table)));
+		       (long) table, MAYBE_TABLE_NAME(table)));
   entry *e= find_entry(table_id);
   if (e == 0)
   {
@@ -111,8 +111,8 @@ int table_mapping::set_table(ulong table_id, TABLE* table)
   e->table= table;
   my_hash_insert(&m_table_ids,(byte *)e);
 
-  DBUG_PRINT("info", ("tid %d -> table %p (%s)", 
-		      table_id, e->table,
+  DBUG_PRINT("info", ("tid %lu -> table 0x%lx (%s)", 
+		      table_id, (long) e->table,
 		      MAYBE_TABLE_NAME(e->table)));
   DBUG_RETURN(0);		// All OK
 }

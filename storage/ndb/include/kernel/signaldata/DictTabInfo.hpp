@@ -47,17 +47,17 @@ inline int my_decimal_get_binary_size(uint precision, uint scale)
 #endif
 
 #define DTIMAP(x, y, z) \
-  { DictTabInfo::y, offsetof(x, z), SimpleProperties::Uint32Value, 0, (~0), 0 }
+  { DictTabInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, (~0), 0 }
 
 #define DTIMAP2(x, y, z, u, v) \
-  { DictTabInfo::y, offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
+  { DictTabInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
 
 #define DTIMAPS(x, y, z, u, v) \
-  { DictTabInfo::y, offsetof(x, z), SimpleProperties::StringValue, u, v, 0 }
+  { DictTabInfo::y, my_offsetof(x, z), SimpleProperties::StringValue, u, v, 0 }
 
 #define DTIMAPB(x, y, z, u, v, l) \
-  { DictTabInfo::y, offsetof(x, z), SimpleProperties::BinaryValue, u, v, \
-                     offsetof(x, l) }
+  { DictTabInfo::y, my_offsetof(x, z), SimpleProperties::BinaryValue, u, v, \
+                     my_offsetof(x, l) }
 
 #define DTIBREAK(x) \
   { DictTabInfo::x, 0, SimpleProperties::InvalidValue, 0, 0, 0 }
@@ -602,17 +602,17 @@ public:
 };
 
 #define DFGIMAP(x, y, z) \
-  { DictFilegroupInfo::y, offsetof(x, z), SimpleProperties::Uint32Value, 0, (~0), 0 }
+  { DictFilegroupInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, (~0), 0 }
 
 #define DFGIMAP2(x, y, z, u, v) \
-  { DictFilegroupInfo::y, offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
+  { DictFilegroupInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
 
 #define DFGIMAPS(x, y, z, u, v) \
-  { DictFilegroupInfo::y, offsetof(x, z), SimpleProperties::StringValue, u, v, 0 }
+  { DictFilegroupInfo::y, my_offsetof(x, z), SimpleProperties::StringValue, u, v, 0 }
 
 #define DFGIMAPB(x, y, z, u, v, l) \
-  { DictFilegroupInfo::y, offsetof(x, z), SimpleProperties::BinaryValue, u, v, \
-                     offsetof(x, l) }
+  { DictFilegroupInfo::y, my_offsetof(x, z), SimpleProperties::BinaryValue, u, v, \
+                     my_offsetof(x, l) }
 
 #define DFGIBREAK(x) \
   { DictFilegroupInfo::x, 0, SimpleProperties::InvalidValue, 0, 0, 0 }

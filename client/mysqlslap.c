@@ -592,7 +592,7 @@ get_random_string(char *buf)
   DBUG_ENTER("get_random_string");
   for (x= RAND_STRING_SIZE; x > 0; x--)
     *buf_ptr++= ALPHANUMERICS[random() % ALPHANUMERICS_SIZE];
-  DBUG_PRINT("info", ("random string: '%*s'", buf_ptr - buf, buf));
+  DBUG_PRINT("info", ("random string: '%*s'", (int) (buf_ptr - buf), buf));
   DBUG_RETURN(buf_ptr - buf);
 }
 
@@ -1031,7 +1031,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
     for (x= 0; x < concur; x++)
     {
       int pid;
-      DBUG_PRINT("info", ("x %d concurrency %d", x, concurrency));
+      DBUG_PRINT("info", ("x: %d  concurrency: %u", x, *concurrency));
       pid= fork();
       switch(pid)
       {

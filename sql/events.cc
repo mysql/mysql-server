@@ -858,7 +858,7 @@ Events::check_system_tables(THD *thd)
   bool ret= FALSE;
 
   DBUG_ENTER("Events::check_system_tables");
-  DBUG_PRINT("enter", ("thd=0x%lx", thd));
+  DBUG_PRINT("enter", ("thd: 0x%lx", (long) thd));
 
   thd->reset_n_backup_open_tables_state(&backup);
 

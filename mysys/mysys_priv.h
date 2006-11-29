@@ -41,3 +41,5 @@ extern pthread_mutex_t THR_LOCK_charset;
 #ifndef EDQUOT
 #define EDQUOT (-1)
 #endif
+
+void my_error_unregister_all(void);
