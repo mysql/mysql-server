@@ -1,4 +1,4 @@
-INCLUDES = -I../include -I../taocrypt/include -I../taocrypt/mySTL
+INCLUDES = -I$(srcdir)/../include -I$(srcdir)/../taocrypt/include -I$(srcdir)/../taocrypt/mySTL
 bin_PROGRAMS       = testsuite
 testsuite_SOURCES  = testsuite.cpp ../taocrypt/test/test.cpp \
 	../examples/client/client.cpp ../examples/server/server.cpp \
