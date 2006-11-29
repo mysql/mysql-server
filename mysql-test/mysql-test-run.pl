@@ -151,6 +151,7 @@ our $exe_mysqlslap;
 our $exe_mysqlimport;
 our $exe_mysqlshow;
 our $exe_mysql_fix_system_tables;
+our $file_mysql_fix_privilege_tables;
 our $exe_mysqltest;
 our $exe_ndbd;
 our $exe_ndb_mgmd;
@@ -222,7 +223,7 @@ our $opt_ndbcluster_port_slave;
 our $opt_ndbconnectstring_slave;
 
 our $opt_record;
-our $opt_report_features;
+my $opt_report_features;
 our $opt_check_testcases;
 
 our $opt_skip;
@@ -238,8 +239,6 @@ our $opt_testcase_timeout;
 our $opt_suite_timeout;
 my  $default_testcase_timeout=     15; # 15 min max
 my  $default_suite_timeout=       180; # 3 hours max
-
-our $opt_source_dist;
 
 our $opt_start_and_exit;
 our $opt_start_dirty;
@@ -299,6 +298,8 @@ our $debug_compiled_binaries;
 our $glob_tot_real_time= 0;
 
 our %mysqld_variables;
+
+my $source_dist= 0;
 
 
 ######################################################################
@@ -633,12 +634,12 @@ sub command_line_setup () {
 
   if ( -d "../sql" )
   {
-    $opt_source_dist=  1;
+    $source_dist=  1;
   }
 
   $glob_hostname=  mtr_short_hostname();
 
-  # 'basedir' is always parent of "mysql-test" directory
+  # Find the absolute path to the test directory
   $glob_mysql_test_dir=  cwd();
   if ( $glob_cygwin_perl )
   {
@@ -646,14 +647,30 @@ sub command_line_setup () {
     $glob_mysql_test_dir= `cygpath -m "$glob_mysql_test_dir"`;
     chomp($glob_mysql_test_dir);
   }
-  $glob_basedir=         dirname($glob_mysql_test_dir);
+
+  # In most cases, the base directory we find everything relative to,
+  # is the parent directory of the "mysql-test" directory. For source
+  # distributions, TAR binary distributions and some other packages.
+  $glob_basedir= dirname($glob_mysql_test_dir);
+
+  # In the RPM case, binaries and libraries are installed in the
+  # default system locations, instead of having our own private base
+  # directory. And we install "/usr/share/mysql-test". Moving up one
+  # more directory relative to "mysql-test" gives us a usable base
+  # directory for RPM installs.
+  if ( ! $source_dist and ! -d "$glob_basedir/bin" )
+  {
+    $glob_basedir= dirname($glob_basedir);
+  }
 
   # Expect mysql-bench to be located adjacent to the source tree, by default
   $glob_mysql_bench_dir= "$glob_basedir/../mysql-bench"
     unless defined $glob_mysql_bench_dir;
+  $glob_mysql_bench_dir= undef
+    unless -d $glob_mysql_bench_dir;
 
   $path_my_basedir=
-    $opt_source_dist ? $glob_mysql_test_dir : $glob_basedir;
+    $source_dist ? $glob_mysql_test_dir : $glob_basedir;
 
   $glob_timers= mtr_init_timers();
 
@@ -678,7 +695,8 @@ sub command_line_setup () {
 				       "$path_client_bindir/mysqld-debug",
 				       "$path_client_bindir/mysqld-max",
 				       "$glob_basedir/libexec/mysqld",
-				       "$glob_basedir/bin/mysqld");
+				       "$glob_basedir/bin/mysqld",
+				       "$glob_basedir/sbin/mysqld");
 
   # Use the mysqld found above to find out what features are available
   collect_mysqld_features();
@@ -795,6 +813,13 @@ sub command_line_setup () {
     $opt_vardir= "$glob_mysql_test_dir/$opt_vardir";
   }
 
+  # Ensure a proper error message 
+  mkpath("$opt_vardir");
+  unless ( -d $opt_vardir and -w $opt_vardir )
+  {
+    mtr_error("Writable 'var' directory is needed, use the '--vardir' option");
+  }
+
   # --------------------------------------------------------------------------
   # Set tmpdir
   # --------------------------------------------------------------------------
@@ -908,7 +933,7 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   # Gcov flag
   # --------------------------------------------------------------------------
-  if ( $opt_gcov and ! $opt_source_dist )
+  if ( $opt_gcov and ! $source_dist )
   {
     mtr_error("Coverage test needs the source - please use source dist");
   }
@@ -1307,7 +1332,8 @@ sub executable_setup_im () {
     mtr_exe_maybe_exists(
       "$glob_basedir/server-tools/instance-manager/mysqlmanager",
       "$glob_basedir/libexec/mysqlmanager",
-      "$glob_basedir/bin/mysqlmanager");
+      "$glob_basedir/bin/mysqlmanager",
+      "$glob_basedir/sbin/mysqlmanager");
 
   return ($exe_im eq "");
 }
@@ -1414,6 +1440,10 @@ sub executable_setup () {
 			"$path_client_bindir/mysql_fix_privilege_tables");
   }
 
+  # Look for mysql_fix_privilege_tables.sql script
+  $file_mysql_fix_privilege_tables=
+    mtr_file_exists("$glob_basedir/scripts/mysql_fix_privilege_tables.sql",
+		    "$glob_basedir/share/mysql_fix_privilege_tables.sql");
 
   if ( ! $opt_skip_ndbcluster and executable_setup_ndb())
   {
@@ -1568,7 +1598,7 @@ sub environment_setup () {
   # Setup LD_LIBRARY_PATH so the libraries from this distro/clone
   # are used in favor of the system installed ones
   # --------------------------------------------------------------------------
-  if ( $opt_source_dist )
+  if ( $source_dist )
   {
     push(@ld_library_paths, "$glob_basedir/libmysql/.libs/",
                             "$glob_basedir/libmysql_r/.libs/");
@@ -1599,9 +1629,17 @@ sub environment_setup () {
   # impossible to add correct supressions, that means if "/usr/lib/debug"
   # is available, it should be added to
   # LD_LIBRARY_PATH
+  #
+  # But pthread is broken in libc6-dbg on Debian <= 3.1 (see Debian
+  # bug 399035, http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=399035),
+  # so don't change LD_LIBRARY_PATH on that platform.
   # --------------------------------------------------------------------------
   my $debug_libraries_path= "/usr/lib/debug";
-  if (  $opt_valgrind and -d $debug_libraries_path )
+  my $deb_version;
+  if (  $opt_valgrind and -d $debug_libraries_path and
+        (! -e '/etc/debian_version' or
+         ($deb_version= mtr_grab_file('/etc/debian_version')) == 0 or
+         $deb_version > 3.1 ) )
   {
     push(@ld_library_paths, $debug_libraries_path);
   }
@@ -1836,6 +1874,7 @@ sub environment_setup () {
       "--socket=$master->[0]->{'path_sock'}";
     $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  $cmdline_mysql_fix_system_tables;
   }
+  $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
 
   # ----------------------------------------------------
   # Setup env so childs can execute my_print_defaults
@@ -3259,7 +3298,7 @@ sub report_failure_and_restart ($) {
   my $tinfo= shift;
 
   mtr_report_test_failed($tinfo);
-  mtr_show_failed_diff($tinfo->{'name'});
+  mtr_show_failed_diff($tinfo->{'result_file'});
   print "\n";
   if ( $opt_force )
   {

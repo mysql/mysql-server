@@ -3160,11 +3160,6 @@ with --log-bin instead.");
   }
   if (global_system_variables.binlog_format == BINLOG_FORMAT_UNSPEC)
   {
-#if defined(HAVE_NDB_BINLOG) && defined(HAVE_ROW_BASED_REPLICATION)
-    if (opt_bin_log && have_ndbcluster == SHOW_OPTION_YES)
-      global_system_variables.binlog_format= BINLOG_FORMAT_ROW;
-    else
-#endif
 #if defined(HAVE_ROW_BASED_REPLICATION)
       global_system_variables.binlog_format= BINLOG_FORMAT_MIXED;
 #else
@@ -5948,9 +5943,11 @@ The minimum value for this variable is 4096.",
    "If there is more than this number of interrupted connections from a host this host will be blocked from further connections.",
    (gptr*) &max_connect_errors, (gptr*) &max_connect_errors, 0, GET_ULONG,
     REQUIRED_ARG, MAX_CONNECT_ERRORS, 1, ~0L, 0, 1, 0},
+  // Default max_connections of 151 is larger than Apache's default max
+  // children, to avoid "too many connections" error in a common setup
   {"max_connections", OPT_MAX_CONNECTIONS,
    "The number of simultaneous clients allowed.", (gptr*) &max_connections,
-   (gptr*) &max_connections, 0, GET_ULONG, REQUIRED_ARG, 100, 1, 16384, 0, 1,
+   (gptr*) &max_connections, 0, GET_ULONG, REQUIRED_ARG, 151, 1, 16384, 0, 1,
    0},
   {"max_delayed_threads", OPT_MAX_DELAYED_THREADS,
    "Don't start more than this number of threads to handle INSERT DELAYED statements. If set to zero, which means INSERT DELAYED is not used.",

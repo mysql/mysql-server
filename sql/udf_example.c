@@ -1087,12 +1087,13 @@ my_bool is_const_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
     strmov(message, "IS_CONST accepts only one argument");
     return 1;
   }
-  initid->ptr= (args->args[0] != NULL) ? 1 : 0;
+  initid->ptr= (char*)((args->args[0] != NULL) ? 1 : 0);
   return 0;
 }
 
-char * is_const(UDF_INIT *initid, UDF_ARGS *args, char *result, unsigned long
-                *length, char *is_null, char *error)
+char * is_const(UDF_INIT *initid, UDF_ARGS *args __attribute__((unused)),
+                char *result, unsigned long *length,
+                char *is_null, char *error __attribute__((unused)))
 {
   if (initid->ptr != 0) {
     sprintf(result, "const");

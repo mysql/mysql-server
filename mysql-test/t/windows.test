@@ -39,3 +39,4 @@ execute abc;
 --error ER_UDF_NO_PATHS
 execute abc;
 deallocate prepare abc;
+
