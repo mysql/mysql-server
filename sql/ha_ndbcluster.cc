@@ -3835,6 +3835,15 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
     DBUG_PRINT("info", ("HA_EXTRA_IGNORE_DUP_KEY"));
     DBUG_PRINT("info", ("Ignoring duplicate key"));
     m_ignore_dup_key= TRUE;
+    if (table_share->primary_key != MAX_KEY)
+    {
+      /*
+	Table has a primary key
+	We need to read all fields for UPDATE IGNORE of pk
+	since this is implemented as delete+insert
+      */
+      bitmap_set_all(table->read_set);
+    }
     break;
   case HA_EXTRA_NO_IGNORE_DUP_KEY:
     DBUG_PRINT("info", ("HA_EXTRA_NO_IGNORE_DUP_KEY"));
