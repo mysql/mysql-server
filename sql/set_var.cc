@@ -248,7 +248,7 @@ sys_var_thd_ulong	sys_max_delayed_threads("max_delayed_threads",
                                                 fix_max_connections);
 sys_var_thd_ulong	sys_max_error_count("max_error_count",
 					    &SV::max_error_count);
-sys_var_thd_ulong	sys_max_heap_table_size("max_heap_table_size",
+sys_var_thd_ulonglong	sys_max_heap_table_size("max_heap_table_size",
 						&SV::max_heap_table_size);
 sys_var_thd_ulong       sys_pseudo_thread_id("pseudo_thread_id",
 					     &SV::pseudo_thread_id,
@@ -415,7 +415,7 @@ sys_var_thd_enum	sys_tx_isolation("tx_isolation",
 					 &SV::tx_isolation,
 					 &tx_isolation_typelib,
 					 fix_tx_isolation);
-sys_var_thd_ulong	sys_tmp_table_size("tmp_table_size",
+sys_var_thd_ulonglong	sys_tmp_table_size("tmp_table_size",
 					   &SV::tmp_table_size);
 sys_var_bool_ptr  sys_timed_mutexes("timed_mutexes",
                                     &timed_mutexes);
