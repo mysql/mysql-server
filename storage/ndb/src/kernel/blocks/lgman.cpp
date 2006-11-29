@@ -1809,11 +1809,11 @@ Lgman::execLCP_FRAG_ORD(Signal* signal)
       
       if(0)
 	ndbout_c
-	  ("execLCP_FRAG_ORD (%d %d) (%d %d) (%d %d) free pages: %d", 
+	  ("execLCP_FRAG_ORD (%d %d) (%d %d) (%d %d) free pages: %ld", 
 	   ptr.p->m_tail_pos[0].m_ptr_i, ptr.p->m_tail_pos[0].m_idx,
 	   ptr.p->m_tail_pos[1].m_ptr_i, ptr.p->m_tail_pos[1].m_idx,
 	   ptr.p->m_tail_pos[2].m_ptr_i, ptr.p->m_tail_pos[2].m_idx,
-	   (ptr.p->m_free_file_words / File_formats::UNDO_PAGE_WORDS));
+	   (long) (ptr.p->m_free_file_words / File_formats::UNDO_PAGE_WORDS));
     }
     m_logfile_group_list.next(ptr);
   }

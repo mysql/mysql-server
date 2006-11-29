@@ -1435,7 +1435,8 @@ void print_plan(JOIN* join,uint idx, double record_count, double read_time,
 #endif
 void mysql_print_status();
 /* key.cc */
-int find_ref_key(KEY *key, uint key_count, Field *field, uint *key_length);
+int find_ref_key(KEY *key, uint key_count, byte *record, Field *field,
+                 uint *key_length);
 void key_copy(byte *to_key, byte *from_record, KEY *key_info, uint key_length);
 void key_restore(byte *to_record, byte *from_key, KEY *key_info,
                  uint key_length);
@@ -1804,7 +1805,7 @@ ha_rows filesort(THD *thd, TABLE *form,struct st_sort_field *sortorder,
 		 uint s_length, SQL_SELECT *select,
 		 ha_rows max_rows, bool sort_positions,
                  ha_rows *examined_rows);
-void filesort_free_buffers(TABLE *table);
+void filesort_free_buffers(TABLE *table, bool full);
 void change_double_for_sort(double nr,byte *to);
 double my_double_round(double value, int dec, bool truncate);
 int get_quick_record(SQL_SELECT *select);
@@ -1824,7 +1825,7 @@ int create_frm(THD *thd, const char *name, const char *db, const char *table,
 	       HA_CREATE_INFO *create_info, uint keys);
 void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
 int rename_file_ext(const char * from,const char * to,const char * ext);
-bool check_db_name(char *db);
+bool check_db_name(LEX_STRING *db);
 bool check_column_name(const char *name);
 bool check_table_name(const char *name, uint length);
 char *get_field(MEM_ROOT *mem, Field *field);

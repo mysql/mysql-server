@@ -223,6 +223,10 @@ Ndbd_mem_manager::init(bool alloc_less_memory)
     InitChunk chunk; 
     Uint32 remaining = pages - allocated;
     
+#if defined(_lint) || defined(FORCE_INIT_OF_VARS)
+    memset((char*) &chunk, 0 , sizeof(chunk));
+#endif
+
     if (do_malloc(pages - allocated, &chunk))
     {
       Uint32 i = 0;

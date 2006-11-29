@@ -129,7 +129,7 @@ find_valgrind()
   fi
   # >=2.1.2 requires the --tool option, some versions write to stdout, some to stderr
   valgrind --help 2>&1 | grep "\-\-tool" > /dev/null && FIND_VALGRIND="$FIND_VALGRIND --tool=memcheck"
-  FIND_VALGRIND="$FIND_VALGRIND --alignment=8 --leak-check=yes --num-callers=16 --suppressions=$CWD/valgrind.supp"
+  FIND_VALGRIND="$FIND_VALGRIND --alignment=8 --leak-check=yes --num-callers=16 --suppressions=$MYSQL_TEST_DIR/valgrind.supp"
 }
 
 # No paths below as we can't be sure where the program is!
@@ -188,19 +188,14 @@ if [ -d ./sql ] ; then
    SOURCE_DIST=1
 else
    BINARY_DIST=1
-fi
 
-# ... one level for tar.gz, two levels for a RPM installation
-if [ -d ./bin ] ; then
-   # this is not perfect: we have 
-   #   /usr/share/mysql/   # mysql-test-run  is here, so this is "$MYSQL_TEST_DIR"
-   #   /usr/bin/           # with MySQL client programs
-   # so the existence of "/usr/share/bin/" would make this test fail.
-   BASEDIR=`pwd`
-else
-   cd ..
-   BASEDIR=`pwd`
+  # ... one level for tar.gz, two levels for a RPM installation
+  if [ ! -f ./bin/mysql_upgrade ] ; then
+     # Has to be RPM installation
+    cd ..
+  fi
 fi
+BASEDIR=`pwd`
 
 cd $MYSQL_TEST_DIR
 MYSQL_TEST_WINDIR=$MYSQL_TEST_DIR
@@ -900,15 +895,15 @@ fi
 # Save path and name of mysqldump
 MYSQL_DUMP_DIR="$MYSQL_DUMP"
 export MYSQL_DUMP_DIR
-MYSQL_CHECK="$MYSQL_CHECK --no-defaults -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLCHECK_OPT"
-MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
+MYSQL_CHECK="$MYSQL_CHECK --no-defaults --debug-info -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLCHECK_OPT"
+MYSQL_DUMP="$MYSQL_DUMP --no-defaults --debug-info -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
 MYSQL_SLAP="$MYSQL_SLAP -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLSLAP_OPT"
 MYSQL_DUMP_SLAVE="$MYSQL_DUMP_DIR --no-defaults -uroot --socket=$SLAVE_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
-MYSQL_SHOW="$MYSQL_SHOW -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLSHOW_OPT"
-MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR  --character-sets-dir=$CHARSETSDIR $EXTRA_MYSQLBINLOG_OPT"
-MYSQL_IMPORT="$MYSQL_IMPORT -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
+MYSQL_SHOW="$MYSQL_SHOW --no-defaults --debug-info -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLSHOW_OPT"
+MYSQL_BINLOG="$MYSQL_BINLOG --debug-info --no-defaults --local-load=$MYSQL_TMP_DIR  --character-sets-dir=$CHARSETSDIR $EXTRA_MYSQLBINLOG_OPT"
+MYSQL_IMPORT="$MYSQL_IMPORT --debug-info -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
 MYSQL_FIX_SYSTEM_TABLES="$MYSQL_FIX_SYSTEM_TABLES --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD --basedir=$BASEDIR --bindir=$CLIENT_BINDIR --verbose"
-MYSQL="$MYSQL --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD"
+MYSQL="$MYSQL --no-defaults --debug-info --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD"
 export MYSQL MYSQL_CHECK MYSQL_DUMP MYSQL_DUMP_SLAVE MYSQL_SHOW MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES MYSQL_IMPORT
 export CLIENT_BINDIR MYSQL_CLIENT_TEST CHARSETSDIR MYSQL_MY_PRINT_DEFAULTS
 export MYSQL_SLAP
@@ -1281,8 +1276,8 @@ start_ndbcluster()
 
 rm_ndbcluster_tables()
 {
-  $RM -f $1/cluster/apply_status*
-  $RM -f $1/cluster/schema*
+  $RM -f $1/mysql/apply_status*
+  $RM -f $1/mysql/schema*
 }
 
 stop_ndbcluster()
@@ -2182,11 +2177,14 @@ then
   # Remove files that can cause problems
   $RM -rf $MYSQL_TEST_DIR/var/ndbcluster
   $RM -rf $MYSQL_TEST_DIR/var/tmp/snapshot*
-  $RM -f $MYSQL_TEST_DIR/var/run/* $MYSQL_TEST_DIR/var/tmp/*
+  $RM -rf $MYSQL_TEST_DIR/var/run/* $MYSQL_TEST_DIR/var/tmp/*
 
   # Remove old berkeley db log files that can confuse the server
   $RM -f $MASTER_MYDDIR/log.*
   $RM -f $MASTER_MYDDIR"1"/log.*
+
+  # Remove old log and reject files
+  $RM -f r/*.reject r/*.progress r/*.log r/*.warnings
 
   wait_for_master=$SLEEP_TIME_FOR_FIRST_MASTER
   wait_for_slave=$SLEEP_TIME_FOR_FIRST_SLAVE

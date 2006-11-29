@@ -84,7 +84,7 @@ NdbObjectIdMap::map(void * object){
   
   //  unlock();
   
-  DBUG_PRINT("info",("NdbObjectIdMap::map(0x%x) %u", object, ff<<2));
+  DBUG_PRINT("info",("NdbObjectIdMap::map(0x%lx) %u", (long) object, ff<<2));
 
   return ff<<2;
 }
@@ -102,14 +102,16 @@ NdbObjectIdMap::unmap(Uint32 id, void *object){
       m_map[i].m_next = m_firstFree;
       m_firstFree = i;
     } else {
-      ndbout_c("Error: NdbObjectIdMap::::unmap(%u, 0x%x) obj=0x%x", id, object, obj);
-      DBUG_PRINT("error",("NdbObjectIdMap::unmap(%u, 0x%x) obj=0x%x", id, object, obj));
+      ndbout_c("Error: NdbObjectIdMap::::unmap(%u, 0x%lx) obj=0x%lx",
+               id, (long) object, (long) obj);
+      DBUG_PRINT("error",("NdbObjectIdMap::unmap(%u, 0x%lx) obj=0x%lx",
+                          id, (long) object, (long) obj));
       return 0;
     }
     
     //  unlock();
     
-    DBUG_PRINT("info",("NdbObjectIdMap::unmap(%u) obj=0x%x", id, obj));
+    DBUG_PRINT("info",("NdbObjectIdMap::unmap(%u) obj=0x%lx", id, (long) obj));
     
     return obj;
   }

@@ -1087,7 +1087,7 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
   if (!lock_in_use)
     VOID(pthread_mutex_lock(&LOCK_open));
 
-  DBUG_PRINT("info", ("thd->open_tables: %p", thd->open_tables));
+  DBUG_PRINT("info", ("thd->open_tables: 0x%lx", (long) thd->open_tables));
 
   /* 
     End open index scans and table scans and remove references to the tables 
@@ -1184,6 +1184,16 @@ static inline uint  tmpkeyval(THD *thd, TABLE *table)
 void close_temporary_tables(THD *thd)
 {
   TABLE *table;
+  TABLE *next;
+ /*
+   TODO: 5.1 maintains prev link in temporary_tables
+   double-linked list so we could fix it. But it is not necessary
+   at this time when the list is being destroyed
+ */
+  TABLE *prev_table;
+  /* Assume thd->options has OPTION_QUOTE_SHOW_CREATE */
+  bool was_quote_show= TRUE;
+
   if (!thd->temporary_tables)
     return;
 
@@ -1199,12 +1209,7 @@ void close_temporary_tables(THD *thd)
     return;
   }
 
-  TABLE *next,
-    *prev_table /* TODO: 5.1 maintaines prev link in temporary_tables
-                   double-linked list so we could fix it. But it is not necessary
-                   at this time when the list is being destroyed */;
-  bool was_quote_show= true; /* to assume thd->options has OPTION_QUOTE_SHOW_CREATE */
-  // Better add "if exists", in case a RESET MASTER has been done
+  /* Better add "if exists", in case a RESET MASTER has been done */
   const char stub[]= "DROP /*!40005 TEMPORARY */ TABLE IF EXISTS ";
   uint stub_len= sizeof(stub) - 1;
   char buf[256];
@@ -1310,7 +1315,7 @@ void close_temporary_tables(THD *thd)
     }
   }
   if (!was_quote_show)
-    thd->options &= ~OPTION_QUOTE_SHOW_CREATE; /* restore option */
+    thd->options&= ~OPTION_QUOTE_SHOW_CREATE; /* restore option */
   thd->temporary_tables=0;
 }
 
@@ -2076,7 +2081,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       VOID(pthread_mutex_unlock(&LOCK_open));
       DBUG_RETURN(0); // VIEW
     }
-    DBUG_PRINT("info", ("inserting table %p into the cache", table));
+    DBUG_PRINT("info", ("inserting table 0x%lx into the cache", (long) table));
     VOID(my_hash_insert(&open_cache,(byte*) table));
   }
 
@@ -2117,6 +2122,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->file->ft_handler= 0;
   if (table->timestamp_field)
     table->timestamp_field_type= table->timestamp_field->get_auto_set_type();
+  table->pos_in_table_list= table_list;
   table_list->updatable= 1; // It is not derived table nor non-updatable VIEW
   table->clear_column_bitmaps();
   DBUG_ASSERT(table->key_read == 0);
@@ -2406,7 +2412,7 @@ bool table_is_used(TABLE *table, bool wait_for_name_lock)
     {
       DBUG_PRINT("info", ("share: 0x%lx  locked_by_logger: %d "
                           "locked_by_flush: %d  locked_by_name: %d "
-                          "db_stat: %u  version: %u",
+                          "db_stat: %u  version: %lu",
                           (ulong) search->s, search->locked_by_logger,
                           search->locked_by_flush, search->locked_by_name,
                           search->db_stat,
@@ -3560,6 +3566,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
     if (thd->slave_thread)
       slave_open_temp_tables++;
   }
+  tmp_table->pos_in_table_list= 0;
   DBUG_RETURN(tmp_table);
 }
 

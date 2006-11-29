@@ -3194,7 +3194,7 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   if (unlikely(version < NDBD_ROWID_VERSION))
   {
     Uint32 op = regTcPtr->operation;
-    Uint32 lock = op == ZREAD_EX ? ZUPDATE : op == ZWRITE ? ZINSERT : op;
+    Uint32 lock = (Operation_t) op == ZREAD_EX ? ZUPDATE : (Operation_t) op == ZWRITE ? ZINSERT : (Operation_t) op;
     LqhKeyReq::setLockType(Tdata10, lock);
   }
   /* ---------------------------------------------------------------------- */

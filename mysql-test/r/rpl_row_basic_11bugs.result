@@ -9,7 +9,6 @@ CREATE DATABASE test_ignore;
 SHOW DATABASES;
 Database
 information_schema
-cluster
 mysql
 test
 test_ignore
@@ -34,7 +33,6 @@ master-bin.000001	235	Write_rows	1	282	table_id: # flags: STMT_END_F
 SHOW DATABASES;
 Database
 information_schema
-cluster
 mysql
 test
 USE test;

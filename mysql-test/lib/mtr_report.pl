@@ -43,7 +43,7 @@ sub mtr_show_failed_diff ($) {
 
   my $reject_file=  "r/$tname.reject";
   my $result_file=  "r/$tname.result";
-  my $log_file=  "r/$tname.log";
+  my $log_file=     "$::opt_vardir/log/$tname.log";
   my $eval_file=    "r/$tname.eval";
 
   if ( $::opt_suite ne "main" )
@@ -94,9 +94,13 @@ sub mtr_report_test_skipped ($) {
   {
     print "[ disabled ]  $tinfo->{'comment'}\n";
   }
-  else
+  elsif ( $tinfo->{'comment'} )
   {
     print "[ skipped ]   $tinfo->{'comment'}\n";
+  }
+  else
+  {
+    print "[ skipped ]\n";
   }
 }
 
@@ -248,6 +252,7 @@ sub mtr_report_stats ($) {
       foreach my $pattern ( "^Warning:", "^Error:", "^==.* at 0x",
 			    "InnoDB: Warning", "missing DBUG_RETURN",
 			    "mysqld: Warning",
+			    "allocated at line",
 			    "Attempting backtrace", "Assertion .* failed" )
       {
         foreach my $errlog ( sort glob("$::opt_vardir/log/*.err") )

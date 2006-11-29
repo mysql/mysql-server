@@ -58,7 +58,7 @@ print_std(const SubTableData * sdata, LinearSectionPtr ptr[3])
 	 SubTableData::getOperation(sdata->requestInfo));
   for (int i = 0; i <= 2; i++) {
     printf("sec=%d addr=%p sz=%d\n", i, (void*)ptr[i].p, ptr[i].sz);
-    for (int j = 0; j < ptr[i].sz; j++)
+    for (int j = 0; (uint) j < ptr[i].sz; j++)
       printf("%08x ", ptr[i].p[j]);
     printf("\n");
   }
@@ -199,11 +199,11 @@ NdbEventOperationImpl::init(NdbEventImpl& evnt)
   m_mergeEvents = false;
 #endif
   m_ref_count = 0;
-  DBUG_PRINT("info", ("m_ref_count = 0 for op: %p", this));
+  DBUG_PRINT("info", ("m_ref_count = 0 for op: 0x%lx", (long) this));
 
   m_has_error= 0;
 
-  DBUG_PRINT("exit",("this: 0x%x oid: %u", this, m_oid));
+  DBUG_PRINT("exit",("this: 0x%lx  oid: %u", (long) this, m_oid));
   DBUG_VOID_RETURN;
 }
 
@@ -739,8 +739,8 @@ NdbEventOperationImpl::receive_event()
       NdbTableImpl *tmp_table_impl= m_eventImpl->m_tableImpl;
       m_eventImpl->m_tableImpl = at;
       
-      DBUG_PRINT("info", ("switching table impl 0x%x -> 0x%x",
-                          tmp_table_impl, at));
+      DBUG_PRINT("info", ("switching table impl 0x%lx -> 0x%lx",
+                          (long) tmp_table_impl, (long) at));
       
       // change the rec attrs to refer to the new table object
       int i;
@@ -751,9 +751,9 @@ NdbEventOperationImpl::receive_event()
         {
           int no = p->getColumn()->getColumnNo();
           NdbColumnImpl *tAttrInfo = at->getColumn(no);
-          DBUG_PRINT("info", ("rec_attr: 0x%x  "
-                              "switching column impl 0x%x -> 0x%x",
-                              p, p->m_column, tAttrInfo));
+          DBUG_PRINT("info", ("rec_attr: 0x%lx  "
+                              "switching column impl 0x%lx -> 0x%lx",
+                              (long) p, (long) p->m_column, (long) tAttrInfo));
           p->m_column = tAttrInfo;
           p = p->next();
         }
@@ -765,9 +765,9 @@ NdbEventOperationImpl::receive_event()
         {
           int no = p->getColumn()->getColumnNo();
           NdbColumnImpl *tAttrInfo = at->getColumn(no);
-          DBUG_PRINT("info", ("rec_attr: 0x%x  "
-                              "switching column impl 0x%x -> 0x%x",
-                              p, p->m_column, tAttrInfo));
+          DBUG_PRINT("info", ("rec_attr: 0x%lx  "
+                              "switching column impl 0x%lx -> 0x%lx",
+                              (long) p, (long) p->m_column, (long) tAttrInfo));
           p->m_column = tAttrInfo;
           p = p->next();
         }
@@ -1269,8 +1269,9 @@ NdbEventBuffer::getGCIEventOperations(Uint32* iter, Uint32* event_types)
     EventBufData_list::Gci_op g = gci_ops->m_gci_op_list[(*iter)++];
     if (event_types != NULL)
       *event_types = g.event_types;
-    DBUG_PRINT("info", ("gci: %d  g.op: %x  g.event_types: %x",
-                        (unsigned)gci_ops->m_gci, g.op, g.event_types));
+    DBUG_PRINT("info", ("gci: %u  g.op: 0x%lx  g.event_types: 0x%lx",
+                        (unsigned)gci_ops->m_gci, (long) g.op,
+                        (long) g.event_types));
     DBUG_RETURN(g.op);
   }
   DBUG_RETURN(NULL);
@@ -1507,9 +1508,9 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep)
     else
     {
       /** out of order something */
-      ndbout_c("out of order bucket: %d gci: %lld m_latestGCI: %lld", 
-	       bucket-(Gci_container*)m_active_gci.getBase(), 
-	       gci, m_latestGCI);
+      ndbout_c("out of order bucket: %d  gci: %ld  m_latestGCI: %ld", 
+	       (int) (bucket-(Gci_container*)m_active_gci.getBase()), 
+	       (long) gci, (long) m_latestGCI);
       bucket->m_state = Gci_container::GC_COMPLETE;
       bucket->m_gcp_complete_rep_count = 1; // Prevent from being reused
       m_latest_complete_GCI = gci;
@@ -1563,8 +1564,8 @@ NdbEventBuffer::complete_outof_order_gcis()
 #endif
       m_complete_data.m_data.append_list(&bucket->m_data, start_gci);
 #ifdef VM_TRACE
-      ndbout_c(" moved %lld rows -> %lld", bucket->m_data.m_count,
-	       m_complete_data.m_data.m_count);
+      ndbout_c(" moved %ld rows -> %ld", (long) bucket->m_data.m_count,
+	       (long) m_complete_data.m_data.m_count);
 #else
       ndbout_c("");
 #endif
@@ -2180,7 +2181,7 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata,
 
   Ev_t* tp = 0;
   int i;
-  for (i = 0; i < sizeof(ev_t)/sizeof(ev_t[0]); i++) {
+  for (i = 0; (uint) i < sizeof(ev_t)/sizeof(ev_t[0]); i++) {
     if (ev_t[i].t1 == t1 && ev_t[i].t2 == t2) {
       tp = &ev_t[i];
       break;

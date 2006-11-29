@@ -33,6 +33,7 @@
 #include <errmsg.h>
 #include <my_getopt.h>
 #include <m_string.h>
+#include <mysqld_error.h>
 
 #define VER "2.1"
 #define MAX_TEST_QUERY_LENGTH 300 /* MAX QUERY BUFFER LENGTH */
@@ -12017,13 +12018,21 @@ static void test_bug6081()
 
   rc= simple_command(mysql, COM_DROP_DB, current_db,
                      (ulong)strlen(current_db), 0);
-  myquery(rc);
+  if (rc == 0 && mysql_errno(mysql) != ER_UNKNOWN_COM_ERROR)
+  {
+    myerror(NULL);                                   /* purecov: inspected */
+    die(__FILE__, __LINE__, "COM_DROP_DB failed");   /* purecov: inspected */
+  }
   rc= simple_command(mysql, COM_DROP_DB, current_db,
                      (ulong)strlen(current_db), 0);
   myquery_r(rc);
   rc= simple_command(mysql, COM_CREATE_DB, current_db,
                      (ulong)strlen(current_db), 0);
-  myquery(rc);
+  if (rc == 0 && mysql_errno(mysql) != ER_UNKNOWN_COM_ERROR)
+  {
+    myerror(NULL);                                   /* purecov: inspected */
+    die(__FILE__, __LINE__, "COM_CREATE_DB failed"); /* purecov: inspected */
+  }
   rc= simple_command(mysql, COM_CREATE_DB, current_db,
                      (ulong)strlen(current_db), 0);
   myquery_r(rc);
@@ -13686,7 +13695,8 @@ static void test_bug11172()
                hired.year, hired.month, hired.day);
     }
     DIE_UNLESS(rc == MYSQL_NO_DATA);
-    mysql_stmt_free_result(stmt) || mysql_stmt_reset(stmt);
+    if (!mysql_stmt_free_result(stmt))
+      mysql_stmt_reset(stmt);
   }
   mysql_stmt_close(stmt);
   mysql_rollback(mysql);
@@ -14828,6 +14838,8 @@ static void test_opt_reconnect()
 }
 
 
+#ifndef EMBEDDED_LIBRARY
+
 static void test_bug12744()
 {
   MYSQL_STMT *prep_stmt = NULL;
@@ -14858,6 +14870,8 @@ static void test_bug12744()
   rc= mysql_stmt_close(prep_stmt);
   client_connect(0);
 }
+
+#endif /* EMBEDDED_LIBRARY */
 
 /* Bug #16143: mysql_stmt_sqlstate returns an empty string instead of '00000' */
 
@@ -15471,6 +15485,24 @@ static void test_bug21206()
 }
 
 /*
+  Ensure we execute the status code while testing
+*/
+
+static void test_status()
+{
+  const char *status;
+  DBUG_ENTER("test_status");
+  myheader("test_status");
+
+  if (!(status= mysql_stat(mysql)))
+  {
+    myerror("mysql_stat failed");                 /* purecov: inspected */
+    die(__FILE__, __LINE__, "mysql_stat failed"); /* purecov: inspected */
+  }
+  DBUG_VOID_RETURN;
+}
+
+/*
   Bug#21726: Incorrect result with multiple invocations of
   LAST_INSERT_ID
 
@@ -15786,6 +15818,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug19671", test_bug19671 },
   { "test_bug21206", test_bug21206 },
   { "test_bug21726", test_bug21726 },
+  { "test_status", test_status},
   { 0, 0 }
 };
 

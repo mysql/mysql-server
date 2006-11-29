@@ -434,7 +434,7 @@ rl_translate_keyseq (seq, array, len)
 {
   register int i, c, l, temp;
 
-  for (i = l = 0; c = seq[i]; i++)
+  for (i = l = 0; (c = seq[i]); i++)
     {
       if (c == '\\')
 	{
@@ -735,7 +735,8 @@ _rl_read_file (filename, sizep)
   file_size = (size_t)finfo.st_size;
 
   /* check for overflow on very large files */
-  if (file_size != finfo.st_size || file_size + 1 < file_size)
+  if ((long long) file_size != (long long) finfo.st_size ||
+      file_size + 1 < file_size)
     {
       if (file >= 0)
 	close (file);
@@ -765,8 +766,8 @@ _rl_read_file (filename, sizep)
 
 /* Re-read the current keybindings file. */
 int
-rl_re_read_init_file (count, ignore)
-     int count, ignore;
+rl_re_read_init_file (int count __attribute__((unused)),
+                      int ignore __attribute__((unused)))
 {
   int r;
   r = rl_read_init_file ((const char *)NULL);
@@ -987,8 +988,7 @@ parser_if (args)
 
 /* Invert the current parser state if there is anything on the stack. */
 static int
-parser_else (args)
-     char *args;
+parser_else (char *args __attribute__((unused)))
 {
   register int i;
 
@@ -1018,8 +1018,7 @@ parser_else (args)
 /* Terminate a conditional, popping the value of
    _rl_parsing_conditionalized_out from the stack. */
 static int
-parser_endif (args)
-     char *args;
+parser_endif (char *args __attribute__((unused)))
 {
   if (if_stack_depth)
     _rl_parsing_conditionalized_out = if_stack[--if_stack_depth];
@@ -1142,7 +1141,7 @@ rl_parse_and_bind (string)
     {
       int passc = 0;
 
-      for (i = 1; c = string[i]; i++)
+      for (i = 1; (c = string[i]); i++)
 	{
 	  if (passc)
 	    {
@@ -1218,7 +1217,7 @@ rl_parse_and_bind (string)
     {
       int delimiter = string[i++], passc;
 
-      for (passc = 0; c = string[i]; i++)
+      for (passc = 0; (c = string[i]); i++)
 	{
 	  if (passc)
 	    {
@@ -1377,7 +1376,7 @@ static struct {
 #if defined (VISIBLE_STATS)
   { "visible-stats",		&rl_visible_stats,		0 },
 #endif /* VISIBLE_STATS */
-  { (char *)NULL, (int *)NULL }
+  { (char *)NULL, (int *)NULL, 0 }
 };
 
 static int
@@ -1446,7 +1445,7 @@ static struct {
   { "editing-mode",	V_STRING,	sv_editmode },
   { "isearch-terminators", V_STRING,	sv_isrchterm },
   { "keymap",		V_STRING,	sv_keymap },
-  { (char *)NULL,	0 }
+  { (char *)NULL,	0, 0 }
 };
 
 static int
@@ -1466,7 +1465,7 @@ find_string_var (name)
    values result in 0 (false). */
 static int
 bool_to_int (value)
-     char *value;
+const char *value;
 {
   return (value == 0 || *value == '\0' ||
 		(_rl_stricmp (value, "on") == 0) ||
@@ -1725,13 +1724,13 @@ char *
 rl_get_keymap_name_from_edit_mode ()
 {
   if (rl_editing_mode == emacs_mode)
-    return "emacs";
+    return (char*) "emacs";
 #if defined (VI_MODE)
   else if (rl_editing_mode == vi_mode)
-    return "vi";
+    return (char*) "vi";
 #endif /* VI_MODE */
   else
-    return "none";
+    return (char*) "none";
 }
 
 /* **************************************************************** */
@@ -1966,7 +1965,7 @@ rl_function_dumper (print_readably)
 
   fprintf (rl_outstream, "\n");
 
-  for (i = 0; name = names[i]; i++)
+  for (i = 0; (name = names[i]); i++)
     {
       rl_command_func_t *function;
       char **invokers;
@@ -2025,8 +2024,8 @@ rl_function_dumper (print_readably)
    rl_outstream.  If an explicit argument is given, then print
    the output in such a way that it can be read back in. */
 int
-rl_dump_functions (count, key)
-     int count, key;
+rl_dump_functions (int count __attribute__((unused)),
+                   int key  __attribute__((unused)))
 {
   if (rl_dispatching)
     fprintf (rl_outstream, "\r\n");
@@ -2105,8 +2104,7 @@ rl_macro_dumper (print_readably)
 }
 
 int
-rl_dump_macros (count, key)
-     int count, key;
+rl_dump_macros(int count __attribute__((unused)), int key __attribute__((unused)))
 {
   if (rl_dispatching)
     fprintf (rl_outstream, "\r\n");
@@ -2195,8 +2193,7 @@ rl_variable_dumper (print_readably)
    rl_outstream.  If an explicit argument is given, then print
    the output in such a way that it can be read back in. */
 int
-rl_dump_variables (count, key)
-     int count, key;
+rl_dump_variables(int count __attribute__((unused)), int key __attribute__((unused)))
 {
   if (rl_dispatching)
     fprintf (rl_outstream, "\r\n");

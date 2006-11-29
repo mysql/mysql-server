@@ -408,9 +408,9 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
 			const char* aValuePassed)
 {
   DBUG_ENTER("NdbOperation::setValue");
-  DBUG_PRINT("enter", ("col=%s op=%d val=%p",
+  DBUG_PRINT("enter", ("col: %s  op:%d  val: 0x%lx",
                        tAttrInfo->m_name.c_str(), theOperationType,
-                       aValuePassed));
+                       (long) aValuePassed));
 
   int tReturnCode;
   Uint32 tAttrId;
