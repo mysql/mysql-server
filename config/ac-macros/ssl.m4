@@ -28,10 +28,9 @@ AC_DEFUN([MYSQL_USE_BUNDLED_YASSL], [
   yassl_dir="yassl"
   AC_SUBST([yassl_dir])
 
-  yassl_libs="-L\$(top_srcdir)/extra/yassl/src -lyassl -L\$(top_srcdir)/extra/yassl/taocrypt/src -ltaocrypt"
+  yassl_libs="\$(top_builddir)/extra/yassl/src/libyassl.la \
+              \$(top_builddir)/extra/yassl/taocrypt/src/libtaocrypt.la"
   AC_SUBST(yassl_libs)
-  yassl_includes="-I\$(top_srcdir)/extra/yassl/include"
-  AC_SUBST(yassl_includes)
 
   AC_DEFINE([HAVE_OPENSSL], [1], [Defined by configure. Using yaSSL for SSL.])
   AC_DEFINE([HAVE_YASSL], [1], [Defined by configure. Using yaSSL for SSL.])
