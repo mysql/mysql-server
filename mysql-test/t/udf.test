@@ -127,6 +127,50 @@ create table t1(f1 int);
 insert into t1 values(1),(2);
 explain select myfunc_int(f1) from t1 order by 1;
 drop table t1;
+
+# 
+# Bug #21809: Error 1356 while selecting from view with grouping though 
+#              underlying select OK.
+#
+CREATE TABLE t1(a INT, b INT); INSERT INTO t1 values (1,1),(2,2);
+
+DELIMITER ||;
+CREATE FUNCTION fn(a int) RETURNS int DETERMINISTIC
+BEGIN
+    RETURN a;
+END
+||
+DELIMITER ;||
+
+CREATE VIEW v1 AS SELECT a, fn(MIN(b)) as c FROM t1 GROUP BY a;
+
+SELECT myfunc_int(a AS attr_name) FROM t1;
+EXPLAIN EXTENDED SELECT myfunc_int(a AS attr_name) FROM t1;
+EXPLAIN EXTENDED SELECT myfunc_int(a) FROM t1;
+SELECT a,c FROM v1;
+
+--error ER_PARSE_ERROR
+SELECT a, fn(MIN(b) xx) as c FROM t1 GROUP BY a;
+--error ER_PARSE_ERROR
+SELECT myfunc_int(fn(MIN(b) xx)) as c FROM t1 GROUP BY a;
+--error ER_PARSE_ERROR
+SELECT myfunc_int(test.fn(MIN(b) xx)) as c FROM t1 GROUP BY a;
+
+SELECT myfunc_int(fn(MIN(b)) xx) as c FROM t1 GROUP BY a;
+SELECT myfunc_int(test.fn(MIN(b)) xx) as c FROM t1 GROUP BY a;
+
+EXPLAIN EXTENDED SELECT myfunc_int(MIN(b) xx) as c FROM t1 GROUP BY a;
+EXPLAIN EXTENDED SELECT test.fn(MIN(b)) as c FROM t1 GROUP BY a;
+EXPLAIN EXTENDED SELECT myfunc_int(fn(MIN(b))) as c FROM t1 GROUP BY a;
+EXPLAIN EXTENDED SELECT myfunc_int(test.fn(MIN(b))) as c FROM t1 GROUP BY a;
+SELECT myfunc_int(MIN(b) xx) as c FROM t1 GROUP BY a;
+SELECT test.fn(MIN(b)) as c FROM t1 GROUP BY a;
+SELECT myfunc_int(fn(MIN(b))) as c FROM t1 GROUP BY a;
+SELECT myfunc_int(test.fn(MIN(b))) as c FROM t1 GROUP BY a;
+DROP VIEW v1;
+DROP TABLE t1;
+DROP FUNCTION fn;
+
 --echo End of 5.0 tests.
 
 #
