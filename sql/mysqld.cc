@@ -2789,13 +2789,13 @@ static int init_common_variables(const char *conf_file_name, int argc,
       !(log_output_options & LOG_NONE))
     sql_print_warning("Although a path was specified for the "
                       "--log option, log tables are used. "
-                      "To enable logging to file use the --log-output option.");
+                      "To enable logging to files use the --log-output option.");
 
   if (opt_slow_log && opt_slow_logname && !(log_output_options & LOG_FILE)
       && !(log_output_options & LOG_NONE))
     sql_print_warning("Although a path was specified for the "
                       "--log-slow-queries option, log tables are used. "
-                      "To enable logging to file use the --log-output option.");
+                      "To enable logging to files use the --log-output option.");
 
   if (!opt_logname)
     opt_logname= make_default_log_name(buff, ".log");
