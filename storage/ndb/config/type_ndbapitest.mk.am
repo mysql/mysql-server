@@ -7,7 +7,7 @@ LDADD += $(top_builddir)/storage/ndb/test/src/libNDBT.a \
 
 INCLUDES += -I$(top_srcdir) \
 	-I$(top_builddir)/include \
-	-I$(top_builddir)/ndb/include \
+	-I$(top_builddir)/storage/ndb/include \
 	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/storage/ndb/include \
         -I$(top_srcdir)/storage/ndb/include/ndbapi \
