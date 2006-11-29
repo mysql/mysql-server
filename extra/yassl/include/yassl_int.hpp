@@ -431,6 +431,7 @@ private:
     DH_Parms    dhParms_;
     pem_password_cb passwordCb_;
     void*           userData_;
+    bool            sessionCacheOff_;
     Stats       stats_;
     Mutex       mutex_;         // for Stats
 public:
@@ -445,6 +446,7 @@ public:
     const Stats&      GetStats()    const;
     pem_password_cb   GetPasswordCb() const;
           void*       GetUserData()   const;
+          bool        GetSessionCacheOff() const;
 
     void setVerifyPeer();
     void setVerifyNone();
@@ -453,6 +455,7 @@ public:
     bool SetDH(const DH&);
     void SetPasswordCb(pem_password_cb cb);
     void SetUserData(void*);
+    void SetSessionCacheOff();
    
     void            IncrementStats(StatsField);
     void            AddCA(x509* ca);
@@ -600,6 +603,7 @@ public:
     const Socket&     getSocket()   const;
           YasslError  GetError()    const;
           bool        GetMultiProtocol() const;
+          bool        CompressionOn()    const;
 
     Crypto&    useCrypto();
     Security&  useSecurity();
@@ -617,9 +621,12 @@ public:
     void set_preMaster(const opaque*, uint);
     void set_masterSecret(const opaque*);
     void SetError(YasslError);
+    int  SetCompression();
+    void UnSetCompression();
 
     // helpers
     bool isTLS() const;
+    bool isTLSv1_1() const;
     void order_error();
     void makeMasterSecret();
     void makeTLSMasterSecret();
@@ -652,6 +659,10 @@ private:
     const SSL& operator=(const SSL&);   // and assign
 };
 
+
+// compression
+int Compress(const byte*, int, input_buffer&);
+int DeCompress(input_buffer&, int, input_buffer&);
 
 
 // conversion functions

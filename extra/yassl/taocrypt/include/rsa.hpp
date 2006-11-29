@@ -239,7 +239,8 @@ bool RSA_Encryptor<Pad>::SSL_Verify(const byte* message, word32 sz,
                                     const byte* sig)
 {
     ByteBlock plain(PK_Lengths(key_.GetModulus()).FixedMaxPlaintextLength());
-    SSL_Decrypt(key_, sig, plain.get_buffer());
+    if (SSL_Decrypt(key_, sig, plain.get_buffer()) != sz)
+        return false;   // not right justified or bad padding
 
     if ( (memcmp(plain.get_buffer(), message, sz)) == 0)
         return true;

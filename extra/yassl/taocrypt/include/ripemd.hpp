@@ -31,6 +31,11 @@
 
 #include "hash.hpp"
 
+
+#if defined(TAOCRYPT_X86ASM_AVAILABLE) && defined(TAO_ASM)
+    #define DO_RIPEMD_ASM
+#endif
+
 namespace TaoCrypt {
 
 
@@ -49,7 +54,9 @@ public:
     RIPEMD160(const RIPEMD160&);
     RIPEMD160& operator= (const RIPEMD160&);
 
+#ifdef DO_RIPEMD_ASM
     void Update(const byte*, word32);
+#endif
     void Init();
     void Swap(RIPEMD160&);
 private:
