@@ -112,6 +112,7 @@ class Table_triggers_list;
 
 typedef struct st_table_share
 {
+  st_table_share() {}                    /* Remove gcc warning */
   /* hash of field names (contains pointers to elements of field array) */
   HASH	name_hash;			/* hash of field names */
   MEM_ROOT mem_root;
