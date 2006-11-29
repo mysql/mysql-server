@@ -243,20 +243,20 @@ bdb_version_ok=yes
 ])
 
 AC_DEFUN([MYSQL_TOP_BUILDDIR], [
+  # Remove trailing "./" if any
+  [$1]=`echo $[$1] | sed -e 's,^\./,,'`
   case "$[$1]" in
-    /* ) ;;		# don't do anything with an absolute path
-    "$srcdir"/* )
+    "bdb" | "$srcdir/bdb" | "$top_srcdir/bdb" | "$abs_top_srcdir/bdb" )
       # If BDB is under the source directory, we need to look under the
       # build directory for bdb/build_unix.
-      # NOTE: I'm being lazy, and assuming the user did not specify
-      # something like --with-berkeley-db=bdb (it would be missing "./").
-      [$1]="\$(top_builddir)/"`echo "$[$1]" | sed -e "s,^$srcdir/,,"`
+      [$1]="\$(top_builddir)/bdb"
       ;;
+    /* ) ;;  # Other absolute path is assume to be external BDB directory
     * )
       AC_MSG_ERROR([The BDB directory must be directly under the MySQL source directory, or be specified using the full path. ('$srcdir'; '$[$1]')])
       ;;
   esac
-  if test X"$[$1]" != "/"
+  if test X"$[$1]" != X"/"
   then
     [$1]=`echo $[$1] | sed -e 's,/$,,'`
   fi
