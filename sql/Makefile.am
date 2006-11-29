@@ -155,12 +155,15 @@ sql_yacc.cc:	sql_yacc.yy
 
 sql_yacc.h:	sql_yacc.yy
 
+# Be careful here, note that we use VPATH and might or might not have
+# a pregenerated "sql_yacc.cc" in $(srcdir) or one we just built in
+# $(builddir). And it has to work if $(srcdir) == $(builddir).
 sql_yacc.o:	sql_yacc.cc sql_yacc.h $(HEADERS)
-		@SED@ -e 's/__attribute__ ((__unused__))//' sql_yacc.cc > sql_yacc.cc-new
+		@SED@ -e 's/__attribute__ ((__unused__))//' $< > sql_yacc.cc-new
 		@MV@ sql_yacc.cc-new sql_yacc.cc
 		@echo "Note: The following compile may take a long time."
 		@echo "If it fails, re-run configure with --with-low-memory"
-		$(CXXCOMPILE) $(LM_CFLAGS) -c $<
+		$(CXXCOMPILE) $(LM_CFLAGS) -c sql_yacc.cc
 
 # FIXME seems like now "lex_hash.h" differs depending on configure
 # flags, so can't pregenerate and include in source TAR. Revert to

@@ -63,10 +63,8 @@ use Getopt::Long;
 use Sys::Hostname;
 use IO::Socket;
 use IO::Socket::INET;
-use Data::Dumper;
 use strict;
 use warnings;
-use diagnostics;
 
 select(STDOUT);
 $| = 1; # Automatically flush STDOUT
@@ -88,6 +86,7 @@ require "lib/mtr_diff.pl";
 require "lib/mtr_match.pl";
 require "lib/mtr_misc.pl";
 require "lib/mtr_stress.pl";
+require "lib/mtr_unique.pl";
 
 $Devel::Trace::TRACE= 1;
 
@@ -447,7 +446,6 @@ sub main () {
 
   mtr_exit(0);
 }
-
 
 ##############################################################################
 #
