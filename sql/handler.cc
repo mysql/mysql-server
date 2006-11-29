@@ -2304,6 +2304,10 @@ int handler::check_old_types()
       {
         return HA_ADMIN_NEEDS_ALTER;
       }
+      if ((*field)->type() == MYSQL_TYPE_VAR_STRING)
+      {
+        return HA_ADMIN_NEEDS_ALTER;
+      }
     }
   }
   return 0;
