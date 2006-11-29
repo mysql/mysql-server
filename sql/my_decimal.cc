@@ -15,6 +15,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "mysql_priv.h"
+#include <time.h>
+
 
 #ifndef MYSQL_CLIENT
 /*
@@ -187,6 +189,23 @@ int str2my_decimal(uint mask, const char *from, uint length,
   }
   check_result_and_overflow(mask, err, decimal_value);
   return err;
+}
+
+
+my_decimal *date2my_decimal(TIME *ltime, my_decimal *dec)
+{
+  longlong date;
+  date = (ltime->year*100L + ltime->month)*100L + ltime->day;
+  if (ltime->time_type > MYSQL_TIMESTAMP_DATE)
+    date= ((date*100L + ltime->hour)*100L+ ltime->minute)*100L + ltime->second;
+  if (int2my_decimal(E_DEC_FATAL_ERROR, date, FALSE, dec))
+    return dec;
+  if (ltime->second_part)
+  {
+    dec->buf[(dec->intg-1) / 9 + 1]= ltime->second_part * 1000;
+    dec->frac= 6;
+  }
+  return dec;
 }
 
 

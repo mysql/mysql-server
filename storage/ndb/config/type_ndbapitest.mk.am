@@ -5,7 +5,10 @@ LDADD += $(top_builddir)/storage/ndb/test/src/libNDBT.a \
          $(top_builddir)/mysys/libmysys.a \
          $(top_builddir)/strings/libmystrings.a @NDB_SCI_LIBS@
 
-INCLUDES += -I$(top_srcdir) -I$(top_srcdir)/include \
+INCLUDES += -I$(top_srcdir) \
+	-I$(top_builddir)/include \
+	-I$(top_builddir)/storage/ndb/include \
+	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/storage/ndb/include \
         -I$(top_srcdir)/storage/ndb/include/ndbapi \
         -I$(top_srcdir)/storage/ndb/include/util \
