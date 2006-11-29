@@ -9320,7 +9320,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   param->recinfo=recinfo;
   store_record(table,s->default_values);        // Make empty default record
 
-  if (thd->variables.tmp_table_size == ~(ulong) 0)		// No limit
+  if (thd->variables.tmp_table_size == ~ (ulonglong) 0)		// No limit
     table->s->max_rows= ~(ha_rows) 0;
   else
     table->s->max_rows= (((table->s->db_type == DB_TYPE_HEAP) ?
