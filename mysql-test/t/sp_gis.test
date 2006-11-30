@@ -1,0 +1,39 @@
+-- source include/have_geometry.inc
+
+use test;
+
+#
+# BUG#21025: misleading error message when creating functions named 'x', or 'y'
+#
+
+--disable_warnings
+drop function if exists a;
+drop function if exists x;
+drop function if exists y;
+--enable_warnings
+
+create function a() returns int
+return 1;
+
+create function x() returns int
+return 2;
+
+create function y() returns int
+return 3;
+
+select a();
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select x();
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select y();
+select x(PointFromText("POINT(10 20)")), y(PointFromText("POINT(10 20)"));
+
+# Non deterministic warnings from db_load_routine
+--disable_warnings
+select test.a(), test.x(), test.y();
+--enable_warnings
+
+drop function a;
+drop function x;
+drop function y;
+

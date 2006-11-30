@@ -244,6 +244,12 @@ bool is_keyword(const char *name, uint len)
   return get_hash_symbol(name,len,0)!=0;
 }
 
+bool is_lex_native_function(const LEX_STRING *name)
+{
+  DBUG_ASSERT(name != NULL);
+  return (get_hash_symbol(name->str, name->length, 1) != 0);
+}
+
 /* make a copy of token before ptr and set yytoklen */
 
 static LEX_STRING get_token(LEX *lex,uint length)

@@ -937,6 +937,12 @@ sub check_expected_crash_and_restart($)
       }
     }
   }
+
+  if ($::instance_manager->{'spawner_pid'} eq $ret_pid)
+  {
+    return;
+  }
+
   mtr_warning("check_expected_crash_and_restart couldn't find an entry for pid: $ret_pid");
 
 }

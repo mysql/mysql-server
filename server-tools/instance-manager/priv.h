@@ -50,17 +50,6 @@ const int MAX_VERSION_LENGTH= 160;
 
 const int MAX_INSTANCE_NAME_SIZE= FN_REFLEN;
 
-/* the pid of the manager process (of the signal thread on the LinuxThreads) */
-extern pid_t manager_pid;
-
-#ifndef __WIN__
-/*
-  This flag is set if mysqlmanager has detected that it is running on the
-  system using LinuxThreads
-*/
-extern bool linuxthreads;
-#endif
-
 extern const LEX_STRING mysqlmanager_version;
 
 /* MySQL client-server protocol version: substituted from configure */
@@ -105,8 +94,6 @@ extern unsigned long bytes_sent, bytes_received;
 extern unsigned long mysqld_net_retry_count;
 extern unsigned long open_files_limit;
 
-
-int set_stacksize_n_create_thread(pthread_t  *thread, pthread_attr_t *attr,
-                                  void *(*start_routine)(void *), void *arg);
+int create_pid_file(const char *pid_file_name, int pid);
 
 #endif // INCLUDES_MYSQL_INSTANCE_MANAGER_PRIV_H

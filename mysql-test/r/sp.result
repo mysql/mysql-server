@@ -2178,6 +2178,7 @@ set @stamped_time=in_time;
 set x=2;
 end if;
 end|
+set time_zone='+03:00';
 call bug3426(1000, @i)|
 select @i, from_unixtime(@stamped_time, '%d-%m-%Y %h:%i:%s') as time|
 @i	time
@@ -5627,4 +5628,111 @@ Called B
 drop procedure proc_21462_a|
 drop procedure proc_21462_b|
 End of 5.0 tests
+Begin of 5.1 tests
+drop function if exists pi;
+create function pi() returns varchar(50)
+return "pie, my favorite desert.";
+Warnings:
+Note	1578	This function 'pi' has the same name as a native function.
+SET @save_sql_mode=@@sql_mode;
+SET SQL_MODE='IGNORE_SPACE';
+select pi(), pi ();
+pi()	pi ()
+3.141593	3.141593
+select test.pi(), test.pi ();
+test.pi()	test.pi ()
+pie, my favorite desert.	pie, my favorite desert.
+SET SQL_MODE='';
+select pi(), pi ();
+pi()	pi ()
+3.141593	3.141593
+select test.pi(), test.pi ();
+test.pi()	test.pi ()
+pie, my favorite desert.	pie, my favorite desert.
+SET @@sql_mode=@save_sql_mode;
+drop function pi;
+drop function if exists test.database;
+drop function if exists test.current_user;
+drop function if exists test.md5;
+create database nowhere;
+use nowhere;
+drop database nowhere;
+SET @save_sql_mode=@@sql_mode;
+SET SQL_MODE='IGNORE_SPACE';
+select database(), database ();
+database()	database ()
+NULL	NULL
+select current_user(), current_user ();
+current_user()	current_user ()
+root@localhost	root@localhost
+select md5("aaa"), md5 ("aaa");
+md5("aaa")	md5 ("aaa")
+47bce5c74f589f4867dbd57e9ca9f808	47bce5c74f589f4867dbd57e9ca9f808
+SET SQL_MODE='';
+select database(), database ();
+database()	database ()
+NULL	NULL
+select current_user(), current_user ();
+current_user()	current_user ()
+root@localhost	root@localhost
+select md5("aaa"), md5 ("aaa");
+md5("aaa")	md5 ("aaa")
+47bce5c74f589f4867dbd57e9ca9f808	47bce5c74f589f4867dbd57e9ca9f808
+use test;
+create function `database`() returns varchar(50)
+return "Stored function database";
+Warnings:
+Note	1578	This function 'database' has the same name as a native function.
+create function `current_user`() returns varchar(50)
+return "Stored function current_user";
+Warnings:
+Note	1578	This function 'current_user' has the same name as a native function.
+create function md5(x varchar(50)) returns varchar(50)
+return "Stored function md5";
+Warnings:
+Note	1578	This function 'md5' has the same name as a native function.
+SET SQL_MODE='IGNORE_SPACE';
+select database(), database ();
+database()	database ()
+test	test
+select current_user(), current_user ();
+current_user()	current_user ()
+root@localhost	root@localhost
+select md5("aaa"), md5 ("aaa");
+md5("aaa")	md5 ("aaa")
+47bce5c74f589f4867dbd57e9ca9f808	47bce5c74f589f4867dbd57e9ca9f808
+select test.database(), test.database ();
+test.database()	test.database ()
+Stored function database	Stored function database
+select test.current_user(), test.current_user ();
+test.current_user()	test.current_user ()
+Stored function current_user	Stored function current_user
+select test.md5("aaa"), test.md5 ("aaa");
+test.md5("aaa")	test.md5 ("aaa")
+Stored function md5	Stored function md5
+SET SQL_MODE='';
+select database(), database ();
+database()	database ()
+test	test
+select current_user(), current_user ();
+current_user()	current_user ()
+root@localhost	root@localhost
+select md5("aaa"), md5 ("aaa");
+md5("aaa")	md5 ("aaa")
+47bce5c74f589f4867dbd57e9ca9f808	47bce5c74f589f4867dbd57e9ca9f808
+select test.database(), test.database ();
+test.database()	test.database ()
+Stored function database	Stored function database
+select test.current_user(), test.current_user ();
+test.current_user()	test.current_user ()
+Stored function current_user	Stored function current_user
+select test.md5("aaa"), test.md5 ("aaa");
+test.md5("aaa")	test.md5 ("aaa")
+Stored function md5	Stored function md5
+SET @@sql_mode=@save_sql_mode;
+drop function test.database;
+drop function test.current_user;
+drop function md5;
+use test;
+End of 5.1 tests
 drop table t1,t2;

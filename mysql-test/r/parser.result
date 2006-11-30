@@ -296,11 +296,6 @@ select atan();
 ERROR 42000: Incorrect parameter count in the call to native function 'atan'
 select atan2(1, 2, 3);
 ERROR 42000: Incorrect parameter count in the call to native function 'atan2'
-select benchmark(10, 1+1);
-benchmark(10, 1+1)
-0
-select benchmark(5+5, 2);
-ERROR 42000: Incorrect parameters in the call to native function 'BENCHMARK'
 select concat();
 ERROR 42000: Incorrect parameter count in the call to native function 'concat'
 select concat("foo");
@@ -310,11 +305,6 @@ select concat_ws();
 ERROR 42000: Incorrect parameter count in the call to native function 'concat_ws'
 select concat_ws("foo");
 ERROR 42000: Incorrect parameter count in the call to native function 'concat_ws'
-set @pwd="my password";
-select encode("secret", @pwd);
-ERROR 42000: Incorrect parameters in the call to native function 'ENCODE'
-select decode("encoded-secret", @pwd);
-ERROR 42000: Incorrect parameters in the call to native function 'DECODE'
 select encrypt();
 ERROR 42000: Incorrect parameter count in the call to native function 'encrypt'
 select encrypt(1, 2, 3);
@@ -339,9 +329,6 @@ select field();
 ERROR 42000: Incorrect parameter count in the call to native function 'field'
 select field("p1");
 ERROR 42000: Incorrect parameter count in the call to native function 'field'
-set @dec=2;
-select format(pi(), @dec);
-ERROR 42000: Incorrect parameters in the call to native function 'FORMAT'
 select from_unixtime();
 ERROR 42000: Incorrect parameter count in the call to native function 'from_unixtime'
 select from_unixtime(1, 2, 3);

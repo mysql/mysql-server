@@ -269,12 +269,11 @@ void skip_spaces(const char **text)
 }
 
 
-Command *parse_command(Instance_map *map, const char *text)
+Command *parse_command(const char *text)
 {
   uint word_len;
   LEX_STRING instance_name;
   Command *command= 0;
-  const char *saved_text= text;
 
   Token tok1= shift_token(&text, &word_len);
 
@@ -294,7 +293,7 @@ Command *parse_command(Instance_map *map, const char *text)
 
     if (tok1 == TOK_CREATE)
     {
-      Create_instance *cmd= new Create_instance(map, &instance_name);
+      Create_instance *cmd= new Create_instance(&instance_name);
 
       if (!cmd)
         return NULL; /* Report ER_OUT_OF_RESOURCES. */
@@ -317,16 +316,16 @@ Command *parse_command(Instance_map *map, const char *text)
 
     switch (tok1) {
     case TOK_START:
-      command= new Start_instance(map, &instance_name);
+      command= new Start_instance(&instance_name);
       break;
     case TOK_STOP:
-      command= new Stop_instance(map, &instance_name);
+      command= new Stop_instance(&instance_name);
       break;
     case TOK_CREATE:
       ; /* command already initialized. */
       break;
     case TOK_DROP:
-      command= new Drop_instance(map, &instance_name);
+      command= new Drop_instance(&instance_name);
       break;
     default: /* this is impossible, but nevertheless... */
       DBUG_ASSERT(0);
@@ -340,7 +339,7 @@ Command *parse_command(Instance_map *map, const char *text)
     if (word_len)
       goto syntax_error;
 
-    command= new Flush_instances(map);
+    command= new Flush_instances();
     break;
   case TOK_UNSET:
   case TOK_SET:
@@ -348,9 +347,9 @@ Command *parse_command(Instance_map *map, const char *text)
       Abstract_option_cmd *cmd;
 
       if (tok1 == TOK_SET)
-        cmd= new Set_option(map);
+        cmd= new Set_option();
       else
-        cmd= new Unset_option(map);
+        cmd= new Unset_option();
 
       if (!cmd)
         return NULL; /* Report ER_OUT_OF_RESOURCES. */
@@ -371,7 +370,7 @@ Command *parse_command(Instance_map *map, const char *text)
       get_word(&text, &word_len, NONSPACE);
       if (word_len)
         goto syntax_error;
-      command= new Show_instances(map);
+      command= new Show_instances();
       break;
     case TOK_INSTANCE:
       switch (Token tok2= shift_token(&text, &word_len)) {
@@ -385,9 +384,9 @@ Command *parse_command(Instance_map *map, const char *text)
         if (word_len)
           goto syntax_error;
         if (tok2 == TOK_STATUS)
-          command= new Show_instance_status(map, &instance_name);
+          command= new Show_instance_status(&instance_name);
         else
-          command= new Show_instance_options(map, &instance_name);
+          command= new Show_instance_options(&instance_name);
         break;
       default:
         goto syntax_error;
@@ -414,7 +413,7 @@ Command *parse_command(Instance_map *map, const char *text)
             /* check that this is the end of the command */
             if (word_len)
               goto syntax_error;
-            command= new Show_instance_log_files(map, &instance_name);
+            command= new Show_instance_log_files(&instance_name);
             break;
           case TOK_ERROR:
           case TOK_GENERAL:
@@ -484,7 +483,7 @@ Command *parse_command(Instance_map *map, const char *text)
                 goto syntax_error;
             }
 
-            command= new Show_instance_log(map, &instance_name,
+            command= new Show_instance_log(&instance_name,
                                            log_type, log_size, log_offset);
           break;
           default:
@@ -504,5 +503,8 @@ Command *parse_command(Instance_map *map, const char *text)
 syntax_error:
     command= new Syntax_error();
   }
+
+  DBUG_ASSERT(command);
+
   return command;
 }

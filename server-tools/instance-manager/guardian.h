@@ -16,11 +16,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <my_global.h>
-#include <my_sys.h>
-#include <my_list.h>
 
 #include "thread_registry.h"
+#include <my_sys.h>
+#include <my_list.h>
 
 #if defined(__GNUC__) && defined(USE_PRAGMA_INTERFACE)
 #pragma interface
@@ -31,30 +30,12 @@ class Instance_map;
 class Thread_registry;
 struct GUARD_NODE;
 
-pthread_handler_t guardian(void *arg);
-
-struct Guardian_thread_args
-{
-  Thread_registry &thread_registry;
-  Instance_map *instance_map;
-  int monitoring_interval;
-
-  Guardian_thread_args(Thread_registry &thread_registry_arg,
-                       Instance_map *instance_map_arg,
-                       uint monitoring_interval_arg) :
-    thread_registry(thread_registry_arg),
-    instance_map(instance_map_arg),
-    monitoring_interval(monitoring_interval_arg)
-  {}
-};
-
-
-/*
+/**
   The guardian thread is responsible for monitoring and restarting of guarded
   instances.
 */
 
-class Guardian_thread: public Guardian_thread_args
+class Guardian: public Thread
 {
 public:
   /* states of an instance */
@@ -82,12 +63,10 @@ public:
   /* Return client state name. */
   static const char *get_instance_state_name(enum_instance_state state);
 
-  Guardian_thread(Thread_registry &thread_registry_arg,
-                  Instance_map *instance_map_arg,
-                  uint monitoring_interval_arg);
-  ~Guardian_thread();
-  /* Main funtion of the thread */
-  void run();
+  Guardian(Thread_registry *thread_registry_arg,
+           Instance_map *instance_map_arg,
+           uint monitoring_interval_arg);
+  virtual ~Guardian();
   /* Initialize or refresh the list of guarded instances */
   int init();
   /* Request guardian shutdown. Stop instances if needed */
@@ -117,6 +96,9 @@ public:
     a valid list node.
   */
   inline enum_instance_state get_instance_state(LIST *instance_node);
+protected:
+  /* Main funtion of the thread */
+  virtual void run();
 
 public:
   pthread_cond_t COND_guardian;
@@ -133,6 +115,9 @@ private:
 private:
   pthread_mutex_t LOCK_guardian;
   Thread_info thread_info;
+  int monitoring_interval;
+  Thread_registry *thread_registry;
+  Instance_map *instance_map;
   LIST *guarded_instances;
   MEM_ROOT alloc;
   /* this variable is set to TRUE when we want to stop Guardian thread */
@@ -140,8 +125,8 @@ private:
 };
 
 
-inline Guardian_thread::enum_instance_state
-Guardian_thread::get_instance_state(LIST *instance_node)
+inline Guardian::enum_instance_state
+Guardian::get_instance_state(LIST *instance_node)
 {
   return ((GUARD_NODE *) instance_node->data)->state;
 }

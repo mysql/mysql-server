@@ -25,8 +25,6 @@
 
 #include <signal.h>
 
-#include "log.h"
-
 
 #ifndef __WIN__
 /* Kick-off signal handler */
@@ -38,15 +36,13 @@ static void handle_signal(int __attribute__((unused)) sig_no)
 }
 #endif
 
-/*
-  Thread_info initializer methods
-*/
+/* Thread_info initializer methods */
 
-Thread_info::Thread_info() {}
-Thread_info::Thread_info(pthread_t thread_id_arg,
-                         bool send_signal_on_shutdown_arg) :
-  thread_id(thread_id_arg),
-  send_signal_on_shutdown(send_signal_on_shutdown_arg) {}
+void Thread_info::init(bool send_signal_on_shutdown_arg)
+{
+  thread_id= pthread_self();
+  send_signal_on_shutdown= send_signal_on_shutdown_arg;
+}
 
 /*
   TODO: think about moving signal information (now it's shutdown_in_progress)
@@ -86,10 +82,13 @@ Thread_registry::~Thread_registry()
   points to the last node.
 */
 
-void Thread_registry::register_thread(Thread_info *info)
+void Thread_registry::register_thread(Thread_info *info,
+                                      bool send_signal_on_shutdown)
 {
-  log_info("Thread_registry: registering thread %d...",
-           (int) info->thread_id);
+  info->init(send_signal_on_shutdown);
+
+  DBUG_PRINT("info", ("Thread_registry: registering thread %lu...",
+                      (unsigned long) info->thread_id));
 
 #ifndef __WIN__
   struct sigaction sa;
@@ -117,8 +116,8 @@ void Thread_registry::register_thread(Thread_info *info)
 
 void Thread_registry::unregister_thread(Thread_info *info)
 {
-  log_info("Thread_registry: unregistering thread %d...",
-           (int) info->thread_id);
+  DBUG_PRINT("info", ("Thread_registry: unregistering thread %lu...",
+                      (unsigned long) info->thread_id));
 
   pthread_mutex_lock(&LOCK_thread_registry);
   info->prev->next= info->next;
@@ -126,7 +125,7 @@ void Thread_registry::unregister_thread(Thread_info *info)
 
   if (head.next == &head)
   {
-    log_info("Thread_registry: thread registry is empty!");
+    DBUG_PRINT("info", ("Thread_registry: thread registry is empty!"));
     pthread_cond_signal(&COND_thread_registry_is_empty);
   }
 
@@ -230,6 +229,7 @@ void Thread_registry::deliver_shutdown()
 
   wait_for_threads_to_unregister();
 
+#ifndef DBUG_OFF
   /*
     Print out threads, that didn't stopped. Thread_registry destructor will
     probably abort the program if there is still any alive thread.
@@ -237,15 +237,16 @@ void Thread_registry::deliver_shutdown()
 
   if (head.next != &head)
   {
-    log_info("Thread_registry: non-stopped threads:");
+    DBUG_PRINT("info", ("Thread_registry: non-stopped threads:"));
 
     for (Thread_info *info= head.next; info != &head; info= info->next)
-      log_info("  - %ld", (long int) info->thread_id);
+      DBUG_PRINT("info", ("  - %lu", (unsigned long) info->thread_id));
   }
   else
   {
-    log_info("Thread_registry: all threads stopped.");
+    DBUG_PRINT("info", ("Thread_registry: all threads stopped."));
   }
+#endif // DBUG_OFF
 
   pthread_mutex_unlock(&LOCK_thread_registry);
 }
@@ -277,13 +278,13 @@ void Thread_registry::wait_for_threads_to_unregister()
 
   set_timespec(shutdown_time, 1);
 
-  log_info("Thread_registry: joining threads...");
+  DBUG_PRINT("info", ("Thread_registry: joining threads..."));
 
   while (true)
   {
     if (head.next == &head)
     {
-      log_info("Thread_registry: emptied.");
+      DBUG_PRINT("info", ("Thread_registry: emptied."));
       return;
     }
 
@@ -293,8 +294,101 @@ void Thread_registry::wait_for_threads_to_unregister()
 
     if (error == ETIMEDOUT || error == ETIME)
     {
-      log_info("Thread_registry: threads shutdown timed out.");
+      DBUG_PRINT("info", ("Thread_registry: threads shutdown timed out."));
       return;
     }
   }
+}
+
+
+/*********************************************************************
+  class Thread
+*********************************************************************/
+
+#if defined(__ia64__) || defined(__ia64)
+/*
+  We can live with 32K, but reserve 64K. Just to be safe.
+  On ia64 we need to reserve double of the size.
+*/
+#define IM_THREAD_STACK_SIZE    (128*1024L)
+#else
+#define IM_THREAD_STACK_SIZE    (64*1024)
+#endif
+
+/*
+  Change the stack size and start a thread. Return an error if either
+  pthread_attr_setstacksize or pthread_create fails.
+  Arguments are the same as for pthread_create().
+*/
+
+static
+int set_stacksize_and_create_thread(pthread_t  *thread, pthread_attr_t *attr,
+                                    void *(*start_routine)(void *), void *arg)
+{
+  int rc= 0;
+
+#ifndef __WIN__
+#ifndef PTHREAD_STACK_MIN
+#define PTHREAD_STACK_MIN      32768
+#endif
+  /*
+    Set stack size to be safe on the platforms with too small
+    default thread stack.
+  */
+  rc= pthread_attr_setstacksize(attr,
+                                (size_t) (PTHREAD_STACK_MIN +
+                                          IM_THREAD_STACK_SIZE));
+#endif
+  if (!rc)
+    rc= pthread_create(thread, attr, start_routine, arg);
+  return rc;
+}
+
+
+Thread::~Thread()
+{
+}
+
+
+void *Thread::thread_func(void *arg)
+{
+  Thread *thread= (Thread *) arg;
+  my_thread_init();
+
+  thread->run();
+
+  my_thread_end();
+  return NULL;
+}
+
+
+bool Thread::start(enum_thread_type thread_type)
+{
+  pthread_attr_t attr;
+  int rc;
+
+  pthread_attr_init(&attr);
+
+  if (thread_type == DETACHED)
+  {
+    detached = TRUE;
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+  }
+  else
+  {
+    detached = FALSE;
+  }
+
+  rc= set_stacksize_and_create_thread(&id, &attr, Thread::thread_func, this);
+  pthread_attr_destroy(&attr);
+
+  return rc != 0;
+}
+
+
+bool Thread::join()
+{
+  DBUG_ASSERT(!detached);
+
+  return pthread_join(id, NULL) != 0;
 }

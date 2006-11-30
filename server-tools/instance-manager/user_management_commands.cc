@@ -20,7 +20,7 @@
     This function must not be used in user-management command implementations.
     Use get_user_name() instead.
 
-  SYNOPSYS
+  SYNOPSIS
     get_user_name_impl()
 
   RETURN
@@ -58,7 +58,7 @@ static char *get_user_name_impl()
   (not empty, not exceeds USERNAME_LENGTH). Report to stderr if something is
   wrong.
 
-  SYNOPSYS
+  SYNOPSIS
     get_user_name()
     user_name     [OUT] on success contains user name
 
@@ -102,7 +102,7 @@ static bool get_user_name(LEX_STRING *user_name)
   The password is retrieved from command-line options (if specified) or from
   console.
 
-  SYNOPSYS
+  SYNOPSIS
     get_password()
 
   RETURN
@@ -131,7 +131,7 @@ static const char *get_password()
 /*
   Load password file into user map.
 
-  SYNOPSYS
+  SYNOPSIS
     load_password_file()
     user_map            target user map
 
@@ -160,7 +160,7 @@ static int load_password_file(User_map *user_map)
 /*
   Save user map into password file.
 
-  SYNOPSYS
+  SYNOPSIS
     save_password_file()
     user_map            user map
 
