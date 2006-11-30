@@ -2663,7 +2663,11 @@ error_exit2:
 		page_zip_des_t	page_zip;
 		page_zip_set_size(&page_zip, zip_size);
 		page_zip.data = page + UNIV_PAGE_SIZE;
-		page_zip.n_blobs = page_zip.m_start = page_zip.m_end = 0;
+#ifdef UNIV_DEBUG
+		page_zip.m_start =
+#endif /* UNIV_DEBUG */
+			page_zip.m_end = page_zip.m_nonempty =
+			page_zip.n_blobs = 0;
 		buf_flush_init_for_writing(page, &page_zip, 0);
 		ret = os_file_write(path, file, page_zip.data, 0, 0, zip_size);
 	}
