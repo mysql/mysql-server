@@ -99,9 +99,8 @@ ibool
 buf_flush_ready_for_replace(
 /*========================*/
 				/* out: TRUE if can replace immediately */
-	buf_page_t*	bpage);	/* in: buffer control block, must be in state
-				BUF_BLOCK_FILE_PAGE or BUF_BLOCK_ZIP_PAGE
-				and in the LRU list */
+	buf_page_t*	bpage);	/* in: buffer control block, must be
+				buf_page_in_file(bpage) and in the LRU list */
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**********************************************************************
 Validates the flush list. */

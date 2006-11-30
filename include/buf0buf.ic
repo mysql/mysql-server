@@ -444,10 +444,23 @@ buf_block_get_frame(
 	buf_block_t*	block)	/* in: pointer to the control block */
 {
 	ut_ad(block);
-	ut_ad(buf_block_get_state(block) != BUF_BLOCK_NOT_USED);
-	ut_ad(buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE
-	      || (block->page.buf_fix_count > 0));
-
+#ifdef UNIV_DEBUG
+	switch (buf_block_get_state(block)) {
+	case BUF_BLOCK_NOT_USED:
+	case BUF_BLOCK_ZIP_PAGE:
+		ut_error;
+		break;
+	case BUF_BLOCK_FILE_PAGE:
+		ut_a(block->page.buf_fix_count > 0);
+		/* fall through */
+	case BUF_BLOCK_READY_FOR_USE:
+	case BUF_BLOCK_MEMORY:
+	case BUF_BLOCK_REMOVE_HASH:
+		goto ok;
+	}
+	ut_error;
+ok:
+#endif /* UNIV_DEBUG */
 	return(block->frame);
 }
 
@@ -725,17 +738,18 @@ Gets the youngest modification log sequence number for a frame.
 Returns zero if not file page or no modification occurred yet. */
 UNIV_INLINE
 ib_uint64_t
-buf_block_get_newest_modification(
-/*==============================*/
-				/* out: newest modification to page */
-	buf_block_t*	block)	/* in: block containing the page frame */
+buf_page_get_newest_modification(
+/*=============================*/
+					/* out: newest modification to page */
+	const buf_page_t*	bpage)	/* in: block containing the
+					page frame */
 {
 	ib_uint64_t	lsn;
 
 	mutex_enter(&(buf_pool->mutex));
 
-	if (buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE) {
-		lsn = block->page.newest_modification;
+	if (buf_page_in_file(bpage)) {
+		lsn = bpage->newest_modification;
 	} else {
 		lsn = 0;
 	}
