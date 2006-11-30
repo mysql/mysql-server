@@ -23,6 +23,9 @@ class Ndb;
 struct charset_info_st;
 typedef struct charset_info_st CHARSET_INFO;
 
+/* Forward declaration only. */
+class NdbRecord;
+
 /**
  * @class NdbDictionary
  * @brief Data dictionary class
@@ -1910,6 +1913,20 @@ public:
     int removeIndexGlobal(const Index &ndbidx, int invalidate) const;
     int removeTableGlobal(const Table &ndbtab, int invalidate) const;
 #endif
+
+    NdbRecord *getRecord(const Table *table);
+    NdbRecord *getRecord(const char *tableName);
+    void releaseRecord(NdbRecord *rec);
+
+    void recAddAttrNotNULL(const char *tableName, NdbRecord *rec, Uint32 attrId, Uint32 offset);
+    void recAddAttrNotNULL(const char *tableName, NdbRecord *rec, const char *colName, Uint32 offset);
+
+    Uint32 *getRecAttrSet(const char *tableName, NdbRecord *rec);
+    void releaseRecAttrSet(Uint32 *attrSet);
+
+    void recAttrSetEnable(Uint32 *attrSet, const char *tableName, const NdbRecord *rec, Uint32 attrId);
+    void recAttrSetEnable(Uint32 *attrSet, const char *tableName, const NdbRecord *rec, const char *colName);
+
   };
 };
 

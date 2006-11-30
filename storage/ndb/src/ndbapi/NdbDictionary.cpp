@@ -1480,6 +1480,60 @@ NdbDictionary::Dictionary::removeTableGlobal(const Table &ndbtab,
   return m_impl.releaseTableGlobal(NdbTableImpl::getImpl(ndbtab), invalidate);
 }
 
+NdbRecord *
+NdbDictionary::Dictionary::getRecord(const Table *table)
+{
+  return m_impl.getRecord(&NdbTableImpl::getImpl(*table));
+}
+
+NdbRecord *
+NdbDictionary::Dictionary::getRecord(const char *tableName)
+{
+  return m_impl.getRecord(tableName);
+}
+
+void 
+NdbDictionary::Dictionary::releaseRecord(NdbRecord *rec)
+{
+  m_impl.releaseRecord(rec);
+}
+
+void
+NdbDictionary::Dictionary::recAddAttrNotNULL(const char *tableName, NdbRecord *rec, Uint32 attrId, Uint32 offset)
+{
+  m_impl.recAddAttrNotNULL(tableName, rec, attrId, offset);
+}
+
+void
+NdbDictionary::Dictionary::recAddAttrNotNULL(const char *tableName, NdbRecord *rec, const char *colName, Uint32 offset)
+{
+  m_impl.recAddAttrNotNULL(tableName, rec, colName, offset);
+}
+
+Uint32 *
+NdbDictionary::Dictionary::getRecAttrSet(const char *tableName, NdbRecord *rec)
+{
+  m_impl.getRecAttrSet(tableName, rec);
+}
+
+void 
+NdbDictionary::Dictionary::releaseRecAttrSet(Uint32 *attrSet)
+{
+  m_impl.releaseRecAttrSet(attrSet);
+}
+
+void 
+NdbDictionary::Dictionary::recAttrSetEnable(Uint32 *attrSet, const char *tableName, const NdbRecord *rec, Uint32 attrId)
+{
+  m_impl.recAttrSetEnable(attrSet, tableName, rec, attrId);
+}
+
+void 
+NdbDictionary::Dictionary::recAttrSetEnable(Uint32 *attrSet, const char *tableName, const NdbRecord *rec, const char *colName)
+{
+  m_impl.recAttrSetEnable(attrSet, tableName, rec, colName);
+}
+
 void NdbDictionary::Dictionary::putTable(const NdbDictionary::Table * table)
 {
  NdbDictionary::Table  *copy_table = new NdbDictionary::Table;

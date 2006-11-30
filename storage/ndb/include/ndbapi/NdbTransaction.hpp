@@ -131,6 +131,8 @@ enum ExecType {
  *
  */
 
+class NdbRecord;
+
 class NdbTransaction
 {
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -568,6 +570,17 @@ public:
    */
   Uint32 getConnectedNodeId(); // Get Connected node id
 #endif
+
+
+  NdbOperation *readTuple(const char *tableName, const NdbRecord *rec, char *row, const Uint32 *mask= 0);
+  NdbOperation *insertTuple(const char *tableName, const NdbRecord *rec, const char *row, const Uint32 *mask= 0);
+  NdbOperation *updateTuple(const char *tableName, const NdbRecord *rec, const char *row, const Uint32 *mask= 0);
+  NdbOperation *deleteTuple(const char *tableName, const NdbRecord *rec, const char *row);
+  NdbOperation *dirtyWriteTuple(const char *tableName, const NdbRecord *rec, const char *row, const Uint32 *mask= 0);
+  NdbOperation *writeTuple(const char *tableName, const NdbRecord *rec, const char *row, const Uint32 *mask= 0);
+  NdbOperation *simpleReadTuple(const char *tableName, const NdbRecord *rec, char *row, const Uint32 *mask= 0);
+  NdbOperation *dirtyReadTuple(const char *tableName, const NdbRecord *rec, char *row, const Uint32 *mask= 0);
+  NdbOperation *dirtyUpdateTuple(const char *tableName, const NdbRecord *rec, const char *row, const Uint32 *mask= 0);
 
 private:						
   /**
