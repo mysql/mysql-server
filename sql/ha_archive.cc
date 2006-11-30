@@ -327,8 +327,8 @@ int ha_archive::read_meta_file(File meta_file, ha_rows *rows)
 
   DBUG_PRINT("ha_archive::read_meta_file", ("Check %d", (uint)meta_buffer[0]));
   DBUG_PRINT("ha_archive::read_meta_file", ("Version %d", (uint)meta_buffer[1]));
-  DBUG_PRINT("ha_archive::read_meta_file", ("Rows %lld", *rows));
-  DBUG_PRINT("ha_archive::read_meta_file", ("Checkpoint %lld", check_point));
+  DBUG_PRINT("ha_archive::read_meta_file", ("Rows %lu", (ulong) *rows));
+  DBUG_PRINT("ha_archive::read_meta_file", ("Checkpoint %lu", (ulong) check_point));
   DBUG_PRINT("ha_archive::read_meta_file", ("Dirty %d", (int)meta_buffer[18]));
 
   if ((meta_buffer[0] != (uchar)ARCHIVE_CHECK_HEADER) || 
@@ -359,8 +359,8 @@ int ha_archive::write_meta_file(File meta_file, ha_rows rows, bool dirty)
   *(meta_buffer + 18)= (uchar)dirty;
   DBUG_PRINT("ha_archive::write_meta_file", ("Check %d", (uint)ARCHIVE_CHECK_HEADER));
   DBUG_PRINT("ha_archive::write_meta_file", ("Version %d", (uint)ARCHIVE_VERSION));
-  DBUG_PRINT("ha_archive::write_meta_file", ("Rows %llu", (ulonglong)rows));
-  DBUG_PRINT("ha_archive::write_meta_file", ("Checkpoint %llu", check_point));
+  DBUG_PRINT("ha_archive::write_meta_file", ("Rows %lu", (ulong)rows));
+  DBUG_PRINT("ha_archive::write_meta_file", ("Checkpoint %lu", (ulong) check_point));
   DBUG_PRINT("ha_archive::write_meta_file", ("Dirty %d", (uint)dirty));
 
   VOID(my_seek(meta_file, 0, MY_SEEK_SET, MYF(0)));
@@ -783,7 +783,7 @@ int ha_archive::rnd_init(bool scan)
   if (scan)
   {
     scan_rows= share->rows_recorded;
-    DBUG_PRINT("info", ("archive will retrieve %llu rows", scan_rows));
+    DBUG_PRINT("info", ("archive will retrieve %lu rows", (ulong) scan_rows));
     records= 0;
 
     /* 
@@ -1019,7 +1019,8 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
         share->rows_recorded++;
       }
     }
-    DBUG_PRINT("info", ("recovered %llu archive rows", share->rows_recorded));
+    DBUG_PRINT("info", ("recovered %lu archive rows",
+                        (ulong) share->rows_recorded));
 
     my_free((char*)buf, MYF(0));
     if (rc && rc != HA_ERR_END_OF_FILE)

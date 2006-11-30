@@ -337,6 +337,7 @@ rl_generic_bind (type, keyseq, data, map)
   KEYMAP_ENTRY k;
 
   k.function = 0;
+  k.type= 0;
 
   /* If no keys to bind to, exit right away. */
   if (!keyseq || !*keyseq)
@@ -735,7 +736,8 @@ _rl_read_file (filename, sizep)
   file_size = (size_t)finfo.st_size;
 
   /* check for overflow on very large files */
-  if (file_size != finfo.st_size || file_size + 1 < file_size)
+  if ((long long) file_size != (long long) finfo.st_size ||
+      file_size + 1 < file_size)
     {
       if (file >= 0)
 	close (file);
