@@ -1722,7 +1722,7 @@ void unlock_table_names(THD *thd, TABLE_LIST *table_list,
 /* old unireg functions */
 
 void unireg_init(ulong options);
-void unireg_end(void);
+void unireg_end(void) __attribute__((noreturn));
 bool mysql_create_frm(THD *thd, const char *file_name,
                       const char *db, const char *table,
 		      HA_CREATE_INFO *create_info,
@@ -2007,7 +2007,7 @@ inline bool is_user_table(TABLE * table)
 */
 
 #ifndef EMBEDDED_LIBRARY
-extern "C" void unireg_abort(int exit_code);
+extern "C" void unireg_abort(int exit_code) __attribute__((noreturn));
 void kill_delayed_threads(void);
 bool check_stack_overrun(THD *thd, long margin, char *dummy);
 #else

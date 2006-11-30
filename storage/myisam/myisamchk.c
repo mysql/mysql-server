@@ -697,6 +697,7 @@ get_one_option(int optid,
   {
     int method;
     enum_mi_stats_method method_conv;
+    LINT_INIT(method_conv);
     myisam_stats_method_str= argument;
     if ((method=find_type(argument, &myisam_stats_method_typelib, 2)) <= 0)
     {
