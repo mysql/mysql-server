@@ -43,7 +43,7 @@ void trim_space(const char **text, uint *word_len)
 /*
   Parse output of the given command
 
-  SYNOPSYS
+  SYNOPSIS
     parse_output_and_get_value()
 
     command          the command to execue with popen.

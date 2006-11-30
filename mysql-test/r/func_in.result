@@ -202,6 +202,14 @@ select count(*) from t1 where id not in (1,2);
 count(*)
 1
 drop table t1;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 SELECT 1 IN (2, NULL);
+SELECT should return NULL.
+SELECT * FROM t1;
+1 IN (2, NULL)
+NULL
+DROP TABLE t1;
+End of 4.1 tests
 CREATE TABLE t1 (a int PRIMARY KEY);
 INSERT INTO t1 VALUES (44), (45), (46);
 SELECT * FROM t1 WHERE a IN (45);
@@ -343,6 +351,7 @@ some_id
 1
 2
 drop table t1;
+End of 5.0 tests
 create table t1(f1 char(1));
 insert into t1 values ('a'),('b'),('1');
 select f1 from t1 where f1 in ('a',1);
@@ -411,3 +420,4 @@ explain select f2 from t2 where f2 in (1,'b');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	NULL	t2f2	5	NULL	3	Using where; Using index
 drop table t1, t2;
+End of 5.1 tests

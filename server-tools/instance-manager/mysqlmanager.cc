@@ -31,6 +31,7 @@
 #include "log.h"
 #include "manager.h"
 #include "options.h"
+#include "priv.h"
 #include "user_management_commands.h"
 
 #ifdef __WIN__
@@ -117,7 +118,7 @@ int main(int argc, char *argv[])
     angel();
   }
 
-  manager();
+  (void) Manager::main(); /* ignore the return value for now */
 
 #else
 
@@ -131,7 +132,7 @@ int main(int argc, char *argv[])
   }
   else
   {
-    manager();
+    (void) Manager::main(); /* ignore the return value for now */
   }
 
 #endif
@@ -190,7 +191,8 @@ static struct passwd *check_user(const char *user)
     return user_info;
 
 err:
-  log_error("Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n", user);
+  log_error("Can not start under user '%s'.",
+            (const char *) user);
   return NULL;
 }
 
@@ -231,7 +233,7 @@ static void init_environment(char *progname)
 #ifndef __WIN__
 /*
   Become a UNIX service
-  SYNOPSYS
+  SYNOPSIS
     daemonize()
 */
 
@@ -384,11 +386,10 @@ spawn:
     }
     /*
       mysqlmanager successfully exited, let's silently evaporate
-      If we return to main we fall into the manager() function, so let's
-      simply exit().
+      If we return to main we will fall into the manager functionality,
+      so let's simply exit().
     */
     exit(0);
   }
 }
-
 #endif

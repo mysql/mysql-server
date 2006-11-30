@@ -399,11 +399,6 @@ select atan();
 -- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
 select atan2(1, 2, 3);
 
-select benchmark(10, 1+1);
-
--- error ER_WRONG_PARAMETERS_TO_NATIVE_FCT
-select benchmark(5+5, 2);
-
 -- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
 select concat();
 select concat("foo");
@@ -412,12 +407,6 @@ select concat("foo");
 select concat_ws();
 -- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
 select concat_ws("foo");
-
-set @pwd="my password";
--- error ER_WRONG_PARAMETERS_TO_NATIVE_FCT
-select encode("secret", @pwd);
--- error ER_WRONG_PARAMETERS_TO_NATIVE_FCT
-select decode("encoded-secret", @pwd);
 
 -- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
 select encrypt();
@@ -447,10 +436,6 @@ select export_set("p1", "p2", "p3", "p4", "p5", "p6");
 select field();
 -- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
 select field("p1");
-
-set @dec=2;
--- error ER_WRONG_PARAMETERS_TO_NATIVE_FCT
-select format(pi(), @dec);
 
 -- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
 select from_unixtime();

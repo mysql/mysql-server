@@ -174,6 +174,42 @@ DROP FUNCTION fn;
 --echo End of 5.0 tests.
 
 #
+# BUG#18239: Possible to overload internal functions with stored functions
+#
+
+--disable_warnings
+drop function if exists pi;
+--enable_warnings
+
+--error ER_NATIVE_FCT_NAME_COLLISION
+CREATE FUNCTION pi RETURNS STRING SONAME "should_not_parse.so";
+
+# Verify that Stored Functions and UDF are mutually exclusive
+DROP FUNCTION IF EXISTS metaphon;
+
+CREATE FUNCTION metaphon(a int) RETURNS int
+return 0;
+
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+--error ER_UDF_EXISTS
+eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+
+DROP FUNCTION metaphon;
+
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+
+--error ER_UDF_EXISTS
+CREATE FUNCTION metaphon(a int) RETURNS int
+return 0;
+
+--error ER_UDF_EXISTS
+CREATE FUNCTION test.metaphon(a int) RETURNS int
+return 0;
+
+# End of Bug#18239
+
+#
 # Drop the example functions from udf_example
 #
 

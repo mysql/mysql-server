@@ -88,21 +88,19 @@ public:
   static bool is_mysqld_compatible_name(const LEX_STRING *name);
 
 public:
-  Instance(Thread_registry &thread_registry_arg);
+  Instance();
 
   ~Instance();
-  int init(const LEX_STRING *name_arg);
-  int complete_initialization(Instance_map *instance_map_arg,
-                              const char *mysqld_path);
+  bool init(const LEX_STRING *name_arg);
+  bool complete_initialization();
 
-  bool is_running();
+  bool is_mysqld_running();
   int start();
   int stop();
   /* send a signal to the instance */
-  void kill_instance(int signo);
+  void kill_mysqld(int signo);
   bool is_crashed();
   void set_crash_flag_n_wake_all();
-  Instance_map *get_map();
 
   /*
     The operation is intended to check if the instance is mysqld-compatible
@@ -121,7 +119,6 @@ public:
 public:
   enum { DEFAULT_SHUTDOWN_DELAY= 35 };
   Instance_options options;
-  Thread_registry &thread_registry;
 
 private:
   /* This attributes is a flag, specifies if the instance has been crashed. */
@@ -155,7 +152,6 @@ private:
     stop in Instance::stop()
   */
   pthread_cond_t COND_instance_stopped;
-  Instance_map *instance_map;
 
   void  remove_pid();
 };
