@@ -64,25 +64,6 @@ grp	group_concat(a order by a,d+c-ascii(c)-a)
 1	1
 2	2,3
 3	4,5,6,7,8,9
-Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'a         '
-Warning	1292	Truncated incorrect DOUBLE value: 'a         '
-Warning	1292	Truncated incorrect DOUBLE value: 'a         '
-Warning	1292	Truncated incorrect DOUBLE value: 'b         '
-Warning	1292	Truncated incorrect DOUBLE value: 'b         '
-Warning	1292	Truncated incorrect DOUBLE value: 'c         '
-Warning	1292	Truncated incorrect DOUBLE value: 'a         '
-Warning	1292	Truncated incorrect DOUBLE value: 'E         '
-Warning	1292	Truncated incorrect DOUBLE value: 'b         '
-Warning	1292	Truncated incorrect DOUBLE value: 'C         '
-Warning	1292	Truncated incorrect DOUBLE value: 'b         '
-Warning	1292	Truncated incorrect DOUBLE value: 'D         '
-Warning	1292	Truncated incorrect DOUBLE value: 'd         '
-Warning	1292	Truncated incorrect DOUBLE value: 'd         '
-Warning	1292	Truncated incorrect DOUBLE value: 'd         '
-Warning	1292	Truncated incorrect DOUBLE value: 'd         '
-Warning	1292	Truncated incorrect DOUBLE value: 'c         '
-Warning	1292	Truncated incorrect DOUBLE value: 'D         '
 select grp,group_concat(a order by d+c-ascii(c),a) from t1 group by grp;
 grp	group_concat(a order by d+c-ascii(c),a)
 1	1
