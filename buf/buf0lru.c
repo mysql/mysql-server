@@ -54,7 +54,7 @@ static
 void
 buf_LRU_block_remove_hashed_page(
 /*=============================*/
-	buf_block_t*	block);	/* in: block, must contain a file page and
+	buf_page_t*	bpage);	/* in: block, must contain a file page and
 				be in a state where it can be freed; there
 				may or may not be a hash index to the page */
 /**********************************************************************
@@ -63,7 +63,7 @@ static
 void
 buf_LRU_block_free_hashed_page(
 /*===========================*/
-	buf_block_t*	block);	/* in: block, must contain a file page and
+	buf_page_t*	block);	/* in: block, must contain a file page and
 				be in a state where it can be freed */
 
 /**********************************************************************
@@ -75,7 +75,7 @@ buf_LRU_invalidate_tablespace(
 /*==========================*/
 	ulint	id)	/* in: space id */
 {
-	buf_block_t*	block;
+	buf_page_t*	bpage;
 	ulint		page_no;
 	ibool		all_freed;
 
@@ -84,43 +84,45 @@ scan_again:
 
 	all_freed = TRUE;
 
-	block = UT_LIST_GET_LAST(buf_pool->LRU);
+	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 
-	while (block != NULL) {
-		buf_block_t*	prev_block;
+	while (bpage != NULL) {
+		mutex_t*	block_mutex = buf_page_get_mutex(bpage);
+		buf_page_t*	prev_bpage;
 
-		mutex_enter(&block->mutex);
-		prev_block = UT_LIST_GET_PREV(LRU, block);
+		ut_a(buf_page_in_file(bpage));
 
-		ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+		mutex_enter(block_mutex);
+		prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
 
-		if (buf_block_get_space(block) == id
-		    && (block->buf_fix_count > 0 || block->io_fix != 0)) {
+		if (buf_page_get_space(bpage) == id) {
+			if (bpage->buf_fix_count > 0
+			    || buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
 
-			/* We cannot remove this page during this scan yet;
-			maybe the system is currently reading it in, or
-			flushing the modifications to the file */
+				/* We cannot remove this page during
+				this scan yet; maybe the system is
+				currently reading it in, or flushing
+				the modifications to the file */
 
-			all_freed = FALSE;
+				all_freed = FALSE;
 
-			goto next_page;
-		}
+				goto next_page;
+			}
 
-		if (buf_block_get_space(block) == id) {
 #ifdef UNIV_DEBUG
 			if (buf_debug_prints) {
 				fprintf(stderr,
 					"Dropping space %lu page %lu\n",
-					(ulong) buf_block_get_space(block),
-					(ulong) buf_block_get_page_no(block));
+					(ulong) buf_page_get_space(bpage),
+					(ulong) buf_page_get_page_no(bpage));
 			}
 #endif
-			if (block->is_hashed) {
-				page_no = buf_block_get_page_no(block);
-
-				mutex_exit(&block->mutex);
+			if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE
+			    && ((buf_block_t*) bpage)->is_hashed) {
+				page_no = buf_page_get_page_no(bpage);
 
 				mutex_exit(&(buf_pool->mutex));
+				mutex_exit(block_mutex);
 
 				/* Note that the following call will acquire
 				an S-latch on the page */
@@ -130,24 +132,24 @@ scan_again:
 				goto scan_again;
 			}
 
-			if (block->page.oldest_modification != 0) {
+			if (bpage->oldest_modification != 0) {
 
 				/* Remove from the flush list of modified
 				blocks */
-				block->page.oldest_modification = 0;
+				bpage->oldest_modification = 0;
 
 				UT_LIST_REMOVE(flush_list,
 					       buf_pool->flush_list,
-					       &(block->page));
+					       bpage);
 			}
 
 			/* Remove from the LRU list */
-			buf_LRU_block_remove_hashed_page(block);
-			buf_LRU_block_free_hashed_page(block);
+			buf_LRU_block_remove_hashed_page(bpage);
+			buf_LRU_block_free_hashed_page(bpage);
 		}
 next_page:
-		mutex_exit(&block->mutex);
-		block = prev_block;
+		mutex_exit(block_mutex);
+		bpage = prev_bpage;
 	}
 
 	mutex_exit(&(buf_pool->mutex));
@@ -169,9 +171,9 @@ buf_LRU_get_recent_limit(void)
 /*==========================*/
 			/* out: the limit; zero if could not determine it */
 {
-	buf_block_t*	block;
-	ulint		len;
-	ulint		limit;
+	const buf_page_t*	bpage;
+	ulint			len;
+	ulint			limit;
 
 	mutex_enter(&(buf_pool->mutex));
 
@@ -185,9 +187,9 @@ buf_LRU_get_recent_limit(void)
 		return(0);
 	}
 
-	block = UT_LIST_GET_FIRST(buf_pool->LRU);
+	bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
 
-	limit = block->LRU_position - len / BUF_LRU_INITIAL_RATIO;
+	limit = buf_page_get_LRU_position(bpage) - len / BUF_LRU_INITIAL_RATIO;
 
 	mutex_exit(&(buf_pool->mutex));
 
@@ -201,16 +203,19 @@ ibool
 buf_LRU_free_block(
 /*===============*/
 				/* out: TRUE if freed */
-	buf_block_t*	block)	/* in: block to be freed */
+	buf_page_t*	bpage)	/* in: block to be freed */
 {
+	mutex_t*	block_mutex = buf_page_get_mutex(bpage);
+
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&buf_pool->mutex));
-	ut_ad(mutex_own(&block->mutex));
+	ut_ad(mutex_own(block_mutex));
 #endif /* UNIV_SYNC_DEBUG */
 
-	ut_ad(block->in_LRU_list);
+	ut_ad(buf_page_in_file(bpage));
+	ut_ad(bpage->in_LRU_list);
 
-	if (!buf_flush_ready_for_replace(block)) {
+	if (!buf_flush_ready_for_replace(bpage)) {
 
 		return(FALSE);
 	}
@@ -218,26 +223,37 @@ buf_LRU_free_block(
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
 		fprintf(stderr, "Putting space %lu page %lu to free list\n",
-			(ulong) buf_block_get_space(block),
-			(ulong) buf_block_get_page_no(block));
+			(ulong) buf_page_get_space(bpage),
+			(ulong) buf_page_get_page_no(bpage));
 	}
 #endif /* UNIV_DEBUG */
 
-	buf_LRU_block_remove_hashed_page(block);
+	buf_LRU_block_remove_hashed_page(bpage);
 
-	mutex_exit(&(buf_pool->mutex));
-	mutex_exit(&block->mutex);
+	switch (buf_page_get_state(bpage)) {
+	case BUF_BLOCK_FILE_PAGE:
+		mutex_exit(&(buf_pool->mutex));
+		mutex_exit(block_mutex);
 
-	/* Remove possible adaptive hash index on the page */
+		/* Remove possible adaptive hash index on the page */
 
-	btr_search_drop_page_hash_index(block);
+		btr_search_drop_page_hash_index((buf_block_t*) bpage);
+		ut_a(bpage->buf_fix_count == 0);
 
-	ut_a(block->buf_fix_count == 0);
+		mutex_enter(&(buf_pool->mutex));
+		mutex_enter(block_mutex);
 
-	mutex_enter(&(buf_pool->mutex));
-	mutex_enter(&block->mutex);
+		buf_LRU_block_free_hashed_page(bpage);
+		break;
 
-	buf_LRU_block_free_hashed_page(block);
+	case BUF_BLOCK_ZIP_PAGE:
+		/* TODO: free page_zip */
+		break;
+
+	default:
+		ut_error;
+		break;
+	}
 
 	return(TRUE);
 }
@@ -257,26 +273,28 @@ buf_LRU_search_and_free_block(
 				of pages in the buffer pool] from the end
 				of the LRU list */
 {
-	buf_block_t*	block;
+	buf_page_t*	bpage;
 	ulint		distance = 0;
 	ibool		freed;
 
 	mutex_enter(&(buf_pool->mutex));
 
 	freed = FALSE;
-	block = UT_LIST_GET_LAST(buf_pool->LRU);
+	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 
-	while (block != NULL) {
-		mutex_enter(&block->mutex);
-		freed = buf_LRU_free_block(block);
-		mutex_exit(&block->mutex);
+	while (bpage != NULL) {
+		mutex_t*	block_mutex = buf_page_get_mutex(bpage);
+
+		mutex_enter(block_mutex);
+		freed = buf_LRU_free_block(bpage);
+		mutex_exit(block_mutex);
 
 		if (freed) {
 
 			break;
 		}
 
-		block = UT_LIST_GET_PREV(LRU, block);
+		bpage = UT_LIST_GET_PREV(LRU, bpage);
 		distance++;
 
 		if (n_iterations <= 10
@@ -444,7 +462,7 @@ loop:
 		UT_LIST_REMOVE(free, buf_pool->free, block);
 		block->in_free_list = FALSE;
 		ut_a(buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE);
-		ut_ad(!block->in_LRU_list);
+		ut_ad(!block->page.in_LRU_list);
 
 		if (buf_block_get_zip_size(block) != zip_size) {
 			page_zip_set_size(&block->page.zip, zip_size);
@@ -584,12 +602,12 @@ buf_LRU_old_adjust_len(void)
 
 			buf_pool->LRU_old = UT_LIST_GET_PREV(
 				LRU, buf_pool->LRU_old);
-			buf_pool->LRU_old->old = TRUE;
+			buf_page_set_old(buf_pool->LRU_old, TRUE);
 			buf_pool->LRU_old_len++;
 
 		} else if (old_len > new_len + BUF_LRU_OLD_TOLERANCE) {
 
-			buf_pool->LRU_old->old = FALSE;
+			buf_page_set_old(buf_pool->LRU_old, FALSE);
 			buf_pool->LRU_old = UT_LIST_GET_NEXT(
 				LRU, buf_pool->LRU_old);
 			buf_pool->LRU_old_len--;
@@ -609,7 +627,7 @@ void
 buf_LRU_old_init(void)
 /*==================*/
 {
-	buf_block_t*	block;
+	buf_page_t*	bpage;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
@@ -620,13 +638,12 @@ buf_LRU_old_init(void)
 	the adjust function to move the LRU_old pointer to the right
 	position */
 
-	block = UT_LIST_GET_FIRST(buf_pool->LRU);
+	bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
 
-	while (block != NULL) {
-		ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-		ut_ad(block->in_LRU_list);
-		block->old = TRUE;
-		block = UT_LIST_GET_NEXT(LRU, block);
+	while (bpage != NULL) {
+		ut_ad(bpage->in_LRU_list);
+		buf_page_set_old(bpage, TRUE);
+		bpage = UT_LIST_GET_NEXT(LRU, bpage);
 	}
 
 	buf_pool->LRU_old = UT_LIST_GET_FIRST(buf_pool->LRU);
@@ -641,37 +658,38 @@ UNIV_INLINE
 void
 buf_LRU_remove_block(
 /*=================*/
-	buf_block_t*	block)	/* in: control block */
+	buf_page_t*	bpage)	/* in: control block */
 {
 	ut_ad(buf_pool);
-	ut_ad(block);
+	ut_ad(bpage);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
-	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-	ut_ad(block->in_LRU_list);
+	ut_a(buf_page_in_file(bpage));
+
+	ut_ad(bpage->in_LRU_list);
 
 	/* If the LRU_old pointer is defined and points to just this block,
 	move it backward one step */
 
-	if (block == buf_pool->LRU_old) {
+	if (bpage == buf_pool->LRU_old) {
 
 		/* Below: the previous block is guaranteed to exist, because
 		the LRU_old pointer is only allowed to differ by the
 		tolerance value from strict 3/8 of the LRU list length. */
 
-		buf_pool->LRU_old = UT_LIST_GET_PREV(LRU, block);
-		buf_pool->LRU_old->old = TRUE;
+		buf_pool->LRU_old = UT_LIST_GET_PREV(LRU, bpage);
+		buf_page_set_old(buf_pool->LRU_old, TRUE);
 
 		buf_pool->LRU_old_len++;
 		ut_a(buf_pool->LRU_old);
 	}
 
 	/* Remove the block from the LRU list */
-	UT_LIST_REMOVE(LRU, buf_pool->LRU, block);
+	UT_LIST_REMOVE(LRU, buf_pool->LRU, bpage);
 #ifdef UNIV_DEBUG
-	block->in_LRU_list = FALSE;
+	bpage->in_LRU_list = FALSE;
 #endif /* UNIV_DEBUG */
 
 	/* If the LRU list is so short that LRU_old not defined, return */
@@ -685,7 +703,7 @@ buf_LRU_remove_block(
 	ut_ad(buf_pool->LRU_old);
 
 	/* Update the LRU_old_len field if necessary */
-	if (block->old) {
+	if (buf_page_is_old(bpage)) {
 
 		buf_pool->LRU_old_len--;
 	}
@@ -700,32 +718,32 @@ UNIV_INLINE
 void
 buf_LRU_add_block_to_end_low(
 /*=========================*/
-	buf_block_t*	block)	/* in: control block */
+	buf_page_t*	bpage)	/* in: control block */
 {
-	buf_block_t*	last_block;
+	buf_page_t*	last_bpage;
 
 	ut_ad(buf_pool);
-	ut_ad(block);
+	ut_ad(bpage);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
-	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+	ut_a(buf_page_in_file(bpage));
 
-	block->old = TRUE;
+	buf_page_set_old(bpage, TRUE);
 
-	last_block = UT_LIST_GET_LAST(buf_pool->LRU);
+	last_bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 
-	if (last_block) {
-		block->LRU_position = last_block->LRU_position;
+	if (last_bpage) {
+		bpage->LRU_position = last_bpage->LRU_position;
 	} else {
-		block->LRU_position = buf_pool_clock_tic();
+		bpage->LRU_position = buf_pool_clock_tic();
 	}
 
-	ut_ad(!block->in_LRU_list);
-	UT_LIST_ADD_LAST(LRU, buf_pool->LRU, block);
+	ut_ad(!bpage->in_LRU_list);
+	UT_LIST_ADD_LAST(LRU, buf_pool->LRU, bpage);
 #ifdef UNIV_DEBUG
-	block->in_LRU_list = TRUE;
+	bpage->in_LRU_list = TRUE;
 #endif /* UNIV_DEBUG */
 
 	if (UT_LIST_GET_LEN(buf_pool->LRU) >= BUF_LRU_OLD_MIN_LEN) {
@@ -756,45 +774,42 @@ UNIV_INLINE
 void
 buf_LRU_add_block_low(
 /*==================*/
-	buf_block_t*	block,	/* in: control block */
+	buf_page_t*	bpage,	/* in: control block */
 	ibool		old)	/* in: TRUE if should be put to the old blocks
 				in the LRU list, else put to the start; if the
 				LRU list is very short, the block is added to
 				the start, regardless of this parameter */
 {
-	ulint	cl;
-
 	ut_ad(buf_pool);
-	ut_ad(block);
+	ut_ad(bpage);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
-	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-	ut_ad(!block->in_LRU_list);
+	ut_a(buf_page_in_file(bpage));
+	ut_ad(!bpage->in_LRU_list);
 
-	block->old = old;
-	cl = buf_pool_clock_tic();
+	buf_page_set_old(bpage, old);
 
 	if (!old || (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN)) {
 
-		UT_LIST_ADD_FIRST(LRU, buf_pool->LRU, block);
+		UT_LIST_ADD_FIRST(LRU, buf_pool->LRU, bpage);
 
-		block->LRU_position = cl;
-		block->freed_page_clock = buf_pool->freed_page_clock;
+		bpage->LRU_position = buf_pool_clock_tic();
+		bpage->freed_page_clock = buf_pool->freed_page_clock;
 	} else {
 		UT_LIST_INSERT_AFTER(LRU, buf_pool->LRU, buf_pool->LRU_old,
-				     block);
+				     bpage);
 		buf_pool->LRU_old_len++;
 
 		/* We copy the LRU position field of the previous block
 		to the new block */
 
-		block->LRU_position = (buf_pool->LRU_old)->LRU_position;
+		bpage->LRU_position = (buf_pool->LRU_old)->LRU_position;
 	}
 
 #ifdef UNIV_DEBUG
-	block->in_LRU_list = TRUE;
+	bpage->in_LRU_list = TRUE;
 #endif /* UNIV_DEBUG */
 
 	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
@@ -820,14 +835,14 @@ Adds a block to the LRU list. */
 void
 buf_LRU_add_block(
 /*==============*/
-	buf_block_t*	block,	/* in: control block */
+	buf_page_t*	bpage,	/* in: control block */
 	ibool		old)	/* in: TRUE if should be put to the old
 				blocks in the LRU list, else put to the start;
 				if the LRU list is very short, the block is
 				added to the start, regardless of this
 				parameter */
 {
-	buf_LRU_add_block_low(block, old);
+	buf_LRU_add_block_low(bpage, old);
 }
 
 /**********************************************************************
@@ -836,10 +851,10 @@ Moves a block to the start of the LRU list. */
 void
 buf_LRU_make_block_young(
 /*=====================*/
-	buf_block_t*	block)	/* in: control block */
+	buf_page_t*	bpage)	/* in: control block */
 {
-	buf_LRU_remove_block(block);
-	buf_LRU_add_block_low(block, FALSE);
+	buf_LRU_remove_block(bpage);
+	buf_LRU_add_block_low(bpage, FALSE);
 }
 
 /**********************************************************************
@@ -848,10 +863,10 @@ Moves a block to the end of the LRU list. */
 void
 buf_LRU_make_block_old(
 /*===================*/
-	buf_block_t*	block)	/* in: control block */
+	buf_page_t*	bpage)	/* in: control block */
 {
-	buf_LRU_remove_block(block);
-	buf_LRU_add_block_to_end_low(block);
+	buf_LRU_remove_block(bpage);
+	buf_LRU_add_block_to_end_low(bpage);
 }
 
 /**********************************************************************
@@ -909,45 +924,51 @@ static
 void
 buf_LRU_block_remove_hashed_page(
 /*=============================*/
-	buf_block_t*	block)	/* in: block, must contain a file page and
+	buf_page_t*	bpage)	/* in: block, must contain a file page and
 				be in a state where it can be freed; there
 				may or may not be a hash index to the page */
 {
-	const buf_block_t*	hashed_block;
+	const buf_page_t*	hashed_bpage;
+	ut_ad(bpage);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
-	ut_ad(mutex_own(&block->mutex));
+	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_ad(block);
 
-	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-	ut_a(block->io_fix == 0);
-	ut_a(block->buf_fix_count == 0);
-	ut_a(block->page.oldest_modification == 0);
+	ut_a(buf_page_get_io_fix(bpage) == BUF_IO_NONE);
+	ut_a(bpage->buf_fix_count == 0);
+	ut_a(bpage->oldest_modification == 0);
 
-	buf_LRU_remove_block(block);
+	buf_LRU_remove_block(bpage);
 
 	buf_pool->freed_page_clock += 1;
 
-	buf_block_modify_clock_inc(block);
+	switch (buf_page_get_state(bpage)) {
+	case BUF_BLOCK_FILE_PAGE:
+		buf_block_modify_clock_inc((buf_block_t*) bpage);
+		break;
+	case BUF_BLOCK_ZIP_PAGE:
+		break;
+	default:
+		ut_error;
+	}
 
-	hashed_block = buf_page_hash_get(block->page.space,
-					 block->page.offset);
+	hashed_bpage = buf_page_hash_get(bpage->space, bpage->offset);
 
-	if (UNIV_UNLIKELY(block != hashed_block)) {
+	if (UNIV_UNLIKELY(bpage != hashed_bpage)) {
 		fprintf(stderr,
 			"InnoDB: Error: page %lu %lu not found"
 			" in the hash table\n",
-			(ulong) block->page.space,
-			(ulong) block->page.offset);
-		if (hashed_block) {
+			(ulong) bpage->space,
+			(ulong) bpage->offset);
+		if (hashed_bpage) {
 			fprintf(stderr,
 				"InnoDB: In hash table we find block"
 				" %p of %lu %lu which is not %p\n",
-				(const void*) hashed_block,
-				(ulong) hashed_block->page.space,
-				(ulong) hashed_block->page.offset,
-				(void*) block);
+				(const void*) hashed_bpage,
+				(ulong) hashed_bpage->space,
+				(ulong) hashed_bpage->offset,
+				(const void*) bpage);
 		}
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -960,13 +981,26 @@ buf_LRU_block_remove_hashed_page(
 	}
 
 	HASH_DELETE(buf_page_t, hash, buf_pool->page_hash,
-		    buf_page_address_fold(block->page.space,
-					  block->page.offset),
-		    (&block->page));
-	memset(block->frame + FIL_PAGE_OFFSET, 0xff, 4);
-	memset(block->frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 0xff, 4);
-
-	buf_block_set_state(block, BUF_BLOCK_REMOVE_HASH);
+		    buf_page_address_fold(bpage->space, bpage->offset),
+		    bpage);
+	switch (buf_page_get_state(bpage)) {
+	case BUF_BLOCK_ZIP_PAGE:
+		ut_a(bpage->zip.data);
+		ut_a(buf_page_get_zip_size(bpage));
+		memset(bpage->zip.data + FIL_PAGE_OFFSET, 0xff, 4);
+		memset(bpage->zip.data + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
+		       0xff, 4);
+		break;
+	case BUF_BLOCK_FILE_PAGE:
+		memset(((buf_block_t*) bpage)->frame
+		       + FIL_PAGE_OFFSET, 0xff, 4);
+		memset(((buf_block_t*) bpage)->frame
+		       + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 0xff, 4);
+		buf_page_set_state(bpage, BUF_BLOCK_REMOVE_HASH);
+		break;
+	default:
+		ut_error;
+	}
 }
 
 /**********************************************************************
@@ -975,18 +1009,16 @@ static
 void
 buf_LRU_block_free_hashed_page(
 /*===========================*/
-	buf_block_t*	block)	/* in: block, must contain a file page and
+	buf_page_t*	bpage)	/* in: block, must contain a file page and
 				be in a state where it can be freed */
 {
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
-	ut_ad(mutex_own(&block->mutex));
+	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_a(buf_block_get_state(block) == BUF_BLOCK_REMOVE_HASH);
+	buf_page_set_state(bpage, BUF_BLOCK_MEMORY);
 
-	buf_block_set_state(block, BUF_BLOCK_MEMORY);
-
-	buf_LRU_block_free_non_file_page(block);
+	buf_LRU_block_free_non_file_page((buf_block_t*) bpage);
 }
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -997,7 +1029,7 @@ ibool
 buf_LRU_validate(void)
 /*==================*/
 {
-	buf_block_t*	block;
+	buf_page_t*	bpage;
 	ulint		old_len;
 	ulint		new_len;
 	ulint		LRU_pos;
@@ -1014,33 +1046,33 @@ buf_LRU_validate(void)
 		ut_a(old_len <= new_len + BUF_LRU_OLD_TOLERANCE);
 	}
 
-	UT_LIST_VALIDATE(LRU, buf_block_t, buf_pool->LRU);
+	UT_LIST_VALIDATE(LRU, buf_page_t, buf_pool->LRU);
 
-	block = UT_LIST_GET_FIRST(buf_pool->LRU);
+	bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
 
 	old_len = 0;
 
-	while (block != NULL) {
+	while (bpage != NULL) {
 
-		ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+		ut_a(buf_page_in_file(bpage));
 
-		if (block->old) {
+		if (buf_page_is_old(bpage)) {
 			old_len++;
 		}
 
 		if (buf_pool->LRU_old && (old_len == 1)) {
-			ut_a(buf_pool->LRU_old == block);
+			ut_a(buf_pool->LRU_old == bpage);
 		}
 
-		LRU_pos	= block->LRU_position;
+		LRU_pos	= buf_page_get_LRU_position(bpage);
 
-		block = UT_LIST_GET_NEXT(LRU, block);
+		bpage = UT_LIST_GET_NEXT(LRU, bpage);
 
-		if (block) {
+		if (bpage) {
 			/* If the following assert fails, it may
 			not be an error: just the buf_pool clock
 			has wrapped around */
-			ut_a(LRU_pos >= block->LRU_position);
+			ut_a(LRU_pos >= buf_page_get_LRU_position(bpage));
 		}
 	}
 
@@ -1050,12 +1082,14 @@ buf_LRU_validate(void)
 
 	UT_LIST_VALIDATE(free, buf_block_t, buf_pool->free);
 
-	block = UT_LIST_GET_FIRST(buf_pool->free);
+	{
+		buf_block_t*	block = UT_LIST_GET_FIRST(buf_pool->free);
 
-	while (block != NULL) {
-		ut_a(buf_block_get_state(block) == BUF_BLOCK_NOT_USED);
+		while (block != NULL) {
+			ut_a(buf_block_get_state(block) == BUF_BLOCK_NOT_USED);
 
-		block = UT_LIST_GET_NEXT(free, block);
+			block = UT_LIST_GET_NEXT(free, block);
+		}
 	}
 
 	mutex_exit(&(buf_pool->mutex));
@@ -1071,8 +1105,7 @@ void
 buf_LRU_print(void)
 /*===============*/
 {
-	buf_block_t*	block;
-	buf_frame_t*	frame;
+	const buf_page_t*	bpage;
 
 	ut_ad(buf_pool);
 	mutex_enter(&(buf_pool->mutex));
@@ -1080,40 +1113,62 @@ buf_LRU_print(void)
 	fprintf(stderr, "Pool ulint clock %lu\n",
 		(ulong) buf_pool->ulint_clock);
 
-	block = UT_LIST_GET_FIRST(buf_pool->LRU);
+	bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
 
-	while (block != NULL) {
+	while (bpage != NULL) {
 
 		fprintf(stderr, "BLOCK space %lu page %lu ",
-			(ulong) buf_block_get_space(block),
-			(ulong) buf_block_get_page_no(block));
+			(ulong) buf_page_get_space(bpage),
+			(ulong) buf_page_get_page_no(bpage));
 
-		if (block->old) {
+		if (buf_page_is_old(bpage)) {
 			fputs("old ", stderr);
 		}
 
-		if (block->buf_fix_count) {
+		if (bpage->buf_fix_count) {
 			fprintf(stderr, "buffix count %lu ",
-				(ulong) block->buf_fix_count);
+				(ulong) bpage->buf_fix_count);
 		}
 
-		if (block->io_fix) {
-			fprintf(stderr, "io_fix %lu ", (ulong) block->io_fix);
+		if (buf_page_get_io_fix(bpage)) {
+			fprintf(stderr, "io_fix %lu ",
+				(ulong) buf_page_get_io_fix(bpage));
 		}
 
-		if (block->page.oldest_modification) {
+		if (bpage->oldest_modification) {
 			fputs("modif. ", stderr);
 		}
 
-		frame = buf_block_get_frame(block);
+		switch (buf_page_get_state(bpage)) {
+			const byte*	frame;
+		case BUF_BLOCK_FILE_PAGE:
+			frame = buf_block_get_frame((buf_block_t*) bpage);
+			fprintf(stderr, "\nLRU pos %lu type %lu"
+				" index id %lu\n",
+				(ulong) buf_page_get_LRU_position(bpage),
+				(ulong) fil_page_get_type(frame),
+				(ulong) ut_dulint_get_low(
+					btr_page_get_index_id(frame)));
+			break;
+		case BUF_BLOCK_ZIP_PAGE:
+			frame = bpage->zip.data;
+			fprintf(stderr, "\nLRU pos %lu type %lu size %lu"
+				" index id %lu\n",
+				(ulong) buf_page_get_LRU_position(bpage),
+				(ulong) fil_page_get_type(frame),
+				(ulong) buf_page_get_zip_size(bpage),
+				(ulong) ut_dulint_get_low(
+					btr_page_get_index_id(frame)));
+			break;
 
-		fprintf(stderr, "\nLRU pos %lu type %lu index id %lu\n",
-			(ulong) block->LRU_position,
-			(ulong) fil_page_get_type(frame),
-			(ulong) ut_dulint_get_low(
-				btr_page_get_index_id(frame)));
+		default:
+			fprintf(stderr, "\nLRU pos %lu !state %lu!\n",
+				(ulong) buf_page_get_LRU_position(bpage),
+				(ulong) buf_page_get_state(bpage));
+			break;
+		}
 
-		block = UT_LIST_GET_NEXT(LRU, block);
+		bpage = UT_LIST_GET_NEXT(LRU, bpage);
 	}
 
 	mutex_exit(&(buf_pool->mutex));

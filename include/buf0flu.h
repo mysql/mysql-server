@@ -20,7 +20,7 @@ Updates the flush system data structures when a write is completed. */
 void
 buf_flush_write_complete(
 /*=====================*/
-	buf_block_t*	block);	/* in: pointer to the block in question */
+	buf_page_t*	bpage);	/* in: pointer to the block in question */
 /*************************************************************************
 Flushes pages from the end of the LRU list if there is too small
 a margin of replaceable pages there. */
@@ -99,8 +99,8 @@ ibool
 buf_flush_ready_for_replace(
 /*========================*/
 				/* out: TRUE if can replace immediately */
-	buf_block_t*	block);	/* in: buffer control block, must
-				be in state BUF_BLOCK_FILE_PAGE
+	buf_page_t*	bpage);	/* in: buffer control block, must be in state
+				BUF_BLOCK_FILE_PAGE or BUF_BLOCK_ZIP_PAGE
 				and in the LRU list */
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**********************************************************************

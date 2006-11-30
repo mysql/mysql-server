@@ -175,7 +175,6 @@ buf_read_ahead_random(
 			wants to access */
 {
 	ib_longlong	tablespace_version;
-	buf_block_t*	block;
 	ulint		recent_blocks	= 0;
 	ulint		count;
 	ulint		LRU_recent_limit;
@@ -233,11 +232,11 @@ buf_read_ahead_random(
 	that is, reside near the start of the LRU list. */
 
 	for (i = low; i < high; i++) {
-		block = buf_page_hash_get(space, i);
+		const buf_page_t*	bpage = buf_page_hash_get(space, i);
 
-		if ((block)
-		    && block->accessed
-		    && (block->LRU_position > LRU_recent_limit)) {
+		if (bpage
+		    && buf_page_is_accessed(bpage)
+		    && (buf_page_get_LRU_position(bpage) > LRU_recent_limit)) {
 
 			recent_blocks++;
 
@@ -386,9 +385,9 @@ buf_read_ahead_linear(
 			must want access to this page (see NOTE 3 above) */
 {
 	ib_longlong	tablespace_version;
-	buf_block_t*	block;
+	buf_page_t*	bpage;
 	buf_frame_t*	frame;
-	buf_block_t*	pred_block	= NULL;
+	buf_page_t*	pred_bpage	= NULL;
 	ulint		pred_offset;
 	ulint		succ_offset;
 	ulint		count;
@@ -461,20 +460,21 @@ buf_read_ahead_linear(
 	fail_count = 0;
 
 	for (i = low; i < high; i++) {
-		block = buf_page_hash_get(space, i);
+		bpage = buf_page_hash_get(space, i);
 
-		if ((block == NULL) || !block->accessed) {
+		if ((bpage == NULL) || !buf_page_is_accessed(bpage)) {
 			/* Not accessed */
 			fail_count++;
 
-		} else if (pred_block
-			   && (ut_ulint_cmp(block->LRU_position,
-					    pred_block->LRU_position)
+		} else if (pred_bpage
+			   && (ut_ulint_cmp(
+				       buf_page_get_LRU_position(bpage),
+				       buf_page_get_LRU_position(pred_bpage))
 			       != asc_or_desc)) {
 			/* Accesses not in the right order */
 
 			fail_count++;
-			pred_block = block;
+			pred_bpage = bpage;
 		}
 	}
 
@@ -490,15 +490,25 @@ buf_read_ahead_linear(
 	/* If we got this far, we know that enough pages in the area have
 	been accessed in the right order: linear read-ahead can be sensible */
 
-	block = buf_page_hash_get(space, offset);
+	bpage = buf_page_hash_get(space, offset);
 
-	if (block == NULL) {
+	if (bpage == NULL) {
 		mutex_exit(&(buf_pool->mutex));
 
 		return(0);
 	}
 
-	frame = block->frame;
+	switch (buf_page_get_state(bpage)) {
+	case BUF_BLOCK_ZIP_PAGE:
+		frame = bpage->zip.data;
+		break;
+	case BUF_BLOCK_FILE_PAGE:
+		frame = ((buf_block_t*) bpage)->frame;
+		break;
+	default:
+		ut_error;
+		break;
+	}
 
 	/* Read the natural predecessor and successor page addresses from
 	the page; NOTE that because the calling thread may have an x-latch
