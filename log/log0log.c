@@ -1454,8 +1454,8 @@ loop:
 		log_group_write_buf(
 			group, log_sys->buf + area_start,
 			area_end - area_start,
-			ut_ulonglong_align_down(log_sys->written_to_all_lsn,
-						OS_FILE_LOG_BLOCK_SIZE),
+			ut_uint64_align_down(log_sys->written_to_all_lsn,
+					     OS_FILE_LOG_BLOCK_SIZE),
 			start_offset - area_start);
 
 		log_group_set_fields(group, log_sys->write_lsn);
@@ -2623,7 +2623,7 @@ loop:
 
 		if (limit_lsn >= log_sys->lsn) {
 
-			limit_lsn = ut_ulonglong_align_down(
+			limit_lsn = ut_uint64_align_down(
 				log_sys->lsn, OS_FILE_LOG_BLOCK_SIZE);
 		}
 	}
@@ -2930,8 +2930,8 @@ log_archive_archivelog(void)
 		log_sys->archiving_state = LOG_ARCH_ON;
 
 		log_sys->archived_lsn
-			= ut_ulonglong_align_down(log_sys->lsn,
-						  OS_FILE_LOG_BLOCK_SIZE);
+			= ut_uint64_align_down(log_sys->lsn,
+					       OS_FILE_LOG_BLOCK_SIZE);
 		mutex_exit(&(log_sys->mutex));
 
 		return(DB_SUCCESS);
@@ -3259,8 +3259,8 @@ log_check_log_recs(
 			   (buf_pool->curr_size
 			    - recv_n_pool_free_frames) * UNIV_PAGE_SIZE,
 			   FALSE, scan_buf, end - start,
-			   ut_ulonglong_align_down(buf_start_lsn,
-						   OS_FILE_LOG_BLOCK_SIZE),
+			   ut_uint64_align_down(buf_start_lsn,
+						OS_FILE_LOG_BLOCK_SIZE),
 			   &contiguous_lsn, &scanned_lsn);
 
 	ut_a(scanned_lsn == buf_start_lsn + len);
