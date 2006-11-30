@@ -907,7 +907,7 @@ btr_search_guess_on_hash(
 	if (UNIV_LIKELY(!has_search_latch)
 	    && buf_block_peek_if_too_old(block)) {
 
-		buf_page_make_young(block);
+		buf_page_make_young(&block->page);
 	}
 
 	/* Increment the page get statistics though we did not really
@@ -985,7 +985,7 @@ retry:
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_SHARED)
 	      || rw_lock_own(&(block->lock), RW_LOCK_EX)
-	      || (block->buf_fix_count == 0));
+	      || (block->page.buf_fix_count == 0));
 #endif /* UNIV_SYNC_DEBUG */
 
 	n_fields = block->curr_n_fields;

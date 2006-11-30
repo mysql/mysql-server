@@ -72,7 +72,7 @@ ibool
 buf_LRU_free_block(
 /*===============*/
 				/* out: TRUE if freed */
-	buf_block_t*	block);	/* in: block to be freed */
+	buf_page_t*	block);	/* in: block to be freed */
 /**********************************************************************
 Look for a replaceable block from the end of the LRU list and put it to
 the free list if found. */
@@ -112,7 +112,7 @@ Adds a block to the LRU list. */
 void
 buf_LRU_add_block(
 /*==============*/
-	buf_block_t*	block,	/* in: control block */
+	buf_page_t*	bpage,	/* in: control block */
 	ibool		old);	/* in: TRUE if should be put to the old
 				blocks in the LRU list, else put to the
 				start; if the LRU list is very short, added to
@@ -123,14 +123,14 @@ Moves a block to the start of the LRU list. */
 void
 buf_LRU_make_block_young(
 /*=====================*/
-	buf_block_t*	block);	/* in: control block */
+	buf_page_t*	bpage);	/* in: control block */
 /**********************************************************************
 Moves a block to the end of the LRU list. */
 
 void
 buf_LRU_make_block_old(
 /*===================*/
-	buf_block_t*	block);	/* in: control block */
+	buf_page_t*	bpage);	/* in: control block */
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**************************************************************************
 Validates the LRU list. */
