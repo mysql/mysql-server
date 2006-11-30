@@ -1632,7 +1632,15 @@ CommandInterpreter::executeClusterLog(char* parameters)
   char * item = strtok_r(tmpString, " ", &tmpPtr);
   int enable;
 
-  const unsigned int *enabled= ndb_mgm_get_logfilter(m_mgmsrv);
+  ndb_mgm_severity enabled[NDB_MGM_EVENT_SEVERITY_ALL] = 
+    {{NDB_MGM_EVENT_SEVERITY_ON,0},
+     {NDB_MGM_EVENT_SEVERITY_DEBUG,0},
+     {NDB_MGM_EVENT_SEVERITY_INFO,0},
+     {NDB_MGM_EVENT_SEVERITY_WARNING,0},
+     {NDB_MGM_EVENT_SEVERITY_ERROR,0},
+     {NDB_MGM_EVENT_SEVERITY_CRITICAL,0},
+     {NDB_MGM_EVENT_SEVERITY_ALERT,0}};
+  ndb_mgm_get_clusterlog_severity_filter(m_mgmsrv, &enabled[0], NDB_MGM_EVENT_SEVERITY_ALL);
   if(enabled == NULL) {
     ndbout << "Couldn't get status" << endl;
     printError();
@@ -1645,25 +1653,25 @@ CommandInterpreter::executeClusterLog(char* parameters)
    ********************/
   if (strcasecmp(item, "INFO") == 0) {
     DBUG_PRINT("info",("INFO"));
-    if(enabled[0] == 0)
+    if(enabled[0].value == 0)
     {
       ndbout << "Cluster logging is disabled." << endl;
       m_error = 0;
       DBUG_VOID_RETURN;
     }
 #if 0 
-    for(i = 0; i<7;i++)
-      printf("enabled[%d] = %d\n", i, enabled[i]);
+    for(i = 0; i<DB_MGM_EVENT_SEVERITY_ALL;i++)
+      printf("enabled[%d] = %d\n", i, enabled[i].value);
 #endif
     ndbout << "Severities enabled: ";
     for(i = 1; i < (int)NDB_MGM_EVENT_SEVERITY_ALL; i++) {
-      const char *str= ndb_mgm_get_event_severity_string((ndb_mgm_event_severity)i);
+      const char *str= ndb_mgm_get_event_severity_string(enabled[i].category);
       if (str == 0)
       {
 	DBUG_ASSERT(false);
 	continue;
       }
-      if(enabled[i])
+      if(enabled[i].value)
 	ndbout << BaseString(str).ndb_toupper() << " ";
     }
     ndbout << endl;
