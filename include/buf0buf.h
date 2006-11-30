@@ -737,11 +737,22 @@ buf_get_free_list_len(void);
 for compressed and uncompressed frames */
 
 struct buf_page_struct{
+	/* None of the following bit-fields must be modified without
+	holding block->mutex, since they can be stored in the same
+	machine word.  Some of them are additionally protected by
+	buf_pool->mutex. */
+
 	ulint		space:32;	/* tablespace id */
 	ulint		offset:32;	/* page number */
-	page_zip_des_t	zip;		/* compressed page; zip.state
-					and zip.flush_type are relevant
-					for all pages */
+
+	ulint		state:3;	/* state of the control block
+					(@see enum buf_page_state); also
+					protected by buf_pool->mutex */
+	ulint		flush_type:2;	/* if this block is currently being
+					flushed to disk, this tells the
+					flush_type (@see enum buf_flush) */
+
+	page_zip_des_t	zip;		/* compressed page */
 	buf_page_t*	hash;		/* node used in chaining to the page
 					hash table */
 
