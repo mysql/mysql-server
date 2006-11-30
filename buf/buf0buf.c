@@ -1441,11 +1441,7 @@ loop:
 		}
 	}
 
-#ifdef UNIV_SYNC_DEBUG
-	buf_block_buf_fix_inc_debug(block, file, line);
-#else
-	buf_block_buf_fix_inc(block);
-#endif
+	buf_block_buf_fix_inc(block, file, line);
 	mutex_exit(&buf_pool->mutex);
 
 	/* Check if this is the first access to the page */
@@ -1576,11 +1572,7 @@ buf_page_optimistic_get_func(
 		return(FALSE);
 	}
 
-#ifdef UNIV_SYNC_DEBUG
-	buf_block_buf_fix_inc_debug(block, file, line);
-#else
-	buf_block_buf_fix_inc(block);
-#endif
+	buf_block_buf_fix_inc(block, file, line);
 	accessed = block->accessed;
 	block->accessed = TRUE;
 
@@ -1708,11 +1700,8 @@ buf_page_get_known_nowait(
 
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
-#ifdef UNIV_SYNC_DEBUG
-	buf_block_buf_fix_inc_debug(block, file, line);
-#else
-	buf_block_buf_fix_inc(block);
-#endif
+	buf_block_buf_fix_inc(block, file, line);
+
 	mutex_exit(&block->mutex);
 
 	if (mode == BUF_MAKE_YOUNG) {
@@ -2057,11 +2046,7 @@ buf_page_create(
 	/* The block must be put to the LRU list */
 	buf_LRU_add_block(block, FALSE);
 
-#ifdef UNIV_SYNC_DEBUG
-	buf_block_buf_fix_inc_debug(block, __FILE__, __LINE__);
-#else
-	buf_block_buf_fix_inc(block);
-#endif
+	buf_block_buf_fix_inc(block, __FILE__, __LINE__);
 	buf_pool->n_pages_created++;
 
 	mutex_exit(&(buf_pool->mutex));
