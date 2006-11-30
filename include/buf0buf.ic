@@ -541,36 +541,33 @@ buf_block_get_modify_clock(
 	return(block->modify_clock);
 }
 
-#ifdef UNIV_SYNC_DEBUG
 /***********************************************************************
 Increments the bufferfix count. */
 UNIV_INLINE
 void
-buf_block_buf_fix_inc_debug(
-/*========================*/
-	buf_block_t*	block,	/* in: block to bufferfix */
+buf_block_buf_fix_inc_func(
+/*=======================*/
+#ifdef UNIV_SYNC_DEBUG
 	const char*	file,	/* in: file name */
-	ulint		line)	/* in: line */
+	ulint		line,	/* in: line */
+#endif /* UNIV_SYNC_DEBUG */
+	buf_block_t*	block)	/* in: block to bufferfix */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ibool	ret;
 
 	ret = rw_lock_s_lock_func_nowait(&(block->debug_latch), file, line);
 	ut_a(ret);
 	ut_a(mutex_own(&block->mutex));
-	block->buf_fix_count++;
-}
-#else /* UNIV_SYNC_DEBUG */
-/***********************************************************************
-Increments the bufferfix count. */
-UNIV_INLINE
-void
-buf_block_buf_fix_inc(
-/*==================*/
-	buf_block_t*	block)	/* in: block to bufferfix */
-{
-	block->buf_fix_count++;
-}
 #endif /* UNIV_SYNC_DEBUG */
+	block->buf_fix_count++;
+}
+#ifdef UNIV_SYNC_DEBUG
+# define buf_block_buf_fix_inc(b,f,l) buf_block_buf_fix_inc_func(f,l,b)
+#else /* UNIV_SYNC_DEBUG */
+# define buf_block_buf_fix_inc(b,f,l) buf_block_buf_fix_inc_func(b)
+#endif /* UNIV_SYNC_DEBUG */
+
 /**********************************************************************
 Returns the control block of a file page, NULL if not found. */
 UNIV_INLINE
