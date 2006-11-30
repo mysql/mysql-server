@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+ /* Copyright (C) 2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1258,11 +1258,42 @@ ndb_mgm_get_event_severity_string(enum ndb_mgm_event_severity severity)
 }
 
 extern "C"
-const unsigned int *
-ndb_mgm_get_clusterlog_severity_filter(NdbMgmHandle handle) 
+int
+ndb_mgm_get_clusterlog_severity_filter(NdbMgmHandle handle, 
+				       struct ndb_mgm_severity* severity,
+				       unsigned int severity_size) 
 {
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_get_clusterlog_severity_filter");
-  unsigned int enabled[(int)NDB_MGM_EVENT_SEVERITY_ALL]=
+  const ParserRow<ParserDummy> getinfo_reply[] = {
+    MGM_CMD("clusterlog", NULL, ""),
+    MGM_ARG(clusterlog_severity_names[0], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_severity_names[1], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_severity_names[2], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_severity_names[3], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_severity_names[4], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_severity_names[5], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_severity_names[6], Int, Mandatory, ""),
+  };
+  CHECK_HANDLE(handle, NULL);
+  CHECK_CONNECTED(handle, NULL);
+
+  Properties args;
+  const Properties *reply;
+  reply = ndb_mgm_call(handle, getinfo_reply, "get info clusterlog", &args);
+  CHECK_REPLY(reply, NULL);
+  
+  for(unsigned int i=0; i < severity_size; i++) {
+    reply->get(clusterlog_severity_names[severity[i].category], &severity[i].value);
+  }
+  return severity_size;
+}
+
+extern "C"
+const unsigned int *
+ndb_mgm_get_clusterlog_severity_filter_old(NdbMgmHandle handle) 
+{
+  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_get_clusterlog_severity_filter");
+  static unsigned int enabled[(int)NDB_MGM_EVENT_SEVERITY_ALL]=
     {0,0,0,0,0,0,0};
   const ParserRow<ParserDummy> getinfo_reply[] = {
     MGM_CMD("clusterlog", NULL, ""),
@@ -1378,8 +1409,45 @@ static const char *clusterlog_names[]=
   { "startup", "shutdown", "statistics", "checkpoint", "noderestart", "connection", "info", "warning", "error", "congestion", "debug", "backup" };
 
 extern "C"
+int
+ndb_mgm_get_clusterlog_loglevel(NdbMgmHandle handle, 
+				struct ndb_mgm_loglevel* loglevel,
+				unsigned int loglevel_size)
+{
+  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_get_clusterlog_loglevel");
+  int loglevel_count = loglevel_size;
+  const ParserRow<ParserDummy> getloglevel_reply[] = {
+    MGM_CMD("get cluster loglevel", NULL, ""),
+    MGM_ARG(clusterlog_names[0], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_names[1], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_names[2], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_names[3], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_names[4], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_names[5], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_names[6], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_names[7], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_names[8], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_names[9], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_names[10], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_names[11], Int, Mandatory, ""),
+  };
+  CHECK_HANDLE(handle, NULL);
+  CHECK_CONNECTED(handle, NULL);
+
+  Properties args;
+  const Properties *reply;
+  reply = ndb_mgm_call(handle, getloglevel_reply, "get cluster loglevel", &args);
+  CHECK_REPLY(reply, NULL);
+
+  for(int i=0; i < loglevel_count; i++) {
+    reply->get(clusterlog_names[loglevel[i].category], &loglevel[i].value);
+  }
+  return loglevel_count;
+}
+
+extern "C"
 const unsigned int *
-ndb_mgm_get_clusterlog_loglevel(NdbMgmHandle handle)
+ndb_mgm_get_clusterlog_loglevel_old(NdbMgmHandle handle)
 {
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_get_clusterlog_loglevel");
   int loglevel_count = CFG_MAX_LOGLEVEL - CFG_MIN_LOGLEVEL + 1 ;
