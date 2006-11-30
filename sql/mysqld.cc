@@ -1538,7 +1538,7 @@ static void network_init(void)
     if (strlen(mysqld_unix_port) > (sizeof(UNIXaddr.sun_path) - 1))
     {
       sql_print_error("The socket file path is too long (> %u): %s",
-                      sizeof(UNIXaddr.sun_path) - 1, mysqld_unix_port);
+                      (uint) sizeof(UNIXaddr.sun_path) - 1, mysqld_unix_port);
       unireg_abort(1);
     }
     if ((unix_sock= socket(AF_UNIX, SOCK_STREAM, 0)) < 0)

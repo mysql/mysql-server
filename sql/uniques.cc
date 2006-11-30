@@ -428,8 +428,8 @@ static bool merge_walk(uchar *merge_buffer, ulong merge_buffer_size,
   BUFFPEK_COMPARE_CONTEXT compare_context = { compare, compare_arg };
   QUEUE queue;
   if (end <= begin ||
-      merge_buffer_size < key_length * (end - begin + 1) ||
-      init_queue(&queue, end - begin, offsetof(BUFFPEK, key), 0,
+      merge_buffer_size < (ulong) (key_length * (end - begin + 1)) ||
+      init_queue(&queue, (uint) (end - begin), offsetof(BUFFPEK, key), 0,
                  buffpek_compare, &compare_context))
     return 1;
   /* we need space for one key when a piece of merge buffer is re-read */

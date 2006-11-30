@@ -15,7 +15,6 @@
 #define snprintf _snprintf
 
 #define SIGKILL 9
-#define SHUT_RDWR 0x2
 
 /*TODO:  fix this */
 #define PROTOCOL_VERSION 10
