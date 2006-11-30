@@ -442,7 +442,6 @@ bool
 Event_scheduler::run(THD *thd)
 {
   int res= FALSE;
-  struct timespec abstime;
   Event_job_data *job_data;
   DBUG_ENTER("Event_scheduler::run");
 

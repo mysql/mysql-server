@@ -2565,7 +2565,6 @@ uint Field_new_decimal::is_equal(create_field *new_field)
 int Field_tiny::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  int not_used;				// We can ignore result from str2int
   char *end;
   int error;
 
@@ -2775,7 +2774,6 @@ void Field_tiny::sql_type(String &res) const
 int Field_short::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  int not_used;				// We can ignore result from str2int
   char *end;
   int error;
 
@@ -3062,7 +3060,6 @@ void Field_short::sql_type(String &res) const
 int Field_medium::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  int not_used;				// We can ignore result from str2int
   char *end;
   int error;
 
@@ -3304,8 +3301,6 @@ static bool test_if_minus(CHARSET_INFO *cs,
 int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  ulong tmp_scan;
-  longlong tmp;
   long store_tmp;
   int error;
   char *end;
@@ -8484,8 +8479,9 @@ const char *Field_bit::unpack(char *to, const char *from)
 
 void Field_bit::set_default()
 {
-  my_ptrdiff_t const offset= table->s->default_values - table->record[0];
-  uchar bits= get_rec_bits(bit_ptr + offset, bit_ofs, bit_len);
+  my_ptrdiff_t const offset= (my_ptrdiff_t) (table->s->default_values -
+                                             table->record[0]);
+  uchar bits= (uchar) get_rec_bits(bit_ptr + offset, bit_ofs, bit_len);
   set_rec_bits(bits, bit_ptr, bit_ofs, bit_len);
   Field::set_default();
 }

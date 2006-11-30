@@ -248,7 +248,6 @@ bool partition_info::set_up_default_subpartitions(handler *file,
                                                   HA_CREATE_INFO *info)
 {
   uint i, j;
-  char *default_name, *name_ptr;
   bool result= TRUE;
   partition_element *part_elem;
   List_iterator<partition_element> part_it(partitions);
@@ -664,7 +663,8 @@ bool partition_info::check_list_constants()
     qsort((void*)list_array, no_list_values, sizeof(LIST_PART_ENTRY), 
           &list_part_cmp);
  
-    i= prev_value= 0; //prev_value initialised to quiet compiler
+    i= 0;
+    LINT_INIT(prev_value);
     do
     {
       DBUG_ASSERT(i < no_list_values);
@@ -956,7 +956,6 @@ bool partition_info::set_up_charset_field_preps()
     while ((field= *(ptr++)))
     {
       unsigned j= 0;
-      Field *part_field;
       CHARSET_INFO *cs;
       char *field_buf;
       LINT_INIT(field_buf);
@@ -985,7 +984,6 @@ bool partition_info::set_up_charset_field_preps()
   }
   if (tot_fields)
   {
-    Field *part_field, *subpart_field;
     uint j,k,l;
 
     size= tot_fields*sizeof(char**);

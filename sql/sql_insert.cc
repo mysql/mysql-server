@@ -2042,7 +2042,9 @@ err:
    */
   ha_rollback_stmt(thd);
 
+#ifndef __WIN__
 end:
+#endif
   /*
     di should be unlinked from the thread handler list and have no active
     clients
@@ -2698,7 +2700,7 @@ void select_insert::send_error(uint errcode,const char *err)
 
 bool select_insert::send_eof()
 {
-  int error,error2;
+  int error;
   bool const trans_table= table->file->has_transactions();
   ulonglong id;
   DBUG_ENTER("select_insert::send_eof");
@@ -2750,9 +2752,9 @@ bool select_insert::send_eof()
    */
   if (trans_table || thd->current_stmt_binlog_row_based)
   {
-    int const error2= ha_autocommit_or_rollback(thd, error);
+    int error2= ha_autocommit_or_rollback(thd, error);
     if (error2 && !error)
-      error=error2;
+      error= error2;
   }
   table->file->ha_release_auto_increment();
 

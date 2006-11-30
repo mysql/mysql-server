@@ -3460,10 +3460,10 @@ int read_line(char *buf, int size)
 	DBUG_RETURN(0);
       }
       else if ((c == '{' &&
-                (!my_strnncoll_simple(charset_info, "while", 5,
-                                      buf, min(5, p - buf), 0) ||
-                 !my_strnncoll_simple(charset_info, "if", 2,
-                                      buf, min(2, p - buf), 0))))
+                (!my_strnncoll_simple(charset_info, (const uchar*) "while", 5,
+                                      (uchar*) buf, min(5, p - buf), 0) ||
+                 !my_strnncoll_simple(charset_info, (const uchar*) "if", 2,
+                                      (uchar*) buf, min(2, p - buf), 0))))
       {
         /* Only if and while commands can be terminated by { */
         *p++= c;
