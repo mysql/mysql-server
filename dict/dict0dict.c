@@ -1961,6 +1961,7 @@ dict_foreign_remove_from_cache(
 	dict_foreign_free(foreign);
 }
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Looks for the foreign constraint from the foreign and referenced lists
 of a table. */
@@ -2003,7 +2004,6 @@ dict_foreign_find(
 	return(NULL);
 }
 
-#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Tries to find an index whose first fields are the columns in the array,
 in the same order. */

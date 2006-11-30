@@ -78,6 +78,7 @@ dict_drop_index_tree(
 	rec_t*	rec,	/* in/out: record in the clustered index
 			of SYS_INDEXES table */
 	mtr_t*	mtr);	/* in: mtr having the latch on the record page */
+#ifndef UNIV_HOTBACKUP
 /********************************************************************
 Creates the foreign key constraints system tables inside InnoDB
 at database creation or database start if they are not found or are
@@ -109,7 +110,7 @@ dict_create_add_foreigns_to_dictionary(
 				was generated here */
 	dict_table_t*	table,	/* in: table */
 	trx_t*		trx);	/* in: transaction */
-
+#endif /* !UNIV_HOTBACKUP */
 
 /* Table create node structure */
 

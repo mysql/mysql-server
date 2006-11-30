@@ -1631,7 +1631,7 @@ recv_apply_log_recs_for_backup(void)
 				error = fil_io(OS_FILE_READ, TRUE,
 					       recv_addr->space, zip_size,
 					       recv_addr->page_no, 0, zip_size,
-					       block->page_zip.data, NULL);
+					       block->page.zip.data, NULL);
 			} else {
 				error = fil_io(OS_FILE_READ, TRUE,
 					       recv_addr->space, 0,
@@ -1666,7 +1666,7 @@ recv_apply_log_recs_for_backup(void)
 					       recv_addr->space, zip_size,
 					       recv_addr->page_no, 0,
 					       zip_size,
-					       block->page_zip.data, NULL);
+					       block->page.zip.data, NULL);
 			} else {
 				error = fil_io(OS_FILE_WRITE, TRUE,
 					       recv_addr->space, 0,
