@@ -3805,7 +3805,7 @@ wrong_offs:
 				" buf block fix count %lu\n",
 				(void*) rec, (ulong)
 				btr_cur_get_block(btr_pcur_get_btr_cur(pcur))
-				->buf_fix_count);
+				->page.buf_fix_count);
 			fprintf(stderr,
 				"InnoDB: Index corruption: rec offs %lu"
 				" next offs %lu, page no %lu,\n"

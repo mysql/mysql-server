@@ -25,5 +25,12 @@ enum buf_flush {
 	BUF_FLUSH_N_TYPES		/* index of last element + 1  */
 };
 
+/* Flags for io_fix types */
+enum buf_io_fix {
+	BUF_IO_NONE = 0,		/**< no pending I/O */
+	BUF_IO_READ,			/**< read pending */
+	BUF_IO_WRITE			/**< write pending */
+};
+
 #endif
 

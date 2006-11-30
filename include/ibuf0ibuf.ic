@@ -223,7 +223,7 @@ ibuf_update_free_bits_if_full(
 		cannot make inserts using the insert buffer from slipping
 		out of the buffer pool */
 
-		buf_page_make_young(block);
+		buf_page_make_young(&block->page);
 	}
 
 	if (before > after) {
