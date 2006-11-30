@@ -175,8 +175,10 @@ void STDCALL mysql_server_end()
 #ifdef EMBEDDED_LIBRARY
   end_embedded_server();
 #endif
-  /* If library called my_init(), free memory allocated by it */
   finish_client_errs();
+  vio_end();
+
+  /* If library called my_init(), free memory allocated by it */
   if (!org_my_init_done)
   {
     my_end(MY_DONT_FREE_DBUG);
@@ -184,8 +186,11 @@ void STDCALL mysql_server_end()
     DBUG_POP();
   }
   else
+  {
+    free_charsets();
     mysql_thread_end();
-  vio_end();
+  }
+
   mysql_client_init= org_my_init_done= 0;
 #ifdef EMBEDDED_SERVER
   if (stderror_file)

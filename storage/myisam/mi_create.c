@@ -438,9 +438,9 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     block_length= max(block_length, MI_MIN_KEY_BLOCK_LENGTH);
     block_length= min(block_length, MI_MAX_KEY_BLOCK_LENGTH);
 
-    keydef->block_length= MI_BLOCK_SIZE(length-real_length_diff,
-                                        pointer,MI_MAX_KEYPTR_SIZE,
-                                        block_length);
+    keydef->block_length= (uint16) MI_BLOCK_SIZE(length-real_length_diff,
+                                                 pointer,MI_MAX_KEYPTR_SIZE,
+                                                 block_length);
     if (keydef->block_length > MI_MAX_KEY_BLOCK_LENGTH ||
         length >= MI_MAX_KEY_BUFF)
     {

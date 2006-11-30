@@ -273,7 +273,6 @@ my_decimal *Item::val_decimal_from_date(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed == 1);
   TIME ltime;
-  longlong date;
   if (get_date(&ltime, TIME_FUZZY_DATE))
   {
     my_decimal_set_zero(decimal_value);
@@ -287,7 +286,6 @@ my_decimal *Item::val_decimal_from_time(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed == 1);
   TIME ltime;
-  longlong date;
   if (get_time(&ltime))
   {
     my_decimal_set_zero(decimal_value);

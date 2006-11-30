@@ -5528,11 +5528,11 @@ int Field_newdate::store_time(TIME *ltime,timestamp_type type)
   if (type == MYSQL_TIMESTAMP_DATE || type == MYSQL_TIMESTAMP_DATETIME)
   {
     tmp=ltime->year*16*32+ltime->month*32+ltime->day;
-    if ((my_bool)check_date(ltime, tmp,
-                            (TIME_FUZZY_DATE |
-                             (current_thd->variables.sql_mode &
-                              (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
-                               MODE_INVALID_DATES))), &error))
+    if (check_date(ltime, tmp != 0,
+                   (TIME_FUZZY_DATE |
+                    (current_thd->variables.sql_mode &
+                     (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
+                      MODE_INVALID_DATES))), &error))
     {
       char buff[12];
       String str(buff, sizeof(buff), &my_charset_latin1);
@@ -5758,11 +5758,11 @@ int Field_datetime::store_time(TIME *ltime,timestamp_type type)
   {
     tmp=((ltime->year*10000L+ltime->month*100+ltime->day)*LL(1000000)+
 	 (ltime->hour*10000L+ltime->minute*100+ltime->second));
-    if ((my_bool)check_date(ltime, tmp,
-                            (TIME_FUZZY_DATE |
-                             (current_thd->variables.sql_mode &
-                              (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
-                               MODE_INVALID_DATES))), &error))
+    if (check_date(ltime, tmp != 0,
+                   (TIME_FUZZY_DATE |
+                    (current_thd->variables.sql_mode &
+                     (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
+                      MODE_INVALID_DATES))), &error))
     {
       char buff[19];
       String str(buff, sizeof(buff), &my_charset_latin1);
@@ -8506,7 +8506,7 @@ int Field_bit_as_char::store(const char *from, uint length, CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int delta;
-  uchar bits= field_length & 7;
+  uchar bits= (uchar) (field_length & 7);
 
   for (; length && !*from; from++, length--);          // skip left 0's
   delta= bytes_in_rec - length;

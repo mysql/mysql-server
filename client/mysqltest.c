@@ -3132,14 +3132,15 @@ void do_connect(struct st_command *command)
     else if (!strncmp(con_options, "COMPRESS", 8))
       con_compress= 1;
     else
-      die("Illegal option to connect: %.*s", (int) (end - con_options), con_options);
+      die("Illegal option to connect: %.*s", 
+          (int) (end - con_options), con_options);
     /* Process next option */
     con_options= end;
   }
 
   if (next_con == connections_end)
-    die("Connection limit exhausted, you can have max %ld connections",
-        (long) (sizeof(connections)/sizeof(struct st_connection)));
+    die("Connection limit exhausted, you can have max %d connections",
+        (int) (sizeof(connections)/sizeof(struct st_connection)));
 
   if (find_connection_by_name(ds_connection_name.str))
     die("Connection %s already exists", ds_connection_name.str);
