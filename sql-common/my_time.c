@@ -547,9 +547,9 @@ my_bool str_to_time(const char *str, uint length, MYSQL_TIME *l_time,
   {
     /* String given as one number; assume HHMMSS format */
     date[0]= 0;
-    date[1]= ((ulong) value)/10000;
-    date[2]= ((ulong) value)/100 % 100;
-    date[3]= ((ulong) value) % 100;
+    date[1]= (ulong) (value/10000);
+    date[2]= (ulong) (value/100 % 100);
+    date[3]= (ulong) (value % 100);
     state=4;
     goto fractional;
   }
