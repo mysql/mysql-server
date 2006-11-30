@@ -1208,7 +1208,9 @@ buf_page_peek_block(
 
 	mutex_exit(&(buf_pool->mutex));
 
-	if (UNIV_UNLIKELY(buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE)) {
+	if (block
+	    && UNIV_UNLIKELY(buf_block_get_state(block)
+			     != BUF_BLOCK_FILE_PAGE)) {
 		block = NULL;
 	}
 
