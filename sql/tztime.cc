@@ -1743,9 +1743,9 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
     tz_leapcnt++;
 
     DBUG_PRINT("info",
-      ("time_zone_leap_second table: tz_leapcnt:%u  tt_time: %lu  offset: %ld",
-       tz_leapcnt, (ulong) tz_lsis[tz_leapcnt-1].ls_trans,
-       tz_lsis[tz_leapcnt-1].ls_corr));
+               ("time_zone_leap_second table: tz_leapcnt: %u  tt_time: %lu  offset: %ld",
+                tz_leapcnt, (ulong) tz_lsis[tz_leapcnt-1].ls_trans,
+                tz_lsis[tz_leapcnt-1].ls_corr));
 
     res= table->file->index_next(table->record[0]);
   }
