@@ -87,7 +87,8 @@ operations (very slow); also UNIV_DEBUG must be defined */
 						rw-locks and mutexes */
 #define UNIV_SEARCH_PERF_STAT			/* statistics for the
 						adaptive hash index */
-#define UNIV_SRV_PRINT_LATCH_WAITS		/* cf. sync0sync.c */
+#define UNIV_SRV_PRINT_LATCH_WAITS		/* enable diagnostic output
+						in sync0sync.c */
 #define UNIV_BTR_PRINT				/* enable functions for
 						printing B-trees */
 #endif
