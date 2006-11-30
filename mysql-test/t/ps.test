@@ -1508,6 +1508,29 @@ DROP TABLE t1, t2;
 
 
 #
+# BUG#20327: Marking of a wrong field leads to a wrong result on select with
+#            view, prepared statement and subquery.
+#
+CREATE TABLE t1 (i INT);
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+INSERT INTO t1 VALUES (1), (2);
+
+let $query = SELECT t1.i FROM t1 JOIN v1 ON t1.i = v1.i
+             WHERE EXISTS (SELECT * FROM t1 WHERE v1.i = 1);
+eval $query;
+eval PREPARE stmt FROM "$query";
+# Statement execution should return '1'.
+EXECUTE stmt;
+# Check re-execution.
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+DROP VIEW v1;
+DROP TABLE t1;
+
+
+#
 # BUG#21856: Prepared Statments: crash if bad create
 #
 --disable_warnings

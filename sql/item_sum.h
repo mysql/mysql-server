@@ -618,7 +618,7 @@ public:
   double val_real();
   longlong val_int();
   my_decimal *val_decimal(my_decimal *);
-  bool is_null() { (void) val_int(); return null_value; }
+  bool is_null() { update_null_value(); return null_value; }
   String *val_str(String*);
   enum_field_types field_type() const
   {
@@ -685,7 +685,7 @@ public:
   { /* can't be fix_fields()ed */ return (longlong) rint(val_real()); }
   String *val_str(String*);
   my_decimal *val_decimal(my_decimal *);
-  bool is_null() { (void) val_int(); return null_value; }
+  bool is_null() { update_null_value(); return null_value; }
   enum_field_types field_type() const
   {
     return hybrid_type == DECIMAL_RESULT ?
