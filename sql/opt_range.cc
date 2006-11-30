@@ -540,7 +540,8 @@ class PARAM : public RANGE_OPT_PARAM
 {
 public:
   KEY_PART *key[MAX_KEY]; /* First key parts of keys used in the query */
-  uint baseflag, max_key_part, range_count;
+  longlong baseflag;
+  uint max_key_part, range_count;
 
 
   char min_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH],
@@ -1142,7 +1143,6 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
 {
   handler *save_file= file, *org_file;
   THD *thd;
-  MY_BITMAP *bitmap;
   DBUG_ENTER("QUICK_RANGE_SELECT::init_ror_merged_scan");
 
   in_ror_merged_scan= 1;
@@ -2048,7 +2048,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 
     /* set up parameter that is passed to all functions */
     param.thd= thd;
-    param.baseflag=head->file->ha_table_flags();
+    param.baseflag= head->file->ha_table_flags();
     param.prev_tables=prev_tables | const_tables;
     param.read_tables=read_tables;
     param.current_table= head->map;
@@ -2101,7 +2101,8 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 	key_parts->null_bit=	 key_part_info->null_bit;
         key_parts->image_type =
           (key_info->flags & HA_SPATIAL) ? Field::itMBR : Field::itRAW;
-        key_parts->flag=         key_part_info->key_part_flag;
+        /* Only HA_PART_KEY_SEG is used */
+        key_parts->flag=         (uint8) key_part_info->key_part_flag;
       }
       param.real_keynr[param.keys++]=idx;
     }
@@ -2508,7 +2509,6 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
 
   prune_param.key= prune_param.range_param.key_parts;
   SEL_TREE *tree;
-  SEL_ARG *arg;
   int res;
 
   tree= get_mm_tree(range_par, pprune_cond);
@@ -3223,12 +3223,12 @@ static bool create_partition_index_description(PART_PRUNE_PARAM *ppar)
   {
     key_part->key=          0;
     key_part->part=	    part;
-    key_part->length=       (*field)->pack_length_in_rec();
+    key_part->length=       (uint16) (*field)->pack_length_in_rec();
     /* 
       psergey-todo: check yet again if this is correct for tricky field types,
       e.g. see "Fix a fatal error in decimal key handling" in open_binary_frm()
     */
-    key_part->store_length= (*field)->pack_length();
+    key_part->store_length= (uint16) (*field)->pack_length();
     if ((*field)->real_maybe_null())
       key_part->store_length+= HA_KEY_NULL_LENGTH;
     if ((*field)->type() == FIELD_TYPE_BLOB || 
@@ -7652,7 +7652,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
     key_part->length=  	    key_info->key_part[part].length;
     key_part->store_length= key_info->key_part[part].store_length;
     key_part->null_bit=     key_info->key_part[part].null_bit;
-    key_part->flag=         key_info->key_part[part].key_part_flag;
+    key_part->flag=         (uint8) key_info->key_part[part].key_part_flag;
   }
   if (insert_dynamic(&quick->ranges,(gptr)&range))
     goto err;

@@ -3434,8 +3434,8 @@ bool Item_func_group_concat::setup(THD *thd)
       duplicate values (according to the syntax of this function). If there
       is no DISTINCT or ORDER BY clauses, we don't create this tree.
     */
-    init_tree(tree, min(thd->variables.max_heap_table_size,
-                        thd->variables.sortbuff_size/16), 0,
+    init_tree(tree, (uint) min(thd->variables.max_heap_table_size,
+                               thd->variables.sortbuff_size/16), 0,
               tree_key_length, compare_key, 0, NULL, (void*) this);
   }
 

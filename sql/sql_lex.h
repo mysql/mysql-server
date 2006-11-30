@@ -423,7 +423,7 @@ protected:
   TABLE *table; /* temporary table using for appending UNION results */
 
   select_result *result;
-  ulong found_rows_for_union;
+  ulonglong found_rows_for_union;
   bool res;
 public:
   bool  prepared, // prepare phase already performed for UNION (unit)

@@ -337,6 +337,7 @@ rl_generic_bind (type, keyseq, data, map)
   KEYMAP_ENTRY k;
 
   k.function = 0;
+  k.type= 0;
 
   /* If no keys to bind to, exit right away. */
   if (!keyseq || !*keyseq)
