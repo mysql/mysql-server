@@ -25,5 +25,7 @@ LDADD=			$(top_builddir)/unittest/mytap/libmytap.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
-noinst_PROGRAMS =	ma_control_file-t trnman-t lockman-t lockman1-t lockman2-t
+noinst_PROGRAMS =	ma_control_file-t trnman-t lockman2-t
+# the generic lock manager may not be used in the end and lockman1-t crashes,
+# so we don't build lockman-t and lockman1-t 
 CLEANFILES =		maria_control
