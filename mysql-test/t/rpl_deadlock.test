@@ -16,7 +16,8 @@ source include/master-slave.inc;
 connection master;
 create table t1 (a int not null, key(a)) engine=innodb;
 create table t2 (a int not null, key(a)) engine=innodb;
-create table t3 (a int) engine=innodb;
+# requiring 'unique' for the timeout part of the test
+create table t3 (a int unique) engine=innodb;
 create table t4 (a int) engine=innodb;
 show variables like 'slave_transaction_retries';
 sync_slave_with_master;
@@ -31,8 +32,7 @@ stop slave;
 connection master;
 begin;
 # Let's keep BEGIN and the locked statement in two different relay logs.
-let $1=200;
-disable_query_log;
+let $1=200;disable_query_log;
 while ($1)
 {
  eval insert into t3 values( $1 );
@@ -59,7 +59,7 @@ enable_query_log;
 select * from t1 for update;
 start slave;
 --real_sleep 3 # hope that slave is blocked now
-insert into t2 values(22); # provoke deadlock, slave should be victim
+insert into t2 values(201); # provoke deadlock, slave should be victim
 commit;
 sync_with_master;
 select * from t1; # check that slave succeeded finally
@@ -74,11 +74,13 @@ show slave status;
 # 2) Test lock wait timeout
 
 stop slave;
-change master to master_log_pos=532; # the BEGIN log event
+delete from t3;
+change master to master_log_pos=539; # the BEGIN log event
 begin;
 select * from t2 for update; # hold lock
 start slave;
 --real_sleep 10 # slave should have blocked, and be retrying
+select count(*) from t3  /* must be zero */; # replaying begins after rollback
 commit;
 sync_with_master;
 select * from t1; # check that slave succeeded finally
@@ -97,11 +99,13 @@ set global max_relay_log_size=0;
 
 # This is really copy-paste of 2) of above
 stop slave;
-change master to master_log_pos=532;
+delete from t3;
+change master to master_log_pos=539;
 begin;
 select * from t2 for update;
 start slave;
 --real_sleep 10
+select count(*) from t3  /* must be zero */; # replaying begins after rollback
 commit;
 sync_with_master;
 select * from t1;

@@ -143,6 +143,24 @@ drop table t1;
 --exec diff $MYSQLTEST_VARDIR/tmp/bug20328_1.result $MYSQLTEST_VARDIR/tmp/bug20328_2.result
 
 #
+# Bug #19216: Client crashes on long SELECT
+#
+--exec echo "select" > $MYSQLTEST_VARDIR/tmp/b19216.tmp
+# 3400 * 20 makes 68000 columns that is more than the max number that can fit 
+# in a 16 bit number.
+let $i= 3400;
+while ($i)
+{
+  --exec echo "'a','a','a','a','a','a','a','a','a','a','a','a','a','a','a','a','a','a','a','a'," >> $MYSQLTEST_VARDIR/tmp/b19216.tmp
+  dec $i;
+}
+
+--exec echo "'b';" >> $MYSQLTEST_VARDIR/tmp/b19216.tmp
+--disable_query_log
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/b19216.tmp >/dev/null
+--enable_query_log
+
+#
 # Bug #20103: Escaping with backslash does not work
 #
 --exec echo "SET SQL_MODE = 'NO_BACKSLASH_ESCAPES';"  > $MYSQLTEST_VARDIR/tmp/bug20103.sql
@@ -222,5 +240,23 @@ drop table t17583;
 --replace_regex /\([0-9]*\)/(errno)/
 --error 1
 --exec $MYSQL test -e "\r  test cyrils_superlonghostnameXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" 2>&1
+
+#
+# Bug #21412: mysql cmdline client allows backslash(es) 
+# as delimiter but can't recognize them
+#
+
+# This should work just fine...
+--exec echo "DELIMITER /" > $MYSQLTEST_VARDIR/tmp/bug21412.sql
+--exec echo "SELECT 1/"   >> $MYSQLTEST_VARDIR/tmp/bug21412.sql
+--exec $MYSQL             < $MYSQLTEST_VARDIR/tmp/bug21412.sql 2>&1
+
+# This should give an error...
+--exec echo "DELIMITER \\" > $MYSQLTEST_VARDIR/tmp/bug21412.sql
+--exec $MYSQL             < $MYSQLTEST_VARDIR/tmp/bug21412.sql 2>&1
+
+# As should this...
+--exec echo "DELIMITER \\\\" > $MYSQLTEST_VARDIR/tmp/bug21412.sql
+--exec $MYSQL             < $MYSQLTEST_VARDIR/tmp/bug21412.sql 2>&1
 
 --echo End of 5.0 tests

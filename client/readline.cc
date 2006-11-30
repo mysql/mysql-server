@@ -51,7 +51,8 @@ char *batch_readline(LINE_BUFFER *line_buff)
   if (!(pos=intern_read_line(line_buff,&out_length)))
     return 0;
   if (out_length && pos[out_length-1] == '\n')
-    out_length--;				/* Remove '\n' */
+    if (--out_length && pos[out_length-1] == '\r')  /* Remove '\n' */
+      out_length--;                                 /* Remove '\r' */
   line_buff->read_length=out_length;
   pos[out_length]=0;
   return pos;

@@ -2100,7 +2100,7 @@ mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query, ulong length)
   }
   stmt->bind= stmt->params + stmt->param_count;
   stmt->state= MYSQL_STMT_PREPARE_DONE;
-  DBUG_PRINT("info", ("Parameter count: %ld", stmt->param_count));
+  DBUG_PRINT("info", ("Parameter count: %u", stmt->param_count));
   DBUG_RETURN(0);
 }
 
@@ -2443,10 +2443,10 @@ static my_bool store_param(MYSQL_STMT *stmt, MYSQL_BIND *param)
 {
   NET *net= &stmt->mysql->net;
   DBUG_ENTER("store_param");
-  DBUG_PRINT("enter",("type: %d, buffer:%lx, length: %lu  is_null: %d",
+  DBUG_PRINT("enter",("type: %d  buffer: 0x%lx  length: %lu  is_null: %d",
 		      param->buffer_type,
-		      param->buffer ? param->buffer : "0", *param->length,
-		      *param->is_null));
+		      (long) (param->buffer ? param->buffer : NullS),
+                      *param->length, *param->is_null));
 
   if (*param->is_null)
     store_param_null(net, param);
@@ -3325,8 +3325,8 @@ mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number,
   MYSQL_BIND *param;
   DBUG_ENTER("mysql_stmt_send_long_data");
   DBUG_ASSERT(stmt != 0);
-  DBUG_PRINT("enter",("param no : %d, data : %lx, length : %ld",
-		      param_number, data, length));
+  DBUG_PRINT("enter",("param no: %d  data: 0x%lx, length : %ld",
+		      param_number, (long) data, length));
 
   /*
     We only need to check for stmt->param_count, if it's not null
@@ -4409,7 +4409,7 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
   ulong       bind_count= stmt->field_count;
   uint        param_count= 0;
   DBUG_ENTER("mysql_stmt_bind_result");
-  DBUG_PRINT("enter",("field_count: %d", bind_count));
+  DBUG_PRINT("enter",("field_count: %lu", bind_count));
 
   if (!bind_count)
   {
@@ -4767,14 +4767,6 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
   {
     set_stmt_error(stmt, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
     DBUG_RETURN(1);
-  }
-
-  if (result->data)
-  {
-    free_root(&result->alloc, MYF(MY_KEEP_PREALLOC));
-    result->data= NULL;
-    result->rows= 0;
-    stmt->data_cursor= NULL;
   }
 
   if (stmt->update_max_length && !stmt->bind_result_done)

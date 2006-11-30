@@ -1533,7 +1533,7 @@ prev_insert_id(ulonglong nr, struct system_variables *variables)
     */
     DBUG_PRINT("info",("auto_increment: nr: %lu cannot honour "
                        "auto_increment_offset: %lu",
-                       nr, variables->auto_increment_offset));
+                       (ulong) nr, variables->auto_increment_offset));
     return nr;
   }
   if (variables->auto_increment_increment == 1)
@@ -1798,8 +1798,8 @@ void handler::print_error(int error, myf errflag)
     break;
   }
   case HA_ERR_NULL_IN_SPATIAL:
-    textno= ER_UNKNOWN_ERROR;
-    break;
+    my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
+    DBUG_VOID_RETURN;
   case HA_ERR_FOUND_DUPP_UNIQUE:
     textno=ER_DUP_UNIQUE;
     break;
@@ -1979,6 +1979,10 @@ int handler::check_old_types()
     for (field= table->field; (*field); field++)
     {
       if ((*field)->type() == FIELD_TYPE_NEWDECIMAL)
+      {
+        return HA_ADMIN_NEEDS_ALTER;
+      }
+      if ((*field)->type() == MYSQL_TYPE_VAR_STRING)
       {
         return HA_ADMIN_NEEDS_ALTER;
       }

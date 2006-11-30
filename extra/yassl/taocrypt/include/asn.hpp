@@ -34,7 +34,11 @@
 #include "misc.hpp"
 #include "block.hpp"
 #include "error.hpp"
-#include STL_LIST_FILE
+#ifdef USE_SYS_STL
+    #include <list>
+#else
+    #include "list.hpp"
+#endif
 
 
 namespace STL = STL_NAMESPACE;
