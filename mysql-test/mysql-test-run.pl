@@ -1900,6 +1900,10 @@ sub environment_setup () {
   # ----------------------------------------------------
   $ENV{'MYSQL_MY_PRINT_DEFAULTS'}=  $exe_my_print_defaults;
 
+  # ----------------------------------------------------
+  # Setup env so childs can execute mysqladmin
+  # ----------------------------------------------------
+  $ENV{'MYSQLADMIN'}=  $exe_mysqladmin;
 
   # ----------------------------------------------------
   # Setup env so childs can execute perror  
