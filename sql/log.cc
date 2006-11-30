@@ -1676,14 +1676,14 @@ bool MYSQL_LOG::write(Log_event *event_info)
           }
           trans_log->end_of_file= max_binlog_cache_size;
           trans_register_ha(thd,
-                            thd->options & (OPTION_NOT_AUTOCOMMIT |
-                                            OPTION_BEGIN),
+                            test(thd->options & (OPTION_NOT_AUTOCOMMIT |
+                                                 OPTION_BEGIN)),
                             &binlog_hton);
         }
         else if (!my_b_tell(trans_log))
           trans_register_ha(thd,
-                            thd->options & (OPTION_NOT_AUTOCOMMIT |
-                                            OPTION_BEGIN),
+                            test(thd->options & (OPTION_NOT_AUTOCOMMIT |
+                                                 OPTION_BEGIN)),
                             &binlog_hton);
         file= trans_log;
       }

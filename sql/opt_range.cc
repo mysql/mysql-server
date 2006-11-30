@@ -1924,7 +1924,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 	key_parts->null_bit=	 key_part_info->null_bit;
         key_parts->image_type =
           (key_info->flags & HA_SPATIAL) ? Field::itMBR : Field::itRAW;
-        key_parts->flag=         key_part_info->key_part_flag;
+        key_parts->flag=         (uint8) key_part_info->key_part_flag;
       }
       param.real_keynr[param.keys++]=idx;
     }
@@ -6240,7 +6240,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
     key_part->length=  	    key_info->key_part[part].length;
     key_part->store_length= key_info->key_part[part].store_length;
     key_part->null_bit=     key_info->key_part[part].null_bit;
-    key_part->flag=         key_info->key_part[part].key_part_flag;
+    key_part->flag=         (uint8) key_info->key_part[part].key_part_flag;
   }
   if (insert_dynamic(&quick->ranges,(gptr)&range))
     goto err;

@@ -211,7 +211,7 @@ bool archive_db_init()
       max_zfile_size= INT_MAX16;
       break;
     case 8:
-      max_zfile_size= LONGLONG_MAX;
+      max_zfile_size= (z_off_t) LONGLONG_MAX;
       break;
     case 4:
     default:
@@ -495,7 +495,7 @@ int ha_archive::init_archive_writer()
   }
   share->archive_write_open= TRUE;
   info(HA_STATUS_TIME);
-  share->approx_file_size= data_file_length;
+  share->approx_file_size= (ulong) data_file_length;
   DBUG_RETURN(0);
 }
 
@@ -676,7 +676,7 @@ int ha_archive::real_write_row(byte *buf, gzFile writer)
   if (share->approx_file_size > max_zfile_size - total_row_length)
   {
     info(HA_STATUS_TIME);
-    share->approx_file_size= data_file_length;
+    share->approx_file_size= (ulong) data_file_length;
     if (share->approx_file_size > max_zfile_size - total_row_length)
       DBUG_RETURN(HA_ERR_RECORD_FILE_FULL);
   }
