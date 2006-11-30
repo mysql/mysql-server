@@ -200,22 +200,6 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   }
 
   /*
-    Check that the user has TRIGGER privilege on the subject table.
-  */
-  {
-    bool err_status;
-    TABLE_LIST **save_query_tables_own_last= thd->lex->query_tables_own_last;
-    thd->lex->query_tables_own_last= 0;
-
-    err_status= check_table_access(thd, TRIGGER_ACL, tables, 0);
-
-    thd->lex->query_tables_own_last= save_query_tables_own_last;
-
-    if (err_status)
-      DBUG_RETURN(TRUE);
-  }
-
-  /*
     There is no DETERMINISTIC clause for triggers, so can't check it.
     But a trigger can in theory be used to do nasty things (if it supported
     DROP for example) so we do the check for privileges. For now there is
@@ -266,6 +250,22 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
       stmt_query.append(thd->query, thd->query_length);
       goto end;
     }
+  }
+
+  /*
+    Check that the user has TRIGGER privilege on the subject table.
+  */
+  {
+    bool err_status;
+    TABLE_LIST **save_query_tables_own_last= thd->lex->query_tables_own_last;
+    thd->lex->query_tables_own_last= 0;
+
+    err_status= check_table_access(thd, TRIGGER_ACL, tables, 0);
+
+    thd->lex->query_tables_own_last= save_query_tables_own_last;
+
+    if (err_status)
+      goto end;
   }
 
   /* We should have only one table in table list. */
