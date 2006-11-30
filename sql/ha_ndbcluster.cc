@@ -1610,7 +1610,7 @@ bool ha_ndbcluster::check_all_operations_for_error(NdbTransaction *trans,
  * primary key or unique index values
 */
 
-int ha_ndbcluster::peek_indexed_rows(const byte *record)
+int ha_ndbcluster::peek_indexed_rows(const byte *record, bool check_pk)
 {
   NdbTransaction *trans= m_active_trans;
   NdbOperation *op;
@@ -1623,7 +1623,7 @@ int ha_ndbcluster::peek_indexed_rows(const byte *record)
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
   
   first= NULL;
-  if (table->s->primary_key != MAX_KEY)
+  if (check_pk && table->s->primary_key != MAX_KEY)
   {
     /*
      * Fetch any row with colliding primary key
@@ -2216,7 +2216,7 @@ int ha_ndbcluster::write_row(byte *record)
       start_bulk_insert will set parameters to ensure that each
       write_row is committed individually
     */
-    int peek_res= peek_indexed_rows(record);
+    int peek_res= peek_indexed_rows(record, true);
     
     if (!peek_res) 
     {
@@ -2385,14 +2385,17 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   NdbScanOperation* cursor= m_active_cursor;
   NdbOperation *op;
   uint i;
+  bool pk_update= (table->s->primary_key != MAX_KEY &&
+		   key_cmp(table->s->primary_key, old_data, new_data));
   DBUG_ENTER("update_row");
   
   /*
-   * If IGNORE the ignore constraint violations on primary and unique keys
+   * If IGNORE the ignore constraint violations on primary and unique keys,
+   * but check that it is not part of INSERT ... ON DUPLICATE KEY UPDATE
    */
-  if (m_ignore_dup_key)
+  if (m_ignore_dup_key && thd->lex->sql_command == SQLCOM_UPDATE)
   {
-    int peek_res= peek_indexed_rows(new_data);
+    int peek_res= peek_indexed_rows(new_data, pk_update);
     
     if (!peek_res) 
     {
@@ -2411,8 +2414,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   }
 
   /* Check for update of primary key for special handling */  
-  if ((table->s->primary_key != MAX_KEY) &&
-      (key_cmp(table->s->primary_key, old_data, new_data)))
+  if (pk_update)
   {
     int read_res, insert_res, delete_res, undo_res;
 
