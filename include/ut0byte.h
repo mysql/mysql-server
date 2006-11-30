@@ -152,8 +152,8 @@ ut_dulint_align_up(
 Rounds a dulint downward to a multiple of a power of 2. */
 UNIV_INLINE
 ib_uint64_t
-ut_ulonglong_align_down(
-/*====================*/
+ut_uint64_align_down(
+/*=================*/
 					/* out: rounded value */
 	ib_uint64_t	 n,		/* in: number to be rounded */
 	ulint		 align_no);	/* in: align by this number
@@ -162,8 +162,8 @@ ut_ulonglong_align_down(
 Rounds ib_uint64_t upward to a multiple of a power of 2. */
 UNIV_INLINE
 ib_uint64_t
-ut_ulonglong_align_up(
-/*==================*/
+ut_uint64_align_up(
+/*===============*/
 					/* out: rounded value */
 	ib_uint64_t	 n,		/* in: number to be rounded */
 	ulint		 align_no);	/* in: align by this number
