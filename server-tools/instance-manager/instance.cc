@@ -36,41 +36,15 @@
 #include "thread_registry.h"
 #include "instance_map.h"
 
-/* {{{ Platform-specific functions. */
+/*************************************************************************
+  {{{ Platform-specific functions.
+*************************************************************************/
 
 #ifndef __WIN__
 typedef pid_t My_process_info;
 #else
 typedef PROCESS_INFORMATION My_process_info;
 #endif
-
-/*
-  Proxy thread is a simple way to avoid all pitfalls of the threads
-  implementation in the OS (e.g. LinuxThreads). With such a thread we
-  don't have to process SIGCHLD, which is a tricky business if we want
-  to do it in a portable way.
-*/
-
-class Instance_monitor: public Thread
-{
-public:
-  Instance_monitor(Instance *instance_arg) :instance(instance_arg) {}
-protected:
-  virtual void run();
-  void start_and_monitor_instance(Instance_options *old_instance_options,
-                                  Instance_map *instance_map,
-                                  Thread_registry *thread_registry);
-private:
-  Instance *instance;
-};
-
-void Instance_monitor::run()
-{
-  start_and_monitor_instance(&instance->options,
-                             Manager::get_instance_map(),
-                             Manager::get_thread_registry());
-  delete this;
-}
 
 /*
   Wait for an instance
@@ -285,113 +259,149 @@ int kill(pid_t pid, int signum)
 }
 #endif
 
-/* }}} */
+/*************************************************************************
+  }}}
+*************************************************************************/
 
-/* {{{ Static constants.  */
+
+/*************************************************************************
+  {{{ Static constants.
+*************************************************************************/
 
 const LEX_STRING
 Instance::DFLT_INSTANCE_NAME= { C_STRING_WITH_LEN("mysqld") };
 
-/* }}} */
+/*************************************************************************
+  }}}
+*************************************************************************/
 
 
-/*
-  Fork child, exec an instance and monitor it.
+/*************************************************************************
+  {{{ Instance Monitor thread.
+*************************************************************************/
 
-  SYNOPSIS
-    start_and_monitor_instance()
-    old_instance_options   Pointer to the options of the instance to be
-                           launched. This info is likely to become obsolete
-                           when function returns from wait_process()
-    instance_map           Pointer to the instance_map. We use it to protect
-                           the instance from deletion, while we are working
-                           with it.
+/**
+  Proxy thread is a simple way to avoid all pitfalls of the threads
+  implementation in the OS (e.g. LinuxThreads). With such a thread we
+  don't have to process SIGCHLD, which is a tricky business if we want
+  to do it in a portable way.
 
-  DESCRIPTION
-    Fork a child, then exec and monitor it. When the child is dead,
-    find appropriate instance (for this purpose we save its name),
-    set appropriate flags and wake all threads waiting for instance
-    to stop.
+  Instance Monitor Thread forks a child process, execs mysqld and waits for
+  the child to die.
 
-  NOTE
-    A separate thread for starting/monitoring instance is a simple way
-    to avoid all pitfalls of the threads implementation in the OS (e.g.
-    LinuxThreads). For one, with such a thread we don't have to process
-    SIGCHLD, which is a tricky business if we want to do it in a
-    portable way.
-
-  RETURN
-    Function returns no value
+  Instance Monitor assumes that the monitoring instance will not be dropped.
+  This is guaranteed by having flag monitoring_thread_active and
+  Instance::is_active() operation.
 */
 
-void
-Instance_monitor::
-start_and_monitor_instance(Instance_options *old_instance_options,
-                           Instance_map *instance_map,
-                           Thread_registry *thread_registry)
+class Instance_monitor: public Thread
 {
-  Instance_name instance_name(&old_instance_options->instance_name);
-  Instance *current_instance;
-  My_process_info process_info;
-  Thread_info thread_info;
+public:
+  Instance_monitor(Instance *instance_arg) :instance(instance_arg) {}
+protected:
+  virtual void run();
+  void start_and_monitor_instance();
+private:
+  Instance *instance;
+};
+
+
+void Instance_monitor::run()
+{
+  start_and_monitor_instance();
+  delete this;
+}
+
+
+void Instance_monitor::start_and_monitor_instance()
+{
+  Thread_registry *thread_registry= Manager::get_thread_registry();
+  Guardian *guardian= Manager::get_guardian();
+
+  My_process_info mysqld_process_info;
+  Thread_info monitor_thread_info;
 
   log_info("Instance '%s': Monitor: started.",
            (const char *) instance->get_name()->str);
 
-  if (!old_instance_options->nonguarded)
+  /*
+    For guarded instance register the thread in Thread_registry to wait for
+    the thread to stop on shutdown (nonguarded instances are not stopped on
+    shutdown, so the thread will no finish).
+  */
+
+  if (instance->is_guarded())
   {
-    /*
-      Register thread in Thread_registry to wait for it to stop on shutdown
-      only if instance is guarded. If instance is guarded, the thread will not
-      finish, because nonguarded instances are not stopped on shutdown.
-    */
-    thread_registry->register_thread(&thread_info, FALSE);
+    thread_registry->register_thread(&monitor_thread_info, FALSE);
   }
 
-  /*
-    Lock instance map to guarantee that no instances are deleted during
-    strmake() and execv() calls.
-  */
-  instance_map->lock();
-
-  /*
-    Save the instance name in the case if Instance object we
-    are using is destroyed. (E.g. by "FLUSH INSTANCES")
-  */
+  /* Starting mysqld. */
 
   log_info("Instance '%s': Monitor: starting mysqld...",
            (const char *) instance->get_name()->str);
 
-  if (start_process(old_instance_options, &process_info))
+  if (start_process(&instance->options, &mysqld_process_info))
   {
-    instance_map->unlock();
-    return;                                     /* error is logged */
+    instance->lock();
+    instance->monitoring_thread_active= FALSE;
+    instance->unlock();
+
+    return;
   }
 
-  /* allow users to delete instances */
-  instance_map->unlock();
+  /* Waiting for mysqld to die. */
 
   log_info("Instance '%s': Monitor: waiting for mysqld to stop...",
            (const char *) instance->get_name()->str);
 
-  wait_process(&process_info); /* Don't check for return value. */
+  wait_process(&mysqld_process_info); /* Don't check for return value. */
 
-  instance_map->lock();
+  log_info("Instance '%s': Monitor: mysqld stopped.",
+           (const char *) instance->get_name()->str);
 
-  current_instance= instance_map->find(instance_name.get_str());
+  /* Update instance status. */
 
-  if (current_instance)
-    current_instance->set_crash_flag_n_wake_all();
+  instance->lock();
 
-  instance_map->unlock();
+  if (instance->is_guarded())
+    thread_registry->unregister_thread(&monitor_thread_info);
 
-  if (!old_instance_options->nonguarded)
-    thread_registry->unregister_thread(&thread_info);
+  instance->crashed= TRUE;
+  instance->monitoring_thread_active= FALSE;
 
   log_info("Instance '%s': Monitor: finished.",
            (const char *) instance->get_name()->str);
+
+  instance->unlock();
+
+  /* Wake up guardian. */
+
+  guardian->ping();
 }
 
+/**************************************************************************
+  }}}
+**************************************************************************/
+
+
+/**************************************************************************
+  {{{ Static operations.
+**************************************************************************/
+
+/**
+  The operation is intended to check whether string is a well-formed
+  instance name or not.
+
+  SYNOPSIS
+    is_name_valid()
+    name  string to check
+
+  RETURN
+    TRUE    string is a valid instance name
+    FALSE   string is not a valid instance name
+
+  TODO: Move to Instance_name class: Instance_name::is_valid().
+*/
 
 bool Instance::is_name_valid(const LEX_STRING *name)
 {
@@ -405,21 +415,83 @@ bool Instance::is_name_valid(const LEX_STRING *name)
 }
 
 
+/**
+  The operation is intended to check if the given instance name is
+  mysqld-compatible or not.
+
+  SYNOPSIS
+    is_mysqld_compatible_name()
+    name  name to check
+
+  RETURN
+    TRUE    name is mysqld-compatible
+    FALSE   otherwise
+
+  TODO: Move to Instance_name class: Instance_name::is_mysqld_compatible().
+*/
+
 bool Instance::is_mysqld_compatible_name(const LEX_STRING *name)
 {
   return strcmp(name->str, DFLT_INSTANCE_NAME.str) == 0;
 }
 
 
+/**
+  Return client state name. Must not be used outside the class.
+  Use Instance::get_state_name() instead.
+*/
 
-/* {{{ Constructor & destructor */
+const char * Instance::get_instance_state_name(enum_instance_state state)
+{
+  switch (state) {
+  case STOPPED:
+    return "offline";
+
+  case NOT_STARTED:
+    return "not started";
+
+  case STARTING:
+    return "starting";
+
+  case STARTED:
+    return "online";
+
+  case JUST_CRASHED:
+    return "failed";
+
+  case CRASHED:
+    return "crashed";
+
+  case CRASHED_AND_ABANDONED:
+    return "abandoned";
+
+  case STOPPING:
+    return "stopping";
+  }
+
+  return NULL; /* just to ignore compiler warning. */
+}
+
+/**************************************************************************
+  }}}
+**************************************************************************/
+
+
+/**************************************************************************
+  {{{ Initialization & deinitialization.
+**************************************************************************/
 
 Instance::Instance()
-  :crashed(FALSE),
-  configured(FALSE)
+  :monitoring_thread_active(FALSE),
+  crashed(FALSE),
+  configured(FALSE),
+  /* mysqld_compatible is initialized in init() */
+  state(NOT_STARTED),
+  restart_counter(0),
+  crash_moment(0),
+  last_checked(0)
 {
   pthread_mutex_init(&LOCK_instance, 0);
-  pthread_cond_init(&COND_instance_stopped, 0);
 }
 
 
@@ -427,13 +499,11 @@ Instance::~Instance()
 {
   log_info("Instance '%s': destroying...", (const char *) get_name()->str);
 
-  pthread_cond_destroy(&COND_instance_stopped);
   pthread_mutex_destroy(&LOCK_instance);
 }
 
-/* }}} */
 
-/*
+/**
   Initialize instance options.
 
   SYNOPSIS
@@ -453,7 +523,7 @@ bool Instance::init(const LEX_STRING *name_arg)
 }
 
 
-/*
+/**
   Complete instance options initialization.
 
   SYNOPSIS
@@ -474,7 +544,47 @@ bool Instance::complete_initialization()
   */
 }
 
-/*
+/**************************************************************************
+  }}}
+**************************************************************************/
+
+
+/**************************************************************************
+  {{{ Instance: public interface implementation.
+**************************************************************************/
+
+/**
+  Determine if there is some activity with the instance.
+
+  SYNOPSIS
+    is_active()
+
+  DESCRIPTION
+    An instance is active if one of the following conditions is true:
+      - Instance-monitoring thread is running;
+      - Instance is guarded and its state is other than STOPPED;
+      - Corresponding mysqld-server accepts connections.
+
+    MT-NOTE: instance must be locked before calling the operation.
+
+  RETURN
+    TRUE  - instance is active
+    FALSE - otherwise.
+*/
+
+bool Instance::is_active()
+{
+  if (monitoring_thread_active)
+    return TRUE;
+
+  if (is_guarded() && get_state() != STOPPED)
+    return TRUE;
+
+  return is_mysqld_running();
+}
+
+
+/**
   Determine if mysqld is accepting connections.
 
   SYNOPSIS
@@ -484,7 +594,7 @@ bool Instance::complete_initialization()
     Try to connect to mysqld with fake login/password to check whether it is
     accepting connections or not.
 
-    MT-NOTE: this operation must be called under acquired LOCK_instance.
+    MT-NOTE: instance must be locked before calling the operation.
 
   RETURN
     TRUE  - mysqld is alive and accept connections
@@ -508,8 +618,6 @@ bool Instance::is_mysqld_running()
   if (!port && !options.mysqld_socket)
     port= SERVER_DEFAULT_PORT;
 
-  pthread_mutex_lock(&LOCK_instance);
-
   mysql_init(&mysql);
   /* try to connect to a server with a fake username/password pair */
   if (mysql_real_connect(&mysql, LOCAL_HOST, username,
@@ -523,7 +631,6 @@ bool Instance::is_mysqld_running()
     */
     log_error("Instance '%s': was able to log into mysqld.",
               (const char *) get_name()->str);
-    pthread_mutex_unlock(&LOCK_instance);
     return_val= TRUE;                           /* server is alive */
   }
   else
@@ -531,145 +638,145 @@ bool Instance::is_mysqld_running()
                               sizeof(access_denied_message) - 1));
 
   mysql_close(&mysql);
-  pthread_mutex_unlock(&LOCK_instance);
 
   return return_val;
 }
 
-/*
-  The method starts an instance.
+
+/**
+  Start mysqld.
 
   SYNOPSIS
-    start()
-
-  RETURN
-    0                             ok
-    ER_CANNOT_START_INSTANCE      Cannot start instance
-    ER_INSTANCE_ALREADY_STARTED   The instance on the specified port/socket
-                                  is already started
-*/
-
-int Instance::start()
-{
-  /* clear crash flag */
-  pthread_mutex_lock(&LOCK_instance);
-  crashed= FALSE;
-  pthread_mutex_unlock(&LOCK_instance);
-
-
-  if (configured && !is_mysqld_running())
-  {
-    Instance_monitor *instance_monitor;
-    remove_pid();
-
-    instance_monitor= new Instance_monitor(this);
-
-    if (instance_monitor == NULL || instance_monitor->start(Thread::DETACHED))
-    {
-      delete instance_monitor;
-      log_error("Instance::start(): failed to create the monitoring thread"
-                " to start an instance");
-      return ER_CANNOT_START_INSTANCE;
-    }
-    /* The monitoring thread will delete itself when it's finished. */
-
-    return 0;
-  }
-
-  /* The instance is started already or misconfigured. */
-  return configured ? ER_INSTANCE_ALREADY_STARTED : ER_INSTANCE_MISCONFIGURED;
-}
-
-/*
-  The method sets the crash flag and wakes all waiters on
-  COND_instance_stopped and COND_guardian
-
-  SYNOPSIS
-    set_crash_flag_n_wake_all()
+    start_mysqld()
 
   DESCRIPTION
-    The method is called when an instance is crashed or terminated.
-    In the former case it might indicate that guardian probably should
-    restart it.
+    Reset flags and start Instance Monitor thread, which will start mysqld.
+
+    MT-NOTE: instance must be locked before calling the operation.
 
   RETURN
-    Function returns no value
+    FALSE - ok
+    TRUE  - could not start instance
 */
 
-void Instance::set_crash_flag_n_wake_all()
+bool Instance::start_mysqld()
 {
-  /* set instance state to crashed */
-  pthread_mutex_lock(&LOCK_instance);
-  crashed= TRUE;
-  pthread_mutex_unlock(&LOCK_instance);
+  Instance_monitor *instance_monitor;
 
   /*
-    Wake connection threads waiting for an instance to stop. This
-    is needed if a user issued command to stop an instance via
-    mysql connection. This is not the case if Guardian stop the thread.
+    Prepare instance to start Instance Monitor thread.
+
+    NOTE: It's important to set these actions here in order to avoid
+    race conditions -- these actions must be done under acquired lock on
+    Instance.
   */
-  pthread_cond_signal(&COND_instance_stopped);
-  /* wake guardian */
-  pthread_cond_signal(&Manager::get_guardian()->COND_guardian);
-}
 
+  crashed= FALSE;
+  monitoring_thread_active= TRUE;
 
-/*
-  Stop an instance.
+  remove_pid();
 
-  SYNOPSIS
-    stop()
+  /* Create and start the Instance Monitor thread. */
 
-  RETURN:
-    0                            ok
-    ER_INSTANCE_IS_NOT_STARTED   Looks like the instance it is not started
-    ER_STOP_INSTANCE             mysql_shutdown reported an error
-*/
+  instance_monitor= new Instance_monitor(this);
 
-int Instance::stop()
-{
-  struct timespec timeout;
-  uint waitchild= (uint)  DEFAULT_SHUTDOWN_DELAY;
-
-  if (is_mysqld_running())
+  if (instance_monitor == NULL || instance_monitor->start(Thread::DETACHED))
   {
-    waitchild= options.get_shutdown_delay();
+    delete instance_monitor;
+    monitoring_thread_active= FALSE;
 
-    kill_mysqld(SIGTERM);
-    /* sleep on condition to wait for SIGCHLD */
+    log_error("Instance '%s': can not create instance monitor thread.",
+              (const char *) get_name()->str);
 
-    timeout.tv_sec= time(NULL) + waitchild;
-    timeout.tv_nsec= 0;
-    if (pthread_mutex_lock(&LOCK_instance))
-      return ER_STOP_INSTANCE;
-
-    while (options.load_pid() != 0)            /* while server isn't stopped */
-    {
-      int status;
-
-      status= pthread_cond_timedwait(&COND_instance_stopped,
-                                     &LOCK_instance,
-                                     &timeout);
-      if (status == ETIMEDOUT || status == ETIME)
-        break;
-    }
-
-    pthread_mutex_unlock(&LOCK_instance);
-
-    kill_mysqld(SIGKILL);
-
-    return 0;
+    return TRUE;
   }
 
-  return ER_INSTANCE_IS_NOT_STARTED;
+  ++restart_counter;
+
+  /* The Instance Monitor thread will delete itself when it's finished. */
+
+  return FALSE;
 }
 
 
-/*
+/**
+  Stop mysqld.
+
+  SYNOPSIS
+    stop_mysqld()
+
+  DESCRIPTION
+    Try to stop mysqld gracefully. Otherwise kill it with SIGKILL.
+
+    MT-NOTE: instance must be locked before calling the operation.
+
+  RETURN
+    FALSE - ok
+    TRUE  - could not stop the instance
+*/
+
+bool Instance::stop_mysqld()
+{
+  log_info("Instance '%s': stopping mysqld...",
+           (const char *) get_name()->str);
+
+  kill_mysqld(SIGTERM);
+
+  if (!wait_for_stop())
+  {
+    log_info("Instance '%s': mysqld stopped gracefully.",
+             (const char *) get_name()->str);
+    return FALSE;
+  }
+
+  log_info("Instance '%s': mysqld failed to stop gracefully within %d seconds.",
+           (const char *) get_name()->str,
+           (int) options.get_shutdown_delay());
+
+  log_info("Instance'%s': killing mysqld...",
+           (const char *) get_name()->str);
+
+  kill_mysqld(SIGKILL);
+
+  if (!wait_for_stop())
+  {
+    log_info("Instance '%s': mysqld has been killed.",
+             (const char *) get_name()->str);
+    return FALSE;
+  }
+
+  log_info("Instance '%s': can not kill mysqld within %d seconds.",
+           (const char *) get_name()->str,
+           (int) options.get_shutdown_delay());
+
+  return TRUE;
+}
+
+
+/**
   Send signal to mysqld.
 
   SYNOPSIS
     kill_mysqld()
+
+  DESCRIPTION
+    Load pid from the pid file and send the given signal to that process.
+    If the signal is SIGKILL, remove the pid file after sending the signal.
+
+    MT-NOTE: instance must be locked before calling the operation.
+
+  TODO
+    This too low-level and OS-specific operation for public interface.
+    Also, it has some implicit behaviour for SIGKILL signal. Probably, we
+    should have the following public operations instead:
+      - start_mysqld() -- as is;
+      - stop_mysqld -- request mysqld to shutdown gracefully (send SIGTERM);
+        don't wait for complete shutdown;
+      - wait_for_stop() (or join_mysqld()) -- wait for mysqld to stop within
+        time interval;
+      - kill_mysqld() -- request to terminate mysqld; don't wait for
+        completion.
+    These operations should also be used in Guardian to manage instances.
 */
 
 void Instance::kill_mysqld(int signum)
@@ -707,27 +814,91 @@ void Instance::kill_mysqld(int signum)
   }
 }
 
-/*
-  Return crashed flag.
 
-  SYNOPSIS
-    is_crashed()
-
-  RETURN
-    TRUE  - mysqld crashed
-    FALSE - mysqld hasn't crashed yet
+/**
+  Lock instance.
 */
 
-bool Instance::is_crashed()
+void Instance::lock()
 {
-  bool val;
   pthread_mutex_lock(&LOCK_instance);
-  val= crashed;
-  pthread_mutex_unlock(&LOCK_instance);
-  return val;
 }
 
-/*
+
+/**
+  Unlock instance.
+*/
+
+void Instance::unlock()
+{
+  pthread_mutex_unlock(&LOCK_instance);
+}
+
+
+/**
+  Return instance state name.
+
+  SYNOPSIS
+    get_state_name()
+
+  DESCRIPTION
+    The operation returns user-friendly state name. The operation can be
+    used both for guarded and non-guarded instances.
+
+    MT-NOTE: instance must be locked before calling the operation.
+
+  TODO: Replace with the static get_state_name(state_code) function.
+*/
+
+const char *Instance::get_state_name()
+{
+  if (!is_configured())
+    return "misconfigured";
+
+  if (is_guarded())
+  {
+    /* The instance is managed by Guardian: we can report precise state. */
+
+    return get_instance_state_name(get_state());
+  }
+
+  /* The instance is not managed by Guardian: we can report status only.  */
+
+  return is_active() ? "online" : "offline";
+}
+
+
+/**
+  Reset statistics.
+
+  SYNOPSIS
+    reset_stat()
+
+  DESCRIPTION
+    The operation resets statistics used for guarding the instance.
+
+    MT-NOTE: instance must be locked before calling the operation.
+
+  TODO: Make private.
+*/
+
+void Instance::reset_stat()
+{
+  restart_counter= 0;
+  crash_moment= 0;
+  last_checked= 0;
+}
+
+/**************************************************************************
+  }}}
+**************************************************************************/
+
+
+/**************************************************************************
+  {{{ Instance: implementation of private operations.
+**************************************************************************/
+
+/**
   Remove pid file.
 */
 
@@ -744,3 +915,36 @@ void Instance::remove_pid()
               (const char *) options.instance_name.str);
   }
 }
+
+
+/**
+  Wait for mysqld to stop within shutdown interval.
+*/
+
+bool Instance::wait_for_stop()
+{
+  int start_time= time(NULL);
+  int finish_time= start_time + options.get_shutdown_delay();
+
+  log_info("Instance '%s': waiting for mysqld to stop "
+           "(timeout: %d seconds)...",
+           (const char *) get_name()->str,
+           (int) options.get_shutdown_delay());
+
+  while (true)
+  {
+    if (options.load_pid() == 0 && !is_mysqld_running())
+      return FALSE;
+
+    if (time(NULL) >= finish_time)
+      return TRUE;
+
+    /* Sleep for 0.3 sec and check again. */
+
+    my_sleep(300000);
+  }
+}
+
+/**************************************************************************
+  }}}
+**************************************************************************/
