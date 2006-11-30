@@ -29,6 +29,7 @@
 #include "guardian.h"
 #include "instance_map.h"
 #include "log.h"
+#include "manager.h"
 #include "messages.h"
 #include "mysqld_error.h"
 #include "mysql_manager_error.h"
@@ -36,8 +37,11 @@
 #include "priv.h"
 #include "protocol.h"
 
+/**************************************************************************
+ {{{ Static functions.
+**************************************************************************/
 
-/*
+/**
   modify_defaults_to_im_error -- a map of error codes of
   mysys::modify_defaults_file() into Instance Manager error codes.
 */
@@ -46,37 +50,24 @@ static const int modify_defaults_to_im_error[]= { 0, ER_OUT_OF_RESOURCES,
                                                   ER_ACCESS_OPTION_FILE };
 
 
-/*
-  Add a string to a buffer.
+/**
+  Parse version number from the version string.
 
   SYNOPSIS
-    put_to_buff()
-    buff              buffer to add the string
-    str               string to add
-    position          offset in the buff to add a string
+    parse_version_number()
+    version_str
+    version
+    version_size
 
   DESCRIPTION
+    TODO
 
-  Function to add a string to the buffer. It is different from
-  store_to_protocol_packet, which is used in the protocol.cc.
-  The last one also stores the length of the string in a special way.
-  This is required for MySQL client/server protocol support only.
+  TODO: Move this function to Instance_options and parse version number
+  only once.
 
-  RETURN
-    0 - ok
-    1 - error occured
+  NOTE: This function is used only in SHOW INSTANCE STATUS statement at the
+  moment.
 */
-
-static inline int put_to_buff(Buffer *buff, const char *str, uint *position)
-{
-  uint len= strlen(str);
-  if (buff->append(*position, str, len))
-    return 1;
-
-  *position+= len;
-  return 0;
-}
-
 
 static int parse_version_number(const char *version_str, char *version,
                                 uint version_size)
@@ -102,6 +93,9 @@ static int parse_version_number(const char *version_str, char *version,
   return 0;
 }
 
+/**************************************************************************
+  }}}
+**************************************************************************/
 
 /**************************************************************************
  Implementation of Instance_name.
@@ -122,7 +116,7 @@ Instance_name::Instance_name(const LEX_STRING *name)
  Implementation of Show_instances.
 **************************************************************************/
 
-/*
+/**
   Implementation of SHOW INSTANCES statement.
 
   Possible error codes:
@@ -172,7 +166,6 @@ int Show_instances::write_data(st_net *net)
   Instance *instance;
   Instance_map::Iterator iterator(instance_map);
 
-  instance_map->guardian->lock();
   instance_map->lock();
 
   while ((instance= iterator.next()))
@@ -180,20 +173,25 @@ int Show_instances::write_data(st_net *net)
     Buffer send_buf;  /* buffer for packets */
     uint pos= 0;
 
+    instance->lock();
+
     const char *instance_name= instance->options.instance_name.str;
-    const char *state_name= instance_map->get_instance_state_name(instance);
+    const char *state_name= instance->get_state_name();
 
     if (store_to_protocol_packet(&send_buf, instance_name, &pos) ||
         store_to_protocol_packet(&send_buf, state_name, &pos) ||
         my_net_write(net, send_buf.buffer, pos))
     {
       err_status= TRUE;
-      break;
     }
+
+    instance->unlock();
+
+    if (err_status)
+      break;
   }
 
   instance_map->unlock();
-  instance_map->guardian->unlock();
 
   return err_status ? ER_OUT_OF_RESOURCES : 0;
 }
@@ -203,7 +201,7 @@ int Show_instances::write_data(st_net *net)
  Implementation of Flush_instances.
 **************************************************************************/
 
-/*
+/**
   Implementation of FLUSH INSTANCES statement.
 
   Possible error codes:
@@ -213,36 +211,19 @@ int Show_instances::write_data(st_net *net)
 
 int Flush_instances::execute(st_net *net, ulong connection_id)
 {
-  instance_map->guardian->lock();
-  instance_map->lock();
-
-  if (instance_map->is_there_active_instance())
-  {
-    instance_map->unlock();
-    instance_map->guardian->unlock();
-    return ER_THERE_IS_ACTIVE_INSTACE;
-  }
-
-  if (instance_map->flush_instances())
-  {
-    instance_map->unlock();
-    instance_map->guardian->unlock();
+  if (Manager::flush_instances())
     return ER_OUT_OF_RESOURCES;
-  }
-
-  instance_map->unlock();
-  instance_map->guardian->unlock();
 
   return net_send_ok(net, connection_id, NULL) ? ER_OUT_OF_RESOURCES : 0;
 }
 
 
 /**************************************************************************
- Implementation of Abstract_instance_cmd.
+ Implementation of Instance_cmd.
 **************************************************************************/
 
-Abstract_instance_cmd::Abstract_instance_cmd(const LEX_STRING *instance_name_arg)
-  :instance_name(instance_name_arg)
+Instance_cmd::Instance_cmd(const LEX_STRING *instance_name_arg):
+   instance_name(instance_name_arg)
 {
   /*
     MT-NOTE: we can not make a search for Instance object here,
@@ -251,25 +232,38 @@ Abstract_instance_cmd::Abstract_instance_cmd(const LEX_STRING *instance_name_arg
 }
 
 
+/**************************************************************************
+ Implementation of Abstract_instance_cmd.
+**************************************************************************/
+
+Abstract_instance_cmd::Abstract_instance_cmd(
+  const LEX_STRING *instance_name_arg)
+  :Instance_cmd(instance_name_arg)
+{
+}
+
+
 int Abstract_instance_cmd::execute(st_net *net, ulong connection_id)
 {
   int err_code;
+  Instance *instance;
 
   instance_map->lock();
 
+  instance= instance_map->find(get_instance_name());
+
+  if (!instance)
   {
-    Instance *instance= instance_map->find(get_instance_name());
-
-    if (!instance)
-    {
-      instance_map->unlock();
-      return ER_BAD_INSTANCE_NAME;
-    }
-
-    err_code= execute_impl(net, instance);
+    instance_map->unlock();
+    return ER_BAD_INSTANCE_NAME;
   }
 
+  instance->lock();
   instance_map->unlock();
+
+  err_code= execute_impl(net, instance);
+
+  instance->unlock();
 
   if (!err_code)
     err_code= send_ok_response(net, connection_id);
@@ -288,7 +282,7 @@ Show_instance_status::Show_instance_status(const LEX_STRING *instance_name_arg)
 }
 
 
-/*
+/**
   Implementation of SHOW INSTANCE STATUS statement.
 
   Possible error codes:
@@ -363,19 +357,14 @@ int Show_instance_status::write_data(st_net *net, Instance *instance)
   char version_num_buf[MAX_VERSION_LENGTH];
   uint pos= 0;
 
-  const char *state_name;
+  const char *state_name= instance->get_state_name();
   const char *version_tag= "unknown";
   const char *version_num= "unknown";
-  const char *mysqld_compatible_status;
-
-  instance_map->guardian->lock();
-  state_name= instance_map->get_instance_state_name(instance);
-  mysqld_compatible_status= instance->is_mysqld_compatible() ? "yes" : "no";
-  instance_map->guardian->unlock();
+  const char *mysqld_compatible_status=
+    instance->is_mysqld_compatible() ? "yes" : "no";
 
   if (instance->options.mysqld_version)
   {
-
     if (parse_version_number(instance->options.mysqld_version, version_num_buf,
                              sizeof(version_num_buf)))
       return ER_OUT_OF_RESOURCES;
@@ -409,7 +398,7 @@ Show_instance_options::Show_instance_options(
 }
 
 
-/*
+/**
   Implementation of SHOW INSTANCE OPTIONS statement.
 
   Possible error codes:
@@ -505,23 +494,33 @@ Start_instance::Start_instance(const LEX_STRING *instance_name_arg)
 }
 
 
-/*
+/**
   Implementation of START INSTANCE statement.
 
   Possible error codes:
     ER_BAD_INSTANCE_NAME        The instance with the given name does not exist
-    ER_OUT_OF_RESOURCES         Not enough resources to complete the operation
+    ER_INSTANCE_MISCONFIGURED   The instance configuration is invalid
+    ER_INSTANCE_ALREADY_STARTED The instance is already started
+    ER_CANNOT_START_INSTANCE    The instance could not have been started
+
+  TODO: as soon as this method operates only with Instance, we probably
+  should introduce a new method (execute_stop_instance()) in Instance and
+  just call it from here.
 */
 
 int Start_instance::execute_impl(st_net * /* net */, Instance *instance)
 {
-  int err_code;
+  if (!instance->is_configured())
+    return ER_INSTANCE_MISCONFIGURED;
 
-  if ((err_code= instance->start()))
-    return err_code;
+  if (instance->is_active())
+    return ER_INSTANCE_ALREADY_STARTED;
 
-  if (!(instance->options.nonguarded))
-    instance_map->guardian->guard(instance);
+  if (instance->start_mysqld())
+    return ER_CANNOT_START_INSTANCE;
+
+  instance->reset_stat();
+  instance->set_state(Instance::NOT_STARTED);
 
   return 0;
 }
@@ -546,25 +545,26 @@ Stop_instance::Stop_instance(const LEX_STRING *instance_name_arg)
 }
 
 
-/*
+/**
   Implementation of STOP INSTANCE statement.
 
   Possible error codes:
     ER_BAD_INSTANCE_NAME        The instance with the given name does not exist
     ER_OUT_OF_RESOURCES         Not enough resources to complete the operation
+
+  TODO: as soon as this method operates only with Instance, we probably
+  should introduce a new method (execute_stop_instance()) in Instance and
+  just call it from here.
 */
 
 int Stop_instance::execute_impl(st_net * /* net */, Instance *instance)
 {
-  int err_code;
+  if (!instance->is_active())
+    return ER_INSTANCE_IS_NOT_STARTED;
 
-  if (!(instance->options.nonguarded))
-    instance_map->guardian->stop_guard(instance);
+  instance->set_state(Instance::STOPPED);
 
-  if ((err_code= instance->stop()))
-    return err_code;
-
-  return 0;
+  return instance->stop_mysqld() ? ER_STOP_INSTANCE : 0;
 }
 
 
@@ -582,12 +582,12 @@ int Stop_instance::send_ok_response(st_net *net, ulong connection_id)
 **************************************************************************/
 
 Create_instance::Create_instance(const LEX_STRING *instance_name_arg)
-  :instance_name(instance_name_arg)
+  :Instance_cmd(instance_name_arg)
 {
 }
 
 
-/*
+/**
   This operation initializes Create_instance object.
 
   SYNOPSIS
@@ -604,7 +604,7 @@ bool Create_instance::init(const char **text)
 }
 
 
-/*
+/**
   This operation parses CREATE INSTANCE options.
 
   SYNOPSIS
@@ -724,7 +724,7 @@ bool Create_instance::parse_args(const char **text)
 }
 
 
-/*
+/**
   Implementation of CREATE INSTANCE statement.
 
   Possible error codes:
@@ -736,6 +736,7 @@ bool Create_instance::parse_args(const char **text)
 int Create_instance::execute(st_net *net, ulong connection_id)
 {
   int err_code;
+  Instance *instance;
 
   /* Check that the name is valid and there is no instance with such name. */
 
@@ -761,16 +762,25 @@ int Create_instance::execute(st_net *net, ulong connection_id)
     return err_code;
   }
 
+  instance= instance_map->find(get_instance_name());
+  DBUG_ASSERT(instance);
+
   if ((err_code= create_instance_in_file(get_instance_name(), &options)))
   {
-    Instance *instance= instance_map->find(get_instance_name());
-
-    if (instance)
-      instance_map->remove_instance(instance); /* instance is deleted here. */
+    instance_map->remove_instance(instance); /* instance is deleted here. */
 
     instance_map->unlock();
     return err_code;
   }
+
+  /*
+    CREATE INSTANCE must not lead to start instance, even if it guarded.
+
+    TODO: The problem however is that if Instance Manager restarts after
+    creating instance, the instance will be restarted (see also BUG#19718).
+  */
+
+  instance->set_state(Instance::STOPPED);
 
   /* That's all. */
 
@@ -790,12 +800,12 @@ int Create_instance::execute(st_net *net, ulong connection_id)
 **************************************************************************/
 
 Drop_instance::Drop_instance(const LEX_STRING *instance_name_arg)
-  :Abstract_instance_cmd(instance_name_arg)
+  :Instance_cmd(instance_name_arg)
 {
 }
 
 
-/*
+/**
   Implementation of DROP INSTANCE statement.
 
   Possible error codes:
@@ -804,14 +814,38 @@ Drop_instance::Drop_instance(const LEX_STRING *instance_name_arg)
     ER_OUT_OF_RESOURCES         Not enough resources to complete the operation
 */
 
-int Drop_instance::execute_impl(st_net * /* net */, Instance *instance)
+int Drop_instance::execute(st_net *net, ulong connection_id)
 {
   int err_code;
+  Instance *instance;
+
+  /* Lock Guardian, then Instance_map. */
+
+  instance_map->lock();
+
+  /* Find an instance. */
+
+  instance= instance_map->find(get_instance_name());
+
+  if (!instance)
+  {
+    instance_map->unlock();
+    return ER_BAD_INSTANCE_NAME;
+  }
+
+  instance->lock();
 
   /* Check that the instance is offline. */
 
-  if (instance_map->guardian->is_active(instance))
+  if (instance->is_active())
+  {
+    instance->unlock();
+    instance_map->unlock();
+
     return ER_DROP_ACTIVE_INSTANCE;
+  }
+
+  /* Try to remove instance from the file. */
 
   err_code= modify_defaults_file(Options::Main::config_file, NULL, NULL,
                                  get_instance_name()->str, MY_REMOVE_SECTION);
@@ -824,27 +858,30 @@ int Drop_instance::execute_impl(st_net * /* net */, Instance *instance)
               (const char *) get_instance_name()->str,
               (const char *) Options::Main::config_file,
               (int) err_code);
+
+    instance->unlock();
+    instance_map->unlock();
+
+    return modify_defaults_to_im_error[err_code];
   }
 
-  if (err_code)
-    return modify_defaults_to_im_error[err_code];
+  /* Unlock the instance before destroy. */
 
-  /* Remove instance from the instance map hash and Guardian's list. */
+  instance->unlock();
 
-  if (!instance->options.nonguarded)
-    instance_map->guardian->stop_guard(instance);
-
-  if ((err_code= instance->stop()))
-    return err_code;
+  /*
+    Remove instance from the instance map
+    (the instance will be also destroyed here).
+  */
 
   instance_map->remove_instance(instance);
 
-  return 0;
-}
+  /* Unlock the instance map. */
 
+  instance_map->unlock();
 
-int Drop_instance::send_ok_response(st_net *net, ulong connection_id)
-{
+  /* That's all: send ok. */
+
   if (net_send_ok(net, connection_id, "Instance dropped"))
     return ER_OUT_OF_RESOURCES;
 
@@ -867,7 +904,7 @@ Show_instance_log::Show_instance_log(const LEX_STRING *instance_name_arg,
 }
 
 
-/*
+/**
   Implementation of SHOW INSTANCE LOG statement.
 
   Possible error codes:
@@ -1012,7 +1049,7 @@ Show_instance_log_files::Show_instance_log_files
 }
 
 
-/*
+/**
   Implementation of SHOW INSTANCE LOG FILES statement.
 
   Possible error codes:
@@ -1133,7 +1170,7 @@ int Show_instance_log_files::write_data(st_net *net, Instance *instance)
  Implementation of Abstract_option_cmd.
 **************************************************************************/
 
-/*
+/**
   Instance_options_list -- a data class representing a list of options for
   some instance.
 */
@@ -1251,7 +1288,7 @@ bool Abstract_option_cmd::init(const char **text)
 }
 
 
-/*
+/**
   Correct the option file. The "skip" option is used to remove the found
   option.
 
@@ -1290,8 +1327,8 @@ int Abstract_option_cmd::correct_file(Instance *instance, Named_value *option,
 }
 
 
-/*
-  Implementation of SET statement.
+/**
+  Lock Instance Map and call execute_impl().
 
   Possible error codes:
     ER_BAD_INSTANCE_NAME        The instance with the given name does not exist
@@ -1341,6 +1378,11 @@ Abstract_option_cmd::get_instance_options_list(const LEX_STRING *instance_name)
 }
 
 
+/**
+  Skeleton implementation of option-management command.
+
+  MT-NOTE: Instance Map is locked before calling this operation.
+*/
 int Abstract_option_cmd::execute_impl(st_net *net, ulong connection_id)
 {
   int err_code= 0;
@@ -1352,12 +1394,18 @@ int Abstract_option_cmd::execute_impl(st_net *net, ulong connection_id)
     Instance_options_list *lst=
       (Instance_options_list *) hash_element(&instance_options_map, i);
 
+    bool instance_is_active;
+
     lst->instance= instance_map->find(lst->get_instance_name());
 
     if (!lst->instance)
       return ER_BAD_INSTANCE_NAME;
 
-    if (instance_map->guardian->is_active(lst->instance))
+    lst->instance->lock();
+    instance_is_active= lst->instance->is_active();
+    lst->instance->unlock();
+
+    if (instance_is_active)
       return ER_INSTANCE_IS_ACTIVE;
   }
 
@@ -1368,6 +1416,8 @@ int Abstract_option_cmd::execute_impl(st_net *net, ulong connection_id)
     Instance_options_list *lst=
       (Instance_options_list *) hash_element(&instance_options_map, i);
 
+    lst->instance->lock();
+
     for (int j= 0; j < lst->options.get_size(); ++j)
     {
       Named_value option= lst->options.get_element(j);
@@ -1376,6 +1426,8 @@ int Abstract_option_cmd::execute_impl(st_net *net, ulong connection_id)
       if (err_code)
         break;
     }
+
+    lst->instance->unlock();
 
     if (err_code)
       break;
@@ -1392,7 +1444,7 @@ int Abstract_option_cmd::execute_impl(st_net *net, ulong connection_id)
  Implementation of Set_option.
 **************************************************************************/
 
-/*
+/**
   This operation parses SET options.
 
   SYNOPSIS
@@ -1566,7 +1618,7 @@ int Set_option::process_option(Instance *instance, Named_value *option)
  Implementation of Unset_option.
 **************************************************************************/
 
-/*
+/**
   This operation parses UNSET options.
 
   SYNOPSIS
@@ -1662,7 +1714,7 @@ bool Unset_option::parse_args(const char **text)
 }
 
 
-/*
+/**
   Implementation of UNSET statement.
 
   Possible error codes:

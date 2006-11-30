@@ -37,6 +37,9 @@
 #include "user_map.h"
 
 
+/**********************************************************************
+ {{{ Platform-specific implementation.
+**********************************************************************/
 
 #ifndef __WIN__
 void set_signals(sigset_t *mask)
@@ -92,9 +95,13 @@ int my_sigwait(const sigset_t *set, int *sig)
 
 #endif
 
+/**********************************************************************
+  }}}
+**********************************************************************/
+
 
 /**********************************************************************
-  Implementation of checking the actual thread model.
+  {{{ Implementation of checking the actual thread model.
 ***********************************************************************/
 
 namespace { /* no-indent */
@@ -137,6 +144,10 @@ bool check_if_linux_threads(bool *linux_threads)
 
 }
 
+/**********************************************************************
+  }}}
+***********************************************************************/
+
 
 /**********************************************************************
   Manager implementation
@@ -152,25 +163,37 @@ bool Manager::linux_threads;
 #endif // __WIN__
 
 
+/**
+  Request shutdown of guardian and threads registered in Thread_registry.
+
+  SYNOPSIS
+    stop_all_threads()
+*/
+
 void Manager::stop_all_threads()
 {
   /*
-    Let guardian thread know that it should break it's processing cycle,
+    Let Guardian thread know that it should break it's processing cycle,
     once it wakes up.
   */
   p_guardian->request_shutdown();
-  /* wake guardian */
-  pthread_cond_signal(&p_guardian->COND_guardian);
-  /* stop all threads */
+
+  /* Stop all threads. */
   p_thread_registry->deliver_shutdown();
 }
 
 
-/*
-  manager - entry point to the main instance manager process: start
-  listener thread, write pid file and enter into signal handling.
-  See also comments in mysqlmanager.cc to picture general Instance Manager
-  architecture.
+/**
+  Main manager function.
+
+  SYNOPSIS
+    main()
+
+  DESCRIPTION
+    This is an entry point to the main instance manager process:
+    start listener thread, write pid file and enter into signal handling.
+    See also comments in mysqlmanager.cc to picture general Instance Manager
+    architecture.
 
   TODO: how about returning error status.
 */
@@ -194,22 +217,33 @@ int Manager::main()
            (const char *) (linux_threads ? "LINUX threads" : "POSIX threads"));
 #endif // __WIN__
 
-  Thread_registry thread_registry;
   /*
-    All objects created in the manager() function live as long as
-    thread_registry lives, and thread_registry is alive until there are
-    working threads.
+    All objects created in the Manager object live as long as thread_registry
+    lives, and thread_registry is alive until there are working threads.
+
+    There are two main purposes of the Thread Registry:
+      1. Interrupt blocking I/O and signal condition variables in case of
+         shutdown;
+      2. Wait for detached threads before shutting down the main thread.
+
+    NOTE:
+      1. Handling shutdown can be done in more elegant manner by introducing
+         Event (or Condition) object with support of logical operations.
+      2. Using Thread Registry to wait for detached threads is definitely not
+         the best way, because when Thread Registry unregisters an thread, the
+         thread is still alive. Accurate way to wait for threads to stop is
+         not using detached threads and join all threads before shutdown.
   */
 
+  Thread_registry thread_registry;
   User_map user_map;
   Instance_map instance_map;
-  Guardian guardian(&thread_registry, &instance_map,
-                    Options::Main::monitoring_interval);
+  Guardian guardian(&thread_registry, &instance_map);
 
   Listener listener(&thread_registry, &user_map);
 
   p_instance_map= &instance_map;
-  p_guardian= instance_map.guardian= &guardian;
+  p_guardian= &guardian;
   p_thread_registry= &thread_registry;
   p_user_map= &user_map;
 
@@ -249,7 +283,7 @@ int Manager::main()
     }
   }
 
-  /* write Instance Manager pid file */
+  /* Write Instance Manager pid file. */
 
   log_info("IM pid file: '%s'; PID: %d.",
            (const char *) Options::Main::pid_file_name,
@@ -290,6 +324,7 @@ int Manager::main()
     permitted to process instances. And before flush_instances() has
     completed, there are no instances to guard.
   */
+
   if (guardian.start(Thread::DETACHED))
   {
     log_error("Can not start Guardian thread.");
@@ -298,21 +333,11 @@ int Manager::main()
 
   /* Load instances. */
 
+  if (Manager::flush_instances())
   {
-    instance_map.guardian->lock();
-    instance_map.lock();
-
-    int flush_instances_status= instance_map.flush_instances();
-
-    instance_map.unlock();
-    instance_map.guardian->unlock();
-
-    if (flush_instances_status)
-    {
-      log_error("Can not init instances repository.");
-      stop_all_threads();
-      goto err;
-    }
+    log_error("Can not init instances repository.");
+    stop_all_threads();
+    goto err;
   }
 
   /* Initialize the Listener. */
@@ -328,7 +353,8 @@ int Manager::main()
     After the list of guarded instances have been initialized,
     Guardian should start them.
   */
-  pthread_cond_signal(&guardian.COND_guardian);
+
+  guardian.ping();
 
   /* Main loop. */
 
@@ -381,7 +407,6 @@ int Manager::main()
       if (!guardian.is_stopped())
       {
         guardian.request_shutdown();
-        pthread_cond_signal(&guardian.COND_guardian);
       }
       else
       {
@@ -405,4 +430,65 @@ err:
   /* don't pthread_exit to kill all threads who did not shut down in time */
 #endif
   return rc;
+}
+
+
+/**
+  Re-read instance configuration file.
+
+  SYNOPSIS
+    flush_instances()
+
+  DESCRIPTION
+    This function will:
+     - clear the current list of instances. This removes both
+       running and stopped instances.
+     - load a new instance configuration from the file.
+     - pass on the new map to the guardian thread: it will start
+       all instances that are marked `guarded' and not yet started.
+
+    Note, as the check whether an instance is started is currently
+    very simple (returns TRUE if there is a MySQL server running
+    at the given port), this function has some peculiar
+    side-effects:
+     * if the port number of a running instance was changed, the
+       old instance is forgotten, even if it was running. The new
+       instance will be started at the new port.
+     * if the configuration was changed in a way that two
+       instances swapped their port numbers, the guardian thread
+       will not notice that and simply report that both instances
+       are configured successfully and running.
+
+    In order to avoid such side effects one should never call
+    FLUSH INSTANCES without prior stop of all running instances.
+*/
+
+bool Manager::flush_instances()
+{
+  p_instance_map->lock();
+
+  if (p_instance_map->is_there_active_instance())
+  {
+    p_instance_map->unlock();
+    return TRUE;
+  }
+
+  if (p_instance_map->reset())
+  {
+    p_instance_map->unlock();
+    return TRUE;
+  }
+
+  if (p_instance_map->load())
+  {
+    p_instance_map->unlock();
+    return TRUE; /* Don't init guardian if we failed to load instances. */
+  }
+
+  get_guardian()->init(); /* TODO: check error status. */
+  get_guardian()->ping();
+
+  p_instance_map->unlock();
+
+  return FALSE;
 }
