@@ -367,9 +367,9 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
                                               strlen(tables->alias) + 1)))
   {
     table= hash_tables->table;
-    DBUG_PRINT("info-in-hash",("'%s'.'%s' as '%s' tab %p",
+    DBUG_PRINT("info-in-hash",("'%s'.'%s' as '%s' table: 0x%lx",
                                hash_tables->db, hash_tables->table_name,
-                               hash_tables->alias, table));
+                               hash_tables->alias, (long) table));
     if (!table)
     {
       /*
@@ -633,7 +633,8 @@ int mysql_ha_flush(THD *thd, TABLE_LIST *tables, uint mode_flags,
   TABLE         **table_ptr;
   bool          did_lock= FALSE;
   DBUG_ENTER("mysql_ha_flush");
-  DBUG_PRINT("enter", ("tables: %p  mode_flags: 0x%02x", tables, mode_flags));
+  DBUG_PRINT("enter", ("tables: 0x%lx  mode_flags: 0x%02x",
+                       (long) tables, mode_flags));
 
   if (tables)
   {

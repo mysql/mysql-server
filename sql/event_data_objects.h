@@ -111,14 +111,14 @@ public:
     void *p;
     DBUG_ENTER("Event_queue_element::new(size)");
     p= my_malloc(size, MYF(0));
-    DBUG_PRINT("info", ("alloc_ptr=0x%lx", p));
+    DBUG_PRINT("info", ("alloc_ptr: 0x%lx", (long) p));
     DBUG_RETURN(p);
   }
 
   static void operator delete(void *ptr, size_t size)
   {
     DBUG_ENTER("Event_queue_element::delete(ptr,size)");
-    DBUG_PRINT("enter", ("free_ptr=0x%lx", ptr));
+    DBUG_PRINT("enter", ("free_ptr: 0x%lx", (long) ptr));
     TRASH(ptr, size);
     my_free((gptr) ptr, MYF(0));
     DBUG_VOID_RETURN;

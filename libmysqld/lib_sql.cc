@@ -100,6 +100,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   mysql->affected_rows= ~(my_ulonglong) 0;
   mysql->field_count= 0;
   net->last_errno= 0;
+  thd->current_stmt= stmt;
 
   thd->store_globals();				// Fix if more than one connect
   /* 
@@ -278,24 +279,26 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
   DBUG_ENTER("emb_stmt_execute");
   char header[5];
   THD *thd;
+  my_bool res;
 
   int4store(header, stmt->stmt_id);
   header[4]= stmt->flags;
   thd= (THD*)stmt->mysql->thd;
   thd->client_param_count= stmt->param_count;
   thd->client_params= stmt->params;
-  if (emb_advanced_command(stmt->mysql, COM_STMT_EXECUTE,0,0,
-                           header, sizeof(header), 1, stmt) ||
-      emb_read_query_result(stmt->mysql))
+
+  res= test(emb_advanced_command(stmt->mysql, COM_STMT_EXECUTE, 0, 0,
+                                 header, sizeof(header), 1, stmt) ||
+            emb_read_query_result(stmt->mysql));
+  stmt->affected_rows= stmt->mysql->affected_rows;
+  stmt->insert_id= stmt->mysql->insert_id;
+  stmt->server_status= stmt->mysql->server_status;
+  if (res)
   {
     NET *net= &stmt->mysql->net;
     set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
     DBUG_RETURN(1);
   }
-  stmt->affected_rows= stmt->mysql->affected_rows;
-  stmt->insert_id= stmt->mysql->insert_id;
-  stmt->server_status= stmt->mysql->server_status;
-
   DBUG_RETURN(0);
 }
 

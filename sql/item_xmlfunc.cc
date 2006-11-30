@@ -532,7 +532,7 @@ public:
   longlong val_int()
   {
     Item_func *comp= (Item_func*)args[1];
-    Item_string *fake= (Item_string*)(comp->arguments()[1]);
+    Item_string *fake= (Item_string*)(comp->arguments()[0]);
     String *res= args[0]->val_nodeset(&tmp_nodeset);
     MY_XPATH_FLT *fltbeg= (MY_XPATH_FLT*) res->ptr();
     MY_XPATH_FLT *fltend= (MY_XPATH_FLT*) (res->ptr() + res->length());
@@ -884,7 +884,7 @@ static Item *eq_func(int oper, Item *a, Item *b)
     Create a comparator function for scalar arguments,
     for the given arguments and reverse operation, e.g.
 
-    A >= B  is converted into  A < B
+    A > B  is converted into  B < A
 
   RETURN
     The newly created item.
@@ -895,10 +895,10 @@ static Item *eq_func_reverse(int oper, Item *a, Item *b)
   {
     case '=': return new Item_func_eq(a, b);
     case '!': return new Item_func_ne(a, b);
-    case MY_XPATH_LEX_GE: return new Item_func_lt(a, b);
-    case MY_XPATH_LEX_LE: return new Item_func_gt(a, b);
-    case MY_XPATH_LEX_GREATER: return new Item_func_le(a, b);
-    case MY_XPATH_LEX_LESS: return new Item_func_ge(a, b);
+    case MY_XPATH_LEX_GE: return new Item_func_le(a, b);
+    case MY_XPATH_LEX_LE: return new Item_func_ge(a, b);
+    case MY_XPATH_LEX_GREATER: return new Item_func_lt(a, b);
+    case MY_XPATH_LEX_LESS: return new Item_func_gt(a, b);
   }
   return 0;
 }
@@ -951,13 +951,13 @@ static Item *create_comparator(MY_XPATH *xpath,
     {
       nodeset= (Item_nodeset_func*) a;
       scalar= b;
-      comp= eq_func(oper, scalar, fake);
+      comp= eq_func(oper, fake, scalar);
     }
     else
     {
       nodeset= (Item_nodeset_func*) b;
       scalar= a;
-      comp= eq_func_reverse(oper, scalar, fake);
+      comp= eq_func_reverse(oper, fake, scalar);
     }
     return new Item_nodeset_to_const_comparator(nodeset, comp, xpath->pxml);
   }

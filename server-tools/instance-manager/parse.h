@@ -21,7 +21,6 @@
 #include <m_string.h>
 
 class Command;
-class Instance_map;
 
 enum Log_type
 {
@@ -30,7 +29,7 @@ enum Log_type
   IM_LOG_SLOW
 };
 
-Command *parse_command(Instance_map *map, const char *text);
+Command *parse_command(const char *text);
 
 bool parse_option_value(const char *text, uint *text_len, char **value);
 

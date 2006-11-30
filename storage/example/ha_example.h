@@ -117,8 +117,6 @@ public:
   int delete_row(const byte * buf);
   int index_read(byte * buf, const byte * key,
                  uint key_len, enum ha_rkey_function find_flag);
-  int index_read_idx(byte * buf, uint idx, const byte * key,
-                     uint key_len, enum ha_rkey_function find_flag);
   int index_next(byte * buf);
   int index_prev(byte * buf);
   int index_first(byte * buf);
@@ -139,7 +137,6 @@ public:
   int info(uint);                                              //required
 
   int extra(enum ha_extra_function operation);
-  int reset(void);
   int external_lock(THD *thd, int lock_type);                   //required
   int delete_all_rows(void);
   ha_rows records_in_range(uint inx, key_range *min_key,

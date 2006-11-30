@@ -564,8 +564,8 @@ err:
     mysql_free_result(res);
   if (error)
   {
-    sql_print_error("While trying to obtain the list of slaves from the master \
-'%s:%d', user '%s' got the following error: '%s'", 
+    sql_print_error("While trying to obtain the list of slaves from the master "
+                    "'%s:%d', user '%s' got the following error: '%s'", 
                     mi->host, mi->port, mi->user, error);
     DBUG_RETURN(1);
   }
@@ -962,7 +962,7 @@ bool load_master_data(THD* thd)
      Cancel the previous START SLAVE UNTIL, as the fact to download
      a new copy logically makes UNTIL irrelevant.
   */
-  clear_until_condition(&active_mi->rli);
+  active_mi->rli.clear_until_condition();
 
   /*
     No need to update rli.event* coordinates, they will be when the slave

@@ -19,10 +19,12 @@
 #endif
 
 #include "command.h"
+#include "manager.h"
 
 
-Command::Command(Instance_map *instance_map_arg)
-  :instance_map(instance_map_arg)
+Command::Command()
+  :guardian(Manager::get_guardian()),
+  instance_map(Manager::get_instance_map())
 {}
 
 Command::~Command()

@@ -310,7 +310,7 @@ static bool lower_case_table_names_used= 0;
 static bool volatile select_thread_in_use, signal_thread_in_use;
 static bool volatile ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
-static my_bool opt_isam, opt_ndbcluster, opt_merge;
+static my_bool opt_ndbcluster;
 static my_bool opt_short_log_format= 0;
 static uint kill_cached_threads, wake_thread;
 static ulong killed_threads, thread_created;
@@ -1610,7 +1610,7 @@ static void network_init(void)
     if (strlen(mysqld_unix_port) > (sizeof(UNIXaddr.sun_path) - 1))
     {
       sql_print_error("The socket file path is too long (> %u): %s",
-                      sizeof(UNIXaddr.sun_path) - 1, mysqld_unix_port);
+                      (uint) sizeof(UNIXaddr.sun_path) - 1, mysqld_unix_port);
       unireg_abort(1);
     }
     if ((unix_sock= socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
@@ -2121,7 +2121,7 @@ the thread stack. Please read http://www.mysql.com/doc/en/Linux.html\n\n",
 #ifdef HAVE_STACKTRACE
   if (!(test_flags & TEST_NO_STACKTRACE))
   {
-    fprintf(stderr,"thd=%p\n",thd);
+    fprintf(stderr,"thd: 0x%lx\n",(long) thd);
     print_stacktrace(thd ? (gptr) thd->thread_stack : (gptr) 0,
 		     thread_stack);
   }
@@ -3149,11 +3149,6 @@ with --log-bin instead.");
   }
   if (global_system_variables.binlog_format == BINLOG_FORMAT_UNSPEC)
   {
-#if defined(HAVE_NDB_BINLOG) && defined(HAVE_ROW_BASED_REPLICATION)
-    if (opt_bin_log && have_ndbcluster == SHOW_OPTION_YES)
-      global_system_variables.binlog_format= BINLOG_FORMAT_ROW;
-    else
-#endif
 #if defined(HAVE_ROW_BASED_REPLICATION)
       global_system_variables.binlog_format= BINLOG_FORMAT_MIXED;
 #else
@@ -3213,7 +3208,7 @@ server.");
     using_update_log=1;
   }
 
-  if (plugin_init(0))
+  if (plugin_init(opt_bootstrap))
   {
     sql_print_error("Failed to init plugins.");
     return 1;
@@ -3531,7 +3526,7 @@ int main(int argc, char **argv)
     if (stack_size && stack_size < thread_stack)
     {
       if (global_system_variables.log_warnings)
-	sql_print_warning("Asked for %ld thread stack, but got %ld",
+	sql_print_warning("Asked for %lu thread stack, but got %ld",
 			  thread_stack, (long) stack_size);
 #if defined(__ia64__) || defined(__ia64)
       thread_stack= stack_size*2;
@@ -4077,7 +4072,7 @@ static void create_new_thread(THD *thd)
       int error;
       thread_created++;
       threads.append(thd);
-      DBUG_PRINT("info",(("creating thread %d"), thd->thread_id));
+      DBUG_PRINT("info",(("creating thread %lu"), thd->thread_id));
       thd->connect_time = time(NULL);
       if ((error=pthread_create(&thd->real_id,&connection_attrib,
 				handle_one_connection,
@@ -5165,9 +5160,6 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    (gptr*) &global_system_variables.innodb_table_locks,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
 #endif /* End WITH_INNOBASE_STORAGE_ENGINE */
-  {"isam", OPT_ISAM, "Obsolete. ISAM storage engine is no longer supported.",
-   (gptr*) &opt_isam, (gptr*) &opt_isam, 0, GET_BOOL, NO_ARG, 0, 0, 0,
-   0, 0, 0},
    {"language", 'L',
    "Client error messages in given language. May be given as a full path.",
    (gptr*) &language_ptr, (gptr*) &language_ptr, 0, GET_STR, REQUIRED_ARG,
@@ -5339,9 +5331,6 @@ master-ssl",
 #endif /* HAVE_REPLICATION */
   {"memlock", OPT_MEMLOCK, "Lock mysqld in memory.", (gptr*) &locked_in_memory,
    (gptr*) &locked_in_memory, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"merge", OPT_MERGE, "Enable Merge storage engine. Disable with \
---skip-merge.",
-   (gptr*) &opt_merge, (gptr*) &opt_merge, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"myisam-recover", OPT_MYISAM_RECOVER,
    "Syntax: myisam-recover[=option[,option...]], where option can be DEFAULT, BACKUP, FORCE or QUICK.",
    (gptr*) &myisam_recover_options_str, (gptr*) &myisam_recover_options_str, 0,
@@ -6337,6 +6326,16 @@ static int show_open_tables(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
+static int show_prepared_stmt_count(THD *thd, SHOW_VAR *var, char *buff)
+{
+  var->type= SHOW_LONG;
+  var->value= buff;
+  pthread_mutex_lock(&LOCK_prepared_stmt_count);
+  *((long *)buff)= (long)prepared_stmt_count;
+  pthread_mutex_unlock(&LOCK_prepared_stmt_count);
+  return 0;
+}
+
 static int show_table_definitions(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
@@ -6747,6 +6746,7 @@ SHOW_VAR status_vars[]= {
   {"Open_table_definitions",   (char*) &show_table_definitions, SHOW_FUNC},
   {"Open_tables",              (char*) &show_open_tables,       SHOW_FUNC},
   {"Opened_tables",            (char*) offsetof(STATUS_VAR, opened_tables), SHOW_LONG_STATUS},
+  {"Prepared_stmt_count",      (char*) &show_prepared_stmt_count, SHOW_FUNC},
 #ifdef HAVE_QUERY_CACHE
   {"Qcache_free_blocks",       (char*) &query_cache.free_memory_blocks, SHOW_LONG_NOFLUSH},
   {"Qcache_free_memory",       (char*) &query_cache.free_memory, SHOW_LONG_NOFLUSH},
@@ -6926,6 +6926,7 @@ static void mysql_init_variables(void)
   binlog_cache_use=  binlog_cache_disk_use= 0;
   max_used_connections= slow_launch_threads = 0;
   mysqld_user= mysqld_chroot= opt_init_file= opt_bin_logname = 0;
+  prepared_stmt_count= 0;
   errmesg= 0;
   mysqld_unix_port= opt_mysql_tmpdir= my_bind_addr_str= NullS;
   bzero((gptr) &mysql_tmpdir_list, sizeof(mysql_tmpdir_list));
@@ -7016,35 +7017,10 @@ static void mysql_init_variables(void)
 			     "d:t:i:o,/tmp/mysqld.trace");
 #endif
   opt_error_log= IF_WIN(1,0);
-#ifdef WITH_MYISAMMRG_STORAGE_ENGINE
-  have_merge_db= SHOW_OPTION_YES;
-#else
-  have_merge_db= SHOW_OPTION_NO;
-#endif
 #ifdef WITH_INNOBASE_STORAGE_ENGINE
   have_innodb= SHOW_OPTION_YES;
 #else
   have_innodb= SHOW_OPTION_NO;
-#endif
-#ifdef WITH_EXAMPLE_STORAGE_ENGINE
-  have_example_db= SHOW_OPTION_YES;
-#else
-  have_example_db= SHOW_OPTION_NO;
-#endif
-#ifdef WITH_ARCHIVE_STORAGE_ENGINE
-  have_archive_db= SHOW_OPTION_YES;
-#else
-  have_archive_db= SHOW_OPTION_NO;
-#endif
-#ifdef WITH_BLACKHOLE_STORAGE_ENGINE
-  have_blackhole_db= SHOW_OPTION_YES;
-#else
-  have_blackhole_db= SHOW_OPTION_NO;
-#endif
-#ifdef WITH_FEDERATED_STORAGE_ENGINE
-  have_federated_db= SHOW_OPTION_YES;
-#else
-  have_federated_db= SHOW_OPTION_NO;
 #endif
 #ifdef WITH_CSV_STORAGE_ENGINE
   have_csv_db= SHOW_OPTION_YES;
@@ -7549,10 +7525,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   }
   case OPT_MERGE:
-    if (opt_merge)
-      have_merge_db= SHOW_OPTION_YES;
-    else
-      have_merge_db= SHOW_OPTION_DISABLED;
   case OPT_BDB:
     break;
   case OPT_NDBCLUSTER:
@@ -7783,10 +7755,6 @@ static void get_options(int argc,char **argv)
 #ifndef WITH_INNOBASE_STORAGE_ENGINE
   if (opt_innodb)
     sql_print_warning("this binary does not contain INNODB storage engine");
-#endif
-#ifndef WITH_ISAM_STORAGE_ENGINE
-  if (opt_isam)
-    sql_print_warning("this binary does not contain ISAM storage engine");
 #endif
   if ((opt_log_slow_admin_statements || opt_log_queries_not_using_indexes) &&
       !opt_slow_log)
@@ -8136,23 +8104,12 @@ void refresh_status(THD *thd)
 *****************************************************************************/
 #undef have_innodb
 #undef have_ndbcluster
-#undef have_example_db
-#undef have_archive_db
 #undef have_csv_db
-#undef have_federated_db
-#undef have_partition_db
-#undef have_blackhole_db
-#undef have_merge_db
 
 SHOW_COMP_OPTION have_innodb= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_ndbcluster= SHOW_OPTION_NO;
-SHOW_COMP_OPTION have_example_db= SHOW_OPTION_NO;
-SHOW_COMP_OPTION have_archive_db= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_csv_db= SHOW_OPTION_NO;
-SHOW_COMP_OPTION have_federated_db= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_partition_db= SHOW_OPTION_NO;
-SHOW_COMP_OPTION have_blackhole_db= SHOW_OPTION_NO;
-SHOW_COMP_OPTION have_merge_db= SHOW_OPTION_NO;
 
 #ifndef WITH_INNOBASE_STORAGE_ENGINE
 uint innobase_flush_log_at_trx_commit;

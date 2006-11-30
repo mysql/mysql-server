@@ -19,7 +19,7 @@
 #pragma once
 #include "windowsservice.h"
 
-class IMService : public WindowsService
+class IMService: public WindowsService
 {
 public:
   IMService(void);

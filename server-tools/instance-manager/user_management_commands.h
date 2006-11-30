@@ -49,7 +49,7 @@ public:
   /*
     Executes user-management command.
 
-    SYNOPSYS
+    SYNOPSIS
       execute()
 
     RETURN
@@ -65,7 +65,7 @@ public:
   option.
 *************************************************************************/
 
-class Print_password_line_cmd : public User_management_cmd
+class Print_password_line_cmd: public User_management_cmd
 {
 public:
   Print_password_line_cmd()
@@ -80,7 +80,7 @@ public:
   Add_user_cmd: support for --add-user command-line option.
 *************************************************************************/
 
-class Add_user_cmd : public User_management_cmd
+class Add_user_cmd: public User_management_cmd
 {
 public:
   Add_user_cmd()
@@ -95,7 +95,7 @@ public:
   Drop_user_cmd: support for --drop-user command-line option.
 *************************************************************************/
 
-class Drop_user_cmd : public User_management_cmd
+class Drop_user_cmd: public User_management_cmd
 {
 public:
   Drop_user_cmd()
@@ -110,7 +110,7 @@ public:
   Edit_user_cmd: support for --edit-user command-line option.
 *************************************************************************/
 
-class Edit_user_cmd : public User_management_cmd
+class Edit_user_cmd: public User_management_cmd
 {
 public:
   Edit_user_cmd()
@@ -125,7 +125,7 @@ public:
   Clean_db_cmd: support for --clean-db command-line option.
 *************************************************************************/
 
-class Clean_db_cmd : public User_management_cmd
+class Clean_db_cmd: public User_management_cmd
 {
 public:
   Clean_db_cmd()
@@ -140,7 +140,7 @@ public:
   Check_db_cmd: support for --check-db command-line option.
 *************************************************************************/
 
-class Check_db_cmd : public User_management_cmd
+class Check_db_cmd: public User_management_cmd
 {
 public:
   Check_db_cmd()
@@ -155,7 +155,7 @@ public:
   List_users_cmd: support for --list-users command-line option.
 *************************************************************************/
 
-class List_users_cmd : public User_management_cmd
+class List_users_cmd: public User_management_cmd
 {
 public:
   List_users_cmd()

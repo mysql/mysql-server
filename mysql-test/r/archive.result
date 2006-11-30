@@ -13820,4 +13820,31 @@ i	v
 2	abc
 4	3r4f
 5	lmn
+DROP TABLE t5;
+CREATE TABLE `t5` (
+`a` int(11) NOT NULL auto_increment,
+b varchar(250),
+c varchar(800),
+KEY  (`a`)
+) ENGINE=ARCHIVE DEFAULT CHARSET=latin1;
+INSERT INTO t5 VALUES (NULL, "foo", "grok this!");
+INSERT INTO t5 VALUES (NULL, "We the people", NULL);
+INSERT INTO t5 VALUES (NULL, "in order to form a more peefect union", "secure the blessing of liberty");
+INSERT INTO t5 VALUES (NULL, "establish justice", "to ourselves and");
+INSERT INTO t5 VALUES (32, "ensure domestic tranquility", NULL);
+INSERT INTO t5 VALUES (23, "provide for the common defense", "posterity");
+INSERT INTO t5 VALUES (NULL, "promote the general welfare", "do ordain");
+INSERT INTO t5 VALUES (NULL, "abcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabc", "do ordain");
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT * FROM t5;
+a	b	c
+1	foo	grok this!
+2	We the people	NULL
+3	in order to form a more peefect union	secure the blessing of liberty
+4	establish justice	to ourselves and
+32	ensure domestic tranquility	NULL
+23	provide for the common defense	posterity
+33	promote the general welfare	do ordain
+34	abcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyz	do ordain
 drop table t1, t2, t4, t5;

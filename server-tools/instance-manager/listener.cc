@@ -29,7 +29,6 @@
 #include <sys/un.h>
 #endif
 
-#include "instance_map.h"
 #include "log.h"
 #include "mysql_connection.h"
 #include "options.h"
@@ -59,47 +58,18 @@ static void set_no_inherit(int socket)
 }
 
 
-/*
-  Listener_thread - incapsulates listening functionality
-*/
-
-class Listener_thread: public Listener_thread_args
-{
-public:
-  Listener_thread(const Listener_thread_args &args);
-  ~Listener_thread();
-  void run();
-private:
-  static const int LISTEN_BACK_LOG_SIZE= 5;     /* standard backlog size */
-  ulong total_connection_count;
-  Thread_info thread_info;
-
-  int     sockets[2];
-  int     num_sockets;
-  fd_set  read_fds;
-private:
-  void handle_new_mysql_connection(Vio *vio);
-  int   create_tcp_socket();
-  int   create_unix_socket(struct sockaddr_un &unix_socket_address);
-};
-
-
-Listener_thread::Listener_thread(const Listener_thread_args &args) :
-  Listener_thread_args(args.thread_registry, args.user_map, args.instance_map)
-  ,total_connection_count(0)
-  ,thread_info(pthread_self(), TRUE)
-  ,num_sockets(0)
-{
-}
-
-
-Listener_thread::~Listener_thread()
+Listener::Listener(Thread_registry *thread_registry_arg,
+                   User_map *user_map_arg)
+  :thread_registry(thread_registry_arg),
+  user_map(user_map_arg),
+  total_connection_count(0),
+  num_sockets(0)
 {
 }
 
 
 /*
-  Listener_thread::run() - listen all supported sockets and spawn a thread
+  Listener::run() - listen all supported sockets and spawn a thread
   to handle incoming connection.
   Using 'die' in case of syscall failure is OK now - we don't hold any
   resources and 'die' kills the signal thread automatically. To be rewritten
@@ -108,26 +78,17 @@ Listener_thread::~Listener_thread()
   architecture.
 */
 
-void Listener_thread::run()
+void Listener::run()
 {
   int i, n= 0;
 
-  log_info("Listener_thread: started.");
-
 #ifndef __WIN__
-  /* we use this var to check whether we are running on LinuxThreads */
-  pid_t thread_pid;
-
-  thread_pid= getpid();
-
   struct sockaddr_un unix_socket_address;
-  /* set global variable */
-  linuxthreads= (thread_pid != manager_pid);
 #endif
 
-  thread_registry.register_thread(&thread_info);
+  log_info("Listener: started.");
 
-  my_thread_init();
+  thread_registry->register_thread(&thread_info);
 
   FD_ZERO(&read_fds);
 
@@ -146,7 +107,7 @@ void Listener_thread::run()
   n++;
 
   timeval tv;
-  while (!thread_registry.is_shutdown())
+  while (!thread_registry->is_shutdown())
   {
     fd_set read_fds_arg= read_fds;
     /*
@@ -166,8 +127,8 @@ void Listener_thread::run()
     if (rc == 0 || rc == -1)
     {
       if (rc == -1 && errno != EINTR)
-        log_error("Listener_thread: select() failed, %s",
-                  strerror(errno));
+        log_error("Listener: select() failed: %s.",
+                  (const char *) strerror(errno));
       continue;
     }
 
@@ -183,10 +144,12 @@ void Listener_thread::run()
         {
           set_no_inherit(client_fd);
 
-          Vio *vio= vio_new(client_fd, socket_index == 0 ?
-                            VIO_TYPE_SOCKET : VIO_TYPE_TCPIP,
-                            socket_index == 0 ? 1 : 0);
-          if (vio != 0)
+          struct st_vio *vio=
+            vio_new(client_fd,
+                    socket_index == 0 ?  VIO_TYPE_SOCKET : VIO_TYPE_TCPIP,
+                    socket_index == 0 ? 1 : 0);
+
+          if (vio != NULL)
             handle_new_mysql_connection(vio);
           else
           {
@@ -200,7 +163,7 @@ void Listener_thread::run()
 
   /* III. Release all resources and exit */
 
-  log_info("Listener_thread: shutdown requested, exiting...");
+  log_info("Listener: shutdown requested, exiting...");
 
   for (i= 0; i < num_sockets; i++)
     close(sockets[i]);
@@ -209,10 +172,9 @@ void Listener_thread::run()
   unlink(unix_socket_address.sun_path);
 #endif
 
-  thread_registry.unregister_thread(&thread_info);
-  my_thread_end();
+  thread_registry->unregister_thread(&thread_info);
 
-  log_info("Listener_thread: finished.");
+  log_info("Listener: finished.");
   return;
 
 err:
@@ -220,13 +182,12 @@ err:
   for (i= 0; i < num_sockets; i++)
     close(sockets[i]);
 
-  thread_registry.unregister_thread(&thread_info);
-  thread_registry.request_shutdown();
-  my_thread_end();
+  thread_registry->unregister_thread(&thread_info);
+  thread_registry->request_shutdown();
   return;
 }
 
-int Listener_thread::create_tcp_socket()
+int Listener::create_tcp_socket()
 {
   /* value to be set by setsockopt */
   int arg= 1;
@@ -234,8 +195,8 @@ int Listener_thread::create_tcp_socket()
   int ip_socket= socket(AF_INET, SOCK_STREAM, 0);
   if (ip_socket == INVALID_SOCKET)
   {
-    log_error("Listener_thead: socket(AF_INET) failed, %s",
-              strerror(errno));
+    log_error("Listener: socket(AF_INET) failed: %s.",
+              (const char *) strerror(errno));
     return -1;
   }
 
@@ -247,7 +208,7 @@ int Listener_thread::create_tcp_socket()
   {
     im_bind_addr= (ulong) inet_addr(Options::Main::bind_address);
 
-    if (im_bind_addr == INADDR_NONE)
+    if (im_bind_addr == (ulong) INADDR_NONE)
       im_bind_addr= htonl(INADDR_ANY);
   }
   else
@@ -265,16 +226,16 @@ int Listener_thread::create_tcp_socket()
   if (bind(ip_socket, (struct sockaddr *) &ip_socket_address,
            sizeof(ip_socket_address)))
   {
-    log_error("Listener_thread: bind(ip socket) failed, '%s'",
-              strerror(errno));
+    log_error("Listener: bind(ip socket) failed: %s.",
+              (const char *) strerror(errno));
     close(ip_socket);
     return -1;
   }
 
   if (listen(ip_socket, LISTEN_BACK_LOG_SIZE))
   {
-    log_error("Listener_thread: listen(ip socket) failed, %s",
-              strerror(errno));
+    log_error("Listener: listen(ip socket) failed: %s.",
+              (const char *) strerror(errno));
     close(ip_socket);
     return -1;
   }
@@ -287,19 +248,20 @@ int Listener_thread::create_tcp_socket()
 
   FD_SET(ip_socket, &read_fds);
   sockets[num_sockets++]= ip_socket;
-  log_info("accepting connections on ip socket (port: %d)", (int) im_port);
+  log_info("Listener: accepting connections on ip socket (port: %d)...",
+           (int) im_port);
   return 0;
 }
 
 #ifndef __WIN__
-int Listener_thread::
+int Listener::
 create_unix_socket(struct sockaddr_un &unix_socket_address)
 {
   int unix_socket= socket(AF_UNIX, SOCK_STREAM, 0);
   if (unix_socket == INVALID_SOCKET)
   {
-    log_error("Listener_thead: socket(AF_UNIX) failed, %s",
-              strerror(errno));
+    log_error("Listener: socket(AF_UNIX) failed: %s.",
+              (const char *) strerror(errno));
     return -1;
   }
 
@@ -318,9 +280,9 @@ create_unix_socket(struct sockaddr_un &unix_socket_address)
   if (bind(unix_socket, (struct sockaddr *) &unix_socket_address,
            sizeof(unix_socket_address)))
   {
-    log_error("Listener_thread: bind(unix socket) failed, "
-              "socket file name is '%s', error '%s'",
-              unix_socket_address.sun_path, strerror(errno));
+    log_error("Listener: bind(unix socket) failed for '%s': %s.",
+              (const char *) unix_socket_address.sun_path,
+              (const char *) strerror(errno));
     close(unix_socket);
     return -1;
   }
@@ -329,8 +291,8 @@ create_unix_socket(struct sockaddr_un &unix_socket_address)
 
   if (listen(unix_socket, LISTEN_BACK_LOG_SIZE))
   {
-    log_error("Listener_thread: listen(unix socket) failed, %s",
-              strerror(errno));
+    log_error("Listener: listen(unix socket) failed: %s.",
+              (const char *) strerror(errno));
     close(unix_socket);
     return -1;
   }
@@ -341,8 +303,8 @@ create_unix_socket(struct sockaddr_un &unix_socket_address)
   /* make sure that instances won't be listening our sockets */
   set_no_inherit(unix_socket);
 
-  log_info("accepting connections on unix socket '%s'",
-           unix_socket_address.sun_path);
+  log_info("Listener: accepting connections on unix socket '%s'...",
+           (const char *) unix_socket_address.sun_path);
   sockets[num_sockets++]= unix_socket;
   FD_SET(unix_socket, &read_fds);
   return 0;
@@ -352,51 +314,21 @@ create_unix_socket(struct sockaddr_un &unix_socket_address)
 
 /*
   Create new mysql connection. Created thread is responsible for deletion of
-  the Mysql_connection_thread_args and Vio instances passed to it.
-  SYNOPSYS
+  the Mysql_connection and Vio instances passed to it.
+  SYNOPSIS
     handle_new_mysql_connection()
 */
 
-void Listener_thread::handle_new_mysql_connection(Vio *vio)
+void Listener::handle_new_mysql_connection(struct st_vio *vio)
 {
-  if (Mysql_connection_thread_args *mysql_thread_args=
-      new Mysql_connection_thread_args(vio, thread_registry, user_map,
-                                       ++total_connection_count,
-                                       instance_map)
-      )
+  Mysql_connection *mysql_connection=
+    new Mysql_connection(thread_registry, user_map,
+                         vio, ++total_connection_count);
+  if (mysql_connection == NULL || mysql_connection->start(Thread::DETACHED))
   {
-    /*
-      Initialize thread attributes to create detached thread; it seems
-      easier to do it ad-hoc than have a global variable for attributes.
-    */
-    pthread_t mysql_thd_id;
-    pthread_attr_t mysql_thd_attr;
-    pthread_attr_init(&mysql_thd_attr);
-    pthread_attr_setdetachstate(&mysql_thd_attr, PTHREAD_CREATE_DETACHED);
-    if (set_stacksize_n_create_thread(&mysql_thd_id, &mysql_thd_attr,
-                                      mysql_connection, mysql_thread_args))
-    {
-      delete mysql_thread_args;
-      vio_delete(vio);
-      log_error("handle_one_mysql_connection():"
-                "set_stacksize_n_create_thread(mysql) failed");
-    }
-    pthread_attr_destroy(&mysql_thd_attr);
-  }
-  else
+    log_error("Listener: can not start connection handler.");
+    delete mysql_connection;
     vio_delete(vio);
+  }
+  /* The connection will delete itself when the thread is finished */
 }
-
-
-pthread_handler_t listener(void *arg)
-{
-  Listener_thread_args *args= (Listener_thread_args *) arg;
-  Listener_thread listener(*args);
-  listener.run();
-  /*
-    args is a stack variable because listener thread lives as long as the
-    manager process itself
-  */
-  return 0;
-}
-

@@ -413,7 +413,8 @@ Thd_ndb::get_open_table(THD *thd, const void *key)
     thd_ndb_share->stat.no_uncommitted_rows_count= 0;
     thd_ndb_share->stat.records= ~(ha_rows)0;
   }
-  DBUG_PRINT("exit", ("thd_ndb_share: 0x%x  key: 0x%x", thd_ndb_share, key));
+  DBUG_PRINT("exit", ("thd_ndb_share: 0x%lx  key: 0x%lx",
+                      (long) thd_ndb_share, (long) key));
   DBUG_RETURN(thd_ndb_share);
 }
 
@@ -761,8 +762,8 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
         blob_ptr= (char*)"";
       }
 
-      DBUG_PRINT("value", ("set blob ptr=%p len=%u",
-                           blob_ptr, blob_len));
+      DBUG_PRINT("value", ("set blob ptr: 0x%lx  len: %u",
+                           (long) blob_ptr, blob_len));
       DBUG_DUMP("value", (char*)blob_ptr, min(blob_len, 26));
 
       if (set_blob_value)
@@ -847,8 +848,8 @@ int get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
           uint32 len= 0xffffffff;  // Max uint32
           if (ndb_blob->readData(buf, len) != 0)
             ERR_RETURN(ndb_blob->getNdbError());
-          DBUG_PRINT("info", ("[%u] offset=%u buf=%p len=%u [ptrdiff=%d]",
-                              i, offset, buf, len, (int)ptrdiff));
+          DBUG_PRINT("info", ("[%u] offset: %u  buf: 0x%lx  len=%u  [ptrdiff=%d]",
+                              i, offset, (long) buf, len, (int)ptrdiff));
           DBUG_ASSERT(len == len64);
           // Ugly hack assumes only ptr needs to be changed
           field_blob->ptr+= ptrdiff;
@@ -1170,8 +1171,8 @@ int ha_ndbcluster::add_index_handle(THD *thd, NDBDICT *dict, KEY *key_info,
       index= dict->getIndexGlobal(index_name, *m_table);
       if (!index)
         ERR_RETURN(dict->getNdbError());
-      DBUG_PRINT("info", ("index: 0x%x  id: %d  version: %d.%d  status: %d",
-                          index,
+      DBUG_PRINT("info", ("index: 0x%lx  id: %d  version: %d.%d  status: %d",
+                          (long) index,
                           index->getObjectId(),
                           index->getObjectVersion() & 0xFFFFFF,
                           index->getObjectVersion() >> 24,
@@ -1214,8 +1215,8 @@ int ha_ndbcluster::add_index_handle(THD *thd, NDBDICT *dict, KEY *key_info,
       index= dict->getIndexGlobal(unique_index_name, *m_table);
       if (!index)
         ERR_RETURN(dict->getNdbError());
-      DBUG_PRINT("info", ("index: 0x%x  id: %d  version: %d.%d  status: %d",
-                          index,
+      DBUG_PRINT("info", ("index: 0x%lx  id: %d  version: %d.%d  status: %d",
+                          (long) index,
                           index->getObjectId(),
                           index->getObjectVersion() & 0xFFFFFF,
                           index->getObjectVersion() >> 24,
@@ -2076,7 +2077,7 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
         all pending update or delete operations should 
         be sent to NDB
       */
-      DBUG_PRINT("info", ("ops_pending: %d", m_ops_pending));    
+      DBUG_PRINT("info", ("ops_pending: %ld", (long) m_ops_pending));    
       if (m_ops_pending)
       {
         if (m_transaction_on)
@@ -2309,7 +2310,7 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
       // Set bound if not done with this key
       if (p.key != NULL)
       {
-        DBUG_PRINT("info", ("key %d:%d offset=%d length=%d last=%d bound=%d",
+        DBUG_PRINT("info", ("key %d:%d  offset: %d  length: %d  last: %d  bound: %d",
                             j, i, tot_len, part_len, p.part_last, p.bound_type));
         DBUG_DUMP("info", (const char*)p.part_ptr, part_store_len);
 
@@ -2538,7 +2539,7 @@ int ha_ndbcluster::full_table_scan(byte *buf)
     part_spec.start_part= 0;
     part_spec.end_part= m_part_info->get_tot_partitions() - 1;
     prune_partition_set(table, &part_spec);
-    DBUG_PRINT("info", ("part_spec.start_part = %u, part_spec.end_part = %u",
+    DBUG_PRINT("info", ("part_spec.start_part: %u  part_spec.end_part: %u",
                         part_spec.start_part, part_spec.end_part));
     /*
       If partition pruning has found no partition in set
@@ -2734,7 +2735,7 @@ int ha_ndbcluster::write_row(byte *record)
   {
     // Send rows to NDB
     DBUG_PRINT("info", ("Sending inserts to NDB, "\
-                        "rows_inserted:%d, bulk_insert_rows: %d", 
+                        "rows_inserted: %d  bulk_insert_rows: %d", 
                         (int)m_rows_inserted, (int)m_bulk_insert_rows));
 
     m_bulk_insert_not_flushed= FALSE;
@@ -2833,6 +2834,21 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   DBUG_ENTER("update_row");
   m_write_op= TRUE;
   
+  /*
+   * If IGNORE the ignore constraint violations on primary and unique keys
+   */
+  if (m_ignore_dup_key)
+  {
+    int peek_res= peek_indexed_rows(new_data);
+    
+    if (!peek_res) 
+    {
+      DBUG_RETURN(HA_ERR_FOUND_DUPP_KEY);
+    }
+    if (peek_res != HA_ERR_KEY_NOT_FOUND)
+      DBUG_RETURN(peek_res);
+  }
+
   statistic_increment(thd->status_var.ha_update_count, &LOCK_status);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
   {
@@ -3184,7 +3200,8 @@ void ndb_unpack_record(TABLE *table, NdbValue *value,
           char* ptr;
           field_blob->get_ptr(&ptr, row_offset);
           uint32 len= field_blob->get_length(row_offset);
-          DBUG_PRINT("info",("[%u] SET ptr=%p len=%u", col_no, ptr, len));
+          DBUG_PRINT("info",("[%u] SET ptr: 0x%lx  len: %u",
+                             col_no, (long) ptr, len));
 #endif
         }
       }
@@ -3426,7 +3443,7 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
   if (m_use_partition_function)
   {
     get_partition_set(table, buf, active_index, start_key, &part_spec);
-    DBUG_PRINT("info", ("part_spec.start_part = %u, part_spec.end_part = %u",
+    DBUG_PRINT("info", ("part_spec.start_part: %u  part_spec.end_part: %u",
                         part_spec.start_part, part_spec.end_part));
     /*
       If partition pruning has found no partition in set
@@ -3561,7 +3578,7 @@ int ha_ndbcluster::close_scan()
       Take over any pending transactions to the 
       deleteing/updating transaction before closing the scan    
     */
-    DBUG_PRINT("info", ("ops_pending: %d", m_ops_pending));    
+    DBUG_PRINT("info", ("ops_pending: %ld", (long) m_ops_pending));    
     if (execute_no_commit(this,trans,false) != 0) {
       no_uncommitted_rows_execute_failure();
       DBUG_RETURN(ndb_err(trans));
@@ -3969,7 +3986,7 @@ int ha_ndbcluster::end_bulk_insert()
     NdbTransaction *trans= m_active_trans;
     // Send rows to NDB
     DBUG_PRINT("info", ("Sending inserts to NDB, "\
-                        "rows_inserted:%d, bulk_insert_rows: %d", 
+                        "rows_inserted: %d  bulk_insert_rows: %d", 
                         (int) m_rows_inserted, (int) m_bulk_insert_rows)); 
     m_bulk_insert_not_flushed= FALSE;
     if (m_transaction_on)
@@ -4379,8 +4396,8 @@ static int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
   while ((share= it++))
   {
     pthread_mutex_lock(&share->mutex);
-    DBUG_PRINT("info", ("Invalidate commit_count for %s, share->commit_count: %d ",
-			share->key, share->commit_count));
+    DBUG_PRINT("info", ("Invalidate commit_count for %s, share->commit_count: %lu",
+                        share->table_name, (ulong) share->commit_count));
     share->commit_count= 0;
     share->commit_count_lock++;
     pthread_mutex_unlock(&share->mutex);
@@ -4783,8 +4800,7 @@ int ha_ndbcluster::create(const char *name,
     my_free((char*)data, MYF(0));
     DBUG_RETURN(2);
   }
-
-  DBUG_PRINT("info", ("setFrm data=%lx  len=%d", pack_data, pack_length));
+  DBUG_PRINT("info", ("setFrm data: 0x%lx  len: %d", (long) pack_data, pack_length));
   tab.setFrm(pack_data, pack_length);      
   my_free((char*)data, MYF(0));
   my_free((char*)pack_data, MYF(0));
@@ -5200,13 +5216,12 @@ void ha_ndbcluster::prepare_for_alter()
 int ha_ndbcluster::add_index(TABLE *table_arg, 
                              KEY *key_info, uint num_of_keys)
 {
-  DBUG_ENTER("ha_ndbcluster::add_index");
-  DBUG_PRINT("info", ("ha_ndbcluster::add_index to table %s", 
-                      table_arg->s->table_name));
   int error= 0;
   uint idx;
-
+  DBUG_ENTER("ha_ndbcluster::add_index");
+  DBUG_PRINT("enter", ("table %s", table_arg->s->table_name.str));
   DBUG_ASSERT(m_share->state == NSS_ALTERED);
+
   for (idx= 0; idx < num_of_keys; idx++)
   {
     KEY *key= key_info + idx;
@@ -6761,7 +6776,7 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
 void ha_ndbcluster::print_error(int error, myf errflag)
 {
   DBUG_ENTER("ha_ndbcluster::print_error");
-  DBUG_PRINT("enter", ("error = %d", error));
+  DBUG_PRINT("enter", ("error: %d", error));
 
   if (error == HA_ERR_NO_PARTITION_FOUND)
     m_part_info->print_no_partition_found(table);
@@ -7267,16 +7282,16 @@ static void dbug_print_open_tables()
   for (uint i= 0; i < ndbcluster_open_tables.records; i++)
   {
     NDB_SHARE *share= (NDB_SHARE*) hash_element(&ndbcluster_open_tables, i);
-    DBUG_PRINT("share",
-               ("[%d] 0x%lx key: %s  key_length: %d",
-                i, share, share->key, share->key_length));
-    DBUG_PRINT("share",
-               ("db.tablename: %s.%s  use_count: %d  commit_count: %d",
+    DBUG_PRINT("loop",
+               ("[%d] 0x%lx  key: %s  key_length: %d",
+                i, (long) share, share->key, share->key_length));
+    DBUG_PRINT("loop",
+               ("db.tablename: %s.%s  use_count: %d  commit_count: %lu",
                 share->db, share->table_name,
-                share->use_count, share->commit_count));
+                share->use_count, (ulong) share->commit_count));
 #ifdef HAVE_NDB_BINLOG
     if (share->table)
-      DBUG_PRINT("share",
+      DBUG_PRINT("loop",
                  ("table->s->db.table_name: %s.%s",
                   share->table->s->db.str, share->table->s->table_name.str));
 #endif
@@ -7429,13 +7444,13 @@ static int rename_share(NDB_SHARE *share, const char *new_key)
   share->table_name= share->db + strlen(share->db) + 1;
   ha_ndbcluster::set_tabname(new_key, share->table_name);
 
-  DBUG_PRINT("rename_share",
-             ("0x%lx key: %s  key_length: %d",
-              share, share->key, share->key_length));
-  DBUG_PRINT("rename_share",
-             ("db.tablename: %s.%s  use_count: %d  commit_count: %d",
+  DBUG_PRINT("info",
+             ("share: 0x%lx  key: %s  key_length: %d",
+              (long) share, share->key, share->key_length));
+  DBUG_PRINT("info",
+             ("db.tablename: %s.%s  use_count: %d  commit_count: %lu",
               share->db, share->table_name,
-              share->use_count, share->commit_count));
+              share->use_count, (ulong) share->commit_count));
   if (share->table)
   {
     DBUG_PRINT("rename_share",
@@ -7470,13 +7485,13 @@ NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share)
 
   dbug_print_open_tables();
 
-  DBUG_PRINT("get_share",
-             ("0x%lx key: %s  key_length: %d",
-              share, share->key, share->key_length));
-  DBUG_PRINT("get_share",
-             ("db.tablename: %s.%s  use_count: %d  commit_count: %d",
+  DBUG_PRINT("info",
+             ("share: 0x%lx  key: %s  key_length: %d",
+              (long) share, share->key, share->key_length));
+  DBUG_PRINT("info",
+             ("db.tablename: %s.%s  use_count: %d  commit_count: %lu",
               share->db, share->table_name,
-              share->use_count, share->commit_count));
+              share->use_count, (ulong) share->commit_count));
   pthread_mutex_unlock(&ndbcluster_mutex);
   return share;
 }
@@ -7570,11 +7585,11 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
 
   DBUG_PRINT("info",
              ("0x%lx key: %s  key_length: %d  key: %s",
-              share, share->key, share->key_length, key));
+              (long) share, share->key, share->key_length, key));
   DBUG_PRINT("info",
-             ("db.tablename: %s.%s  use_count: %d  commit_count: %d",
+             ("db.tablename: %s.%s  use_count: %d  commit_count: %lu",
               share->db, share->table_name,
-              share->use_count, share->commit_count));
+              share->use_count, (ulong) share->commit_count));
   if (!have_lock)
     pthread_mutex_unlock(&ndbcluster_mutex);
   DBUG_RETURN(share);
@@ -7584,13 +7599,12 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
 void ndbcluster_real_free_share(NDB_SHARE **share)
 {
   DBUG_ENTER("ndbcluster_real_free_share");
-  DBUG_PRINT("real_free_share",
-             ("0x%lx key: %s  key_length: %d",
-              (*share), (*share)->key, (*share)->key_length));
-  DBUG_PRINT("real_free_share",
-             ("db.tablename: %s.%s  use_count: %d  commit_count: %d",
+  DBUG_PRINT("enter",
+             ("share: 0x%lx  key: %s  key_length: %d  "
+              "db.tablename: %s.%s  use_count: %d  commit_count: %lu",
+              (long) (*share), (*share)->key, (*share)->key_length,
               (*share)->db, (*share)->table_name,
-              (*share)->use_count, (*share)->commit_count));
+              (*share)->use_count, (ulong) (*share)->commit_count));
 
   hash_delete(&ndbcluster_open_tables, (byte*) *share);
   thr_lock_delete(&(*share)->lock);
@@ -7638,13 +7652,13 @@ void ndbcluster_free_share(NDB_SHARE **share, bool have_lock)
   else
   {
     dbug_print_open_tables();
-    DBUG_PRINT("free_share",
-               ("0x%lx key: %s  key_length: %d",
-                *share, (*share)->key, (*share)->key_length));
-    DBUG_PRINT("free_share",
-               ("db.tablename: %s.%s  use_count: %d  commit_count: %d",
+    DBUG_PRINT("info",
+               ("share: 0x%lx  key: %s  key_length: %d",
+                (long) *share, (*share)->key, (*share)->key_length));
+    DBUG_PRINT("info",
+               ("db.tablename: %s.%s  use_count: %d  commit_count: %lu",
                 (*share)->db, (*share)->table_name,
-                (*share)->use_count, (*share)->commit_count));
+                (*share)->use_count, (ulong) (*share)->commit_count));
   }
   if (!have_lock)
     pthread_mutex_unlock(&ndbcluster_mutex);
@@ -7941,7 +7955,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
       get_partition_set(table, curr, active_index,
                         &multi_range_curr->start_key,
                         &part_spec);
-      DBUG_PRINT("info", ("part_spec.start_part = %u, part_spec.end_part = %u",
+      DBUG_PRINT("info", ("part_spec.start_part: %u  part_spec.end_part: %u",
                           part_spec.start_part, part_spec.end_part));
       /*
         If partition pruning has found no partition in set
@@ -8307,7 +8321,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
 
   my_thread_init();
   DBUG_ENTER("ndb_util_thread");
-  DBUG_PRINT("enter", ("ndb_cache_check_time: %d", ndb_cache_check_time));
+  DBUG_PRINT("enter", ("ndb_cache_check_time: %lu", ndb_cache_check_time));
 
   thd= new THD; /* note that contructor of THD uses DBUG_ */
   THD_CHECK_SENTRY(thd);
@@ -8395,7 +8409,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
                            &abstime);
     pthread_mutex_unlock(&LOCK_ndb_util_thread);
 #ifdef NDB_EXTRA_DEBUG_UTIL_THREAD
-    DBUG_PRINT("ndb_util_thread", ("Started, ndb_cache_check_time: %d",
+    DBUG_PRINT("ndb_util_thread", ("Started, ndb_cache_check_time: %lu",
                                    ndb_cache_check_time));
 #endif
     if (abort_loop)
@@ -8473,8 +8487,8 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
             ndb_get_table_statistics(NULL, false, ndb, ndbtab_g.get_table(), &stat) == 0)
         {
           char buff[22], buff2[22];
-          DBUG_PRINT("ndb_util_thread",
-                     ("Table: %s, commit_count: %llu, rows: %llu",
+          DBUG_PRINT("info",
+                     ("Table: %s  commit_count: %s  rows: %s",
                       share->key,
                       llstr(stat.commit_count, buff),
                       llstr(stat.row_count, buff2)));
@@ -9316,7 +9330,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
           if (context->expecting(Item::INT_ITEM)) 
           {
             Item_int *int_item= (Item_int *) item;      
-            DBUG_PRINT("info", ("value %d", int_item->value));
+            DBUG_PRINT("info", ("value %ld", (long) int_item->value));
             NDB_ITEM_QUALIFICATION q;
             q.value_type= Item::INT_ITEM;
             curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
@@ -9339,7 +9353,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->supported= FALSE;
           break;
         case Item::REAL_ITEM:
-          DBUG_PRINT("info", ("REAL_ITEM %s"));
+          DBUG_PRINT("info", ("REAL_ITEM"));
           if (context->expecting(Item::REAL_ITEM)) 
           {
             Item_float *float_item= (Item_float *) item;      
@@ -9387,7 +9401,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->supported= FALSE;
           break;
         case Item::DECIMAL_ITEM:
-          DBUG_PRINT("info", ("DECIMAL_ITEM %s"));
+          DBUG_PRINT("info", ("DECIMAL_ITEM"));
           if (context->expecting(Item::DECIMAL_ITEM)) 
           {
             Item_decimal *decimal_item= (Item_decimal *) item;      

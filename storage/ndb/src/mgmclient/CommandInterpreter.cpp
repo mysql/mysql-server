@@ -598,7 +598,7 @@ static const char* helpTextDebug =
 ;
 #endif
 
-struct {
+struct st_cmd_help {
   const char *cmd;
   const char * help;
 }help_items[]={
@@ -1558,6 +1558,8 @@ CommandInterpreter::executeShow(char* parameters)
       case NDB_MGM_NODE_TYPE_UNKNOWN:
         ndbout << "Error: Unknown Node Type" << endl;
         return -1;
+      case NDB_MGM_NODE_TYPE_MAX:
+        break;                                  /* purify: deadcode */
       }
     }
 
@@ -2401,7 +2403,7 @@ CommandInterpreter::executeEventReporting(int processId,
   Vector<BaseString> specs;
   tmp.split(specs, " ");
 
-  for (int i=0; i < specs.size(); i++)
+  for (int i=0; i < (int) specs.size(); i++)
   {
     Vector<BaseString> spec;
     specs[i].split(spec, "=");

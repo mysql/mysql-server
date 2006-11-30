@@ -142,10 +142,15 @@ test-force:
 test-force-full:
 	$(MAKE) force=--force test-full
 
+#used by autopush.pl to run memory based tests
+test-force-mem:
+	$(MAKE) 'force=--force --mem' test
+
 # Keep these for a while
 test-pl:	test
 test-full-pl:	test-full
 test-force-pl:	test-force
+test-force-pl-mem:  test-force-mem
 test-force-full-pl: test-force-full
 
 # Don't update the files from bitkeeper

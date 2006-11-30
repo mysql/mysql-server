@@ -833,9 +833,41 @@ longlong Item_in_optimizer::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   cache->store(args[0]);
+  
   if (cache->null_value)
   {
-    null_value= 1;
+    if (((Item_in_subselect*)args[1])->is_top_level_item())
+    {
+      /*
+        We're evaluating "NULL IN (SELECT ...)". The result can be NULL or
+        FALSE, and we can return one instead of another. Just return NULL.
+      */
+      null_value= 1;
+    }
+    else
+    {
+      if (!((Item_in_subselect*)args[1])->is_correlated &&
+          result_for_null_param != UNKNOWN)
+      {
+        /* Use cached value from previous execution */
+        null_value= result_for_null_param;
+      }
+      else
+      {
+        /*
+          We're evaluating "NULL IN (SELECT ...)". The result is:
+             FALSE if SELECT produces an empty set, or
+             NULL  otherwise.
+          We disable the predicates we've pushed down into subselect, run the
+          subselect and see if it has produced any rows.
+        */
+        ((Item_in_subselect*)args[1])->enable_pushed_conds= FALSE;
+        longlong tmp= args[1]->val_bool_result();
+        result_for_null_param= null_value= 
+          !((Item_in_subselect*)args[1])->engine->no_rows();
+        ((Item_in_subselect*)args[1])->enable_pushed_conds= TRUE;
+      }
+    }
     return 0;
   }
   bool tmp= args[1]->val_bool_result();
@@ -2229,7 +2261,7 @@ cmp_item* cmp_item_row::make_same()
 cmp_item_row::~cmp_item_row()
 {
   DBUG_ENTER("~cmp_item_row");
-  DBUG_PRINT("enter",("this: 0x%lx", this));
+  DBUG_PRINT("enter",("this: 0x%lx", (long) this));
   if (comparators)
   {
     for (uint i= 0; i < n; i++)
@@ -2519,7 +2551,6 @@ void Item_func_in::fix_length_and_dec()
       }
     }
   }
-  maybe_null= args[0]->maybe_null;
   max_length= 1;
 }
 
@@ -3061,7 +3092,7 @@ longlong Item_is_not_null_test::val_int()
   if (!used_tables_cache)
   {
     owner->was_null|= (!cached_value);
-    DBUG_PRINT("info", ("cached :%d", cached_value));
+    DBUG_PRINT("info", ("cached: %ld", (long) cached_value));
     DBUG_RETURN(cached_value);
   }
   if (args[0]->is_null())
