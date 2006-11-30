@@ -258,7 +258,7 @@ static void DBUGCloseFile(CODE_STATE *cs, FILE *fp);
         /* Push current debug settings */
 static void PushState(CODE_STATE *cs);
 	/* Free memory associated with debug state. */
-static void FreeState (CODE_STATE *cs, struct settings *state);
+static void FreeState (CODE_STATE *cs, struct settings *state, int free_state);
         /* Test for tracing enabled */
 static BOOLEAN DoTrace(CODE_STATE *cs);
 
@@ -396,7 +396,7 @@ static CODE_STATE *code_state(void)
  *
  *  SYNOPSIS
  *
- *      VOID _db_push_(name)
+ *      VOID _process_(name)
  *      char *name;
  *
  */
@@ -448,49 +448,51 @@ void _db_set_(CODE_STATE *cs, const char *control)
 {
   const char *end;
   int rel=0;
+  struct settings *stack;
 
   get_code_state_or_return;
+  stack= cs->stack;
 
   if (control[0] == '-' && control[1] == '#')
     control+=2;
 
   rel= control[0] == '+' || control[0] == '-';
-  if (!rel || (!cs->stack->out_file && !cs->stack->next))
+  if ((!rel || (!stack->out_file && !stack->next)))
   {
-    cs->stack->flags= 0;
-    cs->stack->delay= 0;
-    cs->stack->maxdepth= 0;
-    cs->stack->sub_level= 0;
-    cs->stack->out_file= stderr;
-    cs->stack->prof_file= NULL;
-    cs->stack->functions= NULL;
-    cs->stack->p_functions= NULL;
-    cs->stack->keywords= NULL;
-    cs->stack->processes= NULL;
+    stack->flags= 0;
+    stack->delay= 0;
+    stack->maxdepth= 0;
+    stack->sub_level= 0;
+    stack->out_file= stderr;
+    stack->prof_file= NULL;
+    stack->functions= NULL;
+    stack->p_functions= NULL;
+    stack->keywords= NULL;
+    stack->processes= NULL;
   }
-  else if (!cs->stack->out_file)
+  else if (!stack->out_file)
   {
-    cs->stack->flags= cs->stack->next->flags;
-    cs->stack->delay= cs->stack->next->delay;
-    cs->stack->maxdepth= cs->stack->next->maxdepth;
-    cs->stack->sub_level= cs->stack->next->sub_level;
-    strcpy(cs->stack->name, cs->stack->next->name);
-    cs->stack->out_file= cs->stack->next->out_file;
-    cs->stack->prof_file= cs->stack->next->prof_file;
-    if (cs->stack->next == &init_settings)
+    stack->flags= stack->next->flags;
+    stack->delay= stack->next->delay;
+    stack->maxdepth= stack->next->maxdepth;
+    stack->sub_level= stack->next->sub_level;
+    strcpy(stack->name, stack->next->name);
+    stack->out_file= stack->next->out_file;
+    stack->prof_file= stack->next->prof_file;
+    if (stack->next == &init_settings)
     {
       /* never share with the global parent - it can change under your feet */
-      cs->stack->functions= ListCopy(init_settings.functions);
-      cs->stack->p_functions= ListCopy(init_settings.p_functions);
-      cs->stack->keywords= ListCopy(init_settings.keywords);
-      cs->stack->processes= ListCopy(init_settings.processes);
+      stack->functions= ListCopy(init_settings.functions);
+      stack->p_functions= ListCopy(init_settings.p_functions);
+      stack->keywords= ListCopy(init_settings.keywords);
+      stack->processes= ListCopy(init_settings.processes);
     }
     else
     {
-      cs->stack->functions= cs->stack->next->functions;
-      cs->stack->p_functions= cs->stack->next->p_functions;
-      cs->stack->keywords= cs->stack->next->keywords;
-      cs->stack->processes= cs->stack->next->processes;
+      stack->functions= stack->next->functions;
+      stack->p_functions= stack->next->p_functions;
+      stack->keywords= stack->next->keywords;
+      stack->processes= stack->next->processes;
     }
   }
 
@@ -507,158 +509,158 @@ void _db_set_(CODE_STATE *cs, const char *control)
     case 'd':
       if (sign < 0 && control == end)
       {
-        if (!is_shared(cs->stack, keywords))
-          FreeList(cs->stack->keywords);
-        cs->stack->keywords=NULL;
-        cs->stack->flags &= ~DEBUG_ON;
+        if (!is_shared(stack, keywords))
+          FreeList(stack->keywords);
+        stack->keywords=NULL;
+        stack->flags &= ~DEBUG_ON;
         break;
       }
-      if (rel && is_shared(cs->stack, keywords))
-        cs->stack->keywords= ListCopy(cs->stack->keywords);
+      if (rel && is_shared(stack, keywords))
+        stack->keywords= ListCopy(stack->keywords);
       if (sign < 0)
       {
         if (DEBUGGING)
-          cs->stack->keywords= ListDel(cs->stack->keywords, control, end);
+          stack->keywords= ListDel(stack->keywords, control, end);
       break;
       }
-      cs->stack->keywords= ListAdd(cs->stack->keywords, control, end);
-      cs->stack->flags |= DEBUG_ON;
+      stack->keywords= ListAdd(stack->keywords, control, end);
+      stack->flags |= DEBUG_ON;
       break;
     case 'D':
-      cs->stack->delay= atoi(control);
+      stack->delay= atoi(control);
       break;
     case 'f':
       if (sign < 0 && control == end)
       {
-        if (!is_shared(cs->stack,functions))
-          FreeList(cs->stack->functions);
-        cs->stack->functions=NULL;
+        if (!is_shared(stack,functions))
+          FreeList(stack->functions);
+        stack->functions=NULL;
         break;
       }
-      if (rel && is_shared(cs->stack,functions))
-        cs->stack->functions= ListCopy(cs->stack->functions);
+      if (rel && is_shared(stack,functions))
+        stack->functions= ListCopy(stack->functions);
       if (sign < 0)
-        cs->stack->functions= ListDel(cs->stack->functions, control, end);
+        stack->functions= ListDel(stack->functions, control, end);
       else
-        cs->stack->functions= ListAdd(cs->stack->functions, control, end);
+        stack->functions= ListAdd(stack->functions, control, end);
       break;
     case 'F':
       if (sign < 0)
-        cs->stack->flags &= ~FILE_ON;
+        stack->flags &= ~FILE_ON;
       else
-        cs->stack->flags |= FILE_ON;
+        stack->flags |= FILE_ON;
       break;
     case 'i':
       if (sign < 0)
-        cs->stack->flags &= ~PID_ON;
+        stack->flags &= ~PID_ON;
       else
-        cs->stack->flags |= PID_ON;
+        stack->flags |= PID_ON;
       break;
 #ifndef THREAD
     case 'g':
       if (OpenProfile(cs, PROF_FILE))
       {
-        cs->stack->flags |= PROFILE_ON;
-        cs->stack->p_functions= ListAdd(cs->stack->p_functions, control, end);
+        stack->flags |= PROFILE_ON;
+        stack->p_functions= ListAdd(stack->p_functions, control, end);
       }
       break;
 #endif
     case 'L':
       if (sign < 0)
-        cs->stack->flags &= ~LINE_ON;
+        stack->flags &= ~LINE_ON;
       else
-        cs->stack->flags |= LINE_ON;
+        stack->flags |= LINE_ON;
       break;
     case 'n':
       if (sign < 0)
-        cs->stack->flags &= ~DEPTH_ON;
+        stack->flags &= ~DEPTH_ON;
       else
-        cs->stack->flags |= DEPTH_ON;
+        stack->flags |= DEPTH_ON;
       break;
     case 'N':
       if (sign < 0)
-        cs->stack->flags &= ~NUMBER_ON;
+        stack->flags &= ~NUMBER_ON;
       else
-        cs->stack->flags |= NUMBER_ON;
+        stack->flags |= NUMBER_ON;
       break;
     case 'A':
     case 'O':
-      cs->stack->flags |= FLUSH_ON_WRITE;
+      stack->flags |= FLUSH_ON_WRITE;
       /* fall through */
     case 'a':
     case 'o':
       if (sign < 0)
       {
-        if (!is_shared(cs->stack, out_file))
-          DBUGCloseFile(cs, cs->stack->out_file);
-        cs->stack->flags &= ~FLUSH_ON_WRITE;
-        cs->stack->out_file= stderr;
+        if (!is_shared(stack, out_file))
+          DBUGCloseFile(cs, stack->out_file);
+        stack->flags &= ~FLUSH_ON_WRITE;
+        stack->out_file= stderr;
         break;
       }
       if (c == 'a' || c == 'A')
-        cs->stack->flags |= OPEN_APPEND;
+        stack->flags |= OPEN_APPEND;
       else
-        cs->stack->flags &= ~OPEN_APPEND;
+        stack->flags &= ~OPEN_APPEND;
       if (control != end)
-        DBUGOpenFile(cs, control, end, cs->stack->flags & OPEN_APPEND);
+        DBUGOpenFile(cs, control, end, stack->flags & OPEN_APPEND);
       else
         DBUGOpenFile(cs, "-",0,0);
       break;
     case 'p':
       if (sign < 0 && control == end)
       {
-        if (!is_shared(cs->stack,processes))
-          FreeList(cs->stack->processes);
-        cs->stack->processes=NULL;
+        if (!is_shared(stack,processes))
+          FreeList(stack->processes);
+        stack->processes=NULL;
         break;
       }
-      if (rel && is_shared(cs->stack, processes))
-        cs->stack->processes= ListCopy(cs->stack->processes);
+      if (rel && is_shared(stack, processes))
+        stack->processes= ListCopy(stack->processes);
       if (sign < 0)
-        cs->stack->processes= ListDel(cs->stack->processes, control, end);
+        stack->processes= ListDel(stack->processes, control, end);
       else
-        cs->stack->processes= ListAdd(cs->stack->processes, control, end);
+        stack->processes= ListAdd(stack->processes, control, end);
       break;
     case 'P':
       if (sign < 0)
-        cs->stack->flags &= ~PROCESS_ON;
+        stack->flags &= ~PROCESS_ON;
       else
-        cs->stack->flags |= PROCESS_ON;
+        stack->flags |= PROCESS_ON;
       break;
     case 'r':
-      cs->stack->sub_level= cs->level;
+      stack->sub_level= cs->level;
       break;
     case 't':
       if (sign < 0)
       {
         if (control != end)
-          cs->stack->maxdepth-= atoi(control);
+          stack->maxdepth-= atoi(control);
         else
-          cs->stack->maxdepth= 0;
+          stack->maxdepth= 0;
       }
       else
       {
         if (control != end)
-          cs->stack->maxdepth+= atoi(control);
+          stack->maxdepth+= atoi(control);
         else
-          cs->stack->maxdepth= MAXDEPTH;
+          stack->maxdepth= MAXDEPTH;
       }
-      if (cs->stack->maxdepth > 0)
-        cs->stack->flags |= TRACE_ON;
+      if (stack->maxdepth > 0)
+        stack->flags |= TRACE_ON;
       else
-        cs->stack->flags &= ~TRACE_ON;
+        stack->flags &= ~TRACE_ON;
       break;
     case 'T':
       if (sign < 0)
-        cs->stack->flags &= ~TIMESTAMP_ON;
+        stack->flags &= ~TIMESTAMP_ON;
       else
-        cs->stack->flags |= TIMESTAMP_ON;
+        stack->flags |= TIMESTAMP_ON;
       break;
     case 'S':
       if (sign < 0)
-        cs->stack->flags &= ~SANITY_CHECK_ON;
+        stack->flags &= ~SANITY_CHECK_ON;
       else
-        cs->stack->flags |= SANITY_CHECK_ON;
+        stack->flags |= SANITY_CHECK_ON;
       break;
     }
     if (!*end)
@@ -712,10 +714,10 @@ void _db_push_(const char *control)
 
 void _db_set_init_(const char *control)
 {
-  CODE_STATE cs;
-  bzero((char*) &cs,sizeof(cs));
-  cs.stack=&init_settings;
-  _db_set_(&cs, control);
+  CODE_STATE tmp_cs;
+  bzero((char*) &tmp_cs, sizeof(tmp_cs));
+  tmp_cs.stack= &init_settings;
+  _db_set_(&tmp_cs, control);
 }
 
 /*
@@ -746,7 +748,7 @@ void _db_pop_()
   if (discard->next != NULL)
   {
     cs->stack= discard->next;
-    FreeState(cs, discard);
+    FreeState(cs, discard, 1);
   }
 }
 
@@ -1426,16 +1428,15 @@ static void PushState(CODE_STATE *cs)
  *
  *	static void FreeState (state)
  *	struct state *state;
+ *      int free_state;
  *
  *  DESCRIPTION
  *
  *	Deallocates the memory allocated for various information in a
- *	state.
+ *	state. If free_state is set, also free 'state'
  *
  */
-static void FreeState (
-CODE_STATE *cs,
-struct settings *state)
+static void FreeState(CODE_STATE *cs, struct settings *state, int free_state)
 {
   if (!is_shared(state, keywords))
     FreeList(state->keywords);
@@ -1449,7 +1450,8 @@ struct settings *state)
     DBUGCloseFile(cs, state->out_file);
   if (state->prof_file)
     DBUGCloseFile(cs, state->prof_file);
-  free((char *) state);
+  if (free_state)
+    free((char *) state);
 }
 
 
@@ -1470,19 +1472,37 @@ struct settings *state)
  *	To be called at the very end of the program.
  *
  */
-void _db_end_ ()
+void _db_end_()
 {
   struct settings *discard;
+  static struct settings tmp;
   CODE_STATE *cs=0;
 
   get_code_state_or_return;
 
-  while((discard= cs->stack) != NULL) {
-    if(discard == &init_settings)
+  while ((discard= cs->stack))
+  {
+    if (discard == &init_settings)
       break;
     cs->stack= discard->next;
-    FreeState (cs, discard);
+    FreeState(cs, discard, 1);
   }
+  tmp= init_settings;
+
+  /* Use mutex lock to make it less likely anyone access out_file */
+  pthread_mutex_lock(&THR_LOCK_dbug);
+  init_settings.flags=    OPEN_APPEND;
+  init_settings.out_file= stderr;
+  init_settings.prof_file= stderr;
+  init_settings.maxdepth= 0;
+  init_settings.delay= 0;
+  init_settings.sub_level= 0;
+  init_settings.functions= 0;
+  init_settings.p_functions= 0;
+  init_settings.keywords= 0;
+  init_settings.processes= 0;
+  pthread_mutex_unlock(&THR_LOCK_dbug);
+  FreeState(cs, &tmp, 0);
 }
 
 

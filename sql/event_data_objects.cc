@@ -1095,7 +1095,7 @@ bool get_next_time(TIME *next, TIME *start, TIME *time_now, TIME *last_exec,
       DBUG_PRINT("error", ("negative difference"));
       DBUG_ASSERT(0);
     }
-    uint multiplier= seconds_diff / seconds;
+    uint multiplier= (uint) (seconds_diff / seconds);
     /*
       Increase the multiplier is the modulus is not zero to make round up.
       Or if time_now==start then we should not execute the same 
@@ -1128,7 +1128,7 @@ bool get_next_time(TIME *next, TIME *start, TIME *time_now, TIME *last_exec,
       directly with +1 we will be after the current date but it could be that
       we will be 1 month ahead, so 2 steps are necessary.
     */
-    interval.month= (diff_months / months)*months;
+    interval.month= (ulong) ((diff_months / months)*months);
     /*
       Check if the same month as last_exec (always set - prerequisite)
       An event happens at most once per month so there is no way to
@@ -1141,7 +1141,7 @@ bool get_next_time(TIME *next, TIME *start, TIME *time_now, TIME *last_exec,
     */
     if (time_now->year == last_exec->year &&
         time_now->month == last_exec->month)
-      interval.month+= months;
+      interval.month+= (ulong) months;
 
     tmp= *start;
     if ((ret= date_add_interval(&tmp, INTERVAL_MONTH, interval)))
@@ -1150,7 +1150,7 @@ bool get_next_time(TIME *next, TIME *start, TIME *time_now, TIME *last_exec,
     /* If `tmp` is still before time_now just add one more time the interval */
     if (my_time_compare(&tmp, time_now) == -1)
     { 
-      interval.month+= months;
+      interval.month+= (ulong) months;
       tmp= *start;
       if ((ret= date_add_interval(&tmp, INTERVAL_MONTH, interval)))
         goto done;
@@ -1283,7 +1283,7 @@ Event_queue_element::compute_next_execution_time()
 
       if (get_next_time(&next_exec, &starts, &time_now,
                         last_executed.year? &last_executed:&starts,
-                        expression, interval))
+                        (int) expression, interval))
         goto err;
 
       /* There was previous execution */
@@ -1321,7 +1321,7 @@ Event_queue_element::compute_next_execution_time()
     {
       TIME next_exec;
       if (get_next_time(&next_exec, &starts, &time_now, &last_executed,
-                        expression, interval))
+                        (int) expression, interval))
         goto err;
       execute_at= next_exec;
       DBUG_PRINT("info",("Next[%lu]",
@@ -1356,7 +1356,7 @@ Event_queue_element::compute_next_execution_time()
         TIME next_exec;
         if (get_next_time(&next_exec, &starts, &time_now,
                           last_executed.year? &last_executed:&starts,
-                          expression, interval))
+                          (int) expression, interval))
           goto err;
         execute_at= next_exec;
         DBUG_PRINT("info",("Next[%lu]",
@@ -1382,7 +1382,7 @@ Event_queue_element::compute_next_execution_time()
         TIME next_exec;
 
         if (get_next_time(&next_exec, &starts, &time_now, &last_executed,
-                          expression, interval))
+                          (int) expression, interval))
           goto err;
 
         if (my_time_compare(&ends, &next_exec) == -1)

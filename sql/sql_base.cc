@@ -1251,7 +1251,7 @@ void close_temporary_tables(THD *thd)
 
   /* We always quote db,table names though it is slight overkill */
   if (found_user_tables &&
-      !(was_quote_show= (thd->options & OPTION_QUOTE_SHOW_CREATE)))
+      !(was_quote_show= test(thd->options & OPTION_QUOTE_SHOW_CREATE)))
   {
     thd->options |= OPTION_QUOTE_SHOW_CREATE;
   }

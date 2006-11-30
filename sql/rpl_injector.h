@@ -27,7 +27,7 @@
 /* Forward declarations */
 class handler;
 class MYSQL_BIN_LOG;
-class st_table;
+struct st_table;
 
 typedef st_table TABLE;
 

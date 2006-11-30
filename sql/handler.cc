@@ -2778,7 +2778,7 @@ int ha_change_key_cache(KEY_CACHE *old_key_cache,
     >0 : error.  frmblob and frmlen may not be set
 */
 
-typedef struct st_discover_args
+struct st_discover_args
 {
   const char *db;
   const char *name;
@@ -2826,7 +2826,7 @@ int ha_discover(THD *thd, const char *db, const char *name,
   to ask engine if there are any new tables that should be written to disk 
   or any dropped tables that need to be removed from disk
 */
-typedef struct st_find_files_args
+struct st_find_files_args
 {
   const char *db;
   const char *path;
@@ -2877,7 +2877,7 @@ ha_find_files(THD *thd,const char *db,const char *path,
 
  */
 
-typedef struct st_table_exists_in_engine_args
+struct st_table_exists_in_engine_args
 {
   const char *db;
   const char *name;

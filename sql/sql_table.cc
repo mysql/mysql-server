@@ -2011,7 +2011,7 @@ void calculate_interval_lengths(CHARSET_INFO *cs, TYPELIB *interval,
 int prepare_create_field(create_field *sql_field, 
 			 uint *blob_columns, 
 			 int *timestamps, int *timestamps_with_niladic,
-			 uint table_flags)
+			 longlong table_flags)
 {
   DBUG_ENTER("prepare_field");
 

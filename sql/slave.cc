@@ -913,7 +913,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   TABLE_LIST tables;
   int error= 1;
   handler *file;
-  ulong save_options;
+  ulonglong save_options;
   NET *net= &mysql->net;
   DBUG_ENTER("create_table_from_dump");
 
