@@ -386,7 +386,7 @@ install -d $RBR%{_sbindir}
 
 
 # Install all binaries 
-(cd $MBD && make install DESTDIR=$RBR)
+(cd $MBD && make install DESTDIR=$RBR benchdir_root=%{_datadir})
 # Old packages put shared libs in %{_libdir}/ (not %{_libdir}/mysql), so do
 # the same here.
 mv $RBR/%{_libdir}/mysql/*.so* $RBR/%{_libdir}/
@@ -689,6 +689,11 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Thu Nov 30 2006 Joerg Bruehe <joerg@mysql.com>
+
+- Call "make install" using "benchdir_root=%{_datadir}", 
+  because that is affecting the regression test suite as well.
+
 * Thu Nov 16 2006 Joerg Bruehe <joerg@mysql.com>
 
 - Explicitly note that the "MySQL-shared" RPMs (as built by MySQL AB) 
