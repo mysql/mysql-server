@@ -82,7 +82,7 @@ static store_key *get_store_key(THD *thd,
 static bool make_simple_join(JOIN *join,TABLE *tmp_table);
 static void make_outerjoin_info(JOIN *join);
 static bool make_join_select(JOIN *join,SQL_SELECT *select,COND *item);
-static void make_join_readinfo(JOIN *join,uint options);
+static void make_join_readinfo(JOIN *join, ulonglong options);
 static bool only_eq_ref_tables(JOIN *join, ORDER *order, table_map tables);
 static void update_depend_map(JOIN *join);
 static void update_depend_map(JOIN *join, ORDER *order);
@@ -90,7 +90,7 @@ static ORDER *remove_const(JOIN *join,ORDER *first_order,COND *cond,
 			   bool change_list, bool *simple_order);
 static int return_zero_rows(JOIN *join, select_result *res,TABLE_LIST *tables,
                             List<Item> &fields, bool send_row,
-                            uint select_options, const char *info,
+                            ulonglong select_options, const char *info,
                             Item *having);
 static COND *build_equal_items(THD *thd, COND *cond,
                                COND_EQUAL *inherited,
@@ -114,7 +114,7 @@ static bool resolve_nested_join (TABLE_LIST *table);
 static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
 static bool open_tmp_table(TABLE *table);
 static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
-				    ulong options);
+				    ulonglong options);
 static int do_select(JOIN *join,List<Item> *fields,TABLE *tmp_table,
 		     Procedure *proc);
 
@@ -5939,7 +5939,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 }
 
 static void
-make_join_readinfo(JOIN *join, uint options)
+make_join_readinfo(JOIN *join, ulonglong options)
 {
   uint i;
   bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
@@ -6596,7 +6596,7 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond,
 
 static int
 return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
-		 List<Item> &fields, bool send_row, uint select_options,
+		 List<Item> &fields, bool send_row, ulonglong select_options,
 		 const char *info, Item *having)
 {
   DBUG_ENTER("return_zero_rows");
@@ -9518,10 +9518,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   if (thd->variables.tmp_table_size == ~ (ulonglong) 0)		// No limit
     share->max_rows= ~(ha_rows) 0;
   else
-    share->max_rows= (((share->db_type == heap_hton) ?
-                          min(thd->variables.tmp_table_size,
-                              thd->variables.max_heap_table_size) :
-                          thd->variables.tmp_table_size)/ share->reclength);
+    share->max_rows= (ha_rows) (((share->db_type == heap_hton) ?
+                                 min(thd->variables.tmp_table_size,
+                                     thd->variables.max_heap_table_size) :
+                                 thd->variables.tmp_table_size) /
+			         share->reclength);
   set_if_bigger(share->max_rows,1);		// For dummy start options
   /*
     Push the LIMIT clause to the temporary table creation, so that we
@@ -9833,7 +9834,7 @@ static bool open_tmp_table(TABLE *table)
 
 
 static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
-				    ulong options)
+				    ulonglong options)
 {
   int error;
   MI_KEYDEF keydef;

@@ -353,7 +353,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
 static TABLE_LIST *
 rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
 {
-  TABLE_LIST *ren_table,*new_table;
+  TABLE_LIST *ren_table, *new_table;
 
   DBUG_ENTER("rename_tables");
 
