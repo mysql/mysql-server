@@ -516,7 +516,7 @@ mysqltest: At line 1: Missing required argument 'mode' to command 'chmod'
 mysqltest: At line 1: You must write a 4 digit octal number for mode
 mysqltest: At line 1: You must write a 4 digit octal number for mode
 mysqltest: At line 1: Missing required argument 'file' to command 'chmod'
-mysqltest: At line 1: command "chmod" failed with error -1
+mysqltest: At line 1: You must write a 4 digit octal number for mode
 mysqltest: At line 1: You must write a 4 digit octal number for mode
 hello
 hello
