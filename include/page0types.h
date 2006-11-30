@@ -31,13 +31,8 @@ page0*.h includes rem0rec.h and may include rem0rec.ic. */
 struct page_zip_des_struct
 {
 	page_zip_t*	data;		/* compressed page data */
-	ulint		state:3;	/* state of the control block
-					(cf. enum buf_page_state) */
-	ulint		flush_type:2;	/* if this block is currently being
-					flushed to disk, this tells the
-					flush_type (cf. enum buf_flush);
-					protected by block->mutex */
-	ulint		:9;		/* reserved */
+
+	ulint		:17;		/* reserved */
 	ulint		n_blobs:12;	/* number of externally stored
 					columns on the page; the maximum
 					is 744 on a 16 KiB page */

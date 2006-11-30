@@ -616,7 +616,7 @@ buf_block_init(
 	block->n_pointers = 0;
 #endif /* UNIV_DEBUG */
 	page_zip_des_init(&block->page.zip);
-	block->page.zip.state = BUF_BLOCK_NOT_USED;
+	block->page.state = BUF_BLOCK_NOT_USED;
 
 	mutex_create(&block->mutex, SYNC_BUF_BLOCK);
 
