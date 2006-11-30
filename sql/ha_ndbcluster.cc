@@ -3852,18 +3852,6 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
     DBUG_PRINT("info", ("HA_EXTRA_IGNORE_DUP_KEY"));
     DBUG_PRINT("info", ("Ignoring duplicate key"));
     m_ignore_dup_key= TRUE;
-    if (current_thd->lex->sql_command == SQLCOM_UPDATE &&
-	table_share->primary_key != MAX_KEY &&
-	bitmap_is_set(table->write_set, table_share->primary_key))
-    {
-      /*
-	An UPDATE and table has a primary key that is 
-	about to be updated
-	We need to read all fields for UPDATE IGNORE of pk
-	since this is implemented as delete+insert
-      */
-      bitmap_set_all(table->read_set);
-    }
     break;
   case HA_EXTRA_NO_IGNORE_DUP_KEY:
     DBUG_PRINT("info", ("HA_EXTRA_NO_IGNORE_DUP_KEY"));
