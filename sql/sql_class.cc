@@ -1853,13 +1853,12 @@ bool select_dumpvar::send_data(List<Item> &items)
   {
     if (mv->local)
     {
-      if (thd->spcont->set_variable(current_thd, yy->get_var_idx(),
-                                      it.ref()))
-	  DBUG_RETURN(1);
+      if (thd->spcont->set_variable(thd, mv->offset, &item))
+	    DBUG_RETURN(1);
     }
     else
     {
-      Item_func_set_user_var *suv= new Item_func_set_user_var(*ls, item);
+      Item_func_set_user_var *suv= new Item_func_set_user_var(mv->s, item);
 
       /*
         Item_func_set_user_var can't substitute something else on its
@@ -1868,9 +1867,8 @@ bool select_dumpvar::send_data(List<Item> &items)
         we do not check var->fixed
       */
 
-      suv->fix_fields(thd, (TABLE_LIST *) thd->lex->select_lex.table_list.first,
-            0);
-      suv->check();
+      suv->fix_fields(thd, 0);
+      suv->check(0);
       suv->update();
     }
   }
