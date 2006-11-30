@@ -1498,7 +1498,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   {
     query_length=
       my_sprintf(buff,
-                 (buff,"SET PASSWORD FOR \"%-.120s\"@\"%-.120s\"=\"%-.120s\"",
+                 (buff,"SET PASSWORD FOR '%-.120s'@'%-.120s'='%-.120s'",
                   acl_user->user ? acl_user->user : "",
                   acl_user->host.hostname ? acl_user->host.hostname : "",
                   new_password));
