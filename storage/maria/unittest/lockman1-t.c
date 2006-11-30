@@ -18,7 +18,7 @@
   lockman for row locks, tablockman for table locks
 */
 
-//#define EXTRA_VERBOSE
+/* #define EXTRA_VERBOSE */
 
 #include <tap.h>
 
