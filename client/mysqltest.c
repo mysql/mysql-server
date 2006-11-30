@@ -32,7 +32,7 @@
   Holyfoot
 */
 
-#define MTEST_VERSION "3.0"
+#define MTEST_VERSION "3.1"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -1817,15 +1817,14 @@ void do_copy_file(struct st_command *command)
   command	command handle
 
   DESCRIPTION
-  chmod  <octal>  <file>
+  chmod <octal> <file>
   Change file permission of <file>
 
-  NOTE!  Simplified version, only supports +r, -r, +w, -w
 */
 
 void do_chmod_file(struct st_command *command)
 {
-  mode_t mode= 0;
+  ulong mode= 0;
   static DYNAMIC_STRING ds_mode;
   static DYNAMIC_STRING ds_file;
   const struct command_arg chmod_file_args[] = {
@@ -1840,12 +1839,11 @@ void do_chmod_file(struct st_command *command)
                      ' ');
 
   /* Parse what mode to set */
-  if (ds_mode.length != 4)
+  if (ds_mode.length != 4 ||
+      str2int(ds_mode.str, 8, 0, INT_MAX, &mode) == NullS)
     die("You must write a 4 digit octal number for mode");
 
-  str2int(ds_mode.str, 8, 0, INT_MAX, (long*)&mode);
-
-  DBUG_PRINT("info", ("chmod %o %s", mode, ds_file.str));
+  DBUG_PRINT("info", ("chmod %o %s", (uint)mode, ds_file.str));
   handle_command_error(command, chmod(ds_file.str, mode));
   dynstr_free(&ds_mode);
   dynstr_free(&ds_file);
