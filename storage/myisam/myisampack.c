@@ -2279,6 +2279,7 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
         if (bits > 8 * sizeof(code))
         {
           VOID(fflush(stdout));
+          VOID(fprintf(stderr, "error: Huffman code too long: %u/%u\n",
                        bits, (uint) (8 * sizeof(code))));
           errors++;
           break;
