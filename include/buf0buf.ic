@@ -397,7 +397,7 @@ buf_page_set_old(
 {
 	ut_a(buf_page_in_file(bpage));
 #ifdef UNIV_SYNC_DEBUG
-	ut_a(mutex_own(buf_page_get_mutex(bpage)));
+	ut_a(mutex_own(&buf_pool->mutex));
 #endif /* UNIV_SYNC_DEBUG */
 
 	bpage->old = old;
@@ -427,6 +427,9 @@ buf_page_set_accessed(
 	ibool		accessed)	/* in: accessed */
 {
 	ut_a(buf_page_in_file(bpage));
+#ifdef UNIV_SYNC_DEBUG
+	ut_a(mutex_own(buf_page_get_mutex(bpage)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	bpage->accessed = accessed;
 }
