@@ -271,7 +271,7 @@ Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(const char *
     m_latest_trans_gci(0)
 {
   DBUG_ENTER("Ndb_cluster_connection");
-  DBUG_PRINT("enter",("Ndb_cluster_connection this=0x%x", this));
+  DBUG_PRINT("enter",("Ndb_cluster_connection this=0x%lx", (long) this));
 
   if (!m_event_add_drop_mutex)
     m_event_add_drop_mutex= NdbMutex_Create();

@@ -2820,12 +2820,10 @@ row_truncate_table_for_mysql(
 			goto next_rec;
 		}
 
-		btr_pcur_store_position(&pcur, &mtr);
+		/* This call may commit and restart mtr
+		and reposition pcur. */
+		root_page_no = dict_truncate_index_tree(table, &pcur, &mtr);
 
-		/* This call may commit and restart mtr. */
-		root_page_no = dict_truncate_index_tree(table, rec, &mtr);
-
-		btr_pcur_restore_position(BTR_MODIFY_LEAF, &pcur, &mtr);
 		rec = btr_pcur_get_rec(&pcur);
 
 		if (root_page_no != FIL_NULL) {

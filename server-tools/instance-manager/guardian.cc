@@ -20,7 +20,6 @@
 #endif
 
 #include "guardian.h"
-
 #include <string.h>
 #include <sys/types.h>
 #include <signal.h>
@@ -30,17 +29,8 @@
 #include "log.h"
 #include "mysql_manager_error.h"
 
-
-pthread_handler_t guardian(void *arg)
-{
-  Guardian_thread *guardian_thread= (Guardian_thread *) arg;
-  guardian_thread->run();
-  return 0;
-}
-
-
 const char *
-Guardian_thread::get_instance_state_name(enum_instance_state state)
+Guardian::get_instance_state_name(enum_instance_state state)
 {
   switch (state) {
   case NOT_STARTED:
@@ -68,23 +58,24 @@ Guardian_thread::get_instance_state_name(enum_instance_state state)
   return NULL; /* just to ignore compiler warning. */
 }
 
+/* {{{ Constructor & destructor. */
 
-Guardian_thread::Guardian_thread(Thread_registry &thread_registry_arg,
-                                 Instance_map *instance_map_arg,
-                                 uint monitoring_interval_arg) :
-  Guardian_thread_args(thread_registry_arg, instance_map_arg,
-                       monitoring_interval_arg),
-  thread_info(pthread_self(), TRUE), guarded_instances(0)
+Guardian::Guardian(Thread_registry *thread_registry_arg,
+                   Instance_map *instance_map_arg,
+                   uint monitoring_interval_arg)
+  :stopped(FALSE),
+  monitoring_interval(monitoring_interval_arg),
+  thread_registry(thread_registry_arg),
+  instance_map(instance_map_arg),
+  shutdown_requested(FALSE)
 {
   pthread_mutex_init(&LOCK_guardian, 0);
   pthread_cond_init(&COND_guardian, 0);
-  shutdown_requested= FALSE;
-  stopped= FALSE;
   init_alloc_root(&alloc, MEM_ROOT_BLOCK_SIZE, 0);
 }
 
 
-Guardian_thread::~Guardian_thread()
+Guardian::~Guardian()
 {
   /* delay guardian destruction to the moment when no one needs it */
   pthread_mutex_lock(&LOCK_guardian);
@@ -94,21 +85,23 @@ Guardian_thread::~Guardian_thread()
   pthread_cond_destroy(&COND_guardian);
 }
 
+/* }}} */
 
-void Guardian_thread::request_shutdown()
+
+void Guardian::request_shutdown()
 {
   pthread_mutex_lock(&LOCK_guardian);
-  /* stop instances or just clean up Guardian repository */
+  /* STOP Instances or just clean up Guardian repository */
   stop_instances();
   shutdown_requested= TRUE;
   pthread_mutex_unlock(&LOCK_guardian);
 }
 
 
-void Guardian_thread::process_instance(Instance *instance,
-                                       GUARD_NODE *current_node,
-                                       LIST **guarded_instances,
-                                       LIST *node)
+void Guardian::process_instance(Instance *instance,
+                                GUARD_NODE *current_node,
+                                LIST **guarded_instances,
+                                LIST *node)
 {
   uint waitchild= (uint) Instance::DEFAULT_SHUTDOWN_DELAY;
   /* The amount of times, Guardian attempts to restart an instance */
@@ -117,23 +110,14 @@ void Guardian_thread::process_instance(Instance *instance,
 
   if (current_node->state == STOPPING)
   {
-    /* this brach is executed during shutdown */
-    if (instance->options.shutdown_delay)
-    {
-      /*
-        NOTE: it is important to check shutdown_delay here, but use
-        shutdown_delay_val. The idea is that if the option is unset,
-        shutdown_delay will be NULL, but shutdown_delay_val will not be reset.
-      */
-      waitchild= instance->options.shutdown_delay_val;
-    }
+    waitchild= instance->options.get_shutdown_delay();
 
     /* this returns TRUE if and only if an instance was stopped for sure */
     if (instance->is_crashed())
       *guarded_instances= list_delete(*guarded_instances, node);
     else if ( (uint) (current_time - current_node->last_checked) > waitchild)
     {
-      instance->kill_instance(SIGKILL);
+      instance->kill_mysqld(SIGKILL);
       /*
         Later we do node= node->next. This is ok, as we are only removing
         the node from the list. The pointer to the next one is still valid.
@@ -144,20 +128,20 @@ void Guardian_thread::process_instance(Instance *instance,
     return;
   }
 
-  if (instance->is_running())
+  if (instance->is_mysqld_running())
   {
     /* The instance can be contacted  on it's port */
 
     /* If STARTING also check that pidfile has been created */
     if (current_node->state == STARTING &&
-        current_node->instance->options.get_pid() == 0)
+        current_node->instance->options.load_pid() == 0)
     {
       /* Pid file not created yet, don't go to STARTED state yet  */
     }
     else if (current_node->state != STARTED)
     {
       /* clear status fields */
-      log_info("guardian: instance '%s' is running, set state to STARTED.",
+      log_info("Guardian: '%s' is running, set state to STARTED.",
                (const char *) instance->options.instance_name.str);
       current_node->restart_counter= 0;
       current_node->crash_moment= 0;
@@ -168,7 +152,7 @@ void Guardian_thread::process_instance(Instance *instance,
   {
     switch (current_node->state) {
     case NOT_STARTED:
-      log_info("guardian: starting instance '%s'...",
+      log_info("Guardian: starting '%s'...",
                (const char *) instance->options.instance_name.str);
 
       /* NOTE, set state to STARTING _before_ start() is called */
@@ -193,7 +177,7 @@ void Guardian_thread::process_instance(Instance *instance,
         if (instance->is_crashed())
         {
           instance->start();
-          log_info("guardian: starting instance '%s'...",
+          log_info("Guardian: starting '%s'...",
                    (const char *) instance->options.instance_name.str);
         }
       }
@@ -211,14 +195,15 @@ void Guardian_thread::process_instance(Instance *instance,
             instance->start();
             current_node->last_checked= current_time;
             current_node->restart_counter++;
-            log_info("guardian: restarting instance '%s'...",
+            log_info("Guardian: restarting '%s'...",
                      (const char *) instance->options.instance_name.str);
           }
         }
         else
         {
-          log_info("guardian: cannot start instance %s. Abandoning attempts "
-                   "to (re)start it", instance->options.instance_name.str);
+          log_info("Guardian: can not start '%s'. "
+                   "Abandoning attempts to (re)start it",
+                   (const char *) instance->options.instance_name.str);
           current_node->state= CRASHED_AND_ABANDONED;
         }
       }
@@ -233,18 +218,17 @@ void Guardian_thread::process_instance(Instance *instance,
 
 
 /*
-  Run guardian thread
+  Main function of Guardian thread.
 
-  SYNOPSYS
+  SYNOPSIS
     run()
 
   DESCRIPTION
-
     Check for all guarded instances and restart them if needed. If everything
     is fine go and sleep for some time.
 */
 
-void Guardian_thread::run()
+void Guardian::run()
 {
   Instance *instance;
   LIST *node;
@@ -252,9 +236,8 @@ void Guardian_thread::run()
 
   log_info("Guardian: started.");
 
-  thread_registry.register_thread(&thread_info);
+  thread_registry->register_thread(&thread_info);
 
-  my_thread_init();
   pthread_mutex_lock(&LOCK_guardian);
 
   /* loop, until all instances were shut down at the end */
@@ -275,8 +258,8 @@ void Guardian_thread::run()
 
     /* check the loop predicate before sleeping */
     if (!(shutdown_requested && (!(guarded_instances))))
-      thread_registry.cond_timedwait(&thread_info, &COND_guardian,
-                                     &LOCK_guardian, &timeout);
+      thread_registry->cond_timedwait(&thread_info, &COND_guardian,
+                                      &LOCK_guardian, &timeout);
   }
 
   log_info("Guardian: stopped.");
@@ -284,15 +267,14 @@ void Guardian_thread::run()
   stopped= TRUE;
   pthread_mutex_unlock(&LOCK_guardian);
   /* now, when the Guardian is stopped we can stop the IM */
-  thread_registry.unregister_thread(&thread_info);
-  thread_registry.request_shutdown();
-  my_thread_end();
+  thread_registry->unregister_thread(&thread_info);
+  thread_registry->request_shutdown();
 
   log_info("Guardian: finished.");
 }
 
 
-int Guardian_thread::is_stopped()
+int Guardian::is_stopped()
 {
   int var;
   pthread_mutex_lock(&LOCK_guardian);
@@ -306,19 +288,19 @@ int Guardian_thread::is_stopped()
   Initialize the list of guarded instances: loop through the Instance_map and
   add all of the instances, which don't have 'nonguarded' option specified.
 
-  SYNOPSYS
-    Guardian_thread::init()
+  SYNOPSIS
+    Guardian::init()
 
   NOTE: The operation should be invoked with the following locks acquired:
-    - Guardian_thread;
+    - Guardian;
     - Instance_map;
 
   RETURN
     0 - ok
-    1 - error occured
+    1 - error occurred
 */
 
-int Guardian_thread::init()
+int Guardian::init()
 {
   Instance *instance;
   Instance_map::Iterator iterator(instance_map);
@@ -344,7 +326,7 @@ int Guardian_thread::init()
 /*
   Add instance to the Guardian list
 
-  SYNOPSYS
+  SYNOPSIS
     guard()
     instance           the instance to be guarded
     nolock             whether we prefer do not lock Guardian here,
@@ -357,10 +339,10 @@ int Guardian_thread::init()
 
   RETURN
     0 - ok
-    1 - error occured
+    1 - error occurred
 */
 
-int Guardian_thread::guard(Instance *instance, bool nolock)
+int Guardian::guard(Instance *instance, bool nolock)
 {
   LIST *node;
   GUARD_NODE *content;
@@ -397,7 +379,7 @@ int Guardian_thread::guard(Instance *instance, bool nolock)
   a piece of the MEM_ROOT).
 */
 
-int Guardian_thread::stop_guard(Instance *instance)
+int Guardian::stop_guard(Instance *instance)
 {
   LIST *node;
 
@@ -418,7 +400,7 @@ int Guardian_thread::stop_guard(Instance *instance)
   An internal method which is called at shutdown to unregister instances and
   attempt to stop them if requested.
 
-  SYNOPSYS
+  SYNOPSIS
     stop_instances()
 
   DESCRIPTION
@@ -431,10 +413,10 @@ int Guardian_thread::stop_guard(Instance *instance)
 
   RETURN
     0 - ok
-    1 - error occured
+    1 - error occurred
 */
 
-int Guardian_thread::stop_instances()
+int Guardian::stop_instances()
 {
   LIST *node;
   node= guarded_instances;
@@ -445,7 +427,7 @@ int Guardian_thread::stop_instances()
       If instance is running or was running (and now probably hanging),
       request stop.
     */
-    if (current_node->instance->is_running() ||
+    if (current_node->instance->is_mysqld_running() ||
         (current_node->state == STARTED))
     {
       current_node->state= STOPPING;
@@ -455,26 +437,26 @@ int Guardian_thread::stop_instances()
       /* otherwise remove it from the list */
       guarded_instances= list_delete(guarded_instances, node);
     /* But try to kill it anyway. Just in case */
-    current_node->instance->kill_instance(SIGTERM);
+    current_node->instance->kill_mysqld(SIGTERM);
     node= node->next;
   }
   return 0;
 }
 
 
-void Guardian_thread::lock()
+void Guardian::lock()
 {
   pthread_mutex_lock(&LOCK_guardian);
 }
 
 
-void Guardian_thread::unlock()
+void Guardian::unlock()
 {
   pthread_mutex_unlock(&LOCK_guardian);
 }
 
 
-LIST *Guardian_thread::find_instance_node(Instance *instance)
+LIST *Guardian::find_instance_node(Instance *instance)
 {
   LIST *node= guarded_instances;
 
@@ -494,7 +476,7 @@ LIST *Guardian_thread::find_instance_node(Instance *instance)
 }
 
 
-bool Guardian_thread::is_active(Instance *instance)
+bool Guardian::is_active(Instance *instance)
 {
   bool guarded;
 
@@ -508,5 +490,5 @@ bool Guardian_thread::is_active(Instance *instance)
   if (guarded)
     return true;
 
-  return instance->is_running();
+  return instance->is_mysqld_running();
 }

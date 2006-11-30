@@ -16,21 +16,42 @@
 
 #include "client_priv.h"
 #include <my_dir.h>
+#include <my_list.h>
+#include <sslopt-vars.h>
+
+#define UPGRADE_DEFAULTS_NAME "mysql_upgrade_defaults"
+#define MYSQL_UPGRADE_INFO_NAME "mysql_upgrade_info"
+#define MYSQL_FIX_PRIV_TABLES_NAME "mysql_fix_privilege_tables.sql"
+
+#define MY_PARENT       (1 << 0)
+#define MY_ISDIR        (1 << 1)
+#define MY_SEARCH_SELF  (1 << 2)
 
 #ifdef __WIN__
 const char *mysqlcheck_name= "mysqlcheck.exe";
 const char *mysql_name= "mysql.exe";
+const char *mysqld_name= "mysqld.exe";
 #else
 const char *mysqlcheck_name= "mysqlcheck";
 const char *mysql_name= "mysql";
+const char *mysqld_name= "mysqld";
 #endif /*__WIN__*/
 
-static my_bool opt_force= 0, opt_verbose= 0, tty_password= 0;
+extern TYPELIB sql_protocol_typelib;
+
+static my_bool opt_force= 0, opt_verbose= 0, opt_compress= 0;
 static char *user= (char*) "root", *basedir= 0, *datadir= 0, *opt_password= 0;
-static my_bool upgrade_defaults_created= 0;
-static my_string opt_mysql_port, opt_mysql_unix_port= 0;
-static char *default_dbug_option= (char*) "d:t:O,/tmp/comp_err.trace";
-static my_bool info_flag= 0;
+static char *current_host= 0;
+static char *opt_default_charset= 0, *opt_charsets_dir= 0;
+#ifdef HAVE_SMEM
+static char *shared_memory_base_name= 0;
+#endif
+static char *opt_protocol= 0;
+static my_string opt_mysql_port= 0, opt_mysql_unix_port= 0;
+#ifndef DBUG_OFF
+static char *default_dbug_option= (char*) "d:t:O,/tmp/mysql_upgrade.trace";
+#endif
+static my_bool info_flag= 0, tty_password= 0;
 
 static struct my_option my_long_options[]=
 {
@@ -50,33 +71,132 @@ static struct my_option my_long_options[]=
 #endif
   {"debug-info", 'T', "Print some debug info at exit.", (gptr *) & info_flag,
    (gptr *) & info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"force", 'f', "Continue even if we get an sql-error.",
+  {"default-character-set", OPT_DEFAULT_CHARSET,
+   "Set the default character set.", (gptr*) &opt_default_charset,
+   (gptr*) &opt_default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"force", 'f', "Force execution of mysqlcheck even if mysql_upgrade " 
+   "has already been executed for the current version of MySQL.",
    (gptr*) &opt_force, (gptr*) &opt_force, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
+  {"character-sets-dir", OPT_CHARSETS_DIR,
+   "Directory where character sets are.", (gptr*) &opt_charsets_dir,
+   (gptr*) &opt_charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"compress", OPT_COMPRESS, "Use compression in server/client protocol.",
+   (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   0, 0, 0},
+  {"host",'h', "Connect to host.", (gptr*) &current_host,
+   (gptr*) &current_host, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
-   "Password to use when connecting to server. If password is not given it's solicited on the tty.",
-   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   "Password to use when connecting to server. If password is not given"
+   " it's solicited on the tty.", 0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef __WIN__
+  {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, 
+   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
-   (gptr*) &opt_mysql_port, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
-   0},
+   (gptr*) &opt_mysql_port, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"protocol", OPT_MYSQL_PROTOCOL,
    "The protocol of connection (tcp,socket,pipe,memory).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef HAVE_SMEM
+  {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
+   "Base name of shared memory.", (gptr*) &shared_memory_base_name, 
+   (gptr*) &shared_memory_base_name, 0, 
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"socket", 'S', "Socket file to use for connection.",
-   (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
-   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, 
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "User for login if not current user.", (gptr*) &user,
    (gptr*) &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"verbose", 'v', "Display more output about the process", (gptr*) &opt_verbose,
-    (gptr *) &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#include <sslopt-longopts.h>
+  {"verbose", 'v', "Display more output about the process", 
+   (gptr*) &opt_verbose, (gptr*) &opt_verbose, 0, 
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
 static const char *load_default_groups[]=
 {
   "mysql_upgrade", 0
 };
 
 #include <help_end.h>
+
+static LIST *extra_defaults= NULL;
+
+typedef struct _extra_default
+{
+  int id;
+  const char *name;
+  int n_len;
+  const char *value;
+  int v_len;
+} extra_default_t;
+
+static inline 
+void set_extra_default(int id, const struct my_option *opt)
+{
+  switch (id) {
+  case 'b': case 'd':   /* these are ours */
+  case 'f':             /* --force is ours */
+  case 'u':             /* --user passed on cmdline */
+  case 'T':             /* --debug-info is not accepted by mysqlcheck */
+    /* so, do nothing */
+    break;
+  default:
+    {
+      LIST *l;
+      extra_default_t *d;
+
+      /* 
+        Remove any earlier duplicates: they can
+        refer to invalid memory addresses (stale pointers) 
+      */
+      l= extra_defaults; 
+      while (l)
+      {
+        LIST *n= l->next;
+
+        d= l->data;
+        if (d->id == id) 
+        {
+          extra_defaults= list_delete(extra_defaults, l);
+          my_free((gptr)l, MYF(0));
+          my_free((gptr)d, MYF(0));
+        }
+        l= n;
+      }
+
+      d= (extra_default_t *)my_malloc(sizeof(extra_default_t), 
+                           MYF(MY_FAE|MY_ZEROFILL));
+      d->id= id;
+      d->name= opt->name;
+      d->n_len= strlen(opt->name);
+      if (opt->arg_type != NO_ARG)
+        switch (opt->var_type & GET_TYPE_MASK) {
+        case GET_BOOL:
+          if (*((int *)opt->value))
+          {
+            d->value= "true";
+            d->v_len= 4;
+          }
+          break;
+        case GET_STR: 
+        case GET_STR_ALLOC:
+          d->value= *opt->value;
+          d->v_len= strlen(d->value); 
+          break;
+        default:
+          my_printf_error(0, "Error: internal error at %s:%d", MYF(0), 
+                          __FILE__, __LINE__);
+          exit(1);
+        }
+      list_push(extra_defaults, d);
+    }
+  }
+}
+
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__ ((unused)),
@@ -85,15 +205,12 @@ get_one_option(int optid, const struct my_option *opt __attribute__ ((unused)),
   switch (optid) {
   case '?':
     puts
-      ("MySQL utility script to upgrade database to the current server version");
+      ("MySQL utility to upgrade database to the current server version");
     puts("");
     my_print_help(my_long_options);
     exit(0);
   case '#':
     DBUG_PUSH(argument ? argument : default_dbug_option);
-    break;
-  case 'f':
-    opt_force= TRUE;
     break;
   case 'p':
     tty_password= 1;
@@ -109,315 +226,412 @@ get_one_option(int optid, const struct my_option *opt __attribute__ ((unused)),
       tty_password= 0;
     }
     break;
+#ifdef __WIN__
+  case 'W':
+    my_free(opt_protocol, MYF(MY_ALLOW_ZERO_PTR));
+    opt_protocol= my_strdup("pipe", MYF(MY_FAE));
+    break;
+#endif
+  case OPT_MYSQL_PROTOCOL:
+    if (find_type(argument, &sql_protocol_typelib, 0) > 0)
+    {
+      my_free(opt_protocol, MYF(MY_ALLOW_ZERO_PTR));
+      opt_protocol= my_strdup(argument, MYF(MY_FAE));
+    }
+    else 
+    {
+      fprintf(stderr, "Unknown option to protocol: %s\n", argument);
+      exit(1); 
+    }
+    break;
+#include <sslopt-case.h>
   default:;
-  };
+  }
+  set_extra_default(opt->id, opt);
   return 0;
-}
-
-
-/* buffer should be not smaller than FN_REFLEN */
-static my_bool test_file_exists_res(const char *dir, const char *fname,
-                                    char *buffer, char **buf_end)
-{
-  MY_STAT stat_info;
-
-  *buf_end= strxnmov(buffer, FN_REFLEN-1, dir, "/", fname, NullS);
-  unpack_filename(buffer, buffer);
-  return my_stat(buffer, &stat_info, MYF(0)) != 0;
-}
-
-
-static my_bool test_file_exists(const char *dir, const char *fname)
-{
-  char path[FN_REFLEN];
-  char *path_end;
-  return test_file_exists_res(dir, fname, path, &path_end);
 }
 
 
 static int create_check_file(const char *path)
 {
-  File check_file= my_open(path, O_CREAT | O_WRONLY, MYF(MY_FAE | MY_WME));
-  int error;
-
-  if (check_file < 0)
-    return 1;
-
-  error= my_write(check_file,
-                  MYSQL_SERVER_VERSION, strlen(MYSQL_SERVER_VERSION),
+  int ret;
+  File fd;
+  
+  fd= my_open(path, O_CREAT | O_WRONLY, MYF(MY_FAE | MY_WME));
+  if (fd < 0) {
+    ret= 1;
+    goto error;
+  }
+  ret= my_write(fd, MYSQL_SERVER_VERSION, 
+                  sizeof(MYSQL_SERVER_VERSION) - 1,
                   MYF(MY_WME | MY_FNABP));
-  error= my_close(check_file, MYF(MY_FAE | MY_WME)) || error;
-  return error;
+  ret|= my_close(fd, MYF(MY_FAE | MY_WME));
+error:
+  return ret;
 }
 
 
-static int create_defaults_file(const char *path, const char *our_defaults_path)
+static int create_defaults_file(const char *path, const char *forced_path)
 {
-  uint b_read;
-  File our_defaults_file, defaults_file;
-  char buffer[512];
-  char *buffer_end;
-  int failed_to_open_count= 0;
-  int error;
+  int ret;
+  uint cnt;
+  File forced_file, defaults_file;
+  
+  DYNAMIC_STRING buf;
+  extra_default_t *d;
 
-  /* check if the defaults file is needed at all */
-  if (!opt_password)
-    return 0;
-
-retry_open:
+  my_delete(path, MYF(0));
+  
   defaults_file= my_open(path, O_BINARY | O_CREAT | O_WRONLY | O_EXCL,
                          MYF(MY_FAE | MY_WME));
-
   if (defaults_file < 0)
   {
-    if (failed_to_open_count == 0)
-    {
-      remove(path);
-      failed_to_open_count+= 1;
-      goto retry_open;
-    }
-    else
-      return 1;
+    ret= 1;
+    goto out;
   }
 
-  upgrade_defaults_created= 1;
-  if (our_defaults_path)
+  if (init_dynamic_string(&buf, NULL, my_getpagesize(), FN_REFLEN))
   {
-    our_defaults_file= my_open(our_defaults_path, O_RDONLY,
-                               MYF(MY_FAE | MY_WME));
-    if (our_defaults_file < 0)
-      return 1;
+    ret= 1;
+    goto error;
+  }
+
+  if (forced_path)
+  {
+    forced_file= my_open(forced_path, O_RDONLY, MYF(MY_FAE | MY_WME));
+    if (forced_file < 0)
+    {
+      ret= 1;
+      goto error;
+    }
     do
     {
-      if (((b_read= my_read(our_defaults_file, buffer,
-                            sizeof(buffer), MYF(MY_WME))) == MY_FILE_ERROR) ||
-          my_write(defaults_file, buffer, b_read, MYF(MY_FNABP | MY_WME)))
+      cnt= my_read(forced_file, buf.str, buf.max_length, MYF(MY_WME));
+      if ((cnt == MY_FILE_ERROR)
+           || my_write(defaults_file, buf.str, cnt, MYF(MY_FNABP | MY_WME)))
       {
-        error= 1;
-        goto close_return;
+        ret= 1;
+        my_close(forced_file, MYF(0));
+        goto error;
       }
-    } while (b_read == sizeof(buffer));
+    } while (cnt == buf.max_length);
+    my_close(forced_file, MYF(0));
   }
-  buffer_end= strnmov(buffer, "\n[client]", sizeof(buffer));
-  if (opt_password)
-    buffer_end= strxnmov(buffer_end, sizeof(buffer),
-                         "\npassword=", opt_password, NullS);
-  error= my_write(defaults_file, buffer, (int) (buffer_end - buffer),
-                  MYF(MY_WME | MY_FNABP));
-close_return:
-  return my_close(defaults_file, MYF(MY_WME)) || error;
+  
+  dynstr_set(&buf, "\n[client]");
+  while (extra_defaults) 
+  {
+    int len;
+        
+    d= extra_defaults->data;
+    len= d->n_len + d->v_len + 1; 
+    if (buf.length + len >= buf.max_length)     /* to avoid realloc() */
+    {
+      if (my_write(defaults_file, buf.str, buf.length, MYF(MY_FNABP | MY_WME)))
+      {
+        ret= 1;
+        goto error;
+      }
+      dynstr_set(&buf, NULL);
+    }
+    if (dynstr_append_mem(&buf, "\n", 1)
+       || dynstr_append_mem(&buf, d->name, d->n_len)
+       || (d->v_len && (dynstr_append_mem(&buf, "=", 1)
+       || dynstr_append_mem(&buf, d->value, d->v_len))))
+    {
+      ret= 1;
+      goto error;
+    }
+    my_delete((gptr)d, MYF(0));
+    list_pop(extra_defaults);                   /* pop off the head */
+  }
+  if (my_write(defaults_file, buf.str, buf.length, MYF(MY_FNABP | MY_WME)))
+  {
+    ret= 1;
+    goto error;
+  }
+  /* everything's all right */
+  ret= 0;
+error:
+  dynstr_free(&buf);
+  
+  if (defaults_file >= 0)
+    ret|= my_close(defaults_file, MYF(MY_WME));
+  
+  if (ret)
+    my_delete(path, MYF(0));
+  
+out:
+  return ret;
+}
+
+
+/* Compare filenames */
+static int comp_names(struct fileinfo *a, struct fileinfo *b)
+{
+  return (strcmp(a->name,b->name));
+}
+
+
+static int find_file(const char *name, const char *root,
+                     uint flags, char *result, size_t len, ...)
+{
+  int ret= 1;
+  va_list va;
+  const char *subdir;
+  char *cp;
+  FILEINFO key;
+
+  /* Init key with name of the file to look for */
+  key.name= (char*)name;
+
+  DBUG_ASSERT(root != NULL);
+
+  cp= strmake(result, root, len);
+  if (cp[-1] != FN_LIBCHAR) 
+    *cp++= FN_LIBCHAR; 
+  
+  va_start(va, len);
+  subdir= (!(flags & MY_SEARCH_SELF)) ? va_arg(va, char *) : "";
+  while (subdir)
+  {
+    MY_DIR *dir;
+    FILEINFO *match;
+    char *cp1;
+    
+    cp1= strnmov(cp, subdir, len - (cp - result) - 1);
+    
+    dir= my_dir(result, (flags & MY_ISDIR) ? MY_WANT_STAT : MYF(0));  
+    if (dir) 
+    { 
+      match= bsearch(&key, dir->dir_entry, dir->number_off_files, 
+                      sizeof(FILEINFO), (qsort_cmp)comp_names);
+      if (match)
+      {
+        ret= (flags & MY_ISDIR) ? !MY_S_ISDIR(match->mystat->st_mode) : 0;
+        if (!ret)
+        { 
+          if (cp1[-1] != FN_LIBCHAR)
+            *cp1++= FN_LIBCHAR;
+          
+          if (!(flags & MY_PARENT)) 
+            strnmov(cp1, name, len - (cp1 - result));
+          else
+            *cp1= '\0';
+          
+          my_dirend(dir);
+          break;
+        }
+      }
+      my_dirend(dir);
+    }
+    subdir= va_arg(va, char *);
+  }
+  va_end(va);
+  return ret;
 }
 
 
 int main(int argc, char **argv)
 {
-  char bindir[FN_REFLEN];
-  char *bindir_end, *buf_end;
-  char datadir_buf[FN_REFLEN];
-  char mysqlcheck_line[FN_REFLEN], *mysqlcheck_end;
-  char check_file_name[FN_REFLEN];
-  int check_file;
-  char fix_priv_tables_cmd[FN_REFLEN], *fix_cmd_end;
-  char script_line[FN_REFLEN];
-  int error;
+  int ret;
+  
   char *forced_defaults_file;
   char *forced_extra_defaults;
   char *defaults_group_suffix;
-  char upgrade_defaults_path[FN_REFLEN], *defaults_to_use= 0;
-  char port_socket[100], *port_socket_end;
+  const char *script_line;
+  char *upgrade_defaults_path; 
+  char *defaults_to_use= NULL;
+  int upgrade_defaults_created= 0;
+  
+  char path[FN_REFLEN];
+  DYNAMIC_STRING cmdline;
 
   MY_INIT(argv[0]);
 #ifdef __NETWARE__
   setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
 #endif
 
-  load_defaults("my", load_default_groups, &argc, &argv);
-
-  if ((error= handle_options(&argc, &argv, my_long_options, get_one_option)))
-    exit(error);
-
-  if (tty_password)
-    opt_password= get_tty_password(NullS);
-
-  /* Check if we want to force the use a specific default file */
+  /* Check if we are forced to use specific defaults */
   get_defaults_options(argc, argv,
                        &forced_defaults_file, &forced_extra_defaults,
                        &defaults_group_suffix);
+  
+  load_defaults("my", load_default_groups, &argc, &argv);
 
-  port_socket_end= port_socket;
-  if (opt_mysql_port)
-    port_socket_end= strxnmov(port_socket, sizeof(port_socket) - 1, " --port=",
-                              opt_mysql_port, NullS);
-  if (opt_mysql_unix_port)
-    port_socket_end= strxnmov(port_socket_end,
-                              sizeof(port_socket) -
-                                (int)(port_socket_end - port_socket) - 1,
-                              " --socket=", opt_mysql_unix_port, NullS);
-  *port_socket_end= 0;
-
-  if (basedir)
+  if (handle_options(&argc, &argv, my_long_options, get_one_option)) 
   {
-    bindir_end= strmake(bindir, basedir, sizeof(bindir)-1);
+    ret= 1;
+    goto error;
   }
-  else
+  if (tty_password)
+    opt_password= get_tty_password(NullS);
+
+  if (init_dynamic_string(&cmdline, NULL, 2 * FN_REFLEN + 128, FN_REFLEN))
   {
-    if (test_file_exists("./share/mysql/english", "errmsg.sys")
-        && (test_file_exists("./bin", "mysqld") ||
-            test_file_exists("./libexec", "mysqld")))
+    ret= 1;
+    goto error;
+  }
+  if (!basedir)
+  {
+    my_getwd(path, sizeof(path), MYF(0));
+    basedir= my_strdup(path, MYF(0));
+    if (find_file("errmsg.sys", basedir, MYF(0), path, sizeof(path),
+                              "share/mysql/english", NullS)
+       || find_file(mysqld_name, basedir, MYF(0), path, sizeof(path),
+                              "bin", "libexec", NullS))
     {
-      my_getwd(bindir, sizeof(bindir), MYF(0));
-      bindir_end= bindir + strlen(bindir);
-    }
-    else
-    {
-      bindir_end= strmake(bindir, DEFAULT_MYSQL_HOME, sizeof(bindir)-1);
+      my_free((gptr)basedir, MYF(0));
+      basedir= (char *)DEFAULT_MYSQL_HOME;
     }
   }
 
   if (!datadir)
   {
-    datadir= datadir_buf;
-    if (test_file_exists(bindir, "data/mysql"))
-    {
-      *strxnmov(datadir_buf, sizeof(datadir_buf)-1, bindir, "/data", NullS)= 0;
-    }
-    else if (test_file_exists(bindir, "var/mysql"))
-    {
-      *strxnmov(datadir_buf, sizeof(datadir_buf)-1, bindir, "/var", NullS)= 0;
-    }
+    if (!find_file("mysql", basedir, MYF(MY_ISDIR|MY_PARENT), 
+                            path, sizeof(path),
+                            "data", "var", NullS))
+      datadir= my_strdup(path, MYF(0));
     else
-      datadir= (char*) DATADIR;
+      datadir= (char *)DATADIR;
+  }
+  if (find_file("user.frm", datadir, MYF(0), path, sizeof(path), 
+                          "mysql", NullS))
+  {
+    ret= 1;
+    puts("Can't find data directory. Please restart with"
+                    " --datadir=path-to-writable-data-dir");
+    goto error;
   }
 
-  strmake(bindir_end, "/bin", sizeof(bindir) - (int) (bindir_end - bindir)-1);
-
-  if (!test_file_exists_res
-      (bindir, mysqlcheck_name, mysqlcheck_line, &mysqlcheck_end))
+  /* 
+     Create the modified defaults file to be used by mysqlcheck 
+     and mysql tools                                            
+   */
+  fn_format(path, UPGRADE_DEFAULTS_NAME, datadir, "", MYF(0));
+  upgrade_defaults_path= my_strdup(path, MYF(0));
+  
+  if (extra_defaults) 
   {
-    printf("Can't find program '%s'\n", mysqlcheck_line);
-    puts("Please restart with --basedir=mysql-install-directory");
-    exit(1);
-  }
+    ret= create_defaults_file(upgrade_defaults_path, forced_extra_defaults);
+    if (ret)
+      goto error;
+    
+    defaults_to_use= upgrade_defaults_path;
+    upgrade_defaults_created= 1;
+  } 
+  else
+    defaults_to_use= forced_extra_defaults;
 
-  if (!test_file_exists(datadir, "mysql/user.frm"))
+  if (!find_file(MYSQL_UPGRADE_INFO_NAME, datadir, MY_SEARCH_SELF, 
+                          path, sizeof(path), NULL, NullS)
+     && !opt_force)
   {
-    puts
-      ("Can't find data directory. Please restart with --datadir=path-to-data-dir");
-    exit(1);
-  }
-
-  /* create the modified defaults file to be used by mysqlcheck */
-  /* and mysql tools                                            */
-  *strxnmov(upgrade_defaults_path, sizeof(upgrade_defaults_path)-1,
-           datadir, "/upgrade_defaults", NullS)= 0;
-  unpack_filename(upgrade_defaults_path, upgrade_defaults_path);
-  if ((error=
-       create_defaults_file(upgrade_defaults_path, forced_extra_defaults)))
-    goto err_exit;
-
-  defaults_to_use= upgrade_defaults_created ?
-    upgrade_defaults_path : forced_extra_defaults;
-
-  if (test_file_exists_res(datadir, "mysql_upgrade_info", check_file_name,
-                           &buf_end) && !opt_force)
-  {
-    char chf_buffer[50];
-    int b_read;
-    check_file= my_open(check_file_name, O_RDONLY, MYF(0));
-    b_read= my_read(check_file, chf_buffer, sizeof(chf_buffer)-1, MYF(0));
-    chf_buffer[b_read]= 0;
-    my_close(check_file, MYF(0));
-    if (!strcmp(chf_buffer, MYSQL_SERVER_VERSION))
+    char buf[sizeof(MYSQL_SERVER_VERSION)];
+    int fd, cnt;
+   
+    fd= my_open(path, O_RDONLY, MYF(0));
+    cnt= my_read(fd, buf, sizeof(buf) - 1, MYF(0));
+    my_close(fd, MYF(0));
+    buf[cnt]= 0;
+    if (!strcmp(buf, MYSQL_SERVER_VERSION))
     {
       if (opt_verbose)
-        puts("mysql_upgrade already done for this version");
+        puts("mysql_upgrade has already been done for this version");
       goto fix_priv_tables;
     }
   }
+  
+  if (find_file(mysqlcheck_name, basedir, MYF(0), path, sizeof(path),
+                          "bin", NullS))
+  {
+     ret= 1;
+     printf("Can't find program '%s'\n", mysqlcheck_name);
+     puts("Please restart with --basedir=mysql-install-directory");
+     goto error;
+  }
+  else
+    dynstr_set(&cmdline, path);
 
   if (defaults_to_use)
   {
-    mysqlcheck_end= strxnmov(mysqlcheck_end,
-                             sizeof(mysqlcheck_line) - (int) (mysqlcheck_end -
-                                                              mysqlcheck_line),
-                             " --defaults-extra-file=", defaults_to_use,NullS);
+    dynstr_append(&cmdline, " --defaults-extra-file=");
+    dynstr_append(&cmdline, defaults_to_use);
   }
-
-  mysqlcheck_end= strxnmov(mysqlcheck_end,
-                           sizeof(mysqlcheck_line) -
-                             (int) (mysqlcheck_end - mysqlcheck_line - 1),
-                           " --check-upgrade --all-databases --auto-repair --user=",
-                           user, port_socket, NullS);
-  *mysqlcheck_end= 0;
+  
+  dynstr_append(&cmdline, " --check-upgrade --all-databases"
+                 " --auto-repair --user=");
+  dynstr_append(&cmdline, user);
 
   if (opt_verbose)
-    printf("Running %s\n", mysqlcheck_line);
-  if ((error= system(mysqlcheck_line)))
+    printf("Running %s\n", cmdline.str);
+
+  ret= system(cmdline.str);
+  if (ret)
   {
-    printf("Error executing '%s'\n", mysqlcheck_line);
-    goto err_exit;
+    printf("Error executing '%s'\n", cmdline.str);
+    goto error;
   }
 
-  if ((error= create_check_file(check_file_name)))
-    goto err_exit;
+  fn_format(path, MYSQL_UPGRADE_INFO_NAME, datadir, "", MYF(0));
+  ret= create_check_file(path);
+  if (ret)
+    goto error;
 
 fix_priv_tables:
-  if (!test_file_exists_res(bindir, mysql_name,
-                            fix_priv_tables_cmd, &fix_cmd_end))
+  if (find_file(mysql_name, basedir, MYF(0), path, sizeof(path), 
+                          "bin", NullS))
   {
-    puts("Could not find MySQL command-line client (mysql).");
-    puts
-      ("Please use --basedir to specify the directory where MySQL is installed.");
-    error= 1;
-    goto err_exit;
+    ret= 1;
+    puts("Could not find MySQL command-line client (mysql).\n"
+         "Please use --basedir to specify the directory"
+         " where MySQL is installed.");
+    goto error;
   }
+  else
+    dynstr_set(&cmdline, path);
 
-  if (!test_file_exists_res(basedir,
-                            "support_files/mysql_fix_privilege_tables.sql",
-                            script_line, &buf_end)
-      && !test_file_exists_res(basedir, "share/mysql_fix_privilege_tables.sql",
-                               script_line, &buf_end)
-      && !test_file_exists_res(basedir,
-                               "share/mysql/mysql_fix_privilege_tables.sql",
-                               script_line, &buf_end)
-      && !test_file_exists_res(basedir,
-                               "scripts/mysql_fix_privilege_tables.sql",
-                               script_line, &buf_end)
-      && !test_file_exists_res("/usr/local/mysql/share/mysql",
-                               "mysql_fix_privilege_tables.sql", script_line,
-                               &buf_end))
+  if (find_file(MYSQL_FIX_PRIV_TABLES_NAME, basedir, MYF(0), 
+                          path, sizeof(path), 
+                          "support_files", "share/mysql", "scripts", 
+                          NullS)
+     && find_file(MYSQL_FIX_PRIV_TABLES_NAME, "/usr/local/mysql", MYF(0),
+                          path, sizeof(path),
+                          "share/mysql", NullS))
   {
-    puts("Could not find file mysql_fix_privilege_tables.sql");
-    puts
-      ("Please use --basedir to specify the directory where MySQL is installed");
-    error= 1;
-    goto err_exit;
+    ret= 1;
+    puts("Could not find file " MYSQL_FIX_PRIV_TABLES_NAME "\n"
+         "Please use --basedir to specify the directory"
+         " where MySQL is installed");
+    goto error;
   }
+  else
+    script_line= my_strdup(path, MYF(0));
 
   if (defaults_to_use)
   {
-    fix_cmd_end= strxnmov(fix_cmd_end,
-                          sizeof(fix_priv_tables_cmd) -
-                            (int) (fix_cmd_end - fix_priv_tables_cmd - 1),
-                          " --defaults-extra-file=", defaults_to_use, NullS);
+    dynstr_append(&cmdline, " --defaults-extra-file=");
+    dynstr_append(&cmdline, defaults_to_use);
   }
-  fix_cmd_end= strxnmov(fix_cmd_end,
-           sizeof(fix_priv_tables_cmd) - (int) (fix_cmd_end -
-                                                fix_priv_tables_cmd),
-           " --user=", user, port_socket, " mysql < ", script_line, NullS);
-  *fix_cmd_end= 0;
+  dynstr_append(&cmdline, " --force --no-auto-rehash --batch --user=");
+  dynstr_append(&cmdline, user);
+  dynstr_append(&cmdline, " mysql < ");
+  dynstr_append(&cmdline, script_line);
 
-  if ((error= system(fix_priv_tables_cmd)))
-  {
-    /* Problem is that the 'Duplicate column' error           */
-    /* which is not a bug for the script makes 'mysql' return */
-    /* an error                                               */
-    /* printf("Error executing '%s'\n", fix_priv_tables_cmd); */
-  }
+  if (opt_verbose)
+    printf("Running %s\n", cmdline.str);
 
-err_exit:
+  ret= system(cmdline.str);
+  if (ret)
+    printf("Error executing '%s'\n", cmdline.str);
+
+error:
+  dynstr_free(&cmdline);
+
   if (upgrade_defaults_created)
     my_delete(upgrade_defaults_path, MYF(0));
-  my_end(info_flag ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
-  return error;
-}                                               /* main */
+  
+  my_end(info_flag ? MY_CHECK_ERROR : 0);
+  return ret;
+}
+

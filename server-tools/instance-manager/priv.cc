@@ -18,26 +18,9 @@
 
 #include <my_global.h>
 #include <mysql_com.h>
+#include <my_sys.h>
 
-#if defined(__ia64__) || defined(__ia64)
-/*
-  We can live with 32K, but reserve 64K. Just to be safe.
-  On ia64 we need to reserve double of the size.
-*/
-#define IM_THREAD_STACK_SIZE    (128*1024L)
-#else
-#define IM_THREAD_STACK_SIZE    (64*1024)
-#endif
-
-
-/* the pid of the manager process (of the signal thread on the LinuxThreads) */
-pid_t manager_pid;
-
-/*
-  This flag is set if mysqlmanager has detected that it is running on the
-  system using LinuxThreads
-*/
-bool linuxthreads;
+#include "log.h"
 
 /*
   The following string must be less then 80 characters, as
@@ -63,30 +46,32 @@ unsigned long bytes_sent = 0L, bytes_received = 0L;
 unsigned long mysqld_net_retry_count = 10L;
 unsigned long open_files_limit;
 
-/*
-  Change the stack size and start a thread. Return an error if either
-  pthread_attr_setstacksize or pthread_create fails.
-  Arguments are the same as for pthread_create().
-*/
 
-int set_stacksize_n_create_thread(pthread_t  *thread, pthread_attr_t *attr,
-                                  void *(*start_routine)(void *), void *arg)
+
+int create_pid_file(const char *pid_file_name, int pid)
 {
-  int rc= 0;
+  FILE *pid_file;
 
-#ifndef __WIN__
-#ifndef PTHREAD_STACK_MIN
-#define PTHREAD_STACK_MIN      32768
-#endif
-  /*
-    Set stack size to be safe on the platforms with too small
-    default thread stack.
-  */
-  rc= pthread_attr_setstacksize(attr,
-                                (size_t) (PTHREAD_STACK_MIN +
-                                          IM_THREAD_STACK_SIZE));
-#endif
-  if (!rc)
-    rc= pthread_create(thread, attr, start_routine, arg);
-  return rc;
+  if (!(pid_file= my_fopen(pid_file_name, O_WRONLY | O_CREAT | O_BINARY,
+                           MYF(0))))
+  {
+    log_error("Can not create pid file '%s': %s (errno: %d)",
+              (const char *) pid_file_name,
+              (const char *) strerror(errno),
+              (int) errno);
+    return 1;
+  }
+
+  if (fprintf(pid_file, "%d\n", (int) pid) <= 0)
+  {
+    log_error("Can not write to pid file '%s': %s (errno: %d)",
+              (const char *) pid_file_name,
+              (const char *) strerror(errno),
+              (int) errno);
+    return 1;
+  }
+
+  my_fclose(pid_file, MYF(0));
+
+  return 0;
 }

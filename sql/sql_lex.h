@@ -496,7 +496,7 @@ public:
   void set_thd(THD *thd_arg) { thd= thd_arg; }
 
   friend void lex_start(THD *thd, const uchar *buf, uint length);
-  friend int subselect_union_engine::exec();
+  friend int subselect_union_engine::exec(bool);
 
   List<Item> *get_unit_column_types();
 };
@@ -588,6 +588,8 @@ public:
     query processing end even if we use temporary table
   */
   bool subquery_in_having;
+  /* TRUE <=> this SELECT is correlated w.r.t. some ancestor select */
+  bool is_correlated;
   /*
     This variable is required to ensure proper work of subqueries and
     stored procedures. Generally, one should use the states of
@@ -606,6 +608,8 @@ public:
   bool no_wrap_view_item;
   /* exclude this select from check of unique_table() */
   bool exclude_from_table_unique_test;
+
+  List<udf_func>     udf_list;                  /* udf function calls stack */
 
   void init_query();
   void init_select();
@@ -908,7 +912,8 @@ typedef struct st_lex : public Query_tables_list
   /* The values of tok_start/tok_end as they were one call of MYSQLlex before */
   const uchar *tok_start_prev, *tok_end_prev;
 
-  char *length,*dec,*change,*name;
+  char *length,*dec,*change;
+  LEX_STRING name;
   Table_ident *like_name;
   char *help_arg;
   char *backup_dir;				/* For RESTORE/BACKUP */
@@ -1229,5 +1234,7 @@ extern void lex_start(THD *thd, const uchar *buf, uint length);
 extern void lex_end(LEX *lex);
 extern int MYSQLlex(void *arg, void *yythd);
 extern const uchar *skip_rear_comments(const uchar *ubegin, const uchar *uend);
+
+extern bool is_lex_native_function(const LEX_STRING *name);
 
 #endif /* MYSQL_SERVER */

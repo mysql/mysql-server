@@ -80,6 +80,20 @@ String *Item_str_func::check_well_formed_result(String *str)
 }
 
 
+bool Item_str_func::fix_fields(THD *thd, Item **ref)
+{
+  bool res= Item_func::fix_fields(thd, ref);
+  /*
+    In Item_str_func::check_well_formed_result() we may set null_value
+    flag on the same condition as in test() below.
+  */
+  maybe_null= (maybe_null ||
+               test(thd->variables.sql_mode &
+                    (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)));
+  return res;
+}
+
+
 my_decimal *Item_str_func::val_decimal(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed == 1);
@@ -951,24 +965,35 @@ String *Item_func_insert::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *res,*res2;
-  uint start,length;
+  longlong start, length;  /* must be longlong to avoid truncation */
 
   null_value=0;
   res=args[0]->val_str(str);
   res2=args[3]->val_str(&tmp_value);
-  start=(uint) args[1]->val_int()-1;
-  length=(uint) args[2]->val_int();
+  start= args[1]->val_int() - 1;
+  length= args[2]->val_int();
+
   if (args[0]->null_value || args[1]->null_value || args[2]->null_value ||
       args[3]->null_value)
     goto null; /* purecov: inspected */
-  start=res->charpos(start);
-  length=res->charpos(length,start);
-  if (start > res->length()+1)
-    return res;					// Wrong param; skip insert
-  if (length > res->length()-start)
-    length=res->length()-start;
-  if (res->length() - length + res2->length() >
-      current_thd->variables.max_allowed_packet)
+
+  if ((start < 0) || (start > res->length() + 1))
+    return res;                                 // Wrong param; skip insert
+  if ((length < 0) || (length > res->length() + 1))
+    length= res->length() + 1;
+
+  /* start and length are now sufficiently valid to pass to charpos function */
+  start= res->charpos(start);
+  length= res->charpos(length, start);
+
+  /* Re-testing with corrected params */
+  if (start > res->length() + 1)
+    return res;                                 // Wrong param; skip insert
+  if (length > res->length() - start)
+    length= res->length() - start;
+
+  if ((ulonglong) (res->length() - length + res2->length()) >
+      (ulonglong) current_thd->variables.max_allowed_packet)
   {
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
@@ -1039,16 +1064,21 @@ String *Item_str_conv::val_str(String *str)
 String *Item_func_left::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *res  =args[0]->val_str(str);
-  long length  =(long) args[1]->val_int();
+  String *res= args[0]->val_str(str);
+
+  /* must be longlong to avoid truncation */
+  longlong length= args[1]->val_int();
   uint char_pos;
 
   if ((null_value=(args[0]->null_value || args[1]->null_value)))
     return 0;
-  if (length <= 0)
+
+  /* if "unsigned_flag" is set, we have a *huge* positive number. */
+  if ((length <= 0) && (!args[1]->unsigned_flag))
     return &my_empty_string;
-  if (res->length() <= (uint) length ||
-      res->length() <= (char_pos= res->charpos(length)))
+
+  if ((res->length() <= (ulonglong) length) ||
+      (res->length() <= (char_pos= res->charpos(length))))
     return res;
 
   tmp_value.set(*res, 0, char_pos);
@@ -1080,14 +1110,18 @@ void Item_func_left::fix_length_and_dec()
 String *Item_func_right::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *res  =args[0]->val_str(str);
-  long length  =(long) args[1]->val_int();
+  String *res= args[0]->val_str(str);
+  /* must be longlong to avoid truncation */
+  longlong length= args[1]->val_int();
 
   if ((null_value=(args[0]->null_value || args[1]->null_value)))
     return 0; /* purecov: inspected */
-  if (length <= 0)
+
+  /* if "unsigned_flag" is set, we have a *huge* positive number. */
+  if ((length <= 0) && (!args[1]->unsigned_flag))
     return &my_empty_string; /* purecov: inspected */
-  if (res->length() <= (uint) length)
+
+  if (res->length() <= (ulonglong) length)
     return res; /* purecov: inspected */
 
   uint start=res->numchars();
@@ -1110,25 +1144,43 @@ String *Item_func_substr::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *res  = args[0]->val_str(str);
-  int32 start	= (int32) args[1]->val_int();
-  int32 length	= arg_count == 3 ? (int32) args[2]->val_int() : INT_MAX32;
-  int32 tmp_length;
+  /* must be longlong to avoid truncation */
+  longlong start= args[1]->val_int();
+  /* Assumes that the maximum length of a String is < INT_MAX32. */
+  /* Limit so that code sees out-of-bound value properly. */
+  longlong length= arg_count == 3 ? args[2]->val_int() : INT_MAX32;
+  longlong tmp_length;
 
   if ((null_value=(args[0]->null_value || args[1]->null_value ||
 		   (arg_count == 3 && args[2]->null_value))))
     return 0; /* purecov: inspected */
-  start= (int32)((start < 0) ? res->numchars() + start : start -1);
-  start=res->charpos(start);
-  length=res->charpos(length,start);
-  if (start < 0 || (uint) start+1 > res->length() || length <= 0)
+
+  /* Negative length, will return empty string. */
+  if ((arg_count == 3) && (length <= 0) && !args[2]->unsigned_flag)
     return &my_empty_string;
 
-  tmp_length=(int32) res->length()-start;
-  length=min(length,tmp_length);
+  /* Assumes that the maximum length of a String is < INT_MAX32. */
+  /* Set here so that rest of code sees out-of-bound value as such. */
+  if ((length <= 0) || (length > INT_MAX32))
+    length= INT_MAX32;
 
-  if (!start && res->length() == (uint) length)
+  /* if "unsigned_flag" is set, we have a *huge* positive number. */
+  /* Assumes that the maximum length of a String is < INT_MAX32. */
+  if ((args[1]->unsigned_flag) || (start < INT_MIN32) || (start > INT_MAX32))
+    return &my_empty_string;
+
+  start= ((start < 0) ? res->numchars() + start : start - 1);
+  start= res->charpos(start);
+  if ((start < 0) || ((uint) start + 1 > res->length()))
+    return &my_empty_string;
+
+  length= res->charpos(length, start);
+  tmp_length= res->length() - start;
+  length= min(length, tmp_length);
+
+  if (!start && res->length() == (ulonglong) length)
     return res;
-  tmp_value.set(*res,(uint) start,(uint) length);
+  tmp_value.set(*res, (ulonglong) start, (ulonglong) length);
   return &tmp_value;
 }
 
@@ -1621,21 +1673,33 @@ String *Item_func_encrypt::val_str(String *str)
 void Item_func_encode::fix_length_and_dec()
 {
   max_length=args[0]->max_length;
-  maybe_null=args[0]->maybe_null;
+  maybe_null=args[0]->maybe_null || args[1]->maybe_null;
   collation.set(&my_charset_bin);
 }
 
 String *Item_func_encode::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
   String *res;
+  char pw_buff[80];
+  String tmp_pw_value(pw_buff, sizeof(pw_buff), system_charset_info);
+  String *password;
+  DBUG_ASSERT(fixed == 1);
+
   if (!(res=args[0]->val_str(str)))
   {
     null_value=1; /* purecov: inspected */
     return 0; /* purecov: inspected */
   }
+
+  if (!(password=args[1]->val_str(& tmp_pw_value)))
+  {
+    null_value=1;
+    return 0;
+  }
+
   null_value=0;
   res=copy_if_not_alloced(str,res,res->length());
+  SQL_CRYPT sql_crypt(password->ptr());
   sql_crypt.init();
   sql_crypt.encode((char*) res->ptr(),res->length());
   res->set_charset(&my_charset_bin);
@@ -1644,15 +1708,27 @@ String *Item_func_encode::val_str(String *str)
 
 String *Item_func_decode::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
   String *res;
+  char pw_buff[80];
+  String tmp_pw_value(pw_buff, sizeof(pw_buff), system_charset_info);
+  String *password;
+  DBUG_ASSERT(fixed == 1);
+
   if (!(res=args[0]->val_str(str)))
   {
     null_value=1; /* purecov: inspected */
     return 0; /* purecov: inspected */
   }
+
+  if (!(password=args[1]->val_str(& tmp_pw_value)))
+  {
+    null_value=1;
+    return 0;
+  }
+
   null_value=0;
   res=copy_if_not_alloced(str,res,res->length());
+  SQL_CRYPT sql_crypt(password->ptr());
   sql_crypt.init();
   sql_crypt.decode((char*) res->ptr(),res->length());
   return res;
@@ -1822,9 +1898,19 @@ String *Item_func_soundex::val_str(String *str)
 ** This should be 'internationalized' sometimes.
 */
 
-Item_func_format::Item_func_format(Item *org,int dec) :Item_str_func(org)
+const int FORMAT_MAX_DECIMALS= 30;
+
+Item_func_format::Item_func_format(Item *org, Item *dec)
+: Item_str_func(org, dec)
 {
-  decimals=(uint) set_zone(dec,0,30);
+}
+
+void Item_func_format::fix_length_and_dec()
+{
+  collation.set(default_charset());
+  uint char_length= args[0]->max_length/args[0]->collation.collation->mbmaxlen;
+  max_length= ((char_length + (char_length-args[0]->decimals)/3) *
+               collation.collation->mbmaxlen);
 }
 
 
@@ -1835,10 +1921,25 @@ Item_func_format::Item_func_format(Item *org,int dec) :Item_str_func(org)
 
 String *Item_func_format::val_str(String *str)
 {
-  uint32 length, str_length ,dec;
+  uint32 length;
+  uint32 str_length;
+  /* Number of decimal digits */
+  int dec;
+  /* Number of characters used to represent the decimals, including '.' */
+  uint32 dec_length;
   int diff;
   DBUG_ASSERT(fixed == 1);
-  dec= decimals ? decimals+1 : 0;
+
+  dec= args[1]->val_int();
+  if (args[1]->null_value)
+  {
+    null_value=1;
+    return NULL;
+  }
+
+  dec= set_zone(dec, 0, FORMAT_MAX_DECIMALS);
+  dec_length= dec ? dec+1 : 0;
+  null_value=0;
 
   if (args[0]->result_type() == DECIMAL_RESULT ||
       args[0]->result_type() == INT_RESULT)
@@ -1847,7 +1948,7 @@ String *Item_func_format::val_str(String *str)
     res= args[0]->val_decimal(&dec_val);
     if ((null_value=args[0]->null_value))
       return 0; /* purecov: inspected */
-    my_decimal_round(E_DEC_FATAL_ERROR, res, decimals, false, &rnd_dec);
+    my_decimal_round(E_DEC_FATAL_ERROR, res, dec, false, &rnd_dec);
     my_decimal2string(E_DEC_FATAL_ERROR, &rnd_dec, 0, 0, 0, str);
     str_length= str->length();
     if (rnd_dec.sign())
@@ -1858,9 +1959,9 @@ String *Item_func_format::val_str(String *str)
     double nr= args[0]->val_real();
     if ((null_value=args[0]->null_value))
       return 0; /* purecov: inspected */
-    nr= my_double_round(nr, decimals, FALSE);
+    nr= my_double_round(nr, dec, FALSE);
     /* Here default_charset() is right as this is not an automatic conversion */
-    str->set_real(nr,decimals, default_charset());
+    str->set_real(nr, dec, default_charset());
     if (isnan(nr))
       return str;
     str_length=str->length();
@@ -1868,13 +1969,13 @@ String *Item_func_format::val_str(String *str)
       str_length--;				// Don't count sign
   }
   /* We need this test to handle 'nan' values */
-  if (str_length >= dec+4)
+  if (str_length >= dec_length+4)
   {
     char *tmp,*pos;
-    length= str->length()+(diff=((int)(str_length- dec-1))/3);
+    length= str->length()+(diff=((int)(str_length- dec_length-1))/3);
     str= copy_if_not_alloced(&tmp_str,str,length);
     str->length(length);
-    tmp= (char*) str->ptr()+length - dec-1;
+    tmp= (char*) str->ptr()+length - dec_length-1;
     for (pos= (char*) str->ptr()+length-1; pos != tmp; pos--)
       pos[0]= pos[-diff];
     while (diff)
@@ -1898,12 +1999,8 @@ void Item_func_format::print(String *str)
 {
   str->append(STRING_WITH_LEN("format("));
   args[0]->print(str);
-  str->append(',');  
-  // my_charset_bin is good enough for numbers
-  char buffer[20];
-  String st(buffer, sizeof(buffer), &my_charset_bin);
-  st.set((ulonglong)decimals, &my_charset_bin);
-  str->append(st);
+  str->append(',');
+  args[1]->print(str);
   str->append(')');
 }
 
@@ -2141,8 +2238,15 @@ void Item_func_repeat::fix_length_and_dec()
   collation.set(args[0]->collation);
   if (args[1]->const_item())
   {
-    ulonglong max_result_length= ((ulonglong) args[0]->max_length *
-                                  args[1]->val_int());
+    /* must be longlong to avoid truncation */
+    longlong count= args[1]->val_int();
+
+    /* Assumes that the maximum length of a String is < INT_MAX32. */
+    /* Set here so that rest of code sees out-of-bound value as such. */
+    if (count > INT_MAX32)
+      count= INT_MAX32;
+
+    ulonglong max_result_length= (ulonglong) args[0]->max_length * count;
     if (max_result_length >= MAX_BLOB_WIDTH)
     {
       max_result_length= MAX_BLOB_WIDTH;
@@ -2167,13 +2271,20 @@ String *Item_func_repeat::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   uint length,tot_length;
   char *to;
-  long count= (long) args[1]->val_int();
-  String *res =args[0]->val_str(str);
+  /* must be longlong to avoid truncation */
+  longlong tmp_count= args[1]->val_int();
+  long count= tmp_count;
+  String *res= args[0]->val_str(str);
+
+  /* Assumes that the maximum length of a String is < INT_MAX32. */
+  /* Bounds check on count:  If this is triggered, we will error. */
+  if ((tmp_count > INT_MAX32) || args[1]->unsigned_flag)
+    count= INT_MAX32;
 
   if (args[0]->null_value || args[1]->null_value)
     goto err;				// string and/or delim are null
-  null_value=0;
-  if (count <= 0)			// For nicer SQL code
+  null_value= 0;
+  if ((tmp_count <= 0) && !args[1]->unsigned_flag)	// For nicer SQL code
     return &my_empty_string;
   if (count == 1)			// To avoid reallocs
     return res;
@@ -2212,8 +2323,20 @@ void Item_func_rpad::fix_length_and_dec()
     return;
   if (args[1]->const_item())
   {
-    ulonglong length= ((ulonglong) args[1]->val_int() *
-                       collation.collation->mbmaxlen);
+    ulonglong length= 0;
+
+    if (collation.collation->mbmaxlen > 0)
+    {
+      ulonglong temp= (ulonglong) args[1]->val_int();
+
+      /* Assumes that the maximum length of a String is < INT_MAX32. */
+      /* Set here so that rest of code sees out-of-bound value as such. */
+      if (temp > INT_MAX32)
+	temp = INT_MAX32;
+
+      length= temp * collation.collation->mbmaxlen;
+    }
+
     if (length >= MAX_BLOB_WIDTH)
     {
       length= MAX_BLOB_WIDTH;
@@ -2235,21 +2358,30 @@ String *Item_func_rpad::val_str(String *str)
   uint32 res_byte_length,res_char_length,pad_char_length,pad_byte_length;
   char *to;
   const char *ptr_pad;
-  int32 count= (int32) args[1]->val_int();
-  int32 byte_count= count * collation.collation->mbmaxlen;
-  String *res =args[0]->val_str(str);
-  String *rpad = args[2]->val_str(&rpad_str);
+  /* must be longlong to avoid truncation */
+  longlong count= args[1]->val_int();
+  longlong byte_count;
+  String *res= args[0]->val_str(str);
+  String *rpad= args[2]->val_str(&rpad_str);
+
+  /* Assumes that the maximum length of a String is < INT_MAX32. */
+  /* Set here so that rest of code sees out-of-bound value as such. */
+  if ((count > INT_MAX32) || args[1]->unsigned_flag)
+    count= INT_MAX32;
 
   if (!res || args[1]->null_value || !rpad || count < 0)
     goto err;
   null_value=0;
-  if (count <= (int32) (res_char_length=res->numchars()))
+
+  if (count <= (res_char_length= res->numchars()))
   {						// String to pad is big enough
     res->length(res->charpos(count));		// Shorten result if longer
     return (res);
   }
   pad_char_length= rpad->numchars();
-  if ((ulong) byte_count > current_thd->variables.max_allowed_packet)
+
+  byte_count= count * collation.collation->mbmaxlen;
+  if ((ulonglong) byte_count > current_thd->variables.max_allowed_packet)
   {
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
@@ -2295,8 +2427,20 @@ void Item_func_lpad::fix_length_and_dec()
   
   if (args[1]->const_item())
   {
-    ulonglong length= ((ulonglong) args[1]->val_int() *
-                       collation.collation->mbmaxlen);
+    ulonglong length= 0;
+
+    if (collation.collation->mbmaxlen > 0)
+    {
+      ulonglong temp= (ulonglong) args[1]->val_int();
+
+      /* Assumes that the maximum length of a String is < INT_MAX32. */
+      /* Set here so that rest of code sees out-of-bound value as such. */
+      if (temp > INT_MAX32)
+        temp= INT_MAX32;
+
+      length= temp * collation.collation->mbmaxlen;
+    }
+
     if (length >= MAX_BLOB_WIDTH)
     {
       length= MAX_BLOB_WIDTH;
@@ -2316,13 +2460,19 @@ String *Item_func_lpad::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   uint32 res_char_length,pad_char_length;
-  ulong count= (long) args[1]->val_int(), byte_count;
+  /* must be longlong to avoid truncation */
+  longlong count= args[1]->val_int();
+  longlong byte_count;
   String *res= args[0]->val_str(&tmp_value);
   String *pad= args[2]->val_str(&lpad_str);
 
-  if (!res || args[1]->null_value || !pad)
-    goto err;
+  /* Assumes that the maximum length of a String is < INT_MAX32. */
+  /* Set here so that rest of code sees out-of-bound value as such. */
+  if ((count > INT_MAX32) || args[1]->unsigned_flag)
+    count= INT_MAX32;
 
+  if (!res || args[1]->null_value || !pad || count < 0)
+    goto err;
   null_value=0;
   res_char_length= res->numchars();
 
@@ -2335,7 +2485,7 @@ String *Item_func_lpad::val_str(String *str)
   pad_char_length= pad->numchars();
   byte_count= count * collation.collation->mbmaxlen;
   
-  if (byte_count > current_thd->variables.max_allowed_packet)
+  if ((ulonglong) byte_count > current_thd->variables.max_allowed_packet)
   {
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,

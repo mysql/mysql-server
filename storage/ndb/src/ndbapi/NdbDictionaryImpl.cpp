@@ -3583,7 +3583,7 @@ NdbDictInterface::createEvent(class Ndb & ndb,
     evnt.mi_type           = evntConf->getEventType();
     evnt.setTable(dataPtr);
   } else {
-    if (evnt.m_tableImpl->m_id         != evntConf->getTableId() ||
+    if ((Uint32) evnt.m_tableImpl->m_id         != evntConf->getTableId() ||
 	evnt.m_tableImpl->m_version    != evntConf->getTableVersion() ||
 	//evnt.m_attrListBitmask != evntConf->getAttrListBitmask() ||
 	evnt.mi_type           != evntConf->getEventType()) {
@@ -3701,7 +3701,7 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
       DBUG_RETURN(NULL);
     }
     if ((tab->m_status != NdbDictionary::Object::Retrieved) ||
-        (tab->m_id != ev->m_table_id) ||
+        ((Uint32) tab->m_id != ev->m_table_id) ||
         (table_version_major(tab->m_version) !=
          table_version_major(ev->m_table_version)))
     {
@@ -3731,7 +3731,7 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
   DBUG_PRINT("info",("Table: id: %d version: %d", 
                      table.m_id, table.m_version));
 
-  if (table.m_id != ev->m_table_id ||
+  if ((Uint32) table.m_id != ev->m_table_id ||
       table_version_major(table.m_version) !=
       table_version_major(ev->m_table_version))
   {
@@ -3747,7 +3747,7 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
 #endif
 
   
-  if ( attributeList_sz > table.getNoOfColumns() )
+  if ( attributeList_sz > (uint) table.getNoOfColumns() )
   {
     m_error.code = 241;
     DBUG_PRINT("error",("Invalid version, too many columns"));
@@ -3757,7 +3757,7 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
 
   assert( (int)attributeList_sz <= table.getNoOfColumns() );
   for(unsigned id= 0; ev->m_columns.size() < attributeList_sz; id++) {
-    if ( id >= table.getNoOfColumns())
+    if ( id >= (uint) table.getNoOfColumns())
     {
       m_error.code = 241;
       DBUG_PRINT("error",("Invalid version, column %d out of range", id));

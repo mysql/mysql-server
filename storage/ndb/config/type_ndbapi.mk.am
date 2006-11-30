@@ -1,6 +1,9 @@
 
 INCLUDES += \
-        -I$(srcdir) -I$(top_srcdir)/include \
+        -I$(srcdir) \
+	-I$(top_builddir)/include \
+	-I$(top_builddir)/storage/ndb/include \
+	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/mysys \
 	-I$(top_srcdir)/storage/ndb/include \
 	-I$(top_srcdir)/storage/ndb/include/kernel \

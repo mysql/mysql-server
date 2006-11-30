@@ -39,6 +39,7 @@ sub mtr_get_pid_from_file ($) {
 
     # Read pid number from file
     my $pid= <FILE>;
+    chomp $pid;
     close FILE;
 
     return $pid if $pid=~ /^(\d+)/;

@@ -32,15 +32,16 @@
 
 /*
   Print all instances of this instance manager.
-  Grammar: SHOW ISTANCES
+  Grammar: SHOW INSTANCES
 */
 
-class Show_instances : public Command
+class Show_instances: public Command
 {
 public:
-  Show_instances(Instance_map *instance_map_arg): Command(instance_map_arg)
-  {}
+  Show_instances()
+  { }
 
+public:
   int execute(st_net *net, ulong connection_id);
 
 private:
@@ -54,12 +55,13 @@ private:
   Grammar: FLUSH INSTANCES
 */
 
-class Flush_instances : public Command
+class Flush_instances: public Command
 {
 public:
-  Flush_instances(Instance_map *instance_map_arg): Command(instance_map_arg)
-  {}
+  Flush_instances()
+  { }
 
+public:
   int execute(st_net *net, ulong connection_id);
 };
 
@@ -68,11 +70,10 @@ public:
   Abstract class for Instance-specific commands.
 */
 
-class Abstract_instance_cmd : public Command
+class Abstract_instance_cmd: public Command
 {
 public:
-  Abstract_instance_cmd(Instance_map *instance_map_arg,
-                        const LEX_STRING *instance_name_arg);
+  Abstract_instance_cmd(const LEX_STRING *instance_name_arg);
 
 public:
   virtual int execute(st_net *net, ulong connection_id);
@@ -102,14 +103,13 @@ private:
 
 /*
   Print status of an instance.
-  Grammar: SHOW ISTANCE STATUS <instance_name>
+  Grammar: SHOW INSTANCE STATUS <instance_name>
 */
 
-class Show_instance_status : public Abstract_instance_cmd
+class Show_instance_status: public Abstract_instance_cmd
 {
 public:
-  Show_instance_status(Instance_map *instance_map_arg,
-                       const LEX_STRING *instance_name_arg);
+  Show_instance_status(const LEX_STRING *instance_name_arg);
 
 protected:
   virtual int execute_impl(st_net *net, Instance *instance);
@@ -126,11 +126,10 @@ private:
   Grammar: SHOW INSTANCE OPTIONS <instance_name>
 */
 
-class Show_instance_options : public Abstract_instance_cmd
+class Show_instance_options: public Abstract_instance_cmd
 {
 public:
-  Show_instance_options(Instance_map *instance_map_arg,
-                        const LEX_STRING *instance_name_arg);
+  Show_instance_options(const LEX_STRING *instance_name_arg);
 
 protected:
   virtual int execute_impl(st_net *net, Instance *instance);
@@ -147,11 +146,10 @@ private:
   Grammar: START INSTANCE <instance_name>
 */
 
-class Start_instance : public Abstract_instance_cmd
+class Start_instance: public Abstract_instance_cmd
 {
 public:
-  Start_instance(Instance_map *instance_map_arg,
-                 const LEX_STRING *instance_name_arg);
+  Start_instance(const LEX_STRING *instance_name_arg);
 
 protected:
   virtual int execute_impl(st_net *net, Instance *instance);
@@ -164,11 +162,10 @@ protected:
   Grammar: STOP INSTANCE <instance_name>
 */
 
-class Stop_instance : public Abstract_instance_cmd
+class Stop_instance: public Abstract_instance_cmd
 {
 public:
-  Stop_instance(Instance_map *instance_map_arg,
-                const LEX_STRING *instance_name_arg);
+  Stop_instance(const LEX_STRING *instance_name_arg);
 
 protected:
   virtual int execute_impl(st_net *net, Instance *instance);
@@ -181,11 +178,10 @@ protected:
   Grammar: CREATE INSTANCE <instance_name> [<options>]
 */
 
-class Create_instance : public Command
+class Create_instance: public Command
 {
 public:
-  Create_instance(Instance_map *instance_map_arg,
-                  const LEX_STRING *instance_name_arg);
+  Create_instance(const LEX_STRING *instance_name_arg);
 
 public:
   bool init(const char **text);
@@ -217,11 +213,10 @@ private:
   is removed from the instance map.
 */
 
-class Drop_instance : public Abstract_instance_cmd
+class Drop_instance: public Abstract_instance_cmd
 {
 public:
-  Drop_instance(Instance_map *instance_map_arg,
-                const LEX_STRING *instance_name_arg);
+  Drop_instance(const LEX_STRING *instance_name_arg);
 
 protected:
   virtual int execute_impl(st_net *net, Instance *instance);
@@ -235,11 +230,10 @@ protected:
     SHOW <instance_name> LOG {ERROR | SLOW | GENERAL} size[, offset_from_end]
 */
 
-class Show_instance_log : public Abstract_instance_cmd
+class Show_instance_log: public Abstract_instance_cmd
 {
 public:
-  Show_instance_log(Instance_map *instance_map_arg,
-                    const LEX_STRING *instance_name_arg,
+  Show_instance_log(const LEX_STRING *instance_name_arg,
                     Log_type log_type_arg, uint size_arg, uint offset_arg);
 
 protected:
@@ -263,11 +257,10 @@ private:
   Grammar: SHOW <instance_name> LOG FILES
 */
 
-class Show_instance_log_files : public Abstract_instance_cmd
+class Show_instance_log_files: public Abstract_instance_cmd
 {
 public:
-  Show_instance_log_files(Instance_map *instance_map_arg,
-                          const LEX_STRING *instance_name_arg);
+  Show_instance_log_files(const LEX_STRING *instance_name_arg);
 
 protected:
   virtual int execute_impl(st_net *net, Instance *instance);
@@ -285,7 +278,7 @@ private:
 
 class Instance_options_list;
 
-class Abstract_option_cmd : public Command
+class Abstract_option_cmd: public Command
 {
 public:
   ~Abstract_option_cmd();
@@ -299,7 +292,7 @@ public:
   virtual int execute(st_net *net, ulong connection_id);
 
 protected:
-  Abstract_option_cmd(Instance_map *instance_map_arg);
+  Abstract_option_cmd();
 
   int correct_file(Instance *instance, Named_value *option, bool skip);
 
@@ -324,10 +317,11 @@ private:
   Grammar: SET instance_name.option[=option_value][, ...]
 */
 
-class Set_option : public Abstract_option_cmd
+class Set_option: public Abstract_option_cmd
 {
 public:
-  Set_option(Instance_map *instance_map_arg);
+  Set_option()
+  { }
 
 protected:
   virtual bool parse_args(const char **text);
@@ -343,7 +337,8 @@ protected:
 class Unset_option: public Abstract_option_cmd
 {
 public:
-  Unset_option(Instance_map *instance_map_arg);
+  Unset_option()
+  { }
 
 protected:
   virtual bool parse_args(const char **text);
@@ -360,12 +355,11 @@ protected:
   just returns NULL.
 */
 
-class Syntax_error : public Command
+class Syntax_error: public Command
 {
 public:
-  /* This is just to avoid compiler warning. */
-  Syntax_error() :Command(NULL)
-  {}
+  Syntax_error()
+  { }
 
 public:
   int execute(st_net *net, ulong connection_id);

@@ -114,8 +114,6 @@
   data - The data is stored in a "row +blobs" format.
 */
 
-/* If the archive storage engine has been inited */
-static bool archive_inited= FALSE;
 /* Variables for archive share methods */
 pthread_mutex_t archive_mutex;
 static HASH archive_open_tables;
@@ -142,7 +140,6 @@ static HASH archive_open_tables;
 static handler *archive_create_handler(handlerton *hton, 
                                        TABLE_SHARE *table, 
                                        MEM_ROOT *mem_root);
-int archive_db_end(handlerton *hton, ha_panic_function type);
 
 /*
   Number of rows that will force a bulk insert.
@@ -183,13 +180,11 @@ int archive_db_init(void *p)
 {
   DBUG_ENTER("archive_db_init");
   handlerton *archive_hton;
-  if (archive_inited)
-    DBUG_RETURN(FALSE);
+
   archive_hton= (handlerton *)p;
   archive_hton->state=SHOW_OPTION_YES;
   archive_hton->db_type=DB_TYPE_ARCHIVE_DB;
   archive_hton->create=archive_create_handler;
-  archive_hton->panic=archive_db_end;
   archive_hton->flags=HTON_NO_FLAGS;
 
   if (pthread_mutex_init(&archive_mutex, MY_MUTEX_INIT_FAST))
@@ -201,7 +196,6 @@ int archive_db_init(void *p)
   }
   else
   {
-    archive_inited= TRUE;
     DBUG_RETURN(FALSE);
   }
 error:
@@ -221,20 +215,12 @@ error:
 
 int archive_db_done(void *p)
 {
-  if (archive_inited)
-  {
-    hash_free(&archive_open_tables);
-    VOID(pthread_mutex_destroy(&archive_mutex));
-  }
-  archive_inited= 0;
+  hash_free(&archive_open_tables);
+  VOID(pthread_mutex_destroy(&archive_mutex));
+
   return 0;
 }
 
-
-int archive_db_end(handlerton *hton, ha_panic_function type)
-{
-  return archive_db_done(NULL);
-}
 
 ha_archive::ha_archive(handlerton *hton, TABLE_SHARE *table_arg)
   :handler(hton, table_arg), delayed_insert(0), bulk_insert(0)
@@ -329,10 +315,12 @@ int ha_archive::read_meta_file(File meta_file, ha_rows *rows,
 
   DBUG_PRINT("ha_archive::read_meta_file", ("Check %d", (uint)meta_buffer[0]));
   DBUG_PRINT("ha_archive::read_meta_file", ("Version %d", (uint)meta_buffer[1]));
-  DBUG_PRINT("ha_archive::read_meta_file", ("Rows %llu", *rows));
-  DBUG_PRINT("ha_archive::read_meta_file", ("Checkpoint %llu", check_point));
-  DBUG_PRINT("ha_archive::read_meta_file", ("Auto-Increment %llu", *auto_increment));
-  DBUG_PRINT("ha_archive::read_meta_file", ("Forced Flushes %llu", *forced_flushes));
+  DBUG_PRINT("ha_archive::read_meta_file", ("Rows %lu", (ulong) *rows));
+  DBUG_PRINT("ha_archive::read_meta_file", ("Checkpoint %lu", (ulong) check_point));
+  DBUG_PRINT("ha_archive::read_meta_file", ("Auto-Increment %lu",
+                                            (ulong) *auto_increment));
+  DBUG_PRINT("ha_archive::read_meta_file", ("Forced Flushes %lu",
+                                            (ulong) *forced_flushes));
   DBUG_PRINT("ha_archive::read_meta_file", ("Real Path %s", real_path));
   DBUG_PRINT("ha_archive::read_meta_file", ("Dirty %d", (int)(*ptr)));
 
@@ -385,12 +373,12 @@ int ha_archive::write_meta_file(File meta_file, ha_rows rows,
                                              (uint)ARCHIVE_CHECK_HEADER));
   DBUG_PRINT("ha_archive::write_meta_file", ("Version %d", 
                                              (uint)ARCHIVE_VERSION));
-  DBUG_PRINT("ha_archive::write_meta_file", ("Rows %llu", (ulonglong)rows));
-  DBUG_PRINT("ha_archive::write_meta_file", ("Checkpoint %llu", check_point));
-  DBUG_PRINT("ha_archive::write_meta_file", ("Auto Increment %llu",
-                                             auto_increment));
-  DBUG_PRINT("ha_archive::write_meta_file", ("Forced Flushes %llu", 
-                                            forced_flushes));
+  DBUG_PRINT("ha_archive::write_meta_file", ("Rows %lu", (ulong) rows));
+  DBUG_PRINT("ha_archive::write_meta_file", ("Checkpoint %lu", (ulong) check_point));
+  DBUG_PRINT("ha_archive::write_meta_file", ("Auto Increment %lu",
+                                             (ulong) auto_increment));
+  DBUG_PRINT("ha_archive::write_meta_file", ("Forced Flushes %lu", 
+                                             (ulong) forced_flushes));
   DBUG_PRINT("ha_archive::write_meta_file", ("Real path %s", 
                                             real_path));
   DBUG_PRINT("ha_archive::write_meta_file", ("Dirty %d", (uint)dirty));
@@ -773,8 +761,8 @@ int ha_archive::real_write_row(byte *buf, azio_stream *writer)
   DBUG_ENTER("ha_archive::real_write_row");
 
   written= azwrite(writer, buf, table->s->reclength);
-  DBUG_PRINT("ha_archive::real_write_row", ("Wrote %d bytes expected %d", 
-                                            written, table->s->reclength));
+  DBUG_PRINT("ha_archive::real_write_row", ("Wrote %d bytes expected %lu", 
+                                            (int) written, table->s->reclength));
   if (!delayed_insert || !bulk_insert)
     share->dirty= TRUE;
 
@@ -817,10 +805,11 @@ int ha_archive::write_row(byte *buf)
   int rc;
   byte *read_buf= NULL;
   ulonglong temp_auto;
+  byte *record=  table->record[0];
   DBUG_ENTER("ha_archive::write_row");
 
   if (share->crashed)
-      DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
   ha_statistic_increment(&SSV::ha_write_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
@@ -883,7 +872,8 @@ int ha_archive::write_row(byte *buf)
 
       while (!(get_row(&archive, read_buf)))
       {
-        if (!memcmp(read_buf + mfield->offset(), table->next_number_field->ptr,
+        if (!memcmp(read_buf + mfield->offset(record),
+                    table->next_number_field->ptr,
                     mfield->max_length()))
         {
           rc= HA_ERR_FOUND_DUPP_KEY;
@@ -905,28 +895,6 @@ int ha_archive::write_row(byte *buf)
   if (!share->archive_write_open)
     if (init_archive_writer())
       DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
-
-  /*
-    Varchar structures are constant in size but are not cleaned up request
-    to request. The following sets all unused space to null to improve
-    compression.
-  */
-  for (Field **field=table->field ; *field ; field++)
-  {
-    DBUG_PRINT("archive",("Pack is %d\n", (*field)->pack_length()));
-    DBUG_PRINT("archive",("MyPack is %d\n", (*field)->data_length((char*) buf + (*field)->offset())));
-    if ((*field)->real_type() == MYSQL_TYPE_VARCHAR) 
-    {
-      uint actual_length= (*field)->data_length((char*) buf + (*field)->offset());
-      uint offset= (*field)->offset() + actual_length + 
-        (actual_length > 255 ? 2 : 1);
-      DBUG_PRINT("archive",("Offset is %d -> %d\n", actual_length, offset));
-      /*
-      if ((*field)->pack_length() + (*field)->offset() != offset)
-        bzero(buf + offset, (size_t)((*field)->pack_length() + (actual_length > 255 ? 2 : 1) - (*field)->data_length));
-    */
-    }
-  }
 
   share->rows_recorded++;
   rc= real_write_row(buf, &(share->archive_write));
@@ -1054,7 +1022,7 @@ int ha_archive::rnd_init(bool scan)
   if (scan)
   {
     scan_rows= share->rows_recorded;
-    DBUG_PRINT("info", ("archive will retrieve %llu rows", scan_rows));
+    DBUG_PRINT("info", ("archive will retrieve %lu rows", (ulong) scan_rows));
     stats.records= 0;
 
     /* 
@@ -1096,7 +1064,7 @@ int ha_archive::get_row(azio_stream *file_to_read, byte *buf)
   DBUG_ENTER("ha_archive::get_row");
 
   read= azread(file_to_read, buf, table->s->reclength);
-  DBUG_PRINT("ha_archive::get_row", ("Read %d bytes expected %d", read, 
+  DBUG_PRINT("ha_archive::get_row", ("Read %d bytes expected %lu", (int) read, 
                                      table->s->reclength));
 
   if (read == Z_STREAM_ERROR)
@@ -1306,7 +1274,8 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
         {
           Field *field= table->found_next_number_field;
           ulonglong auto_value=
-            (ulonglong) field->val_int((char*)(buf + field->offset()));
+            (ulonglong) field->val_int((char*)(buf +
+                                               field->offset(table->record[0])));
           if (share->auto_increment_value < auto_value)
             stats.auto_increment_value= share->auto_increment_value=
               auto_value;
@@ -1314,7 +1283,7 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
         share->rows_recorded++;
       }
     }
-    DBUG_PRINT("info", ("recovered %llu archive rows", share->rows_recorded));
+    DBUG_PRINT("info", ("recovered %lu archive rows", (ulong) share->rows_recorded));
 
     my_free((char*)buf, MYF(0));
     if (rc && rc != HA_ERR_END_OF_FILE)

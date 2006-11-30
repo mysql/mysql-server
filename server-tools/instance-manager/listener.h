@@ -16,33 +16,46 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <my_global.h>
-#include <my_pthread.h>
+#include "thread_registry.h"
 
 #if defined(__GNUC__) && defined(USE_PRAGMA_INTERFACE)
 #pragma interface
 #endif
 
-
-pthread_handler_t listener(void *arg);
-
 class Thread_registry;
 class User_map;
-class Instance_map;
 
-struct Listener_thread_args
+/**
+  Listener - a thread listening on sockets and spawning
+  connection threads.
+*/
+
+class Listener: public Thread
 {
-  Thread_registry &thread_registry;
-  const User_map &user_map;
-  Instance_map &instance_map;
+public:
+  Listener(Thread_registry *thread_registry_arg, User_map *user_map_arg);
 
-  Listener_thread_args(Thread_registry &thread_registry_arg,
-                       const User_map &user_map_arg,
-                       Instance_map &instance_map_arg) :
-    thread_registry(thread_registry_arg)
-    ,user_map(user_map_arg)
-    ,instance_map(instance_map_arg)
-  {}
+protected:
+  virtual void run();
+
+private:
+  static const int LISTEN_BACK_LOG_SIZE= 5;     /* standard backlog size */
+
+private:
+  Thread_info thread_info;
+  Thread_registry *thread_registry;
+  User_map *user_map;
+
+  ulong total_connection_count;
+
+  int sockets[2];
+  int num_sockets;
+  fd_set read_fds;
+
+private:
+  void handle_new_mysql_connection(struct st_vio *vio);
+  int create_tcp_socket();
+  int create_unix_socket(struct sockaddr_un &unix_socket_address);
 };
 
 #endif // INCLUDES_MYSQL_INSTANCE_MANAGER_LISTENER_H

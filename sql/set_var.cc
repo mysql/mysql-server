@@ -155,7 +155,6 @@ static KEY_CACHE *create_key_cache(const char *name, uint length);
 void fix_sql_mode_var(THD *thd, enum_var_type type);
 static byte *get_error_count(THD *thd);
 static byte *get_warning_count(THD *thd);
-static byte *get_prepared_stmt_count(THD *thd);
 static byte *get_tmpdir(THD *thd);
 static int  sys_check_log_path(THD *thd,  set_var *var);
 static bool sys_update_general_log_path(THD *thd, set_var * var);
@@ -639,9 +638,6 @@ static sys_var_readonly		sys_warning_count("warning_count",
 						  OPT_SESSION,
 						  SHOW_LONG,
 						  get_warning_count);
-static sys_var_readonly	sys_prepared_stmt_count("prepared_stmt_count",
-                                                OPT_GLOBAL, SHOW_LONG,
-                                                get_prepared_stmt_count);
 
 /* alias for last_insert_id() to be compatible with Sybase */
 #ifdef HAVE_REPLICATION
@@ -660,20 +656,12 @@ sys_var_thd_time_zone            sys_time_zone("time_zone");
 
 /* Read only variables */
 
-sys_var_have_variable sys_have_archive_db("have_archive", &have_archive_db);
-sys_var_have_variable sys_have_blackhole_db("have_blackhole_engine",
-                                            &have_blackhole_db);
 sys_var_have_variable sys_have_compress("have_compress", &have_compress);
 sys_var_have_variable sys_have_crypt("have_crypt", &have_crypt);
 sys_var_have_variable sys_have_csv_db("have_csv", &have_csv_db);
 sys_var_have_variable sys_have_dlopen("have_dynamic_loading", &have_dlopen);
-sys_var_have_variable sys_have_example_db("have_example_engine",
-                                          &have_example_db);
-sys_var_have_variable sys_have_federated_db("have_federated_engine",
-                                            &have_federated_db);
 sys_var_have_variable sys_have_geometry("have_geometry", &have_geometry);
 sys_var_have_variable sys_have_innodb("have_innodb", &have_innodb);
-sys_var_have_variable sys_have_merge_db("have_merge", &have_merge_db);
 sys_var_have_variable sys_have_ndbcluster("have_ndbcluster", &have_ndbcluster);
 sys_var_have_variable sys_have_openssl("have_openssl", &have_openssl);
 sys_var_have_variable sys_have_partition_db("have_partitioning",
@@ -794,17 +782,12 @@ SHOW_VAR init_vars[]= {
   {sys_var_general_log.name, (char*) &opt_log,                      SHOW_MY_BOOL},
   {sys_var_general_log_path.name, (char*) &sys_var_general_log_path,  SHOW_SYS},
   {sys_group_concat_max_len.name, (char*) &sys_group_concat_max_len,  SHOW_SYS},
-  {sys_have_archive_db.name,  (char*) &have_archive_db,             SHOW_HAVE},
-  {sys_have_blackhole_db.name,(char*) &have_blackhole_db,           SHOW_HAVE},
   {sys_have_compress.name,    (char*) &have_compress,               SHOW_HAVE},
   {sys_have_crypt.name,       (char*) &have_crypt,                  SHOW_HAVE},
   {sys_have_csv_db.name,      (char*) &have_csv_db,                 SHOW_HAVE},
   {sys_have_dlopen.name,      (char*) &have_dlopen,                 SHOW_HAVE},
-  {sys_have_example_db.name,  (char*) &have_example_db,             SHOW_HAVE},
-  {sys_have_federated_db.name,(char*) &have_federated_db,           SHOW_HAVE},
   {sys_have_geometry.name,    (char*) &have_geometry,               SHOW_HAVE},
   {sys_have_innodb.name,      (char*) &have_innodb,                 SHOW_HAVE},
-  {sys_have_merge_db.name,    (char*) &have_merge_db,               SHOW_HAVE},
   {sys_have_ndbcluster.name,  (char*) &have_ndbcluster,             SHOW_HAVE},
   {sys_have_openssl.name,     (char*) &have_openssl,                SHOW_HAVE},
   {sys_have_partition_db.name,(char*) &have_partition_db,           SHOW_HAVE},
@@ -956,7 +939,6 @@ SHOW_VAR init_vars[]= {
   {"plugin_dir",              (char*) opt_plugin_dir,               SHOW_CHAR},
   {"port",                    (char*) &mysqld_port,                  SHOW_INT},
   {sys_preload_buff_size.name, (char*) &sys_preload_buff_size,      SHOW_SYS},
-  {sys_prepared_stmt_count.name, (char*) &sys_prepared_stmt_count, SHOW_SYS},
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {sys_query_alloc_block_size.name, (char*) &sys_query_alloc_block_size,
    SHOW_SYS},
@@ -3151,14 +3133,6 @@ static byte *get_error_count(THD *thd)
   return (byte*) &thd->sys_var_tmp.long_value;
 }
 
-static byte *get_prepared_stmt_count(THD *thd)
-{
-  pthread_mutex_lock(&LOCK_prepared_stmt_count);
-  thd->sys_var_tmp.ulong_value= prepared_stmt_count;
-  pthread_mutex_unlock(&LOCK_prepared_stmt_count);
-  return (byte*) &thd->sys_var_tmp.ulong_value;
-}
-
 
 /*
   Get the tmpdir that was specified or chosen by default
@@ -3943,7 +3917,7 @@ sys_var_event_scheduler::update(THD *thd, set_var *var)
     DBUG_RETURN(TRUE);
   }
 
-  DBUG_PRINT("new_value", ("%lu", (bool)var->save_result.ulong_value));
+  DBUG_PRINT("info", ("new_value: %d", (int) var->save_result.ulong_value));
 
   Item_result var_type= var->value->result_type();
 

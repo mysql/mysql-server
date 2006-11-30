@@ -684,6 +684,7 @@ struct handlerton
    int (*table_exists_in_engine)(handlerton *hton, THD* thd, const char *db,
                                  const char *name);
    uint32 license; /* Flag for Engine License */
+   void *data; /* Location for engines to keep personal structures */
 };
 
 

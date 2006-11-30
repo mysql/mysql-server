@@ -961,7 +961,14 @@ longlong Item_func_unsigned::val_int()
   longlong value;
   int error;
 
-  if (args[0]->cast_to_int_type() != STRING_RESULT)
+  if (args[0]->cast_to_int_type() == DECIMAL_RESULT)
+  {
+    my_decimal tmp, *dec= args[0]->val_decimal(&tmp);
+    if (!(null_value= args[0]->null_value))
+      my_decimal2int(E_DEC_FATAL_ERROR, dec, 1, &value);
+    return value;
+  }
+  else if (args[0]->cast_to_int_type() != STRING_RESULT)
   {
     value= args[0]->val_int();
     null_value= args[0]->null_value; 
@@ -2330,21 +2337,27 @@ longlong Item_func_locate::val_int()
     return 0; /* purecov: inspected */
   }
   null_value=0;
-  uint start=0;
-  uint start0=0;
+  /* must be longlong to avoid truncation */
+  longlong start=  0; 
+  longlong start0= 0;
   my_match_t match;
 
   if (arg_count == 3)
   {
-    start0= start =(uint) args[2]->val_int()-1;
-    start=a->charpos(start);
-    
-    if (start > a->length() || start+b->length() > a->length())
+    start0= start= args[2]->val_int() - 1;
+
+    if ((start < 0) || (start > a->length()))
+      return 0;
+
+    /* start is now sufficiently valid to pass to charpos function */
+    start= a->charpos(start);
+
+    if (start + b->length() > a->length())
       return 0;
   }
 
   if (!b->length())				// Found empty string at start
-    return (longlong) (start+1);
+    return start + 1;
   
   if (!cmp_collation.collation->coll->instr(cmp_collation.collation,
                                             a->ptr()+start, a->length()-start,
@@ -2893,6 +2906,20 @@ void Item_udf_func::cleanup()
 }
 
 
+void Item_udf_func::print(String *str)
+{
+  str->append(func_name());
+  str->append('(');
+  for (uint i=0 ; i < arg_count ; i++)
+  {
+    if (i != 0)
+      str->append(',');
+    args[i]->print_item_w_name(str);
+  }
+  str->append(')');
+}
+
+
 double Item_func_udf_float::val_real()
 {
   DBUG_ASSERT(fixed == 1);
@@ -3397,18 +3424,28 @@ longlong Item_func_benchmark::val_int()
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff,sizeof(buff), &my_charset_bin);
   THD *thd=current_thd;
+  ulong loop_count;
 
+  loop_count= args[0]->val_int();
+
+  if (args[0]->null_value)
+  {
+    null_value= 1;
+    return 0;
+  }
+
+  null_value=0;
   for (ulong loop=0 ; loop < loop_count && !thd->killed; loop++)
   {
-    switch (args[0]->result_type()) {
+    switch (args[1]->result_type()) {
     case REAL_RESULT:
-      (void) args[0]->val_real();
+      (void) args[1]->val_real();
       break;
     case INT_RESULT:
-      (void) args[0]->val_int();
+      (void) args[1]->val_int();
       break;
     case STRING_RESULT:
-      (void) args[0]->val_str(&tmp);
+      (void) args[1]->val_str(&tmp);
       break;
     case ROW_RESULT:
     default:
@@ -3424,13 +3461,9 @@ longlong Item_func_benchmark::val_int()
 void Item_func_benchmark::print(String *str)
 {
   str->append(STRING_WITH_LEN("benchmark("));
-  char buffer[20];
-  // my_charset_bin is good enough for numbers
-  String st(buffer, sizeof(buffer), &my_charset_bin);
-  st.set((ulonglong)loop_count, &my_charset_bin);
-  str->append(st);
-  str->append(',');
   args[0]->print(str);
+  str->append(',');
+  args[1]->print(str);
   str->append(')');
 }
 
@@ -4846,6 +4879,7 @@ Item_func_sp::cleanup()
     result_field= NULL;
   }
   m_sp= NULL;
+  dummy_table->alias= NULL;
   Item_func::cleanup();
 }
 
@@ -5038,7 +5072,7 @@ Item_func_sp::result_type() const
 {
   Field *field;
   DBUG_ENTER("Item_func_sp::result_type");
-  DBUG_PRINT("info", ("m_sp = %p", m_sp));
+  DBUG_PRINT("info", ("m_sp: 0x%lx", (long) m_sp));
 
   if (result_field)
     DBUG_RETURN(result_field->result_type());

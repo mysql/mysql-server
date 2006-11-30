@@ -19,20 +19,23 @@
 /*
   Logging facilities.
 
-  Two logging streams are supported: error log and info log. Additionally
-  libdbug may be used for debug information output.
+  Two logging streams are supported: error log and info log.
+  Additionally libdbug may be used for debug information output.
+
   ANSI C buffered I/O is used to perform logging.
+
   Logging is performed via stdout/stder, so one can reopen them to point to
-  ordinary files. To initialize loggin environment log_init() must be called.
+  ordinary files. To initialize logging environment log_init() must be called.
 
   Rationale:
   - no MYSQL_LOG as it has BIN mode, and not easy to fetch from sql_class.h
   - no constructors/desctructors to make logging available all the time
-  Function names are subject to change.
 */
 
 
-/* Precede error message with date and time and print it to the stdout */
+void log_init();
+
+
 void log_info(const char *format, ...)
 #ifdef __GNUC__
         __attribute__ ((format(printf, 1, 2)))
@@ -40,37 +43,12 @@ void log_info(const char *format, ...)
   ;
 
 
-/* Precede error message with date and time and print it to the stderr */
 void log_error(const char *format, ...)
 #ifdef __GNUC__
         __attribute__ ((format (printf, 1, 2)))
 #endif
   ;
 
-
-/*
-  Now this is simple catchouts for printf (no date/time is logged), to be
-  able to replace underlying streams in future.
-*/
-
-void print_info(const char *format, ...)
-#ifdef __GNUC__
-        __attribute__ ((format (printf, 1, 2)))
-#endif
-  ;
-
-
-void print_error(const char *format, ...)
-#ifdef __GNUC__
-        __attribute__ ((format (printf, 1, 2)))
-#endif
-  ;
-
-/*  initialize logs */
-void log_init();
-
-
-/* print information to the error log and eixt(1) */  
 
 void die(const char *format, ...)
 #ifdef __GNUC__

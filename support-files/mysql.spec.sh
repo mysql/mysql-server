@@ -193,6 +193,8 @@ necessary to develop MySQL client applications.
 %package shared
 Summary: MySQL - Shared libraries
 Group: Applications/Databases
+Provides: mysql-shared
+Obsoletes: mysql-shared
 
 %description shared
 This package contains the shared libraries (*.so*) which certain
@@ -318,6 +320,7 @@ BuildMySQL "--enable-shared \
 		--with-example-storage-engine \
 		--with-blackhole-storage-engine \
 		--with-federated-storage-engine \
+	        --with-partition \
 	        --with-big-tables \
 		--with-comment=\"MySQL Community Server - Debug (GPL)\"")
 
@@ -328,7 +331,7 @@ then
 fi
 
 (cd mysql-debug-%{mysql_version}/mysql-test ; \
- ./mysql-test-run.pl --comment=debug --skip-rpl --skip-ndbcluster --force ; \
+ ./mysql-test-run.pl --comment=debug --skip-rpl --skip-ndbcluster --force --report-features ; \
  true)
 
 ##############################################################################
@@ -348,6 +351,7 @@ BuildMySQL "--enable-shared \
 		--with-example-storage-engine \
 		--with-blackhole-storage-engine \
 		--with-federated-storage-engine \
+	        --with-partition \
 		--with-embedded-server \
 	        --with-big-tables \
 		--with-comment=\"MySQL Community Server (GPL)\"")
@@ -358,7 +362,7 @@ then
 fi
 
 cd mysql-release-%{mysql_version}/mysql-test
-./mysql-test-run.pl --comment=normal --force --skip-ndbcluster --timer || true
+./mysql-test-run.pl --comment=normal --force --skip-ndbcluster --timer --report-features || true
 ./mysql-test-run.pl --comment=ps --ps-protocol --force --skip-ndbcluster --timer || true
 ./mysql-test-run.pl --comment=normal+rowrepl --mysqld=--binlog-format=row --force --skip-ndbcluster --timer || true
 ./mysql-test-run.pl --comment=ps+rowrepl+NDB --ps-protocol --mysqld=--binlog-format=row --force --timer || true
@@ -685,6 +689,18 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Thu Nov 16 2006 Joerg Bruehe <joerg@mysql.com>
+
+- Explicitly note that the "MySQL-shared" RPMs (as built by MySQL AB) 
+  replace "mysql-shared" (as distributed by SuSE) to allow easy upgrading
+  (bug#22081).
+
+* Mon Nov 13 2006 Joerg Bruehe <joerg@mysql.com>
+
+- Add "--with-partition" to all server builds.
+
+- Use "--report-features" in one test run per server build.
+
 * Tue Aug 15 2006 Joerg Bruehe <joerg@mysql.com>
 
 - The "max" server is removed from packages, effective from 5.1.12-beta.

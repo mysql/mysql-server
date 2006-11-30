@@ -25,7 +25,7 @@
 #pragma interface
 #endif
 
-class Guardian_thread;
+class Guardian;
 class Instance;
 class Named_value_arr;
 class Thread_registry;
@@ -75,7 +75,7 @@ public:
   void lock();
   void unlock();
 
-  int init();
+  bool init();
 
   /*
     Process a given option and assign it to appropricate instance. This is
@@ -105,8 +105,7 @@ public:
   int create_instance(const LEX_STRING *instance_name,
                       const Named_value_arr *options);
 
-  Instance_map(const char *default_mysqld_path_arg,
-               Thread_registry &thread_registry_arg);
+  Instance_map();
   ~Instance_map();
 
   /*
@@ -115,13 +114,13 @@ public:
     MT-NOTE: the options must be called under acquired locks of the following
     objects:
       - Instance_map;
-      - Guardian_thread;
+      - Guardian;
   */
   const char *get_instance_state_name(Instance *instance);
 
 public:
   const char *mysqld_path;
-  Guardian_thread *guardian;
+  Guardian *guardian;
 
 private:
   /* loads options from config files */
@@ -132,8 +131,6 @@ private:
   enum { START_HASH_SIZE = 16 };
   pthread_mutex_t LOCK_instance_map;
   HASH hash;
-
-  Thread_registry &thread_registry;
 };
 
 #endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_INSTANCE_MAP_H */

@@ -533,8 +533,8 @@ NdbTransaction::executeAsynchPrepare( ExecType           aTypeOfExec,
                                      AbortOption abortOption)
 {
   DBUG_ENTER("NdbTransaction::executeAsynchPrepare");
-  DBUG_PRINT("enter", ("aTypeOfExec: %d, aCallback: %x, anyObject: %x", 
-		       aTypeOfExec, aCallback, anyObject));
+  DBUG_PRINT("enter", ("aTypeOfExec: %d, aCallback: 0x%lx, anyObject: Ox%lx",
+		       aTypeOfExec, (long) aCallback, (long) anyObject));
 
   /**
    * Reset error.code on execute
@@ -1010,7 +1010,7 @@ void
 NdbTransaction::releaseExecutedScanOperation(NdbIndexScanOperation* cursorOp)
 {
   DBUG_ENTER("NdbTransaction::releaseExecutedScanOperation");
-  DBUG_PRINT("enter", ("this=0x%x op=0x%x", (UintPtr)this, (UintPtr)cursorOp));
+  DBUG_PRINT("enter", ("this: 0x%lx  op: 0x%lx", (ulong) this, (ulong) cursorOp));
   
   releaseScanOperation(&m_firstExecutedScanOp, 0, cursorOp);
   

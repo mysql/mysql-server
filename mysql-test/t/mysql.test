@@ -143,6 +143,24 @@ drop table t1;
 --exec diff $MYSQLTEST_VARDIR/tmp/bug20328_1.result $MYSQLTEST_VARDIR/tmp/bug20328_2.result
 
 #
+# Bug #19216: Client crashes on long SELECT
+#
+--exec echo "select" > $MYSQLTEST_VARDIR/tmp/b19216.tmp
+# 3400 * 20 makes 68000 columns that is more than the max number that can fit 
+# in a 16 bit number.
+let $i= 3400;
+while ($i)
+{
+  --exec echo "'a','a','a','a','a','a','a','a','a','a','a','a','a','a','a','a','a','a','a','a'," >> $MYSQLTEST_VARDIR/tmp/b19216.tmp
+  dec $i;
+}
+
+--exec echo "'b';" >> $MYSQLTEST_VARDIR/tmp/b19216.tmp
+--disable_query_log
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/b19216.tmp >/dev/null
+--enable_query_log
+
+#
 # Bug #20103: Escaping with backslash does not work
 #
 --exec echo "SET SQL_MODE = 'NO_BACKSLASH_ESCAPES';"  > $MYSQLTEST_VARDIR/tmp/bug20103.sql

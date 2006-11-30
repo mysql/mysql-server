@@ -322,9 +322,13 @@ void Item_sum::make_field(Send_field *tmp_field)
   if (args[0]->type() == Item::FIELD_ITEM && keep_field_type())
   {
     ((Item_field*) args[0])->field->make_field(tmp_field);
-    tmp_field->db_name=(char*)"";
-    tmp_field->org_table_name=tmp_field->table_name=(char*)"";
-    tmp_field->org_col_name=tmp_field->col_name=name;
+    /* For expressions only col_name should be non-empty string. */
+    char *empty_string= (char*)"";
+    tmp_field->db_name= empty_string;
+    tmp_field->org_table_name= empty_string;
+    tmp_field->table_name= empty_string;
+    tmp_field->org_col_name= empty_string;
+    tmp_field->col_name= name;
     if (maybe_null)
       tmp_field->flags&= ~NOT_NULL_FLAG;
   }
@@ -903,6 +907,7 @@ bool Item_sum_distinct::setup(THD *thd)
   tree= new Unique(simple_raw_key_cmp, &tree_key_length, tree_key_length,
                    thd->variables.max_heap_table_size);
 
+  is_evaluated= FALSE;
   DBUG_RETURN(tree == 0);
 }
 
@@ -910,6 +915,7 @@ bool Item_sum_distinct::setup(THD *thd)
 bool Item_sum_distinct::add()
 {
   args[0]->save_in_field(table->field[0], FALSE);
+  is_evaluated= FALSE;
   if (!table->field[0]->is_null())
   {
     DBUG_ASSERT(tree);
@@ -939,6 +945,7 @@ void Item_sum_distinct::clear()
   DBUG_ASSERT(tree != 0);                        /* we always have a tree */
   null_value= 1;
   tree->reset();
+  is_evaluated= FALSE;
   DBUG_VOID_RETURN;
 }
 
@@ -948,6 +955,7 @@ void Item_sum_distinct::cleanup()
   delete tree;
   tree= 0;
   table= 0;
+  is_evaluated= FALSE;
 }
 
 Item_sum_distinct::~Item_sum_distinct()
@@ -959,16 +967,20 @@ Item_sum_distinct::~Item_sum_distinct()
 
 void Item_sum_distinct::calculate_val_and_count()
 {
-  count= 0;
-  val.traits->set_zero(&val);
-  /*
-    We don't have a tree only if 'setup()' hasn't been called;
-    this is the case of sql_select.cc:return_zero_rows.
-  */
-  if (tree)
+  if (!is_evaluated)
   {
-    table->field[0]->set_notnull();
-    tree->walk(item_sum_distinct_walk, (void*) this);
+    count= 0;
+    val.traits->set_zero(&val);
+    /*
+      We don't have a tree only if 'setup()' hasn't been called;
+      this is the case of sql_select.cc:return_zero_rows.
+     */
+    if (tree)
+    {
+      table->field[0]->set_notnull();
+      tree->walk(item_sum_distinct_walk, (void*) this);
+    }
+    is_evaluated= TRUE;
   }
 }
 
@@ -1024,9 +1036,13 @@ Item_sum_avg_distinct::fix_length_and_dec()
 void
 Item_sum_avg_distinct::calculate_val_and_count()
 {
-  Item_sum_distinct::calculate_val_and_count();
-  if (count)
-    val.traits->div(&val, count);
+  if (!is_evaluated)
+  {
+    Item_sum_distinct::calculate_val_and_count();
+    if (count)
+      val.traits->div(&val, count);
+    is_evaluated= TRUE;
+  }
 }
 
 
@@ -2497,6 +2513,7 @@ void Item_sum_count_distinct::cleanup()
     */
     delete tree;
     tree= 0;
+    is_evaluated= FALSE;
     if (table)
     {
       free_tmp_table(table->in_use, table);
@@ -2518,6 +2535,7 @@ void Item_sum_count_distinct::make_unique()
   original= 0;
   force_copy_fields= 1;
   tree= 0;
+  is_evaluated= FALSE;
   tmp_table_param= 0;
   always_null= FALSE;
 }
@@ -2637,6 +2655,7 @@ bool Item_sum_count_distinct::setup(THD *thd)
       but this has to be handled - otherwise someone can crash
       the server with a DoS attack
     */
+    is_evaluated= FALSE;
     if (! tree)
       return TRUE;
   }
@@ -2653,8 +2672,11 @@ Item *Item_sum_count_distinct::copy_or_same(THD* thd)
 void Item_sum_count_distinct::clear()
 {
   /* tree and table can be both null only if always_null */
+  is_evaluated= FALSE;
   if (tree)
+  {
     tree->reset();
+  }
   else if (table)
   {
     table->file->extra(HA_EXTRA_NO_CACHE);
@@ -2675,6 +2697,7 @@ bool Item_sum_count_distinct::add()
     if ((*field)->is_real_null(0))
       return 0;					// Don't count NULL
 
+  is_evaluated= FALSE;
   if (tree)
   {
     /*
@@ -2700,12 +2723,14 @@ longlong Item_sum_count_distinct::val_int()
     return LL(0);
   if (tree)
   {
-    ulonglong count;
+    if (is_evaluated)
+      return count;
 
     if (tree->elements == 0)
       return (longlong) tree->elements_in_tree(); // everything fits in memory
     count= 0;
     tree->walk(count_distinct_walk, (void*) &count);
+    is_evaluated= TRUE;
     return (longlong) count;
   }
 
@@ -2929,13 +2954,14 @@ int group_concat_key_cmp_with_distinct(void* arg, byte* key1,
     */
     Field *field= (*field_item)->get_tmp_table_field();
     /* 
-      If field_item is a const item then either get_tp_table_field returns 0
+      If field_item is a const item then either get_tmp_table_field returns 0
       or it is an item over a const table. 
     */
     if (field && !(*field_item)->const_item())
     {
       int res;
-      uint offset= field->offset() - table->s->null_bytes;
+      uint offset= (field->offset(field->table->record[0]) - 
+                    table->s->null_bytes);
       if ((res= field->cmp((char *) key1 + offset, (char *) key2 + offset)))
 	return res;
     }
@@ -2973,7 +2999,8 @@ int group_concat_key_cmp_with_order(void* arg, byte* key1, byte* key2)
     if (field && !item->const_item())
     {
       int res;
-      uint offset= field->offset() - table->s->null_bytes;
+      uint offset= (field->offset(field->table->record[0]) -
+                    table->s->null_bytes);
       if ((res= field->cmp((char *) key1 + offset, (char *) key2 + offset)))
         return (*order_item)->asc ? res : -res;
     }
@@ -3019,6 +3046,7 @@ int dump_leaf_key(byte* key, element_count count __attribute__((unused)),
   String tmp2;
   String *result= &item->result;
   Item **arg= item->args, **arg_end= item->args + item->arg_count_field;
+  uint old_length= result->length();
 
   if (item->no_appended)
     item->no_appended= FALSE;
@@ -3040,7 +3068,8 @@ int dump_leaf_key(byte* key, element_count count __attribute__((unused)),
         because it contains both order and arg list fields.
       */
       Field *field= (*arg)->get_tmp_table_field();
-      uint offset= field->offset() - table->s->null_bytes;
+      uint offset= (field->offset(field->table->record[0]) -
+                    table->s->null_bytes);
       DBUG_ASSERT(offset < table->s->reclength);
       res= field->val_str(&tmp, (char *) key + offset);
     }
@@ -3053,8 +3082,22 @@ int dump_leaf_key(byte* key, element_count count __attribute__((unused)),
   /* stop if length of result more than max_length */
   if (result->length() > item->max_length)
   {
+    int well_formed_error;
+    CHARSET_INFO *cs= item->collation.collation;
+    const char *ptr= result->ptr();
+    uint add_length;
+    /*
+      It's ok to use item->result.length() as the fourth argument
+      as this is never used to limit the length of the data.
+      Cut is done with the third argument.
+    */
+    add_length= cs->cset->well_formed_len(cs,
+                                          ptr + old_length,
+                                          ptr + item->max_length,
+                                          result->length(),
+                                          &well_formed_error);
+    result->length(old_length + add_length);
     item->count_cut_values++;
-    result->length(item->max_length);
     item->warning_for_row= TRUE;
     return 1;
   }
@@ -3244,8 +3287,7 @@ bool Item_func_group_concat::add()
     we can dump the row here in case of GROUP_CONCAT(DISTINCT...)
     instead of doing tree traverse later.
   */
-  if (result.length() <= max_length &&
-      !warning_for_row &&
+  if (!warning_for_row &&
       (!tree || (el->count == 1 && distinct && !arg_count_order)))
     dump_leaf_key(table->record[0] + table->s->null_bytes, 1, this);
 
@@ -3314,7 +3356,8 @@ bool Item_func_group_concat::setup(THD *thd)
     DBUG_RETURN(TRUE);
 
   /* We'll convert all blobs to varchar fields in the temporary table */
-  tmp_table_param->convert_blob_length= max_length;
+  tmp_table_param->convert_blob_length= max_length *
+                                        collation.collation->mbmaxlen;
   /* Push all not constant fields to the list and create a temp table */
   always_null= 0;
   for (uint i= 0; i < arg_count_field; i++)

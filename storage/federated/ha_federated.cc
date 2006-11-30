@@ -350,7 +350,6 @@
 /* Variables for federated share methods */
 static HASH federated_open_tables;              // To track open tables
 pthread_mutex_t federated_mutex;                // To init the hash
-static int federated_init= FALSE;               // Checking the state of hash
 
 /* Variables used when chopping off trailing characters */
 static const uint sizeof_trailing_comma= sizeof(", ") - 1;
@@ -365,7 +364,6 @@ static handler *federated_create_handler(handlerton *hton,
 static int federated_commit(handlerton *hton, THD *thd, bool all);
 static int federated_rollback(handlerton *hton, THD *thd, bool all);
 static int federated_db_init(void);
-static int federated_db_end(handlerton *hton, ha_panic_function type);
 
 
 /* Federated storage engine handlerton */
@@ -408,7 +406,6 @@ int federated_db_init(void *p)
   federated_hton->commit= federated_commit;
   federated_hton->rollback= federated_rollback;
   federated_hton->create= federated_create_handler;
-  federated_hton->panic= federated_db_end;
   federated_hton->flags= HTON_ALTER_NOT_SUPPORTED;
 
   if (pthread_mutex_init(&federated_mutex, MY_MUTEX_INIT_FAST))
@@ -416,13 +413,11 @@ int federated_db_init(void *p)
   if (!hash_init(&federated_open_tables, &my_charset_bin, 32, 0, 0,
                     (hash_get_key) federated_get_key, 0, 0))
   {
-    federated_init= TRUE;
     DBUG_RETURN(FALSE);
   }
 
   VOID(pthread_mutex_destroy(&federated_mutex));
 error:
-  have_federated_db= SHOW_OPTION_DISABLED;	// If we couldn't use handler
   DBUG_RETURN(TRUE);
 }
 
@@ -437,14 +432,11 @@ error:
     FALSE       OK
 */
 
-int federated_db_end(handlerton *hton, ha_panic_function type)
+int federated_done(void *p)
 {
-  if (federated_init)
-  {
-    hash_free(&federated_open_tables);
-    VOID(pthread_mutex_destroy(&federated_mutex));
-  }
-  federated_init= 0;
+  hash_free(&federated_open_tables);
+  VOID(pthread_mutex_destroy(&federated_mutex));
+
   return 0;
 }
 
@@ -560,8 +552,8 @@ static int parse_url_error(FEDERATED_SHARE *share, TABLE *table, int error_num)
   if (share->scheme)
   {
     DBUG_PRINT("info",
-               ("error: parse_url. Returning error code %d \
-                freeing share->scheme %lx", error_num, share->scheme));
+               ("error: parse_url. Returning error code %d freeing share->scheme 0x%lx",
+                error_num, (long) share->scheme));
     my_free((gptr) share->scheme, MYF(0));
     share->scheme= 0;
   }
@@ -627,7 +619,7 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
                             MYF(0));
 
   share->connect_string_length= table->s->connect_string.length;
-  DBUG_PRINT("info",("parse_url alloced share->scheme %lx", share->scheme));
+  DBUG_PRINT("info",("parse_url alloced share->scheme 0x%lx", (long) share->scheme));
 
   /*
     remove addition of null terminator and store length
@@ -1534,7 +1526,7 @@ int ha_federated::close(void)
       0    otherwise
 */
 
-inline uint field_in_record_is_null(TABLE *table,
+static inline uint field_in_record_is_null(TABLE *table,
                                     Field *field,
                                     char *record)
 {
@@ -1750,7 +1742,7 @@ void ha_federated::update_auto_increment(void)
 
   thd->first_successful_insert_id_in_cur_stmt= 
     mysql->last_used_con->insert_id;
-  DBUG_PRINT("info",("last_insert_id %d", stats.auto_increment_value));
+  DBUG_PRINT("info",("last_insert_id: %ld", (long) stats.auto_increment_value));
 
   DBUG_VOID_RETURN;
 }
@@ -1856,6 +1848,7 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
   String where_string(where_buffer,
                       sizeof(where_buffer),
                       &my_charset_bin);
+  byte *record= table->record[0];
   DBUG_ENTER("ha_federated::update_row");
   /*
     set string lengths to 0 to avoid misc chars in string
@@ -1914,7 +1907,7 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
         bool needs_quote= (*field)->str_needs_quotes();
         where_string.append(STRING_WITH_LEN(" = "));
         (*field)->val_str(&field_value,
-                          (char*) (old_data + (*field)->offset()));
+                          (char*) (old_data + (*field)->offset(record)));
         if (needs_quote)
           where_string.append('\'');
         field_value.print(&where_string);
@@ -2022,8 +2015,8 @@ int ha_federated::delete_row(const byte *buf)
   stats.deleted+= (ha_rows)mysql->affected_rows;
   stats.records-= (ha_rows)mysql->affected_rows;
   DBUG_PRINT("info",
-             ("rows deleted %d rows deleted for all time %d",
-             int(mysql->affected_rows), stats.deleted));
+             ("rows deleted %ld  rows deleted for all time %ld",
+              (long) mysql->affected_rows, (long) stats.deleted));
 
   DBUG_RETURN(0);
 }
@@ -2156,7 +2149,7 @@ error:
 int ha_federated::index_init(uint keynr, bool sorted)
 {
   DBUG_ENTER("ha_federated::index_init");
-  DBUG_PRINT("info", ("table: '%s'  key: %u", table->s->table_name, keynr));
+  DBUG_PRINT("info", ("table: '%s'  key: %u", table->s->table_name.str, keynr));
   active_index= keynr;
   DBUG_RETURN(0);
 }
@@ -2897,7 +2890,7 @@ mysql_declare_plugin(federated)
   "Federated MySQL storage engine",
   PLUGIN_LICENSE_GPL,
   federated_db_init, /* Plugin Init */
-  NULL, /* Plugin Deinit */
+  federated_done, /* Plugin Deinit */
   0x0100 /* 1.0 */,
   NULL,                       /* status variables                */
   NULL,                       /* system variables                */

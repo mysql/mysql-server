@@ -1,0 +1,3 @@
+MYSQL_PLUGIN(ftexample,         [Simple Parser],
+        [Simple full-text parser plugin])
+MYSQL_PLUGIN_DYNAMIC(ftexample, [mypluglib.la])

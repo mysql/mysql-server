@@ -129,7 +129,7 @@ find_valgrind()
   fi
   # >=2.1.2 requires the --tool option, some versions write to stdout, some to stderr
   valgrind --help 2>&1 | grep "\-\-tool" > /dev/null && FIND_VALGRIND="$FIND_VALGRIND --tool=memcheck"
-  FIND_VALGRIND="$FIND_VALGRIND --alignment=8 --leak-check=yes --num-callers=16 --suppressions=$CWD/valgrind.supp"
+  FIND_VALGRIND="$FIND_VALGRIND --alignment=8 --leak-check=yes --num-callers=16 --suppressions=$MYSQL_TEST_DIR/valgrind.supp"
 }
 
 # No paths below as we can't be sure where the program is!
@@ -180,18 +180,24 @@ fi
 # Misc. Definitions
 #--
 
-if [ -d ../sql ] ; then
+# BASEDIR is always above mysql-test directory ...
+MYSQL_TEST_DIR=`pwd`
+cd ..
+
+if [ -d ./sql ] ; then
    SOURCE_DIST=1
 else
    BINARY_DIST=1
-fi
 
-#BASEDIR is always one above mysql-test directory
-CWD=`pwd`
-cd ..
+  # ... one level for tar.gz, two levels for a RPM installation
+  if [ ! -f ./bin/mysql_upgrade ] ; then
+     # Has to be RPM installation
+    cd ..
+  fi
+fi
 BASEDIR=`pwd`
-cd $CWD
-MYSQL_TEST_DIR=$BASEDIR/mysql-test
+
+cd $MYSQL_TEST_DIR
 MYSQL_TEST_WINDIR=$MYSQL_TEST_DIR
 MYSQLTEST_VARDIR=$MYSQL_TEST_DIR/var
 export MYSQL_TEST_DIR MYSQL_TEST_WINDIR MYSQLTEST_VARDIR
@@ -784,8 +790,15 @@ else
  if test -x "$BASEDIR/libexec/mysqld"
  then
    MYSQLD="$VALGRIND $BASEDIR/libexec/mysqld"
- else
+ elif test -x "$BASEDIR/bin/mysqld"
+ then
    MYSQLD="$VALGRIND $BASEDIR/bin/mysqld"
+ elif test -x "$BASEDIR/sbin/mysqld"
+ then
+   MYSQLD="$VALGRIND $BASEDIR/sbin/mysqld"
+ else
+   $ECHO "Fatal error: Cannot find program mysqld in $BASEDIR/{libexec,bin,sbin}" 1>&2
+   exit 1
  fi
  CLIENT_BINDIR="$BASEDIR/bin"
  if test -d "$BASEDIR/tests"
@@ -882,15 +895,15 @@ fi
 # Save path and name of mysqldump
 MYSQL_DUMP_DIR="$MYSQL_DUMP"
 export MYSQL_DUMP_DIR
-MYSQL_CHECK="$MYSQL_CHECK --no-defaults -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLCHECK_OPT"
-MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
+MYSQL_CHECK="$MYSQL_CHECK --no-defaults --debug-info -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLCHECK_OPT"
+MYSQL_DUMP="$MYSQL_DUMP --no-defaults --debug-info -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
 MYSQL_SLAP="$MYSQL_SLAP -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLSLAP_OPT"
 MYSQL_DUMP_SLAVE="$MYSQL_DUMP_DIR --no-defaults -uroot --socket=$SLAVE_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
-MYSQL_SHOW="$MYSQL_SHOW -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLSHOW_OPT"
-MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR  --character-sets-dir=$CHARSETSDIR $EXTRA_MYSQLBINLOG_OPT"
-MYSQL_IMPORT="$MYSQL_IMPORT -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
+MYSQL_SHOW="$MYSQL_SHOW --no-defaults --debug-info -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLSHOW_OPT"
+MYSQL_BINLOG="$MYSQL_BINLOG --debug-info --no-defaults --local-load=$MYSQL_TMP_DIR  --character-sets-dir=$CHARSETSDIR $EXTRA_MYSQLBINLOG_OPT"
+MYSQL_IMPORT="$MYSQL_IMPORT --debug-info -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
 MYSQL_FIX_SYSTEM_TABLES="$MYSQL_FIX_SYSTEM_TABLES --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD --basedir=$BASEDIR --bindir=$CLIENT_BINDIR --verbose"
-MYSQL="$MYSQL --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD"
+MYSQL="$MYSQL --no-defaults --debug-info --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD"
 export MYSQL MYSQL_CHECK MYSQL_DUMP MYSQL_DUMP_SLAVE MYSQL_SHOW MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES MYSQL_IMPORT
 export CLIENT_BINDIR MYSQL_CLIENT_TEST CHARSETSDIR MYSQL_MY_PRINT_DEFAULTS
 export MYSQL_SLAP
@@ -1263,8 +1276,8 @@ start_ndbcluster()
 
 rm_ndbcluster_tables()
 {
-  $RM -f $1/cluster/apply_status*
-  $RM -f $1/cluster/schema*
+  $RM -f $1/mysql/apply_status*
+  $RM -f $1/mysql/schema*
 }
 
 stop_ndbcluster()
@@ -1406,7 +1419,7 @@ start_master()
     then
       $ECHO "set args $master_args" > $GDB_MASTER_INIT$1
       $ECHO "To start gdb for the master , type in another window:"
-      $ECHO "cd $CWD ; gdb -x $GDB_MASTER_INIT$1 $MASTER_MYSQLD"
+      $ECHO "cd $MYSQL_TEST_DIR ; gdb -x $GDB_MASTER_INIT$1 $MASTER_MYSQLD"
       wait_for_master=1500
     else
       ( $ECHO set args $master_args;
@@ -1563,7 +1576,7 @@ start_slave()
     then
       $ECHO "set args $slave_args" > $GDB_SLAVE_INIT
       echo "To start gdb for the slave, type in another window:"
-      echo "cd $CWD ; gdb -x $GDB_SLAVE_INIT $SLAVE_MYSQLD"
+      echo "cd $MYSQL_TEST_DIR ; gdb -x $GDB_SLAVE_INIT $SLAVE_MYSQLD"
       wait_for_slave=1500
     else
       ( $ECHO set args $slave_args;
@@ -2164,11 +2177,14 @@ then
   # Remove files that can cause problems
   $RM -rf $MYSQL_TEST_DIR/var/ndbcluster
   $RM -rf $MYSQL_TEST_DIR/var/tmp/snapshot*
-  $RM -f $MYSQL_TEST_DIR/var/run/* $MYSQL_TEST_DIR/var/tmp/*
+  $RM -rf $MYSQL_TEST_DIR/var/run/* $MYSQL_TEST_DIR/var/tmp/*
 
   # Remove old berkeley db log files that can confuse the server
   $RM -f $MASTER_MYDDIR/log.*
   $RM -f $MASTER_MYDDIR"1"/log.*
+
+  # Remove old log and reject files
+  $RM -f r/*.reject r/*.progress r/*.log r/*.warnings
 
   wait_for_master=$SLEEP_TIME_FOR_FIRST_MASTER
   wait_for_slave=$SLEEP_TIME_FOR_FIRST_SLAVE

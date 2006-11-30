@@ -123,27 +123,36 @@ name, NODE1 and NODE2 are pointers to nodes. */
 	}\
 }\
 
+/* Invalidate the pointers in a list node. */
+#ifdef UNIV_DEBUG
+# define UT_LIST_REMOVE_CLEAR(NAME, N)		\
+((N)->NAME.prev = (N)->NAME.next = (void*) -1)
+#else
+# define UT_LIST_REMOVE_CLEAR(NAME, N) while (0)
+#endif
+
 /***********************************************************************
 Removes a node from a two-way linked list. BASE has to be the base node
 (not a pointer to it). N has to be the pointer to the node to be removed
 from the list. NAME is the list name. */
 
-#define UT_LIST_REMOVE(NAME, BASE, N)\
-{\
-	ut_ad(N);\
-	ut_a((BASE).count > 0);\
-	((BASE).count)--;\
-	if (((N)->NAME).next != NULL) {\
-		((((N)->NAME).next)->NAME).prev = ((N)->NAME).prev;\
-	} else {\
-		(BASE).end = ((N)->NAME).prev;\
-	}\
-	if (((N)->NAME).prev != NULL) {\
-		((((N)->NAME).prev)->NAME).next = ((N)->NAME).next;\
-	} else {\
-		(BASE).start = ((N)->NAME).next;\
-	}\
-}\
+#define UT_LIST_REMOVE(NAME, BASE, N)					\
+do {									\
+	ut_ad(N);							\
+	ut_a((BASE).count > 0);						\
+	((BASE).count)--;						\
+	if (((N)->NAME).next != NULL) {					\
+		((((N)->NAME).next)->NAME).prev = ((N)->NAME).prev;	\
+	} else {							\
+		(BASE).end = ((N)->NAME).prev;				\
+	}								\
+	if (((N)->NAME).prev != NULL) {					\
+		((((N)->NAME).prev)->NAME).next = ((N)->NAME).next;	\
+	} else {							\
+		(BASE).start = ((N)->NAME).next;			\
+	}								\
+	UT_LIST_REMOVE_CLEAR(NAME, N);					\
+} while (0)
 
 /************************************************************************
 Gets the next node in a two-way list. NAME is the name of the list

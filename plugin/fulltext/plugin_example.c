@@ -62,7 +62,7 @@ static long number_of_calls= 0; /* for SHOW STATUS, see below */
     1                    failure (cannot happen)
 */
 
-static int simple_parser_plugin_init(void)
+static int simple_parser_plugin_init(void *arg __attribute__((unused)))
 {
   return(0);
 }
@@ -81,7 +81,7 @@ static int simple_parser_plugin_init(void)
 
 */
 
-static int simple_parser_plugin_deinit(void)
+static int simple_parser_plugin_deinit(void *arg __attribute__((unused)))
 {
   return(0);
 }

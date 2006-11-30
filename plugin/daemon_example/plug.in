@@ -1,0 +1,3 @@
+MYSQL_PLUGIN(daemon_example,[Daemon Example Plugin],
+        [This is an example plugin daemon.])
+MYSQL_PLUGIN_DYNAMIC(daemon_example,   [libdaemon_example.la])
