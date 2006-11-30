@@ -318,7 +318,7 @@ page_zip_alloc(
 		return(TRUE);
 	}
 
-	if (page_zip->m_start == page_zip->m_end) {
+	if (!page_zip->m_nonempty) {
 		/* The page has been freshly compressed, so
 		recompressing it will not help. */
 		return(FALSE);

@@ -466,9 +466,12 @@ loop:
 
 		if (buf_block_get_zip_size(block) != zip_size) {
 			page_zip_set_size(&block->page.zip, zip_size);
-			block->page.zip.n_blobs = 0;
-			block->page.zip.m_start = 0;
-			block->page.zip.m_end = 0;
+#ifdef UNIV_DEBUG
+			block->page.zip.m_start =
+#endif /* UNIV_DEBUG */
+				block->page.zip.m_end =
+				block->page.zip.m_nonempty =
+				block->page.zip.n_blobs = 0;
 			if (block->page.zip.data) {
 				ut_free(block->page.zip.data);
 			}
