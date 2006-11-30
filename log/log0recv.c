@@ -1242,7 +1242,8 @@ recv_recover_page(
 		/* It may be that the page has been modified in the buffer
 		pool: read the newest modification lsn there */
 
-		page_newest_lsn = buf_block_get_newest_modification(block);
+		page_newest_lsn
+			= buf_page_get_newest_modification(&block->page);
 
 		if (page_newest_lsn) {
 

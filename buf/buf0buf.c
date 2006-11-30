@@ -1179,7 +1179,7 @@ buf_page_make_young(
 {
 	mutex_enter(&(buf_pool->mutex));
 
-	ut_a(buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
+	ut_a(buf_page_in_file(bpage));
 
 	buf_LRU_make_block_young(bpage);
 
@@ -1771,8 +1771,8 @@ buf_page_init_for_backup_restore(
 
 	block->freed_page_clock = 0;
 
-	block->newest_modification = 0;
-	block->oldest_modification = 0;
+	block->page.newest_modification = 0;
+	block->page.oldest_modification = 0;
 
 	block->page.state	= BUF_BLOCK_FILE_PAGE;
 	block->page.accessed	= FALSE;
