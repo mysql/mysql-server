@@ -240,12 +240,12 @@ recv_truncate_group(
 		archived_lsn = checkpoint_lsn;
 	}
 
-	finish_lsn1 = ut_ulonglong_align_down(archived_lsn,
-					      OS_FILE_LOG_BLOCK_SIZE)
+	finish_lsn1 = ut_uint64_align_down(archived_lsn,
+					   OS_FILE_LOG_BLOCK_SIZE)
 		+ log_group_get_capacity(group);
 
-	finish_lsn2 = ut_ulonglong_align_up(recovered_lsn,
-					    OS_FILE_LOG_BLOCK_SIZE)
+	finish_lsn2 = ut_uint64_align_up(recovered_lsn,
+					 OS_FILE_LOG_BLOCK_SIZE)
 		+ recv_sys->last_log_buf_size;
 
 	if (limit_lsn != IB_ULONGLONG_MAX) {
@@ -267,8 +267,8 @@ recv_truncate_group(
 		*(log_sys->buf + i) = '\0';
 	}
 
-	start_lsn = ut_ulonglong_align_down(recovered_lsn,
-					    OS_FILE_LOG_BLOCK_SIZE);
+	start_lsn = ut_uint64_align_down(recovered_lsn,
+					 OS_FILE_LOG_BLOCK_SIZE);
 
 	if (start_lsn != recovered_lsn) {
 		/* Copy the last incomplete log block to the log buffer and
@@ -336,14 +336,14 @@ recv_copy_group(
 
 	ut_a(RECV_SCAN_SIZE <= log_sys->buf_size);
 
-	start_lsn = ut_ulonglong_align_down(group->scanned_lsn,
-					    OS_FILE_LOG_BLOCK_SIZE);
+	start_lsn = ut_uint64_align_down(group->scanned_lsn,
+					 OS_FILE_LOG_BLOCK_SIZE);
 	for (;;) {
 		end_lsn = start_lsn + RECV_SCAN_SIZE;
 
 		if (end_lsn > recovered_lsn) {
-			end_lsn = ut_ulonglong_align_up(
-				recovered_lsn, OS_FILE_LOG_BLOCK_SIZE);
+			end_lsn = ut_uint64_align_up(recovered_lsn,
+						     OS_FILE_LOG_BLOCK_SIZE);
 		}
 
 		log_group_read_log_seg(LOG_RECOVER, log_sys->buf,
@@ -386,9 +386,9 @@ recv_synchronize_groups(
 	/* Read the last recovered log block to the recovery system buffer:
 	the block is always incomplete */
 
-	start_lsn = ut_ulonglong_align_down(recovered_lsn,
-					    OS_FILE_LOG_BLOCK_SIZE);
-	end_lsn = ut_ulonglong_align_up(recovered_lsn, OS_FILE_LOG_BLOCK_SIZE);
+	start_lsn = ut_uint64_align_down(recovered_lsn,
+					 OS_FILE_LOG_BLOCK_SIZE);
+	end_lsn = ut_uint64_align_up(recovered_lsn, OS_FILE_LOG_BLOCK_SIZE);
 
 	ut_a(start_lsn != end_lsn);
 
@@ -2665,8 +2665,8 @@ recv_recovery_from_checkpoint_start(
 		}
 	}
 
-	contiguous_lsn = ut_ulonglong_align_down(recv_sys->scanned_lsn,
-						 OS_FILE_LOG_BLOCK_SIZE);
+	contiguous_lsn = ut_uint64_align_down(recv_sys->scanned_lsn,
+					      OS_FILE_LOG_BLOCK_SIZE);
 	if (type == LOG_ARCHIVE) {
 		/* Try to recover the remaining part from logs: first from
 		the logs of the archived group */
@@ -2919,7 +2919,7 @@ recv_reset_logs(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
-	log_sys->lsn = ut_ulonglong_align_up(lsn, OS_FILE_LOG_BLOCK_SIZE);
+	log_sys->lsn = ut_uint64_align_up(lsn, OS_FILE_LOG_BLOCK_SIZE);
 
 	group = UT_LIST_GET_FIRST(log_sys->log_groups);
 
