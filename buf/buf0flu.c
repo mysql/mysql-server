@@ -55,7 +55,7 @@ buf_flush_insert_into_flush_list(
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
-	ut_a(buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
+	ut_a(buf_page_in_file(bpage));
 
 	ut_ad((UT_LIST_GET_FIRST(buf_pool->flush_list) == NULL)
 	      || (UT_LIST_GET_FIRST(buf_pool->flush_list)->oldest_modification
@@ -113,9 +113,8 @@ ibool
 buf_flush_ready_for_replace(
 /*========================*/
 				/* out: TRUE if can replace immediately */
-	buf_page_t*	bpage)	/* in: buffer control block, must be in state
-				BUF_BLOCK_FILE_PAGE or BUF_BLOCK_ZIP_PAGE
-				and in the LRU list */
+	buf_page_t*	bpage)	/* in: buffer control block, must be
+				buf_page_in_file(bpage) and in the LRU list */
 {
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
@@ -147,8 +146,8 @@ ibool
 buf_flush_ready_for_flush(
 /*======================*/
 				/* out: TRUE if can flush immediately */
-	buf_page_t*	bpage,	/* in: buffer control block, must be in state
-				BUF_BLOCK_FILE_PAGE */
+	buf_page_t*	bpage,	/* in: buffer control block, must be
+				buf_page_in_file(bpage) */
 	enum buf_flush	flush_type)/* in: BUF_FLUSH_LRU or BUF_FLUSH_LIST */
 {
 	ut_a(buf_page_in_file(bpage));
@@ -792,7 +791,7 @@ buf_flush_try_neighbors(
 	enum buf_flush	flush_type)	/* in: BUF_FLUSH_LRU or
 					BUF_FLUSH_LIST */
 {
-	buf_block_t*	block;
+	buf_page_t*	bpage;
 	ulint		low, high;
 	ulint		count		= 0;
 	ulint		i;
@@ -820,16 +819,15 @@ buf_flush_try_neighbors(
 
 	for (i = low; i < high; i++) {
 
-		block = (buf_block_t*) buf_page_hash_get(space, i);
-		ut_a(!block
-		     || buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+		bpage = buf_page_hash_get(space, i);
+		ut_a(!bpage || buf_page_in_file(bpage));
 
-		if (!block) {
+		if (!bpage) {
 
 			continue;
 
 		} else if (flush_type == BUF_FLUSH_LRU && i != offset
-			   && !buf_page_is_old(&block->page)) {
+			   && !buf_page_is_old(bpage)) {
 
 			/* We avoid flushing 'non-old' blocks in an LRU flush,
 			because the flushed blocks are soon freed */
@@ -837,10 +835,12 @@ buf_flush_try_neighbors(
 			continue;
 		} else {
 
-			mutex_enter(&block->mutex);
+			mutex_t* block_mutex = buf_page_get_mutex(bpage);
 
-			if (buf_flush_ready_for_flush(&block->page, flush_type)
-			    && (i == offset || !block->page.buf_fix_count)) {
+			mutex_enter(block_mutex);
+
+			if (buf_flush_ready_for_flush(bpage, flush_type)
+			    && (i == offset || !bpage->buf_fix_count)) {
 				/* We only try to flush those
 				neighbors != offset where the buf fix count is
 				zero, as we then know that we probably can
@@ -849,9 +849,9 @@ buf_flush_try_neighbors(
 				flush the doublewrite buffer before we start
 				waiting. */
 
-				mutex_exit(&block->mutex);
-
 				mutex_exit(&(buf_pool->mutex));
+
+				mutex_exit(block_mutex);
 
 				/* Note: as we release the buf_pool mutex
 				above, in buf_flush_try_page we cannot be sure
@@ -864,7 +864,7 @@ buf_flush_try_neighbors(
 
 				mutex_enter(&(buf_pool->mutex));
 			} else {
-				mutex_exit(&block->mutex);
+				mutex_exit(block_mutex);
 			}
 		}
 	}
@@ -1151,7 +1151,7 @@ buf_flush_validate_low(void)
 
 	while (bpage != NULL) {
 		om = bpage->oldest_modification;
-		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
+		ut_a(buf_page_in_file(bpage));
 		ut_a(om > 0);
 
 		bpage = UT_LIST_GET_NEXT(flush_list, bpage);

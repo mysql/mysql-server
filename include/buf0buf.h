@@ -378,10 +378,11 @@ Gets the youngest modification log sequence number for a frame.
 Returns zero if not file page or no modification occurred yet. */
 UNIV_INLINE
 ib_uint64_t
-buf_block_get_newest_modification(
-/*==============================*/
-				/* out: newest modification to page */
-	buf_block_t*	block);	/* in: block containing the page frame */
+buf_page_get_newest_modification(
+/*=============================*/
+					/* out: newest modification to page */
+	const buf_page_t*	bpage);	/* in: block containing the
+					page frame */
 /************************************************************************
 Increments the modify clock of a frame by 1. The caller must (1) own the
 buf_pool mutex and block bufferfix count has to be zero, (2) or own an x-lock
