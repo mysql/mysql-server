@@ -157,7 +157,7 @@ public:
     return (null_value=args[0]->get_time(ltime));
   }
   bool is_null() { 
-    (void) val_int();  /* Discard result. It sets null_value as side-effect. */ 
+    update_null_value();
     return null_value; 
   }
   void signal_divide_by_null();
@@ -241,7 +241,7 @@ public:
   virtual double real_op()= 0;
   virtual my_decimal *decimal_op(my_decimal *)= 0;
   virtual String *str_op(String *)= 0;
-  bool is_null() { (void) val_real(); return null_value; }
+  bool is_null() { update_null_value(); return null_value; }
 };
 
 /* function where type of result detected by first argument */
