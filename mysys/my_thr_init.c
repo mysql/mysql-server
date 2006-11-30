@@ -120,20 +120,21 @@ my_bool my_thread_global_init(void)
 void my_thread_global_end(void)
 {
   struct timespec abstime;
-  set_timespec(abstime, my_thread_end_wait_time);
   my_bool all_threads_killed= 1;
 
+  set_timespec(abstime, my_thread_end_wait_time);
   pthread_mutex_lock(&THR_LOCK_threads);
-  while (THR_thread_count)
+  while (THR_thread_count > 0)
   {
     int error= pthread_cond_timedwait(&THR_COND_threads, &THR_LOCK_threads,
                                       &abstime);
     if (error == ETIMEDOUT || error == ETIME)
     {
       if (THR_thread_count)
-        fprintf(stderr,"error in my_thread_global_end(): %d threads didn't exit\n",
+        fprintf(stderr,"Error in my_thread_global_end(): %d threads didn't exit\n",
                 THR_thread_count);
       all_threads_killed= 0;
+      break;
     }
   }
   pthread_mutex_unlock(&THR_LOCK_threads);
@@ -228,10 +229,11 @@ void my_thread_end(void)
 {
   struct st_my_thread_var *tmp;
   tmp= my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
+  DBUG_ASSERT(tmp);
 
 #ifdef EXTRA_DEBUG_THREADS
-  fprintf(stderr,"my_thread_end(): tmp=%p,thread_id=%ld\n",
-	  tmp,pthread_self());
+  fprintf(stderr,"my_thread_end(): tmp: 0x%lx  thread_id=%ld\n",
+	  (long) tmp, pthread_self());
 #endif  
   if (tmp && tmp->init)
   {
@@ -253,15 +255,24 @@ void my_thread_end(void)
 #else
     tmp->init= 0;
 #endif
+
+    /*
+      Decrement counter for number of running threads. We are using this
+      in my_thread_global_end() to wait until all threads have called
+      my_thread_end and thus freed all memory they have allocated in
+      my_thread_init() and DBUG_xxxx
+    */
+    pthread_mutex_lock(&THR_LOCK_threads);
+    DBUG_ASSERT(THR_thread_count != 0);
+    if (--THR_thread_count == 0)
+      pthread_cond_signal(&THR_COND_threads);
+   pthread_mutex_unlock(&THR_LOCK_threads);
   }
   /* The following free has to be done, even if my_thread_var() is 0 */
 #if (!defined(__WIN__) && !defined(OS2)) || defined(USE_TLS)
   pthread_setspecific(THR_KEY_mysys,0);
 #endif
-  pthread_mutex_lock(&THR_LOCK_threads);
-  if (--THR_thread_count == 0)
-    pthread_cond_signal(&THR_COND_threads);
-  pthread_mutex_unlock(&THR_LOCK_threads);
+
 }
 
 struct st_my_thread_var *_my_thread_var(void)
