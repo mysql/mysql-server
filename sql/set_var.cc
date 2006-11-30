@@ -2836,7 +2836,7 @@ static bool set_option_autocommit(THD *thd, set_var *var)
 {
   /* The test is negative as the flag we use is NOT autocommit */
 
-  ulong org_options=thd->options;
+  ulonglong org_options= thd->options;
 
   if (var->save_result.ulong_value != 0)
     thd->options&= ~((sys_var_thd_bit*) var->var)->bit_flag;
