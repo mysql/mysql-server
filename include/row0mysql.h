@@ -316,6 +316,7 @@ void
 row_mysql_unfreeze_data_dictionary(
 /*===============================*/
 	trx_t*	trx);	/* in: transaction */
+#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Does a table creation operation for MySQL. If the name of the created
 table ends to characters INNODB_MONITOR, then this also starts
@@ -458,6 +459,7 @@ row_check_table_for_mysql(
 					/* out: DB_ERROR or DB_SUCCESS */
 	row_prebuilt_t*	prebuilt);	/* in: prebuilt struct in MySQL
 					handle */
+#endif /* !UNIV_HOTBACKUP */
 
 /* A struct describing a place for an individual column in the MySQL
 row format which is presented to the table handler in ha_innobase.

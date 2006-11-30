@@ -1769,7 +1769,7 @@ buf_page_init_for_backup_restore(
 
 	block->lock_hash_val	= 0;
 
-	block->freed_page_clock = 0;
+	block->page.freed_page_clock = 0;
 
 	block->page.newest_modification = 0;
 	block->page.oldest_modification = 0;
@@ -1784,15 +1784,15 @@ buf_page_init_for_backup_restore(
 	block->n_fields		= 1;
 	block->n_bytes		= 0;
 	block->left_side	= TRUE;
-	page_zip_des_init(&block->page);
+	page_zip_des_init(&block->page.zip);
 
 	/* We assume that block->page.data has been allocated
 	with zip_size == UNIV_PAGE_SIZE. */
 	ut_ad(zip_size <= UNIV_PAGE_SIZE);
 	ut_ad(ut_is_2pow(zip_size));
-	block->page.size = zip_size;
+	page_zip_set_size(&block->page.zip, zip_size);
 #ifdef UNIV_DEBUG_FILE_ACCESSES
-	block->file_page_was_freed = FALSE;
+	block->page.file_page_was_freed = FALSE;
 #endif /* UNIV_DEBUG_FILE_ACCESSES */
 }
 #endif /* UNIV_HOTBACKUP */

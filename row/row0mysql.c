@@ -54,6 +54,7 @@ static const char S_innodb_tablespace_monitor[] = "innodb_tablespace_monitor";
 static const char S_innodb_table_monitor[] = "innodb_table_monitor";
 static const char S_innodb_mem_validate[] = "innodb_mem_validate";
 
+#ifndef UNIV_HOTBACKUP
 /***********************************************************************
 Determine if the given name is a name reserved for MySQL system tables. */
 static
@@ -73,6 +74,7 @@ row_mysql_is_system_table(
 	       || 0 == strcmp(name + 6, "user")
 	       || 0 == strcmp(name + 6, "db"));
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /***********************************************************************
 Delays an INSERT, DELETE or UPDATE operation if the purge is lagging. */
@@ -1717,6 +1719,7 @@ row_mysql_unlock_data_dictionary(
 	trx->dict_operation_lock_mode = 0;
 }
 
+#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Does a table creation operation for MySQL.  If the name of the table
 to be created is equal with one of the predefined magic table names,
@@ -2087,12 +2090,12 @@ row_table_add_foreign_constraints(
 
 	err = dict_create_foreign_constraints(trx, sql_string, name,
 					      reject_fks);
-
+#ifndef UNIV_HOTBACKUP
 	if (err == DB_SUCCESS) {
 		/* Check that also referencing constraints are ok */
 		err = dict_load_foreigns(name, TRUE);
 	}
-
+#endif /* !UNIV_HOTBACKUP */
 	if (err != DB_SUCCESS) {
 		/* We have special error handling here */
 
@@ -2306,7 +2309,6 @@ row_add_table_to_background_drop_list(
 	return(TRUE);
 }
 
-#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Discards the tablespace of a table which stored in an .ibd file. Discarding
 means that this function deletes the .ibd file and assigns a new table id for
@@ -2904,7 +2906,6 @@ funct_exit:
 
 	return((int) err);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************************
 Drops a table for MySQL. If the name of the table to be dropped is equal
@@ -4054,3 +4055,4 @@ row_check_table_for_mysql(
 
 	return(ret);
 }
+#endif /* !UNIV_HOTBACKUP */
