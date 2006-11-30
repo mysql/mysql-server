@@ -1499,4 +1499,52 @@ select * from t1;
 drop table t1;
 
 
+#
+# Bug #23651 "Server crashes when trigger which uses stored function
+#             invoked from different connections".
+#
+--disable_warnings
+drop table if exists t1;
+drop function if exists f1;
+--enable_warnings
+create table t1 (i int);
+create function f1() returns int return 10;
+create trigger t1_bi before insert on t1 for each row set @a:= f1() + 10;
+insert into t1 values ();
+select @a;
+connection addconroot1;
+insert into t1 values ();
+select @a;
+connection default;
+drop table t1;
+drop function f1;
+
+#
+# Bug#23703: DROP TRIGGER needs an IF EXISTS
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1(a int, b varchar(50));
+
+-- error ER_TRG_DOES_NOT_EXIST
+drop trigger not_a_trigger;
+
+drop trigger if exists not_a_trigger;
+
+create trigger t1_bi before insert on t1
+for each row set NEW.b := "In trigger t1_bi";
+
+insert into t1 values (1, "a");
+drop trigger if exists t1_bi;
+insert into t1 values (2, "b");
+drop trigger if exists t1_bi;
+insert into t1 values (3, "c");
+
+select * from t1;
+
+drop table t1;
+
 --echo End of 5.0 tests

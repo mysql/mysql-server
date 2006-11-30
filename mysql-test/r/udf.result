@@ -185,6 +185,22 @@ DROP VIEW v1;
 DROP TABLE t1;
 DROP FUNCTION fn;
 End of 5.0 tests.
+drop function if exists pi;
+CREATE FUNCTION pi RETURNS STRING SONAME "should_not_parse.so";
+ERROR HY000: This function 'pi' has the same name as a native function.
+DROP FUNCTION IF EXISTS metaphon;
+CREATE FUNCTION metaphon(a int) RETURNS int
+return 0;
+CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+ERROR HY000: Function 'metaphon' already exists
+DROP FUNCTION metaphon;
+CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+CREATE FUNCTION metaphon(a int) RETURNS int
+return 0;
+ERROR HY000: Function 'metaphon' already exists
+CREATE FUNCTION test.metaphon(a int) RETURNS int
+return 0;
+ERROR HY000: Function 'metaphon' already exists
 DROP FUNCTION metaphon;
 DROP FUNCTION myfunc_double;
 DROP FUNCTION myfunc_nonexist;

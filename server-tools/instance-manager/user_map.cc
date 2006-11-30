@@ -41,8 +41,8 @@ int User::init(const char *line)
     name_end= strchr(name_begin, line[0]);
     if (name_end == 0 || name_end[1] != ':')
     {
-      log_info("Error: invalid format (unmatched quote) of user line (%s).",
-                (const char *) line);
+      log_error("Invalid format (unmatched quote) of user line (%s).",
+               (const char *) line);
       return 1;
     }
     password= name_end + 2;
@@ -53,8 +53,8 @@ int User::init(const char *line)
     name_end= strchr(name_begin, ':');
     if (name_end == 0)
     {
-      log_info("Error: invalid format (no delimiter) of user line (%s).",
-                (const char *) line);
+      log_error("Invalid format (no delimiter) of user line (%s).",
+               (const char *) line);
       return 1;
     }
     password= name_end + 1;
@@ -63,18 +63,19 @@ int User::init(const char *line)
   user_length= name_end - name_begin;
   if (user_length > USERNAME_LENGTH)
   {
-    log_info("Error: user name is too long (%d). Max length: %d. "
-              "User line: '%s'.",
-              (int) user_length,
-              (int) USERNAME_LENGTH,
-              (const char *) line);
+    log_error("User name is too long (%d). Max length: %d. "
+             "User line: '%s'.",
+             (int) user_length,
+             (int) USERNAME_LENGTH,
+             (const char *) line);
     return 1;
   }
 
   password_length= strlen(password);
   if (password_length > SCRAMBLED_PASSWORD_CHAR_LENGTH)
   {
-    log_info("Error: password is too long (%d). Max length: %d. User line: '%s'.",
+    log_error("Password is too long (%d). Max length: %d."
+             "User line: '%s'.",
              (int) password_length,
              (int) SCRAMBLED_PASSWORD_CHAR_LENGTH,
              line);
@@ -89,7 +90,7 @@ int User::init(const char *line)
 
   get_salt_from_password(salt, password);
 
-  log_info("loaded user '%s'.", user);
+  log_info("Loaded user '%s'.", (const char *) user);
 
   return 0;
 }
@@ -158,7 +159,7 @@ User_map::~User_map()
 /*
   Load password database.
 
-  SYNOPSYS
+  SYNOPSIS
     load()
     password_file_name  [IN] password file path
     err_msg             [OUT] error message
@@ -185,7 +186,6 @@ int User_map::load(const char *password_file_name, const char **err_msg)
             2 +                               /* for newline */
             1];                               /* for trailing zero */
   User *user;
-  int rc= 1;
 
   if (my_access(password_file_name, F_OK) != 0)
   {
@@ -214,7 +214,7 @@ int User_map::load(const char *password_file_name, const char **err_msg)
     return ERR_IO_ERROR;
   }
 
-  log_info("loading the password database...");
+  log_info("Loading the password database...");
 
   while (fgets(line, sizeof(line), file))
   {
@@ -292,7 +292,7 @@ int User_map::load(const char *password_file_name, const char **err_msg)
     }
   }
 
-  log_info("the password database loaded successfully.");
+  log_info("The password database loaded successfully.");
 
   my_fclose(file, MYF(0));
 
