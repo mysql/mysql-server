@@ -7054,6 +7054,8 @@ load_data_lock:
               Ignore this option in SP to avoid problem with query cache
             */
             if (Lex->sphead != 0)
+              $$= YYTHD->update_lock_default;
+            else
 #endif
               $$= TL_WRITE_CONCURRENT_INSERT;
           }
