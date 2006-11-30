@@ -56,6 +56,7 @@ typedef struct ndb_index_data {
   void *index;
   void *unique_index;
   unsigned char *unique_index_attrid_map;
+  bool null_in_unique_index;
 } NDB_INDEX_DATA;
 
 typedef struct st_ndbcluster_share {
@@ -546,7 +547,9 @@ class ha_ndbcluster: public handler
                              KEY_MULTI_RANGE*ranges, uint range_count,
                              bool sorted, HANDLER_BUFFER *buffer);
   int read_multi_range_next(KEY_MULTI_RANGE **found_range_p);
-
+  bool null_value_index_search(KEY_MULTI_RANGE *ranges,
+			       KEY_MULTI_RANGE *end_range,
+			       HANDLER_BUFFER *buffer);
   bool get_error_message(int error, String *buf);
   int info(uint);
   int extra(enum ha_extra_function operation);
@@ -649,7 +652,8 @@ private:
   void release_metadata();
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
-  int check_index_fields_not_null(uint index_no);
+  bool has_null_in_unique_index(uint idx_no) const;
+  bool check_index_fields_not_null(uint index_no);
 
   int pk_read(const byte *key, uint key_len, byte *buf);
   int complemented_pk_read(const byte *old_data, byte *new_data);
@@ -663,6 +667,11 @@ private:
   int ordered_index_scan(const key_range *start_key,
                          const key_range *end_key,
                          bool sorted, bool descending, byte* buf);
+  int unique_index_scan(const KEY* key_info, 
+			const byte *key, 
+			uint key_len,
+			byte *buf);
+
   int full_table_scan(byte * buf);
   int fetch_next(NdbScanOperation* op);
   int next_result(byte *buf); 
@@ -725,6 +734,13 @@ bool uses_blob_value(bool all_fields);
   int build_scan_filter(Ndb_cond* &cond, NdbScanFilter* filter);
   int generate_scan_filter(Ndb_cond_stack* cond_stack, 
                            NdbScanOperation* op);
+  int generate_scan_filter_from_cond(Ndb_cond_stack* cond_stack, 
+				     NdbScanFilter& filter);
+  int generate_scan_filter_from_key(NdbScanOperation* op,
+                                   const KEY* key_info, 
+                                   const byte *key, 
+                                   uint key_len,
+                                   byte *buf);
 
   friend int execute_commit(ha_ndbcluster*, NdbTransaction*);
   friend int execute_no_commit(ha_ndbcluster*, NdbTransaction*, bool);
