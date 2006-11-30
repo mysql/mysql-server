@@ -184,7 +184,8 @@ read_history_range (filename, from, to)
   file_size = (size_t)finfo.st_size;
 
   /* check for overflow on very large files */
-  if (file_size != finfo.st_size || file_size + 1 < file_size)
+  if ((long long) file_size != (long long) finfo.st_size ||
+      file_size + 1 < file_size)
     {
       errno = overflow_errno;
       goto error_and_exit;

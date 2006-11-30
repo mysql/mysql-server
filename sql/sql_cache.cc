@@ -902,7 +902,7 @@ sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
     if (thd->db_length)
     {
       memcpy(thd->query+thd->query_length+1, thd->db, thd->db_length);
-      DBUG_PRINT("qcache", ("database : %s length %u",
+      DBUG_PRINT("qcache", ("database: %s  length: %u",
 			    thd->db, thd->db_length)); 
     }
     else
@@ -1048,7 +1048,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       (pre-space is removed in dispatch_command)
 
       First '/' looks like comment before command it is not
-      frequently appeared in real lihe, consequently we can
+      frequently appeared in real life, consequently we can
       check all such queries, too.
     */
     if ((my_toupper(system_charset_info, sql[i])     != 'S' ||
@@ -1077,7 +1077,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   if (thd->db_length)
   {
     memcpy(sql+query_length+1, thd->db, thd->db_length);
-    DBUG_PRINT("qcache", ("database: '%s' length %u",
+    DBUG_PRINT("qcache", ("database: '%s'  length: %u",
 			  thd->db, thd->db_length));
   }
   else
@@ -1230,9 +1230,9 @@ sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
       if (engine_data != table->engine_data())
       {
         DBUG_PRINT("qcache",
-                   ("Handler require invalidation queries of %s.%s %lld-%lld",
-                              table_list.db, table_list.alias,
-                              engine_data, table->engine_data()));
+                   ("Handler require invalidation queries of %s.%s %lu-%lu",
+                    table_list.db, table_list.alias,
+                    (ulong) engine_data, (ulong) table->engine_data()));
         invalidate_table((byte *) table->db(), table->key_length());
       }
       else
@@ -1253,10 +1253,10 @@ sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
 #ifndef EMBEDDED_LIBRARY
   do
   {
-    DBUG_PRINT("qcache", ("Results  (len: %lu  used: %lu  headers: %u)",
+    DBUG_PRINT("qcache", ("Results  (len: %lu  used: %lu  headers: %lu)",
 			  result_block->length, result_block->used,
-			  result_block->headers_len()+
-			  ALIGN_SIZE(sizeof(Query_cache_result))));
+			  (ulong) (result_block->headers_len()+
+                                   ALIGN_SIZE(sizeof(Query_cache_result)))));
     
     Query_cache_result *result = result_block->result();
     if (net_real_write(&thd->net, result->data(),
@@ -1338,7 +1338,7 @@ void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
       for (; tables_used; tables_used= tables_used->next)
       {
 	invalidate_table((byte*) tables_used->key, tables_used->key_length);
-	DBUG_PRINT("qcache", (" db %s, table %s", tables_used->key,
+	DBUG_PRINT("qcache", ("db: %s  table: %s", tables_used->key,
 			      tables_used->key+
 			      strlen(tables_used->key)+1));
       }
@@ -2349,7 +2349,7 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
     {
       char key[MAX_DBKEY_LENGTH];
       uint key_length;
-      DBUG_PRINT("qcache", ("view %s, db %s",
+      DBUG_PRINT("qcache", ("view: %s  db: %s",
                             tables_used->view_name.str,
                             tables_used->view_db.str));
       key_length= (uint) (strmov(strmov(key, tables_used->view_db.str) + 1,
@@ -2470,11 +2470,11 @@ Query_cache::insert_table(uint key_len, char *key,
       table_block->table()->engine_data() != engine_data)
   {
     DBUG_PRINT("qcache",
-               ("Handler require invalidation queries of %s.%s %lld-%lld",
+               ("Handler require invalidation queries of %s.%s %lu-%lu",
                 table_block->table()->db(),
                 table_block->table()->table(),
-                engine_data,
-                table_block->table()->engine_data()));
+                (ulong) engine_data,
+                (ulong) table_block->table()->engine_data()));
     /*
       as far as we delete all queries with this table, table block will be
       deleted, too
@@ -2972,7 +2972,7 @@ static TABLE_COUNTER_TYPE process_and_count_tables(TABLE_LIST *tables_used,
     table_count++;
     if (tables_used->view)
     {
-      DBUG_PRINT("qcache", ("view %s, db %s",
+      DBUG_PRINT("qcache", ("view: %s  db: %s",
                             tables_used->view_name.str,
                             tables_used->view_db.str));
       *tables_type|= HA_CACHE_TBL_NONTRANSACT;
@@ -3038,7 +3038,7 @@ Query_cache::is_cacheable(THD *thd, uint32 query_len, char *query, LEX *lex,
       lex->safe_to_cache_query)
   {
     DBUG_PRINT("qcache", ("options: %lx  %lx  type: %u",
-                          OPTION_TO_QUERY_CACHE,
+                          (long) OPTION_TO_QUERY_CACHE,
                           (long) lex->select_lex.options,
                           (int) thd->variables.query_cache_type));
 
@@ -3058,7 +3058,7 @@ Query_cache::is_cacheable(THD *thd, uint32 query_len, char *query, LEX *lex,
   DBUG_PRINT("qcache",
 	     ("not interesting query: %d or not cacheable, options %lx %lx  type: %u",
 	      (int) lex->sql_command,
-	      OPTION_TO_QUERY_CACHE,
+	      (long) OPTION_TO_QUERY_CACHE,
 	      (long) lex->select_lex.options,
 	      (int) thd->variables.query_cache_type));
   DBUG_RETURN(0);
@@ -3757,8 +3757,8 @@ my_bool Query_cache::check_integrity(bool locked)
 	(((long)first_block) % (long)ALIGN_SIZE(1)))
     {
       DBUG_PRINT("error",
-		 ("block 0x%lx do not aligned by %d", (ulong) block,
-		  ALIGN_SIZE(1)));
+		 ("block 0x%lx do not aligned by %d", (long) block,
+		  (int) ALIGN_SIZE(1)));
       result = 1;
     }
     // Check memory allocation
