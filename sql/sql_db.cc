@@ -1302,7 +1302,6 @@ err:
 
 bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
 {
-  int path_length;
   LEX_STRING db_name;
   bool system_db= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS

@@ -153,7 +153,7 @@ pos(unsigned char c)
     Number of bytes written at 'dst' or -1 in case of failure
 */
 int
-base64_decode(const char *const src_base, size_t const len,
+base64_decode(const char *src_base, size_t len,
               void *dst, const char **end_ptr)
 {
   char b[3];

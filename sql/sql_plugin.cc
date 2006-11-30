@@ -727,7 +727,7 @@ void plugin_load(void)
   TABLE_LIST tables;
   TABLE *table;
   READ_RECORD read_record_info;
-  int error, i;
+  int error;
   MEM_ROOT mem;
   THD *new_thd;
   DBUG_ENTER("plugin_load");

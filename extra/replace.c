@@ -1052,8 +1052,10 @@ static int convert_file(REPLACE *rep, my_string name)
 {
   int error;
   FILE *in,*out;
-  char dir_buff[FN_REFLEN], tempname[FN_REFLEN];
-  char link_name[FN_REFLEN], *org_name = name;
+  char dir_buff[FN_REFLEN], tempname[FN_REFLEN],*org_name = name;
+#ifdef HAVE_READLINK  
+  char link_name[FN_REFLEN];
+#endif
   File temp_file;
   DBUG_ENTER("convert_file");
 

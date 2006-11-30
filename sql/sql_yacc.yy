@@ -1894,7 +1894,6 @@ sp_decl:
             uint num_vars= pctx->context_var_count();
             enum enum_field_types var_type= (enum enum_field_types) $4;
             Item *dflt_value_item= $5;
-            create_field *create_field_op;
             
             if (!dflt_value_item)
             {
@@ -3090,7 +3089,7 @@ size_number:
           real_ulong_num { $$= $1;}
           | IDENT
           {
-            ulonglong number, test_number;
+            ulonglong number;
             uint text_shift_number= 0;
             longlong prefix_number;
             char *start_ptr= $1.str;
@@ -3599,11 +3598,9 @@ part_bit_expr:
         bit_expr
         {
           Item *part_expr= $1;
-          bool not_corr_func;
           int part_expression_ok= 1;
           LEX *lex= Lex;
           THD *thd= YYTHD;
-          longlong item_value;
           Name_resolution_context *context= &lex->current_select->context;
           TABLE_LIST *save_list= context->table_list;
           const char *save_where= thd->where;
@@ -3744,11 +3741,11 @@ opt_part_option:
           lex->part_info->default_engine_type= $4;
         }
         | NODEGROUP_SYM opt_equal real_ulong_num
-        { Lex->part_info->curr_part_elem->nodegroup_id= $3; }
+        { Lex->part_info->curr_part_elem->nodegroup_id= (uint16) $3; }
         | MAX_ROWS opt_equal real_ulonglong_num
-        { Lex->part_info->curr_part_elem->part_max_rows= $3; }
+        { Lex->part_info->curr_part_elem->part_max_rows= (ha_rows) $3; }
         | MIN_ROWS opt_equal real_ulonglong_num
-        { Lex->part_info->curr_part_elem->part_min_rows= $3; }
+        { Lex->part_info->curr_part_elem->part_min_rows= (ha_rows) $3; }
         | DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys
         { Lex->part_info->curr_part_elem->data_file_name= $4.str; }
         | INDEX_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys

@@ -2418,7 +2418,6 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
                          ulong max_size_arg,
                          bool null_created_arg)
 {
-  char buff[FN_REFLEN];
   File file= -1;
   int open_flags = O_CREAT | O_BINARY;
   DBUG_ENTER("MYSQL_BIN_LOG::open");

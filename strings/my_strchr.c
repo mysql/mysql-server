@@ -28,7 +28,7 @@
 
 
 byte *my_strchr(CHARSET_INFO *cs, const char *str, const char *end,
-                       char c)
+                pchar c)
 {
   uint mbl;
   while (str < end)

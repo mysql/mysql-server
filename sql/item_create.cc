@@ -2620,7 +2620,8 @@ Create_func_benchmark::create(THD *thd, Item *arg1, Item *arg2)
   }
 
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
-  return new (thd->mem_root) Item_func_benchmark(arg1->val_int(), arg2);
+  return new (thd->mem_root) Item_func_benchmark((ulong) arg1->val_int(),
+                                                 arg2);
 }
 
 
@@ -3242,7 +3243,7 @@ Create_func_format::create(THD *thd, Item *arg1, Item *arg2)
     return NULL;
   }
 
-  return new (thd->mem_root) Item_func_format(arg1, arg2->val_int());
+  return new (thd->mem_root) Item_func_format(arg1, (int) arg2->val_int());
 }
 
 

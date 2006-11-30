@@ -266,6 +266,7 @@ static int net_data_is_ready(my_socket sd)
   SYNOPSIS
     net_clear()
     net			NET handler
+    clear_buffer	If <> 0, then clear all data from communication buffer
 
   DESCRIPTION
     Read from socket until there is nothing more to read. Discard
@@ -280,48 +281,51 @@ static int net_data_is_ready(my_socket sd)
 
 */
 
-void net_clear(NET *net)
+void net_clear(NET *net, my_bool clear_buffer)
 {
   int count, ready;
   DBUG_ENTER("net_clear");
 #if !defined(EMBEDDED_LIBRARY)
-  while((ready= net_data_is_ready(net->vio->sd)) > 0)
+  if (clear_buffer)
   {
-    /* The socket is ready */
-    if ((count= vio_read(net->vio, (char*) (net->buff),
-                         (uint32) net->max_packet)) > 0)
+    while ((ready= net_data_is_ready(net->vio->sd)) > 0)
     {
-      DBUG_PRINT("info",("skipped %d bytes from file: %s",
-                         count, vio_description(net->vio)));
+      /* The socket is ready */
+      if ((count= vio_read(net->vio, (char*) (net->buff),
+                           (uint32) net->max_packet)) > 0)
+      {
+        DBUG_PRINT("info",("skipped %d bytes from file: %s",
+                           count, vio_description(net->vio)));
 #ifdef EXTRA_DEBUG
-      fprintf(stderr,"MySQL: net_clear() skipped %d bytes from file: %s\n",
-              count, vio_description(net->vio));
+        fprintf(stderr,"Error: net_clear() skipped %d bytes from file: %s\n",
+                count, vio_description(net->vio));
 #endif
+      }
+      else
+      {
+        DBUG_PRINT("info",("socket ready but only EOF to read - disconnected"));
+        net->error= 2;
+        break;
+      }
     }
-    else
-    {
-      DBUG_PRINT("info",("socket ready but only EOF to read - disconnected"));
-      net->error= 2;
-      break;
-    }
-  }
 #ifdef NET_DATA_IS_READY_CAN_RETURN_MINUS_ONE
-  /* 'net_data_is_ready' returned "don't know" */
-  if (ready == -1)
-  {
-    /* Read unblocking to clear net */
-    my_bool old_mode;
-    if (!vio_blocking(net->vio, FALSE, &old_mode))
+    /* 'net_data_is_ready' returned "don't know" */
+    if (ready == -1)
     {
-      while ((count= vio_read(net->vio, (char*) (net->buff),
-                              (uint32) net->max_packet)) > 0)
-	DBUG_PRINT("info",("skipped %d bytes from file: %s",
-			   count, vio_description(net->vio)));
-      vio_blocking(net->vio, TRUE, &old_mode);
+      /* Read unblocking to clear net */
+      my_bool old_mode;
+      if (!vio_blocking(net->vio, FALSE, &old_mode))
+      {
+        while ((count= vio_read(net->vio, (char*) (net->buff),
+                                (uint32) net->max_packet)) > 0)
+          DBUG_PRINT("info",("skipped %d bytes from file: %s",
+                             count, vio_description(net->vio)));
+        vio_blocking(net->vio, TRUE, &old_mode);
+      }
     }
+#endif /* NET_DATA_IS_READY_CAN_RETURN_MINUS_ONE */
   }
-#endif
-#endif
+#endif /* EMBEDDED_LIBRARY */
   net->pkt_nr=net->compress_pkt_nr=0;		/* Ready for new command */
   net->write_pos=net->buff;
   DBUG_VOID_RETURN;
@@ -894,7 +898,7 @@ my_real_read(NET *net, ulong *complen)
 			(int) net->buff[net->where_b + 3],
 			net->pkt_nr));
 #ifdef EXTRA_DEBUG
-	    fprintf(stderr,"Packets out of order (Found: %d, expected %d)\n",
+	    fprintf(stderr,"Error: Packets out of order (Found: %d, expected %d)\n",
 		    (int) net->buff[net->where_b + 3],
 		    (uint) (uchar) net->pkt_nr);
 #endif

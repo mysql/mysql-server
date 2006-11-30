@@ -197,7 +197,7 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
     lex->definer= &view->definer;
   }
   if (lex->create_view_algorithm == VIEW_ALGORITHM_UNDEFINED)
-    lex->create_view_algorithm= decoy.algorithm;
+    lex->create_view_algorithm= (uint8) decoy.algorithm;
   if (lex->create_view_suid == VIEW_SUID_DEFAULT)
     lex->create_view_suid= decoy.view_suid ? 
       VIEW_SUID_DEFINER : VIEW_SUID_INVOKER;
@@ -675,7 +675,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   String str(buff,(uint32) sizeof(buff), system_charset_info);
   char md5[MD5_BUFF_LENGTH];
   bool can_be_merged;
-  char dir_buff[FN_REFLEN], file_buff[FN_REFLEN], path_buff[FN_REFLEN];
+  char dir_buff[FN_REFLEN], path_buff[FN_REFLEN];
   const uchar *endp;
   LEX_STRING dir, file, path;
   DBUG_ENTER("mysql_register_view");
@@ -1341,7 +1341,6 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
 {
   char path[FN_REFLEN];
   TABLE_LIST *view;
-  frm_type_enum type;
   String non_existant_views;
   char *wrong_object_db= NULL, *wrong_object_name= NULL;
   bool error= FALSE;
@@ -1509,7 +1508,6 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
   TABLE *table;
   Field_translator *trans, *end_of_trans;
   KEY *key_info, *key_info_end;
-  uint i;
   DBUG_ENTER("check_key_in_view");
 
   /*
