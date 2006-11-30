@@ -916,7 +916,7 @@ page_zip_compress(
 				/* out: TRUE on success, FALSE on failure;
 				page_zip will be left intact on failure. */
 	page_zip_des_t*	page_zip,/* in: size; out: data, n_blobs,
-				m_start, m_end */
+				m_start, m_end, m_nonempty */
 	const page_t*	page,	/* in: uncompressed page */
 	dict_index_t*	index,	/* in: index of the B-tree node */
 	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
@@ -1108,7 +1108,11 @@ zlib_error:
 	included in avail_out. */
 	memset(c_stream.next_out, 0, c_stream.avail_out + 1/* end marker */);
 
-	page_zip->m_end = page_zip->m_start = PAGE_DATA + c_stream.total_out;
+#ifdef UNIV_DEBUG
+	page_zip->m_start =
+#endif /* UNIV_DEBUG */
+		page_zip->m_end = PAGE_DATA + c_stream.total_out;
+	page_zip->m_nonempty = FALSE;
 	page_zip->n_blobs = n_blobs;
 	/* Copy those header fields that will not be written
 	in buf_flush_init_for_writing() */
@@ -1757,13 +1761,14 @@ zlib_done:
 		       - d_stream->next_out);
 	}
 
+#ifdef UNIV_DEBUG
 	page_zip->m_start = PAGE_DATA + d_stream->total_in;
+#endif /* UNIV_DEBUG */
 
 	/* Apply the modification log. */
 	{
 		const byte*	mod_log_ptr;
-		mod_log_ptr = page_zip_apply_log(page_zip->data
-						 + page_zip->m_start,
+		mod_log_ptr = page_zip_apply_log(d_stream->next_in,
 						 d_stream->avail_in + 1,
 						 recs, n_dense,
 						 ULINT_UNDEFINED, heap_status,
@@ -1773,6 +1778,7 @@ zlib_done:
 			return(FALSE);
 		}
 		page_zip->m_end = mod_log_ptr - page_zip->data;
+		page_zip->m_nonempty = mod_log_ptr != d_stream->next_in;
 		ut_a(page_zip_get_trailer_len(page_zip, index, NULL)
 		     + page_zip->m_end < page_zip_get_size(page_zip));
 	}
@@ -1892,13 +1898,14 @@ zlib_done:
 		       - d_stream->next_out);
 	}
 
+#ifdef UNIV_DEBUG
 	page_zip->m_start = PAGE_DATA + d_stream->total_in;
+#endif /* UNIV_DEBUG */
 
 	/* Apply the modification log. */
 	{
 		const byte*	mod_log_ptr;
-		mod_log_ptr = page_zip_apply_log(page_zip->data
-						 + page_zip->m_start,
+		mod_log_ptr = page_zip_apply_log(d_stream->next_in,
 						 d_stream->avail_in + 1,
 						 recs, n_dense,
 						 ULINT_UNDEFINED, heap_status,
@@ -1908,6 +1915,7 @@ zlib_done:
 			return(FALSE);
 		}
 		page_zip->m_end = mod_log_ptr - page_zip->data;
+		page_zip->m_nonempty = mod_log_ptr != d_stream->next_in;
 		ut_a(page_zip_get_trailer_len(page_zip, index, NULL)
 		     + page_zip->m_end < page_zip_get_size(page_zip));
 	}
@@ -2126,13 +2134,14 @@ zlib_done:
 		       - d_stream->next_out);
 	}
 
+#ifdef UNIV_DEBUG
 	page_zip->m_start = PAGE_DATA + d_stream->total_in;
+#endif /* UNIV_DEBUG */
 
 	/* Apply the modification log. */
 	{
 		const byte*	mod_log_ptr;
-		mod_log_ptr = page_zip_apply_log(page_zip->data
-						 + page_zip->m_start,
+		mod_log_ptr = page_zip_apply_log(d_stream->next_in,
 						 d_stream->avail_in + 1,
 						 recs, n_dense,
 						 trx_id_col, heap_status,
@@ -2142,6 +2151,7 @@ zlib_done:
 			return(FALSE);
 		}
 		page_zip->m_end = mod_log_ptr - page_zip->data;
+		page_zip->m_nonempty = mod_log_ptr != d_stream->next_in;
 		ut_a(page_zip_get_trailer_len(page_zip, index, NULL)
 		     + page_zip->m_end < page_zip_get_size(page_zip));
 	}
@@ -2215,7 +2225,7 @@ page_zip_decompress(
 /*================*/
 				/* out: TRUE on success, FALSE on failure */
 	page_zip_des_t*	page_zip,/* in: data, size;
-				out: m_start, m_end, n_blobs */
+				out: m_start, m_end, m_nonempty, n_blobs */
 	page_t*		page)	/* out: uncompressed page, may be trashed */
 {
 	z_stream	d_stream;
@@ -2421,16 +2431,24 @@ page_zip_validate(
 			page_zip->n_blobs, temp_page_zip.n_blobs);
 		valid = FALSE;
 	}
+#ifdef UNIV_DEBUG
 	if (page_zip->m_start != temp_page_zip.m_start) {
 		fprintf(stderr,
 			"page_zip_validate(): m_start mismatch: %d!=%d\n",
 			page_zip->m_start, temp_page_zip.m_start);
 		valid = FALSE;
 	}
+#endif /* UNIV_DEBUG */
 	if (page_zip->m_end != temp_page_zip.m_end) {
 		fprintf(stderr,
 			"page_zip_validate(): m_end mismatch: %d!=%d\n",
 			page_zip->m_end, temp_page_zip.m_end);
+		valid = FALSE;
+	}
+	if (page_zip->m_nonempty != temp_page_zip.m_nonempty) {
+		fprintf(stderr,
+			"page_zip_validate(): m_nonempty mismatch: %d!=%d\n",
+			page_zip->m_nonempty, temp_page_zip.m_nonempty);
 		valid = FALSE;
 	}
 	if (memcmp(page + PAGE_HEADER, temp_page + PAGE_HEADER,
@@ -2702,6 +2720,7 @@ page_zip_write_rec(
 	ut_a(!*data);
 	ut_ad((ulint) (data - page_zip->data) < page_zip_get_size(page_zip));
 	page_zip->m_end = data - page_zip->data;
+	page_zip->m_nonempty = TRUE;
 
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(page_zip_validate(page_zip, page_align((byte*) rec)));
@@ -3122,6 +3141,7 @@ page_zip_clear_rec(
 		ut_ad((ulint) (data - page_zip->data)
 		      < page_zip_get_size(page_zip));
 		page_zip->m_end = data - page_zip->data;
+		page_zip->m_nonempty = TRUE;
 	} else if (page_is_leaf(page) && dict_index_is_clust(index)) {
 		/* Do not clear the record, because there is not enough space
 		to log the operation. */
@@ -3516,7 +3536,8 @@ page_zip_reorganize(
 				on failure. */
 	buf_block_t*	block,	/* in/out: page with compressed page;
 				on the compressed page, in: size;
-				out: data, n_blobs, m_start, m_end */
+				out: data, n_blobs,
+				m_start, m_end, m_nonempty */
 	dict_index_t*	index,	/* in: index of the B-tree node */
 	mtr_t*		mtr)	/* in: mini-transaction */
 {
@@ -3581,7 +3602,7 @@ page_zip_copy(
 /*==========*/
 	page_zip_des_t*		page_zip,	/* out: copy of src_zip
 						(n_blobs, m_start, m_end,
-						data[0..size-1]) */
+						m_nonempty, data[0..size-1]) */
 	page_t*			page,		/* out: copy of src */
 	const page_zip_des_t*	src_zip,	/* in: compressed page */
 	const page_t*		src,		/* in: page */
@@ -3607,9 +3628,11 @@ page_zip_copy(
 	       src_zip->data + FIL_PAGE_DATA,
 	       page_zip_get_size(page_zip) - FIL_PAGE_DATA);
 
-	page_zip->n_blobs = src_zip->n_blobs;
-	page_zip->m_start = src_zip->m_start;
-	page_zip->m_end = src_zip->m_end;
+	{
+		page_zip_t*	data = page_zip->data;
+		memcpy(page_zip, src_zip, sizeof *page_zip);
+		page_zip->data = data;
+	}
 	ut_ad(page_zip_get_trailer_len(page_zip, index, NULL)
 	      + page_zip->m_end < page_zip_get_size(page_zip));
 

@@ -80,7 +80,7 @@ page_zip_compress(
 				/* out: TRUE on success, FALSE on failure;
 				page_zip will be left intact on failure. */
 	page_zip_des_t*	page_zip,/* in: size; out: data, n_blobs,
-				m_start, m_end */
+				m_start, m_end, m_nonempty */
 	const page_t*	page,	/* in: uncompressed page */
 	dict_index_t*	index,	/* in: index of the B-tree node */
 	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
@@ -96,7 +96,7 @@ page_zip_decompress(
 /*================*/
 				/* out: TRUE on success, FALSE on failure */
 	page_zip_des_t*	page_zip,/* in: data, size;
-				out: m_start, m_end, n_blobs */
+				out: m_start, m_end, m_nonempty, n_blobs */
 	page_t*		page)	/* out: uncompressed page, may be trashed */
 	__attribute__((warn_unused_result, nonnull));
 
@@ -356,7 +356,8 @@ page_zip_reorganize(
 				on failure. */
 	buf_block_t*	block,	/* in/out: page with compressed page;
 				on the compressed page, in: size;
-				out: data, n_blobs, m_start, m_end */
+				out: data, n_blobs,
+				m_start, m_end, m_nonempty */
 	dict_index_t*	index,	/* in: index of the B-tree node */
 	mtr_t*		mtr)	/* in: mini-transaction */
 	__attribute__((warn_unused_result, nonnull));
@@ -368,7 +369,7 @@ page_zip_copy(
 /*==========*/
 	page_zip_des_t*		page_zip,	/* out: copy of src_zip
 						(n_blobs, m_start, m_end,
-						data[0..size-1]) */
+						m_nonempty, data[0..size-1]) */
 	page_t*			page,		/* out: copy of src */
 	const page_zip_des_t*	src_zip,	/* in: compressed page */
 	const page_t*		src,		/* in: page */
