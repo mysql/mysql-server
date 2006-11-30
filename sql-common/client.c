@@ -687,8 +687,7 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
     the previous command was a shutdown command, we may have the
     response for the COM_QUIT already in the communication buffer
   */
-  if (command != COM_QUIT)
-    net_clear(&mysql->net);			/* Clear receive buffer */
+  net_clear(&mysql->net, (command != COM_QUIT));
 
   if (net_write_command(net,(uchar) command, header, header_length,
 			arg, arg_length))
@@ -1218,7 +1217,7 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
     {
       uchar *pos;
       /* fields count may be wrong */
-      DBUG_ASSERT ((field - result) < fields);
+      DBUG_ASSERT((uint) (field - result) < fields);
       cli_fetch_lengths(&lengths[0], row->data, default_value ? 8 : 7);
       field->catalog  = strdup_root(alloc,(char*) row->data[0]);
       field->db       = strdup_root(alloc,(char*) row->data[1]);
@@ -2503,7 +2502,7 @@ my_bool mysql_reconnect(MYSQL *mysql)
   mysql_close(mysql);
   *mysql=tmp_mysql;
   mysql_fix_pointers(mysql, &tmp_mysql); /* adjust connection pointers */
-  net_clear(&mysql->net);
+  net_clear(&mysql->net, 1);
   mysql->affected_rows= ~(my_ulonglong) 0;
   DBUG_RETURN(0);
 }

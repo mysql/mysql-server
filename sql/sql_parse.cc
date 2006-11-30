@@ -5196,7 +5196,6 @@ end_with_restore_list:
     break;
   }
 
-end:
   thd->proc_info="query end";
 
   /*

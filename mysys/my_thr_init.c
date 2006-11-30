@@ -97,6 +97,8 @@ my_bool my_thread_global_init(void)
   pthread_mutex_init(&THR_LOCK_heap,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&THR_LOCK_net,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&THR_LOCK_charset,MY_MUTEX_INIT_FAST);
+  pthread_mutex_init(&THR_LOCK_threads,MY_MUTEX_INIT_FAST);
+  pthread_cond_init(&THR_COND_threads, NULL);
 #if defined( __WIN__) || defined(OS2)
   win_pthread_init();
 #endif
@@ -310,7 +312,7 @@ const char *my_thread_name(void)
   if (!tmp->name[0])
   {
     long id=my_thread_id();
-    sprintf(name_buff,"T@%lu", id);
+    sprintf(name_buff,"T@%ld", id);
     strmake(tmp->name,name_buff,THREAD_NAME_SIZE);
   }
   return tmp->name;

@@ -1991,7 +1991,7 @@ bool
 mysql_select(THD *thd, Item ***rref_pointer_array,
 	     TABLE_LIST *tables, uint wild_num, List<Item> &fields,
 	     COND *conds, uint og_num,  ORDER *order, ORDER *group,
-	     Item *having, ORDER *proc_param, ulong select_options,
+	     Item *having, ORDER *proc_param, ulonglong select_options,
 	     select_result *result, SELECT_LEX_UNIT *unit,
 	     SELECT_LEX *select_lex)
 {
@@ -4206,7 +4206,7 @@ choose_plan(JOIN *join, table_map join_tables)
 {
   uint search_depth= join->thd->variables.optimizer_search_depth;
   uint prune_level=  join->thd->variables.optimizer_prune_level;
-  bool straight_join= join->select_options & SELECT_STRAIGHT_JOIN;
+  bool straight_join= test(join->select_options & SELECT_STRAIGHT_JOIN);
   DBUG_ENTER("choose_plan");
 
   join->cur_embedding_map= 0;
@@ -4808,8 +4808,6 @@ static void
 find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  double read_time)
 {
-  ha_rows rec;
-  double tmp;
   THD *thd= join->thd;
   if (!rest_tables)
   {
@@ -7149,7 +7147,6 @@ static COND *build_equal_items_for_cond(COND *cond,
   Item_equal *item_equal;
   uint members;
   COND_EQUAL cond_equal;
-  COND *new_cond;
   cond_equal.upper_levels= inherited;
 
   if (cond->type() == Item::COND_ITEM)

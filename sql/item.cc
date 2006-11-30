@@ -1542,7 +1542,7 @@ bool agg_item_collations_for_comparison(DTCollation &c, const char *fname,
 bool agg_item_charsets(DTCollation &coll, const char *fname,
                        Item **args, uint nargs, uint flags, int item_sep)
 {
-  Item **arg, **last, *safe_args[2];
+  Item **arg, *safe_args[2];
 
   LINT_INIT(safe_args[0]);
   LINT_INIT(safe_args[1]);
@@ -5739,7 +5739,7 @@ void Item_trigger_field::set_required_privilege(bool rw)
 }
 
 
-bool Item_trigger_field::set_value(THD *thd, sp_rcontext */*ctx*/, Item **it)
+bool Item_trigger_field::set_value(THD *thd, sp_rcontext * /*ctx*/, Item **it)
 {
   Item *item= sp_prepare_func_item(thd, it);
 

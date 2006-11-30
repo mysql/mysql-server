@@ -65,6 +65,7 @@ struct Resource_limit
 
 struct Pool_context
 {
+  Pool_context() {}
   class SimulatedBlock* m_block;
 
   /**

@@ -2350,7 +2350,7 @@ longlong Item_func_locate::val_int()
       return 0;
 
     /* start is now sufficiently valid to pass to charpos function */
-    start= a->charpos(start);
+    start= a->charpos((int) start);
 
     if (start + b->length() > a->length())
       return 0;
@@ -2360,7 +2360,8 @@ longlong Item_func_locate::val_int()
     return start + 1;
   
   if (!cmp_collation.collation->coll->instr(cmp_collation.collation,
-                                            a->ptr()+start, a->length()-start,
+                                            a->ptr()+start,
+                                            (uint) (a->length()-start),
                                             b->ptr(), b->length(),
                                             &match, 1))
     return 0;
@@ -3835,8 +3836,7 @@ bool
 Item_func_set_user_var::check(bool use_result_field)
 {
   DBUG_ENTER("Item_func_set_user_var::check");
-  if (use_result_field)
-    DBUG_ASSERT(result_field);
+  DBUG_ASSERT(!use_result_field || result_field);
 
   switch (cached_result_type) {
   case REAL_RESULT:
@@ -4280,7 +4280,7 @@ bool Item_func_get_user_var::eq(const Item *item, bool binary_cmp) const
 
 
 bool Item_func_get_user_var::set_value(THD *thd,
-                                       sp_rcontext */*ctx*/, Item **it)
+                                       sp_rcontext * /*ctx*/, Item **it)
 {
   Item_func_set_user_var *suv= new Item_func_set_user_var(get_name(), *it);
   /*
