@@ -17,8 +17,8 @@ noinst_PROGRAMS  =	bitmap-t base64-t my_atomic-t \
 
 # tests for mysys/mf_pagecache.c
 
-mf_pagecache_single_src =	mf_pagecache_single.c $(top_srcdir)/mysys/mf_pagecache.c test_file.c
-mf_pagecache_consist_src =	mf_pagecache_consist.c $(top_srcdir)/mysys/mf_pagecache.c test_file.c
+mf_pagecache_single_src =	mf_pagecache_single.c $(top_srcdir)/mysys/mf_pagecache.c test_file.c test_file.h
+mf_pagecache_consist_src =	mf_pagecache_consist.c $(top_srcdir)/mysys/mf_pagecache.c test_file.c test_file.h
 mf_pagecache_common_cppflags =	-DEXTRA_DEBUG -DPAGECACHE_DEBUG -DMAIN
 
 mf_pagecache_single_1k_t_SOURCES =	$(mf_pagecache_single_src)
