@@ -110,7 +110,6 @@ static bool make_datetime_with_warn(date_time_format_types format, TIME *ltime,
                                     String *str)
 {
   int warning= 0;
-  bool rc;
 
   if (make_datetime(format, ltime, str))
     return 1;

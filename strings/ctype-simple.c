@@ -1516,7 +1516,7 @@ my_strntoull10rnd_8bit(CHARSET_INFO *cs __attribute__((unused)),
       else
       {
         *error= 0;
-        return (ulonglong) (longlong) (long) -ul;
+        return (ulonglong) (longlong) -(long) ul;
       }
     }
     else
@@ -1667,7 +1667,7 @@ ret_sign:
         return (ulonglong) LONGLONG_MIN;
       }
       *error= 0;
-      return (ulonglong) -ull;
+      return (ulonglong) -(longlong) ull;
     }
     else
     {

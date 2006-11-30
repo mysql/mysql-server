@@ -3437,7 +3437,6 @@ server_version_string(MYSQL *mysql)
   {
     char *bufp = buf;
     MYSQL_RES *result;
-    MYSQL_ROW cur;
 
     bufp = strnmov(buf, mysql_get_server_info(mysql), sizeof buf);
 

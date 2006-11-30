@@ -35,7 +35,7 @@ static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list);
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
 {
   bool error= 1;
-  TABLE_LIST *ren_table= 0, *new_table;
+  TABLE_LIST *ren_table= 0;
   int to_table;
   char *rename_log_table[2]= {NULL, NULL};
   int disable_logs= 0;
@@ -353,7 +353,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
 static TABLE_LIST *
 rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
 {
-  TABLE_LIST *ren_table,*new_table, *tmp_table;
+  TABLE_LIST *ren_table, *new_table;
 
   DBUG_ENTER("rename_tables");
 

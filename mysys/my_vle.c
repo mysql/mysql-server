@@ -52,7 +52,7 @@ my_vle_encode(byte* out, my_size_t max, ulong n)
 
   do
   {
-    *ptr++= (n & 0x7F);
+    *ptr++= (byte) (n & 0x7F);
     n>>= 7;
   }
   while (n > 0);
