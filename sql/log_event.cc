@@ -727,7 +727,7 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
                         LOG_EVENT_MINIMAL_HEADER_LEN);
 
   LOCK_MUTEX;
-  DBUG_PRINT("info", ("my_b_tell=%lu", my_b_tell(file)));
+  DBUG_PRINT("info", ("my_b_tell: %lu", (ulong) my_b_tell(file)));
   if (my_b_read(file, (byte *) head, header_size))
   {
     DBUG_PRINT("info", ("Log_event::read_log_event(IO_CACHE*,Format_desc*) \
@@ -1212,6 +1212,7 @@ bool Query_log_event::write(IO_CACHE* file)
   
   /* Store length of status variables */
   status_vars_len= (uint) (start-start_of_status);
+  DBUG_ASSERT(status_vars_len <= MAX_SIZE_LOG_EVENT_STATUS);
   int2store(buf + Q_STATUS_VARS_LEN_OFFSET, status_vars_len);
 
   /*
@@ -1297,7 +1298,8 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   }
   else
     time_zone_len= 0;
-  DBUG_PRINT("info",("Query_log_event has flags2=%lu sql_mode=%lu",flags2,sql_mode));
+  DBUG_PRINT("info",("Query_log_event has flags2: %lu  sql_mode: %lu",
+                     (ulong) flags2, sql_mode));
 }
 #endif /* MYSQL_CLIENT */
 
@@ -1345,7 +1347,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
 
   common_header_len= description_event->common_header_len;
   post_header_len= description_event->post_header_len[event_type-1];
-  DBUG_PRINT("info",("event_len=%ld, common_header_len=%d, post_header_len=%d",
+  DBUG_PRINT("info",("event_len: %u  common_header_len: %d  post_header_len: %d",
                      event_len, common_header_len, post_header_len));
   
   /*
@@ -1393,7 +1395,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     case Q_FLAGS2_CODE:
       flags2_inited= 1;
       flags2= uint4korr(pos);
-      DBUG_PRINT("info",("In Query_log_event, read flags2: %lu", flags2));
+      DBUG_PRINT("info",("In Query_log_event, read flags2: %lu", (ulong) flags2));
       pos+= 4;
       break;
     case Q_SQL_MODE_CODE:
@@ -3137,8 +3139,8 @@ Rotate_log_event::Rotate_log_event(THD* thd_arg,
 #ifndef DBUG_OFF
   char buff[22];
   DBUG_ENTER("Rotate_log_event::Rotate_log_event(THD*,...)");
-  DBUG_PRINT("enter",("new_log_ident %s pos %s flags %lu", new_log_ident_arg,
-                      llstr(pos_arg, buff), flags));
+  DBUG_PRINT("enter",("new_log_ident: %s  pos: %s  flags: %lu", new_log_ident_arg,
+                      llstr(pos_arg, buff), (ulong) flags));
 #endif
   if (flags & DUP_NAME)
     new_log_ident= my_strdup_with_length(new_log_ident_arg,
@@ -3912,7 +3914,7 @@ Slave_log_event::Slave_log_event(THD* thd_arg,
     memcpy(master_log, rli->group_master_log_name, master_log_len + 1);
     master_port = mi->port;
     master_pos = rli->group_master_log_pos;
-    DBUG_PRINT("info", ("master_log: %s  pos: %d", master_log,
+    DBUG_PRINT("info", ("master_log: %s  pos: %lu", master_log,
 			(ulong) master_pos));
   }
   else

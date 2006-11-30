@@ -842,12 +842,6 @@ my_bool my_gethwaddr(uchar *to);
 #endif
 
 #define my_mmap(a,b,c,d,e,f)    mmap(a,b,c,d,e,f)
-#ifdef HAVE_GETPAGESIZE
-#define my_getpagesize()        getpagesize()
-#else
-/* qnx ? */
-#define my_getpagesize()        8192
-#endif
 #define my_munmap(a,b)          munmap((a),(b))
 
 #else
@@ -863,9 +857,15 @@ my_bool my_gethwaddr(uchar *to);
 #define HAVE_MMAP
 #endif
 
-int my_getpagesize(void);
 void *my_mmap(void *, size_t, int, int, int, my_off_t);
 int my_munmap(void *, size_t);
+#endif
+
+/* my_getpagesize */
+#ifdef HAVE_GETPAGESIZE
+#define my_getpagesize()        getpagesize()
+#else
+int my_getpagesize(void);
 #endif
 
 int my_msync(int, void *, size_t, int);

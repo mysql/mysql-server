@@ -1,7 +1,7 @@
 REM quick and dirty build file for testing different MSDEVs
 setlocal 
 
-set myFLAGS= /I../include /I../taocrypt/include /I../mySTL /c /W3 /G6 /O2 /MT /D"WIN32" /D"NO_MAIN_DRIVER"
+set myFLAGS= /I../include /I../taocrypt/include /I../taocrypt/mySTL /c /W3 /G6 /O2 /MT /D"WIN32" /D"NO_MAIN_DRIVER"
 
 cl %myFLAGS% testsuite.cpp
 cl %myFLAGS% ../examples/client/client.cpp

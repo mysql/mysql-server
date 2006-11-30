@@ -1524,6 +1524,11 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
       
       break;
     }
+    case StopRecord::SR_BLOCK_GCP_START_GCP:
+    case StopRecord::SR_WAIT_COMPLETE_GCP:
+    case StopRecord::SR_UNBLOCK_GCP_START_GCP:
+    case StopRecord::SR_CLUSTER_SHUTDOWN:
+      break;
     }
   }
   
@@ -2283,7 +2288,7 @@ Ndbcntr::StopRecord::checkNodeFail(Signal* signal){
 
     bool allNodesStopped = true;
     int i ;
-    for( i = 0; i<  NdbNodeBitmask::Size; i++ ){
+    for( i = 0; i < (int) NdbNodeBitmask::Size; i++ ){
       if ( stopReq.nodes[i] != 0 ){
         allNodesStopped = false;
         break;

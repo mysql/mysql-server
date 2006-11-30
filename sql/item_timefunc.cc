@@ -290,15 +290,16 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
 
   for (; ptr != end && val != val_end; ptr++)
   {
+    /* Skip pre-space between each argument */
+    while (val != val_end && my_isspace(cs, *val))
+      val++;
+
     if (*ptr == '%' && ptr+1 != end)
     {
       int val_len;
       char *tmp;
 
       error= 0;
-      /* Skip pre-space between each argument */
-      while (val != val_end && my_isspace(cs, *val))
-	val++;
 
       val_len= (uint) (val_end - val);
       switch (*++ptr) {
@@ -1413,17 +1414,6 @@ String *Item_date::val_str(String *str)
 }
 
 
-int Item_date::save_in_field(Field *field, bool no_conversions)
-{
-  TIME ltime;
-  if (get_date(&ltime, TIME_FUZZY_DATE))
-    return set_field_to_null(field);
-  field->set_notnull();
-  field->store_time(&ltime, MYSQL_TIMESTAMP_DATE);
-  return 0;
-}
-
-
 longlong Item_date::val_int()
 {
   DBUG_ASSERT(fixed == 1);
@@ -2498,7 +2488,8 @@ String *Item_char_typecast::val_str(String *str)
     {                                           // Safe even if const arg
       char char_type[40];
       my_snprintf(char_type, sizeof(char_type), "%s(%lu)",
-                  cast_cs == &my_charset_bin ? "BINARY" : "CHAR", length);
+                  cast_cs == &my_charset_bin ? "BINARY" : "CHAR",
+                  (ulong) length);
 
       if (!res->alloced_length())
       {                                         // Don't change const str
@@ -3332,7 +3323,9 @@ bool Item_func_str_to_date::get_date(TIME *ltime, uint fuzzy_date)
   date_time_format.format.str=    (char*) format->ptr();
   date_time_format.format.length= format->length();
   if (extract_date_time(&date_time_format, val->ptr(), val->length(),
-			ltime, cached_timestamp_type, 0, "datetime"))
+			ltime, cached_timestamp_type, 0, "datetime") ||
+      ((fuzzy_date & TIME_NO_ZERO_DATE) &&
+       (ltime->year == 0 || ltime->month == 0 || ltime->day == 0)))
     goto null_date;
   if (cached_timestamp_type == MYSQL_TIMESTAMP_TIME && ltime->day)
   {

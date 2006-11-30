@@ -58,10 +58,10 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
                          Uint32 aVariableKeyLen)
 {
   DBUG_ENTER("NdbOperation::equal_impl");
-  DBUG_PRINT("enter", ("col=%s op=%d val=0x%x len=%u",
+  DBUG_PRINT("enter", ("col: %s  op: %d  val: 0x%lx  len: %u",
                        tAttrInfo->m_name.c_str(),
                        theOperationType,
-                       aValuePassed, aVariableKeyLen));
+                       (long) aValuePassed, aVariableKeyLen));
   if (aValuePassed != NULL)
     DBUG_DUMP("value", (char*)aValuePassed, aVariableKeyLen);
   
