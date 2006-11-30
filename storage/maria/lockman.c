@@ -1,6 +1,6 @@
-// TODO - allocate everything from dynarrays !!! (benchmark)
-// TODO instant duration locks
-// automatically place S instead of LS if possible
+#warning TODO - allocate everything from dynarrays !!! (benchmark)
+#warning TODO instant duration locks
+#warning automatically place S instead of LS if possible
 /* Copyright (C) 2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -217,7 +217,8 @@ typedef struct lockman_lock {
   uint64 resource;
   struct lockman_lock  *lonext;
   intptr volatile link;
-  uint32 hashnr; // TODO - remove hashnr from LOCK
+  uint32 hashnr;
+#warning TODO - remove hashnr from LOCK
   uint16 loid;
   uchar lock;              /* sizeof(uchar) <= sizeof(enum) */
   uchar flags;
@@ -429,7 +430,7 @@ static int lockinsert(LOCK * volatile *head, LOCK *node, LF_PINS *pins,
         cursor.upgrade_from->flags|= IGNORE_ME;
 #warning is this OK ? if a reader has already read upgrade_from, \
          it may find it conflicting with node :(
-//#error another bug - see the last test from test_lockman_simple()
+#warning another bug - see the last test from test_lockman_simple()
     }
 
   } while (res == REPEAT_ONCE_MORE);
