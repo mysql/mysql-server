@@ -224,11 +224,13 @@ struct st_connection
   char *name;
   MYSQL_STMT* stmt;
 
+#ifdef EMBEDDED_LIBRARY
   const char *cur_query;
   int cur_query_len;
   pthread_mutex_t mutex;
   pthread_cond_t cond;
   int query_done;
+#endif /*EMBEDDED_LIBRARY*/
 };
 struct st_connection connections[128];
 struct st_connection* cur_con, *next_con, *connections_end;
