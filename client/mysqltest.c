@@ -29,9 +29,10 @@
   Matt Wagner  <matt@mysql.com>
   Monty
   Jani
+  Holyfoot
 */
 
-#define MTEST_VERSION "3.0"
+#define MTEST_VERSION "3.1"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -220,6 +221,12 @@ struct st_connection
   MYSQL* util_mysql;
   char *name;
   MYSQL_STMT* stmt;
+
+  const char *cur_query;
+  int cur_query_len;
+  pthread_mutex_t mutex;
+  pthread_cond_t cond;
+  int query_done;
 };
 struct st_connection connections[128];
 struct st_connection* cur_con, *next_con, *connections_end;
@@ -264,6 +271,7 @@ enum enum_commands {
   Q_DISABLE_PARSING, Q_ENABLE_PARSING,
   Q_REPLACE_REGEX, Q_REMOVE_FILE, Q_FILE_EXIST,
   Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT,
+  Q_CHMOD_FILE,
 
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
@@ -344,8 +352,10 @@ const char *command_names[]=
   "copy_file",
   "perl",
   "die",
+               
   /* Don't execute any more commands, compare result */
   "exit",
+  "chmod",
   0
 };
 
@@ -458,7 +468,6 @@ void mysql_disable_rpl_parse(MYSQL* mysql __attribute__((unused))) {}
 int mysql_rpl_parse_enabled(MYSQL* mysql __attribute__((unused))) { return 1; }
 my_bool mysql_rpl_probe(MYSQL *mysql __attribute__((unused))) { return 1; }
 #endif
-
 void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
                                int len);
 void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val);
@@ -469,7 +478,56 @@ void handle_error(struct st_command*,
                   const char *err_sqlstate, DYNAMIC_STRING *ds);
 void handle_no_error(struct st_command*);
 
+#ifdef EMBEDDED_LIBRARY
+/*
+  send_one_query executes query in separate thread what is
+  necessary in embedded library to run 'send' in proper way.
+  This implementation doesn't handle errors returned
+  by mysql_send_query. It's technically possible, though
+  i don't see where it is needed.
+*/
+pthread_handler_t send_one_query(void *arg)
+{
+  struct st_connection *cn= (struct st_connection*)arg;
 
+  mysql_thread_init();
+  VOID(mysql_send_query(&cn->mysql, cn->cur_query, cn->cur_query_len));
+
+  mysql_thread_end();
+  pthread_mutex_lock(&cn->mutex);
+  cn->query_done= 1;
+  VOID(pthread_cond_signal(&cn->cond));
+  pthread_mutex_unlock(&cn->mutex);
+  pthread_exit(0);
+  return 0;
+}
+
+static int do_send_query(struct st_connection *cn, const char *q, int q_len,
+                         int flags)
+{
+  pthread_t tid;
+
+  if (flags & QUERY_REAP_FLAG)
+    return mysql_send_query(&cn->mysql, q, q_len);
+
+  if (pthread_mutex_init(&cn->mutex, NULL) ||
+      pthread_cond_init(&cn->cond, NULL))
+    die("Error in the thread library");
+
+  cn->cur_query= q;
+  cn->cur_query_len= q_len;
+  cn->query_done= 0;
+  if (pthread_create(&tid, NULL, send_one_query, (void*)cn))
+    die("Cannot start new thread for query");
+
+  return 0;
+}
+
+#else /*EMBEDDED_LIBRARY*/
+
+#define do_send_query(cn,q,q_len,flags) mysql_send_query(&cn->mysql, q, q_len)
+
+#endif /*EMBEDDED_LIBRARY*/
 
 void do_eval(DYNAMIC_STRING *query_eval, const char *query,
              const char *query_end, my_bool pass_through_escape_chars)
@@ -1748,6 +1806,46 @@ void do_copy_file(struct st_command *command)
   handle_command_error(command, error);
   dynstr_free(&ds_from_file);
   dynstr_free(&ds_to_file);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  SYNOPSIS
+  do_chmod_file
+  command	command handle
+
+  DESCRIPTION
+  chmod <octal> <file>
+  Change file permission of <file>
+
+*/
+
+void do_chmod_file(struct st_command *command)
+{
+  ulong mode= 0;
+  static DYNAMIC_STRING ds_mode;
+  static DYNAMIC_STRING ds_file;
+  const struct command_arg chmod_file_args[] = {
+    "mode", ARG_STRING, TRUE, &ds_mode, "Mode of file",
+    "file", ARG_STRING, TRUE, &ds_file, "Filename of file to modify"
+  };
+  DBUG_ENTER("do_chmod_file");
+
+  check_command_args(command, command->first_argument,
+                     chmod_file_args,
+                     sizeof(chmod_file_args)/sizeof(struct command_arg),
+                     ' ');
+
+  /* Parse what mode to set */
+  if (ds_mode.length != 4 ||
+      str2int(ds_mode.str, 8, 0, INT_MAX, &mode) == NullS)
+    die("You must write a 4 digit octal number for mode");
+
+  DBUG_PRINT("info", ("chmod %o %s", (uint)mode, ds_file.str));
+  handle_command_error(command, chmod(ds_file.str, mode));
+  dynstr_free(&ds_mode);
+  dynstr_free(&ds_file);
   DBUG_VOID_RETURN;
 }
 
@@ -4506,7 +4604,6 @@ int append_warnings(DYNAMIC_STRING *ds, MYSQL* mysql)
 }
 
 
-
 /*
   Run query using MySQL C API
 
@@ -4523,11 +4620,12 @@ int append_warnings(DYNAMIC_STRING *ds, MYSQL* mysql)
   error - function will not return
 */
 
-void run_query_normal(MYSQL *mysql, struct st_command *command,
+void run_query_normal(struct st_connection *cn, struct st_command *command,
                       int flags, char *query, int query_len,
                       DYNAMIC_STRING *ds, DYNAMIC_STRING *ds_warnings)
 {
   MYSQL_RES *res= 0;
+  MYSQL *mysql= &cn->mysql;
   int err= 0, counter= 0;
   DBUG_ENTER("run_query_normal");
   DBUG_PRINT("enter",("flags: %d", flags));
@@ -4538,14 +4636,26 @@ void run_query_normal(MYSQL *mysql, struct st_command *command,
     /*
       Send the query
     */
-    if (mysql_send_query(mysql, query, query_len))
+    if (do_send_query(cn, query, query_len, flags))
     {
       handle_error(command, mysql_errno(mysql), mysql_error(mysql),
 		   mysql_sqlstate(mysql), ds);
       goto end;
     }
   }
-
+#ifdef EMBEDDED_LIBRARY
+  /*
+   Here we handle 'reap' command, so we need to check if the
+   query's thread was finished and probably wait
+  */
+  else if (flags & QUERY_REAP_FLAG)
+  {
+    pthread_mutex_lock(&cn->mutex);
+    while (!cn->query_done)
+      pthread_cond_wait(&cn->cond, &cn->mutex);
+    pthread_mutex_unlock(&cn->mutex);
+  }
+#endif /*EMBEDDED_LIBRARY*/
   if (!(flags & QUERY_REAP_FLAG))
     DBUG_VOID_RETURN;
 
@@ -5036,8 +5146,9 @@ int util_query(MYSQL* org_mysql, const char* query){
 
 */
 
-void run_query(MYSQL *mysql, struct st_command *command, int flags)
+void run_query(struct st_connection *cn, struct st_command *command, int flags)
 {
+  MYSQL *mysql= &cn->mysql;
   DYNAMIC_STRING *ds;
   DYNAMIC_STRING ds_result;
   DYNAMIC_STRING ds_warnings;
@@ -5194,7 +5305,7 @@ void run_query(MYSQL *mysql, struct st_command *command, int flags)
       match_re(&ps_re, query))
     run_query_stmt(mysql, command, query, query_len, ds, &ds_warnings);
   else
-    run_query_normal(mysql, command, flags, query, query_len,
+    run_query_normal(cn, command, flags, query, query_len,
 		     ds, &ds_warnings);
 
   if (sp_created)
@@ -5624,6 +5735,7 @@ int main(int argc, char **argv)
       case Q_FILE_EXIST: do_file_exist(command); break;
       case Q_WRITE_FILE: do_write_file(command); break;
       case Q_COPY_FILE: do_copy_file(command); break;
+      case Q_CHMOD_FILE: do_chmod_file(command); break;
       case Q_PERL: do_perl(command); break;
       case Q_DELIMITER:
         do_delimiter(command);
@@ -5659,7 +5771,7 @@ int main(int argc, char **argv)
 	  strmake(command->require_file, save_file, sizeof(save_file));
 	  save_file[0]= 0;
 	}
-	run_query(&cur_con->mysql, command, QUERY_REAP_FLAG|QUERY_SEND_FLAG);
+	run_query(cur_con, command, QUERY_REAP_FLAG|QUERY_SEND_FLAG);
 	display_result_vertically= old_display_result_vertically;
         command->last_argument= command->end;
         command_executed++;
@@ -5690,7 +5802,7 @@ int main(int argc, char **argv)
 	  strmake(command->require_file, save_file, sizeof(save_file));
 	  save_file[0]= 0;
 	}
-	run_query(&cur_con->mysql, command, flags);
+	run_query(cur_con, command, flags);
 	command_executed++;
         command->last_argument= command->end;
 	break;
@@ -5716,7 +5828,7 @@ int main(int argc, char **argv)
           the query and read the result some time later when reap instruction
 	  is given on this connection.
         */
-	run_query(&cur_con->mysql, command, QUERY_SEND_FLAG);
+	run_query(cur_con, command, QUERY_SEND_FLAG);
 	command_executed++;
         command->last_argument= command->end;
 	break;

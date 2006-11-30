@@ -1774,7 +1774,7 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
         all pending update or delete operations should 
         be sent to NDB
       */
-      DBUG_PRINT("info", ("ops_pending: %d", m_ops_pending));    
+      DBUG_PRINT("info", ("ops_pending: %ld", (long) m_ops_pending));    
       if (m_ops_pending)
       {
         if (m_transaction_on)
@@ -2976,7 +2976,7 @@ int ha_ndbcluster::close_scan()
       Take over any pending transactions to the 
       deleteing/updating transaction before closing the scan    
     */
-    DBUG_PRINT("info", ("ops_pending: %d", m_ops_pending));    
+    DBUG_PRINT("info", ("ops_pending: %ld", (long) m_ops_pending));    
     if (execute_no_commit(this,trans,false) != 0) {
       no_uncommitted_rows_execute_failure();
       DBUG_RETURN(ndb_err(trans));
@@ -3542,8 +3542,8 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
 
-  DBUG_PRINT("enter", ("thd: %x, thd_ndb: %x, thd_ndb->lock_count: %d",
-                       thd, thd_ndb, thd_ndb->lock_count));
+  DBUG_PRINT("enter", ("thd: 0x%lx  thd_ndb: 0x%lx  thd_ndb->lock_count: %d",
+                       (long) thd, (long) thd_ndb, thd_ndb->lock_count));
 
   if (lock_type != F_UNLCK)
   {
@@ -3847,7 +3847,8 @@ int ndbcluster_commit(THD *thd, bool all)
   while ((share= it++))
   {
     pthread_mutex_lock(&share->mutex);
-    DBUG_PRINT("info", ("Invalidate commit_count for %s, share->commit_count: %d ", share->table_name, share->commit_count));
+    DBUG_PRINT("info", ("Invalidate commit_count for %s, share->commit_count: %lu",
+                        share->table_name, (ulong) share->commit_count));
     share->commit_count= 0;
     share->commit_count_lock++;
     pthread_mutex_unlock(&share->mutex);
@@ -4281,7 +4282,7 @@ int ha_ndbcluster::create(const char *name,
   if (packfrm(data, length, &pack_data, &pack_length))
     DBUG_RETURN(2);
   
-  DBUG_PRINT("info", ("setFrm data=%x, len=%d", pack_data, pack_length));
+  DBUG_PRINT("info", ("setFrm data: 0x%lx  len: %d", (long) pack_data, pack_length));
   tab.setFrm(pack_data, pack_length);      
   my_free((char*)data, MYF(0));
   my_free((char*)pack_data, MYF(0));
@@ -5237,7 +5238,7 @@ bool ndbcluster_init()
   }
   {
     char buf[128];
-    my_snprintf(buf, sizeof(buf), "mysqld --server-id=%d", server_id);
+    my_snprintf(buf, sizeof(buf), "mysqld --server-id=%lu", server_id);
     g_ndb_cluster_connection->set_name(buf);
   }
   g_ndb_cluster_connection->set_optimized_node_selection
@@ -5813,9 +5814,9 @@ static NDB_SHARE* get_share(const char *table_name)
   share->use_count++;
 
   DBUG_PRINT("share",
-	     ("table_name: %s, length: %d, use_count: %d, commit_count: %d",
+	     ("table_name: %s  length: %d  use_count: %d  commit_count: %lu",
 	      share->table_name, share->table_name_length, share->use_count,
-	      share->commit_count));
+	      (ulong) share->commit_count));
   pthread_mutex_unlock(&ndbcluster_mutex);
   return share;
 }
@@ -5862,14 +5863,14 @@ static int packfrm(const void *data, uint len,
   uint blob_len;
   frm_blob_struct* blob;
   DBUG_ENTER("packfrm");
-  DBUG_PRINT("enter", ("data: %x, len: %d", data, len));
+  DBUG_PRINT("enter", ("data: 0x%lx, len: %d", (long) data, len));
   
   error= 1;
   org_len= len;
   if (my_compress((byte*)data, &org_len, &comp_len))
     goto err;
   
-  DBUG_PRINT("info", ("org_len: %d, comp_len: %d", org_len, comp_len));
+  DBUG_PRINT("info", ("org_len: %lu  comp_len: %lu", org_len, comp_len));
   DBUG_DUMP("compressed", (char*)data, org_len);
   
   error= 2;
@@ -5889,7 +5890,7 @@ static int packfrm(const void *data, uint len,
   *pack_len= blob_len;
   error= 0;
   
-  DBUG_PRINT("exit", ("pack_data: %x, pack_len: %d", *pack_data, *pack_len));
+  DBUG_PRINT("exit", ("pack_data: 0x%lx, pack_len: %d", (long) *pack_data, *pack_len));
 err:
   DBUG_RETURN(error);
   
@@ -5903,13 +5904,13 @@ static int unpackfrm(const void **unpack_data, uint *unpack_len,
    byte *data;
    ulong complen, orglen, ver;
    DBUG_ENTER("unpackfrm");
-   DBUG_PRINT("enter", ("pack_data: %x", pack_data));
+   DBUG_PRINT("enter", ("pack_data: 0x%lx", (long) pack_data));
 
    complen=     uint4korr((char*)&blob->head.complen);
    orglen=      uint4korr((char*)&blob->head.orglen);
    ver=         uint4korr((char*)&blob->head.ver);
  
-   DBUG_PRINT("blob",("ver: %d complen: %d orglen: %d",
+   DBUG_PRINT("blob",("ver: %lu  complen: %lu  orglen: %lu",
                      ver,complen,orglen));
    DBUG_DUMP("blob->data", (char*) blob->data, complen);
  
@@ -5928,7 +5929,7 @@ static int unpackfrm(const void **unpack_data, uint *unpack_len,
    *unpack_data= data;
    *unpack_len= complen;
 
-   DBUG_PRINT("exit", ("frmdata: %x, len: %d", *unpack_data, *unpack_len));
+   DBUG_PRINT("exit", ("frmdata: 0x%lx, len: %d", (long) *unpack_data, *unpack_len));
 
    DBUG_RETURN(0);
 }
@@ -6521,7 +6522,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
 
   my_thread_init();
   DBUG_ENTER("ndb_util_thread");
-  DBUG_PRINT("enter", ("ndb_cache_check_time: %d", ndb_cache_check_time));
+  DBUG_PRINT("enter", ("ndb_cache_check_time: %lu", ndb_cache_check_time));
 
   thd= new THD; /* note that contructor of THD uses DBUG_ */
   THD_CHECK_SENTRY(thd);
@@ -6550,7 +6551,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
                            &abstime);
     pthread_mutex_unlock(&LOCK_ndb_util_thread);
 
-    DBUG_PRINT("ndb_util_thread", ("Started, ndb_cache_check_time: %d",
+    DBUG_PRINT("ndb_util_thread", ("Started, ndb_cache_check_time: %lu",
                                    ndb_cache_check_time));
 
     if (abort_loop)
@@ -7447,7 +7448,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
           if (context->expecting(Item::INT_ITEM)) 
           {
             Item_int *int_item= (Item_int *) item;      
-            DBUG_PRINT("info", ("value %d", int_item->value));
+            DBUG_PRINT("info", ("value %ld", (long) int_item->value));
             NDB_ITEM_QUALIFICATION q;
             q.value_type= Item::INT_ITEM;
             curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
@@ -7470,7 +7471,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->supported= FALSE;
           break;
         case Item::REAL_ITEM:
-          DBUG_PRINT("info", ("REAL_ITEM %s"));
+          DBUG_PRINT("info", ("REAL_ITEM"));
           if (context->expecting(Item::REAL_ITEM)) 
           {
             Item_float *float_item= (Item_float *) item;      
@@ -7518,7 +7519,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->supported= FALSE;
           break;
         case Item::DECIMAL_ITEM:
-          DBUG_PRINT("info", ("DECIMAL_ITEM %s"));
+          DBUG_PRINT("info", ("DECIMAL_ITEM"));
           if (context->expecting(Item::DECIMAL_ITEM)) 
           {
             Item_decimal *decimal_item= (Item_decimal *) item;      

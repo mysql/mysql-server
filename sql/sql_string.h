@@ -32,6 +32,14 @@ String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);
 uint32 copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs,
 			const char *from, uint32 from_length,
 			CHARSET_INFO *from_cs, uint *errors);
+uint32 well_formed_copy_nchars(CHARSET_INFO *to_cs,
+                               char *to, uint to_length,
+                               CHARSET_INFO *from_cs,
+                               const char *from, uint from_length,
+                               uint nchars,
+                               const char **well_formed_error_pos,
+                               const char **cannot_convert_error_pos,
+                               const char **from_end_pos);
 
 class String
 {

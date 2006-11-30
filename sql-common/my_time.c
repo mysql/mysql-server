@@ -76,8 +76,8 @@ uint calc_days_in_year(uint year)
     1  error
 */
 
-static my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
-                          ulong flags, int *was_cut)
+my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
+                   ulong flags, int *was_cut)
 {
   if (not_zero_date)
   {
@@ -411,7 +411,9 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
   if (number_of_fields < 3 ||
       l_time->year > 9999 || l_time->month > 12 ||
       l_time->day > 31 || l_time->hour > 23 ||
-      l_time->minute > 59 || l_time->second > 59)
+      l_time->minute > 59 || l_time->second > 59 ||
+      (l_time->year == 0 && l_time->month == 0 && l_time->day == 0 && 
+       (l_time->hour != 0 || l_time->minute != 0 || l_time->second != 0)))
   {
     /* Only give warning for a zero date if there is some garbage after */
     if (!not_zero_date)                         /* If zero date */
@@ -963,7 +965,7 @@ my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone,
   */
   if ((tmp < TIMESTAMP_MIN_VALUE) || (tmp > TIMESTAMP_MAX_VALUE))
     tmp= 0;
-end:
+
   return (my_time_t) tmp;
 } /* my_system_gmt_sec */
 

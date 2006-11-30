@@ -953,6 +953,7 @@ public:
   Item_result result_type () const { return udf.result_type(); }
   table_map not_null_tables() const { return 0; }
   bool is_expensive() { return 1; }
+  void print(String *str);
 };
 
 
@@ -1291,7 +1292,7 @@ public:
    Item_func_inet_aton(Item *a) :Item_int_func(a) {}
    longlong val_int();
    const char *func_name() const { return "inet_aton"; }
-   void fix_length_and_dec() { decimals = 0; max_length = 21; maybe_null=1;}
+   void fix_length_and_dec() { decimals = 0; max_length = 21; maybe_null=1;unsigned_flag=1;}
 };
 
 

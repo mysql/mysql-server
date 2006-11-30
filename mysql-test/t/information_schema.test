@@ -973,4 +973,18 @@ DROP FUNCTION get_value;
 
 
 
+
+#
+# Bug#22413: EXPLAIN SELECT FROM view with ORDER BY yield server crash
+#
+create view v1 as
+select table_schema as object_schema,
+       table_name   as object_name,
+       table_type   as object_type
+from information_schema.tables
+order by object_schema;
+explain select * from v1;
+explain select * from (select table_name from information_schema.tables) as a;
+drop view v1;
+
 # End of 5.0 tests.

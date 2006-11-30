@@ -334,6 +334,7 @@ client/sql_string.cpp
 client/ssl_test
 client/thimble
 client/thread_test
+client/tmp.diff
 client_debug/*
 client_release/*
 client_test
@@ -697,6 +698,7 @@ mysql-test/r/*.err
 mysql-test/r/*.log
 mysql-test/r/*.out
 mysql-test/r/*.reject
+mysql-test/r/*.warnings
 mysql-test/r/alter_table.err
 mysql-test/r/archive.err
 mysql-test/r/bdb-alter-table-1.err
@@ -762,10 +764,12 @@ mysql-test/r/rpl000016.eval
 mysql-test/r/rpl_log.eval
 mysql-test/r/slave-running.eval
 mysql-test/r/slave-stopped.eval
+mysql-test/r/tmp.result
 mysql-test/r/udf.log
 mysql-test/share/mysql
 mysql-test/std_data/*.pem
 mysql-test/t/index_merge.load
+mysql-test/t/tmp.test
 mysql-test/var
 mysql-test/var/*
 mysql.kdevprj

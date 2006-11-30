@@ -138,7 +138,7 @@ static byte *next_free_record_pos(HP_SHARE *info)
     pos=info->del_link;
     info->del_link= *((byte**) pos);
     info->deleted--;
-    DBUG_PRINT("exit",("Used old position: 0x%lx",pos));
+    DBUG_PRINT("exit",("Used old position: 0x%lx",(long) pos));
     DBUG_RETURN(pos);
   }
   if (!(block_pos=(info->records % info->block.records_in_block)))
@@ -153,9 +153,9 @@ static byte *next_free_record_pos(HP_SHARE *info)
       DBUG_RETURN(NULL);
     info->data_length+=length;
   }
-  DBUG_PRINT("exit",("Used new position: %lx",
-		     (byte*) info->block.level_info[0].last_blocks+block_pos*
-		     info->block.recbuffer));
+  DBUG_PRINT("exit",("Used new position: 0x%lx",
+		     (long) ((byte*) info->block.level_info[0].last_blocks+
+                             block_pos * info->block.recbuffer)));
   DBUG_RETURN((byte*) info->block.level_info[0].last_blocks+
 	      block_pos*info->block.recbuffer);
 }

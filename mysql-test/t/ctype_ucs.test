@@ -298,7 +298,7 @@ INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
 SELECT HEX(a) FROM t1;
 DROP TABLE t1;
 
--- the same should be also done with enum and set
+# the same should be also done with enum and set
 
 
 #
@@ -453,6 +453,23 @@ execute stmt using @param1;
 select utext from t1 where utext like '%%';
 drop table t1;
 deallocate prepare stmt;
+
+#
+# Bug#22052 Trailing spaces are not removed from UNICODE fields in an index
+#
+create table t1 (
+  a char(10) unicode not null, 
+  index a (a)
+) engine=myisam;
+insert into t1 values (repeat(0x201f, 10));
+insert into t1 values (repeat(0x2020, 10));
+insert into t1 values (repeat(0x2021, 10));
+# make sure "index read" is used
+explain select hex(a) from t1 order by a;
+select hex(a) from t1 order by a;
+alter table t1 drop index a;
+select hex(a) from t1 order by a;
+drop table t1;
 
 #
 # Bug #20076: server crashes for a query with GROUP BY if MIN/MAX aggregation

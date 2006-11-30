@@ -31,6 +31,11 @@
 
 #include "hash.hpp"
 
+
+#if defined(TAOCRYPT_X86ASM_AVAILABLE) && defined(TAO_ASM)
+    #define DO_SHA_ASM
+#endif
+
 namespace TaoCrypt {
 
 
@@ -46,7 +51,9 @@ public:
     word32    getDigestSize() const { return DIGEST_SIZE; }
     word32    getPadSize()    const { return PAD_SIZE; }
 
+#ifdef DO_SHA_ASM
     void Update(const byte* data, word32 len);
+#endif
     void Init();
 
     SHA(const SHA&);
