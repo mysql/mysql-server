@@ -46,6 +46,10 @@ create table t1 (a tinyint(1),b binary(1));
 insert into t1 values (0x01,0x01);
 select * from t1 where a=b;
 a	b
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: ''
 select * from t1 where a=b and b=0x01;
 a	b
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: ''
 drop table if exists t1;
