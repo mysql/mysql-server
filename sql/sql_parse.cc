@@ -4435,7 +4435,7 @@ end_with_restore_list:
       Verify that the database name is allowed, optionally
       lowercase it.
     */
-    if (check_db_name(lex->sphead->m_db.str))
+    if (check_db_name(&lex->sphead->m_db))
     {
       my_error(ER_WRONG_DB_NAME, MYF(0), lex->sphead->m_db.str);
       delete lex->sphead;
