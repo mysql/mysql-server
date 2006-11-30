@@ -896,8 +896,6 @@ struct buf_page_struct{
 	ulint		flush_type:2;	/* if this block is currently being
 					flushed to disk, this tells the
 					flush_type (@see enum buf_flush) */
-	ulint		old:1;		/* TRUE if the block is in the old
-					blocks in the LRU list */
 	ulint		accessed:1;	/* TRUE if the page has been accessed
 					while in the buffer pool: read-ahead
 					may read in pages which have not been
@@ -907,7 +905,7 @@ struct buf_page_struct{
 	ulint		io_fix:2;	/* type of pending I/O operation
 					(@see enum buf_io_fix); also
 					protected by buf_pool->mutex */
-	ulint		buf_fix_count:23;/* count of how manyfold this block
+	ulint		buf_fix_count:24;/* count of how manyfold this block
 					is currently bufferfixed */
 
 	page_zip_des_t	zip;		/* compressed page */
@@ -930,8 +928,7 @@ struct buf_page_struct{
 					not yet been flushed on disk; zero if
 					all modifications are on disk */
 
-	/* 3. LRU replacement algorithm fields; protected by buf_pool->mutex
-	unless otherwise noted*/
+	/* 3. LRU replacement algorithm fields; protected by buf_pool->mutex */
 
 	UT_LIST_NODE_T(buf_page_t) LRU;
 					/* node of the LRU list */
@@ -939,21 +936,23 @@ struct buf_page_struct{
 	ibool		in_LRU_list;	/* TRUE of the page is in the LRU list;
 					used in debugging */
 #endif /* UNIV_DEBUG */
-	ulint		LRU_position;	/* value which monotonically
-					decreases (or may stay constant if
-					the block is in the old blocks) toward
-					the end of the LRU list, if the pool
-					ulint_clock has not wrapped around:
-					NOTE that this value can only be used
-					in heuristic algorithms, because of
-					the possibility of a wrap-around! */
-	ulint		freed_page_clock;/* the value of freed_page_clock
-					of the buffer pool when this block was
-					the last time put to the head of the
-					LRU list; protected by buf_pool->mutex;
-					a thread is allowed to read this for
-					heuristic purposes without holding any
-					mutex or latch */
+	ulint		old:1;		/* TRUE if the block is in the old
+					blocks in the LRU list */
+	ulint		LRU_position:31;/* value which monotonically decreases
+					(or may stay constant if old==TRUE)
+					toward the end of the LRU list, if
+					buf_pool->ulint_clock has not wrapped
+					around: NOTE that this value can only
+					be used in heuristic algorithms,
+					because of the possibility of a
+					wrap-around! */
+	ulint		freed_page_clock:32;/* the value of
+					buf_pool->freed_page_clock when this
+					block was the last time put to the
+					head of the LRU list; a thread is
+					allowed to read this for heuristic
+					purposes without holding any mutex or
+					latch */
 #ifdef UNIV_DEBUG_FILE_ACCESSES
 	ibool		file_page_was_freed;
 					/* this is set to TRUE when fsp
