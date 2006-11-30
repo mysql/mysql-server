@@ -2020,8 +2020,8 @@ int ha_federated::delete_row(const byte *buf)
   {
     DBUG_RETURN(stash_remote_error());
   }
-  deleted+= (ha_rows) mysql->affected_rows;
-  records-= (ha_rows) mysql->affected_rows;
+  stats.deleted+= (ha_rows) mysql->affected_rows;
+  stats.records-= (ha_rows) mysql->affected_rows;
   DBUG_PRINT("info",
              ("rows deleted %ld  rows deleted for all time %ld",
               (long) mysql->affected_rows, (long) stats.deleted));
