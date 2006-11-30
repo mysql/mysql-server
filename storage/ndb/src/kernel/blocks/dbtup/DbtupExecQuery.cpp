@@ -684,7 +684,7 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
    copyAttrinfo(regOperPtr, &cinBuffer[0]);
    
    Uint32 localkey = (pageid << MAX_TUPLES_BITS) + pageidx;
-   if(Roptype == ZINSERT && localkey == ~0)
+   if (Roptype == ZINSERT && localkey == ~ (Uint32) 0)
    {
      // No tuple allocatated yet
      goto do_insert;

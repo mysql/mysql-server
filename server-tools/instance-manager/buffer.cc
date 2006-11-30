@@ -27,7 +27,7 @@ const uint Buffer::MAX_BUFFER_SIZE= 16777216;
 /*
   Puts the given string to the buffer.
 
-  SYNOPSYS
+  SYNOPSIS
     append()
     position          start position in the buffer
     string            string to be put in the buffer
@@ -59,7 +59,7 @@ int Buffer::append(uint position, const char *string, uint len_arg)
   Checks whether the current buffer size is ok to put a string of the length
   "len_arg" starting from "position" and reallocs it if no.
 
-  SYNOPSYS
+  SYNOPSIS
     reserve()
     position          the number starting byte on the buffer to store a buffer
     len_arg           the length of the string.

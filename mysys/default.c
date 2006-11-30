@@ -488,7 +488,7 @@ static int search_default_file(Process_option_func opt_handler,
   my_bool have_ext= fn_ext(config_file)[0] != 0;
   const char **exts_to_use= have_ext ? empty_list : f_extensions;
 
-  for (ext= (char**) exts_to_use; *ext; *ext++)
+  for (ext= (char**) exts_to_use; *ext; ext++)
   {
     int error;
     if ((error= search_default_file_with_ext(opt_handler, handler_ctx,
@@ -676,7 +676,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
           ext= fn_ext(search_file->name);
 
           /* check extension */
-          for (tmp_ext= (char**) f_extensions; *tmp_ext; *tmp_ext++)
+          for (tmp_ext= (char**) f_extensions; *tmp_ext; tmp_ext++)
           {
             if (!strcmp(ext, *tmp_ext))
               break;
@@ -869,7 +869,7 @@ void my_print_default_files(const char *conf_file)
   {
     for (dirs=default_directories ; *dirs; dirs++)
     {
-      for (ext= (char**) exts_to_use; *ext; *ext++)
+      for (ext= (char**) exts_to_use; *ext; ext++)
       {
 	const char *pos;
 	char *end;

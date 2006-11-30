@@ -23,21 +23,26 @@ extern struct st_mysql_plugin *mysqld_builtins[];
 
 char *opt_plugin_dir_ptr;
 char opt_plugin_dir[FN_REFLEN];
+/*
+  When you ad a new plugin type, add both a string and make sure that the 
+  init and deinit array are correctly updated.
+*/
 const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
   { C_STRING_WITH_LEN("UDF") },
   { C_STRING_WITH_LEN("STORAGE ENGINE") },
-  { C_STRING_WITH_LEN("FTPARSER") }
+  { C_STRING_WITH_LEN("FTPARSER") },
+  { C_STRING_WITH_LEN("DAEMON") }
 };
 
 plugin_type_init plugin_type_initialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
-  0,ha_initialize_handlerton,0
+  0,ha_initialize_handlerton,0,0
 };
 
 plugin_type_init plugin_type_deinitialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
-  0,ha_finalize_handlerton,0
+  0,ha_finalize_handlerton,0,0
 };
 
 static const char *plugin_interface_version_sym=
@@ -53,13 +58,15 @@ static int min_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
   0x0000,
   MYSQL_HANDLERTON_INTERFACE_VERSION,
-  MYSQL_FTPARSER_INTERFACE_VERSION
+  MYSQL_FTPARSER_INTERFACE_VERSION,
+  MYSQL_DAEMON_INTERFACE_VERSION
 };
 static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
   0x0000, /* UDF: not implemented */
   MYSQL_HANDLERTON_INTERFACE_VERSION,
-  MYSQL_FTPARSER_INTERFACE_VERSION
+  MYSQL_FTPARSER_INTERFACE_VERSION,
+  MYSQL_DAEMON_INTERFACE_VERSION
 };
 
 static DYNAMIC_ARRAY plugin_dl_array;
@@ -508,7 +515,7 @@ void plugin_deinitialize(struct st_plugin_int *plugin)
   else if (plugin->plugin->deinit)
   {
     DBUG_PRINT("info", ("Deinitializing plugin: '%s'", plugin->name.str));
-    if (plugin->plugin->deinit(NULL))
+    if (plugin->plugin->deinit(plugin))
     {
       DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
                              plugin->name.str));
@@ -568,7 +575,7 @@ static int plugin_initialize(struct st_plugin_int *plugin)
   }
   else if (plugin->plugin->init)
   {
-    if (plugin->plugin->init(NULL))
+    if (plugin->plugin->init(plugin))
     {
       sql_print_error("Plugin '%s' init function returned error.",
                       plugin->name.str);

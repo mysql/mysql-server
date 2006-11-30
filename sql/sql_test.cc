@@ -248,14 +248,15 @@ print_plan(JOIN* join, uint idx, double record_count, double read_time,
   if (join->best_read == DBL_MAX)
   {
     fprintf(DBUG_FILE,
-    "%s; idx:%u, best: DBL_MAX, atime: %g, itime: %g, count: %g\n",
-    info, idx, current_read_time, read_time, record_count);
+            "%s; idx: %u  best: DBL_MAX  atime: %g  itime: %g  count: %g\n",
+            info, idx, current_read_time, read_time, record_count);
   }
   else
   {
     fprintf(DBUG_FILE,
-    "%s; idx:%u, best: %g, accumulated: %g, increment: %g, count: %g\n",
-    info, idx, join->best_read, current_read_time, read_time, record_count);
+            "%s; idx :%u  best: %g  accumulated: %g  increment: %g  count: %g\n",
+            info, idx, join->best_read, current_read_time, read_time,
+            record_count);
   }
 
   /* Print the tables in JOIN->positions */

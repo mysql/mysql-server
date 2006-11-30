@@ -97,6 +97,17 @@ void turn_parser_debug_on()
 }
 #endif
 
+static bool is_native_function(THD *thd, const LEX_STRING *name)
+{
+  if (find_native_function_builder(thd, *name))
+    return true;
+
+  if (is_lex_native_function(name))
+    return true;
+
+  return false;
+}
+
 %}
 %union {
   int  num;
@@ -735,7 +746,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	LEX_HOSTNAME ULONGLONG_NUM field_ident select_alias ident ident_or_text
         UNDERSCORE_CHARSET IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
 	NCHAR_STRING opt_component key_cache_name
-        sp_opt_label BIN_NUM label_ident TEXT_STRING_filesystem
+        sp_opt_label BIN_NUM label_ident TEXT_STRING_filesystem ident_or_empty
 
 %type <lex_str_ptr>
 	opt_table_alias
@@ -745,7 +756,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <simple_string>
 	remember_name remember_end opt_ident opt_db text_or_password
-	opt_constraint constraint ident_or_empty
+	opt_constraint constraint
 
 %type <string>
 	text_string opt_gconcat_separator
@@ -797,8 +808,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <item_list>
 	expr_list udf_expr_list udf_expr_list2 when_list
-	ident_list ident_list_arg
-        expr_list_opt
+	ident_list ident_list_arg opt_expr_list
 
 %type <var_type>
         option_type opt_var_type opt_var_ident_type
@@ -1229,7 +1239,8 @@ create:
 	  lex->create_info.options=$2 | $4;
 	  lex->create_info.db_type= lex->thd->variables.table_type;
 	  lex->create_info.default_table_charset= NULL;
-	  lex->name= 0;
+	  lex->name.str= 0;
+          lex->name.length= 0;
          lex->like_name= 0;
 	}
 	create2
@@ -1269,7 +1280,7 @@ create:
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command=SQLCOM_CREATE_DB;
-	    lex->name=$4.str;
+	    lex->name= $4;
             lex->create_info.options=$3;
 	  }
 	| CREATE
@@ -1504,7 +1515,7 @@ clear_privileges:
 sp_name:
 	  ident '.' ident
 	  {
-            if (!$1.str || check_db_name($1.str))
+            if (!$1.str || check_db_name(&$1))
             {
 	      my_error(ER_WRONG_DB_NAME, MYF(0), $1.str);
 	      YYABORT;
@@ -1537,6 +1548,7 @@ sp_name:
 create_function_tail:
 	  RETURNS_SYM udf_type SONAME_SYM TEXT_STRING_sys
 	  {
+            THD *thd= YYTHD;
 	    LEX *lex=Lex;
             if (lex->definer != NULL)
             {
@@ -1547,6 +1559,12 @@ create_function_tail:
                 and is considered a parsing error.
               */
 	      my_error(ER_WRONG_USAGE, MYF(0), "SONAME", "DEFINER");
+              YYABORT;
+            }
+            if (is_native_function(thd, & lex->spname->m_name))
+            {
+              my_error(ER_NATIVE_FCT_NAME_COLLISION, MYF(0),
+                       lex->spname->m_name.str);
               YYABORT;
             }
 	    lex->sql_command = SQLCOM_CREATE_FUNCTION;
@@ -1637,6 +1655,7 @@ create_function_tail:
 	  }
 	  sp_proc_stmt
 	  {
+            THD *thd= YYTHD;
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
 
@@ -1644,15 +1663,50 @@ create_function_tail:
               YYABORT;
 
 	    lex->sql_command= SQLCOM_CREATE_SPFUNCTION;
-	    sp->init_strings(YYTHD, lex);
+	    sp->init_strings(thd, lex);
             if (!(sp->m_flags & sp_head::HAS_RETURN))
             {
               my_error(ER_SP_NORETURN, MYF(0), sp->m_qname.str);
               YYABORT;
             }
+            if (is_native_function(thd, & sp->m_name))
+            {
+              /*
+                This warning will be printed when
+                [1] A client query is parsed,
+                [2] A stored function is loaded by db_load_routine.
+                Printing the warning for [2] is intentional, to cover the
+                following scenario:
+                - A user define a SF 'foo' using MySQL 5.N
+                - An application uses select foo(), and works.
+                - MySQL 5.{N+1} defines a new native function 'foo', as
+                part of a new feature.
+                - MySQL 5.{N+1} documentation is updated, and should mention
+                that there is a potential incompatible change in case of
+                existing stored function named 'foo'.
+                - The user deploys 5.{N+1}. At this point, 'select foo()'
+                means something different, and the user code is most likely
+                broken (it's only safe if the code is 'select db.foo()').
+                With a warning printed when the SF is loaded (which has to occur
+                before the call), the warning will provide a hint explaining
+                the root cause of a later failure of 'select foo()'.
+                With no warning printed, the user code will fail with no
+                apparent reason.
+                Printing a warning each time db_load_routine is executed for
+                an ambiguous function is annoying, since that can happen a lot,
+                but in practice should not happen unless there *are* name
+                collisions.
+                If a collision exists, it should not be silenced but fixed.
+              */
+              push_warning_printf(thd,
+                                  MYSQL_ERROR::WARN_LEVEL_NOTE,
+                                  ER_NATIVE_FCT_NAME_COLLISION,
+                                  ER(ER_NATIVE_FCT_NAME_COLLISION),
+                                  sp->m_name.str);
+            }
 	    /* Restore flag if it was cleared above */
-	    YYTHD->client_capabilities |= $<ulong_num>2;
-	    sp->restore_thd_mem_root(YYTHD);
+	    thd->client_capabilities |= $<ulong_num>2;
+	    sp->restore_thd_mem_root(thd);
 	  }
 	;
 
@@ -3094,7 +3148,7 @@ size_number:
             uint text_shift_number= 0;
             longlong prefix_number;
             char *start_ptr= $1.str;
-            uint str_len= strlen(start_ptr);
+            uint str_len= $1.length;
             char *end_ptr= start_ptr + str_len;
             int error;
             prefix_number= my_strtoll10(start_ptr, &end_ptr, &error);
@@ -4618,7 +4672,8 @@ alter:
 	{
 	  THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
-         lex->name= 0;
+          lex->name.str= 0;
+          lex->name.length= 0;
 	  lex->sql_command= SQLCOM_ALTER_TABLE;
 	  lex->duplicates= DUP_ERROR; 
 	  if (!lex->select_lex.add_table_to_list(thd, $4, NULL,
@@ -4628,7 +4683,6 @@ alter:
 	  lex->key_list.empty();
 	  lex->col_list.empty();
           lex->select_lex.init_order();
-	  lex->name= 0;
 	  lex->like_name= 0;
 	  lex->select_lex.db=
             ((TABLE_LIST*) lex->select_lex.table_list.first)->db;
@@ -4653,7 +4707,8 @@ alter:
             THD *thd= Lex->thd;
 	    lex->sql_command=SQLCOM_ALTER_DB;
 	    lex->name= $3;
-            if (lex->name == NULL && thd->copy_db_to(&lex->name, NULL))
+            if (lex->name.str == NULL &&
+                thd->copy_db_to(&lex->name.str, &lex->name.length))
               YYABORT;
 	  }
 	| ALTER PROCEDURE sp_name
@@ -4803,8 +4858,8 @@ opt_ev_sql_stmt: /* empty*/ { $$= 0;}
 
 
 ident_or_empty:
-	/* empty */  { $$= 0; }
-	| ident      { $$= $1.str; };
+	/* empty */  { $$.str= 0; $$.length= 0; }
+	| ident      { $$= $1; };
 
 alter_commands:
 	| DISCARD TABLESPACE { Lex->alter_info.tablespace_op= DISCARD_TABLESPACE; }
@@ -5082,19 +5137,20 @@ alter_list_item:
 	  {
 	    LEX *lex=Lex;
             THD *thd= lex->thd;
+	    uint dummy;
 	    lex->select_lex.db=$3->db.str;
             if (lex->select_lex.db == NULL &&
-                thd->copy_db_to(&lex->select_lex.db, NULL))
+                thd->copy_db_to(&lex->select_lex.db, &dummy))
             {
               YYABORT;
             }
             if (check_table_name($3->table.str,$3->table.length) ||
-                $3->db.str && check_db_name($3->db.str))
+                $3->db.str && check_db_name(&$3->db))
             {
               my_error(ER_WRONG_TABLE_NAME, MYF(0), $3->table.str);
               YYABORT;
             }
-	    lex->name= $3->table.str;
+	    lex->name= $3->table;
 	    lex->alter_info.flags|= ALTER_RENAME;
 	  }
 	| CONVERT_SYM TO_SYM charset charset_name_or_default opt_collate
@@ -6361,11 +6417,11 @@ function_call_generic:
         {
 #ifdef HAVE_DLOPEN
           udf_func *udf= 0;
+          LEX *lex= Lex;
           if (using_udf_functions &&
               (udf= find_udf($1.str, $1.length)) &&
               udf->type == UDFTYPE_AGGREGATE)
           {
-            LEX *lex= Lex;
             if (lex->current_select->inc_in_sum_expr())
             {
               yyerror(ER(ER_SYNTAX_ERROR));
@@ -6373,10 +6429,10 @@ function_call_generic:
             }
           }
           /* Temporary placing the result of find_udf in $3 */
-          $<udf>$= udf;
+          lex->current_select->udf_list.push_front(udf);
 #endif
         }
-        expr_list_opt ')'
+        udf_expr_list ')'
         {
           THD *thd= YYTHD;
           LEX *lex= Lex;
@@ -6401,9 +6457,10 @@ function_call_generic:
           {
 #ifdef HAVE_DLOPEN
             /* Retrieving the result of find_udf */
-            udf_func *udf= $<udf>3;
+            udf_func *udf;
+            LEX *lex= Lex;
 
-            if (udf)
+            if (NULL != (udf= lex->current_select->udf_list.pop()))
             {
               if (udf->type == UDFTYPE_AGGREGATE)
               {
@@ -6426,7 +6483,7 @@ function_call_generic:
             YYABORT;
           }
         }
-	| ident '.' ident '(' udf_expr_list ')'
+	| ident '.' ident '(' opt_expr_list ')'
 	{
           THD *thd= YYTHD;
           Create_qfunc *builder;
@@ -6499,12 +6556,29 @@ udf_expr_list3:
 udf_expr:
 	remember_name expr remember_end select_alias
 	{
+          udf_func *udf= Select->udf_list.head();
+          /*
+           Use Item::name as a storage for the attribute value of user
+           defined function argument. It is safe to use Item::name
+           because the syntax will not allow having an explicit name here.
+           See WL#1017 re. udf attributes.
+          */
 	  if ($4.str)
           {
+            if (!udf)
+            {
+              /*
+                Disallow using AS to specify explicit names for the arguments
+                of stored routine calls
+              */
+              yyerror(ER(ER_SYNTAX_ERROR));
+              YYABORT;
+            }
+
             $2->is_autogenerated_name= FALSE;
 	    $2->set_name($4.str, $4.length, system_charset_info);
           }
-	  else
+	  else if (udf)
 	    $2->set_name($1, (uint) ($3 - $1), YYTHD->charset());
 	  $$= $2;
 	}
@@ -6665,12 +6739,10 @@ cast_type:
         | DECIMAL_SYM float_options { $$=ITEM_CAST_DECIMAL; Lex->charset= NULL; }
 	;
 
-expr_list_opt:
-        /* empty */
-          { $$ = NULL; }
-        | expr_list
-          { $$ = $1;}
-        ;
+opt_expr_list:
+	/* empty */ { $$= NULL; }
+	| expr_list { $$= $1;}
+	;
 
 expr_list:
 	{ Select->expr_list.push_front(new List<Item>); }
@@ -7627,7 +7699,7 @@ drop:
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_DROP_DB;
 	    lex->drop_if_exists=$3;
-	    lex->name=$4.str;
+	    lex->name= $4;
 	 }
 	| DROP FUNCTION_SYM if_exists sp_name
 	  {
@@ -7669,11 +7741,12 @@ drop:
             Lex->spname= $4;
             Lex->sql_command = SQLCOM_DROP_EVENT;
           }
-        | DROP TRIGGER_SYM sp_name
+        | DROP TRIGGER_SYM if_exists sp_name
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_DROP_TRIGGER;
-            lex->spname= $3;
+            lex->drop_if_exists= $3;
+            lex->spname= $4;
 	  }
         | DROP TABLESPACE tablespace_name opt_ts_engine opt_ts_wait
           {
@@ -7684,7 +7757,7 @@ drop:
           {
             LEX *lex= Lex;
             lex->alter_tablespace_info->ts_cmd_type= DROP_LOGFILE_GROUP;
-          }
+         }
 	;
 
 table_list:
@@ -8274,7 +8347,7 @@ show_param:
 	  {
 	    Lex->sql_command=SQLCOM_SHOW_CREATE_DB;
 	    Lex->create_info.options=$3;
-	    Lex->name=$4.str;
+	    Lex->name= $4;
 	  }
         | CREATE TABLE_SYM table_ident
           {
@@ -8640,6 +8713,8 @@ load_data_lock:
               Ignore this option in SP to avoid problem with query cache
             */
             if (Lex->sphead != 0)
+              $$= YYTHD->update_lock_default;
+            else
 #endif
               $$= TL_WRITE_CONCURRENT_INSERT;
           }
@@ -10279,7 +10354,8 @@ grant_ident:
 	  {
 	    LEX *lex= Lex;
             THD *thd= lex->thd;
-            if (thd->copy_db_to(&lex->current_select->db, NULL))
+            uint dummy;
+            if (thd->copy_db_to(&lex->current_select->db, &dummy))
               YYABORT;
 	    if (lex->grant == GLOBAL_ACLS)
 	      lex->grant = DB_ACLS & ~GRANT_ACL;

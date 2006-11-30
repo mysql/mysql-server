@@ -376,3 +376,33 @@ select extractValue('<:>test</:>','//*');
 select extractValue('<_>test</_>','//*');
 # dot, dash, underscore and semicolon are good identifier middle characters
 select extractValue('<x.-_:>test</x.-_:>','//*');
+
+#
+# Bug#22823 gt and lt operators appear to be
+# reversed in ExtractValue() command
+#
+set @xml= "<entry><id>pt10</id><pt>10</pt></entry><entry><id>pt50</id><pt>50</pt></entry>";
+select ExtractValue(@xml, "/entry[(pt=10)]/id");
+select ExtractValue(@xml, "/entry[(pt!=10)]/id");
+select ExtractValue(@xml, "/entry[(pt<10)]/id");
+select ExtractValue(@xml, "/entry[(pt<=10)]/id");
+select ExtractValue(@xml, "/entry[(pt>10)]/id");
+select ExtractValue(@xml, "/entry[(pt>=10)]/id");
+select ExtractValue(@xml, "/entry[(pt=50)]/id");
+select ExtractValue(@xml, "/entry[(pt!=50)]/id");
+select ExtractValue(@xml, "/entry[(pt<50)]/id");
+select ExtractValue(@xml, "/entry[(pt<=50)]/id");
+select ExtractValue(@xml, "/entry[(pt>50)]/id");
+select ExtractValue(@xml, "/entry[(pt>=50)]/id");
+select ExtractValue(@xml, "/entry[(10=pt)]/id");
+select ExtractValue(@xml, "/entry[(10!=pt)]/id");
+select ExtractValue(@xml, "/entry[(10>pt)]/id");
+select ExtractValue(@xml, "/entry[(10>=pt)]/id");
+select ExtractValue(@xml, "/entry[(10<pt)]/id");
+select ExtractValue(@xml, "/entry[(10<=pt)]/id");
+select ExtractValue(@xml, "/entry[(50=pt)]/id");
+select ExtractValue(@xml, "/entry[(50!=pt)]/id");
+select ExtractValue(@xml, "/entry[(50>pt)]/id");
+select ExtractValue(@xml, "/entry[(50>=pt)]/id");
+select ExtractValue(@xml, "/entry[(50<pt)]/id");
+select ExtractValue(@xml, "/entry[(50<=pt)]/id");

@@ -849,6 +849,9 @@ drop table t1;
 # Bug#16365 Prepared Statements: DoS with too many open statements
 # Check that the limit @@max_prpeared_stmt_count works.
 #
+# This is also the test for bug#23159 prepared_stmt_count should be
+# status variable.
+#
 # Save the old value
 set @old_max_prepared_stmt_count= @@max_prepared_stmt_count;
 #
@@ -858,17 +861,17 @@ set @old_max_prepared_stmt_count= @@max_prepared_stmt_count;
 #
 --disable_ps_protocol
 #
-# A. Check that the new variables are present in SHOW VARIABLES list.
+# A. Check that the new variables are present in SHOW VARIABLES and
+# SHOW STATUS lists.
 #
 show variables like 'max_prepared_stmt_count';
-show variables like 'prepared_stmt_count';
+show status like 'prepared_stmt_count';
 #
-# B. Check that the new variables are selectable.
+# B. Check that the new system variable is selectable.
 #
-select @@max_prepared_stmt_count, @@prepared_stmt_count;
+select @@max_prepared_stmt_count;
 #
-# C. Check that max_prepared_stmt_count is settable (global only),
-#    whereas prepared_stmt_count is readonly.
+# C. Check that max_prepared_stmt_count is settable (global only).
 #
 set global max_prepared_stmt_count=-1;
 select @@max_prepared_stmt_count;
@@ -882,12 +885,6 @@ set @@max_prepared_stmt_count=1;
 set max_prepared_stmt_count=1;
 --error ER_GLOBAL_VARIABLE
 set local max_prepared_stmt_count=1;
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-set local prepared_stmt_count=0;
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-set @@prepared_stmt_count=0;
---error ER_INCORRECT_GLOBAL_LOCAL_VAR 
-set global prepared_stmt_count=1;
 # set to a reasonable limit works
 set global max_prepared_stmt_count=1;
 select @@max_prepared_stmt_count;
@@ -895,47 +892,50 @@ select @@max_prepared_stmt_count;
 # D. Check that the variables actually work.
 #
 set global max_prepared_stmt_count=0;
-select @@max_prepared_stmt_count, @@prepared_stmt_count;
+select @@max_prepared_stmt_count;
+show status like 'prepared_stmt_count';
 --error ER_MAX_PREPARED_STMT_COUNT_REACHED
 prepare stmt from "select 1";
-select @@prepared_stmt_count;
+show status like 'prepared_stmt_count';
 set global max_prepared_stmt_count=1;
 prepare stmt from "select 1";
-select @@prepared_stmt_count;
+show status like 'prepared_stmt_count';
 --error ER_MAX_PREPARED_STMT_COUNT_REACHED
 prepare stmt1 from "select 1";
-select @@prepared_stmt_count;
+show status like 'prepared_stmt_count';
 deallocate prepare stmt;
-select @@prepared_stmt_count;
+show status like 'prepared_stmt_count';
 #
 # E. Check that we can prepare a statement with the same name 
 # successfully, without hitting the limit.
 #
 prepare stmt from "select 1";
-select @@prepared_stmt_count;
+show status like 'prepared_stmt_count';
 prepare stmt from "select 2";
-select @@prepared_stmt_count;
+show status like 'prepared_stmt_count';
 #
 # F. We can set the max below the current count. In this case no new 
 # statements should be allowed to prepare.
 #
-select @@prepared_stmt_count, @@max_prepared_stmt_count;
+show status like 'prepared_stmt_count';
+select @@max_prepared_stmt_count;
 set global max_prepared_stmt_count=0;
 --error ER_MAX_PREPARED_STMT_COUNT_REACHED
 prepare stmt from "select 1";
 # Result: the old statement is deallocated, the new is not created.
---error 1243 # ER_UNKNOWN_STMT_HANDLER
+--error ER_UNKNOWN_STMT_HANDLER
 execute stmt;
-select @@prepared_stmt_count;
+show status like 'prepared_stmt_count';
 --error ER_MAX_PREPARED_STMT_COUNT_REACHED
 prepare stmt from "select 1";
-select @@prepared_stmt_count;
+show status like 'prepared_stmt_count';
 #
 # G. Show that the variables are up to date even after a connection with all
 # statements in it was terminated.
 #
 set global max_prepared_stmt_count=3;
-select @@max_prepared_stmt_count, @@prepared_stmt_count;
+select @@max_prepared_stmt_count;
+show status like 'prepared_stmt_count';
 prepare stmt from "select 1";
 connect (con1,localhost,root,,);
 connection con1;
@@ -944,25 +944,30 @@ prepare stmt1 from "select 3";
 --error ER_MAX_PREPARED_STMT_COUNT_REACHED
 prepare stmt2 from "select 4";
 connection default;
---error ER_MAX_PREPARED_STMT_COUNT_REACHED
+--error ER_MAX_PREPARED_STMT_COUNT_REACHED 
 prepare stmt2 from "select 4";
-select @@max_prepared_stmt_count, @@prepared_stmt_count;
+select @@max_prepared_stmt_count;
+show status like 'prepared_stmt_count';
 disconnect con1;
 connection default;
 # Wait for the connection to die: deal with a possible race
 deallocate prepare stmt;
-let $count= `select @@prepared_stmt_count`;
+let $query= select variable_value from information_schema.global_status
+            where variable_name = 'prepared_stmt_count';
+let $count= `$query`;
 if ($count)
 {
---sleep 2
-  let $count= `select @@prepared_stmt_count`;
+--sleep 1
+  let $count= `$query`;
 }
-select @@max_prepared_stmt_count, @@prepared_stmt_count;
+select @@max_prepared_stmt_count;
+show status like 'prepared_stmt_count';
 #
 # Restore the old value.
 #
 set global max_prepared_stmt_count= @old_max_prepared_stmt_count;
 --enable_ps_protocol
+
 
 #
 # Bug#19399 "Stored Procedures 'Lost Connection' when dropping/creating
@@ -2092,14 +2097,6 @@ drop view v1;
 drop table t1;
 
 
-create procedure proc_1() install plugin my_plug soname '/root/some_plugin.so';
---error ER_UDF_NO_PATHS
-call proc_1();
---error ER_UDF_NO_PATHS
-call proc_1();
---error ER_UDF_NO_PATHS
-call proc_1();
-drop procedure proc_1;
 create procedure proc_1() install plugin my_plug soname 'some_plugin.so';
 --replace_regex /(Can\'t open shared library).*$/\1/
 --error ER_CANT_OPEN_LIBRARY
@@ -2119,12 +2116,6 @@ delimiter ;|
 select func_1(), func_1(), func_1() from dual;
 --error ER_SP_DOES_NOT_EXIST
 drop function func_1;
-prepare abc from "install plugin my_plug soname '/root/some_plugin.so'";
---error ER_UDF_NO_PATHS
-execute abc;
---error ER_UDF_NO_PATHS
-execute abc;
-deallocate prepare abc;
 prepare abc from "install plugin my_plug soname 'some_plugin.so'";
 deallocate prepare abc;
 
@@ -2414,3 +2405,38 @@ execute abc;
 drop table if exists t1, t2;
 execute abc;
 deallocate prepare abc;
+
+#
+# Bug#22684: The Functions ENCODE, DECODE and FORMAT are not real functions
+#
+
+set @my_password="password";
+set @my_data="clear text to encode";
+
+prepare stmt1 from 'select decode(encode(?, ?), ?)';
+execute stmt1 using @my_data, @my_password, @my_password;
+set @my_data="more text to encode";
+execute stmt1 using @my_data, @my_password, @my_password;
+set @my_password="new password";
+execute stmt1 using @my_data, @my_password, @my_password;
+deallocate prepare stmt1;
+
+set @to_format="123456789.123456789";
+set @dec=0;
+
+prepare stmt2 from 'select format(?, ?)';
+execute stmt2 using @to_format, @dec;
+set @dec=4;
+execute stmt2 using @to_format, @dec;
+set @dec=6;
+execute stmt2 using @to_format, @dec;
+set @dec=2;
+execute stmt2 using @to_format, @dec;
+set @to_format="100";
+execute stmt2 using @to_format, @dec;
+set @to_format="1000000";
+execute stmt2 using @to_format, @dec;
+set @to_format="10000";
+execute stmt2 using @to_format, @dec;
+deallocate prepare stmt2;
+

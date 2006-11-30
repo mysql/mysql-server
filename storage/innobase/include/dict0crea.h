@@ -62,8 +62,10 @@ dict_truncate_index_tree(
 				/* out: new root page number, or
 				FIL_NULL on failure */
 	dict_table_t*	table,	/* in: the table the index belongs to */
-	rec_t*		rec,	/* in: record in the clustered index of
-				SYS_INDEXES table */
+	btr_pcur_t*	pcur,	/* in/out: persistent cursor pointing to
+				record in the clustered index of
+				SYS_INDEXES table. The cursor may be
+				repositioned in this call. */
 	mtr_t*		mtr);	/* in: mtr having the latch
 				on the record page. The mtr may be
 				committed and restarted in this call. */

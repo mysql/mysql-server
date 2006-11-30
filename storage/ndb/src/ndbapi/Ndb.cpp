@@ -342,8 +342,9 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
 
     {
       NdbTransaction *trans= startTransactionLocal(0, nodeId);
-      DBUG_PRINT("exit",("start trans: 0x%x transid: 0x%llx",
-			 trans, trans ? trans->getTransactionId() : 0));
+      DBUG_PRINT("exit",("start trans: 0x%lx  transid: 0x%lx",
+			 (long) trans,
+                         (long) (trans ? trans->getTransactionId() : 0)));
       DBUG_RETURN(trans);
     }
   } else {
@@ -364,7 +365,7 @@ Ndb::hupp(NdbTransaction* pBuddyTrans)
 {
   DBUG_ENTER("Ndb::hupp");
 
-  DBUG_PRINT("enter", ("trans: 0x%x",pBuddyTrans));
+  DBUG_PRINT("enter", ("trans: 0x%lx", (long) pBuddyTrans));
 
   Uint32 aPriority = 0;
   if (pBuddyTrans == NULL){
@@ -389,8 +390,9 @@ Ndb::hupp(NdbTransaction* pBuddyTrans)
     }
     pCon->setTransactionId(pBuddyTrans->getTransactionId());
     pCon->setBuddyConPtr((Uint32)pBuddyTrans->getTC_ConnectPtr());
-    DBUG_PRINT("exit", ("hupp trans: 0x%x transid: 0x%llx",
-			pCon, pCon ? pCon->getTransactionId() : 0));
+    DBUG_PRINT("exit", ("hupp trans: 0x%lx transid: 0x%lx",
+                        (long) pCon,
+                        (long) (pCon ? pCon->getTransactionId() : 0)));
     DBUG_RETURN(pCon);
   } else {
     DBUG_RETURN(NULL);
@@ -477,8 +479,9 @@ Ndb::closeTransaction(NdbTransaction* aConnection)
   tCon = theTransactionList;
   theRemainingStartTransactions++;
   
-  DBUG_PRINT("info",("close trans: 0x%x transid: 0x%llx",
-		     aConnection, aConnection->getTransactionId()));
+  DBUG_PRINT("info",("close trans: 0x%lx  transid: 0x%lx",
+                     (long) aConnection,
+                     (long) aConnection->getTransactionId()));
   DBUG_PRINT("info",("magic number: 0x%x TCConPtr: 0x%x theMyRef: 0x%x 0x%x",
 		     aConnection->theMagicNumber, aConnection->theTCConPtr,
 		     aConnection->theMyRef, getReference()));
@@ -765,7 +768,7 @@ Ndb::getAutoIncrementValue(const char* aTableName,
   TupleIdRange & range = info->m_tuple_id_range;
   if (getTupleIdFromNdb(table, range, tupleId, cacheSize) == -1)
     DBUG_RETURN(-1);
-  DBUG_PRINT("info", ("value %llu", (ulonglong)tupleId));
+  DBUG_PRINT("info", ("value %lu", (ulong) tupleId));
   DBUG_RETURN(0);
 }
 
@@ -788,7 +791,7 @@ Ndb::getAutoIncrementValue(const NdbDictionary::Table * aTable,
   TupleIdRange & range = info->m_tuple_id_range;
   if (getTupleIdFromNdb(table, range, tupleId, cacheSize) == -1)
     DBUG_RETURN(-1);
-  DBUG_PRINT("info", ("value %llu", (ulonglong)tupleId));
+  DBUG_PRINT("info", ("value %lu", (ulong)tupleId));
   DBUG_RETURN(0);
 }
 
@@ -803,7 +806,7 @@ Ndb::getAutoIncrementValue(const NdbDictionary::Table * aTable,
 
   if (getTupleIdFromNdb(table, range, tupleId, cacheSize) == -1)
     DBUG_RETURN(-1);
-  DBUG_PRINT("info", ("value %llu", (ulonglong)tupleId));
+  DBUG_PRINT("info", ("value %lu", (ulong)tupleId));
   DBUG_RETURN(0);
 }
 
@@ -816,7 +819,7 @@ Ndb::getTupleIdFromNdb(const NdbTableImpl* table,
   {
     assert(range.m_first_tuple_id < range.m_last_tuple_id);
     tupleId = ++range.m_first_tuple_id;
-    DBUG_PRINT("info", ("next cached value %llu", (ulonglong)tupleId));
+    DBUG_PRINT("info", ("next cached value %lu", (ulong)tupleId));
   }
   else
   {
@@ -853,7 +856,7 @@ Ndb::readAutoIncrementValue(const char* aTableName,
   TupleIdRange & range = info->m_tuple_id_range;
   if (readTupleIdFromNdb(table, range, tupleId) == -1)
     DBUG_RETURN(-1);
-  DBUG_PRINT("info", ("value %llu", (ulonglong)tupleId));
+  DBUG_PRINT("info", ("value %lu", (ulong)tupleId));
   DBUG_RETURN(0);
 }
 
@@ -876,7 +879,7 @@ Ndb::readAutoIncrementValue(const NdbDictionary::Table * aTable,
   TupleIdRange & range = info->m_tuple_id_range;
   if (readTupleIdFromNdb(table, range, tupleId) == -1)
     DBUG_RETURN(-1);
-  DBUG_PRINT("info", ("value %llu", (ulonglong)tupleId));
+  DBUG_PRINT("info", ("value %lu", (ulong)tupleId));
   DBUG_RETURN(0);
 }
 
@@ -890,7 +893,7 @@ Ndb::readAutoIncrementValue(const NdbDictionary::Table * aTable,
 
   if (readTupleIdFromNdb(table, range, tupleId) == -1)
     DBUG_RETURN(-1);
-  DBUG_PRINT("info", ("value %llu", (ulonglong)tupleId));
+  DBUG_PRINT("info", ("value %lu", (ulong)tupleId));
   DBUG_RETURN(0);
 }
 
@@ -991,8 +994,8 @@ Ndb::setTupleIdInNdb(const NdbTableImpl* table,
       {
 	range.m_first_tuple_id = tupleId - 1;
         DBUG_PRINT("info", 
-                   ("Setting next auto increment cached value to %llu",
-                    (ulonglong)tupleId));  
+                   ("Setting next auto increment cached value to %lu",
+                    (ulong)tupleId));  
 	DBUG_RETURN(0);
       }
     }
@@ -1046,7 +1049,8 @@ Ndb::opTupleIdOnNdb(const NdbTableImpl* table,
 {
   DBUG_ENTER("Ndb::opTupleIdOnNdb");
   Uint32 aTableId = table->m_id;
-  DBUG_PRINT("enter", ("table=%u value=%llu op=%u", aTableId, opValue, op));
+  DBUG_PRINT("enter", ("table: %u  value: %lu  op: %u",
+                       aTableId, (ulong) opValue, op));
 
   NdbTransaction*    tConnection = NULL;
   NdbOperation*      tOperation = NULL;
@@ -1114,8 +1118,8 @@ Ndb::opTupleIdOnNdb(const NdbTableImpl* table,
       else
       {
         DBUG_PRINT("info", 
-                   ("Setting next auto increment value (db) to %llu",
-                    (ulonglong)opValue));  
+                   ("Setting next auto increment value (db) to %lu",
+                    (ulong) opValue));  
         range.m_first_tuple_id = range.m_last_tuple_id = opValue - 1;
       }
       break;
@@ -1241,9 +1245,9 @@ int Ndb::setDatabaseAndSchemaName(const NdbDictionary::Table* t)
     if (s2 && s2 != s1 + 1) {
       char buf[NAME_LEN + 1];
       if (s1 - s0 <= NAME_LEN && s2 - (s1 + 1) <= NAME_LEN) {
-        sprintf(buf, "%.*s", s1 - s0, s0);
+        sprintf(buf, "%.*s", (int) (s1 - s0), s0);
         setDatabaseName(buf);
-        sprintf(buf, "%.*s", s2 - (s1 + 1), s1 + 1);
+        sprintf(buf, "%.*s", (int) (s2 - (s1 + 1)), s1 + 1);
         setDatabaseSchemaName(buf);
         return 0;
       }

@@ -3,6 +3,10 @@
 drop table if exists t1;
 --enable_warnings
 
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
 SHOW COLLATION LIKE 'cp1250_czech_cs';
 
 #

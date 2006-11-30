@@ -22,4 +22,5 @@ SHOW VARIABLES LIKE 'server_id';
 # Check that IM understands that mysqld1 is online, while mysqld2 is
 # offline.
 
+--replace_result starting XXXXX online XXXXX
 SHOW INSTANCES;

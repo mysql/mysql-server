@@ -3743,7 +3743,7 @@ static void wait_while_table_is_used(THD *thd,TABLE *table,
 				     enum ha_extra_function function)
 {
   DBUG_ENTER("wait_while_table_is_used");
-  DBUG_PRINT("enter", ("table: '%s'  share: 0x%lx  db_stat: %u  version: %u",
+  DBUG_PRINT("enter", ("table: '%s'  share: 0x%lx  db_stat: %u  version: %lu",
                        table->s->table_name.str, (ulong) table->s,
                        table->db_stat, table->s->version));
 
@@ -4168,7 +4168,6 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       goto send_result;
     }
 
-    table->table->pos_in_table_list= table;
     if ((table->table->db_stat & HA_READ_ONLY) && open_for_modify)
     {
       char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
@@ -4631,7 +4630,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
     my_error(ER_WRONG_TABLE_NAME, MYF(0), src_table);
     DBUG_RETURN(TRUE);
   }
-  if (!src_db || check_db_name(src_db))
+  if (!src_db || check_db_name(&table_ident->db))
   {
     my_error(ER_WRONG_DB_NAME, MYF(0), src_db ? src_db : "NULL");
     DBUG_RETURN(-1);
@@ -6789,8 +6788,6 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
     }
     else
     {
-      t->pos_in_table_list= table;
-
       if (t->file->ha_table_flags() & HA_HAS_CHECKSUM &&
 	  !(check_opt->flags & T_EXTEND))
 	protocol->store((ulonglong)t->file->checksum());

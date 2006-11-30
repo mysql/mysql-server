@@ -236,7 +236,7 @@ NdbIndexStat::stat_search(const Area& a, const Uint32* key, Uint32 keylen, Uint3
 int
 NdbIndexStat::stat_oldest(const Area& a)
 {
-  Uint32 i, k, m;
+  Uint32 i, k= 0, m;
   bool found = false;
   m = ~(Uint32)0;     // shut up incorrect CC warning
   for (i = 0; i < a.m_entries; i++) {

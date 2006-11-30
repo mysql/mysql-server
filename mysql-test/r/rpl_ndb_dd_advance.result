@@ -326,12 +326,12 @@ COUNT(*)
 **** Must make sure slave is clean *****
 STOP SLAVE;
 RESET SLAVE;
-DROP PROCEDURE tpcb.load;
-DROP PROCEDURE tpcb.trans;
-DROP TABLE tpcb.account;
-DROP TABLE tpcb.teller;
-DROP TABLE tpcb.branch;
-DROP TABLE tpcb.history;
+DROP PROCEDURE IF EXISTS tpcb.load;
+DROP PROCEDURE IF EXISTS tpcb.trans;
+DROP TABLE IF EXISTS tpcb.account;
+DROP TABLE IF EXISTS tpcb.teller;
+DROP TABLE IF EXISTS tpcb.branch;
+DROP TABLE IF EXISTS tpcb.history;
 DROP DATABASE tpcb;
 ALTER TABLESPACE ts1
 DROP DATAFILE 'datafile.dat'
@@ -355,13 +355,13 @@ COUNT(*)
 SELECT COUNT(*) FROM history;
 COUNT(*)
 2000
-CREATE TEMPORARY TABLE IF NOT EXISTS cluster.backup_info (id INT, backup_id INT) ENGINE = HEAP;
-DELETE FROM cluster.backup_info;
-LOAD DATA INFILE '../tmp.dat' INTO TABLE cluster.backup_info FIELDS TERMINATED BY ',';
-SELECT @the_backup_id:=backup_id FROM cluster.backup_info;
+CREATE TEMPORARY TABLE IF NOT EXISTS mysql.backup_info (id INT, backup_id INT) ENGINE = HEAP;
+DELETE FROM mysql.backup_info;
+LOAD DATA INFILE '../tmp.dat' INTO TABLE mysql.backup_info FIELDS TERMINATED BY ',';
+SELECT @the_backup_id:=backup_id FROM mysql.backup_info;
 @the_backup_id:=backup_id
 <the_backup_id>
-DROP TABLE IF EXISTS cluster.backup_info;
+DROP TABLE IF EXISTS mysql.backup_info;
 ************ Restore the slave ************************
 CREATE DATABASE tpcb;
 ***** Check a few slave restore values ***************
@@ -392,8 +392,8 @@ COUNT(*)
 4050
 *** DUMP MASTER & SLAVE FOR COMPARE ********
 *************** TEST 2 CLEANUP SECTION ********************
-DROP PROCEDURE tpcb.load;
-DROP PROCEDURE tpcb.trans;
+DROP PROCEDURE IF EXISTS tpcb.load;
+DROP PROCEDURE IF EXISTS tpcb.trans;
 DROP TABLE tpcb.account;
 DROP TABLE tpcb.teller;
 DROP TABLE tpcb.branch;

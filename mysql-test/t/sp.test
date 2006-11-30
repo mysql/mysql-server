@@ -11,6 +11,7 @@
 # Tests that uses 'goto' to into sp-goto.test (currently disabled)
 # Tests that destroys system tables (e.g. mysql.proc) for error testing
 #   go to sp-destruct.
+# Tests that require --with-geometry go into sp_gis.test
 
 use test;
 
@@ -2583,6 +2584,9 @@ begin
     set x=2;
   end if;
 end|
+
+# so that from_unixtime() has a deterministic result
+set time_zone='+03:00';
 
 call bug3426(1000, @i)|
 select @i, from_unixtime(@stamped_time, '%d-%m-%Y %h:%i:%s') as time|
@@ -6585,6 +6589,122 @@ drop procedure proc_21462_b|
 
 --echo End of 5.0 tests
 
+--echo Begin of 5.1 tests
+
+#
+# BUG#18239: Possible to overload internal functions with stored functions
+#
+
+delimiter ;|
+
+--disable_warnings
+drop function if exists pi;
+--enable_warnings
+
+create function pi() returns varchar(50)
+return "pie, my favorite desert.";
+
+SET @save_sql_mode=@@sql_mode;
+
+SET SQL_MODE='IGNORE_SPACE';
+
+select pi(), pi ();
+
+# Non deterministic warnings from db_load_routine
+--disable_warnings
+select test.pi(), test.pi ();
+--enable_warnings
+
+SET SQL_MODE='';
+
+select pi(), pi ();
+
+# Non deterministic warnings from db_load_routine
+--disable_warnings
+select test.pi(), test.pi ();
+--enable_warnings
+
+SET @@sql_mode=@save_sql_mode;
+
+drop function pi;
+# End of BUG#18239
+
+#
+# BUG#22619: Spaces considered harmful
+#
+
+--disable_warnings
+drop function if exists test.database;
+drop function if exists test.current_user;
+drop function if exists test.md5;
+--enable_warnings
+
+create database nowhere;
+use nowhere;
+drop database nowhere;
+
+SET @save_sql_mode=@@sql_mode;
+
+SET SQL_MODE='IGNORE_SPACE';
+
+select database(), database ();
+select current_user(), current_user ();
+select md5("aaa"), md5 ("aaa");
+
+SET SQL_MODE='';
+
+select database(), database ();
+select current_user(), current_user ();
+select md5("aaa"), md5 ("aaa");
+
+use test;
+
+create function `database`() returns varchar(50)
+return "Stored function database";
+
+create function `current_user`() returns varchar(50)
+return "Stored function current_user";
+
+create function md5(x varchar(50)) returns varchar(50)
+return "Stored function md5";
+
+SET SQL_MODE='IGNORE_SPACE';
+
+select database(), database ();
+select current_user(), current_user ();
+select md5("aaa"), md5 ("aaa");
+
+# Non deterministic warnings from db_load_routine
+--disable_warnings
+select test.database(), test.database ();
+select test.current_user(), test.current_user ();
+select test.md5("aaa"), test.md5 ("aaa");
+--enable_warnings
+
+SET SQL_MODE='';
+
+select database(), database ();
+select current_user(), current_user ();
+select md5("aaa"), md5 ("aaa");
+
+# Non deterministic warnings from db_load_routine
+--disable_warnings
+select test.database(), test.database ();
+select test.current_user(), test.current_user ();
+select test.md5("aaa"), test.md5 ("aaa");
+--enable_warnings
+
+SET @@sql_mode=@save_sql_mode;
+
+drop function test.database;
+drop function test.current_user;
+drop function md5;
+
+use test;
+delimiter |;
+# End of BUG#22619
+
+--echo End of 5.1 tests
 
 #
 # BUG#NNNN: New bug synopsis

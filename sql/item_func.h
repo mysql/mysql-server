@@ -925,10 +925,9 @@ public:
 
 class Item_func_benchmark :public Item_int_func
 {
-  ulong loop_count;
 public:
-  Item_func_benchmark(ulong loop_count_arg,Item *expr)
-    :Item_int_func(expr), loop_count(loop_count_arg)
+  Item_func_benchmark(Item *count_expr, Item *expr)
+    :Item_int_func(count_expr, expr)
   {}
   longlong val_int();
   const char *func_name() const { return "benchmark"; }
@@ -980,6 +979,7 @@ public:
   Item_result result_type () const { return udf.result_type(); }
   table_map not_null_tables() const { return 0; }
   bool is_expensive() { return 1; }
+  void print(String *str);
 };
 
 

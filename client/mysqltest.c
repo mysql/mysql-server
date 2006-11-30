@@ -29,6 +29,7 @@
   Matt Wagner  <matt@mysql.com>
   Monty
   Jani
+  Holyfoot
 */
 
 #define MTEST_VERSION "3.0"
@@ -80,13 +81,14 @@ enum {
   OPT_SSL_CA, OPT_SSL_CAPATH, OPT_SSL_CIPHER, OPT_PS_PROTOCOL,
   OPT_SP_PROTOCOL, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL,
   OPT_SSL_VERIFY_SERVER_CERT, OPT_MAX_CONNECT_RETRIES,
-  OPT_MARK_PROGRESS
+  OPT_MARK_PROGRESS, OPT_CHARSETS_DIR, OPT_LOG_DIR, OPT_DEBUG_INFO
 };
 
 static int record= 0, opt_sleep= -1;
 static char *db= 0, *pass= 0;
 const char *user= 0, *host= 0, *unix_sock= 0, *opt_basedir= "./";
-const char *opt_include= 0;
+const char *opt_logdir= "";
+const char *opt_include= 0, *opt_charsets_dir;
 static int port= 0;
 static int opt_max_connect_retries;
 static my_bool opt_compress= 0, silent= 0, verbose= 0;
@@ -97,6 +99,7 @@ static my_bool sp_protocol= 0, sp_protocol_enabled= 0;
 static my_bool view_protocol= 0, view_protocol_enabled= 0;
 static my_bool cursor_protocol= 0, cursor_protocol_enabled= 0;
 static my_bool parsing_disabled= 0;
+static my_bool info_flag;
 static my_bool display_result_vertically= FALSE, display_metadata= FALSE;
 static my_bool disable_query_log= 0, disable_result_log= 0;
 static my_bool disable_warnings= 0, disable_ps_warnings= 0;
@@ -145,7 +148,6 @@ static struct st_test_file* file_stack_end;
 
 
 static CHARSET_INFO *charset_info= &my_charset_latin1; /* Default charset */
-static const char *charset_name= "latin1"; /* Default character set name */
 
 static const char *embedded_server_groups[]=
 {
@@ -221,6 +223,12 @@ struct st_connection
   MYSQL* util_mysql;
   char *name;
   MYSQL_STMT* stmt;
+
+  const char *cur_query;
+  int cur_query_len;
+  pthread_mutex_t mutex;
+  pthread_cond_t cond;
+  int query_done;
 };
 struct st_connection connections[128];
 struct st_connection* cur_con, *next_con, *connections_end;
@@ -459,7 +467,6 @@ void mysql_disable_rpl_parse(MYSQL* mysql __attribute__((unused))) {}
 int mysql_rpl_parse_enabled(MYSQL* mysql __attribute__((unused))) { return 1; }
 my_bool mysql_rpl_probe(MYSQL *mysql __attribute__((unused))) { return 1; }
 #endif
-
 void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
                                int len);
 void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val);
@@ -470,7 +477,56 @@ void handle_error(struct st_command*,
                   const char *err_sqlstate, DYNAMIC_STRING *ds);
 void handle_no_error(struct st_command*);
 
+#ifdef EMBEDDED_LIBRARY
+/*
+  send_one_query executes query in separate thread what is
+  necessary in embedded library to run 'send' in proper way.
+  This implementation doesn't handle errors returned
+  by mysql_send_query. It's technically possible, though
+  i don't see where it is needed.
+*/
+pthread_handler_t send_one_query(void *arg)
+{
+  struct st_connection *cn= (struct st_connection*)arg;
 
+  mysql_thread_init();
+  VOID(mysql_send_query(&cn->mysql, cn->cur_query, cn->cur_query_len));
+
+  mysql_thread_end();
+  pthread_mutex_lock(&cn->mutex);
+  cn->query_done= 1;
+  VOID(pthread_cond_signal(&cn->cond));
+  pthread_mutex_unlock(&cn->mutex);
+  pthread_exit(0);
+  return 0;
+}
+
+static int do_send_query(struct st_connection *cn, const char *q, int q_len,
+                         int flags)
+{
+  pthread_t tid;
+
+  if (flags & QUERY_REAP_FLAG)
+    return mysql_send_query(&cn->mysql, q, q_len);
+
+  if (pthread_mutex_init(&cn->mutex, NULL) ||
+      pthread_cond_init(&cn->cond, NULL))
+    die("Error in the thread library");
+
+  cn->cur_query= q;
+  cn->cur_query_len= q_len;
+  cn->query_done= 0;
+  if (pthread_create(&tid, NULL, send_one_query, (void*)cn))
+    die("Cannot start new thread for query");
+
+  return 0;
+}
+
+#else /*EMBEDDED_LIBRARY*/
+
+#define do_send_query(cn,q,q_len,flags) mysql_send_query(&cn->mysql, q, q_len)
+
+#endif /*EMBEDDED_LIBRARY*/
 
 void do_eval(DYNAMIC_STRING *query_eval, const char *query,
              const char *query_end, my_bool pass_through_escape_chars)
@@ -753,7 +809,7 @@ void die(const char *fmt, ...)
 
   /* Clean up and exit */
   free_used_memory();
-  my_end(MY_CHECK_ERROR);
+  my_end(info_flag ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
 
   if (!silent)
     printf("not ok\n");
@@ -793,7 +849,7 @@ void abort_not_supported_test(const char *fmt, ...)
 
   /* Clean up and exit */
   free_used_memory();
-  my_end(MY_CHECK_ERROR);
+  my_end(info_flag ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
 
   if (!silent)
     printf("skipped\n");
@@ -892,8 +948,8 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
     die(NullS);
   if (!eval_result && (uint) stat_info.st_size != ds->length)
   {
-    DBUG_PRINT("info",("Size differs:  result size: %u  file size: %llu",
-		       ds->length, stat_info.st_size));
+    DBUG_PRINT("info",("Size differs:  result size: %u  file size: %lu",
+		       ds->length, (ulong) stat_info.st_size));
     DBUG_PRINT("info",("result: '%s'", ds->str));
     DBUG_RETURN(RESULT_LENGTH_MISMATCH);
   }
@@ -3076,14 +3132,14 @@ void do_connect(struct st_command *command)
     else if (!strncmp(con_options, "COMPRESS", 8))
       con_compress= 1;
     else
-      die("Illegal option to connect: %.*s", end - con_options, con_options);
+      die("Illegal option to connect: %.*s", (int) (end - con_options), con_options);
     /* Process next option */
     con_options= end;
   }
 
   if (next_con == connections_end)
-    die("Connection limit exhausted, you can have max %d connections",
-        (sizeof(connections)/sizeof(struct st_connection)));
+    die("Connection limit exhausted, you can have max %ld connections",
+        (long) (sizeof(connections)/sizeof(struct st_connection)));
 
   if (find_connection_by_name(ds_connection_name.str))
     die("Connection %s already exists", ds_connection_name.str);
@@ -3093,7 +3149,11 @@ void do_connect(struct st_command *command)
   if (opt_compress || con_compress)
     mysql_options(&next_con->mysql, MYSQL_OPT_COMPRESS, NullS);
   mysql_options(&next_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
-  mysql_options(&next_con->mysql, MYSQL_SET_CHARSET_NAME, charset_name);
+  mysql_options(&next_con->mysql, MYSQL_SET_CHARSET_NAME,
+                charset_info->csname);
+  if (opt_charsets_dir)
+    mysql_options(&cur_con->mysql, MYSQL_SET_CHARSET_DIR,
+                  opt_charsets_dir);
 
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl || con_ssl)
@@ -3779,6 +3839,9 @@ static struct my_option my_long_options[] =
    0, 0, 0, 0, 0, 0},
   {"basedir", 'b', "Basedir for tests.", (gptr*) &opt_basedir,
    (gptr*) &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"character-sets-dir", OPT_CHARSETS_DIR,
+   "Directory where character sets are.", (gptr*) &opt_charsets_dir,
+   (gptr*) &opt_charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use the compressed server/client protocol.",
    (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
@@ -3794,12 +3857,16 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.", (gptr*) &info_flag,
+   (gptr*) &info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host.", (gptr*) &host, (gptr*) &host, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"include", 'i', "Include SQL before each test case.", (gptr*) &opt_include,
    (gptr*) &opt_include, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"logdir", OPT_LOG_DIR, "Directory for log files", (gptr*) &opt_logdir,
+   (gptr*) &opt_logdir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"mark-progress", OPT_MARK_PROGRESS,
-   "Write linenumber and elapsed time to <testname>.progress ",
+   "Write linenumber and elapsed time to <testname>.progress",
    (gptr*) &opt_mark_progress, (gptr*) &opt_mark_progress, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"max-connect-retries", OPT_MAX_CONNECT_RETRIES,
@@ -4080,7 +4147,8 @@ void dump_result_to_reject_file(char *buf, int size)
 void dump_result_to_log_file(char *buf, int size)
 {
   char log_file[FN_REFLEN];
-  str_to_file(fn_format(log_file, result_file_name, "", ".log",
+  str_to_file(fn_format(log_file, result_file_name, opt_logdir, ".log",
+                        *opt_logdir ? MY_REPLACE_DIR | MY_REPLACE_EXT:
                         MY_REPLACE_EXT),
               buf, size);
 }
@@ -4088,8 +4156,9 @@ void dump_result_to_log_file(char *buf, int size)
 void dump_progress(void)
 {
   char log_file[FN_REFLEN];
-  str_to_file(fn_format(log_file, result_file_name, "", ".progress",
-                        MY_REPLACE_EXT),
+  str_to_file(fn_format(log_file, result_file_name, opt_logdir, ".progress",
+                        *opt_logdir ? MY_REPLACE_DIR | MY_REPLACE_EXT:
+                          MY_REPLACE_EXT),
               ds_progress.str, ds_progress.length);
 }
 
@@ -4492,7 +4561,6 @@ int append_warnings(DYNAMIC_STRING *ds, MYSQL* mysql)
 }
 
 
-
 /*
   Run query using MySQL C API
 
@@ -4509,11 +4577,12 @@ int append_warnings(DYNAMIC_STRING *ds, MYSQL* mysql)
   error - function will not return
 */
 
-void run_query_normal(MYSQL *mysql, struct st_command *command,
+void run_query_normal(struct st_connection *cn, struct st_command *command,
                       int flags, char *query, int query_len,
                       DYNAMIC_STRING *ds, DYNAMIC_STRING *ds_warnings)
 {
   MYSQL_RES *res= 0;
+  MYSQL *mysql= &cn->mysql;
   int err= 0, counter= 0;
   DBUG_ENTER("run_query_normal");
   DBUG_PRINT("enter",("flags: %d", flags));
@@ -4524,14 +4593,26 @@ void run_query_normal(MYSQL *mysql, struct st_command *command,
     /*
       Send the query
     */
-    if (mysql_send_query(mysql, query, query_len))
+    if (do_send_query(cn, query, query_len, flags))
     {
       handle_error(command, mysql_errno(mysql), mysql_error(mysql),
 		   mysql_sqlstate(mysql), ds);
       goto end;
     }
   }
-
+#ifdef EMBEDDED_LIBRARY
+  /*
+   Here we handle 'reap' command, so we need to check if the
+   query's thread was finished and probably wait
+  */
+  else if (flags & QUERY_REAP_FLAG)
+  {
+    pthread_mutex_lock(&cn->mutex);
+    while (!cn->query_done)
+      pthread_cond_wait(&cn->cond, &cn->mutex);
+    pthread_mutex_unlock(&cn->mutex);
+  }
+#endif /*EMBEDDED_LIBRARY*/
   if (!(flags & QUERY_REAP_FLAG))
     DBUG_VOID_RETURN;
 
@@ -5022,8 +5103,9 @@ int util_query(MYSQL* org_mysql, const char* query){
 
 */
 
-void run_query(MYSQL *mysql, struct st_command *command, int flags)
+void run_query(struct st_connection *cn, struct st_command *command, int flags)
 {
+  MYSQL *mysql= &cn->mysql;
   DYNAMIC_STRING *ds;
   DYNAMIC_STRING ds_result;
   DYNAMIC_STRING ds_warnings;
@@ -5180,7 +5262,7 @@ void run_query(MYSQL *mysql, struct st_command *command, int flags)
       match_re(&ps_re, query))
     run_query_stmt(mysql, command, query, query_len, ds, &ds_warnings);
   else
-    run_query_normal(mysql, command, flags, query, query_len,
+    run_query_normal(cn, command, flags, query, query_len,
 		     ds, &ds_warnings);
 
   if (sp_created)
@@ -5511,7 +5593,11 @@ int main(int argc, char **argv)
   if (opt_compress)
     mysql_options(&cur_con->mysql,MYSQL_OPT_COMPRESS,NullS);
   mysql_options(&cur_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
-  mysql_options(&cur_con->mysql, MYSQL_SET_CHARSET_NAME, charset_name);
+  mysql_options(&cur_con->mysql, MYSQL_SET_CHARSET_NAME,
+                charset_info->csname);
+  if (opt_charsets_dir)
+    mysql_options(&cur_con->mysql, MYSQL_SET_CHARSET_DIR,
+                  opt_charsets_dir);
 
 #ifdef HAVE_OPENSSL
 
@@ -5641,7 +5727,7 @@ int main(int argc, char **argv)
 	  strmake(command->require_file, save_file, sizeof(save_file));
 	  save_file[0]= 0;
 	}
-	run_query(&cur_con->mysql, command, QUERY_REAP_FLAG|QUERY_SEND_FLAG);
+	run_query(cur_con, command, QUERY_REAP_FLAG|QUERY_SEND_FLAG);
 	display_result_vertically= old_display_result_vertically;
         command->last_argument= command->end;
         command_executed++;
@@ -5672,7 +5758,7 @@ int main(int argc, char **argv)
 	  strmake(command->require_file, save_file, sizeof(save_file));
 	  save_file[0]= 0;
 	}
-	run_query(&cur_con->mysql, command, flags);
+	run_query(cur_con, command, flags);
 	command_executed++;
         command->last_argument= command->end;
 	break;
@@ -5698,7 +5784,7 @@ int main(int argc, char **argv)
           the query and read the result some time later when reap instruction
 	  is given on this connection.
         */
-	run_query(&cur_con->mysql, command, QUERY_SEND_FLAG);
+	run_query(cur_con, command, QUERY_SEND_FLAG);
 	command_executed++;
         command->last_argument= command->end;
 	break;
@@ -5900,7 +5986,7 @@ int main(int argc, char **argv)
 
   timer_output();
   free_used_memory();
-  my_end(MY_CHECK_ERROR);
+  my_end(info_flag ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
 
   /* Yes, if we got this far the test has suceeded! Sakila smiles */
   if (!silent)

@@ -73,11 +73,9 @@ static int write_meta_file(File meta_file, ha_rows rows, bool dirty);
 /* Stuff for shares */
 pthread_mutex_t tina_mutex;
 static HASH tina_open_tables;
-static int tina_init= 0;
 static handler *tina_create_handler(handlerton *hton,
                                     TABLE_SHARE *table, 
                                     MEM_ROOT *mem_root);
-int tina_end(handlerton *hton, ha_panic_function type);
 
 
 off_t Transparent_file::read_next()
@@ -155,35 +153,23 @@ static int tina_init_func(void *p)
 {
   handlerton *tina_hton;
 
-  if (!tina_init)
-  {
-    tina_hton= (handlerton *)p;
-    tina_init++;
-    VOID(pthread_mutex_init(&tina_mutex,MY_MUTEX_INIT_FAST));
-    (void) hash_init(&tina_open_tables,system_charset_info,32,0,0,
-                     (hash_get_key) tina_get_key,0,0);
-    tina_hton->state= SHOW_OPTION_YES;
-    tina_hton->db_type= DB_TYPE_CSV_DB;
-    tina_hton->create= tina_create_handler;
-    tina_hton->panic= tina_end;
-    tina_hton->flags= (HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES | 
-                       HTON_NO_PARTITION);
-  }
+  tina_hton= (handlerton *)p;
+  VOID(pthread_mutex_init(&tina_mutex,MY_MUTEX_INIT_FAST));
+  (void) hash_init(&tina_open_tables,system_charset_info,32,0,0,
+                   (hash_get_key) tina_get_key,0,0);
+  tina_hton->state= SHOW_OPTION_YES;
+  tina_hton->db_type= DB_TYPE_CSV_DB;
+  tina_hton->create= tina_create_handler;
+  tina_hton->flags= (HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES | 
+                     HTON_NO_PARTITION);
   return 0;
 }
 
 static int tina_done_func(void *p)
 {
-  if (tina_init)
-  {
-    if (tina_open_tables.records)
-    {
-      return 1;
-    }
-    hash_free(&tina_open_tables);
-    pthread_mutex_destroy(&tina_mutex);
-    tina_init--;
-  }
+  hash_free(&tina_open_tables);
+  pthread_mutex_destroy(&tina_mutex);
+
   return 0;
 }
 
@@ -198,9 +184,6 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
   MY_STAT file_stat;                /* Stat information for the data file */
   char *tmp_name;
   uint length;
-
-  if (!tina_init)
-     tina_init_func(NULL);
 
   pthread_mutex_lock(&tina_mutex);
   length=(uint) strlen(table_name);
@@ -453,11 +436,6 @@ static int free_share(TINA_SHARE *share)
   pthread_mutex_unlock(&tina_mutex);
 
   DBUG_RETURN(result_code);
-}
-
-int tina_end(handlerton *hton, ha_panic_function type)
-{
-  return tina_done_func(NULL);
 }
 
 

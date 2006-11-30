@@ -160,7 +160,7 @@ void Qmgr::execCONTINUEB(Signal* signal)
       BaseString tmp;
       tmp.append("Shutting down node as total restart time exceeds "
 		 " StartFailureTimeout as set in config file ");
-      if(c_restartFailureTimeout == ~0)
+      if(c_restartFailureTimeout == (Uint32) ~0)
 	tmp.append(" 0 (inifinite)");
       else
 	tmp.appfmt(" %d", c_restartFailureTimeout);
@@ -1339,7 +1339,7 @@ Qmgr::check_startup(Signal* signal)
     if (now < partial_timeout)
     {
       jam();
-      signal->theData[1] = c_restartPartialTimeout == ~0 ? 2 : 3;
+      signal->theData[1] = c_restartPartialTimeout == (Uint32) ~0 ? 2 : 3;
       signal->theData[2] = Uint32((partial_timeout - now + 500) / 1000);
       report_mask.assign(wait);
       retVal = 0;
@@ -1356,7 +1356,7 @@ Qmgr::check_startup(Signal* signal)
     case CheckNodeGroups::Partitioning:
       if (now < partitioned_timeout && result != CheckNodeGroups::Win)
       {
-        signal->theData[1] = c_restartPartionedTimeout == ~0 ? 4 : 5;
+        signal->theData[1] = c_restartPartionedTimeout == (Uint32) ~0 ? 4 : 5;
         signal->theData[2] = Uint32((partitioned_timeout - now + 500) / 1000);
         report_mask.assign(c_definedNodes);
         report_mask.bitANDC(c_start.m_starting_nodes);
@@ -1403,6 +1403,7 @@ missing_nodegroup:
 		       " starting: %s (missing fs for: %s)",
 		       mask1, mask2);
   progError(__LINE__, NDBD_EXIT_SR_RESTARTCONFLICT, buf);
+  return 0;                                     // Deadcode
 }
 
 void

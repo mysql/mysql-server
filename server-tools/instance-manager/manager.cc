@@ -37,33 +37,6 @@
 #include "user_map.h"
 
 
-int create_pid_file(const char *pid_file_name, int pid)
-{
-  FILE *pid_file;
-
-  if (!(pid_file= my_fopen(pid_file_name, O_WRONLY | O_CREAT | O_BINARY,
-                           MYF(0))))
-  {
-    log_error("Error: can not create pid file '%s': %s (errno: %d)",
-              (const char *) pid_file_name,
-              (const char *) strerror(errno),
-              (int) errno);
-    return 1;
-  }
-
-  if (fprintf(pid_file, "%d\n", (int) pid) <= 0)
-  {
-    log_error("Error: can not write to pid file '%s': %s (errno: %d)",
-              (const char *) pid_file_name,
-              (const char *) strerror(errno),
-              (int) errno);
-    return 1;
-  }
-
-  my_fclose(pid_file, MYF(0));
-
-  return 0;
-}
 
 #ifndef __WIN__
 void set_signals(sigset_t *mask)
@@ -120,18 +93,78 @@ int my_sigwait(const sigset_t *set, int *sig)
 #endif
 
 
-void stop_all(Guardian_thread *guardian, Thread_registry *registry)
+/**********************************************************************
+  Implementation of checking the actual thread model.
+***********************************************************************/
+
+namespace { /* no-indent */
+
+class ThreadModelChecker: public Thread
+{
+public:
+  ThreadModelChecker()
+    :main_pid(getpid())
+  { }
+
+public:
+  inline bool is_linux_threads() const
+  {
+    return linux_threads;
+  }
+
+protected:
+  virtual void run()
+  {
+    linux_threads= main_pid != getpid();
+  }
+
+private:
+  pid_t main_pid;
+  bool linux_threads;
+};
+
+bool check_if_linux_threads(bool *linux_threads)
+{
+  ThreadModelChecker checker;
+
+  if (checker.start() || checker.join())
+    return TRUE;
+
+  *linux_threads= checker.is_linux_threads();
+
+  return FALSE;
+}
+
+}
+
+
+/**********************************************************************
+  Manager implementation
+***********************************************************************/
+
+Guardian *Manager::p_guardian;
+Instance_map *Manager::p_instance_map;
+Thread_registry *Manager::p_thread_registry;
+User_map *Manager::p_user_map;
+
+#ifndef __WIN__
+bool Manager::linux_threads;
+#endif // __WIN__
+
+
+void Manager::stop_all_threads()
 {
   /*
     Let guardian thread know that it should break it's processing cycle,
     once it wakes up.
   */
-  guardian->request_shutdown();
+  p_guardian->request_shutdown();
   /* wake guardian */
-  pthread_cond_signal(&guardian->COND_guardian);
+  pthread_cond_signal(&p_guardian->COND_guardian);
   /* stop all threads */
-  registry->deliver_shutdown();
+  p_thread_registry->deliver_shutdown();
 }
+
 
 /*
   manager - entry point to the main instance manager process: start
@@ -142,11 +175,24 @@ void stop_all(Guardian_thread *guardian, Thread_registry *registry)
   TODO: how about returning error status.
 */
 
-void manager()
+int Manager::main()
 {
   int err_code;
+  int rc= 1;
   const char *err_msg;
   bool shutdown_complete= FALSE;
+  pid_t manager_pid= getpid();
+
+#ifndef __WIN__
+  if (check_if_linux_threads(&linux_threads))
+  {
+    log_error("Can not determine thread model.");
+    return 1;
+  }
+
+  log_info("Detected threads model: %s.",
+           (const char *) (linux_threads ? "LINUX threads" : "POSIX threads"));
+#endif // __WIN__
 
   Thread_registry thread_registry;
   /*
@@ -156,31 +202,31 @@ void manager()
   */
 
   User_map user_map;
-  Instance_map instance_map(Options::Main::default_mysqld_path,
-                            thread_registry);
-  Guardian_thread guardian_thread(thread_registry,
-                                  &instance_map,
-                                  Options::Main::monitoring_interval);
+  Instance_map instance_map;
+  Guardian guardian(&thread_registry, &instance_map,
+                    Options::Main::monitoring_interval);
 
-  Listener_thread_args listener_args(thread_registry, user_map, instance_map);
+  Listener listener(&thread_registry, &user_map);
 
-  manager_pid= getpid();
-  instance_map.guardian= &guardian_thread;
+  p_instance_map= &instance_map;
+  p_guardian= instance_map.guardian= &guardian;
+  p_thread_registry= &thread_registry;
+  p_user_map= &user_map;
 
   /* Initialize instance map. */
 
   if (instance_map.init())
   {
-    log_error("Error: can not initialize instance list: out of memory.");
-    return;
+    log_error("Can not initialize instance list: out of memory.");
+    return 1;
   }
 
   /* Initialize user map and load password file. */
 
   if (user_map.init())
   {
-    log_error("Error: can not initialize user list: out of memory.");
-    return;
+    log_error("Can not initialize user list: out of memory.");
+    return 1;
   }
 
   if ((err_code= user_map.load(Options::Main::password_file_name, &err_msg)))
@@ -193,13 +239,13 @@ void manager()
         mysqld_safe-compatible mode. Continue, but complain in log.
       */
 
-      log_error("Warning: password file does not exist, "
-                "nobody will be able to connect to Instance Manager.");
+      log_info("Warning: password file does not exist, "
+               "nobody will be able to connect to Instance Manager.");
     }
     else
     {
-      log_error("Error: %s.", (const char *) err_msg);
-      return;
+      log_error("%s.", (const char *) err_msg);
+      return 1;
     }
   }
 
@@ -210,7 +256,7 @@ void manager()
            (int) manager_pid);
 
   if (create_pid_file(Options::Main::pid_file_name, manager_pid))
-    return; /* necessary logging has been already done. */
+    return 1; /* necessary logging has been already done. */
 
   /*
     Initialize signals and alarm-infrastructure.
@@ -218,49 +264,36 @@ void manager()
     NOTE: To work nicely with LinuxThreads, the signal thread is the first
     thread in the process.
 
-    NOTE:
-      After init_thr_alarm() call it's possible to call thr_alarm() (from
-      different threads), that results in sending ALARM signal to the alarm
-      thread (which can be the main thread). That signal can interrupt
-      blocking calls.
-
-      In other words, a blocking call can be interrupted in the main thread
-      after init_thr_alarm().
+    NOTE: After init_thr_alarm() call it's possible to call thr_alarm()
+    (from different threads), that results in sending ALARM signal to the
+    alarm thread (which can be the main thread). That signal can interrupt
+    blocking calls. In other words, a blocking call can be interrupted in
+    the main thread after init_thr_alarm().
   */
 
   sigset_t mask;
   set_signals(&mask);
 
-  /* create guardian thread */
+  /*
+    Create the guardian thread. The newly started thread will block until
+    we actually load instances.
+
+    NOTE: Guardian should be shutdown first. Only then all other threads
+    can be stopped. This should be done in this order because the guardian
+    is responsible for shutting down all the guarded instances, and this
+    is a long operation.
+
+    NOTE: Guardian uses thr_alarm() when detects the current state of an
+    instance (is_running()), but this does not interfere with
+    flush_instances() call later in the code, because until
+    flush_instances() completes in the main thread, Guardian thread is not
+    permitted to process instances. And before flush_instances() has
+    completed, there are no instances to guard.
+  */
+  if (guardian.start(Thread::DETACHED))
   {
-    pthread_t guardian_thd_id;
-    pthread_attr_t guardian_thd_attr;
-    int rc;
-
-    /*
-      NOTE: Guardian should be shutdown first. Only then all other threads
-      need to be stopped. This should be done, as guardian is responsible
-      for shutting down the instances, and this is a long operation.
-
-      NOTE: Guardian uses thr_alarm() when detects current state of
-      instances (is_running()), but it is not interfere with
-      flush_instances() later in the code, because until flush_instances()
-      complete in the main thread, Guardian thread is not permitted to
-      process instances. And before flush_instances() there is no instances
-      to proceed.
-    */
-
-    pthread_attr_init(&guardian_thd_attr);
-    pthread_attr_setdetachstate(&guardian_thd_attr, PTHREAD_CREATE_DETACHED);
-    rc= set_stacksize_n_create_thread(&guardian_thd_id, &guardian_thd_attr,
-                                      guardian, &guardian_thread);
-    pthread_attr_destroy(&guardian_thd_attr);
-    if (rc)
-    {
-      log_error("manager(): set_stacksize_n_create_thread(guardian) failed");
-      goto err;
-    }
-
+    log_error("Can not start Guardian thread.");
+    goto err;
   }
 
   /* Load instances. */
@@ -276,40 +309,30 @@ void manager()
 
     if (flush_instances_status)
     {
-      log_error("Cannot init instances repository. This might be caused by "
-        "the wrong config file options. For instance, missing mysqld "
-        "binary. Aborting.");
-      stop_all(&guardian_thread, &thread_registry);
+      log_error("Can not init instances repository.");
+      stop_all_threads();
       goto err;
     }
   }
 
-  /* create the listener */
-  {
-    pthread_t listener_thd_id;
-    pthread_attr_t listener_thd_attr;
-    int rc;
+  /* Initialize the Listener. */
 
-    pthread_attr_init(&listener_thd_attr);
-    pthread_attr_setdetachstate(&listener_thd_attr, PTHREAD_CREATE_DETACHED);
-    rc= set_stacksize_n_create_thread(&listener_thd_id, &listener_thd_attr,
-                                      listener, &listener_args);
-    pthread_attr_destroy(&listener_thd_attr);
-    if (rc)
-    {
-      log_error("manager(): set_stacksize_n_create_thread(listener) failed");
-      stop_all(&guardian_thread, &thread_registry);
-      goto err;
-    }
+  if (listener.start(Thread::DETACHED))
+  {
+    log_error("Can not start Listener thread.");
+    stop_all_threads();
+    goto err;
   }
 
   /*
     After the list of guarded instances have been initialized,
     Guardian should start them.
   */
-  pthread_cond_signal(&guardian_thread.COND_guardian);
+  pthread_cond_signal(&guardian.COND_guardian);
 
-  log_info("Main loop: started.");
+  /* Main loop. */
+
+  log_info("Manager: started.");
 
   while (!shutdown_complete)
   {
@@ -319,7 +342,7 @@ void manager()
     if ((status= my_sigwait(&mask, &signo)) != 0)
     {
       log_error("sigwait() failed");
-      stop_all(&guardian_thread, &thread_registry);
+      stop_all_threads();
       goto err;
     }
 
@@ -328,8 +351,8 @@ void manager()
         - we are waiting for SIGINT, SIGTERM -- signals that mean we should
           shutdown;
         - as shutdown signal is caught, we stop Guardian thread (by calling
-          Guardian_thread::request_shutdown());
-        - as Guardian_thread is stopped, it sends SIGTERM to this thread
+          Guardian::request_shutdown());
+        - as Guardian is stopped, it sends SIGTERM to this thread
           (by calling Thread_registry::request_shutdown()), so that the
           my_sigwait() above returns;
         - as we catch the second SIGTERM, we send signals to all threads
@@ -345,7 +368,7 @@ void manager()
   Bug #14164 IM tests fail on MacOS X (powermacg5)
 */
 #ifdef IGNORE_SIGHUP_SIGQUIT
-    if ( SIGHUP == signo )
+    if (SIGHUP == signo)
       continue;
 #endif
     if (THR_SERVER_ALARM == signo)
@@ -353,12 +376,12 @@ void manager()
     else
 #endif
     {
-      log_info("Main loop: got shutdown signal.");
+      log_info("Manager: got shutdown signal.");
 
-      if (!guardian_thread.is_stopped())
+      if (!guardian.is_stopped())
       {
-        guardian_thread.request_shutdown();
-        pthread_cond_signal(&guardian_thread.COND_guardian);
+        guardian.request_shutdown();
+        pthread_cond_signal(&guardian.COND_guardian);
       }
       else
       {
@@ -368,7 +391,9 @@ void manager()
     }
   }
 
-  log_info("Main loop: finished.");
+  log_info("Manager: finished.");
+
+  rc= 0;
 
 err:
   /* delete the pid file */
@@ -379,4 +404,5 @@ err:
   end_thr_alarm(1);
   /* don't pthread_exit to kill all threads who did not shut down in time */
 #endif
+  return rc;
 }

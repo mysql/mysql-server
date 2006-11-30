@@ -92,7 +92,7 @@ int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
 
   if (table->s->reclength != stats.mean_rec_length && stats.mean_rec_length)
   {
-    DBUG_PRINT("error",("reclength: %d  mean_rec_length: %d",
+    DBUG_PRINT("error",("reclength: %lu  mean_rec_length: %lu",
 			table->s->reclength, stats.mean_rec_length));
     goto err;
   }
@@ -577,7 +577,7 @@ static int myisammrg_init(void *p)
 
   myisammrg_hton= (handlerton *)p;
 
-  myisammrg_hton->state= have_merge_db;
+  myisammrg_hton->state= SHOW_OPTION_YES;
   myisammrg_hton->db_type= DB_TYPE_MRG_MYISAM;
   myisammrg_hton->create= myisammrg_create_handler;
   myisammrg_hton->panic= myisammrg_panic;

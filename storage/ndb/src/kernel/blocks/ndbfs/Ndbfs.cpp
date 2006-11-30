@@ -655,7 +655,7 @@ Ndbfs::createAsyncFile(){
     // Print info about all open files
     for (unsigned i = 0; i < theFiles.size(); i++){
       AsyncFile* file = theFiles[i];
-      ndbout_c("%2d (0x%x): %s", i, file, file->isOpen()?"OPEN":"CLOSED");
+      ndbout_c("%2d (0x%lx): %s", i, (long) file, file->isOpen()?"OPEN":"CLOSED");
     }
     ERROR_SET(fatal, NDBD_EXIT_AFS_MAXOPEN,""," Ndbfs::createAsyncFile");
   }
@@ -1082,7 +1082,7 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
     ndbout << "All files: " << endl;
     for (unsigned i = 0; i < theFiles.size(); i++){
       AsyncFile* file = theFiles[i];
-      ndbout_c("%2d (0x%x): %s", i,file, file->isOpen()?"OPEN":"CLOSED");
+      ndbout_c("%2d (0x%lx): %s", i, (long) file, file->isOpen()?"OPEN":"CLOSED");
     }
   }
 }//Ndbfs::execDUMP_STATE_ORD()

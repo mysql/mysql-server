@@ -300,18 +300,26 @@ select POSITION(_latin1'B' COLLATE latin1_general_ci IN _latin1'abcd' COLLATE la
 select POSITION(_latin1'B' IN _latin2'abcd');
 
 select FIND_IN_SET(_latin1'B',_latin1'a,b,c,d');
---fix this:
---select FIND_IN_SET(_latin1'B',_latin1'a,b,c,d' COLLATE latin1_bin);
---select FIND_IN_SET(_latin1'B' COLLATE latin1_bin,_latin1'a,b,c,d');
+
+# fix this:
+--disable_parsing
+select FIND_IN_SET(_latin1'B',_latin1'a,b,c,d' COLLATE latin1_bin);
+select FIND_IN_SET(_latin1'B' COLLATE latin1_bin,_latin1'a,b,c,d');
+--enable_parsing
+
 --error 1267
 select FIND_IN_SET(_latin1'B' COLLATE latin1_general_ci,_latin1'a,b,c,d' COLLATE latin1_bin);
 --error 1267
 select FIND_IN_SET(_latin1'B',_latin2'a,b,c,d');
 
 select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin1'd',2);
---fix this:
---select SUBSTRING_INDEX(_latin1'abcdabcdabcd' COLLATE latin1_bin,_latin1'd',2);
---select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin1'd' COLLATE latin1_bin,2);
+
+# fix this:
+--disable_parsing
+select SUBSTRING_INDEX(_latin1'abcdabcdabcd' COLLATE latin1_bin,_latin1'd',2);
+select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin1'd' COLLATE latin1_bin,2);
+--enable_parsing
+
 --error 1267
 select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin2'd',2);
 --error 1267
@@ -460,7 +468,51 @@ drop table t7;
 
 select substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2),substring_index("1abcd;2abcd;3abcd;4abcd", ';', -2);
 
-explain extended select md5('hello'), sha('abc'), sha1('abc'), soundex(''), 'mood' sounds like 'mud', aes_decrypt(aes_encrypt('abc','1'),'1'),concat('*',space(5),'*'), reverse('abc'), rpad('a',4,'1'), lpad('a',4,'1'),  concat_ws(',','',NULL,'a'),make_set(255,_latin2'a',_latin2'b',_latin2'c'),elt(2,1),locate("a","b",2),format(130,10),char(0),conv(130,16,10),hex(130),binary 'HE', export_set(255,_latin2'y',_latin2'n',_latin2' '),FIELD('b' COLLATE latin1_bin,'A','B'),FIND_IN_SET(_latin1'B',_latin1'a,b,c,d'),collation(conv(130,16,10)), coercibility(conv(130,16,10)),length('\n\t\r\b\0\_\%\\'),bit_length('\n\t\r\b\0\_\%\\'),bit_length('\n\t\r\b\0\_\%\\'),concat('monty',' was here ','again'),length('hello'),char(ascii('h')),ord('h'),quote(1/0),crc32("123"),replace('aaaa','a','b'),insert('txs',2,1,'hi'),left(_latin2'a',1),right(_latin2'a',1),lcase(_latin2'a'),ucase(_latin2'a'),SUBSTR('abcdefg',3,2),substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2),trim(_latin2' a '),ltrim(_latin2' a '),rtrim(_latin2' a '), decode(encode(repeat("a",100000),"monty"),"monty");
+explain extended select md5('hello');
+explain extended select sha('abc');
+explain extended select sha1('abc');
+explain extended select soundex('');
+explain extended select 'mood' sounds like 'mud';
+explain extended select aes_decrypt(aes_encrypt('abc','1'),'1');
+explain extended select concat('*',space(5),'*');
+explain extended select reverse('abc');
+explain extended select rpad('a',4,'1');
+explain extended select lpad('a',4,'1');
+explain extended select concat_ws(',','',NULL,'a');
+explain extended select make_set(255,_latin2'a', _latin2'b', _latin2'c');
+explain extended select elt(2,1);
+explain extended select locate("a","b",2);
+explain extended select format(130,10);
+explain extended select char(0);
+explain extended select conv(130,16,10);
+explain extended select hex(130);
+explain extended select binary 'HE';
+explain extended select export_set(255,_latin2'y', _latin2'n', _latin2' ');
+explain extended select FIELD('b' COLLATE latin1_bin,'A','B');
+explain extended select FIND_IN_SET(_latin1'B', _latin1'a,b,c,d');
+explain extended select collation(conv(130,16,10));
+explain extended select coercibility(conv(130,16,10));
+explain extended select length('\n\t\r\b\0\_\%\\');
+explain extended select bit_length('\n\t\r\b\0\_\%\\');
+explain extended select bit_length('\n\t\r\b\0\_\%\\');
+explain extended select concat('monty',' was here ','again');
+explain extended select length('hello');
+explain extended select char(ascii('h'));
+explain extended select ord('h');
+explain extended select quote(1/0);
+explain extended select crc32("123");
+explain extended select replace('aaaa','a','b');
+explain extended select insert('txs',2,1,'hi');
+explain extended select left(_latin2'a',1);
+explain extended select right(_latin2'a',1);
+explain extended select lcase(_latin2'a');
+explain extended select ucase(_latin2'a');
+explain extended select SUBSTR('abcdefg',3,2);
+explain extended select substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2);
+explain extended select trim(_latin2' a ');
+explain extended select ltrim(_latin2' a ');
+explain extended select rtrim(_latin2' a ');
+explain extended select decode(encode(repeat("a",100000),"monty"),"monty");
 
 #
 # lpad returns incorrect result (Bug #2182)
@@ -779,5 +831,272 @@ SELECT * FROM t1 INNER JOIN t2 ON code=id
   WHERE id='a12' AND (LENGTH(code)=5 OR code < 'a00');
 
 DROP TABLE t1,t2;
+
+#
+# Bug#22684: The Functions ENCODE, DECODE and FORMAT are not real functions
+#
+
+select encode(NULL, NULL);
+select encode("data", NULL);
+select encode(NULL, "password");
+
+select decode(NULL, NULL);
+select decode("data", NULL);
+select decode(NULL, "password");
+
+select format(NULL, NULL);
+select format(pi(), NULL);
+select format(NULL, 2);
+
+select benchmark(NULL, NULL);
+select benchmark(0, NULL);
+select benchmark(100, NULL);
+select benchmark(NULL, 1+1);
+
+#
+# Please note:
+# 1) The collation of the password is irrelevant, the encryption uses
+# the binary representation of the string without charset/collation.
+# 2) These tests can not print the encoded text directly, because it's binary,
+# and doing this would cause problems with source control.
+# Instead, an md5() checksum is used, to verify the result indirectly.
+# 3) Each md5() result must be identical.
+# 4) The md5() result must never change, and must be stable across releases.
+#
+set @password="password";
+set @my_data="clear text to encode";
+select md5(encode(@my_data, "password"));
+select md5(encode(@my_data, _utf8 "password"));
+select md5(encode(@my_data, binary "password"));
+select md5(encode(@my_data, _latin1 "password"));
+select md5(encode(@my_data, _koi8r "password"));
+select md5(encode(@my_data, (select "password" from dual)));
+select md5(encode(@my_data, concat("pass", "word")));
+select md5(encode(@my_data, @password));
+
+set @my_data="binary encoded data";
+select md5(decode(@my_data, "password"));
+select md5(decode(@my_data, _utf8 "password"));
+select md5(decode(@my_data, binary "password"));
+select md5(decode(@my_data, _latin1 "password"));
+select md5(decode(@my_data, _koi8r "password"));
+select md5(decode(@my_data, (select "password" from dual)));
+select md5(decode(@my_data, concat("pass", "word")));
+select md5(decode(@my_data, @password));
+
+set @dec=5;
+select format(pi(), (1+1));
+select format(pi(), (select 3 from dual));
+select format(pi(), @dec);
+
+set @bench_count=10;
+select benchmark(10, pi());
+select benchmark(5+5, pi());
+select benchmark((select 10 from dual), pi());
+select benchmark(@bench_count, pi());
+
+
+#
+# Bug #10963
+# 4294967296 18446744073709551616
+
+select locate('he','hello',-2);
+select locate('lo','hello',-4294967295);
+select locate('lo','hello',4294967295);
+select locate('lo','hello',-4294967296);
+select locate('lo','hello',4294967296);
+select locate('lo','hello',-4294967297);
+select locate('lo','hello',4294967297);
+select locate('lo','hello',-18446744073709551615);
+select locate('lo','hello',18446744073709551615);
+select locate('lo','hello',-18446744073709551616);
+select locate('lo','hello',18446744073709551616);
+select locate('lo','hello',-18446744073709551617);
+select locate('lo','hello',18446744073709551617);
+
+select left('hello', 10);
+select left('hello', 0);
+select left('hello', -1);
+select left('hello', -4294967295);
+select left('hello', 4294967295);
+select left('hello', -4294967296);
+select left('hello', 4294967296);
+select left('hello', -4294967297);
+select left('hello', 4294967297);
+select left('hello', -18446744073709551615);
+select left('hello', 18446744073709551615);
+select left('hello', -18446744073709551616);
+select left('hello', 18446744073709551616);
+select left('hello', -18446744073709551617);
+select left('hello', 18446744073709551617);
+
+select right('hello', 10);
+select right('hello', 0);
+select right('hello', -1);
+select right('hello', -4294967295);
+select right('hello', 4294967295);
+select right('hello', -4294967296);
+select right('hello', 4294967296);
+select right('hello', -4294967297);
+select right('hello', 4294967297);
+select right('hello', -18446744073709551615);
+select right('hello', 18446744073709551615);
+select right('hello', -18446744073709551616);
+select right('hello', 18446744073709551616);
+select right('hello', -18446744073709551617);
+select right('hello', 18446744073709551617);
+
+select substring('hello', 2, -1);
+
+select substring('hello', -1, 1);
+select substring('hello', -2, 1);
+select substring('hello', -4294967295, 1);
+select substring('hello', 4294967295, 1);
+select substring('hello', -4294967296, 1);
+select substring('hello', 4294967296, 1);
+select substring('hello', -4294967297, 1);
+select substring('hello', 4294967297, 1);
+select substring('hello', -18446744073709551615, 1);
+select substring('hello', 18446744073709551615, 1);
+select substring('hello', -18446744073709551616, 1);
+select substring('hello', 18446744073709551616, 1);
+select substring('hello', -18446744073709551617, 1);
+select substring('hello', 18446744073709551617, 1);
+select substring('hello', 1, -1);
+select substring('hello', 1, -4294967295);
+select substring('hello', 1, 4294967295);
+select substring('hello', 1, -4294967296);
+select substring('hello', 1, 4294967296);
+select substring('hello', 1, -4294967297);
+select substring('hello', 1, 4294967297);
+select substring('hello', 1, -18446744073709551615);
+select substring('hello', 1, 18446744073709551615);
+select substring('hello', 1, -18446744073709551616);
+select substring('hello', 1, 18446744073709551616);
+select substring('hello', 1, -18446744073709551617);
+select substring('hello', 1, 18446744073709551617);
+select substring('hello', -1, -1);
+select substring('hello', -4294967295, -4294967295);
+select substring('hello', 4294967295, 4294967295);
+select substring('hello', -4294967296, -4294967296);
+select substring('hello', 4294967296, 4294967296);
+select substring('hello', -4294967297, -4294967297);
+select substring('hello', 4294967297, 4294967297);
+select substring('hello', -18446744073709551615, -18446744073709551615);
+select substring('hello', 18446744073709551615, 18446744073709551615);
+select substring('hello', -18446744073709551616, -18446744073709551616);
+select substring('hello', 18446744073709551616, 18446744073709551616);
+select substring('hello', -18446744073709551617, -18446744073709551617);
+select substring('hello', 18446744073709551617, 18446744073709551617);
+
+select insert('hello', -1, 1, 'hi');
+select insert('hello', -4294967295, 1, 'hi');
+select insert('hello', 4294967295, 1, 'hi');
+select insert('hello', -4294967296, 1, 'hi');
+select insert('hello', 4294967296, 1, 'hi');
+select insert('hello', -4294967297, 1, 'hi');
+select insert('hello', 4294967297, 1, 'hi');
+select insert('hello', -18446744073709551615, 1, 'hi');
+select insert('hello', 18446744073709551615, 1, 'hi');
+select insert('hello', -18446744073709551616, 1, 'hi');
+select insert('hello', 18446744073709551616, 1, 'hi');
+select insert('hello', -18446744073709551617, 1, 'hi');
+select insert('hello', 18446744073709551617, 1, 'hi');
+select insert('hello', 1, -1, 'hi');
+select insert('hello', 1, -4294967295, 'hi');
+select insert('hello', 1, 4294967295, 'hi');
+select insert('hello', 1, -4294967296, 'hi');
+select insert('hello', 1, 4294967296, 'hi');
+select insert('hello', 1, -4294967297, 'hi');
+select insert('hello', 1, 4294967297, 'hi');
+select insert('hello', 1, -18446744073709551615, 'hi');
+select insert('hello', 1, 18446744073709551615, 'hi');
+select insert('hello', 1, -18446744073709551616, 'hi');
+select insert('hello', 1, 18446744073709551616, 'hi');
+select insert('hello', 1, -18446744073709551617, 'hi');
+select insert('hello', 1, 18446744073709551617, 'hi');
+select insert('hello', -1, -1, 'hi');
+select insert('hello', -4294967295, -4294967295, 'hi');
+select insert('hello', 4294967295, 4294967295, 'hi');
+select insert('hello', -4294967296, -4294967296, 'hi');
+select insert('hello', 4294967296, 4294967296, 'hi');
+select insert('hello', -4294967297, -4294967297, 'hi');
+select insert('hello', 4294967297, 4294967297, 'hi');
+select insert('hello', -18446744073709551615, -18446744073709551615, 'hi');
+select insert('hello', 18446744073709551615, 18446744073709551615, 'hi');
+select insert('hello', -18446744073709551616, -18446744073709551616, 'hi');
+select insert('hello', 18446744073709551616, 18446744073709551616, 'hi');
+select insert('hello', -18446744073709551617, -18446744073709551617, 'hi');
+select insert('hello', 18446744073709551617, 18446744073709551617, 'hi');
+
+select repeat('hello', -1);
+select repeat('hello', -4294967295);
+select repeat('hello', 4294967295);
+select repeat('hello', -4294967296);
+select repeat('hello', 4294967296);
+select repeat('hello', -4294967297);
+select repeat('hello', 4294967297);
+select repeat('hello', -18446744073709551615);
+select repeat('hello', 18446744073709551615);
+select repeat('hello', -18446744073709551616);
+select repeat('hello', 18446744073709551616);
+select repeat('hello', -18446744073709551617);
+select repeat('hello', 18446744073709551617);
+
+select space(-1);
+select space(-4294967295);
+select space(4294967295);
+select space(-4294967296);
+select space(4294967296);
+select space(-4294967297);
+select space(4294967297);
+select space(-18446744073709551615);
+select space(18446744073709551615);
+select space(-18446744073709551616);
+select space(18446744073709551616);
+select space(-18446744073709551617);
+select space(18446744073709551617);
+
+select rpad('hello', -1, '1');
+select rpad('hello', -4294967295, '1');
+select rpad('hello', 4294967295, '1');
+select rpad('hello', -4294967296, '1');
+select rpad('hello', 4294967296, '1');
+select rpad('hello', -4294967297, '1');
+select rpad('hello', 4294967297, '1');
+select rpad('hello', -18446744073709551615, '1');
+select rpad('hello', 18446744073709551615, '1');
+select rpad('hello', -18446744073709551616, '1');
+select rpad('hello', 18446744073709551616, '1');
+select rpad('hello', -18446744073709551617, '1');
+select rpad('hello', 18446744073709551617, '1');
+
+select lpad('hello', -1, '1');
+select lpad('hello', -4294967295, '1');
+select lpad('hello', 4294967295, '1');
+select lpad('hello', -4294967296, '1');
+select lpad('hello', 4294967296, '1');
+select lpad('hello', -4294967297, '1');
+select lpad('hello', 4294967297, '1');
+select lpad('hello', -18446744073709551615, '1');
+select lpad('hello', 18446744073709551615, '1');
+select lpad('hello', -18446744073709551616, '1');
+select lpad('hello', 18446744073709551616, '1');
+select lpad('hello', -18446744073709551617, '1');
+select lpad('hello', 18446744073709551617, '1');
+
+
+#
+# BUG#17047: CHAR() and IN() can return NULL without signaling NULL
+# result
+#
+SET @orig_sql_mode = @@SQL_MODE;
+SET SQL_MODE=traditional;
+
+SELECT CHAR(0xff,0x8f USING utf8);
+SELECT CHAR(0xff,0x8f USING utf8) IS NULL;
+
+SET SQL_MODE=@orig_sql_mode;
+
 
 --echo End of 5.0 tests

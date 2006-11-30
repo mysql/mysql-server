@@ -1052,6 +1052,9 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     packet->append(STRING_WITH_LEN("CREATE TEMPORARY TABLE "));
   else
     packet->append(STRING_WITH_LEN("CREATE TABLE "));
+  if (create_info_arg &&
+      (create_info_arg->options & HA_LEX_CREATE_IF_NOT_EXISTS))
+    packet->append(STRING_WITH_LEN("IF NOT EXISTS "));
   if (table_list->schema_table)
     alias= table_list->schema_table->table_name;
   else
@@ -4990,7 +4993,7 @@ bool get_schema_tables_result(JOIN *join)
         table_list->table->file->extra(HA_EXTRA_RESET_STATE);
         table_list->table->file->delete_all_rows();
         free_io_cache(table_list->table);
-        filesort_free_buffers(table_list->table);
+        filesort_free_buffers(table_list->table,1);
         table_list->table->null_row= 0;
       }
       else

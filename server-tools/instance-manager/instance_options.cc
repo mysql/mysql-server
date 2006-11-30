@@ -29,13 +29,14 @@
 #include "buffer.h"
 #include "instance.h"
 #include "log.h"
+#include "options.h"
 #include "parse_output.h"
 #include "priv.h"
 
 
 /* Create "mysqld ..." command in the buffer */
 
-static inline int create_mysqld_command(Buffer *buf,
+static inline bool create_mysqld_command(Buffer *buf,
                                         const LEX_STRING *mysqld_path,
                                         const LEX_STRING *option)
 {
@@ -54,10 +55,33 @@ static inline int create_mysqld_command(Buffer *buf,
     /* here the '\0' character is copied from the option string */
     buf->append(position, option->str, option->length + 1);
 
-    return buf->is_error();
+    return buf->is_error() ? TRUE : FALSE;
   }
-  return 1;
+  return TRUE;
 }
+
+static inline bool is_path_separator(char ch)
+{
+#if defined(__WIN__) || defined(__NETWARE__)
+  /* On windows and netware more delimiters are possible */
+  return ch == FN_LIBCHAR || ch == FN_DEVCHAR || ch == '/';
+#else
+  return ch == FN_LIBCHAR;                      /* Unixes */
+#endif
+}
+
+
+static char *find_last_path_separator(char *path, uint length)
+{
+  while (length)
+  {
+    if (is_path_separator(path[length]))
+      return path + length;
+    length--;
+  }
+  return NULL; /* No path separator found */
+}
+
 
 
 bool Instance_options::is_option_im_specific(const char *option_name)
@@ -82,8 +106,12 @@ bool Instance_options::is_option_im_specific(const char *option_name)
 
 Instance_options::Instance_options()
   :mysqld_version(NULL), mysqld_socket(NULL), mysqld_datadir(NULL),
-  mysqld_pid_file(NULL), mysqld_port(NULL), mysqld_port_val(0),
-  nonguarded(NULL), shutdown_delay(NULL), shutdown_delay_val(0),
+  mysqld_pid_file(NULL), 
+  nonguarded(NULL),
+  mysqld_port(NULL), 
+  mysqld_port_val(0),
+  shutdown_delay(NULL),
+  shutdown_delay_val(0),
   filled_default_options(0)
 {
   mysqld_path.str= NULL;
@@ -99,7 +127,7 @@ Instance_options::Instance_options()
 /*
   Get compiled-in value of default_option
 
-  SYNOPSYS
+  SYNOPSIS
     get_default_option()
     result            buffer to put found value
     result_len        buffer size
@@ -139,7 +167,7 @@ err:
 /*
   Fill mysqld_version option (used at initialization stage)
 
-  SYNOPSYS
+  SYNOPSIS
     fill_instance_version()
 
   DESCRIPTION
@@ -147,27 +175,36 @@ err:
   Get mysqld version string from "mysqld --version" output.
 
   RETURN
-    0 - ok
-    1 - error occured
+    FALSE - ok
+    TRUE  - error occured
 */
 
-int Instance_options::fill_instance_version()
+bool Instance_options::fill_instance_version()
 {
   char result[MAX_VERSION_LENGTH];
   LEX_STRING version_option=
     { C_STRING_WITH_LEN(" --no-defaults --version") };
-  int rc= 1;
   Buffer cmd(mysqld_path.length + version_option.length + 1);
 
   if (create_mysqld_command(&cmd, &mysqld_path, &version_option))
-    goto err;
+  {
+    log_error("Failed to get version of '%s': out of memory.",
+              (const char *) mysqld_path.str);
+    return TRUE;
+  }
 
   bzero(result, MAX_VERSION_LENGTH);
 
-  rc= parse_output_and_get_value(cmd.buffer, "Ver", result,
-                                 MAX_VERSION_LENGTH, GET_LINE);
+  if (parse_output_and_get_value(cmd.buffer, "Ver", result,
+                                 MAX_VERSION_LENGTH, GET_LINE))
+  {
+    log_error("Failed to get version of '%s': unexpected output.",
+              (const char *) mysqld_path.str);
+    return TRUE;
+  }
 
-  if (*result != '\0')
+  DBUG_ASSERT(*result != '\0');
+
   {
     char *start;
     /* chop the newline from the end of the version string */
@@ -179,18 +216,15 @@ int Instance_options::fill_instance_version()
 
     mysqld_version= strdup_root(&alloc, start);
   }
-err:
-  if (rc)
-    log_error("fill_instance_version: Failed to get version of '%s'",
-              mysqld_path.str);
-  return rc;
+
+  return FALSE;
 }
 
 
 /*
   Fill mysqld_real_path
 
-  SYNOPSYS
+  SYNOPSIS
     fill_mysqld_real_path()
 
   DESCRIPTION
@@ -202,28 +236,37 @@ err:
   script(for example libtool) or a symlink.
 
   RETURN
-    0 - ok
-    1 - error occured
+    FALSE - ok
+    TRUE  - error occured
 */
 
-int Instance_options::fill_mysqld_real_path()
+bool Instance_options::fill_mysqld_real_path()
 {
   char result[FN_REFLEN];
   LEX_STRING help_option=
     { C_STRING_WITH_LEN(" --no-defaults --help") };
-  int rc= 1;
   Buffer cmd(mysqld_path.length + help_option.length);
 
   if (create_mysqld_command(&cmd, &mysqld_path, &help_option))
-    goto err;
+  {
+    log_error("Failed to get real path of '%s': out of memory.",
+              (const char *) mysqld_path.str);
+    return TRUE;
+  }
 
   bzero(result, FN_REFLEN);
 
-  rc= parse_output_and_get_value(cmd.buffer, "Usage: ",
+  if (parse_output_and_get_value(cmd.buffer, "Usage: ",
                                  result, FN_REFLEN,
-                                 GET_LINE);
+                                 GET_LINE))
+  {
+    log_error("Failed to get real path of '%s': unexpected output.",
+              (const char *) mysqld_path.str);
+    return TRUE;
+  }
 
-  if (*result != '\0')
+  DBUG_ASSERT(*result != '\0');
+
   {
     char* options_str;
     /* chop the path of at [OPTIONS] */
@@ -232,17 +275,15 @@ int Instance_options::fill_mysqld_real_path()
     mysqld_real_path.str= strdup_root(&alloc, result);
     mysqld_real_path.length= strlen(mysqld_real_path.str);
   }
-err:
-  if (rc)
-    log_error("fill_mysqld_real_path: Failed to get real path of mysqld");
-  return rc;
+
+  return FALSE;
 }
 
 
 /*
   Fill various log options
 
-  SYNOPSYS
+  SYNOPSIS
     fill_log_options()
 
   DESCRIPTION
@@ -252,11 +293,11 @@ err:
   file name and placement.
 
   RETURN
-    0 - ok
-    1 - error occured
+    FALSE - ok
+    TRUE  - error occured
 */
 
-int Instance_options::fill_log_options()
+bool Instance_options::fill_log_options()
 {
   Buffer buff;
   enum { MAX_LOG_OPTION_LENGTH= 256 };
@@ -282,7 +323,7 @@ int Instance_options::fill_log_options()
   if (mysqld_datadir == NULL)
   {
     if (get_default_option(datadir, MAX_LOG_OPTION_LENGTH, "--datadir"))
-      goto err;
+      return TRUE;
   }
   else
   {
@@ -320,7 +361,7 @@ int Instance_options::fill_log_options()
 
           if ((MAX_LOG_OPTION_LENGTH - strlen(full_name)) <=
               strlen(log_files->default_suffix))
-            goto err;
+            return TRUE;
 
           strmov(full_name + strlen(full_name), log_files->default_suffix);
 
@@ -340,22 +381,20 @@ int Instance_options::fill_log_options()
                     datadir, "", MY_UNPACK_FILENAME | MY_SAFE_PATH);
 
           if (!(*(log_files->value)= strdup_root(&alloc, full_name)))
-            goto err;
+            return TRUE;
         }
       }
     }
   }
 
-  return 0;
-err:
-  return 1;
+  return FALSE;
 }
 
 
 /*
   Get the full pid file name with path
 
-  SYNOPSYS
+  SYNOPSIS
     get_pid_filaname()
     result            buffer to sotre the pidfile value
 
@@ -396,7 +435,7 @@ int Instance_options::unlink_pidfile()
 }
 
 
-pid_t Instance_options::get_pid()
+pid_t Instance_options::load_pid()
 {
   FILE *pid_file_stream;
 
@@ -415,25 +454,55 @@ pid_t Instance_options::get_pid()
 }
 
 
-int Instance_options::complete_initialization(const char *default_path)
+bool Instance_options::complete_initialization()
 {
   int arg_idx;
   const char *tmp;
   char *end;
+  char bin_name_firstchar;
 
   if (!mysqld_path.str)
   {
-    // Need one extra byte, as convert_dirname() adds a slash at the end.
-    if (!(mysqld_path.str= alloc_root(&alloc, strlen(default_path) + 2)))
-      goto err;
-    strcpy(mysqld_path.str, default_path);
+    /*
+      Need to copy the path to allocated memory, as convert_dirname() might
+      need to change it
+    */
+    mysqld_path.str=
+      alloc_root(&alloc, strlen(Options::Main::default_mysqld_path) + 1);
+
+    if (!mysqld_path.str)
+      return TRUE;
+
+    strcpy(mysqld_path.str, Options::Main::default_mysqld_path);
   }
 
-  // it's safe to cast this to char* since this is a buffer we are allocating
-  end= convert_dirname((char*)mysqld_path.str, mysqld_path.str, NullS);
-  end[-1]= 0;
-
   mysqld_path.length= strlen(mysqld_path.str);
+
+  /*
+    If we found path with no slashes (end == NULL), we should not call
+    convert_dirname() at all. As we have got relative path to the binary.
+    That is, user supposes that mysqld resides in the same dir as
+    mysqlmanager.
+  */
+  if ((end= find_last_path_separator(mysqld_path.str, mysqld_path.length)))
+  {
+    bin_name_firstchar= end[1];
+
+    /*
+      Below we will conver the path to mysqld in the case, it was given
+      in a format of another OS (e.g. uses '/' instead of '\' etc).
+      Here we strip the path to get rid of the binary name ("mysqld"),
+      we do it by removing first letter of the binary name (e.g. 'm'
+      in "mysqld"). Later we put it back.
+    */
+    end[1]= 0;
+
+    /* convert dirname to the format of current OS */
+    convert_dirname((char*)mysqld_path.str, mysqld_path.str, NullS);
+
+    /* put back the first character of the binary name*/
+    end[1]= bin_name_firstchar;
+  }
 
   if (mysqld_port)
     mysqld_port_val= atoi(mysqld_port);
@@ -442,7 +511,7 @@ int Instance_options::complete_initialization(const char *default_path)
     shutdown_delay_val= atoi(shutdown_delay);
 
   if (!(tmp= strdup_root(&alloc, "--no-defaults")))
-    goto err;
+    return TRUE;
 
   if (!mysqld_pid_file)
   {
@@ -477,21 +546,21 @@ int Instance_options::complete_initialization(const char *default_path)
   }
 
   if (get_pid_filename(pid_file_with_path))
-    goto err;
+    return TRUE;
 
   /* we need to reserve space for the final zero + possible default options */
   if (!(argv= (char**)
         alloc_root(&alloc, (get_num_options() + 1
                             + MAX_NUMBER_OF_DEFAULT_OPTIONS) * sizeof(char*))))
-    goto err;
+    return TRUE;
   filled_default_options= 0;
 
   /* the path must be first in the argv */
   if (add_to_argv(mysqld_path.str))
-    goto err;
+    return TRUE;
 
   if (add_to_argv(tmp))
-    goto err;
+    return TRUE;
 
   arg_idx= filled_default_options;
   for (int opt_idx= 0; opt_idx < get_num_options(); ++opt_idx)
@@ -514,12 +583,9 @@ int Instance_options::complete_initialization(const char *default_path)
   argv[arg_idx]= 0;
 
   if (fill_log_options() || fill_mysqld_real_path() || fill_instance_version())
-    goto err;
+    return TRUE;
 
-  return 0;
-
-err:
-  return 1;
+  return FALSE;
 }
 
 
@@ -636,26 +702,26 @@ void Instance_options::print_argv()
 
 /*
   We execute this function to initialize some options.
-  Return value: 0 - ok. 1 - unable to allocate memory.
+
+  RETURN
+    FALSE - ok
+    TRUE  - memory allocation error
 */
 
-int Instance_options::init(const LEX_STRING *instance_name_arg)
+bool Instance_options::init(const LEX_STRING *instance_name_arg)
 {
   instance_name.length= instance_name_arg->length;
 
   init_alloc_root(&alloc, MEM_ROOT_BLOCK_SIZE, 0);
 
   if (options.init())
-    goto err;
+    return TRUE;
 
   if (!(instance_name.str= strmake_root(&alloc, instance_name_arg->str,
                                         instance_name_arg->length)))
-    goto err;
+    return TRUE;
 
-  return 0;
-
-err:
-  return 1;
+  return FALSE;
 }
 
 
@@ -663,3 +729,29 @@ Instance_options::~Instance_options()
 {
   free_root(&alloc, MYF(0));
 }
+
+
+uint Instance_options::get_shutdown_delay() const
+{
+  static const uint DEFAULT_SHUTDOWN_DELAY= 35;
+
+  /*
+    NOTE: it is important to check shutdown_delay here, but use
+    shutdown_delay_val. The idea is that if the option is unset,
+    shutdown_delay will be NULL, but shutdown_delay_val will not be reset.
+  */
+
+  return shutdown_delay ? shutdown_delay_val : DEFAULT_SHUTDOWN_DELAY;
+}
+
+int Instance_options::get_mysqld_port() const
+{
+  /*
+    NOTE: it is important to check mysqld_port here, but use mysqld_port_val.
+    The idea is that if the option is unset, mysqld_port will be NULL, but
+    mysqld_port_val will not be reset.
+  */
+
+  return mysqld_port ? mysqld_port_val : 0;
+}
+

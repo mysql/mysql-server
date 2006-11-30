@@ -45,8 +45,9 @@ public:
 public:
   Instance_options();
   ~Instance_options();
+
   /* fills in argv */
-  int complete_initialization(const char *default_path);
+  bool complete_initialization();
 
   bool set_option(Named_value *option);
   void unset_option(const char *option_name);
@@ -55,11 +56,14 @@ public:
   inline Named_value get_option(int idx) const;
 
 public:
-  int init(const LEX_STRING *instance_name_arg);
-  pid_t get_pid();
+  bool init(const LEX_STRING *instance_name_arg);
+  pid_t load_pid();
   int get_pid_filename(char *result);
   int unlink_pidfile();
   void print_argv();
+
+  uint get_shutdown_delay() const;
+  int get_mysqld_port() const;
 
 public:
   /*
@@ -79,21 +83,17 @@ public:
   const char *mysqld_socket;
   const char *mysqld_datadir;
   const char *mysqld_pid_file;
-  const char *mysqld_port;
-  uint mysqld_port_val;
   LEX_STRING instance_name;
   LEX_STRING mysqld_path;
   LEX_STRING mysqld_real_path;
   const char *nonguarded;
-  const char *shutdown_delay;
-  uint shutdown_delay_val;
   /* log enums are defined in parse.h */
   char *logs[3];
 
 private:
-  int fill_log_options();
-  int fill_instance_version();
-  int fill_mysqld_real_path();
+  bool fill_log_options();
+  bool fill_instance_version();
+  bool fill_mysqld_real_path();
   int add_to_argv(const char *option);
   int get_default_option(char *result, size_t result_len,
                          const char *option_name);
@@ -102,6 +102,11 @@ private:
   int find_option(const char *option_name);
 
 private:
+  const char *mysqld_port;
+  uint mysqld_port_val;
+  const char *shutdown_delay;
+  uint shutdown_delay_val;
+
   uint filled_default_options;
   MEM_ROOT alloc;
 

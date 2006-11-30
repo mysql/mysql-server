@@ -877,3 +877,32 @@ select * from t1 where a > 3;
 show status like 'last_query_cost';
 drop table t1;
 SET GLOBAL query_cache_size=0;
+
+#
+# Bug #20045: Server crash on INSERT ... SELECT ... FROM non-mergeable view
+#
+set global query_cache_size=1024*1024;
+flush status;
+create table t1 (a int);
+insert into t1 (a) values (1), (2), (3);
+select * from t1;
+show status like 'Qcache_hits';
+select * from t1;
+show status like 'Qcache_hits';
+create table t2 like t1;
+select * from t1;
+show status like 'Qcache_hits';
+insert into t2 select * from t1;
+select * from t1;
+show status like 'Qcache_hits';
+drop table t1, t2;
+
+create table t1(c1 int);
+create table t2(c1 int);
+create table t3(c1 int);
+create view v1 as select t3.c1 as c1 from t3,t2 where t3.c1 = t2.c1;
+start transaction;
+insert into t1(c1) select c1 from v1;
+drop table t1, t2, t3;
+drop view v1;
+set global query_cache_size=0;

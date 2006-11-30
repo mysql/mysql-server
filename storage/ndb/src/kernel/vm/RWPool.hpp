@@ -70,6 +70,7 @@ RWPool::getPtr(Uint32 i)
     return record;
   }
   handle_invalid_get_ptr(i);
+  return 0;                                     /* purify: deadcode */
 }
 
 #endif
