@@ -846,7 +846,7 @@ private:
                                       const NdbOperation *first,
                                       const NdbOperation *last,
                                       uint errcode);
-  int peek_indexed_rows(const byte *record);
+  int peek_indexed_rows(const byte *record, bool check_pk);
   int fetch_next(NdbScanOperation* op);
   int next_result(byte *buf); 
   int define_read_attrs(byte* buf, NdbOperation* op);
