@@ -661,7 +661,7 @@ private:
                                       const NdbOperation *first,
                                       const NdbOperation *last,
                                       uint errcode);
-  int peek_indexed_rows(const byte *record);
+  int peek_indexed_rows(const byte *record, bool check_pk);
   int unique_index_read(const byte *key, uint key_len, 
                         byte *buf);
   int ordered_index_scan(const key_range *start_key,
