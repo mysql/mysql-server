@@ -4225,6 +4225,12 @@ find_field_in_tables(THD *thd, Item_ident *item,
     {
       if (found == WRONG_GRANT)
 	return (Field*) 0;
+
+      /*
+        Only views fields should be marked as dependent, not an underlying
+        fields.
+      */
+      if (!table_ref->belong_to_view)
       {
         SELECT_LEX *current_sel= thd->lex->current_select;
         SELECT_LEX *last_select= table_ref->select_lex;
