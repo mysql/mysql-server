@@ -2057,7 +2057,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
     tz_info->timecnt++;
 
     DBUG_PRINT("info",
-      ("time_zone_transition table: tz_id: %u  tt_time:%lu  tt_id: %u",
+      ("time_zone_transition table: tz_id: %u  tt_time: %lu  tt_id: %u",
        tzid, (ulong) ttime, ttid));
 
     res= table->file->index_next_same(table->record[0],

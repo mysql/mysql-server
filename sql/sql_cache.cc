@@ -1044,7 +1044,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       (pre-space is removed in dispatch_command).
 
       First '/' looks like comment before command it is not
-      frequently appeared in real lihe, consequently we can
+      frequently appeared in real life, consequently we can
       check all such queries, too.
     */
     if ((my_toupper(system_charset_info, sql[i])     != 'S' ||
