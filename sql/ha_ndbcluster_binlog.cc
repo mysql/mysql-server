@@ -94,8 +94,8 @@ static ulonglong ndb_latest_applied_binlog_epoch= 0;
 static ulonglong ndb_latest_handled_binlog_epoch= 0;
 static ulonglong ndb_latest_received_binlog_epoch= 0;
 
-NDB_SHARE *apply_status_share= 0;
-NDB_SHARE *schema_share= 0;
+NDB_SHARE *ndb_apply_status_share= 0;
+NDB_SHARE *ndb_schema_share= 0;
 
 /* Schema object distribution handling */
 HASH ndb_schema_objects;
@@ -116,9 +116,9 @@ static void ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object,
 static Uint64 *p_latest_trans_gci= 0;
 
 /*
-  Global variables for holding the binlog_index table reference
+  Global variables for holding the ndb_binlog_index table reference
 */
-static TABLE *binlog_index= 0;
+static TABLE *ndb_binlog_index= 0;
 static TABLE_LIST binlog_tables;
 
 /*
@@ -215,8 +215,8 @@ static void dbug_print_table(const char *info, TABLE *table)
   Run a query through mysql_parse
 
   Used to:
-  - purging the binlog_index
-  - creating the apply_status table
+  - purging the ndb_binlog_index
+  - creating the ndb_apply_status table
 */
 static void run_query(THD *thd, char *buf, char *end,
                       my_bool print_error, my_bool disable_binlog)
@@ -254,10 +254,10 @@ static void run_query(THD *thd, char *buf, char *end,
   if (thd == injector_thd)
   {
     /*
-      running the query will close all tables, including the binlog_index
+      running the query will close all tables, including the ndb_binlog_index
       used in injector_thd
     */
-    binlog_index= 0;
+    ndb_binlog_index= 0;
   }
 }
 
@@ -363,7 +363,7 @@ void ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *_table)
   share->op= 0;
   share->table= 0;
 
-  if (!schema_share &&
+  if (!ndb_schema_share &&
       strcmp(share->db, NDB_REP_DB) == 0 &&
       strcmp(share->table_name, NDB_SCHEMA_TABLE) == 0)
     do_event_op= 1;
@@ -677,18 +677,18 @@ void ndbcluster_binlog_init_handlerton()
 
 
 /*
-  check the availability af the apply_status share
+  check the availability af the ndb_apply_status share
   - return share, but do not increase refcount
   - return 0 if there is no share
 */
-static NDB_SHARE *ndbcluster_check_apply_status_share()
+static NDB_SHARE *ndbcluster_check_ndb_apply_status_share()
 {
   pthread_mutex_lock(&ndbcluster_mutex);
 
   void *share= hash_search(&ndbcluster_open_tables, 
                            NDB_APPLY_TABLE_FILE,
                            sizeof(NDB_APPLY_TABLE_FILE) - 1);
-  DBUG_PRINT("info",("ndbcluster_check_apply_status_share %s 0x%lx",
+  DBUG_PRINT("info",("ndbcluster_check_ndb_apply_status_share %s 0x%lx",
                      NDB_APPLY_TABLE_FILE, (long) share));
   pthread_mutex_unlock(&ndbcluster_mutex);
   return (NDB_SHARE*) share;
@@ -699,25 +699,25 @@ static NDB_SHARE *ndbcluster_check_apply_status_share()
   - return share, but do not increase refcount
   - return 0 if there is no share
 */
-static NDB_SHARE *ndbcluster_check_schema_share()
+static NDB_SHARE *ndbcluster_check_ndb_schema_share()
 {
   pthread_mutex_lock(&ndbcluster_mutex);
 
   void *share= hash_search(&ndbcluster_open_tables, 
                            NDB_SCHEMA_TABLE_FILE,
                            sizeof(NDB_SCHEMA_TABLE_FILE) - 1);
-  DBUG_PRINT("info",("ndbcluster_check_schema_share %s 0x%lx",
+  DBUG_PRINT("info",("ndbcluster_check_ndb_schema_share %s 0x%lx",
                      NDB_SCHEMA_TABLE_FILE, (long) share));
   pthread_mutex_unlock(&ndbcluster_mutex);
   return (NDB_SHARE*) share;
 }
 
 /*
-  Create the apply_status table
+  Create the ndb_apply_status table
 */
-static int ndbcluster_create_apply_status_table(THD *thd)
+static int ndbcluster_create_ndb_apply_status_table(THD *thd)
 {
-  DBUG_ENTER("ndbcluster_create_apply_status_table");
+  DBUG_ENTER("ndbcluster_create_ndb_apply_status_table");
 
   /*
     Check if we already have the apply status table.
@@ -725,7 +725,7 @@ static int ndbcluster_create_apply_status_table(THD *thd)
     and thus have a share
   */
 
-  if (ndbcluster_check_apply_status_share())
+  if (ndbcluster_check_ndb_apply_status_share())
     DBUG_RETURN(0);
 
   if (g_ndb_cluster_connection->get_no_ready() <= 0)
@@ -774,7 +774,7 @@ static int ndbcluster_create_schema_table(THD *thd)
     and thus have a share
   */
 
-  if (ndbcluster_check_schema_share())
+  if (ndbcluster_check_ndb_schema_share())
     DBUG_RETURN(0);
 
   if (g_ndb_cluster_connection->get_no_ready() <= 0)
@@ -818,30 +818,30 @@ static int ndbcluster_create_schema_table(THD *thd)
 
 int ndbcluster_setup_binlog_table_shares(THD *thd)
 {
-  if (!schema_share &&
-      ndbcluster_check_schema_share() == 0)
+  if (!ndb_schema_share &&
+      ndbcluster_check_ndb_schema_share() == 0)
   {
     pthread_mutex_lock(&LOCK_open);
     ndb_create_table_from_engine(thd, NDB_REP_DB, NDB_SCHEMA_TABLE);
     pthread_mutex_unlock(&LOCK_open);
-    if (!schema_share)
+    if (!ndb_schema_share)
     {
       ndbcluster_create_schema_table(thd);
       // always make sure we create the 'schema' first
-      if (!schema_share)
+      if (!ndb_schema_share)
         return 1;
     }
   }
-  if (!apply_status_share &&
-      ndbcluster_check_apply_status_share() == 0)
+  if (!ndb_apply_status_share &&
+      ndbcluster_check_ndb_apply_status_share() == 0)
   {
     pthread_mutex_lock(&LOCK_open);
     ndb_create_table_from_engine(thd, NDB_REP_DB, NDB_APPLY_TABLE);
     pthread_mutex_unlock(&LOCK_open);
-    if (!apply_status_share)
+    if (!ndb_apply_status_share)
     {
-      ndbcluster_create_apply_status_table(thd);
-      if (!apply_status_share)
+      ndbcluster_create_ndb_apply_status_table(thd);
+      if (!ndb_apply_status_share)
         return 1;
     }
   }
@@ -1003,7 +1003,7 @@ ndbcluster_update_slock(THD *thd,
                         const char *table_name)
 {
   DBUG_ENTER("ndbcluster_update_slock");
-  if (!schema_share)
+  if (!ndb_schema_share)
   {
     DBUG_RETURN(0);
   }
@@ -1194,7 +1194,7 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
   DBUG_PRINT("enter",
              ("query: %s  db: %s  table_name: %s  thd_ndb->options: %d",
               query, db, table_name, thd_ndb->options));
-  if (!schema_share || thd_ndb->options & TNO_NO_LOG_SCHEMA_OP)
+  if (!ndb_schema_share || thd_ndb->options & TNO_NO_LOG_SCHEMA_OP)
   {
     DBUG_RETURN(0);
   }
@@ -1268,10 +1268,10 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
     int no_storage_nodes= g_ndb_cluster_connection->no_db_nodes();
     bitmap_init(&schema_subscribers, bitbuf, sizeof(bitbuf)*8, FALSE);
     bitmap_set_all(&schema_subscribers);
-    (void) pthread_mutex_lock(&schema_share->mutex);
+    (void) pthread_mutex_lock(&ndb_schema_share->mutex);
     for (i= 0; i < no_storage_nodes; i++)
     {
-      MY_BITMAP *table_subscribers= &schema_share->subscriber_bitmap[i];
+      MY_BITMAP *table_subscribers= &ndb_schema_share->subscriber_bitmap[i];
       if (!bitmap_is_clear_all(table_subscribers))
       {
         bitmap_intersect(&schema_subscribers,
@@ -1279,7 +1279,7 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
         updated= 1;
       }
     }
-    (void) pthread_mutex_unlock(&schema_share->mutex);
+    (void) pthread_mutex_unlock(&ndb_schema_share->mutex);
     if (updated)
     {
       bitmap_clear_bit(&schema_subscribers, node_id);
@@ -1475,15 +1475,15 @@ end:
                                       &abstime);
       if (thd->killed)
         break;
-      (void) pthread_mutex_lock(&schema_share->mutex);
+      (void) pthread_mutex_lock(&ndb_schema_share->mutex);
       for (i= 0; i < no_storage_nodes; i++)
       {
         /* remove any unsubscribed from schema_subscribers */
-        MY_BITMAP *tmp= &schema_share->subscriber_bitmap[i];
+        MY_BITMAP *tmp= &ndb_schema_share->subscriber_bitmap[i];
         if (!bitmap_is_clear_all(tmp))
           bitmap_intersect(&schema_subscribers, tmp);
       }
-      (void) pthread_mutex_unlock(&schema_share->mutex);
+      (void) pthread_mutex_unlock(&ndb_schema_share->mutex);
 
       /* remove any unsubscribed from ndb_schema_object->slock */
       bitmap_intersect(&ndb_schema_object->slock_bitmap, &schema_subscribers);
@@ -1733,7 +1733,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
 {
   DBUG_ENTER("ndb_binlog_thread_handle_schema_event");
   NDB_SHARE *tmp_share= (NDB_SHARE *)pOp->getCustomData();
-  if (tmp_share && schema_share == tmp_share)
+  if (tmp_share && ndb_schema_share == tmp_share)
   {
     NDBEVENT::TableEvent ev_type= pOp->getEventType();
     DBUG_PRINT("enter", ("%s.%s  ev_type: %d",
@@ -1900,15 +1900,15 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
     case NDBEVENT::TE_CLUSTER_FAILURE:
       if (ndb_extra_logging)
         sql_print_information("NDB Binlog: cluster failure for %s at epoch %u.",
-                              schema_share->key, (unsigned) pOp->getGCI());
+                              ndb_schema_share->key, (unsigned) pOp->getGCI());
       // fall through
     case NDBEVENT::TE_DROP:
       if (ndb_extra_logging &&
           ndb_binlog_tables_inited && ndb_binlog_running)
         sql_print_information("NDB Binlog: ndb tables initially "
                               "read only on reconnect.");
-      free_share(&schema_share);
-      schema_share= 0;
+      free_share(&ndb_schema_share);
+      ndb_schema_share= 0;
       close_cached_tables((THD*) 0, 0, (TABLE_LIST*) 0, FALSE);
       // fall through
     case NDBEVENT::TE_ALTER:
@@ -2134,15 +2134,15 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
 
 /*********************************************************************
   Internal helper functions for handeling of the cluster replication tables
-  - binlog_index
-  - apply_status
+  - ndb_binlog_index
+  - ndb_apply_status
 *********************************************************************/
 
 /*
   struct to hold the data to be inserted into the
-  binlog_index table
+  ndb_binlog_index table
 */
-struct Binlog_index_row {
+struct ndb_binlog_index_row {
   ulonglong gci;
   const char *master_log_file;
   ulonglong master_log_pos;
@@ -2153,10 +2153,10 @@ struct Binlog_index_row {
 };
 
 /*
-  Open the binlog_index table
+  Open the ndb_binlog_index table
 */
-static int open_binlog_index(THD *thd, TABLE_LIST *tables,
-                             TABLE **binlog_index)
+static int open_ndb_binlog_index(THD *thd, TABLE_LIST *tables,
+                             TABLE **ndb_binlog_index)
 {
   static char repdb[]= NDB_REP_DB;
   static char reptable[]= NDB_REP_TABLE;
@@ -2172,26 +2172,26 @@ static int open_binlog_index(THD *thd, TABLE_LIST *tables,
   thd->clear_error();
   if (open_tables(thd, &tables, &counter, MYSQL_LOCK_IGNORE_FLUSH))
   {
-    sql_print_error("NDB Binlog: Opening binlog_index: %d, '%s'",
+    sql_print_error("NDB Binlog: Opening ndb_binlog_index: %d, '%s'",
                     thd->net.last_errno,
                     thd->net.last_error ? thd->net.last_error : "");
     thd->proc_info= save_proc_info;
     return -1;
   }
-  *binlog_index= tables->table;
+  *ndb_binlog_index= tables->table;
   thd->proc_info= save_proc_info;
-  (*binlog_index)->use_all_columns();
+  (*ndb_binlog_index)->use_all_columns();
   return 0;
 }
 
 
 /*
-  Insert one row in the binlog_index
+  Insert one row in the ndb_binlog_index
 */
 
-int ndb_add_binlog_index(THD *thd, void *_row)
+int ndb_add_ndb_binlog_index(THD *thd, void *_row)
 {
-  Binlog_index_row &row= *(Binlog_index_row *) _row;
+  ndb_binlog_index_row &row= *(ndb_binlog_index_row *) _row;
   int error= 0;
   bool need_reopen;
   /*
@@ -2203,10 +2203,10 @@ int ndb_add_binlog_index(THD *thd, void *_row)
 
   for ( ; ; ) /* loop for need_reopen */
   {
-    if (!binlog_index && open_binlog_index(thd, &binlog_tables, &binlog_index))
+    if (!ndb_binlog_index && open_ndb_binlog_index(thd, &binlog_tables, &ndb_binlog_index))
     {
       error= -1;
-      goto add_binlog_index_err;
+      goto add_ndb_binlog_index_err;
     }
 
     if (lock_tables(thd, &binlog_tables, 1, &need_reopen))
@@ -2215,43 +2215,43 @@ int ndb_add_binlog_index(THD *thd, void *_row)
       {
         TABLE_LIST *p_binlog_tables= &binlog_tables;
         close_tables_for_reopen(thd, &p_binlog_tables);
-	binlog_index= 0;
+	ndb_binlog_index= 0;
         continue;
       }
-      sql_print_error("NDB Binlog: Unable to lock table binlog_index");
+      sql_print_error("NDB Binlog: Unable to lock table ndb_binlog_index");
       error= -1;
-      goto add_binlog_index_err;
+      goto add_ndb_binlog_index_err;
     }
     break;
   }
 
   // Set all fields non-null.
-  if(binlog_index->s->null_bytes > 0)
-    bzero(binlog_index->record[0], binlog_index->s->null_bytes);
-  binlog_index->field[0]->store(row.master_log_pos);
-  binlog_index->field[1]->store(row.master_log_file,
+  if(ndb_binlog_index->s->null_bytes > 0)
+    bzero(ndb_binlog_index->record[0], ndb_binlog_index->s->null_bytes);
+  ndb_binlog_index->field[0]->store(row.master_log_pos);
+  ndb_binlog_index->field[1]->store(row.master_log_file,
                                 strlen(row.master_log_file),
                                 &my_charset_bin);
-  binlog_index->field[2]->store(row.gci);
-  binlog_index->field[3]->store(row.n_inserts);
-  binlog_index->field[4]->store(row.n_updates);
-  binlog_index->field[5]->store(row.n_deletes);
-  binlog_index->field[6]->store(row.n_schemaops);
+  ndb_binlog_index->field[2]->store(row.gci);
+  ndb_binlog_index->field[3]->store(row.n_inserts);
+  ndb_binlog_index->field[4]->store(row.n_updates);
+  ndb_binlog_index->field[5]->store(row.n_deletes);
+  ndb_binlog_index->field[6]->store(row.n_schemaops);
 
-  if ((error= binlog_index->file->ha_write_row(binlog_index->record[0])))
+  if ((error= ndb_binlog_index->file->ha_write_row(ndb_binlog_index->record[0])))
   {
-    sql_print_error("NDB Binlog: Writing row to binlog_index: %d", error);
+    sql_print_error("NDB Binlog: Writing row to ndb_binlog_index: %d", error);
     error= -1;
-    goto add_binlog_index_err;
+    goto add_ndb_binlog_index_err;
   }
 
   mysql_unlock_tables(thd, thd->lock);
   thd->lock= 0;
   thd->options= saved_options;
   return 0;
-add_binlog_index_err:
+add_ndb_binlog_index_err:
   close_thread_tables(thd);
-  binlog_index= 0;
+  ndb_binlog_index= 0;
   thd->options= saved_options;
   return error;
 }
@@ -2428,7 +2428,7 @@ int ndbcluster_create_binlog_setup(Ndb *ndb, const char *key,
                     "allocating table share for %s failed", key);
   }
 
-  if (!schema_share &&
+  if (!ndb_schema_share &&
       strcmp(share->db, NDB_REP_DB) == 0 &&
       strcmp(share->table_name, NDB_SCHEMA_TABLE) == 0)
     do_event_op= 1;
@@ -2559,7 +2559,7 @@ ndbcluster_create_event(Ndb *ndb, const NDBTAB *ndbtab,
   }
   else
   {
-    if (schema_share || strcmp(share->db, NDB_REP_DB) ||
+    if (ndb_schema_share || strcmp(share->db, NDB_REP_DB) ||
         strcmp(share->table_name, NDB_SCHEMA_TABLE))
     {
       my_event.setReport(NDBEVENT::ER_UPDATED);
@@ -2696,13 +2696,13 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
     DBUG_RETURN(0);
   }
 
-  int do_schema_share= 0, do_apply_status_share= 0;
-  if (!schema_share && strcmp(share->db, NDB_REP_DB) == 0 &&
+  int do_ndb_schema_share= 0, do_ndb_apply_status_share= 0;
+  if (!ndb_schema_share && strcmp(share->db, NDB_REP_DB) == 0 &&
       strcmp(share->table_name, NDB_SCHEMA_TABLE) == 0)
-    do_schema_share= 1;
-  else if (!apply_status_share && strcmp(share->db, NDB_REP_DB) == 0 &&
+    do_ndb_schema_share= 1;
+  else if (!ndb_apply_status_share && strcmp(share->db, NDB_REP_DB) == 0 &&
            strcmp(share->table_name, NDB_APPLY_TABLE) == 0)
-    do_apply_status_share= 1;
+    do_ndb_apply_status_share= 1;
   else if (!binlog_filter->db_ok(share->db))
   {
     share->flags|= NSF_NO_BINLOG;
@@ -2726,7 +2726,7 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
   {
     pthread_mutex_lock(&injector_mutex);
     Ndb *ndb= injector_ndb;
-    if (do_schema_share)
+    if (do_ndb_schema_share)
       ndb= schema_ndb;
 
     if (ndb == 0)
@@ -2736,7 +2736,7 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
     }
 
     NdbEventOperation* op;
-    if (do_schema_share)
+    if (do_ndb_schema_share)
       op= ndb->createEventOperation(event_name);
     else
     {
@@ -2858,14 +2858,14 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
   }
 
   get_share(share);
-  if (do_apply_status_share)
+  if (do_ndb_apply_status_share)
   {
-    apply_status_share= get_share(share);
+    ndb_apply_status_share= get_share(share);
     (void) pthread_cond_signal(&injector_cond);
   }
-  else if (do_schema_share)
+  else if (do_ndb_schema_share)
   {
-    schema_share= get_share(share);
+    ndb_schema_share= get_share(share);
     (void) pthread_cond_signal(&injector_cond);
   }
 
@@ -2988,7 +2988,7 @@ ndbcluster_handle_drop_table(Ndb *ndb, const char *event_name,
   Handle error states on events from the storage nodes
 */
 static int ndb_binlog_thread_handle_error(Ndb *ndb, NdbEventOperation *pOp,
-                                          Binlog_index_row &row)
+                                          ndb_binlog_index_row &row)
 {
   NDB_SHARE *share= (NDB_SHARE *)pOp->getCustomData();
   DBUG_ENTER("ndb_binlog_thread_handle_error");
@@ -2997,7 +2997,7 @@ static int ndb_binlog_thread_handle_error(Ndb *ndb, NdbEventOperation *pOp,
   if (overrun)
   {
     /*
-      ToDo: this error should rather clear the binlog_index...
+      ToDo: this error should rather clear the ndb_binlog_index...
       and continue
     */
     sql_print_error("NDB Binlog: Overrun in event buffer, "
@@ -3010,7 +3010,7 @@ static int ndb_binlog_thread_handle_error(Ndb *ndb, NdbEventOperation *pOp,
   if (!pOp->isConsistent())
   {
     /*
-      ToDo: this error should rather clear the binlog_index...
+      ToDo: this error should rather clear the ndb_binlog_index...
       and continue
     */
     sql_print_error("NDB Binlog: Not Consistent. Cannot "
@@ -3030,7 +3030,7 @@ static int ndb_binlog_thread_handle_error(Ndb *ndb, NdbEventOperation *pOp,
 static int
 ndb_binlog_thread_handle_non_data_event(THD *thd, Ndb *ndb,
                                         NdbEventOperation *pOp,
-                                        Binlog_index_row &row)
+                                        ndb_binlog_index_row &row)
 {
   NDB_SHARE *share= (NDB_SHARE *)pOp->getCustomData();
   NDBEVENT::TableEvent type= pOp->getEventType();
@@ -3046,14 +3046,14 @@ ndb_binlog_thread_handle_non_data_event(THD *thd, Ndb *ndb,
     if (ndb_extra_logging)
       sql_print_information("NDB Binlog: cluster failure for %s at epoch %u.",
                             share->key, (unsigned) pOp->getGCI());
-    if (apply_status_share == share)
+    if (ndb_apply_status_share == share)
     {
       if (ndb_extra_logging &&
           ndb_binlog_tables_inited && ndb_binlog_running)
         sql_print_information("NDB Binlog: ndb tables initially "
                               "read only on reconnect.");
-      free_share(&apply_status_share);
-      apply_status_share= 0;
+      free_share(&ndb_apply_status_share);
+      ndb_apply_status_share= 0;
     }
     DBUG_PRINT("error", ("CLUSTER FAILURE EVENT: "
                         "%s  received share: 0x%lx  op: 0x%lx  share op: 0x%lx  "
@@ -3062,14 +3062,14 @@ ndb_binlog_thread_handle_non_data_event(THD *thd, Ndb *ndb,
                          (long) share->op, (long) share->op_old));
     break;
   case NDBEVENT::TE_DROP:
-    if (apply_status_share == share)
+    if (ndb_apply_status_share == share)
     {
       if (ndb_extra_logging &&
           ndb_binlog_tables_inited && ndb_binlog_running)
         sql_print_information("NDB Binlog: ndb tables initially "
                               "read only on reconnect.");
-      free_share(&apply_status_share);
-      apply_status_share= 0;
+      free_share(&ndb_apply_status_share);
+      ndb_apply_status_share= 0;
     }
     /* ToDo: remove printout */
     if (ndb_extra_logging)
@@ -3105,11 +3105,11 @@ ndb_binlog_thread_handle_non_data_event(THD *thd, Ndb *ndb,
 */
 static int
 ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
-                                    Binlog_index_row &row,
+                                    ndb_binlog_index_row &row,
                                     injector::transaction &trans)
 {
   NDB_SHARE *share= (NDB_SHARE*) pOp->getCustomData();
-  if (share == apply_status_share)
+  if (share == ndb_apply_status_share)
     return 0;
   TABLE *table= share->table;
 
@@ -3380,7 +3380,7 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   Ndb *i_ndb= 0;
   Ndb *s_ndb= 0;
   Thd_ndb *thd_ndb=0;
-  int ndb_update_binlog_index= 1;
+  int ndb_update_ndb_binlog_index= 1;
   injector *inj= injector::instance();
 
 #ifdef RUN_NDB_BINLOG_TIMER
@@ -3502,8 +3502,8 @@ restart:
     thd->proc_info= "Waiting for ndbcluster to start";
 
     pthread_mutex_lock(&injector_mutex);
-    while (!schema_share ||
-           (ndb_binlog_running && !apply_status_share))
+    while (!ndb_schema_share ||
+           (ndb_binlog_running && !ndb_apply_status_share))
     {
       /* ndb not connected yet */
       struct timespec abstime;
@@ -3591,7 +3591,7 @@ restart:
     static char db[]= "";
     thd->db= db;
     if (ndb_binlog_running)
-      open_binlog_index(thd, &binlog_tables, &binlog_index);
+      open_ndb_binlog_index(thd, &binlog_tables, &ndb_binlog_index);
     thd->db= db;
   }
   do_ndbcluster_binlog_close_connection= BCCC_running;
@@ -3647,12 +3647,12 @@ restart:
          !ndb_binlog_running))
       break; /* Shutting down server */
 
-    if (binlog_index && binlog_index->s->version < refresh_version)
+    if (ndb_binlog_index && ndb_binlog_index->s->version < refresh_version)
     {
-      if (binlog_index->s->version < refresh_version)
+      if (ndb_binlog_index->s->version < refresh_version)
       {
         close_thread_tables(thd);
-        binlog_index= 0;
+        ndb_binlog_index= 0;
       }
     }
 
@@ -3716,7 +3716,7 @@ restart:
       DBUG_PRINT("info", ("pollEvents res: %d", res));
       thd->proc_info= "Processing events";
       NdbEventOperation *pOp= i_ndb->nextEvent();
-      Binlog_index_row row;
+      ndb_binlog_index_row row;
       while (pOp != NULL)
       {
 #ifdef RUN_NDB_BINLOG_TIMER
@@ -3763,7 +3763,7 @@ restart:
                                   gci_op->getEvent()->getTable()->getName()));
               continue;
             }
-            if (share == apply_status_share)
+            if (share == ndb_apply_status_share)
             {
               // skip this table, it is handled specially
               continue;
@@ -3792,9 +3792,9 @@ restart:
         }
         if (trans.good())
         {
-          if (apply_status_share)
+          if (ndb_apply_status_share)
           {
-            TABLE *table= apply_status_share->table;
+            TABLE *table= ndb_apply_status_share->table;
 
             const LEX_STRING& name=table->s->table_name;
             DBUG_PRINT("info", ("use_table: %.*s", name.length, name.str));
@@ -3920,8 +3920,8 @@ restart:
           row.master_log_pos= start.file_pos();
 
           DBUG_PRINT("info", ("COMMIT gci: %lu", (ulong) gci));
-          if (ndb_update_binlog_index)
-            ndb_add_binlog_index(thd, &row);
+          if (ndb_update_ndb_binlog_index)
+            ndb_add_ndb_binlog_index(thd, &row);
           ndb_latest_applied_binlog_epoch= gci;
         }
         ndb_latest_handled_binlog_epoch= gci;
@@ -3949,7 +3949,7 @@ restart:
   {
     ndb_binlog_tables_inited= FALSE;
     close_thread_tables(thd);
-    binlog_index= 0;
+    ndb_binlog_index= 0;
     goto restart;
   }
 err:
@@ -3992,15 +3992,15 @@ err:
 			  10*sleep_cnt, g_ndb_cluster_connection->get_active_ndb_objects(), 
 			  ndb_obj_cnt);
   
-  if (apply_status_share)
+  if (ndb_apply_status_share)
   {
-    free_share(&apply_status_share);
-    apply_status_share= 0;
+    free_share(&ndb_apply_status_share);
+    ndb_apply_status_share= 0;
   }
-  if (schema_share)
+  if (ndb_schema_share)
   {
-    free_share(&schema_share);
-    schema_share= 0;
+    free_share(&ndb_schema_share);
+    ndb_schema_share= 0;
   }
 
   /* remove all event operations */

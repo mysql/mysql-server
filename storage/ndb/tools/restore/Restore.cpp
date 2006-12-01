@@ -305,8 +305,8 @@ RestoreMetaData::markSysTables()
            before we changed the database name of the tables from
            "cluster_replication" -> "cluster" -> "mysql"
         */
-        strcmp(tableName, "cluster_replication/def/" NDB_APPLY_TABLE) == 0 ||
-        strcmp(tableName, "cluster/def/" NDB_APPLY_TABLE) == 0 ||
+        strcmp(tableName, "cluster_replication/def/" OLD_NDB_APPLY_TABLE) == 0 ||
+        strcmp(tableName, "cluster/def/" OLD_NDB_APPLY_TABLE) == 0 ||
         strcmp(tableName, NDB_REP_DB "/def/" NDB_APPLY_TABLE) == 0 ||
         strcmp(tableName, NDB_REP_DB "/def/" NDB_SCHEMA_TABLE)== 0 )
       table->isSysTable = true;
