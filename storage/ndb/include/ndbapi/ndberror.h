@@ -99,7 +99,7 @@ typedef  ndberror_classification_enum ndberror_classification;
 const char *ndberror_status_message(ndberror_status);
 const char *ndberror_classification_message(ndberror_classification);
 void ndberror_update(ndberror_struct *);
-int ndb_error_string(int err_no, char *str, unsigned int size);
+int ndb_error_string(int err_no, char *str, int size);
 
 #endif /* doxygen skip internal*/
 
