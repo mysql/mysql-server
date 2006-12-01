@@ -91,6 +91,7 @@ bin-dist:		all
 # Remove BK's "SCCS" subdirectories from source distribution
 dist-hook:
 	rm -rf `find $(distdir) -type d -name SCCS -print`
+	rm -f  `find $(distdir) -type l -print`
 
 tags:
 	support-files/build-tags
