@@ -20,7 +20,10 @@
 
 #define IS_CHAR ((uint) 32768)		/* Bit if char (not offset) in tree */
 
-#if INT_MAX > 65536L
+/* Some definitions to keep in sync with myisampack.c */
+#define HEAD_LENGTH	32              /* Length of fixed header */
+
+#if INT_MAX > 32767
 #define BITS_SAVED 32
 #define MAX_QUICK_TABLE_BITS 9		/* Because we may shift in 24 bits */
 #else
@@ -42,6 +45,7 @@
   { bits-=(bit+1); break; } \
   pos+= *pos
 
+/* Size in uint16 of a Huffman tree for byte compression of 256 byte values. */
 #define OFFSET_TABLE_SIZE 512
 
 static uint read_huff_table(MI_BIT_BUFF *bit_buff,MI_DECODE_TREE *decode_tree,
@@ -134,7 +138,7 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
   uint16 *decode_table,*tmp_buff;
   ulong elements,intervall_length;
   char *disk_cache,*intervall_buff;
-  uchar header[32];
+  uchar header[HEAD_LENGTH];
   MYISAM_SHARE *share=info->s;
   MI_BIT_BUFF bit_buff;
   DBUG_ENTER("_mi_read_pack_info");
@@ -152,12 +156,13 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
       my_errno=HA_ERR_END_OF_FILE;
     goto err0;
   }
+  /* Only the first three bytes of magic number are independent of version. */
   if (memcmp((byte*) header, (byte*) myisam_pack_file_magic, 3))
   {
     my_errno=HA_ERR_WRONG_IN_RECORD;
     goto err0;
   }
-  share->pack.version= header[3];
+  share->pack.version= header[3]; /* fourth byte of magic number */
   share->pack.header_length=	uint4korr(header+4);
   share->min_pack_length=(uint) uint4korr(header+8);
   share->max_pack_length=(uint) uint4korr(header+12);
@@ -173,7 +178,22 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
   share->base.min_block_length=share->min_pack_length+1;
   if (share->min_pack_length > 254)
     share->base.min_block_length+=2;
+  DBUG_PRINT("info", ("fixed header length:   %u", HEAD_LENGTH));
+  DBUG_PRINT("info", ("total header length:   %u", share->pack.header_length));
+  DBUG_PRINT("info", ("pack file version:     %u", share->pack.version));
+  DBUG_PRINT("info", ("min pack length:       %u", share->min_pack_length));
+  DBUG_PRINT("info", ("max pack length:       %u", share->max_pack_length));
+  DBUG_PRINT("info", ("elements of all trees: %u", elements));
+  DBUG_PRINT("info", ("distinct values bytes: %u", intervall_length));
+  DBUG_PRINT("info", ("number of code trees:  %u", trees));
+  DBUG_PRINT("info", ("bytes for record lgt:  %u", share->pack.ref_length));
+  DBUG_PRINT("info", ("record pointer length: %u", rec_reflength));
 
+  /*
+    Memory segment #1:
+    - Decode tree heads
+    - Distinct column values
+  */
   if (!(share->decode_trees=(MI_DECODE_TREE*)
 	my_malloc((uint) (trees*sizeof(MI_DECODE_TREE)+
 			  intervall_length*sizeof(byte)),
@@ -181,11 +201,19 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
     goto err0;
   intervall_buff=(byte*) (share->decode_trees+trees);
 
+  /*
+    Memory segment #2:
+    - Decode tables
+    - Quick decode tables
+    - Temporary decode table
+    - Compressed data file header cache
+    This segment will be reallocated after construction of the tables.
+  */
   length=(uint) (elements*2+trees*(1 << myisam_quick_table_bits));
   if (!(share->decode_tables=(uint16*)
-	my_malloc((length+OFFSET_TABLE_SIZE)*sizeof(uint16)+
-		  (uint) (share->pack.header_length+7),
-		  MYF(MY_WME | MY_ZEROFILL))))
+        my_malloc((length + OFFSET_TABLE_SIZE) * sizeof(uint16) +
+                  (uint) (share->pack.header_length - sizeof(header)),
+                  MYF(MY_WME | MY_ZEROFILL))))
     goto err1;
   tmp_buff=share->decode_tables+length;
   disk_cache=(byte*) (tmp_buff+OFFSET_TABLE_SIZE);
@@ -198,7 +226,7 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
   huff_tree_bits=max_bit(trees ? trees-1 : 0);
   init_bit_buffer(&bit_buff, (uchar*) disk_cache,
 		  (uint) (share->pack.header_length-sizeof(header)));
-	/* Read new info for each field */
+  /* Read new info for each field */
   for (i=0 ; i < share->base.fields ; i++)
   {
     share->rec[i].base_type=(enum en_fieldtype) get_bits(&bit_buff,5);
@@ -207,17 +235,26 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
     share->rec[i].huff_tree=share->decode_trees+(uint) get_bits(&bit_buff,
 								huff_tree_bits);
     share->rec[i].unpack=get_unpack_function(share->rec+i);
+    DBUG_PRINT("info", ("col: %2u  type: %2u  pack: %u  slbits: %2u",
+                        i, share->rec[i].base_type, share->rec[i].pack_type,
+                        share->rec[i].space_length_bits));
   }
   skip_to_next_byte(&bit_buff);
+  /*
+    Construct the decoding tables from the file header. Keep track of
+    the used memory.
+  */
   decode_table=share->decode_tables;
   for (i=0 ; i < trees ; i++)
     if (read_huff_table(&bit_buff,share->decode_trees+i,&decode_table,
                         &intervall_buff,tmp_buff))
       goto err3;
+  /* Reallocate the decoding tables to the used size. */
   decode_table=(uint16*)
     my_realloc((gptr) share->decode_tables,
 	       (uint) ((byte*) decode_table - (byte*) share->decode_tables),
 	       MYF(MY_HOLD_ON_ERROR));
+  /* Fix the table addresses in the tree heads. */
   {
     long diff=PTR_BYTE_DIFF(decode_table,share->decode_tables);
     share->decode_tables=decode_table;
@@ -226,7 +263,7 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
                                               diff, uint16*);
   }
 
-	/* Fix record-ref-length for keys */
+  /* Fix record-ref-length for keys */
   if (fix_keys)
   {
     for (i=0 ; i < share->base.keys ; i++)
@@ -263,7 +300,23 @@ err0:
 }
 
 
-	/* Read on huff-code-table from datafile */
+/*
+  Read a huff-code-table from datafile.
+
+  SYNOPSIS
+    read_huff_table()
+      bit_buff                  Bit buffer pointing at start of the
+                                decoding table in the file header cache.
+      decode_tree               Pointer to the decode tree head.
+      decode_table      IN/OUT  Address of a pointer to the next free space.
+      intervall_buff    IN/OUT  Address of a pointer to the next unused values.
+      tmp_buff                  Buffer for temporary extraction of a full
+                                decoding table as read from bit_buff.
+
+  RETURN
+    0           OK.
+    1           Error.
+*/
 
 static uint read_huff_table(MI_BIT_BUFF *bit_buff, MI_DECODE_TREE *decode_tree,
 			    uint16 **decode_table, byte **intervall_buff,
@@ -272,19 +325,32 @@ static uint read_huff_table(MI_BIT_BUFF *bit_buff, MI_DECODE_TREE *decode_tree,
   uint min_chr,elements,char_bits,offset_bits,size,intervall_length,table_bits,
   next_free_offset;
   uint16 *ptr,*end;
+  DBUG_ENTER("read_huff_table");
 
-  LINT_INIT(ptr);
   if (!get_bits(bit_buff,1))
   {
+    /* Byte value compression. */
     min_chr=get_bits(bit_buff,8);
     elements=get_bits(bit_buff,9);
     char_bits=get_bits(bit_buff,5);
     offset_bits=get_bits(bit_buff,5);
     intervall_length=0;
     ptr=tmp_buff;
+    DBUG_PRINT("info", ("byte value compression"));
+    DBUG_PRINT("info", ("minimum byte value:    %u", min_chr));
+    DBUG_PRINT("info", ("number of tree nodes:  %u", elements));
+    DBUG_PRINT("info", ("bits for values:       %u", char_bits));
+    DBUG_PRINT("info", ("bits for tree offsets: %u", offset_bits));
+    if (elements > 256)
+    {
+      DBUG_PRINT("error", ("ERROR: illegal number of tree elements: %u",
+                           elements));
+      DBUG_RETURN(1);
+    }
   }
   else
   {
+    /* Distinct column value compression. */
     min_chr=0;
     elements=get_bits(bit_buff,15);
     intervall_length=get_bits(bit_buff,16);
@@ -292,13 +358,27 @@ static uint read_huff_table(MI_BIT_BUFF *bit_buff, MI_DECODE_TREE *decode_tree,
     offset_bits=get_bits(bit_buff,5);
     decode_tree->quick_table_bits=0;
     ptr= *decode_table;
+    DBUG_PRINT("info", ("distinct column value compression"));
+    DBUG_PRINT("info", ("number of tree nodes:  %u", elements));
+    DBUG_PRINT("info", ("value buffer length:   %u", intervall_length));
+    DBUG_PRINT("info", ("bits for value index:  %u", char_bits));
+    DBUG_PRINT("info", ("bits for tree offsets: %u", offset_bits));
   }
   size=elements*2-2;
+  DBUG_PRINT("info", ("tree size in uint16:   %u", size));
+  DBUG_PRINT("info", ("tree size in bytes:    %u", size * sizeof(uint16)));
 
   for (end=ptr+size ; ptr < end ; ptr++)
   {
     if (get_bit(bit_buff))
+    {
       *ptr= (uint16) get_bits(bit_buff,offset_bits);
+      if ((ptr + *ptr >= end) || !*ptr)
+      {
+        DBUG_PRINT("error", ("ERROR: illegal pointer in decode tree"));
+        DBUG_RETURN(1);
+      }
+    }
     else
       *ptr= (uint16) (IS_CHAR + (get_bits(bit_buff,char_bits) + min_chr));
   }
@@ -308,11 +388,15 @@ static uint read_huff_table(MI_BIT_BUFF *bit_buff, MI_DECODE_TREE *decode_tree,
   decode_tree->intervalls= *intervall_buff;
   if (! intervall_length)
   {
-    table_bits=find_longest_bitstream(tmp_buff, tmp_buff+OFFSET_TABLE_SIZE);
-    if (table_bits == (uint) ~0)
-      return 1;
+    /* Byte value compression. ptr started from tmp_buff. */
+    /* Find longest Huffman code from begin to end of tree in bits. */
+    table_bits= find_longest_bitstream(tmp_buff, ptr);
+    if (table_bits >= OFFSET_TABLE_SIZE)
+      DBUG_RETURN(1);
     if (table_bits > myisam_quick_table_bits)
       table_bits=myisam_quick_table_bits;
+    DBUG_PRINT("info", ("table bits:            %u", table_bits));
+
     next_free_offset= (1 << table_bits);
     make_quick_table(*decode_table,tmp_buff,&next_free_offset,0,table_bits,
 		     table_bits);
@@ -321,105 +405,279 @@ static uint read_huff_table(MI_BIT_BUFF *bit_buff, MI_DECODE_TREE *decode_tree,
   }
   else
   {
+    /* Distinct column value compression. ptr started from *decode_table */
     (*decode_table)=end;
+    /*
+      get_bits() moves some bytes to a cache buffer in advance. May need
+      to step back.
+    */
     bit_buff->pos-= bit_buff->bits/8;
+    /* Copy the distinct column values from the buffer. */
     memcpy(*intervall_buff,bit_buff->pos,(size_t) intervall_length);
     (*intervall_buff)+=intervall_length;
     bit_buff->pos+=intervall_length;
     bit_buff->bits=0;
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
+
+/*
+  Make a quick_table for faster decoding.
+
+  SYNOPSIS
+    make_quick_table()
+      to_table                  Target quick_table and remaining decode table.
+      decode_table              Source Huffman (sub-)tree within tmp_buff.
+      next_free_offset   IN/OUT Next free offset from to_table.
+                                Starts behind quick_table on the top-level.
+      value                     Huffman bits found so far.
+      bits                      Remaining bits to be collected.
+      max_bits                  Total number of bits to collect (table_bits).
+
+  DESCRIPTION
+
+    The quick table is an array of 16-bit values. There exists one value
+    for each possible code representable by max_bits (table_bits) bits.
+    In most cases table_bits is 9. So there are 512 16-bit values.
+
+    If the high-order bit (16) is set (IS_CHAR) then the array slot for
+    this value is a valid Huffman code for a resulting byte value.
+
+    The low-order 8 bits (1..8) are the resulting byte value.
+
+    Bits 9..14 are the length of the Huffman code for this byte value.
+    This means so many bits from the input stream were needed to
+    represent this byte value. The remaining bits belong to later
+    Huffman codes. This also means that for every Huffman code shorter
+    than table_bits there are multiple entires in the array, which
+    differ just in the unused bits.
+
+    If the high-order bit (16) is clear (0) then the remaining bits are
+    the position of the remaining Huffman decode tree segment behind the
+    quick table.
+
+  RETURN
+    void
+*/
 
 static void make_quick_table(uint16 *to_table, uint16 *decode_table,
 			     uint *next_free_offset, uint value, uint bits,
 			     uint max_bits)
 {
+  DBUG_ENTER("make_quick_table");
+
+  /*
+    When down the table to the requested maximum, copy the rest of the
+    Huffman table.
+  */
   if (!bits--)
   {
+    /*
+      Remaining left  Huffman tree segment starts behind quick table.
+      Remaining right Huffman tree segment starts behind left segment.
+    */
     to_table[value]= (uint16) *next_free_offset;
-    *next_free_offset=copy_decode_table(to_table, *next_free_offset,
-					decode_table);
-    return;
+    /*
+      Re-construct the remaining Huffman tree segment at
+      next_free_offset in to_table.
+    */
+    *next_free_offset= copy_decode_table(to_table, *next_free_offset,
+                                         decode_table);
+    DBUG_VOID_RETURN;
   }
+
+  /* Descent on the left side. Left side bits are clear (0). */
   if (!(*decode_table & IS_CHAR))
   {
-    make_quick_table(to_table,decode_table+ *decode_table,
-		     next_free_offset,value,bits,max_bits);
+    /* Not a leaf. Follow the pointer. */
+    make_quick_table(to_table, decode_table + *decode_table,
+                     next_free_offset, value, bits, max_bits);
   }
   else
-    fill_quick_table(to_table+value,bits,max_bits,(uint) *decode_table);
+  {
+    /*
+      A leaf. A Huffman code is complete. Fill the quick_table
+      array for all possible bit strings starting with this Huffman
+      code.
+    */
+    fill_quick_table(to_table + value, bits, max_bits, (uint) *decode_table);
+  }
+
+  /* Descent on the right side. Right side bits are set (1). */
   decode_table++;
   value|= (1 << bits);
   if (!(*decode_table & IS_CHAR))
   {
-    make_quick_table(to_table,decode_table+ *decode_table,
-		     next_free_offset,value,bits,max_bits);
+    /* Not a leaf. Follow the pointer. */
+    make_quick_table(to_table, decode_table + *decode_table,
+                     next_free_offset, value, bits, max_bits);
   }
   else
-    fill_quick_table(to_table+value,bits,max_bits,(uint) *decode_table);
-  return;
+  {
+    /*
+      A leaf. A Huffman code is complete. Fill the quick_table
+      array for all possible bit strings starting with this Huffman
+      code.
+    */
+    fill_quick_table(to_table + value, bits, max_bits, (uint) *decode_table);
+  }
+
+  DBUG_VOID_RETURN;
 }
 
+
+/*
+  Fill quick_table for all possible values starting with this Huffman code.
+
+  SYNOPSIS
+    fill_quick_table()
+      table                     Target quick_table position.
+      bits                      Unused bits from max_bits.
+      max_bits                  Total number of bits to collect (table_bits).
+      value                     The byte encoded by the found Huffman code.
+
+  DESCRIPTION
+
+    Fill the segment (all slots) of the quick_table array with the
+    resulting value for the found Huffman code. There are as many slots
+    as there are combinations representable by the unused bits.
+
+    In most cases we use 9 table bits. Assume a 3-bit Huffman code. Then
+    there are 6 unused bits. Hence we fill 2**6 = 64 slots with the
+    value.
+
+  RETURN
+    void
+*/
 
 static void fill_quick_table(uint16 *table, uint bits, uint max_bits,
 			     uint value)
 {
   uint16 *end;
-  value|=(max_bits-bits) << 8;
-  for (end=table+ (1 << bits) ;
-       table < end ;
-       *table++ = (uint16) value | IS_CHAR) ;
+  DBUG_ENTER("fill_quick_table");
+
+  /*
+    Bits 1..8 of value represent the decoded byte value.
+    Bits 9..14 become the length of the Huffman code for this byte value.
+    Bit 16 flags a valid code (IS_CHAR).
+  */
+  value|= (max_bits - bits) << 8 | IS_CHAR;
+
+  for (end= table + (1 << bits); table < end; table++)
+  {
+    *table= (uint16) value;
+  }
+  DBUG_VOID_RETURN;
 }
 
+
+/*
+  Reconstruct a decode subtree at the target position.
+
+  SYNOPSIS
+    copy_decode_table()
+      to_pos                    Target quick_table and remaining decode table.
+      offset                    Next free offset from to_pos.
+      decode_table              Source Huffman subtree within tmp_buff.
+
+  NOTE
+    Pointers in the decode tree are relative to the pointers position.
+
+  RETURN
+    next free offset from to_pos.
+*/
 
 static uint copy_decode_table(uint16 *to_pos, uint offset,
 			      uint16 *decode_table)
 {
   uint prev_offset;
   prev_offset= offset;
+  DBUG_ENTER("copy_decode_table");
 
+  /* Descent on the left side. */
   if (!(*decode_table & IS_CHAR))
   {
+    /* Set a pointer to the next target node. */
     to_pos[offset]=2;
+    /* Copy the left hand subtree there. */
     offset=copy_decode_table(to_pos,offset+2,decode_table+ *decode_table);
   }
   else
   {
+    /* Copy the byte value. */
     to_pos[offset]= *decode_table;
+    /* Step behind this node. */
     offset+=2;
   }
-  decode_table++;
 
+  /* Descent on the right side. */
+  decode_table++;
   if (!(*decode_table & IS_CHAR))
   {
+    /* Set a pointer to the next free target node. */
     to_pos[prev_offset+1]=(uint16) (offset-prev_offset-1);
+    /* Copy the right hand subtree to the entry of that node. */
     offset=copy_decode_table(to_pos,offset,decode_table+ *decode_table);
   }
   else
+  {
+    /* Copy the byte value. */
     to_pos[prev_offset+1]= *decode_table;
-  return offset;
+  }
+  DBUG_RETURN(offset);
 }
 
 
+/*
+  Find the length of the longest Huffman code in this table in bits.
+
+  SYNOPSIS
+    find_longest_bitstream()
+      table                     Code (sub-)table start.
+      end                       End of code table.
+
+  IMPLEMENTATION
+
+    Recursively follow the branch(es) of the code pair on every level of
+    the tree until two byte values (and no branch) are found. Add one to
+    each level when returning back from each recursion stage.
+
+    'end' is used for error checking only. A clean tree terminates
+    before reaching 'end'. Hence the exact value of 'end' is not too
+    important. However having it higher than necessary could lead to
+    misbehaviour should 'next' jump into the dirty area.
+
+  RETURN
+    length                  Length of longest Huffman code in bits.
+    >= OFFSET_TABLE_SIZE    Error, broken tree. It does not end before 'end'.
+*/
+
 static uint find_longest_bitstream(uint16 *table, uint16 *end)
 {
-  uint length=1,length2;
+  uint length= 1;
+  uint length2;
+
   if (!(*table & IS_CHAR))
   {
     uint16 *next= table + *table;
     if (next > end || next == table)
-      return ~0;
-    length=find_longest_bitstream(next, end)+1;
+    {
+      DBUG_PRINT("error", ("ERROR: illegal pointer in decode tree"));
+      return OFFSET_TABLE_SIZE;
+    }
+    length= find_longest_bitstream(next, end) + 1;
   }
   table++;
   if (!(*table & IS_CHAR))
   {
     uint16 *next= table + *table;
     if (next > end || next == table)
-      return ~0;
-    length2=find_longest_bitstream(table+ *table, end)+1;
+    {
+      DBUG_PRINT("error", ("ERROR: illegal pointer in decode tree"));
+      return OFFSET_TABLE_SIZE;
+    }
+    length2= find_longest_bitstream(next, end) + 1;
     length=max(length,length2);
   }
   return length;
@@ -855,18 +1113,46 @@ static void decode_bytes(MI_COLUMNDEF *rec,MI_BIT_BUFF *bit_buff,uchar *to,
       bit_buff->pos+=4;
       bits+=32;
     }
-	/* First use info in quick_table */
+    /*
+      First use info in quick_table.
+
+      The quick table is an array of 16-bit values. There exists one
+      value for each possible code representable by table_bits bits.
+      In most cases table_bits is 9. So there are 512 16-bit values.
+
+      If the high-order bit (16) is set (IS_CHAR) then the array slot
+      for this value is a valid Huffman code for a resulting byte value.
+
+      The low-order 8 bits (1..8) are the resulting byte value.
+
+      Bits 9..14 are the length of the Huffman code for this byte value.
+      This means so many bits from the input stream were needed to
+      represent this byte value. The remaining bits belong to later
+      Huffman codes. This also means that for every Huffman code shorter
+      than table_bits there are multiple entires in the array, which
+      differ just in the unused bits.
+
+      If the high-order bit (16) is clear (0) then the remaining bits are
+      the position of the remaining Huffman decode tree segment behind the
+      quick table.
+    */
     low_byte=(uint) (bit_buff->current_byte >> (bits - table_bits)) & table_and;
     low_byte=decode_tree->table[low_byte];
     if (low_byte & IS_CHAR)
     {
+      /*
+        All Huffman codes of less or equal table_bits length are in the
+        quick table. This is one of them.
+      */
       *to++ = (low_byte & 255);		/* Found char in quick table */
       bits-=  ((low_byte >> 8) & 31);	/* Remove bits used */
     }
     else
     {					/* Map through rest of decode-table */
+      /* This means that the Huffman code must be longer than table_bits. */
       pos=decode_tree->table+low_byte;
       bits-=table_bits;
+      /* NOTE: decode_bytes_test_bit() is a macro wich contains a break !!! */
       for (;;)
       {
 	low_byte=(uint) (bit_buff->current_byte >> (bits-8));
@@ -1092,6 +1378,11 @@ uint _mi_pack_get_block_info(MI_INFO *myisam, MI_BIT_BUFF *bit_buff,
   {
     head_length+= read_pack_length((uint) myisam->s->pack.version,
                                    header + head_length, &info->blob_len);
+    /*
+      Ensure that the record buffer is big enough for the compressed
+      record plus all expanded blobs. [We do not have an extra buffer
+      for the resulting blobs. Sigh.]
+    */
     if (!(mi_alloc_rec_buff(myisam,info->rec_len + info->blob_len,
 			    rec_buff_p)))
       return BLOCK_FATAL_ERROR;			/* not enough memory */
