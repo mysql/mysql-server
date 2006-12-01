@@ -1005,7 +1005,7 @@ int runBug24717(NDBT_Context* ctx, NDBT_Step* step){
   
   HugoTransactions hugoTrans(*ctx->getTab());
 
-  int dump[] = { 9002, 0 } ;
+  int dump[] = { 9000, 0 } ;
   Uint32 ownNode = refToNode(pNdb->getReference());
   dump[1] = ownNode;
 
@@ -1025,6 +1025,8 @@ int runBug24717(NDBT_Context* ctx, NDBT_Step* step){
       hugoTrans.pkReadRecords(pNdb, 100, 1, NdbOperation::LM_CommittedRead);
     }
     
+    int reset[2] = { 9001, 0 };
+    restarter.dumpStateOneNode(nodeId, reset, 2);
     restarter.waitClusterStarted();
   }
   

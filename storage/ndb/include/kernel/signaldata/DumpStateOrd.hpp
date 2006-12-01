@@ -141,7 +141,7 @@ public:
     TuxSetLogFlags = 12002,
     TuxMetaDataJunk = 12009,
     
-    DumpTsman = 9002, 
+    DumpTsman = 9800, 
     DumpLgman = 10000,
     DumpPgman = 11000
   };
