@@ -696,7 +696,6 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
                            HA_CREATE_INFO *create_info)
 {
   Security_context *sctx= thd->security_ctx;
-  int length;
   char buff[2048];
   String buffer(buff, sizeof(buff), system_charset_info);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1028,7 +1027,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                       HA_CREATE_INFO *create_info_arg)
 {
   List<Item> field_list;
-  char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], *end, uname[NAME_LEN*3+1];
+  char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], *end;
   const char *alias;
   String type(tmp, sizeof(tmp), system_charset_info);
   Field **ptr,*field;
@@ -2752,7 +2751,6 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
   INDEX_FIELD_VALUES idx_field_vals;
   List<char> files;
   char *file_name;
-  uint length;
   bool with_i_schema;
   HA_CREATE_INFO create;
   TABLE *table= tables->table;
@@ -3379,7 +3377,7 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
     restore_record(table, s->default_values);
     if (!wild || !wild[0] || !wild_compare(sp_name.ptr(), wild, 0))
     {
-      int enum_idx= proc_table->field[5]->val_int();
+      int enum_idx= (int) proc_table->field[5]->val_int();
       table->field[3]->store(sp_name.ptr(), sp_name.length(), cs);
       get_field(thd->mem_root, proc_table->field[3], &tmp_string);
       table->field[0]->store(tmp_string.ptr(), tmp_string.length(), cs);
@@ -3992,7 +3990,6 @@ static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
   char buff[61];
   String tmp_res(buff, sizeof(buff), cs);
   String tmp_str;
-  TIME time;
   TABLE *show_table= tables->table;
   handler *file;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -4017,7 +4014,6 @@ static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
     List_iterator<partition_element> part_it(part_info->partitions);
     uint part_pos= 0, part_id= 0;
     uint no_parts= part_info->no_parts;
-    handler *part_file;
 
     restore_record(table, s->default_values);
     table->field[1]->store(base_name, strlen(base_name), cs);
@@ -4099,8 +4095,6 @@ static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
 
     while ((part_elem= part_it++))
     {
-
-
       table->field[3]->store(part_elem->partition_name,
                              strlen(part_elem->partition_name), cs);
       table->field[3]->set_notnull();
@@ -5026,7 +5020,6 @@ static my_bool run_hton_fill_schema_files(THD *thd, st_plugin_int *plugin,
 
 int fill_schema_files(THD *thd, TABLE_LIST *tables, COND *cond)
 {
-  int i;
   TABLE *table= tables->table;
   DBUG_ENTER("fill_schema_files");
 

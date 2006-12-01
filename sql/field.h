@@ -1361,7 +1361,6 @@ public:
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
-  void reset() { bzero(ptr,packlength); }
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);

@@ -298,7 +298,7 @@ sys_var_thd_ulong	sys_max_delayed_threads("max_delayed_threads",
                                                 fix_max_connections);
 sys_var_thd_ulong	sys_max_error_count("max_error_count",
 					    &SV::max_error_count);
-sys_var_thd_ulong	sys_max_heap_table_size("max_heap_table_size",
+sys_var_thd_ulonglong	sys_max_heap_table_size("max_heap_table_size",
 						&SV::max_heap_table_size);
 sys_var_thd_ulong       sys_pseudo_thread_id("pseudo_thread_id",
 					     &SV::pseudo_thread_id,
@@ -472,7 +472,7 @@ sys_var_thd_enum	sys_tx_isolation("tx_isolation",
 					 &tx_isolation_typelib,
 					 fix_tx_isolation,
 					 check_tx_isolation);
-sys_var_thd_ulong	sys_tmp_table_size("tmp_table_size",
+sys_var_thd_ulonglong	sys_tmp_table_size("tmp_table_size",
 					   &SV::tmp_table_size);
 sys_var_bool_ptr  sys_timed_mutexes("timed_mutexes",
                                     &timed_mutexes);
@@ -3039,7 +3039,7 @@ static bool set_option_autocommit(THD *thd, set_var *var)
 {
   /* The test is negative as the flag we use is NOT autocommit */
 
-  ulong org_options=thd->options;
+  ulonglong org_options= thd->options;
 
   if (var->save_result.ulong_value != 0)
     thd->options&= ~((sys_var_thd_bit*) var->var)->bit_flag;
@@ -3051,15 +3051,16 @@ static bool set_option_autocommit(THD *thd, set_var *var)
     if ((org_options & OPTION_NOT_AUTOCOMMIT))
     {
       /* We changed to auto_commit mode */
-      thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE |
-                               OPTION_KEEP_LOG);
+      thd->options&= ~(ulonglong) (OPTION_BEGIN |
+                                   OPTION_STATUS_NO_TRANS_UPDATE |
+                                   OPTION_KEEP_LOG);
       thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
       if (ha_commit(thd))
 	return 1;
     }
     else
     {
-      thd->options&= ~(ulong) (OPTION_STATUS_NO_TRANS_UPDATE);
+      thd->options&= ~(ulonglong) (OPTION_STATUS_NO_TRANS_UPDATE);
       thd->server_status&= ~SERVER_STATUS_AUTOCOMMIT;
     }
   }
@@ -3613,7 +3614,8 @@ bool sys_var_thd_table_type::update(THD *thd, set_var *var)
     pointer to string with sql_mode representation
 */
 
-byte *sys_var_thd_sql_mode::symbolic_mode_representation(THD *thd, ulong val,
+byte *sys_var_thd_sql_mode::symbolic_mode_representation(THD *thd,
+                                                         ulong val,
                                                          ulong *len)
 {
   char buff[256];
@@ -3641,8 +3643,8 @@ byte *sys_var_thd_sql_mode::symbolic_mode_representation(THD *thd, ulong val,
 byte *sys_var_thd_sql_mode::value_ptr(THD *thd, enum_var_type type,
 				      LEX_STRING *base)
 {
-  ulong val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
-              thd->variables.*offset);
+  ulonglong val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
+                  thd->variables.*offset);
   ulong length_unused;
   return symbolic_mode_representation(thd, val, &length_unused);
 }

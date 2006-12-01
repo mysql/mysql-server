@@ -362,7 +362,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   TABLE *table= tables->table;
   char file_buff[FN_REFLEN], trigname_buff[FN_REFLEN];
   LEX_STRING file, trigname_file;
-  LEX_STRING *trg_def, *name;
+  LEX_STRING *trg_def;
   LEX_STRING definer_user;
   LEX_STRING definer_host;
   ulonglong *trg_sql_mode;
@@ -877,7 +877,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         DBUG_RETURN(1);
 
       List_iterator_fast<LEX_STRING> it(triggers->definitions_list);
-      LEX_STRING *trg_create_str, *trg_name_str;
+      LEX_STRING *trg_create_str;
       ulonglong *trg_sql_mode;
 
       if (triggers->definition_modes_list.is_empty() &&
@@ -994,7 +994,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
           goto err_with_lex_cleanup;
         }
 
-        lex.sphead->set_info(0, 0, &lex.sp_chistics, *trg_sql_mode);
+        lex.sphead->set_info(0, 0, &lex.sp_chistics, (ulong) *trg_sql_mode);
 
         triggers->bodies[lex.trg_chistics.event]
                              [lex.trg_chistics.action_time]= lex.sphead;
@@ -1335,7 +1335,6 @@ Table_triggers_list::change_table_name_in_triggers(THD *thd,
 {
   char path_buff[FN_REFLEN];
   LEX_STRING *def, *on_table_name, new_def;
-  ulonglong *sql_mode;
   ulong save_sql_mode= thd->variables.sql_mode;
   List_iterator_fast<LEX_STRING> it_def(definitions_list);
   List_iterator_fast<LEX_STRING> it_on_table_name(on_table_names_list);
@@ -1349,7 +1348,7 @@ Table_triggers_list::change_table_name_in_triggers(THD *thd,
   while ((def= it_def++))
   {
     on_table_name= it_on_table_name++;
-    thd->variables.sql_mode= *(it_mode++);
+    thd->variables.sql_mode= (ulong) *(it_mode++);
 
     /* Construct CREATE TRIGGER statement with new table name. */
     buff.length(0);

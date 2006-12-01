@@ -42,7 +42,7 @@ base64_needed_encoded_length(int length_of_data)
 int
 base64_needed_decoded_length(int length_of_encoded_data)
 {
-  return (int)ceil(length_of_encoded_data * 3 / 4);
+  return (int) ceil(length_of_encoded_data * 3 / 4);
 }
 
 
@@ -153,7 +153,7 @@ pos(unsigned char c)
     Number of bytes written at 'dst' or -1 in case of failure
 */
 int
-base64_decode(const char *const src_base, size_t const len,
+base64_decode(const char *src_base, size_t len,
               void *dst, const char **end_ptr)
 {
   char b[3];

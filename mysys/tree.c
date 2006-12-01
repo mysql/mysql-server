@@ -84,7 +84,7 @@ static void rb_delete_fixup(TREE *tree,TREE_ELEMENT ***parent);
 static int test_rb_tree(TREE_ELEMENT *element);
 #endif
 
-void init_tree(TREE *tree, uint default_alloc_size, uint memory_limit,
+void init_tree(TREE *tree, ulong default_alloc_size, ulong memory_limit,
                int size, qsort_cmp2 compare, my_bool with_delete,
 	       tree_element_free free_element, void *custom_arg)
 {
@@ -128,7 +128,7 @@ void init_tree(TREE *tree, uint default_alloc_size, uint memory_limit,
   }
   if (!(tree->with_delete=with_delete))
   {
-    init_alloc_root(&tree->mem_root, default_alloc_size,0);
+    init_alloc_root(&tree->mem_root, (uint) default_alloc_size, 0);
     tree->mem_root.min_malloc=(sizeof(TREE_ELEMENT)+tree->size_of_element);
   }
   DBUG_VOID_RETURN;

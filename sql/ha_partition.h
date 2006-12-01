@@ -76,12 +76,12 @@ private:
     for this since the MySQL Server sometimes allocating the handler object
     without freeing them.
   */
-  u_long m_table_flags;
-  u_long m_low_byte_first;
+  longlong m_table_flags;
+  ulong m_low_byte_first;
 
   uint m_reorged_parts;                  // Number of reorganised parts
   uint m_tot_parts;                      // Total number of partitions;
-  uint m_no_locks;                        // For engines like ha_blackhole, which needs no locks
+  uint m_no_locks;                       // For engines like ha_blackhole, which needs no locks
   uint m_last_part;                      // Last file that we update,write
   int m_lock_type;                       // Remembers type of last
                                          // external_lock

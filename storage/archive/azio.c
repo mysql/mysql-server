@@ -503,7 +503,7 @@ int azrewind (s)
   if (!s->transparent) (void)inflateReset(&s->stream);
   s->in = 0;
   s->out = 0;
-  return my_seek(s->file, (int)s->start, MY_SEEK_SET, MYF(0));
+  return my_seek(s->file, (int)s->start, MY_SEEK_SET, MYF(0)) == MY_FILEPOS_ERROR;
 }
 
 /* ===========================================================================
@@ -568,7 +568,7 @@ my_off_t azseek (s, offset, whence)
   /* For a negative seek, rewind and use positive seek */
   if (offset >= s->out) {
     offset -= s->out;
-  } else if (azrewind(s) < 0) {
+  } else if (azrewind(s)) {
     return -1L;
   }
   /* offset is now the number of bytes to skip. */
