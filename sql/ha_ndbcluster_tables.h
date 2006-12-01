@@ -16,6 +16,7 @@
 */
 
 #define NDB_REP_DB      "mysql"
-#define NDB_REP_TABLE   "binlog_index"
-#define NDB_APPLY_TABLE "apply_status"
-#define NDB_SCHEMA_TABLE "schema"
+#define NDB_REP_TABLE   "ndb_binlog_index"
+#define NDB_APPLY_TABLE "ndb_apply_status"
+#define OLD_NDB_APPLY_TABLE "apply_status"
+#define NDB_SCHEMA_TABLE "ndb_schema"

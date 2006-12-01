@@ -687,7 +687,7 @@ ALTER TABLE tables_priv MODIFY Table_priv set('Select','Insert','Update','Delete
 
 UPDATE user SET Trigger_priv=Super_priv WHERE @hadTriggerPriv = 0;
 
-CREATE TABLE IF NOT EXISTS binlog_index (Position BIGINT UNSIGNED NOT NULL, File VARCHAR(255) NOT NULL, epoch BIGINT UNSIGNED NOT NULL, inserts BIGINT UNSIGNED NOT NULL, updates BIGINT UNSIGNED NOT NULL, deletes BIGINT UNSIGNED NOT NULL, schemaops BIGINT UNSIGNED NOT NULL, PRIMARY KEY(epoch)) ENGINE=MYISAM;
+CREATE TABLE IF NOT EXISTS ndb_binlog_index (Position BIGINT UNSIGNED NOT NULL, File VARCHAR(255) NOT NULL, epoch BIGINT UNSIGNED NOT NULL, inserts BIGINT UNSIGNED NOT NULL, updates BIGINT UNSIGNED NOT NULL, deletes BIGINT UNSIGNED NOT NULL, schemaops BIGINT UNSIGNED NOT NULL, PRIMARY KEY(epoch)) ENGINE=MYISAM;
 
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above
