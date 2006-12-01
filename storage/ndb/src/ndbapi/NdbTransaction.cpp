@@ -1013,7 +1013,7 @@ void
 NdbTransaction::releaseExecutedScanOperation(NdbIndexScanOperation* cursorOp)
 {
   DBUG_ENTER("NdbTransaction::releaseExecutedScanOperation");
-  DBUG_PRINT("enter", ("this: 0x%lx  op: 0x%lx", (ulong) this, (ulong) cursorOp));
+  DBUG_PRINT("enter", ("this: 0x%lx  op: 0x%lx", (long) this, (long) cursorOp));
   
   releaseScanOperation(&m_firstExecutedScanOp, 0, cursorOp);
   

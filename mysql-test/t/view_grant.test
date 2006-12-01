@@ -933,4 +933,41 @@ DROP VIEW v2;
 DROP VIEW v1;
 DROP USER mysqltest_u1@localhost;
 
+#
+# Bug#17254: Error for DEFINER security on VIEW provides too much info
+#
+connect (root,localhost,root,,);
+connection root;
+CREATE DATABASE db17254;
+USE db17254;
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (10),(20);
+CREATE USER def_17254@localhost;
+GRANT SELECT ON db17254.* TO def_17254@localhost;
+CREATE USER inv_17254@localhost;
+GRANT SELECT ON db17254.t1 TO inv_17254@localhost;
+GRANT CREATE VIEW ON db17254.* TO def_17254@localhost;
+
+connect (def,localhost,def_17254,,db17254);
+connection def;
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+connection root;
+DROP USER def_17254@localhost;
+
+connect (inv,localhost,inv_17254,,db17254);
+connection inv;
+--echo for a user
+--error 1142
+SELECT * FROM v1;
+
+connection root;
+--echo for a superuser
+--error 1449
+SELECT * FROM v1;
+DROP USER inv_17254@localhost;
+DROP DATABASE db17254;
+disconnect def;
+disconnect inv;
+
 # End of 5.0 tests.

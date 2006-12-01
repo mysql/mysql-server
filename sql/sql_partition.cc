@@ -886,7 +886,6 @@ int check_signed_flag(partition_info *part_info)
 bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
                           bool is_sub_part, bool is_field_to_be_setup)
 {
-  MEM_ROOT new_mem_root;
   partition_info *part_info= table->part_info;
   uint dir_length, home_dir_length;
   bool result= TRUE;
@@ -2002,7 +2001,7 @@ char *generate_partition_syntax(partition_info *part_info,
                                 bool use_sql_alloc,
                                 bool show_partition_options)
 {
-  uint i,j, tot_no_parts, no_subparts, no_parts;
+  uint i,j, tot_no_parts, no_subparts;
   partition_element *part_elem;
   partition_element *save_part_elem= NULL;
   ulonglong buffer_length;
@@ -2302,10 +2301,13 @@ static uint32 get_part_id_hash(uint no_parts,
                                Item *part_expr,
                                longlong *func_value)
 {
+  longlong int_hash_id;
   DBUG_ENTER("get_part_id_hash");
+
   *func_value= part_val_int(part_expr);
-  longlong int_hash_id= *func_value % no_parts;
-  DBUG_RETURN(int_hash_id < 0 ? -int_hash_id : int_hash_id);
+  int_hash_id= *func_value % no_parts;
+
+  DBUG_RETURN(int_hash_id < 0 ? (uint32) -int_hash_id : (uint32) int_hash_id);
 }
 
 
@@ -2358,7 +2360,7 @@ static uint32 get_part_id_key(Field **field_array,
 {
   DBUG_ENTER("get_part_id_key");
   *func_value= calculate_key_value(field_array);
-  DBUG_RETURN(*func_value % no_parts);
+  DBUG_RETURN((uint32) (*func_value % no_parts));
 }
 
 
@@ -3936,7 +3938,7 @@ static int fast_end_partition(THD *thd, ulonglong copied,
                 (ulong) (copied + deleted),
                 (ulong) deleted,
                 (ulong) 0);
-    send_ok(thd,copied+deleted,0L,tmp_name);
+    send_ok(thd, (ha_rows) (copied+deleted),0L,tmp_name);
     DBUG_RETURN(FALSE);
   }
   table->file->print_error(error, MYF(0));
@@ -4024,7 +4026,6 @@ static bool check_native_partitioned(HA_CREATE_INFO *create_info,bool *ret_val,
   handlerton *engine_type= create_info->db_type;
   handlerton *old_engine_type= engine_type;
   uint i= 0;
-  handler *file;
   uint no_parts= part_info->partitions.elements;
   DBUG_ENTER("check_native_partitioned");
 
@@ -5476,7 +5477,6 @@ static void set_part_info_exec_log_entry(partition_info *part_info,
 
 static bool write_log_drop_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
-  DDL_LOG_ENTRY ddl_log_entry;
   partition_info *part_info= lpt->part_info;
   DDL_LOG_MEMORY_ENTRY *log_entry;
   DDL_LOG_MEMORY_ENTRY *exec_log_entry= NULL;
@@ -5521,7 +5521,6 @@ error:
 
 static bool write_log_rename_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
-  DDL_LOG_ENTRY ddl_log_entry;
   partition_info *part_info= lpt->part_info;
   DDL_LOG_MEMORY_ENTRY *log_entry;
   DDL_LOG_MEMORY_ENTRY *exec_log_entry= part_info->exec_log_entry;
@@ -5574,7 +5573,6 @@ error:
 
 static bool write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
-  DDL_LOG_ENTRY ddl_log_entry;
   partition_info *part_info= lpt->part_info;
   DDL_LOG_MEMORY_ENTRY *log_entry;
   DDL_LOG_MEMORY_ENTRY *exec_log_entry= part_info->exec_log_entry;
@@ -5688,7 +5686,6 @@ error:
 
 static bool write_log_final_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
-  DDL_LOG_ENTRY ddl_log_entry;
   partition_info *part_info= lpt->part_info;
   DDL_LOG_MEMORY_ENTRY *log_entry;
   DDL_LOG_MEMORY_ENTRY *exec_log_entry= part_info->exec_log_entry;
@@ -5746,7 +5743,6 @@ static void write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt,
 {
   partition_info *part_info= lpt->part_info;
   uint count_loop= 0;
-  bool not_success;
   DDL_LOG_MEMORY_ENTRY *log_entry= part_info->exec_log_entry;
   DBUG_ENTER("write_log_completed");
 
@@ -7055,7 +7051,6 @@ static uint32 get_next_partition_via_walking(PARTITION_ITERATOR *part_iter)
 
 static uint32 get_next_subpartition_via_walking(PARTITION_ITERATOR *part_iter)
 {
-  uint32 part_id;
   Field *field= part_iter->part_info->subpart_field_array[0];
   if (part_iter->field_vals.cur == part_iter->field_vals.end)
   {

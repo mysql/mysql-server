@@ -47,6 +47,8 @@ uchar Field_null::null[1]={1};
 const char field_separator=',';
 
 #define DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE 320
+#define LONGLONG_TO_STRING_CONVERSION_BUFFER_SIZE 128
+#define DECIMAL_TO_STRING_CONVERSION_BUFFER_SIZE 128
 #define BLOB_PACK_LENGTH_TO_MAX_LENGH(arg) \
 ((ulong) ((LL(1) << min(arg, 4) * 8) - LL(1)))
 
@@ -2565,7 +2567,6 @@ uint Field_new_decimal::is_equal(create_field *new_field)
 int Field_tiny::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  int not_used;				// We can ignore result from str2int
   char *end;
   int error;
 
@@ -2775,7 +2776,6 @@ void Field_tiny::sql_type(String &res) const
 int Field_short::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  int not_used;				// We can ignore result from str2int
   char *end;
   int error;
 
@@ -3062,7 +3062,6 @@ void Field_short::sql_type(String &res) const
 int Field_medium::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  int not_used;				// We can ignore result from str2int
   char *end;
   int error;
 
@@ -3304,8 +3303,6 @@ static bool test_if_minus(CHARSET_INFO *cs,
 int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  ulong tmp_scan;
-  longlong tmp;
   long store_tmp;
   int error;
   char *end;
@@ -5533,11 +5530,11 @@ int Field_newdate::store_time(TIME *ltime,timestamp_type type)
   if (type == MYSQL_TIMESTAMP_DATE || type == MYSQL_TIMESTAMP_DATETIME)
   {
     tmp=ltime->year*16*32+ltime->month*32+ltime->day;
-    if ((my_bool)check_date(ltime, tmp,
-                            (TIME_FUZZY_DATE |
-                             (current_thd->variables.sql_mode &
-                              (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
-                               MODE_INVALID_DATES))), &error))
+    if (check_date(ltime, tmp != 0,
+                   (TIME_FUZZY_DATE |
+                    (current_thd->variables.sql_mode &
+                     (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
+                      MODE_INVALID_DATES))), &error))
     {
       char buff[12];
       String str(buff, sizeof(buff), &my_charset_latin1);
@@ -5763,11 +5760,11 @@ int Field_datetime::store_time(TIME *ltime,timestamp_type type)
   {
     tmp=((ltime->year*10000L+ltime->month*100+ltime->day)*LL(1000000)+
 	 (ltime->hour*10000L+ltime->minute*100+ltime->second));
-    if ((my_bool)check_date(ltime, tmp,
-                            (TIME_FUZZY_DATE |
-                             (current_thd->variables.sql_mode &
-                              (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
-                               MODE_INVALID_DATES))), &error))
+    if (check_date(ltime, tmp != 0,
+                   (TIME_FUZZY_DATE |
+                    (current_thd->variables.sql_mode &
+                     (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
+                      MODE_INVALID_DATES))), &error))
     {
       char buff[19];
       String str(buff, sizeof(buff), &my_charset_latin1);
@@ -6211,20 +6208,50 @@ int Field_longstr::store_decimal(const my_decimal *d)
 double Field_string::val_real(void)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  int not_used;
-  char *end_not_used;
+  int error;
+  char *end;
   CHARSET_INFO *cs= charset();
-  return my_strntod(cs,ptr,field_length,&end_not_used,&not_used);
+  double result;
+  
+  result=  my_strntod(cs,ptr,field_length,&end,&error);
+  if (!table->in_use->no_errors &&
+      (error || (field_length != (uint32)(end - ptr) && 
+                !check_if_only_end_space(cs, end, ptr + field_length))))
+  {
+    char buf[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
+    String tmp(buf, sizeof(buf), cs);
+    tmp.copy(ptr, field_length, cs);
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE, 
+                        ER(ER_TRUNCATED_WRONG_VALUE),
+                        "DOUBLE", tmp.c_ptr());
+  }
+  return result;
 }
 
 
 longlong Field_string::val_int(void)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  int not_used;
-  char *end_not_used;
-  CHARSET_INFO *cs=charset();
-  return my_strntoll(cs,ptr,field_length,10,&end_not_used,&not_used);
+  int error;
+  char *end;
+  CHARSET_INFO *cs= charset();
+  longlong result;
+
+  result= my_strntoll(cs,ptr,field_length,10,&end,&error);
+  if (!table->in_use->no_errors &&
+      (error || (field_length != (uint32)(end - ptr) && 
+                !check_if_only_end_space(cs, end, ptr + field_length))))
+  {
+    char buf[LONGLONG_TO_STRING_CONVERSION_BUFFER_SIZE];
+    String tmp(buf, sizeof(buf), cs);
+    tmp.copy(ptr, field_length, cs);
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE, 
+                        ER(ER_TRUNCATED_WRONG_VALUE),
+                        "INTEGER", tmp.c_ptr());
+  }
+  return result;
 }
 
 
@@ -6243,8 +6270,20 @@ String *Field_string::val_str(String *val_buffer __attribute__((unused)),
 my_decimal *Field_string::val_decimal(my_decimal *decimal_value)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  str2my_decimal(E_DEC_FATAL_ERROR, ptr, field_length, charset(),
+  int err= str2my_decimal(E_DEC_FATAL_ERROR, ptr, field_length, charset(),
                  decimal_value);
+  if (!table->in_use->no_errors && err)
+  {
+    char buf[DECIMAL_TO_STRING_CONVERSION_BUFFER_SIZE];
+    CHARSET_INFO *cs= charset();
+    String tmp(buf, sizeof(buf), cs);
+    tmp.copy(ptr, field_length, cs);
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE, 
+                        ER(ER_TRUNCATED_WRONG_VALUE),
+                        "DECIMAL", tmp.c_ptr());
+  }
+
   return decimal_value;
 }
 
@@ -8484,8 +8523,9 @@ const char *Field_bit::unpack(char *to, const char *from)
 
 void Field_bit::set_default()
 {
-  my_ptrdiff_t const offset= table->s->default_values - table->record[0];
-  uchar bits= get_rec_bits(bit_ptr + offset, bit_ofs, bit_len);
+  my_ptrdiff_t const offset= (my_ptrdiff_t) (table->s->default_values -
+                                             table->record[0]);
+  uchar bits= (uchar) get_rec_bits(bit_ptr + offset, bit_ofs, bit_len);
   set_rec_bits(bits, bit_ptr, bit_ofs, bit_len);
   Field::set_default();
 }
@@ -8510,7 +8550,7 @@ int Field_bit_as_char::store(const char *from, uint length, CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int delta;
-  uchar bits= field_length & 7;
+  uchar bits= (uchar) (field_length & 7);
 
   for (; length && !*from; from++, length--);          // skip left 0's
   delta= bytes_in_rec - length;

@@ -68,6 +68,12 @@
 #define IF_PURIFY(A,B) (B)
 #endif
 
+#if SIZEOF_CHARP == 4
+#define MAX_MEM_TABLE_SIZE ~(ulong) 0
+#else
+#define MAX_MEM_TABLE_SIZE ~(ulonglong) 0
+#endif
+
 /* stack traces are only supported on linux intel */
 #if defined(__linux__)  && defined(__i386__) && defined(USE_PSTACK)
 #define	HAVE_STACK_TRACE_ON_SEGV
@@ -1056,9 +1062,6 @@ static void __cdecl kill_server(int sig_ptr)
   }
 #endif  
   
-#if defined(__NETWARE__) || (defined(USE_ONE_SIGNAL_HAND) && !defined(__WIN__))
-  my_thread_init();				// If this is a new thread
-#endif
   close_connections();
   if (sig != MYSQL_KILL_SIGNAL &&
 #ifdef __WIN__
@@ -1069,16 +1072,15 @@ static void __cdecl kill_server(int sig_ptr)
   else
     unireg_end();
 
+  /* purecov: begin deadcode */
 #ifdef __NETWARE__
   if (!event_flag)
     pthread_join(select_thread, NULL);		// wait for main thread
 #endif /* __NETWARE__ */
 
-#if defined(__NETWARE__) || (defined(USE_ONE_SIGNAL_HAND) && !defined(__WIN__) && !defined(OS2))
   my_thread_end();
-#endif
-
-  pthread_exit(0);				/* purecov: deadcode */
+  pthread_exit(0);
+  /* purecov: end */
 
 #endif /* EMBEDDED_LIBRARY */
   RETURN_FROM_KILL_SERVER;
@@ -1090,10 +1092,14 @@ pthread_handler_t kill_server_thread(void *arg __attribute__((unused)))
 {
   my_thread_init();				// Initialize new thread
   kill_server(0);
-  my_thread_end();				// Normally never reached
+  /* purecov: begin deadcode */
+  my_thread_end();
+  pthread_exit(0);
   return 0;
+  /* purecov: end */
 }
 #endif
+
 
 extern "C" sig_handler print_signal_warning(int sig)
 {
@@ -5943,8 +5949,9 @@ The minimum value for this variable is 4096.",
   {"max_heap_table_size", OPT_MAX_HEP_TABLE_SIZE,
    "Don't allow creation of heap tables bigger than this.",
    (gptr*) &global_system_variables.max_heap_table_size,
-   (gptr*) &max_system_variables.max_heap_table_size, 0, GET_ULONG,
-   REQUIRED_ARG, 16*1024*1024L, 16384, ~0L, MALLOC_OVERHEAD, 1024, 0},
+   (gptr*) &max_system_variables.max_heap_table_size, 0, GET_ULL,
+   REQUIRED_ARG, 16*1024*1024L, 16384, MAX_MEM_TABLE_SIZE,
+   MALLOC_OVERHEAD, 1024, 0},
   {"max_join_size", OPT_MAX_JOIN_SIZE,
    "Joins that are probably going to read more than max_join_size records return an error.",
    (gptr*) &global_system_variables.max_join_size,
@@ -6230,8 +6237,8 @@ The minimum value for this variable is 4096.",
   {"tmp_table_size", OPT_TMP_TABLE_SIZE,
    "If an in-memory temporary table exceeds this size, MySQL will automatically convert it to an on-disk MyISAM table.",
    (gptr*) &global_system_variables.tmp_table_size,
-   (gptr*) &max_system_variables.tmp_table_size, 0, GET_ULONG,
-   REQUIRED_ARG, 16*1024*1024L, 1024, ~0L, 0, 1, 0},  /* See  max_heap_table_size . */
+   (gptr*) &max_system_variables.tmp_table_size, 0, GET_ULL,
+   REQUIRED_ARG, 16*1024*1024L, 1024, MAX_MEM_TABLE_SIZE, 0, 1, 0},
   {"transaction_alloc_block_size", OPT_TRANS_ALLOC_BLOCK_SIZE,
    "Allocation block size for transactions to be stored in binary log",
    (gptr*) &global_system_variables.trans_alloc_block_size,
@@ -7131,7 +7138,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   switch(optid) {
   case '#':
 #ifndef DBUG_OFF
-    DBUG_SET(argument ? argument : default_dbug_option);
     DBUG_SET_INITIAL(argument ? argument : default_dbug_option);
 #endif
     opt_endinfo=1;				/* unireg: memory allocation */

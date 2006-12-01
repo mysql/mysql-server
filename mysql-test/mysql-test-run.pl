@@ -1236,6 +1236,12 @@ sub command_line_setup () {
 sub set_mtr_build_thread_ports($) {
   my $mtr_build_thread= shift;
 
+  if ( lc($mtr_build_thread) eq 'auto' ) {
+    print "Requesting build thread... ";
+    $ENV{'MTR_BUILD_THREAD'} = $mtr_build_thread = mtr_require_unique_id_and_wait("/tmp/mysql-test-ports", 200, 299);
+    print "got ".$mtr_build_thread."\n";
+  }
+
   # Up to two masters, up to three slaves
   $opt_master_myport=         $mtr_build_thread * 10 + 10000; # and 1
   $opt_slave_myport=          $opt_master_myport + 2;  # and 3 4
