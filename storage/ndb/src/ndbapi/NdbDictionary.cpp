@@ -204,7 +204,7 @@ NdbDictionary::Column::getPrimaryKey() const {
 
 void 
 NdbDictionary::Column::setPartitionKey(bool val){
-  m_impl.m_distributionKey = true;
+  m_impl.m_distributionKey = val;
 }
 
 bool 
