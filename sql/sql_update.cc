@@ -118,7 +118,7 @@ int mysql_update(THD *thd,
 		 enum enum_duplicates handle_duplicates, bool ignore)
 {
   bool		using_limit= limit != HA_POS_ERROR;
-  bool		safe_update= thd->options & OPTION_SAFE_UPDATES;
+  bool		safe_update= test(thd->options & OPTION_SAFE_UPDATES);
   bool		used_key_is_modified, transactional_table, will_batch;
   bool		can_compare_record;
   int           res;

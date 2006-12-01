@@ -1031,7 +1031,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   {
     uint primary_key=(uint) (find_type((char*) primary_key_name,
 				       &share->keynames, 3) - 1);
-    uint ha_option= handler_file->ha_table_flags();
+    longlong ha_option= handler_file->ha_table_flags();
     keyinfo= share->key_info;
     key_part= keyinfo->key_part;
 
@@ -1078,6 +1078,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           goto err;
         }
         field= key_part->field= share->field[key_part->fieldnr-1];
+        key_part->type= field->key_type();
         if (field->null_ptr)
         {
           key_part->null_offset=(uint) ((byte*) field->null_ptr -
@@ -2078,7 +2079,6 @@ File create_frm(THD *thd, const char *name, const char *db,
   		HA_CREATE_INFO *create_info, uint keys)
 {
   register File file;
-  uint key_length;
   ulong length;
   char fill[IO_SIZE];
   int create_flags= O_RDWR | O_TRUNC;

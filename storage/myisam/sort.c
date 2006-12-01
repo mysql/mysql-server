@@ -899,7 +899,6 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   BUFFPEK *buffpek,**refpek;
   QUEUE queue;
   volatile int *killed= killed_ptr(info->sort_info->param);
-
   DBUG_ENTER("merge_buffers");
 
   count=error=0;
