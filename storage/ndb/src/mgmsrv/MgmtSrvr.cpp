@@ -972,6 +972,15 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
   StopReq* const stopReq = CAST_PTR(StopReq, ssig.getDataPtrSend());
   ssig.set(ss, TestOrd::TraceAPI, NDBCNTR, GSN_STOP_REQ, StopReq::SignalLength);
 
+  NdbNodeBitmask notstarted;
+  for (Uint32 i = 0; i<node_ids.size(); i++)
+  {
+    Uint32 nodeId = node_ids[i];
+    ClusterMgr::Node node = theFacade->theClusterMgr->getNodeInfo(nodeId);
+    if (node.m_state.startLevel != NodeState::SL_STARTED)
+      notstarted.set(nodeId);
+  }
+  
   stopReq->requestInfo = 0;
   stopReq->apiTimeout = 5000;
   stopReq->transactionTimeout = 1000;
@@ -1142,6 +1151,14 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
     case GSN_NODE_FAILREP:{
       const NodeFailRep * const rep =
 	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
+      NdbNodeBitmask mask;
+      char buf[100];
+      mask.assign(NdbNodeBitmask::Size, rep->theNodes);
+      mask.bitAND(notstarted);
+      nodes.bitANDC(mask);
+      
+      if (singleUserNodeId == 0)
+	stoppedNodes.bitOR(mask);
       break;
     }
     default:
@@ -2051,7 +2068,10 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id, enum ndb_mgm_node_type type)
       ndbout_c("Node %d fail completed", rep->failedNodeId);
 #endif
       if (rep->failedNodeId == nodeId)
+      {
+	do_send = 1;
         nodeId = 0;
+      }
       continue;
     }
     case GSN_NODE_FAILREP:{

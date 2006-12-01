@@ -3337,9 +3337,10 @@ Dbacc::getElement(Signal* signal, OperationrecPtr& lockOwnerPtr)
           bool found;
           if (! searchLocalKey) 
 	  {
-            Uint32 len = readTablePk(localkey1, tgeElementptr, lockOwnerPtr.p);
+            Uint32 len = readTablePk(localkey1, tgeElementHeader, 
+				     lockOwnerPtr.p);
             found = (len == operationRecPtr.p->xfrmtupkeylen) &&
-                    (memcmp(Tkeydata, ckeys, len << 2) == 0);
+	      (memcmp(Tkeydata, ckeys, len << 2) == 0);
           } else {
             jam();
             found = (localkey1 == Tkeydata[0]);

@@ -320,6 +320,10 @@ int Dbtup::TUPKEY_abort(Signal* signal, int error_type)
       ndbrequire(false);
     }//if
     break;
+  case 40:
+    ljam();
+    terrorCode = ZUNSUPPORTED_BRANCH;
+    break;
   default:
     ndbrequire(false);
     break;

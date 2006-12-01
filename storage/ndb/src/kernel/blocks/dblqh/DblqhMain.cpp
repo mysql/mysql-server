@@ -62,6 +62,7 @@
 #include <signaldata/KeyInfo.hpp>
 #include <signaldata/AttrInfo.hpp>
 #include <KeyDescriptor.hpp>
+#include <signaldata/RouteOrd.hpp>
 
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
@@ -447,6 +448,22 @@ void Dblqh::execCONTINUEB(Signal* signal)
 		 StartRecConf::SignalLength, JBB);
       return;
     }
+  }
+  case ZRETRY_TCKEYREF:
+  {
+    jam();
+    Uint32 cnt = signal->theData[1];
+    Uint32 ref = signal->theData[2];
+    if (cnt < (10 * 60 * 5))
+    {
+      jam();
+      /**
+       * Only retry for 5 minutes...then hope that API has handled it..somehow
+       */
+      memmove(signal->theData, signal->theData+3, 4*TcKeyRef::SignalLength);
+      sendTCKEYREF(signal, ref, 0, cnt);
+    }
+    return;
   }
   default:
     ndbrequire(false);
@@ -2216,7 +2233,7 @@ void Dblqh::noFreeRecordLab(Signal* signal,
     tcKeyRef->transId[0] = transid1;
     tcKeyRef->transId[1] = transid2;
     tcKeyRef->errorCode = errCode;
-    sendSignal(apiRef, GSN_TCKEYREF, signal, TcKeyRef::SignalLength, JBB);
+    sendTCKEYREF(signal, apiRef, signal->getSendersBlockRef(), 0);
   } else {
     jam();
 
@@ -7273,8 +7290,7 @@ void Dblqh::continueAfterLogAbortWriteLab(Signal* signal)
     tcKeyRef->transId[0] = regTcPtr->transid[0];
     tcKeyRef->transId[1] = regTcPtr->transid[1];
     tcKeyRef->errorCode = regTcPtr->errorCode;
-    sendSignal(regTcPtr->applRef, 
-               GSN_TCKEYREF, signal, TcKeyRef::SignalLength, JBB);
+    sendTCKEYREF(signal, regTcPtr->applRef, regTcPtr->clientBlockref, 0);
     cleanUp(signal);
     return;
   }//if
@@ -7308,6 +7324,48 @@ void Dblqh::continueAfterLogAbortWriteLab(Signal* signal)
   }//if
   cleanUp(signal);
 }//Dblqh::continueAfterLogAbortWriteLab()
+
+void
+Dblqh::sendTCKEYREF(Signal* signal, Uint32 ref, Uint32 routeRef, Uint32 cnt)
+{
+  const Uint32 nodeId = refToNode(ref);
+  const bool connectedToNode = getNodeInfo(nodeId).m_connected;
+  
+  if (likely(connectedToNode))
+  {
+    jam();
+    sendSignal(ref, GSN_TCKEYREF, signal, TcKeyRef::SignalLength, JBB);
+  }
+  else
+  {
+    if (routeRef && 
+	getNodeInfo(refToNode(routeRef)).m_version >= MAKE_VERSION(5,1,14))
+    {
+      jam();
+      memmove(signal->theData+25, signal->theData, 4*TcKeyRef::SignalLength);
+      RouteOrd* ord = (RouteOrd*)signal->getDataPtrSend();
+      ord->dstRef = ref;
+      ord->srcRef = reference();
+      ord->gsn = GSN_TCKEYREF;
+      ord->cnt = 0;
+      LinearSectionPtr ptr[3];
+      ptr[0].p = signal->theData+25;
+      ptr[0].sz = TcKeyRef::SignalLength;
+      sendSignal(routeRef, GSN_ROUTE_ORD, signal, RouteOrd::SignalLength, JBB,
+		 ptr, 1);
+    }
+    else
+    {
+      jam();
+      memmove(signal->theData + 3, signal->theData, 4*TcKeyRef::SignalLength);
+      signal->theData[0] = ZRETRY_TCKEYREF;
+      signal->theData[1] = cnt + 1;
+      signal->theData[2] = ref;
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100,
+			  TcKeyRef::SignalLength + 3);
+    }
+  }
+}
 
 /* ########################################################################## 
  * #######                       MODULE TO HANDLE TC FAILURE          ####### 

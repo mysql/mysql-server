@@ -126,7 +126,6 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_ACC_ABORTCONF               67
 /* 68 not unused */
 /* 69 not unused */
-/* 70 unused */
 #define GSN_UPDATE_FRAG_DIST_KEY_ORD    70
 #define GSN_ACC_ABORTREQ                71
 #define GSN_ACC_CHECK_SCAN              72
@@ -183,7 +182,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_CNTR_START_CONF             118
 #define GSN_CNTR_START_REP              119
 /* 120 not unused */
-/* 121 unused */
+#define GSN_ROUTE_ORD                   121
 /* 122 unused */
 /* 123 unused */
 /* 124 unused */

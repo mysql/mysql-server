@@ -87,6 +87,7 @@ Dbtup::execACC_SCANREQ(Signal* signal)
       
       ndbrequire(frag.m_lcp_scan_op == c_lcp_scan_op);
       c_scanOpPool.getPtr(scanPtr, frag.m_lcp_scan_op);
+      ndbrequire(scanPtr.p->m_fragPtrI == fragPtr.i);
       bits |= ScanOp::SCAN_LCP;
       if (tablePtr.p->m_attributes[MM].m_no_of_varsize > 0) {
         bits |= ScanOp::SCAN_VS;
@@ -1038,6 +1039,7 @@ Dbtup::releaseScanOp(ScanOpPtr& scanPtr)
   {
     ndbrequire(fragPtr.p->m_lcp_scan_op == scanPtr.i);
     fragPtr.p->m_lcp_scan_op = RNIL;
+    scanPtr.p->m_fragPtrI = RNIL;
   }
 }
 
@@ -1064,8 +1066,9 @@ Dbtup::execLCP_FRAG_ORD(Signal* signal)
     frag.m_lcp_scan_op = c_lcp_scan_op;
     ScanOpPtr scanPtr;
     c_scanOpPool.getPtr(scanPtr, frag.m_lcp_scan_op);
-    //ndbrequire(scanPtr.p->m_fragPtrI == fragPtr.i); ?
-
+    ndbrequire(scanPtr.p->m_fragPtrI == RNIL);
+    scanPtr.p->m_fragPtrI = fragPtr.i;
+    
     scanFirst(signal, scanPtr);
     scanPtr.p->m_state = ScanOp::First;
   }
