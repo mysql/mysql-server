@@ -256,7 +256,7 @@ Dbdih::Dbdih(Block_context& ctx):
 
   addRecSignal(GSN_DICT_LOCK_CONF, &Dbdih::execDICT_LOCK_CONF);
   addRecSignal(GSN_DICT_LOCK_REF, &Dbdih::execDICT_LOCK_REF);
-  addRecSignal(GSN_NODE_START_REP, &Dbdih::execNODE_START_REP);
+  addRecSignal(GSN_NODE_START_REP, &Dbdih::execNODE_START_REP, true);
   
   addRecSignal(GSN_START_FRAGREF,
 	       &Dbdih::execSTART_FRAGREF);
