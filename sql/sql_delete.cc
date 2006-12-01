@@ -975,7 +975,7 @@ end:
 
 trunc_by_del:
   /* Probably InnoDB table */
-  ulong save_options= thd->options;
+  ulonglong save_options= thd->options;
   table_list->lock_type= TL_WRITE;
   thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT);
   ha_enable_transaction(thd, FALSE);

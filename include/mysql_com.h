@@ -340,7 +340,7 @@ extern "C" {
 my_bool	my_net_init(NET *net, Vio* vio);
 void	my_net_local_init(NET *net);
 void	net_end(NET *net);
-void	net_clear(NET *net);
+  void	net_clear(NET *net, my_bool clear_buffer);
 my_bool net_realloc(NET *net, unsigned long length);
 my_bool	net_flush(NET *net);
 my_bool	my_net_write(NET *net,const char *packet,unsigned long len);

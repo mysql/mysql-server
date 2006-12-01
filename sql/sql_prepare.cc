@@ -2920,7 +2920,6 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
 {
   Statement stmt_backup;
   Query_arena *old_stmt_arena;
-  Item *old_free_list;
   bool error= TRUE;
 
   statistic_increment(thd->status_var.com_stmt_execute, &LOCK_status);

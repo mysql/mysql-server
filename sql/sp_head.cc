@@ -456,10 +456,14 @@ sp_head::operator delete(void *ptr, size_t size)
 sp_head::sp_head()
   :Query_arena(&main_mem_root, INITIALIZED_FOR_SP),
    m_flags(0), m_recursion_level(0), m_next_cached_sp(0),
-   m_first_instance(this), m_first_free_instance(this), m_last_cached_sp(this),
    m_cont_level(0)
 {
   const LEX_STRING str_reset= { NULL, 0 };
+
+  m_first_instance= this;
+  m_first_free_instance= this;
+  m_last_cached_sp= this;
+
   m_return_field_def.charset = NULL;
   /*
     FIXME: the only use case when name is NULL is events, and it should
@@ -1675,7 +1679,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
         Item_null *null_item= new Item_null();
 
         if (!null_item ||
-            nctx->set_variable(thd, i, (struct Item **)&null_item))
+            nctx->set_variable(thd, i, (Item **)&null_item))
         {
           err_status= TRUE;
           break;
@@ -2853,7 +2857,7 @@ void
 sp_instr_freturn::print(String *str)
 {
   /* freturn type expr... */
-  if (str->reserve(UINT_MAX+8+32)) // Add some for the expr. too
+  if (str->reserve(1024+8+32)) // Add some for the expr. too
     return;
   str->qs_append(STRING_WITH_LEN("freturn "));
   str->qs_append((uint)m_type);

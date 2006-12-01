@@ -714,3 +714,22 @@ DROP FUNCTION f1;
 DROP VIEW v2;
 DROP VIEW v1;
 DROP USER mysqltest_u1@localhost;
+CREATE DATABASE db17254;
+USE db17254;
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (10),(20);
+CREATE USER def_17254@localhost;
+GRANT SELECT ON db17254.* TO def_17254@localhost;
+CREATE USER inv_17254@localhost;
+GRANT SELECT ON db17254.t1 TO inv_17254@localhost;
+GRANT CREATE VIEW ON db17254.* TO def_17254@localhost;
+CREATE VIEW v1 AS SELECT * FROM t1;
+DROP USER def_17254@localhost;
+for a user
+SELECT * FROM v1;
+ERROR 42000: SELECT command denied to user 'inv_17254'@'localhost' for table 'v1'
+for a superuser
+SELECT * FROM v1;
+ERROR HY000: There is no 'def_17254'@'localhost' registered
+DROP USER inv_17254@localhost;
+DROP DATABASE db17254;

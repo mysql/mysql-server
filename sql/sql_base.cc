@@ -1251,7 +1251,7 @@ void close_temporary_tables(THD *thd)
 
   /* We always quote db,table names though it is slight overkill */
   if (found_user_tables &&
-      !(was_quote_show= (thd->options & OPTION_QUOTE_SHOW_CREATE)))
+      !(was_quote_show= test(thd->options & OPTION_QUOTE_SHOW_CREATE)))
   {
     thd->options |= OPTION_QUOTE_SHOW_CREATE;
   }
@@ -4225,6 +4225,12 @@ find_field_in_tables(THD *thd, Item_ident *item,
     {
       if (found == WRONG_GRANT)
 	return (Field*) 0;
+
+      /*
+        Only views fields should be marked as dependent, not an underlying
+        fields.
+      */
+      if (!table_ref->belong_to_view)
       {
         SELECT_LEX *current_sel= thd->lex->current_select;
         SELECT_LEX *last_select= table_ref->select_lex;

@@ -9,6 +9,9 @@ then
   if test "$CCACHE_VER" == "2.4-gcov"
   then
     CCACHE_GCOV_VERSION_ENABLED=1
+  else
+    CCACHE_DISABLE=1
+    export CCACHE_DISABLE
   fi
 fi
 export CCACHE_GCOV_VERSION_ENABLED
