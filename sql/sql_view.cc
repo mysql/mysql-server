@@ -197,7 +197,7 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
     lex->definer= &view->definer;
   }
   if (lex->create_view_algorithm == VIEW_ALGORITHM_UNDEFINED)
-    lex->create_view_algorithm= decoy.algorithm;
+    lex->create_view_algorithm= (uint8) decoy.algorithm;
   if (lex->create_view_suid == VIEW_SUID_DEFAULT)
     lex->create_view_suid= decoy.view_suid ? 
       VIEW_SUID_DEFINER : VIEW_SUID_INVOKER;
@@ -1477,7 +1477,6 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
   TABLE *table;
   Field_translator *trans, *end_of_trans;
   KEY *key_info, *key_info_end;
-  uint i;
   DBUG_ENTER("check_key_in_view");
 
   /*
