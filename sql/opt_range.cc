@@ -878,7 +878,7 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
       file->extra(HA_EXTRA_NO_KEYREAD);
       if (free_file)
       {
-        DBUG_PRINT("info", ("Freeing separate handler %p (free=%d)", file,
+        DBUG_PRINT("info", ("Freeing separate handler 0x%lx (free: %d)", (long) file,
                             free_file));
         file->reset();
         file->external_lock(current_thd, F_UNLCK);
@@ -1836,9 +1836,9 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   double scan_time;
   DBUG_ENTER("SQL_SELECT::test_quick_select");
   DBUG_PRINT("enter",("keys_to_use: %lu  prev_tables: %lu  const_tables: %lu",
-		      keys_to_use.to_ulonglong(), (ulong) prev_tables,
+		      (ulong) keys_to_use.to_ulonglong(), (ulong) prev_tables,
 		      (ulong) const_tables));
-  DBUG_PRINT("info", ("records=%lu", (ulong)head->file->records));
+  DBUG_PRINT("info", ("records: %lu", (ulong) head->file->records));
   delete quick;
   quick=0;
   needed_reg.clear_all();
@@ -2102,7 +2102,7 @@ double get_sweep_read_cost(const PARAM *param, ha_rows records)
       n_blocks * (1.0 - pow(1.0 - 1.0/n_blocks, rows2double(records)));
     if (busy_blocks < 1.0)
       busy_blocks= 1.0;
-    DBUG_PRINT("info",("sweep: nblocks=%g, busy_blocks=%g", n_blocks,
+    DBUG_PRINT("info",("sweep: nblocks: %g, busy_blocks: %g", n_blocks,
                        busy_blocks));
     /*
       Disabled: Bail out if # of blocks to read is bigger than # of blocks in
@@ -2126,7 +2126,7 @@ double get_sweep_read_cost(const PARAM *param, ha_rows records)
       result= busy_blocks;
     }
   }
-  DBUG_PRINT("info",("returning cost=%g", result));
+  DBUG_PRINT("return",("cost: %g", result));
   DBUG_RETURN(result);
 }
 
@@ -2220,7 +2220,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   ha_rows roru_total_records;
   double roru_intersect_part= 1.0;
   DBUG_ENTER("get_best_disjunct_quick");
-  DBUG_PRINT("info", ("Full table scan cost =%g", read_time));
+  DBUG_PRINT("info", ("Full table scan cost: %g", read_time));
 
   if (!(range_scans= (TRP_RANGE**)alloc_root(param->mem_root,
                                              sizeof(TRP_RANGE*)*
@@ -2264,7 +2264,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
       non_cpk_scan_records += (*cur_child)->records;
   }
 
-  DBUG_PRINT("info", ("index_merge scans cost=%g", imerge_cost));
+  DBUG_PRINT("info", ("index_merge scans cost %g", imerge_cost));
   if (imerge_too_expensive || (imerge_cost > read_time) ||
       (non_cpk_scan_records+cpk_scan_records >= param->table->file->records) &&
       read_time != DBL_MAX)
@@ -2877,7 +2877,7 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
   DBUG_PRINT("info", ("Current out_rows= %g", info->out_rows));
   DBUG_PRINT("info", ("Adding scan on %s",
                       info->param->table->key_info[ror_scan->keynr].name));
-  DBUG_PRINT("info", ("is_cpk_scan=%d",is_cpk_scan));
+  DBUG_PRINT("info", ("is_cpk_scan: %d",is_cpk_scan));
 
   selectivity_mult = ror_scan_selectivity(info, ror_scan);
   if (selectivity_mult == 1.0)
@@ -7445,7 +7445,7 @@ static TRP_GROUP_MIN_MAX *
 get_best_group_min_max(PARAM *param, SEL_TREE *tree)
 {
   THD *thd= param->thd;
-  JOIN *join= thd->lex->select_lex.join;
+  JOIN *join= thd->lex->current_select->join;
   TABLE *table= param->table;
   bool have_min= FALSE;              /* TRUE if there is a MIN function. */
   bool have_max= FALSE;              /* TRUE if there is a MAX function. */
@@ -7466,7 +7466,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
   DBUG_ENTER("get_best_group_min_max");
 
   /* Perform few 'cheap' tests whether this access method is applicable. */
-  if (!join || (thd->lex->sql_command != SQLCOM_SELECT))
+  if (!join)
     DBUG_RETURN(NULL);        /* This is not a select statement. */
   if ((join->tables != 1) ||  /* The query must reference one table. */
       ((!join->group_list) && /* Neither GROUP BY nor a DISTINCT query. */
@@ -8280,8 +8280,8 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
   *records= num_groups;
 
   DBUG_PRINT("info",
-             ("table rows=%u, keys/block=%u, keys/group=%u, result rows=%u, blocks=%u",
-              table_records, keys_per_block, keys_per_group, *records,
+             ("table rows: %u  keys/block: %u  keys/group: %u  result rows: %lu  blocks: %u",
+              table_records, keys_per_block, keys_per_group, (ulong) *records,
               num_blocks));
   DBUG_VOID_RETURN;
 }
@@ -8316,7 +8316,7 @@ TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool retrieve_full_rows,
   DBUG_ENTER("TRP_GROUP_MIN_MAX::make_quick");
 
   quick= new QUICK_GROUP_MIN_MAX_SELECT(param->table,
-                                        param->thd->lex->select_lex.join,
+                                        param->thd->lex->current_select->join,
                                         have_min, have_max, min_max_arg_part,
                                         group_prefix_len, used_key_parts,
                                         index_info, index, read_cost, records,

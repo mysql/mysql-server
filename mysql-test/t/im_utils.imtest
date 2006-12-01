@@ -31,10 +31,10 @@ SHOW INSTANCE OPTIONS mysqld2;
 #
 
 START INSTANCE mysqld2;
---exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 started
+--exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 started im_utils
 
 STOP INSTANCE mysqld2;
---exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 stopped
+--exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 stopped im_utils
 
 #
 # Check 'SHOW LOG FILES' command:

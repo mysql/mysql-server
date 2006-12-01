@@ -13686,7 +13686,8 @@ static void test_bug11172()
                hired.year, hired.month, hired.day);
     }
     DIE_UNLESS(rc == MYSQL_NO_DATA);
-    mysql_stmt_free_result(stmt) || mysql_stmt_reset(stmt);
+    if (!mysql_stmt_free_result(stmt))
+      mysql_stmt_reset(stmt);
   }
   mysql_stmt_close(stmt);
   mysql_rollback(mysql);
@@ -14828,6 +14829,8 @@ static void test_opt_reconnect()
 }
 
 
+#ifndef EMBEDDED_LIBRARY
+
 static void test_bug12744()
 {
   MYSQL_STMT *prep_stmt = NULL;
@@ -14858,6 +14861,8 @@ static void test_bug12744()
   rc= mysql_stmt_close(prep_stmt);
   client_connect(0);
 }
+
+#endif /* EMBEDDED_LIBRARY */
 
 /* Bug #16143: mysql_stmt_sqlstate returns an empty string instead of '00000' */
 
@@ -15308,6 +15313,151 @@ static void test_bug21726()
 
 
 /*
+  BUG#23383: mysql_affected_rows() returns different values than
+  mysql_stmt_affected_rows()
+
+  Test that both mysql_affected_rows() and mysql_stmt_affected_rows()
+  return -1 on error, 0 when no rows were affected, and (positive) row
+  count when some rows were affected.
+*/
+static void test_bug23383()
+{
+  const char *insert_query= "INSERT INTO t1 VALUES (1), (2)";
+  const char *update_query= "UPDATE t1 SET i= 4 WHERE i = 3";
+  MYSQL_STMT *stmt;
+  my_ulonglong row_count;
+  int rc;
+
+  DBUG_ENTER("test_bug23383");
+  myheader("test_bug23383");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE TABLE t1 (i INT UNIQUE)");
+  myquery(rc);
+
+  rc= mysql_query(mysql, insert_query);
+  myquery(rc);
+  row_count= mysql_affected_rows(mysql);
+  DIE_UNLESS(row_count == 2);
+
+  rc= mysql_query(mysql, insert_query);
+  DIE_UNLESS(rc != 0);
+  row_count= mysql_affected_rows(mysql);
+  DIE_UNLESS(row_count == (my_ulonglong)-1);
+
+  rc= mysql_query(mysql, update_query);
+  myquery(rc);
+  row_count= mysql_affected_rows(mysql);
+  DIE_UNLESS(row_count == 0);
+
+  rc= mysql_query(mysql, "DELETE FROM t1");
+  myquery(rc);
+
+  stmt= mysql_stmt_init(mysql);
+  DIE_UNLESS(stmt != 0);
+
+  rc= mysql_stmt_prepare(stmt, insert_query, strlen(insert_query));
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  row_count= mysql_stmt_affected_rows(stmt);
+  DIE_UNLESS(row_count == 2);
+
+  rc= mysql_stmt_execute(stmt);
+  DIE_UNLESS(rc != 0);
+  row_count= mysql_stmt_affected_rows(stmt);
+  DIE_UNLESS(row_count == (my_ulonglong)-1);
+
+  rc= mysql_stmt_prepare(stmt, update_query, strlen(update_query));
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  row_count= mysql_stmt_affected_rows(stmt);
+  DIE_UNLESS(row_count == 0);
+
+  rc= mysql_stmt_close(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  BUG#21635: MYSQL_FIELD struct's member strings seem to misbehave for
+  expression cols
+
+  Check that for MIN(), MAX(), COUNT() only MYSQL_FIELD::name is set
+  to either expression or its alias, and db, org_table, table,
+  org_name fields are empty strings.
+*/
+static void test_bug21635()
+{
+  const char *expr[]=
+  {
+    "MIN(i)", "MIN(i)",
+    "MIN(i) AS A1", "A1",
+    "MAX(i)", "MAX(i)",
+    "MAX(i) AS A2", "A2",
+    "COUNT(i)", "COUNT(i)",
+    "COUNT(i) AS A3", "A3",
+  };
+  char query[MAX_TEST_QUERY_LENGTH];
+  char *query_end;
+  MYSQL_RES *result;
+  MYSQL_FIELD *field;
+  unsigned int field_count, i;
+  int rc;
+
+  DBUG_ENTER("test_bug21635");
+  myheader("test_bug21635");
+
+  query_end= strxmov(query, "SELECT ", NullS);
+  for (i= 0; i < sizeof(expr) / sizeof(*expr) / 2; ++i)
+    query_end= strxmov(query_end, expr[i * 2], ", ", NullS);
+  query_end= strxmov(query_end - 2, " FROM t1 GROUP BY i", NullS);
+  DIE_UNLESS(query_end - query < MAX_TEST_QUERY_LENGTH);
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE TABLE t1 (i INT)");
+  myquery(rc);
+  rc= mysql_query(mysql, "INSERT INTO t1 VALUES (1)");
+  myquery(rc);
+
+  rc= mysql_real_query(mysql, query, query_end - query);
+  myquery(rc);
+
+  result= mysql_use_result(mysql);
+  DIE_UNLESS(result);
+
+  field_count= mysql_field_count(mysql);
+  for (i= 0; i < field_count; ++i)
+  {
+    field= mysql_fetch_field_direct(result, i);
+    printf("%s -> %s ... ", expr[i * 2], field->name);
+    fflush(stdout);
+    DIE_UNLESS(field->db[0] == 0 && field->org_table[0] == 0 &&
+               field->table[0] == 0 && field->org_name[0] == 0);
+    DIE_UNLESS(strcmp(field->name, expr[i * 2 + 1]) == 0);
+    puts("OK");
+  }
+
+  mysql_free_result(result);
+  rc= mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/*
   Read and parse arguments and MySQL options from my.cnf
 */
 
@@ -15583,6 +15733,8 @@ static struct my_tests_st my_tests[]= {
   { "test_bug15752", test_bug15752 },
   { "test_bug21206", test_bug21206 },
   { "test_bug21726", test_bug21726 },
+  { "test_bug23383", test_bug23383 },
+  { "test_bug21635", test_bug21635 },
   { 0, 0 }
 };
 
