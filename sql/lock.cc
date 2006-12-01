@@ -151,7 +151,11 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
       }
     }
 
-    if (write_lock_used && opt_readonly)
+    if (   write_lock_used
+        && opt_readonly
+        && ! (thd->security_ctx->master_access & SUPER_ACL)
+        && ! thd->slave_thread
+       )
     {
       /*
 	Someone has issued SET GLOBAL READ_ONLY=1 and we want a write lock.

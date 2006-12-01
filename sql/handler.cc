@@ -693,7 +693,11 @@ int ha_commit_trans(THD *thd, bool all)
       DBUG_RETURN(1);
     }
 
-    if (is_real_trans && opt_readonly)
+    if (   is_real_trans
+        && opt_readonly
+        && ! (thd->security_ctx->master_access & SUPER_ACL)
+        && ! thd->slave_thread
+       )
     {
       my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
       ha_rollback_trans(thd, all);
