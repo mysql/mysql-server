@@ -467,6 +467,7 @@ DROP FUNCTION f1;
 drop table t1;
 set global log_bin_trust_function_creators=0;
 set global log_bin_trust_function_creators=0;
+reset master;
 drop database if exists mysqltest;
 drop database if exists mysqltest2;
 create database mysqltest;
@@ -475,19 +476,15 @@ use mysqltest2;
 create table t ( t integer );
 create procedure mysqltest.test() begin end;
 insert into t values ( 1 );
-show binlog events in 'master-bin.000001' from 8186;
+show binlog events in 'master-bin.000001' from 98;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	8186	Query	1	8317	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION f1() RETURNS INT RETURN 0
-master-bin.000001	8317	Query	1	8397	use `test`; DROP PROCEDURE p1
-master-bin.000001	8397	Query	1	8476	use `test`; DROP FUNCTION f1
-master-bin.000001	8476	Query	1	8552	use `test`; drop table t1
-master-bin.000001	8552	Query	1	8653	drop database if exists mysqltest
-master-bin.000001	8653	Query	1	8756	drop database if exists mysqltest2
-master-bin.000001	8756	Query	1	8849	create database mysqltest
-master-bin.000001	8849	Query	1	8944	create database mysqltest2
-master-bin.000001	8944	Query	1	9041	use `mysqltest2`; create table t ( t integer )
-master-bin.000001	9041	Query	1	9180	use `mysqltest2`; CREATE DEFINER=`root`@`localhost` procedure mysqltest.test() begin end
-master-bin.000001	9180	Query	1	9275	use `mysqltest2`; insert into t values ( 1 )
+master-bin.000001	98	Query	1	199	drop database if exists mysqltest
+master-bin.000001	199	Query	1	302	drop database if exists mysqltest2
+master-bin.000001	302	Query	1	395	create database mysqltest
+master-bin.000001	395	Query	1	490	create database mysqltest2
+master-bin.000001	490	Query	1	587	use `mysqltest2`; create table t ( t integer )
+master-bin.000001	587	Query	1	726	use `mysqltest2`; CREATE DEFINER=`root`@`localhost` procedure mysqltest.test() begin end
+master-bin.000001	726	Query	1	821	use `mysqltest2`; insert into t values ( 1 )
 create procedure `\\`.test() begin end;
 ERROR 42000: Incorrect database name '\\'
 drop database mysqltest;
