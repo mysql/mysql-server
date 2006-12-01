@@ -72,6 +72,8 @@
 #include <NdbOut.hpp>
 #include <DebuggerNames.hpp>
 
+#include <signaldata/RouteOrd.hpp>
+
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
 #ifdef VM_TRACE
@@ -3051,28 +3053,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
 	  }//if
 	}//for
       }
-
-      if (regTcPtr->tcNodedata[0] != getOwnNodeId())
-      {
-	jam();
-	for (Uint32 i = 0; i < tnoOfBackup + 1; i++)
-	{
-	  HostRecordPtr hostPtr;
-	  hostPtr.i = regTcPtr->tcNodedata[i];
-	  ptrCheckGuard(hostPtr, chostFilesize, hostRecord);
-	  if (hostPtr.p->m_nf_bits & HostRecord::NF_STARTED)
-	  {
-	    jam();
-	    if (i != 0)
-	    {
-	      jam();
-	      regTcPtr->tcNodedata[0] = hostPtr.i;
-	    }
-	    break;
-	  }
-	}
-      }//if
-    }
+    }//if
     jam();
     regTcPtr->lastReplicaNo = 0;
     regTcPtr->noOfNodes = 1;
@@ -7028,19 +7009,6 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
     nodeFailCheckTransactions(signal, 0, hostptr.i);
   }
 }//Dbtc::execNODE_FAILREP()
-
-void
-Dbtc::execNODE_START_REP(Signal* signal)
-{
-  Uint32 nodeId = signal->theData[0];
-  hostptr.i = nodeId;
-  ptrCheckGuard(hostptr, chostFilesize, hostRecord);
-  if (hostptr.p->m_nf_bits == 0)
-  {
-    jam();
-    hostptr.p->m_nf_bits |= HostRecord::NF_STARTED;
-  }
-}
 
 void
 Dbtc::checkNodeFailComplete(Signal* signal, 
@@ -13345,3 +13313,56 @@ Dbtc::TableRecord::getErrorCode(Uint32 schemaVersion) const {
   return 0;
 }
 
+void
+Dbtc::execROUTE_ORD(Signal* signal)
+{
+  jamEntry();
+  if(!assembleFragments(signal)){
+    jam();
+    return;
+  }
+
+  RouteOrd* ord = (RouteOrd*)signal->getDataPtr();
+  Uint32 dstRef = ord->dstRef;
+  Uint32 srcRef = ord->srcRef;
+  Uint32 gsn = ord->gsn;
+  Uint32 cnt = ord->cnt;
+
+  if (likely(getNodeInfo(refToNode(dstRef)).m_connected))
+  {
+    jam();
+    Uint32 secCount = signal->getNoOfSections();
+    SegmentedSectionPtr ptr[3];
+    ndbrequire(secCount >= 1 && secCount <= 3);
+
+    jamLine(secCount);
+    for (Uint32 i = 0; i<secCount; i++)
+      signal->getSection(ptr[i], i);
+
+    /**
+     * Put section 0 in signal->theData
+     */
+    ndbrequire(ptr[0].sz <= 25);
+    copy(signal->theData, ptr[0]);
+
+    signal->header.m_noOfSections = 0;
+    
+    /**
+     * Shift rest of sections
+     */
+    for(Uint32 i = 1; i<secCount; i++)
+    {
+      signal->setSection(ptr[i], i - 1);
+    }
+
+    sendSignal(dstRef, gsn, signal, ptr[0].sz, JBB);
+
+    signal->header.m_noOfSections = 0;
+    signal->setSection(ptr[0], 0);
+    releaseSections(signal);
+    return ;
+  }
+
+  warningEvent("Unable to route GSN: %d from %x to %x",
+	       gsn, srcRef, dstRef);
+}
