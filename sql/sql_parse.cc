@@ -4161,6 +4161,7 @@ end_with_restore_list:
     bool write_to_binlog;
     if (check_global_access(thd,RELOAD_ACL))
       goto error;
+
     /*
       reload_acl_and_cache() will tell us if we are allowed to write to the
       binlog or not.
@@ -4181,7 +4182,8 @@ end_with_restore_list:
         }
       }
       send_ok(thd);
-    }
+    } 
+    
     break;
   }
   case SQLCOM_KILL:
@@ -6907,7 +6909,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       than it would help them)
     */
     tmp_write_to_binlog= 0;
-    mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
+    if( mysql_bin_log.is_open() )
+    {
+      mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
+    }
 #ifdef HAVE_REPLICATION
     pthread_mutex_lock(&LOCK_active_mi);
     rotate_relay_log(active_mi);
