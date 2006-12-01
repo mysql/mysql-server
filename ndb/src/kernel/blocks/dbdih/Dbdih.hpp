@@ -1602,7 +1602,7 @@ private:
   void startInfoReply(Signal *, Uint32 nodeId);
 
   // DIH specifics for execNODE_START_REP (sendDictUnlockOrd)
-  void exec_node_start_rep(Signal* signal);
+  void execNODE_START_REP(Signal* signal);
 
   /*
    * Lock master DICT.  Only current use is by starting node
