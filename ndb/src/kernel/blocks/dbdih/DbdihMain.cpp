@@ -1390,7 +1390,7 @@ void Dbdih::execNDB_STTOR(Signal* signal)
 }//Dbdih::execNDB_STTOR()
 
 void
-Dbdih::exec_node_start_rep(Signal* signal)
+Dbdih::execNODE_START_REP(Signal* signal)
 {
   /*
    * Send DICT_UNLOCK_ORD when this node is SL_STARTED.

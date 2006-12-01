@@ -136,7 +136,7 @@ NdbSqlUtil::m_typeList[] = {
   },
   { // 22
     Type::Bit,
-    NULL,
+    cmpBit,
     NULL
   },
   { // 23
@@ -679,6 +679,17 @@ NdbSqlUtil::cmpText(const void* info, const void* p1, unsigned n1, const void* p
 }
 
 int
+NdbSqlUtil::cmpBit(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+{ 
+  Uint32 n = (n1 < n2) ? n1 : n2;
+  char* c1 = (char*)p1;
+  char* c2 = (char*)p2;
+  int ret = memcmp(p1, p2, n);
+  return ret;
+}
+
+
+int
 NdbSqlUtil::cmpTime(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
 {
   if (n2 >= 3) {
@@ -698,12 +709,6 @@ NdbSqlUtil::cmpTime(const void* info, const void* p1, unsigned n1, const void* p
 }
 
 // not yet
-int
-NdbSqlUtil::cmpBit(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
-{
-  assert(false);
-  return 0;
-}
 
 int
 NdbSqlUtil::cmpLongvarchar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
