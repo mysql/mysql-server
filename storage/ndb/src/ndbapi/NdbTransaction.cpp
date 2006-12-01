@@ -926,7 +926,10 @@ NdbTransaction::release(){
      *	The user did not perform any rollback but simply closed the
      *      transaction. We must rollback Ndb since Ndb have been contacted.
      ************************************************************************/
-    execute(Rollback);
+    if (!theSimpleState)
+    {
+      execute(Rollback);
+    }
   }//if
   theMagicNumber = 0xFE11DC;
   theInUseState = false;
