@@ -362,6 +362,103 @@ alter table t1 add unique ( a(1) );
 drop table t1;
 
 #
+# Bug #24395: ALTER TABLE DISABLE KEYS doesn't work when modifying the table
+#
+# This problem happens if the data change is compatible.
+# Changing to the same type is compatible for example.
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (a int, key(a));
+show indexes from t1;
+--echo "this used not to disable the index"
+alter table t1 modify a int, disable keys;
+show indexes from t1;
+
+alter table t1 enable keys;
+show indexes from t1;
+
+alter table t1 modify a bigint, disable keys;
+show indexes from t1;
+
+alter table t1 enable keys;
+show indexes from t1;
+
+alter table t1 add b char(10), disable keys;
+show indexes from t1;
+
+alter table t1 add c decimal(10,2), enable keys;
+show indexes from t1;
+
+--echo "this however did"
+alter table t1 disable keys;
+show indexes from t1;
+
+desc t1;
+
+alter table t1 add d decimal(15,5);
+--echo "The key should still be disabled"
+show indexes from t1;
+
+drop table t1;
+
+--echo "Now will test with one unique index"
+create table t1(a int, b char(10), unique(a));
+show indexes from t1;
+alter table t1 disable keys;
+show indexes from t1;
+alter table t1 enable keys;
+
+--echo "If no copy on noop change, this won't touch the data file"
+--echo "Unique index, no change"
+alter table t1 modify a int, disable keys;
+show indexes from t1;
+
+--echo "Change the type implying data copy"
+--echo "Unique index, no change"
+alter table t1 modify a bigint, disable keys;
+show indexes from t1;
+
+alter table t1 modify a bigint;
+show indexes from t1;
+
+alter table t1 modify a int;
+show indexes from t1;
+
+drop table t1;
+
+--echo "Now will test with one unique and one non-unique index"
+create table t1(a int, b char(10), unique(a), key(b));
+show indexes from t1;
+alter table t1 disable keys;
+show indexes from t1;
+alter table t1 enable keys;
+
+
+--echo "If no copy on noop change, this won't touch the data file"
+--echo "The non-unique index will be disabled"
+alter table t1 modify a int, disable keys;
+show indexes from t1;
+alter table t1 enable keys;
+show indexes from t1;
+
+--echo "Change the type implying data copy"
+--echo "The non-unique index will be disabled"
+alter table t1 modify a bigint, disable keys;
+show indexes from t1;
+
+--echo "Change again the type, but leave the indexes as_is"
+alter table t1 modify a int;
+show indexes from t1;
+--echo "Try the same. When data is no copied on similar tables, this is noop"
+alter table t1 modify a int;
+show indexes from t1;
+
+drop table t1;
+
+
+#
 # Bug#11493 - Alter table rename to default database does not work without
 #             db name qualifying
 #
