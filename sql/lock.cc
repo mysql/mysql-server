@@ -151,6 +151,23 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
       }
     }
 
+    if (   write_lock_used
+        && opt_readonly
+        && ! (thd->security_ctx->master_access & SUPER_ACL)
+        && ! thd->slave_thread
+       )
+    {
+      /*
+	Someone has issued SET GLOBAL READ_ONLY=1 and we want a write lock.
+        We do not wait for READ_ONLY=0, and fail.
+      */
+      reset_lock_data(sql_lock);
+      my_free((gptr) sql_lock, MYF(0));
+      sql_lock=0;
+      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
+      break;
+    }
+
     thd->proc_info="System lock";
     DBUG_PRINT("info", ("thd->proc_info %s", thd->proc_info));
     if (lock_external(thd, tables, count))

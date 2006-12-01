@@ -37,14 +37,17 @@ extern int create_instance_in_file(const LEX_STRING *instance_name,
                                    const Named_value_arr *options);
 
 
-/*
+/**
   Instance_map - stores all existing instances
 */
 
 class Instance_map
 {
 public:
-  /* Instance_map iterator */
+  /**
+    Instance_map iterator
+  */
+
   class Iterator
   {
   private:
@@ -58,79 +61,43 @@ public:
     void go_to_first();
     Instance *next();
   };
-  friend class Iterator;
+
 public:
-  /*
-    Return a pointer to the instance or NULL, if there is no such instance.
-    MT-NOTE: must be called under acquired lock.
-  */
   Instance *find(const LEX_STRING *name);
 
-  /* Clear the configuration cache and reload the configuration file. */
-  int flush_instances();
-
-  /* The operation is used to check if there is an active instance or not. */
   bool is_there_active_instance();
 
   void lock();
   void unlock();
 
   bool init();
+  bool reset();
 
-  /*
-    Process a given option and assign it to appropricate instance. This is
-    required for the option handler, passed to my_search_option_files().
-  */
+  int load();
+
   int process_one_option(const LEX_STRING *group, const char *option);
 
-  /*
-    Add an instance into the internal hash.
-
-    MT-NOTE: the operation must be called under acquired lock.
-  */
   int add_instance(Instance *instance);
 
-  /*
-    Remove instance from the internal hash.
-
-    MT-NOTE: the operation must be called under acquired lock.
-  */
   int remove_instance(Instance *instance);
 
-  /*
-    Create a new instance and register it in the internal hash.
-
-    MT-NOTE: the operation must be called under acquired lock.
-  */
   int create_instance(const LEX_STRING *instance_name,
                       const Named_value_arr *options);
 
+public:
   Instance_map();
   ~Instance_map();
 
-  /*
-    Retrieve client state name of the given instance.
-
-    MT-NOTE: the options must be called under acquired locks of the following
-    objects:
-      - Instance_map;
-      - Guardian;
-  */
-  const char *get_instance_state_name(Instance *instance);
-
-public:
-  const char *mysqld_path;
-  Guardian *guardian;
-
 private:
-  /* loads options from config files */
-  int load();
-  /* inits instances argv's after all options have been loaded */
   bool complete_initialization();
+
 private:
   enum { START_HASH_SIZE = 16 };
   pthread_mutex_t LOCK_instance_map;
   HASH hash;
+
+private:
+  friend class Iterator;
 };
 
 #endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_INSTANCE_MAP_H */

@@ -2946,10 +2946,9 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     in INSERT ... SELECT and similar commands.
   */
 
-  if (open_cursor && lex->result && !lex->result->simple_select())
+  if (open_cursor && lex->result && lex->result->check_simple_select())
   {
     DBUG_PRINT("info",("Cursor asked for not SELECT stmt"));
-    my_error(ER_SP_BAD_CURSOR_QUERY, MYF(0));
     return TRUE;
   }
 
