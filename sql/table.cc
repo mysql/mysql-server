@@ -1396,6 +1396,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   if (records > 1)
   {
     memcpy(outparam->record[0], share->default_values, share->rec_buff_length);
+    memcpy(outparam->record[1], share->default_values, share->null_bytes);
     if (records > 2)
       memcpy(outparam->record[1], share->default_values,
              share->rec_buff_length);
