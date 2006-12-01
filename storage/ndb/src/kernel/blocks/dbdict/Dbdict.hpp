@@ -2041,10 +2041,10 @@ private:
   KeyTable2<OpDropIndex, OpRecordUnion> c_opDropIndex;
   KeyTable2<OpAlterIndex, OpRecordUnion> c_opAlterIndex;
   KeyTable2<OpBuildIndex, OpRecordUnion> c_opBuildIndex;
-  KeyTable2<OpCreateEvent, OpRecordUnion> c_opCreateEvent;
-  KeyTable2<OpSubEvent, OpRecordUnion> c_opSubEvent;
-  KeyTable2<OpDropEvent, OpRecordUnion> c_opDropEvent;
-  KeyTable2<OpSignalUtil, OpRecordUnion> c_opSignalUtil;
+  KeyTable2C<OpCreateEvent, OpRecordUnion> c_opCreateEvent;
+  KeyTable2C<OpSubEvent, OpRecordUnion> c_opSubEvent;
+  KeyTable2C<OpDropEvent, OpRecordUnion> c_opDropEvent;
+  KeyTable2C<OpSignalUtil, OpRecordUnion> c_opSignalUtil;
   KeyTable2<OpCreateTrigger, OpRecordUnion> c_opCreateTrigger;
   KeyTable2<OpDropTrigger, OpRecordUnion> c_opDropTrigger;
   KeyTable2<OpAlterTrigger, OpRecordUnion> c_opAlterTrigger;

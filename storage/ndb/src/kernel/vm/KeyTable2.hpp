@@ -40,4 +40,76 @@ public:
   }
 };
 
+template <class T, class U>
+class KeyTable2C : public KeyTable2<T, U> {
+  Uint32 m_count;
+public:
+  KeyTable2C(ArrayPool<U>& pool) :
+    KeyTable2<T, U>(pool), m_count(0) {
+  }
+
+  Uint32 get_count() const { return m_count; }
+  
+  bool seize(Ptr<T> & ptr) {
+    if (KeyTable2<T, U>::seize(ptr))
+    {
+      m_count ++;
+      return true;
+    }
+    return false;
+  }
+
+  void add(Ptr<T> & ptr) {
+    KeyTable2<T, U>::add(ptr);
+    m_count ++;
+  }
+
+  void remove(Ptr<T> & ptr, const T & key) {
+    KeyTable2<T, U>::remove(ptr, key);
+    if (ptr.i != RNIL)
+    {
+      assert(m_count);
+      m_count --;
+    }
+  }
+
+  void remove(Uint32 i) {
+    KeyTable2<T, U>::remove(i);
+    assert(m_count);
+    m_count --;
+  }
+
+  void remove(Ptr<T> & ptr) {
+    KeyTable2<T, U>::remove(ptr);
+    assert(m_count);
+    m_count --;
+  }
+
+  void removeAll() {
+    KeyTable2<T, U>::removeAll();
+    m_count = 0;
+  }
+  
+  void release(Ptr<T> & ptr, const T & key) {
+    KeyTable2<T, U>::release(ptr, key);
+    if (ptr.i != RNIL)
+    {
+      assert(m_count);
+      m_count --;
+    }
+  }
+
+  void release(Uint32 i) {
+    KeyTable2<T, U>::release(i);
+    assert(m_count);
+    m_count --;
+  }
+
+  void release(Ptr<T> & ptr) {
+    KeyTable2<T, U>::release(ptr);
+    assert(m_count);
+    m_count --;
+  }
+};
+
 #endif
