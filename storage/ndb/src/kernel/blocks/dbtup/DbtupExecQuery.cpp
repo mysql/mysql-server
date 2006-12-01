@@ -2248,6 +2248,11 @@ int Dbtup::interpreterNextLab(Signal* signal,
             // NULL==NULL and NULL<not-NULL
             res1 = r1_null && r2_null ? 0 : r1_null ? -1 : 1;
           } else {
+	    jam();
+	    if (unlikely(sqlType.m_cmp == 0))
+	    {
+	      return TUPKEY_abort(signal, 40);
+	    }
             res1 = (*sqlType.m_cmp)(cs, s1, attrLen, s2, argLen, true);
           }
 	} else {
@@ -2255,6 +2260,11 @@ int Dbtup::interpreterNextLab(Signal* signal,
             // NULL like NULL is true (has no practical use)
             res1 =  r1_null && r2_null ? 0 : -1;
           } else {
+	    jam();
+	    if (unlikely(sqlType.m_like == 0))
+	    {
+	      return TUPKEY_abort(signal, 40);
+	    }
             res1 = (*sqlType.m_like)(cs, s1, attrLen, s2, argLen);
           }
         }

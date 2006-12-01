@@ -3051,7 +3051,28 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
 	  }//if
 	}//for
       }
-    }//if
+
+      if (regTcPtr->tcNodedata[0] != getOwnNodeId())
+      {
+	jam();
+	for (Uint32 i = 0; i < tnoOfBackup + 1; i++)
+	{
+	  HostRecordPtr hostPtr;
+	  hostPtr.i = regTcPtr->tcNodedata[i];
+	  ptrCheckGuard(hostPtr, chostFilesize, hostRecord);
+	  if (hostPtr.p->m_nf_bits & HostRecord::NF_STARTED)
+	  {
+	    jam();
+	    if (i != 0)
+	    {
+	      jam();
+	      regTcPtr->tcNodedata[0] = hostPtr.i;
+	    }
+	    break;
+	  }
+	}
+      }//if
+    }
     jam();
     regTcPtr->lastReplicaNo = 0;
     regTcPtr->noOfNodes = 1;
@@ -7007,6 +7028,19 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
     nodeFailCheckTransactions(signal, 0, hostptr.i);
   }
 }//Dbtc::execNODE_FAILREP()
+
+void
+Dbtc::execNODE_START_REP(Signal* signal)
+{
+  Uint32 nodeId = signal->theData[0];
+  hostptr.i = nodeId;
+  ptrCheckGuard(hostptr, chostFilesize, hostRecord);
+  if (hostptr.p->m_nf_bits == 0)
+  {
+    jam();
+    hostptr.p->m_nf_bits |= HostRecord::NF_STARTED;
+  }
+}
 
 void
 Dbtc::checkNodeFailComplete(Signal* signal, 
