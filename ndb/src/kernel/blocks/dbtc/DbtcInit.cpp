@@ -290,7 +290,8 @@ Dbtc::Dbtc(const class Configuration & conf):
   addRecSignal(GSN_WAIT_DROP_TAB_CONF, &Dbtc::execWAIT_DROP_TAB_CONF);
   
   addRecSignal(GSN_ALTER_TAB_REQ, &Dbtc::execALTER_TAB_REQ);
-
+  addRecSignal(GSN_NODE_START_REP, &Dbtc::execNODE_START_REP, true);
+  
   cacheRecord = 0;
   apiConnectRecord = 0;
   tcConnectRecord = 0;
