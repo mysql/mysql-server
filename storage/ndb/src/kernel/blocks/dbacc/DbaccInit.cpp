@@ -52,7 +52,8 @@ void Dbacc::initRecords()
   page8 = (Page8*)allocRecord("Page8",
 			      sizeof(Page8), 
 			      cpagesize,
-			      false);
+			      false,
+            CFG_DB_INDEX_MEM);
 
   operationrec = (Operationrec*)allocRecord("Operationrec",
 					    sizeof(Operationrec),

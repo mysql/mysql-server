@@ -73,6 +73,7 @@ public:
   virtual void endOfLogEntrys();
   virtual bool finalize_table(const TableS &);
   virtual bool has_temp_error();
+  virtual bool createSystable(const TableS & table);
   virtual bool update_apply_status(const RestoreMetaData &metaData);
   void connectToMysql();
   bool map_in_frm(char *new_data, const char *data,
