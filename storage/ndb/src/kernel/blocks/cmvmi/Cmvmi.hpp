@@ -72,7 +72,8 @@ private:
   void handleSET_VAR_REQ(Signal* signal);
 
   void execTESTSIG(Signal* signal);
-
+  void execNODE_START_REP(Signal* signal);
+  
   char theErrorMessage[256];
   void sendSTTORRY(Signal* signal);
 
