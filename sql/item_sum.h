@@ -352,12 +352,23 @@ public:
 
 class Item_sum_num :public Item_sum
 {
+protected:
+  /*
+   val_xxx() functions may be called several times during the execution of a 
+   query. Derived classes that require extensive calculation in val_xxx()
+   maintain cache of aggregate value. This variable governs the validity of 
+   that cache.
+  */
+  bool is_evaluated;
 public:
-  Item_sum_num() :Item_sum() {}
-  Item_sum_num(Item *item_par) :Item_sum(item_par) {}
-  Item_sum_num(Item *a, Item* b) :Item_sum(a,b) {}
-  Item_sum_num(List<Item> &list) :Item_sum(list) {}
-  Item_sum_num(THD *thd, Item_sum_num *item) :Item_sum(thd, item) {}
+  Item_sum_num() :Item_sum(),is_evaluated(FALSE) {}
+  Item_sum_num(Item *item_par) 
+    :Item_sum(item_par), is_evaluated(FALSE) {}
+  Item_sum_num(Item *a, Item* b) :Item_sum(a,b),is_evaluated(FALSE) {}
+  Item_sum_num(List<Item> &list) 
+    :Item_sum(list), is_evaluated(FALSE) {}
+  Item_sum_num(THD *thd, Item_sum_num *item) 
+    :Item_sum(thd, item),is_evaluated(item->is_evaluated) {}
   bool fix_fields(THD *, Item **);
   longlong val_int()
   {
@@ -540,6 +551,12 @@ class Item_sum_count_distinct :public Item_sum_int
   */
   Unique *tree;
   /*
+   Storage for the value of count between calls to val_int() so val_int()
+   will not recalculate on each call. Validitiy of the value is stored in
+   is_evaluated.
+  */
+  longlong count;
+  /*
     Following is 0 normal object and pointer to original one for copy 
     (to correctly free resources)
   */
@@ -556,14 +573,15 @@ class Item_sum_count_distinct :public Item_sum_int
 public:
   Item_sum_count_distinct(List<Item> &list)
     :Item_sum_int(list), table(0), field_lengths(0), tmp_table_param(0),
-     force_copy_fields(0), tree(0), original(0), always_null(FALSE)
+     force_copy_fields(0), tree(0), count(0),
+     original(0), always_null(FALSE)
   { quick_group= 0; }
   Item_sum_count_distinct(THD *thd, Item_sum_count_distinct *item)
     :Item_sum_int(thd, item), table(item->table),
      field_lengths(item->field_lengths),
      tmp_table_param(item->tmp_table_param),
-     force_copy_fields(0), tree(item->tree), original(item),
-     tree_key_length(item->tree_key_length),
+     force_copy_fields(0), tree(item->tree), count(item->count), 
+     original(item), tree_key_length(item->tree_key_length),
      always_null(item->always_null)
   {}
   ~Item_sum_count_distinct();
@@ -600,7 +618,7 @@ public:
   double val_real();
   longlong val_int();
   my_decimal *val_decimal(my_decimal *);
-  bool is_null() { (void) val_int(); return null_value; }
+  bool is_null() { update_null_value(); return null_value; }
   String *val_str(String*);
   enum_field_types field_type() const
   {
@@ -667,7 +685,7 @@ public:
   { /* can't be fix_fields()ed */ return (longlong) rint(val_real()); }
   String *val_str(String*);
   my_decimal *val_decimal(my_decimal *);
-  bool is_null() { (void) val_int(); return null_value; }
+  bool is_null() { update_null_value(); return null_value; }
   enum_field_types field_type() const
   {
     return hybrid_type == DECIMAL_RESULT ?

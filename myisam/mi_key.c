@@ -52,7 +52,7 @@ static int _mi_put_key_in_record(MI_INFO *info,uint keynr,byte *record);
 uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
 		  const byte *record, my_off_t filepos)
 {
-  byte *pos,*end;
+  byte *pos;
   uchar *start;
   reg1 HA_KEYSEG *keyseg;
   my_bool is_ft= info->s->keyinfo[keynr].flag & HA_FULLTEXT;
@@ -107,18 +107,17 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
     }
     if (keyseg->flag & HA_SPACE_PACK)
     {
-      end= pos + length;
       if (type != HA_KEYTYPE_NUM)
       {
-	while (end > pos && end[-1] == ' ')
-	  end--;
+        length= cs->cset->lengthsp(cs, pos, length);
       }
       else
       {
+        byte *end= pos + length;
 	while (pos < end && pos[0] == ' ')
 	  pos++;
+	length=(uint) (end-pos);
       }
-      length=(uint) (end-pos);
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key,char_length);
       memcpy((byte*) key,(byte*) pos,(size_t) char_length);
@@ -403,8 +402,10 @@ static int _mi_put_key_in_record(register MI_INFO *info, uint keynr,
       pos= record+keyseg->start;
       if (keyseg->type != (int) HA_KEYTYPE_NUM)
       {
-	memcpy(pos,key,(size_t) length);
-	bfill(pos+length,keyseg->length-length,' ');
+        memcpy(pos,key,(size_t) length);
+        keyseg->charset->cset->fill(keyseg->charset,
+                                    pos + length, keyseg->length - length,
+                                    ' ');
       }
       else
       {

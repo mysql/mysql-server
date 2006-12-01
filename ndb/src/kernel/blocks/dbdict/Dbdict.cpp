@@ -10054,8 +10054,8 @@ Dbdict::getDictLockType(Uint32 lockType)
   static const DictLockType lt[] = {
     { DictLockReq::NodeRestartLock, BS_NODE_RESTART, "NodeRestart" }
   };
-  for (int i = 0; i < sizeof(lt)/sizeof(lt[0]); i++) {
-    if (lt[i].lockType == lockType)
+  for (unsigned int i = 0; i < sizeof(lt)/sizeof(lt[0]); i++) {
+    if ((Uint32) lt[i].lockType == lockType)
       return &lt[i];
   }
   return NULL;
@@ -10207,7 +10207,7 @@ Dbdict::execDICT_UNLOCK_ORD(Signal* signal)
 
   DictLockPtr lockPtr;
   c_dictLockQueue.getPtr(lockPtr, ord->lockPtr);
-  ndbrequire(lockPtr.p->lt->lockType == ord->lockType);
+  ndbrequire((Uint32) lockPtr.p->lt->lockType == ord->lockType);
 
   if (lockPtr.p->locked) {
     jam();

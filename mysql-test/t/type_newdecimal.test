@@ -613,7 +613,7 @@ select truncate(99.999999999999999999999999999999999999,31);
 #-- should return 99.9999999999999999999999999999999
 #
 select truncate(99999999999999999999999999999999999999,-31);
--- should return 90000000000000000000000000000000
+# should return 90000000000000000000000000000000
 #
 #-- 6. Set functions (AVG, SUM, COUNT) should work.
 #
@@ -810,7 +810,7 @@ select 1 / 0;
 #BUG#6048 Stored procedure causes operating system reboot
 #BUG#6053 DOUBLE PRECISION literal
 
--- Tests from 'traditional' mode tests
+# Tests from 'traditional' mode tests
 #
 set sql_mode='ansi,traditional';
 #
@@ -1108,3 +1108,15 @@ insert into t1 values (1,1), (1,2), (2,3), (2,4);
 select i, count(distinct j) from t1 group by i;
 select i+0.0 as i2, count(distinct j) from t1 group by i2;
 drop table t1;
+
+create table t1(f1 decimal(20,6));
+insert into t1 values (CAST('10:11:12' AS date) + interval 14 microsecond);
+insert into t1 values (CAST('10:11:12' AS time));
+select * from t1;
+drop table t1;
+
+#
+# Bug #8663 (cant use bigint as input to CAST)
+#
+select cast(19999999999999999999 as unsigned);
+

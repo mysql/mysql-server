@@ -760,13 +760,6 @@ xxxxxxxxxxxxxxxxxxxaa
 xxxxxxxxxxxxxxxxxxxx
 xxxxxxxxxxxxxxxxxxxz
 drop table t1;
-create table t1 (a int not null, b  int not null, c int not null);
-insert t1 values (1,1,1),(1,1,2),(1,2,1);
-select a, b from t1 group by a, b order by sum(c);
-a	b
-1	2
-1	1
-drop table t1;
 create table t1 (
 `sid` decimal(8,0) default null,
 `wnid` varchar(11) not null default '',
@@ -854,6 +847,40 @@ b	a
 20	1
 10	2
 DROP TABLE t1;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2);
+SELECT a + 1 AS num FROM t1 ORDER BY 30 - num;
+num
+3
+2
+SELECT CONCAT('test', a) AS str FROM t1 ORDER BY UPPER(str);
+str
+test1
+test2
+SELECT a + 1 AS num FROM t1 GROUP BY 30 - num;
+num
+3
+2
+SELECT a + 1 AS num FROM t1 HAVING 30 - num;
+num
+2
+3
+SELECT a + 1 AS num, num + 1 FROM t1;
+ERROR 42S22: Unknown column 'num' in 'field list'
+SELECT a + 1 AS num, (select num + 2 FROM t1 LIMIT 1) FROM t1;
+num	(select num + 2 FROM t1 LIMIT 1)
+2	4
+3	5
+SELECT a.a + 1 AS num FROM t1 a JOIN t1 b ON num = b.a;
+ERROR 42S22: Unknown column 'num' in 'on clause'
+DROP TABLE t1;
+create table t1 (a int not null, b  int not null, c int not null);
+insert t1 values (1,1,1),(1,1,2),(1,2,1);
+select a, b from t1 group by a, b order by sum(c);
+a	b
+1	2
+1	1
+drop table t1;
 CREATE TABLE t1 (a int, b int, PRIMARY KEY  (a));
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
 explain SELECT t1.b as a, t2.b as c FROM 
