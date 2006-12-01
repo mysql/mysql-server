@@ -658,24 +658,26 @@ SimulatedBlock::allocRecord(const char * type, size_t s, size_t n, bool clear)
 
   void * p = NULL;
   size_t size = n*s;
+  Uint64 real_size = (Uint64)((Uint64)n)*((Uint64)s);
   refresh_watch_dog(); 
-  if (size > 0){
+  if (real_size > 0){
 #ifdef VM_TRACE_MEM
-    ndbout_c("%s::allocRecord(%s, %u, %u) = %u bytes", 
+    ndbout_c("%s::allocRecord(%s, %u, %u) = %llu bytes", 
 	     getBlockName(number()), 
 	     type,
 	     s,
 	     n,
-	     size);
+	     real_size);
 #endif
-    p = NdbMem_Allocate(size);
+    if( real_size == (Uint64)size )
+      p = NdbMem_Allocate(size);
     if (p == NULL){
       char buf1[255];
       char buf2[255];
       BaseString::snprintf(buf1, sizeof(buf1), "%s could not allocate memory for %s", 
 	       getBlockName(number()), type);
-      BaseString::snprintf(buf2, sizeof(buf2), "Requested: %ux%u = %u bytes", 
-	       (Uint32)s, (Uint32)n, (Uint32)size);
+      BaseString::snprintf(buf2, sizeof(buf2), "Requested: %ux%u = %llu bytes", 
+	       (Uint32)s, (Uint32)n, (Uint64)real_size);
       ERROR_SET(fatal, ERR_MEMALLOC, buf1, buf2);
     }
 
