@@ -630,7 +630,7 @@ int runRestarter(NDBT_Context* ctx, NDBT_Step* step){
     
     int nodeId = restarter.getDbNodeId(lastId);
     lastId = (lastId + 1) % restarter.getNumDbNodes();
-    if(restarter.restartOneDbNode(nodeId) != 0){
+    if(restarter.restartOneDbNode(nodeId, false, false, true) != 0){
       g_err << "Failed to restartNextDbNode" << endl;
       result = NDBT_FAILED;
       break;
@@ -1125,6 +1125,39 @@ runScanParallelism(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int
+runBug24447(NDBT_Context* ctx, NDBT_Step* step){
+  int loops = 1; //ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  int abort = ctx->getProperty("AbortProb", 15);
+  NdbRestarter restarter;
+  HugoTransactions hugoTrans(*ctx->getTab());
+  int i = 0;
+  while (i<loops && !ctx->isTestStopped()) 
+  {
+    g_info << i++ << ": ";
+
+    int nodeId = restarter.getRandomNotMasterNodeId(rand());
+    if (nodeId == -1)
+      nodeId = restarter.getMasterNodeId();
+    if (restarter.insertErrorInNode(nodeId, 8038) != 0)
+    {
+      ndbout << "Could not insert error in node="<<nodeId<<endl;
+      return NDBT_FAILED;
+    }
+
+    for (Uint32 j = 0; i<10; i++)
+    {
+      hugoTrans.scanReadRecords(GETNDB(step), records, abort, 0, 
+				NdbOperation::LM_CommittedRead);
+    }
+
+  }
+  restarter.insertErrorInAllNodes(0);
+  
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testScan);
 TESTCASE("ScanRead", 
 	 "Verify scan requirement: It should be possible "\
@@ -1601,6 +1634,12 @@ TESTCASE("ScanParallelism",
 	 "Test scan with different parallelism"){
   INITIALIZER(runLoadTable);
   STEP(runScanParallelism);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug24447",
+	 ""){
+  INITIALIZER(runLoadTable);
+  STEP(runBug24447);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testScan);
