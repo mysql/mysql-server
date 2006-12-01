@@ -468,6 +468,7 @@ drop table t1;
 set global log_bin_trust_function_creators=0;
 set global log_bin_trust_function_creators=0;
 End of 5.0 tests
+reset master;
 drop database if exists mysqltest;
 drop database if exists mysqltest2;
 create database mysqltest;
@@ -476,14 +477,15 @@ use mysqltest2;
 create table t ( t integer );
 create procedure mysqltest.test() begin end;
 insert into t values ( 1 );
-show binlog events in 'master-bin.000001' from 8657;
+show binlog events in 'master-bin.000001' from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	8657	Query	1	8760	drop database if exists mysqltest2
-master-bin.000001	8760	Query	1	8853	create database mysqltest
-master-bin.000001	8853	Query	1	8948	create database mysqltest2
-master-bin.000001	8948	Query	1	9045	use `mysqltest2`; create table t ( t integer )
-master-bin.000001	9045	Query	1	9184	use `mysqltest2`; CREATE DEFINER=`root`@`localhost` procedure mysqltest.test() begin end
-master-bin.000001	9184	Query	1	9279	use `mysqltest2`; insert into t values ( 1 )
+master-bin.000001	102	Query	1	203	drop database if exists mysqltest
+master-bin.000001	203	Query	1	306	drop database if exists mysqltest2
+master-bin.000001	306	Query	1	399	create database mysqltest
+master-bin.000001	399	Query	1	494	create database mysqltest2
+master-bin.000001	494	Query	1	591	use `mysqltest2`; create table t ( t integer )
+master-bin.000001	591	Query	1	730	use `mysqltest2`; CREATE DEFINER=`root`@`localhost` procedure mysqltest.test() begin end
+master-bin.000001	730	Query	1	825	use `mysqltest2`; insert into t values ( 1 )
 create procedure `\\`.test() begin end;
 ERROR 42000: Unknown database '\\'
 drop database mysqltest;
