@@ -344,7 +344,7 @@ get_term_capabilities (bp)
 #if !defined (__DJGPP__)	/* XXX - doesn't DJGPP have a termcap library? */
   register int i;
 
-  for (i = 0; i < NUM_TC_STRINGS; i++)
+  for (i = 0; i < (int) NUM_TC_STRINGS; i++)
     *(tc_strings[i].tc_value) = tgetstr ((char *)tc_strings[i].tc_var, bp);
 #endif
   tcap_initialized = 1;
@@ -410,7 +410,7 @@ _rl_init_terminal_io (terminal_name)
 
       /* Everything below here is used by the redisplay code (tputs). */
       _rl_screenchars = _rl_screenwidth * _rl_screenheight;
-      _rl_term_cr = "\r";
+      _rl_term_cr = (char*) "\r";
       _rl_term_im = _rl_term_ei = _rl_term_ic = _rl_term_IC = (char *)NULL;
       _rl_term_up = _rl_term_dc = _rl_term_DC = _rl_visible_bell = (char *)NULL;
       _rl_term_ku = _rl_term_kd = _rl_term_kl = _rl_term_kr = (char *)NULL;
@@ -427,7 +427,7 @@ _rl_init_terminal_io (terminal_name)
          tgoto if _rl_term_IC or _rl_term_DC is defined, but just in case we
          change that later... */
       PC = '\0';
-      BC = _rl_term_backspace = "\b";
+      BC = _rl_term_backspace = (char*) "\b";
       UP = _rl_term_up;
 
       return 0;
@@ -442,7 +442,7 @@ _rl_init_terminal_io (terminal_name)
   UP = _rl_term_up;
 
   if (!_rl_term_cr)
-    _rl_term_cr = "\r";
+    _rl_term_cr = (char*) "\r";
 
   _rl_term_autowrap = tgetflag ("am") && tgetflag ("xn");
 
@@ -502,7 +502,7 @@ rl_get_termcap (cap)
 
   if (tcap_initialized == 0)
     return ((char *)NULL);
-  for (i = 0; i < NUM_TC_STRINGS; i++)
+  for (i = 0; i < (int) NUM_TC_STRINGS; i++)
     {
       if (tc_strings[i].tc_var[0] == cap[0] && strcmp (tc_strings[i].tc_var, cap) == 0)
         return *(tc_strings[i].tc_value);

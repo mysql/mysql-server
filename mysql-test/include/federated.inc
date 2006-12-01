@@ -5,7 +5,7 @@ source ./include/master-slave.inc;
 # remote table creation
 
 connection slave;
---replicate-ignore-db=federated
+#--replicate-ignore-db=federated
 stop slave;
 
 --disable_warnings

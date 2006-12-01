@@ -302,6 +302,9 @@ public:
   virtual CHARSET_INFO *sort_charset(void) const { return charset(); }
   virtual bool has_charset(void) const { return FALSE; }
   virtual void set_charset(CHARSET_INFO *charset) { }
+  virtual enum Derivation derivation(void) const
+  { return DERIVATION_IMPLICIT; }
+  virtual void set_derivation(enum Derivation derivation) { }
   bool set_warning(MYSQL_ERROR::enum_warning_level, unsigned int code,
                    int cuted_increment);
   bool check_int(const char *str, int length, const char *int_end,
@@ -373,6 +376,7 @@ public:
 class Field_str :public Field {
 protected:
   CHARSET_INFO *field_charset;
+  enum Derivation field_derivation;
 public:
   Field_str(char *ptr_arg,uint32 len_arg, uchar *null_ptr_arg,
 	    uchar null_bit_arg, utype unireg_check_arg,
@@ -387,6 +391,9 @@ public:
   uint size_of() const { return sizeof(*this); }
   CHARSET_INFO *charset(void) const { return field_charset; }
   void set_charset(CHARSET_INFO *charset) { field_charset=charset; }
+  enum Derivation derivation(void) const { return field_derivation; }
+  virtual void set_derivation(enum Derivation derivation_arg)
+  { field_derivation= derivation_arg; }
   bool binary() const { return field_charset == &my_charset_bin; }
   uint32 max_length() { return field_length; }
   friend class create_field;
@@ -489,6 +496,7 @@ public:
   int  store(const char *to, uint length, CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
+  int store_time(TIME *ltime, timestamp_type t_type);
   int  store_decimal(const my_decimal *);
   double val_real(void);
   longlong val_int(void);

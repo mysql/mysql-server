@@ -300,18 +300,26 @@ select POSITION(_latin1'B' COLLATE latin1_general_ci IN _latin1'abcd' COLLATE la
 select POSITION(_latin1'B' IN _latin2'abcd');
 
 select FIND_IN_SET(_latin1'B',_latin1'a,b,c,d');
---fix this:
---select FIND_IN_SET(_latin1'B',_latin1'a,b,c,d' COLLATE latin1_bin);
---select FIND_IN_SET(_latin1'B' COLLATE latin1_bin,_latin1'a,b,c,d');
+
+# fix this:
+--disable_parsing
+select FIND_IN_SET(_latin1'B',_latin1'a,b,c,d' COLLATE latin1_bin);
+select FIND_IN_SET(_latin1'B' COLLATE latin1_bin,_latin1'a,b,c,d');
+--enable_parsing
+
 --error 1267
 select FIND_IN_SET(_latin1'B' COLLATE latin1_general_ci,_latin1'a,b,c,d' COLLATE latin1_bin);
 --error 1267
 select FIND_IN_SET(_latin1'B',_latin2'a,b,c,d');
 
 select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin1'd',2);
---fix this:
---select SUBSTRING_INDEX(_latin1'abcdabcdabcd' COLLATE latin1_bin,_latin1'd',2);
---select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin1'd' COLLATE latin1_bin,2);
+
+# fix this:
+--disable_parsing
+select SUBSTRING_INDEX(_latin1'abcdabcdabcd' COLLATE latin1_bin,_latin1'd',2);
+select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin1'd' COLLATE latin1_bin,2);
+--enable_parsing
+
 --error 1267
 select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin2'd',2);
 --error 1267
@@ -780,6 +788,7 @@ SELECT * FROM t1 INNER JOIN t2 ON code=id
 
 DROP TABLE t1,t2;
 
+
 #
 # Bug #10963
 # 4294967296 18446744073709551616
@@ -968,5 +977,19 @@ select lpad('hello', -18446744073709551616, '1');
 select lpad('hello', 18446744073709551616, '1');
 select lpad('hello', -18446744073709551617, '1');
 select lpad('hello', 18446744073709551617, '1');
+
+
+#
+# BUG#17047: CHAR() and IN() can return NULL without signaling NULL
+# result
+#
+SET @orig_sql_mode = @@SQL_MODE;
+SET SQL_MODE=traditional;
+
+SELECT CHAR(0xff,0x8f USING utf8);
+SELECT CHAR(0xff,0x8f USING utf8) IS NULL;
+
+SET SQL_MODE=@orig_sql_mode;
+
 
 --echo End of 5.0 tests

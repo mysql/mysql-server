@@ -530,8 +530,8 @@ NdbTransaction::executeAsynchPrepare( ExecType           aTypeOfExec,
                                      AbortOption abortOption)
 {
   DBUG_ENTER("NdbTransaction::executeAsynchPrepare");
-  DBUG_PRINT("enter", ("aTypeOfExec: %d, aCallback: %x, anyObject: %x", 
-		       aTypeOfExec, aCallback, anyObject));
+  DBUG_PRINT("enter", ("aTypeOfExec: %d, aCallback: 0x%lx, anyObject: Ox%lx",
+		       aTypeOfExec, (long) aCallback, (long) anyObject));
 
   /**
    * Reset error.code on execute

@@ -4215,7 +4215,7 @@ ha_innobase::rnd_pos(
 	}
 
 	if (error) {
-	        DBUG_PRINT("error", ("Got error: %ld", error));
+	        DBUG_PRINT("error", ("Got error: %d", error));
 		DBUG_RETURN(error);
 	}
 
@@ -4225,7 +4225,7 @@ ha_innobase::rnd_pos(
 	error = index_read(buf, pos, ref_length, HA_READ_KEY_EXACT);
 
 	if (error) {
-		DBUG_PRINT("error", ("Got error: %ld", error));
+		DBUG_PRINT("error", ("Got error: %d", error));
 	}
 
 	change_active_index(keynr);

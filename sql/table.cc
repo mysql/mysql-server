@@ -88,7 +88,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   MEM_ROOT **root_ptr, *old_root;
   TABLE_SHARE *share;
   DBUG_ENTER("openfrm");
-  DBUG_PRINT("enter",("name: '%s'  form: 0x%lx",name,outparam));
+  DBUG_PRINT("enter",("name: '%s'  form: 0x%lx", name, (long) outparam));
 
   error= 1;
   disk_buff= NULL;
@@ -2458,7 +2458,18 @@ bool st_table_list::prepare_view_securety_context(THD *thd)
       }
       else
       {
-        my_error(ER_NO_SUCH_USER, MYF(0), definer.user.str, definer.host.str);
+        if (thd->security_ctx->master_access & SUPER_ACL)
+        {
+          my_error(ER_NO_SUCH_USER, MYF(0), definer.user.str, definer.host.str);
+
+        }
+        else
+        {
+           my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
+                    thd->security_ctx->priv_user,
+                    thd->security_ctx->priv_host,
+                    (thd->password ?  ER(ER_YES) : ER(ER_NO)));
+        }
         DBUG_RETURN(TRUE);
       }
     }
@@ -3032,6 +3043,23 @@ void st_table_list::reinit_before_use(THD *thd)
          embedding->nested_join->join_list.head() == embedded);
 }
 
+/*
+  Return subselect that contains the FROM list this table is taken from
+
+  SYNOPSIS
+    st_table_list::containing_subselect()
+ 
+  RETURN
+    Subselect item for the subquery that contains the FROM list
+    this table is taken from if there is any
+    0 - otherwise
+
+*/
+
+Item_subselect *st_table_list::containing_subselect()
+{    
+  return (select_lex ? select_lex->master_unit()->item : 0);
+}
 
 /*****************************************************************************
 ** Instansiate templates

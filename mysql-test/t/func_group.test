@@ -29,7 +29,9 @@ select count(distinct a),count(distinct grp) from t1;
 
 select sum(all a),count(all a),avg(all a),std(all a),variance(all a),bit_or(all a),bit_and(all a),min(all a),max(all a),min(all c),max(all c) from t1;
 select grp, sum(a),count(a),avg(a),std(a),variance(a),bit_or(a),bit_and(a),min(a),max(a),min(c),max(c) from t1 group by grp;
+--disable_warnings
 select grp, sum(a)+count(a)+avg(a)+std(a)+variance(a)+bit_or(a)+bit_and(a)+min(a)+max(a)+min(c)+max(c) as sum from t1 group by grp;
+--enable_warnings
 
 create table t2 (grp int, a bigint unsigned, c char(10));
 insert into t2 select grp,max(a)+max(grp),max(c) from t1 group by grp;
@@ -700,3 +702,28 @@ create table t1 select stddev(0);
 show create table t1;
 drop table t1;
  
+#
+# Bug #23184: SELECT causes server crash
+# 
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),(1,8);
+INSERT INTO t1 SELECT a, b+8       FROM t1;
+INSERT INTO t1 SELECT a, b+16      FROM t1;
+INSERT INTO t1 SELECT a, b+32      FROM t1;
+INSERT INTO t1 SELECT a, b+64      FROM t1;
+INSERT INTO t1 SELECT a, b+128     FROM t1;
+INSERT INTO t1 SELECT a, b+256     FROM t1;
+INSERT INTO t1 SELECT a, b+512     FROM t1;
+INSERT INTO t1 SELECT a, b+1024    FROM t1;
+INSERT INTO t1 SELECT a, b+2048    FROM t1;
+INSERT INTO t1 SELECT a, b+4096    FROM t1;
+INSERT INTO t1 SELECT a, b+8192    FROM t1;
+INSERT INTO t1 SELECT a, b+16384   FROM t1;
+INSERT INTO t1 SELECT a, b+32768   FROM t1;
+SELECT a,COUNT(DISTINCT b) AS cnt FROM t1 GROUP BY a HAVING cnt > 50;
+SELECT a,SUM(DISTINCT b) AS sumation FROM t1 GROUP BY a HAVING sumation > 50;
+SELECT a,AVG(DISTINCT b) AS average FROM t1 GROUP BY a HAVING average > 50;
+
+DROP TABLE t1;
+
+--echo End of 5.0 tests
