@@ -62,6 +62,7 @@
 #include <signaldata/KeyInfo.hpp>
 #include <signaldata/AttrInfo.hpp>
 #include <KeyDescriptor.hpp>
+#include <signaldata/RouteOrd.hpp>
 
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
@@ -7337,13 +7338,32 @@ Dblqh::sendTCKEYREF(Signal* signal, Uint32 ref, Uint32 routeRef, Uint32 cnt)
   }
   else
   {
-    jam();
-    memmove(signal->theData + 3, signal->theData, 4*TcKeyRef::SignalLength);
-    signal->theData[0] = ZRETRY_TCKEYREF;
-    signal->theData[1] = cnt + 1;
-    signal->theData[2] = ref;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100,
-			TcKeyRef::SignalLength + 3);
+    if (routeRef && 
+	getNodeInfo(refToNode(routeRef)).m_version >= MAKE_VERSION(5,1,14))
+    {
+      jam();
+      memmove(signal->theData+25, signal->theData, 4*TcKeyRef::SignalLength);
+      RouteOrd* ord = (RouteOrd*)signal->getDataPtrSend();
+      ord->dstRef = ref;
+      ord->srcRef = reference();
+      ord->gsn = GSN_TCKEYREF;
+      ord->cnt = 0;
+      LinearSectionPtr ptr[3];
+      ptr[0].p = signal->theData+25;
+      ptr[0].sz = TcKeyRef::SignalLength;
+      sendSignal(routeRef, GSN_ROUTE_ORD, signal, RouteOrd::SignalLength, JBB,
+		 ptr, 1);
+    }
+    else
+    {
+      jam();
+      memmove(signal->theData + 3, signal->theData, 4*TcKeyRef::SignalLength);
+      signal->theData[0] = ZRETRY_TCKEYREF;
+      signal->theData[1] = cnt + 1;
+      signal->theData[2] = ref;
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100,
+			  TcKeyRef::SignalLength + 3);
+    }
   }
 }
 
