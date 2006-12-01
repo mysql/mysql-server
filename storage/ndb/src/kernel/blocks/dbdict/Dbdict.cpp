@@ -13732,6 +13732,15 @@ Dbdict::checkDictLockQueue(Signal* signal, bool poll)
       break;
     }
 
+    if (c_blockState != BS_IDLE)
+    {
+      /**
+       * If state is BS_NODE_FAILURE, it might be that no op is running
+       */
+      jam();
+      break;
+    }
+
     ndbrequire(c_blockState == BS_IDLE);
     lockPtr.p->locked = true;
     c_blockState = lockPtr.p->lt->blockState;
