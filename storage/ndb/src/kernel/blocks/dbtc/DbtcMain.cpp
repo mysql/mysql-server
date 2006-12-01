@@ -72,6 +72,8 @@
 #include <NdbOut.hpp>
 #include <DebuggerNames.hpp>
 
+#include <signaldata/RouteOrd.hpp>
+
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
 #ifdef VM_TRACE
@@ -8712,6 +8714,20 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
    * IF ANY TO RECEIVE.
    **********************************************************/
   scanptr.p->scanState = ScanRecord::WAIT_AI;
+  
+  if (ERROR_INSERTED(8038))
+  {
+    /**
+     * Force API_FAILREQ
+     */
+    DisconnectRep * const  rep = (DisconnectRep *)signal->getDataPtrSend();
+    rep->nodeId = refToNode(apiConnectptr.p->ndbapiBlockref);
+    rep->err = 8038;
+    
+    EXECUTE_DIRECT(CMVMI, GSN_DISCONNECT_REP, signal, 2);
+    CLEAR_ERROR_INSERT_VALUE;
+  }
+  
   return;
 
  SCAN_error_check:
@@ -8802,6 +8818,7 @@ void Dbtc::initScanrec(ScanRecordPtr scanptr,
     jam();
     ScanFragRecPtr ptr;
     ndbrequire(list.seize(ptr));
+    ptr.p->scanFragState = ScanFragRec::IDLE;
     ptr.p->scanRec = scanptr.i;
     ptr.p->scanFragId = 0;
     ptr.p->m_apiPtr = cdata[i];
@@ -9599,9 +9616,17 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
 
   ScanRecord* scanP = scanPtr.p;
   ndbrequire(scanPtr.p->scanState != ScanRecord::IDLE);  
+  ScanRecord::ScanState old = scanPtr.p->scanState;
   scanPtr.p->scanState = ScanRecord::CLOSING_SCAN;
   scanPtr.p->m_close_scan_req = req_received;
 
+  if (old == ScanRecord::WAIT_FRAGMENT_COUNT)
+  {
+    jam();
+    scanPtr.p->scanState = old;
+    return; // Will continue on execDI_FCOUNTCONF
+  }
+  
   /**
    * Queue         : Action
    * ============= : =================
@@ -9629,11 +9654,22 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
       ScanFragRecPtr curr = ptr; // Remove while iterating...
       running.next(ptr);
 
-      if(curr.p->scanFragState == ScanFragRec::WAIT_GET_PRIMCONF){
+      switch(curr.p->scanFragState){
+      case ScanFragRec::IDLE:
+	jam(); // real early abort
+	ndbrequire(old == ScanRecord::WAIT_AI);
+	running.release(curr);
+	continue;
+      case ScanFragRec::WAIT_GET_PRIMCONF:
 	jam();
 	continue;
+      case ScanFragRec::LQH_ACTIVE:
+	jam();
+	break;
+      default:
+	jamLine(curr.p->scanFragState);
+	ndbrequire(false);
       }
-      ndbrequire(curr.p->scanFragState == ScanFragRec::LQH_ACTIVE);
       
       curr.p->startFragTimer(ctcTimer);
       curr.p->scanFragState = ScanFragRec::LQH_ACTIVE;
@@ -13277,3 +13313,56 @@ Dbtc::TableRecord::getErrorCode(Uint32 schemaVersion) const {
   return 0;
 }
 
+void
+Dbtc::execROUTE_ORD(Signal* signal)
+{
+  jamEntry();
+  if(!assembleFragments(signal)){
+    jam();
+    return;
+  }
+
+  RouteOrd* ord = (RouteOrd*)signal->getDataPtr();
+  Uint32 dstRef = ord->dstRef;
+  Uint32 srcRef = ord->srcRef;
+  Uint32 gsn = ord->gsn;
+  Uint32 cnt = ord->cnt;
+
+  if (likely(getNodeInfo(refToNode(dstRef)).m_connected))
+  {
+    jam();
+    Uint32 secCount = signal->getNoOfSections();
+    SegmentedSectionPtr ptr[3];
+    ndbrequire(secCount >= 1 && secCount <= 3);
+
+    jamLine(secCount);
+    for (Uint32 i = 0; i<secCount; i++)
+      signal->getSection(ptr[i], i);
+
+    /**
+     * Put section 0 in signal->theData
+     */
+    ndbrequire(ptr[0].sz <= 25);
+    copy(signal->theData, ptr[0]);
+
+    signal->header.m_noOfSections = 0;
+    
+    /**
+     * Shift rest of sections
+     */
+    for(Uint32 i = 1; i<secCount; i++)
+    {
+      signal->setSection(ptr[i], i - 1);
+    }
+
+    sendSignal(dstRef, gsn, signal, ptr[0].sz, JBB);
+
+    signal->header.m_noOfSections = 0;
+    signal->setSection(ptr[0], 0);
+    releaseSections(signal);
+    return ;
+  }
+
+  warningEvent("Unable to route GSN: %d from %x to %x",
+	       gsn, srcRef, dstRef);
+}

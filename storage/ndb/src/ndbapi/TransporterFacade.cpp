@@ -1512,3 +1512,28 @@ void PollGuard::unlock_and_signal()
 
 template class Vector<NodeStatusFunction>;
 template class Vector<TransporterFacade::ThreadData::Object_Execute>;
+
+#include "SignalSender.hpp"
+
+SendStatus
+SignalSender::sendSignal(Uint16 nodeId, const SimpleSignal * s){
+#ifdef API_TRACE
+  if(setSignalLog() && TRACE_GSN(s->header.theVerId_signalNumber)){
+    SignalHeader tmp = s->header;
+    tmp.theSendersBlockRef = getOwnRef();
+
+    LinearSectionPtr ptr[3];
+    signalLogger.sendSignal(tmp,
+			    1,
+			    s->theData,
+			    nodeId, ptr, 0);
+    signalLogger.flushSignalLog();
+  }
+#endif
+  
+  return theFacade->theTransporterRegistry->prepareSend(&s->header,
+							1, // JBB
+							&s->theData[0],
+							nodeId, 
+							&s->ptr[0]);
+}

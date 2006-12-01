@@ -4833,6 +4833,11 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
       return;
     }
 
+    if (ERROR_INSERTED(934) && nodeId != getOwnNodeId())
+    {
+      CRASH_INSERTION(934);
+    }
+    
     opAllocNodeIdReq.m_req = *req;
     opAllocNodeIdReq.m_error = 0;
     opAllocNodeIdReq.m_connectCount = getNodeInfo(refToNode(senderRef)).m_connectCount;

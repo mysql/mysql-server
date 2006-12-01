@@ -92,6 +92,7 @@ Cmvmi::Cmvmi(Block_context& ctx) :
   addRecSignal(GSN_DUMP_STATE_ORD, &Cmvmi::execDUMP_STATE_ORD);
 
   addRecSignal(GSN_TESTSIG, &Cmvmi::execTESTSIG);
+  addRecSignal(GSN_NODE_START_REP, &Cmvmi::execNODE_START_REP, true);
   
   subscriberPool.setSize(5);
   
@@ -367,6 +368,16 @@ void Cmvmi::execSTTOR(Signal* signal)
   jamEntry();
   if (theStartPhase == 1){
     jam();
+
+    if(m_ctx.m_config.lockPagesInMainMemory())
+    {
+      int res = NdbMem_MemLockAll();
+      if(res != 0){
+	g_eventLogger.warning("Failed to memlock pages");
+	warningEvent("Failed to memlock pages");
+      }
+    }
+    
     sendSTTORRY(signal);
     return;
   } else if (theStartPhase == 3) {
@@ -382,18 +393,6 @@ void Cmvmi::execSTTOR(Signal* signal)
     signal->theData[2] = NodeInfo::API;
     execOPEN_COMREQ(signal);
     globalData.theStartLevel = NodeState::SL_STARTED;
-    sendSTTORRY(signal);
-  } else {
-    jam();
-
-    if(m_ctx.m_config.lockPagesInMainMemory()){
-      int res = NdbMem_MemLockAll();
-      if(res != 0){
-	g_eventLogger.warning("Failed to memlock pages");
-	warningEvent("Failed to memlock pages");
-      }
-    }
-    
     sendSTTORRY(signal);
   }
 }
@@ -448,7 +447,8 @@ void Cmvmi::execOPEN_COMREQ(Signal* signal)
   if(len == 2){
 
 #ifdef ERROR_INSERT
-    if (! (ERROR_INSERTED(9000) && c_error_9000_nodes_mask.get(tStartingNode)))
+    if (! ((ERROR_INSERTED(9000) || ERROR_INSERTED(9002)) 
+	   && c_error_9000_nodes_mask.get(tStartingNode)))
 #endif
     {
       globalTransporterRegistry.do_connect(tStartingNode);
@@ -469,7 +469,8 @@ void Cmvmi::execOPEN_COMREQ(Signal* signal)
 	jam();
 
 #ifdef ERROR_INSERT
-	if (ERROR_INSERTED(9000) && c_error_9000_nodes_mask.get(i))
+	if ((ERROR_INSERTED(9000) || ERROR_INSERTED(9002))
+	    && c_error_9000_nodes_mask.get(i))
 	  continue;
 #endif
 	
@@ -578,6 +579,7 @@ void Cmvmi::execCONNECT_REP(Signal *signal){
       /**
        * Dont allow api nodes to connect
        */
+      ndbout_c("%d %d %d", hostId, type, globalData.theStartLevel);
       abort();
       globalTransporterRegistry.do_disconnect(hostId);
     }
@@ -1199,9 +1201,9 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
   }
 
 #ifdef ERROR_INSERT
-  if (arg == 9000)
+  if (arg == 9000 || arg == 9002)
   {
-    SET_ERROR_INSERT_VALUE(9000);
+    SET_ERROR_INSERT_VALUE(arg);
     for (Uint32 i = 1; i<signal->getLength(); i++)
       c_error_9000_nodes_mask.set(signal->theData[i]);
   }
@@ -1209,13 +1211,16 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
   if (arg == 9001)
   {
     CLEAR_ERROR_INSERT_VALUE;
-    for (Uint32 i = 0; i<MAX_NODES; i++)
+    if (signal->getLength() == 1 || signal->theData[1])
     {
-      if (c_error_9000_nodes_mask.get(i))
+      for (Uint32 i = 0; i<MAX_NODES; i++)
       {
-	signal->theData[0] = 0;
-	signal->theData[1] = i;
-	EXECUTE_DIRECT(CMVMI, GSN_OPEN_COMREQ, signal, 2);
+	if (c_error_9000_nodes_mask.get(i))
+	{
+	  signal->theData[0] = 0;
+	  signal->theData[1] = i;
+	  EXECUTE_DIRECT(CMVMI, GSN_OPEN_COMREQ, signal, 2);
+	}
       }
     }
     c_error_9000_nodes_mask.clear();
@@ -1248,6 +1253,17 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 #endif
 }//Cmvmi::execDUMP_STATE_ORD()
 
+void
+Cmvmi::execNODE_START_REP(Signal* signal)
+{
+#ifdef ERROR_INSERT
+  if (ERROR_INSERTED(9002) && signal->theData[0] == getOwnNodeId())
+  {
+    signal->theData[0] = 9001;
+    execDUMP_STATE_ORD(signal);
+  }
+#endif
+}
 
 BLOCK_FUNCTIONS(Cmvmi)
 
