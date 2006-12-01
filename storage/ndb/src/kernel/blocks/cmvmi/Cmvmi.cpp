@@ -367,7 +367,7 @@ void Cmvmi::execSTTOR(Signal* signal)
   if (theStartPhase == 1){
     jam();
 
-    if(theConfig.lockPagesInMainMemory())
+    if(m_ctx.m_config.lockPagesInMainMemory())
     {
       int res = NdbMem_MemLockAll();
       if(res != 0){
