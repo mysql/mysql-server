@@ -1043,19 +1043,18 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     while (sql[i]=='(')
       i++;
 
-
     /*
       Test if the query is a SELECT
       (pre-space is removed in dispatch_command).
 
       First '/' looks like comment before command it is not
-      frequently appeared in real lihe, consequently we can
+      frequently appeared in real life, consequently we can
       check all such queries, too.
     */
     if ((my_toupper(system_charset_info, sql[i])     != 'S' ||
          my_toupper(system_charset_info, sql[i + 1]) != 'E' ||
          my_toupper(system_charset_info, sql[i + 2]) != 'L') &&
-        sql[0] != '/')
+        sql[i] != '/')
     {
       DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
       goto err;

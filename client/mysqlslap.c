@@ -979,7 +979,9 @@ drop_schema(MYSQL *mysql, const char *db)
 static int
 run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
 {
+#ifndef __WIN__
   uint x;
+#endif
   File lock_file;
   struct timeval start_time, end_time;
   thread_context con;
