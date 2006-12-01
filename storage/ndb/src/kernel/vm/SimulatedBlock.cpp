@@ -921,15 +921,6 @@ SimulatedBlock::execCONTINUE_FRAGMENTED(Signal * signal){
 void
 SimulatedBlock::execNODE_START_REP(Signal* signal)
 {
-  // common stuff for all blocks
-
-  // block specific stuff by virtual method override (default empty)
-  exec_node_start_rep(signal);
-}
-
-void
-SimulatedBlock::exec_node_start_rep(Signal* signal)
-{
 }
 
 void

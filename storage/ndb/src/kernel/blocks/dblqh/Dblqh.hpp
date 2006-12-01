@@ -240,6 +240,7 @@ class Dbtup;
 #define ZOPERATION_EVENT_REP 19
 #define ZPREP_DROP_TABLE 20
 #define ZENABLE_EXPAND_CHECK 21
+#define ZRETRY_TCKEYREF 22
 
 /* ------------------------------------------------------------------------- */
 /*        NODE STATE DURING SYSTEM RESTART, VARIABLES CNODES_SR_STATE        */
@@ -2240,6 +2241,7 @@ private:
   void releaseScanrec(Signal* signal);
   void seizeScanrec(Signal* signal);
   Uint32 sendKeyinfo20(Signal* signal, ScanRecord *, TcConnectionrec *);
+  void sendTCKEYREF(Signal*, Uint32 dst, Uint32 route, Uint32 cnt);
   void sendScanFragConf(Signal* signal, Uint32 scanCompleted);
   void initCopyrec(Signal* signal);
   void initCopyTc(Signal* signal, Operation_t);
