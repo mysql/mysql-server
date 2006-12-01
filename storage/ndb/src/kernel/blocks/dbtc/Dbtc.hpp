@@ -945,8 +945,7 @@ public:
       NF_CHECK_SCAN        = 0x2,
       NF_CHECK_TRANSACTION = 0x4,
       NF_CHECK_DROP_TAB    = 0x8,
-      NF_NODE_FAIL_BITS    = 0xF, // All bits...
-      NF_STARTED           = 0x10
+      NF_NODE_FAIL_BITS    = 0xF // All bits...
     };
     Uint32 m_nf_bits;
     NdbNodeBitmask m_lqh_trans_conf;
@@ -1286,7 +1285,7 @@ private:
   void execLQHKEYREF(Signal* signal);
   void execTRANSID_AI_R(Signal* signal);
   void execKEYINFO20_R(Signal* signal);
-
+  void execROUTE_ORD(Signal* signal);
   // Received signals
   void execDUMP_STATE_ORD(Signal* signal);
   void execSEND_PACKED(Signal* signal);
@@ -1324,7 +1323,6 @@ private:
   void execCOMMITCONF(Signal* signal);
   void execABORTCONF(Signal* signal);
   void execNODE_FAILREP(Signal* signal);
-  void execNODE_START_REP(Signal* signal);
   void execINCL_NODEREQ(Signal* signal);
   void execTIME_SIGNAL(Signal* signal);
   void execAPI_FAILREQ(Signal* signal);
