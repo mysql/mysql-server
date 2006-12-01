@@ -2758,6 +2758,22 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   DBUG_ENTER("update_row");
   m_write_op= TRUE;
   
+  /*
+   * If IGNORE the ignore constraint violations on primary and unique keys,
+   * but check that it is not part of INSERT ... ON DUPLICATE KEY UPDATE
+   */
+  if (m_ignore_dup_key && thd->lex->sql_command != SQLCOM_INSERT)
+  {
+    int peek_res= peek_indexed_rows(new_data);
+    
+    if (!peek_res) 
+    {
+      DBUG_RETURN(HA_ERR_FOUND_DUPP_KEY);
+    }
+    if (peek_res != HA_ERR_KEY_NOT_FOUND)
+      DBUG_RETURN(peek_res);
+  }
+
   statistic_increment(thd->status_var.ha_update_count, &LOCK_status);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
   {
