@@ -822,8 +822,8 @@ int ha_ndbcluster::get_ndb_blobs_value(NdbBlob *last_ndb_blob,
         {
           char *buf= m_blobs_buffer + offset;
           uint32 len= 0xffffffff;  // Max uint32
-          DBUG_PRINT("value", ("read blob ptr=%x len=%u",
-                               (UintPtr)buf, (uint)blob_len));
+          DBUG_PRINT("value", ("read blob ptr: 0x%lx  len: %u",
+                               (long)buf, (uint)blob_len));
           if (ndb_blob->readData(buf, len) != 0)
             DBUG_RETURN(-1);
           DBUG_ASSERT(len == blob_len);

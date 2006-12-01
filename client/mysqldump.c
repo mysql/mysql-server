@@ -1419,7 +1419,7 @@ static uint dump_routines_for_db(char *db)
             routine body of other routines that are not the creator of!
           */
           DBUG_PRINT("info",("length of body for %s row[2] '%s' is %d",
-                             routine_name, row[2], strlen(row[2])));
+                             routine_name, row[2], (int) strlen(row[2])));
           if (strlen(row[2]))
           {
             char *query_str= NULL;
@@ -2001,7 +2001,7 @@ continue_xml:
     write_footer(sql_file);
     my_fclose(sql_file, MYF(MY_WME));
   }
-  DBUG_RETURN(num_fields);
+  DBUG_RETURN((uint) num_fields);
 } /* get_table_structure */
 
 

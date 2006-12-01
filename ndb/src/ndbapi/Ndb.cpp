@@ -777,7 +777,7 @@ Ndb::getAutoIncrementValue(const char* aTableName,
   }
   if (getTupleIdFromNdb(info, tupleId, cacheSize) == -1)
     DBUG_RETURN(-1);
-  DBUG_PRINT("info", ("value %llu", (ulonglong)tupleId));
+  DBUG_PRINT("info", ("value %lu", (ulong) tupleId));
   DBUG_RETURN(0);
 }
 
@@ -798,7 +798,7 @@ Ndb::getAutoIncrementValue(const NdbDictionary::Table * aTable,
   }
   if (getTupleIdFromNdb(info, tupleId, cacheSize) == -1)
     DBUG_RETURN(-1);
-  DBUG_PRINT("info", ("value %llu", (ulonglong)tupleId));
+  DBUG_PRINT("info", ("value %lu", (ulong)tupleId));
   DBUG_RETURN(0);
 }
 
@@ -811,7 +811,7 @@ Ndb::getTupleIdFromNdb(Ndb_local_table_info* info,
   {
     assert(info->m_first_tuple_id < info->m_last_tuple_id);
     tupleId = ++info->m_first_tuple_id;
-    DBUG_PRINT("info", ("next cached value %llu", (ulonglong)tupleId));
+    DBUG_PRINT("info", ("next cached value %lu", (ulong)tupleId));
   }
   else
   {
@@ -845,7 +845,7 @@ Ndb::readAutoIncrementValue(const char* aTableName,
   }
   if (readTupleIdFromNdb(info, tupleId) == -1)
     DBUG_RETURN(-1);
-  DBUG_PRINT("info", ("value %llu", (ulonglong)tupleId));
+  DBUG_PRINT("info", ("value %lu", (ulong)tupleId));
   DBUG_RETURN(0);
 }
 
@@ -866,7 +866,7 @@ Ndb::readAutoIncrementValue(const NdbDictionary::Table * aTable,
   }
   if (readTupleIdFromNdb(info, tupleId) == -1)
     DBUG_RETURN(-1);
-  DBUG_PRINT("info", ("value %llu", (ulonglong)tupleId));
+  DBUG_PRINT("info", ("value %lu", (ulong)tupleId));
   DBUG_RETURN(0);
 }
 
@@ -948,8 +948,8 @@ Ndb::setTupleIdInNdb(Ndb_local_table_info* info,
       {
 	info->m_first_tuple_id = tupleId - 1;
         DBUG_PRINT("info", 
-                   ("Setting next auto increment cached value to %llu",
-                    (ulonglong)tupleId));  
+                   ("Setting next auto increment cached value to %lu",
+                    (ulong)tupleId));  
 	DBUG_RETURN(0);
       }
     }
@@ -976,7 +976,8 @@ Ndb::opTupleIdOnNdb(Ndb_local_table_info* info, Uint64 & opValue, Uint32 op)
 {
   DBUG_ENTER("Ndb::opTupleIdOnNdb");
   Uint32 aTableId = info->m_table_impl->m_tableId;
-  DBUG_PRINT("enter", ("table=%u value=%llu op=%u", aTableId, opValue, op));
+  DBUG_PRINT("enter", ("table: %u  value: %lu  op: %u",
+                       aTableId, (ulong) opValue, op));
 
   NdbTransaction*     tConnection;
   NdbOperation*      tOperation= 0; // Compiler warning if not initialized
@@ -1050,8 +1051,8 @@ Ndb::opTupleIdOnNdb(Ndb_local_table_info* info, Uint64 & opValue, Uint32 op)
       else
       {
         DBUG_PRINT("info", 
-                   ("Setting next auto increment value (db) to %llu",
-                    (ulonglong)opValue));  
+                   ("Setting next auto increment value (db) to %lu",
+                    (ulong)opValue));  
         info->m_first_tuple_id = info->m_last_tuple_id = opValue - 1;
       }
       break;
@@ -1247,7 +1248,7 @@ Ndb::internalize_index_name(const NdbTableImpl * table,
   if (!table)
   {
     DBUG_PRINT("error", ("!table"));
-    return ret;
+    DBUG_RETURN(ret);
   }
 
   if (fullyQualifiedNames)

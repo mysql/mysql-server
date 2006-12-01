@@ -730,6 +730,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 	if (key_part->fieldnr)
 	{					// Should always be true !
 	  Field *field=key_part->field=outparam->field[key_part->fieldnr-1];
+          key_part->type= field->key_type();
 	  if (field->null_ptr)
 	  {
 	    key_part->null_offset=(uint) ((byte*) field->null_ptr -
