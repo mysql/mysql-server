@@ -25,26 +25,18 @@
 #include <mysql_com.h>
 
 #include "buffer.h"
-#include "guardian.h"
 #include "instance.h"
 #include "log.h"
-#include "manager.h"
 #include "mysqld_error.h"
 #include "mysql_manager_error.h"
 #include "options.h"
 #include "priv.h"
 
-/*
-  Note:  As we are going to suppost different types of connections,
-  we shouldn't have connection-specific functions. To avoid it we could
-  put such functions to the Command-derived class instead.
-  The command could be easily constructed for a specific connection if
-  we would provide a special factory for each connection.
-*/
-
 C_MODE_START
 
-/* Procedure needed for HASH initialization */
+/**
+  HASH-routines: get key of instance for storing in hash.
+*/
 
 static byte* get_instance_key(const byte* u, uint* len,
                           my_bool __attribute__((unused)) t)
@@ -54,14 +46,18 @@ static byte* get_instance_key(const byte* u, uint* len,
   return (byte *) instance->options.instance_name.str;
 }
 
+/**
+  HASH-routines: cleanup handler.
+*/
+
 static void delete_instance(void *u)
 {
   Instance *instance= (Instance *) u;
   delete instance;
 }
 
-/*
-  The option handler to pass to the process_default_option_files finction.
+/**
+  The option handler to pass to the process_default_option_files function.
 
   SYNOPSIS
     process_option()
@@ -96,8 +92,8 @@ static int process_option(void *ctx, const char *group, const char *option)
 C_MODE_END
 
 
-/*
-   Parse option string.
+/**
+  Parse option string.
 
   SYNOPSIS
     parse_option()
@@ -137,7 +133,7 @@ static void parse_option(const char *option_str,
 }
 
 
-/*
+/**
   Process one option from the configuration file.
 
   SYNOPSIS
@@ -151,6 +147,10 @@ static void parse_option(const char *option_str,
     process_option(). The caller ensures proper locking
     of the instance map object.
 */
+  /*
+    Process a given option and assign it to appropricate instance. This is
+    required for the option handler, passed to my_search_option_files().
+  */
 
 int Instance_map::process_one_option(const LEX_STRING *group,
                                      const char *option)
@@ -213,11 +213,19 @@ int Instance_map::process_one_option(const LEX_STRING *group,
 }
 
 
+/**
+  Instance_map constructor.
+*/
+
 Instance_map::Instance_map()
 {
   pthread_mutex_init(&LOCK_instance_map, 0);
 }
 
+
+/**
+  Initialize Instance_map internals.
+*/
 
 bool Instance_map::init()
 {
@@ -225,14 +233,56 @@ bool Instance_map::init()
                    get_instance_key, delete_instance, 0);
 }
 
+
+/**
+  Reset Instance_map data.
+*/
+
+bool Instance_map::reset()
+{
+  hash_free(&hash);
+  return init();
+}
+
+
+/**
+  Instance_map destructor.
+*/
+
 Instance_map::~Instance_map()
 {
-  pthread_mutex_lock(&LOCK_instance_map);
+  lock();
+
+  /*
+    NOTE: it's necessary to synchronize on each instance before removal,
+    because Instance-monitoring thread can be still alive an hold the mutex
+    (because it is detached and we have no control over it).
+  */
+
+  while (true)
+  {
+    Iterator it(this);
+    Instance *instance= it.next();
+
+    if (!instance)
+      break;
+
+    instance->lock();
+    instance->unlock();
+
+    remove_instance(instance);
+  }
+
   hash_free(&hash);
-  pthread_mutex_unlock(&LOCK_instance_map);
+  unlock();
+
   pthread_mutex_destroy(&LOCK_instance_map);
 }
 
+
+/**
+  Lock Instance_map.
+*/
 
 void Instance_map::lock()
 {
@@ -240,64 +290,19 @@ void Instance_map::lock()
 }
 
 
+/**
+  Unlock Instance_map.
+*/
+
 void Instance_map::unlock()
 {
   pthread_mutex_unlock(&LOCK_instance_map);
 }
 
-/*
-  Re-read instance configuration file.
 
-  SYNOPSIS
-    Instance_map::flush_instances()
-
-  DESCRIPTION
-    This function will:
-     - clear the current list of instances. This removes both
-       running and stopped instances.
-     - load a new instance configuration from the file.
-     - pass on the new map to the guardian thread: it will start
-       all instances that are marked `guarded' and not yet started.
-    Note, as the check whether an instance is started is currently
-    very simple (returns TRUE if there is a MySQL server running
-    at the given port), this function has some peculiar
-    side-effects:
-     * if the port number of a running instance was changed, the
-       old instance is forgotten, even if it was running. The new
-       instance will be started at the new port.
-     * if the configuration was changed in a way that two
-       instances swapped their port numbers, the guardian thread
-       will not notice that and simply report that both instances
-       are configured successfully and running.
-    In order to avoid such side effects one should never call
-    FLUSH INSTANCES without prior stop of all running instances.
-
-  NOTE: The operation should be invoked with the following locks acquired:
-    - Guardian;
-    - Instance_map;
+/**
+  Check if there is an active instance or not.
 */
-
-int Instance_map::flush_instances()
-{
-  int rc;
-
-  /*
-    Guardian thread relies on the instance map repository for guarding
-    instances. This is why refreshing instance map, we need (1) to stop
-    guardian (2) reload the instance map (3) reinitialize the guardian
-    with new instances.
-  */
-  hash_free(&hash);
-  hash_init(&hash, default_charset_info, START_HASH_SIZE, 0, 0,
-            get_instance_key, delete_instance, 0);
-
-  rc= load();
-  /* don't init guardian if we failed to load instances */
-  if (!rc)
-    guardian->init(); // TODO: check error status.
-  return rc;
-}
-
 
 bool Instance_map::is_there_active_instance()
 {
@@ -306,16 +311,25 @@ bool Instance_map::is_there_active_instance()
 
   while ((instance= iterator.next()))
   {
-    if (guardian->find_instance_node(instance) != NULL ||
-        instance->is_mysqld_running())
-    {
+    bool active_instance_found;
+
+    instance->lock();
+    active_instance_found= instance->is_active();
+    instance->unlock();
+
+    if (active_instance_found)
       return TRUE;
-    }
   }
 
   return FALSE;
 }
 
+
+/**
+  Add an instance into the internal hash.
+
+  MT-NOTE: Instance Map must be locked before calling the operation.
+*/
 
 int Instance_map::add_instance(Instance *instance)
 {
@@ -323,11 +337,23 @@ int Instance_map::add_instance(Instance *instance)
 }
 
 
+/**
+  Remove instance from the internal hash.
+
+  MT-NOTE: Instance Map must be locked before calling the operation.
+*/
+
 int Instance_map::remove_instance(Instance *instance)
 {
   return hash_delete(&hash, (byte *) instance);
 }
 
+
+/**
+  Create a new instance and register it in the internal hash.
+
+  MT-NOTE: Instance Map must be locked before calling the operation.
+*/
 
 int Instance_map::create_instance(const LEX_STRING *instance_name,
                                   const Named_value_arr *options)
@@ -392,11 +418,21 @@ int Instance_map::create_instance(const LEX_STRING *instance_name,
 }
 
 
+/**
+  Return a pointer to the instance or NULL, if there is no such instance.
+
+  MT-NOTE: Instance Map must be locked before calling the operation.
+*/
+
 Instance * Instance_map::find(const LEX_STRING *name)
 {
   return (Instance *) hash_search(&hash, (byte *) name->str, name->length);
 }
 
+
+/**
+  Init instances command line arguments after all options have been loaded.
+*/
 
 bool Instance_map::complete_initialization()
 {
@@ -455,7 +491,10 @@ bool Instance_map::complete_initialization()
 }
 
 
-/* load options from config files and create appropriate instance structures */
+/**
+  Load options from config files and create appropriate instance
+  structures.
+*/
 
 int Instance_map::load()
 {
@@ -505,8 +544,9 @@ int Instance_map::load()
 }
 
 
-/*--- Implementaton of the Instance map iterator class  ---*/
-
+/*************************************************************************
+  {{{ Instance_map::Iterator implementation.
+*************************************************************************/
 
 void Instance_map::Iterator::go_to_first()
 {
@@ -522,29 +562,12 @@ Instance *Instance_map::Iterator::next()
   return NULL;
 }
 
-
-const char *Instance_map::get_instance_state_name(Instance *instance)
-{
-  LIST *instance_node;
-
-  if (!instance->is_configured())
-    return "misconfigured";
-
-  if ((instance_node= guardian->find_instance_node(instance)) != NULL)
-  {
-    /* The instance is managed by Guardian: we can report precise state. */
-
-    return Guardian::get_instance_state_name(
-      guardian->get_instance_state(instance_node));
-  }
-
-  /* The instance is not managed by Guardian: we can report status only.  */
-
-  return instance->is_mysqld_running() ? "online" : "offline";
-}
+/*************************************************************************
+  }}}
+*************************************************************************/
 
 
-/*
+/**
   Create a new configuration section for mysqld-instance in the config file.
 
   SYNOPSIS

@@ -46,7 +46,6 @@ public:
   Instance_options();
   ~Instance_options();
 
-  /* fills in argv */
   bool complete_initialization();
 
   bool set_option(Named_value *option);

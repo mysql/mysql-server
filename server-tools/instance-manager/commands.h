@@ -30,7 +30,7 @@
 #endif
 
 
-/*
+/**
   Print all instances of this instance manager.
   Grammar: SHOW INSTANCES
 */
@@ -50,7 +50,7 @@ private:
 };
 
 
-/*
+/**
   Reread configuration file and refresh internal cache.
   Grammar: FLUSH INSTANCES
 */
@@ -66,29 +66,20 @@ public:
 };
 
 
-/*
-  Abstract class for Instance-specific commands.
+/**
+  Base class for Instance-specific commands
+  (commands that operate on one instance).
+
+  Instance_cmd extends Command class by:
+    - an attribute for storing instance name;
+    - code to initialize instance name in constructor;
+    - an accessor to get instance name.
 */
 
-class Abstract_instance_cmd: public Command
+class Instance_cmd : public Command
 {
 public:
-  Abstract_instance_cmd(const LEX_STRING *instance_name_arg);
-
-public:
-  virtual int execute(st_net *net, ulong connection_id);
-
-protected:
-  /* MT-NOTE: this operation is called under acquired Instance_map's lock. */
-  virtual int execute_impl(st_net *net, Instance *instance) = 0;
-
-  /*
-    This operation is invoked on successful return of execute_impl() and is
-    intended to send closing data.
-
-    MT-NOTE: this operation is called under released Instance_map's lock.
-  */
-  virtual int send_ok_response(st_net *net, ulong connection_id) = 0;
+  Instance_cmd(const LEX_STRING *instance_name_arg);
 
 protected:
   inline const LEX_STRING *get_instance_name() const
@@ -101,7 +92,50 @@ private:
 };
 
 
-/*
+/**
+  Abstract class for Instance-specific commands.
+
+  Abstract_instance_cmd extends Instance_cmd by providing a common
+  framework for writing command-implementations. Basically, the class
+  implements Command::execute() pure virtual function in the following
+  way:
+    - Lock Instance_map;
+    - Get an instance by name. Return an error, if there is no such
+      instance;
+    - Lock the instance;
+    - Unlock Instance_map;
+    - Call execute_impl(), which should be implemented in derived class;
+    - Unlock the instance;
+    - Send response to the client and return error status.
+*/
+
+class Abstract_instance_cmd: public Instance_cmd
+{
+public:
+  Abstract_instance_cmd(const LEX_STRING *instance_name_arg);
+
+public:
+  virtual int execute(st_net *net, ulong connection_id);
+
+protected:
+  /**
+    This operation is intended to contain command-specific implementation.
+
+    MT-NOTE: this operation is called under acquired Instance's lock.
+  */
+  virtual int execute_impl(st_net *net, Instance *instance) = 0;
+
+  /**
+    This operation is invoked on successful return of execute_impl() and is
+    intended to send closing data.
+
+    MT-NOTE: this operation is called under released Instance's lock.
+  */
+  virtual int send_ok_response(st_net *net, ulong connection_id) = 0;
+};
+
+
+/**
   Print status of an instance.
   Grammar: SHOW INSTANCE STATUS <instance_name>
 */
@@ -121,7 +155,7 @@ private:
 };
 
 
-/*
+/**
   Print options of chosen instance.
   Grammar: SHOW INSTANCE OPTIONS <instance_name>
 */
@@ -141,7 +175,7 @@ private:
 };
 
 
-/*
+/**
   Start an instance.
   Grammar: START INSTANCE <instance_name>
 */
@@ -157,7 +191,7 @@ protected:
 };
 
 
-/*
+/**
   Stop an instance.
   Grammar: STOP INSTANCE <instance_name>
 */
@@ -173,12 +207,12 @@ protected:
 };
 
 
-/*
+/**
   Create an instance.
   Grammar: CREATE INSTANCE <instance_name> [<options>]
 */
 
-class Create_instance: public Command
+class Create_instance: public Instance_cmd
 {
 public:
   Create_instance(const LEX_STRING *instance_name_arg);
@@ -189,22 +223,15 @@ public:
 protected:
   virtual int execute(st_net *net, ulong connection_id);
 
-  inline const LEX_STRING *get_instance_name() const
-  {
-    return instance_name.get_str();
-  }
-
 private:
   bool parse_args(const char **text);
 
 private:
-  Instance_name instance_name;
-
   Named_value_arr options;
 };
 
 
-/*
+/**
   Drop an instance.
   Grammar: DROP INSTANCE <instance_name>
 
@@ -213,18 +240,17 @@ private:
   is removed from the instance map.
 */
 
-class Drop_instance: public Abstract_instance_cmd
+class Drop_instance: public Instance_cmd
 {
 public:
   Drop_instance(const LEX_STRING *instance_name_arg);
 
 protected:
-  virtual int execute_impl(st_net *net, Instance *instance);
-  virtual int send_ok_response(st_net *net, ulong connection_id);
+  virtual int execute(st_net *net, ulong connection_id);
 };
 
 
-/*
+/**
   Print requested part of the log.
   Grammar:
     SHOW <instance_name> LOG {ERROR | SLOW | GENERAL} size[, offset_from_end]
@@ -252,7 +278,7 @@ private:
 };
 
 
-/*
+/**
   Shows the list of the log files, used by an instance.
   Grammar: SHOW <instance_name> LOG FILES
 */
@@ -272,7 +298,7 @@ private:
 };
 
 
-/*
+/**
   Abstract class for option-management commands.
 */
 
@@ -312,7 +338,7 @@ private:
 };
 
 
-/*
+/**
   Set an option for the instance.
   Grammar: SET instance_name.option[=option_value][, ...]
 */
@@ -329,7 +355,7 @@ protected:
 };
 
 
-/*
+/**
   Remove option of the instance.
   Grammar: UNSET instance_name.option[, ...]
 */
@@ -346,7 +372,7 @@ protected:
 };
 
 
-/*
+/**
   Syntax error command.
 
   This command is issued if parser reported a syntax error. We need it to
