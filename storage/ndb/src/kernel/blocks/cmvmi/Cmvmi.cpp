@@ -578,6 +578,7 @@ void Cmvmi::execCONNECT_REP(Signal *signal){
       /**
        * Dont allow api nodes to connect
        */
+      ndbout_c("%d %d %d", hostId, type, globalData.theStartLevel);
       abort();
       globalTransporterRegistry.do_disconnect(hostId);
     }
@@ -1208,13 +1209,16 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
   if (arg == 9001)
   {
     CLEAR_ERROR_INSERT_VALUE;
-    for (Uint32 i = 0; i<MAX_NODES; i++)
+    if (signal->getLength() == 1 || signal->theData[1])
     {
-      if (c_error_9000_nodes_mask.get(i))
+      for (Uint32 i = 0; i<MAX_NODES; i++)
       {
-	signal->theData[0] = 0;
-	signal->theData[1] = i;
-	EXECUTE_DIRECT(CMVMI, GSN_OPEN_COMREQ, signal, 2);
+	if (c_error_9000_nodes_mask.get(i))
+	{
+	  signal->theData[0] = 0;
+	  signal->theData[1] = i;
+	  EXECUTE_DIRECT(CMVMI, GSN_OPEN_COMREQ, signal, 2);
+	}
       }
     }
     c_error_9000_nodes_mask.clear();
