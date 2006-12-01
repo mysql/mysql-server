@@ -1450,6 +1450,16 @@ int ha_federated::open(const char *name, int mode, uint test_if_locked)
 
   /* Connect to foreign database mysql_real_connect() */
   mysql= mysql_init(0);
+
+  /*
+    BUG# 17044 Federated Storage Engine is not UTF8 clean
+    Add set names to whatever charset the table is at open
+    of table
+  */
+  /* this sets the csname like 'set names utf8' */
+  mysql_options(mysql,MYSQL_SET_CHARSET_NAME,
+                this->table->s->table_charset->csname);
+
   if (!mysql || !mysql_real_connect(mysql,
                                    share->hostname,
                                    share->username,
@@ -1466,6 +1476,7 @@ int ha_federated::open(const char *name, int mode, uint test_if_locked)
     API silently reconnect. For future versions, we will need more logic to
     deal with transactions
   */
+
   mysql->reconnect= 1;
 
   ref_length= (table->s->primary_key != MAX_KEY ?
