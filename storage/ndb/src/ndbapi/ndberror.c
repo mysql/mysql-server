@@ -774,11 +774,14 @@ const char *ndberror_classification_message(ndberror_classification classificati
   return empty_string;
 }
 
-int ndb_error_string(int err_no, char *str, unsigned int size)
+int ndb_error_string(int err_no, char *str, int size)
 {
   ndberror_struct error;
-  unsigned int len;
+  int len;
 
+  assert(size > 1);
+  if(size <= 1) 
+    return 0;
   error.code = err_no;
   ndberror_update(&error);
 

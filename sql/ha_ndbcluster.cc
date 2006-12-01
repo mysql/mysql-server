@@ -4825,10 +4825,18 @@ int ha_ndbcluster::create(const char *name,
   }
 
   if (info->store_on_disk)
+  { 
     if (info->tablespace)
       tab.setTablespace(info->tablespace);
     else
       tab.setTablespace("DEFAULT-TS");
+  }
+  else if (info->tablespace)
+  {
+    tab.setTablespace(info->tablespace);
+    info->store_on_disk = true;  //if use tablespace, that also means store on disk
+  }
+
   // No primary key, create shadow key as 64 bit, auto increment  
   if (form->s->primary_key == MAX_KEY) 
   {
@@ -6537,6 +6545,23 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
   
   hash_free(&ok_tables);
   hash_free(&ndb_tables);
+
+  // Delete schema file from files
+  if (!strcmp(db, NDB_REP_DB))
+  {
+    uint count = 0;
+    while (count++ < files->elements)
+    {
+      file_name = (char *)files->pop();
+      if (!strcmp(file_name, NDB_SCHEMA_TABLE))
+      {
+        DBUG_PRINT("info", ("skip %s.%s table, it should be hidden to user",
+                   NDB_REP_DB, NDB_SCHEMA_TABLE));
+        continue;
+      }
+      files->push_back(file_name); 
+    }
+  }
   } // extra bracket to avoid gcc 2.95.3 warning
   DBUG_RETURN(0);    
 }
