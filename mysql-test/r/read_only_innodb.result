@@ -1,0 +1,18 @@
+DROP TABLE IF EXISTS table_11733 ;
+grant CREATE, SELECT, DROP on *.* to test@localhost;
+set global read_only=0;
+create table table_11733 (a int) engine=InnoDb;
+BEGIN;
+insert into table_11733 values(11733);
+set global read_only=1;
+select @@global.read_only;
+@@global.read_only
+1
+select * from table_11733 ;
+a
+11733
+COMMIT;
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+set global read_only=0;
+drop table table_11733 ;
+drop user test@localhost;
