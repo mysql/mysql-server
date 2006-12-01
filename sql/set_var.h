@@ -905,6 +905,20 @@ public:
 };
 
 
+/**
+  Handler for setting the system variable --read-only.
+*/
+
+class sys_var_opt_readonly :public sys_var_bool_ptr
+{
+public:
+  sys_var_opt_readonly(const char *name_arg, my_bool *value_arg) :
+    sys_var_bool_ptr(name_arg, value_arg) {};
+  ~sys_var_opt_readonly() {};
+  bool update(THD *thd, set_var *var);
+};
+
+
 class sys_var_thd_lc_time_names :public sys_var_thd
 {
 public:
