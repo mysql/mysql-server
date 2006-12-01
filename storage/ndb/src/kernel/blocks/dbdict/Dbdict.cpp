@@ -3618,7 +3618,11 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
   case BS_IDLE:
     jam();
     ok = true;
-    if(c_opRecordPool.getSize() != c_opRecordPool.getNoOfFree()){
+    if(c_opRecordPool.getSize() != 
+       (c_opRecordPool.getNoOfFree() + 
+	c_opSubEvent.get_count() + c_opCreateEvent.get_count() +
+	c_opDropEvent.get_count() + c_opSignalUtil.get_count()))
+    {
       jam();
       c_blockState = BS_NODE_FAILURE;
     }
@@ -9840,6 +9844,8 @@ Dbdict::createEvent_RT_DICT_AFTER_GET(Signal* signal, OpCreateEventPtr evntRecPt
   // Seize a Create Event record, the Coordinator will now have two seized
   // but that's ok, it's like a recursion
 
+  CRASH_INSERTION2(6009, getOwnNodeId() != c_masterNodeId);
+
   SubCreateReq * sumaReq = (SubCreateReq *)signal->getDataPtrSend();
   
   sumaReq->senderRef        = reference(); // reference to DICT
@@ -10098,6 +10104,8 @@ busy:
    * Participant
    */
   ndbrequire(refToBlock(origSenderRef) == DBDICT);
+
+  CRASH_INSERTION(6007);
   
   {
     SubStartReq* req = (SubStartReq*) signal->getDataPtrSend();
@@ -10328,6 +10336,9 @@ busy:
   ndbout_c("SUB_STOP_REQ 2");
 #endif
   ndbrequire(refToBlock(origSenderRef) == DBDICT);
+
+  CRASH_INSERTION(6008);
+
   {
     SubStopReq* req = (SubStopReq*) signal->getDataPtrSend();
     
@@ -10653,6 +10664,8 @@ Dbdict::execSUB_REMOVE_REQ(Signal* signal)
     subbPtr.p->m_errorCode = 0;
   }
 
+  CRASH_INSERTION2(6010, getOwnNodeId() != c_masterNodeId);
+  
   SubRemoveReq* req = (SubRemoveReq*) signal->getDataPtrSend();
   req->senderRef = reference();
   req->senderData = subbPtr.i;
