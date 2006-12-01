@@ -1626,7 +1626,6 @@ sp_decl:
             uint num_vars= pctx->context_var_count();
             enum enum_field_types var_type= (enum enum_field_types) $4;
             Item *dflt_value_item= $5;
-            create_field *create_field_op;
             
             if (!dflt_value_item)
             {
