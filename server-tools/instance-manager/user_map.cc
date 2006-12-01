@@ -42,7 +42,7 @@ int User::init(const char *line)
     if (name_end == 0 || name_end[1] != ':')
     {
       log_error("Invalid format (unmatched quote) of user line (%s).",
-               (const char *) line);
+                (const char *) line);
       return 1;
     }
     password= name_end + 2;
@@ -54,7 +54,7 @@ int User::init(const char *line)
     if (name_end == 0)
     {
       log_error("Invalid format (no delimiter) of user line (%s).",
-               (const char *) line);
+                (const char *) line);
       return 1;
     }
     password= name_end + 1;
@@ -64,10 +64,10 @@ int User::init(const char *line)
   if (user_length > USERNAME_LENGTH)
   {
     log_error("User name is too long (%d). Max length: %d. "
-             "User line: '%s'.",
-             (int) user_length,
-             (int) USERNAME_LENGTH,
-             (const char *) line);
+              "User line: '%s'.",
+              (int) user_length,
+              (int) USERNAME_LENGTH,
+              (const char *) line);
     return 1;
   }
 
@@ -75,10 +75,10 @@ int User::init(const char *line)
   if (password_length > SCRAMBLED_PASSWORD_CHAR_LENGTH)
   {
     log_error("Password is too long (%d). Max length: %d."
-             "User line: '%s'.",
-             (int) password_length,
-             (int) SCRAMBLED_PASSWORD_CHAR_LENGTH,
-             line);
+              "User line: '%s'.",
+              (int) password_length,
+              (int) SCRAMBLED_PASSWORD_CHAR_LENGTH,
+              (const char *) line);
     return 1;
   }
 
