@@ -4769,7 +4769,7 @@ int ha_ndbcluster::create(const char *name,
     schema distribution table is setup
     ( unless it is a creation of the schema dist table itself )
   */
-  if (!schema_share &&
+  if (!ndb_schema_share &&
       !(strcmp(m_dbname, NDB_REP_DB) == 0 &&
         strcmp(m_tabname, NDB_SCHEMA_TABLE) == 0))
   {
@@ -4974,7 +4974,7 @@ int ha_ndbcluster::create(const char *name,
       ndb_rep_event_name(&event_name,m_dbname,m_tabname);
       int do_event_op= ndb_binlog_running;
 
-      if (!schema_share &&
+      if (!ndb_schema_share &&
           strcmp(share->db, NDB_REP_DB) == 0 &&
           strcmp(share->table_name, NDB_SCHEMA_TABLE) == 0)
         do_event_op= 1;
@@ -5464,7 +5464,7 @@ ha_ndbcluster::delete_table(ha_ndbcluster *h, Ndb *ndb,
     Don't allow drop table unless
     schema distribution table is setup
   */
-  if (!schema_share)
+  if (!ndb_schema_share)
   {
     DBUG_PRINT("info", ("Schema distribution table not setup"));
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
@@ -5623,7 +5623,7 @@ int ha_ndbcluster::delete_table(const char *name)
     Don't allow drop table unless
     schema distribution table is setup
   */
-  if (!schema_share)
+  if (!ndb_schema_share)
   {
     DBUG_PRINT("info", ("Schema distribution table not setup"));
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
@@ -6189,7 +6189,7 @@ static void ndbcluster_drop_database(handlerton *hton, char *path)
     Don't allow drop database unless
     schema distribution table is setup
   */
-  if (!schema_share)
+  if (!ndb_schema_share)
   {
     DBUG_PRINT("info", ("Schema distribution table not setup"));
     DBUG_VOID_RETURN;
@@ -8407,7 +8407,8 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
 
 #ifdef HAVE_NDB_BINLOG
     /*
-      Check that the apply_status_share and schema_share has been created.
+      Check that the ndb_apply_status_share and ndb_schema_share 
+      have been created.
       If not try to create it
     */
     if (!ndb_binlog_tables_inited)
