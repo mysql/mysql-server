@@ -1,6 +1,10 @@
 #include <ndb_types.h>
 #include <mgmapi.h>
 #include "mgmapi_configuration.hpp"
+#include "../mgmsrv/ParamInfo.hpp"
+
+extern const ParamInfo ParamInfoArray[];
+extern const int ParamInfoNum;
 
 ndb_mgm_configuration_iterator::ndb_mgm_configuration_iterator
 (const ndb_mgm_configuration & conf, unsigned type_of_section)
@@ -154,4 +158,38 @@ int
 ndb_mgm_find(ndb_mgm_configuration_iterator* iter,
 	     int param, unsigned search){
   return iter->find(param, search);
+}
+
+/**
+ * Retrieve information about parameter
+ * @param info : in - pointer to structure allocated by caller
+ * @param size : in/out : pointer to int initialized to sizeof(ndb_mgm_param_info)...will be set to bytes set by function on return
+*/
+extern "C"
+int 
+ndb_mgm_get_db_parameter_info(Uint32 paramId, struct ndb_mgm_param_info * info, size_t * size) {
+  if ( paramId == 0 ) {
+      return -1;
+  }
+
+  for (int i = 0; i < ParamInfoNum; i++) {
+    if (paramId == ParamInfoArray[i]._paramId && strcmp(DB_TOKEN, ParamInfoArray[i]._section) == 0) {
+        size_t tmp = 0;
+        if (tmp + sizeof(info->m_id) <= *size)
+        {
+          info->m_id = ParamInfoArray[i]._paramId;
+          tmp += sizeof(info->m_id);
+        }
+
+        if (tmp + sizeof(info->m_name) <= *size)
+        {
+          info->m_name = ParamInfoArray[i]._fname;
+          tmp += sizeof(info->m_name);
+        }
+
+        *size = tmp;
+        return 0;
+    }
+  }
+  return -1;
 }

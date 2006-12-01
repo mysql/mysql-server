@@ -20,6 +20,9 @@
 #include "TCP_Transporter.hpp"
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
+
+#include <EventLogger.hpp>
+extern EventLogger g_eventLogger;
 // End of stuff to be moved
 
 #ifdef NDB_WIN32
@@ -153,14 +156,14 @@ TCP_Transporter::setSocketOptions(){
   if (setsockopt(theSocket, SOL_SOCKET, SO_RCVBUF,
                  (char*)&sockOptRcvBufSize, sizeof(sockOptRcvBufSize)) < 0) {
 #ifdef DEBUG_TRANSPORTER
-    ndbout_c("The setsockopt SO_RCVBUF error code = %d", InetErrno);
+    g_eventLogger.error("The setsockopt SO_RCVBUF error code = %d", InetErrno);
 #endif
   }//if
   
   if (setsockopt(theSocket, SOL_SOCKET, SO_SNDBUF,
                  (char*)&sockOptSndBufSize, sizeof(sockOptSndBufSize)) < 0) {
 #ifdef DEBUG_TRANSPORTER
-    ndbout_c("The setsockopt SO_SNDBUF error code = %d", InetErrno);
+    g_eventLogger.error("The setsockopt SO_SNDBUF error code = %d", InetErrno);
 #endif
   }//if
   
@@ -171,7 +174,7 @@ TCP_Transporter::setSocketOptions(){
   if (setsockopt(theSocket, IPPROTO_TCP, TCP_NODELAY, 
                  (char*)&sockOptNodelay, sizeof(sockOptNodelay)) < 0) {
 #ifdef DEBUG_TRANSPORTER
-    ndbout_c("The setsockopt TCP_NODELAY error code = %d", InetErrno);
+    g_eventLogger.error("The setsockopt TCP_NODELAY error code = %d", InetErrno);
 #endif
   }//if
 }
@@ -185,7 +188,7 @@ TCP_Transporter::setSocketNonBlocking(NDB_SOCKET_TYPE socket){
   if(ioctlsocket(socket, FIONBIO, &ul))
   {
 #ifdef DEBUG_TRANSPORTER
-    ndbout_c("Set non-blocking server error3: %d", InetErrno);
+    g_eventLogger.error("Set non-blocking server error3: %d", InetErrno);
 #endif
   }//if
   return true;
@@ -199,13 +202,13 @@ TCP_Transporter::setSocketNonBlocking(NDB_SOCKET_TYPE socket){
   flags = fcntl(socket, F_GETFL, 0);
   if (flags < 0) {
 #ifdef DEBUG_TRANSPORTER
-    ndbout_c("Set non-blocking server error1: %s", strerror(InetErrno));
+    g_eventLogger.error("Set non-blocking server error1: %s", strerror(InetErrno));
 #endif
   }//if
   flags |= NDB_NONBLOCK;
   if (fcntl(socket, F_SETFL, flags) == -1) {
 #ifdef DEBUG_TRANSPORTER
-    ndbout_c("Set non-blocking server error2: %s", strerror(InetErrno));
+    g_eventLogger.error("Set non-blocking server error2: %s", strerror(InetErrno));
 #endif
   }//if
   return true;
@@ -326,7 +329,7 @@ TCP_Transporter::doSend() {
     } else {
       // Send failed
 #if defined DEBUG_TRANSPORTER
-      ndbout_c("Send Failure(disconnect==%d) to node = %d nBytesSent = %d "
+      g_eventLogger.error("Send Failure(disconnect==%d) to node = %d nBytesSent = %d "
 	       "errno = %d strerror = %s",
 	       DISCONNECT_ERRNO(InetErrno, nBytesSent),
 	       remoteNodeId, nBytesSent, InetErrno, 
@@ -361,11 +364,11 @@ TCP_Transporter::doReceive() {
       
       if(receiveBuffer.sizeOfData > receiveBuffer.sizeOfBuffer){
 #ifdef DEBUG_TRANSPORTER
-	ndbout_c("receiveBuffer.sizeOfData(%d) > receiveBuffer.sizeOfBuffer(%d)",
+	g_eventLogger.error("receiveBuffer.sizeOfData(%d) > receiveBuffer.sizeOfBuffer(%d)",
 		 receiveBuffer.sizeOfData, receiveBuffer.sizeOfBuffer);
-	ndbout_c("nBytesRead = %d", nBytesRead);
+	g_eventLogger.error("nBytesRead = %d", nBytesRead);
 #endif
-	ndbout_c("receiveBuffer.sizeOfData(%d) > receiveBuffer.sizeOfBuffer(%d)",
+	g_eventLogger.error("receiveBuffer.sizeOfData(%d) > receiveBuffer.sizeOfBuffer(%d)",
 		 receiveBuffer.sizeOfData, receiveBuffer.sizeOfBuffer);
 	report_error(TE_INVALID_MESSAGE_LENGTH);
 	return 0;
@@ -382,7 +385,7 @@ TCP_Transporter::doReceive() {
       return nBytesRead;
     } else {
 #if defined DEBUG_TRANSPORTER
-      ndbout_c("Receive Failure(disconnect==%d) to node = %d nBytesSent = %d "
+      g_eventLogger.error("Receive Failure(disconnect==%d) to node = %d nBytesSent = %d "
 	       "errno = %d strerror = %s",
 	       DISCONNECT_ERRNO(InetErrno, nBytesRead),
 	       remoteNodeId, nBytesRead, InetErrno, 

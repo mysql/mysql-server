@@ -239,6 +239,7 @@ bool purge_error_message(THD* thd, int res)
   case LOG_INFO_MEM:	errmsg= ER_OUT_OF_RESOURCES; break;
   case LOG_INFO_FATAL:	errmsg= ER_BINLOG_PURGE_FATAL_ERR; break;
   case LOG_INFO_IN_USE: errmsg= ER_LOG_IN_USE; break;
+  case LOG_INFO_EMFILE: errmsg= ER_BINLOG_PURGE_EMFILE; break;
   default:		errmsg= ER_LOG_PURGE_UNKNOWN_ERR; break;
   }
 
