@@ -2456,8 +2456,8 @@ sub ndbcluster_start ($$) {
 
 sub rm_ndbcluster_tables ($) {
   my $dir=       shift;
-  foreach my $bin ( glob("$dir/mysql/apply_status*"),
-                    glob("$dir/mysql/schema*"))
+  foreach my $bin ( glob("$dir/mysql/ndb_apply_status*"),
+                    glob("$dir/mysql/ndb_schema*"))
   {
     unlink($bin);
   }
@@ -4127,12 +4127,12 @@ sub run_testcase_start_servers($) {
 	# tables ok FIXME This is a workaround so that only one mysqld
 	# create the tables
 	if ( ! sleep_until_file_created(
-		  "$master->[0]->{'path_myddir'}/mysql/apply_status.ndb",
+		  "$master->[0]->{'path_myddir'}/mysql/ndb_apply_status.ndb",
 					$master->[0]->{'start_timeout'},
 					$master->[0]->{'pid'}))
 	{
 
-	  $tinfo->{'comment'}= "Failed to create 'mysql/apply_status' table";
+	  $tinfo->{'comment'}= "Failed to create 'mysql/ndb_apply_status' table";
 	  return 1;
 	}
       }

@@ -33,7 +33,7 @@ create table t3(a int, KEY a_data (a));
 create table mysqltest.t4(a int);
 create table t5 (id int auto_increment primary key);
 insert into t5 values (10);
-create view v1 (c) as select table_name from information_schema.TABLES where table_name<>'binlog_index' AND table_name<>'apply_status';
+create view v1 (c) as select table_name from information_schema.TABLES where table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status';
 select * from v1;
 c
 CHARACTER_SETS
@@ -849,7 +849,7 @@ VIEWS	TABLE_NAME	select
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 flush privileges;
-SELECT table_schema, count(*) FROM information_schema.TABLES where table_name<>'binlog_index' AND table_name<>'apply_status' GROUP BY TABLE_SCHEMA;
+SELECT table_schema, count(*) FROM information_schema.TABLES where table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
 information_schema	27
 mysql	21

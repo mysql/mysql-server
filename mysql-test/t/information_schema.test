@@ -37,7 +37,7 @@ create table t3(a int, KEY a_data (a));
 create table mysqltest.t4(a int);
 create table t5 (id int auto_increment primary key);
 insert into t5 values (10);
-create view v1 (c) as select table_name from information_schema.TABLES where table_name<>'binlog_index' AND table_name<>'apply_status';
+create view v1 (c) as select table_name from information_schema.TABLES where table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status';
 select * from v1;
 
 select c,table_name from v1 
@@ -528,7 +528,7 @@ flush privileges;
 # Bug #9404  information_schema: Weird error messages
 # with SELECT SUM() ... GROUP BY queries
 #
-SELECT table_schema, count(*) FROM information_schema.TABLES where table_name<>'binlog_index' AND table_name<>'apply_status' GROUP BY TABLE_SCHEMA;
+SELECT table_schema, count(*) FROM information_schema.TABLES where table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
 
 
 #

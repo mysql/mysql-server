@@ -5,7 +5,6 @@ mysql
 test
 show tables in mysql;
 Tables_in_mysql
-binlog_index
 columns_priv
 db
 event
@@ -16,6 +15,7 @@ help_keyword
 help_relation
 help_topic
 host
+ndb_binlog_index
 plugin
 proc
 procs_priv
