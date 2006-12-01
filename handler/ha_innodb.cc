@@ -5537,16 +5537,10 @@ ha_innobase::info(
 		prebuilt->trx->op_info = (char*)
 					  "returning various info to MySQL";
 
-		if (ib_table->space != 0) {
-			my_snprintf(path, sizeof(path), "%s/%s%s",
-				mysql_data_home, ib_table->name, ".ibd");
-			unpack_filename(path,path);
-		} else {
-			my_snprintf(path, sizeof(path), "%s/%s%s",
+		my_snprintf(path, sizeof(path), "%s/%s%s",
 				mysql_data_home, ib_table->name, reg_ext);
 
-			unpack_filename(path,path);
-		}
+		unpack_filename(path,path);
 
 		/* Note that we do not know the access time of the table,
 		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
