@@ -91,6 +91,7 @@ Cmvmi::Cmvmi(const Configuration & conf) :
   addRecSignal(GSN_DUMP_STATE_ORD, &Cmvmi::execDUMP_STATE_ORD);
 
   addRecSignal(GSN_TESTSIG, &Cmvmi::execTESTSIG);
+  addRecSignal(GSN_NODE_START_REP, &Cmvmi::execNODE_START_REP, true);
   
   subscriberPool.setSize(5);
 
@@ -423,7 +424,8 @@ void Cmvmi::execOPEN_COMREQ(Signal* signal)
   if(len == 2){
 
 #ifdef ERROR_INSERT
-    if (! (ERROR_INSERTED(9000) && c_error_9000_nodes_mask.get(tStartingNode)))
+    if (! ((ERROR_INSERTED(9000) || ERROR_INSERTED(9002)) 
+	   && c_error_9000_nodes_mask.get(tStartingNode)))
 #endif
     {
       globalTransporterRegistry.do_connect(tStartingNode);
@@ -444,7 +446,8 @@ void Cmvmi::execOPEN_COMREQ(Signal* signal)
 	jam();
 
 #ifdef ERROR_INSERT
-	if (ERROR_INSERTED(9000) && c_error_9000_nodes_mask.get(i))
+	if ((ERROR_INSERTED(9000) || ERROR_INSERTED(9002))
+	    && c_error_9000_nodes_mask.get(i))
 	  continue;
 #endif
 	
@@ -1142,9 +1145,9 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
   }
 
 #ifdef ERROR_INSERT
-  if (arg == 9000)
+  if (arg == 9000 || arg == 9002)
   {
-    SET_ERROR_INSERT_VALUE(9000);
+    SET_ERROR_INSERT_VALUE(arg);
     for (Uint32 i = 1; i<signal->getLength(); i++)
       c_error_9000_nodes_mask.set(signal->theData[i]);
   }
@@ -1191,6 +1194,17 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 #endif
 }//Cmvmi::execDUMP_STATE_ORD()
 
+void
+Cmvmi::execNODE_START_REP(Signal* signal)
+{
+#ifdef ERROR_INSERT
+  if (ERROR_INSERTED(9002) && signal->theData[0] == getOwnNodeId())
+  {
+    signal->theData[0] = 9001;
+    execDUMP_STATE_ORD(signal);
+  }
+#endif
+}
 
 BLOCK_FUNCTIONS(Cmvmi)
 

@@ -269,7 +269,7 @@ Dbdih::Dbdih(const class Configuration & config):
 
   addRecSignal(GSN_DICT_LOCK_CONF, &Dbdih::execDICT_LOCK_CONF);
   addRecSignal(GSN_DICT_LOCK_REF, &Dbdih::execDICT_LOCK_REF);
-  addRecSignal(GSN_NODE_START_REP, &Dbdih::execNODE_START_REP);
+  addRecSignal(GSN_NODE_START_REP, &Dbdih::execNODE_START_REP, true);
   
   apiConnectRecord = 0;  
   connectRecord = 0;  

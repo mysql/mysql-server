@@ -23,6 +23,7 @@
 #include <Vector.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include <Bitmask.hpp>
+#include <RefConvert.hpp>
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
@@ -919,6 +920,41 @@ int runBug20185(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int runBug24717(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  NdbRestarter restarter;
+  Ndb* pNdb = GETNDB(step);
+  
+  HugoTransactions hugoTrans(*ctx->getTab());
+
+  int dump[] = { 9002, 0 } ;
+  Uint32 ownNode = refToNode(pNdb->getReference());
+  dump[1] = ownNode;
+
+  for (; loops; loops --)
+  {
+    int nodeId = restarter.getRandomNotMasterNodeId(rand());
+    restarter.restartOneDbNode(nodeId, false, true, true);
+    restarter.waitNodesNoStart(&nodeId, 1);
+    
+    if (restarter.dumpStateOneNode(nodeId, dump, 2))
+      return NDBT_FAILED;
+    
+    restarter.startNodes(&nodeId, 1);
+    
+    for (Uint32 i = 0; i < 100; i++)
+    {
+      hugoTrans.pkReadRecords(pNdb, 100, 1, NdbOperation::LM_CommittedRead);
+    }
+    
+    restarter.waitClusterStarted();
+  }
+  
+  return NDBT_OK;
+}
+
 
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
@@ -1231,6 +1267,9 @@ TESTCASE("Bug20185",
   INITIALIZER(runLoadTable);
   STEP(runBug20185);
   FINALIZER(runClearTable);
+}
+TESTCASE("Bug24717", ""){
+  INITIALIZER(runBug24717);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 
