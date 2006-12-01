@@ -361,7 +361,7 @@ void
 Ndb::releaseScanOperation(NdbIndexScanOperation* aScanOperation)
 {
   DBUG_ENTER("Ndb::releaseScanOperation");
-  DBUG_PRINT("enter", ("op: 0x%lx", (ulong) aScanOperation));
+  DBUG_PRINT("enter", ("op: 0x%lx", (long) aScanOperation));
 #ifdef ndb_release_check_dup
   { NdbIndexScanOperation* tOp = theScanOpIdleList;
     while (tOp != NULL) {

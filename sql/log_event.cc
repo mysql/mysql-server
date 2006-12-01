@@ -1162,11 +1162,11 @@ void Log_event::print_base64(IO_CACHE* file,
                              bool more)
 {
   const uchar *ptr= (const uchar *)temp_buf;
-  my_off_t size= uint4korr(ptr + EVENT_LEN_OFFSET);
+  uint32 size= uint4korr(ptr + EVENT_LEN_OFFSET);
 
   DBUG_ENTER("Log_event::print_base64");
 
-  size_t const tmp_str_sz= base64_needed_encoded_length(size);
+  size_t const tmp_str_sz= base64_needed_encoded_length((int) size);
   char *const tmp_str= (char *) my_malloc(tmp_str_sz, MYF(MY_WME));
   if (!tmp_str) {
     fprintf(stderr, "\nError: Out of memory. "
@@ -1174,7 +1174,7 @@ void Log_event::print_base64(IO_CACHE* file,
     DBUG_VOID_RETURN;
   }
 
-  int const res= base64_encode(ptr, size, tmp_str);
+  int const res= base64_encode(ptr, (size_t) size, tmp_str);
   DBUG_ASSERT(res == 0);
 
   if (my_b_tell(file) == 0)
@@ -5360,7 +5360,7 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
   }
   else
   {
-    m_table_id= uint6korr(post_start);
+    m_table_id= (ulong) uint6korr(post_start);
     post_start+= RW_FLAGS_OFFSET;
   }
 
@@ -6098,7 +6098,7 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
   else
   {
     DBUG_ASSERT(post_header_len == TABLE_MAP_HEADER_LEN);
-    m_table_id= uint6korr(post_start);
+    m_table_id= (ulong) uint6korr(post_start);
     post_start+= TM_FLAGS_OFFSET;
   }
 

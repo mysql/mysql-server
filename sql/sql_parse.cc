@@ -2093,7 +2093,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifdef __WIN__
     sleep(1);					// must wait after eof()
 #endif
-    send_eof(thd);				// This is for 'quit request'
+    /*
+      The client is next going to send a COM_QUIT request (as part of
+      mysql_close()). Make the life simpler for the client by sending
+      the response for the coming COM_QUIT in advance
+    */
+    send_eof(thd);
     close_connection(thd, 0, 1);
     close_thread_tables(thd);			// Free before kill
     kill_mysql();
@@ -5191,7 +5196,6 @@ end_with_restore_list:
     break;
   }
 
-end:
   thd->proc_info="query end";
 
   /*

@@ -2149,7 +2149,7 @@ continue_xml:
     write_footer(sql_file);
     my_fclose(sql_file, MYF(MY_WME));
   }
-  DBUG_RETURN(num_fields);
+  DBUG_RETURN((uint) num_fields);
 } /* get_table_structure */
 
 

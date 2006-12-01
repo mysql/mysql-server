@@ -777,7 +777,7 @@ String *Item_nodeset_func_elementbyindex::val_nodeset(String *nodeset)
     ((XPathFilter*)(&nodeset_func->context_cache))->append_element(flt->num,
                                                                    flt->pos,
                                                                    size);
-    int index= args[1]->val_int() - 1;
+    int index= (int) (args[1]->val_int()) - 1;
     if (index >= 0 && (flt->pos == (uint) index || args[1]->is_bool_func()))
       ((XPathFilter*)nodeset)->append_element(flt->num, pos++);
   }
