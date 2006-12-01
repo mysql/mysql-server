@@ -1724,7 +1724,14 @@ public:
   virtual bool initialize_tables (JOIN *join=0) { return 0; }
   virtual void send_error(uint errcode,const char *err);
   virtual bool send_eof()=0;
-  virtual bool simple_select() { return 0; }
+  /**
+    Check if this query returns a result set and therefore is allowed in
+    cursors and set an error message if it is not the case.
+
+    @retval FALSE     success
+    @retval TRUE      error, an error message is set
+  */
+  virtual bool check_simple_select() const;
   virtual void abort() {}
   /*
     Cleanup instance of this class for next execution of a prepared
@@ -1762,7 +1769,7 @@ public:
   bool send_fields(List<Item> &list, uint flags);
   bool send_data(List<Item> &items);
   bool send_eof();
-  bool simple_select() { return 1; }
+  virtual bool check_simple_select() const { return FALSE; }
   void abort();
 };
 
@@ -2202,6 +2209,7 @@ public:
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
   bool send_eof();
+  virtual bool check_simple_select() const;
   void cleanup();
 };
 
