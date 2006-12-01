@@ -2052,42 +2052,6 @@ const ParamInfo ParamInfoArray[] = {
     "true" },
 
   {
-    CFG_OSE_PRIO_A_SIZE,
-    "PrioASignalSize",
-    "OSE",
-    "Size of priority A signals (in bytes)",
-    CI_USED,
-    false,
-    CI_INT,
-    "1000",
-    "0",
-    STR_VALUE(MAX_INT_RNIL) },
-
-  {
-    CFG_OSE_PRIO_B_SIZE,
-    "PrioBSignalSize",
-    "OSE",
-    "Size of priority B signals (in bytes)",
-    CI_USED,
-    false,
-    CI_INT,
-    "1000",
-    "0",
-    STR_VALUE(MAX_INT_RNIL) },
-  
-  {
-    CFG_OSE_RECEIVE_ARRAY_SIZE,
-    "ReceiveArraySize",
-    "OSE",
-    "Number of OSE signals checked for correct ordering (in no of OSE signals)",
-    CI_USED,
-    false,
-    CI_INT,
-    "10",
-    "0",
-    STR_VALUE(MAX_INT_RNIL) },
-
-  {
     CFG_CONNECTION_NODE_1_SYSTEM,
     "NodeId1_System",
     "OSE",
