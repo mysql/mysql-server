@@ -584,7 +584,7 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
       We mark first TIMESTAMP field with NOW() in DEFAULT or ON UPDATE 
       as auto-update field.
     */
-    if (field->sql_type == FIELD_TYPE_TIMESTAMP &&
+    if (field->sql_type == MYSQL_TYPE_TIMESTAMP &&
         MTYP_TYPENR(field->unireg_check) != Field::NONE &&
 	!time_stamp_pos)
       time_stamp_pos= (uint) field->offset+ (uint) data_offset + 1;
@@ -743,7 +743,7 @@ static bool pack_fields(File file, List<create_field> &create_fields,
     int2store(buff+10,field->unireg_check);
     buff[12]= (uchar) field->interval_id;
     buff[13]= (uchar) field->sql_type; 
-    if (field->sql_type == FIELD_TYPE_GEOMETRY)
+    if (field->sql_type == MYSQL_TYPE_GEOMETRY)
     {
       buff[14]= (uchar) field->geom_type;
 #ifndef HAVE_SPATIAL
@@ -906,13 +906,13 @@ static bool make_empty_rec(THD *thd, File file,enum legacy_db_type table_type,
       null_count++;
     }
 
-    if (field->sql_type == FIELD_TYPE_BIT && !f_bit_as_char(field->pack_flag))
+    if (field->sql_type == MYSQL_TYPE_BIT && !f_bit_as_char(field->pack_flag))
       null_count+= field->length & 7;
 
     type= (Field::utype) MTYP_TYPENR(field->unireg_check);
 
     if (field->def &&
-	(regfield->real_type() != FIELD_TYPE_YEAR ||
+	(regfield->real_type() != MYSQL_TYPE_YEAR ||
 	 field->def->val_int() != 0))
     {
       if (field->def->save_in_field(regfield, 1))
@@ -923,7 +923,7 @@ static bool make_empty_rec(THD *thd, File file,enum legacy_db_type table_type,
         goto err;
       }
     }
-    else if (regfield->real_type() == FIELD_TYPE_ENUM &&
+    else if (regfield->real_type() == MYSQL_TYPE_ENUM &&
 	     (field->flags & NOT_NULL_FLAG))
     {
       regfield->set_notnull();

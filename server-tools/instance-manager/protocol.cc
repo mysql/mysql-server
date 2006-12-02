@@ -194,7 +194,7 @@ int send_fields(struct st_net *net, LIST *fields)
     int2store(send_buff.buffer + position, 1);          /* charsetnr */
     int4store(send_buff.buffer + position + 2,
               field->length);                           /* field length */
-    send_buff.buffer[position+6]= (char) FIELD_TYPE_STRING;    /* type */
+    send_buff.buffer[position+6]= (char) MYSQL_TYPE_STRING;    /* type */
     int2store(send_buff.buffer + position + 7, 0);      /* flags */
     send_buff.buffer[position + 9]= (char) 0;           /* decimals */
     send_buff.buffer[position + 10]= 0;

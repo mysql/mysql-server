@@ -518,7 +518,7 @@ public:
                 unireg_check_arg, field_name_arg,
                 dec_arg, zero_arg, unsigned_arg)
     {}
-  enum_field_types type() const { return FIELD_TYPE_DECIMAL;}
+  enum_field_types type() const { return MYSQL_TYPE_DECIMAL;}
   enum ha_base_keytype key_type() const
   { return zerofill ? HA_KEYTYPE_BINARY : HA_KEYTYPE_NUM; }
   void reset(void);
@@ -556,7 +556,7 @@ public:
   Field_new_decimal(uint32 len_arg, bool maybe_null_arg,
                     const char *field_name_arg, uint8 dec_arg,
                     bool unsigned_arg);
-  enum_field_types type() const { return FIELD_TYPE_NEWDECIMAL;}
+  enum_field_types type() const { return MYSQL_TYPE_NEWDECIMAL;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BINARY; }
   Item_result result_type () const { return DECIMAL_RESULT; }
   void reset(void);
@@ -593,7 +593,7 @@ public:
 	       0, zero_arg,unsigned_arg)
     {}
   enum Item_result result_type () const { return INT_RESULT; }
-  enum_field_types type() const { return FIELD_TYPE_TINY;}
+  enum_field_types type() const { return MYSQL_TYPE_TINY;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_BINARY : HA_KEYTYPE_INT8; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
@@ -628,7 +628,7 @@ public:
 	       NONE, field_name_arg, 0, 0, unsigned_arg)
     {}
   enum Item_result result_type () const { return INT_RESULT; }
-  enum_field_types type() const { return FIELD_TYPE_SHORT;}
+  enum_field_types type() const { return MYSQL_TYPE_SHORT;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_USHORT_INT : HA_KEYTYPE_SHORT_INT;}
   int  store(const char *to,uint length,CHARSET_INFO *charset);
@@ -658,7 +658,7 @@ public:
 	       0, zero_arg,unsigned_arg)
     {}
   enum Item_result result_type () const { return INT_RESULT; }
-  enum_field_types type() const { return FIELD_TYPE_INT24;}
+  enum_field_types type() const { return MYSQL_TYPE_INT24;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_UINT24 : HA_KEYTYPE_INT24; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
@@ -693,7 +693,7 @@ public:
 	       NONE, field_name_arg,0,0,unsigned_arg)
     {}
   enum Item_result result_type () const { return INT_RESULT; }
-  enum_field_types type() const { return FIELD_TYPE_LONG;}
+  enum_field_types type() const { return MYSQL_TYPE_LONG;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_ULONG_INT : HA_KEYTYPE_LONG_INT; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
@@ -730,7 +730,7 @@ public:
 	       NONE, field_name_arg,0,0,unsigned_arg)
     {}
   enum Item_result result_type () const { return INT_RESULT; }
-  enum_field_types type() const { return FIELD_TYPE_LONGLONG;}
+  enum_field_types type() const { return MYSQL_TYPE_LONGLONG;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_ULONGLONG : HA_KEYTYPE_LONGLONG; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
@@ -766,7 +766,7 @@ public:
     :Field_real((char*) 0, len_arg, maybe_null_arg ? (uchar*) "": 0, (uint) 0,
                 NONE, field_name_arg, dec_arg, 0, 0)
     {}
-  enum_field_types type() const { return FIELD_TYPE_FLOAT;}
+  enum_field_types type() const { return MYSQL_TYPE_FLOAT;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_FLOAT; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
@@ -799,7 +799,7 @@ public:
     :Field_real((char*) 0, len_arg, maybe_null_arg ? (uchar*) "": 0, (uint) 0,
                 NONE, field_name_arg, dec_arg, 0, 0)
     {}
-  enum_field_types type() const { return FIELD_TYPE_DOUBLE;}
+  enum_field_types type() const { return MYSQL_TYPE_DOUBLE;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_DOUBLE; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
@@ -828,7 +828,7 @@ public:
     :Field_str(ptr_arg, len_arg, null, 1,
 	       unireg_check_arg, field_name_arg, cs)
     {}
-  enum_field_types type() const { return FIELD_TYPE_NULL;}
+  enum_field_types type() const { return MYSQL_TYPE_NULL;}
   int  store(const char *to, uint length, CHARSET_INFO *cs)
   { null[0]=1; return 0; }
   int  store(double nr)   { null[0]=1; return 0; }
@@ -857,7 +857,7 @@ public:
 		  TABLE_SHARE *share, CHARSET_INFO *cs);
   Field_timestamp(bool maybe_null_arg, const char *field_name_arg,
 		  CHARSET_INFO *cs);
-  enum_field_types type() const { return FIELD_TYPE_TIMESTAMP;}
+  enum_field_types type() const { return MYSQL_TYPE_TIMESTAMP;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONG_INT; }
   enum Item_result cmp_type () const { return INT_RESULT; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
@@ -910,7 +910,7 @@ public:
     :Field_tiny(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
 		unireg_check_arg, field_name_arg, 1, 1)
     {}
-  enum_field_types type() const { return FIELD_TYPE_YEAR;}
+  enum_field_types type() const { return MYSQL_TYPE_YEAR;}
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
@@ -935,7 +935,7 @@ public:
              CHARSET_INFO *cs)
     :Field_str((char*) 0,10, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg, cs) {}
-  enum_field_types type() const { return FIELD_TYPE_DATE;}
+  enum_field_types type() const { return MYSQL_TYPE_DATE;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONG_INT; }
   enum Item_result cmp_type () const { return INT_RESULT; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
@@ -963,8 +963,8 @@ public:
     :Field_str(ptr_arg, 10, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, cs)
     {}
-  enum_field_types type() const { return FIELD_TYPE_DATE;}
-  enum_field_types real_type() const { return FIELD_TYPE_NEWDATE; }
+  enum_field_types type() const { return MYSQL_TYPE_DATE;}
+  enum_field_types real_type() const { return MYSQL_TYPE_NEWDATE; }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_UINT24; }
   enum Item_result cmp_type () const { return INT_RESULT; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
@@ -999,7 +999,7 @@ public:
              CHARSET_INFO *cs)
     :Field_str((char*) 0,8, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg, cs) {}
-  enum_field_types type() const { return FIELD_TYPE_TIME;}
+  enum_field_types type() const { return MYSQL_TYPE_TIME;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_INT24; }
   enum Item_result cmp_type () const { return INT_RESULT; }
   int store_time(TIME *ltime, timestamp_type type);
@@ -1034,7 +1034,7 @@ public:
 		 CHARSET_INFO *cs)
     :Field_str((char*) 0,19, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg, cs) {}
-  enum_field_types type() const { return FIELD_TYPE_DATETIME;}
+  enum_field_types type() const { return MYSQL_TYPE_DATETIME;}
 #ifdef HAVE_LONG_LONG
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONGLONG; }
 #endif
@@ -1106,7 +1106,7 @@ public:
   uint packed_col_length(const char *to, uint length);
   uint max_packed_col_length(uint max_length);
   uint size_of() const { return sizeof(*this); }
-  enum_field_types real_type() const { return FIELD_TYPE_STRING; }
+  enum_field_types real_type() const { return MYSQL_TYPE_STRING; }
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
   Field *new_field(MEM_ROOT *root, struct st_table *new_table, bool keep_type);
@@ -1223,7 +1223,7 @@ public:
                   char_length <= 16777215 ? 3 : 4;
     }
   }
-  enum_field_types type() const { return FIELD_TYPE_BLOB;}
+  enum_field_types type() const { return MYSQL_TYPE_BLOB;}
   enum ha_base_keytype key_type() const
     { return binary() ? HA_KEYTYPE_VARBINARY2 : HA_KEYTYPE_VARTEXT2; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
@@ -1325,7 +1325,7 @@ public:
     :Field_blob(len_arg, maybe_null_arg, field_name_arg, &my_charset_bin)
   { geom_type= geom_type_arg; }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_VARBINARY2; }
-  enum_field_types type() const { return FIELD_TYPE_GEOMETRY; }
+  enum_field_types type() const { return MYSQL_TYPE_GEOMETRY; }
   void sql_type(String &str) const;
   int  store(const char *to, uint length, CHARSET_INFO *charset);
   int  store(double nr);
@@ -1354,7 +1354,7 @@ public:
   {
       flags|=ENUM_FLAG;
   }
-  enum_field_types type() const { return FIELD_TYPE_STRING; }
+  enum_field_types type() const { return MYSQL_TYPE_STRING; }
   enum Item_result cmp_type () const { return INT_RESULT; }
   enum Item_result cast_to_int_type () const { return INT_RESULT; }
   enum ha_base_keytype key_type() const;
@@ -1371,7 +1371,7 @@ public:
   void store_type(ulonglong value);
   void sql_type(String &str) const;
   uint size_of() const { return sizeof(*this); }
-  enum_field_types real_type() const { return FIELD_TYPE_ENUM; }
+  enum_field_types real_type() const { return MYSQL_TYPE_ENUM; }
   virtual bool zero_pack() const { return 0; }
   bool optimize_range(uint idx, uint part) { return 0; }
   bool eq_def(Field *field);
@@ -1401,7 +1401,7 @@ public:
   virtual bool zero_pack() const { return 1; }
   String *val_str(String*,String *);
   void sql_type(String &str) const;
-  enum_field_types real_type() const { return FIELD_TYPE_SET; }
+  enum_field_types real_type() const { return MYSQL_TYPE_SET; }
   bool has_charset(void) const { return TRUE; }
 };
 
@@ -1429,7 +1429,7 @@ public:
   Field_bit(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
             uchar null_bit_arg, uchar *bit_ptr_arg, uchar bit_ofs_arg,
             enum utype unireg_check_arg, const char *field_name_arg);
-  enum_field_types type() const { return FIELD_TYPE_BIT; }
+  enum_field_types type() const { return MYSQL_TYPE_BIT; }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BIT; }
   uint32 key_length() const { return (uint32) (field_length + 7) / 8; }
   uint32 max_length() { return field_length; }

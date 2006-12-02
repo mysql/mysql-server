@@ -11001,7 +11001,7 @@ static void test_view()
 
   strmov(str_data, "TEST");
   bzero((char*) bind, sizeof(bind));
-  bind[0].buffer_type= FIELD_TYPE_STRING;
+  bind[0].buffer_type= MYSQL_TYPE_STRING;
   bind[0].buffer= (char *)&str_data;
   bind[0].buffer_length= 50;
   bind[0].length= &length;
@@ -11239,7 +11239,7 @@ static void test_view_insert()
   check_execute(select_stmt, rc);
 
   bzero((char*) bind, sizeof(bind));
-  bind[0].buffer_type = FIELD_TYPE_LONG;
+  bind[0].buffer_type = MYSQL_TYPE_LONG;
   bind[0].buffer = (char *)&my_val;
   bind[0].length = &my_length;
   bind[0].is_null = (char*)&my_null;

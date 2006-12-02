@@ -6209,7 +6209,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     */
     if (default_value->type() == Item::FUNC_ITEM && 
         !(((Item_func*)default_value)->functype() == Item_func::NOW_FUNC &&
-         type == FIELD_TYPE_TIMESTAMP))
+         type == MYSQL_TYPE_TIMESTAMP))
     {
       my_error(ER_INVALID_DEFAULT, MYF(0), field_name);
       DBUG_RETURN(1);
@@ -6231,13 +6231,13 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     }
   }
 
-  if (on_update_value && type != FIELD_TYPE_TIMESTAMP)
+  if (on_update_value && type != MYSQL_TYPE_TIMESTAMP)
   {
     my_error(ER_INVALID_ON_UPDATE, MYF(0), field_name);
     DBUG_RETURN(1);
   }
 
-  if (type == FIELD_TYPE_TIMESTAMP && length)
+  if (type == MYSQL_TYPE_TIMESTAMP && length)
   {
     /* Display widths are no longer supported for TIMSTAMP as of MySQL 4.1.
        In other words, for declarations such as TIMESTAMP(2), TIMESTAMP(4),

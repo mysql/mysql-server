@@ -4100,11 +4100,11 @@ void Item::make_field(Send_field *tmp_field)
 
 enum_field_types Item::string_field_type() const
 {
-  enum_field_types type= FIELD_TYPE_VAR_STRING;
+  enum_field_types type= MYSQL_TYPE_VAR_STRING;
   if (max_length >= 16777216)
-    type= FIELD_TYPE_LONG_BLOB;
+    type= MYSQL_TYPE_LONG_BLOB;
   else if (max_length >= 65536)
-    type= FIELD_TYPE_MEDIUM_BLOB;
+    type= MYSQL_TYPE_MEDIUM_BLOB;
   return type;
 }
 
@@ -4119,9 +4119,9 @@ enum_field_types Item::field_type() const
 {
   switch (result_type()) {
   case STRING_RESULT:  return string_field_type();
-  case INT_RESULT:     return FIELD_TYPE_LONGLONG;
-  case DECIMAL_RESULT: return FIELD_TYPE_NEWDECIMAL;
-  case REAL_RESULT:    return FIELD_TYPE_DOUBLE;
+  case INT_RESULT:     return MYSQL_TYPE_LONGLONG;
+  case DECIMAL_RESULT: return MYSQL_TYPE_NEWDECIMAL;
+  case REAL_RESULT:    return MYSQL_TYPE_DOUBLE;
   case ROW_RESULT:
   default:
     DBUG_ASSERT(0);
