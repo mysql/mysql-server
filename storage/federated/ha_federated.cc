@@ -381,8 +381,8 @@ static handler *federated_create_handler(handlerton *hton,
 static byte *federated_get_key(FEDERATED_SHARE *share, uint *length,
                                my_bool not_used __attribute__ ((unused)))
 {
-  *length= share->connect_string_length;
-  return (byte*) share->scheme;
+  *length= share->share_key_length;
+  return (byte*) share->share_key;
 }
 
 /*
@@ -549,18 +549,88 @@ static int parse_url_error(FEDERATED_SHARE *share, TABLE *table, int error_num)
   int buf_len;
   DBUG_ENTER("ha_federated parse_url_error");
 
-  if (share->scheme)
+  if (share->connection_string)
   {
     DBUG_PRINT("info",
-               ("error: parse_url. Returning error code %d freeing share->scheme 0x%lx",
-                error_num, (long) share->scheme));
-    my_free((gptr) share->scheme, MYF(0));
-    share->scheme= 0;
+               ("error: parse_url. Returning error code %d \
+                freeing share->connection_string %lx",
+                error_num, share->connection_string));
+    my_free((gptr) share->connection_string, MYF(0));
+    share->connection_string= 0;
   }
   buf_len= min(table->s->connect_string.length,
                FEDERATED_QUERY_BUFFER_SIZE-1);
   strmake(buf, table->s->connect_string.str, buf_len);
   my_error(error_num, MYF(0), buf);
+  DBUG_RETURN(error_num);
+}
+/*
+  retrieve server object which contains server meta-data 
+  from the system table given a server's name, set share
+  connection parameter members
+*/
+int get_connection(FEDERATED_SHARE *share)
+{
+  int error_num= ER_FOREIGN_SERVER_DOESNT_EXIST;
+  char error_buffer[FEDERATED_QUERY_BUFFER_SIZE];
+  FOREIGN_SERVER *server;
+  MYSQL *mysql_conn;
+  MYSQL_RES *result= 0;
+  MYSQL_ROW row;
+  DBUG_ENTER("ha_federated::get_connection");
+
+  if (!(server=
+       get_server_by_name(share->connection_string)))
+  {
+    DBUG_PRINT("info", ("get_server_by_name returned > 0 error condition!"));
+    /* need to come up with error handling */
+    error_num=1;
+    goto error;
+  }
+  DBUG_PRINT("info", ("get_server_by_name returned server at %lx", server));
+
+  /*
+    Most of these should never be empty strings, error handling will
+    need to be implemented. Also, is this the best way to set the share
+    members? Is there some allocation needed? In running this code, it works
+    except there are errors in the trace file of the share being overrun 
+    at the address of the share.
+  */
+  if (server->server_name)
+    share->server_name= server->server_name;
+  share->server_name_length= server->server_name_length ?
+    server->server_name_length : 0;
+  if (server->username)
+    share->username= server->username;
+  if (server->password)
+    share->password= server->password;
+  if (server->db)
+    share->database= server->db;
+  if (server->sport)
+    share->sport= server->sport;
+  share->port= server->port ? server->port : 0;
+  if (server->host)
+    share->hostname= server->host;
+  if (server->socket)
+    share->socket= server->socket;
+  if (server->scheme)
+    share->scheme= server->scheme;
+  else
+    share->scheme= NULL;
+
+  DBUG_PRINT("info", ("share->username %s", share->username));
+  DBUG_PRINT("info", ("share->password %s", share->password));
+  DBUG_PRINT("info", ("share->hostname %s", share->hostname));
+  DBUG_PRINT("info", ("share->database %s", share->database));
+  DBUG_PRINT("info", ("share->port %d", share->port));
+  DBUG_PRINT("info", ("share->socket %d", share->socket));
+  DBUG_RETURN(0);
+
+error:
+  my_sprintf(error_buffer,
+             (error_buffer, "server name: '%s' doesn't exist!",
+              share->connection_string));
+  my_error(error_num, MYF(0), error_buffer);
   DBUG_RETURN(error_num);
 }
 
@@ -576,22 +646,39 @@ static int parse_url_error(FEDERATED_SHARE *share, TABLE *table, int error_num)
   DESCRIPTION
     Populates the share with information about the connection
     to the foreign database that will serve as the data source.
-    This string must be specified (currently) in the "comment" field,
+    This string must be specified (currently) in the "CONNECTION" field,
     listed in the CREATE TABLE statement.
 
     This string MUST be in the format of any of these:
 
-    scheme://username:password@hostname:port/database/table
-    scheme://username@hostname/database/table
-    scheme://username@hostname:port/database/table
-    scheme://username:password@hostname/database/table
+    CONNECTION="scheme://username:password@hostname:port/database/table"
+    CONNECTION="scheme://username@hostname/database/table"
+    CONNECTION="scheme://username@hostname:port/database/table"
+    CONNECTION="scheme://username:password@hostname/database/table"
+
+    _OR_
+
+    CONNECTION="connection name"
+
+    
 
   An Example:
 
-  mysql://joe:joespass@192.168.1.111:9308/federated/testtable
+  CREATE TABLE t1 (id int(32))
+    ENGINE="FEDERATED"
+    CONNECTION="mysql://joe:joespass@192.168.1.111:9308/federated/testtable";
+
+  CREATE TABLE t2 (
+    id int(4) NOT NULL auto_increment,
+    name varchar(32) NOT NULL,
+    PRIMARY KEY(id)
+    ) ENGINE="FEDERATED" CONNECTION="my_conn";
 
   ***IMPORTANT***
-  Currently, only "mysql://" is supported.
+  Currently, the Federated Storage Engine only supports connecting to another
+  MySQL Database ("scheme" of "mysql"). Connections using JDBC as well as 
+  other connectors are in the planning stage.
+  
 
   'password' and 'port' are both optional.
 
@@ -611,87 +698,124 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
 
   share->port= 0;
   share->socket= 0;
+  DBUG_PRINT("info", ("share at %lx", share));
   DBUG_PRINT("info", ("Length: %d", table->s->connect_string.length));
-  DBUG_PRINT("info", ("String: '%.*s'", table->s->connect_string.length, 
+  DBUG_PRINT("info", ("String: '%.*s'", table->s->connect_string.length,
                       table->s->connect_string.str));
-  share->scheme= my_strndup(table->s->connect_string.str,
-                            table->s->connect_string.length,
-                            MYF(0));
+  share->connection_string= my_strndup((const byte*)table->s->
+                                       connect_string.str, 
+                                       table->s->connect_string.length,
+                                       MYF(0));
 
-  share->connect_string_length= table->s->connect_string.length;
-  DBUG_PRINT("info",("parse_url alloced share->scheme 0x%lx", (long) share->scheme));
+  // Add a null for later termination of table name
+  share->connection_string[table->s->connect_string.length]= 0;
+  DBUG_PRINT("info",("parse_url alloced share->scheme %lx",
+                     share->connection_string));
 
-  /*
-    remove addition of null terminator and store length
-    for each string  in share
-  */
-  if (!(share->username= strstr(share->scheme, "://")))
-    goto error;
-  share->scheme[share->username - share->scheme]= '\0';
-
-  if (strcmp(share->scheme, "mysql") != 0)
-    goto error;
-
-  share->username+= 3;
-
-  if (!(share->hostname= strchr(share->username, '@')))
-    goto error;
-    
-  share->username[share->hostname - share->username]= '\0';
-  share->hostname++;
-
-  if ((share->password= strchr(share->username, ':')))
+  DBUG_PRINT("info",("share->connection_string %s",share->connection_string));
+  /* No delimiters, must be a straight connection name */
+  if ( (!strchr(share->connection_string, '/')) &&
+       (!strchr(share->connection_string, '@')) &&
+       (!strchr(share->connection_string, ';')))
   {
-    share->username[share->password - share->username]= '\0';
-    share->password++;
-    share->username= share->username;
-    /* make sure there isn't an extra / or @ */
-    if ((strchr(share->password, '/') || strchr(share->hostname, '@')))
+
+    DBUG_PRINT("info",
+               ("share->connection_string %s internal format \
+                share->connection_string",
+                share->connection_string, share->connection_string));
+
+    share->parsed= FALSE;
+    if ((error_num= get_connection(share)))
       goto error;
+
     /*
-      Found that if the string is:
-      user:@hostname:port/database/table
-      Then password is a null string, so set to NULL
+      connection specifies everything but, resort to
+      expecting remote and foreign table names to match
     */
-    if ((share->password[0] == '\0'))
-      share->password= NULL;
+    share->table_name= table->s->table_name.str;
+    share->table_name_length= table->s->table_name.length;
+    share->table_name[share->table_name_length]= '\0';
   }
   else
-    share->username= share->username;
-
-  /* make sure there isn't an extra / or @ */
-  if ((strchr(share->username, '/')) || (strchr(share->hostname, '@')))
-    goto error;
-
-  if (!(share->database= strchr(share->hostname, '/')))
-    goto error;
-  share->hostname[share->database - share->hostname]= '\0';
-  share->database++;
-
-  if ((share->sport= strchr(share->hostname, ':')))
   {
-    share->hostname[share->sport - share->hostname]= '\0';
-    share->sport++;
-    if (share->sport[0] == '\0')
-      share->sport= NULL;
+    share->parsed= TRUE;
+    // Add a null for later termination of table name
+    share->connection_string[table->s->connect_string.length]= 0;
+    share->scheme= share->connection_string;
+    DBUG_PRINT("info",("parse_url alloced share->scheme %lx", share->scheme));
+
+    /*
+      remove addition of null terminator and store length
+      for each string  in share
+    */
+    if (!(share->username= strstr(share->scheme, "://")))
+      goto error;
+    share->scheme[share->username - share->scheme]= '\0';
+
+    if (strcmp(share->scheme, "mysql") != 0)
+      goto error;
+
+    share->username+= 3;
+
+    if (!(share->hostname= strchr(share->username, '@')))
+      goto error;
+
+    share->username[share->hostname - share->username]= '\0';
+    share->hostname++;
+
+    if ((share->password= strchr(share->username, ':')))
+    {
+      share->username[share->password - share->username]= '\0';
+      share->password++;
+      share->username= share->username;
+      /* make sure there isn't an extra / or @ */
+      if ((strchr(share->password, '/') || strchr(share->hostname, '@')))
+        goto error;
+      /*
+        Found that if the string is:
+user:@hostname:port/db/table
+Then password is a null string, so set to NULL
+    */
+      if ((share->password[0] == '\0'))
+        share->password= NULL;
+    }
     else
-      share->port= atoi(share->sport);
+      share->username= share->username;
+
+    /* make sure there isn't an extra / or @ */
+    if ((strchr(share->username, '/')) || (strchr(share->hostname, '@')))
+      goto error;
+
+    if (!(share->database= strchr(share->hostname, '/')))
+      goto error;
+    share->hostname[share->database - share->hostname]= '\0';
+    share->database++;
+
+    if ((share->sport= strchr(share->hostname, ':')))
+    {
+      share->hostname[share->sport - share->hostname]= '\0';
+      share->sport++;
+      if (share->sport[0] == '\0')
+        share->sport= NULL;
+      else
+        share->port= atoi(share->sport);
+    }
+
+    if (!(share->table_name= strchr(share->database, '/')))
+      goto error;
+    share->database[share->table_name - share->database]= '\0';
+    share->table_name++;
+
+    share->table_name_length= strlen(share->table_name);
+
+    /* make sure there's not an extra / */
+    if ((strchr(share->table_name, '/')))
+      goto error;
+
+    if (share->hostname[0] == '\0')
+      share->hostname= NULL;
+
   }
-
-  if (!(share->table_name= strchr(share->database, '/')))
-    goto error;
-  share->database[share->table_name - share->database]= '\0';
-  share->table_name++;
-
-  share->table_name_length= strlen(share->table_name);
- 
-  /* make sure there's not an extra / */
-  if ((strchr(share->table_name, '/')))
-    goto error;
-
-  if (share->hostname[0] == '\0')
-    share->hostname= NULL;
-
   if (!share->port)
   {
     if (strcmp(share->hostname, my_localhost) == 0)
@@ -702,7 +826,7 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
 
   DBUG_PRINT("info",
              ("scheme: %s  username: %s  password: %s \
-               hostname: %s  port: %d  database: %s  tablename: %s",
+               hostname: %s  port: %d  db: %s  tablename: %s",
               share->scheme, share->username, share->password,
               share->hostname, share->port, share->database,
               share->table_name));
@@ -712,7 +836,6 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
 error:
   DBUG_RETURN(parse_url_error(share, table, error_num));
 }
-
 
 /*****************************************************************************
 ** FEDERATED tables
@@ -1313,14 +1436,16 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
 
   pthread_mutex_lock(&federated_mutex);
 
+  tmp_share.share_key= table_name;
+  tmp_share.share_key_length= strlen(table_name);
   if (parse_url(&tmp_share, table, 0))
     goto error;
 
   /* TODO: change tmp_share.scheme to LEX_STRING object */
   if (!(share= (FEDERATED_SHARE *) hash_search(&federated_open_tables,
-                                               (byte*) tmp_share.scheme,
+                                               (byte*) tmp_share.share_key,
                                                tmp_share.
-                                               connect_string_length)))
+                                               share_key_length)))
   {
     query.set_charset(system_charset_info);
     query.append(STRING_WITH_LEN("SELECT "));
@@ -1387,8 +1512,13 @@ static int free_share(FEDERATED_SHARE *share)
   if (!--share->use_count)
   {
     hash_delete(&federated_open_tables, (byte*) share);
-    my_free((gptr) share->scheme, MYF(MY_ALLOW_ZERO_PTR));
-    my_free((gptr) share->socket, MYF(MY_ALLOW_ZERO_PTR));
+    if (share->parsed)
+      my_free((gptr) share->socket, MYF(MY_ALLOW_ZERO_PTR));
+    if (share->connection_string)
+    {
+      my_free((gptr) share->connection_string, MYF(MY_ALLOW_ZERO_PTR));
+      share->connection_string= 0;
+    }
     thr_lock_delete(&share->lock);
     VOID(pthread_mutex_destroy(&share->mutex));
     my_free((gptr) share, MYF(0));
@@ -2697,7 +2827,7 @@ int ha_federated::create(const char *name, TABLE *table_arg,
   if (!(retval= parse_url(&tmp_share, table_arg, 1)))
     retval= check_foreign_data_source(&tmp_share, 1);
 
-  my_free((gptr) tmp_share.scheme, MYF(MY_ALLOW_ZERO_PTR));
+  //my_free((gptr) tmp_share.connection_string, MYF(MY_ALLOW_ZERO_PTR));
   DBUG_RETURN(retval);
 
 }

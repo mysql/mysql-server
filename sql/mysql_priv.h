@@ -624,6 +624,7 @@ Item *negate_expression(THD *thd, Item *expr);
 #include "sql_acl.h"
 #include "tztime.h"
 #ifdef MYSQL_SERVER
+#include "sql_servers.h"
 #include "opt_range.h"
 
 #ifdef HAVE_QUERY_CACHE
