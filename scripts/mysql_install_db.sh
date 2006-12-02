@@ -33,6 +33,7 @@ parse_arguments() {
     case "$arg" in
       --force) force=1 ;;
       --basedir=*) basedir=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      --srcdir=*)  srcdir=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --ldata=*|--datadir=*) ldata=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --user=*)
         # Note that the user will be passed to mysqld so that it runs
@@ -78,6 +79,7 @@ ldata=
 execdir=
 bindir=
 basedir=
+srcdir=
 force=0
 verbose=0
 fill_help_tables=""
@@ -106,18 +108,24 @@ else
 fi
 
 # find fill_help_tables.sh
-for i in $basedir/support-files $basedir/share $basedir/share/mysql $basedir/scripts `pwd` `pwd`/scripts @pkgdatadir@
-do
-  if test -f $i/fill_help_tables.sql
-  then
-    pkgdatadir=$i
-  fi
-done
-
-if test -f $pkgdatadir/fill_help_tables.sql
+if test -n "$srcdir"
 then
-  fill_help_tables=$pkgdatadir/fill_help_tables.sql
+  fill_help_tables=$srcdir/scripts/fill_help_tables.sql
 else
+  for i in $basedir/support-files $basedir/share $basedir/share/mysql \
+           $basedir/scripts `pwd` `pwd`/scripts @pkgdatadir@
+  do
+    if test -f $i/fill_help_tables.sql
+    then
+      pkgdatadir=$i
+    fi
+  done
+
+  fill_help_tables=$pkgdatadir/fill_help_tables.sql
+fi
+
+if test ! -f $fill_help_tables
+then
   echo "Could not find help file 'fill_help_tables.sql' in @pkgdatadir@ or inside $basedir".
   exit 1;
 fi
@@ -130,7 +138,13 @@ scriptdir=$bindir
 if test "$windows" = 1
 then
   mysqld="./sql/mysqld"
-  mysqld_opt="--language=./sql/share/english"
+  if test -n "$srcdir" -a -f $srcdir/sql/share/english/errmsg.sys
+  then
+    langdir=$srcdir/sql/share/english
+  else
+    langdir=./sql/share/english
+  fi
+  mysqld_opt="--language=$langdir"
   scriptdir="./scripts"
 fi
 
