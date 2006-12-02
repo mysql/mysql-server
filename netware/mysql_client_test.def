@@ -1,0 +1,10 @@
+#------------------------------------------------------------------------------
+# MySQL Test
+#------------------------------------------------------------------------------
+MODULE	libc.nlm
+COPYRIGHT "(c) 2003-2005 Novell, Inc. Portions (c) 2003 MySQL AB. All Rights Reserved."
+DESCRIPTION "MySQL Client Test"
+VERSION 4, 0
+STACKSIZE 131072
+XDCDATA ../netware/mysql.xdc
+#DEBUG
