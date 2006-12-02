@@ -15,7 +15,8 @@
 # Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 # MA 02111-1307, USA
 
-BUILT_SOURCES =		$(HEADERS_GEN) abi_check
+# FIXME 'abi_check' should be in BUILT_SOURCES, disabled for now
+BUILT_SOURCES =		$(HEADERS_GEN)
 HEADERS_GEN =		mysql_version.h my_config.h
 HEADERS_ABI =		mysql.h mysql_com.h mysql_time.h \
 			my_list.h my_alloc.h typelib.h
