@@ -192,6 +192,33 @@ then
   fi 
 fi
 
+# Check for old tables
+if test ! -f $mdata/servers.frm
+then
+  if test "$1" = "verbose" ; then
+  echo "Preparing servers table" 1>&2;
+  fi
+
+  c_d="$c_d
+
+CREATE TABLE  servers ("
+  c_d="$c_d   Server_name char(64) NOT NULL,"
+  c_d="$c_d   Hostname char(64) NOT NULL,"
+  c_d="$c_d   Db char(64) NOT NULL,"
+  c_d="$c_d   Username char(64) NOT NULL,"
+  c_d="$c_d   Passwd char(64) NOT NULL,"
+  c_d="$c_d   Portnum INT(4),"
+  c_d="$c_d   Sock char(64),"
+  c_d="$c_d   Scheme char(64) NOT NULL,"
+  c_d="$c_d   Owner char(64) NOT NULL,"
+  c_d="$c_d   PRIMARY KEY  (Server_name));"
+
+  i_d="INSERT INTO servers VALUES
+    ('test','localhost','test','root','', 0,
+     '','mysql','root');
+    "
+fi
+
 if test ! -f $mdata/func.frm
 then
   if test "$1" = "verbose" ; then

@@ -184,6 +184,21 @@ void lex_start(THD *thd, const uchar *buf, uint length)
   lex->nest_level=0 ;
   lex->allow_sum_func= 0;
   lex->in_sum_func= NULL;
+  /*
+    ok, there must be a better solution for this, long-term
+    I tried "bzero" in the sql_yacc.yy code, but that for
+    some reason made the values zero, even if they were set
+  */
+  lex->server_options.server_name= 0;
+  lex->server_options.server_name_length= 0;
+  lex->server_options.host= 0;
+  lex->server_options.db= 0;
+  lex->server_options.username= 0;
+  lex->server_options.password= 0;
+  lex->server_options.scheme= 0;
+  lex->server_options.socket= 0;
+  lex->server_options.owner= 0;
+  lex->server_options.port= -1;
   DBUG_VOID_RETURN;
 }
 
