@@ -32,6 +32,7 @@ netware_build_files =           client/mysql.def client/mysqladmin.def \
                                 client/mysqlshow.def client/mysqltest.def \
                                 client/mysqlslap.def client/mysql_upgrade.def \
                                 sql/mysqld.def extra/mysql_waitpid.def \
+				tests/mysql_client_test.def \
                                 extra/my_print_defaults.def \
                                 extra/perror.def extra/replace.def \
                                 extra/resolveip.def extra/comp_err.def \
@@ -75,6 +76,7 @@ EXTRA_DIST=	$(BUILT_SOURCES) comp_err.def init_db.sql install_test_db.ncf \
 		mysqld_safe.c mysqld_safe.def mysqldump.def mysqlimport.def \
 		mysqlshow.def mysqltest.def mysqlslap.def mysql_upgrade.def \
 		perror.def \
+		mysql_client_test.def \
 		replace.def resolve_stack_dump.def resolveip.def test_db.sql \
 		static_init_db.sql \
 		BUILD/apply-patch BUILD/compile-AUTOTOOLS \
