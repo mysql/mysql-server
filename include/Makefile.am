@@ -15,14 +15,17 @@
 # Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 # MA 02111-1307, USA
 
-BUILT_SOURCES =		mysql_version.h my_config.h
-pkginclude_HEADERS =	my_dbug.h m_string.h my_sys.h my_list.h my_xml.h \
-			mysql.h mysql_com.h mysql_embed.h \
-		  	my_semaphore.h my_pthread.h my_no_pthread.h raid.h \
-			errmsg.h my_global.h my_net.h my_alloc.h \
-			my_getopt.h sslopt-longopts.h my_dir.h typelib.h \
+BUILT_SOURCES =		$(HEADERS_GEN) abi_check
+HEADERS_GEN =		mysql_version.h my_config.h
+HEADERS_ABI =		mysql.h mysql_com.h mysql_time.h \
+			my_list.h my_alloc.h typelib.h
+pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
+			my_xml.h mysql_embed.h \
+			my_semaphore.h my_pthread.h my_no_pthread.h raid.h \
+			errmsg.h my_global.h my_net.h \
+			my_getopt.h sslopt-longopts.h my_dir.h \
 			sslopt-vars.h sslopt-case.h sql_common.h keycache.h \
-			mysql_time.h m_ctype.h $(BUILT_SOURCES)
+			m_ctype.h $(HEADERS_GEN)
 noinst_HEADERS =	config-win.h config-os2.h config-netware.h \
 			heap.h my_bitmap.h\
 			myisam.h myisampack.h myisammrg.h ft_global.h\
@@ -59,17 +62,13 @@ dist-hook:
 #
 
 # Create a icheck file and compare it to the reference
-abi_check: mysql.h mysql_version.h mysql_com.h mysql_time.h my_list.h \
-           my_alloc.h typelib.h mysql_h.ic
+abi_check: $(HEADERS_ABI) mysql_version.h mysql_h.ic
 	@set -ex; \
 	if [ @ICHECK@ != no ] ; then \
 	  @ICHECK@ --canonify --skip-from-re /usr/ -o $@.ic mysql.h; \
 	  @ICHECK@ --compare mysql_h.ic $@.ic; \
 	fi; \
 	touch abi_check;
-
-all: abi_check
-
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
