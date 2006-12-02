@@ -49,6 +49,14 @@ BUILT_SOURCES = linked_client_sources linked_server_sources \
 CLEANFILES = $(BUILT_SOURCES) bdb/build_unix/db.h
 DISTCLEANFILES = ac_available_languages_fragment
 
+# Our current filtering of "sql_yacc.cc" in "sql/Makefile.am" creates
+# a problem, if a VPATH build and "sql_yacc.cc" was part of the source
+# distribution we end up with one "sql_yacc.cc" in the source tree,
+# and one in the build tree. This breaks "distcleancheck", until this
+# is sorted out we redefine the find that scans for files not removed
+
+distcleancheck_listfiles = find . -name sql_yacc.cc -o -type f -print
+
 linked_include_sources:
 	cd include; $(MAKE) link_sources
 	echo timestamp > linked_include_sources
@@ -93,17 +101,11 @@ bin-dist:		all
 dist-hook:
 	rm -rf `find $(distdir) -type d -name SCCS -print`
 	rm -f  `find $(distdir) -type l -print`
-	if echo "$(distdir)" | grep -q '^/' ; then \
-          mkdir -p "$(distdir)/win" ; \
-	  scripts/mysql_install_db --no-defaults --windows \
-		--basedir=$(top_srcdir) \
-		--datadir="$(distdir)/win/data"; \
-	else \
-          mkdir -p "$$(pwd)/$(distdir)/win" ; \
-	  scripts/mysql_install_db --no-defaults --windows \
-		 --basedir=$(top_srcdir) \
-		 --datadir="$$(pwd)/$(distdir)/win/data"; \
-	fi
+	mkdir -p $(distdir)/win
+	scripts/mysql_install_db --no-defaults --windows \
+		--basedir=$(top_builddir) \
+		--datadir=$(distdir)/win/data \
+		--srcdir=$(top_srcdir)
 
 tags:
 	support-files/build-tags
