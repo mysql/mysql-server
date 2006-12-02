@@ -1674,7 +1674,7 @@ void subselect_engine::set_row(List<Item> &item_list, Item_cache **row)
   Item *sel_item;
   List_iterator_fast<Item> li(item_list);
   res_type= STRING_RESULT;
-  res_field_type= FIELD_TYPE_VAR_STRING;
+  res_field_type= MYSQL_TYPE_VAR_STRING;
   for (uint i= 0; (sel_item= li++); i++)
   {
     item->max_length= sel_item->max_length;

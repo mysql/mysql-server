@@ -2622,7 +2622,7 @@ static void dump_table(char *table, char *db)
                   dynstr_append(&extended_row, "NULL");
                 else
                 {
-                  if (field->type == FIELD_TYPE_DECIMAL)
+                  if (field->type == MYSQL_TYPE_DECIMAL)
                   {
                     /* add " signs around */
                     dynstr_append(&extended_row, "'");
@@ -2695,7 +2695,7 @@ static void dump_table(char *table, char *db)
               else if (my_isalpha(charset_info, *ptr) ||
                        (*ptr == '-' && my_isalpha(charset_info, ptr[1])))
                 fputs("NULL", md_result_file);
-              else if (field->type == FIELD_TYPE_DECIMAL)
+              else if (field->type == MYSQL_TYPE_DECIMAL)
               {
                 /* add " signs around */
                 fputc('\'', md_result_file);
