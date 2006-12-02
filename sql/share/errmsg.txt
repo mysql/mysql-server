@@ -6010,4 +6010,6 @@ ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT 42000
         eng "Incorrect parameter count in the call to native function '%-.64s'"
 ER_WRONG_PARAMETERS_TO_NATIVE_FCT 42000
         eng "Incorrect parameters in the call to native function '%-.64s'"
+ER_WRONG_PARAMETERS_TO_STORED_FCT 42000  
+        eng "Incorrect parameters in the call to stored function '%-.64s'"
 
