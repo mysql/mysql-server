@@ -502,7 +502,7 @@ public:
   store_key(THD *thd, Field *field_arg, char *ptr, char *null, uint length)
     :null_ptr(null), err(0), null_key(0)
   {
-    if (field_arg->type() == FIELD_TYPE_BLOB)
+    if (field_arg->type() == MYSQL_TYPE_BLOB)
     {
         /* Key segments are always packed with a 2 byte length prefix */
       to_field= new Field_varstring(ptr, length, 2, (uchar*) null, 1, 

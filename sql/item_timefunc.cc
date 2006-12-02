@@ -1185,7 +1185,7 @@ longlong Item_func_unix_timestamp::val_int()
   if (args[0]->type() == FIELD_ITEM)
   {						// Optimize timestamp field
     Field *field=((Item_field*) args[0])->field;
-    if (field->type() == FIELD_TYPE_TIMESTAMP)
+    if (field->type() == MYSQL_TYPE_TIMESTAMP)
       return ((Field_timestamp*) field)->get_timestamp(&null_value);
   }
   

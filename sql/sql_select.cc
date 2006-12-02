@@ -8553,8 +8553,8 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
         thd->substitute_null_with_insert_id= FALSE;
       }
       /* fix to replace 'NULL' dates with '0' (shreeve@uci.edu) */
-      else if (((field->type() == FIELD_TYPE_DATE) ||
-		(field->type() == FIELD_TYPE_DATETIME)) &&
+      else if (((field->type() == MYSQL_TYPE_DATE) ||
+		(field->type() == MYSQL_TYPE_DATETIME)) &&
 		(field->flags & NOT_NULL_FLAG) &&
 	       !field->table->maybe_null)
       {
@@ -8929,7 +8929,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
         field->result_field= result;
     } 
     else if (table_cant_handle_bit_fields && field->field->type() ==
-             FIELD_TYPE_BIT)
+             MYSQL_TYPE_BIT)
     {
       *from_field= field->field;
       result= create_tmp_field_from_item(thd, item, table, copy_func,
@@ -9246,7 +9246,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	    *blob_field++= fieldnr;
 	    blob_count++;
 	  }
-          if (new_field->type() == FIELD_TYPE_BIT)
+          if (new_field->type() == MYSQL_TYPE_BIT)
             total_uneven_bit_length+= new_field->field_length & 7;
 	  *(reg_field++)= new_field;
           if (new_field->real_type() == MYSQL_TYPE_STRING ||
@@ -9308,7 +9308,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       reclength+=new_field->pack_length();
       if (!(new_field->flags & NOT_NULL_FLAG))
 	null_count++;
-      if (new_field->type() == FIELD_TYPE_BIT)
+      if (new_field->type() == MYSQL_TYPE_BIT)
         total_uneven_bit_length+= new_field->field_length & 7;
       if (new_field->flags & BLOB_FLAG)
       {
@@ -9453,7 +9453,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     }
     else
       field->move_field((char*) pos,(uchar*) 0,0);
-    if (field->type() == FIELD_TYPE_BIT)
+    if (field->type() == MYSQL_TYPE_BIT)
     {
       /* We have to reserve place for extra bits among null bits */
       ((Field_bit*) field)->set_bit_ptr(null_flags + null_count / 8,
@@ -11748,7 +11748,7 @@ static bool test_if_ref(Item_field *left_item,Item *right_item)
 	if (field->binary() &&
 	    field->real_type() != MYSQL_TYPE_STRING &&
 	    field->real_type() != MYSQL_TYPE_VARCHAR &&
-	    (field->type() != FIELD_TYPE_FLOAT || field->decimals() == 0))
+	    (field->type() != MYSQL_TYPE_FLOAT || field->decimals() == 0))
 	{
 	  return !store_val_in_field(field, right_item, CHECK_FIELD_WARN);
 	}
@@ -13663,11 +13663,11 @@ calc_group_buffer(JOIN *join,ORDER *group)
     if (field)
     {
       enum_field_types type;
-      if ((type= field->type()) == FIELD_TYPE_BLOB)
+      if ((type= field->type()) == MYSQL_TYPE_BLOB)
 	key_length+=MAX_BLOB_WIDTH;		// Can't be used as a key
       else if (type == MYSQL_TYPE_VARCHAR || type == MYSQL_TYPE_VAR_STRING)
         key_length+= field->field_length + HA_KEY_BLOB_LENGTH;
-      else if (type == FIELD_TYPE_BIT)
+      else if (type == MYSQL_TYPE_BIT)
       {
         /* Bit is usually stored as a longlong key for group fields */
         key_length+= 8;                         // Big enough

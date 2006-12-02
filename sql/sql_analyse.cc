@@ -140,7 +140,7 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
       case INT_RESULT:
         // Check if fieldtype is ulonglong
         if (item->type() == Item::FIELD_ITEM &&
-            ((Item_field*) item)->field->type() == FIELD_TYPE_LONGLONG &&
+            ((Item_field*) item)->field->type() == MYSQL_TYPE_LONGLONG &&
             ((Field_longlong*) ((Item_field*) item)->field)->unsigned_flag)
           new_field= new field_ulonglong(item, pc);
         else
@@ -755,26 +755,26 @@ bool analyse::end_of_records()
     {
       switch (((Item_field*) (*f)->item)->field->real_type())
       {
-      case FIELD_TYPE_TIMESTAMP:
+      case MYSQL_TYPE_TIMESTAMP:
 	ans.append(STRING_WITH_LEN("TIMESTAMP"));
 	break;
-      case FIELD_TYPE_DATETIME:
+      case MYSQL_TYPE_DATETIME:
 	ans.append(STRING_WITH_LEN("DATETIME"));
 	break;
-      case FIELD_TYPE_DATE:
-      case FIELD_TYPE_NEWDATE:
+      case MYSQL_TYPE_DATE:
+      case MYSQL_TYPE_NEWDATE:
 	ans.append(STRING_WITH_LEN("DATE"));
 	break;
-      case FIELD_TYPE_SET:
+      case MYSQL_TYPE_SET:
 	ans.append(STRING_WITH_LEN("SET"));
 	break;
-      case FIELD_TYPE_YEAR:
+      case MYSQL_TYPE_YEAR:
 	ans.append(STRING_WITH_LEN("YEAR"));
 	break;
-      case FIELD_TYPE_TIME:
+      case MYSQL_TYPE_TIME:
 	ans.append(STRING_WITH_LEN("TIME"));
 	break;
-      case FIELD_TYPE_DECIMAL:
+      case MYSQL_TYPE_DECIMAL:
 	ans.append(STRING_WITH_LEN("DECIMAL"));
 	// if item is FIELD_ITEM, it _must_be_ Field_num in this case
 	if (((Field_num*) ((Item_field*) (*f)->item)->field)->zerofill)

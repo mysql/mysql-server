@@ -323,7 +323,7 @@ public:
     result= res;
     item= si;
     res_type= STRING_RESULT;
-    res_field_type= FIELD_TYPE_VAR_STRING;
+    res_field_type= MYSQL_TYPE_VAR_STRING;
     maybe_null= 0;
   }
   virtual ~subselect_engine() {}; // to satisfy compiler

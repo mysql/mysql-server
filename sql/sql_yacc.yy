@@ -1632,7 +1632,7 @@ create_function_tail:
               When collation support in SP is implemented, then this test
               should be removed.
             */
-            if (($8 == FIELD_TYPE_STRING || $8 == MYSQL_TYPE_VARCHAR)
+            if (($8 == MYSQL_TYPE_STRING || $8 == MYSQL_TYPE_VARCHAR)
                 && (lex->type & BINCMP_FLAG))
             {
               my_error(ER_NOT_SUPPORTED_YET, MYF(0), "return value collation");
@@ -4148,31 +4148,31 @@ field_spec:
 type:
 	int_type opt_len field_options	{ $$=$1; }
 	| real_type opt_precision field_options { $$=$1; }
-	| FLOAT_SYM float_options field_options { $$=FIELD_TYPE_FLOAT; }
+	| FLOAT_SYM float_options field_options { $$=MYSQL_TYPE_FLOAT; }
 	| BIT_SYM			{ Lex->length= (char*) "1";
-					  $$=FIELD_TYPE_BIT; }
+					  $$=MYSQL_TYPE_BIT; }
 	| BIT_SYM '(' NUM ')'		{ Lex->length= $3.str;
-					  $$=FIELD_TYPE_BIT; }
+					  $$=MYSQL_TYPE_BIT; }
 	| BOOL_SYM			{ Lex->length=(char*) "1";
-					  $$=FIELD_TYPE_TINY; }
+					  $$=MYSQL_TYPE_TINY; }
 	| BOOLEAN_SYM			{ Lex->length=(char*) "1";
-					  $$=FIELD_TYPE_TINY; }
+					  $$=MYSQL_TYPE_TINY; }
 	| char '(' NUM ')' opt_binary	{ Lex->length=$3.str;
-					  $$=FIELD_TYPE_STRING; }
+					  $$=MYSQL_TYPE_STRING; }
 	| char opt_binary		{ Lex->length=(char*) "1";
-					  $$=FIELD_TYPE_STRING; }
+					  $$=MYSQL_TYPE_STRING; }
 	| nchar '(' NUM ')' opt_bin_mod	{ Lex->length=$3.str;
-					  $$=FIELD_TYPE_STRING;
+					  $$=MYSQL_TYPE_STRING;
 					  Lex->charset=national_charset_info; }
 	| nchar opt_bin_mod		{ Lex->length=(char*) "1";
-					  $$=FIELD_TYPE_STRING;
+					  $$=MYSQL_TYPE_STRING;
 					  Lex->charset=national_charset_info; }
 	| BINARY '(' NUM ')'		{ Lex->length=$3.str;
 					  Lex->charset=&my_charset_bin;
-					  $$=FIELD_TYPE_STRING; }
+					  $$=MYSQL_TYPE_STRING; }
 	| BINARY			{ Lex->length= (char*) "1";
 					  Lex->charset=&my_charset_bin;
-					  $$=FIELD_TYPE_STRING; }
+					  $$=MYSQL_TYPE_STRING; }
 	| varchar '(' NUM ')' opt_binary { Lex->length=$3.str;
 					  $$= MYSQL_TYPE_VARCHAR; }
 	| nvarchar '(' NUM ')' opt_bin_mod { Lex->length=$3.str;
@@ -4181,33 +4181,33 @@ type:
 	| VARBINARY '(' NUM ')' 	{ Lex->length=$3.str;
 					  Lex->charset=&my_charset_bin;
 					  $$= MYSQL_TYPE_VARCHAR; }
-	| YEAR_SYM opt_len field_options { $$=FIELD_TYPE_YEAR; }
-	| DATE_SYM			{ $$=FIELD_TYPE_DATE; }
-	| TIME_SYM			{ $$=FIELD_TYPE_TIME; }
+	| YEAR_SYM opt_len field_options { $$=MYSQL_TYPE_YEAR; }
+	| DATE_SYM			{ $$=MYSQL_TYPE_DATE; }
+	| TIME_SYM			{ $$=MYSQL_TYPE_TIME; }
 	| TIMESTAMP opt_len
 	  {
 	    if (YYTHD->variables.sql_mode & MODE_MAXDB)
-	      $$=FIELD_TYPE_DATETIME;
+	      $$=MYSQL_TYPE_DATETIME;
 	    else
             {
               /* 
                 Unlike other types TIMESTAMP fields are NOT NULL by default.
               */
               Lex->type|= NOT_NULL_FLAG;
-	      $$=FIELD_TYPE_TIMESTAMP;
+	      $$=MYSQL_TYPE_TIMESTAMP;
             }
 	   }
-	| DATETIME			{ $$=FIELD_TYPE_DATETIME; }
+	| DATETIME			{ $$=MYSQL_TYPE_DATETIME; }
 	| TINYBLOB			{ Lex->charset=&my_charset_bin;
-					  $$=FIELD_TYPE_TINY_BLOB; }
+					  $$=MYSQL_TYPE_TINY_BLOB; }
 	| BLOB_SYM opt_len		{ Lex->charset=&my_charset_bin;
-					  $$=FIELD_TYPE_BLOB; }
+					  $$=MYSQL_TYPE_BLOB; }
 	| spatial_type
           {
 #ifdef HAVE_SPATIAL
             Lex->charset=&my_charset_bin;
             Lex->uint_geom_type= (uint)$1;
-            $$=FIELD_TYPE_GEOMETRY;
+            $$=MYSQL_TYPE_GEOMETRY;
 #else
             my_error(ER_FEATURE_DISABLED, MYF(0),
                      sym_group_geom.name, sym_group_geom.needed_define);
@@ -4215,30 +4215,30 @@ type:
 #endif
           }
 	| MEDIUMBLOB			{ Lex->charset=&my_charset_bin;
-					  $$=FIELD_TYPE_MEDIUM_BLOB; }
+					  $$=MYSQL_TYPE_MEDIUM_BLOB; }
 	| LONGBLOB			{ Lex->charset=&my_charset_bin;
-					  $$=FIELD_TYPE_LONG_BLOB; }
+					  $$=MYSQL_TYPE_LONG_BLOB; }
 	| LONG_SYM VARBINARY		{ Lex->charset=&my_charset_bin;
-					  $$=FIELD_TYPE_MEDIUM_BLOB; }
-	| LONG_SYM varchar opt_binary	{ $$=FIELD_TYPE_MEDIUM_BLOB; }
-	| TINYTEXT opt_binary		{ $$=FIELD_TYPE_TINY_BLOB; }
-	| TEXT_SYM opt_len opt_binary	{ $$=FIELD_TYPE_BLOB; }
-	| MEDIUMTEXT opt_binary		{ $$=FIELD_TYPE_MEDIUM_BLOB; }
-	| LONGTEXT opt_binary		{ $$=FIELD_TYPE_LONG_BLOB; }
+					  $$=MYSQL_TYPE_MEDIUM_BLOB; }
+	| LONG_SYM varchar opt_binary	{ $$=MYSQL_TYPE_MEDIUM_BLOB; }
+	| TINYTEXT opt_binary		{ $$=MYSQL_TYPE_TINY_BLOB; }
+	| TEXT_SYM opt_len opt_binary	{ $$=MYSQL_TYPE_BLOB; }
+	| MEDIUMTEXT opt_binary		{ $$=MYSQL_TYPE_MEDIUM_BLOB; }
+	| LONGTEXT opt_binary		{ $$=MYSQL_TYPE_LONG_BLOB; }
 	| DECIMAL_SYM float_options field_options
-                                        { $$=FIELD_TYPE_NEWDECIMAL;}
+                                        { $$=MYSQL_TYPE_NEWDECIMAL;}
 	| NUMERIC_SYM float_options field_options
-                                        { $$=FIELD_TYPE_NEWDECIMAL;}
+                                        { $$=MYSQL_TYPE_NEWDECIMAL;}
 	| FIXED_SYM float_options field_options
-                                        { $$=FIELD_TYPE_NEWDECIMAL;}
+                                        { $$=MYSQL_TYPE_NEWDECIMAL;}
 	| ENUM {Lex->interval_list.empty();} '(' string_list ')' opt_binary
-	  { $$=FIELD_TYPE_ENUM; }
+	  { $$=MYSQL_TYPE_ENUM; }
 	| SET { Lex->interval_list.empty();} '(' string_list ')' opt_binary
-	  { $$=FIELD_TYPE_SET; }
-	| LONG_SYM opt_binary		{ $$=FIELD_TYPE_MEDIUM_BLOB; }
+	  { $$=MYSQL_TYPE_SET; }
+	| LONG_SYM opt_binary		{ $$=MYSQL_TYPE_MEDIUM_BLOB; }
 	| SERIAL_SYM
 	  {
-	    $$=FIELD_TYPE_LONGLONG;
+	    $$=MYSQL_TYPE_LONGLONG;
 	    Lex->type|= (AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNSIGNED_FLAG |
 		         UNIQUE_FLAG);
 	  }
@@ -4280,17 +4280,17 @@ nvarchar:
 	;
 
 int_type:
-	INT_SYM		{ $$=FIELD_TYPE_LONG; }
-	| TINYINT	{ $$=FIELD_TYPE_TINY; }
-	| SMALLINT	{ $$=FIELD_TYPE_SHORT; }
-	| MEDIUMINT	{ $$=FIELD_TYPE_INT24; }
-	| BIGINT	{ $$=FIELD_TYPE_LONGLONG; };
+	INT_SYM		{ $$=MYSQL_TYPE_LONG; }
+	| TINYINT	{ $$=MYSQL_TYPE_TINY; }
+	| SMALLINT	{ $$=MYSQL_TYPE_SHORT; }
+	| MEDIUMINT	{ $$=MYSQL_TYPE_INT24; }
+	| BIGINT	{ $$=MYSQL_TYPE_LONGLONG; };
 
 real_type:
 	REAL		{ $$= YYTHD->variables.sql_mode & MODE_REAL_AS_FLOAT ?
-			      FIELD_TYPE_FLOAT : FIELD_TYPE_DOUBLE; }
-	| DOUBLE_SYM	{ $$=FIELD_TYPE_DOUBLE; }
-	| DOUBLE_SYM PRECISION { $$=FIELD_TYPE_DOUBLE; };
+			      MYSQL_TYPE_FLOAT : MYSQL_TYPE_DOUBLE; }
+	| DOUBLE_SYM	{ $$=MYSQL_TYPE_DOUBLE; }
+	| DOUBLE_SYM PRECISION { $$=MYSQL_TYPE_DOUBLE; };
 
 
 float_options:

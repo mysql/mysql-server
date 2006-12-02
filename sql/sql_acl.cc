@@ -761,7 +761,7 @@ static ulong get_access(TABLE *form, uint fieldnr, uint *next_field)
   Field **pos;
 
   for (pos=form->field+fieldnr, bit=1;
-       *pos && (*pos)->real_type() == FIELD_TYPE_ENUM &&
+       *pos && (*pos)->real_type() == MYSQL_TYPE_ENUM &&
 	 ((Field_enum*) (*pos))->typelib->count == 2 ;
        pos++, fieldnr++, bit<<=1)
   {
@@ -1969,7 +1969,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   ulong priv;
   uint next_field;
   for (tmp_field= table->field+3, priv = SELECT_ACL;
-       *tmp_field && (*tmp_field)->real_type() == FIELD_TYPE_ENUM &&
+       *tmp_field && (*tmp_field)->real_type() == MYSQL_TYPE_ENUM &&
 	 ((Field_enum*) (*tmp_field))->typelib->count == 2 ;
        tmp_field++, priv <<= 1)
   {
