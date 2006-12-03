@@ -1116,7 +1116,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 
     if (flags & NOT_NULL_FLAG)
       packet->append(STRING_WITH_LEN(" NOT NULL"));
-    else if (field->type() == FIELD_TYPE_TIMESTAMP)
+    else if (field->type() == MYSQL_TYPE_TIMESTAMP)
     {
       /*
         TIMESTAMP field require explicit NULL flag, because unlike
@@ -1132,7 +1132,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     has_now_default= table->timestamp_field == field && 
                      field->unireg_check != Field::TIMESTAMP_UN_FIELD;
     
-    has_default= (field->type() != FIELD_TYPE_BLOB &&
+    has_default= (field->type() != MYSQL_TYPE_BLOB &&
                   !(field->flags & NO_DEFAULT_VALUE_FLAG) &&
 		  field->unireg_check != Field::NEXT_NUMBER &&
                   !((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
@@ -1625,7 +1625,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   field_list.push_back(field=new Item_empty_string("db",NAME_LEN));
   field->maybe_null=1;
   field_list.push_back(new Item_empty_string("Command",16));
-  field_list.push_back(new Item_return_int("Time",7, FIELD_TYPE_LONG));
+  field_list.push_back(new Item_return_int("Time",7, MYSQL_TYPE_LONG));
   field_list.push_back(field=new Item_empty_string("State",30));
   field->maybe_null=1;
   field_list.push_back(field=new Item_empty_string("Info",max_query_length));
@@ -3098,7 +3098,7 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
     pos=(byte*) ((flags & NOT_NULL_FLAG) ?  "NO" : "YES");
     table->field[6]->store((const char*) pos,
                            strlen((const char*) pos), cs);
-    is_blob= (field->type() == FIELD_TYPE_BLOB);
+    is_blob= (field->type() == MYSQL_TYPE_BLOB);
     if (field->has_charset() || is_blob ||
         field->real_type() == MYSQL_TYPE_VARCHAR ||  // For varbinary type
         field->real_type() == MYSQL_TYPE_STRING)     // For binary type
@@ -3122,25 +3122,25 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
 
     decimals= field->decimals();
     switch (field->type()) {
-    case FIELD_TYPE_NEWDECIMAL:
+    case MYSQL_TYPE_NEWDECIMAL:
       field_length= ((Field_new_decimal*) field)->precision;
       break;
-    case FIELD_TYPE_DECIMAL:
+    case MYSQL_TYPE_DECIMAL:
       field_length= field->field_length - (decimals  ? 2 : 1);
       break;
-    case FIELD_TYPE_TINY:
-    case FIELD_TYPE_SHORT:
-    case FIELD_TYPE_LONG:
-    case FIELD_TYPE_LONGLONG:
-    case FIELD_TYPE_INT24:
+    case MYSQL_TYPE_TINY:
+    case MYSQL_TYPE_SHORT:
+    case MYSQL_TYPE_LONG:
+    case MYSQL_TYPE_LONGLONG:
+    case MYSQL_TYPE_INT24:
       field_length= field->max_length() - 1;
       break;
-    case FIELD_TYPE_BIT:
+    case MYSQL_TYPE_BIT:
       field_length= field->max_length();
       decimals= -1;                             // return NULL
       break;
-    case FIELD_TYPE_FLOAT:  
-    case FIELD_TYPE_DOUBLE:
+    case MYSQL_TYPE_FLOAT:  
+    case MYSQL_TYPE_DOUBLE:
       field_length= field->field_length;
       if (decimals == NOT_FIXED_DEC)
         decimals= -1;                           // return NULL

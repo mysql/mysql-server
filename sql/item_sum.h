@@ -804,7 +804,7 @@ protected:
   public:
   Item_sum_hybrid(Item *item_par,int sign)
     :Item_sum(item_par), sum(0.0), sum_int(0),
-    hybrid_type(INT_RESULT), hybrid_field_type(FIELD_TYPE_LONGLONG),
+    hybrid_type(INT_RESULT), hybrid_field_type(MYSQL_TYPE_LONGLONG),
     cmp_sign(sign), used_table_cache(~(table_map) 0),
     was_values(TRUE)
   { collation.set(&my_charset_bin); }
@@ -1187,7 +1187,7 @@ public:
   enum_field_types field_type() const
   {
     if (max_length/collation.collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB )
-      return FIELD_TYPE_BLOB;
+      return MYSQL_TYPE_BLOB;
     else
       return MYSQL_TYPE_VARCHAR;
   }

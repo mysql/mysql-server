@@ -3132,7 +3132,7 @@ static bool fields_ok_for_partition_index(Field **pfield)
   for (; (*pfield); pfield++)
   {
     enum_field_types ftype= (*pfield)->real_type();
-    if (ftype == FIELD_TYPE_ENUM || ftype == FIELD_TYPE_GEOMETRY)
+    if (ftype == MYSQL_TYPE_ENUM || ftype == MYSQL_TYPE_GEOMETRY)
       return FALSE;
   }
   return TRUE;
@@ -3231,7 +3231,7 @@ static bool create_partition_index_description(PART_PRUNE_PARAM *ppar)
     key_part->store_length= (uint16) (*field)->pack_length();
     if ((*field)->real_maybe_null())
       key_part->store_length+= HA_KEY_NULL_LENGTH;
-    if ((*field)->type() == FIELD_TYPE_BLOB || 
+    if ((*field)->type() == MYSQL_TYPE_BLOB || 
         (*field)->real_type() == MYSQL_TYPE_VARCHAR)
       key_part->store_length+= HA_KEY_BLOB_LENGTH;
 
@@ -5589,8 +5589,8 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
   /* For comparison purposes allow invalid dates like 2000-01-32 */
   orig_sql_mode= field->table->in_use->variables.sql_mode;
   if (value->real_item()->type() == Item::STRING_ITEM &&
-      (field->type() == FIELD_TYPE_DATE ||
-       field->type() == FIELD_TYPE_DATETIME))
+      (field->type() == MYSQL_TYPE_DATE ||
+       field->type() == MYSQL_TYPE_DATETIME))
     field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
   err= value->save_in_field_no_warnings(field, 1);
   if (err > 0 && field->cmp_type() != value->result_type())
