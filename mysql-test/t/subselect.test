@@ -2496,3 +2496,11 @@ SELECT SQL_NO_CACHE COUNT(*)
           FROM t1) t;
 
 DROP TABLE t1,t2;
+
+#
+# Bug#20835 (literal string with =any values)
+#
+CREATE TABLE t1 (s1 char(1));
+INSERT INTO t1 VALUES ('a');
+SELECT * FROM t1 WHERE _utf8'a' = ANY (SELECT s1 FROM t1);
+DROP TABLE t1;
