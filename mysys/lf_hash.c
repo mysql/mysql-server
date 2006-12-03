@@ -28,7 +28,7 @@
 #include <my_bit.h>
 #include <lf.h>
 
-LF_REQUIRE_PINS(3);
+LF_REQUIRE_PINS(3)
 
 /* An element of the list */
 typedef struct {

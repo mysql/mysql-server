@@ -43,9 +43,9 @@
 #include <pagecache.h>
 #include "my_static.h"
 #include <m_string.h>
+#include <my_bit.h>
 #include <errno.h>
 #include <stdarg.h>
-#include <my_bit.h>
 
 
 /*
@@ -86,8 +86,6 @@
     #define PAGECACHE_DEBUG_LOG  "my_pagecache_debug.log"
 */
 
-#define PAGECACHE_DEBUG_LOG  "my_pagecache_debug.log"
-
 /*
   In key cache we have external raw locking here we use
   SERIALIZED_READ_FROM_CACHE to avoid problem of reading
@@ -114,14 +112,6 @@
 
 /* TODO: put it to my_static.c */
 my_bool my_disable_flush_pagecache_blocks= 0;
-
-#if defined(MSDOS) && !defined(M_IC80386)
-/* we nead much memory */
-#undef my_malloc_lock
-#undef my_free_lock
-#define my_malloc_lock(A,B)  halloc((long) (A/IO_SIZE),IO_SIZE)
-#define my_free_lock(A,B)    hfree(A)
-#endif /* defined(MSDOS) && !defined(M_IC80386) */
 
 #define STRUCT_PTR(TYPE, MEMBER, a)                                           \
           (TYPE *) ((char *) (a) - offsetof(TYPE, MEMBER))
@@ -314,8 +304,8 @@ my_bool info_check_pin(PAGECACHE_BLOCK_LINK *block,
                        enum pagecache_page_pin mode)
 {
   struct st_my_thread_var *thread= my_thread_var;
-  DBUG_ENTER("info_check_pin");
   PAGECACHE_PIN_INFO *info= info_find(block->pin_list, thread);
+  DBUG_ENTER("info_check_pin");
   if (info)
   {
     if (mode == PAGECACHE_PIN_LEFT_UNPINNED)
@@ -372,10 +362,10 @@ my_bool info_check_lock(PAGECACHE_BLOCK_LINK *block,
                         enum pagecache_page_pin pin)
 {
   struct st_my_thread_var *thread= my_thread_var;
-  DBUG_ENTER("info_check_lock");
   PAGECACHE_LOCK_INFO *info=
     (PAGECACHE_LOCK_INFO *) info_find((PAGECACHE_PIN_INFO *) block->lock_list,
                                       thread);
+  DBUG_ENTER("info_check_lock");
   switch(lock)
   {
   case PAGECACHE_LOCK_LEFT_UNLOCKED:
@@ -605,15 +595,9 @@ uint pagecache_fwrite(PAGECACHE *pagecache,
   next_power(value) is 2 at the power of (1+floor(log2(value)));
   e.g. next_power(2)=4, next_power(3)=4.
 */
-static uint next_power(uint value)
+static inline uint next_power(uint value)
 {
-  uint old_value= 1;
-  while (value)
-  {
-    old_value= value;
-    value&= value-1;
-  }
-  return (old_value << 1);
+  return (uint) my_round_up_to_next_power((uint32) value) << 1;
 }
 
 
@@ -834,15 +818,24 @@ err:
     The function starts the operation only when all other threads
     performing operations with the key cache let her to proceed
     (when cnt_for_resize=0).
-*/
 
+     Before being usable, this function needs:
+     - to receive fixes for BUG#17332 "changing key_buffer_size on a running
+     server can crash under load" similar to those done to the key cache
+     - to have us (Sanja) look at the additional constraints placed on
+     resizing, due to the page locking specific to this page cache.
+     So we disable it for now.
+*/
+#if 0 /* keep disabled until code is fixed see above !! */
 int resize_pagecache(PAGECACHE *pagecache,
 		     my_size_t use_mem, uint division_limit,
 		     uint age_threshold)
 {
   int blocks;
+#ifdef THREAD
   struct st_my_thread_var *thread;
   PAGECACHE_WQUEUE *wqueue;
+#endif
   DBUG_ENTER("resize_pagecache");
 
   if (!pagecache->inited)
@@ -909,6 +902,7 @@ finish:
   pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
   DBUG_RETURN(blocks);
 }
+#endif /* 0 */
 
 
 /*
@@ -1504,8 +1498,12 @@ static inline void remove_reader(PAGECACHE_BLOCK_LINK *block)
 {
   DBUG_ENTER("remove_reader");
   BLOCK_INFO(block);
+#ifdef THREAD
   if (! --block->hash_link->requests && block->condvar)
     pagecache_pthread_cond_signal(block->condvar);
+#else
+  --block->hash_link->requests;
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -1515,7 +1513,8 @@ static inline void remove_reader(PAGECACHE_BLOCK_LINK *block)
   signals on its termination
 */
 
-static inline void wait_for_readers(PAGECACHE *pagecache,
+static inline void wait_for_readers(PAGECACHE *pagecache
+                                    __attribute__((unused)),
                                     PAGECACHE_BLOCK_LINK *block)
 {
 #ifdef THREAD
@@ -1684,7 +1683,6 @@ static PAGECACHE_HASH_LINK *get_hash_link(PAGECACHE *pagecache,
 {
   reg1 PAGECACHE_HASH_LINK *hash_link;
   PAGECACHE_HASH_LINK **start;
-  PAGECACHE_PAGE page;
 
   KEYCACHE_DBUG_PRINT("get_hash_link", ("fd: %u  pos: %lu",
                       (uint) file->file, (ulong) pageno));
@@ -1710,6 +1708,7 @@ restart:
 #ifdef THREAD
       /* Wait for a free hash link */
       struct st_my_thread_var *thread= my_thread_var;
+      PAGECACHE_PAGE page;
       KEYCACHE_DBUG_PRINT("get_hash_link", ("waiting"));
       page.file= *file;
       page.pageno= pageno;
@@ -2053,8 +2052,10 @@ restart:
             /* Remove the hash link for this page from the hash table */
             unlink_hash(pagecache, block->hash_link);
             /* All pending requests for this page must be resubmitted */
+#ifdef THREAD
             if (block->wqueue[COND_FOR_SAVED].last_thread)
               release_queue(&block->wqueue[COND_FOR_SAVED]);
+#endif
           }
           link_to_file_list(pagecache, block, file,
                             (my_bool)(block->hash_link ? 1 : 0));
@@ -2209,10 +2210,10 @@ my_bool pagecache_lock_block(PAGECACHE *pagecache,
   BLOCK_INFO(block);
   while (block->status & BLOCK_WRLOCK)
   {
-    DBUG_PRINT("info", ("fail to lock, waiting..."));
     /* Lock failed we will wait */
 #ifdef THREAD
     struct st_my_thread_var *thread= my_thread_var;
+    DBUG_PRINT("info", ("fail to lock, waiting..."));
     add_to_queue(&block->wqueue[COND_FOR_WRLOCK], thread);
     dec_counter_for_resize_op(pagecache);
     do
@@ -2403,8 +2404,10 @@ static void read_block(PAGECACHE *pagecache,
     KEYCACHE_DBUG_PRINT("read_block",
                         ("primary request: new page in cache"));
     /* Signal that all pending requests for this page now can be processed */
+#ifdef THREAD
     if (block->wqueue[COND_FOR_REQUESTED].last_thread)
       release_queue(&block->wqueue[COND_FOR_REQUESTED]);
+#endif
   }
   else
   {
@@ -3210,9 +3213,11 @@ restart:
         block->status= (BLOCK_READ | (block->status & BLOCK_WRLOCK));
         KEYCACHE_DBUG_PRINT("key_cache_insert",
                             ("primary request: new page in cache"));
+#ifdef THREAD
         /* Signal that all pending requests for this now can be processed. */
         if (block->wqueue[COND_FOR_REQUESTED].last_thread)
           release_queue(&block->wqueue[COND_FOR_REQUESTED]);
+#endif
       }
     }
     else
@@ -3223,11 +3228,9 @@ restart:
         if (block->status & BLOCK_CHANGED)
           link_to_file_list(pagecache, block, &block->hash_link->file, 1);
       }
-      else
-      {
-        if (! (block->status & BLOCK_CHANGED))
+      else if (! (block->status & BLOCK_CHANGED))
           link_to_changed_list(pagecache, block);
-      }
+
       if (! (block->status & BLOCK_ERROR))
       {
         bmove512(block->buffer, buff, pagecache->block_size);
@@ -3342,9 +3345,11 @@ static void free_block(PAGECACHE *pagecache, PAGECACHE_BLOCK_LINK *block)
   /* Keep track of the number of currently unused blocks. */
   pagecache->blocks_unused++;
 
+#ifdef THREAD
   /* All pending requests for this page must be resubmitted. */
   if (block->wqueue[COND_FOR_SAVED].last_thread)
     release_queue(&block->wqueue[COND_FOR_SAVED]);
+#endif
 }
 
 
@@ -3438,12 +3443,14 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
       if (!last_errno)
         last_errno= errno ? errno : -1;
     }
+#ifdef THREAD
     /*
       Let to proceed for possible waiting requests to write to the block page.
       It might happen only during an operation to resize the key cache.
     */
     if (block->wqueue[COND_FOR_SAVED].last_thread)
       release_queue(&block->wqueue[COND_FOR_SAVED]);
+#endif
     /* type will never be FLUSH_IGNORE_CHANGED here */
     if (! (type == FLUSH_KEEP || type == FLUSH_FORCE_WRITE))
     {
@@ -3970,7 +3977,6 @@ static void ___pagecache_pthread_mutex_unlock(pthread_mutex_t *mutex)
 {
   KEYCACHE_THREAD_TRACE_END("");
   pthread_mutex_unlock(mutex);
-  return;
 }
 
 

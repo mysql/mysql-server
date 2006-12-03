@@ -80,14 +80,14 @@ void lf_dynarray_destroy(LF_DYNARRAY *array);
 
 nolock_wrap(lf_dynarray_value, void *,
             (LF_DYNARRAY *array, uint idx),
-            (array, idx));
+            (array, idx))
 lock_wrap(lf_dynarray_lvalue, void *,
           (LF_DYNARRAY *array, uint idx),
           (array, idx),
-          &array->lock);
+          &array->lock)
 nolock_wrap(lf_dynarray_iterate, int,
             (LF_DYNARRAY *array, lf_dynarray_func func, void *arg),
-            (array, func, arg));
+            (array, func, arg))
 
 /*
   pin manager for memory allocator, lf_alloc-pin.c
@@ -165,15 +165,15 @@ void lf_pinbox_destroy(LF_PINBOX *pinbox);
 lock_wrap(lf_pinbox_get_pins, LF_PINS *,
           (LF_PINBOX *pinbox),
           (pinbox),
-          &pinbox->pinstack.lock);
+          &pinbox->pinstack.lock)
 lock_wrap_void(lf_pinbox_put_pins,
                (LF_PINS *pins),
                (pins),
-               &pins->pinbox->pinstack.lock);
+               &pins->pinbox->pinstack.lock)
 lock_wrap_void(lf_pinbox_free,
                (LF_PINS *pins, void *addr),
                (pins, addr),
-               &pins->pinbox->pinstack.lock);
+               &pins->pinbox->pinstack.lock)
 
 /*
   memory allocator, lf_alloc-pin.c
@@ -208,7 +208,7 @@ uint lf_alloc_in_pool(LF_ALLOCATOR *allocator);
 lock_wrap(lf_alloc_new, void *,
           (LF_PINS *pins),
           (pins),
-          &pins->pinbox->pinstack.lock);
+          &pins->pinbox->pinstack.lock)
 
 /*
   extendible hash, lf_hash.c

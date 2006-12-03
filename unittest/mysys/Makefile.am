@@ -12,7 +12,7 @@ LDADD 		= $(top_builddir)/unittest/mytap/libmytap.a \
 # but don't run them by default (for this, a non "-t" suffix is used).
 # You can run them by hand (how: see "test" target in upper dir).
 noinst_PROGRAMS  =	bitmap-t base64-t my_atomic-t \
-			mf_pagecache_single_1k-t-big mf_pagecache_single_8k-t-big \
+			mf_pagecache_single_1k-t mf_pagecache_single_8k-t \
 			mf_pagecache_single_64k-t-big \
 			mf_pagecache_consist_1k-t-big mf_pagecache_consist_64k-t-big \
 			mf_pagecache_consist_1kHC-t-big mf_pagecache_consist_64kHC-t-big \
@@ -25,11 +25,14 @@ mf_pagecache_single_src =	mf_pagecache_single.c $(top_srcdir)/mysys/mf_pagecache
 mf_pagecache_consist_src =	mf_pagecache_consist.c $(top_srcdir)/mysys/mf_pagecache.c test_file.c test_file.h
 mf_pagecache_common_cppflags =	-DEXTRA_DEBUG -DPAGECACHE_DEBUG -DMAIN
 
-mf_pagecache_single_1k_t_big_SOURCES =	$(mf_pagecache_single_src)
-mf_pagecache_single_8k_t_big_SOURCES =	$(mf_pagecache_single_src)
+# Those two take reasonable resources (<100 MB) for < 1 minute
+mf_pagecache_single_1k_t_SOURCES =	$(mf_pagecache_single_src)
+mf_pagecache_single_8k_t_SOURCES =	$(mf_pagecache_single_src)
+mf_pagecache_single_1k_t_CPPFLAGS = 	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=1024
+mf_pagecache_single_8k_t_CPPFLAGS = 	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=8192
+
+# All others below are big
 mf_pagecache_single_64k_t_big_SOURCES =	$(mf_pagecache_single_src)
-mf_pagecache_single_1k_t_big_CPPFLAGS = 	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=1024
-mf_pagecache_single_8k_t_big_CPPFLAGS = 	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=8192
 mf_pagecache_single_64k_t_big_CPPFLAGS = 	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=65536
 
 mf_pagecache_consist_1k_t_big_SOURCES =	$(mf_pagecache_consist_src)
@@ -52,4 +55,4 @@ mf_pagecache_consist_1kWR_t_big_CPPFLAGS = 	$(mf_pagecache_common_cppflags) -DPA
 mf_pagecache_consist_64kWR_t_big_SOURCES =	$(mf_pagecache_consist_src)
 mf_pagecache_consist_64kWR_t_big_CPPFLAGS = 	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=65536 -DTEST_WRITERS
 
-CLEANFILES = 	my_pagecache_debug.log page_cache_test_file_1
+CLEANFILES = 	pagecache_debug.log page_cache_test_file_1
