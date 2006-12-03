@@ -172,8 +172,7 @@ nlm_version=`echo "$version" | sed -e "s;\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\).*;\1
 for file in ./netware/*.def
 do
   mv -f $file $file.org
-  sed -e "s;VERSION.*;VERSION $nlm_version;g" \
-      -e "s;XDCDATA.*;XDCDATA $SRC_DIR/netware/mysql.xdc;g" $file.org > $file
+  sed -e "s;VERSION.*;VERSION $nlm_version;g" $file.org > $file
   rm $file.org
 done
 
