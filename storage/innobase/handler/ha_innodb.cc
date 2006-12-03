@@ -2591,10 +2591,10 @@ innobase_mysql_cmp(
 	case MYSQL_TYPE_BIT:
 	case MYSQL_TYPE_STRING:
 	case MYSQL_TYPE_VAR_STRING:
-	case FIELD_TYPE_TINY_BLOB:
-	case FIELD_TYPE_MEDIUM_BLOB:
-	case FIELD_TYPE_BLOB:
-	case FIELD_TYPE_LONG_BLOB:
+	case MYSQL_TYPE_TINY_BLOB:
+	case MYSQL_TYPE_MEDIUM_BLOB:
+	case MYSQL_TYPE_BLOB:
+	case MYSQL_TYPE_LONG_BLOB:
 	case MYSQL_TYPE_VARCHAR:
 		/* Use the charset number to pick the right charset struct for
 		the comparison. Since the MySQL function get_charset may be
@@ -2658,11 +2658,11 @@ get_innobase_type_from_mysql_type(
 	8 bits: this is used in ibuf and also when DATA_NOT_NULL is ORed to
 	the type */
 
-	DBUG_ASSERT((ulint)FIELD_TYPE_STRING < 256);
-	DBUG_ASSERT((ulint)FIELD_TYPE_VAR_STRING < 256);
-	DBUG_ASSERT((ulint)FIELD_TYPE_DOUBLE < 256);
-	DBUG_ASSERT((ulint)FIELD_TYPE_FLOAT < 256);
-	DBUG_ASSERT((ulint)FIELD_TYPE_DECIMAL < 256);
+	DBUG_ASSERT((ulint)MYSQL_TYPE_STRING < 256);
+	DBUG_ASSERT((ulint)MYSQL_TYPE_VAR_STRING < 256);
+	DBUG_ASSERT((ulint)MYSQL_TYPE_DOUBLE < 256);
+	DBUG_ASSERT((ulint)MYSQL_TYPE_FLOAT < 256);
+	DBUG_ASSERT((ulint)MYSQL_TYPE_DECIMAL < 256);
 
 	if (field->flags & UNSIGNED_FLAG) {
 
@@ -2671,8 +2671,8 @@ get_innobase_type_from_mysql_type(
 		*unsigned_flag = 0;
 	}
 
-	if (field->real_type() == FIELD_TYPE_ENUM
-		|| field->real_type() == FIELD_TYPE_SET) {
+	if (field->real_type() == MYSQL_TYPE_ENUM
+		|| field->real_type() == MYSQL_TYPE_SET) {
 
 		/* MySQL has field->type() a string type for these, but the
 		data is actually internally stored as an unsigned integer
@@ -2710,31 +2710,31 @@ get_innobase_type_from_mysql_type(
 		} else {
 			return(DATA_MYSQL);
 		}
-	case FIELD_TYPE_NEWDECIMAL:
+	case MYSQL_TYPE_NEWDECIMAL:
 		return(DATA_FIXBINARY);
-	case FIELD_TYPE_LONG:
-	case FIELD_TYPE_LONGLONG:
-	case FIELD_TYPE_TINY:
-	case FIELD_TYPE_SHORT:
-	case FIELD_TYPE_INT24:
-	case FIELD_TYPE_DATE:
-	case FIELD_TYPE_DATETIME:
-	case FIELD_TYPE_YEAR:
-	case FIELD_TYPE_NEWDATE:
-	case FIELD_TYPE_TIME:
-	case FIELD_TYPE_TIMESTAMP:
+	case MYSQL_TYPE_LONG:
+	case MYSQL_TYPE_LONGLONG:
+	case MYSQL_TYPE_TINY:
+	case MYSQL_TYPE_SHORT:
+	case MYSQL_TYPE_INT24:
+	case MYSQL_TYPE_DATE:
+	case MYSQL_TYPE_DATETIME:
+	case MYSQL_TYPE_YEAR:
+	case MYSQL_TYPE_NEWDATE:
+	case MYSQL_TYPE_TIME:
+	case MYSQL_TYPE_TIMESTAMP:
 		return(DATA_INT);
-	case FIELD_TYPE_FLOAT:
+	case MYSQL_TYPE_FLOAT:
 		return(DATA_FLOAT);
-	case FIELD_TYPE_DOUBLE:
+	case MYSQL_TYPE_DOUBLE:
 		return(DATA_DOUBLE);
-	case FIELD_TYPE_DECIMAL:
+	case MYSQL_TYPE_DECIMAL:
 		return(DATA_DECIMAL);
-	case FIELD_TYPE_GEOMETRY:
-	case FIELD_TYPE_TINY_BLOB:
-	case FIELD_TYPE_MEDIUM_BLOB:
-	case FIELD_TYPE_BLOB:
-	case FIELD_TYPE_LONG_BLOB:
+	case MYSQL_TYPE_GEOMETRY:
+	case MYSQL_TYPE_TINY_BLOB:
+	case MYSQL_TYPE_MEDIUM_BLOB:
+	case MYSQL_TYPE_BLOB:
+	case MYSQL_TYPE_LONG_BLOB:
 		return(DATA_BLOB);
 	default:
 		assert(0);
@@ -2902,10 +2902,10 @@ ha_innobase::store_key_val_for_row(
 
 			buff += key_len;
 
-		} else if (mysql_type == FIELD_TYPE_TINY_BLOB
-			|| mysql_type == FIELD_TYPE_MEDIUM_BLOB
-			|| mysql_type == FIELD_TYPE_BLOB
-			|| mysql_type == FIELD_TYPE_LONG_BLOB) {
+		} else if (mysql_type == MYSQL_TYPE_TINY_BLOB
+			|| mysql_type == MYSQL_TYPE_MEDIUM_BLOB
+			|| mysql_type == MYSQL_TYPE_BLOB
+			|| mysql_type == MYSQL_TYPE_LONG_BLOB) {
 
 			CHARSET_INFO*	cs;
 			ulint		key_len;
@@ -2999,8 +2999,8 @@ ha_innobase::store_key_val_for_row(
 			type is not enum or set. For these fields check
 			if character set is multi byte. */
 
-			if (real_type != FIELD_TYPE_ENUM
-				&& real_type != FIELD_TYPE_SET
+			if (real_type != MYSQL_TYPE_ENUM
+				&& real_type != MYSQL_TYPE_SET
 				&& ( mysql_type == MYSQL_TYPE_VAR_STRING
 					|| mysql_type == MYSQL_TYPE_STRING)) {
 
@@ -7219,10 +7219,10 @@ ha_innobase::cmp_ref(
 		field = key_part->field;
 		mysql_type = field->type();
 
-		if (mysql_type == FIELD_TYPE_TINY_BLOB
-			|| mysql_type == FIELD_TYPE_MEDIUM_BLOB
-			|| mysql_type == FIELD_TYPE_BLOB
-			|| mysql_type == FIELD_TYPE_LONG_BLOB) {
+		if (mysql_type == MYSQL_TYPE_TINY_BLOB
+			|| mysql_type == MYSQL_TYPE_MEDIUM_BLOB
+			|| mysql_type == MYSQL_TYPE_BLOB
+			|| mysql_type == MYSQL_TYPE_LONG_BLOB) {
 
 			/* In the MySQL key value format, a column prefix of
 			a BLOB is preceded by a 2-byte length field */

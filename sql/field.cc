@@ -8725,7 +8725,7 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     it is NOT NULL, not an AUTO_INCREMENT field and not a TIMESTAMP.
   */
   if (!fld_default_value && !(fld_type_modifier & AUTO_INCREMENT_FLAG) &&
-      (fld_type_modifier & NOT_NULL_FLAG) && fld_type != FIELD_TYPE_TIMESTAMP)
+      (fld_type_modifier & NOT_NULL_FLAG) && fld_type != MYSQL_TYPE_TIMESTAMP)
     flags|= NO_DEFAULT_VALUE_FLAG;
 
   if (fld_length && !(length= (uint) atoi(fld_length)))
@@ -8733,34 +8733,34 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   sign_len= fld_type_modifier & UNSIGNED_FLAG ? 0 : 1;
 
   switch (fld_type) {
-  case FIELD_TYPE_TINY:
+  case MYSQL_TYPE_TINY:
     if (!fld_length)
       length= MAX_TINYINT_WIDTH+sign_len;
     allowed_type_modifier= AUTO_INCREMENT_FLAG;
     break;
-  case FIELD_TYPE_SHORT:
+  case MYSQL_TYPE_SHORT:
     if (!fld_length)
       length= MAX_SMALLINT_WIDTH+sign_len;
     allowed_type_modifier= AUTO_INCREMENT_FLAG;
     break;
-  case FIELD_TYPE_INT24:
+  case MYSQL_TYPE_INT24:
     if (!fld_length)
       length= MAX_MEDIUMINT_WIDTH+sign_len;
     allowed_type_modifier= AUTO_INCREMENT_FLAG;
     break;
-  case FIELD_TYPE_LONG:
+  case MYSQL_TYPE_LONG:
     if (!fld_length)
       length= MAX_INT_WIDTH+sign_len;
     allowed_type_modifier= AUTO_INCREMENT_FLAG;
     break;
-  case FIELD_TYPE_LONGLONG:
+  case MYSQL_TYPE_LONGLONG:
     if (!fld_length)
       length= MAX_BIGINT_WIDTH;
     allowed_type_modifier= AUTO_INCREMENT_FLAG;
     break;
-  case FIELD_TYPE_NULL:
+  case MYSQL_TYPE_NULL:
     break;
-  case FIELD_TYPE_NEWDECIMAL:
+  case MYSQL_TYPE_NEWDECIMAL:
     if (!fld_length && !decimals)
       length= 10;
     if (length > DECIMAL_MAX_PRECISION)
@@ -8789,11 +8789,11 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     break;
   case MYSQL_TYPE_STRING:
     break;
-  case FIELD_TYPE_BLOB:
-  case FIELD_TYPE_TINY_BLOB:
-  case FIELD_TYPE_LONG_BLOB:
-  case FIELD_TYPE_MEDIUM_BLOB:
-  case FIELD_TYPE_GEOMETRY:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_GEOMETRY:
     if (fld_default_value)
     {
       /* Allow empty as default value. */
@@ -8825,12 +8825,12 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     }
     flags|= BLOB_FLAG;
     break;
-  case FIELD_TYPE_YEAR:
+  case MYSQL_TYPE_YEAR:
     if (!fld_length || length != 2)
       length= 4; /* Default length */
     flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
     break;
-  case FIELD_TYPE_FLOAT:
+  case MYSQL_TYPE_FLOAT:
     /* change FLOAT(precision) to FLOAT or DOUBLE */
     allowed_type_modifier= AUTO_INCREMENT_FLAG;
     if (fld_length && !fld_decimals)
@@ -8843,7 +8843,7 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
       }
       else if (tmp_length > PRECISION_FOR_FLOAT)
       {
-        sql_type= FIELD_TYPE_DOUBLE;
+        sql_type= MYSQL_TYPE_DOUBLE;
         length= DBL_DIG+7; /* -[digits].E+### */
       }
       else
@@ -8863,7 +8863,7 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
       DBUG_RETURN(TRUE);
     }
     break;
-  case FIELD_TYPE_DOUBLE:
+  case MYSQL_TYPE_DOUBLE:
     allowed_type_modifier= AUTO_INCREMENT_FLAG;
     if (!fld_length && !fld_decimals)
     {
@@ -8877,7 +8877,7 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
       DBUG_RETURN(TRUE);
     }
     break;
-  case FIELD_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_TIMESTAMP:
     if (!fld_length)
       length= 14;  /* Full date YYYYMMDDHHMMSS */
     else if (length != 19)
@@ -8928,21 +8928,21 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
                                               Field::NONE));
     }
     break;
-  case FIELD_TYPE_DATE:
+  case MYSQL_TYPE_DATE:
     /* Old date type. */
     if (protocol_version != PROTOCOL_VERSION-1)
-      sql_type= FIELD_TYPE_NEWDATE;
+      sql_type= MYSQL_TYPE_NEWDATE;
     /* fall trough */
-  case FIELD_TYPE_NEWDATE:
+  case MYSQL_TYPE_NEWDATE:
     length= 10;
     break;
-  case FIELD_TYPE_TIME:
+  case MYSQL_TYPE_TIME:
     length= 10;
     break;
-  case FIELD_TYPE_DATETIME:
+  case MYSQL_TYPE_DATETIME:
     length= 19;
     break;
-  case FIELD_TYPE_SET:
+  case MYSQL_TYPE_SET:
     {
       if (fld_interval_list->elements > sizeof(longlong)*8)
       {
@@ -8963,7 +8963,7 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
       length= 1;
       break;
     }
-  case FIELD_TYPE_ENUM:
+  case MYSQL_TYPE_ENUM:
     {
       /* Should be safe. */
       pack_length= get_enum_pack_length(fld_interval_list->elements);
@@ -8972,7 +8972,7 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
       String *tmp;
       while ((tmp= it++))
         interval_list.push_back(tmp);
-      length= 1; /* See comment for FIELD_TYPE_SET above. */
+      length= 1; /* See comment for MYSQL_TYPE_SET above. */
       break;
    }
   case MYSQL_TYPE_VAR_STRING:
@@ -8991,19 +8991,19 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
       pack_length= (length + 7) / 8;
       break;
     }
-  case FIELD_TYPE_DECIMAL:
+  case MYSQL_TYPE_DECIMAL:
     DBUG_ASSERT(0); /* Was obsolete */
   }
   /* Remember the value of length */
   char_length= length;
 
   if (!(flags & BLOB_FLAG) &&
-      ((length > max_field_charlength && fld_type != FIELD_TYPE_SET &&
-        fld_type != FIELD_TYPE_ENUM &&
+      ((length > max_field_charlength && fld_type != MYSQL_TYPE_SET &&
+        fld_type != MYSQL_TYPE_ENUM &&
         (fld_type != MYSQL_TYPE_VARCHAR || fld_default_value)) ||
        (!length &&
         fld_type != MYSQL_TYPE_STRING &&
-        fld_type != MYSQL_TYPE_VARCHAR && fld_type != FIELD_TYPE_GEOMETRY)))
+        fld_type != MYSQL_TYPE_VARCHAR && fld_type != MYSQL_TYPE_GEOMETRY)))
   {
     my_error((fld_type == MYSQL_TYPE_VAR_STRING ||
               fld_type == MYSQL_TYPE_VARCHAR ||
@@ -9028,13 +9028,13 @@ enum_field_types get_blob_type_from_length(ulong length)
 {
   enum_field_types type;
   if (length < 256)
-    type= FIELD_TYPE_TINY_BLOB;
+    type= MYSQL_TYPE_TINY_BLOB;
   else if (length < 65536)
-    type= FIELD_TYPE_BLOB;
+    type= MYSQL_TYPE_BLOB;
   else if (length < 256L*256L*256L)
-    type= FIELD_TYPE_MEDIUM_BLOB;
+    type= MYSQL_TYPE_MEDIUM_BLOB;
   else
-    type= FIELD_TYPE_LONG_BLOB;
+    type= MYSQL_TYPE_LONG_BLOB;
   return type;
 }
 
@@ -9048,32 +9048,32 @@ uint32 calc_pack_length(enum_field_types type,uint32 length)
   switch (type) {
   case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_STRING:
-  case FIELD_TYPE_DECIMAL:     return (length);
+  case MYSQL_TYPE_DECIMAL:     return (length);
   case MYSQL_TYPE_VARCHAR:     return (length + (length < 256 ? 1: 2));
-  case FIELD_TYPE_YEAR:
-  case FIELD_TYPE_TINY	: return 1;
-  case FIELD_TYPE_SHORT : return 2;
-  case FIELD_TYPE_INT24:
-  case FIELD_TYPE_NEWDATE:
-  case FIELD_TYPE_TIME:   return 3;
-  case FIELD_TYPE_TIMESTAMP:
-  case FIELD_TYPE_DATE:
-  case FIELD_TYPE_LONG	: return 4;
-  case FIELD_TYPE_FLOAT : return sizeof(float);
-  case FIELD_TYPE_DOUBLE: return sizeof(double);
-  case FIELD_TYPE_DATETIME:
-  case FIELD_TYPE_LONGLONG: return 8;	/* Don't crash if no longlong */
-  case FIELD_TYPE_NULL	: return 0;
-  case FIELD_TYPE_TINY_BLOB:	return 1+portable_sizeof_char_ptr;
-  case FIELD_TYPE_BLOB:		return 2+portable_sizeof_char_ptr;
-  case FIELD_TYPE_MEDIUM_BLOB:	return 3+portable_sizeof_char_ptr;
-  case FIELD_TYPE_LONG_BLOB:	return 4+portable_sizeof_char_ptr;
-  case FIELD_TYPE_GEOMETRY:	return 4+portable_sizeof_char_ptr;
-  case FIELD_TYPE_SET:
-  case FIELD_TYPE_ENUM:
-  case FIELD_TYPE_NEWDECIMAL:
+  case MYSQL_TYPE_YEAR:
+  case MYSQL_TYPE_TINY	: return 1;
+  case MYSQL_TYPE_SHORT : return 2;
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_NEWDATE:
+  case MYSQL_TYPE_TIME:   return 3;
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_LONG	: return 4;
+  case MYSQL_TYPE_FLOAT : return sizeof(float);
+  case MYSQL_TYPE_DOUBLE: return sizeof(double);
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_LONGLONG: return 8;	/* Don't crash if no longlong */
+  case MYSQL_TYPE_NULL	: return 0;
+  case MYSQL_TYPE_TINY_BLOB:	return 1+portable_sizeof_char_ptr;
+  case MYSQL_TYPE_BLOB:		return 2+portable_sizeof_char_ptr;
+  case MYSQL_TYPE_MEDIUM_BLOB:	return 3+portable_sizeof_char_ptr;
+  case MYSQL_TYPE_LONG_BLOB:	return 4+portable_sizeof_char_ptr;
+  case MYSQL_TYPE_GEOMETRY:	return 4+portable_sizeof_char_ptr;
+  case MYSQL_TYPE_SET:
+  case MYSQL_TYPE_ENUM:
+  case MYSQL_TYPE_NEWDECIMAL:
     abort(); return 0;                          // This shouldn't happen
-  case FIELD_TYPE_BIT: return length / 8;
+  case MYSQL_TYPE_BIT: return length / 8;
   default:
     return 0;
   }
@@ -9083,11 +9083,11 @@ uint32 calc_pack_length(enum_field_types type,uint32 length)
 uint pack_length_to_packflag(uint type)
 {
   switch (type) {
-    case 1: return f_settype((uint) FIELD_TYPE_TINY);
-    case 2: return f_settype((uint) FIELD_TYPE_SHORT);
-    case 3: return f_settype((uint) FIELD_TYPE_INT24);
-    case 4: return f_settype((uint) FIELD_TYPE_LONG);
-    case 8: return f_settype((uint) FIELD_TYPE_LONGLONG);
+    case 1: return f_settype((uint) MYSQL_TYPE_TINY);
+    case 2: return f_settype((uint) MYSQL_TYPE_SHORT);
+    case 3: return f_settype((uint) MYSQL_TYPE_INT24);
+    case 4: return f_settype((uint) MYSQL_TYPE_LONG);
+    case 8: return f_settype((uint) MYSQL_TYPE_LONGLONG);
   }
   return 0;					// This shouldn't happen
 }
@@ -9107,7 +9107,7 @@ Field *make_field(TABLE_SHARE *share, char *ptr, uint32 field_length,
   uchar bit_offset;
   LINT_INIT(bit_ptr);
   LINT_INIT(bit_offset);
-  if (field_type == FIELD_TYPE_BIT && !f_bit_as_char(pack_flag))
+  if (field_type == MYSQL_TYPE_BIT && !f_bit_as_char(pack_flag))
   {
     bit_ptr= null_pos;
     bit_offset= null_bit;
@@ -9129,11 +9129,11 @@ Field *make_field(TABLE_SHARE *share, char *ptr, uint32 field_length,
   }
 
   switch (field_type) {
-  case FIELD_TYPE_DATE:
-  case FIELD_TYPE_NEWDATE:
-  case FIELD_TYPE_TIME:
-  case FIELD_TYPE_DATETIME:
-  case FIELD_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_NEWDATE:
+  case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
     field_charset= &my_charset_bin;
   default: break;
   }
@@ -9143,7 +9143,7 @@ Field *make_field(TABLE_SHARE *share, char *ptr, uint32 field_length,
     if (!f_is_packed(pack_flag))
     {
       if (field_type == MYSQL_TYPE_STRING ||
-          field_type == FIELD_TYPE_DECIMAL ||   // 3.23 or 4.0 string
+          field_type == MYSQL_TYPE_DECIMAL ||   // 3.23 or 4.0 string
           field_type == MYSQL_TYPE_VAR_STRING)
         return new Field_string(ptr,field_length,null_pos,null_bit,
                                 unireg_check, field_name,
@@ -9186,78 +9186,78 @@ Field *make_field(TABLE_SHARE *share, char *ptr, uint32 field_length,
   }
 
   switch (field_type) {
-  case FIELD_TYPE_DECIMAL:
+  case MYSQL_TYPE_DECIMAL:
     return new Field_decimal(ptr,field_length,null_pos,null_bit,
 			     unireg_check, field_name,
 			     f_decimals(pack_flag),
 			     f_is_zerofill(pack_flag) != 0,
 			     f_is_dec(pack_flag) == 0);
-  case FIELD_TYPE_NEWDECIMAL:
+  case MYSQL_TYPE_NEWDECIMAL:
     return new Field_new_decimal(ptr,field_length,null_pos,null_bit,
                                  unireg_check, field_name,
                                  f_decimals(pack_flag),
                                  f_is_zerofill(pack_flag) != 0,
                                  f_is_dec(pack_flag) == 0);
-  case FIELD_TYPE_FLOAT:
+  case MYSQL_TYPE_FLOAT:
     return new Field_float(ptr,field_length,null_pos,null_bit,
 			   unireg_check, field_name,
 			   f_decimals(pack_flag),
 			   f_is_zerofill(pack_flag) != 0,
 			   f_is_dec(pack_flag)== 0);
-  case FIELD_TYPE_DOUBLE:
+  case MYSQL_TYPE_DOUBLE:
     return new Field_double(ptr,field_length,null_pos,null_bit,
 			    unireg_check, field_name,
 			    f_decimals(pack_flag),
 			    f_is_zerofill(pack_flag) != 0,
 			    f_is_dec(pack_flag)== 0);
-  case FIELD_TYPE_TINY:
+  case MYSQL_TYPE_TINY:
     return new Field_tiny(ptr,field_length,null_pos,null_bit,
 			  unireg_check, field_name,
 			  f_is_zerofill(pack_flag) != 0,
 			  f_is_dec(pack_flag) == 0);
-  case FIELD_TYPE_SHORT:
+  case MYSQL_TYPE_SHORT:
     return new Field_short(ptr,field_length,null_pos,null_bit,
 			   unireg_check, field_name,
 			   f_is_zerofill(pack_flag) != 0,
 			   f_is_dec(pack_flag) == 0);
-  case FIELD_TYPE_INT24:
+  case MYSQL_TYPE_INT24:
     return new Field_medium(ptr,field_length,null_pos,null_bit,
 			    unireg_check, field_name,
 			    f_is_zerofill(pack_flag) != 0,
 			    f_is_dec(pack_flag) == 0);
-  case FIELD_TYPE_LONG:
+  case MYSQL_TYPE_LONG:
     return new Field_long(ptr,field_length,null_pos,null_bit,
 			   unireg_check, field_name,
 			   f_is_zerofill(pack_flag) != 0,
 			   f_is_dec(pack_flag) == 0);
-  case FIELD_TYPE_LONGLONG:
+  case MYSQL_TYPE_LONGLONG:
     return new Field_longlong(ptr,field_length,null_pos,null_bit,
 			      unireg_check, field_name,
 			      f_is_zerofill(pack_flag) != 0,
 			      f_is_dec(pack_flag) == 0);
-  case FIELD_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_TIMESTAMP:
     return new Field_timestamp(ptr,field_length, null_pos, null_bit,
                                unireg_check, field_name, share,
                                field_charset);
-  case FIELD_TYPE_YEAR:
+  case MYSQL_TYPE_YEAR:
     return new Field_year(ptr,field_length,null_pos,null_bit,
 			  unireg_check, field_name);
-  case FIELD_TYPE_DATE:
+  case MYSQL_TYPE_DATE:
     return new Field_date(ptr,null_pos,null_bit,
 			  unireg_check, field_name, field_charset);
-  case FIELD_TYPE_NEWDATE:
+  case MYSQL_TYPE_NEWDATE:
     return new Field_newdate(ptr,null_pos,null_bit,
 			     unireg_check, field_name, field_charset);
-  case FIELD_TYPE_TIME:
+  case MYSQL_TYPE_TIME:
     return new Field_time(ptr,null_pos,null_bit,
 			  unireg_check, field_name, field_charset);
-  case FIELD_TYPE_DATETIME:
+  case MYSQL_TYPE_DATETIME:
     return new Field_datetime(ptr,null_pos,null_bit,
 			      unireg_check, field_name, field_charset);
-  case FIELD_TYPE_NULL:
+  case MYSQL_TYPE_NULL:
     return new Field_null(ptr, field_length, unireg_check, field_name,
                           field_charset);
-  case FIELD_TYPE_BIT:
+  case MYSQL_TYPE_BIT:
     return f_bit_as_char(pack_flag) ?
            new Field_bit_as_char(ptr, field_length, null_pos, null_bit,
                                  unireg_check, field_name) :
@@ -9293,12 +9293,12 @@ create_field::create_field(Field *old_field,Field *orig_field)
 		  portable_sizeof_char_ptr);
 
   switch (sql_type) {
-  case FIELD_TYPE_BLOB:
+  case MYSQL_TYPE_BLOB:
     switch (pack_length - portable_sizeof_char_ptr) {
-    case  1: sql_type= FIELD_TYPE_TINY_BLOB; break;
-    case  2: sql_type= FIELD_TYPE_BLOB; break;
-    case  3: sql_type= FIELD_TYPE_MEDIUM_BLOB; break;
-    default: sql_type= FIELD_TYPE_LONG_BLOB; break;
+    case  1: sql_type= MYSQL_TYPE_TINY_BLOB; break;
+    case  2: sql_type= MYSQL_TYPE_BLOB; break;
+    case  3: sql_type= MYSQL_TYPE_MEDIUM_BLOB; break;
+    default: sql_type= MYSQL_TYPE_LONG_BLOB; break;
     }
     length/= charset->mbmaxlen;
     key_length/= charset->mbmaxlen;
@@ -9317,7 +9317,7 @@ create_field::create_field(Field *old_field,Field *orig_field)
     length= (length+charset->mbmaxlen-1) / charset->mbmaxlen;
     break;
 #ifdef HAVE_SPATIAL
-  case FIELD_TYPE_GEOMETRY:
+  case MYSQL_TYPE_GEOMETRY:
     geom_type= ((Field_geom*)old_field)->geom_type;
     break;
 #endif
@@ -9334,7 +9334,7 @@ create_field::create_field(Field *old_field,Field *orig_field)
 
   if (!(flags & (NO_DEFAULT_VALUE_FLAG | BLOB_FLAG)) &&
       old_field->ptr && orig_field &&
-      (sql_type != FIELD_TYPE_TIMESTAMP ||                /* set def only if */
+      (sql_type != MYSQL_TYPE_TIMESTAMP ||                /* set def only if */
        old_field->table->timestamp_field != old_field ||  /* timestamp field */ 
        unireg_check == Field::TIMESTAMP_UN_FIELD))        /* has default val */
   {

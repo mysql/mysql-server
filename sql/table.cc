@@ -877,7 +877,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       field_type=(enum_field_types) (uint) strpos[13];
 
       /* charset and geometry_type share the same byte in frm */
-      if (field_type == FIELD_TYPE_GEOMETRY)
+      if (field_type == MYSQL_TYPE_GEOMETRY)
       {
 #ifdef HAVE_SPATIAL
 	geom_type= (Field::geometry_type) strpos[14];
@@ -952,7 +952,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     }
     
 #ifndef TO_BE_DELETED_ON_PRODUCTION
-    if (field_type == FIELD_TYPE_NEWDECIMAL && !share->mysql_version)
+    if (field_type == MYSQL_TYPE_NEWDECIMAL && !share->mysql_version)
     {
       /*
         Fix pack length of old decimal values from 5.0.3 -> 5.0.4
@@ -999,7 +999,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
     reg_field->field_index= i;
     reg_field->comment=comment;
-    if (field_type == FIELD_TYPE_BIT && !f_bit_as_char(pack_flag))
+    if (field_type == MYSQL_TYPE_BIT && !f_bit_as_char(pack_flag))
     {
       if ((null_bit_pos+= field_length & 7) > 7)
       {
@@ -1089,10 +1089,10 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           keyinfo->extra_length+= HA_KEY_NULL_LENGTH;
           keyinfo->key_length+= HA_KEY_NULL_LENGTH;
         }
-        if (field->type() == FIELD_TYPE_BLOB ||
+        if (field->type() == MYSQL_TYPE_BLOB ||
             field->real_type() == MYSQL_TYPE_VARCHAR)
         {
-          if (field->type() == FIELD_TYPE_BLOB)
+          if (field->type() == MYSQL_TYPE_BLOB)
             key_part->key_part_flag|= HA_BLOB_PART;
           else
             key_part->key_part_flag|= HA_VAR_LENGTH_PART;
@@ -1144,7 +1144,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         if (field->key_length() != key_part->length)
         {
 #ifndef TO_BE_DELETED_ON_PRODUCTION
-          if (field->type() == FIELD_TYPE_NEWDECIMAL)
+          if (field->type() == MYSQL_TYPE_NEWDECIMAL)
           {
             /*
               Fix a fatal error in decimal key handling that causes crashes

@@ -1540,15 +1540,15 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 	keydef[i].seg[j].null_bit=0;
 	keydef[i].seg[j].null_pos=0;
       }
-      if (field->type() == FIELD_TYPE_BLOB ||
-	  field->type() == FIELD_TYPE_GEOMETRY)
+      if (field->type() == MYSQL_TYPE_BLOB ||
+	  field->type() == MYSQL_TYPE_GEOMETRY)
       {
 	keydef[i].seg[j].flag|=HA_BLOB_PART;
 	/* save number of bytes used to pack length */
 	keydef[i].seg[j].bit_start= (uint) (field->pack_length() -
 					    share->blob_ptr_size);
       }
-      else if (field->type() == FIELD_TYPE_BIT)
+      else if (field->type() == MYSQL_TYPE_BIT)
       {
         keydef[i].seg[j].bit_length= ((Field_bit *) field)->bit_len;
         keydef[i].seg[j].bit_start= ((Field_bit *) field)->bit_ofs;
