@@ -48,7 +48,7 @@ enum
 {
   MYSQL_PROC_FIELD_DB = 0,
   MYSQL_PROC_FIELD_NAME,
-  MYSQL_PROC_FIELD_TYPE,
+  MYSQL_PROC_MYSQL_TYPE,
   MYSQL_PROC_FIELD_SPECIFIC_NAME,
   MYSQL_PROC_FIELD_LANGUAGE,
   MYSQL_PROC_FIELD_ACCESS,
@@ -541,7 +541,7 @@ db_create_routine(THD *thd, int type, sp_head *sp)
       store(sp->m_db.str, sp->m_db.length, system_charset_info);
     table->field[MYSQL_PROC_FIELD_NAME]->
       store(sp->m_name.str, sp->m_name.length, system_charset_info);
-    table->field[MYSQL_PROC_FIELD_TYPE]->
+    table->field[MYSQL_PROC_MYSQL_TYPE]->
       store((longlong)type, TRUE);
     table->field[MYSQL_PROC_FIELD_SPECIFIC_NAME]->
       store(sp->m_name.str, sp->m_name.length, system_charset_info);
@@ -743,7 +743,7 @@ print_field_values(THD *thd, TABLE *table,
 {
   Protocol *protocol= thd->protocol;
 
-  if (table->field[MYSQL_PROC_FIELD_TYPE]->val_int() == type)
+  if (table->field[MYSQL_PROC_MYSQL_TYPE]->val_int() == type)
   {
     String db_string;
     String name_string;

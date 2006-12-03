@@ -6581,7 +6581,7 @@ copy_extra_record_fields(TABLE *table,
         /* Nothing to do */
         break;
 
-      case FIELD_TYPE_BIT:
+      case MYSQL_TYPE_BIT:
         Field_bit *f= static_cast<Field_bit*>(*field_ptr);
         my_ptrdiff_t const offset= table->record[1] - table->record[0];
         uchar const bits=
