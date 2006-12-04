@@ -429,7 +429,7 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
     goto err;
   }
 
-  if (check_date(l_time, not_zero_date, flags, was_cut))
+  if (check_date(l_time, not_zero_date != 0, flags, was_cut))
     goto err;
 
   l_time->time_type= (number_of_fields <= 3 ?
@@ -530,15 +530,15 @@ my_bool str_to_time(const char *str, uint length, MYSQL_TIME *l_time,
   if ((uint) (end-str) > 1 && str != end_of_days &&
       my_isdigit(&my_charset_latin1, *str))
   {                                             /* Found days part */
-    date[0]= value;
+    date[0]= (ulong) value;
     state= 1;                                   /* Assume next is hours */
     found_days= 1;
   }
   else if ((end-str) > 1 &&  *str == time_separator &&
            my_isdigit(&my_charset_latin1, str[1]))
   {
-    date[0]=0;                                  /* Assume we found hours */
-    date[1]=value;
+    date[0]= 0;                                 /* Assume we found hours */
+    date[1]= (ulong) value;
     state=2;
     found_hours=1;
     str++;                                      /* skip ':' */
@@ -547,9 +547,9 @@ my_bool str_to_time(const char *str, uint length, MYSQL_TIME *l_time,
   {
     /* String given as one number; assume HHMMSS format */
     date[0]= 0;
-    date[1]= value/10000;
-    date[2]= value/100 % 100;
-    date[3]= value % 100;
+    date[1]= (ulong) (value/10000);
+    date[2]= (ulong) (value/100 % 100);
+    date[3]= (ulong) (value % 100);
     state=4;
     goto fractional;
   }
@@ -559,7 +559,7 @@ my_bool str_to_time(const char *str, uint length, MYSQL_TIME *l_time,
   {
     for (value=0; str != end && my_isdigit(&my_charset_latin1,*str) ; str++)
       value=value*10L + (long) (*str - '0');
-    date[state++]=value;
+    date[state++]= (ulong) value;
     if (state == 4 || (end-str) < 2 || *str != time_separator ||
         !my_isdigit(&my_charset_latin1,str[1]))
       break;
@@ -594,7 +594,7 @@ fractional:
       value*= (long) log_10_int[field_length];
     else if (field_length < 0)
       *warning|= MYSQL_TIME_WARN_TRUNCATED;
-    date[4]=value;
+    date[4]= (ulong) value;
   }
   else
     date[4]=0;

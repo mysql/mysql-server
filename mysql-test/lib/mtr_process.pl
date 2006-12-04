@@ -1059,7 +1059,7 @@ sub sleep_until_file_created ($$$) {
 
     # Print extra message every 60 seconds
     my $seconds= ($loop * $sleeptime) / 1000;
-    if ( $seconds > 1 and int($seconds) % 60 == 0 )
+    if ( $seconds > 1 and int($seconds * 10) % 600 == 0 )
     {
       my $left= $timeout - $seconds;
       mtr_warning("Waited $seconds seconds for $pidfile to be created, " .
