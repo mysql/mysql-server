@@ -158,6 +158,6 @@ public:
   int max_row_length(const byte *buf);
   bool fix_rec_buff(int length);
   int unpack_row(azio_stream *file_to_read, char *record);
-  int pack_row(const byte *record);
+  unsigned long pack_row(const byte *record);
 };
 
