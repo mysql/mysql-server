@@ -2196,9 +2196,7 @@ class select_dumpvar :public select_result_interceptor {
   ha_rows row_count;
 public:
   List<my_var> var_list;
-  List<Item_func_set_user_var> vars;
-  List<Item_splocal> local_vars;
-  select_dumpvar(void)  { var_list.empty(); local_vars.empty(); vars.empty(); row_count=0;}
+  select_dumpvar()  { var_list.empty(); row_count= 0;}
   ~select_dumpvar() {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
