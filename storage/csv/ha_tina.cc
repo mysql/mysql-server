@@ -542,14 +542,16 @@ int ha_tina::encode_quote(byte *buf)
     const char *end_ptr;
 
     /*
-      Write an empty string to the buffer in case of a NULL value.
+      CSV does not support nulls. Write quoted 0 to the buffer. In fact,
+      (*field)->val_str(&attribute,&attribute) would usually return 0
+      in this case but we write it explicitly here.
       Basically this is a safety check, as no one ensures that the
       field content is cleaned up every time we use Field::set_null()
       in the code.
     */
     if ((*field)->is_null())
     {
-      buffer.append(STRING_WITH_LEN("\"\","));
+      buffer.append(STRING_WITH_LEN("\"0\","));
       continue;
     }
     else
