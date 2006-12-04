@@ -406,7 +406,7 @@ make_scrambled_password(char *to, const char *password)
   mysql_sha1_result(&sha1_context, hash_stage2);
   /* convert hash_stage2 to hex string */
   *to++= PVERSION41_CHAR;
-  octet2hex(to, hash_stage2, SHA1_HASH_SIZE);
+  octet2hex(to, (char*) hash_stage2, SHA1_HASH_SIZE);
 }
   
 
@@ -520,5 +520,5 @@ void get_salt_from_password(uint8 *hash_stage2, const char *password)
 void make_password_from_salt(char *to, const uint8 *hash_stage2)
 {
   *to++= PVERSION41_CHAR;
-  octet2hex(to, hash_stage2, SHA1_HASH_SIZE);
+  octet2hex(to, (char*) hash_stage2, SHA1_HASH_SIZE);
 }

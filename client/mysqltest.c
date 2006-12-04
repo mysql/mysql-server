@@ -948,8 +948,8 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
     die(NullS);
   if (!eval_result && (uint) stat_info.st_size != ds->length)
   {
-    DBUG_PRINT("info",("Size differs:  result size: %u  file size: %llu",
-		       ds->length, stat_info.st_size));
+    DBUG_PRINT("info",("Size differs:  result size: %u  file size: %lu",
+		       ds->length, (ulong) stat_info.st_size));
     DBUG_PRINT("info",("result: '%s'", ds->str));
     DBUG_RETURN(RESULT_LENGTH_MISMATCH);
   }
@@ -3132,14 +3132,15 @@ void do_connect(struct st_command *command)
     else if (!strncmp(con_options, "COMPRESS", 8))
       con_compress= 1;
     else
-      die("Illegal option to connect: %.*s", end - con_options, con_options);
+      die("Illegal option to connect: %.*s", 
+          (int) (end - con_options), con_options);
     /* Process next option */
     con_options= end;
   }
 
   if (next_con == connections_end)
     die("Connection limit exhausted, you can have max %d connections",
-        (sizeof(connections)/sizeof(struct st_connection)));
+        (int) (sizeof(connections)/sizeof(struct st_connection)));
 
   if (find_connection_by_name(ds_connection_name.str))
     die("Connection %s already exists", ds_connection_name.str);
@@ -3460,10 +3461,10 @@ int read_line(char *buf, int size)
 	DBUG_RETURN(0);
       }
       else if ((c == '{' &&
-                (!my_strnncoll_simple(charset_info, "while", 5,
-                                      buf, min(5, p - buf), 0) ||
-                 !my_strnncoll_simple(charset_info, "if", 2,
-                                      buf, min(2, p - buf), 0))))
+                (!my_strnncoll_simple(charset_info, (const uchar*) "while", 5,
+                                      (uchar*) buf, min(5, p - buf), 0) ||
+                 !my_strnncoll_simple(charset_info, (const uchar*) "if", 2,
+                                      (uchar*) buf, min(2, p - buf), 0))))
       {
         /* Only if and while commands can be terminated by { */
         *p++= c;

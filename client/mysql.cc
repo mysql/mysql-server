@@ -2397,7 +2397,6 @@ print_table_data(MYSQL_RES *result)
       const char *buffer;
       uint data_length;
       uint field_max_length;
-      bool right_justified;
       uint visible_length;
       uint extra_padding;
 
@@ -3446,7 +3445,6 @@ server_version_string(MYSQL *mysql)
   {
     char *bufp = buf;
     MYSQL_RES *result;
-    MYSQL_ROW cur;
 
     bufp = strnmov(buf, mysql_get_server_info(mysql), sizeof buf);
 

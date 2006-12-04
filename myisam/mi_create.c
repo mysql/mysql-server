@@ -428,8 +428,8 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	key_segs)
       share.state.rec_per_key_part[key_segs-1]=1L;
     length+=key_length;
-    keydef->block_length= MI_BLOCK_SIZE(length-real_length_diff,
-                                        pointer,MI_MAX_KEYPTR_SIZE);
+    keydef->block_length= (uint16) MI_BLOCK_SIZE(length-real_length_diff,
+                                                 pointer,MI_MAX_KEYPTR_SIZE);
     if (keydef->block_length > MI_MAX_KEY_BLOCK_LENGTH ||
         length >= MI_MAX_KEY_BUFF)
     {

@@ -1040,8 +1040,8 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 #define set_timespec_nsec(ABSTIME,NSEC) \
 {\
   ulonglong now= my_getsystime() + (NSEC/100); \
-  (ABSTIME).tv_sec=  (now / ULL(10000000)); \
-  (ABSTIME).tv_nsec= (now % ULL(10000000) * 100 + ((NSEC) % 100));    \
+  (ABSTIME).tv_sec=  (time_t) (now / ULL(10000000));                  \
+  (ABSTIME).tv_nsec= (long) (now % ULL(10000000) * 100 + ((NSEC) % 100)); \
 }
 #endif /* !set_timespec_nsec */
 #endif /* HAVE_TIMESPEC_TS_SEC */
