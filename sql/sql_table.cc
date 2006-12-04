@@ -3652,10 +3652,12 @@ make_unique_key_name(const char *field_name,KEY *start,KEY *end)
       flags                     flags for build_table_filename().
                                 FN_FROM_IS_TMP old_name is temporary.
                                 FN_TO_IS_TMP   new_name is temporary.
+                                NO_FRM_RENAME  Don't rename the FRM file
+                                but only the table in the storage engine.
 
   RETURN
-    0           OK
-    != 0        Error
+    FALSE   OK
+    TRUE    Error
 */
 
 bool
@@ -3704,7 +3706,7 @@ mysql_rename_table(handlerton *base, const char *old_db,
 
   if (!file || !(error=file->rename_table(from_base, to_base)))
   {
-    if (rename_file_ext(from,to,reg_ext))
+    if (!(flags & NO_FRM_RENAME) && rename_file_ext(from,to,reg_ext))
     {
       error=my_errno;
       /* Restore old file name */
@@ -5197,6 +5199,51 @@ static uint compare_tables(TABLE *table, List<create_field> *create_list,
 
 /*
   Alter table
+
+  SYNOPSIS
+    mysql_alter_table()
+      thd              Thread handle
+      new_db           If there is a RENAME clause
+      new_name         If there is a RENAME clause
+      lex_create_info  Information from the parsing phase. Since some
+                       clauses are common to CREATE and ALTER TABLE, the
+                       data is stored in lex->create_info. The non-common
+                       is stored in lex->alter_info.
+      table_list       The table to change.
+      fields           lex->create_list - List of fields to be changed,
+                       added or dropped.
+      keys             lex->key_list - List of keys to be changed, added or
+                       dropped.
+      order_num        How many ORDER BY fields has been specified.
+      order            List of fields to ORDER BY.
+      ignore           Whether we have ALTER IGNORE TABLE
+      alter_info       Information from the parsing phase specific to ALTER
+                       TABLE and not shared with CREATE TABLE.
+      do_send_ok       Whether to call send_ok() on success.
+
+  DESCRIPTION
+    This is a veery long function and is everything but the kitchen sink :)
+    It is used to alter a table and not only by ALTER TABLE but also
+    CREATE|DROP INDEX are mapped on this function.
+
+    When the ALTER TABLE statement just does a RENAME or ENABLE|DISABLE KEYS,
+    or both, then this function short cuts its operation by renaming
+    the table and/or enabling/disabling the keys. In this case, the FRM is
+    not changed, directly by mysql_alter_table. However, if there is a
+    RENAME + change of a field, or an index, the short cut is not used.
+    See how `fields` is used to generate the new FRM regarding the structure
+    of the fields. The same is done for the indices of the table.
+
+    Important is the fact, that this function tries to do as little work as
+    possible, by finding out whether a intermediate table is needed to copy
+    data into and when finishing the altering to use it as the original table.
+    For this reason the function compare_tables() is called, which decides
+    based on all kind of data how similar are the new and the original
+    tables. 
+
+  RETURN VALUES
+    FALSE  OK
+    TRUE   Error
 */
 
 bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
@@ -5215,7 +5262,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   char reg_path[FN_REFLEN+1];
   ha_rows copied,deleted;
   uint db_create_options, used_fields;
-  handlerton *old_db_type, *new_db_type;
+  handlerton *old_db_type, *new_db_type, *save_old_db_type;
   legacy_db_type table_type;
   HA_CREATE_INFO *create_info;
   frm_type_enum frm_type;
@@ -5519,7 +5566,7 @@ view_err:
     DBUG_RETURN(error);
   }
 
-  /* Full alter table */
+  /* We have to do full alter table */
 
   /* Let new create options override the old ones */
   if (!(used_fields & HA_CREATE_USED_MIN_ROWS))
@@ -6038,8 +6085,8 @@ view_err:
       old data and index files.  Create also symlinks to point at
       the new tables.
       Copy data.
-      At end, rename temporary tables and symlinks to temporary table
-      to final table name.
+      At end, rename intermediate tables, and symlinks to intermediate
+      table, to final table name.
       Remove old table and old symlinks
 
     If rename is made to another database:
@@ -6100,6 +6147,7 @@ view_err:
       /* table is a normal table: Create temporary table in same directory */
       build_table_filename(path, sizeof(path), new_db, tmp_name, "",
                            FN_IS_TMP);
+      /* Open our intermediate table */
       new_table=open_temporary_table(thd, path, new_db, tmp_name,0);
     }
     if (!new_table)
@@ -6305,7 +6353,7 @@ view_err:
 
   if (new_table)
   {
-    /* close temporary table that will be the new table */
+    /* Close the intermediate table that will be the new table */
     intern_close_table(new_table);
     my_free((gptr) new_table,MYF(0));
   }
@@ -6319,7 +6367,7 @@ view_err:
 
   /*
     Data is copied.  Now we rename the old table to a temp name,
-    rename the new one to the old name, remove all entries from the old table
+    rename the new one to the old name, remove all entries about the old table
     from the cache, free all locks, close the old table and remove it.
   */
 
@@ -6346,7 +6394,7 @@ view_err:
   {
     /*
       Win32 and InnoDB can't drop a table that is in use, so we must
-      close the original table at before doing the rename
+      close the original table before doing the rename
     */
     table->s->version= 0;                	// Force removal of table def
     close_cached_table(thd, table);
@@ -6360,6 +6408,21 @@ view_err:
 
 
   error=0;
+  save_old_db_type= old_db_type;
+
+  /*
+    This leads to the storage engine (SE) not being notified for renames in
+    mysql_rename_table(), because we just juggle with the FRM and nothing
+    more. If we have an intermediate table, then we notify the SE that
+    it should become the actual table. Later, we will recycle the old table.
+    However, in case of ALTER TABLE RENAME there might be no intermediate
+    table. This is when the old and new tables are compatible, according to
+    compare_table(). Then, we need one additional call to
+    mysql_rename_table() with flag NO_FRM_RENAME, which does nothing else but
+    actual rename in the SE and the FRM is not touched. Note that, if the
+    table is renamed and the SE is also changed, then an intermediate table
+    is created and the additional call will not take place.
+  */
   if (!need_copy_table)
     new_db_type=old_db_type= NULL; // this type cannot happen in regular ALTER
   if (mysql_rename_table(old_db_type, db, table_name, db, old_name,
@@ -6369,8 +6432,11 @@ view_err:
     VOID(quick_rm_table(new_db_type, new_db, tmp_name, FN_IS_TMP));
   }
   else if (mysql_rename_table(new_db_type,new_db,tmp_name,new_db,
-			      new_alias, FN_FROM_IS_TMP) ||
+                              new_alias, FN_FROM_IS_TMP) ||
            (new_name != table_name || new_db != db) && // we also do rename
+           (need_copy_table ||
+            mysql_rename_table(save_old_db_type, db, table_name, new_db,
+                               new_alias, NO_FRM_RENAME)) &&
            Table_triggers_list::change_table_name(thd, db, table_name,
                                                   new_db, new_alias))
   {
@@ -6381,6 +6447,7 @@ view_err:
     VOID(mysql_rename_table(old_db_type, db, old_name, db, alias,
                             FN_FROM_IS_TMP));
   }
+
   if (error)
   {
     /*
@@ -6412,6 +6479,7 @@ view_err:
       goto err;
     }
   }
+
   if (thd->lock || new_name != table_name || no_table_reopen)  // True if WIN32
   {
     /*
@@ -6478,10 +6546,7 @@ view_err:
   DBUG_ASSERT(!(mysql_bin_log.is_open() && thd->current_stmt_binlog_row_based &&
                 (create_info->options & HA_LEX_CREATE_TMP_TABLE)));
   write_bin_log(thd, TRUE, thd->query, thd->query_length);
-  /*
-    TODO RONM: This problem needs to handled for Berkeley DB partitions
-    as well
-  */
+
   if (ha_check_storage_engine_flag(old_db_type,HTON_FLUSH_AFTER_RENAME))
   {
     /*
