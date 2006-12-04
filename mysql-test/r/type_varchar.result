@@ -453,3 +453,39 @@ id	name_id	id	en	cz
 2	3	2	en string 2	cz string 2
 3	3	3	en string 3	cz string 3
 drop table t1, t2, t3;
+CREATE TABLE t1 (a CHAR(2));
+INSERT INTO t1 VALUES (10), (50), (30), ('1a'), (60), ('t');
+SELECT a,(a + 0) FROM t1 ORDER BY a;
+a	(a + 0)
+10	10
+1a	1
+30	30
+50	50
+60	60
+t	0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '1a'
+Warning	1292	Truncated incorrect DOUBLE value: 't '
+SELECT a,(a DIV 2) FROM t1 ORDER BY a;
+a	(a DIV 2)
+10	5
+1a	0
+30	15
+50	25
+60	30
+t	0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '1a'
+Warning	1292	Truncated incorrect INTEGER value: 't '
+SELECT a,CAST(a AS SIGNED) FROM t1 ORDER BY a;
+a	CAST(a AS SIGNED)
+10	10
+1a	1
+30	30
+50	50
+60	60
+t	0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '1a'
+Warning	1292	Truncated incorrect INTEGER value: 't'
+DROP TABLE t1;

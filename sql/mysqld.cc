@@ -70,6 +70,12 @@
 #define IF_PURIFY(A,B) (B)
 #endif
 
+#if SIZEOF_CHARP == 4
+#define MAX_MEM_TABLE_SIZE ~(ulong) 0
+#else
+#define MAX_MEM_TABLE_SIZE ~(ulonglong) 0
+#endif
+
 /* stack traces are only supported on linux intel */
 #if defined(__linux__)  && defined(__i386__) && defined(USE_PSTACK)
 #define	HAVE_STACK_TRACE_ON_SEGV
@@ -1532,7 +1538,7 @@ static void network_init(void)
     if (strlen(mysqld_unix_port) > (sizeof(UNIXaddr.sun_path) - 1))
     {
       sql_print_error("The socket file path is too long (> %u): %s",
-                      sizeof(UNIXaddr.sun_path) - 1, mysqld_unix_port);
+                      (uint) sizeof(UNIXaddr.sun_path) - 1, mysqld_unix_port);
       unireg_abort(1);
     }
     if ((unix_sock= socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
@@ -5729,8 +5735,9 @@ The minimum value for this variable is 4096.",
   {"max_heap_table_size", OPT_MAX_HEP_TABLE_SIZE,
    "Don't allow creation of heap tables bigger than this.",
    (gptr*) &global_system_variables.max_heap_table_size,
-   (gptr*) &max_system_variables.max_heap_table_size, 0, GET_ULONG,
-   REQUIRED_ARG, 16*1024*1024L, 16384, ~0L, MALLOC_OVERHEAD, 1024, 0},
+   (gptr*) &max_system_variables.max_heap_table_size, 0, GET_ULL,
+   REQUIRED_ARG, 16*1024*1024L, 16384, MAX_MEM_TABLE_SIZE,
+   MALLOC_OVERHEAD, 1024, 0},
   {"max_join_size", OPT_MAX_JOIN_SIZE,
    "Joins that are probably going to read more than max_join_size records return an error.",
    (gptr*) &global_system_variables.max_join_size,
@@ -6005,8 +6012,8 @@ The minimum value for this variable is 4096.",
   {"tmp_table_size", OPT_TMP_TABLE_SIZE,
    "If an in-memory temporary table exceeds this size, MySQL will automatically convert it to an on-disk MyISAM table.",
    (gptr*) &global_system_variables.tmp_table_size,
-   (gptr*) &max_system_variables.tmp_table_size, 0, GET_ULONG,
-   REQUIRED_ARG, 32*1024*1024L, 1024, ~0L, 0, 1, 0},
+   (gptr*) &max_system_variables.tmp_table_size, 0, GET_ULL,
+   REQUIRED_ARG, 32*1024*1024L, 1024, MAX_MEM_TABLE_SIZE, 0, 1, 0},
   {"transaction_alloc_block_size", OPT_TRANS_ALLOC_BLOCK_SIZE,
    "Allocation block size for transactions to be stored in binary log",
    (gptr*) &global_system_variables.trans_alloc_block_size,
@@ -6189,6 +6196,7 @@ struct show_var_st status_vars[]= {
   {"Open_streams",             (char*) &my_stream_opened,       SHOW_LONG_CONST},
   {"Open_tables",              (char*) 0,                       SHOW_OPENTABLES},
   {"Opened_tables",            (char*) offsetof(STATUS_VAR, opened_tables), SHOW_LONG_STATUS},
+  {"Prepared_stmt_count",      (char*) &prepared_stmt_count,    SHOW_LONG_CONST},
 #ifdef HAVE_QUERY_CACHE
   {"Qcache_free_blocks",       (char*) &query_cache.free_memory_blocks, SHOW_LONG_CONST},
   {"Qcache_free_memory",       (char*) &query_cache.free_memory, SHOW_LONG_CONST},
@@ -6358,6 +6366,7 @@ static void mysql_init_variables(void)
   binlog_cache_use=  binlog_cache_disk_use= 0;
   max_used_connections= slow_launch_threads = 0;
   mysqld_user= mysqld_chroot= opt_init_file= opt_bin_logname = 0;
+  prepared_stmt_count= 0;
   errmesg= 0;
   mysqld_unix_port= opt_mysql_tmpdir= my_bind_addr_str= NullS;
   bzero((gptr) &mysql_tmpdir_list, sizeof(mysql_tmpdir_list));

@@ -582,7 +582,7 @@ sub mtr_im_start($$) {
     mtr_add_arg($args, $opt);
   }
 
-  $im->{'pid'} =
+  $im->{'spawner_pid'} =
     mtr_spawn(
       $::exe_im,                        # path to the executable
       $args,                            # cmd-line args
@@ -593,7 +593,7 @@ sub mtr_im_start($$) {
       { append_log_file => 1 }          # append log files
       );
 
-  unless ( $im->{'pid'} )
+  unless ( $im->{'spawner_pid'} )
   {
     mtr_error('Could not start Instance Manager.')
   }

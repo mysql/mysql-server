@@ -206,9 +206,10 @@ void insert_symbols()
 
 void insert_sql_functions()
 {
-  size_t i= 0;
+  int i= 0;
   SYMBOL *cur;
-  for (cur= sql_functions; i<array_elements(sql_functions); cur++, i++){
+  for (cur= sql_functions; i < (int) array_elements(sql_functions); cur++, i++)
+  {
     hash_lex_struct *root= 
       get_hash_struct_by_len(&root_by_len,cur->length,&max_len);
     insert_into_hash(root,cur->name,0,-i-1,1);

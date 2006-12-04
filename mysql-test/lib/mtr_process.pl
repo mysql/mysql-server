@@ -936,6 +936,12 @@ sub check_expected_crash_and_restart($)
       }
     }
   }
+
+  if ($::instance_manager->{'spawner_pid'} eq $ret_pid)
+  {
+    return;
+  }
+
   mtr_warning("check_expected_crash_and_restart couldn't find an entry for pid: $ret_pid");
 
 }
@@ -1052,7 +1058,7 @@ sub sleep_until_file_created ($$$) {
 
     # Print extra message every 60 seconds
     my $seconds= ($loop * $sleeptime) / 1000;
-    if ( $seconds > 1 and int($seconds) % 60 == 0 )
+    if ( $seconds > 1 and int($seconds * 10) % 600 == 0 )
     {
       my $left= $timeout - $seconds;
       mtr_warning("Waited $seconds seconds for $pidfile to be created, " .
