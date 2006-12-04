@@ -315,10 +315,6 @@ buf_page_get_io_fix(
 	const buf_page_t*	bpage)	/* in: pointer to the control block */
 {
 	enum buf_io_fix	io_fix = bpage->io_fix;
-#ifdef UNIV_SYNC_DEBUG
-	ut_a(mutex_own(&buf_pool->mutex)
-	     || mutex_own(buf_page_get_mutex((buf_page_t*) bpage)));
-#endif /* UNIV_SYNC_DEBUG */
 #ifdef UNIV_DEBUG
 	switch (io_fix) {
 	case BUF_IO_NONE:
