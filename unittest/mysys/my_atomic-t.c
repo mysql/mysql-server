@@ -275,9 +275,9 @@ int main()
                &my_charset_bin);
 
 #ifdef MY_ATOMIC_MODE_RWLOCKS
-#define CYCLES 10000
+#define CYCLES 3000
 #else
-#define CYCLES 1000000
+#define CYCLES 300000
 #endif
 #define THREADS 100
 

@@ -970,7 +970,7 @@ void change_pagecache_param(PAGECACHE *pagecache, uint division_limit,
 
 
 /*
-  Flushes and removes page cache from memory
+  Removes page cache from memory. Does NOT flush pages to disk.
 
   SYNOPSIS
     end_pagecache()
