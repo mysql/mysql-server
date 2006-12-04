@@ -6280,7 +6280,7 @@ function_call_nonkeyword:
         ;
 
 /*
-  Functions calls using a non reserved keywork, and using a regular syntax.
+  Functions calls using a non reserved keyword, and using a regular syntax.
   Because the non reserved keyword is used in another part of the grammar,
   a dedicated rule is needed here.
 */
@@ -6495,7 +6495,7 @@ function_call_generic:
             parser and the implementation in item_create.cc clean,
             since this will change with WL#2128 (SQL PATH):
             - INFORMATION_SCHEMA.version() is the SQL 99 syntax for the native
-            funtion version(),
+            function version(),
             - MySQL.version() is the SQL 2003 syntax for the native function
             version() (a vendor can specify any schema).
           */
@@ -6608,7 +6608,7 @@ sum_expr:
 	  { $$=new Item_sum_min($3); }
 /*
    According to ANSI SQL, DISTINCT is allowed and has
-   no sence inside MIN and MAX grouping functions; so MIN|MAX(DISTINCT ...)
+   no sense inside MIN and MAX grouping functions; so MIN|MAX(DISTINCT ...)
    is processed like an ordinary MIN | MAX()
  */
 	| MIN_SYM '(' DISTINCT in_sum_expr ')'
