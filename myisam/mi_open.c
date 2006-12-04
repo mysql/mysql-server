@@ -1235,13 +1235,30 @@ int mi_enable_indexes(MI_INFO *info)
   RETURN
     0  indexes are not disabled
     1  all indexes are disabled
-   [2  non-unique indexes are disabled - NOT YET IMPLEMENTED]
+    2  non-unique indexes are disabled
 */
 
 int mi_indexes_are_disabled(MI_INFO *info)
 {
   MYISAM_SHARE *share= info->s;
 
-  return (! share->state.key_map && share->base.keys);
+  /*
+    No keys or all are enabled. keys is the number of keys. Left shifted
+    gives us only one bit set. When decreased by one, gives us all all bits
+    up to this one set and it gets unset.
+  */
+  if (!share->base.keys ||
+      (share->state.key_map == (ULL(1) << share->base.keys) - ULL(1)))
+    return 0;
+
+  /* All are disabled */
+  if (!share->state.key_map)
+    return 1;
+
+  /*
+    We have keys. Some enabled, some disabled.
+    Don't check for any non-unique disabled but return directly 2
+  */
+  return 2;
 }
 
