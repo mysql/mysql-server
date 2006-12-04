@@ -5733,6 +5733,7 @@ struct show_var_st status_vars[]= {
   {"Open_streams",             (char*) &my_stream_opened,       SHOW_LONG_CONST},
   {"Open_tables",              (char*) 0,                       SHOW_OPENTABLES},
   {"Opened_tables",            (char*) &opened_tables,          SHOW_LONG},
+  {"Prepared_stmt_count",      (char*) &prepared_stmt_count,    SHOW_LONG_CONST},
 #ifdef HAVE_QUERY_CACHE
   {"Qcache_free_blocks",       (char*) &query_cache.free_memory_blocks,
    SHOW_LONG_CONST},
@@ -5903,6 +5904,7 @@ static void mysql_init_variables(void)
   binlog_cache_use=  binlog_cache_disk_use= 0;
   max_used_connections= slow_launch_threads = 0;
   mysqld_user= mysqld_chroot= opt_init_file= opt_bin_logname = 0;
+  prepared_stmt_count= 0;
   errmesg= 0;
   mysqld_unix_port= opt_mysql_tmpdir= my_bind_addr_str= NullS;
   bzero((gptr) &mysql_tmpdir_list, sizeof(mysql_tmpdir_list));
