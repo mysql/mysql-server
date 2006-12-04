@@ -900,7 +900,8 @@ void Item_func_signed::print(String *str)
 
 longlong Item_func_signed::val_int_from_str(int *error)
 {
-  char buff[MAX_FIELD_WIDTH], *end;
+  char buff[MAX_FIELD_WIDTH], *end, *start;
+  uint32 length;
   String tmp(buff,sizeof(buff), &my_charset_bin), *res;
   longlong value;
 
@@ -916,13 +917,21 @@ longlong Item_func_signed::val_int_from_str(int *error)
     return 0;
   }
   null_value= 0;
-  end= (char*) res->ptr()+ res->length();
-  value= my_strtoll10(res->ptr(), &end, error);
-  if (*error > 0 || end != res->ptr()+ res->length())
+  start= (char *)res->ptr();
+  length= res->length();
+
+  end= start + length;
+  value= my_strtoll10(start, &end, error);
+  if (*error > 0 || end != start+ length)
+  {
+    char err_buff[128];
+    String err_tmp(err_buff,(uint32) sizeof(err_buff), system_charset_info);
+    err_tmp.copy(start, length, system_charset_info);
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
-                        res->c_ptr());
+                        err_tmp.c_ptr());
+  }
   return value;
 }
 
@@ -2337,7 +2346,7 @@ longlong Item_func_locate::val_int()
       return 0;
 
     /* start is now sufficiently valid to pass to charpos function */
-    start= a->charpos(start);
+    start= a->charpos((int) start);
 
     if (start + b->length() > a->length())
       return 0;
@@ -2347,7 +2356,8 @@ longlong Item_func_locate::val_int()
     return start + 1;
   
   if (!cmp_collation.collation->coll->instr(cmp_collation.collation,
-                                            a->ptr()+start, a->length()-start,
+                                            a->ptr()+start,
+                                            (uint) (a->length()-start),
                                             b->ptr(), b->length(),
                                             &match, 1))
     return 0;
@@ -4300,7 +4310,7 @@ bool Item_func_get_user_var::eq(const Item *item, bool binary_cmp) const
 
 
 bool Item_func_get_user_var::set_value(THD *thd,
-                                       sp_rcontext */*ctx*/, Item **it)
+                                       sp_rcontext * /*ctx*/, Item **it)
 {
   Item_func_set_user_var *suv= new Item_func_set_user_var(get_name(), *it);
   /*
@@ -4891,6 +4901,7 @@ Item_func_sp::cleanup()
     result_field= NULL;
   }
   m_sp= NULL;
+  dummy_table->s= NULL;
   Item_func::cleanup();
 }
 

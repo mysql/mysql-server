@@ -36,7 +36,8 @@ void hp_clear(HP_SHARE *info)
 			(byte*) 0));
   info->block.levels=0;
   hp_clear_keys(info);
-  info->records=info->deleted=info->data_length=0;
+  info->records= info->deleted= 0;
+  info->data_length= 0;
   info->blength=1;
   info->changed=0;
   info->del_link=0;

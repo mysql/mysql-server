@@ -276,7 +276,6 @@ my_decimal *Item::val_decimal_from_date(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed == 1);
   TIME ltime;
-  longlong date;
   if (get_date(&ltime, TIME_FUZZY_DATE))
   {
     my_decimal_set_zero(decimal_value);
@@ -290,7 +289,6 @@ my_decimal *Item::val_decimal_from_time(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed == 1);
   TIME ltime;
-  longlong date;
   if (get_time(&ltime))
   {
     my_decimal_set_zero(decimal_value);
@@ -2172,12 +2170,6 @@ void Item_string::print(String *str)
   str->append('\'');
   str_value.print(str);
   str->append('\'');
-}
-
-
-inline bool check_if_only_end_space(CHARSET_INFO *cs, char *str, char *end)
-{
-  return str+ cs->cset->scan(cs, str, end, MY_SEQ_SPACES) == end;
 }
 
 
@@ -4764,6 +4756,22 @@ bool Item_field::send(Protocol *protocol, String *buffer)
 }
 
 
+void Item_field::update_null_value() 
+{ 
+  /* 
+    need to set no_errors to prevent warnings about type conversion 
+    popping up.
+  */
+  THD *thd= field->table->in_use;
+  int no_errors;
+
+  no_errors= thd->no_errors;
+  thd->no_errors= 1;
+  Item::update_null_value();
+  thd->no_errors= no_errors;
+}
+
+
 Item_ref::Item_ref(Name_resolution_context *context_arg,
                    Item **item, const char *table_name_arg,
                    const char *field_name_arg)
@@ -5647,7 +5655,7 @@ void Item_trigger_field::set_required_privilege(bool rw)
 }
 
 
-bool Item_trigger_field::set_value(THD *thd, sp_rcontext */*ctx*/, Item **it)
+bool Item_trigger_field::set_value(THD *thd, sp_rcontext * /*ctx*/, Item **it)
 {
   Item *item= sp_prepare_func_item(thd, it);
 
@@ -6121,7 +6129,7 @@ bool Item_cache_row::null_inside()
     }
     else
     {
-      values[i]->val_int();
+      values[i]->update_null_value();
       if (values[i]->null_value)
 	return 1;
     }

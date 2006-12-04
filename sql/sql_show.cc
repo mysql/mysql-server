@@ -464,7 +464,6 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
                            HA_CREATE_INFO *create_info)
 {
   Security_context *sctx= thd->security_ctx;
-  int length;
   char buff[2048];
   String buffer(buff, sizeof(buff), system_charset_info);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -2367,7 +2366,6 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
   INDEX_FIELD_VALUES idx_field_vals;
   List<char> files;
   char *file_name;
-  uint length;
   bool with_i_schema;
   HA_CREATE_INFO create;
   TABLE *table= tables->table;
@@ -2939,7 +2937,7 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
     restore_record(table, s->default_values);
     if (!wild || !wild[0] || !wild_compare(sp_name.ptr(), wild, 0))
     {
-      int enum_idx= proc_table->field[5]->val_int();
+      int enum_idx= (int) proc_table->field[5]->val_int();
       table->field[3]->store(sp_name.ptr(), sp_name.length(), cs);
       get_field(thd->mem_root, proc_table->field[3], &tmp_string);
       table->field[0]->store(tmp_string.ptr(), tmp_string.length(), cs);
@@ -3105,7 +3103,7 @@ static int get_schema_stat_record(THD *thd, struct st_table_list *tables,
              show_table->field[key_part->fieldnr-1]->key_length()))
         {
           table->field[10]->store((longlong) key_part->length /
-                                  key_part->field->charset()->mbmaxlen);
+                                  key_part->field->charset()->mbmaxlen, 1);
           table->field[10]->set_notnull();
         }
         uint flags= key_part->field ? key_part->field->flags : 0;

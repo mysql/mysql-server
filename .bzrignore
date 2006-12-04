@@ -9,6 +9,8 @@
 *.d
 *.da
 *.exe
+*.gcda
+*.gcno
 *.gcov
 *.idb
 *.la
@@ -209,6 +211,11 @@ bdb/dist/autom4te.cache/requests
 bdb/dist/autom4te.cache/traces.0
 bdb/dist/config.hin
 bdb/dist/configure
+bdb/dist/db.h
+bdb/dist/db_config.h
+bdb/dist/db_cxx.h
+bdb/dist/db_int.h
+bdb/dist/include.tcl
 bdb/dist/tags
 bdb/dist/template/db_server_proc
 bdb/dist/template/gen_client_ret

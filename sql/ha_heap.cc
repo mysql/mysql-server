@@ -631,7 +631,7 @@ int ha_heap::create(const char *name, TABLE *table_arg,
   }
   mem_per_row+= MY_ALIGN(share->reclength + 1, sizeof(char*));
   max_rows = (ha_rows) (table->in_use->variables.max_heap_table_size /
-			mem_per_row);
+			(ulonglong) mem_per_row);
   if (table_arg->found_next_number_field)
   {
     keydef[share->next_number_index].flag|= HA_AUTO_KEY;

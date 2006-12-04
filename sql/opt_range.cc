@@ -1924,7 +1924,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 	key_parts->null_bit=	 key_part_info->null_bit;
         key_parts->image_type =
           (key_info->flags & HA_SPATIAL) ? Field::itMBR : Field::itRAW;
-        key_parts->flag=         key_part_info->key_part_flag;
+        key_parts->flag=         (uint8) key_part_info->key_part_flag;
       }
       param.real_keynr[param.keys++]=idx;
     }
@@ -6240,7 +6240,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
     key_part->length=  	    key_info->key_part[part].length;
     key_part->store_length= key_info->key_part[part].store_length;
     key_part->null_bit=     key_info->key_part[part].null_bit;
-    key_part->flag=         key_info->key_part[part].key_part_flag;
+    key_part->flag=         (uint8) key_info->key_part[part].key_part_flag;
   }
   if (insert_dynamic(&quick->ranges,(gptr)&range))
     goto err;
@@ -7445,7 +7445,7 @@ static TRP_GROUP_MIN_MAX *
 get_best_group_min_max(PARAM *param, SEL_TREE *tree)
 {
   THD *thd= param->thd;
-  JOIN *join= thd->lex->select_lex.join;
+  JOIN *join= thd->lex->current_select->join;
   TABLE *table= param->table;
   bool have_min= FALSE;              /* TRUE if there is a MIN function. */
   bool have_max= FALSE;              /* TRUE if there is a MAX function. */
@@ -7466,7 +7466,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
   DBUG_ENTER("get_best_group_min_max");
 
   /* Perform few 'cheap' tests whether this access method is applicable. */
-  if (!join || (thd->lex->sql_command != SQLCOM_SELECT))
+  if (!join)
     DBUG_RETURN(NULL);        /* This is not a select statement. */
   if ((join->tables != 1) ||  /* The query must reference one table. */
       ((!join->group_list) && /* Neither GROUP BY nor a DISTINCT query. */
@@ -8316,7 +8316,7 @@ TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool retrieve_full_rows,
   DBUG_ENTER("TRP_GROUP_MIN_MAX::make_quick");
 
   quick= new QUICK_GROUP_MIN_MAX_SELECT(param->table,
-                                        param->thd->lex->select_lex.join,
+                                        param->thd->lex->current_select->join,
                                         have_min, have_max, min_max_arg_part,
                                         group_prefix_len, used_key_parts,
                                         index_info, index, read_cost, records,

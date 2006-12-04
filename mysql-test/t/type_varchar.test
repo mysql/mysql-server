@@ -187,3 +187,13 @@ left join t3 on t1.id=t3.id order by t3.id;
 --disable_metadata
 --enable_ps_protocol
 drop table t1, t2, t3;
+
+#
+# Bug #11927: Warnings shown for CAST( chr as signed) but not (chr + 0)
+#
+CREATE TABLE t1 (a CHAR(2));
+INSERT INTO t1 VALUES (10), (50), (30), ('1a'), (60), ('t');
+SELECT a,(a + 0) FROM t1 ORDER BY a;
+SELECT a,(a DIV 2) FROM t1 ORDER BY a;
+SELECT a,CAST(a AS SIGNED) FROM t1 ORDER BY a;
+DROP TABLE t1;

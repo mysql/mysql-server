@@ -1903,4 +1903,17 @@ Warnings:
 Error	1292	Truncated incorrect DECIMAL value: ''
 Error	1292	Truncated incorrect DECIMAL value: ''
 Warning	1301	Result of lpad() was larger than max_allowed_packet (1048576) - truncated
+SET @orig_sql_mode = @@SQL_MODE;
+SET SQL_MODE=traditional;
+SELECT CHAR(0xff,0x8f USING utf8);
+CHAR(0xff,0x8f USING utf8)
+NULL
+Warnings:
+Error	1300	Invalid utf8 character string: 'FF8F'
+SELECT CHAR(0xff,0x8f USING utf8) IS NULL;
+CHAR(0xff,0x8f USING utf8) IS NULL
+1
+Warnings:
+Error	1300	Invalid utf8 character string: 'FF8F'
+SET SQL_MODE=@orig_sql_mode;
 End of 5.0 tests

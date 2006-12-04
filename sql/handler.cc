@@ -474,7 +474,6 @@ int ha_init()
 {
   int error= 0;
   handlerton **types;
-  show_table_alias_st *table_alias;
   total_ha= savepoint_alloc_size= 0;
 
   if (ha_init_errors())
@@ -885,8 +884,8 @@ int ha_commit_or_rollback_by_xid(XID *xid, bool commit)
     if ((*types)->state == SHOW_OPTION_YES && (*types)->recover)
     {
       if ((*(commit ? (*types)->commit_by_xid :
-             (*types)->rollback_by_xid))(xid));
-      res= 0;
+             (*types)->rollback_by_xid))(xid))
+        res= 0;
     }
   }
   return res;
@@ -1779,7 +1778,7 @@ void handler::print_error(int error, myf errflag)
       {
 	/* Key is unknown */
 	str.copy("", 0, system_charset_info);
-	key_nr= -1;
+	key_nr= (uint) -1;
       }
       else
       {
