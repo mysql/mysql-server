@@ -110,7 +110,6 @@ static bool make_datetime_with_warn(date_time_format_types format, TIME *ltime,
                                     String *str)
 {
   int warning= 0;
-  bool rc;
 
   if (make_datetime(format, ltime, str))
     return 1;
@@ -1646,7 +1645,7 @@ double Item_func_sysdate_local::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   store_now_in_TIME(&ltime);
-  return (longlong) TIME_to_ulonglong_datetime(&ltime);
+  return (double) TIME_to_ulonglong_datetime(&ltime);
 }
 
 

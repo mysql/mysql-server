@@ -1626,7 +1626,6 @@ sp_decl:
             uint num_vars= pctx->context_var_count();
             enum enum_field_types var_type= (enum enum_field_types) $4;
             Item *dflt_value_item= $5;
-            create_field *create_field_op;
             
             if (!dflt_value_item)
             {
@@ -6120,11 +6119,12 @@ drop:
 	    lex->sql_command= SQLCOM_DROP_VIEW;
 	    lex->drop_if_exists= $3;
 	  }
-        | DROP TRIGGER_SYM sp_name
+        | DROP TRIGGER_SYM if_exists sp_name
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_DROP_TRIGGER;
-            lex->spname= $3;
+            lex->drop_if_exists= $3;
+            lex->spname= $4;
           }
 	;
 
@@ -7053,6 +7053,8 @@ load_data_lock:
               Ignore this option in SP to avoid problem with query cache
             */
             if (Lex->sphead != 0)
+              $$= YYTHD->update_lock_default;
+            else
 #endif
               $$= TL_WRITE_CONCURRENT_INSERT;
           }

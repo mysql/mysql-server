@@ -107,7 +107,9 @@ const LEX_STRING trg_event_type_names[]=
 };
 
 
-static TABLE_LIST *add_table_for_trigger(THD *thd, sp_name *trig);
+static int
+add_table_for_trigger(THD *thd, sp_name *trig, bool if_exists,
+                      TABLE_LIST ** table);
 
 class Handle_old_incorrect_sql_modes_hook: public Unknown_key_hook
 {
@@ -156,6 +158,13 @@ private:
 */
 bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
 {
+  /*
+    FIXME: The code below takes too many different paths depending on the
+    'create' flag, so that the justification for a single function
+    'mysql_create_or_drop_trigger', compared to two separate functions
+    'mysql_create_trigger' and 'mysql_drop_trigger' is not apparent.
+    This is a good candidate for a minor refactoring.
+  */
   TABLE *table;
   bool result= TRUE;
   String stmt_query;
@@ -181,10 +190,6 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     DBUG_RETURN(TRUE);
   }
 
-  if (!create &&
-      !(tables= add_table_for_trigger(thd, thd->lex->spname)))
-    DBUG_RETURN(TRUE);
-
   /*
     We don't allow creating triggers on tables in the 'mysql' schema
   */
@@ -193,9 +198,6 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     my_error(ER_NO_TRIGGERS_ON_SYSTEM_SCHEMA, MYF(0));
     DBUG_RETURN(TRUE);
   }
-
-  /* We should have only one table in table list. */
-  DBUG_ASSERT(tables->next_global == 0);
 
   /*
     TODO: We should check if user has TRIGGER privilege for table here.
@@ -211,7 +213,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     DROP for example) so we do the check for privileges. For now there is
     already a stronger test right above; but when this stronger test will
     be removed, the test below will hold. Because triggers have the same
-    nature as functions regarding binlogging: their body is implicitely
+    nature as functions regarding binlogging: their body is implicitly
     binlogged, so they share the same danger, so trust_function_creators
     applies to them too.
   */
@@ -222,23 +224,51 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     DBUG_RETURN(TRUE);
   }
 
-  /* We do not allow creation of triggers on temporary tables. */
-  if (create && find_temporary_table(thd, tables->db, tables->table_name))
-  {
-    my_error(ER_TRG_ON_VIEW_OR_TEMP_TABLE, MYF(0), tables->alias);
-    DBUG_RETURN(TRUE);
-  }
-
   /*
     We don't want perform our operations while global read lock is held
-    so we have to wait until its end and then prevent it from occuring
+    so we have to wait until its end and then prevent it from occurring
     again until we are done. (Acquiring LOCK_open is not enough because
-    global read lock is held without helding LOCK_open).
+    global read lock is held without holding LOCK_open).
   */
   if (wait_if_global_read_lock(thd, 0, 1))
     DBUG_RETURN(TRUE);
 
   VOID(pthread_mutex_lock(&LOCK_open));
+
+  if (!create)
+  {
+    bool if_exists= thd->lex->drop_if_exists;
+
+    if (add_table_for_trigger(thd, thd->lex->spname, if_exists, & tables))
+      goto end;
+
+    if (!tables)
+    {
+      DBUG_ASSERT(if_exists);
+      /*
+        Since the trigger does not exist, there is no associated table,
+        and therefore :
+        - no TRIGGER privileges to check,
+        - no trigger to drop,
+        - no table to lock/modify,
+        so the drop statement is successful.
+      */
+      result= FALSE;
+      /* Still, we need to log the query ... */
+      stmt_query.append(thd->query, thd->query_length);
+      goto end;
+    }
+  }
+
+  /* We should have only one table in table list. */
+  DBUG_ASSERT(tables->next_global == 0);
+
+  /* We do not allow creation of triggers on temporary tables. */
+  if (create && find_temporary_table(thd, tables->db, tables->table_name))
+  {
+    my_error(ER_TRG_ON_VIEW_OR_TEMP_TABLE, MYF(0), tables->alias);
+    goto end;
+  }
 
   if (lock_table_names(thd, tables))
     goto end;
@@ -326,7 +356,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   char dir_buff[FN_REFLEN], file_buff[FN_REFLEN], trigname_buff[FN_REFLEN],
        trigname_path[FN_REFLEN];
   LEX_STRING dir, file, trigname_file;
-  LEX_STRING *trg_def, *name;
+  LEX_STRING *trg_def;
   LEX_STRING definer_user;
   LEX_STRING definer_host;
   ulonglong *trg_sql_mode;
@@ -849,7 +879,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         DBUG_RETURN(1);
 
       List_iterator_fast<LEX_STRING> it(triggers->definitions_list);
-      LEX_STRING *trg_create_str, *trg_name_str;
+      LEX_STRING *trg_create_str;
       ulonglong *trg_sql_mode;
 
       if (triggers->definition_modes_list.is_empty() &&
@@ -966,7 +996,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
           goto err_with_lex_cleanup;
         }
 
-        lex.sphead->set_info(0, 0, &lex.sp_chistics, *trg_sql_mode);
+        lex.sphead->set_info(0, 0, &lex.sp_chistics, (ulong) *trg_sql_mode);
 
         triggers->bodies[lex.trg_chistics.event]
                              [lex.trg_chistics.action_time]= lex.sphead;
@@ -1145,13 +1175,17 @@ bool Table_triggers_list::get_trigger_info(THD *thd, trg_event_type event,
     mysql_table_for_trigger()
       thd    - current thread context
       trig   - identifier for trigger
+      if_exists - treat a not existing trigger as a warning if TRUE
+      table - pointer to TABLE_LIST object for the table trigger (output)
 
   RETURN VALUE
-    0 - error
-    # - pointer to TABLE_LIST object for the table
+    0 Success
+    1 Error
 */
 
-static TABLE_LIST *add_table_for_trigger(THD *thd, sp_name *trig)
+static int
+add_table_for_trigger(THD *thd, sp_name *trig, bool if_exists,
+                      TABLE_LIST **table)
 {
   LEX *lex= thd->lex;
   char path_buff[FN_REFLEN];
@@ -1162,6 +1196,7 @@ static TABLE_LIST *add_table_for_trigger(THD *thd, sp_name *trig)
                                           path_buff, &trigname.trigger_table);
   
   DBUG_ENTER("add_table_for_trigger");
+  DBUG_ASSERT(table != NULL);
 
   strxnmov(path_buff, FN_REFLEN, mysql_data_home, "/", trig->m_db.str, "/",
            trig->m_name.str, trigname_file_ext, NullS);
@@ -1170,30 +1205,45 @@ static TABLE_LIST *add_table_for_trigger(THD *thd, sp_name *trig)
 
   if (access(path_buff, F_OK))
   {
+    if (if_exists)
+    {
+      push_warning_printf(thd,
+                         MYSQL_ERROR::WARN_LEVEL_NOTE,
+                         ER_TRG_DOES_NOT_EXIST,
+                         ER(ER_TRG_DOES_NOT_EXIST));
+      *table= NULL;
+      DBUG_RETURN(0);
+    }
+
     my_error(ER_TRG_DOES_NOT_EXIST, MYF(0));
-    DBUG_RETURN(0);
+    DBUG_RETURN(1);
   }
 
   if (!(parser= sql_parse_prepare(&path, thd->mem_root, 1)))
-    DBUG_RETURN(0);
+    DBUG_RETURN(1);
 
   if (!is_equal(&trigname_file_type, parser->type()))
   {
     my_error(ER_WRONG_OBJECT, MYF(0), trig->m_name.str, trigname_file_ext+1,
              "TRIGGERNAME");
-    DBUG_RETURN(0);
+    DBUG_RETURN(1);
   }
 
   if (parser->parse((gptr)&trigname, thd->mem_root,
                     trigname_file_parameters, 1,
                     &trigger_table_hook))
-    DBUG_RETURN(0);
+    DBUG_RETURN(1);
 
   /* We need to reset statement table list to be PS/SP friendly. */
   lex->query_tables= 0;
   lex->query_tables_last= &lex->query_tables;
-  DBUG_RETURN(sp_add_to_query_tables(thd, lex, trig->m_db.str,
-                                     trigname.trigger_table.str, TL_IGNORE));
+  *table= sp_add_to_query_tables(thd, lex, trig->m_db.str,
+                                 trigname.trigger_table.str, TL_IGNORE);
+
+  if (! *table)
+    DBUG_RETURN(1);
+
+  DBUG_RETURN(0);
 }
 
 
@@ -1287,7 +1337,6 @@ Table_triggers_list::change_table_name_in_triggers(THD *thd,
 {
   char path_buff[FN_REFLEN];
   LEX_STRING *def, *on_table_name, new_def;
-  ulonglong *sql_mode;
   ulong save_sql_mode= thd->variables.sql_mode;
   List_iterator_fast<LEX_STRING> it_def(definitions_list);
   List_iterator_fast<LEX_STRING> it_on_table_name(on_table_names_list);
@@ -1301,7 +1350,7 @@ Table_triggers_list::change_table_name_in_triggers(THD *thd,
   while ((def= it_def++))
   {
     on_table_name= it_on_table_name++;
-    thd->variables.sql_mode= *(it_mode++);
+    thd->variables.sql_mode= (ulong) *(it_mode++);
 
     /* Construct CREATE TRIGGER statement with new table name. */
     buff.length(0);

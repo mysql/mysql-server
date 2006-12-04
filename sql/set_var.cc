@@ -121,7 +121,6 @@ static KEY_CACHE *create_key_cache(const char *name, uint length);
 void fix_sql_mode_var(THD *thd, enum_var_type type);
 static byte *get_error_count(THD *thd);
 static byte *get_warning_count(THD *thd);
-static byte *get_prepared_stmt_count(THD *thd);
 static byte *get_have_innodb(THD *thd);
 static byte *get_tmpdir(THD *thd);
 
@@ -248,7 +247,7 @@ sys_var_thd_ulong	sys_max_delayed_threads("max_delayed_threads",
                                                 fix_max_connections);
 sys_var_thd_ulong	sys_max_error_count("max_error_count",
 					    &SV::max_error_count);
-sys_var_thd_ulong	sys_max_heap_table_size("max_heap_table_size",
+sys_var_thd_ulonglong	sys_max_heap_table_size("max_heap_table_size",
 						&SV::max_heap_table_size);
 sys_var_thd_ulong       sys_pseudo_thread_id("pseudo_thread_id",
 					     &SV::pseudo_thread_id,
@@ -415,7 +414,7 @@ sys_var_thd_enum	sys_tx_isolation("tx_isolation",
 					 &SV::tx_isolation,
 					 &tx_isolation_typelib,
 					 fix_tx_isolation);
-sys_var_thd_ulong	sys_tmp_table_size("tmp_table_size",
+sys_var_thd_ulonglong	sys_tmp_table_size("tmp_table_size",
 					   &SV::tmp_table_size);
 sys_var_bool_ptr  sys_timed_mutexes("timed_mutexes",
                                     &timed_mutexes);
@@ -567,9 +566,6 @@ static sys_var_readonly		sys_warning_count("warning_count",
 						  OPT_SESSION,
 						  SHOW_LONG,
 						  get_warning_count);
-static sys_var_readonly	sys_prepared_stmt_count("prepared_stmt_count",
-                                                OPT_GLOBAL, SHOW_LONG,
-                                                get_prepared_stmt_count);
 
 /* alias for last_insert_id() to be compatible with Sybase */
 #ifdef HAVE_REPLICATION
@@ -701,7 +697,6 @@ sys_var *sys_variables[]=
   &sys_optimizer_prune_level,
   &sys_optimizer_search_depth,
   &sys_preload_buff_size,
-  &sys_prepared_stmt_count,
   &sys_pseudo_thread_id,
   &sys_query_alloc_block_size,
   &sys_query_cache_size,
@@ -1008,7 +1003,6 @@ struct show_var_st init_vars[]= {
   {"pid_file",                (char*) pidfile_name,                 SHOW_CHAR},
   {"port",                    (char*) &mysqld_port,                  SHOW_INT},
   {sys_preload_buff_size.name, (char*) &sys_preload_buff_size,      SHOW_SYS},
-  {sys_prepared_stmt_count.name, (char*) &sys_prepared_stmt_count, SHOW_SYS},
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {sys_query_alloc_block_size.name, (char*) &sys_query_alloc_block_size,
    SHOW_SYS},
@@ -2836,7 +2830,7 @@ static bool set_option_autocommit(THD *thd, set_var *var)
 {
   /* The test is negative as the flag we use is NOT autocommit */
 
-  ulong org_options=thd->options;
+  ulonglong org_options= thd->options;
 
   if (var->save_result.ulong_value != 0)
     thd->options&= ~((sys_var_thd_bit*) var->var)->bit_flag;
@@ -2943,15 +2937,6 @@ static byte *get_error_count(THD *thd)
 static byte *get_have_innodb(THD *thd)
 {
   return (byte*) show_comp_option_name[have_innodb];
-}
-
-
-static byte *get_prepared_stmt_count(THD *thd)
-{
-  pthread_mutex_lock(&LOCK_prepared_stmt_count);
-  thd->sys_var_tmp.ulong_value= prepared_stmt_count;
-  pthread_mutex_unlock(&LOCK_prepared_stmt_count);
-  return (byte*) &thd->sys_var_tmp.ulong_value;
 }
 
 

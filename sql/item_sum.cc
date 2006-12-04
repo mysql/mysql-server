@@ -322,9 +322,13 @@ void Item_sum::make_field(Send_field *tmp_field)
   if (args[0]->type() == Item::FIELD_ITEM && keep_field_type())
   {
     ((Item_field*) args[0])->field->make_field(tmp_field);
-    tmp_field->db_name=(char*)"";
-    tmp_field->org_table_name=tmp_field->table_name=(char*)"";
-    tmp_field->org_col_name=tmp_field->col_name=name;
+    /* For expressions only col_name should be non-empty string. */
+    char *empty_string= (char*)"";
+    tmp_field->db_name= empty_string;
+    tmp_field->org_table_name= empty_string;
+    tmp_field->table_name= empty_string;
+    tmp_field->org_col_name= empty_string;
+    tmp_field->col_name= name;
     if (maybe_null)
       tmp_field->flags&= ~NOT_NULL_FLAG;
   }
@@ -1050,7 +1054,7 @@ bool Item_sum_count::add()
     count++;
   else
   {
-    (void) args[0]->val_int();
+    args[0]->update_null_value();
     if (!args[0]->null_value)
       count++;
   }
@@ -1957,7 +1961,7 @@ void Item_sum_count::reset_field()
     nr=1;
   else
   {
-    (void) args[0]->val_int();
+    args[0]->update_null_value();
     if (!args[0]->null_value)
       nr=1;
   }
@@ -2067,7 +2071,7 @@ void Item_sum_count::update_field()
     nr++;
   else
   {
-    (void) args[0]->val_int();
+    args[0]->update_null_value();
     if (!args[0]->null_value)
       nr++;
   }
@@ -2547,7 +2551,7 @@ bool Item_sum_count_distinct::setup(THD *thd)
       return TRUE;                              // End of memory
     if (item->const_item())
     {
-      (void) item->val_int();
+      item->update_null_value();
       if (item->null_value)
 	always_null=1;
     }
@@ -3409,8 +3413,8 @@ bool Item_func_group_concat::setup(THD *thd)
       duplicate values (according to the syntax of this function). If there
       is no DISTINCT or ORDER BY clauses, we don't create this tree.
     */
-    init_tree(tree, min(thd->variables.max_heap_table_size,
-                        thd->variables.sortbuff_size/16), 0,
+    init_tree(tree, (uint) min(thd->variables.max_heap_table_size,
+                               thd->variables.sortbuff_size/16), 0,
               tree_key_length, compare_key, 0, NULL, (void*) this);
   }
 

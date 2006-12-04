@@ -1105,18 +1105,18 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
     my_off_t  total_count;
     char      llbuf[32];
 
-    DBUG_PRINT("info", ("column: %3u", count - huff_counts + 1));
+    DBUG_PRINT("info", ("column: %3u", (uint) (count - huff_counts + 1)));
     if (verbose >= 2)
-      VOID(printf("column: %3u\n", count - huff_counts + 1));
+      VOID(printf("column: %3u\n", (uint) (count - huff_counts + 1)));
     if (count->tree_buff)
     {
       DBUG_PRINT("info", ("number of distinct values: %u",
-                          (count->tree_pos - count->tree_buff) /
-                          count->field_length));
+                          (uint) ((count->tree_pos - count->tree_buff) /
+                                  count->field_length)));
       if (verbose >= 2)
         VOID(printf("number of distinct values: %u\n",
-                    (count->tree_pos - count->tree_buff) /
-                    count->field_length));
+                    (uint) ((count->tree_pos - count->tree_buff) /
+                            count->field_length)));
     }
     total_count= 0;
     for (idx= 0; idx < 256; idx++)
@@ -1965,7 +1965,7 @@ static char *bindigits(ulonglong value, uint bits)
 
   DBUG_ASSERT(idx < sizeof(digits));
   while (idx)
-    *(ptr++)= '0' + ((value >> (--idx)) & 1);
+    *(ptr++)= '0' + ((char) (value >> (--idx)) & (char) 1);
   *ptr= '\0';
   return digits;
 }
@@ -1995,7 +1995,7 @@ static char *hexdigits(ulonglong value)
   DBUG_ASSERT(idx < sizeof(digits));
   while (idx)
   {
-    if ((*(ptr++)= '0' + ((value >> (4 * (--idx))) & 0xf)) > '9')
+    if ((*(ptr++)= '0' + ((char) (value >> (4 * (--idx))) & (char) 0xf)) > '9')
       *(ptr - 1)+= 'a' - '9' - 1;
   }
   *ptr= '\0';
@@ -2280,11 +2280,11 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
         {
           VOID(fflush(stdout));
           VOID(fprintf(stderr, "error: Huffman code too long: %u/%u\n",
-                       bits, 8 * sizeof(code)));
+                       bits, (uint) (8 * sizeof(code))));
           errors++;
           break;
         }
-        idx+= code & 1;
+        idx+= (uint) code & 1;
         if (idx >= length)
         {
           VOID(fflush(stdout));

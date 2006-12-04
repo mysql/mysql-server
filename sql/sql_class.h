@@ -495,6 +495,8 @@ struct system_variables
 {
   ulonglong myisam_max_extra_sort_file_size;
   ulonglong myisam_max_sort_file_size;
+  ulonglong max_heap_table_size;
+  ulonglong tmp_table_size;
   ha_rows select_limit;
   ha_rows max_join_size;
   ulong auto_increment_increment, auto_increment_offset;
@@ -503,7 +505,6 @@ struct system_variables
   ulong long_query_time;
   ulong max_allowed_packet;
   ulong max_error_count;
-  ulong max_heap_table_size;
   ulong max_length_for_sort_data;
   ulong max_sort_length;
   ulong max_tmp_tables;
@@ -527,7 +528,6 @@ struct system_variables
   ulong div_precincrement;
   ulong sortbuff_size;
   ulong table_type;
-  ulong tmp_table_size;
   ulong tx_isolation;
   ulong completion_type;
   /* Determines which non-standard SQL behaviour should be enabled */
@@ -2074,7 +2074,8 @@ class user_var_entry
 class Unique :public Sql_alloc
 {
   DYNAMIC_ARRAY file_ptrs;
-  ulong max_elements, max_in_memory_size;
+  ulong max_elements;
+  ulonglong max_in_memory_size;
   IO_CACHE file;
   TREE tree;
   byte *record_pointers;
@@ -2084,7 +2085,7 @@ class Unique :public Sql_alloc
 public:
   ulong elements;
   Unique(qsort_cmp2 comp_func, void *comp_func_fixed_arg,
-	 uint size_arg, ulong max_in_memory_size_arg);
+	 uint size_arg, ulonglong max_in_memory_size_arg);
   ~Unique();
   ulong elements_in_tree() { return tree.elements_in_tree; }
   inline bool unique_add(void *ptr)
@@ -2098,13 +2099,13 @@ public:
 
   bool get(TABLE *table);
   static double get_use_cost(uint *buffer, uint nkeys, uint key_size,
-                             ulong max_in_memory_size);
+                             ulonglong max_in_memory_size);
   inline static int get_cost_calc_buff_size(ulong nkeys, uint key_size,
-                                            ulong max_in_memory_size)
+                                            ulonglong max_in_memory_size)
   {
-    register ulong max_elems_in_tree=
+    register ulonglong max_elems_in_tree=
       (1 + max_in_memory_size / ALIGN_SIZE(sizeof(TREE_ELEMENT)+key_size));
-    return sizeof(uint)*(1 + nkeys/max_elems_in_tree);
+    return (int) (sizeof(uint)*(1 + nkeys/max_elems_in_tree));
   }
 
   void reset();
