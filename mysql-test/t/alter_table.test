@@ -101,7 +101,7 @@ create table mysqltest.t1 (name char(15));
 insert into mysqltest.t1 (name) values ("mysqltest");
 select * from t1;
 select * from mysqltest.t1;
---error 1050
+--error ER_TABLE_EXISTS_ERROR
 alter table t1 rename mysqltest.t1;
 select * from t1;
 select * from mysqltest.t1;
@@ -231,9 +231,9 @@ DROP TABLE t1;
 # BUG#4717 - check for valid table names
 #
 create table t1 (a int);
---error 1103
+--error ER_WRONG_TABLE_NAME
 alter table t1 rename to ``;
---error 1103
+--error ER_WRONG_TABLE_NAME
 rename table t1 to ``;
 drop table t1;
 
@@ -325,14 +325,14 @@ drop table t1;
 CREATE TABLE t1 (a int PRIMARY KEY, b INT UNIQUE);
 ALTER TABLE t1 DROP PRIMARY KEY;
 SHOW CREATE TABLE t1;
---error 1091
+--error ER_CANT_DROP_FIELD_OR_KEY
 ALTER TABLE t1 DROP PRIMARY KEY;
 DROP TABLE t1;
 
 # BUG#3899
 create table t1 (a int, b int, key(a));
 insert into t1 values (1,1), (2,2);
---error 1091
+--error ER_CANT_DROP_FIELD_OR_KEY
 alter table t1 drop key no_such_key;
 alter table t1 drop key a;
 drop table t1;
@@ -343,7 +343,7 @@ drop table t1;
 # Some platforms (Mac OS X, Windows) will send the error message using small letters.
 CREATE TABLE T12207(a int) ENGINE=MYISAM;
 --replace_result t12207 T12207
---error 1031
+--error ER_ILLEGAL_HA
 ALTER TABLE T12207 DISCARD TABLESPACE;
 DROP TABLE T12207;
 
@@ -367,7 +367,7 @@ drop table t1;
 # shorter than packed field length.
 #
 create table t1 ( a timestamp );
---error 1089
+--error ER_WRONG_SUB_KEY
 alter table t1 add unique ( a(1) );
 drop table t1;
 
@@ -380,7 +380,7 @@ create table t1 (c1 int);
 # Move table to other database.
 alter table t1 rename mysqltest.t1;
 # Assure that it has moved.
---error 1051
+--error ER_BAD_TABLE_ERROR
 drop table t1;
 # Move table back.
 alter table mysqltest.t1 rename t1;
@@ -394,7 +394,7 @@ use mysqltest;
 # Drop the current db. This de-selects any db.
 drop database mysqltest;
 # Now test for correct message.
---error 1046
+--error ER_NO_DB_ERROR
 alter table test.t1 rename t1;
 # Check that explicit qualifying works even with no selected db.
 alter table test.t1 rename test.t1;
@@ -554,3 +554,38 @@ SHOW CREATE TABLE `#sql2`;
 SHOW CREATE TABLE `@0023sql1`;
 DROP TABLE `#sql2`, `@0023sql1`;
 
+#
+# Bug #22369: Alter table rename combined with other alterations causes lost tables
+#
+# This problem happens if the data change is compatible.
+# Changing to the same type is compatible for example.
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+--enable_warnings
+CREATE TABLE t1 (
+  int_field INTEGER UNSIGNED NOT NULL,
+  char_field CHAR(10),
+  INDEX(`int_field`)
+);
+
+DESCRIBE t1;
+
+SHOW INDEXES FROM t1;
+
+INSERT INTO t1 VALUES (1, "edno"), (1, "edno"), (2, "dve"), (3, "tri"), (5, "pet"); 
+--echo "Non-copy data change - new frm, but old data and index files"
+ALTER TABLE t1
+  CHANGE int_field unsigned_int_field INTEGER UNSIGNED NOT NULL,
+  RENAME t2;
+
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t1 ORDER BY int_field;
+SELECT * FROM t2 ORDER BY unsigned_int_field;
+DESCRIBE t2;
+DESCRIBE t2;
+ALTER TABLE t2 MODIFY unsigned_int_field BIGINT UNSIGNED NOT NULL;
+DESCRIBE t2;
+
+DROP TABLE t2;

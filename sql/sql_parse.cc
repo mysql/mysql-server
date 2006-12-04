@@ -3098,8 +3098,11 @@ end_with_restore_list:
     {
       ulong priv=0;
       ulong priv_needed= ALTER_ACL;
-      /* We also require DROP priv for ALTER TABLE ... DROP PARTITION */
-      if (lex->alter_info.flags & ALTER_DROP_PARTITION)
+      /*
+        We also require DROP priv for ALTER TABLE ... DROP PARTITION, as well
+        as for RENAME TO, as being done by SQLCOM_RENAME_TABLE
+      */
+      if (lex->alter_info.flags & (ALTER_DROP_PARTITION | ALTER_RENAME))
         priv_needed|= DROP_ACL;
 
       if (lex->name && (!lex->name[0] || strlen(lex->name) > NAME_LEN))
