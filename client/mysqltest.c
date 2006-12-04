@@ -722,6 +722,20 @@ void close_connections()
 }
 
 
+void close_statements()
+{
+  struct st_connection *con;
+  DBUG_ENTER("close_statements");
+  for (con= connections; con < next_con; con++)
+  {
+    if (con->stmt)
+      mysql_stmt_close(con->stmt);
+    con->stmt= 0;
+  }
+  DBUG_VOID_RETURN;
+}
+
+
 void close_files()
 {
   DBUG_ENTER("close_files");
@@ -2898,6 +2912,10 @@ void do_close_connection(struct st_command *command)
 	}
       }
 #endif
+      if (next_con->stmt)
+        mysql_stmt_close(next_con->stmt);
+      next_con->stmt= 0;
+
       mysql_close(&con->mysql);
       if (con->util_mysql)
 	mysql_close(con->util_mysql);
@@ -5882,6 +5900,7 @@ int main(int argc, char **argv)
 	break;
       case Q_DISABLE_PS_PROTOCOL:
         ps_protocol_enabled= 0;
+        close_statements();
         break;
       case Q_ENABLE_PS_PROTOCOL:
         ps_protocol_enabled= ps_protocol;
