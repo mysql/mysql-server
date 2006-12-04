@@ -211,6 +211,7 @@ const int FINISHED_LABEL_SZ =  15;  // TLS finished lable length
 const int SEED_LEN          = RAN_LEN * 2; // TLS seed, client + server random
 const int DEFAULT_TIMEOUT   = 500;  // Default Session timeout in seconds
 const int MAX_RECORD_SIZE   = 16384; // 2^14, max size by standard
+const int COMPRESS_EXTRA    = 1024;  // extra compression possible addition
 
 
 typedef uint8 Cipher;             // first byte is always 0x00 for SSLv3 & TLS
@@ -222,7 +223,7 @@ typedef opaque* DistinguishedName;
 typedef bool IsExportable;
 
 
-enum CompressionMethod { no_compression = 0 };
+enum CompressionMethod { no_compression = 0, zlib = 221 };
 
 enum CipherType { stream, block };
 

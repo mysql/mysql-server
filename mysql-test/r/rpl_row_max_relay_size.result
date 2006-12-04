@@ -16,6 +16,7 @@ reset slave;
 #
 # Test 1
 #
+set @my_max_binlog_size= @@global.max_binlog_size;
 set global max_binlog_size=8192;
 set global max_relay_log_size=8192-1;
 select @@global.max_relay_log_size;
@@ -268,6 +269,7 @@ File	master-bin.000002
 Position	102
 Binlog_Do_DB	<Binlog_Ignore_DB>
 Binlog_Ignore_DB	
+set global max_binlog_size= @my_max_binlog_size;
 #
 # End of 4.1 tests
 # 

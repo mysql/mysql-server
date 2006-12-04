@@ -70,6 +70,7 @@ abi_check: $(HEADERS_ABI) mysql_version.h mysql_h.ic
 	if [ @ICHECK@ != no ] ; then \
 	  @ICHECK@ --canonify --skip-from-re /usr/ -o $@.ic mysql.h; \
 	  @ICHECK@ --compare mysql_h.ic $@.ic; \
+	  $(RM) -f $@.ic; \
 	fi; \
 	touch abi_check;
 

@@ -346,7 +346,7 @@ bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
 my_bool opt_character_set_client_handshake= 1;
 bool server_id_supplied = 0;
-bool opt_endinfo,using_udf_functions;
+bool opt_endinfo, using_udf_functions;
 my_bool locked_in_memory;
 bool opt_using_transactions, using_update_log;
 bool volatile abort_loop;
@@ -2155,13 +2155,24 @@ later when used with nscd), disable LDAP in your nsswitch.conf, or use a\n\
 mysqld that is not statically linked.\n");
 #endif
 
- if (test_flags & TEST_CORE_ON_SIGNAL)
- {
-   fprintf(stderr, "Writing a core file\n");
-   fflush(stderr);
-   write_core(sig);
- }
- exit(1);
+  if (locked_in_memory)
+  {
+    fprintf(stderr, "\n\
+The \"--memlock\" argument, which was enabled, uses system calls that are\n\
+unreliable and unstable on some operating systems and operating-system\n\
+versions (notably, some versions of Linux).  This crash could be due to use\n\
+of those buggy OS calls.  You should consider whether you really need the\n\
+\"--memlock\" parameter and/or consult the OS distributer about \"mlockall\"\n\
+bugs.\n");
+  }
+
+  if (test_flags & TEST_CORE_ON_SIGNAL)
+  {
+    fprintf(stderr, "Writing a core file\n");
+    fflush(stderr);
+    write_core(sig);
+  }
+  exit(1);
 }
 
 #ifndef SA_RESETHAND
@@ -2784,13 +2795,13 @@ static int init_common_variables(const char *conf_file_name, int argc,
       !(log_output_options & LOG_NONE))
     sql_print_warning("Although a path was specified for the "
                       "--log option, log tables are used. "
-                      "To enable logging to file use the --log-output option.");
+                      "To enable logging to files use the --log-output option.");
 
   if (opt_slow_log && opt_slow_logname && !(log_output_options & LOG_FILE)
       && !(log_output_options & LOG_NONE))
     sql_print_warning("Although a path was specified for the "
                       "--log-slow-queries option, log tables are used. "
-                      "To enable logging to file use the --log-output option.");
+                      "To enable logging to files use the --log-output option.");
 
   if (!opt_logname)
     opt_logname= make_default_log_name(buff, ".log");
@@ -5932,9 +5943,11 @@ The minimum value for this variable is 4096.",
    "If there is more than this number of interrupted connections from a host this host will be blocked from further connections.",
    (gptr*) &max_connect_errors, (gptr*) &max_connect_errors, 0, GET_ULONG,
     REQUIRED_ARG, MAX_CONNECT_ERRORS, 1, ~0L, 0, 1, 0},
+  // Default max_connections of 151 is larger than Apache's default max
+  // children, to avoid "too many connections" error in a common setup
   {"max_connections", OPT_MAX_CONNECTIONS,
    "The number of simultaneous clients allowed.", (gptr*) &max_connections,
-   (gptr*) &max_connections, 0, GET_ULONG, REQUIRED_ARG, 100, 1, 16384, 0, 1,
+   (gptr*) &max_connections, 0, GET_ULONG, REQUIRED_ARG, 151, 1, 16384, 0, 1,
    0},
   {"max_delayed_threads", OPT_MAX_DELAYED_THREADS,
    "Don't start more than this number of threads to handle INSERT DELAYED statements. If set to zero, which means INSERT DELAYED is not used.",
@@ -6624,6 +6637,7 @@ SHOW_VAR status_vars[]= {
   {"Com_create_function",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_FUNCTION]), SHOW_LONG_STATUS},
   {"Com_create_index",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_INDEX]), SHOW_LONG_STATUS},
   {"Com_create_table",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_TABLE]), SHOW_LONG_STATUS},
+  {"Com_create_user",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_USER]), SHOW_LONG_STATUS},
   {"Com_dealloc_sql",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DEALLOCATE_PREPARE]), SHOW_LONG_STATUS},
   {"Com_delete",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DELETE]), SHOW_LONG_STATUS},
   {"Com_delete_multi",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DELETE_MULTI]), SHOW_LONG_STATUS},

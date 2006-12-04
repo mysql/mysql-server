@@ -17,11 +17,6 @@
 
 ## Process this file with automake to create Makefile.in
 
-if HAVE_YASSL
-  yassl_dummy_link_fix= $(top_srcdir)/extra/yassl/src/dummy.cpp
-else
-  yassl_dummy_link_fix=
-endif
 
 if THREAD_SAFE_CLIENT
 LIBMYSQLCLIENT_LA =		$(top_builddir)/libmysql_r/libmysqlclient_r.la
@@ -42,9 +37,6 @@ EXTRA_DIST =		auto_increment.res auto_increment.tst \
 bin_PROGRAMS =		mysql_client_test
 noinst_PROGRAMS =	insert_test select_test thread_test
 
-#
-# C Test for 4.1 protocol
-#
 INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include \
 			$(openssl_includes)
 LIBS =			@CLIENT_LIBS@
@@ -52,11 +44,11 @@ LDADD =			@CLIENT_EXTRA_LDFLAGS@ \
                         $(LIBMYSQLCLIENT_LA)
 
 mysql_client_test_LDADD= $(LDADD) $(CXXLDFLAGS)
-mysql_client_test_SOURCES= mysql_client_test.c $(yassl_dummy_link_fix) \
+mysql_client_test_SOURCES= mysql_client_test.c\
 			$(top_srcdir)/mysys/my_memmem.c
 
-insert_test_SOURCES=       insert_test.c $(yassl_dummy_link_fix)
-select_test_SOURCES=       select_test.c $(yassl_dummy_link_fix)
+insert_test_SOURCES=       insert_test.c
+select_test_SOURCES=       select_test.c
 insert_test_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 select_test_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 

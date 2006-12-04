@@ -57,10 +57,6 @@
    (LP)->sql_command == SQLCOM_DROP_FUNCTION ? \
    "FUNCTION" : "PROCEDURE")
 
-#ifdef SOLARIS
-extern "C" int gethostname(char *name, int namelen);
-#endif
-
 static void time_out_user_resource_limits(THD *thd, USER_CONN *uc);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 static int check_for_max_user_connections(THD *thd, USER_CONN *uc);
@@ -2631,10 +2627,11 @@ mysql_execute_command(THD *thd)
     if (opt_readonly &&
 	!(thd->security_ctx->master_access & SUPER_ACL) &&
 	(sql_command_flags[lex->sql_command] & CF_CHANGES_DATA) &&
-	!((lex->sql_command == SQLCOM_CREATE_TABLE) &&
-	  (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)) &&
-	((lex->sql_command != SQLCOM_UPDATE_MULTI) &&
-	 some_non_temp_table_to_be_updated(thd, all_tables)))
+        !((lex->sql_command == SQLCOM_CREATE_TABLE) &&
+          (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)) &&
+        !((lex->sql_command == SQLCOM_DROP_TABLE) && lex->drop_temporary) &&
+        ((lex->sql_command != SQLCOM_UPDATE_MULTI) &&
+          some_non_temp_table_to_be_updated(thd, all_tables)))
     {
       my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
       DBUG_RETURN(-1);
@@ -4229,6 +4226,7 @@ end_with_restore_list:
     bool write_to_binlog;
     if (check_global_access(thd,RELOAD_ACL))
       goto error;
+
     /*
       reload_acl_and_cache() will tell us if we are allowed to write to the
       binlog or not.
@@ -4249,7 +4247,8 @@ end_with_restore_list:
         }
       }
       send_ok(thd);
-    }
+    } 
+    
     break;
   }
   case SQLCOM_KILL:
@@ -4434,25 +4433,37 @@ end_with_restore_list:
   {
     uint namelen;
     char *name;
-    int result;
+    int result= SP_INTERNAL_ERROR;
 
     DBUG_ASSERT(lex->sphead != 0);
     DBUG_ASSERT(lex->sphead->m_db.str); /* Must be initialized in the parser */
+    /*
+      Verify that the database name is allowed, optionally
+      lowercase it.
+    */
+    if (check_db_name(&lex->sphead->m_db))
+    {
+      my_error(ER_WRONG_DB_NAME, MYF(0), lex->sphead->m_db.str);
+      goto create_sp_error;
+    }
+
+    /*
+      Check that a database directory with this name
+      exists. Design note: This won't work on virtual databases
+      like information_schema.
+    */
+    if (check_db_dir_existence(lex->sphead->m_db.str))
+    {
+      my_error(ER_BAD_DB_ERROR, MYF(0), lex->sphead->m_db.str);
+      goto create_sp_error;
+    }
 
     if (check_access(thd, CREATE_PROC_ACL, lex->sphead->m_db.str, 0, 0, 0,
                      is_schema_db(lex->sphead->m_db.str)))
-    {
-      delete lex->sphead;
-      lex->sphead= 0;
-      goto error;
-    }
+      goto create_sp_error;
 
-    if (end_active_trans(thd)) 
-    {
-      delete lex->sphead;
-      lex->sphead= 0;
-      goto error;
-    }
+    if (end_active_trans(thd))
+      goto create_sp_error;
 
     name= lex->sphead->name(&namelen);
 #ifdef HAVE_DLOPEN
@@ -4462,10 +4473,8 @@ end_with_restore_list:
 
       if (udf)
       {
-	my_error(ER_UDF_EXISTS, MYF(0), name);
-	delete lex->sphead;
-	lex->sphead= 0;
-	goto error;
+        my_error(ER_UDF_EXISTS, MYF(0), name);
+        goto create_sp_error;
       }
     }
 #endif
@@ -4473,7 +4482,7 @@ end_with_restore_list:
     /*
       If the definer is not specified, this means that CREATE-statement missed
       DEFINER-clause. DEFINER-clause can be missed in two cases:
-      
+
         - The user submitted a statement w/o the clause. This is a normal
           case, we should assign CURRENT_USER as definer.
 
@@ -4482,7 +4491,7 @@ end_with_restore_list:
           CURRENT_USER as definer here, but also we should mark this routine
           as NON-SUID. This is essential for the sake of backward
           compatibility.
-          
+
           The problem is the slave thread is running under "special" user (@),
           that actually does not exist. In the older versions we do not fail
           execution of a stored routine if its definer does not exist and
@@ -4507,13 +4516,9 @@ end_with_restore_list:
       if (ps_arena)
         thd->restore_active_arena(ps_arena, &original_arena);
 
+      /* Error has been already reported. */
       if (res)
-      {
-        /* Error has been already reported. */
-        delete lex->sphead;
-        lex->sphead= 0;
-        goto error;
-      }
+        goto create_sp_error;
 
       if (thd->slave_thread)
         lex->sphead->m_chistics->suid= SP_IS_NOT_SUID;
@@ -4524,7 +4529,7 @@ end_with_restore_list:
       that the current user has SUPER privilege (in order to create a stored
       routine under another user one must have SUPER privilege).
     */
-    
+
     else if (strcmp(lex->definer->user.str, thd->security_ctx->priv_user) ||
         my_strcasecmp(system_charset_info,
                       lex->definer->host.str,
@@ -4533,9 +4538,7 @@ end_with_restore_list:
       if (check_global_access(thd, SUPER_ACL))
       {
         my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
-        delete lex->sphead;
-        lex->sphead= 0;
-        goto error;
+        goto create_sp_error;
       }
     }
 
@@ -4555,54 +4558,51 @@ end_with_restore_list:
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
     res= (result= lex->sphead->create(thd));
-    if (result == SP_OK)
-    {
+    switch (result) {
+    case SP_OK:
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       /* only add privileges if really neccessary */
       if (sp_automatic_privileges && !opt_noacl &&
           check_routine_access(thd, DEFAULT_CREATE_PROC_ACLS,
-      			       lex->sphead->m_db.str, name,
+                               lex->sphead->m_db.str, name,
                                lex->sql_command == SQLCOM_CREATE_PROCEDURE, 1))
       {
         if (sp_grant_privileges(thd, lex->sphead->m_db.str, name,
                                 lex->sql_command == SQLCOM_CREATE_PROCEDURE))
-          push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
-	  	       ER_PROC_AUTO_GRANT_FAIL,
-		       ER(ER_PROC_AUTO_GRANT_FAIL));
+          push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                       ER_PROC_AUTO_GRANT_FAIL,
+                       ER(ER_PROC_AUTO_GRANT_FAIL));
         close_thread_tables(thd);
       }
 #endif
-      lex->unit.cleanup();
-      delete lex->sphead;
-      lex->sphead= 0;
-      send_ok(thd);
-    }
-    else
-    {
-      switch (result) {
-      case SP_WRITE_ROW_FAILED:
-	my_error(ER_SP_ALREADY_EXISTS, MYF(0), SP_TYPE_STRING(lex), name);
-	break;
-      case SP_NO_DB_ERROR:
-	my_error(ER_BAD_DB_ERROR, MYF(0), lex->sphead->m_db.str);
-	break;
-      case SP_BAD_IDENTIFIER:
-	my_error(ER_TOO_LONG_IDENT, MYF(0), name);
-	break;
-      case SP_BODY_TOO_LONG:
-	my_error(ER_TOO_LONG_BODY, MYF(0), name);
-	break;
-      default:
-	my_error(ER_SP_STORE_FAILED, MYF(0), SP_TYPE_STRING(lex), name);
-	break;
-      }
-      lex->unit.cleanup();
-      delete lex->sphead;
-      lex->sphead= 0;
-      goto error;
-    }
     break;
-  }
+    case SP_WRITE_ROW_FAILED:
+      my_error(ER_SP_ALREADY_EXISTS, MYF(0), SP_TYPE_STRING(lex), name);
+    break;
+    case SP_BAD_IDENTIFIER:
+      my_error(ER_TOO_LONG_IDENT, MYF(0), name);
+    break;
+    case SP_BODY_TOO_LONG:
+      my_error(ER_TOO_LONG_BODY, MYF(0), name);
+    break;
+    default:
+      my_error(ER_SP_STORE_FAILED, MYF(0), SP_TYPE_STRING(lex), name);
+    break;
+    } /* end switch */
+
+    /*
+      Capture all errors within this CASE and
+      clean up the environment.
+    */
+create_sp_error:
+    lex->unit.cleanup();
+    delete lex->sphead;
+    lex->sphead= 0;
+    if (result != SP_OK )
+      goto error;
+    send_ok(thd);
+    break; /* break super switch */
+  } /* end case group bracket */
   case SQLCOM_CALL:
     {
       sp_head *sp;
@@ -4678,8 +4678,6 @@ end_with_restore_list:
 	select_limit= thd->variables.select_limit;
 	thd->variables.select_limit= HA_POS_ERROR;
 
-        thd->row_count_func= 0;
-        
         /* 
           We never write CALL statements into binlog:
            - If the mode is non-prelocked, each statement will be logged
@@ -6974,7 +6972,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       than it would help them)
     */
     tmp_write_to_binlog= 0;
-    mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
+    if( mysql_bin_log.is_open() )
+    {
+      mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
+    }
 #ifdef HAVE_REPLICATION
     pthread_mutex_lock(&LOCK_active_mi);
     rotate_relay_log(active_mi);
