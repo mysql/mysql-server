@@ -414,6 +414,10 @@ cmd: testScan
 args: -n ScanParallelism
 
 max-time: 500
+cmd: testScan
+args: -n Bug24447 T1
+
+max-time: 500
 cmd: testNodeRestart
 args: -n Bug15587 T1
 
@@ -452,6 +456,10 @@ args: -n Bug20185 T1
 max-time: 1000
 cmd: testIndex
 args: -n Bug21384
+
+max-time: 1000
+cmd: testNodeRestart
+args: -n Bug24717 T1
 
 # OLD FLEX
 max-time: 500
@@ -510,7 +518,7 @@ args: -n TemporaryTables T1 T6 T7 T8
 
 max-time: 1500
 cmd: testDict
-args: -n Restart_NR2 T1
+args: -n Restart_NR2 T1 I3
 
 #
 # TEST NDBAPI
