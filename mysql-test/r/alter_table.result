@@ -733,3 +733,45 @@ Table	Create Table
   `c1` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE `#sql2`, `@0023sql1`;
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t1 (
+int_field INTEGER UNSIGNED NOT NULL,
+char_field CHAR(10),
+INDEX(`int_field`)
+);
+DESCRIBE t1;
+Field	Type	Null	Key	Default	Extra
+int_field	int(10) unsigned	NO	MUL		
+char_field	char(10)	YES		NULL	
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	int_field	1	int_field	A	NULL	NULL	NULL		BTREE	
+INSERT INTO t1 VALUES (1, "edno"), (1, "edno"), (2, "dve"), (3, "tri"), (5, "pet");
+"Non-copy data change - new frm, but old data and index files"
+ALTER TABLE t1
+CHANGE int_field unsigned_int_field INTEGER UNSIGNED NOT NULL,
+RENAME t2;
+SELECT * FROM t1 ORDER BY int_field;
+ERROR 42S02: Table 'test.t1' doesn't exist
+SELECT * FROM t2 ORDER BY unsigned_int_field;
+unsigned_int_field	char_field
+1	edno
+1	edno
+2	dve
+3	tri
+5	pet
+DESCRIBE t2;
+Field	Type	Null	Key	Default	Extra
+unsigned_int_field	int(10) unsigned	NO	MUL		
+char_field	char(10)	YES		NULL	
+DESCRIBE t2;
+Field	Type	Null	Key	Default	Extra
+unsigned_int_field	int(10) unsigned	NO	MUL		
+char_field	char(10)	YES		NULL	
+ALTER TABLE t2 MODIFY unsigned_int_field BIGINT UNSIGNED NOT NULL;
+DESCRIBE t2;
+Field	Type	Null	Key	Default	Extra
+unsigned_int_field	bigint(20) unsigned	NO	MUL		
+char_field	char(10)	YES		NULL	
+DROP TABLE t2;
