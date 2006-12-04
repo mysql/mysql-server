@@ -278,3 +278,7 @@ double_val	cast_val
 -1e+30	-9223372036854775808
 1e+30	9223372036854775807
 DROP TABLE t1;
+select isnull(date(NULL)), isnull(cast(NULL as DATE));
+isnull(date(NULL))	isnull(cast(NULL as DATE))
+1	1
+End of 4.1 tests

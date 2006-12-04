@@ -167,4 +167,10 @@ INSERT INTO t1 SET f1 = +1.0e+30 ;
 SELECT f1 AS double_val, CAST(f1 AS SIGNED INT) AS cast_val FROM t1;
 DROP TABLE t1;					   
 
-# End of 4.1 tests
+#
+# Bug #23938: cast(NULL as DATE)
+#
+
+select isnull(date(NULL)), isnull(cast(NULL as DATE));
+
+--echo End of 4.1 tests
