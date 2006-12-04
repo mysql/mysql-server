@@ -21,6 +21,7 @@
 #include <NdbScanOperation.hpp>
 #include <NdbIndexScanOperation.hpp>
 #include <NdbIndexOperation.hpp>
+#include <NdbDictionaryImpl.hpp>
 #include "NdbApiSignal.hpp"
 #include "TransporterFacade.hpp"
 #include "API.hpp"
@@ -539,8 +540,10 @@ NdbTransaction::executeAsynchPrepare( ExecType           aTypeOfExec,
   /**
    * Reset error.code on execute
    */
+#ifndef DBUG_OFF
   if (theError.code != 0)
     DBUG_PRINT("enter", ("Resetting error %d on execute", theError.code));
+#endif
   theError.code = 0;
   NdbScanOperation* tcOp = m_theFirstScanOperation;
   if (tcOp != 0){
@@ -2153,6 +2156,257 @@ NdbTransaction::getNextCompletedOperation(const NdbOperation * current) const {
   if(current == 0)
     return theCompletedFirstOp;
   return current->theNext;
+}
+
+NdbOperation *
+NdbTransaction::readTuple(const char *tableName, const NdbRecord *rec, char *row, const Uint32 *mask)
+{
+  NdbOperation *op= getNdbOperation(tableName);
+  if(!op)
+    return op;
+
+  op->readTuple();
+
+  /* First do equal on all of the primary key attributes. */
+  for(Uint32 i= 0; i<rec->noOfColumns; i++)
+  {
+    switch (rec->columns[i].type)
+    {
+      case NdbRecord::AttrUnused:
+        // ToDo: Report an error here if PK.
+        break;
+      case NdbRecord::AttrNotNULL:
+        if (rec->columns[i].flags & NdbRecord::IsPK)
+          op->equal(i, &(row[rec->columns[i].offset]), rec->columns[i].maxSize);
+        else if (!mask || (mask[i>>5] & (1<<(i&31))))
+          op->getValue(i, &(row[rec->columns[i].offset]));
+        break;
+      default:
+        assert(0);
+    }
+  }
+}
+
+NdbOperation *
+NdbTransaction::insertTuple(const char *tableName, const NdbRecord *rec, const char *row, const Uint32 *mask)
+{
+  NdbOperation *op= getNdbOperation(tableName);
+  if(!op)
+    return op;
+
+  op->insertTuple();
+  for(Uint32 i= 0; i<rec->noOfColumns; i++)
+  {
+    switch (rec->columns[i].type)
+    {
+      case NdbRecord::AttrUnused:
+        // ToDo: Report error if PK.
+        break;
+      case NdbRecord::AttrNotNULL:
+        if (rec->columns[i].flags & NdbRecord::IsPK)
+          op->equal(i, &(row[rec->columns[i].offset]), rec->columns[i].maxSize);
+        else if (!mask || (mask[i>>5] & (1<<(i&31))))
+          op->setValue(i, &(row[rec->columns[i].offset]));
+        break;
+      default:
+        assert(0);
+    }
+  }
+}
+
+NdbOperation *
+NdbTransaction::updateTuple(const char *tableName, const NdbRecord *rec, const char *row, const Uint32 *mask)
+{
+  NdbOperation *op= getNdbOperation(tableName);
+  if(!op)
+    return op;
+
+  op->updateTuple();
+
+  for(Uint32 i= 0; i<rec->noOfColumns; i++)
+  {
+    switch (rec->columns[i].type)
+    {
+      case NdbRecord::AttrUnused:
+        // ToDo: Report an error here if PK.
+        break;
+      case NdbRecord::AttrNotNULL:
+        if (rec->columns[i].flags & NdbRecord::IsPK)
+          op->equal(i, &(row[rec->columns[i].offset]), rec->columns[i].maxSize);
+        else if (!mask || (mask[i>>5] & (1<<(i&31))))
+          op->setValue(i, &(row[rec->columns[i].offset]));
+        break;
+      default:
+        assert(0);
+    }
+  }
+}
+
+NdbOperation *
+NdbTransaction::deleteTuple(const char *tableName, const NdbRecord *rec, const char *row)
+{
+  NdbOperation *op= getNdbOperation(tableName);
+  if(!op)
+    return op;
+
+  op->deleteTuple();
+
+  /* Do equal on all of the primary key attributes. */
+  for(Uint32 i= 0; i<rec->noOfColumns; i++)
+  {
+    switch (rec->columns[i].type)
+    {
+      case NdbRecord::AttrUnused:
+        // ToDo: Report an error here.
+        break;
+      case NdbRecord::AttrNotNULL:
+        if (rec->columns[i].flags & NdbRecord::IsPK)
+          op->equal(i, &(row[rec->columns[i].offset]), rec->columns[i].maxSize);
+        break;
+      default:
+        assert(0);
+    }
+  }
+}
+
+NdbOperation *
+NdbTransaction::dirtyWriteTuple(const char *tableName, const NdbRecord *rec, const char *row, const Uint32 *mask)
+{
+  NdbOperation *op= getNdbOperation(tableName);
+  if(!op)
+    return op;
+
+  op->dirtyWrite();
+  for(Uint32 i= 0; i<rec->noOfColumns; i++)
+  {
+    switch (rec->columns[i].type)
+    {
+      case NdbRecord::AttrUnused:
+        // ToDo: Report error if PK.
+        break;
+      case NdbRecord::AttrNotNULL:
+        if (rec->columns[i].flags & NdbRecord::IsPK)
+          op->equal(i, &(row[rec->columns[i].offset]), rec->columns[i].maxSize);
+        else if (!mask || (mask[i>>5] & (1<<(i&31))))
+          op->setValue(i, &(row[rec->columns[i].offset]));
+        break;
+      default:
+        assert(0);
+    }
+  }
+}
+
+NdbOperation *
+NdbTransaction::writeTuple(const char *tableName, const NdbRecord *rec, const char *row, const Uint32 *mask)
+{
+  NdbOperation *op= getNdbOperation(tableName);
+  if(!op)
+    return op;
+
+  op->writeTuple();
+  for(Uint32 i= 0; i<rec->noOfColumns; i++)
+  {
+    switch (rec->columns[i].type)
+    {
+      case NdbRecord::AttrUnused:
+        // ToDo: Report error if PK.
+        break;
+      case NdbRecord::AttrNotNULL:
+        if (rec->columns[i].flags & NdbRecord::IsPK)
+          op->equal(i, &(row[rec->columns[i].offset]), rec->columns[i].maxSize);
+        else if (!mask || (mask[i>>5] & (1<<(i&31))))
+          op->setValue(i, &(row[rec->columns[i].offset]));
+        break;
+      default:
+        assert(0);
+    }
+  }
+}
+
+NdbOperation *
+NdbTransaction::simpleReadTuple(const char *tableName, const NdbRecord *rec, char *row, const Uint32 *mask)
+{
+  NdbOperation *op= getNdbOperation(tableName);
+  if(!op)
+    return op;
+
+  op->simpleRead();
+
+  /* First do equal on all of the primary key attributes. */
+  for(Uint32 i= 0; i<rec->noOfColumns; i++)
+  {
+    switch (rec->columns[i].type)
+    {
+      case NdbRecord::AttrUnused:
+        // ToDo: Report an error here if PK.
+        break;
+      case NdbRecord::AttrNotNULL:
+        if (rec->columns[i].flags & NdbRecord::IsPK)
+          op->equal(i, &(row[rec->columns[i].offset]), rec->columns[i].maxSize);
+        else if (!mask || (mask[i>>5] & (1<<(i&31))))
+          op->getValue(i, &(row[rec->columns[i].offset]));
+        break;
+      default:
+        assert(0);
+    }
+  }
+}
+
+NdbOperation *
+NdbTransaction::dirtyReadTuple(const char *tableName, const NdbRecord *rec, char *row, const Uint32 *mask)
+{
+  NdbOperation *op= getNdbOperation(tableName);
+  if(!op)
+    return op;
+
+  op->dirtyRead();
+
+  /* First do equal on all of the primary key attributes. */
+  for(Uint32 i= 0; i<rec->noOfColumns; i++)
+  {
+    switch (rec->columns[i].type)
+    {
+      case NdbRecord::AttrUnused:
+        // ToDo: Report an error here if PK.
+        break;
+      case NdbRecord::AttrNotNULL:
+        if (rec->columns[i].flags & NdbRecord::IsPK)
+          op->equal(i, &(row[rec->columns[i].offset]), rec->columns[i].maxSize);
+        else if (!mask || (mask[i>>5] & (1<<(i&31))))
+          op->getValue(i, &(row[rec->columns[i].offset]));
+        break;
+      default:
+        assert(0);
+    }
+  }
+}
+
+NdbOperation *
+NdbTransaction::dirtyUpdateTuple(const char *tableName, const NdbRecord *rec, const char *row, const Uint32 *mask)
+{
+  NdbOperation *op= getNdbOperation(tableName);
+  if(!op)
+    return op;
+
+  op->dirtyUpdate();
+
+  for(Uint32 i= 0; i<rec->noOfColumns; i++)
+  {
+    switch (rec->columns[i].type)
+    {
+      case NdbRecord::AttrUnused:
+        // ToDo: Report an error here if PK.
+        break;
+      case NdbRecord::AttrNotNULL:
+        if (rec->columns[i].flags & NdbRecord::IsPK)
+          op->equal(i, &(row[rec->columns[i].offset]), rec->columns[i].maxSize);
+        else if (!mask || (mask[i>>5] & (1<<(i&31))))
+          op->setValue(i, &(row[rec->columns[i].offset]));
+        break;
+      default:
+        assert(0);
+    }
+  }
 }
 
 #ifdef VM_TRACE
