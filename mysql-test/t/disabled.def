@@ -35,3 +35,6 @@ synchronization          : Bug#24529  	Test 'synchronization' fails on Mac pushb
 #ndb_binlog_ddl_multi     : BUG#18976 2006-04-10 kent    CRBR: multiple binlog, second binlog may miss schema log events
 ndb_binlog_discover      : bug#21806 2006-08-24
 ndb_autodiscover3        : bug#21806
+
+flush2                   : Bug#24805 Pushbuild can't handle test with --disable-log-bin
+
