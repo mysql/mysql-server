@@ -1513,7 +1513,7 @@ NdbDictionary::Dictionary::recAddAttrNotNULL(const char *tableName, NdbRecord *r
 Uint32 *
 NdbDictionary::Dictionary::getRecAttrSet(const char *tableName, NdbRecord *rec)
 {
-  m_impl.getRecAttrSet(tableName, rec);
+  return m_impl.getRecAttrSet(tableName, rec);
 }
 
 void 

@@ -846,7 +846,6 @@
    The interface is used to send many transactions 
    at the same time to the NDB kernel.  
    This is often much more efficient than using synchronous transactions.
-   The main reason for using this method is to ensure that 
    Sending many transactions at the same time ensures that bigger 
    chunks of data are sent when actually sending and thus decreasing 
    the operating system overhead.

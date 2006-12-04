@@ -540,8 +540,10 @@ NdbTransaction::executeAsynchPrepare( ExecType           aTypeOfExec,
   /**
    * Reset error.code on execute
    */
+#ifndef DBUG_OFF
   if (theError.code != 0)
     DBUG_PRINT("enter", ("Resetting error %d on execute", theError.code));
+#endif
   theError.code = 0;
   NdbScanOperation* tcOp = m_theFirstScanOperation;
   if (tcOp != 0){

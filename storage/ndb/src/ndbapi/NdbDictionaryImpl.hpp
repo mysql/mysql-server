@@ -579,13 +579,13 @@ public:
 
   enum Flags
   {
-    IsPK= 1,
+    IsPK= 1
   };
 
   enum RecAttrTypes
   {
     AttrUnused= 0,
-    AttrNotNULL,
+    AttrNotNULL
   };
 
   struct Attr
