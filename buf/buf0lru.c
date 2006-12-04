@@ -138,7 +138,7 @@ scan_again:
 				blocks */
 				bpage->oldest_modification = 0;
 
-				UT_LIST_REMOVE(flush_list,
+				UT_LIST_REMOVE(free_or_flush_list,
 					       buf_pool->flush_list,
 					       bpage);
 			}
@@ -457,12 +457,13 @@ loop:
 	/* If there is a block in the free list, take it */
 	if (UT_LIST_GET_LEN(buf_pool->free) > 0) {
 
-		block = UT_LIST_GET_FIRST(buf_pool->free);
-		ut_a(block->in_free_list);
-		UT_LIST_REMOVE(free, buf_pool->free, block);
-		block->in_free_list = FALSE;
-		ut_a(buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE);
+		block = (buf_block_t*) UT_LIST_GET_FIRST(buf_pool->free);
+		ut_ad(block->page.in_free_list);
+		ut_d(block->page.in_free_list = FALSE);
 		ut_ad(!block->page.in_LRU_list);
+		ut_a(!buf_page_in_file(&block->page));
+		UT_LIST_REMOVE(free_or_flush_list, buf_pool->free,
+			       (&block->page));
 
 		if (buf_block_get_zip_size(block) != zip_size) {
 			page_zip_set_size(&block->page.zip, zip_size);
@@ -895,7 +896,7 @@ buf_LRU_block_free_non_file_page(
 	}
 
 	ut_ad(block->n_pointers == 0);
-	ut_a(!block->in_free_list);
+	ut_ad(!block->page.in_free_list);
 
 	buf_block_set_state(block, BUF_BLOCK_NOT_USED);
 
@@ -914,8 +915,8 @@ buf_LRU_block_free_non_file_page(
 		page_zip_set_size(&block->page.zip, 0);
 	}
 
-	UT_LIST_ADD_FIRST(free, buf_pool->free, block);
-	block->in_free_list = TRUE;
+	UT_LIST_ADD_FIRST(free_or_flush_list, buf_pool->free, (&block->page));
+	ut_d(block->page.in_free_list = TRUE);
 
 	UNIV_MEM_INVALID(block->frame, UNIV_PAGE_SIZE);
 }
@@ -1083,16 +1084,13 @@ buf_LRU_validate(void)
 		ut_a(buf_pool->LRU_old_len == old_len);
 	}
 
-	UT_LIST_VALIDATE(free, buf_block_t, buf_pool->free);
+	UT_LIST_VALIDATE(free_or_flush_list, buf_page_t, buf_pool->free);
 
-	{
-		buf_block_t*	block = UT_LIST_GET_FIRST(buf_pool->free);
+	for (bpage = UT_LIST_GET_FIRST(buf_pool->free);
+	     bpage != NULL;
+	     bpage = UT_LIST_GET_NEXT(free_or_flush_list, bpage)) {
 
-		while (block != NULL) {
-			ut_a(buf_block_get_state(block) == BUF_BLOCK_NOT_USED);
-
-			block = UT_LIST_GET_NEXT(free, block);
-		}
+		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_NOT_USED);
 	}
 
 	mutex_exit(&(buf_pool->mutex));
