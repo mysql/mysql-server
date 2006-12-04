@@ -1,0 +1,9 @@
+#
+# Bug#17733 Flushing logs causes daily server crash
+#
+flush logs;
+set global expire_logs_days = 3;
+show variables like 'log%';
+flush logs;
+show variables like 'log%';
+set global expire_logs_days = 0;
