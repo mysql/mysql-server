@@ -383,6 +383,9 @@ NdbOperation::prepareSendInterpreted()
     return -1;
   }
 
+  /*
+    Fix jumps by patching in the correct address for the corresponding label.
+  */
   while (theFirstBranch != NULL) {
     Uint32 tRelAddress;
     Uint32 tLabelAddress = 0;

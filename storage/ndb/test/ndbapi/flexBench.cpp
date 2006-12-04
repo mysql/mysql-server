@@ -660,8 +660,8 @@ static void* flexBenchThread(void* pArg)
       tResult = 13;
       goto end;
     }
-    for (Uint32 col= 0; col<tNoOfAttributes; col++)
-      dict->recAddAttrNotNULL(tableName[tab], pRec[tab], col+firstCol, sizeof(int)*tAttributeSize*col);
+    for (Uint32 col= 1; col<tNoOfAttributes; col++)
+      dict->recAddAttrNotNULL(tableName[tab], pRec[tab], col-1+firstCol, sizeof(int)*tAttributeSize*col);
     if (useLongKeys)
     {
       for (Uint32 col= 0; col<tNoOfLongPK; col++)
