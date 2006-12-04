@@ -37,7 +37,9 @@ static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
 static int copy_data_between_tables(TABLE *from,TABLE *to,
                                     List<create_field> &create, bool ignore,
 				    uint order_num, ORDER *order,
-				    ha_rows *copied,ha_rows *deleted);
+				    ha_rows *copied,ha_rows *deleted,
+                                    enum enum_enable_or_disable keys_onoff);
+
 static bool prepare_blob_field(THD *thd, create_field *sql_field);
 static bool check_engine(THD *thd, const char *table_name,
                          enum db_type *new_engine);                             
@@ -2934,6 +2936,54 @@ err:
 
 
 /*
+  Manages enabling/disabling of indexes for ALTER TABLE
+
+  SYNOPSIS
+    alter_table_manage_keys()
+      table                  Target table
+      indexes_were_disabled  Whether the indexes of the from table
+                             were disabled
+      keys_onoff             ENABLE | DISABLE | LEAVE_AS_IS
+
+  RETURN VALUES
+    FALSE  OK
+    TRUE   Error
+*/
+
+static
+bool alter_table_manage_keys(TABLE *table, int indexes_were_disabled,
+                             enum enum_enable_or_disable keys_onoff)
+{
+  int error= 0;
+  DBUG_ENTER("alter_table_manage_keys");
+  DBUG_PRINT("enter", ("table=%p were_disabled=%d on_off=%d",
+             table, indexes_were_disabled, keys_onoff));
+
+  switch (keys_onoff) {
+  case ENABLE:
+    error= table->file->enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
+    break;
+  case LEAVE_AS_IS:
+    if (!indexes_were_disabled)
+      break;
+    /* fall-through: disabled indexes */
+  case DISABLE:
+    error= table->file->disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
+  }
+
+  if (error == HA_ERR_WRONG_COMMAND)
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                        ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA), table->s->table_name);
+    error= 0;
+  } else if (error)
+    table->file->print_error(error, MYF(0));
+
+  DBUG_RETURN(error);
+}
+
+
+/*
   Alter table
 */
 
@@ -3586,8 +3636,20 @@ view_err:
     new_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     new_table->next_number_field=new_table->found_next_number_field;
     error=copy_data_between_tables(table, new_table, create_list, ignore,
-				   order_num, order, &copied, &deleted);
+				   order_num, order, &copied, &deleted,
+                                   alter_info->keys_onoff);
   }
+  else if (!new_table)
+  {
+    VOID(pthread_mutex_lock(&LOCK_open));
+    wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
+    table->file->external_lock(thd, F_WRLCK);
+    alter_table_manage_keys(table, table->file->indexes_are_disabled(),
+                            alter_info->keys_onoff);
+    table->file->external_lock(thd, F_UNLCK);
+    VOID(pthread_mutex_unlock(&LOCK_open));
+  }
+
   thd->last_insert_id=next_insert_id;		// Needed for correct log
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 
@@ -3815,7 +3877,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
                          bool ignore,
 			 uint order_num, ORDER *order,
 			 ha_rows *copied,
-			 ha_rows *deleted)
+			 ha_rows *deleted,
+                         enum enum_enable_or_disable keys_onoff)
 {
   int error;
   Copy_field *copy,*copy_end;
@@ -3847,6 +3910,9 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
   if (to->file->external_lock(thd, F_WRLCK))
     DBUG_RETURN(-1);
+
+  /* We need external lock before we can disable/enable keys */
+  alter_table_manage_keys(to, from->file->indexes_are_disabled(), keys_onoff);
 
   /* We can abort alter table for any table type */
   thd->no_trans_update= 0;

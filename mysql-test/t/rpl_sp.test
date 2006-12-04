@@ -528,6 +528,7 @@ set global log_bin_trust_function_creators=0;
 # Bug22043: MySQL don't add "USE <DATABASE>" before "DROP PROCEDURE IF EXISTS"
 #
 connection master;
+reset master;
 --disable_warnings
 drop database if exists mysqltest;
 drop database if exists mysqltest2;
@@ -538,7 +539,7 @@ use mysqltest2;
 create table t ( t integer );
 create procedure mysqltest.test() begin end;
 insert into t values ( 1 );
-show binlog events in 'master-bin.000001' from 8186;
+show binlog events in 'master-bin.000001' from 98;
 --error ER_WRONG_DB_NAME
 create procedure `\\`.test() begin end;
 # Clean up
