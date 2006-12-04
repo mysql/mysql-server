@@ -725,6 +725,20 @@ void close_connections()
 }
 
 
+void close_statements()
+{
+  struct st_connection *con;
+  DBUG_ENTER("close_statements");
+  for (con= connections; con < next_con; con++)
+  {
+    if (con->stmt)
+      mysql_stmt_close(con->stmt);
+    con->stmt= 0;
+  }
+  DBUG_VOID_RETURN;
+}
+
+
 void close_files()
 {
   DBUG_ENTER("close_files");
@@ -2901,6 +2915,10 @@ void do_close_connection(struct st_command *command)
 	}
       }
 #endif
+      if (next_con->stmt)
+        mysql_stmt_close(next_con->stmt);
+      next_con->stmt= 0;
+
       mysql_close(&con->mysql);
       if (con->util_mysql)
 	mysql_close(con->util_mysql);
@@ -2962,10 +2980,12 @@ void safe_connect(MYSQL* mysql, const char *name, const char *host,
       Connect failed
 
       Only allow retry if this was an error indicating the server
-      could not be contacted
+      could not be contacted. Error code differs depending
+      on protocol/connection type
     */
 
-    if (mysql_errno(mysql) == CR_CONNECTION_ERROR &&
+    if ((mysql_errno(mysql) == CR_CONN_HOST_ERROR ||
+         mysql_errno(mysql) == CR_CONNECTION_ERROR) &&
         failed_attempts < opt_max_connect_retries)
       my_sleep(connection_retry_sleep);
     else
@@ -5892,6 +5912,7 @@ int main(int argc, char **argv)
 	break;
       case Q_DISABLE_PS_PROTOCOL:
         ps_protocol_enabled= 0;
+        close_statements();
         break;
       case Q_ENABLE_PS_PROTOCOL:
         ps_protocol_enabled= ps_protocol;
