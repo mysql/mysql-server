@@ -296,7 +296,7 @@ SET sql_quote_show_create= @old_sql_quote_show_create;
 SET sql_mode= @old_sql_mode;
 select @@max_heap_table_size;
 @@max_heap_table_size
-1047552
+1048576
 CREATE TABLE t1 (
 a int(11) default NULL,
 KEY a USING BTREE (a)

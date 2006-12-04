@@ -983,8 +983,8 @@ String *Item_func_insert::val_str(String *str)
     length= res->length() + 1;
 
   /* start and length are now sufficiently valid to pass to charpos function */
-  start= res->charpos(start);
-  length= res->charpos(length, start);
+  start= res->charpos((int) start);
+  length= res->charpos((int) length, (uint32) start);
 
   /* Re-testing with corrected params */
   if (start > res->length() + 1)
@@ -992,8 +992,8 @@ String *Item_func_insert::val_str(String *str)
   if (length > res->length() - start)
     length= res->length() - start;
 
-  if (res->length() - length + res2->length() >
-      current_thd->variables.max_allowed_packet)
+  if ((ulonglong) (res->length() - length + res2->length()) >
+      (ulonglong) current_thd->variables.max_allowed_packet)
   {
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
@@ -1002,7 +1002,7 @@ String *Item_func_insert::val_str(String *str)
     goto null;
   }
   res=copy_if_not_alloced(str,res,res->length());
-  res->replace(start,length,*res2);
+  res->replace((uint32) start,(uint32) length,*res2);
   return res;
 null:
   null_value=1;
@@ -1078,7 +1078,7 @@ String *Item_func_left::val_str(String *str)
     return &my_empty_string;
 
   if ((res->length() <= (ulonglong) length) ||
-      (res->length() <= (char_pos= res->charpos(length))))
+      (res->length() <= (char_pos= res->charpos((int) length))))
     return res;
 
   tmp_value.set(*res, 0, char_pos);
@@ -1170,17 +1170,17 @@ String *Item_func_substr::val_str(String *str)
     return &my_empty_string;
 
   start= ((start < 0) ? res->numchars() + start : start - 1);
-  start= res->charpos(start);
+  start= res->charpos((int) start);
   if ((start < 0) || ((uint) start + 1 > res->length()))
     return &my_empty_string;
 
-  length= res->charpos(length, start);
+  length= res->charpos((int) length, (uint32) start);
   tmp_length= res->length() - start;
   length= min(length, tmp_length);
 
-  if (!start && res->length() == (ulonglong) length)
+  if (!start && (longlong) res->length() == length)
     return res;
-  tmp_value.set(*res, (ulonglong) start, (ulonglong) length);
+  tmp_value.set(*res, (uint32) start, (uint32) length);
   return &tmp_value;
 }
 
@@ -2228,7 +2228,7 @@ String *Item_func_repeat::val_str(String *str)
   char *to;
   /* must be longlong to avoid truncation */
   longlong tmp_count= args[1]->val_int();
-  long count= tmp_count;
+  long count= (long) tmp_count;
   String *res= args[0]->val_str(str);
 
   /* Assumes that the maximum length of a String is < INT_MAX32. */
@@ -2330,7 +2330,7 @@ String *Item_func_rpad::val_str(String *str)
 
   if (count <= (res_char_length= res->numchars()))
   {						// String to pad is big enough
-    res->length(res->charpos(count));		// Shorten result if longer
+    res->length(res->charpos((int) count));     // Shorten result if longer
     return (res);
   }
   pad_char_length= rpad->numchars();
@@ -2347,7 +2347,7 @@ String *Item_func_rpad::val_str(String *str)
   if (args[2]->null_value || !pad_char_length)
     goto err;
   res_byte_length= res->length();	/* Must be done before alloc_buffer */
-  if (!(res= alloc_buffer(res,str,&tmp_value,byte_count)))
+  if (!(res= alloc_buffer(res,str,&tmp_value, (ulong) byte_count)))
     goto err;
 
   to= (char*) res->ptr()+res_byte_length;
@@ -2361,7 +2361,7 @@ String *Item_func_rpad::val_str(String *str)
   }
   if (count)
   {
-    pad_byte_length= rpad->charpos(count);
+    pad_byte_length= rpad->charpos((int) count);
     memcpy(to,ptr_pad,(size_t) pad_byte_length);
     to+= pad_byte_length;
   }
@@ -2433,14 +2433,14 @@ String *Item_func_lpad::val_str(String *str)
 
   if (count <= res_char_length)
   {
-    res->length(res->charpos(count));
+    res->length(res->charpos((int) count));
     return res;
   }
   
   pad_char_length= pad->numchars();
   byte_count= count * collation.collation->mbmaxlen;
   
-  if (byte_count > current_thd->variables.max_allowed_packet)
+  if ((ulonglong) byte_count > current_thd->variables.max_allowed_packet)
   {
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
@@ -2449,7 +2449,8 @@ String *Item_func_lpad::val_str(String *str)
     goto err;
   }
 
-  if (args[2]->null_value || !pad_char_length || str->alloc(byte_count))
+  if (args[2]->null_value || !pad_char_length ||
+      str->alloc((uint32) byte_count))
     goto err;
   
   str->length(0);
@@ -2461,7 +2462,7 @@ String *Item_func_lpad::val_str(String *str)
     count-= pad_char_length;
   }
   if (count > 0)
-    str->append(pad->ptr(), pad->charpos(count), collation.collation);
+    str->append(pad->ptr(), pad->charpos((int) count), collation.collation);
 
   str->append(*res);
   null_value= 0;
@@ -2791,7 +2792,7 @@ String *Item_load_file::val_str(String *str)
   tmp_value.length(stat_info.st_size);
   my_close(file, MYF(0));
   null_value = 0;
-  return &tmp_value;
+  DBUG_RETURN(&tmp_value);
 
 err:
   null_value = 1;
@@ -3281,4 +3282,3 @@ String *Item_func_uuid::val_str(String *str)
   strmov(s+18, clock_seq_and_node_str);
   return str;
 }
-

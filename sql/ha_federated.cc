@@ -1249,7 +1249,6 @@ bool ha_federated::create_where_from_key(String *to,
       if (tmp.append(FEDERATED_CLOSEPAREN))
         DBUG_RETURN(1);
 
-next_loop:
       if (store_length >= length)
         break;
       DBUG_PRINT("info", ("remainder %d", remainder));
@@ -1925,8 +1924,8 @@ int ha_federated::delete_row(const byte *buf)
   {
     DBUG_RETURN(stash_remote_error());
   }
-  deleted+= mysql->affected_rows;
-  records-= mysql->affected_rows;
+  deleted+= (ha_rows) mysql->affected_rows;
+  records-= (ha_rows) mysql->affected_rows;
   DBUG_PRINT("info",
              ("rows deleted %ld  rows deleted for all time %ld",
               (long) mysql->affected_rows, (long) deleted));
@@ -2281,7 +2280,6 @@ int ha_federated::rnd_next(byte *buf)
 int ha_federated::read_next(byte *buf, MYSQL_RES *result)
 {
   int retval;
-  my_ulonglong num_rows;
   MYSQL_ROW row;
   DBUG_ENTER("ha_federated::read_next");
 

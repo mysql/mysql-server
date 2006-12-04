@@ -68,7 +68,7 @@ int heap_write(HP_INFO *info, const byte *record)
   DBUG_RETURN(0);
 
 err:
-  DBUG_PRINT("info",("Duplicate key: %d", keydef - share->keydef));
+  DBUG_PRINT("info",("Duplicate key: %d", (int) (keydef - share->keydef)));
   info->errkey= keydef - share->keydef;
   if (keydef->algorithm == HA_KEY_ALG_BTREE)
   {
