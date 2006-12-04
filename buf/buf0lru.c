@@ -231,7 +231,9 @@ buf_LRU_free_block(
 	buf_LRU_block_remove_hashed_page(bpage);
 
 	switch (buf_page_get_state(bpage)) {
-	case BUF_BLOCK_FILE_PAGE:
+	case BUF_BLOCK_REMOVE_HASH:
+		/* The state was changed from BUF_BLOCK_FILE_PAGE
+		in buf_LRU_block_remove_hashed_page(bpage). */
 		mutex_exit(&(buf_pool->mutex));
 		mutex_exit(block_mutex);
 
