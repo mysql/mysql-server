@@ -149,9 +149,9 @@ EXPLAIN EXTENDED SELECT myfunc_int(a AS attr_name) FROM t1;
 EXPLAIN EXTENDED SELECT myfunc_int(a) FROM t1;
 SELECT a,c FROM v1;
 
---error ER_PARSE_ERROR
+--error ER_WRONG_PARAMETERS_TO_STORED_FCT
 SELECT a, fn(MIN(b) xx) as c FROM t1 GROUP BY a;
---error ER_PARSE_ERROR
+--error ER_WRONG_PARAMETERS_TO_STORED_FCT
 SELECT myfunc_int(fn(MIN(b) xx)) as c FROM t1 GROUP BY a;
 --error ER_PARSE_ERROR
 SELECT myfunc_int(test.fn(MIN(b) xx)) as c FROM t1 GROUP BY a;
@@ -172,6 +172,22 @@ DROP TABLE t1;
 DROP FUNCTION fn;
 
 --echo End of 5.0 tests.
+
+#
+# Bug#24736: UDF functions parsed as Stored Functions
+#
+
+select myfunc_double(3);
+select myfunc_double(3 AS three);
+select myfunc_double(abs(3));
+select myfunc_double(abs(3) AS named_param);
+select abs(myfunc_double(3));
+select abs(myfunc_double(3 AS three));
+
+-- error ER_WRONG_PARAMETERS_TO_NATIVE_FCT
+select myfunc_double(abs(3 AS wrong));
+-- error ER_WRONG_PARAMETERS_TO_NATIVE_FCT
+select abs(myfunc_double(3) AS wrong);
 
 #
 # BUG#18239: Possible to overload internal functions with stored functions
@@ -223,4 +239,41 @@ DROP FUNCTION lookup;
 DROP FUNCTION reverse_lookup;
 DROP FUNCTION avgcost;
 
+#
+# Bug#18761: constant expression as UDF parameters not passed in as constant
+#
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION is_const RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
 
+select
+  is_const(3) as const,
+  is_const(3.14) as const,
+  is_const('fnord') as const,
+  is_const(2+3) as const,
+  is_const(rand()) as 'nc rand()',
+  is_const(sin(3.14)) as const,
+  is_const(upper('test')) as const;
+
+create table bug18761 (n int);
+insert into bug18761 values (null),(2);
+select
+  is_const(3) as const,
+  is_const(3.14) as const,
+  is_const('fnord') as const,
+  is_const(2+3) as const,
+  is_const(2+n) as 'nc  2+n  ',
+  is_const(sin(n)) as 'nc sin(n)',
+  is_const(sin(3.14)) as const,
+  is_const(upper('test')) as const,
+  is_const(rand()) as 'nc rand()',
+  is_const(n) as 'nc   n   ',
+  is_const(is_const(n)) as 'nc ic?(n)',
+  is_const(is_const('c')) as const
+from
+  bug18761;
+drop table bug18761;
+
+--error 1241
+select is_const((1,2,3));
+
+drop function if exists is_const;

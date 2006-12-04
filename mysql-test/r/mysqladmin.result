@@ -1,0 +1,4 @@
+mysqld is alive
+mysqladmin: unknown variable 'database=db1'
+Warning: mysqladmin: unknown variable 'loose-database=db2'
+mysqld is alive

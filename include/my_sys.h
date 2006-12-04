@@ -857,12 +857,6 @@ extern int my_getncpus();
 #else
 #define my_mmap(a,b,c,d,e,f)    mmap(a,b,c,d,e,f)
 #endif
-#ifdef HAVE_GETPAGESIZE
-#define my_getpagesize()        getpagesize()
-#else
-/* qnx ? */
-#define my_getpagesize()        8192
-#endif
 #define my_munmap(a,b)          munmap((a),(b))
 
 #else
@@ -880,14 +874,15 @@ extern int my_getncpus();
 #define HAVE_MMAP
 #endif
 
-#ifndef __NETWARE__
-int my_getpagesize(void);
-#else
-#define my_getpagesize() 8192
-#endif
-
 void *my_mmap(void *, size_t, int, int, int, my_off_t);
 int my_munmap(void *, size_t);
+#endif
+
+/* my_getpagesize */
+#ifdef HAVE_GETPAGESIZE
+#define my_getpagesize()        getpagesize()
+#else
+int my_getpagesize(void);
 #endif
 
 int my_msync(int, void *, size_t, int);

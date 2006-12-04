@@ -13,6 +13,7 @@ connect (b,localhost,root,,);
 # BUG#11238 - in prelocking mode SELECT .. FOR UPDATE is changed to
 # non-blocking SELECT
 #
+SET GLOBAL log_bin_trust_function_creators = 1;
 create table t1 (col1 integer primary key, col2 integer) engine=innodb;
 insert t1 values (1,100);
 delimiter |;
@@ -38,3 +39,4 @@ drop table t1;
 drop function f1;
 disconnect a;
 disconnect b;
+SET GLOBAL log_bin_trust_function_creators = 0;

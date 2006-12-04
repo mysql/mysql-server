@@ -1522,6 +1522,46 @@ remove_file $MYSQLTEST_VARDIR/tmp/file2.tmp;
 --exec echo "copy_file from_file;" | $MYSQL_TEST 2>&1
 
 # ----------------------------------------------------------------------------
+# test for chmod
+# ----------------------------------------------------------------------------
+--write_file $MYSQLTEST_VARDIR/tmp/file1.tmp
+file1
+EOF
+
+chmod 0000 $MYSQLTEST_VARDIR/tmp/file1.tmp;
+# The below write fails, but --error is not implemented
+# for write_file
+#--write_file $MYSQLTEST_VARDIR/tmp/file1.tmp
+#test should fail
+#EOF
+
+chmod 0777 $MYSQLTEST_VARDIR/tmp/file1.tmp;
+--write_file $MYSQLTEST_VARDIR/tmp/file1.tmp
+test2
+EOF
+
+remove_file $MYSQLTEST_VARDIR/tmp/file1.tmp;
+
+--error 1
+--exec echo "chmod ;" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "chmod 0 from_file;" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "chmod 08 from_file;" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "chmod from_file;" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "chmod ABZD from_file;" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "chmod 06789 from_file;" | $MYSQL_TEST 2>&1
+
+
+# ----------------------------------------------------------------------------
 # test for perl
 # ----------------------------------------------------------------------------
 --perl

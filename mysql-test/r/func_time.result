@@ -1047,6 +1047,9 @@ union
 (select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 HOUR)),'%k') As H);
 H
 5
+select last_day('0000-00-00');
+last_day('0000-00-00')
+NULL
 End of 4.1 tests
 explain extended select timestampdiff(SQL_TSI_WEEK, '2001-02-01', '2001-05-01') as a1,
 timestampdiff(SQL_TSI_FRAC_SECOND, '2001-02-01 12:59:59.120000', '2001-05-01 12:58:58.119999') as a2;
@@ -1057,6 +1060,7 @@ Note	1003	select timestampdiff(WEEK,_latin1'2001-02-01',_latin1'2001-05-01') AS 
 select time_format('100:00:00', '%H %k %h %I %l');
 time_format('100:00:00', '%H %k %h %I %l')
 100 100 04 04 4
+SET GLOBAL log_bin_trust_function_creators = 1;
 create table t1 (a timestamp default '2005-05-05 01:01:01',
 b timestamp default '2005-05-05 01:01:01');
 drop function if exists t_slow_sysdate;
@@ -1080,6 +1084,7 @@ a != b
 drop trigger t_before;
 drop function t_slow_sysdate;
 drop table t1;
+SET GLOBAL log_bin_trust_function_creators = 0;
 create table t1 (a datetime, i int, b datetime);
 insert into t1 select sysdate(), sleep(1), sysdate() from dual;
 select a != b from t1;
@@ -1175,6 +1180,9 @@ id	day	id	day
 3	2005-07-01	3	2005-07-15
 DROP TABLE t1,t2;
 set time_zone= @@global.time_zone;
+select str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE;
+str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE
+NULL
 End of 5.0 tests
 select date_sub("0050-01-01 00:00:01",INTERVAL 2 SECOND);
 date_sub("0050-01-01 00:00:01",INTERVAL 2 SECOND)

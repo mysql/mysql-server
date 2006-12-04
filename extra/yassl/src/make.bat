@@ -1,7 +1,7 @@
 REM quick and dirty build file for testing different MSDEVs
 setlocal 
 
-set myFLAGS= /I../include /I../mySTL /I../taocrypt/include /W3 /c /ZI
+set myFLAGS= /I../include /I../taocrypt/mySTL /I../taocrypt/include /W3 /c /ZI
 
 cl %myFLAGS% buffer.cpp
 cl %myFLAGS% cert_wrapper.cpp

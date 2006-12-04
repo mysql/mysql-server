@@ -35,33 +35,20 @@
 #include "twofish.hpp"
 
 
-#if defined(TAOCRYPT_X86ASM_AVAILABLE) && defined(TAO_ASM)
-    #define DO_TWOFISH_ASM
-#endif
-
 
 namespace TaoCrypt {
 
 
-#if !defined(DO_TWOFISH_ASM)
-
-// Generic Version
-void Twofish::Process(byte* out, const byte* in, word32 sz)
-{
-    if (mode_ == ECB)
-        ECB_Process(out, in, sz);
-    else if (mode_ == CBC)
-        if (dir_ == ENCRYPTION)
-            CBC_Encrypt(out, in, sz);
-        else
-            CBC_Decrypt(out, in, sz);
-}
-
-#else
+#if defined(DO_TWOFISH_ASM)
 
 // ia32 optimized version
 void Twofish::Process(byte* out, const byte* in, word32 sz)
 {
+    if (!isMMX) {
+        Mode_BASE::Process(out, in, sz);
+        return;
+    }
+
     word32 blocks = sz / BLOCK_SIZE;
 
     if (mode_ == ECB)

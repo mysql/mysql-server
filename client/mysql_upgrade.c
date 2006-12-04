@@ -31,10 +31,12 @@
 const char *mysqlcheck_name= "mysqlcheck.exe";
 const char *mysql_name= "mysql.exe";
 const char *mysqld_name= "mysqld.exe";
+#define EXTRA_CLIENT_PATHS "client/release", "client/debug"
 #else
 const char *mysqlcheck_name= "mysqlcheck";
 const char *mysql_name= "mysql";
 const char *mysqld_name= "mysqld";
+#define EXTRA_CLIENT_PATHS "client"
 #endif /*__WIN__*/
 
 extern TYPELIB sql_protocol_typelib;
@@ -499,8 +501,9 @@ int main(int argc, char **argv)
                           "mysql", NullS))
   {
     ret= 1;
-    puts("Can't find data directory. Please restart with"
-                    " --datadir=path-to-writable-data-dir");
+    fprintf(stderr,
+            "Can't find data directory. Please restart with"
+            " --datadir=path-to-writable-data-dir");
     goto error;
   }
 
@@ -543,11 +546,13 @@ int main(int argc, char **argv)
   }
   
   if (find_file(mysqlcheck_name, basedir, MYF(0), path, sizeof(path),
-                          "bin", NullS))
+                "bin", EXTRA_CLIENT_PATHS, NullS))
   {
      ret= 1;
-     printf("Can't find program '%s'\n", mysqlcheck_name);
-     puts("Please restart with --basedir=mysql-install-directory");
+     fprintf(stderr,
+             "Can't find program '%s'\n"
+             "Please restart with --basedir=mysql-install-directory",
+             mysqlcheck_name);
      goto error;
   }
   else
@@ -569,7 +574,7 @@ int main(int argc, char **argv)
   ret= system(cmdline.str);
   if (ret)
   {
-    printf("Error executing '%s'\n", cmdline.str);
+    fprintf(stderr, "Error executing '%s'\n", cmdline.str);
     goto error;
   }
 
@@ -580,12 +585,13 @@ int main(int argc, char **argv)
 
 fix_priv_tables:
   if (find_file(mysql_name, basedir, MYF(0), path, sizeof(path), 
-                          "bin", NullS))
+                "bin", EXTRA_CLIENT_PATHS, NullS))
   {
     ret= 1;
-    puts("Could not find MySQL command-line client (mysql).\n"
-         "Please use --basedir to specify the directory"
-         " where MySQL is installed.");
+    fprintf(stderr,
+           "Could not find MySQL command-line client (mysql).\n"
+           "Please use --basedir to specify the directory"
+           " where MySQL is installed.");
     goto error;
   }
   else
@@ -593,16 +599,17 @@ fix_priv_tables:
 
   if (find_file(MYSQL_FIX_PRIV_TABLES_NAME, basedir, MYF(0), 
                           path, sizeof(path), 
-                          "support_files", "share/mysql", "scripts", 
+                          "support_files", "share", "share/mysql", "scripts",
                           NullS)
      && find_file(MYSQL_FIX_PRIV_TABLES_NAME, "/usr/local/mysql", MYF(0),
                           path, sizeof(path),
                           "share/mysql", NullS))
   {
     ret= 1;
-    puts("Could not find file " MYSQL_FIX_PRIV_TABLES_NAME "\n"
-         "Please use --basedir to specify the directory"
-         " where MySQL is installed");
+    fprintf(stderr,
+           "Could not find file " MYSQL_FIX_PRIV_TABLES_NAME "\n"
+           "Please use --basedir to specify the directory"
+           " where MySQL is installed");
     goto error;
   }
   else
@@ -623,7 +630,7 @@ fix_priv_tables:
 
   ret= system(cmdline.str);
   if (ret)
-    printf("Error executing '%s'\n", cmdline.str);
+    fprintf(stderr, "Error executing '%s'\n", cmdline.str);
 
 error:
   dynstr_free(&cmdline);
