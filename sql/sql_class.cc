@@ -1372,28 +1372,12 @@ bool select_exists_subselect::send_data(List<Item> &items)
 
 int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
-  List_iterator_fast<Item> li(list);
-  List_iterator_fast<LEX_STRING> gl(var_list);
-  Item *item;
-  LEX_STRING *ls;
+  unit= u;
+  
   if (var_list.elements != list.elements)
   {
     my_error(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT, MYF(0));
     return 1;
-  }
-  unit=u;
-  while ((item=li++))
-  {
-    ls= gl++;
-    Item_func_set_user_var *xx = new Item_func_set_user_var(*ls,item);
-    /*
-      Item_func_set_user_var can't substitute something else on its place =>
-      0 can be passed as last argument (reference on item)
-    */
-    xx->fix_fields(thd,(TABLE_LIST*) thd->lex->select_lex.table_list.first,
-		   0);
-    xx->fix_length_and_dec();
-    vars.push_back(xx);
   }
   return 0;
 }
@@ -1401,8 +1385,7 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 
 void select_dumpvar::cleanup()
 {
-  vars.empty();
-  row_count=0;
+  row_count= 0;
 }
 
 
@@ -1744,12 +1727,14 @@ Statement_map::~Statement_map()
 
 bool select_dumpvar::send_data(List<Item> &items)
 {
-  List_iterator_fast<Item_func_set_user_var> li(vars);
-  Item_func_set_user_var *xx;
+  List_iterator_fast<LEX_STRING> var_li(var_list);
+  List_iterator<Item> it(items);
+  Item *item;
+  LEX_STRING *ls;
   DBUG_ENTER("send_data");
 
   if (unit->offset_limit_cnt)
-  {				          // Using limit offset,count
+  {						// using limit offset,count
     unit->offset_limit_cnt--;
     DBUG_RETURN(0);
   }
@@ -1758,10 +1743,21 @@ bool select_dumpvar::send_data(List<Item> &items)
     my_error(ER_TOO_MANY_ROWS, MYF(0));
     DBUG_RETURN(1);
   }
-  while ((xx=li++))
+  while ((ls= var_li++) && (item= it++))
   {
-    xx->check();
-    xx->update();
+    Item_func_set_user_var *suv= new Item_func_set_user_var(*ls, item);
+
+    /*
+      Item_func_set_user_var can't substitute something else on its
+      place => NULL may be passed as last argument (reference on
+      item) Item_func_set_user_var can't be fixed after creation, so
+      we do not check var->fixed
+    */
+
+    suv->fix_fields(thd, (TABLE_LIST *) thd->lex->select_lex.table_list.first,
+            0);
+    suv->check();
+    suv->update();  
   }
   DBUG_RETURN(0);
 }
