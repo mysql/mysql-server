@@ -373,3 +373,104 @@ select yearweek();
 ERROR 42000: Incorrect parameter count in the call to native function 'yearweek'
 select yearweek(1, 2, 3);
 ERROR 42000: Incorrect parameter count in the call to native function 'yearweek'
+select abs(3);
+abs(3)
+3
+select abs(3 AS three);
+ERROR 42000: Incorrect parameters in the call to native function 'abs'
+select abs(3 three);
+ERROR 42000: Incorrect parameters in the call to native function 'abs'
+select abs(3 AS "three");
+ERROR 42000: Incorrect parameters in the call to native function 'abs'
+select abs(3 "three");
+ERROR 42000: Incorrect parameters in the call to native function 'abs'
+set @bar="bar";
+set @foobar="foobar";
+select instr("foobar", "bar");
+instr("foobar", "bar")
+4
+select instr("foobar" AS p1, "bar");
+ERROR 42000: Incorrect parameters in the call to native function 'instr'
+select instr("foobar" p1, "bar");
+ERROR 42000: Incorrect parameters in the call to native function 'instr'
+select instr("foobar" AS "p1", "bar");
+ERROR 42000: Incorrect parameters in the call to native function 'instr'
+select instr("foobar" "p1", "bar");
+instr("foobar" "p1", "bar")
+4
+select instr(@foobar "p1", "bar");
+ERROR 42000: Incorrect parameters in the call to native function 'instr'
+select instr("foobar", "bar" AS p2);
+ERROR 42000: Incorrect parameters in the call to native function 'instr'
+select instr("foobar", "bar" p2);
+ERROR 42000: Incorrect parameters in the call to native function 'instr'
+select instr("foobar", "bar" AS "p2");
+ERROR 42000: Incorrect parameters in the call to native function 'instr'
+select instr("foobar", "bar" "p2");
+instr("foobar", "bar" "p2")
+0
+select instr("foobar", @bar "p2");
+ERROR 42000: Incorrect parameters in the call to native function 'instr'
+select instr("foobar" AS p1, "bar" AS p2);
+ERROR 42000: Incorrect parameters in the call to native function 'instr'
+select conv(255, 10, 16);
+conv(255, 10, 16)
+FF
+select conv(255 AS p1, 10, 16);
+ERROR 42000: Incorrect parameters in the call to native function 'conv'
+select conv(255 p1, 10, 16);
+ERROR 42000: Incorrect parameters in the call to native function 'conv'
+select conv(255 AS "p1", 10, 16);
+ERROR 42000: Incorrect parameters in the call to native function 'conv'
+select conv(255 "p1", 10, 16);
+ERROR 42000: Incorrect parameters in the call to native function 'conv'
+select conv(255, 10 AS p2, 16);
+ERROR 42000: Incorrect parameters in the call to native function 'conv'
+select conv(255, 10 p2, 16);
+ERROR 42000: Incorrect parameters in the call to native function 'conv'
+select conv(255, 10 AS "p2", 16);
+ERROR 42000: Incorrect parameters in the call to native function 'conv'
+select conv(255, 10 "p2", 16);
+ERROR 42000: Incorrect parameters in the call to native function 'conv'
+select conv(255, 10, 16 AS p3);
+ERROR 42000: Incorrect parameters in the call to native function 'conv'
+select conv(255, 10, 16 p3);
+ERROR 42000: Incorrect parameters in the call to native function 'conv'
+select conv(255, 10, 16 AS "p3");
+ERROR 42000: Incorrect parameters in the call to native function 'conv'
+select conv(255, 10, 16 "p3");
+ERROR 42000: Incorrect parameters in the call to native function 'conv'
+select conv(255 AS p1, 10 AS p2, 16 AS p3);
+ERROR 42000: Incorrect parameters in the call to native function 'conv'
+select atan(10);
+atan(10)
+1.4711276743037
+select atan(10 AS p1);
+ERROR 42000: Incorrect parameters in the call to native function 'atan'
+select atan(10 p1);
+ERROR 42000: Incorrect parameters in the call to native function 'atan'
+select atan(10 AS "p1");
+ERROR 42000: Incorrect parameters in the call to native function 'atan'
+select atan(10 "p1");
+ERROR 42000: Incorrect parameters in the call to native function 'atan'
+select atan(10, 20);
+atan(10, 20)
+0.46364760900081
+select atan(10 AS p1, 20);
+ERROR 42000: Incorrect parameters in the call to native function 'atan'
+select atan(10 p1, 20);
+ERROR 42000: Incorrect parameters in the call to native function 'atan'
+select atan(10 AS "p1", 20);
+ERROR 42000: Incorrect parameters in the call to native function 'atan'
+select atan(10 "p1", 20);
+ERROR 42000: Incorrect parameters in the call to native function 'atan'
+select atan(10, 20 AS p2);
+ERROR 42000: Incorrect parameters in the call to native function 'atan'
+select atan(10, 20 p2);
+ERROR 42000: Incorrect parameters in the call to native function 'atan'
+select atan(10, 20 AS "p2");
+ERROR 42000: Incorrect parameters in the call to native function 'atan'
+select atan(10, 20 "p2");
+ERROR 42000: Incorrect parameters in the call to native function 'atan'
+select atan(10 AS p1, 20 AS p2);
+ERROR 42000: Incorrect parameters in the call to native function 'atan'
