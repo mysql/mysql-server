@@ -2959,10 +2959,12 @@ void safe_connect(MYSQL* mysql, const char *name, const char *host,
       Connect failed
 
       Only allow retry if this was an error indicating the server
-      could not be contacted
+      could not be contacted. Error code differs depending
+      on protocol/connection type
     */
 
-    if (mysql_errno(mysql) == CR_CONNECTION_ERROR &&
+    if ((mysql_errno(mysql) == CR_CONN_HOST_ERROR ||
+         mysql_errno(mysql) == CR_CONNECTION_ERROR) &&
         failed_attempts < opt_max_connect_retries)
       my_sleep(connection_retry_sleep);
     else
