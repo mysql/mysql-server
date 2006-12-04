@@ -5,6 +5,35 @@
 //#define TEST_RESUME
 
 
+void ClientError(SSL_CTX* ctx, SSL* ssl, SOCKET_T& sockfd, const char* msg)
+{
+    SSL_CTX_free(ctx);
+    SSL_free(ssl);
+    tcp_close(sockfd);
+    err_sys(msg);
+}
+
+
+#ifdef NON_BLOCKING
+    void NonBlockingSSL_Connect(SSL* ssl, SSL_CTX* ctx, SOCKET_T& sockfd)
+    {
+        int ret = SSL_connect(ssl);
+        while (ret =! SSL_SUCCESS && SSL_get_error(ssl, 0) ==
+                                     SSL_ERROR_WANT_READ) {
+            printf("... client would block\n");
+            #ifdef _WIN32
+                Sleep(1000);
+            #else
+                sleep(1);
+            #endif
+            ret = SSL_connect(ssl);
+        }
+        if (ret != SSL_SUCCESS)
+            ClientError(ctx, ssl, sockfd, "SSL_connect failed");
+    }
+#endif
+
+
 void client_test(void* args)
 {
 #ifdef _WIN32
@@ -18,6 +47,9 @@ void client_test(void* args)
 
     set_args(argc, argv, *static_cast<func_args*>(args));
     tcp_connect(sockfd);
+#ifdef NON_BLOCKING
+    tcp_set_nonblocking(sockfd);
+#endif
 
     SSL_METHOD* method = TLSv1_client_method();
     SSL_CTX*    ctx = SSL_CTX_new(method);
@@ -27,13 +59,13 @@ void client_test(void* args)
 
     SSL_set_fd(ssl, sockfd);
 
+
+#ifdef NON_BLOCKING
+    NonBlockingSSL_Connect(ssl, ctx, sockfd);
+#else
     if (SSL_connect(ssl) != SSL_SUCCESS)
-    {
-        SSL_CTX_free(ctx);
-        SSL_free(ssl);
-        tcp_close(sockfd);
-        err_sys("SSL_connect failed");
-    }
+        ClientError(ctx, ssl, sockfd, "SSL_connect failed");
+#endif
     showPeer(ssl);
 
     const char* cipher = 0;
@@ -49,16 +81,14 @@ void client_test(void* args)
 
     char msg[] = "hello yassl!";
     if (SSL_write(ssl, msg, sizeof(msg)) != sizeof(msg))
-    {
-        SSL_CTX_free(ctx);
-        SSL_free(ssl);
-        tcp_close(sockfd);
-        err_sys("SSL_write failed");
-    }
+        ClientError(ctx, ssl, sockfd, "SSL_write failed");
 
     char reply[1024];
-    reply[SSL_read(ssl, reply, sizeof(reply))] = 0;
+    int input = SSL_read(ssl, reply, sizeof(reply));
+    if (input > 0) {
+        reply[input] = 0;
     printf("Server response: %s\n", reply);
+    }
 
 #ifdef TEST_RESUME
     SSL_SESSION* session   = SSL_get_session(ssl);
@@ -75,24 +105,17 @@ void client_test(void* args)
     SSL_set_session(sslResume, session);
     
     if (SSL_connect(sslResume) != SSL_SUCCESS)
-    {
-        SSL_CTX_free(ctx);
-        SSL_free(ssl);
-        tcp_close(sockfd);
-        err_sys("SSL resume failed");
-    }
+        ClientError(ctx, sslResume, sockfd, "SSL_resume failed");
     showPeer(sslResume);
   
     if (SSL_write(sslResume, msg, sizeof(msg)) != sizeof(msg))
-    {
-      SSL_CTX_free(ctx);
-      SSL_free(ssl);
-      tcp_close(sockfd);
-        err_sys("SSL_write failed");
-    }
+        ClientError(ctx, sslResume, sockfd, "SSL_write failed");
 
-    reply[SSL_read(sslResume, reply, sizeof(reply))] = 0;
+    input = SSL_read(sslResume, reply, sizeof(reply));
+    if (input > 0) {
+        reply[input] = 0;
     printf("Server response: %s\n", reply);
+    }
 
     SSL_shutdown(sslResume);
     SSL_free(sslResume);

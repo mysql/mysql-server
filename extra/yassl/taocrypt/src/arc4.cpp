@@ -80,11 +80,17 @@ inline unsigned int MakeByte(word32& x, word32& y, byte* s)
 } // namespace
 
 
-#ifndef DO_ARC4_ASM
 
 void ARC4::Process(byte* out, const byte* in, word32 length)
 {
     if (length == 0) return;
+
+#ifdef DO_ARC4_ASM
+    if (isMMX) {
+        AsmProcess(out, in, length);
+        return;
+    } 
+#endif
 
     byte *const s = state_;
     word32 x = x_;
@@ -100,13 +106,16 @@ void ARC4::Process(byte* out, const byte* in, word32 length)
     y_ = y;
 }
 
-#else  // DO_ARC4_ASM
 
+
+#ifdef DO_ARC4_ASM
 
 #ifdef _MSC_VER
     __declspec(naked) 
+#else
+    __attribute__ ((noinline))
 #endif
-void ARC4::Process(byte* out, const byte* in, word32 length)
+void ARC4::AsmProcess(byte* out, const byte* in, word32 length)
 {
 #ifdef __GNUC__
     #define AS1(x)    asm(#x);
