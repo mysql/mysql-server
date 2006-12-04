@@ -610,9 +610,8 @@ buf_block_init(
 	block->check_index_page_at_flush = FALSE;
 	block->index = NULL;
 
-	block->in_free_list = FALSE;
-
 #ifdef UNIV_DEBUG
+	block->page.in_free_list = FALSE;
 	block->page.in_LRU_list = FALSE;
 	block->n_pointers = 0;
 #endif /* UNIV_DEBUG */
@@ -694,8 +693,9 @@ buf_chunk_init(
 		memset(block->frame, '\0', UNIV_PAGE_SIZE);
 #endif
 		/* Add the block to the free list */
-		UT_LIST_ADD_LAST(free, buf_pool->free, block);
-		block->in_free_list = TRUE;
+		UT_LIST_ADD_LAST(free_or_flush_list, buf_pool->free,
+				 (&block->page));
+		ut_d(block->page.in_free_list = TRUE);
 
 		block++;
 		frame += UNIV_PAGE_SIZE;
@@ -793,8 +793,9 @@ buf_chunk_free(
 
 		ut_ad(!block->page.in_LRU_list);
 		/* Remove the block from the free list. */
-		ut_a(block->in_free_list);
-		UT_LIST_REMOVE(free, buf_pool->free, block);
+		ut_ad(block->page.in_free_list);
+		UT_LIST_REMOVE(free_or_flush_list, buf_pool->free,
+			       (&block->page));
 
 		/* Free the latches. */
 		mutex_free(&block->mutex);

@@ -915,9 +915,16 @@ struct buf_page_struct{
 
 	/* 2. Page flushing fields; protected by buf_pool->mutex */
 
-	UT_LIST_NODE_T(buf_page_t) flush_list;
-					/* node of the modified, not yet
-					flushed blocks list */
+	UT_LIST_NODE_T(buf_page_t) free_or_flush_list;
+					/* if buf_page_in_file(), this is a
+					node of the modified, not yet
+					flushed blocks list;
+					if state == BUF_BLOCK_NOT_USED,
+					this is a node of the "free" list */
+#ifdef UNIV_DEBUG
+	ibool		in_free_list;	/* TRUE if in the free list; used in
+					debugging */
+#endif /* UNIV_DEBUG */
 	ib_uint64_t	newest_modification;
 					/* log sequence number of the youngest
 					modification to this block, zero if
@@ -994,12 +1001,6 @@ struct buf_block_struct{
 					but this flag is not set because
 					we do not keep track of all pages */
 
-	/* 3. LRU replacement algorithm fields */
-
-	UT_LIST_NODE_T(buf_block_t) free;
-					/* node of the free block list */
-	ibool		in_free_list;	/* TRUE if in the free list; used in
-					debugging */
 	/* 4. Optimistic search field */
 
 	ib_uint64_t	modify_clock;	/* this clock is incremented every
@@ -1137,7 +1138,7 @@ struct buf_pool_struct{
 
 	/* 3. LRU replacement algorithm fields */
 
-	UT_LIST_BASE_NODE_T(buf_block_t) free;
+	UT_LIST_BASE_NODE_T(buf_page_t) free;
 					/* base node of the free block list */
 	UT_LIST_BASE_NODE_T(buf_page_t) LRU;
 					/* base node of the LRU list */
