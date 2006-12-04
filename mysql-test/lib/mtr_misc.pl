@@ -134,6 +134,7 @@ sub mtr_exe_maybe_exists (@) {
   my @path= @_;
 
   map {$_.= ".exe"} @path if $::glob_win32;
+  map {$_.= ".nlm"} @path if $::glob_netware;
   foreach my $path ( @path )
   {
     if($::glob_win32)
