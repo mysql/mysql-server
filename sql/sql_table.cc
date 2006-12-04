@@ -34,11 +34,12 @@ const char *primary_key_name="PRIMARY";
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
 static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
 static int copy_data_between_tables(TABLE *from,TABLE *to,
-				    List<create_field> &create,
-				    enum enum_duplicates handle_duplicates,
+                                    List<create_field> &create,
+                                    enum enum_duplicates handle_duplicates,
                                     bool ignore,
-				    uint order_num, ORDER *order,
-				    ha_rows *copied,ha_rows *deleted);
+                                    uint order_num, ORDER *order,
+                                    ha_rows *copied, ha_rows *deleted,
+                                    enum enum_enable_or_disable keys_onoff);
 
 
 /*
@@ -2837,6 +2838,54 @@ int mysql_drop_indexes(THD *thd, TABLE_LIST *table_list,
 
 
 /*
+  Manages enabling/disabling of indexes for ALTER TABLE
+
+  SYNOPSIS
+    alter_table_manage_keys()
+      table                  Target table
+      indexes_were_disabled  Whether the indexes of the from table
+                             were disabled
+      keys_onoff             ENABLE | DISABLE | LEAVE_AS_IS
+
+  RETURN VALUES
+    FALSE  OK
+    TRUE   Error
+*/
+
+static
+bool alter_table_manage_keys(TABLE *table, int indexes_were_disabled,
+                             enum enum_enable_or_disable keys_onoff)
+{
+  int error= 0;
+  DBUG_ENTER("alter_table_manage_keys");
+  DBUG_PRINT("enter", ("table=%p were_disabled=%d on_off=%d",
+             table, indexes_were_disabled, keys_onoff));
+
+  switch (keys_onoff) {
+  case ENABLE:
+    error= table->file->enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
+    break;
+  case LEAVE_AS_IS:
+    if (!indexes_were_disabled)
+      break;
+    /* fall-through: disabled indexes */
+  case DISABLE:
+    error= table->file->disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
+  }
+
+  if (error == HA_ERR_WRONG_COMMAND)
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                        ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA), table->table_name);
+    error= 0;
+  } else if (error)
+    table->file->print_error(error, MYF(0));
+
+  DBUG_RETURN(error);
+}
+
+
+/*
   Alter table
 */
 
@@ -3375,7 +3424,14 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (!new_table->is_view)
     error=copy_data_between_tables(table,new_table,create_list,
 				   handle_duplicates, ignore,
-				   order_num, order, &copied, &deleted);
+				   order_num, order, &copied, &deleted,
+                                   alter_info->keys_onoff);
+  /*
+    No need to have call to alter_table_manage_keys() in the else because
+    in 4.1 we always copy data, except for views. In 5.0 it could happen
+    that no data is copied and only frm is modified. Then we have to handle
+    alter_info->keys_onoff outside of copy_data_between_tables
+  */
   thd->last_insert_id=next_insert_id;		// Needed for correct log
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 
@@ -3598,7 +3654,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
                          bool ignore,
 			 uint order_num, ORDER *order,
 			 ha_rows *copied,
-			 ha_rows *deleted)
+			 ha_rows *deleted,
+                         enum enum_enable_or_disable keys_onoff)
 {
   int error;
   Copy_field *copy,*copy_end;
@@ -3630,6 +3687,10 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
   if (to->file->external_lock(thd, F_WRLCK))
     DBUG_RETURN(-1);
+
+  /* We need external lock before we can disable/enable keys */
+  alter_table_manage_keys(to, from->file->indexes_are_disabled(), keys_onoff);
+
   from->file->info(HA_STATUS_VARIABLE);
   to->file->start_bulk_insert(from->file->records);
 
