@@ -206,7 +206,7 @@ int azdopen(azio_stream *s,File fd, int Flags);
 */
 
 
-extern int azread(azio_stream *file, voidp buf, unsigned len);
+extern unsigned long azread ( azio_stream *s, voidp buf, unsigned long len, int *error);
 /*
      Reads the given number of uncompressed bytes from the compressed file.
    If the input file was not in gzip format, gzread copies the given number
@@ -214,7 +214,7 @@ extern int azread(azio_stream *file, voidp buf, unsigned len);
      gzread returns the number of uncompressed bytes actually read (0 for
    end of file, -1 for error). */
 
-extern int azwrite (azio_stream *file, voidpc buf, unsigned len);
+extern unsigned long azwrite (azio_stream *s, voidpc buf, unsigned long len);
 /*
      Writes the given number of uncompressed bytes into the compressed file.
    gzwrite returns the number of uncompressed bytes actually written

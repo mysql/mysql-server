@@ -1,5 +1,6 @@
 /*
   azio is a modified version of gzio. It  makes use of mysys and removes mallocs.
+    -Brian Aker
 */
 
 /* gzio.c -- IO on .gz files
@@ -292,15 +293,28 @@ int destroy (s)
   Reads the given number of uncompressed bytes from the compressed file.
   azread returns the number of bytes actually read (0 for end of file).
 */
-int ZEXPORT azread ( azio_stream *s, voidp buf, unsigned len)
+unsigned long ZEXPORT azread ( azio_stream *s, voidp buf, unsigned long len, int *error)
 {
   Bytef *start = (Bytef*)buf; /* starting point for crc computation */
   Byte  *next_out; /* == stream.next_out but not forced far (for MSDOS) */
+  *error= 0;
 
-  if (s->mode != 'r') return Z_STREAM_ERROR;
+  if (s->mode != 'r')
+  { 
+    *error= Z_STREAM_ERROR;
+    return 0;
+  }
 
-  if (s->z_err == Z_DATA_ERROR || s->z_err == Z_ERRNO) return -1;
-  if (s->z_err == Z_STREAM_END) return 0;  /* EOF */
+  if (s->z_err == Z_DATA_ERROR || s->z_err == Z_ERRNO)
+  { 
+    *error= s->z_err;
+    return 0;
+  }
+
+  if (s->z_err == Z_STREAM_END)  /* EOF */
+  { 
+    return 0;
+  }
 
   next_out = (Byte*)buf;
   s->stream.next_out = (Bytef*)buf;
@@ -315,7 +329,9 @@ int ZEXPORT azread ( azio_stream *s, voidp buf, unsigned len)
     start++;
     if (s->last) {
       s->z_err = Z_STREAM_END;
-      return 1;
+      { 
+        return 1;
+      }
     }
   }
 
@@ -342,7 +358,9 @@ int ZEXPORT azread ( azio_stream *s, voidp buf, unsigned len)
       s->in  += len;
       s->out += len;
       if (len == 0) s->z_eof = 1;
-      return (int)len;
+      { 
+        return len;
+      }
     }
     if (s->stream.avail_in == 0 && !s->z_eof) {
 
@@ -386,8 +404,13 @@ int ZEXPORT azread ( azio_stream *s, voidp buf, unsigned len)
 
   if (len == s->stream.avail_out &&
       (s->z_err == Z_DATA_ERROR || s->z_err == Z_ERRNO))
-    return -1;
-  return (int)(len - s->stream.avail_out);
+  {
+    *error= s->z_err;
+
+    return 0;
+  }
+
+  return (len - s->stream.avail_out);
 }
 
 
@@ -396,7 +419,7 @@ int ZEXPORT azread ( azio_stream *s, voidp buf, unsigned len)
   Writes the given number of uncompressed bytes into the compressed file.
   azwrite returns the number of bytes actually written (0 in case of error).
 */
-int azwrite (azio_stream *s, voidpc buf, unsigned len)
+unsigned long azwrite (azio_stream *s, voidpc buf, unsigned long len)
 {
 
   s->stream.next_in = (Bytef*)buf;
@@ -424,7 +447,7 @@ int azwrite (azio_stream *s, voidpc buf, unsigned len)
   }
   s->crc = crc32(s->crc, (const Bytef *)buf, len);
 
-  return (int)(len - s->stream.avail_in);
+  return (unsigned long)(len - s->stream.avail_in);
 }
 
 #endif
@@ -580,11 +603,12 @@ my_off_t azseek (s, offset, whence)
     if (s->last) s->z_err = Z_STREAM_END;
   }
   while (offset > 0)  {
-    int size = Z_BUFSIZE;
+    int error;
+    unsigned long size = Z_BUFSIZE;
     if (offset < Z_BUFSIZE) size = (int)offset;
 
-    size = azread(s, s->outbuf, (uInt)size);
-    if (size <= 0) return -1L;
+    size = azread(s, s->outbuf, size, &error);
+    if (error <= 0) return -1L;
     offset -= size;
   }
   return s->out;

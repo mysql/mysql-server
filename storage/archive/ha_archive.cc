@@ -242,19 +242,34 @@ ha_archive::ha_archive(handlerton *hton, TABLE_SHARE *table_arg)
 */
 int ha_archive::read_data_header(azio_stream *file_to_read)
 {
+  int error;
+  unsigned long ret;
   uchar data_buffer[DATA_BUFFER_SIZE];
   DBUG_ENTER("ha_archive::read_data_header");
 
   if (azrewind(file_to_read) == -1)
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
-  if (azread(file_to_read, data_buffer, DATA_BUFFER_SIZE) != DATA_BUFFER_SIZE)
-    DBUG_RETURN(errno ? errno : -1);
+  ret= azread(file_to_read, data_buffer, DATA_BUFFER_SIZE, &error);
+
+  if (ret != DATA_BUFFER_SIZE)
+  {
+    DBUG_PRINT("ha_archive", ("Reading, expected %lu got %lu", 
+                              DATA_BUFFER_SIZE, ret));
+    DBUG_RETURN(1);
+  }
+
+  if (error)
+  {
+    DBUG_PRINT("ha_archive", ("Compression error (%d)", error));
+    DBUG_RETURN(1);
+  }
   
-  DBUG_PRINT("ha_archive::read_data_header", ("Check %u", data_buffer[0]));
-  DBUG_PRINT("ha_archive::read_data_header", ("Version %u", data_buffer[1]));
+  DBUG_PRINT("ha_archive", ("Check %u", data_buffer[0]));
+  DBUG_PRINT("ha_archive", ("Version %u", data_buffer[1]));
 
   share->data_version= (uchar)data_buffer[1];
+  DBUG_PRINT("ha_archive", ("Set Version %u", share->data_version));
   
   if ((data_buffer[0] != (uchar)ARCHIVE_CHECK_HEADER) &&  
       (data_buffer[1] != (uchar)ARCHIVE_VERSION))
@@ -277,11 +292,12 @@ int ha_archive::write_data_header(azio_stream *file_to_write)
   if (azwrite(file_to_write, &data_buffer, DATA_BUFFER_SIZE) != 
       DATA_BUFFER_SIZE)
     goto error;
-  DBUG_PRINT("ha_archive::write_data_header", ("Check %u", (uint)data_buffer[0]));
-  DBUG_PRINT("ha_archive::write_data_header", ("Version %u", (uint)data_buffer[1]));
+  DBUG_PRINT("ha_archive", ("Check %u", (uint)data_buffer[0]));
+  DBUG_PRINT("ha_archive", ("Version %u", (uint)data_buffer[1]));
 
   DBUG_RETURN(0);
 error:
+  DBUG_PRINT("ha_archive", ("Could not write full data header"));
   DBUG_RETURN(errno);
 }
 
@@ -783,29 +799,36 @@ int ha_archive::real_write_row(byte *buf, azio_stream *writer)
 {
   my_off_t written;
   uint *ptr, *end;
-  int r_pack_length;
+  unsigned long r_pack_length;
   byte size_buffer[ARCHIVE_ROW_HEADER_SIZE]; // Longest possible row length with blobs
   DBUG_ENTER("ha_archive::real_write_row");
 
   // We pack the row for writing
   r_pack_length= pack_row(buf);
-  DBUG_PRINT("ha_archive",("Pack row length %d", r_pack_length));
+  DBUG_PRINT("ha_archive",("Pack row length %lu", r_pack_length));
 
   // Store the size of the row before the row
   bzero(size_buffer, ARCHIVE_ROW_HEADER_SIZE);
   int4store(size_buffer, (int)r_pack_length); 
-  DBUG_PRINT("ha_archive",("Pack %d %d %d %d", size_buffer[0], size_buffer[1], size_buffer[2], size_buffer[3]));
-  azwrite(writer, size_buffer, ARCHIVE_ROW_HEADER_SIZE);
+  written= azwrite(writer, size_buffer, ARCHIVE_ROW_HEADER_SIZE);
+
+  if (written != ARCHIVE_ROW_HEADER_SIZE)
+  {
+    DBUG_PRINT("ha_archive", ("Died writing row header"));
+    DBUG_RETURN(-1);
+  }
 
   written= azwrite(writer, record_buffer->buffer, r_pack_length);
-  DBUG_PRINT("ha_archive::real_write_row", ("Wrote %d bytes expected %d", 
-                                            (uint32)written, 
-                                            (uint32)r_pack_length));
+  if (written != r_pack_length)
+  {
+    DBUG_PRINT("ha_archive", ("Wrote %llu bytes expected %lu", 
+                                              (unsigned long long) written, 
+                                               r_pack_length));
+    DBUG_RETURN(-1);
+  }
+
   if (!delayed_insert || !bulk_insert)
     share->dirty= TRUE;
-
-  if (written != (my_off_t)r_pack_length)
-    DBUG_RETURN(errno ? errno : -1);
 
   DBUG_RETURN(0);
 }
@@ -830,7 +853,7 @@ int ha_archive::max_row_length(const byte *buf)
 }
 
 
-int ha_archive::pack_row(const byte *record)
+unsigned long ha_archive::pack_row(const byte *record)
 {
   byte *ptr;
 
@@ -850,7 +873,7 @@ int ha_archive::pack_row(const byte *record)
     ptr=(byte*) (*field)->pack((char*) ptr,
 			       (char*) record + (*field)->offset());
 
-  DBUG_RETURN((size_t) (ptr - record_buffer->buffer));
+  DBUG_RETURN((unsigned long) (ptr - record_buffer->buffer));
 }
 
 
@@ -1116,6 +1139,8 @@ int ha_archive::get_row(azio_stream *file_to_read, byte *buf)
 {
   int rc;
   DBUG_ENTER("ha_archive::get_row");
+  DBUG_PRINT("ha_archive", ("Picking version for get_row() %d -> %d", 
+                            share->data_version, ARCHIVE_VERSION));
   if (share->data_version == ARCHIVE_VERSION)
     rc= get_row_version3(file_to_read, buf);
   else
@@ -1145,14 +1170,15 @@ int ha_archive::unpack_row(azio_stream *file_to_read, char *record)
 {
   DBUG_ENTER("ha_archive::unpack_row");
 
-  int read; // Bytes read, azread() returns int
+  unsigned long read;
+  int error;
   byte size_buffer[ARCHIVE_ROW_HEADER_SIZE];
-  int row_len;
+  unsigned long row_len;
 
   /* First we grab the length stored */
-  read= azread(file_to_read, (byte *)size_buffer, ARCHIVE_ROW_HEADER_SIZE);
+  read= azread(file_to_read, (byte *)size_buffer, ARCHIVE_ROW_HEADER_SIZE, &error);
 
-  if (read == Z_STREAM_ERROR)
+  if (error == Z_STREAM_ERROR ||  (read && read < ARCHIVE_ROW_HEADER_SIZE))
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
   /* If we read nothing we are at the end of the file */
@@ -1160,12 +1186,16 @@ int ha_archive::unpack_row(azio_stream *file_to_read, char *record)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
   row_len= sint4korr(size_buffer);
-  DBUG_PRINT("ha_archive",("Unpack row length %d -> %llu", row_len, 
-                           (unsigned long long)table->s->reclength));
+  DBUG_PRINT("ha_archive",("Unpack row length %lu -> %lu", row_len, 
+                           (unsigned long)table->s->reclength));
   fix_rec_buff(row_len);
 
-  if (azread(file_to_read, record_buffer->buffer, row_len) != row_len)
+  read= azread(file_to_read, record_buffer->buffer, row_len, &error);
+
+  if (read != row_len || error)
+  {
     DBUG_RETURN(-1);
+  }
 
   /* Copy null bits */
   const char *ptr= (const char*) record_buffer->buffer;
@@ -1188,18 +1218,25 @@ int ha_archive::get_row_version3(azio_stream *file_to_read, byte *buf)
 
 int ha_archive::get_row_version2(azio_stream *file_to_read, byte *buf)
 {
-  int read; // Bytes read, azread() returns int
+  unsigned long read;
+  int error;
   uint *ptr, *end;
   char *last;
   size_t total_blob_length= 0;
   MY_BITMAP *read_set= table->read_set;
   DBUG_ENTER("ha_archive::get_row_version2");
 
-  read= azread(file_to_read, buf, table->s->reclength);
-  DBUG_PRINT("ha_archive::get_row_version2", ("Read %d bytes expected %lu", read, 
-                                     (unsigned long)table->s->reclength));
+  read= azread(file_to_read, buf, table->s->reclength, &error);
 
-  if (read == Z_STREAM_ERROR)
+  if (read != table->s->reclength)
+  {
+    DBUG_PRINT("ha_archive::get_row_version2", ("Read %lu bytes expected %lu", 
+                                                read, 
+                                                (unsigned long)table->s->reclength));
+    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+  }
+
+  if (error == Z_STREAM_ERROR || error == Z_DATA_ERROR )
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
   /* If we read nothing we are at the end of the file */
@@ -1238,7 +1275,11 @@ int ha_archive::get_row_version2(azio_stream *file_to_read, byte *buf)
       if (bitmap_is_set(read_set,
                         ((Field_blob*) table->field[*ptr])->field_index))
       {
-        read= azread(file_to_read, last, size);
+        read= azread(file_to_read, last, size, &error);
+
+        if (error)
+          DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+
         if ((size_t) read != size)
           DBUG_RETURN(HA_ERR_END_OF_FILE);
         ((Field_blob*) table->field[*ptr])->set_ptr(size, last);
@@ -1448,17 +1489,42 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
     /* 
       The quick method is to just read the data raw, and then compress it directly.
     */
-    int read; // Bytes read, azread() returns int
+    unsigned long read, written;
+    int error;
     char block[IO_SIZE];
     if (azrewind(&archive) == -1)
     {
       rc= HA_ERR_CRASHED_ON_USAGE;
-      DBUG_PRINT("ha_archive", ("archive HA_ERR_CRASHED_ON_USAGE"));
+      DBUG_PRINT("ha_archive", ("crashed on rewinding file"));
       goto error;
     }
 
-    while ((read= azread(&archive, block, IO_SIZE)) > 0)
-      azwrite(&writer, block, read);
+    while ((read= azread(&archive, block, IO_SIZE, &error)) > 0)
+    {
+      if (error)
+      {
+        rc= HA_ERR_CRASHED_ON_USAGE;
+        DBUG_PRINT("ha_archive", ("azread error on read"));
+        goto error;
+      }
+
+      written= azwrite(&writer, block, read);
+      if (written != read)
+      {
+        rc= HA_ERR_CRASHED_ON_USAGE;
+        DBUG_PRINT("ha_archive::real_write_row", 
+                   ("Crashed wrote %lu bytes expected %lu", 
+                    written, read));
+        goto error;
+      }
+    }
+
+    if (error)
+    {
+      rc= HA_ERR_CRASHED_ON_USAGE;
+      DBUG_PRINT("ha_archive", ("retrieved zero blocks and error'ed"));
+      goto error;
+    }
   }
 
   azclose(&writer);
