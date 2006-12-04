@@ -2923,6 +2923,8 @@ static void flush_bits(void)
     bits-= 8;
     *file_buffer.pos++= (uchar) (bit_buffer >> bits);
   }
+  if (file_buffer.pos >= file_buffer.end)
+    VOID(flush_buffer(~ (ulong) 0));
   file_buffer.bits= BITS_SAVED;
   file_buffer.bitbucket= 0;
 }
