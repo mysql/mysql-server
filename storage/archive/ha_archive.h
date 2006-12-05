@@ -50,7 +50,6 @@ typedef struct st_archive_share {
   ulonglong mean_rec_length;
   char real_path[FN_REFLEN];
   uint meta_version;
-  uint data_version;
 } ARCHIVE_SHARE;
 
 /*
@@ -137,7 +136,6 @@ public:
   int init_archive_writer();
   bool auto_repair() const { return 1; } // For the moment we just do this
   int read_data_header(azio_stream *file_to_read);
-  int write_data_header(azio_stream *file_to_write);
   void position(const byte *record);
   int info(uint);
   void update_create_info(HA_CREATE_INFO *create_info);
