@@ -118,6 +118,7 @@ enum Derivation
 
 typedef struct my_locale_st
 {
+  uint  number;
   const char *name;
   const char *description;
   const bool is_ascii;
@@ -126,9 +127,11 @@ typedef struct my_locale_st
   TYPELIB *day_names;
   TYPELIB *ab_day_names;
 #ifdef __cplusplus 
-  my_locale_st(const char *name_par, const char *descr_par, bool is_ascii_par,
+  my_locale_st(uint number_par,
+               const char *name_par, const char *descr_par, bool is_ascii_par,
                TYPELIB *month_names_par, TYPELIB *ab_month_names_par,
                TYPELIB *day_names_par, TYPELIB *ab_day_names_par) : 
+    number(number_par),
     name(name_par), description(descr_par), is_ascii(is_ascii_par),
     month_names(month_names_par), ab_month_names(ab_month_names_par),
     day_names(day_names_par), ab_day_names(ab_day_names_par)
@@ -140,6 +143,7 @@ extern MY_LOCALE my_locale_en_US;
 extern MY_LOCALE *my_locales[];
 
 MY_LOCALE *my_locale_by_name(const char *name);
+MY_LOCALE *my_locale_by_number(uint number);
 
 /***************************************************************************
   Configuration parameters
