@@ -278,6 +278,7 @@ ErrorBundle ErrorCodes[] = {
   { 885,  AE, "Stack underflow in interpreter" },
   { 886,  AE, "More than 65535 instructions executed in interpreter" },
   { 897,  AE, "Update attempt of primary key via ndbcluster internal api (if this occurs via the MySQL server it is a bug, please report)" },
+  { 892,  AE, "Unsupported type in scan filter" },
   { 4256, AE, "Must call Ndb::init() before this function" },
   { 4257, AE, "Tried to read too much - too many getValue calls" },
   
@@ -680,11 +681,14 @@ const char *ndberror_classification_message(ndberror_classification classificati
   return empty_string;
 }
 
-int ndb_error_string(int err_no, char *str, unsigned int size)
+int ndb_error_string(int err_no, char *str, int size)
 {
   ndberror_struct error;
-  unsigned int len;
+  int len;
 
+  assert(size > 1);
+  if(size <= 1) 
+    return 0;
   error.code = err_no;
   ndberror_update(&error);
 
