@@ -356,6 +356,25 @@ Backup::execCONTINUEB(Signal* signal)
 	       GetTabInfoReq::SignalLength, JBB);
     return;
   }
+  case BackupContinueB::ZDELAY_SCAN_NEXT:
+    if (ERROR_INSERTED(10036))
+    {
+      jam();
+      sendSignalWithDelay(BACKUP_REF, GSN_CONTINUEB, signal, 300, 
+			  signal->getLength());
+      return;
+    }
+    else
+    {
+      jam();
+      CLEAR_ERROR_INSERT_VALUE;
+      ndbout_c("Resuming backup");
+      memmove(signal->theData, signal->theData + 1, 
+	      4*ScanFragNextReq::SignalLength);
+      sendSignal(DBLQH_REF, GSN_SCAN_NEXTREQ, signal, 
+		 ScanFragNextReq::SignalLength, JBB);
+      return ;
+    }
   default:
     ndbrequire(0);
   }//switch
@@ -3920,6 +3939,22 @@ Backup::checkScan(Signal* signal, BackupFilePtr filePtr)
     req->transId2 = (BACKUP << 20) + (getOwnNodeId() << 8);
     req->batch_size_rows= 16;
     req->batch_size_bytes= 0;
+
+    if (ERROR_INSERTED(10036) && 
+	filePtr.p->tableId >= 2 &&
+	filePtr.p->operation.noOfRecords > 0)
+    {
+      ndbout_c("halting backup for table %d fragment: %d after %d records",
+	       filePtr.p->tableId,
+	       filePtr.p->fragmentNo,
+	       filePtr.p->operation.noOfRecords);
+      memmove(signal->theData+1, signal->theData, 
+	      4*ScanFragNextReq::SignalLength);
+      signal->theData[0] = BackupContinueB::ZDELAY_SCAN_NEXT;
+      sendSignalWithDelay(BACKUP_REF, GSN_CONTINUEB, signal, 
+			  300, 1+ScanFragNextReq::SignalLength);
+      return;
+    }
     if(ERROR_INSERTED(10032))
       sendSignalWithDelay(DBLQH_REF, GSN_SCAN_NEXTREQ, signal, 
 			  100, ScanFragNextReq::SignalLength);
