@@ -8455,9 +8455,12 @@ const char *Field_bit::unpack(char *to, const char *from)
 
 void Field_bit::set_default()
 {
-  my_ptrdiff_t const offset= table->s->default_values - table->record[0];
-  uchar bits= get_rec_bits(bit_ptr + offset, bit_ofs, bit_len);
-  set_rec_bits(bits, bit_ptr, bit_ofs, bit_len);
+  if (bit_len > 0)
+  {
+    my_ptrdiff_t const offset= table->s->default_values - table->record[0];
+    uchar bits= get_rec_bits(bit_ptr + offset, bit_ofs, bit_len);
+    set_rec_bits(bits, bit_ptr, bit_ofs, bit_len);
+  }
   Field::set_default();
 }
 
