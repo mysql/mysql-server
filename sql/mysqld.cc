@@ -3153,15 +3153,15 @@ with --log-bin instead.");
   }
   if (opt_log_slave_updates && !opt_bin_log)
   {
-    sql_print_warning("You need to use --log-bin to make "
-                      "--log-slave-updates work.");
+    sql_print_error("You need to use --log-bin to make "
+                    "--log-slave-updates work.");
     unireg_abort(1);
   }
 
  if (!opt_bin_log && (global_system_variables.binlog_format != BINLOG_FORMAT_UNSPEC))
   {
-    sql_print_warning("You need to use --log-bin to make "
-                      "--binlog-format work.");
+    sql_print_error("You need to use --log-bin to make "
+                    "--binlog-format work.");
     unireg_abort(1);
   }
   if (global_system_variables.binlog_format == BINLOG_FORMAT_UNSPEC)
