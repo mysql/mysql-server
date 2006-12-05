@@ -1,6 +1,8 @@
 /*
   This libary has been modified for use by the MySQL Archive Engine.
+     -Brian Aker
 */
+
 /* zlib.h -- interface of the 'zlib' general purpose compression library
   version 1.2.3, July 18th, 2005
 
@@ -38,6 +40,16 @@
 #ifdef  __cplusplus
 extern "C" {
 #endif
+/* Start of MySQL Specific Information */
+
+/*
+  ulonglong + ulonglong + ulonglong + ulonglong + uchar
+*/
+#define AZMETA_BUFFER_SIZE sizeof(ulonglong) \
+  + sizeof(ulonglong) + sizeof(ulonglong) + sizeof(ulonglong) \
+  + sizeof(uchar)
+
+#define AZHEADER_SIZE 16
 
 /*
      The 'zlib' compression library provides in-memory compression and
@@ -171,6 +183,7 @@ typedef struct azio_stream {
   my_off_t  out;     /* bytes out of deflate or inflate */
   int      back;    /* one character push-back */
   int      last;    /* true if push-back is last character */
+  unsigned char version;   /* Version */
 } azio_stream;
 
                         /* basic functions */
