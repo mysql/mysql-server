@@ -1162,6 +1162,64 @@ runBug21536(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int 
+runBug24664(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  NdbRestarter restarter;
+  Ndb* pNdb = GETNDB(step);
+  const Uint32 nodeCount = restarter.getNumDbNodes();
+
+  int records = ctx->getNumRecords();
+  UtilTransactions utilTrans(*ctx->getTab());
+  HugoTransactions hugoTrans(*ctx->getTab());
+
+  int args[] = { DumpStateOrd::DihMaxTimeBetweenLCP };
+  int dump[] = { DumpStateOrd::DihStartLcpImmediately };
+  
+  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
+  NdbLogEventHandle handle = 
+    ndb_mgm_create_logevent_handle(restarter.handle, filter);
+
+  struct ndb_logevent event;
+
+  do {
+    CHECK(restarter.dumpStateAllNodes(args, 1) == 0);
+    CHECK(restarter.dumpStateAllNodes(dump, 1) == 0);
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+	  event.type != NDB_LE_LocalCheckpointStarted);
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+	  event.type != NDB_LE_LocalCheckpointCompleted);
+    
+    if (hugoTrans.loadTable(GETNDB(step), records) != 0){
+      return NDBT_FAILED;
+    }
+  
+    restarter.insertErrorInAllNodes(10036); // Hang LCP
+    CHECK(restarter.dumpStateAllNodes(dump, 1) == 0);
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+	  event.type != NDB_LE_LocalCheckpointStarted);
+    NdbSleep_SecSleep(3);
+    CHECK(utilTrans.clearTable(pNdb,  records) == 0);
+    if (hugoTrans.loadTable(GETNDB(step), records) != 0){
+      return NDBT_FAILED;
+    }
+
+    restarter.insertErrorInAllNodes(10037); // Resume LCP
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+	  event.type != NDB_LE_LocalCheckpointCompleted);
+
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+	  event.type != NDB_LE_GlobalCheckpointCompleted);
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+	  event.type != NDB_LE_GlobalCheckpointCompleted);
+    restarter.restartAll(false, false, true);
+    CHECK(restarter.waitClusterStarted() == 0);
+  } while(false);
+  
+  return result;
+}
+
 NDBT_TESTSUITE(testSystemRestart);
 TESTCASE("SR1", 
 	 "Basic system restart test. Focus on testing restart from REDO log.\n"
@@ -1332,6 +1390,14 @@ TESTCASE("Bug21536",
   INITIALIZER(runWaitStarted);
   INITIALIZER(runClearTable);
   STEP(runBug21536);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug24664",
+	 "Check handling of LCP skip/keep")
+{
+  INITIALIZER(runWaitStarted);
+  INITIALIZER(runClearTable);
+  STEP(runBug24664);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testSystemRestart);

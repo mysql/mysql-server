@@ -152,10 +152,10 @@ void Dbtup::initOpConnection(Operationrec* regOperPtr)
 static
 inline
 bool
-operator>=(const Local_key& key1, const Local_key& key2)
+operator>(const Local_key& key1, const Local_key& key2)
 {
   return key1.m_page_no > key2.m_page_no ||
-    (key1.m_page_no == key2.m_page_no && key1.m_page_idx >= key2.m_page_idx);
+    (key1.m_page_no == key2.m_page_no && key1.m_page_idx > key2.m_page_idx);
 }
 
 void
@@ -187,7 +187,7 @@ Dbtup::dealloc_tuple(Signal* signal,
     Local_key rowid = regOperPtr->m_tuple_location;
     Local_key scanpos = scanOp.p->m_scanPos.m_key;
     rowid.m_page_no = page->frag_page_id;
-    if (rowid >= scanpos)
+    if (rowid > scanpos)
     {
       extra_bits = Tuple_header::LCP_KEEP; // Note REMOVE FREE
       ptr->m_operation_ptr_i = lcp_keep_list;
@@ -215,6 +215,7 @@ Dbtup::commit_operation(Signal* signal,
 {
   ndbassert(regOperPtr->op_struct.op_type != ZDELETE);
   
+  Uint32 lcpScan_ptr_i= regFragPtr->m_lcp_scan_op;
   Uint32 save= tuple_ptr->m_operation_ptr_i;
   Uint32 bits= tuple_ptr->m_header_bits;
 
@@ -264,7 +265,6 @@ Dbtup::commit_operation(Signal* signal,
     Local_key key;
     memcpy(&key, copy->get_disk_ref_ptr(regTabPtr), sizeof(Local_key));
     Uint32 logfile_group_id= regFragPtr->m_logfile_group_id;
-    Uint32 lcpScan_ptr_i= regFragPtr->m_lcp_scan_op;
 
     PagePtr diskPagePtr = *(PagePtr*)&m_pgman.m_ptr;
     ndbassert(diskPagePtr.p->m_page_no == key.m_page_no);
@@ -273,19 +273,6 @@ Dbtup::commit_operation(Signal* signal,
     if(copy_bits & Tuple_header::DISK_ALLOC)
     {
       disk_page_alloc(signal, regTabPtr, regFragPtr, &key, diskPagePtr, gci);
-
-      if(lcpScan_ptr_i != RNIL)
-      {
-	ScanOpPtr scanOp;
-	c_scanOpPool.getPtr(scanOp, lcpScan_ptr_i);
-	Local_key rowid = regOperPtr->m_tuple_location;
-	Local_key scanpos = scanOp.p->m_scanPos.m_key;
-	rowid.m_page_no = pagePtr.p->frag_page_id;
-	if(rowid >= scanpos)
-	{
-	  copy_bits |= Tuple_header::LCP_SKIP;
-	}
-      }
     }
     
     if(regTabPtr->m_attributes[DD].m_no_of_varsize == 0)
@@ -312,6 +299,18 @@ Dbtup::commit_operation(Signal* signal,
     copy_bits |= Tuple_header::DISK_PART;
   }
   
+  if(lcpScan_ptr_i != RNIL)
+  {
+    ScanOpPtr scanOp;
+    c_scanOpPool.getPtr(scanOp, lcpScan_ptr_i);
+    Local_key rowid = regOperPtr->m_tuple_location;
+    Local_key scanpos = scanOp.p->m_scanPos.m_key;
+    rowid.m_page_no = pagePtr.p->frag_page_id;
+    if(rowid > scanpos)
+    {
+       copy_bits |= Tuple_header::LCP_SKIP;
+    }
+  }
   
   Uint32 clear= 
     Tuple_header::ALLOC | Tuple_header::FREE |

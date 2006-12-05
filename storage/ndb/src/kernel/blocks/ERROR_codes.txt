@@ -8,7 +8,7 @@ Next DBDICT 6007
 Next DBDIH 7178
 Next DBTC 8039
 Next CMVMI 9000
-Next BACKUP 10036
+Next BACKUP 10038
 Next DBUTIL 11002
 Next DBTUX 12008
 Next SUMA 13001
@@ -424,6 +424,9 @@ Backup Stuff:
 10033: backup checkscan
 10034: define backup reply error
 10035: Fail to allocate buffers
+
+10036: Halt backup for table >= 2
+10037: Resume backup (from 10036)
 
 11001: Send UTIL_SEQUENCE_REF (in master)
 
