@@ -61,7 +61,7 @@ buf_flush_insert_into_flush_list(
 	      || (UT_LIST_GET_FIRST(buf_pool->flush_list)->oldest_modification
 		  <= bpage->oldest_modification));
 
-	UT_LIST_ADD_FIRST(free_or_flush_list, buf_pool->flush_list, bpage);
+	UT_LIST_ADD_FIRST(list, buf_pool->flush_list, bpage);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	ut_a(buf_flush_validate_low());
@@ -90,15 +90,14 @@ buf_flush_insert_sorted_into_flush_list(
 
 	while (b && b->oldest_modification > bpage->oldest_modification) {
 		prev_b = b;
-		b = UT_LIST_GET_NEXT(free_or_flush_list, b);
+		b = UT_LIST_GET_NEXT(list, b);
 	}
 
 	if (prev_b == NULL) {
-		UT_LIST_ADD_FIRST(free_or_flush_list,
-				  buf_pool->flush_list, bpage);
+		UT_LIST_ADD_FIRST(list, buf_pool->flush_list, bpage);
 	} else {
-		UT_LIST_INSERT_AFTER(free_or_flush_list,
-				     buf_pool->flush_list, prev_b, bpage);
+		UT_LIST_INSERT_AFTER(list, buf_pool->flush_list,
+				     prev_b, bpage);
 	}
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -195,10 +194,9 @@ buf_flush_write_complete(
 
 	bpage->oldest_modification = 0;
 
-	UT_LIST_REMOVE(free_or_flush_list, buf_pool->flush_list, bpage);
+	UT_LIST_REMOVE(list, buf_pool->flush_list, bpage);
 
-	ut_d(UT_LIST_VALIDATE(free_or_flush_list, buf_page_t,
-			      buf_pool->flush_list));
+	ut_d(UT_LIST_VALIDATE(list, buf_page_t, buf_pool->flush_list));
 
 	flush_type = buf_page_get_flush_type(bpage);
 	buf_pool->n_flush[flush_type]--;
@@ -1000,8 +998,7 @@ buf_flush_batch(
 
 				mutex_exit(block_mutex);
 
-				bpage = UT_LIST_GET_PREV(free_or_flush_list,
-							 bpage);
+				bpage = UT_LIST_GET_PREV(list, bpage);
 			}
 		}
 
@@ -1148,7 +1145,7 @@ buf_flush_validate_low(void)
 	buf_page_t*	bpage;
 	ib_uint64_t	om;
 
-	UT_LIST_VALIDATE(free_or_flush_list, buf_page_t, buf_pool->flush_list);
+	UT_LIST_VALIDATE(list, buf_page_t, buf_pool->flush_list);
 
 	bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
 
@@ -1157,7 +1154,7 @@ buf_flush_validate_low(void)
 		ut_a(buf_page_in_file(bpage));
 		ut_a(om > 0);
 
-		bpage = UT_LIST_GET_NEXT(free_or_flush_list, bpage);
+		bpage = UT_LIST_GET_NEXT(list, bpage);
 
 		if (bpage) {
 			ut_a(om >= bpage->oldest_modification);

@@ -920,12 +920,16 @@ struct buf_page_struct{
 
 	/* 2. Page flushing fields; protected by buf_pool->mutex */
 
-	UT_LIST_NODE_T(buf_page_t) free_or_flush_list;
-					/* if buf_page_in_file(), this is a
-					node of the modified, not yet
-					flushed blocks list;
-					if state == BUF_BLOCK_NOT_USED,
-					this is a node of the "free" list */
+	UT_LIST_NODE_T(buf_page_t) list;
+					/* based on state, this is a list
+					node in one of the following lists
+					in buf_pool:
+
+					BUF_BLOCK_NOT_USED:	free
+					BUF_BLOCK_FILE_PAGE:	flush_list
+					BUF_BLOCK_ZIP_DIRTY:	flush_list
+					BUF_BLOCK_ZIP_PAGE:	zip_clean
+					BUF_BLOCK_ZIP_FREE:	zip_free[] */
 #ifdef UNIV_DEBUG
 	ibool		in_free_list;	/* TRUE if in the free list; used in
 					debugging */
