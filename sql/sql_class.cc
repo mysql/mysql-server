@@ -1859,14 +1859,6 @@ bool select_dumpvar::send_data(List<Item> &items)
     else
     {
       Item_func_set_user_var *suv= new Item_func_set_user_var(mv->s, item);
-
-      /*
-        Item_func_set_user_var can't substitute something else on its
-        place => NULL may be passed as last argument (reference on
-        item) Item_func_set_user_var can't be fixed after creation, so
-        we do not check var->fixed
-      */
-
       suv->fix_fields(thd, 0);
       suv->check(0);
       suv->update();
