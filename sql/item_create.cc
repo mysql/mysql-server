@@ -28,6 +28,37 @@
 */
 
 /**
+  Adapter for native functions with a variable number of arguments.
+  The main use of this class is to discard the following calls:
+  <code>foo(expr1 AS name1, expr2 AS name2, ...)</code>
+  which are syntactically correct (the syntax can refer to a UDF),
+  but semantically invalid for native functions.
+*/
+
+class Create_native_func : public Create_func
+{
+public:
+  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+
+  /**
+    Builder method, with no arguments.
+    @param thd The current thread
+    @param name The native function name
+    @param item_list The function parameters, none of which are named
+    @return An item representing the function call
+  */
+  virtual Item* create_native(THD *thd, LEX_STRING name,
+                              List<Item> *item_list) = 0;
+
+protected:
+  /** Constructor. */
+  Create_native_func() {}
+  /** Destructor. */
+  virtual ~Create_native_func() {}
+};
+
+
+/**
   Adapter for functions that takes exactly zero arguments.
 */
 
@@ -302,10 +333,10 @@ protected:
 };
 
 
-class Create_func_atan : public Create_func
+class Create_func_atan : public Create_native_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_atan s_singleton;
 
@@ -434,10 +465,10 @@ protected:
 };
 
 
-class Create_func_concat : public Create_func
+class Create_func_concat : public Create_native_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_concat s_singleton;
 
@@ -447,10 +478,10 @@ protected:
 };
 
 
-class Create_func_concat_ws : public Create_func
+class Create_func_concat_ws : public Create_native_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_concat_ws s_singleton;
 
@@ -672,10 +703,10 @@ protected:
 };
 
 
-class Create_func_des_decrypt : public Create_func
+class Create_func_des_decrypt : public Create_native_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_des_decrypt s_singleton;
 
@@ -685,10 +716,10 @@ protected:
 };
 
 
-class Create_func_des_encrypt : public Create_func
+class Create_func_des_encrypt : public Create_native_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_des_encrypt s_singleton;
 
@@ -728,10 +759,10 @@ protected:
 #endif
 
 
-class Create_func_elt : public Create_func
+class Create_func_elt : public Create_native_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_elt s_singleton;
 
@@ -754,10 +785,10 @@ protected:
 };
 
 
-class Create_func_encrypt : public Create_func
+class Create_func_encrypt : public Create_native_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_encrypt s_singleton;
 
@@ -825,10 +856,10 @@ protected:
 };
 
 
-class Create_func_export_set : public Create_func
+class Create_func_export_set : public Create_native_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_export_set s_singleton;
 
@@ -853,10 +884,10 @@ protected:
 #endif
 
 
-class Create_func_field : public Create_func
+class Create_func_field : public Create_native_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_field s_singleton;
 
@@ -931,10 +962,10 @@ protected:
 };
 
 
-class Create_func_from_unixtime : public Create_func
+class Create_func_from_unixtime : public Create_native_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_from_unixtime s_singleton;
 
@@ -945,10 +976,10 @@ protected:
 
 
 #ifdef HAVE_SPATIAL
-class Create_func_geometry_from_text : public Create_func
+class Create_func_geometry_from_text : public Create_native_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_geometry_from_text s_singleton;
 
@@ -960,10 +991,10 @@ protected:
 
 
 #ifdef HAVE_SPATIAL
-class Create_func_geometry_from_wkb : public Create_func
+class Create_func_geometry_from_wkb : public Create_native_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_geometry_from_wkb s_singleton;
 
@@ -1032,10 +1063,10 @@ protected:
 #endif
 
 
-class Create_func_greatest : public Create_func
+class Create_func_greatest : public Create_native_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_greatest s_singleton;
 
@@ -1237,10 +1268,10 @@ protected:
 };
 
 
-class Create_func_last_insert_id : public Create_func
+class Create_func_last_insert_id : public Create_native_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_last_insert_id s_singleton;
 
@@ -1263,10 +1294,10 @@ protected:
 };
 
 
-class Create_func_least : public Create_func
+class Create_func_least : public Create_native_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_least s_singleton;
 
@@ -1315,10 +1346,10 @@ protected:
 };
 
 
-class Create_func_locate : public Create_func
+class Create_func_locate : public Create_native_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_locate s_singleton;
 
@@ -1328,10 +1359,10 @@ protected:
 };
 
 
-class Create_func_log : public Create_func
+class Create_func_log : public Create_native_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_log s_singleton;
 
@@ -1419,10 +1450,10 @@ protected:
 };
 
 
-class Create_func_make_set : public Create_func
+class Create_func_make_set : public Create_native_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_make_set s_singleton;
 
@@ -1432,10 +1463,10 @@ protected:
 };
 
 
-class Create_func_master_pos_wait : public Create_func
+class Create_func_master_pos_wait : public Create_native_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_master_pos_wait s_singleton;
 
@@ -1676,10 +1707,10 @@ protected:
 };
 
 
-class Create_func_rand : public Create_func
+class Create_func_rand : public Create_native_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_rand s_singleton;
 
@@ -1715,10 +1746,10 @@ protected:
 };
 
 
-class Create_func_round : public Create_func
+class Create_func_round : public Create_native_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_round s_singleton;
 
@@ -2085,10 +2116,10 @@ protected:
 };
 
 
-class Create_func_unix_timestamp : public Create_func
+class Create_func_unix_timestamp : public Create_native_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_unix_timestamp s_singleton;
 
@@ -2221,10 +2252,10 @@ protected:
 #endif
 
 
-class Create_func_year_week : public Create_func
+class Create_func_year_week : public Create_native_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_year_week s_singleton;
 
@@ -2239,6 +2270,29 @@ protected:
   IMPLEMENTATION
 =============================================================================
 */
+
+/**
+  Checks if there are named parameters in a parameter list.
+  The syntax to name parameters in a function call is as follow:
+  <code>foo(expr AS named, expr named, expr AS "named", expr "named")</code>
+  @param params The parameter list, can be null
+  @return true if one or more parameter is named
+*/
+static bool has_named_parameters(List<Item> *params)
+{
+  if (params)
+  {
+    Item *param;
+    List_iterator<Item> it(*params);
+    while ((param= it++))
+    {
+      if (! param->is_autogenerated_name)
+        return true;
+    }
+  }
+
+  return false;
+}
 
 #ifndef HAVE_SPATIAL
 Create_func_no_geom Create_func_no_geom::s_singleton;
@@ -2387,11 +2441,27 @@ Create_sp_func::create(THD *thd, LEX_STRING db, LEX_STRING name,
   int arg_count= 0;
   Item *func= NULL;
   LEX *lex= thd->lex;
-  sp_name *qname= new (thd->mem_root) sp_name(db, name);
+  sp_name *qname;
+
+  if (has_named_parameters(item_list))
+  {
+    /*
+      The syntax "db.foo(expr AS p1, expr AS p2, ...) is invalid,
+      and has been rejected during syntactic parsing already,
+      because a stored function call may not have named parameters.
+
+      The syntax "foo(expr AS p1, expr AS p2, ...)" is correct,
+      because it can refer to a User Defined Function call.
+      For a Stored Function however, this has no semantic.
+    */
+    my_error(ER_WRONG_PARAMETERS_TO_STORED_FCT, MYF(0), name.str);
+    return NULL;
+  }
 
   if (item_list != NULL)
     arg_count= item_list->elements;
 
+  qname= new (thd->mem_root) sp_name(db, name);
   qname->init_qname(thd);
   sp_add_used_routine(lex, thd, qname, TYPE_ENUM_FUNCTION);
 
@@ -2403,6 +2473,19 @@ Create_sp_func::create(THD *thd, LEX_STRING db, LEX_STRING name,
 
   lex->safe_to_cache_query= 0;
   return func;
+}
+
+
+Item*
+Create_native_func::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+{
+  if (has_named_parameters(item_list))
+  {
+    my_error(ER_WRONG_PARAMETERS_TO_NATIVE_FCT, MYF(0), name.str);
+    return NULL;
+  }
+
+  return create_native(thd, name, item_list);
 }
 
 
@@ -2439,6 +2522,13 @@ Create_func_arg1::create(THD *thd, LEX_STRING name, List<Item> *item_list)
   }
 
   Item *param_1= item_list->pop();
+
+  if (! param_1->is_autogenerated_name)
+  {
+    my_error(ER_WRONG_PARAMETERS_TO_NATIVE_FCT, MYF(0), name.str);
+    return NULL;
+  }
+
   return create(thd, param_1);
 }
 
@@ -2459,6 +2549,14 @@ Create_func_arg2::create(THD *thd, LEX_STRING name, List<Item> *item_list)
 
   Item *param_1= item_list->pop();
   Item *param_2= item_list->pop();
+
+  if (   (! param_1->is_autogenerated_name)
+      || (! param_2->is_autogenerated_name))
+  {
+    my_error(ER_WRONG_PARAMETERS_TO_NATIVE_FCT, MYF(0), name.str);
+    return NULL;
+  }
+
   return create(thd, param_1, param_2);
 }
 
@@ -2480,6 +2578,15 @@ Create_func_arg3::create(THD *thd, LEX_STRING name, List<Item> *item_list)
   Item *param_1= item_list->pop();
   Item *param_2= item_list->pop();
   Item *param_3= item_list->pop();
+
+  if (   (! param_1->is_autogenerated_name)
+      || (! param_2->is_autogenerated_name)
+      || (! param_3->is_autogenerated_name))
+  {
+    my_error(ER_WRONG_PARAMETERS_TO_NATIVE_FCT, MYF(0), name.str);
+    return NULL;
+  }
+
   return create(thd, param_1, param_2, param_3);
 }
 
@@ -2574,7 +2681,8 @@ Create_func_asin::create(THD *thd, Item *arg1)
 Create_func_atan Create_func_atan::s_singleton;
 
 Item*
-Create_func_atan::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_atan::create_native(THD *thd, LEX_STRING name,
+                                List<Item> *item_list)
 {
   Item* func= NULL;
   int arg_count= 0;
@@ -2687,7 +2795,8 @@ Create_func_coercibility::create(THD *thd, Item *arg1)
 Create_func_concat Create_func_concat::s_singleton;
 
 Item*
-Create_func_concat::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_concat::create_native(THD *thd, LEX_STRING name,
+                                  List<Item> *item_list)
 {
   int arg_count= 0;
 
@@ -2707,7 +2816,8 @@ Create_func_concat::create(THD *thd, LEX_STRING name, List<Item> *item_list)
 Create_func_concat_ws Create_func_concat_ws::s_singleton;
 
 Item*
-Create_func_concat_ws::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_concat_ws::create_native(THD *thd, LEX_STRING name,
+                                     List<Item> *item_list)
 {
   int arg_count= 0;
 
@@ -2897,8 +3007,8 @@ Create_func_degrees::create(THD *thd, Item *arg1)
 Create_func_des_decrypt Create_func_des_decrypt::s_singleton;
 
 Item*
-Create_func_des_decrypt::create(THD *thd, LEX_STRING name,
-                                List<Item> *item_list)
+Create_func_des_decrypt::create_native(THD *thd, LEX_STRING name,
+                                       List<Item> *item_list)
 {
   Item *func= NULL;
   int arg_count= 0;
@@ -2934,8 +3044,8 @@ Create_func_des_decrypt::create(THD *thd, LEX_STRING name,
 Create_func_des_encrypt Create_func_des_encrypt::s_singleton;
 
 Item*
-Create_func_des_encrypt::create(THD *thd, LEX_STRING name,
-                                List<Item> *item_list)
+Create_func_des_encrypt::create_native(THD *thd, LEX_STRING name,
+                                       List<Item> *item_list)
 {
   Item *func= NULL;
   int arg_count= 0;
@@ -2994,7 +3104,8 @@ Create_func_disjoint::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_elt Create_func_elt::s_singleton;
 
 Item*
-Create_func_elt::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_elt::create_native(THD *thd, LEX_STRING name,
+                               List<Item> *item_list)
 {
   int arg_count= 0;
 
@@ -3023,7 +3134,8 @@ Create_func_encode::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_encrypt Create_func_encrypt::s_singleton;
 
 Item*
-Create_func_encrypt::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_encrypt::create_native(THD *thd, LEX_STRING name,
+                                   List<Item> *item_list)
 {
   Item *func= NULL;
   int arg_count= 0;
@@ -3104,7 +3216,8 @@ Create_func_exp::create(THD *thd, Item *arg1)
 Create_func_export_set Create_func_export_set::s_singleton;
 
 Item*
-Create_func_export_set::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_export_set::create_native(THD *thd, LEX_STRING name,
+                                      List<Item> *item_list)
 {
   Item *func= NULL;
   int arg_count= 0;
@@ -3168,7 +3281,8 @@ Create_func_exteriorring::create(THD *thd, Item *arg1)
 Create_func_field Create_func_field::s_singleton;
 
 Item*
-Create_func_field::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_field::create_native(THD *thd, LEX_STRING name,
+                                 List<Item> *item_list)
 {
   int arg_count= 0;
 
@@ -3234,8 +3348,8 @@ Create_func_from_days::create(THD *thd, Item *arg1)
 Create_func_from_unixtime Create_func_from_unixtime::s_singleton;
 
 Item*
-Create_func_from_unixtime::create(THD *thd, LEX_STRING name,
-                                  List<Item> *item_list)
+Create_func_from_unixtime::create_native(THD *thd, LEX_STRING name,
+                                         List<Item> *item_list)
 {
   Item *func= NULL;
   int arg_count= 0;
@@ -3273,8 +3387,8 @@ Create_func_from_unixtime::create(THD *thd, LEX_STRING name,
 Create_func_geometry_from_text Create_func_geometry_from_text::s_singleton;
 
 Item*
-Create_func_geometry_from_text::create(THD *thd, LEX_STRING name,
-                                       List<Item> *item_list)
+Create_func_geometry_from_text::create_native(THD *thd, LEX_STRING name,
+                                              List<Item> *item_list)
 {
   Item *func= NULL;
   int arg_count= 0;
@@ -3313,8 +3427,8 @@ Create_func_geometry_from_text::create(THD *thd, LEX_STRING name,
 Create_func_geometry_from_wkb Create_func_geometry_from_wkb::s_singleton;
 
 Item*
-Create_func_geometry_from_wkb::create(THD *thd, LEX_STRING name,
-                                      List<Item> *item_list)
+Create_func_geometry_from_wkb::create_native(THD *thd, LEX_STRING name,
+                                             List<Item> *item_list)
 {
   Item *func= NULL;
   int arg_count= 0;
@@ -3396,7 +3510,8 @@ Create_func_glength::create(THD *thd, Item *arg1)
 Create_func_greatest Create_func_greatest::s_singleton;
 
 Item*
-Create_func_greatest::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_greatest::create_native(THD *thd, LEX_STRING name,
+                                    List<Item> *item_list)
 {
   int arg_count= 0;
 
@@ -3556,8 +3671,8 @@ Create_func_last_day::create(THD *thd, Item *arg1)
 Create_func_last_insert_id Create_func_last_insert_id::s_singleton;
 
 Item*
-Create_func_last_insert_id::create(THD *thd, LEX_STRING name,
-                                   List<Item> *item_list)
+Create_func_last_insert_id::create_native(THD *thd, LEX_STRING name,
+                                          List<Item> *item_list)
 {
   Item *func= NULL;
   int arg_count= 0;
@@ -3602,7 +3717,8 @@ Create_func_lcase::create(THD *thd, Item *arg1)
 Create_func_least Create_func_least::s_singleton;
 
 Item*
-Create_func_least::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_least::create_native(THD *thd, LEX_STRING name,
+                                 List<Item> *item_list)
 {
   int arg_count= 0;
 
@@ -3650,7 +3766,8 @@ Create_func_load_file::create(THD *thd, Item *arg1)
 Create_func_locate Create_func_locate::s_singleton;
 
 Item*
-Create_func_locate::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_locate::create_native(THD *thd, LEX_STRING name,
+                                  List<Item> *item_list)
 {
   Item *func= NULL;
   int arg_count= 0;
@@ -3690,7 +3807,8 @@ Create_func_locate::create(THD *thd, LEX_STRING name, List<Item> *item_list)
 Create_func_log Create_func_log::s_singleton;
 
 Item*
-Create_func_log::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_log::create_native(THD *thd, LEX_STRING name,
+                               List<Item> *item_list)
 {
   Item *func= NULL;
   int arg_count= 0;
@@ -3780,7 +3898,8 @@ Create_func_maketime::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
 Create_func_make_set Create_func_make_set::s_singleton;
 
 Item*
-Create_func_make_set::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_make_set::create_native(THD *thd, LEX_STRING name,
+                                    List<Item> *item_list)
 {
   int arg_count= 0;
 
@@ -3801,8 +3920,8 @@ Create_func_make_set::create(THD *thd, LEX_STRING name, List<Item> *item_list)
 Create_func_master_pos_wait Create_func_master_pos_wait::s_singleton;
 
 Item*
-Create_func_master_pos_wait::create(THD *thd, LEX_STRING name,
-                                    List<Item> *item_list)
+Create_func_master_pos_wait::create_native(THD *thd, LEX_STRING name,
+                                           List<Item> *item_list)
 {
   Item *func= NULL;
   int arg_count= 0;
@@ -4010,7 +4129,8 @@ Create_func_radians::create(THD *thd, Item *arg1)
 Create_func_rand Create_func_rand::s_singleton;
 
 Item*
-Create_func_rand::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_rand::create_native(THD *thd, LEX_STRING name,
+                                List<Item> *item_list)
 {
   Item *func= NULL;
   int arg_count= 0;
@@ -4065,7 +4185,8 @@ Create_func_reverse::create(THD *thd, Item *arg1)
 Create_func_round Create_func_round::s_singleton;
 
 Item*
-Create_func_round::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_round::create_native(THD *thd, LEX_STRING name,
+                                 List<Item> *item_list)
 {
   Item *func= NULL;
   int arg_count= 0;
@@ -4374,8 +4495,8 @@ Create_func_unhex::create(THD *thd, Item *arg1)
 Create_func_unix_timestamp Create_func_unix_timestamp::s_singleton;
 
 Item*
-Create_func_unix_timestamp::create(THD *thd, LEX_STRING name,
-                                   List<Item> *item_list)
+Create_func_unix_timestamp::create_native(THD *thd, LEX_STRING name,
+                                          List<Item> *item_list)
 {
   Item *func= NULL;
   int arg_count= 0;
@@ -4506,7 +4627,8 @@ Create_func_y::create(THD *thd, Item *arg1)
 Create_func_year_week Create_func_year_week::s_singleton;
 
 Item*
-Create_func_year_week::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_year_week::create_native(THD *thd, LEX_STRING name,
+                                     List<Item> *item_list)
 {
   Item *func= NULL;
   int arg_count= 0;
