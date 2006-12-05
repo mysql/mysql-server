@@ -58,12 +58,17 @@ extern ibool		buf_debug_prints;/* If this is set TRUE, the program
 extern ulint srv_buf_pool_write_requests; /* variable to count write request
 					  issued */
 
-/* States of a control block */
+/* States of a control block (@see buf_page_struct).
+The enumeration values must be 0..7. */
 enum buf_page_state {
-	BUF_BLOCK_ZIP_PAGE = 1,		/* contains a compressed page only;
-					must be smaller than
-					BUF_BLOCK_NOT_USED;
-					cf. buf_block_state_valid() */
+	BUF_BLOCK_ZIP_FREE = 0,		/* contains a free compressed page */
+	BUF_BLOCK_ZIP_PAGE,		/* contains a clean compressed page */
+	BUF_BLOCK_ZIP_DIRTY,		/* contains a compressed page that is
+					in the buf_pool->flush_list */
+
+	/* The constants for compressed-only pages must precede
+	BUF_BLOCK_NOT_USED; @see buf_block_state_valid() */
+
 	BUF_BLOCK_NOT_USED,		/* is in the free list */
 	BUF_BLOCK_READY_FOR_USE,	/* when buf_get_free_block returns
 					a block, it is in this state */
@@ -608,7 +613,7 @@ Gets the mutex of a block. */
 UNIV_INLINE
 mutex_t*
 buf_page_get_mutex(
-/*================*/
+/*===============*/
 				/* out: pointer to mutex protecting bpage */
 	buf_page_t*	bpage)	/* in: pointer to control block */
 	__attribute__((pure));
