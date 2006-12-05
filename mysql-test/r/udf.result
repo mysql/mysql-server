@@ -132,9 +132,9 @@ a	c
 1	1
 2	2
 SELECT a, fn(MIN(b) xx) as c FROM t1 GROUP BY a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xx) as c FROM t1 GROUP BY a' at line 1
+ERROR 42000: Incorrect parameters in the call to stored function 'fn'
 SELECT myfunc_int(fn(MIN(b) xx)) as c FROM t1 GROUP BY a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xx)) as c FROM t1 GROUP BY a' at line 1
+ERROR 42000: Incorrect parameters in the call to stored function 'fn'
 SELECT myfunc_int(test.fn(MIN(b) xx)) as c FROM t1 GROUP BY a;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xx)) as c FROM t1 GROUP BY a' at line 1
 SELECT myfunc_int(fn(MIN(b)) xx) as c FROM t1 GROUP BY a;
@@ -185,6 +185,28 @@ DROP VIEW v1;
 DROP TABLE t1;
 DROP FUNCTION fn;
 End of 5.0 tests.
+select myfunc_double(3);
+myfunc_double(3)
+51.00
+select myfunc_double(3 AS three);
+myfunc_double(3 AS three)
+51.00
+select myfunc_double(abs(3));
+myfunc_double(abs(3))
+51.00
+select myfunc_double(abs(3) AS named_param);
+myfunc_double(abs(3) AS named_param)
+51.00
+select abs(myfunc_double(3));
+abs(myfunc_double(3))
+51.00
+select abs(myfunc_double(3 AS three));
+abs(myfunc_double(3 AS three))
+51.00
+select myfunc_double(abs(3 AS wrong));
+ERROR 42000: Incorrect parameters in the call to native function 'abs'
+select abs(myfunc_double(3) AS wrong);
+ERROR 42000: Incorrect parameters in the call to native function 'abs'
 drop function if exists pi;
 CREATE FUNCTION pi RETURNS STRING SONAME "should_not_parse.so";
 ERROR HY000: This function 'pi' has the same name as a native function.
