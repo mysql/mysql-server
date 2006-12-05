@@ -122,7 +122,9 @@ buf_page_get_state(
 
 #ifdef UNIV_DEBUG
 	switch (state) {
+	case BUF_BLOCK_ZIP_FREE:
 	case BUF_BLOCK_ZIP_PAGE:
+	case BUF_BLOCK_ZIP_DIRTY:
 	case BUF_BLOCK_NOT_USED:
 	case BUF_BLOCK_READY_FOR_USE:
 	case BUF_BLOCK_FILE_PAGE:
@@ -160,7 +162,9 @@ buf_page_set_state(
 	enum buf_page_state	old_state	= buf_page_get_state(bpage);
 
 	switch (old_state) {
+	case BUF_BLOCK_ZIP_FREE:
 	case BUF_BLOCK_ZIP_PAGE:
+	case BUF_BLOCK_ZIP_DIRTY:
 		ut_error;
 		break;
 	case BUF_BLOCK_NOT_USED:
@@ -209,7 +213,13 @@ buf_page_in_file(
 	const buf_page_t*	bpage)	/* in: pointer to control block */
 {
 	switch (buf_page_get_state(bpage)) {
+	case BUF_BLOCK_ZIP_FREE:
+		/* This is a free page in buf_pool->zip_free[].
+		Such pages should only be accessed by the buddy allocator. */
+		ut_error;
+		break;
 	case BUF_BLOCK_ZIP_PAGE:
+	case BUF_BLOCK_ZIP_DIRTY:
 	case BUF_BLOCK_FILE_PAGE:
 		return(TRUE);
 	case BUF_BLOCK_NOT_USED:
@@ -241,12 +251,16 @@ Gets the mutex of a block. */
 UNIV_INLINE
 mutex_t*
 buf_page_get_mutex(
-/*================*/
+/*===============*/
 				/* out: pointer to mutex protecting bpage */
 	buf_page_t*	bpage)	/* in: pointer to control block */
 {
 	switch (buf_page_get_state(bpage)) {
+	case BUF_BLOCK_ZIP_FREE:
+		ut_error;
+		break;
 	case BUF_BLOCK_ZIP_PAGE:
+	case BUF_BLOCK_ZIP_DIRTY:
 		return(NULL); /* TODO: return common mutex for page_zip */
 	default:
 		return(&((buf_block_t*) bpage)->mutex);
@@ -442,8 +456,10 @@ buf_block_get_frame(
 	ut_ad(block);
 #ifdef UNIV_DEBUG
 	switch (buf_block_get_state(block)) {
-	case BUF_BLOCK_NOT_USED:
+	case BUF_BLOCK_ZIP_FREE:
 	case BUF_BLOCK_ZIP_PAGE:
+	case BUF_BLOCK_ZIP_DIRTY:
+	case BUF_BLOCK_NOT_USED:
 		ut_error;
 		break;
 	case BUF_BLOCK_FILE_PAGE:

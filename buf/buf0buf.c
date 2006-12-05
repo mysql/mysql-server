@@ -2360,6 +2360,8 @@ buf_validate(void)
 
 	chunk = buf_pool->chunks;
 
+	/* TODO: check buf_pool->zip_list and buf_pool->flush_list */
+
 	for (i = buf_pool->n_chunks; i--; chunk++) {
 
 		ulint		j;
@@ -2370,12 +2372,15 @@ buf_validate(void)
 			mutex_enter(&block->mutex);
 
 			switch (buf_block_get_state(block)) {
+			case BUF_BLOCK_ZIP_FREE:
 			case BUF_BLOCK_ZIP_PAGE:
-				/* TODO: validate page_zip */
+			case BUF_BLOCK_ZIP_DIRTY:
+				/* These should only occur on
+				zip_clean, zip_free[], or flush_list. */
 				ut_error;
 				break;
-			case BUF_BLOCK_FILE_PAGE:
 
+			case BUF_BLOCK_FILE_PAGE:
 				ut_a(buf_page_hash_get(buf_block_get_space(
 							       block),
 						       buf_block_get_page_no(
