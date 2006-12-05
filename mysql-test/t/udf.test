@@ -149,9 +149,9 @@ EXPLAIN EXTENDED SELECT myfunc_int(a AS attr_name) FROM t1;
 EXPLAIN EXTENDED SELECT myfunc_int(a) FROM t1;
 SELECT a,c FROM v1;
 
---error ER_PARSE_ERROR
+--error ER_WRONG_PARAMETERS_TO_STORED_FCT
 SELECT a, fn(MIN(b) xx) as c FROM t1 GROUP BY a;
---error ER_PARSE_ERROR
+--error ER_WRONG_PARAMETERS_TO_STORED_FCT
 SELECT myfunc_int(fn(MIN(b) xx)) as c FROM t1 GROUP BY a;
 --error ER_PARSE_ERROR
 SELECT myfunc_int(test.fn(MIN(b) xx)) as c FROM t1 GROUP BY a;
@@ -172,6 +172,22 @@ DROP TABLE t1;
 DROP FUNCTION fn;
 
 --echo End of 5.0 tests.
+
+#
+# Bug#24736: UDF functions parsed as Stored Functions
+#
+
+select myfunc_double(3);
+select myfunc_double(3 AS three);
+select myfunc_double(abs(3));
+select myfunc_double(abs(3) AS named_param);
+select abs(myfunc_double(3));
+select abs(myfunc_double(3 AS three));
+
+-- error ER_WRONG_PARAMETERS_TO_NATIVE_FCT
+select myfunc_double(abs(3 AS wrong));
+-- error ER_WRONG_PARAMETERS_TO_NATIVE_FCT
+select abs(myfunc_double(3) AS wrong);
 
 #
 # BUG#18239: Possible to overload internal functions with stored functions

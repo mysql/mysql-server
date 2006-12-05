@@ -488,3 +488,4 @@ t	0
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '1a'
 Warning	1292	Truncated incorrect INTEGER value: 't'
+DROP TABLE t1;
