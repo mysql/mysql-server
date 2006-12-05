@@ -37,7 +37,6 @@ static int g_verbose = 0;
 static int try_reconnect = 3;
 
 static int g_nodes, g_connections, g_section;
-static const char * g_connectstring = 0;
 static const char * g_query = 0;
 
 static int g_nodeid = 0;
@@ -486,7 +485,7 @@ fetch_configuration()
 
   ndb_mgm_set_error_stream(mgm, stderr);
   
-  if (ndb_mgm_set_connectstring(mgm, g_connectstring))
+  if (ndb_mgm_set_connectstring(mgm, opt_connect_str))
   {
     fprintf(stderr, "* %5d: %s\n", 
 	    ndb_mgm_get_latest_error(mgm),
