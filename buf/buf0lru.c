@@ -138,8 +138,7 @@ scan_again:
 				blocks */
 				bpage->oldest_modification = 0;
 
-				UT_LIST_REMOVE(free_or_flush_list,
-					       buf_pool->flush_list,
+				UT_LIST_REMOVE(list, buf_pool->flush_list,
 					       bpage);
 			}
 
@@ -464,8 +463,7 @@ loop:
 		ut_d(block->page.in_free_list = FALSE);
 		ut_ad(!block->page.in_LRU_list);
 		ut_a(!buf_page_in_file(&block->page));
-		UT_LIST_REMOVE(free_or_flush_list, buf_pool->free,
-			       (&block->page));
+		UT_LIST_REMOVE(list, buf_pool->free, (&block->page));
 
 		if (buf_block_get_zip_size(block) != zip_size) {
 			page_zip_set_size(&block->page.zip, zip_size);
@@ -917,7 +915,7 @@ buf_LRU_block_free_non_file_page(
 		page_zip_set_size(&block->page.zip, 0);
 	}
 
-	UT_LIST_ADD_FIRST(free_or_flush_list, buf_pool->free, (&block->page));
+	UT_LIST_ADD_FIRST(list, buf_pool->free, (&block->page));
 	ut_d(block->page.in_free_list = TRUE);
 
 	UNIV_MEM_INVALID(block->frame, UNIV_PAGE_SIZE);
@@ -1086,11 +1084,11 @@ buf_LRU_validate(void)
 		ut_a(buf_pool->LRU_old_len == old_len);
 	}
 
-	UT_LIST_VALIDATE(free_or_flush_list, buf_page_t, buf_pool->free);
+	UT_LIST_VALIDATE(list, buf_page_t, buf_pool->free);
 
 	for (bpage = UT_LIST_GET_FIRST(buf_pool->free);
 	     bpage != NULL;
-	     bpage = UT_LIST_GET_NEXT(free_or_flush_list, bpage)) {
+	     bpage = UT_LIST_GET_NEXT(list, bpage)) {
 
 		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_NOT_USED);
 	}

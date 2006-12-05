@@ -693,8 +693,7 @@ buf_chunk_init(
 		memset(block->frame, '\0', UNIV_PAGE_SIZE);
 #endif
 		/* Add the block to the free list */
-		UT_LIST_ADD_LAST(free_or_flush_list, buf_pool->free,
-				 (&block->page));
+		UT_LIST_ADD_LAST(list, buf_pool->free, (&block->page));
 		ut_d(block->page.in_free_list = TRUE);
 
 		block++;
@@ -794,8 +793,7 @@ buf_chunk_free(
 		ut_ad(!block->page.in_LRU_list);
 		/* Remove the block from the free list. */
 		ut_ad(block->page.in_free_list);
-		UT_LIST_REMOVE(free_or_flush_list, buf_pool->free,
-			       (&block->page));
+		UT_LIST_REMOVE(list, buf_pool->free, (&block->page));
 
 		/* Free the latches. */
 		mutex_free(&block->mutex);
