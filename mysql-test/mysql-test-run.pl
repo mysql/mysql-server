@@ -792,9 +792,6 @@ sub command_line_setup () {
     {
       # Only platforms that have native symlinks can use the vardir trick
       $opt_mem= $opt_vardir;
-      # Delete the default directory in case it exists since we're going to create
-      # a new one later anyway, and the mkpath below throws a fatal error otherwise
-      eval { rmtree($default_vardir, 1, 1); };
       mtr_report("Using 4.1 vardir trick");
     }
 
