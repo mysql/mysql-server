@@ -109,6 +109,7 @@ enum Derivation
 
 typedef struct my_locale_st
 {
+  uint  number;
   const char *name;
   const char *description;
   const bool is_ascii;
@@ -131,6 +132,7 @@ extern MY_LOCALE my_locale_en_US;
 extern MY_LOCALE *my_locales[];
 
 MY_LOCALE *my_locale_by_name(const char *name);
+MY_LOCALE *my_locale_by_number(uint number);
 
 /***************************************************************************
   Configuration parameters
