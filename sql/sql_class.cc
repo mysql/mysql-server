@@ -1746,14 +1746,6 @@ bool select_dumpvar::send_data(List<Item> &items)
   while ((ls= var_li++) && (item= it++))
   {
     Item_func_set_user_var *suv= new Item_func_set_user_var(*ls, item);
-
-    /*
-      Item_func_set_user_var can't substitute something else on its
-      place => NULL may be passed as last argument (reference on
-      item) Item_func_set_user_var can't be fixed after creation, so
-      we do not check var->fixed
-    */
-
     suv->fix_fields(thd, (TABLE_LIST *) thd->lex->select_lex.table_list.first,
             0);
     suv->check();
