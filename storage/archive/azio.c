@@ -18,6 +18,7 @@
 #include <string.h>
 
 static int const gz_magic[2] = {0x1f, 0x8b}; /* gzip magic header */
+static int const az_magic[2] = {0xfe, 0x03}; /* az magic header */
 
 /* gzip flag byte */
 #define ASCII_FLAG   0x01 /* bit 0 set: file probably ascii text */
@@ -66,6 +67,7 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
   s->crc = crc32(0L, Z_NULL, 0);
   s->transparent = 0;
   s->mode = 'r';
+  s->version = (unsigned char)az_magic[1]; /* this needs to be a define to version */
 
   if (Flags & O_WRONLY || Flags & O_APPEND) 
     s->mode = 'w';
@@ -112,20 +114,24 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
     return Z_NULL;
   }
   if (s->mode == 'w') {
-    char buffer[10];
-    /* Write a very simple .gz header:
-  */
-    buffer[0] = gz_magic[0];
-    buffer[1] = gz_magic[1];
-    buffer[2] = Z_DEFLATED;
-    buffer[3] = 0 /*flags*/;
-    buffer[4] = 0;
-    buffer[5] = 0;
-    buffer[6] = 0;
-    buffer[7] = 0 /*time*/;
-    buffer[8] = 0 /*xflags*/;
-    buffer[9] = 0x03;
-    s->start = 10L;
+    char buffer[AZHEADER_SIZE];
+    char *ptr;
+    /* Write a very simple .gz header: */
+    bzero(buffer, AZHEADER_SIZE);
+    buffer[0] = az_magic[0];
+    buffer[1] = az_magic[1];
+    buffer[2] = (unsigned char)0; /* Reserved for block size */
+    buffer[3] = (unsigned char)0; /* Compression Type */
+    ptr= buffer + 4;
+    int4store(ptr, 0LL); /* FRM Block */
+    ptr+= sizeof(unsigned long);
+    int4store(ptr, 0LL); /* Meta Block */
+    ptr+= sizeof(unsigned long);
+    int4store(ptr, (unsigned long)AZHEADER_SIZE); /* Start of Data Block Index Block */
+    ptr+= sizeof(unsigned long);
+    
+    s->start = AZHEADER_SIZE;
+    s->version = (unsigned char)az_magic[1];
     my_write(s->file, buffer, (uint)s->start, MYF(0));
     /* We use 10L instead of ftell(s->file) to because ftell causes an
      * fflush on some systems. This version of the library doesn't use
@@ -218,41 +224,53 @@ void check_header(azio_stream *s)
   }
 
   /* Peek ahead to check the gzip magic header */
-  if (s->stream.next_in[0] != gz_magic[0] ||
-      s->stream.next_in[1] != gz_magic[1]) {
+  if ( s->stream.next_in[0] == gz_magic[0]  && s->stream.next_in[1] == gz_magic[1])
+  {
+    s->stream.avail_in -= 2;
+    s->stream.next_in += 2;
+    s->version= (unsigned char)2;
+
+    /* Check the rest of the gzip header */
+    method = get_byte(s);
+    flags = get_byte(s);
+    if (method != Z_DEFLATED || (flags & RESERVED) != 0) {
+      s->z_err = Z_DATA_ERROR;
+      return;
+    }
+
+    /* Discard time, xflags and OS code: */
+    for (len = 0; len < 6; len++) (void)get_byte(s);
+
+    if ((flags & EXTRA_FIELD) != 0) { /* skip the extra field */
+      len  =  (uInt)get_byte(s);
+      len += ((uInt)get_byte(s))<<8;
+      /* len is garbage if EOF but the loop below will quit anyway */
+      while (len-- != 0 && get_byte(s) != EOF) ;
+    }
+    if ((flags & ORIG_NAME) != 0) { /* skip the original file name */
+      while ((c = get_byte(s)) != 0 && c != EOF) ;
+    }
+    if ((flags & COMMENT) != 0) {   /* skip the .gz file comment */
+      while ((c = get_byte(s)) != 0 && c != EOF) ;
+    }
+    if ((flags & HEAD_CRC) != 0) {  /* skip the header crc */
+      for (len = 0; len < 2; len++) (void)get_byte(s);
+    }
+    s->z_err = s->z_eof ? Z_DATA_ERROR : Z_OK;
+  }
+  else if ( s->stream.next_in[0] == az_magic[0]  && s->stream.next_in[1] == az_magic[1])
+  {
+    s->stream.avail_in -= 2;
+    s->stream.next_in += 2;
+    for (len = 0; len < (AZHEADER_SIZE-2); len++) (void)get_byte(s);
+    s->z_err = s->z_eof ? Z_DATA_ERROR : Z_OK;
+  }
+  else
+  {
     s->transparent = 1;
+    s->version = (unsigned char)0;
     return;
   }
-  s->stream.avail_in -= 2;
-  s->stream.next_in += 2;
-
-  /* Check the rest of the gzip header */
-  method = get_byte(s);
-  flags = get_byte(s);
-  if (method != Z_DEFLATED || (flags & RESERVED) != 0) {
-    s->z_err = Z_DATA_ERROR;
-    return;
-  }
-
-  /* Discard time, xflags and OS code: */
-  for (len = 0; len < 6; len++) (void)get_byte(s);
-
-  if ((flags & EXTRA_FIELD) != 0) { /* skip the extra field */
-    len  =  (uInt)get_byte(s);
-    len += ((uInt)get_byte(s))<<8;
-    /* len is garbage if EOF but the loop below will quit anyway */
-    while (len-- != 0 && get_byte(s) != EOF) ;
-  }
-  if ((flags & ORIG_NAME) != 0) { /* skip the original file name */
-    while ((c = get_byte(s)) != 0 && c != EOF) ;
-  }
-  if ((flags & COMMENT) != 0) {   /* skip the .gz file comment */
-    while ((c = get_byte(s)) != 0 && c != EOF) ;
-  }
-  if ((flags & HEAD_CRC) != 0) {  /* skip the header crc */
-    for (len = 0; len < 2; len++) (void)get_byte(s);
-  }
-  s->z_err = s->z_eof ? Z_DATA_ERROR : Z_OK;
 }
 
 /* ===========================================================================
@@ -668,10 +686,12 @@ int azclose (azio_stream *s)
 
   if (s == NULL) return Z_STREAM_ERROR;
 
+
   if (s->mode == 'w') {
 #ifdef NO_GZCOMPRESS
     return Z_STREAM_ERROR;
 #else
+
     if (do_flush (s, Z_FINISH) != Z_OK)
       return destroy(s);
 
@@ -680,4 +700,43 @@ int azclose (azio_stream *s)
 #endif
   }
   return destroy(s);
+}
+
+/*
+  This function reads the header of meta block and returns whether or not it was successful.
+  *rows will contain the current number of rows in the data file upon success.
+*/
+int az_read_meta_block(char *meta_start, unsigned long *rows, 
+                               unsigned long long *auto_increment,
+                               unsigned long long *forced_flushes)
+{
+  unsigned char *ptr= meta_start;
+  ulonglong check_point;
+
+  DBUG_ENTER("ha_archive::read_meta_file");
+
+  /*
+    Parse out the meta data, we ignore version at the moment
+  */
+
+  *rows= (unsigned long long)uint8korr(ptr);
+  ptr+= sizeof(unsigned long long); // Move past rows
+  check_point= uint8korr(ptr);
+  ptr+= sizeof(unsigned long long); // Move past check_point
+  *auto_increment= uint8korr(ptr);
+  ptr+= sizeof(unsigned long long); // Move past auto_increment
+  *forced_flushes= uint8korr(ptr);
+  ptr+= sizeof(unsigned long long); // Move past forced_flush
+
+  DBUG_PRINT("ha_archive::read_meta_file", ("Rows %llu", 
+                                            (long long unsigned)*rows));
+  DBUG_PRINT("ha_archive::read_meta_file", ("Checkpoint %llu", 
+                                            (long long unsigned) check_point));
+  DBUG_PRINT("ha_archive::read_meta_file", ("Auto-Increment %llu", 
+                                            (long long unsigned)*auto_increment));
+  DBUG_PRINT("ha_archive::read_meta_file", ("Forced Flushes %llu", 
+                                            (long long unsigned)*forced_flushes));
+  DBUG_PRINT("ha_archive::read_meta_file", ("Dirty %d", (int)(*ptr)));
+
+  DBUG_RETURN(0);
 }

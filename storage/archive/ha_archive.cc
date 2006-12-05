@@ -250,11 +250,17 @@ int ha_archive::read_data_header(azio_stream *file_to_read)
   if (azrewind(file_to_read) == -1)
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
+  if (file_to_read->version >= 3)
+    DBUG_RETURN(0);
+  /* Everything below this is just legacy to version 2< */
+
+  DBUG_PRINT("ha_archive", ("Reading legacy data header"));
+
   ret= azread(file_to_read, data_buffer, DATA_BUFFER_SIZE, &error);
 
   if (ret != DATA_BUFFER_SIZE)
   {
-    DBUG_PRINT("ha_archive", ("Reading, expected %lu got %lu", 
+    DBUG_PRINT("ha_archive", ("Reading, expected %d got %lu", 
                               DATA_BUFFER_SIZE, ret));
     DBUG_RETURN(1);
   }
@@ -268,37 +274,11 @@ int ha_archive::read_data_header(azio_stream *file_to_read)
   DBUG_PRINT("ha_archive", ("Check %u", data_buffer[0]));
   DBUG_PRINT("ha_archive", ("Version %u", data_buffer[1]));
 
-  share->data_version= (uchar)data_buffer[1];
-  DBUG_PRINT("ha_archive", ("Set Version %u", share->data_version));
-  
   if ((data_buffer[0] != (uchar)ARCHIVE_CHECK_HEADER) &&  
       (data_buffer[1] != (uchar)ARCHIVE_VERSION))
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
   DBUG_RETURN(0);
-}
-
-/*
-  This method writes out the header of a datafile and returns whether or not it was successful.
-*/
-int ha_archive::write_data_header(azio_stream *file_to_write)
-{
-  uchar data_buffer[DATA_BUFFER_SIZE];
-  DBUG_ENTER("ha_archive::write_data_header");
-
-  data_buffer[0]= (uchar)ARCHIVE_CHECK_HEADER;
-  data_buffer[1]= (uchar)ARCHIVE_VERSION;
-
-  if (azwrite(file_to_write, &data_buffer, DATA_BUFFER_SIZE) != 
-      DATA_BUFFER_SIZE)
-    goto error;
-  DBUG_PRINT("ha_archive", ("Check %u", (uint)data_buffer[0]));
-  DBUG_PRINT("ha_archive", ("Version %u", (uint)data_buffer[1]));
-
-  DBUG_RETURN(0);
-error:
-  DBUG_PRINT("ha_archive", ("Could not write full data header"));
-  DBUG_RETURN(errno);
 }
 
 /*
@@ -616,6 +596,9 @@ int ha_archive::open(const char *name, int mode, uint open_options)
     DBUG_RETURN(rc);
   }
 
+  DBUG_ASSERT(share);
+
+
   record_buffer= create_record_buffer(table->s->reclength);
 
   if (!record_buffer)
@@ -694,6 +677,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   File create_file;  // We use to create the datafile and the metafile
   char name_buff[FN_REFLEN];
   int error;
+  azio_stream create_stream;            /* Archive file we are working with */
   DBUG_ENTER("ha_archive::create");
 
   stats.auto_increment_value= (create_info->auto_increment_value ?
@@ -762,18 +746,13 @@ int ha_archive::create(const char *name, TABLE *table_arg,
       goto error;
     }
   }
-  if (!azdopen(&archive, create_file, O_WRONLY|O_BINARY))
+  if (!azdopen(&create_stream, create_file, O_WRONLY|O_BINARY))
   {
     error= errno;
     goto error2;
   }
-  if (write_data_header(&archive))
-  {
-    error= errno;
-    goto error3;
-  }
 
-  if (azclose(&archive))
+  if (azclose(&create_stream))
   {
     error= errno;
     goto error2;
@@ -781,9 +760,6 @@ int ha_archive::create(const char *name, TABLE *table_arg,
 
   DBUG_RETURN(0);
 
-error3:
-  /* We already have an error, so ignore results of azclose. */
-  (void)azclose(&archive);
 error2:
   my_close(create_file, MYF(0));
   delete_table(name);
@@ -1140,8 +1116,9 @@ int ha_archive::get_row(azio_stream *file_to_read, byte *buf)
   int rc;
   DBUG_ENTER("ha_archive::get_row");
   DBUG_PRINT("ha_archive", ("Picking version for get_row() %d -> %d", 
-                            share->data_version, ARCHIVE_VERSION));
-  if (share->data_version == ARCHIVE_VERSION)
+                            (uchar)file_to_read->version, 
+                            ARCHIVE_VERSION));
+  if (file_to_read->version == ARCHIVE_VERSION)
     rc= get_row_version3(file_to_read, buf);
   else
     rc= get_row_version2(file_to_read, buf);
@@ -1436,13 +1413,6 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
       start of the file.
     */
     rc= read_data_header(&archive);
-    
-    /*
-      Assuming now error from rewinding the archive file, we now write out the 
-      new header for out data file.
-    */
-    if (!rc)
-      rc= write_data_header(&writer);
 
     /* 
       On success of writing out the new header, we now fetch each row and
