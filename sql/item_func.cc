@@ -897,7 +897,8 @@ void Item_func_signed::print(String *str)
 
 longlong Item_func_signed::val_int_from_str(int *error)
 {
-  char buff[MAX_FIELD_WIDTH], *end;
+  char buff[MAX_FIELD_WIDTH], *end, *start;
+  uint32 length;
   String tmp(buff,sizeof(buff), &my_charset_bin), *res;
   longlong value;
 
@@ -913,13 +914,21 @@ longlong Item_func_signed::val_int_from_str(int *error)
     return 0;
   }
   null_value= 0;
-  end= (char*) res->ptr()+ res->length();
-  value= my_strtoll10(res->ptr(), &end, error);
-  if (*error > 0 || end != res->ptr()+ res->length())
+  start= (char *)res->ptr();
+  length= res->length();
+
+  end= start + length;
+  value= my_strtoll10(start, &end, error);
+  if (*error > 0 || end != start+ length)
+  {
+    char err_buff[128];
+    String err_tmp(err_buff,(uint32) sizeof(err_buff), system_charset_info);
+    err_tmp.copy(start, length, system_charset_info);
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
-                        res->c_ptr());
+                        err_tmp.c_ptr());
+  }
   return value;
 }
 
