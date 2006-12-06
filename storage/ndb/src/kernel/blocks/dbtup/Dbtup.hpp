@@ -2571,6 +2571,7 @@ private:
 
   // Trigger variables
   Uint32 c_maxTriggersPerTable;
+  Uint32 c_memusage_report_frequency;
 
   Uint32 c_errorInsert4000TableId;
   Uint32 c_min_list_size[MAX_FREE_LIST + 1];

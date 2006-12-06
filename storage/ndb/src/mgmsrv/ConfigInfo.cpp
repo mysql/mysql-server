@@ -1298,6 +1298,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "0",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
+
+  { 
+    CFG_DB_MEMREPORT_FREQUENCY,
+    "MemReportFrequency",
+    DB_TOKEN,
+    "Frequency of mem reports in seconds, 0 = only when passing %-limits",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    STR_VALUE(MAX_INT_RNIL) },
   
   /***************************************************************************
    * API

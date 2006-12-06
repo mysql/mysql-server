@@ -112,6 +112,7 @@ void Dbacc::execCONTINUEB(Signal* signal)
     }
   case ZREPORT_MEMORY_USAGE:{
     jam();
+    Uint32 cnt = signal->theData[1];
     static int c_currentMemUsed = 0;
     int now = cpagesize ? (cnoOfAllocatedPages * 100)/cpagesize : 0;
     const int thresholds[] = { 99, 90, 80, 0};
@@ -125,14 +126,22 @@ void Dbacc::execCONTINUEB(Signal* signal)
       }
     }
     
-    if(now != c_currentMemUsed){
-      reportMemoryUsage(signal, now > c_currentMemUsed ? 1 : -1);
+    if(now != c_currentMemUsed || 
+       (c_memusage_report_frequency && cnt + 1 == c_memusage_report_frequency))
+    {
+      reportMemoryUsage(signal, 
+			now > c_currentMemUsed ? 1 : 
+			now < c_currentMemUsed ? -1 : 0);
+      cnt = 0;
+      c_currentMemUsed = now;
     }
-    
-    c_currentMemUsed = now;
-    
+    else
+    {
+      cnt ++;
+    }
     signal->theData[0] = ZREPORT_MEMORY_USAGE;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 2000, 1);    
+    signal->theData[1] = cnt;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 2);    
     return;
   }
 
@@ -199,7 +208,8 @@ void Dbacc::execNDB_STTOR(Signal* signal)
     csystemRestart = ZFALSE;
 
     signal->theData[0] = ZREPORT_MEMORY_USAGE;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 2000, 1);    
+    signal->theData[1] = 0;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 2);    
     break;
   default:
     jam();
@@ -353,6 +363,10 @@ void Dbacc::execREAD_CONFIG_REQ(Signal* signal)
   initRecords();
   ndbrestart1Lab(signal);
 
+  c_memusage_report_frequency = 0;
+  ndb_mgm_get_int_parameter(p, CFG_DB_MEMREPORT_FREQUENCY, 
+			    &c_memusage_report_frequency);
+  
   tdata0 = 0;
   initialiseRecordsLab(signal, ref, senderData);
   return;
