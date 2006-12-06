@@ -2819,3 +2819,20 @@ select min(key1) from t1 where key1 >= 0.3762 and rand() + 0.5 >= 0.5;
 min(key1)
 0.37619999051094
 DROP TABLE t1,t2;
+create table t1(a bigint unsigned, b bigint);
+insert into t1 values (0xfffffffffffffffff, 0xfffffffffffffffff), 
+(0x10000000000000000, 0x10000000000000000), 
+(0x8fffffffffffffff, 0x8fffffffffffffff);
+Warnings:
+Warning	1264	Data truncated; out of range for column 'a' at row 1
+Warning	1264	Data truncated; out of range for column 'b' at row 1
+Warning	1264	Data truncated; out of range for column 'a' at row 2
+Warning	1264	Data truncated; out of range for column 'b' at row 2
+Warning	1264	Data truncated; out of range for column 'b' at row 3
+select hex(a), hex(b) from t1;
+hex(a)	hex(b)
+FFFFFFFFFFFFFFFF	7FFFFFFFFFFFFFFF
+FFFFFFFFFFFFFFFF	7FFFFFFFFFFFFFFF
+8FFFFFFFFFFFFFFF	7FFFFFFFFFFFFFFF
+drop table t1;
+End of 4.1 tests
