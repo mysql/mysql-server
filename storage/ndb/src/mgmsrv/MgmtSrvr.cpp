@@ -1922,7 +1922,7 @@ MgmtSrvr::handleStatus(NodeId nodeId, bool alive, bool nfComplete)
     m_started_nodes.push_back(nodeId);
     rep->setEventType(NDB_LE_Connected);
   } else {
-    rep->setEventType(NDB_LE_Connected);
+    rep->setEventType(NDB_LE_Disconnected);
     if(nfComplete)
     {
       DBUG_VOID_RETURN;
