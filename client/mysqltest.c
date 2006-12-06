@@ -105,6 +105,7 @@ static my_bool disable_query_log= 0, disable_result_log= 0;
 static my_bool disable_warnings= 0, disable_ps_warnings= 0;
 static my_bool disable_info= 1;
 static my_bool abort_on_error= 1;
+static my_bool server_initialized= 0;
 
 static char **default_argv;
 static const char *load_default_groups[]= { "mysqltest", "client", 0 };
@@ -771,13 +772,18 @@ void free_used_memory()
   free_all_replace();
   my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
   free_defaults(default_argv);
-  mysql_server_end();
   free_re();
 #ifdef __WIN__
   free_tmp_sh_file();
   free_win_path_patterns();
 #endif
-  DBUG_VOID_RETURN;
+
+  /* Only call mysql_server_end if mysql_server_init has been called */
+  if (server_initialized)
+    mysql_server_end();
+
+  /* Don't use DBUG after mysql_server_end() */
+  return;
 }
 
 
@@ -5628,6 +5634,7 @@ int main(int argc, char **argv)
 			embedded_server_args,
 			(char**) embedded_server_groups))
     die("Can't initialize MySQL server");
+  server_initialized= 1;
   if (cur_file == file_stack && cur_file->file == 0)
   {
     cur_file->file= stdin;
