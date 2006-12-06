@@ -169,6 +169,7 @@ void Dbtup::execCONTINUEB(Signal* signal)
   case ZREPORT_MEMORY_USAGE:{
     ljam();
     static int c_currentMemUsed = 0;
+    Uint32 cnt = signal->theData[1];
     Uint32 tmp = c_page_pool.getSize();
     int now = tmp ? (cnoOfAllocatedPages * 100)/tmp : 0;
     const int thresholds[] = { 100, 90, 80, 0 };
@@ -182,12 +183,22 @@ void Dbtup::execCONTINUEB(Signal* signal)
       }
     }
 
-    if(now != c_currentMemUsed){
-      reportMemoryUsage(signal, now > c_currentMemUsed ? 1 : -1);
+    if(now != c_currentMemUsed || 
+       (c_memusage_report_frequency && cnt + 1 == c_memusage_report_frequency))
+    {
+      reportMemoryUsage(signal, 
+			now > c_currentMemUsed ? 1 : 
+			now < c_currentMemUsed ? -1 : 0);
+      cnt = 0;
       c_currentMemUsed = now;
+    } 
+    else
+    {
+      cnt++;
     }
     signal->theData[0] = ZREPORT_MEMORY_USAGE;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 2000, 1);    
+    signal->theData[1] = cnt;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 2);    
     return;
   }
   case ZBUILD_INDEX:
@@ -337,6 +348,10 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   clastBitMask = 1;
   clastBitMask = clastBitMask << 31;
 
+  c_memusage_report_frequency = 0;
+  ndb_mgm_get_int_parameter(p, CFG_DB_MEMREPORT_FREQUENCY, 
+			    &c_memusage_report_frequency);
+  
   initialiseRecordsLab(signal, 0, ref, senderData);
 }//Dbtup::execSIZEALT_REP()
 
@@ -499,7 +514,8 @@ void Dbtup::execNDB_STTOR(Signal* signal)
 /*       RESTART.                        */
 /*****************************************/
     signal->theData[0] = ZREPORT_MEMORY_USAGE;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 2000, 1);    
+    signal->theData[1] = 0;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 1);    
     break;
   default:
     ljam();
