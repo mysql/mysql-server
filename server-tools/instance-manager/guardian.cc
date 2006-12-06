@@ -67,6 +67,7 @@ Guardian::Guardian(Thread_registry *thread_registry_arg,
   monitoring_interval(monitoring_interval_arg),
   thread_registry(thread_registry_arg),
   instance_map(instance_map_arg),
+  guarded_instances(0),
   shutdown_requested(FALSE)
 {
   pthread_mutex_init(&LOCK_guardian, 0);
