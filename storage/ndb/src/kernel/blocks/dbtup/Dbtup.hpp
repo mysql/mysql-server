@@ -625,7 +625,8 @@ struct Fragrecord {
   
   DLList<ScanOp>::Head m_scanList;
 
-  bool m_undo_complete;
+  enum { UC_LCP = 1, UC_CREATE = 2 };
+  Uint32 m_undo_complete;
   Uint32 m_tablespace_id;
   Uint32 m_logfile_group_id;
   Disk_alloc_info m_disk_alloc_info;
@@ -989,6 +990,9 @@ ArrayPool<TupTriggerData> c_triggerPool;
       ,UNDO_UPDATE = File_formats::Undofile::UNDO_TUP_UPDATE
       ,UNDO_FREE = File_formats::Undofile::UNDO_TUP_FREE
       ,UNDO_CREATE = File_formats::Undofile::UNDO_TUP_CREATE
+      ,UNDO_DROP = File_formats::Undofile::UNDO_TUP_DROP
+      ,UNDO_ALLOC_EXTENT = File_formats::Undofile::UNDO_TUP_ALLOC_EXTENT
+      ,UNDO_FREE_EXTENT = File_formats::Undofile::UNDO_TUP_FREE_EXTENT
     };
     
     struct Alloc 
@@ -1020,6 +1024,30 @@ ArrayPool<TupTriggerData> c_triggerPool;
     {
       Uint32 m_table;
       Uint32 m_type_length; // 16 bit type, 16 bit length
+    };
+
+    struct Drop
+    {
+      Uint32 m_table;
+      Uint32 m_type_length; // 16 bit type, 16 bit length
+    };
+
+    struct AllocExtent
+    {
+      Uint32 m_table;
+      Uint32 m_fragment;
+      Uint32 m_page_no;
+      Uint32 m_file_no;
+      Uint32 m_type_length;
+    };
+
+    struct FreeExtent
+    {
+      Uint32 m_table;
+      Uint32 m_fragment;
+      Uint32 m_page_no;
+      Uint32 m_file_no;
+      Uint32 m_type_length;
     };
   };
   
@@ -1420,7 +1448,7 @@ public:
   int nr_delete(Signal*, Uint32, Uint32 fragPtr, const Local_key*, Uint32 gci);
 
   void nr_delete_page_callback(Signal*, Uint32 op, Uint32 page);
-  void nr_delete_logbuffer_callback(Signal*, Uint32 op, Uint32 page);
+  void nr_delete_log_buffer_callback(Signal*, Uint32 op, Uint32 page);
 private:
   BLOCK_DEFINES(Dbtup);
 
@@ -2345,9 +2373,10 @@ private:
                         Uint32 fragId);
 
 
-  void releaseFragment(Signal* signal, Uint32 tableId);
+  void releaseFragment(Signal* signal, Uint32 tableId, Uint32);
   void drop_fragment_free_var_pages(Signal*);
-  void drop_fragment_free_exent(Signal*, TablerecPtr, FragrecordPtr, Uint32);
+  void drop_fragment_free_extent(Signal*, TablerecPtr, FragrecordPtr, Uint32);
+  void drop_fragment_free_extent_log_buffer_callback(Signal*, Uint32, Uint32);
   void drop_fragment_unmap_pages(Signal*, TablerecPtr, FragrecordPtr, Uint32);
   void drop_fragment_unmap_page_callback(Signal* signal, Uint32, Uint32);
   
@@ -2571,6 +2600,7 @@ private:
 
   // Trigger variables
   Uint32 c_maxTriggersPerTable;
+  Uint32 c_memusage_report_frequency;
 
   Uint32 c_errorInsert4000TableId;
   Uint32 c_min_list_size[MAX_FREE_LIST + 1];
@@ -2630,6 +2660,9 @@ private:
   void disk_page_commit_callback(Signal*, Uint32 opPtrI, Uint32 page_id);  
   
   void disk_page_log_buffer_callback(Signal*, Uint32 opPtrI, Uint32); 
+
+  void disk_page_alloc_extent_log_buffer_callback(Signal*, Uint32, Uint32);
+  void disk_page_free_extent_log_buffer_callback(Signal*, Uint32, Uint32);
   
   Uint64 disk_page_undo_alloc(Page*, const Local_key*,
 			      Uint32 sz, Uint32 gci, Uint32 logfile_group_id);
@@ -2644,6 +2677,9 @@ private:
 
   void undo_createtable_callback(Signal* signal, Uint32 opPtrI, Uint32 unused);
   void undo_createtable_logsync_callback(Signal* signal, Uint32, Uint32);
+
+  void drop_table_log_buffer_callback(Signal*, Uint32, Uint32);
+  void drop_table_logsync_callback(Signal*, Uint32, Uint32);
 
   void disk_page_set_dirty(Ptr<Page>);
   void restart_setup_page(Disk_alloc_info&, Ptr<Page>);
@@ -2678,7 +2714,7 @@ public:
   
 private:
   void disk_restart_undo_next(Signal*);
-  void disk_restart_undo_lcp(Uint32, Uint32);
+  void disk_restart_undo_lcp(Uint32, Uint32, Uint32 flag);
   void disk_restart_undo_callback(Signal* signal, Uint32, Uint32);
   void disk_restart_undo_alloc(Apply_undo*);
   void disk_restart_undo_update(Apply_undo*);
