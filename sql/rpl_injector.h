@@ -21,7 +21,6 @@
 /* Pull in 'byte', 'my_off_t', and 'uint32' */
 #include <my_global.h>
 
-#ifdef HAVE_ROW_BASED_REPLICATION
 #include <my_bitmap.h>
 
 /* Forward declarations */
@@ -331,5 +330,4 @@ private:
                                 */ 
 };
 
-#endif /* HAVE_ROW_BASED_REPLICATION */
 #endif /* INJECTOR_H */

@@ -930,8 +930,6 @@ public:
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
 
-#ifdef HAVE_ROW_BASED_REPLICATION
-
   /*
     Public interface to write RBR events to the binlog
   */
@@ -985,7 +983,6 @@ public:
   uint get_binlog_table_maps() const {
     return binlog_table_maps;
   }
-#endif /* HAVE_ROW_BASED_REPLICATION */
 #endif /* MYSQL_CLIENT */
 
 #ifndef MYSQL_CLIENT
@@ -1024,9 +1021,7 @@ public:
     XID  xid;                           // transaction identifier
     enum xa_states xa_state;            // used by external XA only
     XID_STATE xid_state;
-#ifdef HAVE_ROW_BASED_REPLICATION
     Rows_log_event *m_pending_rows_event;
-#endif
 
     /*
        Tables changed in transaction (that must be invalidated in query cache).
@@ -1533,7 +1528,6 @@ public:
   void restore_active_arena(Query_arena *set, Query_arena *backup);
   inline void set_current_stmt_binlog_row_based_if_mixed()
   {
-#ifdef HAVE_ROW_BASED_REPLICATION
     /*
       If in a stored/function trigger, the caller should already have done the
       change. We test in_sub_stmt to prevent introducing bugs where people
@@ -1546,23 +1540,17 @@ public:
     if ((variables.binlog_format == BINLOG_FORMAT_MIXED) &&
         (in_sub_stmt == 0))
       current_stmt_binlog_row_based= TRUE;
-#endif
   }
   inline void set_current_stmt_binlog_row_based()
   {
-#ifdef HAVE_ROW_BASED_REPLICATION
     current_stmt_binlog_row_based= TRUE;
-#endif
   }
   inline void clear_current_stmt_binlog_row_based()
   {
-#ifdef HAVE_ROW_BASED_REPLICATION
     current_stmt_binlog_row_based= FALSE;
-#endif
   }
   inline void reset_current_stmt_binlog_row_based()
   {
-#ifdef HAVE_ROW_BASED_REPLICATION
     /*
       If there are temporary tables, don't reset back to
       statement-based. Indeed it could be that:
@@ -1586,9 +1574,6 @@ public:
       current_stmt_binlog_row_based= 
         test(variables.binlog_format == BINLOG_FORMAT_ROW);
     }
-#else
-    current_stmt_binlog_row_based= FALSE;
-#endif
   }
 
   /*

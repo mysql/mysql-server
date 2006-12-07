@@ -1064,9 +1064,7 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
       handled either before writing a query log event (inside
       binlog_query()) or when preparing a pending event.
      */
-#ifdef HAVE_ROW_BASED_REPLICATION
     thd->binlog_flush_pending_rows_event(TRUE);
-#endif /*HAVE_ROW_BASED_REPLICATION*/
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
@@ -3312,13 +3310,11 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
 
   *need_reopen= FALSE;
 
-#ifdef HAVE_ROW_BASED_REPLICATION
   /*
     CREATE ... SELECT UUID() locks no tables, we have to test here.
   */
   if (thd->lex->binlog_row_based_if_mixed)
     thd->set_current_stmt_binlog_row_based_if_mixed();
-#endif /*HAVE_ROW_BASED_REPLICATION*/
 
   if (!tables && !thd->lex->requires_prelocking())
     DBUG_RETURN(0);
@@ -3350,7 +3346,6 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
     {
       thd->in_lock_tables=1;
       thd->options|= OPTION_TABLE_LOCK;
-#ifdef HAVE_ROW_BASED_REPLICATION
       /*
         If we have >= 2 different tables to update with auto_inc columns,
         statement-based binlogging won't work. We can solve this problem in
@@ -3362,7 +3357,6 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
         thd->lex->binlog_row_based_if_mixed= TRUE;
         thd->set_current_stmt_binlog_row_based_if_mixed();
       }
-#endif
     }
 
     if (! (thd->lock= mysql_lock_tables(thd, start, (uint) (ptr - start),

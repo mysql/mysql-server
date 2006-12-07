@@ -682,7 +682,6 @@ sys_var_have_variable sys_have_query_cache("have_query_cache",
                                            &have_query_cache);
 sys_var_have_variable sys_have_rtree_keys("have_rtree_keys", &have_rtree_keys);
 sys_var_have_variable sys_have_symlink("have_symlink", &have_symlink);
-sys_var_have_variable sys_have_row_based_replication("have_row_based_replication",&have_row_based_replication);
 /* Global read-only variable describing server license */
 sys_var_const_str		sys_license("license", STRINGIFY_ARG(LICENSE));
 
@@ -809,7 +808,6 @@ SHOW_VAR init_vars[]= {
   {sys_have_openssl.name,     (char*) &have_openssl,                SHOW_HAVE},
   {sys_have_partition_db.name,(char*) &have_partition_db,           SHOW_HAVE},
   {sys_have_query_cache.name, (char*) &have_query_cache,            SHOW_HAVE},
-  {sys_have_row_based_replication.name, (char*) &have_row_based_replication, SHOW_HAVE},
   {sys_have_rtree_keys.name,  (char*) &have_rtree_keys,             SHOW_HAVE},
   {sys_have_symlink.name,     (char*) &have_symlink,                SHOW_HAVE},
   {"init_connect",            (char*) &sys_init_connect,            SHOW_SYS},
@@ -1324,10 +1322,6 @@ bool sys_var_thd_binlog_format::is_readonly() const
     If we don't have row-based replication compiled in, the variable
     is always read-only.
   */
-#ifndef HAVE_ROW_BASED_REPLICATION
-  my_error(ER_RBR_NOT_AVAILABLE, MYF(0));
-  return 1;
-#else
   if ((thd->variables.binlog_format == BINLOG_FORMAT_ROW) &&
       thd->temporary_tables)
   {
@@ -1352,16 +1346,13 @@ bool sys_var_thd_binlog_format::is_readonly() const
     return 1;
   }
 #endif /* HAVE_NDB_BINLOG */
-#endif /* HAVE_ROW_BASED_REPLICATION */
   return sys_var_thd_enum::is_readonly();
 }
 
 
 void fix_binlog_format_after_update(THD *thd, enum_var_type type)
 {
-#ifdef HAVE_ROW_BASED_REPLICATION
   thd->reset_current_stmt_binlog_row_based();
-#endif /*HAVE_ROW_BASED_REPLICATION*/
 }
 
 

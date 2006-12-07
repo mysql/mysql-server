@@ -22,8 +22,7 @@ SET_SOURCE_FILES_PROPERTIES(${CMAKE_SOURCE_DIR}/sql/message.rc
                             ${PROJECT_SOURCE_DIR}/include/sql_state.h 
                               PROPERTIES GENERATED 1)
 
-ADD_DEFINITIONS(-DHAVE_ROW_BASED_REPLICATION -DMYSQL_SERVER 
-                -D_CONSOLE -DHAVE_DLOPEN)
+ADD_DEFINITIONS(-DMYSQL_SERVER -D_CONSOLE -DHAVE_DLOPEN)
 
 ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc
                discover.cc ../libmysql/errmsg.c field.cc field_conv.cc 

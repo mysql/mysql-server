@@ -1090,14 +1090,12 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       table->next_global= view_tables;
     }
 
-#ifdef HAVE_ROW_BASED_REPLICATION
     /*
       If the view's body needs row-based binlogging (e.g. the VIEW is created
       from SELECT UUID()), the top statement also needs it.
     */
     if (lex->binlog_row_based_if_mixed)
       old_lex->binlog_row_based_if_mixed= TRUE;
-#endif
     bool view_is_mergeable= (table->algorithm != VIEW_ALGORITHM_TMPTABLE &&
                              lex->can_be_merged());
     TABLE_LIST *view_main_select_tables;

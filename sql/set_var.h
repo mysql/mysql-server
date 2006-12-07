@@ -940,9 +940,7 @@ public:
   }
 };
 
-#ifdef HAVE_ROW_BASED_REPLICATION
 extern void fix_binlog_format_after_update(THD *thd, enum_var_type type);
-#endif
 
 class sys_var_thd_binlog_format :public sys_var_thd_enum
 {
@@ -950,9 +948,7 @@ public:
   sys_var_thd_binlog_format(const char *name_arg, ulong SV::*offset_arg)
     :sys_var_thd_enum(name_arg, offset_arg,
                       &binlog_format_typelib
-#ifdef HAVE_ROW_BASED_REPLICATION
                       , fix_binlog_format_after_update
-#endif
                       )
   {};
   bool is_readonly() const;
