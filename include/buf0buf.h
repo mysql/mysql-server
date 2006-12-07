@@ -931,8 +931,10 @@ struct buf_page_struct{
 					BUF_BLOCK_ZIP_PAGE:	zip_clean
 					BUF_BLOCK_ZIP_FREE:	zip_free[] */
 #ifdef UNIV_DEBUG
-	ibool		in_free_list;	/* TRUE if in the free list; used in
-					debugging */
+	ibool		in_free_list;	/* TRUE if in buf_pool->free; when
+					buf_pool->mutex is free, the following
+					should hold: in_free_list
+					== (state == BUF_BLOCK_NOT_USED) */
 #endif /* UNIV_DEBUG */
 	ib_uint64_t	newest_modification;
 					/* log sequence number of the youngest
@@ -1010,7 +1012,7 @@ struct buf_block_struct{
 					but this flag is not set because
 					we do not keep track of all pages */
 
-	/* 4. Optimistic search field */
+	/* 2. Optimistic search field */
 
 	ib_uint64_t	modify_clock;	/* this clock is incremented every
 					time a pointer to a record on the
@@ -1024,7 +1026,7 @@ struct buf_block_struct{
 					bufferfixed, or (2) the thread has an
 					x-latch on the block */
 
-	/* 5. Hash search fields: NOTE that the first 4 fields are NOT
+	/* 3. Hash search fields: NOTE that the first 4 fields are NOT
 	protected by any semaphore! */
 
 	ulint		n_hash_helps;	/* counter which controls building
@@ -1063,7 +1065,7 @@ struct buf_block_struct{
 	ibool		curr_left_side:1;/* TRUE or FALSE in hash indexing */
 	dict_index_t*	index;		/* Index for which the adaptive
 					hash index has been created. */
-	/* 6. Debug fields */
+	/* 4. Debug fields */
 #ifdef UNIV_SYNC_DEBUG
 	rw_lock_t	debug_latch;	/* in the debug version, each thread
 					which bufferfixes the block acquires
@@ -1072,8 +1074,8 @@ struct buf_block_struct{
 #endif
 };
 
-/* Check if a block is in a valid state. */
-#define buf_block_state_valid(block)		\
+/* Check if a buf_block_t object is in a valid state. */
+#define buf_block_state_valid(block)				\
 (buf_block_get_state(block) >= BUF_BLOCK_NOT_USED		\
  && (buf_block_get_state(block) <= BUF_BLOCK_REMOVE_HASH))
 
