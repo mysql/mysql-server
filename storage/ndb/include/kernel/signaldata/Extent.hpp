@@ -74,6 +74,8 @@ struct FreeExtentReq {
       Local_key key;
       Uint32 table_id;
       Uint32 tablespace_id;
+      Uint32 lsn_hi;
+      Uint32 lsn_lo;
     } request;
     struct 
     {
