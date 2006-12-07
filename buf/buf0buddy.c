@@ -22,7 +22,9 @@ buf_buddy_alloc_free_low(
 /*=====================*/
 			/* out: allocated block, or NULL
 			if buf_pool->zip_free[] was empty */
-	ulint	i)	/* in: index of buf_pool->zip_free[] */
+	ulint	i,	/* in: index of buf_pool->zip_free[] */
+	ibool	split)	/* in: TRUE=attempt splitting,
+			FALSE=try to allocate exact size */
 {
 	buf_page_t*	bpage;
 
@@ -37,6 +39,14 @@ buf_buddy_alloc_free_low(
 		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);
 
 		UT_LIST_REMOVE(list, buf_pool->zip_free[i], bpage);
+	} else if (split && i + 1 < BUF_BUDDY_SIZES) {
+		bpage = buf_buddy_alloc_free_low(i + 1, split);
+
+		if (bpage) {
+			buf_page_t*	buddy = bpage + BUF_BUDDY_LOW << i;
+
+			UT_LIST_ADD_FIRST(list, buf_pool->zip_free[i], buddy);
+		}
 	}
 
 	return(bpage);
