@@ -6527,6 +6527,15 @@ view_err:
   {
     if (! table)
     {
+      if (new_name != table_name || new_db != db)
+      {
+        table_list->alias= new_name;
+        table_list->table_name= new_name;
+        table_list->table_name_length= strlen(new_name);
+        table_list->db= new_db;
+        table_list->db_length= strlen(new_db);
+      }
+
       VOID(pthread_mutex_unlock(&LOCK_open));
       if (! (table= open_ltable(thd, table_list, TL_WRITE_ALLOW_READ)))
         goto err;
