@@ -994,7 +994,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
   case FORMAT_DESCRIPTION_EVENT:
     ev = new Format_description_log_event(buf, event_len, description_event); 
     break;
-#if defined(HAVE_REPLICATION) && defined(HAVE_ROW_BASED_REPLICATION)
+#if defined(HAVE_REPLICATION) 
   case WRITE_ROWS_EVENT:
     ev = new Write_rows_log_event(buf, event_len, description_event);
     break;
@@ -5287,8 +5287,6 @@ char* sql_ex_info::init(char* buf,char* buf_end,bool use_new_format)
 }
 
 
-#ifdef HAVE_ROW_BASED_REPLICATION
-
 /**************************************************************************
 	Rows_log_event member functions
 **************************************************************************/
@@ -5553,8 +5551,8 @@ unpack_row(RELAY_LOG_INFO *rli,
 
     if (bitmap_is_set(cols, field_ptr -  begin_ptr))
     {
-      DBUG_ASSERT(table->record[0] <= f->ptr);
-      DBUG_ASSERT(f->ptr < table->record[0] + table->s->reclength + (f->pack_length_in_rec() == 0));
+      DBUG_ASSERT((char *)table->record[0] <= f->ptr);
+      DBUG_ASSERT(f->ptr < (char *)table->record[0] + table->s->reclength + (f->pack_length_in_rec() == 0));
       f->move_field_offset(offset);
 
       DBUG_PRINT("info", ("unpacking column '%s' to 0x%lx", f->field_name, f->ptr));
@@ -6838,8 +6836,8 @@ static int find_and_fetch_row(TABLE *table, byte *key)
     trigger false warnings.
    */
 #ifndef HAVE_purify
-    DBUG_DUMP("table->record[0]", table->record[0], table->s->reclength);
-    DBUG_DUMP("table->record[1]", table->record[1], table->s->reclength);
+    DBUG_DUMP("table->record[0]", (char *)table->record[0], table->s->reclength);
+    DBUG_DUMP("table->record[1]", (char *)table->record[1], table->s->reclength);
 #endif
 
     /*
@@ -6865,8 +6863,8 @@ static int find_and_fetch_row(TABLE *table, byte *key)
     trigger false warnings.
    */
 #ifndef HAVE_purify
-    DBUG_DUMP("table->record[0]", table->record[0], table->s->reclength);
-    DBUG_DUMP("table->record[1]", table->record[1], table->s->reclength);
+    DBUG_DUMP("table->record[0]", (char *)table->record[0], table->s->reclength);
+    DBUG_DUMP("table->record[1]", (char *)table->record[1], table->s->reclength);
 #endif
     /*
       Below is a minor "optimization".  If the key (i.e., key number
@@ -7279,4 +7277,3 @@ void Update_rows_log_event::print(FILE *file,
 }
 #endif
 
-#endif /* defined(HAVE_ROW_BASED_REPLICATION) */

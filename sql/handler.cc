@@ -3455,7 +3455,6 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
   - table is not mysql.event
 */
 
-#ifdef HAVE_ROW_BASED_REPLICATION
 /* The Sun compiler cannot instantiate the template below if this is
    declared static, but it works by putting it into an anonymous
    namespace. */
@@ -3608,7 +3607,6 @@ namespace
   binlog_log_row<Update_rows_log_event>(TABLE *, const byte *, const byte *);
 }
 
-#endif /* HAVE_ROW_BASED_REPLICATION */
 
 int handler::ha_external_lock(THD *thd, int lock_type)
 {
@@ -3649,10 +3647,8 @@ int handler::ha_write_row(byte *buf)
   int error;
   if (unlikely(error= write_row(buf)))
     return error;
-#ifdef HAVE_ROW_BASED_REPLICATION
   if (unlikely(error= binlog_log_row<Write_rows_log_event>(table, 0, buf)))
     return error;
-#endif
   return 0;
 }
 
@@ -3668,10 +3664,8 @@ int handler::ha_update_row(const byte *old_data, byte *new_data)
 
   if (unlikely(error= update_row(old_data, new_data)))
     return error;
-#ifdef HAVE_ROW_BASED_REPLICATION
   if (unlikely(error= binlog_log_row<Update_rows_log_event>(table, old_data, new_data)))
     return error;
-#endif
   return 0;
 }
 
@@ -3680,10 +3674,8 @@ int handler::ha_delete_row(const byte *buf)
   int error;
   if (unlikely(error= delete_row(buf)))
     return error;
-#ifdef HAVE_ROW_BASED_REPLICATION
   if (unlikely(error= binlog_log_row<Delete_rows_log_event>(table, buf, 0)))
     return error;
-#endif
   return 0;
 }
 
