@@ -66,21 +66,24 @@ public:
   pointer.
 */
 
-class list_node :public Sql_alloc
+
+/**
+  list_node - a node of a single-linked list.
+  @note We never call a destructor for instances of this class.
+*/
+
+struct list_node :public Sql_alloc
 {
-public:
   list_node *next;
   void *info;
   list_node(void *info_par,list_node *next_par)
     :next(next_par),info(info_par)
-    {}
+  {}
   list_node()					/* For end_of_list */
-    {
-      info=0;
-      next= this;
-    }
-  friend class base_list;
-  friend class base_list_iterator;
+  {
+    info= 0;
+    next= this;
+  }
 };
 
 
@@ -96,11 +99,56 @@ public:
 
   inline void empty() { elements=0; first= &end_of_list; last=&first;}
   inline base_list() { empty(); }
+  /**
+    This is a shallow copy constructor that implicitly passes the ownership
+    from the source list to the new instance. The old instance is not
+    updated, so both objects end up sharing the same nodes. If one of
+    the instances then adds or removes a node, the other becomes out of
+    sync ('last' pointer), while still operational. Some old code uses and
+    relies on this behaviour. This logic is quite tricky: please do not use
+    it in any new code.
+  */
   inline base_list(const base_list &tmp) :Sql_alloc()
   {
-    elements=tmp.elements;
-    first=tmp.first;
-    last=tmp.last;
+    elements= tmp.elements;
+    first= tmp.first;
+    last= elements ? tmp.last : &first;
+  }
+  /**
+    Construct a deep copy of the argument in memory root mem_root.
+    The elements themselves are copied by pointer.
+  */
+  inline base_list(const base_list &rhs, MEM_ROOT *mem_root)
+  {
+    if (rhs.elements)
+    {
+      /*
+        It's okay to allocate an array of nodes at once: we never
+        call a destructor for list_node objects anyway.
+      */
+      first= (list_node*) alloc_root(mem_root,
+                                     sizeof(list_node) * rhs.elements);
+      if (first)
+      {
+        elements= rhs.elements;
+        list_node *dst= first;
+        list_node *src= rhs.first;
+        for (; dst < first + elements - 1; dst++, src= src->next)
+        {
+          dst->info= src->info;
+          dst->next= dst + 1;
+        }
+        /* Copy the last node */
+        dst->info= src->info;
+        dst->next= &end_of_list;
+        /* Setup 'last' member */
+        last= &dst->next;
+        return;
+      }
+    }
+    elements= 0;
+    first= &end_of_list;
+    last= &first;
   }
   inline base_list(bool error) { }
   inline bool push_back(void *info)
@@ -327,6 +375,8 @@ template <class T> class List :public base_list
 public:
   inline List() :base_list() {}
   inline List(const List<T> &tmp) :base_list(tmp) {}
+  inline List(const List<T> &tmp, MEM_ROOT *mem_root) :
+    base_list(tmp, mem_root) {}
   inline bool push_back(T *a) { return base_list::push_back(a); }
   inline bool push_front(T *a) { return base_list::push_front(a); }
   inline T* head() {return (T*) base_list::head(); }
