@@ -164,7 +164,7 @@ void Dbtup::execCONTINUEB(Signal* signal)
     break;
   case ZREL_FRAG:
     ljam();
-    releaseFragment(signal, dataPtr);
+    releaseFragment(signal, dataPtr, signal->theData[2]);
     break;
   case ZREPORT_MEMORY_USAGE:{
     ljam();
@@ -223,7 +223,7 @@ void Dbtup::execCONTINUEB(Signal* signal)
     fragPtr.i= signal->theData[2];
     ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
     ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
-    drop_fragment_free_exent(signal, tabPtr, fragPtr, signal->theData[3]);
+    drop_fragment_free_extent(signal, tabPtr, fragPtr, signal->theData[3]);
     return;
   }
   case ZUNMAP_PAGES:
