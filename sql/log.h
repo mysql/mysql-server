@@ -601,14 +601,12 @@ public:
 
 enum enum_binlog_format {
   BINLOG_FORMAT_STMT= 0, // statement-based
-#ifdef HAVE_ROW_BASED_REPLICATION
   BINLOG_FORMAT_ROW= 1, // row_based
   /*
     statement-based except for cases where only row-based can work (UUID()
     etc):
   */
   BINLOG_FORMAT_MIXED= 2,
-#endif
 /*
   This value is last, after the end of binlog_format_typelib: it has no
   corresponding cell in this typelib. We use this value to be able to know if
