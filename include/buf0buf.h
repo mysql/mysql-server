@@ -1171,8 +1171,8 @@ struct buf_pool_struct{
 					/* unmodified compressed pages */
 	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES];
 					/* buddy free lists */
-#if BUF_BUDDY_LOW << BUF_BUDDY_SIZES != UNIV_PAGE_SIZE
-# error "BUF_BUDDY_LOW << BUF_BUDDY_SIZES != UNIV_PAGE_SIZE"
+#if BUF_BUDDY_HIGH != UNIV_PAGE_SIZE
+# error "BUF_BUDDY_HIGH != UNIV_PAGE_SIZE"
 #endif
 #if BUF_BUDDY_LOW > PAGE_ZIP_MIN_SIZE
 # error "BUF_BUDDY_LOW > PAGE_ZIP_MIN_SIZE"

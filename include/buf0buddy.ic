@@ -39,7 +39,7 @@ buf_buddy_get_offset(
 {
 	ut_ad(ut_is_2pow(size));
 	ut_ad(size >= BUF_BUDDY_LOW);
-	ut_ad(size < BUF_BUDDY_LOW << BUF_BUDDY_SIZES);
+	ut_ad(size < BUF_BUDDY_HIGH);
 
 	if (((ulint) page) & size) {
 		return(-(lint) size);
