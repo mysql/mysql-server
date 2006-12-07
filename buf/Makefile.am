@@ -19,6 +19,6 @@ include ../include/Makefile.i
 
 noinst_LIBRARIES =	libbuf.a
 
-libbuf_a_SOURCES =	buf0buf.c buf0flu.c buf0lru.c buf0rea.c
+libbuf_a_SOURCES =	buf0buf.c buf0buddy.c buf0flu.c buf0lru.c buf0rea.c
 
 EXTRA_PROGRAMS =	

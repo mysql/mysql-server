@@ -1089,6 +1089,9 @@ struct buf_pool_struct{
 	mutex_t		mutex;		/* mutex protecting the buffer pool
 					struct and control blocks, except the
 					read-write lock in them */
+	mutex_t		zip_mutex;	/* mutex protecting the control blocks
+					of compressed-only pages (of type
+					buf_page_t, not buf_block_t) */
 	ulint		n_chunks;	/* number of buffer pool chunks */
 	buf_chunk_t*	chunks;		/* buffer pool chunks */
 	ulint		curr_size;	/* current pool size in pages */
@@ -1162,6 +1165,18 @@ struct buf_pool_struct{
 					see buf0lru.c for the restrictions
 					on this value; not defined if
 					LRU_old == NULL */
+
+	/* 4. Fields for the buddy allocator of compressed pages */
+	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
+					/* unmodified compressed pages */
+	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES];
+					/* buddy free lists */
+#if BUF_BUDDY_LOW << BUF_BUDDY_SIZES != UNIV_PAGE_SIZE
+# error "BUF_BUDDY_LOW << BUF_BUDDY_SIZES != UNIV_PAGE_SIZE"
+#endif
+#if BUF_BUDDY_LOW > PAGE_ZIP_MIN_SIZE
+# error "BUF_BUDDY_LOW > PAGE_ZIP_MIN_SIZE"
+#endif
 };
 
 /************************************************************************
