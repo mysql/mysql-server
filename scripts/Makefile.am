@@ -115,6 +115,7 @@ SUFFIXES = .sh
 	  -e 's!@''pkglibdir''@!$(pkglibdir)!g' \
 	  -e 's!@''pkgincludedir''@!$(pkgincludedir)!g' \
 	  -e 's!@''pkgdatadir''@!$(pkgdatadir)!g' \
+	  -e 's!@''sysconfdir''@!$(sysconfdir)!g' \
 	  -e 's!@''CC''@!@CC@!'\
 	  -e 's!@''CXX''@!@CXX@!'\
 	  -e 's!@''GXX''@!@GXX@!'\
