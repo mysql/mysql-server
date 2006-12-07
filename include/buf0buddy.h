@@ -47,7 +47,9 @@ UNIV_INLINE
 void*
 buf_buddy_alloc_free(
 /*=================*/
-	ulint	size)	/* in: block size, up to UNIV_PAGE_SIZE / 2 */
+	ulint	size,	/* in: block size, up to UNIV_PAGE_SIZE / 2 */
+	ibool	split)	/* in: TRUE=attempt splitting,
+			FALSE=try to allocate exact size */
 	__attribute__((malloc));
 
 #ifndef UNIV_NONINL
