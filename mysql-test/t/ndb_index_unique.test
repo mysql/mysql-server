@@ -83,6 +83,14 @@ delete from t2 where a = 1;
 insert into t2 values(8, 2, 3);
 select * from t2 order by a;
 
+# Bug #24818 CREATE UNIQUE INDEX (...) USING HASH on a NDB table crashes mysqld
+create unique index bi using hash on t2(b);
+-- error 1062
+insert into t2 values(9, 3, 1);
+alter table t2 drop index bi;
+insert into t2 values(9, 3, 1);
+select * from t2 order by a;
+
 drop table t2;
 
 -- error 1121
