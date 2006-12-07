@@ -52,6 +52,20 @@ buf_buddy_alloc(
 			FALSE=try to allocate exact size */
 	__attribute__((malloc));
 
+/**************************************************************************
+Release a block to buf_pool->zip_free[]. */
+UNIV_INLINE
+void*
+buf_buddy_free(
+/*===========*/
+			/* out: pointer to the beginning of a block of
+			size BUF_BUDDY_HIGH that should be freed to
+			the underlying allocator, or NULL if released
+			to buf_pool->zip_free[] */
+	void*	buf,	/* in: block to free */
+	ulint	size)	/* in: block size, up to UNIV_PAGE_SIZE / 2 */
+	__attribute__((nonnull));
+
 #ifndef UNIV_NONINL
 # include "buf0buddy.ic"
 #endif

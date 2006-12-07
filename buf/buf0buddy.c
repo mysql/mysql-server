@@ -51,3 +51,57 @@ buf_buddy_alloc_low(
 
 	return(bpage);
 }
+
+/**************************************************************************
+Release a block to buf_pool->zip_free[]. */
+
+void*
+buf_buddy_free_low(
+/*===============*/
+			/* out: pointer to the beginning of a block of
+			size BUF_BUDDY_HIGH that should be freed to
+			the underlying allocator, or NULL if released
+			to buf_pool->zip_free[] */
+	void*	buf,	/* in: block to free */
+	ulint	i)	/* in: index of buf_pool->zip_free[] */
+{
+	buf_page_t*	bpage;
+	buf_page_t*	buddy;
+#ifdef UNIV_SYNC_DEBUG
+	ut_a(mutex_own(&buf_pool->mutex));
+#endif /* UNIV_SYNC_DEBUG */
+recombine:
+	ut_ad(i < BUF_BUDDY_SIZES);
+	ut_ad(buf == ut_align_down(buf, BUF_BUDDY_LOW << i));
+
+	/* Try to combine adjacent blocks. */
+
+	buddy = buf_buddy_get(buf, BUF_BUDDY_LOW << i);
+
+	for (bpage = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
+	     bpage; bpage = UT_LIST_GET_NEXT(list, bpage)) {
+
+		if (bpage == buddy) {
+			/* The buddy is free: recombine */
+			UT_LIST_REMOVE(list, buf_pool->zip_free[i], bpage);
+			buf = ut_align_down(buf, BUF_BUDDY_LOW << i);
+
+			if (++i < BUF_BUDDY_SIZES) {
+
+				goto recombine;
+			}
+
+			/* The whole block is free. */
+			return(buf);
+		}
+
+		ut_a(bpage != buf);
+	}
+
+	/* Free the block to the buddy list. */
+	bpage = buf;
+	bpage->state = BUF_BLOCK_ZIP_FREE;
+	UT_LIST_ADD_FIRST(list, buf_pool->zip_free[i], bpage);
+
+	return(NULL);
+}
