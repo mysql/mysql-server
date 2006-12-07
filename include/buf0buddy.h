@@ -45,8 +45,8 @@ buf_buddy_get_slot(
 Try to allocate a block from buf_pool->zip_free[]. */
 UNIV_INLINE
 void*
-buf_buddy_alloc_free(
-/*=================*/
+buf_buddy_alloc(
+/*============*/
 	ulint	size,	/* in: block size, up to UNIV_PAGE_SIZE / 2 */
 	ibool	split)	/* in: TRUE=attempt splitting,
 			FALSE=try to allocate exact size */
