@@ -753,7 +753,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           Field *field= ((Item_field *)item)->field;
           if (field->reset())
           {
-            my_error(ER_WARN_NULL_TO_NOTNULL, MYF(0),sql_field->field->field_name,
+            my_error(ER_WARN_NULL_TO_NOTNULL, MYF(0),field->field_name,
                      thd->row_count);
             DBUG_RETURN(1);
           }

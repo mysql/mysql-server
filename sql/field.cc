@@ -2218,9 +2218,10 @@ Field_new_decimal::Field_new_decimal(uint32 len_arg,
 }
 
 
-void Field_new_decimal::reset(void)
+int Field_new_decimal::reset(void)
 {
   store_value(&decimal_zero);
+  return 0;
 }
 
 
