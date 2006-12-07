@@ -96,7 +96,7 @@ retry:
     cur_keylen= cursor->curr->keylen;
     if (*cursor->prev != (intptr)cursor->curr)
     {
-      LF_BACKOFF;
+      (void)LF_BACKOFF;
       goto retry;
     }
     if (!DELETED(link))
@@ -118,7 +118,7 @@ retry:
         _lf_alloc_free(pins, cursor->curr);
       else
       {
-        LF_BACKOFF;
+        (void)LF_BACKOFF;
         goto retry;
       }
     }
