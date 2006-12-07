@@ -1561,9 +1561,7 @@ extern ulong query_buff_size, thread_stack;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
 extern ulong binlog_cache_size, max_binlog_cache_size, open_files_limit;
 extern ulong max_binlog_size, max_relay_log_size;
-#ifdef HAVE_ROW_BASED_REPLICATION
 extern ulong opt_binlog_rows_event_max_size;
-#endif
 extern ulong rpl_recovery_rank, thread_cache_size;
 extern ulong back_log;
 extern ulong specialflag, current_pid;
@@ -1668,7 +1666,6 @@ extern handlerton *partition_hton;
 extern handlerton *myisam_hton;
 extern handlerton *heap_hton;
 
-extern SHOW_COMP_OPTION have_row_based_replication;
 extern SHOW_COMP_OPTION have_openssl, have_symlink, have_dlopen;
 extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;

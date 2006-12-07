@@ -123,7 +123,6 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
     share->version=       refresh_version;
     share->flush_version= flush_version;
 
-#ifdef HAVE_ROW_BASED_REPLICATION
     /*
       This constant is used to mark that no table map version has been
       assigned.  No arithmetic is done on the value: it will be
@@ -140,8 +139,6 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
     */
     share->table_map_id= ~0UL;
     share->cached_row_logging_check= -1;
-
-#endif
 
     memcpy((char*) &share->mem_root, (char*) &mem_root, sizeof(mem_root));
     pthread_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
@@ -194,7 +191,6 @@ void init_tmp_table_share(TABLE_SHARE *share, const char *key,
   share->path.length= share->normalized_path.length= strlen(path);
   share->frm_version= 		 FRM_VER_TRUE_VARCHAR;
 
-#ifdef HAVE_ROW_BASED_REPLICATION
   /*
     Temporary tables are not replicated, but we set up these fields
     anyway to be able to catch errors.
@@ -202,7 +198,6 @@ void init_tmp_table_share(TABLE_SHARE *share, const char *key,
   share->table_map_version= ~(ulonglong)0;
   share->table_map_id= ~0UL;
   share->cached_row_logging_check= -1;
-#endif
 
   DBUG_VOID_RETURN;
 }

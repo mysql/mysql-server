@@ -811,7 +811,6 @@ public:
   byte     **sroutines_list_own_last;
   uint     sroutines_list_own_elements;
 
-#ifdef HAVE_ROW_BASED_REPLICATION
   /*
     Tells if the parsing stage detected that some items require row-based
     binlogging to give a reliable binlog/replication, or if we will use
@@ -819,7 +818,6 @@ public:
     binlogging.
   */
   bool binlog_row_based_if_mixed;
-#endif
 
   /*
     These constructor and destructor serve for creation/destruction
