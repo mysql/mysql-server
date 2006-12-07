@@ -1088,7 +1088,8 @@ bool Query_log_event::write(IO_CACHE* file)
             1+1+FN_REFLEN+ // code of catalog and catalog length and catalog
             1+4+           // code of autoinc and the 2 autoinc variables
             1+6+           // code of charset and charset
-            1+1+MAX_TIME_ZONE_NAME_LENGTH // code of tz and tz length and tz name
+            1+1+MAX_TIME_ZONE_NAME_LENGTH+ // code of tz and tz length and tz name
+            1+2            // code of lc_time_names and lc_time_names
             ], *start, *start_of_status;
   ulong event_length;
 
@@ -1200,6 +1201,13 @@ bool Query_log_event::write(IO_CACHE* file)
     memcpy(start, time_zone_str, time_zone_len);
     start+= time_zone_len;
   }
+  if (lc_time_names_number)
+  {
+    DBUG_ASSERT(lc_time_names_number <= 0xFFFF);
+    *start++= Q_LC_TIME_NAMES_CODE;
+    int2store(start, lc_time_names_number);
+    start+= 2;
+  }
   /*
     Here there could be code like
     if (command-line-option-which-says-"log_this_variable" && inited)
@@ -1264,7 +1272,8 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
    flags2_inited(1), sql_mode_inited(1), charset_inited(1),
    sql_mode(thd_arg->variables.sql_mode),
    auto_increment_increment(thd_arg->variables.auto_increment_increment),
-   auto_increment_offset(thd_arg->variables.auto_increment_offset)
+   auto_increment_offset(thd_arg->variables.auto_increment_offset),
+   lc_time_names_number(thd_arg->variables.lc_time_names->number)
 {
   time_t end_time;
   time(&end_time);
@@ -1334,7 +1343,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
    db(NullS), catalog_len(0), status_vars_len(0),
    flags2_inited(0), sql_mode_inited(0), charset_inited(0),
    auto_increment_increment(1), auto_increment_offset(1),
-   time_zone_len(0)
+   time_zone_len(0), lc_time_names_number(0)
 {
   ulong data_len;
   uint32 tmp;
@@ -1434,6 +1443,10 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
         catalog= (char*) pos+1;                           // Will be copied later
       pos+= catalog_len+2; // leap over end 0
       catalog_nz= 0; // catalog has end 0 in event
+      break;
+    case Q_LC_TIME_NAMES_CODE:
+      lc_time_names_number= uint2korr(pos);
+      pos+= 2;
       break;
     default:
       /* That's why you must write status vars in growing order of code */
@@ -1619,6 +1632,11 @@ void Query_log_event::print_query_header(FILE* file,
       memcpy(print_event_info->time_zone_str, time_zone_str, time_zone_len+1);
     }
   }
+  if (lc_time_names_number != print_event_info->lc_time_names_number)
+  {
+    fprintf(file, "SET @@session.lc_time_names=%d;\n", lc_time_names_number);
+    print_event_info->lc_time_names_number= lc_time_names_number;
+  }
 }
 
 
@@ -1771,6 +1789,19 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli,
           goto compare_errors;
         }
       }
+      if (lc_time_names_number)
+      {
+        if (!(thd->variables.lc_time_names=
+              my_locale_by_number(lc_time_names_number)))
+        {
+          my_printf_error(ER_UNKNOWN_ERROR,
+                      "Unknown locale: '%d'", MYF(0), lc_time_names_number);
+          thd->variables.lc_time_names= &my_locale_en_US;
+          goto compare_errors;
+        }
+      }
+      else
+        thd->variables.lc_time_names= &my_locale_en_US;
 
       /* Execute the query (note that we bypass dispatch_command()) */
       mysql_parse(thd, thd->query, thd->query_length);
