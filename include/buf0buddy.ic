@@ -18,8 +18,8 @@ Created December 2006 by Marko Makela
 Try to allocate a block from buf_pool->zip_free[]. */
 
 void*
-buf_buddy_alloc_free_low(
-/*=====================*/
+buf_buddy_alloc_low(
+/*================*/
 			/* out: allocated block, or NULL
 			if buf_pool->zip_free[] was empty */
 	ulint	i,	/* in: index of buf_pool->zip_free[] */
@@ -70,8 +70,8 @@ buf_buddy_get_slot(
 Try to allocate a block from buf_pool->zip_free[]. */
 UNIV_INLINE
 void*
-buf_buddy_alloc_free(
-/*=================*/
+buf_buddy_alloc(
+/*============*/
 	ulint	size,	/* in: block size, up to UNIV_PAGE_SIZE / 2 */
 	ibool	split)	/* in: TRUE=attempt splitting,
 			FALSE=try to allocate exact size */
@@ -80,7 +80,7 @@ buf_buddy_alloc_free(
 	ut_a(mutex_own(&buf_pool->mutex));
 #endif /* UNIV_SYNC_DEBUG */
 
-	return(buf_buddy_alloc_free_low(buf_buddy_get_slot(size), split));
+	return(buf_buddy_alloc_low(buf_buddy_get_slot(size), split));
 }
 
 #ifdef UNIV_MATERIALIZE
