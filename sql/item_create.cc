@@ -2288,9 +2288,7 @@ Create_udf_func::create(THD *thd, udf_func *udf, List<Item> *item_list)
   if (item_list != NULL)
     arg_count= item_list->elements;
 
-#ifdef HAVE_ROW_BASED_REPLICATION
   thd->lex->binlog_row_based_if_mixed= TRUE;
-#endif
 
   DBUG_ASSERT(   (udf->type == UDFTYPE_FUNCTION)
               || (udf->type == UDFTYPE_AGGREGATE));
@@ -4446,9 +4444,7 @@ Create_func_uuid Create_func_uuid::s_singleton;
 Item*
 Create_func_uuid::create(THD *thd)
 {
-#ifdef HAVE_ROW_BASED_REPLICATION
   thd->lex->binlog_row_based_if_mixed= TRUE;
-#endif
   return new (thd->mem_root) Item_func_uuid();
 }
 
