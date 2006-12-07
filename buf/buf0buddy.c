@@ -18,8 +18,8 @@ Created December 2006 by Marko Makela
 Try to allocate a block from buf_pool->zip_free[]. */
 
 void*
-buf_buddy_alloc_free_low(
-/*=====================*/
+buf_buddy_alloc_low(
+/*================*/
 			/* out: allocated block, or NULL
 			if buf_pool->zip_free[] was empty */
 	ulint	i,	/* in: index of buf_pool->zip_free[] */
@@ -40,10 +40,10 @@ buf_buddy_alloc_free_low(
 
 		UT_LIST_REMOVE(list, buf_pool->zip_free[i], bpage);
 	} else if (split && i + 1 < BUF_BUDDY_SIZES) {
-		bpage = buf_buddy_alloc_free_low(i + 1, split);
+		bpage = buf_buddy_alloc_low(i + 1, split);
 
 		if (bpage) {
-			buf_page_t*	buddy = bpage + BUF_BUDDY_LOW << i;
+			buf_page_t*	buddy = bpage + (BUF_BUDDY_LOW << i);
 
 			UT_LIST_ADD_FIRST(list, buf_pool->zip_free[i], buddy);
 		}
