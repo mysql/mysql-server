@@ -139,7 +139,7 @@ a	b	c
 8	2	3
 create unique index bi using hash on t2(b);
 insert into t2 values(9, 3, 1);
-ERROR 23000: Duplicate entry '' for key 0
+ERROR 23000: Duplicate entry '' for key '*UNKNOWN*'
 alter table t2 drop index bi;
 insert into t2 values(9, 3, 1);
 select * from t2 order by a;
