@@ -40,9 +40,6 @@ have disables the InnoDB inlining in this file. */
 #include <myisampack.h>
 #include <mysys_err.h>
 #include <my_sys.h>
-
-#define MAX_ULONG_BIT ((ulong) 1 << (sizeof(ulong)*8-1))
-
 #include "ha_innodb.h"
 
 pthread_mutex_t innobase_share_mutex,	/* to protect innobase_open_files */
