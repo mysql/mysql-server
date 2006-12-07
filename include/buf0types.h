@@ -32,5 +32,16 @@ enum buf_io_fix {
 	BUF_IO_WRITE			/**< write pending */
 };
 
+/* Parameters of binary buddy system for compressed pages (buf0buddy.h) */
+#if UNIV_WORD_SIZE <= 4 /* 32-bit system */
+# define BUF_BUDDY_LOW		64	/* minimum block size in the binary
+					buddy system; must be at least
+					sizeof(buf_page_t) */
+# define BUF_BUDDY_SIZES	8	/* number of buddy sizes */
+#else /* 64-bit system */
+# define BUF_BUDDY_LOW		128	/* sizeof(buf_page_t) > 64 */
+# define BUF_BUDDY_SIZES	7
+#endif
+
 #endif
 

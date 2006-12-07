@@ -261,7 +261,7 @@ buf_page_get_mutex(
 		break;
 	case BUF_BLOCK_ZIP_PAGE:
 	case BUF_BLOCK_ZIP_DIRTY:
-		return(NULL); /* TODO: return common mutex for page_zip */
+		return(&buf_pool->zip_mutex);
 	default:
 		return(&((buf_block_t*) bpage)->mutex);
 	}
