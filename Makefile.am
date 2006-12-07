@@ -40,6 +40,7 @@ SUBDIRS =		os ut btr buf data dict dyn eval fil fsp fut \
 EXTRA_DIST = 	include/btr0btr.h include/btr0btr.ic include/btr0cur.h include/btr0cur.ic \
 		include/btr0pcur.h include/btr0pcur.ic include/btr0sea.h include/btr0sea.ic \
 		include/btr0types.h \
+		include/buf0buddy.h include/buf0buddy.ic \
 		include/buf0buf.h include/buf0buf.ic include/buf0flu.h include/buf0flu.ic \
 		include/buf0lru.h include/buf0lru.ic include/buf0rea.h include/buf0types.h \
 		include/data0data.h include/data0data.ic include/data0type.h include/data0type.ic \

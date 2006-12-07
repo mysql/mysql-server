@@ -826,6 +826,8 @@ buf_pool_init(void)
 
 	mutex_enter(&(buf_pool->mutex));
 
+	mutex_create(&buf_pool->zip_mutex, SYNC_BUF_BLOCK);
+
 	buf_pool->n_chunks = 1;
 	buf_pool->chunks = chunk = mem_alloc(sizeof *chunk);
 
@@ -883,6 +885,14 @@ buf_pool_init(void)
 
 	btr_search_sys_create(buf_pool->curr_size
 			      * UNIV_PAGE_SIZE / sizeof(void*) / 64);
+
+	/* 4. Initialize the buddy allocator fields */
+
+	UT_LIST_INIT(buf_pool->zip_clean);
+
+	for (i = 0; i < BUF_BUDDY_SIZES; i++) {
+		UT_LIST_INIT(buf_pool->zip_free[i]);
+	}
 
 	return(buf_pool);
 }

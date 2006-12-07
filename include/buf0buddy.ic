@@ -1,0 +1,85 @@
+/******************************************************
+Binary buddy allocator for compressed pages
+
+(c) 2006 Innobase Oy
+
+Created December 2006 by Marko Makela
+*******************************************************/
+
+#ifdef UNIV_MATERIALIZE
+# undef UNIV_INLINE
+# define UNIV_INLINE
+#endif
+
+#include "buf0buddy.h"
+#include "ut0ut.h"
+
+/**************************************************************************
+Try to allocate a block from buf_pool->zip_free[]. */
+
+void*
+buf_buddy_alloc_free_low(
+/*=====================*/
+			/* out: allocated block, or NULL
+			if buf_pool->zip_free[] was empty */
+	ulint	i)	/* in: index of buf_pool->zip_free[] */
+	__attribute__((malloc));
+
+/**************************************************************************
+Get the offset of the buddy of a compressed page frame. */
+UNIV_INLINE
+lint
+buf_buddy_get_offset(
+/*=================*/
+				/* out: offset of the buddy relative to page */
+	const void*	page,	/* in: compressed page */
+	ulint		size)	/* in: page size in bytes */
+{
+	ut_ad(ut_is_2pow(size));
+	ut_ad(size >= BUF_BUDDY_LOW);
+	ut_ad(size < BUF_BUDDY_LOW << BUF_BUDDY_SIZES);
+
+	if (((ulint) page) & size) {
+		return(-(lint) size);
+	} else {
+		return((lint) size);
+	}
+}
+
+/**************************************************************************
+Get the index of buf_pool->zip_free[] for a given block size. */
+UNIV_INLINE
+ulint
+buf_buddy_get_slot(
+/*===============*/
+			/* out: index of buf_pool->zip_free[] */
+	ulint	size)	/* in: block size */
+{
+	ulint	i;
+	ulint	s;
+
+	for (i = 0, s = BUF_BUDDY_LOW; s < size; i++, s <<= 1);
+
+	ut_ad(i < BUF_BUDDY_SIZES);
+	return(i);
+}
+
+/**************************************************************************
+Try to allocate a block from buf_pool->zip_free[]. */
+UNIV_INLINE
+void*
+buf_buddy_alloc_free(
+/*=================*/
+	ulint	size)	/* in: block size, up to UNIV_PAGE_SIZE / 2 */
+{
+#ifdef UNIV_SYNC_DEBUG
+	ut_a(mutex_own(&buf_pool->mutex));
+#endif /* UNIV_SYNC_DEBUG */
+
+	return(buf_buddy_alloc_free_low(buf_buddy_get_slot(size)));
+}
+
+#ifdef UNIV_MATERIALIZE
+# undef UNIV_INLINE
+# define UNIV_INLINE	UNIV_INLINE_ORIGINAL
+#endif
