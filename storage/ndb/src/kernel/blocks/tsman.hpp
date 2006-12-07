@@ -63,6 +63,7 @@ protected:
 
   void execALLOC_PAGE_REQ(Signal* signal);
 
+  void execLCP_FRAG_ORD(Signal*);
   void execEND_LCP_REQ(Signal*);
   void end_lcp(Signal*, Uint32 tablespace, Uint32 list, Uint32 file);
 
@@ -108,6 +109,7 @@ public:
 	Uint32 m_offset_data_pages;    // 1(zero) + extent header pages
 	Uint32 m_data_pages;
 	Uint32 m_used_extent_cnt;
+	Uint32 m_extent_headers_per_extent_page;
       } m_online;
       struct {
 	Uint32 m_senderData;
@@ -196,6 +198,7 @@ private:
   Datafile_pool m_file_pool;
   Tablespace_pool m_tablespace_pool;
   
+  bool m_lcp_ongoing;
   Datafile_hash m_file_hash;
   Tablespace_list m_tablespace_list;
   Tablespace_hash m_tablespace_hash;
@@ -226,15 +229,52 @@ private:
 
   void release_extent_pages(Signal* signal, Ptr<Datafile> ptr);
   void release_extent_pages_callback(Signal*, Uint32, Uint32);
+
+  struct req
+  {
+    Uint32 m_extent_pages;
+    Uint32 m_extent_size;
+    Uint32 m_extent_no;      // on extent page
+    Uint32 m_extent_page_no;
+  };
+  
+  struct req lookup_extent(Uint32 page_no, const Datafile*) const;
+  Uint32 calc_page_no_in_extent(Uint32 page_no, const struct req* val) const;
 };
+
+inline
+Tsman::req
+Tsman::lookup_extent(Uint32 page_no, const Datafile * filePtrP) const
+{
+  struct req val;
+  val.m_extent_size = filePtrP->m_extent_size;
+  val.m_extent_pages = filePtrP->m_online.m_offset_data_pages;
+  Uint32 per_page = filePtrP->m_online.m_extent_headers_per_extent_page;
+  
+  Uint32 extent = 
+    (page_no - val.m_extent_pages) / val.m_extent_size + per_page;
+  
+  val.m_extent_page_no = extent / per_page;
+  val.m_extent_no = extent % per_page;
+  return val;
+}
+
+inline
+Uint32 
+Tsman::calc_page_no_in_extent(Uint32 page_no, const Tsman::req* val) const
+{
+  return (page_no - val->m_extent_pages) % val->m_extent_size;
+}
 
 class Tablespace_client
 {
+public:
   Tsman * m_tsman;
   Signal* m_signal;
   Uint32 m_table_id;
   Uint32 m_fragment_id;
   Uint32 m_tablespace_id;
+
 public:
   Tablespace_client(Signal* signal, Tsman* tsman, 
 		    Uint32 table, Uint32 fragment, Uint32 tablespaceId) {
@@ -244,6 +284,8 @@ public:
     m_fragment_id= fragment;
     m_tablespace_id= tablespaceId;
   }
+
+  Tablespace_client(Signal* signal, Tsman* tsman, Local_key* key);
   
   /**
    * Return >0 if success, no of pages in extent, sets key
@@ -274,7 +316,7 @@ public:
   /**
    * Free extent
    */
-  int free_extent(Local_key* key);
+  int free_extent(Local_key* key, Uint64 lsn);
   
   /**
    * Update page free bits
@@ -307,6 +349,11 @@ public:
    *        <0 - on error
    */
   int get_tablespace_info(CreateFilegroupImplReq* rep);
+
+  /**
+   * Update lsn of page corresponing to key
+   */
+  int update_lsn(Local_key* key, Uint64 lsn);
 };
 
 #include <signaldata/Extent.hpp>
@@ -351,12 +398,14 @@ Tablespace_client::alloc_page_from_extent(Local_key* key, Uint32 bits)
 
 inline
 int
-Tablespace_client::free_extent(Local_key* key)
+Tablespace_client::free_extent(Local_key* key, Uint64 lsn)
 {
   FreeExtentReq* req = (FreeExtentReq*)m_signal->theData;
   req->request.key = *key;
   req->request.table_id = m_table_id;
   req->request.tablespace_id = m_tablespace_id;
+  req->request.lsn_hi = (Uint32)(lsn >> 32);
+  req->request.lsn_lo = (Uint32)(lsn & 0xFFFFFFFF);
   m_tsman->execFREE_EXTENT_REQ(m_signal);
   
   if(req->reply.errorCode == 0){
@@ -406,6 +455,5 @@ Tablespace_client::restart_undo_page_free_bits(Local_key* key,
 					      lsn,
 					      page_lsn);
 }
-
 
 #endif
