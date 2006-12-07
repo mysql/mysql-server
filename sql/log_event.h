@@ -1689,8 +1689,6 @@ public:
 #endif
 char *str_to_hex(char *to, const char *from, uint len);
 
-#ifdef HAVE_ROW_BASED_REPLICATION
-
 /*****************************************************************************
 
   Table map log event class
@@ -2019,7 +2017,7 @@ public:
   Write_rows_log_event(const char *buf, uint event_len, 
                        const Format_description_log_event *description_event);
 #endif
-#if !defined(MYSQL_CLIENT) && defined(HAVE_ROW_BASED_REPLICATION)
+#if !defined(MYSQL_CLIENT) 
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
                                           bool is_transactional,
                                           MY_BITMAP *cols,
@@ -2084,7 +2082,7 @@ public:
 			const Format_description_log_event *description_event);
 #endif
 
-#if !defined(MYSQL_CLIENT) && defined(HAVE_ROW_BASED_REPLICATION)
+#if !defined(MYSQL_CLIENT) 
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
                                           bool is_transactional,
                                           MY_BITMAP *cols,
@@ -2154,7 +2152,7 @@ public:
   Delete_rows_log_event(const char *buf, uint event_len, 
 			const Format_description_log_event *description_event);
 #endif
-#if !defined(MYSQL_CLIENT) && defined(HAVE_ROW_BASED_REPLICATION)
+#if !defined(MYSQL_CLIENT) 
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
                                           bool is_transactional,
                                           MY_BITMAP *cols,
@@ -2187,7 +2185,5 @@ private:
   virtual int do_exec_row(TABLE *table);
 #endif
 };
-
-#endif /* HAVE_ROW_BASED_REPLICATION */
 
 #endif /* _log_event_h */

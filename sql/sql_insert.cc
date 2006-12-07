@@ -2279,7 +2279,6 @@ bool delayed_insert::handle_inserts(void)
   thd.proc_info=0;
   pthread_mutex_unlock(&mutex);
 
-#ifdef HAVE_ROW_BASED_REPLICATION
   /*
     We need to flush the pending event when using row-based
     replication since the flushing normally done in binlog_query() is
@@ -2294,7 +2293,6 @@ bool delayed_insert::handle_inserts(void)
    */
   if (thd.current_stmt_binlog_row_based)
     thd.binlog_flush_pending_rows_event(TRUE);
-#endif /* HAVE_ROW_BASED_REPLICATION */
 
   if ((error=table->file->extra(HA_EXTRA_NO_CACHE)))
   {						// This shouldn't happen
@@ -2948,7 +2946,6 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   DBUG_ENTER("select_create::prepare");
 
   TABLEOP_HOOKS *hook_ptr= NULL;
-#ifdef HAVE_ROW_BASED_REPLICATION
   class MY_HOOKS : public TABLEOP_HOOKS {
   public:
     MY_HOOKS(select_create *x) : ptr(x) { }
@@ -2970,11 +2967,9 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   MY_HOOKS hooks(this);
   hook_ptr= &hooks;
-#endif
 
   unit= u;
 
-#ifdef HAVE_ROW_BASED_REPLICATION
   /*
     Start a statement transaction before the create if we are creating
     a non-temporary table and are using row-based replication for the
@@ -2985,7 +2980,6 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   {
     thd->binlog_start_trans_and_stmt();
   }
-#endif
 
   if (!(table= create_table_from_items(thd, create_info, create_table,
                                        extra_fields, keys, &values,
@@ -3029,8 +3023,6 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   DBUG_RETURN(0);
 }
 
-
-#ifdef HAVE_ROW_BASED_REPLICATION
 void
 select_create::binlog_show_create_table(TABLE **tables, uint count)
 {
@@ -3071,7 +3063,6 @@ select_create::binlog_show_create_table(TABLE **tables, uint count)
                     /* is_trans */ TRUE,
                     /* suppress_use */ FALSE);
 }
-#endif // HAVE_ROW_BASED_REPLICATION
 
 void select_create::store_values(List<Item> &values)
 {
