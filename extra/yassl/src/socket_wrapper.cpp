@@ -63,7 +63,7 @@ namespace yaSSL {
 
 
 Socket::Socket(socket_t s) 
-    : socket_(s), wouldBlock_(false), blocking_(false)
+    : socket_(s), wouldBlock_(false), nonBlocking_(false)
 {}
 
 
@@ -148,8 +148,8 @@ uint Socket::receive(byte* buf, unsigned int sz, int flags)
     if (recvd == -1) {
         if (get_lastError() == SOCKET_EWOULDBLOCK || 
             get_lastError() == SOCKET_EAGAIN) {
-            wouldBlock_ = true;
-            blocking_   = true; // socket can block, only way to tell for win32
+            wouldBlock_  = true; // would have blocked this time only
+            nonBlocking_ = true; // socket nonblocking, win32 only way to tell
         return 0;
     }
     }
@@ -191,9 +191,9 @@ bool Socket::WouldBlock() const
 }
 
 
-bool Socket::IsBlocking() const
+bool Socket::IsNonBlocking() const
 {
-    return blocking_;
+    return nonBlocking_;
 }
 
 

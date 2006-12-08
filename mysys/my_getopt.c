@@ -59,13 +59,18 @@ char *disabled_my_option= (char*) "0";
 
 my_bool my_getopt_print_errors= 1;
 
-static void default_reporter(enum loglevel level __attribute__((unused)),
+static void default_reporter(enum loglevel level,
                              const char *format, ...)
 {
   va_list args;
   va_start(args, format);
+  if (level == WARNING_LEVEL)
+    fprintf(stderr, "%s", "Warning: ");
+  else if (level == INFORMATION_LEVEL)
+    fprintf(stderr, "%s", "Info: ");
   vfprintf(stderr, format, args);
   va_end(args);
+  fflush(stderr);
 }
 
 /* 

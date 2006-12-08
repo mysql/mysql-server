@@ -541,6 +541,127 @@ create table t1 ( a timestamp );
 alter table t1 add unique ( a(1) );
 ERROR HY000: Incorrect sub part key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique sub keys
 drop table t1;
+drop table if exists t1;
+create table t1 (a int, key(a));
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+"this used not to disable the index"
+alter table t1 modify a int, disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled
+alter table t1 enable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+alter table t1 modify a bigint, disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled
+alter table t1 enable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+alter table t1 add b char(10), disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled
+alter table t1 add c decimal(10,2), enable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+"this however did"
+alter table t1 disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	bigint(20)	YES	MUL	NULL	
+b	char(10)	YES		NULL	
+c	decimal(10,2)	YES		NULL	
+alter table t1 add d decimal(15,5);
+"The key should still be disabled"
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled
+drop table t1;
+"Now will test with one unique index"
+create table t1(a int, b char(10), unique(a));
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+alter table t1 disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+alter table t1 enable keys;
+"If no copy on noop change, this won't touch the data file"
+"Unique index, no change"
+alter table t1 modify a int, disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+"Change the type implying data copy"
+"Unique index, no change"
+alter table t1 modify a bigint, disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+alter table t1 modify a bigint;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+alter table t1 modify a int;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+drop table t1;
+"Now will test with one unique and one non-unique index"
+create table t1(a int, b char(10), unique(a), key(b));
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	
+alter table t1 disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled
+alter table t1 enable keys;
+"If no copy on noop change, this won't touch the data file"
+"The non-unique index will be disabled"
+alter table t1 modify a int, disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled
+alter table t1 enable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	
+"Change the type implying data copy"
+"The non-unique index will be disabled"
+alter table t1 modify a bigint, disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled
+"Change again the type, but leave the indexes as_is"
+alter table t1 modify a int;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled
+"Try the same. When data is no copied on similar tables, this is noop"
+alter table t1 modify a int;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled
+drop table t1;
 create database mysqltest;
 create table t1 (c1 int);
 alter table t1 rename mysqltest.t1;
@@ -556,6 +677,17 @@ ERROR 3D000: No database selected
 alter table test.t1 rename test.t1;
 use test;
 drop table t1;
+DROP TABLE IF EXISTS bug24219;
+DROP TABLE IF EXISTS bug24219_2;
+CREATE TABLE bug24219 (a INT, INDEX(a));
+SHOW INDEX FROM bug24219;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+bug24219	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+ALTER TABLE bug24219 RENAME TO bug24219_2, DISABLE KEYS;
+SHOW INDEX FROM bug24219_2;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+bug24219_2	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled
+DROP TABLE bug24219_2;
 create table t1 (mycol int(10) not null);
 alter table t1 alter column mycol set default 0;
 desc t1;
@@ -722,3 +854,45 @@ Table	Create Table
   `c1` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE `#sql2`, `@0023sql1`;
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t1 (
+int_field INTEGER UNSIGNED NOT NULL,
+char_field CHAR(10),
+INDEX(`int_field`)
+);
+DESCRIBE t1;
+Field	Type	Null	Key	Default	Extra
+int_field	int(10) unsigned	NO	MUL		
+char_field	char(10)	YES		NULL	
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	int_field	1	int_field	A	NULL	NULL	NULL		BTREE	
+INSERT INTO t1 VALUES (1, "edno"), (1, "edno"), (2, "dve"), (3, "tri"), (5, "pet");
+"Non-copy data change - new frm, but old data and index files"
+ALTER TABLE t1
+CHANGE int_field unsigned_int_field INTEGER UNSIGNED NOT NULL,
+RENAME t2;
+SELECT * FROM t1 ORDER BY int_field;
+ERROR 42S02: Table 'test.t1' doesn't exist
+SELECT * FROM t2 ORDER BY unsigned_int_field;
+unsigned_int_field	char_field
+1	edno
+1	edno
+2	dve
+3	tri
+5	pet
+DESCRIBE t2;
+Field	Type	Null	Key	Default	Extra
+unsigned_int_field	int(10) unsigned	NO	MUL		
+char_field	char(10)	YES		NULL	
+DESCRIBE t2;
+Field	Type	Null	Key	Default	Extra
+unsigned_int_field	int(10) unsigned	NO	MUL		
+char_field	char(10)	YES		NULL	
+ALTER TABLE t2 MODIFY unsigned_int_field BIGINT UNSIGNED NOT NULL;
+DESCRIBE t2;
+Field	Type	Null	Key	Default	Extra
+unsigned_int_field	bigint(20) unsigned	NO	MUL		
+char_field	char(10)	YES		NULL	
+DROP TABLE t2;

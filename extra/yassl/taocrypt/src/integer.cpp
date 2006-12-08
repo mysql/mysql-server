@@ -55,12 +55,15 @@ extern "C" word myUMULH(word, word);
 #pragma intrinsic (myUMULH)
 #endif
 
+#ifdef __GNUC__
+    #include <signal.h>
+    #include <setjmp.h>
+#endif
+
 
 #ifdef SSE2_INTRINSICS_AVAILABLE
     #ifdef __GNUC__
         #include <xmmintrin.h>
-        #include <signal.h>
-        #include <setjmp.h>
         #ifdef TAOCRYPT_MEMALIGN_AVAILABLE
             #include <malloc.h>
         #else
@@ -1015,44 +1018,20 @@ void Portable::Multiply8Bottom(word *R, const word *A, const word *B)
 
 // ************** x86 feature detection ***************
 
-static bool s_sse2Enabled = true;
-
-static void CpuId(word32 input, word32 *output)
-{
-#ifdef __GNUC__
-    __asm__
-    (
-        // save ebx in case -fPIC is being used
-        "push %%ebx; cpuid; mov %%ebx, %%edi; pop %%ebx"
-        : "=a" (output[0]), "=D" (output[1]), "=c" (output[2]), "=d"(output[3])
-        : "a" (input)
-    );
-#else
-    __asm
-    {
-        mov eax, input
-        cpuid
-        mov edi, output
-        mov [edi], eax
-        mov [edi+4], ebx
-        mov [edi+8], ecx
-        mov [edi+12], edx
-    }
-#endif
-}
 
 #ifdef SSE2_INTRINSICS_AVAILABLE
+
 #ifndef _MSC_VER
-static jmp_buf s_env;
-static void SigIllHandler(int)
-{
+    static jmp_buf s_env;
+    static void SigIllHandler(int)
+    {
     longjmp(s_env, 1);
-}
+    }
 #endif
 
 static bool HasSSE2()
 {
-    if (!s_sse2Enabled)
+    if (!IsPentium())
         return false;
 
     word32 cpuid[4];
@@ -1081,22 +1060,21 @@ static bool HasSSE2()
     if (setjmp(s_env))
         result = false;
     else
-        __asm __volatile ("xorps %xmm0, %xmm0");
+        __asm __volatile ("xorpd %xmm0, %xmm0");
 
     signal(SIGILL, oldHandler);
     return result;
 #endif
 }
-#endif
+#endif // SSE2_INTRINSICS_AVAILABLE
+
 
 static bool IsP4()
 {
-    word32 cpuid[4];
-
-    CpuId(0, cpuid);
-    STL::swap(cpuid[2], cpuid[3]);
-    if (memcmp(cpuid+1, "GenuineIntel", 12) != 0)
+    if (!IsPentium())
         return false;
+
+    word32 cpuid[4];
 
     CpuId(1, cpuid);
     return ((cpuid[0] >> 8) & 0xf) == 0xf;
@@ -1147,7 +1125,12 @@ static PMul s_pMul4, s_pMul8, s_pMul8B;
 
 static void SetPentiumFunctionPointers()
 {
-    if (IsP4())
+    if (!IsPentium())
+    {   
+        s_pAdd = &Portable::Add;
+        s_pSub = &Portable::Subtract;
+    }
+    else if (IsP4())
     {
         s_pAdd = &P4Optimized::Add;
         s_pSub = &P4Optimized::Subtract;
@@ -1159,7 +1142,13 @@ static void SetPentiumFunctionPointers()
     }
 
 #ifdef SSE2_INTRINSICS_AVAILABLE
-    if (HasSSE2())
+    if (!IsPentium()) 
+    {
+        s_pMul4 = &Portable::Multiply4;
+        s_pMul8 = &Portable::Multiply8;
+        s_pMul8B = &Portable::Multiply8Bottom;
+    }
+    else if (HasSSE2())
     {
         s_pMul4 = &P4Optimized::Multiply4;
         s_pMul8 = &P4Optimized::Multiply8;
@@ -1177,11 +1166,6 @@ static void SetPentiumFunctionPointers()
 static const char s_RunAtStartupSetPentiumFunctionPointers =
     (SetPentiumFunctionPointers(), 0);
 
-void DisableSSE2()
-{
-    s_sse2Enabled = false;
-    SetPentiumFunctionPointers();
-}
 
 class LowLevel : public PentiumOptimized
 {
@@ -3984,6 +3968,9 @@ Integer CRT(const Integer &xp, const Integer &p, const Integer &xq,
 template hword DivideThreeWordsByTwo<hword, Word>(hword*, hword, hword, Word*);
 #endif
 template word DivideThreeWordsByTwo<word, DWord>(word*, word, word, DWord*);
+#ifdef SSE2_INTRINSICS_AVAILABLE
+template class AlignedAllocator<word>;
+#endif
 #endif
 
 

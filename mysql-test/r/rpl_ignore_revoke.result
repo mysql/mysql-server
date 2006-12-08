@@ -27,3 +27,4 @@ select_priv
 Y
 revoke select on *.* FROM 'user_foo';
 delete from mysql.user where user="user_foo";
+delete from mysql.user where user="user_foo";

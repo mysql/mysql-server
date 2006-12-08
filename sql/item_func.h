@@ -1315,10 +1315,10 @@ public:
 class Item_func_inet_aton : public Item_int_func
 {
 public:
-   Item_func_inet_aton(Item *a) :Item_int_func(a) {}
-   longlong val_int();
-   const char *func_name() const { return "inet_aton"; }
-   void fix_length_and_dec() { decimals = 0; max_length = 21; maybe_null=1;}
+  Item_func_inet_aton(Item *a) :Item_int_func(a) {}
+  longlong val_int();
+  const char *func_name() const { return "inet_aton"; }
+  void fix_length_and_dec() { decimals= 0; max_length= 21; maybe_null= 1; unsigned_flag= 1;}
   bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
