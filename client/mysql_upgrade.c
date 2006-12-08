@@ -142,6 +142,7 @@ void set_extra_default(int id, const struct my_option *opt)
   case 'f':             /* --force is ours */
   case 'u':             /* --user passed on cmdline */
   case 'T':             /* --debug-info is not accepted by mysqlcheck */
+  case 'p':             /* --password may change yet */
     /* so, do nothing */
     break;
   default:
@@ -173,7 +174,7 @@ void set_extra_default(int id, const struct my_option *opt)
       d->id= id;
       d->name= opt->name;
       d->n_len= strlen(opt->name);
-      if (opt->arg_type != NO_ARG)
+      if (opt->arg_type != NO_ARG && opt->value)
         switch (opt->var_type & GET_TYPE_MASK) {
         case GET_BOOL:
           if (*((int *)opt->value))
@@ -319,6 +320,15 @@ static int create_defaults_file(const char *path, const char *forced_path)
   }
   
   dynstr_set(&buf, "\n[client]");
+  if (opt_password) 
+  {
+    if (dynstr_append_mem(&buf, "\npassword=", 10)
+       || dynstr_append_mem(&buf, opt_password, strlen(opt_password)))
+    {
+      ret = 1;
+      goto error;
+    }
+  }
   while (extra_defaults) 
   {
     int len;
