@@ -1160,14 +1160,15 @@ Lgman::process_log_sync_waiters(Signal* signal, Ptr<Logfile_group> ptr)
   bool removed= false;
   Ptr<Log_waiter> waiter;
   list.first(waiter);
+  Uint32 logfile_group_id = ptr.p->m_logfile_group_id;
 
   if(waiter.p->m_sync_lsn <= ptr.p->m_last_synced_lsn)
   {
     removed= true;
     Uint32 block = waiter.p->m_block;
     SimulatedBlock* b = globalData.getBlock(block);
-    b->execute(signal, waiter.p->m_callback, 0);
-
+    b->execute(signal, waiter.p->m_callback, logfile_group_id);
+    
     list.releaseFirst(waiter);
   }
   
@@ -1522,12 +1523,13 @@ Lgman::process_log_buffer_waiters(Signal* signal, Ptr<Logfile_group> ptr)
   bool removed= false;
   Ptr<Log_waiter> waiter;
   list.first(waiter);
+  Uint32 logfile_group_id = ptr.p->m_logfile_group_id;
   if(waiter.p->m_size + 2*File_formats::UNDO_PAGE_WORDS < free_buffer)
   {
     removed= true;
     Uint32 block = waiter.p->m_block;
     SimulatedBlock* b = globalData.getBlock(block);
-    b->execute(signal, waiter.p->m_callback, 0);
+    b->execute(signal, waiter.p->m_callback, logfile_group_id);
 
     list.releaseFirst(waiter);
   }
@@ -2061,6 +2063,7 @@ Lgman::execSTART_RECREQ(Signal* signal)
   if(ptr.i != RNIL)
   {
     infoEvent("Applying undo to LCP: %d", m_latest_lcp);
+    ndbout_c("Applying undo to LCP: %d", m_latest_lcp);
     find_log_head(signal, ptr);
     return;
   }
@@ -2680,13 +2683,14 @@ Lgman::execute_undo_record(Signal* signal)
     case File_formats::Undofile::UNDO_LCP_FIRST:
     {
       Uint32 lcp = * (ptr - len + 1);
-      if(lcp > m_latest_lcp)
+      if(m_latest_lcp && lcp > m_latest_lcp)
       {
 	// Just ignore
 	break;
       }
 
-      if(lcp < m_latest_lcp || 
+      if(m_latest_lcp == 0 || 
+	 lcp < m_latest_lcp || 
 	 (lcp == m_latest_lcp && 
 	  mask == File_formats::Undofile::UNDO_LCP_FIRST))
       {
@@ -2699,6 +2703,9 @@ Lgman::execute_undo_record(Signal* signal)
     case File_formats::Undofile::UNDO_TUP_UPDATE:
     case File_formats::Undofile::UNDO_TUP_FREE:
     case File_formats::Undofile::UNDO_TUP_CREATE:
+    case File_formats::Undofile::UNDO_TUP_DROP:
+    case File_formats::Undofile::UNDO_TUP_ALLOC_EXTENT:
+    case File_formats::Undofile::UNDO_TUP_FREE_EXTENT:
       tup->disk_restart_undo(signal, lsn, mask, ptr - len + 1, len);
       return;
     default:

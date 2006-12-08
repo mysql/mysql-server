@@ -309,6 +309,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
     
     if(lastAttr)
     {
+      jam();
       /**
        * Init Disk_alloc_info
        */
@@ -319,6 +320,11 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
 				regFragPtr.p->m_tablespace_id);
 	ndbrequire(tsman.get_tablespace_info(&rep) == 0);
 	regFragPtr.p->m_logfile_group_id= rep.tablespace.logfile_group_id;
+      }
+      else
+      {
+	jam();
+	regFragPtr.p->m_logfile_group_id = RNIL;
       }
       new (&regFragPtr.p->m_disk_alloc_info)
 	Disk_alloc_info(regTabPtr.p, rep.tablespace.extent_size);
@@ -564,7 +570,12 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
 			    regFragPtr.p->m_tablespace_id);
     ndbrequire(tsman.get_tablespace_info(&rep) == 0);
     regFragPtr.p->m_logfile_group_id= rep.tablespace.logfile_group_id;
-  }    
+  }
+  else
+  {
+    jam();
+    regFragPtr.p->m_logfile_group_id = RNIL;
+  }
 
   new (&regFragPtr.p->m_disk_alloc_info)
     Disk_alloc_info(regTabPtr.p, rep.tablespace.extent_size); 
@@ -597,7 +608,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
 	ndbrequire("NOT YET IMPLEMENTED" == 0);
 	break;
       }
-      execute(signal, cb, 0);
+      execute(signal, cb, regFragPtr.p->m_logfile_group_id);
       return;
     }
   }
@@ -874,7 +885,8 @@ Dbtup::execDROP_TAB_REQ(Signal* signal)
 
   signal->theData[0]= ZREL_FRAG;
   signal->theData[1]= tabPtr.i;
-  sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
+  signal->theData[2]= RNIL;
+  sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
 }
 
 void Dbtup::releaseTabDescr(Tablerec* const regTabPtr) 
@@ -902,7 +914,8 @@ void Dbtup::releaseTabDescr(Tablerec* const regTabPtr)
   }
 }
 
-void Dbtup::releaseFragment(Signal* signal, Uint32 tableId)
+void Dbtup::releaseFragment(Signal* signal, Uint32 tableId, 
+			    Uint32 logfile_group_id)
 {
   TablerecPtr tabPtr;
   tabPtr.i= tableId;
@@ -929,16 +942,35 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId)
     sendSignal(cownref, GSN_CONTINUEB, signal, 4, JBB);  
     return;
   }
+
+#if NOT_YET_UNDO_DROP_TABLE
+#error "This code is complete, but I prefer not to enable it until I need it"
+  if (logfile_group_id != RNIL)
+  {
+    Callback cb;
+    cb.m_callbackData= tabPtr.i;
+    cb.m_callbackFunction = 
+      safe_cast(&Dbtup::drop_table_log_buffer_callback);
+    Uint32 sz= sizeof(Disk_undo::Drop) >> 2;
+    int r0 = c_lgman->alloc_log_space(logfile_group_id, sz);
+    
+    Logfile_client lgman(this, c_lgman, logfile_group_id);
+    int res= lgman.get_log_buffer(signal, sz, &cb);
+    switch(res){
+    case 0:
+      ljam();
+      return;
+    case -1:
+      ndbrequire("NOT YET IMPLEMENTED" == 0);
+      break;
+    default:
+      execute(signal, cb, logfile_group_id);
+      return;
+    }
+  }
+#endif
   
-  DropTabConf * const dropConf= (DropTabConf *)signal->getDataPtrSend();
-  dropConf->senderRef= reference();
-  dropConf->senderData= tabPtr.p->m_dropTable.tabUserPtr;
-  dropConf->tableId= tabPtr.i;
-  sendSignal(tabPtr.p->m_dropTable.tabUserRef, GSN_DROP_TAB_CONF,
-             signal, DropTabConf::SignalLength, JBB);
-  
-  releaseTabDescr(tabPtr.p);
-  initTab(tabPtr.p);
+  drop_table_logsync_callback(signal, tabPtr.i, RNIL);
 }
 
 void
@@ -965,7 +997,7 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
 	alloc_info.m_curr_extent_info_ptr_i= RNIL;
       }
       
-      drop_fragment_free_exent(signal, tabPtr, fragPtr, 0);
+      drop_fragment_free_extent(signal, tabPtr, fragPtr, 0);
       return;
     }
     
@@ -998,7 +1030,7 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
     }
     return;
   }
-  drop_fragment_free_exent(signal, tabPtr, fragPtr, 0);  
+  drop_fragment_free_extent(signal, tabPtr, fragPtr, 0);  
 }
 
 void
@@ -1031,10 +1063,10 @@ Dbtup::drop_fragment_unmap_page_callback(Signal* signal,
 }
 
 void
-Dbtup::drop_fragment_free_exent(Signal *signal, 
-				TablerecPtr tabPtr, 
-				FragrecordPtr fragPtr,
-				Uint32 pos)
+Dbtup::drop_fragment_free_extent(Signal *signal, 
+				 TablerecPtr tabPtr, 
+				 FragrecordPtr fragPtr,
+				 Uint32 pos)
 {
   if (tabPtr.p->m_no_of_disk_attributes)
   {
@@ -1044,25 +1076,32 @@ Dbtup::drop_fragment_free_exent(Signal *signal,
       if(!alloc_info.m_free_extents[pos].isEmpty())
       {
 	jam();
-	Local_extent_info_list
-	  list(c_extent_pool, alloc_info.m_free_extents[pos]);
-	Ptr<Extent_info> ext_ptr;
-	list.first(ext_ptr);
+	Callback cb;
+	cb.m_callbackData= fragPtr.i;
+	cb.m_callbackFunction = 
+	  safe_cast(&Dbtup::drop_fragment_free_extent_log_buffer_callback);
+#if NOT_YET_UNDO_FREE_EXTENT
+	Uint32 sz= sizeof(Disk_undo::FreeExtent) >> 2;
+	int r0 = c_lgman->alloc_log_space(fragPtr.p->m_logfile_group_id, sz);
 	
-	Tablespace_client tsman(signal, c_tsman, tabPtr.i, 
-				fragPtr.p->fragmentId,
-				fragPtr.p->m_tablespace_id);
+	Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
 	
-	tsman.free_extent(&ext_ptr.p->m_key);
-	c_extent_hash.remove(ext_ptr);
-	list.release(ext_ptr);
-	
-	signal->theData[0] = ZFREE_EXTENT;
-	signal->theData[1] = tabPtr.i;
-	signal->theData[2] = fragPtr.i;
-	signal->theData[3] = pos;
-	sendSignal(cownref, GSN_CONTINUEB, signal, 4, JBB);  
+	int res= lgman.get_log_buffer(signal, sz, &cb);
+	switch(res){
+	case 0:
+	  ljam();
+	  return;
+	case -1:
+	  ndbrequire("NOT YET IMPLEMENTED" == 0);
+	  break;
+	default:
+	  execute(signal, cb, fragPtr.p->m_logfile_group_id);
+	  return;
+	}
+#else
+	execute(signal, cb, fragPtr.p->m_logfile_group_id);	
 	return;
+#endif
       }
     }
     
@@ -1079,6 +1118,123 @@ Dbtup::drop_fragment_free_exent(Signal *signal,
   signal->theData[1] = tabPtr.i;
   signal->theData[2] = fragPtr.i;
   sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);  
+}
+
+void
+Dbtup::drop_table_log_buffer_callback(Signal* signal, Uint32 tablePtrI,
+				      Uint32 logfile_group_id)
+{
+  TablerecPtr tabPtr;
+  tabPtr.i = tablePtrI;
+  ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
+  
+  ndbrequire(tabPtr.p->m_no_of_disk_attributes);
+
+  Disk_undo::Drop drop;
+  drop.m_table = tabPtr.i;
+  drop.m_type_length = 
+    (Disk_undo::UNDO_DROP << 16) | (sizeof(drop) >> 2);
+  Logfile_client lgman(this, c_lgman, logfile_group_id);
+  
+  Logfile_client::Change c[1] = {{ &drop, sizeof(drop) >> 2 } };
+  Uint64 lsn = lgman.add_entry(c, 1);
+
+  Logfile_client::Request req;
+  req.m_callback.m_callbackData= tablePtrI;
+  req.m_callback.m_callbackFunction = 
+    safe_cast(&Dbtup::drop_table_logsync_callback);
+  
+  int ret = lgman.sync_lsn(signal, lsn, &req, 0);
+  switch(ret){
+  case 0:
+    return;
+  default:
+    ndbout_c("ret: %d", ret);
+    ndbrequire(false);
+  }
+}
+
+void
+Dbtup::drop_table_logsync_callback(Signal* signal, 
+				   Uint32 tabPtrI, 
+				   Uint32 logfile_group_id)
+{
+  TablerecPtr tabPtr;
+  tabPtr.i = tabPtrI;
+  ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
+  
+  DropTabConf * const dropConf= (DropTabConf *)signal->getDataPtrSend();
+  dropConf->senderRef= reference();
+  dropConf->senderData= tabPtr.p->m_dropTable.tabUserPtr;
+  dropConf->tableId= tabPtr.i;
+  sendSignal(tabPtr.p->m_dropTable.tabUserRef, GSN_DROP_TAB_CONF,
+             signal, DropTabConf::SignalLength, JBB);
+  
+  releaseTabDescr(tabPtr.p);
+  initTab(tabPtr.p);
+}
+
+void
+Dbtup::drop_fragment_free_extent_log_buffer_callback(Signal* signal,
+						     Uint32 fragPtrI,
+						     Uint32 unused)
+{
+  FragrecordPtr fragPtr;
+  fragPtr.i = fragPtrI;
+  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+
+  TablerecPtr tabPtr;
+  tabPtr.i = fragPtr.p->fragTableId;
+  ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
+
+  ndbrequire(tabPtr.p->m_no_of_disk_attributes);
+  Disk_alloc_info& alloc_info= fragPtr.p->m_disk_alloc_info;  
+
+  for(Uint32 pos = 0; pos<EXTENT_SEARCH_MATRIX_SIZE; pos++)
+  {
+    if(!alloc_info.m_free_extents[pos].isEmpty())
+    {
+      jam();
+      Local_extent_info_list
+	list(c_extent_pool, alloc_info.m_free_extents[pos]);
+      Ptr<Extent_info> ext_ptr;
+      list.first(ext_ptr);
+
+#if NOT_YET_UNDO_FREE_EXTENT
+#error "This code is complete"
+#error "but not needed until we do dealloc of empty extents"
+      Disk_undo::FreeExtent free;
+      free.m_table = tabPtr.i;
+      free.m_fragment = fragPtr.p->fragmentId;
+      free.m_file_no = ext_ptr.p->m_key.m_file_no;
+      free.m_page_no = ext_ptr.p->m_key.m_page_no;
+      free.m_type_length = 
+	(Disk_undo::UNDO_FREE_EXTENT << 16) | (sizeof(free) >> 2);
+      Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
+      
+      Logfile_client::Change c[1] = {{ &free, sizeof(free) >> 2 } };
+      Uint64 lsn = lgman.add_entry(c, 1);
+#else
+      Uint64 lsn = 0;
+#endif
+      
+      Tablespace_client tsman(signal, c_tsman, tabPtr.i, 
+			      fragPtr.p->fragmentId,
+			      fragPtr.p->m_tablespace_id);
+      
+      tsman.free_extent(&ext_ptr.p->m_key, lsn);
+      c_extent_hash.remove(ext_ptr);
+      list.release(ext_ptr);
+      
+      signal->theData[0] = ZFREE_EXTENT;
+      signal->theData[1] = tabPtr.i;
+      signal->theData[2] = fragPtr.i;
+      signal->theData[3] = pos;
+      sendSignal(cownref, GSN_CONTINUEB, signal, 4, JBB);  
+      return;
+    }
+  }
+  ndbrequire(false);
 }
 
 void
@@ -1112,7 +1268,7 @@ Dbtup::drop_fragment_free_var_pages(Signal* signal)
     sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);  
     return;
   }
-  
+  Uint32 logfile_group_id = fragPtr.p->m_logfile_group_id ;
   releaseFragPages(fragPtr.p);
   Uint32 i;
   for(i= 0; i<MAX_FRAG_PER_NODE; i++)
@@ -1126,7 +1282,8 @@ Dbtup::drop_fragment_free_var_pages(Signal* signal)
   
   signal->theData[0]= ZREL_FRAG;
   signal->theData[1]= tabPtr.i;
-  sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);  
+  signal->theData[2]= logfile_group_id;
+  sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);  
   return;
 }
 

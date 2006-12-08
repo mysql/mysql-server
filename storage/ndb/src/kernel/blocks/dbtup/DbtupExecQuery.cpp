@@ -3126,7 +3126,7 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
     disk_page_set_dirty(disk_page);
 
     preq.m_callback.m_callbackFunction =
-      safe_cast(&Dbtup::nr_delete_logbuffer_callback);      
+      safe_cast(&Dbtup::nr_delete_log_buffer_callback);      
     Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
     res= lgman.get_log_buffer(signal, sz, &preq.m_callback);
     switch(res){
@@ -3179,7 +3179,7 @@ Dbtup::nr_delete_page_callback(Signal* signal,
   Callback cb;
   cb.m_callbackData = userpointer;
   cb.m_callbackFunction =
-    safe_cast(&Dbtup::nr_delete_logbuffer_callback);      
+    safe_cast(&Dbtup::nr_delete_log_buffer_callback);      
   Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
   int res= lgman.get_log_buffer(signal, sz, &cb);
   switch(res){
@@ -3199,7 +3199,7 @@ Dbtup::nr_delete_page_callback(Signal* signal,
 }
 
 void
-Dbtup::nr_delete_logbuffer_callback(Signal* signal, 
+Dbtup::nr_delete_log_buffer_callback(Signal* signal, 
 				    Uint32 userpointer, 
 				    Uint32 unused)
 {
