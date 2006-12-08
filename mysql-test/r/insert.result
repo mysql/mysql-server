@@ -321,12 +321,6 @@ ERROR 42000: Column 'b' specified twice
 INSERT INTO t1 (b,b) SELECT 0,0 ON DUPLICATE KEY UPDATE a = a + VALUES (a);
 ERROR 42000: Column 'b' specified twice
 drop table t1;
-create table t1 (n int);
-create view  v1 as select * from t1;
-insert delayed into v1 values (1);
-ERROR HY000: 'test.v1' is not BASE TABLE
-drop table t1;
-drop view  v1;
 create table t1 (id int primary key, data int);
 insert into t1 values (1, 1), (2, 2), (3, 3);
 select row_count();
