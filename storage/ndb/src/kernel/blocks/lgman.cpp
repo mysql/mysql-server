@@ -2063,6 +2063,7 @@ Lgman::execSTART_RECREQ(Signal* signal)
   if(ptr.i != RNIL)
   {
     infoEvent("Applying undo to LCP: %d", m_latest_lcp);
+    ndbout_c("Applying undo to LCP: %d", m_latest_lcp);
     find_log_head(signal, ptr);
     return;
   }
@@ -2682,13 +2683,14 @@ Lgman::execute_undo_record(Signal* signal)
     case File_formats::Undofile::UNDO_LCP_FIRST:
     {
       Uint32 lcp = * (ptr - len + 1);
-      if(lcp > m_latest_lcp)
+      if(m_latest_lcp && lcp > m_latest_lcp)
       {
 	// Just ignore
 	break;
       }
 
-      if(lcp < m_latest_lcp || 
+      if(m_latest_lcp == 0 || 
+	 lcp < m_latest_lcp || 
 	 (lcp == m_latest_lcp && 
 	  mask == File_formats::Undofile::UNDO_LCP_FIRST))
       {
