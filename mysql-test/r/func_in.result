@@ -342,6 +342,10 @@ select some_id from t1 where some_id not in(-4,-1,3423534,2342342);
 some_id
 1
 2
+select some_id from t1 where some_id not in('-1', '0');
+some_id
+1
+2
 drop table t1;
 create table t1(f1 char(1));
 insert into t1 values ('a'),('b'),('1');
