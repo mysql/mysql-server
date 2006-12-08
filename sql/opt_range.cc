@@ -3703,7 +3703,8 @@ static SEL_TREE *get_func_mm_tree(PARAM *param, Item_func *cond_func,
             for (uint idx= 0; idx < param->keys; idx++)
             {
               SEL_ARG *new_interval, *last_val;
-              if (((new_interval= tree2->keys[idx])) && 
+              if (((new_interval= tree2->keys[idx])) &&
+                  (tree->keys[idx]) &&
                   ((last_val= tree->keys[idx]->last())))
               {
                 new_interval->min_value= last_val->max_value;
