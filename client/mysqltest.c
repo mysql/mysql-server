@@ -4804,7 +4804,7 @@ void handle_error(struct st_command *command,
           err_errno, err_error);
 
     /* Abort the run of this test, pass the failed query as reason */
-    abort_not_supported_test("Query '%s' failed, required functionality" \
+    abort_not_supported_test("Query '%s' failed, required functionality " \
                              "not supported", command->query);
   }
 
