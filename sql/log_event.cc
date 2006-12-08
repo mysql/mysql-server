@@ -261,7 +261,7 @@ append_query_string(CHARSET_INFO *csinfo,
   else
   {
     *ptr++= '\'';
-    ptr+= escape_string_for_mysql(from->charset(), ptr, 0,
+    ptr+= escape_string_for_mysql(csinfo, ptr, 0,
                                   from->ptr(), from->length());
     *ptr++='\'';
   }
@@ -1507,15 +1507,16 @@ void Query_log_event::print_query_header(FILE* file,
     if (different_db= memcmp(print_event_info->db, db, db_len + 1))
       memcpy(print_event_info->db, db, db_len + 1);
     if (db[0] && different_db) 
-      fprintf(file, "use %s;\n", db);
+      fprintf(file, "use %s%s\n", db, print_event_info->delimiter);
   }
 
   end=int10_to_str((long) when, strmov(buff,"SET TIMESTAMP="),10);
-  *end++=';';
+  end= strmov(end, print_event_info->delimiter);
   *end++='\n';
   my_fwrite(file, (byte*) buff, (uint) (end-buff),MYF(MY_NABP | MY_WME));
   if (flags & LOG_EVENT_THREAD_SPECIFIC_F)
-    fprintf(file,"SET @@session.pseudo_thread_id=%lu;\n",(ulong)thread_id);
+    fprintf(file,"SET @@session.pseudo_thread_id=%lu%s\n",
+            (ulong)thread_id, print_event_info->delimiter);
 
   /*
     If flags2_inited==0, this is an event from 3.23 or 4.0; nothing to
@@ -1544,7 +1545,7 @@ void Query_log_event::print_query_header(FILE* file,
                    "@@session.sql_auto_is_null", &need_comma);
       print_set_option(file, tmp, OPTION_RELAXED_UNIQUE_CHECKS, ~flags2,
                    "@@session.unique_checks", &need_comma);
-      fprintf(file,";\n");
+      fprintf(file,"%s\n", print_event_info->delimiter);
       print_event_info->flags2= flags2;
     }
   }
@@ -1572,15 +1573,17 @@ void Query_log_event::print_query_header(FILE* file,
     }
     if (unlikely(print_event_info->sql_mode != sql_mode))
     {
-      fprintf(file,"SET @@session.sql_mode=%lu;\n",(ulong)sql_mode);
+      fprintf(file,"SET @@session.sql_mode=%lu%s\n",
+              (ulong)sql_mode, print_event_info->delimiter);
       print_event_info->sql_mode= sql_mode;
     }
   }
   if (print_event_info->auto_increment_increment != auto_increment_increment ||
       print_event_info->auto_increment_offset != auto_increment_offset)
   {
-    fprintf(file,"SET @@session.auto_increment_increment=%lu, @@session.auto_increment_offset=%lu;\n",
-            auto_increment_increment,auto_increment_offset);
+    fprintf(file,"SET @@session.auto_increment_increment=%lu, @@session.auto_increment_offset=%lu%s\n",
+            auto_increment_increment,auto_increment_offset,
+            print_event_info->delimiter);
     print_event_info->auto_increment_increment= auto_increment_increment;
     print_event_info->auto_increment_offset=    auto_increment_offset;
   }
@@ -1599,16 +1602,19 @@ void Query_log_event::print_query_header(FILE* file,
       CHARSET_INFO *cs_info= get_charset(uint2korr(charset), MYF(MY_WME));
       if (cs_info)
       {
-        fprintf(file, "/*!\\C %s */;\n", cs_info->csname); /* for mysql client */
+        /* for mysql client */
+        fprintf(file, "/*!\\C %s */%s\n",
+                cs_info->csname, print_event_info->delimiter);
       }
       fprintf(file,"SET "
               "@@session.character_set_client=%d,"
               "@@session.collation_connection=%d,"
               "@@session.collation_server=%d"
-              ";\n",
+              "%s\n",
               uint2korr(charset),
               uint2korr(charset+2),
-              uint2korr(charset+4));
+              uint2korr(charset+4),
+              print_event_info->delimiter);
       memcpy(print_event_info->charset, charset, 6);
     }
   }
@@ -1616,7 +1622,8 @@ void Query_log_event::print_query_header(FILE* file,
   {
     if (bcmp(print_event_info->time_zone_str, time_zone_str, time_zone_len+1))
     {
-      fprintf(file,"SET @@session.time_zone='%s';\n", time_zone_str);
+      fprintf(file,"SET @@session.time_zone='%s'%s\n",
+              time_zone_str, print_event_info->delimiter);
       memcpy(print_event_info->time_zone_str, time_zone_str, time_zone_len+1);
     }
   }
@@ -1627,7 +1634,7 @@ void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 {
   print_query_header(file, print_event_info);
   my_fwrite(file, (byte*) query, q_len, MYF(MY_NABP | MY_WME));
-  fputs(";\n", file);
+  fprintf(file, "%s\n", print_event_info->delimiter);
 }
 #endif /* MYSQL_CLIENT */
 
@@ -1981,9 +1988,9 @@ void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
       and rollback unfinished transaction.
       Probably this can be done with RESET CONNECTION (syntax to be defined).
     */
-    fprintf(file,"RESET CONNECTION;\n");
+    fprintf(file,"RESET CONNECTION%s\n", print_event_info->delimiter);
 #else
-    fprintf(file,"ROLLBACK;\n");
+    fprintf(file,"ROLLBACK%s\n", print_event_info->delimiter);
 #endif
   }
   fflush(file);
@@ -2717,13 +2724,14 @@ void Load_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info,
   }
   
   if (db && db[0] && different_db)
-    fprintf(file, "%suse %s;\n", 
+    fprintf(file, "%suse %s%s\n", 
             commented ? "# " : "",
-            db);
+            db, print_event_info->delimiter);
 
   if (flags & LOG_EVENT_THREAD_SPECIFIC_F)
-    fprintf(file,"%sSET @@session.pseudo_thread_id=%lu;\n",
-            commented ? "# " : "", (ulong)thread_id);
+    fprintf(file,"%sSET @@session.pseudo_thread_id=%lu%s\n",
+            commented ? "# " : "", (ulong)thread_id,
+            print_event_info->delimiter);
   fprintf(file, "%sLOAD DATA ",
           commented ? "# " : "");
   if (check_fname_outside_temp_buf())
@@ -2775,7 +2783,7 @@ void Load_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info,
     fputc(')', file);
   }
 
-  fprintf(file, ";\n");
+  fprintf(file, "%s\n", print_event_info->delimiter);
   DBUG_VOID_RETURN;
 }
 #endif /* MYSQL_CLIENT */
@@ -3352,7 +3360,8 @@ void Intvar_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
     msg="INVALID_INT";
     break;
   }
-  fprintf(file, "%s=%s;\n", msg, llstr(val,llbuff));
+  fprintf(file, "%s=%s%s\n",
+          msg, llstr(val,llbuff), print_event_info->delimiter);
   fflush(file);
 }
 #endif
@@ -3427,8 +3436,9 @@ void Rand_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
     print_header(file, print_event_info);
     fprintf(file, "\tRand\n");
   }
-  fprintf(file, "SET @@RAND_SEED1=%s, @@RAND_SEED2=%s;\n",
-	  llstr(seed1, llbuff),llstr(seed2, llbuff2));
+  fprintf(file, "SET @@RAND_SEED1=%s, @@RAND_SEED2=%s%s\n",
+	  llstr(seed1, llbuff),llstr(seed2, llbuff2),
+          print_event_info->delimiter);
   fflush(file);
 }
 #endif /* MYSQL_CLIENT */
@@ -3500,7 +3510,7 @@ void Xid_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
     fprintf(file, "\tXid = %s\n", buf);
     fflush(file);
   }
-  fprintf(file, "COMMIT;\n");
+  fprintf(file, "COMMIT%s\n", print_event_info->delimiter);
 }
 #endif /* MYSQL_CLIENT */
 
@@ -3701,7 +3711,7 @@ void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 
   if (is_null)
   {
-    fprintf(file, ":=NULL;\n");
+    fprintf(file, ":=NULL%s\n", print_event_info->delimiter);
   }
   else
   {
@@ -3709,12 +3719,12 @@ void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
     case REAL_RESULT:
       double real_val;
       float8get(real_val, val);
-      fprintf(file, ":=%.14g;\n", real_val);
+      fprintf(file, ":=%.14g%s\n", real_val, print_event_info->delimiter);
       break;
     case INT_RESULT:
       char int_buf[22];
       longlong10_to_str(uint8korr(val), int_buf, -10);
-      fprintf(file, ":=%s;\n", int_buf);
+      fprintf(file, ":=%s%s\n", int_buf, print_event_info->delimiter);
       break;
     case DECIMAL_RESULT:
     {
@@ -3730,7 +3740,7 @@ void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
       bin2decimal(val+2, &dec, precision, scale);
       decimal2string(&dec, str_buf, &str_len, 0, 0, 0);
       str_buf[str_len]= 0;
-      fprintf(file, ":=%s;\n",str_buf);
+      fprintf(file, ":=%s%s\n",str_buf, print_event_info->delimiter);
       break;
     }
     case STRING_RESULT:
@@ -3766,9 +3776,10 @@ void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
           Generate an unusable command (=> syntax error) is probably the best
           thing we can do here.
         */
-        fprintf(file, ":=???;\n");
+        fprintf(file, ":=???%s\n", print_event_info->delimiter);
       else
-        fprintf(file, ":=_%s %s COLLATE `%s`;\n", cs->csname, hex_str, cs->name);
+        fprintf(file, ":=_%s %s COLLATE `%s`%s\n",
+                cs->csname, hex_str, cs->name, print_event_info->delimiter);
       my_afree(hex_str);
     }
       break;
@@ -4867,12 +4878,12 @@ void Execute_load_query_log_event::print(FILE* file,
     fprintf(file, " INTO");
     my_fwrite(file, (byte*) query + fn_pos_end, q_len-fn_pos_end,
         MYF(MY_NABP | MY_WME));
-    fprintf(file, ";\n");
+    fprintf(file, "%s\n", print_event_info->delimiter);
   }
   else
   {
     my_fwrite(file, (byte*) query, q_len, MYF(MY_NABP | MY_WME));
-    fprintf(file, ";\n");
+    fprintf(file, "%s\n", print_event_info->delimiter);
   }
 
   if (!print_event_info->short_form)
