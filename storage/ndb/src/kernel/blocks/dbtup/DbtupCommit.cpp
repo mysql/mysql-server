@@ -176,8 +176,11 @@ Dbtup::dealloc_tuple(Signal* signal,
   {
     Local_key disk;
     memcpy(&disk, ptr->get_disk_ref_ptr(regTabPtr), sizeof(disk));
+    PagePtr tmpptr;
+    tmpptr.i = m_pgman.m_ptr.i;
+    tmpptr.p = reinterpret_cast<Page*>(m_pgman.m_ptr.p);
     disk_page_free(signal, regTabPtr, regFragPtr, 
-		   &disk, *(PagePtr*)&m_pgman.m_ptr, gci);
+		   &disk, tmpptr, gci);
   }
   
   if (! (bits & Tuple_header::LCP_SKIP) && lcpScan_ptr_i != RNIL)
@@ -356,7 +359,12 @@ Dbtup::disk_page_commit_callback(Signal* signal,
   regOperPtr.p->m_commit_disk_callback_page= page_id;
   m_global_page_pool.getPtr(m_pgman.m_ptr, page_id);
   
-  disk_page_set_dirty(*(Ptr<Page>*)&m_pgman.m_ptr);
+  {
+    PagePtr tmp;
+    tmp.i = m_pgman.m_ptr.i;
+    tmp.p = reinterpret_cast<Page*>(m_pgman.m_ptr.p);
+    disk_page_set_dirty(tmp);
+  }
   
   execTUP_COMMITREQ(signal);
   if(signal->theData[0] == 0)
@@ -543,7 +551,14 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
       break;
     }
     get_page = true;
-    disk_page_set_dirty(*(Ptr<Page>*)&m_pgman.m_ptr);
+
+    {
+      PagePtr tmpptr;
+      tmpptr.i = m_pgman.m_ptr.i;
+      tmpptr.p = reinterpret_cast<Page*>(m_pgman.m_ptr.p);
+      disk_page_set_dirty(tmpptr);
+    }
+    
     regOperPtr.p->m_commit_disk_callback_page= res;
     regOperPtr.p->op_struct.m_load_diskpage_on_commit= 0;
   } 
