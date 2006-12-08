@@ -2154,6 +2154,7 @@ select * from t1, t2
 drop table t1, t2;
 
 # bug 18934, "InnoDB crashes when table uses column names like DB_ROW_ID"
+--replace_result \\ / $MYSQL_TEST_DIR . /var/master-data/ /
 --error 1005
 CREATE TABLE t1 (DB_ROW_ID int) engine=innodb;
 
