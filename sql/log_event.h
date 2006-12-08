@@ -519,12 +519,14 @@ typedef struct st_print_event_info
       bzero(db, sizeof(db));
       bzero(charset, sizeof(charset));
       bzero(time_zone_str, sizeof(time_zone_str));
+      strcpy(delimiter, ";");
     }
 
   /* Settings on how to print the events */
   bool short_form;
   my_off_t hexdump_from;
   uint8 common_header_len;
+  char delimiter[16];
 
 } PRINT_EVENT_INFO;
 #endif

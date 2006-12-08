@@ -2385,6 +2385,7 @@ static void reset_one_shot_variables(THD *thd)
   thd->update_charset();
   thd->variables.time_zone=
     global_system_variables.time_zone;
+  thd->variables.lc_time_names= &my_locale_en_US;
   thd->one_shot_set= 0;
 }
 
