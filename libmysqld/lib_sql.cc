@@ -586,6 +586,7 @@ void *create_embedded_thd(int client_flag)
   thd->set_time();
   thd->init_for_queries();
   thd->client_capabilities= client_flag;
+  thd->real_id= (pthread_t) thd;
 
   thd->db= NULL;
   thd->db_length= 0;
@@ -771,6 +772,8 @@ MYSQL_DATA *THD::alloc_new_dataset()
 
 static void write_eof_packet(THD *thd)
 {
+  if (!thd->mysql)            // bootstrap file handling
+    return;
   /*
     The following test should never be true, but it's better to do it
     because if 'is_fatal_error' is set the server is not going to execute
@@ -1029,6 +1032,9 @@ void Protocol_simple::prepare_for_resend()
   MYSQL_ROWS *cur;
   MYSQL_DATA *data= thd->cur_data;
   DBUG_ENTER("send_data");
+
+  if (!thd->mysql)            // bootstrap file handling
+    DBUG_VOID_RETURN;
 
   data->rows++;
   if (!(cur= (MYSQL_ROWS *)alloc_root(alloc, sizeof(MYSQL_ROWS)+(field_count + 1) * sizeof(char *))))
