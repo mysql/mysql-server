@@ -78,7 +78,7 @@ ER_CANT_CREATE_TABLE
 	cze "Nemohu vytvo-Bøit tabulku '%-.64s' (chybovı kód: %d)"
 	dan "Kan ikke oprette tabellen '%-.64s' (Fejlkode: %d)"
 	nla "Kan tabel '%-.64s' niet aanmaken (Errcode: %d)"
-	eng "Can't create table '%-.64s' (errno: %d)"
+	eng "Can't create table '%-.200s' (errno: %d)"
 	jps "'%-.64s' ƒe[ƒuƒ‹‚ªì‚ê‚Ü‚¹‚ñ.(errno: %d)",
 	est "Ei suuda luua tabelit '%-.64s' (veakood: %d)"
 	fre "Ne peut créer la table '%-.64s' (Errcode: %d)"
@@ -574,7 +574,7 @@ ER_ERROR_ON_RENAME
 	cze "Chyba p-Bøi pøejmenování '%-.64s' na '%-.64s' (chybovı kód: %d)"
 	dan "Fejl ved omdøbning af '%-.64s' til '%-.64s' (Fejlkode: %d)"
 	nla "Fout bij het hernoemen van '%-.64s' naar '%-.64s' (Errcode: %d)"
-	eng "Error on rename of '%-.64s' to '%-.64s' (errno: %d)"
+	eng "Error on rename of '%-.150s' to '%-.150s' (errno: %d)"
 	jps "'%-.64s' ‚ğ '%-.64s' ‚É rename ‚Å‚«‚Ü‚¹‚ñ (errno: %d)",
 	est "Viga faili '%-.64s' ümbernimetamisel '%-.64s'-ks (veakood: %d)"
 	fre "Erreur en renommant '%-.64s' en '%-.64s' (Errcode: %d)"

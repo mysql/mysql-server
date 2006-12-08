@@ -1,10 +1,9 @@
+# delayed works differently in embedded server
+--source include/not_embedded.inc
 #
 # test of DELAYED insert and timestamps
 # (Can't be tested with purify :( )
 #
-
-# This tests not performed with embedded server
--- source include/not_embedded.inc
 
 --disable_warnings
 drop table if exists t1;
