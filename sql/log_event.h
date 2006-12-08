@@ -537,6 +537,7 @@ typedef struct st_print_event_info
       bzero(db, sizeof(db));
       bzero(charset, sizeof(charset));
       bzero(time_zone_str, sizeof(time_zone_str));
+      strcpy(delimiter, ";");
       uint const flags = MYF(MY_WME | MY_NABP);
       init_io_cache(&head_cache, -1, 0, WRITE_CACHE, 0L, FALSE, flags);
       init_io_cache(&body_cache, -1, 0, WRITE_CACHE, 0L, FALSE, flags);
@@ -553,6 +554,7 @@ typedef struct st_print_event_info
   bool base64_output;
   my_off_t hexdump_from;
   uint8 common_header_len;
+  char delimiter[16];
 
   /*
      These two caches are used by the row-based replication events to
@@ -1691,8 +1693,6 @@ public:
 #endif
 char *str_to_hex(char *to, const char *from, uint len);
 
-#ifdef HAVE_ROW_BASED_REPLICATION
-
 /*****************************************************************************
 
   Table map log event class
@@ -2021,7 +2021,7 @@ public:
   Write_rows_log_event(const char *buf, uint event_len, 
                        const Format_description_log_event *description_event);
 #endif
-#if !defined(MYSQL_CLIENT) && defined(HAVE_ROW_BASED_REPLICATION)
+#if !defined(MYSQL_CLIENT) 
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
                                           bool is_transactional,
                                           MY_BITMAP *cols,
@@ -2086,7 +2086,7 @@ public:
 			const Format_description_log_event *description_event);
 #endif
 
-#if !defined(MYSQL_CLIENT) && defined(HAVE_ROW_BASED_REPLICATION)
+#if !defined(MYSQL_CLIENT) 
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
                                           bool is_transactional,
                                           MY_BITMAP *cols,
@@ -2156,7 +2156,7 @@ public:
   Delete_rows_log_event(const char *buf, uint event_len, 
 			const Format_description_log_event *description_event);
 #endif
-#if !defined(MYSQL_CLIENT) && defined(HAVE_ROW_BASED_REPLICATION)
+#if !defined(MYSQL_CLIENT) 
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
                                           bool is_transactional,
                                           MY_BITMAP *cols,
@@ -2189,7 +2189,5 @@ private:
   virtual int do_exec_row(TABLE *table);
 #endif
 };
-
-#endif /* HAVE_ROW_BASED_REPLICATION */
 
 #endif /* _log_event_h */

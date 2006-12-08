@@ -118,6 +118,7 @@ enum Derivation
 
 typedef struct my_locale_st
 {
+  uint  number;
   const char *name;
   const char *description;
   const bool is_ascii;
@@ -126,9 +127,11 @@ typedef struct my_locale_st
   TYPELIB *day_names;
   TYPELIB *ab_day_names;
 #ifdef __cplusplus 
-  my_locale_st(const char *name_par, const char *descr_par, bool is_ascii_par,
+  my_locale_st(uint number_par,
+               const char *name_par, const char *descr_par, bool is_ascii_par,
                TYPELIB *month_names_par, TYPELIB *ab_month_names_par,
                TYPELIB *day_names_par, TYPELIB *ab_day_names_par) : 
+    number(number_par),
     name(name_par), description(descr_par), is_ascii(is_ascii_par),
     month_names(month_names_par), ab_month_names(ab_month_names_par),
     day_names(day_names_par), ab_day_names(ab_day_names_par)
@@ -140,6 +143,7 @@ extern MY_LOCALE my_locale_en_US;
 extern MY_LOCALE *my_locales[];
 
 MY_LOCALE *my_locale_by_name(const char *name);
+MY_LOCALE *my_locale_by_number(uint number);
 
 /***************************************************************************
   Configuration parameters
@@ -1559,9 +1563,7 @@ extern ulong query_buff_size, thread_stack;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
 extern ulong binlog_cache_size, max_binlog_cache_size, open_files_limit;
 extern ulong max_binlog_size, max_relay_log_size;
-#ifdef HAVE_ROW_BASED_REPLICATION
 extern ulong opt_binlog_rows_event_max_size;
-#endif
 extern ulong rpl_recovery_rank, thread_cache_size;
 extern ulong back_log;
 extern ulong specialflag, current_pid;
@@ -1661,7 +1663,6 @@ extern handlerton *partition_hton;
 extern handlerton *myisam_hton;
 extern handlerton *heap_hton;
 
-extern SHOW_COMP_OPTION have_row_based_replication;
 extern SHOW_COMP_OPTION have_openssl, have_symlink, have_dlopen;
 extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;

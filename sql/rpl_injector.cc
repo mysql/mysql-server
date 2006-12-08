@@ -17,7 +17,6 @@
 
 #include "mysql_priv.h" 
 #include "rpl_injector.h"
-#ifdef HAVE_ROW_BASED_REPLICATION
 
 /*
   injector::transaction - member definitions
@@ -191,5 +190,3 @@ void injector::new_trans(THD *thd, injector::transaction *ptr)
 
    DBUG_VOID_RETURN;
 }
-
-#endif
