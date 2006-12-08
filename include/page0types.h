@@ -33,15 +33,15 @@ struct page_zip_des_struct
 	page_zip_t*	data;		/* compressed page data */
 
 #ifdef UNIV_DEBUG
-	ulint		m_start:16;	/* start offset of modification log */
+	unsigned	m_start:16;	/* start offset of modification log */
 #endif /* UNIV_DEBUG */
-	ulint		m_end:16;	/* end offset of modification log */
-	ulint		m_nonempty:1;	/* TRUE if the modification log
+	unsigned	m_end:16;	/* end offset of modification log */
+	unsigned	m_nonempty:1;	/* TRUE if the modification log
 					is not empty */
-	ulint		n_blobs:12;	/* number of externally stored
+	unsigned	n_blobs:12;	/* number of externally stored
 					columns on the page; the maximum
 					is 744 on a 16 KiB page */
-	ulint		ssize:3;	/* 0 or compressed page size;
+	unsigned	ssize:3;	/* 0 or compressed page size;
 					the size in bytes is 512<<ssize. */
 };
 

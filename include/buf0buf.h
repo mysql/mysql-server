@@ -893,25 +893,25 @@ struct buf_page_struct{
 	machine word.  Some of them are additionally protected by
 	buf_pool->mutex. */
 
-	ulint		space:32;	/* tablespace id */
-	ulint		offset:32;	/* page number */
+	unsigned	space:32;	/* tablespace id */
+	unsigned	offset:32;	/* page number */
 
-	ulint		state:3;	/* state of the control block
+	unsigned	state:3;	/* state of the control block
 					(@see enum buf_page_state); also
 					protected by buf_pool->mutex */
-	ulint		flush_type:2;	/* if this block is currently being
+	unsigned	flush_type:2;	/* if this block is currently being
 					flushed to disk, this tells the
 					flush_type (@see enum buf_flush) */
-	ulint		accessed:1;	/* TRUE if the page has been accessed
+	unsigned	accessed:1;	/* TRUE if the page has been accessed
 					while in the buffer pool: read-ahead
 					may read in pages which have not been
 					accessed yet; a thread is allowed to
 					read this for heuristic purposes
 					without holding any mutex or latch */
-	ulint		io_fix:2;	/* type of pending I/O operation
+	unsigned	io_fix:2;	/* type of pending I/O operation
 					(@see enum buf_io_fix); also
 					protected by buf_pool->mutex */
-	ulint		buf_fix_count:24;/* count of how manyfold this block
+	unsigned	buf_fix_count:24;/* count of how manyfold this block
 					is currently bufferfixed */
 
 	page_zip_des_t	zip;		/* compressed page */
@@ -955,9 +955,9 @@ struct buf_page_struct{
 	ibool		in_LRU_list;	/* TRUE of the page is in the LRU list;
 					used in debugging */
 #endif /* UNIV_DEBUG */
-	ulint		old:1;		/* TRUE if the block is in the old
+	unsigned	old:1;		/* TRUE if the block is in the old
 					blocks in the LRU list */
-	ulint		LRU_position:31;/* value which monotonically decreases
+	unsigned	LRU_position:31;/* value which monotonically decreases
 					(or may stay constant if old==TRUE)
 					toward the end of the LRU list, if
 					buf_pool->ulint_clock has not wrapped
@@ -965,7 +965,7 @@ struct buf_page_struct{
 					be used in heuristic algorithms,
 					because of the possibility of a
 					wrap-around! */
-	ulint		freed_page_clock:32;/* the value of
+	unsigned	freed_page_clock:32;/* the value of
 					buf_pool->freed_page_clock when this
 					block was the last time put to the
 					head of the LRU list; a thread is
@@ -1001,9 +1001,9 @@ struct buf_block_struct{
 					contention on the buffer pool mutex */
 	rw_lock_t	lock;		/* read-write lock of the buffer
 					frame */
-	ulint		lock_hash_val:32;/* hashed value of the page address
+	unsigned	lock_hash_val:32;/* hashed value of the page address
 					in the record lock hash table */
-	ulint		check_index_page_at_flush:1;
+	unsigned	check_index_page_at_flush:1;
 					/* TRUE if we know that this is
 					an index page, and want the database
 					to check its consistency before flush;
@@ -1053,16 +1053,16 @@ struct buf_block_struct{
 					pointers in the adaptive hash index
 					pointing to this frame */
 #endif /* UNIV_DEBUG */
-	ulint		is_hashed:1;	/* TRUE if hash index has already been
+	unsigned	is_hashed:1;	/* TRUE if hash index has already been
 					built on this page; note that it does
 					not guarantee that the index is
 					complete, though: there may have been
 					hash collisions, record deletions,
 					etc. */
-	ulint		curr_n_fields:10;/* prefix length for hash indexing:
+	unsigned	curr_n_fields:10;/* prefix length for hash indexing:
 					number of full fields */
-	ulint		curr_n_bytes:15;/* number of bytes in hash indexing */
-	ibool		curr_left_side:1;/* TRUE or FALSE in hash indexing */
+	unsigned	curr_n_bytes:15;/* number of bytes in hash indexing */
+	unsigned	curr_left_side:1;/* TRUE or FALSE in hash indexing */
 	dict_index_t*	index;		/* Index for which the adaptive
 					hash index has been created. */
 	/* 4. Debug fields */
