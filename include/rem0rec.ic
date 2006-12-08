@@ -275,12 +275,13 @@ rec_get_next_ptr(
 		       && field_value < 32768)
 		      || field_value < (uint16) -REC_N_NEW_EXTRA_BYTES);
 
-		return(ut_align_down(rec, UNIV_PAGE_SIZE)
+		return((byte*) ut_align_down(rec, UNIV_PAGE_SIZE)
 		       + ut_align_offset(rec + field_value, UNIV_PAGE_SIZE));
 	} else {
 		ut_ad(field_value < UNIV_PAGE_SIZE);
 
-		return(ut_align_down(rec, UNIV_PAGE_SIZE) + field_value);
+		return((byte*) ut_align_down(rec, UNIV_PAGE_SIZE)
+		       + field_value);
 	}
 }
 

@@ -83,7 +83,7 @@ row_sel_sec_rec_is_for_blob(
 						      zip_size,
 						      clust_field, clust_len);
 	len = dtype_get_at_most_n_mbchars(prtype, mbminlen, mbmaxlen,
-					  sec_len, len, buf);
+					  sec_len, len, (const char*) buf);
 
 	return(!cmp_data_data(mtype, prtype, buf, len, sec_field, sec_len));
 }

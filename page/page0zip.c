@@ -1959,6 +1959,7 @@ page_zip_decompress_clust(
 	/* Decompress the records in heap_no order. */
 	for (slot = 0; slot < n_dense; slot++) {
 		rec_t*	rec	= recs[slot];
+		ulint	i;
 
 		d_stream->avail_out = rec - REC_N_NEW_EXTRA_BYTES
 			- d_stream->next_out;
@@ -1993,7 +1994,6 @@ page_zip_decompress_clust(
 					  ULINT_UNDEFINED, &heap);
 
 		/* This is a leaf page in a clustered index. */
-		ulint	i;
 
 		/* Check if there are any externally stored columns.
 		For each externally stored column, restore the
