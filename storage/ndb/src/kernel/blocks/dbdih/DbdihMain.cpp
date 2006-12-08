@@ -6728,7 +6728,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         FragmentstorePtr fragPtr;
         ReplicaRecordPtr replicaPtr;
         getFragstore(primTabPtr.p, fragNo, fragPtr);
-	fragments[count++] = c_nextLogPart++;
+	fragments[count++] = fragPtr.p->m_log_part_id;
         fragments[count++] = fragPtr.p->preferredPrimary;
         for (replicaPtr.i = fragPtr.p->storedReplicas;
              replicaPtr.i != RNIL;

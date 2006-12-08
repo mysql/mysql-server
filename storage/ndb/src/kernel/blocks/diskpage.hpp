@@ -154,7 +154,10 @@ struct File_formats
       ,UNDO_TUP_UPDATE = 4
       ,UNDO_TUP_FREE   = 5
       ,UNDO_TUP_CREATE = 6
-
+      ,UNDO_TUP_DROP   = 7
+      ,UNDO_TUP_ALLOC_EXTENT = 8
+      ,UNDO_TUP_FREE_EXTENT  = 9
+      
       ,UNDO_END        = 0x7FFF 
       ,UNDO_NEXT_LSN   = 0x8000
     };

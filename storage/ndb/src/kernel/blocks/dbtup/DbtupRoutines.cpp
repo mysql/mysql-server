@@ -784,7 +784,7 @@ int Dbtup::updateAttributes(KeyReqStruct *req_struct,
       req_struct->m_tuple_ptr->m_header_bits |= Tuple_header::DISK_PART;
       memcpy(req_struct->m_tuple_ptr->get_disk_ref_ptr(regTabPtr),
 	     inBuffer+inBufIndex+1, sz << 2);
-      inBufIndex += 1 + sz;
+      req_struct->in_buf_index = inBufIndex += 1 + sz;
     }
     else
     {
