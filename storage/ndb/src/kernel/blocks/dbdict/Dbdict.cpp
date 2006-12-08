@@ -479,7 +479,7 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
 		   CreateFragmentationReq::SignalLength);
     ndbrequire(signal->theData[0] == 0);
     Uint16 *data = (Uint16*)&signal->theData[25];
-    Uint32 count = 2 + data[0] * data[1];
+    Uint32 count = 2 + (1 + data[0]) * data[1];
     w.add(DictTabInfo::ReplicaDataLen, 2*count);
     for (Uint32 i = 0; i < count; i++)
       data[i] = htons(data[i]);
