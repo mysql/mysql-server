@@ -1,3 +1,4 @@
+--source include/not_embedded.inc
 --source ./include/have_federated_db.inc
 
 source ./include/master-slave.inc;
