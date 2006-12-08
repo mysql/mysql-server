@@ -46,7 +46,6 @@ public:
     ARC4() {}
 
     void Process(byte*, const byte*, word32);
-    void AsmProcess(byte*, const byte*, word32);
     void SetKey(const byte*, word32);
 private:
     byte x_;
@@ -55,6 +54,8 @@ private:
 
     ARC4(const ARC4&);                  // hide copy
     const ARC4 operator=(const ARC4&);  // and assign
+
+    void AsmProcess(byte*, const byte*, word32);
 };
 
 } // namespace

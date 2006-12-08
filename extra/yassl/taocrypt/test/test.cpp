@@ -247,6 +247,8 @@ void taocrypt_test(void* args)
         args.argv = argv;
 
         taocrypt_test(&args);
+        TaoCrypt::CleanUp();
+
         return args.return_code;
     }
 

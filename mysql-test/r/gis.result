@@ -679,10 +679,11 @@ insert into t1 values (null,null);
 ERROR 23000: Column 's1' cannot be null
 drop table t1;
 drop procedure if exists fn3;
-create function fn3 () returns point return GeomFromText("point(1 1)");
+create function fn3 () returns point deterministic return GeomFromText("point(1 1)");
 show create function fn3;
 Function	sql_mode	Create Function
 fn3		CREATE DEFINER=`root`@`localhost` FUNCTION `fn3`() RETURNS point
+    DETERMINISTIC
 return GeomFromText("point(1 1)")
 select astext(fn3());
 astext(fn3())

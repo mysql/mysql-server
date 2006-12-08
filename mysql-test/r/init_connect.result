@@ -132,7 +132,7 @@ x
 17
 19
 drop trigger trg1;
-set global init_connect=default;
+set global init_connect="set @a='a\\0c'";
 revoke all privileges, grant option from mysqltest1@localhost;
 drop user mysqltest1@localhost;
 drop table t1, t2;

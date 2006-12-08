@@ -31,6 +31,11 @@
 
 #include "hash.hpp"
 
+
+#if defined(TAOCRYPT_X86ASM_AVAILABLE) && defined(TAO_ASM)
+    #define DO_MD5_ASM
+#endif
+
 namespace TaoCrypt {
 
 
@@ -49,7 +54,9 @@ public:
     MD5(const MD5&);
     MD5& operator= (const MD5&);
 
+#ifdef DO_MD5_ASM
     void Update(const byte*, word32);
+#endif
 
     void Init();
     void Swap(MD5&);

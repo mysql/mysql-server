@@ -29,7 +29,11 @@
 
 #include "runtime.hpp"
 #include "algebra.hpp"
-#include STL_VECTOR_FILE
+#ifdef USE_SYS_STL
+    #include <vector>
+#else
+    #include "vector.hpp"
+#endif
 
 
 namespace STL = STL_NAMESPACE;

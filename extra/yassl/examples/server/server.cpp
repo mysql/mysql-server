@@ -13,6 +13,26 @@ void ServerError(SSL_CTX* ctx, SSL* ssl, SOCKET_T& sockfd, const char* msg)
 }
 
 
+#ifdef NON_BLOCKING
+    void NonBlockingSSL_Accept(SSL* ssl, SSL_CTX* ctx, SOCKET_T& clientfd)
+    {
+        int ret = SSL_accept(ssl);
+        while (ret != SSL_SUCCESS && SSL_get_error(ssl, 0) ==
+                                     SSL_ERROR_WANT_READ) {
+            printf("... server would block\n");
+            #ifdef _WIN32
+                Sleep(1000);
+            #else
+                sleep(1);
+            #endif
+            ret = SSL_accept(ssl);
+        }
+        if (ret != SSL_SUCCESS)
+            ServerError(ctx, ssl, clientfd, "SSL_accept failed");
+    }
+#endif
+
+
 THREAD_RETURN YASSL_API server_test(void* args)
 {
 #ifdef _WIN32
@@ -33,7 +53,7 @@ THREAD_RETURN YASSL_API server_test(void* args)
     SSL_METHOD* method = TLSv1_server_method();
     SSL_CTX*    ctx = SSL_CTX_new(method);
 
-    //SSL_CTX_set_cipher_list(ctx, "RC4-SHA");
+    //SSL_CTX_set_cipher_list(ctx, "RC4-SHA:RC4-MD5");
     SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, 0);
     set_serverCerts(ctx);
     DH* dh = set_tmpDH(ctx);
@@ -41,15 +61,22 @@ THREAD_RETURN YASSL_API server_test(void* args)
     SSL* ssl = SSL_new(ctx);
     SSL_set_fd(ssl, clientfd);
    
+#ifdef NON_BLOCKING
+    NonBlockingSSL_Accept(ssl, ctx, clientfd);
+#else
     if (SSL_accept(ssl) != SSL_SUCCESS)
         ServerError(ctx, ssl, clientfd, "SSL_accept failed");
+#endif
 
     showPeer(ssl);
     printf("Using Cipher Suite: %s\n", SSL_get_cipher(ssl));
 
     char command[1024];
-    command[SSL_read(ssl, command, sizeof(command))] = 0;
+    int input = SSL_read(ssl, command, sizeof(command));
+    if (input > 0) {
+        command[input] = 0;
     printf("First client command: %s\n", command);
+    }
 
     char msg[] = "I hear you, fa shizzle!";
     if (SSL_write(ssl, msg, sizeof(msg)) != sizeof(msg))
@@ -57,6 +84,7 @@ THREAD_RETURN YASSL_API server_test(void* args)
 
     DH_free(dh);
     SSL_CTX_free(ctx);
+    SSL_shutdown(ssl);
     SSL_free(ssl);
 
     tcp_close(clientfd);
@@ -82,3 +110,4 @@ THREAD_RETURN YASSL_API server_test(void* args)
     }
 
 #endif // NO_MAIN_DRIVER
+
