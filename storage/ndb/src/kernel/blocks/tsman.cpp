@@ -1470,6 +1470,7 @@ Tsman::execALLOC_EXTENT_REQ(Signal* signal)
        */
       ndbassert(extent >= per_page);
       preq.m_page.m_page_no = data_off + size * (extent - /* zero */ per_page);
+      preq.m_page.m_page_idx = extent; // extent_no
       
       AllocExtentReq* rep = (AllocExtentReq*)signal->getDataPtr();
       rep->reply.errorCode = 0;
