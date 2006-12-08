@@ -4680,10 +4680,9 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
     }
 
     /*
-      Store the result. If res is NULL, use mysql_field_count to
-      determine if that was expected
+      Store the result of the query if it will return any fields
     */
-    if (!(res= mysql_store_result(mysql)) && mysql_field_count(mysql))
+    if (mysql_field_count(mysql) && ((res= mysql_store_result(mysql)) == 0))
     {
       handle_error(command, mysql_errno(mysql), mysql_error(mysql),
 		   mysql_sqlstate(mysql), ds);
@@ -4735,7 +4734,10 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
     }
 
     if (res)
+    {
       mysql_free_result(res);
+      res= 0;
+    }
     counter++;
   } while (!(err= mysql_next_result(mysql)));
   if (err > 0)
