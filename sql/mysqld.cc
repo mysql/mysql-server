@@ -28,9 +28,7 @@
 
 #include "../storage/myisam/ha_myisam.h"
 
-#ifdef HAVE_ROW_BASED_REPLICATION
 #include "rpl_injector.h"
-#endif
 
 #ifdef WITH_INNOBASE_STORAGE_ENGINE
 #define OPT_INNODB_DEFAULT 1
@@ -443,12 +441,8 @@ volatile bool mqh_used = 0;
 my_bool opt_noacl;
 my_bool sp_automatic_privileges= 1;
 
-#ifdef HAVE_ROW_BASED_REPLICATION
 ulong opt_binlog_rows_event_max_size;
 const char *binlog_format_names[]= {"STATEMENT", "ROW", "MIXED", NullS};
-#else
-const char *binlog_format_names[]= {"STATEMENT", NullS};
-#endif
 TYPELIB binlog_format_typelib=
   { array_elements(binlog_format_names)-1,"",
     binlog_format_names, NULL };
@@ -560,7 +554,6 @@ CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
 CHARSET_INFO *character_set_filesystem;
 
-SHOW_COMP_OPTION have_row_based_replication;
 SHOW_COMP_OPTION have_openssl, have_symlink, have_dlopen, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
@@ -1168,9 +1161,7 @@ void clean_up(bool print_message)
     what they have that is dependent on the binlog
   */
   ha_binlog_end(current_thd);
-#ifdef HAVE_ROW_BASED_REPLICATION
   injector::free_instance();
-#endif
   mysql_bin_log.cleanup();
 
 #ifdef HAVE_REPLICATION
@@ -3166,11 +3157,7 @@ with --log-bin instead.");
   }
   if (global_system_variables.binlog_format == BINLOG_FORMAT_UNSPEC)
   {
-#if defined(HAVE_ROW_BASED_REPLICATION)
       global_system_variables.binlog_format= BINLOG_FORMAT_MIXED;
-#else
-      global_system_variables.binlog_format= BINLOG_FORMAT_STMT;
-#endif
   }
 
   /* Check that we have not let the format to unspecified at this point */
@@ -4708,9 +4695,7 @@ enum options_mysqld
 #ifndef DBUG_OFF
   OPT_BINLOG_SHOW_XID,
 #endif
-#ifdef HAVE_ROW_BASED_REPLICATION
   OPT_BINLOG_ROWS_EVENT_MAX_SIZE, 
-#endif
   OPT_WANT_CORE,               OPT_CONCURRENT_INSERT,
   OPT_MEMLOCK,                 OPT_MYISAM_RECOVER,
   OPT_REPLICATE_REWRITE_DB,    OPT_SERVER_ID,
@@ -4920,7 +4905,6 @@ struct my_option my_long_options[] =
    (gptr*) &my_bind_addr_str, (gptr*) &my_bind_addr_str, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"binlog_format", OPT_BINLOG_FORMAT,
-#ifdef HAVE_ROW_BASED_REPLICATION
    "Tell the master the form of binary logging to use: either 'row' for "
    "row-based binary logging, or 'statement' for statement-based binary "
    "logging, or 'mixed'. 'mixed' is statement-based binary logging except "
@@ -4930,17 +4914,8 @@ struct my_option my_long_options[] =
 #ifdef HAVE_NDB_BINLOG
    "If ndbcluster is enabled, the default is 'row'."
 #endif
-#else
-   "Tell the master the form of binary logging to use: this build "
-   "supports only statement-based binary logging, so only 'statement' is "
-   "a legal value."
-#endif
    , 0, 0, 0, GET_STR, REQUIRED_ARG,
-#ifdef HAVE_ROW_BASED_REPLICATION
    BINLOG_FORMAT_MIXED
-#else
-   BINLOG_FORMAT_STMT
-#endif
    , 0, 0, 0, 0, 0 },
   {"binlog-do-db", OPT_BINLOG_DO_DB,
    "Tells the master it should log updates for the specified database, and exclude all others not explicitly mentioned.",
@@ -4948,7 +4923,6 @@ struct my_option my_long_options[] =
   {"binlog-ignore-db", OPT_BINLOG_IGNORE_DB,
    "Tells the master that updates to the given database should not be logged tothe binary log.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef HAVE_ROW_BASED_REPLICATION
   {"binlog-row-event-max-size", OPT_BINLOG_ROWS_EVENT_MAX_SIZE,
    "The maximum size of a row-based binary log event in bytes. Rows will be "
    "grouped into events smaller than this size if possible. "
@@ -4960,7 +4934,6 @@ struct my_option my_long_options[] =
    /* sub_size */     0, /* block_size */ 256, 
    /* app_type */ 0
   },
-#endif
   {"bootstrap", OPT_BOOTSTRAP, "Used by mysql installation scripts.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"character-set-client-handshake", OPT_CHARACTER_SET_CLIENT_HANDSHAKE,
@@ -5218,11 +5191,9 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    "If equal to 0 (the default), then when --log-bin is used, creation of "
    "a stored function (or trigger) is allowed only to users having the SUPER privilege "
    "and only if this stored function (trigger) may not break binary logging."
-#ifdef HAVE_ROW_BASED_REPLICATION
    "Note that if ALL connections to this server ALWAYS use row-based binary "
    "logging, the security issues do not exist and the binary logging cannot "
    "break, so you can safely set this to 1."
-#endif
    ,(gptr*) &trust_function_creators, (gptr*) &trust_function_creators, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"log-error", OPT_ERROR_LOG_FILE, "Error log file.",
@@ -7058,11 +7029,6 @@ static void mysql_init_variables(void)
 #else
     have_partition_db= SHOW_OPTION_NO;
 #endif
-#ifdef HAVE_ROW_BASED_REPLICATION
-  have_row_based_replication= SHOW_OPTION_YES;
-#else
-  have_row_based_replication= SHOW_OPTION_NO;
-#endif
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   have_ndbcluster=SHOW_OPTION_DISABLED;
   global_system_variables.ndb_index_stat_enable=FALSE;
@@ -7292,7 +7258,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     int id;
     if ((id= find_type(argument, &binlog_format_typelib, 2)) <= 0)
     {
-#ifdef HAVE_ROW_BASED_REPLICATION
       fprintf(stderr, 
 	      "Unknown binary log format: '%s' "
 	      "(should be one of '%s', '%s', '%s')\n", 
@@ -7300,11 +7265,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
               binlog_format_names[BINLOG_FORMAT_STMT],
               binlog_format_names[BINLOG_FORMAT_ROW],
               binlog_format_names[BINLOG_FORMAT_MIXED]);
-#else
-      fprintf(stderr, 
-	      "Unknown binary log format: '%s' (only legal value is '%s')\n", 
-	      argument, binlog_format_names[BINLOG_FORMAT_STMT]);
-#endif
       exit(1);
     }
     global_system_variables.binlog_format= id-1;

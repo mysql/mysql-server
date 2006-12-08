@@ -21,6 +21,7 @@ rpl_ndb_sync             : Problem with cluster/def/schema table that is in std_
 
 partition_03ndb          : BUG#16385 2006-03-24 mikael Partitions: crash when updating a range partitioned NDB table
 ps_7ndb                  : BUG#18950 2006-02-16 jmiller create table like does not obtain LOCK_open
+rpl_locale               : Bug#22645 2006-12-05 bar
 rpl_ndb_2innodb          : BUG#19227 2006-04-20 pekka pk delete apparently not replicated
 rpl_ndb_2myisam          : BUG#19227 Seems to pass currently
 rpl_ndb_dd_partitions    : BUG#19259 2006-04-21 rpl_ndb_dd_partitions fails on s/AMD
