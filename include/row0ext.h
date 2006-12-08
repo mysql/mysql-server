@@ -45,7 +45,7 @@ struct row_ext_struct{
 	ulint		n_ext;	/* number of externally stored columns */
 	const ulint*	ext;	/* col_no's of externally stored columns */
 	ulint		zip_size;/* compressed page size, or 0 */
-	char*		buf;	/* backing store of the column prefix cache */
+	byte*		buf;	/* backing store of the column prefix cache */
 	ulint		len[1];	/* prefix lengths; 0 if not cached */
 };
 
