@@ -1240,7 +1240,9 @@ void var_set(const char *var_name, const char *var_name_end,
       v->int_dirty= 0;
       v->str_val_len= strlen(v->str_val);
     }
-    strxmov(buf, v->name, "=", v->str_val, NullS);
+    my_snprintf(buf, sizeof(buf), "%.*s=%.*s",
+                v->name_len, v->name,
+                v->str_val_len, v->str_val);
     if (!(v->env_s= my_strdup(buf, MYF(MY_WME))))
       die("Out of memory");
     putenv(v->env_s);
