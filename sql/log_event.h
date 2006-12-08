@@ -537,6 +537,7 @@ typedef struct st_print_event_info
       bzero(db, sizeof(db));
       bzero(charset, sizeof(charset));
       bzero(time_zone_str, sizeof(time_zone_str));
+      strcpy(delimiter, ";");
       uint const flags = MYF(MY_WME | MY_NABP);
       init_io_cache(&head_cache, -1, 0, WRITE_CACHE, 0L, FALSE, flags);
       init_io_cache(&body_cache, -1, 0, WRITE_CACHE, 0L, FALSE, flags);
@@ -553,6 +554,7 @@ typedef struct st_print_event_info
   bool base64_output;
   my_off_t hexdump_from;
   uint8 common_header_len;
+  char delimiter[16];
 
   /*
      These two caches are used by the row-based replication events to
