@@ -45,7 +45,7 @@ extern "C" {
   TODO: Remove this code when fixed versions of glibc6 are in common use. 
  */
 
-#if defined(TARGET_OS_LINUX) && defined(HAVE_NPTL) &&
+#if defined(TARGET_OS_LINUX) && defined(HAVE_NPTL) && \
     defined(__GLIBC__) && ( __GLIBC__ < 2 || __GLIBC__ == 2 && __GLIBC_MINOR__ < 5 )
 #define NPTL_PTHREAD_EXIT_BUG	1
 #endif 
