@@ -11,5 +11,6 @@
 ##############################################################################
 
 ndb_load        : Bug#17233
+rpl_locale	: Bug#22645
 user_limits     : Bug#23921 random failure of user_limits.test
 
