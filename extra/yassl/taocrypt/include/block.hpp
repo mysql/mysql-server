@@ -34,7 +34,12 @@
 #include "misc.hpp"
 #include <string.h>         // memcpy
 #include <stddef.h>         // ptrdiff_t
-#include STL_ALGORITHM_FILE
+
+#ifdef USE_SYS_STL
+    #include <algorithm>
+#else
+    #include "algorithm.hpp"
+#endif
 
 
 namespace STL = STL_NAMESPACE;

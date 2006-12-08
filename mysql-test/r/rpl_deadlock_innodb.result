@@ -132,6 +132,7 @@ Master_SSL_Cert
 Master_SSL_Cipher	
 Master_SSL_Key	
 Seconds_Behind_Master	#
+set @my_max_relay_log_size= @@global.max_relay_log_size;
 set global max_relay_log_size=0;
 stop slave;
 delete from t3;
@@ -191,4 +192,5 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 drop table t1,t2,t3,t4;
+set global max_relay_log_size= @my_max_relay_log_size;
 End of 5.1 tests

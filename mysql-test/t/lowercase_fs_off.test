@@ -21,6 +21,7 @@ create database D1;
 disconnect sample;
 
 connection master;
+drop user 'sample'@'localhost';
 drop database if exists d1;
 disconnect master;
 connection default;

@@ -8,6 +8,7 @@
 # still accepted (this test also checks that the new name is
 # accepted). The old name could be removed in 5.1 or 6.0.
 
+source include/have_binlog_format_mixed.inc;
 source include/master-slave.inc;
 
 # we need a db != test, where we don't have automatic grants
@@ -319,7 +320,9 @@ select * from t2;
 # ********************** PART 3 : TRIGGERS ***************
 
 connection con1;
---error 1227
+# now fails due to missing trigger grant (err 1142 i/o 1227) due to new
+# check in sql_trigger.cc (v1.44) by anozdrin on 2006/02/01  --azundris
+--error ER_TABLEACCESS_DENIED_ERROR
 create trigger trg before insert on t1 for each row set new.a= 10;
 
 connection master;
@@ -519,6 +522,33 @@ connection master;
 drop table t1;
 sync_slave_with_master;
 
+# Restore log_bin_trust_function_creators to original value
+set global log_bin_trust_function_creators=0;
+connection master;
+set global log_bin_trust_function_creators=0;
 --echo End of 5.0 tests
+
+#
+# Bug22043: MySQL don't add "USE <DATABASE>" before "DROP PROCEDURE IF EXISTS"
+#
+connection master;
+reset master;
+--disable_warnings
+drop database if exists mysqltest;
+drop database if exists mysqltest2;
+--enable_warnings
+create database mysqltest;
+create database mysqltest2;
+use mysqltest2;
+create table t ( t integer );
+create procedure mysqltest.test() begin end;
+insert into t values ( 1 );
+show binlog events in 'master-bin.000001' from 102;
+--error ER_BAD_DB_ERROR
+create procedure `\\`.test() begin end;
+# Clean up
+drop database mysqltest;
+drop database mysqltest2;
+
 --echo End of 5.1 tests
 

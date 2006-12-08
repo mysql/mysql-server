@@ -8,4 +8,5 @@ create database d2;
 ERROR 42000: Access denied for user 'sample'@'localhost' to database 'd2'
 create database D1;
 ERROR 42000: Access denied for user 'sample'@'localhost' to database 'D1'
+drop user 'sample'@'localhost';
 drop database if exists d1;

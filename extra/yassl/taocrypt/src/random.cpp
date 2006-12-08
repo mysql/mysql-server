@@ -50,8 +50,11 @@ namespace TaoCrypt {
 RandomNumberGenerator::RandomNumberGenerator()
 {
     byte key[32];
+    byte junk[256];
+
     seed_.GenerateSeed(key, sizeof(key));
     cipher_.SetKey(key, sizeof(key));
+    GenerateBlock(junk, sizeof(junk));  // rid initial state
 }
 
 

@@ -32,11 +32,19 @@
 
 #include "misc.hpp"
 #include "modes.hpp"
-#include STL_ALGORITHM_FILE
+#ifdef USE_SYS_STL
+    #include <algorithm>
+#else
+    #include "algorithm.hpp"
+#endif
 
 
 namespace STL = STL_NAMESPACE;
 
+
+#if defined(TAOCRYPT_X86ASM_AVAILABLE) && defined(TAO_ASM)
+    #define DO_TWOFISH_ASM
+#endif
 
 namespace TaoCrypt {
 
@@ -49,15 +57,14 @@ public:
     enum { BLOCK_SIZE = TWOFISH_BLOCK_SIZE };
 
     Twofish(CipherDir DIR, Mode MODE)
-        : Mode_BASE(BLOCK_SIZE), dir_(DIR), mode_(MODE) {}
+        : Mode_BASE(BLOCK_SIZE, DIR, MODE) {}
 
+#ifdef DO_TWOFISH_ASM
     void Process(byte*, const byte*, word32);
+#endif
     void SetKey(const byte* key, word32 sz, CipherDir fake = ENCRYPTION);
     void SetIV(const byte* iv) { memcpy(r_, iv, BLOCK_SIZE); }
 private:
-    CipherDir dir_;
-    Mode      mode_;
-
 	static const byte     q_[2][256];
 	static const word32 mds_[4][256];
 

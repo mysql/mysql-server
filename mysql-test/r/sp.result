@@ -243,7 +243,7 @@ set x = (select sum(t.i) from test.t2 t);
 insert into test.t1 values (id, x);
 end|
 drop procedure if exists sub3|
-create function sub3(i int) returns int
+create function sub3(i int) returns int deterministic
 return i+1|
 call sub1("sub1a", (select 7))|
 call sub1("sub1b", (select max(i) from t2))|
@@ -2710,11 +2710,11 @@ row_count()
 call bug4905()|
 select row_count()|
 row_count()
-0
+-1
 call bug4905()|
 select row_count()|
 row_count()
-0
+-1
 select * from t3|
 s1
 1
@@ -5735,4 +5735,85 @@ drop function test.current_user;
 drop function md5;
 use test;
 End of 5.1 tests
+DROP TABLE IF EXISTS bug23760|
+DROP TABLE IF EXISTS bug23760_log|
+DROP PROCEDURE IF EXISTS bug23760_update_log|
+DROP PROCEDURE IF EXISTS bug23760_test_row_count|
+DROP FUNCTION IF EXISTS bug23760_rc_test|
+CREATE TABLE bug23760 (
+id INT NOT NULL AUTO_INCREMENT ,
+num INT NOT NULL ,
+PRIMARY KEY ( id ) 
+)|
+CREATE TABLE bug23760_log (
+id INT NOT NULL AUTO_INCREMENT ,
+reason VARCHAR(50)NULL ,
+ammount INT NOT NULL ,
+PRIMARY KEY ( id ) 
+)|
+CREATE PROCEDURE bug23760_update_log(r Varchar(50), a INT)
+BEGIN
+INSERT INTO bug23760_log (reason, ammount) VALUES(r, a);
+END|
+CREATE PROCEDURE bug23760_test_row_count()
+BEGIN
+UPDATE bug23760 SET num = num + 1;
+CALL bug23760_update_log('Test is working', ROW_COUNT());
+UPDATE bug23760 SET num = num - 1;
+END|
+CREATE PROCEDURE bug23760_test_row_count2(level INT)
+BEGIN
+IF level THEN
+UPDATE bug23760 SET num = num + 1;
+CALL bug23760_update_log('Test2 is working', ROW_COUNT());
+CALL bug23760_test_row_count2(level - 1);
+END IF;
+END|
+CREATE FUNCTION bug23760_rc_test(in_var INT) RETURNS INT RETURN in_var|
+INSERT INTO bug23760 (num) VALUES (0), (1), (1), (2), (3), (5), (8)|
+SELECT ROW_COUNT()|
+ROW_COUNT()
+7
+CALL bug23760_test_row_count()|
+SELECT * FROM bug23760_log ORDER BY id|
+id	reason	ammount
+1	Test is working	7
+SET @save_max_sp_recursion= @@max_sp_recursion_depth|
+SELECT @save_max_sp_recursion|
+@save_max_sp_recursion
+0
+SET max_sp_recursion_depth= 5|
+SELECT @@max_sp_recursion_depth|
+@@max_sp_recursion_depth
+5
+CALL bug23760_test_row_count2(2)|
+SELECT ROW_COUNT()|
+ROW_COUNT()
+1
+SELECT * FROM bug23760_log ORDER BY id|
+id	reason	ammount
+1	Test is working	7
+2	Test2 is working	7
+3	Test2 is working	7
+SELECT * FROM bug23760 ORDER by ID|
+id	num
+1	2
+2	3
+3	3
+4	4
+5	5
+6	7
+7	10
+SET max_sp_recursion_depth= @save_max_sp_recursion|
+SELECT bug23760_rc_test(123)|
+bug23760_rc_test(123)
+123
+INSERT INTO bug23760 (num) VALUES (13), (21), (34), (55)|
+SELECT bug23760_rc_test(ROW_COUNT())|
+bug23760_rc_test(ROW_COUNT())
+4
+DROP TABLE bug23760, bug23760_log|
+DROP PROCEDURE bug23760_update_log|
+DROP PROCEDURE bug23760_test_row_count|
+DROP FUNCTION bug23760_rc_test|
 drop table t1,t2;
