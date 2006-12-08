@@ -93,7 +93,7 @@ sp_map_item_type(enum enum_field_types type)
 */
 
 static String *
-sp_get_item_value(Item *item, String *str)
+sp_get_item_value(THD *thd, Item *item, String *str)
 {
   Item_result result_type= item->result_type();
 
@@ -113,15 +113,16 @@ sp_get_item_value(Item *item, String *str)
       {
         char buf_holder[STRING_BUFFER_USUAL_SIZE];
         String buf(buf_holder, sizeof(buf_holder), result->charset());
+        CHARSET_INFO *cs= thd->variables.character_set_client;
 
         /* We must reset length of the buffer, because of String specificity. */
         buf.length(0);
 
         buf.append('_');
         buf.append(result->charset()->csname);
-        if (result->charset()->escape_with_backslash_is_dangerous)
+        if (cs->escape_with_backslash_is_dangerous)
           buf.append(' ');
-        append_query_string(result->charset(), result, &buf);
+        append_query_string(cs, result, &buf);
         str->copy(buf);
 
         return str;
@@ -865,7 +866,7 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
 
       val= (*splocal)->this_item();
       DBUG_PRINT("info", ("print %p", val));
-      str_value= sp_get_item_value(val, &str_value_holder);
+      str_value= sp_get_item_value(thd, val, &str_value_holder);
       if (str_value)
         res|= qbuf.append(*str_value);
       else
@@ -1459,7 +1460,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
       if (arg_no)
         binlog_buf.append(',');
 
-      str_value= sp_get_item_value(nctx->get_item(arg_no),
+      str_value= sp_get_item_value(thd, nctx->get_item(arg_no),
                                    &str_value_holder);
 
       if (str_value)

@@ -31,6 +31,26 @@ extern "C" {
 #define EXTERNC
 #endif /* __cplusplus */ 
 
+/*
+  BUG#24507: Race conditions inside current NPTL pthread_exit() implementation.
+  
+  If macro NPTL_PTHREAD_EXIT_HACK is defined then a hack described in the bug
+  report will be implemented inside my_thread_global_init() in my_thr_init.c.
+   
+  This amounts to spawning a dummy thread which does nothing but executes 
+  pthread_exit(0). 
+  
+  This bug is fixed in version 2.5 of glibc library.
+  
+  TODO: Remove this code when fixed versions of glibc6 are in common use. 
+ */
+
+#if defined(TARGET_OS_LINUX) && defined(HAVE_NPTL) && \
+    defined(__GLIBC__) && ( __GLIBC__ < 2 || __GLIBC__ == 2 && __GLIBC_MINOR__ < 5 )
+#define NPTL_PTHREAD_EXIT_BUG	1
+#endif 
+
+
 #if defined(__WIN__) || defined(OS2)
 
 #ifdef OS2

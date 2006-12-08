@@ -94,8 +94,10 @@ static bool stop_passed= 0;
 */
 Format_description_log_event* description_event; 
 
-static int dump_local_log_entries(const char* logname);
-static int dump_remote_log_entries(const char* logname);
+static int dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
+                                  const char* logname);
+static int dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
+                                   const char* logname);
 static int dump_log_entries(const char* logname);
 static int dump_remote_file(NET* net, const char* fname);
 static void die(const char* fmt, ...);
@@ -950,8 +952,22 @@ static MYSQL* safe_connect()
 
 static int dump_log_entries(const char* logname)
 {
-  return (remote_opt ? dump_remote_log_entries(logname) :
-          dump_local_log_entries(logname));
+  int rc;
+  PRINT_EVENT_INFO print_event_info;
+  /*
+     Set safe delimiter, to dump things
+     like CREATE PROCEDURE safely
+  */
+  fprintf(result_file, "DELIMITER /*!*/;\n");
+  strcpy(print_event_info.delimiter, "/*!*/;");
+
+  rc= (remote_opt ? dump_remote_log_entries(&print_event_info, logname) :
+       dump_local_log_entries(&print_event_info, logname));
+
+  /* Set delimiter back to semicolon */
+  fprintf(result_file, "DELIMITER ;\n");
+  strcpy(print_event_info.delimiter, ";");
+  return rc;
 }
 
 
@@ -1016,11 +1032,11 @@ static int check_master_version(MYSQL* mysql,
 }
 
 
-static int dump_remote_log_entries(const char* logname)
+static int dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
+                                   const char* logname)
 
 {
   char buf[128];
-  PRINT_EVENT_INFO print_event_info;
   ulong len;
   uint logname_len;
   NET* net;
@@ -1143,7 +1159,7 @@ could be out of memory");
           len= 1; // fake Rotate, so don't increment old_off
         }
       }
-      if ((error= process_event(&print_event_info, ev, old_off)))
+      if ((error= process_event(print_event_info, ev, old_off)))
       {
 	error= ((error < 0) ? 0 : 1);
         goto err;
@@ -1162,7 +1178,7 @@ could be out of memory");
         goto err;
       }
       
-      if ((error= process_event(&print_event_info, ev, old_off)))
+      if ((error= process_event(print_event_info, ev, old_off)))
       {
  	my_close(file,MYF(MY_WME));
 	error= ((error < 0) ? 0 : 1);
@@ -1288,11 +1304,11 @@ at offset %lu ; this could be a log format error or read error",
 }
 
 
-static int dump_local_log_entries(const char* logname)
+static int dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
+                                  const char* logname)
 {
   File fd = -1;
   IO_CACHE cache,*file= &cache;
-  PRINT_EVENT_INFO print_event_info;
   byte tmp_buff[BIN_LOG_HEADER_SIZE];
   int error= 0;
 
@@ -1364,7 +1380,7 @@ static int dump_local_log_entries(const char* logname)
       // file->error == 0 means EOF, that's OK, we break in this case
       break;
     }
-    if ((error= process_event(&print_event_info, ev, old_off)))
+    if ((error= process_event(print_event_info, ev, old_off)))
     {
       if (error < 0)
         error= 0;
