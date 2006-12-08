@@ -103,8 +103,10 @@ dist-hook:
 tags:
 	support-files/build-tags
 
-.PHONY:	init-db bin-dist test test-full test-ps test-nr \
-	test-ns test-pr test-unit
+.PHONY:	init-db bin-dist \
+  test    test-force    test-full    test-force-full    test-force-mem \
+  test-pl test-force-pl test-full-pl test-force-full-pl test-force-pl-mem \
+  test-unit test-ps test-nr test-pr test-ns test-binlog-statement
 
 # Target 'test' will run the regression test suite using the built server.
 #
@@ -119,23 +121,23 @@ test-unit:
 
 test-ps:
 	cd mysql-test ; \
-	./mysql-test-run.pl $(force) --ps-protocol --mysqld=--binlog-format=mixed
+	@PERL@ ./mysql-test-run.pl $(force) --ps-protocol --mysqld=--binlog-format=mixed
 
 test-nr:
 	cd mysql-test ; \
-	./mysql-test-run.pl $(force) --mysqld=--binlog-format=row
+	@PERL@ ./mysql-test-run.pl $(force) --mysqld=--binlog-format=row
 
 test-pr:
 	cd mysql-test ; \
-	./mysql-test-run.pl $(force) --ps-protocol --mysqld=--binlog-format=row
+	@PERL@ ./mysql-test-run.pl $(force) --ps-protocol --mysqld=--binlog-format=row
 
 test-ns:
 	cd mysql-test ; \
-	./mysql-test-run.pl $(force) --mysqld=--binlog-format=mixed
+	@PERL@ ./mysql-test-run.pl $(force) --mysqld=--binlog-format=mixed
 
 test-binlog-statement:
 	cd mysql-test ; \
-	./mysql-test-run.pl $(force) --mysqld=--binlog-format=statement
+	@PERL@ ./mysql-test-run.pl $(force) --mysqld=--binlog-format=statement
 
 test:	test-unit test-ns test-pr
 
