@@ -7,7 +7,6 @@
 #
 # Author(s): Mats Kindahl
 
---source include/have_row_based.inc
 --source include/master-slave.inc
 
 let $format = STATEMENT;

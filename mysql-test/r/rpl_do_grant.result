@@ -20,6 +20,17 @@ set password for rpl_do_grant@localhost=password("does it work?");
 select password<>_binary'' from mysql.user where user=_binary'rpl_do_grant';
 password<>_binary''
 1
+update mysql.user set password='' where user='rpl_do_grant';
+flush privileges;
+select password<>'' from mysql.user where user='rpl_do_grant';
+password<>''
+0
+set sql_mode='ANSI_QUOTES';
+set password for rpl_do_grant@localhost=password('does it work?');
+set sql_mode='';
+select password<>'' from mysql.user where user='rpl_do_grant';
+password<>''
+1
 delete from mysql.user where user=_binary'rpl_do_grant';
 delete from mysql.db where user=_binary'rpl_do_grant';
 flush privileges;

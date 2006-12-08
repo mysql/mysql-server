@@ -3,8 +3,7 @@ SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 
 # Need to set USE_TLS, since __declspec(thread) approach to thread local
 # storage does not work properly in DLLs.
-ADD_DEFINITIONS(-DUSE_TLS -DHAVE_ROW_BASED_REPLICATION -DMYSQL_SERVER
-                -DEMBEDDED_LIBRARY)
+ADD_DEFINITIONS(-DUSE_TLS -DMYSQL_SERVER -DEMBEDDED_LIBRARY)
 
 # The old Windows build method used renamed (.cc -> .cpp) source files, fails
 # in #include in lib_sql.cc. So disable that using the USING_CMAKE define.

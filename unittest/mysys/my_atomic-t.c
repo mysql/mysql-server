@@ -174,9 +174,15 @@ int main()
   pthread_cond_init(&cond, 0);
   my_atomic_rwlock_init(&rwl);
 
-  test_atomic("my_atomic_add32", test_atomic_add_handler, 100,10000);
-  test_atomic("my_atomic_swap32", test_atomic_swap_handler, 100,10000);
-  test_atomic("my_atomic_cas32", test_atomic_cas_handler, 100,10000);
+#ifdef HPUX11
+#define CYCLES 1000
+#else
+#define CYCLES 10000
+#endif
+#define THREADS 100
+  test_atomic("my_atomic_add32", test_atomic_add_handler, THREADS, CYCLES);
+  test_atomic("my_atomic_swap32", test_atomic_swap_handler, THREADS, CYCLES);
+  test_atomic("my_atomic_cas32", test_atomic_cas_handler, THREADS, CYCLES);
 
   /*
     workaround until we know why it crashes randomly on some machine

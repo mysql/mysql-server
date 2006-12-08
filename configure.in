@@ -35,7 +35,6 @@ sinclude(config/ac-macros/ha_ndbcluster.m4)
 sinclude(config/ac-macros/large_file.m4)
 sinclude(config/ac-macros/misc.m4)
 sinclude(config/ac-macros/readline.m4)
-sinclude(config/ac-macros/replication.m4)
 sinclude(config/ac-macros/ssl.m4)
 sinclude(config/ac-macros/zlib.m4)
 
@@ -2156,7 +2155,6 @@ AC_MSG_RESULT("$netinet_inc")
 
 MYSQL_CHECK_BIG_TABLES
 MYSQL_CHECK_MAX_INDEXES
-MYSQL_CHECK_REPLICATION
 MYSQL_CHECK_VIO
 MYSQL_CHECK_SSL
 

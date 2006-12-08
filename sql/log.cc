@@ -87,18 +87,14 @@ char *make_default_log_name(char *buff,const char* log_ext)
 class binlog_trx_data {
 public:
   binlog_trx_data()
-#ifdef HAVE_ROW_BASED_REPLICATION
     : m_pending(0), before_stmt_pos(MY_OFF_T_UNDEF)
-#endif
   {
     trans_log.end_of_file= max_binlog_cache_size;
   }
 
   ~binlog_trx_data()
   {
-#ifdef HAVE_ROW_BASED_REPLICATION
     DBUG_ASSERT(pending() == NULL);
-#endif
     close_cached_file(&trans_log);
   }
 
@@ -108,11 +104,7 @@ public:
 
   bool empty() const
   {
-#ifdef HAVE_ROW_BASED_REPLICATION
     return pending() == NULL && my_b_tell(&trans_log) == 0;
-#else
-    return my_b_tell(&trans_log) == 0;
-#endif
   }
 
   /*
@@ -121,10 +113,8 @@ public:
    */
   void truncate(my_off_t pos)
   {
-#ifdef HAVE_ROW_BASED_REPLICATION
     delete pending();
     set_pending(0);
-#endif
     reinit_io_cache(&trans_log, WRITE_CACHE, pos, 0, 0);
   }
 
@@ -135,13 +125,10 @@ public:
   void reset() {
     if (!empty())
       truncate(0);
-#ifdef HAVE_ROW_BASED_REPLICATION
     before_stmt_pos= MY_OFF_T_UNDEF;
-#endif
     trans_log.end_of_file= max_binlog_cache_size;
   }
 
-#ifdef HAVE_ROW_BASED_REPLICATION
   Rows_log_event *pending() const
   {
     return m_pending;
@@ -151,12 +138,10 @@ public:
   {
     m_pending= pending;
   }
-#endif
 
   IO_CACHE trans_log;                         // The transaction cache
 
 private:
-#ifdef HAVE_ROW_BASED_REPLICATION
   /*
     Pending binrows event. This event is the event where the rows are
     currently written.
@@ -168,7 +153,6 @@ public:
     Binlog position before the start of the current statement.
   */
   my_off_t before_stmt_pos;
-#endif
 };
 
 handlerton *binlog_hton;
@@ -1468,9 +1452,7 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
       were, we would have to ensure that we're not ending a statement
       inside a stored function.
      */
-#ifdef HAVE_ROW_BASED_REPLICATION
     thd->binlog_flush_pending_rows_event(TRUE);
-#endif
     /*
       We write the transaction cache to the binary log if either we're
       committing the entire transaction, or if we are doing an
@@ -1480,13 +1462,11 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
     {
       error= mysql_bin_log.write(thd, &trx_data->trans_log, end_ev);
       trx_data->reset();
-#ifdef HAVE_ROW_BASED_REPLICATION
       /*
         We need to step the table map version after writing the
         transaction cache to disk.
       */
       mysql_bin_log.update_table_map_version();
-#endif
       statistic_increment(binlog_cache_use, &LOCK_status);
       if (trans_log->disk_writes != 0)
       {
@@ -1495,7 +1475,6 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
       }
     }
   }
-#ifdef HAVE_ROW_BASED_REPLICATION
   else
   {
     /*
@@ -1518,7 +1497,6 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
     */
     mysql_bin_log.update_table_map_version();
   }
-#endif
 
   DBUG_RETURN(error);
 }
@@ -3396,7 +3374,6 @@ int THD::binlog_setup_trx_data()
   DBUG_RETURN(0);
 }
 
-#ifdef HAVE_ROW_BASED_REPLICATION
 /*
   Function to start a statement and optionally a transaction for the
   binary log.
@@ -3605,7 +3582,6 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
 
   DBUG_RETURN(error);
 }
-#endif /*HAVE_ROW_BASED_REPLICATION*/
 
 /*
   Write an event to the binary log
@@ -3638,11 +3614,9 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
     we are inside a stored function, we do not end the statement since
     this will close all tables on the slave.
   */
-#ifdef HAVE_ROW_BASED_REPLICATION
   bool const end_stmt=
     thd->prelocked_mode && thd->lex->requires_prelocking();
   thd->binlog_flush_pending_rows_event(end_stmt);
-#endif /*HAVE_ROW_BASED_REPLICATION*/
 
   pthread_mutex_lock(&LOCK_log);
 
@@ -3672,7 +3646,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
     }
 #endif /* HAVE_REPLICATION */
 
-#if defined(USING_TRANSACTIONS) && defined(HAVE_ROW_BASED_REPLICATION)
+#if defined(USING_TRANSACTIONS) 
     /*
       Should we write to the binlog cache or to the binlog on disk?
       Write to the binlog cache if:
@@ -3707,7 +3681,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
         LOCK_log.
       */
     }
-#endif /* USING_TRANSACTIONS && HAVE_ROW_BASED_REPLICATION */
+#endif /* USING_TRANSACTIONS */
     DBUG_PRINT("info",("event type: %d",event_info->get_type_code()));
 
     /*

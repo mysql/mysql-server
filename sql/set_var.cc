@@ -670,7 +670,6 @@ sys_var_have_variable sys_have_query_cache("have_query_cache",
                                            &have_query_cache);
 sys_var_have_variable sys_have_rtree_keys("have_rtree_keys", &have_rtree_keys);
 sys_var_have_variable sys_have_symlink("have_symlink", &have_symlink);
-sys_var_have_variable sys_have_row_based_replication("have_row_based_replication",&have_row_based_replication);
 /* Global read-only variable describing server license */
 sys_var_const_str		sys_license("license", STRINGIFY_ARG(LICENSE));
 
@@ -792,7 +791,6 @@ SHOW_VAR init_vars[]= {
   {sys_have_openssl.name,     (char*) &have_openssl,                SHOW_HAVE},
   {sys_have_partition_db.name,(char*) &have_partition_db,           SHOW_HAVE},
   {sys_have_query_cache.name, (char*) &have_query_cache,            SHOW_HAVE},
-  {sys_have_row_based_replication.name, (char*) &have_row_based_replication, SHOW_HAVE},
   {sys_have_rtree_keys.name,  (char*) &have_rtree_keys,             SHOW_HAVE},
   {sys_have_symlink.name,     (char*) &have_symlink,                SHOW_HAVE},
   {"init_connect",            (char*) &sys_init_connect,            SHOW_SYS},
@@ -1306,10 +1304,6 @@ bool sys_var_thd_binlog_format::is_readonly() const
     If we don't have row-based replication compiled in, the variable
     is always read-only.
   */
-#ifndef HAVE_ROW_BASED_REPLICATION
-  my_error(ER_RBR_NOT_AVAILABLE, MYF(0));
-  return 1;
-#else
   if ((thd->variables.binlog_format == BINLOG_FORMAT_ROW) &&
       thd->temporary_tables)
   {
@@ -1334,16 +1328,13 @@ bool sys_var_thd_binlog_format::is_readonly() const
     return 1;
   }
 #endif /* HAVE_NDB_BINLOG */
-#endif /* HAVE_ROW_BASED_REPLICATION */
   return sys_var_thd_enum::is_readonly();
 }
 
 
 void fix_binlog_format_after_update(THD *thd, enum_var_type type)
 {
-#ifdef HAVE_ROW_BASED_REPLICATION
   thd->reset_current_stmt_binlog_row_based();
-#endif /*HAVE_ROW_BASED_REPLICATION*/
 }
 
 
@@ -2985,17 +2976,39 @@ byte *sys_var_max_user_conn::value_ptr(THD *thd, enum_var_type type,
   return (byte*) &(max_user_connections);
 }
 
+
 bool sys_var_thd_lc_time_names::check(THD *thd, set_var *var)
 {
-  char *locale_str =var->value->str_value.c_ptr();
-  MY_LOCALE *locale_match=  my_locale_by_name(locale_str);
+  MY_LOCALE *locale_match;
 
-  if (locale_match == NULL)
+  if (var->value->result_type() == INT_RESULT)
   {
-    my_printf_error(ER_UNKNOWN_ERROR,
-                    "Unknown locale: '%s'", MYF(0), locale_str);
-    return 1;
+    if (!(locale_match= my_locale_by_number((uint) var->value->val_int())))
+    {
+      char buf[20];
+      int10_to_str((int) var->value->val_int(), buf, -10);
+      my_printf_error(ER_UNKNOWN_ERROR, "Unknown locale: '%s'", MYF(0), buf);
+      return 1;
+    }
   }
+  else // STRING_RESULT
+  {
+    char buff[6]; 
+    String str(buff, sizeof(buff), &my_charset_latin1), *res;
+    if (!(res=var->value->val_str(&str)))
+    {
+      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, "NULL");
+      return 1;
+    }
+    const char *locale_str= res->c_ptr();
+    if (!(locale_match= my_locale_by_name(locale_str)))
+    {
+      my_printf_error(ER_UNKNOWN_ERROR,
+                      "Unknown locale: '%s'", MYF(0), locale_str);
+      return 1;
+    }
+  }
+
   var->save_result.locale_value= locale_match;
   return 0;
 }
