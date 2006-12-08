@@ -15,31 +15,33 @@ flush logs;
 --- Local --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
-ROLLBACK;
-use test;
-SET TIMESTAMP=1000000000;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
-SET @@session.sql_mode=0;
-/*!\C latin1 */;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
-drop table if exists t1,t2;
-SET TIMESTAMP=1000000000;
-create table t1 (word varchar(20));
-SET TIMESTAMP=1000000000;
-create table t2 (id int auto_increment not null primary key);
-SET TIMESTAMP=1000000000;
-insert into t1 values ("abirvalg");
-SET INSERT_ID=1;
-SET TIMESTAMP=1000000000;
-insert into t2 values ();
-SET TIMESTAMP=1000000000;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-1-0' INTO table t1;
-SET TIMESTAMP=1000000000;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-2-0' INTO table t1;
-SET TIMESTAMP=1000000000;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-3-0' INTO table t1;
-SET TIMESTAMP=1000000000;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-4-0' INTO table t1;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1/*!*/;
+SET @@session.sql_mode=0/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+drop table if exists t1,t2/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+create table t1 (word varchar(20))/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+create table t2 (id int auto_increment not null primary key)/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+insert into t1 values ("abirvalg")/*!*/;
+SET INSERT_ID=1/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+insert into t2 values ()/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-1-0' INTO table t1/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-2-0' INTO table t1/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-3-0' INTO table t1/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-4-0' INTO table t1/*!*/;
+DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
@@ -47,13 +49,15 @@ ROLLBACK /* added by mysqlbinlog */;
 --- Broken LOAD DATA --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
-use test;
-SET TIMESTAMP=1000000000;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
-SET @@session.sql_mode=0;
-/*!\C latin1 */;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
-insert into t1 values ("Alas");
+DELIMITER /*!*/;
+use test/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1/*!*/;
+SET @@session.sql_mode=0/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+insert into t1 values ("Alas")/*!*/;
+DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
@@ -61,8 +65,10 @@ ROLLBACK /* added by mysqlbinlog */;
 --- --database --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
-ROLLBACK;
-SET INSERT_ID=1;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET INSERT_ID=1/*!*/;
+DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
@@ -70,13 +76,15 @@ ROLLBACK /* added by mysqlbinlog */;
 --- --position --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
-use test;
-SET TIMESTAMP=1000000000;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
-SET @@session.sql_mode=0;
-/*!\C latin1 */;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
-insert into t1 values ("Alas");
+DELIMITER /*!*/;
+use test/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1/*!*/;
+SET @@session.sql_mode=0/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+insert into t1 values ("Alas")/*!*/;
+DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
@@ -84,31 +92,33 @@ ROLLBACK /* added by mysqlbinlog */;
 --- Remote --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
-ROLLBACK;
-use test;
-SET TIMESTAMP=1000000000;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
-SET @@session.sql_mode=0;
-/*!\C latin1 */;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
-drop table if exists t1,t2;
-SET TIMESTAMP=1000000000;
-create table t1 (word varchar(20));
-SET TIMESTAMP=1000000000;
-create table t2 (id int auto_increment not null primary key);
-SET TIMESTAMP=1000000000;
-insert into t1 values ("abirvalg");
-SET INSERT_ID=1;
-SET TIMESTAMP=1000000000;
-insert into t2 values ();
-SET TIMESTAMP=1000000000;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-1-2' INTO table t1;
-SET TIMESTAMP=1000000000;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-2-2' INTO table t1;
-SET TIMESTAMP=1000000000;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-3-2' INTO table t1;
-SET TIMESTAMP=1000000000;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-4-2' INTO table t1;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1/*!*/;
+SET @@session.sql_mode=0/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+drop table if exists t1,t2/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+create table t1 (word varchar(20))/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+create table t2 (id int auto_increment not null primary key)/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+insert into t1 values ("abirvalg")/*!*/;
+SET INSERT_ID=1/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+insert into t2 values ()/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-1-2' INTO table t1/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-2-2' INTO table t1/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-3-2' INTO table t1/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-4-2' INTO table t1/*!*/;
+DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
@@ -116,13 +126,15 @@ ROLLBACK /* added by mysqlbinlog */;
 --- Broken LOAD DATA --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
-use test;
-SET TIMESTAMP=1000000000;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
-SET @@session.sql_mode=0;
-/*!\C latin1 */;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
-insert into t1 values ("Alas");
+DELIMITER /*!*/;
+use test/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1/*!*/;
+SET @@session.sql_mode=0/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+insert into t1 values ("Alas")/*!*/;
+DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
@@ -130,8 +142,10 @@ ROLLBACK /* added by mysqlbinlog */;
 --- --database --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
-ROLLBACK;
-SET INSERT_ID=1;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET INSERT_ID=1/*!*/;
+DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
@@ -139,13 +153,15 @@ ROLLBACK /* added by mysqlbinlog */;
 --- --position --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
-use test;
-SET TIMESTAMP=1000000000;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
-SET @@session.sql_mode=0;
-/*!\C latin1 */;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
-insert into t1 values ("Alas");
+DELIMITER /*!*/;
+use test/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1/*!*/;
+SET @@session.sql_mode=0/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+insert into t1 values ("Alas")/*!*/;
+DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
@@ -153,22 +169,26 @@ ROLLBACK /* added by mysqlbinlog */;
 --- reading stdin --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
-ROLLBACK;
-use test;
-SET TIMESTAMP=1108844556;
-BEGIN;
-SET TIMESTAMP=1108844555;
-insert t1 values (1);
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1108844556/*!*/;
+BEGIN/*!*/;
+SET TIMESTAMP=1108844555/*!*/;
+insert t1 values (1)/*!*/;
+DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
-use test;
-SET TIMESTAMP=1108844556;
-BEGIN;
-SET TIMESTAMP=1108844555;
-insert t1 values (1);
+DELIMITER /*!*/;
+use test/*!*/;
+SET TIMESTAMP=1108844556/*!*/;
+BEGIN/*!*/;
+SET TIMESTAMP=1108844555/*!*/;
+insert t1 values (1)/*!*/;
+DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
@@ -194,4 +214,39 @@ select * from t5  /* must be (1),(1) */;
 a
 1
 1
+drop procedure if exists p1;
+flush logs;
+create procedure p1()
+begin
+select 1;
+end;
+//
+flush logs;
+call p1();
+1
+1
+drop procedure p1;
+call p1();
+ERROR 42000: PROCEDURE test.p1 does not exist
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+use test/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1/*!*/;
+SET @@session.sql_mode=0/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+CREATE DEFINER=`root`@`localhost` procedure p1()
+begin
+select 1;
+end/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+call p1();
+1
+1
+drop procedure p1;
 drop table t1, t2, t03, t04, t3, t4, t5;

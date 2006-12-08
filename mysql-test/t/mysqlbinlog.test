@@ -134,6 +134,30 @@ flush logs;
 --exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000006 | $MYSQL
 select * from t5  /* must be (1),(1) */;
 
+#
+# Bug#20396 Bin Log does not get DELIMETER cmd - Recover StoredProc fails 
+#
+--disable_warnings
+drop procedure if exists p1;
+--enable_warnings
+flush logs;
+delimiter //;
+create procedure p1()
+begin
+select 1;
+end;
+//
+delimiter ;//
+flush logs;
+call p1();
+drop procedure p1;
+--error 1305
+call p1();
+--exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000007
+--exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000007 | $MYSQL
+call p1();
+drop procedure p1;
+
 # clean up
 drop table t1, t2, t03, t04, t3, t4, t5; 
 
