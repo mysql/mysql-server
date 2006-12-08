@@ -245,7 +245,7 @@ $CP mysql-test/t/*.def $BASE/mysql-test/t
 $CP mysql-test/std_data/*.dat mysql-test/std_data/*.frm \
     mysql-test/std_data/*.pem mysql-test/std_data/Moscow_leap \
     mysql-test/std_data/des_key_file mysql-test/std_data/*.*001 \
-    mysql-test/std_data/*.cnf \
+    mysql-test/std_data/*.cnf mysql-test/std_data/*.MY* \
     $BASE/mysql-test/std_data
 $CP mysql-test/t/*.test mysql-test/t/*.imtest \
     mysql-test/t/*.disabled mysql-test/t/*.opt \
