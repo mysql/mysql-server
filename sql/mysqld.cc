@@ -1180,6 +1180,7 @@ void clean_up(bool print_message)
   my_tz_free();
   my_database_names_free();
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+  servers_free(1);
   acl_free(1);
   grant_free();
 #endif
@@ -3654,6 +3655,9 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   }
   if (!opt_noacl)
     (void) grant_init();
+
+  if (!opt_bootstrap)
+    servers_init(0);
 
   if (!opt_noacl)
   {

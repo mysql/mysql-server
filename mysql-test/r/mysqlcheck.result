@@ -17,6 +17,7 @@ mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.servers                                      OK
 mysql.slow_log
 note     : The storage engine for the table doesn't support optimize
 mysql.tables_priv                                  OK
@@ -41,6 +42,7 @@ mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.servers                                      OK
 mysql.slow_log
 note     : The storage engine for the table doesn't support optimize
 mysql.tables_priv                                  OK
