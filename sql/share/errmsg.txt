@@ -5607,6 +5607,8 @@ ER_SP_RECURSION_LIMIT
 ER_SP_PROC_TABLE_CORRUPT
         eng "Failed to load routine %-.64s. The table mysql.proc is missing, corrupt, or contains bad data (internal code %d)"
         ger "Routine %-64s konnte nicht geladen werden. Die Tabelle mysql.proc fehlt, ist beschädigt, oder enthält fehlerhaften Daten (interner Code: %d)"
+ER_FOREIGN_SERVER_EXISTS
+        eng "The foreign server, %s, you are trying to create already exists."
 ER_SP_WRONG_NAME 42000
         eng "Incorrect routine name '%-.64s'"
         ger "Ungültiger Routinenname '%-.64s'"
@@ -5847,6 +5849,9 @@ ER_BINLOG_ROW_WRONG_TABLE_DEF
 ER_BINLOG_ROW_RBR_TO_SBR
         eng "Slave running with --log-slave-updates must use row-based binary logging to be able to replicate row-based binary log events"
         ger "Slave, die mit --log-slave-updates laufen, müssen zeilenbasiertes Loggen verwenden, um zeilenbasierte Binärlog-Ereignisse loggen zu können"
+ER_FOREIGN_SERVER_DOESNT_EXIST
+        eng "The foreign server name you are trying to reference does not exist. Data source error:  %-.64s"
+	ger "Die externe Verbindung, auf die Sie zugreifen wollen, existiert nicht. Datenquellenfehlermeldung:  %-.64s"
 ER_EVENT_ALREADY_EXISTS
         eng "Event '%-.64s' already exists"
         ger "Event '%-.64s' existiert bereits"

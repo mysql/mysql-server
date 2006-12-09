@@ -5189,6 +5189,58 @@ create_sp_error:
 #endif /* EMBEDDED_LIBRARY */
     break;
   }
+  case SQLCOM_CREATE_SERVER:
+  {
+    int error;
+    LEX *lex= thd->lex;
+    DBUG_PRINT("info", ("case SQLCOM_CREATE_SERVER"));
+    if ((error= create_server(thd, &lex->server_options)))
+    {
+      DBUG_PRINT("info", ("problem creating server",
+                          lex->server_options.server_name));
+      my_error(error, MYF(0), lex->server_options.server_name);
+      break;
+    }
+    send_ok(thd, 1);
+    break;
+  }
+  case SQLCOM_ALTER_SERVER:
+  {
+    int error;
+    LEX *lex= thd->lex;
+    DBUG_PRINT("info", ("case SQLCOM_ALTER_SERVER"));
+    if ((error= alter_server(thd, &lex->server_options)))
+    {
+      DBUG_PRINT("info", ("problem altering server",
+                          lex->server_options.server_name));
+      my_error(error, MYF(0), lex->server_options.server_name);
+      break;
+    }
+    send_ok(thd, 1);
+    break;
+  }
+  case SQLCOM_DROP_SERVER:
+  {
+    int err_code;
+    LEX *lex= thd->lex;
+    DBUG_PRINT("info", ("case SQLCOM_DROP_SERVER"));
+    if ((err_code= drop_server(thd, &lex->server_options)))
+    {
+      if (! lex->drop_if_exists && err_code == ER_FOREIGN_SERVER_EXISTS)
+      {
+        DBUG_PRINT("info", ("problem dropping server %s",
+                            lex->server_options.server_name));
+        my_error(err_code, MYF(0), lex->server_options.server_name);
+      }
+      else
+      {
+        send_ok(thd, 0);
+      }
+      break;
+    }
+    send_ok(thd, 1);
+    break;
+  }
   default:
 #ifndef EMBEDDED_LIBRARY
     DBUG_ASSERT(0);                             /* Impossible */

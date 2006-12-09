@@ -111,6 +111,7 @@ enum enum_sql_command {
   SQLCOM_SHOW_AUTHORS, SQLCOM_BINLOG_BASE64_EVENT,
   SQLCOM_SHOW_PLUGINS,
   SQLCOM_SHOW_CONTRIBUTORS,
+  SQLCOM_CREATE_SERVER, SQLCOM_DROP_SERVER, SQLCOM_ALTER_SERVER,
   SQLCOM_CREATE_EVENT, SQLCOM_ALTER_EVENT, SQLCOM_DROP_EVENT,
   SQLCOM_SHOW_CREATE_EVENT, SQLCOM_SHOW_EVENTS, 
 
@@ -173,6 +174,14 @@ enum enum_drop_mode
 };
 
 typedef List<Item> List_item;
+
+/* SERVERS CACHE CHANGES */
+typedef struct st_lex_server_options
+{
+  long port;
+  uint server_name_length;
+  char *server_name, *host, *db, *username, *password, *scheme, *socket, *owner;
+} LEX_SERVER_OPTIONS;
 
 typedef struct st_lex_master_info
 {
@@ -977,6 +986,7 @@ typedef struct st_lex : public Query_tables_list
   HA_CREATE_INFO create_info;
   KEY_CREATE_INFO key_create_info;
   LEX_MASTER_INFO mi;				// used by CHANGE MASTER
+  LEX_SERVER_OPTIONS server_options;
   USER_RESOURCES mqh;
   ulong type;
   /*
