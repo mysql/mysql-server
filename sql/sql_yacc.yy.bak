@@ -1694,7 +1694,7 @@ create_function_tail:
               When collation support in SP is implemented, then this test
               should be removed.
             */
-            if (($8 == MYSQL_TYPE_STRING || $8 == MYSQL_TYPE_VARCHAR)
+            if (($8 == FIELD_TYPE_STRING || $8 == MYSQL_TYPE_VARCHAR)
                 && (lex->type & BINCMP_FLAG))
             {
               my_error(ER_NOT_SUPPORTED_YET, MYF(0), "return value collation");
@@ -2010,6 +2010,7 @@ sp_decl:
             uint num_vars= pctx->context_var_count();
             enum enum_field_types var_type= (enum enum_field_types) $4;
             Item *dflt_value_item= $5;
+            create_field *create_field_op;
             
             if (!dflt_value_item)
             {
@@ -3205,7 +3206,7 @@ size_number:
           real_ulong_num { $$= $1;}
           | IDENT
           {
-            ulonglong number;
+            ulonglong number, test_number;
             uint text_shift_number= 0;
             longlong prefix_number;
             char *start_ptr= $1.str;
@@ -3714,9 +3715,11 @@ part_bit_expr:
         bit_expr
         {
           Item *part_expr= $1;
+          bool not_corr_func;
           int part_expression_ok= 1;
           LEX *lex= Lex;
           THD *thd= YYTHD;
+          longlong item_value;
           Name_resolution_context *context= &lex->current_select->context;
           TABLE_LIST *save_list= context->table_list;
           const char *save_where= thd->where;
@@ -3857,11 +3860,11 @@ opt_part_option:
           lex->part_info->default_engine_type= $4;
         }
         | NODEGROUP_SYM opt_equal real_ulong_num
-        { Lex->part_info->curr_part_elem->nodegroup_id= (uint16) $3; }
+        { Lex->part_info->curr_part_elem->nodegroup_id= $3; }
         | MAX_ROWS opt_equal real_ulonglong_num
-        { Lex->part_info->curr_part_elem->part_max_rows= (ha_rows) $3; }
+        { Lex->part_info->curr_part_elem->part_max_rows= $3; }
         | MIN_ROWS opt_equal real_ulonglong_num
-        { Lex->part_info->curr_part_elem->part_min_rows= (ha_rows) $3; }
+        { Lex->part_info->curr_part_elem->part_min_rows= $3; }
         | DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys
         { Lex->part_info->curr_part_elem->data_file_name= $4.str; }
         | INDEX_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys
@@ -4207,31 +4210,31 @@ field_spec:
 type:
 	int_type opt_len field_options	{ $$=$1; }
 	| real_type opt_precision field_options { $$=$1; }
-	| FLOAT_SYM float_options field_options { $$=MYSQL_TYPE_FLOAT; }
+	| FLOAT_SYM float_options field_options { $$=FIELD_TYPE_FLOAT; }
 	| BIT_SYM			{ Lex->length= (char*) "1";
-					  $$=MYSQL_TYPE_BIT; }
+					  $$=FIELD_TYPE_BIT; }
 	| BIT_SYM '(' NUM ')'		{ Lex->length= $3.str;
-					  $$=MYSQL_TYPE_BIT; }
+					  $$=FIELD_TYPE_BIT; }
 	| BOOL_SYM			{ Lex->length=(char*) "1";
-					  $$=MYSQL_TYPE_TINY; }
+					  $$=FIELD_TYPE_TINY; }
 	| BOOLEAN_SYM			{ Lex->length=(char*) "1";
-					  $$=MYSQL_TYPE_TINY; }
+					  $$=FIELD_TYPE_TINY; }
 	| char '(' NUM ')' opt_binary	{ Lex->length=$3.str;
-					  $$=MYSQL_TYPE_STRING; }
+					  $$=FIELD_TYPE_STRING; }
 	| char opt_binary		{ Lex->length=(char*) "1";
-					  $$=MYSQL_TYPE_STRING; }
+					  $$=FIELD_TYPE_STRING; }
 	| nchar '(' NUM ')' opt_bin_mod	{ Lex->length=$3.str;
-					  $$=MYSQL_TYPE_STRING;
+					  $$=FIELD_TYPE_STRING;
 					  Lex->charset=national_charset_info; }
 	| nchar opt_bin_mod		{ Lex->length=(char*) "1";
-					  $$=MYSQL_TYPE_STRING;
+					  $$=FIELD_TYPE_STRING;
 					  Lex->charset=national_charset_info; }
 	| BINARY '(' NUM ')'		{ Lex->length=$3.str;
 					  Lex->charset=&my_charset_bin;
-					  $$=MYSQL_TYPE_STRING; }
+					  $$=FIELD_TYPE_STRING; }
 	| BINARY			{ Lex->length= (char*) "1";
 					  Lex->charset=&my_charset_bin;
-					  $$=MYSQL_TYPE_STRING; }
+					  $$=FIELD_TYPE_STRING; }
 	| varchar '(' NUM ')' opt_binary { Lex->length=$3.str;
 					  $$= MYSQL_TYPE_VARCHAR; }
 	| nvarchar '(' NUM ')' opt_bin_mod { Lex->length=$3.str;
@@ -4240,33 +4243,33 @@ type:
 	| VARBINARY '(' NUM ')' 	{ Lex->length=$3.str;
 					  Lex->charset=&my_charset_bin;
 					  $$= MYSQL_TYPE_VARCHAR; }
-	| YEAR_SYM opt_len field_options { $$=MYSQL_TYPE_YEAR; }
-	| DATE_SYM			{ $$=MYSQL_TYPE_DATE; }
-	| TIME_SYM			{ $$=MYSQL_TYPE_TIME; }
+	| YEAR_SYM opt_len field_options { $$=FIELD_TYPE_YEAR; }
+	| DATE_SYM			{ $$=FIELD_TYPE_DATE; }
+	| TIME_SYM			{ $$=FIELD_TYPE_TIME; }
 	| TIMESTAMP opt_len
 	  {
 	    if (YYTHD->variables.sql_mode & MODE_MAXDB)
-	      $$=MYSQL_TYPE_DATETIME;
+	      $$=FIELD_TYPE_DATETIME;
 	    else
             {
               /* 
                 Unlike other types TIMESTAMP fields are NOT NULL by default.
               */
               Lex->type|= NOT_NULL_FLAG;
-	      $$=MYSQL_TYPE_TIMESTAMP;
+	      $$=FIELD_TYPE_TIMESTAMP;
             }
 	   }
-	| DATETIME			{ $$=MYSQL_TYPE_DATETIME; }
+	| DATETIME			{ $$=FIELD_TYPE_DATETIME; }
 	| TINYBLOB			{ Lex->charset=&my_charset_bin;
-					  $$=MYSQL_TYPE_TINY_BLOB; }
+					  $$=FIELD_TYPE_TINY_BLOB; }
 	| BLOB_SYM opt_len		{ Lex->charset=&my_charset_bin;
-					  $$=MYSQL_TYPE_BLOB; }
+					  $$=FIELD_TYPE_BLOB; }
 	| spatial_type
           {
 #ifdef HAVE_SPATIAL
             Lex->charset=&my_charset_bin;
             Lex->uint_geom_type= (uint)$1;
-            $$=MYSQL_TYPE_GEOMETRY;
+            $$=FIELD_TYPE_GEOMETRY;
 #else
             my_error(ER_FEATURE_DISABLED, MYF(0),
                      sym_group_geom.name, sym_group_geom.needed_define);
@@ -4274,30 +4277,30 @@ type:
 #endif
           }
 	| MEDIUMBLOB			{ Lex->charset=&my_charset_bin;
-					  $$=MYSQL_TYPE_MEDIUM_BLOB; }
+					  $$=FIELD_TYPE_MEDIUM_BLOB; }
 	| LONGBLOB			{ Lex->charset=&my_charset_bin;
-					  $$=MYSQL_TYPE_LONG_BLOB; }
+					  $$=FIELD_TYPE_LONG_BLOB; }
 	| LONG_SYM VARBINARY		{ Lex->charset=&my_charset_bin;
-					  $$=MYSQL_TYPE_MEDIUM_BLOB; }
-	| LONG_SYM varchar opt_binary	{ $$=MYSQL_TYPE_MEDIUM_BLOB; }
-	| TINYTEXT opt_binary		{ $$=MYSQL_TYPE_TINY_BLOB; }
-	| TEXT_SYM opt_len opt_binary	{ $$=MYSQL_TYPE_BLOB; }
-	| MEDIUMTEXT opt_binary		{ $$=MYSQL_TYPE_MEDIUM_BLOB; }
-	| LONGTEXT opt_binary		{ $$=MYSQL_TYPE_LONG_BLOB; }
+					  $$=FIELD_TYPE_MEDIUM_BLOB; }
+	| LONG_SYM varchar opt_binary	{ $$=FIELD_TYPE_MEDIUM_BLOB; }
+	| TINYTEXT opt_binary		{ $$=FIELD_TYPE_TINY_BLOB; }
+	| TEXT_SYM opt_len opt_binary	{ $$=FIELD_TYPE_BLOB; }
+	| MEDIUMTEXT opt_binary		{ $$=FIELD_TYPE_MEDIUM_BLOB; }
+	| LONGTEXT opt_binary		{ $$=FIELD_TYPE_LONG_BLOB; }
 	| DECIMAL_SYM float_options field_options
-                                        { $$=MYSQL_TYPE_NEWDECIMAL;}
+                                        { $$=FIELD_TYPE_NEWDECIMAL;}
 	| NUMERIC_SYM float_options field_options
-                                        { $$=MYSQL_TYPE_NEWDECIMAL;}
+                                        { $$=FIELD_TYPE_NEWDECIMAL;}
 	| FIXED_SYM float_options field_options
-                                        { $$=MYSQL_TYPE_NEWDECIMAL;}
+                                        { $$=FIELD_TYPE_NEWDECIMAL;}
 	| ENUM {Lex->interval_list.empty();} '(' string_list ')' opt_binary
-	  { $$=MYSQL_TYPE_ENUM; }
+	  { $$=FIELD_TYPE_ENUM; }
 	| SET { Lex->interval_list.empty();} '(' string_list ')' opt_binary
-	  { $$=MYSQL_TYPE_SET; }
-	| LONG_SYM opt_binary		{ $$=MYSQL_TYPE_MEDIUM_BLOB; }
+	  { $$=FIELD_TYPE_SET; }
+	| LONG_SYM opt_binary		{ $$=FIELD_TYPE_MEDIUM_BLOB; }
 	| SERIAL_SYM
 	  {
-	    $$=MYSQL_TYPE_LONGLONG;
+	    $$=FIELD_TYPE_LONGLONG;
 	    Lex->type|= (AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNSIGNED_FLAG |
 		         UNIQUE_FLAG);
 	  }
@@ -4339,17 +4342,17 @@ nvarchar:
 	;
 
 int_type:
-	INT_SYM		{ $$=MYSQL_TYPE_LONG; }
-	| TINYINT	{ $$=MYSQL_TYPE_TINY; }
-	| SMALLINT	{ $$=MYSQL_TYPE_SHORT; }
-	| MEDIUMINT	{ $$=MYSQL_TYPE_INT24; }
-	| BIGINT	{ $$=MYSQL_TYPE_LONGLONG; };
+	INT_SYM		{ $$=FIELD_TYPE_LONG; }
+	| TINYINT	{ $$=FIELD_TYPE_TINY; }
+	| SMALLINT	{ $$=FIELD_TYPE_SHORT; }
+	| MEDIUMINT	{ $$=FIELD_TYPE_INT24; }
+	| BIGINT	{ $$=FIELD_TYPE_LONGLONG; };
 
 real_type:
 	REAL		{ $$= YYTHD->variables.sql_mode & MODE_REAL_AS_FLOAT ?
-			      MYSQL_TYPE_FLOAT : MYSQL_TYPE_DOUBLE; }
-	| DOUBLE_SYM	{ $$=MYSQL_TYPE_DOUBLE; }
-	| DOUBLE_SYM PRECISION { $$=MYSQL_TYPE_DOUBLE; };
+			      FIELD_TYPE_FLOAT : FIELD_TYPE_DOUBLE; }
+	| DOUBLE_SYM	{ $$=FIELD_TYPE_DOUBLE; }
+	| DOUBLE_SYM PRECISION { $$=FIELD_TYPE_DOUBLE; };
 
 
 float_options:
@@ -4937,7 +4940,7 @@ alter_commands:
         | remove_partitioning
         | partitioning
 /*
-  This part was added for release 5.1 by Mikael RonstrÃ¶m.
+  This part was added for release 5.1 by Mikael Ronström.
   From here we insert a number of commands to manage the partitions of a
   partitioned table such as adding partitions, dropping partitions,
   reorganising partitions in various manners. In future releases the list
@@ -6495,7 +6498,7 @@ function_call_generic:
             }
           }
           /* Temporary placing the result of find_udf in $3 */
-          $<udf>$= udf;
+          lex->current_select->udf_list.push_front(udf);
 #endif
         }
         udf_expr_list ')'
@@ -6523,10 +6526,10 @@ function_call_generic:
           {
 #ifdef HAVE_DLOPEN
             /* Retrieving the result of find_udf */
-            udf_func *udf= $<udf>3;
+            udf_func *udf;
             LEX *lex= Lex;
 
-            if (udf)
+            if (NULL != (udf= lex->current_select->udf_list.pop()))
             {
               if (udf->type == UDFTYPE_AGGREGATE)
               {
@@ -6622,6 +6625,7 @@ udf_expr_list3:
 udf_expr:
 	remember_name expr remember_end select_alias
 	{
+          udf_func *udf= Select->udf_list.head();
           /*
            Use Item::name as a storage for the attribute value of user
            defined function argument. It is safe to use Item::name
@@ -6630,10 +6634,20 @@ udf_expr:
           */
 	  if ($4.str)
           {
+            if (!udf)
+            {
+              /*
+                Disallow using AS to specify explicit names for the arguments
+                of stored routine calls
+              */
+              yyerror(ER(ER_SYNTAX_ERROR));
+              YYABORT;
+            }
+
             $2->is_autogenerated_name= FALSE;
 	    $2->set_name($4.str, $4.length, system_charset_info);
           }
-	  else
+	  else if (udf)
 	    $2->set_name($1, (uint) ($3 - $1), YYTHD->charset());
 	  $$= $2;
 	}
@@ -9391,7 +9405,6 @@ keyword:
 	| LANGUAGE_SYM          {}
 	| NO_SYM		{}
 	| OPEN_SYM		{}
-	| OPTIONS_SYM		{}
 	| OWNER_SYM		{}
         | PARSER_SYM            {}
 	| PARTITION_SYM		{}

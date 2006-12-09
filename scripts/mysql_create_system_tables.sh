@@ -30,6 +30,7 @@ windows=$4
 
 # Initialize variables
 c_d="" i_d=""
+c_s="" i_s=""
 c_h="" i_h=""
 c_u="" i_u=""
 c_f="" i_f=""
@@ -190,6 +191,33 @@ then
 	   INSERT INTO user VALUES ('localhost','','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);"
     fi
   fi 
+fi
+
+# Check for old tables
+if test ! -f $mdata/servers.frm
+then
+  if test "$1" = "verbose" ; then
+  echo "Preparing servers table" 1>&2;
+  fi
+
+  c_s="
+CREATE TABLE  servers ("
+  c_s="$c_s   Server_name char(64) NOT NULL,"
+  c_s="$c_s   Host char(64) NOT NULL,"
+  c_s="$c_s   Db char(64) NOT NULL,"
+  c_s="$c_s   Username char(64) NOT NULL,"
+  c_s="$c_s   Password char(64) NOT NULL,"
+  c_s="$c_s   Port INT(4),"
+  c_s="$c_s   Socket char(64),"
+  c_s="$c_s   Wrapper char(64) NOT NULL,"
+  c_s="$c_s   Owner char(64) NOT NULL,"
+  c_s="$c_s   PRIMARY KEY  (Server_name))"
+  c_s="$c_s   comment='MySQL Foreign Servers table';"
+
+  i_s="INSERT INTO servers VALUES
+    ('test','localhost','test','root','', 0,
+     '','mysql','root');
+    "
 fi
 
 if test ! -f $mdata/func.frm
@@ -848,6 +876,9 @@ $i_f
 
 $c_pl
 $i_pl
+
+$c_s
+$i_s
 
 $c_t
 $c_c

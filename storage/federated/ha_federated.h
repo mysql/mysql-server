@@ -43,6 +43,9 @@
   The example implements the minimum of what you will probably need.
 */
 typedef struct st_federated_share {
+  bool parsed;
+  /* this key is unique db/tablename */
+  const char *share_key;
   /*
     the primary select query to be used in rnd_init
   */
@@ -50,6 +53,8 @@ typedef struct st_federated_share {
   /*
     remote host info, parse_url supplies
   */
+  char *server_name;
+  char *connection_string;
   char *scheme;
   char *connect_string;
   char *hostname;
@@ -60,8 +65,9 @@ typedef struct st_federated_share {
   char *table;
   char *socket;
   char *sport;
+  int share_key_length;
   ushort port;
-  uint table_name_length, connect_string_length, use_count;
+  uint table_name_length, server_name_length, connect_string_length, use_count;
   pthread_mutex_t mutex;
   THR_LOCK lock;
 } FEDERATED_SHARE;
