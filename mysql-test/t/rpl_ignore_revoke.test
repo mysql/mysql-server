@@ -45,3 +45,7 @@ revoke select on *.* FROM 'user_foo';
 connection master;
 delete from mysql.user where user="user_foo";
 sync_slave_with_master;
+
+# Since changes to mysql.* are ignored, the revoke need to
+# be done on slave as well
+delete from mysql.user where user="user_foo";

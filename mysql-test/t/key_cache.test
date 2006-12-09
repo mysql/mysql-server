@@ -164,16 +164,19 @@ create table t1 (mytext text, FULLTEXT (mytext));
 insert t1 values ('aaabbb');
 
 check table t1;
+set @my_key_cache_block_size= @@global.key_cache_block_size;
 set GLOBAL key_cache_block_size=2048;
 check table t1;
-
 drop table t1;
+# Restore the changed variable value
+set global key_cache_block_size= @my_key_cache_block_size;
 
 #
 # Bug #19079: corrupted index when key_cache_block_size is not multiple of
 #             myisam_block_size
 
 CREATE TABLE t1(a int NOT NULL AUTO_INCREMENT PRIMARY KEY);
+SET @my_key_cache_block_size= @@global.key_cache_block_size;
 SET GLOBAL key_cache_block_size=1536;
 INSERT INTO t1 VALUES (1);
 SELECT @@key_cache_block_size;
@@ -206,6 +209,8 @@ SELECT COUNT(*) FROM t1;
 SELECT @@key_cache_block_size;
 CHECK TABLE t1;
 DROP TABLE t1,t2;
+# Restore changed variables
+set global key_cache_block_size= @my_key_cache_block_size;
 
 #
 # Bug#10473 - Can't set 'key_buffer_size' system variable to ZERO

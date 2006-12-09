@@ -10,6 +10,7 @@ drop function if exists f1;
 drop table if exists t1,t2;
 drop view if exists v1;
 create table t1 (a int);
+SET GLOBAL log_bin_trust_function_creators = 1;
 create procedure p1()
 begin
 declare spv int default 0;
@@ -234,3 +235,4 @@ drop table t1;
 drop function f1;
 drop function f2;
 drop procedure p1;
+SET GLOBAL log_bin_trust_function_creators = 0;
