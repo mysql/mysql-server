@@ -52,6 +52,7 @@
 #define SSL_set_session yaSSL_set_session
 #define SSL_get_session yaSSL_get_session
 #define SSL_SESSION_set_timeout yaSSL_SESSION_set_timeout
+#define SSL_CTX_set_session_cache_mode yaSSL_CTX_set_session_cache_mode
 #define SSL_get_peer_certificate yaSSL_get_peer_certificate
 #define SSL_get_verify_result yaSSL_get_verify_result
 #define SSL_CTX_set_verify yaSSL_CTX_set_verify
@@ -98,6 +99,8 @@
 #define SSLv3_client_method yaSSLv3_client_method
 #define TLSv1_server_method yaTLSv1_server_method
 #define TLSv1_client_method yaTLSv1_client_method
+#define TLSv1_1_server_method yaTLSv1_1_server_method
+#define TLSv1_1_client_method yaTLSv1_1_client_method
 #define SSLv23_server_method yaSSLv23_server_method
 #define SSL_CTX_use_certificate_file yaSSL_CTX_use_certificate_file
 #define SSL_CTX_use_PrivateKey_file yaSSL_CTX_use_PrivateKey_file
@@ -159,3 +162,4 @@
 #define MD5_Init yaMD5_Init
 #define MD5_Update yaMD5_Update
 #define MD5_Final yaMD5_Final
+#define SSL_set_compression yaSSL_set_compression

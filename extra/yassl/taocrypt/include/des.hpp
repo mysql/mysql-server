@@ -34,6 +34,12 @@
 #include "misc.hpp"
 #include "modes.hpp"
 
+
+#if defined(TAOCRYPT_X86ASM_AVAILABLE) && defined(TAO_ASM)
+    #define DO_DES_ASM
+#endif
+
+
 namespace TaoCrypt {
 
 
@@ -53,13 +59,9 @@ protected:
 class DES : public Mode_BASE, public BasicDES {
 public:
     DES(CipherDir DIR, Mode MODE) 
-        : Mode_BASE(DES_BLOCK_SIZE), dir_(DIR), mode_(MODE) {}
+        : Mode_BASE(DES_BLOCK_SIZE, DIR, MODE) {}
 
-    void Process(byte*, const byte*, word32);
 private:
-    CipherDir dir_;
-    Mode      mode_;
-
     void ProcessAndXorBlock(const byte*, const byte*, byte*) const;
 
     DES(const DES&);              // hide copy
@@ -71,14 +73,10 @@ private:
 class DES_EDE2 : public Mode_BASE {
 public:
     DES_EDE2(CipherDir DIR, Mode MODE) 
-        : Mode_BASE(DES_BLOCK_SIZE), dir_(DIR), mode_(MODE) {}
+        : Mode_BASE(DES_BLOCK_SIZE, DIR, MODE) {}
 
     void SetKey(const byte*, word32, CipherDir dir);
-    void Process(byte*, const byte*, word32);
 private:
-    CipherDir dir_;
-    Mode      mode_;
-
     BasicDES  des1_;
     BasicDES  des2_;
 
@@ -94,15 +92,14 @@ private:
 class DES_EDE3 : public Mode_BASE {
 public:
     DES_EDE3(CipherDir DIR, Mode MODE) 
-        : Mode_BASE(DES_BLOCK_SIZE), dir_(DIR), mode_(MODE) {}
+        : Mode_BASE(DES_BLOCK_SIZE, DIR, MODE) {}
 
     void SetKey(const byte*, word32, CipherDir dir);
     void SetIV(const byte* iv) { memcpy(r_, iv, DES_BLOCK_SIZE); }
+#ifdef DO_DES_ASM
     void Process(byte*, const byte*, word32);
+#endif
 private:
-    CipherDir dir_;
-    Mode      mode_;
-
     BasicDES  des1_;
     BasicDES  des2_;
     BasicDES  des3_;

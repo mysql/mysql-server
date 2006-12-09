@@ -5574,6 +5574,7 @@ int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
                             ER(ER_NO_DEFAULT_FOR_FIELD),
                             field_arg->field_name);
       }
+      field_arg->set_default();
       return 1;
     }
     field_arg->set_default();

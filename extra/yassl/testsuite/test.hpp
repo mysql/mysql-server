@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <assert.h>
 
+//#define NON_BLOCKING  // test server and client example (not echos)
+
 #ifdef _WIN32
     #include <winsock2.h>
     #include <process.h>
@@ -23,15 +25,16 @@
     #include <sys/types.h>
     #include <sys/socket.h>
     #include <pthread.h>
+#ifdef NON_BLOCKING
+    #include <fcntl.h>
+#endif
     #define SOCKET_T int
 #endif /* _WIN32 */
 
 
-#if !defined(_SOCKLEN_T) && defined(_WIN32)
+#if !defined(_SOCKLEN_T) && \
+ (defined(_WIN32) || defined(__NETWARE__) || defined(__APPLE__))
     typedef int socklen_t;
-#endif
-#if !defined(_SOCKLEN_T) && defined(__NETWARE__)
-    typedef size_t socklen_t;
 #endif
 
 
@@ -262,6 +265,20 @@ inline void set_args(int& argc, char**& argv, func_args& args)
 }
 
 
+inline void tcp_set_nonblocking(SOCKET_T& sockfd)
+{
+#ifdef NON_BLOCKING
+    #ifdef _WIN32
+        unsigned long blocking = 1;
+        int ret = ioctlsocket(sockfd, FIONBIO, &blocking);
+    #else
+        int flags = fcntl(sockfd, F_GETFL, 0);
+        int ret = fcntl(sockfd, F_SETFL, flags | O_NONBLOCK);
+    #endif
+#endif
+}
+
+
 inline void tcp_socket(SOCKET_T& sockfd, sockaddr_in& addr)
 {
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -289,8 +306,7 @@ inline void tcp_connect(SOCKET_T& sockfd)
     sockaddr_in addr;
     tcp_socket(sockfd, addr);
 
-    if (connect(sockfd, (const sockaddr*)&addr, sizeof(addr)) != 0)
-    {
+    if (connect(sockfd, (const sockaddr*)&addr, sizeof(addr)) != 0) {
         tcp_close(sockfd);
         err_sys("tcp connect failed");
     }
@@ -302,17 +318,16 @@ inline void tcp_listen(SOCKET_T& sockfd)
     sockaddr_in addr;
     tcp_socket(sockfd, addr);
 
-    if (bind(sockfd, (const sockaddr*)&addr, sizeof(addr)) != 0)
-    {
+    if (bind(sockfd, (const sockaddr*)&addr, sizeof(addr)) != 0) {
         tcp_close(sockfd);
         err_sys("tcp bind failed");
     }
-    if (listen(sockfd, 3) != 0)
-    {
+    if (listen(sockfd, 3) != 0) {
         tcp_close(sockfd);
         err_sys("tcp listen failed");
     }
 }
+
 
 
 inline void tcp_accept(SOCKET_T& sockfd, SOCKET_T& clientfd, func_args& args)
@@ -333,11 +348,14 @@ inline void tcp_accept(SOCKET_T& sockfd, SOCKET_T& clientfd, func_args& args)
 
     clientfd = accept(sockfd, (sockaddr*)&client, (ACCEPT_THIRD_T)&client_len);
 
-    if (clientfd == -1)
-    {
+    if (clientfd == -1) {
         tcp_close(sockfd);
         err_sys("tcp accept failed");
     }
+
+#ifdef NON_BLOCKING
+    tcp_set_nonblocking(clientfd);
+#endif
 }
 
 
@@ -363,25 +381,30 @@ inline void showPeer(SSL* ssl)
 
 inline DH* set_tmpDH(SSL_CTX* ctx)
 {
-    static unsigned char dh512_p[] =
+    static unsigned char dh1024_p[] =
     {
-      0xDA,0x58,0x3C,0x16,0xD9,0x85,0x22,0x89,0xD0,0xE4,0xAF,0x75,
-      0x6F,0x4C,0xCA,0x92,0xDD,0x4B,0xE5,0x33,0xB8,0x04,0xFB,0x0F,
-      0xED,0x94,0xEF,0x9C,0x8A,0x44,0x03,0xED,0x57,0x46,0x50,0xD3,
-      0x69,0x99,0xDB,0x29,0xD7,0x76,0x27,0x6B,0xA2,0xD3,0xD4,0x12,
-      0xE2,0x18,0xF4,0xDD,0x1E,0x08,0x4C,0xF6,0xD8,0x00,0x3E,0x7C,
-      0x47,0x74,0xE8,0x33,
+        0xE6, 0x96, 0x9D, 0x3D, 0x49, 0x5B, 0xE3, 0x2C, 0x7C, 0xF1, 0x80, 0xC3,
+        0xBD, 0xD4, 0x79, 0x8E, 0x91, 0xB7, 0x81, 0x82, 0x51, 0xBB, 0x05, 0x5E,
+        0x2A, 0x20, 0x64, 0x90, 0x4A, 0x79, 0xA7, 0x70, 0xFA, 0x15, 0xA2, 0x59,
+        0xCB, 0xD5, 0x23, 0xA6, 0xA6, 0xEF, 0x09, 0xC4, 0x30, 0x48, 0xD5, 0xA2,
+        0x2F, 0x97, 0x1F, 0x3C, 0x20, 0x12, 0x9B, 0x48, 0x00, 0x0E, 0x6E, 0xDD,
+        0x06, 0x1C, 0xBC, 0x05, 0x3E, 0x37, 0x1D, 0x79, 0x4E, 0x53, 0x27, 0xDF,
+        0x61, 0x1E, 0xBB, 0xBE, 0x1B, 0xAC, 0x9B, 0x5C, 0x60, 0x44, 0xCF, 0x02,
+        0x3D, 0x76, 0xE0, 0x5E, 0xEA, 0x9B, 0xAD, 0x99, 0x1B, 0x13, 0xA6, 0x3C,
+        0x97, 0x4E, 0x9E, 0xF1, 0x83, 0x9E, 0xB5, 0xDB, 0x12, 0x51, 0x36, 0xF7,
+        0x26, 0x2E, 0x56, 0xA8, 0x87, 0x15, 0x38, 0xDF, 0xD8, 0x23, 0xC6, 0x50,
+        0x50, 0x85, 0xE2, 0x1F, 0x0D, 0xD5, 0xC8, 0x6B,
     };
 
-    static unsigned char dh512_g[] =
+    static unsigned char dh1024_g[] =
     {
       0x02,
     };
 
     DH* dh;
     if ( (dh = DH_new()) ) {
-        dh->p = BN_bin2bn(dh512_p, sizeof(dh512_p), 0);
-        dh->g = BN_bin2bn(dh512_g, sizeof(dh512_g), 0);
+        dh->p = BN_bin2bn(dh1024_p, sizeof(dh1024_p), 0);
+        dh->g = BN_bin2bn(dh1024_g, sizeof(dh1024_g), 0);
     }
     if (!dh->p || !dh->g) {
         DH_free(dh);

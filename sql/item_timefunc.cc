@@ -289,15 +289,16 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
 
   for (; ptr != end && val != val_end; ptr++)
   {
+    /* Skip pre-space between each argument */
+    while (val != val_end && my_isspace(cs, *val))
+      val++;
+
     if (*ptr == '%' && ptr+1 != end)
     {
       int val_len;
       char *tmp;
 
       error= 0;
-      /* Skip pre-space between each argument */
-      while (val != val_end && my_isspace(cs, *val))
-	val++;
 
       val_len= (uint) (val_end - val);
       switch (*++ptr) {
@@ -3193,7 +3194,9 @@ bool Item_func_str_to_date::get_date(TIME *ltime, uint fuzzy_date)
   date_time_format.format.str=    (char*) format->ptr();
   date_time_format.format.length= format->length();
   if (extract_date_time(&date_time_format, val->ptr(), val->length(),
-			ltime, cached_timestamp_type, 0, "datetime"))
+			ltime, cached_timestamp_type, 0, "datetime") ||
+      ((fuzzy_date & TIME_NO_ZERO_DATE) &&
+       (ltime->year == 0 || ltime->month == 0 || ltime->day == 0)))
     goto null_date;
   if (cached_timestamp_type == MYSQL_TIMESTAMP_TIME && ltime->day)
   {
@@ -3230,8 +3233,13 @@ String *Item_func_str_to_date::val_str(String *str)
 
 bool Item_func_last_day::get_date(TIME *ltime, uint fuzzy_date)
 {
-  if (get_arg0_date(ltime, fuzzy_date & ~TIME_FUZZY_DATE))
+  if (get_arg0_date(ltime, fuzzy_date & ~TIME_FUZZY_DATE) ||
+      (ltime->month == 0))
+  {
+    null_value= 1;
     return 1;
+  }
+  null_value= 0;
   uint month_idx= ltime->month-1;
   ltime->day= days_in_month[month_idx];
   if ( month_idx == 1 && calc_days_in_year(ltime->year) == 366)

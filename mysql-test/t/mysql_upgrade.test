@@ -1,0 +1,20 @@
+# Only run test if "mysql_upgrade" is found
+--require r/have_mysql_upgrade.result
+--disable_query_log
+select LENGTH("$MYSQL_UPGRADE")>0 as have_mysql_upgrade;
+--enable_query_log
+
+#
+# Basic test thta we can run mysql_upgrde and that it finds the
+# expected binaries it uses.
+#
+--echo Run mysql_upgrade once
+--exec $MYSQL_UPGRADE 2> $MYSQLTEST_VARDIR/log/mysql_upgrade.err
+
+--echo Run it again - should say already completed
+--exec $MYSQL_UPGRADE 2> $MYSQLTEST_VARDIR/log/mysql_upgrade.err
+
+--echo Force should run it regardless of wheter it's been run before
+--exec $MYSQL_UPGRADE --force 2> $MYSQLTEST_VARDIR/log/mysql_upgrade.err
+
+

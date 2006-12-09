@@ -36,6 +36,8 @@ Tables_in_test
 t1
 t2
 t3
+Tables_in_test
+t1
 _
 Test delimiter : from command line
 a
@@ -178,4 +180,8 @@ Too long dbname
 ERROR 1049 (42000) at line 1: Unknown database 'test_really_long_dbnamexxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 Too long hostname
 ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'cyrils_superlonghostnameXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' (errno)
+1
+1
+ERROR at line 1: DELIMITER cannot contain a backslash character
+ERROR at line 1: DELIMITER cannot contain a backslash character
 End of 5.0 tests

@@ -269,6 +269,7 @@ select * from t1;
 convert_tz(NULL, NULL, NULL)
 NULL
 drop table t1;
+SET GLOBAL log_bin_trust_function_creators = 1;
 create table t1 (ldt datetime, udt datetime);
 create function f1(i datetime) returns datetime
 return convert_tz(i, 'UTC', 'Europe/Moscow');
@@ -283,3 +284,4 @@ ldt	ldt2
 2006-04-19 16:30:00	2006-04-19 16:30:00
 drop table t1;
 drop function f1;
+SET GLOBAL log_bin_trust_function_creators = 0;

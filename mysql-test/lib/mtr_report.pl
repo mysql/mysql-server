@@ -34,7 +34,12 @@ sub mtr_verbose (@);
 # We can't use diff -u or diff -a as these are not portable
 
 sub mtr_show_failed_diff ($) {
-  my $tname=  shift;
+  my $result_file_name=  shift;
+
+  # The reject and log files have been dumped to
+  # to filenames based on the result_file's name
+  my $tname= basename($result_file_name);
+  $tname=~ s/\..*$//;
 
   my $reject_file=  "r/$tname.reject";
   my $result_file=  "r/$tname.result";

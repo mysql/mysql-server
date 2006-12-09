@@ -13,6 +13,8 @@ sub mtr_tofile ($@);
 sub mtr_tonewfile($@);
 sub mtr_lastlinefromfile($);
 sub mtr_appendfile_to_file ($$);
+sub mtr_grab_file($);
+
 
 ##############################################################################
 #
@@ -129,6 +131,7 @@ sub unspace {
   return "$quote$string$quote";
 }
 
+# Read a whole file, stripping leading and trailing whitespace.
 sub mtr_fromfile ($) {
   my $file=  shift;
 
@@ -180,6 +183,17 @@ sub mtr_appendfile_to_file ($$) {
   print TOFILE while (<FROMFILE>);
   close FROMFILE;
   close TOFILE;
+}
+
+# Read a whole file verbatim.
+sub mtr_grab_file($) {
+  my $file= shift;
+  open(FILE, '<', $file)
+    or return undef;
+  local $/= undef;
+  my $data= scalar(<FILE>);
+  close FILE;
+  return $data;
 }
 
 

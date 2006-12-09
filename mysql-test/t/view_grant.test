@@ -733,13 +733,13 @@ CREATE SQL SECURITY DEFINER VIEW mysqltest1.v_tu AS SELECT * FROM mysqltest1.t1;
 CREATE SQL SECURITY DEFINER VIEW mysqltest1.v_tus AS SELECT * FROM mysqltest1.t1;
 CREATE SQL SECURITY DEFINER VIEW mysqltest1.v_td AS SELECT * FROM mysqltest1.t1;
 CREATE SQL SECURITY DEFINER VIEW mysqltest1.v_tds AS SELECT * FROM mysqltest1.t1;
-GRANT SELECT, INSERT, UPDATE, DELETE ON mysqltest1.v_t1 TO readonly;
-GRANT SELECT ON mysqltest1.v_ts TO readonly;
-GRANT INSERT ON mysqltest1.v_ti TO readonly;
-GRANT UPDATE ON mysqltest1.v_tu TO readonly;
-GRANT UPDATE,SELECT ON mysqltest1.v_tus TO readonly;
-GRANT DELETE ON mysqltest1.v_td TO readonly;
-GRANT DELETE,SELECT ON mysqltest1.v_tds TO readonly;
+GRANT SELECT, INSERT, UPDATE, DELETE ON mysqltest1.v_t1 TO readonly@localhost;
+GRANT SELECT ON mysqltest1.v_ts TO readonly@localhost;
+GRANT INSERT ON mysqltest1.v_ti TO readonly@localhost;
+GRANT UPDATE ON mysqltest1.v_tu TO readonly@localhost;
+GRANT UPDATE,SELECT ON mysqltest1.v_tus TO readonly@localhost;
+GRANT DELETE ON mysqltest1.v_td TO readonly@localhost;
+GRANT DELETE,SELECT ON mysqltest1.v_tds TO readonly@localhost;
 
 CONNECT (n1,localhost,readonly,,);
 CONNECTION n1;
@@ -797,7 +797,7 @@ DROP VIEW mysqltest1.v_ti;
 DROP VIEW mysqltest1.v_ts;
 DROP VIEW mysqltest1.v_t1;
 DROP TABLE mysqltest1.t1;
-DROP USER readonly@localhost; 
+DROP USER readonly@localhost;
 DROP DATABASE mysqltest1;
 
 #

@@ -34,15 +34,15 @@
 
 #include "runtime.hpp"
 #include "des.hpp"
-#include STL_ALGORITHM_FILE
+#ifdef USE_SYS_STL
+    #include <algorithm>
+#else
+    #include "algorithm.hpp"
+#endif
 
 
 namespace STL = STL_NAMESPACE;
 
-
-#if defined(TAOCRYPT_X86ASM_AVAILABLE) && defined(TAO_ASM)
-    #define DO_DES_ASM
-#endif
 
 
 namespace TaoCrypt {
@@ -357,18 +357,6 @@ void BasicDES::RawProcessBlock(word32& lIn, word32& rIn) const
 }
 
 
-void DES::Process(byte* out, const byte* in, word32 sz)
-{
-    if (mode_ == ECB)
-        ECB_Process(out, in, sz);
-    else if (mode_ == CBC)
-        if (dir_ == ENCRYPTION)
-            CBC_Encrypt(out, in, sz);
-        else
-            CBC_Decrypt(out, in, sz);
-}
-
-
 
 typedef BlockGetAndPut<word32, BigEndian> Block;
 
@@ -385,17 +373,6 @@ void DES::ProcessAndXorBlock(const byte* in, const byte* xOr, byte* out) const
     Block::Put(xOr, out)(r)(l);
 }
 
-
-void DES_EDE2::Process(byte* out, const byte* in, word32 sz)
-{
-    if (mode_ == ECB)
-        ECB_Process(out, in, sz);
-    else if (mode_ == CBC)
-        if (dir_ == ENCRYPTION)
-            CBC_Encrypt(out, in, sz);
-        else
-            CBC_Decrypt(out, in, sz);
-}
 
 void DES_EDE2::SetKey(const byte* key, word32 sz, CipherDir dir)
 {
@@ -429,25 +406,16 @@ void DES_EDE3::SetKey(const byte* key, word32 sz, CipherDir dir)
 
 
 
-#if !defined(DO_DES_ASM)
-
-// Generic Version
-void DES_EDE3::Process(byte* out, const byte* in, word32 sz)
-{
-    if (mode_ == ECB)
-        ECB_Process(out, in, sz);
-    else if (mode_ == CBC)
-        if (dir_ == ENCRYPTION)
-            CBC_Encrypt(out, in, sz);
-        else
-            CBC_Decrypt(out, in, sz);
-}
-
-#else
+#if defined(DO_DES_ASM)
 
 // ia32 optimized version
 void DES_EDE3::Process(byte* out, const byte* in, word32 sz)
 {
+    if (!isMMX) {
+        Mode_BASE::Process(out, in, sz);
+        return;
+    }
+
     word32 blocks = sz / DES_BLOCK_SIZE;
 
     if (mode_ == CBC)    
