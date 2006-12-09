@@ -32,7 +32,7 @@
   Holyfoot
 */
 
-#define MTEST_VERSION "3.0"
+#define MTEST_VERSION "3.1"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -105,6 +105,7 @@ static my_bool disable_query_log= 0, disable_result_log= 0;
 static my_bool disable_warnings= 0, disable_ps_warnings= 0;
 static my_bool disable_info= 1;
 static my_bool abort_on_error= 1;
+static my_bool server_initialized= 0;
 
 static char **default_argv;
 static const char *load_default_groups[]= { "mysqltest", "client", 0 };
@@ -275,6 +276,7 @@ enum enum_commands {
   Q_DISABLE_PARSING, Q_ENABLE_PARSING,
   Q_REPLACE_REGEX, Q_REMOVE_FILE, Q_FILE_EXIST,
   Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT,
+  Q_CHMOD_FILE,
 
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
@@ -357,6 +359,7 @@ const char *command_names[]=
   "die",
   /* Don't execute any more commands, compare result */
   "exit",
+  "chmod",
   0
 };
 
@@ -769,13 +772,18 @@ void free_used_memory()
   free_all_replace();
   my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
   free_defaults(default_argv);
-  mysql_server_end();
   free_re();
 #ifdef __WIN__
   free_tmp_sh_file();
   free_win_path_patterns();
 #endif
-  DBUG_VOID_RETURN;
+
+  /* Only call mysql_server_end if mysql_server_init has been called */
+  if (server_initialized)
+    mysql_server_end();
+
+  /* Don't use DBUG after mysql_server_end() */
+  return;
 }
 
 
@@ -1807,6 +1815,46 @@ void do_copy_file(struct st_command *command)
   handle_command_error(command, error);
   dynstr_free(&ds_from_file);
   dynstr_free(&ds_to_file);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  SYNOPSIS
+  do_chmod_file
+  command	command handle
+
+  DESCRIPTION
+  chmod <octal> <file>
+  Change file permission of <file>
+
+*/
+
+void do_chmod_file(struct st_command *command)
+{
+  ulong mode= 0;
+  static DYNAMIC_STRING ds_mode;
+  static DYNAMIC_STRING ds_file;
+  const struct command_arg chmod_file_args[] = {
+    "mode", ARG_STRING, TRUE, &ds_mode, "Mode of file",
+    "file", ARG_STRING, TRUE, &ds_file, "Filename of file to modify"
+  };
+  DBUG_ENTER("do_chmod_file");
+
+  check_command_args(command, command->first_argument,
+                     chmod_file_args,
+                     sizeof(chmod_file_args)/sizeof(struct command_arg),
+                     ' ');
+
+  /* Parse what mode to set */
+  if (ds_mode.length != 4 ||
+      str2int(ds_mode.str, 8, 0, INT_MAX, &mode) == NullS)
+    die("You must write a 4 digit octal number for mode");
+
+  DBUG_PRINT("info", ("chmod %o %s", (uint)mode, ds_file.str));
+  handle_command_error(command, chmod(ds_file.str, mode));
+  dynstr_free(&ds_mode);
+  dynstr_free(&ds_file);
   DBUG_VOID_RETURN;
 }
 
@@ -2920,10 +2968,12 @@ void safe_connect(MYSQL* mysql, const char *name, const char *host,
       Connect failed
 
       Only allow retry if this was an error indicating the server
-      could not be contacted
+      could not be contacted. Error code differs depending
+      on protocol/connection type
     */
 
-    if (mysql_errno(mysql) == CR_CONNECTION_ERROR &&
+    if ((mysql_errno(mysql) == CR_CONN_HOST_ERROR ||
+         mysql_errno(mysql) == CR_CONNECTION_ERROR) &&
         failed_attempts < opt_max_connect_retries)
       my_sleep(connection_retry_sleep);
     else
@@ -4204,8 +4254,9 @@ void init_win_path_patterns()
   /* List of string patterns to match in order to find paths */
   const char* paths[] = { "$MYSQL_TEST_DIR",
                           "$MYSQL_TMP_DIR",
-                          "./test/", 0 };
-  int num_paths= 3;
+                          "$MYSQLTEST_VARDIR",
+                          "./test/" };
+  int num_paths= sizeof(paths)/sizeof(char*);
   int i;
   char* p;
 
@@ -4224,6 +4275,13 @@ void init_win_path_patterns()
     }
     else
       p= my_strdup(paths[i], MYF(MY_FAE));
+
+    /* Don't insert zero length strings in patterns array */
+    if (strlen(p) == 0)
+    {
+      my_free(p, MYF(0));
+      continue;
+    }
 
     if (insert_dynamic(&patterns, (gptr) &p))
       die(NullS);
@@ -4274,7 +4332,7 @@ void fix_win_paths(const char *val, int len)
   {
     const char** pattern= dynamic_element(&patterns, i, const char**);
     DBUG_PRINT("info", ("pattern: %s", *pattern));
-    if (strlen(*pattern) == 0) continue;
+
     /* Search for the path in string */
     while ((p= strstr(val, *pattern)))
     {
@@ -5576,6 +5634,7 @@ int main(int argc, char **argv)
 			embedded_server_args,
 			(char**) embedded_server_groups))
     die("Can't initialize MySQL server");
+  server_initialized= 1;
   if (cur_file == file_stack && cur_file->file == 0)
   {
     cur_file->file= stdin;
@@ -5695,6 +5754,7 @@ int main(int argc, char **argv)
       case Q_FILE_EXIST: do_file_exist(command); break;
       case Q_WRITE_FILE: do_write_file(command); break;
       case Q_COPY_FILE: do_copy_file(command); break;
+      case Q_CHMOD_FILE: do_chmod_file(command); break;
       case Q_PERL: do_perl(command); break;
       case Q_DELIMITER:
         do_delimiter(command);
@@ -6527,7 +6587,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
 {
   my_regex_t r;
   my_regmatch_t *subs;
-  char *buf_end, *replace_end;
+  char *replace_end;
   char *buf= *buf_p;
   int len;
   int buf_len, need_buf_len;
@@ -6546,8 +6606,6 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
   res_p= buf;
 
   SECURE_REG_BUF
-
-    buf_end= buf + buf_len;
 
   if (icase)
     cflags|= REG_ICASE;

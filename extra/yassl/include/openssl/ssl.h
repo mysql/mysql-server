@@ -41,7 +41,7 @@
 #include "rsa.h"
 
 
-#define YASSL_VERSION "1.4.3"
+#define YASSL_VERSION "1.5.0"
 
 
 #if defined(__cplusplus)
@@ -228,6 +228,7 @@ void SSL_load_error_strings(void);
 int          SSL_set_session(SSL *ssl, SSL_SESSION *session);
 SSL_SESSION* SSL_get_session(SSL* ssl);
 long         SSL_SESSION_set_timeout(SSL_SESSION*, long);
+long         SSL_CTX_set_session_cache_mode(SSL_CTX* ctx, long mode);
 X509*        SSL_get_peer_certificate(SSL*);
 long         SSL_get_verify_result(SSL*);
 
@@ -361,6 +362,8 @@ SSL_METHOD *SSLv3_server_method(void);
 SSL_METHOD *SSLv3_client_method(void);
 SSL_METHOD *TLSv1_server_method(void);  
 SSL_METHOD *TLSv1_client_method(void);
+SSL_METHOD *TLSv1_1_server_method(void);
+SSL_METHOD *TLSv1_1_client_method(void);
 SSL_METHOD *SSLv23_server_method(void);
 
 int SSL_CTX_use_certificate_file(SSL_CTX*, const char*, int);
@@ -529,6 +532,10 @@ void MD5_Final(unsigned char*, MD5_CTX*);
 
 
 #define SSL_DEFAULT_CIPHER_LIST ""   /* default all */
+
+
+/* yaSSL adds */
+int SSL_set_compression(SSL*);   /* turn on yaSSL zlib compression */
 
 
 

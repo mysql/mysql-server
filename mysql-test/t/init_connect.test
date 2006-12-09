@@ -232,7 +232,9 @@ connection con0;
 disconnect con1;
 
 drop trigger trg1;
-set global init_connect=default;
+# Set init connect back to the value provided in init_connect-master.opt
+# doesn't matter as server will be restarted
+set global init_connect="set @a='a\\0c'";
 
 revoke all privileges, grant option from mysqltest1@localhost;
 drop user mysqltest1@localhost;

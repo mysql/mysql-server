@@ -1527,9 +1527,9 @@ create procedure proc_1() reset query cache;
 call proc_1();
 call proc_1();
 call proc_1();
-create function func_1() returns int begin reset query cache; return 1; end|
+create function func_1() returns int deterministic begin reset query cache; return 1; end|
 ERROR 0A000: RESET is not allowed in stored function or trigger
-create function func_1() returns int begin call proc_1(); return 1; end|
+create function func_1() returns int deterministic begin call proc_1(); return 1; end|
 select func_1(), func_1(), func_1() from dual;
 ERROR 0A000: RESET is not allowed in stored function or trigger
 drop function func_1;

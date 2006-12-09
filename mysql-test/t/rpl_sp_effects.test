@@ -20,6 +20,8 @@ drop view if exists v1;
 --enable_warnings
 create table t1 (a int);
 
+SET GLOBAL log_bin_trust_function_creators = 1;
+
 # 1. Test simple variables use.
 delimiter //;
 create procedure p1()
@@ -205,3 +207,5 @@ drop function f1;
 drop function f2;
 drop procedure p1;
 sync_slave_with_master;
+
+SET GLOBAL log_bin_trust_function_creators = 0;

@@ -140,7 +140,7 @@ File_class::close()
     }   
   }  
   m_file = NULL;
-  
+
   return rc;
 }
 
