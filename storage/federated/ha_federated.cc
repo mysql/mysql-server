@@ -554,7 +554,7 @@ static int parse_url_error(FEDERATED_SHARE *share, TABLE *table, int error_num)
     DBUG_PRINT("info",
                ("error: parse_url. Returning error code %d \
                 freeing share->connection_string %lx",
-                error_num, share->connection_string));
+                error_num, (long unsigned int) share->connection_string));
     my_free((gptr) share->connection_string, MYF(0));
     share->connection_string= 0;
   }
@@ -587,7 +587,7 @@ int get_connection(FEDERATED_SHARE *share)
     error_num=1;
     goto error;
   }
-  DBUG_PRINT("info", ("get_server_by_name returned server at %lx", server));
+  DBUG_PRINT("info", ("get_server_by_name returned server at %lx", (long unsigned int) server));
 
   /*
     Most of these should never be empty strings, error handling will
@@ -606,13 +606,15 @@ int get_connection(FEDERATED_SHARE *share)
     share->password= server->password;
   if (server->db)
     share->database= server->db;
-  if (server->sport)
-    share->sport= server->sport;
-  share->port= server->port ? server->port : 0;
+
+  share->port= server->port ? server->port : MYSQL_PORT;
+
   if (server->host)
     share->hostname= server->host;
   if (server->socket)
     share->socket= server->socket;
+  else if (strcmp(share->hostname, my_localhost) == 0)
+    share->socket= my_strdup(MYSQL_UNIX_ADDR, MYF(0));
   if (server->scheme)
     share->scheme= server->scheme;
   else
@@ -623,7 +625,7 @@ int get_connection(FEDERATED_SHARE *share)
   DBUG_PRINT("info", ("share->hostname %s", share->hostname));
   DBUG_PRINT("info", ("share->database %s", share->database));
   DBUG_PRINT("info", ("share->port %d", share->port));
-  DBUG_PRINT("info", ("share->socket %d", share->socket));
+  DBUG_PRINT("info", ("share->socket %s", share->socket));
   DBUG_RETURN(0);
 
 error:
@@ -698,7 +700,7 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
 
   share->port= 0;
   share->socket= 0;
-  DBUG_PRINT("info", ("share at %lx", share));
+  DBUG_PRINT("info", ("share at %lx", (long unsigned int) share));
   DBUG_PRINT("info", ("Length: %d", table->s->connect_string.length));
   DBUG_PRINT("info", ("String: '%.*s'", table->s->connect_string.length,
                       table->s->connect_string.str));
@@ -709,8 +711,8 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
 
   // Add a null for later termination of table name
   share->connection_string[table->s->connect_string.length]= 0;
-  DBUG_PRINT("info",("parse_url alloced share->scheme %lx",
-                     share->connection_string));
+  DBUG_PRINT("info",("parse_url alloced share->connection_string %lx",
+                     (long unsigned int) share->connection_string));
 
   DBUG_PRINT("info",("share->connection_string %s",share->connection_string));
   /* No delimiters, must be a straight connection name */
@@ -721,8 +723,9 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
 
     DBUG_PRINT("info",
                ("share->connection_string %s internal format \
-                share->connection_string",
-                share->connection_string, share->connection_string));
+                share->connection_string %lx",
+                share->connection_string,
+                (long unsigned int) share->connection_string));
 
     share->parsed= FALSE;
     if ((error_num= get_connection(share)))
@@ -742,7 +745,8 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
     // Add a null for later termination of table name
     share->connection_string[table->s->connect_string.length]= 0;
     share->scheme= share->connection_string;
-    DBUG_PRINT("info",("parse_url alloced share->scheme %lx", share->scheme));
+    DBUG_PRINT("info",("parse_url alloced share->scheme %lx",
+                       (long unsigned int) share->scheme));
 
     /*
       remove addition of null terminator and store length
@@ -1492,7 +1496,8 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
 
 error:
   pthread_mutex_unlock(&federated_mutex);
-  my_free((gptr) tmp_share.scheme, MYF(MY_ALLOW_ZERO_PTR));
+  my_free((gptr) tmp_share.connection_string, MYF(MY_ALLOW_ZERO_PTR));
+  tmp_share.connection_string= 0;
   my_free((gptr) share, MYF(MY_ALLOW_ZERO_PTR));
   return NULL;
 }
@@ -1514,11 +1519,12 @@ static int free_share(FEDERATED_SHARE *share)
     hash_delete(&federated_open_tables, (byte*) share);
     if (share->parsed)
       my_free((gptr) share->socket, MYF(MY_ALLOW_ZERO_PTR));
-    if (share->connection_string)
+    /*if (share->connection_string)
     {
+    */
       my_free((gptr) share->connection_string, MYF(MY_ALLOW_ZERO_PTR));
       share->connection_string= 0;
-    }
+      /*}*/
     thr_lock_delete(&share->lock);
     VOID(pthread_mutex_destroy(&share->mutex));
     my_free((gptr) share, MYF(0));
@@ -2827,7 +2833,9 @@ int ha_federated::create(const char *name, TABLE *table_arg,
   if (!(retval= parse_url(&tmp_share, table_arg, 1)))
     retval= check_foreign_data_source(&tmp_share, 1);
 
-  //my_free((gptr) tmp_share.connection_string, MYF(MY_ALLOW_ZERO_PTR));
+  /* free this because strdup created it in parse_url */
+  my_free((gptr) tmp_share.connection_string, MYF(MY_ALLOW_ZERO_PTR));
+  tmp_share.connection_string= 0;
   DBUG_RETURN(retval);
 
 }
