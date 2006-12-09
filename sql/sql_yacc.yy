@@ -9405,6 +9405,7 @@ keyword:
 	| LANGUAGE_SYM          {}
 	| NO_SYM		{}
 	| OPEN_SYM		{}
+	| OPTIONS_SYM		{}
 	| OWNER_SYM		{}
         | PARSER_SYM            {}
 	| PARTITION_SYM		{}
