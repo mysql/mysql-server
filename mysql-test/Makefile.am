@@ -108,7 +108,7 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/std_data/Moscow_leap $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.pem $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.frm $(DESTDIR)$(testdir)/std_data
-	$(INSTALL_DATA) $(srcdir)/std_data/*.MY* $(DESTDIR)$(distdir)/std_data
+	$(INSTALL_DATA) $(srcdir)/std_data/*.MY* $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.cnf $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup50/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup50
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51
