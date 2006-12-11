@@ -1346,12 +1346,14 @@ SELECT * FROM t2;
 CHECK TABLE t2;
 SELECT * FROM t2;
 
-
-# We won't know exactly about what is going on internally,
-# but we will see if the row makes it in!!
+# Test INSERT DELAYED and wait until the table has one more record
+SELECT COUNT(auto) FROM t2;
 INSERT DELAYED INTO t2 VALUES (4,011403,37,'intercepted','audiology','tinily','');
-FLUSH TABLE t2;
-SELECT * FROM t2;
+while (`SELECT COUNT(auto)!=1214 FROM t2`)
+{
+  sleep 0.1;
+}
+SELECT COUNT(auto) FROM t2;
 
 # Adding test for alter table
 ALTER TABLE t2 DROP COLUMN fld6; 
