@@ -170,6 +170,20 @@ procs_priv	CREATE TABLE `procs_priv` (
   PRIMARY KEY (`Host`,`Db`,`User`,`Routine_name`,`Routine_type`),
   KEY `Grantor` (`Grantor`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='Procedure privileges'
+show create table servers;
+Table	Create Table
+servers	CREATE TABLE `servers` (
+  `Server_name` char(64) NOT NULL DEFAULT '',
+  `Host` char(64) NOT NULL DEFAULT '',
+  `Db` char(64) NOT NULL DEFAULT '',
+  `Username` char(64) NOT NULL DEFAULT '',
+  `Password` char(64) NOT NULL DEFAULT '',
+  `Port` int(4) NOT NULL DEFAULT '0',
+  `Socket` char(64) NOT NULL DEFAULT '',
+  `Wrapper` char(64) NOT NULL DEFAULT '',
+  `Owner` char(64) NOT NULL DEFAULT '',
+  PRIMARY KEY (`Server_name`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='MySQL Foreign Servers table'
 show create table proc;
 Table	Create Table
 proc	CREATE TABLE `proc` (
