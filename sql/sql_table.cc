@@ -644,8 +644,7 @@ int prepare_create_field(create_field *sql_field,
     mysql_prepare_table()
     thd			Thread object
     create_info		Create information (like MAX_ROWS)
-    fields		List of fields to create
-    keys		List of keys to create
+    alter_info          List of columns and indexes to create
 
   DESCRIPTION
     Prepares the table and key structures for table creation.
@@ -659,8 +658,8 @@ int prepare_create_field(create_field *sql_field,
 */
 
 static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
-                               List<create_field> *fields,
-                               List<Key> *keys, bool tmp_table,
+                               Alter_info *alter_info,
+                               bool tmp_table,
                                uint *db_options,
                                handler *file, KEY **key_info_buffer,
                                uint *key_count, int select_field_count)
@@ -674,11 +673,12 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
   int		timestamps= 0, timestamps_with_niladic= 0;
   int		field_no,dup_no;
   int		select_field_pos,auto_increment=0;
-  List_iterator<create_field> it(*fields),it2(*fields);
+  List_iterator<create_field> it(alter_info->create_list);
+  List_iterator<create_field> it2(alter_info->create_list);
   uint total_uneven_bit_length= 0;
   DBUG_ENTER("mysql_prepare_table");
 
-  select_field_pos= fields->elements - select_field_count;
+  select_field_pos= alter_info->create_list.elements - select_field_count;
   null_fields=blob_columns=0;
   create_info->varchar= 0;
   max_key_length= file->max_key_length();
@@ -1003,7 +1003,8 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 
   /* Create keys */
 
-  List_iterator<Key> key_iterator(*keys), key_iterator2(*keys);
+  List_iterator<Key> key_iterator(alter_info->key_list);
+  List_iterator<Key> key_iterator2(alter_info->key_list);
   uint key_parts=0, fk_key_count=0;
   bool primary_key=0,unique_key=0;
   Key *key, *key2;
@@ -1562,14 +1563,13 @@ void sp_prepare_create_field(THD *thd, create_field *sql_field)
 
   SYNOPSIS
     mysql_create_table()
-    thd			Thread object
-    db			Database
-    table_name		Table name
-    create_info		Create information (like MAX_ROWS)
-    fields		List of fields to create
-    keys		List of keys to create
-    internal_tmp_table  Set to 1 if this is an internal temporary table
-			(From ALTER TABLE)
+    thd                  Thread object
+    db                   Database
+    table_name           Table name
+    create_info [in/out] Create information (like MAX_ROWS)
+    alter_info  [in/out] List of columns and indexes to create
+    internal_tmp_table   Set to 1 if this is an internal temporary table
+			 (From ALTER TABLE)
 
   DESCRIPTION
     If one creates a temporary table, this is automatically opened
@@ -1579,6 +1579,11 @@ void sp_prepare_create_field(THD *thd, create_field *sql_field)
     select_field_count is also used for CREATE ... SELECT,
     and must be zero for standard create of table.
 
+    Note that structures passed as 'create_info' and 'alter_info' parameters
+    may be modified by this function. It is responsibility of the caller to
+    make a copy of create_info in order to provide correct execution in
+    prepared statements/stored routines.
+
   RETURN VALUES
     FALSE OK
     TRUE  error
@@ -1586,7 +1591,7 @@ void sp_prepare_create_field(THD *thd, create_field *sql_field)
 
 bool mysql_create_table(THD *thd,const char *db, const char *table_name,
                         HA_CREATE_INFO *create_info,
-                        List<create_field> &fields,
+                        Alter_info *alter_info,
                         List<Key> &keys,bool internal_tmp_table,
                         uint select_field_count)
 {
@@ -1599,7 +1604,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
   DBUG_ENTER("mysql_create_table");
 
   /* Check for duplicate fields and check type of table to create */
-  if (!fields.elements)
+  if (!alter_info->create_list.elements)
   {
     my_message(ER_TABLE_MUST_HAVE_COLUMNS, ER(ER_TABLE_MUST_HAVE_COLUMNS),
                MYF(0));
@@ -1643,10 +1648,10 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     create_info->default_table_charset= db_info.default_table_charset;
   }
 
-  if (mysql_prepare_table(thd, create_info, &fields,
-			  &keys, internal_tmp_table, &db_options, file,
-			  &key_info_buffer, &key_count,
-			  select_field_count))
+  if (mysql_prepare_table(thd, create_info, alter_info, internal_tmp_table,
+                          &db_options, file,
+                          &key_info_buffer, &key_count,
+                          select_field_count))
     DBUG_RETURN(TRUE);
 
       /* Check if table exists */
@@ -1736,8 +1741,8 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
   create_info->table_options=db_options;
 
   if (rea_create_table(thd, path, db, table_name,
-                       create_info, fields, key_count,
-		       key_info_buffer))
+                       create_info, alter_info->create_list,
+                       key_count, key_info_buffer))
     goto end;
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
@@ -2403,6 +2408,7 @@ send_result_message:
 
     case HA_ADMIN_TRY_ALTER:
     {
+      my_bool save_no_send_ok= thd->net.no_send_ok;
       /*
         This is currently used only by InnoDB. ha_innobase::optimize() answers
         "try with alter", so here we close the table, do an ALTER TABLE,
@@ -2413,7 +2419,9 @@ send_result_message:
                  *save_next_global= table->next_global;
       table->next_local= table->next_global= 0;
       tmp_disable_binlog(thd); // binlogging is done by caller if wanted
-      result_code= mysql_recreate_table(thd, table, 0);
+      thd->net.no_send_ok= TRUE;
+      result_code= mysql_recreate_table(thd, table);
+      thd->net.no_send_ok= save_no_send_ok;
       reenable_binlog(thd);
       close_thread_tables(thd);
       if (!result_code) // recreation went ok
@@ -2935,14 +2943,21 @@ err:
 
 /*
   Alter table
+
+
+  NOTE
+    The structures passed as 'create_info' and 'alter_info' parameters may
+    be modified by this function. It is responsibility of the caller to make
+    a copy of create_info in order to provide correct execution in prepared
+    statements/stored routines.
 */
 
 bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                        HA_CREATE_INFO *create_info,
                        TABLE_LIST *table_list,
-                       List<create_field> &fields, List<Key> &keys,
-                       uint order_num, ORDER *order, bool ignore,
-                       ALTER_INFO *alter_info, bool do_send_ok)
+                       Alter_info *alter_info,
+                       uint order_num, ORDER *order,
+                       bool ignore)
 {
   TABLE *table,*new_table=0;
   int error;
@@ -3158,8 +3173,7 @@ view_err:
 	Query_log_event qinfo(thd, thd->query, thd->query_length, FALSE, FALSE);
 	mysql_bin_log.write(&qinfo);
       }
-      if (do_send_ok)
-        send_ok(thd);
+      send_ok(thd);
     }
     else if (error > 0)
     {
@@ -3186,10 +3200,9 @@ view_err:
 
   restore_record(table, s->default_values);     // Empty record for DEFAULT
   List_iterator<Alter_drop> drop_it(alter_info->drop_list);
-  List_iterator<create_field> def_it(fields);
+  List_iterator<create_field> def_it(alter_info->create_list);
   List_iterator<Alter_column> alter_it(alter_info->alter_list);
-  List<create_field> create_list;		// Add new fields here
-  List<Key> key_list;				// Add new keys here
+  Alter_info new_info;                   // Add new columns and indexes here
   create_field *def;
 
   /*
@@ -3237,13 +3250,13 @@ view_err:
       def->field=field;
       if (!def->after)
       {
-	create_list.push_back(def);
+	new_info.create_list.push_back(def);
 	def_it.remove();
       }
     }
     else
     {						// Use old field value
-      create_list.push_back(def=new create_field(field,field));
+      new_info.create_list.push_back(def= new create_field(field, field));
       alter_it.rewind();			// Change default if ALTER
       Alter_column *alter;
       while ((alter=alter_it++))
@@ -3267,7 +3280,7 @@ view_err:
     }
   }
   def_it.rewind();
-  List_iterator<create_field> find_it(create_list);
+  List_iterator<create_field> find_it(new_info.create_list);
   while ((def=def_it++))			// Add new columns
   {
     if (def->change && ! def->field)
@@ -3276,9 +3289,9 @@ view_err:
       DBUG_RETURN(TRUE);
     }
     if (!def->after)
-      create_list.push_back(def);
+      new_info.create_list.push_back(def);
     else if (def->after == first_keyword)
-      create_list.push_front(def);
+      new_info.create_list.push_front(def);
     else
     {
       create_field *find;
@@ -3302,7 +3315,7 @@ view_err:
              alter_info->alter_list.head()->name, table_name);
     DBUG_RETURN(TRUE);
   }
-  if (!create_list.elements)
+  if (!new_info.create_list.elements)
   {
     my_message(ER_CANT_REMOVE_ALL_FIELDS, ER(ER_CANT_REMOVE_ALL_FIELDS),
                MYF(0));
@@ -3314,8 +3327,8 @@ view_err:
     for which some fields exists.
   */
 
-  List_iterator<Key> key_it(keys);
-  List_iterator<create_field> field_it(create_list);
+  List_iterator<Key> key_it(alter_info->key_list);
+  List_iterator<create_field> field_it(new_info.create_list);
   List<key_part_spec> key_parts;
 
   KEY *key_info=table->key_info;
@@ -3387,24 +3400,37 @@ view_err:
 					    key_part_length));
     }
     if (key_parts.elements)
-      key_list.push_back(new Key(key_info->flags & HA_SPATIAL ? Key::SPATIAL :
-				 (key_info->flags & HA_NOSAME ?
-				 (!my_strcasecmp(system_charset_info,
-						 key_name, primary_key_name) ?
-				  Key::PRIMARY	: Key::UNIQUE) :
-				  (key_info->flags & HA_FULLTEXT ?
-				   Key::FULLTEXT : Key::MULTIPLE)),
-				 key_name,
-				 key_info->algorithm,
-                                 test(key_info->flags & HA_GENERATED_KEY),
-				 key_parts));
+    {
+      Key *key;
+      enum Key::Keytype key_type;
+
+      if (key_info->flags & HA_SPATIAL)
+        key_type= Key::SPATIAL;
+      else if (key_info->flags & HA_NOSAME)
+      {
+        if (! my_strcasecmp(system_charset_info, key_name, primary_key_name))
+          key_type= Key::PRIMARY;
+        else
+          key_type= Key::UNIQUE;
+      }
+      else if (key_info->flags & HA_FULLTEXT)
+        key_type= Key::FULLTEXT;
+      else
+        key_type= Key::MULTIPLE;
+
+      key= new Key(key_type, key_name,
+                   key_info->algorithm,
+                   test(key_info->flags & HA_GENERATED_KEY),
+                   key_parts);
+      new_info.key_list.push_back(key);
+    }
   }
   {
     Key *key;
     while ((key=key_it++))			// Add new keys
     {
       if (key->type != Key::FOREIGN_KEY)
-	key_list.push_back(key);
+        new_info.key_list.push_back(key);
       if (key->name &&
 	  !my_strcasecmp(system_charset_info,key->name,primary_key_name))
       {
@@ -3539,7 +3565,7 @@ view_err:
   {
     tmp_disable_binlog(thd);
     error= mysql_create_table(thd, new_db, tmp_name,
-                              create_info,create_list,key_list,1,0);
+                              create_info,alter_info, 1, 0);
     reenable_binlog(thd);
     if (error)
       DBUG_RETURN(error);
@@ -3580,8 +3606,9 @@ view_err:
   {
     new_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     new_table->next_number_field=new_table->found_next_number_field;
-    error=copy_data_between_tables(table, new_table, create_list, ignore,
-				   order_num, order, &copied, &deleted);
+    error= copy_data_between_tables(table, new_table, new_info.create_list,
+                                    ignore, order_num, order, &copied,
+                                    &deleted);
   }
   thd->last_insert_id=next_insert_id;		// Needed for correct log
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
@@ -3794,8 +3821,7 @@ end_temporary:
   my_snprintf(tmp_name, sizeof(tmp_name), ER(ER_INSERT_INFO),
 	      (ulong) (copied + deleted), (ulong) deleted,
 	      (ulong) thd->cuted_fields);
-  if (do_send_ok)
-    send_ok(thd,copied+deleted,0L,tmp_name);
+  send_ok(thd, copied + deleted, 0L, tmp_name);
   thd->some_tables_deleted=0;
   DBUG_RETURN(FALSE);
 
@@ -3990,21 +4016,19 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     mysql_recreate_table()
     thd			Thread handler
     tables		Tables to recreate
-    do_send_ok          If we should send_ok() or leave it to caller
 
  RETURN
     Like mysql_alter_table().
 */
-bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list,
-                          bool do_send_ok)
+bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list)
+int mysql_recreate_table(THD *thd, TABLE_LIST *table_list)
 {
-  DBUG_ENTER("mysql_recreate_table");
   LEX *lex= thd->lex;
   HA_CREATE_INFO create_info;
-  lex->create_list.empty();
-  lex->key_list.empty();
-  lex->col_list.empty();
-  lex->alter_info.reset();
+  Alter_info alter_info;
+
+  DBUG_ENTER("mysql_recreate_table");
+
   bzero((char*) &create_info,sizeof(create_info));
   create_info.db_type=DB_TYPE_DEFAULT;
   create_info.row_type=ROW_TYPE_NOT_USED;
@@ -4012,9 +4036,8 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list,
   /* Force alter table to recreate table */
   lex->alter_info.flags= ALTER_CHANGE_COLUMN;
   DBUG_RETURN(mysql_alter_table(thd, NullS, NullS, &create_info,
-                                table_list, lex->create_list,
-                                lex->key_list, 0, (ORDER *) 0,
-                                0, &lex->alter_info, do_send_ok));
+                                table_list, &alter_info,
+                                0, (ORDER *) 0, 0));
 }
 
 
