@@ -429,9 +429,9 @@ sub find_groups
   }
   else
   {
-    if (-f "/etc/my.cnf" && -r "/etc/my.cnf")
+    if (-f "@sysconfdir@/my.cnf" && -r "@sysconfdir@/my.cnf")
     {
-      open(MY_CNF, "</etc/my.cnf") && (@tmp=<MY_CNF>) && close(MY_CNF);
+      open(MY_CNF, "<@sysconfdir@/my.cnf") && (@tmp=<MY_CNF>) && close(MY_CNF);
     }
     for ($i = 0; ($line = shift @tmp); $i++)
     {
@@ -658,7 +658,7 @@ sub example
 #   (as per Linux/Unix standard). You may even replace the
 #   /etc/init.d/mysql.server script with it.
 #
-#   Before using, you must create a my.cnf file either in /etc/my.cnf
+#   Before using, you must create a my.cnf file either in @sysconfdir@/my.cnf
 #   or /root/.my.cnf and add the [mysqld_multi] and [mysqld#] groups.
 #
 #   The script can be found from support-files/mysqld_multi.server.sh
