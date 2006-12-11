@@ -461,7 +461,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 }
 
 bool mysqld_show_create_db(THD *thd, char *dbname,
-                           HA_CREATE_INFO *create_info)
+                           const HA_CREATE_INFO *create_info)
 {
   Security_context *sctx= thd->security_ctx;
   int length;

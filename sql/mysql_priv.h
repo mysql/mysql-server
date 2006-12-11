@@ -774,17 +774,15 @@ int prepare_create_field(create_field *sql_field,
 			 uint table_flags);
 bool mysql_create_table(THD *thd,const char *db, const char *table_name,
                         HA_CREATE_INFO *create_info,
-                        List<create_field> &fields, List<Key> &keys,
+                        Alter_info *alter_info,
                         bool tmp_table, uint select_field_count);
 
 bool mysql_alter_table(THD *thd, char *new_db, char *new_name,
                        HA_CREATE_INFO *create_info,
                        TABLE_LIST *table_list,
-                       List<create_field> &fields,
-                       List<Key> &keys,
-                       uint order_num, ORDER *order, bool ignore,
-                       ALTER_INFO *alter_info, bool do_send_ok);
-bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool do_send_ok);
+                       Alter_info *alter_info,
+                       uint order_num, ORDER *order, bool ignore);
+bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list);
 bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
                              HA_CREATE_INFO *create_info,
                              Table_ident *src_table);
@@ -793,9 +791,6 @@ bool mysql_rename_table(enum db_type base,
 			const char * old_name,
 			const char *new_db,
 			const char * new_name);
-bool mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys);
-bool mysql_drop_index(THD *thd, TABLE_LIST *table_list,
-                      ALTER_INFO *alter_info);
 bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
                           Item **conds, uint order_num, ORDER *order);
 int mysql_update(THD *thd,TABLE_LIST *tables,List<Item> &fields,
@@ -897,7 +892,8 @@ int get_quote_char_for_identifier(THD *thd, const char *name, uint length);
 void mysqld_list_fields(THD *thd,TABLE_LIST *table, const char *wild);
 int mysqld_dump_create_info(THD *thd, TABLE_LIST *table_list, int fd);
 bool mysqld_show_create(THD *thd, TABLE_LIST *table_list);
-bool mysqld_show_create_db(THD *thd, char *dbname, HA_CREATE_INFO *create);
+bool mysqld_show_create_db(THD *thd, char *dbname,
+                           const HA_CREATE_INFO *create);
 
 void mysqld_list_processes(THD *thd,const char *user,bool verbose);
 int mysqld_show_status(THD *thd);

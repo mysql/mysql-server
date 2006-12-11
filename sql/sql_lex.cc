@@ -1055,6 +1055,18 @@ int MYSQLlex(void *arg, void *yythd)
 }
 
 
+Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
+  :drop_list(rhs.drop_list, mem_root),
+  alter_list(rhs.alter_list, mem_root),
+  key_list(rhs.key_list, mem_root),
+  create_list(rhs.create_list, mem_root),
+  flags(rhs.flags),
+  keys_onoff(rhs.keys_onoff),
+  tablespace_op(rhs.tablespace_op),
+  is_simple(rhs.is_simple)
+{}
+
+
 /*
   Skip comment in the end of statement.
 
