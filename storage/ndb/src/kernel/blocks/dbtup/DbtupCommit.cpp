@@ -302,7 +302,7 @@ Dbtup::commit_operation(Signal* signal,
     copy_bits |= Tuple_header::DISK_PART;
   }
   
-  if(lcpScan_ptr_i != RNIL)
+  if(lcpScan_ptr_i != RNIL && (bits & Tuple_header::ALLOC))
   {
     ScanOpPtr scanOp;
     c_scanOpPool.getPtr(scanOp, lcpScan_ptr_i);
