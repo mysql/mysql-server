@@ -268,8 +268,8 @@ buf_buddy_relocate(
 #ifdef UNIV_SYNC_DEBUG
 	ut_a(mutex_own(&buf_pool->mutex));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_ad(src == ut_align_down(src, size));
-	ut_ad(dst == ut_align_down(dst, size));
+	ut_ad(!ut_align_offset(src, size));
+	ut_ad(!ut_align_offset(dst, size));
 	ut_ad((((ulint) src) ^ ((ulint) dst)) == size);
 
 	/* We assume that all memory from buf_buddy_alloc()
