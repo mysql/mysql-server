@@ -68,6 +68,9 @@ buf_buddy_relocate(
 	buf_page_t*	bpage;
 	const ulint	size	= BUF_BUDDY_LOW << i;
 
+#ifdef UNIV_SYNC_DEBUG
+	ut_a(mutex_own(&buf_pool->mutex));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(src == ut_align_down(src, size));
 	ut_ad(dst == ut_align_down(dst, size));
 	ut_ad((((ulint) src) ^ ((ulint) dst)) == size);
@@ -132,13 +135,52 @@ buf_buddy_relocate(
 			mutex_enter(&buf_pool->zip_mutex);
 
 			if (buf_flush_ready_for_replace(bpage)) {
-				memcpy(dst, src, size);
-				/* TODO: relocate bpage->list, bpage->LRU */
+				buf_page_t*	dpage	= (buf_page_t*) dst;
+				buf_page_t*	b;
+				ulint		fold
+					= buf_page_address_fold(bpage->space,
+								bpage->offset);
+
+				memcpy(dpage, bpage, size);
+
+				/* relocate buf_pool->LRU */
+
+				b = UT_LIST_GET_PREV(LRU, bpage);
+				UT_LIST_REMOVE(LRU, buf_pool->LRU, bpage);
+
+				if (b) {
+					UT_LIST_INSERT_AFTER(LRU,
+							     buf_pool->LRU,
+							     b, dpage);
+				} else {
+					UT_LIST_ADD_FIRST(LRU, buf_pool->LRU,
+							  dpage);
+				}
+
+				/* relocate buf_pool->zip_clean */
+				b = UT_LIST_GET_PREV(list, bpage);
+				UT_LIST_REMOVE(list, buf_pool->zip_clean,
+					       bpage);
+
+				if (b) {
+					UT_LIST_INSERT_AFTER(
+						list, buf_pool->zip_clean,
+						b, dpage);
+				} else {
+					UT_LIST_ADD_FIRST(
+						list, buf_pool->zip_clean,
+						dpage);
+				}
+
+				/* relocate buf_pool->page_hash */
+				HASH_DELETE(buf_page_t, hash,
+					    buf_pool->page_hash, fold, bpage);
+				HASH_INSERT(buf_page_t, hash,
+					    buf_pool->page_hash, fold, dpage);
 			}
 
 			mutex_exit(&buf_pool->zip_mutex);
-			/* TODO: return(TRUE); */
-			break;
+			return(TRUE);
 		}
 	}
 
