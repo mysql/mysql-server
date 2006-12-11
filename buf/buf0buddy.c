@@ -13,6 +13,7 @@ Created December 2006 by Marko Makela
 #endif
 #undef THIS_MODULE
 #include "buf0buf.h"
+#include "buf0lru.h"
 #include "buf0flu.h"
 #include "page0page.h"
 
@@ -52,6 +53,34 @@ buf_buddy_alloc_low(
 	}
 
 	return(bpage);
+}
+
+/**************************************************************************
+Deallocate a buffer frame of UNIV_PAGE_SIZE. */
+static
+void
+buf_buddy_free_block(
+/*=================*/
+	void*	buf)	/* in: buffer frame to deallocate */
+{
+	ulint		fold	= (ulint) buf / UNIV_PAGE_SIZE;
+	buf_page_t*	bpage;
+	buf_block_t*	block;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_a(mutex_own(&buf_pool->mutex));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_a(buf == ut_align_down(buf, UNIV_PAGE_SIZE));
+
+	HASH_SEARCH(hash, buf_pool->zip_hash, fold, bpage,
+		    ((buf_block_t*) bpage)->frame == buf);
+	ut_a(bpage);
+	ut_a(buf_page_get_state(bpage) == BUF_BLOCK_MEMORY);
+
+	block = (buf_block_t*) bpage;
+	mutex_enter(&block->mutex);
+	buf_LRU_block_free_non_file_page(block);
+	mutex_exit(&block->mutex);
 }
 
 /**************************************************************************
@@ -188,15 +217,11 @@ buf_buddy_relocate(
 }
 
 /**************************************************************************
-Release a block to buf_pool->zip_free[]. */
+Deallocate a block. */
 
-void*
+void
 buf_buddy_free_low(
 /*===============*/
-			/* out: pointer to the beginning of a block of
-			size BUF_BUDDY_HIGH that should be freed to
-			the underlying allocator, or NULL if released
-			to buf_pool->zip_free[] */
 	void*	buf,	/* in: block to free */
 	ulint	i)	/* in: index of buf_pool->zip_free[] */
 {
@@ -246,7 +271,8 @@ buddy_free:
 			}
 
 			/* The whole block is free. */
-			return(buf);
+			buf_buddy_free_block(buf);
+			return;
 		}
 
 		ut_a(bpage != buf);
@@ -289,6 +315,4 @@ buddy_free:
 	bpage = buf;
 	bpage->state = BUF_BLOCK_ZIP_FREE;
 	UT_LIST_ADD_FIRST(list, buf_pool->zip_free[i], bpage);
-
-	return(NULL);
 }
