@@ -103,6 +103,7 @@ static my_bool disable_query_log= 0, disable_result_log= 0;
 static my_bool disable_warnings= 0, disable_ps_warnings= 0;
 static my_bool disable_info= 1;
 static my_bool abort_on_error= 1;
+static my_bool server_initialized= 0;
 
 static char **default_argv;
 static const char *load_default_groups[]= { "mysqltest", "client", 0 };
@@ -770,13 +771,18 @@ void free_used_memory()
   free_all_replace();
   my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
   free_defaults(default_argv);
-  mysql_server_end();
   free_re();
 #ifdef __WIN__
   free_tmp_sh_file();
   free_win_path_patterns();
 #endif
-  DBUG_VOID_RETURN;
+
+  /* Only call mysql_server_end if mysql_server_init has been called */
+  if (server_initialized)
+    mysql_server_end();
+
+  /* Don't use DBUG after mysql_server_end() */
+  return;
 }
 
 
@@ -1240,7 +1246,9 @@ void var_set(const char *var_name, const char *var_name_end,
       v->int_dirty= 0;
       v->str_val_len= strlen(v->str_val);
     }
-    strxmov(buf, v->name, "=", v->str_val, NullS);
+    my_snprintf(buf, sizeof(buf), "%.*s=%.*s",
+                v->name_len, v->name,
+                v->str_val_len, v->str_val);
     if (!(v->env_s= my_strdup(buf, MYF(MY_WME))))
       die("Out of memory");
     putenv(v->env_s);
@@ -4679,10 +4687,9 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
     }
 
     /*
-      Store the result. If res is NULL, use mysql_field_count to
-      determine if that was expected
+      Store the result of the query if it will return any fields
     */
-    if (!(res= mysql_store_result(mysql)) && mysql_field_count(mysql))
+    if (mysql_field_count(mysql) && ((res= mysql_store_result(mysql)) == 0))
     {
       handle_error(command, mysql_errno(mysql), mysql_error(mysql),
 		   mysql_sqlstate(mysql), ds);
@@ -4734,7 +4741,10 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
     }
 
     if (res)
+    {
       mysql_free_result(res);
+      res= 0;
+    }
     counter++;
   } while (!(err= mysql_next_result(mysql)));
   if (err > 0)
@@ -4801,7 +4811,7 @@ void handle_error(struct st_command *command,
           err_errno, err_error);
 
     /* Abort the run of this test, pass the failed query as reason */
-    abort_not_supported_test("Query '%s' failed, required functionality" \
+    abort_not_supported_test("Query '%s' failed, required functionality " \
                              "not supported", command->query);
   }
 
@@ -5621,6 +5631,7 @@ int main(int argc, char **argv)
 			embedded_server_args,
 			(char**) embedded_server_groups))
     die("Can't initialize MySQL server");
+  server_initialized= 1;
   if (cur_file == file_stack && cur_file->file == 0)
   {
     cur_file->file= stdin;
