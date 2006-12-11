@@ -100,6 +100,42 @@ void turn_parser_debug_on()
 /**
   Helper action for a case statement (entering the CASE).
   This helper is used for both 'simple' and 'searched' cases.
+  This helper, with the other case_stmt_action_..., is executed when
+  the following SQL code is parsed:
+<pre>
+CREATE PROCEDURE proc_19194_simple(i int)
+BEGIN
+  DECLARE str CHAR(10);
+
+  CASE i
+    WHEN 1 THEN SET str="1";
+    WHEN 2 THEN SET str="2";
+    WHEN 3 THEN SET str="3";
+    ELSE SET str="unknown";
+  END CASE;
+
+  SELECT str;
+END
+</pre>
+  The actions are used to generate the following code:
+<pre>
+SHOW PROCEDURE CODE proc_19194_simple;
+Pos     Instruction
+0       set str@1 NULL
+1       set_case_expr (12) 0 i@0
+2       jump_if_not 5(12) (case_expr@0 = 1)
+3       set str@1 _latin1'1'
+4       jump 12
+5       jump_if_not 8(12) (case_expr@0 = 2)
+6       set str@1 _latin1'2'
+7       jump 12
+8       jump_if_not 11(12) (case_expr@0 = 3)
+9       set str@1 _latin1'3'
+10      jump 12
+11      set str@1 _latin1'unknown'
+12      stmt 0 "SELECT str"
+</pre>
+
   @param lex the parser lex context
 */
 
@@ -110,6 +146,7 @@ void case_stmt_action_case(LEX *lex)
   /*
     BACKPATCH: Creating target label for the jump to
     "case_stmt_action_end_case"
+    (Instruction 12 in the example)
   */
 
   lex->spcont->push_label((char *)"", lex->sphead->instructions());
@@ -179,6 +216,7 @@ void case_stmt_action_when(LEX *lex, Item *when, bool simple)
   /*
     BACKPATCH: Registering forward jump from
     "case_stmt_action_when" to "case_stmt_action_then"
+    (jump_if_not from instruction 2 to 5, 5 to 8 ... in the example)
   */
 
   sp->push_backpatch(i, ctx->push_label((char *)"", 0));
@@ -203,13 +241,15 @@ void case_stmt_action_then(LEX *lex)
   /*
     BACKPATCH: Resolving forward jump from
     "case_stmt_action_when" to "case_stmt_action_then"
+    (jump_if_not from instruction 2 to 5, 5 to 8 ... in the example)
   */
 
   sp->backpatch(ctx->pop_label());
 
   /*
     BACKPATCH: Registering forward jump from
-    "case_stmt_action_when" to "case_stmt_action_end_case"
+    "case_stmt_action_then" to "case_stmt_action_end_case"
+    (jump from instruction 4 to 12, 7 to 12 ... in the example)
   */
 
   sp->push_backpatch(i, ctx->last_label());
@@ -227,6 +267,7 @@ void case_stmt_action_end_case(LEX *lex, bool simple)
   /*
     BACKPATCH: Resolving forward jump from
     "case_stmt_action_then" to "case_stmt_action_end_case"
+    (jump from instruction 4 to 12, 7 to 12 ... in the example)
   */
   lex->sphead->backpatch(lex->spcont->pop_label());
 
