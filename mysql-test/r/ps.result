@@ -1055,230 +1055,6 @@ EXECUTE stmt USING @a;
 0	0
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
-ERROR HY000: Unknown error
-show status like 'prepared_stmt_count';
-Variable_name	Value
-Prepared_stmt_count	0
-set global max_prepared_stmt_count=1;
-prepare stmt from "select 1";
-show status like 'prepared_stmt_count';
-Variable_name	Value
-Prepared_stmt_count	1
-prepare stmt1 from "select 1";
-ERROR HY000: Unknown error
-show status like 'prepared_stmt_count';
-Variable_name	Value
-Prepared_stmt_count	1
-deallocate prepare stmt;
-show status like 'prepared_stmt_count';
-Variable_name	Value
-Prepared_stmt_count	0
-prepare stmt from "select 1";
-show status like 'prepared_stmt_count';
-Variable_name	Value
-Prepared_stmt_count	1
-prepare stmt from "select 2";
-show status like 'prepared_stmt_count';
-Variable_name	Value
-Prepared_stmt_count	1
-show status like 'prepared_stmt_count';
-Variable_name	Value
-Prepared_stmt_count	1
-select @@max_prepared_stmt_count;
-@@max_prepared_stmt_count
-1
-set global max_prepared_stmt_count=0;
-prepare stmt from "select 1";
-ERROR HY000: Unknown error
-execute stmt;
-ERROR HY000: Unknown prepared statement handler (stmt) given to EXECUTE
-show status like 'prepared_stmt_count';
-Variable_name	Value
-Prepared_stmt_count	0
-prepare stmt from "select 1";
-ERROR HY000: Unknown error
-show status like 'prepared_stmt_count';
-Variable_name	Value
-Prepared_stmt_count	0
-set global max_prepared_stmt_count=3;
-select @@max_prepared_stmt_count;
-@@max_prepared_stmt_count
-3
-show status like 'prepared_stmt_count';
-Variable_name	Value
-Prepared_stmt_count	0
-prepare stmt from "select 1";
-prepare stmt from "select 2";
-prepare stmt1 from "select 3";
-prepare stmt2 from "select 4";
-ERROR HY000: Unknown error
-prepare stmt2 from "select 4";
-ERROR HY000: Unknown error
-select @@max_prepared_stmt_count;
-@@max_prepared_stmt_count
-3
-show status like 'prepared_stmt_count';
-Variable_name	Value
-Prepared_stmt_count	3
-deallocate prepare stmt;
-set global max_prepared_stmt_count= @old_max_prepared_stmt_count;
-drop table if exists t1;
-create temporary table if not exists t1 (a1 int);
-prepare stmt from "delete t1 from t1 where (cast(a1/3 as unsigned) * 3) = a1";
-drop temporary table t1;
-create temporary table if not exists t1 (a1 int);
-execute stmt;
-drop temporary table t1;
-create temporary table if not exists t1 (a1 int);
-execute stmt;
-drop temporary table t1;
-create temporary table if not exists t1 (a1 int);
-execute stmt;
-drop temporary table t1;
-deallocate prepare stmt;
-CREATE TABLE t1(
-ID int(10) unsigned NOT NULL auto_increment,
-Member_ID varchar(15) NOT NULL default '',
-Action varchar(12) NOT NULL,
-Action_Date datetime NOT NULL,
-Track varchar(15) default NULL,
-User varchar(12) default NULL,
-Date_Updated timestamp NOT NULL default CURRENT_TIMESTAMP on update
-CURRENT_TIMESTAMP,
-PRIMARY KEY (ID),
-KEY Action (Action),
-KEY Action_Date (Action_Date)
-);
-INSERT INTO t1(Member_ID, Action, Action_Date, Track) VALUES
-('111111', 'Disenrolled', '2006-03-01', 'CAD' ),
-('111111', 'Enrolled', '2006-03-01', 'CAD' ),
-('111111', 'Disenrolled', '2006-07-03', 'CAD' ),
-('222222', 'Enrolled', '2006-03-07', 'CAD' ),
-('222222', 'Enrolled', '2006-03-07', 'CHF' ),
-('222222', 'Disenrolled', '2006-08-02', 'CHF' ),
-('333333', 'Enrolled', '2006-03-01', 'CAD' ),
-('333333', 'Disenrolled', '2006-03-01', 'CAD' ),
-('444444', 'Enrolled', '2006-03-01', 'CAD' ),
-('555555', 'Disenrolled', '2006-03-01', 'CAD' ),
-('555555', 'Enrolled', '2006-07-21', 'CAD' ),
-('555555', 'Disenrolled', '2006-03-01', 'CHF' ),
-('666666', 'Enrolled', '2006-02-09', 'CAD' ),
-('666666', 'Enrolled', '2006-05-12', 'CHF' ),
-('666666', 'Disenrolled', '2006-06-01', 'CAD' );
-PREPARE STMT FROM
-"SELECT GROUP_CONCAT(Track SEPARATOR ', ') FROM t1
-  WHERE Member_ID=? AND Action='Enrolled' AND
-        (Track,Action_Date) IN (SELECT Track, MAX(Action_Date) FROM t1
-                                  WHERE Member_ID=?
-                                    GROUP BY Track 
-                                      HAVING Track>='CAD' AND
-                                             MAX(Action_Date)>'2006-03-01')";
-SET @id='111111';
-EXECUTE STMT USING @id,@id;
-GROUP_CONCAT(Track SEPARATOR ', ')
-NULL
-SET @id='222222';
-EXECUTE STMT USING @id,@id;
-GROUP_CONCAT(Track SEPARATOR ', ')
-CAD
-DEALLOCATE PREPARE STMT;
-DROP TABLE t1;
-DROP TABLE IF EXISTS t1;
-CREATE TABLE t1 (i INT, INDEX(i));
-INSERT INTO t1 VALUES (1);
-PREPARE stmt FROM "SELECT (COUNT(i) = 1), COUNT(i) FROM t1 WHERE i = ?";
-SET @a = 0;
-EXECUTE stmt USING @a;
-(COUNT(i) = 1)	COUNT(i)
-0	0
-SET @a = 1;
-EXECUTE stmt USING @a;
-(COUNT(i) = 1)	COUNT(i)
-1	1
-SET @a = 0;
-EXECUTE stmt USING @a;
-(COUNT(i) = 1)	COUNT(i)
-0	0
-PREPARE stmt FROM "SELECT (AVG(i) = 1), AVG(i) FROM t1 WHERE i = ?";
-SET @a = 0;
-EXECUTE stmt USING @a;
-(AVG(i) = 1)	AVG(i)
-NULL	NULL
-SET @a = 1;
-EXECUTE stmt USING @a;
-(AVG(i) = 1)	AVG(i)
-1	1.0000
-SET @a = 0;
-EXECUTE stmt USING @a;
-(AVG(i) = 1)	AVG(i)
-NULL	NULL
-PREPARE stmt FROM "SELECT (VARIANCE(i) = 1), VARIANCE(i) FROM t1 WHERE i = ?";
-SET @a = 0;
-EXECUTE stmt USING @a;
-(VARIANCE(i) = 1)	VARIANCE(i)
-NULL	NULL
-SET @a = 1;
-EXECUTE stmt USING @a;
-(VARIANCE(i) = 1)	VARIANCE(i)
-0	0.0000
-SET @a = 0;
-EXECUTE stmt USING @a;
-(VARIANCE(i) = 1)	VARIANCE(i)
-NULL	NULL
-PREPARE stmt FROM "SELECT (STDDEV(i) = 1), STDDEV(i) FROM t1 WHERE i = ?";
-SET @a = 0;
-EXECUTE stmt USING @a;
-(STDDEV(i) = 1)	STDDEV(i)
-NULL	NULL
-SET @a = 1;
-EXECUTE stmt USING @a;
-(STDDEV(i) = 1)	STDDEV(i)
-0	0.0000
-SET @a = 0;
-EXECUTE stmt USING @a;
-(STDDEV(i) = 1)	STDDEV(i)
-NULL	NULL
-PREPARE stmt FROM "SELECT (BIT_OR(i) = 1), BIT_OR(i) FROM t1 WHERE i = ?";
-SET @a = 0;
-EXECUTE stmt USING @a;
-(BIT_OR(i) = 1)	BIT_OR(i)
-0	0
-SET @a = 1;
-EXECUTE stmt USING @a;
-(BIT_OR(i) = 1)	BIT_OR(i)
-1	1
-SET @a = 0;
-EXECUTE stmt USING @a;
-(BIT_OR(i) = 1)	BIT_OR(i)
-0	0
-PREPARE stmt FROM "SELECT (BIT_AND(i) = 1), BIT_AND(i) FROM t1 WHERE i = ?";
-SET @a = 0;
-EXECUTE stmt USING @a;
-(BIT_AND(i) = 1)	BIT_AND(i)
-0	18446744073709551615
-SET @a = 1;
-EXECUTE stmt USING @a;
-(BIT_AND(i) = 1)	BIT_AND(i)
-1	1
-SET @a = 0;
-EXECUTE stmt USING @a;
-(BIT_AND(i) = 1)	BIT_AND(i)
-0	18446744073709551615
-PREPARE stmt FROM "SELECT (BIT_XOR(i) = 1), BIT_XOR(i) FROM t1 WHERE i = ?";
-SET @a = 0;
-EXECUTE stmt USING @a;
-(BIT_XOR(i) = 1)	BIT_XOR(i)
-0	0
-SET @a = 1;
-EXECUTE stmt USING @a;
-(BIT_XOR(i) = 1)	BIT_XOR(i)
-1	1
-SET @a = 0;
-EXECUTE stmt USING @a;
-(BIT_XOR(i) = 1)	BIT_XOR(i)
-0	0
-DEALLOCATE PREPARE stmt;
-DROP TABLE t1;
 DROP TABLE IF EXISTS t1, t2;
 CREATE TABLE t1 (i INT);
 PREPARE st_19182
@@ -1311,7 +1087,7 @@ t1	CREATE TABLE `t1` (
 show create table mysqltest.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `test` char(4) character set latin1 NOT NULL default ''
+  `test` varchar(4) character set latin1 NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
 drop table mysqltest.t1;
 drop table mysqltest.t2;
@@ -1326,7 +1102,7 @@ t1	CREATE TABLE `t1` (
 show create table mysqltest.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `test` char(4) NOT NULL default ''
+  `test` varchar(4) NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop database mysqltest;
 deallocate prepare stmt1;
@@ -1336,14 +1112,14 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) default NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 execute stmt;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) default NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 deallocate prepare stmt;
 End of 4.1 tests.
@@ -1787,4 +1563,54 @@ Variable_name	Value
 Slow_queries	1
 deallocate prepare no_index;
 deallocate prepare sq;
+drop table if exists t1;
+create table t1 (s1 char(20));
+prepare stmt from "alter table t1 modify s1 int";
+execute stmt;
+execute stmt;
+drop table t1;
+deallocate prepare stmt;
+drop table if exists t1;
+create table t1 (a int, b int);
+prepare s_6895 from "alter table t1 drop column b";
+execute s_6895;
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+drop table t1;
+create table t1 (a int, b int);
+execute s_6895;
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+drop table t1;
+create table t1 (a int, b int);
+execute s_6895;
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+deallocate prepare s_6895;
+drop table t1;
+create table t1 (i int primary key auto_increment) comment='comment for table t1';
+create table t2 (i int, j int, k int);
+prepare stmt from "alter table t1 auto_increment=100";
+execute stmt;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL auto_increment,
+  PRIMARY KEY  (`i`)
+) ENGINE=MyISAM AUTO_INCREMENT=100 DEFAULT CHARSET=latin1 COMMENT='comment for table t1'
+flush tables;
+select * from t2;
+i	j	k
+execute stmt;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL auto_increment,
+  PRIMARY KEY  (`i`)
+) ENGINE=MyISAM AUTO_INCREMENT=100 DEFAULT CHARSET=latin1 COMMENT='comment for table t1'
+deallocate prepare stmt;
+drop table t1, t2;
 End of 5.0 tests.

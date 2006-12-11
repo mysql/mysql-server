@@ -1569,7 +1569,7 @@ void sp_prepare_create_field(THD *thd, create_field *sql_field)
     create_info [in/out] Create information (like MAX_ROWS)
     alter_info  [in/out] List of columns and indexes to create
     internal_tmp_table   Set to 1 if this is an internal temporary table
-			 (From ALTER TABLE)
+                         (From ALTER TABLE)
 
   DESCRIPTION
     If one creates a temporary table, this is automatically opened
@@ -1592,7 +1592,7 @@ void sp_prepare_create_field(THD *thd, create_field *sql_field)
 bool mysql_create_table(THD *thd,const char *db, const char *table_name,
                         HA_CREATE_INFO *create_info,
                         Alter_info *alter_info,
-                        List<Key> &keys,bool internal_tmp_table,
+                        bool internal_tmp_table,
                         uint select_field_count)
 {
   char		path[FN_REFLEN];
@@ -2327,9 +2327,12 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           (table->table->file->ha_check_for_upgrade(check_opt) ==
            HA_ADMIN_NEEDS_ALTER))
       {
+        my_bool save_no_send_ok= thd->net.no_send_ok;
         close_thread_tables(thd);
         tmp_disable_binlog(thd); // binlogging is done by caller if wanted
-        result_code= mysql_recreate_table(thd, table, 0);
+        thd->net.no_send_ok= TRUE;
+        result_code= mysql_recreate_table(thd, table);
+        thd->net.no_send_ok= save_no_send_ok;
         reenable_binlog(thd);
         goto send_result;
       }
@@ -2956,8 +2959,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                        HA_CREATE_INFO *create_info,
                        TABLE_LIST *table_list,
                        Alter_info *alter_info,
-                       uint order_num, ORDER *order,
-                       bool ignore)
+                       uint order_num, ORDER *order, bool ignore)
 {
   TABLE *table,*new_table=0;
   int error;
@@ -3565,7 +3567,7 @@ view_err:
   {
     tmp_disable_binlog(thd);
     error= mysql_create_table(thd, new_db, tmp_name,
-                              create_info,alter_info, 1, 0);
+                              create_info, &new_info, 1, 0);
     reenable_binlog(thd);
     if (error)
       DBUG_RETURN(error);
@@ -4021,20 +4023,18 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     Like mysql_alter_table().
 */
 bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list)
-int mysql_recreate_table(THD *thd, TABLE_LIST *table_list)
 {
-  LEX *lex= thd->lex;
   HA_CREATE_INFO create_info;
   Alter_info alter_info;
 
   DBUG_ENTER("mysql_recreate_table");
 
-  bzero((char*) &create_info,sizeof(create_info));
+  bzero((char*) &create_info, sizeof(create_info));
   create_info.db_type=DB_TYPE_DEFAULT;
   create_info.row_type=ROW_TYPE_NOT_USED;
   create_info.default_table_charset=default_charset_info;
   /* Force alter table to recreate table */
-  lex->alter_info.flags= ALTER_CHANGE_COLUMN;
+  alter_info.flags= ALTER_CHANGE_COLUMN;
   DBUG_RETURN(mysql_alter_table(thd, NullS, NullS, &create_info,
                                 table_list, &alter_info,
                                 0, (ORDER *) 0, 0));

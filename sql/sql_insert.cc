@@ -2620,11 +2620,11 @@ bool select_insert::send_eof()
                           temporary table flag)
       create_table in     Pointer to TABLE_LIST object providing database
                           and name for table to be created or to be open
-      extra_fields in/out Initial list of fields for table to be created
-      keys         in     List of keys for table to be created
+      alter_info   in/out Initial list of columns and indexes for the table
+                          to be created
       items        in     List of items which should be used to produce rest
                           of fields for the table (corresponding fields will
-                          be added to the end of 'extra_fields' list)
+                          be added to the end of alter_info->create_list)
       lock         out    Pointer to the MYSQL_LOCK object for table created
                           (open) will be returned in this parameter. Since
                           this table is not included in THD::lock caller is
@@ -2646,8 +2646,8 @@ bool select_insert::send_eof()
 
 static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
                                       TABLE_LIST *create_table,
-                                      List<create_field> *extra_fields,
-                                      List<Key> *keys, List<Item> *items,
+                                      Alter_info *alter_info,
+                                      List<Item> *items,
                                       MYSQL_LOCK **lock)
 {
   TABLE tmp_table;		// Used during 'create_field()'
@@ -2686,7 +2686,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       DBUG_RETURN(0);
     if (item->maybe_null)
       cr_field->flags &= ~NOT_NULL_FLAG;
-    extra_fields->push_back(cr_field);
+    alter_info->create_list.push_back(cr_field);
   }
   /*
     create and lock table
@@ -2707,8 +2707,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   {
     tmp_disable_binlog(thd);
     if (!mysql_create_table(thd, create_table->db, create_table->table_name,
-                            create_info, *extra_fields, *keys, 0,
-                            select_field_count))
+                            create_info, alter_info, 0, select_field_count))
     {
       /*
         If we are here in prelocked mode we either create temporary table
