@@ -845,6 +845,7 @@ buf_pool_init(void)
 	srv_buf_pool_curr_size = buf_pool->curr_size * UNIV_PAGE_SIZE;
 
 	buf_pool->page_hash = hash_create(2 * buf_pool->curr_size);
+	buf_pool->zip_hash = hash_create(2 * buf_pool->curr_size);
 
 	buf_pool->n_pend_reads = 0;
 
@@ -1067,6 +1068,7 @@ buf_pool_page_hash_rebuild(void)
 	/* Free, create, and populate the hash table. */
 	hash_table_free(buf_pool->page_hash);
 	buf_pool->page_hash = page_hash = hash_create(2 * buf_pool->curr_size);
+	/* TODO: buf_pool->zip_hash */
 
 	chunk = buf_pool->chunks;
 	n_chunks = buf_pool->n_chunks;

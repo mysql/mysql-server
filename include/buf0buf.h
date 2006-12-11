@@ -915,8 +915,9 @@ struct buf_page_struct{
 					is currently bufferfixed */
 
 	page_zip_des_t	zip;		/* compressed page */
-	buf_page_t*	hash;		/* node used in chaining to the page
-					hash table */
+	buf_page_t*	hash;		/* node used in chaining to
+					buf_pool->page_hash or
+					buf_pool->zip_hash */
 
 	/* 2. Page flushing fields; protected by buf_pool->mutex */
 
@@ -1095,8 +1096,14 @@ struct buf_pool_struct{
 	ulint		n_chunks;	/* number of buffer pool chunks */
 	buf_chunk_t*	chunks;		/* buffer pool chunks */
 	ulint		curr_size;	/* current pool size in pages */
-	hash_table_t*	page_hash;	/* hash table of the file pages */
-
+	hash_table_t*	page_hash;	/* hash table of buf_page_t or
+					buf_block_t file pages,
+					buf_page_in_file() == TRUE,
+					indexed by (space_id, offset) */
+	hash_table_t*	zip_hash;	/* hash table of buf_block_t blocks
+					whose frames are allocated to the
+					zip buddy system,
+					indexed by block->frame */
 	ulint		n_pend_reads;	/* number of pending read operations */
 
 	time_t		last_printout_time; /* when buf_print was last time
