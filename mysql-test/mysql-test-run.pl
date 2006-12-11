@@ -3432,10 +3432,9 @@ sub mysqld_arguments ($$$$$) {
   if ( $glob_use_embedded_server )
   {
     $prefix= "--server-arg=";
-  } else {
-    # We can't pass embedded server --no-defaults
-    mtr_add_arg($args, "--no-defaults");
   }
+
+  mtr_add_arg($args, "%s--no-defaults", $prefix);
 
   mtr_add_arg($args, "%s--console", $prefix);
   mtr_add_arg($args, "%s--basedir=%s", $prefix, $path_my_basedir);
