@@ -95,7 +95,11 @@ dist-hook:
 
 tags:
 	support-files/build-tags
-.PHONY:		init-db bin-dist
+
+.PHONY:	init-db bin-dist \
+  test    test-force    test-full    test-force-full    test-force-mem \
+  test-pl test-force-pl test-full-pl test-force-full-pl test-force-pl-mem \
+  test-ps test-ns
 
 # Target 'test' will run the regression test suite using the built server.
 #
@@ -105,36 +109,33 @@ tags:
 # will then calculate the various port numbers it needs from this,
 # making sure each user use different ports.
 
-test:
+test-ps:
 	cd mysql-test ; \
-	./mysql-test-run && \
-	./mysql-test-run --ps-protocol
+	@PERL@ ./mysql-test-run.pl $(force) --ps-protocol
+
+test-ns:
+	cd mysql-test ; \
+	@PERL@ ./mysql-test-run.pl $(force)
+
+test:	test-ns test-ps
+
+# To ease script-writing, although in 4.1 it is identical to 'test'
+test-full:	test
 
 test-force:
-	cd mysql-test; \
-	./mysql-test-run --force && \
-	./mysql-test-run --ps-protocol --force
+	$(MAKE) force=--force test
 
-test-force-mem:
-	cd mysql-test; \
-	./mysql-test-run --force --mem && \
-	./mysql-test-run --ps-protocol --force --mem
-
-
-# We are testing a new Perl version of the test script
-test-pl:
-	cd mysql-test; \
-	./mysql-test-run.pl && \
-	./mysql-test-run.pl --ps-protocol
-
-test-force-pl:
-	cd mysql-test; \
-	./mysql-test-run.pl --force && \
-	./mysql-test-run.pl --ps-protocol --force
+test-force-full:
+	$(MAKE) force=--force test-full
 
 #used by autopush.pl to run memory based tests
-test-force-pl-mem:
-	cd mysql-test; \
-	./mysql-test-run.pl --force --mem && \
-	./mysql-test-run.pl --ps-protocol --force --mem
+test-force-mem:
+	$(MAKE) 'force=--force --mem' test
+
+# Keep these for a while
+test-pl:	test
+test-full-pl:	test-full
+test-force-pl:	test-force
+test-force-pl-mem:  test-force-mem
+test-force-full-pl: test-force-full
 
