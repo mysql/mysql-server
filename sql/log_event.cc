@@ -6591,10 +6591,13 @@ copy_extra_record_fields(TABLE *table,
 
       case FIELD_TYPE_BIT:
         Field_bit *f= static_cast<Field_bit*>(*field_ptr);
-        my_ptrdiff_t const offset= table->record[1] - table->record[0];
-        uchar const bits=
-          get_rec_bits(f->bit_ptr + offset, f->bit_ofs, f->bit_len);
-        set_rec_bits(bits, f->bit_ptr, f->bit_ofs, f->bit_len);
+        if (f->bit_len > 0)
+        {
+          my_ptrdiff_t const offset= table->record[1] - table->record[0];
+          uchar const bits=
+            get_rec_bits(f->bit_ptr + offset, f->bit_ofs, f->bit_len);
+          set_rec_bits(bits, f->bit_ptr, f->bit_ofs, f->bit_len);
+        }
         break;
       }
     }
