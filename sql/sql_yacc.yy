@@ -1190,7 +1190,6 @@ create:
 							TL_OPTION_UPDATING))
 	      YYABORT;
             lex->alter_info.reset();
-            lex->alter_info.is_simple= 0;
             lex->alter_info.flags= ALTER_ADD_INDEX;
 	    lex->col_list.empty();
 	    lex->change=NullS;
@@ -3313,7 +3312,7 @@ alter:
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
 	  lex->create_info.default_table_charset= NULL;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
-	  lex->alter_info.reset();
+          lex->alter_info.reset();
 	}
 	alter_list
 	{}
@@ -6076,7 +6075,6 @@ drop:
 	     LEX *lex=Lex;
 	     lex->sql_command= SQLCOM_DROP_INDEX;
              lex->alter_info.reset();
-             lex->alter_info.is_simple= 0;
              lex->alter_info.flags= ALTER_DROP_INDEX;
 	     lex->alter_info.drop_list.push_back(new Alter_drop(Alter_drop::KEY,
                                                                 $3.str));
