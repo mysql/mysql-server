@@ -21,6 +21,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "os0sync.h"
 #include "fil0fil.h"
 #include "btr0btr.h"
+#include "buf0buddy.h"
 #include "buf0buf.h"
 #include "buf0flu.h"
 #include "buf0rea.h"
@@ -248,7 +249,14 @@ buf_LRU_free_block(
 		break;
 
 	case BUF_BLOCK_ZIP_PAGE:
-		/* TODO: free page_zip */
+		ut_ad(!bpage->in_free_list);
+		ut_ad(!bpage->in_LRU_list);
+
+		UT_LIST_REMOVE(list, buf_pool->zip_clean, bpage);
+
+		buf_buddy_free(bpage->zip.data,
+			       page_zip_get_size(&bpage->zip));
+		buf_buddy_free(bpage, sizeof(*bpage));
 		break;
 
 	default:
@@ -372,6 +380,42 @@ buf_LRU_buf_pool_running_out(void)
 }
 
 /**********************************************************************
+Returns a free block from the buf_pool.  The block is taken off the
+free list.  If it is empty, returns NULL. */
+
+buf_block_t*
+buf_LRU_get_free_only(void)
+/*=======================*/
+				/* out: a free control block, or NULL
+				if the buf_block->free list is empty */
+{
+	buf_block_t*	block;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_a(mutex_own(&buf_pool->mutex));
+#endif /* UNIV_SYNC_DEBUG */
+
+	block = (buf_block_t*) UT_LIST_GET_FIRST(buf_pool->free);
+
+	if (block) {
+		ut_ad(block->page.in_free_list);
+		ut_d(block->page.in_free_list = FALSE);
+		ut_ad(!block->page.in_LRU_list);
+		ut_a(!buf_page_in_file(&block->page));
+		UT_LIST_REMOVE(list, buf_pool->free, (&block->page));
+
+		mutex_enter(&block->mutex);
+
+		buf_block_set_state(block, BUF_BLOCK_READY_FOR_USE);
+		UNIV_MEM_VALID(block->frame, UNIV_PAGE_SIZE);
+
+		mutex_exit(&block->mutex);
+	}
+
+	return(block);
+}
+
+/**********************************************************************
 Returns a free block from the buf_pool. The block is taken off the
 free list. If it is empty, blocks are moved from the end of the
 LRU list to the free list. */
@@ -458,12 +502,8 @@ loop:
 	/* If there is a block in the free list, take it */
 	if (UT_LIST_GET_LEN(buf_pool->free) > 0) {
 
-		block = (buf_block_t*) UT_LIST_GET_FIRST(buf_pool->free);
-		ut_ad(block->page.in_free_list);
-		ut_d(block->page.in_free_list = FALSE);
-		ut_ad(!block->page.in_LRU_list);
-		ut_a(!buf_page_in_file(&block->page));
-		UT_LIST_REMOVE(list, buf_pool->free, (&block->page));
+		block = buf_LRU_get_free_only();
+		ut_a(block); /* We tested that buf_pool->free is nonempty. */
 
 		if (buf_block_get_zip_size(block) != zip_size) {
 			page_zip_set_size(&block->page.zip, zip_size);
@@ -484,13 +524,6 @@ loop:
 				block->page.zip.data = NULL;
 			}
 		}
-
-		mutex_enter(&block->mutex);
-
-		buf_block_set_state(block, BUF_BLOCK_READY_FOR_USE);
-		UNIV_MEM_VALID(block->frame, UNIV_PAGE_SIZE);
-
-		mutex_exit(&block->mutex);
 
 		mutex_exit(&(buf_pool->mutex));
 

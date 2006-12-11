@@ -88,6 +88,15 @@ buf_LRU_search_and_free_block(
 				of pages in the buffer pool from the end
 				of the LRU list */
 /**********************************************************************
+Returns a free block from the buf_pool.  The block is taken off the
+free list.  If it is empty, returns NULL. */
+
+buf_block_t*
+buf_LRU_get_free_only(void);
+/*=======================*/
+				/* out: a free control block, or NULL
+				if the buf_block->free list is empty */
+/**********************************************************************
 Returns a free block from the buf_pool. The block is taken off the
 free list. If it is empty, blocks are moved from the end of the
 LRU list to the free list. */
