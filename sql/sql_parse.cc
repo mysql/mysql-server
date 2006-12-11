@@ -2908,11 +2908,12 @@ mysql_execute_command(THD *thd)
     {
       /* out of memory when creating a copy of alter_info */
       res= 1;
-      goto unsent_create_error;
+      goto end_with_restore_list;
     }
 
     if ((res= create_table_precheck(thd, select_tables, create_table)))
       goto end_with_restore_list;
+
 
 #ifndef HAVE_READLINK
     create_info.data_file_name= create_info.index_file_name= NULL;
@@ -2969,7 +2970,7 @@ mysql_execute_command(THD *thd)
           Is table which we are changing used somewhere in other parts
           of query
         */
-        if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
+        if (!(create_info.options & HA_LEX_CREATE_TMP_TABLE))
         {
           TABLE_LIST *duplicate;
           if ((duplicate= unique_table(thd, create_table, select_tables)))
@@ -2980,10 +2981,10 @@ mysql_execute_command(THD *thd)
           }
         }
         /* If we create merge table, we have to test tables in merge, too */
-        if (lex->create_info.used_fields & HA_CREATE_USED_UNION)
+        if (create_info.used_fields & HA_CREATE_USED_UNION)
         {
           TABLE_LIST *tab;
-          for (tab= (TABLE_LIST*) lex->create_info.merge_list.first;
+          for (tab= (TABLE_LIST*) create_info.merge_list.first;
                tab;
                tab= tab->next_local)
           {
@@ -3021,7 +3022,7 @@ mysql_execute_command(THD *thd)
       /* regular create */
       if (lex->name)
         res= mysql_create_like_table(thd, create_table, &create_info,
-                                     (Table_ident *)lex->name); 
+                                     (Table_ident *)lex->name);
       else
       {
         res= mysql_create_table(thd, create_table->db,
@@ -3075,9 +3076,9 @@ end_with_restore_list:
     create_info.db_type= DB_TYPE_DEFAULT;
     create_info.default_table_charset= thd->variables.collation_database;
 
-    res= mysql_alter_table(thd, first_table->db, first_table->real_name,
+    res= mysql_alter_table(thd, first_table->db, first_table->table_name,
                            &create_info, first_table, &alter_info,
-                           0, (ORDER*)0, DUP_ERROR, 0);
+                           0, (ORDER*) 0, 0);
     break;
   }
 #ifdef HAVE_REPLICATION
@@ -3820,6 +3821,7 @@ end_with_restore_list:
       break;
     }
 #endif
+
     if (check_access(thd,CREATE_ACL,lex->name,0,1,0,is_schema_db(lex->name)))
       break;
     res= mysql_create_db(thd,(lower_case_table_names == 2 ? alias : lex->name),
@@ -4507,7 +4509,7 @@ end_with_restore_list:
             goto error;
         }
 
-	my_bool nsok= thd->net.no_send_ok;
+	my_bool save_no_send_ok= thd->net.no_send_ok;
 	thd->net.no_send_ok= TRUE;
 	if (sp->m_flags & sp_head::MULTI_RESULTS)
 	{
@@ -4518,7 +4520,7 @@ end_with_restore_list:
               back
             */
 	    my_error(ER_SP_BADSELECT, MYF(0), sp->m_qname.str);
-	    thd->net.no_send_ok= nsok;
+	    thd->net.no_send_ok= save_no_send_ok;
 	    goto error;
 	  }
           /*
@@ -4534,7 +4536,7 @@ end_with_restore_list:
 	if (check_routine_access(thd, EXECUTE_ACL,
 				 sp->m_db.str, sp->m_name.str, TRUE, FALSE))
 	{
-	  thd->net.no_send_ok= nsok;
+	  thd->net.no_send_ok= save_no_send_ok;
 	  goto error;
 	}
 #endif
@@ -4561,7 +4563,7 @@ end_with_restore_list:
 
 	thd->variables.select_limit= select_limit;
 
-	thd->net.no_send_ok= nsok;
+	thd->net.no_send_ok= save_no_send_ok;
         thd->server_status&= ~bits_to_be_cleared;
 
 	if (!res)
