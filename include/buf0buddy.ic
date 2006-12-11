@@ -11,8 +11,12 @@ Created December 2006 by Marko Makela
 # define UNIV_INLINE
 #endif
 
+#include "buf0buf.h"
 #include "buf0buddy.h"
 #include "ut0ut.h"
+#ifdef UNIV_SYNC_DEBUG
+# include "sync0sync.h"
+#endif /* UNIV_SYNC_DEBUG */
 
 /**************************************************************************
 Allocate a block. */
