@@ -11,6 +11,7 @@ show create table func;
 show create table tables_priv;
 show create table columns_priv;
 show create table procs_priv;
+show create table servers;
 show create table proc;
 show create table event;
 show create table general_log;

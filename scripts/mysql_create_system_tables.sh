@@ -212,7 +212,7 @@ CREATE TABLE  servers ("
   c_s="$c_s   Wrapper char(64) NOT NULL,"
   c_s="$c_s   Owner char(64) NOT NULL,"
   c_s="$c_s   PRIMARY KEY  (Server_name))"
-  c_s="$c_s   comment='MySQL Foreign Servers table';"
+  c_s="$c_s   CHARACTER SET utf8 comment='MySQL Foreign Servers table';"
 
   i_s="INSERT INTO servers VALUES
     ('test','localhost','test','root','', 0,

@@ -125,7 +125,7 @@ CREATE TABLE servers (
   Wrapper char(64) NOT NULL DEFAULT '',
   Owner char(64) NOT NULL DEFAULT '',
   PRIMARY KEY (Server_name))
-  comment='MySQL Foreign Servers table';
+  CHARACTER SET utf8 comment='MySQL Foreign Servers table';
 
 INSERT INTO servers VALUES ('test','localhost','test','root','', 0,'','mysql','root');
 

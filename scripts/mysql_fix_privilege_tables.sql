@@ -380,6 +380,22 @@ ALTER TABLE procs_priv
   MODIFY Timestamp timestamp(14) AFTER Proc_priv;
 
 --
+-- servers 
+--
+CREATE TABLE servers (
+  Server_name char(64) NOT NULL DEFAULT '',
+  Host char(64) NOT NULL DEFAULT '',
+  Db char(64) NOT NULL DEFAULT '',
+  Username char(64) NOT NULL DEFAULT '',
+  Password char(64) NOT NULL DEFAULT '',
+  Port INT(4) NOT NULL DEFAULT '0',
+  Socket char(64) NOT NULL DEFAULT '',
+  Wrapper char(64) NOT NULL DEFAULT '',
+  Owner char(64) NOT NULL DEFAULT '',
+  PRIMARY KEY (Server_name))
+  CHARACTER SET utf8 comment='MySQL Foreign Servers table';
+
+--
 -- help_topic
 --
 CREATE TABLE IF NOT EXISTS help_topic (
