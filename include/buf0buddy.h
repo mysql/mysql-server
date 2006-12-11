@@ -42,14 +42,13 @@ buf_buddy_get_slot(
 	ulint	size);	/* in: block size */
 
 /**************************************************************************
-Try to allocate a block from buf_pool->zip_free[]. */
+Allocate a block. */
 UNIV_INLINE
 void*
 buf_buddy_alloc(
 /*============*/
-	ulint	size,	/* in: block size, up to UNIV_PAGE_SIZE / 2 */
-	ibool	split)	/* in: TRUE=attempt splitting,
-			FALSE=try to allocate exact size */
+			/* out: pointer to the start of the block */
+	ulint	size)	/* in: block size, up to UNIV_PAGE_SIZE / 2 */
 	__attribute__((malloc));
 
 /**************************************************************************
