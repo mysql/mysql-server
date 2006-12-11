@@ -1491,6 +1491,13 @@ private:
 };
 
 
+/**
+  BIT field represented as chars for non-MyISAM tables.
+
+  @todo The inheritance relationship is backwards since Field_bit is
+  an extended version of Field_bit_as_char and not the other way
+  around. Hence, we should refactor it to fix the hierarchy order.
+ */
 class Field_bit_as_char: public Field_bit {
 public:
   Field_bit_as_char(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
