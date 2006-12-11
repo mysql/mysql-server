@@ -178,12 +178,11 @@ buf_buddy_relocate(
 				UT_LIST_REMOVE(LRU, buf_pool->LRU, bpage);
 
 				if (b) {
-					UT_LIST_INSERT_AFTER(LRU,
-							     buf_pool->LRU,
-							     b, dpage);
+					UT_LIST_INSERT_AFTER(
+						LRU, buf_pool->LRU, b, dpage);
 				} else {
-					UT_LIST_ADD_FIRST(LRU, buf_pool->LRU,
-							  dpage);
+					UT_LIST_ADD_FIRST(
+						LRU, buf_pool->LRU, dpage);
 				}
 
 				/* relocate buf_pool->zip_clean */
