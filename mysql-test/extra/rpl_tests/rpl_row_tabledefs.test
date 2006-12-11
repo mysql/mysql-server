@@ -80,28 +80,28 @@ INSERT INTO t1_bit VALUES (1,2);
 INSERT INTO t1_bit VALUES (2,5);
 INSERT INTO t1_char VALUES (1,2);
 INSERT INTO t1_char VALUES (2,5);
-SELECT * FROM t1_int;
-SELECT * FROM t1_bit;
-SELECT * FROM t1_char;
+SELECT * FROM t1_int ORDER BY a;
+SELECT * FROM t1_bit ORDER BY a;
+SELECT * FROM t1_char ORDER BY a;
 --echo **** On Slave ****
 sync_slave_with_master;
-SELECT a,b,x FROM t1_int;
-SELECT a,b,HEX(x),HEX(y),HEX(z) FROM t1_bit;
-SELECT a,b,x FROM t1_char;
+SELECT a,b,x FROM t1_int ORDER BY a;
+SELECT a,b,HEX(x),HEX(y),HEX(z) FROM t1_bit ORDER BY a;
+SELECT a,b,x FROM t1_char ORDER BY a;
 
 --echo **** On Master ****
 connection master;
 UPDATE t1_int  SET b=2*b WHERE a=2;
 UPDATE t1_char SET b=2*b WHERE a=2;
 UPDATE t1_bit  SET b=2*b WHERE a=2;
-SELECT * FROM t1_int;
-SELECT * FROM t1_bit;
-SELECT * FROM t1_char;
+SELECT * FROM t1_int ORDER BY a;
+SELECT * FROM t1_bit ORDER BY a;
+SELECT * FROM t1_char ORDER BY a;
 --echo **** On Slave ****
 sync_slave_with_master;
-SELECT a,b,x FROM t1_int;
-SELECT a,b,HEX(x),HEX(y),HEX(z) FROM t1_bit;
-SELECT a,b,x FROM t1_char;
+SELECT a,b,x FROM t1_int ORDER BY a;
+SELECT a,b,HEX(x),HEX(y),HEX(z) FROM t1_bit ORDER BY a;
+SELECT a,b,x FROM t1_char ORDER BY a;
 
 # Each of these inserts should generate an error and stop the slave
 
@@ -188,11 +188,11 @@ sync_slave_with_master;
 connection master;
 INSERT INTO t7 VALUES (1),(2),(3);
 INSERT INTO t8 VALUES (1),(2),(3);
-SELECT * FROM t7;
-SELECT * FROM t8;
+SELECT * FROM t7 ORDER BY a;
+SELECT * FROM t8 ORDER BY a;
 sync_slave_with_master;
-SELECT * FROM t7;
-SELECT * FROM t8;
+SELECT * FROM t7 ORDER BY a;
+SELECT * FROM t8 ORDER BY a;
 
 # We will now try to update and then delete a row on the master where
 # the extra field on the slave does not have a default value. This
@@ -216,20 +216,20 @@ INSERT INTO t1_nodef VALUES (2,4,6);
 --echo **** On Master ****
 connection master;
 UPDATE t1_nodef SET b=2*b WHERE a=1;
-SELECT * FROM t1_nodef;
+SELECT * FROM t1_nodef ORDER BY a;
 
 --echo **** On Slave ****
 sync_slave_with_master;
-SELECT * FROM t1_nodef;
+SELECT * FROM t1_nodef ORDER BY a;
 
 --echo **** On Master ****
 connection master;
 DELETE FROM t1_nodef WHERE a=2;
-SELECT * FROM t1_nodef;
+SELECT * FROM t1_nodef ORDER BY a;
 
 --echo **** On Slave ****
 sync_slave_with_master;
-SELECT * FROM t1_nodef;
+SELECT * FROM t1_nodef ORDER BY a;
 
 --echo **** Cleanup ****
 connection master;
