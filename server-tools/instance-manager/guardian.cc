@@ -53,8 +53,7 @@ Guardian::Guardian(Thread_registry *thread_registry_arg,
   :shutdown_requested(FALSE),
   stopped(FALSE),
   thread_registry(thread_registry_arg),
-  instance_map(instance_map_arg),
-  guarded_instances(0)
+  instance_map(instance_map_arg)
 {
   pthread_mutex_init(&LOCK_guardian, 0);
   pthread_cond_init(&COND_guardian, 0);
