@@ -1385,15 +1385,13 @@ int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
     m_tp->forceSend(m_block_no);
   else
     m_tp->checkForceSend(m_block_no);
-  if (wait_time == -1) //Means wait forever
-    response_time= WAITFOR_RESPONSE_TIMEOUT;
-  else
-    response_time= wait_time;
+
   NDB_TICKS curr_time = NdbTick_CurrentMillisecond();
   NDB_TICKS max_time = curr_time + (NDB_TICKS)wait_time;
+  const int maxsleep = (wait_time == -1 || wait_time > 10) ? 10 : wait_time;
   do
   {
-    wait_for_input(response_time);
+    wait_for_input(maxsleep);
     Uint32 state= m_waiter->get_state();
     if (state == NO_WAIT)
     {
