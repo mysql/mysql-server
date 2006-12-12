@@ -102,6 +102,111 @@ drop table t1;
 insert into t1 values(1);
 
 #
+# BUG#11733: COMMITs should not happen if read-only is set
+#
+
+# LOCK TABLE ... WRITE / READ_ONLY
+# - is an error in the same connection
+# - is ok in a different connection
+
+connection default;
+set global read_only=0;
+lock table t1 write;
+
+connection con1;
+lock table t2 write;
+
+connection default;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+set global read_only=1;
+unlock tables ;
+# The following call blocks until con1 releases the write lock.
+# Blocking is expected.
+send set global read_only=1;
+
+connection con1;
+--sleep 1
+select @@global.read_only;
+unlock tables ;
+--sleep 1
+select @@global.read_only;
+
+connection default;
+reap;
+
+# LOCK TABLE ... READ / READ_ONLY
+# - is an error in the same connection
+# - is ok in a different connection
+
+connection default;
+set global read_only=0;
+lock table t1 read;
+
+connection con1;
+lock table t2 read;
+
+connection default;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+set global read_only=1;
+unlock tables ;
+# The following call blocks until con1 releases the read lock.
+# Blocking is a limitation, and could be improved.
+send set global read_only=1;
+
+connection con1;
+--sleep 1
+select @@global.read_only;
+unlock tables ;
+--sleep 1
+select @@global.read_only;
+
+connection default;
+reap;
+
+# pending transaction / READ_ONLY
+# - is an error in the same connection
+# - is ok in a different connection
+
+connection default;
+set global read_only=0;
+BEGIN;
+
+connection con1;
+BEGIN;
+
+connection default;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+set global read_only=1;
+ROLLBACK;
+set global read_only=1;
+
+connection con1;
+select @@global.read_only;
+ROLLBACK;
+
+# Verify that FLUSH TABLES WITH READ LOCK do not block READ_ONLY
+# - in the same SUPER connection
+# - in another SUPER connection
+
+connection default;
+set global read_only=0;
+flush tables with read lock;
+set global read_only=1;
+unlock tables;
+
+connect (root2,localhost,root,,test);
+
+connection default;
+set global read_only=0;
+flush tables with read lock;
+
+connection root2;
+set global read_only=1;
+
+connection default;
+select @@global.read_only;
+unlock tables;
+
 # BUG #22077 "DROP TEMPORARY TABLE fails with wrong error if read_only is set"
 #
 # check if DROP TEMPORARY on a non-existing temporary table returns the right
@@ -113,8 +218,10 @@ drop temporary table ttt;
 # check if DROP TEMPORARY TABLE IF EXISTS produces a warning with read_only set
 drop temporary table if exists ttt;
 
+#
+# Cleanup
+#
 connection default;
+set global read_only=0;
 drop table t1,t2;
 drop user test@localhost;
-
-set global read_only=0;
