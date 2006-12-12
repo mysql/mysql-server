@@ -3,11 +3,6 @@
 #   usage, limitation)
 #
 
-# This test takes some time (8 min) in debug builds
-# It's provided as a separate file so that the next line can be uncommented
-# later if needed:
-# -- source include/big_test.inc
-
 --disable_warnings
 DROP PROCEDURE IF EXISTS proc_19194_codegen;
 DROP PROCEDURE IF EXISTS bug_19194_simple;
