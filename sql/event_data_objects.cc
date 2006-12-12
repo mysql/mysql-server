@@ -395,7 +395,14 @@ Event_parse_data::init_starts(THD *thd)
   if ((not_used= item_starts->get_date(&ltime, TIME_NO_ZERO_DATE)))
     goto wrong_value;
 
-  /* Let's check whether time is in the past */
+  /*
+    Let's check whether time is in the past.
+    Note: This call is not post year 2038 safe. That's because
+          thd->query_start() is of time_t, while gmt_sec_to_TIME()
+          wants my_time_t. In the case time_t is larger than my_time_t
+          an overflow might happen and events subsystem will not work as
+          expected.
+  */
   thd->variables.time_zone->gmt_sec_to_TIME(&time_tmp,
                                             (my_time_t) thd->query_start());
 
@@ -407,12 +414,12 @@ Event_parse_data::init_starts(THD *thd)
     goto wrong_value;
 
   /*
-    This may result in a 1970-01-01 date if ltime is > 2037-xx-xx.
-    CONVERT_TZ has similar problem.
-    mysql_priv.h currently lists 
+    Again, after 2038 this code won't work. As
+    mysql_priv.h currently lists
       #define TIMESTAMP_MAX_YEAR 2038 (see TIME_to_timestamp())
   */
-  my_tz_UTC->gmt_sec_to_TIME(&ltime,t=TIME_to_timestamp(thd, &ltime, &not_used));
+  my_tz_UTC->gmt_sec_to_TIME(&ltime,t=TIME_to_timestamp(thd, &ltime,
+                                                        &not_used));
   if (!t)
     goto wrong_value;
 
@@ -465,13 +472,13 @@ Event_parse_data::init_ends(THD *thd)
     goto error_bad_params;
 
   /*
-    This may result in a 1970-01-01 date if ltime is > 2037-xx-xx.
-    CONVERT_TZ has similar problem.
-    mysql_priv.h currently lists 
+    Again, after 2038 this code won't work. As
+    mysql_priv.h currently lists
       #define TIMESTAMP_MAX_YEAR 2038 (see TIME_to_timestamp())
   */
   DBUG_PRINT("info", ("get the UTC time"));
-  my_tz_UTC->gmt_sec_to_TIME(&ltime,t=TIME_to_timestamp(thd, &ltime, &not_used));
+  my_tz_UTC->gmt_sec_to_TIME(&ltime,t=TIME_to_timestamp(thd, &ltime,
+                                                        &not_used));
   if (!t)
     goto error_bad_params;
 

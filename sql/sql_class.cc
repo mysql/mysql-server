@@ -985,6 +985,13 @@ void select_result::cleanup()
   /* do nothing */
 }
 
+bool select_result::check_simple_select() const
+{
+  my_error(ER_SP_BAD_CURSOR_QUERY, MYF(0));
+  return TRUE;
+}
+
+
 static String default_line_term("\n",default_charset_info);
 static String default_escaped("\\",default_charset_info);
 static String default_field_term("\t",default_charset_info);
@@ -1622,6 +1629,13 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
     return 1;
   }               
   return 0;
+}
+
+
+bool select_dumpvar::check_simple_select() const
+{
+  my_error(ER_SP_BAD_CURSOR_SELECT, MYF(0));
+  return TRUE;
 }
 
 
