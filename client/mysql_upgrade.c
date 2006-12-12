@@ -322,8 +322,8 @@ static int create_defaults_file(const char *path, const char *forced_path)
   dynstr_set(&buf, "\n[client]");
   if (opt_password) 
   {
-    if (dynstr_append_mem(&buf, "\npassword=", 10)
-       || dynstr_append_mem(&buf, opt_password, strlen(opt_password)))
+    if (dynstr_append(&buf, "\npassword=")
+       || dynstr_append(&buf, opt_password))
     {
       ret = 1;
       goto error;
