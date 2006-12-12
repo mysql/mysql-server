@@ -710,7 +710,12 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         if (item->type() == Item::FIELD_ITEM)
         {
           Field *field= ((Item_field *)item)->field;
-          field->reset();
+          if (field->reset())
+          {
+            my_error(ER_WARN_NULL_TO_NOTNULL, MYF(0), field->field_name,
+                     thd->row_count);
+            DBUG_RETURN(1);
+          }
           field->set_null();
           if (field == table->next_number_field)
             table->auto_increment_field_not_null= TRUE;
@@ -759,6 +764,13 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       {
         if (item->type() == Item::FIELD_ITEM)
         {
+          Field *field= ((Item_field *)item)->field;
+          if (field->reset())
+          {
+            my_error(ER_WARN_NULL_TO_NOTNULL, MYF(0),field->field_name,
+                     thd->row_count);
+            DBUG_RETURN(1);
+          }
           /*
             QQ: We probably should not throw warning for each field.
             But how about intention to always have the same number
