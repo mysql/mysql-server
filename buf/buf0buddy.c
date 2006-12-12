@@ -135,67 +135,79 @@ buf_buddy_alloc_from(
 }
 
 /**************************************************************************
-Try to allocate a block from an unmodified compressed page. */
+Try to allocate a block by freeing an unmodified page. */
 static
 void*
-buf_buddy_alloc_clean_zip(
-/*======================*/
+buf_buddy_alloc_clean(
+/*==================*/
 			/* out: allocated block, or NULL */
 	ulint	i)	/* in: index of buf_pool->zip_free[] */
 {
 	buf_page_t*	bpage;
-	buf_page_t*	min_bpage	= NULL;
-	ulint		min_size	= ULINT_MAX;
-	const ulint	size		= BUF_BUDDY_LOW << i;
-	ulint		j;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_a(mutex_own(&buf_pool->mutex));
 #endif /* UNIV_SYNC_DEBUG */
-	mutex_enter(&buf_pool->zip_mutex);
 
-	j = ut_min(UT_LIST_GET_LEN(buf_pool->zip_clean), 100);
-	bpage = UT_LIST_GET_FIRST(buf_pool->zip_clean);
+	if (BUF_BUDDY_LOW << i >= PAGE_ZIP_MIN_SIZE) {
+		/* Try to find a clean compressed-only page
+		of the same size. */
 
-	/* Try to find a clean compressed page of the same size. */
+		page_zip_des_t	dummy_zip;
+		ulint		j;
 
-	for (; j--; bpage = UT_LIST_GET_NEXT(list, bpage)) {
-		ulint	zip_size = page_zip_get_size(&bpage->zip);
+		page_zip_set_size(&dummy_zip, BUF_BUDDY_LOW << i);
 
-		if (zip_size < size) {
-			continue;
-		} else if (zip_size == size && buf_LRU_free_block(bpage)) {
-			/* reuse the block */
-			ut_a((buf_page_t*) bpage->zip.data
-			     == UT_LIST_GET_FIRST(buf_pool->zip_free[i]));
+		j = ut_min(UT_LIST_GET_LEN(buf_pool->zip_clean), 100);
+		bpage = UT_LIST_GET_FIRST(buf_pool->zip_clean);
+
+		mutex_enter(&buf_pool->zip_mutex);
+
+		for (; j--; bpage = UT_LIST_GET_NEXT(list, bpage)) {
+			if (bpage->zip.ssize != dummy_zip.ssize
+			    || !buf_LRU_free_block(bpage)) {
+
+				continue;
+			}
+
+			/* Reuse the block.  In case the block was
+			recombined by buf_buddy_free(), we invoke the
+			buddy allocator instead of using the block
+			directly.  Yes, bpage points to freed memory
+			here, but it cannot be used by other threads,
+			because when invoked on compressed-only pages,
+			buf_LRU_free_block() does not release
+			buf_pool->mutex. */
+
 			mutex_exit(&buf_pool->zip_mutex);
-
-			bpage = (buf_page_t*) bpage->zip.data;
-			ut_a(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);
-			UT_LIST_REMOVE(list, buf_pool->zip_free[i], bpage);
+			bpage = buf_buddy_alloc_zip(i);
+			ut_a(bpage);
 
 			return(bpage);
-		} else if (zip_size < min_size) {
-			min_size = zip_size;
-			min_bpage = bpage;
 		}
+
+		mutex_exit(&buf_pool->zip_mutex);
 	}
 
-	mutex_exit(&buf_pool->zip_mutex);
+	/* Free blocks from the end of the LRU list until enough space
+	is available. */
 
-	/* Try to free the smallest clean compressed page of bigger size. */
+	for (bpage = UT_LIST_GET_LAST(buf_pool->LRU); bpage;
+	     bpage = UT_LIST_GET_PREV(LRU, bpage)) {
 
-	if (min_bpage && buf_LRU_free_block(min_bpage)) {
+		void* ret;
 
-		j = buf_buddy_get_slot(min_size);
-		ut_a((buf_page_t*) min_bpage->zip.data
-		     == UT_LIST_GET_FIRST(buf_pool->zip_free[j]));
+		if (!buf_LRU_free_block(bpage)) {
 
-		bpage = (buf_page_t*) min_bpage->zip.data;
-		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);
-		UT_LIST_REMOVE(list, buf_pool->zip_free[j], bpage);
+			continue;
+		}
 
-		return(buf_buddy_alloc_from(min_bpage->zip.data, i, j));
+		ret = buf_buddy_alloc_zip(i);
+
+		if (ret) {
+
+			return(ret);
+		}
 	}
 
 	return(NULL);
@@ -239,9 +251,9 @@ buf_buddy_alloc_low(
 		return(NULL);
 	}
 
-	/* Try replacing a compressed-only page in the buffer pool. */
+	/* Try replacing a clean page in the buffer pool. */
 
-	block = buf_buddy_alloc_clean_zip(i);
+	block = buf_buddy_alloc_clean(i);
 
 	if (block) {
 
