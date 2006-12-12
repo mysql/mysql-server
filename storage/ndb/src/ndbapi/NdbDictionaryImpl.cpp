@@ -2302,7 +2302,7 @@ NdbDictionaryImpl::createTable(NdbTableImpl &t)
   }
 
   // blob tables - use "t2" to get values set by kernel
-  if (t2->m_noOfBlobs != 0 && createBlobTables(*t2) != 0) {
+  if (t2->m_noOfBlobs != 0 && createBlobTables(t, *t2) != 0) {
     int save_code = m_error.code;
     (void)dropTableGlobal(*t2);
     m_error.code = save_code;
@@ -2316,7 +2316,7 @@ NdbDictionaryImpl::createTable(NdbTableImpl &t)
 }
 
 int
-NdbDictionaryImpl::createBlobTables(NdbTableImpl &t)
+NdbDictionaryImpl::createBlobTables(NdbTableImpl& orig, NdbTableImpl &t)
 {
   DBUG_ENTER("NdbDictionaryImpl::createBlobTables");
   for (unsigned i = 0; i < t.m_columns.size(); i++) {
@@ -2325,6 +2325,10 @@ NdbDictionaryImpl::createBlobTables(NdbTableImpl &t)
       continue;
     NdbTableImpl bt;
     NdbBlob::getBlobTable(bt, &t, &c);
+    NdbDictionary::Column::StorageType 
+      d = NdbDictionary::Column::StorageTypeDisk;
+    if (orig.m_columns[i]->getStorageType() == d)
+      bt.getColumn("DATA")->setStorageType(d);
     if (createTable(bt) != 0) {
       DBUG_RETURN(-1);
     }
