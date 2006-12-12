@@ -1667,8 +1667,7 @@ ev_sql_stmt_inner:
           sp_proc_stmt_statement
         | sp_proc_stmt_return
         | sp_proc_stmt_if
-        | sp_proc_stmt_case_simple
-        | sp_proc_stmt_case
+        | case_stmt_specification
         | sp_labeled_control
         | sp_proc_stmt_unlabeled
         | sp_proc_stmt_leave
@@ -2432,8 +2431,7 @@ sp_proc_stmt:
 	  sp_proc_stmt_statement
         | sp_proc_stmt_return
 	| sp_proc_stmt_if
-	| sp_proc_stmt_case_simple
-        | sp_proc_stmt_case
+	| case_stmt_specification
 	| sp_labeled_control
 	| sp_proc_stmt_unlabeled
 	| sp_proc_stmt_leave
@@ -2521,14 +2519,6 @@ sp_proc_stmt_return:
 	    }
 	    sp->restore_lex(YYTHD);
 	  }
-        ;
-
-sp_proc_stmt_case_simple:
-	CASE_SYM WHEN_SYM
-        ;
-        
-sp_proc_stmt_case:
-          CASE_SYM
         ;
 
 sp_proc_stmt_unlabeled:
