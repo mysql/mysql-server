@@ -48,7 +48,8 @@ void*
 buf_buddy_alloc(
 /*============*/
 			/* out: pointer to the start of the block */
-	ulint	size)	/* in: block size, up to UNIV_PAGE_SIZE / 2 */
+	ulint	size,	/* in: block size, up to UNIV_PAGE_SIZE / 2 */
+	ibool	lru)	/* in: TRUE=allocate from the LRU list if needed */
 	__attribute__((malloc));
 
 /**************************************************************************

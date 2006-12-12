@@ -25,7 +25,8 @@ void*
 buf_buddy_alloc_low(
 /*================*/
 			/* out: pointer to the start of the block */
-	ulint	i)	/* in: index of buf_pool->zip_free[] */
+	ulint	i,	/* in: index of buf_pool->zip_free[] */
+	ibool	lru)	/* in: TRUE=allocate from the LRU list if needed */
 	__attribute__((malloc));
 
 /**************************************************************************
@@ -84,13 +85,14 @@ void*
 buf_buddy_alloc(
 /*============*/
 			/* out: pointer to the start of the block */
-	ulint	size)	/* in: block size, up to UNIV_PAGE_SIZE / 2 */
+	ulint	size,	/* in: block size, up to UNIV_PAGE_SIZE / 2 */
+	ibool	lru)	/* in: TRUE=allocate from the LRU list if needed */
 {
 #ifdef UNIV_SYNC_DEBUG
 	ut_a(mutex_own(&buf_pool->mutex));
 #endif /* UNIV_SYNC_DEBUG */
 
-	return(buf_buddy_alloc_low(buf_buddy_get_slot(size)));
+	return(buf_buddy_alloc_low(buf_buddy_get_slot(size), lru));
 }
 
 /**************************************************************************
