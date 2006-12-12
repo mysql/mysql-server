@@ -1276,9 +1276,9 @@ Ndb::waitCompletedTransactions(int aMilliSecondsToWait,
   NDB_TICKS currTime = NdbTick_CurrentMillisecond();
   NDB_TICKS maxTime = currTime + (NDB_TICKS)waitTime;
   theMinNoOfEventsToWakeUp = noOfEventsToWaitFor;
+  const int maxsleep = aMilliSecondsToWait > 10 ? 10 : aMilliSecondsToWait;
   do {
-    if (waitTime < 1000) waitTime = 1000;
-    poll_guard->wait_for_input(waitTime);
+    poll_guard->wait_for_input(maxsleep);
     if (theNoOfCompletedTransactions >= (Uint32)noOfEventsToWaitFor) {
       break;
     }//if
