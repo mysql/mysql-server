@@ -1,0 +1,113 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+create table t1(a int) engine=InnoDB;
+create table t2(a int) engine=MyISAM;
+insert into t1 values(1001);
+insert into t2 values(2001);
+set global read_only=1;
+select @@read_only;
+@@read_only
+1
+select * from t1;
+a
+1001
+select * from t2;
+a
+2001
+select @@read_only;
+@@read_only
+0
+select * from t1;
+a
+1001
+select * from t2;
+a
+2001
+set global read_only=0;
+BEGIN;
+insert into t1 values(1002);
+insert into t2 values(2002);
+BEGIN;
+insert into t1 values(1003);
+insert into t2 values(2003);
+set global read_only=1;
+COMMIT;
+COMMIT;
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+set global read_only=0;
+insert into t1 values(1004);
+insert into t2 values(2004);
+select * from t1;
+a
+1001
+1002
+1004
+select * from t2;
+a
+2001
+2002
+2003
+2004
+select * from t1;
+a
+1001
+1002
+1004
+select * from t2;
+a
+2001
+2002
+2003
+2004
+set global read_only=1;
+select @@read_only;
+@@read_only
+1
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values(1005);
+insert into t2 values(2005);
+select * from t1;
+a
+1001
+1002
+1004
+1005
+select * from t2;
+a
+2001
+2002
+2003
+2004
+2005
+select * from t1;
+a
+1001
+1002
+1004
+1005
+select * from t2;
+a
+2001
+2002
+2003
+2004
+2005
+insert into t1 values(1006);
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+insert into t2 values(2006);
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+drop table t1;
+drop table t2;

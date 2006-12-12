@@ -15684,6 +15684,33 @@ static void test_bug21635()
   DBUG_VOID_RETURN;
 }
 
+/*
+  Bug#24179 "select b into $var" fails with --cursor_protocol"
+  The failure is correct, check that the returned message is meaningful.
+*/
+
+static void test_bug24179()
+{
+  int rc;
+  MYSQL_STMT *stmt;
+
+  DBUG_ENTER("test_bug24179");
+  myheader("test_bug24179");
+
+  stmt= open_cursor("select 1 into @a");
+  rc= mysql_stmt_execute(stmt);
+  DIE_UNLESS(rc);
+  if (!opt_silent)
+  {
+    printf("Got error (as expected): %d %s\n",
+           mysql_stmt_errno(stmt),
+           mysql_stmt_error(stmt));
+  }
+  DIE_UNLESS(mysql_stmt_errno(stmt) == 1323);
+
+  DBUG_VOID_RETURN;
+}
+
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -15966,6 +15993,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug23383", test_bug23383 },
   { "test_bug21635", test_bug21635 },
   { "test_status", test_status},
+  { "test_bug24179", test_bug24179 },
   { 0, 0 }
 };
 

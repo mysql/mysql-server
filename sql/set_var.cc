@@ -369,7 +369,7 @@ sys_var_thd_ulong       sys_preload_buff_size("preload_buffer_size",
                                               &SV::preload_buff_size);
 sys_var_thd_ulong	sys_read_buff_size("read_buffer_size",
 					   &SV::read_buff_size);
-sys_var_bool_ptr	sys_readonly("read_only", &opt_readonly);
+sys_var_opt_readonly    sys_readonly("read_only", &opt_readonly);
 sys_var_thd_ulong	sys_read_rnd_buff_size("read_rnd_buffer_size",
 					       &SV::read_rnd_buff_size);
 sys_var_thd_ulong	sys_div_precincrement("div_precision_increment",
@@ -3855,6 +3855,70 @@ bool sys_var_trust_routine_creators::update(THD *thd, set_var *var)
   warn_deprecated(thd);
   return sys_var_bool_ptr::update(thd, var);
 }
+
+bool sys_var_opt_readonly::update(THD *thd, set_var *var)
+{
+  bool result;
+
+  DBUG_ENTER("sys_var_opt_readonly::update");
+
+  /* Prevent self dead-lock */
+  if (thd->locked_tables || thd->active_transaction())
+  {
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+    DBUG_RETURN(true);
+  }
+
+  if (thd->global_read_lock)
+  {
+    /*
+      This connection already holds the global read lock.
+      This can be the case with:
+      - FLUSH TABLES WITH READ LOCK
+      - SET GLOBAL READ_ONLY = 1
+    */
+    result= sys_var_bool_ptr::update(thd, var);
+    DBUG_RETURN(result);
+  }
+
+  /*
+    Perform a 'FLUSH TABLES WITH READ LOCK'.
+    This is a 3 step process:
+    - [1] lock_global_read_lock()
+    - [2] close_cached_tables()
+    - [3] make_global_read_lock_block_commit()
+    [1] prevents new connections from obtaining tables locked for write.
+    [2] waits until all existing connections close their tables.
+    [3] prevents transactions from being committed.
+  */
+
+  if (lock_global_read_lock(thd))
+    DBUG_RETURN(true);
+
+  /*
+    This call will be blocked by any connection holding a READ or WRITE lock.
+    Ideally, we want to wait only for pending WRITE locks, but since:
+    con 1> LOCK TABLE T FOR READ;
+    con 2> LOCK TABLE T FOR WRITE; (blocked by con 1)
+    con 3> SET GLOBAL READ ONLY=1; (blocked by con 2)
+    can cause to wait on a read lock, it's required for the client application
+    to unlock everything, and acceptable for the server to wait on all locks.
+  */
+  if (close_cached_tables(thd, true, NULL, false))
+    goto end_with_read_lock;
+
+  if (result= make_global_read_lock_block_commit(thd))
+    goto end_with_read_lock;
+
+  /* Change the opt_readonly system variable, safe because the lock is held */
+  result= sys_var_bool_ptr::update(thd, var);
+
+end_with_read_lock:
+  /* Release the lock */
+  unlock_global_read_lock(thd);
+  DBUG_RETURN(result);
+}
+
 
 /* even session variable here requires SUPER, because of -#o,file */
 bool sys_var_thd_dbug::check(THD *thd, set_var *var)
