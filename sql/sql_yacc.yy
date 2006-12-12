@@ -96,6 +96,187 @@ void turn_parser_debug_on()
 }
 #endif
 
+
+/**
+  Helper action for a case statement (entering the CASE).
+  This helper is used for both 'simple' and 'searched' cases.
+  This helper, with the other case_stmt_action_..., is executed when
+  the following SQL code is parsed:
+<pre>
+CREATE PROCEDURE proc_19194_simple(i int)
+BEGIN
+  DECLARE str CHAR(10);
+
+  CASE i
+    WHEN 1 THEN SET str="1";
+    WHEN 2 THEN SET str="2";
+    WHEN 3 THEN SET str="3";
+    ELSE SET str="unknown";
+  END CASE;
+
+  SELECT str;
+END
+</pre>
+  The actions are used to generate the following code:
+<pre>
+SHOW PROCEDURE CODE proc_19194_simple;
+Pos     Instruction
+0       set str@1 NULL
+1       set_case_expr (12) 0 i@0
+2       jump_if_not 5(12) (case_expr@0 = 1)
+3       set str@1 _latin1'1'
+4       jump 12
+5       jump_if_not 8(12) (case_expr@0 = 2)
+6       set str@1 _latin1'2'
+7       jump 12
+8       jump_if_not 11(12) (case_expr@0 = 3)
+9       set str@1 _latin1'3'
+10      jump 12
+11      set str@1 _latin1'unknown'
+12      stmt 0 "SELECT str"
+</pre>
+
+  @param lex the parser lex context
+*/
+
+void case_stmt_action_case(LEX *lex)
+{
+  lex->sphead->new_cont_backpatch(NULL);
+
+  /*
+    BACKPATCH: Creating target label for the jump to
+    "case_stmt_action_end_case"
+    (Instruction 12 in the example)
+  */
+
+  lex->spcont->push_label((char *)"", lex->sphead->instructions());
+}
+
+/**
+  Helper action for a case expression statement (the expr in 'CASE expr').
+  This helper is used for 'searched' cases only.
+  @param lex the parser lex context
+  @param expr the parsed expression
+  @return 0 on success
+*/
+
+int case_stmt_action_expr(LEX *lex, Item* expr)
+{
+  sp_head *sp= lex->sphead;
+  sp_pcontext *parsing_ctx= lex->spcont;
+  int case_expr_id= parsing_ctx->register_case_expr();
+  sp_instr_set_case_expr *i;
+
+  if (parsing_ctx->push_case_expr_id(case_expr_id))
+    return 1;
+
+  i= new sp_instr_set_case_expr(sp->instructions(),
+                                parsing_ctx, case_expr_id, expr, lex);
+
+  sp->add_cont_backpatch(i);
+  sp->add_instr(i);
+
+  return 0;
+}
+
+/**
+  Helper action for a case when condition.
+  This helper is used for both 'simple' and 'searched' cases.
+  @param lex the parser lex context
+  @param when the parsed expression for the WHEN clause
+  @param simple true for simple cases, false for searched cases
+*/
+
+void case_stmt_action_when(LEX *lex, Item *when, bool simple)
+{
+  sp_head *sp= lex->sphead;
+  sp_pcontext *ctx= lex->spcont;
+  uint ip= sp->instructions();
+  sp_instr_jump_if_not *i;
+  Item_case_expr *var;
+  Item *expr;
+
+  if (simple)
+  {
+    var= new Item_case_expr(ctx->get_current_case_expr_id());
+
+#ifndef DBUG_OFF
+    if (var)
+    {
+      var->m_sp= sp;
+    }
+#endif
+
+    expr= new Item_func_eq(var, when);
+    i= new sp_instr_jump_if_not(ip, ctx, expr, lex);
+  }
+  else
+    i= new sp_instr_jump_if_not(ip, ctx, when, lex);
+
+  /*
+    BACKPATCH: Registering forward jump from
+    "case_stmt_action_when" to "case_stmt_action_then"
+    (jump_if_not from instruction 2 to 5, 5 to 8 ... in the example)
+  */
+
+  sp->push_backpatch(i, ctx->push_label((char *)"", 0));
+  sp->add_cont_backpatch(i);
+  sp->add_instr(i);
+}
+
+/**
+  Helper action for a case then statements.
+  This helper is used for both 'simple' and 'searched' cases.
+  @param lex the parser lex context
+*/
+
+void case_stmt_action_then(LEX *lex)
+{
+  sp_head *sp= lex->sphead;
+  sp_pcontext *ctx= lex->spcont;
+  uint ip= sp->instructions();
+  sp_instr_jump *i = new sp_instr_jump(ip, ctx);
+  sp->add_instr(i);
+
+  /*
+    BACKPATCH: Resolving forward jump from
+    "case_stmt_action_when" to "case_stmt_action_then"
+    (jump_if_not from instruction 2 to 5, 5 to 8 ... in the example)
+  */
+
+  sp->backpatch(ctx->pop_label());
+
+  /*
+    BACKPATCH: Registering forward jump from
+    "case_stmt_action_then" to "case_stmt_action_end_case"
+    (jump from instruction 4 to 12, 7 to 12 ... in the example)
+  */
+
+  sp->push_backpatch(i, ctx->last_label());
+}
+
+/**
+  Helper action for an end case.
+  This helper is used for both 'simple' and 'searched' cases.
+  @param lex the parser lex context
+  @param simple true for simple cases, false for searched cases
+*/
+
+void case_stmt_action_end_case(LEX *lex, bool simple)
+{
+  /*
+    BACKPATCH: Resolving forward jump from
+    "case_stmt_action_then" to "case_stmt_action_end_case"
+    (jump from instruction 4 to 12, 7 to 12 ... in the example)
+  */
+  lex->sphead->backpatch(lex->spcont->pop_label());
+
+  if (simple)
+    lex->spcont->pop_case_expr_id();
+
+  lex->sphead->do_cont_backpatch();
+}
+
 %}
 %union {
   int  num;
@@ -832,7 +1013,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	select_item_list select_item values_list no_braces
 	opt_limit_clause delete_limit_clause fields opt_values values
 	procedure_list procedure_list2 procedure_item
-	when_list2 expr_list2 udf_expr_list3 handler
+	expr_list2 udf_expr_list3 handler
 	opt_precision opt_ignore opt_column opt_restrict
 	grant revoke set lock unlock string_list field_options field_option
 	field_opt_list opt_binary table_lock_list table_lock
@@ -860,6 +1041,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         view_algorithm view_or_trigger_or_sp view_or_trigger_or_sp_tail
 	view_suid view_tail view_list_opt view_list view_select
 	view_check_option trigger_tail sp_tail
+        case_stmt_specification simple_case_stmt searched_case_stmt
 END_OF_INPUT
 
 %type <NONE> call sp_proc_stmts sp_proc_stmts1 sp_proc_stmt
@@ -1995,43 +2177,7 @@ sp_proc_stmt:
           { Lex->sphead->new_cont_backpatch(NULL); }
           sp_if END IF
           { Lex->sphead->do_cont_backpatch(); }
-	| CASE_SYM WHEN_SYM
-	  {
-	    Lex->sphead->m_flags&= ~sp_head::IN_SIMPLE_CASE;
-            Lex->sphead->new_cont_backpatch(NULL);
-	  }
-          sp_case END CASE_SYM { Lex->sphead->do_cont_backpatch(); }
-        | CASE_SYM
-          {
-            Lex->sphead->reset_lex(YYTHD);
-            Lex->sphead->new_cont_backpatch(NULL);
-          }
-          expr WHEN_SYM
-	  {
-	    LEX *lex= Lex;
-	    sp_head *sp= lex->sphead;
-	    sp_pcontext *parsing_ctx= lex->spcont;
-	    int case_expr_id= parsing_ctx->register_case_expr();
-            sp_instr_set_case_expr *i;
-	    
-	    if (parsing_ctx->push_case_expr_id(case_expr_id))
-              YYABORT;
-
-            i= new sp_instr_set_case_expr(sp->instructions(),
-                                          parsing_ctx,
-                                          case_expr_id,
-                                          $3,
-                                          lex);
-            sp->add_cont_backpatch(i);
-            sp->add_instr(i);
-	    sp->m_flags|= sp_head::IN_SIMPLE_CASE;
-	    sp->restore_lex(YYTHD);
-	  }
-	  sp_case END CASE_SYM
-	  {
-	    Lex->spcont->pop_case_expr_id();
-            Lex->sphead->do_cont_backpatch();
-	  }
+        | case_stmt_specification
 	| sp_labeled_control
 	  {}
 	| { /* Unlabeled controls get a secret label. */
@@ -2242,72 +2388,114 @@ sp_elseifs:
 	| ELSE sp_proc_stmts1
 	;
 
-sp_case:
-	  { Lex->sphead->reset_lex(YYTHD); }
-          expr THEN_SYM
-	  {
+case_stmt_specification:
+          simple_case_stmt
+        | searched_case_stmt
+        ;
+
+simple_case_stmt:
+          CASE_SYM
+          {
             LEX *lex= Lex;
-	    sp_head *sp= lex->sphead;
-	    sp_pcontext *ctx= Lex->spcont;
-	    uint ip= sp->instructions();
-	    sp_instr_jump_if_not *i;
+            case_stmt_action_case(lex);
+            lex->sphead->reset_lex(YYTHD); /* For expr $3 */
+          }
+          expr
+          {
+            LEX *lex= Lex;
+            if (case_stmt_action_expr(lex, $3))
+              YYABORT;
 
-	    if (! (sp->m_flags & sp_head::IN_SIMPLE_CASE))
-	      i= new sp_instr_jump_if_not(ip, ctx, $2, lex);
-	    else
-	    { /* Simple case: <caseval> = <whenval> */
+            lex->sphead->restore_lex(YYTHD); /* For expr $3 */
+          }
+          simple_when_clause_list
+          else_clause_opt
+          END
+          CASE_SYM
+          {
+            LEX *lex= Lex;
+            case_stmt_action_end_case(lex, true);
+          }
+        ;
 
-	      Item_case_expr *var;
-              Item *expr;
+searched_case_stmt:
+          CASE_SYM
+          {
+            LEX *lex= Lex;
+            case_stmt_action_case(lex);
+          }
+          searched_when_clause_list
+          else_clause_opt
+          END
+          CASE_SYM
+          {
+            LEX *lex= Lex;
+            case_stmt_action_end_case(lex, false);
+          }
+        ;
 
-              var= new Item_case_expr(ctx->get_current_case_expr_id());
+simple_when_clause_list:
+          simple_when_clause
+        | simple_when_clause_list simple_when_clause
+        ;
 
-#ifndef DBUG_OFF
-              if (var)
-                var->m_sp= sp;
-#endif
+searched_when_clause_list:
+          searched_when_clause
+        | searched_when_clause_list searched_when_clause
+        ;
 
-	      expr= new Item_func_eq(var, $2);
+simple_when_clause:
+          WHEN_SYM
+          {
+            Lex->sphead->reset_lex(YYTHD); /* For expr $3 */
+          }
+          expr
+          {
+            /* Simple case: <caseval> = <whenval> */
 
-	      i= new sp_instr_jump_if_not(ip, ctx, expr, lex);
-	    }
-	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
-            sp->add_cont_backpatch(i);
+            LEX *lex= Lex;
+            case_stmt_action_when(lex, $3, true);
+            lex->sphead->restore_lex(YYTHD); /* For expr $3 */
+          }
+          THEN_SYM
+          sp_proc_stmts1
+          {
+            LEX *lex= Lex;
+            case_stmt_action_then(lex);
+          }
+        ;
+
+searched_when_clause:
+          WHEN_SYM
+          {
+            Lex->sphead->reset_lex(YYTHD); /* For expr $3 */
+          }
+          expr
+          {
+            LEX *lex= Lex;
+            case_stmt_action_when(lex, $3, false);
+            lex->sphead->restore_lex(YYTHD); /* For expr $3 */
+          }
+          THEN_SYM
+          sp_proc_stmts1
+          {
+            LEX *lex= Lex;
+            case_stmt_action_then(lex);
+          }
+        ;
+
+else_clause_opt:
+          /* empty */
+          {
+            LEX *lex= Lex;
+            sp_head *sp= lex->sphead;
+            uint ip= sp->instructions();
+            sp_instr_error *i= new sp_instr_error(ip, lex->spcont,
+                                                  ER_SP_CASE_NOT_FOUND);
             sp->add_instr(i);
-            sp->restore_lex(YYTHD);
-	  }
-	  sp_proc_stmts1
-	  {
-	    sp_head *sp= Lex->sphead;
-	    sp_pcontext *ctx= Lex->spcont;
-	    uint ip= sp->instructions();
-	    sp_instr_jump *i = new sp_instr_jump(ip, ctx);
-
-	    sp->add_instr(i);
-	    sp->backpatch(ctx->pop_label());
-	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
-	  }
-	  sp_whens
-	  {
-	    LEX *lex= Lex;
-
-	    lex->sphead->backpatch(lex->spcont->pop_label());
-	  }
-	;
-
-sp_whens:
-	  /* Empty */
-	  {
-	    sp_head *sp= Lex->sphead;
-	    uint ip= sp->instructions();
-	    sp_instr_error *i= new sp_instr_error(ip, Lex->spcont,
-						  ER_SP_CASE_NOT_FOUND);
-
-	    sp->add_instr(i);
-	  }
-	| ELSE sp_proc_stmts1 {}
-	| WHEN_SYM sp_case {}
-	;
+          }
+        | ELSE sp_proc_stmts1
+        ;
 
 sp_labeled_control:
 	  label_ident ':'
@@ -4374,8 +4562,8 @@ simple_expr:
             if (!$$)
               YYABORT;
 	  }
-	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
-	  { $$= new Item_func_case(* $4, $2, $5 ); }
+	| CASE_SYM opt_expr when_list opt_else END
+	  { $$= new Item_func_case(* $3, $2, $4 ); }
 	| CONVERT_SYM '(' expr ',' cast_type ')'
 	  {
 	    $$= create_func_cast($3, $5,
@@ -5184,23 +5372,19 @@ opt_else:
 	| ELSE expr    { $$= $2; };
 
 when_list:
-        { Select->when_list.push_front(new List<Item>); }
-	when_list2
-	{ $$= Select->when_list.pop(); };
-
-when_list2:
-	expr THEN_SYM expr
-	  {
-	    SELECT_LEX *sel=Select;
-	    sel->when_list.head()->push_back($1);
-	    sel->when_list.head()->push_back($3);
-	}
-	| when_list2 WHEN_SYM expr THEN_SYM expr
-	  {
-	    SELECT_LEX *sel=Select;
-	    sel->when_list.head()->push_back($3);
-	    sel->when_list.head()->push_back($5);
-	  };
+          WHEN_SYM expr THEN_SYM expr
+          {
+            $$= new List<Item>;
+            $$->push_back($2);
+            $$->push_back($4);
+          }
+        | when_list WHEN_SYM expr THEN_SYM expr
+          {
+            $1->push_back($3);
+            $1->push_back($5);
+            $$= $1;
+          }
+        ;
 
 /* Warning - may return NULL in case of incomplete SELECT */
 table_ref:
