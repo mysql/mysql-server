@@ -479,7 +479,7 @@ then
   FIND_PROC="$PS \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
 else
   case $SYSTEM_TYPE in
-    *freebsd*)
+    *freebsd*|*dragonfly*)
       FIND_PROC="$PS p \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
       ;;
     *darwin*)
@@ -756,6 +756,8 @@ AC_SEARCH_LIBS(crypt, crypt, AC_DEFINE(HAVE_CRYPT, 1, [crypt]))
 
 # For sem_xxx functions on Solaris 2.6
 AC_CHECK_FUNC(sem_init, , AC_CHECK_LIB(posix4, sem_init))
+# For sem_xxx functions on NetBSD
+AC_CHECK_FUNC(sem_init, , AC_CHECK_LIB(rt, sem_init))
 MYSQL_CHECK_ZLIB_WITH_COMPRESS
 
 # For large pages support
@@ -1081,7 +1083,7 @@ case $SYSTEM_TYPE in
       MAX_C_OPTIMIZE="-O"
     fi
     ;;
-  *freebsd*)
+  *freebsd*|*dragonfly*)
     AC_MSG_WARN([Adding fix for interrupted reads])
     OSVERSION=`sysctl -a | grep osreldate | awk '{ print $2 }'`
     if test "$OSVERSION" -gt "480100" && \
