@@ -209,7 +209,8 @@ buf_buddy_alloc_low(
 /*================*/
 			/* out: allocated block, or NULL
 			if buf_pool->zip_free[] was empty */
-	ulint	i)	/* in: index of buf_pool->zip_free[] */
+	ulint	i,	/* in: index of buf_pool->zip_free[] */
+	ibool	lru)	/* in: TRUE=allocate from the LRU list if needed */
 {
 	buf_block_t*	block;
 
@@ -233,6 +234,11 @@ buf_buddy_alloc_low(
 		goto alloc_big;
 	}
 
+	if (!lru) {
+
+		return(NULL);
+	}
+
 	/* Try replacing a compressed-only page in the buffer pool. */
 
 	block = buf_buddy_alloc_clean_zip(i);
@@ -243,7 +249,9 @@ buf_buddy_alloc_low(
 	}
 
 	/* Try replacing an uncompressed page in the buffer pool. */
+	mutex_exit(&buf_pool->mutex);
 	block = buf_LRU_get_free_block(0);
+	mutex_enter(&buf_pool->mutex);
 
 alloc_big:
 	buf_buddy_block_register(block);
