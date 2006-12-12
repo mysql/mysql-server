@@ -35,7 +35,7 @@ create server 'server_one' foreign data wrapper 'mysql' options
 DATABASE 'first_db',
 USER 'root',
 PASSWORD '',
-PORT 9308,
+PORT SLAVE_PORT,
 SOCKET '',
 OWNER 'root');
 drop server if exists 'server_two';
@@ -44,7 +44,7 @@ create server 'server_two' foreign data wrapper 'mysql' options
 DATABASE 'second_db',
 USER 'root',
 PASSWORD '',
-PORT 9308,
+PORT SLAVE_PORT,
 SOCKET '',
 OWNER 'root');
 select * from mysql.servers;
@@ -60,7 +60,7 @@ CREATE TABLE federated.old (
 `name` varchar(64) NOT NULL default ''
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
-CONNECTION='mysql://root@127.0.0.1:9308/first_db/t1';
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/first_db/t1';
 INSERT INTO federated.old (id, name) values (1, 'federated.old url');
 SELECT * FROM federated.old;
 id	name
@@ -73,7 +73,7 @@ CREATE TABLE federated.old2 (
 `name` varchar(64) NOT NULL default ''
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
-CONNECTION='mysql://root@127.0.0.1:9308/second_db/t1';
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/second_db/t1';
 INSERT INTO federated.old2 (id, name) values (1, 'federated.old2 url');
 DROP TABLE IF EXISTS federated.t1;
 Warnings:
