@@ -26,6 +26,7 @@ CREATE TABLE second_db.t1 (
 connection master;
 
 drop server if exists 'server_one';
+--replace_result $SLAVE_MYPORT SLAVE_PORT
 eval create server 'server_one' foreign data wrapper 'mysql' options
   (HOST '127.0.0.1',
   DATABASE 'first_db',
@@ -36,6 +37,7 @@ eval create server 'server_one' foreign data wrapper 'mysql' options
   OWNER 'root');
 
 drop server if exists 'server_two';
+--replace_result $SLAVE_MYPORT SLAVE_PORT
 eval create server 'server_two' foreign data wrapper 'mysql' options
   (HOST '127.0.0.1',
   DATABASE 'second_db',
@@ -48,6 +50,7 @@ eval create server 'server_two' foreign data wrapper 'mysql' options
 select * from mysql.servers;
 
 DROP TABLE IF EXISTS federated.old;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
 eval CREATE TABLE federated.old (
     `id` int(20) NOT NULL,
     `name` varchar(64) NOT NULL default ''
@@ -60,6 +63,7 @@ INSERT INTO federated.old (id, name) values (1, 'federated.old url');
 SELECT * FROM federated.old;
 
 DROP TABLE IF EXISTS federated.old2;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
 eval CREATE TABLE federated.old2 (
     `id` int(20) NOT NULL,
     `name` varchar(64) NOT NULL default ''
