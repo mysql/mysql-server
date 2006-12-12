@@ -349,6 +349,7 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
       */
       !(select_lex->item_list.head()->type() == FIELD_ITEM ||
 	select_lex->item_list.head()->type() == REF_ITEM) &&
+      !join->conds && !join->having &&
       /*
         switch off this optimization for prepare statement,
         because we do not rollback this changes
@@ -373,8 +374,6 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
     */
     substitution->walk(&Item::remove_dependence_processor,
 		       (byte *) select_lex->outer_select());
-    /* SELECT without FROM clause can't have WHERE or HAVING clause */
-    DBUG_ASSERT(join->conds == 0 && join->having == 0);
     return RES_REDUCE;
   }
   return RES_OK;
@@ -2274,6 +2273,22 @@ bool subselect_uniquesubquery_engine::change_result(Item_subselect *si,
 bool subselect_single_select_engine::no_tables()
 {
   return(select_lex->table_list.elements == 0);
+}
+
+
+/*
+  Check statically whether the subquery can return NULL
+
+  SINOPSYS
+    subselect_single_select_engine::may_be_null()
+
+  RETURN
+    FALSE  can guarantee that the subquery never return NULL
+    TRUE   otherwise
+*/
+bool subselect_single_select_engine::may_be_null()
+{
+  return ((no_tables() && !join->conds && !join->having) ? maybe_null : 1);
 }
 
 
