@@ -15,7 +15,7 @@ Inserts a modified block into the flush list. */
 void
 buf_flush_insert_into_flush_list(
 /*=============================*/
-	buf_page_t*	block);	/* in: block which is modified */
+	buf_page_t*	bpage);	/* in: block which is modified */
 /************************************************************************
 Inserts a modified block into the flush list in the right sorted position.
 This function is used by recovery, because there the modifications do not
@@ -24,7 +24,7 @@ necessarily come in the order of lsn's. */
 void
 buf_flush_insert_sorted_into_flush_list(
 /*====================================*/
-	buf_page_t*	block);	/* in: block which is modified */
+	buf_page_t*	bpage);	/* in: block which is modified */
 
 /************************************************************************
 This function should be called at a mini-transaction commit, if a page was
