@@ -582,7 +582,7 @@ public:
   bool setTransporter(class TransporterFacade * tf);
 
   int createTable(NdbTableImpl &t);
-  int createBlobTables(NdbTableImpl& t);
+  int createBlobTables(NdbTableImpl& org, NdbTableImpl& created);
   int alterTable(NdbTableImpl &t);
   int dropTable(const char * name);
   int dropTable(NdbTableImpl &);
