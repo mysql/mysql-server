@@ -572,15 +572,72 @@ public:
 #endif
 
 
-  NdbOperation *readTuple(const char *tableName, const NdbRecord *rec, char *row, const Uint32 *mask= 0);
-  NdbOperation *insertTuple(const char *tableName, const NdbRecord *rec, const char *row, const Uint32 *mask= 0);
-  NdbOperation *updateTuple(const char *tableName, const NdbRecord *rec, const char *row, const Uint32 *mask= 0);
-  NdbOperation *deleteTuple(const char *tableName, const NdbRecord *rec, const char *row);
-  NdbOperation *dirtyWriteTuple(const char *tableName, const NdbRecord *rec, const char *row, const Uint32 *mask= 0);
-  NdbOperation *writeTuple(const char *tableName, const NdbRecord *rec, const char *row, const Uint32 *mask= 0);
-  NdbOperation *simpleReadTuple(const char *tableName, const NdbRecord *rec, char *row, const Uint32 *mask= 0);
-  NdbOperation *dirtyReadTuple(const char *tableName, const NdbRecord *rec, char *row, const Uint32 *mask= 0);
-  NdbOperation *dirtyUpdateTuple(const char *tableName, const NdbRecord *rec, const char *row, const Uint32 *mask= 0);
+  NdbOperation *readTuple(const NdbDictionary::Table *table,
+                          const NdbRecord *key_rec, const char *key_row,
+                          const NdbRecord *result_rec, char *result_row,
+                          const Uint32 *result_mask= 0);
+  NdbOperation *readTuple(const char *tableName,
+                          const NdbRecord *key_rec, const char *key_row,
+                          const NdbRecord *result_rec, char *result_row,
+                          const Uint32 *result_mask= 0);
+  NdbOperation *insertTuple(const NdbDictionary::Table *table,
+                            const NdbRecord *rec, const char *row,
+                            const Uint32 *mask= 0);
+  NdbOperation *insertTuple(const char *tableName,
+                            const NdbRecord *rec, const char *row,
+                            const Uint32 *mask= 0);
+  NdbOperation *updateTuple(const NdbDictionary::Table *table,
+                            const NdbRecord *pk_rec, const char *pk_row,
+                            const NdbRecord *attr_rec, const char *attr_row,
+                            const Uint32 *mask= 0);
+  NdbOperation *updateTuple(const char *tableName,
+                            const NdbRecord *pk_rec, const char *pk_row,
+                            const NdbRecord *attr_rec, const char *attr_row,
+                            const Uint32 *mask= 0);
+  NdbOperation *deleteTuple(const NdbDictionary::Table *table,
+                            const NdbRecord *rec, const char *row= 0);
+  NdbOperation *deleteTuple(const char *tableName,
+                            const NdbRecord *rec, const char *row= 0);
+  NdbOperation *dirtyWriteTuple(const NdbDictionary::Table *table,
+                                const NdbRecord *pk_rec, const char *pk_row,
+                                const NdbRecord *attr_rec, const char *attr_row,
+                                const Uint32 *mask= 0);
+  NdbOperation *dirtyWriteTuple(const char *tableName,
+                                const NdbRecord *pk_rec, const char *pk_row,
+                                const NdbRecord *attr_rec, const char *attr_row,
+                                const Uint32 *mask= 0);
+  NdbOperation *writeTuple(const NdbDictionary::Table *table,
+                           const NdbRecord *pk_rec, const char *pk_row,
+                           const NdbRecord *attr_rec, const char *attr_row,
+                           const Uint32 *mask= 0);
+  NdbOperation *writeTuple(const char *tableName,
+                           const NdbRecord *pk_rec, const char *pk_row,
+                           const NdbRecord *attr_rec, const char *attr_row,
+                           const Uint32 *mask= 0);
+  NdbOperation *simpleReadTuple(const NdbDictionary::Table *table,
+                                const NdbRecord *key_rec, char *key_row,
+                                const NdbRecord *result_rec, char *result_row,
+                                const Uint32 *result_mask= 0);
+  NdbOperation *simpleReadTuple(const char *tableName,
+                                const NdbRecord *key_rec, char *key_row,
+                                const NdbRecord *result_rec, char *result_row,
+                                const Uint32 *result_mask= 0);
+  NdbOperation *dirtyReadTuple(const NdbDictionary::Table *table,
+                               const NdbRecord *key_rec, char *key_row,
+                               const NdbRecord *result_rec, char *result_row,
+                               const Uint32 *result_mask= 0);
+  NdbOperation *dirtyReadTuple(const char *tableName,
+                               const NdbRecord *key_rec, char *key_row,
+                               const NdbRecord *result_rec, char *result_row,
+                               const Uint32 *result_mask= 0);
+  NdbOperation *dirtyUpdateTuple(const NdbDictionary::Table *table,
+                                 const NdbRecord *pk_rec, const char *pk_row,
+                                 const NdbRecord *attr_rec, const char *attr_row,
+                                 const Uint32 *mask= 0);
+  NdbOperation *dirtyUpdateTuple(const char *tableName,
+                                 const NdbRecord *pk_rec, const char *pk_row,
+                                 const NdbRecord *attr_rec, const char *attr_row,
+                                 const Uint32 *mask= 0);
 
 private:						
   /**
@@ -690,7 +747,42 @@ private:
 
   int		checkMagicNumber();		       // Verify correct object
   NdbOperation* getNdbOperation(const class NdbTableImpl* aTable,
-                                NdbOperation* aNextOp = 0);
+                                NdbOperation* aNextOp = 0,
+                                bool useRec= false);
+  NdbOperation *readTuple(const NdbTableImpl *table,
+                          const NdbRecord *key_rec, const char *key_row,
+                          const NdbRecord *result_rec, char *result_row,
+                          const Uint32 *result_mask);
+  NdbOperation *insertTuple(const NdbTableImpl *table,
+                            const NdbRecord *rec, const char *row,
+                            const Uint32 *mask);
+  NdbOperation *updateTuple(const NdbTableImpl *table,
+                            const NdbRecord *pk_rec, const char *pk_row,
+                            const NdbRecord *attr_rec, const char *attr_row,
+                            const Uint32 *mask);
+  NdbOperation *deleteTuple(const NdbTableImpl *table,
+                            const NdbRecord *rec, const char *row);
+  NdbOperation *dirtyWriteTuple(const NdbTableImpl *table,
+                                const NdbRecord *pk_rec, const char *pk_row,
+                                const NdbRecord *attr_rec, const char *attr_row,
+                                const Uint32 *mask);
+  NdbOperation *writeTuple(const NdbTableImpl *table,
+                           const NdbRecord *pk_rec, const char *pk_row,
+                           const NdbRecord *attr_rec, const char *attr_row,
+                           const Uint32 *mask);
+  NdbOperation *simpleReadTuple(const NdbTableImpl *table,
+                                const NdbRecord *key_rec, char *key_row,
+                                const NdbRecord *result_rec, char *result_row,
+                                const Uint32 *result_mask);
+  NdbOperation *dirtyReadTuple(const NdbTableImpl *table,
+                               const NdbRecord *key_rec, char *key_row,
+                               const NdbRecord *result_rec, char *result_row,
+                               const Uint32 *result_mask);
+  NdbOperation *dirtyUpdateTuple(const NdbTableImpl *table,
+                                 const NdbRecord *pk_rec, const char *pk_row,
+                                 const NdbRecord *attr_rec, const char *attr_row,
+                                 const Uint32 *mask);
+
   NdbIndexScanOperation* getNdbScanOperation(const class NdbTableImpl* aTable);
   NdbIndexOperation* getNdbIndexOperation(const class NdbIndexImpl* anIndex, 
                                           const class NdbTableImpl* aTable,

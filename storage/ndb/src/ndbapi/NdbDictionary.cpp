@@ -1481,39 +1481,40 @@ NdbDictionary::Dictionary::removeTableGlobal(const Table &ndbtab,
 }
 
 NdbRecord *
-NdbDictionary::Dictionary::getRecord(const Table *table)
+NdbDictionary::Dictionary::createRecord(const char *tableName,
+                                        const RecordSpecification *recSpec,
+                                        Uint32 length,
+                                        Uint32 elemSize)
 {
-  return m_impl.getRecord(&NdbTableImpl::getImpl(*table));
+  const NdbTableImpl *table= m_impl.getTable(tableName);
+  if(table)
+    return createRecord(table, recSpec, length, elemSize);
+  else
+    return NULL;
 }
 
 NdbRecord *
-NdbDictionary::Dictionary::getRecord(const char *tableName)
+NdbDictionary::Dictionary::createRecord(const Table *table,
+                                        const RecordSpecification *recSpec,
+                                        Uint32 length,
+                                        Uint32 elemSize)
 {
-  return m_impl.getRecord(tableName);
+  return m_impl.createRecord(&NdbTableImpl::getImpl(*table),
+                             recSpec,
+                             length,
+                             elemSize);
 }
 
 void 
 NdbDictionary::Dictionary::releaseRecord(NdbRecord *rec)
 {
-  m_impl.releaseRecord(rec);
-}
-
-void
-NdbDictionary::Dictionary::recAddAttrNotNULL(const char *tableName, NdbRecord *rec, Uint32 attrId, Uint32 offset)
-{
-  m_impl.recAddAttrNotNULL(tableName, rec, attrId, offset);
-}
-
-void
-NdbDictionary::Dictionary::recAddAttrNotNULL(const char *tableName, NdbRecord *rec, const char *colName, Uint32 offset)
-{
-  m_impl.recAddAttrNotNULL(tableName, rec, colName, offset);
+  m_impl.releaseRecord_impl(rec);
 }
 
 Uint32 *
-NdbDictionary::Dictionary::getRecAttrSet(const char *tableName, NdbRecord *rec)
+NdbDictionary::Dictionary::getRecAttrSet(const NdbRecord *rec)
 {
-  return m_impl.getRecAttrSet(tableName, rec);
+  return m_impl.getRecAttrSet(rec);
 }
 
 void 
@@ -1523,15 +1524,17 @@ NdbDictionary::Dictionary::releaseRecAttrSet(Uint32 *attrSet)
 }
 
 void 
-NdbDictionary::Dictionary::recAttrSetEnable(Uint32 *attrSet, const char *tableName, const NdbRecord *rec, Uint32 attrId)
+NdbDictionary::Dictionary::recAttrSetEnable(Uint32 *attrSet, Uint32 attrId)
 {
-  m_impl.recAttrSetEnable(attrSet, tableName, rec, attrId);
+  m_impl.recAttrSetEnable(attrSet, attrId);
 }
 
 void 
-NdbDictionary::Dictionary::recAttrSetEnable(Uint32 *attrSet, const char *tableName, const NdbRecord *rec, const char *colName)
+NdbDictionary::Dictionary::recAttrSetEnable(Uint32 *attrSet,
+                                            const char *tableName,
+                                            const char *colName)
 {
-  m_impl.recAttrSetEnable(attrSet, tableName, rec, colName);
+  m_impl.recAttrSetEnable(attrSet, tableName, colName);
 }
 
 void NdbDictionary::Dictionary::putTable(const NdbDictionary::Table * table)

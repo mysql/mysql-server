@@ -574,17 +574,35 @@ public:
 
 class NdbRecord {
 public:
-  Uint32 tableId;
-  Uint32 tableVersion;
-
-  enum Flags
+  /* Flag bits for the entire NdbRecord. */
+  enum RecFlags
   {
-    IsPK= 1
+    /*
+      This flag tells whether this NdbRecord is a PK record for the table,
+      ie. that it describes _exactly_ the primary key attributes, no more and
+      no less. This is a requirement for the PK record used in read/update.
+    */
+    RecIsPKRecord= 0x1,
+
+    /*
+      This flag tells whether this NdbRecord includes _at least_ all PK columns
+      (and possibly other columns), which is a requirement for insert.
+    */
+    RecHasAllPKs= 0x2
+  };
+
+  /* Flag bits for individual columns in the NdbRecord. */
+  enum ColFlags
+  {
+    /*
+      This flag tells whether the column is part of the primary key, used
+      for insert.
+    */
+    IsPK= 0x1
   };
 
   enum RecAttrTypes
   {
-    AttrUnused= 0,
     AttrNotNULL
   };
 
@@ -595,6 +613,7 @@ public:
       struct are valid.
     */
     enum RecAttrTypes type;
+    Uint32 attrId;
     /* Offset of data from the start of a row. */
     Uint32 offset;
     /*
@@ -603,14 +622,20 @@ public:
     */
     Uint32 maxSize;
 
+    /* Flags, or-ed from enum ColFlags. */
     Uint32 flags;
   };
 
-  /*
-    The size of this array is the same as number of columns in the table.
-  */
+  Uint32 tableId;
+  Uint32 tableVersion;
+  /* Flags, or-ed from enum RecFlags. */
+  Uint32 flags;
+  /* Total number of attributes in table. */
+  Uint32 totalTableColumns;
+
+  /* The real size of the array at the end of this struct. */
   Uint32 noOfColumns;
-  struct Attr *columns;
+  struct Attr columns[1];
 };
 
 
@@ -710,72 +735,17 @@ public:
                               const BaseString& internalName);
 
 
-  /* NdbRecord stuff. */
-  NdbRecord *getRecord(const NdbTableImpl *table)
-  {
-    NdbRecord *rec;
+  NdbRecord *createRecord(const NdbTableImpl *table,
+                          const NdbDictionary::RecordSpecification *recSpec,
+                          Uint32 length,
+                          Uint32 elemSize);
+  void releaseRecord_impl(NdbRecord *rec);
 
-    rec= (NdbRecord *)malloc(sizeof(*rec));
-    if (!rec)
-      return rec;
-    rec->noOfColumns= table->getNoOfColumns();
-    rec->columns= (NdbRecord::Attr *)calloc(rec->noOfColumns, sizeof(rec->columns[0]));
-    if (!rec->columns)
-    {
-      free(rec);
-      return NULL;
-    }
-
-    rec->tableId= table->getObjectId();
-    rec->tableVersion= table->getObjectVersion();
-
-    return rec;
-  }
-
-  NdbRecord *getRecord(const char *tableName)
-  {
-    NdbTableImpl *table= getTable(tableName);
-    if(table)
-      return getRecord(table);
-    else
-      return NULL;
-  }
-
-  void releaseRecord(NdbRecord *rec)
-  {
-    free(rec->columns);
-    free(rec);
-  }
-
-  /* ToDo: The interface for setting columns in NdbRecord needs updating. */
-  void recAddAttrNotNULL(const char *tableName, NdbRecord *rec, Uint32 attrId, Uint32 offset)
-  {
-    const NdbTableImpl *table= getTable(tableName);
-    rec->columns[attrId].type= NdbRecord::AttrNotNULL;
-    rec->columns[attrId].offset= offset;
-    const NdbDictionary::Column *col= table->getColumn(attrId);
-    rec->columns[attrId].maxSize= col->getSizeInBytes();
-    rec->columns[attrId].flags=
-      (col->getPrimaryKey() ? NdbRecord::IsPK : 0);
-  }
-
-  void recAddAttrNotNULL(const char *tableName, NdbRecord *rec, const char *colName, Uint32 offset)
-  {
-    const NdbTableImpl *table= getTable(tableName);
-    const NdbDictionary::Column *col= table->getColumn(colName);
-    Uint32 attrId= col->getAttrId();
-    rec->columns[attrId].type= NdbRecord::AttrNotNULL;
-    rec->columns[attrId].offset= offset;
-    rec->columns[attrId].maxSize= col->getSizeInBytes();
-    rec->columns[attrId].flags=
-      (col->getPrimaryKey() ? NdbRecord::IsPK : 0);
-  }
-
-  Uint32 *getRecAttrSet(const char *tableName, NdbRecord *rec)
+  Uint32 *getRecAttrSet(const NdbRecord *rec)
   {
     Uint32 *attrSet;
 
-    attrSet= (Uint32 *)calloc((rec->noOfColumns+31)>>5, sizeof(*attrSet));
+    attrSet= (Uint32 *)calloc((rec->totalTableColumns+31)>>5, sizeof(*attrSet));
     return attrSet;
   }
 
@@ -784,17 +754,17 @@ public:
     free(attrSet);
   }
 
-  void recAttrSetEnable(Uint32 *attrSet, const char *tableName, const NdbRecord *rec, Uint32 attrId)
+  void recAttrSetEnable(Uint32 *attrSet, Uint32 attrId)
   {
     attrSet[attrId>>5]|= 1<<(attrId&31);
   }
 
-  void recAttrSetEnable(Uint32 *attrSet, const char *tableName, const NdbRecord *rec, const char *colName)
+  void recAttrSetEnable(Uint32 *attrSet, const char *tableName, const char *colName)
   {
     // ToDo: check table/column not found ...
     const NdbTableImpl *table= getTable(tableName);
     const NdbDictionary::Column *col= table->getColumn(colName);
-    recAttrSetEnable(attrSet, tableName, rec, col->getAttrId());
+    recAttrSetEnable(attrSet, col->getAttrId());
   }
 
 private:

@@ -31,6 +31,8 @@ class NdbOperation;
 class NdbTransaction;
 class NdbColumnImpl;
 class NdbBlob;
+class TcKeyReq;
+class NdbRecord;
 
 /**
  * @class NdbOperation
@@ -802,7 +804,7 @@ protected:
 //--------------------------------------------------------------
 // Initialise after allocating operation to a transaction		      
 //--------------------------------------------------------------
-  int init(const class NdbTableImpl*, NdbTransaction* aCon);
+  int init(const class NdbTableImpl*, NdbTransaction* aCon, bool useRec);
   void initInterpreter();
 
   NdbOperation(Ndb* aNdb, Type aType = PrimaryKeyAccess);	
@@ -831,7 +833,13 @@ protected:
     WaitResponse,
     WaitCommitResponse,
     Finished,
-    ReceiveFinished
+    ReceiveFinished,
+    /*
+      NdbRecord: For operations using NdbRecord. Built in a single call (like
+      NdbTransaction::readTuple(), and no state transitions possible before
+      execute().
+    */
+    UseNdbRecord
   };
 
   OperationStatus   Status();	         	// Read the status information
@@ -861,7 +869,37 @@ protected:
   virtual void   setLastFlag(NdbApiSignal* signal, Uint32 lastFlag);
     
   int	 prepareSendInterpreted();            // Help routine to prepare*
-   
+
+  int    prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId);
+
+  /* Helper routines for prepareSendNdbRecord(). */
+  Uint32 fillTcKeyReqHdr(TcKeyReq *tcKeyReq,
+                         Uint32 connectPtr,
+                         Uint64 transId,
+                         const NdbRecord *rec);
+  int    allocKeyInfo(Uint32 connectPtr, Uint64 transId,
+                      Uint32 **dstPtr, Uint32 *remain);
+  int    allocAttrInfo(Uint32 connectPtr, Uint64 transId,
+                       Uint32 **dstPtr, Uint32 *remain);
+  int    insertKEYINFO_NdbRecord(Uint32 connectPtr,
+                                 Uint64 transId,
+                                 const char *value,
+                                 Uint32 size,
+                                 Uint32 **dstPtr,
+                                 Uint32 *remain);
+  int    insertATTRINFOHdr_NdbRecord(Uint32 connectPtr,
+                                     Uint64 transId,
+                                     Uint32 attrId,
+                                     Uint32 attrLen,
+                                     Uint32 **dstPtr,
+                                     Uint32 *remain);
+  int    insertATTRINFOData_NdbRecord(Uint32 connectPtr,
+                                      Uint64 transId,
+                                      const char *value,
+                                      Uint32 size,
+                                      Uint32 **dstPtr,
+                                      Uint32 *remain);
+
   int	 receiveTCKEYREF(NdbApiSignal*); 
 
   int	 checkMagicNumber(bool b = true); // Verify correct object
@@ -996,6 +1034,24 @@ protected:
   Uint16 m_tcReqGSN;
   Uint16 m_keyInfoGSN;
   Uint16 m_attrInfoGSN;
+
+  /*
+    Members for NdbRecord operations.
+    ToDo: We might overlap these (with anonymous unions) with members used
+    for NdbRecAttr access (theKEYINFOptr etc), to save a bit of memory. Not
+    sure if it is worth the loss of code clarity though.
+  */
+
+  /* NdbRecord describing the placement of Primary key in row. */
+  const NdbRecord *thePKRec;
+  /* Row containing the primary key to operate on. */
+  const char *thePKRow;
+  /* NdbRecord describing attributes to update. */
+  const NdbRecord *theUpdRec;
+  /* Row containing the update values. */
+  const char *theUpdRow;
+  /* Optional bitmask to disable selected columns. */
+  const Uint32 *theReadMask;
 
   // Blobs in this operation
   NdbBlob* theBlobList;

@@ -37,6 +37,7 @@ class AttrInfo {
   friend class Dblqh;
   friend class NdbScanOperation;
   friend class Restore;
+  friend class NdbOperation;
 
   friend bool printATTRINFO(FILE *, const Uint32 *, Uint32, Uint16);
   
