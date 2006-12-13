@@ -50,8 +50,8 @@ OWNER 'root');
 select * from mysql.servers;
 Server_name	Host	Db	Username	Password	Port	Socket	Wrapper	Owner
 test	localhost	test	root		0		mysql	root
-server_one	127.0.0.1	first_db	root		9308		mysql	root
-server_two	127.0.0.1	second_db	root		9308		mysql	root
+server_one	127.0.0.1	first_db	root		SLAVE_PORT		mysql	root
+server_two	127.0.0.1	second_db	root		SLAVE_PORT		mysql	root
 DROP TABLE IF EXISTS federated.old;
 Warnings:
 Note	1051	Unknown table 'old'
