@@ -95,7 +95,7 @@ buf_buddy_block_register(
 #ifdef UNIV_SYNC_DEBUG
 	ut_a(mutex_own(&buf_pool->mutex));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_a(buf_block_get_state(block) == BUF_BLOCK_MEMORY);
+	buf_block_set_state(block, BUF_BLOCK_MEMORY);
 
 	ut_a(block->frame);
 	ut_a(block->frame == ut_align_down(block->frame, UNIV_PAGE_SIZE));
