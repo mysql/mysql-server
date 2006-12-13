@@ -490,6 +490,17 @@ use test;
 drop table t1;
 
 #
+# BUG#23404 - ROW_FORMAT=FIXED option is lost is an index is added to the
+# table
+#
+CREATE TABLE t1(a INT) ROW_FORMAT=FIXED;
+CREATE INDEX i1 ON t1(a);
+SHOW CREATE TABLE t1;
+DROP INDEX i1 ON t1;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+#
 # Bug#24219 - ALTER TABLE ... RENAME TO ... , DISABLE KEYS leads to crash
 #
 --disable_warnings
