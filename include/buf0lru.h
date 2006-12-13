@@ -104,7 +104,8 @@ LRU list to the free list. */
 buf_block_t*
 buf_LRU_get_free_block(
 /*===================*/
-				/* out: the free control block */
+				/* out: the free control block,
+				in state BUF_BLOCK_READY_FOR_USE */
 	ulint	zip_size);	/* in: compressed page size in bytes,
 				or 0 if uncompressed tablespace */
 

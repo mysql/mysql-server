@@ -1564,7 +1564,7 @@ recv_apply_log_recs_for_backup(void)
 	recv_sys->apply_log_recs = TRUE;
 	recv_sys->apply_batch_on = TRUE;
 
-	block = buf_block_alloc(UNIV_PAGE_SIZE);
+	block = buf_LRU_get_free_block(UNIV_PAGE_SIZE);
 
 	fputs("InnoDB: Starting an apply batch of log records"
 	      " to the database...\n"

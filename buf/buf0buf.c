@@ -1923,7 +1923,7 @@ buf_page_init_for_read(
 		ut_ad(mode == BUF_READ_ANY_PAGE);
 	}
 
-	block = buf_block_alloc(zip_size);
+	block = buf_LRU_get_free_block(zip_size);
 
 	ut_a(block);
 

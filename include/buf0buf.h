@@ -114,7 +114,8 @@ UNIV_INLINE
 buf_block_t*
 buf_block_alloc(
 /*============*/
-				/* out, own: the allocated block */
+				/* out, own: the allocated block,
+				in state BUF_BLOCK_MEMORY */
 	ulint	zip_size);	/* in: compressed page size in bytes,
 				or 0 if uncompressed tablespace */
 /************************************************************************
