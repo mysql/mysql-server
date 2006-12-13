@@ -4508,6 +4508,165 @@ NdbDictionaryImpl::dropLogfileGroup(const NdbLogfileGroupImpl & fg)
   return m_receiver.drop_filegroup(fg);
 }
 
+static int
+cmp_ndbrec_attr(const void *a, const void *b)
+{
+  const NdbRecord::Attr *r1= (const NdbRecord::Attr *)a;
+  const NdbRecord::Attr *r2= (const NdbRecord::Attr *)b;
+  if(r1->attrId < r2->attrId)
+    return -1;
+  else if(r1->attrId == r2->attrId)
+    return 0;
+  else
+    return 1;
+}
+
+NdbRecord *
+NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
+                                const NdbDictionary::RecordSpecification *recSpec,
+                                Uint32 length,
+                                Uint32 elemSize)
+{
+  NdbRecord *rec= NULL;
+  Uint32 tableNumPK;
+  Uint32 oldAttrId;
+  Uint32 numPK;
+
+  /*
+    In later versions we can use elemSize to provide backwards
+    compatibility if we extend the RecordSpecification structure.
+  */
+  if (elemSize != sizeof(NdbDictionary::RecordSpecification))
+  {
+    m_error.code= 4276;
+    return NULL;
+  }
+
+  rec= (NdbRecord *)
+    calloc(1, sizeof(NdbRecord) + (length-1)*elemSize);
+  if (!rec)
+  {
+    m_error.code= 4000;
+    return NULL;
+  }
+
+  rec->tableId= table->m_id;
+  rec->tableVersion= table->m_version;
+  rec->flags= 0;
+  rec->totalTableColumns= table->m_columns.size();
+  rec->noOfColumns= length;
+
+  for (Uint32 i= 0; i<length; i++)
+  {
+    const NdbDictionary::RecordSpecification *rs= &recSpec[i];
+    const NdbColumnImpl *col;
+    if (rs->colPtr)
+      col= &NdbColumnImpl::getImpl(*(rs->colPtr));
+    else if (rs->colName)
+      col= table->getColumn(rs->colName);
+    else
+      col= table->getColumn(rs->colNumber);
+    if(!col)
+    {
+      m_error.code= 4277;
+      goto err;
+    }
+
+    NdbRecord::Attr *recCol= &rec->columns[i];
+
+    bool isVarCol= (col->m_arrayType==NDB_ARRAYTYPE_SHORT_VAR ||
+                    col->m_arrayType==NDB_ARRAYTYPE_MEDIUM_VAR);
+
+    recCol->attrId= col->m_attrId;
+    recCol->offset= rs->dataOffset;
+    recCol->maxSize= col->m_attrSize*col->m_arraySize;
+    recCol->flags= 0;
+    if(col->m_pk)
+      recCol->flags|= NdbRecord::IsPK;
+
+    switch(rs->type)
+    {
+      case NdbDictionary::RecordSpecification::AttrOffsetNotNULL:
+        if (!isVarCol)
+        {
+          recCol->type= NdbRecord::AttrNotNULL;
+        }
+        else
+          assert(0);            // ToDo
+        break;
+
+      case NdbDictionary::RecordSpecification::AttrOffsetNULL:
+        assert(0);              // ToDo
+        break;
+
+      default:
+        /* Wrong type supplied by caller. */
+        m_error.code= 4118;
+        goto err;
+    }
+  }
+
+  /* Now we sort the array in attrId order. */
+  qsort(rec->columns,
+        rec->noOfColumns,
+        sizeof(rec->columns[0]),
+        cmp_ndbrec_attr);
+
+  /*
+    Now check for the presense of primary keys, and set flags for whether
+    this NdbRecord can be used for insert and/or for specifying keys for
+    read/update.
+
+    Also test for duplicate columns, easy now that they are sorted.
+  */
+
+  oldAttrId= ~0;
+  numPK= 0;
+  for (Uint32 i= 0; i<rec->noOfColumns; i++)
+  {
+    NdbRecord::Attr *recCol= &rec->columns[i];
+    if (i > 0 && oldAttrId==recCol->attrId)
+    {
+      m_error.code= 4278;
+      goto err;
+    }
+    oldAttrId= recCol->attrId;
+
+    if (recCol->flags & NdbRecord::IsPK)
+      numPK++;
+  }
+
+  /*
+    Since we checked for duplicates, we can check for primary key completeness
+    simply by counting.
+  */
+  tableNumPK= 0;
+  for (Uint32 i= 0; i<table->m_columns.size(); i++)
+  {
+    if (table->m_columns[i]->m_pk)
+      tableNumPK++;
+  }
+  if (numPK >= tableNumPK)
+  {
+    rec->flags|= NdbRecord::RecHasAllPKs;
+    if (numPK == tableNumPK)
+      rec->flags|= NdbRecord::RecIsPKRecord;
+  }
+
+  return rec;
+
+ err:
+  if (rec)
+    free(rec);
+  return NULL;
+}
+
+void NdbDictionaryImpl::releaseRecord_impl(NdbRecord *rec)
+{
+  if (rec)
+    free(rec);
+}
+
 int
 NdbDictInterface::create_file(const NdbFileImpl & file,
 			      const NdbFilegroupImpl & group,

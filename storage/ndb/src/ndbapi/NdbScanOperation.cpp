@@ -100,7 +100,7 @@ NdbScanOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
   }
 
   // NOTE! The hupped trans becomes the owner of the operation
-  if(NdbOperation::init(tab, aScanConnection) != 0){
+  if(NdbOperation::init(tab, aScanConnection, false) != 0){
     theNdb->theRemainingStartTransactions--;
     return -1;
   }
@@ -279,7 +279,7 @@ NdbScanOperation::fix_receivers(Uint32 parallel){
 	return -1;
       }//if
       m_receivers[i] = tScanRec;
-      tScanRec->init(NdbReceiver::NDB_SCANRECEIVER, this);
+      tScanRec->init(NdbReceiver::NDB_SCANRECEIVER, false, this);
     }
     m_allocated_receivers = parallel;
   }

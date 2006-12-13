@@ -1414,6 +1414,32 @@ public:
     Event(NdbEventImpl&);
   };
 
+  struct RecordSpecification {
+    enum RecTypes {
+      AttrOffsetNotNULL= 1,
+      AttrOffsetNULL= 2,
+    };
+
+    enum RecTypes type;
+    /*
+      Column is given by NdbDictionary::Column pointer, if not NULL, else by
+      name, if not NULL, else by id.
+    */
+    // ToDo: Hm, a bit clumsy interface that one needs to init colPtr and
+    // colName to NULL to use colNumber...
+    const Column *colPtr;
+    const char *colName;
+    Uint32 colNumber;
+
+    /* Offset of data from start of a row. */
+    Uint32 dataOffset;
+
+    /* Offset from start of row of byte containing NULL bit. */
+    Uint32 bmOffset;
+    /* NULL bit, 0-7. */
+    Uint32 bmBit;
+  };
+
   struct AutoGrowSpecification {
     Uint32 min_free;
     Uint64 max_size;
@@ -1914,18 +1940,22 @@ public:
     int removeTableGlobal(const Table &ndbtab, int invalidate) const;
 #endif
 
-    NdbRecord *getRecord(const Table *table);
-    NdbRecord *getRecord(const char *tableName);
+    NdbRecord *createRecord(const char *tableName,
+                            const RecordSpecification *recSpec,
+                            Uint32 length,
+                            Uint32 elemSize);
+    NdbRecord *createRecord(const Table *table,
+                            const RecordSpecification *recSpec,
+                            Uint32 length,
+                            Uint32 elemSize);
     void releaseRecord(NdbRecord *rec);
 
-    void recAddAttrNotNULL(const char *tableName, NdbRecord *rec, Uint32 attrId, Uint32 offset);
-    void recAddAttrNotNULL(const char *tableName, NdbRecord *rec, const char *colName, Uint32 offset);
-
-    Uint32 *getRecAttrSet(const char *tableName, NdbRecord *rec);
+    Uint32 *getRecAttrSet(const NdbRecord *rec);
     void releaseRecAttrSet(Uint32 *attrSet);
 
-    void recAttrSetEnable(Uint32 *attrSet, const char *tableName, const NdbRecord *rec, Uint32 attrId);
-    void recAttrSetEnable(Uint32 *attrSet, const char *tableName, const NdbRecord *rec, const char *colName);
+    void recAttrSetEnable(Uint32 *attrSet, Uint32 attrId);
+    void recAttrSetEnable(Uint32 *attrSet, const char *tableName,
+                          const char *colName);
 
   };
 };

@@ -669,7 +669,11 @@ NdbTransaction::executeAsynchPrepare( ExecType           aTypeOfExec,
     int tReturnCode;
     NdbOperation* tNextOp = tOp->next();
 
-    tReturnCode = tOp->prepareSend(theTCConPtr, theTransactionId);
+    if (tOp->Status() == NdbOperation::UseNdbRecord)
+      tReturnCode= tOp->prepareSendNdbRecord(theTCConPtr, theTransactionId);
+    else
+      tReturnCode= tOp->prepareSend(theTCConPtr, theTransactionId);
+
     if (tReturnCode == -1) {
       theSendStatus = sendABORTfail;
       DBUG_VOID_RETURN;
@@ -1114,7 +1118,9 @@ Remark:         Get an operation from NdbOperation object idlelist and
                 object, synchronous.
 *****************************************************************************/
 NdbOperation*
-NdbTransaction::getNdbOperation(const NdbTableImpl * tab, NdbOperation* aNextOp)
+NdbTransaction::getNdbOperation(const NdbTableImpl * tab,
+                                NdbOperation* aNextOp,
+                                bool useRec)
 { 
   NdbOperation* tOp;
 
@@ -1148,7 +1154,7 @@ NdbTransaction::getNdbOperation(const NdbTableImpl * tab, NdbOperation* aNextOp)
     }
     tOp->next(aNextOp);
   }
-  if (tOp->init(tab, this) != -1) {
+  if (tOp->init(tab, this, useRec) != -1) {
     return tOp;
   } else {
     theNdb->releaseOperation(tOp);
@@ -1167,6 +1173,228 @@ NdbOperation* NdbTransaction::getNdbOperation(const NdbDictionary::Table * table
   else
     return NULL;
 }//NdbTransaction::getNdbOperation()
+
+NdbOperation *
+NdbTransaction::readTuple(const NdbDictionary::Table *table,
+                          const NdbRecord *key_rec, const char *key_row,
+                          const NdbRecord *result_rec, char *result_row,
+                          const Uint32 *result_mask)
+{
+  return readTuple(&NdbTableImpl::getImpl(*table),
+                   key_rec, key_row, result_rec, result_row, result_mask);
+}
+
+NdbOperation *
+NdbTransaction::readTuple(const char *tableName,
+                          const NdbRecord *key_rec, const char *key_row,
+                          const NdbRecord *result_rec, char *result_row,
+                          const Uint32 *result_mask)
+{
+  const NdbTableImpl* table= theNdb->theDictionary->getTable(tableName);
+  if (table){
+    return readTuple(table, key_rec, key_row, result_rec, result_row,
+                     result_mask);
+  } else {
+    setErrorCode(theNdb->theDictionary->getNdbError().code);
+    return NULL;
+  }
+}
+
+NdbOperation *
+NdbTransaction::insertTuple(const NdbDictionary::Table *table,
+                            const NdbRecord *rec, const char *row,
+                            const Uint32 *mask)
+{
+  return insertTuple(&NdbTableImpl::getImpl(*table),
+                     rec, row, mask);
+}
+
+NdbOperation *
+NdbTransaction::insertTuple(const char *tableName,
+                            const NdbRecord *rec, const char *row,
+                            const Uint32 *mask)
+{
+  const NdbTableImpl* table= theNdb->theDictionary->getTable(tableName);
+  if (table){
+    return insertTuple(table, rec, row, mask);
+  } else {
+    setErrorCode(theNdb->theDictionary->getNdbError().code);
+    return NULL;
+  }
+}
+
+NdbOperation *
+NdbTransaction::updateTuple(const NdbDictionary::Table *table,
+                            const NdbRecord *pk_rec, const char *pk_row,
+                            const NdbRecord *attr_rec, const char *attr_row,
+                            const Uint32 *mask)
+{
+  return updateTuple(&NdbTableImpl::getImpl(*table),
+                     pk_rec, pk_row, attr_rec, attr_row, mask);
+}
+
+NdbOperation *
+NdbTransaction::updateTuple(const char *tableName,
+                            const NdbRecord *pk_rec, const char *pk_row,
+                            const NdbRecord *attr_rec, const char *attr_row,
+                            const Uint32 *mask)
+{
+  const NdbTableImpl* table= theNdb->theDictionary->getTable(tableName);
+  if (table){
+    return updateTuple(table, pk_rec, pk_row, attr_rec, attr_row, mask);
+  } else {
+    setErrorCode(theNdb->theDictionary->getNdbError().code);
+    return NULL;
+  }
+}
+
+NdbOperation *
+NdbTransaction::deleteTuple(const NdbDictionary::Table *table,
+                            const NdbRecord *rec, const char *row)
+{
+  return deleteTuple(&NdbTableImpl::getImpl(*table), rec, row);
+}
+
+NdbOperation *
+NdbTransaction::deleteTuple(const char *tableName,
+                            const NdbRecord *rec, const char *row)
+{
+  const NdbTableImpl* table= theNdb->theDictionary->getTable(tableName);
+  if (table){
+    return deleteTuple(table, rec, row);
+  } else {
+    setErrorCode(theNdb->theDictionary->getNdbError().code);
+    return NULL;
+  }
+}
+
+NdbOperation *
+NdbTransaction::dirtyWriteTuple(const NdbDictionary::Table *table,
+                                const NdbRecord *pk_rec, const char *pk_row,
+                                const NdbRecord *attr_rec, const char *attr_row,
+                                const Uint32 *mask)
+{
+  return dirtyWriteTuple(&NdbTableImpl::getImpl(*table),
+                         pk_rec, pk_row, attr_rec, attr_row, mask);
+}
+
+NdbOperation *
+NdbTransaction::dirtyWriteTuple(const char *tableName,
+                                const NdbRecord *pk_rec, const char *pk_row,
+                                const NdbRecord *attr_rec, const char *attr_row,
+                                const Uint32 *mask)
+{
+  const NdbTableImpl* table= theNdb->theDictionary->getTable(tableName);
+  if (table){
+    return dirtyWriteTuple(table, pk_rec, pk_row, attr_rec, attr_row, mask);
+  } else {
+    setErrorCode(theNdb->theDictionary->getNdbError().code);
+    return NULL;
+  }
+}
+
+NdbOperation *
+NdbTransaction::writeTuple(const NdbDictionary::Table *table,
+                           const NdbRecord *pk_rec, const char *pk_row,
+                           const NdbRecord *attr_rec, const char *attr_row,
+                           const Uint32 *mask)
+{
+  return writeTuple(&NdbTableImpl::getImpl(*table),
+                   pk_rec, pk_row, attr_rec, attr_row, mask);
+}
+
+NdbOperation *
+NdbTransaction::writeTuple(const char *tableName,
+                           const NdbRecord *pk_rec, const char *pk_row,
+                           const NdbRecord *attr_rec, const char *attr_row,
+                           const Uint32 *mask)
+{
+  const NdbTableImpl* table= theNdb->theDictionary->getTable(tableName);
+  if (table){
+    return writeTuple(table, pk_rec, pk_row, attr_rec, attr_row, mask);
+  } else {
+    setErrorCode(theNdb->theDictionary->getNdbError().code);
+    return NULL;
+  }
+}
+
+NdbOperation *
+NdbTransaction::simpleReadTuple(const NdbDictionary::Table *table,
+                                const NdbRecord *key_rec, char *key_row,
+                                const NdbRecord *result_rec, char *result_row,
+                                const Uint32 *result_mask)
+{
+  return simpleReadTuple(&NdbTableImpl::getImpl(*table),
+                         key_rec, key_row, result_rec, result_row, result_mask);
+}
+
+NdbOperation *
+NdbTransaction::simpleReadTuple(const char *tableName,
+                                const NdbRecord *key_rec, char *key_row,
+                                const NdbRecord *result_rec, char *result_row,
+                                const Uint32 *result_mask)
+{
+  const NdbTableImpl* table= theNdb->theDictionary->getTable(tableName);
+  if (table){
+    return simpleReadTuple(table, key_rec, key_row, result_rec, result_row,
+                           result_mask);
+  } else {
+    setErrorCode(theNdb->theDictionary->getNdbError().code);
+    return NULL;
+  }
+}
+
+NdbOperation *
+NdbTransaction::dirtyReadTuple(const NdbDictionary::Table *table,
+                               const NdbRecord *key_rec, char *key_row,
+                               const NdbRecord *result_rec, char *result_row,
+                               const Uint32 *result_mask)
+{
+  return dirtyReadTuple(&NdbTableImpl::getImpl(*table),
+                        key_rec, key_row, result_rec, result_row, result_mask);
+}
+
+NdbOperation *
+NdbTransaction::dirtyReadTuple(const char *tableName,
+                               const NdbRecord *key_rec, char *key_row,
+                               const NdbRecord *result_rec, char *result_row,
+                               const Uint32 *result_mask)
+{
+  const NdbTableImpl* table= theNdb->theDictionary->getTable(tableName);
+  if (table){
+    return dirtyReadTuple(table, key_rec, key_row, result_rec, result_row,
+                          result_mask);
+  } else {
+    setErrorCode(theNdb->theDictionary->getNdbError().code);
+    return NULL;
+  }
+}
+
+NdbOperation *
+NdbTransaction::dirtyUpdateTuple(const NdbDictionary::Table *table,
+                                 const NdbRecord *pk_rec, const char *pk_row,
+                                 const NdbRecord *attr_rec, const char *attr_row,
+                                 const Uint32 *mask)
+{
+  return dirtyUpdateTuple(&NdbTableImpl::getImpl(*table),
+                          pk_rec, pk_row, attr_rec, attr_row, mask);
+}
+
+NdbOperation *
+NdbTransaction::dirtyUpdateTuple(const char *tableName,
+                                 const NdbRecord *pk_rec, const char *pk_row,
+                                 const NdbRecord *attr_rec, const char *attr_row,
+                                 const Uint32 *mask)
+{
+  const NdbTableImpl* table= theNdb->theDictionary->getTable(tableName);
+  if (table){
+    return dirtyUpdateTuple(table, pk_rec, pk_row, attr_rec, attr_row, mask);
+  } else {
+    setErrorCode(theNdb->theDictionary->getNdbError().code);
+    return NULL;
+  }
+}
+
 
 // NdbScanOperation
 /*****************************************************************************
@@ -2159,254 +2387,288 @@ NdbTransaction::getNextCompletedOperation(const NdbOperation * current) const {
 }
 
 NdbOperation *
-NdbTransaction::readTuple(const char *tableName, const NdbRecord *rec, char *row, const Uint32 *mask)
+NdbTransaction::readTuple(const NdbTableImpl *table,
+                          const NdbRecord *key_rec, const char *key_row,
+                          const NdbRecord *result_rec, char *result_row,
+                          const Uint32 *result_mask)
 {
-  NdbOperation *op= getNdbOperation(tableName);
+  /* Check that the NdbRecord specifies the full primary key. */
+  if (!(key_rec->flags & NdbRecord::RecIsPKRecord))
+  {
+    setOperationErrorCodeAbort(4279);
+    return NULL;
+  }
+
+  NdbOperation *op= getNdbOperation(table, NULL, true);
   if(!op)
     return op;
 
-  op->readTuple();
+  op->theStatus= NdbOperation::UseNdbRecord;
+  op->theOperationType= NdbOperation::ReadRequest;
+  op->theErrorLine++;
+  op->theLockMode= NdbOperation::LM_Read;
 
-  /* First do equal on all of the primary key attributes. */
-  for(Uint32 i= 0; i<rec->noOfColumns; i++)
-  {
-    switch (rec->columns[i].type)
-    {
-      case NdbRecord::AttrUnused:
-        // ToDo: Report an error here if PK.
-        break;
-      case NdbRecord::AttrNotNULL:
-        if (rec->columns[i].flags & NdbRecord::IsPK)
-          op->equal(i, &(row[rec->columns[i].offset]), rec->columns[i].maxSize);
-        else if (!mask || (mask[i>>5] & (1<<(i&31))))
-          op->getValue(i, &(row[rec->columns[i].offset]));
-        break;
-      default:
-        assert(0);
-    }
-  }
+  theSimpleState= 0;
+
+  /* Setup the record/row for sending the primary key. */
+  op->thePKRec= key_rec;
+  op->thePKRow= key_row;
+  op->theReadMask= result_mask;
+
+  /* Setup the record/row for receiving the results. */
+  op->theReceiver.getValues(result_rec, result_row);
+
+  return op;
 }
 
 NdbOperation *
-NdbTransaction::insertTuple(const char *tableName, const NdbRecord *rec, const char *row, const Uint32 *mask)
+NdbTransaction::insertTuple(const NdbTableImpl *table,
+                            const NdbRecord *rec, const char *row,
+                            const Uint32 *mask)
 {
-  NdbOperation *op= getNdbOperation(tableName);
+  /* Check that the NdbRecord specifies the full primary key. */
+  if (!(rec->flags & NdbRecord::RecHasAllPKs))
+  {
+    setOperationErrorCodeAbort(4279);
+    return NULL;
+  }
+
+  NdbOperation *op= getNdbOperation(table, NULL, true);
   if(!op)
     return op;
 
-  op->insertTuple();
-  for(Uint32 i= 0; i<rec->noOfColumns; i++)
-  {
-    switch (rec->columns[i].type)
-    {
-      case NdbRecord::AttrUnused:
-        // ToDo: Report error if PK.
-        break;
-      case NdbRecord::AttrNotNULL:
-        if (rec->columns[i].flags & NdbRecord::IsPK)
-          op->equal(i, &(row[rec->columns[i].offset]), rec->columns[i].maxSize);
-        else if (!mask || (mask[i>>5] & (1<<(i&31))))
-          op->setValue(i, &(row[rec->columns[i].offset]));
-        break;
-      default:
-        assert(0);
-    }
-  }
+  op->theStatus= NdbOperation::UseNdbRecord;
+  op->theOperationType= NdbOperation::InsertRequest;
+  op->theErrorLine++;
+  op->theLockMode= NdbOperation::LM_Exclusive;
+
+  theSimpleState= 0;
+
+  /* Setup the record/row for sending the primary key. */
+  op->thePKRec= rec;
+  op->thePKRow= row;
+  op->theUpdRec= rec;
+  op->theUpdRow= row;
+  op->theReadMask= mask;
+
+  return op;
 }
 
 NdbOperation *
-NdbTransaction::updateTuple(const char *tableName, const NdbRecord *rec, const char *row, const Uint32 *mask)
+NdbTransaction::updateTuple(const NdbTableImpl *table,
+                            const NdbRecord *pk_rec, const char *pk_row,
+                            const NdbRecord *attr_rec, const char *attr_row,
+                            const Uint32 *mask)
 {
-  NdbOperation *op= getNdbOperation(tableName);
+  /* Check that the NdbRecord specifies the full primary key. */
+  if (!(pk_rec->flags & NdbRecord::RecIsPKRecord))
+  {
+    setOperationErrorCodeAbort(4279);
+    return NULL;
+  }
+
+  NdbOperation *op= getNdbOperation(table, NULL, true);
   if(!op)
     return op;
 
-  op->updateTuple();
+  op->theStatus= NdbOperation::UseNdbRecord;
+  op->theOperationType= NdbOperation::UpdateRequest;
+  op->theErrorLine++;
+  op->theLockMode= NdbOperation::LM_Exclusive;
 
-  for(Uint32 i= 0; i<rec->noOfColumns; i++)
-  {
-    switch (rec->columns[i].type)
-    {
-      case NdbRecord::AttrUnused:
-        // ToDo: Report an error here if PK.
-        break;
-      case NdbRecord::AttrNotNULL:
-        if (rec->columns[i].flags & NdbRecord::IsPK)
-          op->equal(i, &(row[rec->columns[i].offset]), rec->columns[i].maxSize);
-        else if (!mask || (mask[i>>5] & (1<<(i&31))))
-          op->setValue(i, &(row[rec->columns[i].offset]));
-        break;
-      default:
-        assert(0);
-    }
-  }
+  theSimpleState= 0;
+
+  /* Setup the record/row for sending the primary key. */
+  op->thePKRec= pk_rec;
+  op->thePKRow= pk_row;
+  op->theUpdRec= attr_rec;
+  op->theUpdRow= attr_row;
+  op->theReadMask= mask;
+
+  return op;
 }
 
 NdbOperation *
-NdbTransaction::deleteTuple(const char *tableName, const NdbRecord *rec, const char *row)
+NdbTransaction::deleteTuple(const NdbTableImpl *table,
+                            const NdbRecord *rec, const char *row)
 {
-  NdbOperation *op= getNdbOperation(tableName);
+  /* Check that the NdbRecord specifies the full primary key. */
+  if (!(rec->flags & NdbRecord::RecIsPKRecord))
+  {
+    setOperationErrorCodeAbort(4279);
+    return NULL;
+  }
+
+  NdbOperation *op= getNdbOperation(table, NULL, true);
   if(!op)
     return op;
 
-  op->deleteTuple();
+  op->theStatus= NdbOperation::UseNdbRecord;
+  op->theOperationType= NdbOperation::DeleteRequest;
+  op->theErrorLine++;
+  op->theLockMode= NdbOperation::LM_Exclusive;
 
-  /* Do equal on all of the primary key attributes. */
-  for(Uint32 i= 0; i<rec->noOfColumns; i++)
-  {
-    switch (rec->columns[i].type)
-    {
-      case NdbRecord::AttrUnused:
-        // ToDo: Report an error here.
-        break;
-      case NdbRecord::AttrNotNULL:
-        if (rec->columns[i].flags & NdbRecord::IsPK)
-          op->equal(i, &(row[rec->columns[i].offset]), rec->columns[i].maxSize);
-        break;
-      default:
-        assert(0);
-    }
-  }
+  theSimpleState= 0;
+
+  /* Setup the record/row for sending the primary key. */
+  op->thePKRec= rec;
+  op->thePKRow= row;
+
+  return op;
 }
 
 NdbOperation *
-NdbTransaction::dirtyWriteTuple(const char *tableName, const NdbRecord *rec, const char *row, const Uint32 *mask)
+NdbTransaction::dirtyWriteTuple(const NdbTableImpl *table,
+                                const NdbRecord *pk_rec, const char *pk_row,
+                                const NdbRecord *attr_rec, const char *attr_row,
+                                const Uint32 *mask)
 {
-  NdbOperation *op= getNdbOperation(tableName);
+  /* Check that the NdbRecord specifies the full primary key. */
+  if (!(pk_rec->flags & NdbRecord::RecIsPKRecord))
+  {
+    setOperationErrorCodeAbort(4279);
+    return NULL;
+  }
+
+  NdbOperation *op= getNdbOperation(table, NULL, true);
   if(!op)
     return op;
 
-  op->dirtyWrite();
-  for(Uint32 i= 0; i<rec->noOfColumns; i++)
-  {
-    switch (rec->columns[i].type)
-    {
-      case NdbRecord::AttrUnused:
-        // ToDo: Report error if PK.
-        break;
-      case NdbRecord::AttrNotNULL:
-        if (rec->columns[i].flags & NdbRecord::IsPK)
-          op->equal(i, &(row[rec->columns[i].offset]), rec->columns[i].maxSize);
-        else if (!mask || (mask[i>>5] & (1<<(i&31))))
-          op->setValue(i, &(row[rec->columns[i].offset]));
-        break;
-      default:
-        assert(0);
-    }
-  }
+  op->theStatus= NdbOperation::UseNdbRecord;
+  op->theOperationType= NdbOperation::WriteRequest;
+  op->theErrorLine++;
+  op->theLockMode= NdbOperation::LM_CommittedRead;
+  op->theSimpleIndicator = 1;
+  op->theDirtyIndicator = 1;
+
+  theSimpleState= 0;
+
+  /* Setup the record/row for sending the primary key. */
+  op->thePKRec= pk_rec;
+  op->thePKRow= pk_row;
+  op->theUpdRec= attr_rec;
+  op->theUpdRow= attr_row;
+  op->theReadMask= mask;
+
+  return op;
 }
 
 NdbOperation *
-NdbTransaction::writeTuple(const char *tableName, const NdbRecord *rec, const char *row, const Uint32 *mask)
+NdbTransaction::writeTuple(const NdbTableImpl *table,
+                           const NdbRecord *pk_rec, const char *pk_row,
+                           const NdbRecord *attr_rec, const char *attr_row,
+                           const Uint32 *mask)
 {
-  NdbOperation *op= getNdbOperation(tableName);
+  /* Check that the NdbRecord specifies the full primary key. */
+  if (!(pk_rec->flags & NdbRecord::RecIsPKRecord))
+  {
+    setOperationErrorCodeAbort(4279);
+    return NULL;
+  }
+
+  NdbOperation *op= getNdbOperation(table, NULL, true);
   if(!op)
     return op;
 
-  op->writeTuple();
-  for(Uint32 i= 0; i<rec->noOfColumns; i++)
-  {
-    switch (rec->columns[i].type)
-    {
-      case NdbRecord::AttrUnused:
-        // ToDo: Report error if PK.
-        break;
-      case NdbRecord::AttrNotNULL:
-        if (rec->columns[i].flags & NdbRecord::IsPK)
-          op->equal(i, &(row[rec->columns[i].offset]), rec->columns[i].maxSize);
-        else if (!mask || (mask[i>>5] & (1<<(i&31))))
-          op->setValue(i, &(row[rec->columns[i].offset]));
-        break;
-      default:
-        assert(0);
-    }
-  }
+  op->theStatus= NdbOperation::UseNdbRecord;
+  op->theOperationType= NdbOperation::WriteRequest;
+  op->theErrorLine++;
+  op->theLockMode= NdbOperation::LM_Exclusive;
+
+  theSimpleState= 0;
+
+  op->thePKRec= pk_rec;
+  op->thePKRow= pk_row;
+  op->theUpdRec= attr_rec;
+  op->theUpdRow= attr_row;
+  op->theReadMask= mask;
+
+  return op;
 }
 
 NdbOperation *
-NdbTransaction::simpleReadTuple(const char *tableName, const NdbRecord *rec, char *row, const Uint32 *mask)
+NdbTransaction::simpleReadTuple(const NdbTableImpl *table,
+                                const NdbRecord *key_rec, char *key_row,
+                                const NdbRecord *result_rec, char *result_row,
+                                const Uint32 *result_mask)
 {
-  NdbOperation *op= getNdbOperation(tableName);
-  if(!op)
-    return op;
-
-  op->simpleRead();
-
-  /* First do equal on all of the primary key attributes. */
-  for(Uint32 i= 0; i<rec->noOfColumns; i++)
-  {
-    switch (rec->columns[i].type)
-    {
-      case NdbRecord::AttrUnused:
-        // ToDo: Report an error here if PK.
-        break;
-      case NdbRecord::AttrNotNULL:
-        if (rec->columns[i].flags & NdbRecord::IsPK)
-          op->equal(i, &(row[rec->columns[i].offset]), rec->columns[i].maxSize);
-        else if (!mask || (mask[i>>5] & (1<<(i&31))))
-          op->getValue(i, &(row[rec->columns[i].offset]));
-        break;
-      default:
-        assert(0);
-    }
-  }
+  /**
+   * Currently/still disabled
+   */
+  return readTuple(table, key_rec, key_row, result_rec, result_row, result_mask);
 }
 
 NdbOperation *
-NdbTransaction::dirtyReadTuple(const char *tableName, const NdbRecord *rec, char *row, const Uint32 *mask)
+NdbTransaction::dirtyReadTuple(const NdbTableImpl *table,
+                               const NdbRecord *key_rec, char *key_row,
+                               const NdbRecord *result_rec, char *result_row,
+                               const Uint32 *result_mask)
 {
-  NdbOperation *op= getNdbOperation(tableName);
+  /* Check that the NdbRecord specifies the full primary key. */
+  if (!(key_rec->flags & NdbRecord::RecIsPKRecord))
+  {
+    setOperationErrorCodeAbort(4279);
+    return NULL;
+  }
+
+  NdbOperation *op= getNdbOperation(table, NULL, true);
   if(!op)
     return op;
 
-  op->dirtyRead();
+  op->theStatus= NdbOperation::UseNdbRecord;
+  op->theOperationType= NdbOperation::ReadRequest;
+  op->theErrorLine++;
+  op->theLockMode= NdbOperation::LM_CommittedRead;
+  op->theSimpleIndicator = 1;
+  op->theDirtyIndicator = 1;
 
-  /* First do equal on all of the primary key attributes. */
-  for(Uint32 i= 0; i<rec->noOfColumns; i++)
-  {
-    switch (rec->columns[i].type)
-    {
-      case NdbRecord::AttrUnused:
-        // ToDo: Report an error here if PK.
-        break;
-      case NdbRecord::AttrNotNULL:
-        if (rec->columns[i].flags & NdbRecord::IsPK)
-          op->equal(i, &(row[rec->columns[i].offset]), rec->columns[i].maxSize);
-        else if (!mask || (mask[i>>5] & (1<<(i&31))))
-          op->getValue(i, &(row[rec->columns[i].offset]));
-        break;
-      default:
-        assert(0);
-    }
-  }
+  theSimpleState= 0;
+
+  /* Setup the record/row for sending the primary key. */
+  op->thePKRec= key_rec;
+  op->thePKRow= key_row;
+  op->theReadMask= result_mask;
+
+  /* Setup the record/row for receiving the results. */
+  op->theReceiver.getValues(result_rec, result_row);
+
+  return op;
 }
 
 NdbOperation *
-NdbTransaction::dirtyUpdateTuple(const char *tableName, const NdbRecord *rec, const char *row, const Uint32 *mask)
+NdbTransaction::dirtyUpdateTuple(const NdbTableImpl *table,
+                                 const NdbRecord *pk_rec, const char *pk_row,
+                                 const NdbRecord *attr_rec, const char *attr_row,
+                                 const Uint32 *mask)
 {
-  NdbOperation *op= getNdbOperation(tableName);
+  /* Check that the NdbRecord specifies the full primary key. */
+  if (!(pk_rec->flags & NdbRecord::RecIsPKRecord))
+  {
+    setOperationErrorCodeAbort(4279);
+    return NULL;
+  }
+
+  NdbOperation *op= getNdbOperation(table, NULL, true);
   if(!op)
     return op;
 
-  op->dirtyUpdate();
+  op->theStatus= NdbOperation::UseNdbRecord;
+  op->theOperationType= NdbOperation::UpdateRequest;
+  op->theErrorLine++;
+  op->theLockMode= NdbOperation::LM_CommittedRead;
+  op->theSimpleIndicator = 1;
+  op->theDirtyIndicator = 1;
 
-  for(Uint32 i= 0; i<rec->noOfColumns; i++)
-  {
-    switch (rec->columns[i].type)
-    {
-      case NdbRecord::AttrUnused:
-        // ToDo: Report an error here if PK.
-        break;
-      case NdbRecord::AttrNotNULL:
-        if (rec->columns[i].flags & NdbRecord::IsPK)
-          op->equal(i, &(row[rec->columns[i].offset]), rec->columns[i].maxSize);
-        else if (!mask || (mask[i>>5] & (1<<(i&31))))
-          op->setValue(i, &(row[rec->columns[i].offset]));
-        break;
-      default:
-        assert(0);
-    }
-  }
+  theSimpleState= 0;
+
+  /* Setup the record/row for sending the primary key. */
+  op->thePKRec= pk_rec;
+  op->thePKRow= pk_row;
+  op->theUpdRec= attr_rec;
+  op->theUpdRow= attr_row;
+  op->theReadMask= mask;
+
+  return op;
 }
 
 #ifdef VM_TRACE

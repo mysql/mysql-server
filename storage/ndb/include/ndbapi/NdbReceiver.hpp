@@ -22,6 +22,7 @@
 
 class Ndb;
 class NdbTransaction;
+class NdbRecord;
 
 class NdbReceiver
 {
@@ -39,7 +40,7 @@ public:
   };
   
   NdbReceiver(Ndb *aNdb);
-  void init(ReceiverType type, void* owner);
+  void init(ReceiverType type, bool useRec, void* owner);
   void release();
   ~NdbReceiver();
   
@@ -76,6 +77,7 @@ private:
    * At setup
    */
   class NdbRecAttr * getValue(const class NdbColumnImpl*, char * user_dst_ptr);
+  void getValues(const NdbRecord*, char*);
   void do_get_value(NdbReceiver*, Uint32 rows, Uint32 key_size, Uint32 range);
   void prepareSend();
   void calculate_batch_size(Uint32, Uint32, Uint32&, Uint32&, Uint32&);
@@ -84,9 +86,21 @@ private:
   int execTRANSID_AI(const Uint32* ptr, Uint32 len); 
   int execTCOPCONF(Uint32 len);
   int execSCANOPCONF(Uint32 tcPtrI, Uint32 len, Uint32 rows);
+
+  /*
+    We need to keep different state for old NdbRecAttr based operation and for
+    new NdbRecord style operation.
+    ToDo: Could save a little memory by overlapping old and new style state
+    using anonymous unions.
+  */
+  bool usingNdbRecord;
+  const NdbRecord *theNdbRecord;
+  char *theRow;
   class NdbRecAttr* theFirstRecAttr;
   class NdbRecAttr* theCurrentRecAttr;
   class NdbRecAttr** m_rows;
+  /* Index into theNdbRecord of next col to receive in TRANSID_AI. */
+  Uint32 m_RecPos;
   
   Uint32 m_list_index; // When using multiple
   Uint32 m_current_row;
