@@ -67,6 +67,7 @@ static bool opt_hexdump= 0;
 static bool opt_base64_output= 0;
 static const char* database= 0;
 static my_bool force_opt= 0, short_form= 0, remote_opt= 0, info_flag;
+static my_bool force_if_open_opt= 1;
 static ulonglong offset = 0;
 static const char* host = 0;
 static int port= 0;
@@ -86,6 +87,7 @@ static short binlog_flags = 0;
 static MYSQL* mysql = NULL;
 static const char* dirname_for_local_load= 0;
 static bool stop_passed= 0;
+static my_bool file_not_closed_error= 0;
 
 /*
   check_header() will set the pointer below.
@@ -648,6 +650,12 @@ Create_file event for file_id: %u\n",exv->file_id);
         later.
       */
       ev= 0;
+      if (!force_if_open_opt &&
+          (description_event->flags & LOG_EVENT_BINLOG_IN_USE_F))
+      {
+        file_not_closed_error= 1;
+        DBUG_RETURN(1); 
+      }
       break;
     case BEGIN_LOAD_QUERY_EVENT:
       ev->print(result_file, print_event_info);
@@ -727,6 +735,9 @@ static struct my_option my_long_options[] =
     "already have. NOTE: you will need a SUPER privilege to use this option.",
    (gptr*) &disable_log_bin, (gptr*) &disable_log_bin, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"force-if-open", 'F', "Force if binlog was not closed properly.",
+   (gptr*) &force_if_open_opt, (gptr*) &force_if_open_opt, 0, GET_BOOL, NO_ARG,
+   1, 0, 0, 0, 0, 0},
   {"force-read", 'f', "Force reading unknown binlog events.",
    (gptr*) &force_opt, (gptr*) &force_opt, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
@@ -1564,6 +1575,16 @@ int main(int argc, char** argv)
   my_free_open_file_info();
   /* We cannot free DBUG, it is used in global destructors after exit(). */
   my_end((info_flag ? MY_CHECK_ERROR : 0) | MY_DONT_FREE_DBUG);
+
+  if (file_not_closed_error)
+  {
+    fprintf(stderr,
+"\nError: attempting to dump binlog '%s' which was not closed properly.\n"
+"Most probably mysqld is still writting it, or crashed.\n"
+"Your current options specify --disable-force-if-open\n"
+"which means to abort on this problem.\n"
+"You can rerun using --force-if-open to ignore this problem.\n\n", argv[-1]);
+  }
   exit(exit_value);
   DBUG_RETURN(exit_value);			// Keep compilers happy
 }

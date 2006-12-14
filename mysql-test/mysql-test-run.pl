@@ -1849,7 +1849,7 @@ sub environment_setup () {
   # ----------------------------------------------------
   my $cmdline_mysqlbinlog=
     "$exe_mysqlbinlog" .
-      " --no-defaults --debug-info --local-load=$opt_tmpdir";
+      " --no-defaults --disable-force-if-open --debug-info --local-load=$opt_tmpdir";
   if ( $mysql_version_id >= 50000 )
   {
     $cmdline_mysqlbinlog .=" --character-sets-dir=$path_charsetsdir";
