@@ -159,6 +159,7 @@ our $exe_im;
 our $exe_my_print_defaults;
 our $exe_perror;
 our $lib_udf_example;
+our $lib_example_plugin;
 our $exe_libtool;
 
 our $opt_bench= 0;
@@ -1493,6 +1494,11 @@ sub executable_setup () {
     mtr_file_exists(vs_config_dirs('sql', 'udf_example.dll'),
                     "$glob_basedir/sql/.libs/udf_example.so",);
 
+  # Look for the ha_example library
+  $lib_example_plugin=
+    mtr_file_exists(vs_config_dirs('storage/example', 'ha_example.dll'),
+                    "$glob_basedir/storage/example/.libs/ha_example.so",);
+
   # Look for mysqltest executable
   if ( $glob_use_embedded_server )
   {
@@ -1646,6 +1652,14 @@ sub environment_setup () {
   if ( $lib_udf_example )
   {
     push(@ld_library_paths, dirname($lib_udf_example));
+  }
+
+  # --------------------------------------------------------------------------
+  # Add the path where mysqld will find ha_example.so
+  # --------------------------------------------------------------------------
+  if ( $lib_example_plugin )
+  {
+    push(@ld_library_paths, dirname($lib_example_plugin));
   }
 
   # --------------------------------------------------------------------------
@@ -1922,10 +1936,11 @@ sub environment_setup () {
   $ENV{'UDF_EXAMPLE_LIB'}=
     ($lib_udf_example ? basename($lib_udf_example) : "");
 
-  $ENV{'LD_LIBRARY_PATH'}=
-    ($lib_udf_example ?  dirname($lib_udf_example) : "") .
-      ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
-
+  # ----------------------------------------------------
+  # Add the path where mysqld will find ha_example.so
+  # ----------------------------------------------------
+  $ENV{'EXAMPLE_PLUGIN'}=
+    ($lib_example_plugin ? basename($lib_example_plugin) : "");
 
   # ----------------------------------------------------
   # We are nice and report a bit about our settings
@@ -3609,6 +3624,9 @@ sub mysqld_arguments ($$$$$) {
       # Turn on logging, will be sent to tables
       mtr_add_arg($args, "%s--log=", $prefix);
     }
+
+      mtr_add_arg($args, "%s--plugin_dir=%s", $prefix,
+		  dirname($lib_example_plugin));
   }
 
   if ( $type eq 'slave' )
@@ -4480,7 +4498,9 @@ sub run_mysqltest ($) {
   }
   else # component_id == mysqld
   {
-    mtr_add_arg($args, "--socket=%s", $master->[0]->{'path_sock'});
+#    mtr_add_arg($args, "--socket=%s", $master->[0]->{'path_sock'});
+mtr_add_arg($args, "--host=127.0.0.1");
+
     mtr_add_arg($args, "--port=%d", $master->[0]->{'port'});
     mtr_add_arg($args, "--database=test");
     mtr_add_arg($args, "--user=%s", $opt_user);
