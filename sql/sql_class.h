@@ -64,7 +64,7 @@ class TC_LOG
 
   virtual int open(const char *opt_name)=0;
   virtual void close()=0;
-  virtual int log(THD *thd, my_xid xid)=0;
+  virtual int log_xid(THD *thd, my_xid xid)=0;
   virtual void unlog(ulong cookie, my_xid xid)=0;
 };
 
@@ -74,7 +74,7 @@ public:
   TC_LOG_DUMMY() {}                           /* Remove gcc warning */
   int open(const char *opt_name)        { return 0; }
   void close()                          { }
-  int log(THD *thd, my_xid xid)         { return 1; }
+  int log_xid(THD *thd, my_xid xid)     { return 1; }
   void unlog(ulong cookie, my_xid xid)  { }
 };
 
@@ -119,7 +119,7 @@ class TC_LOG_MMAP: public TC_LOG
   TC_LOG_MMAP(): inited(0) {}
   int open(const char *opt_name);
   void close();
-  int log(THD *thd, my_xid xid);
+  int log_xid(THD *thd, my_xid xid);
   void unlog(ulong cookie, my_xid xid);
   int recover();
 
@@ -253,7 +253,7 @@ public:
 
   int open(const char *opt_name);
   void close();
-  int log(THD *thd, my_xid xid);
+  int log_xid(THD *thd, my_xid xid);
   void unlog(ulong cookie, my_xid xid);
   int recover(IO_CACHE *log, Format_description_log_event *fdle);
   void reset_bytes_written()
@@ -1839,13 +1839,14 @@ class select_create: public select_insert {
   MYSQL_LOCK *lock;
   Field **field;
 public:
-  select_create (TABLE_LIST *table,
-		 HA_CREATE_INFO *create_info_par,
-		 List<create_field> &fields_par,
-		 List<Key> &keys_par,
-		 List<Item> &select_fields,enum_duplicates duplic, bool ignore)
-    :select_insert (NULL, NULL, &select_fields, 0, 0, duplic, ignore), create_table(table),
-    extra_fields(&fields_par),keys(&keys_par), create_info(create_info_par),
+  select_create(TABLE_LIST *table_arg,
+                HA_CREATE_INFO *create_info_par,
+                List<create_field> &fields_par,
+                List<Key> &keys_par,
+                List<Item> &select_fields,enum_duplicates duplic, bool ignore)
+    :select_insert(NULL, NULL, &select_fields, 0, 0, duplic, ignore),
+    create_table(table_arg), extra_fields(&fields_par),keys(&keys_par),
+    create_info(create_info_par),
     lock(0)
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
@@ -1950,7 +1951,9 @@ public:
 class select_singlerow_subselect :public select_subselect
 {
 public:
-  select_singlerow_subselect(Item_subselect *item):select_subselect(item){}
+  select_singlerow_subselect(Item_subselect *item_arg)
+    :select_subselect(item_arg)
+  {}
   bool send_data(List<Item> &items);
 };
 
@@ -1961,8 +1964,8 @@ class select_max_min_finder_subselect :public select_subselect
   bool (select_max_min_finder_subselect::*op)();
   bool fmax;
 public:
-  select_max_min_finder_subselect(Item_subselect *item, bool mx)
-    :select_subselect(item), cache(0), fmax(mx)
+  select_max_min_finder_subselect(Item_subselect *item_arg, bool mx)
+    :select_subselect(item_arg), cache(0), fmax(mx)
   {}
   void cleanup();
   bool send_data(List<Item> &items);
@@ -1976,7 +1979,8 @@ public:
 class select_exists_subselect :public select_subselect
 {
 public:
-  select_exists_subselect(Item_subselect *item):select_subselect(item){}
+  select_exists_subselect(Item_subselect *item_arg)
+    :select_subselect(item_arg){}
   bool send_data(List<Item> &items);
 };
 

@@ -672,7 +672,7 @@ _rl_vi_change_mbchar_case (count)
 {
   wchar_t wc;
   char mb[MB_LEN_MAX+1];
-  int mblen;
+  int local_mblen;
   mbstate_t ps;
 
   memset (&ps, 0, sizeof (mbstate_t));
@@ -695,9 +695,9 @@ _rl_vi_change_mbchar_case (count)
       /* Vi is kind of strange here. */
       if (wc)
 	{
-	  mblen = wcrtomb (mb, wc, &ps);
-	  if (mblen >= 0)
-	    mb[mblen] = '\0';
+	  local_mblen = wcrtomb (mb, wc, &ps);
+	  if (local_mblen >= 0)
+	    mb[local_mblen] = '\0';
 	  rl_begin_undo_group ();
 	  rl_delete (1, 0);
 	  rl_insert_text (mb);
