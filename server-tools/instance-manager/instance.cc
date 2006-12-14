@@ -476,10 +476,9 @@ int Instance::stop()
       waitchild= options.shutdown_delay_val;
 
     kill_instance(SIGTERM);
-    /* sleep on condition to wait for SIGCHLD */
 
-    timeout.tv_sec= time(NULL) + waitchild;
-    timeout.tv_nsec= 0;
+    /* sleep on condition to wait for SIGCHLD */
+    set_timespec(timeout, waitchild);
     if (pthread_mutex_lock(&LOCK_instance))
       return ER_STOP_INSTANCE;
 
