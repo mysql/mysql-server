@@ -1089,7 +1089,7 @@ bool Query_log_event::write(IO_CACHE* file)
             1+4+           // code of autoinc and the 2 autoinc variables
             1+6+           // code of charset and charset
             1+1+MAX_TIME_ZONE_NAME_LENGTH+ // code of tz and tz length and tz name
-            1+2            // code of lc_time_names and lc_time_names
+            1+2            // code of lc_time_names and lc_time_names_number
             ], *start, *start_of_status;
   ulong event_length;
 
