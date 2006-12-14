@@ -254,9 +254,8 @@ void Guardian::run()
 
       node= node->next;
     }
-    timeout.tv_sec= time(NULL) + monitoring_interval;
-    timeout.tv_nsec= 0;
-
+    set_timespec(timeout, monitoring_interval);
+    
     /* check the loop predicate before sleeping */
     if (!(shutdown_requested && (!(guarded_instances))))
       thread_registry->cond_timedwait(&thread_info, &COND_guardian,
