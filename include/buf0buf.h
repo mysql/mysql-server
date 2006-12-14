@@ -87,6 +87,16 @@ buf_pool_init(void);
 				/* out, own: buf_pool object, NULL if not
 				enough memory or error */
 /************************************************************************
+Relocate a buffer control block.  Relocates the block on the LRU list
+and in buf_pool->page_hash.  Does not relocate bpage->list. */
+
+void
+buf_relocate(
+/*=========*/
+	buf_page_t*	bpage,	/* control block being relocated */
+	buf_page_t*	dpage)	/* destination control block */
+	__attribute__((nonnull));
+/************************************************************************
 Resizes the buffer pool. */
 
 void
