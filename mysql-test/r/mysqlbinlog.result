@@ -214,6 +214,26 @@ select * from t5  /* must be (1),(1) */;
 a
 1
 1
+flush logs;
+drop table if exists t5;
+create table t5 (c1 int, c2 varchar(128) character set latin1 not null);
+insert into t5 values (1, date_format('2001-01-01','%W'));
+set lc_time_names=de_DE;
+insert into t5 values (2, date_format('2001-01-01','%W'));
+set lc_time_names=en_US;
+insert into t5 values (3, date_format('2001-01-01','%W'));
+select * from t5 order by c1;
+c1	c2
+1	Monday
+2	Montag
+3	Monday
+flush logs;
+drop table t5;
+select * from t5 order by c1;
+c1	c2
+1	Monday
+2	Montag
+3	Monday
 drop procedure if exists p1;
 flush logs;
 create procedure p1()
