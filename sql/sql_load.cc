@@ -527,7 +527,12 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
 	  (enclosed_length && length == 4 && !memcmp(pos,"NULL",4)) ||
 	  (length == 1 && read_info.found_null))
       {
-	field->reset();
+        if (field->reset())
+        {
+          my_error(ER_WARN_NULL_TO_NOTNULL, MYF(0), field->field_name,
+              thd->row_count);
+          DBUG_RETURN(1);
+        }
 	field->set_null();
 	if (!field->maybe_null())
 	{
@@ -560,7 +565,12 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
       for (; sql_field ; sql_field=(Item_field*) it++)
       {
 	sql_field->field->set_null();
-	sql_field->field->reset();
+        if (sql_field->field->reset())
+        {
+          my_error(ER_WARN_NULL_TO_NOTNULL, MYF(0),sql_field->field->field_name,
+              thd->row_count);
+          DBUG_RETURN(1);
+        }
 	thd->cuted_fields++;
  	push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
                 	    ER_WARN_TOO_FEW_RECORDS,
