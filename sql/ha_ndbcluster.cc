@@ -2956,13 +2956,10 @@ KEY* key_info;
       DBUG_RETURN(error == HA_ERR_KEY_NOT_FOUND ? HA_ERR_END_OF_FILE : error);
     }
     else if (type == UNIQUE_INDEX)
-    {
-      error= unique_index_scan(key_info, 
-			       start_key->key, 
-			       start_key->length, 
-			       buf);
-      DBUG_RETURN(error == HA_ERR_KEY_NOT_FOUND ? HA_ERR_END_OF_FILE : error);
-    }
+      DBUG_RETURN(unique_index_scan(key_info, 
+				    start_key->key, 
+				    start_key->length, 
+				    buf));
     break;
   default:
     break;
