@@ -34,6 +34,7 @@ struct ReceiveBuffer {
   Uint32 sizeOfData;        // In bytes
   Uint32 sizeOfBuffer;
   
+  ReceiveBuffer() {}
   bool init(int bytes);
   void destroy();
   

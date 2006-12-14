@@ -91,7 +91,7 @@ typedef struct
 {
   uint beg;
   uint end;
-  uint mblen;
+  uint mb_len;
 } my_match_t;
 
 enum my_lex_states

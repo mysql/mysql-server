@@ -83,6 +83,7 @@ public:
  */
 
   struct StartRecord {
+    StartRecord() {}
     Uint64 m_startTime;
     
     void reset();

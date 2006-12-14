@@ -433,13 +433,13 @@ ConfigValuesFactory::put(const ConfigValues::Entry & entry){
   if(count >= sz){
     pos = hash(tmp, sz);    
     count = 0;
-    Uint32 val = m_cfg->m_values[pos];
+    Uint32 val2 = m_cfg->m_values[pos];
    
     printf("key: %d, (key %% size): %d\n", entry.m_key, (entry.m_key % sz));
     printf("pos: %d", pos);
-    while((val & KP_MASK) != tmp && val != CFV_KEY_FREE && count < sz){
+    while((val2 & KP_MASK) != tmp && val2 != CFV_KEY_FREE && count < sz){
       pos = nextHash(tmp, sz, pos, ++count);
-      val = m_cfg->m_values[pos];
+      val2 = m_cfg->m_values[pos];
       printf(" %d", pos);
     }
     printf("\n");

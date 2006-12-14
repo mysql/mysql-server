@@ -21,6 +21,7 @@
 
 class BackupConsumer {
 public:
+  BackupConsumer() {}
   virtual ~BackupConsumer() { }
   virtual bool init() { return true;}
   virtual bool table(const TableS &){return true;}

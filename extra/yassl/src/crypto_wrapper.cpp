@@ -557,6 +557,7 @@ void RandomPool::Fill(opaque* dst, uint sz) const
 
 // Implementation of DSS Authentication
 struct DSS::DSSImpl {
+    DSSImpl() {}
     void SetPublic (const byte*, unsigned int);
     void SetPrivate(const byte*, unsigned int);
     TaoCrypt::DSA_PublicKey publicKey_;
@@ -629,6 +630,7 @@ bool DSS::verify(const byte* sha_digest, unsigned int /* shaSz */,
 
 // Implementation of RSA key interface
 struct RSA::RSAImpl {
+    RSAImpl() {}
     void SetPublic (const byte*, unsigned int);
     void SetPrivate(const byte*, unsigned int);
     TaoCrypt::RSA_PublicKey publicKey_;

@@ -43,8 +43,9 @@ class Table_triggers_list: public Sql_alloc
   */
   Field             **new_field;
   Field             **old_field;
+
   /* TABLE instance for which this triggers list object was created */
-  TABLE *table;
+  TABLE *trigger_table;
   /*
     Names of triggers.
     Should correspond to order of triggers on definitions_list,
@@ -84,7 +85,7 @@ public:
   List<LEX_STRING>  definers_list;
 
   Table_triggers_list(TABLE *table_arg):
-    record1_field(0), table(table_arg)
+    record1_field(0), trigger_table(table_arg)
   {
     bzero((char *)bodies, sizeof(bodies));
     bzero((char *)trigger_fields, sizeof(trigger_fields));
