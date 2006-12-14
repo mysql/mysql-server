@@ -15,6 +15,7 @@ load data infile '../std_data_ln/words.dat' into table t2;
 #
 #  Save binlog
 #
+flush logs;
 --exec $MYSQL_BINLOG --hexdump $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_base64.sql
 
 #
