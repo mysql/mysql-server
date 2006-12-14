@@ -899,6 +899,45 @@ buf_pool_init(void)
 }
 
 /************************************************************************
+Relocate a buffer control block.  Relocates the block on the LRU list
+and in buf_pool->page_hash.  Does not relocate bpage->list. */
+
+void
+buf_relocate(
+/*=========*/
+	buf_page_t*	bpage,	/* control block being relocated */
+	buf_page_t*	dpage)	/* destination control block */
+{
+	buf_page_t*	b;
+	ulint		fold;
+#ifdef UNIV_SYNC_DEBUG
+	ut_a(mutex_own(&buf_pool->mutex));
+	ut_a(mutex_own(buf_page_get_mutex(bpage)));
+	ut_a(mutex_own(buf_page_get_mutex(dpage)));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_a(buf_page_get_io_fix(bpage) == BUF_IO_NONE);
+	ut_a(bpage->buf_fix_count == 0);
+	ut_a(buf_page_in_file(bpage));
+
+	/* relocate buf_pool->LRU */
+
+	b = UT_LIST_GET_PREV(LRU, bpage);
+	UT_LIST_REMOVE(LRU, buf_pool->LRU, bpage);
+
+	if (b) {
+		UT_LIST_INSERT_AFTER(LRU, buf_pool->LRU, b, dpage);
+	} else {
+		UT_LIST_ADD_FIRST(LRU, buf_pool->LRU, dpage);
+	}
+
+	/* relocate buf_pool->page_hash */
+	fold = buf_page_address_fold(bpage->space, bpage->offset);
+
+	HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, fold, bpage);
+	HASH_INSERT(buf_page_t, hash, buf_pool->page_hash, fold, dpage);
+}
+
+/************************************************************************
 Shrinks the buffer pool. */
 static
 void
