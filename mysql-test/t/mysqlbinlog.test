@@ -171,8 +171,8 @@ call p1();
 drop procedure p1;
 --error 1305
 call p1();
---exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000007
---exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000007 | $MYSQL
+--exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000009
+--exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000009 | $MYSQL
 call p1();
 drop procedure p1;
 
