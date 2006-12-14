@@ -8435,11 +8435,11 @@ uint my_well_formed_len_eucjpms(CHARSET_INFO *cs __attribute__((unused)),
 
 static
 uint my_numcells_eucjp(CHARSET_INFO *cs __attribute__((unused)),
-                       const char *str, const char *strend)
+                       const char *str, const char *str_end)
 {
   uint clen= 0;
   const unsigned char *b= (const unsigned char *) str;
-  const unsigned char *e= (const unsigned char *) strend;
+  const unsigned char *e= (const unsigned char *) str_end;
   
   for (clen= 0; b < e; )
   {

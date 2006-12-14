@@ -25,6 +25,7 @@
  */
 class OutputStream {
 public:
+  OutputStream() {}
   virtual ~OutputStream() {}
   virtual int print(const char * fmt, ...) = 0;
   virtual int println(const char * fmt, ...) = 0;
@@ -61,6 +62,7 @@ public:
 
 class NullOutputStream : public OutputStream {
 public:
+  NullOutputStream() {}
   int print(const char * /* unused */, ...) { return 1;}
   int println(const char * /* unused */, ...) { return 1;}
 };

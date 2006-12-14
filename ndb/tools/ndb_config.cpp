@@ -98,6 +98,7 @@ static void usage()
 {
   char desc[] = 
     "This program will retreive config options for a ndb cluster\n";
+  puts(desc);
   ndb_std_print_version();
   print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
   puts("");
@@ -112,12 +113,14 @@ struct Match
 {
   int m_key;
   BaseString m_value;
+  Match() {}
   virtual int eval(const Iter&);
   virtual ~Match() {}
 };
 
 struct HostMatch : public Match
 {
+  HostMatch() {}
   virtual int eval(const Iter&);
 };
 
@@ -132,11 +135,13 @@ struct Apply
 
 struct NodeTypeApply : public Apply
 {
+  NodeTypeApply() {}
   virtual int apply(const Iter&);
 };
 
 struct ConnectionTypeApply : public Apply
 {
+  ConnectionTypeApply() {}
   virtual int apply(const Iter&);
 };
 
@@ -295,10 +300,10 @@ parse_where(Vector<Match*>& where, int &argc, char**& argv)
   Match m;
   if(g_host)
   {
-    HostMatch *m = new HostMatch;
-    m->m_key = CFG_NODE_HOST;
-    m->m_value.assfmt("%s", g_host);
-    where.push_back(m);
+    HostMatch *tmp = new HostMatch;
+    tmp->m_key = CFG_NODE_HOST;
+    tmp->m_value.assfmt("%s", g_host);
+    where.push_back(tmp);
   }
   
   if(g_type)

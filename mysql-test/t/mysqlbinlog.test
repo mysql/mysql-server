@@ -134,6 +134,14 @@ flush logs;
 --exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000006 | $MYSQL
 select * from t5  /* must be (1),(1) */;
 
+#
+# Some coverage of not normally used parts
+#
+--disable_query_log
+--exec $MYSQL_BINLOG --version 2>&1 > /dev/null
+--exec $MYSQL_BINLOG --help 2>&1 > /dev/null
+--enable_query_log
+
 # clean up
 drop table t1, t2, t03, t04, t3, t4, t5; 
 

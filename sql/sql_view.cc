@@ -1136,7 +1136,6 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       /*
         Prepare a security context to check underlying objects of the view
       */
-      Security_context *save_security_ctx= thd->security_ctx;
       if (!(table->view_sctx= (Security_context *)
             thd->stmt_arena->alloc(sizeof(Security_context))))
         goto err;

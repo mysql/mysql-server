@@ -1,3 +1,12 @@
+# Clean up after previous tests
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+drop view if exists v1;
+drop database if exists client_test_db;
+--enable_warnings
+
 # Embedded server doesn't support external clients
 --source include/not_embedded.inc
 

@@ -57,7 +57,7 @@ double my_strtod(const char *str, char **end_ptr, int *error)
 {
   double result= 0.0;
   uint negative= 0, ndigits, dec_digits= 0, neg_exp= 0;
-  int exp= 0, digits_after_dec_point= 0, tmp_exp;
+  int exponent= 0, digits_after_dec_point= 0, tmp_exp;
   const char *old_str, *end= *end_ptr, *start_of_number;
   char next_char;
   my_bool overflow=0;
@@ -130,24 +130,25 @@ double my_strtod(const char *str, char **end_ptr, int *error)
   if ((next_char == 'e' || next_char == 'E') &&
       dec_digits + ndigits != 0 && str < end-1)
   {
-    const char *old_str= str++;
+    const char *old_str2= str++;
 
     if ((neg_exp= (*str == '-')) || *str == '+')
       str++;
 
     if (str == end || !my_isdigit(&my_charset_latin1, *str))
-      str= old_str;
+      str= old_str2;
     else
     {
       do
       {
-        if (exp < 9999)                         /* prot. against exp overfl. */
-          exp= exp*10 + (*str - '0');
+        if (exponent < 9999)                    /* prot. against exp overfl. */
+          exponent= exponent*10 + (*str - '0');
         str++;
       } while (str < end && my_isdigit(&my_charset_latin1, *str));
     }
   }
-  tmp_exp= neg_exp ? exp + digits_after_dec_point : exp - digits_after_dec_point;
+  tmp_exp= (neg_exp ? exponent + digits_after_dec_point :
+            exponent - digits_after_dec_point);
   if (tmp_exp)
   {
     int order;
@@ -157,7 +158,7 @@ double my_strtod(const char *str, char **end_ptr, int *error)
       where f is the resulting floating point number and 1 <= C < 10.
       Here we compute the modulus
     */
-    order= exp + (neg_exp ? -1 : 1) * (ndigits - 1);
+    order= exponent + (neg_exp ? -1 : 1) * (ndigits - 1);
     if (order < 0)
       order= -order;
     if (order >= MAX_DBL_EXP && !neg_exp && result)
@@ -172,18 +173,18 @@ double my_strtod(const char *str, char **end_ptr, int *error)
       }
     }
 
-    exp= tmp_exp;
-    if (exp < 0)
+    exponent= tmp_exp;
+    if (exponent < 0)
     {
-      exp= -exp;
+      exponent= -exponent;
       neg_exp= 1;                               /* neg_exp was 0 before */
     }
-    while (exp >= 100)
+    while (exponent >= 100)
     {
       result= neg_exp ? result/1.0e100 : result*1.0e100;
-      exp-= 100;
+      exponent-= 100;
     }
-    scaler= scaler10[exp/10]*scaler1[exp%10];
+    scaler= scaler10[exponent/10]*scaler1[exponent%10];
     if (neg_exp)
       result/= scaler;
     else

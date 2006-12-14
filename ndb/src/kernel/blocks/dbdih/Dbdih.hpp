@@ -1289,6 +1289,7 @@ public:
 private:
   
   struct LcpState {
+    LcpState() {}
     LcpStatus lcpStatus;
     Uint32 lcpStatusUpdatedPlace;
 
@@ -1395,6 +1396,7 @@ public:
 private:
   class MasterTakeOverState {
   public:
+    MasterTakeOverState() {}
     void set(LcpMasterTakeOverState s, Uint32 line) { 
       state = s; updatePlace = line;
     }
@@ -1482,6 +1484,7 @@ private:
    * SwitchReplicaRecord - Should only be used by master
    */
   struct SwitchReplicaRecord {
+    SwitchReplicaRecord() {}
     void clear(){}
 
     Uint32 nodeId;
