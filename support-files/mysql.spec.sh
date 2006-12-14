@@ -588,7 +588,7 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_upgrade.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlhotcopy.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlman.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysqlmanager.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysqlmanager.8*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.server.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_tzinfo_to_sql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_zap.1*
@@ -759,6 +759,7 @@ fi
 
 - Include the new man pages for "my_print_defaults" and "mysql_tzinfo_to_sql"
   in the server RPM.
+- The "mysqlmanager" man page got moved from section 1 to 8.
 
 * Thu Nov 16 2006 Joerg Bruehe <joerg@mysql.com>
 
