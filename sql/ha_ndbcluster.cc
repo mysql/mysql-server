@@ -3478,8 +3478,9 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
     {
       if (m_active_cursor && (error= close_scan()))
         DBUG_RETURN(error);
-      DBUG_RETURN(pk_read(start_key->key, start_key->length, buf,
-                          part_spec.start_part));
+      error= pk_read(start_key->key, start_key->length, buf,
+		     part_spec.start_part);
+      DBUG_RETURN(error == HA_ERR_KEY_NOT_FOUND ? HA_ERR_END_OF_FILE : error);
     }
     break;
   case UNIQUE_ORDERED_INDEX:
@@ -3490,7 +3491,9 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
     {
       if (m_active_cursor && (error= close_scan()))
         DBUG_RETURN(error);
-      DBUG_RETURN(unique_index_read(start_key->key, start_key->length, buf));
+
+      error= unique_index_read(start_key->key, start_key->length, buf);
+      DBUG_RETURN(error == HA_ERR_KEY_NOT_FOUND ? HA_ERR_END_OF_FILE : error);
     }
     else if (type == UNIQUE_INDEX)
       DBUG_RETURN(unique_index_scan(key_info, 
