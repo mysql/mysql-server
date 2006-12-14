@@ -85,10 +85,10 @@ enum {
 };
 
 static int record= 0, opt_sleep= -1;
-static char *db= 0, *pass= 0;
-const char *user= 0, *host= 0, *unix_sock= 0, *opt_basedir= "./";
+static char *opt_db= 0, *opt_pass= 0;
+const char *opt_user= 0, *opt_host= 0, *unix_sock= 0, *opt_basedir= "./";
 const char *opt_include= 0, *opt_charsets_dir;
-static int port= 0;
+static int opt_port= 0;
 static int opt_max_connect_retries;
 static my_bool opt_compress= 0, silent= 0, verbose= 0;
 static my_bool tty_password= 0;
@@ -604,15 +604,14 @@ void check_command_args(struct st_command *command,
   int i;
   const char *ptr= arguments;
   const char *start;
-
   DBUG_ENTER("check_command_args");
   DBUG_PRINT("enter", ("num_args: %d", num_args));
+
   for (i= 0; i < num_args; i++)
   {
     const struct command_arg *arg= &args[i];
 
-    switch (arg->type)
-    {
+    switch (arg->type) {
       /* A string */
     case ARG_STRING:
       /* Skip leading spaces */
@@ -763,7 +762,7 @@ void free_used_memory()
   dynstr_free(&ds_progress);
   dynstr_free(&ds_warning_messages);
   free_all_replace();
-  my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(opt_pass,MYF(MY_ALLOW_ZERO_PTR));
   free_defaults(default_argv);
   mysql_server_end();
   free_re();
@@ -1286,7 +1285,7 @@ void var_set_errno(int sql_errno)
 
 void var_query_set(VAR *var, const char *query, const char** query_end)
 {
-  char* end = (char*)((query_end && *query_end) ?
+  char *end = (char*)((query_end && *query_end) ?
 		      *query_end : query + strlen(query));
   MYSQL_RES *res;
   MYSQL_ROW row;
@@ -1317,7 +1316,6 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
     DYNAMIC_STRING result;
     uint i;
     ulong *lengths;
-    char *end;
 #ifdef NOT_YET
     MYSQL_FIELD *fields= mysql_fetch_fields(res);
 #endif
@@ -2062,6 +2060,7 @@ void do_perl(struct st_command *command)
 int do_echo(struct st_command *command)
 {
   DYNAMIC_STRING ds_echo;
+  DBUG_ENTER("do_echo");
 
   init_dynamic_string(&ds_echo, "", command->query_len, 256);
   do_eval(&ds_echo, command->first_argument, command->end, FALSE);
@@ -2069,7 +2068,7 @@ int do_echo(struct st_command *command)
   dynstr_append_mem(&ds_res, "\n", 1);
   dynstr_free(&ds_echo);
   command->last_argument= command->end;
-  return(0);
+  DBUG_RETURN(0);
 }
 
 
@@ -2365,7 +2364,6 @@ void do_let(struct st_command *command)
   char *p= command->first_argument;
   char *var_name, *var_name_end;
   DYNAMIC_STRING let_rhs_expr;
-
   DBUG_ENTER("do_let");
 
   init_dynamic_string(&let_rhs_expr, "", 512, 2048);
@@ -3034,7 +3032,7 @@ int connect_n_handle_errors(struct st_command *command,
 
 void do_connect(struct st_command *command)
 {
-  int con_port= port;
+  int con_port= opt_port;
   char *con_options;
   bool con_ssl= 0, con_compress= 0;
   char *ptr;
@@ -3170,12 +3168,11 @@ void do_connect(struct st_command *command)
 
   /* Use default db name */
   if (ds_database.length == 0)
-    dynstr_set(&ds_database, db);
+    dynstr_set(&ds_database, opt_db);
 
   /* Special database to allow one to connect without a database name */
   if (ds_database.length && !strcmp(ds_database.str,"*NO-ONE*"))
     dynstr_set(&ds_database, "");
-
 
   if (connect_n_handle_errors(command, &next_con->mysql,
                               ds_host.str,ds_user.str,
@@ -3600,7 +3597,7 @@ int read_line(char *buf, int size)
 void convert_to_format_v1(char* query)
 {
   int last_c_was_quote= 0;
-  char *p= query, *write= query;
+  char *p= query, *to= query;
   char *end= strend(query);
   char last_c;
 
@@ -3608,7 +3605,7 @@ void convert_to_format_v1(char* query)
   {
     if (*p == '\n' && !last_c_was_quote)
     {
-      *write++ = *p++; /* Save the newline */
+      *to++ = *p++; /* Save the newline */
 
       /* Skip any spaces on next line */
       while (*p && my_isspace(charset_info, *p))
@@ -3619,19 +3616,19 @@ void convert_to_format_v1(char* query)
     else if (*p == '\'' || *p == '"' || *p == '`')
     {
       last_c= *p;
-      *write++ = *p++;
+      *to++ = *p++;
 
       /* Copy anything until the next quote of same type */
       while (*p && *p != last_c)
-        *write++ = *p++;
+        *to++ = *p++;
 
-      *write++ = *p++;
+      *to++ = *p++;
 
       last_c_was_quote= 1;
     }
     else
     {
-      *write++ = *p++;
+      *to++ = *p++;
       last_c_was_quote= 0;
     }
   }
@@ -3749,19 +3746,17 @@ void check_eol_junk(const char *eol)
   Create a command from a set of lines
 
   SYNOPSIS
-  read_command()
-  command_ptr pointer where to return the new query
+    read_command()
+    command_ptr pointer where to return the new query
 
   DESCRIPTION
-  Converts lines returned by read_line into a command, this involves
-  parsing the first word in the read line to find the command type.
-
+    Converts lines returned by read_line into a command, this involves
+    parsing the first word in the read line to find the command type.
 
   A -- comment may contain a valid query as the first word after the
   comment start. Thus it's always checked to see if that is the case.
   The advantage with this approach is to be able to execute commands
   terminated by new line '\n' regardless how many "delimiter" it contain.
-
 */
 
 #define MAX_QUERY (256*1024) /* 256K -- a test in sp-big is >128K */
@@ -3847,7 +3842,7 @@ static struct my_option my_long_options[] =
   {"cursor-protocol", OPT_CURSOR_PROTOCOL, "Use cursors for prepared statements.",
    (gptr*) &cursor_protocol, (gptr*) &cursor_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"database", 'D', "Database to use.", (gptr*) &db, (gptr*) &db, 0,
+  {"database", 'D', "Database to use.", (gptr*) &opt_db, (gptr*) &opt_db, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef DBUG_OFF
   {"debug", '#', "This is a non-debug version. Catch this and exit",
@@ -3856,7 +3851,7 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"host", 'h', "Connect to host.", (gptr*) &host, (gptr*) &host, 0,
+  {"host", 'h', "Connect to host.", (gptr*) &opt_host, (gptr*) &opt_host, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"include", 'i', "Include SQL before each test case.", (gptr*) &opt_include,
    (gptr*) &opt_include, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -3870,8 +3865,8 @@ static struct my_option my_long_options[] =
    GET_INT, REQUIRED_ARG, 500, 1, 10000, 0, 0, 0},
   {"password", 'p', "Password to use when connecting to server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"port", 'P', "Port number to use for connection.", (gptr*) &port,
-   (gptr*) &port, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Port number to use for connection.", (gptr*) &opt_port,
+   (gptr*) &opt_port, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"ps-protocol", OPT_PS_PROTOCOL, "Use prepared statements protocol for communication",
    (gptr*) &ps_protocol, (gptr*) &ps_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -3907,8 +3902,8 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't', "Temporary directory where sockets are put.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"user", 'u', "User for login.", (gptr*) &user, (gptr*) &user, 0, GET_STR,
-   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"user", 'u', "User for login.", (gptr*) &opt_user, (gptr*) &opt_user, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Write more.", (gptr*) &verbose, (gptr*) &verbose, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.",
@@ -4035,8 +4030,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'p':
     if (argument)
     {
-      my_free(pass, MYF(MY_ALLOW_ZERO_PTR));
-      pass= my_strdup(argument, MYF(MY_FAE));
+      my_free(opt_pass, MYF(MY_ALLOW_ZERO_PTR));
+      opt_pass= my_strdup(argument, MYF(MY_FAE));
       while (*argument) *argument++= 'x';		/* Destroy argument */
       tty_password= 0;
     }
@@ -4073,7 +4068,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     exit(0);
   case '?':
     usage();
-    exit(1);
+    exit(0);
   }
   return 0;
 }
@@ -4093,9 +4088,9 @@ int parse_args(int argc, char **argv)
     exit(1);
   }
   if (argc == 1)
-    db= *argv;
+    opt_db= *argv;
   if (tty_password)
-    pass=get_tty_password(NullS);
+    opt_pass= get_tty_password(NullS);          /* purify tested */
 
   return 0;
 }
@@ -4370,13 +4365,13 @@ void append_result(DYNAMIC_STRING *ds, MYSQL_RES *res)
 void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
                         MYSQL_FIELD *fields, uint num_fields)
 {
-  MYSQL_BIND *bind;
+  MYSQL_BIND *my_bind;
   my_bool *is_null;
   ulong *length;
   uint i;
 
   /* Allocate array with bind structs, lengths and NULL flags */
-  bind= (MYSQL_BIND*) my_malloc(num_fields * sizeof(MYSQL_BIND),
+  my_bind= (MYSQL_BIND*) my_malloc(num_fields * sizeof(MYSQL_BIND),
 				MYF(MY_WME | MY_FAE | MY_ZEROFILL));
   length= (ulong*) my_malloc(num_fields * sizeof(ulong),
 			     MYF(MY_WME | MY_FAE));
@@ -4387,25 +4382,25 @@ void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
   for (i= 0; i < num_fields; i++)
   {
     uint max_length= fields[i].max_length + 1;
-    bind[i].buffer_type= MYSQL_TYPE_STRING;
-    bind[i].buffer= (char *)my_malloc(max_length, MYF(MY_WME | MY_FAE));
-    bind[i].buffer_length= max_length;
-    bind[i].is_null= &is_null[i];
-    bind[i].length= &length[i];
+    my_bind[i].buffer_type= MYSQL_TYPE_STRING;
+    my_bind[i].buffer= (char *)my_malloc(max_length, MYF(MY_WME | MY_FAE));
+    my_bind[i].buffer_length= max_length;
+    my_bind[i].is_null= &is_null[i];
+    my_bind[i].length= &length[i];
 
     DBUG_PRINT("bind", ("col[%d]: buffer_type: %d, buffer_length: %lu",
-			i, bind[i].buffer_type, bind[i].buffer_length));
+			i, my_bind[i].buffer_type, my_bind[i].buffer_length));
   }
 
-  if (mysql_stmt_bind_result(stmt, bind))
+  if (mysql_stmt_bind_result(stmt, my_bind))
     die("mysql_stmt_bind_result failed: %d: %s",
 	mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
 
   while (mysql_stmt_fetch(stmt) == 0)
   {
     for (i= 0; i < num_fields; i++)
-      append_field(ds, i, &fields[i], (const char *) bind[i].buffer,
-                   *bind[i].length, *bind[i].is_null);
+      append_field(ds, i, &fields[i], (const char *) my_bind[i].buffer,
+                   *my_bind[i].length, *my_bind[i].is_null);
     if (!display_result_vertically)
       dynstr_append_mem(ds, "\n", 1);
   }
@@ -4417,10 +4412,10 @@ void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
   for (i= 0; i < num_fields; i++)
   {
     /* Free data for output */
-    my_free((gptr)bind[i].buffer, MYF(MY_WME | MY_FAE));
+    my_free((gptr)my_bind[i].buffer, MYF(MY_WME | MY_FAE));
   }
   /* Free array with bind structs, lengths and NULL flags */
-  my_free((gptr)bind    , MYF(MY_WME | MY_FAE));
+  my_free((gptr)my_bind    , MYF(MY_WME | MY_FAE));
   my_free((gptr)length  , MYF(MY_WME | MY_FAE));
   my_free((gptr)is_null , MYF(MY_WME | MY_FAE));
 }
@@ -4557,17 +4552,14 @@ int append_warnings(DYNAMIC_STRING *ds, MYSQL* mysql)
 /*
   Run query using MySQL C API
 
-  SYNPOSIS
-  run_query_normal
-  mysql - mysql handle
-  command - currrent command pointer
-  flags -flags indicating wheter to SEND and/or REAP
-  query - query string to execute
-  query_len - length query string to execute
-  ds - output buffer wherte to store result form query
-
-  RETURN VALUE
-  error - function will not return
+  SYNOPSIS
+    run_query_normal()
+    mysql	mysql handle
+    command	current command pointer
+    flags	flags indicating if we should SEND and/or REAP
+    query	query string to execute
+    query_len	length query string to execute
+    ds		output buffer where to store result form query
 */
 
 void run_query_normal(struct st_connection *cn, struct st_command *command,
@@ -5085,15 +5077,14 @@ int util_query(MYSQL* org_mysql, const char* query){
 /*
   Run query
 
+  SYNPOSIS
+    run_query()
+     mysql	mysql handle
+     command	currrent command pointer
+
   flags control the phased/stages of query execution to be performed
   if QUERY_SEND_FLAG bit is on, the query will be sent. If QUERY_REAP_FLAG
   is on the result will be read - for regular query, both bits must be on
-
-  SYNPOSIS
-  run_query
-  mysql - mysql handle
-  command - currrent command pointer
-
 */
 
 void run_query(struct st_connection *cn, struct st_command *command, int flags)
@@ -5108,6 +5099,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   my_bool view_created= 0, sp_created= 0;
   my_bool complete_query= ((flags & QUERY_SEND_FLAG) &&
                            (flags & QUERY_REAP_FLAG));
+  DBUG_ENTER("run_query");
 
   init_dynamic_string(&ds_warnings, NULL, 0, 256);
 
@@ -5273,7 +5265,6 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
 
   if (command->require_file[0])
   {
-
     /* A result file was specified for _this_ query
        and the output should be checked against an already
        existing file which has been specified using --require or --result
@@ -5286,6 +5277,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
     dynstr_free(&ds_result);
   if (command->type == Q_EVAL)
     dynstr_free(&eval_query);
+  DBUG_VOID_RETURN;
 }
 
 /****************************************************************************/
@@ -5612,8 +5604,8 @@ int main(int argc, char **argv)
   if (!(cur_con->name = my_strdup("default", MYF(MY_WME))))
     die("Out of memory");
 
-  safe_connect(&cur_con->mysql, cur_con->name, host, user, pass,
-               db, port, unix_sock);
+  safe_connect(&cur_con->mysql, cur_con->name, opt_host, opt_user, opt_pass,
+               opt_db, opt_port, unix_sock);
 
   /* Use all time until exit if no explicit 'start_timer' */
   timer_start= timer_now();
@@ -5974,8 +5966,6 @@ int main(int argc, char **argv)
   /* Dump warning messages */
   if (result_file_name && ds_warning_messages.length)
     dump_warning_messages();
-
-  dynstr_free(&ds_res);
 
   timer_output();
   free_used_memory();

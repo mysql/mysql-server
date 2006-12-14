@@ -275,6 +275,7 @@ public:
     Uint32 MinRowsLow;
     Uint32 MinRowsHigh;
     
+    Table() {}
     void init();
   };
 
@@ -335,6 +336,7 @@ public:
     Uint32 AttributeAutoIncrement;
     char   AttributeDefaultValue[MAX_ATTR_DEFAULT_VALUE_SIZE];
     
+    Attribute() {}
     void init();
 
     inline

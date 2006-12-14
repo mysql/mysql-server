@@ -32,6 +32,7 @@
 
 class NdbScanFilterImpl {
 public:
+  NdbScanFilterImpl() {}
   struct State {
     NdbScanFilter::Group m_group;
     Uint32 m_popCount;
