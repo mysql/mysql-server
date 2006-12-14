@@ -7833,6 +7833,16 @@ void Field_enum::sql_type(String &res) const
 }
 
 
+Field *Field_enum::new_field(MEM_ROOT *root, struct st_table *new_table,
+                             bool keep_type)
+{
+  Field_enum *res= (Field_enum*) Field::new_field(root, new_table, keep_type);
+  if (res)
+    res->typelib= copy_typelib(root, typelib);
+  return res;
+}
+
+
 /*
    set type.
    This is a string which can have a collection of different values.
