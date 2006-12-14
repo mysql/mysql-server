@@ -186,7 +186,7 @@ int my_wildcmp_mb(CHARSET_INFO *cs,
     {						/* Found w_many */
       uchar cmp;
       const char* mb = wildstr;
-      int mblen=0;
+      int mb_len=0;
       
       wildstr++;
       /* Remove any '%' and '_' from the wild search string */
@@ -212,7 +212,7 @@ int my_wildcmp_mb(CHARSET_INFO *cs,
 	cmp= *++wildstr;
 	
       mb=wildstr;
-      mblen= my_ismbchar(cs, wildstr, wildend);
+      mb_len= my_ismbchar(cs, wildstr, wildend);
       INC_PTR(cs,wildstr,wildend);		/* This is compared trough cmp */
       cmp=likeconv(cs,cmp);   
       do
@@ -221,11 +221,11 @@ int my_wildcmp_mb(CHARSET_INFO *cs,
         {
           if (str >= str_end)
             return -1;
-          if (mblen)
+          if (mb_len)
           {
-            if (str+mblen <= str_end && memcmp(str, mb, mblen) == 0)
+            if (str+mb_len <= str_end && memcmp(str, mb, mb_len) == 0)
             {
-              str += mblen;
+              str += mb_len;
               break;
             }
           }
@@ -257,8 +257,8 @@ uint my_numchars_mb(CHARSET_INFO *cs __attribute__((unused)),
   register uint32 count=0;
   while (pos < end) 
   {
-    uint mblen;
-    pos+= (mblen= my_ismbchar(cs,pos,end)) ? mblen : 1;
+    uint mb_len;
+    pos+= (mb_len= my_ismbchar(cs,pos,end)) ? mb_len : 1;
     count++;
   }
   return count;
@@ -272,8 +272,8 @@ uint my_charpos_mb(CHARSET_INFO *cs __attribute__((unused)),
   
   while (length && pos < end)
   {
-    uint mblen;
-    pos+= (mblen= my_ismbchar(cs, pos, end)) ? mblen : 1;
+    uint mb_len;
+    pos+= (mb_len= my_ismbchar(cs, pos, end)) ? mb_len : 1;
     length--;
   }
   return (uint) (length ? end+2-start : pos-start);
@@ -288,14 +288,14 @@ uint my_well_formed_len_mb(CHARSET_INFO *cs, const char *b, const char *e,
   while (pos)
   {
     my_wc_t wc;
-    int mblen;
+    int mb_len;
 
-    if ((mblen= cs->cset->mb_wc(cs, &wc, (uchar*) b, (uchar*) e)) <= 0)
+    if ((mb_len= cs->cset->mb_wc(cs, &wc, (uchar*) b, (uchar*) e)) <= 0)
     {
       *error= b < e ? 1 : 0;
       break;
     }
-    b+= mblen;
+    b+= mb_len;
     pos--;
   }
   return (uint) (b - b_start);
@@ -319,7 +319,7 @@ uint my_instr_mb(CHARSET_INFO *cs,
       {
         match->beg= 0;
         match->end= 0;
-        match->mblen= 0;
+        match->mb_len= 0;
       }
       return 1;		/* Empty string is always found */
     }
@@ -329,7 +329,7 @@ uint my_instr_mb(CHARSET_INFO *cs,
     
     while (b < end)
     {
-      int mblen;
+      int mb_len;
       
       if (!cs->coll->strnncoll(cs, (unsigned char*) b,   s_length, 
       				   (unsigned char*) s, s_length, 0))
@@ -338,19 +338,19 @@ uint my_instr_mb(CHARSET_INFO *cs,
         {
           match[0].beg= 0;
           match[0].end= (uint) (b-b0);
-          match[0].mblen= res;
+          match[0].mb_len= res;
           if (nmatch > 1)
           {
             match[1].beg= match[0].end;
             match[1].end= match[0].end+s_length;
-            match[1].mblen= 0;	/* Not computed */
+            match[1].mb_len= 0;	/* Not computed */
           }
         }
         return 2;
       }
-      mblen= (mblen= my_ismbchar(cs, b, end)) ? mblen : 1;
-      b+= mblen;
-      b_length-= mblen;
+      mb_len= (mb_len= my_ismbchar(cs, b, end)) ? mb_len : 1;
+      b+= mb_len;
+      b_length-= mb_len;
       res++;
     }
   }
@@ -551,7 +551,7 @@ my_bool my_like_range_mb(CHARSET_INFO *cs,
 			 char *min_str,char *max_str,
 			 uint *min_length,uint *max_length)
 {
-  uint mblen;
+  uint mb_len;
   const char *end= ptr + ptr_length;
   char *min_org= min_str;
   char *min_end= min_str + res_length;
@@ -588,11 +588,11 @@ my_bool my_like_range_mb(CHARSET_INFO *cs,
       pad_max_char(cs, max_str, max_end);
       return 0;
     }
-    if ((mblen= my_ismbchar(cs, ptr, end)) > 1)
+    if ((mb_len= my_ismbchar(cs, ptr, end)) > 1)
     {
-      if (ptr+mblen > end || min_str+mblen > min_end)
+      if (ptr+mb_len > end || min_str+mb_len > min_end)
         break;
-      while (mblen--)
+      while (mb_len--)
        *min_str++= *max_str++= *ptr++;
     }
     else
@@ -650,7 +650,7 @@ static int my_wildcmp_mb_bin(CHARSET_INFO *cs,
     {						/* Found w_many */
       uchar cmp;
       const char* mb = wildstr;
-      int mblen=0;
+      int mb_len=0;
       
       wildstr++;
       /* Remove any '%' and '_' from the wild search string */
@@ -676,7 +676,7 @@ static int my_wildcmp_mb_bin(CHARSET_INFO *cs,
 	cmp= *++wildstr;
 	
       mb=wildstr;
-      mblen= my_ismbchar(cs, wildstr, wildend);
+      mb_len= my_ismbchar(cs, wildstr, wildend);
       INC_PTR(cs,wildstr,wildend);		/* This is compared trough cmp */
       do
       {
@@ -684,11 +684,11 @@ static int my_wildcmp_mb_bin(CHARSET_INFO *cs,
         {
           if (str >= str_end)
             return -1;
-          if (mblen)
+          if (mb_len)
           {
-            if (str+mblen <= str_end && memcmp(str, mb, mblen) == 0)
+            if (str+mb_len <= str_end && memcmp(str, mb, mb_len) == 0)
             {
-              str += mblen;
+              str += mb_len;
               break;
             }
           }
@@ -927,15 +927,15 @@ uint my_numcells_mb(CHARSET_INFO *cs, const char *b, const char *e)
   
   while (b < e)
   {
-    int mblen;
+    int mb_len;
     uint pg;
-    if ((mblen= cs->cset->mb_wc(cs, &wc, (uchar*) b, (uchar*) e)) <= 0)
+    if ((mb_len= cs->cset->mb_wc(cs, &wc, (uchar*) b, (uchar*) e)) <= 0)
     {
-      mblen= 1; /* Let's think a wrong sequence takes 1 dysplay cell */
+      mb_len= 1; /* Let's think a wrong sequence takes 1 dysplay cell */
       b++;
       continue;
     }
-    b+= mblen;
+    b+= mb_len;
     pg= (wc >> 8) & 0xFF;
     clen+= utr11_data[pg].p ? utr11_data[pg].p[wc & 0xFF] : utr11_data[pg].page;
     clen++;

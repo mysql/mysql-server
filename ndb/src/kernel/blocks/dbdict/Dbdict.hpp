@@ -132,6 +132,7 @@ public:
    * on disk.  Index trigger ids are volatile.
    */
   struct TableRecord : public MetaData::Table {
+    TableRecord() {}
     Uint32 maxRowsLow;
     Uint32 maxRowsHigh;
     Uint32 minRowsLow;
@@ -251,6 +252,7 @@ public:
    * attributes.  This is wrong but convenient.
    */
   struct AttributeRecord : public MetaData::Attribute {
+    AttributeRecord() {}
     union {    
     /** Pointer to the next attribute used by ArrayPool */
     Uint32 nextPool;
@@ -286,6 +288,7 @@ public:
    * trigger online creates the trigger in TC (if index) and LQH-TUP.
    */
   struct TriggerRecord {
+    TriggerRecord() {}
 
     /** Trigger state */
     enum TriggerState { 
@@ -865,6 +868,7 @@ private:
    * seize/release invokes ctor/dtor automatically.
    */
   struct OpRecordCommon {
+    OpRecordCommon() {}
     Uint32 key;         // key shared between master and slaves
     Uint32 nextHash;
     Uint32 prevHash;
@@ -880,6 +884,7 @@ private:
    * Create table record
    */
   struct CreateTableRecord : OpRecordCommon {
+    CreateTableRecord() {}
     Uint32 m_senderRef;
     Uint32 m_senderData;
     Uint32 m_coordinatorRef;
@@ -918,6 +923,7 @@ private:
    * Drop table record
    */
   struct DropTableRecord : OpRecordCommon {
+    DropTableRecord() {}
     DropTableReq m_request;
     
     Uint32 m_requestType;

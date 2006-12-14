@@ -53,6 +53,7 @@ struct Options
   static char **saved_argv;
 
   int load(int argc, char **argv);
+  Options() {}
   void cleanup();
 #ifdef __WIN__
   int setup_windows_defaults();
