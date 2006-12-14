@@ -6663,6 +6663,30 @@ DROP PROCEDURE bug23760_test_row_count|
 DROP FUNCTION bug23760_rc_test|
 
 #
+# BUG#24117: server crash on a FETCH with a cursor on a table which is not in
+#            the table cache
+#
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS bug24117|
+DROP TABLE IF EXISTS t3|
+--enable_warnings
+CREATE TABLE t3(c1 ENUM('abc'))|
+INSERT INTO t3 VALUES('abc')|
+CREATE PROCEDURE bug24117()
+BEGIN
+  DECLARE t3c1 ENUM('abc');
+  DECLARE mycursor CURSOR FOR SELECT c1 FROM t3;
+  OPEN mycursor;
+  FLUSH TABLES;
+  FETCH mycursor INTO t3c1;
+  CLOSE mycursor;
+END|
+CALL bug24117()|
+DROP PROCEDURE bug24117|
+DROP TABLE t3|
+
+#
 # NOTE: The delimiter is `|`, and not `;`. It is changed to `;`
 #       at the end of the file!
 #
