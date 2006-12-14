@@ -597,7 +597,10 @@ net_real_write(NET *net,const char *packet,ulong len)
   }
 #endif /* HAVE_COMPRESS */
 
-  /* DBUG_DUMP("net",packet,len); */
+#ifdef DEBUG_DATA_PACKETS
+  DBUG_DUMP("data",packet,len);
+#endif
+
 #ifndef NO_ALARM
   thr_alarm_init(&alarmed);
   if (net_blocking)
