@@ -249,7 +249,6 @@ inline double ulonglong2double(ulonglong value)
 #define tell(A) _telli64(A)
 #endif
 
-#define set_timespec(ABSTIME,SEC) { (ABSTIME).tv_sec=time((time_t*)0) + (time_t) (SEC); (ABSTIME).tv_nsec=0; }
 
 #define STACK_DIRECTION -1
 
