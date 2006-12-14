@@ -49,6 +49,7 @@ namespace yaSSL {
 // Digest policy should implement a get_digest, update, and get sizes for pad
 // and  digest
 struct Digest : public virtual_base {
+    Digest() {}
     virtual void   get_digest(byte*) = 0;
     virtual void   get_digest(byte*, const byte*, unsigned int) = 0;
     virtual void   update(const byte*, unsigned int) = 0;
@@ -60,6 +61,7 @@ struct Digest : public virtual_base {
 
 // For use with NULL Digests
 struct NO_MAC : public Digest {
+    NO_MAC() {}
     void   get_digest(byte*);
     void   get_digest(byte*, const byte*, unsigned int);
     void   update(const byte*, unsigned int);
@@ -184,6 +186,7 @@ private:
 // BulkCipher policy should implement encrypt, decrypt, get block size, 
 // and set keys for encrypt and decrypt
 struct BulkCipher : public virtual_base {
+    BulkCipher() {}
     virtual void   encrypt(byte*, const byte*, unsigned int) = 0;
     virtual void   decrypt(byte*, const byte*, unsigned int) = 0;
     virtual void   set_encryptKey(const byte*, const byte* = 0) = 0;
@@ -197,6 +200,7 @@ struct BulkCipher : public virtual_base {
 
 // For use with NULL Ciphers
 struct NO_Cipher : public BulkCipher {
+    NO_Cipher() {}
     void   encrypt(byte*, const byte*, unsigned int) {}
     void   decrypt(byte*, const byte*, unsigned int) {}
     void   set_encryptKey(const byte*, const byte*)  {}
@@ -318,12 +322,14 @@ struct Auth : public virtual_base {
     virtual bool verify(const byte*, unsigned int, const byte*,
                         unsigned int) = 0;
     virtual uint get_signatureLength() const = 0;
+    Auth() {}
     virtual ~Auth() {}
 };
 
 
 // For use with NULL Authentication schemes
 struct NO_Auth : public Auth {
+    NO_Auth() {}
     void   sign(byte*, const byte*, unsigned int, const RandomPool&) {}
     bool   verify(const byte*, unsigned int, const byte*, unsigned int) 
                     { return true; }
