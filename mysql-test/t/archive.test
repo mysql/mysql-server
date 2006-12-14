@@ -1346,6 +1346,7 @@ SELECT * FROM t2;
 CHECK TABLE t2;
 SELECT * FROM t2;
 
+
 # Test INSERT DELAYED and wait until the table has one more record
 SELECT COUNT(auto) FROM t2;
 INSERT DELAYED INTO t2 VALUES (4,011403,37,'intercepted','audiology','tinily','');
