@@ -854,4 +854,5 @@ DROP TABLE t1;
 #
 SET @@myisam_repair_threads=1;
 SHOW VARIABLES LIKE 'myisam_repair%';
-# End of 4.1 tests
+
+--echo End of 4.1 tests
