@@ -1347,9 +1347,16 @@ CHECK TABLE t2;
 SELECT * FROM t2;
 
 
+# Test INSERT DELAYED and wait until the table has one more record
 # We won't know exactly about what is going on internally,
 # but we will see if the row makes it in!!
+SELECT COUNT(auto) FROM t2;
 INSERT DELAYED INTO t2 VALUES (4,011403,37,'intercepted','audiology','tinily','');
+while (`SELECT COUNT(auto)!=1214 FROM t2`)
+{
+  sleep 0.1;
+}
+SELECT COUNT(auto) FROM t2;
 FLUSH TABLE t2;
 SELECT * FROM t2;
 
