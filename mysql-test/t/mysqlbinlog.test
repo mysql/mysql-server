@@ -135,6 +135,24 @@ flush logs;
 select * from t5  /* must be (1),(1) */;
 
 #
+# Bug#22645 LC_TIME_NAMES: Statement not replicated
+# Check that a dump created by mysqlbinlog reproduces
+# lc_time_names dependent values correctly
+#
+flush logs;
+drop table if exists t5;
+create table t5 (c1 int, c2 varchar(128) character set latin1 not null);
+insert into t5 values (1, date_format('2001-01-01','%W'));
+set lc_time_names=de_DE;
+insert into t5 values (2, date_format('2001-01-01','%W'));
+set lc_time_names=en_US;
+insert into t5 values (3, date_format('2001-01-01','%W'));
+select * from t5 order by c1;
+flush logs;
+drop table t5;
+--exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000007 | $MYSQL
+select * from t5 order by c1;
+#
 # Bug#20396 Bin Log does not get DELIMETER cmd - Recover StoredProc fails 
 #
 --disable_warnings
