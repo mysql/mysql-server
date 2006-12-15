@@ -223,8 +223,9 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   String wrong_tables;
   int error;
   bool some_tables_deleted=0, tmp_table_deleted=0, foreign_key_error=0;
-
   DBUG_ENTER("mysql_rm_table_part2");
+
+  LINT_INIT(alias);
 
   if (!drop_temporary && lock_table_names(thd, tables))
     DBUG_RETURN(1);
@@ -2998,7 +2999,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                        ALTER_INFO *alter_info, bool do_send_ok)
 {
   TABLE *table,*new_table=0;
-  int error;
+  int error= 0;
   char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN];
   char new_alias_buff[FN_REFLEN], *table_name, *db, *new_alias, *alias;
   char index_file[FN_REFLEN], data_file[FN_REFLEN];
@@ -3051,9 +3052,11 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       DBUG_RETURN(1);
     VOID(pthread_mutex_lock(&LOCK_open));
     if (lock_table_names(thd, table_list))
+    {
+      error= 1;
       goto view_err;
+    }
     
-    error=0;
     if (!do_rename(thd, table_list, new_db, new_name, new_name, 1))
     {
       if (mysql_bin_log.is_open())
@@ -3154,7 +3157,6 @@ view_err:
 
     switch (alter_info->keys_onoff) {
     case LEAVE_AS_IS:
-      error= 0;
       break;
     case ENABLE:
       wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
@@ -3169,10 +3171,10 @@ view_err:
     }
     if (error == HA_ERR_WRONG_COMMAND)
     {
+      error= 0;
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			  ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
 			  table->alias);
-      error= 0;
     }
 
     if (!error && (new_name != table_name || new_db != db))
@@ -3202,10 +3204,10 @@ view_err:
 
     if (error == HA_ERR_WRONG_COMMAND)
     {
+      error= 0;
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			  ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
 			  table->alias);
-      error= 0;
     }
 
     if (!error)
