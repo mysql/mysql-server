@@ -15,6 +15,13 @@ Created 11/5/1995 Heikki Tuuri
 #include "mtr0types.h"
 
 /************************************************************************
+Remove a block from the flush list of modified blocks. */
+
+void
+buf_flush_remove(
+/*=============*/
+	buf_page_t*	bpage);	/* in: pointer to the block in question */
+/************************************************************************
 Updates the flush system data structures when a write is completed. */
 
 void
