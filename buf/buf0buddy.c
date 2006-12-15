@@ -165,7 +165,7 @@ buf_buddy_alloc_clean(
 
 		for (; j--; bpage = UT_LIST_GET_NEXT(list, bpage)) {
 			if (bpage->zip.ssize != dummy_zip.ssize
-			    || !buf_LRU_free_block(bpage)) {
+			    || !buf_LRU_free_block(bpage, FALSE)) {
 
 				continue;
 			}
@@ -197,7 +197,8 @@ buf_buddy_alloc_clean(
 
 		void* ret;
 
-		if (!buf_LRU_free_block(bpage)) {
+		/* Keep the compressed pages of uncompressed blocks. */
+		if (!buf_LRU_free_block(bpage, FALSE)) {
 
 			continue;
 		}
