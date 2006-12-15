@@ -1244,7 +1244,8 @@ runBug25059(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
   NdbDictionary::Dictionary * dict = pNdb->getDictionary();
-  const NdbDictionary::Index * idx = dict->getIndex(pkIdxName, *ctx->getTab());
+  const NdbDictionary::Index * idx = dict->getIndex(pkIdxName, 
+						    ctx->getTab()->getName());
 
   HugoOperations ops(*ctx->getTab(), idx);
   
