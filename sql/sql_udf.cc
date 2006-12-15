@@ -536,7 +536,7 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   tables.table_name= tables.alias= (char*) "func";
   if (!(table = open_ltable(thd,&tables,TL_WRITE)))
     goto err;
-  table->field[0]->store(udf_name->str, udf_name->length, system_charset_info);
+  table->field[0]->store(udf->name.str, udf->name.length, &my_charset_bin);
   table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
   if (!table->file->index_read_idx(table->record[0], 0,
 				   (byte*) table->field[0]->ptr,
