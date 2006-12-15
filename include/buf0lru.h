@@ -65,6 +65,13 @@ ulint
 buf_LRU_get_recent_limit(void);
 /*==========================*/
 			/* out: the limit; zero if could not determine it */
+/************************************************************************
+Insert a compressed block into buf_pool->zip_clean in the LRU order. */
+
+void
+buf_LRU_insert_zip_clean(
+/*=====================*/
+	buf_page_t*	bpage);	/* in: pointer to the block in question */
 /**********************************************************************
 Try to free a block. */
 
@@ -72,7 +79,9 @@ ibool
 buf_LRU_free_block(
 /*===============*/
 				/* out: TRUE if freed */
-	buf_page_t*	block);	/* in: block to be freed */
+	buf_page_t*	block,	/* in: block to be freed */
+	ibool		zip);	/* in: TRUE if should remove also the
+				compressed page of an uncompressed page */
 /**********************************************************************
 Look for a replaceable block from the end of the LRU list and put it to
 the free list if found. */

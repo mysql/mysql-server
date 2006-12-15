@@ -55,13 +55,29 @@ buf_flush_insert_into_flush_list(
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
-	ut_a(buf_page_in_file(bpage));
-
 	ut_ad((UT_LIST_GET_FIRST(buf_pool->flush_list) == NULL)
 	      || (UT_LIST_GET_FIRST(buf_pool->flush_list)->oldest_modification
 		  <= bpage->oldest_modification));
 
-	UT_LIST_ADD_FIRST(list, buf_pool->flush_list, bpage);
+	switch (buf_page_get_state(bpage)) {
+	case BUF_BLOCK_ZIP_PAGE:
+		mutex_enter(&buf_pool->zip_mutex);
+		buf_page_set_state(bpage, BUF_BLOCK_ZIP_DIRTY);
+		mutex_exit(&buf_pool->zip_mutex);
+		UT_LIST_REMOVE(list, buf_pool->zip_clean, bpage);
+		/* fall through */
+	case BUF_BLOCK_ZIP_DIRTY:
+	case BUF_BLOCK_FILE_PAGE:
+		UT_LIST_ADD_FIRST(list, buf_pool->flush_list, bpage);
+		break;
+	case BUF_BLOCK_ZIP_FREE:
+	case BUF_BLOCK_NOT_USED:
+	case BUF_BLOCK_READY_FOR_USE:
+	case BUF_BLOCK_MEMORY:
+	case BUF_BLOCK_REMOVE_HASH:
+		ut_error;
+		return;
+	}
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	ut_a(buf_flush_validate_low());
@@ -84,6 +100,25 @@ buf_flush_insert_sorted_into_flush_list(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
+
+	switch (buf_page_get_state(bpage)) {
+	case BUF_BLOCK_ZIP_PAGE:
+		mutex_enter(&buf_pool->zip_mutex);
+		buf_page_set_state(bpage, BUF_BLOCK_ZIP_DIRTY);
+		mutex_exit(&buf_pool->zip_mutex);
+		UT_LIST_REMOVE(list, buf_pool->zip_clean, bpage);
+		/* fall through */
+	case BUF_BLOCK_ZIP_DIRTY:
+	case BUF_BLOCK_FILE_PAGE:
+		break;
+	case BUF_BLOCK_ZIP_FREE:
+	case BUF_BLOCK_NOT_USED:
+	case BUF_BLOCK_READY_FOR_USE:
+	case BUF_BLOCK_MEMORY:
+	case BUF_BLOCK_REMOVE_HASH:
+		ut_error;
+		return;
+	}
 
 	prev_b = NULL;
 	b = UT_LIST_GET_FIRST(buf_pool->flush_list);
@@ -202,7 +237,9 @@ buf_flush_remove(
 		mutex_enter(&buf_pool->zip_mutex);
 		buf_page_set_state(bpage, BUF_BLOCK_ZIP_PAGE);
 		mutex_exit(&buf_pool->zip_mutex);
-		/* fall through */
+		UT_LIST_REMOVE(list, buf_pool->flush_list, bpage);
+		buf_LRU_insert_zip_clean(bpage);
+		break;
 	case BUF_BLOCK_FILE_PAGE:
 		UT_LIST_REMOVE(list, buf_pool->flush_list, bpage);
 		break;
