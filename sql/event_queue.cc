@@ -731,7 +731,8 @@ Event_queue::get_top_for_execution_if_time(THD *thd, Event_job_data **job_data)
     if (queue.elements)
     {
       top= ((Event_queue_element*) queue_element(&queue, 0));
-      set_timespec(top_time, sec_since_epoch_TIME(&top->execute_at));
+      set_timespec(top_time,
+                   sec_since_epoch_TIME(&top->execute_at) - now);
 
       abstime= &top_time;
     }
@@ -747,7 +748,7 @@ Event_queue::get_top_for_execution_if_time(THD *thd, Event_job_data **job_data)
       else
       {
         set_zero_time(&next_activation_at, MYSQL_TIMESTAMP_DATETIME);
-        msg= queue_wait_msg;
+        msg= queue_empty_msg;
       }
 
       cond_wait(thd, abstime, msg, SCHED_FUNC, __LINE__);
