@@ -719,7 +719,6 @@ Event_queue::get_top_for_execution_if_time(THD *thd, Event_job_data **job_data)
   *job_data= NULL;
   DBUG_ENTER("Event_queue::get_top_for_execution_if_time");
 
-  top_time.tv_nsec= 0;
   LOCK_QUEUE_DATA();
   for (;;)
   {
@@ -732,12 +731,12 @@ Event_queue::get_top_for_execution_if_time(THD *thd, Event_job_data **job_data)
     if (queue.elements)
     {
       top= ((Event_queue_element*) queue_element(&queue, 0));
-      top_time.tv_sec= sec_since_epoch_TIME(&top->execute_at);
+      set_timespec(top_time, sec_since_epoch_TIME(&top->execute_at));
 
       abstime= &top_time;
     }
 
-    if (!abstime || abstime->tv_sec > now)
+    if (!abstime || get_timespec_sec(*abstime) > now)
     {
       const char *msg;
       if (abstime)
@@ -816,8 +815,8 @@ end:
   if (to_free)
     delete top;
 
-  DBUG_PRINT("info", ("returning %d  et_new: 0x%lx  abstime.tv_sec: %ld ",
-             ret, (long) *job_data, abstime ? abstime->tv_sec : 0));
+  DBUG_PRINT("info", ("returning %d  et_new: 0x%lx  get_timespec_sec(abstime): %ld ",
+             ret, (long) *job_data, abstime ? get_timespec_sec(*abstime) : 0));
 
   if (*job_data)
     DBUG_PRINT("info", ("db: %s  name: %s  definer=%s", (*job_data)->dbname.str,
