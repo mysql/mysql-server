@@ -5084,7 +5084,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
     ptrAss(tcConnectptr, tcConnectRecord);
     TcConnectRecord * const regTcPtr = tcConnectptr.p;
     if (regTcPtr->tcConnectstate == OS_OPERATING) {
-      apiConnectptr.i = regTcPtr->apiConnect;
+      Uint32 save = apiConnectptr.i = regTcPtr->apiConnect;
       ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
       ApiConnectRecord * const regApiPtr = apiConnectptr.p;
       compare_transid1 = regApiPtr->transid[0] ^ lqhKeyRef->transId1;
@@ -5195,7 +5195,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 	regApiPtr->lqhkeyreqrec--; // Compensate for extra during read
 	tcKeyRef->connectPtr = indexOp;
 	EXECUTE_DIRECT(DBTC, GSN_TCKEYREF, signal, TcKeyRef::SignalLength);
-	apiConnectptr.i = regTcPtr->apiConnect;
+	apiConnectptr.i = save;
 	apiConnectptr.p = regApiPtr;
       } else {
         jam();
@@ -11880,17 +11880,6 @@ void Dbtc::execTCKEYREF(Signal* signal)
   case(IOS_INDEX_ACCESS_WAIT_FOR_TRANSID_AI):
   case(IOS_INDEX_ACCESS_WAIT_FOR_TCKEYCONF): {
     jam();    
-    // If we fail index access for a non-read operation during commit 
-    // we abort transaction
-    if (commitFlg == 1) {
-      jam();
-      releaseIndexOperation(regApiPtr, indexOp);
-      apiConnectptr.i = indexOp->connectionIndex;
-      ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
-      terrorCode = tcKeyRef->errorCode;
-      abortErrorLab(signal);
-      break;
-    }
     /**
      * Increase count as it will be decreased below...
      *   (and the code is written to handle failing lookup on "real" table

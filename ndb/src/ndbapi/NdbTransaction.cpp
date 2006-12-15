@@ -474,6 +474,7 @@ NdbTransaction::executeNoBlobs(ExecType aTypeOfExec,
          * This timeout situation can occur if NDB crashes.
          */
         ndbout << "This timeout should never occur, execute(..)" << endl;
+	theError.code = 4012;
         setOperationErrorCodeAbort(4012);  // Error code for "Cluster Failure"
         DBUG_RETURN(-1);
       }//if
@@ -1965,6 +1966,14 @@ NdbTransaction::receiveTCINDXCONF(const TcIndxConf * indxConf,
       theGlobalCheckpointId = tGCI;
     } else if ((tNoComp >= tNoSent) &&
                (theLastExecOpInList->theCommitIndicator == 1)){
+
+      if (m_abortOption == AO_IgnoreError && theError.code != 0){
+	/**
+	 * There's always a TCKEYCONF when using IgnoreError
+	 */
+	return -1;
+      }
+
       /**********************************************************************/
       // We sent the transaction with Commit flag set and received a CONF with
       // no Commit flag set. This is clearly an anomaly.
