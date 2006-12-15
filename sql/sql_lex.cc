@@ -1903,7 +1903,6 @@ void st_select_lex_unit::set_limit(SELECT_LEX *sl)
 {
   ha_rows select_limit_val;
 
-  DBUG_ASSERT(! thd->stmt_arena->is_stmt_prepare());
   select_limit_val= (ha_rows)(sl->select_limit ? sl->select_limit->val_uint() :
                                                  HA_POS_ERROR);
   offset_limit_cnt= (ha_rows)(sl->offset_limit ? sl->offset_limit->val_uint() :

@@ -1563,4 +1563,22 @@ execute sq;
 deallocate prepare no_index;
 deallocate prepare sq;
 
+#
+# Bug 25027: query with a single-row non-correlated subquery
+#            and IS NULL predicate
+#
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1), (2);
+CREATE TABLE t2 (b int);
+INSERT INTO t2 VALUES (NULL);
+
+SELECT a FROM t1 WHERE (SELECT b FROM t2) IS NULL;
+PREPARE stmt FROM 'SELECT a FROM t1 WHERE (SELECT b FROM t2) IS NULL';
+
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1,t2;
+
 --echo End of 5.0 tests.
