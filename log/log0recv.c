@@ -191,6 +191,7 @@ recv_sys_empty_hash(void)
 	recv_sys->addr_hash = hash_create(buf_pool_get_curr_size() / 256);
 }
 
+#ifndef UNIV_LOG_DEBUG
 /************************************************************
 Frees the recovery system. */
 static
@@ -210,6 +211,7 @@ recv_sys_free(void)
 
 	mutex_exit(&(recv_sys->mutex));
 }
+#endif /* UNIV_LOG_DEBUG */
 
 /************************************************************
 Truncates possible corrupted or extra records from a log group. */
