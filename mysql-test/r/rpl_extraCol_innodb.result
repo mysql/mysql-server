@@ -72,7 +72,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1522
+Last_Errno	1523
 Last_Error	Column 0 type mismatch - received type 252, test.t3 has type 3
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -129,7 +129,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1522
+Last_Errno	1523
 Last_Error	Column 0 type mismatch - received type 246, test.t4 has type 3
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -186,7 +186,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1522
+Last_Errno	1523
 Last_Error	Column 5 type mismatch - received type 4, test.t5 has type 246
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -242,7 +242,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1522
+Last_Errno	1523
 Last_Error	Column 3 type mismatch - received type 16, test.t6 has type 3
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -349,7 +349,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1522
+Last_Errno	1523
 Last_Error	Column 2 type mismatch - received type 254, test.t10 has type 5
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -405,7 +405,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1522
+Last_Errno	1523
 Last_Error	Column 2 type mismatch - received type 15, test.t11 has type 252
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -720,7 +720,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1522
+Last_Errno	1523
 Last_Error	Column 0 type mismatch - received type 8, test.t17 has type 2
 Skip_Counter	0
 Exec_Master_Log_Pos	#
