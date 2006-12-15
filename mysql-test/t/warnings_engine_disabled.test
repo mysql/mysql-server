@@ -1,0 +1,19 @@
+#
+# Only run this test with a compiled in but disabled
+# engine
+#
+disable_query_log;
+--require r/true.require
+select support = 'Disabled' as `TRUE` from information_schema.engines where engine = 'ndbcluster';
+enable_query_log;
+
+
+#
+# Test for handler type, will select MyISAM and print a warning
+# about that - since NDB is disabled
+#
+create table t1 (id int) engine=NDB;
+alter table t1 engine=NDB;
+drop table t1;
+
+
