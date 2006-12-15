@@ -119,3 +119,54 @@ const char *get_type(TYPELIB *typelib, uint nr)
     return(typelib->type_names[nr]);
   return "?";
 }
+
+
+/*
+  Create a copy of a specified TYPELIB structure.
+
+  SYNOPSIS
+    copy_typelib()
+    root	pointer to a MEM_ROOT object for allocations
+    from	pointer to a source TYPELIB structure
+
+  RETURN
+    pointer to the new TYPELIB structure on successful copy, or
+    NULL otherwise
+*/
+
+TYPELIB *copy_typelib(MEM_ROOT *root, TYPELIB *from)
+{
+  TYPELIB *to;
+  uint i;
+
+  if (!from)
+    return NULL;
+
+  if (!(to= (TYPELIB*) alloc_root(root, sizeof(TYPELIB))))
+    return NULL;
+
+  if (!(to->type_names= (const char **)
+        alloc_root(root, (sizeof(char *) + sizeof(int)) * (from->count + 1))))
+    return NULL;
+  to->type_lengths= (unsigned int *)(to->type_names + from->count + 1);
+  to->count= from->count;
+  if (from->name)
+  {
+    if (!(to->name= strdup_root(root, from->name)))
+      return NULL;
+  }
+  else
+    to->name= NULL;
+
+  for (i= 0; i < from->count; i++)
+  {
+    if (!(to->type_names[i]= strmake_root(root, from->type_names[i],
+                                          from->type_lengths[i])))
+      return NULL;
+    to->type_lengths[i]= from->type_lengths[i];
+  }
+  to->type_names[to->count]= NULL;
+  to->type_lengths[to->count]= 0;
+
+  return to;
+}
