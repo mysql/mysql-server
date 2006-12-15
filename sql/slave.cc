@@ -4393,6 +4393,8 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
   pthread_mutex_t *log_lock= rli->relay_log.get_log_lock();
   DBUG_ENTER("queue_event");
 
+  LINT_INIT(inc_pos);
+
   if (mi->rli.relay_log.description_event_for_queue->binlog_version<4 &&
       buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT /* a way to escape */)
     DBUG_RETURN(queue_old_event(mi,buf,event_len));
@@ -4533,7 +4535,7 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
 
 err:
   pthread_mutex_unlock(&mi->data_lock);
-  DBUG_PRINT("info", ("error=%d", error));
+  DBUG_PRINT("info", ("error: %d", error));
   DBUG_RETURN(error);
 }
 

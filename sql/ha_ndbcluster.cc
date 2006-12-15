@@ -6219,20 +6219,19 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
                                       bool sorted, 
                                       HANDLER_BUFFER *buffer)
 {
-  DBUG_ENTER("ha_ndbcluster::read_multi_range_first");
-  
   int res;
   KEY* key_info= table->key_info + active_index;
   NDB_INDEX_TYPE cur_index_type= get_index_type(active_index);
   ulong reclength= table->s->reclength;
   NdbOperation* op;
   Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
+  DBUG_ENTER("ha_ndbcluster::read_multi_range_first");
 
   /**
    * blobs and unique hash index with NULL can't be batched currently
    */
   if (uses_blob_value(m_retrieve_all_fields) ||
-      (index_type ==  UNIQUE_INDEX &&
+      (cur_index_type == UNIQUE_INDEX &&
        has_null_in_unique_index(active_index) &&
        null_value_index_search(ranges, ranges+range_count, buffer)))
   {
@@ -7953,6 +7952,7 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
   DBUG_RETURN(1);
 }
 
+
 int
 ha_ndbcluster::build_scan_filter_group(Ndb_cond* &cond, NdbScanFilter *filter)
 {
@@ -8026,6 +8026,7 @@ ha_ndbcluster::build_scan_filter_group(Ndb_cond* &cond, NdbScanFilter *filter)
   DBUG_RETURN(0);
 }
 
+
 int
 ha_ndbcluster::build_scan_filter(Ndb_cond * &cond, NdbScanFilter *filter)
 {
@@ -8076,14 +8077,14 @@ ha_ndbcluster::generate_scan_filter(Ndb_cond_stack *ndb_cond_stack,
   DBUG_RETURN(0);
 }
 
+
 int
 ha_ndbcluster::generate_scan_filter_from_cond(Ndb_cond_stack *ndb_cond_stack,
 					      NdbScanFilter& filter)
 {
-  DBUG_ENTER("generate_scan_filter_from_cond");
   bool multiple_cond= FALSE;
-  
-  DBUG_PRINT("info", ("Generating scan filter"));
+  DBUG_ENTER("generate_scan_filter_from_cond");
+
   // Wrap an AND group around multiple conditions
   if (ndb_cond_stack->next) 
   {
@@ -8109,6 +8110,7 @@ ha_ndbcluster::generate_scan_filter_from_cond(Ndb_cond_stack *ndb_cond_stack,
   DBUG_RETURN(0);
 }
 
+
 int ha_ndbcluster::generate_scan_filter_from_key(NdbScanOperation *op,
 						 const KEY* key_info, 
 						 const byte *key, 
@@ -8119,15 +8121,14 @@ int ha_ndbcluster::generate_scan_filter_from_key(NdbScanOperation *op,
   KEY_PART_INFO* end= key_part+key_info->key_parts;
   NdbScanFilter filter(op);
   int res;
-
   DBUG_ENTER("generate_scan_filter_from_key");
+
   filter.begin(NdbScanFilter::AND);
   for (; key_part != end; key_part++) 
   {
     Field* field= key_part->field;
     uint32 pack_len= field->pack_length();
     const byte* ptr= key;
-    char buf[256];
     DBUG_PRINT("info", ("Filtering value for %s", field->field_name));
     DBUG_DUMP("key", (char*)ptr, pack_len);
     if (key_part->null_bit)
@@ -8162,7 +8163,6 @@ int
 ndbcluster_show_status(THD* thd)
 {
   Protocol *protocol= thd->protocol;
-  
   DBUG_ENTER("ndbcluster_show_status");
   
   if (have_ndbcluster != SHOW_OPTION_YES) 
