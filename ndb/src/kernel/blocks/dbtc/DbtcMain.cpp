@@ -5220,6 +5220,8 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 	    jam();
 	    sendtckeyconf(signal, 1);
 	    regApiPtr->apiConnectstate = CS_CONNECTED;
+	    regApiPtr->m_transaction_nodes.clear();
+	    setApiConTimer(apiConnectptr.i, 0,__LINE__);
 	  }
 	  return;
 	} else if (regApiPtr->tckeyrec > 0 || regApiPtr->m_exec_flag) {
