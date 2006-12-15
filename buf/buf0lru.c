@@ -49,15 +49,20 @@ frames in the buffer pool, we set this to TRUE */
 ibool	buf_lru_switched_on_innodb_mon	= FALSE;
 
 /**********************************************************************
-Takes a block out of the LRU list and page hash table and sets the block
-state to BUF_BLOCK_REMOVE_HASH. */
+Takes a block out of the LRU list and page hash table. */
 static
-void
+enum buf_page_state
 buf_LRU_block_remove_hashed_page(
 /*=============================*/
-	buf_page_t*	bpage);	/* in: block, must contain a file page and
+				/* out: the new state of the block
+				(BUF_BLOCK_ZIP_FREE if the state was
+				BUF_BLOCK_ZIP_PAGE, or BUF_BLOCK_REMOVE_HASH
+				otherwise) */
+	buf_page_t*	bpage,	/* in: block, must contain a file page and
 				be in a state where it can be freed; there
 				may or may not be a hash index to the page */
+	ibool		zip);	/* in: TRUE if should remove also the
+				compressed page of an uncompressed page */
 /**********************************************************************
 Puts a file page whose has no hash index to the free list. */
 static
@@ -139,8 +144,10 @@ scan_again:
 			}
 
 			/* Remove from the LRU list */
-			buf_LRU_block_remove_hashed_page(bpage);
-			buf_LRU_block_free_hashed_page(bpage);
+			if (buf_LRU_block_remove_hashed_page(bpage, TRUE)
+			    != BUF_BLOCK_ZIP_FREE) {
+				buf_LRU_block_free_hashed_page(bpage);
+			}
 		}
 next_page:
 		mutex_exit(block_mutex);
@@ -191,6 +198,40 @@ buf_LRU_get_recent_limit(void)
 	return(limit);
 }
 
+/************************************************************************
+Insert a compressed block into buf_pool->zip_clean in the LRU order. */
+
+void
+buf_LRU_insert_zip_clean(
+/*=====================*/
+	buf_page_t*	bpage)	/* in: pointer to the block in question */
+{
+	buf_page_t*	b;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_a(mutex_own(&buf_pool->mutex));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_PAGE);
+
+	/* Find the first successor of bpage in the LRU list
+	that is in the zip_clean list. */
+	b = bpage;
+	do {
+		b = UT_LIST_GET_NEXT(LRU, b);
+	} while (b && buf_page_get_state(b) != BUF_BLOCK_ZIP_PAGE);
+
+	/* Insert bpage before b, i.e., after the predecessor of b. */
+	if (b) {
+		b = UT_LIST_GET_PREV(list, b);
+	}
+
+	if (b) {
+		UT_LIST_INSERT_AFTER(list, buf_pool->zip_clean, b, bpage);
+	} else {
+		UT_LIST_ADD_FIRST(list, buf_pool->zip_clean, bpage);
+	}
+}
+
 /**********************************************************************
 Try to free a block. */
 
@@ -198,7 +239,9 @@ ibool
 buf_LRU_free_block(
 /*===============*/
 				/* out: TRUE if freed */
-	buf_page_t*	bpage)	/* in: block to be freed */
+	buf_page_t*	bpage,	/* in: block to be freed */
+	ibool		zip)	/* in: TRUE if should remove also the
+				compressed page of an uncompressed page */
 {
 	mutex_t*	block_mutex = buf_page_get_mutex(bpage);
 
@@ -223,12 +266,8 @@ buf_LRU_free_block(
 	}
 #endif /* UNIV_DEBUG */
 
-	buf_LRU_block_remove_hashed_page(bpage);
-
-	switch (buf_page_get_state(bpage)) {
-	case BUF_BLOCK_REMOVE_HASH:
-		/* The state was changed from BUF_BLOCK_FILE_PAGE
-		in buf_LRU_block_remove_hashed_page(bpage). */
+	if (buf_LRU_block_remove_hashed_page(bpage, zip)
+	    != BUF_BLOCK_ZIP_FREE) {
 		mutex_exit(&(buf_pool->mutex));
 		mutex_exit(block_mutex);
 
@@ -241,22 +280,6 @@ buf_LRU_free_block(
 		mutex_enter(block_mutex);
 
 		buf_LRU_block_free_hashed_page(bpage);
-		break;
-
-	case BUF_BLOCK_ZIP_PAGE:
-		ut_ad(!bpage->in_free_list);
-		ut_ad(!bpage->in_LRU_list);
-
-		UT_LIST_REMOVE(list, buf_pool->zip_clean, bpage);
-
-		buf_buddy_free(bpage->zip.data,
-			       page_zip_get_size(&bpage->zip));
-		buf_buddy_free(bpage, sizeof(*bpage));
-		break;
-
-	default:
-		ut_error;
-		break;
 	}
 
 	return(TRUE);
@@ -290,7 +313,7 @@ buf_LRU_search_and_free_block(
 		mutex_t*	block_mutex = buf_page_get_mutex(bpage);
 
 		mutex_enter(block_mutex);
-		freed = buf_LRU_free_block(bpage);
+		freed = buf_LRU_free_block(bpage, n_iterations > 10);
 		mutex_exit(block_mutex);
 
 		if (freed) {
@@ -496,29 +519,23 @@ loop:
 	}
 
 	/* If there is a block in the free list, take it */
-	if (UT_LIST_GET_LEN(buf_pool->free) > 0) {
+	block = buf_LRU_get_free_only();
+	if (block) {
 
-		block = buf_LRU_get_free_only();
-		ut_a(block); /* We tested that buf_pool->free is nonempty. */
-
-		if (buf_block_get_zip_size(block) != zip_size) {
-			page_zip_set_size(&block->page.zip, zip_size);
 #ifdef UNIV_DEBUG
-			block->page.zip.m_start =
+		block->page.zip.m_start =
 #endif /* UNIV_DEBUG */
-				block->page.zip.m_end =
-				block->page.zip.m_nonempty =
-				block->page.zip.n_blobs = 0;
-			if (block->page.zip.data) {
-				ut_free(block->page.zip.data);
-			}
+			block->page.zip.m_end =
+			block->page.zip.m_nonempty =
+			block->page.zip.n_blobs = 0;
 
-			if (zip_size) {
-				/* TODO: allocate zip from an aligned pool */
-				block->page.zip.data = ut_malloc(zip_size);
-			} else {
-				block->page.zip.data = NULL;
-			}
+		if (zip_size) {
+			page_zip_set_size(&block->page.zip, zip_size);
+			/* TODO: allocate zip from an aligned pool */
+			block->page.zip.data = ut_malloc(zip_size);
+		} else {
+			page_zip_set_size(&block->page.zip, 0);
+			block->page.zip.data = NULL;
 		}
 
 		mutex_exit(&(buf_pool->mutex));
@@ -951,15 +968,20 @@ buf_LRU_block_free_non_file_page(
 }
 
 /**********************************************************************
-Takes a block out of the LRU list and page hash table and sets the block
-state to BUF_BLOCK_REMOVE_HASH. */
+Takes a block out of the LRU list and page hash table. */
 static
-void
+enum buf_page_state
 buf_LRU_block_remove_hashed_page(
 /*=============================*/
-	buf_page_t*	bpage)	/* in: block, must contain a file page and
+				/* out: the new state of the block
+				(BUF_BLOCK_ZIP_FREE if the state was
+				BUF_BLOCK_ZIP_PAGE, or BUF_BLOCK_REMOVE_HASH
+				otherwise) */
+	buf_page_t*	bpage,	/* in: block, must contain a file page and
 				be in a state where it can be freed; there
 				may or may not be a hash index to the page */
+	ibool		zip)	/* in: TRUE if should remove also the
+				compressed page of an uncompressed page */
 {
 	const buf_page_t*	hashed_bpage;
 	ut_ad(bpage);
@@ -982,8 +1004,14 @@ buf_LRU_block_remove_hashed_page(
 		break;
 	case BUF_BLOCK_ZIP_PAGE:
 		break;
-	default:
+	case BUF_BLOCK_ZIP_FREE:
+	case BUF_BLOCK_ZIP_DIRTY:
+	case BUF_BLOCK_NOT_USED:
+	case BUF_BLOCK_READY_FOR_USE:
+	case BUF_BLOCK_MEMORY:
+	case BUF_BLOCK_REMOVE_HASH:
 		ut_error;
+		break;
 	}
 
 	hashed_bpage = buf_page_hash_get(bpage->space, bpage->offset);
@@ -1018,6 +1046,8 @@ buf_LRU_block_remove_hashed_page(
 		    bpage);
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_ZIP_PAGE:
+		ut_ad(!bpage->in_free_list);
+		ut_ad(!bpage->in_LRU_list);
 		ut_a(bpage->zip.data);
 		ut_a(buf_page_get_zip_size(bpage));
 		memset(bpage->zip.data + FIL_PAGE_OFFSET, 0xff, 4);
@@ -1030,10 +1060,27 @@ buf_LRU_block_remove_hashed_page(
 		memset(((buf_block_t*) bpage)->frame
 		       + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 0xff, 4);
 		buf_page_set_state(bpage, BUF_BLOCK_REMOVE_HASH);
+
+		if (bpage->zip.data) {
+			/* Free the compressed page. */
+			ut_free(bpage->zip.data);
+			bpage->zip.data = NULL;
+			page_zip_set_size(&bpage->zip, 0);
+		}
+
+		return(BUF_BLOCK_REMOVE_HASH);
+
+	case BUF_BLOCK_ZIP_FREE:
+	case BUF_BLOCK_ZIP_DIRTY:
+	case BUF_BLOCK_NOT_USED:
+	case BUF_BLOCK_READY_FOR_USE:
+	case BUF_BLOCK_MEMORY:
+	case BUF_BLOCK_REMOVE_HASH:
 		break;
-	default:
-		ut_error;
 	}
+
+	ut_error;
+	return(BUF_BLOCK_ZIP_FREE);
 }
 
 /**********************************************************************

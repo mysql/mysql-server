@@ -26,6 +26,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0buf.ic"
 #endif
 
+#include "buf0buddy.h"
 #include "mem0mem.h"
 #include "btr0btr.h"
 #include "fil0fil.h"
@@ -1030,7 +1031,7 @@ shrink_again:
 
 				buf_LRU_make_block_old(&block->page);
 				dirty++;
-			} else if (!buf_LRU_free_block(&block->page)) {
+			} else if (!buf_LRU_free_block(&block->page, TRUE)) {
 				nonfree++;
 			}
 
@@ -1938,6 +1939,7 @@ buf_page_init_for_read(
 	ulint		offset)	/* in: page number */
 {
 	buf_block_t*	block;
+	buf_page_t*	bpage;
 	mtr_t		mtr;
 
 	ut_ad(buf_pool);
@@ -1972,27 +1974,94 @@ buf_page_init_for_read(
 	if (fil_tablespace_deleted_or_being_deleted_in_mem(
 		    space, tablespace_version)) {
 		*err = DB_TABLESPACE_DELETED;
+
+		goto err_exit;
 	}
 
-	if (*err == DB_TABLESPACE_DELETED
-	    || NULL != buf_page_hash_get(space, offset)) {
+	bpage = buf_page_hash_get(space, offset);
 
-		    /* The page belongs to a space which has been
-		    deleted or is being deleted, or the page is
-		    already in buf_pool, return */
+	if (UNIV_LIKELY_NULL(bpage)) {
+
+		switch (buf_page_get_state(bpage)) {
+		case BUF_BLOCK_ZIP_PAGE:
+		case BUF_BLOCK_ZIP_DIRTY:
+			ut_a(page_zip_get_size(&bpage->zip) == zip_size);
+
+			if (bpage->buf_fix_count
+			    || buf_page_get_io_fix(bpage)
+			    != BUF_IO_NONE) {
+
+				goto err_exit;
+			}
+
+			/* Move the compressed page from bpage to block,
+			and uncompress it. */
+
+			buf_buddy_free(block->page.zip.data, zip_size);
+
+			mutex_enter(&buf_pool->zip_mutex);
+			memcpy(&block->page, bpage, sizeof *bpage);
+			block->page.state = BUF_BLOCK_FILE_PAGE;
+
+			buf_relocate(bpage, &block->page);
+
+			if (buf_page_get_state(bpage) == BUF_BLOCK_ZIP_PAGE) {
+				UT_LIST_REMOVE(list, buf_pool->zip_clean,
+					       bpage);
+			} else {
+				/* Relocate buf_pool->flush_list. */
+				buf_page_t*	b;
+
+				b = UT_LIST_GET_PREV(list, bpage);
+				UT_LIST_REMOVE(list, buf_pool->flush_list,
+					       bpage);
+
+				if (b) {
+					UT_LIST_INSERT_AFTER(
+						list, buf_pool->flush_list, b,
+						&block->page);
+				} else {
+					UT_LIST_ADD_FIRST(
+						list, buf_pool->flush_list,
+						&block->page);
+				}
+			}
+
+			bpage->zip.data = NULL;
+			page_zip_set_size(&bpage->zip, 0);
+
+			buf_buddy_free(bpage, sizeof *bpage);
+
+			mutex_exit(&buf_pool->zip_mutex);
+			break;
+		case BUF_BLOCK_FILE_PAGE:
+			break;
+		case BUF_BLOCK_ZIP_FREE:
+		case BUF_BLOCK_NOT_USED:
+		case BUF_BLOCK_READY_FOR_USE:
+		case BUF_BLOCK_MEMORY:
+		case BUF_BLOCK_REMOVE_HASH:
+			ut_error;
+			break;
+		}
+
+err_exit:
+		/* The page belongs to a space which has been
+		deleted or is being deleted, or the page is
+		already in buf_pool, return */
 
 		mutex_exit(&block->mutex);
-		    mutex_exit(&(buf_pool->mutex));
+		mutex_exit(&(buf_pool->mutex));
 
-		    buf_block_free(block);
+		buf_block_free(block);
 
-		    if (mode == BUF_READ_IBUF_PAGES_ONLY) {
+		if (mode == BUF_READ_IBUF_PAGES_ONLY) {
 
-			    mtr_commit(&mtr);
-		    }
+			mtr_commit(&mtr);
+		}
 
-		    return(NULL);
-	    }
+		return(NULL);
+	}
 
 	ut_ad(block);
 
