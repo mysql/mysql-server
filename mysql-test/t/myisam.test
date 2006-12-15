@@ -846,6 +846,10 @@ DROP TABLE t1;
 #
 SET @@myisam_repair_threads=1;
 SHOW VARIABLES LIKE 'myisam_repair%';
+
+--echo End of 4.1 tests
+
+
 # Test varchar
 #
 
@@ -943,7 +947,6 @@ show keys from t1;
 
 drop table t1;
 
---echo End of 4.1 tests
 
 #
 # Bug#10056 - PACK_KEYS option take values greater than 1 while creating table
