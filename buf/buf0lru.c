@@ -135,12 +135,7 @@ scan_again:
 
 			if (bpage->oldest_modification != 0) {
 
-				/* Remove from the flush list of modified
-				blocks */
-				bpage->oldest_modification = 0;
-
-				UT_LIST_REMOVE(list, buf_pool->flush_list,
-					       bpage);
+				buf_flush_remove(bpage);
 			}
 
 			/* Remove from the LRU list */
