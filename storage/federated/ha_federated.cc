@@ -2808,7 +2808,7 @@ static int federated_commit(handlerton *hton, THD *thd, bool all)
       if (old)
         old->trx_next= NULL;
       error= ptr->connection_commit();
-      if (error && !return_val);
+      if (error && !return_val)
         return_val= error;
     }
     thd->ha_data[hton->slot]= NULL;
