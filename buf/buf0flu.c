@@ -177,6 +177,43 @@ buf_flush_ready_for_flush(
 }
 
 /************************************************************************
+Remove a block from the flush list of modified blocks. */
+
+void
+buf_flush_remove(
+/*=============*/
+	buf_page_t*	bpage)	/* in: pointer to the block in question */
+{
+#ifdef UNIV_SYNC_DEBUG
+	ut_a(mutex_own(&buf_pool->mutex));
+#endif /* UNIV_SYNC_DEBUG */
+
+	switch (buf_page_get_state(bpage)) {
+	case BUF_BLOCK_ZIP_PAGE:
+		/* clean compressed pages should not be on the flush list */
+	case BUF_BLOCK_ZIP_FREE:
+	case BUF_BLOCK_NOT_USED:
+	case BUF_BLOCK_READY_FOR_USE:
+	case BUF_BLOCK_MEMORY:
+	case BUF_BLOCK_REMOVE_HASH:
+		ut_error;
+		return;
+	case BUF_BLOCK_ZIP_DIRTY:
+		mutex_enter(&buf_pool->zip_mutex);
+		buf_page_set_state(bpage, BUF_BLOCK_ZIP_PAGE);
+		mutex_exit(&buf_pool->zip_mutex);
+		/* fall through */
+	case BUF_BLOCK_FILE_PAGE:
+		UT_LIST_REMOVE(list, buf_pool->flush_list, bpage);
+		break;
+	}
+
+	bpage->oldest_modification = 0;
+
+	ut_d(UT_LIST_VALIDATE(list, buf_page_t, buf_pool->flush_list));
+}
+
+/************************************************************************
 Updates the flush system data structures when a write is completed. */
 
 void
@@ -187,16 +224,8 @@ buf_flush_write_complete(
 	enum buf_flush	flush_type;
 
 	ut_ad(bpage);
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(mutex_own(&(buf_pool->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
-	ut_a(buf_page_in_file(bpage));
 
-	bpage->oldest_modification = 0;
-
-	UT_LIST_REMOVE(list, buf_pool->flush_list, bpage);
-
-	ut_d(UT_LIST_VALIDATE(list, buf_page_t, buf_pool->flush_list));
+	buf_flush_remove(bpage);
 
 	flush_type = buf_page_get_flush_type(bpage);
 	buf_pool->n_flush[flush_type]--;
