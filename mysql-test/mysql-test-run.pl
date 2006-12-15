@@ -4498,9 +4498,7 @@ sub run_mysqltest ($) {
   }
   else # component_id == mysqld
   {
-#    mtr_add_arg($args, "--socket=%s", $master->[0]->{'path_sock'});
-mtr_add_arg($args, "--host=127.0.0.1");
-
+    mtr_add_arg($args, "--socket=%s", $master->[0]->{'path_sock'});
     mtr_add_arg($args, "--port=%d", $master->[0]->{'port'});
     mtr_add_arg($args, "--database=test");
     mtr_add_arg($args, "--user=%s", $opt_user);
