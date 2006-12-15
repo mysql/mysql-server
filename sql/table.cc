@@ -373,6 +373,8 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   memcpy(comment_pos, disk_buff+read_length-com_length, com_length);
 
   fix_type_pointers(&int_array,&outparam->fieldnames,1,&names);
+  if (outparam->fieldnames.count != outparam->fields)
+    goto err_not_open;
   fix_type_pointers(&int_array,outparam->intervals,interval_count,
 		    &names);
 
