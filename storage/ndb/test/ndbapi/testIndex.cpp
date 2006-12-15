@@ -1239,7 +1239,65 @@ runBug21384(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int 
+runBug25059(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary * dict = pNdb->getDictionary();
+  const NdbDictionary::Index * idx = dict->getIndex(pkIdxName, 
+						    ctx->getTab()->getName());
 
+  HugoOperations ops(*ctx->getTab(), idx);
+  
+  int res = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  const int rows = ctx->getNumRecords();
+  
+  while (res == NDBT_OK && loops--)
+  {
+    ops.startTransaction(pNdb);
+    ops.pkReadRecord(pNdb, 10 + rand() % rows, rows);
+    int tmp;
+    if (tmp = ops.execute_Commit(pNdb, AO_IgnoreError))
+    {
+      if (tmp == 4012)
+	res = NDBT_FAILED;
+      else
+	if (ops.getTransaction()->getNdbError().code == 4012)
+	  res = NDBT_FAILED;
+    }
+    ops.closeTransaction(pNdb);
+  }
+  
+  loops = ctx->getNumLoops();
+  while (res == NDBT_OK && loops--)
+  {
+    ops.startTransaction(pNdb);
+    ops.pkUpdateRecord(pNdb, 10 + rand() % rows, rows);
+    int tmp;
+    int arg;
+    switch(rand() % 2){
+    case 0:
+      arg = AbortOnError;
+      break;
+    case 1:
+      arg = AO_IgnoreError;
+      ndbout_c("ignore error");
+      break;
+    }
+    if (tmp = ops.execute_Commit(pNdb, (AbortOption)arg))
+    {
+      if (tmp == 4012)
+	res = NDBT_FAILED;
+      else
+	if (ops.getTransaction()->getNdbError().code == 4012)
+	  res = NDBT_FAILED;
+    }
+    ops.closeTransaction(pNdb);
+  }  
+  
+  return res;
+}
 
 NDBT_TESTSUITE(testIndex);
 TESTCASE("CreateAll", 
@@ -1563,6 +1621,14 @@ TESTCASE("Bug21384",
   STEP(runBug21384);
   FINALIZER(createPkIndex_Drop);
   FINALIZER(runClearTable);
+}
+TESTCASE("Bug25059", 
+	 "Test that unique indexes and nulls"){ 
+  TC_PROPERTY("LoggedIndexes", (unsigned)0);
+  INITIALIZER(createPkIndex);
+  INITIALIZER(runLoadTable);
+  STEP(runBug25059);
+  FINALIZER(createPkIndex_Drop);
 }
 NDBT_TESTSUITE_END(testIndex);
 

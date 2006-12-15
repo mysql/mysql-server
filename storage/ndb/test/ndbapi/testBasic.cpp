@@ -1250,6 +1250,29 @@ runInsertError2(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
   
+int
+runBug25090(NDBT_Context* ctx, NDBT_Step* step){
+  
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary * dict = pNdb->getDictionary();
+
+  HugoOperations ops(*ctx->getTab());
+  
+  int loops = ctx->getNumLoops();
+  const int rows = ctx->getNumRecords();
+  
+  while (loops--)
+  {
+    ops.startTransaction(pNdb);
+    ops.pkReadRecord(pNdb, 1, 1);
+    ops.execute_Commit(pNdb, AO_IgnoreError);
+    sleep(10);
+    ops.closeTransaction(pNdb);
+  }
+  
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testBasic);
 TESTCASE("PkInsert", 
 	 "Verify that we can insert and delete from this table using PK"
@@ -1509,6 +1532,16 @@ TESTCASE("InsertError", "" ){
 }
 TESTCASE("InsertError2", "" ){
   INITIALIZER(runInsertError2);
+}
+TESTCASE("Fill", 
+	 "Verify what happens when we fill the db" ){
+  INITIALIZER(runFillTable);
+  INITIALIZER(runPkRead);
+  FINALIZER(runClearTable2);
+}
+TESTCASE("Bug25090", 
+	 "Verify what happens when we fill the db" ){
+  STEP(runBug25090);
 }
 NDBT_TESTSUITE_END(testBasic);
 
