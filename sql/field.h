@@ -1350,6 +1350,7 @@ public:
   {
       flags|=ENUM_FLAG;
   }
+  Field *new_field(MEM_ROOT *root, struct st_table *new_table, bool keep_type);
   enum_field_types type() const { return FIELD_TYPE_STRING; }
   enum Item_result cmp_type () const { return INT_RESULT; }
   enum Item_result cast_to_int_type () const { return INT_RESULT; }
