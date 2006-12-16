@@ -33,7 +33,7 @@ liboptions_la_CXXFLAGS= $(CXXFLAGS) \
 	-DDEFAULT_SOCKET_FILE_NAME="/tmp/mysqlmanager.sock" \
 	-DDEFAULT_PASSWORD_FILE_NAME="/etc/mysqlmanager.passwd" \
 	-DDEFAULT_MYSQLD_PATH="$(libexecdir)/mysqld$(EXEEXT)" \
-	-DDEFAULT_CONFIG_FILE="/etc/my.cnf" \
+	-DDEFAULT_CONFIG_FILE="my.cnf" \
 	-DPROTOCOL_VERSION=@PROTOCOL_VERSION@
 
 liboptions_la_SOURCES= options.h options.cc priv.h priv.cc
