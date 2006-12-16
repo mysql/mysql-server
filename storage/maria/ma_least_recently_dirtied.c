@@ -94,7 +94,10 @@ pthread_handler_decl background_flush_and_checkpoint_thread()
   while (this_thread_not_killed)
   {
     if ((flush_calls++) & ((2<<CHECKPOINT_PROBING_PERIOD_LOG2)-1) == 0)
-      execute_asynchronous_checkpoint_if_any();
+    {
+      /* note that we don't care of the checkpoint's success */
+      (void)execute_asynchronous_checkpoint_if_any();
+    }
     lock(global_LRD_mutex);
     flush_one_group_from_LRD();
     safemutex_assert_not_owner(global_LRD_mutex);

@@ -57,6 +57,12 @@ int maria_close(register MARIA_HA *info)
     info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   }
   flag= !--share->reopen;
+  /*
+    RECOVERYTODO:
+    Below we are going to make the table unknown to future checkpoints, so it
+    needs to have fsync'ed itself entirely (bitmap, pages, etc) at this
+    point.
+  */
   maria_open_list=list_delete(maria_open_list,&info->open_list);
   pthread_mutex_unlock(&share->intern_lock);
 

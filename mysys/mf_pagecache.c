@@ -295,6 +295,7 @@ struct st_pagecache_block_link
   enum pagecache_page_type type; /* type of the block                        */
   uint hits_left;         /* number of hits left until promotion             */
   ulonglong last_hit_time; /* timestamp of the last hit                      */
+  ulonglong rec_lsn;       /* LSN when first became dirty                    */
   KEYCACHE_CONDVAR *condvar; /* condition variable for 'no readers' event    */
 };
 
@@ -1202,6 +1203,7 @@ static void link_to_file_list(PAGECACHE *pagecache,
   if (block->status & BLOCK_CHANGED)
   {
     block->status&= ~BLOCK_CHANGED;
+    block->rec_lsn= 0;
     pagecache->blocks_changed--;
     pagecache->global_blocks_changed--;
   }
@@ -2509,6 +2511,8 @@ void pagecache_unlock_page(PAGECACHE *pagecache,
     DBUG_ASSERT(lock == PAGECACHE_LOCK_WRITE_UNLOCK &&
                 pin == PAGECACHE_UNPIN);
     /* TODO: insert LSN writing code */
+    DBUG_ASSERT(first_REDO_LSN_for_page > 0);
+    set_if_bigger(block->rec_lsn, first_REDO_LSN_for_page);
   }
 
 #ifndef DBUG_OFF
@@ -2671,6 +2675,8 @@ void pagecache_unlock(PAGECACHE *pagecache,
     DBUG_ASSERT(lock == PAGECACHE_LOCK_WRITE_UNLOCK &&
                 pin == PAGECACHE_UNPIN);
     /* TODO: insert LSN writing code */
+    DBUG_ASSERT(first_REDO_LSN_for_page > 0);
+    set_if_bigger(block->rec_lsn, first_REDO_LSN_for_page);
   }
 
 #ifndef DBUG_OFF
@@ -3012,10 +3018,9 @@ restart:
       pagecache->blocks_changed--;
       pagecache->global_blocks_changed--;
       /*
-        free_block() will change the status of the block so no need to change
-        it here.
+        free_block() will change the status and rec_lsn of the block so no
+        need to change them here.
       */
-
     }
     /* Cache is locked, so we can relese page before freeing it */
     pagecache_make_lock_and_pin(pagecache, block,
@@ -3328,6 +3333,7 @@ static void free_block(PAGECACHE *pagecache, PAGECACHE_BLOCK_LINK *block)
 #ifndef DBUG_OFF
   block->type= PAGECACHE_EMPTY_PAGE;
 #endif
+  block->rec_lsn= 0;
   KEYCACHE_THREAD_TRACE("free block");
   KEYCACHE_DBUG_PRINT("free_block",
                       ("block is freed"));
