@@ -212,7 +212,7 @@ my_bool execute_checkpoint_indirect()
       When we enter here, we must be sure that no "first_in_switch" situation
       is happening or will happen (either we have to get rid of
       first_in_switch in the code or, first_in_switch has to increment a
-      "danger" counter for Checkpoint to know it has to wait.
+      "danger" counter for Checkpoint to know it has to wait. TODO.
     */
     pagecache_pthread_mutex_lock(&pagecache->cache_lock);
 
@@ -251,19 +251,25 @@ my_bool execute_checkpoint_indirect()
           /*
             In the current pagecache, rec_lsn is not set correctly:
             1) it is set on pagecache_unlock(), too late (a page is dirty
-            (BLOCK_CHANGED) since the first pagecache_write()). It may however
-            be not too late, because until unlock(), the page's update is not
-            committed, so it's ok that REDOs for it be skipped at Recovery
-            (which is what happens with an unset rec_lsn). Note that this
-            relies on the assumption that a transaction never commits while
-            holding locks on pages.
+            (BLOCK_CHANGED) since the first pagecache_write()). So in this
+            scenario:
+            thread1:                       thread2:
+            write_REDO
+            pagecache_write()
+                                           checkpoint : reclsn not known
+            pagecache_unlock(sets rec_lsn)
+            commit
+            crash,
+            at recovery we will wrongly skip the REDO. It also affects the
+            low-water mark's computation.
             2) sometimes the unlocking can be an implicit action of
             pagecache_write(), without any call to pagecache_unlock(), then
-            rec_lsn is not set. That one is a critical problem.
+            rec_lsn is not set.
+            1) and 2) are critical problems.
             TODO: fix this when Monty has explained how he writes BLOB pages.
           */
           if (0 == block->rec_lsn)
-            abort(); /* always fail in all builds, in case it's problem 2) */
+            abort(); /* always fail in all builds */
 
           int8store(ptr, block->hash_link->file.file);
           ptr+= 8;
