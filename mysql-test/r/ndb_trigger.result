@@ -1,7 +1,9 @@
-drop table if exists t1, t2, t3;
+drop table if exists t1, t2, t3, t4, t5;
 create table t1 (id int primary key, a int not null, b decimal (63,30) default 0) engine=ndb;
 create table t2 (op char(1), a int not null, b decimal (63,30));
 create table t3 select 1 as i;
+create table t4 (a int not null primary key, b int) engine=ndb;
+create table t5 (a int not null primary key, b int) engine=ndb;
 create trigger t1_bu before update on t1 for each row
 begin
 insert into t2 values ("u", old.a, old.b);
@@ -11,7 +13,19 @@ create trigger t1_bd before delete on t1 for each row
 begin
 insert into t2 values ("d", old.a, old.b);
 end;//
+create trigger t4_au after update on t4
+for each row begin
+update t5 set b = b+1;
+end;
+//
+create trigger t4_ad after delete on t4
+for each row begin
+update t5 set b = b+1;
+end;
+//
 insert into t1 values (1, 1, 1.05), (2, 2, 2.05), (3, 3, 3.05), (4, 4, 4.05);
+insert into t4 values (1,1), (2,2), (3,3), (4, 4);
+insert into t5 values (1,0);
 update t1 set a=5 where a != 3;
 select * from t1 order by id;
 id	a	b
@@ -115,5 +129,16 @@ select * from t2 order by op, a, b;
 op	a	b
 d	1	1.050000000000000000000000000000
 d	2	2.050000000000000000000000000000
-drop tables t1, t2, t3;
-End of 5.0 tests
+update t4 set b = 10 where a = 1;
+select * from t5 order by a;
+a	b
+1	1
+update t5 set b = 0;
+delete from t4 where a = 1;
+select * from t5 order by a;
+a	b
+1	1
+drop trigger t4_au;
+drop trigger t4_ad;
+drop table t1, t2, t3, t4, t5;
+End of 5.1 tests
