@@ -56,9 +56,9 @@ st_transaction system_trans= {0 /* long trans id */, 0 /* short trans id */,0,..
   MEDIUM checkpoint.
 */
 LSN max_rec_lsn_at_last_checkpoint= 0;
-/* last submitted checkpoint request; cleared only when executed */
+/* last submitted checkpoint request; cleared when starts */
 CHECKPOINT_LEVEL next_asynchronous_checkpoint_to_do= NONE;
-CHECKPOINT_LEVEL synchronous_checkpoint_in_progress= NONE;
+CHECKPOINT_LEVEL checkpoint_in_progress= NONE;
 
 static inline ulonglong read_non_atomic(ulonglong volatile *x);
 
@@ -74,16 +74,10 @@ my_bool execute_synchronous_checkpoint(CHECKPOINT_LEVEL level)
   DBUG_ASSERT(level > NONE);
 
   lock(log_mutex);
-  while ((synchronous_checkpoint_in_progress != NONE) ||
-         (next_asynchronous_checkpoint_to_do != NONE))
+  while (checkpoint_in_progress != NONE)
     wait_on_checkpoint_done_cond();
 
-  synchronous_checkpoint_in_progress= level;
   result= execute_checkpoint(level);
-  safemutex_assert_owner(log_mutex);
-  synchronous_checkpoint_in_progress= NONE;
-  unlock(log_mutex);
-  broadcast(checkpoint_done_cond);
   DBUG_RETURN(result);
 }
 
@@ -92,7 +86,7 @@ my_bool execute_synchronous_checkpoint(CHECKPOINT_LEVEL level)
   request, executes it.
   Is safe if multiple threads call it, though in first version only one will.
   It's intended to be used by a thread which regularly calls this function;
-  this is why, if there is a request,it does not wait in a loop for
+  this is why, if there is a request, it does not wait in a loop for
   synchronous checkpoints to be finished, but just exits (because the thread
   may want to do something useful meanwhile (flushing dirty pages for example)
   instead of waiting).
@@ -103,27 +97,20 @@ my_bool execute_asynchronous_checkpoint_if_any()
   CHECKPOINT_LEVEL level;
   DBUG_ENTER("execute_asynchronous_checkpoint");
 
+  /* first check without mutex, ok to see old data */
+  if (likely((next_asynchronous_checkpoint_to_do == NONE) ||
+             (checkpoint_in_progress != NONE)))
+    DBUG_RETURN(FALSE);
+
   lock(log_mutex);
   if (likely((next_asynchronous_checkpoint_to_do == NONE) ||
-             (synchronous_checkpoint_in_progress != NONE)))
+             (checkpoint_in_progress != NONE)))
   {
     unlock(log_mutex);
     DBUG_RETURN(FALSE);
   }
 
-  level= next_asynchronous_checkpoint_to_do;
-  DBUG_ASSERT(level > NONE);
-  result= execute_checkpoint(level);
-  safemutex_assert_owner(log_mutex);
-  /* If only one thread calls this function, "<" can never happen below */
-  if (next_asynchronous_checkpoint_to_do <= level)
-  {
-    /* it's our request or weaker/equal ones, all work is done */
-    next_asynchronous_checkpoint_to_do= NONE;
-  }
-  /* otherwise if it is a stronger request, we'll deal with it at next call */
-  unlock(log_mutex);
-  broadcast(checkpoint_done_cond);
+  result= execute_checkpoint(next_asynchronous_checkpoint_to_do);
   DBUG_RETURN(result);
 }
 
@@ -135,9 +122,13 @@ my_bool execute_asynchronous_checkpoint_if_any()
 */
 my_bool execute_checkpoint(CHECKPOINT_LEVEL level)
 {
+  my_bool result;
   DBUG_ENTER("execute_checkpoint");
 
   safemutex_assert_owner(log_mutex);
+  if (next_asynchronous_checkpoint_to_do <= level)
+    next_asynchronous_checkpoint_to_do= NONE;
+  checkpoint_in_progress= level;
 
   if (unlikely(level > INDIRECT))
   {
@@ -166,11 +157,11 @@ my_bool execute_checkpoint(CHECKPOINT_LEVEL level)
     lock(log_mutex);
   }
 
-  /*
-    keep mutex locked upon exit because callers will want to clear
-    mutex-protected status variables
-  */
-  DBUG_RETURN(execute_checkpoint_indirect());
+  result= execute_checkpoint_indirect();
+  checkpoint_in_progress= NONE;
+  unlock(log_mutex);
+  broadcast(checkpoint_done_cond);
+  DBUG_RETURN(result);
 }
 
 
@@ -181,114 +172,37 @@ my_bool execute_checkpoint(CHECKPOINT_LEVEL level)
 */
 my_bool execute_checkpoint_indirect()
 {
-  int error= 0;
+  int error= 0, i;
   /* checkpoint record data: */
   LSN checkpoint_start_lsn;
-  LEX_STRING string1={0,0}, string2={0,0}, string3={0,0};
-  LEX_STRING *string_array[4];
+  char checkpoint_start_lsn_char[8];
+  LEX_STRING strings[5]={ {&checkpoint_start_lsn_str, 8}, {0,0}, {0,0}, {0,0}, {0,0} };
   char *ptr;
   LSN checkpoint_lsn;
-  LSN candidate_max_rec_lsn_at_last_checkpoint= 0;
+  LSN candidate_max_rec_lsn_at_last_checkpoint;
   DBUG_ENTER("execute_checkpoint_indirect");
 
   DBUG_ASSERT(sizeof(byte *) <= 8);
   DBUG_ASSERT(sizeof(LSN) <= 8);
 
   safemutex_assert_owner(log_mutex);
+
+  /* STEP 1: record current end-of-log LSN */
   checkpoint_start_lsn= log_read_end_lsn();
   if (LSN_IMPOSSIBLE == checkpoint_start_lsn) /* error */
     DBUG_RETURN(TRUE);
   unlock(log_mutex);
 
   DBUG_PRINT("info",("checkpoint_start_lsn %lu", checkpoint_start_lsn));
+  int8store(strings[0].str, checkpoint_start_lsn);
 
-  /* STEP 1: fetch information about dirty pages */
-  /* note: this piece will move into mysys/mf_pagecache.c */
-  {
-    ulong stored_LRD_size= 0;
-    /*
-      We lock the entire cache but will be quick, just reading/writing a few MBs
-      of memory at most.
-      When we enter here, we must be sure that no "first_in_switch" situation
-      is happening or will happen (either we have to get rid of
-      first_in_switch in the code or, first_in_switch has to increment a
-      "danger" counter for Checkpoint to know it has to wait. TODO.
-    */
-    pagecache_pthread_mutex_lock(&pagecache->cache_lock);
+  /* STEP 2: fetch information about dirty pages */
 
-    /*
-      This is an over-estimation, as in theory blocks_changed may contain
-      non-PAGECACHE_LSN_PAGE pages, which we don't want to store into the
-      checkpoint record; the true number of page-LRD-info we'll store into the
-      record is stored_LRD_size.
-    */
-    /*
-      TODO: Ingo says blocks_changed is not a reliable number (see his
-      document); ask him.
-    */
-    string1.length= 8+8+(8+8+8)*pagecache->blocks_changed;
-    if (NULL == (string1.str= my_malloc(string1.length)))
-      goto err;
-    ptr= string1.str;
-    int8store(ptr, checkpoint_start_lsn);
-    ptr+= 8+8; /* don't store stored_LRD_size now, wait */
-    if (pagecache->blocks_changed > 0)
-    {
-      uint file_hash;
-      for (file_hash= 0; file_hash < PAGECACHE_CHANGED_BLOCKS_HASH; file_hash++)
-      {
-        PAGECACHE_BLOCK_LINK *block;
-        for (block= pagecache->changed_blocks[file_hash] ;
-             block;
-             block= block->next_changed)
-        {
-          DBUG_ASSERT(block->hash_link != NULL);
-          DBUG_ASSERT(block->status & BLOCK_CHANGED);
-          if (block->type != PAGECACHE_LSN_PAGE)
-          {
-            continue; /* no need to store it in the checkpoint record */
-          }
-          /*
-            In the current pagecache, rec_lsn is not set correctly:
-            1) it is set on pagecache_unlock(), too late (a page is dirty
-            (BLOCK_CHANGED) since the first pagecache_write()). So in this
-            scenario:
-            thread1:                       thread2:
-            write_REDO
-            pagecache_write()
-                                           checkpoint : reclsn not known
-            pagecache_unlock(sets rec_lsn)
-            commit
-            crash,
-            at recovery we will wrongly skip the REDO. It also affects the
-            low-water mark's computation.
-            2) sometimes the unlocking can be an implicit action of
-            pagecache_write(), without any call to pagecache_unlock(), then
-            rec_lsn is not set.
-            1) and 2) are critical problems.
-            TODO: fix this when Monty has explained how he writes BLOB pages.
-          */
-          if (0 == block->rec_lsn)
-            abort(); /* always fail in all builds */
+  if (pagecache_collect_changed_blocks_with_LSN(pagecache, &strings[1],
+                                                &candidate_max_rec_lsn_at_last_checkpoint))
+    goto err;
 
-          int8store(ptr, block->hash_link->file.file);
-          ptr+= 8;
-          int8store(ptr, block->hash_link->pageno);
-          ptr+= 8;
-          int8store(ptr, block->rec_lsn);
-          ptr+= 8;
-          stored_LRD_size++;
-          DBUG_ASSERT(stored_LRD_size <= pagecache->blocks_changed);
-          set_if_bigger(candidate_max_rec_lsn_at_last_checkpoint,
-                        block->rec_lsn);
-        }
-      }
-      pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
-      int8store(string1.str+8, stored_LRD_size);
-      string1.length= 8+8+(8+8+8)*stored_LRD_size;
-  }
-
-  /* STEP 2: fetch information about transactions */
+  /* STEP 3: fetch information about transactions */
   /* note: this piece will move into trnman.c */
   /*
     Transactions are in the "active list" (protected by a mutex) and in a
@@ -345,7 +259,7 @@ my_bool execute_checkpoint_indirect()
     string2.length= 8+(7+2+8+8+8)*stored_trn_size;
   }
 
-  /* STEP 3: fetch information about table files */
+  /* STEP 4: fetch information about table files */
 
   {
     /* This global mutex is in fact THR_LOCK_maria (see ma_open()) */
@@ -391,13 +305,8 @@ my_bool execute_checkpoint_indirect()
 
   /* LAST STEP: now write the checkpoint log record */
 
-  string_array[0]= string1;
-  string_array[1]= string2;
-  string_array[2]= string3;
-  string_array[3]= NULL;
-
   checkpoint_lsn= log_write_record(LOGREC_CHECKPOINT,
-                                   &system_trans, string_array);
+                                   &system_trans, strings);
 
   /*
     Do nothing between the log write and the control file write, for the
@@ -418,9 +327,8 @@ err:
 
 end:
 
-  my_free(buffer1.str, MYF(MY_ALLOW_ZERO_PTR));
-  my_free(buffer2.str, MYF(MY_ALLOW_ZERO_PTR));
-  my_free(buffer3.str, MYF(MY_ALLOW_ZERO_PTR));
+  for (i= 1; i<5; i++)
+    my_free(strings[i], MYF(MY_ALLOW_ZERO_PTR));
 
   /*
     this portion cannot be done as a hook in write_log_record() for the
@@ -440,7 +348,6 @@ end:
     lock(log_mutex);
     /* That LSN is used for the "two-checkpoint rule" (MEDIUM checkpoints) */
     maximum_rec_lsn_last_checkpoint= candidate_max_rec_lsn_at_last_checkpoint;
-    written_since_last_checkpoint= (my_off_t)0;
     DBUG_RETURN(FALSE);
   }
   lock(log_mutex);
@@ -471,6 +378,8 @@ log_write_record(...)
       thread" WL#3261) to do a checkpoint
     */
     request_asynchronous_checkpoint(INDIRECT);
+    /* prevent similar redundant requests */
+    written_since_last_checkpoint= (my_off_t)0;
   }
   ...;
   unlock(log_mutex);
@@ -488,16 +397,13 @@ void request_asynchronous_checkpoint(CHECKPOINT_LEVEL level);
   safemutex_assert_owner(log_mutex);
 
   DBUG_ASSERT(level > NONE);
-  if (next_asynchronous_checkpoint_to_do < level)
+  if ((next_asynchronous_checkpoint_to_do < level) &&
+      (checkpoint_in_progress < level))
   {
     /* no equal or stronger running or to run, we post request */
     /*
-      note that thousands of requests for checkpoints are going to come all
-      at the same time (when the log bound
-      MAX_LOG_BYTES_WRITTEN_BETWEEN_CHECKPOINTS is passed), so it may not be a
-      good idea for each of them to broadcast a cond to wake up the background
-      checkpoint thread. We just don't broacast a cond, the checkpoint thread
-      (see least_recently_dirtied.c) will notice our request in max a few
+      We just don't broacast a cond, the checkpoint thread
+      (see ma_least_recently_dirtied.c) will notice our request in max a few
       seconds.
     */
     next_asynchronous_checkpoint_to_do= level; /* post request */
@@ -520,6 +426,7 @@ void request_asynchronous_checkpoint(CHECKPOINT_LEVEL level);
   first_undo_lsn), this function can be used to do a read of it (without
   mutex, without atomic load) which always produces a correct (though maybe
   slightly old) value (even on 32-bit CPUs).
+  The prototype will change with Sanja's new LSN type.
 */
 static inline ulonglong read_non_atomic(ulonglong volatile *x)
 {

@@ -221,6 +221,9 @@ extern my_bool pagecache_delete_page(PAGECACHE *pagecache,
                                      enum pagecache_page_lock lock,
                                      my_bool flush);
 extern void end_pagecache(PAGECACHE *keycache, my_bool cleanup);
+extern my_bool pagecache_collect_changed_blocks_with_LSN(PAGECACHE *pagecache,
+                                                         LEX_STRING *str,
+                                                         LSN *max_lsn);
 
 C_MODE_END
 #endif /* _keycache_h */
