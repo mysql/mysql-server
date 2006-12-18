@@ -41,6 +41,7 @@ delimiter ;//
 select * from t2 order by a;
 call test_cursor();
 select * from t2 order by a;
+drop procedure test_cursor;
 drop table t1,t2;
 
 --echo end of 5.1 tests
