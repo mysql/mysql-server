@@ -94,17 +94,19 @@ typedef void * (__cdecl *pthread_handler)(void *);
   __int64 i64;
  };
 struct timespec {
-  union ft64 start;
+  union ft64 tv;
   /* The max timeout value in millisecond for pthread_cond_timedwait */
-  long timeout_msec;
+  long max_timeout_msec;
 };
 #define set_timespec(ABSTIME,SEC) { \
-  GetSystemTimeAsFileTime(&((ABSTIME).start.ft)); \
-  (ABSTIME).timeout_msec= (long)((SEC)*1000); \
+  GetSystemTimeAsFileTime(&((ABSTIME).tv.ft)); \
+  (ABSTIME).tv.i64+= (__int64)(SEC)*10000000; \
+  (ABSTIME).max_timeout_msec= (long)((SEC)*1000); \
 }
 #define set_timespec_nsec(ABSTIME,NSEC) { \
-  GetSystemTimeAsFileTime(&((ABSTIME).start.ft)); \
-  (ABSTIME).timeout_msec= (long)((NSEC)/1000000); \
+  GetSystemTimeAsFileTime(&((ABSTIME).tv.ft)); \
+  (ABSTIME).tv.i64+= (__int64)(NSEC)/100; \
+  (ABSTIME).max_timeout_msec= (long)((NSEC)/1000000); \
 }
 
 void win_pthread_init(void);
