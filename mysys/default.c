@@ -979,10 +979,11 @@ static uint my_get_system_windows_directory(char *buffer, uint size)
 
   Everywhere else, this is:
     1. /etc/
-    2. getenv(DEFAULT_HOME_ENV)
-    3. ""
-    4. "~/"
-    5. --sysconfdir=<path>
+    2. /etc/mysql/
+    3. getenv(DEFAULT_HOME_ENV)
+    4. ""
+    5. "~/"
+    6. --sysconfdir=<path>
 
  */
 
@@ -1008,6 +1009,7 @@ static void init_default_directories()
     *ptr++= env;
 #endif
   *ptr++= "/etc/";
+  *ptr++= "/etc/mysql/";
 #endif
   if ((env= getenv(STRINGIFY_ARG(DEFAULT_HOME_ENV))))
     *ptr++= env;
