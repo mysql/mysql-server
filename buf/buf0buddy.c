@@ -413,6 +413,15 @@ recombine:
 
 	buddy = (buf_page_t*) buf_buddy_get(((byte*) buf), BUF_BUDDY_LOW << i);
 
+	if (buddy->state != BUF_BLOCK_ZIP_FREE) {
+
+		goto buddy_nonfree;
+	}
+
+	/* The field buddy->state can only be trusted for free blocks.
+	If buddy->state == BUF_BLOCK_ZIP_FREE, the block is free if
+	it is in the free list. */
+
 	for (bpage = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
 	     bpage; bpage = UT_LIST_GET_NEXT(list, bpage)) {
 		ut_ad(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);
@@ -436,6 +445,7 @@ buddy_free:
 		ut_a(bpage != buf);
 	}
 
+buddy_nonfree:
 	/* The buddy is not free. Is there a free block of this size? */
 	bpage = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
 
