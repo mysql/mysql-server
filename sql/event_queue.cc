@@ -693,9 +693,7 @@ static const char *queue_wait_msg= "Waiting for next activation";
   SYNOPSIS
     Event_queue::get_top_for_execution_if_time()
       thd      [in]  Thread
-      now      [in]  Current timestamp
       job_data [out] The object to execute
-      abstime  [out] Time to sleep
 
   RETURN VALUE
     FALSE  No error. If *job_data==NULL then top not elligible for execution.
