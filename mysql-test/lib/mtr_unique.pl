@@ -10,10 +10,16 @@ use Fcntl ':flock';
 # Requested IDs are stored in a hash and released upon END.
 #
 my %mtr_unique_assigned_ids = ();
+my $mtr_unique_pid;
+BEGIN {
+	$mtr_unique_pid = $$ unless defined $mtr_unique_pid;
+}
 END { 
-	while(my ($id,$file) = each(%mtr_unique_assigned_ids)) {
-		print "Autoreleasing $file:$id\n";
-		mtr_release_unique_id($file, $id);
+	if($mtr_unique_pid == $$) {
+		while(my ($id,$file) = each(%mtr_unique_assigned_ids)) {
+			print "Autoreleasing $file:$id\n";
+			mtr_release_unique_id($file, $id);
+		}
 	}
 }
 
