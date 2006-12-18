@@ -29,7 +29,8 @@ buf_buddy_get_offset(
 	__attribute__((nonnull));
 
 /**************************************************************************
-Get the buddy of a compressed page frame. */
+Get the buddy of a compressed page frame.
+Note: "page" should be a pointer to byte or char. */
 #define buf_buddy_get(page,size) ((page) + buf_buddy_get_offset((page),(size)))
 
 /**************************************************************************

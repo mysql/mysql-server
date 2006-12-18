@@ -447,7 +447,8 @@ buddy_free:
 		}
 
 		/* Try to relocate the buddy of the free block to buf. */
-		buddy = buf_buddy_get(bpage, BUF_BUDDY_LOW << i);
+		buddy = (buf_page_t*) buf_buddy_get(((byte*) bpage),
+						    BUF_BUDDY_LOW << i);
 
 #ifdef UNIV_DEBUG
 		{
