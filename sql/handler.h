@@ -21,6 +21,7 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include <my_handler.h>
 #include <ft_global.h>
 #include <keycache.h>
 
@@ -260,6 +261,7 @@ enum legacy_db_type
   DB_TYPE_TABLE_FUNCTION,
   DB_TYPE_MEMCACHE,
   DB_TYPE_FALCON,
+  DB_TYPE_MARIA,
   DB_TYPE_FIRST_DYNAMIC=42,
   DB_TYPE_DEFAULT=127 // Must be last
 };

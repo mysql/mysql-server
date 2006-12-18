@@ -629,7 +629,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     key_type= HA_KEYTYPE_VARTEXT1;
     break;
   case 'k':
-    if (key_length < 4 || key_length > MI_MAX_KEY_LENGTH)
+    if (key_length < 4 || key_length > HA_MAX_KEY_LENGTH)
     {
       fprintf(stderr,"Wrong key length\n");
       exit(1);
