@@ -386,16 +386,16 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 create table t1 (a int not null, b int not null) engine=ndb;
 insert into t1 values (1, 300), (2, 200), (3, 100);
-select * from t1;
+select * from t1 order by a;
 a	b
-3	100
-2	200
 1	300
+2	200
+3	100
 alter table t1 order by b;
-select * from t1;
+select * from t1 order by b;
 a	b
-1	300
-2	200
 3	100
+2	200
+1	300
 drop table t1;
 End of 5.1 tests
