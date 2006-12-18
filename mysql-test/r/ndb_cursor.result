@@ -35,5 +35,6 @@ a	b
 2	20
 3	30
 4	40
+drop procedure test_cursor;
 drop table t1,t2;
 end of 5.1 tests
