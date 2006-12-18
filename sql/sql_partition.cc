@@ -4739,6 +4739,7 @@ state of p1.
       }
       alt_part_info->part_type= tab_part_info->part_type;
       alt_part_info->subpart_type= tab_part_info->subpart_type;
+      alt_part_info->no_subparts= tab_part_info->no_subparts;
       DBUG_ASSERT(!alt_part_info->use_default_partitions);
       if (alt_part_info->set_up_defaults_for_partitioning(table->file,
                                                           ULL(0), 
