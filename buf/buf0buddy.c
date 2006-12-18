@@ -15,7 +15,6 @@ Created December 2006 by Marko Makela
 #include "buf0buf.h"
 #include "buf0lru.h"
 #include "buf0flu.h"
-#include "page0page.h"
 #include "page0zip.h"
 
 /**************************************************************************
@@ -46,7 +45,8 @@ buf_buddy_alloc_zip(
 		bpage = buf_buddy_alloc_zip(i + 1);
 
 		if (bpage) {
-			buf_page_t*	buddy = bpage + (BUF_BUDDY_LOW << i);
+			buf_page_t*	buddy = (buf_page_t*)
+				(((char*) bpage) + (BUF_BUDDY_LOW << i));
 
 			UT_LIST_ADD_FIRST(list, buf_pool->zip_free[i], buddy);
 		}
@@ -195,13 +195,19 @@ buf_buddy_alloc_clean(
 	for (bpage = UT_LIST_GET_LAST(buf_pool->LRU); bpage;
 	     bpage = UT_LIST_GET_PREV(LRU, bpage)) {
 
-		void* ret;
+		void*		ret;
+		mutex_t*	block_mutex = buf_page_get_mutex(bpage);
+
+		mutex_enter(block_mutex);
 
 		/* Keep the compressed pages of uncompressed blocks. */
 		if (!buf_LRU_free_block(bpage, FALSE)) {
 
+			mutex_exit(block_mutex);
 			continue;
 		}
+
+		mutex_exit(block_mutex);
 
 		ret = buf_buddy_alloc_zip(i);
 
@@ -291,7 +297,6 @@ buf_buddy_relocate(
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!ut_align_offset(src, size));
 	ut_ad(!ut_align_offset(dst, size));
-	ut_ad((((ulint) src) ^ ((ulint) dst)) == size);
 
 	/* We assume that all memory from buf_buddy_alloc()
 	is used for either compressed pages or buf_page_t
@@ -301,8 +306,11 @@ buf_buddy_relocate(
 		/* This is a compressed page. */
 		mutex_t*	mutex;
 
-		bpage = buf_page_hash_get(page_get_space_id(src),
-					  page_get_page_no(src));
+		bpage = buf_page_hash_get(
+			mach_read_from_4(src
+					 + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID),
+			mach_read_from_4(src
+					 + FIL_PAGE_OFFSET));
 		ut_a(bpage);
 		mutex = buf_page_get_mutex(bpage);
 
@@ -407,24 +415,7 @@ recombine:
 
 	for (bpage = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
 	     bpage; bpage = UT_LIST_GET_NEXT(list, bpage)) {
-
-		ut_ad(bpage->in_LRU_list);
-#ifdef UNIV_DEBUG
-		switch (buf_page_get_state(bpage)) {
-		case BUF_BLOCK_ZIP_PAGE:
-		case BUF_BLOCK_ZIP_DIRTY:
-			goto state_ok;
-		case BUF_BLOCK_ZIP_FREE:
-		case BUF_BLOCK_NOT_USED:
-		case BUF_BLOCK_READY_FOR_USE:
-		case BUF_BLOCK_FILE_PAGE:
-		case BUF_BLOCK_MEMORY:
-		case BUF_BLOCK_REMOVE_HASH:
-			break;
-		}
-		ut_error;
-state_ok:
-#endif /* UNIV_DEBUG */
+		ut_ad(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);
 
 		if (bpage == buddy) {
 buddy_free:
