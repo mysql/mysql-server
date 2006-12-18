@@ -755,6 +755,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Mon Dec 18 2006 Joerg Bruehe <joerg@mysql.com>
+
+- Fix the move of "mysqlmanager" to section 8: Directory name was wrong.
+
 * Thu Dec 14 2006 Joerg Bruehe <joerg@mysql.com>
 
 - Include the new man pages for "my_print_defaults" and "mysql_tzinfo_to_sql"
