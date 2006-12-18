@@ -431,9 +431,9 @@ drop table t1;
 # alter .. order by
 create table t1 (a int not null, b int not null) engine=ndb;
 insert into t1 values (1, 300), (2, 200), (3, 100);
-select * from t1;
+select * from t1 order by a;
 alter table t1 order by b;
-select * from t1;
+select * from t1 order by b;
 drop table t1;
 
 --echo End of 5.1 tests
