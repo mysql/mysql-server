@@ -39,22 +39,35 @@ Uint32 makeVersion(Uint32 major, Uint32 minor, Uint32 build) {
 }
 
 char ndb_version_string_buf[NDB_VERSION_STRING_BUF_SZ];
-const char * getVersionString(Uint32 version, const char * status,
+const char * getVersionString(Uint32 version, Uint32 mysql_version, 
+			      const char * status,
 			      char *buf, unsigned sz)
 {
+  char tmp[100];
   if (status && status[0] != 0)
-	  basestring_snprintf(buf, sz,
-	     "Version %d.%d.%d (%s)",
-	     getMajor(version),
-	     getMinor(version),
-	     getBuild(version),
-	     status);
+    basestring_snprintf(tmp, sizeof(tmp), "%s", status);
   else
-    basestring_snprintf(buf, sz,
-	     "Version %d.%d.%d",
-	     getMajor(version),
-	     getMinor(version),
-	     getBuild(version));
+    tmp[0] = 0;
+
+  if (mysql_version)
+  {
+    basestring_snprintf(buf, sz, "mysql-%d.%d.%d ndb-%d.%d.%d%s",
+			getMajor(mysql_version),
+			getMinor(mysql_version),
+			getBuild(mysql_version),
+			getMajor(version),
+			getMinor(version),
+			getBuild(version),
+			tmp);
+  }
+  else
+  {
+    basestring_snprintf(buf, sz, "ndb-%d.%d.%d%s",
+			getMajor(version),
+			getMinor(version),
+			getBuild(version),
+			tmp);
+  }
   return buf;
 }
 

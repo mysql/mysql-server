@@ -192,6 +192,7 @@ ClusterMgr::forceHB()
     ApiRegReq * req = CAST_PTR(ApiRegReq, signal.getDataPtrSend());
     req->ref = numberToRef(API_CLUSTERMGR, theFacade.ownId());
     req->version = NDB_VERSION;
+    req->mysql_version = NDB_MYSQL_VERSION_D;
 
     int nodeId= 0;
     for(int i=0;
@@ -224,7 +225,7 @@ ClusterMgr::threadMain( ){
   ApiRegReq * req = CAST_PTR(ApiRegReq, signal.getDataPtrSend());
   req->ref = numberToRef(API_CLUSTERMGR, theFacade.ownId());
   req->version = NDB_VERSION;
-
+  req->mysql_version = NDB_MYSQL_VERSION_D;
   
   Uint32 timeSlept = 100;
   Uint64 now = NdbTick_CurrentMillisecond();
@@ -357,6 +358,7 @@ ClusterMgr::execAPI_REGREQ(const Uint32 * theData){
   ApiRegConf * const conf = CAST_PTR(ApiRegConf, signal.getDataPtrSend());
   conf->qmgrRef = numberToRef(API_CLUSTERMGR, theFacade.ownId());
   conf->version = NDB_VERSION;
+  conf->mysql_version = NDB_MYSQL_VERSION_D;
   conf->apiHeartbeatFrequency = node.hbFrequency;
   theFacade.sendSignalUnCond(&signal, nodeId);
 }
@@ -380,6 +382,10 @@ ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
 
   if(node.m_info.m_version != apiRegConf->version){
     node.m_info.m_version = apiRegConf->version;
+    node.m_info.m_mysql_version = apiRegConf->mysql_version;
+    if (node.m_info.m_version < NDBD_SPLIT_VERSION)
+      node.m_info.m_mysql_version = 0;
+        
     if (global_mgmt_server_check == 1)
       node.compatible = ndbCompatible_mgmt_ndb(NDB_VERSION,
 					       node.m_info.m_version);

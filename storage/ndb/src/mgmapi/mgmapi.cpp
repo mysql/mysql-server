@@ -724,6 +724,8 @@ status_ackumulate(struct ndb_mgm_node_state * state,
     state->node_group = atoi(value);
   } else if(strcmp("version", field) == 0){
     state->version = atoi(value);
+  } else if(strcmp("mysql_version", field) == 0){
+    state->mysql_version = atoi(value);
   } else if(strcmp("connect_count", field) == 0){
     state->connect_count = atoi(value);    
   } else if(strcmp("address", field) == 0){
@@ -1274,13 +1276,13 @@ ndb_mgm_get_clusterlog_severity_filter(NdbMgmHandle handle,
     MGM_ARG(clusterlog_severity_names[5], Int, Mandatory, ""),
     MGM_ARG(clusterlog_severity_names[6], Int, Mandatory, ""),
   };
-  CHECK_HANDLE(handle, NULL);
-  CHECK_CONNECTED(handle, NULL);
+  CHECK_HANDLE(handle, -1);
+  CHECK_CONNECTED(handle, -1);
 
   Properties args;
   const Properties *reply;
   reply = ndb_mgm_call(handle, getinfo_reply, "get info clusterlog", &args);
-  CHECK_REPLY(reply, NULL);
+  CHECK_REPLY(reply, -1);
   
   for(unsigned int i=0; i < severity_size; i++) {
     reply->get(clusterlog_severity_names[severity[i].category], &severity[i].value);
@@ -1431,13 +1433,13 @@ ndb_mgm_get_clusterlog_loglevel(NdbMgmHandle handle,
     MGM_ARG(clusterlog_names[10], Int, Mandatory, ""),
     MGM_ARG(clusterlog_names[11], Int, Mandatory, ""),
   };
-  CHECK_HANDLE(handle, NULL);
-  CHECK_CONNECTED(handle, NULL);
+  CHECK_HANDLE(handle, -1);
+  CHECK_CONNECTED(handle, -1);
 
   Properties args;
   const Properties *reply;
   reply = ndb_mgm_call(handle, getloglevel_reply, "get cluster loglevel", &args);
-  CHECK_REPLY(reply, NULL);
+  CHECK_REPLY(reply, -1);
 
   for(int i=0; i < loglevel_count; i++) {
     reply->get(clusterlog_names[loglevel[i].category], &loglevel[i].value);
