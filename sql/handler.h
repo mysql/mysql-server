@@ -764,7 +764,7 @@ typedef struct st_ha_create_information
   bool table_existed;			/* 1 in create if table existed */
   bool frm_only;                        /* 1 if no ha_create_table() */
   bool varchar;                         /* 1 if table has a VARCHAR */
-  bool store_on_disk;                   /* 1 if table stored on disk */
+  enum ha_storage_media storage_media;  /* DEFAULT, DISK or MEMORY */
 } HA_CREATE_INFO;
 
 
@@ -1410,7 +1410,7 @@ public:
   { return FALSE; }
   virtual char* get_foreign_key_create_info()
   { return(NULL);}  /* gets foreign key create string from InnoDB */
-  virtual char* get_tablespace_name(THD *thd, char *name)
+  virtual char* get_tablespace_name(THD *thd, char *name, uint name_len)
   { return(NULL);}  /* gets tablespace name from handler */
   /* used in ALTER TABLE; 1 if changing storage engine is allowed */
   virtual bool can_switch_engines() { return 1; }

@@ -3947,8 +3947,8 @@ create_table_option:
 	| DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.data_file_name= $4.str; Lex->create_info.used_fields|= HA_CREATE_USED_DATADIR; }
 	| INDEX_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.index_file_name= $4.str;  Lex->create_info.used_fields|= HA_CREATE_USED_INDEXDIR; }
         | TABLESPACE ident {Lex->create_info.tablespace= $2.str;}
-        | STORAGE_SYM DISK_SYM {Lex->create_info.store_on_disk= TRUE;}
-        | STORAGE_SYM MEMORY_SYM {Lex->create_info.store_on_disk= FALSE;}
+        | STORAGE_SYM DISK_SYM {Lex->create_info.storage_media= HA_SM_DISK;}
+        | STORAGE_SYM MEMORY_SYM {Lex->create_info.storage_media= HA_SM_MEMORY;}
 	| CONNECTION_SYM opt_equal TEXT_STRING_sys { Lex->create_info.connect_string.str= $3.str; Lex->create_info.connect_string.length= $3.length;  Lex->create_info.used_fields|= HA_CREATE_USED_CONNECTION; }
 	| KEY_BLOCK_SIZE opt_equal ulong_num
 	  {
@@ -4690,6 +4690,7 @@ alter:
 	  lex->alter_info.reset();
 	  lex->alter_info.flags= 0;
           lex->no_write_to_binlog= 0;
+          lex->create_info.storage_media= HA_SM_DEFAULT;	
 	}
 	alter_commands
 	{}
@@ -8342,6 +8343,7 @@ show_param:
 	    if (!lex->select_lex.add_table_to_list(YYTHD, $3, NULL,0))
 	      YYABORT;
             lex->only_view= 0;
+	    lex->create_info.storage_media= HA_SM_DEFAULT;
 	  }
         | CREATE VIEW_SYM table_ident
           {
