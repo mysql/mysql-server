@@ -1,5 +1,4 @@
 drop table if exists t1;
-drop table if exists t2;
 create table t1 (
 a int not null primary key,
 b int not null
