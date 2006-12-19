@@ -4807,7 +4807,7 @@ int ha_ndbcluster::create(const char *name,
     if ((my_errno= create_ndb_column(col, field, info)))
       DBUG_RETURN(my_errno);
  
-    if (info->store_on_disk || getenv("NDB_DEFAULT_DISK"))
+    if (info->storage_media == HA_SM_DISK || getenv("NDB_DEFAULT_DISK"))
       col.setStorageType(NdbDictionary::Column::StorageTypeDisk);
     else
       col.setStorageType(NdbDictionary::Column::StorageTypeMemory);
@@ -4827,7 +4827,7 @@ int ha_ndbcluster::create(const char *name,
                              NdbDictionary::Column::StorageTypeMemory);
   }
 
-  if (info->store_on_disk)
+  if (info->storage_media == HA_SM_DISK)
   { 
     if (info->tablespace)
       tab.setTablespace(info->tablespace);
@@ -4837,7 +4837,7 @@ int ha_ndbcluster::create(const char *name,
   else if (info->tablespace)
   {
     tab.setTablespace(info->tablespace);
-    info->store_on_disk = true;  //if use tablespace, that also means store on disk
+    info->storage_media = HA_SM_DISK;  //if use tablespace, that also means store on disk
   }
 
   // No primary key, create shadow key as 64 bit, auto increment  
@@ -9949,7 +9949,7 @@ int ha_ndbcluster::generate_scan_filter_from_key(NdbScanOperation *op,
 /*
   get table space info for SHOW CREATE TABLE
 */
-char* ha_ndbcluster::get_tablespace_name(THD *thd, char* name)
+char* ha_ndbcluster::get_tablespace_name(THD *thd, char* name, uint name_len)
 {
   Ndb *ndb= check_ndb_in_thd(thd);
   NDBDICT *ndbdict= ndb->getDictionary();
@@ -9969,7 +9969,7 @@ char* ha_ndbcluster::get_tablespace_name(THD *thd, char* name)
       goto err;
     if (name)
     {
-      strxnmov(name, FN_LEN, ts.getName(), NullS);
+      strxnmov(name, name_len, ts.getName(), NullS);
       return name;
     }
     else

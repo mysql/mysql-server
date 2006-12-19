@@ -5630,14 +5630,14 @@ view_err:
   if (!(used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE))
     create_info->key_block_size= table->s->key_block_size;
 
-  if (!create_info->tablespace)
+  if (!create_info->tablespace && create_info->storage_media != HA_SM_MEMORY)
   {
     /* 
-       Regular alter table of disk stored table (no tablespace change)
+       Regular alter table of disk stored table (no tablespace/storage change)
        Copy tablespace name
     */
-    if (table->file->get_tablespace_name(thd, (char *) &tablespace))
-      create_info->tablespace= (char *) &tablespace;
+    if ((table->file->get_tablespace_name(thd, tablespace, FN_LEN)))
+      create_info->tablespace= tablespace;
   }
   restore_record(table, s->default_values);     // Empty record for DEFAULT
   List_iterator<Alter_drop> drop_it(alter_info->drop_list);
