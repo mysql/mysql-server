@@ -900,9 +900,9 @@ for compressed and uncompressed frames */
 
 struct buf_page_struct{
 	/* None of the following bit-fields must be modified without
-	holding block->mutex, since they can be stored in the same
-	machine word.  Some of them are additionally protected by
-	buf_pool->mutex. */
+	holding block->mutex or buf_pool->zip_mutex, since they can be
+	stored in the same machine word.  Some of them are
+	additionally protected by buf_pool->mutex. */
 
 	unsigned	space:32;	/* tablespace id */
 	unsigned	offset:32;	/* page number */
@@ -925,7 +925,9 @@ struct buf_page_struct{
 	unsigned	buf_fix_count:24;/* count of how manyfold this block
 					is currently bufferfixed */
 
-	page_zip_des_t	zip;		/* compressed page */
+	page_zip_des_t	zip;		/* compressed page; zip.data
+					(but not the data it points to) is
+					also protected by buf_pool->mutex */
 	buf_page_t*	hash;		/* node used in chaining to
 					buf_pool->page_hash or
 					buf_pool->zip_hash */
