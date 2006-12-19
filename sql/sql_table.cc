@@ -5307,7 +5307,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   int error;
   char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN];
   char new_alias_buff[FN_REFLEN], *table_name, *db, *new_alias, *alias;
-  char index_file[FN_REFLEN], data_file[FN_REFLEN];
+  char index_file[FN_REFLEN], data_file[FN_REFLEN], tablespace[FN_LEN];
   char path[FN_REFLEN];
   char reg_path[FN_REFLEN+1];
   ha_rows copied,deleted;
@@ -5630,6 +5630,15 @@ view_err:
   if (!(used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE))
     create_info->key_block_size= table->s->key_block_size;
 
+  if (!create_info->tablespace)
+  {
+    /* 
+       Regular alter table of disk stored table (no tablespace change)
+       Copy tablespace name
+    */
+    if (table->file->get_tablespace_name(thd, (char *) &tablespace))
+      create_info->tablespace= (char *) &tablespace;
+  }
   restore_record(table, s->default_values);     // Empty record for DEFAULT
   List_iterator<Alter_drop> drop_it(alter_info->drop_list);
   List_iterator<create_field> def_it(fields);

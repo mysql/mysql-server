@@ -156,7 +156,11 @@ enable_query_log;
 
 SELECT * FROM test.t1 ORDER BY a1;
 
+SELECT * FROM information_schema.partitions WHERE table_name= 't1' AND partition_name = 'p0';
+
 ALTER TABLE test.t1 ADD a2 FLOAT, ADD a3 DOUBLE;
+
+SELECT * FROM information_schema.partitions WHERE table_name= 't1' AND partition_name = 'p0';
 
 let $1=20;
 disable_query_log;
