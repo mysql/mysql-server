@@ -5406,16 +5406,19 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     {
       my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
                  ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
-      DBUG_RETURN(1);
+      DBUG_RETURN(TRUE);
     }
 
     if (wait_if_global_read_lock(thd,0,1))
-      DBUG_RETURN(1);
+      DBUG_RETURN(TRUE);
     VOID(pthread_mutex_lock(&LOCK_open));
     if (lock_table_names(thd, table_list))
+    {
+      error= TRUE;
       goto view_err;
+    }
     
-    error=0;
+    error= FALSE;
     if (!do_rename(thd, table_list, new_db, new_name, new_name, 1))
     {
       if (mysql_bin_log.is_open())
@@ -5555,6 +5558,10 @@ view_err:
       wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
       error=table->file->disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
       /* COND_refresh will be signaled in close_thread_tables() */
+      break;
+    default:
+      DBUG_ASSERT(FALSE);
+      error= 0;
       break;
     }
     if (error == HA_ERR_WRONG_COMMAND)
