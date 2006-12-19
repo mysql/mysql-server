@@ -14,7 +14,7 @@ set GLOBAL query_cache_size=1355776;
 
 reset query cache;
 flush status;
-connect (root,localhost,root,,test,$MASTER_MYPORT,master.sock);
+connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection root;
 show grants for current_user;
 show grants;
@@ -29,7 +29,7 @@ insert into mysqltest.t2 values (3,3,3);
 create table test.t1 (a char (10));
 insert into test.t1 values ("test.t1");
 select * from t1;
-connect (root2,localhost,root,,mysqltest,$MASTER_MYPORT,master.sock);
+connect (root2,localhost,root,,mysqltest,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection root2;
 # put queries in cache
 select * from t1;
@@ -47,7 +47,7 @@ grant SELECT on test.t1 to mysqltest_2@localhost;
 grant SELECT(a) on mysqltest.t1 to mysqltest_3@localhost;
 
 # The following queries should be fetched from cache
-connect (user1,localhost,mysqltest_1,,mysqltest,$MASTER_MYPORT,master.sock);
+connect (user1,localhost,mysqltest_1,,mysqltest,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection user1;
 show grants for current_user();
 show status like "Qcache_queries_in_cache";
@@ -72,12 +72,12 @@ show status like "Qcache_hits";
 show status like "Qcache_not_cached";
 
 # Don't use '' as user because it will pick Unix login
-connect (unkuser,localhost,unkuser,,,$MASTER_MYPORT,master.sock);
+connect (unkuser,localhost,unkuser,,,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection unkuser;
 show grants for current_user();
 
 # The following queries should be fetched from cache
-connect (user2,localhost,mysqltest_2,,mysqltest,$MASTER_MYPORT,master.sock);
+connect (user2,localhost,mysqltest_2,,mysqltest,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection user2;
 select "user2";
 select * from t1;
@@ -92,7 +92,7 @@ show status like "Qcache_hits";
 show status like "Qcache_not_cached";
 
 # The following queries should not be fetched from cache
-connect (user3,localhost,mysqltest_3,,mysqltest,$MASTER_MYPORT,master.sock);
+connect (user3,localhost,mysqltest_3,,mysqltest,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection user3;
 select "user3";
 --replace_result 127.0.0.1 localhost
@@ -113,7 +113,7 @@ show status like "Qcache_hits";
 show status like "Qcache_not_cached";
 
 # Connect without a database
-connect (user4,localhost,mysqltest_1,,*NO-ONE*,$MASTER_MYPORT,master.sock);
+connect (user4,localhost,mysqltest_1,,*NO-ONE*,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection user4;
 select "user4";
 show grants;
