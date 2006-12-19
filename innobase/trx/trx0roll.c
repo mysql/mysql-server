@@ -129,9 +129,27 @@ trx_rollback_for_mysql(
 	}
 
 	trx->op_info = "rollback";
-	
-	err = trx_general_rollback_for_mysql(trx, FALSE, NULL);
 
+	/* If we are doing the XA recovery of prepared transactions, then
+	the transaction object does not have an InnoDB session object, and we
+	set a dummy session that we use for all MySQL transactions. */
+	
+	mutex_enter(&kernel_mutex);
+
+	if (trx->sess == NULL) {
+		/* Open a dummy session */
+
+		if (!trx_dummy_sess) {
+			trx_dummy_sess = sess_open();
+		}
+
+		trx->sess = trx_dummy_sess;
+	}
+
+	mutex_exit(&kernel_mutex);
+
+	err = trx_general_rollback_for_mysql(trx, FALSE, NULL);
+	
 	trx->op_info = "";
 
 	return(err);
