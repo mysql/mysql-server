@@ -216,6 +216,7 @@ public:
   int status(int nodeId,
 	     ndb_mgm_node_status * status,
 	     Uint32 * version,
+	     Uint32 * mysql_version,
 	     Uint32 * phase,
 	     bool * systemShutdown,
 	     Uint32 * dynamicId,
@@ -271,7 +272,8 @@ public:
    *   @param   processId: Id of the DB process to stop
    *   @return  0 if succeeded, otherwise: as stated above, plus:
    */
-  int versionNode(int nodeId, Uint32 &version, const char **address);
+  int versionNode(int nodeId, Uint32 &version, Uint32 &version,
+		  const char **address);
 
   /**
    *   Maintenance on the system
@@ -620,7 +622,7 @@ private:
   /**
    * An event from <i>nodeId</i> has arrived
    */
-  void eventReport(const Uint32 * theData);
+  void eventReport(const Uint32 * theData, Uint32 len);
  
 
   //**************************************************************************
@@ -646,7 +648,8 @@ private:
   char m_local_mgm_connect_string[20];
   class TransporterFacade * theFacade;
 
-  int  sendVersionReq( int processId, Uint32 &version, const char **address);
+  int  sendVersionReq( int processId, Uint32 &version, Uint32& mysql_version,
+		       const char **address);
   int translateStopRef(Uint32 errCode);
   
   bool _isStopThread;
