@@ -2461,7 +2461,7 @@ MgmtSrvr::eventReport(const Uint32 * theData, Uint32 len)
   // Log event
   g_eventLogger.log(type, theData, len, nodeId, 
 		    &m_event_listner[0].m_logLevel);  
-  m_event_listner.log(type, theData, nodeId);
+  m_event_listner.log(type, theData, len, nodeId);
 }
 
 /***************************************************************************

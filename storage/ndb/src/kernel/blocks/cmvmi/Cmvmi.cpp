@@ -230,7 +230,7 @@ void Cmvmi::execEVENT_REP(Signal* signal)
 
   // Print the event info
   g_eventLogger.log(eventReport->getEventType(), 
-		    signal->theData, signal->getLength());
+		    signal->theData, signal->getLength(), 0, 0);
   
   return;
 }//execEVENT_REP()
