@@ -48,9 +48,17 @@ buf_buddy_alloc_zip(
 			buf_page_t*	buddy = (buf_page_t*)
 				(((char*) bpage) + (BUF_BUDDY_LOW << i));
 
+			ut_d(memset(buddy, i, BUF_BUDDY_LOW << i));
+			buddy->state = BUF_BLOCK_ZIP_FREE;
 			UT_LIST_ADD_FIRST(list, buf_pool->zip_free[i], buddy);
 		}
 	}
+
+#ifdef UNIV_DEBUG
+	if (bpage) {
+		memset(bpage, ~i, BUF_BUDDY_LOW << i);
+	}
+#endif /* UNIV_DEBUG */
 
 	return(bpage);
 }
@@ -76,6 +84,7 @@ buf_buddy_block_free(
 		    ((buf_block_t*) bpage)->frame == buf);
 	ut_a(bpage);
 	ut_a(buf_page_get_state(bpage) == BUF_BLOCK_MEMORY);
+	ut_d(memset(buf, 0, UNIV_PAGE_SIZE));
 
 	block = (buf_block_t*) bpage;
 	mutex_enter(&block->mutex);
@@ -127,6 +136,7 @@ buf_buddy_alloc_from(
 		j--;
 
 		bpage = (buf_page_t*) ((byte*) buf + offs);
+		ut_d(memset(bpage, j, BUF_BUDDY_LOW << j));
 		bpage->state = BUF_BLOCK_ZIP_FREE;
 		UT_LIST_ADD_FIRST(list, buf_pool->zip_free[j], bpage);
 	}
@@ -311,7 +321,16 @@ buf_buddy_relocate(
 					 + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID),
 			mach_read_from_4(src
 					 + FIL_PAGE_OFFSET));
-		ut_a(bpage);
+
+		if (!bpage || bpage->zip.data != src) {
+			/* The block has probably been freshly
+			allocated by buf_LRU_get_free_block() but not
+			added to buf_pool->page_hash yet.  Obviously,
+			it cannot be relocated. */
+
+			return(FALSE);
+		}
+
 		mutex = buf_page_get_mutex(bpage);
 
 		mutex_enter(mutex);
@@ -430,7 +449,7 @@ recombine:
 buddy_free:
 			/* The buddy is free: recombine */
 			UT_LIST_REMOVE(list, buf_pool->zip_free[i], bpage);
-			buf = ut_align_down(buf, BUF_BUDDY_LOW << i);
+			buf = ut_align_down(buf, BUF_BUDDY_LOW << (i + 1));
 
 			if (++i < BUF_BUDDY_SIZES) {
 
@@ -476,12 +495,14 @@ buddy_nonfree:
 
 		if (buf_buddy_relocate(buddy, buf, i)) {
 
+			buf = bpage;
 			goto buddy_free;
 		}
 	}
 
 	/* Free the block to the buddy list. */
 	bpage = buf;
+	ut_d(memset(bpage, i, BUF_BUDDY_LOW << i));
 	bpage->state = BUF_BLOCK_ZIP_FREE;
 	UT_LIST_ADD_FIRST(list, buf_pool->zip_free[i], bpage);
 }
