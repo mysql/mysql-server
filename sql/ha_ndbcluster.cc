@@ -9949,7 +9949,7 @@ int ha_ndbcluster::generate_scan_filter_from_key(NdbScanOperation *op,
 /*
   get table space info for SHOW CREATE TABLE
 */
-char* ha_ndbcluster::get_tablespace_name(THD *thd)
+char* ha_ndbcluster::get_tablespace_name(THD *thd, char* name)
 {
   Ndb *ndb= check_ndb_in_thd(thd);
   NDBDICT *ndbdict= ndb->getDictionary();
@@ -9967,7 +9967,13 @@ char* ha_ndbcluster::get_tablespace_name(THD *thd)
     ndberr= ndbdict->getNdbError();
     if(ndberr.classification != NdbError::NoError)
       goto err;
-    return (my_strdup(ts.getName(), MYF(0)));
+    if (name)
+    {
+      strxnmov(name, FN_LEN, ts.getName(), NullS);
+      return name;
+    }
+    else
+      return (my_strdup(ts.getName(), MYF(0)));
   }
 err:
   if (ndberr.status == NdbError::TemporaryError)
