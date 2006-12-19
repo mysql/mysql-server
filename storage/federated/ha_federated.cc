@@ -406,7 +406,7 @@ int federated_db_init(void *p)
   federated_hton->commit= federated_commit;
   federated_hton->rollback= federated_rollback;
   federated_hton->create= federated_create_handler;
-  federated_hton->flags= HTON_ALTER_NOT_SUPPORTED;
+  federated_hton->flags= HTON_ALTER_NOT_SUPPORTED | HTON_NO_PARTITION;
 
   if (pthread_mutex_init(&federated_mutex, MY_MUTEX_INIT_FAST))
     goto error;
