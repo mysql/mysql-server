@@ -67,7 +67,7 @@ public:
   void update_max_log_level(const LogLevel&);
   void update_log_level(const LogLevel&);
   
-  void log(int eventType, const Uint32* theData, NodeId nodeId);
+  void log(int eventType, const Uint32* theData, Uint32 len, NodeId nodeId);
   
   void stop_sessions();
 

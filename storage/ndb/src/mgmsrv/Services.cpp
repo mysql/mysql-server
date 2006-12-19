@@ -1344,7 +1344,8 @@ operator<<(NdbOut& out, const LogLevel & ll)
 }
 
 void
-Ndb_mgmd_event_service::log(int eventType, const Uint32* theData, NodeId nodeId){
+Ndb_mgmd_event_service::log(int eventType, const Uint32* theData, 
+			    Uint32 len, NodeId nodeId){
   
   Uint32 threshold;
   LogLevel::EventCategory cat;
@@ -1359,7 +1360,7 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData, NodeId nodeId)
 
   char m_text[512];
   EventLogger::getText(m_text, sizeof(m_text),
-		       textF, theData, nodeId);
+		       textF, theData, len, nodeId);
 
   BaseString str("log event reply\n");
   str.appfmt("type=%d\n", eventType);
