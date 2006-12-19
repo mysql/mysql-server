@@ -1916,4 +1916,16 @@ CHAR(0xff,0x8f USING utf8) IS NULL
 Warnings:
 Error	1300	Invalid utf8 character string: 'FF8F'
 SET SQL_MODE=@orig_sql_mode;
+select substring('abc', cast(2 as unsigned int));
+substring('abc', cast(2 as unsigned int))
+bc
+select repeat('a', cast(2 as unsigned int));
+repeat('a', cast(2 as unsigned int))
+aa
+select rpad('abc', cast(5 as unsigned integer), 'x');
+rpad('abc', cast(5 as unsigned integer), 'x')
+abcxx
+select lpad('abc', cast(5 as unsigned integer), 'x');
+lpad('abc', cast(5 as unsigned integer), 'x')
+xxabc
 End of 5.0 tests
