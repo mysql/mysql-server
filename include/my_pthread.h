@@ -76,19 +76,20 @@ typedef void * (__cdecl *pthread_handler)(void *);
   __int64 i64;
  };
 struct timespec {
-  union ft64 start;
+  union ft64 tv;
   /* The max timeout value in millisecond for pthread_cond_timedwait */
-  long timeout_msec;
+  long max_timeout_msec;
 };
 #define set_timespec(ABSTIME,SEC) { \
-  GetSystemTimeAsFileTime(&((ABSTIME).start.ft)); \
-  (ABSTIME).timeout_msec= (long)((SEC)*1000); \
+  GetSystemTimeAsFileTime(&((ABSTIME).tv.ft)); \
+  (ABSTIME).tv.i64+= (__int64)(SEC)*10000000; \
+  (ABSTIME).max_timeout_msec= (long)((SEC)*1000); \
 }
 #define set_timespec_nsec(ABSTIME,NSEC) { \
-  GetSystemTimeAsFileTime(&((ABSTIME).start.ft)); \
-  (ABSTIME).timeout_msec= (long)((NSEC)/1000000); \
+  GetSystemTimeAsFileTime(&((ABSTIME).tv.ft)); \
+  (ABSTIME).tv.i64+= (__int64)(NSEC)/100; \
+  (ABSTIME).max_timeout_msec= (long)((NSEC)/1000000); \
 }
-#define get_timespec_sec(ABSTIME) ((((ABSTIME).start.i64 / 10000) + (ABSTIME).timeout_msec ) / 1000)
 
 void win_pthread_init(void);
 int win_pthread_setspecific(void *A,void *B,uint length);
@@ -410,9 +411,6 @@ int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
   (ABSTIME).ts_nsec= (now % ULL(10000000) * 100 + ((NSEC) % 100)); \
 }
 #endif /* !set_timespec_nsec */
-#ifndef get_timespec_sec
-#define get_timespec_sec(ABSTIME) (ABSTIME).ts_sec
-#endif /* !get_timespec_sec */
 #else
 #ifndef set_timespec
 #define set_timespec(ABSTIME,SEC) \
@@ -431,9 +429,6 @@ int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
   (ABSTIME).tv_nsec= (long) (now % ULL(10000000) * 100 + ((NSEC) % 100)); \
 }
 #endif /* !set_timespec_nsec */
-#ifndef get_timespec_sec
-#define get_timespec_sec(ABSTIME) (ABSTIME).tv_sec
-#endif /* !get_timespec_sec */
 #endif /* HAVE_TIMESPEC_TS_SEC */
 
 	/* safe_mutex adds checking to mutex for easier debugging */
