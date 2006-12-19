@@ -5308,19 +5308,11 @@ ha_innobase::info(
 
 		prebuilt->trx->op_info = (char*)
 		                          "returning various info to MySQL";
-
-		if (ib_table->space != 0) {
-			my_snprintf(path, sizeof(path), "%s/%s%s",
-				    mysql_data_home, ib_table->name,
-				    ".ibd");
-			unpack_filename(path,path);
-		} else {
-			my_snprintf(path, sizeof(path), "%s/%s%s",
+		my_snprintf(path, sizeof(path), "%s/%s%s",
 				    mysql_data_home, ib_table->name,
 				    reg_ext);
 
-			unpack_filename(path,path);
-		}
+		unpack_filename(path,path);
 
 		/* Note that we do not know the access time of the table,
 		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
@@ -6377,14 +6369,17 @@ innodb_mutex_show_status(
   Protocol        *protocol= thd->protocol;
   List<Item> field_list;
   mutex_t*  mutex;
+#ifdef UNIV_DEBUG
   ulint   rw_lock_count= 0;
   ulint   rw_lock_count_spin_loop= 0;
   ulint   rw_lock_count_spin_rounds= 0;
   ulint   rw_lock_count_os_wait= 0;
   ulint   rw_lock_count_os_yield= 0;
   ulonglong rw_lock_wait_time= 0;
+#endif /* UNIV_DEBUG */
   DBUG_ENTER("innodb_mutex_show_status");
 
+#ifdef UNIV_DEBUG
   field_list.push_back(new Item_empty_string("Mutex", FN_REFLEN));
   field_list.push_back(new Item_empty_string("Module", FN_REFLEN));
   field_list.push_back(new Item_uint("Count", 21));
@@ -6393,19 +6388,23 @@ innodb_mutex_show_status(
   field_list.push_back(new Item_uint("OS_waits", 21));
   field_list.push_back(new Item_uint("OS_yields", 21));
   field_list.push_back(new Item_uint("OS_waits_time", 21));
+#else /* UNIV_DEBUG */
+  field_list.push_back(new Item_empty_string("File", FN_REFLEN));
+  field_list.push_back(new Item_uint("Line", 21));
+  field_list.push_back(new Item_uint("OS_waits", 21));
+#endif /* UNIV_DEBUG */
 
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
-#ifdef MUTEX_PROTECT_TO_BE_ADDED_LATER
-    mutex_enter(&mutex_list_mutex);
-#endif
+  mutex_enter_noninline(&mutex_list_mutex);
 
   mutex = UT_LIST_GET_FIRST(mutex_list);
 
   while ( mutex != NULL )
   {
+#ifdef UNIV_DEBUG
     if (mutex->mutex_type != 1)
     {
       if (mutex->count_using > 0)
@@ -6422,9 +6421,7 @@ innodb_mutex_show_status(
 
         if (protocol->write())
         {
-#ifdef MUTEX_PROTECT_TO_BE_ADDED_LATER
-          mutex_exit(&mutex_list_mutex);
-#endif
+          mutex_exit_noninline(&mutex_list_mutex);
           DBUG_RETURN(1);
         }
       }
@@ -6438,10 +6435,25 @@ innodb_mutex_show_status(
       rw_lock_count_os_yield += mutex->count_os_yield;
       rw_lock_wait_time += mutex->lspent_time;
     }
+#else /* UNIV_DEBUG */
+    protocol->prepare_for_resend();
+    protocol->store(mutex->cfile_name, system_charset_info);
+    protocol->store((ulonglong)mutex->cline);
+    protocol->store((ulonglong)mutex->count_os_wait);
+
+    if (protocol->write())
+    {
+      mutex_exit_noninline(&mutex_list_mutex);
+      DBUG_RETURN(1);
+    }
+#endif /* UNIV_DEBUG */
 
     mutex = UT_LIST_GET_NEXT(list, mutex);
   }
 
+  mutex_exit_noninline(&mutex_list_mutex);
+
+#ifdef UNIV_DEBUG
   protocol->prepare_for_resend();
   protocol->store("rw_lock_mutexes", system_charset_info);
   protocol->store("", system_charset_info);
@@ -6456,10 +6468,8 @@ innodb_mutex_show_status(
   {
     DBUG_RETURN(1);
   }
+#endif /* UNIV_DEBUG */
 
-#ifdef MUTEX_PROTECT_TO_BE_ADDED_LATER
-      mutex_exit(&mutex_list_mutex);
-#endif
   send_eof(thd);
   DBUG_RETURN(FALSE);
 }
