@@ -18,6 +18,7 @@
 
 #include "ftdefs.h"
 #include "sp_defs.h"
+#include <my_bit.h>
 
 #if defined(MSDOS) || defined(__WIN__)
 #ifdef __WIN__
@@ -57,7 +58,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   HA_KEYSEG *keyseg,tmp_keyseg;
   MI_COLUMNDEF *rec;
   ulong *rec_per_key_part;
-  my_off_t key_root[MI_MAX_POSSIBLE_KEY],key_del[MI_MAX_KEY_BLOCK_SIZE];
+  my_off_t key_root[HA_MAX_POSSIBLE_KEY],key_del[MI_MAX_KEY_BLOCK_SIZE];
   MI_CREATE_INFO tmp_create_info;
   DBUG_ENTER("mi_create");
   DBUG_PRINT("enter", ("keys: %u  columns: %u  uniques: %u  flags: %u",
@@ -95,7 +96,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     ci->reloc_rows=ci->max_rows;		/* Check if wrong parameter */
 
   if (!(rec_per_key_part=
-	(ulong*) my_malloc((keys + uniques)*MI_MAX_KEY_SEG*sizeof(long),
+	(ulong*) my_malloc((keys + uniques)*HA_MAX_KEY_SEG*sizeof(long),
 			   MYF(MY_WME | MY_ZEROFILL))))
     DBUG_RETURN(my_errno);
 
@@ -417,7 +418,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       }
     } /* if HA_FULLTEXT */
     key_segs+=keydef->keysegs;
-    if (keydef->keysegs > MI_MAX_KEY_SEG)
+    if (keydef->keysegs > HA_MAX_KEY_SEG)
     {
       my_errno=HA_WRONG_CREATE_OPTION;
       goto err;
@@ -432,7 +433,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       share.state.rec_per_key_part[key_segs-1]=1L;
     length+=key_length;
     /* Get block length for key, if defined by user */
-    block_length= (keydef->block_length ? 
+    block_length= (keydef->block_length ?
                    my_round_up_to_next_power(keydef->block_length) :
                    myisam_block_size);
     block_length= max(block_length, MI_MIN_KEY_BLOCK_LENGTH);
@@ -442,7 +443,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
                                                  pointer,MI_MAX_KEYPTR_SIZE,
                                                  block_length);
     if (keydef->block_length > MI_MAX_KEY_BLOCK_LENGTH ||
-        length >= MI_MAX_KEY_BUFF)
+        length >= HA_MAX_KEY_BUFF)
     {
       my_errno=HA_WRONG_CREATE_OPTION;
       goto err;

@@ -1,4 +1,4 @@
-SUBDIRS      = mytap . mysys examples
+SUBDIRS      = mytap mysys examples
 
 EXTRA_DIST = unit.pl
 CLEANFILES = unit

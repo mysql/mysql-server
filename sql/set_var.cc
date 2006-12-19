@@ -56,6 +56,9 @@
 #include <thr_alarm.h>
 #include <myisam.h>
 #include <my_dir.h>
+#ifdef WITH_MARIA_STORAGE_ENGINE
+#include <maria.h>
+#endif
 
 #include "events.h"
 
@@ -144,6 +147,7 @@ static void fix_max_join_size(THD *thd, enum_var_type type);
 static void fix_query_cache_size(THD *thd, enum_var_type type);
 static void fix_query_cache_min_res_unit(THD *thd, enum_var_type type);
 static void fix_myisam_max_sort_file_size(THD *thd, enum_var_type type);
+static void fix_maria_max_sort_file_size(THD *thd, enum_var_type type);
 static void fix_max_binlog_size(THD *thd, enum_var_type type);
 static void fix_max_relay_log_size(THD *thd, enum_var_type type);
 static void fix_max_connections(THD *thd, enum_var_type type);
@@ -343,6 +347,14 @@ sys_var_bool_ptr	sys_myisam_use_mmap("myisam_use_mmap",
 
 sys_var_thd_enum        sys_myisam_stats_method("myisam_stats_method",
                                                 &SV::myisam_stats_method,
+                                                &myisam_stats_method_typelib,
+                                                NULL);
+
+sys_var_thd_ulonglong	sys_maria_max_sort_file_size("maria_max_sort_file_size", &SV::maria_max_sort_file_size, fix_maria_max_sort_file_size, 1);
+sys_var_thd_ulong       sys_maria_repair_threads("maria_repair_threads", &SV::maria_repair_threads);
+sys_var_thd_ulong	sys_maria_sort_buffer_size("maria_sort_buffer_size", &SV::maria_sort_buff_size);
+sys_var_thd_enum        sys_maria_stats_method("maria_stats_method",
+                                                &SV::maria_stats_method,
                                                 &myisam_stats_method_typelib,
                                                 NULL);
 
@@ -867,6 +879,15 @@ SHOW_VAR init_vars[]= {
   {sys_low_priority_updates.name, (char*) &sys_low_priority_updates, SHOW_SYS},
   {"lower_case_file_system",  (char*) &lower_case_file_system,      SHOW_MY_BOOL},
   {"lower_case_table_names",  (char*) &lower_case_table_names,      SHOW_INT},
+
+  {sys_maria_max_sort_file_size.name, (char*) &sys_maria_max_sort_file_size,
+   SHOW_SYS},
+  {sys_maria_repair_threads.name, (char*) &sys_maria_repair_threads,
+   SHOW_SYS},
+  {sys_maria_sort_buffer_size.name, (char*) &sys_maria_sort_buffer_size,
+   SHOW_SYS},
+  {sys_maria_stats_method.name, (char*) &sys_maria_stats_method, SHOW_SYS},
+
   {sys_max_allowed_packet.name,(char*) &sys_max_allowed_packet,	    SHOW_SYS},
   {sys_max_binlog_cache_size.name,(char*) &sys_max_binlog_cache_size, SHOW_SYS},
   {sys_max_binlog_size.name,    (char*) &sys_max_binlog_size,	    SHOW_SYS},
@@ -1011,10 +1032,10 @@ SHOW_VAR init_vars[]= {
 #ifdef HAVE_THR_SETCONCURRENCY
   {"thread_concurrency",      (char*) &concurrency,                 SHOW_LONG},
 #endif
-  {"thread_stack",            (char*) &thread_stack,                SHOW_LONG},
+  {"thread_stack",            (char*) &my_thread_stack_size,        SHOW_LONG},
   {sys_time_format.name,      (char*) &sys_time_format,		    SHOW_SYS},
   {"time_zone",               (char*) &sys_time_zone,               SHOW_SYS},
-  {sys_timed_mutexes.name,    (char*) &sys_timed_mutexes,       SHOW_SYS},
+  {sys_timed_mutexes.name,    (char*) &sys_timed_mutexes,           SHOW_SYS},
   {sys_tmp_table_size.name,   (char*) &sys_tmp_table_size,	    SHOW_SYS},
   {sys_tmpdir.name,           (char*) &sys_tmpdir,	            SHOW_SYS},
   {sys_trans_alloc_block_size.name, (char*) &sys_trans_alloc_block_size,
@@ -1156,6 +1177,16 @@ fix_myisam_max_sort_file_size(THD *thd, enum_var_type type)
   myisam_max_temp_length=
     (my_off_t) global_system_variables.myisam_max_sort_file_size;
 }
+
+static void
+fix_maria_max_sort_file_size(THD *thd, enum_var_type type)
+{
+#ifdef WITH_MARIA_STORAGE_ENGINE
+  maria_max_temp_length=
+    (my_off_t) global_system_variables.myisam_max_sort_file_size;
+#endif
+}
+
 
 /*
   Set the OPTION_BIG_SELECTS flag if max_join_size == HA_POS_ERROR
@@ -2363,6 +2394,7 @@ void sys_var_collation_server::set_default(THD *thd, enum_var_type type)
 
 
 LEX_STRING default_key_cache_base= {(char *) "default", 7 };
+LEX_STRING maria_key_cache_base= {(char *) "maria", 5 };
 
 static KEY_CACHE zero_key_cache;
 
@@ -2372,7 +2404,7 @@ KEY_CACHE *get_key_cache(LEX_STRING *cache_name)
   if (!cache_name || ! cache_name->length)
     cache_name= &default_key_cache_base;
   return ((KEY_CACHE*) find_named(&key_caches,
-                                      cache_name->str, cache_name->length, 0));
+                                  cache_name->str, cache_name->length, 0));
 }
 
 

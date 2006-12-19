@@ -55,6 +55,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_WME		16	/* Write message on error */
 #define MY_WAIT_IF_FULL 32	/* Wait and try again if disk full error */
 #define MY_IGNORE_BADFD 32      /* my_sync: ignore 'bad descriptor' errors */
+#define MY_SYNC_DIR     1024    /* my_create/delete/rename: sync directory */
 #define MY_RAID         64      /* Support for RAID */
 #define MY_FULL_IO     512      /* For my_read - loop intil I/O is complete */
 #define MY_DONT_CHECK_FILESIZE 128 /* Option to init_io_cache() */
@@ -216,6 +217,7 @@ extern int (*error_handler_hook)(uint my_err, const char *str,myf MyFlags);
 extern int (*fatal_error_handler_hook)(uint my_err, const char *str,
 				       myf MyFlags);
 extern uint my_file_limit;
+extern ulong my_thread_stack_size;
 
 #ifdef HAVE_LARGE_PAGES
 extern my_bool my_use_large_pages;
@@ -628,6 +630,8 @@ extern FILE *my_fdopen(File Filedes,const char *name, int Flags,myf MyFlags);
 extern int my_fclose(FILE *fd,myf MyFlags);
 extern int my_chsize(File fd,my_off_t newlength, int filler, myf MyFlags);
 extern int my_sync(File fd, myf my_flags);
+extern int my_sync_dir(const char *dir_name, myf my_flags);
+extern int my_sync_dir_by_file(const char *file_name, myf my_flags);
 extern int my_error _VARARGS((int nr,myf MyFlags, ...));
 extern int my_printf_error _VARARGS((uint my_err, const char *format,
 				     myf MyFlags, ...))
@@ -829,10 +833,6 @@ extern int packfrm(const void *, uint, const void **, uint *);
 extern int unpackfrm(const void **, uint *, const void *);
 
 extern ha_checksum my_checksum(ha_checksum crc, const byte *mem, uint count);
-extern uint my_bit_log2(ulong value);
-extern uint32 my_round_up_to_next_power(uint32 v);
-extern uint my_count_bits(ulonglong v);
-extern uint my_count_bits_ushort(ushort v);
 extern void my_sleep(ulong m_seconds);
 extern ulong crc32(ulong crc, const uchar *buf, uint len);
 extern uint my_set_max_open_files(uint files);
@@ -848,7 +848,7 @@ extern int my_getncpus();
 #ifndef MAP_NOSYNC
 #define MAP_NOSYNC      0
 #endif
-#ifndef MAP_NORESERVE   
+#ifndef MAP_NORESERVE
 #define MAP_NORESERVE 0         /* For irix and AIX */
 #endif
 
