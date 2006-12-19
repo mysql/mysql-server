@@ -2665,7 +2665,11 @@ int ndb_mgm_get_version(NdbMgmHandle handle,
     MGM_ARG("id", Int, Mandatory, "ID"),
     MGM_ARG("major", Int, Mandatory, "Major"),
     MGM_ARG("minor", Int, Mandatory, "Minor"),
+    MGM_ARG("build", Int, Optional, "Build"),
     MGM_ARG("string", String, Mandatory, "String"),
+    MGM_ARG("mysql_major", Int, Optional, "MySQL major"),
+    MGM_ARG("mysql_minor", Int, Optional, "MySQL minor"),
+    MGM_ARG("mysql_build", Int, Optional, "MySQL build"),
     MGM_END()
   };
 
