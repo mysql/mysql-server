@@ -283,7 +283,7 @@ err:
 bool ha_maria::check_if_locking_is_allowed(uint sql_command,
                                            ulong type, TABLE *table,
                                            uint count,
-                                           bool called_by_logger_thread)
+                                           bool called_by_privileged_thread)
 {
   /*
      To be able to open and lock for reading system tables like 'mysql.proc',
@@ -300,10 +300,10 @@ bool ha_maria::check_if_locking_is_allowed(uint sql_command,
 
   /*
     Deny locking of the log tables, which is incompatible with
-    concurrent insert. Unless called from a logger THD:
-    general_log_thd or slow_log_thd.
+    concurrent insert. Unless called from a logger THD (general_log_thd
+    or slow_log_thd) or by a privileged thread.
   */
-  if (!called_by_logger_thread)
+  if (!called_by_privileged_thread)
     return check_if_log_table_locking_is_allowed(sql_command, type, table);
 
   return TRUE;
@@ -1368,7 +1368,7 @@ void ha_maria::position(const byte * record)
 }
 
 
-void ha_maria::info(uint flag)
+int ha_maria::info(uint flag)
 {
   MARIA_INFO info;
   char name_buff[FN_REFLEN];
@@ -1428,6 +1428,8 @@ void ha_maria::info(uint flag)
   /* Faster to always update, than to do it based on flag */
   stats.update_time= info.update_time;
   stats.auto_increment_value= info.auto_increment;
+
+  return 0;
 }
 
 

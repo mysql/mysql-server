@@ -104,7 +104,8 @@ static void fill_buffer(MARIA_BIT_BUFF *bit_buff);
 static uint max_bit(uint value);
 static uint read_pack_length(uint version, const uchar *buf, ulong *length);
 #ifdef HAVE_MMAP
-static uchar *_ma_mempack_get_block_info(MARIA_HA *maria,MARIA_BLOCK_INFO *info,
+static uchar *_ma_mempack_get_block_info(MARIA_HA *maria, MARIA_BIT_BUFF *bit_buff,
+                                         MARIA_BLOCK_INFO *info, byte **rec_buff_p,
 					 uchar *header);
 #endif
 
@@ -450,13 +451,15 @@ int _ma_read_pack_record(MARIA_HA *info, my_off_t filepos, byte *buf)
     DBUG_RETURN(-1);			/* _search() didn't find record */
 
   file=info->dfile;
-  if (_ma_pack_get_block_info(info, &block_info, file, filepos))
+  if (_ma_pack_get_block_info(info, &info->bit_buff, &block_info,
+                              &info->rec_buff, file, filepos))
     goto err;
   if (my_read(file,(byte*) info->rec_buff + block_info.offset ,
 	      block_info.rec_len - block_info.offset, MYF(MY_NABP)))
     goto panic;
   info->update|= HA_STATE_AKTIV;
-  DBUG_RETURN(_ma_pack_rec_unpack(info,buf,info->rec_buff,block_info.rec_len));
+  DBUG_RETURN(_ma_pack_rec_unpack(info,&info->bit_buff, buf,
+                                  info->rec_buff, block_info.rec_len));
 panic:
   my_errno=HA_ERR_WRONG_IN_RECORD;
 err:
@@ -465,8 +468,8 @@ err:
 
 
 
-int _ma_pack_rec_unpack(register MARIA_HA *info, register byte *to, byte *from,
-			ulong reclength)
+int _ma_pack_rec_unpack(register MARIA_HA *info, MARIA_BIT_BUFF *bit_buff,
+                        register byte *to, byte *from, ulong reclength)
 {
   byte *end_field;
   reg3 MARIA_COLUMNDEF *end;
@@ -474,18 +477,18 @@ int _ma_pack_rec_unpack(register MARIA_HA *info, register byte *to, byte *from,
   MARIA_SHARE *share=info->s;
   DBUG_ENTER("_ma_pack_rec_unpack");
 
-  init_bit_buffer(&info->bit_buff, (uchar*) from,reclength);
+  init_bit_buffer(bit_buff, (uchar*) from, reclength);
 
   for (current_field=share->rec, end=current_field+share->base.fields ;
        current_field < end ;
        current_field++,to=end_field)
   {
     end_field=to+current_field->length;
-    (*current_field->unpack)(current_field,&info->bit_buff,(uchar*) to,
+    (*current_field->unpack)(current_field, bit_buff, (uchar*) to,
 			     (uchar*) end_field);
   }
-  if (! info->bit_buff.error &&
-      info->bit_buff.pos - info->bit_buff.bits/8 == info->bit_buff.end)
+  if (!bit_buff->error &&
+      bit_buff->pos - bit_buff->bits / 8 == bit_buff->end)
     DBUG_RETURN(0);
   info->update&= ~HA_STATE_AKTIV;
   DBUG_RETURN(my_errno=HA_ERR_WRONG_IN_RECORD);
@@ -1016,13 +1019,16 @@ int _ma_read_rnd_pack_record(MARIA_HA *info, byte *buf,
 
   if (info->opt_flag & READ_CACHE_USED)
   {
-    if (_ma_read_cache(&info->rec_cache,(byte*) block_info.header,filepos,
-		      share->pack.ref_length, skip_deleted_blocks))
+    if (_ma_read_cache(&info->rec_cache, (byte*) block_info.header,
+                       filepos, share->pack.ref_length,
+                       skip_deleted_blocks ? READING_NEXT : 0))
       goto err;
-    b_type= _ma_pack_get_block_info(info,&block_info,-1, filepos);
+    b_type= _ma_pack_get_block_info(info, &info->bit_buff, &block_info,
+                                   &info->rec_buff, -1, filepos);
   }
   else
-    b_type= _ma_pack_get_block_info(info,&block_info,info->dfile,filepos);
+    b_type= _ma_pack_get_block_info(info, &info->bit_buff, &block_info,
+                                   &info->rec_buff, info->dfile, filepos);
   if (b_type)
     goto err;					/* Error code is already set */
 #ifndef DBUG_OFF
@@ -1035,9 +1041,9 @@ int _ma_read_rnd_pack_record(MARIA_HA *info, byte *buf,
 
   if (info->opt_flag & READ_CACHE_USED)
   {
-    if (_ma_read_cache(&info->rec_cache,(byte*) info->rec_buff,
-		      block_info.filepos, block_info.rec_len,
-		      skip_deleted_blocks))
+    if (_ma_read_cache(&info->rec_cache, (byte*) info->rec_buff,
+                       block_info.filepos, block_info.rec_len,
+                       skip_deleted_blocks ? READING_NEXT : 0))
       goto err;
   }
   else
@@ -1052,8 +1058,8 @@ int _ma_read_rnd_pack_record(MARIA_HA *info, byte *buf,
   info->nextpos=block_info.filepos+block_info.rec_len;
   info->update|= HA_STATE_AKTIV | HA_STATE_KEY_CHANGED;
 
-  DBUG_RETURN (_ma_pack_rec_unpack(info,buf,info->rec_buff,
-				   block_info.rec_len));
+  DBUG_RETURN (_ma_pack_rec_unpack(info, &info->bit_buff, buf,
+                                   info->rec_buff, block_info.rec_len));
  err:
   DBUG_RETURN(my_errno);
 }
@@ -1061,8 +1067,9 @@ int _ma_read_rnd_pack_record(MARIA_HA *info, byte *buf,
 
 	/* Read and process header from a huff-record-file */
 
-uint _ma_pack_get_block_info(MARIA_HA *maria, MARIA_BLOCK_INFO *info, File file,
-			     my_off_t filepos)
+uint _ma_pack_get_block_info(MARIA_HA *maria, MARIA_BIT_BUFF *bit_buff,
+                             MARIA_BLOCK_INFO *info, byte **rec_buff_p,
+                             File file, my_off_t filepos)
 {
   uchar *header=info->header;
   uint head_length,ref_length;
@@ -1087,17 +1094,17 @@ uint _ma_pack_get_block_info(MARIA_HA *maria, MARIA_BLOCK_INFO *info, File file,
     head_length+= read_pack_length((uint) maria->s->pack.version,
                                    header + head_length, &info->blob_len);
     if (!(_ma_alloc_rec_buff(maria,info->rec_len + info->blob_len,
-			    &maria->rec_buff)))
+                             rec_buff_p)))
       return BLOCK_FATAL_ERROR;			/* not enough memory */
-    maria->bit_buff.blob_pos=(uchar*) maria->rec_buff+info->rec_len;
-    maria->bit_buff.blob_end= maria->bit_buff.blob_pos+info->blob_len;
+    bit_buff->blob_pos= (uchar*) *rec_buff_p + info->rec_len;
+    bit_buff->blob_end= bit_buff->blob_pos + info->blob_len;
     maria->blob_length=info->blob_len;
   }
   info->filepos=filepos+head_length;
   if (file > 0)
   {
     info->offset=min(info->rec_len, ref_length - head_length);
-    memcpy(maria->rec_buff, header+head_length, info->offset);
+    memcpy(*rec_buff_p, header + head_length, info->offset);
   }
   return 0;
 }
@@ -1215,7 +1222,8 @@ void _ma_unmap_file(MARIA_HA *info)
 }
 
 
-static uchar *_ma_mempack_get_block_info(MARIA_HA *maria,MARIA_BLOCK_INFO *info,
+static uchar *_ma_mempack_get_block_info(MARIA_HA *maria, MARIA_BIT_BUFF *bit_buff,
+                                         MARIA_BLOCK_INFO *info, byte **rec_buff_p,
 					 uchar *header)
 {
   header+= read_pack_length((uint) maria->s->pack.version, header,
@@ -1226,10 +1234,10 @@ static uchar *_ma_mempack_get_block_info(MARIA_HA *maria,MARIA_BLOCK_INFO *info,
                               &info->blob_len);
     /* _ma_alloc_rec_buff sets my_errno on error */
     if (!(_ma_alloc_rec_buff(maria, info->blob_len,
-			    &maria->rec_buff)))
+                             rec_buff_p)))
       return 0;				/* not enough memory */
-    maria->bit_buff.blob_pos=(uchar*) maria->rec_buff;
-    maria->bit_buff.blob_end= (uchar*) maria->rec_buff + info->blob_len;
+    bit_buff->blob_pos= (uchar*) *rec_buff_p;
+    bit_buff->blob_end= (uchar*) *rec_buff_p + info->blob_len;
   }
   return header;
 }
@@ -1245,11 +1253,13 @@ static int _ma_read_mempack_record(MARIA_HA *info, my_off_t filepos, byte *buf)
   if (filepos == HA_OFFSET_ERROR)
     DBUG_RETURN(-1);			/* _search() didn't find record */
 
-  if (!(pos= (byte*) _ma_mempack_get_block_info(info,&block_info,
+  if (!(pos= (byte*) _ma_mempack_get_block_info(info, &info->bit_buff,
+                                                &block_info, &info->rec_buff,
 						(uchar*) share->file_map+
 						filepos)))
     DBUG_RETURN(-1);
-  DBUG_RETURN(_ma_pack_rec_unpack(info, buf, pos, block_info.rec_len));
+  DBUG_RETURN(_ma_pack_rec_unpack(info, &info->bit_buff, buf,
+                                  pos, block_info.rec_len));
 }
 
 
@@ -1269,7 +1279,8 @@ static int _ma_read_rnd_mempack_record(MARIA_HA *info, byte *buf,
     my_errno=HA_ERR_END_OF_FILE;
     goto err;
   }
-  if (!(pos= (byte*) _ma_mempack_get_block_info(info,&block_info,
+  if (!(pos= (byte*) _ma_mempack_get_block_info(info, &info->bit_buff,
+                                                &block_info, &info->rec_buff,
 						(uchar*)
 						(start=share->file_map+
 						 filepos))))
@@ -1286,7 +1297,8 @@ static int _ma_read_rnd_mempack_record(MARIA_HA *info, byte *buf,
   info->nextpos=filepos+(uint) (pos-start)+block_info.rec_len;
   info->update|= HA_STATE_AKTIV | HA_STATE_KEY_CHANGED;
 
-  DBUG_RETURN (_ma_pack_rec_unpack(info,buf,pos, block_info.rec_len));
+  DBUG_RETURN (_ma_pack_rec_unpack(info, &info->bit_buff, buf,
+                                   pos, block_info.rec_len));
  err:
   DBUG_RETURN(my_errno);
 }

@@ -511,14 +511,6 @@ int main(int argc, char **argv __attribute__((unused)))
     exit(1);
   }
 
-#ifndef pthread_attr_setstacksize		/* void return value */
-  if ((error= pthread_attr_setstacksize(&thr_attr, 65536L)))
-  {
-    fprintf(stderr,"Got error: %d from pthread_attr_setstacksize (errno: %d)\n",
-	    error,errno);
-    exit(1);
-  }
-#endif
 #ifdef HAVE_THR_SETCONCURRENCY
   VOID(thr_setconcurrency(2));
 #endif

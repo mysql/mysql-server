@@ -3537,7 +3537,7 @@ int main(int argc, char **argv)
     {
       if (global_system_variables.log_warnings)
 	sql_print_warning("Asked for %ld thread stack, but got %ld",
-			  my_thread_stack, (long) stack_size);
+			  my_thread_stack_size, (long) stack_size);
 #if defined(__ia64__) || defined(__ia64)
       my_thread_stack_size= stack_size*2;
 #else

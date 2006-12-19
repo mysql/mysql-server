@@ -84,6 +84,7 @@ typedef struct st_mi_state_info
   time_t recover_time;                  /* Time for last recover */
   time_t check_time;                    /* Time for last check */
   uint sortkey;                         /* sorted by this key (not used) */
+  uint open_count;
   uint8 changed;                        /* Changed since myisamchk */
 
   /* the following isn't saved on disk */
@@ -224,16 +225,6 @@ typedef struct st_mi_isam_share
 } MYISAM_SHARE;
 
 
-typedef uint mi_bit_type;
-
-typedef struct st_mi_bit_buff
-{                                       /* Used for packing of record */
-  mi_bit_type current_byte;
-  uint bits;
-  uchar *pos, *end, *blob_pos, *blob_end;
-  uint error;
-} MI_BIT_BUFF;
-
 struct st_myisam_info
 {
   MYISAM_SHARE *s;                      /* Shared between open:s */
@@ -309,6 +300,7 @@ struct st_myisam_info
   uchar *rtree_recursion_state;         /* For RTREE */
   int rtree_recursion_depth;
 };
+
 #define USE_WHOLE_KEY   HA_MAX_KEY_BUFF*2 /* Use whole key in _mi_search() */
 #define F_EXTRA_LCK     -1
 /* bits in opt_flag */

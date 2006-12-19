@@ -300,6 +300,17 @@ extern uint mi_get_pointer_length(ulonglong file_length, uint def);
 #define   MYISAMCHK_REPAIR 1  /* equivalent to myisamchk -r */
 #define   MYISAMCHK_VERIFY 2  /* Verify, run repair if failure */
 
+typedef uint mi_bit_type;
+
+typedef struct st_mi_bit_buff
+{                                       /* Used for packing of record */
+  mi_bit_type current_byte;
+  uint bits;
+  uchar *pos, *end, *blob_pos, *blob_end;
+  uint error;
+} MI_BIT_BUFF;
+
+
 typedef struct st_sort_info
 {
 #ifdef THREAD
@@ -319,10 +330,13 @@ typedef struct st_sort_info
   myf myf_rw;
   enum data_file_type new_data_file_type;
 } MI_SORT_INFO;
+
 typedef struct st_mi_sort_param
+{
   pthread_t thr;
   IO_CACHE read_cache, tempfile, tempfile_for_exceptions;
   DYNAMIC_ARRAY buffpek;
+  MI_BIT_BUFF   bit_buff;               /* For parallel repair of packrec. */
   
   MI_KEYDEF *keyinfo;
   MI_SORT_INFO *sort_info;
@@ -345,6 +359,7 @@ typedef struct st_mi_sort_param
   uint key, key_length,real_key_length,sortbuff_size;
   uint maxbuffers, keys, find_length, sort_keys_length;
   my_bool fix_datafile, master;
+  my_bool calc_checksum;                /* calculate table checksum */
 
   int (*key_cmp)(struct st_mi_sort_param *, const void *, const void *);
   int (*key_read)(struct st_mi_sort_param *,void *);

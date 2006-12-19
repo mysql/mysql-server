@@ -293,6 +293,17 @@ extern uint maria_get_pointer_length(ulonglong file_length, uint def);
 #define MARIA_CHK_REPAIR 1              /* equivalent to mariachk -r */
 #define MARIA_CHK_VERIFY 2              /* Verify, run repair if failure */
 
+typedef uint maria_bit_type;
+
+typedef struct st_maria_bit_buff
+{					/* Used for packing of record */
+  maria_bit_type current_byte;
+  uint bits;
+  uchar *pos, *end, *blob_pos, *blob_end;
+  uint error;
+} MARIA_BIT_BUFF;
+
+
 typedef struct st_maria_sort_info
 {
 #ifdef THREAD
@@ -305,7 +316,6 @@ typedef struct st_maria_sort_info
   char *buff;
   SORT_KEY_BLOCKS *key_block, *key_block_end;
   SORT_FT_BUF *ft_buf;
-
   my_off_t filelength, dupp, buff_length;
   ha_rows max_records;
   uint current_key, total_keys;
@@ -314,12 +324,12 @@ typedef struct st_maria_sort_info
   enum data_file_type new_data_file_type;
 } MARIA_SORT_INFO;
 
-
 typedef struct st_maria_sort_param
 {
   pthread_t thr;
   IO_CACHE read_cache, tempfile, tempfile_for_exceptions;
   DYNAMIC_ARRAY buffpek;
+  MARIA_BIT_BUFF bit_buff;               /* For parallel repair of packrec. */
   
   MARIA_KEYDEF *keyinfo;
   MARIA_SORT_INFO *sort_info;
@@ -342,6 +352,7 @@ typedef struct st_maria_sort_param
   uint key, key_length,real_key_length,sortbuff_size;
   uint maxbuffers, keys, find_length, sort_keys_length;
   my_bool fix_datafile, master;
+  my_bool calc_checksum;                /* calculate table checksum */
 
   int (*key_cmp)(struct st_maria_sort_param *, const void *, const void *);
   int (*key_read)(struct st_maria_sort_param *,void *);

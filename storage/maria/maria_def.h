@@ -69,6 +69,7 @@ typedef struct st_maria_state_info
   ulong update_count;			/* Updated for each write lock */
   ulong status;
   ulong *rec_per_key_part;
+  ha_checksum checksum;                 /* Table checksum */
   my_off_t *key_root;			/* Start of key trees */
   my_off_t *key_del;			/* delete links for trees */
   my_off_t rec_per_key_rows;		/* Rows when calculating rec_per_key */
@@ -179,6 +180,7 @@ typedef struct st_maria_share
 						*/
   MARIA_DECODE_TREE *decode_trees;
   uint16 *decode_tables;
+  /* Function to use for a row checksum. */
   int(*read_record) (struct st_maria_info *, my_off_t, byte *);
   int(*write_record) (struct st_maria_info *, const byte *);
   int(*update_record) (struct st_maria_info *, my_off_t, const byte *);
@@ -230,16 +232,6 @@ typedef struct st_maria_share
 } MARIA_SHARE;
 
 
-typedef uint maria_bit_type;
-
-typedef struct st_maria_bit_buff
-{					/* Used for packing of record */
-  maria_bit_type current_byte;
-  uint bits;
-  uchar *pos, *end, *blob_pos, *blob_end;
-  uint error;
-} MARIA_BIT_BUFF;
-
 struct st_maria_info
 {
   MARIA_SHARE *s;			/* Shared between open:s */
@@ -273,7 +265,7 @@ struct st_maria_info
   my_off_t last_keypage;		/* Last key page read */
   my_off_t last_search_keypage;		/* Last keypage when searching */
   my_off_t dupp_key_pos;
-  ha_checksum checksum;
+  ha_checksum checksum;                 /* Temp storage for row checksum */
   /*
     QQ: the folloing two xxx_length fields should be removed,
      as they are not compatible with parallel repair
@@ -354,8 +346,15 @@ struct st_maria_info
 #define maria_putint(x,y,nod) { uint16 boh=(nod ? (uint16) 32768 : 0) + (uint16) (y);\
 			  mi_int2store(x,boh); }
 #define _ma_test_if_nod(x) (x[0] & 128 ? info->s->base.key_reflength : 0)
-#define maria_mark_crashed(x) (x)->s->state.changed|=STATE_CRASHED
-#define maria_mark_crashed_on_repair(x) { (x)->s->state.changed|=STATE_CRASHED|STATE_CRASHED_ON_REPAIR ; (x)->update|= HA_STATE_CHANGED; }
+#define maria_mark_crashed(x) do{(x)->s->state.changed|= STATE_CRASHED; \
+    DBUG_PRINT("error", ("Marked table crashed"));                      \
+  }while(0)
+#define maria_mark_crashed_on_repair(x) do{(x)->s->state.changed|=      \
+      STATE_CRASHED|STATE_CRASHED_ON_REPAIR;                            \
+    (x)->update|= HA_STATE_CHANGED;                                     \
+    DBUG_PRINT("error",                                                 \
+               ("Marked table crashed"));                               \
+  }while(0)
 #define maria_is_crashed(x) ((x)->s->state.changed & STATE_CRASHED)
 #define maria_is_crashed_on_repair(x) ((x)->s->state.changed & STATE_CRASHED_ON_REPAIR)
 #define maria_print_error(SHARE, ERRNO)                     \
@@ -608,8 +607,8 @@ extern my_bool _ma_read_pack_info(MARIA_HA *info, pbool fix_keys);
 extern int _ma_read_pack_record(MARIA_HA *info, my_off_t filepos,
                                 byte *buf);
 extern int _ma_read_rnd_pack_record(MARIA_HA *, byte *, my_off_t, my_bool);
-extern int _ma_pack_rec_unpack(MARIA_HA *info, byte *to, byte *from,
-                               ulong reclength);
+extern int _ma_pack_rec_unpack(MARIA_HA *info, MARIA_BIT_BUFF *bit_buff,
+                               byte *to, byte *from, ulong reclength);
 extern ulonglong _ma_safe_mul(ulonglong a, ulonglong b);
 extern int _ma_ft_update(MARIA_HA *info, uint keynr, byte *keybuf,
                          const byte *oldrec, const byte *newrec,
@@ -663,8 +662,9 @@ typedef struct st_maria_block_info
 
 extern uint _ma_get_block_info(MARIA_BLOCK_INFO *, File, my_off_t);
 extern uint _ma_rec_pack(MARIA_HA *info, byte *to, const byte *from);
-extern uint _ma_pack_get_block_info(MARIA_HA *, MARIA_BLOCK_INFO *, File,
-                                    my_off_t);
+extern uint _ma_pack_get_block_info(MARIA_HA *mari, MARIA_BIT_BUFF *bit_buff,
+                                    MARIA_BLOCK_INFO *info, byte **rec_buff_p,
+                                    File file, my_off_t filepos);
 extern void _ma_store_blob_length(byte *pos, uint pack_length, uint length);
 extern void _ma_report_error(int errcode, const char *file_name);
 extern my_bool _ma_memmap_file(MARIA_HA *info);
