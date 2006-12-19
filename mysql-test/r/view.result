@@ -3014,4 +3014,13 @@ i	j
 6	3
 DROP VIEW v1, v2;
 DROP TABLE t1;
+DROP VIEW IF EXISTS v1;
+CREATE VIEW v1 AS SELECT 'The\ZEnd';
+SELECT * FROM v1;
+TheEnd
+TheEnd
+SHOW CREATE VIEW v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select _latin1'The\ZEnd' AS `TheEnd`
+DROP VIEW v1;
 End of 5.0 tests.

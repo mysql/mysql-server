@@ -1033,8 +1033,8 @@ void String::print(String *str)
     case '\r':
       str->append(STRING_WITH_LEN("\\r"));
       break;
-    case 26: //Ctrl-Z
-      str->append(STRING_WITH_LEN("\\z"));
+    case '\032': // Ctrl-Z
+      str->append(STRING_WITH_LEN("\\Z"));
       break;
     default:
       str->append(c);
