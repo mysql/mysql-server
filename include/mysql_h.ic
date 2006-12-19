@@ -36,6 +36,8 @@ enum mysql_status;
 typedef struct st_mysql_rows MYSQL_ROWS;
 # 24 "my_list.h"
 typedef struct st_list LIST;
+# 35 "my_alloc.h"
+typedef struct st_mem_root MEM_ROOT;
 # 251 "mysql.h"
 typedef struct st_mysql MYSQL;
 # 653 "mysql.h"
@@ -60,7 +62,7 @@ typedef struct st_mysql_stmt MYSQL_STMT;
 typedef struct character_set MY_CHARSET_INFO;
 # 180 "mysql_com.h"
 typedef struct st_net NET;
-# 21 "typelib.h"
+# 23 "typelib.h"
 typedef struct st_typelib TYPELIB;
 # 170 "mysql_com.h"
 typedef struct st_vio Vio;
@@ -76,8 +78,6 @@ typedef int my_socket;
 typedef unsigned long long int my_ulonglong;
 # 144 "mysql.h"
 typedef struct embedded_query_result EMBEDDED_QUERY_RESULT;
-# 35 "my_alloc.h"
-typedef struct st_mem_root MEM_ROOT;
 # 145 "mysql.h"
 typedef struct st_mysql_data MYSQL_DATA;
 # 750 "mysql.h"
@@ -419,7 +419,7 @@ struct __attribute__((aligned(__alignof__(void *)), aligned(__alignof__(unsigned
     my_bool report_error;
     my_bool return_errno;
   };
-# 21 "typelib.h"
+# 23 "typelib.h"
 struct __attribute__((aligned(__alignof__(unsigned int)), aligned(__alignof__(void *)))) st_typelib
   {
     unsigned int count;
@@ -631,9 +631,11 @@ enum mysql_status
 extern my_bool check_scramble(char const * reply, char const * message, unsigned char const * hash_stage2);
 # 416 "mysql_com.h"
 extern my_bool check_scramble_323(char const *, char const * message, unsigned long int * salt);
+# 33 "typelib.h"
+extern TYPELIB * copy_typelib(MEM_ROOT * root, TYPELIB * from);
 # 411 "mysql_com.h"
 extern void create_random_string(char * to, unsigned int, struct rand_struct * rand_st);
-# 28 "typelib.h"
+# 30 "typelib.h"
 extern int find_type(char * x, TYPELIB * typelib, unsigned int);
 # 425 "mysql_com.h"
 extern void get_salt_from_password(unsigned char * res, char const * password);
@@ -641,7 +643,7 @@ extern void get_salt_from_password(unsigned char * res, char const * password);
 extern void get_salt_from_password_323(unsigned long int * res, char const * password);
 # 431 "mysql_com.h"
 extern char * get_tty_password(char * opt_message);
-# 30 "typelib.h"
+# 32 "typelib.h"
 extern char const * get_type(TYPELIB * typelib, unsigned int);
 # 413 "mysql_com.h"
 extern void hash_password(unsigned long int * to, char const * password, unsigned int);
@@ -669,7 +671,7 @@ extern void make_password_from_salt_323(char * to, unsigned long int const * sal
 extern void make_scrambled_password(char * to, char const * password);
 # 414 "mysql_com.h"
 extern void make_scrambled_password_323(char * to, char const * password);
-# 29 "typelib.h"
+# 31 "typelib.h"
 extern void make_type(char * to, unsigned int, TYPELIB * typelib);
 # 437 "mysql_com.h"
 extern int modify_defaults_file(char const * file_location, char const * option, char const * option_value, char const * section_name, int);
@@ -963,5 +965,5 @@ extern void randominit(struct rand_struct *, unsigned long int, unsigned long in
 extern void scramble(char * to, char const * message, char const * password);
 # 415 "mysql_com.h"
 extern void scramble_323(char * to, char const * message, char const * password);
-# 32 "typelib.h"
+# 35 "typelib.h"
 extern TYPELIB sql_protocol_typelib;
