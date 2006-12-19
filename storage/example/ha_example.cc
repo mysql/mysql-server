@@ -14,31 +14,45 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*
-  ha_example is a stubbed storage engine. It does nothing at this point. It
-  will let you create/open/delete tables but that is all. You can enable it
-  in your buld by doing the following during your build process:
+/** @file ha_example.cc
+
+    @brief
+  The ha_example engine is a stubbed storage engine for example purposes only;
+  it does nothing at this point. Its purpose is to provide a source
+  code illustration of how to begin writing new storage engines; see also
+  /storage/example/ha_example.h.
+
+    @details
+  ha_example will let you create/open/delete tables, but nothing further
+  (for example, indexes are not supported nor can data be stored in the
+  table). Use this example as a template for implementing the same functionality
+  in your own storage engine. You can enable the example storage engine in
+  your build by doing the following during your build process:<br>
   ./configure --with-example-storage-engine
 
-  Once this is done mysql will let you create tables with:
-  CREATE TABLE A (...) ENGINE=EXAMPLE;
+  Once this is done, MySQL will let you create tables with:<br>
+  CREATE TABLE <table name> (...) ENGINE=EXAMPLE;
 
-  The example is setup to use table locks. It implements an example "SHARE"
-  that is inserted into a hash by table name. You can use this to store
-  information of state that any example handler object will be able to see
-  if it is using the same table.
+  The example storage engine is set up to use table locks. It implements an
+  example "SHARE" that is inserted into a hash by table name. You can use this
+  to store information of state that any example handler object will be able to
+  see when it is using that table.
 
   Please read the object definition in ha_example.h before reading the rest
-  if this file.
+  of this file.
 
-  To get an idea of what occurs here is an example select that would do a
-  scan of an entire table:
+    @note
+  When you create an EXAMPLE table, the MySQL Server creates a table .frm (format)
+  file in the database directory, using the table name as the file name as is
+  customary with MySQL. No other files are created. To get an idea of what occurs,
+  here is an example select that would do a scan of an entire table:
+    @code
   ha_example::store_lock
   ha_example::external_lock
   ha_example::info
   ha_example::rnd_init
   ha_example::extra
-  ENUM HA_EXTRA_CACHE   Cash record in HA_rrnd()
+  ENUM HA_EXTRA_CACHE        Cache record in HA_rrnd()
   ha_example::rnd_next
   ha_example::rnd_next
   ha_example::rnd_next
@@ -49,19 +63,20 @@
   ha_example::rnd_next
   ha_example::rnd_next
   ha_example::extra
-  ENUM HA_EXTRA_NO_CACHE   End cacheing of records (def)
+  ENUM HA_EXTRA_NO_CACHE     End caching of records (def)
   ha_example::external_lock
   ha_example::extra
-  ENUM HA_EXTRA_RESET   Reset database to after open
+  ENUM HA_EXTRA_RESET        Reset database to after open
+    @endcode
 
-  In the above example has 9 row called before rnd_next signalled that it was
-  at the end of its data. In the above example the table was already opened
-  (or you would have seen a call to ha_example::open(). Calls to
-  ha_example::extra() are hints as to what will be occuring to the request.
+  Here you see that the example storage engine has 9 rows called before rnd_next
+  signals that it has reached the end of its data. Also note that the table in
+  question was already opened; had it not been open, a call to ha_example::open()
+  would also have been necessary. Calls to ha_example::extra() are hints as to
+  what will be occuring to the request.
 
-  Happy coding!
+  Happy coding!<br>
     -Brian
-
 */
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
@@ -71,7 +86,6 @@
 #define MYSQL_SERVER 1
 #include "mysql_priv.h"
 #include "ha_example.h"
-
 #include <mysql/plugin.h>
 
 static handler *example_create_handler(handlerton *hton,
@@ -82,12 +96,11 @@ static int example_init_func();
 handlerton *example_hton;
 
 /* Variables for example share methods */
-static HASH example_open_tables; // Hash used to track open tables
-pthread_mutex_t example_mutex;   // This is the mutex we use to init the hash
-static int example_init= 0;      // Variable for checking the init state of hash
+static HASH example_open_tables; ///< Hash used to track the number of open tables; variable for example share methods
+pthread_mutex_t example_mutex;   ///< This is the mutex used to init the hash; variable for example share methods
+static int example_init= 0;      ///< This variable is used to check the init state of hash; variable for example share methods
 
-
-/*
+/** @brief
   Function we use in the creation of our hash to get key.
 */
 static byte* example_get_key(EXAMPLE_SHARE *share,uint *length,
@@ -127,8 +140,8 @@ static int example_done_func(void *p)
   DBUG_RETURN(0);
 }
 
-/*
-  Example of simple lock controls. The "share" it creates is structure we will
+/** @brief
+  Example of simple lock controls. The "share" it creates is a structure we will
   pass to each example handler. Do you have to have one of these? Well, you have
   pieces that are used for locking, and they are needed to function.
 */
@@ -176,10 +189,9 @@ error:
   return NULL;
 }
 
-
-/*
+/** @brief
   Free lock controls. We call this whenever we close a table. If the table had
-  the last reference to the share then we free memory associated with it.
+  the last reference to the share, then we free memory associated with it.
 */
 static int free_share(EXAMPLE_SHARE *share)
 {
@@ -196,7 +208,6 @@ static int free_share(EXAMPLE_SHARE *share)
   return 0;
 }
 
-
 static handler* example_create_handler(handlerton *hton,
                                        TABLE_SHARE *table, 
                                        MEM_ROOT *mem_root)
@@ -204,15 +215,18 @@ static handler* example_create_handler(handlerton *hton,
   return new (mem_root) ha_example(hton, table);
 }
 
-
 ha_example::ha_example(handlerton *hton, TABLE_SHARE *table_arg)
   :handler(hton, table_arg)
 {}
 
-/*
-  If frm_error() is called then we will use this to to find out what file extentions
-  exist for the storage engine. This is also used by the default rename_table and
-  delete_table method in handler.cc.
+/** @brief
+  If frm_error() is called then we will use this to determine the file extensions
+  that exist for the storage engine. This is also used by the default rename_table
+  and delete_table method in handler.cc.
+
+    @see
+  rename_table method in handler.cc and
+  delete_table method in handler.cc
 */
 static const char *ha_example_exts[] = {
   NullS
@@ -223,15 +237,19 @@ const char **ha_example::bas_ext() const
   return ha_example_exts;
 }
 
-
-/*
+/** @brief
   Used for opening tables. The name will be the name of the file.
-  A table is opened when it needs to be opened. For instance
-  when a request comes in for a select on the table (tables are not
-  open and closed for each request, they are cached).
+
+    @details
+  A table is opened when it needs to be opened; e.g. when a request comes in
+  for a SELECT on the table (tables are not open and closed for each request,
+  they are cached).
 
   Called from handler.cc by handler::ha_open(). The server opens all tables by
   calling ha_open() which then calls the handler specific open().
+
+    @see
+  handler::ha_open() in handler.cc
 */
 int ha_example::open(const char *name, int mode, uint test_if_locked)
 {
@@ -244,16 +262,19 @@ int ha_example::open(const char *name, int mode, uint test_if_locked)
   DBUG_RETURN(0);
 }
 
-
-/*
+/** @brief
   Closes a table. We call the free_share() function to free any resources
   that we have allocated in the "shared" structure.
 
-  Called from sql_base.cc, sql_select.cc, and table.cc.
-  In sql_select.cc it is only used to close up temporary tables or during
-  the process where a temporary table is converted over to being a
-  myisam table.
+    @details
+  Called from sql_base.cc, sql_select.cc, and table.cc. In sql_select.cc it is
+  only used to close up temporary tables or during the process where a temporary
+  table is converted over to being a myisam table.
+
   For sql_base.cc look at close_data_tables().
+
+    @see
+  sql_base.cc, sql_select.cc and table.cc
 */
 int ha_example::close(void)
 {
@@ -261,26 +282,33 @@ int ha_example::close(void)
   DBUG_RETURN(free_share(share));
 }
 
-
-/*
+/** @brief
   write_row() inserts a row. No extra() hint is given currently if a bulk load
-  is happeneding. buf() is a byte array of data. You can use the field
+  is happening. buf() is a byte array of data. You can use the field
   information to extract the data from the native byte array type.
+
+    @details
   Example of this would be:
+    @code
   for (Field **field=table->field ; *field ; field++)
   {
     ...
   }
+    @endcode
 
   See ha_tina.cc for an example of extracting all of the data as strings.
   ha_berekly.cc has an example of how to store it intact by "packing" it
   for ha_berkeley's own native storage type.
 
   See the note for update_row() on auto_increments and timestamps. This
-  case also applied to write_row().
+  case also applies to write_row().
 
   Called from item_sum.cc, item_sum.cc, sql_acl.cc, sql_insert.cc,
   sql_insert.cc, sql_select.cc, sql_table.cc, sql_udf.cc, and sql_update.cc.
+
+    @see
+  item_sum.cc, item_sum.cc, sql_acl.cc, sql_insert.cc,
+  sql_insert.cc, sql_select.cc, sql_table.cc, sql_udf.cc and sql_update.cc
 */
 int ha_example::write_row(byte * buf)
 {
@@ -288,21 +316,26 @@ int ha_example::write_row(byte * buf)
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 
-
-/*
+/** @brief
   Yes, update_row() does what you expect, it updates a row. old_data will have
-  the previous row record in it, while new_data will have the newest data in
-  it.
+  the previous row record in it, while new_data will have the newest data in it.
   Keep in mind that the server can do updates based on ordering if an ORDER BY
-  clause was used. Consecutive ordering is not guarenteed.
+  clause was used. Consecutive ordering is not guaranteed.
+
+    @details
   Currently new_data will not have an updated auto_increament record, or
-  and updated timestamp field. You can do these for example by doing these:
+  and updated timestamp field. You can do these for example by doing:
+    @code
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
     table->timestamp_field->set_time();
   if (table->next_number_field && record == table->record[0])
     update_auto_increment();
+    @endcode
 
   Called from sql_select.cc, sql_acl.cc, sql_update.cc, and sql_insert.cc.
+
+    @see
+  sql_select.cc, sql_acl.cc, sql_update.cc and sql_insert.cc
 */
 int ha_example::update_row(const byte * old_data, byte * new_data)
 {
@@ -311,19 +344,22 @@ int ha_example::update_row(const byte * old_data, byte * new_data)
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 
-
-/*
+/** @brief
   This will delete a row. buf will contain a copy of the row to be deleted.
   The server will call this right after the current row has been called (from
   either a previous rnd_nexT() or index call).
+
+    @details
   If you keep a pointer to the last row or can access a primary key it will
-  make doing the deletion quite a bit easier.
-  Keep in mind that the server does no guarentee consecutive deletions. ORDER BY
-  clauses can be used.
+  make doing the deletion quite a bit easier. Keep in mind that the server does
+  not guarantee consecutive deletions. ORDER BY clauses can be used.
 
   Called in sql_acl.cc and sql_udf.cc to manage internal table information.
   Called in sql_delete.cc, sql_insert.cc, and sql_select.cc. In sql_select it is
   used for removing duplicates while in insert it is used for REPLACE calls.
+
+    @see
+  sql_acl.cc, sql_udf.cc, sql_delete.cc, sql_insert.cc and sql_select.cc
 */
 int ha_example::delete_row(const byte * buf)
 {
@@ -331,8 +367,7 @@ int ha_example::delete_row(const byte * buf)
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 
-
-/*
+/** @brief
   Positions an index cursor to the index specified in the handle. Fetches the
   row if available. If the key value is null, begin at the first key of the
   index.
@@ -346,8 +381,7 @@ int ha_example::index_read(byte * buf, const byte * key,
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 
-
-/*
+/** @brief
   Used to read forward through the index.
 */
 int ha_example::index_next(byte * buf)
@@ -356,8 +390,7 @@ int ha_example::index_next(byte * buf)
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 
-
-/*
+/** @brief
   Used to read backwards through the index.
 */
 int ha_example::index_prev(byte * buf)
@@ -366,12 +399,14 @@ int ha_example::index_prev(byte * buf)
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 
-
-/*
+/** @brief
   index_first() asks for the first key in the index.
 
-  Called from opt_range.cc, opt_sum.cc, sql_handler.cc,
-  and sql_select.cc.
+    @details
+  Called from opt_range.cc, opt_sum.cc, sql_handler.cc, and sql_select.cc.
+
+    @see
+  opt_range.cc, opt_sum.cc, sql_handler.cc and sql_select.cc
 */
 int ha_example::index_first(byte * buf)
 {
@@ -379,12 +414,14 @@ int ha_example::index_first(byte * buf)
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 
-
-/*
+/** @brief
   index_last() asks for the last key in the index.
 
-  Called from opt_range.cc, opt_sum.cc, sql_handler.cc,
-  and sql_select.cc.
+    @details
+  Called from opt_range.cc, opt_sum.cc, sql_handler.cc, and sql_select.cc.
+
+    @see
+  opt_range.cc, opt_sum.cc, sql_handler.cc and sql_select.cc
 */
 int ha_example::index_last(byte * buf)
 {
@@ -392,15 +429,17 @@ int ha_example::index_last(byte * buf)
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 
-
-/*
+/** @brief
   rnd_init() is called when the system wants the storage engine to do a table
-  scan.
-  See the example in the introduction at the top of this file to see when
+  scan. See the example in the introduction at the top of this file to see when
   rnd_init() is called.
 
+    @details
   Called from filesort.cc, records.cc, sql_handler.cc, sql_select.cc, sql_table.cc,
   and sql_update.cc.
+
+    @see
+  filesort.cc, records.cc, sql_handler.cc, sql_select.cc, sql_table.cc and sql_update.cc
 */
 int ha_example::rnd_init(bool scan)
 {
@@ -414,14 +453,18 @@ int ha_example::rnd_end()
   DBUG_RETURN(0);
 }
 
-/*
+/** @brief
   This is called for each row of the table scan. When you run out of records
   you should return HA_ERR_END_OF_FILE. Fill buff up with the row information.
   The Field structure for the table is the key to getting data into buf
   in a manner that will allow the server to understand it.
 
+    @details
   Called from filesort.cc, records.cc, sql_handler.cc, sql_select.cc, sql_table.cc,
   and sql_update.cc.
+
+    @see
+  filesort.cc, records.cc, sql_handler.cc, sql_select.cc, sql_table.cc and sql_update.cc
 */
 int ha_example::rnd_next(byte *buf)
 {
@@ -429,20 +472,25 @@ int ha_example::rnd_next(byte *buf)
   DBUG_RETURN(HA_ERR_END_OF_FILE);
 }
 
-
-/*
+/** @brief
   position() is called after each call to rnd_next() if the data needs
   to be ordered. You can do something like the following to store
   the position:
+    @code
   my_store_ptr(ref, ref_length, current_position);
+    @endcode
 
+    @details
   The server uses ref to store data. ref_length in the above case is
   the size needed to store current_position. ref is just a byte array
   that the server will maintain. If you are using offsets to mark rows, then
   current_position should be the offset. If it is a primary key like in
   BDB, then it needs to be a primary key.
 
-  Called from filesort.cc, sql_select.cc, sql_delete.cc and sql_update.cc.
+  Called from filesort.cc, sql_select.cc, sql_delete.cc, and sql_update.cc.
+
+    @see
+  filesort.cc, sql_select.cc, sql_delete.cc and sql_update.cc
 */
 void ha_example::position(const byte *record)
 {
@@ -450,13 +498,17 @@ void ha_example::position(const byte *record)
   DBUG_VOID_RETURN;
 }
 
-
-/*
+/** @brief
   This is like rnd_next, but you are given a position to use
   to determine the row. The position will be of the type that you stored in
   ref. You can use ha_get_ptr(pos,ref_length) to retrieve whatever key
   or position you saved when position() was called.
-  Called from filesort.cc records.cc sql_insert.cc sql_select.cc sql_update.cc.
+
+    @details
+  Called from filesort.cc, records.cc, sql_insert.cc, sql_select.cc, and sql_update.cc.
+
+    @see
+  filesort.cc, records.cc, sql_insert.cc, sql_select.cc and sql_update.cc
 */
 int ha_example::rnd_pos(byte * buf, byte *pos)
 {
@@ -464,22 +516,24 @@ int ha_example::rnd_pos(byte * buf, byte *pos)
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 
+/** @brief
+  ::info() is used to return information to the optimizer. See my_base.h for
+  the complete description.
 
-/*
-  ::info() is used to return information to the optimizer.
-  see my_base.h for the complete description
+    @details
+  Currently this table handler doesn't implement most of the fields really needed.
+  SHOW also makes use of this data.
 
-  Currently this table handler doesn't implement most of the fields
-  really needed. SHOW also makes use of this data
-  Another note, you will probably want to have the following in your
-  code:
+  You will probably want to have the following in your code:
+    @code
   if (records < 2)
     records = 2;
+    @endcode
   The reason is that the server will optimize for cases of only a single
-  record. If in a table scan you don't know the number of records
-  it will probably be better to set records to two so you can return
-  as many records as you need.
-  Along with records a few more variables you may wish to set are:
+  record. If, in a table scan, you don't know the number of records, it
+  will probably be better to set records to two so you can return as many
+  records as you need. Along with records, a few more variables you may wish
+  to set are:
     records
     deleted
     data_file_length
@@ -488,27 +542,16 @@ int ha_example::rnd_pos(byte * buf, byte *pos)
     check_time
   Take a look at the public variables in handler.h for more information.
 
-  Called in:
-    filesort.cc
-    ha_heap.cc
-    item_sum.cc
-    opt_sum.cc
-    sql_delete.cc
-    sql_delete.cc
-    sql_derived.cc
-    sql_select.cc
-    sql_select.cc
-    sql_select.cc
-    sql_select.cc
-    sql_select.cc
-    sql_show.cc
-    sql_show.cc
-    sql_show.cc
-    sql_show.cc
-    sql_table.cc
-    sql_union.cc
-    sql_update.cc
+  Called in filesort.cc, ha_heap.cc, item_sum.cc, opt_sum.cc, sql_delete.cc,
+  sql_delete.cc, sql_derived.cc, sql_select.cc, sql_select.cc, sql_select.cc,
+  sql_select.cc, sql_select.cc, sql_show.cc, sql_show.cc, sql_show.cc, sql_show.cc,
+  sql_table.cc, sql_union.cc, and sql_update.cc.
 
+    @see
+  filesort.cc, ha_heap.cc, item_sum.cc, opt_sum.cc, sql_delete.cc, sql_delete.cc,
+  sql_derived.cc, sql_select.cc, sql_select.cc, sql_select.cc, sql_select.cc,
+  sql_select.cc, sql_show.cc, sql_show.cc, sql_show.cc, sql_show.cc, sql_table.cc,
+  sql_union.cc and sql_update.cc
 */
 int ha_example::info(uint flag)
 {
@@ -516,11 +559,13 @@ int ha_example::info(uint flag)
   DBUG_RETURN(0);
 }
 
-
-/*
+/** @brief
   extra() is called whenever the server wishes to send a hint to
   the storage engine. The myisam engine implements the most hints.
   ha_innodb.cc has the most exhaustive list of these hints.
+
+    @see
+  ha_innodb.cc
 */
 int ha_example::extra(enum ha_extra_function operation)
 {
@@ -528,17 +573,23 @@ int ha_example::extra(enum ha_extra_function operation)
   DBUG_RETURN(0);
 }
 
+/** @brief
+  Used to delete all rows in a table, including cases of truncate and cases where
+  the optimizer realizes that all rows will be removed as a result of an SQL statement.
 
-/*
-  Used to delete all rows in a table. Both for cases of truncate and
-  for cases where the optimizer realizes that all rows will be
-  removed as a result of a SQL statement.
-
+    @details
   Called from item_sum.cc by Item_func_group_concat::clear(),
   Item_sum_count_distinct::clear(), and Item_func_group_concat::clear().
   Called from sql_delete.cc by mysql_delete().
   Called from sql_select.cc by JOIN::reinit().
   Called from sql_union.cc by st_select_lex_unit::exec().
+
+    @see
+  Item_func_group_concat::clear(), Item_sum_count_distinct::clear() and
+  Item_func_group_concat::clear() in item_sum.cc;
+  mysql_delete() in sql_delete.cc;
+  JOIN::reinit() in sql_select.cc and
+  st_select_lex_unit::exec() in sql_union.cc.
 */
 int ha_example::delete_all_rows()
 {
@@ -546,17 +597,21 @@ int ha_example::delete_all_rows()
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 
-
-/*
-  First you should go read the section "locking functions for mysql" in
-  lock.cc to understand this.
+/** @brief
   This create a lock on the table. If you are implementing a storage engine
   that can handle transacations look at ha_berkely.cc to see how you will
-  want to goo about doing this. Otherwise you should consider calling flock()
-  here.
+  want to go about doing this. Otherwise you should consider calling flock()
+  here. Hint: Read the section "locking functions for mysql" in lock.cc to understand
+  this.
 
+    @details
   Called from lock.cc by lock_external() and unlock_external(). Also called
   from sql_table.cc by copy_data_between_tables().
+
+    @see
+  lock.cc by lock_external() and unlock_external() in lock.cc;
+  the section "locking functions for mysql" in lock.cc;
+  copy_data_between_tables() in sql_table.cc.
 */
 int ha_example::external_lock(THD *thd, int lock_type)
 {
@@ -564,25 +619,23 @@ int ha_example::external_lock(THD *thd, int lock_type)
   DBUG_RETURN(0);
 }
 
+/** @brief
+  The idea with handler::store_lock() is: The statement decides which locks
+  should be needed for the table. For updates/deletes/inserts we get WRITE
+  locks, for SELECT... we get read locks.
 
-/*
-  The idea with handler::store_lock() is the following:
-
-  The statement decided which locks we should need for the table
-  for updates/deletes/inserts we get WRITE locks, for SELECT... we get
-  read locks.
-
-  Before adding the lock into the table lock handler (see thr_lock.c)
-  mysqld calls store lock with the requested locks.  Store lock can now
+    @details
+  Before adding the lock into the table lock handler (see thr_lock.c),
+  mysqld calls store lock with the requested locks. Store lock can now
   modify a write lock to a read lock (or some other lock), ignore the
-  lock (if we don't want to use MySQL table locks at all) or add locks
+  lock (if we don't want to use MySQL table locks at all), or add locks
   for many tables (like we do when we are using a MERGE handler).
 
-  Berkeley DB for example  changes all WRITE locks to TL_WRITE_ALLOW_WRITE
-  (which signals that we are doing WRITES, but we are still allowing other
-  reader's and writer's.
+  Berkeley DB, for example, changes all WRITE locks to TL_WRITE_ALLOW_WRITE
+  (which signals that we are doing WRITES, but are still allowing other
+  readers and writers).
 
-  When releasing locks, store_lock() are also called. In this case one
+  When releasing locks, store_lock() is also called. In this case one
   usually doesn't have to do anything.
 
   In some exceptional cases MySQL may send a request for a TL_IGNORE;
@@ -590,9 +643,12 @@ int ha_example::external_lock(THD *thd, int lock_type)
   should also be ignored. (This may happen when someone does a flush
   table when we have opened a part of the tables, in which case mysqld
   closes and reopens the tables and tries to get the same locks at last
-  time).  In the future we will probably try to remove this.
+  time). In the future we will probably try to remove this.
 
   Called from lock.cc by get_lock_data().
+
+    @see
+  get_lock_data() in lock.cc
 */
 THR_LOCK_DATA **ha_example::store_lock(THD *thd,
                                        THR_LOCK_DATA **to,
@@ -604,19 +660,23 @@ THR_LOCK_DATA **ha_example::store_lock(THD *thd,
   return to;
 }
 
-/*
+/** @brief
   Used to delete a table. By the time delete_table() has been called all
   opened references to this table will have been closed (and your globally
-  shared references released. The variable name will just be the name of
+  shared references released). The variable name will just be the name of
   the table. You will need to remove any files you have created at this point.
 
+    @details
   If you do not implement this, the default delete_table() is called from
-  handler.cc and it will delete all files with the file extentions returned
+  handler.cc and it will delete all files with the file extensions returned
   by bas_ext().
 
-  Called from handler.cc by delete_table and  ha_create_table(). Only used
+  Called from handler.cc by delete_table and ha_create_table(). Only used
   during create if the table_flag HA_DROP_BEFORE_CREATE was specified for
   the storage engine.
+
+    @see
+  delete_table and ha_create_table() in handler.cc
 */
 int ha_example::delete_table(const char *name)
 {
@@ -625,14 +685,18 @@ int ha_example::delete_table(const char *name)
   DBUG_RETURN(0);
 }
 
-/*
-  Renames a table from one name to another from alter table call.
+/** @brief
+  Renames a table from one name to another via an alter table call.
 
+    @details
   If you do not implement this, the default rename_table() is called from
-  handler.cc and it will delete all files with the file extentions returned
+  handler.cc and it will delete all files with the file extensions returned
   by bas_ext().
 
   Called from sql_table.cc by mysql_rename_table().
+
+    @see
+  mysql_rename_table() in sql_table.cc
 */
 int ha_example::rename_table(const char * from, const char * to)
 {
@@ -640,12 +704,17 @@ int ha_example::rename_table(const char * from, const char * to)
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 
-/*
-  Given a starting key, and an ending key estimate the number of rows that
-  will exist between the two. end_key may be empty which in case determine
-  if start_key matches any rows.
+/** @brief
+  Given a starting key and an ending key, estimate the number of rows that
+  will exist between the two keys.
+
+    @details
+  end_key may be empty, in which case determine if start_key matches any rows.
 
   Called from opt_range.cc by check_quick_keys().
+
+    @see
+  check_quick_keys() in opt_range.cc
 */
 ha_rows ha_example::records_in_range(uint inx, key_range *min_key,
                                      key_range *max_key)
@@ -654,16 +723,20 @@ ha_rows ha_example::records_in_range(uint inx, key_range *min_key,
   DBUG_RETURN(10);                         // low number to force index usage
 }
 
-
-/*
+/** @brief
   create() is called to create a database. The variable name will have the name
-  of the table. When create() is called you do not need to worry about opening
-  the table. Also, the FRM file will have already been created so adjusting
-  create_info will not do you any good. You can overwrite the frm file at this
-  point if you wish to change the table definition, but there are no methods
-  currently provided for doing that.
+  of the table.
+
+    @details
+  When create() is called you do not need to worry about opening the table. Also,
+  the .frm file will have already been created so adjusting create_info is not
+  necessary. You can overwrite the .frm file at this point if you wish to change
+  the table definition, but there are no methods currently provided for doing so.
 
   Called from handle.cc by ha_create_table().
+
+    @see
+  ha_create_table() in handle.cc
 */
 int ha_example::create(const char *name, TABLE *table_arg,
                        HA_CREATE_INFO *create_info)
@@ -675,7 +748,6 @@ int ha_example::create(const char *name, TABLE *table_arg,
 
 struct st_mysql_storage_engine example_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
-
 
 mysql_declare_plugin(example)
 {
@@ -693,4 +765,3 @@ mysql_declare_plugin(example)
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
-
