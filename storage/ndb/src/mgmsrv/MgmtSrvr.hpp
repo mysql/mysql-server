@@ -272,7 +272,7 @@ public:
    *   @param   processId: Id of the DB process to stop
    *   @return  0 if succeeded, otherwise: as stated above, plus:
    */
-  int versionNode(int nodeId, Uint32 &version, Uint32 &version,
+  int versionNode(int nodeId, Uint32 &version, Uint32 &mysql_version,
 		  const char **address);
 
   /**
