@@ -704,6 +704,65 @@ buf_chunk_init(
 	return(chunk);
 }
 
+#ifdef UNIV_DEBUG
+/*************************************************************************
+Finds a block in the given buffer chunk that points to a
+given compressed page. */
+static
+buf_block_t*
+buf_chunk_contains_zip(
+/*===================*/
+				/* out: buffer block pointing to
+				the compressed page, or NULL */
+	buf_chunk_t*	chunk,	/* in: chunk being checked */
+	const void*	data)	/* in: pointer to compressed page */
+{
+	buf_block_t*	block;
+	ulint		i;
+
+	ut_ad(buf_pool);
+#ifdef UNIV_SYNC_DEBUG
+	ut_a(mutex_own(&buf_pool->mutex));
+#endif /* UNIV_SYNC_DEBUG */
+ 
+	block = chunk->blocks;
+
+	for (i = chunk->size; i--; block++) {
+		if (block->page.zip.data == data) {
+
+			return(block);
+		}
+	}
+
+	return(NULL);
+}
+
+/*************************************************************************
+Finds a block in the buffer pool that points to a
+given compressed page. */
+
+buf_block_t*
+buf_pool_contains_zip(
+/*==================*/
+				/* out: buffer block pointing to
+				the compressed page, or NULL */
+	const void*	data)	/* in: pointer to compressed page */
+{
+	ulint		n;
+	buf_chunk_t*	chunk = buf_pool->chunks;
+
+	for (n = buf_pool->n_chunks; n--; chunk++) {
+		buf_block_t* block = buf_chunk_contains_zip(chunk, data);
+
+		if (block) {
+			return(block);
+		}
+	}
+
+	return(NULL);
+}
+#endif /* UNIV_DEBUG */
+
 /*************************************************************************
 Checks that all file pages in the buffer chunk are in a replaceable state. */
 static
