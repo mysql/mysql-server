@@ -159,7 +159,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1522
+Last_Errno	1523
 Last_Error	Table width mismatch - received 2 columns, test.t2 has 1 columns
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -197,7 +197,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1522
+Last_Errno	1523
 Last_Error	Column 0 type mismatch - received type 3, test.t4 has type 4
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -235,7 +235,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1522
+Last_Errno	1523
 Last_Error	Column 1 type mismatch - received type 3, test.t5 has type 4
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -273,7 +273,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1522
+Last_Errno	1523
 Last_Error	Column 2 type mismatch - received type 3, test.t6 has type 4
 Skip_Counter	0
 Exec_Master_Log_Pos	#
