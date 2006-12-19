@@ -1569,10 +1569,11 @@ void Field_null::sql_type(String &res) const
   This is an number stored as a pre-space (or pre-zero) string
 ****************************************************************************/
 
-void
+int
 Field_decimal::reset(void)
 {
   Field_decimal::store(STRING_WITH_LEN("0"),&my_charset_bin);
+  return 0;
 }
 
 void Field_decimal::overflow(bool negative)
@@ -2217,9 +2218,10 @@ Field_new_decimal::Field_new_decimal(uint32 len_arg,
 }
 
 
-void Field_new_decimal::reset(void)
+int Field_new_decimal::reset(void)
 {
   store_value(&decimal_zero);
+  return 0;
 }
 
 
