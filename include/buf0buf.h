@@ -470,6 +470,18 @@ buf_block_get_lock_hash_val(
 					/* out: lock hash value */
 	const buf_block_t*	block)	/* in: block */
 	__attribute__((pure));
+#ifdef UNIV_DEBUG
+/*************************************************************************
+Finds a block in the buffer pool that points to a
+given compressed page. */
+
+buf_block_t*
+buf_pool_contains_zip(
+/*==================*/
+				/* out: buffer block pointing to
+				the compressed page, or NULL */
+	const void*	data);	/* in: pointer to compressed page */
+#endif /* UNIV_DEBUG */
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /*************************************************************************
 Validates the buffer pool data structure. */
