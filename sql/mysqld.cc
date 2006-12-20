@@ -4692,7 +4692,8 @@ enum options_mysqld
   OPT_LOG_SLOW_ADMIN_STATEMENTS,
   OPT_TABLE_LOCK_WAIT_TIMEOUT,
   OPT_PORT_OPEN_TIMEOUT,
-  OPT_MERGE
+  OPT_MERGE,
+  OPT_INNODB_ROLLBACK_ON_TIMEOUT
 };
 
 
@@ -4968,6 +4969,10 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    (gptr*) &srv_max_purge_lag,
    (gptr*) &srv_max_purge_lag, 0, GET_LONG, REQUIRED_ARG, 0, 0, ~0L,
    0, 1L, 0},
+  {"innodb_rollback_on_timeout", OPT_INNODB_ROLLBACK_ON_TIMEOUT,
+   "Roll back the complete transaction on lock wait timeout, for 4.x compatibility (disabled by default)",
+   (gptr*) &innobase_rollback_on_timeout, (gptr*) &innobase_rollback_on_timeout,
+   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"innodb_status_file", OPT_INNODB_STATUS_FILE,
    "Enable SHOW INNODB STATUS output in the innodb_status.<pid> file",
    (gptr*) &innobase_create_status_file, (gptr*) &innobase_create_status_file,
