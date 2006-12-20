@@ -81,6 +81,8 @@ THD *injector_thd= 0;
 static Ndb *injector_ndb= 0;
 static Ndb *schema_ndb= 0;
 
+static int ndbcluster_binlog_inited= 0;
+
 /*
   Mutex and condition used for interacting between client sql thread
   and injector thread
@@ -558,29 +560,28 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binl
   DBUG_VOID_RETURN;
 }
 
+
 /*
-  End use of the NDB Cluster table handler
-  - free all global variables allocated by 
-    ndbcluster_init()
+  End use of the NDB Cluster binlog
+   - wait for binlog thread to shutdown
 */
 
 static int ndbcluster_binlog_end(THD *thd)
 {
-  DBUG_ENTER("ndb_binlog_end");
+  DBUG_ENTER("ndbcluster_binlog_end");
 
-  if (!ndbcluster_util_inited)
+  if (!ndbcluster_binlog_inited)
     DBUG_RETURN(0);
-
-  // Kill ndb utility thread
-  (void) pthread_mutex_lock(&LOCK_ndb_util_thread);
-  DBUG_PRINT("exit",("killing ndb util thread: %lx", ndb_util_thread));
-  (void) pthread_cond_signal(&COND_ndb_util_thread);
-  (void) pthread_mutex_unlock(&LOCK_ndb_util_thread);
+  ndbcluster_binlog_inited= 0;
 
 #ifdef HAVE_NDB_BINLOG
   /* wait for injector thread to finish */
+  pthread_mutex_lock(&injector_mutex);
   if (ndb_binlog_thread_running > 0)
   {
+    pthread_cond_signal(&injector_cond);
+    pthread_mutex_unlock(&injector_mutex);
+
     pthread_mutex_lock(&injector_mutex);
     while (ndb_binlog_thread_running > 0)
     {
@@ -588,8 +589,9 @@ static int ndbcluster_binlog_end(THD *thd)
       set_timespec(abstime, 1);
       pthread_cond_timedwait(&injector_cond, &injector_mutex, &abstime);
     }
-    pthread_mutex_unlock(&injector_mutex);
   }
+  pthread_mutex_unlock(&injector_mutex);
+
 
   /* remove all shares */
   {
@@ -617,8 +619,10 @@ static int ndbcluster_binlog_end(THD *thd)
     }
     pthread_mutex_unlock(&ndbcluster_mutex);
   }
+
+  pthread_mutex_destroy(&injector_mutex);
+  pthread_cond_destroy(&injector_cond);
 #endif
-  ndbcluster_util_inited= 0;
   DBUG_RETURN(0);
 }
 
@@ -2286,31 +2290,21 @@ int ndbcluster_binlog_start()
     DBUG_RETURN(-1);
   }
 
-  /*
-    Wait for the ndb injector thread to finish starting up.
-  */
+  ndbcluster_binlog_inited= 1;
+
+  /* Wait for the injector thread to start */
   pthread_mutex_lock(&injector_mutex);
   while (!ndb_binlog_thread_running)
     pthread_cond_wait(&injector_cond, &injector_mutex);
   pthread_mutex_unlock(&injector_mutex);
-  
+
   if (ndb_binlog_thread_running < 0)
     DBUG_RETURN(-1);
+
 
   DBUG_RETURN(0);
 }
 
-static void ndbcluster_binlog_close_connection(THD *thd)
-{
-  DBUG_ENTER("ndbcluster_binlog_close_connection");
-  const char *save_info= thd->proc_info;
-  thd->proc_info= "ndbcluster_binlog_close_connection";
-  do_ndbcluster_binlog_close_connection= BCCC_exit;
-  while (ndb_binlog_thread_running > 0)
-    sleep(1);
-  thd->proc_info= save_info;
-  DBUG_VOID_RETURN;
-}
 
 /**************************************************************
   Internal helper functions for creating/dropping ndb events
@@ -3953,6 +3947,7 @@ restart:
     goto restart;
   }
 err:
+  sql_print_information("Stopping Cluster Binlog");
   DBUG_PRINT("info",("Shutting down cluster binlog thread"));
   thd->proc_info= "Shutting down";
   close_thread_tables(thd);
@@ -3964,8 +3959,6 @@ err:
   schema_ndb= 0;
   pthread_mutex_unlock(&injector_mutex);
   thd->db= 0; // as not to try to free memory
-
-  sql_print_information("Stopping Cluster Binlog");
 
   if (ndb_apply_status_share)
   {
