@@ -1166,7 +1166,8 @@ String *Item_func_substr::val_str(String *str)
 
   /* if "unsigned_flag" is set, we have a *huge* positive number. */
   /* Assumes that the maximum length of a String is < INT_MAX32. */
-  if ((args[1]->unsigned_flag) || (start < INT_MIN32) || (start > INT_MAX32))
+  if ((!args[1]->unsigned_flag && (start < INT_MIN32 || start > INT_MAX32)) ||
+      (args[1]->unsigned_flag && ((ulonglong) start > INT_MAX32)))
     return &my_empty_string;
 
   start= ((start < 0) ? res->numchars() + start : start - 1);
@@ -2227,25 +2228,23 @@ String *Item_func_repeat::val_str(String *str)
   uint length,tot_length;
   char *to;
   /* must be longlong to avoid truncation */
-  longlong tmp_count= args[1]->val_int();
-  long count= (long) tmp_count;
+  longlong count= args[1]->val_int();
   String *res= args[0]->val_str(str);
-
-  /* Assumes that the maximum length of a String is < INT_MAX32. */
-  /* Bounds check on count:  If this is triggered, we will error. */
-  if ((tmp_count > INT_MAX32) || args[1]->unsigned_flag)
-    count= INT_MAX32;
 
   if (args[0]->null_value || args[1]->null_value)
     goto err;				// string and/or delim are null
   null_value= 0;
-  if ((tmp_count <= 0) && !args[1]->unsigned_flag)	// For nicer SQL code
+  if ((count <= 0) && !args[1]->unsigned_flag)	// For nicer SQL code
     return &my_empty_string;
+  /* Assumes that the maximum length of a String is < INT_MAX32. */
+  /* Bounds check on count:  If this is triggered, we will error. */
+  if ((ulonglong) count > INT_MAX32)
+    count= INT_MAX32;
   if (count == 1)			// To avoid reallocs
     return res;
   length=res->length();
   // Safe length check
-  if (length > current_thd->variables.max_allowed_packet/count)
+  if (length > current_thd->variables.max_allowed_packet / (uint) count)
   {
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
@@ -2319,15 +2318,14 @@ String *Item_func_rpad::val_str(String *str)
   String *res= args[0]->val_str(str);
   String *rpad= args[2]->val_str(&rpad_str);
 
-  /* Assumes that the maximum length of a String is < INT_MAX32. */
-  /* Set here so that rest of code sees out-of-bound value as such. */
-  if ((count > INT_MAX32) || args[1]->unsigned_flag)
-    count= INT_MAX32;
-
-  if (!res || args[1]->null_value || !rpad || count < 0)
+  if (!res || args[1]->null_value || !rpad || 
+      ((count < 0) && !args[1]->unsigned_flag))
     goto err;
   null_value=0;
-
+  /* Assumes that the maximum length of a String is < INT_MAX32. */
+  /* Set here so that rest of code sees out-of-bound value as such. */
+  if ((ulonglong) count > INT_MAX32)
+    count= INT_MAX32;
   if (count <= (res_char_length= res->numchars()))
   {						// String to pad is big enough
     res->length(res->charpos((int) count));     // Shorten result if longer
@@ -2421,14 +2419,15 @@ String *Item_func_lpad::val_str(String *str)
   String *res= args[0]->val_str(&tmp_value);
   String *pad= args[2]->val_str(&lpad_str);
 
+  if (!res || args[1]->null_value || !pad ||  
+      ((count < 0) && !args[1]->unsigned_flag))
+    goto err;  
+  null_value=0;
   /* Assumes that the maximum length of a String is < INT_MAX32. */
   /* Set here so that rest of code sees out-of-bound value as such. */
-  if ((count > INT_MAX32) || args[1]->unsigned_flag)
+  if ((ulonglong) count > INT_MAX32)
     count= INT_MAX32;
 
-  if (!res || args[1]->null_value || !pad || count < 0)
-    goto err;
-  null_value=0;
   res_char_length= res->numchars();
 
   if (count <= res_char_length)
