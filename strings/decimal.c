@@ -138,6 +138,12 @@ static const dec1 frac_max[DIG_PER_DEC1-1]={
   900000000, 990000000, 999000000,
   999900000, 999990000, 999999000,
   999999900, 999999990 };
+static double scaler10[]= {
+  1.0, 1e10, 1e20, 1e30, 1e40, 1e50, 1e60, 1e70, 1e80, 1e90
+};
+static double scaler1[]= {
+  1.0, 10.0, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9
+};
 
 #ifdef HAVE_purify
 #define sanity(d) DBUG_ASSERT((d)->len > 0)
@@ -946,15 +952,27 @@ fatal_error:
 
 int decimal2double(decimal_t *from, double *to)
 {
-  double x=0, t=DIG_BASE;
-  int intg, frac;
-  dec1 *buf=from->buf;
+  double result= 0.0;
+  int i, exp= 0;
+  dec1 *buf= from->buf;
 
-  for (intg=from->intg; intg > 0; intg-=DIG_PER_DEC1)
-    x=x*DIG_BASE + *buf++;
-  for (frac=from->frac; frac > 0; frac-=DIG_PER_DEC1, t*=DIG_BASE)
-    x+=*buf++/t;
-  *to=from->sign ? -x : x;
+  for (i= from->intg; i > 0;  i-= DIG_PER_DEC1)
+    result= result * DIG_BASE + *buf++;
+
+  for (i= from->frac; i > 0; i-= DIG_PER_DEC1) {
+    result= result * DIG_BASE + *buf++;
+    exp+= DIG_PER_DEC1;
+  }
+
+  DBUG_PRINT("info", ("interm.: %f %d %f", result, exp,
+             scaler10[exp / 10] * scaler1[exp % 10]));
+
+  result/= scaler10[exp / 10] * scaler1[exp % 10];
+
+  *to= from->sign ? -result : result;
+
+  DBUG_PRINT("info", ("result: %f (%lx)", *to, *to));
+
   return E_DEC_OK;
 }
 
