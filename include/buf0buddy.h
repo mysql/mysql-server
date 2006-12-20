@@ -59,7 +59,8 @@ UNIV_INLINE
 void
 buf_buddy_free(
 /*===========*/
-	void*	buf,	/* in: block to free */
+	void*	buf,	/* in: block to be freed, must not be
+			pointed to by the buffer pool */
 	ulint	size)	/* in: block size, up to UNIV_PAGE_SIZE / 2 */
 	__attribute__((nonnull));
 
