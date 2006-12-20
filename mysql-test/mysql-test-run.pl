@@ -227,6 +227,7 @@ our $opt_mark_progress;
 our $opt_skip;
 our $opt_skip_rpl;
 our $max_slave_num= 0;
+our $max_master_num= 0;
 our $use_innodb;
 our $opt_skip_test;
 our $opt_skip_im;
@@ -404,6 +405,15 @@ sub main () {
 	$max_slave_num= $test->{slave_num};
 	mtr_error("Too many slaves") if $max_slave_num > 3;
       }
+
+      # Count max number of masters used by a test case
+      if ( $test->{master_num} > $max_master_num)
+      {
+	$max_master_num= $test->{master_num};
+	mtr_error("Too many masters") if $max_master_num > 2;
+	mtr_error("Too few masters") if $max_master_num < 1;
+      }
+
       $use_innodb||= $test->{'innodb_test'};
     }
 
@@ -1235,9 +1245,10 @@ sub command_line_setup () {
 sub datadir_list_setup () {
 
   # Make a list of all data_dirs
-  @data_dir_lst = (
-    $master->[0]->{'path_myddir'},
-    $master->[1]->{'path_myddir'});
+  for (my $idx= 0; $idx < $max_master_num; $idx++)
+  {
+    push(@data_dir_lst, $master->[$idx]->{'path_myddir'});
+  }
 
   for (my $idx= 0; $idx < $max_slave_num; $idx++)
   {
@@ -2644,8 +2655,10 @@ sub mysql_install_db () {
 
   install_db('master', $master->[0]->{'path_myddir'});
 
-  # FIXME check if testcase really is using second master
-  copy_install_db('master', $master->[1]->{'path_myddir'});
+  if ($max_master_num)
+  {
+    copy_install_db('master', $master->[1]->{'path_myddir'});
+  }
 
   # Install the number of slave databses needed
   for (my $idx= 0; $idx < $max_slave_num; $idx++)
@@ -4179,7 +4192,8 @@ sub run_testcase_start_servers($) {
 
     }
 
-    if ( $clusters->[0]->{'pid'} and ! $master->[1]->{'pid'} )
+    if ( $clusters->[0]->{'pid'} and ! $master->[1]->{'pid'} and
+	 $tinfo->{'master_num'} > 1 )
     {
       # Test needs cluster, start an extra mysqld connected to cluster
 
