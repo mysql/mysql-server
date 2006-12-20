@@ -574,9 +574,9 @@ int get_connection(FEDERATED_SHARE *share)
   int error_num= ER_FOREIGN_SERVER_DOESNT_EXIST;
   char error_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   FOREIGN_SERVER *server;
-  MYSQL *mysql_conn;
+  MYSQL *mysql_conn= 0;
   MYSQL_RES *result= 0;
-  MYSQL_ROW row;
+  MYSQL_ROW row= 0;
   DBUG_ENTER("ha_federated::get_connection");
 
   if (!(server=
@@ -607,7 +607,7 @@ int get_connection(FEDERATED_SHARE *share)
   if (server->db)
     share->database= server->db;
 
-  share->port= server->port ? server->port : MYSQL_PORT;
+  share->port= server->port ? (ushort) server->port : MYSQL_PORT;
 
   if (server->host)
     share->hostname= server->host;
@@ -704,8 +704,7 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
   DBUG_PRINT("info", ("Length: %d", table->s->connect_string.length));
   DBUG_PRINT("info", ("String: '%.*s'", table->s->connect_string.length,
                       table->s->connect_string.str));
-  share->connection_string= my_strndup((const byte*)table->s->
-                                       connect_string.str, 
+  share->connection_string= my_strndup(table->s->connect_string.str,
                                        table->s->connect_string.length,
                                        MYF(0));
 
