@@ -1107,18 +1107,18 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
     my_off_t  total_count;
     char      llbuf[32];
 
-    DBUG_PRINT("info", ("column: %3lu", count - huff_counts + 1));
+    DBUG_PRINT("info", ("column: %3u", (uint) (count - huff_counts + 1)));
     if (verbose >= 2)
-      VOID(printf("column: %3lu\n", count - huff_counts + 1));
+      VOID(printf("column: %3u\n", (uint) (count - huff_counts + 1)));
     if (count->tree_buff)
     {
-      DBUG_PRINT("info", ("number of distinct values: %lu",
-                          (count->tree_pos - count->tree_buff) /
-                          count->field_length));
+      DBUG_PRINT("info", ("number of distinct values: %u",
+                          (uint) ((count->tree_pos - count->tree_buff) /
+                                  count->field_length)));
       if (verbose >= 2)
-        VOID(printf("number of distinct values: %lu\n",
-                    (count->tree_pos - count->tree_buff) /
-                    count->field_length));
+        VOID(printf("number of distinct values: %u\n",
+                    (uint) ((count->tree_pos - count->tree_buff) /
+                            count->field_length)));
     }
     total_count= 0;
     for (idx= 0; idx < 256; idx++)
@@ -2038,7 +2038,7 @@ static void write_field_info(HUFF_COUNTS *counts, uint fields, uint trees)
   uint huff_tree_bits;
   huff_tree_bits=max_bit(trees ? trees-1 : 0);
 
-  DBUG_PRINT("info", (""));
+  DBUG_PRINT("info", (" "));
   DBUG_PRINT("info", ("column types:"));
   DBUG_PRINT("info", ("FIELD_NORMAL          0"));
   DBUG_PRINT("info", ("FIELD_SKIP_ENDSPACE   1"));
@@ -2050,12 +2050,12 @@ static void write_field_info(HUFF_COUNTS *counts, uint fields, uint trees)
   DBUG_PRINT("info", ("FIELD_ZERO            7"));
   DBUG_PRINT("info", ("FIELD_VARCHAR         8"));
   DBUG_PRINT("info", ("FIELD_CHECK           9"));
-  DBUG_PRINT("info", (""));
+  DBUG_PRINT("info", (" "));
   DBUG_PRINT("info", ("pack type as a set of flags:"));
   DBUG_PRINT("info", ("PACK_TYPE_SELECTED      1"));
   DBUG_PRINT("info", ("PACK_TYPE_SPACE_FIELDS  2"));
   DBUG_PRINT("info", ("PACK_TYPE_ZERO_FILL     4"));
-  DBUG_PRINT("info", (""));
+  DBUG_PRINT("info", (" "));
   if (verbose >= 2)
   {
     VOID(printf("\n"));
@@ -2128,7 +2128,7 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
     return 0;
   }
 
-  DBUG_PRINT("info", (""));
+  DBUG_PRINT("info", (" "));
   if (verbose >= 2)
     VOID(printf("\n"));
   tree_no= 0;
@@ -2139,7 +2139,7 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
     if (huff_tree->tree_number == 0)
       continue;				/* Deleted tree */
     tree_no++;
-    DBUG_PRINT("info", (""));
+    DBUG_PRINT("info", (" "));
     if (verbose >= 3)
       VOID(printf("\n"));
     /* Count the total number of elements (byte codes or column values). */
@@ -2281,8 +2281,8 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
         if (bits > 8 * sizeof(code))
         {
           VOID(fflush(stdout));
-          VOID(fprintf(stderr, "error: Huffman code too long: %u/%lu\n",
-                       bits, 8 * sizeof(code)));
+          VOID(fprintf(stderr, "error: Huffman code too long: %u/%u\n",
+                       bits, (uint) (8 * sizeof(code))));
           errors++;
           break;
         }
@@ -2331,7 +2331,7 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
     }
     flush_bits();
   }
-  DBUG_PRINT("info", (""));
+  DBUG_PRINT("info", (" "));
   if (verbose >= 2)
     VOID(printf("\n"));
   my_afree((gptr) packed_tree);
@@ -2509,7 +2509,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
 	end_pos-=count->max_zero_fill;
 	field_length-=count->max_zero_fill;
 
-	switch(count->field_type) {
+	switch (count->field_type) {
 	case FIELD_SKIP_ZERO:
 	  if (!memcmp((byte*) start_pos,zero_string,field_length))
 	  {
@@ -2925,6 +2925,8 @@ static void flush_bits(void)
     bits-= 8;
     *file_buffer.pos++= (uchar) (bit_buffer >> bits);
   }
+  if (file_buffer.pos >= file_buffer.end)
+    VOID(flush_buffer(~ (ulong) 0));
   file_buffer.bits= BITS_SAVED;
   file_buffer.bitbucket= 0;
 }

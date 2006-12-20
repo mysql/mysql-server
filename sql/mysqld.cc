@@ -8187,11 +8187,13 @@ void refresh_status(THD *thd)
 #undef have_innodb
 #undef have_ndbcluster
 #undef have_csv_db
+#undef have_maria_db
 
 SHOW_COMP_OPTION have_innodb= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_ndbcluster= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_csv_db= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_partition_db= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_maria_db= SHOW_OPTION_NO;
 
 #ifndef WITH_INNOBASE_STORAGE_ENGINE
 uint innobase_flush_log_at_trx_commit;

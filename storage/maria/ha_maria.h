@@ -36,7 +36,7 @@ extern ulong maria_recover_options;
 class ha_maria :public handler
 {
   MARIA_HA *file;
-  ulong int_table_flags;
+  ulonglong int_table_flags;
   char *data_file_name, *index_file_name;
   bool can_enable_indexes;
   int repair(THD * thd, HA_CHECK &param, bool optimize);

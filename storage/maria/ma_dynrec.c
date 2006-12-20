@@ -1240,8 +1240,8 @@ ulong _ma_rec_unpack(register MARIA_HA *info, register byte *to, byte *from,
 
 err:
   my_errno= HA_ERR_WRONG_IN_RECORD;
-  DBUG_PRINT("error",("to_end: %lx -> %lx  from_end: %lx -> %lx",
-		      to,to_end,from,from_end));
+  DBUG_PRINT("error",("to_end: 0x%lx -> 0x%lx  from_end: 0x%lx -> 0x%lx",
+		      (long) to, (long) to_end, (long) from, (long) from_end));
   DBUG_DUMP("from",(byte*) info->rec_buff,info->s->base.min_pack_length);
   DBUG_RETURN(MY_FILE_ERROR);
 } /* _ma_rec_unpack */

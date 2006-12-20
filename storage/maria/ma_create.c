@@ -441,9 +441,9 @@ int maria_create(const char *name,uint keys,MARIA_KEYDEF *keydefs,
     block_length= max(block_length, MARIA_MIN_KEY_BLOCK_LENGTH);
     block_length= min(block_length, MARIA_MAX_KEY_BLOCK_LENGTH);
 
-    keydef->block_length= MARIA_BLOCK_SIZE(length-real_length_diff,
-                                           pointer,MARIA_MAX_KEYPTR_SIZE,
-                                           block_length);
+    keydef->block_length= (uint16) MARIA_BLOCK_SIZE(length-real_length_diff,
+                                                   pointer,MARIA_MAX_KEYPTR_SIZE,
+                                                   block_length);
     if (keydef->block_length > MARIA_MAX_KEY_BLOCK_LENGTH ||
         length >= HA_MAX_KEY_BUFF)
     {

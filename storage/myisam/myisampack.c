@@ -1110,11 +1110,11 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
       VOID(printf("column: %3u\n", (uint) (count - huff_counts + 1)));
     if (count->tree_buff)
     {
-      DBUG_PRINT("info", ("number of distinct values: %lu",
+      DBUG_PRINT("info", ("number of distinct values: %u",
                           (uint) ((count->tree_pos - count->tree_buff) /
                                   count->field_length)));
       if (verbose >= 2)
-        VOID(printf("number of distinct values: %lu\n",
+        VOID(printf("number of distinct values: %u\n",
                     (uint) ((count->tree_pos - count->tree_buff) /
                             count->field_length)));
     }

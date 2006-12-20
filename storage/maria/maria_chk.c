@@ -701,6 +701,7 @@ get_one_option(int optid,
   {
     int method;
     enum_handler_stats_method method_conv;
+    LINT_INIT(method_conv);
     maria_stats_method_str= argument;
     if ((method=find_type(argument, &maria_stats_method_typelib, 2)) <= 0)
     {

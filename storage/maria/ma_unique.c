@@ -57,8 +57,8 @@ my_bool _ma_check_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def, byte *record,
     if (_ma_search_next(info,info->s->keyinfo+def->key, info->lastkey,
 			MARIA_UNIQUE_HASH_LENGTH, SEARCH_BIGGER,
 			info->s->state.key_root[def->key]) ||
-	memcmp((char*) info->lastkey, (char*) key_buff,
-               MARIA_UNIQUE_HASH_LENGTH))
+	bcmp((char*) info->lastkey, (char*) key_buff,
+             MARIA_UNIQUE_HASH_LENGTH))
     {
       info->page_changed=1;			/* Can't optimize read next */
       info->lastpos=lastpos;

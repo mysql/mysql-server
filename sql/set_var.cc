@@ -674,6 +674,7 @@ sys_var_have_variable sys_have_csv_db("have_csv", &have_csv_db);
 sys_var_have_variable sys_have_dlopen("have_dynamic_loading", &have_dlopen);
 sys_var_have_variable sys_have_geometry("have_geometry", &have_geometry);
 sys_var_have_variable sys_have_innodb("have_innodb", &have_innodb);
+sys_var_have_variable sys_have_maria_db("have_maria", &have_maria_db);
 sys_var_have_variable sys_have_ndbcluster("have_ndbcluster", &have_ndbcluster);
 sys_var_have_variable sys_have_openssl("have_openssl", &have_openssl);
 sys_var_have_variable sys_have_partition_db("have_partitioning",
@@ -800,6 +801,7 @@ SHOW_VAR init_vars[]= {
   {sys_have_dlopen.name,      (char*) &have_dlopen,                 SHOW_HAVE},
   {sys_have_geometry.name,    (char*) &have_geometry,               SHOW_HAVE},
   {sys_have_innodb.name,      (char*) &have_innodb,                 SHOW_HAVE},
+  {sys_have_maria_db.name,    (char*) &have_maria_db,               SHOW_HAVE},
   {sys_have_ndbcluster.name,  (char*) &have_ndbcluster,             SHOW_HAVE},
   {sys_have_openssl.name,     (char*) &have_openssl,                SHOW_HAVE},
   {sys_have_partition_db.name,(char*) &have_partition_db,           SHOW_HAVE},

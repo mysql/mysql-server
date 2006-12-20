@@ -635,7 +635,7 @@ int ha_maria::repair(THD * thd, HA_CHECK_OPT *check_opt)
     {
       param.testflag &= ~T_RETRY_WITHOUT_QUICK;
       sql_print_information("Retrying repair of: '%s' without quick",
-                            table->s->path);
+                            table->s->path.str);
       continue;
     }
     param.testflag &= ~T_QUICK;
@@ -643,7 +643,7 @@ int ha_maria::repair(THD * thd, HA_CHECK_OPT *check_opt)
     {
       param.testflag= (param.testflag & ~T_REP_BY_SORT) | T_REP;
       sql_print_information("Retrying repair of: '%s' with keycache",
-                            table->s->path);
+                            table->s->path.str);
       continue;
     }
     break;
@@ -654,7 +654,8 @@ int ha_maria::repair(THD * thd, HA_CHECK_OPT *check_opt)
     char llbuff[22], llbuff2[22];
     sql_print_information("Found %s of %s rows when repairing '%s'",
                           llstr(file->state->records, llbuff),
-                          llstr(start_records, llbuff2), table->s->path);
+                          llstr(start_records, llbuff2),
+                          table->s->path.str);
   }
   return error;
 }
@@ -1183,7 +1184,7 @@ bool ha_maria::check_and_repair(THD *thd)
   // Don't use quick if deleted rows
   if (!file->state->del && (maria_recover_options & HA_RECOVER_QUICK))
     check_opt.flags |= T_QUICK;
-  sql_print_warning("Checking table:   '%s'", table->s->path);
+  sql_print_warning("Checking table:   '%s'", table->s->path.str);
 
   old_query= thd->query;
   old_query_length= thd->query_length;
@@ -1194,7 +1195,7 @@ bool ha_maria::check_and_repair(THD *thd)
 
   if ((marked_crashed= maria_is_crashed(file)) || check(thd, &check_opt))
   {
-    sql_print_warning("Recovering table: '%s'", table->s->path);
+    sql_print_warning("Recovering table: '%s'", table->s->path.str);
     check_opt.flags=
       ((maria_recover_options & HA_RECOVER_BACKUP ? T_BACKUP_DATA : 0) |
        (marked_crashed ? 0 : T_QUICK) |
@@ -1506,6 +1507,7 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
   bool found_real_auto_increment= 0;
   enum ha_base_keytype type;
   char buff[FN_REFLEN];
+  byte *record;
   KEY *pos;
   MARIA_KEYDEF *keydef;
   MARIA_COLUMNDEF *recinfo, *recinfo_pos;
@@ -1608,6 +1610,7 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
     found_real_auto_increment= share->next_number_key_offset == 0;
   }
 
+  record= table_arg->record[0];
   recpos= 0;
   recinfo_pos= recinfo;
   while (recpos < (uint) share->reclength)
@@ -1618,7 +1621,8 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
 
     for (field= table_arg->field; *field; field++)
     {
-      if ((fieldpos= (*field)->offset()) >= recpos && fieldpos <= minpos)
+      if ((fieldpos=(*field)->offset(record)) >= recpos &&
+          fieldpos <= minpos)
       {
         /* skip null fields */
         if (!(temp_length= (*field)->pack_length_in_rec()))
@@ -1633,7 +1637,7 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
       }
     }
     DBUG_PRINT("loop", ("found: 0x%lx  recpos: %d  minpos: %d  length: %d",
-                        found, recpos, minpos, length));
+		       (long) found, recpos, minpos, length));
     if (recpos != minpos)
     {                                           // Reserved space (Null bits?)
       bzero((char*) recinfo_pos, sizeof(*recinfo_pos));

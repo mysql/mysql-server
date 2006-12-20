@@ -759,9 +759,9 @@ int init_pagecache(PAGECACHE *pagecache, my_size_t use_mem,
     DBUG_PRINT("exit",
 	       ("disk_blocks: %d  block_root: 0x%lx  hash_entries: %d\
  hash_root: 0x%lx  hash_links: %d  hash_link_root: 0x%lx",
-		pagecache->disk_blocks, pagecache->block_root,
-		pagecache->hash_entries, pagecache->hash_root,
-		pagecache->hash_links, pagecache->hash_link_root));
+		pagecache->disk_blocks, (long) pagecache->block_root,
+		pagecache->hash_entries, (long) pagecache->hash_root,
+		pagecache->hash_links, (long) pagecache->hash_link_root));
     bzero((gptr) pagecache->changed_blocks,
 	  sizeof(pagecache->changed_blocks[0]) *
           PAGECACHE_CHANGED_BLOCKS_HASH);
@@ -985,7 +985,7 @@ void change_pagecache_param(PAGECACHE *pagecache, uint division_limit,
 void end_pagecache(PAGECACHE *pagecache, my_bool cleanup)
 {
   DBUG_ENTER("end_pagecache");
-  DBUG_PRINT("enter", ("key_cache: 0x%lx", pagecache));
+  DBUG_PRINT("enter", ("key_cache: 0x%lx", (long) pagecache));
 
   if (!pagecache->inited)
     DBUG_VOID_RETURN;
@@ -1004,7 +1004,7 @@ void end_pagecache(PAGECACHE *pagecache, my_bool cleanup)
     pagecache->blocks_changed= 0;
   }
 
-  DBUG_PRINT("status", ("used: %d  changed: %d  w_requests: %lu  "
+  DBUG_PRINT("status", ("used: %lu  changed: %lu  w_requests: %lu  "
                         "writes: %lu  r_requests: %lu  reads: %lu",
                         pagecache->blocks_used, pagecache->global_blocks_changed,
                         (ulong) pagecache->global_cache_w_requests,
@@ -1466,7 +1466,7 @@ static void unreg_request(PAGECACHE *pagecache,
       if (block->temperature == BLOCK_WARM)
         pagecache->warm_blocks--;
       block->temperature= BLOCK_HOT;
-      KEYCACHE_DBUG_PRINT("unreg_request", ("#warm_blocks=%u",
+      KEYCACHE_DBUG_PRINT("unreg_request", ("#warm_blocks: %lu",
                            pagecache->warm_blocks));
     }
     link_block(pagecache, block, hot, (my_bool)at_end);
@@ -1485,7 +1485,7 @@ static void unreg_request(PAGECACHE *pagecache,
         pagecache->warm_blocks++;
         block->temperature= BLOCK_WARM;
       }
-      KEYCACHE_DBUG_PRINT("unreg_request", ("#warm_blocks=%u",
+      KEYCACHE_DBUG_PRINT("unreg_request", ("#warm_blocks: %lu",
                            pagecache->warm_blocks));
     }
   }
@@ -1789,11 +1789,11 @@ static PAGECACHE_BLOCK_LINK *find_key_block(PAGECACHE *pagecache,
 
   DBUG_ENTER("find_key_block");
   KEYCACHE_THREAD_TRACE("find_key_block:begin");
-  DBUG_PRINT("enter", ("fd: %u  pos %lu  wrmode: %lu",
-                       (uint) file->file, (ulong) pageno, (uint) wrmode));
-  KEYCACHE_DBUG_PRINT("find_key_block", ("fd: %u  pos: %lu  wrmode: %lu",
-                                         (uint) file->file, (ulong) pageno,
-                                         (uint) wrmode));
+  DBUG_PRINT("enter", ("fd: %d  pos: %lu  wrmode: %d",
+                       file->file, (ulong) pageno, wrmode));
+  KEYCACHE_DBUG_PRINT("find_key_block", ("fd: %d  pos: %lu  wrmode: %d",
+                                         file->file, (ulong) pageno,
+                                         wrmode));
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
   DBUG_EXECUTE("check_pagecache",
                test_key_cache(pagecache, "start of find_key_block", 0););
@@ -2103,14 +2103,14 @@ restart:
   KEYCACHE_DBUG_ASSERT(page_status != -1);
   *page_st=page_status;
   DBUG_PRINT("info",
-             ("block: 0x%lx fd: %u  pos %lu  block->status %u page_status %lu",
+             ("block: 0x%lx fd: %u  pos %lu  block->status %u page_status %u",
               (ulong) block, (uint) file->file,
               (ulong) pageno, block->status, (uint) page_status));
   KEYCACHE_DBUG_PRINT("find_key_block",
-                      ("block: 0x%lx fd: %u  pos %lu  block->status %u  page_status %lu",
+                      ("block: 0x%lx fd: %d  pos: %lu  block->status: %u  page_status: %d",
                        (ulong) block,
-                       (uint) file->file, (ulong) pageno, block->status,
-                       (uint) page_status));
+                       file->file, (ulong) pageno, block->status,
+                       page_status));
 
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
   DBUG_EXECUTE("check_pagecache",
@@ -3502,7 +3502,7 @@ static int flush_pagecache_blocks_int(PAGECACHE *pagecache,
   PAGECACHE_BLOCK_LINK *cache_buff[FLUSH_CACHE],**cache;
   int last_errno= 0;
   DBUG_ENTER("flush_pagecache_blocks_int");
-  DBUG_PRINT("enter",("file: %d  blocks_used: %d  blocks_changed: %d",
+  DBUG_PRINT("enter",("file: %d  blocks_used: %lu  blocks_changed: %lu",
               file->file, pagecache->blocks_used, pagecache->blocks_changed));
 
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
@@ -3714,7 +3714,7 @@ int flush_pagecache_blocks(PAGECACHE *pagecache,
 {
   int res;
   DBUG_ENTER("flush_pagecache_blocks");
-  DBUG_PRINT("enter", ("pagecache: 0x%lx", pagecache));
+  DBUG_PRINT("enter", ("pagecache: 0x%lx", (long) pagecache));
 
   if (pagecache->disk_blocks <= 0)
     DBUG_RETURN(0);
@@ -3800,7 +3800,7 @@ int reset_key_cache_counters(const char *name, PAGECACHE *key_cache)
   of type PAGECACHE_LSN_PAGE.
 
   SYNOPSIS
-    pagecache_collect_changed_blocks_with_LSN()
+    pagecache_collect_changed_blocks_with_lsn()
     pagecache  pointer to the page cache
     str        (OUT) pointer to a LEX_STRING where the allocated buffer, and
                its size, will be put
@@ -3809,7 +3809,8 @@ int reset_key_cache_counters(const char *name, PAGECACHE *key_cache)
 
   DESCRIPTION
     Does the allocation because the caller cannot know the size itself.
-    Memory freeing is done by the caller.
+    Memory freeing is to be done by the caller (if the "str" member of the
+    LEX_STRING is not NULL).
     Ignores all pages of another type than PAGECACHE_LSN_PAGE, because they
     are not interesting for a checkpoint record.
     The caller has the intention of doing checkpoints.
@@ -3818,17 +3819,18 @@ int reset_key_cache_counters(const char *name, PAGECACHE *key_cache)
     0 on success
     1 on error
 */
-my_bool pagecache_collect_changed_blocks_with_LSN(PAGECACHE *pagecache,
+my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
                                                   LEX_STRING *str,
                                                   LSN *max_lsn)
 {
   my_bool error;
-  ulong stored_LRD_size= 0;
+  ulong stored_list_size= 0;
   uint file_hash;
   char *ptr;
   DBUG_ENTER("pagecache_collect_changed_blocks_with_LSN");
 
   *max_lsn= 0;
+  DBUG_ASSERT(NULL == str->str);
   /*
     We lock the entire cache but will be quick, just reading/writing a few MBs
     of memory at most.
@@ -3879,17 +3881,17 @@ my_bool pagecache_collect_changed_blocks_with_LSN(PAGECACHE *pagecache,
         DBUG_ASSERT(0);
         goto err;
       }
-      stored_LRD_size++;
+      stored_list_size++;
     }
   }
 
-  str->length= 8+(4+4+8)*stored_LRD_size;
+  str->length= 8+(4+4+8)*stored_list_size;
   if (NULL == (str->str= my_malloc(str->length, MYF(MY_WME))))
     goto err;
   ptr= str->str;
-  int8store(ptr, stored_LRD_size);
+  int8store(ptr, stored_list_size);
   ptr+= 8;
-  if (0 == stored_LRD_size)
+  if (0 == stored_list_size)
     goto end;
   for (file_hash= 0; file_hash < PAGECACHE_CHANGED_BLOCKS_HASH; file_hash++)
   {

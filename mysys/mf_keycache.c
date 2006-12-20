@@ -1642,9 +1642,9 @@ restart:
   KEYCACHE_DBUG_ASSERT(page_status != -1);
   *page_st=page_status;
   KEYCACHE_DBUG_PRINT("find_key_block",
-                      ("fd: %d  pos: %lu  block->status: %u  page_status: %u",
+                      ("fd: %d  pos: %lu  block->status: %u  page_status: %d",
                        file, (ulong) filepos, block->status,
-                       (uint) page_status));
+                       page_status));
 
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
   DBUG_EXECUTE("check_keycache2",

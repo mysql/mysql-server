@@ -27,7 +27,7 @@ uchar *_ma_fetch_keypage(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   uchar *tmp;
   uint page_size;
   DBUG_ENTER("_ma_fetch_keypage");
-  DBUG_PRINT("enter",("page: %ld",page));
+  DBUG_PRINT("enter",("page: %ld", (long) page));
 
   tmp=(uchar*) key_cache_read(info->s->key_cache,
                              info->s->kfile, page, level, (byte*) buff,
@@ -80,7 +80,7 @@ int _ma_write_keypage(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
     my_errno=EINVAL;
     DBUG_RETURN((-1));
   }
-  DBUG_PRINT("page",("write page at: %lu",(long) page,buff));
+  DBUG_PRINT("page",("write page at: %lu",(long) page));
   DBUG_DUMP("buff",(byte*) buff,maria_getint(buff));
 #endif
 
