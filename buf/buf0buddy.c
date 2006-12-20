@@ -34,6 +34,7 @@ buf_buddy_alloc_zip(
 #endif /* UNIV_SYNC_DEBUG */
 	ut_a(i < BUF_BUDDY_SIZES);
 
+	ut_d(UT_LIST_VALIDATE(list, buf_page_t, buf_pool->zip_free[i]));
 	bpage = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
 
 	if (bpage) {
@@ -48,8 +49,10 @@ buf_buddy_alloc_zip(
 			buf_page_t*	buddy = (buf_page_t*)
 				(((char*) bpage) + (BUF_BUDDY_LOW << i));
 
+			ut_ad(!buf_pool_contains_zip(buddy));
 			ut_d(memset(buddy, i, BUF_BUDDY_LOW << i));
 			buddy->state = BUF_BLOCK_ZIP_FREE;
+			ut_ad(buf_pool->zip_free[i].start != buddy);
 			UT_LIST_ADD_FIRST(list, buf_pool->zip_free[i], buddy);
 		}
 	}
@@ -138,6 +141,9 @@ buf_buddy_alloc_from(
 		bpage = (buf_page_t*) ((byte*) buf + offs);
 		ut_d(memset(bpage, j, BUF_BUDDY_LOW << j));
 		bpage->state = BUF_BLOCK_ZIP_FREE;
+		ut_d(UT_LIST_VALIDATE(list, buf_page_t,
+				      buf_pool->zip_free[j]));
+		ut_ad(buf_pool->zip_free[j].start != bpage);
 		UT_LIST_ADD_FIRST(list, buf_pool->zip_free[j], bpage);
 	}
 
@@ -331,6 +337,15 @@ buf_buddy_relocate(
 			return(FALSE);
 		}
 
+		if (page_zip_get_size(&bpage->zip) != size) {
+			/* The block is of different size.  We would
+			have to relocate all blocks covered by src.
+			For the sake of simplicity, give up. */
+			ut_ad(page_zip_get_size(&bpage->zip) < size);
+
+			return(FALSE);
+		}
+
 		mutex = buf_page_get_mutex(bpage);
 
 		mutex_enter(mutex);
@@ -416,7 +431,8 @@ Deallocate a block. */
 void
 buf_buddy_free_low(
 /*===============*/
-	void*	buf,	/* in: block to free */
+	void*	buf,	/* in: block to be freed, must not be
+			pointed to by the buffer pool */
 	ulint	i)	/* in: index of buf_pool->zip_free[] */
 {
 	buf_page_t*	bpage;
@@ -427,6 +443,7 @@ buf_buddy_free_low(
 recombine:
 	ut_ad(i < BUF_BUDDY_SIZES);
 	ut_ad(buf == ut_align_down(buf, BUF_BUDDY_LOW << i));
+	ut_ad(!buf_pool_contains_zip(buf));
 
 	/* Try to combine adjacent blocks. */
 
@@ -448,6 +465,7 @@ recombine:
 		if (bpage == buddy) {
 buddy_free:
 			/* The buddy is free: recombine */
+			ut_ad(!buf_pool_contains_zip(buddy));
 			UT_LIST_REMOVE(list, buf_pool->zip_free[i], bpage);
 			buf = ut_align_down(buf, BUF_BUDDY_LOW << (i + 1));
 
@@ -465,6 +483,8 @@ buddy_free:
 	}
 
 buddy_nonfree:
+	ut_d(UT_LIST_VALIDATE(list, buf_page_t, buf_pool->zip_free[i]));
+
 	/* The buddy is not free. Is there a free block of this size? */
 	bpage = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
 
@@ -504,5 +524,6 @@ buddy_nonfree:
 	bpage = buf;
 	ut_d(memset(bpage, i, BUF_BUDDY_LOW << i));
 	bpage->state = BUF_BLOCK_ZIP_FREE;
+	ut_ad(buf_pool->zip_free[i].start != bpage);
 	UT_LIST_ADD_FIRST(list, buf_pool->zip_free[i], bpage);
 }
