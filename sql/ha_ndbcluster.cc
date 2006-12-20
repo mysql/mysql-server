@@ -4836,6 +4836,16 @@ int ha_ndbcluster::create(const char *name,
   }
   else if (info->tablespace)
   {
+    if (info->storage_media == HA_SM_MEMORY)
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+			  ER_ILLEGAL_HA_CREATE_OPTION,
+			  ER(ER_ILLEGAL_HA_CREATE_OPTION),
+			  ndbcluster_hton_name,
+			  "TABLESPACE currently only supported for "
+			  "STORAGE DISK"); 
+      DBUG_RETURN(HA_ERR_UNSUPPORTED);
+    }
     tab.setTablespace(info->tablespace);
     info->storage_media = HA_SM_DISK;  //if use tablespace, that also means store on disk
   }
