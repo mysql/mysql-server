@@ -70,7 +70,7 @@ enum buf_page_state {
 	BUF_BLOCK_NOT_USED; @see buf_block_state_valid() */
 
 	BUF_BLOCK_NOT_USED,		/* is in the free list */
-	BUF_BLOCK_READY_FOR_USE,	/* when buf_get_free_block returns
+	BUF_BLOCK_READY_FOR_USE,	/* when buf_LRU_get_free_block returns
 					a block, it is in this state */
 	BUF_BLOCK_FILE_PAGE,		/* contains a buffered file page */
 	BUF_BLOCK_MEMORY,		/* contains some main memory object */
@@ -912,8 +912,8 @@ for compressed and uncompressed frames */
 
 struct buf_page_struct{
 	/* None of the following bit-fields must be modified without
-	holding block->mutex or buf_pool->zip_mutex, since they can be
-	stored in the same machine word.  Some of them are
+	holding buf_page_get_mutex() [block->mutex or buf_pool->zip_mutex],
+	since they can be stored in the same machine word.  Some of them are
 	additionally protected by buf_pool->mutex. */
 
 	unsigned	space:32;	/* tablespace id */
@@ -921,7 +921,11 @@ struct buf_page_struct{
 
 	unsigned	state:3;	/* state of the control block
 					(@see enum buf_page_state); also
-					protected by buf_pool->mutex */
+					protected by buf_pool->mutex.
+					State transitions from
+					BUF_BLOCK_READY_FOR_USE to
+					BUF_BLOCK_MEMORY need not be
+					protected by buf_page_get_mutex(). */
 	unsigned	flush_type:2;	/* if this block is currently being
 					flushed to disk, this tells the
 					flush_type (@see enum buf_flush) */

@@ -165,7 +165,8 @@ buf_buddy_alloc_clean(
 	ut_a(mutex_own(&buf_pool->mutex));
 #endif /* UNIV_SYNC_DEBUG */
 
-	if (BUF_BUDDY_LOW << i >= PAGE_ZIP_MIN_SIZE) {
+	if (BUF_BUDDY_LOW << i >= PAGE_ZIP_MIN_SIZE
+	    && i < BUF_BUDDY_SIZES) {
 		/* Try to find a clean compressed-only page
 		of the same size. */
 
@@ -225,11 +226,21 @@ buf_buddy_alloc_clean(
 
 		mutex_exit(block_mutex);
 
-		ret = buf_buddy_alloc_zip(i);
+		if (i < BUF_BUDDY_SIZES) {
 
-		if (ret) {
+			ret = buf_buddy_alloc_zip(i);
 
-			return(ret);
+			if (ret) {
+
+				return(ret);
+			}
+		} else {
+			buf_block_t*	block = buf_LRU_get_free_only();
+
+			if (block) {
+				buf_buddy_block_register(block);
+				return(block->frame);
+			}
 		}
 	}
 
@@ -244,7 +255,8 @@ buf_buddy_alloc_low(
 /*================*/
 			/* out: allocated block, or NULL
 			if buf_pool->zip_free[] was empty */
-	ulint	i,	/* in: index of buf_pool->zip_free[] */
+	ulint	i,	/* in: index of buf_pool->zip_free[],
+			or BUF_BUDDY_SIZES */
 	ibool	lru)	/* in: TRUE=allocate from the LRU list if needed */
 {
 	buf_block_t*	block;
@@ -253,12 +265,14 @@ buf_buddy_alloc_low(
 	ut_a(mutex_own(&buf_pool->mutex));
 #endif /* UNIV_SYNC_DEBUG */
 
-	/* Try to allocate from the buddy system. */
-	block = buf_buddy_alloc_zip(i);
+	if (i < BUF_BUDDY_SIZES) {
+		/* Try to allocate from the buddy system. */
+		block = buf_buddy_alloc_zip(i);
 
-	if (block) {
+		if (block) {
 
-		return(block);
+			return(block);
+		}
 	}
 
 	/* Try allocating from the buf_pool->free list. */
@@ -441,6 +455,11 @@ buf_buddy_free_low(
 	ut_a(mutex_own(&buf_pool->mutex));
 #endif /* UNIV_SYNC_DEBUG */
 recombine:
+	if (i == BUF_BUDDY_SIZES) {
+		buf_buddy_block_free(buf);
+		return;
+	}
+
 	ut_ad(i < BUF_BUDDY_SIZES);
 	ut_ad(buf == ut_align_down(buf, BUF_BUDDY_LOW << i));
 	ut_ad(!buf_pool_contains_zip(buf));
@@ -468,16 +487,10 @@ buddy_free:
 			UT_LIST_REMOVE(list, buf_pool->zip_free[i], bpage);
 buddy_free2:
 			ut_ad(!buf_pool_contains_zip(buddy));
-			buf = ut_align_down(buf, BUF_BUDDY_LOW << (i + 1));
+			i++;
+			buf = ut_align_down(buf, BUF_BUDDY_LOW << i);
 
-			if (++i < BUF_BUDDY_SIZES) {
-
-				goto recombine;
-			}
-
-			/* The whole block is free. */
-			buf_buddy_block_free(buf);
-			return;
+			goto recombine;
 		}
 
 		ut_a(bpage != buf);

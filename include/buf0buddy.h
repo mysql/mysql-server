@@ -39,7 +39,8 @@ UNIV_INLINE
 ulint
 buf_buddy_get_slot(
 /*===============*/
-			/* out: index of buf_pool->zip_free[] */
+			/* out: index of buf_pool->zip_free[],
+			or BUF_BUDDY_SIZES */
 	ulint	size);	/* in: block size */
 
 /**************************************************************************
@@ -49,7 +50,7 @@ void*
 buf_buddy_alloc(
 /*============*/
 			/* out: pointer to the start of the block */
-	ulint	size,	/* in: block size, up to UNIV_PAGE_SIZE / 2 */
+	ulint	size,	/* in: block size, up to UNIV_PAGE_SIZE */
 	ibool	lru)	/* in: TRUE=allocate from the LRU list if needed */
 	__attribute__((malloc));
 
@@ -61,7 +62,7 @@ buf_buddy_free(
 /*===========*/
 	void*	buf,	/* in: block to be freed, must not be
 			pointed to by the buffer pool */
-	ulint	size)	/* in: block size, up to UNIV_PAGE_SIZE / 2 */
+	ulint	size)	/* in: block size, up to UNIV_PAGE_SIZE */
 	__attribute__((nonnull));
 
 #ifndef UNIV_NONINL
