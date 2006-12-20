@@ -179,12 +179,12 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
   if (share->min_pack_length > 254)
     share->base.min_block_length+=2;
   DBUG_PRINT("info", ("fixed header length:   %u", HEAD_LENGTH));
-  DBUG_PRINT("info", ("total header length:   %u", share->pack.header_length));
+  DBUG_PRINT("info", ("total header length:   %lu", share->pack.header_length));
   DBUG_PRINT("info", ("pack file version:     %u", share->pack.version));
-  DBUG_PRINT("info", ("min pack length:       %u", share->min_pack_length));
-  DBUG_PRINT("info", ("max pack length:       %u", share->max_pack_length));
-  DBUG_PRINT("info", ("elements of all trees: %u", elements));
-  DBUG_PRINT("info", ("distinct values bytes: %u", intervall_length));
+  DBUG_PRINT("info", ("min pack length:       %lu", share->min_pack_length));
+  DBUG_PRINT("info", ("max pack length:       %lu", share->max_pack_length));
+  DBUG_PRINT("info", ("elements of all trees: %lu", elements));
+  DBUG_PRINT("info", ("distinct values bytes: %lu", intervall_length));
   DBUG_PRINT("info", ("number of code trees:  %u", trees));
   DBUG_PRINT("info", ("bytes for record lgt:  %u", share->pack.ref_length));
   DBUG_PRINT("info", ("record pointer length: %u", rec_reflength));
@@ -366,7 +366,8 @@ static uint read_huff_table(MI_BIT_BUFF *bit_buff, MI_DECODE_TREE *decode_tree,
   }
   size=elements*2-2;
   DBUG_PRINT("info", ("tree size in uint16:   %u", size));
-  DBUG_PRINT("info", ("tree size in bytes:    %u", size * sizeof(uint16)));
+  DBUG_PRINT("info", ("tree size in bytes:    %u",
+                      size * (uint) sizeof(uint16)));
 
   for (end=ptr+size ; ptr < end ; ptr++)
   {
