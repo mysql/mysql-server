@@ -18,10 +18,16 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <lf.h>
+#include <m_string.h>
 #include "trnman.h"
 
-/* status variables */
-uint trnman_active_transactions, trnman_allocated_transactions;
+/*
+  status variables:
+  how many trns in the active list currently,
+  in the committed list currently, allocated since startup.
+*/
+uint trnman_active_transactions, trnman_committed_transactions,
+  trnman_allocated_transactions;
 
 /* list of active transactions in the trid order */
 static TRN active_list_min, active_list_max;
@@ -100,6 +106,7 @@ int trnman_init()
   committed_list_min.next= &committed_list_max;
 
   trnman_active_transactions= 0;
+  trnman_committed_transactions= 0;
   trnman_allocated_transactions= 0;
 
   pool= 0;
@@ -129,6 +136,7 @@ void trnman_destroy()
 {
   DBUG_ASSERT(trid_to_committed_trn.count == 0);
   DBUG_ASSERT(trnman_active_transactions == 0);
+  DBUG_ASSERT(trnman_committed_transactions == 0);
   DBUG_ASSERT(active_list_max.prev == &active_list_min);
   DBUG_ASSERT(active_list_min.next == &active_list_max);
   DBUG_ASSERT(committed_list_max.prev == &committed_list_min);
@@ -285,11 +293,14 @@ void trnman_end_trn(TRN *trn, my_bool commit)
   */
   if (trn->prev == &active_list_min)
   {
+    uint free_me_count;
     TRN *t;
-    for (t= committed_list_min.next;
+    for (t= committed_list_min.next, free_me_count= 0;
          t->commit_trid < active_list_min.next->min_read_from;
-         t= t->next) /* no-op */;
+         t= t->next, free_me_count++) /* no-op */;
 
+    DBUG_ASSERT((t != committed_list_min.next && free_me_count > 0) ||
+                (t == committed_list_min.next && free_me_count == 0));
     /* found transactions committed before the oldest active one */
     if (t != committed_list_min.next)
     {
@@ -297,6 +308,7 @@ void trnman_end_trn(TRN *trn, my_bool commit)
       committed_list_min.next= t;
       t->prev->next= 0;
       t->prev= &committed_list_min;
+      trnman_committed_transactions-= free_me_count;
     }
   }
 
@@ -312,6 +324,7 @@ void trnman_end_trn(TRN *trn, my_bool commit)
     trn->next= &committed_list_max;
     trn->prev= committed_list_max.prev;
     committed_list_max.prev= trn->prev->next= trn;
+    trnman_committed_transactions++;
 
     res= lf_hash_insert(&trid_to_committed_trn, pins, &trn);
     DBUG_ASSERT(res == 0);
@@ -413,3 +426,94 @@ my_bool trnman_can_read_from(TRN *trn, TrID trid)
   return can;
 }
 
+
+/*
+  Allocates two buffers and stores in them some information about transactions
+  of the active list (into the first buffer) and of the committed list (into
+  the second buffer).
+
+  SYNOPSIS
+    trnman_collect_transactions()
+    str_act    (OUT) pointer to a LEX_STRING where the allocated buffer, and
+               its size, will be put
+    str_com    (OUT) pointer to a LEX_STRING where the allocated buffer, and
+               its size, will be put
+
+
+  DESCRIPTION
+    Does the allocation because the caller cannot know the size itself.
+    Memory freeing is to be done by the caller (if the "str" member of the
+    LEX_STRING is not NULL).
+    The caller has the intention of doing checkpoints.
+
+  RETURN
+    0 on success
+    1 on error
+*/
+my_bool trnman_collect_transactions(LEX_STRING *str_act, LEX_STRING *str_com)
+{
+  my_bool error;
+  TRN *trn;
+  char *ptr;
+  DBUG_ENTER("trnman_collect_transactions");
+
+  DBUG_ASSERT((NULL == str_act->str) && (NULL == str_com->str));
+
+  pthread_mutex_lock(&LOCK_trn_list);
+  str_act->length= 8+(6+2+7+7+7)*trnman_active_transactions;
+  str_com->length= 8+(6+7+7)*trnman_committed_transactions;
+  if ((NULL == (str_act->str= my_malloc(str_act->length, MYF(MY_WME)))) ||
+      (NULL == (str_com->str= my_malloc(str_com->length, MYF(MY_WME)))))
+    goto err;
+  /* First, the active transactions */
+  ptr= str_act->str;
+  int8store(ptr, (ulonglong)trnman_active_transactions);
+  ptr+= 8;
+  for (trn= active_list_min.next; trn != &active_list_max; trn= trn->next)
+  {
+    /*
+      trns with a short trid of 0 are not initialized; Recovery will recognize
+      this and ignore them.
+      State is not needed for now (only when we supported prepared trns).
+      For LSNs, Sanja will soon push lsn7store.
+    */
+    int6store(ptr, trn->trid);
+    ptr+= 6;
+    int2store(ptr, trn->short_id);
+    ptr+= 2;
+    /* needed for rollback */
+    /* lsn7store(ptr, trn->undo_lsn); */
+    ptr+= 7;
+    /* needed for purge */
+    /* lsn7store(ptr, trn->undo_purge_lsn); */
+    ptr+= 7;
+    /* needed for low-water mark calculation */
+    /* lsn7store(ptr, read_non_atomic(&trn->first_undo_lsn)); */
+    ptr+= 7;
+  }
+  /* do the same for committed ones */
+  ptr= str_com->str;
+  int8store(ptr, (ulonglong)trnman_committed_transactions);
+  ptr+= 8;
+  for (trn= committed_list_min.next; trn != &committed_list_max;
+       trn= trn->next)
+  {
+    int6store(ptr, trn->trid);
+    ptr+= 6;
+    /* mi_int7store(ptr, trn->undo_purge_lsn); */
+    ptr+= 7;
+    /* mi_int7store(ptr, read_non_atomic(&trn->first_undo_lsn)); */
+    ptr+= 7;
+  }
+  /*
+    TODO: if we see there exists no transaction (active and committed) we can
+    tell the lock-free structures to do some freeing (my_free()).
+  */
+  error= 0;
+  goto end;
+err:
+  error= 1;
+end:
+  pthread_mutex_unlock(&LOCK_trn_list);
+  DBUG_RETURN(error);
+}

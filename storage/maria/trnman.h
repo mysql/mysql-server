@@ -51,6 +51,7 @@ void trnman_end_trn(TRN *trn, my_bool commit);
 #define trnman_abort_trn(T)  trnman_end_trn(T, FALSE)
 void trnman_free_trn(TRN *trn);
 my_bool trnman_can_read_from(TRN *trn, TrID trid);
+my_bool trnman_collect_transactions(LEX_STRING *str_act, LEX_STRING *str_com);
 
 #endif
 

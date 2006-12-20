@@ -176,7 +176,8 @@ my_bool execute_checkpoint_indirect()
   /* checkpoint record data: */
   LSN checkpoint_start_lsn;
   char checkpoint_start_lsn_char[8];
-  LEX_STRING strings[5]={ {&checkpoint_start_lsn_str, 8}, {0,0}, {0,0}, {0,0}, {0,0} };
+  LEX_STRING strings[6]=
+    {checkpoint_start_lsn_char, 8}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0} };
   char *ptr;
   LSN checkpoint_lsn;
   LSN candidate_max_rec_lsn_at_last_checkpoint;
@@ -203,69 +204,16 @@ my_bool execute_checkpoint_indirect()
     goto err;
 
   /* STEP 3: fetch information about transactions */
-  /* note: this piece will move into trnman.c */
-  /*
-    Transactions are in the "active list" (protected by a mutex) and in a
-    lock-free hash of "committed" (insertion protected by the same mutex,
-    deletion lock-free).
-  */
-  {
-    TRN *trn;
-    ulong stored_trn_size= 0;
-    /* First, the active transactions */
-    pthread_mutex_lock(LOCK_trn_list);
-    string2.length= 8+(7+2+8+8+8)*trnman_active_transactions;
-    if (NULL == (string2.str= my_malloc(string2.length)))
-      goto err;
-    ptr= string2.str;
-    ptr+= 8;
-    for (trn= active_list_min.next; trn != &active_list_max; trn= trn->next)
-    {
-      /* we would latch trn.rwlock if it existed */
-      if (0 == trn->short_trid) /* trn is not inited, skip */
-        continue;
-      /* state is not needed for now (only when we have prepared trx) */
-      /* int7store does not exist but mi_int7store does */
-      int7store(ptr, trn->trid);
-      ptr+= 7;
-      int2store(ptr, trn->short_trid);
-      ptr+= 2;
-      int8store(ptr, trn->undo_lsn); /* is an LSN 7 or 8 bytes really? */
-      ptr+= 8;
-      int8store(ptr, trn->undo_purge_lsn);
-      ptr+= 8;
-      int8store(ptr, read_non_atomic(&trn->first_undo_lsn));
-      ptr+= 8;
-      /* possibly unlatch el.rwlock */
-      stored_trn_size++;
-    }
-    pthread_mutex_unlock(LOCK_trn_list);
-    /*
-      Now the committed ones.
-      We need a function which scans the hash's list of elements in a
-      lock-free manner (a bit like lfind(), starting from bucket 0), and for
-      each node (committed transaction) stores the transaction's
-      information (trid, undo_purge_lsn, first_undo_lsn) into a buffer.
-      This big buffer is malloc'ed at the start, so the number of elements (or
-      an upper bound of it) found in the hash needs to be known in advance
-      (one solution is to keep LOCK_trn_list locked, ensuring that nodes are
-      only deleted).
-    */
-    /*
-      TODO: if we see there exists no transaction (active and committed) we can
-      tell the lock-free structures to do some freeing (my_free()).
-    */
-    int8store(string1.str, stored_trn_size);
-    string2.length= 8+(7+2+8+8+8)*stored_trn_size;
-  }
+  if (trnman_collect_transactions(&strings[2], &strings[3]))
+    goto err;
 
   /* STEP 4: fetch information about table files */
 
   {
     /* This global mutex is in fact THR_LOCK_maria (see ma_open()) */
     lock(global_share_list_mutex);
-    string3.length= 8+(8+8)*share_list->count;
-    if (NULL == (string3.str= my_malloc(string3.length)))
+    strings[4].length= 8+(8+8)*share_list->count;
+    if (NULL == (strings[4].str= my_malloc(strings[4].length)))
       goto err;
     ptr= string3.str;
     /* possibly latch each MARIA_SHARE, one by one, like this: */
@@ -327,8 +275,8 @@ err:
 
 end:
 
-  for (i= 1; i<5; i++)
-    my_free(strings[i], MYF(MY_ALLOW_ZERO_PTR));
+  for (i= 1; i<6; i++)
+    my_free(strings[i].str, MYF(MY_ALLOW_ZERO_PTR));
 
   /*
     this portion cannot be done as a hook in write_log_record() for the
