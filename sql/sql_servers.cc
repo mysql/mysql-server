@@ -300,7 +300,7 @@ my_bool get_server_from_table_to_cache(TABLE *table)
   if (my_hash_insert(&servers_cache, (byte*) server))
   {
     DBUG_PRINT("info", ("had a problem inserting server %s at %lx",
-                        server->server_name, server));
+                        server->server_name, (long unsigned int) server));
     // error handling needed here
     DBUG_RETURN(TRUE);
   }
@@ -329,7 +329,7 @@ my_bool server_exists_in_table(THD *thd, LEX_SERVER_OPTIONS *server_options)
 {
   byte server_key[MAX_KEY_LENGTH];
   int result= 1;
-  int error;
+  int error= 0;
   TABLE_LIST tables;
   TABLE *table;
 
@@ -392,7 +392,7 @@ my_bool server_exists_in_table(THD *thd, LEX_SERVER_OPTIONS *server_options)
 int insert_server(THD *thd, FOREIGN_SERVER *server)
 {
   byte server_key[MAX_KEY_LENGTH];
-  int error;
+  int error= 0;
   TABLE_LIST tables;
   TABLE *table;
 
@@ -451,12 +451,12 @@ int insert_server_record_into_cache(FOREIGN_SERVER *server)
     the server to the cache
   */
   DBUG_PRINT("info", ("inserting server %s at %lx, length %d",
-                        server->server_name, server,
+                        server->server_name, (long unsigned int) server,
                         server->server_name_length));
   if (my_hash_insert(&servers_cache, (byte*) server))
   {
     DBUG_PRINT("info", ("had a problem inserting server %s at %lx",
-                        server->server_name, server));
+                        server->server_name, (long unsigned int) server));
     // error handling needed here
     error= 1;
   }
@@ -607,7 +607,7 @@ int insert_server_record(TABLE *table, FOREIGN_SERVER *server)
 int drop_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
 {
   byte server_key[MAX_KEY_LENGTH];
-  int error;
+  int error= 0;
   TABLE_LIST tables;
   TABLE *table;
 
@@ -791,7 +791,7 @@ int update_server_record_in_cache(FOREIGN_SERVER *existing,
   if (my_hash_insert(&servers_cache, (byte*)altered))
   {
     DBUG_PRINT("info", ("had a problem inserting server %s at %lx",
-                        altered->server_name, altered));
+                        altered->server_name, (long unsigned int) altered));
     error= 1;
   }
 
@@ -947,7 +947,6 @@ int delete_server_record(TABLE *table,
       table->file->print_error(error, MYF(0));
   }
 
-end:
   DBUG_RETURN(error);
 }
 
@@ -1208,7 +1207,7 @@ FOREIGN_SERVER *get_server_by_name(const char *server_name)
 {
   ulong error_num=0;
   uint i, server_name_length;
-  FOREIGN_SERVER *server;
+  FOREIGN_SERVER *server= 0;
   DBUG_ENTER("get_server_by_name");
   DBUG_PRINT("info", ("server_name %s", server_name));
 
