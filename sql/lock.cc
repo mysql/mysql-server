@@ -528,7 +528,7 @@ int mysql_lock_have_duplicate(THD *thd, TABLE *table, TABLE_LIST *tables)
   for (; tables; tables= tables->next)
   {
     table2= tables->table;
-    if (table2->tmp_table == TMP_TABLE)
+    if (table2->tmp_table == TMP_TABLE || table == table2)
       continue;
 
     /* All tables in list must be in lock. */
