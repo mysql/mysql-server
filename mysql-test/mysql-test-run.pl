@@ -222,6 +222,7 @@ our $opt_ndbconnectstring_slave;
 our $opt_record;
 our $opt_report_features;
 our $opt_check_testcases;
+our $opt_mark_progress;
 
 our $opt_skip;
 our $opt_skip_rpl;
@@ -555,6 +556,7 @@ sub command_line_setup () {
              # Test case authoring
              'record'                   => \$opt_record,
              'check-testcases'          => \$opt_check_testcases,
+             'mark-progress'            => \$opt_mark_progress,
 
              # Extra options used when starting mysqld
              'mysqld=s'                 => \@opt_extra_mysqld_opt,
@@ -4375,6 +4377,10 @@ sub run_mysqltest ($) {
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
   mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
 
+  # Log line number and time  for each line in .test file
+  mtr_add_arg($args, "--mark-progress")
+    if $opt_mark_progress;
+
   if ($tinfo->{'component_id'} eq 'im')
   {
     mtr_add_arg($args, "--socket=%s", $instance_manager->{'path_sock'});
@@ -4828,6 +4834,7 @@ Options for test case authoring
 
   record TESTNAME       (Re)genereate the result file for TESTNAME
   check-testcases       Check testcases for sideeffects
+  mark-progress         Log line number and elapsed time to <testname>.progress
 
 Options that pass on options
 
