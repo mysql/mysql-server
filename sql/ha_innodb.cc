@@ -173,6 +173,7 @@ my_bool innobase_use_large_pages    = FALSE;
 my_bool	innobase_use_native_aio			= FALSE;
 my_bool	innobase_file_per_table			= FALSE;
 my_bool innobase_locks_unsafe_for_binlog        = FALSE;
+my_bool innobase_rollback_on_timeout		= FALSE;
 my_bool innobase_create_status_file		= FALSE;
 
 static char *internal_innobase_data_file_path	= NULL;
@@ -466,6 +467,10 @@ convert_error_code_to_mysql(
 		/* Starting from 5.0.13, we let MySQL just roll back the
 		latest SQL statement in a lock wait timeout. Previously, we
 		rolled back the whole transaction. */
+
+		if (thd && row_rollback_on_timeout) {
+			ha_rollback(thd);
+		}
 
    		return(HA_ERR_LOCK_WAIT_TIMEOUT);
 
@@ -1379,6 +1384,8 @@ innobase_init(void)
 
 	os_use_large_pages = (ibool) innobase_use_large_pages;
 	os_large_page_size = (ulint) innobase_large_page_size;
+
+	row_rollback_on_timeout = (ibool) innobase_rollback_on_timeout;
 
 	srv_file_per_table = (ibool) innobase_file_per_table;
         srv_locks_unsafe_for_binlog = (ibool) innobase_locks_unsafe_for_binlog;
