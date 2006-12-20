@@ -336,9 +336,6 @@ int main(int argc, char **argv __attribute__((unused)))
   VOID(thr_setconcurrency(2));
 #endif
 
-  my_thread_global_init();
-
-
   if ((pagen= init_pagecache(&pagecache, PCACHE_SIZE, 0, 0,
                              PAGE_SIZE, 0)) == 0)
   {
@@ -427,7 +424,7 @@ int main(int argc, char **argv __attribute__((unused)))
     exit(1);
   }
   /*my_delete(file1_name, MYF(0));*/
-  my_thread_global_end();
+  my_end(0);
 
   DBUG_PRINT("info", ("file1 (%d) closed", file1.file));
 
