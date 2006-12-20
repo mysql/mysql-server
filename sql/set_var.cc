@@ -904,6 +904,7 @@ struct show_var_st init_vars[]= {
   {sys_innodb_max_purge_lag.name, (char*) &sys_innodb_max_purge_lag, SHOW_SYS},
   {"innodb_mirrored_log_groups", (char*) &innobase_mirrored_log_groups, SHOW_LONG},
   {"innodb_open_files", (char*) &innobase_open_files, SHOW_LONG },
+  {"innodb_rollback_on_timeout", (char*) &innobase_rollback_on_timeout, SHOW_MY_BOOL},
   {sys_innodb_support_xa.name, (char*) &sys_innodb_support_xa, SHOW_SYS},
   {sys_innodb_sync_spin_loops.name, (char*) &sys_innodb_sync_spin_loops, SHOW_SYS},
   {sys_innodb_table_locks.name, (char*) &sys_innodb_table_locks, SHOW_SYS},

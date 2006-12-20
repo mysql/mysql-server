@@ -334,7 +334,8 @@ history_truncate_file (fname, lines)
   file_size = (size_t)finfo.st_size;
 
   /* check for overflow on very large files */
-  if (file_size != finfo.st_size || file_size + 1 < file_size)
+  if ((long long) file_size != (long long) finfo.st_size ||
+      file_size + 1 < file_size)
     {
       close (file);
 #if defined (EFBIG)
