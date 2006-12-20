@@ -3542,7 +3542,7 @@ restart:
       if (abort_loop)
         goto err;
       schema_res= s_ndb->pollEvents(100, &schema_gci);
-    } while (ndb_latest_received_binlog_epoch == schema_gci);
+    } while (schema_gci == 0 || ndb_latest_received_binlog_epoch == schema_gci);
     if (ndb_binlog_running)
     {
       Uint64 gci= i_ndb->getLatestGCI();
