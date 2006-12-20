@@ -465,8 +465,9 @@ recombine:
 		if (bpage == buddy) {
 buddy_free:
 			/* The buddy is free: recombine */
-			ut_ad(!buf_pool_contains_zip(buddy));
 			UT_LIST_REMOVE(list, buf_pool->zip_free[i], bpage);
+buddy_free2:
+			ut_ad(!buf_pool_contains_zip(buddy));
 			buf = ut_align_down(buf, BUF_BUDDY_LOW << (i + 1));
 
 			if (++i < BUF_BUDDY_SIZES) {
@@ -489,11 +490,18 @@ buddy_nonfree:
 	bpage = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
 
 	if (bpage) {
+		/* Remove the block from the free list, because a successful
+		buf_buddy_relocate() will overwrite bpage->list. */
+
+		UT_LIST_REMOVE(list, buf_pool->zip_free[i], bpage);
+
 		/* Try to relocate the buddy of buf to the free block. */
 		if (buf_buddy_relocate(buddy, bpage, i)) {
 
-			goto buddy_free;
+			goto buddy_free2;
 		}
+
+		UT_LIST_ADD_FIRST(list, buf_pool->zip_free[i], bpage);
 
 		/* Try to relocate the buddy of the free block to buf. */
 		buddy = (buf_page_t*) buf_buddy_get(((byte*) bpage),
