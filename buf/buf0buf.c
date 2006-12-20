@@ -1612,6 +1612,8 @@ loop:
 				if (io_fix == BUF_IO_READ) {
 
 					os_thread_sleep(WAIT_FOR_READ);
+				} else {
+					break;
 				}
 			}
 		}
