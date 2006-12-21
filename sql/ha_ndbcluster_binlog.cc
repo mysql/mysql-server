@@ -4015,8 +4015,8 @@ err:
 
   hash_free(&ndb_schema_objects);
 
-  // Placed here to avoid a memory leak; TODO: check if needed
   net_end(&thd->net);
+  thd->cleanup();
   delete thd;
 
   ndb_binlog_thread_running= -1;
