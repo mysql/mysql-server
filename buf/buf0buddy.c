@@ -87,6 +87,8 @@ buf_buddy_block_free(
 		    ((buf_block_t*) bpage)->frame == buf);
 	ut_a(bpage);
 	ut_a(buf_page_get_state(bpage) == BUF_BLOCK_MEMORY);
+	HASH_DELETE(buf_page_t, hash, buf_pool->zip_hash, fold, bpage);
+
 	ut_d(memset(buf, 0, UNIV_PAGE_SIZE));
 
 	block = (buf_block_t*) bpage;
@@ -214,6 +216,13 @@ buf_buddy_alloc_clean(
 
 		void*		ret;
 		mutex_t*	block_mutex = buf_page_get_mutex(bpage);
+
+		if (!buf_page_in_file(bpage)) {
+
+			/* This is most likely BUF_BLOCK_REMOVE_HASH,
+			that is, the block is already being freed. */
+			continue;
+		}
 
 		mutex_enter(block_mutex);
 
