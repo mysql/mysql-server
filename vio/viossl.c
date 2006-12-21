@@ -126,12 +126,16 @@ int vio_ssl_close(Vio *vio)
   {
     switch ((r= SSL_shutdown(ssl)))
     {
-    case 1: /* Shutdown successful */
+    case 1:
+      /* Shutdown successful */
       break;
-    case 0: /* Shutdown not yet finished, call it again */
-      if ((r= SSL_shutdown(ssl) >= 0))
-        break;
-      /* Fallthrough */
+    case 0:
+      /*
+        Shutdown not yet finished - since the socket is going to
+        be closed there is no need to call SSL_shutdown() a second
+        time to wait for the other side to respond
+      */
+      break;
     default: /* Shutdown failed */
       DBUG_PRINT("vio_error", ("SSL_shutdown() failed, error: %d",
                                SSL_get_error(ssl, r)));
