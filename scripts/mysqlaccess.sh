@@ -462,8 +462,8 @@ MySQLaccess::Report::Print_Header();
   if (-f "./$script_conf") {
      require "./$script_conf";
   }
-  elsif (-f "/etc/$script_conf") {
-     require "/etc/$script_conf";
+  elsif (-f "@sysconfdir@/$script_conf") {
+     require "@sysconfdir@/$script_conf";
   }
 
 # ****************************
@@ -929,7 +929,7 @@ sub MergeConfigFile {
 # =================================
 sub MergeConfigFiles {
     my ($name,$pass,$uid,$gid,$quota,$comment,$gcos,$dir,$shell) = getpwuid $<;
-    MergeConfigFile("/etc/my.cnf");
+    MergeConfigFile("@sysconfdir@/my.cnf");
     MergeConfigFile("$dir/.my.cnf");
 }
 
