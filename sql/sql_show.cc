@@ -714,16 +714,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 	if (verbose)
 	  protocol->store(field->has_charset() ? field->charset()->name : "NULL",
 			system_charset_info);
-        /*
-          Even if TIMESTAMP field can't contain NULL as its value it
-          will accept NULL if you will try to insert such value and will
-          convert NULL value to current TIMESTAMP. So YES here means
-          that NULL is allowed for assignment (but may be won't be
-          returned).
-        */
-        pos=(byte*) ((flags & NOT_NULL_FLAG) &&
-                     field->type() != FIELD_TYPE_TIMESTAMP ?
-                     "" : "YES");
+        pos= (byte*) ((flags & NOT_NULL_FLAG) ? "" : "YES");
         protocol->store((const char*) pos, system_charset_info);
         pos=(byte*) ((field->flags & PRI_KEY_FLAG) ? "PRI" :
                      (field->flags & UNIQUE_KEY_FLAG) ? "UNI" :

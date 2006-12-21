@@ -195,6 +195,7 @@ if [ ! -d $mysql_unix_port_dir ]
 then
   mkdir $mysql_unix_port_dir
   chown $user $mysql_unix_port_dir
+  chmod 755 $mysql_unix_port_dir
 fi
 
 # Use the mysqld-max binary by default if the user doesn't specify a binary
