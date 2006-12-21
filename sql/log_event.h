@@ -425,12 +425,18 @@ struct sql_ex_info
    either, as the manual says (because a too big in-memory temp table is
    automatically written to disk).
 */
-#define OPTIONS_WRITTEN_TO_BIN_LOG (OPTION_AUTO_IS_NULL | \
-OPTION_NO_FOREIGN_KEY_CHECKS | OPTION_RELAXED_UNIQUE_CHECKS)
+#define OPTIONS_WRITTEN_TO_BIN_LOG \
+  (OPTION_AUTO_IS_NULL | OPTION_NO_FOREIGN_KEY_CHECKS |  \
+   OPTION_RELAXED_UNIQUE_CHECKS | OPTION_NOT_AUTOCOMMIT)
 
-#if OPTIONS_WRITTEN_TO_BIN_LOG != ((1L << 14) | (1L << 26) | (1L << 27))
+/* Shouldn't be defined before */
+#define EXPECTED_OPTIONS \
+  ((ULL(1) << 14) | (ULL(1) << 26) | (ULL(1) << 27) | (ULL(1) << 19))
+
+#if OPTIONS_WRITTEN_TO_BIN_LOG != EXPECTED_OPTIONS
 #error OPTIONS_WRITTEN_TO_BIN_LOG must NOT change their values!
 #endif
+#undef EXPECTED_OPTIONS         /* You shouldn't use this one */
 
 enum Log_event_type
 {
