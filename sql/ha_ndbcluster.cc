@@ -134,7 +134,6 @@ static uint ndbcluster_alter_table_flags(uint flags)
 }
 
 static int ndbcluster_inited= 0;
-int ndbcluster_util_inited= 0;
 
 static Ndb* g_ndb= NULL;
 Ndb_cluster_connection* g_ndb_cluster_connection= NULL;
@@ -158,6 +157,7 @@ static int ndb_get_table_statistics(ha_ndbcluster*, bool, Ndb*, const NDBTAB *,
 
 // Util thread variables
 pthread_t ndb_util_thread;
+int ndb_util_thread_running= 0;
 pthread_mutex_t LOCK_ndb_util_thread;
 pthread_cond_t COND_ndb_util_thread;
 pthread_handler_t ndb_util_thread_func(void *arg);
@@ -6720,6 +6720,12 @@ static int ndbcluster_init(void *p)
     goto ndbcluster_init_error;
   }
 
+  /* Wait for the util thread to start */
+  pthread_mutex_lock(&LOCK_ndb_util_thread);
+  while (!ndb_util_thread_running)
+    pthread_cond_wait(&COND_ndb_util_thread, &LOCK_ndb_util_thread);
+  pthread_mutex_unlock(&LOCK_ndb_util_thread);
+
   ndbcluster_inited= 1;
   DBUG_RETURN(FALSE);
 
@@ -6742,6 +6748,27 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
 
   if (!ndbcluster_inited)
     DBUG_RETURN(0);
+  ndbcluster_inited= 0;
+
+  /* wait for util thread to finish */
+  pthread_mutex_lock(&LOCK_ndb_util_thread);
+  if (ndb_util_thread_running > 0)
+  {
+    pthread_cond_signal(&COND_ndb_util_thread);
+    pthread_mutex_unlock(&LOCK_ndb_util_thread);
+
+    pthread_mutex_lock(&LOCK_ndb_util_thread);
+    while (ndb_util_thread_running > 0)
+    {
+      struct timespec abstime;
+      set_timespec(abstime, 1);
+      pthread_cond_timedwait(&COND_ndb_util_thread,
+                             &LOCK_ndb_util_thread,
+                             &abstime);
+    }
+  }
+  pthread_mutex_unlock(&LOCK_ndb_util_thread);
+
 
 #ifdef HAVE_NDB_BINLOG
   {
@@ -6788,7 +6815,6 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
   pthread_mutex_destroy(&ndbcluster_mutex);
   pthread_mutex_destroy(&LOCK_ndb_util_thread);
   pthread_cond_destroy(&COND_ndb_util_thread);
-  ndbcluster_inited= 0;
   DBUG_RETURN(0);
 }
 
@@ -8334,6 +8360,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   {
     thd->cleanup();
     delete thd;
+    ndb_util_thread_running= 0;
     DBUG_RETURN(NULL);
   }
   thd->init_for_queries();
@@ -8346,6 +8373,9 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   thd->main_security_ctx.priv_user = 0;
   thd->current_stmt_binlog_row_based= TRUE;     // If in mixed mode
 
+  ndb_util_thread_running= 1;
+  pthread_cond_signal(&COND_ndb_util_thread);
+
   /*
     wait for mysql server to start
   */
@@ -8353,8 +8383,6 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   while (!mysqld_server_started)
     pthread_cond_wait(&COND_server_started, &LOCK_server_started);
   pthread_mutex_unlock(&LOCK_server_started);
-
-  ndbcluster_util_inited= 1;
 
   /*
     Wait for cluster to start
@@ -8537,6 +8565,9 @@ ndb_util_thread_end:
   net_end(&thd->net);
   thd->cleanup();
   delete thd;
+  pthread_mutex_lock(&LOCK_ndb_util_thread);
+  ndb_util_thread_running= 0;
+  pthread_mutex_unlock(&LOCK_ndb_util_thread);
   DBUG_PRINT("exit", ("ndb_util_thread"));
   my_thread_end();
   pthread_exit(0);
