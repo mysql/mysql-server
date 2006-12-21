@@ -462,6 +462,8 @@ EXPLAIN SELECT b, SUM(c) FROM t1 GROUP BY b;
 EXPLAIN SELECT SQL_BIG_RESULT b, SUM(c) FROM t1 GROUP BY b;
 DROP TABLE t1;
 
+--source include/innodb_rollback_on_timeout.inc
+
 --echo End of 5.0 tests
 
 
