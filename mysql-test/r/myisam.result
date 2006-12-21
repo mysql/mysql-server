@@ -923,24 +923,4 @@ SET @@myisam_repair_threads=1;
 SHOW VARIABLES LIKE 'myisam_repair%';
 Variable_name	Value
 myisam_repair_threads	1
-show create table t1;
-Table	Create Table
-t1	CREATE TEMPORARY TABLE `t1` (
-  `a` int(11) default NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TEST_DIR/var/log/'
-show create table t1;
-Table	Create Table
-t1	CREATE TEMPORARY TABLE `t1` (
-  `a` int(11) default NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TEST_DIR/var/log/'
-create table t1 (a int) engine=myisam select 42 a;
-select * from t1;
-a
-9
-select * from t1;
-a
-99
-select * from t1;
-a
-42
-drop table t1;
+End of 4.1 tests

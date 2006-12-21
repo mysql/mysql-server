@@ -133,4 +133,41 @@ enable_query_log;
 show create table t1;
 drop table t1;
 
-# End of 4.1 tests
+#
+# Bug#8706 - temporary table with data directory option fails
+#
+connect (session1,localhost,root,,);
+connect (session2,localhost,root,,);
+
+connection session1;
+disable_query_log;
+eval create temporary table t1 (a int) engine=myisam data directory="$MYSQL_TEST_DIR/var/log" select 9 a;
+enable_query_log;
+# If running test suite with a non standard tmp dir, the "show create table"
+# will print "DATA_DIRECTORY=". Use replace_result to mask it out
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+show create table t1;
+
+connection session2;
+disable_query_log;
+eval create temporary table t1 (a int) engine=myisam data directory="$MYSQL_TEST_DIR/var/log" select 99 a;
+enable_query_log;
+# If running test suite with a non standard tmp dir, the "show create table"
+# will print "DATA_DIRECTORY=". Use replace_result to mask it out
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+show create table t1;
+
+connection default;
+create table t1 (a int) engine=myisam select 42 a;
+
+connection session1;
+select * from t1;
+disconnect session1;
+connection session2;
+select * from t1;
+disconnect session2;
+connection default;
+select * from t1;
+drop table t1;
+
+--echo End of 4.1 tests
