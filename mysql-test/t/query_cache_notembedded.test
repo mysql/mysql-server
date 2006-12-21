@@ -81,12 +81,12 @@ drop table t1, t2, t3, t11, t21;
 #
 # do not use QC if tables locked (BUG#12385)
 #
-connect (root,localhost,root,,test,$MASTER_MYPORT,master.sock);
+connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection root;
 CREATE TABLE t1 ( a INT NOT NULL PRIMARY KEY AUTO_INCREMENT ) ENGINE =
 MyISAM;
 LOCK TABLE t1 READ LOCAL;
-connect (root2,localhost,root,,test,$MASTER_MYPORT,master.sock);
+connect (root2,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection root2;
 INSERT INTO t1 VALUES (), (), ();
 connection root;
