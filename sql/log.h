@@ -338,6 +338,8 @@ public:
   bool write(Log_event* event_info); // binary log write
   bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event);
 
+  int  write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
+
   void start_union_events(THD *thd);
   void stop_union_events(THD *thd);
   bool is_query_in_union(THD *thd, query_id_t query_id_param);

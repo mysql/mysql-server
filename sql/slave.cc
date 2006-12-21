@@ -31,6 +31,8 @@
 
 #include "rpl_tblmap.h"
 
+#define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
+
 #define MAX_SLAVE_RETRY_PAUSE 5
 bool use_slave_mask = 0;
 MY_BITMAP slave_error_mask;
@@ -3153,6 +3155,10 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
     if (!ev->when)
       ev->when = time(NULL);
     ev->thd = thd; // because up to this point, ev->thd == 0
+    DBUG_PRINT("info", ("thd->options={ %s%s}",
+                        FLAGSTR(thd->options, OPTION_NOT_AUTOCOMMIT),
+                        FLAGSTR(thd->options, OPTION_BEGIN)));
+
     exec_res = ev->exec_event(rli);
     DBUG_PRINT("info", ("exec_event result = %d", exec_res));
     DBUG_ASSERT(rli->sql_thd==thd);
