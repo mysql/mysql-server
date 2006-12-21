@@ -1208,3 +1208,14 @@ create table t1 (i int)
 comment '123456789*123456789*123456789*123456789*123456789*123456789*';
 show create table t1;
 drop table t1;
+
+#
+# Bug #22824: strict, datetime, NULL, wrong warning
+#
+
+set @@sql_mode='NO_ZERO_DATE';
+create table t1(a datetime not null);
+select count(*) from t1 where a is null;
+drop table t1;
+
+--echo End of 5.0 tests
