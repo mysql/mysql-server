@@ -296,54 +296,54 @@ MY_LOCALE *my_locale_by_name(const char *name);
    TODO: separate three contexts above, move them to separate bitfields.
 */
 
-#define SELECT_DISTINCT         (LL(1) << 0)       // SELECT, user
-#define SELECT_STRAIGHT_JOIN    (LL(1) << 1)       // SELECT, user
-#define SELECT_DESCRIBE         (LL(1) << 2)       // SELECT, user
-#define SELECT_SMALL_RESULT     (LL(1) << 3)       // SELECT, user
-#define SELECT_BIG_RESULT       (LL(1) << 4)       // SELECT, user
-#define OPTION_FOUND_ROWS       (LL(1) << 5)       // SELECT, user
-#define OPTION_TO_QUERY_CACHE   (LL(1) << 6)       // SELECT, user
-#define SELECT_NO_JOIN_CACHE    (LL(1) << 7)       // intern
-#define OPTION_BIG_TABLES       (LL(1) << 8)       // THD, user
-#define OPTION_BIG_SELECTS      (LL(1) << 9)       // THD, user
-#define OPTION_LOG_OFF          (LL(1) << 10)      // THD, user
-#define OPTION_QUOTE_SHOW_CREATE (LL(1) << 11)     // THD, user
-#define TMP_TABLE_ALL_COLUMNS   (LL(1) << 12)      // SELECT, intern
-#define OPTION_WARNINGS         (LL(1) << 13)      // THD, user
-#define OPTION_AUTO_IS_NULL     (LL(1) << 14)      // THD, user, binlog
-#define OPTION_FOUND_COMMENT    (LL(1) << 15)      // SELECT, intern, parser
-#define OPTION_SAFE_UPDATES     (LL(1) << 16)      // THD, user
-#define OPTION_BUFFER_RESULT    (LL(1) << 17)      // SELECT, user
-#define OPTION_BIN_LOG          (LL(1) << 18)      // THD, user
-#define OPTION_NOT_AUTOCOMMIT   (LL(1) << 19)      // THD, user
-#define OPTION_BEGIN            (LL(1) << 20)      // THD, intern
-#define OPTION_TABLE_LOCK       (LL(1) << 21)      // THD, intern
-#define OPTION_QUICK            (LL(1) << 22)      // SELECT (for DELETE)
-#define OPTION_KEEP_LOG         (LL(1) << 23)      // Keep binlog on rollback
+#define SELECT_DISTINCT          (ULL(1) << 0)       // SELECT, user
+#define SELECT_STRAIGHT_JOIN     (ULL(1) << 1)       // SELECT, user
+#define SELECT_DESCRIBE          (ULL(1) << 2)       // SELECT, user
+#define SELECT_SMALL_RESULT      (ULL(1) << 3)       // SELECT, user
+#define SELECT_BIG_RESULT        (ULL(1) << 4)       // SELECT, user
+#define OPTION_FOUND_ROWS        (ULL(1) << 5)       // SELECT, user
+#define OPTION_TO_QUERY_CACHE    (ULL(1) << 6)       // SELECT, user
+#define SELECT_NO_JOIN_CACHE     (ULL(1) << 7)       // intern
+#define OPTION_BIG_TABLES        (ULL(1) << 8)       // THD, user
+#define OPTION_BIG_SELECTS       (ULL(1) << 9)       // THD, user
+#define OPTION_LOG_OFF           (ULL(1) << 10)      // THD, user
+#define OPTION_QUOTE_SHOW_CREATE (ULL(1) << 11)      // THD, user
+#define TMP_TABLE_ALL_COLUMNS    (ULL(1) << 12)      // SELECT, intern
+#define OPTION_WARNINGS          (ULL(1) << 13)      // THD, user
+#define OPTION_AUTO_IS_NULL      (ULL(1) << 14)      // THD, user, binlog
+#define OPTION_FOUND_COMMENT     (ULL(1) << 15)      // SELECT, intern, parser
+#define OPTION_SAFE_UPDATES      (ULL(1) << 16)      // THD, user
+#define OPTION_BUFFER_RESULT     (ULL(1) << 17)      // SELECT, user
+#define OPTION_BIN_LOG           (ULL(1) << 18)      // THD, user
+#define OPTION_NOT_AUTOCOMMIT    (ULL(1) << 19)      // THD, user
+#define OPTION_BEGIN             (ULL(1) << 20)      // THD, intern
+#define OPTION_TABLE_LOCK        (ULL(1) << 21)      // THD, intern
+#define OPTION_QUICK             (ULL(1) << 22)      // SELECT (for DELETE)
+#define OPTION_KEEP_LOG          (ULL(1) << 23)      // Keep binlog on rollback
 
 /* The following is used to detect a conflict with DISTINCT */
-#define SELECT_ALL              (LL(1) << 24)      // SELECT, user, parser
+#define SELECT_ALL               (ULL(1) << 24)      // SELECT, user, parser
 
 /* Set if we are updating a non-transaction safe table */
-#define OPTION_STATUS_NO_TRANS_UPDATE   (LL(1) << 25) // THD, intern
+#define OPTION_STATUS_NO_TRANS_UPDATE   (ULL(1) << 25) // THD, intern
 
 /* The following can be set when importing tables in a 'wrong order'
    to suppress foreign key checks */
-#define OPTION_NO_FOREIGN_KEY_CHECKS    (LL(1) << 26) // THD, user, binlog
+#define OPTION_NO_FOREIGN_KEY_CHECKS    (ULL(1) << 26) // THD, user, binlog
 /* The following speeds up inserts to InnoDB tables by suppressing unique
    key checks in some cases */
-#define OPTION_RELAXED_UNIQUE_CHECKS    (LL(1) << 27) // THD, user, binlog
-#define SELECT_NO_UNLOCK                (LL(1) << 28) // SELECT, intern
-#define OPTION_SCHEMA_TABLE             (LL(1) << 29) // SELECT, intern
+#define OPTION_RELAXED_UNIQUE_CHECKS    (ULL(1) << 27) // THD, user, binlog
+#define SELECT_NO_UNLOCK                (ULL(1) << 28) // SELECT, intern
+#define OPTION_SCHEMA_TABLE             (ULL(1) << 29) // SELECT, intern
 /* Flag set if setup_tables already done */
-#define OPTION_SETUP_TABLES_DONE        (LL(1) << 30) // intern
+#define OPTION_SETUP_TABLES_DONE        (ULL(1) << 30) // intern
 /* If not set then the thread will ignore all warnings with level notes. */
-#define OPTION_SQL_NOTES                (LL(1) << 31) // THD, user
+#define OPTION_SQL_NOTES                (ULL(1) << 31) // THD, user
 /*
   Force the used temporary table to be a MyISAM table (because we will use
   fulltext functions when reading from it.
 */
-#define TMP_TABLE_FORCE_MYISAM          (LL(1) << 32)
+#define TMP_TABLE_FORCE_MYISAM          (ULL(1) << 32)
 
 /*
   Maximum length of time zone name that we support
