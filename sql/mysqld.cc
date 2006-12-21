@@ -391,6 +391,7 @@ extern my_bool innobase_log_archive,
                innobase_use_large_pages,
                innobase_use_native_aio,
                innobase_file_per_table, innobase_locks_unsafe_for_binlog,
+               innobase_rollback_on_timeout,
                innobase_create_status_file;
 extern "C" {
 extern ulong srv_max_buf_pool_modified_pct;
@@ -8154,7 +8155,8 @@ my_bool innobase_log_archive,
         innobase_use_doublewrite,
         innobase_use_checksums,
         innobase_file_per_table,
-        innobase_locks_unsafe_for_binlog;
+        innobase_locks_unsafe_for_binlog,
+        innobase_rollback_on_timeout;
 
 extern "C" {
 ulong srv_max_buf_pool_modified_pct;
