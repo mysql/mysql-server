@@ -391,6 +391,7 @@ extern my_bool innobase_log_archive,
                innobase_use_large_pages,
                innobase_use_native_aio,
                innobase_file_per_table, innobase_locks_unsafe_for_binlog,
+               innobase_rollback_on_timeout,
                innobase_create_status_file;
 extern "C" {
 extern ulong srv_max_buf_pool_modified_pct;
@@ -4869,7 +4870,8 @@ enum options_mysqld
   OPT_PORT_OPEN_TIMEOUT,
   OPT_GENERAL_LOG,
   OPT_SLOW_LOG,
-  OPT_MERGE
+  OPT_MERGE,
+  OPT_INNODB_ROLLBACK_ON_TIMEOUT
 };
 
 
@@ -5162,6 +5164,10 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    (gptr*) &srv_max_purge_lag,
    (gptr*) &srv_max_purge_lag, 0, GET_LONG, REQUIRED_ARG, 0, 0, ~0L,
    0, 1L, 0},
+  {"innodb_rollback_on_timeout", OPT_INNODB_ROLLBACK_ON_TIMEOUT,
+   "Roll back the complete transaction on lock wait timeout, for 4.x compatibility (disabled by default)",
+   (gptr*) &innobase_rollback_on_timeout, (gptr*) &innobase_rollback_on_timeout,
+   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"innodb_status_file", OPT_INNODB_STATUS_FILE,
    "Enable SHOW INNODB STATUS output in the innodb_status.<pid> file",
    (gptr*) &innobase_create_status_file, (gptr*) &innobase_create_status_file,
@@ -8149,7 +8155,8 @@ my_bool innobase_log_archive,
         innobase_use_doublewrite,
         innobase_use_checksums,
         innobase_file_per_table,
-        innobase_locks_unsafe_for_binlog;
+        innobase_locks_unsafe_for_binlog,
+        innobase_rollback_on_timeout;
 
 extern "C" {
 ulong srv_max_buf_pool_modified_pct;
