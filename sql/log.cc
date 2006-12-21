@@ -82,6 +82,41 @@ char *make_default_log_name(char *buff,const char* log_ext)
 }
 
 /*
+  Helper class to hold a mutex for the duration of the
+  block.
+
+  Eliminates the need for explicit unlocking of mutexes on, e.g.,
+  error returns.  On passing a null pointer, the sentry will not do
+  anything.
+ */
+class Mutex_sentry
+{
+public:
+  Mutex_sentry(pthread_mutex_t *mutex)
+    : m_mutex(mutex)
+  {
+    if (m_mutex)
+      pthread_mutex_lock(mutex);
+  }
+
+  ~Mutex_sentry()
+  {
+    if (m_mutex)
+      pthread_mutex_unlock(m_mutex);
+#ifndef DBUG_OFF
+    m_mutex= 0;
+#endif
+  }
+
+private:
+  pthread_mutex_t *m_mutex;
+
+  // It's not allowed to copy this object in any way
+  Mutex_sentry(Mutex_sentry const&);
+  void operator=(Mutex_sentry const&);
+};
+
+/*
   Helper class to store binary log transaction data.
 */
 class binlog_trx_data {
@@ -113,9 +148,15 @@ public:
    */
   void truncate(my_off_t pos)
   {
+#ifdef HAVE_ROW_BASED_REPLICATION
+    DBUG_PRINT("info", ("truncating to position %lu", pos));
+    DBUG_PRINT("info", ("before_stmt_pos=%lu", pos));
     delete pending();
     set_pending(0);
     reinit_io_cache(&trans_log, WRITE_CACHE, pos, 0, 0);
+    if (pos < before_stmt_pos)
+      before_stmt_pos= MY_OFF_T_UNDEF;
+#endif
   }
 
   /*
@@ -1483,12 +1524,11 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
 
       If rolling back a statement in a transaction, we truncate the
       transaction cache to remove the statement.
-
      */
     if (all || !(thd->options & (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT)))
       trx_data->reset();
-    else
-      trx_data->truncate(trx_data->before_stmt_pos); // ...statement
+    else                                        // ...statement
+      trx_data->truncate(trx_data->before_stmt_pos);
 
     /*
       We need to step the table map version on a rollback to ensure
@@ -2075,7 +2115,7 @@ bool MYSQL_QUERY_LOG::write(time_t event_time, const char *user_host,
         if (my_b_write(&log_file, (byte*) "\t\t" ,2) < 0)
           goto err;
 
-    /* command_type, thread_id */
+      /* command_type, thread_id */
       length= my_snprintf(buff, 32, "%5ld ", (long) thread_id);
 
     if (my_b_write(&log_file, (byte*) buff, length))
@@ -3415,24 +3455,58 @@ THD::binlog_start_trans_and_stmt()
   if (trx_data == NULL ||
       trx_data->before_stmt_pos == MY_OFF_T_UNDEF)
   {
-    /*
-      The call to binlog_trans_log_savepos() might create the trx_data
-      structure, if it didn't exist before, so we save the position
-      into an auto variable and then write it into the transaction
-      data for the binary log (i.e., trx_data).
-    */
-    my_off_t pos= 0;
-    binlog_trans_log_savepos(this, &pos);
-    trx_data= (binlog_trx_data*) ha_data[binlog_hton->slot];
-
-    trx_data->before_stmt_pos= pos;
-
+    this->binlog_set_stmt_begin();
     if (options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
       trans_register_ha(this, TRUE, binlog_hton);
     trans_register_ha(this, FALSE, binlog_hton);
   }
   DBUG_VOID_RETURN;
 }
+
+void THD::binlog_set_stmt_begin() {
+  binlog_trx_data *trx_data=
+    (binlog_trx_data*) ha_data[binlog_hton->slot];
+
+  /*
+    The call to binlog_trans_log_savepos() might create the trx_data
+    structure, if it didn't exist before, so we save the position
+    into an auto variable and then write it into the transaction
+    data for the binary log (i.e., trx_data).
+  */
+  my_off_t pos= 0;
+  binlog_trans_log_savepos(this, &pos);
+  trx_data= (binlog_trx_data*) ha_data[binlog_hton->slot];
+  trx_data->before_stmt_pos= pos;
+}
+
+int THD::binlog_flush_transaction_cache()
+{
+  DBUG_ENTER("binlog_flush_transaction_cache");
+  binlog_trx_data *trx_data= (binlog_trx_data*) ha_data[binlog_hton->slot];
+  DBUG_PRINT("enter", ("trx_data=0x%lu", trx_data));
+  if (trx_data)
+    DBUG_PRINT("enter", ("trx_data->before_stmt_pos=%u",
+                         trx_data->before_stmt_pos));
+
+  /*
+    Write the transaction cache to the binary log.  We don't flush and
+    sync the log file since we don't know if more will be written to
+    it. If the caller want the log file sync:ed, the caller has to do
+    it.
+
+    The transaction data is only reset upon a successful write of the
+    cache to the binary log.
+  */
+
+  if (trx_data && likely(mysql_bin_log.is_open())) {
+    if (int error= mysql_bin_log.write_cache(&trx_data->trans_log, true, true))
+      DBUG_RETURN(error);
+    trx_data->reset();
+  }
+
+  DBUG_RETURN(0);
+}
+
 
 /*
   Write a table map to the binary log.
@@ -3844,12 +3918,48 @@ uint MYSQL_BIN_LOG::next_file_id()
 
 
 /*
+  Write the contents of a cache to the binary log.
+
+  SYNOPSIS
+    write_cache()
+    cache    Cache to write to the binary log
+    lock_log True if the LOCK_log mutex should be aquired, false otherwise
+    sync_log True if the log should be flushed and sync:ed
+
+  DESCRIPTION
+    Write the contents of the cache to the binary log. The cache will
+    be reset as a READ_CACHE to be able to read the contents from it.
+ */
+
+int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
+{
+  Mutex_sentry sentry(lock_log ? &LOCK_log : NULL);
+
+  if (reinit_io_cache(cache, READ_CACHE, 0, 0, 0))
+    return ER_ERROR_ON_WRITE;
+  uint bytes= my_b_bytes_in_cache(cache);
+  do
+  {
+    if (my_b_write(&log_file, cache->read_pos, bytes))
+      return ER_ERROR_ON_WRITE;
+    cache->read_pos= cache->read_end;
+  } while ((bytes= my_b_fill(cache)));
+
+  if (sync_log)
+    flush_and_sync();
+
+  return 0;                                     // All OK
+}
+
+/*
   Write a cached log entry to the binary log
 
   SYNOPSIS
     write()
     thd
     cache		The cache to copy to the binlog
+    commit_event        The commit event to print after writing the
+                        contents of the cache.
 
   NOTE
     - We only come here if there is something in the cache.
@@ -3909,20 +4019,10 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
         if (qinfo.write(&log_file))
           goto err;
       }
-      /* Read from the file used to cache the queries .*/
-      if (reinit_io_cache(cache, READ_CACHE, 0, 0, 0))
-        goto err;
-      length=my_b_bytes_in_cache(cache);
-      DBUG_EXECUTE_IF("half_binlogged_transaction", length-=100;);
-      do
-      {
-        /* Write data to the binary log file */
-        if (my_b_write(&log_file, cache->read_pos, length))
-          goto err;
-        cache->read_pos=cache->read_end;		// Mark buffer used up
-        DBUG_EXECUTE_IF("half_binlogged_transaction", goto DBUG_skip_commit;);
-      } while ((length=my_b_fill(cache)));
 
+      if ((write_error= write_cache(cache, false, false)))
+        goto err;
+      
       if (commit_event && commit_event->write(&log_file))
         goto err;
 #ifndef DBUG_OFF
