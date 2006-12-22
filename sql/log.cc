@@ -148,7 +148,6 @@ public:
    */
   void truncate(my_off_t pos)
   {
-#ifdef HAVE_ROW_BASED_REPLICATION
     DBUG_PRINT("info", ("truncating to position %lu", pos));
     DBUG_PRINT("info", ("before_stmt_pos=%lu", pos));
     delete pending();
@@ -156,7 +155,6 @@ public:
     reinit_io_cache(&trans_log, WRITE_CACHE, pos, 0, 0);
     if (pos < before_stmt_pos)
       before_stmt_pos= MY_OFF_T_UNDEF;
-#endif
   }
 
   /*
