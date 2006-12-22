@@ -1114,7 +1114,7 @@ Field *Item_sum_avg::create_tmp_field(bool group, TABLE *table,
   {
     /*
       We must store both value and counter in the temporary table in one field.
-      The easyest way is to do this is to store both value in a string
+      The easiest way is to do this is to store both value in a string
       and unpack on access.
     */
     return new Field_string(((hybrid_type == DECIMAL_RESULT) ?
@@ -1188,8 +1188,9 @@ String *Item_sum_avg::val_str(String *str)
 double Item_sum_std::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  double tmp= Item_sum_variance::val_real();
-  return tmp <= 0.0 ? 0.0 : sqrt(tmp);
+  double nr= Item_sum_variance::val_real();
+  DBUG_ASSERT(nr >= 0.0);
+  return sqrt(nr);
 }
 
 Item *Item_sum_std::copy_or_same(THD* thd)
@@ -1203,26 +1204,56 @@ Item *Item_sum_std::copy_or_same(THD* thd)
 */
 
 
-Item_sum_variance::Item_sum_variance(THD *thd, Item_sum_variance *item):
-  Item_sum_num(thd, item), hybrid_type(item->hybrid_type),
-    cur_dec(item->cur_dec), count(item->count), sample(item->sample),
-    prec_increment(item->prec_increment)
+/**
+  Variance implementation for floating-point implementations, without
+  catastrophic cancellation, from Knuth's _TAoCP_, 3rd ed, volume 2, pg232.
+  This alters the value at m, s, and increments count.
+*/
+
+/*
+  These two functions are used by the Item_sum_variance and the
+  Item_variance_field classes, which are unrelated, and each need to calculate
+  variance.  The difference between the two classes is that the first is used
+  for a mundane SELECT, while the latter is used in a GROUPing SELECT.
+*/
+static void variance_fp_recurrence_next(double *m, double *s, ulonglong *count, double nr)
 {
-  if (hybrid_type == DECIMAL_RESULT)
+  *count += 1;
+
+  if (*count == 1) 
   {
-    memcpy(dec_sum, item->dec_sum, sizeof(item->dec_sum));
-    memcpy(dec_sqr, item->dec_sqr, sizeof(item->dec_sqr));
-    for (int i=0; i<2; i++)
-    {
-      dec_sum[i].fix_buffer_pointer();
-      dec_sqr[i].fix_buffer_pointer();
-    }
+    *m= nr;
+    *s= 0;
   }
   else
   {
-    sum= item->sum;
-    sum_sqr= item->sum_sqr;
+    double m_kminusone= *m;
+    *m= m_kminusone + (nr - m_kminusone) / (double) *count;
+    *s= *s + (nr - m_kminusone) * (nr - *m);
   }
+}
+
+
+static double variance_fp_recurrence_result(double s, ulonglong count, bool is_sample_variance)
+{
+  if (count == 1)
+    return 0.0;
+
+  if (is_sample_variance)
+    return s / (count - 1);
+
+  /* else, is a population variance */
+  return s / count;
+}
+
+
+Item_sum_variance::Item_sum_variance(THD *thd, Item_sum_variance *item):
+  Item_sum_num(thd, item), hybrid_type(item->hybrid_type),
+    count(item->count), sample(item->sample),
+    prec_increment(item->prec_increment)
+{
+  recurrence_m= item->recurrence_m;
+  recurrence_s= item->recurrence_s;
 }
 
 
@@ -1231,12 +1262,19 @@ void Item_sum_variance::fix_length_and_dec()
   DBUG_ENTER("Item_sum_variance::fix_length_and_dec");
   maybe_null= null_value= 1;
   prec_increment= current_thd->variables.div_precincrement;
+
+  /*
+    According to the SQL2003 standard (Part 2, Foundations; sec 10.9,
+    aggregate function; paragraph 7h of Syntax Rules), "the declared 
+    type of the result is an implementation-defined aproximate numeric
+    type.
+  */
+  hybrid_type= REAL_RESULT;
+
   switch (args[0]->result_type()) {
   case REAL_RESULT:
   case STRING_RESULT:
     decimals= min(args[0]->decimals + 4, NOT_FIXED_DEC);
-    hybrid_type= REAL_RESULT;
-    sum= 0.0;
     break;
   case INT_RESULT:
   case DECIMAL_RESULT:
@@ -1245,37 +1283,14 @@ void Item_sum_variance::fix_length_and_dec()
     decimals= min(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
     max_length= my_decimal_precision_to_length(precision, decimals,
                                                unsigned_flag);
-    cur_dec= 0;
-    hybrid_type= DECIMAL_RESULT;
-    my_decimal_set_zero(dec_sum);
-    my_decimal_set_zero(dec_sqr);
 
-    /*
-      The maxium value to usable for variance is DECIMAL_MAX_LENGTH/2
-      becasue we need to be able to calculate in dec_bin_size1
-      column_value * column_value
-    */
-    f_scale0= args[0]->decimals;
-    f_precision0= min(args[0]->decimal_precision() + DECIMAL_LONGLONG_DIGITS,
-                      DECIMAL_MAX_PRECISION);
-    f_scale1= min(args[0]->decimals * 2, DECIMAL_MAX_SCALE);
-    f_precision1= min(args[0]->decimal_precision()*2 + DECIMAL_LONGLONG_DIGITS,
-                      DECIMAL_MAX_PRECISION);
-    dec_bin_size0= my_decimal_get_binary_size(f_precision0, f_scale0);
-    dec_bin_size1= my_decimal_get_binary_size(f_precision1, f_scale1);
     break;
   }
   case ROW_RESULT:
   default:
     DBUG_ASSERT(0);
   }
-  DBUG_PRINT("info", ("Type: %s (%d, %d)",
-                      (hybrid_type == REAL_RESULT ? "REAL_RESULT" :
-                       hybrid_type == DECIMAL_RESULT ? "DECIMAL_RESULT" :
-                       hybrid_type == INT_RESULT ? "INT_RESULT" :
-                       "--ILLEGAL!!!--"),
-                      max_length,
-                      (int)decimals));
+  DBUG_PRINT("info", ("Type: REAL_RESULT (%d, %d)", max_length, (int)decimals));
   DBUG_VOID_RETURN;
 }
 
@@ -1286,6 +1301,11 @@ Item *Item_sum_variance::copy_or_same(THD* thd)
 }
 
 
+/**
+  Create a new field to match the type of value we're expected to yield.
+  If we're grouping, then we need some space to serialize variables into, to
+  pass around.
+*/
 Field *Item_sum_variance::create_tmp_field(bool group, TABLE *table,
                                            uint convert_blob_len)
 {
@@ -1293,13 +1313,10 @@ Field *Item_sum_variance::create_tmp_field(bool group, TABLE *table,
   {
     /*
       We must store both value and counter in the temporary table in one field.
-      The easyest way is to do this is to store both value in a string
+      The easiest way is to do this is to store both value in a string
       and unpack on access.
     */
-    return new Field_string(((hybrid_type == DECIMAL_RESULT) ?
-                             dec_bin_size0 + dec_bin_size1 :
-                             sizeof(double)*2) + sizeof(longlong),
-                            0, name, table, &my_charset_bin);
+    return new Field_string(sizeof(double)*2 + sizeof(longlong), 0, name, table, &my_charset_bin);
   }
   return new Field_double(max_length, maybe_null,name,table,decimals);
 }
@@ -1307,90 +1324,51 @@ Field *Item_sum_variance::create_tmp_field(bool group, TABLE *table,
 
 void Item_sum_variance::clear()
 {
-  if (hybrid_type == DECIMAL_RESULT)
-  {
-    my_decimal_set_zero(dec_sum);
-    my_decimal_set_zero(dec_sqr);
-    cur_dec= 0;
-  }
-  else
-    sum=sum_sqr=0.0; 
-  count=0; 
+  count= 0; 
 }
 
 bool Item_sum_variance::add()
 {
-  if (hybrid_type == DECIMAL_RESULT)
-  {
-    my_decimal dec_buf, *dec= args[0]->val_decimal(&dec_buf);
-    my_decimal sqr_buf;
-    if (!args[0]->null_value)
-    {
-      count++;
-      int next_dec= cur_dec ^ 1;
-      my_decimal_mul(E_DEC_FATAL_ERROR, &sqr_buf, dec, dec);
-      my_decimal_add(E_DEC_FATAL_ERROR, dec_sqr+next_dec,
-                     dec_sqr+cur_dec, &sqr_buf);
-      my_decimal_add(E_DEC_FATAL_ERROR, dec_sum+next_dec,
-                     dec_sum+cur_dec, dec);
-      cur_dec= next_dec;
-    }
-  }
-  else
-  {
-    double nr= args[0]->val_real();
-    if (!args[0]->null_value)
-    {
-      sum+=nr;
-      sum_sqr+=nr*nr;
-      count++;
-    }
-  }
+  /* 
+    Why use a temporary variable?  We don't know if it is null until we
+    evaluate it, which has the side-effect of setting null_value .
+  */
+  double nr= args[0]->val_real();
+  
+  if (!args[0]->null_value)
+    variance_fp_recurrence_next(&recurrence_m, &recurrence_s, &count, nr);
   return 0;
 }
 
 double Item_sum_variance::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  if (hybrid_type == DECIMAL_RESULT)
-    return val_real_from_decimal();
 
+  /*
+    'sample' is a 1/0 boolean value.  If it is 1/true, id est this is a sample
+    variance call, then we should set nullness when the count of the items
+    is one or zero.  If it's zero, i.e. a population variance, then we only
+    set nullness when the count is zero.
+
+    Another way to read it is that 'sample' is the numerical threshhold, at and
+    below which a 'count' number of items is called NULL.
+  */
+  DBUG_ASSERT((sample == 0) || (sample == 1));
   if (count <= sample)
   {
     null_value=1;
     return 0.0;
   }
+
   null_value=0;
-  /* Avoid problems when the precision isn't good enough */
-  double tmp=ulonglong2double(count);
-  double tmp2= (sum_sqr - sum*sum/tmp)/(tmp - (double)sample);
-  return tmp2 <= 0.0 ? 0.0 : tmp2;
+  return variance_fp_recurrence_result(recurrence_s, count, sample);
 }
 
 
 my_decimal *Item_sum_variance::val_decimal(my_decimal *dec_buf)
 {
-  my_decimal count_buf, count1_buf, sum_sqr_buf;
-  DBUG_ASSERT(fixed ==1 );
-  if (hybrid_type == REAL_RESULT)
-    return val_decimal_from_real(dec_buf);
-
-  if (count <= sample)
-  {
-    null_value= 1;
-    return 0;
-  }
-  null_value= 0;
-  int2my_decimal(E_DEC_FATAL_ERROR, count, 0, &count_buf);
-  int2my_decimal(E_DEC_FATAL_ERROR, count-sample, 0, &count1_buf);
-  my_decimal_mul(E_DEC_FATAL_ERROR, &sum_sqr_buf,
-                 dec_sum+cur_dec, dec_sum+cur_dec);
-  my_decimal_div(E_DEC_FATAL_ERROR, dec_buf,
-                 &sum_sqr_buf, &count_buf, prec_increment);
-  my_decimal_sub(E_DEC_FATAL_ERROR, &sum_sqr_buf, dec_sqr+cur_dec, dec_buf);
-  my_decimal_div(E_DEC_FATAL_ERROR, dec_buf,
-                 &sum_sqr_buf, &count1_buf, prec_increment);
-  return dec_buf;
+  DBUG_ASSERT(fixed == 1);
+  return val_decimal_from_real(dec_buf);
 }
 
 
@@ -1399,89 +1377,44 @@ void Item_sum_variance::reset_field()
   double nr;
   char *res= result_field->ptr;
 
-  if (hybrid_type == DECIMAL_RESULT)
-  {
-    my_decimal value, *arg_dec, *arg2_dec;
-    longlong tmp;
-
-    arg_dec= args[0]->val_decimal(&value);
-    if (args[0]->null_value)
-    {
-      arg_dec= arg2_dec= &decimal_zero;
-      tmp= 0;
-    }
-    else
-    {
-      my_decimal_mul(E_DEC_FATAL_ERROR, dec_sum, arg_dec, arg_dec);
-      arg2_dec= dec_sum;
-      tmp= 1;
-    }
-    my_decimal2binary(E_DEC_FATAL_ERROR, arg_dec,
-                      res, f_precision0, f_scale0);
-    my_decimal2binary(E_DEC_FATAL_ERROR, arg2_dec,
-                      res+dec_bin_size0, f_precision1, f_scale1);
-    res+= dec_bin_size0 + dec_bin_size1;
-    int8store(res,tmp);
-    return;
-  }
-  nr= args[0]->val_real();
+  nr= args[0]->val_real();              /* sets null_value as side-effect */
 
   if (args[0]->null_value)
     bzero(res,sizeof(double)*2+sizeof(longlong));
   else
   {
-    longlong tmp;
-    float8store(res,nr);
-    nr*=nr;
-    float8store(res+sizeof(double),nr);
-    tmp= 1;
-    int8store(res+sizeof(double)*2,tmp);
+    /* Serialize format is (double)m, (double)s, (longlong)count */
+    ulonglong tmp_count;
+    double tmp_s;
+    float8store(res, nr);               /* recurrence variable m */
+    tmp_s= 0.0;
+    float8store(res + sizeof(double), tmp_s);
+    tmp_count= 1;
+    int8store(res + sizeof(double)*2, tmp_count);
   }
 }
 
 
 void Item_sum_variance::update_field()
 {
-  longlong field_count;
+  ulonglong field_count;
   char *res=result_field->ptr;
-  if (hybrid_type == DECIMAL_RESULT)
-  {
-    my_decimal value, *arg_val= args[0]->val_decimal(&value);
-    if (!args[0]->null_value)
-    {
-      binary2my_decimal(E_DEC_FATAL_ERROR, res,
-                        dec_sum+1, f_precision0, f_scale0);
-      binary2my_decimal(E_DEC_FATAL_ERROR, res+dec_bin_size0,
-                        dec_sqr+1, f_precision1, f_scale1);
-      field_count= sint8korr(res + (dec_bin_size0 + dec_bin_size1));
-      my_decimal_add(E_DEC_FATAL_ERROR, dec_sum, arg_val, dec_sum+1);
-      my_decimal_mul(E_DEC_FATAL_ERROR, dec_sum+1, arg_val, arg_val);
-      my_decimal_add(E_DEC_FATAL_ERROR, dec_sqr, dec_sqr+1, dec_sum+1);
-      field_count++;
-      my_decimal2binary(E_DEC_FATAL_ERROR, dec_sum,
-                        res, f_precision0, f_scale0);
-      my_decimal2binary(E_DEC_FATAL_ERROR, dec_sqr,
-                        res+dec_bin_size0, f_precision1, f_scale1);
-      res+= dec_bin_size0 + dec_bin_size1;
-      int8store(res, field_count);
-    }
-    return;
-  }
 
-  double nr,old_nr,old_sqr;
-  float8get(old_nr, res);
-  float8get(old_sqr, res+sizeof(double));
+  double nr= args[0]->val_real();       /* sets null_value as side-effect */
+
+  if (args[0]->null_value)
+    return;
+
+  /* Serialize format is (double)m, (double)s, (longlong)count */
+  double field_recurrence_m, field_recurrence_s;
+  float8get(field_recurrence_m, res);
+  float8get(field_recurrence_s, res + sizeof(double));
   field_count=sint8korr(res+sizeof(double)*2);
 
-  nr= args[0]->val_real();
-  if (!args[0]->null_value)
-  {
-    old_nr+=nr;
-    old_sqr+=nr*nr;
-    field_count++;
-  }
-  float8store(res,old_nr);
-  float8store(res+sizeof(double),old_sqr);
+  variance_fp_recurrence_next(&field_recurrence_m, &field_recurrence_s, &field_count, nr);
+
+  float8store(res, field_recurrence_m);
+  float8store(res + sizeof(double), field_recurrence_s);
   res+= sizeof(double)*2;
   int8store(res,field_count);
 }
@@ -2311,25 +2244,9 @@ double Item_std_field::val_real()
 {
   double nr;
   // fix_fields() never calls for this Item
-  if (hybrid_type == REAL_RESULT)
-  {
-    /*
-      We can't call Item_variance_field::val_real() on a DECIMAL_RESULT
-      as this would call Item_std_field::val_decimal() and we would
-      calculate sqrt() twice
-    */
-    nr= Item_variance_field::val_real();
-  }
-  else
-  {
-    my_decimal dec_buf,*dec;
-    dec= Item_variance_field::val_decimal(&dec_buf);
-    if (!dec)
-      nr= 0.0;                                  // NULL; Return 0.0
-    else
-      my_decimal2double(E_DEC_FATAL_ERROR, dec, &nr);
-  }
-  return nr <= 0.0 ? 0.0 : sqrt(nr);
+  nr= Item_variance_field::val_real();
+  DBUG_ASSERT(nr >= 0.0);
+  return sqrt(nr);
 }
 
 
@@ -2343,11 +2260,13 @@ my_decimal *Item_std_field::val_decimal(my_decimal *dec_buf)
   double nr;
   if (hybrid_type == REAL_RESULT)
     return val_decimal_from_real(dec_buf);
+
   dec= Item_variance_field::val_decimal(dec_buf);
   if (!dec)
     return 0;
   my_decimal2double(E_DEC_FATAL_ERROR, dec, &nr);
-  nr= nr <= 0.0 ? 0.0 : sqrt(nr);
+  DBUG_ASSERT(nr >= 0.0);
+  nr= sqrt(nr);
   double2my_decimal(E_DEC_FATAL_ERROR, nr, &tmp_dec);
   my_decimal_round(E_DEC_FATAL_ERROR, &tmp_dec, decimals, FALSE, dec_buf);
   return dec_buf;
@@ -2382,52 +2301,15 @@ double Item_variance_field::val_real()
   if (hybrid_type == DECIMAL_RESULT)
     return val_real_from_decimal();
 
-  double sum,sum_sqr;
-  longlong count;
-  float8get(sum,field->ptr);
-  float8get(sum_sqr,(field->ptr+sizeof(double)));
+  double recurrence_s;
+  ulonglong count;
+  float8get(recurrence_s, (field->ptr + sizeof(double)));
   count=sint8korr(field->ptr+sizeof(double)*2);
 
   if ((null_value= (count <= sample)))
     return 0.0;
 
-  double tmp= (double) count;
-  double tmp2= (sum_sqr - sum*sum/tmp)/(tmp - (double)sample);
-  return tmp2 <= 0.0 ? 0.0 : tmp2;
-}
-
-
-String *Item_variance_field::val_str(String *str)
-{
-  if (hybrid_type == DECIMAL_RESULT)
-    return val_string_from_decimal(str);
-  return val_string_from_real(str);
-}
-
-
-my_decimal *Item_variance_field::val_decimal(my_decimal *dec_buf)
-{
-  // fix_fields() never calls for this Item
-  if (hybrid_type == REAL_RESULT)
-    return val_decimal_from_real(dec_buf);
-
-  longlong count= sint8korr(field->ptr+dec_bin_size0+dec_bin_size1);
-  if ((null_value= (count <= sample)))
-    return 0;
-
-  my_decimal dec_count, dec1_count, dec_sum, dec_sqr, tmp;
-  int2my_decimal(E_DEC_FATAL_ERROR, count, 0, &dec_count);
-  int2my_decimal(E_DEC_FATAL_ERROR, count-sample, 0, &dec1_count);
-  binary2my_decimal(E_DEC_FATAL_ERROR, field->ptr,
-                    &dec_sum, f_precision0, f_scale0);
-  binary2my_decimal(E_DEC_FATAL_ERROR, field->ptr+dec_bin_size0,
-                    &dec_sqr, f_precision1, f_scale1);
-  my_decimal_mul(E_DEC_FATAL_ERROR, &tmp, &dec_sum, &dec_sum);
-  my_decimal_div(E_DEC_FATAL_ERROR, dec_buf, &tmp, &dec_count, prec_increment);
-  my_decimal_sub(E_DEC_FATAL_ERROR, &dec_sum, &dec_sqr, dec_buf);
-  my_decimal_div(E_DEC_FATAL_ERROR, dec_buf,
-                 &dec_sum, &dec1_count, prec_increment);
-  return dec_buf;
+  return variance_fp_recurrence_result(recurrence_s, count, sample);
 }
 
 
