@@ -127,7 +127,7 @@ NULL	5	10
 NULL	6	12
 CREATE TABLE t7 (UNIQUE(b)) SELECT a,b FROM tt3;
 ERROR 23000: Duplicate entry '2' for key 'b'
-SHOW BINLOG EVENTS FROM 1256;
+SHOW BINLOG EVENTS FROM 1118;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 CREATE TABLE t7 (a INT, b INT UNIQUE);
 INSERT INTO t7 SELECT a,b FROM tt3;
@@ -212,3 +212,192 @@ Create Table	CREATE TABLE `t9` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
+STOP SLAVE;
+SET GLOBAL storage_engine=@storage_engine;
+START SLAVE;
+================ BUG#22864 ================
+STOP SLAVE;
+RESET SLAVE;
+RESET MASTER;
+START SLAVE;
+SET AUTOCOMMIT=0;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+CREATE TABLE t2 ENGINE=INNODB SELECT * FROM t1;
+ROLLBACK;
+CREATE TABLE t3 ENGINE=INNODB SELECT * FROM t1;
+INSERT INTO t3 VALUES (4),(5),(6);
+ROLLBACK;
+CREATE TABLE t4 ENGINE=INNODB SELECT * FROM t1;
+INSERT INTO t1 VALUES (4),(5),(6);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+SHOW TABLES;
+Tables_in_test
+t1
+t2
+t3
+t4
+SELECT   TABLE_NAME,ENGINE
+FROM   INFORMATION_SCHEMA.TABLES
+WHERE   TABLE_NAME LIKE 't_'
+ORDER BY TABLE_NAME;
+TABLE_NAME	ENGINE
+t1	MyISAM
+t2	InnoDB
+t3	InnoDB
+t4	InnoDB
+SELECT * FROM t1 ORDER BY a;
+a
+1
+2
+3
+4
+5
+6
+SELECT * FROM t2 ORDER BY a;
+a
+1
+2
+3
+SELECT * FROM t3 ORDER BY a;
+a
+1
+2
+3
+SELECT * FROM t4 ORDER BY a;
+a
+1
+2
+3
+SHOW BINLOG EVENTS;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	4	Format_desc	1	102	Server ver: #, Binlog ver: #
+master-bin.000001	102	Query	1	188	use `test`; CREATE TABLE t1 (a INT)
+master-bin.000001	188	Table_map	1	227	table_id: # (test.t1)
+master-bin.000001	227	Write_rows	1	271	table_id: # flags: STMT_END_F
+master-bin.000001	271	Query	1	339	use `test`; BEGIN
+master-bin.000001	339	Query	1	125	use `test`; CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB
+master-bin.000001	464	Table_map	1	164	table_id: # (test.t2)
+master-bin.000001	503	Write_rows	1	208	table_id: # flags: STMT_END_F
+master-bin.000001	547	Xid	1	574	COMMIT /* XID */
+master-bin.000001	574	Query	1	642	use `test`; BEGIN
+master-bin.000001	642	Query	1	125	use `test`; CREATE TABLE `t3` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB
+master-bin.000001	767	Table_map	1	164	table_id: # (test.t3)
+master-bin.000001	806	Write_rows	1	208	table_id: # flags: STMT_END_F
+master-bin.000001	850	Xid	1	877	COMMIT /* XID */
+master-bin.000001	877	Query	1	945	use `test`; BEGIN
+master-bin.000001	945	Query	1	125	use `test`; CREATE TABLE `t4` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB
+master-bin.000001	1070	Table_map	1	164	table_id: # (test.t4)
+master-bin.000001	1109	Write_rows	1	208	table_id: # flags: STMT_END_F
+master-bin.000001	1153	Xid	1	1180	COMMIT /* XID */
+master-bin.000001	1180	Table_map	1	1219	table_id: # (test.t1)
+master-bin.000001	1219	Write_rows	1	1263	table_id: # flags: STMT_END_F
+SHOW TABLES;
+Tables_in_test
+t1
+t2
+t3
+t4
+SELECT   TABLE_NAME,ENGINE
+FROM   INFORMATION_SCHEMA.TABLES
+WHERE   TABLE_NAME LIKE 't_'
+ORDER BY TABLE_NAME;
+TABLE_NAME	ENGINE
+t1	MyISAM
+t2	InnoDB
+t3	InnoDB
+t4	InnoDB
+SELECT * FROM t1 ORDER BY a;
+a
+1
+2
+3
+4
+5
+6
+SELECT * FROM t2 ORDER BY a;
+a
+1
+2
+3
+SELECT * FROM t3 ORDER BY a;
+a
+1
+2
+3
+SELECT * FROM t4 ORDER BY a;
+a
+1
+2
+3
+DROP TABLE IF EXISTS t1,t2,t3,t4;
+SET AUTOCOMMIT=1;
+STOP SLAVE;
+RESET SLAVE;
+RESET MASTER;
+START SLAVE;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+CREATE TABLE t2 (a INT) ENGINE=INNODB;
+BEGIN;
+INSERT INTO t2 SELECT a*a FROM t1;
+CREATE TEMPORARY TABLE tt1
+SELECT a+1 AS a
+FROM t1
+WHERE a MOD 2 = 1;
+INSERT INTO t2 SELECT a+2 FROM tt1;
+COMMIT;
+SELECT * FROM t2 ORDER BY a;
+a
+1
+4
+4
+6
+9
+SHOW BINLOG EVENTS;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	4	Format_desc	1	102	Server ver: #, Binlog ver: #
+master-bin.000001	102	Query	1	188	use `test`; CREATE TABLE t1 (a INT)
+master-bin.000001	188	Table_map	1	227	table_id: # (test.t1)
+master-bin.000001	227	Write_rows	1	271	table_id: # flags: STMT_END_F
+master-bin.000001	271	Query	1	371	use `test`; CREATE TABLE t2 (a INT) ENGINE=INNODB
+master-bin.000001	371	Query	1	439	use `test`; BEGIN
+master-bin.000001	439	Table_map	1	39	table_id: # (test.t2)
+master-bin.000001	478	Write_rows	1	83	table_id: # flags: STMT_END_F
+master-bin.000001	522	Table_map	1	122	table_id: # (test.t2)
+master-bin.000001	561	Write_rows	1	161	table_id: # flags: STMT_END_F
+master-bin.000001	600	Xid	1	627	COMMIT /* XID */
+SELECT * FROM t2 ORDER BY a;
+a
+1
+4
+4
+6
+9
+TRUNCATE TABLE t2;
+BEGIN;
+INSERT INTO t2 SELECT a*a FROM t1;
+CREATE TEMPORARY TABLE tt2
+SELECT a+1 AS a
+FROM t1
+WHERE a MOD 2 = 1;
+INSERT INTO t2 SELECT a+2 FROM tt2;
+ROLLBACK;
+SELECT * FROM t2 ORDER BY a;
+a
+SHOW BINLOG EVENTS FROM 627;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	627	Query	1	80	use `test`; TRUNCATE TABLE t2
+master-bin.000001	707	Xid	1	734	COMMIT /* XID */
+SELECT * FROM t2 ORDER BY a;
+a
+DROP TABLE t1,t2;
