@@ -5558,8 +5558,8 @@ unpack_row(RELAY_LOG_INFO *rli,
 
     if (bitmap_is_set(cols, field_ptr -  begin_ptr))
     {
-      DBUG_ASSERT(table->record[0] <= f->ptr);
-      DBUG_ASSERT(f->ptr < (table->record[0] + table->s->reclength +
+      DBUG_ASSERT((const char *)table->record[0] <= f->ptr);
+      DBUG_ASSERT(f->ptr < ((const char *)table->record[0] + table->s->reclength +
                             (f->pack_length_in_rec() == 0)));
 
       DBUG_PRINT("info", ("unpacking column '%s' to 0x%lx", f->field_name,
@@ -6843,8 +6843,8 @@ static int find_and_fetch_row(TABLE *table, byte *key)
     trigger false warnings.
    */
 #ifndef HAVE_purify
-    DBUG_DUMP("table->record[0]", table->record[0], table->s->reclength);
-    DBUG_DUMP("table->record[1]", table->record[1], table->s->reclength);
+    DBUG_DUMP("table->record[0]", (const char *)table->record[0], table->s->reclength);
+    DBUG_DUMP("table->record[1]", (const char *)table->record[1], table->s->reclength);
 #endif
 
     /*
@@ -6870,8 +6870,8 @@ static int find_and_fetch_row(TABLE *table, byte *key)
     trigger false warnings.
    */
 #ifndef HAVE_purify
-    DBUG_DUMP("table->record[0]", table->record[0], table->s->reclength);
-    DBUG_DUMP("table->record[1]", table->record[1], table->s->reclength);
+    DBUG_DUMP("table->record[0]", (const char *)table->record[0], table->s->reclength);
+    DBUG_DUMP("table->record[1]", (const char *)table->record[1], table->s->reclength);
 #endif
     /*
       Below is a minor "optimization".  If the key (i.e., key number
