@@ -1020,6 +1020,273 @@ t1	CREATE TABLE `t1` (
   `stddev(0)` double(8,4) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+create table bug22555 (i smallint primary key auto_increment, s1 smallint, s2 smallint, e decimal(30,10), o double);
+insert into bug22555 (s1, s2, e, o) values (53, 78, 11.4276528, 6.828112), (17, 78, 5.916793, 1.8502951), (18, 76, 2.679231, 9.17975591), (31, 62, 6.07831, 0.1), (19, 41, 5.37463, 15.1), (83, 73, 14.567426, 7.959222), (92, 53, 6.10151, 13.1856852), (7, 12, 13.92272, 3.442007), (92, 35, 11.95358909, 6.01376678), (38, 84, 2.572, 7.904571);
+select std(s1/s2) from bug22555 group by i;
+std(s1/s2)
+0.00000000
+0.00000000
+0.00000000
+0.00000000
+0.00000000
+0.00000000
+0.00000000
+0.00000000
+0.00000000
+0.00000000
+select std(e) from bug22555 group by i;
+std(e)
+0.00000000000000
+0.00000000000000
+0.00000000000000
+0.00000000000000
+0.00000000000000
+0.00000000000000
+0.00000000000000
+0.00000000000000
+0.00000000000000
+0.00000000000000
+select std(o) from bug22555 group by i;
+std(o)
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+drop table bug22555;
+create table bug22555 (i smallint, s1 smallint, s2 smallint, o1 double, o2 double, e1 decimal, e2 decimal);
+insert into bug22555 values (1,53,78,53,78,53,78),(2,17,78,17,78,17,78),(3,18,76,18,76,18,76);
+select i, count(*) from bug22555 group by i;
+i	count(*)
+1	1
+2	1
+3	1
+select std(s1/s2) from bug22555 where i=1;
+std(s1/s2)
+0.00000000
+select std(s1/s2) from bug22555 where i=2;
+std(s1/s2)
+0.00000000
+select std(s1/s2) from bug22555 where i=3;
+std(s1/s2)
+0.00000000
+select std(s1/s2) from bug22555 where i=1 group by i;
+std(s1/s2)
+0.00000000
+select std(s1/s2) from bug22555 where i=2 group by i;
+std(s1/s2)
+0.00000000
+select std(s1/s2) from bug22555 where i=3 group by i;
+std(s1/s2)
+0.00000000
+select std(s1/s2) from bug22555 group by i order by i;
+std(s1/s2)
+0.00000000
+0.00000000
+0.00000000
+select i, count(*), std(o1/o2) from bug22555 group by i order by i;
+i	count(*)	std(o1/o2)
+1	1	0
+2	1	0
+3	1	0
+select i, count(*), std(e1/e2) from bug22555 group by i order by i;
+i	count(*)	std(e1/e2)
+1	1	0.00000000
+2	1	0.00000000
+3	1	0.00000000
+set @saved_div_precision_increment=@@div_precision_increment;
+set div_precision_increment=19;
+select i, count(*), variance(s1/s2) from bug22555 group by i order by i;
+i	count(*)	variance(s1/s2)
+1	1	0.000000000000000000000000000000
+2	1	0.000000000000000000000000000000
+3	1	0.000000000000000000000000000000
+select i, count(*), variance(o1/o2) from bug22555 group by i order by i;
+i	count(*)	variance(o1/o2)
+1	1	0
+2	1	0
+3	1	0
+select i, count(*), variance(e1/e2) from bug22555 group by i order by i;
+i	count(*)	variance(e1/e2)
+1	1	0.000000000000000000000000000000
+2	1	0.000000000000000000000000000000
+3	1	0.000000000000000000000000000000
+select i, count(*), std(s1/s2) from bug22555 group by i order by i;
+i	count(*)	std(s1/s2)
+1	1	0.000000000000000000000000000000
+2	1	0.000000000000000000000000000000
+3	1	0.000000000000000000000000000000
+select i, count(*), std(o1/o2) from bug22555 group by i order by i;
+i	count(*)	std(o1/o2)
+1	1	0
+2	1	0
+3	1	0
+select i, count(*), std(e1/e2) from bug22555 group by i order by i;
+i	count(*)	std(e1/e2)
+1	1	0.000000000000000000000000000000
+2	1	0.000000000000000000000000000000
+3	1	0.000000000000000000000000000000
+set div_precision_increment=20;
+select i, count(*), variance(s1/s2) from bug22555 group by i order by i;
+i	count(*)	variance(s1/s2)
+1	1	0.000000000000000000000000000000
+2	1	0.000000000000000000000000000000
+3	1	0.000000000000000000000000000000
+select i, count(*), variance(o1/o2) from bug22555 group by i order by i;
+i	count(*)	variance(o1/o2)
+1	1	0
+2	1	0
+3	1	0
+select i, count(*), variance(e1/e2) from bug22555 group by i order by i;
+i	count(*)	variance(e1/e2)
+1	1	0.000000000000000000000000000000
+2	1	0.000000000000000000000000000000
+3	1	0.000000000000000000000000000000
+select i, count(*), std(s1/s2) from bug22555 group by i order by i;
+i	count(*)	std(s1/s2)
+1	1	0.000000000000000000000000000000
+2	1	0.000000000000000000000000000000
+3	1	0.000000000000000000000000000000
+select i, count(*), std(o1/o2) from bug22555 group by i order by i;
+i	count(*)	std(o1/o2)
+1	1	0
+2	1	0
+3	1	0
+select i, count(*), std(e1/e2) from bug22555 group by i order by i;
+i	count(*)	std(e1/e2)
+1	1	0.000000000000000000000000000000
+2	1	0.000000000000000000000000000000
+3	1	0.000000000000000000000000000000
+set @@div_precision_increment=@saved_div_precision_increment;
+insert into bug22555 values (1,53,78,53,78,53,78),(2,17,78,17,78,17,78),(3,18,76,18,76,18,76);
+insert into bug22555 values (1,53,78,53,78,53,78),(2,17,78,17,78,17,78),(3,18,76,18,76,18,76);
+insert into bug22555 values (1,53,78,53,78,53,78),(2,17,78,17,78,17,78),(3,18,76,18,76,18,76);
+select i, count(*), std(s1/s2) from bug22555 group by i order by i;
+i	count(*)	std(s1/s2)
+1	4	0.00000000
+2	4	0.00000000
+3	4	0.00000000
+select i, count(*), std(o1/o2) from bug22555 group by i order by i;
+i	count(*)	std(o1/o2)
+1	4	0
+2	4	0
+3	4	0
+select i, count(*), std(e1/e2) from bug22555 group by i order by i;
+i	count(*)	std(e1/e2)
+1	4	0.00000000
+2	4	0.00000000
+3	4	0.00000000
+select std(s1/s2) from bug22555;
+std(s1/s2)
+0.21325764
+select std(o1/o2) from bug22555;
+std(o1/o2)
+0.21325763586649
+select std(e1/e2) from bug22555;
+std(e1/e2)
+0.21325764
+set @saved_div_precision_increment=@@div_precision_increment;
+set div_precision_increment=19;
+select i, count(*), std(s1/s2) from bug22555 group by i order by i;
+i	count(*)	std(s1/s2)
+1	4	0.000000000000000000000000000000
+2	4	0.000000000000000000000000000000
+3	4	0.000000000000000000000000000000
+select i, count(*), std(o1/o2) from bug22555 group by i order by i;
+i	count(*)	std(o1/o2)
+1	4	0
+2	4	0
+3	4	0
+select i, count(*), std(e1/e2) from bug22555 group by i order by i;
+i	count(*)	std(e1/e2)
+1	4	0.000000000000000000000000000000
+2	4	0.000000000000000000000000000000
+3	4	0.000000000000000000000000000000
+select std(s1/s2) from bug22555;
+std(s1/s2)
+0.213257635866493405751853629226
+select std(o1/o2) from bug22555;
+std(o1/o2)
+0.21325763586649
+select std(e1/e2) from bug22555;
+std(e1/e2)
+0.213257635866493405751853629226
+set div_precision_increment=20;
+select i, count(*), std(s1/s2) from bug22555 group by i order by i;
+i	count(*)	std(s1/s2)
+1	4	0.000000000000000000000000000000
+2	4	0.000000000000000000000000000000
+3	4	0.000000000000000000000000000000
+select i, count(*), std(o1/o2) from bug22555 group by i order by i;
+i	count(*)	std(o1/o2)
+1	4	0
+2	4	0
+3	4	0
+select i, count(*), std(e1/e2) from bug22555 group by i order by i;
+i	count(*)	std(e1/e2)
+1	4	0.000000000000000000000000000000
+2	4	0.000000000000000000000000000000
+3	4	0.000000000000000000000000000000
+select std(s1/s2) from bug22555;
+std(s1/s2)
+0.213257635866493405751853629226
+select std(o1/o2) from bug22555;
+std(o1/o2)
+0.21325763586649
+select std(e1/e2) from bug22555;
+std(e1/e2)
+0.213257635866493405751853629226
+set @@div_precision_increment=@saved_div_precision_increment;
+drop table bug22555;
+create table bug22555 (s smallint, o double, e decimal);
+insert into bug22555 values (1,1,1),(2,2,2),(3,3,3),(6,6,6),(7,7,7);
+select var_samp(s), var_pop(s) from bug22555;
+var_samp(s)	var_pop(s)
+6.7000	5.3600
+select var_samp(o), var_pop(o) from bug22555;
+var_samp(o)	var_pop(o)
+6.7	5.36
+select var_samp(e), var_pop(e) from bug22555;
+var_samp(e)	var_pop(e)
+6.7000	5.3600
+drop table bug22555;
+create table bug22555 (s smallint, o double, e decimal);
+insert into bug22555 values (null,null,null),(null,null,null);
+select var_samp(s) as 'null', var_pop(s) as 'null' from bug22555;
+null	null
+NULL	NULL
+select var_samp(o) as 'null', var_pop(o) as 'null' from bug22555;
+null	null
+NULL	NULL
+select var_samp(e) as 'null', var_pop(e) as 'null' from bug22555;
+null	null
+NULL	NULL
+insert into bug22555 values (1,1,1);
+select var_samp(s) as 'null', var_pop(s) as '0' from bug22555;
+null	0
+NULL	0.0000
+select var_samp(o) as 'null', var_pop(o) as '0' from bug22555;
+null	0
+NULL	0
+select var_samp(e) as 'null', var_pop(e) as '0' from bug22555;
+null	0
+NULL	0.0000
+insert into bug22555 values (2,2,2);
+select var_samp(s) as '0.5', var_pop(s) as '0.25' from bug22555;
+0.5	0.25
+0.5000	0.2500
+select var_samp(o) as '0.5', var_pop(o) as '0.25' from bug22555;
+0.5	0.25
+0.5	0.25
+select var_samp(e) as '0.5', var_pop(e) as '0.25' from bug22555;
+0.5	0.25
+0.5000	0.2500
+drop table bug22555;
 CREATE TABLE t1 (a INT, b INT);
 INSERT INTO t1 VALUES (1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),(1,8);
 INSERT INTO t1 SELECT a, b+8       FROM t1;
