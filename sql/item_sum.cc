@@ -1034,14 +1034,8 @@ void Item_sum_count::clear()
 
 bool Item_sum_count::add()
 {
-  if (!args[0]->maybe_null)
+  if (!args[0]->maybe_null || !args[0]->is_null())
     count++;
-  else
-  {
-    (void) args[0]->val_int();
-    if (!args[0]->null_value)
-      count++;
-  }
   return 0;
 }
 
@@ -1941,14 +1935,8 @@ void Item_sum_count::reset_field()
   char *res=result_field->ptr;
   longlong nr=0;
 
-  if (!args[0]->maybe_null)
+  if (!args[0]->maybe_null || !args[0]->is_null())
     nr=1;
-  else
-  {
-    (void) args[0]->val_int();
-    if (!args[0]->null_value)
-      nr=1;
-  }
   int8store(res,nr);
 }
 
@@ -2051,14 +2039,8 @@ void Item_sum_count::update_field()
   char *res=result_field->ptr;
 
   nr=sint8korr(res);
-  if (!args[0]->maybe_null)
+  if (!args[0]->maybe_null || !args[0]->is_null())
     nr++;
-  else
-  {
-    (void) args[0]->val_int();
-    if (!args[0]->null_value)
-      nr++;
-  }
   int8store(res,nr);
 }
 
@@ -2531,12 +2513,8 @@ bool Item_sum_count_distinct::setup(THD *thd)
     Item *item=args[i];
     if (list.push_back(item))
       return TRUE;                              // End of memory
-    if (item->const_item())
-    {
-      (void) item->val_int();
-      if (item->null_value)
-	always_null=1;
-    }
+    if (item->const_item() && item->is_null())
+      always_null= 1;
   }
   if (always_null)
     return FALSE;
