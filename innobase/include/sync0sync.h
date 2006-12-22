@@ -39,7 +39,11 @@ location (which must be appropriately aligned). The mutex is initialized
 in the reset state. Explicit freeing of the mutex with mutex_free is
 necessary only if the memory block containing it is freed. */
 
-#define mutex_create(M)	mutex_create_func((M), __FILE__, __LINE__, #M)
+#ifdef UNIV_DEBUG
+# define mutex_create(M) mutex_create_func((M), #M, __FILE__, __LINE__)
+#else
+# define mutex_create(M) mutex_create_func((M), __FILE__, __LINE__)
+#endif
 /*===================*/
 /**********************************************************************
 Creates, or rather, initializes a mutex object in a specified memory
@@ -51,9 +55,11 @@ void
 mutex_create_func(
 /*==============*/
 	mutex_t*	mutex,		/* in: pointer to memory */
+#ifdef UNIV_DEBUG
+	const char*	cmutex_name,	/* in: mutex name */
+#endif /* UNIV_DEBUG */
 	const char*	cfile_name,	/* in: file name where created */
-  ulint cline,  /* in: file line where created */
-  const char* cmutex_name); /* in: mutex name */
+	ulint		cline);		/* in: file line where created */
 /**********************************************************************
 Calling this function is obligatory only if the memory buffer containing
 the mutex is freed. Removes a mutex object from the mutex list. The mutex
@@ -479,15 +485,17 @@ struct mutex_struct {
 	ulint	cline;		/* Line where created */
 	ulint	magic_n;
 #ifndef UNIV_HOTBACKUP
-  ulong count_using; /* count of times mutex used */
-  ulong count_spin_loop; /* count of spin loops */
-  ulong count_spin_rounds; /* count of spin rounds */
-  ulong count_os_wait; /* count of os_wait */
-  ulong count_os_yield; /* count of os_wait */
-  ulonglong lspent_time; /* mutex os_wait timer msec */
-  ulonglong lmax_spent_time; /* mutex os_wait timer msec */
-  const char* cmutex_name;/* mutex name  */
-  ulint mutex_type;/* 0 - usual mutex 1 - rw_lock mutex  */
+	ulong		count_os_wait; /* count of os_wait */
+# ifdef UNIV_DEBUG
+	ulong		count_using; /* count of times mutex used */
+	ulong		count_spin_loop; /* count of spin loops */
+	ulong		count_spin_rounds; /* count of spin rounds */
+	ulong		count_os_yield; /* count of os_wait */
+	ulonglong	lspent_time; /* mutex os_wait timer msec */
+	ulonglong	lmax_spent_time; /* mutex os_wait timer msec */
+	const char*	cmutex_name;/* mutex name */
+	ulint		mutex_type;/* 0 - usual mutex 1 - rw_lock mutex	 */
+# endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 };
 
