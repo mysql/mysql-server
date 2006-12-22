@@ -683,8 +683,10 @@ public:
   double val_real();
   longlong val_int()
   { /* can't be fix_fields()ed */ return (longlong) rint(val_real()); }
-  String *val_str(String*);
-  my_decimal *val_decimal(my_decimal *);
+  String *val_str(String *str)
+  { return val_string_from_real(str); }
+  my_decimal *val_decimal(my_decimal *dec_buf)
+  { return val_decimal_from_real(dec_buf); }
   bool is_null() { update_null_value(); return null_value; }
   enum_field_types field_type() const
   {
@@ -706,6 +708,14 @@ public:
   =  (sum(ai^2) - 2*sum(a)*sum(a)/count(a) + count(a)*sum(a)^2/count(a)^2 )/count(a) = 
   =  (sum(ai^2) - 2*sum(a)^2/count(a) + sum(a)^2/count(a) )/count(a) = 
   =  (sum(ai^2) - sum(a)^2/count(a))/count(a)
+
+But, this falls prey to catastrophic cancellation.  Instead, use the recurrence formulas
+
+  M_{1} = x_{1}, ~ M_{k} = M_{k-1} + (x_{k} - M_{k-1}) / k newline 
+  S_{1} = 0, ~ S_{k} = S_{k-1} + (x_{k} - M_{k-1}) times (x_{k} - M_{k}) newline
+  for 2 <= k <= n newline
+  ital variance = S_{n} / (n-1)
+
 */
 
 class Item_sum_variance : public Item_sum_num
@@ -714,9 +724,8 @@ class Item_sum_variance : public Item_sum_num
 
 public:
   Item_result hybrid_type;
-  double sum, sum_sqr;
-  my_decimal dec_sum[2], dec_sqr[2];
   int cur_dec;
+  double recurrence_m, recurrence_s;    /* Used in recurrence relation. */
   ulonglong count;
   uint f_precision0, f_scale0;
   uint f_precision1, f_scale1;
@@ -725,7 +734,7 @@ public:
   uint prec_increment;
 
   Item_sum_variance(Item *item_par, uint sample_arg) :Item_sum_num(item_par),
-    hybrid_type(REAL_RESULT), cur_dec(0), count(0), sample(sample_arg)
+    hybrid_type(REAL_RESULT), count(0), sample(sample_arg)
     {}
   Item_sum_variance(THD *thd, Item_sum_variance *item);
   enum Sumfunctype sum_func () const { return VARIANCE_FUNC; }
@@ -745,7 +754,6 @@ public:
   enum Item_result result_type () const { return REAL_RESULT; }
   void cleanup()
   {
-    cur_dec= 0;
     count= 0;
     Item_sum_num::cleanup();
   }
