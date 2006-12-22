@@ -1029,3 +1029,13 @@ t1	CREATE TABLE `t1` (
   `stddev(0)` double(8,4) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+create table t1 (a decimal(20));
+insert into t1 values (12345678901234567890);
+select count(a) from t1;
+count(a)
+1
+select count(distinct a) from t1;
+count(distinct a)
+1
+drop table t1;
+End of 5.0 tests

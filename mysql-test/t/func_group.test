@@ -700,3 +700,14 @@ create table t1 select stddev(0);
 show create table t1;
 drop table t1;
  
+#
+# Bug #21976: Unnecessary warning with count(decimal)
+#
+
+create table t1 (a decimal(20));
+insert into t1 values (12345678901234567890);
+select count(a) from t1;
+select count(distinct a) from t1;
+drop table t1;
+
+--echo End of 5.0 tests
