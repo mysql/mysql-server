@@ -19,6 +19,8 @@ Created 9/17/2000 Heikki Tuuri
 #include "btr0pcur.h"
 #include "trx0types.h"
 
+extern ibool row_rollback_on_timeout;
+
 typedef struct row_prebuilt_struct row_prebuilt_t;
 
 /***********************************************************************
