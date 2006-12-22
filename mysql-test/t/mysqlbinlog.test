@@ -153,7 +153,7 @@ insert into t5 values (3, date_format('2001-01-01','%W'));
 select * from t5 order by c1;
 flush logs;
 drop table t5;
---exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000007 | $MYSQL
+--exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000008 | $MYSQL
 select * from t5 order by c1;
 #
 # Bug#20396 Bin Log does not get DELIMETER cmd - Recover StoredProc fails 
@@ -174,8 +174,8 @@ call p1();
 drop procedure p1;
 --error 1305
 call p1();
---exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000009
---exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000009 | $MYSQL
+--exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000010
+--exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000010 | $MYSQL
 call p1();
 drop procedure p1;
 
@@ -189,7 +189,7 @@ drop table t1, t2, t03, t04, t3, t4, t5;
 #
 flush logs;
 --error 1
---exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000010 >/dev/null 2>/dev/null
---exec $MYSQL_BINLOG --force-if-open $MYSQLTEST_VARDIR/log/master-bin.000010 >/dev/null 2>/dev/null
+--exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000012 >/dev/null 2>/dev/null
+--exec $MYSQL_BINLOG --force-if-open $MYSQLTEST_VARDIR/log/master-bin.000012 >/dev/null 2>/dev/null
 
 # End of 5.1 tests
