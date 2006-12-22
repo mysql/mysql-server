@@ -804,7 +804,6 @@ void plugin_shutdown(void)
     struct st_plugin_int *tmp= dynamic_element(&plugin_array, i,
                                                struct st_plugin_int *);
     plugin_deinitialize(tmp);
-    plugin_del(tmp);
 
   }
 
