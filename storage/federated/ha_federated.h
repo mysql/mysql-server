@@ -37,6 +37,7 @@
 
 #define FEDERATED_QUERY_BUFFER_SIZE STRING_BUFFER_USUAL_SIZE * 5
 #define FEDERATED_RECORDS_IN_RANGE 2
+#define FEDERATED_MAX_KEY_LENGTH 3500 // Same as innodb
 
 /*
   FEDERATED_SHARE is a structure that will be shared amoung all open handlers
@@ -146,7 +147,7 @@ public:
   uint max_supported_record_length() const { return HA_MAX_REC_LENGTH; }
   uint max_supported_keys()          const { return MAX_KEY; }
   uint max_supported_key_parts()     const { return MAX_REF_PARTS; }
-  uint max_supported_key_length()    const { return MAX_KEY_LENGTH; }
+  uint max_supported_key_length()    const { return FEDERATED_MAX_KEY_LENGTH; }
   /*
     Called in test_quick_select to determine if indexes should be used.
     Normally, we need to know number of blocks . For federated we need to
