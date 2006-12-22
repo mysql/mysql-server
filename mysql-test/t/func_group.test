@@ -702,6 +702,97 @@ create table t1 select stddev(0);
 show create table t1;
 drop table t1;
  
+
+#
+# Bug#22555: STDDEV yields positive result for groups with only one row
+#
+
+create table bug22555 (i smallint primary key auto_increment, s1 smallint, s2 smallint, e decimal(30,10), o double);
+insert into bug22555 (s1, s2, e, o) values (53, 78, 11.4276528, 6.828112), (17, 78, 5.916793, 1.8502951), (18, 76, 2.679231, 9.17975591), (31, 62, 6.07831, 0.1), (19, 41, 5.37463, 15.1), (83, 73, 14.567426, 7.959222), (92, 53, 6.10151, 13.1856852), (7, 12, 13.92272, 3.442007), (92, 35, 11.95358909, 6.01376678), (38, 84, 2.572, 7.904571);
+select std(s1/s2) from bug22555 group by i;
+select std(e) from bug22555 group by i;
+select std(o) from bug22555 group by i;
+drop table bug22555;
+
+create table bug22555 (i smallint, s1 smallint, s2 smallint, o1 double, o2 double, e1 decimal, e2 decimal);
+insert into bug22555 values (1,53,78,53,78,53,78),(2,17,78,17,78,17,78),(3,18,76,18,76,18,76);
+select i, count(*) from bug22555 group by i;
+select std(s1/s2) from bug22555 where i=1;
+select std(s1/s2) from bug22555 where i=2;
+select std(s1/s2) from bug22555 where i=3;
+select std(s1/s2) from bug22555 where i=1 group by i;
+select std(s1/s2) from bug22555 where i=2 group by i;
+select std(s1/s2) from bug22555 where i=3 group by i;
+select std(s1/s2) from bug22555 group by i order by i;
+select i, count(*), std(o1/o2) from bug22555 group by i order by i;
+select i, count(*), std(e1/e2) from bug22555 group by i order by i;
+set @saved_div_precision_increment=@@div_precision_increment;
+set div_precision_increment=19;
+select i, count(*), variance(s1/s2) from bug22555 group by i order by i;
+select i, count(*), variance(o1/o2) from bug22555 group by i order by i;
+select i, count(*), variance(e1/e2) from bug22555 group by i order by i;
+select i, count(*), std(s1/s2) from bug22555 group by i order by i;
+select i, count(*), std(o1/o2) from bug22555 group by i order by i;
+select i, count(*), std(e1/e2) from bug22555 group by i order by i;
+set div_precision_increment=20;
+select i, count(*), variance(s1/s2) from bug22555 group by i order by i;
+select i, count(*), variance(o1/o2) from bug22555 group by i order by i;
+select i, count(*), variance(e1/e2) from bug22555 group by i order by i;
+select i, count(*), std(s1/s2) from bug22555 group by i order by i;
+select i, count(*), std(o1/o2) from bug22555 group by i order by i;
+select i, count(*), std(e1/e2) from bug22555 group by i order by i;
+set @@div_precision_increment=@saved_div_precision_increment;
+insert into bug22555 values (1,53,78,53,78,53,78),(2,17,78,17,78,17,78),(3,18,76,18,76,18,76);
+insert into bug22555 values (1,53,78,53,78,53,78),(2,17,78,17,78,17,78),(3,18,76,18,76,18,76);
+insert into bug22555 values (1,53,78,53,78,53,78),(2,17,78,17,78,17,78),(3,18,76,18,76,18,76);
+
+select i, count(*), std(s1/s2) from bug22555 group by i order by i;
+select i, count(*), std(o1/o2) from bug22555 group by i order by i;
+select i, count(*), std(e1/e2) from bug22555 group by i order by i;
+select std(s1/s2) from bug22555;
+select std(o1/o2) from bug22555;
+select std(e1/e2) from bug22555;
+set @saved_div_precision_increment=@@div_precision_increment;
+set div_precision_increment=19;
+select i, count(*), std(s1/s2) from bug22555 group by i order by i;
+select i, count(*), std(o1/o2) from bug22555 group by i order by i;
+select i, count(*), std(e1/e2) from bug22555 group by i order by i;
+select std(s1/s2) from bug22555;
+select std(o1/o2) from bug22555;
+select std(e1/e2) from bug22555;
+set div_precision_increment=20;
+select i, count(*), std(s1/s2) from bug22555 group by i order by i;
+select i, count(*), std(o1/o2) from bug22555 group by i order by i;
+select i, count(*), std(e1/e2) from bug22555 group by i order by i;
+select std(s1/s2) from bug22555;
+select std(o1/o2) from bug22555;
+select std(e1/e2) from bug22555;
+set @@div_precision_increment=@saved_div_precision_increment;
+drop table bug22555;
+
+create table bug22555 (s smallint, o double, e decimal);
+insert into bug22555 values (1,1,1),(2,2,2),(3,3,3),(6,6,6),(7,7,7);
+select var_samp(s), var_pop(s) from bug22555;
+select var_samp(o), var_pop(o) from bug22555;
+select var_samp(e), var_pop(e) from bug22555;
+drop table bug22555;
+
+create table bug22555 (s smallint, o double, e decimal);
+insert into bug22555 values (null,null,null),(null,null,null);
+select var_samp(s) as 'null', var_pop(s) as 'null' from bug22555;
+select var_samp(o) as 'null', var_pop(o) as 'null' from bug22555;
+select var_samp(e) as 'null', var_pop(e) as 'null' from bug22555;
+insert into bug22555 values (1,1,1);
+select var_samp(s) as 'null', var_pop(s) as '0' from bug22555;
+select var_samp(o) as 'null', var_pop(o) as '0' from bug22555;
+select var_samp(e) as 'null', var_pop(e) as '0' from bug22555;
+insert into bug22555 values (2,2,2);
+select var_samp(s) as '0.5', var_pop(s) as '0.25' from bug22555;
+select var_samp(o) as '0.5', var_pop(o) as '0.25' from bug22555;
+select var_samp(e) as '0.5', var_pop(e) as '0.25' from bug22555;
+drop table bug22555;
+
+
 #
 # Bug #23184: SELECT causes server crash
 # 
@@ -726,4 +817,5 @@ SELECT a,AVG(DISTINCT b) AS average FROM t1 GROUP BY a HAVING average > 50;
 
 DROP TABLE t1;
 
+###
 --echo End of 5.0 tests
