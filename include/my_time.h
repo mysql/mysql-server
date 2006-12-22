@@ -37,7 +37,8 @@ extern uchar days_in_month[];
 /* on Win64 long is still 4 bytes (not 8!) */
 typedef LONG64 my_time_t;
 #else
-typedef long my_time_t;
+typedef time_t my_time_t;
+
 #endif
 
 #define MY_TIME_T_MAX LONG_MAX

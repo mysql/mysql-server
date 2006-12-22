@@ -76,6 +76,9 @@ my_bool servers_init(bool dont_read_servers_table)
   if (pthread_mutex_init(&servers_cache_mutex, MY_MUTEX_INIT_FAST))
     DBUG_RETURN(1);
 
+  if (my_rwlock_init(&THR_LOCK_servers, NULL))
+    DBUG_RETURN(1);
+
   /* initialise our servers cache */
   if (hash_init(&servers_cache, system_charset_info, 32, 0, 0,
                 (hash_get_key) servers_cache_get_key, 0, 0))
