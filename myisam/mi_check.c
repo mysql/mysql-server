@@ -1758,6 +1758,12 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
   MI_STATE_INFO old_state;
   DBUG_ENTER("mi_sort_index");
 
+  /* cannot sort index files with R-tree indexes */
+  for (key= 0,keyinfo= &share->keyinfo[0]; key < share->base.keys ;
+       key++,keyinfo++)
+    if (keyinfo->key_alg == HA_KEY_ALG_RTREE)
+      return 0;
+
   if (!(param->testflag & T_SILENT))
     printf("- Sorting index for MyISAM-table '%s'\n",name);
 
@@ -1850,6 +1856,8 @@ static int sort_one_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
   char llbuff[22];
   DBUG_ENTER("sort_one_index");
 
+  /* cannot walk over R-tree indices */
+  DBUG_ASSERT(keyinfo->key_alg != HA_KEY_ALG_RTREE);
   new_page_pos=param->new_file_pos;
   param->new_file_pos+=keyinfo->block_length;
 
