@@ -472,11 +472,27 @@ sub find_groups
     {
       $data[$i] = $line;
     }
+    if (-f "/etc/mysql/my.cnf" && -r "/etc/mysql/my.cnf")
+    {
+      open(MY_CNF, "</etc/mysql/my.cnf") && (@tmp=<MY_CNF>) && close(MY_CNF);
+    }
+    for (; ($line = shift @tmp); $i++)
+    {
+      $data[$i] = $line;
+    }
     if (defined($ENV{MYSQL_HOME}) && -f "$ENV{MYSQL_HOME}/my.cnf" &&
 	-r "$ENV{MYSQL_HOME}/my.cnf")
     {
       open(MY_CNF, "<$ENV{MYSQL_HOME}/my.cnf") && (@tmp=<MY_CNF>) &&
       close(MY_CNF);
+    }
+    for (; ($line = shift @tmp); $i++)
+    {
+      $data[$i] = $line;
+    }
+    if (-f "/etc/mysql/my.cnf" && -r "/etc/mysql/my.cnf")
+    {
+      open(MY_CNF, "</etc/mysql/my.cnf") && (@tmp=<MY_CNF>) && close(MY_CNF);
     }
     for (; ($line = shift @tmp); $i++)
     {
@@ -491,7 +507,7 @@ sub find_groups
       $data[$i] = $line;
     }
   }
-  chop @data;
+  chomp @data;
   # Make a list of the wanted group ids
   if (defined($raw_gids))
   {
