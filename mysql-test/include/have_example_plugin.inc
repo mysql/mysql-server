@@ -8,9 +8,9 @@ show variables like "have_dynamic_loading";
 enable_query_log;
 
 #
-# Check if the variable UDF_EXAMPLE_LIB is set
+# Check if the variable EXAMPLE_PLUGIN is set
 #
---require r/have_udf_example.require
+--require r/have_example_plugin.require
 disable_query_log;
-eval select LENGTH("$UDF_EXAMPLE_LIB") > 0 as "have_udf_example_lib";
+eval select LENGTH("$EXAMPLE_PLUGIN") > 0 as "have_example_plugin";
 enable_query_log;
