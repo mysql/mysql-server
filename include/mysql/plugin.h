@@ -21,7 +21,7 @@
   Plugin API. Common for all plugin types.
 */
 
-#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0002
+#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0100
 
 /*
   The allowable types of plugins
@@ -98,7 +98,7 @@ struct st_mysql_plugin
   const char *name;     /* plugin name                                  */
   const char *author;   /* plugin author (for SHOW PLUGINS)             */
   const char *descr;    /* general descriptive text (for SHOW PLUGINS ) */
-  int license;             /* the plugin type (a MYSQL_XXX_PLUGIN value)   */
+  int license;          /* the plugin license (PLUGIN_LICENSE_XXX)      */
   int (*init)(void *);  /* the function to invoke when plugin is loaded */
   int (*deinit)(void *);/* the function to invoke when plugin is unloaded */
   unsigned int version; /* plugin version (for SHOW PLUGINS)            */

@@ -1001,6 +1001,11 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
     if (file) 
     {
       range_end();
+      if (head->key_read)
+      {
+        head->key_read= 0;
+        file->extra(HA_EXTRA_NO_KEYREAD);
+      }
       if (free_file)
       {
         DBUG_PRINT("info", ("Freeing separate handler 0x%lx (free: %d)", (long) file,
@@ -1008,10 +1013,6 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
         file->ha_external_lock(current_thd, F_UNLCK);
         file->close();
         delete file;
-      }
-      else
-      {
-        file->extra(HA_EXTRA_NO_KEYREAD);
       }
     }
     delete_dynamic(&ranges); /* ranges are allocated in alloc */
@@ -1194,7 +1195,11 @@ end:
   org_file= head->file;
   head->file= file;
   /* We don't have to set 'head->keyread' here as the 'file' is unique */
-  head->mark_columns_used_by_index(index);
+  if (!head->no_keyread)
+  {
+    head->key_read= 1;
+    head->mark_columns_used_by_index(index);
+  }
   head->prepare_for_position();
   head->file= org_file;
   bitmap_copy(&column_bitmap, head->read_set);
