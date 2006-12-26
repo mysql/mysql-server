@@ -36,7 +36,7 @@ int pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr)
 
 int pthread_cond_destroy(pthread_cond_t *cond)
 {
-	return CloseHandle(cond->semaphore) ? 0 : EINVAL;
+  return CloseHandle(cond->semaphore) ? 0 : EINVAL;
 }
 
 
@@ -50,20 +50,37 @@ int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
   return 0 ;
 }
 
+
 int pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
                            struct timespec *abstime)
 {
-  struct _timeb curtime;
   int result;
-  long timeout;
-  _ftime(&curtime);
-  timeout= ((long) (abstime->tv_sec - curtime.time)*1000L +
-		    (long)((abstime->tv_nsec/1000) - curtime.millitm)/1000L);
-  if (timeout < 0)				/* Some safety */
-    timeout = 0L;
+  long timeout; 
+  union ft64 now;
+  
+  GetSystemTimeAsFileTime(&now.ft);
+
+  /*
+    Calculate time left to abstime
+    - subtract start time from current time(values are in 100ns units)
+    - convert to millisec by dividing with 10000
+  */
+  timeout= (long)((abstime->tv.i64 - now.i64) / 10000);
+  
+  /* Don't allow the timeout to be negative */
+  if (timeout < 0)
+    timeout= 0L;
+
+  /*
+    Make sure the calucated timeout does not exceed original timeout
+    value which could cause "wait for ever" if system time changes
+  */
+  if (timeout > abstime->max_timeout_msec)
+    timeout= abstime->max_timeout_msec;
+
   InterlockedIncrement(&cond->waiting);
   LeaveCriticalSection(mutex);
-  result=WaitForSingleObject(cond->semaphore,timeout);
+  result= WaitForSingleObject(cond->semaphore,timeout);
   InterlockedDecrement(&cond->waiting);
   EnterCriticalSection(mutex);
 

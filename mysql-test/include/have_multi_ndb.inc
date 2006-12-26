@@ -24,5 +24,9 @@ flush tables;
 select support = 'Enabled' as `TRUE` from information_schema.engines where engine = 'ndbcluster';
 enable_query_log;
 
+# Check should be here as well...
+# # Check that second master mysqld has come out of redonly mode
+# --source include/ndb_not_readonly.inc
+
 # Set the default connection to 'server1'
 connection server1;

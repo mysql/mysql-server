@@ -40,6 +40,7 @@ unless (@ARGV) {
     warn "basedir=$basedir\n" if $opt{v};
 
     my $datadir = ($defaults =~ m/--datadir=(.*)/)[0];
+    my $slowlog = ($defaults =~ m/--log-slow-queries=(.*)/)[0];
     if (!$datadir or $opt{i}) {
 	# determine the datadir from the instances section of /etc/my.cnf, if any
 	my $instances  = `my_print_defaults instances`;
@@ -55,8 +56,13 @@ unless (@ARGV) {
 	warn "datadir=$datadir\n" if $opt{v};
     }
 
-    @ARGV = <$datadir/$opt{h}-slow.log>;
-    die "Can't find '$datadir/$opt{h}-slow.log'\n" unless @ARGV;
+    if ( -f $slowlog ) {
+        @ARGV = ($slowlog);
+        die "Can't find '$slowlog'\n" unless @ARGV;
+    } else {
+        @ARGV = <$datadir/$opt{h}-slow.log>;
+        die "Can't find '$datadir/$opt{h}-slow.log'\n" unless @ARGV;
+    }
 }
 
 warn "\nReading mysql slow query log from @ARGV\n";
