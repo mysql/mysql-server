@@ -145,7 +145,7 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
   digits= (uint) (pos-str);
   start_loop= 0;                                /* Start of scan loop */
   date_len[format_position[0]]= 0;              /* Length of year field */
-  if (pos == end)
+  if (pos == end || *pos == '.')
   {
     /* Found date in internal format (only numbers like YYYYMMDD) */
     year_length= (digits == 4 || digits == 8 || digits >= 14) ? 4 : 2;

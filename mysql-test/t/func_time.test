@@ -492,4 +492,11 @@ union
 
 select last_day('0000-00-00');
 
+#
+# Bug 23616: datetime functions with double argumets
+#
+
+select isnull(week(now() + 0)), isnull(week(now() + 0.2)),
+  week(20061108), week(20061108.01), week(20061108085411.000002);
+
 --echo End of 4.1 tests
