@@ -2,8 +2,7 @@
 -- source include/not_embedded.inc
 
 --disable_warnings
-drop table if exists t1;
-drop table if exists t2;
+drop table if exists t1, t2, t3, t4;
 --enable_warnings
 
 ##########
@@ -14,8 +13,13 @@ unique (u), key(o)) engine=ndb;
 create table t2 (p int not null primary key, u int not null, o int not null,
 unique (u), key(o)) engine=ndb;
 
+create table t3 (a int not null primary key, b int not null) engine=ndb;
+create table t4 (c int not null primary key, d int not null) engine=ndb;
+
 insert into t1 values (1,1,1),(2,2,2),(3,3,3);
 insert into t2 values (1,1,1),(2,2,2),(3,3,3), (4,4,4), (5,5,5);
+insert into t3 values (1,10), (2,10), (3,30), (4, 30);
+insert into t4 values (1,10), (2,10), (3,30), (4, 30);
 
 # Use pk
 --replace_column 9 #
@@ -63,7 +67,13 @@ where t1.u = t2.u
 
 select * from t2 order by 1;
 
-drop table t1;
-drop table t2;
+select * from t3 where a = any (select c from t4 where c = 1) order by a;
+select * from t3 where a in (select c from t4 where c = 1) order by a;
+select * from t3 where a <> some (select c from t4 where c = 1) order by a;
+select * from t3 where a > all (select c from t4 where c = 1) order by a;
+select * from t3 where row(1,10) = (select c,d from t4 where c = 1) order by a;
+select * from t3 where exists (select * from t4 where c = 1) order by a;
 
+drop table if exists t1, t2, t3, t4;
 
+--echo End of 5.1 tests

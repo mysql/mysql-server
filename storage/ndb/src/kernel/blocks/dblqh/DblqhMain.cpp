@@ -11275,7 +11275,7 @@ void Dblqh::execLCP_PREPARE_REF(Signal* signal)
       /**
        * First fragment mean that last LCP is complete :-)
        */
-      EXECUTE_DIRECT(TSMAN, GSN_END_LCP_REQ, signal, signal->length());
+      EXECUTE_DIRECT(TSMAN, GSN_LCP_FRAG_ORD, signal, signal->length());
       jamEntry();
     }
     
@@ -11326,7 +11326,7 @@ void Dblqh::execLCP_PREPARE_CONF(Signal* signal)
       /**
        * First fragment mean that last LCP is complete :-)
        */
-      EXECUTE_DIRECT(TSMAN, GSN_END_LCP_REQ, signal, signal->length());
+      EXECUTE_DIRECT(TSMAN, GSN_LCP_FRAG_ORD, signal, signal->length());
       jamEntry();
     }
     
@@ -11609,6 +11609,9 @@ void Dblqh::completeLcpRoundLab(Signal* signal, Uint32 lcpId)
 
   sendSignal(LGMAN_REF, GSN_END_LCP_REQ, signal, 
 	     EndLcpReq::SignalLength, JBB);
+  
+  EXECUTE_DIRECT(TSMAN, GSN_END_LCP_REQ, signal, EndLcpReq::SignalLength);
+  jamEntry();
   
   lcpPtr.i = 0;
   ptrAss(lcpPtr, lcpRecord);
