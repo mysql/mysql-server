@@ -1079,10 +1079,11 @@ int multi_update::prepare(List<Item> &not_used_values,
 */
 
 static bool safe_update_on_fly(THD *thd, JOIN_TAB *join_tab,
-                               TABLE_LIST *all_tables, List<Item> *fields)
+                               TABLE_LIST *table_ref, TABLE_LIST *all_tables,
+                               List<Item> *fields)
 {
   TABLE *table= join_tab->table;
-  if (unique_table(thd, table, all_tables))
+  if (unique_table(thd, table_ref, all_tables))
     return 0;
   switch (join_tab->type) {
   case JT_SYSTEM:
@@ -1142,7 +1143,8 @@ multi_update::initialize_tables(JOIN *join)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
     if (table == main_table)			// First table in join
     {
-      if (safe_update_on_fly(thd, join->join_tab, all_tables, &temp_fields))
+      if (safe_update_on_fly(thd, join->join_tab, table_ref, all_tables,
+                             &temp_fields))
       {
 	table_to_update= main_table;		// Update table on the fly
 	continue;
