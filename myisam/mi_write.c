@@ -583,6 +583,7 @@ int _mi_split_page(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   my_off_t new_pos;
   MI_KEY_PARAM s_temp;
   DBUG_ENTER("mi_split_page");
+  LINT_INIT(after_key);
   DBUG_DUMP("buff",(byte*) buff,mi_getint(buff));
 
   if (info->s->keyinfo+info->lastinx == keyinfo)
