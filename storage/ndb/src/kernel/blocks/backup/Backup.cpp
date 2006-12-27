@@ -3948,7 +3948,7 @@ Backup::checkScan(Signal* signal, BackupFilePtr filePtr)
 	filePtr.p->tableId >= 2 &&
 	filePtr.p->operation.noOfRecords > 0)
     {
-      ndbout_c("halting backup for table %d fragment: %d after %d records",
+      ndbout_c("halting backup for table %d fragment: %d after %llu records",
 	       filePtr.p->tableId,
 	       filePtr.p->fragmentNo,
 	       filePtr.p->operation.noOfRecords);
