@@ -3,8 +3,7 @@
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
+   the Free Software Foundation; version 2 of the License.
    
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -188,6 +187,10 @@ static int split_rtree_node(SplitStruct *node, int n_entries,
   int next_node;
   int i;
   SplitStruct *end = node + n_entries;
+  LINT_INIT(a);
+  LINT_INIT(b);
+  LINT_INIT(next);
+  LINT_INIT(next_node);
 
   if (all_size < min_size * 2)
   {

@@ -2,8 +2,7 @@
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
+   the Free Software Foundation; version 2 of the License.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -1745,8 +1744,6 @@ void kill_delayed_threads(void)
   delayed_insert *tmp;
   while ((tmp=it++))
   {
-    /* Ensure that the thread doesn't kill itself while we are looking at it */
-    pthread_mutex_lock(&tmp->mutex);
     tmp->thd.killed= THD::KILL_CONNECTION;
     if (tmp->thd.mysys_var)
     {
@@ -1765,7 +1762,6 @@ void kill_delayed_threads(void)
       }
       pthread_mutex_unlock(&tmp->thd.mysys_var->mutex);
     }
-    pthread_mutex_unlock(&tmp->mutex);
   }
   VOID(pthread_mutex_unlock(&LOCK_delayed_insert)); // For unlink from list
 }
