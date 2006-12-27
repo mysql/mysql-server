@@ -2,8 +2,7 @@
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
+   the Free Software Foundation; version 2 of the License.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -875,7 +874,11 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
     if (file) 
     {
       range_end();
-      file->extra(HA_EXTRA_NO_KEYREAD);
+      if (head->key_read)
+      {
+        head->key_read= 0;
+        file->extra(HA_EXTRA_NO_KEYREAD);
+      }
       if (free_file)
       {
         DBUG_PRINT("info", ("Freeing separate handler 0x%lx (free: %d)", (long) file,
@@ -1017,8 +1020,12 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   if (reuse_handler)
   {
     DBUG_PRINT("info", ("Reusing handler %p", file));
-    if (file->extra(HA_EXTRA_KEYREAD) ||
-        file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY) ||
+    if (!head->no_keyread)
+    {
+      head->key_read= 1;
+      file->extra(HA_EXTRA_KEYREAD);
+    }
+    if (file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY) ||
         init() || reset())
     {
       DBUG_RETURN(1);
@@ -1041,9 +1048,12 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   }
   if (file->external_lock(thd, F_RDLCK))
     goto failure;
-
-  if (file->extra(HA_EXTRA_KEYREAD) ||
-      file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY) ||
+  if (!head->no_keyread)
+  {
+    head->key_read= 1;
+    file->extra(HA_EXTRA_KEYREAD);
+  }
+  if (file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY) ||
       init() || reset())
   {
     file->external_lock(thd, F_UNLCK);
