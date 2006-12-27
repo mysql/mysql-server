@@ -406,3 +406,41 @@ select ExtractValue(@xml, "/entry[(50>pt)]/id");
 select ExtractValue(@xml, "/entry[(50>=pt)]/id");
 select ExtractValue(@xml, "/entry[(50<pt)]/id");
 select ExtractValue(@xml, "/entry[(50<=pt)]/id");
+
+#
+# Bug#24747 XPath error with the node name "Text"
+#
+#
+# Test nodetypes in node name context
+#
+select ExtractValue('<a><b><Text>test</Text></b></a>','/a/b/Text');
+select ExtractValue('<a><b><comment>test</comment></b></a>','/a/b/comment');
+select ExtractValue('<a><b><node>test</node></b></a>','/a/b/node');
+select ExtractValue('<a><b><processing-instruction>test</processing-instruction></b></a>','/a/b/processing-instruction');
+#
+# Test keywords in node name contexts
+#
+select ExtractValue('<a><and>test</and></a>', '/a/and');
+select ExtractValue('<a><or>test</or></a>', '/a/or');
+select ExtractValue('<a><mod>test</mod></a>', '/a/mod');
+select ExtractValue('<a><div>test</div></a>', '/a/div');
+select ExtractValue('<a><and:and>test</and:and></a>', '/a/and:and');
+select ExtractValue('<a><or:or>test</or:or></a>', '/a/or:or');
+select ExtractValue('<a><mod:mod>test</mod:mod></a>', '/a/mod:mod');
+select ExtractValue('<a><div:div>test</div:div></a>', '/a/div:div');
+#
+# Test axis names in node name context
+#
+select ExtractValue('<a><ancestor>test</ancestor></a>', '/a/ancestor');
+select ExtractValue('<a><ancestor-or-self>test</ancestor-or-self></a>', '/a/ancestor-or-self');
+select ExtractValue('<a><attribute>test</attribute></a>', '/a/attribute');
+select ExtractValue('<a><child>test</child></a>', '/a/child');
+select ExtractValue('<a><descendant>test</descendant></a>', '/a/descendant');
+select ExtractValue('<a><descendant-or-self>test</descendant-or-self></a>', '/a/descendant-or-self');
+select ExtractValue('<a><following>test</following></a>', '/a/following');
+select ExtractValue('<a><following-sibling>test</following-sibling></a>', '/a/following-sibling');
+select ExtractValue('<a><namespace>test</namespace></a>', '/a/namespace');
+select ExtractValue('<a><parent>test</parent></a>', '/a/parent');
+select ExtractValue('<a><preceding>test</preceding></a>', '/a/preceding');
+select ExtractValue('<a><preceding-sibling>test</preceding-sibling></a>', '/a/preceding-sibling');
+select ExtractValue('<a><self>test</self></a>', '/a/self');
