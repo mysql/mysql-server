@@ -452,6 +452,8 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   memcpy(comment_pos, disk_buff+read_length-com_length, com_length);
 
   fix_type_pointers(&int_array, &share->fieldnames, 1, &names);
+  if (share->fieldnames.count != share->fields)
+    goto err;
   fix_type_pointers(&int_array, share->intervals, interval_count,
 		    &names);
 
