@@ -2,8 +2,7 @@
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
+   the Free Software Foundation; version 2 of the License.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -171,6 +170,7 @@ static double _mi_search_pos(register MI_INFO *info,
   uchar *keypos,*buff;
   double offset;
   DBUG_ENTER("_mi_search_pos");
+  LINT_INIT(max_keynr);
 
   if (pos == HA_OFFSET_ERROR)
     DBUG_RETURN(0.5);

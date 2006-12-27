@@ -250,3 +250,18 @@ select count(a) from t2 ignore index(a,b) where a='AAAAAAAA' and b='AAAAAAAA';
 insert into t2 values ('ab', 'ab', 'uh', 'oh');
 explain select a from t2 where a='ab';
 drop table t2;
+
+#
+# BUG#25048 - ERROR 126 : Incorrect key file for table '.XXXX.MYI'; try to
+#             repair it
+#
+CREATE TABLE t1(c1 INT, c2 INT DEFAULT 0, c3 CHAR(255) DEFAULT '',
+KEY(c1), KEY(c2), KEY(c3));
+INSERT INTO t1(c1) VALUES(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),
+(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0);
+INSERT INTO t1 VALUES(0,0,0);
+CREATE TABLE t2(c1 int);
+INSERT INTO t2 VALUES(1);
+DELETE t1 FROM t1,t2 WHERE t1.c1=0 AND t1.c2=0;
+SELECT * FROM t1;
+DROP TABLE t1,t2;

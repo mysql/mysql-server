@@ -2,8 +2,7 @@
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
+   the Free Software Foundation; version 2 of the License.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -583,7 +582,7 @@ static struct my_option my_long_options[] =
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
-	       char *argument)
+	       char *argument __attribute__((unused)))
 {
   switch(optid) {
   case 'a':
