@@ -68,6 +68,26 @@ operator<<(NdbOut& out, const Ptr<Dbtup::Extent_info> & ptr)
   return out;
 }
 
+#if NOT_YET_FREE_EXTENT
+static
+inline
+bool
+check_free(const Dbtup::Extent_info* extP)
+{
+  Uint32 res = 0;
+  for (Uint32 i = 1; i<MAX_FREE_LIST; i++)
+    res += extP->m_free_page_count[i];
+  return res;
+}
+#error "Code for deallocting extents when they get empty"
+#error "This code is not yet complete"
+#endif
+
+#if NOT_YET_UNDO_ALLOC_EXTENT
+#error "This is needed for deallocting extents when they get empty"
+#error "This code is not complete yet"
+#endif
+
 void 
 Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
 {
@@ -444,23 +464,71 @@ Dbtup::disk_page_prealloc(Signal* signal,
       /**
        * We need to alloc an extent
        */
+#if NOT_YET_UNDO_ALLOC_EXTENT
+      Uint32 logfile_group_id = fragPtr.p->m_logfile_group_id;
+
+      err = c_lgman->alloc_log_space(logfile_group_id,
+				     sizeof(Disk_undo::AllocExtent)>>2);
+      if(unlikely(err))
+      {
+	return -err;
+      }
+#endif
+
       if (!c_extent_pool.seize(ext))
       {
+	jam();
 	//XXX
 	err= 2;
+#if NOT_YET_UNDO_ALLOC_EXTENT
+	c_lgman->free_log_space(logfile_group_id, 
+				sizeof(Disk_undo::AllocExtent)>>2);
+#endif
 	c_page_request_pool.release(req);
 	ndbout_c("no free extent info");
 	return -err;
       }
-
+      
       if ((err= tsman.alloc_extent(&ext.p->m_key)) < 0)
       {
+	jam();
+#if NOT_YET_UNDO_ALLOC_EXTENT
+	c_lgman->free_log_space(logfile_group_id, 
+				sizeof(Disk_undo::AllocExtent)>>2);
+#endif
 	c_extent_pool.release(ext);
 	c_page_request_pool.release(req);
 	return err;
       }
 
       int pages= err;
+#if NOT_YET_UNDO_ALLOC_EXTENT
+      {
+	/**
+	 * Do something here
+	 */
+	{
+	  Callback cb;
+	  cb.m_callbackData= ext.i;
+	  cb.m_callbackFunction = 
+	    safe_cast(&Dbtup::disk_page_alloc_extent_log_buffer_callback);
+	  Uint32 sz= sizeof(Disk_undo::AllocExtent)>>2;
+	  
+	  Logfile_client lgman(this, c_lgman, logfile_group_id);
+	  int res= lgman.get_log_buffer(signal, sz, &cb);
+	  switch(res){
+	  case 0:
+	    break;
+	  case -1:
+	    ndbrequire("NOT YET IMPLEMENTED" == 0);
+	    break;
+	  default:
+	    execute(signal, cb, res);	    
+	  }
+	}
+      }
+#endif
+      
       ndbout << "allocated " << pages << " pages: " << ext.p->m_key << endl;
       ext.p->m_first_page_no = ext.p->m_key.m_page_no;
       bzero(ext.p->m_free_page_count, sizeof(ext.p->m_free_page_count));
@@ -1016,6 +1084,12 @@ Dbtup::disk_page_free(Signal *signal,
   
   extentPtr.p->m_free_space += sz;
   update_extent_pos(alloc, extentPtr);
+#if NOT_YET_FREE_EXTENT
+  if (check_free(extentPtr.p) == 0)
+  {
+    ndbout_c("free: extent is free");
+  }
+#endif
 }
 
 void
@@ -1118,14 +1192,56 @@ Dbtup::disk_page_abort_prealloc_callback_1(Signal* signal,
 
   extentPtr.p->m_free_space += sz;
   update_extent_pos(alloc, extentPtr);
+#if NOT_YET_FREE_EXTENT
+  if (check_free(extentPtr.p) == 0)
+  {
+    ndbout_c("abort: extent is free");
+  }
+#endif
 }
+
+#if NOT_YET_UNDO_ALLOC_EXTENT
+void
+Dbtup::disk_page_alloc_extent_log_buffer_callback(Signal* signal,
+						  Uint32 extentPtrI,
+						  Uint32 unused)
+{
+  Ptr<Extent_info> extentPtr;
+  c_extent_pool.getPtr(extentPtr, extentPtrI);
+
+  Local_key key = extentPtr.p->m_key;
+  Tablespace_client2 tsman(signal, c_tsman, &key);
+
+  Ptr<Tablerec> tabPtr;
+  tabPtr.i= tsman.m_table_id;
+  ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
+  
+  Ptr<Fragrecord> fragPtr;
+  getFragmentrec(fragPtr, tsman.m_fragment_id, tabPtr.p);
+
+  Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
+
+  Disk_undo::AllocExtent alloc;
+  alloc.m_table = tabPtr.i;
+  alloc.m_fragment = tsman.m_fragment_id;
+  alloc.m_page_no = key.m_page_no;
+  alloc.m_file_no = key.m_file_no;
+  alloc.m_type_length = (Disk_undo::UNDO_ALLOC_EXTENT<<16)|(sizeof(alloc)>> 2);
+  
+  Logfile_client::Change c[1] = {{ &alloc, sizeof(alloc) >> 2 } };
+  
+  Uint64 lsn= lgman.add_entry(c, 1);
+  
+  tsman.update_lsn(&key, lsn);
+}
+#endif
 
 Uint64
 Dbtup::disk_page_undo_alloc(Page* page, const Local_key* key,
 			    Uint32 sz, Uint32 gci, Uint32 logfile_group_id)
 {
-  Logfile_client lsman(this, c_lgman, logfile_group_id);
-
+  Logfile_client lgman(this, c_lgman, logfile_group_id);
+  
   Disk_undo::Alloc alloc;
   alloc.m_type_length= (Disk_undo::UNDO_ALLOC << 16) | (sizeof(alloc) >> 2);
   alloc.m_page_no = key->m_page_no;
@@ -1133,7 +1249,7 @@ Dbtup::disk_page_undo_alloc(Page* page, const Local_key* key,
   
   Logfile_client::Change c[1] = {{ &alloc, sizeof(alloc) >> 2 } };
   
-  Uint64 lsn= lsman.add_entry(c, 1);
+  Uint64 lsn= lgman.add_entry(c, 1);
   m_pgman.update_lsn(* key, lsn);
 
   return lsn;
@@ -1144,7 +1260,7 @@ Dbtup::disk_page_undo_update(Page* page, const Local_key* key,
 			     const Uint32* src, Uint32 sz,
 			     Uint32 gci, Uint32 logfile_group_id)
 {
-  Logfile_client lsman(this, c_lgman, logfile_group_id);
+  Logfile_client lgman(this, c_lgman, logfile_group_id);
 
   Disk_undo::Update update;
   update.m_page_no = key->m_page_no;
@@ -1162,7 +1278,7 @@ Dbtup::disk_page_undo_update(Page* page, const Local_key* key,
 
   ndbassert(4*(3 + sz + 1) == (sizeof(update) + 4*sz - 4));
     
-  Uint64 lsn= lsman.add_entry(c, 3);
+  Uint64 lsn= lgman.add_entry(c, 3);
   m_pgman.update_lsn(* key, lsn);
 
   return lsn;
@@ -1173,7 +1289,7 @@ Dbtup::disk_page_undo_free(Page* page, const Local_key* key,
 			   const Uint32* src, Uint32 sz,
 			   Uint32 gci, Uint32 logfile_group_id)
 {
-  Logfile_client lsman(this, c_lgman, logfile_group_id);
+  Logfile_client lgman(this, c_lgman, logfile_group_id);
 
   Disk_undo::Free free;
   free.m_page_no = key->m_page_no;
@@ -1191,7 +1307,7 @@ Dbtup::disk_page_undo_free(Page* page, const Local_key* key,
   
   ndbassert(4*(3 + sz + 1) == (sizeof(free) + 4*sz - 4));
   
-  Uint64 lsn= lsman.add_entry(c, 3);
+  Uint64 lsn= lgman.add_entry(c, 3);
   m_pgman.update_lsn(* key, lsn);
 
   return lsn;
@@ -1221,7 +1337,7 @@ Dbtup::disk_restart_undo(Signal* signal, Uint64 lsn,
     ndbrequire(len == 3);
     Uint32 tableId = ptr[1] >> 16;
     Uint32 fragId = ptr[1] & 0xFFFF;
-    disk_restart_undo_lcp(tableId, fragId);
+    disk_restart_undo_lcp(tableId, fragId, Fragrecord::UC_LCP);
     disk_restart_undo_next(signal);
     return;
   }
@@ -1260,10 +1376,20 @@ Dbtup::disk_restart_undo(Signal* signal, Uint64 lsn,
     ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
     for(Uint32 i = 0; i<MAX_FRAG_PER_NODE; i++)
       if (tabPtr.p->fragrec[i] != RNIL)
-	disk_restart_undo_lcp(tabPtr.i, tabPtr.p->fragid[i]);
+	disk_restart_undo_lcp(tabPtr.i, tabPtr.p->fragid[i], 
+			      Fragrecord::UC_CREATE);
     disk_restart_undo_next(signal);
     return;
   }
+  case File_formats::Undofile::UNDO_TUP_DROP:
+    jam();
+  case File_formats::Undofile::UNDO_TUP_ALLOC_EXTENT:
+    jam();
+  case File_formats::Undofile::UNDO_TUP_FREE_EXTENT:
+    jam();
+    disk_restart_undo_next(signal);
+    return;
+
   case File_formats::Undofile::UNDO_END:
     f_undo_done = true;
     return;
@@ -1297,7 +1423,7 @@ Dbtup::disk_restart_undo_next(Signal* signal)
 }
 
 void
-Dbtup::disk_restart_undo_lcp(Uint32 tableId, Uint32 fragId)
+Dbtup::disk_restart_undo_lcp(Uint32 tableId, Uint32 fragId, Uint32 flag)
 {
   Ptr<Tablerec> tabPtr;
   tabPtr.i= tableId;
@@ -1309,7 +1435,7 @@ Dbtup::disk_restart_undo_lcp(Uint32 tableId, Uint32 fragId)
     getFragmentrec(fragPtr, fragId, tabPtr.p);
     if (!fragPtr.isNull())
     {
-      fragPtr.p->m_undo_complete = true;
+      fragPtr.p->m_undo_complete |= flag;
     }
   }
 }
@@ -1518,6 +1644,12 @@ Dbtup::disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId,
   if (tabPtr.p->tableStatus == DEFINED)
   {
     getFragmentrec(fragPtr, fragId, tabPtr.p);
+    if (fragPtr.p->m_undo_complete & Fragrecord::UC_CREATE)
+    {
+      jam();
+      return -1;
+    }
+
     if (!fragPtr.isNull())
     {
       Disk_alloc_info& alloc= fragPtr.p->m_disk_alloc_info;

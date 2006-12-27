@@ -1099,6 +1099,7 @@ private:
   };
   
   Uint32 c_errorInsert3000_TableId;
+  Uint32 c_memusage_report_frequency;
 };
 
 #endif
