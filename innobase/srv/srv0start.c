@@ -1554,17 +1554,6 @@ innobase_start_or_create_for_mysql(void)
 	srv_was_started = TRUE;
 	srv_is_being_started = FALSE;
 
-#ifdef UNIV_DEBUG
-        /* Wait a while so that the created threads have time to suspend
-	themselves before we switch sync debugging on; otherwise a thread may
-	execute mutex_enter() before the checks are on, and mutex_exit() after
-	the checks are on, which will cause an assertion failure in sync
-	debug. */
-
-        os_thread_sleep(3000000);
-#endif
-	sync_order_checks_on = TRUE;
-
         if (trx_doublewrite == NULL) {
 		/* Create the doublewrite buffer to a new tablespace */
 

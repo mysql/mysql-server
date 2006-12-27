@@ -171,6 +171,7 @@ static double _mi_search_pos(register MI_INFO *info,
   uchar *keypos,*buff;
   double offset;
   DBUG_ENTER("_mi_search_pos");
+  LINT_INIT(max_keynr);
 
   if (pos == HA_OFFSET_ERROR)
     DBUG_RETURN(0.5);
