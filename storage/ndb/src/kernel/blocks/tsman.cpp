@@ -79,12 +79,14 @@ Tsman::Tsman(Block_context& ctx,
   
   addRecSignal(GSN_START_RECREQ, &Tsman::execSTART_RECREQ);
 
+  addRecSignal(GSN_LCP_FRAG_ORD, &Tsman::execLCP_FRAG_ORD);
   addRecSignal(GSN_END_LCP_REQ, &Tsman::execEND_LCP_REQ);
 
   addRecSignal(GSN_GET_TABINFOREQ, &Tsman::execGET_TABINFOREQ);
 
   m_tablespace_hash.setSize(10);
   m_file_hash.setSize(10);
+  m_lcp_ongoing = false;
 }
   
 Tsman::~Tsman()
@@ -1101,6 +1103,7 @@ Tsman::load_extent_page_callback(Signal* signal,
   ptr.p->m_online.m_lcp_free_extent_tail = RNIL;  
   ptr.p->m_online.m_data_pages = data_pages;
   ptr.p->m_online.m_used_extent_cnt = 0;
+  ptr.p->m_online.m_extent_headers_per_extent_page = per_page;
 
   Ptr<Tablespace> ts_ptr;
   m_tablespace_pool.getPtr(ts_ptr, ptr.p->m_tablespace_ptr_i);
@@ -1182,9 +1185,8 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
   m_tablespace_pool.getPtr(lg_ptr, ptr.p->m_tablespace_ptr_i);
 
   Uint32 firstFree= RNIL;
-  Uint32 size = lg_ptr.p->m_extent_size;
-  Uint32 eh_words = File_formats::Datafile::extent_header_words(size);
-  Uint32 per_page = File_formats::Datafile::EXTENT_PAGE_WORDS/eh_words;
+  Uint32 size = ptr.p->m_extent_size;
+  Uint32 per_page = ptr.p->m_online.m_extent_headers_per_extent_page;
   Uint32 SZ= File_formats::Datafile::EXTENT_HEADER_BITMASK_BITS_PER_PAGE;  
   Uint32 pages= ptr.p->m_online.m_offset_data_pages - 1;
   Uint32 datapages= ptr.p->m_online.m_data_pages;
@@ -1410,23 +1412,21 @@ Tsman::execALLOC_EXTENT_REQ(Signal* signal)
   AllocExtentReq::ErrorCode err;
   
   ndbrequire(m_tablespace_hash.find(ts_ptr, req.request.tablespace_id));
-  Uint32 size = ts_ptr.p->m_extent_size;
   Local_datafile_list tmp(m_file_pool, ts_ptr.p->m_free_files);
   
   if (tmp.first(file_ptr))
   {
-    Uint32 eh_words = File_formats::Datafile::extent_header_words(size);
-    Uint32 per_page = File_formats::Datafile::EXTENT_PAGE_WORDS/eh_words;
-
+    Uint32 size = file_ptr.p->m_extent_size;
     Uint32 extent = file_ptr.p->m_online.m_first_free_extent;
     Uint32 data_off = file_ptr.p->m_online.m_offset_data_pages;
+    Uint32 eh_words = File_formats::Datafile::extent_header_words(size);
+    Uint32 per_page = File_formats::Datafile::EXTENT_PAGE_WORDS/eh_words;
     Uint32 page_no = extent / per_page;
     Uint32 extent_no = extent % per_page;
 
     Page_cache_client::Request preq;
     preq.m_page.m_page_no = page_no;
     preq.m_page.m_file_no = file_ptr.p->m_file_no;
-    preq.m_page.m_page_idx = extent;
 
     /**
      * Handling of unmapped extent header pages is not implemented
@@ -1470,6 +1470,7 @@ Tsman::execALLOC_EXTENT_REQ(Signal* signal)
        */
       ndbassert(extent >= per_page);
       preq.m_page.m_page_no = data_off + size * (extent - /* zero */ per_page);
+      preq.m_page.m_page_idx = extent; // extent_no
       
       AllocExtentReq* rep = (AllocExtentReq*)signal->getDataPtr();
       rep->reply.errorCode = 0;
@@ -1501,28 +1502,21 @@ void
 Tsman::execFREE_EXTENT_REQ(Signal* signal)
 {
   jamEntry();
-  Ptr<Tablespace> ts_ptr;
   Ptr<Datafile> file_ptr;
   FreeExtentReq req = *(FreeExtentReq*)signal->getDataPtr();
   FreeExtentReq::ErrorCode err = (FreeExtentReq::ErrorCode)0;
   
-  ndbrequire(m_tablespace_hash.find(ts_ptr, req.request.tablespace_id));
   Datafile file_key;
   file_key.m_file_no = req.request.key.m_file_no;
   ndbrequire(m_file_hash.find(file_ptr, file_key));
-  Uint32 size = ts_ptr.p->m_extent_size;
 
-  Uint32 eh_words = File_formats::Datafile::extent_header_words(size);
-  Uint32 per_page = File_formats::Datafile::EXTENT_PAGE_WORDS/eh_words;
-  Uint32 data_off = file_ptr.p->m_online.m_offset_data_pages;
-  Uint32 extent = (req.request.key.m_page_no - data_off) / size + per_page;
-
-
-  Uint32 page_no = extent / per_page;
-  Uint32 extent_no = extent % per_page;
+  struct req val = lookup_extent(req.request.key.m_page_no, file_ptr.p);
+  Uint32 extent = 
+    (req.request.key.m_page_no - val.m_extent_pages) / val.m_extent_size + 
+    file_ptr.p->m_online.m_extent_headers_per_extent_page;
   
   Page_cache_client::Request preq;
-  preq.m_page.m_page_no = page_no;
+  preq.m_page.m_page_no = val.m_extent_page_no;
   preq.m_page.m_file_no = req.request.key.m_file_no;
 
   ndbout << "Free extent: " << req.request.key << endl;
@@ -1539,16 +1533,38 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
     File_formats::Datafile::Extent_page* page = 
       (File_formats::Datafile::Extent_page*)ptr_p;
     File_formats::Datafile::Extent_header* header = 
-      page->get_header(extent_no, size);
+      page->get_header(val.m_extent_no, val.m_extent_size);
     
     ndbrequire(header->m_table == req.request.table_id);
     header->m_table = RNIL;
-    header->m_next_free_extent= file_ptr.p->m_online.m_lcp_free_extent_head;
         
-    if(file_ptr.p->m_online.m_lcp_free_extent_head == RNIL)
-      file_ptr.p->m_online.m_lcp_free_extent_tail= extent;
-    file_ptr.p->m_online.m_lcp_free_extent_head= extent;
     file_ptr.p->m_online.m_used_extent_cnt--;
+    if (m_lcp_ongoing)
+    {
+      jam();
+      header->m_next_free_extent= file_ptr.p->m_online.m_lcp_free_extent_head;
+      if(file_ptr.p->m_online.m_lcp_free_extent_head == RNIL)
+	file_ptr.p->m_online.m_lcp_free_extent_tail= extent;
+      file_ptr.p->m_online.m_lcp_free_extent_head= extent;
+    }
+    else
+    {
+      jam();
+      header->m_next_free_extent = file_ptr.p->m_online.m_first_free_extent;
+      if (file_ptr.p->m_online.m_first_free_extent == RNIL)
+      {
+	/**
+	 * Move from full to free
+	 */
+	Ptr<Tablespace> ptr;
+	m_tablespace_pool.getPtr(ptr, file_ptr.p->m_tablespace_ptr_i);
+	Local_datafile_list free(m_file_pool, ptr.p->m_free_files);
+	Local_datafile_list full(m_file_pool, ptr.p->m_full_files);
+	full.remove(file_ptr);
+	free.add(file_ptr);
+      }
+      file_ptr.p->m_online.m_first_free_extent = extent;
+    }
   }
   else
   {
@@ -1583,18 +1599,10 @@ Tsman::update_page_free_bits(Signal* signal,
   file_key.m_file_no = key->m_file_no;
   ndbrequire(m_file_hash.find(file_ptr, file_key));
 
-  Uint32 size = file_ptr.p->m_extent_size;
-  Uint32 data_off = file_ptr.p->m_online.m_offset_data_pages;
-  Uint32 eh_words = File_formats::Datafile::extent_header_words(size);
-  Uint32 per_page = File_formats::Datafile::EXTENT_PAGE_WORDS/eh_words;
-  Uint32 SZ= File_formats::Datafile::EXTENT_HEADER_BITMASK_BITS_PER_PAGE;
-  
-  Uint32 extent = (key->m_page_no - data_off) / size + per_page;
-  Uint32 page_no = extent / per_page;
-  Uint32 extent_no = extent % per_page;
+  struct req val = lookup_extent(key->m_page_no, file_ptr.p);
   
   Page_cache_client::Request preq;
-  preq.m_page.m_page_no = page_no;
+  preq.m_page.m_page_no = val.m_extent_page_no;
   preq.m_page.m_file_no = key->m_file_no;
   
   /**
@@ -1609,12 +1617,12 @@ Tsman::update_page_free_bits(Signal* signal,
     File_formats::Datafile::Extent_page* page = 
       (File_formats::Datafile::Extent_page*)ptr_p;
     File_formats::Datafile::Extent_header* header = 
-      page->get_header(extent_no, size);
+      page->get_header(val.m_extent_no, val.m_extent_size);
     
     ndbrequire(header->m_table != RNIL);
 
-    Uint32 page_no_in_extent = (key->m_page_no - data_off) % size;
-
+    Uint32 page_no_in_extent = calc_page_no_in_extent(key->m_page_no, &val);
+    
     /**
      * Toggle word
      */
@@ -1637,26 +1645,15 @@ Tsman::get_page_free_bits(Signal* signal, Local_key *key,
 {
   jamEntry();
 
-  /**
-   * XXX make into subroutine
-   */   
   Ptr<Datafile> file_ptr;
   Datafile file_key;
   file_key.m_file_no = key->m_file_no;
   ndbrequire(m_file_hash.find(file_ptr, file_key));
-
-  Uint32 size = file_ptr.p->m_extent_size;
-  Uint32 data_off = file_ptr.p->m_online.m_offset_data_pages;
-  Uint32 eh_words = File_formats::Datafile::extent_header_words(size);
-  Uint32 per_page = File_formats::Datafile::EXTENT_PAGE_WORDS/eh_words;
-  Uint32 SZ= File_formats::Datafile::EXTENT_HEADER_BITMASK_BITS_PER_PAGE;
   
-  Uint32 extent = (key->m_page_no - data_off) / size + per_page;
-  Uint32 page_no = extent / per_page;
-  Uint32 extent_no = extent % per_page;
+  struct req val = lookup_extent(key->m_page_no, file_ptr.p);
   
   Page_cache_client::Request preq;
-  preq.m_page.m_page_no = page_no;
+  preq.m_page.m_page_no = val.m_extent_page_no;
   preq.m_page.m_file_no = key->m_file_no;
   
   /**
@@ -1671,11 +1668,11 @@ Tsman::get_page_free_bits(Signal* signal, Local_key *key,
     File_formats::Datafile::Extent_page* page = 
       (File_formats::Datafile::Extent_page*)ptr_p;
     File_formats::Datafile::Extent_header* header = 
-      page->get_header(extent_no, size);
+      page->get_header(val.m_extent_no, val.m_extent_size);
     
     ndbrequire(header->m_table != RNIL);
 
-    Uint32 page_no_in_extent = (key->m_page_no - data_off) % size;
+    Uint32 page_no_in_extent = calc_page_no_in_extent(key->m_page_no, &val);
     Uint32 bits = header->get_free_bits(page_no_in_extent);
     *uncommitted = (bits & UNCOMMITTED_MASK) >> UNCOMMITTED_SHIFT;
     *committed = (bits & COMMITTED_MASK);
@@ -1700,19 +1697,11 @@ Tsman::unmap_page(Signal* signal, Local_key *key, Uint32 uncommitted_bits)
   Datafile file_key;
   file_key.m_file_no = key->m_file_no;
   ndbrequire(m_file_hash.find(file_ptr, file_key));
-  
-  Uint32 size = file_ptr.p->m_extent_size;
-  Uint32 data_off = file_ptr.p->m_online.m_offset_data_pages;
-  Uint32 eh_words = File_formats::Datafile::extent_header_words(size);
-  Uint32 per_page = File_formats::Datafile::EXTENT_PAGE_WORDS/eh_words;
-  Uint32 SZ= File_formats::Datafile::EXTENT_HEADER_BITMASK_BITS_PER_PAGE;
-  
-  Uint32 extent = (key->m_page_no - data_off) / size + per_page;
-  Uint32 page_no = extent / per_page;
-  Uint32 extent_no = extent % per_page;
+
+  struct req val = lookup_extent(key->m_page_no, file_ptr.p);
   
   Page_cache_client::Request preq;
-  preq.m_page.m_page_no = page_no;
+  preq.m_page.m_page_no = val.m_extent_page_no;
   preq.m_page.m_file_no = key->m_file_no;
   
   /**
@@ -1727,12 +1716,12 @@ Tsman::unmap_page(Signal* signal, Local_key *key, Uint32 uncommitted_bits)
     File_formats::Datafile::Extent_page* page = 
       (File_formats::Datafile::Extent_page*)ptr_p;
     File_formats::Datafile::Extent_header* header = 
-      page->get_header(extent_no, size);
+      page->get_header(val.m_extent_no, val.m_extent_size);
     
     ndbrequire(header->m_table != RNIL);
 
-    Uint32 page_no_in_extent = (key->m_page_no - data_off) % size;
-
+    Uint32 page_no_in_extent = calc_page_no_in_extent(key->m_page_no, &val);
+    
     /**
      * Toggle word
      */
@@ -1767,18 +1756,10 @@ Tsman::restart_undo_page_free_bits(Signal* signal,
   file_key.m_file_no = key->m_file_no;
   ndbrequire(m_file_hash.find(file_ptr, file_key));
 
-  Uint32 size = file_ptr.p->m_extent_size;
-  Uint32 data_off = file_ptr.p->m_online.m_offset_data_pages;
-  Uint32 eh_words = File_formats::Datafile::extent_header_words(size);
-  Uint32 per_page = File_formats::Datafile::EXTENT_PAGE_WORDS/eh_words;
-  Uint32 SZ= File_formats::Datafile::EXTENT_HEADER_BITMASK_BITS_PER_PAGE;
-  
-  Uint32 extent = (key->m_page_no - data_off) / size + per_page;
-  Uint32 page_no = extent / per_page;
-  Uint32 extent_no = extent % per_page;
-  
+  struct req val = lookup_extent(key->m_page_no, file_ptr.p);
+
   Page_cache_client::Request preq;
-  preq.m_page.m_page_no = page_no;
+  preq.m_page.m_page_no = val.m_extent_page_no;
   preq.m_page.m_file_no = key->m_file_no;
   
   /**
@@ -1793,7 +1774,7 @@ Tsman::restart_undo_page_free_bits(Signal* signal,
     File_formats::Datafile::Extent_page* page = 
       (File_formats::Datafile::Extent_page*)ptr_p;
     File_formats::Datafile::Extent_header* header = 
-      page->get_header(extent_no, size);
+      page->get_header(val.m_extent_no, val.m_extent_size);
     
     Uint64 lsn = 0;
     lsn += page->m_page_header.m_page_lsn_hi; lsn <<= 32;
@@ -1816,7 +1797,7 @@ Tsman::restart_undo_page_free_bits(Signal* signal,
       return 0;
     }
 
-    Uint32 page_no_in_extent = (key->m_page_no - data_off) % size;
+    Uint32 page_no_in_extent = calc_page_no_in_extent(key->m_page_no, &val);
     Uint32 src = header->get_free_bits(page_no_in_extent);
         
     ndbrequire(header->m_table == tableId);
@@ -1862,17 +1843,11 @@ Tsman::execALLOC_PAGE_REQ(Signal* signal)
   Datafile file_key;
   file_key.m_file_no = req.key.m_file_no;
   ndbrequire(m_file_hash.find(file_ptr, file_key));
-  
-  Uint32 size = file_ptr.p->m_extent_size;
-  Uint32 data_off = file_ptr.p->m_online.m_offset_data_pages;
-  Uint32 eh_words = File_formats::Datafile::extent_header_words(size);
-  Uint32 per_page = File_formats::Datafile::EXTENT_PAGE_WORDS/eh_words;
-  
-  Uint32 extent = (req.key.m_page_no - data_off) / size;
-  Uint32 extent_no = extent % per_page;
+
+  struct req val = lookup_extent(req.key.m_page_no, file_ptr.p);
   
   Page_cache_client::Request preq;
-  preq.m_page.m_page_no = 1 /* zero */ + extent / per_page;
+  preq.m_page.m_page_no = val.m_extent_page_no;
   preq.m_page.m_file_no = req.key.m_file_no;
   
   Uint32 SZ= File_formats::Datafile::EXTENT_HEADER_BITMASK_BITS_PER_PAGE;
@@ -1891,11 +1866,11 @@ Tsman::execALLOC_PAGE_REQ(Signal* signal)
     
     File_formats::Datafile::Extent_page* page = 
       (File_formats::Datafile::Extent_page*)ptr_p;
-    header= page->get_header(extent_no, size);
+    header= page->get_header(val.m_extent_no, val.m_extent_size);
     
     ndbrequire(header->m_table == req.request.table_id);
     
-    Uint32 page_no_in_extent = (req.key.m_page_no - data_off) % size;
+    Uint32 page_no_in_extent = calc_page_no_in_extent(req.key.m_page_no, &val);
     Uint32 word = header->get_free_word_offset(page_no_in_extent);
     Uint32 shift = SZ * (page_no_in_extent & 7);
     
@@ -1912,7 +1887,7 @@ Tsman::execALLOC_PAGE_REQ(Signal* signal)
      * Search
      */
     Uint32 *src= header->m_page_bitmask + word;
-    for(page_no= page_no_in_extent; page_no<size; page_no++)
+    for(page_no= page_no_in_extent; page_no<val.m_extent_size; page_no++)
     {
       src_bits= (* src >> shift) & ((1 << SZ) - 1);
       if((src_bits & UNCOMMITTED_MASK) <= reqbits)
@@ -1955,15 +1930,26 @@ Tsman::execALLOC_PAGE_REQ(Signal* signal)
 found:
   header->update_free_bits(page_no, src_bits | UNCOMMITTED_MASK);
   rep->bits= (src_bits & UNCOMMITTED_MASK) >> UNCOMMITTED_SHIFT;
-  rep->key.m_page_no= data_off + extent * size + page_no;
+  rep->key.m_page_no= 
+    val.m_extent_pages + val.m_extent_no * val.m_extent_size + page_no;
   rep->reply.errorCode= 0;
   return;
+}
+
+void
+Tsman::execLCP_FRAG_ORD(Signal* signal)
+{
+  jamEntry();
+  ndbrequire(!m_lcp_ongoing);
+  m_lcp_ongoing = true;
 }
 
 void
 Tsman::execEND_LCP_REQ(Signal* signal)
 {
   jamEntry();
+  ndbrequire(m_lcp_ongoing);
+  m_lcp_ongoing = false;
 
   /**
    * Move extents from "lcp" free list to real free list

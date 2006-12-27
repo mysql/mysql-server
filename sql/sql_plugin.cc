@@ -983,7 +983,7 @@ my_bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
     {
       rw_rdlock(&THR_LOCK_plugin);
       for (uint i=idx; i < total; i++)
-        if (plugins[i]->state & state_mask)
+        if (plugins[i] && plugins[i]->state & state_mask)
           plugins[i]=0;
       rw_unlock(&THR_LOCK_plugin);
     }

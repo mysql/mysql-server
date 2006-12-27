@@ -1,0 +1,47 @@
+-- source include/have_ndb.inc
+-- source include/not_embedded.inc
+
+--disable_warnings
+drop table if exists t1;
+drop table if exists t2;
+--enable_warnings
+
+create table t1 (
+  a int not null primary key,
+  b int not null
+) engine=ndb;
+
+create table t2 (
+  a int not null primary key,
+  b int not null
+) engine=ndb;
+
+insert into t1 values (1,10), (2,20), (3,30), (4, 40);
+
+delimiter //;
+create procedure test_cursor ()
+begin
+  declare done int default 0;
+  declare temp_a int;
+  declare temp_b int;
+  declare cur1 cursor for select a,b from t1;
+  declare continue handler for sqlstate '02000' set done = 1;
+  open cur1;
+  repeat
+    fetch cur1 into temp_a, temp_b;
+    if not done then
+      insert into t2 values (temp_a, temp_b);
+    end if;
+  until done end repeat;
+  close cur1;
+end;
+//
+delimiter ;//
+
+select * from t2 order by a;
+call test_cursor();
+select * from t2 order by a;
+drop procedure test_cursor;
+drop table t1,t2;
+
+--echo end of 5.1 tests
