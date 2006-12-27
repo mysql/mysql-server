@@ -23,8 +23,6 @@
 #include "mysql_priv.h"
 #include "sql_select.h"
 
-static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields);
-
 /* Return 0 if row hasn't changed */
 
 static bool compare_record(TABLE *table, ulong query_id)
@@ -846,27 +844,69 @@ int multi_update::prepare(List<Item> &not_used_values,
   for (i=0 ; i < table_count ; i++)
     set_if_bigger(max_fields, fields_for_table[i]->elements);
   copy_field= new Copy_field[max_fields];
-
-  /*
-    Mark all copies of tables that are updates to ensure that
-    init_read_record() will not try to enable a cache on them
-
-    The problem is that for queries like
-
-    UPDATE t1, t1 AS t2 SET t1.b=t2.c WHERE t1.a=t2.a;
-
-    the row buffer may contain things that doesn't match what is on disk
-    which will cause an error when reading a row.
-    (This issue is mostly relevent for MyISAM tables)
-  */
-  for (table_ref= all_tables;  table_ref; table_ref=table_ref->next)
-  {
-    TABLE *table=table_ref->table;
-    if ((tables_to_update & table->map) && 
-	mysql_lock_have_duplicate(thd, table, update_tables))
-      table->no_cache= 1;			// Disable row cache
-  }
   DBUG_RETURN(thd->is_fatal_error != 0);
+}
+
+
+/*
+  Check if table is safe to update on fly
+
+  SYNOPSIS
+    safe_update_on_fly()
+    thd                 Thread handler
+    join_tab            How table is used in join
+    all_tables          List of tables
+    fields              Fields that are updated
+
+  NOTES
+    We can update the first table in join on the fly if we know that
+    a row in this table will never be read twice. This is true under
+    the following conditions:
+
+    - We are doing a table scan and the data is in a separate file (MyISAM) or
+      if we don't update a clustered key.
+
+    - We are doing a range scan and we don't update the scan key or
+      the primary key for a clustered table handler.
+
+    - Table is not joined to itself.
+
+  WARNING
+    This code is a bit dependent of how make_join_readinfo() works.
+
+  RETURN
+    0		Not safe to update
+    1		Safe to update
+*/
+
+static bool safe_update_on_fly(THD *thd, JOIN_TAB *join_tab,
+                               TABLE_LIST *all_tables, List<Item> *fields)
+{
+  TABLE *table= join_tab->table;
+  /* First check if a table is not joined to itself. */
+  if (mysql_lock_have_duplicate(thd, table, all_tables))
+    return 0;
+  switch (join_tab->type) {
+  case JT_SYSTEM:
+  case JT_CONST:
+  case JT_EQ_REF:
+    return 1;					// At most one matching row
+  case JT_REF:
+    return !check_if_key_used(table, join_tab->ref.key, *fields);
+  case JT_ALL:
+    /* If range search on index */
+    if (join_tab->quick)
+      return !check_if_key_used(table, join_tab->quick->index,
+				*fields);
+    /* If scanning in clustered key */
+    if ((table->file->table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
+	table->primary_key < MAX_KEY)
+      return !check_if_key_used(table, table->primary_key, *fields);
+    return 1;
+  default:
+    break;					// Avoid compler warning
+  }
+  return 0;
 }
 
 
@@ -905,7 +945,7 @@ multi_update::initialize_tables(JOIN *join)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
     if (table == main_table)			// First table in join
     {
-      if (safe_update_on_fly(join->join_tab, &temp_fields))
+      if (safe_update_on_fly(thd, join->join_tab, all_tables, &temp_fields))
       {
 	table_to_update= main_table;		// Update table on the fly
 	continue;
@@ -949,59 +989,6 @@ multi_update::initialize_tables(JOIN *join)
     tmp_tables[cnt]->file->extra(HA_EXTRA_WRITE_CACHE);
   }
   DBUG_RETURN(0);
-}
-
-/*
-  Check if table is safe to update on fly
-
-  SYNOPSIS
-    safe_update_on_fly
-    join_tab		How table is used in join
-    fields		Fields that are updated
-
-  NOTES
-    We can update the first table in join on the fly if we know that
-    a row in this tabel will never be read twice. This is true under
-    the folloing conditions:
-
-    - We are doing a table scan and the data is in a separate file (MyISAM) or
-      if we don't update a clustered key.
-
-    - We are doing a range scan and we don't update the scan key or
-      the primary key for a clustered table handler.
-
-  WARNING
-    This code is a bit dependent of how make_join_readinfo() works.
-
-  RETURN
-    0		Not safe to update
-    1		Safe to update
-*/
-
-static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields)
-{
-  TABLE *table= join_tab->table;
-  switch (join_tab->type) {
-  case JT_SYSTEM:
-  case JT_CONST:
-  case JT_EQ_REF:
-    return 1;					// At most one matching row
-  case JT_REF:
-    return !check_if_key_used(table, join_tab->ref.key, *fields);
-  case JT_ALL:
-    /* If range search on index */
-    if (join_tab->quick)
-      return !check_if_key_used(table, join_tab->quick->index,
-				*fields);
-    /* If scanning in clustered key */
-    if ((table->file->table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
-	table->primary_key < MAX_KEY)
-      return !check_if_key_used(table, table->primary_key, *fields);
-    return 1;
-  default:
-    break;					// Avoid compler warning
-  }
-  return 0;
 }
 
 
