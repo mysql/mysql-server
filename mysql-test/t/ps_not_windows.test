@@ -1,3 +1,4 @@
+-- source include/not_embedded.inc
 # Non-windows specific ps tests.
 --source include/not_windows.inc
 

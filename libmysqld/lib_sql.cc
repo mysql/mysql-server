@@ -542,6 +542,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
     }
   }
 
+  execute_ddl_log_recovery();
   return 0;
 }
 
@@ -549,6 +550,7 @@ void end_embedded_server()
 {
   my_free((char*) copy_arguments_ptr, MYF(MY_ALLOW_ZERO_PTR));
   copy_arguments_ptr=0;
+  release_ddl_log();
   clean_up(0);
 }
 
