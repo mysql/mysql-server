@@ -456,6 +456,8 @@ arjen@fred.bitbike.com|scripts/mysql_fix_extensions.sh|20020516001337|12363|f104
 ccarkner@nslinuxw10.bedford.progress.com|mysql-test/r/isolation.result|20010327145543|25059|4da11e109a3d93a9
 ccarkner@nslinuxw10.bedford.progress.com|mysql-test/t/isolation.test|20010327145543|39049|6a39e4138dd4a456
 fs
+holyfoot/hf@mysql.com/deer.(none)|mysql-test/r/bdb_notembedded.result|20061113160642|60022|276fa5181da9a588
+holyfoot/hf@mysql.com/deer.(none)|mysql-test/t/bdb_notembedded.test|20061113160642|06094|6ef2ea4713496614
 jani@hynda.mysql.fi|client/mysqlcheck|20010419221207|26716|363e3278166d84ec
 jcole@tetra.bedford.progress.com|BitKeeper/etc/logging_ok|20001004201211|30554
 jimw@mysql.com|mysql-test/t/ndb_alter_table.disabled|20050311230559|27526|411e026940e7a0aa
