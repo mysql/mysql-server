@@ -49,7 +49,7 @@ public:
    * @param f a pointer to a FILE descriptor.
    * @return the size of the file.
    */
-  static long size(FILE* f);
+  static off_t size(FILE* f);
 
   /**
    * Renames a file.
@@ -181,7 +181,7 @@ public:
    *
    * @return the file size.
    */
-  long size() const;
+  off_t size() const;
 
   /**
    * Returns the filename.
