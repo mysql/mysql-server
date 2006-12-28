@@ -79,6 +79,7 @@ libmysqld_a_SOURCES=
 
 sqlstoragesources =	$(EXTRA_libmysqld_a_SOURCES)
 storagesources = @condition_dependent_plugin_modules@
+storageobjects = @condition_dependent_plugin_objects@
 storagesourceslinks = @condition_dependent_plugin_links@
 
 # automake misses these
@@ -109,6 +110,24 @@ ha_ndbcluster_binlog.o: ha_ndbcluster_binlog.cc
 handler.o:	handler.cc
 		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
 
+# We need rules to compile these as no good way
+# found to append fileslists that collected by configure
+# to the sources list
+
+ha_federated.o:ha_federated.cc
+		$(CXXCOMPILE) $(LM_CFLAGS) -c $<
+
+ha_heap.o:ha_heap.cc
+		$(CXXCOMPILE) $(LM_CFLAGS) -c $<
+
+ha_innodb.o:ha_innodb.cc
+		$(CXXCOMPILE) $(LM_CFLAGS) -c $<
+
+ha_myisam.o:ha_myisam.cc
+		$(CXXCOMPILE) $(LM_CFLAGS) -c $<
+
+ha_myisammrg.o:ha_myisammrg.cc
+		$(CXXCOMPILE) $(LM_CFLAGS) -c $<
 
 #
 # To make it easy for the end user to use the embedded library we
@@ -120,18 +139,18 @@ handler.o:	handler.cc
 # need to add the same file twice to the library, so 'sort -u' save us
 # some time and spares unnecessary work.
 
-libmysqld.a:	libmysqld_int.a $(INC_LIB) $(libmysqld_a_DEPENDENCIES)
+libmysqld.a:	libmysqld_int.a $(INC_LIB) $(libmysqld_a_DEPENDENCIES) $(storageobjects)
 if DARWIN_MWCC
-	mwld -lib -o $@ libmysqld_int.a `echo $(INC_LIB) | sort -u`
+	mwld -lib -o $@ libmysqld_int.a `echo $(INC_LIB) | sort -u` $(storageobjects)
 else
 		-rm -f libmysqld.a
 		if test "$(host_os)" = "netware" ; \
 		then \
-		  $(libmysqld_a_AR) libmysqld.a libmysqld_int.a $(INC_LIB) ; \
+		  $(libmysqld_a_AR) libmysqld.a $(INC_LIB) libmysqld_int.a $(storageobjects); \
 		else \
 		  current_dir=`pwd`; \
 		  rm -rf tmp; mkdir tmp; \
-		  (for arc in ./libmysqld_int.a $(INC_LIB); do \
+		  (for arc in $(INC_LIB) ./libmysqld_int.a; do \
 		    arpath=`echo $$arc|sed 's|[^/]*$$||'|sed 's|\.libs/$$||'`; \
 		    artmp=`echo $$arc|sed 's|^.*/|tmp/lib-|'`; \
 		    for F in `$(AR) t $$arc | grep -v SYMDEF`; do \
@@ -142,6 +161,7 @@ else
 		      ls $$artmp/* | grep -v SYMDEF; \
 		      continue 2; fi; done; \
 		  done; echo $(libmysqld_a_DEPENDENCIES) ) | sort -u | xargs $(AR) cq libmysqld.a ; \
+		  $(AR) r libmysqld.a $(storageobjects); \
 		  $(RANLIB) libmysqld.a	; \
 		  rm -rf tmp; \
 		fi
