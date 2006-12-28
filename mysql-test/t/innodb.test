@@ -11,6 +11,7 @@
 #                                                                     #
 #######################################################################
 
+-- source include/not_embedded.inc
 -- source include/have_innodb.inc
 
 #
@@ -2451,7 +2452,6 @@ drop table t1, t2, t3, t5, t6, t8, t9;
 
 # bug 18934, "InnoDB crashes when table uses column names like DB_ROW_ID"
 --error 1005
---replace_result \\ / $MYSQL_TEST_DIR . /var/master-data/ /
 CREATE TABLE t1 (DB_ROW_ID int) engine=innodb;
 
 #
