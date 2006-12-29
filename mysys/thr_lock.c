@@ -757,8 +757,16 @@ void thr_unlock(THR_LOCK_DATA *data)
   }
   else
     lock->write.last=data->prev;
-  if (lock_type >= TL_WRITE_CONCURRENT_INSERT && lock->update_status)
-    (*lock->update_status)(data->status_param);
+  if (lock_type >= TL_WRITE_CONCURRENT_INSERT)
+  {
+    if (lock->update_status)
+      (*lock->update_status)(data->status_param);
+  }
+  else
+  {
+    if (lock->restore_status)
+      (*lock->restore_status)(data->status_param);
+  }
   if (lock_type == TL_READ_NO_INSERT)
     lock->read_no_write_count--;
   data->type=TL_UNLOCK;				/* Mark unlocked */
