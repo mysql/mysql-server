@@ -1844,7 +1844,8 @@ void Query_log_event::print_query_header(IO_CACHE* file,
   }
   if (lc_time_names_number != print_event_info->lc_time_names_number)
   {
-    my_b_printf(file, "SET @@session.lc_time_names=%d;\n", lc_time_names_number);
+    my_b_printf(file, "SET @@session.lc_time_names=%d%s\n",
+                lc_time_names_number, print_event_info->delimiter);
     print_event_info->lc_time_names_number= lc_time_names_number;
   }
 }
