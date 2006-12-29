@@ -743,10 +743,9 @@ trx_commit_off_kernel(
 	trx_t*	trx)	/* in: transaction */
 {
 	page_t*		update_hdr_page;
-	ib_uint64_t	lsn;
+	ib_uint64_t	lsn		= 0;
 	trx_rseg_t*	rseg;
 	trx_undo_t*	undo;
-	ibool		must_flush_log	= FALSE;
 	mtr_t		mtr;
 
 #ifdef UNIV_SYNC_DEBUG
@@ -762,8 +761,6 @@ trx_commit_off_kernel(
 		mutex_exit(&kernel_mutex);
 
 		mtr_start(&mtr);
-
-		must_flush_log = TRUE;
 
 		/* Change the undo log segment states from TRX_UNDO_ACTIVE
 		to some other state: these modifications to the file data
@@ -883,7 +880,7 @@ trx_commit_off_kernel(
 
 	trx->read_view = NULL;
 
-	if (must_flush_log) {
+	if (lsn) {
 
 		mutex_exit(&kernel_mutex);
 
