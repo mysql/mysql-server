@@ -18,6 +18,28 @@ Created December 2006 by Marko Makela
 #include "page0zip.h"
 
 /**************************************************************************
+Get the offset of the buddy of a compressed page frame. */
+UNIV_INLINE
+byte*
+buf_buddy_get(
+/*==========*/
+			/* out: the buddy relative of page */
+	byte*	page,	/* in: compressed page */
+	ulint	size)	/* in: page size in bytes */
+{
+	ut_ad(ut_is_2pow(size));
+	ut_ad(size >= BUF_BUDDY_LOW);
+	ut_ad(size < BUF_BUDDY_HIGH);
+	ut_ad(!ut_align_offset(page, size));
+
+	if (((ulint) page) & size) {
+		return(page - size);
+	} else {
+		return(page + size);
+	}
+}
+
+/**************************************************************************
 Try to allocate a block from buf_pool->zip_free[]. */
 static
 void*
