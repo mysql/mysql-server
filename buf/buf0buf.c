@@ -1484,6 +1484,7 @@ buf_page_get_gen(
 	ulint		fix_type;
 	ibool		success;
 	ibool		must_read;
+	const ulint	zip_size	= fil_space_get_zip_size(space);
 
 	ut_ad(mtr);
 	ut_ad((rw_latch == RW_S_LATCH)
@@ -1493,8 +1494,7 @@ buf_page_get_gen(
 	ut_ad((mode == BUF_GET) || (mode == BUF_GET_IF_IN_POOL)
 	      || (mode == BUF_GET_NO_LATCH) || (mode == BUF_GET_NOWAIT));
 #ifndef UNIV_LOG_DEBUG
-	ut_ad(!ibuf_inside()
-	      || ibuf_page(space, fil_space_get_zip_size(space), offset));
+	ut_ad(!ibuf_inside() || ibuf_page(space, zip_size, offset));
 #endif
 	buf_pool->n_page_gets++;
 loop:
@@ -1527,7 +1527,7 @@ loop:
 			return(NULL);
 		}
 
-		buf_read_page(space, fil_space_get_zip_size(space), offset);
+		buf_read_page(space, zip_size, offset);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 		ut_a(++buf_dbg_counter % 37 || buf_validate());
@@ -1636,8 +1636,7 @@ loop:
 		/* In the case of a first access, try to apply linear
 		read-ahead */
 
-		buf_read_ahead_linear(space, buf_block_get_zip_size(block),
-				      offset);
+		buf_read_ahead_linear(space, zip_size, offset);
 	}
 
 #ifdef UNIV_IBUF_DEBUG

@@ -1536,9 +1536,8 @@ void
 log_flush_margin(void)
 /*==================*/
 {
-	ibool		do_flush	= FALSE;
-	log_t*		log		= log_sys;
-	ib_uint64_t	lsn;
+	log_t*		log	= log_sys;
+	ib_uint64_t	lsn	= 0;
 
 	mutex_enter(&(log->mutex));
 
@@ -1548,14 +1547,13 @@ log_flush_margin(void)
 			/* A flush is running: hope that it will provide enough
 			free space */
 		} else {
-			do_flush = TRUE;
 			lsn = log->lsn;
 		}
 	}
 
 	mutex_exit(&(log->mutex));
 
-	if (do_flush) {
+	if (lsn) {
 		log_write_up_to(lsn, LOG_NO_WAIT, FALSE);
 	}
 }
