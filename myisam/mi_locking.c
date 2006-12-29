@@ -325,6 +325,15 @@ void mi_update_status(void* param)
   }
 }
 
+
+void mi_restore_status(void *param)
+{
+  MI_INFO *info= (MI_INFO*) param;
+  info->state= &info->s->state.state;
+  info->append_insert_at_end= 0;
+}
+
+
 void mi_copy_status(void* to,void *from)
 {
   ((MI_INFO*) to)->state= &((MI_INFO*) from)->save_state;
