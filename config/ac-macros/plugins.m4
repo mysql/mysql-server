@@ -306,6 +306,7 @@ AC_DEFUN([MYSQL_CONFIGURE_PLUGINS],[
     AC_SUBST([mysql_se_unittest_dirs])
     AC_SUBST([mysql_pg_unittest_dirs])
     AC_SUBST([condition_dependent_plugin_modules])
+    AC_SUBST([condition_dependent_plugin_objects])
     AC_SUBST([condition_dependent_plugin_links])
     AC_SUBST([condition_dependent_plugin_includes])
    ])
@@ -431,6 +432,7 @@ dnl Although this is "pretty", it breaks libmysqld build
       AC_MSG_RESULT([yes])
       m4_ifdef([$11],[
        condition_dependent_plugin_modules="$condition_dependent_plugin_modules m4_bregexp($11, [[^/]+$], [\&])"
+       condition_dependent_plugin_objects="$condition_dependent_plugin_objects m4_bregexp($11, [[^/]+\.], [\&o])"
        condition_dependent_plugin_links="$condition_dependent_plugin_links $6/$11"
        condition_dependent_plugin_includes="$condition_dependent_plugin_includes -I[\$(top_srcdir)]/$6/m4_bregexp($11, [^.+[/$]], [\&])"
       ])
