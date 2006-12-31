@@ -14,13 +14,15 @@
 #
 
 --disable_warnings
-drop table if exists t1, t2, t3;
+drop table if exists t1, t2, t3, t4, t5;
 --enable_warnings
 
 create table t1 (id int primary key, a int not null, b decimal (63,30) default 0) engine=ndb;
 create table t2 (op char(1), a int not null, b decimal (63,30));
 create table t3 select 1 as i;
-	
+create table t4 (a int not null primary key, b int) engine=ndb;
+create table t5 (a int not null primary key, b int) engine=ndb;
+
 delimiter //;
 create trigger t1_bu before update on t1 for each row
 begin
@@ -31,8 +33,21 @@ create trigger t1_bd before delete on t1 for each row
 begin
   insert into t2 values ("d", old.a, old.b);
 end;//
+create trigger t4_au after update on t4
+  for each row begin
+   update t5 set b = b+1;
+  end;
+//
+create trigger t4_ad after delete on t4
+  for each row begin
+    update t5 set b = b+1;
+  end;
+//
 delimiter ;//
+
 insert into t1 values (1, 1, 1.05), (2, 2, 2.05), (3, 3, 3.05), (4, 4, 4.05);
+insert into t4 values (1,1), (2,2), (3,3), (4, 4);
+insert into t5 values (1,0);
 
 # Check that usual update works as it should
 update t1 set a=5 where a != 3;
@@ -86,7 +101,14 @@ insert into t1 values (3, 1, 1.05), (5, 2, 2.05);
 load data infile '../std_data_ln/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (id, a);
 select * from t1 order by id;
 select * from t2 order by op, a, b;
+update t4 set b = 10 where a = 1;
+select * from t5 order by a;
+update t5 set b = 0;
+delete from t4 where a = 1;
+select * from t5 order by a;
+drop trigger t4_au;
+drop trigger t4_ad;
 
-drop tables t1, t2, t3;
+drop table t1, t2, t3, t4, t5;
 
---echo End of 5.0 tests
+--echo End of 5.1 tests
