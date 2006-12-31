@@ -1,4 +1,4 @@
-TARGET = mgmapi_logevent_dual
+TARGET = mgmapi_logevent2
 SRCS = $(TARGET).cpp
 OBJS = $(TARGET).o
 CXX = g++

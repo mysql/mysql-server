@@ -231,6 +231,14 @@ max-time: 500
 cmd: testTimeout
 args: T1 
 
+max-time: 500
+cmd: testBasic
+args: -n Bug25090 T1
+
+max-time: 500
+cmd: testIndex
+args: -n Bug25059 -r 3000 T1
+
 # SCAN TESTS
 #
 max-time: 500
@@ -751,6 +759,10 @@ args: -n Mix -l 300 -r 15 T1
 max-time: 300
 cmd: testNodeRestart
 args: -n Bug24543 T1
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n Bug24664
 
 # OLD FLEX
 max-time: 500

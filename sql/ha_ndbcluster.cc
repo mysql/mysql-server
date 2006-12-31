@@ -133,7 +133,6 @@ static uint ndbcluster_alter_table_flags(uint flags)
 }
 
 static int ndbcluster_inited= 0;
-int ndbcluster_util_inited= 0;
 
 static Ndb* g_ndb= NULL;
 Ndb_cluster_connection* g_ndb_cluster_connection= NULL;
@@ -157,6 +156,7 @@ static int ndb_get_table_statistics(ha_ndbcluster*, bool, Ndb*, const NDBTAB *,
 
 // Util thread variables
 pthread_t ndb_util_thread;
+int ndb_util_thread_running= 0;
 pthread_mutex_t LOCK_ndb_util_thread;
 pthread_cond_t COND_ndb_util_thread;
 pthread_handler_t ndb_util_thread_func(void *arg);
@@ -3477,8 +3477,9 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
     {
       if (m_active_cursor && (error= close_scan()))
         DBUG_RETURN(error);
-      DBUG_RETURN(pk_read(start_key->key, start_key->length, buf,
-                          part_spec.start_part));
+      error= pk_read(start_key->key, start_key->length, buf,
+		     part_spec.start_part);
+      DBUG_RETURN(error == HA_ERR_KEY_NOT_FOUND ? HA_ERR_END_OF_FILE : error);
     }
     break;
   case UNIQUE_ORDERED_INDEX:
@@ -3489,7 +3490,9 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
     {
       if (m_active_cursor && (error= close_scan()))
         DBUG_RETURN(error);
-      DBUG_RETURN(unique_index_read(start_key->key, start_key->length, buf));
+
+      error= unique_index_read(start_key->key, start_key->length, buf);
+      DBUG_RETURN(error == HA_ERR_KEY_NOT_FOUND ? HA_ERR_END_OF_FILE : error);
     }
     else if (type == UNIQUE_INDEX)
       DBUG_RETURN(unique_index_scan(key_info, 
@@ -4803,7 +4806,7 @@ int ha_ndbcluster::create(const char *name,
     if ((my_errno= create_ndb_column(col, field, info)))
       DBUG_RETURN(my_errno);
  
-    if (info->store_on_disk || getenv("NDB_DEFAULT_DISK"))
+    if (info->storage_media == HA_SM_DISK || getenv("NDB_DEFAULT_DISK"))
       col.setStorageType(NdbDictionary::Column::StorageTypeDisk);
     else
       col.setStorageType(NdbDictionary::Column::StorageTypeMemory);
@@ -4823,7 +4826,7 @@ int ha_ndbcluster::create(const char *name,
                              NdbDictionary::Column::StorageTypeMemory);
   }
 
-  if (info->store_on_disk)
+  if (info->storage_media == HA_SM_DISK)
   { 
     if (info->tablespace)
       tab.setTablespace(info->tablespace);
@@ -4832,8 +4835,18 @@ int ha_ndbcluster::create(const char *name,
   }
   else if (info->tablespace)
   {
+    if (info->storage_media == HA_SM_MEMORY)
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+			  ER_ILLEGAL_HA_CREATE_OPTION,
+			  ER(ER_ILLEGAL_HA_CREATE_OPTION),
+			  ndbcluster_hton_name,
+			  "TABLESPACE currently only supported for "
+			  "STORAGE DISK"); 
+      DBUG_RETURN(HA_ERR_UNSUPPORTED);
+    }
     tab.setTablespace(info->tablespace);
-    info->store_on_disk = true;  //if use tablespace, that also means store on disk
+    info->storage_media = HA_SM_DISK;  //if use tablespace, that also means store on disk
   }
 
   // No primary key, create shadow key as 64 bit, auto increment  
@@ -6716,6 +6729,12 @@ static int ndbcluster_init(void *p)
     goto ndbcluster_init_error;
   }
 
+  /* Wait for the util thread to start */
+  pthread_mutex_lock(&LOCK_ndb_util_thread);
+  while (!ndb_util_thread_running)
+    pthread_cond_wait(&COND_ndb_util_thread, &LOCK_ndb_util_thread);
+  pthread_mutex_unlock(&LOCK_ndb_util_thread);
+
   ndbcluster_inited= 1;
   DBUG_RETURN(FALSE);
 
@@ -6738,6 +6757,27 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
 
   if (!ndbcluster_inited)
     DBUG_RETURN(0);
+  ndbcluster_inited= 0;
+
+  /* wait for util thread to finish */
+  pthread_mutex_lock(&LOCK_ndb_util_thread);
+  if (ndb_util_thread_running > 0)
+  {
+    pthread_cond_signal(&COND_ndb_util_thread);
+    pthread_mutex_unlock(&LOCK_ndb_util_thread);
+
+    pthread_mutex_lock(&LOCK_ndb_util_thread);
+    while (ndb_util_thread_running > 0)
+    {
+      struct timespec abstime;
+      set_timespec(abstime, 1);
+      pthread_cond_timedwait(&COND_ndb_util_thread,
+                             &LOCK_ndb_util_thread,
+                             &abstime);
+    }
+  }
+  pthread_mutex_unlock(&LOCK_ndb_util_thread);
+
 
 #ifdef HAVE_NDB_BINLOG
   {
@@ -6784,7 +6824,6 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
   pthread_mutex_destroy(&ndbcluster_mutex);
   pthread_mutex_destroy(&LOCK_ndb_util_thread);
   pthread_cond_destroy(&COND_ndb_util_thread);
-  ndbcluster_inited= 0;
   DBUG_RETURN(0);
 }
 
@@ -7298,7 +7337,7 @@ static void print_share(const char* where, NDB_SHARE* share)
   fprintf(DBUG_FILE,
           "%s %s.%s: use_count: %u, commit_count: %llu\n",
           where, share->db, share->table_name, share->use_count,
-          share->commit_count);
+          (long long unsigned int) share->commit_count);
   fprintf(DBUG_FILE,
           "  - key: %s, key_length: %d\n",
           share->key, share->key_length);
@@ -8330,6 +8369,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   {
     thd->cleanup();
     delete thd;
+    ndb_util_thread_running= 0;
     DBUG_RETURN(NULL);
   }
   thd->init_for_queries();
@@ -8342,6 +8382,9 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   thd->main_security_ctx.priv_user = 0;
   thd->current_stmt_binlog_row_based= TRUE;     // If in mixed mode
 
+  ndb_util_thread_running= 1;
+  pthread_cond_signal(&COND_ndb_util_thread);
+
   /*
     wait for mysql server to start
   */
@@ -8349,8 +8392,6 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   while (!mysqld_server_started)
     pthread_cond_wait(&COND_server_started, &LOCK_server_started);
   pthread_mutex_unlock(&LOCK_server_started);
-
-  ndbcluster_util_inited= 1;
 
   /*
     Wait for cluster to start
@@ -8533,6 +8574,9 @@ ndb_util_thread_end:
   net_end(&thd->net);
   thd->cleanup();
   delete thd;
+  pthread_mutex_lock(&LOCK_ndb_util_thread);
+  ndb_util_thread_running= 0;
+  pthread_mutex_unlock(&LOCK_ndb_util_thread);
   DBUG_PRINT("exit", ("ndb_util_thread"));
   my_thread_end();
   pthread_exit(0);
@@ -9945,7 +9989,7 @@ int ha_ndbcluster::generate_scan_filter_from_key(NdbScanOperation *op,
 /*
   get table space info for SHOW CREATE TABLE
 */
-char* ha_ndbcluster::get_tablespace_name(THD *thd)
+char* ha_ndbcluster::get_tablespace_name(THD *thd, char* name, uint name_len)
 {
   Ndb *ndb= check_ndb_in_thd(thd);
   NDBDICT *ndbdict= ndb->getDictionary();
@@ -9963,7 +10007,13 @@ char* ha_ndbcluster::get_tablespace_name(THD *thd)
     ndberr= ndbdict->getNdbError();
     if(ndberr.classification != NdbError::NoError)
       goto err;
-    return (my_strdup(ts.getName(), MYF(0)));
+    if (name)
+    {
+      strxnmov(name, name_len, ts.getName(), NullS);
+      return name;
+    }
+    else
+      return (my_strdup(ts.getName(), MYF(0)));
   }
 err:
   if (ndberr.status == NdbError::TemporaryError)
