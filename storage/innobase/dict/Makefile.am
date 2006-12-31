@@ -1,5 +1,4 @@
-# Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-# & Innobase Oy
+# Copyright (C) 2001, 2003 MySQL AB & Innobase Oy
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,3 +21,6 @@ libdict_a_SOURCES =	dict0boot.c dict0crea.c dict0dict.c dict0load.c\
 			dict0mem.c
 
 EXTRA_PROGRAMS =	
+
+# Don't update the files from bitkeeper
+%::SCCS/s.%

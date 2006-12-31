@@ -1,4 +1,4 @@
-# Copyright (C) 2004 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+# Copyright (C) 2004-2006 MySQL AB
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,3 +31,6 @@ libz_la_SOURCES= adler32.c compress.c crc32.c deflate.c gzio.c \
 		 uncompr.c zutil.c
 
 EXTRA_DIST= README FAQ INDEX ChangeLog algorithm.txt zlib.3 CMakeLists.txt
+
+# Don't update the files from bitkeeper
+%::SCCS/s.%

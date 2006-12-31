@@ -1,6 +1,4 @@
-#ifndef INCLUDES_MYSQL_INSTANCE_MANAGER_USER_MAP_H
-#define INCLUDES_MYSQL_INSTANCE_MANAGER_USER_MAP_H
-/* Copyright (C) 2003 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2004-2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#ifndef INCLUDES_MYSQL_INSTANCE_MANAGER_USER_MAP_H
+#define INCLUDES_MYSQL_INSTANCE_MANAGER_USER_MAP_H
 
 #include <my_global.h>
 #include <my_sys.h>
