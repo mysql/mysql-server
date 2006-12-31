@@ -1,5 +1,5 @@
 #!@PERL@
-# Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+# Copyright (C) 2000-2001, 2003 MySQL AB
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
