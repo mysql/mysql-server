@@ -1,5 +1,4 @@
-# Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-# & Innobase Oy
+# Copyright (C) 2001, 2003 MySQL AB & Innobase Oy
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,3 +21,6 @@ libtrx_a_SOURCES =	trx0purge.c trx0rec.c trx0roll.c trx0rseg.c\
 			trx0sys.c trx0trx.c trx0undo.c
 
 EXTRA_PROGRAMS =	
+
+# Don't update the files from bitkeeper
+%::SCCS/s.%

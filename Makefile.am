@@ -1,4 +1,4 @@
-# Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+# Copyright (C) 2000-2006 MySQL AB
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -159,4 +159,3 @@ test-force-full-pl: test-force-full
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
-
