@@ -2190,9 +2190,14 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     impl->m_replicaCount = replicaCount;
     impl->m_fragmentCount = fragCount;
     DBUG_PRINT("info", ("replicaCount=%x , fragCount=%x",replicaCount,fragCount));
-    for(i = 0; i < (Uint32) (fragCount*replicaCount); i++)
+    Uint32 pos = 2;
+    for(i = 0; i < (Uint32) fragCount;i++)
     {
-      impl->m_fragments.push_back(ntohs(tableDesc->ReplicaData[i+2]));
+      pos++; // skip logpart
+      for (Uint32 j = 0; j<(Uint32)replicaCount; j++)
+      {
+	impl->m_fragments.push_back(ntohs(tableDesc->ReplicaData[pos++]));
+      }
     }
 
     Uint32 topBit = (1 << 31);
@@ -2296,7 +2301,7 @@ NdbDictionaryImpl::createTable(NdbTableImpl &t)
   }
 
   // blob tables - use "t2" to get values set by kernel
-  if (t2->m_noOfBlobs != 0 && createBlobTables(*t2) != 0) {
+  if (t2->m_noOfBlobs != 0 && createBlobTables(t, *t2) != 0) {
     int save_code = m_error.code;
     (void)dropTableGlobal(*t2);
     m_error.code = save_code;
@@ -2310,7 +2315,7 @@ NdbDictionaryImpl::createTable(NdbTableImpl &t)
 }
 
 int
-NdbDictionaryImpl::createBlobTables(NdbTableImpl &t)
+NdbDictionaryImpl::createBlobTables(NdbTableImpl& orig, NdbTableImpl &t)
 {
   DBUG_ENTER("NdbDictionaryImpl::createBlobTables");
   for (unsigned i = 0; i < t.m_columns.size(); i++) {
@@ -2319,6 +2324,10 @@ NdbDictionaryImpl::createBlobTables(NdbTableImpl &t)
       continue;
     NdbTableImpl bt;
     NdbBlob::getBlobTable(bt, &t, &c);
+    NdbDictionary::Column::StorageType 
+      d = NdbDictionary::Column::StorageTypeDisk;
+    if (orig.m_columns[i]->getStorageType() == d)
+      bt.getColumn("DATA")->setStorageType(d);
     if (createTable(bt) != 0) {
       DBUG_RETURN(-1);
     }

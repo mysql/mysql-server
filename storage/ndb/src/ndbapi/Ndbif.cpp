@@ -1088,6 +1088,7 @@ Ndb::check_send_timeout()
 	//abort();
 #endif
         a_con->theReleaseOnClose = true;
+	a_con->theError.code = 4012;
         a_con->setOperationErrorCodeAbort(4012);
 	a_con->theCommitStatus = NdbTransaction::NeedAbort;
         a_con->theCompletionStatus = NdbTransaction::CompletedFailure;
@@ -1275,9 +1276,9 @@ Ndb::waitCompletedTransactions(int aMilliSecondsToWait,
   NDB_TICKS currTime = NdbTick_CurrentMillisecond();
   NDB_TICKS maxTime = currTime + (NDB_TICKS)waitTime;
   theMinNoOfEventsToWakeUp = noOfEventsToWaitFor;
+  const int maxsleep = aMilliSecondsToWait > 10 ? 10 : aMilliSecondsToWait;
   do {
-    if (waitTime < 1000) waitTime = 1000;
-    poll_guard->wait_for_input(waitTime);
+    poll_guard->wait_for_input(maxsleep);
     if (theNoOfCompletedTransactions >= (Uint32)noOfEventsToWaitFor) {
       break;
     }//if

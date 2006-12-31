@@ -1266,7 +1266,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       to the CREATE TABLE statement
     */
 
-    if ((for_str= file->get_tablespace_name(thd)))
+    if ((for_str= file->get_tablespace_name(thd,0,0)))
     {
       packet->append(STRING_WITH_LEN(" /*!50100 TABLESPACE "));
       packet->append(for_str, strlen(for_str));
@@ -3973,7 +3973,7 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
                               strlen(part_elem->tablespace_name), cs);
     else
     {
-      char *ts= showing_table->file->get_tablespace_name(thd);
+      char *ts= showing_table->file->get_tablespace_name(thd,0,0);
       if(ts)
       {
         table->field[24]->store(ts, strlen(ts), cs);
