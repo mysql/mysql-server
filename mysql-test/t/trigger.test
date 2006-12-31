@@ -1140,6 +1140,7 @@ select trigger_schema, trigger_name, event_object_schema,
 # Trick which makes update of second .TRN file impossible
 system echo dummy >$MYSQLTEST_VARDIR/master-data/test/t1_ai.TRN~;
 system chmod 000 $MYSQLTEST_VARDIR/master-data/test/t1_ai.TRN~;
+--replace_result $MYSQLTEST_VARDIR . master-data/ ''
 --error 1
 rename table t1 to t2;
 # 't1' should be still there and triggers should work correctly
