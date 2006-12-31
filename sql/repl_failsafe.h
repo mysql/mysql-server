@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB & Sasha
+/* Copyright (C) 2001-2005 MySQL AB & Sasha
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
