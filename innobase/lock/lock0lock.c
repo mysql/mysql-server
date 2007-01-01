@@ -550,7 +550,7 @@ lock_sys_create(
 {
 	lock_sys = mem_alloc(sizeof(lock_sys_t));
 
-	lock_sys->rec_hash = hash_create(n_cells);
+	lock_sys->rec_hash = hash0_create(n_cells);
 
 	/* hash_create_mutexes(lock_sys->rec_hash, 2, SYNC_REC_LOCK); */
 

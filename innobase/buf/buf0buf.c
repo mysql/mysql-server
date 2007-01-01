@@ -621,7 +621,7 @@ buf_pool_init(
 		}
 	}
 
-	buf_pool->page_hash = hash_create(2 * max_size);
+	buf_pool->page_hash = hash0_create(2 * max_size);
 
 	buf_pool->n_pend_reads = 0;
 
