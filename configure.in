@@ -2415,14 +2415,16 @@ thread_dirs=
 
 dnl This probably should be cleaned up more - for now the threaded
 dnl client is just using plain-old libs.
-sql_client_dirs="strings regex mysys libmysql client"
+sql_client_dirs=
 linked_client_targets="linked_libmysql_sources"
 
 AM_CONDITIONAL(THREAD_SAFE_CLIENT, test "$THREAD_SAFE_CLIENT" != "no")
 
-if test "$THREAD_SAFE_CLIENT" != "no"
+if test "$THREAD_SAFE_CLIENT" = "no"
 then
-  sql_client_dirs="libmysql_r $sql_client_dirs"
+  sql_client_dirs="strings regex mysys extra libmysql client"
+else
+  sql_client_dirs="strings regex mysys extra libmysql libmysql_r client"
   linked_client_targets="$linked_client_targets linked_libmysql_r_sources"
   AC_CONFIG_FILES(libmysql_r/Makefile)
   AC_DEFINE([THREAD_SAFE_CLIENT], [1], [Should the client be thread safe])
@@ -2449,13 +2451,17 @@ AC_SUBST(netware_dir)
 AC_SUBST(linked_netware_sources)
 AM_CONDITIONAL(HAVE_NETWARE, test "$netware_dir" = "netware")
 
-if test "$with_server" = "yes" -o "$THREAD_SAFE_CLIENT" != "no"
+if test "$with_server" != "no" -o "$THREAD_SAFE_CLIENT" != "no"
 then
   AC_DEFINE([THREAD], [1],
             [Define if you want to have threaded code. This may be undef on client code])
   # Avoid _PROGRAMS names
   THREAD_LOBJECTS="thr_alarm.o thr_lock.o thr_mutex.o thr_rwlock.o my_pthread.o my_thr_init.o mf_keycache.o"
   AC_SUBST(THREAD_LOBJECTS)
+fi
+
+if test "$with_server" != "no"
+then
   server_scripts="mysqld_safe mysql_install_db"
   sql_server_dirs="strings mysys dbug extra regex"
 
