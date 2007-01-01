@@ -51,6 +51,10 @@
 #define OPT_NDBCLUSTER_DEFAULT 0
 #endif
 
+#ifndef DEFAULT_SKIP_THREAD_PRIORITY
+#define DEFAULT_SKIP_THREAD_PRIORITY 0
+#endif
+
 #include <thr_alarm.h>
 #include <ft_global.h>
 #include <errmsg.h>
@@ -5384,8 +5388,8 @@ Can't be set to 1 if --log-slave-updates is used.",
   {"skip-symlink", OPT_SKIP_SYMLINKS, "Don't allow symlinking of tables. Deprecated option.  Use --skip-symbolic-links instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-thread-priority", OPT_SKIP_PRIOR,
-   "Don't give threads different priorities.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-   0, 0, 0, 0, 0},
+   "Don't give threads different priorities.", 0, 0, 0, GET_NO_ARG, NO_ARG,
+   DEFAULT_SKIP_THREAD_PRIORITY, 0, 0, 0, 0, 0},
 #ifdef HAVE_REPLICATION
   {"slave-load-tmpdir", OPT_SLAVE_LOAD_TMPDIR,
    "The location where the slave should put its temporary files when \
