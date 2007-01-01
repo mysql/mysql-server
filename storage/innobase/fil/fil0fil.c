@@ -1323,8 +1323,8 @@ fil_system_create(
 
 	mutex_create(&system->mutex, SYNC_ANY_LATCH);
 
-	system->spaces = hash_create(hash_size);
-	system->name_hash = hash_create(hash_size);
+	system->spaces = hash0_create(hash_size);
+	system->name_hash = hash0_create(hash_size);
 
 	UT_LIST_INIT(system->LRU);
 
