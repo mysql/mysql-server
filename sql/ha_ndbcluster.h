@@ -884,6 +884,7 @@ private:
                                   ulonglong *nb_reserved_values);
   bool uses_blob_value();
 
+  void update_create_info(HA_CREATE_INFO *create_info);
   char *update_table_comment(const char * comment);
 
   int write_ndb_file(const char *name);
