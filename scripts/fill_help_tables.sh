@@ -521,6 +521,7 @@ print <<EOF;
 -- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 EOF
+print "set sql_mode='';\n";
 print "delete from help_topic;\n";
 print "delete from help_category;\n";
 print "delete from help_keyword;\n";
