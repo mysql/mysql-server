@@ -3339,8 +3339,10 @@ int win_main(int argc, char **argv)
 int main(int argc, char **argv)
 #endif
 {
-  DEBUGGER_OFF;
   MY_INIT(argv[0]);		// init my_sys library & pthreads
+  /* ^^^  Nothing should be before this line! */
+
+  DEBUGGER_OFF;
 
 #ifdef _CUSTOMSTARTUPCONFIG_
   if (_cust_check_startup())
