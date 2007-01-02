@@ -221,6 +221,9 @@ ALTER TABLE test.t1 DROP INDEX a2_i;
 
 SHOW CREATE TABLE test.t1;
 
+TRUNCATE TABLE test.t1;
+
+SHOW CREATE TABLE test.t1;
 
 #### Try to ALTER DD Tables and drop columns
 
