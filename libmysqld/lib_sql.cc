@@ -250,10 +250,10 @@ int emb_read_binary_rows(MYSQL_STMT *stmt)
   MYSQL_DATA *data;
   if (!(data= emb_read_rows(stmt->mysql, 0, 0)))
   {
-    strmake(stmt->sqlstate, stmt->mysql->net.sqlstate, sizeof(stmt->sqlstate));
-    strmake(stmt->last_error, stmt->mysql->net.last_error,
-            sizeof(stmt->last_error));
-    stmt->last_errno= stmt->mysql->net.last_errno;
+    stmt->result= *data;
+    my_free((char *) data, MYF(0));
+    set_stmt_errmsg(stmt, stmt->mysql->net.last_error,
+                    stmt->mysql->net.last_errno, stmt->mysql->net.sqlstate);
     return 1;
   }
   return 0;
