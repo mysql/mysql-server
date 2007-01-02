@@ -1505,9 +1505,10 @@ loop:
 		block = guess;
 
 		if (offset != block->page.offset
-		    || space != block->page.space) {
+		    || space != block->page.space
+		    || !buf_page_in_file(&block->page)) {
 
-			block = NULL;
+			block = guess = NULL;
 		}
 	}
 
