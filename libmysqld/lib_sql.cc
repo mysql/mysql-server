@@ -198,6 +198,7 @@ static my_bool emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   stmt->stmt_id= thd->client_stmt_id;
   stmt->param_count= thd->client_param_count;
   stmt->field_count= 0;
+  mysql->warning_count= thd->total_warn_count;
 
   if (thd->first_data)
   {
