@@ -1,3 +1,5 @@
+# test script should specify proper directories for embedded
+--source include/not_embedded.inc
 #
 # Bug with distinct and INSERT INTO
 # Bug with group by and not used fields
