@@ -40,9 +40,6 @@ have disables the InnoDB inlining in this file. */
 #include <myisampack.h>
 #include <mysys_err.h>
 #include <my_sys.h>
-
-#define MAX_ULONG_BIT ((ulong) 1 << (sizeof(ulong)*8-1))
-
 #include "ha_innodb.h"
 
 pthread_mutex_t innobase_share_mutex,	/* to protect innobase_open_files */
@@ -1257,18 +1254,6 @@ trx_is_interrupted(
 	return(trx && trx->mysql_thd && ((THD*) trx->mysql_thd)->killed);
 }
 
-/**************************************************************************
-Obtain a pointer to the MySQL THD object, as in current_thd().	This
-definition must match the one in sql/ha_innodb.cc! */
-extern "C"
-void*
-innobase_current_thd(void)
-/*======================*/
-			/* out: MySQL THD object */
-{
-	return(current_thd);
-}
-
 /*********************************************************************
 Call this when you have opened a new table handle in HANDLER, before you
 call index_read_idx() etc. Actually, we can let the cursor stay open even
@@ -2328,7 +2313,7 @@ ha_innobase::open(
 
 	/* Get pointer to a table object in InnoDB dictionary cache */
 
-	ib_table = dict_table_get_and_increment_handle_count(norm_name);
+	ib_table = dict_table_get(norm_name, TRUE);
 
 	if (NULL == ib_table) {
 		ut_print_timestamp(stderr);
@@ -2490,7 +2475,7 @@ get_field_offset(
 /******************************************************************
 Checks if a field in a record is SQL NULL. Uses the record format
 information in table to track the null bit in record. */
-inline
+static inline
 uint
 field_in_record_is_null(
 /*====================*/
@@ -4915,7 +4900,7 @@ ha_innobase::create(
 
 	log_buffer_flush_to_disk();
 
-	innobase_table = dict_table_get(norm_name);
+	innobase_table = dict_table_get(norm_name, FALSE);
 
 	DBUG_ASSERT(innobase_table != 0);
 
@@ -5526,16 +5511,10 @@ ha_innobase::info(
 		prebuilt->trx->op_info = (char*)
 					  "returning various info to MySQL";
 
-		if (ib_table->space != 0) {
-			my_snprintf(path, sizeof(path), "%s/%s%s",
-				mysql_data_home, ib_table->name, ".ibd");
-			unpack_filename(path,path);
-		} else {
-			my_snprintf(path, sizeof(path), "%s/%s%s",
+		my_snprintf(path, sizeof(path), "%s/%s%s",
 				mysql_data_home, ib_table->name, reg_ext);
 
-			unpack_filename(path,path);
-		}
+		unpack_filename(path,path);
 
 		/* Note that we do not know the access time of the table,
 		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
@@ -7344,7 +7323,6 @@ innobase_get_at_most_n_mbchars(
 }
 }
 
-extern "C" {
 /**********************************************************************
 This function returns true if
 
@@ -7354,33 +7332,34 @@ is either REPLACE or LOAD DATA INFILE REPLACE.
 2) SQL-query in the current thread
 is INSERT ON DUPLICATE KEY UPDATE.
 
-NOTE that /mysql/innobase/row/row0ins.c must contain the
+NOTE that storage/innobase/row/row0ins.c must contain the
 prototype for this function ! */
-
+extern "C"
 ibool
 innobase_query_is_update(void)
 /*==========================*/
 {
-	THD*	thd;
+	THD*	thd = current_thd;
 
-	thd = (THD *)innobase_current_thd();
+	if (!thd) {
+		/* InnoDB's internal threads may run InnoDB stored procedures
+		that call this function. Then current_thd is not defined
+		(it is probably NULL). */
 
-	if (thd->lex->sql_command == SQLCOM_REPLACE ||
-		thd->lex->sql_command == SQLCOM_REPLACE_SELECT ||
-		(thd->lex->sql_command == SQLCOM_LOAD &&
-			thd->lex->duplicates == DUP_REPLACE)) {
-
-		return(1);
+		return(FALSE);
 	}
 
-	if (thd->lex->sql_command == SQLCOM_INSERT &&
-		thd->lex->duplicates  == DUP_UPDATE) {
-
-		return(1);
+	switch (thd->lex->sql_command) {
+	case SQLCOM_REPLACE:
+	case SQLCOM_REPLACE_SELECT:
+		return(TRUE);
+	case SQLCOM_LOAD:
+		return(thd->lex->duplicates == DUP_REPLACE);
+	case SQLCOM_INSERT:
+		return(thd->lex->duplicates == DUP_UPDATE);
+	default:
+		return(FALSE);
 	}
-
-	return(0);
-}
 }
 
 /***********************************************************************
