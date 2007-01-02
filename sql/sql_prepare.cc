@@ -1253,7 +1253,6 @@ static int mysql_test_select(Prepared_statement *stmt,
 
   lex->select_lex.context.resolve_in_select_list= TRUE;
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   ulong privilege= lex->exchange ? SELECT_ACL | FILE_ACL : SELECT_ACL;
   if (tables)
   {
@@ -1262,7 +1261,6 @@ static int mysql_test_select(Prepared_statement *stmt,
   }
   else if (check_access(thd, privilege, any_db,0,0,0,0))
     goto error;
-#endif
 
   if (!lex->result && !(lex->result= new (stmt->mem_root) select_send))
   {
