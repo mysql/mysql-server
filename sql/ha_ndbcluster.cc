@@ -8309,6 +8309,12 @@ ha_ndbcluster::setup_recattr(const NdbRecAttr* curr)
   DBUG_RETURN(0);
 }
 
+void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
+{
+  if (get_tablespace_name(current_thd,0,0))
+    create_info->storage_media= HA_SM_DISK;
+}
+
 char*
 ha_ndbcluster::update_table_comment(
                                 /* out: table comment + additional */
