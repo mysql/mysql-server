@@ -19,6 +19,7 @@
 #if defined(__GNUC__) && defined(USE_PRAGMA_INTERFACE)
 #pragma interface
 #endif
+
 #include <my_global.h>
 
 class Guardian;
@@ -30,8 +31,12 @@ class Manager
 {
 public:
   static int main();
+
+  static bool flush_instances();
+
+public:
   /**
-    These methods return a non-zero value only for the duration
+    These methods return a non-NULL value only for the duration
     of main().
   */
   static Instance_map *get_instance_map() { return p_instance_map; }
@@ -39,6 +44,7 @@ public:
   static Thread_registry *get_thread_registry() { return p_thread_registry; }
   static User_map *get_user_map() { return p_user_map; }
 
+public:
 #ifndef __WIN__
   static bool is_linux_threads() { return linux_threads; }
 #endif // __WIN__
