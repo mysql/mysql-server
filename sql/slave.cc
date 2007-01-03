@@ -2924,9 +2924,9 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
 #endif
 
   if (thd_type == SLAVE_THD_SQL)
-    thd->proc_info= "Waiting for the next event in relay log";
+    THD_PROC_INFO(thd, "Waiting for the next event in relay log");
   else
-    thd->proc_info= "Waiting for master update";
+    THD_PROC_INFO(thd, "Waiting for master update");
   thd->version=refresh_version;
   thd->set_time();
   DBUG_RETURN(0);
@@ -3545,7 +3545,7 @@ dump");
       }
 
       mi->slave_running= MYSQL_SLAVE_RUN_NOT_CONNECT;
-      thd->proc_info= "Waiting to reconnect after a failed binlog dump request";
+      THD_PROC_INFO(thd, "Waiting to reconnect after a failed binlog dump request");
 #ifdef SIGNAL_WITH_VIO_CLOSE
       thd->clear_active_vio();
 #endif
