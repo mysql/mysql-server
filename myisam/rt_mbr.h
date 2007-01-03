@@ -1,5 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & Ramil Kalimullin & MySQL Finland AB 
-   & TCX DataKonsult AB
+/* Copyright (C) 2002, 2004 MySQL AB & Ramil Kalimullin
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
