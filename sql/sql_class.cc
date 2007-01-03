@@ -331,9 +331,6 @@ void THD::init(void)
 					       variables.date_format);
   variables.datetime_format= date_time_format_copy((THD*) 0,
 						   variables.datetime_format);
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-  variables.ndb_use_transactions= 1;
-#endif
   pthread_mutex_unlock(&LOCK_global_system_variables);
   server_status= SERVER_STATUS_AUTOCOMMIT;
   if (variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)
