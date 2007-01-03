@@ -77,7 +77,8 @@ ut_fold_ulint_pair(
 /*===============*/
 			/* out: folded value */
 	ulint	n1,	/* in: ulint */
-	ulint	n2);	/* in: ulint */
+	ulint	n2)	/* in: ulint */
+	__attribute__((const));
 /*****************************************************************
 Folds a dulint. */
 UNIV_INLINE
@@ -85,7 +86,8 @@ ulint
 ut_fold_dulint(
 /*===========*/
 			/* out: folded value */
-	dulint	d);	/* in: dulint */
+	dulint	d)	/* in: dulint */
+	__attribute__((const));
 /*****************************************************************
 Folds a character string ending in the null character. */
 UNIV_INLINE
@@ -93,7 +95,8 @@ ulint
 ut_fold_string(
 /*===========*/
 				/* out: folded value */
-	const char*	str);	/* in: null-terminated string */
+	const char*	str)	/* in: null-terminated string */
+	__attribute__((pure));
 /*****************************************************************
 Folds a binary string. */
 UNIV_INLINE
@@ -102,7 +105,8 @@ ut_fold_binary(
 /*===========*/
 				/* out: folded value */
 	const byte*	str,	/* in: string of bytes */
-	ulint		len);	/* in: length */
+	ulint		len)	/* in: length */
+	__attribute__((pure));
 /***************************************************************
 Looks for a prime number slightly greater than the given argument.
 The prime is chosen so that it is not near any power of 2. */
@@ -111,7 +115,8 @@ ulint
 ut_find_prime(
 /*==========*/
 			/* out: prime */
-	ulint	 n);	 /* in: positive number > 100 */
+	ulint	n)	/* in: positive number > 100 */
+	__attribute__((const));
 
 
 #ifndef UNIV_NONINL
