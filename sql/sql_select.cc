@@ -2306,8 +2306,18 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
         substitution of a const table the key value happens to be null
         then we can state that there are no matches for this equi-join.
       */  
-      if ((keyuse= s->keyuse) && *s->on_expr_ref)
+      if ((keyuse= s->keyuse) && *s->on_expr_ref && !s->embedding_map)
       {
+        /* 
+          When performing an outer join operation if there are no matching rows
+          for the single row of the outer table all the inner tables are to be
+          null complemented and thus considered as constant tables.
+          Here we apply this consideration to the case of outer join operations 
+          with a single inner table only because the case with nested tables
+          would require a more thorough analysis.
+          TODO. Apply single row substitution to null complemented inner tables
+          for nested outer join operations. 
+	*/              
         while (keyuse->table == table)
         {
           if (!(keyuse->val->used_tables() & ~join->const_table_map) &&
