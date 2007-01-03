@@ -181,6 +181,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  BIT_SYM
 %token  BIT_XOR
 %token  BLOB_SYM
+%token  BLOCK_SYM
 %token  BOOLEAN_SYM
 %token  BOOL_SYM
 %token  BOTH
@@ -221,10 +222,12 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  CONSISTENT_SYM
 %token  CONSTRAINT
 %token  CONTAINS_SYM
+%token  CONTEXT_SYM
 %token  CONTINUE_SYM
 %token  CONVERT_SYM
 %token  CONVERT_TZ_SYM
 %token  COUNT_SYM
+%token  CPU_SYM
 %token  CREATE
 %token  CROSS
 %token  CUBE_SYM
@@ -298,6 +301,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  EXTRACT_SYM
 %token  FALSE_SYM
 %token  FAST_SYM
+%token  FAULTS_SYM
 %token  FETCH_SYM
 %token  FIELD_FUNC
 %token  FILE_SYM
@@ -367,6 +371,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  INT_SYM
 %token  INVOKER_SYM
 %token  IN_SYM
+%token  IO_SYM
+%token  IPC_SYM
 %token  IS
 %token  ISOLATION
 %token  ISSUER_SYM
@@ -435,6 +441,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  MEDIUMINT
 %token  MEDIUMTEXT
 %token  MEDIUM_SYM
+%token  MEMORY_SYM
 %token  MERGE_SYM
 %token  MICROSECOND_SYM
 %token  MIGRATE_SYM
@@ -493,6 +500,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  OUTFILE
 %token  OUT_SYM
 %token  PACK_KEYS_SYM
+%token  PAGE_SYM
 %token  PARTIAL
 %token  PASSWORD
 %token  PARAM_MARKER
@@ -510,6 +518,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  PROCEDURE
 %token  PROCESS
 %token  PROCESSLIST_SYM
+%token  PROFILE_SYM
+%token  PROFILES_SYM
 %token  PURGE
 %token  QUARTER_SYM
 %token  QUERY_SYM
@@ -580,6 +590,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  SMALLINT
 %token  SNAPSHOT_SYM
 %token  SOUNDS_SYM
+%token  SOURCE_SYM
 %token  SPATIAL_SYM
 %token  SPECIFIC_SYM
 %token  SQLEXCEPTION_SYM
@@ -610,6 +621,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  SUM_SYM
 %token  SUPER_SYM
 %token  SUSPEND_SYM
+%token  SWAPS_SYM
+%token  SWITCHES_SYM
 %token  SYSDATE
 %token  TABLES
 %token  TABLESPACE
@@ -735,7 +748,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         union_opt select_derived_init option_type2
 
 %type <ulong_num>
-	ulong_num raid_types merge_insert_types
+	ulong_num raid_types merge_insert_types opt_profile_query_arg
 
 %type <ulonglong_number>
 	ulonglong_num
@@ -6472,6 +6485,48 @@ opt_table_sym:
 	/* empty */
 	| TABLE_SYM;
 
+opt_profile_defs:
+  /* empty */
+  | profile_defs
+
+profile_defs:
+  profile_def
+  | profile_defs ',' profile_def
+
+profile_def:
+  CPU_SYM
+    { Lex->profile_options|= PROFILE_CPU; }
+  | MEMORY_SYM
+    { Lex->profile_options|= PROFILE_MEMORY; }
+  | BLOCK_SYM IO_SYM
+    { Lex->profile_options|= PROFILE_BLOCK_IO; }
+  | CONTEXT_SYM SWITCHES_SYM
+    { Lex->profile_options|= PROFILE_CONTEXT; }
+  | PAGE_SYM FAULTS_SYM
+    { Lex->profile_options|= PROFILE_PAGE_FAULTS; }
+  | IPC_SYM
+    { Lex->profile_options|= PROFILE_IPC; }
+  | SWAPS_SYM
+    { Lex->profile_options|= PROFILE_SWAPS; }
+  | SOURCE_SYM
+    { Lex->profile_options|= PROFILE_SOURCE; }
+  | ALL
+    { Lex->profile_options|= PROFILE_ALL; }
+  ;
+
+opt_profile_query_arg:
+  /* empty */
+    { $$= 0; }
+  | QUERY_SYM NUM
+    { $$= atoi($2.str); }
+  ;
+
+opt_profile_args:
+  /* empty */
+  | FOR_SYM opt_profile_query_arg
+    { Lex->profile_query_id = $2; }
+  ;
+
 /* Show things */
 
 show:	SHOW
@@ -6607,6 +6662,10 @@ show_param:
           { Lex->sql_command = SQLCOM_SHOW_WARNS;}
         | ERRORS opt_limit_clause_init
           { Lex->sql_command = SQLCOM_SHOW_ERRORS;}
+        | PROFILES_SYM
+          { Lex->sql_command = SQLCOM_SHOW_PROFILES; }
+        | PROFILE_SYM opt_profile_defs opt_profile_args opt_limit_clause_init
+          { Lex->sql_command = SQLCOM_SHOW_PROFILE; }
         | opt_var_type STATUS_SYM wild_and_where
           {
             LEX *lex= Lex;
@@ -7698,6 +7757,7 @@ keyword_sp:
 	| BERKELEY_DB_SYM	{}
 	| BINLOG_SYM		{}
 	| BIT_SYM		{}
+	| BLOCK_SYM {}
 	| BOOL_SYM		{}
 	| BOOLEAN_SYM		{}
 	| BTREE_SYM		{}
@@ -7714,6 +7774,8 @@ keyword_sp:
 	| COMPRESSED_SYM	{}
 	| CONCURRENT		{}
 	| CONSISTENT_SYM	{}
+	| CONTEXT_SYM     {}
+	| CPU_SYM     {}
 	| CUBE_SYM		{}
 	| DATA_SYM		{}
 	| DATETIME		{}
@@ -7736,6 +7798,7 @@ keyword_sp:
         | EXPANSION_SYM         {}
 	| EXTENDED_SYM		{}
 	| FAST_SYM		{}
+	| FAULTS_SYM  {}
 	| FOUND_SYM		{}
 	| DISABLE_SYM		{}
 	| ENABLE_SYM		{}
@@ -7760,6 +7823,8 @@ keyword_sp:
 	| ISSUER_SYM		{}
 	| INNOBASE_SYM		{}
 	| INSERT_METHOD		{}
+	| IO_SYM          {}
+	| IPC_SYM         {}
 	| RELAY_THREAD		{}
 	| LAST_SYM		{}
 	| LEAVES                {}
@@ -7789,6 +7854,7 @@ keyword_sp:
 	| MAX_UPDATES_PER_HOUR	{}
 	| MAX_USER_CONNECTIONS_SYM {}
 	| MEDIUM_SYM		{}
+	| MEMORY_SYM    {}
 	| MERGE_SYM		{}
 	| MICROSECOND_SYM	{}
         | MIGRATE_SYM           {}
@@ -7815,6 +7881,7 @@ keyword_sp:
 	| ONE_SHOT_SYM		{}
         | ONE_SYM               {}
 	| PACK_KEYS_SYM		{}
+	| PAGE_SYM        {}
 	| PARTIAL		{}
 	| PASSWORD		{}
         | PHASE_SYM             {}
@@ -7824,6 +7891,8 @@ keyword_sp:
         | PRIVILEGES            {}
 	| PROCESS		{}
 	| PROCESSLIST_SYM	{}
+	| PROFILE_SYM {}
+	| PROFILES_SYM {}
 	| QUARTER_SYM		{}
 	| QUERY_SYM		{}
 	| QUICK			{}
@@ -7857,6 +7926,7 @@ keyword_sp:
 	| SHUTDOWN		{}
 	| SNAPSHOT_SYM		{}
 	| SOUNDS_SYM		{}
+	| SOURCE_SYM    {}
 	| SQL_CACHE_SYM		{}
 	| SQL_BUFFER_RESULT	{}
 	| SQL_NO_CACHE_SYM	{}
@@ -7868,6 +7938,8 @@ keyword_sp:
 	| SUBJECT_SYM		{}
 	| SUPER_SYM		{}
         | SUSPEND_SYM           {}
+  | SWAPS_SYM           {}
+	| SWITCHES_SYM    {}
         | TABLES                {}
 	| TABLESPACE		{}
 	| TEMPORARY		{}

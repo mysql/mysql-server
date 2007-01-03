@@ -1197,7 +1197,7 @@ bool change_master(THD* thd, MASTER_INFO* mi)
   if (need_relay_log_purge)
   {
     relay_log_purge= 1;
-    thd->proc_info="Purging old relay logs";
+    THD_PROC_INFO(thd, "Purging old relay logs");
     if (purge_relay_logs(&mi->rli, thd,
 			 0 /* not only reset, but also reinit */,
 			 &errmsg))

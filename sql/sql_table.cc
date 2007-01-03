@@ -1728,7 +1728,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     }
   }
 
-  thd->proc_info="creating table";
+  THD_PROC_INFO(thd, "creating table");
   create_info->table_existed= 0;		// Mark that table is created
 
   if (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE)
@@ -1759,7 +1759,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
 
 end:
   VOID(pthread_mutex_unlock(&LOCK_open));
-  thd->proc_info="After create";
+  THD_PROC_INFO(thd, "After create");
   DBUG_RETURN(error);
 
 warn:
@@ -2878,7 +2878,7 @@ mysql_discard_or_import_tablespace(THD *thd,
     ALTER TABLE
   */
 
-  thd->proc_info="discard_or_import_tablespace";
+  THD_PROC_INFO(thd, "discard_or_import_tablespace");
 
   discard= test(tablespace_op == DISCARD_TABLESPACE);
 
@@ -2895,7 +2895,7 @@ mysql_discard_or_import_tablespace(THD *thd,
 
   error=table->file->discard_or_import_tablespace(discard);
 
-  thd->proc_info="end";
+  THD_PROC_INFO(thd, "end");
 
   if (error)
     goto err;
@@ -2958,7 +2958,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   frm_type_enum frm_type;
   DBUG_ENTER("mysql_alter_table");
 
-  thd->proc_info="init";
+  THD_PROC_INFO(thd, "init");
   table_name=table_list->table_name;
   alias= (lower_case_table_names == 2) ? table_list->alias : table_name;
 
@@ -3093,7 +3093,7 @@ view_err:
     DBUG_RETURN(TRUE);
   }
   
-  thd->proc_info="setup";
+  THD_PROC_INFO(thd, "setup");
   if (!(alter_info->flags & ~(ALTER_RENAME | ALTER_KEYS_ONOFF)) &&
       !table->s->tmp_table) // no need to touch frm
   {
@@ -3101,7 +3101,7 @@ view_err:
     VOID(pthread_mutex_lock(&LOCK_open));
     if (new_name != table_name || new_db != db)
     {
-      thd->proc_info="rename";
+      THD_PROC_INFO(thd, "rename");
       /* Then do a 'simple' rename of the table */
       error=0;
       if (!access(new_name_buff,F_OK))
@@ -3573,7 +3573,7 @@ view_err:
   /* We don't want update TIMESTAMP fields during ALTER TABLE. */
   thd->count_cuted_fields= CHECK_FIELD_WARN;	// calc cuted fields
   thd->cuted_fields=0L;
-  thd->proc_info="copy to tmp table";
+  THD_PROC_INFO(thd, "copy to tmp table");
   next_insert_id=thd->next_insert_id;		// Remember for logging
   copied=deleted=0;
   if (new_table && !new_table->s->is_view)
@@ -3645,7 +3645,7 @@ view_err:
     from the cache, free all locks, close the old table and remove it.
   */
 
-  thd->proc_info="rename result table";
+  THD_PROC_INFO(thd, "rename result table");
   my_snprintf(old_name, sizeof(old_name), "%s2-%lx-%lx", tmp_file_prefix,
 	      current_pid, thd->thread_id);
   if (lower_case_table_names)
@@ -3756,7 +3756,7 @@ view_err:
     broadcast_refresh();
     goto err;
   }
-  thd->proc_info="end";
+  THD_PROC_INFO(thd, "end");
   if (mysql_bin_log.is_open())
   {
     thd->clear_error();
