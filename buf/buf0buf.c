@@ -1943,6 +1943,8 @@ buf_page_init(
 			(ulong) space,
 			(ulong) offset);
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+		mutex_exit(&block->mutex);
+		mutex_exit(&buf_pool->mutex);
 		buf_print();
 		buf_LRU_print();
 		buf_validate();
@@ -2133,13 +2135,11 @@ buf_page_init_for_read(
 				}
 			}
 
-			bpage->zip.data = NULL;
-			page_zip_set_size(&bpage->zip, 0);
+			mutex_exit(&block->mutex);
+			mutex_exit(&buf_pool->zip_mutex);
 
 			buf_buddy_free(bpage, sizeof *bpage);
 
-			mutex_exit(&block->mutex);
-			mutex_exit(&buf_pool->zip_mutex);
 			mutex_exit(&buf_pool->mutex);
 
 			if (mode == BUF_READ_IBUF_PAGES_ONLY) {
@@ -2182,8 +2182,12 @@ err_exit:
 	ut_ad(block);
 
 	if (zip_size) {
+		void*	data;
 		page_zip_set_size(&block->page.zip, zip_size);
-		block->page.zip.data = buf_buddy_alloc(zip_size, TRUE);
+		mutex_exit(&block->mutex);
+		data = buf_buddy_alloc(zip_size, TRUE);
+		mutex_enter(&block->mutex);
+		block->page.zip.data = data;
 	}
 
 	buf_page_init(space, offset, block);
