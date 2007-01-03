@@ -366,9 +366,7 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     {				/* This happens only with packed keys */
       DBUG_PRINT("test",("Enlarging of key when deleting"));
       if (!_mi_get_last_key(info,keyinfo,anc_buff,lastkey,keypos,&length))
-      {
 	goto err;
-      }
       ret_value=_mi_insert(info,keyinfo,key,anc_buff,keypos,lastkey,
 			   (uchar*) 0,(uchar*) 0,(my_off_t) 0,(my_bool) 0);
     }

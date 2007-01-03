@@ -662,7 +662,7 @@ typedef struct st_maria_block_info
 
 extern uint _ma_get_block_info(MARIA_BLOCK_INFO *, File, my_off_t);
 extern uint _ma_rec_pack(MARIA_HA *info, byte *to, const byte *from);
-extern uint _ma_pack_get_block_info(MARIA_HA *mari, MARIA_BIT_BUFF *bit_buff,
+extern uint _ma_pack_get_block_info(MARIA_HA *maria, MARIA_BIT_BUFF *bit_buff,
                                     MARIA_BLOCK_INFO *info, byte **rec_buff_p,
                                     File file, my_off_t filepos);
 extern void _ma_store_blob_length(byte *pos, uint pack_length, uint length);

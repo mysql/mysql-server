@@ -216,14 +216,27 @@ my_bool execute_checkpoint_indirect()
     if (NULL == (strings[4].str= my_malloc(strings[4].length)))
       goto err;
     ptr= string3.str;
-    /* possibly latch each MARIA_SHARE, one by one, like this: */
-    pthread_mutex_lock(&share->intern_lock);
     /*
-      We'll copy the file id (a bit like share->kfile), the file name
-      (like share->unique_file_name[_length]).
+      Note that maria_open_list is a list of MARIA_HA*, while we would prefer
+      a list of MARIA_SHARE* here (we are interested in the short id,
+      unique file name, members of MARIA_SHARE*, and in file descriptors,
+      which will in the end be in MARIA_SHARE*).
     */
-    make_copy_of_global_share_list_to_array;
-    pthread_mutex_unlock(&share->intern_lock);
+    for (iterate on the maria_open_list)
+    {
+      /* latch each MARIA_SHARE, one by one, like this: */
+      pthread_mutex_lock(&share->intern_lock);
+      /*
+        TODO:
+        we need to prevent the share from going away while we later flush and
+        force it without holding THR_LOCK_maria. For example if the share is
+        free()d by maria_close() we'll have a problem. Or if the share's file
+        descriptor is closed by maria_close() we will not be able to my_sync()
+        it.
+      */
+      pthread_mutex_unlock(&share->intern_lock);
+      store the share pointer into a private array;
+    }
     unlock(global_share_list_mutex);
 
     /* work on copy */
@@ -231,15 +244,15 @@ my_bool execute_checkpoint_indirect()
     ptr+= 8;
     for (el in array)
     {
-      int8store(ptr, array[...].file_id);
+      int8store(ptr, array[...].short_id);
       ptr+= 8;
-      memcpy(ptr, array[...].file_name, ...);
+      memcpy(ptr, array[...].unique_file_name[_length], ...);
       ptr+= ...;
+      /* maybe we need to lock share->intern_lock here */
       /*
         these two are long ops (involving disk I/O) that's why we copied the
         list, to not keep the list locked for long:
       */
-      /* TODO: what if the table pointer is gone/reused now? */
       flush_bitmap_pages(el);
       /* TODO: and also autoinc counter, logical file end, free page list */
 
@@ -267,6 +280,19 @@ my_bool execute_checkpoint_indirect()
   if (0 != control_file_write_and_force(checkpoint_lsn, NULL))
     goto err;
 
+  /*
+    Note that we should not alter memory structures until we have successfully
+    written the checkpoint record and control file.
+    Btw, a log write failure is serious:
+    - if we know how many bytes we managed to write, we should try to write
+    more, keeping the log's mutex (MY_FULL_IO)
+    - if we don't know, this log record is corrupted and we have no way to
+    "de-corrupt" it, so it will stay corrupted, and as the log is sequential,
+    any log record written after it will not be reachable (for example if we
+    would write UNDOs and crash, we would not be able to read the log and so
+    not be able to rollback), so we should stop the engine now (holding the
+    log's mutex) and do a recovery.
+  */
   goto end;
 
 err:

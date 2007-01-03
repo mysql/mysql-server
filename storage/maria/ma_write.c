@@ -345,7 +345,7 @@ static int w_search(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   my_bool was_last_key;
   my_off_t next_page, dupp_key_pos;
   DBUG_ENTER("w_search");
-  DBUG_PRINT("enter",("page: %ld",page));
+  DBUG_PRINT("enter",("page: %ld", (long) page));
 
   search_key_length= (comp_flag & SEARCH_FIND) ? key_length : USE_WHOLE_KEY;
   if (!(temp_buff= (uchar*) my_alloca((uint) keyinfo->block_length+
@@ -468,7 +468,7 @@ int _ma_insert(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   uchar *endpos, *prev_key;
   MARIA_KEY_PARAM s_temp;
   DBUG_ENTER("_ma_insert");
-  DBUG_PRINT("enter",("key_pos: %lx",key_pos));
+  DBUG_PRINT("enter",("key_pos: %lx", (long) key_pos));
   DBUG_EXECUTE("key", _ma_print_key(DBUG_FILE,keyinfo->seg,key,
                                     USE_WHOLE_KEY););
 
@@ -490,8 +490,8 @@ int _ma_insert(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   {
     DBUG_PRINT("test",("t_length: %d  ref_len: %d",
 		       t_length,s_temp.ref_length));
-    DBUG_PRINT("test",("n_ref_len: %d  n_length: %d  key_pos: %lx",
-		       s_temp.n_ref_length,s_temp.n_length,s_temp.key));
+    DBUG_PRINT("test",("n_ref_len: %d  n_length: %d  key_pos: 0x%lx",
+		       s_temp.n_ref_length,s_temp.n_length, (long) s_temp.key));
   }
 #endif
   if (t_length > 0)
@@ -684,7 +684,8 @@ uchar *_ma_find_half_pos(uint nod_flag, MARIA_KEYDEF *keyinfo, uchar *page,
   } while (page < end);
   *return_key_length=length;
   *after_key=page;
-  DBUG_PRINT("exit",("returns: %lx  page: %lx  half: %lx",lastpos,page,end));
+  DBUG_PRINT("exit",("returns: 0x%lx  page: 0x%lx  half: 0x%lx",
+                     (long) lastpos, (long) page, (long) end));
   DBUG_RETURN(lastpos);
 } /* _ma_find_half_pos */
 
@@ -739,7 +740,8 @@ static uchar *_ma_find_last_pos(MARIA_KEYDEF *keyinfo, uchar *page,
   }
   *return_key_length=last_length;
   *after_key=lastpos;
-  DBUG_PRINT("exit",("returns: %lx  page: %lx  end: %lx",prevpos,page,end));
+  DBUG_PRINT("exit",("returns: 0x%lx  page: 0x%lx  end: 0x%lx",
+                     (long) prevpos,(long) page,(long) end));
   DBUG_RETURN(prevpos);
 } /* _ma_find_last_pos */
 
@@ -775,7 +777,7 @@ static int _ma_balance_page(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     next_page= _ma_kpos(info->s->base.key_reflength,
 			father_key_pos+father_keylength);
     buff=info->buff;
-    DBUG_PRINT("test",("use right page: %lu",next_page));
+    DBUG_PRINT("test",("use right page: %lu", (ulong) next_page));
   }
   else
   {
@@ -784,7 +786,7 @@ static int _ma_balance_page(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     next_page= _ma_kpos(info->s->base.key_reflength,father_key_pos);
 					/* Fix that curr_buff is to left */
     buff=curr_buff; curr_buff=info->buff;
-    DBUG_PRINT("test",("use left page: %lu",next_page));
+    DBUG_PRINT("test",("use left page: %lu", (ulong) next_page));
   }					/* father_key_pos ptr to parting key */
 
   if (!_ma_fetch_keypage(info,keyinfo,next_page,DFLT_INIT_HITS,info->buff,0))
