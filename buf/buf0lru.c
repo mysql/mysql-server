@@ -916,7 +916,6 @@ buf_LRU_free_block(
 		ut_a(bpage->buf_fix_count == 0);
 
 		mutex_enter(&(buf_pool->mutex));
-		mutex_enter(block_mutex);
 
 		if (bpage->zip.data) {
 			/* Keep the compressed page.
@@ -939,11 +938,17 @@ buf_LRU_free_block(
 
 				buf_LRU_insert_zip_clean(b);
 
+				mutex_enter(block_mutex);
+
 				bpage->zip.data = NULL;
 				page_zip_set_size(&bpage->zip, 0);
+
+				goto free_hashed;
 			}
 		}
 
+		mutex_enter(block_mutex);
+free_hashed:
 		buf_LRU_block_free_hashed_page((buf_block_t*) bpage);
 	} else {
 		mutex_enter(block_mutex);
@@ -992,7 +997,9 @@ buf_LRU_block_free_non_file_page(
 
 	if (data) {
 		block->page.zip.data = NULL;
+		mutex_exit(&block->mutex);
 		buf_buddy_free(data, page_zip_get_size(&block->page.zip));
+		mutex_enter(&block->mutex);
 		page_zip_set_size(&block->page.zip, 0);
 	}
 
@@ -1111,7 +1118,9 @@ buf_LRU_block_remove_hashed_page(
 			void*	data = bpage->zip.data;
 			bpage->zip.data = NULL;
 
+			mutex_exit(&((buf_block_t*) bpage)->mutex);
 			buf_buddy_free(data, page_zip_get_size(&bpage->zip));
+			mutex_enter(&((buf_block_t*) bpage)->mutex);
 			page_zip_set_size(&bpage->zip, 0);
 		}
 
