@@ -262,7 +262,8 @@ dtuple_fold(
 	ulint		n_fields,/* in: number of complete fields to fold */
 	ulint		n_bytes,/* in: number of bytes to fold in an
 				incomplete last field */
-	dulint		tree_id);/* in: index tree id */
+	dulint		tree_id)/* in: index tree id */
+	__attribute__((pure));
 /***********************************************************************
 Sets types of fields binary in a tuple. */
 UNIV_INLINE

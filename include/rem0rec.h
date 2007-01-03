@@ -586,7 +586,8 @@ rec_fold(
 					fields to fold */
 	ulint		n_bytes,	/* in: number of bytes to fold
 					in an incomplete last field */
-	dulint		tree_id);	/* in: index tree id */
+	dulint		tree_id)	/* in: index tree id */
+	__attribute__((pure));
 /*************************************************************
 Builds a physical record out of a data tuple and
 stores it into the given buffer. */
