@@ -545,7 +545,8 @@ lock_rec_fold(
 /*==========*/
 			/* out: folded value */
 	ulint	space,	/* in: space */
-	ulint	page_no);/* in: page number */
+	ulint	page_no)/* in: page number */
+	__attribute__((const));
 /*************************************************************************
 Calculates the hash value of a page file address: used in inserting or
 searching for a lock in the hash table. */
