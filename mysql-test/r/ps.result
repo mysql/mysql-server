@@ -1514,4 +1514,19 @@ Variable_name	Value
 Slow_queries	1
 deallocate prepare no_index;
 deallocate prepare sq;
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1), (2);
+CREATE TABLE t2 (b int);
+INSERT INTO t2 VALUES (NULL);
+SELECT a FROM t1 WHERE (SELECT b FROM t2) IS NULL;
+a
+1
+2
+PREPARE stmt FROM 'SELECT a FROM t1 WHERE (SELECT b FROM t2) IS NULL';
+EXECUTE stmt;
+a
+1
+2
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1,t2;
 End of 5.0 tests.

@@ -254,3 +254,20 @@ INSERT INTO t1() VALUES ();
 --error 1416
 INSERT INTO t1(foo) VALUES ('');
 DROP TABLE t1;
+
+#
+# Bug #23578: Corruption prevents Optimize table from working properly with a 
+#             spatial index
+#
+
+CREATE TABLE t1 (a INT AUTO_INCREMENT, b POINT NOT NULL, KEY (a), SPATIAL KEY (b));
+
+INSERT INTO t1 (b) VALUES (GeomFromText('POINT(1 2)'));
+INSERT INTO t1 (b) SELECT b FROM t1;
+INSERT INTO t1 (b) SELECT b FROM t1;
+INSERT INTO t1 (b) SELECT b FROM t1;
+INSERT INTO t1 (b) SELECT b FROM t1;
+INSERT INTO t1 (b) SELECT b FROM t1;
+
+OPTIMIZE TABLE t1;
+DROP TABLE t1;
