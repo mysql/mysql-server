@@ -1209,22 +1209,19 @@ buf_flush_validate_low(void)
 		/* out: TRUE if ok */
 {
 	buf_page_t*	bpage;
-	ib_uint64_t	om;
 
 	UT_LIST_VALIDATE(list, buf_page_t, buf_pool->flush_list);
 
 	bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
 
 	while (bpage != NULL) {
-		om = bpage->oldest_modification;
+		const ib_uint64_t om = bpage->oldest_modification;
 		ut_a(buf_page_in_file(bpage));
 		ut_a(om > 0);
 
 		bpage = UT_LIST_GET_NEXT(list, bpage);
 
-		if (bpage) {
-			ut_a(om >= bpage->oldest_modification);
-		}
+		ut_a(!bpage || om >= bpage->oldest_modification);
 	}
 
 	return(TRUE);
