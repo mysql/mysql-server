@@ -509,6 +509,8 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   TABLE *table;
   TABLE_LIST tables;
   udf_func *udf;
+  char *exact_name_str;
+  uint exact_name_len;
   DBUG_ENTER("mysql_drop_function");
   if (!initialized)
   {
@@ -522,6 +524,8 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
     my_error(ER_FUNCTION_NOT_DEFINED, MYF(0), udf_name->str);
     goto err;
   }
+  exact_name_str= udf->name.str;
+  exact_name_len= udf->name.length;
   del_udf(udf);
   /*
     Close the handle if this was function that was found during boot or
@@ -535,7 +539,7 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   tables.table_name= tables.alias= (char*) "func";
   if (!(table = open_ltable(thd,&tables,TL_WRITE)))
     goto err;
-  table->field[0]->store(udf->name.str, udf->name.length, &my_charset_bin);
+  table->field[0]->store(exact_name_str, exact_name_len, &my_charset_bin);
   table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
   if (!table->file->index_read_idx(table->record[0], 0,
 				   (byte*) table->field[0]->ptr,
