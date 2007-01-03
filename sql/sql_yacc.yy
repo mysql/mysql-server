@@ -9589,7 +9589,6 @@ keyword:
 	| TRUNCATE_SYM		{}
 	| UNICODE_SYM		{}
         | UNINSTALL_SYM         {}
-        | USER                  {}
 	| WRAPPER_SYM		{}
         | XA_SYM                {}
         | UPGRADE_SYM           {}
