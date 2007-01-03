@@ -42,3 +42,6 @@ link_sources:
 	    @LN_CP_F@ $$d/$$f $$f; \
 	  done; \
 	done
+
+# Don't update the files from bitkeeper
+%::SCCS/s.%
