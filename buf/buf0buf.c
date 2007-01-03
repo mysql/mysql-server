@@ -724,7 +724,7 @@ buf_chunk_contains_zip(
 #ifdef UNIV_SYNC_DEBUG
 	ut_a(mutex_own(&buf_pool->mutex));
 #endif /* UNIV_SYNC_DEBUG */
- 
+
 	block = chunk->blocks;
 
 	for (i = chunk->size; i--; block++) {
@@ -1975,6 +1975,53 @@ buf_page_init(
 }
 
 /************************************************************************
+Decompress a block. */
+static
+ibool
+buf_zip_decompress(
+/*===============*/
+				/* out: TRUE if successful */
+	buf_block_t*	block)	/* in/out: block */
+{
+	const byte* frame = block->page.zip.data;
+
+	ut_ad(buf_block_get_zip_size(block));
+	ut_a(buf_block_get_space(block) != 0);
+
+	switch (fil_page_get_type(frame)) {
+	case FIL_PAGE_INDEX:
+		if (page_zip_decompress(&block->page.zip,
+					block->frame)) {
+			return(TRUE);
+		}
+
+		fprintf(stderr,
+			"InnoDB: unable to decompress space %lu page %lu\n",
+			(ulong) block->page.space,
+			(ulong) block->page.offset);
+		return(FALSE);
+
+	case FIL_PAGE_TYPE_ALLOCATED:
+	case FIL_PAGE_INODE:
+	case FIL_PAGE_IBUF_BITMAP:
+	case FIL_PAGE_TYPE_FSP_HDR:
+	case FIL_PAGE_TYPE_XDES:
+	case FIL_PAGE_TYPE_ZBLOB:
+		/* Copy to uncompressed storage. */
+		memcpy(block->frame, frame,
+		       buf_block_get_zip_size(block));
+		return(TRUE);
+	}
+
+	ut_print_timestamp(stderr);
+	fprintf(stderr,
+		"InnoDB: unknown compressed page"
+		" type %lu\n",
+		fil_page_get_type(frame));
+	return(FALSE);
+}
+
+/************************************************************************
 Function which inits a page for read to the buffer buf_pool. If the page is
 (1) already in buf_pool, or
 (2) if we specify to read only ibuf pages and the page is not an ibuf page, or
@@ -2025,7 +2072,7 @@ buf_page_init_for_read(
 		ut_ad(mode == BUF_READ_ANY_PAGE);
 	}
 
-	block = buf_LRU_get_free_block(zip_size);
+	block = buf_LRU_get_free_block(0);
 
 	ut_a(block);
 
@@ -2057,8 +2104,6 @@ buf_page_init_for_read(
 
 			/* Move the compressed page from bpage to block,
 			and uncompress it. */
-
-			buf_buddy_free(block->page.zip.data, zip_size);
 
 			mutex_enter(&buf_pool->zip_mutex);
 			memcpy(&block->page, bpage, sizeof *bpage);
@@ -2093,8 +2138,18 @@ buf_page_init_for_read(
 
 			buf_buddy_free(bpage, sizeof *bpage);
 
+			mutex_exit(&block->mutex);
 			mutex_exit(&buf_pool->zip_mutex);
-			break;
+			mutex_exit(&buf_pool->mutex);
+
+			if (mode == BUF_READ_IBUF_PAGES_ONLY) {
+
+				mtr_commit(&mtr);
+			}
+
+			buf_zip_decompress(block);
+
+			return(NULL);
 		case BUF_BLOCK_FILE_PAGE:
 			break;
 		case BUF_BLOCK_ZIP_FREE:
@@ -2125,6 +2180,11 @@ err_exit:
 	}
 
 	ut_ad(block);
+
+	if (zip_size) {
+		page_zip_set_size(&block->page.zip, zip_size);
+		block->page.zip.data = buf_buddy_alloc(zip_size, TRUE);
+	}
 
 	buf_page_init(space, offset, block);
 
@@ -2179,7 +2239,7 @@ buf_page_create(
 	ut_ad(mtr);
 	ut_ad(space || !zip_size);
 
-	free_block = buf_LRU_get_free_block(zip_size);
+	free_block = buf_LRU_get_free_block(0);
 
 	mutex_enter(&(buf_pool->mutex));
 
@@ -2213,6 +2273,11 @@ buf_page_create(
 #endif /* UNIV_DEBUG */
 
 	block = free_block;
+
+	if (zip_size) {
+		page_zip_set_size(&block->page.zip, zip_size);
+		block->page.zip.data = buf_buddy_alloc(zip_size, TRUE);
+	}
 
 	mutex_enter(&block->mutex);
 
@@ -2293,36 +2358,10 @@ buf_page_io_complete(
 		byte*	frame;
 
 		if (buf_block_get_zip_size(block)) {
-			ut_a(buf_block_get_space(block) != 0);
-
 			frame = block->page.zip.data;
 
-			switch (fil_page_get_type(frame)) {
-			case FIL_PAGE_INDEX:
-				if (block->frame) {
-					if (!page_zip_decompress(
-						    &block->page.zip,
-						    block->frame)) {
-						goto corrupt;
-					}
-				}
-				break;
-			case FIL_PAGE_TYPE_ALLOCATED:
-			case FIL_PAGE_INODE:
-			case FIL_PAGE_IBUF_BITMAP:
-			case FIL_PAGE_TYPE_FSP_HDR:
-			case FIL_PAGE_TYPE_XDES:
-			case FIL_PAGE_TYPE_ZBLOB:
-				/* Copy to uncompressed storage. */
-				memcpy(block->frame, frame,
-				       buf_block_get_zip_size(block));
-				break;
-			default:
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					"InnoDB: unknown compressed page"
-					" type %lu\n",
-					fil_page_get_type(frame));
+			if (!buf_zip_decompress(block)) {
+
 				goto corrupt;
 			}
 		} else {
@@ -2636,7 +2675,7 @@ buf_validate(void)
 		ut_error;
 	}
 
-	ut_a(UT_LIST_GET_LEN(buf_pool->LRU) == n_lru);
+	ut_a(UT_LIST_GET_LEN(buf_pool->LRU) >= n_lru);
 	if (UT_LIST_GET_LEN(buf_pool->free) != n_free) {
 		fprintf(stderr, "Free list len %lu, free blocks %lu\n",
 			(ulong) UT_LIST_GET_LEN(buf_pool->free),
@@ -2645,9 +2684,9 @@ buf_validate(void)
 	}
 	ut_a(UT_LIST_GET_LEN(buf_pool->flush_list) == n_flush);
 
-	ut_a(buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE] == n_single_flush);
-	ut_a(buf_pool->n_flush[BUF_FLUSH_LIST] == n_list_flush);
-	ut_a(buf_pool->n_flush[BUF_FLUSH_LRU] == n_lru_flush);
+	ut_a(buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE] >= n_single_flush);
+	ut_a(buf_pool->n_flush[BUF_FLUSH_LIST] >= n_list_flush);
+	ut_a(buf_pool->n_flush[BUF_FLUSH_LRU] >= n_lru_flush);
 
 	mutex_exit(&(buf_pool->mutex));
 
