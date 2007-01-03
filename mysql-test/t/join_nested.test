@@ -994,3 +994,54 @@ SELECT t1.id1 AS id, t5.id1 AS ngroupbynsa
 
 DROP TABLE t1,t2,t3,t4,t5;
 
+#
+# Test for bug #24345: crash with nested left outer join when outer table is substituted
+#                      for a row that happens to have a null value for the join attribute.
+#
+
+CREATE TABLE t1 (
+  id int NOT NULL PRIMARY KEY,
+  ct int DEFAULT NULL,
+  pc int DEFAULT NULL,
+  INDEX idx_ct (ct),
+  INDEX idx_pc (pc)
+);
+INSERT INTO t1 VALUES  
+ (1,NULL,NULL),(2,NULL,NULL),(3,NULL,NULL),(4,NULL,NULL),(5,NULL,NULL);
+
+CREATE TABLE t2 (
+  id int NOT NULL PRIMARY KEY,
+  sr int NOT NULL,
+  nm varchar(255) NOT NULL,
+  INDEX idx_sr (sr)
+);
+INSERT INTO t2 VALUES
+  (2441905,4308,'LesAbymes'),(2441906,4308,'Anse-Bertrand');
+
+CREATE TABLE t3 (
+  id int NOT NULL PRIMARY KEY,
+  ct int NOT NULL,
+  ln int NOT NULL,
+  INDEX idx_ct (ct),
+  INDEX idx_ln (ln)
+);
+
+CREATE TABLE t4 (
+  id int NOT NULL PRIMARY KEY,
+  nm varchar(255) NOT NULL
+);
+
+INSERT INTO t4 VALUES (4308,'Guadeloupe'),(4309,'Martinique');
+
+SELECT t1.*
+  FROM t1 LEFT JOIN
+       (t2 LEFT JOIN t3 ON t3.ct=t2.id AND t3.ln='5') ON t1.ct=t2.id
+    WHERE t1.id='5';
+
+SELECT t1.*, t4.nm
+  FROM t1 LEFT JOIN
+      (t2 LEFT JOIN t3 ON t3.ct=t2.id AND t3.ln='5') ON t1.ct=t2.id
+          LEFT JOIN t4 ON t2.sr=t4.id
+    WHERE t1.id='5';
+
+DROP TABLE t1,t2,t3,t4;
