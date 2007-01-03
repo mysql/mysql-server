@@ -151,7 +151,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
       }
     }
 
-    thd->proc_info="System lock";
+    THD_PROC_INFO(thd, "System lock");
     if (lock_external(thd, tables, count))
     {
       /* Clear the lock type of all lock data to avoid reusage. */
@@ -160,7 +160,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
       sql_lock=0;
       break;
     }
-    thd->proc_info="Table lock";
+    THD_PROC_INFO(thd, "Table lock");
     thd->locked=1;
     /* Copy the lock data array. thr_multi_lock() reorders its contens. */
     memcpy(sql_lock->locks + sql_lock->lock_count, sql_lock->locks,
@@ -194,7 +194,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
       thd->locked=0;
       break;
     }
-    thd->proc_info=0;
+    THD_PROC_INFO(thd, 0);
 
     /* some table was altered or deleted. reopen tables marked deleted */
     mysql_unlock_tables(thd,sql_lock);
@@ -209,7 +209,7 @@ retry:
     if (wait_for_tables(thd))
       break;					// Couldn't open tables
   }
-  thd->proc_info=0;
+  THD_PROC_INFO(thd, 0);
   if (thd->killed)
   {
     thd->send_kill_message();
