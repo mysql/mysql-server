@@ -8311,7 +8311,8 @@ ha_ndbcluster::setup_recattr(const NdbRecAttr* curr)
 
 void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
 {
-  if (get_tablespace_name(current_thd,0,0))
+  if (create_info->storage_media != HA_SM_MEMORY &&
+      get_tablespace_name(current_thd,0,0))
     create_info->storage_media= HA_SM_DISK;
 }
 
