@@ -1813,8 +1813,7 @@ trx_prepare_off_kernel(
 {
 	page_t*		update_hdr_page;
 	trx_rseg_t*	rseg;
-	ibool		must_flush_log	= FALSE;
-	ib_uint64_t	lsn;
+	ib_uint64_t	lsn		= 0;
 	mtr_t		mtr;
 
 #ifdef UNIV_SYNC_DEBUG
@@ -1828,8 +1827,6 @@ trx_prepare_off_kernel(
 		mutex_exit(&kernel_mutex);
 
 		mtr_start(&mtr);
-
-		must_flush_log = TRUE;
 
 		/* Change the undo log segment states from TRX_UNDO_ACTIVE
 		to TRX_UNDO_PREPARED: these modifications to the file data
@@ -1873,7 +1870,7 @@ trx_prepare_off_kernel(
 	trx->conc_state = TRX_PREPARED;
 	/*--------------------------------------*/
 
-	if (must_flush_log) {
+	if (lsn) {
 		/* Depending on the my.cnf options, we may now write the log
 		buffer to the log files, making the prepared state of the
 		transaction durable if the OS does not crash. We may also
