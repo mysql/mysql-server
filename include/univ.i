@@ -103,7 +103,8 @@ operations (very slow); also UNIV_DEBUG must be defined */
 						in sync0sync.c */
 #define UNIV_BTR_PRINT				/* enable functions for
 						printing B-trees */
-#define UNIV_ZIP_DEBUG
+#define UNIV_ZIP_DEBUG				/* extensive consistency checks
+						for compressed pages */
 #endif
 
 #define UNIV_BTR_DEBUG				/* check B-tree links */

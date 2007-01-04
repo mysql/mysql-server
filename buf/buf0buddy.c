@@ -400,26 +400,13 @@ buf_buddy_relocate(
 
 		mutex_enter(mutex);
 
-		if (buf_flush_ready_for_replace(bpage)) {
-			switch (buf_page_get_state(bpage)) {
-			case BUF_BLOCK_ZIP_FREE:
-			case BUF_BLOCK_NOT_USED:
-			case BUF_BLOCK_READY_FOR_USE:
-			case BUF_BLOCK_MEMORY:
-			case BUF_BLOCK_REMOVE_HASH:
-				ut_error;
-				break;
-
-			case BUF_BLOCK_ZIP_PAGE:
-			case BUF_BLOCK_ZIP_DIRTY:
-			case BUF_BLOCK_FILE_PAGE:
-				/* Relocate the compressed page. */
-				ut_a(bpage->zip.data == src);
-				memcpy(dst, src, size);
-				bpage->zip.data = dst;
-				mutex_exit(mutex);
-				return(TRUE);
-			}
+		if (buf_page_can_relocate(bpage)) {
+			/* Relocate the compressed page. */
+			ut_a(bpage->zip.data == src);
+			memcpy(dst, src, size);
+			bpage->zip.data = dst;
+			mutex_exit(mutex);
+			return(TRUE);
 		}
 
 		mutex_exit(mutex);
@@ -444,7 +431,7 @@ buf_buddy_relocate(
 		case BUF_BLOCK_ZIP_PAGE:
 			mutex_enter(&buf_pool->zip_mutex);
 
-			if (buf_flush_ready_for_replace(bpage)) {
+			if (buf_page_can_relocate(bpage)) {
 				buf_page_t*	dpage	= (buf_page_t*) dst;
 				buf_page_t*	b;
 

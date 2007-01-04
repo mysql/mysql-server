@@ -288,7 +288,7 @@ buf_page_make_young(
 /************************************************************************
 Returns TRUE if the page can be found in the buffer pool hash table. NOTE
 that it is possible that the page is not yet read from disk, though. */
-
+UNIV_INLINE
 ibool
 buf_page_peek(
 /*==========*/
@@ -701,6 +701,16 @@ buf_block_set_io_fix(
 /*=================*/
 	buf_block_t*	block,	/* in/out: control block */
 	enum buf_io_fix	io_fix);/* in: io_fix state */
+
+/************************************************************************
+Determine if a buffer block can be relocated in memory.  The block
+can be dirty, but it must not be I/O-fixed or bufferfixed. */
+UNIV_INLINE
+ibool
+buf_page_can_relocate(
+/*==================*/
+	const buf_page_t*	bpage)	/* control block being relocated */
+	__attribute__((const));
 
 /*************************************************************************
 Determine if a block has been flagged old. */
