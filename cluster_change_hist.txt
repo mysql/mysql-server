@@ -1,4 +1,9 @@
 
+mysql-5.1.14-ndb-6.1.1
+ 
+  - added extra version info to API to enable support for non-supported online
+    software upgrade
+
 ---------------------------------------------------
 
 mysql-5.1.14-ndb-6.1.0 
