@@ -102,6 +102,7 @@ buf_buddy_block_free(
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_a(mutex_own(&buf_pool->mutex));
+	ut_a(!mutex_own(&buf_pool->zip_mutex));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_a(buf == ut_align_down(buf, UNIV_PAGE_SIZE));
 
@@ -130,6 +131,7 @@ buf_buddy_block_register(
 	ulint		fold;
 #ifdef UNIV_SYNC_DEBUG
 	ut_a(mutex_own(&buf_pool->mutex));
+	ut_a(!mutex_own(&buf_pool->zip_mutex));
 #endif /* UNIV_SYNC_DEBUG */
 	buf_block_set_state(block, BUF_BLOCK_MEMORY);
 
@@ -187,6 +189,7 @@ buf_buddy_alloc_clean(
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_a(mutex_own(&buf_pool->mutex));
+	ut_a(!mutex_own(&buf_pool->zip_mutex));
 #endif /* UNIV_SYNC_DEBUG */
 
 	if (BUF_BUDDY_LOW << i >= PAGE_ZIP_MIN_SIZE
@@ -294,6 +297,7 @@ buf_buddy_alloc_low(
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_a(mutex_own(&buf_pool->mutex));
+	ut_a(!mutex_own(&buf_pool->zip_mutex));
 #endif /* UNIV_SYNC_DEBUG */
 
 	if (i < BUF_BUDDY_SIZES) {
@@ -355,6 +359,7 @@ buf_buddy_relocate(
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_a(mutex_own(&buf_pool->mutex));
+	ut_a(!mutex_own(&buf_pool->zip_mutex));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!ut_align_offset(src, size));
 	ut_ad(!ut_align_offset(dst, size));
@@ -418,7 +423,7 @@ buf_buddy_relocate(
 		}
 
 		mutex_exit(mutex);
-	} else {
+	} else if (i == buf_buddy_get_slot(sizeof(buf_page_t))) {
 		/* This must be a buf_page_t object. */
 		bpage = (buf_page_t*) src;
 
@@ -484,6 +489,7 @@ buf_buddy_free_low(
 	buf_page_t*	buddy;
 #ifdef UNIV_SYNC_DEBUG
 	ut_a(mutex_own(&buf_pool->mutex));
+	ut_a(!mutex_own(&buf_pool->zip_mutex));
 #endif /* UNIV_SYNC_DEBUG */
 recombine:
 	if (i == BUF_BUDDY_SIZES) {
