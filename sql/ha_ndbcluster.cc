@@ -4734,6 +4734,7 @@ int ha_ndbcluster::create(const char *name,
   const void *data, *pack_data;
   bool create_from_engine= (info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
   bool is_truncate= (thd->lex->sql_command == SQLCOM_TRUNCATE);
+  char tablespace[FN_LEN];
 
   DBUG_ENTER("ha_ndbcluster::create");
   DBUG_PRINT("enter", ("name: %s", name));
@@ -4742,8 +4743,22 @@ int ha_ndbcluster::create(const char *name,
   set_dbname(name);
   set_tabname(name);
 
+  if ((my_errno= check_ndb_connection()))
+    DBUG_RETURN(my_errno);
+  
+  Ndb *ndb= get_ndb();
+  NDBDICT *dict= ndb->getDictionary();
+
   if (is_truncate)
   {
+    {
+      Ndb_table_guard ndbtab_g(dict, m_tabname);
+      if (!(m_table= ndbtab_g.get_table()))
+	ERR_RETURN(dict->getNdbError());
+      if ((get_tablespace_name(thd, tablespace, FN_LEN)))
+	info->tablespace= tablespace;    
+      m_table= NULL;
+    }
     DBUG_PRINT("info", ("Dropping and re-creating table for TRUNCATE"));
     if ((my_errno= delete_table(name)))
       DBUG_RETURN(my_errno);
@@ -4903,12 +4918,7 @@ int ha_ndbcluster::create(const char *name,
     DBUG_RETURN(my_errno);
   }
 
-  if ((my_errno= check_ndb_connection()))
-    DBUG_RETURN(my_errno);
-  
   // Create the table in NDB     
-  Ndb *ndb= get_ndb();
-  NDBDICT *dict= ndb->getDictionary();
   if (dict->createTable(tab) != 0) 
   {
     const NdbError err= dict->getNdbError();
@@ -8309,15 +8319,6 @@ ha_ndbcluster::setup_recattr(const NdbRecAttr* curr)
   DBUG_RETURN(0);
 }
 
-void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
-{
-  THD *thd= current_thd;
-
-  if (thd->lex->sql_command == SQLCOM_TRUNCATE &&
-      get_tablespace_name(thd,0,0))
-    create_info->storage_media= HA_SM_DISK;
-}
-
 char*
 ha_ndbcluster::update_table_comment(
                                 /* out: table comment + additional */
@@ -10016,6 +10017,7 @@ char* ha_ndbcluster::get_tablespace_name(THD *thd, char* name, uint name_len)
     ndberr= ndbdict->getNdbError();
     if(ndberr.classification != NdbError::NoError)
       goto err;
+    DBUG_PRINT("info", ("Found tablespace '%s'", ts.getName()));
     if (name)
     {
       strxnmov(name, name_len, ts.getName(), NullS);
