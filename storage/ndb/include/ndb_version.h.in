@@ -72,5 +72,7 @@ char ndb_version_string_buf[NDB_VERSION_STRING_BUF_SZ];
 
 #define NDBD_QMGR_SINGLEUSER_VERSION_5 MAKE_VERSION(5,0,25)
 
+#define NDBD_NODE_VERSION_REP MAKE_VERSION(6,1,1)
+
 #endif
  
