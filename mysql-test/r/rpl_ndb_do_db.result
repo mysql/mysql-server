@@ -5,8 +5,6 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 DROP DATABASE IF EXISTS replica;
-Warnings:
-Note	1008	Can't drop database 'replica'; database doesn't exist
 CREATE DATABASE replica;
 CREATE TABLE t1 (a INT NOT NULL KEY, b text NOT NULL)ENGINE=NDB;
 CREATE TABLE t2 (a INT NOT NULL KEY, b text NOT NULL)ENGINE=NDB;
