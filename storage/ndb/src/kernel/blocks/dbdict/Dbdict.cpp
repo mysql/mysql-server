@@ -10050,9 +10050,20 @@ void Dbdict::execSUB_START_REQ(Signal* signal)
   }
   OpSubEventPtr subbPtr;
   Uint32 errCode = 0;
+
+  DictLockPtr loopPtr;
+  if (c_dictLockQueue.first(loopPtr) &&
+      loopPtr.p->lt->lockType == DictLockReq::NodeRestartLock)
+  {
+    jam();
+    errCode = 1405;
+    goto busy;
+  }
+
   if (!c_opSubEvent.seize(subbPtr)) {
     errCode = SubStartRef::Busy;
 busy:
+    jam();
     SubStartRef * ref = (SubStartRef *)signal->getDataPtrSend();
 
     { // fix
