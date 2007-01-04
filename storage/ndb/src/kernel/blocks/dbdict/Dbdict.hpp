@@ -52,6 +52,7 @@
 #include <signaldata/DropTrig.hpp>
 #include <signaldata/AlterTrig.hpp>
 #include <signaldata/DictLock.hpp>
+#include <signaldata/SumaImpl.hpp>
 #include "SchemaFile.hpp"
 #include <blocks/mutexes.hpp>
 #include <SafeCounter.hpp>
@@ -1632,6 +1633,10 @@ private:
     Uint32 m_senderRef;
     Uint32 m_senderData;
     Uint32 m_errorCode;
+    union {
+      SubStartConf m_sub_start_conf;
+      SubStopConf m_sub_stop_conf;
+    };
     RequestTracker m_reqTracker;
   };
   typedef Ptr<OpSubEvent> OpSubEventPtr;
