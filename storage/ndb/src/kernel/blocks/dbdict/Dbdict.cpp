@@ -10151,6 +10151,7 @@ void Dbdict::execSUB_START_REF(Signal* signal)
     SubStartRef* ref = (SubStartRef*) signal->getDataPtrSend();
     ref->senderRef = reference();
     ref->senderData = subbPtr.p->m_senderData;
+    ref->errorCode = err;
     sendSignal(subbPtr.p->m_senderRef, GSN_SUB_START_REF,
 	       signal, SubStartRef::SignalLength2, JBB);
     c_opSubEvent.release(subbPtr);
@@ -10213,6 +10214,7 @@ void Dbdict::execSUB_START_CONF(Signal* signal)
 #ifdef EVENT_PH3_DEBUG
   ndbout_c("DBDICT(Coordinator) got GSN_SUB_START_CONF = (%d)", subbPtr.i);
 #endif
+  subbPtr.p->m_sub_start_conf = *conf;
   subbPtr.p->m_reqTracker.reportConf(c_counterMgr, refToNode(senderRef));
   completeSubStartReq(signal,subbPtr.i,0);
 }
@@ -10252,6 +10254,9 @@ void Dbdict::completeSubStartReq(Signal* signal,
 #ifdef EVENT_DEBUG
   ndbout_c("SUB_START_CONF");
 #endif
+  
+  SubStartConf* conf = (SubStartConf*)signal->getDataPtrSend();
+  * conf = subbPtr.p->m_sub_start_conf;
   sendSignal(subbPtr.p->m_senderRef, GSN_SUB_START_CONF,
 	     signal, SubStartConf::SignalLength, JBB);
   c_opSubEvent.release(subbPtr);
@@ -10373,6 +10378,7 @@ void Dbdict::execSUB_STOP_REF(Signal* signal)
     SubStopRef* ref = (SubStopRef*) signal->getDataPtrSend();
     ref->senderRef = reference();
     ref->senderData = subbPtr.p->m_senderData;
+    ref->errorCode = err;
     sendSignal(subbPtr.p->m_senderRef, GSN_SUB_STOP_REF,
 	       signal, SubStopRef::SignalLength, JBB);
     c_opSubEvent.release(subbPtr);
@@ -10425,6 +10431,7 @@ void Dbdict::execSUB_STOP_CONF(Signal* signal)
    * Coordinator
    */
   ndbrequire(refToBlock(senderRef) == DBDICT);
+  subbPtr.p->m_sub_stop_conf = *conf;
   subbPtr.p->m_reqTracker.reportConf(c_counterMgr, refToNode(senderRef));
   completeSubStopReq(signal,subbPtr.i,0);
 }
@@ -10465,6 +10472,8 @@ void Dbdict::completeSubStopReq(Signal* signal,
 #ifdef EVENT_DEBUG
   ndbout_c("SUB_STOP_CONF");
 #endif
+  SubStopConf* conf = (SubStopConf*)signal->getDataPtrSend();
+  * conf = subbPtr.p->m_sub_stop_conf;
   sendSignal(subbPtr.p->m_senderRef, GSN_SUB_STOP_CONF,
 	     signal, SubStopConf::SignalLength, JBB);
   c_opSubEvent.release(subbPtr);
@@ -10713,6 +10722,7 @@ Dbdict::execSUB_REMOVE_REF(Signal* signal)
       SubRemoveRef* ref = (SubRemoveRef*) signal->getDataPtrSend();
       ref->senderRef = reference();
       ref->senderData = subbPtr.p->m_senderData;
+      ref->errorCode = err;
       sendSignal(subbPtr.p->m_senderRef, GSN_SUB_REMOVE_REF,
 		 signal, SubRemoveRef::SignalLength, JBB);
     }
