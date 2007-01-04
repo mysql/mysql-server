@@ -892,8 +892,15 @@ buf_LRU_free_block(
 	ut_ad(buf_page_in_file(bpage));
 	ut_ad(bpage->in_LRU_list);
 
-	if (!buf_flush_ready_for_replace(bpage)) {
+	if (!buf_page_can_relocate(bpage)) {
 
+		return(FALSE);
+	}
+
+	if (bpage->oldest_modification
+	    && (zip || buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE)) {
+
+		/* Do not completely free dirty blocks. */
 		return(FALSE);
 	}
 
@@ -926,7 +933,9 @@ buf_LRU_free_block(
 				ulint	fold;
 
 				memcpy(b, bpage, sizeof *b);
-				b->state = BUF_BLOCK_ZIP_PAGE;
+				b->state = b->oldest_modification
+					? BUF_BLOCK_ZIP_DIRTY
+					: BUF_BLOCK_ZIP_PAGE;
 
 				fold = buf_page_address_fold(b->space,
 							     b->offset);
@@ -936,7 +945,11 @@ buf_LRU_free_block(
 
 				buf_LRU_add_block_low(b, TRUE);
 
-				buf_LRU_insert_zip_clean(b);
+				if (b->state == BUF_BLOCK_ZIP_PAGE) {
+					buf_LRU_insert_zip_clean(b);
+				} else {
+					buf_flush_insert_into_flush_list(b);
+				}
 
 				mutex_enter(block_mutex);
 

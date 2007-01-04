@@ -1387,27 +1387,6 @@ buf_page_peek_if_search_hashed(
 	return(is_hashed);
 }
 
-/************************************************************************
-Returns TRUE if the page can be found in the buffer pool hash table. NOTE
-that it is possible that the page is not yet read from disk, though. */
-
-ibool
-buf_page_peek(
-/*==========*/
-			/* out: TRUE if found from page hash table,
-			NOTE that the page is not necessarily yet read
-			from disk! */
-	ulint	space,	/* in: space id */
-	ulint	offset)	/* in: page number */
-{
-	if (buf_page_peek_block(space, offset)) {
-
-		return(TRUE);
-	}
-
-	return(FALSE);
-}
-
 #ifdef UNIV_DEBUG_FILE_ACCESSES
 /************************************************************************
 Sets file_page_was_freed TRUE if the page is found in the buffer pool.
