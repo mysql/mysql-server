@@ -450,6 +450,11 @@ private:
 #ifdef ERROR_INSERT
   Uint32 c_error_insert_extra;
 #endif
+
+  void recompute_version_info(Uint32 type);
+  void recompute_version_info(Uint32 type, Uint32 version);
+  void execNODE_VERSION_REP(Signal* signal);
+  void sendApiVersionRep(Signal* signal, NodeRecPtr nodePtr);
 };
 
 #endif
