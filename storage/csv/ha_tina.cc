@@ -462,6 +462,7 @@ int ha_tina::encode_quote(byte *buf)
 
   my_bitmap_map *org_bitmap= dbug_tmp_use_all_columns(table, table->read_set);
   buffer.length(0);
+
   for (Field **field=table->field ; *field ; field++)
   {
     const char *ptr;
@@ -478,50 +479,58 @@ int ha_tina::encode_quote(byte *buf)
       buffer.append(STRING_WITH_LEN("\"\","));
       continue;
     }
-    else
+
+    (*field)->val_str(&attribute,&attribute);
+
+    if ((*field)->str_needs_quotes())
     {
-      (*field)->val_str(&attribute,&attribute);
       ptr= attribute.ptr();
       end_ptr= attribute.length() + ptr;
+
+      buffer.append('"');
+
+      while (ptr < end_ptr) 
+      {
+        if (*ptr == '"')
+        {
+          buffer.append('\\');
+          buffer.append('"');
+          *ptr++;
+        }
+        else if (*ptr == '\r')
+        {
+          buffer.append('\\');
+          buffer.append('r');
+          *ptr++;
+        }
+        else if (*ptr == '\\')
+        {
+          buffer.append('\\');
+          buffer.append('\\');
+          *ptr++;
+        }
+        else if (*ptr == '\n')
+        {
+          buffer.append('\\');
+          buffer.append('n');
+          *ptr++;
+        }
+        else
+          buffer.append(*ptr++);
+      }
+      buffer.append('"');
     }
-
-    buffer.append('"');
-
-    while (ptr < end_ptr) 
+    else
     {
-      if (*ptr == '"')
-      {
-        buffer.append('\\');
-        buffer.append('"');
-        *ptr++;
-      }
-      else if (*ptr == '\r')
-      {
-        buffer.append('\\');
-        buffer.append('r');
-        *ptr++;
-      }
-      else if (*ptr == '\\')
-      {
-        buffer.append('\\');
-        buffer.append('\\');
-        *ptr++;
-      }
-      else if (*ptr == '\n')
-      {
-        buffer.append('\\');
-        buffer.append('n');
-        *ptr++;
-      }
-      else
-        buffer.append(*ptr++);
+      buffer.append(attribute);
     }
-    buffer.append('"');
+
     buffer.append(',');
   }
   // Remove the comma, add a line feed
   buffer.length(buffer.length() - 1);
   buffer.append('\n');
+
   //buffer.replace(buffer.length(), 0, "\n", 1);
 
   dbug_tmp_restore_column_map(table->read_set, org_bitmap);
@@ -601,47 +610,72 @@ int ha_tina::find_current_row(byte *buf)
     buffer.length(0);
     if (curr_offset < end_offset &&
         file_buff->get_value(curr_offset) == '"')
-      curr_offset++; // Incrementpast the first quote
-    else
-      goto err;
-    for(;curr_offset < end_offset; curr_offset++)
     {
-      // Need to convert line feeds!
-      if (file_buff->get_value(curr_offset) == '"' &&
-          ((file_buff->get_value(curr_offset + 1) == ',') ||
-           (curr_offset == end_offset -1 )))
+      curr_offset++; // Incrementpast the first quote
+
+      for(;curr_offset < end_offset; curr_offset++)
       {
-        curr_offset+= 2; // Move past the , and the "
-        break;
-      }
-      if (file_buff->get_value(curr_offset) == '\\' &&
-          curr_offset != (end_offset - 1))
-      {
-        curr_offset++;
-        if (file_buff->get_value(curr_offset) == 'r')
-          buffer.append('\r');
-        else if (file_buff->get_value(curr_offset) == 'n' )
-          buffer.append('\n');
-        else if ((file_buff->get_value(curr_offset) == '\\') ||
-                 (file_buff->get_value(curr_offset) == '"'))
-          buffer.append(file_buff->get_value(curr_offset));
-        else  /* This could only happed with an externally created file */
+        // Need to convert line feeds!
+        if (file_buff->get_value(curr_offset) == '"' &&
+            ((file_buff->get_value(curr_offset + 1) == ',') ||
+             (curr_offset == end_offset -1 )))
         {
-          buffer.append('\\');
+          curr_offset+= 2; // Move past the , and the "
+          break;
+        }
+        if (file_buff->get_value(curr_offset) == '\\' &&
+            curr_offset != (end_offset - 1))
+        {
+          curr_offset++;
+          if (file_buff->get_value(curr_offset) == 'r')
+            buffer.append('\r');
+          else if (file_buff->get_value(curr_offset) == 'n' )
+            buffer.append('\n');
+          else if ((file_buff->get_value(curr_offset) == '\\') ||
+                   (file_buff->get_value(curr_offset) == '"'))
+            buffer.append(file_buff->get_value(curr_offset));
+          else  /* This could only happed with an externally created file */
+          {
+            buffer.append('\\');
+            buffer.append(file_buff->get_value(curr_offset));
+          }
+        }
+        else // ordinary symbol
+        {
+          /*
+            We are at final symbol and no last quote was found =>
+            we are working with a damaged file.
+          */
+          if (curr_offset == end_offset - 1)
+            goto err;
           buffer.append(file_buff->get_value(curr_offset));
         }
       }
-      else // ordinary symbol
+    }
+    else if (my_isdigit(system_charset_info, 
+                        file_buff->get_value(curr_offset))) 
+    {
+      for(;curr_offset < end_offset; curr_offset++)
       {
-        /*
-          We are at final symbol and no last quote was found =>
-          we are working with a damaged file.
-        */
-        if (curr_offset == end_offset - 1)
+        if (file_buff->get_value(curr_offset) == ',')
+        {
+          curr_offset+= 1; // Move past the ,
+          break;
+        }
+
+        if (my_isdigit(system_charset_info, file_buff->get_value(curr_offset))) 
+          buffer.append(file_buff->get_value(curr_offset));
+        else if (file_buff->get_value(curr_offset) == '.')
+          buffer.append(file_buff->get_value(curr_offset));
+        else
           goto err;
-        buffer.append(file_buff->get_value(curr_offset));
       }
     }
+    else
+    {
+      goto err;
+    }
+
     if (bitmap_is_set(table->read_set, (*field)->field_index))
       (*field)->store(buffer.ptr(), buffer.length(), system_charset_info);
   }
