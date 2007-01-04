@@ -990,6 +990,12 @@ buf_relocate(
 		UT_LIST_ADD_FIRST(LRU, buf_pool->LRU, dpage);
 	}
 
+	if (UNIV_UNLIKELY(buf_pool->LRU_old == bpage)) {
+		buf_pool->LRU_old = dpage;
+	}
+
+	ut_d(UT_LIST_VALIDATE(LRU, buf_page_t, buf_pool->LRU));
+
 	/* relocate buf_pool->page_hash */
 	fold = buf_page_address_fold(bpage->space, bpage->offset);
 

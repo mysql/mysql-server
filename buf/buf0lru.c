@@ -1094,9 +1094,6 @@ buf_LRU_block_remove_hashed_page(
 		ut_ad(!bpage->in_LRU_list);
 		ut_a(bpage->zip.data);
 		ut_a(buf_page_get_zip_size(bpage));
-		memset(bpage->zip.data + FIL_PAGE_OFFSET, 0xff, 4);
-		memset(bpage->zip.data + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
-		       0xff, 4);
 
 		UT_LIST_REMOVE(list, buf_pool->zip_clean, bpage);
 
