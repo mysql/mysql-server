@@ -15,6 +15,13 @@ Created 11/5/1995 Heikki Tuuri
 #include "mtr0types.h"
 
 /************************************************************************
+Inserts a modified block into the flush list. */
+
+void
+buf_flush_insert_into_flush_list(
+/*=============================*/
+	buf_page_t*	bpage);	/* in: block which is modified */
+/************************************************************************
 Remove a block from the flush list of modified blocks. */
 
 void
@@ -102,6 +109,7 @@ buf_flush_recv_note_modification(
 /************************************************************************
 Returns TRUE if the file page block is immediately suitable for replacement,
 i.e., transition FILE_PAGE => NOT_USED allowed. */
+
 ibool
 buf_flush_ready_for_replace(
 /*========================*/

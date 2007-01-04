@@ -12,6 +12,22 @@ Created 11/5/1995 Heikki Tuuri
 #include "mtr0mtr.h"
 
 /************************************************************************
+Returns TRUE if the page can be found in the buffer pool hash table. NOTE
+that it is possible that the page is not yet read from disk, though. */
+UNIV_INLINE
+ibool
+buf_page_peek(
+/*==========*/
+			/* out: TRUE if found from page hash table,
+			NOTE that the page is not necessarily yet read
+			from disk! */
+	ulint	space,	/* in: space id */
+	ulint	offset)	/* in: page number */
+{
+	return(buf_page_peek_block(space, offset) != NULL);
+}
+
+/************************************************************************
 Reads the freed_page_clock of a buffer block. */
 UNIV_INLINE
 ulint
@@ -384,6 +400,26 @@ buf_block_set_io_fix(
 	enum buf_io_fix	io_fix)	/* in: io_fix state */
 {
 	buf_page_set_io_fix(&block->page, io_fix);
+}
+
+/************************************************************************
+Determine if a buffer block can be relocated in memory.  The block
+can be dirty, but it must not be I/O-fixed or bufferfixed. */
+UNIV_INLINE
+ibool
+buf_page_can_relocate(
+/*==================*/
+	const buf_page_t*	bpage)	/* control block being relocated */
+{
+#ifdef UNIV_SYNC_DEBUG
+	ut_a(mutex_own(&buf_pool->mutex));
+	ut_a(mutex_own(buf_page_get_mutex((buf_page_t*) bpage)));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(buf_page_in_file(bpage));
+	ut_ad(bpage->in_LRU_list);
+
+	return(buf_page_get_io_fix(bpage) == BUF_IO_NONE
+	       && bpage->buf_fix_count == 0);
 }
 
 /*************************************************************************

@@ -10,13 +10,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "mtr0mtr.h"
 
 /************************************************************************
-Inserts a modified block into the flush list. */
-
-void
-buf_flush_insert_into_flush_list(
-/*=============================*/
-	buf_page_t*	bpage);	/* in: block which is modified */
-/************************************************************************
 Inserts a modified block into the flush list in the right sorted position.
 This function is used by recovery, because there the modifications do not
 necessarily come in the order of lsn's. */
