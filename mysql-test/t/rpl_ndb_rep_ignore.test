@@ -10,7 +10,9 @@
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 
+--disable_warnings
 DROP DATABASE IF EXISTS replica;
+--enable_warnings
 
 # Create database and tables for the test.
 CREATE DATABASE replica;
