@@ -1831,7 +1831,9 @@ stop_for_a_while:
 
 	mtr_commit(&mtr);
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(sync_thread_levels_empty_gen(TRUE));
+#endif /* UNIV_SYNC_DEBUG */
 	err = DB_SUCCESS;
 	goto func_exit;
 
@@ -1850,7 +1852,9 @@ commit_mtr_for_a_while:
 	leaf_contains_updates = FALSE;
 	mtr_has_extra_clust_latch = FALSE;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(sync_thread_levels_empty_gen(TRUE));
+#endif /* UNIV_SYNC_DEBUG */
 
 	goto table_loop;
 
@@ -1866,7 +1870,9 @@ lock_wait_or_error:
 
 	mtr_commit(&mtr);
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(sync_thread_levels_empty_gen(TRUE));
+#endif /* UNIV_SYNC_DEBUG */
 
 func_exit:
 	if (UNIV_LIKELY_NULL(heap)) {
@@ -4447,7 +4453,7 @@ row_search_check_if_query_cache_permitted(
 	dict_table_t*	table;
 	ibool		ret	= FALSE;
 
-	table = dict_table_get(norm_name);
+	table = dict_table_get(norm_name, FALSE);
 
 	if (table == NULL) {
 
