@@ -2564,6 +2564,7 @@ ibool
 buf_validate(void)
 /*==============*/
 {
+	buf_page_t*	b;
 	buf_chunk_t*	chunk;
 	ulint		i;
 	ulint		n_single_flush	= 0;
@@ -2572,7 +2573,7 @@ buf_validate(void)
 	ulint		n_lru		= 0;
 	ulint		n_flush		= 0;
 	ulint		n_free		= 0;
-	ulint		n_page		= 0;
+	ulint		n_zip		= 0;
 
 	ut_ad(buf_pool);
 
@@ -2580,7 +2581,7 @@ buf_validate(void)
 
 	chunk = buf_pool->chunks;
 
-	/* TODO: check buf_pool->zip_list and buf_pool->flush_list */
+	/* Check the uncompressed blocks. */
 
 	for (i = buf_pool->n_chunks; i--; chunk++) {
 
@@ -2606,7 +2607,6 @@ buf_validate(void)
 						       buf_block_get_page_no(
 							       block))
 				     == &block->page);
-				n_page++;
 
 #ifdef UNIV_IBUF_DEBUG
 				ut_a(buf_page_get_io_fix(&block->page)
@@ -2671,13 +2671,78 @@ buf_validate(void)
 		}
 	}
 
-	if (n_lru + n_free > buf_pool->curr_size) {
-		fprintf(stderr, "n LRU %lu, n free %lu\n",
-			(ulong) n_lru, (ulong) n_free);
+	mutex_enter(&buf_pool->zip_mutex);
+
+	/* Check clean compressed-only blocks. */
+
+	for (b = UT_LIST_GET_FIRST(buf_pool->zip_clean); b;
+	     b = UT_LIST_GET_NEXT(list, b)) {
+		ut_a(buf_page_get_state(b) == BUF_BLOCK_ZIP_PAGE);
+		ut_a(buf_page_get_io_fix(b) == BUF_IO_NONE);
+		ut_a(!b->oldest_modification);
+		ut_a(buf_page_hash_get(b->space, b->offset) == b);
+
+		n_lru++;
+		n_zip++;
+	}
+
+	/* Check dirty compressed-only blocks. */
+
+	for (b = UT_LIST_GET_FIRST(buf_pool->flush_list); b;
+	     b = UT_LIST_GET_NEXT(list, b)) {
+		switch (buf_page_get_state(b)) {
+		case BUF_BLOCK_ZIP_DIRTY:
+			ut_a(b->oldest_modification);
+			n_lru++;
+			n_flush++;
+			n_zip++;
+			switch (buf_page_get_io_fix(b)) {
+			case BUF_IO_NONE:
+			case BUF_IO_READ:
+				break;
+
+			case BUF_IO_WRITE:
+				switch (buf_page_get_flush_type(b)) {
+				case BUF_FLUSH_LRU:
+					n_lru_flush++;
+					break;
+				case BUF_FLUSH_LIST:
+					n_list_flush++;
+					break;
+				case BUF_FLUSH_SINGLE_PAGE:
+					n_single_flush++;
+					break;
+				default:
+					ut_error;
+				}
+				break;
+			}
+			break;
+		case BUF_BLOCK_FILE_PAGE:
+			/* uncompressed page */
+			break;
+		case BUF_BLOCK_ZIP_FREE:
+		case BUF_BLOCK_ZIP_PAGE:
+		case BUF_BLOCK_NOT_USED:
+		case BUF_BLOCK_READY_FOR_USE:
+		case BUF_BLOCK_MEMORY:
+		case BUF_BLOCK_REMOVE_HASH:
+			ut_error;
+			break;
+		}
+		ut_a(buf_page_hash_get(b->space, b->offset) == b);
+	}
+
+	mutex_exit(&buf_pool->zip_mutex);
+
+	if (n_lru + n_free > buf_pool->curr_size + n_zip) {
+		fprintf(stderr, "n LRU %lu, n free %lu, pool %lu zip %lu\n",
+			(ulong) n_lru, (ulong) n_free,
+			(ulong) buf_pool->curr_size, (ulong) n_zip);
 		ut_error;
 	}
 
-	ut_a(UT_LIST_GET_LEN(buf_pool->LRU) >= n_lru);
+	ut_a(UT_LIST_GET_LEN(buf_pool->LRU) == n_lru);
 	if (UT_LIST_GET_LEN(buf_pool->free) != n_free) {
 		fprintf(stderr, "Free list len %lu, free blocks %lu\n",
 			(ulong) UT_LIST_GET_LEN(buf_pool->free),
@@ -2686,9 +2751,9 @@ buf_validate(void)
 	}
 	ut_a(UT_LIST_GET_LEN(buf_pool->flush_list) == n_flush);
 
-	ut_a(buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE] >= n_single_flush);
-	ut_a(buf_pool->n_flush[BUF_FLUSH_LIST] >= n_list_flush);
-	ut_a(buf_pool->n_flush[BUF_FLUSH_LRU] >= n_lru_flush);
+	ut_a(buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE] == n_single_flush);
+	ut_a(buf_pool->n_flush[BUF_FLUSH_LIST] == n_list_flush);
+	ut_a(buf_pool->n_flush[BUF_FLUSH_LRU] == n_lru_flush);
 
 	mutex_exit(&(buf_pool->mutex));
 
