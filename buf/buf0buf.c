@@ -1517,11 +1517,12 @@ loop:
 	if (block == NULL
 	    || UNIV_UNLIKELY(buf_block_get_state(block)
 			     != BUF_BLOCK_FILE_PAGE)) {
-		/* Page not in buf_pool: needs to be read from file */
+		/* Uncompressed page not in buf_pool: needs to be
+		decompressed or read from file */
 
 		mutex_exit(&(buf_pool->mutex));
 
-		if (mode == BUF_GET_IF_IN_POOL) {
+		if (!block && mode == BUF_GET_IF_IN_POOL) {
 
 			return(NULL);
 		}
@@ -2247,11 +2248,9 @@ buf_page_create(
 
 	block = (buf_block_t*) buf_page_hash_get(space, offset);
 
-	if (block != NULL
-	    && buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE) {
+	if (block && buf_page_in_file(&block->page)) {
 #ifdef UNIV_IBUF_DEBUG
-		ut_a(ibuf_count_get(buf_block_get_space(block),
-				    buf_block_get_page_no(block)) == 0);
+		ut_a(ibuf_count_get(space, offset) == 0);
 #endif
 #ifdef UNIV_DEBUG_FILE_ACCESSES
 		block->page.file_page_was_freed = FALSE;
