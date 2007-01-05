@@ -1167,13 +1167,23 @@ buf_pool_page_hash_rebuild(void)
 	ulint		n_chunks;
 	buf_chunk_t*	chunk;
 	hash_table_t*	page_hash;
+	hash_table_t*	zip_hash;
+	buf_page_t*	b;
 
 	mutex_enter(&buf_pool->mutex);
 
 	/* Free, create, and populate the hash table. */
 	hash_table_free(buf_pool->page_hash);
 	buf_pool->page_hash = page_hash = hash_create(2 * buf_pool->curr_size);
-	/* TODO: buf_pool->zip_hash */
+	zip_hash = hash_create(2 * buf_pool->curr_size);
+
+	HASH_MIGRATE(buf_pool->zip_hash, zip_hash, buf_page_t, hash,
+		     BUF_POOL_ZIP_FOLD_BPAGE);
+
+	hash_table_free(buf_pool->zip_hash);
+	buf_pool->zip_hash = zip_hash;
+
+	/* Insert the uncompressed file pages to buf_pool->page_hash. */
 
 	chunk = buf_pool->chunks;
 	n_chunks = buf_pool->n_chunks;
@@ -1191,6 +1201,40 @@ buf_pool_page_hash_rebuild(void)
 						    block->page.offset),
 					    &block->page);
 			}
+		}
+	}
+
+	/* Insert the compressed-only pages to buf_pool->page_hash.
+	All such blocks are either in buf_pool->zip_clean or
+	in buf_pool->flush_list. */
+
+	for (b = UT_LIST_GET_FIRST(buf_pool->zip_clean); b;
+	     b = UT_LIST_GET_NEXT(list, b)) {
+		ut_a(buf_page_get_state(b) == BUF_BLOCK_ZIP_PAGE);
+
+		HASH_INSERT(buf_page_t, hash, page_hash,
+			    buf_page_address_fold(b->space, b->offset), b);
+	}
+
+	for (b = UT_LIST_GET_FIRST(buf_pool->flush_list); b;
+	     b = UT_LIST_GET_NEXT(list, b)) {
+		switch (buf_page_get_state(b)) {
+		case BUF_BLOCK_ZIP_DIRTY:
+			HASH_INSERT(buf_page_t, hash, page_hash,
+				    buf_page_address_fold(b->space,
+							  b->offset), b);
+			break;
+		case BUF_BLOCK_FILE_PAGE:
+			/* uncompressed page */
+			break;
+		case BUF_BLOCK_ZIP_FREE:
+		case BUF_BLOCK_ZIP_PAGE:
+		case BUF_BLOCK_NOT_USED:
+		case BUF_BLOCK_READY_FOR_USE:
+		case BUF_BLOCK_MEMORY:
+		case BUF_BLOCK_REMOVE_HASH:
+			ut_error;
+			break;
 		}
 	}
 
