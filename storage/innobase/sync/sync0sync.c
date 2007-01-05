@@ -108,8 +108,6 @@ will set the waiters field to 0 in mutex_exit, and then call
 sync_array_signal_object with the mutex as an argument.
 Q.E.D. */
 
-ulint	sync_dummy			= 0;
-
 /* The number of system calls made in this module. Intended for performance
 monitoring. */
 
@@ -133,6 +131,7 @@ ibool	sync_initialized	= FALSE;
 typedef struct sync_level_struct	sync_level_t;
 typedef struct sync_thread_struct	sync_thread_t;
 
+#ifdef UNIV_SYNC_DEBUG
 /* The latch levels currently owned by threads are stored in this data
 structure; the size of this array is OS_THREAD_MAX_N */
 
@@ -140,6 +139,7 @@ sync_thread_t*	sync_thread_level_arrays;
 
 /* Mutex protecting sync_thread_level_arrays */
 mutex_t	sync_thread_mutex;
+#endif /* UNIV_SYNC_DEBUG */
 
 /* Global list of database mutexes (not OS mutexes) created. */
 ut_list_base_node_t  mutex_list;
@@ -147,11 +147,10 @@ ut_list_base_node_t  mutex_list;
 /* Mutex protecting the mutex_list variable */
 mutex_t mutex_list_mutex;
 
+#ifdef UNIV_SYNC_DEBUG
 /* Latching order checks start when this is set TRUE */
 ibool	sync_order_checks_on	= FALSE;
-
-/* Dummy mutex used to implement mutex_fence */
-mutex_t	dummy_mutex_for_fence;
+#endif /* UNIV_SYNC_DEBUG */
 
 struct sync_thread_struct{
 	os_thread_id_t	id;	/* OS thread id */
@@ -202,10 +201,14 @@ void
 mutex_create_func(
 /*==============*/
 	mutex_t*	mutex,		/* in: pointer to memory */
+#ifdef UNIV_DEBUG
+	const char*	cmutex_name,	/* in: mutex name */
+# ifdef UNIV_SYNC_DEBUG
 	ulint		level,		/* in: level */
+# endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_DEBUG */
 	const char*	cfile_name,	/* in: file name where created */
-  ulint cline,	/* in: file line where created */
-  const char* cmutex_name)  /* in: mutex name */
+	ulint		cline)		/* in: file line where created */
 {
 #if defined(_WIN32) && defined(UNIV_CAN_USE_X86_ASSEMBLER)
 	mutex_reset_lock_word(mutex);
@@ -214,15 +217,19 @@ mutex_create_func(
 	mutex->lock_word = 0;
 #endif
 	mutex_set_waiters(mutex, 0);
+#ifdef UNIV_DEBUG
 	mutex->magic_n = MUTEX_MAGIC_N;
+#endif /* UNIV_DEBUG */
 #ifdef UNIV_SYNC_DEBUG
 	mutex->line = 0;
 	mutex->file_name = "not yet reserved";
-#endif /* UNIV_SYNC_DEBUG */
 	mutex->level = level;
+#endif /* UNIV_SYNC_DEBUG */
 	mutex->cfile_name = cfile_name;
 	mutex->cline = cline;
 #ifndef UNIV_HOTBACKUP
+	mutex->count_os_wait = 0;
+# ifdef UNIV_DEBUG
 	mutex->cmutex_name=	  cmutex_name;
 	mutex->count_using=	  0;
 	mutex->mutex_type=	  0;
@@ -230,8 +237,8 @@ mutex_create_func(
 	mutex->lmax_spent_time=     0;
 	mutex->count_spin_loop= 0;
 	mutex->count_spin_rounds=   0;
-	mutex->count_os_wait=	  0;
 	mutex->count_os_yield=  0;
+# endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
 	/* Check that lock_word is aligned; this is important on Intel */
@@ -239,16 +246,19 @@ mutex_create_func(
 
 	/* NOTE! The very first mutexes are not put to the mutex list */
 
-	if ((mutex == &mutex_list_mutex) || (mutex == &sync_thread_mutex)) {
+	if ((mutex == &mutex_list_mutex)
+#ifdef UNIV_SYNC_DEBUG
+	    || (mutex == &sync_thread_mutex)
+#endif /* UNIV_SYNC_DEBUG */
+	    ) {
 
 		return;
 	}
 
 	mutex_enter(&mutex_list_mutex);
 
-	if (UT_LIST_GET_LEN(mutex_list) > 0) {
-		ut_a(UT_LIST_GET_FIRST(mutex_list)->magic_n == MUTEX_MAGIC_N);
-	}
+	ut_ad(UT_LIST_GET_LEN(mutex_list) == 0
+	      || UT_LIST_GET_FIRST(mutex_list)->magic_n == MUTEX_MAGIC_N);
 
 	UT_LIST_ADD_FIRST(list, mutex_list, mutex);
 
@@ -265,24 +275,24 @@ mutex_free(
 /*=======*/
 	mutex_t*	mutex)	/* in: mutex */
 {
-#ifdef UNIV_DEBUG
-	ut_a(mutex_validate(mutex));
-#endif /* UNIV_DEBUG */
+	ut_ad(mutex_validate(mutex));
 	ut_a(mutex_get_lock_word(mutex) == 0);
 	ut_a(mutex_get_waiters(mutex) == 0);
 
-	if (mutex != &mutex_list_mutex && mutex != &sync_thread_mutex) {
+	if (mutex != &mutex_list_mutex
+#ifdef UNIV_SYNC_DEBUG
+	    && mutex != &sync_thread_mutex
+#endif /* UNIV_SYNC_DEBUG */
+	    ) {
 
 		mutex_enter(&mutex_list_mutex);
 
-		if (UT_LIST_GET_PREV(list, mutex)) {
-			ut_a(UT_LIST_GET_PREV(list, mutex)->magic_n
-			     == MUTEX_MAGIC_N);
-		}
-		if (UT_LIST_GET_NEXT(list, mutex)) {
-			ut_a(UT_LIST_GET_NEXT(list, mutex)->magic_n
-			     == MUTEX_MAGIC_N);
-		}
+		ut_ad(!UT_LIST_GET_PREV(list, mutex)
+		      || UT_LIST_GET_PREV(list, mutex)->magic_n
+		      == MUTEX_MAGIC_N);
+		ut_ad(!UT_LIST_GET_NEXT(list, mutex)
+		      || UT_LIST_GET_NEXT(list, mutex)->magic_n
+		      == MUTEX_MAGIC_N);
 
 		UT_LIST_REMOVE(list, mutex_list, mutex);
 
@@ -295,8 +305,9 @@ mutex_free(
 	/* If we free the mutex protecting the mutex list (freeing is
 	not necessary), we have to reset the magic number AFTER removing
 	it from the list. */
-
+#ifdef UNIV_DEBUG
 	mutex->magic_n = 0;
+#endif /* UNIV_DEBUG */
 }
 
 /************************************************************************
@@ -328,6 +339,7 @@ mutex_enter_nowait(
 	return(1);
 }
 
+#ifdef UNIV_DEBUG
 /**********************************************************************
 Checks that the mutex has been initialized. */
 
@@ -341,6 +353,7 @@ mutex_validate(
 
 	return(TRUE);
 }
+#endif /* UNIV_DEBUG */
 
 /**********************************************************************
 Sets the waiters field in a mutex. */
@@ -376,13 +389,13 @@ mutex_spin_wait(
 {
 	ulint	   index; /* index of the reserved wait cell */
 	ulint	   i;	  /* spin round count */
-#ifndef UNIV_HOTBACKUP
+#if defined UNIV_DEBUG && !defined UNIV_HOTBACKUP
 	ib_longlong lstart_time = 0, lfinish_time; /* for timing os_wait */
 	ulint ltime_diff;
 	ulint sec;
 	ulint ms;
 	uint timer_started = 0;
-#endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 	ut_ad(mutex);
 
 mutex_loop:
@@ -396,10 +409,10 @@ mutex_loop:
 	a memory word. */
 
 spin_loop:
-#ifndef UNIV_HOTBACKUP
+#if defined UNIV_DEBUG && !defined UNIV_HOTBACKUP
 	mutex_spin_wait_count++;
 	mutex->count_spin_loop++;
-#endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 
 	while (mutex_get_lock_word(mutex) != 0 && i < SYNC_SPIN_ROUNDS) {
 		if (srv_spin_wait_delay) {
@@ -410,14 +423,14 @@ spin_loop:
 	}
 
 	if (i == SYNC_SPIN_ROUNDS) {
-#ifndef UNIV_HOTBACKUP
+#if defined UNIV_DEBUG && !defined UNIV_HOTBACKUP
 		mutex->count_os_yield++;
 		if (timed_mutexes == 1 && timer_started==0) {
 			ut_usectime(&sec, &ms);
 			lstart_time= (ib_longlong)sec * 1000000 + ms;
 			timer_started = 1;
 		}
-#endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 		os_thread_yield();
 	}
 
@@ -431,9 +444,9 @@ spin_loop:
 
 	mutex_spin_round_count += i;
 
-#ifndef UNIV_HOTBACKUP
+#if defined UNIV_DEBUG && !defined UNIV_HOTBACKUP
 	mutex->count_spin_rounds += i;
-#endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 
 	if (mutex_test_and_set(mutex) == 0) {
 		/* Succeeded! */
@@ -514,6 +527,7 @@ spin_loop:
 
 #ifndef UNIV_HOTBACKUP
 	mutex->count_os_wait++;
+# ifdef UNIV_DEBUG
 	/* !!!!! Sometimes os_wait can be called without os_thread_yield */
 
 	if (timed_mutexes == 1 && timer_started==0) {
@@ -521,13 +535,14 @@ spin_loop:
 		lstart_time= (ib_longlong)sec * 1000000 + ms;
 		timer_started = 1;
 	}
+# endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
 	sync_array_wait_event(sync_primary_wait_array, index);
 	goto mutex_loop;
 
 finish_timing:
-#ifndef UNIV_HOTBACKUP
+#if defined UNIV_DEBUG && !defined UNIV_HOTBACKUP
 	if (timed_mutexes == 1 && timer_started==1) {
 		ut_usectime(&sec, &ms);
 		lfinish_time= (ib_longlong)sec * 1000000 + ms;
@@ -539,7 +554,7 @@ finish_timing:
 			mutex->lmax_spent_time= ltime_diff;
 		}
 	}
-#endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 	return;
 }
 
@@ -598,9 +613,7 @@ mutex_get_debug_info(
 	*line	   = mutex->line;
 	*thread_id = mutex->thread_id;
 }
-#endif /* UNIV_SYNC_DEBUG */
 
-#ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
 Checks that the current thread owns the mutex. Works only in the debug
 version. */
@@ -611,7 +624,7 @@ mutex_own(
 				/* out: TRUE if owns */
 	mutex_t*	mutex)	/* in: mutex */
 {
-	ut_a(mutex_validate(mutex));
+	ut_ad(mutex_validate(mutex));
 
 	if (mutex_get_lock_word(mutex) != 1) {
 
@@ -710,7 +723,6 @@ sync_all_freed(void)
 {
 	return(mutex_n_reserved() + rw_lock_n_locked() == 0);
 }
-#endif /* UNIV_SYNC_DEBUG */
 
 /**********************************************************************
 Gets the value in the nth slot in the thread level arrays. */
@@ -834,7 +846,6 @@ sync_thread_levels_g(
 						(ulong) mutex->cline);
 
 					if (mutex_get_lock_word(mutex) != 0) {
-#ifdef UNIV_SYNC_DEBUG
 						const char*	file_name;
 						ulint		line;
 						os_thread_id_t	thread_id;
@@ -852,19 +863,11 @@ sync_thread_levels_g(
 								thread_id),
 							file_name,
 							(ulong) line);
-#else /* UNIV_SYNC_DEBUG */
-						fprintf(stderr,
-							"InnoDB: Locked mutex:"
-							" addr %p\n",
-							(void*) mutex);
-#endif /* UNIV_SYNC_DEBUG */
 					} else {
 						fputs("Not locked\n", stderr);
 					}
 				} else {
-#ifdef UNIV_SYNC_DEBUG
 					rw_lock_print(lock);
-#endif /* UNIV_SYNC_DEBUG */
 				}
 
 				return(FALSE);
@@ -996,9 +999,7 @@ sync_thread_add_level(
 
 	if ((latch == (void*)&sync_thread_mutex)
 	    || (latch == (void*)&mutex_list_mutex)
-#ifdef UNIV_SYNC_DEBUG
 	    || (latch == (void*)&rw_lock_debug_mutex)
-#endif /* UNIV_SYNC_DEBUG */
 	    || (latch == (void*)&rw_lock_list_mutex)) {
 
 		return;
@@ -1219,9 +1220,7 @@ sync_thread_reset_level(
 
 	if ((latch == (void*)&sync_thread_mutex)
 	    || (latch == (void*)&mutex_list_mutex)
-#ifdef UNIV_SYNC_DEBUG
 	    || (latch == (void*)&rw_lock_debug_mutex)
-#endif /* UNIV_SYNC_DEBUG */
 	    || (latch == (void*)&rw_lock_list_mutex)) {
 
 		return(FALSE);
@@ -1260,6 +1259,7 @@ sync_thread_reset_level(
 
 	return(FALSE);
 }
+#endif /* UNIV_SYNC_DEBUG */
 
 /**********************************************************************
 Initializes the synchronization data structures. */
@@ -1268,8 +1268,10 @@ void
 sync_init(void)
 /*===========*/
 {
+#ifdef UNIV_SYNC_DEBUG
 	sync_thread_t*	thread_slot;
 	ulint		i;
+#endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(sync_initialized == FALSE);
 
@@ -1280,7 +1282,7 @@ sync_init(void)
 
 	sync_primary_wait_array = sync_array_create(OS_THREAD_MAX_N,
 						    SYNC_ARRAY_OS_MUTEX);
-
+#ifdef UNIV_SYNC_DEBUG
 	/* Create the thread latch level array where the latch levels
 	are stored for each OS thread */
 
@@ -1291,13 +1293,14 @@ sync_init(void)
 		thread_slot = sync_thread_level_arrays_get_nth(i);
 		thread_slot->levels = NULL;
 	}
-
+#endif /* UNIV_SYNC_DEBUG */
 	/* Init the mutex list and create the mutex to protect it. */
 
 	UT_LIST_INIT(mutex_list);
 	mutex_create(&mutex_list_mutex, SYNC_NO_ORDER_CHECK);
-
+#ifdef UNIV_SYNC_DEBUG
 	mutex_create(&sync_thread_mutex, SYNC_NO_ORDER_CHECK);
+#endif /* UNIV_SYNC_DEBUG */
 
 	/* Init the rw-lock list and create the mutex to protect it. */
 
@@ -1332,7 +1335,9 @@ sync_close(void)
 	}
 
 	mutex_free(&mutex_list_mutex);
+#ifdef UNIV_SYNC_DEBUG
 	mutex_free(&sync_thread_mutex);
+#endif /* UNIV_SYNC_DEBUG */
 }
 
 /***********************************************************************
