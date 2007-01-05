@@ -2879,8 +2879,10 @@ Returns the number of latched pages in the buffer pool. */
 
 ulint
 buf_get_latched_pages_number(void)
+/*==============================*/
 {
 	buf_chunk_t*	chunk;
+	buf_page_t*	b;
 	ulint		i;
 	ulint		fixed_pages_number = 0;
 
@@ -2913,6 +2915,45 @@ buf_get_latched_pages_number(void)
 		}
 	}
 
+	mutex_enter(&buf_pool->zip_mutex);
+
+	/* Traverse the lists of clean and dirty compressed-only blocks. */
+
+	for (b = UT_LIST_GET_FIRST(buf_pool->zip_clean); b;
+	     b = UT_LIST_GET_NEXT(list, b)) {
+		ut_a(buf_page_get_state(b) == BUF_BLOCK_ZIP_PAGE);
+		ut_a(buf_page_get_io_fix(b) == BUF_IO_NONE);
+
+		if (b->buf_fix_count != 0
+		    || buf_page_get_io_fix(b) != BUF_IO_NONE) {
+			fixed_pages_number++;
+		}
+	}
+
+	for (b = UT_LIST_GET_FIRST(buf_pool->flush_list); b;
+	     b = UT_LIST_GET_NEXT(list, b)) {
+		switch (buf_page_get_state(b)) {
+		case BUF_BLOCK_ZIP_DIRTY:
+			if (b->buf_fix_count != 0
+			    || buf_page_get_io_fix(b) != BUF_IO_NONE) {
+				fixed_pages_number++;
+			}
+			break;
+		case BUF_BLOCK_FILE_PAGE:
+			/* uncompressed page */
+			break;
+		case BUF_BLOCK_ZIP_FREE:
+		case BUF_BLOCK_ZIP_PAGE:
+		case BUF_BLOCK_NOT_USED:
+		case BUF_BLOCK_READY_FOR_USE:
+		case BUF_BLOCK_MEMORY:
+		case BUF_BLOCK_REMOVE_HASH:
+			ut_error;
+			break;
+		}
+	}
+
+	mutex_exit(&buf_pool->zip_mutex);
 	mutex_exit(&(buf_pool->mutex));
 
 	return(fixed_pages_number);
