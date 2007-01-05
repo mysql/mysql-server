@@ -582,11 +582,11 @@ static
 void*
 page_zip_malloc(
 /*============*/
-	void*	opaque __attribute__((unused)),
+	void*	opaque,
 	uInt	items,
 	uInt	size)
 {
-	return(ut_malloc(items * size));
+	return(mem_heap_alloc(opaque, items * size));
 }
 
 /**************************************************************************
@@ -595,10 +595,9 @@ static
 void
 page_zip_free(
 /*==========*/
-	 void*	opaque __attribute__((unused)),
-	 void*	address)
+	void*	opaque __attribute__((unused)),
+	void*	address __attribute__((unused)))
 {
-	ut_free(address);
 }
 
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
@@ -981,7 +980,9 @@ page_zip_compress(
 	heap = mem_heap_create(page_zip_get_size(page_zip)
 			       + n_fields * (2 + sizeof *offsets)
 			       + n_dense * ((sizeof *recs)
-					    - PAGE_ZIP_DIR_SLOT_SIZE));
+					    - PAGE_ZIP_DIR_SLOT_SIZE)
+			       + UNIV_PAGE_SIZE * 4
+			       + (512 << MAX_MEM_LEVEL));
 
 	recs = mem_heap_alloc(heap, n_dense * sizeof *recs);
 	memset(recs, 0, n_dense * sizeof *recs);
@@ -994,9 +995,11 @@ page_zip_compress(
 	/* Compress the data payload. */
 	c_stream.zalloc = page_zip_malloc;
 	c_stream.zfree = page_zip_free;
-	c_stream.opaque = (voidpf) 0;
+	c_stream.opaque = heap;
 
-	err = deflateInit(&c_stream, Z_DEFAULT_COMPRESSION);
+	err = deflateInit2(&c_stream, Z_DEFAULT_COMPRESSION,
+			   Z_DEFLATED, UNIV_PAGE_SIZE_SHIFT,
+			   MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
 	ut_a(err == Z_OK);
 
 	c_stream.next_out = buf;
@@ -2245,7 +2248,7 @@ page_zip_decompress(
 		return(FALSE);
 	}
 
-	heap = mem_heap_create(n_dense * (3 * sizeof *recs));
+	heap = mem_heap_create(n_dense * (3 * sizeof *recs) + UNIV_PAGE_SIZE);
 	recs = mem_heap_alloc(heap, n_dense * (2 * sizeof *recs));
 
 #ifdef UNIV_ZIP_DEBUG
@@ -2280,9 +2283,10 @@ zlib_error:
 
 	d_stream.zalloc = page_zip_malloc;
 	d_stream.zfree = page_zip_free;
-	d_stream.opaque = (voidpf) 0;
+	d_stream.opaque = heap;
 
-	if (UNIV_UNLIKELY(inflateInit(&d_stream) != Z_OK)) {
+	if (UNIV_UNLIKELY(inflateInit2(&d_stream, UNIV_PAGE_SIZE_SHIFT)
+			  != Z_OK)) {
 		ut_error;
 	}
 
