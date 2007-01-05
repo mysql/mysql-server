@@ -25,7 +25,7 @@
  *   and then from NdbCntr sent to: dih, dict, lqh, tc & API
  */
 struct NodeFailRep {
-  STATIC_CONST( SignalLength = 3 + NodeBitmask::Size );
+  STATIC_CONST( SignalLength = 3 + NdbNodeBitmask::Size );
   
   Uint32 failNo;
 
@@ -36,7 +36,7 @@ struct NodeFailRep {
   Uint32 masterNodeId;
 
   Uint32 noOfNodes;
-  Uint32 theNodes[NodeBitmask::Size];
+  Uint32 theNodes[NdbNodeBitmask::Size];
 };
 
 #endif

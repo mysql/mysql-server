@@ -123,7 +123,8 @@ void getTextNDBStopForced(QQQQ) {
   int error         = theData[3];
   int sphase        = theData[4];
   int extra         = theData[5];
-  getRestartAction(theData[1],action_str);
+  if (signum)
+    getRestartAction(theData[1],action_str);
   reason_str.appfmt(" Initiated by signal %d.", signum);
   if (error)
   {

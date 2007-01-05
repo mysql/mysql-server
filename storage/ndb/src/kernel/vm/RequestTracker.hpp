@@ -51,7 +51,7 @@ public:
 
 private:
   SafeCounterHandle m_sc;
-  NodeBitmask m_confs;
+  NdbNodeBitmask m_confs;
   Uint8 m_nRefs;
 };
 

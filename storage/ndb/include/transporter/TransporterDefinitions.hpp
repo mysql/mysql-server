@@ -25,7 +25,7 @@
  * The maximum number of transporters allowed
  * A maximum is needed to be able to allocate the array of transporters
  */
-const int MAX_NTRANSPORTERS = 128;
+const int MAX_NTRANSPORTERS = 256;
 
 /**
  * The sendbuffer limit after which the contents of the buffer is sent
