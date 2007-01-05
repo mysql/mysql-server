@@ -96,7 +96,7 @@ buf_buddy_block_free(
 /*=================*/
 	void*	buf)	/* in: buffer frame to deallocate */
 {
-	ulint		fold	= (ulint) buf / UNIV_PAGE_SIZE;
+	const ulint	fold	= BUF_POOL_ZIP_FOLD_PTR(buf);
 	buf_page_t*	bpage;
 	buf_block_t*	block;
 
@@ -104,7 +104,7 @@ buf_buddy_block_free(
 	ut_a(mutex_own(&buf_pool->mutex));
 	ut_a(!mutex_own(&buf_pool->zip_mutex));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_a(buf == ut_align_down(buf, UNIV_PAGE_SIZE));
+	ut_a(!ut_align_offset(buf, UNIV_PAGE_SIZE));
 
 	HASH_SEARCH(hash, buf_pool->zip_hash, fold, bpage,
 		    ((buf_block_t*) bpage)->frame == buf);
@@ -128,7 +128,7 @@ buf_buddy_block_register(
 /*=====================*/
 	buf_block_t*	block)	/* in: buffer frame to allocate */
 {
-	ulint		fold;
+	const ulint	fold = BUF_POOL_ZIP_FOLD(block);
 #ifdef UNIV_SYNC_DEBUG
 	ut_a(mutex_own(&buf_pool->mutex));
 	ut_a(!mutex_own(&buf_pool->zip_mutex));
@@ -136,9 +136,7 @@ buf_buddy_block_register(
 	buf_block_set_state(block, BUF_BLOCK_MEMORY);
 
 	ut_a(block->frame);
-	ut_a(block->frame == ut_align_down(block->frame, UNIV_PAGE_SIZE));
-
-	fold = (ulint) block->frame / UNIV_PAGE_SIZE;
+	ut_a(!ut_align_offset(block->frame, UNIV_PAGE_SIZE));
 
 	HASH_INSERT(buf_page_t, hash, buf_pool->zip_hash, fold, &block->page);
 }
