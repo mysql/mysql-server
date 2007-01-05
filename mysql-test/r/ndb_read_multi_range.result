@@ -367,3 +367,17 @@ a	b	c
 406994	67	2006-02-27 11:26:46
 406995	67	2006-02-28 11:55:00
 DROP TABLE t1, t11, t12, t21, t22;
+CREATE TABLE t1 (id varchar(255) NOT NULL,
+tag int(11) NOT NULL,
+doc text NOT NULL,
+type varchar(150) NOT NULL,
+modified timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+PRIMARY KEY (id)
+) ENGINE=ndbcluster;
+INSERT INTO t1 VALUES ('sakila',1,'Some text goes here','text',CURRENT_TIMESTAMP);
+SELECT id, tag, doc, type FROM t1 WHERE id IN ('flipper','orka');
+id	tag	doc	type
+SELECT id, tag, doc, type FROM t1 WHERE id IN ('flipper','sakila');
+id	tag	doc	type
+sakila	1	Some text goes here	text
+DROP TABLE t1;
