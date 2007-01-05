@@ -801,16 +801,20 @@ dict_init(void)
 }
 
 /**************************************************************************
-Returns a table object. NOTE! This is a high-level function to be used
-mainly from outside the 'dict' directory. Inside this directory
-dict_table_get_low is usually the appropriate function. */
+Returns a table object and optionally increment its MySQL open handle count.
+NOTE! This is a high-level function to be used mainly from outside the
+'dict' directory. Inside this directory dict_table_get_low is usually the
+appropriate function. */
 
 dict_table_t*
 dict_table_get(
 /*===========*/
 					/* out: table, NULL if
 					does not exist */
-	const char*	table_name)	/* in: table name */
+	const char*	table_name,	/* in: table name */
+	ibool		inc_mysql_count)
+     					/* in: whether to increment the open
+					handle count on the table */
 {
 	dict_table_t*	table;
 
@@ -818,42 +822,17 @@ dict_table_get(
 
 	table = dict_table_get_low(table_name);
 
-	mutex_exit(&(dict_sys->mutex));
-
-	if (table != NULL) {
-		if (!table->stat_initialized) {
-			dict_update_statistics(table);
-		}
-	}
-
-	return(table);
-}
-
-/**************************************************************************
-Returns a table object and increments MySQL open handle count on the table. */
-
-dict_table_t*
-dict_table_get_and_increment_handle_count(
-/*======================================*/
-					/* out: table, NULL if
-					does not exist */
-	const char*	table_name)	/* in: table name */
-{
-	dict_table_t*	table;
-
-	mutex_enter(&(dict_sys->mutex));
-
-	table = dict_table_get_low(table_name);
-
-	if (table != NULL) {
-
+	if (inc_mysql_count && table) {
 		table->n_mysql_handles_opened++;
 	}
 
 	mutex_exit(&(dict_sys->mutex));
 
 	if (table != NULL) {
-		if (!table->stat_initialized && !table->ibd_file_missing) {
+		if (!table->stat_initialized) {
+			/* If table->ibd_file_missing == TRUE, this will
+			print an error message and return without doing
+			anything. */
 			dict_update_statistics(table);
 		}
 	}
