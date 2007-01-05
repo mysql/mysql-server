@@ -1347,37 +1347,6 @@ buf_page_make_young(
 }
 
 /************************************************************************
-Returns the buffer control block if the page can be found in the buffer
-pool. NOTE that it is possible that the page is not yet read
-from disk, though. This is a very low-level function: use with care! */
-
-buf_block_t*
-buf_page_peek_block(
-/*================*/
-			/* out: control block if found from page hash table,
-			otherwise NULL; NOTE that the page is not necessarily
-			yet read from disk! */
-	ulint	space,	/* in: space id */
-	ulint	offset)	/* in: page number */
-{
-	buf_block_t*	block;
-
-	mutex_enter_fast(&(buf_pool->mutex));
-
-	block = (buf_block_t*) buf_page_hash_get(space, offset);
-
-	mutex_exit(&(buf_pool->mutex));
-
-	if (block
-	    && UNIV_UNLIKELY(buf_block_get_state(block)
-			     != BUF_BLOCK_FILE_PAGE)) {
-		block = NULL;
-	}
-
-	return(block);
-}
-
-/************************************************************************
 Resets the check_index_page_at_flush field of a page if found in the buffer
 pool. */
 

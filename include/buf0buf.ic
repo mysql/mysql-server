@@ -12,22 +12,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "mtr0mtr.h"
 
 /************************************************************************
-Returns TRUE if the page can be found in the buffer pool hash table. NOTE
-that it is possible that the page is not yet read from disk, though. */
-UNIV_INLINE
-ibool
-buf_page_peek(
-/*==========*/
-			/* out: TRUE if found from page hash table,
-			NOTE that the page is not necessarily yet read
-			from disk! */
-	ulint	space,	/* in: space id */
-	ulint	offset)	/* in: page number */
-{
-	return(buf_page_peek_block(space, offset) != NULL);
-}
-
-/************************************************************************
 Reads the freed_page_clock of a buffer block. */
 UNIV_INLINE
 ulint
@@ -905,6 +889,30 @@ buf_page_hash_get(
 	ut_a(!bpage || buf_page_in_file(bpage));
 
 	return(bpage);
+}
+
+/************************************************************************
+Returns TRUE if the page can be found in the buffer pool hash table. NOTE
+that it is possible that the page is not yet read from disk, though. */
+UNIV_INLINE
+ibool
+buf_page_peek(
+/*==========*/
+			/* out: TRUE if found from page hash table,
+			NOTE that the page is not necessarily yet read
+			from disk! */
+	ulint	space,	/* in: space id */
+	ulint	offset)	/* in: page number */
+{
+	const buf_page_t*	bpage;
+
+	mutex_enter(&buf_pool->mutex);
+
+	bpage = buf_page_hash_get(space, offset);
+
+	mutex_exit(&buf_pool->mutex);
+
+	return(bpage != NULL);
 }
 
 /************************************************************************

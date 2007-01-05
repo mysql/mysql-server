@@ -101,7 +101,6 @@ corresponding function. */
 /* NOTE! currently same as mutex_enter! */
 
 #define mutex_enter_fast(M)	mutex_enter_func((M), __FILE__, __LINE__)
-#define mutex_enter_fast_func	mutex_enter_func;
 /**********************************************************************
 NOTE! Use the corresponding macro in the header file, not this function
 directly. Locks a mutex for the current thread. If the mutex is reserved
