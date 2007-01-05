@@ -298,19 +298,6 @@ buf_page_peek(
 	ulint	space,	/* in: space id */
 	ulint	offset);/* in: page number */
 /************************************************************************
-Returns the buffer control block if the page can be found in the buffer
-pool. NOTE that it is possible that the page is not yet read
-from disk, though. This is a very low-level function: use with care! */
-
-buf_block_t*
-buf_page_peek_block(
-/*================*/
-			/* out: control block if found from page hash table,
-			otherwise NULL; NOTE that the page is not necessarily
-			yet read from disk! */
-	ulint	space,	/* in: space id */
-	ulint	offset);/* in: page number */
-/************************************************************************
 Resets the check_index_page_at_flush field of a page if found in the buffer
 pool. */
 
