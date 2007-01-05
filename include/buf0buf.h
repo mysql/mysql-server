@@ -1120,6 +1120,12 @@ struct buf_block_struct{
 (buf_block_get_state(block) >= BUF_BLOCK_NOT_USED		\
  && (buf_block_get_state(block) <= BUF_BLOCK_REMOVE_HASH))
 
+/**************************************************************************
+Compute the hash fold value for blocks in buf_pool->zip_hash. */
+#define BUF_POOL_ZIP_FOLD_PTR(ptr) ((ulint) (ptr) / UNIV_PAGE_SIZE)
+#define BUF_POOL_ZIP_FOLD(b) BUF_POOL_ZIP_FOLD_PTR((b)->frame)
+#define BUF_POOL_ZIP_FOLD_BPAGE(b) BUF_POOL_ZIP_FOLD((buf_block_t*) (b))
+
 /* The buffer pool structure. NOTE! The definition appears here only for
 other modules of this directory (buf) to see it. Do not use from outside! */
 
