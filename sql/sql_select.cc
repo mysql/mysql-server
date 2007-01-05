@@ -8432,6 +8432,46 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
   return cond;					// Point at next and level
 }
 
+/* 
+  Check if equality can be used in removing components of GROUP BY/DISTINCT
+  
+  SYNOPSIS
+    test_if_equality_guarantees_uniqueness()
+      l          the left comparison argument (a field if any)
+      r          the right comparison argument (a const of any)
+  
+  DESCRIPTION    
+    Checks if an equality predicate can be used to take away 
+    DISTINCT/GROUP BY because it is known to be true for exactly one 
+    distinct value (e.g. <expr> == <const>).
+    Arguments must be of the same type because e.g. 
+    <string_field> = <int_const> may match more than 1 distinct value from 
+    the column. 
+    We must take into consideration and the optimization done for various 
+    string constants when compared to dates etc (see Item_int_with_ref) as
+    well as the collation of the arguments.
+  
+  RETURN VALUE  
+    TRUE    can be used
+    FALSE   cannot be used
+*/
+static bool
+test_if_equality_guarantees_uniqueness(Item *l, Item *r)
+{
+  return r->const_item() &&
+    /* elements must be of the same result type */
+    (r->result_type() == l->result_type() ||
+    /* or dates compared to longs */
+     (((l->type() == Item::FIELD_ITEM &&
+        ((Item_field *)l)->field->can_be_compared_as_longlong()) ||
+       (l->type() == Item::FUNC_ITEM &&
+        ((Item_func *)l)->result_as_longlong())) &&
+      r->result_type() == INT_RESULT))
+    /* and must have the same collation if compared as strings */
+    && (l->result_type() != STRING_RESULT ||
+        l->collation.collation == r->collation.collation);
+}
+
 /*
   Return 1 if the item is a const value in all the WHERE clause
 */
@@ -8468,7 +8508,7 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
     Item *right_item= ((Item_func*) cond)->arguments()[1];
     if (left_item->eq(comp_item,1))
     {
-      if (right_item->const_item())
+      if (test_if_equality_guarantees_uniqueness (left_item, right_item))
       {
 	if (*const_item)
 	  return right_item->eq(*const_item, 1);
@@ -8478,7 +8518,7 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
     }
     else if (right_item->eq(comp_item,1))
     {
-      if (left_item->const_item())
+      if (test_if_equality_guarantees_uniqueness (right_item, left_item))
       {
 	if (*const_item)
 	  return left_item->eq(*const_item, 1);
