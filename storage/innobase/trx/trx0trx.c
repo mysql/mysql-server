@@ -1598,6 +1598,24 @@ trx_commit_for_mysql(
 
 	trx->op_info = "committing";
 
+	/* If we are doing the XA recovery of prepared transactions, then
+	the transaction object does not have an InnoDB session object, and we
+	set the dummy session that we use for all MySQL transactions. */
+
+	mutex_enter(&kernel_mutex);
+
+	if (trx->sess == NULL) {
+		/* Open a dummy session */
+
+		if (!trx_dummy_sess) {
+			trx_dummy_sess = sess_open();
+		}
+
+		trx->sess = trx_dummy_sess;
+	}
+	
+	mutex_exit(&kernel_mutex);
+
 	trx_start_if_not_started(trx);
 
 	mutex_enter(&kernel_mutex);
@@ -1761,11 +1779,10 @@ trx_print(
 	    || mem_heap_get_size(trx->lock_heap) > 400) {
 		newline = TRUE;
 
-		fprintf(f, "%lu lock struct(s), heap size %lu",
+		fprintf(f, "%lu lock struct(s), heap size %lu,"
+			" %lu row lock(s)",
 			(ulong) UT_LIST_GET_LEN(trx->trx_locks),
-			(ulong) mem_heap_get_size(trx->lock_heap));
-
-		fprintf(f, "%lu row lock(s)",
+			(ulong) mem_heap_get_size(trx->lock_heap),
 			(ulong) lock_number_of_rows_locked(trx));
 	}
 
