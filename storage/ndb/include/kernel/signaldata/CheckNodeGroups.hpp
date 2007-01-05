@@ -39,7 +39,7 @@ public:
   };
 
   Uint32 nodeId;             // nodeId input for GetNodeGroupMembers
-  NodeBitmask mask;             /* set of NDB nodes, input for ArbitCheck,
+  NdbNodeBitmask mask;             /* set of NDB nodes, input for ArbitCheck,
         			   * output for GetNodeGroupMembers
 				   */
   enum RequestType {
@@ -55,7 +55,7 @@ public:
     Partitioning = 3            // possible network partitioning
   };
 
-  STATIC_CONST( SignalLength = 3 + NodeBitmask::Size );
+  STATIC_CONST( SignalLength = 3 + NdbNodeBitmask::Size );
 };
 
 #endif

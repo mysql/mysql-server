@@ -872,11 +872,11 @@ void Dbtc::execREAD_NODESCONF(Signal* signal)
 
   for (unsigned i = 1; i < MAX_NDB_NODES; i++) {
     jam();
-    if (NodeBitmask::get(readNodes->allNodes, i)) {
+    if (NdbNodeBitmask::get(readNodes->allNodes, i)) {
       hostptr.i = i;
       ptrCheckGuard(hostptr, chostFilesize, hostRecord);
 
-      if (NodeBitmask::get(readNodes->inactiveNodes, i)) {
+      if (NdbNodeBitmask::get(readNodes->inactiveNodes, i)) {
         jam();
         hostptr.p->hostStatus = HS_DEAD;
       } else {
@@ -6946,7 +6946,7 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
   int index = 0;
   for (i = 1; i< MAX_NDB_NODES; i++) 
   {
-    if(NodeBitmask::get(nodeFail->theNodes, i))
+    if(NdbNodeBitmask::get(nodeFail->theNodes, i))
     {
       cdata[index] = i;
       index++;

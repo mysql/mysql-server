@@ -91,7 +91,7 @@ public:
 private:
   Uint32        noOfAliveNodes;
   Uint32        noOfConnectedNodes;
-  Node          theNodes[MAX_NODES];
+  Node          theNodes[MAX_NDB_NODES];
   NdbThread*    theClusterMgrThread;
 
   NodeBitmask   waitForHBFromNodes; // used in forcing HBs

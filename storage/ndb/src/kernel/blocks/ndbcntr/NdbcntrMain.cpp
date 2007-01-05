@@ -2314,7 +2314,7 @@ Ndbcntr::StopRecord::checkNodeFail(Signal* signal){
   /**
    * Check if I can survive me stopping
    */
-  NodeBitmask ndbMask; 
+  NdbNodeBitmask ndbMask; 
   ndbMask.assign(cntr.c_startedNodes);
 
   if (StopReq::getStopNodes(stopReq.requestInfo))
@@ -3066,7 +3066,7 @@ UpgradeStartup::execCNTR_MASTER_REPLY(SimulatedBlock & block, Signal* signal){
       conf->masterNodeId = node;
       conf->noStartNodes = 1;
       conf->startType = NodeState::ST_INITIAL_NODE_RESTART;
-      NodeBitmask mask;
+      NdbNodeBitmask mask;
       mask.clear();
       mask.copyto(NdbNodeBitmask::Size, conf->startedNodes);
       mask.clear();

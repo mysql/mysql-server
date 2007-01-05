@@ -390,7 +390,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     MANDATORY,
     "1",
-    STR_VALUE(MAX_NODES) },
+    STR_VALUE(MAX_NDB_NODES) },
 
   {
     CFG_NODE_ID,
@@ -402,7 +402,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     MANDATORY,
     "1",
-    STR_VALUE(MAX_NODES) },
+    STR_VALUE(MAX_NDB_NODES) },
 
   {
     KEY_INTERNAL,

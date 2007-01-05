@@ -859,7 +859,7 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
     case GSN_NODE_FAILREP:{
       const NodeFailRep * const rep =
 	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
-      if (NodeBitmask::get(rep->theNodes,nodeId))
+      if (NdbNodeBitmask::get(rep->theNodes,nodeId))
 	do_send = 1; // retry with other node
       continue;
     }
@@ -958,7 +958,7 @@ int MgmtSrvr::sendStopMgmd(NodeId nodeId,
  */
 
 int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
-			   NodeBitmask &stoppedNodes,
+			   NdbNodeBitmask &stoppedNodes,
 			   Uint32 singleUserNodeId,
 			   bool abort,
 			   bool stop,
@@ -1019,7 +1019,7 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
   }
 
   // send the signals
-  NodeBitmask nodes;
+  NdbNodeBitmask nodes;
   NodeId nodeId= 0;
   int use_master_node= 0;
   int do_send= 0;
@@ -1207,7 +1207,7 @@ int MgmtSrvr::stopNodes(const Vector<NodeId> &node_ids,
 	return OPERATION_NOT_ALLOWED_START_STOP;
     }
   }
-  NodeBitmask nodes;
+  NdbNodeBitmask nodes;
   int ret= sendSTOP_REQ(node_ids,
                         nodes,
                         0,
@@ -1250,7 +1250,7 @@ int MgmtSrvr::shutdownMGM(int *stopCount, bool abort, int *stopSelf)
 
 int MgmtSrvr::shutdownDB(int * stopCount, bool abort)
 {
-  NodeBitmask nodes;
+  NdbNodeBitmask nodes;
   Vector<NodeId> node_ids;
 
   int tmp;
@@ -1286,7 +1286,7 @@ int MgmtSrvr::enterSingleUser(int * stopCount, Uint32 singleUserNodeId)
        (node.m_state.startLevel != NodeState::SL_NOTHING))
       return OPERATION_NOT_ALLOWED_START_STOP;
   }
-  NodeBitmask nodes;
+  NdbNodeBitmask nodes;
   Vector<NodeId> node_ids;
   int stopSelf;
   int ret = sendSTOP_REQ(node_ids,
@@ -1312,7 +1312,7 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
                            bool initialStart, bool abort,
                            int *stopSelf)
 {
-  NodeBitmask nodes;
+  NdbNodeBitmask nodes;
   int ret= sendSTOP_REQ(node_ids,
                         nodes,
                         0,
@@ -1371,7 +1371,7 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
 int MgmtSrvr::restartDB(bool nostart, bool initialStart,
                         bool abort, int * stopCount)
 {
-  NodeBitmask nodes;
+  NdbNodeBitmask nodes;
   Vector<NodeId> node_ids;
   int tmp;
 
@@ -1598,7 +1598,7 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId,
 	   EventSubscribeReq::SignalLength);
   *dst = ll;
 
-  NodeBitmask nodes;
+  NdbNodeBitmask nodes;
   nodes.clear();
   Uint32 max = (nodeId == 0) ? (nodeId = 1, MAX_NDB_NODES) : nodeId;
   for(; (Uint32) nodeId <= max; nodeId++)
@@ -2005,7 +2005,7 @@ MgmtSrvr::get_connected_nodes(NodeBitmask &connected_nodes) const
 {
   if (theFacade && theFacade->theClusterMgr) 
   {
-    for(Uint32 i = 0; i < MAX_NODES; i++)
+    for(Uint32 i = 0; i < MAX_NDB_NODES; i++)
     {
       if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB)
       {
@@ -2596,7 +2596,7 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted)
     case GSN_NODE_FAILREP:{
       const NodeFailRep * const rep =
 	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
-      if (NodeBitmask::get(rep->theNodes,nodeId) ||
+      if (NdbNodeBitmask::get(rep->theNodes,nodeId) ||
 	  waitCompleted == 1)
 	return 1326;
       // wait for next signal

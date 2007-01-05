@@ -501,7 +501,7 @@ private:
                    bool initialStart);
 
   int sendSTOP_REQ(const Vector<NodeId> &node_ids,
-		   NodeBitmask &stoppedNodes,
+		   NdbNodeBitmask &stoppedNodes,
 		   Uint32 singleUserNodeId,
 		   bool abort,
 		   bool stop,
