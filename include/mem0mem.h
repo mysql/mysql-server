@@ -68,28 +68,20 @@ Use this macro instead of the corresponding function! Macro for memory
 heap creation. */
 
 #define mem_heap_create(N)	mem_heap_create_func(\
-		(N), NULL, MEM_HEAP_DYNAMIC, __FILE__, __LINE__)
+		(N), MEM_HEAP_DYNAMIC, __FILE__, __LINE__)
 /******************************************************************
 Use this macro instead of the corresponding function! Macro for memory
 heap creation. */
 
 #define mem_heap_create_in_buffer(N)	mem_heap_create_func(\
-		(N), NULL, MEM_HEAP_BUFFER, __FILE__, __LINE__)
+		(N), MEM_HEAP_BUFFER, __FILE__, __LINE__)
 /******************************************************************
 Use this macro instead of the corresponding function! Macro for memory
 heap creation. */
 
 #define mem_heap_create_in_btr_search(N)	mem_heap_create_func(\
-		(N), NULL, MEM_HEAP_BTR_SEARCH | MEM_HEAP_BUFFER,\
+		(N), MEM_HEAP_BTR_SEARCH | MEM_HEAP_BUFFER,\
 		__FILE__, __LINE__)
-/******************************************************************
-Use this macro instead of the corresponding function! Macro for fast
-memory heap creation. An initial block of memory B is given by the
-caller, N is its size, and this memory block is not freed by
-mem_heap_free. See the parameter comment in mem_heap_create_func below. */
-
-#define mem_heap_fast_create(N, B)	mem_heap_create_func(\
-		(N), (B), MEM_HEAP_DYNAMIC, __FILE__, __LINE__)
 
 /******************************************************************
 Use this macro instead of the corresponding function! Macro for memory
@@ -111,19 +103,7 @@ mem_heap_create_func(
 	ulint		n,		/* in: desired start block size,
 					this means that a single user buffer
 					of size n will fit in the block,
-					0 creates a default size block;
-					if init_block is not NULL, n tells
-					its size in bytes */
-	void*		init_block,	/* in: if very fast creation is
-					wanted, the caller can reserve some
-					memory from its stack, for example,
-					and pass it as the the initial block
-					to the heap: then no OS call of malloc
-					is needed at the creation. CAUTION:
-					the caller must make sure the initial
-					block is not unintentionally erased
-					(if allocated in the stack), before
-					the memory heap is explicitly freed. */
+					0 creates a default size block */
 	ulint		type,		/* in: heap type */
 	const char*	file_name,	/* in: file name where created */
 	ulint		line);		/* in: line where created */
@@ -225,8 +205,8 @@ mem_alloc_func(
 					/* out, own: free storage */
 	ulint		n,		/* in: desired number of bytes */
 	const char*	file_name,	/* in: file name where created */
-	ulint		line		/* in: line where created */
-);
+	ulint		line);		/* in: line where created */
+
 /*******************************************************************
 NOTE: Use the corresponding macro instead of this function.
 Allocates a single buffer of memory from the dynamic memory of
@@ -239,8 +219,8 @@ mem_alloc_func_noninline(
 					/* out, own: free storage */
 	ulint		n,		/* in: desired number of bytes */
 	const char*	file_name,	/* in: file name where created */
-	ulint		line		/* in: line where created */
-	);
+	ulint		line);		/* in: line where created */
+
 /******************************************************************
 Use this macro instead of the corresponding function!
 Macro for memory buffer freeing */
@@ -388,9 +368,6 @@ struct mem_block_info_struct {
 	ulint	len;	/* physical length of this block in bytes */
 	ulint	type;	/* type of heap: MEM_HEAP_DYNAMIC, or
 			MEM_HEAP_BUF possibly ORed to MEM_HEAP_BTR_SEARCH */
-	ibool	init_block; /* TRUE if this is the first block used in fast
-			creation of a heap: the memory will be freed
-			by the creator, not by mem_heap_free */
 	ulint	free;	/* offset in bytes of the first free position for
 			user data in the block */
 	ulint	start;	/* the value of the struct field 'free' at the
