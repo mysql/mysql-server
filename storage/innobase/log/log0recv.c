@@ -33,6 +33,7 @@ Created 9/20/1997 Heikki Tuuri
 #include "btr0cur.h"
 #include "dict0boot.h"
 #include "fil0fil.h"
+#include "sync0sync.h"
 
 #ifdef UNIV_HOTBACKUP
 /* This is set to FALSE if the backup was originally taken with the
@@ -190,6 +191,7 @@ recv_sys_empty_hash(void)
 	recv_sys->addr_hash = hash0_create(buf_pool_get_curr_size() / 256);
 }
 
+#ifndef UNIV_LOG_DEBUG
 /************************************************************
 Frees the recovery system. */
 static
@@ -209,6 +211,7 @@ recv_sys_free(void)
 
 	mutex_exit(&(recv_sys->mutex));
 }
+#endif /* UNIV_LOG_DEBUG */
 
 /************************************************************
 Truncates possible corrupted or extra records from a log group. */
@@ -2854,6 +2857,15 @@ recv_recovery_from_checkpoint_finish(void)
 
 #ifndef UNIV_LOG_DEBUG
 	recv_sys_free();
+#endif
+
+#ifdef UNIV_SYNC_DEBUG
+	/* Wait for a while so that created threads have time to suspend
+	themselves before we switch the latching order checks on */
+	os_thread_sleep(1000000);
+
+	/* Switch latching order checks on in sync0sync.c */
+	sync_order_checks_on = TRUE;
 #endif
 	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO) {
 		/* Rollback the uncommitted transactions which have no user

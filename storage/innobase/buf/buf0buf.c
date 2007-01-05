@@ -1755,22 +1755,22 @@ buf_page_init_for_read(
 	if (*err == DB_TABLESPACE_DELETED
 	    || NULL != buf_page_hash_get(space, offset)) {
 
-		    /* The page belongs to a space which has been
-		    deleted or is being deleted, or the page is
-		    already in buf_pool, return */
+		/* The page belongs to a space which has been
+		deleted or is being deleted, or the page is
+		already in buf_pool, return */
 
 		mutex_exit(&block->mutex);
-		    mutex_exit(&(buf_pool->mutex));
+		mutex_exit(&(buf_pool->mutex));
 
-		    buf_block_free(block);
+		buf_block_free(block);
 
-		    if (mode == BUF_READ_IBUF_PAGES_ONLY) {
+		if (mode == BUF_READ_IBUF_PAGES_ONLY) {
 
-			    mtr_commit(&mtr);
-		    }
+			mtr_commit(&mtr);
+		}
 
-		    return(NULL);
-	    }
+		return(NULL);
+	}
 
 	ut_ad(block);
 
