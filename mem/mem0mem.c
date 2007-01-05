@@ -329,10 +329,7 @@ mem_heap_create_block(
 				MEM_HEAP_BTR_SEARCH type heaps) */
 	mem_heap_t*	heap,	/* in: memory heap or NULL if first block
 				should be created */
-	ulint		n,	/* in: number of bytes needed for user data, or
-				if init_block is not NULL, its size in bytes */
-	void*		init_block, /* in: init block in fast create,
-				type must be MEM_HEAP_DYNAMIC */
+	ulint		n,	/* in: number of bytes needed for user data */
 	ulint		type,	/* in: type of heap: MEM_HEAP_DYNAMIC or
 				MEM_HEAP_BUFFER */
 	const char*	file_name,/* in: file name where created */
@@ -351,13 +348,7 @@ mem_heap_create_block(
 
 	/* In dynamic allocation, calculate the size: block header + data. */
 
-	if (init_block != NULL) {
-		ut_ad(type == MEM_HEAP_DYNAMIC);
-		ut_ad(n > MEM_BLOCK_START_SIZE + MEM_BLOCK_HEADER_SIZE);
-		len = n;
-		block = init_block;
-
-	} else if (type == MEM_HEAP_DYNAMIC) {
+	if (type == MEM_HEAP_DYNAMIC) {
 
 		len = MEM_BLOCK_HEADER_SIZE + MEM_SPACE_NEEDED(n);
 		block = mem_area_alloc(len, mem_comm_pool);
@@ -416,7 +407,6 @@ mem_heap_create_block(
 	mem_block_set_start(block, MEM_BLOCK_HEADER_SIZE);
 
 	block->free_block = NULL;
-	block->init_block = (init_block != NULL);
 
 	ut_ad((ulint)MEM_BLOCK_HEADER_SIZE < len);
 
@@ -465,7 +455,7 @@ mem_heap_add_block(
 		new_size = n;
 	}
 
-	new_block = mem_heap_create_block(heap, new_size, NULL, heap->type,
+	new_block = mem_heap_create_block(heap, new_size, heap->type,
 					  heap->file_name, heap->line);
 	if (new_block == NULL) {
 
@@ -490,7 +480,6 @@ mem_heap_block_free(
 {
 	ulint		type;
 	ulint		len;
-	ibool		init_block;
 	buf_block_t*	buf_block;
 
 	if (block->magic_n != MEM_BLOCK_MAGIC_N) {
@@ -508,7 +497,6 @@ mem_heap_block_free(
 #endif
 	type = heap->type;
 	len = block->len;
-	init_block = block->init_block;
 	buf_block = block->buf_block;
 	block->magic_n = MEM_FREED_BLOCK_MAGIC_N;
 
@@ -519,10 +507,7 @@ mem_heap_block_free(
 	mem_erase_buf((byte*)block, len);
 #endif
 
-	if (init_block) {
-		/* Do not have to free: do nothing */
-
-	} else if (type == MEM_HEAP_DYNAMIC) {
+	if (type == MEM_HEAP_DYNAMIC) {
 
 		ut_ad(!buf_block);
 		mem_area_free(block, mem_comm_pool);
