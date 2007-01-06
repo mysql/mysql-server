@@ -150,8 +150,6 @@ drop table t1;
 # Bug#20778: strange characters in warning message 1366 when called in SP
 #
 
-let $engine_type= innodb;
-
 CREATE TABLE t1( f1 CHAR(20) );
 CREATE TABLE t2( f1 CHAR(20), f2 CHAR(25) );
 CREATE TABLE t3( f1 CHAR(20), f2 CHAR(25), f3 DATE );
