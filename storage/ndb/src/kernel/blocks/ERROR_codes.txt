@@ -23,6 +23,8 @@ Crash president when he starts to run in ArbitState 1-9.
 
 934 : Crash president in ALLOC_NODE_ID_REQ
 
+935 : Crash master on node failure (delayed) 
+      and skip sending GSN_COMMIT_FAILREQ to specified node
 
 ERROR CODES FOR TESTING NODE FAILURE, GLOBAL CHECKPOINT HANDLING:
 -----------------------------------------------------------------
