@@ -128,6 +128,7 @@ Cmvmi::Cmvmi(Block_context& ctx) :
 
   setNodeInfo(getOwnNodeId()).m_connected = true;
   setNodeInfo(getOwnNodeId()).m_version = ndbGetOwnVersion();
+  setNodeInfo(getOwnNodeId()).m_mysql_version = NDB_MYSQL_VERSION_D;
 }
 
 Cmvmi::~Cmvmi()
@@ -227,8 +228,9 @@ void Cmvmi::execEVENT_REP(Signal* signal)
   }
 
   // Print the event info
-  g_eventLogger.log(eventReport->getEventType(), signal->theData);
-
+  g_eventLogger.log(eventReport->getEventType(), 
+		    signal->theData, signal->getLength(), 0, 0);
+  
   return;
 }//execEVENT_REP()
 
@@ -504,8 +506,9 @@ void Cmvmi::execENABLE_COMORD(Signal* signal)
   signal->theData[0] = NDB_LE_ConnectedApiVersion;
   signal->theData[1] = tStartingNode;
   signal->theData[2] = getNodeInfo(tStartingNode).m_version;
-
-  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
+  signal->theData[3] = getNodeInfo(tStartingNode).m_mysql_version;
+  
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
   //-----------------------------------------------------
   
   jamEntry();
@@ -555,7 +558,7 @@ void Cmvmi::execCONNECT_REP(Signal *signal){
   const NodeInfo::NodeType type = (NodeInfo::NodeType)getNodeInfo(hostId).m_type;
   ndbrequire(type != NodeInfo::INVALID);
   globalData.m_nodeInfo[hostId].m_version = 0;
-  globalData.m_nodeInfo[hostId].m_signalVersion = 0;
+  globalData.m_nodeInfo[hostId].m_mysql_version = 0;
   
   if(type == NodeInfo::DB || globalData.theStartLevel >= NodeState::SL_STARTED){
     jam();

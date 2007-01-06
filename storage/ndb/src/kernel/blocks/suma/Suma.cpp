@@ -229,7 +229,6 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
  
   c_startup.m_wait_handover= false; 
   c_failedApiNodes.clear();
-  c_startup.m_restart_server_node_id = 0; // Server for my NR
 
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -260,6 +259,14 @@ Suma::execSTTOR(Signal* signal) {
 
   if(startphase == 5)
   {
+    if (ERROR_INSERTED(13029)) /* Hold startphase 5 */
+    {
+      sendSignalWithDelay(SUMA_REF, GSN_STTOR, signal,
+                          30, signal->getLength());
+      DBUG_VOID_RETURN;
+    }
+
+    c_startup.m_restart_server_node_id = 0;    
     getNodeGroupMembers(signal);
     if (typeOfStart == NodeState::ST_NODE_RESTART ||
 	typeOfStart == NodeState::ST_INITIAL_NODE_RESTART)
@@ -372,6 +379,8 @@ Suma::execSUMA_START_ME_REF(Signal* signal)
 
   infoEvent("Suma: node %d refused %d", 
 	    c_startup.m_restart_server_node_id, ref->errorCode);
+
+  c_startup.m_restart_server_node_id++;
   send_start_me_req(signal);
 }
 
@@ -886,6 +895,22 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
 		ptr->m_buffer_head.m_page_id);
     }
   }  
+
+  if (tCase == 8006)
+  {
+    SET_ERROR_INSERT_VALUE(13029);
+  }
+
+  if (tCase == 8007)
+  {
+    c_startup.m_restart_server_node_id = MAX_NDB_NODES + 1;
+    SET_ERROR_INSERT_VALUE(13029);
+  }
+
+  if (tCase == 8008)
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+  }
 }
 
 /*************************************************************
@@ -1091,14 +1116,14 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
     }
   } else {
     if (c_startup.m_restart_server_node_id && 
-        refToNode(subRef) != c_startup.m_restart_server_node_id)
+        subRef != calcSumaBlockRef(c_startup.m_restart_server_node_id))
     {
       /**
        * only allow "restart_server" Suma's to come through 
        * for restart purposes
        */
       jam();
-      sendSubStartRef(signal, 1405);
+      sendSubCreateRef(signal, 1415);
       DBUG_VOID_RETURN;
     }
     // Check that id/key is unique
@@ -2231,14 +2256,17 @@ Suma::execSUB_START_REQ(Signal* signal){
   key.m_subscriptionKey       = req->subscriptionKey;
 
   if (c_startup.m_restart_server_node_id && 
-      refToNode(senderRef) != c_startup.m_restart_server_node_id)
+      senderRef != calcSumaBlockRef(c_startup.m_restart_server_node_id))
   {
     /**
      * only allow "restart_server" Suma's to come through 
      * for restart purposes
      */
     jam();
-    sendSubStartRef(signal, 1405);
+    Uint32 err = c_startup.m_restart_server_node_id != RNIL ? 1405 : 
+      SubStartRef::NF_FakeErrorREF;
+    
+    sendSubStartRef(signal, err);
     DBUG_VOID_RETURN;
   }
   
@@ -2453,6 +2481,21 @@ Suma::execSUB_STOP_REQ(Signal* signal){
     DBUG_VOID_RETURN;
   }
 
+  if (c_startup.m_restart_server_node_id && 
+      senderRef != calcSumaBlockRef(c_startup.m_restart_server_node_id))
+  {
+    /**
+     * only allow "restart_server" Suma's to come through 
+     * for restart purposes
+     */
+    jam();
+    Uint32 err = c_startup.m_restart_server_node_id != RNIL ? 1405 : 
+      SubStopRef::NF_FakeErrorREF;
+    
+    sendSubStopRef(signal, err);
+    DBUG_VOID_RETURN;
+  }
+
   if(!c_subscriptions.find(subPtr, key)){
     jam();
     DBUG_PRINT("error", ("not found"));
@@ -2460,18 +2503,6 @@ Suma::execSUB_STOP_REQ(Signal* signal){
     DBUG_VOID_RETURN;
   }
   
-  if (c_startup.m_restart_server_node_id && 
-      refToNode(senderRef) != c_startup.m_restart_server_node_id)
-  {
-    /**
-     * only allow "restart_server" Suma's to come through 
-     * for restart purposes
-     */
-    jam();
-    sendSubStopRef(signal, 1405);
-    DBUG_VOID_RETURN;
-  }
-
   if (subPtr.p->m_state == Subscription::LOCKED) {
     jam();
     DBUG_PRINT("error", ("locked"));

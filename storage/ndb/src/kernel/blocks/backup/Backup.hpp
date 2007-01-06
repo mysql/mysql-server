@@ -630,7 +630,7 @@ public:
   void checkNodeFail(Signal* signal,
 		     BackupRecordPtr ptr,
 		     NodeId newCoord,
-		     Uint32 theFailedNodes[NodeBitmask::Size]);
+		     Uint32 theFailedNodes[NdbNodeBitmask::Size]);
   void masterTakeOver(Signal* signal, BackupRecordPtr ptr);
 
 
