@@ -362,7 +362,7 @@ fi
 # Include libgcc.a in the devel subpackage (BUG 4921)
 if expr "$CC" : ".*gcc.*" > /dev/null ;
 then
-  libgcc=`$CC --print-libgcc-file`
+  libgcc=`$CC $CFLAGS --print-libgcc-file`
   if [ -f $libgcc ]
   then
     %define have_libgcc 1
@@ -755,6 +755,11 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Fri Jan 05 2007 Kent Boortz <kent@mysql.com>
+
+- Add CFLAGS to gcc call with --print-libgcc-file, to make sure the
+  correct "libgcc.a" path is returned for the 32/64 bit architecture.
+
 * Mon Dec 18 2006 Joerg Bruehe <joerg@mysql.com>
 
 - Fix the move of "mysqlmanager" to section 8: Directory name was wrong.
