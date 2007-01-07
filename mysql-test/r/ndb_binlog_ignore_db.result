@@ -1,3 +1,4 @@
+reset master;
 drop table if exists t1;
 drop database if exists mysqltest;
 create database mysqltest;

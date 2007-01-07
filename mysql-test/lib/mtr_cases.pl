@@ -302,6 +302,7 @@ sub collect_one_test_case($$$$$$$) {
   $tinfo->{'timezone'}= "GMT-3"; # for UNIX_TIMESTAMP tests to work
 
   $tinfo->{'slave_num'}= 0; # Default, no slave
+  $tinfo->{'master_num'}= 1; # Default, 1 master
   if ( defined mtr_match_prefix($tname,"rpl") )
   {
     if ( $::opt_skip_rpl )
@@ -311,13 +312,8 @@ sub collect_one_test_case($$$$$$$) {
       return;
     }
 
-
     $tinfo->{'slave_num'}= 1; # Default for rpl* tests, use one slave
 
-    if ( $tname eq 'rpl_failsafe' or $tname eq 'rpl_chain_temp_table' )
-    {
-      # $tinfo->{'slave_num'}= 3;         # Not 3 ? Check old code, strange
-    }
   }
 
   if ( defined mtr_match_prefix($tname,"federated") )
@@ -596,6 +592,7 @@ our @tags=
  ["include/have_debug.inc", "need_debug", 1],
  ["include/have_ndb.inc", "ndb_test", 1],
  ["include/have_ndb_extra.inc", "ndb_extra", 1],
+ ["include/have_multi_ndb.inc", "master_num", 2],
  ["require_manager", "require_manager", 1],
 );
 

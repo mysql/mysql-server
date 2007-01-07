@@ -1,3 +1,7 @@
+# This test uses chmod, can't be run with root permissions
+-- source include/not_as_root.inc
+
+
 # Initialise
 --disable_warnings
 drop table if exists t1;
