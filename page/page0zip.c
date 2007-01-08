@@ -1267,13 +1267,11 @@ page_zip_fields_decode(
 
 	/* Decode the position of the trx_id column. */
 	if (trx_id_col) {
-		if (UNIV_UNLIKELY(val >= n)) {
-			page_zip_fields_free(index);
-			index = NULL;
-		}
-
 		if (!val) {
 			val = ULINT_UNDEFINED;
+		} else if (UNIV_UNLIKELY(val >= n)) {
+			page_zip_fields_free(index);
+			index = NULL;
 		} else {
 			index->type = DICT_CLUSTERED;
 		}
