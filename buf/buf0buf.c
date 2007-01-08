@@ -1982,12 +1982,30 @@ ibool
 buf_zip_decompress(
 /*===============*/
 				/* out: TRUE if successful */
-	buf_block_t*	block)	/* in/out: block */
+	buf_block_t*	block,	/* in/out: block */
+	ibool		check)	/* in: TRUE=verify the page checksum */
 {
 	const byte* frame = block->page.zip.data;
 
 	ut_ad(buf_block_get_zip_size(block));
 	ut_a(buf_block_get_space(block) != 0);
+
+	if (UNIV_LIKELY(check)) {
+		ulint	stamp_checksum	= mach_read_from_4(
+			frame + FIL_PAGE_SPACE_OR_CHKSUM);
+		ulint	calc_checksum	= page_zip_calc_checksum(
+			frame, page_zip_get_size(&block->page.zip));
+
+		if (UNIV_UNLIKELY(stamp_checksum != calc_checksum)) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: compressed page checksum mismatch"
+				" (space %u page %u): %lu != %lu\n",
+				block->page.space, block->page.offset,
+				stamp_checksum, calc_checksum);
+			return(FALSE);
+		}
+	}
 
 	switch (fil_page_get_type(frame)) {
 	case FIL_PAGE_INDEX:
@@ -2016,7 +2034,7 @@ buf_zip_decompress(
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		"InnoDB: unknown compressed page"
+		"  InnoDB: unknown compressed page"
 		" type %lu\n",
 		fil_page_get_type(frame));
 	return(FALSE);
@@ -2146,7 +2164,7 @@ buf_page_init_for_read(
 				mtr_commit(&mtr);
 			}
 
-			buf_zip_decompress(block);
+			buf_zip_decompress(block, srv_use_checksums);
 
 			return(NULL);
 		case BUF_BLOCK_FILE_PAGE:
@@ -2361,7 +2379,7 @@ buf_page_io_complete(
 		if (buf_block_get_zip_size(block)) {
 			frame = block->page.zip.data;
 
-			if (!buf_zip_decompress(block)) {
+			if (!buf_zip_decompress(block, FALSE)) {
 
 				goto corrupt;
 			}
