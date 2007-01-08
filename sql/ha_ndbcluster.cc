@@ -1106,6 +1106,16 @@ int ha_ndbcluster::build_index_list(Ndb *ndb, TABLE *tab, enum ILBP phase)
 	error= create_unique_index(unique_index_name, key_info);
         break;
       case ORDERED_INDEX:
+	if (key_info->algorithm == HA_KEY_ALG_HASH)
+	{
+	  push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+			      ER_UNSUPPORTED_EXTENSION,
+			      ER(ER_UNSUPPORTED_EXTENSION),
+			      "Ndb does not support non-unique "
+			      "hash based indexes");
+	  error= HA_ERR_UNSUPPORTED;
+	  break;
+	}
         error= create_ordered_index(index_name, key_info);
         break;
       default:

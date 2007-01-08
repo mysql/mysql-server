@@ -356,3 +356,15 @@ insert into t1 (a, c) values (1,'aaa'),(3,'bbb');
 select count(*) from t1 where c<'bbb';
 
 # End of 4.1 tests
+
+# bug#24820 CREATE INDEX ....USING HASH on NDB table creates ordered index, not HASH index
+
+--error ER_CANT_CREATE_TABLE
+create table nationaldish (DishID int(10) unsigned NOT NULL AUTO_INCREMENT,
+                           CountryCode char(3) NOT NULL,
+                           DishTitle varchar(64) NOT NULL,
+                           calories smallint(5) unsigned DEFAULT NULL,
+                           PRIMARY KEY (DishID),
+                           INDEX i USING HASH (countrycode,calories)
+                           ) ENGINE=ndbcluster;
+
