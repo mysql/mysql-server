@@ -1450,6 +1450,8 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   {
     binlog_buf.length(0);
     binlog_buf.append(STRING_WITH_LEN("SELECT "));
+    append_identifier(thd, &binlog_buf, m_db.str, m_db.length);
+    binlog_buf.append('.');
     append_identifier(thd, &binlog_buf, m_name.str, m_name.length);
     binlog_buf.append('(');
     for (arg_no= 0; arg_no < argcount; arg_no++)
