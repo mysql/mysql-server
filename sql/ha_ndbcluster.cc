@@ -5153,6 +5153,17 @@ int ha_ndbcluster::create_index(const char *name, KEY *key_info,
     error= create_unique_index(unique_name, key_info);
     break;
   case ORDERED_INDEX:
+    if (key_info->algorithm == HA_KEY_ALG_HASH)
+    {
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+			  ER_ILLEGAL_HA_CREATE_OPTION,
+			  ER(ER_ILLEGAL_HA_CREATE_OPTION),
+			  ndbcluster_hton_name,
+			  "Ndb does not support non-unique "
+			  "hash based indexes");
+      error= HA_ERR_UNSUPPORTED;
+      break;
+    }
     error= create_ordered_index(name, key_info);
     break;
   default:
@@ -5247,7 +5258,7 @@ int ha_ndbcluster::add_index(TABLE *table_arg,
     KEY *key= key_info + idx;
     KEY_PART_INFO *key_part= key->key_part;
     KEY_PART_INFO *end= key_part + key->key_parts;
-    NDB_INDEX_TYPE idx_type= get_index_type_from_key(idx, key, false);
+    NDB_INDEX_TYPE idx_type= get_index_type_from_key(idx, key_info, false);
     DBUG_PRINT("info", ("Adding index: '%s'", key_info[idx].name));
     // Add fields to key_part struct
     for (; key_part != end; key_part++)
