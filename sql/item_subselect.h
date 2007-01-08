@@ -363,7 +363,7 @@ public:
   enum Item_result type() { return res_type; }
   enum_field_types field_type() { return res_field_type; }
   virtual void exclude()= 0;
-  bool may_be_null() { return maybe_null; };
+  virtual bool may_be_null() { return maybe_null; };
   virtual table_map upper_select_const_tables()= 0;
   static table_map calc_const_tables(TABLE_LIST *);
   virtual void print(String *str)= 0;
@@ -400,6 +400,7 @@ public:
   void print (String *str);
   bool change_result(Item_subselect *si, select_subselect *result);
   bool no_tables();
+  bool may_be_null();
   bool is_executed() const { return executed; }
   bool no_rows();
 };
