@@ -925,20 +925,28 @@ buf_LRU_free_block(
 		mutex_enter(&(buf_pool->mutex));
 
 		if (bpage->zip.data) {
-			/* Keep the compressed page.
-			Allocate a block descriptor for it. */
-			buf_page_t* b = buf_buddy_alloc(sizeof *b, FALSE);
+			const ulint	fold	= buf_page_address_fold(
+				bpage->space, bpage->offset);
+			buf_page_t*	b	= buf_page_hash_get(
+				bpage->space, bpage->offset);
+
+			if (UNIV_LIKELY_NULL(b)) {
+				/* The block was reloaded to the buffer pool
+				while we were not holding buf_pool->mutex.
+				Free this block entirely; do not attempt to
+				preserve the compressed page. */
+				b = NULL;
+			} else {
+				/* Keep the compressed page.
+				Allocate a block descriptor for it. */
+				b = buf_buddy_alloc(sizeof *b, FALSE);
+			}
 
 			if (b) {
-				ulint	fold;
-
 				memcpy(b, bpage, sizeof *b);
 				b->state = b->oldest_modification
 					? BUF_BLOCK_ZIP_DIRTY
 					: BUF_BLOCK_ZIP_PAGE;
-
-				fold = buf_page_address_fold(b->space,
-							     b->offset);
 
 				HASH_INSERT(buf_page_t, hash,
 					    buf_pool->page_hash, fold, b);
