@@ -113,8 +113,8 @@ show variables like 'max_error_count';
 # Test for handler type
 #
 drop table t1;
-create table t1 (id int) engine=NDB;
-alter table t1 engine=NDB;
+create table t1 (id int) engine=Innodb;
+alter table t1 engine=Innodb;
 drop table t1;
 
 #
@@ -149,8 +149,6 @@ drop table t1;
 #
 # Bug#20778: strange characters in warning message 1366 when called in SP
 #
-
-let $engine_type= innodb;
 
 CREATE TABLE t1( f1 CHAR(20) );
 CREATE TABLE t2( f1 CHAR(20), f2 CHAR(25) );
