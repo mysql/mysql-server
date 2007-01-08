@@ -922,6 +922,25 @@ buf_LRU_free_block(
 		btr_search_drop_page_hash_index((buf_block_t*) bpage);
 		ut_a(bpage->buf_fix_count == 0);
 
+		if (bpage->zip.data && UNIV_LIKELY(srv_use_checksums)) {
+			/* Compute and stamp the compressed page
+			checksum while not holding any mutex.  The
+			block is already half-freed
+			(BUF_BLOCK_REMOVE_HASH) and removed from
+			buf_pool->page_hash, thus inaccessible by any
+			other thread. */
+#ifdef UNIV_ZIP_DEBUG
+			ut_a(page_zip_validate(&bpage->zip,
+					       ((buf_block_t*) bpage)->frame));
+#endif /* UNIV_ZIP_DEBUG */
+
+			mach_write_to_4(
+				bpage->zip.data + FIL_PAGE_SPACE_OR_CHKSUM,
+				page_zip_calc_checksum(
+					bpage->zip.data,
+					page_zip_get_size(&bpage->zip)));
+		}
+
 		mutex_enter(&(buf_pool->mutex));
 
 		if (bpage->zip.data) {
