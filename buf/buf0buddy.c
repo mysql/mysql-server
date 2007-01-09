@@ -234,6 +234,7 @@ buf_buddy_alloc_clean(
 	/* Free blocks from the end of the LRU list until enough space
 	is available. */
 
+free_LRU:
 	for (bpage = UT_LIST_GET_LAST(buf_pool->LRU); bpage;
 	     bpage = UT_LIST_GET_PREV(LRU, bpage)) {
 
@@ -258,6 +259,9 @@ buf_buddy_alloc_clean(
 
 		mutex_exit(block_mutex);
 
+		/* The block was successfully freed.
+		Attempt to allocate memory. */
+
 		if (i < BUF_BUDDY_SIZES) {
 
 			ret = buf_buddy_alloc_zip(i);
@@ -274,6 +278,16 @@ buf_buddy_alloc_clean(
 				return(block->frame);
 			}
 		}
+
+		/* A successful buf_LRU_free_block() may release and
+		reacquire buf_pool->mutex, and thus bpage->LRU of
+		an uncompressed page may point to garbage.  Furthermore,
+		if bpage were a compressed page descriptor, it would
+		have been deallocated by buf_LRU_free_block().
+
+		Thus, we must restart the traversal of the LRU list. */
+
+		goto free_LRU;
 	}
 
 	return(NULL);
