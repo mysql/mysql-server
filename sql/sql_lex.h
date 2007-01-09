@@ -94,6 +94,7 @@ enum enum_sql_command {
   SQLCOM_XA_START, SQLCOM_XA_END, SQLCOM_XA_PREPARE,
   SQLCOM_XA_COMMIT, SQLCOM_XA_ROLLBACK, SQLCOM_XA_RECOVER,
   SQLCOM_SHOW_PROC_CODE, SQLCOM_SHOW_FUNC_CODE,
+  SQLCOM_SHOW_PROFILE, SQLCOM_SHOW_PROFILES,
   /* This should be the last !!! */
 
   SQLCOM_END
@@ -939,6 +940,8 @@ typedef struct st_lex : public Query_tables_list
   enum enum_var_type option_type;
   enum enum_view_create_mode create_view_mode;
   enum enum_drop_mode drop_mode;
+  uint profile_options;
+  uint profile_query_id;
   uint uint_geom_type;
   uint grant, grant_tot_col, which_columns;
   uint fk_delete_opt, fk_update_opt, fk_match_option;
