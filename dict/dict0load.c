@@ -1110,6 +1110,7 @@ dict_load_foreign(
 	rec_t*		rec;
 	byte*		field;
 	ulint		len;
+	ulint		n_fields_and_type;
 	mtr_t		mtr;
 
 #ifdef UNIV_SYNC_DEBUG
@@ -1172,15 +1173,15 @@ dict_load_foreign(
 
 	foreign = dict_mem_foreign_create();
 
-	foreign->n_fields = mach_read_from_4(
+	n_fields_and_type = mach_read_from_4(
 		rec_get_nth_field_old(rec, 5, &len));
 
 	ut_a(len == 4);
 
-	/* We store the type to the bits 24-31 of n_fields */
+	/* We store the type in the bits 24..29 of n_fields_and_type. */
 
-	foreign->type = foreign->n_fields >> 24;
-	foreign->n_fields = foreign->n_fields & 0xFFFFFFUL;
+	foreign->type = n_fields_and_type >> 24;
+	foreign->n_fields = n_fields_and_type & 0x3FFUL;
 
 	foreign->id = mem_heap_strdup(foreign->heap, id);
 
