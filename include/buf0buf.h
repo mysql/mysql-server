@@ -959,6 +959,11 @@ struct buf_page_struct{
 					BUF_BLOCK_ZIP_PAGE:	zip_clean
 					BUF_BLOCK_ZIP_FREE:	zip_free[] */
 #ifdef UNIV_DEBUG
+	ibool		in_flush_list;	/* TRUE if in buf_pool->flush_list;
+					when buf_pool->mutex is free, the
+					following should hold: in_flush_list
+					== (state == BUF_BLOCK_FILE_PAGE
+					    || state == BUF_BLOCK_ZIP_DIRTY) */
 	ibool		in_free_list;	/* TRUE if in buf_pool->free; when
 					buf_pool->mutex is free, the following
 					should hold: in_free_list

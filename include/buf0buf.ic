@@ -83,6 +83,7 @@ buf_pool_get_oldest_modification(void)
 	if (bpage == NULL) {
 		lsn = 0;
 	} else {
+		ut_ad(bpage->in_flush_list);
 		lsn = bpage->oldest_modification;
 	}
 
