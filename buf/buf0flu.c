@@ -68,6 +68,8 @@ buf_flush_insert_into_flush_list(
 		/* fall through */
 	case BUF_BLOCK_ZIP_DIRTY:
 	case BUF_BLOCK_FILE_PAGE:
+		ut_ad(!bpage->in_flush_list);
+		ut_a(bpage->in_flush_list = TRUE);
 		UT_LIST_ADD_FIRST(list, buf_pool->flush_list, bpage);
 		break;
 	case BUF_BLOCK_ZIP_FREE:
@@ -124,9 +126,13 @@ buf_flush_insert_sorted_into_flush_list(
 	b = UT_LIST_GET_FIRST(buf_pool->flush_list);
 
 	while (b && b->oldest_modification > bpage->oldest_modification) {
+		ut_ad(b->in_flush_list);
 		prev_b = b;
 		b = UT_LIST_GET_NEXT(list, b);
 	}
+
+	ut_ad(!bpage->in_flush_list);
+	ut_d(bpage->in_flush_list = TRUE);
 
 	if (prev_b == NULL) {
 		UT_LIST_ADD_FIRST(list, buf_pool->flush_list, bpage);
@@ -222,6 +228,9 @@ buf_flush_remove(
 #ifdef UNIV_SYNC_DEBUG
 	ut_a(mutex_own(&buf_pool->mutex));
 #endif /* UNIV_SYNC_DEBUG */
+
+	ut_ad(bpage->in_flush_list);
+	ut_d(bpage->in_flush_list = FALSE);
 
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_ZIP_PAGE:
@@ -972,7 +981,6 @@ buf_flush_batch(
 	ulint		old_page_count;
 	ulint		space;
 	ulint		offset;
-	ibool		found;
 
 	ut_ad((flush_type == BUF_FLUSH_LRU)
 	      || (flush_type == BUF_FLUSH_LIST));
@@ -995,6 +1003,7 @@ buf_flush_batch(
 	buf_pool->init_flush[flush_type] = TRUE;
 
 	for (;;) {
+flush_next:
 		/* If we have flushed enough, leave the loop */
 		if (page_count >= min_n) {
 
@@ -1016,9 +1025,8 @@ buf_flush_batch(
 
 				break;
 			}
+			ut_ad(bpage->in_flush_list);
 		}
-
-		found = FALSE;
 
 		/* Note that after finding a single flushable page, we try to
 		flush also all its neighbors, and after that start from the
@@ -1026,7 +1034,7 @@ buf_flush_batch(
 		during the flushing and we cannot safely preserve within this
 		function a pointer to a block in the list! */
 
-		while ((bpage != NULL) && !found) {
+		do {
 			mutex_t* block_mutex = buf_page_get_mutex(bpage);
 
 			ut_a(buf_page_in_file(bpage));
@@ -1035,7 +1043,6 @@ buf_flush_batch(
 
 			if (buf_flush_ready_for_flush(bpage, flush_type)) {
 
-				found = TRUE;
 				space = buf_page_get_space(bpage);
 				offset = buf_page_get_page_no(bpage);
 
@@ -1053,6 +1060,7 @@ buf_flush_batch(
 				page_count - old_page_count); */
 
 				mutex_enter(&(buf_pool->mutex));
+				goto flush_next;
 
 			} else if (flush_type == BUF_FLUSH_LRU) {
 
@@ -1065,14 +1073,13 @@ buf_flush_batch(
 				mutex_exit(block_mutex);
 
 				bpage = UT_LIST_GET_PREV(list, bpage);
+				ut_ad(!bpage || bpage->in_flush_list);
 			}
-		}
+		} while (bpage != NULL);
 
 		/* If we could not find anything to flush, leave the loop */
 
-		if (!found) {
-			break;
-		}
+		break;
 	}
 
 	buf_pool->init_flush[flush_type] = FALSE;
@@ -1216,6 +1223,7 @@ buf_flush_validate_low(void)
 
 	while (bpage != NULL) {
 		const ib_uint64_t om = bpage->oldest_modification;
+		ut_ad(bpage->in_flush_list);
 		ut_a(buf_page_in_file(bpage));
 		ut_a(om > 0);
 

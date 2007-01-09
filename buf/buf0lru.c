@@ -371,6 +371,7 @@ buf_LRU_get_free_only(void)
 	if (block) {
 		ut_ad(block->page.in_free_list);
 		ut_d(block->page.in_free_list = FALSE);
+		ut_ad(!block->page.in_flush_list);
 		ut_ad(!block->page.in_LRU_list);
 		ut_a(!buf_page_in_file(&block->page));
 		UT_LIST_REMOVE(list, buf_pool->free, (&block->page));
@@ -1022,6 +1023,8 @@ buf_LRU_block_free_non_file_page(
 
 	ut_ad(block->n_pointers == 0);
 	ut_ad(!block->page.in_free_list);
+	ut_ad(!block->page.in_flush_list);
+	ut_ad(!block->page.in_LRU_list);
 
 	buf_block_set_state(block, BUF_BLOCK_NOT_USED);
 
@@ -1131,6 +1134,7 @@ buf_LRU_block_remove_hashed_page(
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_ZIP_PAGE:
 		ut_ad(!bpage->in_free_list);
+		ut_ad(!bpage->in_flush_list);
 		ut_ad(!bpage->in_LRU_list);
 		ut_a(bpage->zip.data);
 		ut_a(buf_page_get_zip_size(bpage));

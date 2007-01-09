@@ -612,6 +612,7 @@ buf_block_init(
 	block->index = NULL;
 
 #ifdef UNIV_DEBUG
+	block->page.in_flush_list = FALSE;
 	block->page.in_free_list = FALSE;
 	block->page.in_LRU_list = FALSE;
 	block->n_pointers = 0;
@@ -851,6 +852,7 @@ buf_chunk_free(
 		ut_a(!block->page.zip.data);
 
 		ut_ad(!block->page.in_LRU_list);
+		ut_ad(!block->page.in_flush_list);
 		/* Remove the block from the free list. */
 		ut_ad(block->page.in_free_list);
 		UT_LIST_REMOVE(list, buf_pool->free, (&block->page));
@@ -1211,6 +1213,7 @@ buf_pool_page_hash_rebuild(void)
 	for (b = UT_LIST_GET_FIRST(buf_pool->zip_clean); b;
 	     b = UT_LIST_GET_NEXT(list, b)) {
 		ut_a(buf_page_get_state(b) == BUF_BLOCK_ZIP_PAGE);
+		ut_ad(!b->in_flush_list);
 
 		HASH_INSERT(buf_page_t, hash, page_hash,
 			    buf_page_address_fold(b->space, b->offset), b);
@@ -1218,6 +1221,8 @@ buf_pool_page_hash_rebuild(void)
 
 	for (b = UT_LIST_GET_FIRST(buf_pool->flush_list); b;
 	     b = UT_LIST_GET_NEXT(list, b)) {
+		ut_ad(b->in_flush_list);
+
 		switch (buf_page_get_state(b)) {
 		case BUF_BLOCK_ZIP_DIRTY:
 			HASH_INSERT(buf_page_t, hash, page_hash,
@@ -2138,6 +2143,10 @@ buf_page_init_for_read(
 				buf_page_t*	b;
 
 				b = UT_LIST_GET_PREV(list, bpage);
+				ut_ad(bpage->in_flush_list);
+				ut_ad(!block->page.in_flush_list);
+				ut_d(bpage->in_flush_list = FALSE);
+				ut_d(block->page.in_flush_list = TRUE);
 				UT_LIST_REMOVE(list, buf_pool->flush_list,
 					       bpage);
 
@@ -2707,6 +2716,8 @@ buf_validate(void)
 
 	for (b = UT_LIST_GET_FIRST(buf_pool->flush_list); b;
 	     b = UT_LIST_GET_NEXT(list, b)) {
+		ut_ad(b->in_flush_list);
+
 		switch (buf_page_get_state(b)) {
 		case BUF_BLOCK_ZIP_DIRTY:
 			ut_a(b->oldest_modification);
@@ -2950,6 +2961,8 @@ buf_get_latched_pages_number(void)
 
 	for (b = UT_LIST_GET_FIRST(buf_pool->flush_list); b;
 	     b = UT_LIST_GET_NEXT(list, b)) {
+		ut_ad(b->in_flush_list);
+
 		switch (buf_page_get_state(b)) {
 		case BUF_BLOCK_ZIP_DIRTY:
 			if (b->buf_fix_count != 0
