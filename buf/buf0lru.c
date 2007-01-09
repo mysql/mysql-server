@@ -878,7 +878,12 @@ Try to free a block. */
 ibool
 buf_LRU_free_block(
 /*===============*/
-				/* out: TRUE if freed */
+				/* out: TRUE if freed.  If bpage is a
+				descriptor of a compressed-only page,
+				the descriptor object will be freed
+				as well.  If this function returns FALSE,
+				it will not temporarily release
+				buf_pool->mutex. */
 	buf_page_t*	bpage,	/* in: block to be freed */
 	ibool		zip)	/* in: TRUE if should remove also the
 				compressed page of an uncompressed page */
