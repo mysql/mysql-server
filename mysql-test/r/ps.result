@@ -1528,5 +1528,12 @@ a
 1
 2
 DEALLOCATE PREPARE stmt;
+PREPARE stmt FROM 'SELECT a FROM t1 WHERE (SELECT b FROM t2 limit ?) IS NULL';
+SET @arg=1;
+EXECUTE stmt USING @arg;
+a
+1
+2
+DEALLOCATE PREPARE stmt;
 DROP TABLE t1,t2;
 End of 5.0 tests.
