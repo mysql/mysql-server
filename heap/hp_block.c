@@ -47,7 +47,7 @@ int _hp_get_new_block(HP_BLOCK *block, ulong *alloc_length)
       break;
 
   *alloc_length=sizeof(HP_PTRS)*i+block->records_in_block* block->recbuffer;
-  if (!(root=(HP_PTRS*) my_malloc(*alloc_length,MYF(0))))
+  if (!(root=(HP_PTRS*) my_malloc(*alloc_length,MYF(MY_WME))))
     return 1;
 
   if (i == 0)
