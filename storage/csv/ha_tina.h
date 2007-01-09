@@ -16,6 +16,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <my_dir.h>
+#include "transparent_file.h"
 
 #define DEFAULT_CHAIN_LENGTH 512
 /*
@@ -53,49 +54,6 @@ typedef struct st_tina_share {
 struct tina_set {
   off_t begin;
   off_t end;
-};
-
-class Transparent_file
-{
-   File filedes;
-   byte *buff;  /* in-memory window to the file or mmaped area */
-   /* current window sizes */
-   off_t lower_bound;
-   off_t upper_bound;
-   uint buff_size;
-
- public:
-
-   Transparent_file() : lower_bound(0), buff_size(IO_SIZE)
-   { buff= (byte *) my_malloc(buff_size*sizeof(byte),  MYF(MY_WME)); }
-
-   ~Transparent_file()
-   { my_free((gptr)buff, MYF(MY_ALLOW_ZERO_PTR)); }
-
-   void init_buff(File filedes_arg)
-   {
-     filedes= filedes_arg;
-     /* read the beginning of the file */
-     lower_bound= 0;
-     VOID(my_seek(filedes, 0, MY_SEEK_SET, MYF(0)));
-     if (filedes && buff)
-       upper_bound= my_read(filedes, buff, buff_size, MYF(0));
-   }
-
-   byte *ptr()
-   { return buff; }
-
-   off_t start()
-   { return lower_bound; }
-
-   off_t end()
-   { return upper_bound; }
-
-   /* get a char from the given position in the file */
-   char get_value (off_t offset);
-   /* shift a buffer windows to see the next part of the file */
-   off_t read_next();
-
 };
 
 class ha_tina: public handler
