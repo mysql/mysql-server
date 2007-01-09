@@ -903,10 +903,20 @@ buf_LRU_free_block(
 		return(FALSE);
 	}
 
-	if (bpage->oldest_modification
-	    && (zip || buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE)) {
-
+	if (bpage->oldest_modification) {
 		/* Do not completely free dirty blocks. */
+		ut_ad(bpage->in_flush_list);
+
+		if (zip || !bpage->zip.data) {
+			return(FALSE);
+		}
+
+		if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE) {
+			ut_ad(buf_page_get_state(bpage)
+			      == BUF_BLOCK_ZIP_DIRTY);
+			return(FALSE);
+		}
+
 		return(FALSE);
 	}
 
@@ -935,10 +945,6 @@ buf_LRU_free_block(
 			(BUF_BLOCK_REMOVE_HASH) and removed from
 			buf_pool->page_hash, thus inaccessible by any
 			other thread. */
-#ifdef UNIV_ZIP_DEBUG
-			ut_a(page_zip_validate(&bpage->zip,
-					       ((buf_block_t*) bpage)->frame));
-#endif /* UNIV_ZIP_DEBUG */
 
 			mach_write_to_4(
 				bpage->zip.data + FIL_PAGE_SPACE_OR_CHKSUM,
@@ -1084,7 +1090,6 @@ buf_LRU_block_remove_hashed_page(
 
 	ut_a(buf_page_get_io_fix(bpage) == BUF_IO_NONE);
 	ut_a(bpage->buf_fix_count == 0);
-	ut_a(bpage->oldest_modification == 0);
 
 	buf_LRU_remove_block(bpage);
 
@@ -1093,8 +1098,20 @@ buf_LRU_block_remove_hashed_page(
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_FILE_PAGE:
 		buf_block_modify_clock_inc((buf_block_t*) bpage);
-		break;
+		if (bpage->zip.data) {
+			ut_a(!zip || bpage->oldest_modification == 0);
+#ifdef UNIV_ZIP_DEBUG
+			ut_a(fil_page_get_type(bpage->zip.data)
+			     != FIL_PAGE_INDEX
+			     || page_zip_validate(&bpage->zip,
+						  ((buf_block_t*) bpage)
+						  ->frame));
+#endif /* UNIV_ZIP_DEBUG */
+			break;
+		}
+		/* fall through */
 	case BUF_BLOCK_ZIP_PAGE:
+		ut_a(bpage->oldest_modification == 0);
 		break;
 	case BUF_BLOCK_ZIP_FREE:
 	case BUF_BLOCK_ZIP_DIRTY:
@@ -1125,6 +1142,8 @@ buf_LRU_block_remove_hashed_page(
 		}
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+		mutex_exit(buf_page_get_mutex(bpage));
+		mutex_exit(&buf_pool->mutex);
 		buf_print();
 		buf_LRU_print();
 		buf_validate();
