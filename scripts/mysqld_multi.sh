@@ -467,6 +467,9 @@ sub find_groups
     if (-f "@sysconfdir@/my.cnf" && -r "@sysconfdir@/my.cnf")
     {
       open(MY_CNF, "<@sysconfdir@/my.cnf") && (@tmp=<MY_CNF>) && close(MY_CNF);
+    } elsif (-f "/etc/my.cnf" && -r "/etc/my.cnf")
+    {
+      open(MY_CNF, "</etc/my.cnf") && (@tmp=<MY_CNF>) && close(MY_CNF);
     }
     for ($i = 0; ($line = shift @tmp); $i++)
     {
