@@ -2401,7 +2401,6 @@ page_zip_validate(
 	page_t*		temp_page;
 	ibool		valid;
 
-	ut_a(buf_frame_get_page_zip((byte*) page) == page_zip);
 	ut_a(page_is_comp(page));
 
 	if (memcmp(page_zip->data + FIL_PAGE_PREV, page + FIL_PAGE_PREV,
