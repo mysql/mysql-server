@@ -136,4 +136,13 @@ insert into t1 values(NULL, 0x412020);
 ERROR 22001: Data too long for column 'vb' at row 1
 drop table t1;
 set @@sql_mode= @old_sql_mode;
+create table t1(f1 int, f2 binary(2) not null, f3 char(2) not null);
+insert into t1 set f1=1;
+Warnings:
+Warning	1364	Field 'f2' doesn't have a default value
+Warning	1364	Field 'f3' doesn't have a default value
+select hex(f2), hex(f3) from t1;
+hex(f2)	hex(f3)
+0000	
+drop table t1;
 End of 5.0 tests
