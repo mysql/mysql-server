@@ -491,6 +491,8 @@ buf_buddy_free_low(
 	ut_a(!mutex_own(&buf_pool->zip_mutex));
 #endif /* UNIV_SYNC_DEBUG */
 recombine:
+	ut_d(((buf_page_t*) buf)->state = BUF_BLOCK_ZIP_FREE);
+
 	if (i == BUF_BUDDY_SIZES) {
 		buf_buddy_block_free(buf);
 		return;
@@ -522,6 +524,7 @@ buddy_free:
 			/* The buddy is free: recombine */
 			UT_LIST_REMOVE(list, buf_pool->zip_free[i], bpage);
 buddy_free2:
+			ut_ad(buf_page_get_state(buddy) == BUF_BLOCK_ZIP_FREE);
 			ut_ad(!buf_pool_contains_zip(buddy));
 			i++;
 			buf = ut_align_down(buf, BUF_BUDDY_LOW << i);
@@ -547,6 +550,7 @@ buddy_nonfree:
 		/* Try to relocate the buddy of buf to the free block. */
 		if (buf_buddy_relocate(buddy, bpage, i)) {
 
+			ut_d(buddy->state = BUF_BLOCK_ZIP_FREE);
 			goto buddy_free2;
 		}
 
@@ -573,13 +577,59 @@ buddy_nonfree:
 		if (buf_buddy_relocate(buddy, buf, i)) {
 
 			buf = bpage;
+			ut_d(buddy->state = BUF_BLOCK_ZIP_FREE);
 			goto buddy_free;
 		}
 	}
 
 	/* Free the block to the buddy list. */
 	bpage = buf;
-	ut_d(memset(bpage, i, BUF_BUDDY_LOW << i));
+#ifdef UNIV_DEBUG
+	if (i < buf_buddy_get_slot(PAGE_ZIP_MIN_SIZE)) {
+		/* This area has most likely been allocated for at
+		least one compressed-only block descriptor.  Check
+		that there are no live objects in the area.  This is
+		not a complete check: it may yield false positives as
+		well as false negatives.  Also, due to buddy blocks
+		being recombined, it is possible (although unlikely)
+		that this branch is never reached. */
+
+		char* c;
+
+		const buf_page_t* b = buf;
+		const buf_page_t* const b_end = (buf_page_t*)
+			((char*) b + (BUF_BUDDY_LOW << i));
+
+		for (; b < b_end; b++) {
+			/* Avoid false positives (and cause false
+			negatives) by checking for b->space < 1000. */
+
+			if ((b->state == BUF_BLOCK_ZIP_PAGE
+			     || b->state == BUF_BLOCK_ZIP_DIRTY) &&
+			    b->space > 0 && b->space < 1000) {
+				fprintf(stderr,
+					"buddy dirty %p %u (%u,%u) %p,%lu\n",
+					(void*) b,
+					b->state, b->space, b->offset,
+					buf, i);
+			}
+		}
+
+		/* Scramble the block.  This should make any pointers
+		invalid and trigger a segmentation violation.  Because
+		the scrambling can be reversed, it may be possible to
+		track down the object pointing to the freed data by
+		dereferencing the unscrambled bpage->LRU or
+		bpage->list pointers. */
+		for (c = (char*) buf + (BUF_BUDDY_LOW << i);
+		     c-- > (char*) buf; ) {
+			*c = ~*c ^ i;
+		}
+	} else {
+		/* Fill large blocks with a constant pattern. */
+		memset(bpage, i, BUF_BUDDY_LOW << i);
+	}
+#endif /* UNIV_DEBUG */
 	bpage->state = BUF_BLOCK_ZIP_FREE;
 	ut_ad(buf_pool->zip_free[i].start != bpage);
 	UT_LIST_ADD_FIRST(list, buf_pool->zip_free[i], bpage);
