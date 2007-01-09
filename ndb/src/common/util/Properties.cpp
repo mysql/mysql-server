@@ -627,11 +627,11 @@ PropertiesImpl::getPropsPut(const char * name,
     if(nvp == 0){
       Properties   * tmpP  = new Properties();
       PropertyImpl * tmpPI = new PropertyImpl(tmp2, tmpP);
-      PropertyImpl * nvp = put(tmpPI);
+      PropertyImpl * nvp2 = put(tmpPI);
 
       delete tmpP;
       free(tmp2);
-      return ((Properties*)nvp->value)->impl->getPropsPut(tmp+1, impl);
+      return ((Properties*)nvp2->value)->impl->getPropsPut(tmp+1, impl);
     }
     free(tmp2);
     if(nvp->valueType != PropertiesType_Properties){

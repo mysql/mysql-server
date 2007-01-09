@@ -36,9 +36,11 @@ static struct my_option my_long_options[] =
 };
 static void usage()
 {
+#ifdef NOT_USED
   char desc[] = 
     "[<table> <index>]+\n"\
     "This program will drop index(es) in Ndb\n";
+#endif
   ndb_std_print_version();
   print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
   puts("");

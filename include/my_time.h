@@ -73,16 +73,16 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
                 uint flags, int *was_cut);
 longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
                             uint flags, int *was_cut);
-ulonglong TIME_to_ulonglong_datetime(const MYSQL_TIME *time);
-ulonglong TIME_to_ulonglong_date(const MYSQL_TIME *time);
-ulonglong TIME_to_ulonglong_time(const MYSQL_TIME *time);
-ulonglong TIME_to_ulonglong(const MYSQL_TIME *time);
+ulonglong TIME_to_ulonglong_datetime(const MYSQL_TIME *);
+ulonglong TIME_to_ulonglong_date(const MYSQL_TIME *);
+ulonglong TIME_to_ulonglong_time(const MYSQL_TIME *);
+ulonglong TIME_to_ulonglong(const MYSQL_TIME *);
 
 
 my_bool str_to_time(const char *str,uint length, MYSQL_TIME *l_time,
                     int *warning);
 
-int check_time_range(struct st_mysql_time *time, int *warning);
+int check_time_range(struct st_mysql_time *, int *warning);
 
 long calc_daynr(uint year,uint month,uint day);
 uint calc_days_in_year(uint year);
