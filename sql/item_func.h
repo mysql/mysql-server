@@ -1188,6 +1188,7 @@ public:
   void print(String *str);
   void print_as_stmt(String *str);
   const char *func_name() const { return "set_user_var"; }
+  int save_in_field(Field *field, bool no_conversions);
 };
 
 
