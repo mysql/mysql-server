@@ -5933,6 +5933,9 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
 	  uint i;
 	  FOREIGN_KEY_INFO f_key_info;
 	  LEX_STRING *name= 0;
+          uint ulen;
+          char uname[NAME_LEN*3+1];           /* Unencoded name */
+          char db_name[NAME_LEN*3+1];
 	  const char *tmp_buff;
 
 	  tmp_buff= foreign->id;
@@ -5943,14 +5946,23 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
 	  f_key_info.forein_id= make_lex_string(thd, 0, tmp_buff,
 		  (uint) strlen(tmp_buff), 1);
 	  tmp_buff= foreign->referenced_table_name;
+
+          /* Database name */
 	  i= 0;
 	  while (tmp_buff[i] != '/')
-		  i++;
-	  f_key_info.referenced_db= make_lex_string(thd, 0,
-		  tmp_buff, i, 1);
+          {
+            db_name[i]= tmp_buff[i];
+            i++;
+          }
+          db_name[i]= 0;
+          ulen= filename_to_tablename(db_name, uname, sizeof(uname));
+          f_key_info.referenced_db= make_lex_string(thd, 0, uname, ulen, 1);
+
+          /* Table name */
 	  tmp_buff+= i + 1;
-	  f_key_info.referenced_table= make_lex_string(thd, 0, tmp_buff,
-		  (uint) strlen(tmp_buff), 1);
+          ulen= filename_to_tablename(tmp_buff, uname, sizeof(uname));
+          f_key_info.referenced_table= make_lex_string(thd, 0, uname,
+                                                       ulen, 1);
 
 	  for (i= 0;;) {
 		  tmp_buff= foreign->foreign_col_names[i];
