@@ -51,7 +51,11 @@ ibool	buf_lru_switched_on_innodb_mon	= FALSE;
 /**********************************************************************
 Takes a block out of the LRU list and page hash table.
 If the block is compressed-only (BUF_BLOCK_ZIP_PAGE),
-the object will be freed and buf_pool->zip_mutex will be released. */
+the object will be freed and buf_pool->zip_mutex will be released.
+
+If a compressed page or a compressed-only block descriptor is freed,
+other compressed pages or compressed-only block descriptors may be
+relocated. */
 static
 enum buf_page_state
 buf_LRU_block_remove_hashed_page(
@@ -151,12 +155,18 @@ scan_again:
 				buf_LRU_block_free_hashed_page((buf_block_t*)
 							       bpage);
 			} else {
-				goto next_page2;
+				/* The compressed block descriptor
+				(bpage) has been deallocated and
+				block_mutex released.  Also,
+				buf_buddy_free() may have relocated
+				prev_bpage.  Rescan the LRU list. */
+
+				bpage = UT_LIST_GET_LAST(buf_pool->LRU);
+				continue;
 			}
 		}
 next_page:
 		mutex_exit(block_mutex);
-next_page2:
 		bpage = prev_bpage;
 	}
 
@@ -1066,7 +1076,11 @@ buf_LRU_block_free_non_file_page(
 /**********************************************************************
 Takes a block out of the LRU list and page hash table.
 If the block is compressed-only (BUF_BLOCK_ZIP_PAGE),
-the object will be freed and buf_pool->zip_mutex will be released. */
+the object will be freed and buf_pool->zip_mutex will be released.
+
+If a compressed page or a compressed-only block descriptor is freed,
+other compressed pages or compressed-only block descriptors may be
+relocated. */
 static
 enum buf_page_state
 buf_LRU_block_remove_hashed_page(
