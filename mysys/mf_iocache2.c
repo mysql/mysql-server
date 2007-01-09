@@ -321,10 +321,10 @@ uint my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
     if (*fmt == 's')				/* String parameter */
     {
       reg2 char *par = va_arg(args, char *);
-      uint length = (uint) strlen(par);
+      uint length2 = (uint) strlen(par);
       /* TODO: implement minimum width and precision */
-      out_length+=length;
-      if (my_b_write(info, par, length))
+      out_length+= length2;
+      if (my_b_write(info, par, length2))
 	goto err;
     }
     else if (*fmt == 'b')                       /* Sized buffer parameter, only precision makes sense */
@@ -337,32 +337,32 @@ uint my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
     else if (*fmt == 'd' || *fmt == 'u')	/* Integer parameter */
     {
       register int iarg;
-      uint length;
+      uint length2;
       char buff[17];
 
       iarg = va_arg(args, int);
       if (*fmt == 'd')
-	length= (uint) (int10_to_str((long) iarg,buff, -10) - buff);
+	length2= (uint) (int10_to_str((long) iarg,buff, -10) - buff);
       else
-	length= (uint) (int10_to_str((long) (uint) iarg,buff,10)- buff);
-      out_length+=length;
-      if (my_b_write(info, buff, length))
+	length2= (uint) (int10_to_str((long) (uint) iarg,buff,10)- buff);
+      out_length+= length2;
+      if (my_b_write(info, buff, length2))
 	goto err;
     }
     else if ((*fmt == 'l' && fmt[1] == 'd') || fmt[1] == 'u')
       /* long parameter */
     {
       register long iarg;
-      uint length;
+      uint length2;
       char buff[17];
 
       iarg = va_arg(args, long);
       if (*++fmt == 'd')
-	length= (uint) (int10_to_str(iarg,buff, -10) - buff);
+	length2= (uint) (int10_to_str(iarg,buff, -10) - buff);
       else
-	length= (uint) (int10_to_str(iarg,buff,10)- buff);
-      out_length+=length;
-      if (my_b_write(info, buff, length))
+	length2= (uint) (int10_to_str(iarg,buff,10)- buff);
+      out_length+= length2;
+      if (my_b_write(info, buff, length2))
 	goto err;
     }
     else

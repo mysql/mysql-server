@@ -1719,8 +1719,8 @@ int my_wildcmp_unicode(CHARSET_INFO *cs,
   int result= -1;			/* Not found, using wildcards */
   my_wc_t s_wc, w_wc;
   int scan, plane;
-  int (*mb_wc)(struct charset_info_st *cs, my_wc_t *wc,
-               const unsigned char *s,const unsigned char *e);
+  int (*mb_wc)(struct charset_info_st *, my_wc_t *,
+               const unsigned char *, const unsigned char *);
   mb_wc= cs->cset->mb_wc;
   
   while (wildstr != wildend)
