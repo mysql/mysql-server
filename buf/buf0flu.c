@@ -69,7 +69,7 @@ buf_flush_insert_into_flush_list(
 	case BUF_BLOCK_ZIP_DIRTY:
 	case BUF_BLOCK_FILE_PAGE:
 		ut_ad(!bpage->in_flush_list);
-		ut_a(bpage->in_flush_list = TRUE);
+		ut_d(bpage->in_flush_list = TRUE);
 		UT_LIST_ADD_FIRST(list, buf_pool->flush_list, bpage);
 		break;
 	case BUF_BLOCK_ZIP_FREE:
