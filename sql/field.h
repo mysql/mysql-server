@@ -1034,7 +1034,8 @@ public:
   bool zero_pack() const { return 0; }
   int reset(void)
   {
-    charset()->cset->fill(charset(),ptr,field_length,' ');
+    charset()->cset->fill(charset(),ptr,field_length,
+                          (has_charset() ? ' ' : 0));
     return 0;
   }
   int store(const char *to,uint length,CHARSET_INFO *charset);
