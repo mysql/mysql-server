@@ -617,10 +617,9 @@ skip:
 }
 
 /*
-** replace substring with string
-** If wrong parameter or not enough memory, do nothing
+  Replace substring with string
+  If wrong parameter or not enough memory, do nothing
 */
-
 
 bool String::replace(uint32 offset,uint32 arg_length,const String &to)
 {
@@ -628,16 +627,16 @@ bool String::replace(uint32 offset,uint32 arg_length,const String &to)
 }
 
 bool String::replace(uint32 offset,uint32 arg_length,
-                     const char *to,uint32 length)
+                     const char *to, uint32 to_length)
 {
-  long diff = (long) length-(long) arg_length;
+  long diff = (long) to_length-(long) arg_length;
   if (offset+arg_length <= str_length)
   {
     if (diff < 0)
     {
-      if (length)
-	memcpy(Ptr+offset,to,length);
-      bmove(Ptr+offset+length,Ptr+offset+arg_length,
+      if (to_length)
+	memcpy(Ptr+offset,to,to_length);
+      bmove(Ptr+offset+to_length,Ptr+offset+arg_length,
 	    str_length-offset-arg_length);
     }
     else
@@ -649,8 +648,8 @@ bool String::replace(uint32 offset,uint32 arg_length,
 	bmove_upp(Ptr+str_length+diff,Ptr+str_length,
 		  str_length-offset-arg_length);
       }
-      if (length)
-	memcpy(Ptr+offset,to,length);
+      if (to_length)
+	memcpy(Ptr+offset,to,to_length);
     }
     str_length+=(uint32) diff;
   }

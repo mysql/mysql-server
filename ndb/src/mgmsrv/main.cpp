@@ -194,7 +194,6 @@ static void usage()
  */
 int main(int argc, char** argv)
 {
-  int mgm_connect_result;
 
   NDB_INIT(argv[0]);
 
