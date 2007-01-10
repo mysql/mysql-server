@@ -2161,6 +2161,8 @@ buf_page_init_for_read(
 				}
 			}
 
+			ut_a(!block->page.buf_fix_count);
+			block->page.buf_fix_count++;;
 			rw_lock_x_lock(&block->lock);
 			mutex_exit(&block->mutex);
 			mutex_exit(&buf_pool->zip_mutex);
@@ -2175,6 +2177,9 @@ buf_page_init_for_read(
 			}
 
 			buf_zip_decompress(block, srv_use_checksums);
+			mutex_enter(&block->mutex);
+			block->page.buf_fix_count--;
+			mutex_exit(&block->mutex);
 			rw_lock_x_unlock(&block->lock);
 
 			return(NULL);
