@@ -301,7 +301,14 @@ select @var:=f2 from t1 group by f1 order by f2 desc limit 1;
 select @var;
 @var
 3
-drop table t1;
+create table t2 as select @var:=f2 from t1 group by f1 order by f2 desc limit 1;
+select * from t2;
+@var:=f2
+3
+select @var;
+@var
+3
+drop table t1,t2;
 insert into city 'blah';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''blah'' at line 1
 SHOW COUNT(*) WARNINGS;
