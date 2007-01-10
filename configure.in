@@ -1074,7 +1074,6 @@ case $SYSTEM_TYPE in
     ;;
   *darwin*)
     AC_DEFINE([DEFAULT_SKIP_THREAD_PRIORITY], [1], [default to skip thread priority])
-    CPPFLAGS="-D"
     if test "$ac_cv_prog_gcc" = "yes"
     then
       FLAGS="-D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DIGNORE_SIGHUP_SIGQUIT"
