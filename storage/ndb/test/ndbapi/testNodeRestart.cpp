@@ -1073,6 +1073,63 @@ int runBug25364(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int runBug25468(NDBT_Context* ctx, NDBT_Step* step){
+  
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  NdbRestarter restarter;
+  
+  for (int i = 0; i<loops; i++)
+  {
+    int master = restarter.getMasterNodeId();
+    int node1, node2;
+    switch(i % 5){
+    case 0:
+      node1 = master;
+      node2 = restarter.getRandomNodeSameNodeGroup(master, rand());
+      break;
+    case 1:
+      node1 = restarter.getRandomNodeSameNodeGroup(master, rand());
+      node2 = master;
+      break;
+    case 2:
+    case 3:
+    case 4:
+      node1 = restarter.getRandomNodeOtherNodeGroup(master, rand());
+      if (node1 == -1)
+	node1 = master;
+      node2 = restarter.getRandomNodeSameNodeGroup(node1, rand());
+      break;
+    }
+
+    ndbout_c("node1: %d node2: %d master: %d", node1, node2, master);
+
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+  
+    if (restarter.dumpStateOneNode(node2, val2, 2))
+      return NDBT_FAILED;
+
+    if (restarter.insertErrorInNode(node1, 7178))
+      return NDBT_FAILED;
+
+    int val1 = 7099;
+    if (restarter.dumpStateOneNode(master, &val1, 1))
+      return NDBT_FAILED;
+
+    if (restarter.waitNodesNoStart(&node2, 1))
+      return NDBT_FAILED;
+
+    if (restarter.startAll())
+      return NDBT_FAILED;
+
+    if (restarter.waitClusterStarted())
+      return NDBT_FAILED;
+  }    
+
+  return NDBT_OK;
+}
+
 
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
@@ -1402,6 +1459,9 @@ TESTCASE("Bug24717", ""){
 }
 TESTCASE("Bug25364", ""){
   INITIALIZER(runBug25364);
+}
+TESTCASE("Bug25468", ""){
+  INITIALIZER(runBug25468);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 
