@@ -861,6 +861,7 @@ bool open_log(MYSQL_LOG *log, const char *hostname,
 
 /* mysqld.cc */
 extern void yyerror(const char*);
+my_bool mysql_rm_tmp_tables(void);
 
 /* item_func.cc */
 extern bool check_reserved_words(LEX_STRING *name);
