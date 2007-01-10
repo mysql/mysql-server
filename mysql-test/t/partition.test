@@ -1354,4 +1354,20 @@ delete from t1 where a = 18446744073709551615;
 select * from t1;
 drop table t1;
 
+#
+# Bug 24502 reorganize partition closes connection
+#
+CREATE TABLE t1 (
+  num int(11) NOT NULL, cs int(11) NOT NULL)
+PARTITION BY RANGE (num) SUBPARTITION BY HASH (
+cs) SUBPARTITIONS 2 (PARTITION p_X VALUES LESS THAN MAXVALUE);
+
+ALTER TABLE t1 
+REORGANIZE PARTITION p_X INTO ( 
+    PARTITION p_100 VALUES LESS THAN (100), 
+    PARTITION p_X VALUES LESS THAN MAXVALUE 
+    );
+
+drop table t1;
+
 --echo End of 5.1 tests
