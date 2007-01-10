@@ -1924,6 +1924,7 @@ buf_page_init(
 				in units of a page */
 	buf_block_t*	block)	/* in: block to init */
 {
+	buf_page_t*	hash_page;
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 	ut_ad(mutex_own(&(block->mutex)));
@@ -1940,12 +1941,15 @@ buf_page_init(
 
 	/* Insert into the hash table of file pages */
 
-	if (UNIV_LIKELY_NULL(buf_page_hash_get(space, offset))) {
+	hash_page = buf_page_hash_get(space, offset);
+
+	if (UNIV_LIKELY_NULL(hash_page)) {
 		fprintf(stderr,
 			"InnoDB: Error: page %lu %lu already found"
-			" in the hash table\n",
+			" in the hash table: %p, %p\n",
 			(ulong) space,
-			(ulong) offset);
+			(ulong) offset,
+			hash_page, block);
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 		mutex_exit(&block->mutex);
 		mutex_exit(&buf_pool->mutex);
