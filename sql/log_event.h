@@ -588,6 +588,13 @@ class Log_event
 {
 public:
   /*
+    The following type definition is to be used whenever data is placed 
+    and manipulated in a common buffer. Use this typedef for buffers
+    that contain data containing binary and character data.
+  */
+  typedef unsigned char Byte;
+
+  /*
     The offset in the log where this event originally appeared (it is
     preserved in relay logs, making SHOW SLAVE STATUS able to print
     coordinates of the event in the master's binlog). Note: when a
@@ -768,7 +775,7 @@ public:
 class Query_log_event: public Log_event
 {
 protected:
-  char* data_buf;
+  Log_event::Byte* data_buf;
 public:
   const char* query;
   const char* catalog;
