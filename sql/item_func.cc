@@ -4053,6 +4053,105 @@ void Item_func_set_user_var::make_field(Send_field *tmp_field)
     Item::make_field(tmp_field);
 }
 
+
+/*
+  Save the value of a user variable into a field
+
+  SYNOPSIS
+    save_in_field()
+      field           target field to save the value to
+      no_conversion   flag indicating whether conversions are allowed
+
+  DESCRIPTION
+    Save the function value into a field and update the user variable
+    accordingly. If a result field is defined and the target field doesn't
+    coincide with it then the value from the result field will be used as
+    the new value of the user variable.
+
+    The reason to have this method rather than simply using the result
+    field in the val_xxx() methods is that the value from the result field
+    not always can be used when the result field is defined.
+    Let's consider the following cases:
+    1) when filling a tmp table the result field is defined but the value of it
+    is undefined because it has to be produced yet. Thus we can't use it.
+    2) on execution of an INSERT ... SELECT statement the save_in_field()
+    function will be called to fill the data in the new record. If the SELECT
+    part uses a tmp table then the result field is defined and should be
+    used in order to get the correct result.
+
+    The difference between the SET_USER_VAR function and regular functions
+    like CONCAT is that the Item_func objects for the regular functions are
+    replaced by Item_field objects after the values of these functions have
+    been stored in a tmp table. Yet an object of the Item_field class cannot
+    be used to update a user variable.
+    Due to this we have to handle the result field in a special way here and
+    in the Item_func_set_user_var::send() function.
+
+  RETURN VALUES
+    FALSE       Ok
+    TRUE        Error
+*/
+
+int Item_func_set_user_var::save_in_field(Field *field, bool no_conversions)
+{
+  bool use_result_field= (result_field && result_field != field);
+  int error;
+
+  /* Update the value of the user variable */
+  check(use_result_field);
+  update();
+
+  if (result_type() == STRING_RESULT ||
+      result_type() == REAL_RESULT &&
+      field->result_type() == STRING_RESULT)
+  {
+    String *result;
+    CHARSET_INFO *cs= collation.collation;
+    char buff[MAX_FIELD_WIDTH];		// Alloc buffer for small columns
+    str_value.set_quick(buff, sizeof(buff), cs);
+    result= entry->val_str(&null_value, &str_value, decimals);
+
+    if (null_value)
+    {
+      str_value.set_quick(0, 0, cs);
+      return set_field_to_null_with_conversions(field, no_conversions);
+    }
+
+    /* NOTE: If null_value == FALSE, "result" must be not NULL.  */
+
+    field->set_notnull();
+    error=field->store(result->ptr(),result->length(),cs);
+    str_value.set_quick(0, 0, cs);
+  }
+  else if (result_type() == REAL_RESULT)
+  {
+    double nr= entry->val_real(&null_value);
+    if (null_value)
+      return set_field_to_null(field);
+    field->set_notnull();
+    error=field->store(nr);
+  }
+  else if (result_type() == DECIMAL_RESULT)
+  {
+    my_decimal decimal_value;
+    my_decimal *value= entry->val_decimal(&null_value, &decimal_value);
+    if (null_value)
+      return set_field_to_null(field);
+    field->set_notnull();
+    error=field->store_decimal(value);
+  }
+  else
+  {
+    longlong nr= entry->val_int(&null_value);
+    if (null_value)
+      return set_field_to_null_with_conversions(field, no_conversions);
+    field->set_notnull();
+    error=field->store(nr, unsigned_flag);
+  }
+  return error;
+}
+
+
 String *
 Item_func_get_user_var::val_str(String *str)
 {
