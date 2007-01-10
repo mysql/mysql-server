@@ -2161,6 +2161,7 @@ buf_page_init_for_read(
 				}
 			}
 
+			rw_lock_x_lock(&block->lock);
 			mutex_exit(&block->mutex);
 			mutex_exit(&buf_pool->zip_mutex);
 
@@ -2174,6 +2175,7 @@ buf_page_init_for_read(
 			}
 
 			buf_zip_decompress(block, srv_use_checksums);
+			rw_lock_x_unlock(&block->lock);
 
 			return(NULL);
 		case BUF_BLOCK_FILE_PAGE:
