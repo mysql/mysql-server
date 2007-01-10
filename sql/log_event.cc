@@ -1315,22 +1315,29 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 
 /* 2 utility functions for the next method */
 
-static void get_str_len_and_pointer(const char **dst, const char **src, uint *len)
+/* 
+  Get the pointer for a string (src) that contains the length in
+  the first byte. Set the output string (dst) to the string value
+  and place the length of the string in the byte after the string.
+*/
+static void get_str_len_and_pointer(const Log_event::Byte **src, 
+                                    const char **dst, 
+                                    uint *len)
 {
   if ((*len= **src))
-    *dst= *src + 1;                          // Will be copied later
-  (*src)+= *len+1;
+    *dst= (char *)*src + 1;                          // Will be copied later
+  (*src)+= *len + 1;
 }
 
-
-static void copy_str_and_move(char **dst, const char **src, uint len)
+static void copy_str_and_move(const char **src, 
+                              Log_event::Byte **dst, 
+                              uint len)
 {
   memcpy(*dst, *src, len);
-  *src= *dst;
+  *src= (const char *)*dst;
   (*dst)+= len;
   *(*dst)++= 0;
 }
-
 
 /*
   Query_log_event::Query_log_event()
@@ -1349,8 +1356,8 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   ulong data_len;
   uint32 tmp;
   uint8 common_header_len, post_header_len;
-  char *start;
-  const char *end;
+  Log_event::Byte *start;
+  const Log_event::Byte *end;
   bool catalog_nz= 1;
   DBUG_ENTER("Query_log_event::Query_log_event(char*,...)");
 
@@ -1396,9 +1403,9 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
 
   /* variable-part: the status vars; only in MySQL 5.0  */
   
-  start= (char*) (buf+post_header_len);
-  end= (const char*) (start+status_vars_len);
-  for (const uchar* pos= (const uchar*) start; pos < (const uchar*) end;)
+  start= (Log_event::Byte*) (buf+post_header_len);
+  end= (const Log_event::Byte*) (start+status_vars_len);
+  for (const Log_event::Byte* pos= start; pos < end;)
   {
     switch (*pos++) {
     case Q_FLAGS2_CODE:
@@ -1420,7 +1427,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       break;
     }
     case Q_CATALOG_NZ_CODE:
-      get_str_len_and_pointer(&catalog, (const char **)(&pos), &catalog_len);
+      get_str_len_and_pointer(&pos, &catalog, &catalog_len);
       break;
     case Q_AUTO_INCREMENT:
       auto_increment_increment= uint2korr(pos);
@@ -1436,7 +1443,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     }
     case Q_TIME_ZONE_CODE:
     {
-      get_str_len_and_pointer(&time_zone_str, (const char **)(&pos), &time_zone_len);
+      get_str_len_and_pointer(&pos, &time_zone_str, &time_zone_len);
       break;
     }
     case Q_CATALOG_CODE: /* for 5.0.x where 0<=x<=3 masters */
@@ -1458,38 +1465,38 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   }
   
 #if !defined(MYSQL_CLIENT) && defined(HAVE_QUERY_CACHE)
-  if (!(start= data_buf = (char*) my_malloc(catalog_len + 1 +
-                                            time_zone_len + 1 +
-                                            data_len + 1 +
-					    QUERY_CACHE_FLAGS_SIZE +
-					    db_len + 1,
-					    MYF(MY_WME))))
+  if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1 +
+                                              time_zone_len + 1 +
+                                              data_len + 1 +
+                                              QUERY_CACHE_FLAGS_SIZE +
+                                              db_len + 1,
+                                              MYF(MY_WME))))
 #else
-  if (!(start= data_buf = (char*) my_malloc(catalog_len + 1 +
-                                            time_zone_len + 1 +
-                                            data_len + 1,
-					    MYF(MY_WME))))
+  if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1 +
+                                             time_zone_len + 1 +
+                                             data_len + 1,
+                                             MYF(MY_WME))))
 #endif
       DBUG_VOID_RETURN;
   if (catalog_len)                                  // If catalog is given
   {
     if (likely(catalog_nz)) // true except if event comes from 5.0.0|1|2|3.
-      copy_str_and_move(&start, &catalog, catalog_len);
+      copy_str_and_move(&catalog, &start, catalog_len);
     else
     {
       memcpy(start, catalog, catalog_len+1); // copy end 0
-      catalog= start;
+      catalog= (const char *)start;
       start+= catalog_len+1;
     }
   }
   if (time_zone_len)
-    copy_str_and_move(&start, &time_zone_str, time_zone_len);
+    copy_str_and_move(&time_zone_str, &start, time_zone_len);
 
   /* A 2nd variable part; this is common to all versions */ 
   memcpy((char*) start, end, data_len);          // Copy db and query
   start[data_len]= '\0';              // End query with \0 (For safetly)
-  db= start;
-  query= start + db_len + 1;
+  db= (char *)start;
+  query= (char *)(start + db_len + 1);
   q_len= data_len - db_len -1;
   DBUG_VOID_RETURN;
 }
