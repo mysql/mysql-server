@@ -1157,6 +1157,7 @@ File open_binlog(IO_CACHE *log, const char *log_file_name,
 /* mysqld.cc */
 extern void MYSQLerror(const char*);
 void refresh_status(THD *thd);
+my_bool mysql_rm_tmp_tables(void);
 
 /* item_func.cc */
 extern bool check_reserved_words(LEX_STRING *name);
