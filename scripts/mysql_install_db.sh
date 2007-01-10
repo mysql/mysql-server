@@ -224,7 +224,8 @@ if test "$in_rpm" -eq 0 -a "$windows" -eq 0
 then
   echo "Installing all prepared tables"
 fi
-mysqld_install_cmd_line="$mysqld $defaults $mysqld_opt --bootstrap \
+mysqld_bootstrap="${MYSQLD_BOOTSTRAP-$mysqld}"
+mysqld_install_cmd_line="$mysqld_bootstrap $defaults $mysqld_opt --bootstrap \
 --skip-grant-tables --basedir=$basedir --datadir=$ldata --skip-innodb \
 --skip-bdb --skip-ndbcluster $args --max_allowed_packet=8M --net_buffer_length=16K"
 if $scriptdir/mysql_create_system_tables $create_option $mdata $hostname $windows \

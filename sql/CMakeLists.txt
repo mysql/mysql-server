@@ -25,6 +25,10 @@ SET_SOURCE_FILES_PROPERTIES(${CMAKE_SOURCE_DIR}/sql/message.rc
 
 ADD_DEFINITIONS(-DHAVE_INNOBASE -DMYSQL_SERVER 
                 -D_CONSOLE -DHAVE_DLOPEN)
+                
+IF(DISABLE_GRANT_OPTIONS)                
+  ADD_DEFINITIONS(-DDISABLE_GRANT_OPTIONS)
+ENDIF(DISABLE_GRANT_OPTIONS)
 
 ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc
                discover.cc ../libmysql/errmsg.c field.cc field_conv.cc 
