@@ -40,7 +40,6 @@ static int open_unireg_entry(THD *thd, TABLE *entry, TABLE_LIST *table_list,
                              char *cache_key, uint cache_key_length,
 			     MEM_ROOT *mem_root, uint flags);
 static void free_cache_entry(TABLE *entry);
-static void mysql_rm_tmp_tables(void);
 static bool open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
                          uint db_stat, uint prgflag,
                          uint ha_open_flags, TABLE *outparam,
@@ -63,7 +62,6 @@ extern "C" byte *table_cache_key(const byte *record,uint *length,
 
 bool table_cache_init(void)
 {
-  mysql_rm_tmp_tables();
   return hash_init(&open_cache, &my_charset_bin, table_cache_size+16,
 		   0, 0,table_cache_key,
 		   (hash_free_key) free_cache_entry, 0) != 0;
@@ -6072,13 +6070,20 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
 }
 
 
-static void mysql_rm_tmp_tables(void)
+my_bool mysql_rm_tmp_tables(void)
 {
   uint i, idx;
-  char	filePath[FN_REFLEN], *tmpdir;
+  char	filePath[FN_REFLEN], *tmpdir, filePathCopy[FN_REFLEN];
   MY_DIR *dirp;
   FILEINFO *file;
+  TABLE tmp_table;
+  THD *thd;
   DBUG_ENTER("mysql_rm_tmp_tables");
+
+  if (!(thd= new THD))
+    DBUG_RETURN(1);
+  thd->thread_stack= (char*) &thd;
+  thd->store_globals();
 
   for (i=0; i<=mysql_tmpdir_list.max; i++)
   {
@@ -6098,15 +6103,39 @@ static void mysql_rm_tmp_tables(void)
                                    (file->name[1] == '.' &&  !file->name[2])))
         continue;
 
-      if (!bcmp(file->name,tmp_file_prefix,tmp_file_prefix_length))
+    if (!bcmp(file->name,tmp_file_prefix,tmp_file_prefix_length))
+    {
+      char *ext= fn_ext(file->name);
+      uint ext_len= strlen(ext);
+      uint filePath_len= my_snprintf(filePath, sizeof(filePath),
+                                     "%s%c%s", FN_LIBCHAR,tmpdir,
+                                     file->name);
+      if (!bcmp(reg_ext, ext, ext_len))
       {
-        sprintf(filePath,"%s%c%s",tmpdir,FN_LIBCHAR,file->name);
-        VOID(my_delete(filePath,MYF(MY_WME)));
+        TABLE tmp_table;
+        if (!openfrm(thd, filePath, "tmp_table", (uint) 0,
+                     READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
+                     0, &tmp_table))
+        {
+          /* We should cut file extention before deleting of table */
+          memcpy(filePathCopy, filePath, filePath_len - ext_len);
+          filePathCopy[filePath_len - ext_len]= 0;
+          tmp_table.file->delete_table(filePathCopy);
+          closefrm(&tmp_table);
+        }
       }
+      /*
+        File can be already deleted by tmp_table.file->delete_table().
+        So we hide error messages which happnes during deleting of these
+        files(MYF(0)).
+      */
+      VOID(my_delete(filePath, MYF(0))); 
     }
     my_dirend(dirp);
   }
-  DBUG_VOID_RETURN;
+  delete thd;
+  my_pthread_setspecific_ptr(THR_THD,  0);
+  DBUG_RETURN(0);
 }
 
 

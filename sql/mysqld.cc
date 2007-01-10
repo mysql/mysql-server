@@ -3637,7 +3637,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   error_handler_hook= my_message_sql;
   start_signal_handler();				// Creates pidfile
 
-  if (acl_init(opt_noacl) ||
+  if (mysql_rm_tmp_tables() || acl_init(opt_noacl) ||
       my_tz_init((THD *)0, default_tz_name, opt_bootstrap))
   {
     abort_loop=1;
