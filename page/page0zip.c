@@ -2401,8 +2401,6 @@ page_zip_validate(
 	page_t*		temp_page;
 	ibool		valid;
 
-	ut_a(page_is_comp(page));
-
 	if (memcmp(page_zip->data + FIL_PAGE_PREV, page + FIL_PAGE_PREV,
 		   FIL_PAGE_LSN - FIL_PAGE_PREV)
 	    || memcmp(page_zip->data + FIL_PAGE_TYPE, page + FIL_PAGE_TYPE, 2)
@@ -2411,6 +2409,8 @@ page_zip_validate(
 		fputs("page_zip_validate(): page header mismatch\n", stderr);
 		return(FALSE);
 	}
+
+	ut_a(page_is_comp(page));
 
 	if (page_zip_validate_header_only) {
 		return(TRUE);
