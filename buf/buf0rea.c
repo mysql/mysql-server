@@ -145,7 +145,7 @@ buf_read_page_low(
 	if (sync) {
 		/* The i/o is already completed when we arrive from
 		fil_read */
-		buf_page_io_complete(block);
+		buf_page_io_complete(&block->page);
 	}
 
 	return(1);

@@ -867,7 +867,7 @@ the buffer pool. */
 void
 buf_page_io_complete(
 /*=================*/
-	buf_block_t*	block);	/* in: pointer to the block in question */
+	buf_page_t*	bpage);	/* in: pointer to the block in question */
 /************************************************************************
 Calculates a folded value of a file page address to use in the page hash
 table. */
