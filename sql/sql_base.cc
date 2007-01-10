@@ -5167,6 +5167,7 @@ my_bool mysql_rm_tmp_tables(void)
 
   if (!(thd= new THD))
     DBUG_RETURN(1);
+  thd->thread_stack= (char*) &thd;
   thd->store_globals();
 
   for (i=0; i<=mysql_tmpdir_list.max; i++)
@@ -5196,7 +5197,7 @@ my_bool mysql_rm_tmp_tables(void)
       if (!bcmp(reg_ext, ext, ext_len))
       {
         TABLE tmp_table;
-        if (!openfrm(filePath, "tmp_table", (uint) 0,
+        if (!openfrm(thd, filePath, "tmp_table", (uint) 0,
                      READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
                      0, &tmp_table))
         {
