@@ -2375,13 +2375,13 @@ the buffer pool. */
 void
 buf_page_io_complete(
 /*=================*/
-	buf_block_t*	block)	/* in: pointer to the block in question */
+	buf_page_t*	bpage)	/* in: pointer to the block in question */
 {
 	enum buf_io_fix	io_type;
+	const ibool	uncompressed = (buf_page_get_state(bpage)
+					== BUF_BLOCK_FILE_PAGE);
 
-	ut_ad(block);
-
-	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+	ut_a(buf_page_in_file(bpage));
 
 	/* We do not need protect io_fix here by mutex to read
 	it because this is the only function where we can change the value
@@ -2389,22 +2389,25 @@ buf_page_io_complete(
 	ensures that this is the only thread that handles the i/o for this
 	block. */
 
-	io_type = buf_block_get_io_fix(block);
+	io_type = buf_page_get_io_fix(bpage);
+	ut_ad(io_type == BUF_IO_READ || io_type == BUF_IO_WRITE);
 
 	if (io_type == BUF_IO_READ) {
 		ulint	read_page_no;
 		ulint	read_space_id;
 		byte*	frame;
 
-		if (buf_block_get_zip_size(block)) {
-			frame = block->page.zip.data;
-
-			if (!buf_zip_decompress(block, FALSE)) {
+		if (buf_page_get_zip_size(bpage)) {
+			frame = bpage->zip.data;
+			if (uncompressed
+			    && !buf_zip_decompress((buf_block_t*) bpage,
+						   FALSE)) {
 
 				goto corrupt;
 			}
 		} else {
-			frame = block->frame;
+			ut_a(uncompressed);
+			frame = ((buf_block_t*) bpage)->frame;
 		}
 
 		/* If this page is not uninitialized and not in the
@@ -2414,25 +2417,24 @@ buf_page_io_complete(
 		read_space_id = mach_read_from_4(
 			frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
-		if (buf_block_get_space(block) == TRX_SYS_SPACE
-		    && trx_doublewrite_page_inside(
-			    buf_block_get_page_no(block))) {
+		if (bpage->space == TRX_SYS_SPACE
+		    && trx_doublewrite_page_inside(bpage->offset)) {
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
 				"  InnoDB: Error: reading page %lu\n"
 				"InnoDB: which is in the"
 				" doublewrite buffer!\n",
-				(ulong) buf_block_get_page_no(block));
+				(ulong) bpage->offset);
 		} else if (!read_space_id && !read_page_no) {
 			/* This is likely an uninitialized page. */
-		} else if ((block->page.space
-			    && block->page.space != read_space_id)
-			   || block->page.offset != read_page_no) {
+		} else if ((bpage->space
+			    && bpage->space != read_space_id)
+			   || bpage->offset != read_page_no) {
 			/* We did not compare space_id to read_space_id
-			if block->page.space == 0, because the field on the
+			if bpage->space == 0, because the field on the
 			page may contain garbage in MySQL < 4.1.1,
-			which only supported block->page.space == 0. */
+			which only supported bpage->space == 0. */
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
@@ -2441,15 +2443,15 @@ buf_page_io_complete(
 				"InnoDB: read in are %lu:%lu,"
 				" should be %lu:%lu!\n",
 				(ulong) read_space_id, (ulong) read_page_no,
-				(ulong) block->page.space,
-				(ulong) block->page.offset);
+				(ulong) bpage->space,
+				(ulong) bpage->offset);
 		}
 
 		/* From version 3.23.38 up we store the page checksum
 		to the 4 first bytes of the page end lsn field */
 
 		if (buf_page_is_corrupted(frame,
-					  buf_block_get_zip_size(block))) {
+					  buf_page_get_zip_size(bpage))) {
 corrupt:
 			fprintf(stderr,
 				"InnoDB: Database page corruption on disk"
@@ -2457,15 +2459,15 @@ corrupt:
 				"InnoDB: file read of page %lu.\n"
 				"InnoDB: You may have to recover"
 				" from a backup.\n",
-				(ulong) block->page.offset);
-			buf_page_print(frame, buf_block_get_zip_size(block));
+				(ulong) bpage->offset);
+			buf_page_print(frame, buf_page_get_zip_size(bpage));
 			fprintf(stderr,
 				"InnoDB: Database page corruption on disk"
 				" or a failed\n"
 				"InnoDB: file read of page %lu.\n"
 				"InnoDB: You may have to recover"
 				" from a backup.\n",
-				(ulong) block->page.offset);
+				(ulong) bpage->offset);
 			fputs("InnoDB: It is also possible that"
 			      " your operating\n"
 			      "InnoDB: system has corrupted its"
@@ -2496,31 +2498,34 @@ corrupt:
 		}
 
 		if (recv_recovery_is_on()) {
-			recv_recover_page(FALSE, TRUE, block);
+			/* Pages must be uncompressed for crash recovery. */
+			ut_a(uncompressed);
+			recv_recover_page(FALSE, TRUE, (buf_block_t*) bpage);
 		}
 
-		if (!recv_no_ibuf_operations) {
+		if (uncompressed && !recv_no_ibuf_operations) {
 			ibuf_merge_or_delete_for_page(
-				block, block->page.space, block->page.offset,
-				buf_block_get_zip_size(block), TRUE);
+				(buf_block_t*) bpage, bpage->space,
+				bpage->offset, buf_page_get_zip_size(bpage),
+				TRUE);
 		}
 	}
 
 	mutex_enter(&(buf_pool->mutex));
-	mutex_enter(&block->mutex);
+	mutex_enter(buf_page_get_mutex(bpage));
 
 #ifdef UNIV_IBUF_DEBUG
-	ut_a(ibuf_count_get(buf_block_get_space(block),
-			    buf_block_get_page_no(block)) == 0);
+	ut_a(ibuf_count_get(bpage->space, bpage->offset) == 0);
 #endif
 	/* Because this thread which does the unlocking is not the same that
 	did the locking, we use a pass value != 0 in unlock, which simply
 	removes the newest lock debug record, without checking the thread
 	id. */
 
-	buf_page_set_io_fix(&block->page, BUF_IO_NONE);
+	buf_page_set_io_fix(bpage, BUF_IO_NONE);
 
-	if (io_type == BUF_IO_READ) {
+	switch (io_type) {
+	case BUF_IO_READ:
 		/* NOTE that the call to ibuf may have moved the ownership of
 		the x-latch to this OS thread: do not let this confuse you in
 		debugging! */
@@ -2529,40 +2534,41 @@ corrupt:
 		buf_pool->n_pend_reads--;
 		buf_pool->n_pages_read++;
 
-		rw_lock_x_unlock_gen(&(block->lock), BUF_IO_READ);
-
-#ifdef UNIV_DEBUG
-		if (buf_debug_prints) {
-			fputs("Has read ", stderr);
+		if (uncompressed) {
+			rw_lock_x_unlock_gen(&((buf_block_t*) bpage)->lock,
+					     BUF_IO_READ);
 		}
-#endif /* UNIV_DEBUG */
-	} else {
-		ut_ad(io_type == BUF_IO_WRITE);
 
+		break;
+
+	case BUF_IO_WRITE:
 		/* Write means a flush operation: call the completion
 		routine in the flush system */
 
-		buf_flush_write_complete(&block->page);
+		buf_flush_write_complete(bpage);
 
-		rw_lock_s_unlock_gen(&(block->lock), BUF_IO_WRITE);
+		if (uncompressed) {
+			rw_lock_s_unlock_gen(&((buf_block_t*) bpage)->lock,
+					     BUF_IO_WRITE);
+		}
 
 		buf_pool->n_pages_written++;
 
-#ifdef UNIV_DEBUG
-		if (buf_debug_prints) {
-			fputs("Has written ", stderr);
-		}
-#endif /* UNIV_DEBUG */
+		break;
+
+	default:
+		ut_error;
 	}
 
-	mutex_exit(&block->mutex);
+	mutex_exit(buf_page_get_mutex(bpage));
 	mutex_exit(&(buf_pool->mutex));
 
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
-		fprintf(stderr, "page space %lu page no %lu\n",
-			(ulong) buf_block_get_space(block),
-			(ulong) buf_block_get_page_no(block));
+		fprintf(stderr, "Has %s page space %lu page no %lu\n",
+			io_type == BUF_IO_READ ? "read" : "written",
+			(ulong) buf_page_get_space(bpage),
+			(ulong) buf_page_get_page_no(bpage));
 	}
 #endif /* UNIV_DEBUG */
 }
