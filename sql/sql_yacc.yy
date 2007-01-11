@@ -537,7 +537,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  GRANTS
 %token  GROUP                         /* SQL-2003-R */
 %token  GROUP_CONCAT_SYM
-%token  GROUP_UNIQUE_USERS
 %token  GT_SYM                        /* OPERATOR */
 %token  HANDLER_SYM
 %token  HASH_SYM
@@ -864,7 +863,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  UNINSTALL_SYM
 %token  UNION_SYM                     /* SQL-2003-R */
 %token  UNIQUE_SYM
-%token  UNIQUE_USERS
 %token  UNKNOWN_SYM                   /* SQL-2003-R */
 %token  UNLOCK_SYM
 %token  UNSIGNED
@@ -6279,10 +6277,6 @@ simple_expr:
             }
             $$= new (YYTHD->mem_root) Item_func_interval((Item_row *)$1);
           }
-	| UNIQUE_USERS '(' text_literal ',' NUM ',' NUM ',' expr_list ')'
-	  {
-            $$= new Item_func_unique_users($3,atoi($5.str),atoi($7.str), * $9);
-	  }
         ;
 
 /*
@@ -6769,8 +6763,6 @@ sum_expr:
 	  { Select->in_sum_expr--; }
 	  ')'
 	  { $$=new Item_sum_count_distinct(* $5); }
-	| GROUP_UNIQUE_USERS '(' text_literal ',' NUM ',' NUM ',' in_sum_expr ')'
-	  { $$= new Item_sum_unique_users($3,atoi($5.str),atoi($7.str),$9); }
 	| MIN_SYM '(' in_sum_expr ')'
 	  { $$=new Item_sum_min($3); }
 /*

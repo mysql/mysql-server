@@ -593,7 +593,6 @@ static SYMBOL sql_functions[] = {
   { "DATE_SUB",		SYM(DATE_SUB_INTERVAL)},
   { "EXTRACT",		SYM(EXTRACT_SYM)},
   { "GROUP_CONCAT",	SYM(GROUP_CONCAT_SYM)},
-  { "GROUP_UNIQUE_USERS",	SYM(GROUP_UNIQUE_USERS)},
   { "MAX",		SYM(MAX_SYM)},
   { "MID",		SYM(SUBSTRING)},	/* unireg function */
   { "MIN",		SYM(MIN_SYM)},
@@ -611,7 +610,6 @@ static SYMBOL sql_functions[] = {
   { "SYSDATE",		SYM(SYSDATE)},
   { "SYSTEM_USER",      SYM(USER)},
   { "TRIM",		SYM(TRIM)},
-  { "UNIQUE_USERS",	SYM(UNIQUE_USERS)},
   { "VARIANCE",		SYM(VARIANCE_SYM)},
   { "VAR_POP",		SYM(VARIANCE_SYM)},
   { "VAR_SAMP",		SYM(VAR_SAMP_SYM)},
