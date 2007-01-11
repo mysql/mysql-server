@@ -1,6 +1,8 @@
 /*
   This libary has been modified for use by the MySQL Archive Engine.
+     -Brian Aker
 */
+
 /* zlib.h -- interface of the 'zlib' general purpose compression library
   version 1.2.3, July 18th, 2005
 
@@ -34,10 +36,34 @@
 #include <zlib.h>
 
 #include "../../mysys/mysys_priv.h"
+#include <my_dir.h>
 
 #ifdef  __cplusplus
 extern "C" {
 #endif
+/* Start of MySQL Specific Information */
+
+/*
+  ulonglong + ulonglong + ulonglong + ulonglong + uchar
+*/
+#define AZMETA_BUFFER_SIZE sizeof(unsigned long long) \
+  + sizeof(unsigned long long) + sizeof(unsigned long long) + sizeof(unsigned long long) \
+  + sizeof(unsigned char)
+
+#define AZHEADER_SIZE 20
+
+#define AZ_MAGIC_POS 0
+#define AZ_VERSION_POS 1
+#define AZ_BLOCK_POS 2
+#define AZ_STRATEGY_POS 3
+#define AZ_FRM_POS 4
+#define AZ_META_POS 8
+#define AZ_START_POS 12
+#define AZ_ROW_POS 20
+#define AZ_FLUSH_POS 28
+#define AZ_CHECK_POS 36
+#define AZ_AUTOINCREMENT_POS 44
+#define AZ_DIRTY_POS 52
 
 /*
      The 'zlib' compression library provides in-memory compression and
@@ -152,7 +178,7 @@ extern "C" {
 /* The deflate compression method (the only one supported in this version) */
 
 #define Z_NULL  0  /* for initializing zalloc, zfree, opaque */
-#define Z_BUFSIZE 16384
+#define AZ_BUFSIZE 16384
 
 
 typedef struct azio_stream {
@@ -160,8 +186,8 @@ typedef struct azio_stream {
   int      z_err;   /* error code for last stream operation */
   int      z_eof;   /* set if end of input file */
   File     file;   /* .gz file */
-  Byte     inbuf[Z_BUFSIZE];  /* input buffer */
-  Byte     outbuf[Z_BUFSIZE]; /* output buffer */
+  Byte     inbuf[AZ_BUFSIZE];  /* input buffer */
+  Byte     outbuf[AZ_BUFSIZE]; /* output buffer */
   uLong    crc;     /* crc32 of uncompressed data */
   char     *msg;    /* error message */
   int      transparent; /* 1 if input file is not a .gz file */
@@ -171,6 +197,13 @@ typedef struct azio_stream {
   my_off_t  out;     /* bytes out of deflate or inflate */
   int      back;    /* one character push-back */
   int      last;    /* true if push-back is last character */
+  unsigned char version;   /* Version */
+  unsigned int block_size;   /* Block Size */
+  unsigned long long check_point;   /* Last position we checked */
+  unsigned long long forced_flushes;   /* Forced Flushes */
+  unsigned long long rows;   /* rows */
+  unsigned long long auto_increment;   /* auto increment field */
+  unsigned char dirty;   /* State of file */
 } azio_stream;
 
                         /* basic functions */
@@ -206,7 +239,7 @@ int azdopen(azio_stream *s,File fd, int Flags);
 */
 
 
-extern int azread(azio_stream *file, voidp buf, unsigned len);
+extern unsigned int azread ( azio_stream *s, voidp buf, unsigned int len, int *error);
 /*
      Reads the given number of uncompressed bytes from the compressed file.
    If the input file was not in gzip format, gzread copies the given number
@@ -214,10 +247,10 @@ extern int azread(azio_stream *file, voidp buf, unsigned len);
      gzread returns the number of uncompressed bytes actually read (0 for
    end of file, -1 for error). */
 
-extern int azwrite (azio_stream *file, voidpc buf, unsigned len);
+extern unsigned int azwrite (azio_stream *s, voidpc buf, unsigned int len);
 /*
      Writes the given number of uncompressed bytes into the compressed file.
-   gzwrite returns the number of uncompressed bytes actually written
+   azwrite returns the number of uncompressed bytes actually written
    (0 in case of error).
 */
 
