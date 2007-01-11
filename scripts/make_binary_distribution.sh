@@ -27,6 +27,7 @@ parse_arguments() {
       --suffix=*) SUFFIX=`echo "$arg" | sed -e "s;--suffix=;;"` ;;
       --no-strip) STRIP=0 ;;
       --machine=*)  MACHINE=`echo "$arg" | sed -e "s;--machine=;;"` ;;
+      --platform=*)  echo "Ignoring argument '$arg', continuing" ;;
       --silent)   SILENT=1 ;;
       *)
 	echo "Unknown argument '$arg'"
