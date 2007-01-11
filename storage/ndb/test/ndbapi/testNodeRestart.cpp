@@ -1003,6 +1003,8 @@ int runBug25364(NDBT_Context* ctx, NDBT_Step* step){
     if (restarter.waitNodesStarted(nodes, 2))
       return NDBT_FAILED;
   }
+
+  return NDBT_OK;
 }
   
 int 
@@ -1067,46 +1069,6 @@ runBug24543(NDBT_Context* ctx, NDBT_Step* step){
   {
     return NDBT_FAILED;
   }
-  return NDBT_OK;
-}
-
-int runBug25364(NDBT_Context* ctx, NDBT_Step* step){
-  int result = NDBT_OK;
-  NdbRestarter restarter;
-  Ndb* pNdb = GETNDB(step);
-  int loops = ctx->getNumLoops();
-  
-  if (restarter.getNumDbNodes() < 4)
-    return NDBT_OK;
-
-  int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
-
-  for (; loops; loops --)
-  {
-    int master = restarter.getMasterNodeId();
-    int victim = restarter.getRandomNodeOtherNodeGroup(master, rand());
-    int second = restarter.getRandomNodeSameNodeGroup(victim, rand());
-    
-    int dump[] = { 935, victim } ;
-    if (restarter.dumpStateOneNode(master, dump, 2))
-      return NDBT_FAILED;
-  
-    if (restarter.dumpStateOneNode(master, val2, 2))
-      return NDBT_FAILED;
-  
-    if (restarter.restartOneDbNode(second, false, true, true))
-      return NDBT_FAILED;
-
-    int nodes[2] = { master, second };
-    if (restarter.waitNodesNoStart(nodes, 2))
-      return NDBT_FAILED;
-
-    restarter.startNodes(nodes, 2);
-
-    if (restarter.waitNodesStarted(nodes, 2))
-      return NDBT_FAILED;
-  }
-  
   return NDBT_OK;
 }
 
