@@ -23,7 +23,7 @@ Creates a hash table with >= n array cells. The actual number
 of cells is chosen to be a prime number slightly bigger than n. */
 
 hash_table_t*
-hash_create(
+hash0_create(
 /*========*/
 			/* out, own: created table */
 	ulint	n);	/* in: number of array cells */
@@ -31,12 +31,20 @@ hash_create(
 Creates a mutex array to protect a hash table. */
 
 void
-hash_create_mutexes(
-/*================*/
+hash_create_mutexes_func(
+/*=====================*/
 	hash_table_t*	table,		/* in: hash table */
-	ulint		n_mutexes,	/* in: number of mutexes */
-	ulint		sync_level);	/* in: latching order level of the
+#ifdef UNIV_SYNC_DEBUG
+	ulint		sync_level,	/* in: latching order level of the
 					mutexes: used in the debug version */
+#endif /* UNIV_SYNC_DEBUG */
+	ulint		n_mutexes);	/* in: number of mutexes */
+#ifdef UNIV_SYNC_DEBUG
+# define hash_create_mutexes(t,n,level) hash_create_mutexes_func(t,level,n)
+#else /* UNIV_SYNC_DEBUG */
+# define hash_create_mutexes(t,n,level) hash_create_mutexes_func(t,n)
+#endif /* UNIV_SYNC_DEBUG */
+
 /*****************************************************************
 Frees a hash table. */
 
