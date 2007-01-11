@@ -1180,6 +1180,8 @@ void st_select_lex::init_select()
   offset_limit= 0;      /* denotes the default offset = 0 */
   with_sum_func= 0;
   is_correlated= 0;
+  cur_pos_in_select_list= UNDEF_POS;
+  non_agg_fields.empty();
 }
 
 /*
