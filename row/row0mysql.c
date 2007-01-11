@@ -35,6 +35,9 @@ Created 9/17/2000 Heikki Tuuri
 /* A dummy variable used to fool the compiler */
 ibool	row_mysql_identically_false	= FALSE;
 
+/* Provide optional 4.x backwards compatibility for 5.0 and above */
+ibool	row_rollback_on_timeout	= FALSE;
+
 /* List of tables we should drop in background. ALTER TABLE in MySQL requires
 that the table handler can drop the table in background when there are no
 queries to it any more. Protected by the kernel mutex. */
@@ -496,7 +499,9 @@ handle_new_error:
 		return(TRUE);
 
 	} else if (err == DB_DEADLOCK
-		   || err == DB_LOCK_TABLE_FULL) {
+		   || err == DB_LOCK_TABLE_FULL
+		   || (err == DB_LOCK_WAIT_TIMEOUT
+		       && row_rollback_on_timeout)) {
 		/* Roll back the whole transaction; this resolution was added
 		to version 3.23.43 */
 
@@ -504,6 +509,10 @@ handle_new_error:
 
 	} else if (err == DB_OUT_OF_FILE_SPACE
 		   || err == DB_LOCK_WAIT_TIMEOUT) {
+
+		ut_ad(!(err == DB_LOCK_WAIT_TIMEOUT
+		        && row_rollback_on_timeout));
+
 		if (savept) {
 			/* Roll back the latest, possibly incomplete
 			insertion or update */
