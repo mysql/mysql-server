@@ -6076,7 +6076,7 @@ my_bool mysql_rm_tmp_tables(void)
   char	filePath[FN_REFLEN], *tmpdir, filePathCopy[FN_REFLEN];
   MY_DIR *dirp;
   FILEINFO *file;
-  TABLE tmp_table;
+  TABLE_SHARE share;
   THD *thd;
   DBUG_ENTER("mysql_rm_tmp_tables");
 
@@ -6108,21 +6108,24 @@ my_bool mysql_rm_tmp_tables(void)
       char *ext= fn_ext(file->name);
       uint ext_len= strlen(ext);
       uint filePath_len= my_snprintf(filePath, sizeof(filePath),
-                                     "%s%c%s", FN_LIBCHAR,tmpdir,
+                                     "%s%c%s", tmpdir, FN_LIBCHAR,
                                      file->name);
       if (!bcmp(reg_ext, ext, ext_len))
       {
-        TABLE tmp_table;
-        if (!openfrm(thd, filePath, "tmp_table", (uint) 0,
-                     READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
-                     0, &tmp_table))
+        handler *handler_file= 0;
+        /* We should cut file extention before deleting of table */
+        memcpy(filePathCopy, filePath, filePath_len - ext_len);
+        filePathCopy[filePath_len - ext_len]= 0;
+        init_tmp_table_share(&share, "", 0, "", filePathCopy);
+        if (!open_table_def(thd, &share, 0) &&
+            ((handler_file= get_new_handler(&share, thd->mem_root,
+                                            share.db_type))))
         {
-          /* We should cut file extention before deleting of table */
-          memcpy(filePathCopy, filePath, filePath_len - ext_len);
-          filePathCopy[filePath_len - ext_len]= 0;
-          tmp_table.file->delete_table(filePathCopy);
-          closefrm(&tmp_table);
+          handler_file->delete_table(filePathCopy);
+          delete handler_file;
         }
+        free_table_share(&share);
+      }
       }
       /*
         File can be already deleted by tmp_table.file->delete_table().
