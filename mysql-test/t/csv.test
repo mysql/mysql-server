@@ -1620,3 +1620,16 @@ insert into float_test values(9.67,'string');
 select * from float_test;
 
 drop table float_test;
+#
+# Bug #21328 mysqld issues warnings on ALTER CSV table to MyISAM
+#
+
+CREATE TABLE `bug21328` (
+  `col1` int(11) DEFAULT NULL,
+  `col2` int(11) DEFAULT NULL,
+  `col3` int(11) DEFAULT NULL
+) ENGINE=CSV;
+
+insert into bug21328 values (1,NULL,NULL);
+alter table bug21328 engine=myisam;
+drop table bug21328;
