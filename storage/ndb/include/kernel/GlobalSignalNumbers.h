@@ -182,7 +182,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_CNTR_START_REP              119
 /* 120 not unused */
 #define GSN_ROUTE_ORD                   121
-/* 122 unused */
+#define GSN_NODE_VERSION_REP            122
 /* 123 unused */
 /* 124 unused */
 #define GSN_CHECK_LCP_STOP              125

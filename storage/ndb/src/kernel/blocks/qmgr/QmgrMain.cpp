@@ -259,6 +259,9 @@ void Qmgr::execSTTOR(Signal* signal)
   case 1:
     initData(signal);
     startphase1(signal);
+    recompute_version_info(NodeInfo::DB);
+    recompute_version_info(NodeInfo::API);
+    recompute_version_info(NodeInfo::MGM);
     return;
   case 7:
     cactivateApiCheck = 1;
@@ -764,6 +767,7 @@ void Qmgr::execCM_REGREQ(Signal* signal)
    */
   UintR TdynId = ++c_maxDynamicId;
   setNodeInfo(addNodePtr.i).m_version = startingVersion;
+  recompute_version_info(NodeInfo::DB, startingVersion);
   addNodePtr.p->ndynamicId = TdynId;
   
   /**
@@ -1502,7 +1506,8 @@ void Qmgr::execCM_NODEINFOCONF(Signal* signal)
   replyNodePtr.p->ndynamicId = dynamicId;
   replyNodePtr.p->blockRef = signal->getSendersBlockRef();
   setNodeInfo(replyNodePtr.i).m_version = version;
-
+  recompute_version_info(NodeInfo::DB, version);
+  
   if(!c_start.m_nodes.done()){
     jam();
     return;
@@ -1601,6 +1606,7 @@ Qmgr::cmAddPrepare(Signal* signal, NodeRecPtr nodePtr, const NodeRec * self){
   }
   
   sendCmAckAdd(signal, nodePtr.i, CmAdd::Prepare);
+  sendApiVersionRep(signal, nodePtr);
 
   /* President have prepared us */
   CmNodeInfoConf * conf = (CmNodeInfoConf*)signal->getDataPtrSend();
@@ -1610,6 +1616,29 @@ Qmgr::cmAddPrepare(Signal* signal, NodeRecPtr nodePtr, const NodeRec * self){
   sendSignal(nodePtr.p->blockRef, GSN_CM_NODEINFOCONF, signal,
 	     CmNodeInfoConf::SignalLength, JBB);
   DEBUG_START(GSN_CM_NODEINFOCONF, refToNode(nodePtr.p->blockRef), "");
+}
+
+void
+Qmgr::sendApiVersionRep(Signal* signal, NodeRecPtr nodePtr)
+{
+  if (getNodeInfo(nodePtr.i).m_version >= NDBD_NODE_VERSION_REP)
+  {
+    jam();
+    Uint32 ref = calcQmgrBlockRef(nodePtr.i);
+    for(Uint32 i = 1; i<MAX_NODES; i++)
+    {
+      jam();
+      Uint32 version = getNodeInfo(i).m_version;
+      Uint32 type = getNodeInfo(i).m_type;
+      if (type != NodeInfo::DB && version)
+      {
+	jam();
+	signal->theData[0] = i;
+	signal->theData[1] = version;
+	sendSignal(ref, GSN_NODE_VERSION_REP, signal, 2, JBB);
+      }
+    }
+  }
 }
 
 void
@@ -2400,7 +2429,9 @@ void Qmgr::sendApiFailReq(Signal* signal, Uint16 failedNodeNo)
    * SECONDS. 
    *-------------------------------------------------------------------------*/
   setNodeInfo(failedNodePtr.i).m_heartbeat_cnt= 0;
-
+  setNodeInfo(failedNodePtr.i).m_version = 0;
+  recompute_version_info(getNodeInfo(failedNodePtr.i).m_type);
+  
   CloseComReqConf * const closeCom = (CloseComReqConf *)&signal->theData[0];
 
   closeCom->xxxBlockRef = reference();
@@ -2706,7 +2737,6 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
   }
 
   setNodeInfo(apiNodePtr.i).m_version = version;
-
   setNodeInfo(apiNodePtr.i).m_heartbeat_cnt= 0;
 
   ApiRegConf * const apiRegConf = (ApiRegConf *)&signal->theData[0];
@@ -2727,8 +2757,9 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
       apiRegConf->nodeState.dynamicId = -dynamicId;
     }
   }
+  NodeVersionInfo info = getNodeVersionInfo();
+  apiRegConf->minDbVersion = info.m_type[NodeInfo::DB].m_min_version;
   apiRegConf->nodeState.m_connected_nodes.assign(c_connectedNodes);
-
   sendSignal(ref, GSN_API_REGCONF, signal, ApiRegConf::SignalLength, JBB);
 
   if (apiNodePtr.p->phase == ZAPI_INACTIVE &&
@@ -2746,6 +2777,33 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
     apiNodePtr.p->blockRef = ref;
     signal->theData[0] = apiNodePtr.i;
     sendSignal(CMVMI_REF, GSN_ENABLE_COMORD, signal, 1, JBA);
+    
+    recompute_version_info(type, version);
+    
+    if (info.m_type[NodeInfo::DB].m_min_version >= NDBD_NODE_VERSION_REP)
+    {
+      jam();
+      NodeReceiverGroup rg(QMGR, c_clusterNodes);
+      rg.m_nodes.clear(getOwnNodeId());
+      signal->theData[0] = apiNodePtr.i;
+      signal->theData[1] = version;
+      sendSignal(rg, GSN_NODE_VERSION_REP, signal, 2, JBB);
+    }
+    else
+    {
+      Uint32 i = 0;
+      while((i = c_clusterNodes.find(i + 1)) != NdbNodeBitmask::NotFound)
+      {
+	jam();
+	if (i == getOwnNodeId())
+	  continue;
+	if (getNodeInfo(i).m_version >= NDBD_NODE_VERSION_REP)
+	{
+	  jam();
+	  sendSignal(calcQmgrBlockRef(i), GSN_NODE_VERSION_REP, signal, 2,JBB);
+	}
+      }
+    }
     
     signal->theData[0] = apiNodePtr.i;
     EXECUTE_DIRECT(NDBCNTR, GSN_API_START_REP, signal, 1);
@@ -2782,6 +2840,76 @@ Qmgr::execAPI_VERSION_REQ(Signal * signal) {
 	     ApiVersionConf::SignalLength, JBB);
 }
 
+void
+Qmgr::execNODE_VERSION_REP(Signal* signal)
+{
+  jamEntry();
+  Uint32 nodeId = signal->theData[0];
+  Uint32 version = signal->theData[1];
+
+  if (nodeId < MAX_NODES)
+  {
+    jam();
+    Uint32 type = getNodeInfo(nodeId).m_type;
+    setNodeInfo(nodeId).m_version = version;
+    recompute_version_info(type, version);
+  }
+}
+ 
+void
+Qmgr::recompute_version_info(Uint32 type, Uint32 version)
+{
+  NodeVersionInfo& info = setNodeVersionInfo();
+  switch(type){
+  case NodeInfo::DB:
+  case NodeInfo::API:
+  case NodeInfo::MGM:
+    break;
+  default:
+    return;
+  }
+  
+  if (info.m_type[type].m_min_version == 0 ||
+      version < info.m_type[type].m_min_version)
+    info.m_type[type].m_min_version = version;
+  if (version > info.m_type[type].m_max_version)
+    info.m_type[type].m_max_version = version;
+}
+
+void
+Qmgr::recompute_version_info(Uint32 type)
+{
+  switch(type){
+  case NodeInfo::DB:
+  case NodeInfo::API:
+  case NodeInfo::MGM:
+    break;
+  default:
+    return;
+  }
+  
+  Uint32 min = ~0, max = 0;
+  Uint32 cnt = type == NodeInfo::DB ? MAX_NDB_NODES : MAX_NODES;
+  for (Uint32 i = 1; i<cnt; i++)
+  {
+    if (getNodeInfo(i).m_type == type)
+    {
+      Uint32 version = getNodeInfo(i).m_version;
+      
+      if (version)
+      {
+	if (version < min)
+	  min = version;
+	if (version > max)
+	  max = version;
+      }
+    }
+  }
+  
+  NodeVersionInfo& info = setNodeVersionInfo();
+  info.m_type[type].m_min_version = min == ~(Uint32)0 ? 0 : min;
+  info.m_type[type].m_max_version = max;
+}
 
 #if 0
 bool
@@ -2921,6 +3049,17 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
     systemErrorLab(signal, __LINE__);
     return;
   }//if
+
+  if (getNodeState().startLevel < NodeState::SL_STARTED)
+  {
+    jam();
+    CRASH_INSERTION(932);
+    char buf[100];
+    BaseString::snprintf(buf, 100, "Node failure during restart");
+    progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED, buf);
+    ndbrequire(false);
+  }
+
   TnoFailedNodes = cnoFailedNodes;
   failReport(signal, failedNodePtr.i, (UintR)ZTRUE, aFailCause);
   if (cpresident == getOwnNodeId()) {
@@ -3006,6 +3145,16 @@ void Qmgr::execPREP_FAILREQ(Signal* signal)
     systemErrorLab(signal, __LINE__);
     return;
   }//if
+
+  if (getNodeState().startLevel < NodeState::SL_STARTED)
+  {
+    jam();
+    CRASH_INSERTION(932);
+    char buf[100];
+    BaseString::snprintf(buf, 100, "Node failure during restart");
+    progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED, buf);
+    ndbrequire(false);
+  }
 
   guard0 = cnoPrepFailedNodes - 1;
   arrGuard(guard0, MAX_NDB_NODES);
@@ -3184,6 +3333,18 @@ Qmgr::sendCommitFailReq(Signal* signal)
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
     jam();
     ptrAss(nodePtr, nodeRec);
+
+#ifdef ERROR_INSERT    
+    if (ERROR_INSERTED(935) && nodePtr.i == c_error_insert_extra)
+    {
+      ndbout_c("skipping node %d", c_error_insert_extra);
+      CLEAR_ERROR_INSERT_VALUE;
+      signal->theData[0] = 9999;
+      sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 1000, 1);
+      continue;
+    }
+#endif
+
     if (nodePtr.p->phase == ZRUNNING) {
       jam();
       nodePtr.p->sendCommitFailReqStatus = Q_ACTIVE;
@@ -3253,6 +3414,33 @@ void Qmgr::execPREP_FAILREF(Signal* signal)
   }//for
   return;
 }//Qmgr::execPREP_FAILREF()
+
+static
+Uint32
+clear_nodes(Uint32 dstcnt, Uint16 dst[], Uint32 srccnt, const Uint16 src[])
+{
+  if (srccnt == 0)
+    return dstcnt;
+  
+  Uint32 pos = 0;
+  for (Uint32 i = 0; i<dstcnt; i++)
+  {
+    Uint32 node = dst[i];
+    for (Uint32 j = 0; j<srccnt; j++)
+    {
+      if (node == dst[j])
+      {
+	node = RNIL;
+	break;
+      }
+    }
+    if (node != RNIL)
+    {
+      dst[pos++] = node;
+    }
+  }
+  return pos;
+}
 
 /*---------------------------------------------------------------------------*/
 /*    THE PRESIDENT IS NOW COMMITTING THE PREVIOUSLY PREPARED NODE FAILURE.  */
@@ -3341,19 +3529,18 @@ void Qmgr::execCOMMIT_FAILREQ(Signal* signal)
 		   NodeFailRep::SignalLength, JBB);
       }//if
     }//for
-    if (cpresident != getOwnNodeId()) {
-      jam();
-      cnoFailedNodes = cnoCommitFailedNodes - cnoFailedNodes;
-      if (cnoFailedNodes > 0) {
-        jam();
-        guard0 = cnoFailedNodes - 1;
-        arrGuard(guard0 + cnoCommitFailedNodes, MAX_NDB_NODES);
-        for (Tj = 0; Tj <= guard0; Tj++) {
-          jam();
-          cfailedNodes[Tj] = cfailedNodes[Tj + cnoCommitFailedNodes];
-        }//for
-      }//if
-    }//if
+
+    /**
+     * Remove committed nodes from failed/prepared
+     */
+    cnoFailedNodes = clear_nodes(cnoFailedNodes, 
+				 cfailedNodes, 
+				 cnoCommitFailedNodes, 
+				 ccommitFailedNodes);
+    cnoPrepFailedNodes = clear_nodes(cnoPrepFailedNodes, 
+				     cprepFailedNodes,
+				     cnoCommitFailedNodes,
+				     ccommitFailedNodes);
     cnoCommitFailedNodes = 0;
   }//if
   /**-----------------------------------------------------------------------
@@ -4732,6 +4919,14 @@ Qmgr::execDUMP_STATE_ORD(Signal* signal)
   default:
     ;
   }//switch
+
+#ifdef ERROR_INSERT
+  if (signal->theData[0] == 935 && signal->getLength() == 2)
+  {
+    SET_ERROR_INSERT_VALUE(935);
+    c_error_insert_extra = signal->theData[1];
+  }
+#endif
 }//Qmgr::execDUMP_STATE_ORD()
 
 void Qmgr::execSET_VAR_REQ(Signal* signal) 

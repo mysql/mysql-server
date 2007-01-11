@@ -67,6 +67,7 @@ public:
     // 100-105 TUP and ACC  
     // 200-240 UTIL
     // 300-305 TRIX
+    QmgrErr935 = 935,
     NdbfsDumpFileStat = 400,
     NdbfsDumpAllFiles = 401,
     NdbfsDumpOpenFiles = 402,
