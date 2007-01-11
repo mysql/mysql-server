@@ -845,7 +845,6 @@ void Qmgr::execCM_REGCONF(Signal* signal)
   jamEntry();
 
   const CmRegConf * const cmRegConf = (CmRegConf *)&signal->theData[0];
-  Uint32 presidentNodeId = cmRegConf->presidentNodeId;
 
   if (!ndbCompatible_ndb_ndb(NDB_VERSION, cmRegConf->presidentVersion)) {
     jam();
@@ -1270,7 +1269,6 @@ Qmgr::check_startup(Signal* signal)
       /**
        * Check for missing node group directly
        */
-      char buf[100];
       NdbNodeBitmask check;
       check.assign(c_definedNodes);
       check.bitANDC(c_start.m_starting_nodes);    // Not connected nodes

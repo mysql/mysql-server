@@ -6,7 +6,7 @@ select 1;
 1
 1
 select 2;
-ERROR HY000: MySQL server has gone away
+Got one of the listed errors
 select 3;
 3
 3
@@ -14,7 +14,7 @@ select 1;
 1
 1
 select 2;
-ERROR HY000: MySQL server has gone away
+Got one of the listed errors
 select 3;
 3
 3

@@ -197,7 +197,7 @@ int initSequence(RandomSequence *seq, SequenceValues *inputValues)
    unsigned int i;
    unsigned int j;
    unsigned int totalLength;
-   unsigned int index;
+   unsigned int idx;
 
    if( !seq || !inputValues ) return(-1);
 
@@ -219,12 +219,12 @@ int initSequence(RandomSequence *seq, SequenceValues *inputValues)
    /*----------------------*/
    /* set the array values */
    /*----------------------*/
-   index = 0;
+   idx = 0;
 
    for(i = 0; inputValues[i].length != 0; i++) {
       for(j = 0; j < inputValues[i].length; j++ ) {
-         seq->values[index] = inputValues[i].value;
-         index++;
+         seq->values[idx] = inputValues[i].value;
+         idx++;
       }
    }
 

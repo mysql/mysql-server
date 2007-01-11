@@ -470,9 +470,9 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
 	  else
 	  {
 	    /* We have to compare k and vseg as if they were space extended */
-	    uchar *end= k+ (cmplen - len);
-	    for ( ; k < end && *k == ' '; k++) ;
-	    if (k == end)
+	    uchar *k_end= k+ (cmplen - len);
+	    for ( ; k < k_end && *k == ' '; k++) ;
+	    if (k == k_end)
 	      goto cmp_rest;		/* should never happen */
 	    if (*k < (uchar) ' ')
 	    {
@@ -484,15 +484,15 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
         }
         else if (len > cmplen)
         {
-	  uchar *end;
+	  uchar *vseg_end;
 	  if ((nextflag & SEARCH_PREFIX) && key_len_left == 0)
 	    goto fix_flag;
 
 	  /* We have to compare k and vseg as if they were space extended */
-	  for (end=vseg + (len-cmplen) ;
-	       vseg < end && *vseg == (uchar) ' ';
+	  for (vseg_end= vseg + (len-cmplen) ;
+	       vseg < vseg_end && *vseg == (uchar) ' ';
 	       vseg++, matched++) ;
-	  DBUG_ASSERT(vseg < end);
+	  DBUG_ASSERT(vseg < vseg_end);
 
 	  if (*vseg > (uchar) ' ')
 	  {

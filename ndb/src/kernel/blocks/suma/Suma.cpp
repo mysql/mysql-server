@@ -1434,7 +1434,6 @@ SumaParticipant::SyncRecord::nextScan(Signal* signal){
   LocalDataBuffer<15> attrBuf(suma.c_dataBufferPool, head);
   
   ScanFragReq * req = (ScanFragReq *)signal->getDataPtrSend();
-  const Uint32 parallelism = 16;
   const Uint32 attrLen = 5 + attrBuf.getSize();
 
   req->senderData = m_subscriptionPtrI;
@@ -1610,10 +1609,6 @@ SumaParticipant::execSCAN_HBREP(Signal* signal){
 
 static Uint32 f_bufferLock = 0;
 static Uint32 f_buffer[SUMA_BUF_SZ];
-static Uint32 f_trigBufferSize = 0;
-static Uint32 b_bufferLock = 0;
-static Uint32 b_buffer[SUMA_BUF_SZ];
-static Uint32 b_trigBufferSize = 0;
 
 void
 SumaParticipant::execTRANSID_AI(Signal* signal){
@@ -1717,7 +1712,6 @@ SumaParticipant::execSUB_REMOVE_REQ(Signal* signal) {
     return;
   }
   
-  int count = 0;
   {
     jam();
     SubscriberPtr i_subbPtr;
