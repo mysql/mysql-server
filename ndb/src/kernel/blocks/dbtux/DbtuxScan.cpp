@@ -704,7 +704,6 @@ Dbtux::scanFirst(ScanOpPtr scanPtr)
     debugOut << "Enter first scan " << scanPtr.i << " " << scan << endl;
   }
 #endif
-  TreeHead& tree = frag.m_tree;
   // set up index keys for this operation
   setKeyAttrs(frag);
   // scan direction 0, 1
@@ -985,7 +984,6 @@ Dbtux::scanVisible(ScanOpPtr scanPtr, TreeEnt ent)
   const Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
   Uint32 fragBit = ent.m_fragBit;
   Uint32 tableFragPtrI = frag.m_tupTableFragPtrI[fragBit];
-  Uint32 fragId = frag.m_fragId | fragBit;
   Uint32 tupAddr = getTupAddr(frag, ent);
   Uint32 tupVersion = ent.m_tupVersion;
   // check for same tuple twice in row

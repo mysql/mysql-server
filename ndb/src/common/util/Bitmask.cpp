@@ -16,21 +16,6 @@
 #include <Bitmask.hpp>
 #include <NdbOut.hpp>
 
-static
-void print(const Uint32 src[], Uint32 len, Uint32 pos = 0)
-{
-  printf("b'");
-  for(unsigned i = 0; i<len; i++)
-  {
-    if(BitmaskImpl::get((pos + len + 31) >> 5, src, i+pos))
-      printf("1");
-    else
-      printf("0");
-    if((i & 31) == 31)
-      printf(" ");
-  }
-}
-
 #ifndef __TEST_BITMASK__
 
 void
@@ -94,6 +79,21 @@ BitmaskImpl::setFieldImpl(Uint32 dst[],
   }
 }
 #else
+
+static
+void print(const Uint32 src[], Uint32 len, Uint32 pos = 0)
+{
+  printf("b'");
+  for(unsigned i = 0; i<len; i++)
+  {
+    if(BitmaskImpl::get((pos + len + 31) >> 5, src, i+pos))
+      printf("1");
+    else
+      printf("0");
+    if((i & 31) == 31)
+      printf(" ");
+  }
+}
 
 #define DEBUG 0
 #include <Vector.hpp>
