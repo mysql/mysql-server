@@ -2847,6 +2847,17 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
     systemErrorLab(signal, __LINE__);
     return;
   }//if
+
+  if (getNodeState().startLevel < NodeState::SL_STARTED)
+  {
+    jam();
+    CRASH_INSERTION(932);
+    char buf[100];
+    BaseString::snprintf(buf, 100, "Node failure during restart");
+    progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED, buf);
+    ndbrequire(false);
+  }
+
   TnoFailedNodes = cnoFailedNodes;
   failReport(signal, failedNodePtr.i, (UintR)ZTRUE, aFailCause);
   if (cpresident == getOwnNodeId()) {
@@ -2932,6 +2943,16 @@ void Qmgr::execPREP_FAILREQ(Signal* signal)
     systemErrorLab(signal, __LINE__);
     return;
   }//if
+
+  if (getNodeState().startLevel < NodeState::SL_STARTED)
+  {
+    jam();
+    CRASH_INSERTION(932);
+    char buf[100];
+    BaseString::snprintf(buf, 100, "Node failure during restart");
+    progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED, buf);
+    ndbrequire(false);
+  }
 
   guard0 = cnoPrepFailedNodes - 1;
   arrGuard(guard0, MAX_NDB_NODES);
