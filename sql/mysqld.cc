@@ -4970,8 +4970,10 @@ struct my_option my_long_options[] =
    /* app_type */ 0
   },
 #endif
+#ifndef DISABLE_GRANT_OPTIONS
   {"bootstrap", OPT_BOOTSTRAP, "Used by mysql installation scripts.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"character-set-client-handshake", OPT_CHARACTER_SET_CLIENT_HANDSHAKE,
    "Don't ignore client side character set value sent during handshake.",
    (gptr*) &opt_character_set_client_handshake,
@@ -5094,9 +5096,11 @@ Disable with --skip-large-pages.",
   {"init-connect", OPT_INIT_CONNECT, "Command(s) that are executed for each new connection",
    (gptr*) &opt_init_connect, (gptr*) &opt_init_connect, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef DISABLE_GRANT_OPTIONS
   {"init-file", OPT_INIT_FILE, "Read SQL commands from this file at startup.",
    (gptr*) &opt_init_file, (gptr*) &opt_init_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
+#endif
   {"init-rpl-role", OPT_INIT_RPL_ROLE, "Set the replication role.", 0, 0, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"init-slave", OPT_INIT_SLAVE, "Command(s) that are executed when a slave connects to this master",
@@ -5601,10 +5605,12 @@ Can't be set to 1 if --log-slave-updates is used.",
    "Show user and password in SHOW SLAVE HOSTS on this master",
    (gptr*) &opt_show_slave_auth_info, (gptr*) &opt_show_slave_auth_info, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef DISABLE_GRANT_OPTIONS
   {"skip-grant-tables", OPT_SKIP_GRANT,
    "Start without grant tables. This gives all users FULL ACCESS to all tables!",
    (gptr*) &opt_noacl, (gptr*) &opt_noacl, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
+#endif
   {"skip-host-cache", OPT_SKIP_HOST_CACHE, "Don't cache host names.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-locking", OPT_SKIP_LOCK,
