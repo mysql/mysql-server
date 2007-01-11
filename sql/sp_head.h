@@ -303,8 +303,19 @@ public:
 
   void restore_thd_mem_root(THD *thd);
 
+  /**
+    Optimize the code.
+  */
   void optimize();
-  void opt_mark(uint ip);
+
+  /**
+    Helper used during flow analysis during code optimization.
+    See the implementation of <code>opt_mark()</code>.
+    @param ip the instruction to add to the leads list
+    @param leads the list of remaining paths to explore in the graph that
+    represents the code, during flow analysis.
+  */
+  void add_mark_lead(uint ip, List<sp_instr> *leads);
 
   void recursion_level_error(THD *thd);
 
@@ -413,6 +424,12 @@ private:
   bool
   execute(THD *thd);
 
+  /**
+    Perform a forward flow analysis in the generated code.
+    Mark reachable instructions, for the optimizer.
+  */
+  void opt_mark();
+
   /*
     Merge the list of tables used by query into the multi-set of tables used
     by routine.
@@ -480,10 +497,10 @@ public:
 
   /*
     Mark this instruction as reachable during optimization and return the
-    index to the next instruction. Jump instruction will mark their
-    destination too recursively.
+    index to the next instruction. Jump instruction will add their
+    destination to the leads list.
   */
-  virtual uint opt_mark(sp_head *sp)
+  virtual uint opt_mark(sp_head *sp, List<sp_instr> *leads)
   {
     marked= 1;
     return m_ip+1;
@@ -755,7 +772,7 @@ public:
 
   virtual void print(String *str);
 
-  virtual uint opt_mark(sp_head *sp);
+  virtual uint opt_mark(sp_head *sp, List<sp_instr> *leads);
 
   virtual uint opt_shortcut_jump(sp_head *sp, sp_instr *start);
 
@@ -805,7 +822,7 @@ public:
 
   virtual void print(String *str);
 
-  virtual uint opt_mark(sp_head *sp);
+  virtual uint opt_mark(sp_head *sp, List<sp_instr> *leads);
 
   /* Override sp_instr_jump's shortcut; we stop here */
   virtual uint opt_shortcut_jump(sp_head *sp, sp_instr *start)
@@ -851,7 +868,7 @@ public:
 
   virtual void print(String *str);
 
-  virtual uint opt_mark(sp_head *sp)
+  virtual uint opt_mark(sp_head *sp, List<sp_instr> *leads)
   {
     marked= 1;
     return UINT_MAX;
@@ -888,7 +905,7 @@ public:
 
   virtual void print(String *str);
 
-  virtual uint opt_mark(sp_head *sp);
+  virtual uint opt_mark(sp_head *sp, List<sp_instr> *leads);
 
   /* Override sp_instr_jump's shortcut; we stop here. */
   virtual uint opt_shortcut_jump(sp_head *sp, sp_instr *start)
@@ -953,7 +970,7 @@ public:
 
   virtual void print(String *str);
 
-  virtual uint opt_mark(sp_head *sp);
+  virtual uint opt_mark(sp_head *sp, List<sp_instr> *leads);
 
 private:
 
@@ -1123,7 +1140,7 @@ public:
 
   virtual void print(String *str);
 
-  virtual uint opt_mark(sp_head *sp)
+  virtual uint opt_mark(sp_head *sp, List<sp_instr> *leads)
   {
     marked= 1;
     return UINT_MAX;
@@ -1156,7 +1173,7 @@ public:
 
   virtual void print(String *str);
 
-  virtual uint opt_mark(sp_head *sp);
+  virtual uint opt_mark(sp_head *sp, List<sp_instr> *leads);
 
   virtual void opt_move(uint dst, List<sp_instr> *ibp);
 
