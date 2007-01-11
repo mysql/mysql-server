@@ -636,6 +636,7 @@ private:
   void execTCGETOPSIZECONF(Signal *);
   void execTC_CLOPSIZECONF(Signal *);
   
+  int handle_invalid_lcp_no(const class LcpFragRep*, ReplicaRecordPtr);
   void execLCP_FRAG_REP(Signal *);
   void execLCP_COMPLETE_REP(Signal *);
   void execSTART_LCP_REQ(Signal *);
