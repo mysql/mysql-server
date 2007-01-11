@@ -224,7 +224,7 @@ thr_local_init(void)
 
 	ut_a(thr_local_hash == NULL);
 
-	thr_local_hash = hash0_create(OS_THREAD_MAX_N + 100);
+	thr_local_hash = hash_create(OS_THREAD_MAX_N + 100);
 
 	mutex_create(&thr_local_mutex);
 	mutex_set_level(&thr_local_mutex, SYNC_THR_LOCAL);
