@@ -18,18 +18,6 @@ Package=<4>
 
 ###############################################################################
 
-Project: "bdb"=".\bdb\bdb.dsp" - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
-}}}
-
-###############################################################################
-
 Project: "comp_err"=".\comp_err\comp_err.dsp" - Package Owner=<4>
 
 Package=<5>
@@ -143,9 +131,6 @@ Package=<5>
 
 Package=<4>
 {{{
-    Begin Project Dependency
-    Project_Dep_Name bdb
-    End Project Dependency
     Begin Project Dependency
     Project_Dep_Name dbug
     End Project Dependency
@@ -487,9 +472,6 @@ Package=<4>
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name myisammrg
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name bdb
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name vio
