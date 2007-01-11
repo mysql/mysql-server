@@ -343,19 +343,24 @@ class Item_func_encode :public Item_str_func
 {
  protected:
   SQL_CRYPT sql_crypt;
+  String seed;
 public:
-  Item_func_encode(Item *a, char *seed):
-    Item_str_func(a),sql_crypt(seed) {}
+  Item_func_encode(Item *a, char *seed_arg):
+    Item_str_func(a), sql_crypt(seed_arg)
+    {
+      seed.copy(seed_arg, strlen(seed_arg), default_charset_info);
+    }
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "encode"; }
+  void print(String *str);
 };
 
 
 class Item_func_decode :public Item_func_encode
 {
 public:
-  Item_func_decode(Item *a, char *seed): Item_func_encode(a,seed) {}
+  Item_func_decode(Item *a, char *seed_arg): Item_func_encode(a, seed_arg) {}
   String *val_str(String *);
   const char *func_name() const { return "decode"; }
 };

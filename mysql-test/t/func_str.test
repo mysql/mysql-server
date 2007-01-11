@@ -713,4 +713,12 @@ EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(BOTH 'y' FROM s) > 'ab';
 
 DROP TABLE t1;
  
+#
+# Bug#23409: ENCODE() and DECODE() functions aren't printed correctly
+#
+create table t1(f1 varchar(4));
+explain extended select encode(f1,'zxcv') as 'enc' from t1;
+explain extended select decode(f1,'zxcv') as 'enc' from t1;
+drop table t1;
+
 --echo End of 4.1 tests
