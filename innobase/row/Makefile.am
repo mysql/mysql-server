@@ -1,5 +1,4 @@
-# Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-# & Innobase Oy
+# Copyright (C) 2001, 2003 MySQL AB & Innobase Oy
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,3 +21,6 @@ librow_a_SOURCES =	row0ins.c row0mysql.c row0purge.c row0row.c row0sel.c\
 			row0uins.c row0umod.c row0undo.c row0upd.c row0vers.c
 
 EXTRA_PROGRAMS =	
+
+# Don't update the files from bitkeeper
+%::SCCS/s.%
