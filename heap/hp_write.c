@@ -66,13 +66,22 @@ int heap_write(HP_INFO *info, const byte *record)
   DBUG_RETURN(0);
 
 err:
-  DBUG_PRINT("info",("Duplicate key: %d",key));
+  if (my_errno == HA_ERR_FOUND_DUPP_KEY)
+    DBUG_PRINT("info",("Duplicate key: %d",key));
   info->errkey= key;
-  do
+  /*
+    Because 'key' is unsigned, we increase it before the loop, unless
+    we have to skip the key that wasn't inserted yet due to OOM.  In
+    the loop we test 'key' before decreasing it as the protection
+    against value wraparound.
+  */
+  if (my_errno != ENOMEM)
+    key++;
+  while (key-- > 0)
   {
     if (_hp_delete_key(info,share->keydef+key,record,pos,0))
       break;
-  } while (key-- > 0);
+  }
 
   share->deleted++;
   *((byte**) pos)=share->del_link;
