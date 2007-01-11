@@ -39,17 +39,12 @@ typedef struct st_archive_share {
   uint table_name_length,use_count;
   pthread_mutex_t mutex;
   THR_LOCK lock;
-  File meta_file;           /* Meta file we use */
   azio_stream archive_write;     /* Archive file we are working with */
   bool archive_write_open;
   bool dirty;               /* Flag for if a flush should occur */
   bool crashed;             /* Meta file is crashed */
   ha_rows rows_recorded;    /* Number of rows in tables */
-  ulonglong auto_increment_value;
-  ulonglong forced_flushes;
   ulonglong mean_rec_length;
-  char real_path[FN_REFLEN];
-  uint meta_version;
 } ARCHIVE_SHARE;
 
 /*
@@ -121,16 +116,6 @@ public:
   int get_row(azio_stream *file_to_read, byte *buf);
   int get_row_version2(azio_stream *file_to_read, byte *buf);
   int get_row_version3(azio_stream *file_to_read, byte *buf);
-  int read_meta_file(File meta_file, ha_rows *rows, 
-                     uint *meta_version,
-                     ulonglong *auto_increment,
-                     ulonglong *forced_flushes,
-                     char *real_path);
-  int write_meta_file(File meta_file, ha_rows rows, 
-                      ulonglong auto_increment, 
-                      ulonglong forced_flushes, 
-                      char *real_path,
-                      bool dirty);
   ARCHIVE_SHARE *get_share(const char *table_name, TABLE *table, int *rc);
   int free_share(ARCHIVE_SHARE *share);
   int init_archive_writer();
@@ -156,6 +141,6 @@ public:
   int max_row_length(const byte *buf);
   bool fix_rec_buff(int length);
   int unpack_row(azio_stream *file_to_read, char *record);
-  unsigned long pack_row(const byte *record);
+  unsigned int pack_row(const byte *record);
 };
 

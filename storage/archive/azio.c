@@ -7,7 +7,6 @@
  * Copyright (C) 1995-2005 Jean-loup Gailly.
  * For conditions of distribution and use, see copyright notice in zlib.h
  *
- * Compile this file with -DNO_GZCOMPRESS to avoid the compression code.
  */
 
 /* @(#) $Id$ */
@@ -32,9 +31,11 @@ int az_open(azio_stream *s, const char *path, int Flags, File  fd);
 int do_flush(azio_stream *file, int flush);
 int    get_byte(azio_stream *s);
 void   check_header(azio_stream *s);
+void write_header(azio_stream *s);
 int    destroy(azio_stream *s);
 void putLong(File file, uLong x);
 uLong  getLong(azio_stream *s);
+void read_header(azio_stream *s, unsigned char *buffer);
 
 /* ===========================================================================
   Opens a gzip (.gz) file for reading or writing. The mode parameter
@@ -48,14 +49,14 @@ uLong  getLong(azio_stream *s);
 int az_open (azio_stream *s, const char *path, int Flags, File fd)
 {
   int err;
-  int level = Z_DEFAULT_COMPRESSION; /* compression level */
+  int level = Z_NO_COMPRESSION; /*         Z_DEFAULT_COMPRESSION;*/ /* compression level */
   int strategy = Z_DEFAULT_STRATEGY; /* compression strategy */
 
   s->stream.zalloc = (alloc_func)0;
   s->stream.zfree = (free_func)0;
   s->stream.opaque = (voidpf)0;
-  memset(s->inbuf, 0, Z_BUFSIZE);
-  memset(s->outbuf, 0, Z_BUFSIZE);
+  memset(s->inbuf, 0, AZ_BUFSIZE);
+  memset(s->outbuf, 0, AZ_BUFSIZE);
   s->stream.next_in = s->inbuf;
   s->stream.next_out = s->outbuf;
   s->stream.avail_in = s->stream.avail_out = 0;
@@ -69,19 +70,23 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
   s->mode = 'r';
   s->version = (unsigned char)az_magic[1]; /* this needs to be a define to version */
 
-  if (Flags & O_WRONLY || Flags & O_APPEND) 
+  /*
+    We do our own version of append by nature. 
+    We must always have write access to take card of the header.
+  */
+  DBUG_ASSERT(Flags | O_APPEND);
+  DBUG_ASSERT(Flags | O_WRONLY);
+
+  if (Flags & O_RDWR) 
     s->mode = 'w';
 
-  if (s->mode == 'w') {
-#ifdef NO_GZCOMPRESS
-    err = Z_STREAM_ERROR;
-#else
+  if (s->mode == 'w') 
+  {
     err = deflateInit2(&(s->stream), level,
                        Z_DEFLATED, -MAX_WBITS, 8, strategy);
     /* windowBits is passed < 0 to suppress zlib header */
 
     s->stream.next_out = s->outbuf;
-#endif
     if (err != Z_OK)
     {
       destroy(s);
@@ -103,7 +108,7 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
       return Z_NULL;
     }
   }
-  s->stream.avail_out = Z_BUFSIZE;
+  s->stream.avail_out = AZ_BUFSIZE;
 
   errno = 0;
   s->file = fd < 0 ? my_open(path, Flags, MYF(0)) : fd;
@@ -113,37 +118,62 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
     destroy(s);
     return Z_NULL;
   }
-  if (s->mode == 'w') {
-    char buffer[AZHEADER_SIZE];
-    char *ptr;
-    /* Write a very simple .gz header: */
-    bzero(buffer, AZHEADER_SIZE);
-    buffer[0] = az_magic[0];
-    buffer[1] = az_magic[1];
-    buffer[2] = (unsigned char)0; /* Reserved for block size */
-    buffer[3] = (unsigned char)0; /* Compression Type */
-    ptr= buffer + 4;
-    int4store(ptr, 0LL); /* FRM Block */
-    ptr+= sizeof(unsigned long);
-    int4store(ptr, 0LL); /* Meta Block */
-    ptr+= sizeof(unsigned long);
-    int4store(ptr, (unsigned long)AZHEADER_SIZE); /* Start of Data Block Index Block */
-    ptr+= sizeof(unsigned long);
-    
-    s->start = AZHEADER_SIZE;
-    s->version = (unsigned char)az_magic[1];
-    my_write(s->file, buffer, (uint)s->start, MYF(0));
-    /* We use 10L instead of ftell(s->file) to because ftell causes an
-     * fflush on some systems. This version of the library doesn't use
-     * start anyway in write mode, so this initialization is not
-     * necessary.
-   */
-  } else {
-    check_header(s); /* skip the .gz header */
-    s->start = my_tell(s->file, MYF(0)) - s->stream.avail_in;
+
+  if (Flags & O_CREAT || Flags & O_TRUNC) 
+  {
+    s->rows= 0;
+    s->forced_flushes= 0;
+    s->auto_increment= 0;
+    s->check_point= 0;
+    s->dirty= 1; /* We create the file dirty */
+    write_header(s);
+    my_seek(s->file, 0, MY_SEEK_END, MYF(0));
+  }
+  else if (s->mode == 'w') 
+  {
+    unsigned char buffer[AZHEADER_SIZE + AZMETA_BUFFER_SIZE];
+    my_pread(s->file, buffer, AZHEADER_SIZE + AZMETA_BUFFER_SIZE, 0, MYF(0));
+    read_header(s, buffer); /* skip the .az header */
+    my_seek(s->file, 0, MY_SEEK_END, MYF(0));
+  }
+  else
+  {
+    check_header(s); /* skip the .az header */
   }
 
   return 1;
+}
+
+
+void write_header(azio_stream *s)
+{
+  char buffer[AZHEADER_SIZE + AZMETA_BUFFER_SIZE];
+  char *ptr= buffer;
+
+  s->start = AZHEADER_SIZE + AZMETA_BUFFER_SIZE;
+  s->block_size= AZ_BUFSIZE;
+  s->version = (unsigned char)az_magic[1];
+
+
+  /* Write a very simple .az header: */
+  bzero(buffer, AZHEADER_SIZE + AZMETA_BUFFER_SIZE);
+  *(ptr + AZ_MAGIC_POS)= az_magic[0];
+  *(ptr + AZ_VERSION_POS)= (unsigned char)s->version;
+  *(ptr + AZ_BLOCK_POS)= (unsigned char)(s->block_size/1024); /* Reserved for block size */
+  *(ptr + AZ_STRATEGY_POS)= (unsigned char)Z_DEFAULT_STRATEGY; /* Compression Type */
+
+  int4store(ptr + AZ_FRM_POS, 0); /* FRM Block */
+  int4store(ptr + AZ_META_POS, 0); /* Meta Block */
+  int8store(ptr + AZ_START_POS, (unsigned long long)s->start); /* Start of Data Block Index Block */
+  printf("ROWS %llu\n", s->rows);
+  int8store(ptr + AZ_ROW_POS, (unsigned long long)s->rows); /* Start of Data Block Index Block */
+  int8store(ptr + AZ_FLUSH_POS, (unsigned long long)s->forced_flushes); /* Start of Data Block Index Block */
+  int8store(ptr + AZ_CHECK_POS, (unsigned long long)s->check_point); /* Start of Data Block Index Block */
+  int8store(ptr + AZ_AUTOINCREMENT_POS, (unsigned long long)s->auto_increment); /* Start of Data Block Index Block */
+  *(ptr + AZ_DIRTY_POS)= (unsigned char)s->dirty; /* Start of Data Block Index Block */
+
+  /* Always begin at the begining, and end there as well */
+  my_pwrite(s->file, buffer, (uint)s->start, 0, MYF(0));
 }
 
 /* ===========================================================================
@@ -177,7 +207,7 @@ int get_byte(s)
   if (s->stream.avail_in == 0) 
   {
     errno = 0;
-    s->stream.avail_in = my_read(s->file, (byte *)s->inbuf, Z_BUFSIZE, MYF(0));
+    s->stream.avail_in = my_read(s->file, (byte *)s->inbuf, AZ_BUFSIZE, MYF(0));
     if (s->stream.avail_in == 0) 
     {
       s->z_eof = 1;
@@ -213,7 +243,7 @@ void check_header(azio_stream *s)
   if (len < 2) {
     if (len) s->inbuf[0] = s->stream.next_in[0];
     errno = 0;
-    len = (uInt)my_read(s->file, (byte *)s->inbuf + len, Z_BUFSIZE >> len, MYF(0));
+    len = (uInt)my_read(s->file, (byte *)s->inbuf + len, AZ_BUFSIZE >> len, MYF(0));
     if (len == 0) s->z_err = Z_ERRNO;
     s->stream.avail_in += len;
     s->stream.next_in = s->inbuf;
@@ -257,18 +287,41 @@ void check_header(azio_stream *s)
       for (len = 0; len < 2; len++) (void)get_byte(s);
     }
     s->z_err = s->z_eof ? Z_DATA_ERROR : Z_OK;
+    s->start = my_tell(s->file, MYF(0)) - s->stream.avail_in;
   }
   else if ( s->stream.next_in[0] == az_magic[0]  && s->stream.next_in[1] == az_magic[1])
   {
-    s->stream.avail_in -= 2;
-    s->stream.next_in += 2;
-    for (len = 0; len < (AZHEADER_SIZE-2); len++) (void)get_byte(s);
+    unsigned char buffer[AZHEADER_SIZE + AZMETA_BUFFER_SIZE];
+
+    for (len = 0; len < (AZHEADER_SIZE + AZMETA_BUFFER_SIZE); len++) 
+      buffer[len]= get_byte(s);
     s->z_err = s->z_eof ? Z_DATA_ERROR : Z_OK;
+    read_header(s, buffer);
   }
   else
   {
-    s->transparent = 1;
-    s->version = (unsigned char)0;
+    s->z_err = Z_OK;
+
+    return;
+  }
+}
+
+void read_header(azio_stream *s, unsigned char *buffer)
+{
+  if (buffer[0] == az_magic[0]  && buffer[1] == az_magic[1])
+  {
+    s->version= (unsigned int)buffer[AZ_VERSION_POS];
+    s->block_size= 1024 * buffer[AZ_BLOCK_POS];
+    s->start= (unsigned long long)uint8korr(buffer + AZ_START_POS);
+    s->rows= (unsigned long long)uint8korr(buffer + AZ_ROW_POS);
+    s->check_point= (unsigned long long)uint8korr(buffer + AZ_CHECK_POS);
+    s->forced_flushes= (unsigned long long)uint8korr(buffer + AZ_FLUSH_POS);
+    s->auto_increment= (unsigned long long)uint8korr(buffer + AZ_AUTOINCREMENT_POS);
+    s->dirty= (unsigned int)buffer[AZ_DIRTY_POS];
+  }
+  else
+  {
+    DBUG_ASSERT(buffer[0] == az_magic[0]  && buffer[1] == az_magic[1]);
     return;
   }
 }
@@ -284,11 +337,7 @@ int destroy (s)
 
   if (s->stream.state != NULL) {
     if (s->mode == 'w') {
-#ifdef NO_GZCOMPRESS
-      err = Z_STREAM_ERROR;
-#else
       err = deflateEnd(&(s->stream));
-#endif
     } 
     else if (s->mode == 'r') 
     {
@@ -311,7 +360,7 @@ int destroy (s)
   Reads the given number of uncompressed bytes from the compressed file.
   azread returns the number of bytes actually read (0 for end of file).
 */
-unsigned long ZEXPORT azread ( azio_stream *s, voidp buf, unsigned long len, int *error)
+unsigned int ZEXPORT azread ( azio_stream *s, voidp buf, unsigned int len, int *error)
 {
   Bytef *start = (Bytef*)buf; /* starting point for crc computation */
   Byte  *next_out; /* == stream.next_out but not forced far (for MSDOS) */
@@ -383,7 +432,7 @@ unsigned long ZEXPORT azread ( azio_stream *s, voidp buf, unsigned long len, int
     if (s->stream.avail_in == 0 && !s->z_eof) {
 
       errno = 0;
-      s->stream.avail_in = (uInt)my_read(s->file, (byte *)s->inbuf, Z_BUFSIZE, MYF(0));
+      s->stream.avail_in = (uInt)my_read(s->file, (byte *)s->inbuf, AZ_BUFSIZE, MYF(0));
       if (s->stream.avail_in == 0) 
       {
         s->z_eof = 1;
@@ -410,7 +459,8 @@ unsigned long ZEXPORT azread ( azio_stream *s, voidp buf, unsigned long len, int
          * Check for such files:
        */
         check_header(s);
-        if (s->z_err == Z_OK) {
+        if (s->z_err == Z_OK) 
+        {
           inflateReset(&(s->stream));
           s->crc = crc32(0L, Z_NULL, 0);
         }
@@ -432,16 +482,17 @@ unsigned long ZEXPORT azread ( azio_stream *s, voidp buf, unsigned long len, int
 }
 
 
-#ifndef NO_GZCOMPRESS
 /* ===========================================================================
   Writes the given number of uncompressed bytes into the compressed file.
   azwrite returns the number of bytes actually written (0 in case of error).
 */
-unsigned long azwrite (azio_stream *s, voidpc buf, unsigned long len)
+unsigned int azwrite (azio_stream *s, voidpc buf, unsigned int len)
 {
-
   s->stream.next_in = (Bytef*)buf;
   s->stream.avail_in = len;
+
+
+  s->rows++;
 
   while (s->stream.avail_in != 0) 
   {
@@ -449,12 +500,12 @@ unsigned long azwrite (azio_stream *s, voidpc buf, unsigned long len)
     {
 
       s->stream.next_out = s->outbuf;
-      if (my_write(s->file, (byte *)s->outbuf, Z_BUFSIZE, MYF(0)) != Z_BUFSIZE) 
+      if (my_write(s->file, (byte *)s->outbuf, AZ_BUFSIZE, MYF(0)) != AZ_BUFSIZE) 
       {
         s->z_err = Z_ERRNO;
         break;
       }
-      s->stream.avail_out = Z_BUFSIZE;
+      s->stream.avail_out = AZ_BUFSIZE;
     }
     s->in += s->stream.avail_in;
     s->out += s->stream.avail_out;
@@ -465,19 +516,15 @@ unsigned long azwrite (azio_stream *s, voidpc buf, unsigned long len)
   }
   s->crc = crc32(s->crc, (const Bytef *)buf, len);
 
-  return (unsigned long)(len - s->stream.avail_in);
+  return (unsigned int)(len - s->stream.avail_in);
 }
-
-#endif
 
 
 /* ===========================================================================
   Flushes all pending output into the compressed file. The parameter
   flush is as in the deflate() function.
 */
-int do_flush (s, flush)
-  azio_stream *s;
-  int flush;
+int do_flush (azio_stream *s, int flush)
 {
   uInt len;
   int done = 0;
@@ -486,8 +533,9 @@ int do_flush (s, flush)
 
   s->stream.avail_in = 0; /* should be zero already anyway */
 
-  for (;;) {
-    len = Z_BUFSIZE - s->stream.avail_out;
+  for (;;) 
+  {
+    len = AZ_BUFSIZE - s->stream.avail_out;
 
     if (len != 0) {
       if ((uInt)my_write(s->file, (byte *)s->outbuf, len, MYF(0)) != len) 
@@ -496,7 +544,7 @@ int do_flush (s, flush)
         return Z_ERRNO;
       }
       s->stream.next_out = s->outbuf;
-      s->stream.avail_out = Z_BUFSIZE;
+      s->stream.avail_out = AZ_BUFSIZE;
     }
     if (done) break;
     s->out += s->stream.avail_out;
@@ -513,6 +561,11 @@ int do_flush (s, flush)
 
     if (s->z_err != Z_OK && s->z_err != Z_STREAM_END) break;
   }
+
+  if (flush == Z_FINISH)
+    s->dirty= 0; /* Mark it clean, we should be good now */
+  write_header(s);
+
   return  s->z_err == Z_STREAM_END ? Z_OK : s->z_err;
 }
 
@@ -520,11 +573,25 @@ int ZEXPORT azflush (s, flush)
   azio_stream *s;
   int flush;
 {
-  int err = do_flush (s, flush);
+  int err;
 
-  if (err) return err;
-  my_sync(s->file, MYF(0));
-  return  s->z_err == Z_STREAM_END ? Z_OK : s->z_err;
+  if (s->mode == 'r') 
+  {
+    unsigned char buffer[AZHEADER_SIZE + AZMETA_BUFFER_SIZE];
+    my_pread(s->file, buffer, AZHEADER_SIZE + AZMETA_BUFFER_SIZE, 0, MYF(0));
+    read_header(s, buffer); /* skip the .az header */
+
+    return Z_OK;
+  }
+  else
+  {
+    s->forced_flushes++;
+    err= do_flush(s, flush);
+
+    if (err) return err;
+    my_sync(s->file, MYF(0));
+    return  s->z_err == Z_STREAM_END ? Z_OK : s->z_err;
+  }
 }
 
 /* ===========================================================================
@@ -566,19 +633,17 @@ my_off_t azseek (s, offset, whence)
     return -1L;
   }
 
-  if (s->mode == 'w') {
-#ifdef NO_GZCOMPRESS
-    return -1L;
-#else
-    if (whence == SEEK_SET) {
+  if (s->mode == 'w') 
+  {
+    if (whence == SEEK_SET) 
       offset -= s->in;
-    }
 
     /* At this point, offset is the number of zero bytes to write. */
     /* There was a zmemzero here if inbuf was null -Brian */
-    while (offset > 0)  {
-      uInt size = Z_BUFSIZE;
-      if (offset < Z_BUFSIZE) size = (uInt)offset;
+    while (offset > 0)  
+    {
+      uInt size = AZ_BUFSIZE;
+      if (offset < AZ_BUFSIZE) size = (uInt)offset;
 
       size = azwrite(s, s->inbuf, size);
       if (size == 0) return -1L;
@@ -586,7 +651,6 @@ my_off_t azseek (s, offset, whence)
       offset -= size;
     }
     return s->in;
-#endif
   }
   /* Rest of function is for reading only */
 
@@ -622,8 +686,8 @@ my_off_t azseek (s, offset, whence)
   }
   while (offset > 0)  {
     int error;
-    unsigned long size = Z_BUFSIZE;
-    if (offset < Z_BUFSIZE) size = (int)offset;
+    unsigned int size = AZ_BUFSIZE;
+    if (offset < AZ_BUFSIZE) size = (int)offset;
 
     size = azread(s, s->outbuf, size, &error);
     if (error <= 0) return -1L;
@@ -687,56 +751,13 @@ int azclose (azio_stream *s)
   if (s == NULL) return Z_STREAM_ERROR;
 
 
-  if (s->mode == 'w') {
-#ifdef NO_GZCOMPRESS
-    return Z_STREAM_ERROR;
-#else
-
+  if (s->mode == 'w') 
+  {
     if (do_flush (s, Z_FINISH) != Z_OK)
       return destroy(s);
 
     putLong(s->file, s->crc);
     putLong(s->file, (uLong)(s->in & 0xffffffff));
-#endif
   }
   return destroy(s);
-}
-
-/*
-  This function reads the header of meta block and returns whether or not it was successful.
-  *rows will contain the current number of rows in the data file upon success.
-*/
-int az_read_meta_block(char *meta_start, unsigned long *rows, 
-                               unsigned long long *auto_increment,
-                               unsigned long long *forced_flushes)
-{
-  unsigned char *ptr= meta_start;
-  ulonglong check_point;
-
-  DBUG_ENTER("ha_archive::read_meta_file");
-
-  /*
-    Parse out the meta data, we ignore version at the moment
-  */
-
-  *rows= (unsigned long long)uint8korr(ptr);
-  ptr+= sizeof(unsigned long long); // Move past rows
-  check_point= uint8korr(ptr);
-  ptr+= sizeof(unsigned long long); // Move past check_point
-  *auto_increment= uint8korr(ptr);
-  ptr+= sizeof(unsigned long long); // Move past auto_increment
-  *forced_flushes= uint8korr(ptr);
-  ptr+= sizeof(unsigned long long); // Move past forced_flush
-
-  DBUG_PRINT("ha_archive::read_meta_file", ("Rows %llu", 
-                                            (long long unsigned)*rows));
-  DBUG_PRINT("ha_archive::read_meta_file", ("Checkpoint %llu", 
-                                            (long long unsigned) check_point));
-  DBUG_PRINT("ha_archive::read_meta_file", ("Auto-Increment %llu", 
-                                            (long long unsigned)*auto_increment));
-  DBUG_PRINT("ha_archive::read_meta_file", ("Forced Flushes %llu", 
-                                            (long long unsigned)*forced_flushes));
-  DBUG_PRINT("ha_archive::read_meta_file", ("Dirty %d", (int)(*ptr)));
-
-  DBUG_RETURN(0);
 }
