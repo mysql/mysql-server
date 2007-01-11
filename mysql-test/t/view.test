@@ -2960,4 +2960,19 @@ DROP VIEW v1, v2;
 DROP TABLE t1;
 
 
+#
+# BUG#24293: '\Z' token is not handled correctly in views
+#
+
+--disable_warnings
+DROP VIEW IF EXISTS v1;
+--enable_warnings
+
+CREATE VIEW v1 AS SELECT 'The\ZEnd';
+SELECT * FROM v1;
+
+SHOW CREATE VIEW v1;
+
+DROP VIEW v1;
+
 --echo End of 5.0 tests.
