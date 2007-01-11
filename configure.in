@@ -678,7 +678,22 @@ else
   AC_MSG_RESULT([no])
 fi
 
-  
+# If we should allow init-file, skip-grant-table and bootstrap options
+AC_MSG_CHECKING(If we should should enable init-file, skip-grant-table options and bootstrap)
+AC_ARG_ENABLE(grant-options,
+    [  --disable-grant-options Disables the use of --init-file, --skip-grant-tables and --bootstrap options],
+    [ mysql_grant_options_enabled=$enableval ],
+    [ mysql_grant_options_enabled=yes ]
+    )
+if test "$mysql_grant_options_enabled" = "yes"
+then
+  AC_MSG_RESULT([yes])
+else
+  AC_DEFINE([DISABLE_GRANT_OPTIONS], [1],
+            [Disables the use of --init-file, --skip-grant-tables and --bootstrap options])
+  AC_MSG_RESULT([no])
+fi
+
 MYSQL_SYS_LARGEFILE
 
 # Types that must be checked AFTER large file support is checked
