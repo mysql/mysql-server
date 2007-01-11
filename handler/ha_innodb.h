@@ -33,6 +33,7 @@ typedef struct st_innobase_share {
 
 
 struct row_prebuilt_struct;
+typedef struct row_prebuilt_struct row_prebuilt_t;
 
 my_bool innobase_query_caching_of_table_permitted(THD* thd, char* full_name,
 						  uint full_name_len,
@@ -41,9 +42,8 @@ my_bool innobase_query_caching_of_table_permitted(THD* thd, char* full_name,
 /* The class defining a handle to an Innodb table */
 class ha_innobase: public handler
 {
-	void*		innobase_prebuilt;/* (row_prebuilt_t*) prebuilt
-					struct in InnoDB, used to save
-					CPU time with prebuilt data
+	row_prebuilt_t*	prebuilt;	/* prebuilt struct in InnoDB, used
+					to save CPU time with prebuilt data
 					structures*/
 	THD*		user_thd;	/* the thread handle of the user
 					currently using the handle; this is
