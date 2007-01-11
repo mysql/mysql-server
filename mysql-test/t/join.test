@@ -591,3 +591,23 @@ select * from ((t3 natural join (t1 natural join t2)) natural join t4)
 drop table t1, t2, t3, t4, t5;
 
 # End of tests for WL#2486 - natural/using join
+
+#
+# BUG#25106: A USING clause in combination with a VIEW results in column 
+#            aliases ignored
+#
+CREATE TABLE t1 (ID INTEGER, Name VARCHAR(50));
+CREATE TABLE t2 (Test_ID INTEGER);
+CREATE VIEW v1 (Test_ID, Description) AS SELECT ID, Name FROM t1;
+
+CREATE TABLE tv1 SELECT Description AS Name FROM v1 JOIN t2
+ USING (Test_ID);
+DESCRIBE tv1;
+CREATE TABLE tv2 SELECT Description AS Name FROM v1 JOIN t2
+ ON v1.Test_ID = t2.Test_ID;
+DESCRIBE tv2;
+
+DROP VIEW v1;
+DROP TABLE t1,t2,tv1,tv2;
+
+--echo End of 5.0 tests.
