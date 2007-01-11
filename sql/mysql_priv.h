@@ -36,6 +36,7 @@
 #include <signal.h>
 #include <thr_lock.h>
 #include <my_base.h>			/* Needed by field.h */
+#include <queues.h>
 #include "sql_bitmap.h"
 #include "sql_array.h"
 

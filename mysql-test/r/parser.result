@@ -49,7 +49,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 create table GROUP_CONCAT (a int);
 drop table GROUP_CONCAT;
 create table GROUP_UNIQUE_USERS(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GROUP_UNIQUE_USERS(a int)' at line 1
+drop table GROUP_UNIQUE_USERS;
 create table GROUP_UNIQUE_USERS (a int);
 drop table GROUP_UNIQUE_USERS;
 create table MAX(a int);
@@ -121,7 +121,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 create table TRIM (a int);
 drop table TRIM;
 create table UNIQUE_USERS(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNIQUE_USERS(a int)' at line 1
+drop table UNIQUE_USERS;
 create table UNIQUE_USERS (a int);
 drop table UNIQUE_USERS;
 create table VARIANCE(a int);
@@ -186,9 +186,9 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 create table GROUP_CONCAT (a int);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GROUP_CONCAT (a int)' at line 1
 create table GROUP_UNIQUE_USERS(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GROUP_UNIQUE_USERS(a int)' at line 1
+drop table GROUP_UNIQUE_USERS;
 create table GROUP_UNIQUE_USERS (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GROUP_UNIQUE_USERS (a int)' at line 1
+drop table GROUP_UNIQUE_USERS;
 create table MAX(a int);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'MAX(a int)' at line 1
 create table MAX (a int);
@@ -258,9 +258,9 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 create table TRIM (a int);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'TRIM (a int)' at line 1
 create table UNIQUE_USERS(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNIQUE_USERS(a int)' at line 1
+drop table UNIQUE_USERS;
 create table UNIQUE_USERS (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNIQUE_USERS (a int)' at line 1
+drop table UNIQUE_USERS;
 create table VARIANCE(a int);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VARIANCE(a int)' at line 1
 create table VARIANCE (a int);
