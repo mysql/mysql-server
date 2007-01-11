@@ -66,14 +66,17 @@ ldata=$fix_bin/$data
 mdata=$data/mysql
 EXTRA_ARG=""
 
-if test ! -x $execdir/mysqld
+mysqld=
+if test -x $execdir/mysqld
 then
+  mysqld=$execdir/mysqld
+else
   if test ! -x $libexecdir/mysqld
   then
     echo "mysqld is missing - looked in $execdir and in $libexecdir"
     exit 1
   else
-    execdir=$libexecdir
+    mysqld=$libexecdir/mysqld
   fi
 fi
 
@@ -99,7 +102,9 @@ basedir=.
 EXTRA_ARG="--language=../sql/share/english/ --character-sets-dir=../sql/share/charsets/"
 fi
 
-mysqld_boot=" $execdir/mysqld --no-defaults --bootstrap --skip-grant-tables --basedir=$basedir --datadir=$ldata --skip-innodb --skip-ndbcluster --tmpdir=. $EXTRA_ARG"
+mysqld_boot="${MYSQLD_BOOTSTRAP-$mysqld}"
+
+mysqld_boot="$mysqld_boot --no-defaults --bootstrap --skip-grant-tables --basedir=$basedir --datadir=$ldata --skip-innodb --skip-ndbcluster --tmpdir=. $EXTRA_ARG"
 echo "running $mysqld_boot"
 
 if $scriptdir/mysql_create_system_tables test $mdata $hostname | $mysqld_boot
