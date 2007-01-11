@@ -68,11 +68,17 @@ int heap_write(HP_INFO *info, const byte *record)
   DBUG_RETURN(0);
 
 err:
-  DBUG_PRINT("info",("Duplicate key: %d", keydef - share->keydef));
+  if (my_errno == HA_ERR_FOUND_DUPP_KEY)
+    DBUG_PRINT("info",("Duplicate key: %d", keydef - share->keydef));
   info->errkey= keydef - share->keydef;
-  if (keydef->algorithm == HA_KEY_ALG_BTREE)
+  /*
+    We don't need to delete non-inserted key from rb-tree.  Also, if
+    we got ENOMEM, the key wasn't inserted, so don't try to delete it
+    either.  Otherwise for HASH index on HA_ERR_FOUND_DUPP_KEY the key
+    was inserted and we have to delete it.
+  */
+  if (keydef->algorithm == HA_KEY_ALG_BTREE || my_errno == ENOMEM)
   {
-    /* we don't need to delete non-inserted key from rb-tree */
     keydef--;
   }
   while (keydef >= share->keydef)
