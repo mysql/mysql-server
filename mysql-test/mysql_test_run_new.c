@@ -292,6 +292,14 @@ void install_db(char *datadir)
     die("Unable to create init_db.sql.");
   /* args */
   init_args(&al);
+  /*
+    XXX: If mysqld is compiled with DISABLE_GRANT_OPTIONS defined, it
+    will not recognize the --bootstrap, --init-file or --skip-grant-
+    tables options.  If this is needed here, please check
+    MYSQLD_BOOTSTRAP in the environment, and use its value instead of
+    mysqld_file if it is set.  See mysql-test-run.pl and
+    mysql_install_db.
+  */
   add_arg(&al, mysqld_file);
   add_arg(&al, "--no-defaults");
   add_arg(&al, "--bootstrap");

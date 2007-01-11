@@ -211,6 +211,14 @@ max-time: 500
 cmd: testTimeout
 args: T1 
 
+max-time: 500
+cmd: testBasic
+args: -n Bug25090 T1
+
+max-time: 500
+cmd: testIndex
+args: -n Bug25059 -r 3000 T1
+
 # SCAN TESTS
 #
 max-time: 500

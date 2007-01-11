@@ -39,7 +39,7 @@ Linux are made available every week. This port may therefore be a few
 minor versions after the latest Linux/Win32 builds but its generally
 more stable than the "latest and greates" port.
 
-MySQL is brought to you by: TcX DataKonsult AB & MySQL Finland AB
+MySQL is brought to you by: MySQL AB
 
 This port is brought to you by:
 

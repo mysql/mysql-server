@@ -101,7 +101,7 @@ private:
   bool setMaxFiles(const BaseString &files);
   
   int m_maxNoFiles;
-  long m_maxFileSize;
+  off_t m_maxFileSize;
   unsigned int m_maxLogEntries;
   File_class* m_pLogFile;
 };

@@ -2901,12 +2901,19 @@ sub install_db ($$) {
     mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
   }
 
+  # If DISABLE_GRANT_OPTIONS is defined when the server is compiled (e.g.,
+  # configure --disable-grant-options), mysqld will not recognize the
+  # --bootstrap or --skip-grant-tables options.  The user can set
+  # MYSQLD_BOOTSTRAP to the full path to a mysqld which does accept
+  # --bootstrap, to accommodate this.
+  my $exe_mysqld_bootstrap = $ENV{'MYSQLD_BOOTSTRAP'} || $exe_mysqld;
+
   # Log bootstrap command
   my $path_bootstrap_log= "$opt_vardir/log/bootstrap.log";
   mtr_tofile($path_bootstrap_log,
-	     "$exe_mysqld " . join(" ", @$args) . "\n");
+	     "$exe_mysqld_bootstrap " . join(" ", @$args) . "\n");
 
-  if ( mtr_run($exe_mysqld, $args, $init_db_sql_tmp,
+  if ( mtr_run($exe_mysqld_bootstrap, $args, $init_db_sql_tmp,
                $path_bootstrap_log, $path_bootstrap_log,
 	       "", { append_log_file => 1 }) != 0 )
 

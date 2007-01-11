@@ -1,3 +1,6 @@
+# In embedded server we don't really have a control over stack usage
+-- source include/not_embedded.inc
+
 #
 # Bug#21476: Lost Database Connection During Query
 #
