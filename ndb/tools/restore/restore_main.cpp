@@ -356,8 +356,8 @@ main(int argc, char** argv)
 	while ((tuple = dataIter.getNextTuple(res= 1)) != 0)
 	{
 	  if (checkSysTable(tuple->getTable()->getTableName()))
-	    for(Uint32 i= 0; i < g_consumers.size(); i++) 
-	      g_consumers[i]->tuple(* tuple);
+	    for(Uint32 j= 0; j < g_consumers.size(); j++) 
+	      g_consumers[j]->tuple(* tuple);
 	} // while (tuple != NULL);
 	
 	if (res < 0)
@@ -400,8 +400,8 @@ main(int argc, char** argv)
       while ((logEntry = logIter.getNextLogEntry(res= 0)) != 0)
       {
 	if (checkSysTable(logEntry->m_table->getTableName()))
-	  for(Uint32 i= 0; i < g_consumers.size(); i++)
-	    g_consumers[i]->logEntry(* logEntry);
+	  for(Uint32 j= 0; j < g_consumers.size(); j++)
+	    g_consumers[j]->logEntry(* logEntry);
       }
       if (res < 0)
       {
@@ -432,9 +432,9 @@ main(int argc, char** argv)
       }
     }
   }
-  for(Uint32 i= 0; i < g_consumers.size(); i++) 
+  for(Uint32 j= 0; j < g_consumers.size(); j++) 
   {
-    if (g_consumers[i]->has_temp_error())
+    if (g_consumers[j]->has_temp_error())
     {
       clearConsumers();
       ndbout_c("\nRestore successful, but encountered temporary error, "

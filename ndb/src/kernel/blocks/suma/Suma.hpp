@@ -208,6 +208,7 @@ public:
   friend struct SyncRecord;
   
   struct Subscription {
+    Subscription() {}
     Uint32 m_subscriberRef;
     Uint32 m_subscriberData;
     Uint32 m_senderRef;
