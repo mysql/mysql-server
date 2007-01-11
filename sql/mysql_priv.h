@@ -410,7 +410,8 @@ MY_LOCALE *my_locale_by_name(const char *name);
 #define UNCACHEABLE_EXPLAIN     8
 /* Don't evaluate subqueries in prepare even if they're not correlated */
 #define UNCACHEABLE_PREPARE    16
-
+/* Used to chack GROUP BY list in the MODE_ONLY_FULL_GROUP_BY mode */
+#define UNDEF_POS (-1)
 #ifdef EXTRA_DEBUG
 /*
   Sync points allow us to force the server to reach a certain line of code
