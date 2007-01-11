@@ -65,8 +65,8 @@ dtype_get_mblen(
 		innobase_get_cset_width(dtype_get_charset_coll(prtype),
 					mbminlen, mbmaxlen);
 		ut_ad(*mbminlen <= *mbmaxlen);
-		ut_ad(*mbminlen <= 2); /* cf. the bit-field in dtype_t */
-		ut_ad(*mbmaxlen < 1 << 3); /* cf. the bit-field in dtype_t */
+		ut_ad(*mbminlen <= 2); /* mbminlen in dtype_t is 0..3 */
+		ut_ad(*mbmaxlen < 1 << 3); /* mbmaxlen in dtype_t is 0..7 */
 #else /* !UNIV_HOTBACKUP */
 		ut_a(mtype <= DATA_BINARY);
 		*mbminlen = *mbmaxlen = 1;
