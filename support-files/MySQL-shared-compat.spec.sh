@@ -26,7 +26,7 @@
 #
 # Change this to match the version of the shared libs you want to include
 #
-%define version4 @MYSQL_NO_DASH_VERSION@
+%define version40 @MYSQL_NO_DASH_VERSION@
 %define version3 3.23.58
 
 Name:         MySQL-shared-compat
@@ -36,13 +36,13 @@ License:      GPL
 Group:        Applications/Databases
 URL:          http://www.mysql.com/
 Autoreqprov:  on
-Version:      %{version4}
+Version:      %{version40}
 Release:      0
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
 Obsoletes:    MySQL-shared, mysql-shared
 Provides:     MySQL-shared
-Summary:      MySQL shared libraries for MySQL %{version4} and %{version3}
-Source0:      MySQL-shared-%{version4}-0.%{_arch}.rpm
+Summary:      MySQL shared libraries for MySQL %{version40} and %{version3}
+Source0:      MySQL-shared-%{version40}-0.%{_arch}.rpm
 Source1:      MySQL-shared-%{version3}-1.%{_arch}.rpm
 # No need to include the RPMs once more - they can be downloaded seperately
 # if you want to rebuild this package
@@ -52,7 +52,7 @@ BuildRoot:    %{_tmppath}/%{name}-%{version}-build
 
 %description
 This package includes the shared libraries for both MySQL %{version3} and
-MySQL %{version4}. Install this package instead of "MySQL-shared", if you 
+MySQL %{version40}. Install this package instead of "MySQL-shared", if you 
 have applications installed that are dynamically linked against MySQL
 3.23.xx but you want to upgrade to MySQL 4.0.xx without breaking the library
 dependencies.
