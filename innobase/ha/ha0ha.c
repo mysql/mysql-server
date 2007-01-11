@@ -32,7 +32,7 @@ ha_create(
 	hash_table_t*	table;
 	ulint		i;
 
-	table = hash0_create(n);
+	table = hash_create(n);
 
 	if (in_btr_search) {
 		table->adaptive = TRUE;
