@@ -452,7 +452,8 @@ public:
   Item *next;
   uint32 max_length;
   uint name_length;                     /* Length of name */
-  uint8 marker, decimals;
+  int8 marker;
+  uint8 decimals;
   my_bool maybe_null;			/* If item may be null */
   my_bool null_value;			/* if item is null */
   my_bool unsigned_flag;

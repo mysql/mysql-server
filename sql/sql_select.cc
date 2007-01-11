@@ -13214,49 +13214,83 @@ setup_group(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 	    bool *hidden_group_fields)
 {
   *hidden_group_fields=0;
+  ORDER *ord;
+
   if (!order)
     return 0;				/* Everything is ok */
 
-  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
-  {
-    Item *item;
-    List_iterator<Item> li(fields);
-    while ((item=li++))
-      item->marker=0;			/* Marker that field is not used */
-  }
   uint org_fields=all_fields.elements;
 
   thd->where="group statement";
-  for (; order; order=order->next)
+  for (ord= order; ord; ord= ord->next)
   {
-    if (find_order_in_list(thd, ref_pointer_array, tables, order, fields,
+    if (find_order_in_list(thd, ref_pointer_array, tables, ord, fields,
 			   all_fields, TRUE))
       return 1;
-    (*order->item)->marker=1;		/* Mark found */
-    if ((*order->item)->with_sum_func)
+    (*ord->item)->marker= UNDEF_POS;		/* Mark found */
+    if ((*ord->item)->with_sum_func)
     {
-      my_error(ER_WRONG_GROUP_FIELD, MYF(0), (*order->item)->full_name());
+      my_error(ER_WRONG_GROUP_FIELD, MYF(0), (*ord->item)->full_name());
       return 1;
     }
   }
   if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
   {
-    /* Don't allow one to use fields that is not used in GROUP BY */
-    Item *item;
-    List_iterator<Item> li(fields);
+    /*
+      Don't allow one to use fields that is not used in GROUP BY
+      For each select a list of field references that aren't under an
+      aggregate function is created. Each field in this list keeps the
+      position of the select list expression which it belongs to.
 
-    while ((item=li++))
+      First we check an expression from the select list against the GROUP BY
+      list. If it's found there then it's ok. It's also ok if this expression
+      is a constant or an aggregate function. Otherwise we scan the list
+      of non-aggregated fields and if we'll find at least one field reference
+      that belongs to this expression and doesn't occur in the GROUP BY list
+      we throw an error. If there are no fields in the created list for a
+      select list expression this means that all fields in it are used under
+      aggregate functions.
+    */
+    Item *item;
+    Item_field *field;
+    int cur_pos_in_select_list= 0;
+    List_iterator<Item> li(fields);
+    List_iterator<Item_field> naf_it(thd->lex->current_select->non_agg_fields);
+
+    field= naf_it++;
+    while (field && (item=li++))
     {
-      if (item->type() != Item::SUM_FUNC_ITEM && !item->marker &&
-	  !item->const_item())
+      if (item->type() != Item::SUM_FUNC_ITEM && item->marker >= 0 &&
+          !item->const_item() &&
+          !(item->real_item()->type() == Item::FIELD_ITEM &&
+            item->used_tables() & OUTER_REF_TABLE_BIT))
       {
-        /*
-          TODO: change ER_WRONG_FIELD_WITH_GROUP to more detailed
-          ER_NON_GROUPING_FIELD_USED
-        */
-	my_error(ER_WRONG_FIELD_WITH_GROUP, MYF(0), item->full_name());
-	return 1;
+        while (field)
+        {
+          /* Skip fields from previous expressions. */
+          if (field->marker < cur_pos_in_select_list)
+            goto next_field;
+          /* Found a field from the next expression. */
+          if (field->marker > cur_pos_in_select_list)
+            break;
+          /*
+            Check whether the field occur in the GROUP BY list.
+            Throw the error later if the field isn't found.
+          */
+          for (ord= order; ord; ord= ord->next)
+            if ((*ord->item)->eq((Item*)field, 0))
+              goto next_field;
+          /*
+            TODO: change ER_WRONG_FIELD_WITH_GROUP to more detailed
+            ER_NON_GROUPING_FIELD_USED
+          */
+          my_error(ER_WRONG_FIELD_WITH_GROUP, MYF(0), field->full_name());
+          return 1;
+next_field:
+          field= naf_it++;
+        }
       }
+      cur_pos_in_select_list++;
     }
   }
   if (org_fields != all_fields.elements)
