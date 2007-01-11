@@ -1,4 +1,4 @@
-# Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+# Copyright (C) 2000-2006 MySQL AB
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -122,8 +122,6 @@ tags:
 # will then calculate the various port numbers it needs from this,
 # making sure each user use different ports.
 
-test-ps:
-	cd mysql-test ; \
 	@PERL@ ./mysql-test-run.pl $(force) --ps-protocol
 
 test-ns:
@@ -152,3 +150,5 @@ test-force-pl:	test-force
 test-force-pl-mem:  test-force-mem
 test-force-full-pl: test-force-full
 
+# Don't update the files from bitkeeper
+%::SCCS/s.%

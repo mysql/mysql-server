@@ -177,18 +177,6 @@ select count(*) from t2;
 drop table t1,t2,t3;
 
 #
-# Test for INSERT DELAYED INTO a <view>
-# BUG#13683: INSERT DELAYED into a view creates an infinite loop
-#
-
-create table t1 (n int);
-create view  v1 as select * from t1;
---error 1347
-insert delayed into v1 values (1);
-drop table t1;
-drop view  v1;
-
-#
 # Test for values returned by ROW_COUNT() function
 # (and thus for values returned by mysql_affected_rows())
 # for various forms of INSERT
