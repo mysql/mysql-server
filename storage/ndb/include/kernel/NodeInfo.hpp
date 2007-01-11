@@ -89,4 +89,14 @@ operator<<(NdbOut& ndbout, const NodeInfo & info){
   return ndbout;
 }
 
+struct NodeVersionInfo
+{
+  STATIC_CONST( DataLength = 6 );
+  struct 
+  {
+    Uint32 m_min_version;
+    Uint32 m_max_version;
+  } m_type [3]; // Indexed as NodeInfo::Type 
+};
+
 #endif
