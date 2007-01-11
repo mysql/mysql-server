@@ -142,7 +142,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       DBUG_RETURN(-1);			// This will force out message
     }
     
-    if (!select && limit != HA_POS_ERROR)
+    if ((!select || table->quick_keys.is_clear_all()) && limit != HA_POS_ERROR)
       usable_index= get_index_for_order(table, (ORDER*)(order->first), limit);
 
     if (usable_index == MAX_KEY)
