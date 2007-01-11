@@ -3741,7 +3741,6 @@ void Dbdih::endTakeOver(Uint32 takeOverPtrI)
   takeOverPtr.i = takeOverPtrI;
   ptrCheckGuard(takeOverPtr, MAX_NDB_NODES, takeOverRecord);
 
-  releaseTakeOver(takeOverPtrI);
   if ((takeOverPtr.p->toMasterStatus != TakeOverRecord::IDLE) &&
       (takeOverPtr.p->toMasterStatus != TakeOverRecord::TO_WAIT_START_TAKE_OVER)) {
     jam();
@@ -3755,6 +3754,7 @@ void Dbdih::endTakeOver(Uint32 takeOverPtrI)
   }//if
   setAllowNodeStart(takeOverPtr.p->toStartingNode, true);
   initTakeOver(takeOverPtr);
+  releaseTakeOver(takeOverPtrI);
 }//Dbdih::endTakeOver()
 
 void Dbdih::releaseTakeOver(Uint32 takeOverPtrI)
@@ -4914,6 +4914,7 @@ void Dbdih::handleTakeOverNewMaster(Signal* signal, Uint32 takeOverPtrI)
       break;
     }
     ndbrequire(ok);
+    endTakeOver(takeOverPtr.i);
   }//if
 }//Dbdih::handleTakeOverNewMaster()
 
