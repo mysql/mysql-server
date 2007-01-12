@@ -21,9 +21,6 @@ use DBI;
 use Getopt::Long;
 $Getopt::Long::ignorecase=0;
 
-print "explain_log	provided by http://www.mobile.de\n";
-print "===========	================================\n";
-
 my $Param={};
 
 $Param->{host}='';
@@ -32,16 +29,28 @@ $Param->{password}='';
 $Param->{PrintError}=0;
 $Param->{socket}='';
 
-if (!GetOptions ('date|d:i' => \$Param->{ViewDate},
+my $help;
+
+if (!GetOptions (
+		 'date|d:i' => \$Param->{ViewDate},
 		 'host|h:s' => \$Param->{host},
 		 'user|u:s' => \$Param->{user},
 		 'password|p:s' => \$Param->{password},
 		 'printerror|e:s' => \$Param->{PrintError},
 		 'socket|s:s' => \$Param->{socket},
+		 'help|h' => \$help,
 		)) {
   ShowOptions();
+  exit(0);
 }
-else {
+if (defined ($help)) {
+  ShowOptions();
+  exit(0);
+}
+
+  print "explain_log	provided by http://www.mobile.de\n";
+  print "===========	================================\n";
+
   $Param->{UpdateCount} = 0;
   $Param->{SelectCount} = 0;
   $Param->{IdxUseCount} = 0;
@@ -245,7 +254,6 @@ else {
     print "Finished:   \t".localtime(time)."\n";
 
   }
-}
 
 
 ###########################################################################
@@ -323,21 +331,26 @@ sub ShowOptions {
   print <<EOF;
 Usage: $0 [OPTIONS] < LOGFILE
 
---date=YYMMDD       select only entrys of date
--d=YYMMDD
---host=HOSTNAME     db-host to ask
--h=HOSTNAME
---user=USERNAME     db-user
--u=USERNAME
---password=PASSWORD password of db-user
--p=PASSWORD
---socket=SOCKET     mysqld socket file to connect
--s=SOCKET
---printerror=1      enable error output
--e 1
+--help, -h
+    Display this help message
+--date=YYMMDD, -d=YYMMDD
+    Select entries from the log only for the given date
+--host=HOSTNAME, -h=HOSTNAME
+    Connect to the MySQL server on the given host
+--user=USERNAME, -u=USERNAME
+    The MySQL username to use when connecting to the server
+--password=PASSWORD, -p=PASSWORD
+    The password to use when connecting to the server
+--socket=SOCKET, -s=SOCKET
+    The socket file to use when connecting to the server
+--printerror=1, -e 1
+    Enable error output
 
-Read logfile from STDIN an try to EXPLAIN all SELECT statements. All UPDATE statements are rewritten to an EXPLAIN SELECT statement. The results of the EXPLAIN statement are collected and counted. All results with type=ALL are collected in an separete list. Results are printed to STDOUT.
-
+mysql_explain_log reads its standard input for query log contents. It
+uses EXPLAIN to analyze SELECT statements found in the input. UPDATE
+statements are rewritten to SELECT statements and also analyzed with
+EXPLAIN. mysql_explain_log then displays a summary of its results.
+Results are printed to the standard output.
 EOF
 }
 
@@ -351,46 +364,37 @@ __END__
 
 mysql_explain_log
 
-Feed a mysqld general logfile (created with mysqld --log) back into mysql
-and collect statistics about index usage with EXPLAIN.
+Feed a mysqld general query logfile (created with mysqld --log) back
+into mysql and collect statistics about index usage with EXPLAIN.
 
 =head1 DISCUSSION
 
-To optimize your indices, you have to know which ones are actually
-used and what kind of queries are causing table scans. Especially
-if you are generating your queries dynamically and you have a huge
-amount of queries going on, this isn't easy.
+To optimize your indexes, you must know which ones are actually used
+and what kind of queries are causing table scans. This may not be easy,
+especially if you are generating your queries dynamically and you have
+a huge number of queries being executed.
 
 Use this tool to take a look at the effects of your real life queries.
-Then add indices to avoid table scans and remove those which aren't used.
+Then add indexes to avoid table scans and remove indexes that aren't used.
 
 =head1 USAGE
 
-mysql_explain_log [--date=YYMMDD] --host=dbhost] [--user=dbuser] [--password=dbpw] [--socket=/path/to/socket] < logfile
+mysql_explain_log [--date=YYMMDD] --host=dbhost] [--user=dbuser] [--password=dbpw] [--socket=/path/to/socket] [--printerror=1] < logfile
 
---date=YYMMDD       select only entrys of date
-
--d=YYMMDD
-
---host=HOSTNAME     db-host to ask
-
--h=HOSTNAME
-
---user=USERNAME     db-user
-
--u=USERNAME
-
---password=PASSWORD password of db-user
-
--p=PASSWORD
-
---socket=SOCKET     change path to the socket
-
--s=SOCKET
-
---printerror=1      enable error output
-
--e 1
+--help, -h
+    Display this help message
+--date=YYMMDD, -d=YYMMDD
+    Select entries from the log only for the given date
+--host=HOSTNAME, -h=HOSTNAME
+    Connect to the MySQL server on the given host
+--user=USERNAME, -u=USERNAME
+    The MySQL username to use when connecting to the server
+--password=PASSWORD, -p=PASSWORD
+    The password to use when connecting to the server
+--socket=SOCKET, -s=SOCKET
+    The socket file to use when connecting to the server
+--printerror=1, -e 1
+    Enable error output
 
 =head1 EXAMPLE
 
