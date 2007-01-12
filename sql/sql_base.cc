@@ -6103,36 +6103,36 @@ my_bool mysql_rm_tmp_tables(void)
                                    (file->name[1] == '.' &&  !file->name[2])))
         continue;
 
-    if (!bcmp(file->name,tmp_file_prefix,tmp_file_prefix_length))
-    {
-      char *ext= fn_ext(file->name);
-      uint ext_len= strlen(ext);
-      uint filePath_len= my_snprintf(filePath, sizeof(filePath),
-                                     "%s%c%s", tmpdir, FN_LIBCHAR,
-                                     file->name);
-      if (!bcmp(reg_ext, ext, ext_len))
+      if (!bcmp(file->name,tmp_file_prefix,tmp_file_prefix_length))
       {
-        handler *handler_file= 0;
-        /* We should cut file extention before deleting of table */
-        memcpy(filePathCopy, filePath, filePath_len - ext_len);
-        filePathCopy[filePath_len - ext_len]= 0;
-        init_tmp_table_share(&share, "", 0, "", filePathCopy);
-        if (!open_table_def(thd, &share, 0) &&
-            ((handler_file= get_new_handler(&share, thd->mem_root,
-                                            share.db_type))))
+        char *ext= fn_ext(file->name);
+        uint ext_len= strlen(ext);
+        uint filePath_len= my_snprintf(filePath, sizeof(filePath),
+                                       "%s%c%s", tmpdir, FN_LIBCHAR,
+                                       file->name);
+        if (!bcmp(reg_ext, ext, ext_len))
         {
-          handler_file->delete_table(filePathCopy);
-          delete handler_file;
+          handler *handler_file= 0;
+          /* We should cut file extention before deleting of table */
+          memcpy(filePathCopy, filePath, filePath_len - ext_len);
+          filePathCopy[filePath_len - ext_len]= 0;
+          init_tmp_table_share(&share, "", 0, "", filePathCopy);
+          if (!open_table_def(thd, &share, 0) &&
+              ((handler_file= get_new_handler(&share, thd->mem_root,
+                                              share.db_type))))
+          {
+            handler_file->delete_table(filePathCopy);
+            delete handler_file;
+          }
+          free_table_share(&share);
         }
-        free_table_share(&share);
+        /*
+          File can be already deleted by tmp_table.file->delete_table().
+          So we hide error messages which happnes during deleting of these
+          files(MYF(0)).
+        */
+        VOID(my_delete(filePath, MYF(0))); 
       }
-      }
-      /*
-        File can be already deleted by tmp_table.file->delete_table().
-        So we hide error messages which happnes during deleting of these
-        files(MYF(0)).
-      */
-      VOID(my_delete(filePath, MYF(0))); 
     }
     my_dirend(dirp);
   }
