@@ -74,7 +74,7 @@ Creates a hash table with >= n array cells. The actual number of cells is
 chosen to be a prime number slightly bigger than n. */
 
 hash_table_t*
-hash0_create(
+hash_create(
 /*========*/
 			/* out, own: created table */
 	ulint	n)	/* in: number of array cells */
