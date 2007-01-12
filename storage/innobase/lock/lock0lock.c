@@ -586,7 +586,7 @@ lock_sys_create(
 {
 	lock_sys = mem_alloc(sizeof(lock_sys_t));
 
-	lock_sys->rec_hash = hash_create(n_cells);
+	lock_sys->rec_hash = hash0_create(n_cells);
 
 	/* hash_create_mutexes(lock_sys->rec_hash, 2, SYNC_REC_LOCK); */
 
@@ -4390,10 +4390,6 @@ loop:
 				(ulong) ut_dulint_get_low(
 					trx->read_view->up_limit_id));
 		}
-
-		fprintf(file,
-			"Trx has approximately %lu row locks\n",
-			(ulong) lock_number_of_rows_locked(trx));
 
 		if (trx->que_state == TRX_QUE_LOCK_WAIT) {
 			fprintf(file,
