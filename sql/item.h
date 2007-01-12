@@ -2269,6 +2269,9 @@ public:
   bool fix_fields(THD *, Item **);
   void print(String *str);
   table_map used_tables() const { return (table_map)0L; }
+  Field *get_tmp_table_field() { return 0; }
+  Item *copy_or_same(THD *thd) { return this; }
+  Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
   void cleanup();
 
 private:
