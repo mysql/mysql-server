@@ -203,3 +203,51 @@ NODEGROUP	PARTITION_NAME
 0	p0
 0	p1
 DROP TABLE t1;
+CREATE TABLE t1 (
+a tinyint unsigned NOT NULL,
+b bigint(20) unsigned NOT NULL,
+c char(12),
+PRIMARY KEY (a,b)
+) ENGINE ndb DEFAULT CHARSET=latin1 PARTITION BY KEY (a);
+insert into t1 values(1,1,'1'), (2,2,'2'), (3,3,'3'), (4,4,'4'), (5,5,'5');
+select * from t1 where a = 1;
+a	b	c
+1	1	1
+select * from t1 where a = 2;
+a	b	c
+2	2	2
+select * from t1 where a = 3;
+a	b	c
+3	3	3
+select * from t1 where a = 4;
+a	b	c
+4	4	4
+select * from t1 where a = 5;
+a	b	c
+5	5	5
+delete from t1 where a = 1;
+select * from t1 order by 1;
+a	b	c
+2	2	2
+3	3	3
+4	4	4
+5	5	5
+delete from t1 where a = 2;
+select * from t1 order by 1;
+a	b	c
+3	3	3
+4	4	4
+5	5	5
+delete from t1 where a = 3;
+select * from t1 order by 1;
+a	b	c
+4	4	4
+5	5	5
+delete from t1 where a = 4;
+select * from t1 order by 1;
+a	b	c
+5	5	5
+delete from t1 where a = 5;
+select * from t1 order by 1;
+a	b	c
+drop table t1;
