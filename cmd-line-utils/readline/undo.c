@@ -175,7 +175,7 @@ _rl_fix_last_undo_of_type (type, start, end)
 
   for (rl = rl_undo_list; rl; rl = rl->next)
     {
-      if (rl->what == (uint) type)
+      if (rl->what == (unsigned int) type)
 	{
 	  rl->start = start;
 	  rl->end = end;
