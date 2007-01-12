@@ -615,6 +615,10 @@ ErrorBundle ErrorCodes[] = {
   { 4273, DMEC, IE, "No blob table in dict cache" },
   { 4274, DMEC, IE, "Corrupted main table PK in blob operation" },
   { 4275, DMEC, AE, "The blob method is incompatible with operation type or lock mode" },
+  { 4276, DMEC, AE, "API version mismatch or wrong sizeof(NdbDictionary::RecordSpecification)" },
+  { 4277, DMEC, AE, "Missing column specification in NdbDictionary::RecordSpecification" },
+  { 4278, DMEC, AE, "Duplicate column specification in NdbDictionary::RecordSpecification" },
+  { 4279, DMEC, AE, "NdbRecord for tuple access is not a primary key NdbRecord" },
 };
 
 static

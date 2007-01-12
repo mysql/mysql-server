@@ -22,6 +22,9 @@ class Ndb;
 struct charset_info_st;
 typedef struct charset_info_st CHARSET_INFO;
 
+/* Forward declaration only. */
+class NdbRecord;
+
 /**
  * @class NdbDictionary
  * @brief Data dictionary class
@@ -991,7 +994,7 @@ public:
     const char * getName() const;
     
     /**
-     * Get the name of the table being indexed
+     * Get the name of the underlying table being indexed
      */
     const char * getTable() const;
     
@@ -1408,6 +1411,32 @@ public:
 #endif
     class NdbEventImpl & m_impl;
     Event(NdbEventImpl&);
+  };
+
+  struct RecordSpecification {
+    enum RecTypes {
+      AttrOffsetNotNULL= 1,
+      AttrOffsetNULL= 2
+    };
+
+    enum RecTypes type;
+    /*
+      Column is given by NdbDictionary::Column pointer, if not NULL, else by
+      name, if not NULL, else by id.
+    */
+    // ToDo: Hm, a bit clumsy interface that one needs to init colPtr and
+    // colName to NULL to use colNumber...
+    const Column *colPtr;
+    const char *colName;
+    Uint32 colNumber;
+
+    /* Offset of data from start of a row. */
+    Uint32 dataOffset;
+
+    /* Offset from start of row of byte containing NULL bit. */
+    Uint32 bmOffset;
+    /* NULL bit, 0-7. */
+    Uint32 bmBit;
   };
 
   struct AutoGrowSpecification {
@@ -1909,6 +1938,24 @@ public:
     int removeIndexGlobal(const Index &ndbidx, int invalidate) const;
     int removeTableGlobal(const Table &ndbtab, int invalidate) const;
 #endif
+
+    NdbRecord *createRecord(const char *tableName,
+                            const RecordSpecification *recSpec,
+                            Uint32 length,
+                            Uint32 elemSize);
+    NdbRecord *createRecord(const Table *table,
+                            const RecordSpecification *recSpec,
+                            Uint32 length,
+                            Uint32 elemSize);
+    void releaseRecord(NdbRecord *rec);
+
+    Uint32 *getRecAttrSet(const NdbRecord *rec);
+    void releaseRecAttrSet(Uint32 *attrSet);
+
+    void recAttrSetEnable(Uint32 *attrSet, Uint32 attrId);
+    void recAttrSetEnable(Uint32 *attrSet, const char *tableName,
+                          const char *colName);
+
   };
 };
 

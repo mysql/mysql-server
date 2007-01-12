@@ -41,12 +41,35 @@ public:
    * readTuples.
    */
   enum ScanFlag {
-    SF_TupScan = (1 << 16),     // scan TUP order
-    SF_DiskScan = (2 << 16),    // scan in DISK order
-    SF_OrderBy = (1 << 24),     // index scan in order
-    SF_Descending = (2 << 24),  // index scan in descending order
-    SF_ReadRangeNo = (4 << 24), // enable @ref get_range_no
-    SF_KeyInfo = 1              // request KeyInfo to be sent back
+    /* Scan TUP order */
+    SF_TupScan = (1 << 16),
+    /* Scan in DISK order */
+    SF_DiskScan = (2 << 16),
+    /*
+      Return rows from an index scan sorted, ordered on the index key.
+      This flag makes the API perform a merge-sort among the ordered scans of
+      each fragment, to get a single sorted result set.
+    */
+    SF_OrderBy = (1 << 24),
+    /* Index scan in descending order, instead of default ascending. */
+    SF_Descending = (2 << 24),
+    /*
+      Enable @ref get_range_no (index scan only).
+      When this flag is set, NdbIndexScanOperation::get_range_no() can be
+      called to read back the range_no defined in
+      NdbIndexScanOperation::end_of_bound(). See @ref end_of_bound() for
+      explanation.
+    */
+    SF_ReadRangeNo = (4 << 24),
+    /*
+      Request KeyInfo to be sent back.
+      This enables the option to take over row lock taken by the scan using
+      lockCurrentTuple(), by making sure that the kernel sends back the
+      information needed to identify the row and the lock.
+      It is enabled by default for scans using LM_Exclusive, but must be
+      explicitly specified to enable the taking-over of LM_Read locks.
+    */
+    SF_KeyInfo = 1
   };
 
   /**
@@ -54,7 +77,8 @@ public:
    * 
    * @param lock_mode Lock mode
    * @param scan_flags see @ref ScanFlag
-   * @param parallel No of fragments to scan in parallel (0=max)
+   * @param parallel Number of fragments to scan in parallel (0=max)
+   * @param batch Number of rows to fetch in each batch
    */ 
   virtual
   int readTuples(LockMode lock_mode = LM_Read, 
@@ -100,25 +124,33 @@ public:
    * @param fetchAllowed  If set to false, then fetching is disabled
    * @param forceSend If true send will occur immediately (see @ref secAdapt)
    *
-   * The NDB API will contact the NDB Kernel for more tuples 
-   * when necessary to do so unless you set the fetchAllowed 
-   * to false. 
-   * This will force NDB to process any records it
-   * already has in it's caches. When there are no more cached 
-   * records it will return 2. You must then call nextResult
-   * with fetchAllowed = true in order to contact NDB for more 
-   * records.
+   * The NDB API will receive tuples from each fragment in batches, and
+   * needs to explicitly request from the NDB Kernel the sending of each new
+   * batch. When a new batch is requested, the NDB Kernel will remove any
+   * locks taken on rows in the previous batch, unless they have been already
+   * taken over by the application executing updateCurrentTuple(),
+   * lockCurrentTuple(), etc.
+   *
+   * The fetchAllowed parameter is used to control this release of
+   * locks from the application. When fetchAllowed is set to false,
+   * the NDB API will not request new batches from the NDB Kernel when
+   * all received rows have been exhausted, but will instead return 2
+   * from nextResult(), indicating that new batches must be
+   * requested. You must then call nextResult with fetchAllowed = true
+   * in order to contact the NDB Kernel for more records, after taking over
+   * locks as appropriate.
    *
    * fetchAllowed = false is useful when you want to update or 
    * delete all the records fetched in one transaction(This will save a
    *  lot of round trip time and make updates or deletes of scanned 
-   * records a lot faster). 
-   * While nextResult(false)
-   * returns 0 take over the record to another transaction. When 
-   * nextResult(false) returns 2 you must execute and commit the other 
-   * transaction. This will cause the locks to be transferred to the 
-   * other transaction, updates or deletes will be made and then the 
-   * locks will be released.
+   * records a lot faster).
+   *
+   * While nextResult(false) returns 0, take over the record to
+   * another transaction. When nextResult(false) returns 2 you must
+   * execute and commit the other transaction. This will cause the
+   * locks to be transferred to the other transaction, updates or
+   * deletes will be made and then the locks will be released.
+   *
    * After that, call nextResult(true) which will fetch new records and
    * cache them in the NdbApi. 
    * 
@@ -219,6 +251,12 @@ protected:
 
   // Scan related variables
   Uint32 theParallelism;
+  /*
+    Whether keyInfo is requested from Kernel.
+    KeyInfo is requested by application (using the SF_KeyInfo scan flag), and
+    also enabled automatically when using exclusive locking (lockmode
+    LM_Exclusive), or when requesting blobs (getBlobHandle()).
+  */
   Uint32 m_keyInfo;
 
   int getFirstATTRINFOScan();
@@ -233,22 +271,47 @@ protected:
 
   Uint32* m_prepared_receivers;   // These are to be sent
 
-  /**
-   * owned by API/user thread
+  /*
+    Owned by API/user thread.
+
+    These receivers, stored in the m_api_receivers array, have all attributes
+    from the current batch fully received, and the API thread has moved them
+    here (under mutex protection) from m_conf_receivers, so that all further
+    nextResult() can access them without extra mutex contention.
+
+    The m_current_api_receiver member is the index (into m_api_receivers) of
+    the receiver that delivered the last row to the application in
+    nextResult(). If no rows have been delivered yet, it is set to 0 for table
+    scans and to one past the end of the array for ordered index scans.
+
+    For ordered index scans, the m_api_receivers array is further kept sorted.
+    The entries from (m_current_api_receiver+1) to the end of the array are
+    kept in the order that their first row will be returned in nextResult().
+
+    Note also that for table scans, the entries available to the API thread
+    are stored in entries 0..(m_api_receivers_count-1), while for ordered
+    index scans, they are stored in entries m_current_api_receiver..array end.
    */
   Uint32 m_current_api_receiver;
   Uint32 m_api_receivers_count;
   NdbReceiver** m_api_receivers;  // These are currently used by api
   
-  /**
-   * owned by receiver thread
+  /*
+    Shared by receiver thread and API thread.
+    These are receivers that the receiver thread has obtained all attribute
+    data for (of the current batch).
+    API thread will move them (under mutex protection) to m_api_receivers on
+    first access with nextResult().
    */
   Uint32 m_conf_receivers_count;  // NOTE needs mutex to access
   NdbReceiver** m_conf_receivers; // receive thread puts them here
   
-  /**
-   * owned by receiver thread
-   */
+  /*
+   Owned by receiver thread
+   These are the receivers that the receiver thread is currently receiving
+   attribute data for (of the current batch).
+   Once all is received, they will be moved to m_conf_receivers.
+  */
   Uint32 m_sent_receivers_count;  // NOTE needs mutex to access
   NdbReceiver** m_sent_receivers; // receive thread puts them here
   
@@ -263,7 +326,16 @@ protected:
   bool m_ordered;
   bool m_descending;
   Uint32 m_read_range_no;
-  NdbRecAttr *m_curr_row; // Pointer to last returned row
+  /*
+    m_curr_row: Pointer to last returned row (linked list of NdbRecAttr
+    objects).
+    First comes keyInfo, if requested (explicitly with SF_KeyInfo, or
+    implicitly when using LM_Exclusive).
+    Then comes range_no, if requested with SF_ReadRangeNo, included first in
+    the list of sort columns to get sorting of multiple range scans right.
+    Then the 'real' columns that are participating in the scan.    
+  */
+  NdbRecAttr *m_curr_row;
   bool m_executed; // Marker if operation should be released at close
 };
 
