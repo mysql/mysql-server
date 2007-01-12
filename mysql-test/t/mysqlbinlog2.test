@@ -72,6 +72,7 @@ select "--- Local with 2 binlogs on command line --" as "";
 
 # This is to verify that some options apply only to first, or last binlog
 
+flush logs;
 --exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000001 $MYSQLTEST_VARDIR/log/master-bin.000002
 
 --disable_query_log
