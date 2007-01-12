@@ -111,6 +111,13 @@ NdbReceiver::getValues(const NdbRecord* rec, char *row_ptr)
 
 #define KEY_ATTR_ID (~(Uint32)0)
 
+/*
+  Compute the batch size (rows between each NEXT_TABREQ / SCAN_TABCONF) to
+  use, taking into account limits in the transporter, user preference, etc.
+
+  Hm, there are some magic overhead numbers (4 bytes/attr, 32 bytes/row) here,
+  would be nice with some explanation on how these numbers were derived.
+*/
 void
 NdbReceiver::calculate_batch_size(Uint32 key_size,
                                   Uint32 parallelism,
@@ -164,28 +171,35 @@ NdbReceiver::calculate_batch_size(Uint32 key_size,
   return;
 }
 
+/*
+  Call getValue() on all required attributes in all rows in the batch to be
+  received.
+*/
 void
 NdbReceiver::do_get_value(NdbReceiver * org, 
-			  Uint32 rows, 
+			  Uint32 batch_size, 
 			  Uint32 key_size,
 			  Uint32 range_no){
-  if(rows > m_defined_rows){
+  if(batch_size > m_defined_rows){
     delete[] m_rows;
-    m_defined_rows = rows;
-    m_rows = new NdbRecAttr*[rows + 1]; 
+    m_defined_rows = batch_size;
+    m_rows = new NdbRecAttr*[batch_size + 1]; 
   }
-  m_rows[rows] = 0;
+  m_rows[batch_size] = 0;
   
   NdbColumnImpl key;
   if(key_size){
     key.m_attrId = KEY_ATTR_ID;
+    /*
+      We need to add one extra word to key size due to extra info word at end.
+    */
     key.m_arraySize = key_size+1;
     key.m_attrSize = 4;
     key.m_nullable = true; // So that receive works w.r.t KEYINFO20
   }
   m_hidden_count = (key_size ? 1 : 0) + range_no ;
   
-  for(Uint32 i = 0; i<rows; i++){
+  for(Uint32 i = 0; i<batch_size; i++){
     NdbRecAttr * prev = theCurrentRecAttr;
     assert(prev == 0 || i > 0);
     
@@ -391,6 +405,15 @@ NdbReceiver::execKEYINFO20(Uint32 info, const Uint32* aDataPtr, Uint32 aLength)
 {
   NdbRecAttr* currRecAttr = m_rows[m_current_row++];
   assert(currRecAttr->attrId() == KEY_ATTR_ID);
+  /*
+    This is actually reading data one word off the end of the received
+    signal (or off the end of the long signal data section 0, for a
+    long signal), due to the aLength+1. This is to ensure the correct length
+    being set for the NdbRecAttr (one extra word for the scanInfo word placed
+    at the end), overwritten immediately below.
+    But it's a bit ugly that we rely on being able to read one word over the
+    end of the signal without crashing...
+  */
   currRecAttr->receive_data(aDataPtr, 4*(aLength + 1));
   
   /**
