@@ -167,8 +167,7 @@ check_cpu () {
   touch __test.c
 
   while [ "$cpu_arg" ] ; do
-    # FIXME: echo -n isn't portable - see contortions autoconf goes through
-    echo -n testing $cpu_arg "... " >&2
+    printf "testing $cpu_arg ... " >&2
           
     # compile check
     check_cpu_cflags=`eval echo $check_cpu_args`
