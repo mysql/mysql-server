@@ -215,7 +215,7 @@ public:
   /**
    * Index only stuff
    */
-  BaseString m_primaryTable;
+  BaseString m_primaryTable;    // Name of table indexed by us
   NdbDictionary::Object::Type m_indexType;
 
   /**
@@ -275,6 +275,11 @@ public:
   bool m_logging;
   bool m_temporary;
   
+  /*
+    The m_table member refers to the NDB table object that holds the actual
+    index, not the table that is indexed by the index (so it is of index
+    type, not table type).
+  */
   NdbTableImpl * m_table;
   
   static NdbIndexImpl & getImpl(NdbDictionary::Index & t);

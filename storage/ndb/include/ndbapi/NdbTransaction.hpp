@@ -241,8 +241,8 @@ public:
    * get the NdbTransaction object which
    * was fetched by startTransaction pointing to this operation.
    *
-   * @param  anIndexName  The index name.
-   * @param  aTableName  The table name.
+   * @param  anIndexName  The name of the index to use for scanning
+   * @param  aTableName  The name of the table to scan
    * @return pointer to an NdbOperation object if successful, otherwise NULL
    */
   NdbIndexScanOperation* getNdbIndexScanOperation(const char* anIndexName,

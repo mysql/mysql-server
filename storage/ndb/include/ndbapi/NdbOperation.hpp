@@ -818,22 +818,74 @@ public:
 #endif
 protected:
 
+  /*
+    Methods that define the operation (readTuple(), getValue(), etc). can be
+    called in any order, but not all are valid.
+
+    To keep track of things, we store a 'current state of definitin operation'
+    in member 'theStatus', with possible values given here.
+  */
   enum OperationStatus
-  { 
-    Init,                       
+  {
+    /*
+      Init: Initial state after getting NdbOperation.
+      At this point, the type of operation must be set (insertTuple(),
+      readTuple(), etc.).
+
+    */
+    Init,
+    /*
+      OperationDefined: State in which the primary key search condition is
+      defined with equal().
+    */
     OperationDefined,
+    /*
+      TupleKeyDefined: All parts of the primary key have been specified with
+      equal().
+    */
     TupleKeyDefined,
+    /*
+      GetValue: The state in which the attributes to read are defined with
+      calls to getValue(). For interpreted operations, these are the initial
+      reads, before the interpreted program.
+    */
     GetValue,
+    /*
+      SetValue: The state in which attributes to update are defined with
+      calls to setValue().
+    */
     SetValue,
+    /*
+      ExecInterpretedValue: The state in which the interpreted program is
+      defined.
+    */
     ExecInterpretedValue,
+    /*
+      SetValueInterpreted: Updates after interpreted program.
+    */
     SetValueInterpreted,
+    /*
+      FinalGetValue: Attributes to read after interpreted program.
+    */
     FinalGetValue,
+    /*
+      SubroutineExec: In the middle of a subroutine definition being defined.
+    */
     SubroutineExec,
+    /*
+      SubroutineEnd: A subroutine has been fully defined, but a new subroutine
+      definition may still be defined after.
+    */
     SubroutineEnd,
+    /*
+      WaitResponse: Operation has been sent to kernel, waiting for reply.
+    */
     WaitResponse,
-    WaitCommitResponse,
+    /*
+      Finished: The TCKEY{REF,CONF} signal for this operation has been
+      received.
+    */
     Finished,
-    ReceiveFinished,
     /*
       NdbRecord: For operations using NdbRecord. Built in a single call (like
       NdbTransaction::readTuple(), and no state transitions possible before
@@ -995,8 +1047,17 @@ protected:
   Uint32*           theKEYINFOptr;       // Pointer to where to write KEYINFO
   Uint32*           theATTRINFOptr;      // Pointer to where to write ATTRINFO
 
-  const class NdbTableImpl* m_currentTable; // The current table
-  const class NdbTableImpl* m_accessTable;  // Index table (== current for pk)
+  /* 
+     The table object for the table to read or modify (for index operations,
+     it is the table being indexed.)
+  */
+  const class NdbTableImpl* m_currentTable;
+
+  /*
+    The table object for the index used to access the table. For primary key
+    lookups, it is equal to m_currentTable.
+  */
+  const class NdbTableImpl* m_accessTable;
 
   // Set to TRUE when a tuple key attribute has been defined. 
   Uint32	    theTupleKeyDefined[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY][3];
@@ -1028,6 +1089,8 @@ protected:
   Uint8  theSimpleIndicator;	 // Indicator of whether simple operation
   Uint8  theDirtyIndicator;	 // Indicator of whether dirty operation
   Uint8  theInterpretIndicator;  // Indicator of whether interpreted operation
+                                 // Note that scan operations always have this
+                                 // set true
   Int8  theDistrKeyIndicator_;    // Indicates whether distr. key is used
   Uint8  m_no_disk_flag;          
 

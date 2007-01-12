@@ -144,11 +144,22 @@ public:
   /**
    * Marks end of a bound, 
    *  used when batching index reads (multiple ranges)
+   *
+   * With this call, it is possible to do multiple range scans (on the same
+   * table/index) in a single readTuples() operation and roundtrip. Each range
+   * bound (min and/or max) is defined with setBound(), and end_of_bound() is
+   * called when all setBound() calls for one range bound have been done.
+   *
+   * The RANGE_NO argument is an application-selected value (in the range
+   * 0-0xfff) that can be used to identify which range scan a particular row
+   * belong to; the value can be obtained from get_range_no() when rows are
+   * fetched with nextResult().
    */
   int end_of_bound(Uint32 range_no);
   
   /**
-   * Return range no for current row
+   * Return range no for current row, as defined in end_of_bound().
+   * Only available if the SF_ReadRangeNo is passed to readTuples().
    */
   int get_range_no();
   

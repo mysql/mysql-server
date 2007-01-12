@@ -995,7 +995,7 @@ public:
     const char * getName() const;
     
     /**
-     * Get the name of the table being indexed
+     * Get the name of the underlying table being indexed
      */
     const char * getTable() const;
     
@@ -1417,7 +1417,7 @@ public:
   struct RecordSpecification {
     enum RecTypes {
       AttrOffsetNotNULL= 1,
-      AttrOffsetNULL= 2,
+      AttrOffsetNULL= 2
     };
 
     enum RecTypes type;

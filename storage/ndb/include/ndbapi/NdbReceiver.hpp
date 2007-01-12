@@ -103,6 +103,19 @@ private:
   Uint32 m_RecPos;
   
   Uint32 m_list_index; // When using multiple
+  /*
+    m_current_row serves two purposes, both used during scans:
+
+    1. While rows are being received from the kernel (and the receiver is
+       sitting in the NdbScanOperation::m_sent_receivers array), it holds the
+       row index (into m_rows) for the row to receive the next KEYINFO20 data.
+       This is used to receive keyInfo during scans (for scans that request
+       keyInfo).
+
+    2. While rows are being delivered to the application (and the receiver is
+       sitting in the NdbScanOperation::m_api_receivers array), it holds the
+       next row to be delivered to the application.
+  */
   Uint32 m_current_row;
   Uint32 m_result_rows;
   Uint32 m_defined_rows;

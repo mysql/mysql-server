@@ -1486,6 +1486,7 @@ NdbTransaction::getNdbIndexScanOperation(const NdbDictionary::Index * index)
 { 
   if (index)
   {
+    /* This fetches the underlying table being indexed. */
     const NdbDictionary::Table *table=
       theNdb->theDictionary->getTable(index->getTable());
 
