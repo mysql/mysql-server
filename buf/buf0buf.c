@@ -975,14 +975,15 @@ buf_relocate(
 #ifdef UNIV_SYNC_DEBUG
 	ut_a(mutex_own(&buf_pool->mutex));
 	ut_a(mutex_own(buf_page_get_mutex(bpage)));
-	ut_a(mutex_own(buf_page_get_mutex(dpage)));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_a(buf_page_get_io_fix(bpage) == BUF_IO_NONE);
 	ut_a(bpage->buf_fix_count == 0);
 	ut_a(buf_page_in_file(bpage));
+	ut_ad(bpage == buf_page_hash_get(bpage->space, bpage->offset));
+
+	memcpy(dpage, bpage, sizeof *dpage);
 
 	/* relocate buf_pool->LRU */
-
 	b = UT_LIST_GET_PREV(LRU, bpage);
 	UT_LIST_REMOVE(LRU, buf_pool->LRU, bpage);
 
@@ -1003,6 +1004,8 @@ buf_relocate(
 
 	HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, fold, bpage);
 	HASH_INSERT(buf_page_t, hash, buf_pool->page_hash, fold, dpage);
+
+	UNIV_MEM_INVALID(bpage, sizeof *bpage);
 }
 
 /************************************************************************
@@ -2134,25 +2137,21 @@ buf_page_init_for_read(
 			and uncompress it. */
 
 			mutex_enter(&buf_pool->zip_mutex);
-			memcpy(&block->page, bpage, sizeof *bpage);
-			block->page.state = BUF_BLOCK_FILE_PAGE;
 
 			buf_relocate(bpage, &block->page);
 
-			if (buf_page_get_state(bpage) == BUF_BLOCK_ZIP_PAGE) {
+			if (buf_page_get_state(&block->page)
+			    == BUF_BLOCK_ZIP_PAGE) {
 				UT_LIST_REMOVE(list, buf_pool->zip_clean,
-					       bpage);
+					       &block->page);
 			} else {
 				/* Relocate buf_pool->flush_list. */
 				buf_page_t*	b;
 
-				b = UT_LIST_GET_PREV(list, bpage);
-				ut_ad(bpage->in_flush_list);
-				ut_ad(!block->page.in_flush_list);
-				ut_d(bpage->in_flush_list = FALSE);
-				ut_d(block->page.in_flush_list = TRUE);
+				b = UT_LIST_GET_PREV(list, &block->page);
+				ut_ad(block->page.in_flush_list);
 				UT_LIST_REMOVE(list, buf_pool->flush_list,
-					       bpage);
+					       &block->page);
 
 				if (b) {
 					UT_LIST_INSERT_AFTER(
@@ -2165,6 +2164,7 @@ buf_page_init_for_read(
 				}
 			}
 
+			block->page.state = BUF_BLOCK_FILE_PAGE;
 			ut_a(!block->page.buf_fix_count);
 			block->page.buf_fix_count++;;
 			rw_lock_x_lock(&block->lock);

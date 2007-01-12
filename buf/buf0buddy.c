@@ -113,6 +113,7 @@ buf_buddy_block_free(
 	HASH_DELETE(buf_page_t, hash, buf_pool->zip_hash, fold, bpage);
 
 	ut_d(memset(buf, 0, UNIV_PAGE_SIZE));
+	UNIV_MEM_INVALID(buf, UNIV_PAGE_SIZE);
 
 	block = (buf_block_t*) bpage;
 	mutex_enter(&block->mutex);
@@ -416,6 +417,7 @@ buf_buddy_relocate(
 			/* Relocate the compressed page. */
 			ut_a(bpage->zip.data == src);
 			memcpy(dst, src, size);
+			UNIV_MEM_INVALID(src, size);
 			bpage->zip.data = dst;
 			mutex_exit(mutex);
 			return(TRUE);
@@ -447,13 +449,13 @@ buf_buddy_relocate(
 				buf_page_t*	dpage	= (buf_page_t*) dst;
 				buf_page_t*	b;
 
-				memcpy(dpage, bpage, size);
 				buf_relocate(bpage, dpage);
+				UNIV_MEM_INVALID(src, size);
 
 				/* relocate buf_pool->zip_clean */
-				b = UT_LIST_GET_PREV(list, bpage);
+				b = UT_LIST_GET_PREV(list, dpage);
 				UT_LIST_REMOVE(list, buf_pool->zip_clean,
-					       bpage);
+					       dpage);
 
 				if (b) {
 					UT_LIST_INSERT_AFTER(
@@ -630,6 +632,7 @@ buddy_nonfree:
 		memset(bpage, i, BUF_BUDDY_LOW << i);
 	}
 #endif /* UNIV_DEBUG */
+	UNIV_MEM_INVALID(buf, BUF_BUDDY_LOW << i);
 	bpage->state = BUF_BLOCK_ZIP_FREE;
 	ut_ad(buf_pool->zip_free[i].start != bpage);
 	UT_LIST_ADD_FIRST(list, buf_pool->zip_free[i], bpage);
