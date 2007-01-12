@@ -214,7 +214,7 @@ public:
   /**
    * Index only stuff
    */
-  BaseString m_primaryTable;
+  BaseString m_primaryTable;    // Name of table indexed by us
   NdbDictionary::Object::Type m_indexType;
 
   /**
@@ -274,6 +274,11 @@ public:
   bool m_logging;
   bool m_temporary;
   
+  /*
+    The m_table member refers to the NDB table object that holds the actual
+    index, not the table that is indexed by the index (so it is of index
+    type, not table type).
+  */
   NdbTableImpl * m_table;
   
   static NdbIndexImpl & getImpl(NdbDictionary::Index & t);
@@ -571,6 +576,73 @@ public:
   virtual int init(NdbTableImpl &tab) const = 0;
 };
 
+class NdbRecord {
+public:
+  /* Flag bits for the entire NdbRecord. */
+  enum RecFlags
+  {
+    /*
+      This flag tells whether this NdbRecord is a PK record for the table,
+      ie. that it describes _exactly_ the primary key attributes, no more and
+      no less. This is a requirement for the PK record used in read/update.
+    */
+    RecIsPKRecord= 0x1,
+
+    /*
+      This flag tells whether this NdbRecord includes _at least_ all PK columns
+      (and possibly other columns), which is a requirement for insert.
+    */
+    RecHasAllPKs= 0x2
+  };
+
+  /* Flag bits for individual columns in the NdbRecord. */
+  enum ColFlags
+  {
+    /*
+      This flag tells whether the column is part of the primary key, used
+      for insert.
+    */
+    IsPK= 0x1
+  };
+
+  enum RecAttrTypes
+  {
+    AttrNotNULL
+  };
+
+  struct Attr
+  {
+    /*
+      Type of this record attribute, determines which other members in the
+      struct are valid.
+    */
+    enum RecAttrTypes type;
+    Uint32 attrId;
+    /* Offset of data from the start of a row. */
+    Uint32 offset;
+    /*
+      Maximum size of the attribute. This is duplicated here to avoid having
+      to dig into Table object for every attribute fetch/store.
+    */
+    Uint32 maxSize;
+
+    /* Flags, or-ed from enum ColFlags. */
+    Uint32 flags;
+  };
+
+  Uint32 tableId;
+  Uint32 tableVersion;
+  /* Flags, or-ed from enum RecFlags. */
+  Uint32 flags;
+  /* Total number of attributes in table. */
+  Uint32 totalTableColumns;
+
+  /* The real size of the array at the end of this struct. */
+  Uint32 noOfColumns;
+  struct Attr columns[1];
+};
+
+
 class NdbDictionaryImpl : public NdbDictionary::Dictionary {
 public:
   NdbDictionaryImpl(Ndb &ndb);
@@ -665,6 +737,40 @@ public:
                              NdbTableImpl &prim);
   NdbIndexImpl * getIndexImpl(const char * name,
                               const BaseString& internalName);
+
+
+  NdbRecord *createRecord(const NdbTableImpl *table,
+                          const NdbDictionary::RecordSpecification *recSpec,
+                          Uint32 length,
+                          Uint32 elemSize);
+  void releaseRecord_impl(NdbRecord *rec);
+
+  Uint32 *getRecAttrSet(const NdbRecord *rec)
+  {
+    Uint32 *attrSet;
+
+    attrSet= (Uint32 *)calloc((rec->totalTableColumns+31)>>5, sizeof(*attrSet));
+    return attrSet;
+  }
+
+  void releaseRecAttrSet(Uint32 *attrSet)
+  {
+    free(attrSet);
+  }
+
+  void recAttrSetEnable(Uint32 *attrSet, Uint32 attrId)
+  {
+    attrSet[attrId>>5]|= 1<<(attrId&31);
+  }
+
+  void recAttrSetEnable(Uint32 *attrSet, const char *tableName, const char *colName)
+  {
+    // ToDo: check table/column not found ...
+    const NdbTableImpl *table= getTable(tableName);
+    const NdbDictionary::Column *col= table->getColumn(colName);
+    recAttrSetEnable(attrSet, col->getAttrId());
+  }
+
 private:
   NdbTableImpl * fetchGlobalTableImplRef(const GlobalCacheInitObject &obj);
 };
