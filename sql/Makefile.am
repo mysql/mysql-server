@@ -42,7 +42,7 @@ mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ \
 			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS) @LIBDL@ \
                         @yassl_libs@ @openssl_libs@
 noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
-			item_strfunc.h item_timefunc.h item_uniq.h \
+			item_strfunc.h item_timefunc.h \
 			item_xmlfunc.h \
 			item_create.h item_subselect.h item_row.h \
 			mysql_priv.h item_geofunc.h sql_bitmap.h \
@@ -82,7 +82,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sql_base.cc table.cc sql_select.cc sql_insert.cc \
 			sql_prepare.cc sql_error.cc sql_locale.cc \
 			sql_update.cc sql_delete.cc uniques.cc sql_do.cc \
-			procedure.cc item_uniq.cc sql_test.cc \
+			procedure.cc sql_test.cc \
 			log.cc log_event.cc init.cc derror.cc sql_acl.cc \
 			unireg.cc des_key_file.cc \
 			discover.cc time.cc opt_range.cc opt_sum.cc \
