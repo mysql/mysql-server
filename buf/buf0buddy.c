@@ -56,10 +56,14 @@ buf_buddy_alloc_zip(
 #endif /* UNIV_SYNC_DEBUG */
 	ut_a(i < BUF_BUDDY_SIZES);
 
-	ut_d(UT_LIST_VALIDATE(list, buf_page_t, buf_pool->zip_free[i]));
+#if defined UNIV_DEBUG && !defined UNIV_DEBUG_VALGRIND
+	/* Valgrind would complain about accessing free memory. */
+	UT_LIST_VALIDATE(list, buf_page_t, buf_pool->zip_free[i]);
+#endif /* UNIV_DEBUG && !UNIV_DEBUG_VALGRIND */
 	bpage = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
 
 	if (bpage) {
+		UNIV_MEM_VALID(bpage, BUF_BUDDY_LOW << i);
 		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);
 
 		UT_LIST_REMOVE(list, buf_pool->zip_free[i], bpage);
@@ -76,6 +80,7 @@ buf_buddy_alloc_zip(
 			buddy->state = BUF_BLOCK_ZIP_FREE;
 			ut_ad(buf_pool->zip_free[i].start != buddy);
 			UT_LIST_ADD_FIRST(list, buf_pool->zip_free[i], buddy);
+			UNIV_MEM_FREE(buddy, BUF_BUDDY_LOW << i);
 		}
 	}
 
@@ -84,6 +89,8 @@ buf_buddy_alloc_zip(
 		memset(bpage, ~i, BUF_BUDDY_LOW << i);
 	}
 #endif /* UNIV_DEBUG */
+
+	UNIV_MEM_ALLOC(bpage, BUF_BUDDY_SIZES << i);
 
 	return(bpage);
 }
@@ -159,6 +166,9 @@ buf_buddy_alloc_from(
 	/* Add the unused parts of the block to the free lists. */
 	while (j > i) {
 		buf_page_t*	bpage;
+#ifdef UNIV_DEBUG_VALGRIND
+		buf_page_t*	b;
+#endif /* UNIV_DEBUG_VALGRIND */
 
 		offs >>= 1;
 		j--;
@@ -166,10 +176,20 @@ buf_buddy_alloc_from(
 		bpage = (buf_page_t*) ((byte*) buf + offs);
 		ut_d(memset(bpage, j, BUF_BUDDY_LOW << j));
 		bpage->state = BUF_BLOCK_ZIP_FREE;
-		ut_d(UT_LIST_VALIDATE(list, buf_page_t,
-				      buf_pool->zip_free[j]));
+#if defined UNIV_DEBUG && !defined UNIV_DEBUG_VALGRIND
+		/* Valgrind would complain about accessing free memory. */
+		UT_LIST_VALIDATE(list, buf_page_t, buf_pool->zip_free[j]);
 		ut_ad(buf_pool->zip_free[j].start != bpage);
+#endif /* UNIV_DEBUG && !UNIV_DEBUG_VALGRIND */
+#ifdef UNIV_DEBUG_VALGRIND
+		b = UT_LIST_GET_FIRST(buf_pool->zip_free[j]);
+		if (b) UNIV_MEM_VALID(b, BUF_BUDDY_LOW << j);
+#endif /* UNIV_DEBUG_VALGRIND */
 		UT_LIST_ADD_FIRST(list, buf_pool->zip_free[j], bpage);
+#ifdef UNIV_DEBUG_VALGRIND
+		if (b) UNIV_MEM_FREE(b, BUF_BUDDY_LOW << j);
+#endif /* UNIV_DEBUG_VALGRIND */
+		UNIV_MEM_FREE(bpage, BUF_BUDDY_LOW << j);
 	}
 
 	return(buf);
@@ -493,6 +513,7 @@ buf_buddy_free_low(
 	ut_a(!mutex_own(&buf_pool->zip_mutex));
 #endif /* UNIV_SYNC_DEBUG */
 recombine:
+	UNIV_MEM_INVALID(buf, BUF_BUDDY_LOW << i);
 	ut_d(((buf_page_t*) buf)->state = BUF_BLOCK_ZIP_FREE);
 
 	if (i == BUF_BUDDY_SIZES) {
@@ -508,6 +529,9 @@ recombine:
 
 	buddy = (buf_page_t*) buf_buddy_get(((byte*) buf), BUF_BUDDY_LOW << i);
 
+#ifndef UNIV_DEBUG_VALGRIND
+	/* Valgrind would complain about accessing free memory. */
+
 	if (buddy->state != BUF_BLOCK_ZIP_FREE) {
 
 		goto buddy_nonfree;
@@ -516,9 +540,11 @@ recombine:
 	/* The field buddy->state can only be trusted for free blocks.
 	If buddy->state == BUF_BLOCK_ZIP_FREE, the block is free if
 	it is in the free list. */
+#endif /* !UNIV_DEBUG_VALGRIND */
 
 	for (bpage = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
 	     bpage; bpage = UT_LIST_GET_NEXT(list, bpage)) {
+		UNIV_MEM_VALID(bpage, BUF_BUDDY_LOW << i);
 		ut_ad(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);
 
 		if (bpage == buddy) {
@@ -534,11 +560,15 @@ buddy_free2:
 			goto recombine;
 		}
 
+		UNIV_MEM_FREE(bpage, BUF_BUDDY_LOW << i);
 		ut_a(bpage != buf);
 	}
 
+#ifndef UNIV_DEBUG_VALGRIND
 buddy_nonfree:
+	/* Valgrind would complain about accessing free memory. */
 	ut_d(UT_LIST_VALIDATE(list, buf_page_t, buf_pool->zip_free[i]));
+#endif /* UNIV_DEBUG_VALGRIND */
 
 	/* The buddy is not free. Is there a free block of this size? */
 	bpage = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
@@ -547,6 +577,8 @@ buddy_nonfree:
 		/* Remove the block from the free list, because a successful
 		buf_buddy_relocate() will overwrite bpage->list. */
 
+		UNIV_MEM_ALLOC(bpage, BUF_BUDDY_LOW << i);
+		UNIV_MEM_VALID(&bpage->list, sizeof bpage->list);
 		UT_LIST_REMOVE(list, buf_pool->zip_free[i], bpage);
 
 		/* Try to relocate the buddy of buf to the free block. */
@@ -557,12 +589,14 @@ buddy_nonfree:
 		}
 
 		UT_LIST_ADD_FIRST(list, buf_pool->zip_free[i], bpage);
+		UNIV_MEM_FREE(bpage, BUF_BUDDY_LOW << i);
 
 		/* Try to relocate the buddy of the free block to buf. */
 		buddy = (buf_page_t*) buf_buddy_get(((byte*) bpage),
 						    BUF_BUDDY_LOW << i);
 
-#ifdef UNIV_DEBUG
+#if defined UNIV_DEBUG && !defined UNIV_DEBUG_VALGRIND
+		/* Valgrind would complain about accessing free memory. */
 		{
 			const buf_page_t* b;
 
@@ -574,7 +608,7 @@ buddy_nonfree:
 				ut_a(b != buddy);
 			}
 		}
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_DEBUG && !UNIV_DEBUG_VALGRIND */
 
 		if (buf_buddy_relocate(buddy, buf, i)) {
 
@@ -598,6 +632,10 @@ buddy_nonfree:
 
 		char* c;
 
+# ifndef UNIV_DEBUG_VALGRIND
+		/* Valgrind would complain about accessing
+		uninitialized memory.  Besides, Valgrind performs a
+		more exhaustive check, at every memory access. */
 		const buf_page_t* b = buf;
 		const buf_page_t* const b_end = (buf_page_t*)
 			((char*) b + (BUF_BUDDY_LOW << i));
@@ -616,6 +654,7 @@ buddy_nonfree:
 					buf, i);
 			}
 		}
+# endif /* !UNIV_DEBUG_VALGRIND */
 
 		/* Scramble the block.  This should make any pointers
 		invalid and trigger a segmentation violation.  Because
@@ -632,7 +671,7 @@ buddy_nonfree:
 		memset(bpage, i, BUF_BUDDY_LOW << i);
 	}
 #endif /* UNIV_DEBUG */
-	UNIV_MEM_INVALID(buf, BUF_BUDDY_LOW << i);
+	UNIV_MEM_FREE(buf, BUF_BUDDY_LOW << i);
 	bpage->state = BUF_BLOCK_ZIP_FREE;
 	ut_ad(buf_pool->zip_free[i].start != bpage);
 	UT_LIST_ADD_FIRST(list, buf_pool->zip_free[i], bpage);

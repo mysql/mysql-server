@@ -275,6 +275,9 @@ start_again:
 						SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
 
+			/* Avoid writing uninitialized memory to disk. */
+			memset(new_block->frame, 0, UNIV_PAGE_SIZE);
+
 			/* Make a dummy change to the page to ensure it will
 			be written to disk in a flush */
 
