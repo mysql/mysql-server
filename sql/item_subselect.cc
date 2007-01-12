@@ -922,7 +922,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 
   if (!substitution)
   {
-    //first call for this unit
+    /* We're invoked for the 1st (or the only) SELECT in the subquery UNION */
     SELECT_LEX_UNIT *unit= select_lex->master_unit();
     substitution= optimizer;
 
@@ -972,7 +972,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
                                                       ref_pointer_array,
                                                       (char *)"<ref>",
                                                       this->full_name()));
-    if (!abort_on_null && ((Item*)select_lex->item_list.head())->maybe_null)
+    if (!abort_on_null && left_expr->maybe_null)
     {
       /* 
         We can encounter "NULL IN (SELECT ...)". Wrap the added condition
@@ -1013,9 +1013,13 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       item= func->create(expr, item);
       if (!abort_on_null && orig_item->maybe_null)
       {
-	having= 
-          new Item_func_trig_cond(new Item_is_not_null_test(this, having),
-                                  &enable_pushed_conds);
+	having= new Item_is_not_null_test(this, having);
+        if (left_expr->maybe_null)
+        {
+          if (!(having= new Item_func_trig_cond(having,
+                                                &enable_pushed_conds)))
+            DBUG_RETURN(RES_ERROR);
+        }
 	/*
 	  Item_is_not_null_test can't be changed during fix_fields()
 	  we can assign select_lex->having here, and pass 0 as last
@@ -1032,16 +1036,19 @@ Item_in_subselect::single_value_transformer(JOIN *join,
         select_lex->having_fix_field= 0;
         if (tmp)
 	  DBUG_RETURN(RES_ERROR);
-        /* 
-          NOTE: It is important that we add this "IS NULL" here, even when
-          orig_item can't be NULL. This is needed so that this predicate is
-          only used by ref[_or_null] analyzer (and, e.g. is not used by const
-          propagation).
-        */
 	item= new Item_cond_or(item,
 			       new Item_func_isnull(orig_item));
-        item= new Item_func_trig_cond(item, &enable_pushed_conds);
       }
+      /* 
+        If we may encounter NULL IN (SELECT ...) and care between NULL and
+        FALSE, wrap it in a trigger.
+      */
+      if (!abort_on_null && left_expr->maybe_null)
+      {
+        if (!(item= new Item_func_trig_cond(item, &enable_pushed_conds)))
+          DBUG_RETURN(RES_ERROR);
+      }
+
       item->name= (char *)in_additional_cond;
       /*
 	AND can't be changed during fix_fields()
@@ -1073,9 +1080,13 @@ Item_in_subselect::single_value_transformer(JOIN *join,
                                             select_lex->ref_pointer_array,
                                             (char *)"<no matter>",
                                             (char *)"<result>"));
-        new_having= new Item_func_trig_cond(new_having, &enable_pushed_conds);
+        if (!abort_on_null && left_expr->maybe_null)
+        {
+          if (!(new_having= new Item_func_trig_cond(new_having,
+                                                    &enable_pushed_conds)))
+            DBUG_RETURN(RES_ERROR);
+        }
 	select_lex->having= join->having= new_having;
-
 	select_lex->having_fix_field= 1;
         /*
           we do not check join->having->fixed, because comparison function
