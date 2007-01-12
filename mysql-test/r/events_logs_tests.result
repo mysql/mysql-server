@@ -59,6 +59,7 @@ SELECT * FROM slow_event_test;
 slo_val	val
 SET SESSION long_query_time=1;
 SET GLOBAL event_scheduler=on;
+SET GLOBAL long_query_time=20;
 CREATE EVENT long_event ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(1.5);
 "Sleep some more time than the actual event run will take"
 SHOW VARIABLES LIKE 'event_scheduler';
@@ -67,20 +68,22 @@ event_scheduler	ON
 "Check our table. Should see 1 row"
 SELECT * FROM slow_event_test;
 slo_val	val
-4	0
-"Check slow log. Should not see anything because 1.5 is under the threshold of 300 for GLOBAL, though over SESSION which is 2"
+20	0
+"Check slow log. Should not see anything because 1.5 is under the threshold of 20 for GLOBAL, though over SESSION which is 1"
+"This should show that the GLOBAL value is regarded and not the SESSION one of the current connection"
 SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
 user_host	query_time	db	sql_text
+"Another test to show that GLOBAL is regarded and not SESSION."
 "This should go to the slow log"
-DROP EVENT long_event;
 SET SESSION long_query_time=10;
+DROP EVENT long_event;
 SET GLOBAL long_query_time=1;
 CREATE EVENT long_event2 ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(2);
 "Sleep some more time than the actual event run will take"
 "Check our table. Should see 2 rows"
 SELECT * FROM slow_event_test;
 slo_val	val
-4	0
+20	0
 1	0
 "Check slow log. Should see 1 row because 4 is over the threshold of 3 for GLOBAL, though under SESSION which is 10"
 SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;

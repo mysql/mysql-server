@@ -361,7 +361,6 @@ public:
   */
   void propagate_attributes(LEX *lex)
   {
-#ifdef HAVE_ROW_BASED_REPLICATION
     /*
       If this routine needs row-based binary logging, the entire top statement
       too (we cannot switch from statement-based to row-based only for this
@@ -370,7 +369,6 @@ public:
     */
     if (m_flags & BINLOG_ROW_BASED_IF_MIXED)
       lex->binlog_row_based_if_mixed= TRUE;
-#endif
   }
 
 
