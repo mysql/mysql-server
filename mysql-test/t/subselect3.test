@@ -34,18 +34,22 @@ insert into t2 values
 
 # true, false, null, false, null
 select a, oref, a in (select max(ie) 
-  from t1 where oref=t2.oref group by grp) from t2;
+  from t1 where oref=t2.oref group by grp) Z from t2;
 
 # This must have a trigcond
 explain extended
 select a, oref, a in (select max(ie) 
-  from t1 where oref=t2.oref group by grp) from t2;
+  from t1 where oref=t2.oref group by grp) Z from t2;
 
 # This must not have a trigcond:
 explain extended
 select a, oref from t2 
 where a in (select max(ie) from t1 where oref=t2.oref group by grp);
 
+select a, oref, a in (
+  select max(ie) from t1 where oref=t2.oref group by grp union
+  select max(ie) from t1 where oref=t2.oref group by grp
+  ) Z from t2;
 
 # Non-correlated subquery, 2 NULL evaluations
 create table t3 (a int);
@@ -134,4 +138,67 @@ select a, oref,
 from t3;
 
 drop table t1, t2, t3;
+
+
+#
+# BUG#24085
+#
+
+# case 1: NULL IN (SELECT not_null_val FROM ...) w/o HAVING/GROUP-BY/etc
+create table t1 (a int NOT NULL, b int NOT NULL, key(a));
+insert into t1 values 
+  (0,0),(1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+
+create table t2 like t1;
+insert into t2 select * from t1;
+update t2 set b=1;
+
+create table t3 (a int, oref int);
+insert into t3 values (1, 1), (NULL,1), (NULL,0);
+select a, oref, 
+       t3.a in (select t1.a from t1, t2 where t1.b=t2.a and t2.b=t3.oref) Z 
+from t3;
+
+--echo This must show a trig_cond:
+explain extended
+select a, oref, 
+       t3.a in (select t1.a from t1, t2 where t1.b=t2.a and t2.b=t3.oref) Z 
+from t3;
+drop table t1,t2,t3;
+
+
+# case 2: NULL IN (SELECT not_null_val FROM) where SELECT has GROUP BY
+create table t1 (oref int, grp int);
+insert into t1 (oref, grp) values
+ (1, 1),
+ (1, 1);
+#  Ok, for  
+#   select count(*) from t1 group by grp having grp=$PARAM$
+# we'll have:
+#  1  ->  (2)   
+#  2  ->  ()  -  nothing
+create table t2 (oref int, a int);
+insert into t2 values 
+  (1, NULL),
+  (2, NULL);
+
+select a, oref, 
+       a in (select count(*) from t1 group by grp having grp=t2.oref) Z from t2;
+
+--echo This must show a trig_cond:
+explain extended
+select a, oref, 
+       a in (select count(*) from t1 group by grp having grp=t2.oref) Z from t2;
+
+drop table t1, t2;
+
+create table t1 (a int, b int, primary key (a));
+insert into t1 values (1,1), (3,1),(100,1);
+create table t2 (a int, b int);
+insert into t2 values (1,1),(2,1),(NULL,1),(NULL,0);
+
+select a,b, a in (select a from t1 where t1.b = t2.b union select a from
+t1 where t1.b = t2.b) Z from t2 ;
+select a,b, a in (select a from t1 where t1.b = t2.b) Z from t2 ;
+drop table t1, t2;
 
