@@ -389,7 +389,7 @@ buf_LRU_get_free_only(void)
 		mutex_enter(&block->mutex);
 
 		buf_block_set_state(block, BUF_BLOCK_READY_FOR_USE);
-		UNIV_MEM_VALID(block->frame, UNIV_PAGE_SIZE);
+		UNIV_MEM_ALLOC(block->frame, UNIV_PAGE_SIZE);
 
 		mutex_exit(&block->mutex);
 	}
@@ -496,6 +496,7 @@ loop:
 		if (zip_size) {
 			page_zip_set_size(&block->page.zip, zip_size);
 			block->page.zip.data = buf_buddy_alloc(zip_size, TRUE);
+			UNIV_MEM_DESC(block->page.zip.data, zip_size, block);
 		} else {
 			page_zip_set_size(&block->page.zip, 0);
 			block->page.zip.data = NULL;
@@ -988,6 +989,8 @@ buf_LRU_free_block(
 				b->state = b->oldest_modification
 					? BUF_BLOCK_ZIP_DIRTY
 					: BUF_BLOCK_ZIP_PAGE;
+				UNIV_MEM_DESC(b->zip.data,
+					      page_zip_get_size(&b->zip), b);
 
 				HASH_INSERT(buf_page_t, hash,
 					    buf_pool->page_hash, fold, b);
@@ -1070,7 +1073,7 @@ buf_LRU_block_free_non_file_page(
 	UT_LIST_ADD_FIRST(list, buf_pool->free, (&block->page));
 	ut_d(block->page.in_free_list = TRUE);
 
-	UNIV_MEM_INVALID(block->frame, UNIV_PAGE_SIZE);
+	UNIV_MEM_FREE(block->frame, UNIV_PAGE_SIZE);
 }
 
 /**********************************************************************
@@ -1183,6 +1186,7 @@ buf_LRU_block_remove_hashed_page(
 		buf_buddy_free(bpage->zip.data,
 			       page_zip_get_size(&bpage->zip));
 		buf_buddy_free(bpage, sizeof(*bpage));
+		UNIV_MEM_UNDESC(bpage);
 		return(BUF_BLOCK_ZIP_FREE);
 
 	case BUF_BLOCK_FILE_PAGE:
@@ -1190,6 +1194,8 @@ buf_LRU_block_remove_hashed_page(
 		       + FIL_PAGE_OFFSET, 0xff, 4);
 		memset(((buf_block_t*) bpage)->frame
 		       + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 0xff, 4);
+		UNIV_MEM_INVALID(((buf_block_t*) bpage)->frame,
+				 UNIV_PAGE_SIZE);
 		buf_page_set_state(bpage, BUF_BLOCK_REMOVE_HASH);
 
 		if (zip && bpage->zip.data) {
