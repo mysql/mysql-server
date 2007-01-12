@@ -29,14 +29,14 @@ INSERT INTO t2 VALUES (7,'Liste des t2','t2_liste_form.phtml',51060,'link.gif');
 INSERT INTO t2 VALUES (8,'Consulter les soumissions','consulter_soumissions.phtml',200,'link.gif');
 INSERT INTO t2 VALUES (9,'Ajouter un type de materiel','typeMateriel_ajoute_form.phtml',51000,'link.gif');
 INSERT INTO t2 VALUES (10,'Lister/modifier un type de materiel','typeMateriel_liste_form.phtml',51010,'link.gif');
-INSERT INTO t2 VALUES (3,'Créer une fiche de client','clients_ajoute_form.phtml',40000,'link.gif');
+INSERT INTO t2 VALUES (3,'CrÃ©er une fiche de client','clients_ajoute_form.phtml',40000,'link.gif');
 INSERT INTO t2 VALUES (4,'Modifier des clients','en_construction.html',40010,'link.gif');
 INSERT INTO t2 VALUES (5,'Effacer des clients','en_construction.html',40020,'link.gif');
 INSERT INTO t2 VALUES (6,'Ajouter un service','t2_ajoute_form.phtml',51050,'link.gif');
 select t1.id,t1.idservice,t2.ordre,t2.description  from t1, t2 where t1.id = 2   and t1.idservice = t2.id  order by t2.ordre;
 id	idservice	ordre	description
 2	1	10	Emettre un appel d'offres
-2	3	40000	Créer une fiche de client
+2	3	40000	CrÃ©er une fiche de client
 2	4	40010	Modifier des clients
 2	5	40020	Effacer des clients
 2	6	51050	Ajouter un service
@@ -873,6 +873,14 @@ num	(select num + 2 FROM t1 LIMIT 1)
 3	5
 SELECT a.a + 1 AS num FROM t1 a JOIN t1 b ON num = b.a;
 ERROR 42S22: Unknown column 'num' in 'on clause'
+DROP TABLE t1;
+CREATE TABLE t1 (a int);
+SELECT p.a AS val, q.a AS val1 FROM t1 p, t1 q ORDER BY val > 1;
+val	val1
+SELECT p.a AS val, q.a AS val FROM t1 p, t1 q ORDER BY val;
+ERROR 23000: Column 'val' in order clause is ambiguous
+SELECT p.a AS val, q.a AS val FROM t1 p, t1 q ORDER BY val > 1;
+ERROR 23000: Column 'val' in order clause is ambiguous
 DROP TABLE t1;
 create table t1 (a int not null, b  int not null, c int not null);
 insert t1 values (1,1,1),(1,1,2),(1,2,1);
