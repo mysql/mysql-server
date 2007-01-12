@@ -1,0 +1,105 @@
+# Test case for BUG #11733
+-- source include/master-slave.inc
+-- source include/have_innodb.inc
+
+# Setting the master readonly :
+# - the variable @@readonly is not replicated on the slave
+
+connect (master2,127.0.0.1,test,,test,$MASTER_MYPORT,);
+connect (slave2,127.0.0.1,test,,test,$SLAVE_MYPORT,);
+
+connection master1;
+
+create table t1(a int) engine=InnoDB;
+create table t2(a int) engine=MyISAM;
+insert into t1 values(1001);
+insert into t2 values(2001);
+
+connection master;
+set global read_only=1;
+
+connection master1;
+select @@read_only;
+select * from t1;
+select * from t2;
+
+sync_slave_with_master;
+select @@read_only;
+select * from t1;
+select * from t2;
+
+# - replication of transactions
+connection master;
+set global read_only=0;
+
+connection master1;
+BEGIN;
+insert into t1 values(1002);
+insert into t2 values(2002);
+
+connection master2;
+BEGIN;
+insert into t1 values(1003);
+insert into t2 values(2003);
+
+connection master;
+set global read_only=1;
+
+connection master1;
+## works even with read_only=1, because master1 is root
+COMMIT;
+
+connection master2;
+--error ER_OPTION_PREVENTS_STATEMENT
+COMMIT;
+
+connection master;
+set global read_only=0;
+
+connection master1;
+insert into t1 values(1004);
+insert into t2 values(2004);
+
+select * from t1;
+select * from t2;
+
+sync_slave_with_master;
+select * from t1;
+select * from t2;
+
+# Setting the slave readonly : replication will pass
+# 
+connection slave1;
+set global read_only=1;
+
+connection slave;
+select @@read_only;
+# Make sure the replicated table is also transactional
+show create table t1;
+# Make sure the replicated table is not transactional
+show create table t2;
+
+connection master;
+insert into t1 values(1005);
+insert into t2 values(2005);
+select * from t1;
+select * from t2;
+
+sync_slave_with_master;
+connection slave;
+select * from t1;
+select * from t2;
+
+# Non root user can not write on the slave
+connection slave2;
+--error ER_OPTION_PREVENTS_STATEMENT
+insert into t1 values(1006);
+--error ER_OPTION_PREVENTS_STATEMENT
+insert into t2 values(2006);
+
+## Cleanup
+connection master;
+drop table t1;
+drop table t2;
+sync_slave_with_master;
+

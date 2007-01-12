@@ -5195,7 +5195,7 @@ create_sp_error:
     DBUG_PRINT("info", ("case SQLCOM_CREATE_SERVER"));
     if ((error= create_server(thd, &lex->server_options)))
     {
-      DBUG_PRINT("info", ("problem creating server",
+      DBUG_PRINT("info", ("problem creating server <%s>",
                           lex->server_options.server_name));
       my_error(error, MYF(0), lex->server_options.server_name);
       break;
@@ -5210,7 +5210,7 @@ create_sp_error:
     DBUG_PRINT("info", ("case SQLCOM_ALTER_SERVER"));
     if ((error= alter_server(thd, &lex->server_options)))
     {
-      DBUG_PRINT("info", ("problem altering server",
+      DBUG_PRINT("info", ("problem altering server <%s>",
                           lex->server_options.server_name));
       my_error(error, MYF(0), lex->server_options.server_name);
       break;
