@@ -78,6 +78,9 @@ buf_buddy_remove_from_free(
 
 	if (prev) UNIV_MEM_VALID(prev, BUF_BUDDY_LOW << i);
 	if (next) UNIV_MEM_VALID(next, BUF_BUDDY_LOW << i);
+
+	ut_ad(!prev || buf_page_get_state(prev) == BUF_BLOCK_ZIP_FREE);
+	ut_ad(!next || buf_page_get_state(next) == BUF_BLOCK_ZIP_FREE);
 #endif /* UNIV_DEBUG_VALGRIND */
 
 	ut_ad(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);
@@ -433,7 +436,6 @@ buf_buddy_relocate(
 	ut_ad(!ut_align_offset(src, size));
 	ut_ad(!ut_align_offset(dst, size));
 #ifdef UNIV_DEBUG_VALGRIND
-	VALGRIND_CHECK_MEM_IS_DEFINED(src, BUF_BUDDY_LOW << i);
 	VALGRIND_CHECK_MEM_IS_ADDRESSABLE(dst, BUF_BUDDY_LOW << i);
 #endif /* UNIV_DEBUG_VALGRIND */
 
@@ -445,6 +447,14 @@ buf_buddy_relocate(
 		/* This is a compressed page. */
 		mutex_t*	mutex;
 
+		/* The src block may be split into smaller blocks,
+		some of which may be free.  Thus, the
+		mach_read_from_4() calls below may attempt to read
+		from free memory.  The memory is "owned" by the buddy
+		allocator (and it has been allocated from the buffer
+		pool), so there is nothing wrong about this.  The
+		mach_read_from_4() calls here will only trigger bogus
+		Valgrind memcheck warnings in UNIV_DEBUG_VALGRIND builds. */
 		bpage = buf_page_hash_get(
 			mach_read_from_4(src
 					 + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID),
@@ -469,6 +479,12 @@ buf_buddy_relocate(
 			return(FALSE);
 		}
 
+#ifdef UNIV_VALGRIND_DEBUG
+		/* The block must have been allocated, but it may
+		contain uninitialized data. */
+		VALGRIND_CHECK_MEM_IS_ADDRESSABLE(src, size);
+#endif /* UNIV_VALGRIND_DEBUG */
+
 		mutex = buf_page_get_mutex(bpage);
 
 		mutex_enter(mutex);
@@ -487,6 +503,9 @@ buf_buddy_relocate(
 	} else if (i == buf_buddy_get_slot(sizeof(buf_page_t))) {
 		/* This must be a buf_page_t object. */
 		bpage = (buf_page_t*) src;
+#ifdef UNIV_VALGRIND_DEBUG
+		VALGRIND_CHECK_MEM_IS_DEFINED(src, size);
+#endif /* UNIV_VALGRIND_DEBUG */
 
 		switch (buf_page_get_state(bpage)) {
 		case BUF_BLOCK_ZIP_FREE:
@@ -624,8 +643,7 @@ buddy_nonfree:
 		/* Remove the block from the free list, because a successful
 		buf_buddy_relocate() will overwrite bpage->list. */
 
-		UNIV_MEM_ALLOC(bpage, BUF_BUDDY_LOW << i);
-		UNIV_MEM_VALID(&bpage->list, sizeof bpage->list);
+		UNIV_MEM_VALID(bpage, BUF_BUDDY_LOW << i);
 		buf_buddy_remove_from_free(bpage, i);
 
 		/* Try to relocate the buddy of buf to the free block. */
@@ -641,14 +659,14 @@ buddy_nonfree:
 		buddy = (buf_page_t*) buf_buddy_get(((byte*) bpage),
 						    BUF_BUDDY_LOW << i);
 
-#ifdef UNIV_DEBUG_VALGRIND
-		VALGRIND_CHECK_MEM_IS_ADDRESSABLE(buddy, BUF_BUDDY_LOW << i);
-#elif defined UNIV_DEBUG
+#if defined UNIV_DEBUG && !defined UNIV_DEBUG_VALGRIND
 		{
 			const buf_page_t* b;
 
-			/* The buddy must not be free, because we always
-			recombine adjacent free blocks. */
+			/* The buddy must not be (completely) free, because
+			we always recombine adjacent free blocks.
+			(Parts of the buddy can be free in
+			buf_pool->zip_free[j] with j < i.)*/
 			for (b = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
 			     b; b = UT_LIST_GET_NEXT(list, b)) {
 
@@ -660,6 +678,7 @@ buddy_nonfree:
 		if (buf_buddy_relocate(buddy, buf, i)) {
 
 			buf = bpage;
+			UNIV_MEM_VALID(bpage, BUF_BUDDY_LOW << i);
 			ut_d(buddy->state = BUF_BLOCK_ZIP_FREE);
 			goto buddy_free;
 		}
