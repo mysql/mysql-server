@@ -77,8 +77,9 @@ create table GROUP_CONCAT(a int);
 create table GROUP_CONCAT (a int);
 drop table GROUP_CONCAT;
 
---error ER_PARSE_ERROR
+# Limitation removed in 5.1
 create table GROUP_UNIQUE_USERS(a int);
+drop table GROUP_UNIQUE_USERS;
 create table GROUP_UNIQUE_USERS (a int);
 drop table GROUP_UNIQUE_USERS;
 
@@ -167,8 +168,9 @@ create table TRIM(a int);
 create table TRIM (a int);
 drop table TRIM;
 
---error ER_PARSE_ERROR
+# Limitation removed in 5.1
 create table UNIQUE_USERS(a int);
+drop table UNIQUE_USERS;
 create table UNIQUE_USERS (a int);
 drop table UNIQUE_USERS;
 
@@ -249,10 +251,11 @@ create table GROUP_CONCAT(a int);
 --error ER_PARSE_ERROR
 create table GROUP_CONCAT (a int);
 
---error ER_PARSE_ERROR
+# Limitation removed in 5.1
 create table GROUP_UNIQUE_USERS(a int);
---error ER_PARSE_ERROR
+drop table GROUP_UNIQUE_USERS;
 create table GROUP_UNIQUE_USERS (a int);
+drop table GROUP_UNIQUE_USERS;
 
 --error ER_PARSE_ERROR
 create table MAX(a int);
@@ -339,10 +342,11 @@ create table TRIM(a int);
 --error ER_PARSE_ERROR
 create table TRIM (a int);
 
---error ER_PARSE_ERROR
+# Limitation removed in 5.1
 create table UNIQUE_USERS(a int);
---error ER_PARSE_ERROR
+drop table UNIQUE_USERS;
 create table UNIQUE_USERS (a int);
+drop table UNIQUE_USERS;
 
 --error ER_PARSE_ERROR
 create table VARIANCE(a int);
