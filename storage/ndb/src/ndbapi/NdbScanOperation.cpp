@@ -1188,25 +1188,31 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
     const bool nobytes = (len & 0x3) == 0;
     const Uint32 totalLen = 2 + sizeInWords;
     Uint32 tupKeyLen = theTupKeyLen;
+    union {
+      Uint32 tempData[2000];
+      Uint64 __align;
+    };
+    Uint64 *valPtr;
     if(remaining > totalLen && aligned && nobytes){
       Uint32 * dst = theKEYINFOptr + currLen;
       * dst ++ = type;
       * dst ++ = ahValue;
       memcpy(dst, aValue, 4 * sizeInWords);
       theTotalNrOfKeyWordInSignal = currLen + totalLen;
+      valPtr = (Uint64*)aValue;
     } else {
       if(!aligned || !nobytes){
-        Uint32 tempData[2000];
 	tempData[0] = type;
 	tempData[1] = ahValue;
 	tempData[2 + (len >> 2)] = 0;
         memcpy(tempData+2, aValue, len);
-	
 	insertBOUNDS(tempData, 2+sizeInWords);
+	valPtr = (Uint64*)(tempData+2);
       } else {
 	Uint32 buf[2] = { type, ahValue };
 	insertBOUNDS(buf, 2);
 	insertBOUNDS((Uint32*)aValue, sizeInWords);
+	valPtr = (Uint64*)aValue;
       }
     }
     theTupKeyLen = tupKeyLen + totalLen;
@@ -1223,7 +1229,7 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
     if(type == BoundEQ && tDistrKey)
     {
       theNoOfTupKeyLeft--;
-      return handle_distribution_key((Uint64*)aValue, sizeInWords);
+      return handle_distribution_key(valPtr, sizeInWords);
     }
     return 0;
   } else {
