@@ -29,7 +29,7 @@
 # Change this to match the version of the shared libs you want to include
 #
 %define version50 @MYSQL_NO_DASH_VERSION@
-%define version41 4.1.16
+%define version41 4.1.17
 %define version40 4.0.26
 %define version3 3.23.58
 

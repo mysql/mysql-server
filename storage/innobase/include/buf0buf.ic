@@ -625,8 +625,6 @@ buf_page_release(
 					RW_NO_LATCH */
 	mtr_t*		mtr)		/* in: mtr */
 {
-	ulint	buf_fix_count;
-
 	ut_ad(block);
 
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
@@ -643,8 +641,7 @@ buf_page_release(
 #ifdef UNIV_SYNC_DEBUG
 	rw_lock_s_unlock(&(block->debug_latch));
 #endif
-	buf_fix_count = block->buf_fix_count;
-	block->buf_fix_count = buf_fix_count - 1;
+	block->buf_fix_count--;
 
 	mutex_exit(&block->mutex);
 
