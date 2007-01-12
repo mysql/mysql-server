@@ -312,9 +312,17 @@ typedef void* os_thread_ret_t;
 # include <valgrind/memcheck.h>
 # define UNIV_MEM_VALID(addr, size) VALGRIND_MAKE_MEM_DEFINED(addr, size)
 # define UNIV_MEM_INVALID(addr, size) VALGRIND_MAKE_MEM_UNDEFINED(addr, size)
+# define UNIV_MEM_FREE(addr, size) VALGRIND_MAKE_MEM_NOACCESS(addr, size)
+# define UNIV_MEM_ALLOC(addr, size) VALGRIND_MAKE_MEM_UNDEFINED(addr, size)
+# define UNIV_MEM_DESC(addr, size, b) VALGRIND_CREATE_BLOCK(addr, size, b)
+# define UNIV_MEM_UNDESC(b) VALGRIND_DISCARD(b)
 #else
 # define UNIV_MEM_VALID(addr, size) do {} while(0)
 # define UNIV_MEM_INVALID(addr, size) do {} while(0)
+# define UNIV_MEM_FREE(addr, size) do {} while(0)
+# define UNIV_MEM_ALLOC(addr, size) do {} while(0)
+# define UNIV_MEM_DESC(addr, size, b) do {} while(0)
+# define UNIV_MEM_UNDESC(b) do {} while(0)
 #endif
 
 #endif

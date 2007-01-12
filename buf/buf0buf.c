@@ -596,6 +596,8 @@ buf_block_init(
 	buf_block_t*	block,	/* in: pointer to control block */
 	byte*		frame)	/* in: pointer to buffer frame */
 {
+	UNIV_MEM_DESC(frame, UNIV_PAGE_SIZE, block);
+
 	block->frame = frame;
 
 	block->page.state = BUF_BLOCK_NOT_USED;
@@ -863,6 +865,7 @@ buf_chunk_free(
 #ifdef UNIV_SYNC_DEBUG
 		rw_lock_free(&block->debug_latch);
 #endif /* UNIV_SYNC_DEBUG */
+		UNIV_MEM_UNDESC(block);
 	}
 
 	os_mem_free_large(chunk->mem, chunk->mem_size);
@@ -1936,6 +1939,10 @@ buf_page_init(
 
 	/* Set the state of the block */
 	buf_block_set_file_page(block, space, offset);
+	/* Silence valid Valgrind warnings about uninitialized
+	data being written to data files.  There are some unused
+	bytes on some pages that InnoDB does not initialize. */
+	UNIV_MEM_VALID(block->frame, UNIV_PAGE_SIZE);
 
 	block->check_index_page_at_flush = FALSE;
 	block->index		= NULL;
@@ -2139,6 +2146,7 @@ buf_page_init_for_read(
 			mutex_enter(&buf_pool->zip_mutex);
 
 			buf_relocate(bpage, &block->page);
+			UNIV_MEM_DESC(bpage->zip.data, zip_size, block);
 
 			if (buf_page_get_state(&block->page)
 			    == BUF_BLOCK_ZIP_PAGE) {
