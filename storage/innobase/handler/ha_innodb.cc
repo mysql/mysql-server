@@ -39,9 +39,6 @@ have disables the InnoDB inlining in this file. */
 #include <myisampack.h>
 #include <mysys_err.h>
 #include <my_sys.h>
-
-#define MAX_ULONG_BIT ((ulong) 1 << (sizeof(ulong)*8-1))
-
 #include "ha_innodb.h"
 
 pthread_mutex_t innobase_share_mutex,	/* to protect innobase_open_files */
@@ -1261,18 +1258,6 @@ trx_is_interrupted(
 	return(trx && trx->mysql_thd && ((THD*) trx->mysql_thd)->killed);
 }
 
-/**************************************************************************
-Obtain a pointer to the MySQL THD object, as in current_thd().	This
-definition must match the one in sql/ha_innodb.cc! */
-extern "C"
-void*
-innobase_current_thd(void)
-/*======================*/
-			/* out: MySQL THD object */
-{
-	return(current_thd);
-}
-
 /*********************************************************************
 Call this when you have opened a new table handle in HANDLER, before you
 call index_read_idx() etc. Actually, we can let the cursor stay open even
@@ -2354,7 +2339,7 @@ ha_innobase::open(
 
 	/* Get pointer to a table object in InnoDB dictionary cache */
 
-	ib_table = dict_table_get_and_increment_handle_count(norm_name);
+	ib_table = dict_table_get(norm_name, TRUE);
 
 	if (NULL == ib_table) {
 		ut_print_timestamp(stderr);
@@ -4451,7 +4436,7 @@ ha_innobase::rnd_pos(
 	}
 
 	if (error) {
-	        DBUG_PRINT("error", ("Got error: %d", error));
+		DBUG_PRINT("error", ("Got error: %d", error));
 		DBUG_RETURN(error);
 	}
 
@@ -4932,7 +4917,7 @@ ha_innobase::create(
 
 	log_buffer_flush_to_disk();
 
-	innobase_table = dict_table_get(norm_name);
+	innobase_table = dict_table_get(norm_name, FALSE);
 
 	DBUG_ASSERT(innobase_table != 0);
 
@@ -5543,16 +5528,10 @@ ha_innobase::info(
 		prebuilt->trx->op_info = (char*)
 					  "returning various info to MySQL";
 
-		if (ib_table->space != 0) {
-			my_snprintf(path, sizeof(path), "%s/%s%s",
-				mysql_data_home, ib_table->name, ".ibd");
-			unpack_filename(path,path);
-		} else {
-			my_snprintf(path, sizeof(path), "%s/%s%s",
+		my_snprintf(path, sizeof(path), "%s/%s%s",
 				mysql_data_home, ib_table->name, reg_ext);
 
-			unpack_filename(path,path);
-		}
+		unpack_filename(path,path);
 
 		/* Note that we do not know the access time of the table,
 		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
@@ -6617,22 +6596,23 @@ innodb_mutex_show_status(
 {
 	char buf1[IO_SIZE], buf2[IO_SIZE];
 	mutex_t*  mutex;
+#ifdef UNIV_DEBUG
 	ulint	  rw_lock_count= 0;
 	ulint	  rw_lock_count_spin_loop= 0;
 	ulint	  rw_lock_count_spin_rounds= 0;
 	ulint	  rw_lock_count_os_wait= 0;
 	ulint	  rw_lock_count_os_yield= 0;
 	ulonglong rw_lock_wait_time= 0;
+#endif /* UNIV_DEBUG */
 	uint	  hton_name_len= strlen(innobase_hton_name), buf1len, buf2len;
 	DBUG_ENTER("innodb_mutex_show_status");
 
-#ifdef MUTEX_PROTECT_TO_BE_ADDED_LATER
-	mutex_enter(&mutex_list_mutex);
-#endif
+	mutex_enter_noninline(&mutex_list_mutex);
 
 	mutex = UT_LIST_GET_FIRST(mutex_list);
 
 	while (mutex != NULL) {
+#ifdef UNIV_DEBUG
 		if (mutex->mutex_type != 1) {
 			if (mutex->count_using > 0) {
 				buf1len= my_snprintf(buf1, sizeof(buf1),
@@ -6648,14 +6628,13 @@ innodb_mutex_show_status(
 					mutex->count_spin_rounds,
 					mutex->count_os_wait,
 					mutex->count_os_yield,
-                                        (ulong) (mutex->lspent_time/1000));
+					(ulong) (mutex->lspent_time/1000));
 
 				if (stat_print(thd, innobase_hton_name,
 						hton_name_len, buf1, buf1len,
 						buf2, buf2len)) {
-#ifdef MUTEX_PROTECT_TO_BE_ADDED_LATER
-					mutex_exit(&mutex_list_mutex);
-#endif
+					mutex_exit_noninline(
+						&mutex_list_mutex);
 					DBUG_RETURN(1);
 				}
 			}
@@ -6668,26 +6647,39 @@ innodb_mutex_show_status(
 			rw_lock_count_os_yield += mutex->count_os_yield;
 			rw_lock_wait_time += mutex->lspent_time;
 		}
+#else /* UNIV_DEBUG */
+		buf1len= my_snprintf(buf1, sizeof(buf1), "%s:%lu",
+				     mutex->cfile_name, (ulong) mutex->cline);
+		buf2len= my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
+				     mutex->count_os_wait);
+
+		if (stat_print(thd, innobase_hton_name,
+			       hton_name_len, buf1, buf1len,
+			       buf2, buf2len)) {
+			mutex_exit_noninline(&mutex_list_mutex);
+			DBUG_RETURN(1);
+		}
+#endif /* UNIV_DEBUG */
 
 		mutex = UT_LIST_GET_NEXT(list, mutex);
 	}
 
+	mutex_exit_noninline(&mutex_list_mutex);
+
+#ifdef UNIV_DEBUG
 	buf2len= my_snprintf(buf2, sizeof(buf2),
 		"count=%lu, spin_waits=%lu, spin_rounds=%lu, "
 		"os_waits=%lu, os_yields=%lu, os_wait_times=%lu",
 		rw_lock_count, rw_lock_count_spin_loop,
 		rw_lock_count_spin_rounds,
 		rw_lock_count_os_wait, rw_lock_count_os_yield,
-                (ulong) (rw_lock_wait_time/1000));
+		(ulong) (rw_lock_wait_time/1000));
 
 	if (stat_print(thd, innobase_hton_name, hton_name_len,
 			STRING_WITH_LEN("rw_lock_mutexes"), buf2, buf2len)) {
 		DBUG_RETURN(1);
 	}
-
-#ifdef MUTEX_PROTECT_TO_BE_ADDED_LATER
-	mutex_exit(&mutex_list_mutex);
-#endif
+#endif /* UNIV_DEBUG */
 
 	DBUG_RETURN(FALSE);
 }
@@ -7360,7 +7352,6 @@ innobase_get_at_most_n_mbchars(
 }
 }
 
-extern "C" {
 /**********************************************************************
 This function returns true if
 
@@ -7370,33 +7361,34 @@ is either REPLACE or LOAD DATA INFILE REPLACE.
 2) SQL-query in the current thread
 is INSERT ON DUPLICATE KEY UPDATE.
 
-NOTE that /mysql/innobase/row/row0ins.c must contain the
+NOTE that storage/innobase/row/row0ins.c must contain the
 prototype for this function ! */
-
+extern "C"
 ibool
 innobase_query_is_update(void)
 /*==========================*/
 {
-	THD*	thd;
+	THD*	thd = current_thd;
 
-	thd = (THD *)innobase_current_thd();
+	if (!thd) {
+		/* InnoDB's internal threads may run InnoDB stored procedures
+		that call this function. Then current_thd is not defined
+		(it is probably NULL). */
 
-	if (thd->lex->sql_command == SQLCOM_REPLACE ||
-		thd->lex->sql_command == SQLCOM_REPLACE_SELECT ||
-		(thd->lex->sql_command == SQLCOM_LOAD &&
-			thd->lex->duplicates == DUP_REPLACE)) {
-
-		return(1);
+		return(FALSE);
 	}
 
-	if (thd->lex->sql_command == SQLCOM_INSERT &&
-		thd->lex->duplicates  == DUP_UPDATE) {
-
-		return(1);
+	switch (thd->lex->sql_command) {
+	case SQLCOM_REPLACE:
+	case SQLCOM_REPLACE_SELECT:
+		return(TRUE);
+	case SQLCOM_LOAD:
+		return(thd->lex->duplicates == DUP_REPLACE);
+	case SQLCOM_INSERT:
+		return(thd->lex->duplicates == DUP_UPDATE);
+	default:
+		return(FALSE);
 	}
-
-	return(0);
-}
 }
 
 /***********************************************************************

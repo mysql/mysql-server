@@ -326,26 +326,20 @@ dict_foreign_parse_drop_constraints(
 	const char***	constraints_to_drop);	/* out: id's of the
 						constraints to drop */
 /**************************************************************************
-Returns a table object. NOTE! This is a high-level function to be used
-mainly from outside the 'dict' directory. Inside this directory
-dict_table_get_low is usually the appropriate function. */
+Returns a table object and optionally increment its MySQL open handle count.
+NOTE! This is a high-level function to be used mainly from outside the
+'dict' directory. Inside this directory dict_table_get_low is usually the
+appropriate function. */
 
 dict_table_t*
 dict_table_get(
 /*===========*/
 					/* out: table, NULL if
 					does not exist */
-	const char*	table_name);	/* in: table name */
-/**************************************************************************
-Returns a table object and increments MySQL open handle count on the table.
-*/
-
-dict_table_t*
-dict_table_get_and_increment_handle_count(
-/*======================================*/
-					/* out: table, NULL if
-					does not exist */
-	const char*	table_name);	/* in: table name */
+	const char*	table_name,	/* in: table name */
+	ibool		inc_mysql_count);
+					/* in: whether to increment the open
+					handle count on the table */
 /**************************************************************************
 Returns a table object based on table id. */
 

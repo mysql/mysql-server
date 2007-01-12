@@ -369,6 +369,19 @@ cd ../..
 
 ##############################################################################
 
+# Include libgcc.a in the devel subpackage (BUG 4921)
+if expr "$CC" : ".*gcc.*" > /dev/null ;
+then
+  libgcc=`$CC $CFLAGS --print-libgcc-file`
+  if [ -f $libgcc ]
+  then
+    %define have_libgcc 1
+    install -m 644 $libgcc $RBR%{_libdir}/mysql/libmygcc.a
+  fi
+fi
+
+##############################################################################
+
 %install
 RBR=$RPM_BUILD_ROOT
 MBD=$RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-release-%{mysql_version}
@@ -654,6 +667,9 @@ fi
 %{_includedir}/mysql/*
 %{_libdir}/mysql/libdbug.a
 %{_libdir}/mysql/libheap.a
+%if %{have_libgcc}
+%{_libdir}/mysql/libmygcc.a
+%endif
 %{_libdir}/mysql/libmyisam.a
 %{_libdir}/mysql/libmyisammrg.a
 %{_libdir}/mysql/libmysqlclient.a
@@ -689,6 +705,13 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Fri Jan 05 2007 Kent Boortz <kent@mysql.com>
+
+- Put back "libmygcc.a", found no real reason it was removed.
+
+- Add CFLAGS to gcc call with --print-libgcc-file, to make sure the
+  correct "libgcc.a" path is returned for the 32/64 bit architecture.
+
 * Mon Dec 18 2006 Joerg Bruehe <joerg@mysql.com>
 
 - Fix the move of "mysqlmanager" to section 8: Directory name was wrong.

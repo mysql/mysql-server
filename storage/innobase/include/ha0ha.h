@@ -41,16 +41,23 @@ Creates a hash table with >= n array cells. The actual number of cells is
 chosen to be a prime number slightly bigger than n. */
 
 hash_table_t*
-ha_create(
-/*======*/
+ha_create_func(
+/*===========*/
 				/* out, own: created table */
 	ibool	in_btr_search,	/* in: TRUE if the hash table is used in
 				the btr_search module */
 	ulint	n,		/* in: number of array cells */
-	ulint	n_mutexes,	/* in: number of mutexes to protect the
-				hash table: must be a power of 2 */
-	ulint	mutex_level);	/* in: level of the mutexes in the latching
+#ifdef UNIV_SYNC_DEBUG
+	ulint	mutex_level,	/* in: level of the mutexes in the latching
 				order: this is used in the debug version */
+#endif /* UNIV_SYNC_DEBUG */
+	ulint	n_mutexes);	/* in: number of mutexes to protect the
+				hash table: must be a power of 2 */
+#ifdef UNIV_SYNC_DEBUG
+# define ha_create(b,n_c,n_m,level) ha_create_func(b,n_c,level,n_m)
+#else /* UNIV_SYNC_DEBUG */
+# define ha_create(b,n_c,n_m,level) ha_create_func(b,n_c,n_m)
+#endif /* UNIV_SYNC_DEBUG */
 /*****************************************************************
 Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
