@@ -40,6 +40,56 @@ buf_buddy_get(
 }
 
 /**************************************************************************
+Add a block to the head of the appropriate buddy free list. */
+UNIV_INLINE
+void
+buf_buddy_add_to_free(
+/*==================*/
+	buf_page_t*	bpage,	/* in,own: block to be freed */
+	ulint		i)	/* in: index of buf_pool->zip_free[] */
+{
+#ifdef UNIV_DEBUG_VALGRIND
+	buf_page_t*	b  = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
+
+	if (b) UNIV_MEM_VALID(b, BUF_BUDDY_LOW << i);
+#endif /* UNIV_DEBUG_VALGRIND */
+
+	ut_ad(buf_pool->zip_free[i].start != bpage);
+	UT_LIST_ADD_FIRST(list, buf_pool->zip_free[i], bpage);
+
+#ifdef UNIV_DEBUG_VALGRIND
+	if (b) UNIV_MEM_FREE(b, BUF_BUDDY_LOW << i);
+	UNIV_MEM_FREE(bpage, BUF_BUDDY_LOW << i);
+#endif /* UNIV_DEBUG_VALGRIND */
+}
+
+/**************************************************************************
+Remove a block from the appropriate buddy free list. */
+UNIV_INLINE
+void
+buf_buddy_remove_from_free(
+/*=======================*/
+	buf_page_t*	bpage,	/* in: block to be removed */
+	ulint		i)	/* in: index of buf_pool->zip_free[] */
+{
+#ifdef UNIV_DEBUG_VALGRIND
+	buf_page_t*	prev = UT_LIST_GET_PREV(list, bpage);
+	buf_page_t*	next = UT_LIST_GET_NEXT(list, bpage);
+
+	if (prev) UNIV_MEM_VALID(prev, BUF_BUDDY_LOW << i);
+	if (next) UNIV_MEM_VALID(next, BUF_BUDDY_LOW << i);
+#endif /* UNIV_DEBUG_VALGRIND */
+
+	ut_ad(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);
+	UT_LIST_REMOVE(list, buf_pool->zip_free[i], bpage);
+
+#ifdef UNIV_DEBUG_VALGRIND
+	if (prev) UNIV_MEM_FREE(prev, BUF_BUDDY_LOW << i);
+	if (next) UNIV_MEM_FREE(next, BUF_BUDDY_LOW << i);
+#endif /* UNIV_DEBUG_VALGRIND */
+}
+
+/**************************************************************************
 Try to allocate a block from buf_pool->zip_free[]. */
 static
 void*
@@ -66,7 +116,7 @@ buf_buddy_alloc_zip(
 		UNIV_MEM_VALID(bpage, BUF_BUDDY_LOW << i);
 		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);
 
-		UT_LIST_REMOVE(list, buf_pool->zip_free[i], bpage);
+		buf_buddy_remove_from_free(bpage, i);
 	} else if (i + 1 < BUF_BUDDY_SIZES) {
 		/* Attempt to split. */
 		bpage = buf_buddy_alloc_zip(i + 1);
@@ -78,9 +128,7 @@ buf_buddy_alloc_zip(
 			ut_ad(!buf_pool_contains_zip(buddy));
 			ut_d(memset(buddy, i, BUF_BUDDY_LOW << i));
 			buddy->state = BUF_BLOCK_ZIP_FREE;
-			ut_ad(buf_pool->zip_free[i].start != buddy);
-			UT_LIST_ADD_FIRST(list, buf_pool->zip_free[i], buddy);
-			UNIV_MEM_FREE(buddy, BUF_BUDDY_LOW << i);
+			buf_buddy_add_to_free(buddy, i);
 		}
 	}
 
@@ -166,9 +214,6 @@ buf_buddy_alloc_from(
 	/* Add the unused parts of the block to the free lists. */
 	while (j > i) {
 		buf_page_t*	bpage;
-#ifdef UNIV_DEBUG_VALGRIND
-		buf_page_t*	b;
-#endif /* UNIV_DEBUG_VALGRIND */
 
 		offs >>= 1;
 		j--;
@@ -179,17 +224,8 @@ buf_buddy_alloc_from(
 #if defined UNIV_DEBUG && !defined UNIV_DEBUG_VALGRIND
 		/* Valgrind would complain about accessing free memory. */
 		UT_LIST_VALIDATE(list, buf_page_t, buf_pool->zip_free[j]);
-		ut_ad(buf_pool->zip_free[j].start != bpage);
 #endif /* UNIV_DEBUG && !UNIV_DEBUG_VALGRIND */
-#ifdef UNIV_DEBUG_VALGRIND
-		b = UT_LIST_GET_FIRST(buf_pool->zip_free[j]);
-		if (b) UNIV_MEM_VALID(b, BUF_BUDDY_LOW << j);
-#endif /* UNIV_DEBUG_VALGRIND */
-		UT_LIST_ADD_FIRST(list, buf_pool->zip_free[j], bpage);
-#ifdef UNIV_DEBUG_VALGRIND
-		if (b) UNIV_MEM_FREE(b, BUF_BUDDY_LOW << j);
-#endif /* UNIV_DEBUG_VALGRIND */
-		UNIV_MEM_FREE(bpage, BUF_BUDDY_LOW << j);
+		buf_buddy_add_to_free(bpage, j);
 	}
 
 	return(buf);
@@ -513,7 +549,10 @@ buf_buddy_free_low(
 	ut_a(!mutex_own(&buf_pool->zip_mutex));
 #endif /* UNIV_SYNC_DEBUG */
 recombine:
+#ifdef UNIV_DEBUG_VALGRIND
+	VALGRIND_CHECK_MEM_IS_ADDRESSABLE(buf, BUF_BUDDY_LOW << i);
 	UNIV_MEM_INVALID(buf, BUF_BUDDY_LOW << i);
+#endif /* UNIV_DEBUG_VALGRIND */
 	ut_d(((buf_page_t*) buf)->state = BUF_BLOCK_ZIP_FREE);
 
 	if (i == BUF_BUDDY_SIZES) {
@@ -542,15 +581,14 @@ recombine:
 	it is in the free list. */
 #endif /* !UNIV_DEBUG_VALGRIND */
 
-	for (bpage = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
-	     bpage; bpage = UT_LIST_GET_NEXT(list, bpage)) {
+	for (bpage = UT_LIST_GET_FIRST(buf_pool->zip_free[i]); bpage; ) {
 		UNIV_MEM_VALID(bpage, BUF_BUDDY_LOW << i);
 		ut_ad(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);
 
 		if (bpage == buddy) {
 buddy_free:
 			/* The buddy is free: recombine */
-			UT_LIST_REMOVE(list, buf_pool->zip_free[i], bpage);
+			buf_buddy_remove_from_free(bpage, i);
 buddy_free2:
 			ut_ad(buf_page_get_state(buddy) == BUF_BLOCK_ZIP_FREE);
 			ut_ad(!buf_pool_contains_zip(buddy));
@@ -560,8 +598,13 @@ buddy_free2:
 			goto recombine;
 		}
 
-		UNIV_MEM_FREE(bpage, BUF_BUDDY_LOW << i);
 		ut_a(bpage != buf);
+
+		{
+			buf_page_t*	next = UT_LIST_GET_NEXT(list, bpage);
+			UNIV_MEM_FREE(bpage, BUF_BUDDY_LOW << i);
+			bpage = next;
+		}
 	}
 
 #ifndef UNIV_DEBUG_VALGRIND
@@ -579,7 +622,7 @@ buddy_nonfree:
 
 		UNIV_MEM_ALLOC(bpage, BUF_BUDDY_LOW << i);
 		UNIV_MEM_VALID(&bpage->list, sizeof bpage->list);
-		UT_LIST_REMOVE(list, buf_pool->zip_free[i], bpage);
+		buf_buddy_remove_from_free(bpage, i);
 
 		/* Try to relocate the buddy of buf to the free block. */
 		if (buf_buddy_relocate(buddy, bpage, i)) {
@@ -588,15 +631,15 @@ buddy_nonfree:
 			goto buddy_free2;
 		}
 
-		UT_LIST_ADD_FIRST(list, buf_pool->zip_free[i], bpage);
-		UNIV_MEM_FREE(bpage, BUF_BUDDY_LOW << i);
+		buf_buddy_add_to_free(bpage, i);
 
 		/* Try to relocate the buddy of the free block to buf. */
 		buddy = (buf_page_t*) buf_buddy_get(((byte*) bpage),
 						    BUF_BUDDY_LOW << i);
 
-#if defined UNIV_DEBUG && !defined UNIV_DEBUG_VALGRIND
-		/* Valgrind would complain about accessing free memory. */
+#ifdef UNIV_DEBUG_VALGRIND
+		VALGRIND_CHECK_MEM_IS_ADDRESSABLE(buddy, BUF_BUDDY_LOW << i);
+#elif defined UNIV_DEBUG
 		{
 			const buf_page_t* b;
 
@@ -671,8 +714,6 @@ buddy_nonfree:
 		memset(bpage, i, BUF_BUDDY_LOW << i);
 	}
 #endif /* UNIV_DEBUG */
-	UNIV_MEM_FREE(buf, BUF_BUDDY_LOW << i);
 	bpage->state = BUF_BLOCK_ZIP_FREE;
-	ut_ad(buf_pool->zip_free[i].start != bpage);
-	UT_LIST_ADD_FIRST(list, buf_pool->zip_free[i], bpage);
+	buf_buddy_add_to_free(bpage, i);
 }
