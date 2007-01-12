@@ -1150,6 +1150,7 @@ libmysqld/sql_prepare.cc
 libmysqld/sql_rename.cc
 libmysqld/sql_repl.cc
 libmysqld/sql_select.cc
+libmysqld/sql_servers.cc
 libmysqld/sql_show.cc
 libmysqld/sql_state.c
 libmysqld/sql_string.cc

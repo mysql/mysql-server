@@ -199,6 +199,421 @@ Pos	Instruction
 44	jump 14
 45	stmt 9 "drop temporary table sudoku_work, sud..."
 drop procedure sudoku_solve;
+DROP PROCEDURE IF EXISTS proc_19194_simple;
+DROP PROCEDURE IF EXISTS proc_19194_searched;
+DROP PROCEDURE IF EXISTS proc_19194_nested_1;
+DROP PROCEDURE IF EXISTS proc_19194_nested_2;
+DROP PROCEDURE IF EXISTS proc_19194_nested_3;
+DROP PROCEDURE IF EXISTS proc_19194_nested_4;
+CREATE PROCEDURE proc_19194_simple(i int)
+BEGIN
+DECLARE str CHAR(10);
+CASE i
+WHEN 1 THEN SET str="1";
+WHEN 2 THEN SET str="2";
+WHEN 3 THEN SET str="3";
+ELSE SET str="unknown";
+END CASE;
+SELECT str;
+END|
+CREATE PROCEDURE proc_19194_searched(i int)
+BEGIN
+DECLARE str CHAR(10);
+CASE
+WHEN i=1 THEN SET str="1";
+WHEN i=2 THEN SET str="2";
+WHEN i=3 THEN SET str="3";
+ELSE SET str="unknown";
+END CASE;
+SELECT str;
+END|
+CREATE PROCEDURE proc_19194_nested_1(i int, j int)
+BEGIN
+DECLARE str_i CHAR(10);
+DECLARE str_j CHAR(10);
+CASE i
+WHEN 10 THEN SET str_i="10";
+WHEN 20 THEN
+BEGIN
+set str_i="20";
+CASE
+WHEN j=1 THEN SET str_j="1";
+WHEN j=2 THEN SET str_j="2";
+WHEN j=3 THEN SET str_j="3";
+ELSE SET str_j="unknown";
+END CASE;
+select "i was 20";
+END;
+WHEN 30 THEN SET str_i="30";
+WHEN 40 THEN SET str_i="40";
+ELSE SET str_i="unknown";
+END CASE;
+SELECT str_i, str_j;
+END|
+CREATE PROCEDURE proc_19194_nested_2(i int, j int)
+BEGIN
+DECLARE str_i CHAR(10);
+DECLARE str_j CHAR(10);
+CASE
+WHEN i=10 THEN SET str_i="10";
+WHEN i=20 THEN
+BEGIN
+set str_i="20";
+CASE j
+WHEN 1 THEN SET str_j="1";
+WHEN 2 THEN SET str_j="2";
+WHEN 3 THEN SET str_j="3";
+ELSE SET str_j="unknown";
+END CASE;
+select "i was 20";
+END;
+WHEN i=30 THEN SET str_i="30";
+WHEN i=40 THEN SET str_i="40";
+ELSE SET str_i="unknown";
+END CASE;
+SELECT str_i, str_j;
+END|
+CREATE PROCEDURE proc_19194_nested_3(i int, j int)
+BEGIN
+DECLARE str_i CHAR(10);
+DECLARE str_j CHAR(10);
+CASE i
+WHEN 10 THEN SET str_i="10";
+WHEN 20 THEN
+BEGIN
+set str_i="20";
+CASE j
+WHEN 1 THEN SET str_j="1";
+WHEN 2 THEN SET str_j="2";
+WHEN 3 THEN SET str_j="3";
+ELSE SET str_j="unknown";
+END CASE;
+select "i was 20";
+END;
+WHEN 30 THEN SET str_i="30";
+WHEN 40 THEN SET str_i="40";
+ELSE SET str_i="unknown";
+END CASE;
+SELECT str_i, str_j;
+END|
+CREATE PROCEDURE proc_19194_nested_4(i int, j int)
+BEGIN
+DECLARE str_i CHAR(10);
+DECLARE str_j CHAR(10);
+CASE
+WHEN i=10 THEN SET str_i="10";
+WHEN i=20 THEN
+BEGIN
+set str_i="20";
+CASE
+WHEN j=1 THEN SET str_j="1";
+WHEN j=2 THEN SET str_j="2";
+WHEN j=3 THEN SET str_j="3";
+ELSE SET str_j="unknown";
+END CASE;
+select "i was 20";
+END;
+WHEN i=30 THEN SET str_i="30";
+WHEN i=40 THEN SET str_i="40";
+ELSE SET str_i="unknown";
+END CASE;
+SELECT str_i, str_j;
+END|
+SHOW PROCEDURE CODE proc_19194_simple;
+Pos	Instruction
+0	set str@1 NULL
+1	set_case_expr (12) 0 i@0
+2	jump_if_not 5(12) (case_expr@0 = 1)
+3	set str@1 _latin1'1'
+4	jump 12
+5	jump_if_not 8(12) (case_expr@0 = 2)
+6	set str@1 _latin1'2'
+7	jump 12
+8	jump_if_not 11(12) (case_expr@0 = 3)
+9	set str@1 _latin1'3'
+10	jump 12
+11	set str@1 _latin1'unknown'
+12	stmt 0 "SELECT str"
+SHOW PROCEDURE CODE proc_19194_searched;
+Pos	Instruction
+0	set str@1 NULL
+1	jump_if_not 4(11) (i@0 = 1)
+2	set str@1 _latin1'1'
+3	jump 11
+4	jump_if_not 7(11) (i@0 = 2)
+5	set str@1 _latin1'2'
+6	jump 11
+7	jump_if_not 10(11) (i@0 = 3)
+8	set str@1 _latin1'3'
+9	jump 11
+10	set str@1 _latin1'unknown'
+11	stmt 0 "SELECT str"
+SHOW PROCEDURE CODE proc_19194_nested_1;
+Pos	Instruction
+0	set str_i@2 NULL
+1	set str_j@3 NULL
+2	set_case_expr (27) 0 i@0
+3	jump_if_not 6(27) (case_expr@0 = 10)
+4	set str_i@2 _latin1'10'
+5	jump 27
+6	jump_if_not 20(27) (case_expr@0 = 20)
+7	set str_i@2 _latin1'20'
+8	jump_if_not 11(18) (j@1 = 1)
+9	set str_j@3 _latin1'1'
+10	jump 18
+11	jump_if_not 14(18) (j@1 = 2)
+12	set str_j@3 _latin1'2'
+13	jump 18
+14	jump_if_not 17(18) (j@1 = 3)
+15	set str_j@3 _latin1'3'
+16	jump 18
+17	set str_j@3 _latin1'unknown'
+18	stmt 0 "select "i was 20""
+19	jump 27
+20	jump_if_not 23(27) (case_expr@0 = 30)
+21	set str_i@2 _latin1'30'
+22	jump 27
+23	jump_if_not 26(27) (case_expr@0 = 40)
+24	set str_i@2 _latin1'40'
+25	jump 27
+26	set str_i@2 _latin1'unknown'
+27	stmt 0 "SELECT str_i, str_j"
+SHOW PROCEDURE CODE proc_19194_nested_2;
+Pos	Instruction
+0	set str_i@2 NULL
+1	set str_j@3 NULL
+2	jump_if_not 5(27) (i@0 = 10)
+3	set str_i@2 _latin1'10'
+4	jump 27
+5	jump_if_not 20(27) (i@0 = 20)
+6	set str_i@2 _latin1'20'
+7	set_case_expr (18) 0 j@1
+8	jump_if_not 11(18) (case_expr@0 = 1)
+9	set str_j@3 _latin1'1'
+10	jump 18
+11	jump_if_not 14(18) (case_expr@0 = 2)
+12	set str_j@3 _latin1'2'
+13	jump 18
+14	jump_if_not 17(18) (case_expr@0 = 3)
+15	set str_j@3 _latin1'3'
+16	jump 18
+17	set str_j@3 _latin1'unknown'
+18	stmt 0 "select "i was 20""
+19	jump 27
+20	jump_if_not 23(27) (i@0 = 30)
+21	set str_i@2 _latin1'30'
+22	jump 27
+23	jump_if_not 26(27) (i@0 = 40)
+24	set str_i@2 _latin1'40'
+25	jump 27
+26	set str_i@2 _latin1'unknown'
+27	stmt 0 "SELECT str_i, str_j"
+SHOW PROCEDURE CODE proc_19194_nested_3;
+Pos	Instruction
+0	set str_i@2 NULL
+1	set str_j@3 NULL
+2	set_case_expr (28) 0 i@0
+3	jump_if_not 6(28) (case_expr@0 = 10)
+4	set str_i@2 _latin1'10'
+5	jump 28
+6	jump_if_not 21(28) (case_expr@0 = 20)
+7	set str_i@2 _latin1'20'
+8	set_case_expr (19) 1 j@1
+9	jump_if_not 12(19) (case_expr@1 = 1)
+10	set str_j@3 _latin1'1'
+11	jump 19
+12	jump_if_not 15(19) (case_expr@1 = 2)
+13	set str_j@3 _latin1'2'
+14	jump 19
+15	jump_if_not 18(19) (case_expr@1 = 3)
+16	set str_j@3 _latin1'3'
+17	jump 19
+18	set str_j@3 _latin1'unknown'
+19	stmt 0 "select "i was 20""
+20	jump 28
+21	jump_if_not 24(28) (case_expr@0 = 30)
+22	set str_i@2 _latin1'30'
+23	jump 28
+24	jump_if_not 27(28) (case_expr@0 = 40)
+25	set str_i@2 _latin1'40'
+26	jump 28
+27	set str_i@2 _latin1'unknown'
+28	stmt 0 "SELECT str_i, str_j"
+SHOW PROCEDURE CODE proc_19194_nested_4;
+Pos	Instruction
+0	set str_i@2 NULL
+1	set str_j@3 NULL
+2	jump_if_not 5(26) (i@0 = 10)
+3	set str_i@2 _latin1'10'
+4	jump 26
+5	jump_if_not 19(26) (i@0 = 20)
+6	set str_i@2 _latin1'20'
+7	jump_if_not 10(17) (j@1 = 1)
+8	set str_j@3 _latin1'1'
+9	jump 17
+10	jump_if_not 13(17) (j@1 = 2)
+11	set str_j@3 _latin1'2'
+12	jump 17
+13	jump_if_not 16(17) (j@1 = 3)
+14	set str_j@3 _latin1'3'
+15	jump 17
+16	set str_j@3 _latin1'unknown'
+17	stmt 0 "select "i was 20""
+18	jump 26
+19	jump_if_not 22(26) (i@0 = 30)
+20	set str_i@2 _latin1'30'
+21	jump 26
+22	jump_if_not 25(26) (i@0 = 40)
+23	set str_i@2 _latin1'40'
+24	jump 26
+25	set str_i@2 _latin1'unknown'
+26	stmt 0 "SELECT str_i, str_j"
+CALL proc_19194_nested_1(10, 1);
+str_i	str_j
+10	NULL
+CALL proc_19194_nested_1(25, 1);
+str_i	str_j
+unknown	NULL
+CALL proc_19194_nested_1(20, 1);
+i was 20
+i was 20
+str_i	str_j
+20	1
+CALL proc_19194_nested_1(20, 2);
+i was 20
+i was 20
+str_i	str_j
+20	2
+CALL proc_19194_nested_1(20, 3);
+i was 20
+i was 20
+str_i	str_j
+20	3
+CALL proc_19194_nested_1(20, 4);
+i was 20
+i was 20
+str_i	str_j
+20	unknown
+CALL proc_19194_nested_1(30, 1);
+str_i	str_j
+30	NULL
+CALL proc_19194_nested_1(40, 1);
+str_i	str_j
+40	NULL
+CALL proc_19194_nested_1(0, 0);
+str_i	str_j
+unknown	NULL
+CALL proc_19194_nested_2(10, 1);
+str_i	str_j
+10	NULL
+CALL proc_19194_nested_2(25, 1);
+str_i	str_j
+unknown	NULL
+CALL proc_19194_nested_2(20, 1);
+i was 20
+i was 20
+str_i	str_j
+20	1
+CALL proc_19194_nested_2(20, 2);
+i was 20
+i was 20
+str_i	str_j
+20	2
+CALL proc_19194_nested_2(20, 3);
+i was 20
+i was 20
+str_i	str_j
+20	3
+CALL proc_19194_nested_2(20, 4);
+i was 20
+i was 20
+str_i	str_j
+20	unknown
+CALL proc_19194_nested_2(30, 1);
+str_i	str_j
+30	NULL
+CALL proc_19194_nested_2(40, 1);
+str_i	str_j
+40	NULL
+CALL proc_19194_nested_2(0, 0);
+str_i	str_j
+unknown	NULL
+CALL proc_19194_nested_3(10, 1);
+str_i	str_j
+10	NULL
+CALL proc_19194_nested_3(25, 1);
+str_i	str_j
+unknown	NULL
+CALL proc_19194_nested_3(20, 1);
+i was 20
+i was 20
+str_i	str_j
+20	1
+CALL proc_19194_nested_3(20, 2);
+i was 20
+i was 20
+str_i	str_j
+20	2
+CALL proc_19194_nested_3(20, 3);
+i was 20
+i was 20
+str_i	str_j
+20	3
+CALL proc_19194_nested_3(20, 4);
+i was 20
+i was 20
+str_i	str_j
+20	unknown
+CALL proc_19194_nested_3(30, 1);
+str_i	str_j
+30	NULL
+CALL proc_19194_nested_3(40, 1);
+str_i	str_j
+40	NULL
+CALL proc_19194_nested_3(0, 0);
+str_i	str_j
+unknown	NULL
+CALL proc_19194_nested_4(10, 1);
+str_i	str_j
+10	NULL
+CALL proc_19194_nested_4(25, 1);
+str_i	str_j
+unknown	NULL
+CALL proc_19194_nested_4(20, 1);
+i was 20
+i was 20
+str_i	str_j
+20	1
+CALL proc_19194_nested_4(20, 2);
+i was 20
+i was 20
+str_i	str_j
+20	2
+CALL proc_19194_nested_4(20, 3);
+i was 20
+i was 20
+str_i	str_j
+20	3
+CALL proc_19194_nested_4(20, 4);
+i was 20
+i was 20
+str_i	str_j
+20	unknown
+CALL proc_19194_nested_4(30, 1);
+str_i	str_j
+30	NULL
+CALL proc_19194_nested_4(40, 1);
+str_i	str_j
+40	NULL
+CALL proc_19194_nested_4(0, 0);
+str_i	str_j
+unknown	NULL
+DROP PROCEDURE proc_19194_simple;
+DROP PROCEDURE proc_19194_searched;
+DROP PROCEDURE proc_19194_nested_1;
+DROP PROCEDURE proc_19194_nested_2;
+DROP PROCEDURE proc_19194_nested_3;
+DROP PROCEDURE proc_19194_nested_4;
 DROP PROCEDURE IF EXISTS p1;
 CREATE PROCEDURE p1() CREATE INDEX idx ON t1 (c1);
 SHOW PROCEDURE CODE p1;
