@@ -764,12 +764,16 @@ class sys_var_thd_lc_time_names :public sys_var_thd
 public:
   sys_var_thd_lc_time_names(const char *name_arg):
     sys_var_thd(name_arg) 
-  {}
+  {
+#if MYSQL_VERSION_ID < 50000
+    no_support_one_shot= 0;
+#endif
+  }
   bool check(THD *thd, set_var *var);
   SHOW_TYPE type() { return SHOW_CHAR; }
   bool check_update_type(Item_result type)
   {
-    return type != STRING_RESULT;		/* Only accept strings */
+    return ((type != STRING_RESULT) && (type != INT_RESULT));
   }
   bool check_default(enum_var_type type) { return 0; }
   bool update(THD *thd, set_var *var);
