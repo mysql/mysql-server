@@ -658,4 +658,47 @@ select a from t1 where a > 'x';
 a
 xx
 drop table t1;
+CREATE TABLE t1 (
+OXID varchar(32) COLLATE latin1_german2_ci NOT NULL DEFAULT '',
+OXPARENTID varchar(32) COLLATE latin1_german2_ci NOT NULL DEFAULT 'oxrootid',
+OXLEFT int NOT NULL DEFAULT '0',
+OXRIGHT int NOT NULL DEFAULT '0',
+OXROOTID varchar(32) COLLATE latin1_german2_ci NOT NULL DEFAULT '',
+PRIMARY KEY  (OXID),
+KEY OXNID (OXID),
+KEY OXLEFT (OXLEFT),
+KEY OXRIGHT (OXRIGHT),
+KEY OXROOTID (OXROOTID)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_german2_ci;
+INSERT INTO t1 VALUES
+('d8c4177d09f8b11f5.52725521','oxrootid',1,40,'d8c4177d09f8b11f5.52725521'),
+('d8c4177d151affab2.81582770','d8c4177d09f8b11f5.52725521',2,3,
+'d8c4177d09f8b11f5.52725521'),
+('d8c4177d206a333d2.74422679','d8c4177d09f8b11f5.52725521',4,5,
+'d8c4177d09f8b11f5.52725521'),
+('d8c4177d225791924.30714720','d8c4177d09f8b11f5.52725521',6,7,
+'d8c4177d09f8b11f5.52725521'),
+('d8c4177d2380fc201.39666693','d8c4177d09f8b11f5.52725521',8,9,
+'d8c4177d09f8b11f5.52725521'),
+('d8c4177d24ccef970.14957924','d8c4177d09f8b11f5.52725521',10,11,
+'d8c4177d09f8b11f5.52725521');
+EXPLAIN
+SELECT s.oxid FROM t1 v, t1 s 
+WHERE s.oxrootid = 'd8c4177d09f8b11f5.52725521' AND
+v.oxrootid ='d8c4177d09f8b11f5.52725521' AND
+s.oxleft > v.oxleft AND s.oxleft < v.oxright;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	v	ref	OXLEFT,OXRIGHT,OXROOTID	OXROOTID	32	const	5	Using where
+1	SIMPLE	s	ALL	OXLEFT	NULL	NULL	NULL	5	Range checked for each record (index map: 0x4)
+SELECT s.oxid FROM t1 v, t1 s 
+WHERE s.oxrootid = 'd8c4177d09f8b11f5.52725521' AND
+v.oxrootid ='d8c4177d09f8b11f5.52725521' AND
+s.oxleft > v.oxleft AND s.oxleft < v.oxright;
+oxid
+d8c4177d151affab2.81582770
+d8c4177d206a333d2.74422679
+d8c4177d225791924.30714720
+d8c4177d2380fc201.39666693
+d8c4177d24ccef970.14957924
+DROP TABLE t1;
 End of 4.1 tests
