@@ -26,12 +26,15 @@ int main(int argc, char *argv[])
 
   printf("Version :%u\n", reader_handle.version);
   printf("Start position :%llu\n", (unsigned long long)reader_handle.start);
-  printf("Block size :%u\n", reader_handle.block_size);
-  printf("Rows: %llu\n", reader_handle.rows);
-  printf("Autoincrement: %llu\n", reader_handle.auto_increment);
-  printf("Check Point: %llu\n", reader_handle.check_point);
-  printf("Forced Flushes: %llu\n", reader_handle.forced_flushes);
-  printf("State: %s\n", ( reader_handle.dirty ? "dirty" : "clean"));
+  if (reader_handle.version > 2)
+  {
+    printf("Block size :%u\n", reader_handle.block_size);
+    printf("Rows: %llu\n", reader_handle.rows);
+    printf("Autoincrement: %llu\n", reader_handle.auto_increment);
+    printf("Check Point: %llu\n", reader_handle.check_point);
+    printf("Forced Flushes: %llu\n", reader_handle.forced_flushes);
+    printf("State: %s\n", ( reader_handle.dirty ? "dirty" : "clean"));
+  }
 
   azclose(&reader_handle);
 

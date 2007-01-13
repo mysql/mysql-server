@@ -49,7 +49,7 @@ void read_header(azio_stream *s, unsigned char *buffer);
 int az_open (azio_stream *s, const char *path, int Flags, File fd)
 {
   int err;
-  int level = Z_NO_COMPRESSION; /*         Z_DEFAULT_COMPRESSION;*/ /* compression level */
+  int level = Z_DEFAULT_COMPRESSION; /* compression level */
   int strategy = Z_DEFAULT_STRATEGY; /* compression strategy */
 
   s->stream.zalloc = (alloc_func)0;
@@ -165,7 +165,6 @@ void write_header(azio_stream *s)
   int4store(ptr + AZ_FRM_POS, 0); /* FRM Block */
   int4store(ptr + AZ_META_POS, 0); /* Meta Block */
   int8store(ptr + AZ_START_POS, (unsigned long long)s->start); /* Start of Data Block Index Block */
-  printf("ROWS %llu\n", s->rows);
   int8store(ptr + AZ_ROW_POS, (unsigned long long)s->rows); /* Start of Data Block Index Block */
   int8store(ptr + AZ_FLUSH_POS, (unsigned long long)s->forced_flushes); /* Start of Data Block Index Block */
   int8store(ptr + AZ_CHECK_POS, (unsigned long long)s->check_point); /* Start of Data Block Index Block */
