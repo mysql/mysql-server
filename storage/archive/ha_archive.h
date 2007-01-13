@@ -26,34 +26,39 @@
   ha_example.h.
 */
 
+typedef struct st_archive_record_buffer {
+  byte *buffer;
+  uint32 length;
+} archive_record_buffer;
+
+
 typedef struct st_archive_share {
   char *table_name;
   char data_file_name[FN_REFLEN];
   uint table_name_length,use_count;
   pthread_mutex_t mutex;
   THR_LOCK lock;
-  File meta_file;           /* Meta file we use */
   azio_stream archive_write;     /* Archive file we are working with */
   bool archive_write_open;
   bool dirty;               /* Flag for if a flush should occur */
   bool crashed;             /* Meta file is crashed */
   ha_rows rows_recorded;    /* Number of rows in tables */
-  ulonglong auto_increment_value;
-  ulonglong forced_flushes;
   ulonglong mean_rec_length;
-  char real_path[FN_REFLEN];
 } ARCHIVE_SHARE;
 
 /*
   Version for file format.
-  1 - Initial Version
+  1 - Initial Version (Never Released)
+  2 - Stream Compression, seperate blobs, no packing
+  3 - One steam (row and blobs), with packing
 */
-#define ARCHIVE_VERSION 2
+#define ARCHIVE_VERSION 3
 
 class ha_archive: public handler
 {
   THR_LOCK_DATA lock;        /* MySQL lock */
   ARCHIVE_SHARE *share;      /* Shared lock info */
+  
   azio_stream archive;            /* Archive file we are working with */
   my_off_t current_position;  /* The position of the row we just read */
   byte byte_buffer[IO_SIZE]; /* Initial buffer for our string */
@@ -64,6 +69,10 @@ class ha_archive: public handler
   const byte *current_key;
   uint current_key_len;
   uint current_k_offset;
+  archive_record_buffer *record_buffer;
+
+  archive_record_buffer *create_record_buffer(unsigned int length);
+  void destroy_record_buffer(archive_record_buffer *r);
 
 public:
   ha_archive(handlerton *hton, TABLE_SHARE *table_arg);
@@ -104,21 +113,13 @@ public:
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);
   int get_row(azio_stream *file_to_read, byte *buf);
-  int read_meta_file(File meta_file, ha_rows *rows, 
-                     ulonglong *auto_increment,
-                     ulonglong *forced_flushes,
-                     char *real_path);
-  int write_meta_file(File meta_file, ha_rows rows, 
-                      ulonglong auto_increment, 
-                      ulonglong forced_flushes, 
-                      char *real_path,
-                      bool dirty);
+  int get_row_version2(azio_stream *file_to_read, byte *buf);
+  int get_row_version3(azio_stream *file_to_read, byte *buf);
   ARCHIVE_SHARE *get_share(const char *table_name, TABLE *table, int *rc);
   int free_share(ARCHIVE_SHARE *share);
   int init_archive_writer();
   bool auto_repair() const { return 1; } // For the moment we just do this
   int read_data_header(azio_stream *file_to_read);
-  int write_data_header(azio_stream *file_to_write);
   void position(const byte *record);
   int info(uint);
   void update_create_info(HA_CREATE_INFO *create_info);
@@ -136,5 +137,9 @@ public:
   bool is_crashed() const;
   int check(THD* thd, HA_CHECK_OPT* check_opt);
   bool check_and_repair(THD *thd);
+  uint32 max_row_length(const byte *buf);
+  bool fix_rec_buff(unsigned int length);
+  int unpack_row(azio_stream *file_to_read, char *record);
+  unsigned int pack_row(byte *record);
 };
 
