@@ -28,7 +28,7 @@
 
 typedef struct st_archive_record_buffer {
   byte *buffer;
-  int length;
+  uint32 length;
 } archive_record_buffer;
 
 
@@ -71,7 +71,7 @@ class ha_archive: public handler
   uint current_k_offset;
   archive_record_buffer *record_buffer;
 
-  archive_record_buffer *create_record_buffer(ulonglong length); 
+  archive_record_buffer *create_record_buffer(unsigned int length);
   void destroy_record_buffer(archive_record_buffer *r);
 
 public:
@@ -137,9 +137,9 @@ public:
   bool is_crashed() const;
   int check(THD* thd, HA_CHECK_OPT* check_opt);
   bool check_and_repair(THD *thd);
-  int max_row_length(const byte *buf);
-  bool fix_rec_buff(int length);
+  uint32 max_row_length(const byte *buf);
+  bool fix_rec_buff(unsigned int length);
   int unpack_row(azio_stream *file_to_read, char *record);
-  unsigned int pack_row(const byte *record);
+  unsigned int pack_row(byte *record);
 };
 
