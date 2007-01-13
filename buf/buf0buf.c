@@ -1939,10 +1939,15 @@ buf_page_init(
 
 	/* Set the state of the block */
 	buf_block_set_file_page(block, space, offset);
-	/* Silence valid Valgrind warnings about uninitialized
-	data being written to data files.  There are some unused
-	bytes on some pages that InnoDB does not initialize. */
-	UNIV_MEM_VALID(block->frame, UNIV_PAGE_SIZE);
+
+#ifdef UNIV_DEBUG_VALGRIND
+	if (!space) {
+		/* Silence valid Valgrind warnings about uninitialized
+		data being written to data files.  There are some unused
+		bytes on some pages that InnoDB does not initialize. */
+		UNIV_MEM_VALID(block->frame, UNIV_PAGE_SIZE);
+	}
+#endif /* UNIV_DEBUG_VALGRIND */
 
 	block->check_index_page_at_flush = FALSE;
 	block->index		= NULL;
