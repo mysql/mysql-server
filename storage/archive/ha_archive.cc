@@ -303,7 +303,6 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name,
                                            length)))
   {
     char *tmp_name;
-    char tmp_file_name[FN_REFLEN];
     azio_stream archive_tmp;
 
     if (!my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
@@ -986,7 +985,7 @@ bool ha_archive::fix_rec_buff(unsigned int length)
                             length, record_buffer->length));
   DBUG_ASSERT(record_buffer->buffer);
 
-  if (length > record_buffer->length);
+  if (length > record_buffer->length)
   {
     byte *newptr;
     if (!(newptr=(byte*) my_realloc((gptr) record_buffer->buffer, 
@@ -1002,7 +1001,7 @@ bool ha_archive::fix_rec_buff(unsigned int length)
   DBUG_RETURN(0);
 }
 
-int ha_archive::unpack_row(azio_stream *file_to_read, char *record)
+int ha_archive::unpack_row(azio_stream *file_to_read, byte *record)
 {
   DBUG_ENTER("ha_archive::unpack_row");
 
@@ -1050,7 +1049,9 @@ int ha_archive::unpack_row(azio_stream *file_to_read, char *record)
 int ha_archive::get_row_version3(azio_stream *file_to_read, byte *buf)
 {
   DBUG_ENTER("ha_archive::get_row_version3");
+
   int returnable= unpack_row(file_to_read, buf);
+
   DBUG_RETURN(returnable);
 }
 
@@ -1284,7 +1285,7 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
       }
 
       dbug_tmp_restore_column_map(table->read_set, org_bitmap);
-      share->rows_recorded= writer.rows;
+      share->rows_recorded= (ha_rows)writer.rows;
     }
 
     DBUG_PRINT("info", ("recovered %llu archive rows", 
@@ -1380,13 +1381,8 @@ void ha_archive::update_create_info(HA_CREATE_INFO *create_info)
     create_info->auto_increment_value= stats.auto_increment_value + 1;
   }
 
-  if (!lstat(share->data_file_name, &stat_buff) && 
-      S_ISLNK(stat_buff.st_mode))
-  {
-    if (!(share->real_path[0]))
-      my_realpath(share->real_path, share->data_file_name,MYF(0));
+  if (!(my_readlink(share->real_path, share->data_file_name, MYF(0))))
     create_info->data_file_name= share->real_path;
-  }
 
   DBUG_VOID_RETURN;
 }

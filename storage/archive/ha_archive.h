@@ -140,7 +140,7 @@ public:
   bool check_and_repair(THD *thd);
   uint32 max_row_length(const byte *buf);
   bool fix_rec_buff(unsigned int length);
-  int unpack_row(azio_stream *file_to_read, char *record);
+  int unpack_row(azio_stream *file_to_read, byte *record);
   unsigned int pack_row(byte *record);
 };
 
