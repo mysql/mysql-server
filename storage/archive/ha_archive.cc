@@ -305,6 +305,7 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name,
     char *tmp_name;
     char tmp_file_name[FN_REFLEN];
     azio_stream archive_tmp;
+
     if (!my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
                           &share, sizeof(*share),
                           &tmp_name, length+1,
@@ -322,13 +323,13 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name,
     share->archive_write_open= FALSE;
     fn_format(share->data_file_name, table_name, "",
               ARZ,MY_REPLACE_EXT|MY_UNPACK_FILENAME);
-    strmov(share->table_name,table_name);
+    strmov(share->table_name, table_name);
+    DBUG_PRINT("ha_archive", ("Data File %s", 
+                        share->data_file_name));
     /*
       We will use this lock for rows.
     */
     VOID(pthread_mutex_init(&share->mutex,MY_MUTEX_INIT_FAST));
-    DBUG_PRINT("ha_archive", ("archive opening (1) up write at %s", 
-                        share->data_file_name));
     
     /*
       We read the meta file, but do not mark it dirty. Since we are not
@@ -341,7 +342,7 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name,
       DBUG_RETURN(NULL);
     }
     stats.auto_increment_value= archive_tmp.auto_increment;
-    share->rows_recorded= archive_tmp.rows;
+    share->rows_recorded= (ha_rows)archive_tmp.rows;
     share->crashed= archive_tmp.dirty;
     azclose(&archive_tmp);
 
@@ -569,29 +570,35 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   /* 
     We reuse name_buff since it is available.
   */
-  if (create_info->data_file_name)
+  if (create_info->data_file_name && create_info->data_file_name[0] != '#')
   {
     DBUG_PRINT("ha_archive", ("archive will create stream file %s", 
                         create_info->data_file_name));
                         
     fn_format(name_buff, create_info->data_file_name, "", ARZ,
-              MY_REPLACE_EXT|MY_UNPACK_FILENAME);
+              MY_REPLACE_EXT | MY_UNPACK_FILENAME);
     fn_format(linkname, name, "", ARZ,
-              MY_UNPACK_FILENAME | MY_APPEND_EXT);
+              MY_REPLACE_EXT | MY_UNPACK_FILENAME);
+              //MY_UNPACK_FILENAME | MY_APPEND_EXT);
   }
   else
   {
-    fn_format(name_buff, name,"", ARZ,
-              MY_REPLACE_EXT|MY_UNPACK_FILENAME);
+    fn_format(name_buff, name, "", ARZ,
+              MY_REPLACE_EXT | MY_UNPACK_FILENAME);
     linkname[0]= 0;
   }
 
-  if (!(azopen(&create_stream, linkname[0] ? linkname : name_buff, O_CREAT|O_RDWR|O_BINARY)))
+  if (!(azopen(&create_stream, name_buff, O_CREAT|O_RDWR|O_BINARY)))
   {
     error= errno;
     goto error2;
   }
 
+  if (linkname[0])
+    my_symlink(name_buff, linkname, MYF(0));
+
+  DBUG_PRINT("ha_archive", ("Creating File %s", name_buff));
+  DBUG_PRINT("ha_archive", ("Creating Link %s", linkname));
 
   /* 
     Yes you need to do this, because the starting value 
@@ -620,7 +627,6 @@ error:
 int ha_archive::real_write_row(byte *buf, azio_stream *writer)
 {
   my_off_t written;
-  uint *ptr, *end;
   unsigned int r_pack_length;
   DBUG_ENTER("ha_archive::real_write_row");
 
@@ -650,7 +656,7 @@ int ha_archive::real_write_row(byte *buf, azio_stream *writer)
 
 uint32 ha_archive::max_row_length(const byte *buf)
 {
-  ulonglong length= table->s->reclength + table->s->fields*2;
+  uint32 length= (uint32)(table->s->reclength + table->s->fields*2);
   length+= ARCHIVE_ROW_HEADER_SIZE;
 
   uint *ptr, *end;
@@ -658,7 +664,7 @@ uint32 ha_archive::max_row_length(const byte *buf)
        ptr != end ;
        ptr++)
   {
-      length += 2 + ((Field_blob*) table->field[*ptr])->get_length();
+      length += 2 + ((Field_blob*)table->field[*ptr])->get_length();
   }
 
   return length;
@@ -668,7 +674,6 @@ uint32 ha_archive::max_row_length(const byte *buf)
 unsigned int ha_archive::pack_row(byte *record)
 {
   byte *ptr;
-  ulonglong full_length;
 
   DBUG_ENTER("ha_archive::pack_row");
 
@@ -710,7 +715,6 @@ int ha_archive::write_row(byte *buf)
 {
   int rc;
   byte *read_buf= NULL;
-  byte *ptr;
   ulonglong temp_auto;
   byte *record=  table->record[0];
   DBUG_ENTER("ha_archive::write_row");
@@ -1061,7 +1065,7 @@ int ha_archive::get_row_version2(azio_stream *file_to_read, byte *buf)
   MY_BITMAP *read_set= table->read_set;
   DBUG_ENTER("ha_archive::get_row_version2");
 
-  read= azread(file_to_read, buf, table->s->reclength, &error);
+  read= azread(file_to_read, (voidp)buf, table->s->reclength, &error);
 
   /* If we read nothing we are at the end of the file */
   if (read == 0)
@@ -1219,10 +1223,12 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   azio_stream writer;
   char writer_filename[FN_REFLEN];
 
-  /* Open up the writer if we haven't yet */
-  /* Flush any waiting data */
+  // now we close both our writer and our reader for the rename
   if (share->archive_write_open)
-    azflush(&(share->archive_write), Z_SYNC_FLUSH);
+  {
+    azclose(&(share->archive_write));
+    share->archive_write_open= 0;
+  }
 
   /* Lets create a file to contain the new data */
   fn_format(writer_filename, share->table_name, "", ARN, 
@@ -1294,9 +1300,6 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   azclose(&writer);
   share->dirty= FALSE;
   
-  // now we close both our writer and our reader for the rename
-  azclose(&(share->archive_write));
-  share->archive_write_open= 0;
   azclose(&archive);
 
   // make the file we just wrote be our data file
@@ -1358,15 +1361,34 @@ THR_LOCK_DATA **ha_archive::store_lock(THD *thd,
 
 void ha_archive::update_create_info(HA_CREATE_INFO *create_info)
 {
-  ha_archive::info(HA_STATUS_AUTO | HA_STATUS_CONST);
+  struct stat stat_buff;
+
+  DBUG_ENTER("ha_archive::update_create_info");
+
+  ha_archive::info(HA_STATUS_AUTO);
   if (!(create_info->used_fields & HA_CREATE_USED_AUTO))
   {
-    create_info->auto_increment_value= stats.auto_increment_value;
+    /* 
+      Internally Archive keeps track of last used, not next used.
+      To make the output look like MyISAM we add 1 here.
+
+      This is not completely compatible with MYISAM though, since
+      MyISAM will record on "SHOW CREATE TABLE" the last position,
+      where we will report the original position the table was
+      created with.
+    */
+    create_info->auto_increment_value= stats.auto_increment_value + 1;
   }
-#ifdef DISABLED
-  if (share->real_path)
+
+  if (!lstat(share->data_file_name, &stat_buff) && 
+      S_ISLNK(stat_buff.st_mode))
+  {
+    if (!(share->real_path[0]))
+      my_realpath(share->real_path, share->data_file_name,MYF(0));
     create_info->data_file_name= share->real_path;
-#endif
+  }
+
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1560,7 +1582,7 @@ mysql_declare_plugin(archive)
   PLUGIN_LICENSE_GPL,
   archive_db_init, /* Plugin Init */
   archive_db_done, /* Plugin Deinit */
-  0x0300 /* 1.0 */,
+  0x0300 /* 3.0 */,
   NULL,                       /* status variables                */
   NULL,                       /* system variables                */
   NULL                        /* config options                  */
