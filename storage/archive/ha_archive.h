@@ -44,6 +44,7 @@ typedef struct st_archive_share {
   bool crashed;             /* Meta file is crashed */
   ha_rows rows_recorded;    /* Number of rows in tables */
   ulonglong mean_rec_length;
+  char real_path[FN_REFLEN];
 } ARCHIVE_SHARE;
 
 /*
