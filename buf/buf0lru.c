@@ -944,9 +944,17 @@ buf_LRU_free_block(
 		mutex_exit(&(buf_pool->mutex));
 		mutex_exit(block_mutex);
 
-		/* Remove possible adaptive hash index on the page */
+		/* Remove possible adaptive hash index on the page.
+		The page was declared uninitialized by
+		buf_LRU_block_remove_hashed_page().  We need to flag
+		the contents of the page valid (which it still is) in
+		order to avoid bogus Valgrind warnings.*/
 
+		UNIV_MEM_VALID(((buf_block_t*) bpage)->frame,
+			       UNIV_PAGE_SIZE);
 		btr_search_drop_page_hash_index((buf_block_t*) bpage);
+		UNIV_MEM_INVALID(((buf_block_t*) bpage)->frame,
+				 UNIV_PAGE_SIZE);
 		ut_a(bpage->buf_fix_count == 0);
 
 		if (bpage->zip.data && UNIV_LIKELY(srv_use_checksums)) {
