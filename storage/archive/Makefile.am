@@ -30,7 +30,7 @@ LDADD =
 DEFS =                  @DEFS@
 
 noinst_HEADERS =	ha_archive.h azlib.h
-noinst_PROGRAMS	=	archive_test
+noinst_PROGRAMS	=	archive_test archive_reader
 
 EXTRA_LTLIBRARIES =	ha_archive.la
 pkglib_LTLIBRARIES =	@plugin_archive_shared_target@
@@ -54,6 +54,14 @@ archive_test_LDADD =	$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/strings/libmystrings.a \
 			@ZLIB_LIBS@
 archive_test_LDFLAGS = @NOINST_LDFLAGS@
+
+archive_reader_SOURCES = archive_reader.c azio.c
+archive_reader_CFLAGS =	$(AM_CFLAGS)
+archive_reader_LDADD =	$(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/strings/libmystrings.a \
+			@ZLIB_LIBS@
+archive_reader_LDFLAGS = @NOINST_LDFLAGS@
 
 
 EXTRA_DIST =		CMakeLists.txt plug.in
