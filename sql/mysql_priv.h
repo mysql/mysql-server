@@ -173,6 +173,8 @@ MY_LOCALE *my_locale_by_name(const char *name);
 #define BDB_LOG_ALLOC_BLOCK_SIZE	1024
 #define WARN_ALLOC_BLOCK_SIZE		2048
 #define WARN_ALLOC_PREALLOC_SIZE	1024
+#define PROFILE_ALLOC_BLOCK_SIZE  2048
+#define PROFILE_ALLOC_PREALLOC_SIZE 1024
 
 /*
   The following parameters is to decide when to use an extra cache to
@@ -541,6 +543,8 @@ typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
 #include "field.h"				/* Field definitions */
 #include "protocol.h"
 #include "sql_udf.h"
+#include "sql_profile.h"
+
 class user_var_entry;
 class Security_context;
 enum enum_var_type

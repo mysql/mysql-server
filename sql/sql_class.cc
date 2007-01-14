@@ -247,6 +247,7 @@ THD::THD()
   init();
   /* Initialize sub structures */
   init_sql_alloc(&warn_root, WARN_ALLOC_BLOCK_SIZE, WARN_ALLOC_PREALLOC_SIZE);
+  profiling.set_thd(this);
   user_connect=(USER_CONN *)0;
   hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
 	    (hash_get_key) get_var_key,
@@ -329,6 +330,7 @@ void THD::init_for_queries()
                       variables.trans_alloc_block_size,
                       variables.trans_prealloc_size);
 #endif
+  profiling.reset();
   transaction.xid_state.xid.null();
   transaction.xid_state.in_thd=1;
 }
