@@ -1040,7 +1040,7 @@ int ha_archive::unpack_row(azio_stream *file_to_read, byte *record)
   memcpy(record, ptr, table->s->null_bytes);
   ptr+= table->s->null_bytes;
   for (Field **field=table->field ; *field ; field++)
-    ptr= (*field)->unpack(record + (*field)->offset(table->record[0]), ptr);
+    ptr= (*field)->unpack((char *)record + (*field)->offset(table->record[0]), ptr);
 
   DBUG_RETURN(0);
 }
