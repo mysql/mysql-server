@@ -448,9 +448,10 @@ my_bool sp_automatic_privileges= 1;
 ulong opt_binlog_rows_event_max_size;
 const char *binlog_format_names[]= {"STATEMENT", "ROW", "MIXED", NullS};
 TYPELIB binlog_format_typelib=
-  { array_elements(binlog_format_names)-1,"",
+  { array_elements(binlog_format_names) - 1, "",
     binlog_format_names, NULL };
-
+ulong opt_binlog_format_id= (ulong) BINLOG_FORMAT_UNSPEC;
+const char *opt_binlog_format= binlog_format_names[opt_binlog_format_id];
 #ifdef HAVE_INITGROUPS
 static bool calling_initgroups= FALSE; /* Used in SIGSEGV handler. */
 #endif
@@ -3153,17 +3154,24 @@ with --log-bin instead.");
                     "--log-slave-updates work.");
     unireg_abort(1);
   }
-
- if (!opt_bin_log && (global_system_variables.binlog_format != BINLOG_FORMAT_UNSPEC))
-  {
-    sql_print_error("You need to use --log-bin to make "
-                    "--binlog-format work.");
-    unireg_abort(1);
-  }
-  if (global_system_variables.binlog_format == BINLOG_FORMAT_UNSPEC)
-  {
+  if (!opt_bin_log)
+    if (opt_binlog_format_id != BINLOG_FORMAT_UNSPEC)
+    {
+      sql_print_error("You need to use --log-bin to make "
+		      "--binlog-format work.");
+      unireg_abort(1);
+    }
+    else
+    {
+      global_system_variables.binlog_format= BINLOG_FORMAT_UNSPEC;
+    }
+  else
+    if (opt_binlog_format_id == BINLOG_FORMAT_UNSPEC)
       global_system_variables.binlog_format= BINLOG_FORMAT_MIXED;
-  }
+    else
+    { 
+      DBUG_ASSERT(global_system_variables.binlog_format != BINLOG_FORMAT_UNSPEC);
+    }
 
   /* Check that we have not let the format to unspecified at this point */
   DBUG_ASSERT((uint)global_system_variables.binlog_format <=
@@ -4914,6 +4922,7 @@ struct my_option my_long_options[] =
    (gptr*) &my_bind_addr_str, (gptr*) &my_bind_addr_str, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"binlog_format", OPT_BINLOG_FORMAT,
+   "Does not have any effect without '--log-bin'. "
    "Tell the master the form of binary logging to use: either 'row' for "
    "row-based binary logging, or 'statement' for statement-based binary "
    "logging, or 'mixed'. 'mixed' is statement-based binary logging except "
@@ -4921,11 +4930,12 @@ struct my_option my_long_options[] =
    "involve user-defined functions (i.e. UDFs) or the UUID() function; for "
    "those, row-based binary logging is automatically used. "
 #ifdef HAVE_NDB_BINLOG
-   "If ndbcluster is enabled, the default is 'row'."
+   "If ndbcluster is enabled and binlog_format is `mixed', the format switches"
+   " to 'row' and back implicitly per each query accessing a NDB table."
 #endif
-   , 0, 0, 0, GET_STR, REQUIRED_ARG,
-   BINLOG_FORMAT_MIXED
-   , 0, 0, 0, 0, 0 },
+   ,(gptr*) &opt_binlog_format, (gptr*) &opt_binlog_format,
+   0, GET_STR, REQUIRED_ARG, BINLOG_FORMAT_MIXED, BINLOG_FORMAT_STMT,
+   BINLOG_FORMAT_MIXED, 0, 0, 0},
   {"binlog-do-db", OPT_BINLOG_DO_DB,
    "Tells the master it should log updates for the specified database, and exclude all others not explicitly mentioned.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -7286,7 +7296,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
               binlog_format_names[BINLOG_FORMAT_MIXED]);
       exit(1);
     }
-    global_system_variables.binlog_format= id-1;
+    global_system_variables.binlog_format= opt_binlog_format_id= id - 1;
     break;
   }
   case (int)OPT_BINLOG_DO_DB:
