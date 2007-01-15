@@ -3074,6 +3074,7 @@ end_with_restore_list:
 
     bzero((char*) &create_info, sizeof(create_info));
     create_info.db_type= DB_TYPE_DEFAULT;
+    create_info.row_type= ROW_TYPE_NOT_USED;
     create_info.default_table_charset= thd->variables.collation_database;
 
     res= mysql_alter_table(thd, first_table->db, first_table->table_name,
