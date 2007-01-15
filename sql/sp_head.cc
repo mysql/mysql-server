@@ -605,27 +605,6 @@ sp_head::create(THD *thd)
   DBUG_PRINT("info", ("type: %d name: %s params: %s body: %s",
 		      m_type, m_name.str, m_params.str, m_body.str));
 
-#ifndef DBUG_OFF
-  optimize();
-  {
-    String s;
-    sp_instr *i;
-    uint ip= 0;
-    while ((i = get_instr(ip)))
-    {
-      char buf[8];
-
-      sprintf(buf, "%4u: ", ip);
-      s.append(buf);
-      i->print(&s);
-      s.append('\n');
-      ip+= 1;
-    }
-    s.append('\0');
-    DBUG_PRINT("info", ("Code %s\n%s", m_qname.str, s.ptr()));
-  }
-#endif
-
   if (m_type == TYPE_ENUM_FUNCTION)
     ret= sp_create_function(thd, this);
   else
@@ -2173,7 +2152,7 @@ sp_head::show_create_function(THD *thd)
   This is the main mark and move loop; it relies on the following methods
   in sp_instr and its subclasses:
 
-  opt_mark()           Mark instruction as reachable (will recurse for jumps)
+  opt_mark()           Mark instruction as reachable
   opt_shortcut_jump()  Shortcut jumps to the final destination;
                        used by opt_mark().
   opt_move()           Update moved instruction
@@ -2186,7 +2165,7 @@ void sp_head::optimize()
   sp_instr *i;
   uint src, dst;
 
-  opt_mark(0);
+  opt_mark();
 
   bp.empty();
   src= dst= 0;
@@ -2220,13 +2199,50 @@ void sp_head::optimize()
   bp.empty();
 }
 
-void
-sp_head::opt_mark(uint ip)
+void sp_head::add_mark_lead(uint ip, List<sp_instr> *leads)
 {
-  sp_instr *i;
+  sp_instr *i= get_instr(ip);
 
-  while ((i= get_instr(ip)) && !i->marked)
-    ip= i->opt_mark(this);
+  if (i && ! i->marked)
+    leads->push_front(i);
+}
+
+void
+sp_head::opt_mark()
+{
+  uint ip;
+  sp_instr *i;
+  List<sp_instr> leads;
+
+  /*
+    Forward flow analysis algorithm in the instruction graph:
+    - first, add the entry point in the graph (the first instruction) to the
+      'leads' list of paths to explore.
+    - while there are still leads to explore:
+      - pick one lead, and follow the path forward. Mark instruction reached.
+        Stop only if the end of the routine is reached, or the path converge
+        to code already explored (marked).
+      - while following a path, collect in the 'leads' list any fork to
+        another path (caused by conditional jumps instructions), so that these
+        paths can be explored as well.
+  */
+
+  /* Add the entry point */
+  i= get_instr(0);
+  leads.push_front(i);
+
+  /* For each path of code ... */
+  while (leads.elements != 0)
+  {
+    i= leads.pop();
+
+    /* Mark the entire path, collecting new leads. */
+    while (i && ! i->marked)
+    {
+      ip= i->opt_mark(this, & leads);
+      i= get_instr(ip);
+    }
+  }
 }
 
 
@@ -2619,7 +2635,7 @@ sp_instr_jump::print(String *str)
 }
 
 uint
-sp_instr_jump::opt_mark(sp_head *sp)
+sp_instr_jump::opt_mark(sp_head *sp, List<sp_instr> *leads)
 {
   m_dest= opt_shortcut_jump(sp, this);
   if (m_dest != m_ip+1)		/* Jumping to following instruction? */
@@ -2713,7 +2729,7 @@ sp_instr_jump_if_not::print(String *str)
 
 
 uint
-sp_instr_jump_if_not::opt_mark(sp_head *sp)
+sp_instr_jump_if_not::opt_mark(sp_head *sp, List<sp_instr> *leads)
 {
   sp_instr *i;
 
@@ -2723,13 +2739,13 @@ sp_instr_jump_if_not::opt_mark(sp_head *sp)
     m_dest= i->opt_shortcut_jump(sp, this);
     m_optdest= sp->get_instr(m_dest);
   }
-  sp->opt_mark(m_dest);
+  sp->add_mark_lead(m_dest, leads);
   if ((i= sp->get_instr(m_cont_dest)))
   {
     m_cont_dest= i->opt_shortcut_jump(sp, this);
     m_cont_optdest= sp->get_instr(m_cont_dest);
   }
-  sp->opt_mark(m_cont_dest);
+  sp->add_mark_lead(m_cont_dest, leads);
   return m_ip+1;
 }
 
@@ -2850,7 +2866,7 @@ sp_instr_hpush_jump::print(String *str)
 
 
 uint
-sp_instr_hpush_jump::opt_mark(sp_head *sp)
+sp_instr_hpush_jump::opt_mark(sp_head *sp, List<sp_instr> *leads)
 {
   sp_instr *i;
 
@@ -2860,7 +2876,7 @@ sp_instr_hpush_jump::opt_mark(sp_head *sp)
     m_dest= i->opt_shortcut_jump(sp, this);
     m_optdest= sp->get_instr(m_dest);
   }
-  sp->opt_mark(m_dest);
+  sp->add_mark_lead(m_dest, leads);
   return m_ip+1;
 }
 
@@ -2925,15 +2941,13 @@ sp_instr_hreturn::print(String *str)
 
 
 uint
-sp_instr_hreturn::opt_mark(sp_head *sp)
+sp_instr_hreturn::opt_mark(sp_head *sp, List<sp_instr> *leads)
 {
   if (m_dest)
-    return sp_instr_jump::opt_mark(sp);
-  else
-  {
-    marked= 1;
-    return UINT_MAX;
-  }
+    return sp_instr_jump::opt_mark(sp, leads);
+
+  marked= 1;
+  return UINT_MAX;
 }
 
 
@@ -3276,7 +3290,7 @@ sp_instr_set_case_expr::print(String *str)
 }
 
 uint
-sp_instr_set_case_expr::opt_mark(sp_head *sp)
+sp_instr_set_case_expr::opt_mark(sp_head *sp, List<sp_instr> *leads)
 {
   sp_instr *i;
 
@@ -3286,7 +3300,7 @@ sp_instr_set_case_expr::opt_mark(sp_head *sp)
     m_cont_dest= i->opt_shortcut_jump(sp, this);
     m_cont_optdest= sp->get_instr(m_cont_dest);
   }
-  sp->opt_mark(m_cont_dest);
+  sp->add_mark_lead(m_cont_dest, leads);
   return m_ip+1;
 }
 
