@@ -2231,15 +2231,6 @@ err_exit:
 
 	ut_ad(block);
 
-	if (zip_size) {
-		void*	data;
-		page_zip_set_size(&block->page.zip, zip_size);
-		mutex_exit(&block->mutex);
-		data = buf_buddy_alloc(zip_size, TRUE);
-		mutex_enter(&block->mutex);
-		block->page.zip.data = data;
-	}
-
 	buf_page_init(space, offset, block);
 
 	/* The block must be put to the LRU list, to the old blocks */
@@ -2249,6 +2240,21 @@ err_exit:
 	buf_page_set_io_fix(&block->page, BUF_IO_READ);
 
 	buf_pool->n_pend_reads++;
+
+	if (zip_size) {
+		void*	data;
+		page_zip_set_size(&block->page.zip, zip_size);
+		mutex_exit(&block->mutex);
+		/* buf_pool->mutex may be released and reacquired by
+		buf_buddy_alloc().  Thus, we must release block->mutex
+		in order not to break the latching order in
+		the reacquisition of buf_pool->mutex.  We also must
+		defer this operation until after the block descriptor
+		has been added to buf_pool->LRU and buf_pool->page_hash. */
+		data = buf_buddy_alloc(zip_size, TRUE);
+		mutex_enter(&block->mutex);
+		block->page.zip.data = data;
+	}
 
 	/* We set a pass-type x-lock on the frame because then the same
 	thread which called for the read operation (and is running now at
@@ -2326,11 +2332,6 @@ buf_page_create(
 
 	block = free_block;
 
-	if (zip_size) {
-		page_zip_set_size(&block->page.zip, zip_size);
-		block->page.zip.data = buf_buddy_alloc(zip_size, TRUE);
-	}
-
 	mutex_enter(&block->mutex);
 
 	buf_page_init(space, offset, block);
@@ -2340,6 +2341,21 @@ buf_page_create(
 
 	buf_block_buf_fix_inc(block, __FILE__, __LINE__);
 	buf_pool->n_pages_created++;
+
+	if (zip_size) {
+		void*	data;
+		page_zip_set_size(&block->page.zip, zip_size);
+		mutex_exit(&block->mutex);
+		/* buf_pool->mutex may be released and reacquired by
+		buf_buddy_alloc().  Thus, we must release block->mutex
+		in order not to break the latching order in
+		the reacquisition of buf_pool->mutex.  We also must
+		defer this operation until after the block descriptor
+		has been added to buf_pool->LRU and buf_pool->page_hash. */
+		data = buf_buddy_alloc(zip_size, TRUE);
+		mutex_enter(&block->mutex);
+		block->page.zip.data = data;
+	}
 
 	mutex_exit(&(buf_pool->mutex));
 
