@@ -1258,6 +1258,8 @@ Pgman::process_lcp(Signal* signal)
 void
 Pgman::process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr)
 {
+  CRASH_INSERTION(11006);
+
   ptr.p->m_last_lcp = m_last_lcp;
   if (ptr.p->m_state & Page_entry::DIRTY)
   {
@@ -2350,6 +2352,11 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
   if (signal->theData[0] == 11005)
   {
     g_dbg_lcp = ~g_dbg_lcp;
+  }
+
+  if (signal->theData[0] == 11006)
+  {
+    SET_ERROR_INSERT_VALUE(11006);
   }
 }
 
