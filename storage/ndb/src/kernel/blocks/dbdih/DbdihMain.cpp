@@ -2915,6 +2915,17 @@ Dbdih::nr_start_fragment(Signal* signal,
 	     takeOverPtr.p->toCurrentTabref,
 	     takeOverPtr.p->toCurrentFragid);
     replicaPtr.p->lcpIdStarted = 0;
+    BlockReference ref = calcLqhBlockRef(takeOverPtr.p->toStartingNode);
+    StartFragReq *req = (StartFragReq *)signal->getDataPtrSend();
+    req->userPtr = 0;
+    req->userRef = reference();
+    req->lcpNo = ZNIL;
+    req->lcpId = 0;
+    req->tableId = takeOverPtr.p->toCurrentTabref;
+    req->fragId = takeOverPtr.p->toCurrentFragid;
+    req->noOfLogNodes = 0;
+    sendSignal(ref, GSN_START_FRAGREQ, signal, 
+	       StartFragReq::SignalLength, JBB);
   }
   else
   {
