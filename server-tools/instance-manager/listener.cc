@@ -187,7 +187,7 @@ void Listener_thread::run()
           else
           {
             shutdown(client_fd, SHUT_RDWR);
-            close(client_fd);
+            closesocket(client_fd);
           }
         }
       }
@@ -199,7 +199,7 @@ void Listener_thread::run()
   log_info("Listener_thread::run(): shutdown requested, exiting...");
 
   for (i= 0; i < num_sockets; i++)
-    close(sockets[i]);
+    closesocket(sockets[i]);
 
 #ifndef __WIN__
   unlink(unix_socket_address.sun_path);
@@ -212,7 +212,7 @@ void Listener_thread::run()
 err:
   // we have to close the ip sockets in case of error
   for (i= 0; i < num_sockets; i++)
-    close(sockets[i]);
+    closesocket(sockets[i]);
 
   thread_registry.unregister_thread(&thread_info);
   thread_registry.request_shutdown();
@@ -259,7 +259,7 @@ int Listener_thread::create_tcp_socket()
   {
     log_error("Listener_thread::run(): bind(ip socket) failed, '%s'",
               strerror(errno));
-    close(ip_socket);
+    closesocket(ip_socket);
     return -1;
   }
 
@@ -267,7 +267,7 @@ int Listener_thread::create_tcp_socket()
   {
     log_error("Listener_thread::run(): listen(ip socket) failed, %s",
               strerror(errno));
-    close(ip_socket);
+    closesocket(ip_socket);
     return -1;
   }
 
