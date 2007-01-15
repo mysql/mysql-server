@@ -1423,6 +1423,13 @@ Dbtup::disk_restart_undo_next(Signal* signal)
 }
 
 void
+Dbtup::disk_restart_mark_no_lcp(Uint32 tableId, Uint32 fragId)
+{
+  jamEntry();
+  disk_restart_undo_lcp(tableId, fragId, Fragrecord::UC_CREATE);
+}
+
+void
 Dbtup::disk_restart_undo_lcp(Uint32 tableId, Uint32 fragId, Uint32 flag)
 {
   Ptr<Tablerec> tabPtr;
