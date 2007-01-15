@@ -13416,10 +13416,12 @@ count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
   param->quick_group=1;
   while ((field=li++))
   {
-    Item::Type type=field->real_item()->type();
-    if (type == Item::FIELD_ITEM)
+    Item::Type type=field->type();
+    Item::Type real_type= field->real_item()->type();
+    if (type == Item::FIELD_ITEM || (real_type == Item::FIELD_ITEM &&
+        (type != Item::REF_ITEM || !((Item_ref *) field)->depended_from)))
       param->field_count++;
-    else if (type == Item::SUM_FUNC_ITEM)
+    else if (real_type == Item::SUM_FUNC_ITEM)
     {
       if (! field->const_item())
       {
