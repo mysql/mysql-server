@@ -2710,6 +2710,8 @@ public:
     Ptr<Extent_info> m_extent_ptr;
     Local_key m_key;
   };
+
+  void disk_restart_mark_no_lcp(Uint32 table, Uint32 frag);
   
 private:
   void disk_restart_undo_next(Signal*);
