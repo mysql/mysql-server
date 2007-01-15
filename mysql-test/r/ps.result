@@ -1035,4 +1035,71 @@ EXECUTE stmt USING @a;
 0	0
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 (i INT);
+PREPARE st_19182
+FROM "CREATE TABLE t2 (i INT, j INT, KEY (i), KEY(j)) SELECT i FROM t1";
+EXECUTE st_19182;
+DESC t2;
+Field	Type	Null	Key	Default	Extra
+j	int(11)	YES	MUL	NULL	
+i	int(11)	YES	MUL	NULL	
+DROP TABLE t2;
+EXECUTE st_19182;
+DESC t2;
+Field	Type	Null	Key	Default	Extra
+j	int(11)	YES	MUL	NULL	
+i	int(11)	YES	MUL	NULL	
+DEALLOCATE PREPARE st_19182;
+DROP TABLE t2, t1;
+drop database if exists mysqltest;
+drop table if exists t1, t2;
+create database mysqltest character set utf8;
+prepare stmt1 from "create table mysqltest.t1 (c char(10))";
+prepare stmt2 from "create table mysqltest.t2 select 'test'";
+execute stmt1;
+execute stmt2;
+show create table mysqltest.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` char(10) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8
+show create table mysqltest.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `test` char(4) character set latin1 NOT NULL default ''
+) ENGINE=MyISAM DEFAULT CHARSET=utf8
+drop table mysqltest.t1;
+drop table mysqltest.t2;
+alter database mysqltest character set latin1;
+execute stmt1;
+execute stmt2;
+show create table mysqltest.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` char(10) character set utf8 default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create table mysqltest.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `test` char(4) NOT NULL default ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop database mysqltest;
+deallocate prepare stmt1;
+deallocate prepare stmt2;
+execute stmt;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` char(10) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/'
+drop table t1;
+execute stmt;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` char(10) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/'
+drop table t1;
+deallocate prepare stmt;
 End of 4.1 tests.

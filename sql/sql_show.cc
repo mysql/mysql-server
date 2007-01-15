@@ -845,7 +845,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 }
 
 int mysqld_show_create_db(THD *thd, char *dbname,
-			  HA_CREATE_INFO *create_info)
+			  const HA_CREATE_INFO *create_info)
 {
   int length;
   char	path[FN_REFLEN];
