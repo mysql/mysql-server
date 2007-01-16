@@ -969,7 +969,7 @@ NDBT_TestSuite::createHook(Ndb* ndb, NdbDictionary::Table& tab, int when)
     }
     
     if (tsname != NULL) {
-      tab.setTablespace(tsname);
+      tab.setTablespaceName(tsname);
     }
   }
   return 0;
