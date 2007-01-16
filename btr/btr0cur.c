@@ -27,6 +27,7 @@ Created 10/16/1994 Heikki Tuuri
 #include "page0zip.h"
 #include "rem0rec.h"
 #include "rem0cmp.h"
+#include "buf0lru.h"
 #include "btr0btr.h"
 #include "btr0sea.h"
 #include "row0upd.h"
