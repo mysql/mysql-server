@@ -4844,9 +4844,9 @@ int ha_ndbcluster::create(const char *name,
   if (info->storage_media == HA_SM_DISK)
   { 
     if (info->tablespace)
-      tab.setTablespace(info->tablespace);
+      tab.setTablespaceName(info->tablespace);
     else
-      tab.setTablespace("DEFAULT-TS");
+      tab.setTablespaceName("DEFAULT-TS");
   }
   else if (info->tablespace)
   {
@@ -4860,7 +4860,7 @@ int ha_ndbcluster::create(const char *name,
 			  "STORAGE DISK"); 
       DBUG_RETURN(HA_ERR_UNSUPPORTED);
     }
-    tab.setTablespace(info->tablespace);
+    tab.setTablespaceName(info->tablespace);
     info->storage_media = HA_SM_DISK;  //if use tablespace, that also means store on disk
   }
 

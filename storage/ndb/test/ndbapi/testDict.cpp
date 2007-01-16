@@ -1643,7 +1643,7 @@ runCreateDiskTable(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);  
 
   NdbDictionary::Table tab = *ctx->getTab();
-  tab.setTablespace("DEFAULT-TS");
+  tab.setTablespaceName("DEFAULT-TS");
   
   for(Uint32 i = 0; i<tab.getNoOfColumns(); i++)
     if(!tab.getColumn(i)->getPrimaryKey())
