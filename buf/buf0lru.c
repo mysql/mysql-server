@@ -929,7 +929,7 @@ buf_LRU_free_block(
 			return(FALSE);
 		}
 
-		// b = buf_buddy_alloc(sizeof *b, FALSE); // TODO: enable this
+		b = buf_buddy_alloc(sizeof *b, FALSE);
 
 		if (!b) {
 			return(FALSE);
