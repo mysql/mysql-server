@@ -2038,6 +2038,13 @@ mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query, ulong length)
     DBUG_RETURN(1);
   }
 
+  /*
+    Reset the last error in any case: that would clear the statement
+    if the previous prepare failed.
+  */
+  stmt->last_errno= 0;
+  stmt->last_error[0]= '\0';
+
   if ((int) stmt->state > (int) MYSQL_STMT_INIT_DONE)
   {
     /* This is second prepare with another statement */
@@ -2051,23 +2058,24 @@ mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query, ulong length)
     */
     stmt->bind_param_done= stmt->bind_result_done= FALSE;
     stmt->param_count= stmt->field_count= 0;
-    stmt->last_errno= 0;
-    stmt->last_error[0]= '\0';
     free_root(&stmt->mem_root, MYF(MY_KEEP_PREALLOC));
 
     int4store(buff, stmt->stmt_id);
+
     /*
+      Close statement in server
+
       If there was a 'use' result from another statement, or from
       mysql_use_result it won't be freed in mysql_stmt_free_result and
       we should get 'Commands out of sync' here.
     */
+    stmt->state= MYSQL_STMT_INIT_DONE;
     if (stmt_command(mysql, COM_STMT_CLOSE, buff, 4, stmt))
     {
       set_stmt_errmsg(stmt, mysql->net.last_error, mysql->net.last_errno,
                       mysql->net.sqlstate);
       DBUG_RETURN(1);
     }
-    stmt->state= MYSQL_STMT_INIT_DONE;
   }
 
   if (stmt_command(mysql, COM_STMT_PREPARE, query, length, stmt))
