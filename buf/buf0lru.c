@@ -105,6 +105,7 @@ scan_again:
 		ut_a(buf_page_in_file(bpage));
 
 		mutex_enter(block_mutex);
+next_zip:
 		prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
 
 		if (buf_page_get_space(bpage) == id) {
@@ -162,7 +163,7 @@ scan_again:
 				prev_bpage.  Rescan the LRU list. */
 
 				bpage = UT_LIST_GET_LAST(buf_pool->LRU);
-				continue;
+				goto next_zip;
 			}
 		}
 next_page:
