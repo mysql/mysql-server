@@ -551,6 +551,8 @@ sub collect_one_test_case($$$$$$$) {
 	$tinfo->{'comment'}= "No ndbcluster tests(--skip-ndbcluster)";
 	return;
       }
+      # Ndb tests run with two mysqld masters
+      $tinfo->{'master_num'}= 2;
     }
     else
     {
@@ -566,7 +568,7 @@ sub collect_one_test_case($$$$$$$) {
 
     if ( $tinfo->{'innodb_test'} )
     {
-      # This is a test that need inndob
+      # This is a test that need innodb
       if ( $::mysqld_variables{'innodb'} eq "FALSE" )
       {
 	# innodb is not supported, skip it
@@ -592,7 +594,6 @@ our @tags=
  ["include/have_debug.inc", "need_debug", 1],
  ["include/have_ndb.inc", "ndb_test", 1],
  ["include/have_ndb_extra.inc", "ndb_extra", 1],
- ["include/have_multi_ndb.inc", "master_num", 2],
  ["require_manager", "require_manager", 1],
 );
 
