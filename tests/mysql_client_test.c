@@ -11013,7 +11013,7 @@ static void test_view()
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
     rc= my_process_stmt_result(stmt);
-    assert(1 == rc);
+    DIE_UNLESS(1 == rc);
   }
   mysql_stmt_close(stmt);
 
@@ -11056,7 +11056,7 @@ static void test_view_where()
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
     rc= my_process_stmt_result(stmt);
-    assert(4 == rc);
+    DIE_UNLESS(4 == rc);
   }
   mysql_stmt_close(stmt);
 
@@ -11139,7 +11139,7 @@ static void test_view_2where()
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
   rc= my_process_stmt_result(stmt);
-  assert(0 == rc);
+  DIE_UNLESS(0 == rc);
 
   mysql_stmt_close(stmt);
 
@@ -11192,7 +11192,7 @@ static void test_view_star()
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
     rc= my_process_stmt_result(stmt);
-    assert(0 == rc);
+    DIE_UNLESS(0 == rc);
   }
 
   mysql_stmt_close(stmt);
@@ -11255,7 +11255,7 @@ static void test_view_insert()
     rc= mysql_stmt_execute(select_stmt);
     check_execute(select_stmt, rc);
     rowcount= (int)my_process_stmt_result(select_stmt);
-    assert((i+1) == rowcount);
+    DIE_UNLESS((i+1) == rowcount);
   }
   mysql_stmt_close(insert_stmt);
   mysql_stmt_close(select_stmt);
@@ -11296,7 +11296,7 @@ static void test_left_join_view()
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
     rc= my_process_stmt_result(stmt);
-    assert(3 == rc);
+    DIE_UNLESS(3 == rc);
   }
   mysql_stmt_close(stmt);
 
@@ -11372,7 +11372,7 @@ static void test_view_insert_fields()
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
   rc= my_process_stmt_result(stmt);
-  assert(1 == rc);
+  DIE_UNLESS(1 == rc);
 
   mysql_stmt_close(stmt);
   rc= mysql_query(mysql, "DROP VIEW v1");
@@ -12848,6 +12848,82 @@ static void test_bug7990()
   DIE_UNLESS(rc && mysql_stmt_errno(stmt) && mysql_errno(mysql));
   mysql_stmt_close(stmt);
   DIE_UNLESS(!mysql_errno(mysql));
+}
+
+/*
+  Bug #15518 - Reusing a stmt that has failed during prepare
+  does not clear error
+*/
+
+static void test_bug15518()
+{
+  MYSQL_STMT *stmt;
+  MYSQL* mysql1;
+  int rc;
+  myheader("test_bug15518");
+
+  mysql1= mysql_init(NULL);
+
+  if (!mysql_real_connect(mysql1, opt_host, opt_user, opt_password,
+                          opt_db ? opt_db : "test", opt_port, opt_unix_socket,
+                          CLIENT_MULTI_STATEMENTS))
+  {
+    fprintf(stderr, "Failed to connect to the database\n");
+    DIE_UNLESS(0);
+  }
+
+  stmt= mysql_stmt_init(mysql1);
+
+  /*
+    The prepare of foo should fail with errno 1064 since
+    it's not a valid query
+  */
+  rc= mysql_stmt_prepare(stmt, "foo", 3);
+  if (!opt_silent)
+    fprintf(stdout, "rc: %d, mysql_stmt_errno: %d, mysql_errno: %d\n",
+            rc, mysql_stmt_errno(stmt), mysql_errno(mysql1));
+  DIE_UNLESS(rc && mysql_stmt_errno(stmt) && mysql_errno(mysql1));
+
+  /*
+    Use the same stmt and reprepare with another query that
+    suceeds
+  */
+  rc= mysql_stmt_prepare(stmt, "SHOW STATUS", 12);
+  if (!opt_silent)
+    fprintf(stdout, "rc: %d, mysql_stmt_errno: %d, mysql_errno: %d\n",
+            rc, mysql_stmt_errno(stmt), mysql_errno(mysql1));
+  DIE_UNLESS(!rc || mysql_stmt_errno(stmt) || mysql_errno(mysql1));
+
+  mysql_stmt_close(stmt);
+  DIE_UNLESS(!mysql_errno(mysql1));
+
+  /*
+    part2, when connection to server has been closed
+    after first prepare
+  */
+  stmt= mysql_stmt_init(mysql1);
+  rc= mysql_stmt_prepare(stmt, "foo", 3);
+  if (!opt_silent)
+    fprintf(stdout, "rc: %d, mysql_stmt_errno: %d, mysql_errno: %d\n",
+            rc, mysql_stmt_errno(stmt), mysql_errno(mysql1));
+  DIE_UNLESS(rc && mysql_stmt_errno(stmt) && mysql_errno(mysql1));
+
+  /* Close connection to server */
+  mysql_close(mysql1);
+
+  /*
+    Use the same stmt and reprepare with another query that
+    suceeds. The prepare should fail with error 2013 since
+    connection to server has been closed.
+  */
+  rc= mysql_stmt_prepare(stmt, "SHOW STATUS", 12);
+  if (!opt_silent)
+    fprintf(stdout, "rc: %d, mysql_stmt_errno: %d\n",
+            rc, mysql_stmt_errno(stmt));
+  DIE_UNLESS(rc && mysql_stmt_errno(stmt));
+
+  mysql_stmt_close(stmt);
+  DIE_UNLESS(mysql_errno(mysql1));
 }
 
 
@@ -15008,7 +15084,7 @@ static void test_bug17667()
     }
     else
     {
-      assert(0==1);
+      DIE_UNLESS(0==1);
     }
   }
 
@@ -15732,6 +15808,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug15752", test_bug15752 },
   { "test_bug21206", test_bug21206 },
   { "test_bug21726", test_bug21726 },
+  { "test_bug15518", test_bug15518 },
   { "test_bug23383", test_bug23383 },
   { "test_bug21635", test_bug21635 },
   { 0, 0 }
