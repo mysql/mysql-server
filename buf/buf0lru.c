@@ -105,7 +105,6 @@ scan_again:
 		ut_a(buf_page_in_file(bpage));
 
 		mutex_enter(block_mutex);
-next_zip:
 		prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
 
 		if (buf_page_get_space(bpage) == id) {
@@ -163,7 +162,7 @@ next_zip:
 				prev_bpage.  Rescan the LRU list. */
 
 				bpage = UT_LIST_GET_LAST(buf_pool->LRU);
-				goto next_zip;
+				continue;
 			}
 		}
 next_page:
@@ -900,6 +899,7 @@ buf_LRU_free_block(
 	ibool		zip)	/* in: TRUE if should remove also the
 				compressed page of an uncompressed page */
 {
+	buf_page_t*	b = NULL;
 	mutex_t*	block_mutex = buf_page_get_mutex(bpage);
 
 #ifdef UNIV_SYNC_DEBUG
@@ -909,6 +909,7 @@ buf_LRU_free_block(
 
 	ut_ad(buf_page_in_file(bpage));
 	ut_ad(bpage->in_LRU_list);
+	ut_ad(!bpage->in_flush_list == !bpage->oldest_modification);
 
 	if (!buf_page_can_relocate(bpage)) {
 
@@ -917,7 +918,6 @@ buf_LRU_free_block(
 
 	if (bpage->oldest_modification) {
 		/* Do not completely free dirty blocks. */
-		ut_ad(bpage->in_flush_list);
 
 		if (zip || !bpage->zip.data) {
 			return(FALSE);
@@ -929,7 +929,11 @@ buf_LRU_free_block(
 			return(FALSE);
 		}
 
-		return(FALSE);
+		// b = buf_buddy_alloc(sizeof *b, FALSE); // TODO: enable this
+
+		if (!b) {
+			return(FALSE);
+		}
 	}
 
 #ifdef UNIV_DEBUG
@@ -942,7 +946,62 @@ buf_LRU_free_block(
 
 	if (buf_LRU_block_remove_hashed_page(bpage, zip)
 	    != BUF_BLOCK_ZIP_FREE) {
-		mutex_exit(&(buf_pool->mutex));
+		ut_a(bpage->buf_fix_count == 0);
+
+		if (b) {
+			const ulint	fold	= buf_page_address_fold(
+				bpage->space, bpage->offset);
+
+			ut_a(!buf_page_hash_get(bpage->space, bpage->offset));
+
+			memcpy(b, bpage, sizeof *b);
+			b->state = b->oldest_modification
+				? BUF_BLOCK_ZIP_DIRTY
+				: BUF_BLOCK_ZIP_PAGE;
+			UNIV_MEM_DESC(b->zip.data,
+				      page_zip_get_size(&b->zip), b);
+
+			HASH_INSERT(buf_page_t, hash,
+				    buf_pool->page_hash, fold, b);
+
+			buf_LRU_add_block_low(b, FALSE);
+
+			if (b->state == BUF_BLOCK_ZIP_PAGE) {
+				buf_LRU_insert_zip_clean(b);
+			} else {
+				buf_page_t* prev;
+
+				ut_ad(b->in_flush_list);
+				ut_d(bpage->in_flush_list = FALSE);
+
+				prev = UT_LIST_GET_PREV(list, b);
+				UT_LIST_REMOVE(list, buf_pool->flush_list, b);
+
+				if (prev) {
+					ut_ad(prev->in_flush_list);
+					UT_LIST_INSERT_AFTER(
+						list,
+						buf_pool->flush_list,
+						prev, b);
+				} else {
+					UT_LIST_ADD_FIRST(
+						list,
+						buf_pool->flush_list,
+						b);
+				}
+			}
+
+			bpage->zip.data = NULL;
+			page_zip_set_size(&bpage->zip, 0);
+
+			/* Prevent buf_page_init_for_read() from
+			decompressing the block while we release
+			buf_pool->mutex and block_mutex. */
+			b->buf_fix_count++;
+			buf_page_set_io_fix(b, BUF_IO_READ);
+		}
+
+		mutex_exit(&buf_pool->mutex);
 		mutex_exit(block_mutex);
 
 		/* Remove possible adaptive hash index on the page.
@@ -956,9 +1015,8 @@ buf_LRU_free_block(
 		btr_search_drop_page_hash_index((buf_block_t*) bpage);
 		UNIV_MEM_INVALID(((buf_block_t*) bpage)->frame,
 				 UNIV_PAGE_SIZE);
-		ut_a(bpage->buf_fix_count == 0);
 
-		if (bpage->zip.data && UNIV_LIKELY(srv_use_checksums)) {
+		if (b) {
 			/* Compute and stamp the compressed page
 			checksum while not holding any mutex.  The
 			block is already half-freed
@@ -967,83 +1025,22 @@ buf_LRU_free_block(
 			other thread. */
 
 			mach_write_to_4(
-				bpage->zip.data + FIL_PAGE_SPACE_OR_CHKSUM,
-				page_zip_calc_checksum(
-					bpage->zip.data,
-					page_zip_get_size(&bpage->zip)));
+				b->zip.data + FIL_PAGE_SPACE_OR_CHKSUM,
+				UNIV_LIKELY(srv_use_checksums)
+				? page_zip_calc_checksum(
+					b->zip.data,
+					page_zip_get_size(&b->zip))
+				: BUF_NO_CHECKSUM_MAGIC);
 		}
 
-		mutex_enter(&(buf_pool->mutex));
-
-		if (bpage->zip.data) {
-			const ulint	fold	= buf_page_address_fold(
-				bpage->space, bpage->offset);
-			buf_page_t*	b	= buf_page_hash_get(
-				bpage->space, bpage->offset);
-
-			if (UNIV_LIKELY_NULL(b)) {
-				/* The block was reloaded to the buffer pool
-				while we were not holding buf_pool->mutex.
-				Free this block entirely; do not attempt to
-				preserve the compressed page. */
-				b = NULL;
-			} else {
-				/* Keep the compressed page.
-				Allocate a block descriptor for it. */
-				b = buf_buddy_alloc(sizeof *b, FALSE);
-			}
-
-			if (b) {
-				memcpy(b, bpage, sizeof *b);
-				b->state = b->oldest_modification
-					? BUF_BLOCK_ZIP_DIRTY
-					: BUF_BLOCK_ZIP_PAGE;
-				UNIV_MEM_DESC(b->zip.data,
-					      page_zip_get_size(&b->zip), b);
-
-				HASH_INSERT(buf_page_t, hash,
-					    buf_pool->page_hash, fold, b);
-
-				buf_LRU_add_block_low(b, TRUE);
-
-				if (b->state == BUF_BLOCK_ZIP_PAGE) {
-					buf_LRU_insert_zip_clean(b);
-				} else {
-					buf_page_t* prev;
-
-					ut_ad(b->in_flush_list);
-					ut_d(bpage->in_flush_list = FALSE);
-
-					prev = UT_LIST_GET_PREV(list, b);
-					UT_LIST_REMOVE(list,
-						       buf_pool->flush_list,
-						       b);
-
-					if (prev) {
-						ut_ad(prev->in_flush_list);
-						UT_LIST_INSERT_AFTER(
-							list,
-							buf_pool->flush_list,
-							prev, b);
-					} else {
-						UT_LIST_ADD_FIRST(
-							list,
-							buf_pool->flush_list,
-							b);
-					}
-				}
-
-				mutex_enter(block_mutex);
-
-				bpage->zip.data = NULL;
-				page_zip_set_size(&bpage->zip, 0);
-
-				goto free_hashed;
-			}
-		}
-
+		mutex_enter(&buf_pool->mutex);
 		mutex_enter(block_mutex);
-free_hashed:
+
+		if (b) {
+			b->buf_fix_count--;
+			buf_page_set_io_fix(b, BUF_IO_NONE);
+		}
+
 		buf_LRU_block_free_hashed_page((buf_block_t*) bpage);
 	} else {
 		mutex_enter(block_mutex);
