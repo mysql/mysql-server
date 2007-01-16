@@ -809,9 +809,9 @@ public:
      */
     void setMaxLoadFactor(int);
 
-    void setTablespace(const char * name);
+    void setTablespaceName(const char * name);
+    const char * getTablespaceName() const;
     void setTablespace(const class Tablespace &);
-    const char * getTablespace() const;
     bool getTablespace(Uint32 *id= 0, Uint32 *version= 0) const;
 
     /**
