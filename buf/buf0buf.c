@@ -2180,6 +2180,7 @@ buf_page_init_for_read(
 			block->page.state = BUF_BLOCK_FILE_PAGE;
 			ut_a(!block->page.buf_fix_count);
 			block->page.buf_fix_count++;;
+			buf_block_set_io_fix(block, BUF_IO_READ);
 			rw_lock_x_lock(&block->lock);
 			mutex_exit(&block->mutex);
 			mutex_exit(&buf_pool->zip_mutex);
@@ -2194,8 +2195,11 @@ buf_page_init_for_read(
 			}
 
 			buf_zip_decompress(block, srv_use_checksums);
+			mutex_enter(&buf_pool->mutex);
 			mutex_enter(&block->mutex);
 			block->page.buf_fix_count--;
+			buf_block_set_io_fix(block, BUF_IO_NONE);
+			mutex_exit(&buf_pool->mutex);
 			mutex_exit(&block->mutex);
 			rw_lock_x_unlock(&block->lock);
 
