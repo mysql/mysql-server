@@ -720,8 +720,12 @@ buf_flush_write_block_low(
 		memset(frame + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
 		break;
 	case BUF_BLOCK_FILE_PAGE:
-		frame = ((buf_block_t*) bpage)->frame;
-		buf_flush_init_for_writing(frame,
+		frame = bpage->zip.data;
+		if (!frame) {
+			frame = ((buf_block_t*) bpage)->frame;
+		}
+
+		buf_flush_init_for_writing(((buf_block_t*) bpage)->frame,
 					   bpage->zip.data
 					   ? &bpage->zip : NULL,
 					   bpage->newest_modification);
