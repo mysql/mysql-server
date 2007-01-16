@@ -2832,7 +2832,9 @@ Dbdih::nr_start_fragments(Signal* signal,
       return;
     }//if
     ptrAss(tabPtr, tabRecord);
-    if (tabPtr.p->tabStatus != TabRecord::TS_ACTIVE){
+    if (tabPtr.p->tabStatus != TabRecord::TS_ACTIVE ||
+	tabPtr.p->tabStorage != TabRecord::ST_NORMAL)
+    {
       jam();
       takeOverPtr.p->toCurrentFragid = 0;
       takeOverPtr.p->toCurrentTabref++;
