@@ -5061,6 +5061,14 @@ end:
     dynstr_free(&ds_execute_warnings);
   }
 
+
+  /* Close the statement if - no reconnect, need new prepare */
+  if (mysql->reconnect)
+  {
+    mysql_stmt_close(stmt);
+    cur_con->stmt= NULL;
+  }
+
   /*
     We save the return code (mysql_stmt_errno(stmt)) from the last call sent
     to the server into the mysqltest builtin variable $mysql_errno. This
@@ -5864,6 +5872,8 @@ int main(int argc, char **argv)
         break;
       case Q_ENABLE_RECONNECT:
         set_reconnect(&cur_con->mysql, 1);
+        /* Close any open statements - no reconnect, need new prepare */
+        close_statements();
         break;
       case Q_DISABLE_PARSING:
         if (parsing_disabled == 0)
