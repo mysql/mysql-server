@@ -436,8 +436,8 @@ public:
   Vector<Gci_container_pod> m_active_gci;
   NdbEventOperation *createEventOperation(const char* eventName,
 					  NdbError &);
-  NdbEventOperationImpl *createEventOperation(NdbEventImpl& evnt,
-					  NdbError &);
+  NdbEventOperationImpl *createEventOperationImpl(NdbEventImpl& evnt,
+                                                  NdbError &);
   void dropEventOperation(NdbEventOperation *);
   static NdbEventOperationImpl* getEventOperationImpl(NdbEventOperation* tOp);
 
@@ -541,6 +541,11 @@ public:
 #endif
 
 private:
+  void insert_event(NdbEventOperationImpl* impl,
+                    SubTableData &data,
+                    LinearSectionPtr *ptr,
+                    Uint32 &oid_ref);
+  
   int expand(unsigned sz);
 
   // all allocated data
