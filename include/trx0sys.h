@@ -408,7 +408,7 @@ struct trx_doublewrite_struct{
 				address divisible by UNIV_PAGE_SIZE
 				(which is required by Windows aio) */
 	byte*	write_buf_unaligned; /* pointer to write_buf, but unaligned */
-	buf_block_t**
+	buf_page_t**
 		buf_block_arr;	/* array to store pointers to the buffer
 				blocks which have been cached to write_buf */
 };
