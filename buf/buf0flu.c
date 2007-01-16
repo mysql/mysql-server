@@ -227,6 +227,7 @@ buf_flush_remove(
 {
 #ifdef UNIV_SYNC_DEBUG
 	ut_a(mutex_own(&buf_pool->mutex));
+	ut_a(mutex_own(buf_page_get_mutex(bpage)));
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(bpage->in_flush_list);
@@ -243,9 +244,7 @@ buf_flush_remove(
 		ut_error;
 		return;
 	case BUF_BLOCK_ZIP_DIRTY:
-		mutex_enter(&buf_pool->zip_mutex);
 		buf_page_set_state(bpage, BUF_BLOCK_ZIP_PAGE);
-		mutex_exit(&buf_pool->zip_mutex);
 		UT_LIST_REMOVE(list, buf_pool->flush_list, bpage);
 		buf_LRU_insert_zip_clean(bpage);
 		break;
