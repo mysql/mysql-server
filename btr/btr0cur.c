@@ -3776,7 +3776,6 @@ btr_store_big_rec_extern_fields(
 				      == page_zip_get_size(page_zip));
 				memcpy(blob_page_zip->data, page,
 				       page_zip_get_size(page_zip));
-				/* TODO: retain blob_page_zip, release page */
 
 				if (err == Z_OK && prev_page_no != FIL_NULL) {
 
@@ -3822,6 +3821,14 @@ next_zip_page:
 				prev_page_no = page_no;
 
 				mtr_commit(&mtr);
+
+				/* Release the uncompressed page frame
+				to save memory. */
+				mutex_enter(&buf_pool->mutex);
+				mutex_enter(&block->mutex);
+				buf_LRU_free_block(&block->page, FALSE);
+				mutex_exit(&buf_pool->mutex);
+				mutex_exit(&block->mutex);
 
 				if (err == Z_STREAM_END) {
 					break;
