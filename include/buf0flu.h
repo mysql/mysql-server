@@ -48,8 +48,7 @@ Initializes a page for writing to the tablespace. */
 void
 buf_flush_init_for_writing(
 /*=======================*/
-	byte*		page,		/* in/out: page, may be NULL
-					if page_zip_ is non-NULL */
+	byte*		page,		/* in/out: page */
 	void*		page_zip_,	/* in/out: compressed page, or NULL */
 	ib_uint64_t	newest_lsn);	/* in: newest modification lsn
 					to the page */

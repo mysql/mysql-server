@@ -3729,8 +3729,19 @@ page_zip_calc_checksum(
 	const void*	data,	/* in: compressed page */
 	ulint		size)	/* in: size of compressed page */
 {
-	/* Exclude the 32-bit checksum field from the checksum. */
-	return((ulint) adler32(0,
-			       ((const Bytef*) data) + FIL_PAGE_OFFSET,
-			       size - FIL_PAGE_OFFSET));
+	/* Exclude FIL_PAGE_SPACE_OR_CHKSUM, FIL_PAGE_LSN,
+	and FIL_PAGE_FILE_FLUSH_LSN from the checksum. */
+
+	const Bytef*	s	= data;
+	uLong		adler;
+
+	ut_ad(size > FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+
+	adler = adler32(0L, s + FIL_PAGE_OFFSET,
+			FIL_PAGE_LSN - FIL_PAGE_OFFSET);
+	adler = adler32(adler, s + FIL_PAGE_TYPE, 2);
+	adler = adler32(adler, s + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
+			size - FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+
+	return((ulint) adler);
 }

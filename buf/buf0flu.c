@@ -601,12 +601,13 @@ Initializes a page for writing to the tablespace. */
 void
 buf_flush_init_for_writing(
 /*=======================*/
-	byte*		page,		/* in/out: page, may be NULL
-					if page_zip_ is non-NULL */
+	byte*		page,		/* in/out: page */
 	void*		page_zip_,	/* in/out: compressed page, or NULL */
 	ib_uint64_t	newest_lsn)	/* in: newest modification lsn
 					to the page */
 {
+	ut_ad(page);
+
 	if (page_zip_) {
 		page_zip_des_t*	page_zip = page_zip_;
 		ulint		zip_size = page_zip_get_size(page_zip);
@@ -614,18 +615,14 @@ buf_flush_init_for_writing(
 		ut_ad(ut_is_2pow(zip_size));
 		ut_ad(zip_size <= UNIV_PAGE_SIZE);
 
-		switch (UNIV_EXPECT(fil_page_get_type(page
-						      ? page : page_zip->data),
-				    FIL_PAGE_INDEX)) {
+		switch (UNIV_EXPECT(fil_page_get_type(page), FIL_PAGE_INDEX)) {
 		case FIL_PAGE_TYPE_ALLOCATED:
 		case FIL_PAGE_INODE:
 		case FIL_PAGE_IBUF_BITMAP:
 		case FIL_PAGE_TYPE_FSP_HDR:
 		case FIL_PAGE_TYPE_XDES:
 			/* These are essentially uncompressed pages. */
-			if (page) {
-				memcpy(page_zip->data, page, zip_size);
-			}
+			memcpy(page_zip->data, page, zip_size);
 			/* fall through */
 		case FIL_PAGE_TYPE_ZBLOB:
 		case FIL_PAGE_INDEX:
@@ -643,8 +640,6 @@ buf_flush_init_for_writing(
 
 		ut_error;
 	}
-
-	ut_ad(page);
 
 	/* Write the newest modification lsn to the page header and trailer */
 	mach_write_ull(page + FIL_PAGE_LSN, newest_lsn);
@@ -715,21 +710,23 @@ buf_flush_write_block_low(
 		ut_error;
 		break;
 	case BUF_BLOCK_ZIP_DIRTY:
+		frame = bpage->zip.data;
 		if (UNIV_LIKELY(srv_use_checksums)) {
-			ut_a(mach_read_from_4(bpage->zip.data
-					      + FIL_PAGE_SPACE_OR_CHKSUM)
-			     == page_zip_calc_checksum(bpage->zip.data,
-						       zip_size));
+			ut_a(mach_read_from_4(frame + FIL_PAGE_SPACE_OR_CHKSUM)
+			     == page_zip_calc_checksum(frame, zip_size));
 		}
+		mach_write_ull(frame + FIL_PAGE_LSN,
+			       bpage->newest_modification);
+		memset(frame + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
 		break;
 	case BUF_BLOCK_FILE_PAGE:
 		frame = ((buf_block_t*) bpage)->frame;
+		buf_flush_init_for_writing(frame,
+					   bpage->zip.data
+					   ? &bpage->zip : NULL,
+					   bpage->newest_modification);
 		break;
 	}
-
-	buf_flush_init_for_writing(frame,
-				   bpage->zip.data ? &bpage->zip : NULL,
-				   bpage->newest_modification);
 
 	if (!srv_use_doublewrite_buf || !trx_doublewrite) {
 		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
