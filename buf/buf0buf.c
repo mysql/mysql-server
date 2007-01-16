@@ -2245,6 +2245,15 @@ err_exit:
 
 	buf_pool->n_pend_reads++;
 
+	/* We set a pass-type x-lock on the frame because then the same
+	thread which called for the read operation (and is running now at
+	this point of code) can wait for the read to complete by waiting
+	for the x-lock on the frame; if the x-lock were recursive, the
+	same thread would illegally get the x-lock before the page read
+	is completed. The x-lock is cleared by the io-handler thread. */
+
+	rw_lock_x_lock_gen(&(block->lock), BUF_IO_READ);
+
 	if (zip_size) {
 		void*	data;
 		page_zip_set_size(&block->page.zip, zip_size);
@@ -2259,15 +2268,6 @@ err_exit:
 		mutex_enter(&block->mutex);
 		block->page.zip.data = data;
 	}
-
-	/* We set a pass-type x-lock on the frame because then the same
-	thread which called for the read operation (and is running now at
-	this point of code) can wait for the read to complete by waiting
-	for the x-lock on the frame; if the x-lock were recursive, the
-	same thread would illegally get the x-lock before the page read
-	is completed. The x-lock is cleared by the io-handler thread. */
-
-	rw_lock_x_lock_gen(&(block->lock), BUF_IO_READ);
 
 	mutex_exit(&block->mutex);
 	mutex_exit(&(buf_pool->mutex));
@@ -2346,6 +2346,13 @@ buf_page_create(
 	buf_block_buf_fix_inc(block, __FILE__, __LINE__);
 	buf_pool->n_pages_created++;
 
+	/* Prevent race conditions during buf_buddy_alloc(),
+	which may release and reacquire buf_pool->mutex,
+	by IO-fixing and X-latching the block. */
+
+	buf_page_set_io_fix(&block->page, BUF_IO_READ);
+	rw_lock_x_lock(&block->lock);
+
 	if (zip_size) {
 		void*	data;
 		page_zip_set_size(&block->page.zip, zip_size);
@@ -2360,6 +2367,9 @@ buf_page_create(
 		mutex_enter(&block->mutex);
 		block->page.zip.data = data;
 	}
+
+	buf_page_set_io_fix(&block->page, BUF_IO_NONE);
+	rw_lock_x_unlock(&block->lock);
 
 	mutex_exit(&(buf_pool->mutex));
 
