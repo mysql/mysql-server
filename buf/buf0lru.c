@@ -1124,14 +1124,38 @@ buf_LRU_block_remove_hashed_page(
 	case BUF_BLOCK_FILE_PAGE:
 		buf_block_modify_clock_inc((buf_block_t*) bpage);
 		if (bpage->zip.data) {
+			const page_t*	page = ((buf_block_t*) bpage)->frame;
+
 			ut_a(!zip || bpage->oldest_modification == 0);
+
+			switch (UNIV_EXPECT(fil_page_get_type(page),
+					    FIL_PAGE_INDEX)) {
+			case FIL_PAGE_TYPE_ALLOCATED:
+			case FIL_PAGE_INODE:
+			case FIL_PAGE_IBUF_BITMAP:
+			case FIL_PAGE_TYPE_FSP_HDR:
+			case FIL_PAGE_TYPE_XDES:
+				/* These are essentially uncompressed pages. */
+				if (!zip) {
+					/* InnoDB writes the data to the
+					uncompressed page frame.  Copy it
+					to the compressed page, will will
+					be preserved. */
+					memcpy(bpage->zip.data, page,
+					       page_zip_get_size(&bpage->zip));
+				}
+				break;
+			case FIL_PAGE_TYPE_ZBLOB:
+				break;
+			case FIL_PAGE_INDEX:
 #ifdef UNIV_ZIP_DEBUG
-			ut_a(fil_page_get_type(bpage->zip.data)
-			     != FIL_PAGE_INDEX
-			     || page_zip_validate(&bpage->zip,
-						  ((buf_block_t*) bpage)
-						  ->frame));
+				ut_a(page_zip_validate(&bpage->zip, page));
 #endif /* UNIV_ZIP_DEBUG */
+				break;
+			default:
+				ut_error;
+			}
+
 			break;
 		}
 		/* fall through */
