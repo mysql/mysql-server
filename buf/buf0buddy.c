@@ -272,18 +272,21 @@ buf_buddy_alloc_clean(
 				continue;
 			}
 
-			/* Reuse the block.  In case the block was
-			recombined by buf_buddy_free(), we invoke the
-			buddy allocator instead of using the block
-			directly.  Yes, bpage points to freed memory
-			here, but it cannot be used by other threads,
-			because when invoked on compressed-only pages,
-			buf_LRU_free_block() does not release
-			buf_pool->mutex. */
+			/* Reuse the block. */
 
 			mutex_exit(&buf_pool->zip_mutex);
 			bpage = buf_buddy_alloc_zip(i);
-			ut_a(bpage);
+
+			/* bpage may be NULL if buf_buddy_free()
+			[invoked by buf_LRU_free_block() via
+			buf_LRU_block_remove_hashed_page()]
+			recombines blocks and invokes
+			buf_buddy_block_free().  Because
+			buf_pool->mutex will not be released
+			after buf_buddy_block_free(), there will
+			be at least one block available in the
+			buffer pool, and thus it does not make sense
+			to deallocate any further compressed blocks. */
 
 			return(bpage);
 		}
