@@ -998,7 +998,7 @@ buf_LRU_free_block(
 			decompressing the block while we release
 			buf_pool->mutex and block_mutex. */
 			b->buf_fix_count++;
-			buf_page_set_io_fix(b, BUF_IO_READ);
+			b->io_fix = BUF_IO_READ;
 		}
 
 		mutex_exit(&buf_pool->mutex);
@@ -1037,8 +1037,10 @@ buf_LRU_free_block(
 		mutex_enter(block_mutex);
 
 		if (b) {
+			mutex_enter(&buf_pool->zip_mutex);
 			b->buf_fix_count--;
 			buf_page_set_io_fix(b, BUF_IO_NONE);
+			mutex_exit(&buf_pool->zip_mutex);
 		}
 
 		buf_LRU_block_free_hashed_page((buf_block_t*) bpage);
