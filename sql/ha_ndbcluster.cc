@@ -6109,23 +6109,7 @@ ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
 
     DBUG_RETURN(0);
 retry:
-    if(report_error)
-    {
-      if (file)
-      {
-        reterr= file->ndb_err(pTrans);
-      }
-      else
-      {
-        const NdbError& tmp= error;
-        ERR_PRINT(tmp);
-        reterr= ndb_to_mysql_error(&tmp);
-      }
-    }
-    else
-      reterr= error.code;
 
-    if (pTrans)
     {
       ndb->closeTransaction(pTrans);
       pTrans= NULL;
@@ -6135,6 +6119,15 @@ retry:
       my_sleep(retry_sleep);
       continue;
     }
+    if(report_error)
+    {
+      const NdbError& tmp= error;
+      ERR_PRINT(tmp);
+      reterr= ndb_to_mysql_error(&tmp);
+    }
+    else
+      reterr= error.code;
+
     break;
   } while(1);
   DBUG_PRINT("exit", ("failed, reterr: %u, NdbError %u(%s)", reterr,
