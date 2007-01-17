@@ -464,7 +464,6 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 #ifndef EMBEDDED_LIBRARY
   if (mysql_bin_log.is_open())
   {
-#ifdef HAVE_ROW_BASED_REPLICATION
     /*
       We need to do the job that is normally done inside
       binlog_query() here, which is to ensure that the pending event
@@ -476,7 +475,6 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (thd->current_stmt_binlog_row_based)
       thd->binlog_flush_pending_rows_event(true);
     else
-#endif
     {
       /*
         As already explained above, we need to call end_io_cache() or the last

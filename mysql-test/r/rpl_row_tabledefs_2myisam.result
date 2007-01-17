@@ -46,60 +46,60 @@ INSERT INTO t1_bit VALUES (1,2);
 INSERT INTO t1_bit VALUES (2,5);
 INSERT INTO t1_char VALUES (1,2);
 INSERT INTO t1_char VALUES (2,5);
-SELECT * FROM t1_int;
+SELECT * FROM t1_int ORDER BY a;
 a	b
 1	2
 2	5
-SELECT * FROM t1_bit;
+SELECT * FROM t1_bit ORDER BY a;
 a	b
 1	2
 2	5
-SELECT * FROM t1_char;
+SELECT * FROM t1_char ORDER BY a;
 a	b
 1	2
 2	5
 **** On Slave ****
-SELECT a,b,x FROM t1_int;
+SELECT a,b,x FROM t1_int ORDER BY a;
 a	b	x
-2	5	4711
 1	2	42
-SELECT a,b,HEX(x),HEX(y),HEX(z) FROM t1_bit;
+2	5	4711
+SELECT a,b,HEX(x),HEX(y),HEX(z) FROM t1_bit ORDER BY a;
 a	b	HEX(x)	HEX(y)	HEX(z)
-2	5	5	1C	1
 1	2	3	15	2
-SELECT a,b,x FROM t1_char;
+2	5	5	1C	1
+SELECT a,b,x FROM t1_char ORDER BY a;
 a	b	x
-2	5	Foo is a bar
 1	2	Just a test
+2	5	Foo is a bar
 **** On Master ****
 UPDATE t1_int  SET b=2*b WHERE a=2;
 UPDATE t1_char SET b=2*b WHERE a=2;
 UPDATE t1_bit  SET b=2*b WHERE a=2;
-SELECT * FROM t1_int;
+SELECT * FROM t1_int ORDER BY a;
 a	b
 1	2
 2	10
-SELECT * FROM t1_bit;
+SELECT * FROM t1_bit ORDER BY a;
 a	b
 1	2
 2	10
-SELECT * FROM t1_char;
+SELECT * FROM t1_char ORDER BY a;
 a	b
 1	2
 2	10
 **** On Slave ****
-SELECT a,b,x FROM t1_int;
+SELECT a,b,x FROM t1_int ORDER BY a;
 a	b	x
-2	10	4711
 1	2	42
-SELECT a,b,HEX(x),HEX(y),HEX(z) FROM t1_bit;
+2	10	4711
+SELECT a,b,HEX(x),HEX(y),HEX(z) FROM t1_bit ORDER BY a;
 a	b	HEX(x)	HEX(y)	HEX(z)
-2	10	5	1C	1
 1	2	3	15	2
-SELECT a,b,x FROM t1_char;
+2	10	5	1C	1
+SELECT a,b,x FROM t1_char ORDER BY a;
 a	b	x
-2	10	Foo is a bar
 1	2	Just a test
+2	10	Foo is a bar
 INSERT INTO t9 VALUES (2);
 INSERT INTO t1_nodef VALUES (1,2);
 SHOW SLAVE STATUS;
@@ -327,22 +327,22 @@ Master_SSL_Key
 Seconds_Behind_Master	#
 INSERT INTO t7 VALUES (1),(2),(3);
 INSERT INTO t8 VALUES (1),(2),(3);
-SELECT * FROM t7;
+SELECT * FROM t7 ORDER BY a;
 a
 1
 2
 3
-SELECT * FROM t8;
+SELECT * FROM t8 ORDER BY a;
 a
 1
 2
 3
-SELECT * FROM t7;
+SELECT * FROM t7 ORDER BY a;
 a	e1	e2	e3	e4	e5	e6	e7	e8
 1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 3	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-SELECT * FROM t8;
+SELECT * FROM t8 ORDER BY a;
 a	e1	e2	e3	e4	e5	e6	e7	e8
 1	0	0	0	0	0	0	0	0
 2	0	0	0	0	0	0	0	0
@@ -358,22 +358,22 @@ INSERT INTO t1_nodef VALUES (1,2,3);
 INSERT INTO t1_nodef VALUES (2,4,6);
 **** On Master ****
 UPDATE t1_nodef SET b=2*b WHERE a=1;
-SELECT * FROM t1_nodef;
+SELECT * FROM t1_nodef ORDER BY a;
 a	b
 1	4
 2	4
 **** On Slave ****
-SELECT * FROM t1_nodef;
+SELECT * FROM t1_nodef ORDER BY a;
 a	b	x
 1	4	3
 2	4	6
 **** On Master ****
 DELETE FROM t1_nodef WHERE a=2;
-SELECT * FROM t1_nodef;
+SELECT * FROM t1_nodef ORDER BY a;
 a	b
 1	4
 **** On Slave ****
-SELECT * FROM t1_nodef;
+SELECT * FROM t1_nodef ORDER BY a;
 a	b	x
 1	4	3
 **** Cleanup ****

@@ -367,6 +367,7 @@ insert into t2 select * from t1;
 select get_lock("a",10);
 get_lock("a",10)
 1
+flush logs;
 select
 (@a:=load_file("MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output"))
 is not null;
@@ -374,8 +375,8 @@ is not null;
 is not null
 1
 select
-@a like "%#%error_code=0%ROLLBACK;%ROLLBACK /* added by mysqlbinlog */;%",
+@a like "%#%error_code=0%ROLLBACK/*!*/;%ROLLBACK /* added by mysqlbinlog */;%",
 @a not like "%#%error_code=%error_code=%";
-@a like "%#%error_code=0%ROLLBACK;%ROLLBACK /* added by mysqlbinlog */;%"	@a not like "%#%error_code=%error_code=%"
+@a like "%#%error_code=0%ROLLBACK/*!*/;%ROLLBACK /* added by mysqlbinlog */;%"	@a not like "%#%error_code=%error_code=%"
 1	1
 drop table t1, t2;
