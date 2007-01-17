@@ -2914,6 +2914,7 @@ mysql_execute_command(THD *thd)
     if ((res= create_table_precheck(thd, select_tables, create_table)))
       goto end_with_restore_list;
 
+    create_info.alias= create_table->alias;
 
 #ifndef HAVE_READLINK
     create_info.data_file_name= create_info.index_file_name= NULL;
@@ -7373,7 +7374,6 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
 
   want_priv= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
               CREATE_TMP_ACL : CREATE_ACL);
-  lex->create_info.alias= create_table->alias;
   if (check_access(thd, want_priv, create_table->db,
 		   &create_table->grant.privilege, 0, 0,
                    test(create_table->schema_table)) ||
