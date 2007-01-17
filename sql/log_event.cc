@@ -1515,7 +1515,6 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 
 /* 2 utility functions for the next method */
 
-
 /* 
   Get the pointer for a string (src) that contains the length in
   the first byte. Set the output string (dst) to the string value
@@ -1539,7 +1538,6 @@ static void copy_str_and_move(const char **src,
   (*dst)+= len;
   *(*dst)++= 0;
 }
-
 
 /*
   Query_log_event::Query_log_event()
