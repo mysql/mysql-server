@@ -2305,8 +2305,18 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
         substitution of a const table the key value happens to be null
         then we can state that there are no matches for this equi-join.
       */  
-      if ((keyuse= s->keyuse) && *s->on_expr_ref)
+      if ((keyuse= s->keyuse) && *s->on_expr_ref && !s->embedding_map)
       {
+        /* 
+          When performing an outer join operation if there are no matching rows
+          for the single row of the outer table all the inner tables are to be
+          null complemented and thus considered as constant tables.
+          Here we apply this consideration to the case of outer join operations 
+          with a single inner table only because the case with nested tables
+          would require a more thorough analysis.
+          TODO. Apply single row substitution to null complemented inner tables
+          for nested outer join operations. 
+	*/              
         while (keyuse->table == table)
         {
           if (!(keyuse->val->used_tables() & ~join->const_table_map) &&
@@ -8432,6 +8442,46 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
   return cond;					// Point at next and level
 }
 
+/* 
+  Check if equality can be used in removing components of GROUP BY/DISTINCT
+  
+  SYNOPSIS
+    test_if_equality_guarantees_uniqueness()
+      l          the left comparison argument (a field if any)
+      r          the right comparison argument (a const of any)
+  
+  DESCRIPTION    
+    Checks if an equality predicate can be used to take away 
+    DISTINCT/GROUP BY because it is known to be true for exactly one 
+    distinct value (e.g. <expr> == <const>).
+    Arguments must be of the same type because e.g. 
+    <string_field> = <int_const> may match more than 1 distinct value from 
+    the column. 
+    We must take into consideration and the optimization done for various 
+    string constants when compared to dates etc (see Item_int_with_ref) as
+    well as the collation of the arguments.
+  
+  RETURN VALUE  
+    TRUE    can be used
+    FALSE   cannot be used
+*/
+static bool
+test_if_equality_guarantees_uniqueness(Item *l, Item *r)
+{
+  return r->const_item() &&
+    /* elements must be of the same result type */
+    (r->result_type() == l->result_type() ||
+    /* or dates compared to longs */
+     (((l->type() == Item::FIELD_ITEM &&
+        ((Item_field *)l)->field->can_be_compared_as_longlong()) ||
+       (l->type() == Item::FUNC_ITEM &&
+        ((Item_func *)l)->result_as_longlong())) &&
+      r->result_type() == INT_RESULT))
+    /* and must have the same collation if compared as strings */
+    && (l->result_type() != STRING_RESULT ||
+        l->collation.collation == r->collation.collation);
+}
+
 /*
   Return 1 if the item is a const value in all the WHERE clause
 */
@@ -8468,7 +8518,7 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
     Item *right_item= ((Item_func*) cond)->arguments()[1];
     if (left_item->eq(comp_item,1))
     {
-      if (right_item->const_item())
+      if (test_if_equality_guarantees_uniqueness (left_item, right_item))
       {
 	if (*const_item)
 	  return right_item->eq(*const_item, 1);
@@ -8478,7 +8528,7 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
     }
     else if (right_item->eq(comp_item,1))
     {
-      if (left_item->const_item())
+      if (test_if_equality_guarantees_uniqueness (right_item, left_item))
       {
 	if (*const_item)
 	  return left_item->eq(*const_item, 1);

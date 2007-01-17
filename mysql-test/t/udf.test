@@ -188,6 +188,23 @@ DROP FUNCTION reverse_lookup;
 DROP FUNCTION avgcost;
 
 #
+# Bug #15439: UDF name case handling forces DELETE FROM mysql.func to remove 
+#             the UDF
+# 
+select * from mysql.func;
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION is_const RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+
+select IS_const(3);
+
+drop function IS_const;
+
+select * from mysql.func;
+
+--error 1305
+select is_const(3);
+
+#
 # Bug#18761: constant expression as UDF parameters not passed in as constant
 #
 --replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
