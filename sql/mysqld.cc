@@ -65,12 +65,6 @@
 #define ONE_THREAD
 #endif
 
-#ifdef HAVE_purify
-#define IF_PURIFY(A,B) (A)
-#else
-#define IF_PURIFY(A,B) (B)
-#endif
-
 #if SIZEOF_CHARP == 4
 #define MAX_MEM_TABLE_SIZE ~(ulong) 0
 #else
@@ -5686,7 +5680,7 @@ log and this option does nothing anymore.",
 #endif
   {"symbolic-links", 's', "Enable symbolic link support.",
    (gptr*) &my_use_symdir, (gptr*) &my_use_symdir, 0, GET_BOOL, NO_ARG,
-   IF_PURIFY(0,1), 0, 0, 0, 0, 0},
+   1, 0, 0, 0, 0, 0},
   {"sysdate-is-now", OPT_SYSDATE_IS_NOW,
    "Non-default option to alias SYSDATE() to NOW() to make it safe-replicable. Since 5.0, SYSDATE() returns a `dynamic' value different for different invocations, even within the same statement.",
    (gptr*) &global_system_variables.sysdate_is_now,
@@ -5718,7 +5712,7 @@ log and this option does nothing anymore.",
    0, 0, 0, 0, 0},
   {"use-symbolic-links", 's', "Enable symbolic link support. Deprecated option; use --symbolic-links instead.",
    (gptr*) &my_use_symdir, (gptr*) &my_use_symdir, 0, GET_BOOL, NO_ARG,
-   IF_PURIFY(0,1), 0, 0, 0, 0, 0},
+   1, 0, 0, 0, 0, 0},
   {"user", 'u', "Run mysqld daemon as user.", 0, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Used with --help option for detailed help",
