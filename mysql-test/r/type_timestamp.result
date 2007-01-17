@@ -188,9 +188,9 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-t1	timestamp	YES		2003-01-01 00:00:00	
+t1	timestamp			2003-01-01 00:00:00	
 t2	datetime	YES		NULL	
-t3	timestamp	YES		0000-00-00 00:00:00	
+t3	timestamp			0000-00-00 00:00:00	
 drop table t1;
 create table t1 (t1 timestamp default now(), t2 datetime, t3 timestamp);
 SET TIMESTAMP=1000000002;
@@ -212,9 +212,9 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-t1	timestamp	YES		CURRENT_TIMESTAMP	
+t1	timestamp			CURRENT_TIMESTAMP	
 t2	datetime	YES		NULL	
-t3	timestamp	YES		0000-00-00 00:00:00	
+t3	timestamp			0000-00-00 00:00:00	
 drop table t1;
 create table t1 (t1 timestamp default '2003-01-01 00:00:00' on update now(), t2 datetime);
 SET TIMESTAMP=1000000004;
@@ -238,7 +238,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-t1	timestamp	YES		2003-01-01 00:00:00	
+t1	timestamp			2003-01-01 00:00:00	
 t2	datetime	YES		NULL	
 drop table t1;
 create table t1 (t1 timestamp default now() on update now(), t2 datetime);
@@ -263,7 +263,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-t1	timestamp	YES		CURRENT_TIMESTAMP	
+t1	timestamp			CURRENT_TIMESTAMP	
 t2	datetime	YES		NULL	
 drop table t1;
 create table t1 (t1 timestamp, t2 datetime, t3 timestamp);
@@ -289,9 +289,9 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-t1	timestamp	YES		CURRENT_TIMESTAMP	
+t1	timestamp			CURRENT_TIMESTAMP	
 t2	datetime	YES		NULL	
-t3	timestamp	YES		0000-00-00 00:00:00	
+t3	timestamp			0000-00-00 00:00:00	
 drop table t1;
 create table t1 (t1 timestamp default current_timestamp on update current_timestamp, t2 datetime);
 SET TIMESTAMP=1000000009;
@@ -315,7 +315,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-t1	timestamp	YES		CURRENT_TIMESTAMP	
+t1	timestamp			CURRENT_TIMESTAMP	
 t2	datetime	YES		NULL	
 delete from t1;
 insert into t1 values ('2004-04-01 00:00:00', '2004-04-01 00:00:00');

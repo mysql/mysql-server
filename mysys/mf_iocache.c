@@ -199,11 +199,11 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
   if (type != READ_NET && type != WRITE_NET)
   {
     /* Retry allocating memory in smaller blocks until we get one */
+    cachesize=(uint) ((ulong) (cachesize + min_cache-1) &
+			(ulong) ~(min_cache-1));
     for (;;)
     {
       uint buffer_block;
-      cachesize=(uint) ((ulong) (cachesize + min_cache-1) &
-			(ulong) ~(min_cache-1));
       if (cachesize < min_cache)
 	cachesize = min_cache;
       buffer_block = cachesize;
@@ -222,7 +222,8 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
       }
       if (cachesize == min_cache)
 	DBUG_RETURN(2);				/* Can't alloc cache */
-      cachesize= (uint) ((long) cachesize*3/4); /* Try with less memory */
+      /* Try with less memory */
+      cachesize= (uint) ((ulong) cachesize*3/4 & (ulong)~(min_cache-1));
     }
   }
 
