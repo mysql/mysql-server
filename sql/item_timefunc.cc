@@ -595,16 +595,10 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
   uint weekday;
   ulong length;
   const char *ptr, *end;
-  MY_LOCALE *locale;
   THD *thd= current_thd;
-  char buf[128];
-  String tmp(buf, sizeof(buf), thd->variables.character_set_results);
-  uint errors= 0;
+  MY_LOCALE *locale= thd->variables.lc_time_names;
 
-  tmp.length(0);
   str->length(0);
-  str->set_charset(&my_charset_bin);
-  locale = thd->variables.lc_time_names;
 
   if (l_time->neg)
     str->append("-", 1);
@@ -618,41 +612,37 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
     {
       switch (*++ptr) {
       case 'M':
-	if (!l_time->month)
-	  return 1;
-	tmp.copy(locale->month_names->type_names[l_time->month-1],
-		   strlen(locale->month_names->type_names[l_time->month-1]),
-		   system_charset_info, tmp.charset(), &errors);
-	str->append(tmp.ptr(), tmp.length());
-	break;
+        if (!l_time->month)
+          return 1;
+        str->append(locale->month_names->type_names[l_time->month-1],
+                    strlen(locale->month_names->type_names[l_time->month-1]),
+                    system_charset_info);
+        break;
       case 'b':
-	if (!l_time->month)
-	  return 1;
-	tmp.copy(locale->ab_month_names->type_names[l_time->month-1],
-		 strlen(locale->ab_month_names->type_names[l_time->month-1]),
-		 system_charset_info, tmp.charset(), &errors);
-	str->append(tmp.ptr(), tmp.length());
-	break;
+        if (!l_time->month)
+          return 1;
+        str->append(locale->ab_month_names->type_names[l_time->month-1],
+                    strlen(locale->ab_month_names->type_names[l_time->month-1]),
+                    system_charset_info);
+        break;
       case 'W':
-	if (type == MYSQL_TIMESTAMP_TIME)
-	  return 1;
-	weekday= calc_weekday(calc_daynr(l_time->year,l_time->month,
-					 l_time->day),0);
-	tmp.copy(locale->day_names->type_names[weekday],
-		 strlen(locale->day_names->type_names[weekday]),
-		 system_charset_info, tmp.charset(), &errors);
-	str->append(tmp.ptr(), tmp.length());
-	break;
+        if (type == MYSQL_TIMESTAMP_TIME)
+          return 1;
+        weekday= calc_weekday(calc_daynr(l_time->year,l_time->month,
+                              l_time->day),0);
+        str->append(locale->day_names->type_names[weekday],
+                    strlen(locale->day_names->type_names[weekday]),
+                    system_charset_info);
+        break;
       case 'a':
-	if (type == MYSQL_TIMESTAMP_TIME)
-	  return 1;
-	weekday=calc_weekday(calc_daynr(l_time->year,l_time->month,
-					l_time->day),0);
-	tmp.copy(locale->ab_day_names->type_names[weekday],
-		 strlen(locale->ab_day_names->type_names[weekday]),
-		 system_charset_info, tmp.charset(), &errors);
-	str->append(tmp.ptr(), tmp.length());
-	break;
+        if (type == MYSQL_TIMESTAMP_TIME)
+          return 1;
+        weekday=calc_weekday(calc_daynr(l_time->year,l_time->month,
+                             l_time->day),0);
+        str->append(locale->ab_day_names->type_names[weekday],
+                    strlen(locale->ab_day_names->type_names[weekday]),
+                    system_charset_info);
+        break;
       case 'D':
 	if (type == MYSQL_TIMESTAMP_TIME)
 	  return 1;
@@ -1638,8 +1628,9 @@ longlong Item_func_sec_to_time::val_int()
 
 void Item_func_date_format::fix_length_and_dec()
 {
+  THD* thd= current_thd;
   decimals=0;
-  collation.set(&my_charset_bin);
+  collation.set(thd->variables.collation_connection);
   if (args[1]->type() == STRING_ITEM)
   {						// Optimize the normal case
     fixed_length=1;
@@ -1653,17 +1644,14 @@ void Item_func_date_format::fix_length_and_dec()
     args[1]->collation.set(
         get_charset_by_csname(args[1]->collation.collation->csname,
                               MY_CS_BINSORT,MYF(0)), DERIVATION_COERCIBLE);
-    /*
-      The result is a binary string (no reason to use collation->mbmaxlen
-      This is becasue make_date_time() only returns binary strings
-    */
-    max_length= format_length(((Item_string*) args[1])->const_string());
+    max_length= format_length(((Item_string*) args[1])->const_string()) *
+                collation.collation->mbmaxlen;
   }
   else
   {
     fixed_length=0;
-    /* The result is a binary string (no reason to use collation->mbmaxlen */
-    max_length=min(args[1]->max_length,MAX_BLOB_WIDTH) * 10;
+    max_length= min(args[1]->max_length,MAX_BLOB_WIDTH) * 10 * 
+                collation.collation->mbmaxlen;
     set_if_smaller(max_length,MAX_BLOB_WIDTH);
   }
   maybe_null=1;					// If wrong date
@@ -1783,6 +1771,7 @@ String *Item_func_date_format::val_str(String *str)
   date_time_format.format.length= format->length(); 
 
   /* Create the result string */
+  str->set_charset(collation.collation);
   if (!make_date_time(&date_time_format, &l_time,
                       is_time_format ? MYSQL_TIMESTAMP_TIME :
                                        MYSQL_TIMESTAMP_DATE,
