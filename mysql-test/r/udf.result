@@ -209,7 +209,7 @@ select abs(myfunc_double(3) AS wrong);
 ERROR 42000: Incorrect parameters in the call to native function 'abs'
 drop function if exists pi;
 CREATE FUNCTION pi RETURNS STRING SONAME "should_not_parse.so";
-ERROR HY000: This function 'pi' has the same name as a native function.
+ERROR HY000: This function 'pi' has the same name as a native function
 DROP FUNCTION IF EXISTS metaphon;
 CREATE FUNCTION metaphon(a int) RETURNS int
 return 0;
