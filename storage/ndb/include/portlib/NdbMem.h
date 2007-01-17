@@ -65,7 +65,7 @@ void NdbMem_Free(void* ptr);
  * NdbMem_MemLockAll
  *   Locks virtual memory in main memory
  */
-int NdbMem_MemLockAll(void);
+int NdbMem_MemLockAll(int);
 
 /**
  * NdbMem_MemUnlockAll
