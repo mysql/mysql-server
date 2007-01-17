@@ -28,7 +28,7 @@ check_cpu () {
     fi
 
     # parse CPU flags
-    for flag in `$cpuinfo | grep '^flags' | sed -e 's/^flags.*: //'`; do 
+    for flag in `$cpuinfo | grep '^flags' | sed -e 's/^flags.*: //' -e 's/[^a-zA-Z0-9_ ]/_/g'`; do 
           eval cpu_flag_$flag=yes
     done
   else
