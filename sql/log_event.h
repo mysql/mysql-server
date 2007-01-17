@@ -270,6 +270,8 @@ struct sql_ex_info
 */
 #define Q_CATALOG_NZ_CODE       6
 
+#define Q_LC_TIME_NAMES_CODE    7
+
 /* Intvar event post-header */
 
 #define I_TYPE_OFFSET        0
@@ -506,9 +508,11 @@ typedef struct st_print_event_info
   bool charset_inited;
   char charset[6]; // 3 variables, each of them storable in 2 bytes
   char time_zone_str[MAX_TIME_ZONE_NAME_LENGTH];
+  uint lc_time_names_number;
   st_print_event_info()
     :flags2_inited(0), sql_mode_inited(0),
-     auto_increment_increment(1),auto_increment_offset(1), charset_inited(0)
+     auto_increment_increment(1),auto_increment_offset(1), charset_inited(0),
+     lc_time_names_number(0)
     {
       /*
         Currently we only use static PRINT_EVENT_INFO objects, so zeroed at
@@ -518,12 +522,14 @@ typedef struct st_print_event_info
       bzero(db, sizeof(db));
       bzero(charset, sizeof(charset));
       bzero(time_zone_str, sizeof(time_zone_str));
+      strcpy(delimiter, ";");
     }
 
   /* Settings on how to print the events */
   bool short_form;
   my_off_t hexdump_from;
   uint8 common_header_len;
+  char delimiter[16];
 
 } PRINT_EVENT_INFO;
 #endif
@@ -539,6 +545,13 @@ typedef struct st_print_event_info
 class Log_event
 {
 public:
+  /*
+    The following type definition is to be used whenever data is placed 
+    and manipulated in a common buffer. Use this typedef for buffers
+    that contain data containing binary and character data.
+  */
+  typedef unsigned char Byte;
+
   /*
     The offset in the log where this event originally appeared (it is
     preserved in relay logs, making SHOW SLAVE STATUS able to print
@@ -712,7 +725,7 @@ public:
 class Query_log_event: public Log_event
 {
 protected:
-  char* data_buf;
+  Log_event::Byte* data_buf;
 public:
   const char* query;
   const char* catalog;
@@ -783,6 +796,7 @@ public:
   char charset[6];
   uint time_zone_len; /* 0 means uninited */
   const char *time_zone_str;
+  uint lc_time_names_number; /* 0 means en_US */
 
 #ifndef MYSQL_CLIENT
 
