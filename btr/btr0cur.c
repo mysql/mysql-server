@@ -3548,8 +3548,8 @@ static
 ulint
 btr_blob_get_part_len(
 /*==================*/
-				/* out: part length */
-	byte*	blob_header)	/* in: blob header */
+					/* out: part length */
+	const byte*	blob_header)	/* in: blob header */
 {
 	return(mach_read_from_4(blob_header + BTR_BLOB_HDR_PART_LEN));
 }
@@ -3560,9 +3560,9 @@ static
 ulint
 btr_blob_get_next_page_no(
 /*======================*/
-				/* out: page number or FIL_NULL if
-				no more pages */
-	byte*	blob_header)	/* in: blob header */
+					/* out: page number or FIL_NULL if
+					no more pages */
+	const byte*	blob_header)	/* in: blob header */
 {
 	return(mach_read_from_4(blob_header + BTR_BLOB_HDR_NEXT_PAGE_NO));
 }
@@ -4170,6 +4170,181 @@ btr_rec_free_updated_extern_fields(
 }
 
 /***********************************************************************
+Copies the prefix of an uncompressed BLOB. */
+static
+ulint
+btr_copy_blob_prefix(
+/*=================*/
+				/* out: bytes written to buf */
+	byte*		buf,	/* out: the externally stored part of
+				the field, or a prefix of it */
+	ulint		len,	/* in: length of buf, in bytes */
+	ulint		space_id,/* in: space id of the first BLOB page */
+	ulint		page_no,/* in: page number of the first BLOB page */
+	ulint		offset)	/* in: offset on the first BLOB page */
+{
+	ulint	copied_len	= 0;
+
+	for (;;) {
+		mtr_t		mtr;
+		buf_block_t*	block;
+		const page_t*	page;
+		const byte*	blob_header;
+		ulint		part_len;
+		ulint		copy_len;
+
+		mtr_start(&mtr);
+
+		block = buf_page_get(space_id, page_no, RW_S_LATCH, &mtr);
+#ifdef UNIV_SYNC_DEBUG
+		buf_block_dbg_add_level(block, SYNC_EXTERN_STORAGE);
+#endif /* UNIV_SYNC_DEBUG */
+		page = buf_block_get_frame(block);
+
+		/* Unfortunately, FIL_PAGE_TYPE was uninitialized for
+		many pages until MySQL/InnoDB 5.1.7. */
+		/* ut_ad(fil_page_get_type(page) == FIL_PAGE_TYPE_BLOB); */
+		blob_header = page + offset;
+		part_len = btr_blob_get_part_len(blob_header);
+		copy_len = ut_min(part_len, len - copied_len);
+
+		memcpy(buf + copied_len,
+		       blob_header + BTR_BLOB_HDR_SIZE, copy_len);
+		copied_len += copy_len;
+
+		page_no = btr_blob_get_next_page_no(blob_header);
+
+		mtr_commit(&mtr);
+
+		if (page_no == FIL_NULL || copy_len != part_len) {
+			return(copied_len);
+		}
+
+		/* On other BLOB pages except the first the BLOB header
+		always is at the page data start: */
+
+		offset = FIL_PAGE_DATA;
+
+		ut_ad(copied_len <= len);
+	}
+}
+
+/***********************************************************************
+Copies the prefix of a compressed BLOB. */
+static
+void
+btr_copy_zblob_prefix(
+/*==================*/
+	z_stream*	d_stream,/* in/out: the decompressing stream */
+	ulint		zip_size,/* in: compressed BLOB page size */
+	ulint		space_id,/* in: space id of the first BLOB page */
+	ulint		page_no,/* in: page number of the first BLOB page */
+	ulint		offset)	/* in: offset on the first BLOB page */
+{
+	ut_ad(ut_is_2pow(zip_size));
+	ut_ad(zip_size >= PAGE_ZIP_MIN_SIZE);
+	ut_ad(zip_size <= UNIV_PAGE_SIZE);
+	ut_ad(space_id);
+
+	for (;;) {
+		mtr_t		mtr;
+		buf_block_t*	block;
+		page_t*		page;
+		int		err;
+		ulint		next_page_no;
+
+		mtr_start(&mtr);
+
+		block = buf_page_get(space_id, page_no, RW_S_LATCH, &mtr);
+#ifdef UNIV_SYNC_DEBUG
+		buf_block_dbg_add_level(block, SYNC_EXTERN_STORAGE);
+#endif /* UNIV_SYNC_DEBUG */
+		page = buf_block_get_frame(block);
+
+		if (UNIV_UNLIKELY(fil_page_get_type(page)
+				  != FIL_PAGE_TYPE_ZBLOB)) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: Unknown type %lu of"
+				" compressed BLOB"
+				" page %lu space %lu\n",
+				(ulong) fil_page_get_type(page),
+				(ulong) page_no, (ulong) space_id);
+		}
+
+		next_page_no = mach_read_from_4(page + offset);
+
+		if (UNIV_LIKELY(offset == FIL_PAGE_NEXT)) {
+			/* When the BLOB begins at page header,
+			the compressed data payload does not
+			immediately follow the next page pointer. */
+			offset = FIL_PAGE_DATA;
+		} else {
+			offset += 4;
+		}
+
+		d_stream->next_in = page + offset;
+		d_stream->avail_in = zip_size - offset;
+
+		err = inflate(d_stream, Z_NO_FLUSH);
+		switch (err) {
+		case Z_OK:
+			if (!d_stream->avail_out) {
+				goto end_of_blob;
+			}
+			break;
+		case Z_STREAM_END:
+			if (next_page_no == FIL_NULL) {
+				goto end_of_blob;
+			}
+			/* fall through */
+		default:
+inflate_error:
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: inflate() of"
+				" compressed BLOB"
+				" page %lu space %lu returned %d\n",
+				(ulong) page_no, (ulong) space_id,
+				err);
+		case Z_BUF_ERROR:
+			goto end_of_blob;
+		}
+
+		if (next_page_no == FIL_NULL) {
+			if (!d_stream->avail_in) {
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
+					"  InnoDB: unexpected end of"
+					" compressed BLOB"
+					" page %lu space %lu\n",
+					(ulong) page_no,
+					(ulong) space_id);
+			} else {
+				err = inflate(d_stream, Z_FINISH);
+				if (UNIV_UNLIKELY
+				    (err != Z_STREAM_END)) {
+					goto inflate_error;
+				}
+			}
+
+end_of_blob:
+			mtr_commit(&mtr);
+			inflateEnd(d_stream);
+			return;
+		}
+
+		mtr_commit(&mtr);
+
+		/* On other BLOB pages except the first
+		the BLOB header always is at the page header: */
+
+		page_no = next_page_no;
+		offset = FIL_PAGE_NEXT;
+	}
+}
+
+/***********************************************************************
 Copies the prefix of an externally stored field of a record. */
 static
 ulint
@@ -4185,16 +4360,14 @@ btr_copy_externally_stored_field_prefix_low(
 	ulint		page_no,/* in: page number of the first BLOB page */
 	ulint		offset)	/* in: offset on the first BLOB page */
 {
-	ulint	copied_len	= 0;
-	mtr_t	mtr;
-	z_stream d_stream;
-
 	if (UNIV_UNLIKELY(len == 0)) {
 		return(0);
 	}
 
 	if (UNIV_UNLIKELY(zip_size)) {
-		int	err;
+		int		err;
+		z_stream	d_stream;
+
 		d_stream.zalloc = (alloc_func) 0;
 		d_stream.zfree = (free_func) 0;
 		d_stream.opaque = (voidpf) 0;
@@ -4205,131 +4378,13 @@ btr_copy_externally_stored_field_prefix_low(
 		d_stream.next_out = buf;
 		d_stream.avail_out = len;
 		d_stream.avail_in = 0;
-	}
 
-	for (;;) {
-		buf_block_t*	block;
-		page_t*		page;
-
-		mtr_start(&mtr);
-
-		block = buf_page_get(space_id, page_no, RW_S_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
-		buf_block_dbg_add_level(block, SYNC_EXTERN_STORAGE);
-#endif /* UNIV_SYNC_DEBUG */
-		page = buf_block_get_frame(block);
-
-		if (UNIV_UNLIKELY(zip_size)) {
-			int	err;
-			ulint	next_page_no;
-
-			if (UNIV_UNLIKELY(fil_page_get_type(page)
-					  != FIL_PAGE_TYPE_ZBLOB)) {
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					"  InnoDB: Unknown type %lu of"
-					" compressed BLOB"
-					" page %lu space %lu\n",
-					(ulong) fil_page_get_type(page),
-					(ulong) page_no, (ulong) space_id);
-			}
-
-			next_page_no = mach_read_from_4(page + offset);
-
-			if (UNIV_LIKELY(offset == FIL_PAGE_NEXT)) {
-				/* When the BLOB begins at page header,
-				the compressed data payload does not
-				immediately follow the next page pointer. */
-				offset = FIL_PAGE_DATA;
-			} else {
-				offset += 4;
-			}
-
-			d_stream.next_in = page + offset;
-			d_stream.avail_in = zip_size - offset;
-
-			err = inflate(&d_stream, Z_NO_FLUSH);
-			switch (err) {
-			case Z_OK:
-				if (!d_stream.avail_out) {
-					goto end_of_blob;
-				}
-				break;
-			case Z_STREAM_END:
-				if (next_page_no == FIL_NULL) {
-					goto end_of_blob;
-				}
-				/* fall through */
-			default:
-inflate_error:
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					"  InnoDB: inflate() of"
-					" compressed BLOB"
-					" page %lu space %lu returned %d\n",
-					(ulong) page_no, (ulong) space_id,
-					err);
-			case Z_BUF_ERROR:
-				goto end_of_blob;
-			}
-
-			if (next_page_no == FIL_NULL) {
-				if (!d_stream.avail_in) {
-					ut_print_timestamp(stderr);
-					fprintf(stderr,
-						"  InnoDB: unexpected end of"
-						" compressed BLOB"
-						" page %lu space %lu\n",
-						(ulong) page_no,
-						(ulong) space_id);
-				} else {
-					err = inflate(&d_stream, Z_FINISH);
-					if (UNIV_UNLIKELY
-					    (err != Z_STREAM_END)) {
-						goto inflate_error;
-					}
-				}
-
-end_of_blob:
-				mtr_commit(&mtr);
-				inflateEnd(&d_stream);
-				return(d_stream.total_out);
-			}
-
-			mtr_commit(&mtr);
-
-			/* On other BLOB pages except the first
-			the BLOB header always is at the page header: */
-
-			page_no = next_page_no;
-			offset = FIL_PAGE_NEXT;
-		} else {
-			byte*	blob_header
-				= page + offset;
-			ulint	part_len
-				= btr_blob_get_part_len(blob_header);
-			ulint	copy_len
-				= ut_min(part_len, len - copied_len);
-
-			memcpy(buf + copied_len,
-			       blob_header + BTR_BLOB_HDR_SIZE, copy_len);
-			copied_len += copy_len;
-
-			page_no = btr_blob_get_next_page_no(blob_header);
-
-			mtr_commit(&mtr);
-
-			if (page_no == FIL_NULL || copy_len != part_len) {
-				return(copied_len);
-			}
-
-			/* On other BLOB pages except the first the BLOB header
-			always is at the page data start: */
-
-			offset = FIL_PAGE_DATA;
-
-			ut_ad(copied_len <= len);
-		}
+		btr_copy_zblob_prefix(&d_stream, zip_size,
+				      space_id, page_no, offset);
+		return(d_stream.total_out);
+	} else {
+		return(btr_copy_blob_prefix(buf, len, space_id,
+					    page_no, offset));
 	}
 }
 
