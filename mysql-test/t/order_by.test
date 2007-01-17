@@ -44,7 +44,7 @@ INSERT INTO t2 VALUES (7,'Liste des t2','t2_liste_form.phtml',51060,'link.gif');
 INSERT INTO t2 VALUES (8,'Consulter les soumissions','consulter_soumissions.phtml',200,'link.gif');
 INSERT INTO t2 VALUES (9,'Ajouter un type de materiel','typeMateriel_ajoute_form.phtml',51000,'link.gif');
 INSERT INTO t2 VALUES (10,'Lister/modifier un type de materiel','typeMateriel_liste_form.phtml',51010,'link.gif');
-INSERT INTO t2 VALUES (3,'Créer une fiche de client','clients_ajoute_form.phtml',40000,'link.gif');
+INSERT INTO t2 VALUES (3,'CrÃ©er une fiche de client','clients_ajoute_form.phtml',40000,'link.gif');
 INSERT INTO t2 VALUES (4,'Modifier des clients','en_construction.html',40010,'link.gif');
 INSERT INTO t2 VALUES (5,'Effacer des clients','en_construction.html',40020,'link.gif');
 INSERT INTO t2 VALUES (6,'Ajouter un service','t2_ajoute_form.phtml',51050,'link.gif');
@@ -586,6 +586,21 @@ SELECT a + 1 AS num, num + 1 FROM t1;
 SELECT a + 1 AS num, (select num + 2 FROM t1 LIMIT 1) FROM t1;
 --error 1054
 SELECT a.a + 1 AS num FROM t1 a JOIN t1 b ON num = b.a;
+DROP TABLE t1;
+
+#
+# Bug #25427: crash when order by expression contains a name
+#             that cannot be resolved unambiguously               
+#
+
+CREATE TABLE t1 (a int);
+
+SELECT p.a AS val, q.a AS val1 FROM t1 p, t1 q ORDER BY val > 1;
+--error 1052
+SELECT p.a AS val, q.a AS val FROM t1 p, t1 q ORDER BY val;
+--error 1052
+SELECT p.a AS val, q.a AS val FROM t1 p, t1 q ORDER BY val > 1;
+
 DROP TABLE t1;
 
 # End of 4.1 tests
