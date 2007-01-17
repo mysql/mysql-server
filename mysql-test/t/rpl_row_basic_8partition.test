@@ -7,7 +7,6 @@
 # partition tables with same engine (MyISAM) in both ends. #
 ############################################################
 
---source include/have_row_based.inc
 --source include/have_binlog_format_row.inc
 --source include/have_partition.inc
 --source include/not_ndb_default.inc
