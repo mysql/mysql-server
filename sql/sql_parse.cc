@@ -2485,6 +2485,12 @@ mysql_execute_command(THD *thd)
       goto unsent_create_error;
 
 #ifndef HAVE_READLINK
+    if (lex->create_info.data_file_name)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                   "DATA DIRECTORY option ignored");
+    if (lex->create_info.index_file_name)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                   "INDEX DIRECTORY option ignored");
     lex->create_info.data_file_name=lex->create_info.index_file_name=0;
 #else
     /* Fix names if symlinked tables */
