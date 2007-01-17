@@ -479,7 +479,7 @@ Configuration::setupConfiguration(){
   DBUG_VOID_RETURN;
 }
 
-bool 
+Uint32
 Configuration::lockPagesInMainMemory() const {
   return _lockPagesInMainMemory;
 }
