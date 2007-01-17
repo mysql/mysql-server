@@ -36,7 +36,7 @@ st_relay_log_info::st_relay_log_info()
    inited(0), abort_slave(0), slave_running(0), until_condition(UNTIL_NONE),
    until_log_pos(0), retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
-   unsafe_to_stop_at(0)
+   last_event_start_time(0)
 {
   DBUG_ENTER("st_relay_log_info::st_relay_log_info");
 
@@ -1001,6 +1001,22 @@ bool st_relay_log_info::is_until_satisfied()
     log_pos= group_relay_log_pos;
   }
 
+#ifndef DBUG_OFF
+  {
+    char buf[32];
+    DBUG_PRINT("info", ("group_master_log_name='%s', group_master_log_pos=%s",
+                        group_master_log_name, llstr(group_master_log_pos, buf)));
+    DBUG_PRINT("info", ("group_relay_log_name='%s', group_relay_log_pos=%s",
+                        group_relay_log_name, llstr(group_relay_log_pos, buf)));
+    DBUG_PRINT("info", ("(%s) log_name='%s', log_pos=%s",
+                        until_condition == UNTIL_MASTER_POS ? "master" : "relay",
+                        log_name, llstr(log_pos, buf)));
+    DBUG_PRINT("info", ("(%s) until_log_name='%s', until_log_pos=%s",
+                        until_condition == UNTIL_MASTER_POS ? "master" : "relay",
+                        until_log_name, llstr(until_log_pos, buf)));
+  }
+#endif
+
   if (until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_UNKNOWN)
   {
     /*
@@ -1095,7 +1111,7 @@ void st_relay_log_info::cleanup_context(THD *thd, bool error)
   m_table_map.clear_tables();
   close_thread_tables(thd);
   clear_tables_to_lock();
-  unsafe_to_stop_at= 0;
+  last_event_start_time= 0;
   DBUG_VOID_RETURN;
 }
 #endif

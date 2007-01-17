@@ -89,9 +89,10 @@ public:
       operator&()
 
     DESCRIPTION
-      Function to return a pointer to the internal, so that the object
-      can be treated as a IO_CACHE and used with the my_b_* IO_CACHE
-      functions
+
+      Function to return a pointer to the internal cache, so that the
+      object can be treated as a IO_CACHE and used with the my_b_*
+      IO_CACHE functions
 
     RETURN VALUE
       A pointer to the internal IO_CACHE.
@@ -593,6 +594,19 @@ int Log_event::do_update_pos(RELAY_LOG_INFO *rli)
   return 0;                                   // Cannot fail currently
 }
 
+
+Log_event::enum_skip_reason
+Log_event::shall_skip(RELAY_LOG_INFO *rli)
+{
+  if (this->server_id == ::server_id && !replicate_same_server_id)
+    return EVENT_SKIP_SAME_SID;
+  else if (rli->slave_skip_counter > 0)
+    return EVENT_SKIP_COUNT;
+  else
+    return EVENT_NOT_SKIPPED;
+}
+
+
 /*
   Log_event::pack_info()
 */
@@ -736,7 +750,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
   ulong data_len;
   int result=0;
   char buf[LOG_EVENT_MINIMAL_HEADER_LEN];
-  DBUG_ENTER("read_log_event");
+  DBUG_ENTER("Log_event::read_log_event");
 
   if (log_lock)
     pthread_mutex_lock(log_lock);
@@ -811,7 +825,7 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
                                      const Format_description_log_event *description_event)
 #endif
 {
-  DBUG_ENTER("Log_event::read_log_event(IO_CACHE *, Format_description_log_event *");
+  DBUG_ENTER("Log_event::read_log_event");
   DBUG_ASSERT(description_event != 0);
   char head[LOG_EVENT_MINIMAL_HEADER_LEN];
   /*
@@ -2472,16 +2486,6 @@ bool Format_description_log_event::write(IO_CACHE* file)
 }
 #endif
 
-/*
-  SYNOPSIS
-    Format_description_log_event::do_apply_event()
-
-  IMPLEMENTATION
-    Save the information which describes the binlog's format, to be
-    able to read all coming events.  Call
-    Start_log_event_v3::do_apply_event().
-*/
-
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Format_description_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
 {
@@ -2559,6 +2563,12 @@ int Format_description_log_event::do_update_pos(RELAY_LOG_INFO *rli)
   {
     return Log_event::do_update_pos(rli);
   }
+}
+
+Log_event::enum_skip_reason
+Format_description_log_event::shall_skip(RELAY_LOG_INFO *rli)
+{
+  return Log_event::EVENT_NOT_SKIPPED;
 }
 
 #endif
@@ -3425,6 +3435,16 @@ bool Rotate_log_event::write(IO_CACHE* file)
 }
 #endif
 
+/**
+   Helper function to detect if the event is inside a group.
+ */
+static bool is_in_group(THD *const thd, RELAY_LOG_INFO *const rli)
+{
+  return (thd->options & OPTION_BEGIN) != 0 ||
+         (rli->last_event_start_time > 0);
+}
+
+
 /*
   Rotate_log_event::do_apply_event()
 
@@ -3446,30 +3466,40 @@ bool Rotate_log_event::write(IO_CACHE* file)
 int Rotate_log_event::do_update_pos(RELAY_LOG_INFO *rli)
 {
   DBUG_ENTER("Rotate_log_event::do_update_pos");
+#ifndef DBUG_OFF
+  char buf[32];
+#endif
+
+  DBUG_PRINT("info", ("server_id=%lu; ::server_id=%lu", this->server_id, ::server_id));
+  DBUG_PRINT("info", ("new_log_ident: %s", this->new_log_ident));
+  DBUG_PRINT("info", ("pos: %s", llstr(this->pos, buf)));
+
   pthread_mutex_lock(&rli->data_lock);
   rli->event_relay_log_pos= my_b_tell(rli->cur_log);
   /*
-    If we are in a transaction: the only normal case is when the I/O thread was
-    copying a big transaction, then it was stopped and restarted: we have this
-    in the relay log:
+    If we are in a transaction or in a group: the only normal case is
+    when the I/O thread was copying a big transaction, then it was
+    stopped and restarted: we have this in the relay log:
+
     BEGIN
     ...
     ROTATE (a fake one)
     ...
     COMMIT or ROLLBACK
-    In that case, we don't want to touch the coordinates which correspond to
-    the beginning of the transaction.
-    Starting from 5.0.0, there also are some rotates from the slave itself, in
-    the relay log.
+
+    In that case, we don't want to touch the coordinates which
+    correspond to the beginning of the transaction.  Starting from
+    5.0.0, there also are some rotates from the slave itself, in the
+    relay log.
   */
-  if (!(thd->options & OPTION_BEGIN))
+  if (!is_in_group(thd, rli))
   {
     memcpy(rli->group_master_log_name, new_log_ident, ident_len+1);
     rli->notify_group_master_log_name_update();
     rli->group_master_log_pos= pos;
     rli->group_relay_log_pos= rli->event_relay_log_pos;
-    DBUG_PRINT("info", ("group_master_log_name: '%s'  "
-                        "group_master_log_pos: %lu",
+    DBUG_PRINT("info", ("new group_master_log_name: '%s'  "
+                        "new group_master_log_pos: %lu",
                         rli->group_master_log_name,
                         (ulong) rli->group_master_log_pos));
     /*
@@ -3490,6 +3520,24 @@ int Rotate_log_event::do_update_pos(RELAY_LOG_INFO *rli)
   flush_relay_log_info(rli);
 
   DBUG_RETURN(0);
+}
+
+
+Log_event::enum_skip_reason
+Rotate_log_event::shall_skip(RELAY_LOG_INFO *rli)
+{
+  
+  enum_skip_reason reason= Log_event::shall_skip(rli);
+
+  switch (reason) {
+  case Log_event::EVENT_NOT_SKIPPED:
+  case Log_event::EVENT_SKIP_COUNT:
+    return Log_event::EVENT_NOT_SKIPPED;
+
+  case Log_event::EVENT_SKIP_SAME_SID:
+    return Log_event::EVENT_SKIP_SAME_SID;
+  }
+  DBUG_ASSERT(0);
 }
 
 #endif
@@ -3620,6 +3668,26 @@ int Intvar_log_event::do_update_pos(RELAY_LOG_INFO *rli)
   rli->inc_event_relay_log_pos();
   return 0;
 }
+
+
+Log_event::enum_skip_reason
+Intvar_log_event::shall_skip(RELAY_LOG_INFO *rli)
+{
+  /*
+    It is a common error to set the slave skip counter to 1 instead
+    of 2 when recovering from an insert which used a auto increment,
+    rand, or user var.  Therefore, if the slave skip counter is 1,
+    we just say that this event should be skipped because of the
+    slave skip count, but we do not change the value of the slave
+    skip counter since it will be decreased by the following insert
+    event.
+  */
+  if (rli->slave_skip_counter == 1)
+    return Log_event::EVENT_SKIP_COUNT;
+  else
+    return Log_event::shall_skip(rli);
+}
+
 #endif
 
 
@@ -3692,6 +3760,25 @@ int Rand_log_event::do_update_pos(RELAY_LOG_INFO *rli)
 {
   rli->inc_event_relay_log_pos();
   return 0;
+}
+
+
+Log_event::enum_skip_reason
+Rand_log_event::shall_skip(RELAY_LOG_INFO *rli)
+{
+  /*
+    It is a common error to set the slave skip counter to 1 instead
+    of 2 when recovering from an insert which used a auto increment,
+    rand, or user var.  Therefore, if the slave skip counter is 1,
+    we just say that this event should be skipped because of the
+    slave skip count, but we do not change the value of the slave
+    skip counter since it will be decreased by the following insert
+    event.
+  */
+  if (rli->slave_skip_counter == 1)
+    return Log_event::EVENT_SKIP_COUNT;
+  else
+    return Log_event::shall_skip(rli);
 }
 
 #endif /* !MYSQL_CLIENT */
@@ -4116,6 +4203,23 @@ int User_var_log_event::do_update_pos(RELAY_LOG_INFO *rli)
   return 0;
 }
 
+Log_event::enum_skip_reason
+User_var_log_event::shall_skip(RELAY_LOG_INFO *rli)
+  {
+    /*
+      It is a common error to set the slave skip counter to 1 instead
+      of 2 when recovering from an insert which used a auto increment,
+      rand, or user var.  Therefore, if the slave skip counter is 1,
+      we just say that this event should be skipped because of the
+      slave skip count, but we do not change the value of the slave
+      skip counter since it will be decreased by the following insert
+      event.
+    */
+    if (rli->slave_skip_counter == 1)
+      return Log_event::EVENT_SKIP_COUNT;
+    else
+      return Log_event::shall_skip(rli);
+  }
 #endif /* !MYSQL_CLIENT */
 
 
@@ -5814,9 +5918,9 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
 	break;
 
       default:
-	slave_print_msg(ERROR_LEVEL, rli, error,
+	slave_print_msg(ERROR_LEVEL, rli, thd->net.last_errno,
                         "Error in %s event: row application failed",
-                        get_type_str());
+                        get_type_str(), error);
 	thd->query_error= 1;
 	break;
       }
@@ -5835,11 +5939,12 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
 
   if (error)
   {                     /* error has occured during the transaction */
-    slave_print_msg(ERROR_LEVEL, rli, error,
+    slave_print_msg(ERROR_LEVEL, rli, thd->net.last_errno,
                     "Error in %s event: error during transaction execution "
                     "on table %s.%s",
                     get_type_str(), table->s->db.str, 
                     table->s->table_name.str);
+
      /*
       If one day we honour --skip-slave-errors in row-based replication, and
       the error should be skipped, then we would clear mappings, rollback,
@@ -5851,7 +5956,7 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
       thread is certainly going to stop.
     */
     thd->reset_current_stmt_binlog_row_based();
-    const_cast<RELAY_LOG_INFO*>(rli)->cleanup_context(thd, 1);
+    const_cast<RELAY_LOG_INFO*>(rli)->cleanup_context(thd, error);
     thd->query_error= 1;
     DBUG_RETURN(error);
   }
@@ -5934,9 +6039,9 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
       wait (reached end of last relay log and nothing gets appended
       there), we timeout after one minute, and notify DBA about the
       problem.  When WL#2975 is implemented, just remove the member
-      st_relay_log_info::unsafe_to_stop_at and all its occurences.
+      st_relay_log_info::last_event_start_time and all its occurences.
     */
-    const_cast<RELAY_LOG_INFO*>(rli)->unsafe_to_stop_at= time(0);
+    const_cast<RELAY_LOG_INFO*>(rli)->last_event_start_time= time(0);
   }
 
   DBUG_ASSERT(error == 0);
@@ -6599,6 +6704,32 @@ copy_extra_record_fields(TABLE *table,
   return 0;                                     // All OK
 }
 
+/**
+   Check if an error is a duplicate key error.
+
+   This function is used to check if an error code is one of the
+   duplicate key error, i.e., and error code for which it is sensible
+   to do a <code>get_dup_key()</code> to retrieve the duplicate key.
+
+   @param errcode The error code to check.
+
+   @return <code>true</code> if the error code is such that
+   <code>get_dup_key()</code> will return true, <code>false</code>
+   otherwise.
+ */
+bool
+is_duplicate_key_error(int errcode)
+{
+  switch (errcode)
+  {
+  case HA_ERR_FOUND_DUPP_KEY:
+  case HA_ERR_FOUND_DUPP_UNIQUE:
+    return true;
+  }
+  return false;
+}
+
+
 /*
   Replace the provided record in the database.
 
@@ -6633,10 +6764,15 @@ replace_record(THD *thd, TABLE *table,
 
   while ((error= table->file->ha_write_row(table->record[0])))
   {
+    if (!is_duplicate_key_error(error))
+    {
+      table->file->print_error(error, MYF(0));
+      DBUG_RETURN(error);
+    }
     if ((keynum= table->file->get_dup_key(error)) < 0)
     {
       /* We failed to retrieve the duplicate key */
-      DBUG_RETURN(HA_ERR_FOUND_DUPP_KEY);
+      DBUG_RETURN(error);
     }
 
     /*
@@ -6653,7 +6789,10 @@ replace_record(THD *thd, TABLE *table,
     {
       error= table->file->rnd_pos(table->record[1], table->file->dup_ref);
       if (error)
+      {
+        table->file->print_error(error, MYF(0));
         DBUG_RETURN(error);
+      }
     }
     else
     {
@@ -6670,12 +6809,15 @@ replace_record(THD *thd, TABLE *table,
       }
 
       key_copy((byte*)key.get(), table->record[0], table->key_info + keynum, 0);
-      error= table->file->index_read_idx(table->record[1], keynum, 
+      error= table->file->index_read_idx(table->record[1], keynum,
                                          (const byte*)key.get(),
                                          table->key_info[keynum].key_length,
                                          HA_READ_KEY_EXACT);
       if (error)
+      {
+        table->file->print_error(error, MYF(0));
         DBUG_RETURN(error);
+      }
     }
 
     /*
@@ -6708,15 +6850,21 @@ replace_record(THD *thd, TABLE *table,
     {
       error=table->file->ha_update_row(table->record[1],
                                        table->record[0]);
+      if (error)
+        table->file->print_error(error, MYF(0));
       DBUG_RETURN(error);
     }
     else
     {
       if ((error= table->file->ha_delete_row(table->record[1])))
+      {
+        table->file->print_error(error, MYF(0));
         DBUG_RETURN(error);
+      }
       /* Will retry ha_write_row() with the offending row removed. */
     }
   }
+
   DBUG_RETURN(error);
 }
 
