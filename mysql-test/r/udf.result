@@ -194,6 +194,17 @@ DROP FUNCTION sequence;
 DROP FUNCTION lookup;
 DROP FUNCTION reverse_lookup;
 DROP FUNCTION avgcost;
+select * from mysql.func;
+name	ret	dl	type
+CREATE FUNCTION is_const RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+select IS_const(3);
+IS_const(3)
+const
+drop function IS_const;
+select * from mysql.func;
+name	ret	dl	type
+select is_const(3);
+ERROR 42000: FUNCTION test.is_const does not exist
 CREATE FUNCTION is_const RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
 select
 is_const(3) as const,
