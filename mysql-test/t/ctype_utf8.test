@@ -94,6 +94,26 @@ select * from t1;
 drop table t1;
 
 #
+# Bug#22646 LC_TIME_NAMES: Assignment to non-UTF8 target fails
+#
+set names utf8;
+set LC_TIME_NAMES='fr_FR';
+create table t1 (s1 char(20) character set latin1);
+insert into t1 values (date_format('2004-02-02','%M'));
+select hex(s1) from t1;
+drop table t1;
+create table t1 (s1 char(20) character set koi8r);
+set LC_TIME_NAMES='ru_RU';
+insert into t1 values (date_format('2004-02-02','%M'));
+insert into t1 values (date_format('2004-02-02','%b'));
+insert into t1 values (date_format('2004-02-02','%W'));
+insert into t1 values (date_format('2004-02-02','%a'));
+select hex(s1), s1 from t1;
+drop table t1;
+set LC_TIME_NAMES='en_US';
+
+
+#
 # Bug #2366  	Wrong utf8 behaviour when data is truncated
 #
 set names koi8r;

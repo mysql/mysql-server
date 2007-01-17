@@ -133,10 +133,63 @@ flush logs;
 # resulted binlog, parly consisting of multi-byte utf8 chars, 
 # must be digestable for both client and server. In 4.1 the client 
 # should use default-character-set same as the server.
+flush logs;
 --exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000006 | $MYSQL
 select * from t5  /* must be (1),(1) */;
+
+#
+# Bug#22645 LC_TIME_NAMES: Statement not replicated
+# Check that a dump created by mysqlbinlog reproduces
+# lc_time_names dependent values correctly
+#
+flush logs;
+drop table if exists t5;
+create table t5 (c1 int, c2 varchar(128) character set latin1 not null);
+insert into t5 values (1, date_format('2001-01-01','%W'));
+set lc_time_names=de_DE;
+insert into t5 values (2, date_format('2001-01-01','%W'));
+set lc_time_names=en_US;
+insert into t5 values (3, date_format('2001-01-01','%W'));
+select * from t5 order by c1;
+flush logs;
+drop table t5;
+--exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000008 | $MYSQL
+select * from t5 order by c1;
+#
+# Bug#20396 Bin Log does not get DELIMETER cmd - Recover StoredProc fails 
+#
+--disable_warnings
+drop procedure if exists p1;
+--enable_warnings
+flush logs;
+delimiter //;
+create procedure p1()
+begin
+select 1;
+end;
+//
+delimiter ;//
+flush logs;
+call p1();
+drop procedure p1;
+--error 1305
+call p1();
+--exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000010
+--exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000010 | $MYSQL
+call p1();
+drop procedure p1;
 
 # clean up
 drop table t1, t2, t03, t04, t3, t4, t5; 
 
 # End of 5.0 tests
+
+#
+# Test --disable-force-if-open and --force-if-open
+#
+flush logs;
+--error 1
+--exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000012 >/dev/null 2>/dev/null
+--exec $MYSQL_BINLOG --force-if-open $MYSQLTEST_VARDIR/log/master-bin.000012 >/dev/null 2>/dev/null
+
+# End of 5.1 tests
