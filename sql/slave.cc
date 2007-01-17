@@ -517,11 +517,11 @@ static bool sql_slave_killed(THD* thd, RELAY_LOG_INFO* rli)
       really one minute of idleness, we don't timeout if the slave SQL thread
       is actively working.
     */
-    if (!rli->unsafe_to_stop_at)
+    if (rli->last_event_start_time == 0)
       DBUG_RETURN(1);
     DBUG_PRINT("info", ("Slave SQL thread is in an unsafe situation, giving "
                         "it some grace period"));
-    if (difftime(time(0), rli->unsafe_to_stop_at) > 60)
+    if (difftime(time(0), rli->last_event_start_time) > 60)
     {
       slave_print_msg(ERROR_LEVEL, rli, 0,
                       "SQL thread had to stop in an unsafe situation, in "
@@ -1737,61 +1737,14 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
       now the relay log starts with its Format_desc, has a Rotate etc).
     */
 
-    DBUG_PRINT("info",("type_code=%d, server_id=%d",type_code,ev->server_id));
+    DBUG_PRINT("info",("type_code=%d (%s), server_id=%d",
+                       type_code, ev->get_type_str(), ev->server_id));
 
-    if ((ev->server_id == (uint32) ::server_id &&
-         !replicate_same_server_id &&
-         type_code != FORMAT_DESCRIPTION_EVENT) ||
-        (rli->slave_skip_counter &&
-         type_code != ROTATE_EVENT && type_code != STOP_EVENT &&
-         type_code != START_EVENT_V3 && type_code!= FORMAT_DESCRIPTION_EVENT))
-    {
-      DBUG_PRINT("info", ("event skipped"));
-      /*
-        We only skip the event here and do not increase the group log
-        position.  In the event that we have to restart, this means
-        that we might have to skip the event again, but that is a
-        minor issue.
 
-        If we were to increase the group log position when skipping an
-        event, it might be that we are restarting at the wrong
-        position and have events before that we should have executed,
-        so not increasing the group log position is a sure bet in this
-        case.
-
-        In this way, we just step the group log position when we
-        *know* that we are at the end of a group.
-       */
-      rli->inc_event_relay_log_pos();
-
-      /*
-        Protect against common user error of setting the counter to 1
-        instead of 2 while recovering from an insert which used auto_increment,
-        rand or user var.
-      */
-      if (rli->slave_skip_counter &&
-          !((type_code == INTVAR_EVENT ||
-             type_code == RAND_EVENT ||
-             type_code == USER_VAR_EVENT) &&
-            rli->slave_skip_counter == 1) &&
-          /*
-            The events from ourselves which have something to do with the relay
-            log itself must be skipped, true, but they mustn't decrement
-            rli->slave_skip_counter, because the user is supposed to not see
-            these events (they are not in the master's binlog) and if we
-            decremented, START SLAVE would for example decrement when it sees
-            the Rotate, so the event which the user probably wanted to skip
-            would not be skipped.
-          */
-          !(ev->server_id == (uint32) ::server_id &&
-            (type_code == ROTATE_EVENT || type_code == STOP_EVENT ||
-             type_code == START_EVENT_V3 || type_code == FORMAT_DESCRIPTION_EVENT)))
-        --rli->slave_skip_counter;
-      pthread_mutex_unlock(&rli->data_lock);
-      delete ev;
-      DBUG_RETURN(0);                                 // avoid infinite update loops
-    }
-    pthread_mutex_unlock(&rli->data_lock);
+    /*
+      Execute the event, but first we set some data that is needed for
+      the thread.
+    */
 
     thd->server_id = ev->server_id; // use the original server id for logging
     thd->set_time();                            // time the query
@@ -1799,7 +1752,8 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
     if (!ev->when)
       ev->when = time(NULL);
     ev->thd = thd; // because up to this point, ev->thd == 0
-    exec_res = ev->exec_event(rli);
+
+    exec_res= ev->exec_event(rli);
     DBUG_PRINT("info", ("exec_event result = %d", exec_res));
     DBUG_ASSERT(rli->sql_thd==thd);
     /*
@@ -2354,13 +2308,17 @@ Slave SQL thread aborted. Can't execute init_slave query");
     THD_CHECK_SENTRY(thd);
     if (exec_relay_log_event(thd,rli))
     {
+      DBUG_PRINT("info", ("exec_relay_log_event() failed"));
       // do not scare the user if SQL thread was simply killed or stopped
       if (!sql_slave_killed(thd,rli))
       {
         /*
-          retrieve as much info as possible from the thd and, error codes and warnings
-          and print this to the error log as to allow the user to locate the error
+          retrieve as much info as possible from the thd and, error
+          codes and warnings and print this to the error log as to
+          allow the user to locate the error
         */
+        DBUG_PRINT("info", ("thd->net.last_errno=%d; rli->last_slave_errno=%d",
+                            thd->net.last_errno, rli->last_slave_errno));
         if (thd->net.last_errno != 0)
         {
           if (rli->last_slave_errno == 0)
@@ -2682,6 +2640,7 @@ static int queue_binlog_ver_1_event(MASTER_INFO *mi, const char *buf,
     my_free((char*) tmp_buf, MYF(MY_ALLOW_ZERO_PTR));
     DBUG_RETURN(1);
   }
+
   pthread_mutex_lock(&mi->data_lock);
   ev->log_pos= mi->master_log_pos; /* 3.23 events don't contain log_pos */
   switch (ev->get_type_code()) {

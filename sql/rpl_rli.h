@@ -305,7 +305,14 @@ typedef struct st_relay_log_info
     DBUG_ASSERT(tables_to_lock == NULL && tables_to_lock_count == 0);
   }
 
-  time_t unsafe_to_stop_at;
+  /*
+    Used by row-based replication to detect that it should not stop at
+    this event, but give it a chance to send more events. The time
+    where the last event inside a group started is stored here. If the
+    variable is zero, we are not in a group (but may be in a
+    transaction).
+   */
+  time_t last_event_start_time;
 } RELAY_LOG_INFO;
 
 
