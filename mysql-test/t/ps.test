@@ -1175,12 +1175,21 @@ deallocate prepare stmt2;
 eval prepare stmt from "create table t1 (c char(10)) data directory='$MYSQLTEST_VARDIR/tmp'";
 --enable_query_log
 execute stmt;
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+#
+# DATA DIRECTORY option does not always work: if the operating
+# system does not support symlinks, have_symlinks option is automatically
+# disabled.
+# In this case DATA DIRECTORY is silently ignored when
+# creating a table, and is not output by SHOW CREATE TABLE.
+#
+--disable_result_log
 show create table t1;
+--enable_result_log
 drop table t1;
 execute stmt;
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--disable_result_log
 show create table t1;
+--enable_result_log
 drop table t1;
 deallocate prepare stmt;
 
