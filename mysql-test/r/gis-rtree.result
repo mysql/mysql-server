@@ -881,3 +881,14 @@ ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 INSERT INTO t1(foo) VALUES ('');
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 DROP TABLE t1;
+CREATE TABLE t1 (a INT AUTO_INCREMENT, b POINT NOT NULL, KEY (a), SPATIAL KEY (b));
+INSERT INTO t1 (b) VALUES (GeomFromText('POINT(1 2)'));
+INSERT INTO t1 (b) SELECT b FROM t1;
+INSERT INTO t1 (b) SELECT b FROM t1;
+INSERT INTO t1 (b) SELECT b FROM t1;
+INSERT INTO t1 (b) SELECT b FROM t1;
+INSERT INTO t1 (b) SELECT b FROM t1;
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+DROP TABLE t1;
