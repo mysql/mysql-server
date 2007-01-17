@@ -559,6 +559,8 @@ NdbEventOperationImpl::execute_nolock()
   m_state= EO_EXECUTING;
   mi_type= m_eventImpl->mi_type;
   m_ndb->theEventBuffer->add_op();
+  // add kernel reference
+  // removed on TE_STOP, TE_CLUSTER_FAILURE, or error below
   m_ref_count++;
   DBUG_PRINT("info", ("m_ref_count: %u for op: %p", m_ref_count, this));
   int r= NdbDictionaryImpl::getImpl(*myDict).executeSubscribeEvent(*this);
@@ -571,8 +573,8 @@ NdbEventOperationImpl::execute_nolock()
         if (r != 0) {
           break;
         }
-        // blob event op now holds reference
-        // cleared by TE_STOP or TE_CLUSTER_FAILURE
+        // add blob reference to main op
+        // removed by TE_STOP or TE_CLUSTER_FAILURE
         m_ref_count++;
         DBUG_PRINT("info", ("m_ref_count: %u for op: %p", m_ref_count, this));
         blob_op = blob_op->m_next;
@@ -583,7 +585,9 @@ NdbEventOperationImpl::execute_nolock()
       DBUG_RETURN(0);
     }
   }
-  //Error
+  // Error
+  // remove kernel reference
+  // added above
   m_ref_count--;
   DBUG_PRINT("info", ("m_ref_count: %u for op: %p", m_ref_count, this));
   m_state= EO_ERROR;
@@ -1227,6 +1231,8 @@ NdbEventBuffer::nextEvent()
         EventBufData_list::Gci_ops *gci_ops = m_available_data.first_gci_ops();
         while (gci_ops && op->getGCI() > gci_ops->m_gci)
         {
+          // moved to next gci, check if any references have been
+          // released when completing the last gci
           deleteUsedEventOperations();
           gci_ops = m_available_data.next_gci_ops();
         }
@@ -1254,6 +1260,8 @@ NdbEventBuffer::nextEvent()
 #endif
 
   // free all "per gci unique" collected operations
+  // completed gci, check if any references have been
+  // released when completing the gci
   EventBufData_list::Gci_ops *gci_ops = m_available_data.first_gci_ops();
   while (gci_ops)
   {
@@ -1290,6 +1298,8 @@ NdbEventBuffer::deleteUsedEventOperations()
   {
     NdbEventOperationImpl *op = &op_f->m_impl;
     DBUG_ASSERT(op->m_ref_count > 0);
+    // remove gci reference
+    // added in inserDataL
     op->m_ref_count--;
     DBUG_PRINT("info", ("m_ref_count: %u for op: %p", op->m_ref_count, op));
     if (op->m_ref_count == 0)
@@ -1807,14 +1817,17 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
       {
         op->m_node_bit_mask.clear();
         DBUG_ASSERT(op->m_ref_count > 0);
+        // remove kernel reference
+        // added in execute_nolock
         op->m_ref_count--;
         DBUG_PRINT("info", ("_TE_CLUSTER_FAILURE: m_ref_count: %u for op: %p",
                             op->m_ref_count, op));
         if (op->theMainOp)
         {
-          // blob event op, need to clear ref count in main op
           DBUG_ASSERT(op->m_ref_count == 0);
           DBUG_ASSERT(op->theMainOp->m_ref_count > 0);
+          // remove blob reference in main op
+          // added in execute_no_lock
           op->theMainOp->m_ref_count--;
           DBUG_PRINT("info", ("m_ref_count: %u for op: %p",
                               op->theMainOp->m_ref_count, op->theMainOp));
@@ -1826,14 +1839,17 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
       if (op->m_node_bit_mask.isclear())
       {
         DBUG_ASSERT(op->m_ref_count > 0);
+        // remove kernel reference
+        // added in execute_no_lock
         op->m_ref_count--;
         DBUG_PRINT("info", ("_TE_STOP: m_ref_count: %u for op: %p",
                             op->m_ref_count, op));
         if (op->theMainOp)
         {
-          // blob event op, need to clear ref count in main op
           DBUG_ASSERT(op->m_ref_count == 0);
           DBUG_ASSERT(op->theMainOp->m_ref_count > 0);
+          // remove blob reference in main op
+          // added in execute_no_lock
           op->theMainOp->m_ref_count--;
           DBUG_PRINT("info", ("m_ref_count: %u for op: %p",
                               op->theMainOp->m_ref_count, op->theMainOp));
@@ -2586,6 +2602,8 @@ EventBufData_list::add_gci_op(Gci_op g)
 #ifndef DBUG_OFF
     i = m_gci_op_count;
 #endif
+    // add gci reference
+    // removed in deleteUsedOperations
     g.op->m_ref_count++;
     DBUG_PRINT("info", ("m_ref_count: %u for op: %p", g.op->m_ref_count, g.op));
     m_gci_op_list[m_gci_op_count++] = g;
@@ -2654,6 +2672,8 @@ NdbEventBuffer::createEventOperation(const char* eventName,
     delete tOp;
     DBUG_RETURN(NULL);
   }
+  // add user reference
+  // removed in dropEventOperation
   getEventOperationImpl(tOp)->m_ref_count = 1;
   DBUG_PRINT("info", ("m_ref_count: %u for op: %p",
                       getEventOperationImpl(tOp)->m_ref_count, getEventOperationImpl(tOp)));
@@ -2706,6 +2726,9 @@ NdbEventBuffer::dropEventOperation(NdbEventOperation* tOp)
   }
 
   DBUG_ASSERT(op->m_ref_count > 0);
+  // remove user reference
+  // added in createEventOperation
+  // user error to use reference after this
   op->m_ref_count--;
   DBUG_PRINT("info", ("m_ref_count: %u for op: %p", op->m_ref_count, op));
   if (op->m_ref_count == 0)
