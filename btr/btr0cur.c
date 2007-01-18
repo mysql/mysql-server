@@ -3582,6 +3582,48 @@ btr_blob_get_next_page_no(
 }
 
 /***********************************************************************
+Deallocate a buffer block that was reserved for a BLOB part. */
+static
+void
+btr_blob_free(
+/*==========*/
+	buf_block_t*	block,	/* in: buffer block */
+	ibool		all,	/* in: TRUE=remove also the compressed page
+				if there is one */
+	mtr_t*		mtr)	/* in: mini-transaction to commit */
+{
+	ulint	space	= buf_block_get_space(block);
+	ulint	page_no	= buf_block_get_page_no(block);
+
+	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+
+	mtr_commit(mtr);
+
+	mutex_enter(&buf_pool->mutex);
+	mutex_enter(&block->mutex);
+
+	/* Only free the block if it is still allocated to
+	the same file page. */
+
+	if (buf_block_get_state(block)
+	    == BUF_BLOCK_FILE_PAGE
+	    && buf_block_get_space(block) == space
+	    && buf_block_get_page_no(block) == page_no) {
+
+		if (!buf_LRU_free_block(&block->page, all)
+		    && all && block->page.zip.data) {
+			/* Attempt to deallocate the uncompressed page
+			if the whole block cannot be deallocted. */
+
+			buf_LRU_free_block(&block->page, FALSE);
+		}
+	}
+
+	mutex_exit(&buf_pool->mutex);
+	mutex_exit(&block->mutex);
+}
+
+/***********************************************************************
 Stores the fields in big_rec_vec to the tablespace and puts pointers to
 them in rec.  The extern flags in rec will have to be set beforehand.
 The fields are stored on pages allocated from leaf node
@@ -3838,15 +3880,9 @@ btr_store_big_rec_extern_fields(
 next_zip_page:
 				prev_page_no = page_no;
 
-				mtr_commit(&mtr);
-
-				/* Release the uncompressed page frame
-				to save memory. */
-				mutex_enter(&buf_pool->mutex);
-				mutex_enter(&block->mutex);
-				buf_LRU_free_block(&block->page, FALSE);
-				mutex_exit(&buf_pool->mutex);
-				mutex_exit(&block->mutex);
+				/* Commit mtr and release the
+				uncompressed page frame to save memory. */
+				btr_blob_free(block, FALSE, &mtr);
 
 				if (err == Z_STREAM_END) {
 					break;
@@ -4100,7 +4136,8 @@ btr_free_externally_stored_field(
 			}
 		}
 
-		mtr_commit(&mtr);
+		/* Commit mtr and release the BLOB block to save memory. */
+		btr_blob_free(ext_block, TRUE, &mtr);
 	}
 }
 
