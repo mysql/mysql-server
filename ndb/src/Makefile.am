@@ -6,6 +6,8 @@ ndblib_LTLIBRARIES = libndbclient.la
 
 libndbclient_la_SOURCES =
 
+libndbclient_la_LDFLAGS = -version-info @NDB_SHARED_LIB_VERSION@
+
 libndbclient_la_LIBADD =  \
               ndbapi/libndbapi.la \
               common/transporter/libtransporter.la   \
