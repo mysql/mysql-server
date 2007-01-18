@@ -239,7 +239,7 @@ int main(int argc, char **argv)
     }
   }
   if (ok && isamchk_neaded && !silent)
-    puts("Remember to run mariachk -rq on compressed tables");
+    puts("Remember to run maria_chk -rq on compressed tables");
   VOID(fflush(stdout));
   VOID(fflush(stderr));
   free_defaults(default_argv);
@@ -294,7 +294,7 @@ static struct my_option my_long_options[] =
 
 static void print_version(void)
 {
-  VOID(printf("%s Ver 1.23 for %s on %s\n",
+  VOID(printf("%s Ver 1.0 for %s on %s\n",
               my_progname, SYSTEM_TYPE, MACHINE_TYPE));
   NETWARE_SET_SCREEN_MODE(1);
 }
@@ -308,7 +308,7 @@ static void usage(void)
   puts("and you are welcome to modify and redistribute it under the GPL license\n");
 
   puts("Pack a MARIA-table to take much less space.");
-  puts("Keys are not updated, you must run mariachk -rq on the datafile");
+  puts("Keys are not updated, you must run maria_chk -rq on the datafile");
   puts("afterwards to update the keys.");
   puts("You should give the .MYI file as the filename argument.");
 
@@ -359,7 +359,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     silent= 0;
     break;
   case '#':
-    DBUG_PUSH(argument ? argument : "d:t:o");
+    DBUG_PUSH(argument ? argument : "d:t:o,/tmp/maria_pack.trace");
     break;
   case 'V':
     print_version();
@@ -665,7 +665,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
 
   /* Display statistics. */
   DBUG_PRINT("info", ("Min record length: %6d  Max length: %6d  "
-                      "Mean total length: %6ld\n",
+                      "Mean total length: %6ld",
                       mrg->min_pack_length, mrg->max_pack_length,
                       (ulong) (mrg->records ? (new_length/mrg->records) : 0)));
   if (verbose && mrg->records)
@@ -681,6 +681,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
     {
       error|=my_close(isam_file->dfile,MYF(MY_WME));
       isam_file->dfile= -1;		/* Tell maria_close file is closed */
+      isam_file->s->bitmap.file= -1;
     }
   }
 
@@ -841,32 +842,27 @@ static void free_counts_and_tree_and_queue(HUFF_TREE *huff_trees, uint trees,
 static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
 {
   int error;
-  uint length;
+  uint length, null_bytes;
   ulong reclength,max_blob_length;
   byte *record,*pos,*next_pos,*end_pos,*start_pos;
   ha_rows record_count;
-  my_bool static_row_size;
   HUFF_COUNTS *count,*end_count;
   TREE_ELEMENT *element;
+  ha_checksum(*calc_checksum) (struct st_maria_info *, const byte *);
   DBUG_ENTER("get_statistic");
 
-  reclength=mrg->file[0]->s->base.reclength;
+  reclength=  mrg->file[0]->s->base.reclength;
+  null_bytes= mrg->file[0]->s->base.null_bytes;
   record=(byte*) my_alloca(reclength);
   end_count=huff_counts+mrg->file[0]->s->base.fields;
   record_count=0; glob_crc=0;
   max_blob_length=0;
 
   /* Check how to calculate checksum */
-  static_row_size=1;
-  for (count=huff_counts ; count < end_count ; count++)
-  {
-    if (count->field_type == FIELD_BLOB ||
-        count->field_type == FIELD_VARCHAR)
-    {
-      static_row_size=0;
-      break;
-    }
-  }
+  if (mrg->file[0]->s->data_file_type == STATIC_RECORD)
+    calc_checksum= _ma_static_checksum;
+    else
+      calc_checksum= _ma_checksum;
 
   mrg_reset(mrg);
   while ((error=mrg_rrnd(mrg,record)) != HA_ERR_END_OF_FILE)
@@ -875,13 +871,10 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
     if (! error)
     {
       /* glob_crc is a checksum over all bytes of all records. */
-      if (static_row_size)
-	glob_crc+=_ma_static_checksum(mrg->file[0],record);
-      else
-	glob_crc+=_ma_checksum(mrg->file[0],record);
+      glob_crc+= (*calc_checksum)(mrg->file[0],record);
 
       /* Count the incidence of values separately for every column. */
-      for (pos=record,count=huff_counts ;
+      for (pos=record + null_bytes, count=huff_counts ;
 	   count < end_count ;
 	   count++,
 	   pos=next_pos)
@@ -1109,14 +1102,14 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
 
     DBUG_PRINT("info", ("column: %3lu", count - huff_counts + 1));
     if (verbose >= 2)
-      VOID(printf("column: %3lu\n", count - huff_counts + 1));
+      VOID(printf("column: %3u\n", count - huff_counts + 1));
     if (count->tree_buff)
     {
       DBUG_PRINT("info", ("number of distinct values: %lu",
                           (count->tree_pos - count->tree_buff) /
                           count->field_length));
       if (verbose >= 2)
-        VOID(printf("number of distinct values: %lu\n",
+        VOID(printf("number of distinct values: %u\n",
                     (count->tree_pos - count->tree_buff) /
                     count->field_length));
     }
@@ -1368,7 +1361,8 @@ static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
   DBUG_VOID_RETURN;
 }
 
-	/* Test if we can use space-compression and empty-field-compression */
+
+/* Test if we can use space-compression and empty-field-compression */
 
 static int
 test_space_compress(HUFF_COUNTS *huff_counts, my_off_t records,
@@ -2281,7 +2275,7 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
         if (bits > 8 * sizeof(code))
         {
           VOID(fflush(stdout));
-          VOID(fprintf(stderr, "error: Huffman code too long: %u/%lu\n",
+          VOID(fprintf(stderr, "error: Huffman code too long: %u/%u\n",
                        bits, 8 * sizeof(code)));
           errors++;
           break;
@@ -2410,8 +2404,8 @@ static uint max_bit(register uint value)
 static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
 {
   int error;
-  uint i,max_calc_length,pack_ref_length,min_record_length,max_record_length,
-    intervall,field_length,max_pack_length,pack_blob_length;
+  uint i,max_calc_length,pack_ref_length,min_record_length,max_record_length;
+  uint intervall,field_length,max_pack_length,pack_blob_length, null_bytes;
   my_off_t record_count;
   char llbuf[32];
   ulong length,pack_length;
@@ -2429,6 +2423,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
   end_count=huff_counts+isam_file->s->base.fields;
   min_record_length= (uint) ~0;
   max_record_length=0;
+  null_bytes= isam_file->s->base.null_bytes;
 
   /*
     Calculate the maximum number of bits required to pack the records.
@@ -2439,7 +2434,8 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
     Empty blobs and varchar are encoded with a single 1 bit. Other blobs
     and varchar get a leading 0 bit.
   */
-  for (i=max_calc_length=0 ; i < isam_file->s->base.fields ; i++)
+  max_calc_length= null_bytes;
+  for (i= 0 ; i < isam_file->s->base.fields ; i++)
   {
     if (!(huff_counts[i].pack_type & PACK_TYPE_ZERO_FILL))
       huff_counts[i].max_zero_fill=0;
@@ -2475,8 +2471,16 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
       if (flush_buffer((ulong) max_calc_length + (ulong) max_pack_length))
 	break;
       record_pos= (byte*) file_buffer.pos;
-      file_buffer.pos+=max_pack_length;
-      for (start_pos=record, count= huff_counts; count < end_count ; count++)
+      file_buffer.pos+= max_pack_length;
+      if (null_bytes)
+      {
+        /* Copy null bits 'as is' */
+        memcpy(file_buffer.pos, record, null_bytes);
+        file_buffer.pos+= null_bytes;
+      }
+      for (start_pos=record+null_bytes, count= huff_counts;
+           count < end_count ;
+           count++)
       {
 	end_pos=start_pos+(field_length=count->field_length);
 	tree=count->tree;
@@ -2738,8 +2742,9 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
       length=(ulong) ((byte*) file_buffer.pos - record_pos) - max_pack_length;
       pack_length= _ma_save_pack_length(pack_version, record_pos, length);
       if (pack_blob_length)
-	pack_length+= _ma_save_pack_length(pack_version, record_pos + pack_length,
-	                               tot_blob_length);
+	pack_length+= _ma_save_pack_length(pack_version,
+                                           record_pos + pack_length,
+                                           tot_blob_length);
       DBUG_PRINT("fields", ("record: %lu  length: %lu  blob-length: %lu  "
                             "length-bytes: %lu", (ulong) record_count, length,
                             tot_blob_length, pack_length));
@@ -2934,7 +2939,8 @@ static void flush_bits(void)
 ** functions to handle the joined files
 ****************************************************************************/
 
-static int save_state(MARIA_HA *isam_file,PACK_MRG_INFO *mrg,my_off_t new_length,
+static int save_state(MARIA_HA *isam_file,PACK_MRG_INFO *mrg,
+                      my_off_t new_length,
 		      ha_checksum crc)
 {
   MARIA_SHARE *share=isam_file->s;
@@ -2944,6 +2950,8 @@ static int save_state(MARIA_HA *isam_file,PACK_MRG_INFO *mrg,my_off_t new_length
 
   options|= HA_OPTION_COMPRESS_RECORD | HA_OPTION_READ_ONLY_DATA;
   mi_int2store(share->state.header.options,options);
+  share->state.header.org_data_file_type= share->state.header.data_file_type;
+  share->state.header.data_file_type= COMPRESSED_RECORD;
 
   share->state.state.data_file_length=new_length;
   share->state.state.del=0;
@@ -2962,14 +2970,13 @@ static int save_state(MARIA_HA *isam_file,PACK_MRG_INFO *mrg,my_off_t new_length
   }
   /*
     If there are no disabled indexes, keep key_file_length value from
-    original file so "mariachk -rq" can use this value (this is necessary
+    original file so "maria_chk -rq" can use this value (this is necessary
     because index size cannot be easily calculated for fulltext keys)
   */
   maria_clear_all_keys_active(share->state.key_map);
   for (key=0 ; key < share->base.keys ; key++)
     share->state.key_root[key]= HA_OFFSET_ERROR;
-  for (key=0 ; key < share->state.header.max_block_size_index ; key++)
-    share->state.key_del[key]= HA_OFFSET_ERROR;
+  share->state.key_del= HA_OFFSET_ERROR;
   isam_file->state->checksum=crc;       /* Save crc here */
   share->changed=1;			/* Force write of header */
   share->state.open_count=0;
@@ -3037,21 +3044,18 @@ static int mrg_rrnd(PACK_MRG_INFO *info,byte *buf)
     info->end=info->current+info->count;
     maria_reset(isam_info);
     maria_extra(isam_info, HA_EXTRA_CACHE, 0);
-    filepos=isam_info->s->pack.header_length;
+    if ((error= maria_scan_init(isam_info)))
+      return(error);
   }
   else
-  {
     isam_info= *info->current;
-    filepos= isam_info->nextpos;
-  }
 
   for (;;)
   {
-    isam_info->update&= HA_STATE_CHANGED;
-    if (!(error=(*isam_info->s->read_rnd)(isam_info,(byte*) buf,
-					  filepos, 1)) ||
+    if (!(error= maria_scan(isam_info, buf)) ||
 	error != HA_ERR_END_OF_FILE)
       return (error);
+    maria_scan_end(isam_info);
     maria_extra(isam_info,HA_EXTRA_NO_CACHE, 0);
     if (info->current+1 == info->end)
       return(HA_ERR_END_OF_FILE);
@@ -3060,6 +3064,8 @@ static int mrg_rrnd(PACK_MRG_INFO *info,byte *buf)
     filepos=isam_info->s->pack.header_length;
     maria_reset(isam_info);
     maria_extra(isam_info,HA_EXTRA_CACHE, 0);
+    if ((error= maria_scan_init(isam_info)))
+      return(error);
   }
 }
 
@@ -3068,11 +3074,13 @@ static int mrg_close(PACK_MRG_INFO *mrg)
 {
   uint i;
   int error=0;
+  DBUG_ENTER("mrg_close");
+
   for (i=0 ; i < mrg->count ; i++)
     error|=maria_close(mrg->file[i]);
   if (mrg->free_file)
     my_free((gptr) mrg->file,MYF(0));
-  return error;
+  DBUG_RETURN(error);
 }
 
 

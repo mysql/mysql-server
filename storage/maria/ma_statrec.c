@@ -19,9 +19,9 @@
 #include "maria_def.h"
 
 
-int _ma_write_static_record(MARIA_HA *info, const byte *record)
+my_bool _ma_write_static_record(MARIA_HA *info, const byte *record)
 {
-  uchar temp[8];				/* max pointer length */
+  byte temp[8];                                 /* max pointer length */
   if (info->s->state.dellink != HA_OFFSET_ERROR &&
       !info->append_insert_at_end)
   {
@@ -86,7 +86,8 @@ int _ma_write_static_record(MARIA_HA *info, const byte *record)
   return 1;
 }
 
-int _ma_update_static_record(MARIA_HA *info, my_off_t pos, const byte *record)
+my_bool _ma_update_static_record(MARIA_HA *info, MARIA_RECORD_POS pos,
+                                 const byte *record)
 {
   info->rec_cache.seek_not_done=1;		/* We have done a seek */
   return (info->s->file_write(info,
@@ -96,22 +97,22 @@ int _ma_update_static_record(MARIA_HA *info, my_off_t pos, const byte *record)
 }
 
 
-int _ma_delete_static_record(MARIA_HA *info)
+my_bool _ma_delete_static_record(MARIA_HA *info)
 {
-  uchar temp[9];				/* 1+sizeof(uint32) */
-
+  byte temp[9];                                 /* 1+sizeof(uint32) */
   info->state->del++;
   info->state->empty+=info->s->base.pack_reclength;
   temp[0]= '\0';			/* Mark that record is deleted */
   _ma_dpointer(info,temp+1,info->s->state.dellink);
-  info->s->state.dellink = info->lastpos;
+  info->s->state.dellink= info->cur_row.lastpos;
   info->rec_cache.seek_not_done=1;
-  return (info->s->file_write(info,(byte*) temp, 1+info->s->rec_reflength,
-		    info->lastpos, MYF(MY_NABP)) != 0);
+  return (info->s->file_write(info, temp, 1+info->s->rec_reflength,
+		    info->cur_row.lastpos, MYF(MY_NABP)) != 0);
 }
 
 
-int _ma_cmp_static_record(register MARIA_HA *info, register const byte *old)
+my_bool _ma_cmp_static_record(register MARIA_HA *info,
+                              register const byte *old)
 {
   DBUG_ENTER("_ma_cmp_static_record");
 
@@ -122,7 +123,7 @@ int _ma_cmp_static_record(register MARIA_HA *info, register const byte *old)
   {
     if (flush_io_cache(&info->rec_cache))
     {
-      DBUG_RETURN(-1);
+      DBUG_RETURN(1);
     }
     info->rec_cache.seek_not_done=1;		/* We have done a seek */
   }
@@ -130,10 +131,11 @@ int _ma_cmp_static_record(register MARIA_HA *info, register const byte *old)
   if ((info->opt_flag & READ_CHECK_USED))
   {						/* If check isn't disabled  */
     info->rec_cache.seek_not_done=1;		/* We have done a seek */
-    if (info->s->file_read(info, (char*) info->rec_buff, info->s->base.reclength,
-		 info->lastpos,
-		 MYF(MY_NABP)))
-      DBUG_RETURN(-1);
+    if (info->s->file_read(info, (char*) info->rec_buff,
+                           info->s->base.reclength,
+                           info->cur_row.lastpos,
+                           MYF(MY_NABP)))
+      DBUG_RETURN(1);
     if (memcmp((byte*) info->rec_buff, (byte*) old,
 	       (uint) info->s->base.reclength))
     {
@@ -147,27 +149,31 @@ int _ma_cmp_static_record(register MARIA_HA *info, register const byte *old)
 }
 
 
-int _ma_cmp_static_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def,
-			  const byte *record, my_off_t pos)
+my_bool _ma_cmp_static_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def,
+                              const byte *record, MARIA_RECORD_POS pos)
 {
   DBUG_ENTER("_ma_cmp_static_unique");
 
   info->rec_cache.seek_not_done=1;		/* We have done a seek */
   if (info->s->file_read(info, (char*) info->rec_buff, info->s->base.reclength,
 	       pos, MYF(MY_NABP)))
-    DBUG_RETURN(-1);
-  DBUG_RETURN(_ma_unique_comp(def, record, info->rec_buff,
-			     def->null_are_equal));
+    DBUG_RETURN(1);
+  DBUG_RETURN(_ma_unique_comp(def, record, (byte*) info->rec_buff,
+                              def->null_are_equal));
 }
 
 
-	/* Read a fixed-length-record */
-	/* Returns 0 if Ok. */
-	/*	   1 if record is deleted */
-	/*	  MY_FILE_ERROR on read-error or locking-error */
+/*
+  Read a fixed-length-record
 
-int _ma_read_static_record(register MARIA_HA *info, register my_off_t pos,
-			   register byte *record)
+  RETURN
+    0  Ok
+    1  record delete
+    -1 on read-error or locking-error
+*/
+
+int _ma_read_static_record(register MARIA_HA *info, register byte *record,
+                           MARIA_RECORD_POS pos)
 {
   int error;
 
@@ -180,7 +186,7 @@ int _ma_read_static_record(register MARIA_HA *info, register my_off_t pos,
     info->rec_cache.seek_not_done=1;		/* We have done a seek */
 
     error=info->s->file_read(info,(char*) record,info->s->base.reclength,
-		   pos,MYF(MY_NABP)) != 0;
+                             pos, MYF(MY_NABP)) != 0;
     fast_ma_writeinfo(info);
     if (! error)
     {
@@ -201,8 +207,8 @@ int _ma_read_static_record(register MARIA_HA *info, register my_off_t pos,
 
 
 int _ma_read_rnd_static_record(MARIA_HA *info, byte *buf,
-			       register my_off_t filepos,
-			       my_bool skip_deleted_blocks)
+                               MARIA_RECORD_POS filepos,
+                               my_bool skip_deleted_blocks)
 {
   int locked,error,cache_read;
   uint cache_length;
@@ -211,10 +217,6 @@ int _ma_read_rnd_static_record(MARIA_HA *info, byte *buf,
 
   cache_read=0;
   cache_length=0;
-  if (info->opt_flag & WRITE_CACHE_USED &&
-      (info->rec_cache.pos_in_file <= filepos || skip_deleted_blocks) &&
-      flush_io_cache(&info->rec_cache))
-    DBUG_RETURN(my_errno);
   if (info->opt_flag & READ_CACHE_USED)
   {						/* Cache in use */
     if (filepos == my_b_tell(&info->rec_cache) &&
@@ -256,12 +258,12 @@ int _ma_read_rnd_static_record(MARIA_HA *info, byte *buf,
     fast_ma_writeinfo(info);
     DBUG_RETURN(my_errno=HA_ERR_END_OF_FILE);
   }
-  info->lastpos= filepos;
-  info->nextpos= filepos+share->base.pack_reclength;
+  info->cur_row.lastpos= filepos;
+  info->cur_row.nextpos= filepos+share->base.pack_reclength;
 
   if (! cache_read)			/* No cacheing */
   {
-    if ((error= _ma_read_static_record(info,filepos,buf)))
+    if ((error= _ma_read_static_record(info, buf, filepos)))
     {
       if (error > 0)
 	error=my_errno=HA_ERR_RECORD_DELETED;

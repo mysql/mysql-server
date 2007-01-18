@@ -760,6 +760,7 @@ extern my_bool insert_dynamic(DYNAMIC_ARRAY *array,gptr element);
 extern byte *alloc_dynamic(DYNAMIC_ARRAY *array);
 extern byte *pop_dynamic(DYNAMIC_ARRAY*);
 extern my_bool set_dynamic(DYNAMIC_ARRAY *array,gptr element,uint array_index);
+extern my_bool allocate_dynamic(DYNAMIC_ARRAY *array, uint max_elements);
 extern void get_dynamic(DYNAMIC_ARRAY *array,gptr element,uint array_index);
 extern void delete_dynamic(DYNAMIC_ARRAY *array);
 extern void delete_dynamic_element(DYNAMIC_ARRAY *array, uint array_index);

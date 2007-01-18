@@ -93,8 +93,9 @@
    MBR_DATA(a,b)       Data reference is the same
  Returns 0 on success.
 */
-int maria_rtree_key_cmp(HA_KEYSEG *keyseg, uchar *b, uchar *a, uint key_length,
-                  uint nextflag)
+
+int maria_rtree_key_cmp(HA_KEYSEG *keyseg, byte *b, byte *a, uint key_length,
+                        uint nextflag)
 {
   for (; (int) key_length > 0; keyseg += 2 )
   {
@@ -153,7 +154,7 @@ int maria_rtree_key_cmp(HA_KEYSEG *keyseg, uchar *b, uchar *a, uint key_length,
 end:
   if (nextflag & MBR_DATA)
   {
-    uchar *end = a + keyseg->length;
+    byte *end = a + keyseg->length;
     do
     {
       if (*a++ != *b++)
@@ -182,7 +183,7 @@ end:
 /*
  Calculates rectangle volume
 */
-double maria_rtree_rect_volume(HA_KEYSEG *keyseg, uchar *a, uint key_length)
+double maria_rtree_rect_volume(HA_KEYSEG *keyseg, byte *a, uint key_length)
 {
   double res = 1;
   for (; (int)key_length > 0; keyseg += 2)
@@ -263,7 +264,7 @@ double maria_rtree_rect_volume(HA_KEYSEG *keyseg, uchar *a, uint key_length)
   Creates an MBR as an array of doubles.
 */
 
-int maria_rtree_d_mbr(HA_KEYSEG *keyseg, uchar *a, uint key_length, double *res)
+int maria_rtree_d_mbr(HA_KEYSEG *keyseg, byte *a, uint key_length, double *res)
 {
   for (; (int)key_length > 0; keyseg += 2)
   {
@@ -352,7 +353,7 @@ int maria_rtree_d_mbr(HA_KEYSEG *keyseg, uchar *a, uint key_length, double *res)
   Result is written to c
 */
 
-int maria_rtree_combine_rect(HA_KEYSEG *keyseg, uchar* a, uchar* b, uchar* c,
+int maria_rtree_combine_rect(HA_KEYSEG *keyseg, byte* a, byte* b, byte* c,
 		       uint key_length)
 {
   for ( ; (int) key_length > 0 ; keyseg += 2)
@@ -443,7 +444,7 @@ int maria_rtree_combine_rect(HA_KEYSEG *keyseg, uchar* a, uchar* b, uchar* c,
 /*
 Calculates overlapping area of two MBRs a & b
 */
-double maria_rtree_overlapping_area(HA_KEYSEG *keyseg, uchar* a, uchar* b,
+double maria_rtree_overlapping_area(HA_KEYSEG *keyseg, byte* a, byte* b,
                              uint key_length)
 {
   double res = 1;
@@ -525,10 +526,11 @@ double maria_rtree_overlapping_area(HA_KEYSEG *keyseg, uchar* a, uchar* b,
 }
 
 /*
-Calculates MBR_AREA(a+b) - MBR_AREA(a)
+  Calculates MBR_AREA(a+b) - MBR_AREA(a)
 */
-double maria_rtree_area_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
-                          uint key_length, double *ab_area)
+
+double maria_rtree_area_increase(HA_KEYSEG *keyseg, byte *a, byte *b,
+                                 uint key_length, double *ab_area)
 {
   double a_area= 1.0;
   double loc_ab_area= 1.0;
@@ -620,7 +622,7 @@ safe_end:
 /*
 Calculates MBR_PERIMETER(a+b) - MBR_PERIMETER(a)
 */
-double maria_rtree_perimeter_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
+double maria_rtree_perimeter_increase(HA_KEYSEG *keyseg, byte* a, byte* b,
 				uint key_length, double *ab_perim)
 {
   double a_perim = 0.0;
@@ -731,16 +733,16 @@ double maria_rtree_perimeter_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
 }
 
 /*
-Calculates key page total MBR = MBR(key1) + MBR(key2) + ...
+  Calculates key page total MBR = MBR(key1) + MBR(key2) + ...
 */
-int maria_rtree_page_mbr(MARIA_HA *info, HA_KEYSEG *keyseg, uchar *page_buf,
-                  uchar *c, uint key_length)
+int maria_rtree_page_mbr(MARIA_HA *info, HA_KEYSEG *keyseg, byte *page_buf,
+                         byte *c, uint key_length)
 {
   uint inc = 0;
   uint k_len = key_length;
   uint nod_flag = _ma_test_if_nod(page_buf);
-  uchar *k;
-  uchar *last = rt_PAGE_END(page_buf);
+  byte *k;
+  byte *last = rt_PAGE_END(page_buf);
 
   for (; (int)key_length > 0; keyseg += 2)
   {

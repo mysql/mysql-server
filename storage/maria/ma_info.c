@@ -23,9 +23,9 @@
 
 	/* Get position to last record */
 
-my_off_t maria_position(MARIA_HA *info)
+MARIA_RECORD_POS maria_position(MARIA_HA *info)
 {
-  return info->lastpos;
+  return info->cur_row.lastpos;
 }
 
 
@@ -38,7 +38,7 @@ int maria_status(MARIA_HA *info, register MARIA_INFO *x, uint flag)
   MARIA_SHARE *share=info->s;
   DBUG_ENTER("maria_status");
 
-  x->recpos  = info->lastpos;
+  x->recpos= info->cur_row.lastpos;
   if (flag == HA_STATUS_POS)
     DBUG_RETURN(0);				/* Compatible with ISAM */
   if (!(flag & HA_STATUS_NO_LOCK))
@@ -64,8 +64,8 @@ int maria_status(MARIA_HA *info, register MARIA_INFO *x, uint flag)
   }
   if (flag & HA_STATUS_ERRKEY)
   {
-    x->errkey	 = info->errkey;
-    x->dupp_key_pos= info->dupp_key_pos;
+    x->errkey=       info->errkey;
+    x->dup_key_pos=  info->dup_key_pos;
   }
   if (flag & HA_STATUS_CONST)
   {
@@ -121,13 +121,17 @@ int maria_status(MARIA_HA *info, register MARIA_INFO *x, uint flag)
 
 void _ma_report_error(int errcode, const char *file_name)
 {
-  size_t        lgt;
+  uint  length;
   DBUG_ENTER("_ma_report_error");
   DBUG_PRINT("enter",("errcode %d, table '%s'", errcode, file_name));
 
-  if ((lgt= strlen(file_name)) > 64)
-    file_name+= lgt - 64;
+  if ((length= strlen(file_name)) > 64)
+  {
+    uint dir_length= dirname_length(file_name);
+    file_name+= dir_length;
+    if ((length-= dir_length) > 64)
+      file_name+= length - 64;
+  }
   my_error(errcode, MYF(ME_NOREFRESH), file_name);
   DBUG_VOID_RETURN;
 }
-

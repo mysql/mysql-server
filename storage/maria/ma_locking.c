@@ -60,13 +60,25 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
       else
 	count= --share->w_locks;
       --share->tot_locks;
-      if (info->lock_type == F_WRLCK && !share->w_locks &&
-	  !share->delay_key_write && flush_key_blocks(share->key_cache,
-						      share->kfile,FLUSH_KEEP))
+      if (info->lock_type == F_WRLCK && !share->w_locks)
       {
-	error=my_errno;
-        maria_print_error(info->s, HA_ERR_CRASHED);
-	maria_mark_crashed(info);		/* Mark that table must be checked */
+        if (!share->delay_key_write && flush_key_blocks(share->key_cache,
+                                                        share->kfile,
+                                                        FLUSH_KEEP))
+        {
+          error= my_errno;
+          maria_print_error(info->s, HA_ERR_CRASHED);
+          /* Mark that table must be checked */
+          maria_mark_crashed(info);
+        }
+        if (share->data_file_type == BLOCK_RECORD &&
+            flush_key_blocks(share->key_cache, info->dfile, FLUSH_KEEP))
+        {
+          error= my_errno;
+          maria_print_error(info->s, HA_ERR_CRASHED);
+          /* Mark that table must be checked */
+          maria_mark_crashed(info);
+        }
       }
       if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
       {
@@ -84,16 +96,17 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
 	if (share->changed && !share->w_locks)
 	{
 #ifdef HAVE_MMAP
-    if ((info->s->mmaped_length != info->s->state.state.data_file_length) &&
-        (info->s->nonmmaped_inserts > MAX_NONMAPPED_INSERTS))
-    {
-      if (info->s->concurrent_insert)
-        rw_wrlock(&info->s->mmap_lock);
-      _ma_remap_file(info, info->s->state.state.data_file_length);
-      info->s->nonmmaped_inserts= 0;
-      if (info->s->concurrent_insert)
-        rw_unlock(&info->s->mmap_lock);
-    }
+          if ((info->s->mmaped_length !=
+               info->s->state.state.data_file_length) &&
+              (info->s->nonmmaped_inserts > MAX_NONMAPPED_INSERTS))
+          {
+            if (info->s->concurrent_insert)
+              rw_wrlock(&info->s->mmap_lock);
+            _ma_remap_file(info, info->s->state.state.data_file_length);
+            info->s->nonmmaped_inserts= 0;
+            if (info->s->concurrent_insert)
+              rw_unlock(&info->s->mmap_lock);
+          }
 #endif
 	  share->state.process= share->last_process=share->this_process;
 	  share->state.unique=   info->last_unique=  info->this_unique;
@@ -350,7 +363,7 @@ int _ma_readinfo(register MARIA_HA *info, int lock_type, int check_keybuffer)
 int _ma_writeinfo(register MARIA_HA *info, uint operation)
 {
   int error,olderror;
-  MARIA_SHARE *share=info->s;
+  MARIA_SHARE *share= info->s;
   DBUG_ENTER("_ma_writeinfo");
   DBUG_PRINT("info",("operation: %u  tot_locks: %u", operation,
 		     share->tot_locks));
@@ -358,13 +371,13 @@ int _ma_writeinfo(register MARIA_HA *info, uint operation)
   error=0;
   if (share->tot_locks == 0)
   {
-    olderror=my_errno;			/* Remember last error */
     if (operation)
     {					/* Two threads can't be here */
+      olderror= my_errno;               /* Remember last error */
       share->state.process= share->last_process=   share->this_process;
       share->state.unique=  info->last_unique=	   info->this_unique;
       share->state.update_count= info->last_loop= ++info->this_loop;
-      if ((error=_ma_state_info_write(share->kfile, &share->state, 1)))
+      if ((error= _ma_state_info_write(share->kfile, &share->state, 1)))
 	olderror=my_errno;
 #ifdef __WIN__
       if (maria_flush)
@@ -373,8 +386,8 @@ int _ma_writeinfo(register MARIA_HA *info, uint operation)
 	_commit(info->dfile);
       }
 #endif
+      my_errno=olderror;
     }
-    my_errno=olderror;
   }
   else if (operation)
     share->changed= 1;			/* Mark keyfile changed */

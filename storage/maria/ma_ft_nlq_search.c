@@ -69,8 +69,8 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
   FT_SUPERDOC  sdoc, *sptr;
   TREE_ELEMENT *selem;
   double       gweight=1;
-  MARIA_HA      *info=aio->info;
-  uchar        *keybuff=aio->keybuff;
+  MARIA_HA     *info= aio->info;
+  byte         *keybuff= (byte*) aio->keybuff;
   MARIA_KEYDEF    *keyinfo=info->s->keyinfo+aio->keynr;
   my_off_t     key_root=info->s->state.key_root[aio->keynr];
   uint         extra=HA_FT_WLEN+info->s->base.rec_reflength;
@@ -92,7 +92,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
   for (r= _ma_search(info, keyinfo, keybuff, keylen, SEARCH_FIND, key_root) ;
        !r &&
          (subkeys=ft_sintXkorr(info->lastkey+info->lastkey_length-extra)) > 0 &&
-         info->lastpos >= info->state->data_file_length ;
+         info->cur_row.lastpos >= info->state->data_file_length ;
        r= _ma_search_next(info, keyinfo, info->lastkey,
                           info->lastkey_length, SEARCH_BIGGER, key_root))
     ;
@@ -104,8 +104,9 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
   {
 
     if (keylen &&
-        ha_compare_text(aio->charset,info->lastkey+1,
-                        info->lastkey_length-extra-1, keybuff+1,keylen-1,0,0))
+        ha_compare_text(aio->charset,
+                        (uchar*) info->lastkey+1, info->lastkey_length-extra-1,
+                        (uchar*) keybuff+1, keylen-1, 0, 0))
      break;
 
     if (subkeys<0)
@@ -118,7 +119,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
       */
       keybuff+=keylen;
       keyinfo=& info->s->ft2_keyinfo;
-      key_root=info->lastpos;
+      key_root= info->cur_row.lastpos;
       keylen=0;
       r= _ma_search_first(info, keyinfo, key_root);
       goto do_skip;
@@ -132,7 +133,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
     if (tmp_weight==0)
       DBUG_RETURN(doc_cnt); /* stopword, doc_cnt should be 0 */
 
-    sdoc.doc.dpos=info->lastpos;
+    sdoc.doc.dpos= info->cur_row.lastpos;
 
     /* saving document matched into dtree */
     if (!(selem=tree_insert(&aio->dtree, &sdoc, 0, aio->dtree.custom_arg)))
@@ -162,7 +163,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
                         SEARCH_BIGGER, key_root);
 do_skip:
     while ((subkeys=ft_sintXkorr(info->lastkey+info->lastkey_length-extra)) > 0 &&
-           !r && info->lastpos >= info->state->data_file_length)
+           !r && info->cur_row.lastpos >= info->state->data_file_length)
       r= _ma_search_next(info, keyinfo, info->lastkey, info->lastkey_length,
                             SEARCH_BIGGER, key_root);
 
@@ -209,22 +210,22 @@ FT_INFO *maria_ft_init_nlq_search(MARIA_HA *info, uint keynr, byte *query,
   ALL_IN_ONE  aio;
   FT_DOC     *dptr;
   FT_INFO    *dlist=NULL;
-  my_off_t    saved_lastpos=info->lastpos;
+  MARIA_RECORD_POS saved_lastpos= info->cur_row.lastpos;
   struct st_mysql_ftparser *parser;
   MYSQL_FTPARSER_PARAM *ftparser_param;
   DBUG_ENTER("maria_ft_init_nlq_search");
 
-/* black magic ON */
+  /* black magic ON */
   if ((int) (keynr = _ma_check_index(info,keynr)) < 0)
     DBUG_RETURN(NULL);
   if (_ma_readinfo(info,F_RDLCK,1))
     DBUG_RETURN(NULL);
-/* black magic OFF */
+  /* black magic OFF */
 
   aio.info=info;
   aio.keynr=keynr;
   aio.charset=info->s->keyinfo[keynr].seg->charset;
-  aio.keybuff=info->lastkey+info->s->base.max_key_length;
+  aio.keybuff= (uchar*) info->lastkey+info->s->base.max_key_length;
   parser= info->s->keyinfo[keynr].parser;
   if (! (ftparser_param= maria_ftparser_call_initializer(info, keynr, 0)))
     goto err;
@@ -254,7 +255,7 @@ FT_INFO *maria_ft_init_nlq_search(MARIA_HA *info, uint keynr, byte *query,
     while (best.elements)
     {
       my_off_t docid=((FT_DOC *)queue_remove(& best, 0))->dpos;
-      if (!(*info->read_record)(info,docid,record))
+      if (!(*info->read_record)(info, record, docid))
       {
         info->update|= HA_STATE_AKTIV;
         ftparser_param->flags= MYSQL_FTFLAGS_NEED_COPY;
@@ -296,7 +297,7 @@ FT_INFO *maria_ft_init_nlq_search(MARIA_HA *info, uint keynr, byte *query,
 err:
   delete_tree(&aio.dtree);
   delete_tree(&wtree);
-  info->lastpos=saved_lastpos;
+  info->cur_row.lastpos= saved_lastpos;
   DBUG_RETURN(dlist);
 }
 
@@ -313,8 +314,8 @@ int maria_ft_nlq_read_next(FT_INFO *handler, char *record)
 
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
 
-  info->lastpos=handler->doc[handler->curdoc].dpos;
-  if (!(*info->read_record)(info,info->lastpos,record))
+  info->cur_row.lastpos= handler->doc[handler->curdoc].dpos;
+  if (!(*info->read_record)(info, record, info->cur_row.lastpos))
   {
     info->update|= HA_STATE_AKTIV;		/* Record is read */
     return 0;
@@ -329,7 +330,7 @@ float maria_ft_nlq_find_relevance(FT_INFO *handler,
 {
   int a,b,c;
   FT_DOC  *docs=handler->doc;
-  my_off_t docid=handler->info->lastpos;
+  MARIA_RECORD_POS docid= handler->info->cur_row.lastpos;
 
   if (docid == HA_POS_ERROR)
     return -5.0;

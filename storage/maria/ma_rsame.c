@@ -16,14 +16,17 @@
 
 #include "maria_def.h"
 
-	/*
-	** Find current row with read on position or read on key
-	** If inx >= 0 find record using key
-	** Return values:
-	** 0 = Ok.
-	** HA_ERR_KEY_NOT_FOUND = Row is deleted
-	** HA_ERR_END_OF_FILE   = End of file
-	*/
+/*
+  Find current row with read on position or read on key
+
+  NOTES
+    If inx >= 0 find record using key
+
+  RETURN
+    0                      Ok
+    HA_ERR_KEY_NOT_FOUND   Row is deleted
+    HA_ERR_END_OF_FILE     End of file
+*/
 
 
 int maria_rsame(MARIA_HA *info, byte *record, int inx)
@@ -34,7 +37,8 @@ int maria_rsame(MARIA_HA *info, byte *record, int inx)
   {
     DBUG_RETURN(my_errno=HA_ERR_WRONG_INDEX);
   }
-  if (info->lastpos == HA_OFFSET_ERROR || info->update & HA_STATE_DELETED)
+  if (info->cur_row.lastpos == HA_OFFSET_ERROR ||
+      info->update & HA_STATE_DELETED)
   {
     DBUG_RETURN(my_errno=HA_ERR_KEY_NOT_FOUND);	/* No current record */
   }
@@ -48,7 +52,7 @@ int maria_rsame(MARIA_HA *info, byte *record, int inx)
   {
     info->lastinx=inx;
     info->lastkey_length= _ma_make_key(info,(uint) inx,info->lastkey,record,
-				      info->lastpos);
+				      info->cur_row.lastpos);
     if (info->s->concurrent_insert)
       rw_rdlock(&info->s->key_root_lock[inx]);
     VOID(_ma_search(info,info->s->keyinfo+inx,info->lastkey, USE_WHOLE_KEY,
@@ -58,7 +62,7 @@ int maria_rsame(MARIA_HA *info, byte *record, int inx)
       rw_unlock(&info->s->key_root_lock[inx]);
   }
 
-  if (!(*info->read_record)(info,info->lastpos,record))
+  if (!(*info->read_record)(info, record, info->cur_row.lastpos))
     DBUG_RETURN(0);
   if (my_errno == HA_ERR_RECORD_DELETED)
     my_errno=HA_ERR_KEY_NOT_FOUND;

@@ -18,23 +18,27 @@
 
 #include "maria_def.h"
 
-ha_checksum _ma_checksum(MARIA_HA *info, const byte *buf)
+ha_checksum _ma_checksum(MARIA_HA *info, const byte *record)
 {
   uint i;
   ha_checksum crc=0;
   MARIA_COLUMNDEF *rec=info->s->rec;
 
-  for (i=info->s->base.fields ; i-- ; buf+=(rec++)->length)
+  if (info->s->base.null_bytes)
+    crc= my_checksum(crc, record, info->s->base.null_bytes);
+
+  for (i=info->s->base.fields ; i-- ; )
   {
-    const byte *pos;
+    const byte *pos= record + rec->offset;
     ulong length;
+
     switch (rec->type) {
     case FIELD_BLOB:
     {
       length= _ma_calc_blob_length(rec->length-
 					maria_portable_sizeof_char_ptr,
-					buf);
-      memcpy((char*) &pos, buf+rec->length- maria_portable_sizeof_char_ptr,
+					pos);
+      memcpy((char*) &pos, pos+rec->length- maria_portable_sizeof_char_ptr,
 	     sizeof(char*));
       break;
     }
@@ -42,18 +46,17 @@ ha_checksum _ma_checksum(MARIA_HA *info, const byte *buf)
     {
       uint pack_length= HA_VARCHAR_PACKLENGTH(rec->length-1);
       if (pack_length == 1)
-        length= (ulong) *(uchar*) buf;
+        length= (ulong) *(uchar*) pos;
       else
-        length= uint2korr(buf);
-      pos= buf+pack_length;
+        length= uint2korr(pos);
+      pos+= pack_length;
       break;
     }
     default:
-      length=rec->length;
-      pos=buf;
+      length= rec->length;
       break;
     }
-    crc=my_checksum(crc, pos ? pos : "", length);
+    crc= my_checksum(crc, pos ? pos : "", length);
   }
   return crc;
 }

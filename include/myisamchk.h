@@ -76,8 +76,8 @@
 
 typedef struct st_sort_key_blocks		/* Used when sorting */
 {
-  uchar *buff, *end_pos;
-  uchar lastkey[HA_MAX_POSSIBLE_KEY_BUFF];
+  byte *buff, *end_pos;
+  byte lastkey[HA_MAX_POSSIBLE_KEY_BUFF];
   uint last_length;
   int inited;
 } SORT_KEY_BLOCKS;
@@ -121,20 +121,24 @@ typedef struct st_handler_check_param
   my_off_t search_after_block;
   my_off_t new_file_pos, key_file_blocks;
   my_off_t keydata, totaldata, key_blocks, start_check_pos;
-  ha_rows total_records, total_deleted;
+  my_off_t used, empty, splits, del_length, link_used;
+  ha_rows total_records, total_deleted, records,del_blocks;
+  ha_rows full_page_count, tail_count;
   ha_checksum record_checksum, glob_crc;
   ha_checksum key_crc[HA_MAX_POSSIBLE_KEY];
+  ha_checksum tmp_key_crc[HA_MAX_POSSIBLE_KEY];
+  ha_checksum tmp_record_checksum;
   ulong use_buffers, read_buffer_length, write_buffer_length;
   ulong sort_buffer_length, sort_key_blocks;
   ulong rec_per_key_part[HA_MAX_KEY_SEG * HA_MAX_POSSIBLE_KEY];
   uint out_flag, warning_printed, error_printed, verbose;
   uint opt_sort_key, total_files, max_level;
   uint testflag, key_cache_block_size;
-  int tmpfile_createflag;
+  int tmpfile_createflag, err_count;
   myf myf_rw;
   uint8 language;
   my_bool using_global_keycache, opt_lock_memory, opt_follow_links;
-  my_bool retry_repair, force_sort, calc_checksum;
+  my_bool retry_repair, force_sort, calc_checksum, static_row_size;
   char temp_filename[FN_REFLEN];
   IO_CACHE read_cache;
   enum_handler_stats_method stats_method;
@@ -143,15 +147,15 @@ typedef struct st_handler_check_param
 
 typedef struct st_sort_ftbuf
 {
-  uchar *buf, *end;
+  byte *buf, *end;
   int count;
-  uchar lastkey[HA_MAX_KEY_BUFF];
+  byte lastkey[HA_MAX_KEY_BUFF];
 } SORT_FT_BUF;
 
 
 typedef struct st_buffpek {
   my_off_t file_pos;                    /* Where we are in the sort file */
-  uchar *base,*key;                     /* Key pointers */
+  byte *base, *key;                     /* Key pointers */
   ha_rows count;                        /* Number of rows in table */
   ulong mem_count;                      /* numbers of keys in memory */
   ulong max_keys;                       /* Max keys in buffert */

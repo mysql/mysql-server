@@ -55,14 +55,15 @@ typedef struct st_maria_state_info
     uchar keys;				/* number of keys in file */
     uchar uniques;			/* number of UNIQUE definitions */
     uchar language;			/* Language for indexes */
-    uchar max_block_size_index;		/* max keyblock size */
     uchar fulltext_keys;
-    uchar not_used;			/* To align to 8 */
+    uchar data_file_type;
+    uchar org_data_file_type;           /* Used by mariapack to store dft */
   } header;
 
   MARIA_STATUS_INFO state;
   ha_rows split;			/* number of split blocks */
   my_off_t dellink;			/* Link to next removed block */
+  ulonglong first_bitmap_with_space;
   ulonglong auto_increment;
   ulong process;			/* process that updated table last */
   ulong unique;				/* Unique number for this process */
@@ -70,7 +71,7 @@ typedef struct st_maria_state_info
   ulong status;
   ulong *rec_per_key_part;
   my_off_t *key_root;			/* Start of key trees */
-  my_off_t *key_del;			/* delete links for trees */
+  my_off_t key_del;			/* delete links for trees */
   my_off_t rec_per_key_rows;		/* Rows when calculating rec_per_key */
 
   ulong sec_index_changed;		/* Updated when new sec_index */
@@ -91,60 +92,73 @@ typedef struct st_maria_state_info
 } MARIA_STATE_INFO;
 
 
-#define MARIA_STATE_INFO_SIZE	(24+14*8+7*4+2*2+8)
+#define MARIA_STATE_INFO_SIZE	(24 + 4 + 11*8 + 4*4 + 8 + 3*4 + 5*8)
 #define MARIA_STATE_KEY_SIZE	8
 #define MARIA_STATE_KEYBLOCK_SIZE  8
 #define MARIA_STATE_KEYSEG_SIZE	4
-#define MARIA_STATE_EXTRA_SIZE ((MARIA_MAX_KEY+MARIA_MAX_KEY_BLOCK_SIZE)*MARIA_STATE_KEY_SIZE + MARIA_MAX_KEY*HA_MAX_KEY_SEG*MARIA_STATE_KEYSEG_SIZE)
+#define MARIA_STATE_EXTRA_SIZE (MARIA_MAX_KEY*MARIA_STATE_KEY_SIZE + MARIA_MAX_KEY*HA_MAX_KEY_SEG*MARIA_STATE_KEYSEG_SIZE)
 #define MARIA_KEYDEF_SIZE		(2+ 5*2)
 #define MARIA_UNIQUEDEF_SIZE	(2+1+1)
 #define HA_KEYSEG_SIZE		(6+ 2*2 + 4*2)
-#define MARIA_COLUMNDEF_SIZE	(2*3+1)
-#define MARIA_BASE_INFO_SIZE	(5*8 + 8*4 + 4 + 4*2 + 16)
+#define MARIA_COLUMNDEF_SIZE	(6+2+2+2+2+2+1+1)
+#define MARIA_BASE_INFO_SIZE	(5*8 + 6*4 + 11*2 + 6 + 5*2 + 1 + 16)
 #define MARIA_INDEX_BLOCK_MARGIN 16	/* Safety margin for .MYI tables */
 
-typedef struct st__ma_base_info
+typedef struct st_ma_base_info
 {
-  my_off_t keystart;				/* Start of keys */
+  my_off_t keystart;                    /* Start of keys */
   my_off_t max_data_file_length;
   my_off_t max_key_file_length;
   my_off_t margin_key_file_length;
-  ha_rows records, reloc;			/* Create information */
-  ulong mean_row_length;			/* Create information */
-  ulong reclength;				/* length of unpacked record */
-  ulong pack_reclength;				/* Length of full packed rec */
+  ha_rows records, reloc;               /* Create information */
+  ulong mean_row_length;                /* Create information */
+  ulong reclength;                      /* length of unpacked record */
+  ulong pack_reclength;                 /* Length of full packed rec */
   ulong min_pack_length;
-  ulong max_pack_length;			/* Max possibly length of
-						   packed rec. */
+  ulong max_pack_length;                /* Max possibly length of packed rec */
   ulong min_block_length;
-  ulong fields,					/* fields in table */
-    pack_fields;				/* packed fields in table */
-  uint rec_reflength;				/* = 2-8 */
-  uint key_reflength;				/* = 2-8 */
-  uint keys;					/* same as in state.header */
-  uint auto_key;				/* Which key-1 is a auto key */
-  uint blobs;					/* Number of blobs */
-  uint pack_bits;				/* Length of packed bits */
-  uint max_key_block_length;			/* Max block length */
-  uint max_key_length;				/* Max key length */
+  uint fields;                          /* fields in table */
+  uint fixed_not_null_fields;
+  uint fixed_not_null_fields_length;
+  uint max_field_lengths;
+  uint pack_fields;                     /* packed fields in table */
+  uint varlength_fields;                /* char/varchar/blobs */
+  uint rec_reflength;                   /* = 2-8 */
+  uint key_reflength;                   /* = 2-8 */
+  uint keys;                            /* same as in state.header */
+  uint auto_key;                        /* Which key-1 is a auto key */
+  uint blobs;                           /* Number of blobs */
+  /* Length of packed bits (when table was created first time) */
+  uint pack_bytes;
+  /* Length of null bits (when table was created first time) */
+  uint original_null_bytes;
+  uint null_bytes;                      /* Null bytes in record */
+  uint field_offsets;                   /* Number of field offsets */
+  uint max_key_block_length;            /* Max block length */
+  uint max_key_length;                  /* Max key length */
   /* Extra allocation when using dynamic record format */
   uint extra_alloc_bytes;
   uint extra_alloc_procent;
-  /* Info about raid */
-  uint raid_type, raid_chunks;
-  ulong raid_chunksize;
+  uint is_nulls_extended;               /* 1 if new null bytes */
+  uint min_row_length;
+  uint default_row_flag;                /* 0 or ROW_FLAG_NULLS_EXTENDED */
+  uint block_size;
+  uint default_rec_buff_size;
+  uint extra_rec_buff_size;
+
   /* The following are from the header */
   uint key_parts, all_key_parts;
+  my_bool transactional;
 } MARIA_BASE_INFO;
 
 
-	/* Structs used intern in database */
+/* Structs used intern in database */
 
-typedef struct st_maria_blob			/* Info of record */
+typedef struct st_maria_blob            /* Info of record */
 {
-  ulong offset;					/* Offset to blob in record */
-  uint pack_length;				/* Type of packed length */
-  ulong length;					/* Calc:ed for each record */
+  ulong offset;                         /* Offset to blob in record */
+  uint pack_length;                     /* Type of packed length */
+  ulong length;                         /* Calc:ed for each record */
 } MARIA_BLOB;
 
 
@@ -154,6 +168,26 @@ typedef struct st_maria_pack
   uint ref_length;
   uchar version;
 } MARIA_PACK;
+
+typedef struct st_maria_file_bitmap
+{
+  uchar *map;
+  ulonglong page;                      /* Page number for current bitmap */
+  uint used_size;                      /* Size of bitmap that is not 0 */
+  File file;
+
+  my_bool changed;
+
+#ifdef THREAD
+  pthread_mutex_t bitmap_lock;
+#endif
+  /* Constants, allocated when initiating bitmaps */
+  uint sizes[8];                      /* Size per bit combination */
+  uint total_size;		      /* Total usable size of bitmap page */
+  uint block_size;                    /* Block size of file */
+  ulong pages_covered;                /* Pages covered by bitmap + 1 */
+} MARIA_FILE_BITMAP;
+
 
 #define MAX_NONMAPPED_INSERTS 1000
 
@@ -175,28 +209,36 @@ typedef struct st_maria_share
 						   symlinks */
    *index_file_name;
   byte *file_map;			/* mem-map of file if possible */
-  KEY_CACHE *key_cache;			/* ref to the current key cache
-						*/
+  KEY_CACHE *key_cache;			/* ref to the current key cache */
   MARIA_DECODE_TREE *decode_trees;
   uint16 *decode_tables;
-  int(*read_record) (struct st_maria_info *, my_off_t, byte *);
-  int(*write_record) (struct st_maria_info *, const byte *);
-  int(*update_record) (struct st_maria_info *, my_off_t, const byte *);
-  int(*delete_record) (struct st_maria_info *);
-  int(*read_rnd) (struct st_maria_info *, byte *, my_off_t, my_bool);
-  int(*compare_record) (struct st_maria_info *, const byte *);
-    ha_checksum(*calc_checksum) (struct st_maria_info *, const byte *);
-  int(*compare_unique) (struct st_maria_info *, MARIA_UNIQUEDEF *,
-			const byte *record, my_off_t pos);
-    uint(*file_read) (MARIA_HA *, byte *, uint, my_off_t, myf);
-    uint(*file_write) (MARIA_HA *, byte *, uint, my_off_t, myf);
+  my_bool (*once_init)(struct st_maria_share *, File);
+  my_bool (*once_end)(struct st_maria_share *);
+  my_bool (*init)(struct st_maria_info *);
+  void (*end)(struct st_maria_info *);
+  int (*read_record)(struct st_maria_info *, byte *, MARIA_RECORD_POS);
+  my_bool (*scan_init)(struct st_maria_info *);
+  int (*scan)(struct st_maria_info *, byte *, MARIA_RECORD_POS, my_bool);
+  void (*scan_end)(struct st_maria_info *);
+  MARIA_RECORD_POS (*write_record_init)(struct st_maria_info *, const byte *);
+  my_bool (*write_record)(struct st_maria_info *, const byte *);
+  my_bool (*write_record_abort)(struct st_maria_info *);
+  my_bool (*update_record)(struct st_maria_info *, MARIA_RECORD_POS,
+                           const byte *);
+  my_bool (*delete_record)(struct st_maria_info *);
+  my_bool (*compare_record)(struct st_maria_info *, const byte *);
+  ha_checksum(*calc_checksum) (struct st_maria_info *, const byte *);
+  ha_checksum(*calc_write_checksum) (struct st_maria_info *, const byte *);
+  my_bool (*compare_unique) (struct st_maria_info *, MARIA_UNIQUEDEF *,
+                             const byte *record, MARIA_RECORD_POS pos);
+  uint(*file_read) (MARIA_HA *, byte *, uint, my_off_t, myf);
+  uint(*file_write) (MARIA_HA *, byte *, uint, my_off_t, myf);
   invalidator_by_filename invalidator;	/* query cache invalidator */
   ulong this_process;			/* processid */
   ulong last_process;			/* For table-change-check */
   ulong last_version;			/* Version on start */
   ulong options;			/* Options used */
-  ulong min_pack_length;		/* Theese are used by packed
-						   data */
+  ulong min_pack_length;		/* These are used by packed data */
   ulong max_pack_length;
   ulong state_diff_length;
   uint rec_reflength;			/* rec_reflength in use now */
@@ -208,21 +250,24 @@ typedef struct st_maria_share
   int mode;				/* mode of file on open */
   uint reopen;				/* How many times reopened */
   uint w_locks, r_locks, tot_locks;	/* Number of read/write locks */
-  uint blocksize;			/* blocksize of keyfile */
+  uint block_size;			/* block_size of keyfile & data file*/
+  uint base_length;
   myf write_flag;
   enum data_file_type data_file_type;
+  my_bool temporary;
   my_bool changed,			/* If changed since lock */
     global_changed,			/* If changed since open */
-    not_flushed, temporary, delay_key_write, concurrent_insert;
+    not_flushed, concurrent_insert;
+  my_bool delay_key_write;
 #ifdef THREAD
   THR_LOCK lock;
-  pthread_mutex_t intern_lock;		/* Locking for use with
-						   _locking */
+  pthread_mutex_t intern_lock;		/* Locking for use with _locking */
   rw_lock_t *key_root_lock;
 #endif
   my_off_t mmaped_length;
   uint nonmmaped_inserts;		/* counter of writing in
 						   non-mmaped area */
+  MARIA_FILE_BITMAP bitmap;
   rw_lock_t mmap_lock;
 } MARIA_SHARE;
 
@@ -237,45 +282,106 @@ typedef struct st_maria_bit_buff
   uint error;
 } MARIA_BIT_BUFF;
 
+typedef byte MARIA_BITMAP_BUFFER;
+
+typedef struct st_maria_bitmap_block
+{
+  ulonglong page;                       /* Page number */
+  /* Number of continuous pages. TAIL_BIT is set if this is a tail page */
+  uint page_count;
+  uint empty_space;                     /* Set for head and tail pages */
+  /*
+    Number of BLOCKS for block-region (holds all non-blob-fields or one blob)
+  */
+  uint sub_blocks;
+  /* set to <> 0 in write_record() if this block was actually used */
+  uint8 used;
+  uint8 org_bitmap_value;
+} MARIA_BITMAP_BLOCK;
+
+
+typedef struct st_maria_bitmap_blocks
+{
+  MARIA_BITMAP_BLOCK *block;
+  uint count;
+  my_bool tail_page_skipped;            /* If some tail pages was not used */
+  my_bool page_skipped;                 /* If some full pages was not used */
+} MARIA_BITMAP_BLOCKS;
+
+
+/* Data about the currently read row */
+typedef struct st_maria_row
+{
+  MARIA_BITMAP_BLOCKS insert_blocks;
+  MARIA_BITMAP_BUFFER *extents;
+  MARIA_RECORD_POS lastpos, nextpos;
+  MARIA_RECORD_POS *tail_positions;
+  ha_checksum checksum;
+  byte *empty_bits, *field_lengths;
+  byte *empty_bits_buffer;              /* For storing cur_row.empty_bits */
+  uint *null_field_lengths;             /* All null field lengths */
+  ulong *blob_lengths;                  /* Length for each blob */
+  ulong base_length, normal_length, char_length, varchar_length, blob_length;
+  ulong head_length, total_length;
+  my_size_t extents_buffer_length;      /* Size of 'extents' buffer */
+  uint field_lengths_length;            /* Length of data in field_lengths */
+  uint extents_count;                   /* number of extents in 'extents' */
+  uint full_page_count, tail_count;     /* For maria_chk */
+} MARIA_ROW;
+
+/* Data to scan row in blocked format */
+typedef struct st_maria_block_scan
+{
+  byte *bitmap_buff, *bitmap_pos, *bitmap_end, *page_buff;
+  byte *dir, *dir_end;
+  ulong bitmap_page;
+  ulonglong bits;
+  uint number_of_rows, bit_pos;
+  MARIA_RECORD_POS row_base_page;
+} MARIA_BLOCK_SCAN;
+
+
 struct st_maria_info
 {
   MARIA_SHARE *s;			/* Shared between open:s */
   MARIA_STATUS_INFO *state, save_state;
+  MARIA_ROW cur_row, new_row;
+  MARIA_BLOCK_SCAN scan;
   MARIA_BLOB *blobs;			/* Pointer to blobs */
   MARIA_BIT_BUFF bit_buff;
+  DYNAMIC_ARRAY bitmap_blocks;
   /* accumulate indexfile changes between write's */
   TREE *bulk_insert;
   DYNAMIC_ARRAY *ft1_to_ft2;		/* used only in ft1->ft2 conversion */
   MEM_ROOT      ft_memroot;             /* used by the parser               */
   MYSQL_FTPARSER_PARAM *ftparser_param;	/* share info between init/deinit */
   char *filename;			/* parameter to open filename */
-  uchar *buff,				/* Temp area for key */
-   *lastkey, *lastkey2;			/* Last used search key */
-  uchar *first_mbr_key;			/* Searhed spatial key */
-  byte *rec_buff;			/* Tempbuff for recordpack */
-  uchar *int_keypos,			/* Save position for next/previous */
+  byte *buff;				/* page buffer */
+  byte *keyread_buff;                   /* Buffer for last key read */
+  byte *lastkey, *lastkey2;		/* Last used search key */
+  byte *first_mbr_key;			/* Searhed spatial key */
+  byte *rec_buff;			/* Temp buffer for recordpack */
+  byte *int_keypos,			/* Save position for next/previous */
    *int_maxpos;				/* -""- */
   uint int_nod_flag;			/* -""- */
   uint32 int_keytree_version;		/* -""- */
-  int(*read_record) (struct st_maria_info *, my_off_t, byte *);
+  int (*read_record) (struct st_maria_info *, byte*, MARIA_RECORD_POS);
   invalidator_by_filename invalidator;	/* query cache invalidator */
   ulong this_unique;			/* uniq filenumber or thread */
   ulong last_unique;			/* last unique number */
   ulong this_loop;			/* counter for this open */
   ulong last_loop;			/* last used counter */
-  my_off_t lastpos,			/* Last record position */
-    nextpos;				/* Position to next record */
-  my_off_t save_lastpos;
+  MARIA_RECORD_POS save_lastpos;
+  MARIA_RECORD_POS dup_key_pos;
   my_off_t pos;				/* Intern variable */
   my_off_t last_keypage;		/* Last key page read */
   my_off_t last_search_keypage;		/* Last keypage when searching */
-  my_off_t dupp_key_pos;
-  ha_checksum checksum;
   /*
     QQ: the folloing two xxx_length fields should be removed,
      as they are not compatible with parallel repair
   */
   ulong packed_length, blob_length;	/* Length of found, packed record */
+  my_size_t rec_buff_size;
   int dfile;				/* The datafile */
   uint opt_flag;			/* Optim. for space/speed */
   uint update;				/* If file changed since open */
@@ -298,19 +404,19 @@ struct st_maria_info
   my_bool was_locked;			/* Was locked in panic */
   my_bool append_insert_at_end;		/* Set if concurrent insert */
   my_bool quick_mode;
-  /* If info->buff can't be used for rnext */
+  /* If info->keyread_buff can't be used for rnext */
   my_bool page_changed;
-  /* If info->buff has to be reread for rnext */
-  my_bool buff_used;
-  my_bool once_flags;			/* For MARIAMRG */
+  /* If info->keyread_buff has to be reread for rnext */
+  my_bool keybuff_used;
+  my_bool once_flags;			/* For MARIA_MRG */
 #ifdef THREAD
   THR_LOCK_DATA lock;
 #endif
-  uchar *maria_rtree_recursion_state;		/* For RTREE */
+  uchar *maria_rtree_recursion_state;	/* For RTREE */
   int maria_rtree_recursion_depth;
 };
 
-/* Some defines used by isam-funktions */
+/* Some defines used by maria-functions */
 
 #define USE_WHOLE_KEY	HA_MAX_KEY_BUFF*2 /* Use whole key in _search() */
 #define F_EXTRA_LCK	-1
@@ -361,15 +467,15 @@ struct st_maria_info
 }
 
 #define get_key_full_length(length,key) \
-{ if ((uchar) *(key) != 255) \
-    length= ((uint) (uchar) *((key)++))+1; \
+  { if (*(uchar*) (key) != 255)            \
+    length= ((uint) *(uchar*) ((key)++))+1; \
   else \
   { length=mi_uint2korr((key)+1)+3; (key)+=3; } \
 }
 
 #define get_key_full_length_rdonly(length,key) \
-{ if ((uchar) *(key) != 255) \
-    length= ((uint) (uchar) *((key)))+1; \
+{ if (*(uchar*) (key) != 255) \
+    length= ((uint) *(uchar*) ((key)))+1; \
   else \
   { length=mi_uint2korr((key)+1)+3; } \
 }
@@ -398,7 +504,6 @@ struct st_maria_info
 #define PACK_TYPE_ZERO_FILL	4
 #define MARIA_FOUND_WRONG_KEY 32738	/* Impossible value from ha_key_cmp */
 
-#define MARIA_MAX_KEY_BLOCK_SIZE	(MARIA_MAX_KEY_BLOCK_LENGTH/MARIA_MIN_KEY_BLOCK_LENGTH)
 #define MARIA_BLOCK_SIZE(key_length,data_pointer,key_pointer,block_size)  (((((key_length)+(data_pointer)+(key_pointer))*4+(key_pointer)+2)/(block_size)+1)*(block_size))
 #define MARIA_MAX_KEYPTR_SIZE	5	/* For calculating block lengths */
 #define MARIA_MIN_KEYBLOCK_LENGTH 50	/* When to split delete blocks */
@@ -428,85 +533,88 @@ extern LIST *maria_open_list;
 extern uchar NEAR maria_file_magic[], NEAR maria_pack_file_magic[];
 extern uint NEAR maria_read_vec[], NEAR maria_readnext_vec[];
 extern uint maria_quick_table_bits;
+extern byte maria_zero_string[];
 
 	/* This is used by _ma_calc_xxx_key_length och _ma_store_key */
 
 typedef struct st_maria_s_param
 {
-  uint ref_length, key_length,
-    n_ref_length,
-    n_length, totlength, part_of_prev_key, prev_length, pack_marker;
-  uchar *key, *prev_key, *next_key_pos;
+  uint ref_length, key_length, n_ref_length;
+  uint n_length, totlength, part_of_prev_key, prev_length, pack_marker;
+  const byte *key;
+  byte *prev_key, *next_key_pos;
   bool store_not_null;
 } MARIA_KEY_PARAM;
 
 	/* Prototypes for intern functions */
 
-extern int _ma_read_dynamic_record(MARIA_HA *info, my_off_t filepos,
-                                   byte *buf);
-extern int _ma_write_dynamic_record(MARIA_HA *, const byte *);
-extern int _ma_update_dynamic_record(MARIA_HA *, my_off_t, const byte *);
-extern int _ma_delete_dynamic_record(MARIA_HA *info);
-extern int _ma_cmp_dynamic_record(MARIA_HA *info, const byte *record);
-extern int _ma_read_rnd_dynamic_record(MARIA_HA *, byte *, my_off_t,
+extern int _ma_read_dynamic_record(MARIA_HA *, byte *, MARIA_RECORD_POS);
+extern int _ma_read_rnd_dynamic_record(MARIA_HA *, byte *, MARIA_RECORD_POS,
                                        my_bool);
-extern int _ma_write_blob_record(MARIA_HA *, const byte *);
-extern int _ma_update_blob_record(MARIA_HA *, my_off_t, const byte *);
-extern int _ma_read_static_record(MARIA_HA *info, my_off_t filepos,
-                                  byte *buf);
-extern int _ma_write_static_record(MARIA_HA *, const byte *);
-extern int _ma_update_static_record(MARIA_HA *, my_off_t, const byte *);
-extern int _ma_delete_static_record(MARIA_HA *info);
-extern int _ma_cmp_static_record(MARIA_HA *info, const byte *record);
-extern int _ma_read_rnd_static_record(MARIA_HA *, byte *, my_off_t, my_bool);
-extern int _ma_ck_write(MARIA_HA *info, uint keynr, uchar *key,
+extern my_bool _ma_write_dynamic_record(MARIA_HA *, const byte *);
+extern my_bool _ma_update_dynamic_record(MARIA_HA *, MARIA_RECORD_POS,
+                                         const byte *);
+extern my_bool _ma_delete_dynamic_record(MARIA_HA *info);
+extern my_bool _ma_cmp_dynamic_record(MARIA_HA *info, const byte *record);
+extern my_bool _ma_write_blob_record(MARIA_HA *, const byte *);
+extern my_bool _ma_update_blob_record(MARIA_HA *, MARIA_RECORD_POS,
+                                      const byte *);
+extern int _ma_read_static_record(MARIA_HA *info, byte *, MARIA_RECORD_POS);
+extern int _ma_read_rnd_static_record(MARIA_HA *, byte *, MARIA_RECORD_POS,
+                                      my_bool);
+extern my_bool _ma_write_static_record(MARIA_HA *, const byte *);
+extern my_bool _ma_update_static_record(MARIA_HA *, MARIA_RECORD_POS,
+                                        const byte *);
+extern my_bool _ma_delete_static_record(MARIA_HA *info);
+extern my_bool _ma_cmp_static_record(MARIA_HA *info, const byte *record);
+extern int _ma_ck_write(MARIA_HA *info, uint keynr, byte *key,
                         uint length);
 extern int _ma_ck_real_write_btree(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                                   uchar *key, uint key_length,
-                                   my_off_t *root, uint comp_flag);
+                                   byte *key, uint key_length,
+                                   MARIA_RECORD_POS *root, uint comp_flag);
 extern int _ma_enlarge_root(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                            uchar *key, my_off_t *root);
-extern int _ma_insert(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *key,
-                      uchar *anc_buff, uchar *key_pos, uchar *key_buff,
-                      uchar *father_buff, uchar *father_keypos,
+                            byte *key, MARIA_RECORD_POS *root);
+extern int _ma_insert(MARIA_HA *info, MARIA_KEYDEF *keyinfo, byte *key,
+                      byte *anc_buff, byte *key_pos, byte *key_buff,
+                      byte *father_buff, byte *father_keypos,
                       my_off_t father_page, my_bool insert_last);
 extern int _ma_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                          uchar *key, uchar *buff, uchar *key_buff,
+                          byte *key, byte *buff, byte *key_buff,
                           my_bool insert_last);
-extern uchar *_ma_find_half_pos(uint nod_flag, MARIA_KEYDEF *keyinfo,
-                                uchar *page, uchar *key,
+extern byte *_ma_find_half_pos(uint nod_flag, MARIA_KEYDEF *keyinfo,
+                                byte *page, byte *key,
                                 uint *return_key_length,
-                                uchar ** after_key);
+                                byte ** after_key);
 extern int _ma_calc_static_key_length(MARIA_KEYDEF *keyinfo, uint nod_flag,
-                                      uchar *key_pos, uchar *org_key,
-                                      uchar *key_buff, uchar *key,
+                                      byte *key_pos, byte *org_key,
+                                      byte *key_buff, const byte *key,
                                       MARIA_KEY_PARAM *s_temp);
 extern int _ma_calc_var_key_length(MARIA_KEYDEF *keyinfo, uint nod_flag,
-                                   uchar *key_pos, uchar *org_key,
-                                   uchar *key_buff, uchar *key,
+                                   byte *key_pos, byte *org_key,
+                                   byte *key_buff, const byte *key,
                                    MARIA_KEY_PARAM *s_temp);
 extern int _ma_calc_var_pack_key_length(MARIA_KEYDEF *keyinfo,
-                                        uint nod_flag, uchar *key_pos,
-                                        uchar *org_key, uchar *prev_key,
-                                        uchar *key,
+                                        uint nod_flag, byte *key_pos,
+                                        byte *org_key, byte *prev_key,
+                                        const byte *key,
                                         MARIA_KEY_PARAM *s_temp);
 extern int _ma_calc_bin_pack_key_length(MARIA_KEYDEF *keyinfo,
-                                        uint nod_flag, uchar *key_pos,
-                                        uchar *org_key, uchar *prev_key,
-                                        uchar *key,
+                                        uint nod_flag, byte *key_pos,
+                                        byte *org_key, byte *prev_key,
+                                        const byte *key,
                                         MARIA_KEY_PARAM *s_temp);
-void _ma_store_static_key(MARIA_KEYDEF *keyinfo, uchar *key_pos,
+void _ma_store_static_key(MARIA_KEYDEF *keyinfo, byte *key_pos,
                           MARIA_KEY_PARAM *s_temp);
-void _ma_store_var_pack_key(MARIA_KEYDEF *keyinfo, uchar *key_pos,
+void _ma_store_var_pack_key(MARIA_KEYDEF *keyinfo, byte *key_pos,
                             MARIA_KEY_PARAM *s_temp);
 #ifdef NOT_USED
-void _ma_store_pack_key(MARIA_KEYDEF *keyinfo, uchar *key_pos,
+void _ma_store_pack_key(MARIA_KEYDEF *keyinfo, byte *key_pos,
                         MARIA_KEY_PARAM *s_temp);
 #endif
-void _ma_store_bin_pack_key(MARIA_KEYDEF *keyinfo, uchar *key_pos,
+void _ma_store_bin_pack_key(MARIA_KEYDEF *keyinfo, byte *key_pos,
                             MARIA_KEY_PARAM *s_temp);
 
-extern int _ma_ck_delete(MARIA_HA *info, uint keynr, uchar *key,
+extern int _ma_ck_delete(MARIA_HA *info, uint keynr, byte *key,
                          uint key_length);
 extern int _ma_readinfo(MARIA_HA *info, int lock_flag, int check_keybuffer);
 extern int _ma_writeinfo(MARIA_HA *info, uint options);
@@ -514,74 +622,69 @@ extern int _ma_test_if_changed(MARIA_HA *info);
 extern int _ma_mark_file_changed(MARIA_HA *info);
 extern int _ma_decrement_open_count(MARIA_HA *info);
 extern int _ma_check_index(MARIA_HA *info, int inx);
-extern int _ma_search(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *key,
+extern int _ma_search(MARIA_HA *info, MARIA_KEYDEF *keyinfo, byte *key,
                       uint key_len, uint nextflag, my_off_t pos);
 extern int _ma_bin_search(struct st_maria_info *info, MARIA_KEYDEF *keyinfo,
-                          uchar *page, uchar *key, uint key_len,
-                          uint comp_flag, uchar **ret_pos, uchar *buff,
+                          byte *page, byte *key, uint key_len,
+                          uint comp_flag, byte **ret_pos, byte *buff,
                           my_bool *was_last_key);
 extern int _ma_seq_search(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                          uchar *page, uchar *key, uint key_len,
-                          uint comp_flag, uchar ** ret_pos, uchar *buff,
+                          byte *page, byte *key, uint key_len,
+                          uint comp_flag, byte ** ret_pos, byte *buff,
                           my_bool *was_last_key);
 extern int _ma_prefix_search(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                             uchar *page, uchar *key, uint key_len,
-                             uint comp_flag, uchar ** ret_pos, uchar *buff,
+                             byte *page, byte *key, uint key_len,
+                             uint comp_flag, byte ** ret_pos, byte *buff,
                              my_bool *was_last_key);
-extern my_off_t _ma_kpos(uint nod_flag, uchar *after_key);
-extern void _ma_kpointer(MARIA_HA *info, uchar *buff, my_off_t pos);
-extern my_off_t _ma_dpos(MARIA_HA *info, uint nod_flag, uchar *after_key);
-extern my_off_t _ma_rec_pos(MARIA_SHARE *info, uchar *ptr);
-extern void _ma_dpointer(MARIA_HA *info, uchar *buff, my_off_t pos);
+extern my_off_t _ma_kpos(uint nod_flag, byte *after_key);
+extern void _ma_kpointer(MARIA_HA *info, byte *buff, my_off_t pos);
+extern MARIA_RECORD_POS _ma_dpos(MARIA_HA *info, uint nod_flag,
+                                 const byte *after_key);
+extern MARIA_RECORD_POS _ma_rec_pos(MARIA_SHARE *info, byte *ptr);
+extern void _ma_dpointer(MARIA_HA *info, byte *buff, MARIA_RECORD_POS pos);
 extern uint _ma_get_static_key(MARIA_KEYDEF *keyinfo, uint nod_flag,
-                               uchar **page, uchar *key);
+                               byte **page, byte *key);
 extern uint _ma_get_pack_key(MARIA_KEYDEF *keyinfo, uint nod_flag,
-                             uchar **page, uchar *key);
+                             byte **page, byte *key);
 extern uint _ma_get_binary_pack_key(MARIA_KEYDEF *keyinfo, uint nod_flag,
-                                    uchar ** page_pos, uchar *key);
-extern uchar *_ma_get_last_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                               uchar *keypos, uchar *lastkey,
-                               uchar *endpos, uint *return_key_length);
-extern uchar *_ma_get_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                          uchar *page, uchar *key, uchar *keypos,
+                                    byte ** page_pos, byte *key);
+extern byte *_ma_get_last_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
+                               byte *keypos, byte *lastkey,
+                               byte *endpos, uint *return_key_length);
+extern byte *_ma_get_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
+                          byte *page, byte *key, byte *keypos,
                           uint *return_key_length);
-extern uint _ma_keylength(MARIA_KEYDEF *keyinfo, uchar *key);
-extern uint _ma_keylength_part(MARIA_KEYDEF *keyinfo, register uchar *key,
+extern uint _ma_keylength(MARIA_KEYDEF *keyinfo, const byte *key);
+extern uint _ma_keylength_part(MARIA_KEYDEF *keyinfo, register const byte *key,
                                HA_KEYSEG *end);
-extern uchar *_ma_move_key(MARIA_KEYDEF *keyinfo, uchar *to, uchar *from);
+extern byte *_ma_move_key(MARIA_KEYDEF *keyinfo, byte *to, const byte *from);
 extern int _ma_search_next(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                           uchar *key, uint key_length, uint nextflag,
+                           byte *key, uint key_length, uint nextflag,
                            my_off_t pos);
 extern int _ma_search_first(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                             my_off_t pos);
 extern int _ma_search_last(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                            my_off_t pos);
-extern uchar *_ma_fetch_keypage(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                                my_off_t page, int level, uchar *buff,
+extern byte *_ma_fetch_keypage(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
+                                my_off_t page, int level, byte *buff,
                                 int return_buffer);
 extern int _ma_write_keypage(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                             my_off_t page, int level, uchar *buff);
+                             my_off_t page, int level, byte *buff);
 extern int _ma_dispose(MARIA_HA *info, MARIA_KEYDEF *keyinfo, my_off_t pos,
                        int level);
 extern my_off_t _ma_new(MARIA_HA *info, MARIA_KEYDEF *keyinfo, int level);
-extern uint _ma_make_key(MARIA_HA *info, uint keynr, uchar *key,
-                         const byte *record, my_off_t filepos);
-extern uint _ma_pack_key(MARIA_HA *info, uint keynr, uchar *key,
-                         uchar *old, uint key_length,
+extern uint _ma_make_key(MARIA_HA *info, uint keynr, byte *key,
+                         const byte *record, MARIA_RECORD_POS filepos);
+extern uint _ma_pack_key(MARIA_HA *info, uint keynr, byte *key,
+                         const byte *old, uint key_length,
                          HA_KEYSEG ** last_used_keyseg);
-extern int _ma_read_key_record(MARIA_HA *info, my_off_t filepos,
-                               byte *buf);
-extern int _ma_read_cache(IO_CACHE *info, byte *buff, my_off_t pos,
+extern int _ma_read_key_record(MARIA_HA *info, byte *buf, MARIA_RECORD_POS);
+extern int _ma_read_cache(IO_CACHE *info, byte *buff, MARIA_RECORD_POS pos,
                           uint length, int re_read_if_possibly);
 extern ulonglong ma_retrieve_auto_increment(MARIA_HA *info, const byte *record);
 
-extern byte *_ma_alloc_rec_buff(MARIA_HA *, ulong, byte **);
-#define _ma_get_rec_buff_ptr(info,buf)                        \
-  ((((info)->s->options & HA_OPTION_PACK_RECORD) && (buf)) ?    \
-   (buf) - MARIA_REC_BUFF_OFFSET : (buf))
-#define _ma_get_rec_buff_len(info,buf)                \
-  (*((uint32 *)(_ma_get_rec_buff_ptr(info,buf))))
-
+extern my_bool _ma_alloc_buffer(byte **old_addr, my_size_t *old_size,
+                                my_size_t new_size);
 extern ulong _ma_rec_unpack(MARIA_HA *info, byte *to, byte *from,
                             ulong reclength);
 extern my_bool _ma_rec_check(MARIA_HA *info, const char *record,
@@ -592,11 +695,13 @@ extern int _ma_write_part_record(MARIA_HA *info, my_off_t filepos,
                                  byte ** record, ulong *reclength,
                                  int *flag);
 extern void _ma_print_key(FILE *stream, HA_KEYSEG *keyseg,
-                          const uchar *key, uint length);
-extern my_bool _ma_read_pack_info(MARIA_HA *info, pbool fix_keys);
-extern int _ma_read_pack_record(MARIA_HA *info, my_off_t filepos,
-                                byte *buf);
-extern int _ma_read_rnd_pack_record(MARIA_HA *, byte *, my_off_t, my_bool);
+                          const byte *key, uint length);
+extern my_bool _ma_once_init_pack_row(MARIA_SHARE *share, File dfile);
+extern my_bool _ma_once_end_pack_row(MARIA_SHARE *share);
+extern int _ma_read_pack_record(MARIA_HA *info, byte *buf,
+                                MARIA_RECORD_POS filepos);
+extern int _ma_read_rnd_pack_record(MARIA_HA *, byte *, MARIA_RECORD_POS,
+                                    my_bool);
 extern int _ma_pack_rec_unpack(MARIA_HA *info, byte *to, byte *from,
                                ulong reclength);
 extern ulonglong _ma_safe_mul(ulonglong a, ulonglong b);
@@ -613,9 +718,9 @@ typedef struct st_maria_block_info
   ulong data_len;
   ulong block_len;
   ulong blob_len;
-  my_off_t filepos;
-  my_off_t next_filepos;
-  my_off_t prev_filepos;
+  MARIA_RECORD_POS filepos;
+  MARIA_RECORD_POS next_filepos;
+  MARIA_RECORD_POS prev_filepos;
   uint second_read;
   uint offset;
 } MARIA_BLOCK_INFO;
@@ -672,11 +777,10 @@ extern uint _ma_nommap_pwrite(MARIA_HA *info, byte *Buffer,
                               uint Count, my_off_t offset, myf MyFlags);
 
 uint _ma_state_info_write(File file, MARIA_STATE_INFO *state, uint pWrite);
-uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state);
+byte *_ma_state_info_read(byte *ptr, MARIA_STATE_INFO *state);
 uint _ma_state_info_read_dsk(File file, MARIA_STATE_INFO *state,
                              my_bool pRead);
 uint _ma_base_info_write(File file, MARIA_BASE_INFO *base);
-uchar *_ma_n_base_info_read(uchar *ptr, MARIA_BASE_INFO *base);
 int _ma_keyseg_write(File file, const HA_KEYSEG *keyseg);
 char *_ma_keyseg_read(char *ptr, HA_KEYSEG *keyseg);
 uint _ma_keydef_write(File file, MARIA_KEYDEF *keydef);
@@ -690,14 +794,14 @@ ha_checksum _ma_checksum(MARIA_HA *info, const byte *buf);
 ha_checksum _ma_static_checksum(MARIA_HA *info, const byte *buf);
 my_bool _ma_check_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def,
                          byte *record, ha_checksum unique_hash,
-                         my_off_t pos);
+                         MARIA_RECORD_POS pos);
 ha_checksum _ma_unique_hash(MARIA_UNIQUEDEF *def, const byte *buf);
-int _ma_cmp_static_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def,
-                          const byte *record, my_off_t pos);
-int _ma_cmp_dynamic_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def,
-                           const byte *record, my_off_t pos);
-int _ma_unique_comp(MARIA_UNIQUEDEF *def, const byte *a, const byte *b,
-                    my_bool null_are_equal);
+my_bool _ma_cmp_static_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def,
+                              const byte *record, MARIA_RECORD_POS pos);
+my_bool _ma_cmp_dynamic_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def,
+                               const byte *record, MARIA_RECORD_POS pos);
+my_bool _ma_unique_comp(MARIA_UNIQUEDEF *def, const byte *a, const byte *b,
+                        my_bool null_are_equal);
 void _ma_get_status(void *param, int concurrent_insert);
 void _ma_update_status(void *param);
 void _ma_copy_status(void *to, void *from);
@@ -710,6 +814,9 @@ int _ma_open_keyfile(MARIA_SHARE *share);
 void _ma_setup_functions(register MARIA_SHARE *share);
 my_bool _ma_dynmap_file(MARIA_HA *info, my_off_t size);
 void _ma_remap_file(MARIA_HA *info, my_off_t size);
+
+MARIA_RECORD_POS _ma_write_init_default(MARIA_HA *info, const byte *record);
+my_bool _ma_write_abort_default(MARIA_HA *info);
 
 /* Functions needed by _ma_check (are overrided in MySQL) */
 C_MODE_START

@@ -21,7 +21,7 @@
 int maria_rlast(MARIA_HA *info, byte *buf, int inx)
 {
   DBUG_ENTER("maria_rlast");
-  info->lastpos= HA_OFFSET_ERROR;
+  info->cur_row.lastpos= HA_OFFSET_ERROR;
   info->update|= HA_STATE_NEXT_FOUND;
   DBUG_RETURN(maria_rprev(info,buf,inx));
 } /* maria_rlast */

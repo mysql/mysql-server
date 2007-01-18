@@ -18,6 +18,7 @@
 
 #include "maria_def.h"
 #include <ft_global.h>
+#include "ma_blockrec.h"
 
 static int maria_inited= 0;
 pthread_mutex_t THR_LOCK_maria;
@@ -42,6 +43,7 @@ int maria_init(void)
   {
     maria_inited= 1;
     pthread_mutex_init(&THR_LOCK_maria,MY_MUTEX_INIT_SLOW);
+    _ma_init_block_record_data();
   }
   return 0;
 }

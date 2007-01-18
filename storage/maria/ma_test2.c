@@ -38,7 +38,8 @@
 static void get_options(int argc, char *argv[]);
 static uint rnd(uint max_value);
 static void fix_length(byte *record,uint length);
-static void put_blob_in_record(char *blob_pos,char **blob_buffer);
+static void put_blob_in_record(char *blob_pos,char **blob_buffer,
+                               ulong *length);
 static void copy_key(struct st_maria_info *info,uint inx,
 		     uchar *record,uchar *key);
 
@@ -46,10 +47,11 @@ static	int verbose=0,testflag=0,
 	    first_key=0,async_io=0,key_cacheing=0,write_cacheing=0,locking=0,
             rec_pointer_size=0,pack_fields=1,silent=0,
             opt_quick_mode=0;
-static int pack_seg=HA_SPACE_PACK,pack_type=HA_PACK_KEY,remove_count=-1,
-	   create_flag=0;
+static int pack_seg=HA_SPACE_PACK,pack_type=HA_PACK_KEY,remove_count=-1;
+static int create_flag= 0, srand_arg= 0;
 static ulong key_cache_size=IO_SIZE*16;
 static uint key_cache_block_size= KEY_CACHE_BLOCK_SIZE;
+static enum data_file_type record_type= DYNAMIC_RECORD;
 
 static uint keys=MARIA_KEYS,recant=1000;
 static uint use_blob=0;
@@ -201,16 +203,14 @@ int main(int argc, char *argv[])
   for (i=4999 ; i>0 ; i--) key3[i]=0;
 
   if (!silent)
-    printf("- Creating isam-file\n");
-  /*  DBUG_PUSH(""); */
-  /* my_delete(filename,MYF(0)); */	/* Remove old locks under gdb */
+    printf("- Creating maria-file\n");
   file= 0;
   bzero((char*) &create_info,sizeof(create_info));
   create_info.max_rows=(ha_rows) (rec_pointer_size ?
 				  (1L << (rec_pointer_size*8))/
 				  reclength : 0);
   create_info.reloc_rows=(ha_rows) 100;
-  if (maria_create(filename,keys,&keyinfo[first_key],
+  if (maria_create(filename, record_type, keys,&keyinfo[first_key],
 		use_blob ? 7 : 6, &recinfo[0],
 		0,(MARIA_UNIQUEDEF*) 0,
 		&create_info,create_flag))
@@ -230,12 +230,13 @@ int main(int argc, char *argv[])
 
   for (i=0 ; i < recant ; i++)
   {
+    ulong blob_length;
     n1=rnd(1000); n2=rnd(100); n3=rnd(5000);
     sprintf(record,"%6d:%4d:%8d:Pos: %4d    ",n1,n2,n3,write_count);
     int4store(record+STANDARD_LENGTH-4,(long) i);
     fix_length(record,(uint) STANDARD_LENGTH+rnd(60));
-    put_blob_in_record(record+blob_pos,&blob_buffer);
-    DBUG_PRINT("test",("record: %d",i));
+    put_blob_in_record(record+blob_pos,&blob_buffer, &blob_length);
+    DBUG_PRINT("test",("record: %d  blob_length: %lu", i, blob_length));
 
     if (maria_write(file,record))
     {
@@ -257,7 +258,7 @@ int main(int argc, char *argv[])
     }
 
     /* Check if we can find key without flushing database */
-    if (i == recant/2)
+    if (i % 10 == 0)
     {
       for (j=rnd(1000)+1 ; j>0 && key1[j] == 0 ; j--) ;
       if (!j)
@@ -270,7 +271,8 @@ int main(int argc, char *argv[])
       }
     }
   }
-  if (testflag==1) goto end;
+  if (testflag == 1)
+    goto end;
 
   if (write_cacheing)
   {
@@ -285,6 +287,8 @@ int main(int argc, char *argv[])
 
   if (!silent)
     printf("- Delete\n");
+  if (srand_arg)
+    srand(srand_arg);
   for (i=0 ; i<recant/10 ; i++)
   {
     for (j=rnd(1000)+1 ; j>0 && key1[j] == 0 ; j--) ;
@@ -294,6 +298,12 @@ int main(int argc, char *argv[])
       if (maria_rkey(file,read_record,0,key,0,HA_READ_KEY_EXACT))
       {
 	printf("can't find key1: \"%s\"\n",key);
+	goto err;
+      }
+      if (bcmp(read_record+keyinfo[0].seg[0].start,
+               key, keyinfo[0].seg[0].length))
+      {
+	printf("Found wrong record when searching for key: \"%s\"\n",key);
 	goto err;
       }
       if (opt_delete == (uint) remove_count)		/* While testing */
@@ -310,10 +320,13 @@ int main(int argc, char *argv[])
     else
       puts("Warning: Skipping delete test because no dupplicate keys");
   }
-  if (testflag==2) goto end;
+  if (testflag == 2)
+    goto end;
 
   if (!silent)
     printf("- Update\n");
+  if (srand_arg)
+    srand(srand_arg);
   for (i=0 ; i<recant/10 ; i++)
   {
     n1=rnd(1000); n2=rnd(100); n3=rnd(5000);
@@ -330,10 +343,19 @@ int main(int argc, char *argv[])
 	printf("can't find key1: \"%s\"\n",key);
 	goto err;
       }
+      if (bcmp(read_record+keyinfo[0].seg[0].start,
+               key, keyinfo[0].seg[0].length))
+      {
+	printf("Found wrong record when searching for key: \"%s\"; Found \"%.*s\"\n",
+               key, keyinfo[0].seg[0].length,
+               read_record+keyinfo[0].seg[0].start);
+	goto err;
+      }
       if (use_blob)
       {
+        ulong blob_length;
 	if (i & 1)
-	  put_blob_in_record(record+blob_pos,&blob_buffer);
+	  put_blob_in_record(record+blob_pos,&blob_buffer, &blob_length);
 	else
 	  bmove(record+blob_pos,read_record+blob_pos,8);
       }
@@ -395,10 +417,12 @@ int main(int argc, char *argv[])
       goto end;
     }
     {
+      info.recpos= maria_position(file);
       int skr=maria_rnext(file,read_record2,0);
       if ((skr && my_errno != HA_ERR_END_OF_FILE) ||
 	  maria_rprev(file,read_record2,-1) ||
-	  memcmp(read_record,read_record2,reclength) != 0)
+	  memcmp(read_record,read_record2,reclength) != 0 ||
+          info.recpos != maria_position(file))
       {
 	printf("maria_rsame_with_pos lost position\n");
 	goto end;
@@ -588,13 +612,24 @@ int main(int argc, char *argv[])
   if (!silent)
     puts("- Test if: Read rrnd - same");
   DBUG_PRINT("progpos",("Read rrnd - same"));
+  assert(maria_scan_init(file) == 0);
   for (i=0 ; i < write_count ; i++)
   {
-    if (maria_rrnd(file,read_record,i == 0 ? 0L : HA_OFFSET_ERROR) == 0)
+    int tmp;
+    if ((tmp= maria_scan(file,read_record)) &&
+        tmp != HA_ERR_END_OF_FILE &&
+        tmp != HA_ERR_RECORD_DELETED)
+    {
+      printf("Got error %d when scanning table\n", tmp);
       break;
+    }
   }
-  if (i == write_count)
+  maria_scan_end(file);
+  if (i != write_count && i != write_count - opt_delete)
+  {
+    printf("Found wrong number of rows while scanning table\n");
     goto err;
+  }
 
   bmove(read_record2,read_record,reclength);
   for (i=min(2,keys) ; i-- > 0 ;)
@@ -602,7 +637,7 @@ int main(int argc, char *argv[])
     if (maria_rsame(file,read_record2,(int) i)) goto err;
     if (bcmp(read_record,read_record2,reclength) != 0)
     {
-      printf("is_rsame didn't find same record\n");
+      printf("maria_rsame didn't find same record\n");
       goto end;
     }
   }
@@ -716,12 +751,14 @@ int main(int argc, char *argv[])
     }
   }
   ant=0;
-  while ((error=maria_rrnd(file,record,HA_OFFSET_ERROR)) != HA_ERR_END_OF_FILE &&
+  assert(maria_scan_init(file) == 0);
+  while ((error= maria_scan(file,record)) != HA_ERR_END_OF_FILE &&
 	 ant < write_count + 10)
-	ant+= error ? 0 : 1;
+    ant+= error ? 0 : 1;
+  maria_scan_end(file);
   if (ant != write_count-opt_delete)
   {
-    printf("rrnd with cache: I can only find: %d records of %d\n",
+    printf("scan with cache: I can only find: %d records of %d\n",
 	   ant,write_count-opt_delete);
     goto end;
   }
@@ -743,7 +780,8 @@ int main(int argc, char *argv[])
     goto end;
   }
 
-  if (testflag == 4) goto end;
+  if (testflag == 4)
+    goto end;
 
   if (!silent)
     printf("- Removing keys\n");
@@ -752,8 +790,8 @@ int main(int argc, char *argv[])
   /* DBUG_POP(); */
   maria_reset(file);
   found_parts=0;
-  while ((error=maria_rrnd(file,read_record,HA_OFFSET_ERROR)) !=
-	 HA_ERR_END_OF_FILE)
+  maria_scan_init(file);
+  while ((error= maria_scan(file,read_record)) != HA_ERR_END_OF_FILE)
   {
     info.recpos=maria_position(file);
     if (lastpos >= info.recpos && lastpos != HA_OFFSET_ERROR)
@@ -767,7 +805,7 @@ int main(int argc, char *argv[])
     {
       if (opt_delete == (uint) remove_count)		/* While testing */
 	goto end;
-      if (maria_rsame(file,read_record,-1))
+      if (rnd(2) == 1 && maria_rsame(file,read_record,-1))
       {
 	printf("can't find record %lx\n",(long) info.recpos);
 	goto err;
@@ -783,9 +821,10 @@ int main(int argc, char *argv[])
 	{
 	  if (ptr[pos] != (uchar) (blob_length+pos))
 	  {
-	    printf("found blob with wrong info at %ld\n",(long) lastpos);
-	    use_blob=0;
-	    break;
+	    printf("Found blob with wrong info at %ld\n",(long) lastpos);
+            maria_scan_end(file);
+            my_errno= 0;
+	    goto err;
 	  }
 	}
       }
@@ -793,6 +832,7 @@ int main(int argc, char *argv[])
       {
 	printf("can't delete record: %6.6s,  delete_count: %d\n",
 	       read_record, opt_delete);
+        maria_scan_end(file);
 	goto err;
       }
       opt_delete++;
@@ -800,6 +840,7 @@ int main(int argc, char *argv[])
     else
       found_parts++;
   }
+  maria_scan_end(file);
   if (my_errno != HA_ERR_END_OF_FILE && my_errno != HA_ERR_RECORD_DELETED)
     printf("error: %d from maria_rrnd\n",my_errno);
   if (write_count != opt_delete)
@@ -851,8 +892,7 @@ reads:      %10lu\n",
            (ulong) maria_key_cache->global_cache_read);
   }
   end_key_cache(maria_key_cache,1);
-  if (blob_buffer)
-    my_free(blob_buffer,MYF(0));
+  my_free(blob_buffer, MYF(MY_ALLOW_ZERO_PTR));
   my_end(silent ? MY_CHECK_ERROR : MY_CHECK_ERROR | MY_GIVE_INFO);
   return(0);
 err:
@@ -864,8 +904,7 @@ err:
 } /* main */
 
 
-	/* l{ser optioner */
-	/* OBS! intierar endast DEBUG - ingen debuggning h{r ! */
+/* Read options */
 
 static void get_options(int argc, char **argv)
 {
@@ -879,7 +918,9 @@ static void get_options(int argc, char **argv)
       pack_type= HA_BINARY_PACK_KEY;
       break;
     case 'b':
-      use_blob=1;
+      use_blob= 1;
+      if (*++pos)
+        use_blob= atol(pos);
       break;
     case 'K':				/* Use key cacheing */
       key_cacheing=1;
@@ -896,7 +937,7 @@ static void get_options(int argc, char **argv)
       break;
     case 'i':
       if (*++pos)
-	srand(atoi(pos));
+	srand(srand_arg= atoi(pos));
       break;
     case 'L':
       locking=1;
@@ -910,9 +951,9 @@ static void get_options(int argc, char **argv)
       verbose=1;
       break;
     case 'm':				/* records */
-      if ((recant=atoi(++pos)) < 10)
+      if ((recant=atoi(++pos)) < 10 && testflag > 1)
       {
-	fprintf(stderr,"record count must be >= 10\n");
+	fprintf(stderr,"record count must be >= 10 (if testflag != 1)\n");
 	exit(1);
       }
       break;
@@ -943,6 +984,9 @@ static void get_options(int argc, char **argv)
 	   keys > (uint) (MARIA_KEYS-first_key))
 	keys=MARIA_KEYS-first_key;
       break;
+    case 'M':
+      record_type= BLOCK_RECORD;
+      break;
     case 'P':
       pack_type=0;			/* Don't use DIFF_LENGTH */
       pack_seg=0;
@@ -954,6 +998,7 @@ static void get_options(int argc, char **argv)
       break;
     case 'S':
       pack_fields=0;			/* Static-length-records */
+      record_type= STATIC_RECORD;
       break;
     case 's':
       silent=1;
@@ -973,7 +1018,7 @@ static void get_options(int argc, char **argv)
     case '?':
     case 'I':
     case 'V':
-      printf("%s  Ver 1.2 for %s at %s\n",progname,SYSTEM_TYPE,MACHINE_TYPE);
+      printf("%s  Ver 1.0 for %s at %s\n",progname,SYSTEM_TYPE,MACHINE_TYPE);
       puts("By Monty, for your professional use\n");
       printf("Usage: %s [-?AbBcDIKLPRqSsVWltv] [-k#] [-f#] [-m#] [-e#] [-E#] [-t#]\n",
 	     progname);
@@ -1010,7 +1055,8 @@ static void fix_length(byte *rec, uint length)
 
 	/* Put maybe a blob in record */
 
-static void put_blob_in_record(char *blob_pos, char **blob_buffer)
+static void put_blob_in_record(char *blob_pos, char **blob_buffer,
+                               ulong *blob_length)
 {
   ulong i,length;
   if (use_blob)
@@ -1028,10 +1074,12 @@ static void put_blob_in_record(char *blob_pos, char **blob_buffer)
 	(*blob_buffer)[i]=(char) (length+i);
       int4store(blob_pos,length);
       memcpy_fixed(blob_pos+4,(char*) blob_buffer,sizeof(char*));
+      *blob_length= length;
     }
     else
     {
       int4store(blob_pos,0);
+      *blob_length= 0;
     }
   }
   return;

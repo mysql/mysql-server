@@ -48,7 +48,7 @@
 #define HA_OPEN_FOR_REPAIR		32	/* open even if crashed */
 #define HA_OPEN_FROM_SQL_LAYER          64
 
-	/* The following is parameter to ha_rkey() how to use key */
+/* The following is parameter to ha_rkey() how to use key */
 
 /*
   We define a complete-field prefix of a key value as a prefix where
@@ -433,7 +433,7 @@ enum en_fieldtype {
 };
 
 enum data_file_type {
-  STATIC_RECORD,DYNAMIC_RECORD,COMPRESSED_RECORD
+  STATIC_RECORD, DYNAMIC_RECORD, COMPRESSED_RECORD, BLOCK_RECORD
 };
 
 /* For key ranges */

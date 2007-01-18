@@ -24,10 +24,10 @@
 
 static ha_rows _ma_record_pos(MARIA_HA *info,const byte *key,uint key_len,
 			      enum ha_rkey_function search_flag);
-static double _ma_search_pos(MARIA_HA *info,MARIA_KEYDEF *keyinfo,uchar *key,
-			     uint key_len,uint nextflag,my_off_t pos);
-static uint _ma_keynr(MARIA_HA *info,MARIA_KEYDEF *keyinfo,uchar *page,
-		      uchar *keypos,uint *ret_max_key);
+static double _ma_search_pos(MARIA_HA *info,MARIA_KEYDEF *keyinfo, byte *key,
+			     uint key_len,uint nextflag, my_off_t pos);
+static uint _ma_keynr(MARIA_HA *info, MARIA_KEYDEF *keyinfo, byte *page,
+		      byte *keypos, uint *ret_max_key);
 
 
 /*
@@ -68,12 +68,12 @@ ha_rows maria_records_in_range(MARIA_HA *info, int inx, key_range *min_key,
 #ifdef HAVE_RTREE_KEYS
   case HA_KEY_ALG_RTREE:
   {
-    uchar * key_buff;
+    byte *key_buff;
     uint start_key_len;
 
     key_buff= info->lastkey+info->s->base.max_key_length;
     start_key_len= _ma_pack_key(info,inx, key_buff,
-                                (uchar*) min_key->key, min_key->length,
+                                min_key->key, min_key->length,
                                 (HA_KEYSEG**) 0);
     res= maria_rtree_estimate(info, inx, key_buff, start_key_len,
                         maria_read_vec[min_key->flag]);
@@ -113,24 +113,23 @@ static ha_rows _ma_record_pos(MARIA_HA *info, const byte *key, uint key_len,
 {
   uint inx=(uint) info->lastinx, nextflag;
   MARIA_KEYDEF *keyinfo=info->s->keyinfo+inx;
-  uchar *key_buff;
+  byte *key_buff;
   double pos;
-
   DBUG_ENTER("_ma_record_pos");
   DBUG_PRINT("enter",("search_flag: %d",search_flag));
 
   if (key_len == 0)
-    key_len=USE_WHOLE_KEY;
+    key_len= USE_WHOLE_KEY;
   key_buff=info->lastkey+info->s->base.max_key_length;
-  key_len= _ma_pack_key(info,inx,key_buff,(uchar*) key,key_len,
+  key_len= _ma_pack_key(info, inx, key_buff, key, key_len,
 		       (HA_KEYSEG**) 0);
-  DBUG_EXECUTE("key", _ma_print_key(DBUG_FILE,keyinfo->seg,
-				    (uchar*) key_buff,key_len););
+  DBUG_EXECUTE("key", _ma_print_key(DBUG_FILE, keyinfo->seg,
+				    key_buff, key_len););
   nextflag=maria_read_vec[search_flag];
   if (!(nextflag & (SEARCH_FIND | SEARCH_NO_FIND | SEARCH_LAST)))
     key_len=USE_WHOLE_KEY;
 
-  pos= _ma_search_pos(info,keyinfo,key_buff,key_len,
+  pos= _ma_search_pos(info,keyinfo, key_buff, key_len,
 		     nextflag | SEARCH_SAVE_BUFF,
 		     info->s->state.key_root[inx]);
   if (pos >= 0.0)
@@ -147,13 +146,13 @@ static ha_rows _ma_record_pos(MARIA_HA *info, const byte *key, uint key_len,
 
 static double _ma_search_pos(register MARIA_HA *info,
 			     register MARIA_KEYDEF *keyinfo,
-			     uchar *key, uint key_len, uint nextflag,
+			     byte *key, uint key_len, uint nextflag,
 			     register my_off_t pos)
 {
   int flag;
   uint nod_flag,keynr,max_keynr;
   my_bool after_key;
-  uchar *keypos,*buff;
+  byte *keypos, *buff;
   double offset;
   DBUG_ENTER("_ma_search_pos");
 
@@ -162,7 +161,7 @@ static double _ma_search_pos(register MARIA_HA *info,
 
   if (!(buff= _ma_fetch_keypage(info,keyinfo,pos,DFLT_INIT_HITS,info->buff,1)))
     goto err;
-  flag=(*keyinfo->bin_search)(info,keyinfo,buff,key,key_len,nextflag,
+  flag=(*keyinfo->bin_search)(info, keyinfo, buff, key, key_len, nextflag,
 			      &keypos,info->lastkey, &after_key);
   nod_flag=_ma_test_if_nod(buff);
   keynr= _ma_keynr(info,keyinfo,buff,keypos,&max_keynr);
@@ -213,11 +212,11 @@ err:
 
 	/* Get keynummer of current key and max number of keys in nod */
 
-static uint _ma_keynr(MARIA_HA *info, register MARIA_KEYDEF *keyinfo, uchar *page,
-                      uchar *keypos, uint *ret_max_key)
+static uint _ma_keynr(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
+                      byte *page, byte *keypos, uint *ret_max_key)
 {
   uint nod_flag,keynr,max_key;
-  uchar t_buff[HA_MAX_KEY_BUFF],*end;
+  byte t_buff[HA_MAX_KEY_BUFF],*end;
 
   end= page+maria_getint(page);
   nod_flag=_ma_test_if_nod(page);

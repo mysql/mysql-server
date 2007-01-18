@@ -44,7 +44,10 @@
 
 #define OFFSET_TABLE_SIZE 512
 
-static uint read_huff_table(MARIA_BIT_BUFF *bit_buff,MARIA_DECODE_TREE *decode_tree,
+static my_bool _ma_read_pack_info(MARIA_SHARE *share, File file,
+                                  pbool fix_keys);
+static uint read_huff_table(MARIA_BIT_BUFF *bit_buff,
+                            MARIA_DECODE_TREE *decode_tree,
 			    uint16 **decode_table,byte **intervall_buff,
 			    uint16 *tmp_buff);
 static void make_quick_table(uint16 *to_table,uint16 *decode_table,
@@ -56,55 +59,61 @@ static uint copy_decode_table(uint16 *to_pos,uint offset,
 			      uint16 *decode_table);
 static uint find_longest_bitstream(uint16 *table, uint16 *end);
 static void (*get_unpack_function(MARIA_COLUMNDEF *rec))(MARIA_COLUMNDEF *field,
-						    MARIA_BIT_BUFF *buff,
-						    uchar *to,
-						    uchar *end);
-static void uf_zerofill_skip_zero(MARIA_COLUMNDEF *rec,MARIA_BIT_BUFF *bit_buff,
-				   uchar *to,uchar *end);
+                                                         MARIA_BIT_BUFF *buff,
+                                                         byte *to,
+                                                         byte *end);
+static void uf_zerofill_skip_zero(MARIA_COLUMNDEF *rec,
+                                  MARIA_BIT_BUFF *bit_buff,
+                                  byte *to,byte *end);
 static void uf_skip_zero(MARIA_COLUMNDEF *rec,MARIA_BIT_BUFF *bit_buff,
-			  uchar *to,uchar *end);
+                         byte *to,byte *end);
 static void uf_space_normal(MARIA_COLUMNDEF *rec,MARIA_BIT_BUFF *bit_buff,
-			    uchar *to,uchar *end);
-static void uf_space_endspace_selected(MARIA_COLUMNDEF *rec,MARIA_BIT_BUFF *bit_buff,
-				       uchar *to, uchar *end);
+			    byte *to,byte *end);
+static void uf_space_endspace_selected(MARIA_COLUMNDEF *rec,
+                                       MARIA_BIT_BUFF *bit_buff,
+				       byte *to, byte *end);
 static void uf_endspace_selected(MARIA_COLUMNDEF *rec,MARIA_BIT_BUFF *bit_buff,
-				 uchar *to,uchar *end);
+				 byte *to,byte *end);
 static void uf_space_endspace(MARIA_COLUMNDEF *rec,MARIA_BIT_BUFF *bit_buff,
-			      uchar *to,uchar *end);
+			      byte *to,byte *end);
 static void uf_endspace(MARIA_COLUMNDEF *rec,MARIA_BIT_BUFF *bit_buff,
-			uchar *to,uchar *end);
-static void uf_space_prespace_selected(MARIA_COLUMNDEF *rec,MARIA_BIT_BUFF *bit_buff,
-				       uchar *to, uchar *end);
+			byte *to,byte *end);
+static void uf_space_prespace_selected(MARIA_COLUMNDEF *rec,
+                                       MARIA_BIT_BUFF *bit_buff,
+				       byte *to, byte *end);
 static void uf_prespace_selected(MARIA_COLUMNDEF *rec,MARIA_BIT_BUFF *bit_buff,
-				 uchar *to,uchar *end);
+				 byte *to,byte *end);
 static void uf_space_prespace(MARIA_COLUMNDEF *rec,MARIA_BIT_BUFF *bit_buff,
-			      uchar *to,uchar *end);
+			      byte *to,byte *end);
 static void uf_prespace(MARIA_COLUMNDEF *rec,MARIA_BIT_BUFF *bit_buff,
-			uchar *to,uchar *end);
+			byte *to,byte *end);
 static void uf_zerofill_normal(MARIA_COLUMNDEF *rec,MARIA_BIT_BUFF *bit_buff,
-			       uchar *to,uchar *end);
+			       byte *to,byte *end);
 static void uf_constant(MARIA_COLUMNDEF *rec,MARIA_BIT_BUFF *bit_buff,
-			uchar *to,uchar *end);
+			byte *to,byte *end);
 static void uf_intervall(MARIA_COLUMNDEF *rec,MARIA_BIT_BUFF *bit_buff,
-			 uchar *to,uchar *end);
+			 byte *to,byte *end);
 static void uf_zero(MARIA_COLUMNDEF *rec,MARIA_BIT_BUFF *bit_buff,
-		    uchar *to,uchar *end);
+		    byte *to,byte *end);
 static void uf_blob(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
-		    uchar *to, uchar *end);
+		    byte *to, byte *end);
 static void uf_varchar1(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
-                        uchar *to, uchar *end);
+                        byte *to, byte *end);
 static void uf_varchar2(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
-                        uchar *to, uchar *end);
+                        byte *to, byte *end);
 static void decode_bytes(MARIA_COLUMNDEF *rec,MARIA_BIT_BUFF *bit_buff,
-			 uchar *to,uchar *end);
-static uint decode_pos(MARIA_BIT_BUFF *bit_buff,MARIA_DECODE_TREE *decode_tree);
-static void init_bit_buffer(MARIA_BIT_BUFF *bit_buff,uchar *buffer,uint length);
+			 byte *to,byte *end);
+static uint decode_pos(MARIA_BIT_BUFF *bit_buff,
+                       MARIA_DECODE_TREE *decode_tree);
+static void init_bit_buffer(MARIA_BIT_BUFF *bit_buff,uchar *buffer,
+                            uint length);
 static uint fill_and_get_bits(MARIA_BIT_BUFF *bit_buff,uint count);
 static void fill_buffer(MARIA_BIT_BUFF *bit_buff);
 static uint max_bit(uint value);
 static uint read_pack_length(uint version, const uchar *buf, ulong *length);
 #ifdef HAVE_MMAP
-static uchar *_ma_mempack_get_block_info(MARIA_HA *maria,MARIA_BLOCK_INFO *info,
+static uchar *_ma_mempack_get_block_info(MARIA_HA *maria,
+                                         MARIA_BLOCK_INFO *info,
 					 uchar *header);
 #endif
 
@@ -121,21 +130,43 @@ static maria_bit_type mask[]=
    0x01ffffff, 0x03ffffff, 0x07ffffff, 0x0fffffff,
    0x1fffffff, 0x3fffffff, 0x7fffffff, 0xffffffff,
 #endif
- };
+};
 
 
-	/* Read all packed info, allocate memory and fix field structs */
-
-my_bool _ma_read_pack_info(MARIA_HA *info, pbool fix_keys)
+my_bool _ma_once_init_pack_row(MARIA_SHARE *share, File dfile)
 {
-  File file;
+  share->options|= HA_OPTION_READ_ONLY_DATA;
+  if (_ma_read_pack_info(share, dfile,
+                         (pbool)
+                         test(!(share->options &
+                                (HA_OPTION_PACK_RECORD |
+                                 HA_OPTION_TEMP_COMPRESS_RECORD)))))
+    return 1;
+  return 0;
+}
+
+my_bool _ma_once_end_pack_row(MARIA_SHARE *share)
+{
+  if (share->decode_trees)
+  {
+    my_free((gptr) share->decode_trees,MYF(0));
+    my_free((gptr) share->decode_tables,MYF(0));
+  }
+  return 0;
+}
+
+
+/* Read all packed info, allocate memory and fix field structs */
+
+static my_bool _ma_read_pack_info(MARIA_SHARE *share, File file,
+                                  pbool fix_keys)
+{
   int diff_length;
   uint i,trees,huff_tree_bits,rec_reflength,length;
   uint16 *decode_table,*tmp_buff;
   ulong elements,intervall_length;
   char *disk_cache,*intervall_buff;
   uchar header[32];
-  MARIA_SHARE *share=info->s;
   MARIA_BIT_BUFF bit_buff;
   DBUG_ENTER("_ma_read_pack_info");
 
@@ -144,7 +175,6 @@ my_bool _ma_read_pack_info(MARIA_HA *info, pbool fix_keys)
   else if (maria_quick_table_bits > MAX_QUICK_TABLE_BITS)
     maria_quick_table_bits=MAX_QUICK_TABLE_BITS;
 
-  file=info->dfile;
   my_errno=0;
   if (my_read(file,(byte*) header,sizeof(header),MYF(MY_NABP)))
   {
@@ -206,7 +236,7 @@ my_bool _ma_read_pack_info(MARIA_HA *info, pbool fix_keys)
     share->rec[i].space_length_bits=get_bits(&bit_buff,5);
     share->rec[i].huff_tree=share->decode_trees+(uint) get_bits(&bit_buff,
 								huff_tree_bits);
-    share->rec[i].unpack=get_unpack_function(share->rec+i);
+    share->rec[i].unpack= get_unpack_function(share->rec+i);
   }
   skip_to_next_byte(&bit_buff);
   decode_table=share->decode_tables;
@@ -257,7 +287,8 @@ err0:
 
 	/* Read on huff-code-table from datafile */
 
-static uint read_huff_table(MARIA_BIT_BUFF *bit_buff, MARIA_DECODE_TREE *decode_tree,
+static uint read_huff_table(MARIA_BIT_BUFF *bit_buff,
+                            MARIA_DECODE_TREE *decode_tree,
 			    uint16 **decode_table, byte **intervall_buff,
 			    uint16 *tmp_buff)
 {
@@ -432,7 +463,7 @@ static uint find_longest_bitstream(uint16 *table, uint16 *end)
     HA_ERR_WRONG_IN_RECORD or -1        on error
 */
 
-int _ma_read_pack_record(MARIA_HA *info, my_off_t filepos, byte *buf)
+int _ma_read_pack_record(MARIA_HA *info, byte *buf, MARIA_RECORD_POS filepos)
 {
   MARIA_BLOCK_INFO block_info;
   File file;
@@ -466,15 +497,20 @@ int _ma_pack_rec_unpack(register MARIA_HA *info, register byte *to, byte *from,
   MARIA_SHARE *share=info->s;
   DBUG_ENTER("_ma_pack_rec_unpack");
 
-  init_bit_buffer(&info->bit_buff, (uchar*) from,reclength);
-
+  if (info->s->base.null_bytes)
+  {
+    memcpy(to, from, info->s->base.null_bytes);
+    to+=   info->s->base.null_bytes;
+    from+= info->s->base.null_bytes; 
+    reclength-= info->s->base.null_bytes;
+  }
+  init_bit_buffer(&info->bit_buff, (uchar*) from, reclength);
   for (current_field=share->rec, end=current_field+share->base.fields ;
        current_field < end ;
        current_field++,to=end_field)
   {
     end_field=to+current_field->length;
-    (*current_field->unpack)(current_field,&info->bit_buff,(uchar*) to,
-			     (uchar*) end_field);
+    (*current_field->unpack)(current_field,&info->bit_buff, to, end_field);
   }
   if (! info->bit_buff.error &&
       info->bit_buff.pos - info->bit_buff.bits/8 == info->bit_buff.end)
@@ -487,7 +523,7 @@ int _ma_pack_rec_unpack(register MARIA_HA *info, register byte *to, byte *from,
 	/* Return function to unpack field */
 
 static void (*get_unpack_function(MARIA_COLUMNDEF *rec))
-(MARIA_COLUMNDEF *, MARIA_BIT_BUFF *, uchar *, uchar *)
+  (MARIA_COLUMNDEF *, MARIA_BIT_BUFF *, byte *, byte *)
 {
   switch (rec->base_type) {
   case FIELD_SKIP_ZERO:
@@ -541,8 +577,9 @@ static void (*get_unpack_function(MARIA_COLUMNDEF *rec))
 
 	/* The different functions to unpack a field */
 
-static void uf_zerofill_skip_zero(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
-				   uchar *to, uchar *end)
+static void uf_zerofill_skip_zero(MARIA_COLUMNDEF *rec,
+                                  MARIA_BIT_BUFF *bit_buff,
+                                  byte *to, byte *end)
 {
   if (get_bit(bit_buff))
     bzero((char*) to,(uint) (end-to));
@@ -554,8 +591,8 @@ static void uf_zerofill_skip_zero(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff
   }
 }
 
-static void uf_skip_zero(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff, uchar *to,
-			  uchar *end)
+static void uf_skip_zero(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
+                         byte *to, byte *end)
 {
   if (get_bit(bit_buff))
     bzero((char*) to,(uint) (end-to));
@@ -563,8 +600,8 @@ static void uf_skip_zero(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff, uchar *
     decode_bytes(rec,bit_buff,to,end);
 }
 
-static void uf_space_normal(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff, uchar *to,
-			    uchar *end)
+static void uf_space_normal(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
+                            byte *to, byte *end)
 {
   if (get_bit(bit_buff))
     bfill((byte*) to,(end-to),' ');
@@ -572,8 +609,9 @@ static void uf_space_normal(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff, ucha
     decode_bytes(rec,bit_buff,to,end);
 }
 
-static void uf_space_endspace_selected(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
-				       uchar *to, uchar *end)
+static void uf_space_endspace_selected(MARIA_COLUMNDEF *rec,
+                                       MARIA_BIT_BUFF *bit_buff,
+				       byte *to, byte *end)
 {
   uint spaces;
   if (get_bit(bit_buff))
@@ -596,8 +634,9 @@ static void uf_space_endspace_selected(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit
   }
 }
 
-static void uf_endspace_selected(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
-				 uchar *to, uchar *end)
+static void uf_endspace_selected(MARIA_COLUMNDEF *rec,
+                                 MARIA_BIT_BUFF *bit_buff,
+				 byte *to, byte *end)
 {
   uint spaces;
   if (get_bit(bit_buff))
@@ -615,8 +654,8 @@ static void uf_endspace_selected(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
     decode_bytes(rec,bit_buff,to,end);
 }
 
-static void uf_space_endspace(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff, uchar *to,
-			      uchar *end)
+static void uf_space_endspace(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
+                              byte *to, byte *end)
 {
   uint spaces;
   if (get_bit(bit_buff))
@@ -634,8 +673,8 @@ static void uf_space_endspace(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff, uc
   }
 }
 
-static void uf_endspace(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff, uchar *to,
-			uchar *end)
+static void uf_endspace(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
+                        byte *to, byte *end)
 {
   uint spaces;
   if ((spaces=get_bits(bit_buff,rec->space_length_bits))+to > end)
@@ -648,8 +687,9 @@ static void uf_endspace(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff, uchar *t
   bfill((byte*) end-spaces,spaces,' ');
 }
 
-static void uf_space_prespace_selected(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
-				       uchar *to, uchar *end)
+static void uf_space_prespace_selected(MARIA_COLUMNDEF *rec,
+                                       MARIA_BIT_BUFF *bit_buff,
+				       byte *to, byte *end)
 {
   uint spaces;
   if (get_bit(bit_buff))
@@ -673,8 +713,9 @@ static void uf_space_prespace_selected(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit
 }
 
 
-static void uf_prespace_selected(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
-				 uchar *to, uchar *end)
+static void uf_prespace_selected(MARIA_COLUMNDEF *rec,
+                                 MARIA_BIT_BUFF *bit_buff,
+				 byte *to, byte *end)
 {
   uint spaces;
   if (get_bit(bit_buff))
@@ -693,8 +734,8 @@ static void uf_prespace_selected(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
 }
 
 
-static void uf_space_prespace(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff, uchar *to,
-			      uchar *end)
+static void uf_space_prespace(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
+                              byte *to, byte *end)
 {
   uint spaces;
   if (get_bit(bit_buff))
@@ -712,8 +753,8 @@ static void uf_space_prespace(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff, uc
   }
 }
 
-static void uf_prespace(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff, uchar *to,
-			uchar *end)
+static void uf_prespace(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
+                        byte *to, byte *end)
 {
   uint spaces;
   if ((spaces=get_bits(bit_buff,rec->space_length_bits))+to > end)
@@ -726,24 +767,24 @@ static void uf_prespace(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff, uchar *t
     decode_bytes(rec,bit_buff,to+spaces,end);
 }
 
-static void uf_zerofill_normal(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff, uchar *to,
-			       uchar *end)
+static void uf_zerofill_normal(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
+                               byte *to, byte *end)
 {
   end-=rec->space_length_bits;
-  decode_bytes(rec,bit_buff,(uchar*) to,end);
+  decode_bytes(rec,bit_buff, to, end);
   bzero((char*) end,rec->space_length_bits);
 }
 
 static void uf_constant(MARIA_COLUMNDEF *rec,
 			MARIA_BIT_BUFF *bit_buff __attribute__((unused)),
-			uchar *to,
-			uchar *end)
+			byte *to, byte *end)
 {
   memcpy(to,rec->huff_tree->intervalls,(size_t) (end-to));
 }
 
-static void uf_intervall(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff, uchar *to,
-			 uchar *end)
+static void uf_intervall(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
+                         byte *to,
+			 byte *end)
 {
   reg1 uint field_length=(uint) (end-to);
   memcpy(to,rec->huff_tree->intervalls+field_length*decode_pos(bit_buff,
@@ -755,16 +796,16 @@ static void uf_intervall(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff, uchar *
 /*ARGSUSED*/
 static void uf_zero(MARIA_COLUMNDEF *rec __attribute__((unused)),
 		    MARIA_BIT_BUFF *bit_buff __attribute__((unused)),
-		    uchar *to, uchar *end)
+		    byte *to, byte *end)
 {
-  bzero((char*) to,(uint) (end-to));
+  bzero(to, (uint) (end-to));
 }
 
 static void uf_blob(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
-		    uchar *to, uchar *end)
+		    byte *to, byte *end)
 {
   if (get_bit(bit_buff))
-    bzero((byte*) to,(end-to));
+    bzero(to, (uint) (end-to));
   else
   {
     ulong length=get_bits(bit_buff,rec->space_length_bits);
@@ -775,7 +816,8 @@ static void uf_blob(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
       bzero((byte*) to,(end-to));
       return;
     }
-    decode_bytes(rec,bit_buff,bit_buff->blob_pos,bit_buff->blob_pos+length);
+    decode_bytes(rec,bit_buff,(byte*) bit_buff->blob_pos,
+                 (byte*) bit_buff->blob_pos+length);
     _ma_store_blob_length((byte*) to,pack_length,length);
     memcpy_fixed((char*) to+pack_length,(char*) &bit_buff->blob_pos,
 		 sizeof(char*));
@@ -785,21 +827,21 @@ static void uf_blob(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
 
 
 static void uf_varchar1(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
-		       uchar *to, uchar *end __attribute__((unused)))
+		       byte *to, byte *end __attribute__((unused)))
 {
   if (get_bit(bit_buff))
     to[0]= 0;				/* Zero lengths */
   else
   {
     ulong length=get_bits(bit_buff,rec->space_length_bits);
-    *to= (uchar) length;
+    *to= (char) length;
     decode_bytes(rec,bit_buff,to+1,to+1+length);
   }
 }
 
 
 static void uf_varchar2(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
-		       uchar *to, uchar *end __attribute__((unused)))
+		       byte *to, byte *end __attribute__((unused)))
 {
   if (get_bit(bit_buff))
     to[0]=to[1]=0;				/* Zero lengths */
@@ -815,8 +857,8 @@ static void uf_varchar2(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
 
 #if BITS_SAVED == 64
 
-static void decode_bytes(MARIA_COLUMNDEF *rec,MARIA_BIT_BUFF *bit_buff,uchar *to,
-			 uchar *end)
+static void decode_bytes(MARIA_COLUMNDEF *rec,MARIA_BIT_BUFF *bit_buff,
+                         byte *to, byte *end)
 {
   reg1 uint bits,low_byte;
   reg3 uint16 *pos;
@@ -850,7 +892,7 @@ static void decode_bytes(MARIA_COLUMNDEF *rec,MARIA_BIT_BUFF *bit_buff,uchar *to
     low_byte=decode_tree->table[low_byte];
     if (low_byte & IS_CHAR)
     {
-      *to++ = (low_byte & 255);		/* Found char in quick table */
+      *to++ = (char) (low_byte & 255);		/* Found char in quick table */
       bits-=  ((low_byte >> 8) & 31);	/* Remove bits used */
     }
     else
@@ -870,7 +912,7 @@ static void decode_bytes(MARIA_COLUMNDEF *rec,MARIA_BIT_BUFF *bit_buff,uchar *to
 	decode_bytes_test_bit(7);
 	bits-=8;
       }
-      *to++ = *pos;
+      *to++ = (char) *pos;
     }
   } while (to != end);
 
@@ -880,8 +922,8 @@ static void decode_bytes(MARIA_COLUMNDEF *rec,MARIA_BIT_BUFF *bit_buff,uchar *to
 
 #else
 
-static void decode_bytes(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff, uchar *to,
-			 uchar *end)
+static void decode_bytes(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
+                         byte *to, byte *end)
 {
   reg1 uint bits,low_byte;
   reg3 uint16 *pos;
@@ -967,7 +1009,7 @@ static void decode_bytes(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff, uchar *
 	decode_bytes_test_bit(7);
 	bits-=8;
       }
-      *to++ = (uchar) *pos;
+      *to++ = (char) *pos;
     }
   } while (to != end);
 
@@ -977,7 +1019,8 @@ static void decode_bytes(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff, uchar *
 #endif /* BIT_SAVED == 64 */
 
 
-static uint decode_pos(MARIA_BIT_BUFF *bit_buff, MARIA_DECODE_TREE *decode_tree)
+static uint decode_pos(MARIA_BIT_BUFF *bit_buff,
+                       MARIA_DECODE_TREE *decode_tree)
 {
   uint16 *pos=decode_tree->table;
   for (;;)
@@ -991,8 +1034,9 @@ static uint decode_pos(MARIA_BIT_BUFF *bit_buff, MARIA_DECODE_TREE *decode_tree)
 }
 
 
-int _ma_read_rnd_pack_record(MARIA_HA *info, byte *buf,
-			     register my_off_t filepos,
+int _ma_read_rnd_pack_record(MARIA_HA *info,
+                             byte *buf,
+			     register MARIA_RECORD_POS filepos,
 			     my_bool skip_deleted_blocks)
 {
   uint b_type;
@@ -1039,9 +1083,9 @@ int _ma_read_rnd_pack_record(MARIA_HA *info, byte *buf,
 		MYF(MY_NABP)))
       goto err;
   }
-  info->packed_length=block_info.rec_len;
-  info->lastpos=filepos;
-  info->nextpos=block_info.filepos+block_info.rec_len;
+  info->packed_length=   block_info.rec_len;
+  info->cur_row.lastpos= filepos;
+  info->cur_row.nextpos= block_info.filepos+block_info.rec_len;
   info->update|= HA_STATE_AKTIV | HA_STATE_KEY_CHANGED;
 
   DBUG_RETURN (_ma_pack_rec_unpack(info,buf,info->rec_buff,
@@ -1053,10 +1097,10 @@ int _ma_read_rnd_pack_record(MARIA_HA *info, byte *buf,
 
 	/* Read and process header from a huff-record-file */
 
-uint _ma_pack_get_block_info(MARIA_HA *maria, MARIA_BLOCK_INFO *info, File file,
-			     my_off_t filepos)
+uint _ma_pack_get_block_info(MARIA_HA *maria, MARIA_BLOCK_INFO *info,
+                             File file, my_off_t filepos)
 {
-  uchar *header=info->header;
+  uchar *header= info->header;
   uint head_length,ref_length;
   LINT_INIT(ref_length);
 
@@ -1078,8 +1122,9 @@ uint _ma_pack_get_block_info(MARIA_HA *maria, MARIA_BLOCK_INFO *info, File file,
   {
     head_length+= read_pack_length((uint) maria->s->pack.version,
                                    header + head_length, &info->blob_len);
-    if (!(_ma_alloc_rec_buff(maria,info->rec_len + info->blob_len,
-			    &maria->rec_buff)))
+    if (_ma_alloc_buffer(&maria->rec_buff, &maria->rec_buff_size,
+                         info->rec_len + info->blob_len +
+                         maria->s->base.extra_rec_buff_size))
       return BLOCK_FATAL_ERROR;			/* not enough memory */
     maria->bit_buff.blob_pos=(uchar*) maria->rec_buff+info->rec_len;
     maria->bit_buff.blob_end= maria->bit_buff.blob_pos+info->blob_len;
@@ -1098,7 +1143,8 @@ uint _ma_pack_get_block_info(MARIA_HA *maria, MARIA_BLOCK_INFO *info, File file,
 	/* rutines for bit buffer */
 	/* Note buffer must be 6 byte bigger than longest row */
 
-static void init_bit_buffer(MARIA_BIT_BUFF *bit_buff, uchar *buffer, uint length)
+static void init_bit_buffer(MARIA_BIT_BUFF *bit_buff, uchar *buffer,
+                            uint length)
 {
   bit_buff->pos=buffer;
   bit_buff->end=buffer+length;
@@ -1174,8 +1220,10 @@ static uint max_bit(register uint value)
 
 #ifdef HAVE_MMAP
 
-static int _ma_read_mempack_record(MARIA_HA *info,my_off_t filepos,byte *buf);
-static int _ma_read_rnd_mempack_record(MARIA_HA*, byte *,my_off_t, my_bool);
+static int _ma_read_mempack_record(MARIA_HA *info, byte *buf,
+                                   MARIA_RECORD_POS filepos);
+static int _ma_read_rnd_mempack_record(MARIA_HA*, byte *, MARIA_RECORD_POS,
+                                       my_bool);
 
 my_bool _ma_memmap_file(MARIA_HA *info)
 {
@@ -1195,7 +1243,7 @@ my_bool _ma_memmap_file(MARIA_HA *info)
   }
   info->opt_flag|= MEMMAP_USED;
   info->read_record= share->read_record= _ma_read_mempack_record;
-  share->read_rnd= _ma_read_rnd_mempack_record;
+  share->scan= _ma_read_rnd_mempack_record;
   DBUG_RETURN(1);
 }
 
@@ -1207,7 +1255,8 @@ void _ma_unmap_file(MARIA_HA *info)
 }
 
 
-static uchar *_ma_mempack_get_block_info(MARIA_HA *maria,MARIA_BLOCK_INFO *info,
+static uchar *_ma_mempack_get_block_info(MARIA_HA *maria,
+                                         MARIA_BLOCK_INFO *info,
 					 uchar *header)
 {
   header+= read_pack_length((uint) maria->s->pack.version, header,
@@ -1217,8 +1266,8 @@ static uchar *_ma_mempack_get_block_info(MARIA_HA *maria,MARIA_BLOCK_INFO *info,
     header+= read_pack_length((uint) maria->s->pack.version, header,
                               &info->blob_len);
     /* _ma_alloc_rec_buff sets my_errno on error */
-    if (!(_ma_alloc_rec_buff(maria, info->blob_len,
-			    &maria->rec_buff)))
+    if (_ma_alloc_buffer(&maria->rec_buff, &maria->rec_buff_size,
+                         info->blob_len + maria->s->base.extra_rec_buff_size))
       return 0;				/* not enough memory */
     maria->bit_buff.blob_pos=(uchar*) maria->rec_buff;
     maria->bit_buff.blob_end= (uchar*) maria->rec_buff + info->blob_len;
@@ -1227,7 +1276,8 @@ static uchar *_ma_mempack_get_block_info(MARIA_HA *maria,MARIA_BLOCK_INFO *info,
 }
 
 
-static int _ma_read_mempack_record(MARIA_HA *info, my_off_t filepos, byte *buf)
+static int _ma_read_mempack_record(MARIA_HA *info, byte *buf,
+                                   MARIA_RECORD_POS filepos)
 {
   MARIA_BLOCK_INFO block_info;
   MARIA_SHARE *share=info->s;
@@ -1246,8 +1296,9 @@ static int _ma_read_mempack_record(MARIA_HA *info, my_off_t filepos, byte *buf)
 
 
 /*ARGSUSED*/
-static int _ma_read_rnd_mempack_record(MARIA_HA *info, byte *buf,
-				       register my_off_t filepos,
+static int _ma_read_rnd_mempack_record(MARIA_HA *info,
+                                       byte *buf,
+				       register MARIA_RECORD_POS filepos,
 				       my_bool skip_deleted_blocks
 				       __attribute__((unused)))
 {
@@ -1274,8 +1325,8 @@ static int _ma_read_rnd_mempack_record(MARIA_HA *info, byte *buf,
   }
 #endif
   info->packed_length=block_info.rec_len;
-  info->lastpos=filepos;
-  info->nextpos=filepos+(uint) (pos-start)+block_info.rec_len;
+  info->cur_row.lastpos= filepos;
+  info->cur_row.nextpos= filepos+(uint) (pos-start)+block_info.rec_len;
   info->update|= HA_STATE_AKTIV | HA_STATE_KEY_CHANGED;
 
   DBUG_RETURN (_ma_pack_rec_unpack(info,buf,pos, block_info.rec_len));

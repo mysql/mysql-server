@@ -24,7 +24,7 @@ int maria_update(register MARIA_HA *info, const byte *oldrec, byte *newrec)
   int flag,key_changed,save_errno;
   reg3 my_off_t pos;
   uint i;
-  uchar old_key[HA_MAX_KEY_BUFF],*new_key;
+  byte old_key[HA_MAX_KEY_BUFF],*new_key;
   bool auto_key_changed=0;
   ulonglong changed;
   MARIA_SHARE *share=info->s;
@@ -49,18 +49,26 @@ int maria_update(register MARIA_HA *info, const byte *oldrec, byte *newrec)
   {
     DBUG_RETURN(my_errno=HA_ERR_INDEX_FILE_FULL);
   }
-  pos=info->lastpos;
+  pos= info->cur_row.lastpos;
   if (_ma_readinfo(info,F_WRLCK,1))
     DBUG_RETURN(my_errno);
 
-  if (share->calc_checksum)
-    old_checksum=info->checksum=(*share->calc_checksum)(info,oldrec);
   if ((*share->compare_record)(info,oldrec))
   {
-    save_errno=my_errno;
+    save_errno= my_errno;
+    DBUG_PRINT("warning", ("Got error from compare record"));
     goto err_end;			/* Record has changed */
   }
 
+  if (share->calc_checksum)
+  {
+    /*
+      We can't use the row based checksum as this doesn't have enough
+      precision.
+    */
+    if (info->s->calc_checksum)
+      old_checksum= (*info->s->calc_checksum)(info, oldrec);
+  }
 
   /* Calculate and check all unique constraints */
   key_changed=0;
@@ -69,7 +77,7 @@ int maria_update(register MARIA_HA *info, const byte *oldrec, byte *newrec)
     MARIA_UNIQUEDEF *def=share->uniqueinfo+i;
     if (_ma_unique_comp(def, newrec, oldrec,1) &&
 	_ma_check_unique(info, def, newrec, _ma_unique_hash(def, newrec),
-			info->lastpos))
+                         pos))
     {
       save_errno=my_errno;
       goto err_end;
@@ -83,7 +91,7 @@ int maria_update(register MARIA_HA *info, const byte *oldrec, byte *newrec)
 
   /* Check which keys changed from the original row */
 
-  new_key=info->lastkey2;
+  new_key= info->lastkey2;
   changed=0;
   for (i=0 ; i < share->base.keys ; i++)
   {
@@ -116,7 +124,7 @@ int maria_update(register MARIA_HA *info, const byte *oldrec, byte *newrec)
         info->update&= ~HA_STATE_RNEXT_SAME;
 
 	if (new_length != old_length ||
-	    memcmp((byte*) old_key,(byte*) new_key,new_length))
+	    memcmp(old_key, new_key, new_length))
 	{
 	  if ((int) i == info->lastinx)
 	    key_changed|=HA_STATE_WRITTEN;	/* Mark that keyfile changed */
@@ -139,7 +147,7 @@ int maria_update(register MARIA_HA *info, const byte *oldrec, byte *newrec)
 
   if (share->calc_checksum)
   {
-    info->checksum=(*share->calc_checksum)(info,newrec);
+    info->cur_row.checksum= (*share->calc_checksum)(info,newrec);
     /* Store new checksum in index file header */
     key_changed|= HA_STATE_CHANGED;
   }
@@ -167,10 +175,13 @@ int maria_update(register MARIA_HA *info, const byte *oldrec, byte *newrec)
     set_if_bigger(info->s->state.auto_increment,
                   ma_retrieve_auto_increment(info, newrec));
   if (share->calc_checksum)
-    info->state->checksum+=(info->checksum - old_checksum);
+    info->state->checksum+= (info->cur_row.checksum - old_checksum);
 
-  info->update= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED | HA_STATE_AKTIV |
-		 key_changed);
+  /*
+    We can't yet have HA_STATE_ACTIVE here, as block_record dosn't support
+    it
+  */
+  info->update= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED | key_changed);
   VOID(_ma_writeinfo(info,key_changed ?  WRITEINFO_UPDATE_KEYFILE : 0));
   allow_break();				/* Allow SIGHUP & SIGINT */
   if (info->invalidator != 0)
@@ -184,8 +195,6 @@ int maria_update(register MARIA_HA *info, const byte *oldrec, byte *newrec)
 err:
   DBUG_PRINT("error",("key: %d  errno: %d",i,my_errno));
   save_errno=my_errno;
-  if (changed)
-    key_changed|= HA_STATE_CHANGED;
   if (my_errno == HA_ERR_FOUND_DUPP_KEY || my_errno == HA_ERR_RECORD_FILE_FULL)
   {
     info->errkey= (int) i;

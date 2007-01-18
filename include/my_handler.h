@@ -58,32 +58,34 @@ typedef struct st_HA_KEYSEG		/* Key-portion */
 } HA_KEYSEG;
 
 #define get_key_length(length,key) \
-{ if ((uchar) *(key) != 255) \
-    length= (uint) (uchar) *((key)++); \
+{ if (*(uchar*) (key) != 255) \
+    length= (uint) *(uchar*) ((key)++); \
   else \
-  { length=mi_uint2korr((key)+1); (key)+=3; } \
+  { length= mi_uint2korr((key)+1); (key)+=3; } \
 }
 
 #define get_key_length_rdonly(length,key) \
-{ if ((uchar) *(key) != 255) \
-    length= ((uint) (uchar) *((key))); \
+{ if (*(uchar*) (key) != 255) \
+    length= ((uint) *(uchar*) ((key))); \
   else \
-  { length=mi_uint2korr((key)+1); } \
+  { length= mi_uint2korr((key)+1); } \
 }
 
 #define get_key_pack_length(length,length_pack,key) \
-{ if ((uchar) *(key) != 255) \
-  { length= (uint) (uchar) *((key)++); length_pack=1; }\
+{ if (*(uchar*) (key) != 255) \
+  { length= (uint) *(uchar*) ((key)++); length_pack= 1; }\
   else \
-  { length=mi_uint2korr((key)+1); (key)+=3; length_pack=3; } \
+  { length=mi_uint2korr((key)+1); (key)+= 3; length_pack= 3; } \
 }
 
 #define store_key_length_inc(key,length) \
 { if ((length) < 255) \
-  { *(key)++=(length); } \
+  { *(key)++= (length); } \
   else \
   { *(key)=255; mi_int2store((key)+1,(length)); (key)+=3; } \
 }
+
+#define size_to_store_key_length(length) ((length) < 255 ? 1 : 3)
 
 #define get_rec_bits(bit_ptr, bit_ofs, bit_len) \
   (((((uint16) (bit_ptr)[1] << 8) | (uint16) (bit_ptr)[0]) >> (bit_ofs)) & \

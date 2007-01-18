@@ -49,11 +49,11 @@ static int _ma_put_key_in_record(MARIA_HA *info,uint keynr,byte *record);
     Length of key
 */
 
-uint _ma_make_key(register MARIA_HA *info, uint keynr, uchar *key,
-		  const byte *record, my_off_t filepos)
+uint _ma_make_key(register MARIA_HA *info, uint keynr, byte *key,
+		  const byte *record, MARIA_RECORD_POS filepos)
 {
-  byte *pos,*end;
-  uchar *start;
+  const byte *pos,*end;
+  byte *start;
   reg1 HA_KEYSEG *keyseg;
   my_bool is_ft= info->s->keyinfo[keynr].flag & HA_FULLTEXT;
   DBUG_ENTER("_ma_make_key");
@@ -64,7 +64,7 @@ uint _ma_make_key(register MARIA_HA *info, uint keynr, uchar *key,
       TODO: nulls processing
     */
 #ifdef HAVE_SPATIAL
-    DBUG_RETURN(sp_make_key(info,keynr,key,record,filepos));
+    DBUG_RETURN(sp_make_key(info,keynr, key,record,filepos));
 #else
     DBUG_ASSERT(0); /* maria_open should check that this never happens*/
 #endif
@@ -91,17 +91,17 @@ uint _ma_make_key(register MARIA_HA *info, uint keynr, uchar *key,
     char_length= ((!is_ft && cs && cs->mbmaxlen > 1) ? length/cs->mbmaxlen :
                   length);
 
-    pos= (byte*) record+keyseg->start;
+    pos= record+keyseg->start;
     if (type == HA_KEYTYPE_BIT)
     {
       if (keyseg->bit_length)
       {
         uchar bits= get_rec_bits((uchar*) record + keyseg->bit_pos,
                                  keyseg->bit_start, keyseg->bit_length);
-        *key++= bits;
+        *key++= (char) bits;
         length--;
       }
-      memcpy((byte*) key, pos, length);
+      memcpy(key, pos, length);
       key+= length;
       continue;
     }
@@ -121,7 +121,7 @@ uint _ma_make_key(register MARIA_HA *info, uint keynr, uchar *key,
       length=(uint) (end-pos);
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key,char_length);
-      memcpy((byte*) key,(byte*) pos,(size_t) char_length);
+      memcpy(key, pos, (size_t) char_length);
       key+=char_length;
       continue;
     }
@@ -134,18 +134,18 @@ uint _ma_make_key(register MARIA_HA *info, uint keynr, uchar *key,
       set_if_smaller(length,tmp_length);
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key,char_length);
-      memcpy((byte*) key,(byte*) pos,(size_t) char_length);
+      memcpy(key,pos,(size_t) char_length);
       key+= char_length;
       continue;
     }
     else if (keyseg->flag & HA_BLOB_PART)
     {
       uint tmp_length= _ma_calc_blob_length(keyseg->bit_start,pos);
-      memcpy_fixed((byte*) &pos,pos+keyseg->bit_start,sizeof(char*));
+      memcpy_fixed(&pos,pos+keyseg->bit_start,sizeof(char*));
       set_if_smaller(length,tmp_length);
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key,char_length);
-      memcpy((byte*) key,(byte*) pos,(size_t) char_length);
+      memcpy(key,pos,(size_t) char_length);
       key+= char_length;
       continue;
     }
@@ -184,14 +184,14 @@ uint _ma_make_key(register MARIA_HA *info, uint keynr, uchar *key,
       continue;
     }
     FIX_LENGTH(cs, pos, length, char_length);
-    memcpy((byte*) key, pos, char_length);
+    memcpy(key, pos, char_length);
     if (length > char_length)
       cs->cset->fill(cs, (char*) key+char_length, length-char_length, ' ');
     key+= length;
   }
   _ma_dpointer(info,key,filepos);
   DBUG_PRINT("exit",("keynr: %d",keynr));
-  DBUG_DUMP("key",(byte*) start,(uint) (key-start)+keyseg->length);
+  DBUG_DUMP("key",start,(uint) (key-start)+keyseg->length);
   DBUG_EXECUTE("key",
 	       _ma_print_key(DBUG_FILE,info->s->keyinfo[keynr].seg,start,
 			     (uint) (key-start)););
@@ -217,10 +217,10 @@ uint _ma_make_key(register MARIA_HA *info, uint keynr, uchar *key,
      last_use_keyseg    Store pointer to the keyseg after the last used one
 */
 
-uint _ma_pack_key(register MARIA_HA *info, uint keynr, uchar *key, uchar *old,
-		  uint k_length, HA_KEYSEG **last_used_keyseg)
+uint _ma_pack_key(register MARIA_HA *info, uint keynr, byte *key,
+                  const byte *old, uint k_length, HA_KEYSEG **last_used_keyseg)
 {
-  uchar *start_key=key;
+  byte *start_key=key;
   HA_KEYSEG *keyseg;
   my_bool is_ft= info->s->keyinfo[keynr].flag & HA_FULLTEXT;
   DBUG_ENTER("_ma_pack_key");
@@ -232,7 +232,7 @@ uint _ma_pack_key(register MARIA_HA *info, uint keynr, uchar *key, uchar *old,
     enum ha_base_keytype type=(enum ha_base_keytype) keyseg->type;
     uint length=min((uint) keyseg->length,(uint) k_length);
     uint char_length;
-    uchar *pos;
+    const byte *pos;
     CHARSET_INFO *cs=keyseg->charset;
 
     if (keyseg->null_bit)
@@ -249,11 +249,12 @@ uint _ma_pack_key(register MARIA_HA *info, uint keynr, uchar *key, uchar *old,
 	continue;					/* Found NULL */
       }
     }
-    char_length= (!is_ft && cs && cs->mbmaxlen > 1) ? length/cs->mbmaxlen : length;
-    pos=old;
+    char_length= ((!is_ft && cs && cs->mbmaxlen > 1) ? length/cs->mbmaxlen :
+                  length);
+    pos= old;
     if (keyseg->flag & HA_SPACE_PACK)
     {
-      uchar *end=pos+length;
+      const byte *end= pos + length;
       if (type != HA_KEYTYPE_NUM)
       {
 	while (end > pos && end[-1] == ' ')
@@ -268,7 +269,7 @@ uint _ma_pack_key(register MARIA_HA *info, uint keynr, uchar *key, uchar *old,
       length=(uint) (end-pos);
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key,char_length);
-      memcpy((byte*) key,pos,(size_t) char_length);
+      memcpy(key,pos,(size_t) char_length);
       key+= char_length;
       continue;
     }
@@ -282,7 +283,7 @@ uint _ma_pack_key(register MARIA_HA *info, uint keynr, uchar *key, uchar *old,
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key,char_length);
       old+=2;					/* Skip length */
-      memcpy((byte*) key, pos,(size_t) char_length);
+      memcpy(key, pos,(size_t) char_length);
       key+= char_length;
       continue;
     }
@@ -297,7 +298,7 @@ uint _ma_pack_key(register MARIA_HA *info, uint keynr, uchar *key, uchar *old,
       continue;
     }
     FIX_LENGTH(cs, pos, length, char_length);
-    memcpy((byte*) key, pos, char_length);
+    memcpy(key, pos, char_length);
     if (length > char_length)
       cs->cset->fill(cs, (char*) key+char_length, length-char_length, ' ');
     key+= length;
@@ -321,7 +322,7 @@ uint _ma_pack_key(register MARIA_HA *info, uint keynr, uchar *key, uchar *old,
 	length+= keyseg->length;
       keyseg++;
     } while (keyseg->type);
-    bzero((byte*) key,length);
+    bzero(key,length);
     key+=length;
   }
 #endif
@@ -358,8 +359,8 @@ static int _ma_put_key_in_record(register MARIA_HA *info, uint keynr,
   byte *blob_ptr;
   DBUG_ENTER("_ma_put_key_in_record");
 
-  blob_ptr= (byte*) info->lastkey2;             /* Place to put blob parts */
-  key=(byte*) info->lastkey;                    /* KEy that was read */
+  blob_ptr= info->lastkey2;             /* Place to put blob parts */
+  key=info->lastkey;                    /* KEy that was read */
   key_end=key+info->lastkey_length;
   for (keyseg=info->s->keyinfo[keynr].seg ; keyseg->type ;keyseg++)
   {
@@ -378,7 +379,7 @@ static int _ma_put_key_in_record(register MARIA_HA *info, uint keynr,
 
       if (keyseg->bit_length)
       {
-        uchar bits= *key++;
+        byte bits= *key++;
         set_rec_bits(bits, record + keyseg->bit_pos, keyseg->bit_start,
                      keyseg->bit_length);
         length--;
@@ -388,7 +389,7 @@ static int _ma_put_key_in_record(register MARIA_HA *info, uint keynr,
         clr_rec_bits(record + keyseg->bit_pos, keyseg->bit_start,
                      keyseg->bit_length);
       }
-      memcpy(record + keyseg->start, (byte*) key, length);
+      memcpy(record + keyseg->start, key, length);
       key+= length;
       continue;
     }
@@ -429,7 +430,7 @@ static int _ma_put_key_in_record(register MARIA_HA *info, uint keynr,
       else
         int2store(record+keyseg->start, length);
       /* And key data */
-      memcpy(record+keyseg->start + keyseg->bit_start, (byte*) key, length);
+      memcpy(record+keyseg->start + keyseg->bit_start, key, length);
       key+= length;
     }
     else if (keyseg->flag & HA_BLOB_PART)
@@ -472,8 +473,7 @@ static int _ma_put_key_in_record(register MARIA_HA *info, uint keynr,
       if (key+keyseg->length > key_end)
 	goto err;
 #endif
-      memcpy(record+keyseg->start,(byte*) key,
-	     (size_t) keyseg->length);
+      memcpy(record+keyseg->start, key, (size_t) keyseg->length);
       key+= keyseg->length;
     }
   }
@@ -486,7 +486,7 @@ err:
 
 	/* Here when key reads are used */
 
-int _ma_read_key_record(MARIA_HA *info, my_off_t filepos, byte *buf)
+int _ma_read_key_record(MARIA_HA *info, byte *buf, MARIA_RECORD_POS filepos)
 {
   fast_ma_writeinfo(info);
   if (filepos != HA_OFFSET_ERROR)
@@ -526,7 +526,7 @@ ulonglong ma_retrieve_auto_increment(MARIA_HA *info,const byte *record)
   ulonglong value= 0;			/* Store unsigned values here */
   longlong s_value= 0;			/* Store signed values here */
   HA_KEYSEG *keyseg= info->s->keyinfo[info->s->base.auto_key-1].seg;
-  const uchar *key= (uchar*) record + keyseg->start;
+  const byte *key= record + keyseg->start;
 
   switch (keyseg->type) {
   case HA_KEYTYPE_INT8:

@@ -28,12 +28,13 @@ static int rec_pointer_size=0, flags[50];
 static int key_field=FIELD_SKIP_PRESPACE,extra_field=FIELD_SKIP_ENDSPACE;
 static int key_type=HA_KEYTYPE_NUM;
 static int create_flag=0;
+static enum data_file_type record_type= DYNAMIC_RECORD;
 
 static uint insert_count, update_count, remove_count;
 static uint pack_keys=0, pack_seg=0, key_length;
 static uint unique_key=HA_NOSAME;
 static my_bool key_cacheing, null_fields, silent, skip_update, opt_unique,
-               verbose;
+  verbose, skip_delete;
 static MARIA_COLUMNDEF recinfo[4];
 static MARIA_KEYDEF keyinfo[10];
 static HA_KEYSEG keyseg[10];
@@ -63,31 +64,30 @@ static int run_test(const char *filename)
   MARIA_HA *file;
   int i,j,error,deleted,rec_length,uniques=0;
   ha_rows found,row_count;
-  my_off_t pos;
   char record[MAX_REC_LENGTH],key[MAX_REC_LENGTH],read_record[MAX_REC_LENGTH];
   MARIA_UNIQUEDEF uniquedef;
   MARIA_CREATE_INFO create_info;
 
   bzero((char*) recinfo,sizeof(recinfo));
+  bzero((char*) &create_info,sizeof(create_info));
 
   /* First define 2 columns */
-  recinfo[0].type=FIELD_NORMAL; recinfo[0].length=1; /* For NULL bits */
-  recinfo[1].type=key_field;
-  recinfo[1].length= (key_field == FIELD_BLOB ? 4+maria_portable_sizeof_char_ptr :
+  create_info.null_bytes= 1;
+  recinfo[0].type= key_field;
+  recinfo[0].length= (key_field == FIELD_BLOB ? 4+maria_portable_sizeof_char_ptr :
 		      key_length);
   if (key_field == FIELD_VARCHAR)
-    recinfo[1].length+= HA_VARCHAR_PACKLENGTH(key_length);;
-  recinfo[2].type=extra_field;
-  recinfo[2].length= (extra_field == FIELD_BLOB ? 4 + maria_portable_sizeof_char_ptr : 24);
+    recinfo[0].length+= HA_VARCHAR_PACKLENGTH(key_length);
+  recinfo[1].type=extra_field;
+  recinfo[1].length= (extra_field == FIELD_BLOB ? 4 + maria_portable_sizeof_char_ptr : 24);
   if (extra_field == FIELD_VARCHAR)
-    recinfo[2].length+= HA_VARCHAR_PACKLENGTH(recinfo[2].length);
+    recinfo[1].length+= HA_VARCHAR_PACKLENGTH(recinfo[1].length);
   if (opt_unique)
   {
-    recinfo[3].type=FIELD_CHECK;
-    recinfo[3].length=MARIA_UNIQUE_HASH_LENGTH;
+    recinfo[2].type=FIELD_CHECK;
+    recinfo[2].length=MARIA_UNIQUE_HASH_LENGTH;
   }
-  rec_length=recinfo[0].length+recinfo[1].length+recinfo[2].length+
-    recinfo[3].length;
+  rec_length= recinfo[0].length+recinfo[1].length+recinfo[2].length;
 
   if (key_type == HA_KEYTYPE_VARTEXT1 &&
       key_length > 255)
@@ -125,8 +125,8 @@ static int run_test(const char *filename)
     for (i=0, start=1 ; i < 2 ; i++)
     {
       uniqueseg[i].start=start;
-      start+=recinfo[i+1].length;
-      uniqueseg[i].length=recinfo[i+1].length;
+      start+=recinfo[i].length;
+      uniqueseg[i].length=recinfo[i].length;
       uniqueseg[i].language= default_charset_info->number;
     }
     uniqueseg[0].type= key_type;
@@ -139,18 +139,21 @@ static int run_test(const char *filename)
       uniqueseg[1].flag|= HA_BLOB_PART;
     }
     else if (extra_field == FIELD_VARCHAR)
+    {
       uniqueseg[1].flag|= HA_VAR_LENGTH_PART;
+      uniqueseg[1].type= (HA_VARCHAR_PACKLENGTH(recinfo[1].length-1) == 1 ?
+                          HA_KEYTYPE_VARTEXT1 : HA_KEYTYPE_VARTEXT2);
+    }
   }
   else
     uniques=0;
 
   if (!silent)
-    printf("- Creating isam-file\n");
-  bzero((char*) &create_info,sizeof(create_info));
+    printf("- Creating maria file\n");
   create_info.max_rows=(ulong) (rec_pointer_size ?
 				(1L << (rec_pointer_size*8))/40 :
 				0);
-  if (maria_create(filename,1,keyinfo,3+opt_unique,recinfo,
+  if (maria_create(filename, record_type, 1, keyinfo,2+opt_unique,recinfo,
 		uniques, &uniquedef, &create_info,
 		create_flag))
     goto err;
@@ -223,9 +226,10 @@ static int run_test(const char *filename)
     }
 
     /* Read through all rows and update them */
-    pos=(my_off_t) 0;
+    assert(maria_scan_init(file) == 0);
+
     found=0;
-    while ((error=maria_rrnd(file,read_record,pos)) == 0)
+    while ((error= maria_scan(file,read_record)) == 0)
     {
       if (update_count-- == 0) { VOID(maria_close(file)) ; exit(0) ; }
       memcpy(record,read_record,rec_length);
@@ -236,17 +240,17 @@ static int run_test(const char *filename)
 	       keyinfo[0].seg[0].length,record+1,my_errno);
       }
       found++;
-      pos=HA_OFFSET_ERROR;
     }
     if (found != row_count)
       printf("Found %ld of %ld rows\n", (ulong) found, (ulong) row_count);
+    maria_scan_end(file);
   }
 
   if (!silent)
     printf("- Reopening file\n");
   if (maria_close(file)) goto err;
   if (!(file=maria_open(filename,2,HA_OPEN_ABORT_IF_LOCKED))) goto err;
-  if (!skip_update)
+  if (!skip_delete)
   {
     if (!silent)
       printf("- Removing keys\n");
@@ -254,7 +258,13 @@ static int run_test(const char *filename)
     for (i=0 ; i <= 10 ; i++)
     {
       /* testing */
-      if (remove_count-- == 0) { VOID(maria_close(file)) ; exit(0) ; }
+      if (remove_count-- == 0)
+      {
+        fprintf(stderr,
+                "delete-rows number of rows deleted; Going down hard!\n");
+        VOID(maria_close(file));
+        exit(0) ;
+      }
       j=i*2;
       if (!flags[j])
 	continue;
@@ -283,6 +293,7 @@ static int run_test(const char *filename)
   }
   if (!silent)
     printf("- Reading rows with key\n");
+  record[1]= 0;                                 /* For nicer printf */
   for (i=0 ; i <= 25 ; i++)
   {
     create_key(key,i);
@@ -299,10 +310,16 @@ static int run_test(const char *filename)
 
   if (!silent)
     printf("- Reading rows with position\n");
+  if (maria_scan_init(file))
+  {
+    fprintf(stderr, "maria_scan_init failed\n");
+    goto err;
+  }
+
   for (i=1,found=0 ; i <= 30 ; i++)
   {
     my_errno=0;
-    if ((error=maria_rrnd(file,read_record,i == 1 ? 0L : HA_OFFSET_ERROR)) == -1)
+    if ((error= maria_scan(file, read_record)) == HA_ERR_END_OF_FILE)
     {
       if (found != row_count-deleted)
 	printf("Found only %ld of %ld rows\n", (ulong) found,
@@ -318,7 +335,8 @@ static int run_test(const char *filename)
 	     i-1,error,my_errno,read_record+1);
     }
   }
-  if (maria_close(file)) goto err;
+  if (maria_close(file))
+    goto err;
   maria_end();
   my_end(MY_CHECK_ERROR);
 
@@ -346,7 +364,7 @@ static void create_key_part(char *key,uint rownr)
     if ((rownr & 7) == 0)
     {
       /* Change the key to force a unpack of the next key */
-      bfill(key+3,keyinfo[0].seg[0].length-4,rownr < 10 ? 'a' : 'b');
+      bfill(key+3,keyinfo[0].seg[0].length-5,rownr < 10 ? 'a' : 'b');
     }
   }
   else
@@ -375,7 +393,7 @@ static void create_key(char *key,uint rownr)
     if (rownr == 0)
     {
       key[0]=1;					/* null key */
-      key[1]=0;					/* Fore easy print of key */
+      key[1]=0;					/* For easy print of key */
       return;
     }
     *key++=0;
@@ -405,7 +423,7 @@ static void create_record(char *record,uint rownr)
     record[0]|=keyinfo[0].seg[0].null_bit;	/* Null key */
 
   pos=record+1;
-  if (recinfo[1].type == FIELD_BLOB)
+  if (recinfo[0].type == FIELD_BLOB)
   {
     uint tmp;
     char *ptr;
@@ -414,25 +432,25 @@ static void create_record(char *record,uint rownr)
     int4store(pos,tmp);
     ptr=blob_key;
     memcpy_fixed(pos+4,&ptr,sizeof(char*));
-    pos+=recinfo[1].length;
+    pos+=recinfo[0].length;
   }
-  else if (recinfo[1].type == FIELD_VARCHAR)
+  else if (recinfo[0].type == FIELD_VARCHAR)
   {
-    uint tmp, pack_length= HA_VARCHAR_PACKLENGTH(recinfo[1].length-1);
+    uint tmp, pack_length= HA_VARCHAR_PACKLENGTH(recinfo[0].length-1);
     create_key_part(pos+pack_length,rownr);
     tmp= strlen(pos+pack_length);
     if (pack_length == 1)
       *(uchar*) pos= (uchar) tmp;
     else
       int2store(pos,tmp);
-    pos+= recinfo[1].length;
+    pos+= recinfo[0].length;
   }
   else
   {
     create_key_part(pos,rownr);
-    pos+=recinfo[1].length;
+    pos+=recinfo[0].length;
   }
-  if (recinfo[2].type == FIELD_BLOB)
+  if (recinfo[1].type == FIELD_BLOB)
   {
     uint tmp;
     char *ptr;;
@@ -443,7 +461,7 @@ static void create_record(char *record,uint rownr)
     ptr=blob_record;
     memcpy_fixed(pos+4,&ptr,sizeof(char*));
   }
-  else if (recinfo[2].type == FIELD_VARCHAR)
+  else if (recinfo[1].type == FIELD_VARCHAR)
   {
     uint tmp, pack_length= HA_VARCHAR_PACKLENGTH(recinfo[1].length-1);
     sprintf(pos+pack_length, "... row: %d", rownr);
@@ -456,7 +474,7 @@ static void create_record(char *record,uint rownr)
   else
   {
     sprintf(pos,"... row: %d", rownr);
-    strappend(pos,recinfo[2].length,' ');
+    strappend(pos,recinfo[1].length,' ');
   }
 }
 
@@ -465,7 +483,7 @@ static void create_record(char *record,uint rownr)
 static void update_record(char *record)
 {
   char *pos=record+1;
-  if (recinfo[1].type == FIELD_BLOB)
+  if (recinfo[0].type == FIELD_BLOB)
   {
     char *column,*ptr;
     int length;
@@ -477,16 +495,16 @@ static void update_record(char *record)
     if (keyinfo[0].seg[0].type != HA_KEYTYPE_NUM)
       default_charset_info->cset->casedn(default_charset_info,
                                          blob_key, length, blob_key, length);
-    pos+=recinfo[1].length;
+    pos+=recinfo[0].length;
   }
-  else if (recinfo[1].type == FIELD_VARCHAR)
+  else if (recinfo[0].type == FIELD_VARCHAR)
   {
-    uint pack_length= HA_VARCHAR_PACKLENGTH(recinfo[1].length-1);
+    uint pack_length= HA_VARCHAR_PACKLENGTH(recinfo[0].length-1);
     uint length= pack_length == 1 ? (uint) *(uchar*) pos : uint2korr(pos);
     default_charset_info->cset->casedn(default_charset_info,
                                        pos + pack_length, length,
                                        pos + pack_length, length);
-    pos+=recinfo[1].length;
+    pos+=recinfo[0].length;
   }
   else
   {
@@ -494,10 +512,10 @@ static void update_record(char *record)
       default_charset_info->cset->casedn(default_charset_info,
                                          pos, keyinfo[0].seg[0].length,
                                          pos, keyinfo[0].seg[0].length);
-    pos+=recinfo[1].length;
+    pos+=recinfo[0].length;
   }
 
-  if (recinfo[2].type == FIELD_BLOB)
+  if (recinfo[1].type == FIELD_BLOB)
   {
     char *column;
     int length;
@@ -510,13 +528,14 @@ static void update_record(char *record)
     column=blob_record;
     memcpy_fixed(pos+4,&column,sizeof(char*));
   }
-  else if (recinfo[2].type == FIELD_VARCHAR)
+  else if (recinfo[1].type == FIELD_VARCHAR)
   {
     /* Second field is longer than 10 characters */
     uint pack_length= HA_VARCHAR_PACKLENGTH(recinfo[1].length-1);
     uint length= pack_length == 1 ? (uint) *(uchar*) pos : uint2korr(pos);
-    bfill(pos+pack_length+length,recinfo[2].length-length-pack_length,'.');
-    length=recinfo[2].length-pack_length;
+    pos= record+ recinfo[1].offset;
+    bfill(pos+pack_length+length,recinfo[1].length-length-pack_length,'.');
+    length=recinfo[1].length-pack_length;
     if (pack_length == 1)
       *(uchar*) pos= (uchar) length;
     else
@@ -524,7 +543,7 @@ static void update_record(char *record)
   }
   else
   {
-    bfill(pos+recinfo[2].length-10,10,'.');
+    bfill(pos+recinfo[1].length-10,10,'.');
   }
 }
 
@@ -537,44 +556,49 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Undocumented",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"delete_rows", 'd', "Undocumented", (gptr*) &remove_count,
-   (gptr*) &remove_count, 0, GET_UINT, REQUIRED_ARG, 1000, 0, 0, 0, 0, 0},
+  {"delete-rows", 'd', "Abort after this many rows has been deleted",
+   (gptr*) &remove_count, (gptr*) &remove_count, 0, GET_UINT, REQUIRED_ARG,
+   1000, 0, 0, 0, 0, 0},
   {"help", '?', "Display help and exit",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"insert_rows", 'i', "Undocumented", (gptr*) &insert_count,
+  {"insert-rows", 'i', "Undocumented", (gptr*) &insert_count,
    (gptr*) &insert_count, 0, GET_UINT, REQUIRED_ARG, 1000, 0, 0, 0, 0, 0},
-  {"key_alpha", 'a', "Use a key of type HA_KEYTYPE_TEXT",
+  {"key-alpha", 'a', "Use a key of type HA_KEYTYPE_TEXT",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"key_binary_pack", 'B', "Undocumented",
+  {"key-binary-pack", 'B', "Undocumented",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"key_blob", 'b', "Undocumented",
+  {"key-blob", 'b', "Undocumented",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"key_cache", 'K', "Undocumented", (gptr*) &key_cacheing,
+  {"key-cache", 'K', "Undocumented", (gptr*) &key_cacheing,
    (gptr*) &key_cacheing, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"key_length", 'k', "Undocumented", (gptr*) &key_length, (gptr*) &key_length,
+  {"key-length", 'k', "Undocumented", (gptr*) &key_length, (gptr*) &key_length,
    0, GET_UINT, REQUIRED_ARG, 6, 0, 0, 0, 0, 0},
-  {"key_multiple", 'm', "Undocumented",
+  {"key-multiple", 'm', "Undocumented",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"key_prefix_pack", 'P', "Undocumented",
+  {"key-prefix_pack", 'P', "Undocumented",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"key_space_pack", 'p', "Undocumented",
+  {"key-space_pack", 'p', "Undocumented",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"key_varchar", 'w', "Test VARCHAR keys",
+  {"key-varchar", 'w', "Test VARCHAR keys",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"null_fields", 'N', "Define fields with NULL",
+  {"null-fields", 'N', "Define fields with NULL",
    (gptr*) &null_fields, (gptr*) &null_fields, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
-  {"row_fixed_size", 'S', "Undocumented",
+  {"row-fixed-size", 'S', "Fixed size records",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"row_pointer_size", 'R', "Undocumented", (gptr*) &rec_pointer_size,
+  {"rows-in-block", 'M', "Store rows in block format",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"row-pointer-size", 'R', "Undocumented", (gptr*) &rec_pointer_size,
    (gptr*) &rec_pointer_size, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"silent", 's', "Undocumented",
    (gptr*) &silent, (gptr*) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"skip_update", 'U', "Undocumented", (gptr*) &skip_update,
+  {"skip-delete", 'U', "Don't test deletes", (gptr*) &skip_delete,
+   (gptr*) &skip_delete, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"skip-update", 'D', "Don't test updates", (gptr*) &skip_update,
    (gptr*) &skip_update, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"unique", 'C', "Undocumented", (gptr*) &opt_unique, (gptr*) &opt_unique, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"update_rows", 'u', "Undocumented", (gptr*) &update_count,
+  {"update-rows", 'u', "Undocumented", (gptr*) &update_count,
    (gptr*) &update_count, 0, GET_UINT, REQUIRED_ARG, 1000, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Be more verbose", (gptr*) &verbose, (gptr*) &verbose, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -605,15 +629,20 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'B':
     pack_keys= HA_BINARY_PACK_KEY;	/* Use binary compression */
     break;
+  case 'M':
+    record_type= BLOCK_RECORD;
+    break;
   case 'S':
     if (key_field == FIELD_VARCHAR)
     {
       create_flag=0;			/* Static sized varchar */
+      record_type= STATIC_RECORD;
     }
     else if (key_field != FIELD_BLOB)
     {
       key_field=FIELD_NORMAL;		/* static-size record */
       extra_field=FIELD_NORMAL;
+      record_type= STATIC_RECORD;
     }
     break;
   case 'p':
@@ -629,6 +658,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     extra_field= FIELD_BLOB;
     pack_seg|= HA_BLOB_PART;
     key_type= HA_KEYTYPE_VARTEXT1;
+    if (record_type == STATIC_RECORD)
+      record_type= DYNAMIC_RECORD;
     break;
   case 'k':
     if (key_length < 4 || key_length > HA_MAX_KEY_LENGTH)
@@ -642,7 +673,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     extra_field= FIELD_VARCHAR;
     key_type= HA_KEYTYPE_VARTEXT1;
     pack_seg|= HA_VAR_LENGTH_PART;
-    create_flag|= HA_PACK_RECORD;
+    if (record_type == STATIC_RECORD)
+      record_type= DYNAMIC_RECORD;
     break;
   case 'K':                                     /* Use key cacheing */
     key_cacheing=1;

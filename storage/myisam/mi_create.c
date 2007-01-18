@@ -41,7 +41,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   File dfile,file;
   int errpos,save_errno, create_mode= O_RDWR | O_TRUNC;
   myf create_flag;
-  uint fields,length,max_key_length,packed,pointer,real_length_diff,
+  uint fields,length,max_key_length,packed,pack_bytes,pointer,real_length_diff,
        key_length,info_length,key_segs,options,min_key_length_skip,
        base_pos,long_varchar_count,varchar_length,
        max_key_block_length,unique_key_parts,fulltext_keys,offset;
@@ -189,11 +189,11 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   if (flags & HA_CREATE_RELIES_ON_SQL_LAYER)
     options|= HA_OPTION_RELIES_ON_SQL_LAYER;
 
-  packed=(packed+7)/8;
+  pack_bytes= (packed+7)/8;
   if (pack_reclength != INT_MAX32)
     pack_reclength+= reclength+packed +
       test(test_all_bits(options, HA_OPTION_CHECKSUM | HA_PACK_RECORD));
-  min_pack_length+=packed;
+  min_pack_length+= pack_bytes;
 
   if (!ci->data_file_length && ci->max_rows)
   {
@@ -547,9 +547,9 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   share.base.pack_reclength=reclength+ test(options & HA_OPTION_CHECKSUM);
   share.base.max_pack_length=pack_reclength;
   share.base.min_pack_length=min_pack_length;
-  share.base.pack_bits=packed;
+  share.base.pack_bits= pack_bytes;
   share.base.fields=fields;
-  share.base.pack_fields=packed;
+  share.base.pack_fields= packed;
 #ifdef USE_RAID
   share.base.raid_type=ci->raid_type;
   share.base.raid_chunks=ci->raid_chunks;

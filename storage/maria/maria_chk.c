@@ -36,21 +36,23 @@ SET_STACK_SIZE(9000)			/* Minimum stack size for program */
 
 static uint decode_bits;
 static char **default_argv;
-static const char *load_default_groups[]= { "mariachk", 0 };
+static const char *load_default_groups[]= { "maria_chk", 0 };
 static const char *set_collation_name, *opt_tmpdir;
 static CHARSET_INFO *set_collation;
 static long opt_maria_block_size;
 static long opt_key_cache_block_size;
 static const char *my_progname_short;
 static int stopwords_inited= 0;
-static MY_TMPDIR mariachk_tmpdir;
+static MY_TMPDIR maria_chk_tmpdir;
 
 static const char *type_names[]=
-{ "impossible","char","binary", "short", "long", "float",
+{
+  "impossible","char","binary", "short", "long", "float",
   "double","number","unsigned short",
   "unsigned long","longlong","ulonglong","int24",
   "uint24","int8","varchar", "varbin","?",
-  "?"};
+  "?"
+};
 
 static const char *prefix_packed_txt="packed ",
 		  *bin_packed_txt="prefix ",
@@ -59,23 +61,30 @@ static const char *prefix_packed_txt="packed ",
 		  *blob_txt="BLOB ";
 
 static const char *field_pack[]=
-{"","no endspace", "no prespace",
+{
+  "","no endspace", "no prespace",
  "no zeros", "blob", "constant", "table-lockup",
- "always zero","varchar","unique-hash","?","?"};
+ "always zero","varchar","unique-hash","?","?"
+};
+
+static const char *record_formats[]=
+{  
+  "Fixed length", "Packed", "Compressed", "Block", "?"
+};
 
 static const char *maria_stats_method_str="nulls_unequal";
 
 static void get_options(int *argc,char * * *argv);
 static void print_version(void);
 static void usage(void);
-static int mariachk(HA_CHECK *param, char *filename);
+static int maria_chk(HA_CHECK *param, char *filename);
 static void descript(HA_CHECK *param, register MARIA_HA *info, my_string name);
 static int maria_sort_records(HA_CHECK *param, register MARIA_HA *info,
-                           my_string name, uint sort_key,
-			   my_bool write_info, my_bool update_index);
+                              my_string name, uint sort_key,
+                              my_bool write_info, my_bool update_index);
 static int sort_record_index(MARIA_SORT_PARAM *sort_param, MARIA_HA *info,
                              MARIA_KEYDEF *keyinfo,
-			     my_off_t page,uchar *buff,uint sortkey,
+			     my_off_t page, byte *buff,uint sortkey,
 			     File new_file, my_bool update_index);
 
 HA_CHECK check_param;
@@ -88,7 +97,7 @@ int main(int argc, char **argv)
   MY_INIT(argv[0]);
   my_progname_short= my_progname+dirname_length(my_progname);
 
-  mariachk_init(&check_param);
+  maria_chk_init(&check_param);
   check_param.opt_lock_memory= 1;		/* Lock memory if possible */
   check_param.using_global_keycache = 0;
   get_options(&argc,(char***) &argv);
@@ -98,7 +107,7 @@ int main(int argc, char **argv)
 
   while (--argc >= 0)
   {
-    int new_error=mariachk(&check_param, *(argv++));
+    int new_error=maria_chk(&check_param, *(argv++));
     if ((check_param.testflag & T_REP_ANY) != T_REP)
       check_param.testflag&= ~T_REP;
     VOID(fflush(stdout));
@@ -112,7 +121,7 @@ int main(int argc, char **argv)
       if (!(check_param.testflag & T_REP))
 	check_param.testflag|= T_REP_BY_SORT;
       check_param.testflag&= ~T_EXTEND;			/* Don't needed  */
-      error|=mariachk(&check_param, argv[-1]);
+      error|=maria_chk(&check_param, argv[-1]);
       check_param.testflag= old_testflag;
       VOID(fflush(stdout));
       VOID(fflush(stderr));
@@ -134,7 +143,7 @@ int main(int argc, char **argv)
 	   llstr(check_param.total_deleted,buff2));
   }
   free_defaults(default_argv);
-  free_tmpdir(&mariachk_tmpdir);
+  free_tmpdir(&maria_chk_tmpdir);
   maria_end();
   my_end(check_param.testflag & T_INFO ?
          MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
@@ -218,7 +227,7 @@ static struct my_option my_long_options[] =
    (gptr*) &check_param.keys_in_use,
    0, GET_ULL, REQUIRED_ARG, -1, 0, 0, 0, 0, 0},
   {"max-record-length", OPT_MAX_RECORD_LENGTH,
-   "Skip rows bigger than this if mariachk can't allocate memory to hold it",
+   "Skip rows bigger than this if maria_chk can't allocate memory to hold it",
    (gptr*) &check_param.max_record_length,
    (gptr*) &check_param.max_record_length,
    0, GET_ULL, REQUIRED_ARG, LONGLONG_MAX, 0, LONGLONG_MAX, 0, 0, 0},
@@ -259,7 +268,7 @@ static struct my_option my_long_options[] =
    "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"silent", 's',
-   "Only print errors. One can use two -s to make mariachk very silent.",
+   "Only print errors. One can use two -s to make maria_chk very silent.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"sort-index", 'S',
    "Sort index blocks. This speeds up 'read-next' in applications.",
@@ -346,7 +355,7 @@ static struct my_option my_long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 2.7 for %s at %s\n", my_progname, SYSTEM_TYPE,
+  printf("%s  Ver 1.0 for %s at %s\n", my_progname, SYSTEM_TYPE,
 	 MACHINE_TYPE);
   NETWARE_SET_SCREEN_MODE(1);
 }
@@ -381,7 +390,7 @@ static void usage(void)
                       printf(", they will be used\n\
                       in a round-robin fashion.\n\
   -s, --silent	      Only print errors.  One can use two -s to make\n\
-		      mariachk very silent.\n\
+		      maria_chk very silent.\n\
   -v, --verbose       Print more information. This can be used with\n\
                       --description and --check. Use many -v for more verbosity.\n\
   -V, --version       Print version and exit.\n\
@@ -390,10 +399,10 @@ static void usage(void)
   puts("  --start-check-pos=# Start reading file at given offset.\n");
 #endif
 
-  puts("Check options (check is the default action for mariachk):\n\
+  puts("Check options (check is the default action for maria_chk):\n\
   -c, --check	      Check table for errors.\n\
   -e, --extend-check  Check the table VERY throughly.  Only use this in\n\
-                      extreme cases as mariachk should normally be able to\n\
+                      extreme cases as maria_chk should normally be able to\n\
                       find out if the table is ok even without this switch.\n\
   -F, --fast	      Check only tables that haven't been closed properly.\n\
   -C, --check-only-changed\n\
@@ -419,7 +428,7 @@ static void usage(void)
 	              bit mask of which keys to use. This can be used to\n\
 		      get faster inserts.\n\
   --max-record-length=#\n\
-                      Skip rows bigger than this if mariachk can't allocate\n\
+                      Skip rows bigger than this if maria_chk can't allocate\n\
 		      memory to hold it.\n\
   -r, --recover       Can fix almost anything except unique keys that aren't\n\
                       unique.\n\
@@ -436,7 +445,7 @@ static void usage(void)
   --set-collation=name\n\
  		      Change the collation used by the index.\n\
   -q, --quick         Faster repair by not modifying the data file.\n\
-                      One can give a second '-q' to force mariachk to\n\
+                      One can give a second '-q' to force maria_chk to\n\
 		      modify the original datafile in case of duplicate keys.\n\
 		      NOTE: Tables where the data file is currupted can't be\n\
 		      fixed with this option.\n\
@@ -684,7 +693,7 @@ get_one_option(int optid,
     }
     else
     {
-      DBUG_PUSH(argument ? argument : "d:t:o,/tmp/mariachk.trace");
+      DBUG_PUSH(argument ? argument : "d:t:o,/tmp/maria_chk.trace");
     }
     break;
   case 'V':
@@ -700,6 +709,7 @@ get_one_option(int optid,
   {
     int method;
     enum_handler_stats_method method_conv;
+    LINT_INIT(method_conv);
     maria_stats_method_str= argument;
     if ((method=find_type(argument, &maria_stats_method_typelib, 2)) <= 0)
     {
@@ -778,10 +788,10 @@ static void get_options(register int *argc,register char ***argv)
     exit(1);
   }
 
-  if (init_tmpdir(&mariachk_tmpdir, opt_tmpdir))
+  if (init_tmpdir(&maria_chk_tmpdir, opt_tmpdir))
     exit(1);
 
-  check_param.tmpdir=&mariachk_tmpdir;
+  check_param.tmpdir=&maria_chk_tmpdir;
   check_param.key_cache_block_size= opt_key_cache_block_size;
 
   if (set_collation_name)
@@ -796,17 +806,16 @@ static void get_options(register int *argc,register char ***argv)
 
 	/* Check table */
 
-static int mariachk(HA_CHECK *param, my_string filename)
+static int maria_chk(HA_CHECK *param, my_string filename)
 {
   int error,lock_type,recreate;
   int rep_quick= param->testflag & (T_QUICK | T_FORCE_UNIQUENESS);
-  uint raid_chunks;
   MARIA_HA *info;
   File datafile;
   char llbuff[22],llbuff2[22];
   my_bool state_updated=0;
   MARIA_SHARE *share;
-  DBUG_ENTER("mariachk");
+  DBUG_ENTER("maria_chk");
 
   param->out_flag=error=param->warning_printed=param->error_printed=
     recreate=0;
@@ -849,7 +858,8 @@ static int mariachk(HA_CHECK *param, my_string filename)
       _ma_check_print_error(param,"File '%s' doesn't exist",filename);
       break;
     case EACCES:
-      _ma_check_print_error(param,"You don't have permission to use '%s'",filename);
+      _ma_check_print_error(param,"You don't have permission to use '%s'",
+                            filename);
       break;
     default:
       _ma_check_print_error(param,"%d when opening MARIA-table '%s'",
@@ -862,7 +872,18 @@ static int mariachk(HA_CHECK *param, my_string filename)
   share->options&= ~HA_OPTION_READ_ONLY_DATA; /* We are modifing it */
   share->tot_locks-= share->r_locks;
   share->r_locks=0;
-  raid_chunks=share->base.raid_chunks;
+
+  if (share->data_file_type == BLOCK_RECORD &&
+      (param->testflag & (T_REP_ANY | T_SORT_RECORDS | T_FAST | T_STATISTICS |
+                          T_CHECK | T_CHECK_ONLY_CHANGED)))
+  {
+    _ma_check_print_error(param,
+                          "Record format used by '%s' is is not yet supported with repair/check",
+                          filename);
+    param->error_printed= 0;
+    error= 1;
+    goto end2;
+  }
 
   /*
     Skip the checking of the file if:
@@ -871,7 +892,8 @@ static int mariachk(HA_CHECK *param, my_string filename)
   */
   if (param->testflag & (T_FAST | T_CHECK_ONLY_CHANGED))
   {
-    my_bool need_to_check= maria_is_crashed(info) || share->state.open_count != 0;
+    my_bool need_to_check= (maria_is_crashed(info) ||
+                            share->state.open_count != 0);
 
     if ((param->testflag & (T_REP_ANY | T_SORT_RECORDS)) &&
 	((share->state.changed & (STATE_CHANGED | STATE_CRASHED |
@@ -969,6 +991,7 @@ static int mariachk(HA_CHECK *param, my_string filename)
       _ma_check_print_error(param,"Can't lock indexfile of '%s', error: %d",
 		  filename,my_errno);
       param->error_printed=0;
+      error= 1;
       goto end2;
     }
     /*
@@ -989,7 +1012,8 @@ static int mariachk(HA_CHECK *param, my_string filename)
 	if (tmp != share->state.key_map)
 	  info->update|=HA_STATE_CHANGED;
       }
-      if (rep_quick && maria_chk_del(param, info, param->testflag & ~T_VERBOSE))
+      if (rep_quick &&
+          maria_chk_del(param, info, param->testflag & ~T_VERBOSE))
       {
 	if (param->testflag & T_FORCE_CREATE)
 	{
@@ -1032,8 +1056,7 @@ static int mariachk(HA_CHECK *param, my_string filename)
 	{			/* Change temp file to org file */
 	  VOID(my_close(info->dfile,MYF(MY_WME))); /* Close new file */
 	  error|=maria_change_to_newfile(filename,MARIA_NAME_DEXT,DATA_TMP_EXT,
-				   raid_chunks,
-				   MYF(0));
+                                         MYF(0));
 	  if (_ma_open_datafile(info,info->s, -1))
 	    error=1;
 	  param->out_flag&= ~O_NEW_DATA; /* We are using new datafile */
@@ -1112,8 +1135,7 @@ static int mariachk(HA_CHECK *param, my_string filename)
 			   1,
 			   MYF(MY_WME)));
 	maria_lock_memory(param);
-	if ((info->s->options & (HA_OPTION_PACK_RECORD |
-				 HA_OPTION_COMPRESS_RECORD)) ||
+	if ((info->s->data_file_type != STATIC_RECORD) ||
 	    (param->testflag & (T_EXTEND | T_MEDIUM)))
 	  error|=maria_chk_data_link(param, info, param->testflag & T_EXTEND);
 	error|=_ma_flush_blocks(param, share->key_cache, share->kfile);
@@ -1163,12 +1185,11 @@ end2:
   {
     if (param->out_flag & O_NEW_DATA)
       error|=maria_change_to_newfile(filename,MARIA_NAME_DEXT,DATA_TMP_EXT,
-			       raid_chunks,
-			       ((param->testflag & T_BACKUP_DATA) ?
-				MYF(MY_REDEL_MAKE_BACKUP) : MYF(0)));
+                                     ((param->testflag & T_BACKUP_DATA) ?
+                                      MYF(MY_REDEL_MAKE_BACKUP) : MYF(0)));
     if (param->out_flag & O_NEW_INDEX)
-      error|=maria_change_to_newfile(filename,MARIA_NAME_IEXT,INDEX_TMP_EXT,0,
-			       MYF(0));
+      error|=maria_change_to_newfile(filename,MARIA_NAME_IEXT,INDEX_TMP_EXT,
+                                     MYF(0));
   }
   VOID(fflush(stdout)); VOID(fflush(stderr));
   if (param->error_printed)
@@ -1195,10 +1216,10 @@ end2:
 		 filename));
   VOID(fflush(stderr));
   DBUG_RETURN(error);
-} /* mariachk */
+} /* maria_chk */
 
 
-	 /* Write info about table */
+/* Write info about table */
 
 static void descript(HA_CHECK *param, register MARIA_HA *info, my_string name)
 {
@@ -1212,14 +1233,8 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, my_string name)
   char llbuff[22],llbuff2[22];
   DBUG_ENTER("describe");
 
-  printf("\nMARIA file:         %s\n",name);
-  fputs("Record format:       ",stdout);
-  if (share->options & HA_OPTION_COMPRESS_RECORD)
-    puts("Compressed");
-  else if (share->options & HA_OPTION_PACK_RECORD)
-    puts("Packed");
-  else
-    puts("Fixed length");
+  printf("\nMARIA file:          %s\n",name);
+  printf("Record format:       %s\n", record_formats[share->data_file_type]);
   printf("Character set:       %s (%d)\n",
 	 get_charset_name(share->state.header.language),
 	 share->state.header.language);
@@ -1260,25 +1275,18 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, my_string name)
     printf("Status:              %s\n",buff);
     if (share->base.auto_key)
     {
-      printf("Auto increment key:  %13d  Last value:         %13s\n",
+      printf("Auto increment key:  %16d  Last value:         %18s\n",
 	     share->base.auto_key,
 	     llstr(share->state.auto_increment,llbuff));
     }
-    if (share->base.raid_type)
-    {
-      printf("RAID:                Type:  %u   Chunks: %u  Chunksize: %lu\n",
-	     share->base.raid_type,
-	     share->base.raid_chunks,
-	     share->base.raid_chunksize);
-    }
     if (share->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
-      printf("Checksum:  %23s\n",llstr(info->state->checksum,llbuff));
+      printf("Checksum:  %26s\n",llstr(info->state->checksum,llbuff));
 ;
     if (share->options & HA_OPTION_DELAY_KEY_WRITE)
       printf("Keys are only flushed at close\n");
 
   }
-  printf("Data records:        %13s  Deleted blocks:     %13s\n",
+  printf("Data records:        %16s  Deleted blocks:     %18s\n",
 	 llstr(info->state->records,llbuff),llstr(info->state->del,llbuff2));
   if (param->testflag & T_SILENT)
     DBUG_VOID_RETURN;				/* This is enough */
@@ -1286,14 +1294,14 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, my_string name)
   if (param->testflag & T_VERBOSE)
   {
 #ifdef USE_RELOC
-    printf("Init-relocation:     %13s\n",llstr(share->base.reloc,llbuff));
+    printf("Init-relocation:     %16s\n",llstr(share->base.reloc,llbuff));
 #endif
-    printf("Datafile parts:      %13s  Deleted data:       %13s\n",
+    printf("Datafile parts:      %16s  Deleted data:       %18s\n",
 	   llstr(share->state.split,llbuff),
 	   llstr(info->state->empty,llbuff2));
-    printf("Datafile pointer (bytes):%9d  Keyfile pointer (bytes):%9d\n",
+    printf("Datafile pointer (bytes): %11d  Keyfile pointer (bytes): %13d\n",
 	   share->rec_reflength,share->base.key_reflength);
-    printf("Datafile length:     %13s  Keyfile length:     %13s\n",
+    printf("Datafile length:     %16s  Keyfile length:     %18s\n",
 	   llstr(info->state->data_file_length,llbuff),
 	   llstr(info->state->key_file_length,llbuff2));
 
@@ -1303,13 +1311,13 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, my_string name)
     {
       if (share->base.max_data_file_length != HA_OFFSET_ERROR ||
 	  share->base.max_key_file_length != HA_OFFSET_ERROR)
-	printf("Max datafile length: %13s  Max keyfile length: %13s\n",
+	printf("Max datafile length: %16s  Max keyfile length: %18s\n",
 	       llstr(share->base.max_data_file_length-1,llbuff),
 	       llstr(share->base.max_key_file_length-1,llbuff2));
     }
   }
-
-  printf("Recordlength:        %13d\n",(int) share->base.pack_reclength);
+  printf("Block_size:          %16d\n",(int) share->block_size);
+  printf("Recordlength:        %16d\n",(int) share->base.pack_reclength);
   if (! maria_is_all_keys_active(share->state.key_map, share->base.keys))
   {
     longlong2str(share->state.key_map,buff,2);
@@ -1417,7 +1425,7 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, my_string name)
     if (share->options & HA_OPTION_COMPRESS_RECORD)
       printf("                         Huff tree  Bits");
     VOID(putchar('\n'));
-    start=1;
+
     for (field=0 ; field < share->base.fields ; field++)
     {
       if (share->options & HA_OPTION_COMPRESS_RECORD)
@@ -1446,8 +1454,9 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, my_string name)
 	sprintf(null_bit,"%d",share->rec[field].null_bit);
 	sprintf(null_pos,"%d",share->rec[field].null_pos+1);
       }
-      printf("%-6d%-6d%-7s%-8s%-8s%-35s",field+1,start,length,
-	     null_pos, null_bit, buff);
+      printf("%-6d%-6u%-7s%-8s%-8s%-35s",field+1,
+             (uint) share->rec[field].offset+1,
+             length, null_pos, null_bit, buff);
       if (share->options & HA_OPTION_COMPRESS_RECORD)
       {
 	if (share->rec[field].huff_tree)
@@ -1475,7 +1484,7 @@ static int maria_sort_records(HA_CHECK *param,
   uint key;
   MARIA_KEYDEF *keyinfo;
   File new_file;
-  uchar *temp_buff;
+  byte *temp_buff;
   ha_rows old_record_count;
   MARIA_SHARE *share=info->s;
   char llbuff[22],llbuff2[22];
@@ -1532,7 +1541,7 @@ static int maria_sort_records(HA_CHECK *param,
     goto err;
   info->opt_flag|=WRITE_CACHE_USED;
 
-  if (!(temp_buff=(uchar*) my_alloca((uint) keyinfo->block_length)))
+  if (!(temp_buff=(byte*) my_alloca((uint) keyinfo->block_length)))
   {
     _ma_check_print_error(param,"Not enough memory for key block");
     goto err;
@@ -1544,14 +1553,11 @@ static int maria_sort_records(HA_CHECK *param,
     goto err;
   }
   fn_format(param->temp_filename,name,"", MARIA_NAME_DEXT,2+4+32);
-  new_file=my_raid_create(fn_format(param->temp_filename,
-				    param->temp_filename,"",
-				    DATA_TMP_EXT,2+4),
-			  0,param->tmpfile_createflag,
-			  share->base.raid_type,
-			  share->base.raid_chunks,
-			  share->base.raid_chunksize,
-			  MYF(0));
+  new_file= my_create(fn_format(param->temp_filename,
+                                param->temp_filename,"",
+                                DATA_TMP_EXT,2+4),
+                      0,param->tmpfile_createflag,
+                      MYF(0));
   if (new_file < 0)
   {
     _ma_check_print_error(param,"Can't create new tempfile: '%s'",
@@ -1568,7 +1574,7 @@ static int maria_sort_records(HA_CHECK *param,
   for (key=0 ; key < share->base.keys ; key++)
     share->keyinfo[key].flag|= HA_SORT_ALLOWS_SAME;
 
-  if (my_pread(share->kfile,(byte*) temp_buff,
+  if (my_pread(share->kfile, temp_buff,
 	       (uint) keyinfo->block_length,
 	       share->state.key_root[sort_key],
 	       MYF(MY_NABP+MY_WME)))
@@ -1589,7 +1595,8 @@ static int maria_sort_records(HA_CHECK *param,
   if (sort_info.new_data_file_type != COMPRESSED_RECORD)
     info->state->checksum=0;
 
-  if (sort_record_index(&sort_param,info,keyinfo,share->state.key_root[sort_key],
+  if (sort_record_index(&sort_param,info,keyinfo,
+                        share->state.key_root[sort_key],
 			temp_buff, sort_key,new_file,update_index) ||
       maria_write_data_suffix(&sort_info,1) ||
       flush_io_cache(&info->rec_cache))
@@ -1626,8 +1633,7 @@ err:
   {
     VOID(end_io_cache(&info->rec_cache));
     (void) my_close(new_file,MYF(MY_WME));
-    (void) my_raid_delete(param->temp_filename, share->base.raid_chunks,
-			  MYF(MY_WME));
+    (void) my_delete(param->temp_filename, MYF(MY_WME));
   }
   if (temp_buff)
   {
@@ -1644,17 +1650,17 @@ err:
 } /* sort_records */
 
 
-	 /* Sort records recursive using one index */
+/* Sort records recursive using one index */
 
 static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
                              MARIA_KEYDEF *keyinfo,
-			     my_off_t page, uchar *buff, uint sort_key,
+			     my_off_t page, byte *buff, uint sort_key,
 			     File new_file,my_bool update_index)
 {
   uint	nod_flag,used_length,key_length;
-  uchar *temp_buff,*keypos,*endpos;
+  byte *temp_buff,*keypos,*endpos;
   my_off_t next_page,rec_pos;
-  uchar lastkey[HA_MAX_KEY_BUFF];
+  byte lastkey[HA_MAX_KEY_BUFF];
   char llbuff[22];
   MARIA_SORT_INFO *sort_info= sort_param->sort_info;
   HA_CHECK *param=sort_info->param;
@@ -1665,7 +1671,7 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
 
   if (nod_flag)
   {
-    if (!(temp_buff=(uchar*) my_alloca((uint) keyinfo->block_length)))
+    if (!(temp_buff= (byte*) my_alloca((uint) keyinfo->block_length)))
     {
       _ma_check_print_error(param,"Not Enough memory");
       DBUG_RETURN(-1);
@@ -1679,7 +1685,7 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
     _sanity(__FILE__,__LINE__);
     if (nod_flag)
     {
-      next_page= _ma_kpos(nod_flag,keypos);
+      next_page= _ma_kpos(nod_flag, keypos);
       if (my_pread(info->s->kfile,(byte*) temp_buff,
 		  (uint) keyinfo->block_length, next_page,
 		   MYF(MY_NABP+MY_WME)))
@@ -1688,7 +1694,8 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
 		    llstr(next_page,llbuff));
 	goto err;
       }
-      if (sort_record_index(sort_param, info,keyinfo,next_page,temp_buff,sort_key,
+      if (sort_record_index(sort_param, info,keyinfo,next_page,temp_buff,
+                            sort_key,
 			    new_file, update_index))
 	goto err;
     }
@@ -1699,7 +1706,7 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
       break;
     rec_pos= _ma_dpos(info,0,lastkey+key_length);
 
-    if ((*info->s->read_rnd)(info,sort_param->record,rec_pos,0))
+    if ((*info->s->read_record)(info,sort_param->record,rec_pos))
     {
       _ma_check_print_error(param,"%d when reading datafile",my_errno);
       goto err;
@@ -1738,7 +1745,7 @@ err:
 
 
 /*
-  Check if mariachk was killed by a signal
+  Check if maria_chk was killed by a signal
   This is overloaded by other programs that want to be able to abort
   sorting
 */

@@ -7133,6 +7133,7 @@ static void mysql_init_variables(void)
     when collecting index statistics for MyISAM tables.
   */
   global_system_variables.myisam_stats_method= MI_STATS_METHOD_NULLS_NOT_EQUAL;
+  global_system_variables.maria_stats_method= MI_STATS_METHOD_NULLS_NOT_EQUAL;
 
   /* Variables that depends on compile options */
 #ifndef DBUG_OFF

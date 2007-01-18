@@ -53,18 +53,17 @@ typedef struct st_page_list
      1   Not found
 */
 
-static int maria_rtree_find_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uint search_flag,
-			  uint nod_cmp_flag, my_off_t page, int level)
+static int maria_rtree_find_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
+                                uint search_flag,
+                                uint nod_cmp_flag, my_off_t page, int level)
 {
-  uchar *k;
-  uchar *last;
   uint nod_flag;
   int res;
-  uchar *page_buf;
+  byte *page_buf, *k, *last;
   int k_len;
   uint *saved_key = (uint*) (info->maria_rtree_recursion_state) + level;
 
-  if (!(page_buf = (uchar*)my_alloca((uint)keyinfo->block_length)))
+  if (!(page_buf = (byte*) my_alloca((uint)keyinfo->block_length)))
   {
     my_errno = HA_ERR_OUT_OF_MEM;
     return -1;
@@ -77,24 +76,27 @@ static int maria_rtree_find_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uint sear
 
   if(info->maria_rtree_recursion_depth >= level)
   {
-    k = page_buf + *saved_key;
+    k= page_buf + *saved_key;
   }
   else
   {
     k = rt_PAGE_FIRST_KEY(page_buf, nod_flag);
   }
-  last = rt_PAGE_END(page_buf);
+  last= rt_PAGE_END(page_buf);
 
   for (; k < last; k = rt_PAGE_NEXT_KEY(k, k_len, nod_flag))
   {
     if (nod_flag)
     {
       /* this is an internal node in the tree */
-      if (!(res = maria_rtree_key_cmp(keyinfo->seg, info->first_mbr_key, k,
-                            info->last_rkey_length, nod_cmp_flag)))
+      if (!(res = maria_rtree_key_cmp(keyinfo->seg,
+                                      info->first_mbr_key, k,
+                                      info->last_rkey_length, nod_cmp_flag)))
       {
-        switch ((res = maria_rtree_find_req(info, keyinfo, search_flag, nod_cmp_flag,
-                                      _ma_kpos(nod_flag, k), level + 1)))
+        switch ((res = maria_rtree_find_req(info, keyinfo, search_flag,
+                                            nod_cmp_flag,
+                                            _ma_kpos(nod_flag, k),
+                                            level + 1)))
         {
           case 0: /* found - exit from recursion */
             *saved_key = k - page_buf;
@@ -111,11 +113,11 @@ static int maria_rtree_find_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uint sear
     else
     {
       /* this is a leaf */
-      if (!maria_rtree_key_cmp(keyinfo->seg, info->first_mbr_key, k,
-                         info->last_rkey_length, search_flag))
+      if (!maria_rtree_key_cmp(keyinfo->seg, info->first_mbr_key,
+                               k, info->last_rkey_length, search_flag))
       {
-        uchar *after_key = rt_PAGE_NEXT_KEY(k, k_len, nod_flag);
-        info->lastpos = _ma_dpos(info, 0, after_key);
+        byte *after_key = (byte*) rt_PAGE_NEXT_KEY(k, k_len, nod_flag);
+        info->cur_row.lastpos = _ma_dpos(info, 0, after_key);
         info->lastkey_length = k_len + info->s->base.rec_reflength;
         memcpy(info->lastkey, k, info->lastkey_length);
         info->maria_rtree_recursion_depth = level;
@@ -126,11 +128,11 @@ static int maria_rtree_find_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uint sear
           info->int_keypos = info->buff;
           info->int_maxpos = info->buff + (last - after_key);
           memcpy(info->buff, after_key, last - after_key);
-          info->buff_used = 0;
+          info->keybuff_used = 0;
         }
         else
         {
-	  info->buff_used = 1;
+	  info->keybuff_used = 1;
         }
 
         res = 0;
@@ -138,7 +140,7 @@ static int maria_rtree_find_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uint sear
       }
     }
   }
-  info->lastpos = HA_OFFSET_ERROR;
+  info->cur_row.lastpos = HA_OFFSET_ERROR;
   my_errno = HA_ERR_KEY_NOT_FOUND;
   res = 1;
 
@@ -148,7 +150,7 @@ ok:
 
 err1:
   my_afree((byte*)page_buf);
-  info->lastpos = HA_OFFSET_ERROR;
+  info->cur_row.lastpos = HA_OFFSET_ERROR;
   return -1;
 }
 
@@ -170,8 +172,8 @@ err1:
     1   Not found
 */
 
-int maria_rtree_find_first(MARIA_HA *info, uint keynr, uchar *key, uint key_length,
-                    uint search_flag)
+int maria_rtree_find_first(MARIA_HA *info, uint keynr, byte *key,
+                           uint key_length, uint search_flag)
 {
   my_off_t root;
   uint nod_cmp_flag;
@@ -191,11 +193,12 @@ int maria_rtree_find_first(MARIA_HA *info, uint keynr, uchar *key, uint key_leng
   info->last_rkey_length = key_length;
 
   info->maria_rtree_recursion_depth = -1;
-  info->buff_used = 1;
+  info->keybuff_used = 1;
 
-  nod_cmp_flag = ((search_flag & (MBR_EQUAL | MBR_WITHIN)) ?
-        MBR_WITHIN : MBR_INTERSECT);
-  return maria_rtree_find_req(info, keyinfo, search_flag, nod_cmp_flag, root, 0);
+  nod_cmp_flag= ((search_flag & (MBR_EQUAL | MBR_WITHIN)) ?
+                 MBR_WITHIN : MBR_INTERSECT);
+  return maria_rtree_find_req(info, keyinfo, search_flag, nod_cmp_flag, root,
+                              0);
 }
 
 
@@ -221,27 +224,29 @@ int maria_rtree_find_next(MARIA_HA *info, uint keynr, uint search_flag)
   MARIA_KEYDEF *keyinfo = info->s->keyinfo + keynr;
 
   if (info->update & HA_STATE_DELETED)
-    return maria_rtree_find_first(info, keynr, info->lastkey, info->lastkey_length,
-			    search_flag);
+    return maria_rtree_find_first(info, keynr, info->lastkey,
+                                  info->lastkey_length,
+                                  search_flag);
 
-  if (!info->buff_used)
+  if (!info->keybuff_used)
   {
-    uchar *key= info->int_keypos;
+    byte *key= info->int_keypos;
 
     while (key < info->int_maxpos)
     {
-      if (!maria_rtree_key_cmp(keyinfo->seg, info->first_mbr_key, key,
-                         info->last_rkey_length, search_flag))
+      if (!maria_rtree_key_cmp(keyinfo->seg,
+                               info->first_mbr_key, key,
+                               info->last_rkey_length, search_flag))
       {
-        uchar *after_key = key + keyinfo->keylength;
+        byte *after_key= key + keyinfo->keylength;
 
-        info->lastpos= _ma_dpos(info, 0, after_key);
+        info->cur_row.lastpos= _ma_dpos(info, 0, after_key);
         memcpy(info->lastkey, key, info->lastkey_length);
 
         if (after_key < info->int_maxpos)
 	  info->int_keypos= after_key;
         else
-	  info->buff_used= 1;
+	  info->keybuff_used= 1;
         return 0;
       }
       key+= keyinfo->keylength;
@@ -274,15 +279,12 @@ int maria_rtree_find_next(MARIA_HA *info, uint keynr, uint search_flag)
 static int maria_rtree_get_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uint key_length,
                          my_off_t page, int level)
 {
-  uchar *k;
-  uchar *last;
-  uint nod_flag;
+  byte *page_buf, *last, *k;
+  uint nod_flag, k_len;
   int res;
-  uchar *page_buf;
-  uint k_len;
-  uint *saved_key = (uint*) (info->maria_rtree_recursion_state) + level;
+  uint *saved_key= (uint*) (info->maria_rtree_recursion_state) + level;
 
-  if (!(page_buf = (uchar*)my_alloca((uint)keyinfo->block_length)))
+  if (!(page_buf= (byte*) my_alloca((uint)keyinfo->block_length)))
     return -1;
   if (!_ma_fetch_keypage(info, keyinfo, page, DFLT_INIT_HITS, page_buf, 0))
     goto err1;
@@ -312,7 +314,7 @@ static int maria_rtree_get_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uint key_l
     {
       /* this is an internal node in the tree */
       switch ((res = maria_rtree_get_req(info, keyinfo, key_length,
-                                  _ma_kpos(nod_flag, k), level + 1)))
+                                         _ma_kpos(nod_flag, k), level + 1)))
       {
         case 0: /* found - exit from recursion */
           *saved_key = k - page_buf;
@@ -328,8 +330,8 @@ static int maria_rtree_get_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uint key_l
     else
     {
       /* this is a leaf */
-      uchar *after_key = rt_PAGE_NEXT_KEY(k, k_len, nod_flag);
-      info->lastpos = _ma_dpos(info, 0, after_key);
+      byte *after_key = rt_PAGE_NEXT_KEY(k, k_len, nod_flag);
+      info->cur_row.lastpos = _ma_dpos(info, 0, after_key);
       info->lastkey_length = k_len + info->s->base.rec_reflength;
       memcpy(info->lastkey, k, info->lastkey_length);
 
@@ -338,21 +340,21 @@ static int maria_rtree_get_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uint key_l
 
       if (after_key < last)
       {
-        info->int_keypos = (uchar*)saved_key;
+        info->int_keypos = (byte*) saved_key;
         memcpy(info->buff, page_buf, keyinfo->block_length);
         info->int_maxpos = rt_PAGE_END(info->buff);
-        info->buff_used = 0;
+        info->keybuff_used = 0;
       }
       else
       {
-	info->buff_used = 1;
+	info->keybuff_used = 1;
       }
 
       res = 0;
       goto ok;
     }
   }
-  info->lastpos = HA_OFFSET_ERROR;
+  info->cur_row.lastpos = HA_OFFSET_ERROR;
   my_errno = HA_ERR_KEY_NOT_FOUND;
   res = 1;
 
@@ -362,7 +364,7 @@ ok:
 
 err1:
   my_afree((byte*)page_buf);
-  info->lastpos = HA_OFFSET_ERROR;
+  info->cur_row.lastpos = HA_OFFSET_ERROR;
   return -1;
 }
 
@@ -388,7 +390,7 @@ int maria_rtree_get_first(MARIA_HA *info, uint keynr, uint key_length)
   }
 
   info->maria_rtree_recursion_depth = -1;
-  info->buff_used = 1;
+  info->keybuff_used = 1;
 
   return maria_rtree_get_req(info, &keyinfo[keynr], key_length, root, 0);
 }
@@ -408,23 +410,23 @@ int maria_rtree_get_next(MARIA_HA *info, uint keynr, uint key_length)
   my_off_t root;
   MARIA_KEYDEF *keyinfo = info->s->keyinfo + keynr;
 
-  if (!info->buff_used)
+  if (!info->keybuff_used)
   {
     uint k_len = keyinfo->keylength - info->s->base.rec_reflength;
     /* rt_PAGE_NEXT_KEY(info->int_keypos) */
-    uchar *key = info->buff + *(int*)info->int_keypos + k_len +
+    byte *key = info->buff + *(int*)info->int_keypos + k_len +
                  info->s->base.rec_reflength;
     /* rt_PAGE_NEXT_KEY(key) */
-    uchar *after_key = key + k_len + info->s->base.rec_reflength;
+    byte *after_key = key + k_len + info->s->base.rec_reflength;
 
-    info->lastpos = _ma_dpos(info, 0, after_key);
+    info->cur_row.lastpos = _ma_dpos(info, 0, after_key);
     info->lastkey_length = k_len + info->s->base.rec_reflength;
     memcpy(info->lastkey, key, k_len + info->s->base.rec_reflength);
 
     *(int*)info->int_keypos = key - info->buff;
     if (after_key >= info->int_maxpos)
     {
-      info->buff_used = 1;
+      info->keybuff_used = 1;
     }
 
     return 0;
@@ -447,8 +449,10 @@ int maria_rtree_get_next(MARIA_HA *info, uint keynr, uint key_length)
 */
 
 #ifdef PICK_BY_PERIMETER
-static uchar *maria_rtree_pick_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *key,
-			     uint key_length, uchar *page_buf, uint nod_flag)
+static uchar *maria_rtree_pick_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
+                                   uchar *key,
+                                   uint key_length, byte *page_buf,
+                                   uint nod_flag)
 {
   double increase;
   double best_incr = DBL_MAX;
@@ -480,16 +484,18 @@ static uchar *maria_rtree_pick_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar 
 #endif /*PICK_BY_PERIMETER*/
 
 #ifdef PICK_BY_AREA
-static uchar *maria_rtree_pick_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *key,
-			     uint key_length, uchar *page_buf, uint nod_flag)
+static byte *maria_rtree_pick_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
+                                  byte *key,
+                                  uint key_length, byte *page_buf,
+                                  uint nod_flag)
 {
   double increase;
   double best_incr = DBL_MAX;
   double area;
   double best_area;
-  uchar *best_key;
-  uchar *k = rt_PAGE_FIRST_KEY(page_buf, nod_flag);
-  uchar *last = rt_PAGE_END(page_buf);
+  byte *best_key;
+  byte *k = rt_PAGE_FIRST_KEY(page_buf, nod_flag);
+  byte *last = rt_PAGE_END(page_buf);
 
   LINT_INIT(best_area);
   LINT_INIT(best_key);
@@ -498,7 +504,7 @@ static uchar *maria_rtree_pick_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar 
   {
     /* The following is safe as -1.0 is an exact number */
     if ((increase = maria_rtree_area_increase(keyinfo->seg, k, key, key_length,
-                                        &area)) == -1.0)
+                                              &area)) == -1.0)
       return NULL;
     /* The following should be safe, even if we compare doubles */
     if (increase < best_incr)
@@ -532,16 +538,17 @@ static uchar *maria_rtree_pick_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar 
     1	Child was split
 */
 
-static int maria_rtree_insert_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *key,
-                            uint key_length, my_off_t page, my_off_t *new_page,
-                            int ins_level, int level)
+static int maria_rtree_insert_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
+                                  byte *key,
+                                  uint key_length, my_off_t page,
+                                  my_off_t *new_page,
+                                  int ins_level, int level)
 {
-  uchar *k;
   uint nod_flag;
-  uchar *page_buf;
   int res;
+  byte *page_buf, *k;
 
-  if (!(page_buf = (uchar*)my_alloca((uint)keyinfo->block_length +
+  if (!(page_buf= (byte*) my_alloca((uint)keyinfo->block_length +
                                      HA_MAX_KEY_BUFF)))
   {
     my_errno = HA_ERR_OUT_OF_MEM;
@@ -555,10 +562,11 @@ static int maria_rtree_insert_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *
       (ins_level > -1 && ins_level > level)) /* branch: go down to ins_level */
   {
     if ((k = maria_rtree_pick_key(info, keyinfo, key, key_length, page_buf,
-                             nod_flag)) == NULL)
+                                  nod_flag)) == NULL)
       goto err1;
     switch ((res = maria_rtree_insert_req(info, keyinfo, key, key_length,
-                     _ma_kpos(nod_flag, k), new_page, ins_level, level + 1)))
+                                          _ma_kpos(nod_flag, k), new_page,
+                                          ins_level, level + 1)))
     {
       case 0: /* child was not split */
       {
@@ -569,14 +577,15 @@ static int maria_rtree_insert_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *
       }
       case 1: /* child was split */
       {
-        uchar *new_key = page_buf + keyinfo->block_length + nod_flag;
+        byte *new_key = page_buf + keyinfo->block_length + nod_flag;
         /* set proper MBR for key */
         if (maria_rtree_set_key_mbr(info, keyinfo, k, key_length,
-                            _ma_kpos(nod_flag, k)))
+                                    _ma_kpos(nod_flag, k)))
           goto err1;
         /* add new key for new page */
         _ma_kpointer(info, new_key - nod_flag, *new_page);
-        if (maria_rtree_set_key_mbr(info, keyinfo, new_key, key_length, *new_page))
+        if (maria_rtree_set_key_mbr(info, keyinfo, new_key, key_length,
+                                    *new_page))
           goto err1;
         res = maria_rtree_add_key(info, keyinfo, new_key, key_length,
                            page_buf, new_page);
@@ -593,18 +602,18 @@ static int maria_rtree_insert_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *
   }
   else
   {
-    res = maria_rtree_add_key(info, keyinfo, key, key_length, page_buf, new_page);
+    res = maria_rtree_add_key(info, keyinfo, key, key_length, page_buf,
+                              new_page);
     if (_ma_write_keypage(info, keyinfo, page, DFLT_INIT_HITS, page_buf))
       goto err1;
-    goto ok;
   }
 
 ok:
-  my_afree((byte*)page_buf);
+  my_afree(page_buf);
   return res;
 
 err1:
-  my_afree((byte*)page_buf);
+  my_afree(page_buf);
   return -1;
 }
 
@@ -618,8 +627,8 @@ err1:
     1	Root was split
 */
 
-static int maria_rtree_insert_level(MARIA_HA *info, uint keynr, uchar *key,
-                             uint key_length, int ins_level)
+static int maria_rtree_insert_level(MARIA_HA *info, uint keynr, byte *key,
+                                    uint key_length, int ins_level)
 {
   my_off_t old_root;
   MARIA_KEYDEF *keyinfo = info->s->keyinfo + keynr;
@@ -632,7 +641,7 @@ static int maria_rtree_insert_level(MARIA_HA *info, uint keynr, uchar *key,
 
     if ((old_root = _ma_new(info, keyinfo, DFLT_INIT_HITS)) == HA_OFFSET_ERROR)
       return -1;
-    info->buff_used = 1;
+    info->keybuff_used = 1;
     maria_putint(info->buff, 2, 0);
     res = maria_rtree_add_key(info, keyinfo, key, key_length, info->buff, NULL);
     if (_ma_write_keypage(info, keyinfo, old_root, DFLT_INIT_HITS, info->buff))
@@ -650,13 +659,12 @@ static int maria_rtree_insert_level(MARIA_HA *info, uint keynr, uchar *key,
     }
     case 1: /* root was split, grow a new root */
     {
-      uchar *new_root_buf;
+      byte *new_root_buf, *new_key;
       my_off_t new_root;
-      uchar *new_key;
       uint nod_flag = info->s->base.key_reflength;
 
-      if (!(new_root_buf = (uchar*)my_alloca((uint)keyinfo->block_length +
-                                             HA_MAX_KEY_BUFF)))
+      if (!(new_root_buf= (byte*) my_alloca((uint)keyinfo->block_length +
+                                            HA_MAX_KEY_BUFF)))
       {
         my_errno = HA_ERR_OUT_OF_MEM;
         return -1;
@@ -670,15 +678,19 @@ static int maria_rtree_insert_level(MARIA_HA *info, uint keynr, uchar *key,
       new_key = new_root_buf + keyinfo->block_length + nod_flag;
 
       _ma_kpointer(info, new_key - nod_flag, old_root);
-      if (maria_rtree_set_key_mbr(info, keyinfo, new_key, key_length, old_root))
+      if (maria_rtree_set_key_mbr(info, keyinfo, new_key, key_length,
+                                  old_root))
         goto err1;
-      if (maria_rtree_add_key(info, keyinfo, new_key, key_length, new_root_buf, NULL)
+      if (maria_rtree_add_key(info, keyinfo, new_key, key_length, new_root_buf,
+                              NULL)
           == -1)
         goto err1;
       _ma_kpointer(info, new_key - nod_flag, new_page);
-      if (maria_rtree_set_key_mbr(info, keyinfo, new_key, key_length, new_page))
+      if (maria_rtree_set_key_mbr(info, keyinfo, new_key, key_length,
+                                  new_page))
         goto err1;
-      if (maria_rtree_add_key(info, keyinfo, new_key, key_length, new_root_buf, NULL)
+      if (maria_rtree_add_key(info, keyinfo, new_key, key_length, new_root_buf,
+                              NULL)
           == -1)
         goto err1;
       if (_ma_write_keypage(info, keyinfo, new_root,
@@ -710,10 +722,11 @@ err1:
     0	OK
 */
 
-int maria_rtree_insert(MARIA_HA *info, uint keynr, uchar *key, uint key_length)
+int maria_rtree_insert(MARIA_HA *info, uint keynr, byte *key, uint key_length)
 {
   return (!key_length ||
-	  (maria_rtree_insert_level(info, keynr, key, key_length, -1) == -1)) ? -1 : 0;
+	  (maria_rtree_insert_level(info, keynr, key, key_length, -1) == -1)) ?
+    -1 : 0;
 }
 
 
@@ -756,18 +769,18 @@ err1:
     2	Empty leaf
 */
 
-static int maria_rtree_delete_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *key,
-                           uint key_length, my_off_t page, uint *page_size,
-                           stPageList *ReinsertList, int level)
+static int maria_rtree_delete_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
+                                  byte *key,
+                                  uint key_length, my_off_t page,
+                                  uint *page_size,
+                                  stPageList *ReinsertList, int level)
 {
-  uchar *k;
-  uchar *last;
   ulong i;
   uint nod_flag;
-  uchar *page_buf;
   int res;
+  byte *page_buf, *last, *k;
 
-  if (!(page_buf = (uchar*)my_alloca((uint)keyinfo->block_length)))
+  if (!(page_buf = (byte*) my_alloca((uint)keyinfo->block_length)))
   {
     my_errno = HA_ERR_OUT_OF_MEM;
     return -1;
@@ -779,7 +792,7 @@ static int maria_rtree_delete_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *
   k = rt_PAGE_FIRST_KEY(page_buf, nod_flag);
   last = rt_PAGE_END(page_buf);
 
-  for (i = 0; k < last; k = rt_PAGE_NEXT_KEY(k, key_length, nod_flag), ++i)
+  for (i = 0; k < last; k = rt_PAGE_NEXT_KEY(k, key_length, nod_flag), i++)
   {
     if (nod_flag)
     {
@@ -792,7 +805,8 @@ static int maria_rtree_delete_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *
           case 0: /* deleted */
           {
             /* test page filling */
-            if (*page_size + key_length >= rt_PAGE_MIN_SIZE(keyinfo->block_length))
+            if (*page_size + key_length >=
+                rt_PAGE_MIN_SIZE(keyinfo->block_length))
             {
               /* OK */
               if (maria_rtree_set_key_mbr(info, keyinfo, k, key_length,
@@ -805,7 +819,8 @@ static int maria_rtree_delete_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *
             else
             {
               /* too small: delete key & add it descendant to reinsert list */
-              if (maria_rtree_fill_reinsert_list(ReinsertList, _ma_kpos(nod_flag, k),
+              if (maria_rtree_fill_reinsert_list(ReinsertList,
+                                                 _ma_kpos(nod_flag, k),
                                            level + 1))
                 goto err1;
               maria_rtree_delete_key(info, page_buf, k, key_length, nod_flag);
@@ -883,7 +898,7 @@ err1:
     0	Deleted
 */
 
-int maria_rtree_delete(MARIA_HA *info, uint keynr, uchar *key, uint key_length)
+int maria_rtree_delete(MARIA_HA *info, uint keynr, byte *key, uint key_length)
 {
   uint page_size;
   stPageList ReinsertList;
@@ -914,12 +929,10 @@ int maria_rtree_delete(MARIA_HA *info, uint keynr, uchar *key, uint key_length)
       ulong i;
       for (i = 0; i < ReinsertList.n_pages; ++i)
       {
-        uchar *page_buf;
         uint nod_flag;
-        uchar *k;
-        uchar *last;
+        byte *page_buf, *k, *last;
 
-        if (!(page_buf = (uchar*)my_alloca((uint)keyinfo->block_length)))
+        if (!(page_buf = (byte*) my_alloca((uint)keyinfo->block_length)))
         {
           my_errno = HA_ERR_OUT_OF_MEM;
           goto err1;
@@ -935,11 +948,11 @@ int maria_rtree_delete(MARIA_HA *info, uint keynr, uchar *key, uint key_length)
           if (maria_rtree_insert_level(info, keynr, k, key_length,
                                  ReinsertList.pages[i].level) == -1)
           {
-            my_afree((byte*)page_buf);
+            my_afree(page_buf);
             goto err1;
           }
         }
-        my_afree((byte*)page_buf);
+        my_afree(page_buf);
         if (_ma_dispose(info, keyinfo, ReinsertList.pages[i].offs,
             DFLT_INIT_HITS))
           goto err1;
@@ -969,16 +982,14 @@ int maria_rtree_delete(MARIA_HA *info, uint keynr, uchar *key, uint key_length)
 err1:
       return -1;
     }
-    case 1: /* not found */
+    case 1:                                     /* not found */
     {
       my_errno = HA_ERR_KEY_NOT_FOUND;
       return -1;
     }
     default:
-    case -1: /* error */
-    {
+    case -1:                                    /* error */
       return -1;
-    }
   }
 }
 
@@ -990,17 +1001,14 @@ err1:
     estimated value
 */
 
-ha_rows maria_rtree_estimate(MARIA_HA *info, uint keynr, uchar *key,
+ha_rows maria_rtree_estimate(MARIA_HA *info, uint keynr, byte *key,
                        uint key_length, uint flag)
 {
   MARIA_KEYDEF *keyinfo = info->s->keyinfo + keynr;
   my_off_t root;
   uint i = 0;
-  uchar *k;
-  uchar *last;
-  uint nod_flag;
-  uchar *page_buf;
-  uint k_len;
+  uint nod_flag, k_len;
+  byte *page_buf, *k, *last;
   double area = 0;
   ha_rows res = 0;
 
@@ -1009,7 +1017,7 @@ ha_rows maria_rtree_estimate(MARIA_HA *info, uint keynr, uchar *key,
 
   if ((root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
     return HA_POS_ERROR;
-  if (!(page_buf = (uchar*)my_alloca((uint)keyinfo->block_length)))
+  if (!(page_buf= (byte*) my_alloca((uint)keyinfo->block_length)))
     return HA_POS_ERROR;
   if (!_ma_fetch_keypage(info, keyinfo, root, DFLT_INIT_HITS, page_buf, 0))
     goto err1;
@@ -1020,7 +1028,7 @@ ha_rows maria_rtree_estimate(MARIA_HA *info, uint keynr, uchar *key,
   k = rt_PAGE_FIRST_KEY(page_buf, nod_flag);
   last = rt_PAGE_END(page_buf);
 
-  for (; k < last; k = rt_PAGE_NEXT_KEY(k, k_len, nod_flag), ++i)
+  for (; k < last; k = rt_PAGE_NEXT_KEY(k, k_len, nod_flag), i++)
   {
     if (nod_flag)
     {
@@ -1035,7 +1043,8 @@ ha_rows maria_rtree_estimate(MARIA_HA *info, uint keynr, uchar *key,
         }
         else if (flag & (MBR_WITHIN | MBR_EQUAL))
         {
-          if (!maria_rtree_key_cmp(keyinfo->seg, key, k, key_length, MBR_WITHIN))
+          if (!maria_rtree_key_cmp(keyinfo->seg, key, k, key_length,
+                                   MBR_WITHIN))
             area += 1;
         }
         else
@@ -1045,14 +1054,15 @@ ha_rows maria_rtree_estimate(MARIA_HA *info, uint keynr, uchar *key,
       {
         if (flag & (MBR_CONTAIN | MBR_INTERSECT))
         {
-          area += maria_rtree_overlapping_area(keyinfo->seg, key, k, key_length) /
-                  k_area;
+          area+= maria_rtree_overlapping_area(keyinfo->seg, key, k,
+                                              key_length) / k_area;
         }
         else if (flag & (MBR_WITHIN | MBR_EQUAL))
         {
-          if (!maria_rtree_key_cmp(keyinfo->seg, key, k, key_length, MBR_WITHIN))
-            area += maria_rtree_rect_volume(keyinfo->seg, key, key_length) /
-                    k_area;
+          if (!maria_rtree_key_cmp(keyinfo->seg, key, k, key_length,
+                                   MBR_WITHIN))
+            area+= (maria_rtree_rect_volume(keyinfo->seg, key, key_length) /
+                    k_area);
         }
         else
           goto err1;
@@ -1076,7 +1086,7 @@ ha_rows maria_rtree_estimate(MARIA_HA *info, uint keynr, uchar *key,
   return res;
 
 err1:
-  my_afree((byte*)page_buf);
+  my_afree(page_buf);
   return HA_POS_ERROR;
 }
 

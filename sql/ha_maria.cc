@@ -220,10 +220,10 @@ int ha_maria::dump(THD * thd, int fd)
 {
   MARIA_SHARE *share= file->s;
   NET *net= &thd->net;
-  uint blocksize= share->blocksize;
+  uint block_size= share->block_size;
   my_off_t bytes_to_read= share->state.state.data_file_length;
   int data_fd= file->dfile;
-  byte *buf= (byte *) my_malloc(blocksize, MYF(MY_WME));
+  byte *buf= (byte *) my_malloc(block_size, MYF(MY_WME));
   if (!buf)
     return ENOMEM;
 
@@ -231,7 +231,7 @@ int ha_maria::dump(THD * thd, int fd)
   my_seek(data_fd, 0L, MY_SEEK_SET, MYF(MY_WME));
   for (; bytes_to_read > 0;)
   {
-    uint bytes= my_read(data_fd, buf, blocksize, MYF(MY_WME));
+    uint bytes= my_read(data_fd, buf, block_size, MYF(MY_WME));
     if (bytes == MY_FILE_ERROR)
     {
       error= errno;
@@ -364,7 +364,7 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
   const char *old_proc_info= thd->proc_info;
 
   thd->proc_info= "Checking table";
-  mariachk_init(&param);
+  maria_chk_init(&param);
   param.thd= thd;
   param.op_name= "check";
   param.db_name= table->s->db.str;
@@ -454,7 +454,7 @@ int ha_maria::analyze(THD *thd, HA_CHECK_OPT * check_opt)
   HA_CHECK param;
   MARIA_SHARE *share= file->s;
 
-  mariachk_init(&param);
+  maria_chk_init(&param);
   param.thd= thd;
   param.op_name= "analyze";
   param.db_name= table->s->db.str;
@@ -510,7 +510,7 @@ int ha_maria::restore(THD * thd, HA_CHECK_OPT *check_opt)
 err:
   {
     HA_CHECK param;
-    mariachk_init(&param);
+    maria_chk_init(&param);
     param.thd= thd;
     param.op_name= "restore";
     param.db_name= table->s->db.str;
@@ -570,7 +570,7 @@ int ha_maria::backup(THD * thd, HA_CHECK_OPT *check_opt)
 err:
   {
     HA_CHECK param;
-    mariachk_init(&param);
+    maria_chk_init(&param);
     param.thd= thd;
     param.op_name= "backup";
     param.db_name= table->s->db.str;
@@ -591,7 +591,7 @@ int ha_maria::repair(THD * thd, HA_CHECK_OPT *check_opt)
   if (!file)
     return HA_ADMIN_INTERNAL_ERROR;
 
-  mariachk_init(&param);
+  maria_chk_init(&param);
   param.thd= thd;
   param.op_name= "repair";
   param.testflag= ((check_opt->flags & ~(T_EXTEND)) |
@@ -638,7 +638,7 @@ int ha_maria::optimize(THD * thd, HA_CHECK_OPT *check_opt)
     return HA_ADMIN_INTERNAL_ERROR;
   HA_CHECK param;
 
-  mariachk_init(&param);
+  maria_chk_init(&param);
   param.thd= thd;
   param.op_name= "optimize";
   param.testflag= (check_opt->flags | T_SILENT | T_FORCE_CREATE |
@@ -833,7 +833,7 @@ err:
   {
     /* Send error to user */
     HA_CHECK param;
-    mariachk_init(&param);
+    maria_chk_init(&param);
     param.thd= thd;
     param.op_name= "assign_to_keycache";
     param.db_name= table->s->db.str;
@@ -901,7 +901,7 @@ int ha_maria::preload_keys(THD * thd, HA_CHECK_OPT *check_opt)
 err:
   {
     HA_CHECK param;
-    mariachk_init(&param);
+    maria_chk_init(&param);
     param.thd= thd;
     param.op_name= "preload_keys";
     param.db_name= table->s->db.str;
@@ -1010,7 +1010,7 @@ int ha_maria::enable_indexes(uint mode)
     HA_CHECK param;
     const char *save_proc_info= thd->proc_info;
     thd->proc_info= "Creating index";
-    mariachk_init(&param);
+    maria_chk_init(&param);
     param.op_name= "recreating_index";
     param.testflag= (T_SILENT | T_REP_BY_SORT | T_QUICK |
                      T_CREATE_MISSING_KEYS);
@@ -1395,7 +1395,7 @@ void ha_maria::info(uint flag)
   if (flag & HA_STATUS_ERRKEY)
   {
     errkey= info.errkey;
-    my_store_ptr(dup_ref, ref_length, info.dupp_key_pos);
+    my_store_ptr(dup_ref, ref_length, info.dup_key_pos);
   }
   /* Faster to always update, than to do it based on flag */
   stats.update_time= info.update_time;
@@ -1482,6 +1482,7 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
   HA_KEYSEG *keyseg;
   TABLE_SHARE *share= table_arg->s;
   uint options= share->db_options_in_use;
+  enum data_file_type row_type;
   DBUG_ENTER("ha_maria::create");
 
   type= HA_KEYTYPE_BINARY;                      // Keep compiler happy
@@ -1607,27 +1608,27 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
     if (recpos != minpos)
     {                                           // Reserved space (Null bits?)
       bzero((char*) recinfo_pos, sizeof(*recinfo_pos));
-      recinfo_pos->type= (int) FIELD_NORMAL;
+      recinfo_pos->type= FIELD_NORMAL;
       recinfo_pos++->length= (uint16) (minpos - recpos);
     }
     if (!found)
       break;
 
     if (found->flags & BLOB_FLAG)
-      recinfo_pos->type= (int) FIELD_BLOB;
+      recinfo_pos->type= FIELD_BLOB;
     else if (found->type() == MYSQL_TYPE_VARCHAR)
       recinfo_pos->type= FIELD_VARCHAR;
     else if (!(options & HA_OPTION_PACK_RECORD))
-      recinfo_pos->type= (int) FIELD_NORMAL;
+      recinfo_pos->type= FIELD_NORMAL;
     else if (found->zero_pack())
-      recinfo_pos->type= (int) FIELD_SKIP_ZERO;
+      recinfo_pos->type= FIELD_SKIP_ZERO;
     else
-      recinfo_pos->type= (int) ((length <= 3 ||
-                                 (found->flags & ZEROFILL_FLAG)) ?
-                                FIELD_NORMAL :
-                                found->type() == MYSQL_TYPE_STRING ||
-                                found->type() == MYSQL_TYPE_VAR_STRING ?
-                                FIELD_SKIP_ENDSPACE : FIELD_SKIP_PRESPACE);
+      recinfo_pos->type= ((length <= 3 ||
+                           (found->flags & ZEROFILL_FLAG)) ?
+                          FIELD_NORMAL :
+                          found->type() == MYSQL_TYPE_STRING ||
+                          found->type() == MYSQL_TYPE_VAR_STRING ?
+                          FIELD_SKIP_ENDSPACE : FIELD_SKIP_PRESPACE);
     if (found->null_ptr)
     {
       recinfo_pos->null_bit= found->null_bit;
@@ -1666,12 +1667,26 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
   if (options & HA_OPTION_DELAY_KEY_WRITE)
     create_flags |= HA_CREATE_DELAY_KEY_WRITE;
 
+  switch (info->row_type) {
+  case ROW_TYPE_FIXED:
+    row_type= STATIC_RECORD;
+    break;
+  case ROW_TYPE_DYNAMIC:
+    row_type= DYNAMIC_RECORD;
+    break;
+  default:
+  case ROW_TYPE_PAGES:
+    row_type= BLOCK_RECORD;
+    break;
+  }
+
   /* TODO: Check that the following fn_format is really needed */
   error=
-    maria_create(fn_format
-                 (buff, name, "", "", MY_UNPACK_FILENAME | MY_APPEND_EXT),
-                 share->keys, keydef, (uint) (recinfo_pos - recinfo), recinfo,
-                 0, (MARIA_UNIQUEDEF *) 0, &create_info, create_flags);
+    maria_create(fn_format(buff, name, "", "",
+                           MY_UNPACK_FILENAME | MY_APPEND_EXT),
+                 row_type, share->keys, keydef, (uint) (recinfo_pos - recinfo),
+                 recinfo, 0, (MARIA_UNIQUEDEF *) 0, &create_info,
+                 create_flags);
 
   my_free((gptr) recinfo, MYF(0));
   DBUG_RETURN(error);

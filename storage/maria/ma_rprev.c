@@ -33,7 +33,8 @@ int maria_rprev(MARIA_HA *info, byte *buf, int inx)
   if ((inx = _ma_check_index(info,inx)) < 0)
     DBUG_RETURN(my_errno);
   flag=SEARCH_SMALLER;				/* Read previous */
-  if (info->lastpos == HA_OFFSET_ERROR && info->update & HA_STATE_NEXT_FOUND)
+  if (info->cur_row.lastpos == HA_OFFSET_ERROR &&
+      info->update & HA_STATE_NEXT_FOUND)
     flag=0;					/* Read last */
 
   if (fast_ma_readinfo(info))
@@ -56,7 +57,7 @@ int maria_rprev(MARIA_HA *info, byte *buf, int inx)
   {
     if (!error)
     {
-      while (info->lastpos >= info->state->data_file_length)
+      while (info->cur_row.lastpos >= info->state->data_file_length)
       {
 	/* Skip rows that are inserted by other threads since we got a lock */
 	if  ((error= _ma_search_next(info,share->keyinfo+inx,info->lastkey,
@@ -77,9 +78,9 @@ int maria_rprev(MARIA_HA *info, byte *buf, int inx)
   }
   else if (!buf)
   {
-    DBUG_RETURN(info->lastpos==HA_OFFSET_ERROR ? my_errno : 0);
+    DBUG_RETURN(info->cur_row.lastpos == HA_OFFSET_ERROR ? my_errno : 0);
   }
-  else if (!(*info->read_record)(info,info->lastpos,buf))
+  else if (!(*info->read_record)(info, buf, info->cur_row.lastpos))
   {
     info->update|= HA_STATE_AKTIV;		/* Record is read */
     DBUG_RETURN(0);

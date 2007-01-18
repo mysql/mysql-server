@@ -141,7 +141,7 @@ static int _ma_ft_store(MARIA_HA *info, uint keynr, byte *keybuf,
   for (; wlist->pos; wlist++)
   {
     key_length= _ma_ft_make_key(info,keynr,keybuf,wlist,filepos);
-    if (_ma_ck_write(info,keynr,(uchar*) keybuf,key_length))
+    if (_ma_ck_write(info, keynr, keybuf, key_length))
       DBUG_RETURN(1);
    }
    DBUG_RETURN(0);
@@ -156,7 +156,7 @@ static int _ma_ft_erase(MARIA_HA *info, uint keynr, byte *keybuf,
   for (; wlist->pos; wlist++)
   {
     key_length= _ma_ft_make_key(info,keynr,keybuf,wlist,filepos);
-    if (_ma_ck_delete(info,keynr,(uchar*) keybuf,key_length))
+    if (_ma_ck_delete(info, keynr, keybuf, key_length))
       err=1;
    }
    DBUG_RETURN(err);
@@ -219,13 +219,13 @@ int _ma_ft_update(MARIA_HA *info, uint keynr, byte *keybuf,
     if (cmp < 0 || cmp2)
     {
       key_length= _ma_ft_make_key(info,keynr,keybuf,old_word,pos);
-      if ((error= _ma_ck_delete(info,keynr,(uchar*) keybuf,key_length)))
+      if ((error= _ma_ck_delete(info,keynr, keybuf,key_length)))
         goto err;
     }
     if (cmp > 0 || cmp2)
     {
-      key_length= _ma_ft_make_key(info,keynr,keybuf,new_word,pos);
-      if ((error= _ma_ck_write(info,keynr,(uchar*) keybuf,key_length)))
+      key_length= _ma_ft_make_key(info, keynr, keybuf, new_word,pos);
+      if ((error= _ma_ck_write(info, keynr, keybuf,key_length)))
         goto err;
     }
     if (cmp<=0) old_word++;
@@ -277,8 +277,9 @@ int _ma_ft_del(MARIA_HA *info, uint keynr, byte *keybuf, const byte *record,
   DBUG_RETURN(error);
 }
 
+
 uint _ma_ft_make_key(MARIA_HA *info, uint keynr, byte *keybuf, FT_WORD *wptr,
-		  my_off_t filepos)
+                     my_off_t filepos)
 {
   byte buf[HA_FT_MAXBYTELEN+16];
   DBUG_ENTER("_ma_ft_make_key");
@@ -294,7 +295,7 @@ uint _ma_ft_make_key(MARIA_HA *info, uint keynr, byte *keybuf, FT_WORD *wptr,
 
   int2store(buf+HA_FT_WLEN,wptr->len);
   memcpy(buf+HA_FT_WLEN+2,wptr->pos,wptr->len);
-  DBUG_RETURN(_ma_make_key(info,keynr,(uchar*) keybuf,buf,filepos));
+  DBUG_RETURN(_ma_make_key(info, keynr, keybuf, buf, filepos));
 }
 
 
@@ -302,12 +303,12 @@ uint _ma_ft_make_key(MARIA_HA *info, uint keynr, byte *keybuf, FT_WORD *wptr,
   convert key value to ft2
 */
 
-uint _ma_ft_convert_to_ft2(MARIA_HA *info, uint keynr, uchar *key)
+uint _ma_ft_convert_to_ft2(MARIA_HA *info, uint keynr, byte *key)
 {
   my_off_t root;
   DYNAMIC_ARRAY *da=info->ft1_to_ft2;
   MARIA_KEYDEF *keyinfo=&info->s->ft2_keyinfo;
-  uchar *key_ptr= (uchar*) dynamic_array_ptr(da, 0), *end;
+  byte *key_ptr= (byte*) dynamic_array_ptr(da, 0), *end;
   uint length, key_length;
   DBUG_ENTER("_ma_ft_convert_to_ft2");
 
@@ -329,13 +330,13 @@ uint _ma_ft_convert_to_ft2(MARIA_HA *info, uint keynr, uchar *key)
   /* creating pageful of keys */
   maria_putint(info->buff,length+2,0);
   memcpy(info->buff+2, key_ptr, length);
-  info->buff_used=info->page_changed=1;           /* info->buff is used */
+  info->keybuff_used=info->page_changed=1;           /* info->buff is used */
   if ((root= _ma_new(info,keyinfo,DFLT_INIT_HITS)) == HA_OFFSET_ERROR ||
       _ma_write_keypage(info,keyinfo,root,DFLT_INIT_HITS,info->buff))
     DBUG_RETURN(-1);
 
   /* inserting the rest of key values */
-  end= (uchar*) dynamic_array_ptr(da, da->elements);
+  end= (byte*) dynamic_array_ptr(da, da->elements);
   for (key_ptr+=length; key_ptr < end; key_ptr+=keyinfo->keylength)
     if(_ma_ck_real_write_btree(info, keyinfo, key_ptr, 0, &root, SEARCH_SAME))
       DBUG_RETURN(-1);
