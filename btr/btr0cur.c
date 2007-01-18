@@ -2767,7 +2767,7 @@ btr_cur_pessimistic_delete(
 	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
 
 	/* Free externally stored fields if the record is neither
-	a node pointer nor in two-byte format.
+	a node pointer nor in one-byte format.
 	This condition avoids an unnecessary loop. */
 	if (page_is_leaf(page)
 	    && (page_is_comp(page)
