@@ -682,9 +682,7 @@ dict_table_get_on_id(
 		if we are doing a rollback to handle an error in TABLE
 		CREATE, for example, we already have the mutex! */
 
-#ifdef UNIV_SYNC_DEBUG
 		ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 		return(dict_table_get_on_id_low(table_id));
 	}
@@ -894,9 +892,8 @@ dict_table_add_to_cache(
 	/* The lower limit for what we consider a "big" row */
 #define BIG_ROW_SIZE 1024
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
+
 	dict_table_add_system_columns(table);
 
 	table->cached = TRUE;
@@ -1007,9 +1004,7 @@ dict_table_rename_in_cache(
 	ibool		success;
 
 	ut_ad(table);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	old_size = mem_heap_get_size(table->heap);
 
@@ -1213,9 +1208,7 @@ dict_table_change_id_in_cache(
 	dulint		new_id)	/* in: new id to set */
 {
 	ut_ad(table);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	/* Remove the table from the hash table of id's */
@@ -1242,9 +1235,7 @@ dict_table_remove_from_cache(
 	ulint		size;
 
 	ut_ad(table);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 #if 0
@@ -1358,9 +1349,7 @@ dict_index_add_to_cache(
 	ulint		i;
 
 	ut_ad(index);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(index->n_def == index->n_fields);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
@@ -1456,9 +1445,7 @@ dict_index_remove_from_cache(
 	ut_ad(table && index);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	rw_lock_free(&index->lock);
 
@@ -1488,9 +1475,7 @@ dict_index_find_cols(
 
 	ut_ad(table && index);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	for (i = 0; i < index->n_fields; i++) {
 		ulint		j;
@@ -1651,9 +1636,7 @@ dict_index_build_internal_clust(
 
 	ut_ad(table && index);
 	ut_ad(dict_index_is_clust(index));
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	/* Create a new index object with certainly enough fields */
@@ -1805,9 +1788,7 @@ dict_index_build_internal_non_clust(
 
 	ut_ad(table && index);
 	ut_ad(!dict_index_is_clust(index));
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	/* The clustered index should be the first in the list of indexes */
@@ -1920,9 +1901,7 @@ dict_foreign_remove_from_cache(
 /*===========================*/
 	dict_foreign_t*	foreign)	/* in, own: foreign constraint */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_a(foreign);
 
 	if (foreign->referenced_table) {
@@ -1954,9 +1933,7 @@ dict_foreign_find(
 {
 	dict_foreign_t*	foreign;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	foreign = UT_LIST_GET_FIRST(table->foreign_list);
 
@@ -2115,9 +2092,7 @@ dict_foreign_add_to_cache(
 	ibool		added_to_referenced_list= FALSE;
 	FILE*		ef			= dict_foreign_err_file;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	for_table = dict_table_check_if_in_cache_low(
 		foreign->foreign_table_name);
@@ -2796,9 +2771,7 @@ dict_create_foreign_constraints_low(
 	const char*	column_names[500];
 	const char*	referenced_table_name;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	table = dict_table_get_low(name);
 
@@ -3427,9 +3400,7 @@ dict_foreign_parse_drop_constraints(
 	str = dict_strip_comments(*(trx->mysql_query_str));
 	ptr = str;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 loop:
 	ptr = dict_scan_to(ptr, "DROP");
 
@@ -3538,9 +3509,7 @@ dict_index_get_if_in_cache_low(
 				/* out: index, NULL if not found */
 	dulint	index_id)	/* in: index id */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	return(dict_index_find_on_id_low(index_id));
 }
@@ -3883,9 +3852,7 @@ dict_foreign_print_low(
 {
 	ulint	i;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	fprintf(stderr, "  FOREIGN KEY CONSTRAINT %s: %s (",
 		foreign->id, foreign->foreign_table_name);
@@ -3950,9 +3917,7 @@ dict_table_print_low(
 	dict_foreign_t*	foreign;
 	ulint		i;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	dict_update_statistics_low(table, TRUE);
 
@@ -4008,9 +3973,7 @@ dict_col_print_low(
 {
 	dtype_t	type;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	dict_col_copy_type(col, &type);
 	fprintf(stderr, "%s: ", dict_table_get_col_name(table,
@@ -4030,9 +3993,7 @@ dict_index_print_low(
 	ib_longlong	n_vals;
 	ulint		i;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	if (index->n_user_defined_cols > 0) {
 		n_vals = index->stat_n_diff_key_vals[
@@ -4080,9 +4041,8 @@ dict_field_print_low(
 /*=================*/
 	dict_field_t*	field)	/* in: field */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
+
 	fprintf(stderr, " %s", field->name);
 
 	if (field->prefix_len != 0) {
