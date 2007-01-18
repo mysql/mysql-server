@@ -592,8 +592,8 @@ static uint copy_decode_table(uint16 *to_pos, uint offset,
 			      uint16 *decode_table)
 {
   uint prev_offset;
-  prev_offset= offset;
   DBUG_ENTER("copy_decode_table");
+  prev_offset= offset;  
 
   /* Descent on the left side. */
   if (!(*decode_table & IS_CHAR))
