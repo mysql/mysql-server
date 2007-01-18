@@ -2,8 +2,7 @@
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
+   the Free Software Foundation; version 2 of the License.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -178,6 +177,7 @@ my_bool innobase_use_large_pages		= FALSE;
 my_bool	innobase_use_native_aio			= FALSE;
 my_bool	innobase_file_per_table			= FALSE;
 my_bool innobase_locks_unsafe_for_binlog	= FALSE;
+my_bool innobase_rollback_on_timeout		= FALSE;
 my_bool innobase_create_status_file		= FALSE;
 
 static char *internal_innobase_data_file_path	= NULL;
@@ -469,6 +469,10 @@ convert_error_code_to_mysql(
 		/* Starting from 5.0.13, we let MySQL just roll back the
 		latest SQL statement in a lock wait timeout. Previously, we
 		rolled back the whole transaction. */
+
+		if (thd && row_rollback_on_timeout) {
+			ha_rollback(thd);
+		}
 
 		return(HA_ERR_LOCK_WAIT_TIMEOUT);
 
@@ -922,7 +926,6 @@ ha_innobase::update_thd(
 			/* out: 0 or error code */
 	THD*	thd)	/* in: thd to use the handle */
 {
-	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	trx_t*		trx;
 
 	trx = check_trx_exists(ht, thd);
@@ -1265,8 +1268,6 @@ void
 ha_innobase::init_table_handle_for_HANDLER(void)
 /*============================================*/
 {
-	row_prebuilt_t* prebuilt;
-
 	/* If current thd does not yet have a trx struct, create one.
 	If the current handle does not yet have a prebuilt struct, create
 	one. Update the trx pointers in the prebuilt struct. Normally
@@ -1276,8 +1277,6 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 
 	/* Initialize the prebuilt struct much like it would be inited in
 	external_lock */
-
-	prebuilt = (row_prebuilt_t*)innobase_prebuilt;
 
 	innobase_release_stat_resources(prebuilt->trx);
 
@@ -1530,6 +1529,8 @@ innobase_init(void *p)
 
 	os_use_large_pages = (ibool) innobase_use_large_pages;
 	os_large_page_size = (ulint) innobase_large_page_size;
+
+	row_rollback_on_timeout = (ibool) innobase_rollback_on_timeout;
 
 	srv_file_per_table = (ibool) innobase_file_per_table;
 	srv_locks_unsafe_for_binlog = (ibool) innobase_locks_unsafe_for_binlog;
@@ -2186,8 +2187,6 @@ ha_innobase::get_row_type() const
 /*=============================*/
 			/* out: ROW_TYPE_REDUNDANT or ROW_TYPE_COMPACT */
 {
-	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
-
 	if (prebuilt && prebuilt->table) {
 		if (dict_table_is_comp_noninline(prebuilt->table)) {
 			return(ROW_TYPE_COMPACT);
@@ -2352,10 +2351,9 @@ ha_innobase::open(
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
 
-	innobase_prebuilt = row_create_prebuilt(ib_table);
+	prebuilt = row_create_prebuilt(ib_table);
 
-	((row_prebuilt_t*)innobase_prebuilt)->mysql_row_len =
-							table->s->reclength;
+	prebuilt->mysql_row_len = table->s->reclength;
 
 	/* Looks like MySQL-3.23 sometimes has primary key number != 0 */
 
@@ -2374,8 +2372,8 @@ ha_innobase::open(
 				  "dictionary, but not in MySQL!", name);
 		}
 
-		((row_prebuilt_t*)innobase_prebuilt)
-				->clust_index_was_generated = FALSE;
+		prebuilt->clust_index_was_generated = FALSE;
+
 		/* MySQL allocates the buffer for ref. key_info->key_length
 		includes space for all key columns + one byte for each column
 		that may be NULL. ref_length must be as exact as possible to
@@ -2396,8 +2394,7 @@ ha_innobase::open(
 				  "of the table.", name);
 		}
 
-		((row_prebuilt_t*)innobase_prebuilt)
-				->clust_index_was_generated = TRUE;
+		prebuilt->clust_index_was_generated = TRUE;
 
 		ref_length = DATA_ROW_ID_LEN;
 
@@ -2444,7 +2441,7 @@ ha_innobase::close(void)
 {
 	DBUG_ENTER("ha_innobase::close");
 
-	row_prebuilt_free((row_prebuilt_t*) innobase_prebuilt);
+	row_prebuilt_free(prebuilt);
 
 	my_free((gptr) upd_buff, MYF(0));
 	free_share(share);
@@ -3231,7 +3228,6 @@ ha_innobase::write_row(
 				/* out: error code */
 	mysql_byte*	record)	/* in: a row in MySQL format */
 {
-	row_prebuilt_t* prebuilt = (row_prebuilt_t*)innobase_prebuilt;
 	int		error;
 	longlong	auto_inc;
 	longlong	dummy;
@@ -3622,7 +3618,6 @@ ha_innobase::update_row(
 	const mysql_byte*	old_row,/* in: old row in MySQL format */
 	mysql_byte*		new_row)/* in: new row in MySQL format */
 {
-	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	upd_t*		uvect;
 	int		error = 0;
 
@@ -3684,7 +3679,6 @@ ha_innobase::delete_row(
 					/* out: error number or 0 */
 	const mysql_byte* record)	/* in: a row in MySQL format */
 {
-	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	int		error = 0;
 
 	DBUG_ENTER("ha_innobase::delete_row");
@@ -3732,8 +3726,6 @@ void
 ha_innobase::unlock_row(void)
 /*=========================*/
 {
-	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
-
 	DBUG_ENTER("ha_innobase::unlock_row");
 
 	if (UNIV_UNLIKELY(last_query_id != user_thd->query_id)) {
@@ -3775,8 +3767,6 @@ bool
 ha_innobase::was_semi_consistent_read(void)
 /*=======================================*/
 {
-	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
-
 	return(prebuilt->row_read_type == ROW_READ_DID_SEMI_CONSISTENT);
 }
 
@@ -3785,8 +3775,6 @@ void
 ha_innobase::try_semi_consistent_read(bool yes)
 /*===========================================*/
 {
-	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
-
 	ut_a(prebuilt->trx ==
 		(trx_t*) current_thd->ha_data[ht->slot]);
 
@@ -3945,7 +3933,6 @@ ha_innobase::index_read(
 	uint			key_len,/* in: key value length */
 	enum ha_rkey_function find_flag)/* in: search flags from my_base.h */
 {
-	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 	ulint		mode;
 	dict_index_t*	index;
 	ulint		match_mode	= 0;
@@ -4062,7 +4049,6 @@ ha_innobase::change_active_index(
 			index, even if it was internally generated by
 			InnoDB */
 {
-	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 	KEY*		key=0;
 	statistic_increment(current_thd->status_var.ha_read_key_count,
 		&LOCK_status);
@@ -4153,7 +4139,6 @@ ha_innobase::general_fetch(
 	uint	match_mode)	/* in: 0, ROW_SEL_EXACT, or
 				ROW_SEL_EXACT_PREFIX */
 {
-	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	ulint		ret;
 	int		error	= 0;
 
@@ -4307,8 +4292,6 @@ ha_innobase::rnd_init(
 {
 	int	err;
 
-	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
-
 	/* Store the active index value so that we can restore the original
 	value after a scan */
 
@@ -4386,7 +4369,6 @@ ha_innobase::rnd_pos(
 				the length of data in pos has to be
 				ref_length */
 {
-	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	int		error;
 	uint		keynr	= active_index;
 	DBUG_ENTER("rnd_pos");
@@ -4442,7 +4424,6 @@ ha_innobase::position(
 /*==================*/
 	const mysql_byte*	record)	/* in: row in MySQL format */
 {
-	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	uint		len;
 
 	ut_a(prebuilt->trx ==
@@ -4946,7 +4927,6 @@ ha_innobase::discard_or_import_tablespace(
 				/* out: 0 == success, -1 == error */
 	my_bool discard)	/* in: TRUE if discard, else import */
 {
-	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 	dict_table_t*	dict_table;
 	trx_t*		trx;
 	int		err;
@@ -4979,7 +4959,6 @@ ha_innobase::delete_all_rows(void)
 /*==============================*/
 				/* out: error number */
 {
-	row_prebuilt_t*	prebuilt	= (row_prebuilt_t*)innobase_prebuilt;
 	int		error;
 	THD*		thd		= current_thd;
 
@@ -5264,7 +5243,6 @@ ha_innobase::records_in_range(
 	key_range		*max_key)	/* in: range end key val, may
 						   also be 0 */
 {
-	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 	KEY*		key;
 	dict_index_t*	index;
 	mysql_byte*	key_val_buff2	= (mysql_byte*) my_malloc(
@@ -5358,7 +5336,6 @@ ha_innobase::estimate_rows_upper_bound(void)
 /*======================================*/
 			/* out: upper bound of rows */
 {
-	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 	dict_index_t*	index;
 	ulonglong	estimate;
 	ulonglong	local_data_file_length;
@@ -5407,8 +5384,6 @@ ha_innobase::scan_time()
 /*====================*/
 			/* out: estimated time measured in disk seeks */
 {
-	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
-
 	/* Since MySQL seems to favor table scans too much over index
 	searches, we pretend that a sequential read takes the same time
 	as a random disk read, that is, we do not divide the following
@@ -5464,7 +5439,6 @@ ha_innobase::info(
 /*==============*/
 	uint flag)	/* in: what information MySQL requests */
 {
-	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 	dict_table_t*	ib_table;
 	dict_index_t*	index;
 	ha_rows		rec_per_key;
@@ -5715,7 +5689,6 @@ ha_innobase::check(
 	HA_CHECK_OPT*	check_opt)	/* in: check options, currently
 					ignored */
 {
-	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 	ulint		ret;
 
 	ut_a(prebuilt->trx && prebuilt->trx->magic_n == TRX_MAGIC_N);
@@ -5750,9 +5723,8 @@ ha_innobase::update_table_comment(
 				info on foreign keys */
 	const char*	comment)/* in: table comment defined by user */
 {
-	uint	length			= (uint) strlen(comment);
-	char*				str;
-	row_prebuilt_t*	prebuilt	= (row_prebuilt_t*)innobase_prebuilt;
+	uint	length = (uint) strlen(comment);
+	char*	str;
 	long	flen;
 
 	/* We do not know if MySQL can call this function before calling
@@ -5825,7 +5797,6 @@ ha_innobase::get_foreign_key_create_info(void)
 			can be inserted to the CREATE TABLE statement,
 			MUST be freed with ::free_foreign_key_create_info */
 {
-	row_prebuilt_t* prebuilt = (row_prebuilt_t*)innobase_prebuilt;
 	char*	str	= 0;
 	long	flen;
 
@@ -5883,7 +5854,6 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
   dict_foreign_t* foreign;
 
   DBUG_ENTER("get_foreign_key_list");
-  row_prebuilt_t* prebuilt = (row_prebuilt_t*)innobase_prebuilt;
   ut_a(prebuilt != NULL);
   update_thd(current_thd);
   prebuilt->trx->op_info = (char*)"getting list of foreign keys";
@@ -5998,7 +5968,6 @@ bool
 ha_innobase::can_switch_engines(void)
 /*=================================*/
 {
-	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 	bool	can_switch;
 
 	DBUG_ENTER("ha_innobase::can_switch_engines");
@@ -6030,8 +5999,6 @@ ha_innobase::referenced_by_foreign_key(void)
 /*========================================*/
 			/* out: > 0 if referenced by a FOREIGN KEY */
 {
-	row_prebuilt_t* prebuilt = (row_prebuilt_t*)innobase_prebuilt;
-
 	if (dict_table_referenced_by_foreign_key(prebuilt->table)) {
 
 		return(1);
@@ -6064,8 +6031,6 @@ ha_innobase::extra(
 	enum ha_extra_function operation)
 			   /* in: HA_EXTRA_FLUSH or some other flag */
 {
-	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
-
 	/* Warning: since it is not sure that MySQL calls external_lock
 	before calling this function, the trx field in prebuilt can be
 	obsolete! */
@@ -6098,7 +6063,6 @@ ha_innobase::extra(
 
 int ha_innobase::reset()
 {
-  row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
   if (prebuilt->blob_heap) {
     row_mysql_prebuilt_free_blob_heap(prebuilt);
   }
@@ -6127,7 +6091,6 @@ ha_innobase::start_stmt(
 	THD*		thd,	/* in: handle to the user thread */
 	thr_lock_type	lock_type)
 {
-	row_prebuilt_t* prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	trx_t*		trx;
 
 	update_thd(thd);
@@ -6226,7 +6189,6 @@ ha_innobase::external_lock(
 	THD*	thd,		/* in: handle to the user thread */
 	int	lock_type)	/* in: lock type */
 {
-	row_prebuilt_t* prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	trx_t*		trx;
 
 	DBUG_ENTER("ha_innobase::external_lock");
@@ -6368,7 +6330,6 @@ ha_innobase::transactional_table_lock(
 	THD*	thd,		/* in: handle to the user thread */
 	int	lock_type)	/* in: lock type */
 {
-	row_prebuilt_t* prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	trx_t*		trx;
 
 	DBUG_ENTER("ha_innobase::transactional_table_lock");
@@ -6756,7 +6717,6 @@ ha_innobase::store_lock(
 						'lock'; this may also be
 						TL_IGNORE */
 {
-	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 	trx_t*		trx;
 
 	/* Note that trx in this function is NOT necessarily prebuilt->trx
@@ -6948,7 +6908,6 @@ ha_innobase::innobase_read_and_init_auto_inc(
 				timeout */
 	longlong*	ret)	/* out: auto-inc value */
 {
-	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 	longlong	auto_inc;
 	ulint		old_select_lock_type;
 	ibool		trx_was_not_started	= FALSE;
@@ -7128,8 +7087,7 @@ ha_innobase::reset_auto_increment(ulonglong value)
 {
 	DBUG_ENTER("ha_innobase::reset_auto_increment");
 
-	row_prebuilt_t* prebuilt = (row_prebuilt_t*) innobase_prebuilt;
-	int		error;
+	int	error;
 
 	update_thd(current_thd);
 
@@ -7173,7 +7131,6 @@ ha_innobase::cmp_ref(
 	const mysql_byte* ref2)	/* in: an (internal) primary key value in the
 				MySQL key value format */
 {
-	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 	enum_field_types mysql_type;
 	Field*		field;
 	KEY_PART_INFO*	key_part;
