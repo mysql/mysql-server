@@ -4478,10 +4478,10 @@ int Item_hex_string::save_in_field(Field *field, bool no_conversions)
     nr= LONGLONG_MAX;
     goto warn;
   }
-  return field->store((longlong) nr);
+  return field->store((longlong) nr, TRUE);  // Assume hex numbers are unsigned
 
 warn:
-  if (!field->store((longlong) nr))
+  if (!field->store((longlong) nr, TRUE))
     field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE,
                        1);
   return 1;
