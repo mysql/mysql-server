@@ -223,6 +223,18 @@ buf_page_get_known_nowait(
 	ulint		line,	/* in: line where called */
 	mtr_t*		mtr);	/* in: mini-transaction */
 /************************************************************************
+Get read access to a compressed page (usually FIL_PAGE_TYPE_ZBLOB).
+The page must be released with buf_page_release_zip(). */
+
+buf_page_t*
+buf_page_get_zip(
+/*=============*/
+				/* out: pointer to the block,
+				or NULL if not compressed */
+	ulint		space,	/* in: space id */
+	ulint		zip_size,/* in: compressed page size */
+	ulint		offset);/* in: page number */
+/************************************************************************
 This is the general function used to get access to a database page. */
 
 buf_block_t*
@@ -269,6 +281,13 @@ buf_page_init_for_backup_restore(
 				or 0 for uncompressed pages */
 	buf_block_t*	block);	/* in: block to init */
 #endif /* UNIV_HOTBACKUP */
+/************************************************************************
+Releases a compressed-only page acquired with buf_page_get_zip(). */
+UNIV_INLINE
+void
+buf_page_release_zip(
+/*=================*/
+	buf_page_t*	bpage);		/* in: buffer block */
 /************************************************************************
 Decrements the bufferfix count of a buffer control block and releases
 a latch, if specified. */
