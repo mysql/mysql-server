@@ -269,6 +269,7 @@ public:
   enum Functype functype() const { return NOT_FUNC; }
   const char *func_name() const { return "not"; }
   Item *neg_transformer(THD *thd);
+  void print(String *str);
 };
 
 class Item_maxmin_subselect;
