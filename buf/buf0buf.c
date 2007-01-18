@@ -2753,7 +2753,20 @@ buf_validate(void)
 	for (b = UT_LIST_GET_FIRST(buf_pool->zip_clean); b;
 	     b = UT_LIST_GET_NEXT(list, b)) {
 		ut_a(buf_page_get_state(b) == BUF_BLOCK_ZIP_PAGE);
-		ut_a(buf_page_get_io_fix(b) == BUF_IO_NONE);
+		switch (buf_page_get_io_fix(b)) {
+		case BUF_IO_NONE:
+			/* All clean blocks should be I/O-unfixed. */
+			break;
+		case BUF_IO_READ:
+			/* In buf_LRU_free_block(), we temporarily set
+			b->io_fix = BUF_IO_READ for a newly allocated
+			control block in order to lock out
+			buf_page_init_for_read(). */
+			break;
+		default:
+			ut_error;
+			break;
+		}
 		ut_a(!b->oldest_modification);
 		ut_a(buf_page_hash_get(b->space, b->offset) == b);
 
