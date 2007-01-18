@@ -257,9 +257,7 @@ mem_pool_fill_free_list(
 	mem_area_t*	area2;
 	ibool		ret;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(pool->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	if (i >= 63) {
 		/* We come here when we have run out of space in the

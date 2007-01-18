@@ -168,9 +168,9 @@ UNIV_INLINE
 ulint
 mutex_get_lock_word(
 /*================*/
-	mutex_t*	mutex)	/* in: mutex */
+	const mutex_t*	mutex)	/* in: mutex */
 {
-	volatile ulint*	ptr;		/* declared volatile to ensure that
+	const volatile ulint*	ptr;	/* declared volatile to ensure that
 					lock_word is loaded from memory */
 	ut_ad(mutex);
 
@@ -186,9 +186,9 @@ ulint
 mutex_get_waiters(
 /*==============*/
 				/* out: value to set */
-	mutex_t*	mutex)	/* in: mutex */
+	const mutex_t*	mutex)	/* in: mutex */
 {
-	volatile ulint*	ptr;		/* declared volatile to ensure that
+	const volatile ulint*	ptr;	/* declared volatile to ensure that
 					the value is read from memory */
 	ut_ad(mutex);
 
@@ -206,11 +206,11 @@ mutex_exit(
 /*=======*/
 	mutex_t*	mutex)	/* in: pointer to mutex */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(mutex));
 
-	mutex->thread_id = ULINT_UNDEFINED;
+	ut_d(mutex->thread_id = ULINT_UNDEFINED);
 
+#ifdef UNIV_SYNC_DEBUG
 	sync_thread_reset_level(mutex);
 #endif
 	mutex_reset_lock_word(mutex);
@@ -259,6 +259,7 @@ mutex_enter_func(
 #endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 
 	if (!mutex_test_and_set(mutex)) {
+		ut_d(mutex->thread_id = os_thread_get_curr_id());
 #ifdef UNIV_SYNC_DEBUG
 		mutex_set_debug_info(mutex, file_name, line);
 #endif
