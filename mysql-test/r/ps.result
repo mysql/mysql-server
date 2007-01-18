@@ -1055,6 +1055,65 @@ EXECUTE stmt USING @a;
 0	0
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 (i INT);
+PREPARE st_19182
+FROM "CREATE TABLE t2 (i INT, j INT, KEY (i), KEY(j)) SELECT i FROM t1";
+EXECUTE st_19182;
+DESC t2;
+Field	Type	Null	Key	Default	Extra
+j	int(11)	YES	MUL	NULL	
+i	int(11)	YES	MUL	NULL	
+DROP TABLE t2;
+EXECUTE st_19182;
+DESC t2;
+Field	Type	Null	Key	Default	Extra
+j	int(11)	YES	MUL	NULL	
+i	int(11)	YES	MUL	NULL	
+DEALLOCATE PREPARE st_19182;
+DROP TABLE t2, t1;
+drop database if exists mysqltest;
+drop table if exists t1, t2;
+create database mysqltest character set utf8;
+prepare stmt1 from "create table mysqltest.t1 (c char(10))";
+prepare stmt2 from "create table mysqltest.t2 select 'test'";
+execute stmt1;
+execute stmt2;
+show create table mysqltest.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` char(10) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8
+show create table mysqltest.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `test` varchar(4) character set latin1 NOT NULL default ''
+) ENGINE=MyISAM DEFAULT CHARSET=utf8
+drop table mysqltest.t1;
+drop table mysqltest.t2;
+alter database mysqltest character set latin1;
+execute stmt1;
+execute stmt2;
+show create table mysqltest.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` char(10) character set utf8 default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create table mysqltest.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `test` varchar(4) NOT NULL default ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop database mysqltest;
+deallocate prepare stmt1;
+deallocate prepare stmt2;
+execute stmt;
+show create table t1;
+drop table t1;
+execute stmt;
+show create table t1;
+drop table t1;
+deallocate prepare stmt;
 End of 4.1 tests.
 create table t1 (a varchar(20));
 insert into t1 values ('foo');
@@ -1536,4 +1595,54 @@ a
 2
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1,t2;
+drop table if exists t1;
+create table t1 (s1 char(20));
+prepare stmt from "alter table t1 modify s1 int";
+execute stmt;
+execute stmt;
+drop table t1;
+deallocate prepare stmt;
+drop table if exists t1;
+create table t1 (a int, b int);
+prepare s_6895 from "alter table t1 drop column b";
+execute s_6895;
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+drop table t1;
+create table t1 (a int, b int);
+execute s_6895;
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+drop table t1;
+create table t1 (a int, b int);
+execute s_6895;
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+deallocate prepare s_6895;
+drop table t1;
+create table t1 (i int primary key auto_increment) comment='comment for table t1';
+create table t2 (i int, j int, k int);
+prepare stmt from "alter table t1 auto_increment=100";
+execute stmt;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL auto_increment,
+  PRIMARY KEY  (`i`)
+) ENGINE=MyISAM AUTO_INCREMENT=100 DEFAULT CHARSET=latin1 COMMENT='comment for table t1'
+flush tables;
+select * from t2;
+i	j	k
+execute stmt;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL auto_increment,
+  PRIMARY KEY  (`i`)
+) ENGINE=MyISAM AUTO_INCREMENT=100 DEFAULT CHARSET=latin1 COMMENT='comment for table t1'
+deallocate prepare stmt;
+drop table t1, t2;
 End of 5.0 tests.
