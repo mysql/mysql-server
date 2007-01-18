@@ -933,6 +933,7 @@ DROP VIEW v2;
 DROP VIEW v1;
 DROP USER mysqltest_u1@localhost;
 
+
 #
 # Bug#17254: Error for DEFINER security on VIEW provides too much info
 #
