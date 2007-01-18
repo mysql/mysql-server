@@ -915,15 +915,19 @@ buf_LRU_free_block(
 
 	if (!buf_page_can_relocate(bpage)) {
 
+		/* Do not free buffer-fixed or I/O-fixed blocks. */
 		return(FALSE);
 	}
 
-	if (bpage->oldest_modification) {
+	if (zip || !bpage->zip.data) {
+		/* This would completely free the block. */
 		/* Do not completely free dirty blocks. */
 
-		if (zip || !bpage->zip.data) {
+		if (bpage->oldest_modification) {
 			return(FALSE);
 		}
+	} else if (bpage->oldest_modification) {
+		/* Do not completely free dirty blocks. */
 
 		if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE) {
 			ut_ad(buf_page_get_state(bpage)
@@ -931,6 +935,12 @@ buf_LRU_free_block(
 			return(FALSE);
 		}
 
+		goto alloc;
+	} else {
+		/* Allocate the control block for the compressed page.
+		If it cannot be allocated (without freeing a block
+		from the LRU list), refuse to free bpage. */
+alloc:
 		b = buf_buddy_alloc(sizeof *b, FALSE);
 
 		if (!b) {
@@ -1162,7 +1172,7 @@ buf_LRU_block_remove_hashed_page(
 				if (!zip) {
 					/* InnoDB writes the data to the
 					uncompressed page frame.  Copy it
-					to the compressed page, will will
+					to the compressed page, which will
 					be preserved. */
 					memcpy(bpage->zip.data, page,
 					       page_zip_get_size(&bpage->zip));
