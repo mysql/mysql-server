@@ -2,8 +2,7 @@
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
+   the Free Software Foundation; version 2 of the License.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -34,6 +33,7 @@ typedef struct st_innobase_share {
 
 
 struct row_prebuilt_struct;
+typedef struct row_prebuilt_struct row_prebuilt_t;
 
 my_bool innobase_query_caching_of_table_permitted(THD* thd, char* full_name,
 						  uint full_name_len,
@@ -42,9 +42,8 @@ my_bool innobase_query_caching_of_table_permitted(THD* thd, char* full_name,
 /* The class defining a handle to an Innodb table */
 class ha_innobase: public handler
 {
-	void*		innobase_prebuilt;/* (row_prebuilt_t*) prebuilt
-					struct in InnoDB, used to save
-					CPU time with prebuilt data
+	row_prebuilt_t*	prebuilt;	/* prebuilt struct in InnoDB, used
+					to save CPU time with prebuilt data
 					structures*/
 	THD*		user_thd;	/* the thread handle of the user
 					currently using the handle; this is
@@ -223,6 +222,7 @@ extern my_bool innobase_log_archive,
 	innobase_use_large_pages,
 	innobase_use_native_aio,
 	innobase_file_per_table, innobase_locks_unsafe_for_binlog,
+	innobase_rollback_on_timeout,
 	innobase_create_status_file;
 extern "C" {
 extern ulong srv_buf_pool_curr_size;
