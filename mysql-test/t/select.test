@@ -2350,7 +2350,18 @@ INSERT INTO t1 VALUES (10);
 SELECT i='1e+01',i=1e+01, i in (1e+01,1e+01), i in ('1e+01','1e+01') FROM t1;
 DROP TABLE t1;
 
-# End of 4.1 tests
+#
+# Bug #22533: storing large hex strings
+#
+
+create table t1(a bigint unsigned, b bigint);
+insert into t1 values (0xfffffffffffffffff, 0xfffffffffffffffff), 
+  (0x10000000000000000, 0x10000000000000000), 
+  (0x8fffffffffffffff, 0x8fffffffffffffff);
+select hex(a), hex(b) from t1;
+drop table t1;
+
+--echo End of 4.1 tests
 
 #
 # Test for bug #6474

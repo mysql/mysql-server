@@ -8245,6 +8245,7 @@ Field_bit::Field_bit(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
     bit_ptr(bit_ptr_arg), bit_ofs(bit_ofs_arg), bit_len(len_arg & 7),
     bytes_in_rec(len_arg / 8)
 {
+  flags|= UNSIGNED_FLAG;
   /*
     Ensure that Field::eq() can distinguish between two different bit fields.
     (two bit fields that are not null, may have same ptr and null_ptr)
@@ -8552,6 +8553,7 @@ Field_bit_as_char::Field_bit_as_char(char *ptr_arg, uint32 len_arg,
   :Field_bit(ptr_arg, len_arg, null_ptr_arg, null_bit_arg, 0, 0,
              unireg_check_arg, field_name_arg)
 {
+  flags|= UNSIGNED_FLAG;
   bit_len= 0;
   bytes_in_rec= (len_arg + 7) / 8;
 }
