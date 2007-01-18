@@ -1459,6 +1459,126 @@ buf_page_reset_file_page_was_freed(
 #endif /* UNIV_DEBUG_FILE_ACCESSES */
 
 /************************************************************************
+Get read access to a compressed page (usually FIL_PAGE_TYPE_ZBLOB). */
+
+buf_page_t*
+buf_page_get_zip(
+/*=============*/
+				/* out: pointer to the block */
+	ulint		space,	/* in: space id */
+	ulint		zip_size,/* in: compressed page size */
+	ulint		offset)	/* in: page number */
+{
+	buf_page_t*	bpage;
+	mutex_t*	block_mutex;
+	ibool		must_read;
+
+#ifndef UNIV_LOG_DEBUG
+	ut_ad(!ibuf_inside());
+#endif
+	buf_pool->n_page_gets++;
+
+	for (;;) {
+		mutex_enter_fast(&buf_pool->mutex);
+lookup:
+		bpage = buf_page_hash_get(space, offset);
+		if (bpage) {
+			break;
+		}
+
+		/* Page not in buf_pool: needs to be read from file */
+
+		mutex_exit(&buf_pool->mutex);
+
+		buf_read_page(space, zip_size, offset);
+
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+		ut_a(++buf_dbg_counter % 37 || buf_validate());
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+	}
+
+	if (UNIV_UNLIKELY(!bpage->zip.data)) {
+		/* There is no compressed page. */
+		mutex_exit(&buf_pool->mutex);
+		return(NULL);
+	}
+
+	block_mutex = buf_page_get_mutex(bpage);
+	mutex_enter(block_mutex);
+
+	switch (buf_page_get_state(bpage)) {
+	case BUF_BLOCK_NOT_USED:
+	case BUF_BLOCK_READY_FOR_USE:
+	case BUF_BLOCK_MEMORY:
+	case BUF_BLOCK_REMOVE_HASH:
+	case BUF_BLOCK_ZIP_FREE:
+		ut_error;
+		break;
+	case BUF_BLOCK_ZIP_PAGE:
+	case BUF_BLOCK_ZIP_DIRTY:
+		bpage->buf_fix_count++;
+		break;
+	case BUF_BLOCK_FILE_PAGE:
+		/* Discard the uncompressed page frame if possible. */
+		if (buf_LRU_free_block(bpage, FALSE)) {
+
+			mutex_exit(block_mutex);
+			goto lookup;
+		}
+
+		buf_block_buf_fix_inc((buf_block_t*) bpage,
+				      __FILE__, __LINE__);
+		break;
+	}
+
+	must_read = buf_page_get_io_fix(bpage) == BUF_IO_READ;
+
+	mutex_exit(&buf_pool->mutex);
+
+	buf_page_set_accessed(bpage, TRUE);
+
+	mutex_exit(block_mutex);
+
+	buf_block_make_young(bpage);
+
+#ifdef UNIV_DEBUG_FILE_ACCESSES
+	ut_a(!bpage->file_page_was_freed);
+#endif
+
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+	ut_a(++buf_dbg_counter % 5771 || buf_validate());
+	ut_a(bpage->buf_fix_count > 0);
+	ut_a(buf_page_in_file(bpage));
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+
+	if (must_read) {
+		/* Let us wait until the read operation
+		completes */
+
+		for (;;) {
+			enum buf_io_fix	io_fix;
+
+			mutex_enter(block_mutex);
+			io_fix = buf_page_get_io_fix(bpage);
+			mutex_exit(block_mutex);
+
+			if (io_fix == BUF_IO_READ) {
+
+				os_thread_sleep(WAIT_FOR_READ);
+			} else {
+				break;
+			}
+		}
+	}
+
+#ifdef UNIV_IBUF_DEBUG
+	ut_a(ibuf_count_get(buf_page_get_space(bpage),
+			    buf_page_get_page_no(bpage)) == 0);
+#endif
+	return(bpage);
+}
+
+/************************************************************************
 This is the general function used to get access to a database page. */
 
 buf_block_t*

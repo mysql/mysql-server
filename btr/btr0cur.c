@@ -4312,33 +4312,35 @@ btr_copy_zblob_prefix(
 	ut_ad(space_id);
 
 	for (;;) {
-		mtr_t		mtr;
-		buf_block_t*	block;
-		page_t*		page;
+		buf_page_t*	bpage;
 		int		err;
 		ulint		next_page_no;
 
-		mtr_start(&mtr);
+		bpage = buf_page_get_zip(space_id, zip_size, page_no);
 
-		block = buf_page_get(space_id, zip_size, page_no,
-				     RW_S_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
-		buf_block_dbg_add_level(block, SYNC_EXTERN_STORAGE);
-#endif /* UNIV_SYNC_DEBUG */
-		page = buf_block_get_frame(block);
+		if (UNIV_UNLIKELY(!bpage)) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: Cannot load"
+				" compressed BLOB"
+				" page %lu space %lu\n",
+				(ulong) page_no, (ulong) space_id);
+			return;
+		}
 
-		if (UNIV_UNLIKELY(fil_page_get_type(page)
+		if (UNIV_UNLIKELY(fil_page_get_type(bpage->zip.data)
 				  != FIL_PAGE_TYPE_ZBLOB)) {
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
 				"  InnoDB: Unknown type %lu of"
 				" compressed BLOB"
 				" page %lu space %lu\n",
-				(ulong) fil_page_get_type(page),
+				(ulong) fil_page_get_type(bpage->zip.data),
 				(ulong) page_no, (ulong) space_id);
+			goto end_of_blob;
 		}
 
-		next_page_no = mach_read_from_4(page + offset);
+		next_page_no = mach_read_from_4(bpage->zip.data + offset);
 
 		if (UNIV_LIKELY(offset == FIL_PAGE_NEXT)) {
 			/* When the BLOB begins at page header,
@@ -4349,7 +4351,7 @@ btr_copy_zblob_prefix(
 			offset += 4;
 		}
 
-		d_stream->next_in = page + offset;
+		d_stream->next_in = bpage->zip.data + offset;
 		d_stream->avail_in = zip_size - offset;
 
 		err = inflate(d_stream, Z_NO_FLUSH);
@@ -4388,19 +4390,21 @@ inflate_error:
 					(ulong) space_id);
 			} else {
 				err = inflate(d_stream, Z_FINISH);
-				if (UNIV_UNLIKELY
-				    (err != Z_STREAM_END)) {
+				switch (err) {
+				case Z_STREAM_END:
+				case Z_BUF_ERROR:
+					break;
+				default:
 					goto inflate_error;
 				}
 			}
 
 end_of_blob:
-			mtr_commit(&mtr);
-			inflateEnd(d_stream);
+			buf_page_release_zip(bpage);
 			return;
 		}
 
-		mtr_commit(&mtr);
+		buf_page_release_zip(bpage);
 
 		/* On other BLOB pages except the first
 		the BLOB header always is at the page header: */
@@ -4447,6 +4451,7 @@ btr_copy_externally_stored_field_prefix_low(
 
 		btr_copy_zblob_prefix(&d_stream, zip_size,
 				      space_id, page_no, offset);
+		inflateEnd(&d_stream);
 		return(d_stream.total_out);
 	} else {
 		return(btr_copy_blob_prefix(buf, len, space_id,
