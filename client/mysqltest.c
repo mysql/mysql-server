@@ -725,6 +725,20 @@ void close_connections()
 }
 
 
+void close_statements()
+{
+  struct st_connection *con;
+  DBUG_ENTER("close_statements");
+  for (con= connections; con < next_con; con++)
+  {
+    if (con->stmt)
+      mysql_stmt_close(con->stmt);
+    con->stmt= 0;
+  }
+  DBUG_VOID_RETURN;
+}
+
+
 void close_files()
 {
   DBUG_ENTER("close_files");
@@ -2908,6 +2922,10 @@ void do_close_connection(struct st_command *command)
 	}
       }
 #endif
+      if (next_con->stmt)
+        mysql_stmt_close(next_con->stmt);
+      next_con->stmt= 0;
+
       mysql_close(&con->mysql);
       if (con->util_mysql)
 	mysql_close(con->util_mysql);
@@ -5112,6 +5130,14 @@ end:
     dynstr_free(&ds_execute_warnings);
   }
 
+
+  /* Close the statement if - no reconnect, need new prepare */
+  if (mysql->reconnect)
+  {
+    mysql_stmt_close(stmt);
+    cur_con->stmt= NULL;
+  }
+
   /*
     We save the return code (mysql_stmt_errno(stmt)) from the last call sent
     to the server into the mysqltest builtin variable $mysql_errno. This
@@ -5119,10 +5145,7 @@ end:
   */
 
   var_set_errno(mysql_stmt_errno(stmt));
-#ifndef BUG15518_FIXED
-  mysql_stmt_close(stmt);
-  cur_con->stmt= NULL;
-#endif
+
   DBUG_VOID_RETURN;
 }
 
@@ -5909,6 +5932,8 @@ int main(int argc, char **argv)
 	break;
       case Q_DISABLE_PS_PROTOCOL:
         ps_protocol_enabled= 0;
+        /* Close any open statements */
+        close_statements();
         break;
       case Q_ENABLE_PS_PROTOCOL:
         ps_protocol_enabled= ps_protocol;
@@ -5918,6 +5943,8 @@ int main(int argc, char **argv)
         break;
       case Q_ENABLE_RECONNECT:
         set_reconnect(&cur_con->mysql, 1);
+        /* Close any open statements - no reconnect, need new prepare */
+        close_statements();
         break;
       case Q_DISABLE_PARSING:
         if (parsing_disabled == 0)
