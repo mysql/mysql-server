@@ -389,7 +389,9 @@ rw_lock_t*
 fil_space_get_latch(
 /*================*/
 			/* out: latch protecting storage allocation */
-	ulint	id)	/* in: space id */
+	ulint	id,	/* in: space id */
+	ulint*	zip_size)/* out: compressed page size, or
+			0 for uncompressed tablespaces */
 {
 	fil_system_t*	system		= fil_system;
 	fil_space_t*	space;
@@ -401,6 +403,10 @@ fil_space_get_latch(
 	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
 
 	ut_a(space);
+
+	if (zip_size) {
+		*zip_size = space->zip_size;
+	}
 
 	mutex_exit(&(system->mutex));
 
@@ -1384,6 +1390,10 @@ fil_space_get_zip_size(
 	ulint		size;
 
 	ut_ad(system);
+
+	if (UNIV_UNLIKELY(!id)) {
+		return(0);
+	}
 
 	fil_mutex_enter_and_prepare_for_io(id);
 

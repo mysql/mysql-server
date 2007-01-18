@@ -148,8 +148,8 @@ buf_frame_copy(
 NOTE! The following macros should be used instead of buf_page_get_gen,
 to improve debugging. Only values RW_S_LATCH and RW_X_LATCH are allowed
 in LA! */
-#define buf_page_get(SP, OF, LA, MTR)	 buf_page_get_gen(\
-				SP, OF, LA, NULL,\
+#define buf_page_get(SP, ZS, OF, LA, MTR)	 buf_page_get_gen(\
+				SP, ZS, OF, LA, NULL,\
 				BUF_GET, __FILE__, __LINE__, MTR)
 /******************************************************************
 Use these macros to bufferfix a page with no latching. Remember not to
@@ -157,14 +157,14 @@ read the contents of the page unless you know it is safe. Do not modify
 the contents of the page! We have separated this case, because it is
 error-prone programming not to set a latch, and it should be used
 with care. */
-#define buf_page_get_with_no_latch(SP, OF, MTR)	   buf_page_get_gen(\
-				SP, OF, RW_NO_LATCH, NULL,\
+#define buf_page_get_with_no_latch(SP, ZS, OF, MTR)	   buf_page_get_gen(\
+				SP, ZS, OF, RW_NO_LATCH, NULL,\
 				BUF_GET_NO_LATCH, __FILE__, __LINE__, MTR)
 /******************************************************************
 NOTE! The following macros should be used instead of buf_page_get_gen, to
 improve debugging. Only values RW_S_LATCH and RW_X_LATCH are allowed as LA! */
-#define buf_page_get_nowait(SP, OF, LA, MTR)	buf_page_get_gen(\
-				SP, OF, LA, NULL,\
+#define buf_page_get_nowait(SP, ZS, OF, LA, MTR)	buf_page_get_gen(\
+				SP, ZS, OF, LA, NULL,\
 				BUF_GET_NOWAIT, __FILE__, __LINE__, MTR)
 /******************************************************************
 NOTE! The following macros should be used instead of
@@ -199,6 +199,8 @@ buf_page_get_release_on_io(
 				/* out: pointer to the block, or NULL
 				if not in buffer buf_pool */
 	ulint	space,		/* in: space id */
+	ulint	zip_size,	/* in: compressed page size in bytes
+				or 0 for uncompressed pages */
 	ulint	offset,		/* in: offset of the page within space
 				in units of a page */
 	buf_block_t* guess,	/* in: guessed frame or NULL */
@@ -228,6 +230,8 @@ buf_page_get_gen(
 /*=============*/
 				/* out: pointer to the block or NULL */
 	ulint		space,	/* in: space id */
+	ulint		zip_size,/* in: compressed page size in bytes
+				or 0 for uncompressed pages */
 	ulint		offset,	/* in: page number */
 	ulint		rw_latch,/* in: RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
 	buf_block_t*	guess,	/* in: guessed block or NULL */

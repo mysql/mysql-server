@@ -1094,7 +1094,8 @@ trx_undo_report_row_operation(
 	mtr_start(&mtr);
 
 	for (;;) {
-		undo_block = buf_page_get_gen(undo->space, page_no, RW_X_LATCH,
+		undo_block = buf_page_get_gen(undo->space, undo->zip_size,
+					      page_no, RW_X_LATCH,
 					      undo->guess_block, BUF_GET,
 					      __FILE__, __LINE__, &mtr);
 #ifdef UNIV_SYNC_DEBUG
@@ -1203,7 +1204,8 @@ trx_undo_get_undo_rec_low(
 
 	mtr_start(&mtr);
 
-	undo_page = trx_undo_page_get_s_latched(rseg->space, page_no, &mtr);
+	undo_page = trx_undo_page_get_s_latched(rseg->space, rseg->zip_size,
+						page_no, &mtr);
 
 	undo_rec = trx_undo_rec_copy(undo_page + offset, heap);
 

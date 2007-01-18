@@ -835,7 +835,7 @@ trx_roll_pop_top_rec(
 	ut_ad(mutex_own(&(trx->undo_mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
-	undo_page = trx_undo_page_get_s_latched(undo->space,
+	undo_page = trx_undo_page_get_s_latched(undo->space, undo->zip_size,
 						undo->top_page_no, mtr);
 	offset = undo->top_offset;
 
