@@ -220,7 +220,8 @@ sub spawn_parent_impl {
       my $ret_pid= waitpid($pid,0);
       if ( $ret_pid != $pid )
       {
-        mtr_error("$path ($pid) got lost somehow");
+        mtr_error("waitpid($pid, 0) returned $ret_pid " .
+		  "when waiting for '$path'");
       }
 
       return mtr_process_exit_status($?);
