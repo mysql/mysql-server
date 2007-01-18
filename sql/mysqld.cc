@@ -3480,6 +3480,9 @@ int win_main(int argc, char **argv)
 int main(int argc, char **argv)
 #endif
 {
+  MY_INIT(argv[0]);		// init my_sys library & pthreads
+  /* nothing should come before this line ^^^ */
+
   rpl_filter= new Rpl_filter;
   binlog_filter= new Rpl_filter;
   if (!rpl_filter || !binlog_filter) 
@@ -3487,8 +3490,6 @@ int main(int argc, char **argv)
     sql_perror("Could not allocate replication and binlog filters");
     exit(1);
   }
-
-  MY_INIT(argv[0]);		// init my_sys library & pthreads
 
   /*
     Perform basic logger initialization logger. Should be called after
