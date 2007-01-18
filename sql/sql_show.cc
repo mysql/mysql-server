@@ -1492,6 +1492,10 @@ static bool show_status_array(THD *thd, const char *wild,
           nr= (long) (thd->query_start() - start_time);
           end= int10_to_str(nr, buff, 10);
           break;
+        case SHOW_FLUSHTIME:
+          nr= (long) (thd->query_start() - flush_status_time);
+          end= int10_to_str(nr, buff, 10);
+          break;
         case SHOW_QUESTION:
           end= int10_to_str((long) thd->query_id, buff, 10);
           break;

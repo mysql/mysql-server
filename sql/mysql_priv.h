@@ -1190,7 +1190,7 @@ void my_dbopt_free(void);
   External variables
 */
 
-extern time_t start_time;
+extern time_t start_time, flush_status_time;
 extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
 	    mysql_real_data_home[], *opt_mysql_tmpdir, mysql_charsets_dir[],
             def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
