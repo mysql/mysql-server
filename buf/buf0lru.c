@@ -919,7 +919,7 @@ buf_LRU_free_block(
 		}
 
 		goto alloc;
-	} else {
+	} else if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE) {
 		/* Allocate the control block for the compressed page.
 		If it cannot be allocated (without freeing a block
 		from the LRU list), refuse to free bpage. */
