@@ -74,6 +74,8 @@ trx_undo_page_get(
 /*==============*/
 				/* out: pointer to page x-latched */
 	ulint	space,		/* in: space where placed */
+	ulint	zip_size,	/* in: compressed page size in bytes
+				or 0 for uncompressed pages */
 	ulint	page_no,	/* in: page number */
 	mtr_t*	mtr);		/* in: mtr */
 /**********************************************************************
@@ -84,6 +86,8 @@ trx_undo_page_get_s_latched(
 /*========================*/
 				/* out: pointer to page s-latched */
 	ulint	space,		/* in: space where placed */
+	ulint	zip_size,	/* in: compressed page size in bytes
+				or 0 for uncompressed pages */
 	ulint	page_no,	/* in: page number */
 	mtr_t*	mtr);		/* in: mtr */
 /**********************************************************************
@@ -163,6 +167,8 @@ trx_undo_get_first_rec(
 			/* out: undo log record, the page latched, NULL if
 			none */
 	ulint	space,	/* in: undo log header space */
+	ulint	zip_size,/* in: compressed page size in bytes
+			or 0 for uncompressed pages */
 	ulint	page_no,/* in: undo log header page number */
 	ulint	offset,	/* in: undo log header offset on page */
 	ulint	mode,	/* in: latching mode: RW_S_LATCH or RW_X_LATCH */
@@ -355,6 +361,8 @@ struct trx_undo_struct{
 	/*-----------------------------*/
 	ulint		space;		/* space id where the undo log
 					placed */
+	ulint		zip_size;	/* in: compressed page size of space
+					in bytes, or 0 for uncompressed */
 	ulint		hdr_page_no;	/* page number of the header page in
 					the undo log */
 	ulint		hdr_offset;	/* header offset of the undo log on the

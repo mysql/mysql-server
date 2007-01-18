@@ -145,7 +145,9 @@ rw_lock_t*
 fil_space_get_latch(
 /*================*/
 			/* out: latch protecting storage allocation */
-	ulint	id);	/* in: space id */
+	ulint	id,	/* in: space id */
+	ulint*	zip_size);/* out: compressed page size, or
+			0 for uncompressed tablespaces */
 /***********************************************************************
 Returns the type of a file space. */
 

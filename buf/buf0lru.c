@@ -139,8 +139,10 @@ scan_again:
 				/* Note that the following call will acquire
 				an S-latch on the page */
 
-				btr_search_drop_page_hash_when_freed(id,
-								     page_no);
+				btr_search_drop_page_hash_when_freed(
+					id,
+					buf_page_get_zip_size(bpage),
+					page_no);
 				goto scan_again;
 			}
 

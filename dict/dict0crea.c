@@ -272,8 +272,7 @@ dict_build_table_def_step(
 
 		mtr_start(&mtr);
 
-		fsp_header_init(table->space, FIL_IBD_FILE_INITIAL_SIZE,
-					dict_table_zip_size(table), &mtr);
+		fsp_header_init(table->space, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
 
 		mtr_commit(&mtr);
 	} else {
@@ -622,8 +621,9 @@ dict_create_index_tree_step(
 
 	btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 
-	node->page_no = btr_create(index->type, index->space, index->id,
-				   index, &mtr);
+	node->page_no = btr_create(index->type, index->space,
+				   dict_table_zip_size(index->table),
+				   index->id, index, &mtr);
 	/* printf("Created a new index tree in space %lu root page %lu\n",
 	index->space, index->page_no); */
 
@@ -653,6 +653,7 @@ dict_drop_index_tree(
 {
 	ulint		root_page_no;
 	ulint		space;
+	ulint		zip_size;
 	const byte*	ptr;
 	ulint		len;
 
@@ -679,8 +680,9 @@ dict_drop_index_tree(
 	ut_ad(len == 4);
 
 	space = mtr_read_ulint(ptr, MLOG_4BYTES, mtr);
+	zip_size = fil_space_get_zip_size(space);
 
-	if (!fil_tablespace_exists_in_mem(space)) {
+	if (UNIV_UNLIKELY(zip_size == ULINT_UNDEFINED)) {
 		/* It is a single table tablespace and the .ibd file is
 		missing: do nothing */
 
@@ -690,7 +692,7 @@ dict_drop_index_tree(
 	/* We free all the pages but the root page first; this operation
 	may span several mini-transactions */
 
-	btr_free_but_not_root(space, root_page_no);
+	btr_free_but_not_root(space, zip_size, root_page_no);
 
 	/* Then we free the root page in the same mini-transaction where
 	we write FIL_NULL to the appropriate field in the SYS_INDEXES
@@ -698,7 +700,7 @@ dict_drop_index_tree(
 
 	/* printf("Dropping index tree in space %lu root page %lu\n", space,
 	root_page_no); */
-	btr_free_root(space, root_page_no, mtr);
+	btr_free_root(space, zip_size, root_page_no, mtr);
 
 	page_rec_write_index_page_no(rec,
 				     DICT_SYS_INDEXES_PAGE_NO_FIELD,
@@ -724,6 +726,7 @@ dict_truncate_index_tree(
 {
 	ulint		root_page_no;
 	ulint		space;
+	ulint		zip_size;
 	ulint		type;
 	dulint		index_id;
 	rec_t*		rec;
@@ -759,8 +762,9 @@ dict_truncate_index_tree(
 	ut_ad(len == 4);
 
 	space = mtr_read_ulint(ptr, MLOG_4BYTES, mtr);
+	zip_size = fil_space_get_zip_size(space);
 
-	if (!fil_tablespace_exists_in_mem(space)) {
+	if (UNIV_UNLIKELY(zip_size == ULINT_UNDEFINED)) {
 		/* It is a single table tablespace and the .ibd file is
 		missing: do nothing */
 
@@ -782,17 +786,17 @@ dict_truncate_index_tree(
 	/* We free all the pages but the root page first; this operation
 	may span several mini-transactions */
 
-	btr_free_but_not_root(space, root_page_no);
+	btr_free_but_not_root(space, zip_size, root_page_no);
 
 	/* Then we free the root page in the same mini-transaction where
 	we create the b-tree and write its new root page number to the
 	appropriate field in the SYS_INDEXES record: this mini-transaction
 	marks the B-tree totally truncated */
 
-	comp = page_is_comp(btr_page_get(space, root_page_no, RW_X_LATCH,
-					 mtr));
+	comp = page_is_comp(btr_page_get(space, zip_size, root_page_no,
+					 RW_X_LATCH, mtr));
 
-	btr_free_root(space, root_page_no, mtr);
+	btr_free_root(space, zip_size, root_page_no, mtr);
 	/* We will temporarily write FIL_NULL to the PAGE_NO field
 	in SYS_INDEXES, so that the database will not get into an
 	inconsistent state in case it crashes between the mtr_commit()
@@ -818,7 +822,7 @@ dict_truncate_index_tree(
 		}
 	}
 
-	root_page_no = btr_create(type, space, index_id, index, mtr);
+	root_page_no = btr_create(type, space, zip_size, index_id, index, mtr);
 	if (index) {
 		index->page = root_page_no;
 	} else {

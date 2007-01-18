@@ -87,7 +87,7 @@ Reads the compressed page size from the first page of a tablespace. */
 
 ulint
 fsp_header_get_zip_size(
-/*=====================*/
+/*====================*/
 				/* out: compressed page size in bytes,
 				or 0 if uncompressed */
 	const page_t*	page);	/* in: first page of a tablespace */
@@ -112,7 +112,6 @@ fsp_header_init(
 /*============*/
 	ulint	space,		/* in: space id */
 	ulint	size,		/* in: current size in blocks */
-	ulint	zip_size,	/* in: compressed page size, or 0 */
 	mtr_t*	mtr);		/* in: mini-transaction handle */
 /**************************************************************************
 Increases the space size field of a space. */
@@ -281,6 +280,8 @@ void
 fseg_free(
 /*======*/
 	ulint	space,	/* in: space id */
+	ulint	zip_size,/* in: compressed page size in bytes
+			or 0 for uncompressed pages */
 	ulint	page_no,/* in: page number where the segment header is
 			placed */
 	ulint	offset);/* in: byte offset of the segment header on that

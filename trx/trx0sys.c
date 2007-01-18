@@ -136,7 +136,8 @@ trx_sys_mark_upgraded_to_multiple_tablespaces(void)
 
 	mtr_start(&mtr);
 
-	block = buf_page_get(TRX_SYS_SPACE, TRX_SYS_PAGE_NO, RW_X_LATCH, &mtr);
+	block = buf_page_get(TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO,
+			     RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
@@ -181,7 +182,8 @@ trx_sys_create_doublewrite_buf(void)
 start_again:
 	mtr_start(&mtr);
 
-	block = buf_page_get(TRX_SYS_SPACE, TRX_SYS_PAGE_NO, RW_X_LATCH, &mtr);
+	block = buf_page_get(TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO,
+			     RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
@@ -268,7 +270,7 @@ start_again:
 			the page position in the tablespace, then the page
 			has not been written to in doublewrite. */
 
-			new_block = buf_page_get(TRX_SYS_SPACE, page_no,
+			new_block = buf_page_get(TRX_SYS_SPACE, 0, page_no,
 						 RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
 			buf_block_dbg_add_level(new_block,
@@ -849,7 +851,7 @@ trx_sysf_create(
 	then enter the kernel: we must do it in this order to conform
 	to the latching order rules. */
 
-	mtr_x_lock(fil_space_get_latch(TRX_SYS_SPACE), mtr);
+	mtr_x_lock(fil_space_get_latch(TRX_SYS_SPACE, NULL), mtr);
 	mutex_enter(&kernel_mutex);
 
 	/* Create the trx sys file block in a new allocated file segment */
@@ -897,7 +899,7 @@ trx_sysf_create(
 		       + page - sys_header);
 
 	/* Create the first rollback segment in the SYSTEM tablespace */
-	page_no = trx_rseg_header_create(TRX_SYS_SPACE, ULINT_MAX, &slot_no,
+	page_no = trx_rseg_header_create(TRX_SYS_SPACE, 0, ULINT_MAX, &slot_no,
 					 mtr);
 	ut_a(slot_no == TRX_SYS_SYSTEM_RSEG_ID);
 	ut_a(page_no != FIL_NULL);

@@ -100,7 +100,8 @@ trx_sysf_get(
 
 	ut_ad(mtr);
 
-	block = buf_page_get(TRX_SYS_SPACE, TRX_SYS_PAGE_NO, RW_X_LATCH, mtr);
+	block = buf_page_get(TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO,
+			     RW_X_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_TRX_SYS_HEADER);
 #endif /* UNIV_SYNC_DEBUG */
