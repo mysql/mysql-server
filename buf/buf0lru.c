@@ -549,9 +549,7 @@ buf_LRU_old_adjust_len(void)
 	ulint	new_len;
 
 	ut_a(buf_pool->LRU_old);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(3 * (BUF_LRU_OLD_MIN_LEN / 8) > BUF_LRU_OLD_TOLERANCE + 5);
 
 	for (;;) {
@@ -593,6 +591,7 @@ buf_LRU_old_init(void)
 {
 	buf_block_t*	block;
 
+	ut_ad(mutex_own(&(buf_pool->mutex)));
 	ut_a(UT_LIST_GET_LEN(buf_pool->LRU) == BUF_LRU_OLD_MIN_LEN);
 
 	/* We first initialize all blocks in the LRU list as old and then use
@@ -624,9 +623,7 @@ buf_LRU_remove_block(
 {
 	ut_ad(buf_pool);
 	ut_ad(block);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 	ut_a(block->in_LRU_list);
@@ -690,9 +687,7 @@ buf_LRU_add_block_to_end_low(
 
 	ut_ad(buf_pool);
 	ut_ad(block);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
@@ -755,9 +750,7 @@ buf_LRU_add_block_low(
 
 	ut_ad(buf_pool);
 	ut_ad(block);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 	ut_a(!block->in_LRU_list);
@@ -858,10 +851,9 @@ buf_LRU_block_free_non_file_page(
 /*=============================*/
 	buf_block_t*	block)	/* in: block, must not contain a file page */
 {
-#ifdef UNIV_SYNC_DEBUG
+
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 	ut_ad(mutex_own(&block->mutex));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(block);
 
 	ut_a((block->state == BUF_BLOCK_MEMORY)
@@ -898,10 +890,8 @@ buf_LRU_block_remove_hashed_page(
 				be in a state where it can be freed; there
 				may or may not be a hash index to the page */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 	ut_ad(mutex_own(&block->mutex));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(block);
 
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
@@ -961,10 +951,9 @@ buf_LRU_block_free_hashed_page(
 	buf_block_t*	block)	/* in: block, must contain a file page and
 				be in a state where it can be freed */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 	ut_ad(mutex_own(&block->mutex));
-#endif /* UNIV_SYNC_DEBUG */
+
 	ut_a(block->state == BUF_BLOCK_REMOVE_HASH);
 
 	block->state = BUF_BLOCK_MEMORY;

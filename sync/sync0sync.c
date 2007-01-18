@@ -329,6 +329,7 @@ mutex_enter_nowait(
 
 	if (!mutex_test_and_set(mutex)) {
 
+		ut_d(mutex->thread_id = os_thread_get_curr_id());
 #ifdef UNIV_SYNC_DEBUG
 		mutex_set_debug_info(mutex, file_name, line);
 #endif
@@ -346,12 +347,28 @@ Checks that the mutex has been initialized. */
 ibool
 mutex_validate(
 /*===========*/
-	mutex_t*	mutex)
+	const mutex_t*	mutex)
 {
 	ut_a(mutex);
 	ut_a(mutex->magic_n == MUTEX_MAGIC_N);
 
 	return(TRUE);
+}
+
+/**********************************************************************
+Checks that the current thread owns the mutex. Works only in the debug
+version. */
+
+ibool
+mutex_own(
+/*======*/
+				/* out: TRUE if owns */
+	const mutex_t*	mutex)	/* in: mutex */
+{
+	ut_ad(mutex_validate(mutex));
+
+	return(mutex_get_lock_word(mutex) == 1
+	       && os_thread_eq(mutex->thread_id, os_thread_get_curr_id()));
 }
 #endif /* UNIV_DEBUG */
 
@@ -451,6 +468,7 @@ spin_loop:
 	if (mutex_test_and_set(mutex) == 0) {
 		/* Succeeded! */
 
+		ut_d(mutex->thread_id = os_thread_get_curr_id());
 #ifdef UNIV_SYNC_DEBUG
 		mutex_set_debug_info(mutex, file_name, line);
 #endif
@@ -492,6 +510,7 @@ spin_loop:
 			sync_array_free_cell_protected(sync_primary_wait_array,
 						       index);
 
+			ut_d(mutex->thread_id = os_thread_get_curr_id());
 #ifdef UNIV_SYNC_DEBUG
 			mutex_set_debug_info(mutex, file_name, line);
 #endif
@@ -592,7 +611,6 @@ mutex_set_debug_info(
 
 	mutex->file_name = file_name;
 	mutex->line	 = line;
-	mutex->thread_id = os_thread_get_curr_id();
 }
 
 /**********************************************************************
@@ -612,31 +630,6 @@ mutex_get_debug_info(
 	*file_name = mutex->file_name;
 	*line	   = mutex->line;
 	*thread_id = mutex->thread_id;
-}
-
-/**********************************************************************
-Checks that the current thread owns the mutex. Works only in the debug
-version. */
-
-ibool
-mutex_own(
-/*======*/
-				/* out: TRUE if owns */
-	mutex_t*	mutex)	/* in: mutex */
-{
-	ut_ad(mutex_validate(mutex));
-
-	if (mutex_get_lock_word(mutex) != 1) {
-
-		return(FALSE);
-	}
-
-	if (!os_thread_eq(mutex->thread_id, os_thread_get_curr_id())) {
-
-		return(FALSE);
-	}
-
-	return(TRUE);
 }
 
 /**********************************************************************

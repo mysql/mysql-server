@@ -802,9 +802,7 @@ buf_awe_map_page_to_frame(
 {
 	buf_block_t*	bck;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(block);
 
 	if (block->frame) {
@@ -900,9 +898,7 @@ buf_block_make_young(
 /*=================*/
 	buf_block_t*	block)	/* in: block to make younger */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&(buf_pool->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	/* Note that we read freed_page_clock's without holding any mutex:
 	this is allowed since the result is used only in heuristics */
@@ -1635,10 +1631,9 @@ buf_page_init(
 				in units of a page */
 	buf_block_t*	block)	/* in: block to init */
 {
-#ifdef UNIV_SYNC_DEBUG
+
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 	ut_ad(mutex_own(&(block->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_a(block->state != BUF_BLOCK_FILE_PAGE);
 
 	/* Set the state of the block */

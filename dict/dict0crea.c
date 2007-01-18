@@ -212,9 +212,7 @@ dict_build_table_def_step(
 	ulint		i;
 	ulint		row_len;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	table = node->table;
 
@@ -312,9 +310,7 @@ dict_create_sys_indexes_tuple(
 	dfield_t*	dfield;
 	byte*		ptr;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(index && heap);
 
 	sys_indexes = dict_sys->sys_indexes;
@@ -512,9 +508,7 @@ dict_build_index_def_step(
 	dtuple_t*	row;
 	trx_t*		trx;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	trx = thr_get_trx(thr);
 
@@ -585,9 +579,7 @@ dict_create_index_tree_step(
 	btr_pcur_t	pcur;
 	mtr_t		mtr;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	index = node->index;
 	table = node->table;
@@ -642,10 +634,7 @@ dict_drop_index_tree(
 	byte*	ptr;
 	ulint	len;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
-
 	ut_a(!dict_table_is_comp(dict_sys->sys_indexes));
 	ptr = rec_get_nth_field_old(rec, DICT_SYS_INDEXES_PAGE_NO_FIELD, &len);
 
@@ -718,10 +707,7 @@ dict_truncate_index_tree(
 	ulint		comp;
 	dict_index_t*	index;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
-
 	ut_a(!dict_table_is_comp(dict_sys->sys_indexes));
 	rec = btr_pcur_get_rec(pcur);
 	ptr = rec_get_nth_field_old(rec, DICT_SYS_INDEXES_PAGE_NO_FIELD, &len);
@@ -907,9 +893,7 @@ dict_create_table_step(
 	trx_t*		trx;
 
 	ut_ad(thr);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	trx = thr_get_trx(thr);
 
@@ -1016,9 +1000,7 @@ dict_create_index_step(
 	trx_t*		trx;
 
 	ut_ad(thr);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	trx = thr_get_trx(thr);
 
@@ -1440,9 +1422,7 @@ dict_create_add_foreigns_to_dictionary(
 	ulint		number	= start_id + 1;
 	ulint		error;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	if (NULL == dict_table_get_low("SYS_FOREIGN")) {
 		fprintf(stderr,
