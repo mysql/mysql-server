@@ -950,7 +950,7 @@ ER_CON_COUNT_ERROR 08004
         eng "Too many connections"
         jps "Ϊ‘±‚ª‘½‚·‚¬‚ά‚·",
         est "Liiga palju samaaegseid όhendusi"
-        fre "Trop de connections"
+        fre "Trop de connexions"
         ger "Zu viele Verbindungen"
         greek "Υπάρχουν πολλές συνδέσεις..."
         hun "Tul sok kapcsolat"
@@ -1827,7 +1827,7 @@ ER_READY
         eng "%s: ready for connections.\nVersion: '%s'  socket: '%s'  port: %d"
         jps "%s: €”υ®—Ή",
         est "%s: ootab όhendusi"
-        fre "%s: Prκt pour des connections"
+        fre "%s: Prκt pour des connexions"
         ger "%-.64s: Bereit fόr Verbindungen.\nVersion: '%2'  Socket: '%s'  Port: %d"
         greek "%s: σε αναμονή συνδέσεων"
         hun "%s: kapcsolatra kesz"
@@ -1950,7 +1950,7 @@ ER_IPSOCK_ERROR 08S01
         eng "Can't create IP socket"
         jps "IP socket ‚ªμ‚κ‚ά‚Ή‚ρ",
         est "Ei suuda luua IP socketit"
-        fre "Ne peut crιer la connection IP (socket)"
+        fre "Ne peut crιer la connexion IP (socket)"
         ger "Kann IP-Socket nicht erzeugen"
         greek "Δεν είναι δυνατή η δημιουργία IP socket"
         hun "Az IP socket nem hozhato letre"
@@ -3031,7 +3031,7 @@ ER_HOST_IS_BLOCKED
         eng "Host '%-.64s' is blocked because of many connection errors; unblock with 'mysqladmin flush-hosts'"
         jps "Host '%-.64s' ‚Ν many connection error ‚Μ‚½‚ίA‹‘”Ϋ‚³‚κ‚ά‚µ‚½.  'mysqladmin flush-hosts' ‚Ε‰π‚µ‚Δ‚­‚Ύ‚³‚Ά",
         est "Masin '%-.64s' on blokeeritud hulgaliste όhendusvigade tυttu. Blokeeringu saab tόhistada 'mysqladmin flush-hosts' kδsuga"
-        fre "L'hτte '%-.64s' est bloquι ΰ cause d'un trop grand nombre d'erreur de connection. Dιbloquer le par 'mysqladmin flush-hosts'"
+        fre "L'hτte '%-.64s' est bloquι ΰ cause d'un trop grand nombre d'erreur de connexion. Dιbloquer le par 'mysqladmin flush-hosts'"
         ger "Host '%-.64s' blockiert wegen zu vieler Verbindungsfehler. Aufheben der Blockierung mit 'mysqladmin flush-hosts'"
         greek "Ο υπολογιστής έχει αποκλεισθεί λόγω πολλαπλών λαθών σύνδεσης. Προσπαθήστε να διορώσετε με 'mysqladmin flush-hosts'"
         hun "A '%-.64s' host blokkolodott, tul sok kapcsolodasi hiba miatt. Hasznalja a 'mysqladmin flush-hosts' parancsot"
@@ -3533,7 +3533,7 @@ ER_NET_READ_ERROR_FROM_PIPE 08S01
         nla "Kreeg leesfout van de verbindings pipe"
         eng "Got a read error from the connection pipe"
         est "Viga όhendustoru lugemisel"
-        fre "Erreur de lecture reηue du pipe de connection"
+        fre "Erreur de lecture reηue du pipe de connexion"
         ger "Lese-Fehler bei einer Verbindungs-Pipe"
         hun "Olvasasi hiba a kapcsolat soran"
         ita "Rilevato un errore di lettura dalla pipe di connessione"
@@ -4331,7 +4331,7 @@ ER_TOO_MANY_USER_CONNECTIONS 42000
         nla "Gebruiker %-.64s heeft reeds meer dan 'max_user_connections' actieve verbindingen"
         eng "User %-.64s already has more than 'max_user_connections' active connections"
         est "Kasutajal %-.64s on juba rohkem όhendusi kui lubatud 'max_user_connections' muutujaga"
-        fre "L'utilisateur %-.64s possθde dιjΰ plus de 'max_user_connections' connections actives"
+        fre "L'utilisateur %-.64s possθde dιjΰ plus de 'max_user_connections' connexions actives"
         ger "Benutzer '%-.64s' hat mehr als 'max_user_connections' aktive Verbindungen"
         ita "L'utente %-.64s ha gia' piu' di 'max_user_connections' connessioni attive"
         por "Usuαrio '%-.64s' jα possui mais que o valor mαximo de conexυes (max_user_connections) ativas"
@@ -6009,15 +6009,22 @@ ER_BAD_LOG_STATEMENT
         ger "Sie kφnnen eine Logtabelle nicht '%s', wenn Loggen angeschaltet ist"
 ER_NON_INSERTABLE_TABLE  
         eng "The target table %-.100s of the %s is not insertable-into"
+        ger "Die Zieltabelle %-.100s von %s ist nicht einfόgbar"
 ER_CANT_RENAME_LOG_TABLE
         eng "Cannot rename '%s'. When logging enabled, rename to/from log table must rename two tables: the log table to an archive table and another table back to '%s'"
+        ger "Kann '%s' nicht umbenennen. Wenn Loggen angeschaltet ist, mόssen beim Umbenennen zu/von einer Logtabelle zwei Tabellen angegeben werden: die Logtabelle zu einer Archivtabelle und eine weitere Tabelle zurόck zu  '%s'"
 ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT 42000
         eng "Incorrect parameter count in the call to native function '%-.64s'"
+        ger "Falsche Anzahl von Parametern beim Aufruf der nativen Funktion '%-.64s'"
 ER_WRONG_PARAMETERS_TO_NATIVE_FCT 42000
         eng "Incorrect parameters in the call to native function '%-.64s'"
+        ger "Falscher Parameter beim Aufruf der nativen Funktion '%-.64s'"
 ER_WRONG_PARAMETERS_TO_STORED_FCT 42000  
         eng "Incorrect parameters in the call to stored function '%-.64s'"
+        ger "Falsche Parameter beim Aufruf der gespeicherten Funktion '%-.64s'"
 ER_NATIVE_FCT_NAME_COLLISION
-        eng "This function '%-.64s' has the same name as a native function."
+        eng "This function '%-.64s' has the same name as a native function"
+        ger "Die Funktion '%-.64s' hat denselben Namen wie eine native Funktion"
 ER_BINLOG_PURGE_EMFILE
         eng "Too many files opened, please execute the command again"
+        ger "Zu viele offene Dateien, bitte fόhren Sie den Befehl noch einmal aus"

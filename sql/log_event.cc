@@ -5606,8 +5606,8 @@ unpack_row(RELAY_LOG_INFO *rli,
     if (bitmap_is_set(cols, field_ptr -  begin_ptr))
     {
       DBUG_ASSERT((const char *)table->record[0] <= f->ptr);
-      DBUG_ASSERT(f->ptr < ((const char *)table->record[0] + table->s->reclength +
-                            (f->pack_length_in_rec() == 0)));
+      DBUG_ASSERT(f->ptr < (char*)(table->record[0] + table->s->reclength +
+                                   (f->pack_length_in_rec() == 0)));
 
       DBUG_PRINT("info", ("unpacking column '%s' to 0x%lx", f->field_name,
                           (long) f->ptr));

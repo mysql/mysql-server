@@ -73,15 +73,40 @@ typedef struct {
 } pthread_cond_t;
 
 
-struct timespec {		/* For pthread_cond_timedwait() */
-    time_t tv_sec;
-    long tv_nsec;
-};
-
 typedef int pthread_mutexattr_t;
 #define win_pthread_self my_thread_var->pthread_self
 #define pthread_handler_t EXTERNC void * __cdecl
 typedef void * (__cdecl *pthread_handler)(void *);
+
+/*
+  Struct and macros to be used in combination with the
+  windows implementation of pthread_cond_timedwait
+*/
+
+/*
+   Declare a union to make sure FILETIME is properly aligned
+   so it can be used directly as a 64 bit value. The value
+   stored is in 100ns units.
+ */
+ union ft64 {
+  FILETIME ft;
+  __int64 i64;
+ };
+struct timespec {
+  union ft64 tv;
+  /* The max timeout value in millisecond for pthread_cond_timedwait */
+  long max_timeout_msec;
+};
+#define set_timespec(ABSTIME,SEC) { \
+  GetSystemTimeAsFileTime(&((ABSTIME).tv.ft)); \
+  (ABSTIME).tv.i64+= (__int64)(SEC)*10000000; \
+  (ABSTIME).max_timeout_msec= (long)((SEC)*1000); \
+}
+#define set_timespec_nsec(ABSTIME,NSEC) { \
+  GetSystemTimeAsFileTime(&((ABSTIME).tv.ft)); \
+  (ABSTIME).tv.i64+= (__int64)(NSEC)/100; \
+  (ABSTIME).max_timeout_msec= (long)((NSEC)/1000000); \
+}
 
 void win_pthread_init(void);
 int win_pthread_setspecific(void *A,void *B,uint length);
@@ -158,8 +183,6 @@ void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 #define pthread_condattr_init(A)
 #define pthread_condattr_destroy(A)
 
-/*Irena: compiler does not like this: */
-/*#define my_pthread_getprio(pthread_t thread_id) pthread_dummy(0) */
 #define my_pthread_getprio(thread_id) pthread_dummy(0)
 
 #else /* Normal threads */
@@ -383,6 +406,47 @@ void my_pthread_attr_getstacksize(pthread_attr_t *attrib, size_t *size);
 #define pthread_mutex_trylock(a) my_pthread_mutex_trylock((a))
 int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
 #endif
+
+/*
+  The defines set_timespec and set_timespec_nsec should be used
+  for calculating an absolute time at which
+  pthread_cond_timedwait should timeout
+*/
+#ifdef HAVE_TIMESPEC_TS_SEC
+#ifndef set_timespec
+#define set_timespec(ABSTIME,SEC) \
+{ \
+  (ABSTIME).ts_sec=time(0) + (time_t) (SEC); \
+  (ABSTIME).ts_nsec=0; \
+}
+#endif /* !set_timespec */
+#ifndef set_timespec_nsec
+#define set_timespec_nsec(ABSTIME,NSEC) \
+{ \
+  ulonglong now= my_getsystime() + (NSEC/100); \
+  (ABSTIME).ts_sec=  (now / ULL(10000000)); \
+  (ABSTIME).ts_nsec= (now % ULL(10000000) * 100 + ((NSEC) % 100)); \
+}
+#endif /* !set_timespec_nsec */
+#else
+#ifndef set_timespec
+#define set_timespec(ABSTIME,SEC) \
+{\
+  struct timeval tv;\
+  gettimeofday(&tv,0);\
+  (ABSTIME).tv_sec=tv.tv_sec+(time_t) (SEC);\
+  (ABSTIME).tv_nsec=tv.tv_usec*1000;\
+}
+#endif /* !set_timespec */
+#ifndef set_timespec_nsec
+#define set_timespec_nsec(ABSTIME,NSEC) \
+{\
+  ulonglong now= my_getsystime() + (NSEC/100); \
+  (ABSTIME).tv_sec=  (time_t) (now / ULL(10000000));                  \
+  (ABSTIME).tv_nsec= (long) (now % ULL(10000000) * 100 + ((NSEC) % 100)); \
+}
+#endif /* !set_timespec_nsec */
+#endif /* HAVE_TIMESPEC_TS_SEC */
 
 	/* safe_mutex adds checking to mutex for easier debugging */
 

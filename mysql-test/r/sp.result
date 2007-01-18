@@ -5633,7 +5633,7 @@ drop function if exists pi;
 create function pi() returns varchar(50)
 return "pie, my favorite desert.";
 Warnings:
-Note	1581	This function 'pi' has the same name as a native function.
+Note	1581	This function 'pi' has the same name as a native function
 SET @save_sql_mode=@@sql_mode;
 SET SQL_MODE='IGNORE_SPACE';
 select pi(), pi ();
@@ -5682,15 +5682,15 @@ use test;
 create function `database`() returns varchar(50)
 return "Stored function database";
 Warnings:
-Note	1581	This function 'database' has the same name as a native function.
+Note	1581	This function 'database' has the same name as a native function
 create function `current_user`() returns varchar(50)
 return "Stored function current_user";
 Warnings:
-Note	1581	This function 'current_user' has the same name as a native function.
+Note	1581	This function 'current_user' has the same name as a native function
 create function md5(x varchar(50)) returns varchar(50)
 return "Stored function md5";
 Warnings:
-Note	1581	This function 'md5' has the same name as a native function.
+Note	1581	This function 'md5' has the same name as a native function
 SET SQL_MODE='IGNORE_SPACE';
 select database(), database ();
 database()	database ()
@@ -5816,4 +5816,20 @@ DROP TABLE bug23760, bug23760_log|
 DROP PROCEDURE bug23760_update_log|
 DROP PROCEDURE bug23760_test_row_count|
 DROP FUNCTION bug23760_rc_test|
+DROP PROCEDURE IF EXISTS bug24117|
+DROP TABLE IF EXISTS t3|
+CREATE TABLE t3(c1 ENUM('abc'))|
+INSERT INTO t3 VALUES('abc')|
+CREATE PROCEDURE bug24117()
+BEGIN
+DECLARE t3c1 ENUM('abc');
+DECLARE mycursor CURSOR FOR SELECT c1 FROM t3;
+OPEN mycursor;
+FLUSH TABLES;
+FETCH mycursor INTO t3c1;
+CLOSE mycursor;
+END|
+CALL bug24117()|
+DROP PROCEDURE bug24117|
+DROP TABLE t3|
 drop table t1,t2;
