@@ -955,6 +955,46 @@ buf_page_get_release_on_io(
 }
 
 /************************************************************************
+Releases a compressed-only page acquired with buf_page_get_zip(). */
+UNIV_INLINE
+void
+buf_page_release_zip(
+/*=================*/
+	buf_page_t*	bpage)		/* in: buffer block */
+{
+	buf_block_t*	block;
+
+	ut_ad(bpage);
+	ut_a(bpage->buf_fix_count > 0);
+
+	switch (buf_page_get_state(bpage)) {
+	case BUF_BLOCK_ZIP_PAGE:
+	case BUF_BLOCK_ZIP_DIRTY:
+		mutex_enter(&buf_pool->zip_mutex);
+		bpage->buf_fix_count--;
+		mutex_exit(&buf_pool->zip_mutex);
+		return;
+	case BUF_BLOCK_FILE_PAGE:
+		block = (buf_block_t*) bpage;
+		mutex_enter(&block->mutex);
+#ifdef UNIV_SYNC_DEBUG
+		rw_lock_s_unlock(&block->debug_latch);
+#endif
+		bpage->buf_fix_count--;
+		mutex_exit(&block->mutex);
+		return;
+	case BUF_BLOCK_ZIP_FREE:
+	case BUF_BLOCK_NOT_USED:
+	case BUF_BLOCK_READY_FOR_USE:
+	case BUF_BLOCK_MEMORY:
+	case BUF_BLOCK_REMOVE_HASH:
+		break;
+	}
+
+	ut_error;
+}
+
+/************************************************************************
 Decrements the bufferfix count of a buffer control block and releases
 a latch, if specified. */
 UNIV_INLINE
