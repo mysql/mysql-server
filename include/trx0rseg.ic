@@ -17,13 +17,15 @@ trx_rsegf_get(
 				/* out: rollback segment header, page
 				x-latched */
 	ulint	space,		/* in: space where placed */
+	ulint	zip_size,	/* in: compressed page size in bytes
+				or 0 for uncompressed pages */
 	ulint	page_no,	/* in: page number of the header */
 	mtr_t*	mtr)		/* in: mtr */
 {
 	buf_block_t*	block;
 	trx_rsegf_t*	header;
 
-	block = buf_page_get(space, page_no, RW_X_LATCH, mtr);
+	block = buf_page_get(space, zip_size, page_no, RW_X_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_RSEG_HEADER);
 #endif /* UNIV_SYNC_DEBUG */
@@ -41,13 +43,15 @@ trx_rsegf_get_new(
 				/* out: rollback segment header, page
 				x-latched */
 	ulint	space,		/* in: space where placed */
+	ulint	zip_size,	/* in: compressed page size in bytes
+				or 0 for uncompressed pages */
 	ulint	page_no,	/* in: page number of the header */
 	mtr_t*	mtr)		/* in: mtr */
 {
 	buf_block_t*	block;
 	trx_rsegf_t*	header;
 
-	block = buf_page_get(space, page_no, RW_X_LATCH, mtr);
+	block = buf_page_get(space, zip_size, page_no, RW_X_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_RSEG_HEADER_NEW);
 #endif /* UNIV_SYNC_DEBUG */

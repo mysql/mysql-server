@@ -128,10 +128,13 @@ trx_undo_page_get(
 /*==============*/
 				/* out: pointer to page x-latched */
 	ulint	space,		/* in: space where placed */
+	ulint	zip_size,	/* in: compressed page size in bytes
+				or 0 for uncompressed pages */
 	ulint	page_no,	/* in: page number */
 	mtr_t*	mtr)		/* in: mtr */
 {
-	buf_block_t*	block = buf_page_get(space, page_no, RW_X_LATCH, mtr);
+	buf_block_t*	block = buf_page_get(space, zip_size, page_no,
+					     RW_X_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
 #endif /* UNIV_SYNC_DEBUG */
@@ -147,10 +150,13 @@ trx_undo_page_get_s_latched(
 /*========================*/
 				/* out: pointer to page s-latched */
 	ulint	space,		/* in: space where placed */
+	ulint	zip_size,	/* in: compressed page size in bytes
+				or 0 for uncompressed pages */
 	ulint	page_no,	/* in: page number */
 	mtr_t*	mtr)		/* in: mtr */
 {
-	buf_block_t*	block = buf_page_get(space, page_no, RW_S_LATCH, mtr);
+	buf_block_t*	block = buf_page_get(space, zip_size, page_no,
+					     RW_S_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
 #endif /* UNIV_SYNC_DEBUG */

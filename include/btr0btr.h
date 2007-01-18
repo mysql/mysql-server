@@ -71,6 +71,8 @@ buf_block_t*
 btr_block_get(
 /*==========*/
 	ulint	space,		/* in: space id */
+	ulint	zip_size,	/* in: compressed page size in bytes
+				or 0 for uncompressed pages */
 	ulint	page_no,	/* in: page number */
 	ulint	mode,		/* in: latch mode */
 	mtr_t*	mtr);		/* in: mtr */
@@ -81,6 +83,8 @@ page_t*
 btr_page_get(
 /*=========*/
 	ulint	space,		/* in: space id */
+	ulint	zip_size,	/* in: compressed page size in bytes
+				or 0 for uncompressed pages */
 	ulint	page_no,	/* in: page number */
 	ulint	mode,		/* in: latch mode */
 	mtr_t*	mtr);		/* in: mtr */
@@ -178,6 +182,8 @@ btr_create(
 				FIL_NULL if did not succeed */
 	ulint		type,	/* in: type of the index */
 	ulint		space,	/* in: space where created */
+	ulint		zip_size,/* in: compressed page size in bytes
+				or 0 for uncompressed pages */
 	dulint		index_id,/* in: index id */
 	dict_index_t*	index,	/* in: index */
 	mtr_t*		mtr);	/* in: mini-transaction handle */
@@ -189,6 +195,8 @@ void
 btr_free_but_not_root(
 /*==================*/
 	ulint	space,		/* in: space where created */
+	ulint	zip_size,	/* in: compressed page size in bytes
+				or 0 for uncompressed pages */
 	ulint	root_page_no);	/* in: root page number */
 /****************************************************************
 Frees the B-tree root page. Other tree MUST already have been freed. */
@@ -197,6 +205,8 @@ void
 btr_free_root(
 /*==========*/
 	ulint	space,		/* in: space where created */
+	ulint	zip_size,	/* in: compressed page size in bytes
+				or 0 for uncompressed pages */
 	ulint	root_page_no,	/* in: root page number */
 	mtr_t*	mtr);		/* in: a mini-transaction which has already
 				been started */

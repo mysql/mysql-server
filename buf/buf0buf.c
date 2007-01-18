@@ -1479,6 +1479,8 @@ buf_page_get_gen(
 /*=============*/
 				/* out: pointer to the block or NULL */
 	ulint		space,	/* in: space id */
+	ulint		zip_size,/* in: compressed page size in bytes
+				or 0 for uncompressed pages */
 	ulint		offset,	/* in: page number */
 	ulint		rw_latch,/* in: RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
 	buf_block_t*	guess,	/* in: guessed block or NULL */
@@ -1493,7 +1495,6 @@ buf_page_get_gen(
 	ulint		fix_type;
 	ibool		success;
 	ibool		must_read;
-	const ulint	zip_size	= fil_space_get_zip_size(space);
 
 	ut_ad(mtr);
 	ut_ad((rw_latch == RW_S_LATCH)
@@ -1502,6 +1503,7 @@ buf_page_get_gen(
 	ut_ad((mode != BUF_GET_NO_LATCH) || (rw_latch == RW_NO_LATCH));
 	ut_ad((mode == BUF_GET) || (mode == BUF_GET_IF_IN_POOL)
 	      || (mode == BUF_GET_NO_LATCH) || (mode == BUF_GET_NOWAIT));
+	ut_ad(zip_size == fil_space_get_zip_size(space));
 #ifndef UNIV_LOG_DEBUG
 	ut_ad(!ibuf_inside() || ibuf_page(space, zip_size, offset));
 #endif
@@ -2322,7 +2324,8 @@ buf_page_create(
 
 		buf_block_free(free_block);
 
-		return(buf_page_get_with_no_latch(space, offset, mtr));
+		return(buf_page_get_with_no_latch(space, zip_size,
+						  offset, mtr));
 	}
 
 	/* If we get here, the page was not in buf_pool: init it there */

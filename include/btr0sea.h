@@ -116,6 +116,8 @@ void
 btr_search_drop_page_hash_when_freed(
 /*=================================*/
 	ulint	space,		/* in: space id */
+	ulint	zip_size,	/* in: compressed page size in bytes
+				or 0 for uncompressed pages */
 	ulint	page_no);	/* in: page number */
 /************************************************************************
 Updates the page hash index when a single record is inserted on a page. */

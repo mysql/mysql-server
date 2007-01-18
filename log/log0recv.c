@@ -1469,8 +1469,9 @@ loop:
 
 					mtr_start(&mtr);
 
-					block = buf_page_get(space, page_no,
-							     RW_X_LATCH, &mtr);
+					block = buf_page_get(
+						space, zip_size, page_no,
+						RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
 					buf_block_dbg_add_level(
 						block, SYNC_NO_ORDER_CHECK);

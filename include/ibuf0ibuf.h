@@ -176,8 +176,7 @@ file segment, and the thread did not own the fsp latch before this call. */
 void
 ibuf_free_excess_pages(
 /*===================*/
-	ulint	space,		/* in: space id */
-	ulint	zip_size);	/* in: compressed page size in bytes, or 0 */
+	ulint	space);		/* in: space id */
 /*************************************************************************
 Makes an index insert to the insert buffer, instead of directly to the disk
 page, if this is possible. Does not do insert if the index is clustered

@@ -4292,6 +4292,7 @@ lock_rec_print(
 {
 	buf_block_t*	block;
 	ulint		space;
+	ulint		zip_size;
 	ulint		page_no;
 	ulint		i;
 	mtr_t		mtr;
@@ -4306,6 +4307,7 @@ lock_rec_print(
 	ut_a(lock_get_type(lock) == LOCK_REC);
 
 	space = lock->un_member.rec_lock.space;
+	zip_size = fil_space_get_zip_size(space);
 	page_no = lock->un_member.rec_lock.page_no;
 
 	fprintf(file, "RECORD LOCKS space id %lu page no %lu n bits %lu ",
@@ -4348,27 +4350,28 @@ lock_rec_print(
 	because we have the kernel mutex and ibuf operations would
 	break the latching order */
 
-	block = buf_page_get_gen(space, page_no, RW_NO_LATCH,
+	block = buf_page_get_gen(space, zip_size, page_no, RW_NO_LATCH,
 				 NULL, BUF_GET_IF_IN_POOL,
 				 __FILE__, __LINE__, &mtr);
 	if (block) {
-		block = buf_page_get_nowait(space, page_no, RW_S_LATCH, &mtr);
+		block = buf_page_get_nowait(space, zip_size,
+					    page_no, RW_S_LATCH, &mtr);
 
 		if (!block) {
 			/* Let us try to get an X-latch. If the current thread
 			is holding an X-latch on the page, we cannot get an
 			S-latch. */
 
-			block = buf_page_get_nowait(space, page_no, RW_X_LATCH,
-						    &mtr);
+			block = buf_page_get_nowait(space, zip_size, page_no,
+						    RW_X_LATCH, &mtr);
 		}
 	}
 
-	if (block) {
 #ifdef UNIV_SYNC_DEBUG
+	if (block) {
 		buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
 	}
+#endif /* UNIV_SYNC_DEBUG */
 
 	for (i = 0; i < lock_rec_get_n_bits(lock); i++) {
 
@@ -4482,8 +4485,6 @@ lock_print_info_all_transactions(
 	FILE*	file)	/* in: file where to print */
 {
 	lock_t*	lock;
-	ulint	space;
-	ulint	page_no;
 	ibool	load_page_first = TRUE;
 	ulint	nth_trx		= 0;
 	ulint	nth_lock	= 0;
@@ -4590,16 +4591,18 @@ loop:
 	}
 
 	if (lock_get_type(lock) == LOCK_REC) {
-		space = lock->un_member.rec_lock.space;
-		page_no = lock->un_member.rec_lock.page_no;
-
 		if (load_page_first) {
+			ulint	space	= lock->un_member.rec_lock.space;
+			ulint	zip_size= fil_space_get_zip_size(space);
+			ulint	page_no = lock->un_member.rec_lock.page_no;
+
 			lock_mutex_exit_kernel();
 			innobase_mysql_end_print_arbitrary_thd();
 
 			mtr_start(&mtr);
 
-			buf_page_get_with_no_latch(space, page_no, &mtr);
+			buf_page_get_with_no_latch(space, zip_size,
+						   page_no, &mtr);
 
 			mtr_commit(&mtr);
 
@@ -4835,7 +4838,8 @@ lock_rec_validate_page(
 
 	mtr_start(&mtr);
 
-	block = buf_page_get(space, page_no, RW_X_LATCH, &mtr);
+	block = buf_page_get(space, fil_space_get_zip_size(space),
+			     page_no, RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */

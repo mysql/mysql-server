@@ -1415,7 +1415,7 @@ innobase_start_or_create_for_mysql(void)
 
 	if (create_new_db) {
 		mtr_start(&mtr);
-		fsp_header_init(0, sum_of_new_sizes, 0, &mtr);
+		fsp_header_init(0, sum_of_new_sizes, &mtr);
 
 		mtr_commit(&mtr);
 

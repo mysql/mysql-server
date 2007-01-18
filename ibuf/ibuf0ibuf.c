@@ -281,7 +281,8 @@ ibuf_header_page_get(
 
 	ut_ad(!ibuf_inside());
 
-	block = buf_page_get(space, FSP_IBUF_HEADER_PAGE_NO, RW_X_LATCH, mtr);
+	block = buf_page_get(space, 0, FSP_IBUF_HEADER_PAGE_NO,
+			     RW_X_LATCH, mtr);
 
 #ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_IBUF_HEADER);
@@ -308,7 +309,7 @@ ibuf_tree_root_get(
 
 	mtr_x_lock(dict_index_get_lock(data->index), mtr);
 
-	block = buf_page_get(space, FSP_IBUF_TREE_ROOT_PAGE_NO, RW_X_LATCH,
+	block = buf_page_get(space, 0, FSP_IBUF_TREE_ROOT_PAGE_NO, RW_X_LATCH,
 			     mtr);
 #ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_TREE_NODE);
@@ -482,7 +483,7 @@ ibuf_data_init_for_space(
 
 	mutex_enter(&ibuf_mutex);
 
-	mtr_x_lock(fil_space_get_latch(space), &mtr);
+	mtr_x_lock(fil_space_get_latch(space, NULL), &mtr);
 
 	header_page = ibuf_header_page_get(space, &mtr);
 
@@ -496,7 +497,8 @@ ibuf_data_init_for_space(
 
 	{
 		buf_block_t*	block = buf_page_get(
-			space, FSP_IBUF_TREE_ROOT_PAGE_NO, RW_X_LATCH, &mtr);
+			space, 0, FSP_IBUF_TREE_ROOT_PAGE_NO,
+			RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
 #endif /* UNIV_SYNC_DEBUG */
@@ -767,7 +769,7 @@ ibuf_bitmap_get_map_page(
 {
 	buf_block_t*	block;
 
-	block = buf_page_get(space,
+	block = buf_page_get(space, zip_size,
 			     ibuf_bitmap_page_no_calc(zip_size, page_no),
 			     RW_X_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
@@ -1661,12 +1663,11 @@ ibuf_add_free_page(
 					/* out: DB_SUCCESS, or DB_STRONG_FAIL
 					if no space left */
 	ulint		space,		/* in: space id */
-	ulint		zip_size,	/* in: compressed page size in
-					bytes, or 0 */
 	ibuf_data_t*	ibuf_data)	/* in: ibuf data for the space */
 {
 	mtr_t	mtr;
 	page_t*	header_page;
+	ulint	zip_size;
 	ulint	page_no;
 	page_t*	page;
 	page_t*	root;
@@ -1678,7 +1679,7 @@ ibuf_add_free_page(
 
 	/* Acquire the fsp latch before the ibuf header, obeying the latching
 	order */
-	mtr_x_lock(fil_space_get_latch(space), &mtr);
+	mtr_x_lock(fil_space_get_latch(space, &zip_size), &mtr);
 
 	header_page = ibuf_header_page_get(space, &mtr);
 
@@ -1703,7 +1704,7 @@ ibuf_add_free_page(
 
 	{
 		buf_block_t*	block = buf_page_get(
-			space, page_no, RW_X_LATCH, &mtr);
+			space, 0, page_no, RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE_NEW);
 #endif /* UNIV_SYNC_DEBUG */
@@ -1750,13 +1751,12 @@ void
 ibuf_remove_free_page(
 /*==================*/
 	ulint		space,		/* in: space id */
-	ulint		zip_size,	/* in: compressed page size in
-					bytes, or 0 */
 	ibuf_data_t*	ibuf_data)	/* in: ibuf data for the space */
 {
 	mtr_t	mtr;
 	mtr_t	mtr2;
 	page_t*	header_page;
+	ulint	zip_size;
 	ulint	page_no;
 	page_t*	page;
 	page_t*	root;
@@ -1768,7 +1768,7 @@ ibuf_remove_free_page(
 
 	/* Acquire the fsp latch before the ibuf header, obeying the latching
 	order */
-	mtr_x_lock(fil_space_get_latch(space), &mtr);
+	mtr_x_lock(fil_space_get_latch(space, &zip_size), &mtr);
 
 	header_page = ibuf_header_page_get(space, &mtr);
 
@@ -1832,7 +1832,7 @@ ibuf_remove_free_page(
 
 	{
 		buf_block_t*	block = buf_page_get(
-			space, page_no, RW_X_LATCH, &mtr);
+			space, 0, page_no, RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
 #endif /* UNIV_SYNC_DEBUG */
@@ -1874,8 +1874,7 @@ file segment, and the thread did not own the fsp latch before this call. */
 void
 ibuf_free_excess_pages(
 /*===================*/
-	ulint	space,		/* in: space id */
-	ulint	zip_size)	/* in: compressed page size in bytes, or 0 */
+	ulint	space)	/* in: compressed page size in bytes, or 0 */
 {
 	ibuf_data_t*	ibuf_data;
 	ulint		i;
@@ -1888,9 +1887,9 @@ ibuf_free_excess_pages(
 	}
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(fil_space_get_latch(space), RW_LOCK_EX));
+	ut_ad(rw_lock_own(fil_space_get_latch(space, NULL), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_ad(rw_lock_get_x_lock_count(fil_space_get_latch(space)) == 1);
+	ut_ad(rw_lock_get_x_lock_count(fil_space_get_latch(space, NULL)) == 1);
 	ut_ad(!ibuf_inside());
 
 	/* NOTE: We require that the thread did not own the latch before,
@@ -1926,7 +1925,7 @@ ibuf_free_excess_pages(
 
 		mutex_exit(&ibuf_mutex);
 
-		ibuf_remove_free_page(space, zip_size, ibuf_data);
+		ibuf_remove_free_page(space, ibuf_data);
 	}
 }
 
@@ -2392,7 +2391,7 @@ ibuf_get_volume_buffered(
 
 	{
 		buf_block_t*	block = buf_page_get(
-			0, prev_page_no, RW_X_LATCH, mtr);
+			0, 0, prev_page_no, RW_X_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
 #endif /* UNIV_SYNC_DEBUG */
@@ -2462,7 +2461,7 @@ count_later:
 
 	{
 		buf_block_t*	block = buf_page_get(
-			0, next_page_no, RW_X_LATCH, mtr);
+			0, 0, next_page_no, RW_X_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
 #endif /* UNIV_SYNC_DEBUG */
@@ -2636,7 +2635,7 @@ ibuf_insert_low(
 
 			mutex_exit(&ibuf_pessimistic_insert_mutex);
 
-			err = ibuf_add_free_page(0, zip_size, ibuf_data);
+			err = ibuf_add_free_page(0, ibuf_data);
 
 			if (err == DB_STRONG_FAIL) {
 

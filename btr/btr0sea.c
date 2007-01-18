@@ -1107,6 +1107,8 @@ void
 btr_search_drop_page_hash_when_freed(
 /*=================================*/
 	ulint	space,		/* in: space id */
+	ulint	zip_size,	/* in: compressed page size in bytes
+				or 0 for uncompressed pages */
 	ulint	page_no)	/* in: page number */
 {
 	buf_block_t*	block;
@@ -1124,7 +1126,7 @@ btr_search_drop_page_hash_when_freed(
 	get here. Therefore we can acquire the s-latch to the page without
 	having to fear a deadlock. */
 
-	block = buf_page_get_gen(space, page_no, RW_S_LATCH, NULL,
+	block = buf_page_get_gen(space, zip_size, page_no, RW_S_LATCH, NULL,
 				BUF_GET_IF_IN_POOL, __FILE__, __LINE__,
 				&mtr);
 

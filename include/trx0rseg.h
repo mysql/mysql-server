@@ -22,6 +22,8 @@ trx_rsegf_get(
 				/* out: rollback segment header, page
 				x-latched */
 	ulint	space,		/* in: space where placed */
+	ulint	zip_size,	/* in: compressed page size in bytes
+				or 0 for uncompressed pages */
 	ulint	page_no,	/* in: page number of the header */
 	mtr_t*	mtr);		/* in: mtr */
 /**********************************************************************
@@ -33,6 +35,8 @@ trx_rsegf_get_new(
 				/* out: rollback segment header, page
 				x-latched */
 	ulint	space,		/* in: space where placed */
+	ulint	zip_size,	/* in: compressed page size in bytes
+				or 0 for uncompressed pages */
 	ulint	page_no,	/* in: page number of the header */
 	mtr_t*	mtr);		/* in: mtr */
 /*******************************************************************
@@ -83,6 +87,8 @@ trx_rseg_header_create(
 				/* out: page number of the created segment,
 				FIL_NULL if fail */
 	ulint	space,		/* in: space id */
+	ulint	zip_size,	/* in: compressed page size in bytes
+				or 0 for uncompressed pages */
 	ulint	max_size,	/* in: max size in pages */
 	ulint*	slot_no,	/* out: rseg id == slot number in trx sys */
 	mtr_t*	mtr);		/* in: mtr */
@@ -126,6 +132,8 @@ struct trx_rseg_struct{
 				rseg mutex */
 	ulint		space;	/* space where the rollback segment is
 				header is placed */
+	ulint		zip_size;/* in: compressed page size of space
+				in bytes, or 0 for uncompressed spaces */
 	ulint		page_no;/* page number of the rollback segment
 				header */
 	ulint		max_size;/* maximum allowed size in pages */
