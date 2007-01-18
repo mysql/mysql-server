@@ -51,10 +51,7 @@ buf_flush_insert_into_flush_list(
 /*=============================*/
 	buf_page_t*	bpage)	/* in: block which is modified */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
-
 	ut_ad((UT_LIST_GET_FIRST(buf_pool->flush_list) == NULL)
 	      || (UT_LIST_GET_FIRST(buf_pool->flush_list)->oldest_modification
 		  <= bpage->oldest_modification));
@@ -99,9 +96,7 @@ buf_flush_insert_sorted_into_flush_list(
 	buf_page_t*	prev_b;
 	buf_page_t*	b;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_ZIP_PAGE:
@@ -157,10 +152,8 @@ buf_flush_ready_for_replace(
 	buf_page_t*	bpage)	/* in: buffer control block, must be
 				buf_page_in_file(bpage) and in the LRU list */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(bpage->in_LRU_list);
 
 	if (UNIV_LIKELY(buf_page_in_file(bpage))) {
@@ -192,11 +185,8 @@ buf_flush_ready_for_flush(
 	enum buf_flush	flush_type)/* in: BUF_FLUSH_LRU or BUF_FLUSH_LIST */
 {
 	ut_a(buf_page_in_file(bpage));
-
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	if (bpage->oldest_modification != 0
 	    && buf_page_get_io_fix(bpage) == BUF_IO_NONE) {
@@ -227,11 +217,8 @@ buf_flush_remove(
 /*=============*/
 	buf_page_t*	bpage)	/* in: pointer to the block in question */
 {
-#ifdef UNIV_SYNC_DEBUG
-	ut_a(mutex_own(&buf_pool->mutex));
-	ut_a(mutex_own(buf_page_get_mutex(bpage)));
-#endif /* UNIV_SYNC_DEBUG */
-
+	ut_ad(mutex_own(&buf_pool->mutex));
+	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 	ut_ad(bpage->in_flush_list);
 	ut_d(bpage->in_flush_list = FALSE);
 

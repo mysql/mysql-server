@@ -101,9 +101,7 @@ buf_pool_clock_tic(void)
 /*====================*/
 			/* out: new clock value */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	buf_pool->ulint_clock++;
 
@@ -367,10 +365,9 @@ buf_page_set_io_fix(
 	buf_page_t*	bpage,	/* in/out: control block */
 	enum buf_io_fix	io_fix)	/* in: io_fix state */
 {
-#ifdef UNIV_SYNC_DEBUG
-	ut_a(mutex_own(&buf_pool->mutex));
-	ut_a(mutex_own(buf_page_get_mutex(bpage)));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&buf_pool->mutex));
+	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
+
 	bpage->io_fix = io_fix;
 	ut_ad(buf_page_get_io_fix(bpage) == io_fix);
 }
@@ -396,10 +393,8 @@ buf_page_can_relocate(
 /*==================*/
 	const buf_page_t*	bpage)	/* control block being relocated */
 {
-#ifdef UNIV_SYNC_DEBUG
-	ut_a(mutex_own(&buf_pool->mutex));
-	ut_a(mutex_own(buf_page_get_mutex((buf_page_t*) bpage)));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&buf_pool->mutex));
+	ut_ad(mutex_own(buf_page_get_mutex((buf_page_t*) bpage)));
 	ut_ad(buf_page_in_file(bpage));
 	ut_ad(bpage->in_LRU_list);
 
@@ -431,9 +426,7 @@ buf_page_set_old(
 	ibool		old)	/* in: old */
 {
 	ut_a(buf_page_in_file(bpage));
-#ifdef UNIV_SYNC_DEBUG
-	ut_a(mutex_own(&buf_pool->mutex));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&buf_pool->mutex));
 
 	bpage->old = old;
 }
@@ -462,9 +455,7 @@ buf_page_set_accessed(
 	ibool		accessed)	/* in: accessed */
 {
 	ut_a(buf_page_in_file(bpage));
-#ifdef UNIV_SYNC_DEBUG
-	ut_a(mutex_own(buf_page_get_mutex(bpage)));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 
 	bpage->accessed = accessed;
 }
@@ -853,8 +844,9 @@ buf_block_buf_fix_inc_func(
 
 	ret = rw_lock_s_lock_func_nowait(&(block->debug_latch), file, line);
 	ut_a(ret);
-	ut_a(mutex_own(&block->mutex));
 #endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&block->mutex));
+
 	block->page.buf_fix_count++;
 }
 #ifdef UNIV_SYNC_DEBUG
@@ -877,9 +869,7 @@ buf_page_hash_get(
 	ulint		fold;
 
 	ut_ad(buf_pool);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	/* Look for the page in the hash table */
 

@@ -724,9 +724,7 @@ buf_chunk_contains_zip(
 	ulint		i;
 
 	ut_ad(buf_pool);
-#ifdef UNIV_SYNC_DEBUG
-	ut_a(mutex_own(&buf_pool->mutex));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&buf_pool->mutex));
 
 	block = chunk->blocks;
 
@@ -780,9 +778,7 @@ buf_chunk_not_freed(
 	ulint		i;
 
 	ut_ad(buf_pool);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	block = chunk->blocks;
 
@@ -815,9 +811,7 @@ buf_chunk_all_free(
 	ulint			i;
 
 	ut_ad(buf_pool);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	block = chunk->blocks;
 
@@ -843,9 +837,7 @@ buf_chunk_free(
 	buf_block_t*		block;
 	const buf_block_t*	block_end;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	block_end = chunk->blocks + chunk->size;
 
@@ -975,10 +967,9 @@ buf_relocate(
 {
 	buf_page_t*	b;
 	ulint		fold;
-#ifdef UNIV_SYNC_DEBUG
-	ut_a(mutex_own(&buf_pool->mutex));
-	ut_a(mutex_own(buf_page_get_mutex(bpage)));
-#endif /* UNIV_SYNC_DEBUG */
+
+	ut_ad(mutex_own(&buf_pool->mutex));
+	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 	ut_a(buf_page_get_io_fix(bpage) == BUF_IO_NONE);
 	ut_a(bpage->buf_fix_count == 0);
 	ut_a(buf_page_in_file(bpage));
@@ -1027,9 +1018,7 @@ buf_pool_shrink(
 	buf_chunk_t*	max_chunk;
 	buf_chunk_t*	max_free_chunk;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&buf_pool->mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
 try_again:
 	btr_search_disable(); /* Empty the adaptive hash index again */
@@ -1318,9 +1307,7 @@ buf_block_make_young(
 /*=================*/
 	buf_page_t*	bpage)	/* in: block to make younger */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&(buf_pool->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	/* Note that we read freed_page_clock's without holding any mutex:
 	this is allowed since the result is used only in heuristics */
@@ -1933,10 +1920,9 @@ buf_page_init(
 	buf_block_t*	block)	/* in: block to init */
 {
 	buf_page_t*	hash_page;
-#ifdef UNIV_SYNC_DEBUG
+
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 	ut_ad(mutex_own(&(block->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_a(buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE);
 
 	/* Set the state of the block */

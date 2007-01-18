@@ -226,9 +226,7 @@ buf_LRU_insert_zip_clean(
 {
 	buf_page_t*	b;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_a(mutex_own(&buf_pool->mutex));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&buf_pool->mutex));
 	ut_ad(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_PAGE);
 
 	/* Find the first successor of bpage in the LRU list
@@ -374,9 +372,7 @@ buf_LRU_get_free_only(void)
 {
 	buf_block_t*	block;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_a(mutex_own(&buf_pool->mutex));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&buf_pool->mutex));
 
 	block = (buf_block_t*) UT_LIST_GET_FIRST(buf_pool->free);
 
@@ -601,9 +597,7 @@ buf_LRU_old_adjust_len(void)
 	ulint	new_len;
 
 	ut_a(buf_pool->LRU_old);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(3 * (BUF_LRU_OLD_MIN_LEN / 8) > BUF_LRU_OLD_TOLERANCE + 5);
 
 	for (;;) {
@@ -645,9 +639,7 @@ buf_LRU_old_init(void)
 {
 	buf_page_t*	bpage;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_a(UT_LIST_GET_LEN(buf_pool->LRU) == BUF_LRU_OLD_MIN_LEN);
 
 	/* We first initialize all blocks in the LRU list as old and then use
@@ -678,9 +670,7 @@ buf_LRU_remove_block(
 {
 	ut_ad(buf_pool);
 	ut_ad(bpage);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(buf_page_in_file(bpage));
 
@@ -740,9 +730,7 @@ buf_LRU_add_block_to_end_low(
 
 	ut_ad(buf_pool);
 	ut_ad(bpage);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(buf_page_in_file(bpage));
 
@@ -798,9 +786,7 @@ buf_LRU_add_block_low(
 {
 	ut_ad(buf_pool);
 	ut_ad(bpage);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(buf_page_in_file(bpage));
 	ut_ad(!bpage->in_LRU_list);
@@ -904,11 +890,8 @@ buf_LRU_free_block(
 	buf_page_t*	b = NULL;
 	mutex_t*	block_mutex = buf_page_get_mutex(bpage);
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&buf_pool->mutex));
 	ut_ad(mutex_own(block_mutex));
-#endif /* UNIV_SYNC_DEBUG */
-
 	ut_ad(buf_page_in_file(bpage));
 	ut_ad(bpage->in_LRU_list);
 	ut_ad(!bpage->in_flush_list == !bpage->oldest_modification);
@@ -1072,10 +1055,9 @@ buf_LRU_block_free_non_file_page(
 	buf_block_t*	block)	/* in: block, must not contain a file page */
 {
 	void*	data;
-#ifdef UNIV_SYNC_DEBUG
+
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 	ut_ad(mutex_own(&block->mutex));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(block);
 
 	switch (buf_block_get_state(block)) {
@@ -1141,10 +1123,8 @@ buf_LRU_block_remove_hashed_page(
 {
 	const buf_page_t*	hashed_bpage;
 	ut_ad(bpage);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(buf_page_get_io_fix(bpage) == BUF_IO_NONE);
 	ut_a(bpage->buf_fix_count == 0);
@@ -1298,10 +1278,9 @@ buf_LRU_block_free_hashed_page(
 	buf_block_t*	block)	/* in: block, must contain a file page and
 				be in a state where it can be freed */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 	ut_ad(mutex_own(&block->mutex));
-#endif /* UNIV_SYNC_DEBUG */
+
 	buf_block_set_state(block, BUF_BLOCK_MEMORY);
 
 	buf_LRU_block_free_non_file_page(block);

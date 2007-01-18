@@ -62,9 +62,7 @@ trx_rseg_header_create(
 	buf_block_t*	block;
 
 	ut_ad(mtr);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mtr_memo_contains(mtr, fil_space_get_latch(space, NULL),
 				MTR_MEMO_X_LOCK));
 	sys_header = trx_sysf_get(mtr);
@@ -143,9 +141,7 @@ trx_rseg_mem_create(
 	ulint		sum_of_undo_sizes;
 	ulint		len;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
 	rseg = mem_alloc(sizeof(trx_rseg_t));
 

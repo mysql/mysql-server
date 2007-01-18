@@ -104,9 +104,7 @@ buf_buddy_alloc_zip(
 {
 	buf_page_t*	bpage;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_a(mutex_own(&buf_pool->mutex));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&buf_pool->mutex));
 	ut_a(i < BUF_BUDDY_SIZES);
 
 #if defined UNIV_DEBUG && !defined UNIV_DEBUG_VALGRIND
@@ -158,10 +156,8 @@ buf_buddy_block_free(
 	buf_page_t*	bpage;
 	buf_block_t*	block;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_a(mutex_own(&buf_pool->mutex));
-	ut_a(!mutex_own(&buf_pool->zip_mutex));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&buf_pool->mutex));
+	ut_ad(!mutex_own(&buf_pool->zip_mutex));
 	ut_a(!ut_align_offset(buf, UNIV_PAGE_SIZE));
 
 	HASH_SEARCH(hash, buf_pool->zip_hash, fold, bpage,
@@ -188,10 +184,9 @@ buf_buddy_block_register(
 	buf_block_t*	block)	/* in: buffer frame to allocate */
 {
 	const ulint	fold = BUF_POOL_ZIP_FOLD(block);
-#ifdef UNIV_SYNC_DEBUG
-	ut_a(mutex_own(&buf_pool->mutex));
-	ut_a(!mutex_own(&buf_pool->zip_mutex));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&buf_pool->mutex));
+	ut_ad(!mutex_own(&buf_pool->zip_mutex));
+
 	buf_block_set_state(block, BUF_BLOCK_MEMORY);
 
 	ut_a(block->frame);
@@ -245,10 +240,8 @@ buf_buddy_alloc_clean(
 {
 	buf_page_t*	bpage;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_a(mutex_own(&buf_pool->mutex));
-	ut_a(!mutex_own(&buf_pool->zip_mutex));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&buf_pool->mutex));
+	ut_ad(!mutex_own(&buf_pool->zip_mutex));
 
 	if (BUF_BUDDY_LOW << i >= PAGE_ZIP_MIN_SIZE
 	    && i < BUF_BUDDY_SIZES) {
@@ -370,10 +363,8 @@ buf_buddy_alloc_low(
 {
 	buf_block_t*	block;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_a(mutex_own(&buf_pool->mutex));
-	ut_a(!mutex_own(&buf_pool->zip_mutex));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&buf_pool->mutex));
+	ut_ad(!mutex_own(&buf_pool->zip_mutex));
 
 	if (i < BUF_BUDDY_SIZES) {
 		/* Try to allocate from the buddy system. */
@@ -432,10 +423,8 @@ buf_buddy_relocate(
 	buf_page_t*	bpage;
 	const ulint	size	= BUF_BUDDY_LOW << i;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_a(mutex_own(&buf_pool->mutex));
-	ut_a(!mutex_own(&buf_pool->zip_mutex));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&buf_pool->mutex));
+	ut_ad(!mutex_own(&buf_pool->zip_mutex));
 	ut_ad(!ut_align_offset(src, size));
 	ut_ad(!ut_align_offset(dst, size));
 #ifdef UNIV_DEBUG_VALGRIND
@@ -570,10 +559,9 @@ buf_buddy_free_low(
 {
 	buf_page_t*	bpage;
 	buf_page_t*	buddy;
-#ifdef UNIV_SYNC_DEBUG
-	ut_a(mutex_own(&buf_pool->mutex));
-	ut_a(!mutex_own(&buf_pool->zip_mutex));
-#endif /* UNIV_SYNC_DEBUG */
+
+	ut_ad(mutex_own(&buf_pool->mutex));
+	ut_ad(!mutex_own(&buf_pool->zip_mutex));
 recombine:
 #ifdef UNIV_DEBUG_VALGRIND
 	VALGRIND_CHECK_MEM_IS_ADDRESSABLE(buf, BUF_BUDDY_LOW << i);
