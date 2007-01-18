@@ -1147,9 +1147,7 @@ flush_next:
 	}
 #endif /* UNIV_DEBUG */
 
-	if (page_count != ULINT_UNDEFINED) {
-		srv_buf_pool_flushed += page_count;
-	}
+	srv_buf_pool_flushed += page_count;
 
 	return(page_count);
 }

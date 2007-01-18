@@ -1,10 +1,8 @@
-# Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-# & Innobase Oy
+# Copyright (C) 2001, 2003 MySQL AB & Innobase Oy
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
+# the Free Software Foundation; version 2 of the License.
 # 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -22,3 +20,6 @@ noinst_LIBRARIES =	libut.a
 libut_a_SOURCES =	ut0byte.c ut0dbg.c ut0mem.c ut0rnd.c ut0ut.c ut0vec.c ut0list.c ut0wqueue.c
 
 EXTRA_PROGRAMS =	
+
+# Don't update the files from bitkeeper
+%::SCCS/s.%

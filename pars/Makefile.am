@@ -1,10 +1,8 @@
-# Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-# & Innobase Oy
+# Copyright (C) 2001, 2003 MySQL AB & Innobase Oy
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
+# the Free Software Foundation; version 2 of the License.
 # 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -24,3 +22,6 @@ noinst_HEADERS =	pars0grm.h
 libpars_a_SOURCES =	pars0grm.c lexyy.c pars0opt.c pars0pars.c pars0sym.c
 
 EXTRA_PROGRAMS =	
+
+# Don't update the files from bitkeeper
+%::SCCS/s.%
