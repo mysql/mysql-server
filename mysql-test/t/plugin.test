@@ -1,0 +1,26 @@
+--source include/have_example_plugin.inc
+
+CREATE TABLE t1(a int) ENGINE=EXAMPLE;
+DROP TABLE t1;
+
+INSTALL PLUGIN example SONAME 'ha_example.so';
+--error 1125
+INSTALL PLUGIN EXAMPLE SONAME 'ha_example.so';
+
+UNINSTALL PLUGIN example;
+
+INSTALL PLUGIN example SONAME 'ha_example.so';
+
+CREATE TABLE t1(a int) ENGINE=EXAMPLE;
+
+# Let's do some advanced ops with the example engine :)
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+# Waiting for fix to BUG#22694
+#UNINSTALL PLUGIN example;
+#UNINSTALL PLUGIN EXAMPLE;
+
+--error 1305
+UNINSTALL PLUGIN non_exist;

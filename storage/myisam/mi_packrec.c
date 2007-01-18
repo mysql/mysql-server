@@ -591,9 +591,8 @@ static void fill_quick_table(uint16 *table, uint bits, uint max_bits,
 static uint copy_decode_table(uint16 *to_pos, uint offset,
 			      uint16 *decode_table)
 {
-  uint prev_offset;
+  uint prev_offset= offset;
   DBUG_ENTER("copy_decode_table");
-  prev_offset= offset;
 
   /* Descent on the left side. */
   if (!(*decode_table & IS_CHAR))
