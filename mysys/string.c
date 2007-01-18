@@ -116,6 +116,58 @@ my_bool dynstr_append_mem(DYNAMIC_STRING *str, const char *append,
 }
 
 
+/** Concatenates any number of strings, escapes any OS quote in the result then
+ * surround the whole affair in another set of quotes which is finally appended
+ * to specified DYNAMIC_STRING.  This function is especially useful when 
+ * building strings to be executed with the system() function.
+ * @param str Dynamic String which will have addtional strings appended.
+ * @param append String to be appended.
+ * @param ... Optional. Additional string(s) to be appended.
+ *
+ * @note The final argument in the list must be NullS even if no additional
+ * options are passed.
+ *
+ * @return True = Success.
+ */
+my_bool dynstr_append_os_quoted(DYNAMIC_STRING *str, const char *append, ...)
+{
+#ifdef __WIN__
+  char quote_str[]= "\"";
+#else
+  char quote_str[]= "\'";
+#endif /* __WIN__ */
+  my_bool ret= TRUE;
+  va_list dirty_text;
+
+  ret&= dynstr_append(str, quote_str);          /* Leading quote */
+  va_start(dirty_text,append);
+  while (append != NullS)
+  {
+    char *cur_pos=  append;
+    char *next_pos= cur_pos;
+
+    /* Search for quote in each string and replace with escaped quote */
+    while(*(next_pos= strcend(cur_pos, quote_str[0])) != '\0')
+    {
+      char *tmp_buff= my_malloc((next_pos - cur_pos) + 1, MYF(MY_ZEROFILL));
+      strnmov(tmp_buff, cur_pos, (next_pos - cur_pos));
+      ret&= dynstr_append(str, tmp_buff);
+      my_free((gptr)tmp_buff, MYF(0));
+
+      ret&= dynstr_append(str ,"\\");
+      ret&= dynstr_append(str, quote_str);
+      cur_pos= next_pos + 1;
+    }
+    ret&= dynstr_append(str, cur_pos);
+    append= va_arg(dirty_text, char *);
+  }
+  va_end(dirty_text);
+  ret&= dynstr_append(str, quote_str);          /* Trailing quote */
+
+  return ret;
+}
+
+
 void dynstr_free(DYNAMIC_STRING *str)
 {
   if (str->str)
