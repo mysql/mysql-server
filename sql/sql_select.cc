@@ -10434,6 +10434,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     */
     join->examined_rows++;
     join->thd->row_count++;
+    join_tab->read_record.file->unlock_row();
   }
   return NESTED_LOOP_OK;
 }
