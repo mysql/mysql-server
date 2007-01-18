@@ -147,6 +147,22 @@ longlong Item_func_not::val_int()
 }
 
 /*
+  We put any NOT expression into parenthesis to avoid
+  possible problems with internal view representations where
+  any '!' is converted to NOT. It may cause a problem if
+  '!' is used in an expression together with other operators
+  whose precedence is lower than the precedence of '!' yet
+  higher than the precedence of NOT.
+*/
+
+void Item_func_not::print(String *str)
+{
+  str->append('(');
+  Item_func::print(str);
+  str->append(')');
+}
+
+/*
   special NOT for ALL subquery
 */
 
