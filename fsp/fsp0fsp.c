@@ -2183,10 +2183,8 @@ fseg_create_general(
 		header = byte_offset + buf_block_get_frame(block);
 	}
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&kernel_mutex)
 	      || mtr_memo_contains(mtr, latch, MTR_MEMO_X_LOCK));
-#endif /* UNIV_SYNC_DEBUG */
 
 	mtr_x_lock(latch, mtr);
 
@@ -2341,11 +2339,10 @@ fseg_n_reserved_pages(
 
 	space = page_get_space_id(page_align(header));
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&kernel_mutex)
 	      || mtr_memo_contains(mtr, fil_space_get_latch(space, NULL),
 				   MTR_MEMO_X_LOCK));
-#endif /* UNIV_SYNC_DEBUG */
+
 	mtr_x_lock(fil_space_get_latch(space, &zip_size), mtr);
 
 	inode = fseg_inode_get(header, space, zip_size, mtr);
@@ -2754,10 +2751,8 @@ fseg_alloc_free_page_general(
 
 	latch = fil_space_get_latch(space, &zip_size);
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&kernel_mutex)
 	      || mtr_memo_contains(mtr, latch, MTR_MEMO_X_LOCK));
-#endif /* UNIV_SYNC_DEBUG */
 
 	mtr_x_lock(latch, mtr);
 
@@ -2906,10 +2901,8 @@ fsp_reserve_free_extents(
 	*n_reserved = n_ext;
 
 	latch = fil_space_get_latch(space, &zip_size);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&kernel_mutex)
 	      || mtr_memo_contains(mtr, latch, MTR_MEMO_X_LOCK));
-#endif /* UNIV_SYNC_DEBUG */
 
 	mtr_x_lock(latch, mtr);
 
@@ -3010,9 +3003,8 @@ fsp_get_available_space_in_free_extents(
 	rw_lock_t*	latch;
 	mtr_t		mtr;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
+
 	mtr_start(&mtr);
 
 	latch = fil_space_get_latch(space, &zip_size);
@@ -3285,11 +3277,10 @@ fseg_free_page(
 	ulint		zip_size;
 	fseg_inode_t*	seg_inode;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&kernel_mutex)
 	      || mtr_memo_contains(mtr, fil_space_get_latch(space, NULL),
 				   MTR_MEMO_X_LOCK));
-#endif /* UNIV_SYNC_DEBUG */
+
 	mtr_x_lock(fil_space_get_latch(space, &zip_size), mtr);
 
 	seg_inode = fseg_inode_get(seg_header, space, zip_size, mtr);
@@ -3399,11 +3390,10 @@ fseg_free_step(
 	space = page_get_space_id(page_align(header));
 	header_page = page_get_page_no(page_align(header));
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&kernel_mutex)
 	      || mtr_memo_contains(mtr, fil_space_get_latch(space, NULL),
 				   MTR_MEMO_X_LOCK));
-#endif /* UNIV_SYNC_DEBUG */
+
 	mtr_x_lock(fil_space_get_latch(space, &zip_size), mtr);
 
 	descr = xdes_get_descriptor(space, zip_size, header_page, mtr);
@@ -3475,11 +3465,10 @@ fseg_free_step_not_header(
 
 	space = page_get_space_id(page_align(header));
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&kernel_mutex)
 	      || mtr_memo_contains(mtr, fil_space_get_latch(space, NULL),
 				   MTR_MEMO_X_LOCK));
-#endif /* UNIV_SYNC_DEBUG */
+
 	mtr_x_lock(fil_space_get_latch(space, &zip_size), mtr);
 
 	inode = fseg_inode_get(header, space, zip_size, mtr);
