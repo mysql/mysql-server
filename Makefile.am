@@ -122,6 +122,7 @@ tags:
 # will then calculate the various port numbers it needs from this,
 # making sure each user use different ports.
 
+test-ps:
 	@PERL@ ./mysql-test-run.pl $(force) --ps-protocol
 
 test-ns:
