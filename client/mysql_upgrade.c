@@ -470,7 +470,12 @@ int main(int argc, char **argv)
   
   load_defaults("my", load_default_groups, &argc, &argv);
 
-  if (handle_options(&argc, &argv, my_long_options, get_one_option)) 
+  /* 
+     Must init_dynamic_string before handle_options because string is freed
+     at error label.
+   */
+  if (init_dynamic_string(&cmdline, NULL, 2 * FN_REFLEN + 128, FN_REFLEN) ||
+      handle_options(&argc, &argv, my_long_options, get_one_option))
   {
     ret= 1;
     goto error;
@@ -478,11 +483,6 @@ int main(int argc, char **argv)
   if (tty_password)
     opt_password= get_tty_password(NullS);
 
-  if (init_dynamic_string(&cmdline, NULL, 2 * FN_REFLEN + 128, FN_REFLEN))
-  {
-    ret= 1;
-    goto error;
-  }
   if (!basedir)
   {
     my_getwd(path, sizeof(path), MYF(0));
@@ -565,17 +565,34 @@ int main(int argc, char **argv)
      goto error;
   }
   else
-    dynstr_set(&cmdline, path);
+  {
+#ifdef __WIN__
+    /* Windows requires an extra pair of quotes around the entire string. */
+    dynstr_set(&cmdline, "\""); 
+#else
+    dynstr_set(&cmdline, "");
+#endif /* __WIN__ */
+    dynstr_append_os_quoted(&cmdline, path, NullS);
+  }
 
   if (defaults_to_use)
   {
-    dynstr_append(&cmdline, " --defaults-extra-file=");
-    dynstr_append(&cmdline, defaults_to_use);
+    dynstr_append(&cmdline, " ");
+    dynstr_append_os_quoted(&cmdline, "--defaults-extra-file=", 
+                            defaults_to_use, NullS);
   }
-  
-  dynstr_append(&cmdline, " --check-upgrade --all-databases"
-                 " --auto-repair --user=");
-  dynstr_append(&cmdline, user);
+
+  dynstr_append(&cmdline, " ");
+  dynstr_append_os_quoted(&cmdline, "--check-upgrade", NullS);
+  dynstr_append(&cmdline, " ");
+  dynstr_append_os_quoted(&cmdline, "--all-databases", NullS);
+  dynstr_append(&cmdline, " ");
+  dynstr_append_os_quoted(&cmdline, "--auto-repair", NullS);
+  dynstr_append(&cmdline, " ");
+  dynstr_append_os_quoted(&cmdline, "--user=", user, NullS);
+#ifdef __WIN__
+  dynstr_append(&cmdline, "\"");
+#endif /* __WIN__ */
 
   if (opt_verbose)
     printf("Running %s\n", cmdline.str);
@@ -604,7 +621,15 @@ fix_priv_tables:
     goto error;
   }
   else
-    dynstr_set(&cmdline, path);
+  {
+#ifdef __WIN__
+    /* Windows requires an extra pair of quotes around the entire string. */
+    dynstr_set(&cmdline, "\"");
+#else
+    dynstr_set(&cmdline, "");
+#endif /* __WIN__ */
+    dynstr_append_os_quoted(&cmdline, path, NullS);
+  }
 
   if (find_file(MYSQL_FIX_PRIV_TABLES_NAME, basedir, MYF(0), 
                           path, sizeof(path), 
@@ -626,13 +651,25 @@ fix_priv_tables:
 
   if (defaults_to_use)
   {
-    dynstr_append(&cmdline, " --defaults-extra-file=");
-    dynstr_append(&cmdline, defaults_to_use);
+    dynstr_append(&cmdline, " ");
+    dynstr_append_os_quoted(&cmdline, "--defaults-extra-file=", 
+                            defaults_to_use, NullS);
   }
-  dynstr_append(&cmdline, " --force --no-auto-rehash --batch --user=");
-  dynstr_append(&cmdline, user);
-  dynstr_append(&cmdline, " mysql < ");
-  dynstr_append(&cmdline, script_line);
+  dynstr_append(&cmdline, " ");
+  dynstr_append_os_quoted(&cmdline, "--force", NullS);
+  dynstr_append(&cmdline, " ");
+  dynstr_append_os_quoted(&cmdline, "--no-auto-rehash", NullS);
+  dynstr_append(&cmdline, " ");
+  dynstr_append_os_quoted(&cmdline, "--batch", NullS);
+  dynstr_append(&cmdline, " ");
+  dynstr_append_os_quoted(&cmdline, "--user=", user, NullS);
+  dynstr_append(&cmdline, " ");
+  dynstr_append_os_quoted(&cmdline, "--database=mysql", NullS);
+  dynstr_append(&cmdline, " < ");
+  dynstr_append_os_quoted(&cmdline, script_line, NullS);
+#ifdef __WIN__
+  dynstr_append(&cmdline, "\"");
+#endif /* __WIN__ */
 
   if (opt_verbose)
     printf("Running %s\n", cmdline.str);
