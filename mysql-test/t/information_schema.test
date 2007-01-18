@@ -971,9 +971,6 @@ SELECT COLUMN_NAME, MD5(COLUMN_DEFAULT), LENGTH(COLUMN_DEFAULT), COLUMN_DEFAULT=
 DROP TABLE bug23037;
 DROP FUNCTION get_value;
 
-
-
-
 #
 # Bug#22413: EXPLAIN SELECT FROM view with ORDER BY yield server crash
 #
@@ -986,5 +983,15 @@ order by object_schema;
 explain select * from v1;
 explain select * from (select table_name from information_schema.tables) as a;
 drop view v1;
+
+#
+# Bug#24822: Patch: uptime_since_flush_status
+#
+--replace_column 2 #
+show global status like "Uptime_%";
+flush status;
+--replace_column 2 #
+show global status like "Uptime_%";  # Almost certainly zero
+
 
 # End of 5.0 tests.

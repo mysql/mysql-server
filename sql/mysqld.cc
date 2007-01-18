@@ -428,7 +428,7 @@ ulong expire_logs_days = 0;
 ulong rpl_recovery_rank=0;
 
 double log_10[32];			/* 10 potences */
-time_t start_time;
+time_t start_time, flush_status_time;
 
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];
 char *default_tz_name;
@@ -2589,7 +2589,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   tzset();			// Set tzname
 
   max_system_variables.pseudo_thread_id= (ulong)~0;
-  start_time=time((time_t*) 0);
+  start_time= flush_status_time= time((time_t*) 0);
   if (init_thread_environment())
     return 1;
   mysql_init_variables();
@@ -6264,6 +6264,7 @@ struct show_var_st status_vars[]= {
   {"Threads_created",	       (char*) &thread_created,		SHOW_LONG_CONST},
   {"Threads_running",          (char*) &thread_running,         SHOW_INT_CONST},
   {"Uptime",                   (char*) 0,                       SHOW_STARTTIME},
+  {"Uptime_since_flush_status",(char*) 0,                       SHOW_FLUSHTIME},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -7534,6 +7535,7 @@ void refresh_status(THD *thd)
 
   /* Reset the counters of all key caches (default and named). */
   process_key_caches(reset_key_cache_counters);
+  flush_status_time= time((time_t*) 0);
   pthread_mutex_unlock(&LOCK_status);
 
   /*
