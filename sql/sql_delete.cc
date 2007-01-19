@@ -142,7 +142,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
 
   if (order && order->elements)
   {
-    uint         length;
+    uint         length= 0;
     SORT_FIELD  *sortorder;
     TABLE_LIST   tables;
     List<Item>   fields;
