@@ -410,15 +410,69 @@ alloc_big:
 }
 
 /**************************************************************************
+Try to relocate the control block of a compressed page. */
+static
+ibool
+buf_buddy_relocate_block(
+/*=====================*/
+				/* out: TRUE if relocated */
+	buf_page_t*	bpage,	/* in: block to relocate */
+	buf_page_t*	dpage)	/* in: free block to relocate to */
+{
+	buf_page_t*	b;
+
+	ut_ad(mutex_own(&buf_pool->mutex));
+
+	switch (buf_page_get_state(bpage)) {
+	case BUF_BLOCK_ZIP_FREE:
+	case BUF_BLOCK_NOT_USED:
+	case BUF_BLOCK_READY_FOR_USE:
+	case BUF_BLOCK_FILE_PAGE:
+	case BUF_BLOCK_MEMORY:
+	case BUF_BLOCK_REMOVE_HASH:
+		ut_error;
+	case BUF_BLOCK_ZIP_DIRTY:
+		/* Cannot relocate dirty pages. */
+		return(FALSE);
+
+	case BUF_BLOCK_ZIP_PAGE:
+		break;
+	}
+
+	mutex_enter(&buf_pool->zip_mutex);
+
+	if (!buf_page_can_relocate(bpage)) {
+		mutex_exit(&buf_pool->zip_mutex);
+		return(FALSE);
+	}
+
+	buf_relocate(bpage, dpage);
+	ut_d(bpage->state = BUF_BLOCK_ZIP_FREE);
+
+	/* relocate buf_pool->zip_clean */
+	b = UT_LIST_GET_PREV(list, dpage);
+	UT_LIST_REMOVE(list, buf_pool->zip_clean, dpage);
+
+	if (b) {
+		UT_LIST_INSERT_AFTER(list, buf_pool->zip_clean, b, dpage);
+	} else {
+		UT_LIST_ADD_FIRST(list, buf_pool->zip_clean, dpage);
+	}
+
+	mutex_exit(&buf_pool->zip_mutex);
+	return(TRUE);
+}
+
+/**************************************************************************
 Try to relocate a block. */
 static
 ibool
 buf_buddy_relocate(
 /*===============*/
-				/* out: TRUE if relocated */
-	const void*	src,	/* in: block to relocate */
-	void*		dst,	/* in: free block to relocate to */
-	ulint		i)	/* in: index of buf_pool->zip_free[] */
+			/* out: TRUE if relocated */
+	void*	src,	/* in: block to relocate */
+	void*	dst,	/* in: free block to relocate to */
+	ulint	i)	/* in: index of buf_pool->zip_free[] */
 {
 	buf_page_t*	bpage;
 	const ulint	size	= BUF_BUDDY_LOW << i;
@@ -494,54 +548,17 @@ buf_buddy_relocate(
 		mutex_exit(mutex);
 	} else if (i == buf_buddy_get_slot(sizeof(buf_page_t))) {
 		/* This must be a buf_page_t object. */
-		bpage = (buf_page_t*) src;
 #ifdef UNIV_VALGRIND_DEBUG
+		ibool	success;
 		VALGRIND_CHECK_MEM_IS_DEFINED(src, size);
-#endif /* UNIV_VALGRIND_DEBUG */
-
-		switch (buf_page_get_state(bpage)) {
-		case BUF_BLOCK_ZIP_FREE:
-		case BUF_BLOCK_NOT_USED:
-		case BUF_BLOCK_READY_FOR_USE:
-		case BUF_BLOCK_FILE_PAGE:
-		case BUF_BLOCK_MEMORY:
-		case BUF_BLOCK_REMOVE_HASH:
-			ut_error;
-			break;
-
-		case BUF_BLOCK_ZIP_DIRTY:
-			/* Cannot relocate dirty pages. */
-			break;
-
-		case BUF_BLOCK_ZIP_PAGE:
-			mutex_enter(&buf_pool->zip_mutex);
-
-			if (buf_page_can_relocate(bpage)) {
-				buf_page_t*	dpage	= (buf_page_t*) dst;
-				buf_page_t*	b;
-
-				buf_relocate(bpage, dpage);
-				UNIV_MEM_INVALID(src, size);
-
-				/* relocate buf_pool->zip_clean */
-				b = UT_LIST_GET_PREV(list, dpage);
-				UT_LIST_REMOVE(list, buf_pool->zip_clean,
-					       dpage);
-
-				if (b) {
-					UT_LIST_INSERT_AFTER(
-						list, buf_pool->zip_clean,
-						b, dpage);
-				} else {
-					UT_LIST_ADD_FIRST(
-						list, buf_pool->zip_clean,
-						dpage);
-				}
-			}
-
-			mutex_exit(&buf_pool->zip_mutex);
-			return(TRUE);
+		success = buf_buddy_relocate_block(src, dst);
+		if (success) {
+			UNIV_MEM_INVALID(src, size);
 		}
+		return(success);
+#else /* UNIV_VALGRIND_DEBUG */
+		return(buf_buddy_relocate_block(src, dst));
+#endif /* UNIV_VALGRIND_DEBUG */
 	}
 
 	return(FALSE);
@@ -702,8 +719,8 @@ buddy_nonfree:
 			negatives) by checking for b->space < 1000. */
 
 			if ((b->state == BUF_BLOCK_ZIP_PAGE
-			     || b->state == BUF_BLOCK_ZIP_DIRTY) &&
-			    b->space > 0 && b->space < 1000) {
+			     || b->state == BUF_BLOCK_ZIP_DIRTY)
+			    && b->space > 0 && b->space < 1000) {
 				fprintf(stderr,
 					"buddy dirty %p %u (%u,%u) %p,%lu\n",
 					(void*) b,
