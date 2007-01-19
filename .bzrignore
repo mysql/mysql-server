@@ -1333,3 +1333,4 @@ win/vs71cache.txt
 win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
+ndb/src/libndb.ver
