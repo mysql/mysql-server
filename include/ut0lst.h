@@ -74,6 +74,7 @@ the pointer to the node to be added to the list. NAME is the list name. */
 	((N)->NAME).next = (BASE).start;\
 	((N)->NAME).prev = NULL;\
 	if ((BASE).start != NULL) {\
+		ut_ad((BASE).start != (N));\
 		(((BASE).start)->NAME).prev = (N);\
 	}\
 	(BASE).start = (N);\
@@ -94,6 +95,7 @@ the pointer to the node to be added to the list. NAME is the list name. */
 	((N)->NAME).prev = (BASE).end;\
 	((N)->NAME).next = NULL;\
 	if ((BASE).end != NULL) {\
+		ut_ad((BASE).end != (N));\
 		(((BASE).end)->NAME).next = (N);\
 	}\
 	(BASE).end = (N);\
@@ -111,6 +113,7 @@ name, NODE1 and NODE2 are pointers to nodes. */
 {\
 	ut_ad(NODE1);\
 	ut_ad(NODE2);\
+	ut_ad((NODE1) != (NODE2));\
 	((BASE).count)++;\
 	((NODE2)->NAME).prev = (NODE1);\
 	((NODE2)->NAME).next = ((NODE1)->NAME).next;\
