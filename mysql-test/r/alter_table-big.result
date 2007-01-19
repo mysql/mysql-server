@@ -1,0 +1,18 @@
+drop table if exists t1, t2;
+create table t1 (n1 int, n2 int, n3 int,
+key (n1, n2, n3),
+key (n2, n3, n1),
+key (n3, n1, n2));
+create table t2 (i int);
+alter table t1 disable keys;
+reset master;
+alter table t1 enable keys;;
+insert into t2 values (1);
+insert into t1 values (1, 1, 1);
+show binlog events in 'master-bin.000001' from 98;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	use `test`; insert into t2 values (1)
+master-bin.000001	#	Query	1	#	use `test`; alter table t1 enable keys
+master-bin.000001	#	Query	1	#	use `test`; insert into t1 values (1, 1, 1)
+drop tables t1, t2;
+End of 5.0 tests
