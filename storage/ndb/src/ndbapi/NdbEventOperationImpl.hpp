@@ -400,7 +400,59 @@ public:
   Uint32 m_eventId;
   Uint32 m_oid;
 
+  /*
+    m_node_bit_mask keeps track of which ndb nodes have reference to
+    an event op
+
+    - add    - TE_ACTIVE
+    - remove - TE_STOP, TE_NODE_FAILURE, TE_CLUSTER_FAILURE
+
+    TE_NODE_FAILURE and TE_CLUSTER_FAILURE are created as events
+    and added to all event ops listed as active or pending delete
+    in m_dropped_ev_op using insertDataL, includeing the blob
+    event ops referenced by a regular event op.
+    - NdbEventBuffer::report_node_failure
+    - NdbEventBuffer::completeClusterFailed
+
+    TE_ACTIVE is sent from the kernel on initial execute/start of the
+    event op, but is also internally generetad on node connect like
+    TE_NODE_FAILURE and TE_CLUSTER_FAILURE
+    - NdbEventBuffer::report_node_connected
+
+    when m_node_bit_mask becomes clear, the kernel reference is
+    removed from m_ref_count
+   */
+
   Bitmask<(unsigned int)_NDB_NODE_BITMASK_SIZE> m_node_bit_mask;
+
+  /*
+    m_ref_count keeps track of outstanding references to an event
+    operation impl object.  To make sure that the object is not
+    deleted too early.
+
+    If on dropEventOperation there are still references to an
+    object it is queued for delete in NdbEventBuffer::m_dropped_ev_op
+  
+    the following references exists for a _non_ blob event op:
+    * user reference
+    - add    - NdbEventBuffer::createEventOperation
+    - remove - NdbEventBuffer::dropEventOperation
+    * kernel reference
+    - add    - execute_nolock
+    - remove - TE_STOP, TE_CLUSTER_FAILURE
+    * blob reference
+    - add    - execute_nolock on blob event
+    - remove - TE_STOP, TE_CLUSTER_FAILURE on blob event
+    * gci reference
+    - add    - insertDataL/add_gci_op
+    - remove - NdbEventBuffer::deleteUsedEventOperations
+
+    the following references exists for a blob event op:
+    * kernel reference
+    - add    - execute_nolock
+    - remove - TE_STOP, TE_CLUSTER_FAILURE    
+   */
+
   int m_ref_count;
   bool m_mergeEvents;
   
@@ -436,8 +488,8 @@ public:
   Vector<Gci_container_pod> m_active_gci;
   NdbEventOperation *createEventOperation(const char* eventName,
 					  NdbError &);
-  NdbEventOperationImpl *createEventOperation(NdbEventImpl& evnt,
-					  NdbError &);
+  NdbEventOperationImpl *createEventOperationImpl(NdbEventImpl& evnt,
+                                                  NdbError &);
   void dropEventOperation(NdbEventOperation *);
   static NdbEventOperationImpl* getEventOperationImpl(NdbEventOperation* tOp);
 
@@ -541,6 +593,11 @@ public:
 #endif
 
 private:
+  void insert_event(NdbEventOperationImpl* impl,
+                    SubTableData &data,
+                    LinearSectionPtr *ptr,
+                    Uint32 &oid_ref);
+  
   int expand(unsigned sz);
 
   // all allocated data
@@ -552,8 +609,14 @@ private:
   Vector<EventBufData_chunk *> m_allocated_data;
   unsigned m_sz;
 
-  // dropped event operations that have not yet
-  // been deleted
+  /*
+    dropped event operations (dropEventOperation) that have not yet
+    been deleted because of outstanding m_ref_count
+
+    check for delete is done on occations when the ref_count may have
+    changed by calling deleteUsedEventOperations:
+    - nextEvent - each time the user has completed processing a gci
+  */
   NdbEventOperationImpl *m_dropped_ev_op;
 
   Uint32 m_active_op_count;
