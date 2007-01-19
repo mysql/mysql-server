@@ -810,7 +810,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 alter table table_24562 order by (section + 12);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(section + 12)' at line 1
 alter table table_24562 order by length(title);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'length(title)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(title)' at line 1
 alter table table_24562 order by (select 12 from dual);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select 12 from dual)' at line 1
 alter table table_24562 order by no_such_col;
