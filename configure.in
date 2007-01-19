@@ -388,6 +388,14 @@ if $LD --version 2>/dev/null|grep -q GNU; then
 fi
 AC_SUBST(LD_VERSION_SCRIPT)
 
+# libndbclient versioning when linked with GNU ld.
+if $LD --version 2>/dev/null|grep -q GNU; then
+  NDB_LD_VERSION_SCRIPT="-Wl,--version-script=\$(top_builddir)/storage/ndb/src/libndb.ver"
+  AC_CONFIG_FILES(storage/ndb/src/libndb.ver)
+fi
+AC_SUBST(NDB_LD_VERSION_SCRIPT)
+
+
 # Avoid bug in fcntl on some versions of linux
 AC_MSG_CHECKING([if we should use 'skip-external-locking' as default for $target_os])
 # Any variation of Linux
