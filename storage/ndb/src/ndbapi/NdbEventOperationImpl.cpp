@@ -571,7 +571,12 @@ NdbEventOperationImpl::execute_nolock()
       while (blob_op != NULL) {
         r = blob_op->execute_nolock();
         if (r != 0) {
-          break;
+          // since main op is running and possibly some blob ops as well
+          // we can't just reset the main op.  Instead return with error,
+          // main op (and blob ops) will be cleaned up when user calls
+          // dropEventOperation
+          m_error.code= myDict->getNdbError().code;
+          DBUG_RETURN(r);
         }
         // add blob reference to main op
         // removed by TE_STOP or TE_CLUSTER_FAILURE
