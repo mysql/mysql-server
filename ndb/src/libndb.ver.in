@@ -1,2 +1,0 @@
-libndbclient_@NDB_SHARED_LIB_MAJOR_VERSION@ { global: *; };
-
