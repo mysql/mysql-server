@@ -2456,7 +2456,12 @@ void Qmgr::execAPI_FAILREQ(Signal* signal)
 
   // ignore if api not active
   if (failedNodePtr.p->phase != ZAPI_ACTIVE)
+  {
+    jam();
+    // But send to SUMA anyway...
+    sendSignal(SUMA_REF, GSN_API_FAILREQ, signal, 2, JBA);
     return;
+  }
 
   signal->theData[0] = NDB_LE_Disconnected;
   signal->theData[1] = failedNodePtr.i;
