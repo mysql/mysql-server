@@ -1172,7 +1172,9 @@ deallocate prepare stmt2;
 # test
 --system rm -f $MYSQLTEST_VARDIR/tmp/t1.*
 --disable_query_log
+--disable_warnings
 eval prepare stmt from "create table t1 (c char(10)) data directory='$MYSQLTEST_VARDIR/tmp'";
+--enable_warnings
 --enable_query_log
 execute stmt;
 #
