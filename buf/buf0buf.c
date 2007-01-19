@@ -2287,7 +2287,7 @@ buf_page_init_for_read(
 
 			block->page.state = BUF_BLOCK_FILE_PAGE;
 			ut_a(!block->page.buf_fix_count);
-			block->page.buf_fix_count++;;
+			block->page.buf_fix_count++;
 			buf_block_set_io_fix(block, BUF_IO_READ);
 			rw_lock_x_lock(&block->lock);
 			mutex_exit(&block->mutex);
