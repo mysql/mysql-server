@@ -12932,7 +12932,6 @@ static void test_bug15518()
   DIE_UNLESS(rc && mysql_stmt_errno(stmt));
 
   mysql_stmt_close(stmt);
-  DIE_UNLESS(mysql_errno(mysql1));
 }
 
 
