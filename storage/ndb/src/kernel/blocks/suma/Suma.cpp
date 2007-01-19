@@ -319,6 +319,12 @@ Suma::execSTTOR(Signal* signal) {
       createSequence(signal);
       DBUG_VOID_RETURN;
     }//if
+    
+    if (ERROR_INSERTED(13030))
+    {
+      ndbout_c("Dont start handover");
+      return;
+    }
   }//if
   
   if(startphase == 100)
@@ -563,6 +569,15 @@ void Suma::execAPI_FAILREQ(Signal* signal)
   DBUG_ENTER("Suma::execAPI_FAILREQ");
   Uint32 failedApiNode = signal->theData[0];
   //BlockReference retRef = signal->theData[1];
+
+  if (c_startup.m_restart_server_node_id &&
+      c_startup.m_restart_server_node_id != RNIL)
+  {
+    jam();
+    sendSignalWithDelay(reference(), GSN_API_FAILREQ, signal,
+                        200, signal->getLength());
+    return;
+  }
 
   c_failedApiNodes.set(failedApiNode);
   c_connected_nodes.clear(failedApiNode);
@@ -911,6 +926,20 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
   if (tCase == 8008)
   {
     CLEAR_ERROR_INSERT_VALUE;
+  }
+
+  if (tCase == 8009)
+  {
+    if (ERROR_INSERTED(13030))
+    {
+      CLEAR_ERROR_INSERT_VALUE;
+      sendSTTORRY(signal);
+    }
+    else
+    {
+      SET_ERROR_INSERT_VALUE(13030);
+    }
+    return;
   }
 }
 
