@@ -12262,7 +12262,7 @@ static int
 create_sort_index(THD *thd, JOIN *join, ORDER *order,
 		  ha_rows filesort_limit, ha_rows select_limit)
 {
-  uint length;
+  uint length= 0;
   ha_rows examined_rows;
   TABLE *table;
   SQL_SELECT *select;
@@ -12283,8 +12283,10 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
        !(join->select_options & SELECT_BIG_RESULT)) &&
       test_if_skip_sort_order(tab,order,select_limit,0))
     DBUG_RETURN(0);
+  for (ORDER *ord= join->order; ord; ord= ord->next)
+    length++;
   if (!(join->sortorder= 
-        make_unireg_sortorder(order,&length,join->sortorder)))
+        make_unireg_sortorder(order, &length, join->sortorder)))
     goto err;				/* purecov: inspected */
 
   table->sort.io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
@@ -12690,8 +12692,10 @@ SORT_FIELD *make_unireg_sortorder(ORDER *order, uint *length,
   for (ORDER *tmp = order; tmp; tmp=tmp->next)
     count++;
   if (!sortorder)
-    sortorder= (SORT_FIELD*) sql_alloc(sizeof(SORT_FIELD)*(count+1));
-  pos=sort=sortorder;
+    sortorder= (SORT_FIELD*) sql_alloc(sizeof(SORT_FIELD) *
+                                       (max(count, *length) + 1));
+  pos= sort= sortorder;
+
   if (!pos)
     return 0;
 
