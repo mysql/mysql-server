@@ -1171,10 +1171,9 @@ deallocate prepare stmt2;
 # Protect ourselves from data left in tmp/ by a previos possibly failed
 # test
 --system rm -f $MYSQLTEST_VARDIR/tmp/t1.*
---disable_query_log
 --disable_warnings
+--disable_query_log
 eval prepare stmt from "create table t1 (c char(10)) data directory='$MYSQLTEST_VARDIR/tmp'";
---enable_warnings
 --enable_query_log
 execute stmt;
 #
@@ -1192,6 +1191,7 @@ execute stmt;
 --disable_result_log
 show create table t1;
 --enable_result_log
+--enable_warnings
 drop table t1;
 deallocate prepare stmt;
 
