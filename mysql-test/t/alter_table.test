@@ -579,16 +579,16 @@ order by table_24562.subsection ASC, table_24562.section DESC;
 
 select * from table_24562;
 
---error 1064
+--error ER_PARSE_ERROR
 alter table table_24562 order by 12;
---error 1064
+--error ER_PARSE_ERROR
 alter table table_24562 order by (section + 12);
---error 1064
+--error ER_PARSE_ERROR
 alter table table_24562 order by length(title);
---error 1064
+--error ER_PARSE_ERROR
 alter table table_24562 order by (select 12 from dual);
 
---error 1054
+--error ER_BAD_FIELD_ERROR
 alter table table_24562 order by no_such_col;
 
 drop table table_24562;
