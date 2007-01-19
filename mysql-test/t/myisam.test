@@ -995,6 +995,14 @@ INSERT INTO t1 VALUES(1),(2);
 UPDATE t1,t1 AS t2 SET t1.a=t1.a+2 WHERE t1.a=t2.a-1;
 SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
+
+#
+# Bug#24607 - MyISAM pointer size determined incorrectly
+#
+CREATE TABLE t1 (c1 TEXT) AVG_ROW_LENGTH=70100 MAX_ROWS=5100100100;
+--replace_column 5 X 6 X 7 X 9 X 10 X 11 X 12 X 13 X 14 X 16 X
+SHOW TABLE STATUS LIKE 't1';
+DROP TABLE t1;
 --echo End of 4.1 tests
 
 #
