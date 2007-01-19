@@ -23,6 +23,8 @@ libndbclient_la_SOURCES =
 
 libndbclient_la_LDFLAGS = -version-info @NDB_SHARED_LIB_VERSION@ @NDB_LD_VERSION_SCRIPT@
 
+BUILT_SOURCES = libndb.ver
+
 libndbclient_la_LIBADD =  \
               ndbapi/libndbapi.la \
               common/transporter/libtransporter.la   \
