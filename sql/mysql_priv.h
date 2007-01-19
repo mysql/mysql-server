@@ -410,7 +410,10 @@ MY_LOCALE *my_locale_by_name(const char *name);
 #define UNCACHEABLE_EXPLAIN     8
 /* Don't evaluate subqueries in prepare even if they're not correlated */
 #define UNCACHEABLE_PREPARE    16
-/* Used to chack GROUP BY list in the MODE_ONLY_FULL_GROUP_BY mode */
+/* For uncorrelated SELECT in an UNION with some correlated SELECTs */
+#define UNCACHEABLE_UNITED     32
+
+/* Used to check GROUP BY list in the MODE_ONLY_FULL_GROUP_BY mode */
 #define UNDEF_POS (-1)
 #ifdef EXTRA_DEBUG
 /*
