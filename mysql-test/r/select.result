@@ -2816,11 +2816,11 @@ insert into t1 values (0xfffffffffffffffff, 0xfffffffffffffffff),
 (0x10000000000000000, 0x10000000000000000), 
 (0x8fffffffffffffff, 0x8fffffffffffffff);
 Warnings:
-Warning	1264	Out of range value adjusted for column 'a' at row 1
-Warning	1264	Out of range value adjusted for column 'b' at row 1
-Warning	1264	Out of range value adjusted for column 'a' at row 2
-Warning	1264	Out of range value adjusted for column 'b' at row 2
-Warning	1264	Out of range value adjusted for column 'b' at row 3
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1264	Out of range value for column 'b' at row 1
+Warning	1264	Out of range value for column 'a' at row 2
+Warning	1264	Out of range value for column 'b' at row 2
+Warning	1264	Out of range value for column 'b' at row 3
 select hex(a), hex(b) from t1;
 hex(a)	hex(b)
 FFFFFFFFFFFFFFFF	7FFFFFFFFFFFFFFF
