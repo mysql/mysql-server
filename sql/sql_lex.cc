@@ -1371,9 +1371,17 @@ void st_select_lex::mark_as_dependent(SELECT_LEX *last)
     if (!(s->uncacheable & UNCACHEABLE_DEPENDENT))
     {
       // Select is dependent of outer select
-      s->uncacheable|= UNCACHEABLE_DEPENDENT;
+      s->uncacheable= (s->uncacheable & ~UNCACHEABLE_UNITED) |
+                       UNCACHEABLE_DEPENDENT;
       SELECT_LEX_UNIT *munit= s->master_unit();
-      munit->uncacheable|= UNCACHEABLE_DEPENDENT;
+      munit->uncacheable= (munit->uncacheable & ~UNCACHEABLE_UNITED) |
+                       UNCACHEABLE_DEPENDENT;
+      for (SELECT_LEX *sl= munit->first_select(); sl ; sl= sl->next_select())
+      {
+        if (sl != s &&
+            !(sl->uncacheable & (UNCACHEABLE_DEPENDENT | UNCACHEABLE_UNITED)))
+          sl->uncacheable|= UNCACHEABLE_UNITED;
+      }
     }
   is_correlated= TRUE;
   this->master_unit()->item->is_correlated= TRUE;
