@@ -1,8 +1,8 @@
 # In order to be more or less robust test for bug#25044 has to take
 # significant time (e.g. about 9 seconds on my (Dmitri's) computer)
 # so we probably want execute it only in --big-test mode.
-# Also in 5.1 this test will require statement-based binlog.
 --source include/big_test.inc
+--source include/have_binlog_format_mixed_or_statement.inc
 
 
 #
@@ -53,7 +53,7 @@ connection default;
 --reap
 # Check that statements were executed/binlogged in correct order.
 --replace_column 2 # 5 #
-show binlog events in 'master-bin.000001' from 98;
+show binlog events in 'master-bin.000001' from 102;
 
 # Clean up
 drop tables t1, t2;

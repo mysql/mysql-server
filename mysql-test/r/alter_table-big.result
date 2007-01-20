@@ -9,7 +9,7 @@ reset master;
 alter table t1 enable keys;;
 insert into t2 values (1);
 insert into t1 values (1, 1, 1);
-show binlog events in 'master-bin.000001' from 98;
+show binlog events in 'master-bin.000001' from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; insert into t2 values (1)
 master-bin.000001	#	Query	1	#	use `test`; alter table t1 enable keys
