@@ -449,13 +449,6 @@ if $LD --version 2>/dev/null|grep -q GNU; then
 fi
 AC_SUBST(LD_VERSION_SCRIPT)
 
-# libndbclient versioning when linked with GNU ld.
-if $LD --version 2>/dev/null|grep -q GNU; then
-  NDB_LD_VERSION_SCRIPT="-Wl,--version-script=\$(top_builddir)/ndb/src/libndb.ver"
-  AC_CONFIG_FILES(ndb/src/libndb.ver)
-fi
-AC_SUBST(NDB_LD_VERSION_SCRIPT)
-
 
 
 # Avoid bug in fcntl on some versions of linux
