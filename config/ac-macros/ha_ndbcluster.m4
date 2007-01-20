@@ -145,6 +145,14 @@ AC_DEFUN([MYSQL_CHECK_NDBCLUSTER], [
       ndbcluster_system_libs=""
       ndb_mgmclient_libs="\$(top_builddir)/ndb/src/mgmclient/libndbmgmclient.la"
       MYSQL_CHECK_NDB_OPTIONS
+
+      # libndbclient versioning when linked with GNU ld.
+      if $LD --version 2>/dev/null|grep -q GNU; then
+        NDB_LD_VERSION_SCRIPT="-Wl,--version-script=\$(top_builddir)/ndb/src/libndb.ver"
+        AC_CONFIG_FILES(ndb/src/libndb.ver)
+      fi
+      AC_SUBST(NDB_LD_VERSION_SCRIPT)
+
       ;;
     * )
       AC_MSG_RESULT([Not using NDB Cluster])
@@ -156,6 +164,7 @@ AC_DEFUN([MYSQL_CHECK_NDBCLUSTER], [
   AC_SUBST(ndbcluster_libs)
   AC_SUBST(ndbcluster_system_libs)
   AC_SUBST(ndb_mgmclient_libs)
+
 ])
                                                                                 
 dnl ---------------------------------------------------------------------------
