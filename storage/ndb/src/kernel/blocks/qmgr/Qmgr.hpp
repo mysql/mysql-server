@@ -455,6 +455,12 @@ private:
   void recompute_version_info(Uint32 type, Uint32 version);
   void execNODE_VERSION_REP(Signal* signal);
   void sendApiVersionRep(Signal* signal, NodeRecPtr nodePtr);
+  void sendVersionedDb(NodeReceiverGroup rg,
+                       GlobalSignalNumber gsn, 
+                       Signal* signal, 
+                       Uint32 length, 
+                       JobBufferLevel jbuf,
+                       Uint32 minversion);
 };
 
 #endif
