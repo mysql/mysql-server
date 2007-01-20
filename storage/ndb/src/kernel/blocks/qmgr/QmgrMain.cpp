@@ -2785,30 +2785,12 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
     
     recompute_version_info(type, version);
     
-    if (info.m_type[NodeInfo::DB].m_min_version >= NDBD_NODE_VERSION_REP)
-    {
-      jam();
-      NodeReceiverGroup rg(QMGR, c_clusterNodes);
-      rg.m_nodes.clear(getOwnNodeId());
-      signal->theData[0] = apiNodePtr.i;
-      signal->theData[1] = version;
-      sendSignal(rg, GSN_NODE_VERSION_REP, signal, 2, JBB);
-    }
-    else
-    {
-      Uint32 i = 0;
-      while((i = c_clusterNodes.find(i + 1)) != NdbNodeBitmask::NotFound)
-      {
-	jam();
-	if (i == getOwnNodeId())
-	  continue;
-	if (getNodeInfo(i).m_version >= NDBD_NODE_VERSION_REP)
-	{
-	  jam();
-	  sendSignal(calcQmgrBlockRef(i), GSN_NODE_VERSION_REP, signal, 2,JBB);
-	}
-      }
-    }
+    signal->theData[0] = apiNodePtr.i;
+    signal->theData[1] = version;
+    NodeReceiverGroup rg(QMGR, c_clusterNodes);
+    rg.m_nodes.clear(getOwnNodeId());
+    sendVersionedDb(rg, GSN_NODE_VERSION_REP, signal, 2, JBB, 
+		    NDBD_NODE_VERSION_REP);
     
     signal->theData[0] = apiNodePtr.i;
     EXECUTE_DIRECT(NDBCNTR, GSN_API_START_REP, signal, 1);
@@ -2816,6 +2798,38 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
   return;
 }//Qmgr::execAPI_REGREQ()
 
+void
+Qmgr::sendVersionedDb(NodeReceiverGroup rg,
+		      GlobalSignalNumber gsn, 
+		      Signal* signal, 
+		      Uint32 length, 
+		      JobBufferLevel jbuf,
+		      Uint32 minversion)
+{
+  jam();
+  NodeVersionInfo info = getNodeVersionInfo();
+  if (info.m_type[NodeInfo::DB].m_min_version >= minversion)
+  {
+    jam();
+    sendSignal(rg, gsn, signal, length, jbuf);
+  }
+  else
+  {
+    jam();
+    Uint32 i = 0, cnt = 0;
+    while((i = rg.m_nodes.find(i + 1)) != NodeBitmask::NotFound)
+    {
+      jam();
+      if (getNodeInfo(i).m_version >= minversion)
+      {
+	jam();
+	cnt++;
+	sendSignal(numberToRef(rg.m_block, i), gsn, signal, length, jbuf);
+      }
+    }
+    ndbassert(cnt < rg.m_nodes.count());
+  }
+}
 
 void
 Qmgr::execAPI_VERSION_REQ(Signal * signal) {
