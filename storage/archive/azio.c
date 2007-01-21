@@ -123,6 +123,8 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
   {
     s->rows= 0;
     s->forced_flushes= 0;
+    s->shortest_row= 0;
+    s->longest_row= 0;
     s->auto_increment= 0;
     s->check_point= 0;
     s->dirty= 1; /* We create the file dirty */
@@ -156,7 +158,7 @@ void write_header(azio_stream *s)
 
 
   /* Write a very simple .az header: */
-  bzero(buffer, AZHEADER_SIZE + AZMETA_BUFFER_SIZE);
+  memset(buffer, 0, AZHEADER_SIZE + AZMETA_BUFFER_SIZE);
   *(ptr + AZ_MAGIC_POS)= az_magic[0];
   *(ptr + AZ_VERSION_POS)= (unsigned char)s->version;
   *(ptr + AZ_BLOCK_POS)= (unsigned char)(s->block_size/1024); /* Reserved for block size */
@@ -169,6 +171,8 @@ void write_header(azio_stream *s)
   int8store(ptr + AZ_FLUSH_POS, (unsigned long long)s->forced_flushes); /* Start of Data Block Index Block */
   int8store(ptr + AZ_CHECK_POS, (unsigned long long)s->check_point); /* Start of Data Block Index Block */
   int8store(ptr + AZ_AUTOINCREMENT_POS, (unsigned long long)s->auto_increment); /* Start of Data Block Index Block */
+  int4store(ptr+ AZ_LONGEST_POS , s->longest_row); /* Longest row */
+  int4store(ptr+ AZ_SHORTEST_POS, s->shortest_row); /* Shorest row */
   *(ptr + AZ_DIRTY_POS)= (unsigned char)s->dirty; /* Start of Data Block Index Block */
 
   /* Always begin at the begining, and end there as well */
@@ -316,6 +320,8 @@ void read_header(azio_stream *s, unsigned char *buffer)
     s->check_point= (unsigned long long)uint8korr(buffer + AZ_CHECK_POS);
     s->forced_flushes= (unsigned long long)uint8korr(buffer + AZ_FLUSH_POS);
     s->auto_increment= (unsigned long long)uint8korr(buffer + AZ_AUTOINCREMENT_POS);
+    s->longest_row= (unsigned int)uint4korr(buffer + AZ_LONGEST_POS);
+    s->shortest_row= (unsigned int)uint4korr(buffer + AZ_SHORTEST_POS);
     s->dirty= (unsigned int)buffer[AZ_DIRTY_POS];
   }
   else
@@ -334,22 +340,19 @@ int destroy (s)
 {
   int err = Z_OK;
 
-  if (s->stream.state != NULL) {
-    if (s->mode == 'w') {
-      err = deflateEnd(&(s->stream));
-    } 
-    else if (s->mode == 'r') 
-    {
-      err = inflateEnd(&(s->stream));
-    }
-  }
-  if (s->file > 0 && my_close(s->file, MYF(0))) 
+  if (s->stream.state != NULL) 
   {
-#ifdef ESPIPE
-    if (errno != ESPIPE) /* fclose is broken for pipes in HP/UX */
-#endif
-      err = Z_ERRNO;
+    if (s->mode == 'w') 
+      err = deflateEnd(&(s->stream));
+    else if (s->mode == 'r') 
+      err = inflateEnd(&(s->stream));
   }
+
+  if (s->file > 0 && my_close(s->file, MYF(0))) 
+      err = Z_ERRNO;
+
+  s->file= -1;
+
   if (s->z_err < 0) err = s->z_err;
 
   return err;
@@ -515,6 +518,12 @@ unsigned int azwrite (azio_stream *s, voidpc buf, unsigned int len)
   }
   s->crc = crc32(s->crc, (const Bytef *)buf, len);
 
+  if (len > s->longest_row)
+    s->longest_row= len;
+
+  if (len < s->shortest_row || !(s->shortest_row))
+    s->shortest_row= len;
+
   return (unsigned int)(len - s->stream.avail_in);
 }
 
@@ -536,7 +545,9 @@ int do_flush (azio_stream *s, int flush)
   {
     len = AZ_BUFSIZE - s->stream.avail_out;
 
-    if (len != 0) {
+    if (len != 0) 
+    {
+      s->check_point= my_tell(s->file, MYF(0));
       if ((uInt)my_write(s->file, (byte *)s->outbuf, len, MYF(0)) != len) 
       {
         s->z_err = Z_ERRNO;
@@ -562,7 +573,9 @@ int do_flush (azio_stream *s, int flush)
   }
 
   if (flush == Z_FINISH)
-    s->dirty= 0; /* Mark it clean, we should be good now */
+    s->dirty= AZ_STATE_CLEAN; /* Mark it clean, we should be good now */
+  else
+    s->dirty= AZ_STATE_SAVED; /* Mark it clean, we should be good now */
   write_header(s);
 
   return  s->z_err == Z_STREAM_END ? Z_OK : s->z_err;
@@ -748,15 +761,20 @@ int azclose (azio_stream *s)
 {
 
   if (s == NULL) return Z_STREAM_ERROR;
-
+  
+  if (s->file < 1) return Z_OK;
 
   if (s->mode == 'w') 
   {
-    if (do_flush (s, Z_FINISH) != Z_OK)
+    if (do_flush(s, Z_FINISH) != Z_OK)
       return destroy(s);
 
     putLong(s->file, s->crc);
     putLong(s->file, (uLong)(s->in & 0xffffffff));
+    s->dirty= AZ_STATE_CLEAN;
+    s->check_point= my_tell(s->file, MYF(0));
+    write_header(s);
   }
+
   return destroy(s);
 }
