@@ -17,7 +17,7 @@
 #include <string.h>
 
 static int const gz_magic[2] = {0x1f, 0x8b}; /* gzip magic header */
-static int const az_magic[2] = {0xfe, 0x03}; /* az magic header */
+static int const az_magic[3] = {0xfe, 0x03, 0x01}; /* az magic header */
 
 /* gzip flag byte */
 #define ASCII_FLAG   0x01 /* bit 0 set: file probably ascii text */
@@ -69,6 +69,7 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
   s->transparent = 0;
   s->mode = 'r';
   s->version = (unsigned char)az_magic[1]; /* this needs to be a define to version */
+  s->version = (unsigned char)az_magic[2]; /* minor version */
 
   /*
     We do our own version of append by nature. 
@@ -155,12 +156,14 @@ void write_header(azio_stream *s)
   s->start = AZHEADER_SIZE + AZMETA_BUFFER_SIZE;
   s->block_size= AZ_BUFSIZE;
   s->version = (unsigned char)az_magic[1];
+  s->minor_version = (unsigned char)az_magic[2];
 
 
   /* Write a very simple .az header: */
   memset(buffer, 0, AZHEADER_SIZE + AZMETA_BUFFER_SIZE);
   *(ptr + AZ_MAGIC_POS)= az_magic[0];
   *(ptr + AZ_VERSION_POS)= (unsigned char)s->version;
+  *(ptr + AZ_MINOR_VERSION_POS)= (unsigned char)s->minor_version;
   *(ptr + AZ_BLOCK_POS)= (unsigned char)(s->block_size/1024); /* Reserved for block size */
   *(ptr + AZ_STRATEGY_POS)= (unsigned char)Z_DEFAULT_STRATEGY; /* Compression Type */
 
@@ -314,6 +317,7 @@ void read_header(azio_stream *s, unsigned char *buffer)
   if (buffer[0] == az_magic[0]  && buffer[1] == az_magic[1])
   {
     s->version= (unsigned int)buffer[AZ_VERSION_POS];
+    s->minor_version= (unsigned int)buffer[AZ_MINOR_VERSION_POS];
     s->block_size= 1024 * buffer[AZ_BLOCK_POS];
     s->start= (unsigned long long)uint8korr(buffer + AZ_START_POS);
     s->rows= (unsigned long long)uint8korr(buffer + AZ_ROW_POS);
