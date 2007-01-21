@@ -613,7 +613,6 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   DBUG_RETURN(0);
 
 error2:
-  azclose(&create_stream);
   delete_table(name);
 error:
   /* Return error number, if we got one */
@@ -1228,7 +1227,7 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   if (share->archive_write_open)
   {
     azclose(&(share->archive_write));
-    share->archive_write_open= 0;
+    share->archive_write_open= FALSE;
   }
 
   /* Lets create a file to contain the new data */
@@ -1362,8 +1361,6 @@ THR_LOCK_DATA **ha_archive::store_lock(THD *thd,
 
 void ha_archive::update_create_info(HA_CREATE_INFO *create_info)
 {
-  struct stat stat_buff;
-
   DBUG_ENTER("ha_archive::update_create_info");
 
   ha_archive::info(HA_STATUS_AUTO);
