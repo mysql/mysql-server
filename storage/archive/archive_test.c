@@ -17,11 +17,22 @@
 #include <string.h>
 #include <assert.h>
 #include <stdio.h>
+#include <my_getopt.h>
+#include <mysql_version.h>
+
+#define ARCHIVE_ROW_HEADER_SIZE 4
 
 #define TEST_FILENAME "test.az"
-#define TEST_STRING "YOU don't know about me without you have read a book by the name of The Adventures of Tom Sawyer; but that ain't no matter.  That book was made by Mr. Mark Twain, and he told the truth, mainly.  There was things which he stretched, but mainly he told the truth.  That is nothing.  I never seen anybody but lied one time or another, without it was Aunt Polly, or the widow, or maybe Mary.  Aunt Polly--Tom's Aunt Polly, she is--and Mary, and the Widow Douglas is all told about in that book, which is mostly a true book, with some stretchers, as I said before.  Now the way that the book winds up is this:  Tom and me found the money that the robbers hid in the cave, and it made us rich.  We got six thousand dollars apiece--all gold.  It was an awful sight of money when it was piled up.  Well, Judge Thatcher he took it and put it out at interest, and it fetched us a dollar a day apiece all the year round --more than a body could tell what to do with.  The Widow Douglas she took me for her son, and allowed she would..."
+#define TEST_STRING_INIT "YOU don't know about me without you have read a book by the name of The Adventures of Tom Sawyer; but that ain't no matter.  That book was made by Mr. Mark Twain, and he told the truth, mainly.  There was things which he stretched, but mainly he told the truth.  That is nothing.  I never seen anybody but lied one time or another, without it was Aunt Polly, or the widow, or maybe Mary.  Aunt Polly--Tom's Aunt Polly, she is--and Mary, and the Widow Douglas is all told about in that book, which is mostly a true book, with some stretchers, as I said before.  Now the way that the book winds up is this:  Tom and me found the money that the robbers hid in the cave, and it made us rich.  We got six thousand dollars apiece--all gold.  It was an awful sight of money when it was piled up.  Well, Judge Thatcher he took it and put it out at interest, and it fetched us a dollar a day apiece all the year round --more than a body could tell what to do with.  The Widow Douglas she took me for her son, and allowed she would..."
 #define TEST_LOOP_NUM 100
-#define BUFFER_LEN 1024
+
+
+#define ARCHIVE_ROW_HEADER_SIZE 4
+
+#define BUFFER_LEN 1024 + ARCHIVE_ROW_HEADER_SIZE
+
+char test_string[BUFFER_LEN];
+
 #define TWOGIG 2147483648
 #define FOURGIG 4294967296
 #define EIGHTGIG 8589934592
@@ -39,6 +50,9 @@ int main(int argc, char *argv[])
   int written_rows= 0;
   azio_stream writer_handle, reader_handle;
   char buffer[BUFFER_LEN];
+
+  int4store(test_string, 1024);
+  memcpy(test_string+sizeof(unsigned int), TEST_STRING_INIT, 1024);
 
   unlink(TEST_FILENAME);
 
@@ -63,11 +77,11 @@ int main(int argc, char *argv[])
   assert(reader_handle.auto_increment == 0);
   assert(reader_handle.check_point == 0);
   assert(reader_handle.forced_flushes == 0);
-  assert(reader_handle.dirty == 1);
+  assert(reader_handle.dirty == AZ_STATE_DIRTY);
 
   for (x= 0; x < TEST_LOOP_NUM; x++)
   {
-    ret= azwrite(&writer_handle, TEST_STRING, BUFFER_LEN);
+    ret= azwrite(&writer_handle, test_string, BUFFER_LEN);
     assert(ret == BUFFER_LEN);
     written_rows++;
   }
@@ -80,17 +94,17 @@ int main(int argc, char *argv[])
   azflush(&reader_handle,  Z_SYNC_FLUSH);
   assert(reader_handle.rows == TEST_LOOP_NUM);
   assert(reader_handle.auto_increment == 0);
-  assert(reader_handle.check_point == 0);
+  assert(reader_handle.check_point == 61);
   assert(reader_handle.forced_flushes == 1);
-  assert(reader_handle.dirty == 1);
+  assert(reader_handle.dirty == AZ_STATE_SAVED);
 
   writer_handle.auto_increment= 4;
   azflush(&writer_handle, Z_SYNC_FLUSH);
   assert(writer_handle.rows == TEST_LOOP_NUM);
   assert(writer_handle.auto_increment == 4);
-  assert(writer_handle.check_point == 0);
+  assert(writer_handle.check_point == 61);
   assert(writer_handle.forced_flushes == 2);
-  assert(writer_handle.dirty == 1);
+  assert(writer_handle.dirty == AZ_STATE_SAVED);
 
   if (!(ret= azopen(&reader_handle, TEST_FILENAME, O_RDONLY|O_BINARY)))
   {
@@ -104,14 +118,14 @@ int main(int argc, char *argv[])
     ret= azread(&reader_handle, buffer, BUFFER_LEN, &error);
     assert(!error);
     assert(ret == BUFFER_LEN);
-    assert(!memcmp(buffer, TEST_STRING, ret));
+    assert(!memcmp(buffer, test_string, ret));
   }
   assert(writer_handle.rows == TEST_LOOP_NUM);
 
   /* Test here for falling off the planet */
 
   /* Final Write before closing */
-  ret= azwrite(&writer_handle, TEST_STRING, BUFFER_LEN);
+  ret= azwrite(&writer_handle, test_string, BUFFER_LEN);
   assert(ret == BUFFER_LEN);
 
   /* We don't use FINISH, but I want to have it tested */
@@ -126,7 +140,7 @@ int main(int argc, char *argv[])
     ret= azread(&reader_handle, buffer, BUFFER_LEN, &error);
     assert(ret == BUFFER_LEN);
     assert(!error);
-    assert(!memcmp(buffer, TEST_STRING, ret));
+    assert(!memcmp(buffer, test_string, ret));
   }
 
 
@@ -139,7 +153,7 @@ int main(int argc, char *argv[])
     ret= azread(&reader_handle, buffer, BUFFER_LEN, &error);
     assert(ret == BUFFER_LEN);
     assert(!error);
-    assert(!memcmp(buffer, TEST_STRING, ret));
+    assert(!memcmp(buffer, test_string, ret));
   }
 
   printf("Finished reading\n");
@@ -149,7 +163,7 @@ int main(int argc, char *argv[])
     printf("Could not open file (%s) for appending\n", TEST_FILENAME);
     return 0;
   }
-  ret= azwrite(&writer_handle, TEST_STRING, BUFFER_LEN);
+  ret= azwrite(&writer_handle, test_string, BUFFER_LEN);
   assert(ret == BUFFER_LEN);
   azflush(&writer_handle,  Z_SYNC_FLUSH);
 
@@ -160,11 +174,28 @@ int main(int argc, char *argv[])
     ret= azread(&reader_handle, buffer, BUFFER_LEN, &error);
     assert(!error);
     assert(ret == BUFFER_LEN);
-    assert(!memcmp(buffer, TEST_STRING, ret));
+    assert(!memcmp(buffer, test_string, ret));
   }
+
+  /* Reader needs to be flushed to make sure it is up to date */
+  azflush(&reader_handle,  Z_SYNC_FLUSH);
+  assert(reader_handle.rows == 102);
+  assert(reader_handle.auto_increment == 4);
+  assert(reader_handle.check_point == 1255);
+  assert(reader_handle.forced_flushes == 4);
+  assert(reader_handle.dirty == AZ_STATE_SAVED);
+
+  azflush(&writer_handle, Z_SYNC_FLUSH);
+  assert(writer_handle.rows == reader_handle.rows);
+  assert(writer_handle.auto_increment == reader_handle.auto_increment);
+  assert(writer_handle.check_point == reader_handle.check_point);
+  /* This is +1 because  we do a flush right before we read */
+  assert(writer_handle.forced_flushes == reader_handle.forced_flushes + 1);
+  assert(writer_handle.dirty == reader_handle.dirty);
 
   azclose(&writer_handle);
   azclose(&reader_handle);
+  exit(0);
   unlink(TEST_FILENAME);
 
   /* Start size tests */
@@ -193,7 +224,7 @@ int size_test(unsigned long long length, unsigned long long rows_to_test_for)
 
   for (write_length= 0; write_length < length ; write_length+= ret)
   {
-    ret= azwrite(&writer_handle, TEST_STRING, BUFFER_LEN);
+    ret= azwrite(&writer_handle, test_string, BUFFER_LEN);
     if (ret != BUFFER_LEN)
     {
       printf("Size %u\n", ret);
@@ -218,7 +249,7 @@ int size_test(unsigned long long length, unsigned long long rows_to_test_for)
   while ((ret= azread(&reader_handle, buffer, BUFFER_LEN, &error)))
   {
     read_length+= ret;
-    assert(!memcmp(buffer, TEST_STRING, ret));
+    assert(!memcmp(buffer, test_string, ret));
     if (ret != BUFFER_LEN)
     {
       printf("Size %u\n", ret);

@@ -48,6 +48,7 @@ extern "C" {
 */
 #define AZMETA_BUFFER_SIZE sizeof(unsigned long long) \
   + sizeof(unsigned long long) + sizeof(unsigned long long) + sizeof(unsigned long long) \
+  + sizeof(unsigned int) + sizeof(unsigned int) \
   + sizeof(unsigned char)
 
 #define AZHEADER_SIZE 20
@@ -63,7 +64,18 @@ extern "C" {
 #define AZ_FLUSH_POS 28
 #define AZ_CHECK_POS 36
 #define AZ_AUTOINCREMENT_POS 44
-#define AZ_DIRTY_POS 52
+#define AZ_LONGEST_POS 52
+#define AZ_SHORTEST_POS 56
+#define AZ_DIRTY_POS 60
+
+
+/*
+  Flags for state
+*/
+#define AZ_STATE_CLEAN 0
+#define AZ_STATE_DIRTY 1
+#define AZ_STATE_SAVED 2
+#define AZ_STATE_CRASHED 3
 
 /*
      The 'zlib' compression library provides in-memory compression and
@@ -203,6 +215,8 @@ typedef struct azio_stream {
   unsigned long long forced_flushes;   /* Forced Flushes */
   unsigned long long rows;   /* rows */
   unsigned long long auto_increment;   /* auto increment field */
+  unsigned int longest_row;   /* Longest row */
+  unsigned int shortest_row;   /* Shortest row */
   unsigned char dirty;   /* State of file */
 } azio_stream;
 
