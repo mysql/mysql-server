@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
   azflush(&reader_handle,  Z_SYNC_FLUSH);
   assert(reader_handle.rows == TEST_LOOP_NUM);
   assert(reader_handle.auto_increment == 0);
-  assert(reader_handle.check_point == 61);
+  assert(reader_handle.check_point == 62);
   assert(reader_handle.forced_flushes == 1);
   assert(reader_handle.dirty == AZ_STATE_SAVED);
 
@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
   azflush(&writer_handle, Z_SYNC_FLUSH);
   assert(writer_handle.rows == TEST_LOOP_NUM);
   assert(writer_handle.auto_increment == 4);
-  assert(writer_handle.check_point == 61);
+  assert(writer_handle.check_point == 62);
   assert(writer_handle.forced_flushes == 2);
   assert(writer_handle.dirty == AZ_STATE_SAVED);
 
@@ -181,7 +181,7 @@ int main(int argc, char *argv[])
   azflush(&reader_handle,  Z_SYNC_FLUSH);
   assert(reader_handle.rows == 102);
   assert(reader_handle.auto_increment == 4);
-  assert(reader_handle.check_point == 1255);
+  assert(reader_handle.check_point == 1256);
   assert(reader_handle.forced_flushes == 4);
   assert(reader_handle.dirty == AZ_STATE_SAVED);
 
