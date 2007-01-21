@@ -41,9 +41,10 @@ int main(int argc, char *argv[])
   }
 
   printf("Version %u\n", reader_handle.version);
-  printf("\tStart position %llu\n", (unsigned long long)reader_handle.start);
   if (reader_handle.version > 2)
   {
+    printf("\tMinor version %u\n", reader_handle.minor_version);
+    printf("\tStart position %llu\n", (unsigned long long)reader_handle.start);
     printf("\tBlock size %u\n", reader_handle.block_size);
     printf("\tRows %llu\n", reader_handle.rows);
     printf("\tAutoincrement %llu\n", reader_handle.auto_increment);

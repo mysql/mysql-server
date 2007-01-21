@@ -51,22 +51,23 @@ extern "C" {
   + sizeof(unsigned int) + sizeof(unsigned int) \
   + sizeof(unsigned char)
 
-#define AZHEADER_SIZE 20
+#define AZHEADER_SIZE 21
 
 #define AZ_MAGIC_POS 0
 #define AZ_VERSION_POS 1
-#define AZ_BLOCK_POS 2
-#define AZ_STRATEGY_POS 3
-#define AZ_FRM_POS 4
-#define AZ_META_POS 8
-#define AZ_START_POS 12
-#define AZ_ROW_POS 20
-#define AZ_FLUSH_POS 28
-#define AZ_CHECK_POS 36
-#define AZ_AUTOINCREMENT_POS 44
-#define AZ_LONGEST_POS 52
-#define AZ_SHORTEST_POS 56
-#define AZ_DIRTY_POS 60
+#define AZ_MINOR_VERSION_POS 2
+#define AZ_BLOCK_POS 3
+#define AZ_STRATEGY_POS 4
+#define AZ_FRM_POS 5
+#define AZ_META_POS 9
+#define AZ_START_POS 13
+#define AZ_ROW_POS 21
+#define AZ_FLUSH_POS 29
+#define AZ_CHECK_POS 37
+#define AZ_AUTOINCREMENT_POS 45
+#define AZ_LONGEST_POS 53
+#define AZ_SHORTEST_POS 57
+#define AZ_DIRTY_POS 61
 
 
 /*
@@ -210,6 +211,7 @@ typedef struct azio_stream {
   int      back;    /* one character push-back */
   int      last;    /* true if push-back is last character */
   unsigned char version;   /* Version */
+  unsigned char minor_version;   /* Version */
   unsigned int block_size;   /* Block Size */
   unsigned long long check_point;   /* Last position we checked */
   unsigned long long forced_flushes;   /* Forced Flushes */
