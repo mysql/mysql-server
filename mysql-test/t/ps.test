@@ -1118,9 +1118,7 @@ EXECUTE stmt USING @a;
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
-
 --echo End of 4.1 tests.
-
 
 
 ############################# 5.0 tests start ################################

@@ -2350,7 +2350,18 @@ INSERT INTO t1 VALUES (10);
 SELECT i='1e+01',i=1e+01, i in (1e+01,1e+01), i in ('1e+01','1e+01') FROM t1;
 DROP TABLE t1;
 
-# End of 4.1 tests
+#
+# Bug #22533: storing large hex strings
+#
+
+create table t1(a bigint unsigned, b bigint);
+insert into t1 values (0xfffffffffffffffff, 0xfffffffffffffffff), 
+  (0x10000000000000000, 0x10000000000000000), 
+  (0x8fffffffffffffff, 0x8fffffffffffffff);
+select hex(a), hex(b) from t1;
+drop table t1;
+
+--echo End of 4.1 tests
 
 #
 # Test for bug #6474
@@ -3093,3 +3104,23 @@ SELECT t3.a FROM t1,t2,t3
         t3.c IN ('bb','ee');
 
 DROP TABLE t1,t2,t3;
+
+#
+# Bug#6298: LIMIT #, -1 no longer works to set start with no end limit
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(a int);
+INSERT into t1 values (1), (2), (3);
+
+# LIMIT N, -1 was accepted by accident in 4.0, but was not intended.
+# This test verifies that this illegal construct is now properly detected.
+
+--error ER_PARSE_ERROR
+SELECT * FROM t1 LIMIT 2, -1;
+
+DROP TABLE t1;
+

@@ -270,6 +270,8 @@ struct sql_ex_info
 */
 #define Q_CATALOG_NZ_CODE       6
 
+#define Q_LC_TIME_NAMES_CODE    7
+
 /* Intvar event post-header */
 
 #define I_TYPE_OFFSET        0
@@ -422,12 +424,18 @@ struct sql_ex_info
    either, as the manual says (because a too big in-memory temp table is
    automatically written to disk).
 */
-#define OPTIONS_WRITTEN_TO_BIN_LOG (OPTION_AUTO_IS_NULL | \
-OPTION_NO_FOREIGN_KEY_CHECKS | OPTION_RELAXED_UNIQUE_CHECKS)
+#define OPTIONS_WRITTEN_TO_BIN_LOG \
+  (OPTION_AUTO_IS_NULL | OPTION_NO_FOREIGN_KEY_CHECKS |  \
+   OPTION_RELAXED_UNIQUE_CHECKS | OPTION_NOT_AUTOCOMMIT)
 
-#if OPTIONS_WRITTEN_TO_BIN_LOG != ((1L << 14) | (1L << 26) | (1L << 27))
+/* Shouldn't be defined before */
+#define EXPECTED_OPTIONS \
+  ((ULL(1) << 14) | (ULL(1) << 26) | (ULL(1) << 27) | (ULL(1) << 19))
+
+#if OPTIONS_WRITTEN_TO_BIN_LOG != EXPECTED_OPTIONS
 #error OPTIONS_WRITTEN_TO_BIN_LOG must NOT change their values!
 #endif
+#undef EXPECTED_OPTIONS         /* You shouldn't use this one */
 
 enum Log_event_type
 {
@@ -524,9 +532,11 @@ typedef struct st_print_event_info
   bool charset_inited;
   char charset[6]; // 3 variables, each of them storable in 2 bytes
   char time_zone_str[MAX_TIME_ZONE_NAME_LENGTH];
+  uint lc_time_names_number;
   st_print_event_info()
     :flags2_inited(0), sql_mode_inited(0),
-     auto_increment_increment(1),auto_increment_offset(1), charset_inited(0)
+     auto_increment_increment(1),auto_increment_offset(1), charset_inited(0),
+     lc_time_names_number(0)
     {
       /*
         Currently we only use static PRINT_EVENT_INFO objects, so zeroed at
@@ -536,6 +546,7 @@ typedef struct st_print_event_info
       bzero(db, sizeof(db));
       bzero(charset, sizeof(charset));
       bzero(time_zone_str, sizeof(time_zone_str));
+      strcpy(delimiter, ";");
       uint const flags = MYF(MY_WME | MY_NABP);
       init_io_cache(&head_cache, -1, 0, WRITE_CACHE, 0L, FALSE, flags);
       init_io_cache(&body_cache, -1, 0, WRITE_CACHE, 0L, FALSE, flags);
@@ -552,6 +563,7 @@ typedef struct st_print_event_info
   bool base64_output;
   my_off_t hexdump_from;
   uint8 common_header_len;
+  char delimiter[16];
 
   /*
      These two caches are used by the row-based replication events to
@@ -574,6 +586,13 @@ typedef struct st_print_event_info
 class Log_event
 {
 public:
+  /*
+    The following type definition is to be used whenever data is placed 
+    and manipulated in a common buffer. Use this typedef for buffers
+    that contain data containing binary and character data.
+  */
+  typedef unsigned char Byte;
+
   /*
     The offset in the log where this event originally appeared (it is
     preserved in relay logs, making SHOW SLAVE STATUS able to print
@@ -755,7 +774,7 @@ public:
 class Query_log_event: public Log_event
 {
 protected:
-  char* data_buf;
+  Log_event::Byte* data_buf;
 public:
   const char* query;
   const char* catalog;
@@ -826,6 +845,7 @@ public:
   char charset[6];
   uint time_zone_len; /* 0 means uninited */
   const char *time_zone_str;
+  uint lc_time_names_number; /* 0 means en_US */
 
 #ifndef MYSQL_CLIENT
 
@@ -1690,8 +1710,6 @@ public:
 #endif
 char *str_to_hex(char *to, const char *from, uint len);
 
-#ifdef HAVE_ROW_BASED_REPLICATION
-
 /*****************************************************************************
 
   Table map log event class
@@ -2020,7 +2038,7 @@ public:
   Write_rows_log_event(const char *buf, uint event_len, 
                        const Format_description_log_event *description_event);
 #endif
-#if !defined(MYSQL_CLIENT) && defined(HAVE_ROW_BASED_REPLICATION)
+#if !defined(MYSQL_CLIENT) 
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
                                           bool is_transactional,
                                           MY_BITMAP *cols,
@@ -2085,7 +2103,7 @@ public:
 			const Format_description_log_event *description_event);
 #endif
 
-#if !defined(MYSQL_CLIENT) && defined(HAVE_ROW_BASED_REPLICATION)
+#if !defined(MYSQL_CLIENT) 
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
                                           bool is_transactional,
                                           MY_BITMAP *cols,
@@ -2155,7 +2173,7 @@ public:
   Delete_rows_log_event(const char *buf, uint event_len, 
 			const Format_description_log_event *description_event);
 #endif
-#if !defined(MYSQL_CLIENT) && defined(HAVE_ROW_BASED_REPLICATION)
+#if !defined(MYSQL_CLIENT) 
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
                                           bool is_transactional,
                                           MY_BITMAP *cols,
@@ -2188,7 +2206,5 @@ private:
   virtual int do_exec_row(TABLE *table);
 #endif
 };
-
-#endif /* HAVE_ROW_BASED_REPLICATION */
 
 #endif /* _log_event_h */

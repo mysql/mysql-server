@@ -559,7 +559,7 @@ begin
 insert into t2 select x;
 return 100;
 end
-master-bin.000001	#	Query	1	#	use `mysqltest1`; SELECT `foo6`(_latin1'foo6_1_')
+master-bin.000001	#	Query	1	#	use `mysqltest1`; SELECT `mysqltest1`.`foo6`(_latin1'foo6_1_')
 master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t2)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t2)
@@ -620,7 +620,7 @@ master-bin.000001	#	Query	1	#	use `mysqltest1`; create table t12 select * from t
 master-bin.000001	#	Query	1	#	use `mysqltest1`; drop table t1
 master-bin.000001	#	Query	1	#	use `mysqltest1`; create table t1 (a int, b varchar(100), key(a))
 master-bin.000001	#	Intvar	1	#	INSERT_ID=4
-master-bin.000001	#	Query	1	#	use `mysqltest1`; SELECT `f`(_latin1'try_45_')
+master-bin.000001	#	Query	1	#	use `mysqltest1`; SELECT `mysqltest1`.`f`(_latin1'try_45_')
 master-bin.000001	#	Query	1	#	use `mysqltest1`; create table t13 select * from t1
 master-bin.000001	#	Query	1	#	use `mysqltest1`; drop table t1
 master-bin.000001	#	Query	1	#	use `mysqltest1`; create table t1 (a int primary key auto_increment, b varchar(100))
@@ -660,9 +660,9 @@ set y = (select count(*) from t2);
 return y;
 end
 master-bin.000001	#	Intvar	1	#	INSERT_ID=4
-master-bin.000001	#	Query	1	#	use `mysqltest1`; SELECT `f1`(_latin1'try_53_')
+master-bin.000001	#	Query	1	#	use `mysqltest1`; SELECT `mysqltest1`.`f1`(_latin1'try_53_')
 master-bin.000001	#	Intvar	1	#	INSERT_ID=5
-master-bin.000001	#	Query	1	#	use `mysqltest1`; SELECT `f2`(_latin1'try_54_')
+master-bin.000001	#	Query	1	#	use `mysqltest1`; SELECT `mysqltest1`.`f2`(_latin1'try_54_')
 master-bin.000001	#	Query	1	#	use `mysqltest1`; drop function f2
 master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` trigger t1_bi before insert on t1 for each row
 begin
@@ -869,7 +869,7 @@ begin
 insert into t2 select x;
 return 100;
 end
-master-bin.000001	#	Query	1	#	use `mysqltest1`; SELECT `foo6`(_latin1'foo6_1_')
+master-bin.000001	#	Query	1	#	use `mysqltest1`; SELECT `mysqltest1`.`foo6`(_latin1'foo6_1_')
 master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t2)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t2)
@@ -930,7 +930,7 @@ master-bin.000001	#	Query	1	#	use `mysqltest1`; create table t12 select * from t
 master-bin.000001	#	Query	1	#	use `mysqltest1`; drop table t1
 master-bin.000001	#	Query	1	#	use `mysqltest1`; create table t1 (a int, b varchar(100), key(a))
 master-bin.000001	#	Intvar	1	#	INSERT_ID=4
-master-bin.000001	#	Query	1	#	use `mysqltest1`; SELECT `f`(_latin1'try_45_')
+master-bin.000001	#	Query	1	#	use `mysqltest1`; SELECT `mysqltest1`.`f`(_latin1'try_45_')
 master-bin.000001	#	Query	1	#	use `mysqltest1`; create table t13 select * from t1
 master-bin.000001	#	Query	1	#	use `mysqltest1`; drop table t1
 master-bin.000001	#	Query	1	#	use `mysqltest1`; create table t1 (a int primary key auto_increment, b varchar(100))
@@ -970,9 +970,9 @@ set y = (select count(*) from t2);
 return y;
 end
 master-bin.000001	#	Intvar	1	#	INSERT_ID=4
-master-bin.000001	#	Query	1	#	use `mysqltest1`; SELECT `f1`(_latin1'try_53_')
+master-bin.000001	#	Query	1	#	use `mysqltest1`; SELECT `mysqltest1`.`f1`(_latin1'try_53_')
 master-bin.000001	#	Intvar	1	#	INSERT_ID=5
-master-bin.000001	#	Query	1	#	use `mysqltest1`; SELECT `f2`(_latin1'try_54_')
+master-bin.000001	#	Query	1	#	use `mysqltest1`; SELECT `mysqltest1`.`f2`(_latin1'try_54_')
 master-bin.000001	#	Query	1	#	use `mysqltest1`; drop function f2
 master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` trigger t1_bi before insert on t1 for each row
 begin

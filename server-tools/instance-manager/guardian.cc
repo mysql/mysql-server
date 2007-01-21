@@ -308,8 +308,7 @@ void Guardian::run()
       break;
     }
 
-    timeout.tv_sec= time(NULL) + Options::Main::monitoring_interval;
-    timeout.tv_nsec= 0;
+    set_timespec(timeout, Options::Main::monitoring_interval);
 
     thread_registry->cond_timedwait(&thread_info, &COND_guardian,
                                     &LOCK_guardian, &timeout);

@@ -691,16 +691,11 @@ static const char *queue_wait_msg= "Waiting for next activation";
   SYNOPSIS
     Event_queue::get_top_for_execution_if_time()
       thd      [in]  Thread
-      now      [in]  Current timestamp
       job_data [out] The object to execute
-      abstime  [out] Time to sleep
 
   RETURN VALUE
     FALSE  No error. If *job_data==NULL then top not elligible for execution.
-           Could be that there is no top. If abstime->tv_sec is set to value
-           greater than zero then use abstime with pthread_cond_timedwait().
-           If abstime->tv_sec is zero then sleep with pthread_cond_wait().
-           abstime->tv_nsec is always zero.
+           Could be that there is no top.
     TRUE   Error
     
 */
@@ -710,56 +705,51 @@ Event_queue::get_top_for_execution_if_time(THD *thd, Event_job_data **job_data)
 {
   bool ret= FALSE;
   struct timespec top_time;
-  struct timespec *abstime;
   Event_queue_element *top= NULL;
   bool to_free= FALSE;
   bool to_drop= FALSE;
   *job_data= NULL;
   DBUG_ENTER("Event_queue::get_top_for_execution_if_time");
 
-  top_time.tv_nsec= 0;
   LOCK_QUEUE_DATA();
   for (;;)
   {
     int res;
 
-    thd->end_time();
-    time_t now= thd->query_start();
-    abstime= NULL;
-
-    if (queue.elements)
+    /* Break loop if thd has been killed */
+    if (thd->killed)
     {
-      top= ((Event_queue_element*) queue_element(&queue, 0));
-      top_time.tv_sec= sec_since_epoch_TIME(&top->execute_at);
-
-      abstime= &top_time;
+      DBUG_PRINT("info", ("thd->killed=%d", thd->killed));
+      goto end;
     }
 
-    if (!abstime || abstime->tv_sec > now)
+    if (!queue.elements)
     {
-      const char *msg;
-      if (abstime)
-      {
-        next_activation_at= top->execute_at;
-        msg= queue_wait_msg;
-      }
-      else
-      {
-        set_zero_time(&next_activation_at, MYSQL_TIMESTAMP_DATETIME);
-        msg= queue_wait_msg;
-      }
+      /* There are no events in the queue */
+      set_zero_time(&next_activation_at, MYSQL_TIMESTAMP_DATETIME);
 
-      cond_wait(thd, abstime, msg, SCHED_FUNC, __LINE__);
-      if (thd->killed)
-      {
-        DBUG_PRINT("info", ("thd->killed=%d", thd->killed));
-        goto end;
-      }
+      /* Wait on condition until signaled. Release LOCK_queue while waiting. */
+      cond_wait(thd, NULL, queue_empty_msg, SCHED_FUNC, __LINE__);
+
+      continue;
+    }
+
+    top= ((Event_queue_element*) queue_element(&queue, 0));
+
+    thd->end_time(); /* Get current time */
+
+    time_t seconds_to_next_event= 
+      sec_since_epoch_TIME(&top->execute_at) - thd->query_start();
+    next_activation_at= top->execute_at;
+    if (seconds_to_next_event > 0)
+    {
       /*
-        The queue could have been emptied. Therefore it's safe to start from
-        the beginning. Moreover, this way we will get also the new top, if
-        the element at the top has been changed.
+        Not yet time for top event, wait on condition with
+        time or until signaled. Release LOCK_queue while waiting.
       */
+      set_timespec(top_time, seconds_to_next_event);
+      cond_wait(thd, &top_time, queue_wait_msg, SCHED_FUNC, __LINE__);
+
       continue;
     }
 
@@ -801,7 +791,7 @@ Event_queue::get_top_for_execution_if_time(THD *thd, Event_job_data **job_data)
     else
       queue_replaced(&queue);
 
-    dbug_dump_queue(now);
+    dbug_dump_queue(thd->query_start());
     break;
   }
 end:
@@ -814,8 +804,7 @@ end:
   if (to_free)
     delete top;
 
-  DBUG_PRINT("info", ("returning %d  et_new: 0x%lx  abstime.tv_sec: %ld ",
-             ret, (long) *job_data, abstime ? abstime->tv_sec : 0));
+  DBUG_PRINT("info", ("returning %d  et_new: 0x%lx ", ret, (long) *job_data));
 
   if (*job_data)
     DBUG_PRINT("info", ("db: %s  name: %s  definer=%s", (*job_data)->dbname.str,
