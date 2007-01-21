@@ -122,7 +122,7 @@ int read_file(SSL_CTX* ctx, const char* file, int format, CertType type)
                 EVP_BytesToKey(info.name, "MD5", info.iv, (byte*)password,
                                passwordSz, 1, key, iv);
 
-                STL::auto_ptr<BulkCipher> cipher;
+                mySTL::auto_ptr<BulkCipher> cipher;
                 if (strncmp(info.name, "DES-CBC", 7) == 0)
                     cipher.reset(NEW_YS DES);
                 else if (strncmp(info.name, "DES-EDE3-CBC", 13) == 0)
@@ -138,7 +138,7 @@ int read_file(SSL_CTX* ctx, const char* file, int format, CertType type)
                     return SSL_BAD_FILE;
                 }
                 cipher->set_decryptKey(key, info.iv);
-                STL::auto_ptr<x509> newx(NEW_YS x509(x->get_length()));   
+                mySTL::auto_ptr<x509> newx(NEW_YS x509(x->get_length()));   
                 cipher->decrypt(newx->use_buffer(), x->get_buffer(),
                                 x->get_length());
                 ysDelete(x);

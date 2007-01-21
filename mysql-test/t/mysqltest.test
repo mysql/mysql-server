@@ -1,6 +1,9 @@
 # This test should work in embedded server after mysqltest is fixed
 -- source include/not_embedded.inc
 
+# This test uses chmod, can't be run with root permissions
+-- source include/not_as_root.inc
+
 # ============================================================================
 #
 # Test of mysqltest itself

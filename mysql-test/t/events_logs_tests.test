@@ -72,17 +72,20 @@ SET SESSION long_query_time=1;
 SELECT * FROM slow_event_test;
 SET SESSION long_query_time=1;
 SET GLOBAL event_scheduler=on;
+SET GLOBAL long_query_time=20;
 CREATE EVENT long_event ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(1.5);
 --echo "Sleep some more time than the actual event run will take"
 --sleep 2
 SHOW VARIABLES LIKE 'event_scheduler';
 --echo "Check our table. Should see 1 row"
 SELECT * FROM slow_event_test;
---echo "Check slow log. Should not see anything because 1.5 is under the threshold of 300 for GLOBAL, though over SESSION which is 2"
+--echo "Check slow log. Should not see anything because 1.5 is under the threshold of 20 for GLOBAL, though over SESSION which is 1"
+--echo "This should show that the GLOBAL value is regarded and not the SESSION one of the current connection"
 SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
+--echo "Another test to show that GLOBAL is regarded and not SESSION."
 --echo "This should go to the slow log"
-DROP EVENT long_event;
 SET SESSION long_query_time=10;
+DROP EVENT long_event;
 SET GLOBAL long_query_time=1;
 CREATE EVENT long_event2 ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(2);
 --echo "Sleep some more time than the actual event run will take"
