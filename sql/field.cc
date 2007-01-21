@@ -8030,6 +8030,16 @@ void Field_enum::sql_type(String &res) const
 }
 
 
+Field *Field_enum::new_field(MEM_ROOT *root, struct st_table *new_table,
+                             bool keep_type)
+{
+  Field_enum *res= (Field_enum*) Field::new_field(root, new_table, keep_type);
+  if (res)
+    res->typelib= copy_typelib(root, typelib);
+  return res;
+}
+
+
 /*
    set type.
    This is a string which can have a collection of different values.
@@ -8235,6 +8245,7 @@ Field_bit::Field_bit(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
     bit_ptr(bit_ptr_arg), bit_ofs(bit_ofs_arg), bit_len(len_arg & 7),
     bytes_in_rec(len_arg / 8)
 {
+  flags|= UNSIGNED_FLAG;
   /*
     Ensure that Field::eq() can distinguish between two different bit fields.
     (two bit fields that are not null, may have same ptr and null_ptr)
@@ -8524,10 +8535,12 @@ const char *Field_bit::unpack(char *to, const char *from)
 
 void Field_bit::set_default()
 {
-  my_ptrdiff_t const offset= (my_ptrdiff_t) (table->s->default_values -
-                                             table->record[0]);
-  uchar bits= (uchar) get_rec_bits(bit_ptr + offset, bit_ofs, bit_len);
-  set_rec_bits(bits, bit_ptr, bit_ofs, bit_len);
+  if (bit_len > 0)
+  {
+    my_ptrdiff_t const offset= table->s->default_values - table->record[0];
+    uchar bits= get_rec_bits(bit_ptr + offset, bit_ofs, bit_len);
+    set_rec_bits(bits, bit_ptr, bit_ofs, bit_len);
+  }
   Field::set_default();
 }
 
@@ -8542,6 +8555,7 @@ Field_bit_as_char::Field_bit_as_char(char *ptr_arg, uint32 len_arg,
   :Field_bit(ptr_arg, len_arg, null_ptr_arg, null_bit_arg, 0, 0,
              unireg_check_arg, field_name_arg)
 {
+  flags|= UNSIGNED_FLAG;
   bit_len= 0;
   bytes_in_rec= (len_arg + 7) / 8;
 }

@@ -229,10 +229,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   if test X"$ndb_binlog" = Xdefault ||
      test X"$ndb_binlog" = Xyes
   then
-    if test X"$have_row_based" = Xyes
-    then
-      have_ndb_binlog="yes"
-    fi
+    have_ndb_binlog="yes"
   fi
 
   if test X"$have_ndb_binlog" = Xyes

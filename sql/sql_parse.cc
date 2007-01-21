@@ -2487,6 +2487,7 @@ static void reset_one_shot_variables(THD *thd)
   thd->update_charset();
   thd->variables.time_zone=
     global_system_variables.time_zone;
+  thd->variables.lc_time_names= &my_locale_en_US;
   thd->one_shot_set= 0;
 }
 
@@ -2954,6 +2955,12 @@ mysql_execute_command(THD *thd)
       goto end_with_restore_list;
 
 #ifndef HAVE_READLINK
+    if (lex->create_info.data_file_name)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                   "DATA DIRECTORY option ignored");
+    if (lex->create_info.index_file_name)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                   "INDEX DIRECTORY option ignored");
     lex->create_info.data_file_name=lex->create_info.index_file_name=0;
 #else
     /* Fix names if symlinked tables */

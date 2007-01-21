@@ -1367,6 +1367,7 @@ public:
   {
       flags|=ENUM_FLAG;
   }
+  Field *new_field(MEM_ROOT *root, struct st_table *new_table, bool keep_type);
   enum_field_types type() const { return MYSQL_TYPE_STRING; }
   enum Item_result cmp_type () const { return INT_RESULT; }
   enum Item_result cast_to_int_type () const { return INT_RESULT; }
@@ -1504,6 +1505,13 @@ private:
 };
 
 
+/**
+  BIT field represented as chars for non-MyISAM tables.
+
+  @todo The inheritance relationship is backwards since Field_bit is
+  an extended version of Field_bit_as_char and not the other way
+  around. Hence, we should refactor it to fix the hierarchy order.
+ */
 class Field_bit_as_char: public Field_bit {
 public:
   Field_bit_as_char(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
