@@ -332,6 +332,9 @@ lock_rec_validate_page(
 			/* out: TRUE if ok */
 	ulint	space,	/* in: space id */
 	ulint	page_no);/* in: page number */
+
+/* Define the following in order to enable lock_rec_validate_page() checks. */
+# undef UNIV_DEBUG_LOCK_VALIDATE
 #endif /* UNIV_DEBUG */
 
 /* The lock system */
@@ -2695,8 +2698,10 @@ lock_move_reorganize_page(
 
 	mem_heap_free(heap);
 
+#ifdef UNIV_DEBUG_LOCK_VALIDATE
 	ut_ad(lock_rec_validate_page(buf_block_get_space(block),
 				     buf_block_get_page_no(block)));
+#endif
 }
 
 /*****************************************************************
@@ -2787,10 +2792,12 @@ lock_move_rec_list_end(
 
 	lock_mutex_exit_kernel();
 
+#ifdef UNIV_DEBUG_LOCK_VALIDATE
 	ut_ad(lock_rec_validate_page(buf_block_get_space(block),
 				     buf_block_get_page_no(block)));
 	ut_ad(lock_rec_validate_page(buf_block_get_space(new_block),
 				     buf_block_get_page_no(new_block)));
+#endif
 }
 
 /*****************************************************************
@@ -2882,8 +2889,10 @@ lock_move_rec_list_start(
 
 	lock_mutex_exit_kernel();
 
+#ifdef UNIV_DEBUG_LOCK_VALIDATE
 	ut_ad(lock_rec_validate_page(buf_block_get_space(block),
 				     buf_block_get_page_no(block)));
+#endif
 }
 
 /*****************************************************************
@@ -4770,6 +4779,7 @@ loop:
 
 			index = lock->index;
 			rec = page_find_rec_with_heap_no(page, i);
+			ut_a(rec);
 			offsets = rec_get_offsets(rec, index, offsets,
 						  ULINT_UNDEFINED, &heap);
 
