@@ -91,7 +91,7 @@ select * from t2 order by a;
 
 # Bug #24818 CREATE UNIQUE INDEX (...) USING HASH on a NDB table crashes mysqld
 create unique index bi using hash on t2(b);
--- error 1062
+-- error ER_DUP_ENTRY_WITH_KEY_NAME
 insert into t2 values(9, 3, 1);
 alter table t2 drop index bi;
 insert into t2 values(9, 3, 1);
