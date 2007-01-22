@@ -117,7 +117,7 @@ static int binlog_prepare(THD *thd, bool all)
     do nothing.
     just pretend we can do 2pc, so that MySQL won't
     switch to 1pc.
-    real work will be done in MYSQL_LOG::log()
+    real work will be done in MYSQL_LOG::log_xid()
   */
   return 0;
 }
@@ -131,7 +131,7 @@ static int binlog_commit(THD *thd, bool all)
 
   if (my_b_tell(trans_log) == 0)
   {
-    // we're here because trans_log was flushed in MYSQL_LOG::log()
+    // we're here because trans_log was flushed in MYSQL_LOG::log_xid()
     DBUG_RETURN(0);
   }
   if (all) 
@@ -758,6 +758,8 @@ int MYSQL_LOG::raw_get_current_log(LOG_INFO* linfo)
     0	ok
 */
 
+#ifdef HAVE_REPLICATION
+
 static bool copy_up_file_and_fill(IO_CACHE *index_file, my_off_t offset)
 {
   int bytes_read;
@@ -791,6 +793,7 @@ err:
   DBUG_RETURN(1);
 }
 
+#endif /* HAVE_REPLICATION */
 
 /*
   Find the position in the log-index-file for the given log name
@@ -1267,8 +1270,6 @@ err:
   pthread_mutex_unlock(&LOCK_index);
   DBUG_RETURN(error);
 }
-
-
 #endif /* HAVE_REPLICATION */
 
 
@@ -1628,14 +1629,14 @@ bool MYSQL_LOG::write(Log_event *event_info)
   */
   if (likely(is_open()))
   {
-    const char *local_db= event_info->get_db();
     IO_CACHE *file= &log_file;
 #ifdef HAVE_REPLICATION
     /*
-       In the future we need to add to the following if tests like
-       "do the involved tables match (to be implemented)
-        binlog_[wild_]{do|ignore}_table?" (WL#1049)"
+      In the future we need to add to the following if tests like
+      "do the involved tables match (to be implemented)
+      binlog_[wild_]{do|ignore}_table?" (WL#1049)"
     */
+    const char *local_db= event_info->get_db();
     if ((thd && !(thd->options & OPTION_BIN_LOG)) ||
 	(!db_ok(local_db, binlog_do_db, binlog_ignore_db)))
     {
@@ -2670,21 +2671,34 @@ int TC_LOG_MMAP::overflow()
 }
 
 /*
-  all access to active page is serialized but it's not a problem, as
-  we're assuming that fsync() will be a main bottleneck.
-  That is, parallelizing writes to log pages we'll decrease number of
-  threads waiting for a page, but then all these threads will be waiting
-  for a fsync() anyway
+  Record that transaction XID is committed on the persistent storage
+
+  NOTES
+    This function is called in the middle of two-phase commit:
+    First all resources prepare the transaction, then tc_log->log() is called,
+    then all resources commit the transaction, then tc_log->unlog() is called.
+
+    All access to active page is serialized but it's not a problem, as
+    we're assuming that fsync() will be a main bottleneck.
+    That is, parallelizing writes to log pages we'll decrease number of
+    threads waiting for a page, but then all these threads will be waiting
+    for a fsync() anyway
+
+  IMPLEMENTATION
+   If tc_log == MYSQL_LOG then tc_log writes transaction to binlog and
+   records XID in a special Xid_log_event.
+   If tc_log = TC_LOG_MMAP then xid is written in a special memory-mapped
+   log.
 
   RETURN
-         0  - error
-  otherwise - "cookie", a number that will be passed as an argument
-              to unlog() call. tc_log can define it any way it wants,
-              and use for whatever purposes. TC_LOG_MMAP sets it
-              to the position in memory where xid was logged to.
+    0  Error
+    #  "cookie", a number that will be passed as an argument
+       to unlog() call. tc_log can define it any way it wants,
+       and use for whatever purposes. TC_LOG_MMAP sets it
+       to the position in memory where xid was logged to.
 */
 
-int TC_LOG_MMAP::log(THD *thd, my_xid xid)
+int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid)
 {
   int err;
   PAGE *p;
@@ -2793,6 +2807,7 @@ int TC_LOG_MMAP::sync()
   erase xid from the page, update page free space counters/pointers.
   cookie points directly to the memory where xid was logged
 */
+
 void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid)
 {
   PAGE *p=pages+(cookie/tc_log_page_size);
@@ -3035,7 +3050,7 @@ void TC_LOG_BINLOG::close()
          0  - error
          1  - success
 */
-int TC_LOG_BINLOG::log(THD *thd, my_xid xid)
+int TC_LOG_BINLOG::log_xid(THD *thd, my_xid xid)
 {
   Xid_log_event xle(thd, xid);
   IO_CACHE *trans_log= (IO_CACHE*)thd->ha_data[binlog_hton.slot];

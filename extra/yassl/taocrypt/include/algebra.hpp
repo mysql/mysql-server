@@ -47,6 +47,7 @@ class TAOCRYPT_NO_VTABLE AbstractGroup : public virtual_base
 public:
     typedef Integer Element;
 
+    AbstractGroup() {}
     virtual ~AbstractGroup() {}
 
     virtual bool Equal(const Element &a, const Element &b) const =0;
@@ -101,6 +102,7 @@ private:
     class MultiplicativeGroupT : public AbstractGroup
     {
     public:
+        MultiplicativeGroupT() {}
         const AbstractRing& GetRing() const
             {return *m_pRing;}
 
@@ -152,6 +154,7 @@ class TAOCRYPT_NO_VTABLE AbstractEuclideanDomain
     : public AbstractRing
 {
 public:
+    AbstractEuclideanDomain() {}
     typedef Integer Element;
 
     virtual void DivisionAlgorithm(Element &r, Element &q, const Element &a,
