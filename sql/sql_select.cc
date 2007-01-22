@@ -7712,6 +7712,22 @@ static void update_const_equal_items(COND *cond, JOIN_TAB *tab)
         key_map possible_keys= field->key_start;
         possible_keys.intersect(field->table->keys_in_use_for_query);
         stat[0].const_keys.merge(possible_keys);
+
+        /*
+          For each field in the multiple equality (for which we know that it 
+          is a constant) we have to find its corresponding key part, and set 
+          that key part in const_key_parts.
+        */  
+        if (!possible_keys.is_clear_all())
+        {
+          TABLE *tab= field->table;
+          KEYUSE *use;
+          for (use= stat->keyuse; use && use->table == tab; use++)
+            if (possible_keys.is_set(use->key) && 
+                tab->key_info[use->key].key_part[use->keypart].field ==
+                field)
+              tab->const_key_parts[use->key]|= use->keypart_map;
+        }
       }
     }
   }
