@@ -121,6 +121,8 @@ Suma::Suma(Block_context& ctx) :
   
   addRecSignal(GSN_SUB_GCP_COMPLETE_REP, 
 	       &Suma::execSUB_GCP_COMPLETE_REP);
+
+  c_startup.m_restart_server_node_id = RNIL; // Server for my NR
 }
 
 Suma::~Suma()

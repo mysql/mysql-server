@@ -13835,6 +13835,7 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
   Uint32 lcpNo = startFragReq->lcpNo;
   Uint32 noOfLogNodes = startFragReq->noOfLogNodes;
   Uint32 lcpId = startFragReq->lcpId;
+
   ndbrequire(noOfLogNodes <= 4);
   fragptr.p->fragStatus = Fragrecord::CRASH_RECOVERING;
   fragptr.p->srBlockref = startFragReq->userRef;
@@ -13889,7 +13890,16 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
       signal->theData[1] = fragId;
       sendSignal(DBACC_REF, GSN_EXPANDCHECK2, signal, 2, JBB);
     }
-    
+
+    if (getNodeState().getNodeRestartInProgress())
+    {
+      jam();
+      fragptr.p->fragStatus = Fragrecord::ACTIVE_CREATION;	
+    }
+
+    c_tup->disk_restart_mark_no_lcp(tabptr.i, fragId);
+    jamEntry();
+
     return;
   }//if
 
@@ -16712,8 +16722,8 @@ void Dblqh::initialiseRecordsLab(Signal* signal, Uint32 data,
     ccurrentGcprec = RNIL;
     caddNodeState = ZFALSE;
     cstartRecReq = ZFALSE;
-    cnewestGci = ~0;
-    cnewestCompletedGci = ~0;
+    cnewestGci = 0;
+    cnewestCompletedGci = 0;
     crestartOldestGci = 0;
     crestartNewestGci = 0;
     csrPhaseStarted = ZSR_NO_PHASE_STARTED;

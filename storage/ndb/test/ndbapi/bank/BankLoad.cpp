@@ -163,7 +163,7 @@ int Bank::createTable(const char* tabName, bool disk){
       return NDBT_FAILED;
     }
     NdbDictionary::Table copy(* pTab);
-    copy.setTablespace("DEFAULT-TS");
+    copy.setTablespaceName("DEFAULT-TS");
     for (Uint32 i = 0; i<copy.getNoOfColumns(); i++)
       copy.getColumn(i)->setStorageType(NdbDictionary::Column::StorageTypeDisk);
     if(m_ndb.getDictionary()->createTable(copy) == -1){
