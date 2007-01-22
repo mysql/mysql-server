@@ -9,11 +9,11 @@
 #   changes
 # - Test creating a duplicate key error and recover from it
 
-connect (master,localhost,root,,test,$MASTER_MYPORT,master.sock);
+connect (master,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 --disable_warnings
 drop table if exists t1, t2, t3, t4;
 --enable_warnings
-connect (slave,localhost,root,,test,$SLAVE_MYPORT,slave.sock);
+connect (slave,localhost,root,,test,$SLAVE_MYPORT,$SLAVE_MYSOCK);
 system cat /dev/null > var/slave-data/master.info;
 system chmod 000 var/slave-data/master.info;
 connection slave;
