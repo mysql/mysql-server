@@ -322,6 +322,16 @@ ibool
 lock_validate(void);
 /*===============*/
 			/* out: TRUE if ok */
+
+/*************************************************************************
+Validates the record lock queues on a page. */
+static
+ibool
+lock_rec_validate_page(
+/*===================*/
+			/* out: TRUE if ok */
+	ulint	space,	/* in: space id */
+	ulint	page_no);/* in: page number */
 #endif /* UNIV_DEBUG */
 
 /* The lock system */
@@ -434,7 +444,6 @@ lock_rec_get_nth_bit(
 {
 	ulint	byte_index;
 	ulint	bit_index;
-	ulint	b;
 
 	ut_ad(lock);
 	ut_ad(lock_get_type(lock) == LOCK_REC);
@@ -447,9 +456,7 @@ lock_rec_get_nth_bit(
 	byte_index = i / 8;
 	bit_index = i % 8;
 
-	b = (ulint)*((byte*)lock + sizeof(lock_t) + byte_index);
-
-	return(ut_bit_get_nth(b, bit_index));
+	return(1 & ((const byte*) &lock[1])[byte_index] >> bit_index);
 }
 
 /*************************************************************************/
@@ -1084,8 +1091,6 @@ lock_rec_set_nth_bit(
 {
 	ulint	byte_index;
 	ulint	bit_index;
-	byte*	ptr;
-	ulint	b;
 
 	ut_ad(lock);
 	ut_ad(lock_get_type(lock) == LOCK_REC);
@@ -1094,13 +1099,7 @@ lock_rec_set_nth_bit(
 	byte_index = i / 8;
 	bit_index = i % 8;
 
-	ptr = (byte*)lock + sizeof(lock_t) + byte_index;
-
-	b = (ulint)*ptr;
-
-	b = ut_bit_set_nth(b, bit_index, TRUE);
-
-	*ptr = (byte)b;
+	((byte*) &lock[1])[byte_index] |= 1 << bit_index;
 }
 
 /**************************************************************************
@@ -1139,8 +1138,6 @@ lock_rec_reset_nth_bit(
 {
 	ulint	byte_index;
 	ulint	bit_index;
-	byte*	ptr;
-	ulint	b;
 
 	ut_ad(lock);
 	ut_ad(lock_get_type(lock) == LOCK_REC);
@@ -1149,13 +1146,7 @@ lock_rec_reset_nth_bit(
 	byte_index = i / 8;
 	bit_index = i % 8;
 
-	ptr = (byte*)lock + sizeof(lock_t) + byte_index;
-
-	b = (ulint)*ptr;
-
-	b = ut_bit_set_nth(b, bit_index, FALSE);
-
-	*ptr = (byte)b;
+	((byte*) &lock[1])[byte_index] &= ~(1 << bit_index);
 }
 
 /*************************************************************************
@@ -1351,7 +1342,7 @@ lock_rec_bitmap_reset(
 
 	ut_ad((lock_rec_get_n_bits(lock) % 8) == 0);
 
-	memset((byte*) lock + sizeof(lock_t), 0, n_bytes);
+	memset(&lock[1], 0, n_bytes);
 }
 
 /*************************************************************************
@@ -1364,18 +1355,13 @@ lock_rec_copy(
 	const lock_t*	lock,	/* in: record lock */
 	mem_heap_t*	heap)	/* in: memory heap */
 {
-	lock_t*	dupl_lock;
 	ulint	size;
 
 	ut_ad(lock_get_type(lock) == LOCK_REC);
 
 	size = sizeof(lock_t) + lock_rec_get_n_bits(lock) / 8;
 
-	dupl_lock = mem_heap_alloc(heap, size);
-
-	ut_memcpy(dupl_lock, lock, size);
-
-	return(dupl_lock);
+	return(memcpy(mem_heap_alloc(heap, size), lock, size));
 }
 
 /*************************************************************************
@@ -2709,10 +2695,8 @@ lock_move_reorganize_page(
 
 	mem_heap_free(heap);
 
-#if 0
-	ut_ad(lock_rec_validate_page(page_get_space_id(page),
-				     page_get_page_no(page)));
-#endif
+	ut_ad(lock_rec_validate_page(buf_block_get_space(block),
+				     buf_block_get_page_no(block)));
 }
 
 /*****************************************************************
@@ -2803,12 +2787,10 @@ lock_move_rec_list_end(
 
 	lock_mutex_exit_kernel();
 
-#if 0
 	ut_ad(lock_rec_validate_page(buf_block_get_space(block),
 				     buf_block_get_page_no(block)));
 	ut_ad(lock_rec_validate_page(buf_block_get_space(new_block),
 				     buf_block_get_page_no(new_block)));
-#endif
 }
 
 /*****************************************************************
@@ -2899,10 +2881,9 @@ lock_move_rec_list_start(
 	}
 
 	lock_mutex_exit_kernel();
-#if 0
+
 	ut_ad(lock_rec_validate_page(buf_block_get_space(block),
 				     buf_block_get_page_no(block)));
-#endif
 }
 
 /*****************************************************************
