@@ -645,14 +645,13 @@ MgmApiSession::getConfig_common(Parser_t::Context &,
   
   NdbMutex_Lock(m_mgmsrv.m_configMutex);
   const ConfigValues * cfg = &conf->m_configValues->m_config;
-  const Uint32 size = cfg->getPackedSize();
   
   UtilBuffer src;
   cfg->pack(src);
   NdbMutex_Unlock(m_mgmsrv.m_configMutex);
   
   char *tmp_str = (char *) malloc(base64_needed_encoded_length(src.length()));
-  int res = base64_encode(src.get_data(), src.length(), tmp_str);
+  (void) base64_encode(src.get_data(), src.length(), tmp_str);
   
   m_output->println("get config reply");
   m_output->println("result: Ok");
@@ -835,8 +834,6 @@ MgmApiSession::setClusterLogLevel(Parser<MgmApiSession>::Context &,
   const char *reply= "set cluster loglevel reply";
   Uint32 node, level, cat;
   BaseString errorString;
-  SetLogLevelOrd logLevel;
-  int result;
   DBUG_ENTER("MgmApiSession::setClusterLogLevel");
   args.get("node", &node);
   args.get("category", &cat);
@@ -883,7 +880,6 @@ MgmApiSession::setLogLevel(Parser<MgmApiSession>::Context &,
   Uint32 node = 0, level = 0, cat;
   BaseString errorString;
   SetLogLevelOrd logLevel;
-  int result;
   logLevel.clear();
   args.get("node", &node);
   args.get("category", &cat);
@@ -1312,6 +1308,8 @@ MgmApiSession::setLogFilter(Parser_t::Context &ctx,
   m_output->println("");
 }
 
+#ifdef NOT_USED
+
 static NdbOut&
 operator<<(NdbOut& out, const LogLevel & ll)
 {
@@ -1321,6 +1319,7 @@ operator<<(NdbOut& out, const LogLevel & ll)
   out << "]";
   return out;
 }
+#endif
 
 void
 Ndb_mgmd_event_service::log(int eventType, const Uint32* theData, NodeId nodeId){
