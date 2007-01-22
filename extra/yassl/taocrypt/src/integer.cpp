@@ -88,7 +88,7 @@ namespace TaoCrypt {
 #ifdef SSE2_INTRINSICS_AVAILABLE
 
 template <class T>
-CPP_TYPENAME AllocatorBase<T>::pointer AlignedAllocator<T>::allocate(
+CPP_TYPENAME AlignedAllocator<T>::pointer AlignedAllocator<T>::allocate(
                                            size_type n, const void *)
 {
     CheckSize(n);
@@ -572,24 +572,29 @@ static word AtomicInverseModPower2(word A)
 class Portable
 {
 public:
-    static word Add(word *C, const word *A, const word *B, unsigned int N);
-    static word Subtract(word *C, const word *A, const word*B, unsigned int N);
+    static word TAOCRYPT_CDECL Add(word *C, const word *A, const word *B,
+                                   unsigned int N);
+    static word TAOCRYPT_CDECL Subtract(word *C, const word *A, const word*B,
+                                        unsigned int N);
+    static void TAOCRYPT_CDECL Multiply2(word *C, const word *A, const word *B);
+    static word TAOCRYPT_CDECL Multiply2Add(word *C,
+                                            const word *A, const word *B);
+    static void TAOCRYPT_CDECL Multiply4(word *C, const word *A, const word *B);
+    static void TAOCRYPT_CDECL Multiply8(word *C, const word *A, const word *B);
+    static unsigned int TAOCRYPT_CDECL MultiplyRecursionLimit() {return 8;}
 
-    static void Multiply2(word *C, const word *A, const word *B);
-    static word Multiply2Add(word *C, const word *A, const word *B);
-    static void Multiply4(word *C, const word *A, const word *B);
-    static void Multiply8(word *C, const word *A, const word *B);
-    static unsigned int MultiplyRecursionLimit() {return 8;}
+    static void TAOCRYPT_CDECL Multiply2Bottom(word *C, const word *A,
+                                               const word *B);
+    static void TAOCRYPT_CDECL Multiply4Bottom(word *C, const word *A,
+                                               const word *B);
+    static void TAOCRYPT_CDECL Multiply8Bottom(word *C, const word *A,
+                                               const word *B);
+    static unsigned int TAOCRYPT_CDECL MultiplyBottomRecursionLimit(){return 8;}
 
-    static void Multiply2Bottom(word *C, const word *A, const word *B);
-    static void Multiply4Bottom(word *C, const word *A, const word *B);
-    static void Multiply8Bottom(word *C, const word *A, const word *B);
-    static unsigned int MultiplyBottomRecursionLimit() {return 8;}
-
-    static void Square2(word *R, const word *A);
-    static void Square4(word *R, const word *A);
-    static void Square8(word *R, const word *A) {assert(false);}
-    static unsigned int SquareRecursionLimit() {return 4;}
+    static void TAOCRYPT_CDECL Square2(word *R, const word *A);
+    static void TAOCRYPT_CDECL Square4(word *R, const word *A);
+    static void TAOCRYPT_CDECL Square8(word *R, const word *A) {assert(false);}
+    static unsigned int TAOCRYPT_CDECL SquareRecursionLimit() {return 4;}
 };
 
 word Portable::Add(word *C, const word *A, const word *B, unsigned int N)
