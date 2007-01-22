@@ -663,8 +663,14 @@ NdbDictionary::Table::getTablespace(Uint32 *id, Uint32 *version) const
   return true;
 }
 
+const char *
+NdbDictionary::Table::getTablespaceName() const 
+{
+  return m_impl.m_tablespace_name.c_str();
+}
+
 void 
-NdbDictionary::Table::setTablespace(const char * name){
+NdbDictionary::Table::setTablespaceName(const char * name){
   m_impl.m_tablespace_id = ~0;
   m_impl.m_tablespace_version = ~0;
   m_impl.m_tablespace_name.assign(name);

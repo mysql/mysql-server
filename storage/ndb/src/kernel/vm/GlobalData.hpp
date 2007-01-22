@@ -35,6 +35,7 @@ enum  restartStates {initial_state,
 
 struct GlobalData {
   Uint32     m_restart_seq;           // 
+  NodeVersionInfo m_versionInfo;
   NodeInfo   m_nodeInfo[MAX_NODES];
   Signal     VMSignals[1];            // Owned by FastScheduler::
   

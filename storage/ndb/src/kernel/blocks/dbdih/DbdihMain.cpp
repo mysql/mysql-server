@@ -2831,7 +2831,9 @@ Dbdih::nr_start_fragments(Signal* signal,
       return;
     }//if
     ptrAss(tabPtr, tabRecord);
-    if (tabPtr.p->tabStatus != TabRecord::TS_ACTIVE){
+    if (tabPtr.p->tabStatus != TabRecord::TS_ACTIVE ||
+	tabPtr.p->tabStorage != TabRecord::ST_NORMAL)
+    {
       jam();
       takeOverPtr.p->toCurrentFragid = 0;
       takeOverPtr.p->toCurrentTabref++;
@@ -2915,6 +2917,17 @@ Dbdih::nr_start_fragment(Signal* signal,
 	     takeOverPtr.p->toCurrentTabref,
 	     takeOverPtr.p->toCurrentFragid);
     replicaPtr.p->lcpIdStarted = 0;
+    BlockReference ref = calcLqhBlockRef(takeOverPtr.p->toStartingNode);
+    StartFragReq *req = (StartFragReq *)signal->getDataPtrSend();
+    req->userPtr = 0;
+    req->userRef = reference();
+    req->lcpNo = ZNIL;
+    req->lcpId = 0;
+    req->tableId = takeOverPtr.p->toCurrentTabref;
+    req->fragId = takeOverPtr.p->toCurrentFragid;
+    req->noOfLogNodes = 0;
+    sendSignal(ref, GSN_START_FRAGREQ, signal, 
+	       StartFragReq::SignalLength, JBB);
   }
   else
   {
@@ -3740,7 +3753,6 @@ void Dbdih::endTakeOver(Uint32 takeOverPtrI)
   takeOverPtr.i = takeOverPtrI;
   ptrCheckGuard(takeOverPtr, MAX_NDB_NODES, takeOverRecord);
 
-  releaseTakeOver(takeOverPtrI);
   if ((takeOverPtr.p->toMasterStatus != TakeOverRecord::IDLE) &&
       (takeOverPtr.p->toMasterStatus != TakeOverRecord::TO_WAIT_START_TAKE_OVER)) {
     jam();
@@ -3754,6 +3766,7 @@ void Dbdih::endTakeOver(Uint32 takeOverPtrI)
   }//if
   setAllowNodeStart(takeOverPtr.p->toStartingNode, true);
   initTakeOver(takeOverPtr);
+  releaseTakeOver(takeOverPtrI);
 }//Dbdih::endTakeOver()
 
 void Dbdih::releaseTakeOver(Uint32 takeOverPtrI)
@@ -4044,6 +4057,11 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   cfailurenr = nodeFail->failNo;
   Uint32 newMasterId = nodeFail->masterNodeId;
   const Uint32 noOfFailedNodes = nodeFail->noOfNodes;
+
+  if (ERROR_INSERTED(7179))
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+  }
 
   /*-------------------------------------------------------------------------*/
   // The first step is to convert from a bit mask to an array of failed nodes.
@@ -4908,6 +4926,7 @@ void Dbdih::handleTakeOverNewMaster(Signal* signal, Uint32 takeOverPtrI)
       break;
     }
     ndbrequire(ok);
+    endTakeOver(takeOverPtr.i);
   }//if
 }//Dbdih::handleTakeOverNewMaster()
 
@@ -10255,12 +10274,42 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
   Uint32 fragId = lcpReport->fragId;
   
   jamEntry();
+
+  if (ERROR_INSERTED(7178) && nodeId != getOwnNodeId())
+  {
+    jam();
+    Uint32 owng =Sysfile::getNodeGroup(getOwnNodeId(), SYSFILE->nodeGroups);
+    Uint32 nodeg = Sysfile::getNodeGroup(nodeId, SYSFILE->nodeGroups);
+    if (owng == nodeg)
+    {
+      jam();
+      ndbout_c("throwing away LCP_FRAG_REP from  (and killing) %d", nodeId);
+      SET_ERROR_INSERT_VALUE(7179);
+      signal->theData[0] = 9999;
+      sendSignal(numberToRef(CMVMI, nodeId), 
+		 GSN_NDB_TAMPER, signal, 1, JBA);  
+      return;
+    }
+  }
  
+  if (ERROR_INSERTED(7179) && nodeId != getOwnNodeId())
+  {
+    jam();
+    Uint32 owng =Sysfile::getNodeGroup(getOwnNodeId(), SYSFILE->nodeGroups);
+    Uint32 nodeg = Sysfile::getNodeGroup(nodeId, SYSFILE->nodeGroups);
+    if (owng == nodeg)
+    {
+      jam();
+      ndbout_c("throwing away LCP_FRAG_REP from %d", nodeId);
+      return;
+    }
+  }    
+
   CRASH_INSERTION2(7025, isMaster());
   CRASH_INSERTION2(7016, !isMaster());
-
+  
   bool fromTimeQueue = (signal->senderBlockRef() == reference());
-
+  
   TabRecordPtr tabPtr;
   tabPtr.i = tableId;
   ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
@@ -10462,6 +10511,37 @@ void Dbdih::findReplica(ReplicaRecordPtr& replicaPtr,
   ndbrequire(false);
 }//Dbdih::findReplica()
 
+
+int
+Dbdih::handle_invalid_lcp_no(const LcpFragRep* rep, 
+			     ReplicaRecordPtr replicaPtr)
+{
+  ndbrequire(!isMaster());
+  Uint32 lcpNo = rep->lcpNo;
+  Uint32 lcpId = rep->lcpId;
+  Uint32 replicaLcpNo = replicaPtr.p->nextLcp;
+  Uint32 prevReplicaLcpNo = prevLcpNo(replicaLcpNo);
+
+  warningEvent("Detected previous node failure of %d during lcp",
+	       rep->nodeId);
+  replicaPtr.p->nextLcp = lcpNo;
+  replicaPtr.p->lcpId[lcpNo] = 0;
+  replicaPtr.p->lcpStatus[lcpNo] = ZINVALID;
+  
+  for (Uint32 i = lcpNo; i != lcpNo; i = nextLcpNo(i))
+  {
+    jam();
+    if (replicaPtr.p->lcpStatus[i] == ZVALID &&
+	replicaPtr.p->lcpId[i] >= lcpId)
+    {
+      ndbout_c("i: %d lcpId: %d", i, replicaPtr.p->lcpId[i]);
+      ndbrequire(false);
+    }
+  }
+
+  return 0;
+}
+
 /**
  * Return true  if table is all fragment replicas have been checkpointed
  *                 to disk (in all LQHs)
@@ -10490,9 +10570,12 @@ Dbdih::reportLcpCompletion(const LcpFragRep* lcpReport)
   
   ndbrequire(replicaPtr.p->lcpOngoingFlag == true);
   if(lcpNo != replicaPtr.p->nextLcp){
-    ndbout_c("lcpNo = %d replicaPtr.p->nextLcp = %d", 
-	     lcpNo, replicaPtr.p->nextLcp);
-    ndbrequire(false);
+    if (handle_invalid_lcp_no(lcpReport, replicaPtr))
+    {
+      ndbout_c("lcpNo = %d replicaPtr.p->nextLcp = %d", 
+	       lcpNo, replicaPtr.p->nextLcp);
+      ndbrequire(false);
+    }
   }
   ndbrequire(lcpNo == replicaPtr.p->nextLcp);
   ndbrequire(lcpNo < MAX_LCP_STORED);

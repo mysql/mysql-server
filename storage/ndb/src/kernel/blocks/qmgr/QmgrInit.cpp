@@ -36,6 +36,13 @@ void Qmgr::initData()
   setHbApiDelay(hbDBAPI);
   c_connectedNodes.set(getOwnNodeId());
   c_stopReq.senderRef = 0;
+
+  /**
+   * Check sanity for NodeVersion
+   */
+  ndbrequire((Uint32)NodeInfo::DB == 0);
+  ndbrequire((Uint32)NodeInfo::API == 1);
+  ndbrequire((Uint32)NodeInfo::MGM == 2); 
 }//Qmgr::initData()
 
 void Qmgr::initRecords() 
@@ -106,6 +113,7 @@ Qmgr::Qmgr(Block_context& ctx)
 
   addRecSignal(GSN_DIH_RESTARTREF, &Qmgr::execDIH_RESTARTREF);
   addRecSignal(GSN_DIH_RESTARTCONF, &Qmgr::execDIH_RESTARTCONF);
+  addRecSignal(GSN_NODE_VERSION_REP, &Qmgr::execNODE_VERSION_REP);
   
   initData();
 }//Qmgr::Qmgr()
