@@ -82,10 +82,11 @@ static int read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                           List<Item> &set_values, READ_INFO &read_info,
 			  String &enclosed, ulong skip_lines,
 			  bool ignore_check_option_errors);
+#ifndef EMBEDDED_LIBRARY
 static bool write_execute_load_query_log_event(THD *thd,
 					       bool duplicates, bool ignore,
 					       bool transactional_table);
-
+#endif /* EMBEDDED_LIBRARY */
 
 /*
   Execute LOAD DATA query
@@ -486,6 +487,8 @@ err:
 }
 
 
+#ifndef EMBEDDED_LIBRARY
+
 /* Not a very useful function; just to avoid duplication of code */
 static bool write_execute_load_query_log_event(THD *thd,
 					       bool duplicates, bool ignore,
@@ -501,6 +504,7 @@ static bool write_execute_load_query_log_event(THD *thd,
   return mysql_bin_log.write(&e);
 }
 
+#endif
 
 /****************************************************************************
 ** Read of rows of fixed size + optional garage + optonal newline

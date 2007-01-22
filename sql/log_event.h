@@ -854,6 +854,8 @@ public:
 
   bool write(IO_CACHE* file) { return(false); };
   virtual bool write_post_header_for_derived(IO_CACHE* file) { return FALSE; }
+#else
+  Muted_query_log_event() {}
 #endif
 };
 
