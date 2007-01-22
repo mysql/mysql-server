@@ -2585,11 +2585,6 @@ lock_move_reorganize_page(
 					reorganized page */
 {
 	lock_t*		lock;
-	lock_t*		old_lock;
-	page_cur_t	cur1;
-	page_cur_t	cur2;
-	ulint		old_heap_no;
-	ulint		new_heap_no;
 	UT_LIST_BASE_NODE_T(lock_t)	old_locks;
 	mem_heap_t*	heap		= NULL;
 	ulint		comp;
@@ -2612,10 +2607,9 @@ lock_move_reorganize_page(
 
 	UT_LIST_INIT(old_locks);
 
-	while (lock != NULL) {
-
+	do {
 		/* Make a copy of the lock */
-		old_lock = lock_rec_copy(lock, heap);
+		lock_t*	old_lock = lock_rec_copy(lock, heap);
 
 		UT_LIST_ADD_LAST(trx_locks, old_locks, old_lock);
 
@@ -2627,24 +2621,28 @@ lock_move_reorganize_page(
 		}
 
 		lock = lock_rec_get_next_on_page(lock);
-	}
-
-	lock = UT_LIST_GET_FIRST(old_locks);
+	} while (lock != NULL);
 
 	comp = page_is_comp(block->frame);
 	ut_ad(comp == page_is_comp(oblock->frame));
 
-	while (lock) {
+	for (lock = UT_LIST_GET_FIRST(old_locks); lock;
+	     lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
 		/* NOTE: we copy also the locks set on the infimum and
 		supremum of the page; the infimum may carry locks if an
 		update of a record is occurring on the page, and its locks
 		were temporarily stored on the infimum */
+		page_cur_t	cur1;
+		page_cur_t	cur2;
 
 		page_cur_set_before_first((buf_block_t*) block, &cur1);
 		page_cur_set_before_first((buf_block_t*) oblock, &cur2);
 
 		/* Set locks according to old locks */
 		for (;;) {
+			ulint	old_heap_no;
+			ulint	new_heap_no;
+
 			ut_ad(comp || !memcmp(page_cur_get_rec(&cur1),
 					      page_cur_get_rec(&cur2),
 					      rec_get_data_size_old(
@@ -2664,6 +2662,10 @@ lock_move_reorganize_page(
 
 			if (lock_rec_get_nth_bit(lock, old_heap_no)) {
 
+				/* Clear the bit in old_lock. */
+				ut_d(lock_rec_reset_nth_bit(lock,
+							    old_heap_no));
+
 				/* NOTE that the old lock bitmap could be too
 				small for the new heap number! */
 
@@ -2682,16 +2684,28 @@ lock_move_reorganize_page(
 			if (UNIV_UNLIKELY
 			    (new_heap_no == PAGE_HEAP_NO_SUPREMUM)) {
 
+				ut_ad(old_heap_no == PAGE_HEAP_NO_SUPREMUM);
 				break;
 			}
 
 			page_cur_move_to_next(&cur1);
 			page_cur_move_to_next(&cur2);
+
+#ifdef UNIV_DEBUG
+			{
+				ulint	i = lock_rec_find_set_bit(lock);
+
+				/* Check that all locks were moved. */
+				if (UNIV_UNLIKELY(i != ULINT_UNDEFINED)) {
+					fprintf(stderr,
+						"lock_move_reorganize_page():"
+						" %lu not moved in %p\n",
+						(ulong) i, (void*) lock);
+					ut_error;
+				}
+			}
+#endif /* UNIV_DEBUG */
 		}
-
-		/* Remember that we chained old locks on the trx_locks field */
-
-		lock = UT_LIST_GET_NEXT(trx_locks, lock);
 	}
 
 	lock_mutex_exit_kernel();
