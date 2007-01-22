@@ -8766,8 +8766,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 
   if (type != Item::FIELD_ITEM &&
       item->real_item()->type() == Item::FIELD_ITEM &&
-      (item->type() != Item::REF_ITEM ||
-       !((Item_ref *) item)->depended_from))
+      !((Item_ref *) item)->depended_from)
   {
     orig_item= item;
     item= item->real_item();
@@ -13423,7 +13422,7 @@ count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
     Item::Type type=field->type();
     Item::Type real_type= field->real_item()->type();
     if (type == Item::FIELD_ITEM || (real_type == Item::FIELD_ITEM &&
-        (type != Item::REF_ITEM || !((Item_ref *) field)->depended_from)))
+        !((Item_ref *) field)->depended_from))
       param->field_count++;
     else if (real_type == Item::SUM_FUNC_ITEM)
     {
