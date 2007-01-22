@@ -2828,7 +2828,8 @@ Qmgr::sendVersionedDb(NodeReceiverGroup rg,
 	sendSignal(numberToRef(rg.m_block, i), gsn, signal, length, jbuf);
       }
     }
-    ndbassert(cnt < rg.m_nodes.count());
+    ndbassert((cnt == 0 && rg.m_nodes.count() == 0) ||
+	      (cnt < rg.m_nodes.count()));
   }
 }
 
