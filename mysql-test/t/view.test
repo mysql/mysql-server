@@ -2544,9 +2544,9 @@ CREATE TABLE t1(
   uID int unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY);
  
 INSERT INTO t1(fName, lName, DOB) VALUES
-  ('Alice', 'Hill', date_sub(curdate(), interval 15271 day)),
-  ('Bob', 'Adams', date_sub(curdate(), interval 33600 day)),
-  ('Carol', 'Simpson', date_sub(curdate(), interval 13700 day));
+  ('Hank', 'Hill', '1964-09-29'),
+  ('Tom', 'Adams', '1908-02-14'),
+  ('Homer', 'Simpson', '1968-03-05');
 
 CREATE VIEW v1 AS
   SELECT (year(now())-year(DOB)) AS Age
