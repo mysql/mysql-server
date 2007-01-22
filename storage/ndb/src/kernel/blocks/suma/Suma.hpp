@@ -251,7 +251,7 @@ public:
 		SubscriberPtr subbPtr);
   int initTable(Signal *signal,Uint32 tableId, TablePtr &tabPtr);
   
-  void completeOneSubscriber(Signal* signal, TablePtr tabPtr, SubscriberPtr subbPtr);
+  int completeOneSubscriber(Signal* signal, TablePtr tabPtr, SubscriberPtr subbPtr);
   void completeAllSubscribers(Signal* signal, TablePtr tabPtr);
   void completeInitTable(Signal* signal, TablePtr tabPtr);
 
