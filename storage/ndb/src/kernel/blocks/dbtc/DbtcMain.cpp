@@ -2825,6 +2825,12 @@ void Dbtc::execTCKEYREQ(Signal* signal)
         tmp.p->apiNodeId     = refToNode(regApiPtr->ndbapiBlockref);
         tmp.p->apiConnectPtr = TapiIndex;
         tmp.p->noOfLqhs      = 0;
+#if defined VM_TRACE || defined ERROR_INSERT
+	{
+	  CommitAckMarkerPtr check;
+	  ndbrequire(!m_commitAckMarkerHash.find(check, *tmp.p));
+	}
+#endif
         m_commitAckMarkerHash.add(tmp);
       }
     }
@@ -8115,6 +8121,13 @@ void Dbtc::initApiConnectFail(Signal* signal)
     tmp.p->noOfLqhs      = 1;
     tmp.p->lqhNodeId[0]  = tnodeid;
     tmp.p->apiConnectPtr = apiConnectptr.i;
+
+#if defined VM_TRACE || defined ERROR_INSERT
+    {
+      CommitAckMarkerPtr check;
+      ndbrequire(!m_commitAckMarkerHash.find(check, *tmp.p));
+    }
+#endif
     m_commitAckMarkerHash.add(tmp);
   } 
 }//Dbtc::initApiConnectFail()
@@ -8271,6 +8284,12 @@ void Dbtc::updateApiStateFail(Signal* signal)
       tmp.p->noOfLqhs      = 1;
       tmp.p->lqhNodeId[0]  = tnodeid;
       tmp.p->apiConnectPtr = apiConnectptr.i;
+#if defined VM_TRACE || defined ERROR_INSERT
+      {
+	CommitAckMarkerPtr check;
+	ndbrequire(!m_commitAckMarkerHash.find(check, *tmp.p));
+      }
+#endif
       m_commitAckMarkerHash.add(tmp);
     } else {
       jam();

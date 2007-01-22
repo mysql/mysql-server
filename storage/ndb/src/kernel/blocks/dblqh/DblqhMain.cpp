@@ -2480,8 +2480,16 @@ Dblqh::execREMOVE_MARKER_ORD(Signal* signal)
   
   CommitAckMarkerPtr removedPtr;
   m_commitAckMarkerHash.remove(removedPtr, key);
+#if defined VM_TRACE || defined ERROR_INSERT
   ndbrequire(removedPtr.i != RNIL);
   m_commitAckMarkerPool.release(removedPtr);
+#else
+  if (removedPtr.i != RNIL)
+  {
+    jam();
+    m_commitAckMarkerPool.release(removedPtr);
+  }
+#endif
 #ifdef MARKER_TRACE
   ndbout_c("Rem marker[%.8x %.8x]", key.transid1, key.transid2);
 #endif
@@ -3406,7 +3414,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     markerPtr.p->tcNodeId = tcNodeId;
     
     CommitAckMarkerPtr tmp;
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
 #ifdef MARKER_TRACE
     ndbout_c("Add marker[%.8x %.8x]", markerPtr.p->transid1, markerPtr.p->transid2);
 #endif
@@ -9630,7 +9638,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
   active.add(scanptr);
   if(scanptr.p->scanKeyinfoFlag){
     jam();
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
     ScanRecordPtr tmp;
     ndbrequire(!c_scanTakeOverHash.find(tmp, * scanptr.p));
 #endif
@@ -9754,7 +9762,7 @@ void Dblqh::finishScanrec(Signal* signal)
   scans.add(restart);
   if(restart.p->scanKeyinfoFlag){
     jam();
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
     ScanRecordPtr tmp;
     ndbrequire(!c_scanTakeOverHash.find(tmp, * restart.p));
 #endif
