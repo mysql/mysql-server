@@ -2690,22 +2690,22 @@ lock_move_reorganize_page(
 
 			page_cur_move_to_next(&cur1);
 			page_cur_move_to_next(&cur2);
+		}
 
 #ifdef UNIV_DEBUG
-			{
-				ulint	i = lock_rec_find_set_bit(lock);
+		{
+			ulint	i = lock_rec_find_set_bit(lock);
 
-				/* Check that all locks were moved. */
-				if (UNIV_UNLIKELY(i != ULINT_UNDEFINED)) {
-					fprintf(stderr,
-						"lock_move_reorganize_page():"
-						" %lu not moved in %p\n",
-						(ulong) i, (void*) lock);
-					ut_error;
-				}
+			/* Check that all locks were moved. */
+			if (UNIV_UNLIKELY(i != ULINT_UNDEFINED)) {
+				fprintf(stderr,
+					"lock_move_reorganize_page():"
+					" %lu not moved in %p\n",
+					(ulong) i, (void*) lock);
+				ut_error;
 			}
-#endif /* UNIV_DEBUG */
 		}
+#endif /* UNIV_DEBUG */
 	}
 
 	lock_mutex_exit_kernel();
