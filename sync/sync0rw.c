@@ -563,8 +563,7 @@ rw_lock_debug_mutex_enter(void)
 /*==========================*/
 {
 loop:
-	if (0 == mutex_enter_nowait(&rw_lock_debug_mutex,
-				    __FILE__, __LINE__)) {
+	if (0 == mutex_enter_nowait(&rw_lock_debug_mutex)) {
 		return;
 	}
 
@@ -572,8 +571,7 @@ loop:
 
 	rw_lock_debug_waiters = TRUE;
 
-	if (0 == mutex_enter_nowait(&rw_lock_debug_mutex,
-				    __FILE__, __LINE__)) {
+	if (0 == mutex_enter_nowait(&rw_lock_debug_mutex)) {
 		return;
 	}
 

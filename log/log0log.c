@@ -3270,7 +3270,7 @@ log_peek_lsn(
 			log system mutex */
 	dulint*	lsn)	/* out: if returns TRUE, current lsn is here */
 {
-	if (0 == mutex_enter_nowait(&(log_sys->mutex), __FILE__, __LINE__)) {
+	if (0 == mutex_enter_nowait(&(log_sys->mutex))) {
 		*lsn = log_sys->lsn;
 
 		mutex_exit(&(log_sys->mutex));
