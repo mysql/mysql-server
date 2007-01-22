@@ -131,8 +131,7 @@ void HexDecoder::Decode()
 void Base64Encoder::Encode()
 {
     word32 bytes = plain_.size();
-    word32 outSz = bytes * 4 / 3;
-    outSz += (outSz % 4);           // 4 byte integrals         
+    word32 outSz = (bytes + 3 - 1) / 3 * 4;
 
     outSz += (outSz + pemLineSz - 1) / pemLineSz;  // new lines
     encoded_.New(outSz);
@@ -159,7 +158,7 @@ void Base64Encoder::Encode()
 
         bytes -= 3;
 
-        if ((++j % 16) == 0)
+        if ((++j % 16) == 0 && bytes)
             encoded_[i++] = '\n';
     }
 
@@ -236,11 +235,18 @@ void Base64Decoder::Decode()
         if ((++j % 16) == 0) {
             byte endLine = coded_.next();
             bytes--;
+            while (endLine == ' ') {        // remove possible whitespace
+                endLine = coded_.next();
+                bytes--;
+            }
             if (endLine == '\r') {
                 endLine = coded_.next();
                 bytes--;
             }
-            assert(endLine == '\n');
+            if (endLine != '\n') {
+                coded_.SetError(PEM_E); 
+                return;
+            }
         }
     }
 

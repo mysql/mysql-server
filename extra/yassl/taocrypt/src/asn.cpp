@@ -1098,4 +1098,83 @@ word32 DecodeDSA_Signature(byte* decoded, const byte* encoded, word32 sz)
 }
 
 
+// Get Cert in PEM format from BEGIN to END
+int GetCert(Source& source)
+{
+    char header[] = "-----BEGIN CERTIFICATE-----";
+    char footer[] = "-----END CERTIFICATE-----";
+
+    char* begin = strstr((char*)source.get_buffer(), header);
+    char* end   = strstr((char*)source.get_buffer(), footer);
+
+    if (!begin || !end || begin >= end) return -1;
+
+    end += strlen(footer); 
+    if (*end == '\r') end++;
+
+    Source tmp((byte*)begin, end - begin + 1);
+    source.Swap(tmp);
+
+    return 0;
+}
+
+
+
+// Decode a BER encoded PKCS12 structure
+void PKCS12_Decoder::Decode()
+{
+    ReadHeader();
+    if (source_.GetError().What()) return;
+
+    // Get AuthSafe
+
+    GetSequence();
+    
+        // get object id
+    byte obj_id = source_.next();
+    if (obj_id != OBJECT_IDENTIFIER) {
+        source_.SetError(OBJECT_ID_E);
+        return;
+    }
+
+    word32 length = GetLength(source_);
+
+    word32 algo_sum = 0;
+    while (length--)
+        algo_sum += source_.next();
+
+    
+       
+
+
+
+    // Get MacData optional
+    /*
+    mac     digestInfo  like certdecoder::getdigest?
+    macsalt octet string
+    iter    integer
+    
+    */
+}
+
+
+void PKCS12_Decoder::ReadHeader()
+{
+    // Gets Version
+    GetSequence();
+    GetVersion();
+}
+
+
+// Get Cert in PEM format from pkcs12 file
+int GetPKCS_Cert(const char* password, Source& source)
+{
+    PKCS12_Decoder pkcs12(source);
+    pkcs12.Decode();
+
+    return 0;
+}
+
+
+
 } // namespace
