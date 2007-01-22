@@ -138,7 +138,7 @@
 
 
 /* Fix problem with S_ISLNK() on Linux */
-#if defined(TARGET_OS_LINUX)
+#if defined(TARGET_OS_LINUX) || defined(__GLIBC__)
 #undef  _GNU_SOURCE
 #define _GNU_SOURCE 1
 #endif
@@ -415,7 +415,10 @@ int	__void__;
 #endif
 
 /* Define some useful general macros */
-#if !defined(max)
+#if defined(__cplusplus) && defined(__GNUC__)
+#define max(a, b)     ((a) >? (b))
+#define min(a, b)     ((a) <? (b))
+#elif !defined(max)
 #define max(a, b)	((a) > (b) ? (a) : (b))
 #define min(a, b)	((a) < (b) ? (a) : (b))
 #endif
