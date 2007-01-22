@@ -56,7 +56,15 @@ void NdbMem_Free(void* ptr)
 }
 
  
-int NdbMem_MemLockAll(){
+int NdbMem_MemLockAll(int i){
+  if (i == 1)
+  {
+#if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT) && defined (MCL_FUTURE)
+    return mlockall(MCL_CURRENT | MCL_FUTURE);
+#else
+    return -1;
+#endif
+  }
 #if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)
   return mlockall(MCL_CURRENT);
 #else

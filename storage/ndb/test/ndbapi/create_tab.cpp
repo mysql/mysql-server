@@ -37,7 +37,7 @@ g_create_hook(Ndb* ndb, NdbDictionary::Table& tab, int when, void* arg)
       }
     }
     if (g_tsname != NULL) {
-      tab.setTablespace(g_tsname);
+      tab.setTablespaceName(g_tsname);
     }
   }
   return 0;

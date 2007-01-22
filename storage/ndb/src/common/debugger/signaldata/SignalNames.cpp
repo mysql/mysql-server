@@ -636,5 +636,6 @@ const GsnName SignalNames [] = {
   ,{ GSN_DICT_COMMIT_REQ,  "DICT_COMMIT_REQ"}
 
   ,{ GSN_ROUTE_ORD, "ROUTE_ORD" }
+  ,{ GSN_NODE_VERSION_REP, "NODE_VERSION_REP" }
 };
 const unsigned short NO_OF_SIGNAL_NAMES = sizeof(SignalNames)/sizeof(GsnName);

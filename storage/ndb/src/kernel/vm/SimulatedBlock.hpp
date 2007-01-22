@@ -402,6 +402,9 @@ protected:
   const NodeInfo & getNodeInfo(NodeId nodeId) const;
   NodeInfo & setNodeInfo(NodeId);
 
+  const NodeVersionInfo& getNodeVersionInfo() const;
+  NodeVersionInfo& setNodeVersionInfo();
+  
   /**********************
    * Xfrm stuff
    */
@@ -706,6 +709,18 @@ const NodeInfo &
 SimulatedBlock::getNodeInfo(NodeId nodeId) const {
   ndbrequire(nodeId > 0 && nodeId < MAX_NODES);
   return globalData.m_nodeInfo[nodeId];
+}
+
+inline
+const NodeVersionInfo &
+SimulatedBlock::getNodeVersionInfo() const {
+  return globalData.m_versionInfo;
+}
+
+inline
+NodeVersionInfo &
+SimulatedBlock::setNodeVersionInfo() {
+  return globalData.m_versionInfo;
 }
 
 inline
