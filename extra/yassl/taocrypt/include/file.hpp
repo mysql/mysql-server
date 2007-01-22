@@ -71,8 +71,10 @@ public:
     void   SetError(ErrorNumber w) { error_.SetError(w); }
 
     friend class FileSource;  // for get()
-private:
-    Source(const Source& that) : buffer_(that.buffer_), current_(that.current_) {}
+
+    Source(const Source& that)
+        : buffer_(that.buffer_), current_(that.current_) {}
+
     Source& operator=(const Source& that)
     {
         Source tmp(that);

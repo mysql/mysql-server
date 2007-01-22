@@ -74,7 +74,8 @@ using TaoCrypt::EncodeDSA_Signature;
 using TaoCrypt::DecodeDSA_Signature;
 using TaoCrypt::PBKDF2_HMAC;
 using TaoCrypt::tcArrayDelete;
-
+using TaoCrypt::GetCert;
+using TaoCrypt::GetPKCS_Cert;
 
 
 struct testVector {
@@ -103,6 +104,7 @@ int  rsa_test();
 int  dsa_test();
 int  dh_test();
 int  pwdbased_test();
+int  pkcs12_test();
 
 TaoCrypt::RandomNumberGenerator rng;
 
@@ -227,6 +229,13 @@ void taocrypt_test(void* args)
         err_sys("PBKDF2   test failed!\n", ret);
     else
         printf( "PBKDF2   test passed!\n");
+
+    /* not ready yet
+    if ( (ret = pkcs12_test()) )
+        err_sys("PKCS12   test failed!\n", ret);
+    else
+        printf( "PKCS12   test passed!\n");
+    */
 
     tcArrayDelete(cipher);
     tcArrayDelete(plain);
@@ -994,3 +1003,38 @@ int pwdbased_test()
 
     return 0;
 }
+
+
+int pkcs12_test()
+{
+    Source cert;
+    FileSource("../certs/server-cert.pem", cert);
+    if (cert.size() == 0) {
+        FileSource("../../certs/server-cert.pem", cert);  // for testsuite
+        if (cert.size() == 0) {
+            FileSource("../../../certs/server-cert.pem", cert); // Debug dir
+            if (cert.size() == 0)
+                err_sys("where's your certs dir?", -109);
+        }
+    }
+
+    if (GetCert(cert) != 0)
+        return -110;
+
+    Source source;
+    FileSource("../certs/server.p12", source);
+    if (source.size() == 0) {
+        FileSource("../../certs/server.p12", source);  // for testsuite
+        if (source.size() == 0) {
+            FileSource("../../../certs/server.p12", source); // Debug dir
+            if (source.size() == 0)
+                err_sys("where's your certs dir?", -111);
+        }
+    }
+
+    if (GetPKCS_Cert("password", source) != 0)
+        return -112;
+
+    return 0;
+}
+
