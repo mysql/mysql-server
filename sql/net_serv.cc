@@ -299,7 +299,7 @@ void net_clear(NET *net)
     {
       DBUG_PRINT("info",("skipped %d bytes from file: %s",
                          count, vio_description(net->vio)));
-#ifdef EXTRA_DEBUG
+#if defined(EXTRA_DEBUG) && (MYSQL_VERSION_ID < 51000)
       fprintf(stderr,"skipped %d bytes from file: %s\n",
               count, vio_description(net->vio));
 #endif

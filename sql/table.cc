@@ -2915,7 +2915,8 @@ Field_iterator_table_ref::get_or_create_column_ref(TABLE_LIST *parent_table_ref)
   uint field_count;
   TABLE_LIST *add_table_ref= parent_table_ref ?
                              parent_table_ref : table_ref;
-
+  LINT_INIT(field_count);
+  
   if (field_it == &table_field_it)
   {
     /* The field belongs to a stored table. */
