@@ -1431,17 +1431,26 @@ Suma::initTable(Signal *signal, Uint32 tableId, TablePtr &tabPtr,
   
   if (r)
   {
+    jam();
     // we have to wait getting tab info
     DBUG_RETURN(1);
   }
 
   if (tabPtr.p->setupTrigger(signal, *this))
   {
+    jam();
     // we have to wait for triggers to be setup
     DBUG_RETURN(1);
   }
 
-  completeOneSubscriber(signal, tabPtr, subbPtr);
+  int ret = completeOneSubscriber(signal, tabPtr, subbPtr);
+  if (ret == -1)
+  {
+    jam();
+    LocalDLList<Subscriber> subscribers(c_subscriberPool,
+					tabPtr.p->c_subscribers);
+    subscribers.release(subbPtr);
+  }
   completeInitTable(signal, tabPtr);
   DBUG_RETURN(0);
 }
@@ -1517,6 +1526,22 @@ Suma::initTable(Signal *signal, Uint32 tableId, TablePtr &tabPtr)
     req->tableId = tableId;
 
     DBUG_PRINT("info",("GET_TABINFOREQ id %d", req->tableId));
+
+    if (ERROR_INSERTED(13031))
+    {
+      jam();
+      ndbout_c("HERE");
+      CLEAR_ERROR_INSERT_VALUE;
+      GetTabInfoRef* ref = (GetTabInfoRef*)signal->getDataPtrSend();
+      ref->tableId = tableId;
+      ref->senderData = tabPtr.i;
+      ref->errorCode = GetTabInfoRef::TableNotDefined;
+      sendSignal(reference(), GSN_GET_TABINFOREF, signal, 
+		 GetTabInfoRef::SignalLength, JBB);
+      DBUG_RETURN(1);
+    }
+
+    ndbout_c("HARE");
     sendSignal(DBDICT_REF, GSN_GET_TABINFOREQ, signal,
 	       GetTabInfoReq::SignalLength, JBB);
     DBUG_RETURN(1);
@@ -1530,7 +1555,7 @@ Suma::initTable(Signal *signal, Uint32 tableId, TablePtr &tabPtr)
   DBUG_RETURN(0);
 }
 
-void
+int
 Suma::completeOneSubscriber(Signal *signal, TablePtr tabPtr, SubscriberPtr subbPtr)
 {
   jam();
@@ -1540,19 +1565,22 @@ Suma::completeOneSubscriber(Signal *signal, TablePtr tabPtr, SubscriberPtr subbP
       (c_startup.m_restart_server_node_id == 0 ||
        tabPtr.p->m_state != Table::DROPPED))
   {
+    jam();
     sendSubStartRef(signal,subbPtr,tabPtr.p->m_error,
 		    SubscriptionData::TableData);
     tabPtr.p->n_subscribers--;
+    DBUG_RETURN(-1);
   }
   else
   {
+    jam();
     SubscriptionPtr subPtr;
     c_subscriptions.getPtr(subPtr, subbPtr.p->m_subPtrI);
     subPtr.p->m_table_ptrI= tabPtr.i;
     sendSubStartComplete(signal,subbPtr, m_last_complete_gci + 3,
 			 SubscriptionData::TableData);
   }
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 void
@@ -1565,11 +1593,17 @@ Suma::completeAllSubscribers(Signal *signal, TablePtr tabPtr)
     LocalDLList<Subscriber> subscribers(c_subscriberPool,
 					tabPtr.p->c_subscribers);
     SubscriberPtr subbPtr;
-    for(subscribers.first(subbPtr);
-	!subbPtr.isNull();
-	subscribers.next(subbPtr))
+    for(subscribers.first(subbPtr); !subbPtr.isNull();)
     {
-      completeOneSubscriber(signal, tabPtr, subbPtr);
+      jam();
+      Ptr<Subscriber> tmp = subbPtr;
+      subscribers.next(subbPtr);
+      int ret = completeOneSubscriber(signal, tabPtr, tmp);
+      if (ret == -1)
+      {
+	jam();
+	subscribers.release(tmp);
+      }
     }
   }
   DBUG_VOID_RETURN;
