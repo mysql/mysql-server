@@ -40,8 +40,11 @@
 
 // Check type of third arg to accept
 #if defined(__hpux)
-// HPUX doesn't use socklent_t for third parameter to accept
+// HPUX uses int* for third parameter to accept
     typedef int*       ACCEPT_THIRD_T;
+#elif defined(__NETWARE__)
+// NetWare uses size_t* for third parameter to accept
+    typedef size_t*       ACCEPT_THIRD_T;
 #else
     typedef socklen_t* ACCEPT_THIRD_T;
 #endif
