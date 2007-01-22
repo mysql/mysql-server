@@ -39,8 +39,8 @@ global_warnings="-Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W -Wch
 c_warnings="$global_warnings -Wunused"
 cxx_warnings="$global_warnings -Woverloaded-virtual -Wsign-promo -Wreorder -Wctor-dtor-privacy -Wnon-virtual-dtor"
 
-alpha_cflags="-mcpu=ev6 -Wa,-mev6"	# Not used yet
-pentium_cflags="-mcpu=pentiumpro"
+#alpha_cflags="-mcpu=ev6 -Wa,-mev6"	# Not used yet
+#pentium_cflags="-mcpu=pentiumpro"
 sparc_cflags=""
 
 # be as fast as we can be without losing our ability to backtrace
