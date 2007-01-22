@@ -2553,7 +2553,9 @@ CREATE VIEW v1 AS
     FROM t1 HAVING Age < 75; 
 SHOW CREATE VIEW v1;           
 
+set timestamp=1136066400;
 SELECT (year(now())-year(DOB)) AS Age FROM t1 HAVING Age < 75;
+set timestamp=1136066400;
 SELECT * FROM v1;
 
 DROP VIEW v1;
