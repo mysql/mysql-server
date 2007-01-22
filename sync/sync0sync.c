@@ -311,12 +311,13 @@ mutex_free(
 }
 
 /************************************************************************
-Tries to lock the mutex for the current thread. If the lock is not acquired
-immediately, returns with return value 1. */
+NOTE! Use the corresponding macro in the header file, not this function
+directly. Tries to lock the mutex for the current thread. If the lock is not
+acquired immediately, returns with return value 1. */
 
 ulint
-mutex_enter_nowait(
-/*===============*/
+mutex_enter_nowait_func(
+/*====================*/
 					/* out: 0 if succeed, 1 if not */
 	mutex_t*	mutex,		/* in: pointer to mutex */
 	const char*	file_name __attribute__((unused)),
