@@ -177,12 +177,6 @@ inline void reset_floating_point_exceptions()
 } /* cplusplus */
 
 
-#if defined(HAVE_LINUXTHREADS)
-#define THR_KILL_SIGNAL SIGINT
-#else
-#define THR_KILL_SIGNAL SIGUSR2		// Can't use this with LinuxThreads
-#endif
-
 #ifdef HAVE_GLIBC2_STYLE_GETHOSTBYNAME_R
 #include <sys/types.h>
 #else
@@ -505,6 +499,7 @@ static void clean_up(bool print_message);
 static void clean_up_mutexes(void);
 static int test_if_case_insensitive(const char *dir_name);
 static void create_pid_file();
+static uint get_thread_lib(void);
 
 /****************************************************************************
 ** Code to end mysqld
@@ -544,7 +539,8 @@ static void close_connections(void)
     DBUG_PRINT("info",("Waiting for select_thread"));
 
 #ifndef DONT_USE_THR_ALARM
-    if (pthread_kill(select_thread,THR_CLIENT_ALARM))
+    if (pthread_kill(select_thread,
+		     thd_lib_detected == THD_LIB_LT ? SIGALRM : SIGUSR1))
       break;					// allready dead
 #endif
     set_timespec(abstime, 2);
@@ -844,7 +840,7 @@ extern "C" sig_handler print_signal_warning(int sig)
 		      sig,my_thread_id());
   }
 #ifdef DONT_REMEMBER_SIGNAL
-  sigset(sig,print_signal_warning);		/* int. thread system calls */
+  my_sigset(sig, print_signal_warning);         /* int. thread system calls */
 #endif
 #if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
   if (sig == SIGALRM)
@@ -1841,8 +1837,11 @@ static void init_signals(void)
   DBUG_ENTER("init_signals");
 
   if (test_flags & TEST_SIGINT)
-    sigset(THR_KILL_SIGNAL,end_thread_signal);
-  sigset(THR_SERVER_ALARM,print_signal_warning); // Should never be called!
+  {
+    my_sigset(thd_lib_detected == THD_LIB_LT ? SIGINT : SIGUSR2,
+              end_thread_signal);
+  }
+  my_sigset(THR_SERVER_ALARM, print_signal_warning); // Should never be called!
 
   if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
   {
@@ -1877,7 +1876,7 @@ static void init_signals(void)
 #endif
   (void) sigemptyset(&set);
 #ifdef THREAD_SPECIFIC_SIGPIPE
-  sigset(SIGPIPE,abort_thread);
+  my_sigset(SIGPIPE, abort_thread);
   sigaddset(&set,SIGPIPE);
 #else
   (void) signal(SIGPIPE,SIG_IGN);		// Can't know which thread
@@ -1903,8 +1902,12 @@ static void init_signals(void)
 #endif
   sigaddset(&set,THR_SERVER_ALARM);
   if (test_flags & TEST_SIGINT)
-    sigdelset(&set,THR_KILL_SIGNAL);		// May be SIGINT
-  sigdelset(&set,THR_CLIENT_ALARM);		// For alarms
+  {
+    // May be SIGINT
+    sigdelset(&set, thd_lib_detected == THD_LIB_LT ? SIGINT : SIGUSR2);
+  }
+  // For alarms
+  sigdelset(&set, thd_lib_detected == THD_LIB_LT ? SIGALRM : SIGUSR1);
   sigprocmask(SIG_SETMASK,&set,NULL);
   pthread_sigmask(SIG_SETMASK,&set,NULL);
   DBUG_VOID_RETURN;
@@ -1959,23 +1962,19 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
   */
   init_thr_alarm(max_connections +
 		 global_system_variables.max_insert_delayed_threads + 10);
-#if SIGINT != THR_KILL_SIGNAL
-  if (test_flags & TEST_SIGINT)
+  if (thd_lib_detected != THD_LIB_LT && test_flags & TEST_SIGINT)
   {
     (void) sigemptyset(&set);			// Setup up SIGINT for debug
     (void) sigaddset(&set,SIGINT);		// For debugging
     (void) pthread_sigmask(SIG_UNBLOCK,&set,NULL);
   }
-#endif
   (void) sigemptyset(&set);			// Setup up SIGINT for debug
 #ifdef USE_ONE_SIGNAL_HAND
   (void) sigaddset(&set,THR_SERVER_ALARM);	// For alarms
 #endif
 #ifndef IGNORE_SIGHUP_SIGQUIT
   (void) sigaddset(&set,SIGQUIT);
-#if THR_CLIENT_ALARM != SIGHUP
   (void) sigaddset(&set,SIGHUP);
-#endif
 #endif
   (void) sigaddset(&set,SIGTERM);
   (void) sigaddset(&set,SIGTSTP);
@@ -2236,8 +2235,8 @@ int main(int argc, char **argv)
   MY_INIT(argv[0]);		// init my_sys library & pthreads
   tzset();			// Set tzname
 
+  thd_lib_detected= get_thread_lib();
   start_time=time((time_t*) 0);
-
 #ifdef OS2
   {
     // fix timezone for daylight saving
@@ -5546,6 +5545,22 @@ static void create_pid_file()
     (void) my_write(file, (byte*) buff, (uint) (end-buff),MYF(MY_WME));
     (void) my_close(file, MYF(0));
   }
+}
+
+
+static uint get_thread_lib(void)
+{
+  char buff[64];
+    
+#ifdef _CS_GNU_LIBPTHREAD_VERSION
+  confstr(_CS_GNU_LIBPTHREAD_VERSION, buff, sizeof(buff));
+
+  if (!strncasecmp(buff, "NPTL", 4))
+    return THD_LIB_NPTL;
+  else if (!strncasecmp(buff, "linuxthreads", 12))
+    return THD_LIB_LT;
+#endif
+  return THD_LIB_OTHER;
 }
 
 
