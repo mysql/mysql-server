@@ -26,13 +26,17 @@
 
 static bool convert_constant_item(THD *thd, Field *field, Item **item);
 
-static Item_result item_store_type(Item_result a,Item_result b)
+static Item_result item_store_type(Item_result a, Item *item,
+                                   my_bool unsigned_flag)
 {
+  Item_result b= item->result_type();
+
   if (a == STRING_RESULT || b == STRING_RESULT)
     return STRING_RESULT;
   else if (a == REAL_RESULT || b == REAL_RESULT)
     return REAL_RESULT;
-  else if (a == DECIMAL_RESULT || b == DECIMAL_RESULT)
+  else if (a == DECIMAL_RESULT || b == DECIMAL_RESULT ||
+           unsigned_flag != item->unsigned_flag)
     return DECIMAL_RESULT;
   else
     return INT_RESULT;
@@ -41,6 +45,7 @@ static Item_result item_store_type(Item_result a,Item_result b)
 static void agg_result_type(Item_result *type, Item **items, uint nitems)
 {
   Item **item, **item_end;
+  my_bool unsigned_flag= 0;
 
   *type= STRING_RESULT;
   /* Skip beginning NULL items */
@@ -49,6 +54,7 @@ static void agg_result_type(Item_result *type, Item **items, uint nitems)
     if ((*item)->type() != Item::NULL_ITEM)
     {
       *type= (*item)->result_type();
+      unsigned_flag= (*item)->unsigned_flag;
       item++;
       break;
     }
@@ -57,7 +63,7 @@ static void agg_result_type(Item_result *type, Item **items, uint nitems)
   for (; item < item_end; item++)
   {
     if ((*item)->type() != Item::NULL_ITEM)
-      *type= item_store_type(type[0], (*item)->result_type());
+      *type= item_store_type(*type, *item, unsigned_flag);
   }
 }
 
