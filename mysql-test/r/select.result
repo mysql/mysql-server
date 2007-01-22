@@ -3652,9 +3652,9 @@ coalesce(9223372036854775808, 1) co;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` decimal(19,0) NOT NULL default '0',
-  `c` decimal(19,0) NOT NULL default '0',
-  `co` decimal(19,0) NOT NULL default '0'
+  `i` decimal(19,0) NOT NULL DEFAULT '0',
+  `c` decimal(19,0) NOT NULL DEFAULT '0',
+  `co` decimal(19,0) NOT NULL DEFAULT '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select 
