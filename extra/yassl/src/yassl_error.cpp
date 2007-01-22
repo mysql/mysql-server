@@ -150,6 +150,10 @@ void SetErrorString(YasslError error, char* buffer)
         strncpy(buffer, "the read operation would block", max);
         break;
 
+    case CERTFICATE_ERROR :
+        strncpy(buffer, "Unable to verify certificate", max);
+        break;
+
         // TaoCrypt errors
     case NO_ERROR_E :
         strncpy(buffer, "not in error state", max);
@@ -255,8 +259,12 @@ void SetErrorString(YasslError error, char* buffer)
         strncpy(buffer, "ASN: bad other signature confirmation", max);
         break;
 
-    case CERTFICATE_ERROR :
-        strncpy(buffer, "Unable to verify certificate", max);
+    case CONTENT_E :
+        strncpy(buffer, "bad content processing", max);
+        break;
+
+    case PEM_E :
+        strncpy(buffer, "bad PEM format processing", max);
         break;
 
     default :
