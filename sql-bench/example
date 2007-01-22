@@ -1,0 +1,3 @@
+#/bin/sh
+run-all-tests --prefix=-innodb --hw="AMD Athlon 4000+; 2400 MHz 1M cache, 3G memory" --optimization="gcc 4.0.2 -O3" --comments="Engine=InnoDB" --create-options="ENGINE=InnoDB"
+
