@@ -335,6 +335,8 @@ que_fork_start_command(
 	que_fork_t*	fork)	/* in: a query fork */
 {
 	que_thr_t*	thr;
+	que_thr_t*	suspended_thr = NULL;
+	que_thr_t*	completed_thr = NULL;
 
 	fork->state = QUE_FORK_ACTIVE;
 
@@ -344,14 +346,18 @@ que_fork_start_command(
 	but in a parallelized select, which necessarily is non-scrollable,
 	there may be several to choose from */
 
-	/*---------------------------------------------------------------
-	First we try to find a query thread in the QUE_THR_COMMAND_WAIT state
-	*/
+	/* First we try to find a query thread in the QUE_THR_COMMAND_WAIT
+	state. Then we try to find a query thread in the QUE_THR_SUSPENDED
+	state, finally we try to find a query thread in the QUE_THR_COMPLETED
+	state */
 
 	thr = UT_LIST_GET_FIRST(fork->thrs);
 
-	while (thr != NULL) {
-		if (thr->state == QUE_THR_COMMAND_WAIT) {
+	/* We make a single pass over the thr list within which we note which
+	threads are ready to run. */
+	while (thr) {
+		switch (thr->state) {
+		case QUE_THR_COMMAND_WAIT:
 
 			/* We have to send the initial message to query thread
 			to start it */
@@ -359,49 +365,44 @@ que_fork_start_command(
 			que_thr_init_command(thr);
 
 			return(thr);
-		}
 
-		ut_ad(thr->state != QUE_THR_LOCK_WAIT);
-
-		thr = UT_LIST_GET_NEXT(thrs, thr);
-	}
-
-	/*----------------------------------------------------------------
-	Then we try to find a query thread in the QUE_THR_SUSPENDED state */
-
-	thr = UT_LIST_GET_FIRST(fork->thrs);
-
-	while (thr != NULL) {
-		if (thr->state == QUE_THR_SUSPENDED) {
+		case QUE_THR_SUSPENDED:
 			/* In this case the execution of the thread was
 			suspended: no initial message is needed because
 			execution can continue from where it was left */
+			if (!suspended_thr) {
+				suspended_thr = thr;
+			}
 
-			que_thr_move_to_run_state(thr);
+			break;
 
-			return(thr);
+		case QUE_THR_COMPLETED:
+			if (!completed_thr) {
+				completed_thr = thr;
+			}
+
+			break;
+
+		case QUE_THR_LOCK_WAIT:
+			ut_error;
+
 		}
 
 		thr = UT_LIST_GET_NEXT(thrs, thr);
 	}
 
-	/*-----------------------------------------------------------------
-	Then we try to find a query thread in the QUE_THR_COMPLETED state */
+	if (suspended_thr) {
 
-	thr = UT_LIST_GET_FIRST(fork->thrs);
+		thr = suspended_thr;
+		que_thr_move_to_run_state(thr);
 
-	while (thr != NULL) {
-		if (thr->state == QUE_THR_COMPLETED) {
-			que_thr_init_command(thr);
+	} else if (completed_thr) {
 
-			return(thr);
-		}
-
-		thr = UT_LIST_GET_NEXT(thrs, thr);
+		thr = completed_thr;
+		que_thr_init_command(thr);
 	}
 
-	/* Else we return NULL */
-	return(NULL);
+	return(thr);
 }
 
 /**************************************************************************
