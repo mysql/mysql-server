@@ -1530,7 +1530,6 @@ Suma::initTable(Signal *signal, Uint32 tableId, TablePtr &tabPtr)
     if (ERROR_INSERTED(13031))
     {
       jam();
-      ndbout_c("HERE");
       CLEAR_ERROR_INSERT_VALUE;
       GetTabInfoRef* ref = (GetTabInfoRef*)signal->getDataPtrSend();
       ref->tableId = tableId;
@@ -1541,7 +1540,6 @@ Suma::initTable(Signal *signal, Uint32 tableId, TablePtr &tabPtr)
       DBUG_RETURN(1);
     }
 
-    ndbout_c("HARE");
     sendSignal(DBDICT_REF, GSN_GET_TABINFOREQ, signal,
 	       GetTabInfoReq::SignalLength, JBB);
     DBUG_RETURN(1);
