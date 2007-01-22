@@ -688,6 +688,36 @@ echo # <whatever> success: $success ;
 --echo # Execute: echo \$success ;
 echo $success ;
 
+
+# ----------------------------------------------------------------------------
+# Test to assign let from variable
+# let $<var_name>=$<var_name>;
+# ----------------------------------------------------------------------------
+
+--echo # Check if let \$B = \$A is an assignment per value.
+
+# Basic preparations:
+--echo let \$A = initial value of A;
+let $A = initial value of A;
+# --echo # Content of \$A is: $A
+--echo let \$B = initial value of B;
+let $B = initial value of B;
+# --echo # Content of \$B is: $B
+
+# Assign $B to $A:
+--echo let \$B = \$A
+let $A = $B;
+--echo # Content of \$A is: $A
+
+# Changes of $B must NOT affect $A and Changes of $A must NOT affect $B !
+--echo let \$A = changed value of A;
+let $A = changed value of A;
+--echo # Content of \$B is: $B
+
+--echo let \$B = changed value of B;
+let $B = changed value of B;
+--echo # Content of \$A is: $A
+
 # ----------------------------------------------------------------------------
 # Test to assign let from query
 # let $<var_name>=`<query>`;
