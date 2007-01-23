@@ -2320,7 +2320,7 @@ buf_page_init_for_read(
 			/* Unfix and unlatch the block. */
 			mutex_enter(&buf_pool->mutex);
 			mutex_enter(&block->mutex);
-			block->page.buf_fix_count = 0;
+			block->page.buf_fix_count--;
 			buf_block_set_io_fix(block, BUF_IO_NONE);
 			mutex_exit(&buf_pool->mutex);
 			mutex_exit(&block->mutex);
