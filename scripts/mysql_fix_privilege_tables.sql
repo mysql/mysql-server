@@ -8,6 +8,7 @@
 # this sql script.
 # On windows you should do 'mysql --force mysql < mysql_fix_privilege_tables.sql'
 
+set sql_mode='';
 set storage_engine=MyISAM;
 
 CREATE TABLE IF NOT EXISTS func (
