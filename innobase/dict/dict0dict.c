@@ -28,7 +28,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "rem0cmp.h"
 
 /* Implement isspace() in a locale-independent way. (Bug #24299) */
-#define ib_isspace(c) strchr(" \v\f\t\r\n", c)
+#define ib_isspace(c) ((char) (c) && strchr(" \v\f\t\r\n", c))
 
 dict_sys_t*	dict_sys	= NULL;	/* the dictionary system */
 
