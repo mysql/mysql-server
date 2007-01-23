@@ -1981,6 +1981,44 @@ buf_page_get_known_nowait(
 	return(TRUE);
 }
 
+/************************************************************************
+Initialize some fields of a control block. */
+UNIV_INLINE
+void
+buf_block_init_low(
+/*===============*/
+	buf_block_t*	block)	/* in: block to init */
+{
+	block->check_index_page_at_flush = FALSE;
+	block->index		= NULL;
+
+	block->n_hash_helps	= 0;
+	block->is_hashed	= FALSE;
+	block->n_fields		= 1;
+	block->n_bytes		= 0;
+	block->left_side	= TRUE;
+}
+
+/************************************************************************
+Initialize some fields of a control block. */
+UNIV_INLINE
+void
+buf_page_init_low(
+/*==============*/
+	buf_page_t*	bpage)	/* in: block to init */
+{
+	bpage->accessed = FALSE;
+	bpage->io_fix = BUF_IO_NONE;
+	bpage->buf_fix_count = 0;
+	bpage->freed_page_clock = 0;
+	// bpage->hash = (buf_page_t*) -1;
+	bpage->newest_modification = 0;
+	bpage->oldest_modification = 0;
+#ifdef UNIV_DEBUG_FILE_ACCESSES
+	bpage->file_page_was_freed = FALSE;
+#endif /* UNIV_DEBUG_FILE_ACCESSES */
+}
+
 #ifdef UNIV_HOTBACKUP
 /************************************************************************
 Inits a page to the buffer buf_pool, for use in ibbackup --restore. */
@@ -1995,26 +2033,15 @@ buf_page_init_for_backup_restore(
 				or 0 for uncompressed pages */
 	buf_block_t*	block)	/* in: block to init */
 {
-	/* Set the state of the block */
-	buf_block_set_file_page(block, space, offset);
+	buf_block_init_low(block);
 
 	block->lock_hash_val	= 0;
 
-	block->page.freed_page_clock = 0;
-
-	block->page.newest_modification = 0;
-	block->page.oldest_modification = 0;
-
+	buf_page_init_low(&block->page);
 	block->page.state	= BUF_BLOCK_FILE_PAGE;
-	block->page.accessed	= FALSE;
-	block->page.buf_fix_count = 0;
-	block->page.io_fix	= BUF_IO_NONE;
+	block->page.space	= space;
+	block->page.offset	= offset;
 
-	block->n_hash_helps	= 0;
-	block->is_hashed	= FALSE;
-	block->n_fields		= 1;
-	block->n_bytes		= 0;
-	block->left_side	= TRUE;
 	page_zip_des_init(&block->page.zip);
 
 	/* We assume that block->page.data has been allocated
@@ -2022,9 +2049,6 @@ buf_page_init_for_backup_restore(
 	ut_ad(zip_size <= UNIV_PAGE_SIZE);
 	ut_ad(ut_is_2pow(zip_size));
 	page_zip_set_size(&block->page.zip, zip_size);
-#ifdef UNIV_DEBUG_FILE_ACCESSES
-	block->page.file_page_was_freed = FALSE;
-#endif /* UNIV_DEBUG_FILE_ACCESSES */
 }
 #endif /* UNIV_HOTBACKUP */
 
@@ -2057,8 +2081,7 @@ buf_page_init(
 	}
 #endif /* UNIV_DEBUG_VALGRIND */
 
-	block->check_index_page_at_flush = FALSE;
-	block->index		= NULL;
+	buf_block_init_low(block);
 
 	block->lock_hash_val	= lock_rec_hash(space, offset);
 
@@ -2087,24 +2110,7 @@ buf_page_init(
 	HASH_INSERT(buf_page_t, hash, buf_pool->page_hash,
 		    buf_page_address_fold(space, offset), &block->page);
 
-	block->page.freed_page_clock = 0;
-
-	block->page.newest_modification = 0;
-	block->page.oldest_modification = 0;
-
-	buf_page_set_accessed(&block->page, FALSE);
-	block->page.buf_fix_count = 0;
-	buf_block_set_io_fix(block, BUF_IO_NONE);
-
-	block->n_hash_helps	= 0;
-	block->is_hashed	= FALSE;
-	block->n_fields		= 1;
-	block->n_bytes		= 0;
-	block->left_side	= TRUE;
-
-#ifdef UNIV_DEBUG_FILE_ACCESSES
-	block->page.file_page_was_freed = FALSE;
-#endif /* UNIV_DEBUG_FILE_ACCESSES */
+	buf_page_init_low(&block->page);
 }
 
 /************************************************************************
@@ -2259,12 +2265,16 @@ buf_page_init_for_read(
 			mutex_enter(&buf_pool->zip_mutex);
 
 			buf_relocate(bpage, &block->page);
+			buf_block_init_low(block);
+			block->lock_hash_val = lock_rec_hash(space, offset);
+
 			UNIV_MEM_DESC(bpage->zip.data, zip_size, block);
 
 			if (buf_page_get_state(&block->page)
 			    == BUF_BLOCK_ZIP_PAGE) {
 				UT_LIST_REMOVE(list, buf_pool->zip_clean,
 					       &block->page);
+				ut_ad(!block->page.in_flush_list);
 			} else {
 				/* Relocate buf_pool->flush_list. */
 				buf_page_t*	b;
@@ -2285,9 +2295,10 @@ buf_page_init_for_read(
 				}
 			}
 
+			/* Buffer-fix, I/O-fix, and X-latch the block
+			for the duration of the decompression. */
 			block->page.state = BUF_BLOCK_FILE_PAGE;
-			ut_a(!block->page.buf_fix_count);
-			block->page.buf_fix_count++;
+			block->page.buf_fix_count = 1;
 			buf_block_set_io_fix(block, BUF_IO_READ);
 			rw_lock_x_lock(&block->lock);
 			mutex_exit(&block->mutex);
@@ -2302,10 +2313,14 @@ buf_page_init_for_read(
 				mtr_commit(&mtr);
 			}
 
+			/* Decompress the page while not holding
+			buf_pool->mutex or block->mutex. */
 			buf_zip_decompress(block, srv_use_checksums);
+
+			/* Unfix and unlatch the block. */
 			mutex_enter(&buf_pool->mutex);
 			mutex_enter(&block->mutex);
-			block->page.buf_fix_count--;
+			block->page.buf_fix_count = 0;
 			buf_block_set_io_fix(block, BUF_IO_NONE);
 			mutex_exit(&buf_pool->mutex);
 			mutex_exit(&block->mutex);
