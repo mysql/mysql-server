@@ -645,7 +645,7 @@ lock_get_wait(
 {
 	ut_ad(lock);
 
-	if (lock->type_mode & LOCK_WAIT) {
+	if (UNIV_UNLIKELY(lock->type_mode & LOCK_WAIT)) {
 
 		return(TRUE);
 	}
@@ -1782,7 +1782,7 @@ lock_rec_create(
 
 	HASH_INSERT(lock_t, hash, lock_sys->rec_hash,
 		    lock_rec_fold(space, page_no), lock);
-	if (type_mode & LOCK_WAIT) {
+	if (UNIV_UNLIKELY(type_mode & LOCK_WAIT)) {
 
 		lock_set_lock_and_trx_wait(lock, trx);
 	}
@@ -1954,7 +1954,7 @@ lock_rec_add_to_queue(
 		lock = lock_rec_get_next_on_page(lock);
 	}
 
-	if (!(type_mode & LOCK_WAIT)) {
+	if (!UNIV_UNLIKELY(type_mode & LOCK_WAIT)) {
 
 		/* Look for a similar record lock on the same page:
 		if one is found and there are no waiting lock requests,
@@ -2542,7 +2542,6 @@ lock_rec_move(
 						which gives the locks */
 {
 	lock_t*	lock;
-	ulint	type_mode;
 
 	ut_ad(mutex_own(&kernel_mutex));
 
@@ -2551,11 +2550,11 @@ lock_rec_move(
 	ut_ad(lock_rec_get_first(receiver, receiver_heap_no) == NULL);
 
 	while (lock != NULL) {
-		type_mode = lock->type_mode;
+		const ulint	type_mode = lock->type_mode;
 
 		lock_rec_reset_nth_bit(lock, donator_heap_no);
 
-		if (UNIV_UNLIKELY(lock_get_wait(lock))) {
+		if (UNIV_UNLIKELY(type_mode & LOCK_WAIT)) {
 			lock_reset_lock_and_trx_wait(lock);
 		}
 
@@ -2731,10 +2730,6 @@ lock_move_rec_list_end(
 						is the first record moved */
 {
 	lock_t*		lock;
-	page_cur_t	cur1;
-	page_cur_t	cur2;
-	ulint		heap_no;
-	ulint		type_mode;
 	const ulint	comp	= page_rec_is_comp(rec);
 
 	lock_mutex_enter_kernel();
@@ -2748,6 +2743,9 @@ lock_move_rec_list_end(
 	lock = lock_rec_get_first_on_page(block);
 
 	while (lock != NULL) {
+		page_cur_t	cur1;
+		page_cur_t	cur2;
+		const ulint	type_mode = lock->type_mode;
 
 		page_cur_position((rec_t*) rec, (buf_block_t*) block, &cur1);
 
@@ -2762,6 +2760,8 @@ lock_move_rec_list_end(
 		reset the lock bits on the old */
 
 		while (!page_cur_is_after_last(&cur1)) {
+			ulint	heap_no;
+
 			ut_ad(comp
 			      || !memcmp(page_cur_get_rec(&cur1),
 					 page_cur_get_rec(&cur2),
@@ -2776,11 +2776,9 @@ lock_move_rec_list_end(
 			}
 
 			if (lock_rec_get_nth_bit(lock, heap_no)) {
-				type_mode = lock->type_mode;
-
 				lock_rec_reset_nth_bit(lock, heap_no);
 
-				if (lock_get_wait(lock)) {
+				if (UNIV_UNLIKELY(type_mode & LOCK_WAIT)) {
 					lock_reset_lock_and_trx_wait(lock);
 				}
 
@@ -2833,10 +2831,6 @@ lock_move_rec_list_start(
 						were copied */
 {
 	lock_t*		lock;
-	page_cur_t	cur1;
-	page_cur_t	cur2;
-	ulint		heap_no;
-	ulint		type_mode;
 	const ulint	comp	= page_rec_is_comp(rec);
 
 	ut_ad(block->frame == page_align((rec_t*) rec));
@@ -2847,6 +2841,9 @@ lock_move_rec_list_start(
 	lock = lock_rec_get_first_on_page(block);
 
 	while (lock != NULL) {
+		page_cur_t	cur1;
+		page_cur_t	cur2;
+		const ulint	type_mode = lock->type_mode;
 
 		page_cur_set_before_first((buf_block_t*) block, &cur1);
 		page_cur_move_to_next(&cur1);
@@ -2859,6 +2856,8 @@ lock_move_rec_list_start(
 		reset the lock bits on the old */
 
 		while (page_cur_get_rec(&cur1) != rec) {
+			ulint	heap_no;
+
 			ut_ad(comp
 			      || !memcmp(page_cur_get_rec(&cur1),
 					 page_cur_get_rec(&cur2),
@@ -2873,11 +2872,9 @@ lock_move_rec_list_start(
 			}
 
 			if (lock_rec_get_nth_bit(lock, heap_no)) {
-				type_mode = lock->type_mode;
-
 				lock_rec_reset_nth_bit(lock, heap_no);
 
-				if (lock_get_wait(lock)) {
+				if (UNIV_UNLIKELY(type_mode & LOCK_WAIT)) {
 					lock_reset_lock_and_trx_wait(lock);
 				}
 
@@ -2897,6 +2894,24 @@ lock_move_rec_list_start(
 			page_cur_move_to_next(&cur1);
 			page_cur_move_to_next(&cur2);
 		}
+
+#ifdef UNIV_DEBUG
+		if (page_rec_is_supremum(rec)) {
+			ulint	i;
+
+			for (i = 2; i < lock_rec_get_n_bits(lock); i++) {
+				if (UNIV_UNLIKELY
+				    (lock_rec_get_nth_bit(lock, i))) {
+
+					fprintf(stderr,
+						"lock_move_rec_list_start():"
+						" %lu not moved in %p\n",
+						(ulong) i, (void*) lock);
+					ut_error;
+				}
+			}
+		}
+#endif /* UNIV_DEBUG */
 
 		lock = lock_rec_get_next_on_page(lock);
 	}
@@ -3597,7 +3612,7 @@ lock_table_create(
 
 	UT_LIST_ADD_LAST(un_member.tab_lock.locks, table->locks, lock);
 
-	if (type_mode & LOCK_WAIT) {
+	if (UNIV_UNLIKELY(type_mode & LOCK_WAIT)) {
 
 		lock_set_lock_and_trx_wait(lock, trx);
 	}
@@ -5391,4 +5406,3 @@ lock_clust_rec_read_check_and_lock_alt(
 	}
 	return(ret);
 }
-
