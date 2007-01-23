@@ -734,6 +734,7 @@ bool st_select_lex::cleanup()
   {
     error= (bool) ((uint) error | (uint) lex_unit->cleanup());
   }
+  non_agg_fields.empty();
   DBUG_RETURN(error);
 }
 

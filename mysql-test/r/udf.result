@@ -278,3 +278,37 @@ drop table bug18761;
 select is_const((1,2,3));
 ERROR 21000: Operand should contain 1 column(s)
 drop function if exists is_const;
+CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+CREATE FUNCTION myfunc_double RETURNS REAL SONAME "UDF_EXAMPLE_LIB";
+CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
+create function f1(p1 varchar(255))
+returns varchar(255)
+begin
+return metaphon(p1);
+end//
+create function f2(p1 varchar(255))
+returns double
+begin
+return myfunc_double(p1);
+end//
+create function f3(p1 varchar(255))
+returns double
+begin
+return myfunc_int(p1);
+end//
+select f3(NULL);
+f3(NULL)
+0
+select f2(NULL);
+f2(NULL)
+NULL
+select f1(NULL);
+f1(NULL)
+NULL
+drop function f1;
+drop function f2;
+drop function f3;
+drop function metaphon;
+drop function myfunc_double;
+drop function myfunc_int;
+End of 5.0 tests.

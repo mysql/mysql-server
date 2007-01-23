@@ -3503,6 +3503,16 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
     {
       if (*from_field)
       {
+        if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY &&
+            select->cur_pos_in_select_list != UNDEF_POS)
+        {
+          /*
+            As this is an outer field it should be added to the list of
+            non aggregated fields of the outer select.
+          */
+          marker= select->cur_pos_in_select_list;
+          select->non_agg_fields.push_back(this);
+        }
         if (*from_field != view_ref_found)
         {
           prev_subselect_item->used_tables_cache|= (*from_field)->table->map;
@@ -3705,10 +3715,11 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
 bool Item_field::fix_fields(THD *thd, Item **reference)
 {
   DBUG_ASSERT(fixed == 0);
+  Field *from_field= (Field *)not_found_field;
+  bool outer_fixed= false;
+
   if (!field)					// If field is not checked
   {
-    Field *from_field= (Field *)not_found_field;
-    bool outer_fixed= false;
     /*
       In case of view, find_field_in_tables() write pointer to view field
       expression to 'reference', i.e. it substitute that expression instead
@@ -3800,6 +3811,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
         goto error;
       if (!ret)
         return FALSE;
+      outer_fixed= 1;
     }
 
     set_field(from_field);
@@ -3859,6 +3871,13 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
   }
 #endif
   fixed= 1;
+  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY &&
+      !outer_fixed && !thd->lex->in_sum_func &&
+      thd->lex->current_select->cur_pos_in_select_list != UNDEF_POS)
+  {
+    thd->lex->current_select->non_agg_fields.push_back(this);
+    marker= thd->lex->current_select->cur_pos_in_select_list;
+  }
   return FALSE;
 
 error:
