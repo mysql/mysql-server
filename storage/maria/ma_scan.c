@@ -21,26 +21,41 @@
 int maria_scan_init(register MARIA_HA *info)
 {
   DBUG_ENTER("maria_scan_init");
-  info->nextpos=info->s->pack.header_length;	/* Read first record */
+
+  info->cur_row.nextpos= info->s->pack.header_length;	/* Read first record */
   info->lastinx= -1;				/* Can't forward or backward */
   if (info->opt_flag & WRITE_CACHE_USED && flush_io_cache(&info->rec_cache))
+    DBUG_RETURN(my_errno);
+
+  if ((*info->s->scan_init)(info))
     DBUG_RETURN(my_errno);
   DBUG_RETURN(0);
 }
 
 /*
-	   Read a row based on position.
-	   If filepos= HA_OFFSET_ERROR then read next row
-	   Return values
-	   Returns one of following values:
-	   0 = Ok.
-	   HA_ERR_END_OF_FILE = EOF.
+  Read a row based on position.
+
+  SYNOPSIS
+    maria_scan()
+    info		Maria handler
+    record		Read data here
+
+  RETURN
+    0  			ok
+    HA_ERR_END_OF_FILE  End of file
+    #			Error code
 */
 
-int maria_scan(MARIA_HA *info, byte *buf)
+int maria_scan(MARIA_HA *info, byte *record)
 {
   DBUG_ENTER("maria_scan");
   /* Init all but update-flag */
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
-  DBUG_RETURN ((*info->s->read_rnd)(info,buf,info->nextpos,1));
+  DBUG_RETURN((*info->s->scan)(info, record, info->cur_row.nextpos, 1));
+}
+
+
+void maria_scan_end(MARIA_HA *info)
+{
+  (*info->s->scan_end)(info);
 }

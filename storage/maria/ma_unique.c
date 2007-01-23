@@ -22,10 +22,11 @@
 my_bool _ma_check_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def, byte *record,
 			ha_checksum unique_hash, my_off_t disk_pos)
 {
-  my_off_t lastpos=info->lastpos;
+  my_off_t lastpos=info->cur_row.lastpos;
   MARIA_KEYDEF *key= &info->s->keyinfo[def->key];
-  uchar *key_buff=info->lastkey2;
+  byte *key_buff= info->lastkey2;
   DBUG_ENTER("_ma_check_unique");
+  DBUG_PRINT("enter",("unique_hash: %lu", unique_hash));
 
   maria_unique_store(record+key->seg->start, unique_hash);
   _ma_make_key(info,def->key,key_buff,record,0);
@@ -33,24 +34,25 @@ my_bool _ma_check_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def, byte *record,
   /* The above changed info->lastkey2. Inform maria_rnext_same(). */
   info->update&= ~HA_STATE_RNEXT_SAME;
 
-  if (_ma_search(info,info->s->keyinfo+def->key,key_buff,MARIA_UNIQUE_HASH_LENGTH,
+  if (_ma_search(info,info->s->keyinfo+def->key,key_buff,
+                 MARIA_UNIQUE_HASH_LENGTH,
 		 SEARCH_FIND,info->s->state.key_root[def->key]))
   {
     info->page_changed=1;			/* Can't optimize read next */
-    info->lastpos= lastpos;
+    info->cur_row.lastpos= lastpos;
     DBUG_RETURN(0);				/* No matching rows */
   }
 
   for (;;)
   {
-    if (info->lastpos != disk_pos &&
-	!(*info->s->compare_unique)(info,def,record,info->lastpos))
+    if (info->cur_row.lastpos != disk_pos &&
+	!(*info->s->compare_unique)(info,def,record,info->cur_row.lastpos))
     {
       my_errno=HA_ERR_FOUND_DUPP_UNIQUE;
       info->errkey= (int) def->key;
-      info->dupp_key_pos= info->lastpos;
-      info->page_changed=1;			/* Can't optimize read next */
-      info->lastpos=lastpos;
+      info->dup_key_pos= info->cur_row.lastpos;
+      info->page_changed= 1;			/* Can't optimize read next */
+      info->cur_row.lastpos= lastpos;
       DBUG_PRINT("info",("Found duplicate"));
       DBUG_RETURN(1);				/* Found identical  */
     }
@@ -60,8 +62,8 @@ my_bool _ma_check_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def, byte *record,
 	bcmp((char*) info->lastkey, (char*) key_buff,
              MARIA_UNIQUE_HASH_LENGTH))
     {
-      info->page_changed=1;			/* Can't optimize read next */
-      info->lastpos=lastpos;
+      info->page_changed= 1;			/* Can't optimize read next */
+      info->cur_row.lastpos= lastpos;
       DBUG_RETURN(0);				/* end of tree */
     }
   }
@@ -144,11 +146,11 @@ ha_checksum _ma_unique_hash(MARIA_UNIQUEDEF *def, const byte *record)
 
   RETURN
     0   if both rows have equal unique value
-    #   Rows are different
+    1   Rows are different
 */
 
-int _ma_unique_comp(MARIA_UNIQUEDEF *def, const byte *a, const byte *b,
-		   my_bool null_are_equal)
+my_bool _ma_unique_comp(MARIA_UNIQUEDEF *def, const byte *a, const byte *b,
+                        my_bool null_are_equal)
 {
   const byte *pos_a, *pos_b, *end;
   HA_KEYSEG *keyseg;

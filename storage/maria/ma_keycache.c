@@ -54,8 +54,9 @@ int maria_assign_to_key_cache(MARIA_HA *info,
   int error= 0;
   MARIA_SHARE* share= info->s;
   DBUG_ENTER("maria_assign_to_key_cache");
-  DBUG_PRINT("enter",("old_key_cache_handle: 0x%lx  new_key_cache_handle: 0x%lx",
-		      (long) share->key_cache, (long) key_cache));
+  DBUG_PRINT("enter",
+             ("old_key_cache_handle: 0x%lx  new_key_cache_handle: 0x%lx",
+             (long) share->key_cache, (long) key_cache));
 
   /*
     Skip operation if we didn't change key cache. This can happen if we

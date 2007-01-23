@@ -153,10 +153,11 @@ static int run_test(const char *filename)
   create_info.max_rows=10000000;
 
   if (maria_create(filename,
-                1,            /*  keys   */
-                keyinfo,
-                1+2*ndims+opt_unique, /* columns */
-                recinfo,uniques,&uniquedef,&create_info,create_flag))
+                   DYNAMIC_RECORD,
+                   1,            /*  keys   */
+                   keyinfo,
+                   1+2*ndims+opt_unique, /* columns */
+                   recinfo,uniques,&uniquedef,&create_info,create_flag))
     goto err;
 
   if (!silent)

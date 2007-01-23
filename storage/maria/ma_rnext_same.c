@@ -17,13 +17,14 @@
 #include "maria_def.h"
 #include "ma_rt_index.h"
 
-	/*
-	   Read next row with the same key as previous read, but abort if
-	   the key changes.
-	   One may have done a write, update or delete of the previous row.
-	   NOTE! Even if one changes the previous row, the next read is done
-	   based on the position of the last used key!
-	*/
+/*
+  Read next row with the same key as previous read, but abort if
+  the key changes.
+  One may have done a write, update or delete of the previous row.
+
+  NOTE! Even if one changes the previous row, the next read is done
+  based on the position of the last used key!
+*/
 
 int maria_rnext_same(MARIA_HA *info, byte *buf)
 {
@@ -32,9 +33,10 @@ int maria_rnext_same(MARIA_HA *info, byte *buf)
   MARIA_KEYDEF *keyinfo;
   DBUG_ENTER("maria_rnext_same");
 
-  if ((int) (inx=info->lastinx) < 0 || info->lastpos == HA_OFFSET_ERROR)
+  if ((int) (inx= info->lastinx) < 0 ||
+      info->cur_row.lastpos == HA_OFFSET_ERROR)
     DBUG_RETURN(my_errno=HA_ERR_WRONG_INDEX);
-  keyinfo=info->s->keyinfo+inx;
+  keyinfo= info->s->keyinfo+inx;
   if (fast_ma_readinfo(info))
     DBUG_RETURN(my_errno);
 
@@ -50,7 +52,7 @@ int maria_rnext_same(MARIA_HA *info, byte *buf)
       {
 	error=1;
 	my_errno=HA_ERR_END_OF_FILE;
-	info->lastpos= HA_OFFSET_ERROR;
+	info->cur_row.lastpos= HA_OFFSET_ERROR;
 	break;
       }
       break;
@@ -68,16 +70,17 @@ int maria_rnext_same(MARIA_HA *info, byte *buf)
 			       info->lastkey_length,SEARCH_BIGGER,
 			       info->s->state.key_root[inx])))
           break;
-        if (ha_key_cmp(keyinfo->seg, info->lastkey, info->lastkey2,
+        if (ha_key_cmp(keyinfo->seg, (uchar*) info->lastkey,
+                       (uchar*) info->lastkey2,
                        info->last_rkey_length, SEARCH_FIND, not_used))
         {
           error=1;
           my_errno=HA_ERR_END_OF_FILE;
-          info->lastpos= HA_OFFSET_ERROR;
+          info->cur_row.lastpos= HA_OFFSET_ERROR;
           break;
         }
         /* Skip rows that are inserted by other threads since we got a lock */
-        if (info->lastpos < info->state->data_file_length)
+        if (info->cur_row.lastpos < info->state->data_file_length)
           break;
       }
   }
@@ -94,9 +97,9 @@ int maria_rnext_same(MARIA_HA *info, byte *buf)
   }
   else if (!buf)
   {
-    DBUG_RETURN(info->lastpos==HA_OFFSET_ERROR ? my_errno : 0);
+    DBUG_RETURN(info->cur_row.lastpos == HA_OFFSET_ERROR ? my_errno : 0);
   }
-  else if (!(*info->read_record)(info,info->lastpos,buf))
+  else if (!(*info->read_record)(info, buf, info->cur_row.lastpos))
   {
     info->update|= HA_STATE_AKTIV;		/* Record is read */
     DBUG_RETURN(0);

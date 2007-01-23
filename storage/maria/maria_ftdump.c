@@ -106,7 +106,7 @@ int main(int argc,char *argv[])
 
   maria_lock_database(info, F_EXTRA_LCK);
 
-  info->lastpos= HA_OFFSET_ERROR;
+  info->cur_row.lastpos= HA_OFFSET_ERROR;
   info->update|= HA_STATE_PREV_FOUND;
 
   while (!(error=maria_rnext(info,NULL,inx)))
@@ -157,9 +157,9 @@ int main(int argc,char *argv[])
     if (dump)
     {
       if (subkeys>=0)
-        printf("%9lx %20.7f %s\n", (long) info->lastpos,weight,buf);
+        printf("%9lx %20.7f %s\n", (long) info->cur_row.lastpos,weight,buf);
       else
-        printf("%9lx => %17d %s\n",(long) info->lastpos,-subkeys,buf);
+        printf("%9lx => %17d %s\n",(long) info->cur_row.lastpos,-subkeys,buf);
     }
     if (verbose && (total%HOW_OFTEN_TO_WRITE)==0)
       printf("%10ld\r",total);

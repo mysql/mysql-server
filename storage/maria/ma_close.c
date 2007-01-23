@@ -69,16 +69,22 @@ int maria_close(register MARIA_HA *info)
   maria_open_list=list_delete(maria_open_list,&info->open_list);
   pthread_mutex_unlock(&share->intern_lock);
 
-  my_free(_ma_get_rec_buff_ptr(info, info->rec_buff), MYF(MY_ALLOW_ZERO_PTR));
+  my_free(info->rec_buff, MYF(MY_ALLOW_ZERO_PTR));
+  (share->end)(info);
+
+  if (info->s->data_file_type == BLOCK_RECORD)
+    info->dfile= -1;                /* Closed in ma_end_once_block_row */
   if (flag)
   {
-    if (share->kfile >= 0 &&
-	flush_key_blocks(share->key_cache, share->kfile,
-			 share->temporary ? FLUSH_IGNORE_CHANGED :
-			 FLUSH_RELEASE))
-      error=my_errno;
     if (share->kfile >= 0)
     {
+      if ((*share->once_end)(share))
+        error= my_errno;
+      if (flush_key_blocks(share->key_cache, share->kfile,
+                           share->temporary ? FLUSH_IGNORE_CHANGED :
+                           FLUSH_RELEASE))
+        error= my_errno;
+
       /*
         If we are crashed, we can safely flush the current state as it will
         not change the crashed state.
@@ -87,18 +93,13 @@ int maria_close(register MARIA_HA *info)
       */
       if (share->mode != O_RDONLY && maria_is_crashed(info))
 	_ma_state_info_write(share->kfile, &share->state, 1);
-      if (my_close(share->kfile,MYF(0)))
-        error = my_errno;
+      if (my_close(share->kfile, MYF(0)))
+        error= my_errno;
     }
 #ifdef HAVE_MMAP
     if (share->file_map)
       _ma_unmap_file(info);
 #endif
-    if (share->decode_trees)
-    {
-      my_free((gptr) share->decode_trees,MYF(0));
-      my_free((gptr) share->decode_tables,MYF(0));
-    }
 #ifdef THREAD
     thr_lock_delete(&share->lock);
     VOID(pthread_mutex_destroy(&share->intern_lock));

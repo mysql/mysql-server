@@ -25,12 +25,13 @@
 
 LIST	*maria_open_list=0;
 uchar	NEAR maria_file_magic[]=
-{ (uchar) 254, (uchar) 254,'\007', '\001', };
+{ (uchar) 254, (uchar) 254, (uchar) 9, '\001', };
 uchar	NEAR maria_pack_file_magic[]=
-{ (uchar) 254, (uchar) 254,'\010', '\002', };
+{ (uchar) 254, (uchar) 254, (uchar) 10, '\001', };
 uint	maria_quick_table_bits=9;
 ulong	maria_block_size= MARIA_KEY_BLOCK_LENGTH;
-my_bool maria_flush=0, maria_delay_key_write=0, maria_single_user=0;
+my_bool maria_flush= 0, maria_single_user= 0;
+my_bool maria_delay_key_write= 0;
 #if defined(THREAD) && !defined(DONT_USE_RW_LOCKS)
 ulong maria_concurrent_insert= 2;
 #else
@@ -38,10 +39,13 @@ ulong maria_concurrent_insert= 0;
 #endif
 my_off_t maria_max_temp_length= MAX_FILE_SIZE;
 ulong    maria_bulk_insert_tree_size=8192*1024;
-ulong    maria_data_pointer_size=4;
+ulong    maria_data_pointer_size= 4;
 
 KEY_CACHE maria_key_cache_var;
 KEY_CACHE *maria_key_cache= &maria_key_cache_var;
+
+/* Enough for comparing if number is zero */
+byte maria_zero_string[]= {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
 /*
   read_vec[] is used for converting between P_READ_KEY.. and SEARCH_

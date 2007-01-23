@@ -331,8 +331,8 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
   int subkeys=1;
   my_bool can_go_down;
   MARIA_HA *info=ftb->info;
-  uint off, extra=HA_FT_WLEN+info->s->base.rec_reflength;
-  byte *lastkey_buf=ftbw->word+ftbw->off;
+  uint off= 0, extra=HA_FT_WLEN+info->s->base.rec_reflength;
+  byte *lastkey_buf= ftbw->word+ftbw->off;
 
   if (ftbw->flags & FTB_FLAG_TRUNC)
     lastkey_buf+=ftbw->len;
@@ -342,7 +342,7 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
     ftbw->key_root=info->s->state.key_root[ftb->keynr];
     ftbw->keyinfo=info->s->keyinfo+ftb->keynr;
 
-    r= _ma_search(info, ftbw->keyinfo, (uchar*) ftbw->word, ftbw->len,
+    r= _ma_search(info, ftbw->keyinfo, ftbw->word, ftbw->len,
                  SEARCH_FIND | SEARCH_BIGGER, ftbw->key_root);
   }
   else
@@ -351,10 +351,10 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
     if (ftbw->docid[0] < *ftbw->max_docid)
     {
       sflag|= SEARCH_SAME;
-      _ma_dpointer(info, (uchar *)(ftbw->word + ftbw->len + HA_FT_WLEN),
+      _ma_dpointer(info, (ftbw->word + ftbw->len + HA_FT_WLEN),
                    *ftbw->max_docid);
     }
-    r= _ma_search(info, ftbw->keyinfo, (uchar*) lastkey_buf,
+    r= _ma_search(info, ftbw->keyinfo, lastkey_buf,
                    USE_WHOLE_KEY, sflag, ftbw->key_root);
   }
 
@@ -368,7 +368,7 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
       off=info->lastkey_length-extra;
       subkeys=ft_sintXkorr(info->lastkey+off);
     }
-    if (subkeys<0 || info->lastpos < info->state->data_file_length)
+    if (subkeys<0 || info->cur_row.lastpos < info->state->data_file_length)
       break;
     r= _ma_search_next(info, ftbw->keyinfo, info->lastkey,
                        info->lastkey_length,
@@ -378,11 +378,11 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
   if (!r && !ftbw->off)
   {
     r= ha_compare_text(ftb->charset,
-                       info->lastkey+1,
+                       (uchar*) info->lastkey+1,
                        info->lastkey_length-extra-1,
-              (uchar*) ftbw->word+1,
+                       (uchar*) ftbw->word+1,
                        ftbw->len-1,
-             (my_bool) (ftbw->flags & FTB_FLAG_TRUNC),0);
+                       (my_bool) (ftbw->flags & FTB_FLAG_TRUNC), 0);
   }
 
   if (r) /* not found */
@@ -404,7 +404,7 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
     }
 
     /* going up to the first-level tree to continue search there */
-    _ma_dpointer(info, (uchar*) (lastkey_buf+HA_FT_WLEN), ftbw->key_root);
+    _ma_dpointer(info, (lastkey_buf+HA_FT_WLEN), ftbw->key_root);
     ftbw->key_root=info->s->state.key_root[ftb->keynr];
     ftbw->keyinfo=info->s->keyinfo+ftb->keynr;
     ftbw->off=0;
@@ -424,15 +424,15 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
       TODO here: subkey-based optimization
     */
     ftbw->off=off;
-    ftbw->key_root=info->lastpos;
+    ftbw->key_root= info->cur_row.lastpos;
     ftbw->keyinfo=& info->s->ft2_keyinfo;
     r= _ma_search_first(info, ftbw->keyinfo, ftbw->key_root);
     DBUG_ASSERT(r==0);  /* found something */
     memcpy(lastkey_buf+off, info->lastkey, info->lastkey_length);
   }
-  ftbw->docid[0]=info->lastpos;
+  ftbw->docid[0]= info->cur_row.lastpos;
   if (ftbw->flags & FTB_FLAG_YES)
-    *ftbw->max_docid= info->lastpos;
+    *ftbw->max_docid= info->cur_row.lastpos;
   return 0;
 }
 
@@ -795,11 +795,11 @@ int maria_ft_boolean_read_next(FT_INFO *ftb, char *record)
         /* but it managed already to get past this line once */
         continue;
 
-      info->lastpos=curdoc;
+      info->cur_row.lastpos= curdoc;
       /* Clear all states, except that the table was updated */
       info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
 
-      if (!(*info->read_record)(info,curdoc,record))
+      if (!(*info->read_record)(info, record, curdoc))
       {
         info->update|= HA_STATE_AKTIV;          /* Record is read */
         if (ftb->with_scan && maria_ft_boolean_find_relevance(ftb,record,0)==0)
@@ -850,9 +850,9 @@ static int ftb_find_relevance_add_word(MYSQL_FTPARSER_PARAM *param,
                         (uchar*)ftbw->word + 1,ftbw->len - 1,
                         (my_bool)(ftbw->flags & FTB_FLAG_TRUNC), 0))
       break;
-    if (ftbw->docid[1] == ftb->info->lastpos)
+    if (ftbw->docid[1] == ftb->info->cur_row.lastpos)
       continue;
-    ftbw->docid[1]= ftb->info->lastpos;
+    ftbw->docid[1]= ftb->info->cur_row.lastpos;
      _ftb_climb_the_tree(ftb, ftbw, ftb_param->ftsi);
   }
   return(0);
@@ -876,7 +876,7 @@ float maria_ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
 {
   FTB_EXPR *ftbe;
   FT_SEG_ITERATOR ftsi, ftsi2;
-  my_off_t  docid=ftb->info->lastpos;
+  MARIA_RECORD_POS docid= ftb->info->cur_row.lastpos;
   MY_FTB_FIND_PARAM ftb_param;
   MYSQL_FTPARSER_PARAM *param;
   struct st_mysql_ftparser *parser= ftb->keynr == NO_SUCH_KEY ?

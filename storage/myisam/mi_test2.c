@@ -604,7 +604,7 @@ int main(int argc, char *argv[])
     if (mi_rsame(file,read_record2,(int) i)) goto err;
     if (bcmp(read_record,read_record2,reclength) != 0)
     {
-      printf("is_rsame didn't find same record\n");
+      printf("mi_rsame didn't find same record\n");
       goto end;
     }
   }

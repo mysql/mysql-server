@@ -26,19 +26,16 @@
 
 #include "maria_def.h"
 
-/* Enough for comparing if number is zero */
-static char zero_string[]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-
-static int write_dynamic_record(MARIA_HA *info,const byte *record,
-				ulong reclength);
+static my_bool write_dynamic_record(MARIA_HA *info,const byte *record,
+                                    ulong reclength);
 static int _ma_find_writepos(MARIA_HA *info,ulong reclength,my_off_t *filepos,
 			     ulong *length);
-static int update_dynamic_record(MARIA_HA *info,my_off_t filepos,byte *record,
-				 ulong reclength);
-static int delete_dynamic_record(MARIA_HA *info,my_off_t filepos,
-				 uint second_read);
-static int _ma_cmp_buffer(File file, const byte *buff, my_off_t filepos,
-			  uint length);
+static my_bool update_dynamic_record(MARIA_HA *info, MARIA_RECORD_POS filepos,
+                                     byte *record, ulong reclength);
+static my_bool delete_dynamic_record(MARIA_HA *info,MARIA_RECORD_POS filepos,
+                                     uint second_read);
+static my_bool _ma_cmp_buffer(File file, const byte *buff, my_off_t filepos,
+                              uint length);
 
 #ifdef THREAD
 /* Play it safe; We have a small stack when using threads */
@@ -224,19 +221,26 @@ uint _ma_nommap_pwrite(MARIA_HA *info, byte *Buffer,
 }
 
 
-int _ma_write_dynamic_record(MARIA_HA *info, const byte *record)
+my_bool _ma_write_dynamic_record(MARIA_HA *info, const byte *record)
 {
-  ulong reclength= _ma_rec_pack(info,info->rec_buff,record);
-  return (write_dynamic_record(info,info->rec_buff,reclength));
+  ulong reclength= _ma_rec_pack(info,info->rec_buff + MARIA_REC_BUFF_OFFSET,
+                                record);
+  return (write_dynamic_record(info,info->rec_buff + MARIA_REC_BUFF_OFFSET,
+                               reclength));
 }
 
-int _ma_update_dynamic_record(MARIA_HA *info, my_off_t pos, const byte *record)
+my_bool _ma_update_dynamic_record(MARIA_HA *info, MARIA_RECORD_POS pos,
+                                  const byte *record)
 {
-  uint length= _ma_rec_pack(info,info->rec_buff,record);
-  return (update_dynamic_record(info,pos,info->rec_buff,length));
+  uint length= _ma_rec_pack(info, info->rec_buff + MARIA_REC_BUFF_OFFSET,
+                            record);
+  return (update_dynamic_record(info, pos,
+                                info->rec_buff + MARIA_REC_BUFF_OFFSET,
+                                length));
 }
 
-int _ma_write_blob_record(MARIA_HA *info, const byte *record)
+
+my_bool _ma_write_blob_record(MARIA_HA *info, const byte *record)
 {
   byte *rec_buff;
   int error;
@@ -246,31 +250,27 @@ int _ma_write_blob_record(MARIA_HA *info, const byte *record)
 	  MARIA_DYN_DELETE_BLOCK_HEADER+1);
   reclength= (info->s->base.pack_reclength +
 	      _ma_calc_total_blob_length(info,record)+ extra);
-#ifdef NOT_USED					/* We now support big rows */
-  if (reclength > MARIA_DYN_MAX_ROW_LENGTH)
-  {
-    my_errno=HA_ERR_TO_BIG_ROW;
-    return -1;
-  }
-#endif
   if (!(rec_buff=(byte*) my_alloca(reclength)))
   {
     my_errno=ENOMEM;
-    return(-1);
+    return(1);
   }
-  reclength2= _ma_rec_pack(info,rec_buff+ALIGN_SIZE(MARIA_MAX_DYN_BLOCK_HEADER),
+  reclength2= _ma_rec_pack(info,
+                           rec_buff+ALIGN_SIZE(MARIA_MAX_DYN_BLOCK_HEADER),
 			   record);
   DBUG_PRINT("info",("reclength: %lu  reclength2: %lu",
 		     reclength, reclength2));
   DBUG_ASSERT(reclength2 <= reclength);
-  error=write_dynamic_record(info,rec_buff+ALIGN_SIZE(MARIA_MAX_DYN_BLOCK_HEADER),
-			     reclength2);
+  error= write_dynamic_record(info,
+                              rec_buff+ALIGN_SIZE(MARIA_MAX_DYN_BLOCK_HEADER),
+                              reclength2);
   my_afree(rec_buff);
-  return(error);
+  return(error != 0);
 }
 
 
-int _ma_update_blob_record(MARIA_HA *info, my_off_t pos, const byte *record)
+my_bool _ma_update_blob_record(MARIA_HA *info, MARIA_RECORD_POS pos,
+                               const byte *record)
 {
   byte *rec_buff;
   int error;
@@ -284,13 +284,13 @@ int _ma_update_blob_record(MARIA_HA *info, my_off_t pos, const byte *record)
   if (reclength > MARIA_DYN_MAX_ROW_LENGTH)
   {
     my_errno=HA_ERR_TO_BIG_ROW;
-    return -1;
+    return 1;
   }
 #endif
   if (!(rec_buff=(byte*) my_alloca(reclength)))
   {
     my_errno=ENOMEM;
-    return(-1);
+    return(1);
   }
   reclength= _ma_rec_pack(info,rec_buff+ALIGN_SIZE(MARIA_MAX_DYN_BLOCK_HEADER),
 			 record);
@@ -298,20 +298,20 @@ int _ma_update_blob_record(MARIA_HA *info, my_off_t pos, const byte *record)
 			      rec_buff+ALIGN_SIZE(MARIA_MAX_DYN_BLOCK_HEADER),
 			      reclength);
   my_afree(rec_buff);
-  return(error);
+  return(error != 0);
 }
 
 
-int _ma_delete_dynamic_record(MARIA_HA *info)
+my_bool _ma_delete_dynamic_record(MARIA_HA *info)
 {
-  return delete_dynamic_record(info,info->lastpos,0);
+  return delete_dynamic_record(info, info->cur_row.lastpos, 0);
 }
 
 
 	/* Write record to data-file */
 
-static int write_dynamic_record(MARIA_HA *info, const byte *record,
-				ulong reclength)
+static my_bool write_dynamic_record(MARIA_HA *info, const byte *record,
+                                    ulong reclength)
 {
   int flag;
   ulong length;
@@ -443,8 +443,8 @@ static bool unlink_deleted_block(MARIA_HA *info, MARIA_BLOCK_INFO *block_info)
     (maria_rrnd() or maria_scan(), then ensure that we skip over this block
     when doing next maria_rrnd() or maria_scan().
   */
-  if (info->nextpos == block_info->filepos)
-    info->nextpos+=block_info->block_len;
+  if (info->cur_row.nextpos == block_info->filepos)
+    info->cur_row.nextpos+= block_info->block_len;
   DBUG_RETURN(0);
 }
 
@@ -464,8 +464,9 @@ static bool unlink_deleted_block(MARIA_HA *info, MARIA_BLOCK_INFO *block_info)
     1  error.  In this case my_error is set.
 */
 
-static int update_backward_delete_link(MARIA_HA *info, my_off_t delete_block,
-				       my_off_t filepos)
+static my_bool update_backward_delete_link(MARIA_HA *info,
+                                           my_off_t delete_block,
+                                           MARIA_RECORD_POS filepos)
 {
   MARIA_BLOCK_INFO block_info;
   DBUG_ENTER("update_backward_delete_link");
@@ -490,11 +491,11 @@ static int update_backward_delete_link(MARIA_HA *info, my_off_t delete_block,
   DBUG_RETURN(0);
 }
 
-	/* Delete datarecord from database */
-	/* info->rec_cache.seek_not_done is updated in cmp_record */
+/* Delete datarecord from database */
+/* info->rec_cache.seek_not_done is updated in cmp_record */
 
-static int delete_dynamic_record(MARIA_HA *info, my_off_t filepos,
-				 uint second_read)
+static my_bool delete_dynamic_record(MARIA_HA *info, MARIA_RECORD_POS filepos,
+                                     uint second_read)
 {
   uint length,b_type;
   MARIA_BLOCK_INFO block_info,del_block;
@@ -522,7 +523,8 @@ static int delete_dynamic_record(MARIA_HA *info, my_off_t filepos,
     del_block.second_read=0;
     remove_next_block=0;
     if (_ma_get_block_info(&del_block,info->dfile,filepos+length) &
-	BLOCK_DELETED && del_block.block_len+length < MARIA_DYN_MAX_BLOCK_LENGTH)
+	BLOCK_DELETED && del_block.block_len+length <
+        MARIA_DYN_MAX_BLOCK_LENGTH)
     {
       /* We can't remove this yet as this block may be the head block */
       remove_next_block=1;
@@ -719,8 +721,9 @@ int _ma_write_part_record(MARIA_HA *info,
   else
   {
     info->rec_cache.seek_not_done=1;
-    if (info->s->file_write(info,(byte*) *record-head_length,length+extra_length+
-		  del_length,filepos,info->s->write_flag))
+    if (info->s->file_write(info,(byte*) *record-head_length,
+                            length+extra_length+
+                            del_length,filepos,info->s->write_flag))
       goto err;
   }
   memcpy(record_end,temp,(size_t) (extra_length+del_length));
@@ -745,8 +748,8 @@ err:
 
 	/* update record from datafile */
 
-static int update_dynamic_record(MARIA_HA *info, my_off_t filepos, byte *record,
-				 ulong reclength)
+static my_bool update_dynamic_record(MARIA_HA *info, MARIA_RECORD_POS filepos,
+                                     byte *record, ulong reclength)
 {
   int flag;
   uint error;
@@ -784,8 +787,8 @@ static int update_dynamic_record(MARIA_HA *info, my_off_t filepos, byte *record,
 	{
 	  /* extend file */
 	  DBUG_PRINT("info",("Extending file with %d bytes",tmp));
-	  if (info->nextpos == info->state->data_file_length)
-	    info->nextpos+= tmp;
+	  if (info->cur_row.nextpos == info->state->data_file_length)
+	    info->cur_row.nextpos+= tmp;
 	  info->state->data_file_length+= tmp;
 	  info->update|= HA_STATE_WRITE_AT_END | HA_STATE_EXTEND_BLOCK;
 	  length+=tmp;
@@ -829,8 +832,8 @@ static int update_dynamic_record(MARIA_HA *info, my_off_t filepos, byte *record,
 	      mi_int3store(del_block.header+1, rest_length);
 	      mi_sizestore(del_block.header+4,info->s->state.dellink);
 	      bfill(del_block.header+12,8,255);
-	      if (info->s->file_write(info,(byte*) del_block.header,20, next_pos,
-			    MYF(MY_NABP)))
+	      if (info->s->file_write(info,(byte*) del_block.header, 20,
+                                      next_pos, MYF(MY_NABP)))
 		DBUG_RETURN(1);
 	      info->s->state.dellink= next_pos;
 	      info->s->state.split++;
@@ -877,9 +880,18 @@ uint _ma_rec_pack(MARIA_HA *info, register byte *to, register const byte *from)
   MARIA_BLOB	*blob;
   DBUG_ENTER("_ma_rec_pack");
 
-  flag=0 ; bit=1;
-  startpos=packpos=to; to+= info->s->base.pack_bits; blob=info->blobs;
-  rec=info->s->rec;
+  flag= 0;
+  bit= 1;
+  startpos= packpos=to;
+  to+= info->s->base.pack_bytes;
+  blob= info->blobs;
+  rec= info->s->rec;
+  if (info->s->base.null_bytes)
+  {
+    memcpy(to, from, info->s->base.null_bytes);
+    from+= info->s->base.null_bytes;
+    to+=   info->s->base.null_bytes;
+  }
 
   for (i=info->s->base.fields ; i-- > 0; from+= length,rec++)
   {
@@ -903,7 +915,7 @@ uint _ma_rec_pack(MARIA_HA *info, register byte *to, register const byte *from)
       }
       else if (type == FIELD_SKIP_ZERO)
       {
-	if (memcmp((byte*) from,zero_string,length) == 0)
+	if (memcmp((byte*) from, maria_zero_string, length) == 0)
 	  flag|=bit;
 	else
 	{
@@ -981,7 +993,7 @@ uint _ma_rec_pack(MARIA_HA *info, register byte *to, register const byte *from)
   if (bit != 1)
     *packpos= (char) (uchar) flag;
   if (info->s->calc_checksum)
-    *to++=(char) info->checksum;
+    *to++= (byte) info->cur_row.checksum;
   DBUG_PRINT("exit",("packed length: %d",(int) (to-startpos)));
   DBUG_RETURN((uint) (to-startpos));
 } /* _ma_rec_pack */
@@ -989,7 +1001,7 @@ uint _ma_rec_pack(MARIA_HA *info, register byte *to, register const byte *from)
 
 
 /*
-  Check if a record was correctly packed. Used only by mariachk
+  Check if a record was correctly packed. Used only by maria_chk
   Returns 0 if record is ok.
 */
 
@@ -1002,9 +1014,11 @@ my_bool _ma_rec_check(MARIA_HA *info,const char *record, byte *rec_buff,
   reg3 MARIA_COLUMNDEF *rec;
   DBUG_ENTER("_ma_rec_check");
 
-  packpos=rec_buff; to= rec_buff+info->s->base.pack_bits;
+  packpos=rec_buff; to= rec_buff+info->s->base.pack_bytes;
   rec=info->s->rec;
   flag= *packpos; bit=1;
+  record+= info->s->base.null_bytes;
+  to+= info->s->base.null_bytes;
 
   for (i=info->s->base.fields ; i-- > 0; record+= length, rec++)
   {
@@ -1022,7 +1036,7 @@ my_bool _ma_rec_check(MARIA_HA *info,const char *record, byte *rec_buff,
       }
       else if (type == FIELD_SKIP_ZERO)
       {
-	if (memcmp((byte*) record,zero_string,length) == 0)
+	if (memcmp((byte*) record, maria_zero_string, length) == 0)
 	{
 	  if (!(flag & bit))
 	    goto err;
@@ -1098,7 +1112,7 @@ my_bool _ma_rec_check(MARIA_HA *info,const char *record, byte *rec_buff,
   if (packed_length != (uint) (to - rec_buff) + test(info->s->calc_checksum) ||
       (bit != 1 && (flag & ~(bit - 1))))
     goto err;
-  if (with_checksum && ((uchar) info->checksum != (uchar) *to))
+  if (with_checksum && ((uchar) info->cur_row.checksum != (uchar) *to))
   {
     DBUG_PRINT("error",("wrong checksum for row"));
     goto err;
@@ -1129,8 +1143,16 @@ ulong _ma_rec_unpack(register MARIA_HA *info, register byte *to, byte *from,
   flag= (uchar) *from; bit=1; packpos=from;
   if (found_length < info->s->base.min_pack_length)
     goto err;
-  from+= info->s->base.pack_bits;
-  min_pack_length=info->s->base.min_pack_length - info->s->base.pack_bits;
+  from+= info->s->base.pack_bytes;
+  min_pack_length= info->s->base.min_pack_length - info->s->base.pack_bytes;
+
+  if ((length= info->s->base.null_bytes))
+  {
+    memcpy(to, from, length);
+    from+= length;
+    to+= length;
+    min_pack_length-= length;
+  }
 
   for (rec=info->s->rec , end_field=rec+info->s->base.fields ;
        rec < end_field ; to+= rec_length, rec++)
@@ -1234,7 +1256,7 @@ ulong _ma_rec_unpack(register MARIA_HA *info, register byte *to, byte *from,
     }
   }
   if (info->s->calc_checksum)
-    from++;
+    info->cur_row.checksum= (uint) (uchar) *from++;
   if (to == to_end && from == from_end && (bit == 1 || !(flag & ~(bit-1))))
     DBUG_RETURN(found_length);
 
@@ -1314,7 +1336,6 @@ void _ma_store_blob_length(byte *pos,uint pack_length,uint length)
       buf                       Destination for record.
 
   NOTE
-
     If a write buffer is active, it needs to be flushed if its contents
     intersects with the record to read. We always check if the position
     of the first byte of the write buffer is lower than the position
@@ -1333,17 +1354,17 @@ void _ma_store_blob_length(byte *pos,uint pack_length,uint length)
 
   RETURN
     0           OK
-    -1          Error
+    1          Error
 */
-
-int _ma_read_dynamic_record(MARIA_HA *info, my_off_t filepos, byte *buf)
+int _ma_read_dynamic_record(MARIA_HA *info, byte *buf,
+                            MARIA_RECORD_POS filepos)
 {
   int block_of_record;
   uint b_type,left_length;
   byte *to;
   MARIA_BLOCK_INFO block_info;
   File file;
-  DBUG_ENTER("maria_read_dynamic_record");
+  DBUG_ENTER("_ma_read_dynamic_record");
 
   if (filepos != HA_OFFSET_ERROR)
   {
@@ -1376,12 +1397,12 @@ int _ma_read_dynamic_record(MARIA_HA *info, my_off_t filepos, byte *buf)
 	  goto panic;
 	if (info->s->base.blobs)
 	{
-	  if (!(to=_ma_alloc_rec_buff(info, block_info.rec_len,
-                                      &info->rec_buff)))
+	  if (_ma_alloc_buffer(&info->rec_buff, &info->rec_buff_size,
+                               block_info.rec_len +
+                               info->s->base.extra_rec_buff_size))
 	    goto err;
 	}
-	else
-	  to= info->rec_buff;
+        to= info->rec_buff;
 	left_length=block_info.rec_len;
       }
       if (left_length < block_info.data_len || ! block_info.data_len)
@@ -1426,55 +1447,61 @@ int _ma_read_dynamic_record(MARIA_HA *info, my_off_t filepos, byte *buf)
     info->update|= HA_STATE_AKTIV;	/* We have a aktive record */
     fast_ma_writeinfo(info);
     DBUG_RETURN(_ma_rec_unpack(info,buf,info->rec_buff,block_info.rec_len) !=
-		MY_FILE_ERROR ? 0 : -1);
+		MY_FILE_ERROR ? 0 : 1);
   }
   fast_ma_writeinfo(info);
-  DBUG_RETURN(-1);			/* Wrong data to read */
+  DBUG_RETURN(1);			/* Wrong data to read */
 
 panic:
   my_errno=HA_ERR_WRONG_IN_RECORD;
 err:
   VOID(_ma_writeinfo(info,0));
-  DBUG_RETURN(-1);
+  DBUG_RETURN(1);
 }
 
 	/* compare unique constraint between stored rows */
 
-int _ma_cmp_dynamic_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def,
-			   const byte *record, my_off_t pos)
+my_bool _ma_cmp_dynamic_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def,
+                               const byte *record, MARIA_RECORD_POS pos)
 {
-  byte *rec_buff,*old_record;
-  int error;
+  byte *old_rec_buff,*old_record;
+  my_off_t old_rec_buff_size;
+  my_bool error;
   DBUG_ENTER("_ma_cmp_dynamic_unique");
 
   if (!(old_record=my_alloca(info->s->base.reclength)))
     DBUG_RETURN(1);
 
   /* Don't let the compare destroy blobs that may be in use */
-  rec_buff=info->rec_buff;
+  old_rec_buff=      info->rec_buff;
+  old_rec_buff_size= info->rec_buff_size;
+
   if (info->s->base.blobs)
-    info->rec_buff=0;
-  error= _ma_read_dynamic_record(info,pos,old_record);
+    info->rec_buff= 0;
+  error= _ma_read_dynamic_record(info, old_record, pos) != 0;
   if (!error)
-    error=_ma_unique_comp(def, record, old_record, def->null_are_equal);
+    error=_ma_unique_comp(def, record, old_record, def->null_are_equal) != 0;
   if (info->s->base.blobs)
   {
-    my_free(_ma_get_rec_buff_ptr(info, info->rec_buff), MYF(MY_ALLOW_ZERO_PTR));
-    info->rec_buff=rec_buff;
+    my_free(info->rec_buff, MYF(MY_ALLOW_ZERO_PTR));
+    info->rec_buff=      old_rec_buff;
+    info->rec_buff_size= old_rec_buff_size;
   }
   my_afree(old_record);
   DBUG_RETURN(error);
 }
 
 
-	/* Compare of record one disk with packed record in memory */
+	/* Compare of record on disk with packed record in memory */
 
-int _ma_cmp_dynamic_record(register MARIA_HA *info, register const byte *record)
+my_bool _ma_cmp_dynamic_record(register MARIA_HA *info,
+                               register const byte *record)
 {
-  uint flag,reclength,b_type;
+  uint flag, reclength, b_type,cmp_length;
   my_off_t filepos;
   byte *buffer;
   MARIA_BLOCK_INFO block_info;
+  my_bool error= 1;
   DBUG_ENTER("_ma_cmp_dynamic_record");
 
 	/* We are going to do changes; dont let anybody disturb */
@@ -1484,7 +1511,7 @@ int _ma_cmp_dynamic_record(register MARIA_HA *info, register const byte *record)
   {
     info->update&= ~(HA_STATE_WRITE_AT_END | HA_STATE_EXTEND_BLOCK);
     if (flush_io_cache(&info->rec_cache))
-      DBUG_RETURN(-1);
+      DBUG_RETURN(1);
   }
   info->rec_cache.seek_not_done=1;
 
@@ -1497,12 +1524,12 @@ int _ma_cmp_dynamic_record(register MARIA_HA *info, register const byte *record)
     {
       if (!(buffer=(byte*) my_alloca(info->s->base.pack_reclength+
 				     _ma_calc_total_blob_length(info,record))))
-	DBUG_RETURN(-1);
+	DBUG_RETURN(1);
     }
     reclength= _ma_rec_pack(info,buffer,record);
     record= buffer;
 
-    filepos=info->lastpos;
+    filepos= info->cur_row.lastpos;
     flag=block_info.second_read=0;
     block_info.next_filepos=filepos;
     while (reclength > 0)
@@ -1529,9 +1556,13 @@ int _ma_cmp_dynamic_record(register MARIA_HA *info, register const byte *record)
 	my_errno=HA_ERR_WRONG_IN_RECORD;
 	goto err;
       }
-      reclength-=block_info.data_len;
+      reclength-= block_info.data_len;
+      cmp_length= block_info.data_len;
+      if (!reclength && info->s->calc_checksum)
+        cmp_length--;        /* 'record' may not contain checksum */
+
       if (_ma_cmp_buffer(info->dfile,record,block_info.filepos,
-			 block_info.data_len))
+			 cmp_length))
       {
 	my_errno=HA_ERR_RECORD_CHANGED;
 	goto err;
@@ -1541,17 +1572,19 @@ int _ma_cmp_dynamic_record(register MARIA_HA *info, register const byte *record)
     }
   }
   my_errno=0;
+  error= 0;
 err:
   if (buffer != info->rec_buff)
     my_afree((gptr) buffer);
-  DBUG_RETURN(my_errno);
+  DBUG_PRINT("exit", ("result: %d", error));
+  DBUG_RETURN(error);
 }
 
 
 	/* Compare file to buffert */
 
-static int _ma_cmp_buffer(File file, const byte *buff, my_off_t filepos,
-			  uint length)
+static my_bool _ma_cmp_buffer(File file, const byte *buff, my_off_t filepos,
+                              uint length)
 {
   uint next_length;
   char temp_buff[IO_SIZE*2];
@@ -1571,7 +1604,7 @@ static int _ma_cmp_buffer(File file, const byte *buff, my_off_t filepos,
   }
   if (my_pread(file,temp_buff,length,filepos,MYF(MY_NABP)))
     goto err;
-  DBUG_RETURN(memcmp((byte*) buff,temp_buff,length));
+  DBUG_RETURN(memcmp((byte*) buff,temp_buff,length) != 0);
 err:
   DBUG_RETURN(1);
 }
@@ -1611,8 +1644,9 @@ err:
     != 0        Error
 */
 
-int _ma_read_rnd_dynamic_record(MARIA_HA *info, byte *buf,
-				register my_off_t filepos,
+int _ma_read_rnd_dynamic_record(MARIA_HA *info,
+                                byte *buf,
+                                MARIA_RECORD_POS filepos,
 				my_bool skip_deleted_blocks)
 {
   int block_of_record, info_read, save_errno;
@@ -1686,9 +1720,9 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info, byte *buf,
       }
       if (b_type & (BLOCK_DELETED | BLOCK_SYNC_ERROR))
       {
-	my_errno=HA_ERR_RECORD_DELETED;
-	info->lastpos=block_info.filepos;
-	info->nextpos=block_info.filepos+block_info.block_len;
+	my_errno= HA_ERR_RECORD_DELETED;
+	info->cur_row.lastpos= block_info.filepos;
+	info->cur_row.nextpos= block_info.filepos+block_info.block_len;
       }
       goto err;
     }
@@ -1696,15 +1730,15 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info, byte *buf,
     {
       if (block_info.rec_len > (uint) share->base.max_pack_length)
 	goto panic;
-      info->lastpos=filepos;
+      info->cur_row.lastpos= filepos;
       if (share->base.blobs)
       {
-	if (!(to= _ma_alloc_rec_buff(info, block_info.rec_len,
-				    &info->rec_buff)))
+	if (_ma_alloc_buffer(&info->rec_buff, &info->rec_buff_size,
+                             block_info.rec_len +
+                             info->s->base.extra_rec_buff_size))
 	  goto err;
       }
-      else
-	to= info->rec_buff;
+      to= info->rec_buff;
       left_len=block_info.rec_len;
     }
     if (left_len < block_info.data_len)
@@ -1760,7 +1794,7 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info, byte *buf,
     */
     if (block_of_record++ == 0)
     {
-      info->nextpos=block_info.filepos+block_info.block_len;
+      info->cur_row.nextpos= block_info.filepos+block_info.block_len;
       skip_deleted_blocks=0;
     }
     left_len-=block_info.data_len;

@@ -28,7 +28,8 @@
 	** HA_ERR_END_OF_FILE   = End of file
 	*/
 
-int maria_rsame_with_pos(MARIA_HA *info, byte *record, int inx, my_off_t filepos)
+int maria_rsame_with_pos(MARIA_HA *info, byte *record, int inx,
+                         MARIA_RECORD_POS filepos)
 {
   DBUG_ENTER("maria_rsame_with_pos");
   DBUG_PRINT("enter",("index: %d  filepos: %ld", inx, (long) filepos));
@@ -40,18 +41,18 @@ int maria_rsame_with_pos(MARIA_HA *info, byte *record, int inx, my_off_t filepos
   }
 
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
-  if ((*info->s->read_rnd)(info,record,filepos,0))
+  if ((*info->s->read_record)(info, record, filepos))
   {
     if (my_errno == HA_ERR_RECORD_DELETED)
       my_errno=HA_ERR_KEY_NOT_FOUND;
     DBUG_RETURN(my_errno);
   }
-  info->lastpos=filepos;
-  info->lastinx=inx;
+  info->cur_row.lastpos= filepos;
+  info->lastinx= inx;
   if (inx >= 0)
   {
     info->lastkey_length= _ma_make_key(info,(uint) inx,info->lastkey,record,
-				      info->lastpos);
+				      info->cur_row.lastpos);
     info->update|=HA_STATE_KEY_CHANGED;		/* Don't use indexposition */
   }
   DBUG_RETURN(0);

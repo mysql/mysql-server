@@ -1792,8 +1792,6 @@ byte *key_cache_read(KEY_CACHE *keycache,
   uint offset= 0;
   byte *start= buff;
   DBUG_ENTER("key_cache_read");
-  DBUG_PRINT("enter", ("fd: %u  pos: %lu  length: %u",
-               (uint) file, (ulong) filepos, length));
 
   if (keycache->can_be_used)
   {
@@ -1802,6 +1800,11 @@ byte *key_cache_read(KEY_CACHE *keycache,
     uint read_length;
     uint status;
     int page_st;
+
+    DBUG_PRINT("enter", ("fd: %u  pos: %lu  page: %lu  length: %u",
+                         (uint) file, (ulong) filepos,
+                         (ulong) (filepos / keycache->key_cache_block_size),
+                         length));
 
     offset= (uint) (filepos & (keycache->key_cache_block_size-1));
     /* Read data in key_cache_block_size increments */
@@ -2054,10 +2057,6 @@ int key_cache_write(KEY_CACHE *keycache,
   reg1 BLOCK_LINK *block;
   int error=0;
   DBUG_ENTER("key_cache_write");
-  DBUG_PRINT("enter",
-	     ("fd: %u  pos: %lu  length: %u  block_length: %u  key_block_length: %u",
-	      (uint) file, (ulong) filepos, length, block_length,
-	      keycache ? keycache->key_cache_block_size : 0));
 
   if (!dont_write)
   {
@@ -2078,6 +2077,12 @@ int key_cache_write(KEY_CACHE *keycache,
     uint read_length;
     int page_st;
     uint offset;
+
+    DBUG_PRINT("enter",
+               ("fd: %u  pos: %lu  page: %lu  length: %u  block_length: %u",
+                (uint) file, (ulong) filepos,
+                (ulong) (filepos / keycache->key_cache_block_size),
+                length, block_length));
 
     offset= (uint) (filepos & (keycache->key_cache_block_size-1));
     do

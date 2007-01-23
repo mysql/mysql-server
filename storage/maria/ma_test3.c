@@ -101,8 +101,8 @@ int main(int argc,char **argv)
 
   puts("- Creating maria-file");
   my_delete(filename,MYF(0));		/* Remove old locks under gdb */
-  if (maria_create(filename,2,&keyinfo[0],2,&recinfo[0],0,(MARIA_UNIQUEDEF*) 0,
-		(MARIA_CREATE_INFO*) 0,0))
+  if (maria_create(filename,BLOCK_RECORD, 2, &keyinfo[0],2,&recinfo[0],0,
+                   (MARIA_UNIQUEDEF*) 0, (MARIA_CREATE_INFO*) 0,0))
     exit(1);
 
   rnd_init(0);

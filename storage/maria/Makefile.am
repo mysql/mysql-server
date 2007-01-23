@@ -54,7 +54,7 @@ noinst_PROGRAMS =	ma_test1 ma_test2 ma_test3 ma_rt_test ma_sp_test
 noinst_HEADERS =	maria_def.h ma_rt_index.h ma_rt_key.h ma_rt_mbr.h \
 			ma_sp_defs.h ma_fulltext.h ma_ftdefs.h ma_ft_test1.h \
 			ma_ft_eval.h trnman.h lockman.h tablockman.h \
-			ma_control_file.h ha_maria.h
+			ma_control_file.h ha_maria.h ma_blockrec.h
 ma_test1_DEPENDENCIES=	$(LIBRARIES)
 ma_test1_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
                         $(top_builddir)/storage/myisam/libmyisam.a \
@@ -98,6 +98,7 @@ libmaria_a_SOURCES =	ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c \
 			ma_search.c ma_page.c ma_key.c ma_locking.c \
 			ma_rrnd.c ma_scan.c ma_cache.c \
 			ma_statrec.c ma_packrec.c ma_dynrec.c \
+			ma_blockrec.c ma_bitmap.c \
 			ma_update.c ma_write.c ma_unique.c \
 			ma_delete.c \
 			ma_rprev.c ma_rfirst.c ma_rlast.c ma_rsame.c \

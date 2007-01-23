@@ -19,7 +19,8 @@
 #include <sys/mman.h>
 #endif
 
-static void maria_extra_keyflag(MARIA_HA *info, enum ha_extra_function function);
+static void maria_extra_keyflag(MARIA_HA *info,
+                                enum ha_extra_function function);
 
 
 /*
@@ -38,7 +39,8 @@ static void maria_extra_keyflag(MARIA_HA *info, enum ha_extra_function function)
     #  error
 */
 
-int maria_extra(MARIA_HA *info, enum ha_extra_function function, void *extra_arg)
+int maria_extra(MARIA_HA *info, enum ha_extra_function function,
+                void *extra_arg)
 {
   int error=0;
   ulong cache_size;
@@ -49,7 +51,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function, void *extra_arg
   switch (function) {
   case HA_EXTRA_RESET_STATE:		/* Reset state (don't free buffers) */
     info->lastinx= 0;			/* Use first index as def */
-    info->last_search_keypage=info->lastpos= HA_OFFSET_ERROR;
+    info->last_search_keypage= info->cur_row.lastpos= HA_OFFSET_ERROR;
     info->page_changed=1;
 					/* Next/prev gives first/last */
     if (info->opt_flag & READ_CACHE_USED)
@@ -115,7 +117,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function, void *extra_arg
   case HA_EXTRA_REINIT_CACHE:
     if (info->opt_flag & READ_CACHE_USED)
     {
-      reinit_io_cache(&info->rec_cache,READ_CACHE,info->nextpos,
+      reinit_io_cache(&info->rec_cache, READ_CACHE, info->cur_row.nextpos,
 		      (pbool) (info->lock_type != F_UNLCK),
 		      (pbool) test(info->update & HA_STATE_ROW_CHANGED));
       info->update&= ~HA_STATE_ROW_CHANGED;
@@ -185,7 +187,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function, void *extra_arg
 	  (byte*) info->lastkey,info->lastkey_length);
     info->save_update=	info->update;
     info->save_lastinx= info->lastinx;
-    info->save_lastpos= info->lastpos;
+    info->save_lastpos= info->cur_row.lastpos;
     info->save_lastkey_length=info->lastkey_length;
     if (function == HA_EXTRA_REMEMBER_POS)
       break;
@@ -203,7 +205,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function, void *extra_arg
 	    info->save_lastkey_length);
       info->update=	info->save_update | HA_STATE_WRITTEN;
       info->lastinx=	info->save_lastinx;
-      info->lastpos=	info->save_lastpos;
+      info->cur_row.lastpos=	info->save_lastpos;
       info->lastkey_length=info->save_lastkey_length;
     }
     info->read_record=	share->read_record;
@@ -325,8 +327,13 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function, void *extra_arg
 	maria_mark_crashed(info);			/* Fatal error found */
       }
     }
-    if (share->base.blobs)
-      _ma_alloc_rec_buff(info, -1, &info->rec_buff);
+    if (share->base.blobs && info->rec_buff_size >
+        share->base.default_rec_buff_size)
+    {
+      info->rec_buff_size= 1;                 /* Force realloc */
+      _ma_alloc_buffer(&info->rec_buff, &info->rec_buff_size,
+                       share->base.default_rec_buff_size);
+    }
     break;
   case HA_EXTRA_NORMAL:				/* Theese isn't in use */
     info->quick_mode=0;
@@ -422,8 +429,13 @@ int maria_reset(MARIA_HA *info)
     info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
     error= end_io_cache(&info->rec_cache);
   }
-  if (share->base.blobs)
-    _ma_alloc_rec_buff(info, -1, &info->rec_buff);
+    if (share->base.blobs && info->rec_buff_size >
+        share->base.default_rec_buff_size)
+    {
+      info->rec_buff_size= 1;                 /* Force realloc */
+      _ma_alloc_buffer(&info->rec_buff, &info->rec_buff_size,
+                       share->base.default_rec_buff_size);
+    }
 #if defined(HAVE_MMAP) && defined(HAVE_MADVISE)
   if (info->opt_flag & MEMMAP_USED)
     madvise(share->file_map,share->state.state.data_file_length,MADV_RANDOM);
@@ -431,7 +443,7 @@ int maria_reset(MARIA_HA *info)
   info->opt_flag&= ~(KEY_READ_USED | REMEMBER_OLD_POS);
   info->quick_mode=0;
   info->lastinx= 0;			/* Use first index as def */
-  info->last_search_keypage= info->lastpos= HA_OFFSET_ERROR;
+  info->last_search_keypage= info->cur_row.lastpos= HA_OFFSET_ERROR;
   info->page_changed= 1;
   info->update= ((info->update & HA_STATE_CHANGED) | HA_STATE_NEXT_FOUND |
                  HA_STATE_PREV_FOUND);

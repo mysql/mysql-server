@@ -24,33 +24,52 @@
 	/* Functions declared in this file */
 
 static int w_search(MARIA_HA *info,MARIA_KEYDEF *keyinfo,
-		    uint comp_flag, uchar *key,
-		    uint key_length, my_off_t pos, uchar *father_buff,
-		    uchar *father_keypos, my_off_t father_page,
+		    uint comp_flag, byte *key,
+		    uint key_length, my_off_t pos, byte *father_buff,
+		    byte *father_keypos, my_off_t father_page,
 		    my_bool insert_last);
-static int _ma_balance_page(MARIA_HA *info,MARIA_KEYDEF *keyinfo,uchar *key,
-			    uchar *curr_buff,uchar *father_buff,
-			    uchar *father_keypos,my_off_t father_page);
-static uchar *_ma_find_last_pos(MARIA_KEYDEF *keyinfo, uchar *page,
-				uchar *key, uint *return_key_length,
-				uchar **after_key);
-int _ma_ck_write_tree(register MARIA_HA *info, uint keynr,uchar *key,
+static int _ma_balance_page(MARIA_HA *info,MARIA_KEYDEF *keyinfo,byte *key,
+			    byte *curr_buff,byte *father_buff,
+			    byte *father_keypos,my_off_t father_page);
+static byte *_ma_find_last_pos(MARIA_KEYDEF *keyinfo, byte *page,
+				byte *key, uint *return_key_length,
+				byte **after_key);
+int _ma_ck_write_tree(register MARIA_HA *info, uint keynr,byte *key,
 		      uint key_length);
-int _ma_ck_write_btree(register MARIA_HA *info, uint keynr,uchar *key,
+int _ma_ck_write_btree(register MARIA_HA *info, uint keynr,byte *key,
 		       uint key_length);
 
-	/* Write new record to database */
+
+MARIA_RECORD_POS _ma_write_init_default(MARIA_HA *info,
+                                        const byte *record
+                                        __attribute__((unused)))
+{
+  return ((info->s->state.dellink != HA_OFFSET_ERROR &&
+           !info->append_insert_at_end) ?
+          info->s->state.dellink :
+          info->state->data_file_length);
+}
+
+my_bool _ma_write_abort_default(MARIA_HA *info __attribute__((unused)))
+{
+  return 0;
+}
+
+
+/* Write new record to a table */
 
 int maria_write(MARIA_HA *info, byte *record)
 {
   MARIA_SHARE *share=info->s;
   uint i;
   int save_errno;
-  my_off_t filepos;
-  uchar *buff;
+  MARIA_RECORD_POS filepos;
+  byte *buff;
   my_bool lock_tree= share->concurrent_insert;
+  my_bool fatal_error;
   DBUG_ENTER("maria_write");
-  DBUG_PRINT("enter",("isam: %d  data: %d",info->s->kfile,info->dfile));
+  DBUG_PRINT("enter",("index_file: %d  data_file: %d",
+                      info->s->kfile,info->dfile));
 
   DBUG_EXECUTE_IF("maria_pretend_crashed_table_on_usage",
                   maria_print_error(info->s, HA_ERR_CRASHED);
@@ -62,10 +81,6 @@ int maria_write(MARIA_HA *info, byte *record)
   if (_ma_readinfo(info,F_WRLCK,1))
     DBUG_RETURN(my_errno);
   dont_break();				/* Dont allow SIGHUP or SIGINT */
-  filepos= ((share->state.dellink != HA_OFFSET_ERROR &&
-             !info->append_insert_at_end) ?
-	    share->state.dellink :
-	    info->state->data_file_length);
 
   if (share->base.reloc == (ha_rows) 1 &&
       share->base.records == (ha_rows) 1 &&
@@ -86,14 +101,26 @@ int maria_write(MARIA_HA *info, byte *record)
   for (i=0 ; i < share->state.header.uniques ; i++)
   {
     if (_ma_check_unique(info,share->uniqueinfo+i,record,
-		     _ma_unique_hash(share->uniqueinfo+i,record),
-		     HA_OFFSET_ERROR))
+                         _ma_unique_hash(share->uniqueinfo+i,record),
+                         HA_OFFSET_ERROR))
       goto err2;
   }
 
-	/* Write all keys to indextree */
+  if ((info->opt_flag & OPT_NO_ROWS))
+    filepos= HA_OFFSET_ERROR;
+  else
+  {
+    /*
+      This may either calculate a record or, or write the record and return
+      the record id
+    */
+    if ((filepos= (*share->write_record_init)(info, record)) ==
+        HA_OFFSET_ERROR)
+    goto err2;
+  }
 
-  buff=info->lastkey2;
+  /* Write all keys to indextree */
+  buff= info->lastkey2;
   for (i=0 ; i < share->base.keys ; i++)
   {
     if (maria_is_key_active(share->state.key_map, i))
@@ -136,13 +163,13 @@ int maria_write(MARIA_HA *info, byte *record)
         rw_unlock(&share->key_root_lock[i]);
     }
   }
-  if (share->calc_checksum)
-    info->checksum=(*share->calc_checksum)(info,record);
-  if (!(info->opt_flag & OPT_NO_ROWS))
+  if (share->calc_write_checksum)
+    info->cur_row.checksum= (*share->calc_write_checksum)(info,record);
+  if (filepos != HA_OFFSET_ERROR)
   {
     if ((*share->write_record)(info,record))
       goto err;
-    info->state->checksum+=info->checksum;
+    info->state->checksum+= info->cur_row.checksum;
   }
   if (share->base.auto_key)
     set_if_bigger(info->s->state.auto_increment,
@@ -150,7 +177,7 @@ int maria_write(MARIA_HA *info, byte *record)
   info->update= (HA_STATE_CHANGED | HA_STATE_AKTIV | HA_STATE_WRITTEN |
 		 HA_STATE_ROW_CHANGED);
   info->state->records++;
-  info->lastpos=filepos;
+  info->cur_row.lastpos= filepos;
   VOID(_ma_writeinfo(info, WRITEINFO_UPDATE_KEYFILE));
   if (info->invalidator != 0)
   {
@@ -174,8 +201,10 @@ int maria_write(MARIA_HA *info, byte *record)
   DBUG_RETURN(0);
 
 err:
-  save_errno=my_errno;
-  if (my_errno == HA_ERR_FOUND_DUPP_KEY || my_errno == HA_ERR_RECORD_FILE_FULL ||
+  save_errno= my_errno;
+  fatal_error= 0;
+  if (my_errno == HA_ERR_FOUND_DUPP_KEY ||
+      my_errno == HA_ERR_RECORD_FILE_FULL ||
       my_errno == HA_ERR_NULL_IN_SPATIAL)
   {
     if (info->bulk_insert)
@@ -219,14 +248,21 @@ err:
     }
   }
   else
+    fatal_error= 1;
+
+  if ((*share->write_record_abort)(info))
+    fatal_error= 1;
+  if (fatal_error)
   {
     maria_print_error(info->s, HA_ERR_CRASHED);
     maria_mark_crashed(info);
   }
+
   info->update= (HA_STATE_CHANGED | HA_STATE_WRITTEN | HA_STATE_ROW_CHANGED);
   my_errno=save_errno;
 err2:
   save_errno=my_errno;
+  DBUG_PRINT("error", ("got error: %d", save_errno));
   VOID(_ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
   allow_break();			/* Allow SIGHUP & SIGINT */
   DBUG_RETURN(my_errno=save_errno);
@@ -235,7 +271,7 @@ err2:
 
 	/* Write one key to btree */
 
-int _ma_ck_write(MARIA_HA *info, uint keynr, uchar *key, uint key_length)
+int _ma_ck_write(MARIA_HA *info, uint keynr, byte *key, uint key_length)
 {
   DBUG_ENTER("_ma_ck_write");
 
@@ -254,7 +290,7 @@ int _ma_ck_write(MARIA_HA *info, uint keynr, uchar *key, uint key_length)
  *                Normal insert code                                  *
  **********************************************************************/
 
-int _ma_ck_write_btree(register MARIA_HA *info, uint keynr, uchar *key,
+int _ma_ck_write_btree(register MARIA_HA *info, uint keynr, byte *key,
 		       uint key_length)
 {
   int error;
@@ -287,15 +323,17 @@ int _ma_ck_write_btree(register MARIA_HA *info, uint keynr, uchar *key,
   DBUG_RETURN(error);
 } /* _ma_ck_write_btree */
 
+
 int _ma_ck_real_write_btree(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-    uchar *key, uint key_length, my_off_t *root, uint comp_flag)
+                            byte *key, uint key_length, my_off_t *root,
+                            uint comp_flag)
 {
   int error;
   DBUG_ENTER("_ma_ck_real_write_btree");
   /* key_length parameter is used only if comp_flag is SEARCH_FIND */
   if (*root == HA_OFFSET_ERROR ||
       (error=w_search(info, keyinfo, comp_flag, key, key_length,
-		      *root, (uchar *) 0, (uchar*) 0,
+		      *root, (byte*) 0, (byte*) 0,
 		      (my_off_t) 0, 1)) > 0)
     error= _ma_enlarge_root(info,keyinfo,key,root);
   DBUG_RETURN(error);
@@ -304,7 +342,7 @@ int _ma_ck_real_write_btree(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
 
 	/* Make a new root with key as only pointer */
 
-int _ma_enlarge_root(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *key,
+int _ma_enlarge_root(MARIA_HA *info, MARIA_KEYDEF *keyinfo, byte *key,
                      my_off_t *root)
 {
   uint t_length,nod_flag;
@@ -314,11 +352,11 @@ int _ma_enlarge_root(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *key,
 
   nod_flag= (*root != HA_OFFSET_ERROR) ?  share->base.key_reflength : 0;
   _ma_kpointer(info,info->buff+2,*root); /* if nod */
-  t_length=(*keyinfo->pack_key)(keyinfo,nod_flag,(uchar*) 0,
-				(uchar*) 0, (uchar*) 0, key,&s_temp);
+  t_length=(*keyinfo->pack_key)(keyinfo,nod_flag,(byte*) 0,
+				(byte*) 0, (byte*) 0, key,&s_temp);
   maria_putint(info->buff,t_length+2+nod_flag,nod_flag);
   (*keyinfo->store_key)(keyinfo,info->buff+2+nod_flag,&s_temp);
-  info->buff_used=info->page_changed=1;		/* info->buff is used */
+  info->keybuff_used=info->page_changed=1;		/* info->buff is used */
   if ((*root= _ma_new(info,keyinfo,DFLT_INIT_HITS)) == HA_OFFSET_ERROR ||
       _ma_write_keypage(info,keyinfo,*root,DFLT_INIT_HITS,info->buff))
     DBUG_RETURN(-1);
@@ -334,21 +372,21 @@ int _ma_enlarge_root(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *key,
 	*/
 
 static int w_search(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
-		    uint comp_flag, uchar *key, uint key_length, my_off_t page,
-		    uchar *father_buff, uchar *father_keypos,
+		    uint comp_flag, byte *key, uint key_length, my_off_t page,
+		    byte *father_buff, byte *father_keypos,
 		    my_off_t father_page, my_bool insert_last)
 {
   int error,flag;
   uint nod_flag, search_key_length;
-  uchar *temp_buff,*keypos;
-  uchar keybuff[HA_MAX_KEY_BUFF];
+  byte *temp_buff,*keypos;
+  byte keybuff[HA_MAX_KEY_BUFF];
   my_bool was_last_key;
-  my_off_t next_page, dupp_key_pos;
+  my_off_t next_page, dup_key_pos;
   DBUG_ENTER("w_search");
   DBUG_PRINT("enter",("page: %ld", (long) page));
 
   search_key_length= (comp_flag & SEARCH_FIND) ? key_length : USE_WHOLE_KEY;
-  if (!(temp_buff= (uchar*) my_alloca((uint) keyinfo->block_length+
+  if (!(temp_buff= (byte*) my_alloca((uint) keyinfo->block_length+
 				      HA_MAX_KEY_BUFF*2)))
     DBUG_RETURN(-1);
   if (!_ma_fetch_keypage(info,keyinfo,page,DFLT_INIT_HITS,temp_buff,0))
@@ -363,9 +401,9 @@ static int w_search(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 	/* get position to record with duplicated key */
     tmp_key_length=(*keyinfo->get_key)(keyinfo,nod_flag,&keypos,keybuff);
     if (tmp_key_length)
-      dupp_key_pos= _ma_dpos(info,0,keybuff+tmp_key_length);
+      dup_key_pos= _ma_dpos(info,0,keybuff+tmp_key_length);
     else
-      dupp_key_pos= HA_OFFSET_ERROR;
+      dup_key_pos= HA_OFFSET_ERROR;
 
     if (keyinfo->flag & HA_FULLTEXT)
     {
@@ -385,7 +423,7 @@ static int w_search(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
       else
       {
         /* popular word. two-level tree. going down */
-        my_off_t root=dupp_key_pos;
+        my_off_t root=dup_key_pos;
         keyinfo=&info->s->ft2_keyinfo;
         get_key_full_length_rdonly(off, key);
         key+=off;
@@ -404,7 +442,7 @@ static int w_search(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
     }
     else /* not HA_FULLTEXT, normal HA_NOSAME key */
     {
-      info->dupp_key_pos= dupp_key_pos;
+      info->dup_key_pos= dup_key_pos;
       my_afree((byte*) temp_buff);
       my_errno=HA_ERR_FOUND_DUPP_KEY;
       DBUG_RETURN(-1);
@@ -459,25 +497,25 @@ err:
 */
 
 int _ma_insert(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
-	       uchar *key, uchar *anc_buff, uchar *key_pos, uchar *key_buff,
-               uchar *father_buff, uchar *father_key_pos, my_off_t father_page,
+	       byte *key, byte *anc_buff, byte *key_pos, byte *key_buff,
+               byte *father_buff, byte *father_key_pos, my_off_t father_page,
 	       my_bool insert_last)
 {
   uint a_length,nod_flag;
   int t_length;
-  uchar *endpos, *prev_key;
+  byte *endpos, *prev_key;
   MARIA_KEY_PARAM s_temp;
   DBUG_ENTER("_ma_insert");
-  DBUG_PRINT("enter",("key_pos: %lx", (long) key_pos));
+  DBUG_PRINT("enter",("key_pos: 0x%lx", (ulong) key_pos));
   DBUG_EXECUTE("key", _ma_print_key(DBUG_FILE,keyinfo->seg,key,
                                     USE_WHOLE_KEY););
 
   nod_flag=_ma_test_if_nod(anc_buff);
   a_length=maria_getint(anc_buff);
   endpos= anc_buff+ a_length;
-  prev_key=(key_pos == anc_buff+2+nod_flag ? (uchar*) 0 : key_buff);
+  prev_key=(key_pos == anc_buff+2+nod_flag ? (byte*) 0 : key_buff);
   t_length=(*keyinfo->pack_key)(keyinfo,nod_flag,
-				(key_pos == endpos ? (uchar*) 0 : key_pos),
+				(key_pos == endpos ? (byte*) 0 : key_pos),
 				prev_key, prev_key,
 				key,&s_temp);
 #ifndef DBUG_OFF
@@ -491,7 +529,7 @@ int _ma_insert(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
     DBUG_PRINT("test",("t_length: %d  ref_len: %d",
 		       t_length,s_temp.ref_length));
     DBUG_PRINT("test",("n_ref_len: %d  n_length: %d  key_pos: 0x%lx",
-		       s_temp.n_ref_length,s_temp.n_length, (long) s_temp.key));
+		       s_temp.n_ref_length, s_temp.n_length, (long) s_temp.key));
   }
 #endif
   if (t_length > 0)
@@ -529,19 +567,20 @@ int _ma_insert(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
         Let's consider converting.
         We'll compare 'key' and the first key at anc_buff
        */
-      uchar *a=key, *b=anc_buff+2+nod_flag;
+      byte *a=key, *b=anc_buff+2+nod_flag;
       uint alen, blen, ft2len=info->s->ft2_keyinfo.keylength;
       /* the very first key on the page is always unpacked */
       DBUG_ASSERT((*b & 128) == 0);
 #if HA_FT_MAXLEN >= 127
       blen= mi_uint2korr(b); b+=2;
 #else
-      blen= *b++;
+      blen= *(uchar*) b++;
 #endif
       get_key_length(alen,a);
       DBUG_ASSERT(info->ft1_to_ft2==0);
       if (alen == blen &&
-          ha_compare_text(keyinfo->seg->charset, a, alen, b, blen, 0, 0)==0)
+          ha_compare_text(keyinfo->seg->charset, (uchar*) a, alen,
+                          (uchar*) b, blen, 0, 0) == 0)
       {
         /* yup. converting */
         info->ft1_to_ft2=(DYNAMIC_ARRAY *)
@@ -582,11 +621,11 @@ int _ma_insert(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 	/* split a full page in two and assign emerging item to key */
 
 int _ma_split_page(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
-		   uchar *key, uchar *buff, uchar *key_buff,
+		   byte *key, byte *buff, byte *key_buff,
 		   my_bool insert_last_key)
 {
   uint length,a_length,key_ref_length,t_length,nod_flag,key_length;
-  uchar *key_pos,*pos, *after_key;
+  byte *key_pos,*pos, *after_key;
   my_off_t new_pos;
   MARIA_KEY_PARAM s_temp;
   DBUG_ENTER("maria_split_page");
@@ -594,7 +633,7 @@ int _ma_split_page(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 
   if (info->s->keyinfo+info->lastinx == keyinfo)
     info->page_changed=1;			/* Info->buff is used */
-  info->buff_used=1;
+  info->keybuff_used=1;
   nod_flag=_ma_test_if_nod(buff);
   key_ref_length=2+nod_flag;
   if (insert_last_key)
@@ -626,8 +665,8 @@ int _ma_split_page(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   if (!(*keyinfo->get_key)(keyinfo,nod_flag,&key_pos,key_buff))
     DBUG_RETURN(-1);
 
-  t_length=(*keyinfo->pack_key)(keyinfo,nod_flag,(uchar *) 0,
-				(uchar*) 0, (uchar*) 0,
+  t_length=(*keyinfo->pack_key)(keyinfo,nod_flag,(byte *) 0,
+				(byte*) 0, (byte*) 0,
 				key_buff, &s_temp);
   length=(uint) ((buff+a_length)-key_pos);
   memcpy((byte*) info->buff+key_ref_length+t_length,(byte*) key_pos,
@@ -650,12 +689,12 @@ int _ma_split_page(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 	  after_key will contain the position to where the next key starts
 	*/
 
-uchar *_ma_find_half_pos(uint nod_flag, MARIA_KEYDEF *keyinfo, uchar *page,
-			 uchar *key, uint *return_key_length,
-			 uchar **after_key)
+byte *_ma_find_half_pos(uint nod_flag, MARIA_KEYDEF *keyinfo, byte *page,
+			 byte *key, uint *return_key_length,
+			 byte **after_key)
 {
   uint keys,length,key_ref_length;
-  uchar *end,*lastpos;
+  byte *end,*lastpos;
   DBUG_ENTER("_ma_find_half_pos");
 
   key_ref_length=2+nod_flag;
@@ -690,19 +729,19 @@ uchar *_ma_find_half_pos(uint nod_flag, MARIA_KEYDEF *keyinfo, uchar *page,
 } /* _ma_find_half_pos */
 
 
-	/*
-	  Split buffer at last key
-	  Returns pointer to the start of the key before the last key
-	  key will contain the last key
-	*/
+/*
+  Split buffer at last key
+  Returns pointer to the start of the key before the last key
+  key will contain the last key
+*/
 
-static uchar *_ma_find_last_pos(MARIA_KEYDEF *keyinfo, uchar *page,
-				uchar *key, uint *return_key_length,
-				uchar **after_key)
+static byte *_ma_find_last_pos(MARIA_KEYDEF *keyinfo, byte *page,
+				byte *key, uint *return_key_length,
+				byte **after_key)
 {
   uint keys,length,last_length,key_ref_length;
-  uchar *end,*lastpos,*prevpos;
-  uchar key_buff[HA_MAX_KEY_BUFF];
+  byte *end,*lastpos,*prevpos;
+  byte key_buff[HA_MAX_KEY_BUFF];
   DBUG_ENTER("_ma_find_last_pos");
 
   key_ref_length=2;
@@ -750,14 +789,14 @@ static uchar *_ma_find_last_pos(MARIA_KEYDEF *keyinfo, uchar *page,
 	/* returns 0 if balance was done */
 
 static int _ma_balance_page(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-			    uchar *key, uchar *curr_buff, uchar *father_buff,
-			    uchar *father_key_pos, my_off_t father_page)
+			    byte *key, byte *curr_buff, byte *father_buff,
+			    byte *father_key_pos, my_off_t father_page)
 {
   my_bool right;
   uint k_length,father_length,father_keylength,nod_flag,curr_keylength,
        right_length,left_length,new_right_length,new_left_length,extra_length,
        length,keys;
-  uchar *pos,*buff,*extra_buff;
+  byte *pos,*buff,*extra_buff;
   my_off_t next_page,new_pos;
   byte tmp_part_key[HA_MAX_KEY_BUFF];
   DBUG_ENTER("_ma_balance_page");
@@ -894,7 +933,8 @@ typedef struct {
   uint keynr;
 } bulk_insert_param;
 
-int _ma_ck_write_tree(register MARIA_HA *info, uint keynr, uchar *key,
+
+int _ma_ck_write_tree(register MARIA_HA *info, uint keynr, byte *key,
 		      uint key_length)
 {
   int error;
@@ -910,22 +950,22 @@ int _ma_ck_write_tree(register MARIA_HA *info, uint keynr, uchar *key,
 
 /* typeof(_ma_keys_compare)=qsort_cmp2 */
 
-static int keys_compare(bulk_insert_param *param, uchar *key1, uchar *key2)
+static int keys_compare(bulk_insert_param *param, byte *key1, byte *key2)
 {
   uint not_used[2];
   return ha_key_cmp(param->info->s->keyinfo[param->keynr].seg,
-                    key1, key2, USE_WHOLE_KEY, SEARCH_SAME,
+                    (uchar*) key1, (uchar*) key2, USE_WHOLE_KEY, SEARCH_SAME,
                     not_used);
 }
 
 
-static int keys_free(uchar *key, TREE_FREE mode, bulk_insert_param *param)
+static int keys_free(byte *key, TREE_FREE mode, bulk_insert_param *param)
 {
   /*
     Probably I can use info->lastkey here, but I'm not sure,
     and to be safe I'd better use local lastkey.
   */
-  uchar lastkey[HA_MAX_KEY_BUFF];
+  byte lastkey[HA_MAX_KEY_BUFF];
   uint keylen;
   MARIA_KEYDEF *keyinfo;
 

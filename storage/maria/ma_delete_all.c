@@ -44,8 +44,7 @@ int maria_delete_all_rows(MARIA_HA *info)
   info->state->empty=info->state->key_empty=0;
   info->state->checksum=0;
 
-  for (i=share->base.max_key_block_length/MARIA_MIN_KEY_BLOCK_LENGTH ; i-- ; )
-    state->key_del[i]= HA_OFFSET_ERROR;
+  state->key_del= HA_OFFSET_ERROR;
   for (i=0 ; i < share->base.keys ; i++)
     state->key_root[i]= HA_OFFSET_ERROR;
 

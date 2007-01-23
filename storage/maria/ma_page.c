@@ -20,22 +20,20 @@
 
 	/* Fetch a key-page in memory */
 
-uchar *_ma_fetch_keypage(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-			 my_off_t page, int level,
-                         uchar *buff, int return_buffer)
+byte *_ma_fetch_keypage(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
+                        my_off_t page, int level,
+                        byte *buff, int return_buffer)
 {
-  uchar *tmp;
+  byte *tmp;
   uint page_size;
   DBUG_ENTER("_ma_fetch_keypage");
   DBUG_PRINT("enter",("page: %ld", (long) page));
 
-  tmp=(uchar*) key_cache_read(info->s->key_cache,
-                             info->s->kfile, page, level, (byte*) buff,
-			     (uint) keyinfo->block_length,
-			     (uint) keyinfo->block_length,
-			     return_buffer);
+  tmp= key_cache_read(info->s->key_cache, info->s->kfile, page, level, buff,
+                      info->s->block_size, info->s->block_size,
+                      return_buffer);
   if (tmp == info->buff)
-    info->buff_used=1;
+    info->keybuff_used=1;
   else if (!tmp)
   {
     DBUG_PRINT("error",("Got errno: %d from key_cache_read",my_errno));
@@ -53,8 +51,8 @@ uchar *_ma_fetch_keypage(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     DBUG_DUMP("page", (char*) tmp, keyinfo->block_length);
     info->last_keypage = HA_OFFSET_ERROR;
     maria_print_error(info->s, HA_ERR_CRASHED);
-    my_errno = HA_ERR_CRASHED;
-    tmp = 0;
+    my_errno= HA_ERR_CRASHED;
+    tmp= 0;
   }
   DBUG_RETURN(tmp);
 } /* _ma_fetch_keypage */
@@ -63,7 +61,7 @@ uchar *_ma_fetch_keypage(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
 	/* Write a key-page on disk */
 
 int _ma_write_keypage(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
-		      my_off_t page, int level, uchar *buff)
+		      my_off_t page, int level, byte *buff)
 {
   reg3 uint length;
   DBUG_ENTER("_ma_write_keypage");
@@ -112,8 +110,8 @@ int _ma_dispose(register MARIA_HA *info, MARIA_KEYDEF *keyinfo, my_off_t pos,
   DBUG_ENTER("_ma_dispose");
   DBUG_PRINT("enter",("pos: %ld", (long) pos));
 
-  old_link= info->s->state.key_del[keyinfo->block_size_index];
-  info->s->state.key_del[keyinfo->block_size_index]= pos;
+  old_link= info->s->state.key_del;
+  info->s->state.key_del= pos;
   mi_sizestore(buff,old_link);
   info->s->state.changed|= STATE_NOT_SORTED_PAGES;
   DBUG_RETURN(key_cache_write(info->s->key_cache,
@@ -129,11 +127,10 @@ int _ma_dispose(register MARIA_HA *info, MARIA_KEYDEF *keyinfo, my_off_t pos,
 my_off_t _ma_new(register MARIA_HA *info, MARIA_KEYDEF *keyinfo, int level)
 {
   my_off_t pos;
-  char buff[8];
+  byte buff[8];
   DBUG_ENTER("_ma_new");
 
-  if ((pos= info->s->state.key_del[keyinfo->block_size_index]) ==
-      HA_OFFSET_ERROR)
+  if ((pos= info->s->state.key_del) == HA_OFFSET_ERROR)
   {
     if (info->state->key_file_length >=
 	info->s->base.max_key_file_length - keyinfo->block_length)
@@ -153,7 +150,7 @@ my_off_t _ma_new(register MARIA_HA *info, MARIA_KEYDEF *keyinfo, int level)
 			(uint) keyinfo->block_length,0))
       pos= HA_OFFSET_ERROR;
     else
-      info->s->state.key_del[keyinfo->block_size_index]= mi_sizekorr(buff);
+      info->s->state.key_del= mi_sizekorr(buff);
   }
   info->s->state.changed|= STATE_NOT_SORTED_PAGES;
   DBUG_PRINT("exit",("Pos: %ld",(long) pos));

@@ -52,7 +52,7 @@ uint my_pread(File Filedes, byte *Buffer, uint Count, my_off_t offset,
     if (!error)                                 /* Seek was successful */
     {
       if ((readbytes = (uint) read(Filedes, Buffer, Count)) == -1L)
-        my_errno= errno;
+        my_errno= errno ? errno : -1;
 
       /*
         We should seek back, even if read failed. If this fails,
@@ -68,7 +68,7 @@ uint my_pread(File Filedes, byte *Buffer, uint Count, my_off_t offset,
 #else
     if ((error= ((readbytes =
                   (uint) pread(Filedes, Buffer, Count, offset)) != Count)))
-      my_errno= errno;
+      my_errno= errno ? errno : -1;
 #endif
     if (error || readbytes != Count)
     {
@@ -88,8 +88,10 @@ uint my_pread(File Filedes, byte *Buffer, uint Count, my_off_t offset,
 	  my_error(EE_READ, MYF(ME_BELL+ME_WAITTANG),
 		   my_filename(Filedes),my_errno);
 	else if (MyFlags & (MY_NABP | MY_FNABP))
+        {
 	  my_error(EE_EOFERR, MYF(ME_BELL+ME_WAITTANG),
 		   my_filename(Filedes),my_errno);
+        }
       }
       if ((int) readbytes == -1 || (MyFlags & (MY_FNABP | MY_NABP)))
 	DBUG_RETURN(MY_FILE_ERROR);		/* Return with error */
