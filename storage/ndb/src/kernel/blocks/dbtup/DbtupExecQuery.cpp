@@ -815,7 +815,9 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
      {
        jam();
        if (handleDeleteReq(signal, regOperPtr,
-			   regFragPtr, regTabPtr, &req_struct) == -1) {
+			   regFragPtr, regTabPtr, 
+			   &req_struct,
+			   disk_page != RNIL) == -1) {
 	 return;
        }
        /*
@@ -1459,7 +1461,8 @@ int Dbtup::handleDeleteReq(Signal* signal,
                            Operationrec* regOperPtr,
                            Fragrecord* regFragPtr,
                            Tablerec* regTabPtr,
-                           KeyReqStruct *req_struct)
+                           KeyReqStruct *req_struct,
+			   bool disk)
 {
   // delete must set but not increment tupVersion
   if (!regOperPtr->is_first_operation())
@@ -1511,8 +1514,11 @@ int Dbtup::handleDeleteReq(Signal* signal,
   {
     return 0;
   }
-  
-  return handleReadReq(signal, regOperPtr, regTabPtr, req_struct);
+
+  if (setup_read(req_struct, regOperPtr, regFragPtr, regTabPtr, disk))
+  {
+    return handleReadReq(signal, regOperPtr, regTabPtr, req_struct);
+  }
 
 error:
   tupkeyErrorLab(signal);
