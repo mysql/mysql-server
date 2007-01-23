@@ -84,7 +84,7 @@ Transporter::Transporter(TransporterRegistry &t_reg,
 				      new SocketAuthSimple("ndbd",
 							   "ndbd passwd"));
 
-    m_socket_client->set_connect_timeout(m_timeOutMillis/1000);
+    m_socket_client->set_connect_timeout((m_timeOutMillis+999)/1000);
   }
   DBUG_VOID_RETURN;
 }
