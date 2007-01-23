@@ -177,11 +177,46 @@ drop table t1;
 select abs(-2) * -2;
 abs(-2) * -2
 -4
-create table t1 (i int);
-insert into t1 values (1);
-select rand(i) from t1;
-ERROR HY000: Incorrect arguments to RAND
-drop table t1;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(1),(1),(2);
+SELECT CAST(RAND(2) * 1000 AS UNSIGNED), CAST(RAND(a) * 1000 AS UNSIGNED) 
+FROM t1;
+CAST(RAND(2) * 1000 AS UNSIGNED)	CAST(RAND(a) * 1000 AS UNSIGNED)
+656	405
+122	405
+645	405
+858	656
+SELECT CAST(RAND(2) * 1000 AS UNSIGNED), CAST(RAND(a) * 1000 AS UNSIGNED) 
+FROM t1 WHERE a = 1;
+CAST(RAND(2) * 1000 AS UNSIGNED)	CAST(RAND(a) * 1000 AS UNSIGNED)
+656	405
+122	405
+645	405
+INSERT INTO t1 VALUES (3);
+SELECT CAST(RAND(2) * 1000 AS UNSIGNED), CAST(RAND(a) * 1000 AS UNSIGNED) 
+FROM t1;
+CAST(RAND(2) * 1000 AS UNSIGNED)	CAST(RAND(a) * 1000 AS UNSIGNED)
+656	405
+122	405
+645	405
+858	656
+354	906
+SELECT CAST(RAND(2) * 1000 AS UNSIGNED), CAST(RAND(a) * 1000 AS UNSIGNED) 
+FROM t1 WHERE a = 1;
+CAST(RAND(2) * 1000 AS UNSIGNED)	CAST(RAND(a) * 1000 AS UNSIGNED)
+656	405
+122	405
+645	405
+PREPARE stmt FROM 
+"SELECT CAST(RAND(2) * 1000 AS UNSIGNED), CAST(RAND(?) * 1000 AS UNSIGNED)
+    FROM t1 WHERE a = 1";
+set @var=2;
+EXECUTE stmt USING @var;
+CAST(RAND(2) * 1000 AS UNSIGNED)	CAST(RAND(?) * 1000 AS UNSIGNED)
+656	656
+122	122
+645	645
+DROP TABLE t1;
 create table t1 (a varchar(90), ts datetime not null, index (a)) engine=innodb default charset=utf8;
 insert into t1 values ('http://www.foo.com/', now());
 select a from t1 where a='http://www.foo.com/' order by abs(timediff(ts, 0));
