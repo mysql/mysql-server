@@ -3147,20 +3147,23 @@ void Dblqh::lqhAttrinfoLab(Signal* signal, Uint32* dataPtr, Uint32 length)
 {
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
   if (regTcPtr->operation != ZREAD) {
-    if (regTcPtr->opExec != 1) {
-      if (saveTupattrbuf(signal, dataPtr, length) == ZOK) {
-        ;
-      } else {
-        jam();
+    if (regTcPtr->operation != ZDELETE)
+    {
+      if (regTcPtr->opExec != 1) {
+	if (saveTupattrbuf(signal, dataPtr, length) == ZOK) {
+	  ;
+	} else {
+	  jam();
 /* ------------------------------------------------------------------------- */
 /* WE MIGHT BE WAITING FOR RESPONSE FROM SOME BLOCK HERE. THUS WE NEED TO    */
 /* GO THROUGH THE STATE MACHINE FOR THE OPERATION.                           */
 /* ------------------------------------------------------------------------- */
-        localAbortStateHandlerLab(signal);
-        return;
+	  localAbortStateHandlerLab(signal);
+	  return;
+	}//if
       }//if
     }//if
-  }//if
+  }
   c_tup->receive_attrinfo(signal, regTcPtr->tupConnectrec, dataPtr, length);
 }//Dblqh::lqhAttrinfoLab()
 
