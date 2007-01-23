@@ -3144,7 +3144,7 @@ void ha_ndbcluster::position(const byte *record)
       size_t len = key_part->length;
       const byte * ptr = record + key_part->offset;
       Field *field = key_part->field;
-      if (unlikely(field->type() ==  MYSQL_TYPE_VARCHAR))
+      if (field->type() ==  MYSQL_TYPE_VARCHAR)
       {
         if (((Field_varstring*)field)->length_bytes == 1)
         {
