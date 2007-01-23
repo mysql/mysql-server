@@ -730,4 +730,12 @@ show keys from `mysqlttest\1`.`a\b`;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 drop table `mysqlttest\1`.`a\b`;
 drop database `mysqlttest\1`;
+set names utf8;
+drop table if exists `été`;
+create table `été` (field1 int);
+show full tables;
+Tables_in_test	Table_type
+été	BASE TABLE
+drop table `été`;
+set names latin1;
 End of 5.1 tests
