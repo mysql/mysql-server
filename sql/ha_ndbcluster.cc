@@ -7806,7 +7806,7 @@ ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb, const
 retry:
     if(report_error)
     {
-      if (file)
+      if (file && pTrans)
       {
         reterr= file->ndb_err(pTrans);
       }
