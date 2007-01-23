@@ -3706,15 +3706,18 @@ we force server id to 2, but this MySQL server will not act as a slave.");
                          mysqld_port,
                          MYSQL_COMPILATION_COMMENT);
 
-  // Signal threads waiting for server to be started
-  mysqld_server_started= 1;
-  pthread_cond_signal(&COND_server_started);
-
   if (!opt_noacl)
   {
     if (Events::get_instance()->init())
       unireg_abort(1);
   }
+
+  /* Signal threads waiting for server to be started */
+  pthread_mutex_lock(&LOCK_server_started);
+  mysqld_server_started= 1;
+  pthread_cond_signal(&COND_server_started);
+  pthread_mutex_unlock(&LOCK_server_started);
+
 #if defined(__NT__) || defined(HAVE_SMEM)
   handle_connections_methods();
 #else
