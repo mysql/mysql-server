@@ -1316,9 +1316,12 @@ lock_rec_get_first(
 
 	lock = lock_rec_get_first_on_page(block);
 	if (UNIV_LIKELY_NULL(lock)) {
-		while (lock && !lock_rec_get_nth_bit(lock, heap_no)) {
+		do {
+			if (lock_rec_get_nth_bit(lock, heap_no)) {
+				break;
+			}
 			lock = lock_rec_get_next_on_page(lock);
-		}
+		} while (lock);
 	}
 
 	return(lock);
@@ -2740,9 +2743,8 @@ lock_move_rec_list_end(
 	table to the end of the hash chain, and lock_rec_add_to_queue
 	does not reuse locks if there are waiters in the queue. */
 
-	lock = lock_rec_get_first_on_page(block);
-
-	while (lock != NULL) {
+	for (lock = lock_rec_get_first_on_page(block); lock;
+	     lock = lock_rec_get_next_on_page(lock)) {
 		page_cur_t	cur1;
 		page_cur_t	cur2;
 		const ulint	type_mode = lock->type_mode;
@@ -2798,8 +2800,6 @@ lock_move_rec_list_end(
 			page_cur_move_to_next(&cur1);
 			page_cur_move_to_next(&cur2);
 		}
-
-		lock = lock_rec_get_next_on_page(lock);
 	}
 
 	lock_mutex_exit_kernel();
@@ -2838,9 +2838,8 @@ lock_move_rec_list_start(
 
 	lock_mutex_enter_kernel();
 
-	lock = lock_rec_get_first_on_page(block);
-
-	while (lock != NULL) {
+	for (lock = lock_rec_get_first_on_page(block); lock;
+	     lock = lock_rec_get_next_on_page(lock)) {
 		page_cur_t	cur1;
 		page_cur_t	cur2;
 		const ulint	type_mode = lock->type_mode;
@@ -2899,7 +2898,8 @@ lock_move_rec_list_start(
 		if (page_rec_is_supremum(rec)) {
 			ulint	i;
 
-			for (i = 2; i < lock_rec_get_n_bits(lock); i++) {
+			for (i = PAGE_HEAP_NO_USER_LOW;
+			     i < lock_rec_get_n_bits(lock); i++) {
 				if (UNIV_UNLIKELY
 				    (lock_rec_get_nth_bit(lock, i))) {
 
@@ -2912,8 +2912,6 @@ lock_move_rec_list_start(
 			}
 		}
 #endif /* UNIV_DEBUG */
-
-		lock = lock_rec_get_next_on_page(lock);
 	}
 
 	lock_mutex_exit_kernel();
