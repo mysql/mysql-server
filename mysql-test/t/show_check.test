@@ -563,4 +563,16 @@ show keys from `mysqlttest\1`.`a\b`;
 drop table `mysqlttest\1`.`a\b`;
 drop database `mysqlttest\1`;
 
+#
+# Bug#25081 SHOW FULL TABLES on table with latin chars in name fails
+#
+set names utf8;
+--disable_warnings
+drop table if exists `été`;
+--enable_warnings
+create table `été` (field1 int);
+show full tables;
+drop table `été`;
+set names latin1;
+
 --echo End of 5.1 tests
