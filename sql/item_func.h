@@ -679,6 +679,8 @@ public:
   bool const_item() const { return 0; }
   void update_used_tables();
   bool fix_fields(THD *thd, Item **ref);
+private:
+  void seed_random (Item * val);  
 };
 
 
