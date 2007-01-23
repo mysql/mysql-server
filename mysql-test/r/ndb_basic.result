@@ -757,12 +757,12 @@ PRIMARY KEY (b,c))  ENGINE=ndbcluster;
 INSERT INTO t1 VALUES
 ("a","ab","abc"),("b","abc","abcd"),("c","abc","ab"),("d","ab","ab"),("e","abc","abc");
 SELECT * FROM t1 ORDER BY a;
-a       b       c
-a       ab      abc
-b       abc     abcd
-c       abc     ab
-d       ab      ab
-e       abc     abc
+a	b	c
+a	ab	abc
+b	abc	abcd
+c	abc	ab
+d	ab	ab
+e	abc	abc
 DROP TABLE t1;
 End of 5.0 tests
 CREATE TABLE t1 (a VARCHAR(255) NOT NULL,
