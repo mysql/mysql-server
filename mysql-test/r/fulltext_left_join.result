@@ -67,3 +67,26 @@ id	d	e	m_id	f
 4	bword	aword	NULL	NULL
 5	aword and bword	NULL	5	
 drop table t1,t2;
+CREATE TABLE t1 (
+id int(10) NOT NULL auto_increment,
+link int(10) default NULL,
+name mediumtext default NULL,
+PRIMARY KEY (id),
+FULLTEXT (name)
+);
+INSERT INTO t1 VALUES (1, 1, 'string');
+INSERT INTO t1 VALUES (2, 0, 'string');
+CREATE TABLE t2 (
+id int(10) NOT NULL auto_increment,
+name mediumtext default NULL,
+PRIMARY KEY (id),
+FULLTEXT (name)
+);
+INSERT INTO t2 VALUES (1, 'string');
+SELECT t1.*, MATCH(t1.name) AGAINST('string') AS relevance 
+FROM t1 LEFT JOIN t2 ON t1.link = t2.id
+WHERE MATCH(t1.name, t2.name) AGAINST('string' IN BOOLEAN MODE);
+id	link	name	relevance
+1	1	string	0
+2	0	string	0
+DROP TABLE t1,t2;
