@@ -123,6 +123,7 @@ tags:
 # making sure each user use different ports.
 
 test-ps:
+	cd mysql-test ; \
 	@PERL@ ./mysql-test-run.pl $(force) --ps-protocol
 
 test-ns:
