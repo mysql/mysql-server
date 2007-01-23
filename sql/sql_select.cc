@@ -2197,7 +2197,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
     s->key_dependent= 0;
     if (tables->schema_table)
       table->file->stats.records= 2;
-    table->quick_condition_rows= table->file->records();
+    table->quick_condition_rows= table->file->stats.records;
 
     s->on_expr_ref= &tables->on_expr;
     if (*s->on_expr_ref)
