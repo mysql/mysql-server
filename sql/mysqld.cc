@@ -900,7 +900,7 @@ void kill_mysql(void)
 {
   DBUG_ENTER("kill_mysql");
 
-#ifdef SIGNALS_DONT_BREAK_READ
+#if defined(SIGNALS_DONT_BREAK_READ) && !defined(EMBEDDED_LIBRARY)
   abort_loop=1;					// Break connection loops
   close_server_sock();				// Force accept to wake up
 #endif
