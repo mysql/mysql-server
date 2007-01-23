@@ -4644,19 +4644,29 @@ static int create_ndb_column(NDBCOL &col,
       col.setType(NDBCOL::Text);
       col.setCharset(cs);
     }
-    // Use "<=" even if "<" is the exact condition
-    if (field->max_length() <= (1 << 8))
-      goto mysql_type_tiny_blob;
-    else if (field->max_length() <= (1 << 16))
     {
-      col.setInlineSize(256);
-      col.setPartSize(2000);
-      col.setStripeSize(16);
+      Field_blob *field_blob= (Field_blob *)field;
+      /*
+       * max_data_length is 2^8-1, 2^16-1, 2^24-1 for tiny, blob, medium.
+       * Tinyblob gets no blob parts.  The other cases are just a crude
+       * way to control part size and striping.
+       *
+       * In mysql blob(256) is promoted to blob(65535) so it does not
+       * in fact fit "inline" in NDB.
+       */
+      if (field_blob->max_data_length() < (1 << 8))
+        goto mysql_type_tiny_blob;
+      else if (field_blob->max_data_length() < (1 << 16))
+      {
+        col.setInlineSize(256);
+        col.setPartSize(2000);
+        col.setStripeSize(16);
+      }
+      else if (field_blob->max_data_length() < (1 << 24))
+        goto mysql_type_medium_blob;
+      else
+        goto mysql_type_long_blob;
     }
-    else if (field->max_length() <= (1 << 24))
-      goto mysql_type_medium_blob;
-    else
-      goto mysql_type_long_blob;
     break;
   mysql_type_medium_blob:
   case MYSQL_TYPE_MEDIUM_BLOB:   
