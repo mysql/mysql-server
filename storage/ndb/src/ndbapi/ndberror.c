@@ -229,7 +229,6 @@ ErrorBundle ErrorCodes[] = {
   /**
    * Internal errors
    */
-  { 892,  DMEC, IE, "Inconsistent hash index. The index needs to be dropped and recreated" },
   { 896,  DMEC, IE, "Tuple corrupted - wrong checksum or column data in invalid format" },
   { 901,  DMEC, IE, "Inconsistent ordered index. The index needs to be dropped and recreated" },
   { 202,  DMEC, IE, "202" },
