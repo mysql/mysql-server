@@ -2729,25 +2729,28 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
 
       if (arguments[i]->const_item())
       {
-        if (arguments[i]->null_value)
-          continue;
-
         switch (arguments[i]->result_type()) 
         {
         case STRING_RESULT:
         case DECIMAL_RESULT:
         {
           String *res= arguments[i]->val_str(&buffers[i]);
+          if (arguments[i]->null_value)
+            continue;
           f_args.args[i]= (char*) res->ptr();
           break;
         }
         case INT_RESULT:
           *((longlong*) to)= arguments[i]->val_int();
+          if (arguments[i]->null_value)
+            continue;
           f_args.args[i]= to;
           to+= ALIGN_SIZE(sizeof(longlong));
           break;
         case REAL_RESULT:
           *((double*) to)= arguments[i]->val_real();
+          if (arguments[i]->null_value)
+            continue;
           f_args.args[i]= to;
           to+= ALIGN_SIZE(sizeof(double));
           break;
