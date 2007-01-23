@@ -59,19 +59,6 @@ select * from t1 left join t2 on m_id = id where match(d, e, f) against ('+aword
 drop table t1,t2;
 
 #
-# BUG#14708
-# Inconsistent treatment of NULLs in LEFT JOINed FULLTEXT matching without index
-#
-
-create table t1 (id int not null primary key, d char(200) not null, e char(200));
-insert into t1 values (1, 'aword', null), (2, 'aword', 'bword'), (3, 'bword', null), (4, 'bword', 'aword'), (5, 'aword and bword', null);
-select * from t1 where match(d, e) against ('+aword +bword' in boolean mode);
-create table t2 (m_id int not null, f char(200), key (m_id));
-insert into t2 values (1, 'bword'), (3, 'aword'), (5, '');
-select * from t1 left join t2 on m_id = id where match(d, e, f) against ('+aword +bword' in boolean mode);
-drop table t1,t2;
-
-#
 # BUG#25637: LEFT JOIN with BOOLEAN FULLTEXT loses left table matches
 #            (this is actually the same bug as bug #14708)
 #
