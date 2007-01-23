@@ -79,9 +79,13 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   if (isServer)
     m_socket_client= 0;
   else
+  {
     m_socket_client= new SocketClient(remoteHostName, s_port,
 				      new SocketAuthSimple("ndbd",
 							   "ndbd passwd"));
+
+    m_socket_client->set_connect_timeout((m_timeOutMillis+999)/1000);
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -140,9 +144,9 @@ Transporter::connect_client() {
     }
     sockfd= m_socket_client->connect();
   }
-  
+
   return connect_client(sockfd);
-}  
+}
 
 bool
 Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
