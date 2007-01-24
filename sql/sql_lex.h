@@ -469,7 +469,7 @@ public:
   void set_thd(THD *thd_arg) { thd= thd_arg; }
 
   friend void lex_start(THD *thd, uchar *buf, uint length);
-  friend int subselect_union_engine::exec(bool);
+  friend int subselect_union_engine::exec();
 
   List<Item> *get_unit_column_types();
 };
