@@ -341,9 +341,9 @@ void Cmvmi::execSTTOR(Signal* signal)
   if (theStartPhase == 1){
     jam();
 
-    if(theConfig.lockPagesInMainMemory())
+    if(theConfig.lockPagesInMainMemory() == 1)
     {
-      int res = NdbMem_MemLockAll();
+      int res = NdbMem_MemLockAll(0);
       if(res != 0){
 	g_eventLogger.warning("Failed to memlock pages");
 	warningEvent("Failed to memlock pages");
@@ -788,6 +788,21 @@ Cmvmi::execSTART_ORD(Signal* signal) {
   
   if(globalData.theStartLevel == NodeState::SL_CMVMI){
     jam();
+
+    if(theConfig.lockPagesInMainMemory() == 2)
+    {
+      int res = NdbMem_MemLockAll(1);
+      if(res != 0)
+      {
+	g_eventLogger.warning("Failed to memlock pages");
+	warningEvent("Failed to memlock pages");
+      }
+      else
+      {
+	g_eventLogger.info("Locked future allocations");
+      }
+    }
+    
     globalData.theStartLevel  = NodeState::SL_STARTING;
     globalData.theRestartFlag = system_started;
     /**
