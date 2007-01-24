@@ -49,7 +49,7 @@ begin
 select get_lock('test_bug16407', 60);
 drop table "hashed_num";
 end|
-"Now if everything is fine the event has compiled and is locked
+"Now if everything is fine the event has compiled and is locked"
 select /*1*/ user, host, db, info from information_schema.processlist where command!='Daemon' and (info is null or info not like '%processlist%') order by info;
 user	host	db	info
 root	localhost	events_test	select get_lock('test_bug16407', 60)
@@ -239,26 +239,83 @@ insert into t1 values (2);
 create table t2 (a char(20));
 insert into t2 values ("e22830_1");
 create function f22830 () returns int return 5;
-create event e22830 on schedule every f22830() second do select 123;
+select get_lock('ee_22830', 60);
+get_lock('ee_22830', 60)
+1
+set global event_scheduler=on;
+create procedure p22830_wait()
+begin
+select get_lock('ee_22830', 60);
+select release_lock('ee_22830');
+end|
+create event e22830 on schedule every f22830() second do
+begin
+call p22830_wait();
+select 123;
+end|
 ERROR 42000: This version of MySQL doesn't yet support 'Usage of subqueries or stored function calls as part of this statement'
-create event e22830_1 on schedule every 1 hour do alter event e22830_1 on schedule every (select 8 from dual) hour;
-create event e22830_2 on schedule every 1 hour do alter event e22830_2 on schedule every (select 8 from t1) hour;
-create event e22830_3 on schedule every 1 hour do alter event e22830_3 on schedule every f22830() hour;
-create event e22830_4 on schedule every 1 hour do alter event e22830_4 on schedule every (select f22830() from dual) hour;
+create event e22830_1 on schedule every 1 hour do
+begin
+call p22830_wait();
+alter event e22830_1 on schedule every (select 8 from dual) hour;
+end|
+create event e22830_2 on schedule every 1 hour do
+begin
+call p22830_wait();
+alter event e22830_2 on schedule every (select 8 from t1) hour;
+end|
+create event e22830_3 on schedule every 1 hour do
+begin
+call p22830_wait();
+alter event e22830_3 on schedule every f22830() hour;
+end|
+create event e22830_4 on schedule every 1 hour do
+begin
+call p22830_wait();
+alter event e22830_4 on schedule every (select f22830() from dual) hour;
+end|
+"All events should be blocked in get_lock()"
 select event_name, event_definition, interval_value, interval_field from information_schema.events order by event_name;
 event_name	event_definition	interval_value	interval_field
-e22830_1	alter event e22830_1 on schedule every (select 8 from dual) hour	1	HOUR
-e22830_2	alter event e22830_2 on schedule every (select 8 from t1) hour	1	HOUR
-e22830_3	alter event e22830_3 on schedule every f22830() hour	1	HOUR
-e22830_4	alter event e22830_4 on schedule every (select f22830() from dual) hour	1	HOUR
-set global event_scheduler=on;
+e22830_1	begin
+call p22830_wait();
+alter event e22830_1 on schedule every (select 8 from dual) hour;
+end	1	HOUR
+e22830_2	begin
+call p22830_wait();
+alter event e22830_2 on schedule every (select 8 from t1) hour;
+end	1	HOUR
+e22830_3	begin
+call p22830_wait();
+alter event e22830_3 on schedule every f22830() hour;
+end	1	HOUR
+e22830_4	begin
+call p22830_wait();
+alter event e22830_4 on schedule every (select f22830() from dual) hour;
+end	1	HOUR
+select release_lock('ee_22830');
+release_lock('ee_22830')
+1
 set global event_scheduler=off;
 select event_name, event_definition, interval_value, interval_field from information_schema.events order by event_name;
 event_name	event_definition	interval_value	interval_field
-e22830_1	alter event e22830_1 on schedule every (select 8 from dual) hour	8	HOUR
-e22830_2	alter event e22830_2 on schedule every (select 8 from t1) hour	1	HOUR
-e22830_3	alter event e22830_3 on schedule every f22830() hour	1	HOUR
-e22830_4	alter event e22830_4 on schedule every (select f22830() from dual) hour	1	HOUR
+e22830_1	begin
+call p22830_wait();
+alter event e22830_1 on schedule every (select 8 from dual) hour;
+end	8	HOUR
+e22830_2	begin
+call p22830_wait();
+alter event e22830_2 on schedule every (select 8 from t1) hour;
+end	1	HOUR
+e22830_3	begin
+call p22830_wait();
+alter event e22830_3 on schedule every f22830() hour;
+end	1	HOUR
+e22830_4	begin
+call p22830_wait();
+alter event e22830_4 on schedule every (select f22830() from dual) hour;
+end	1	HOUR
+drop procedure p22830_wait;
 drop function f22830;
 drop event (select a from t2);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select a from t2)' at line 1
