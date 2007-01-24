@@ -360,16 +360,12 @@ public:
 
 class Item_func_encode :public Item_str_func
 {
- protected:
-  SQL_CRYPT sql_crypt;
-  String seed;
 public:
   Item_func_encode(Item *a, Item *seed):
     Item_str_func(a, seed) {}
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "encode"; }
-  void print(String *str);
 };
 
 
