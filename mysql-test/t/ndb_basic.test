@@ -710,3 +710,22 @@ drop table t1;
 --error 1
 --exec $MY_PERROR --ndb 1186 2>&1
 
+#
+# Bug #25746 - VARCHAR UTF8 PK issue
+# - prior to bugfix 4209, illegal length parameter would be 
+# returned in SELECT *
+
+CREATE TABLE t1 (
+a VARBINARY(40) NOT NULL,
+b VARCHAR (256) CHARACTER SET UTF8 NOT NULL,
+c VARCHAR(256) CHARACTER SET UTF8 NOT NULL,
+PRIMARY KEY (b,c))  ENGINE=ndbcluster;
+INSERT INTO t1 VALUES
+("a","ab","abc"),("b","abc","abcd"),("c","abc","ab"),("d","ab","ab"),("e","abc","abc");
+SELECT * FROM t1 ORDER BY a;
+DROP TABLE t1;
+
+# End of 5.0 tests
+--echo End of 5.0 tests
+
+
