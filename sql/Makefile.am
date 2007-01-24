@@ -121,13 +121,14 @@ DEFS =			-DMYSQL_SERVER \
 			-DLIBDIR="\"$(MYSQLLIBdir)\"" \
 			@DEFS@
 
-BUILT_DIST_SRC =	sql_yacc.cc sql_yacc.h
-BUILT_SOURCES =		$(BUILT_DIST_SRC) lex_hash.h
-EXTRA_DIST =		udf_example.c udf_example.def $(BUILT_DIST_SRC) \
+BUILT_MAINT_SRC =	sql_yacc.cc sql_yacc.h
+BUILT_SOURCES =		$(BUILT_MAINT_SRC) lex_hash.h
+EXTRA_DIST =		udf_example.c udf_example.def $(BUILT_MAINT_SRC) \
 			nt_servc.cc nt_servc.h message.mc CMakeLists.txt \
 			udf_example.c udf_example.def
-CLEANFILES =        	lex_hash.h sql_yacc.cc sql_yacc.h sql_yacc.output
-AM_YFLAGS =		-d --debug --verbose
+CLEANFILES =        	lex_hash.h sql_yacc.output
+MAINTAINERCLEANFILES =  $(BUILT_MAINT_SRC)
+AM_YFLAGS =		-d --verbose
 
 mysql_tzinfo_to_sql.cc:
 	rm -f mysql_tzinfo_to_sql.cc
@@ -147,23 +148,6 @@ link_sources: mysql_tzinfo_to_sql.cc
 
 mysql_tzinfo_to_sql.o:	$(mysql_tzinfo_to_sql_SOURCES)
 			$(CXXCOMPILE) -c $(INCLUDES) -DTZINFO2SQL $<
-
-# Try to get better dependencies for the grammar. Othervise really bad
-# things like different grammars for different pars of MySQL can
-# happen if you are unlucky.
-sql_yacc.cc:	sql_yacc.yy
-
-sql_yacc.h:	sql_yacc.yy
-
-# Be careful here, note that we use VPATH and might or might not have
-# a pregenerated "sql_yacc.cc" in $(srcdir) or one we just built in
-# $(builddir). And it has to work if $(srcdir) == $(builddir).
-sql_yacc.o:	sql_yacc.cc sql_yacc.h $(HEADERS)
-		@SED@ -e 's/__attribute__ ((__unused__))//' $< > sql_yacc.cc-new
-		@MV@ sql_yacc.cc-new sql_yacc.cc
-		@echo "Note: The following compile may take a long time."
-		@echo "If it fails, re-run configure with --with-low-memory"
-		$(CXXCOMPILE) $(LM_CFLAGS) -c sql_yacc.cc
 
 # FIXME seems like now "lex_hash.h" differs depending on configure
 # flags, so can't pregenerate and include in source TAR. Revert to
