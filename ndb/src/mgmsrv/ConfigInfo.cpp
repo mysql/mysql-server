@@ -563,10 +563,10 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "If set to yes, then NDB Cluster data will not be swapped out to disk",
     ConfigInfo::CI_USED,
     true,
-    ConfigInfo::CI_BOOL,
-    "false",
-    "false",
-    "true" },
+    ConfigInfo::CI_INT,
+    "0",
+    "1",
+    "2" },
 
   {
     CFG_DB_WATCHDOG_INTERVAL,
