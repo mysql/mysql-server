@@ -139,6 +139,10 @@ static HASH archive_open_tables;
 static handler *archive_create_handler(handlerton *hton, 
                                        TABLE_SHARE *table, 
                                        MEM_ROOT *mem_root);
+int archive_discover(handlerton *hton, THD* thd, const char *db, 
+                        const char *name,
+                        const void** frmblob, 
+                        uint* frmlen);
 
 /*
   Number of rows that will force a bulk insert.
@@ -186,10 +190,11 @@ int archive_db_init(void *p)
   handlerton *archive_hton;
 
   archive_hton= (handlerton *)p;
-  archive_hton->state=SHOW_OPTION_YES;
-  archive_hton->db_type=DB_TYPE_ARCHIVE_DB;
-  archive_hton->create=archive_create_handler;
-  archive_hton->flags=HTON_NO_FLAGS;
+  archive_hton->state= SHOW_OPTION_YES;
+  archive_hton->db_type= DB_TYPE_ARCHIVE_DB;
+  archive_hton->create= archive_create_handler;
+  archive_hton->flags= HTON_NO_FLAGS;
+  archive_hton->discover= archive_discover;
 
   if (pthread_mutex_init(&archive_mutex, MY_MUTEX_INIT_FAST))
     goto error;
@@ -234,6 +239,46 @@ ha_archive::ha_archive(handlerton *hton, TABLE_SHARE *table_arg)
 
   /* The size of the offset value we will use for position() */
   ref_length = sizeof(my_off_t);
+}
+
+int archive_discover(handlerton *hton, THD* thd, const char *db, 
+                        const char *name,
+                        const void** frmblob, 
+                        uint* frmlen)
+{
+  DBUG_ENTER("archive_discover");
+  DBUG_PRINT("archive_discover", ("db: %s, name: %s", db, name)); 
+  azio_stream frm_stream;
+  char az_file[FN_REFLEN];
+  char *frm_ptr;
+  MY_STAT file_stat; 
+
+  fn_format(az_file, name, db, ARZ, MY_REPLACE_EXT | MY_UNPACK_FILENAME);
+
+  if (!(my_stat(az_file, &file_stat, MYF(0))))
+    goto err;
+
+  if (!(azopen(&frm_stream, az_file, O_RDONLY|O_BINARY)))
+  {
+    if (errno == EROFS || errno == EACCES)
+      DBUG_RETURN(my_errno= errno);
+    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+  }
+
+  if (frm_stream.frm_length == 0)
+    goto err;
+
+  frm_ptr= (char *)my_malloc(sizeof(char) * frm_stream.frm_length, MYF(0));
+  azread_frm(&frm_stream, frm_ptr);
+  azclose(&frm_stream);
+
+  *frmlen= frm_stream.frm_length;
+  *frmblob= frm_ptr;
+
+  DBUG_RETURN(0);
+err:
+  my_errno= 0;
+  DBUG_RETURN(1);
 }
 
 /*
@@ -321,7 +366,7 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name,
     share->crashed= FALSE;
     share->archive_write_open= FALSE;
     fn_format(share->data_file_name, table_name, "",
-              ARZ,MY_REPLACE_EXT|MY_UNPACK_FILENAME);
+              ARZ, MY_REPLACE_EXT | MY_UNPACK_FILENAME);
     strmov(share->table_name, table_name);
     DBUG_PRINT("ha_archive", ("Data File %s", 
                         share->data_file_name));
@@ -540,6 +585,9 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   char linkname[FN_REFLEN];
   int error;
   azio_stream create_stream;            /* Archive file we are working with */
+  File frm_file;                   /* File handler for readers */
+  MY_STAT file_stat;  // Stat information for the data file
+  char *frm_ptr;
 
   DBUG_ENTER("ha_archive::create");
 
@@ -578,7 +626,6 @@ int ha_archive::create(const char *name, TABLE *table_arg,
               MY_REPLACE_EXT | MY_UNPACK_FILENAME);
     fn_format(linkname, name, "", ARZ,
               MY_REPLACE_EXT | MY_UNPACK_FILENAME);
-              //MY_UNPACK_FILENAME | MY_APPEND_EXT);
   }
   else
   {
@@ -587,28 +634,56 @@ int ha_archive::create(const char *name, TABLE *table_arg,
     linkname[0]= 0;
   }
 
-  if (!(azopen(&create_stream, name_buff, O_CREAT|O_RDWR|O_BINARY)))
+  /*
+    There is a chance that the file was "discovered". In this case
+    just use whatever file is there.
+  */
+  if (!(my_stat(name_buff, &file_stat, MYF(0))))
   {
-    error= errno;
-    goto error2;
-  }
+    my_errno= 0;
+    if (!(azopen(&create_stream, name_buff, O_CREAT|O_RDWR|O_BINARY)))
+    {
+      error= errno;
+      goto error2;
+    }
 
-  if (linkname[0])
-    my_symlink(name_buff, linkname, MYF(0));
+    if (linkname[0])
+      my_symlink(name_buff, linkname, MYF(0));
+    fn_format(name_buff, name, "", ".frm",
+              MY_REPLACE_EXT | MY_UNPACK_FILENAME);
+
+    /*
+      Here is where we open up the frm and pass it to archive to store 
+    */
+    frm_file= my_open(name_buff, O_RDONLY, MYF(0));
+    VOID(my_fstat(frm_file, &file_stat, MYF(MY_WME)));
+    frm_ptr= (char *)my_malloc(sizeof(char) * file_stat.st_size , MYF(0));
+    my_read(frm_file, frm_ptr, file_stat.st_size, MYF(0));
+    azwrite_frm(&create_stream, frm_ptr, file_stat.st_size);
+    my_close(frm_file, MYF(0));
+    my_free(frm_ptr, MYF(0));
+
+    if (create_info->comment.str)
+      azwrite_comment(&create_stream, create_info->comment.str, 
+                      create_info->comment.length);
+
+    /* 
+      Yes you need to do this, because the starting value 
+      for the autoincrement may not be zero.
+    */
+    create_stream.auto_increment= stats.auto_increment_value;
+    if (azclose(&create_stream))
+    {
+      error= errno;
+      goto error2;
+    }
+  }
+  else
+    my_errno= 0;
 
   DBUG_PRINT("ha_archive", ("Creating File %s", name_buff));
   DBUG_PRINT("ha_archive", ("Creating Link %s", linkname));
 
-  /* 
-    Yes you need to do this, because the starting value 
-    for the autoincrement may not be zero.
-  */
-  create_stream.auto_increment= stats.auto_increment_value;
-  if (azclose(&create_stream))
-  {
-    error= errno;
-    goto error2;
-  }
 
   DBUG_RETURN(0);
 
@@ -1232,7 +1307,7 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
 
   /* Lets create a file to contain the new data */
   fn_format(writer_filename, share->table_name, "", ARN, 
-            MY_REPLACE_EXT|MY_UNPACK_FILENAME);
+            MY_REPLACE_EXT | MY_UNPACK_FILENAME);
 
   if (!(azopen(&writer, writer_filename, O_CREAT|O_RDWR|O_BINARY)))
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE); 
