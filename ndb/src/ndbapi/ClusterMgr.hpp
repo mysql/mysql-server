@@ -97,8 +97,8 @@ private:
   NdbMutex*     clusterMgrThreadMutex;
   
   void showState(NodeId nodeId);
-  void reportNodeFailed(NodeId nodeId);
-
+  void reportNodeFailed(NodeId nodeId, bool disconnect = false);
+  
   /**
    * Signals received
    */
