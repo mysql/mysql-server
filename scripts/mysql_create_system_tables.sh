@@ -200,7 +200,7 @@ then
            INSERT INTO user (host,user) values ('localhost','');"
     else
       i_u="$i_u
-	   INSERT INTO user VALUES ('localhost','','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);"
+	   INSERT INTO user (host,user) VALUES ('localhost','');"
     fi
   fi 
 fi
