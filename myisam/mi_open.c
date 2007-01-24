@@ -435,6 +435,13 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       offset+=share->rec[i].length;
     }
     share->rec[i].type=(int) FIELD_LAST;	/* End marker */
+    if (offset > share->base.reclength)
+    {
+      /* purecov: begin inspected */
+      my_errno= HA_ERR_CRASHED;
+      goto err;
+      /* purecov: end */
+    }
 
     if (! lock_error)
     {
