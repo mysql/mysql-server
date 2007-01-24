@@ -314,6 +314,7 @@ public:
   enum Functype functype() const { return TRIG_COND_FUNC; };
   const char *func_name() const { return "trigcond"; };
   bool const_item() const { return FALSE; }
+  bool *get_trig_var() { return trig_var; }
 };
 
 class Item_func_not_all :public Item_func_not
