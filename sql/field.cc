@@ -7024,7 +7024,7 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
                               cannot_convert_error_pos, from + length))
     return 2;
 
-  if (copy_length < length)
+  if (from_end_pos < from + length)
   {
     report_data_too_long(this);
     return 2;
