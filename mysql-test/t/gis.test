@@ -428,3 +428,13 @@ drop table t1;
 create table t1 select GeomFromText('point(1 1)');
 desc t1;
 drop table t1;
+
+#
+# Bug #11335 View redefines column types
+#
+create table t1 (f1 tinyint(1), f2 char(1), f3 varchar(1), f4 geometry, f5 datetime);
+create view v1 as select * from t1;
+desc v1;
+drop view v1;
+drop table t1;
+
