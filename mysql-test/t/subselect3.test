@@ -46,7 +46,6 @@ select a, oref, a in (select max(ie)
 explain extended
 select a, oref from t2 
 where a in (select max(ie) from t1 where oref=t2.oref group by grp);
-
 select a, oref, a in (
   select max(ie) from t1 where oref=t2.oref group by grp union
   select max(ie) from t1 where oref=t2.oref group by grp
