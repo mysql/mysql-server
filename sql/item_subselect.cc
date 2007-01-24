@@ -948,7 +948,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 
     unit->uncacheable|= UNCACHEABLE_DEPENDENT;
   }
-  if (!abort_on_null && left_expr->maybe_null)
+  if (!abort_on_null && left_expr->maybe_null && !pushed_cond_guards)
   {
     if (!(pushed_cond_guards= (bool*)join->thd->alloc(sizeof(bool))))
       DBUG_RETURN(RES_ERROR);
@@ -1163,7 +1163,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     thd->lex->current_select= current;
     unit->uncacheable|= UNCACHEABLE_DEPENDENT;
 
-    if (!abort_on_null && left_expr->maybe_null)
+    if (!abort_on_null && left_expr->maybe_null && !pushed_cond_guards)
     {
       if (!(pushed_cond_guards= (bool*)join->thd->alloc(sizeof(bool) *
                                                         left_expr->cols())))
