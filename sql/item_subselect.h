@@ -94,7 +94,7 @@ public:
     return null_value;
   }
   bool fix_fields(THD *thd, Item **ref);
-  virtual bool exec(bool full_scan);
+  virtual bool exec();
   virtual void fix_length_and_dec();
   table_map used_tables() const;
   table_map not_null_tables() const { return 0; }
@@ -104,6 +104,7 @@ public:
   Item *get_tmp_table_item(THD *thd);
   void update_used_tables();
   void print(String *str);
+  virtual bool have_guarded_conds() { return FALSE; }
   bool change_engine(subselect_engine *eng)
   {
     old_engine= engine;
@@ -249,13 +250,21 @@ protected:
   bool transformed;
 public:
   /* Used to trigger on/off conditions that were pushed down to subselect */
-  bool enable_pushed_conds;
+  bool *pushed_cond_guards;
+
+  bool *get_cond_guard(int i)
+  {
+    return pushed_cond_guards ? pushed_cond_guards + i : NULL;
+  }
+  void set_cond_guard_var(int i, bool v) { pushed_cond_guards[i]= v; }
+  bool have_guarded_conds() { return test(pushed_cond_guards); }
+
   Item_func_not_all *upper_item; // point on NOT/NOP before ALL/SOME subquery
 
   Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect()
     :Item_exists_subselect(), optimizer(0), abort_on_null(0), transformed(0),
-     enable_pushed_conds(TRUE), upper_item(0)
+     pushed_cond_guards(NULL), upper_item(0)
   {}
 
   subs_type substype() { return IN_SUBS; }
@@ -340,23 +349,22 @@ public:
 
     SYNOPSIS
       exec()
-        full_scan TRUE  - Pushed-down predicates are disabled, the engine
-                          must disable made based on those predicates.
-                  FALSE - Pushed-down predicates are in effect.
+
     DESCRIPTION
       Execute the engine. The result of execution is subquery value that is
       either captured by previously set up select_result-based 'sink' or
       stored somewhere by the exec() method itself.
 
-      A required side effect: if full_scan==TRUE, subselect_engine->no_rows()
-      should return correct result.
+      A required side effect: If at least one pushed-down predicate is
+      disabled, subselect_engine->no_rows() must return correct result after 
+      the exec() call.
 
     RETURN
       0 - OK
-      1 - Either an execution error, or the engine was be "changed", and
+      1 - Either an execution error, or the engine was "changed", and the
           caller should call exec() again for the new engine.
   */
-  virtual int exec(bool full_scan)= 0;
+  virtual int exec()= 0;
   virtual uint cols()= 0; /* return number of columns in select */
   virtual uint8 uncacheable()= 0; /* query is uncacheable */
   enum Item_result type() { return res_type; }
@@ -391,7 +399,7 @@ public:
   void cleanup();
   int prepare();
   void fix_length_and_dec(Item_cache** row);
-  int exec(bool full_scan);
+  int exec();
   uint cols();
   uint8 uncacheable();
   void exclude();
@@ -415,7 +423,7 @@ public:
   void cleanup();
   int prepare();
   void fix_length_and_dec(Item_cache** row);
-  int exec(bool full_scan);
+  int exec();
   uint cols();
   uint8 uncacheable();
   void exclude();
@@ -429,11 +437,30 @@ public:
 
 
 struct st_join_table;
+
+
+/*
+  A subquery execution engine that evaluates the subquery by doing one index
+  lookup in a unique index.
+
+  This engine is used to resolve subqueries in forms
+  
+    outer_expr IN (SELECT tbl.unique_key FROM tbl WHERE subq_where) 
+    
+  or, tuple-based:
+  
+    (oe1, .. oeN) IN (SELECT uniq_key_part1, ... uniq_key_partK
+                      FROM tbl WHERE subqwhere) 
+  
+  i.e. the subquery is a single table SELECT without GROUP BY, aggregate
+  functions, etc.
+*/
+
 class subselect_uniquesubquery_engine: public subselect_engine
 {
 protected:
   st_join_table *tab;
-  Item *cond;
+  Item *cond; /* The WHERE condition of subselect */
   /* 
     TRUE<=> last execution produced empty set. Valid only when left
     expression is NULL.
@@ -453,7 +480,7 @@ public:
   void cleanup();
   int prepare();
   void fix_length_and_dec(Item_cache** row);
-  int exec(bool full_scan);
+  int exec();
   uint cols() { return 1; }
   uint8 uncacheable() { return UNCACHEABLE_DEPENDENT; }
   void exclude();
@@ -471,16 +498,47 @@ class subselect_indexsubquery_engine: public subselect_uniquesubquery_engine
 {
   /* FALSE for 'ref', TRUE for 'ref-or-null'. */
   bool check_null;
+  /* 
+    The "having" clause. This clause (further reffered to as "artificial
+    having") was inserted by subquery transformation code. It contains 
+    Item(s) that have a side-effect: they record whether the subquery has 
+    produced a row with NULL certain components. We need to use it for cases
+    like
+      (oe1, oe2) IN (SELECT t.key, t.no_key FROM t1)
+    where we do index lookup on t.key=oe1 but need also to check if there
+    was a row such that t.no_key IS NULL.
+    
+    NOTE: This is currently here and not in the uniquesubquery_engine. Ideally
+    it should have been in uniquesubquery_engine in order to allow execution of
+    subqueries like
+    
+      (oe1, oe2) IN (SELECT primary_key, non_key_maybe_null_field FROM tbl)
+
+    We could use uniquesubquery_engine for the first component and let
+    Item_is_not_null_test( non_key_maybe_null_field) to handle the second.
+
+    However, subqueries like the above are currently not handled by index
+    lookup-based subquery engines, the engine applicability check misses
+    them: it doesn't switch the engine for case of artificial having and
+    [eq_]ref access (only for artifical having + ref_or_null or no having).
+    The above example subquery is handled as a full-blown SELECT with eq_ref
+    access to one table.
+
+    Due to this limitation, the "artificial having" currently needs to be 
+    checked by only in indexsubquery_engine.
+  */
+  Item *having;
 public:
 
   // constructor can assign THD because it will be called after JOIN::prepare
   subselect_indexsubquery_engine(THD *thd, st_join_table *tab_arg,
 				 Item_subselect *subs, Item *where,
-				 bool chk_null)
+                                 Item *having_arg, bool chk_null)
     :subselect_uniquesubquery_engine(thd, tab_arg, subs, where),
-     check_null(chk_null)
+     check_null(chk_null),
+     having(having_arg)
   {}
-  int exec(bool full_scan);
+  int exec();
   void print (String *str);
 };
 
