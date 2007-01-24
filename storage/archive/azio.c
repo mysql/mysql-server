@@ -128,7 +128,12 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
     s->longest_row= 0;
     s->auto_increment= 0;
     s->check_point= 0;
+    s->comment_start_pos= 0;
+    s->comment_length= 0;
+    s->frm_start_pos= 0;
+    s->frm_length= 0;
     s->dirty= 1; /* We create the file dirty */
+    s->start = AZHEADER_SIZE + AZMETA_BUFFER_SIZE;
     write_header(s);
     my_seek(s->file, 0, MY_SEEK_END, MYF(0));
   }
@@ -153,7 +158,6 @@ void write_header(azio_stream *s)
   char buffer[AZHEADER_SIZE + AZMETA_BUFFER_SIZE];
   char *ptr= buffer;
 
-  s->start = AZHEADER_SIZE + AZMETA_BUFFER_SIZE;
   s->block_size= AZ_BUFSIZE;
   s->version = (unsigned char)az_magic[1];
   s->minor_version = (unsigned char)az_magic[2];
@@ -167,8 +171,12 @@ void write_header(azio_stream *s)
   *(ptr + AZ_BLOCK_POS)= (unsigned char)(s->block_size/1024); /* Reserved for block size */
   *(ptr + AZ_STRATEGY_POS)= (unsigned char)Z_DEFAULT_STRATEGY; /* Compression Type */
 
-  int4store(ptr + AZ_FRM_POS, 0); /* FRM Block */
+  int4store(ptr + AZ_FRM_POS, s->frm_start_pos); /* FRM Block */
+  int4store(ptr + AZ_FRM_LENGTH_POS, s->frm_length); /* FRM Block */
+  int4store(ptr + AZ_COMMENT_POS, s->comment_start_pos); /* COMMENT Block */
+  int4store(ptr + AZ_COMMENT_LENGTH_POS, s->comment_length); /* COMMENT Block */
   int4store(ptr + AZ_META_POS, 0); /* Meta Block */
+  int4store(ptr + AZ_META_LENGTH_POS, 0); /* Meta Block */
   int8store(ptr + AZ_START_POS, (unsigned long long)s->start); /* Start of Data Block Index Block */
   int8store(ptr + AZ_ROW_POS, (unsigned long long)s->rows); /* Start of Data Block Index Block */
   int8store(ptr + AZ_FLUSH_POS, (unsigned long long)s->forced_flushes); /* Start of Data Block Index Block */
@@ -176,10 +184,12 @@ void write_header(azio_stream *s)
   int8store(ptr + AZ_AUTOINCREMENT_POS, (unsigned long long)s->auto_increment); /* Start of Data Block Index Block */
   int4store(ptr+ AZ_LONGEST_POS , s->longest_row); /* Longest row */
   int4store(ptr+ AZ_SHORTEST_POS, s->shortest_row); /* Shorest row */
+  int4store(ptr+ AZ_FRM_POS, 
+            AZHEADER_SIZE + AZMETA_BUFFER_SIZE); /* FRM position */
   *(ptr + AZ_DIRTY_POS)= (unsigned char)s->dirty; /* Start of Data Block Index Block */
 
   /* Always begin at the begining, and end there as well */
-  my_pwrite(s->file, buffer, (uint)s->start, 0, MYF(0));
+  my_pwrite(s->file, buffer, AZHEADER_SIZE + AZMETA_BUFFER_SIZE, 0, MYF(0));
 }
 
 /* ===========================================================================
@@ -303,6 +313,8 @@ void check_header(azio_stream *s)
       buffer[len]= get_byte(s);
     s->z_err = s->z_eof ? Z_DATA_ERROR : Z_OK;
     read_header(s, buffer);
+    for (; len < s->start; len++) 
+      get_byte(s);
   }
   else
   {
@@ -326,6 +338,10 @@ void read_header(azio_stream *s, unsigned char *buffer)
     s->auto_increment= (unsigned long long)uint8korr(buffer + AZ_AUTOINCREMENT_POS);
     s->longest_row= (unsigned int)uint4korr(buffer + AZ_LONGEST_POS);
     s->shortest_row= (unsigned int)uint4korr(buffer + AZ_SHORTEST_POS);
+    s->frm_start_pos= (unsigned int)uint4korr(buffer + AZ_FRM_POS);
+    s->frm_length= (unsigned int)uint4korr(buffer + AZ_FRM_LENGTH_POS);
+    s->comment_start_pos= (unsigned int)uint4korr(buffer + AZ_COMMENT_POS);
+    s->comment_length= (unsigned int)uint4korr(buffer + AZ_COMMENT_LENGTH_POS);
     s->dirty= (unsigned int)buffer[AZ_DIRTY_POS];
   }
   else
@@ -496,7 +512,6 @@ unsigned int azwrite (azio_stream *s, voidpc buf, unsigned int len)
 {
   s->stream.next_in = (Bytef*)buf;
   s->stream.avail_in = len;
-
 
   s->rows++;
 
@@ -781,4 +796,66 @@ int azclose (azio_stream *s)
   }
 
   return destroy(s);
+}
+
+/*
+  Though this was added to support MySQL's FRM file, anything can be 
+  stored in this location.
+*/
+int azwrite_frm(azio_stream *s, char *blob, unsigned int length)
+{
+  if (s->mode == 'r') 
+    return 1;
+
+  if (s->rows > 0) 
+    return 1;
+
+  s->frm_start_pos= s->start;
+  s->frm_length= length;
+  s->start+= length;
+
+  my_pwrite(s->file, blob, s->frm_length, s->frm_start_pos, MYF(0));
+
+  write_header(s);
+  my_seek(s->file, 0, MY_SEEK_END, MYF(0));
+
+  return 0;
+}
+
+int azread_frm(azio_stream *s, char *blob)
+{
+  my_pread(s->file, blob, s->frm_length, s->frm_start_pos, MYF(0));
+
+  return 0;
+}
+
+
+/*
+  Simple comment field
+*/
+int azwrite_comment(azio_stream *s, char *blob, unsigned int length)
+{
+  if (s->mode == 'r') 
+    return 1;
+
+  if (s->rows > 0) 
+    return 1;
+
+  s->comment_start_pos= s->start;
+  s->comment_length= length;
+  s->start+= length;
+
+  my_pwrite(s->file, blob, s->comment_length, s->comment_start_pos, MYF(0));
+
+  write_header(s);
+  my_seek(s->file, 0, MY_SEEK_END, MYF(0));
+
+  return 0;
+}
+
+int azread_comment(azio_stream *s, char *blob)
+{
+  my_pread(s->file, blob, s->comment_length, s->comment_start_pos, MYF(0));
+
+  return 0;
 }
