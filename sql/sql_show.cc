@@ -4497,8 +4497,10 @@ get_referential_constraints_record(THD *thd, struct st_table_list *tables,
                              f_key_info->forein_id->length, cs);
       table->field[4]->store(f_key_info->referenced_db->str, 
                              f_key_info->referenced_db->length, cs);
-      table->field[5]->store(f_key_info->referenced_table->str, 
+      table->field[10]->store(f_key_info->referenced_table->str, 
                              f_key_info->referenced_table->length, cs);
+      table->field[5]->store(f_key_info->referenced_key_name->str, 
+                             f_key_info->referenced_key_name->length, cs);
       table->field[6]->store(STRING_WITH_LEN("NONE"), cs);
       table->field[7]->store(f_key_info->update_method->str, 
                              f_key_info->update_method->length, cs);
@@ -5668,6 +5670,7 @@ ST_FIELD_INFO referential_constraints_fields_info[]=
   {"UPDATE_RULE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"DELETE_RULE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"REFERENCED_TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 

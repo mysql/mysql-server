@@ -6003,8 +6003,14 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
           }
           f_key_info.update_method= make_lex_string(thd, f_key_info.update_method,
                                                     tmp_buff, length, 1);
-
-
+          if (foreign->referenced_index &&
+              foreign->referenced_index->name)
+          {
+            f_key_info.referenced_key_name= 
+              make_lex_string(thd, f_key_info.referenced_key_name,
+                              foreign->referenced_index->name,
+                              strlen(foreign->referenced_index->name), 1);
+          }
 
 	  FOREIGN_KEY_INFO *pf_key_info= ((FOREIGN_KEY_INFO *)
 		  thd->memdup((gptr) &f_key_info,

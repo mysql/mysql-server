@@ -1208,6 +1208,8 @@ void st_select_lex::init_select()
   offset_limit= 0;      /* denotes the default offset = 0 */
   with_sum_func= 0;
   is_correlated= 0;
+  cur_pos_in_select_list= UNDEF_POS;
+  non_agg_fields.empty();
 }
 
 /*
@@ -1397,9 +1399,17 @@ void st_select_lex::mark_as_dependent(SELECT_LEX *last)
     if (!(s->uncacheable & UNCACHEABLE_DEPENDENT))
     {
       // Select is dependent of outer select
-      s->uncacheable|= UNCACHEABLE_DEPENDENT;
+      s->uncacheable= (s->uncacheable & ~UNCACHEABLE_UNITED) |
+                       UNCACHEABLE_DEPENDENT;
       SELECT_LEX_UNIT *munit= s->master_unit();
-      munit->uncacheable|= UNCACHEABLE_DEPENDENT;
+      munit->uncacheable= (munit->uncacheable & ~UNCACHEABLE_UNITED) |
+                       UNCACHEABLE_DEPENDENT;
+      for (SELECT_LEX *sl= munit->first_select(); sl ; sl= sl->next_select())
+      {
+        if (sl != s &&
+            !(sl->uncacheable & (UNCACHEABLE_DEPENDENT | UNCACHEABLE_UNITED)))
+          sl->uncacheable|= UNCACHEABLE_UNITED;
+      }
     }
   is_correlated= TRUE;
   this->master_unit()->item->is_correlated= TRUE;
