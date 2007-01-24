@@ -1250,3 +1250,22 @@ ERROR HY000: View's SELECT contains a variable or parameter
 PREPARE stmt FROM "CREATE VIEW v AS SELECT ?";
 ERROR HY000: View's SELECT contains a variable or parameter
 DROP TABLE t1;
+drop tables if exists t1;
+drop procedure if exists bug24491;
+create table t1 (id int primary key auto_increment, value varchar(10));
+insert into t1 (id, value) values (1, 'FIRST'), (2, 'SECOND'), (3, 'THIRD');
+create procedure bug24491()
+insert into t1 (id, value) select * from (select 4 as i, 'FOURTH' as v) as y on duplicate key update v = 'DUP';
+call bug24491();
+ERROR 42S22: Unknown column 'v' in 'field list'
+call bug24491();
+ERROR 42S22: Unknown column 'v' in 'field list'
+drop procedure bug24491;
+create procedure bug24491()
+insert into t1 (id, value) select * from (select 4 as id, 'FOURTH' as value) as y on duplicate key update y.value = 'DUP';
+call bug24491();
+ERROR 42S22: Unknown column 'y.value' in 'field list'
+call bug24491();
+ERROR 42S22: Unknown column 'y.value' in 'field list'
+drop procedure bug24491;
+drop tables t1;
