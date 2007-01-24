@@ -968,6 +968,10 @@ struct buf_page_struct{
 	buf_page_t*	hash;		/* node used in chaining to
 					buf_pool->page_hash or
 					buf_pool->zip_hash */
+#ifdef UNIV_DEBUG
+	ibool		in_page_hash;	/* TRUE if in buf_pool->page_hash */
+	ibool		in_zip_hash;	/* TRUE if in buf_pool->zip_hash */
+#endif /* UNIV_DEBUG */
 
 	/* 2. Page flushing fields; protected by buf_pool->mutex */
 
