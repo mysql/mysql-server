@@ -658,3 +658,11 @@ insert into t1 (a, c) values (1,'aaa'),(3,'bbb');
 select count(*) from t1 where c<'bbb';
 count(*)
 1
+create table nationaldish (DishID int(10) unsigned NOT NULL AUTO_INCREMENT,
+CountryCode char(3) NOT NULL,
+DishTitle varchar(64) NOT NULL,
+calories smallint(5) unsigned DEFAULT NULL,
+PRIMARY KEY (DishID),
+INDEX i USING HASH (countrycode,calories)
+) ENGINE=ndbcluster;
+ERROR HY000: Can't create table './test/nationaldish.frm' (errno: 138)

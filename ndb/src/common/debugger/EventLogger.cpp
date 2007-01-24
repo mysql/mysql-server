@@ -115,7 +115,8 @@ void getTextNDBStopForced(QQQQ) {
   int sphase        = theData[4];
   int extra         = theData[5];
   getRestartAction(theData[1],action_str);
-  reason_str.appfmt(" Initiated by signal %d.", signum);
+  if (signum)
+    reason_str.appfmt(" Initiated by signal %d.", signum);
   if (error)
   {
     ndbd_exit_classification cl;
