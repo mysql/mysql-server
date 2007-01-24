@@ -41,14 +41,6 @@ BUILT_SOURCES = linked_client_sources linked_server_sources \
 CLEANFILES = $(BUILT_SOURCES)
 DISTCLEANFILES = ac_available_languages_fragment
 
-# Our current filtering of "sql_yacc.cc" in "sql/Makefile.am" creates
-# a problem, if a VPATH build and "sql_yacc.cc" was part of the source
-# distribution we end up with one "sql_yacc.cc" in the source tree,
-# and one in the build tree. This breaks "distcleancheck", until this
-# is sorted out we redefine the find that scans for files not removed
-
-distcleancheck_listfiles = find . -name sql_yacc.cc -o -type f -print
-
 linked_include_sources:
 	cd include; $(MAKE) link_sources
 	echo timestamp > linked_include_sources
