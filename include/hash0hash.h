@@ -98,6 +98,14 @@ do {\
 	}\
 } while (0)
 
+#ifdef UNIV_HASH_DEBUG
+# define HASH_ASSERT_VALID(DATA) ut_a((void*) (DATA) != (void*) -1)
+# define HASH_INVALIDATE(DATA, NAME) DATA->NAME = (void*) -1
+#else
+# define HASH_ASSERT_VALID(DATA) do {} while (0)
+# define HASH_INVALIDATE(DATA, NAME) do {} while (0)
+#endif
+
 /***********************************************************************
 Deletes a struct from a hash table. */
 
@@ -111,6 +119,7 @@ do {\
 	cell3333 = hash_get_nth_cell(TABLE, hash_calc_hash(FOLD, TABLE));\
 \
 	if (cell3333->node == DATA) {\
+		HASH_ASSERT_VALID(DATA->NAME);\
 		cell3333->node = DATA->NAME;\
 	} else {\
 		struct3333 = cell3333->node;\
@@ -123,6 +132,7 @@ do {\
 \
 		struct3333->NAME = DATA->NAME;\
 	}\
+	HASH_INVALIDATE(DATA, NAME);\
 } while (0)
 
 /***********************************************************************
@@ -144,11 +154,13 @@ Looks for a struct in a hash table. */
 	HASH_ASSERT_OWNED(TABLE, FOLD)\
 \
 	(DATA) = HASH_GET_FIRST(TABLE, hash_calc_hash(FOLD, TABLE));\
+	HASH_ASSERT_VALID(DATA);\
 \
 	while ((DATA) != NULL) {\
 		if (TEST) {\
 			break;\
 		} else {\
+			HASH_ASSERT_VALID(HASH_GET_NEXT(NAME, DATA));\
 			(DATA) = HASH_GET_NEXT(NAME, DATA);\
 		}\
 	}\

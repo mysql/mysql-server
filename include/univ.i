@@ -87,6 +87,7 @@ memory is read outside the allocated blocks. */
 #define UNIV_DEBUG_FILE_ACCESSES		/* Debug .ibd file access
 						(field file_page_was_freed
 						in buf_page_t) */
+#define UNIV_HASH_DEBUG				/* debug HASH_ macros */
 #define UNIV_LIST_DEBUG				/* debug UT_LIST_ macros */
 #define UNIV_MEM_DEBUG				/* detect memory leaks etc */
 #define UNIV_IBUF_DEBUG				/* debug the insert buffer;

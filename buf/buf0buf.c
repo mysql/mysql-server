@@ -2028,9 +2028,9 @@ buf_page_init_low(
 	bpage->io_fix = BUF_IO_NONE;
 	bpage->buf_fix_count = 0;
 	bpage->freed_page_clock = 0;
-	// bpage->hash = (buf_page_t*) -1;
 	bpage->newest_modification = 0;
 	bpage->oldest_modification = 0;
+	HASH_INVALIDATE(bpage, hash);
 #ifdef UNIV_DEBUG_FILE_ACCESSES
 	bpage->file_page_was_freed = FALSE;
 #endif /* UNIV_DEBUG_FILE_ACCESSES */
@@ -2124,13 +2124,13 @@ buf_page_init(
 		ut_error;
 	}
 
+	buf_page_init_low(&block->page);
+
 	ut_ad(!block->page.in_zip_hash);
 	ut_ad(!block->page.in_page_hash);
 	ut_d(block->page.in_page_hash = TRUE);
 	HASH_INSERT(buf_page_t, hash, buf_pool->page_hash,
 		    buf_page_address_fold(space, offset), &block->page);
-
-	buf_page_init_low(&block->page);
 }
 
 /************************************************************************
