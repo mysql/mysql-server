@@ -2933,3 +2933,4 @@ win/vs71cache.txt
 win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
+libmysqld/sql_servers.cc

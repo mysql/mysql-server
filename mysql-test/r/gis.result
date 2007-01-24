@@ -718,3 +718,14 @@ desc t1;
 Field	Type	Null	Key	Default	Extra
 GeomFromText('point(1 1)')	geometry	NO			
 drop table t1;
+create table t1 (f1 tinyint(1), f2 char(1), f3 varchar(1), f4 geometry, f5 datetime);
+create view v1 as select * from t1;
+desc v1;
+Field	Type	Null	Key	Default	Extra
+f1	tinyint(1)	YES		NULL	
+f2	char(1)	YES		NULL	
+f3	varchar(1)	YES		NULL	
+f4	geometry	YES		NULL	
+f5	datetime	YES		NULL	
+drop view v1;
+drop table t1;
