@@ -36,7 +36,7 @@ public:
   void setupConfiguration();
   void closeConfiguration(bool end_session= true);
   
-  bool lockPagesInMainMemory() const;
+  Uint32 lockPagesInMainMemory() const;
   
   int timeBetweenWatchDogCheck() const ;
   void timeBetweenWatchDogCheck(int value);
