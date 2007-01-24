@@ -168,7 +168,7 @@ int mi_write(MI_INFO *info, byte *record)
 err:
   save_errno=my_errno;
   if (my_errno == HA_ERR_FOUND_DUPP_KEY || my_errno == HA_ERR_RECORD_FILE_FULL ||
-      my_errno == HA_ERR_NULL_IN_SPATIAL)
+      my_errno == HA_ERR_NULL_IN_SPATIAL || my_errno == HA_ERR_OUT_OF_MEM)
   {
     if (info->bulk_insert)
     {
