@@ -927,6 +927,7 @@ DROP VIEW v2;
 DROP VIEW v1;
 DROP USER mysqltest_u1@localhost;
 
+
 #
 # Bug#17254: Error for DEFINER security on VIEW provides too much info
 #
@@ -964,4 +965,74 @@ DROP DATABASE db17254;
 disconnect def;
 disconnect inv;
 
-# End of 5.0 tests.
+
+#
+# BUG#24404: strange bug with view+permission+prepared statement
+#
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest_db1;
+DROP DATABASE IF EXISTS mysqltest_db2;
+--enable_warnings
+--error 0,ER_CANNOT_USER
+DROP USER mysqltest_u1;
+--error 0,ER_CANNOT_USER
+DROP USER mysqltest_u2;
+
+CREATE USER mysqltest_u1@localhost;
+CREATE USER mysqltest_u2@localhost;
+
+CREATE DATABASE mysqltest_db1;
+CREATE DATABASE mysqltest_db2;
+
+GRANT ALL ON mysqltest_db1.* TO mysqltest_u1@localhost WITH GRANT OPTION;
+GRANT ALL ON mysqltest_db2.* TO mysqltest_u2@localhost;
+
+connect (conn1, localhost, mysqltest_u1, , mysqltest_db1);
+
+CREATE TABLE t1 (i INT);
+INSERT INTO t1 VALUES (1);
+
+# Use view with subquery for better coverage.
+CREATE VIEW v1 AS SELECT i FROM t1 WHERE 1 IN (SELECT * FROM t1);
+
+CREATE TABLE t2 (s CHAR(7));
+INSERT INTO t2 VALUES ('public');
+
+GRANT SELECT ON v1 TO mysqltest_u2@localhost;
+GRANT SELECT ON t2 TO mysqltest_u2@localhost;
+
+connect (conn2, localhost, mysqltest_u2, , mysqltest_db2);
+
+SELECT * FROM mysqltest_db1.v1, mysqltest_db1.t2;
+PREPARE stmt1 FROM "SELECT * FROM mysqltest_db1.t2";
+EXECUTE stmt1;
+PREPARE stmt2 FROM "SELECT * FROM mysqltest_db1.v1, mysqltest_db1.t2";
+EXECUTE stmt2;
+
+connection conn1;
+# Make table 't2' private.
+REVOKE SELECT ON t2 FROM mysqltest_u2@localhost;
+UPDATE t2 SET s = 'private' WHERE s = 'public';
+
+connection conn2;
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM mysqltest_db1.v1, mysqltest_db1.t2;
+--error ER_TABLEACCESS_DENIED_ERROR
+EXECUTE stmt1;
+# Original bug was here: the statement didn't fail.
+--error ER_TABLEACCESS_DENIED_ERROR
+EXECUTE stmt2;
+
+# Cleanup.
+disconnect conn2;
+disconnect conn1;
+connection default;
+REVOKE ALL ON mysqltest_db1.* FROM mysqltest_u1@localhost;
+REVOKE ALL ON mysqltest_db2.* FROM mysqltest_u2@localhost;
+DROP DATABASE mysqltest_db1;
+DROP DATABASE mysqltest_db2;
+DROP USER mysqltest_u1@localhost;
+DROP USER mysqltest_u2@localhost;
+
+
+--echo End of 5.0 tests.
