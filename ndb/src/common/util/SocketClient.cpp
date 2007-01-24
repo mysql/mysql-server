@@ -109,7 +109,7 @@ SocketClient::connect(const char *toaddress, unsigned short toport)
   struct timeval tval;
   int r;
   bool use_timeout;
-  socklen_t len;
+  SOCKOPT_OPTLEN_TYPE len;
   int flags;
 
   if (m_sockfd == NDB_INVALID_SOCKET)
@@ -168,7 +168,7 @@ SocketClient::connect(const char *toaddress, unsigned short toport)
   if (FD_ISSET(m_sockfd, &rset) || FD_ISSET(m_sockfd, &wset))
   {
     len= sizeof(r);
-    if (getsockopt(m_sockfd, SOL_SOCKET, SO_ERROR, &r, &len) < 0)
+    if (getsockopt(m_sockfd, SOL_SOCKET, SO_ERROR, &r, &len) < 0 || r)
     {
       // Solaris got an error... different than others
       NDB_CLOSE_SOCKET(m_sockfd);
