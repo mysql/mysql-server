@@ -878,6 +878,8 @@ buf_page_hash_get(
 	HASH_SEARCH(hash, buf_pool->page_hash, fold, bpage,
 		    bpage->space == space && bpage->offset == offset);
 	ut_a(!bpage || buf_page_in_file(bpage));
+	ut_ad(!bpage || bpage->in_page_hash);
+	ut_ad(!bpage || !bpage->in_zip_hash);
 
 	return(bpage);
 }

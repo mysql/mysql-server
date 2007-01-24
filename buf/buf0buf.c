@@ -614,6 +614,8 @@ buf_block_init(
 	block->index = NULL;
 
 #ifdef UNIV_DEBUG
+	block->page.in_page_hash = FALSE;
+	block->page.in_zip_hash = FALSE;
 	block->page.in_flush_list = FALSE;
 	block->page.in_free_list = FALSE;
 	block->page.in_LRU_list = FALSE;
@@ -973,9 +975,15 @@ buf_relocate(
 	ut_a(buf_page_get_io_fix(bpage) == BUF_IO_NONE);
 	ut_a(bpage->buf_fix_count == 0);
 	ut_a(buf_page_in_file(bpage));
+	ut_ad(bpage->in_LRU_list);
+	ut_ad(!bpage->in_zip_hash);
+	ut_ad(bpage->in_page_hash);
 	ut_ad(bpage == buf_page_hash_get(bpage->space, bpage->offset));
 
 	memcpy(dpage, bpage, sizeof *dpage);
+
+	ut_d(bpage->in_LRU_list = FALSE);
+	ut_d(bpage->in_page_hash = FALSE);
 
 	/* relocate buf_pool->LRU */
 	b = UT_LIST_GET_PREV(LRU, bpage);
@@ -1192,6 +1200,9 @@ buf_pool_page_hash_rebuild(void)
 		for (j = 0; j < chunk->size; j++, block++) {
 			if (buf_block_get_state(block)
 			    == BUF_BLOCK_FILE_PAGE) {
+				ut_ad(!block->page.in_zip_hash);
+				ut_ad(block->page.in_page_hash);
+
 				HASH_INSERT(buf_page_t, hash, page_hash,
 					    buf_page_address_fold(
 						    block->page.space,
@@ -1209,6 +1220,9 @@ buf_pool_page_hash_rebuild(void)
 	     b = UT_LIST_GET_NEXT(list, b)) {
 		ut_a(buf_page_get_state(b) == BUF_BLOCK_ZIP_PAGE);
 		ut_ad(!b->in_flush_list);
+		ut_ad(b->in_LRU_list);
+		ut_ad(b->in_page_hash);
+		ut_ad(!b->in_zip_hash);
 
 		HASH_INSERT(buf_page_t, hash, page_hash,
 			    buf_page_address_fold(b->space, b->offset), b);
@@ -1217,6 +1231,9 @@ buf_pool_page_hash_rebuild(void)
 	for (b = UT_LIST_GET_FIRST(buf_pool->flush_list); b;
 	     b = UT_LIST_GET_NEXT(list, b)) {
 		ut_ad(b->in_flush_list);
+		ut_ad(b->in_LRU_list);
+		ut_ad(b->in_page_hash);
+		ut_ad(!b->in_zip_hash);
 
 		switch (buf_page_get_state(b)) {
 		case BUF_BLOCK_ZIP_DIRTY:
@@ -2107,6 +2124,9 @@ buf_page_init(
 		ut_error;
 	}
 
+	ut_ad(!block->page.in_zip_hash);
+	ut_ad(!block->page.in_page_hash);
+	ut_d(block->page.in_page_hash = TRUE);
 	HASH_INSERT(buf_page_t, hash, buf_pool->page_hash,
 		    buf_page_address_fold(space, offset), &block->page);
 

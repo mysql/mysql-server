@@ -956,6 +956,9 @@ alloc:
 			UNIV_MEM_DESC(b->zip.data,
 				      page_zip_get_size(&b->zip), b);
 
+			ut_ad(!b->in_zip_hash);
+			ut_ad(!b->in_page_hash);
+			ut_d(b->in_page_hash = TRUE);
 			HASH_INSERT(buf_page_t, hash,
 				    buf_pool->page_hash, fold, b);
 
@@ -1214,6 +1217,9 @@ buf_LRU_block_remove_hashed_page(
 		ut_error;
 	}
 
+	ut_ad(!bpage->in_zip_hash);
+	ut_ad(bpage->in_page_hash);
+	ut_d(bpage->in_page_hash = FALSE);
 	HASH_DELETE(buf_page_t, hash, buf_pool->page_hash,
 		    buf_page_address_fold(bpage->space, bpage->offset),
 		    bpage);

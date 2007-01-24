@@ -65,6 +65,9 @@ buf_flush_insert_into_flush_list(
 		/* fall through */
 	case BUF_BLOCK_ZIP_DIRTY:
 	case BUF_BLOCK_FILE_PAGE:
+		ut_ad(bpage->in_LRU_list);
+		ut_ad(bpage->in_page_hash);
+		ut_ad(!bpage->in_zip_hash);
 		ut_ad(!bpage->in_flush_list);
 		ut_d(bpage->in_flush_list = TRUE);
 		UT_LIST_ADD_FIRST(list, buf_pool->flush_list, bpage);
@@ -107,6 +110,11 @@ buf_flush_insert_sorted_into_flush_list(
 		/* fall through */
 	case BUF_BLOCK_ZIP_DIRTY:
 	case BUF_BLOCK_FILE_PAGE:
+		ut_ad(bpage->in_LRU_list);
+		ut_ad(bpage->in_page_hash);
+		ut_ad(!bpage->in_zip_hash);
+		ut_ad(!bpage->in_flush_list);
+		ut_d(bpage->in_flush_list = TRUE);
 		break;
 	case BUF_BLOCK_ZIP_FREE:
 	case BUF_BLOCK_NOT_USED:
@@ -125,9 +133,6 @@ buf_flush_insert_sorted_into_flush_list(
 		prev_b = b;
 		b = UT_LIST_GET_NEXT(list, b);
 	}
-
-	ut_ad(!bpage->in_flush_list);
-	ut_d(bpage->in_flush_list = TRUE);
 
 	if (prev_b == NULL) {
 		UT_LIST_ADD_FIRST(list, buf_pool->flush_list, bpage);
