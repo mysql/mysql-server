@@ -2675,19 +2675,21 @@ lName varchar(25) NOT NULL,
 DOB date NOT NULL,
 uID int unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY);
 INSERT INTO t1(fName, lName, DOB) VALUES
-('Alice', 'Hill', date_sub(curdate(), interval 15271 day)),
-('Bob', 'Adams', date_sub(curdate(), interval 33600 day)),
-('Carol', 'Simpson', date_sub(curdate(), interval 13700 day));
+('Hank', 'Hill', '1964-09-29'),
+('Tom', 'Adams', '1908-02-14'),
+('Homer', 'Simpson', '1968-03-05');
 CREATE VIEW v1 AS
 SELECT (year(now())-year(DOB)) AS Age
 FROM t1 HAVING Age < 75;
 SHOW CREATE VIEW v1;
 View	Create View
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (year(now()) - year(`t1`.`DOB`)) AS `Age` from `t1` having (`Age` < 75)
+set timestamp=1136066400;
 SELECT (year(now())-year(DOB)) AS Age FROM t1 HAVING Age < 75;
 Age
 42
 38
+set timestamp=1136066400;
 SELECT * FROM v1;
 Age
 42

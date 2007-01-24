@@ -334,9 +334,9 @@ drop table t1;
 #
 
 create table t1 (id integer primary key auto_increment, txt text not null, unique index txt_index (txt (20)));
---error 1062
+--error ER_DUP_ENTRY_WITH_KEY_NAME
 insert into t1 (txt) values ('Chevy'), ('Chevy ');
---error 1062
+--error ER_DUP_ENTRY_WITH_KEY_NAME
 insert into t1 (txt) values ('Chevy'), ('CHEVY');
 alter table t1 drop index txt_index, add index txt_index (txt(20));
 insert into t1 (txt) values ('Chevy ');
