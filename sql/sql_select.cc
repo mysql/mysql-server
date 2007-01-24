@@ -3004,14 +3004,14 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
     if (cond->type() == Item::FUNC_ITEM &&
         ((Item_func*)cond)->functype() == Item_func::TRIG_COND_FUNC)
     {
-      cond= ((Item_func*)cond)->arguments()[0];
+      Item *cond_arg= ((Item_func*)cond)->arguments()[0];
       if (!join->group_list && !join->order &&
           join->unit->item && 
           join->unit->item->substype() == Item_subselect::IN_SUBS &&
           !join->unit->first_select()->next_select())
       {
         KEY_FIELD *save= *key_fields;
-        add_key_fields(join, key_fields, and_level, cond, usable_tables,
+        add_key_fields(join, key_fields, and_level, cond_arg, usable_tables,
                        sargables);
         // Indicate that this ref access candidate is for subquery lookup:
         for (; save != *key_fields; save++)
