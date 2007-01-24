@@ -2042,6 +2042,18 @@ my_decimal *Item_func_round::decimal_op(my_decimal *decimal_value)
 }
 
 
+void Item_func_rand::seed_random(Item *arg)
+{
+  /*
+    TODO: do not do reinit 'rand' for every execute of PS/SP if
+    args[0] is a constant.
+  */
+  uint32 tmp= (uint32) arg->val_int();
+  randominit(rand, (uint32) (tmp*0x10001L+55555555L),
+             (uint32) (tmp*0x10000001L));
+}
+
+
 bool Item_func_rand::fix_fields(THD *thd,Item **ref)
 {
   if (Item_real_func::fix_fields(thd, ref))
@@ -2049,11 +2061,6 @@ bool Item_func_rand::fix_fields(THD *thd,Item **ref)
   used_tables_cache|= RAND_TABLE_BIT;
   if (arg_count)
   {					// Only use argument once in query
-    if (!args[0]->const_during_execution())
-    {
-      my_error(ER_WRONG_ARGUMENTS, MYF(0), "RAND");
-      return TRUE;
-    }
     /*
       Allocate rand structure once: we must use thd->stmt_arena
       to create rand in proper mem_root if it's a prepared statement or
@@ -2065,20 +2072,9 @@ bool Item_func_rand::fix_fields(THD *thd,Item **ref)
     if (!rand && !(rand= (struct rand_struct*)
                    thd->stmt_arena->alloc(sizeof(*rand))))
       return TRUE;
-    /*
-      PARAM_ITEM is returned if we're in statement prepare and consequently
-      no placeholder value is set yet.
-    */
-    if (args[0]->type() != PARAM_ITEM)
-    {
-      /*
-        TODO: do not do reinit 'rand' for every execute of PS/SP if
-        args[0] is a constant.
-      */
-      uint32 tmp= (uint32) args[0]->val_int();
-      randominit(rand, (uint32) (tmp*0x10001L+55555555L),
-                 (uint32) (tmp*0x10000001L));
-    }
+
+    if (args[0]->const_item())
+      seed_random (args[0]);
   }
   else
   {
@@ -2108,6 +2104,8 @@ void Item_func_rand::update_used_tables()
 double Item_func_rand::val_real()
 {
   DBUG_ASSERT(fixed == 1);
+  if (arg_count && !args[0]->const_item())
+    seed_random (args[0]);
   return my_rnd(rand);
 }
 
@@ -2746,25 +2744,28 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
 
       if (arguments[i]->const_item())
       {
-        if (arguments[i]->null_value)
-          continue;
-
         switch (arguments[i]->result_type()) 
         {
         case STRING_RESULT:
         case DECIMAL_RESULT:
         {
           String *res= arguments[i]->val_str(&buffers[i]);
+          if (arguments[i]->null_value)
+            continue;
           f_args.args[i]= (char*) res->ptr();
           break;
         }
         case INT_RESULT:
           *((longlong*) to)= arguments[i]->val_int();
+          if (arguments[i]->null_value)
+            continue;
           f_args.args[i]= to;
           to+= ALIGN_SIZE(sizeof(longlong));
           break;
         case REAL_RESULT:
           *((double*) to)= arguments[i]->val_real();
+          if (arguments[i]->null_value)
+            continue;
           f_args.args[i]= to;
           to+= ALIGN_SIZE(sizeof(double));
           break;
