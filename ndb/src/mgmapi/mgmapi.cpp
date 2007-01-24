@@ -93,6 +93,7 @@ struct ndb_mgm_handle {
   char last_error_desc[NDB_MGM_MAX_ERR_DESC_SIZE];
   int read_timeout;
   int write_timeout;
+  unsigned int connect_timeout;
 
   NDB_SOCKET_TYPE socket;
 
@@ -159,6 +160,7 @@ ndb_mgm_create_handle()
   h->socket          = NDB_INVALID_SOCKET;
   h->read_timeout    = 50000;
   h->write_timeout   = 100;
+  h->connect_timeout = 0;
   h->cfg_i           = -1;
   h->errstream       = stdout;
   h->m_name          = 0;
@@ -426,6 +428,16 @@ int ndb_mgm_is_connected(NdbMgmHandle handle)
   return handle->connected;
 }
 
+extern "C"
+int ndb_mgm_set_connect_timeout(NdbMgmHandle handle, unsigned int seconds)
+{
+  if(!handle)
+    return -1;
+
+  handle->connect_timeout= seconds;
+  return 0;
+}
+
 /**
  * Connect to a management server
  */
@@ -456,6 +468,7 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
   Uint32 i;
   int binderror = 0;
   SocketClient s(0, 0);
+  s.set_connect_timeout(handle->connect_timeout);
   if (!s.init())
   {
     fprintf(handle->errstream, 

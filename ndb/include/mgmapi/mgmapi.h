@@ -541,6 +541,16 @@ extern "C" {
   const char *ndb_mgm_get_connectstring(NdbMgmHandle handle, char *buf, int buf_sz);
 
   /**
+   * Sets the number of seconds to wait for connect(2) during ndb_mgm_connect
+   * Default is no timeout
+   *
+   * @param handle  NdbMgmHandle
+   * @param seconds number of seconds
+   * @return non-zero on success
+   */
+  int ndb_mgm_set_connect_timeout(NdbMgmHandle handle, unsigned int seconds);
+
+  /**
    * Connects to a management server. Connectstring is set by
    * ndb_mgm_set_connectstring().
    *
