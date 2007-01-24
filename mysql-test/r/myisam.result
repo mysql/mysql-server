@@ -1590,19 +1590,6 @@ show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	1	a	1	a	A	8	NULL	NULL	YES	BTREE	
 drop table t1;
-show create table t1;
-show create table t1;
-create table t1 (a int) engine=myisam select 42 a;
-select * from t1;
-a
-9
-select * from t1;
-a
-99
-select * from t1;
-a
-42
-drop table t1;
 CREATE TABLE t1(a VARCHAR(16));
 INSERT INTO t1 VALUES('aaaaaaaa'),(NULL);
 UPDATE t1 AS ta1, t1 AS ta2 SET ta1.a='aaaaaaaaaaaaaaaa';
