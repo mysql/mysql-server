@@ -18,7 +18,7 @@ static const char *opt_tmpdir;
 static const char *new_auto_increment_value;
 static const char *load_default_groups[]= { "archive_reader", 0 };
 static char **default_argv;
-int opt_check, opt_force, opt_quiet, opt_backup= 0;
+int opt_check, opt_force, opt_quiet, opt_backup= 0, opt_extract_frm;
 
 int main(int argc, char *argv[])
 {
@@ -53,6 +53,20 @@ int main(int argc, char *argv[])
     printf("\tLongest Row %u\n", reader_handle.longest_row);
     printf("\tShortest Row %u\n", reader_handle.shortest_row);
     printf("\tState %s\n", ( reader_handle.dirty ? "dirty" : "clean"));
+    printf("\tFRM stored at %u\n", reader_handle.frm_start_pos);
+    printf("\tComment stored at %u\n", reader_handle.comment_start_pos);
+    printf("\tData starts at %u\n", (unsigned int)reader_handle.start);
+    if (reader_handle.frm_start_pos)
+      printf("\tFRM length %u\n", reader_handle.frm_length);
+    if (reader_handle.comment_start_pos)
+    {
+      char *comment =
+        (char *) malloc(sizeof(char) * reader_handle.comment_length);
+      azread_comment(&reader_handle, comment);
+      printf("\tComment length %u\n\t\t%.*s\n", reader_handle.comment_length, 
+             reader_handle.comment_length, comment);
+      free(comment);
+    }
   }
   else
   {
@@ -148,6 +162,23 @@ int main(int argc, char *argv[])
     }
 
     writer_handle.auto_increment= reader_handle.auto_increment;
+    if (reader_handle.frm_length)
+    {
+      char *ptr;
+      ptr= (char *)my_malloc(sizeof(char) * reader_handle.frm_length, MYF(0));
+      azread_frm(&reader_handle, ptr);
+      azwrite_frm(&writer_handle, ptr, reader_handle.frm_length);
+      my_free(ptr, MYF(0));
+    }
+
+    if (reader_handle.comment_length)
+    {
+      char *ptr;
+      ptr= (char *)my_malloc(sizeof(char) * reader_handle.comment_length, MYF(0));
+      azread_comment(&reader_handle, ptr);
+      azwrite_comment(&writer_handle, ptr, reader_handle.comment_length);
+      my_free(ptr, MYF(0));
+    }
 
     while ((read= azread(&reader_handle, (byte *)size_buffer, 
                         ARCHIVE_ROW_HEADER_SIZE, &error)))
@@ -192,6 +223,18 @@ int main(int argc, char *argv[])
     azclose(&writer_handle);
   }
 
+  if (opt_extract_frm)
+  {
+    File frm_file;
+    char *ptr;
+    frm_file= my_open(argv[1], O_CREAT|O_RDWR|O_BINARY, MYF(0));
+    ptr= (char *)my_malloc(sizeof(char) * reader_handle.frm_length, MYF(0));
+    azread_frm(&reader_handle, ptr);
+    my_write(frm_file, ptr, reader_handle.frm_length, MYF(0));
+    my_close(frm_file, MYF(0));
+    my_free(ptr, MYF(0));
+  }
+
 end:
   printf("\n");
   azclose(&reader_handle);
@@ -210,6 +253,9 @@ get_one_option(int optid,
     break;
   case 'c':
     opt_check= 1;
+    break;
+  case 'e':
+    opt_extract_frm= 1;
     break;
   case 'f':
     opt_force= 1;
@@ -257,6 +303,9 @@ static struct my_option my_long_options[] =
    "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"extract-frm", 'e',
+   "Extract the frm file.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"force", 'f',
    "Restart with -r if there are any errors in the table.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
