@@ -336,23 +336,18 @@ public:
   {
     save_table_list=                  context->table_list;
     save_first_name_resolution_table= context->first_name_resolution_table;
-    save_next_name_resolution_table=  (context->first_name_resolution_table) ?
-                                      context->first_name_resolution_table->
-                                               next_name_resolution_table :
-                                      NULL;
     save_resolve_in_select_list=      context->resolve_in_select_list;
     save_next_local=                  table_list->next_local;
+    save_next_name_resolution_table=  table_list->next_name_resolution_table;
   }
 
   /* Restore a name resolution context from saved state. */
   void restore_state(Name_resolution_context *context, TABLE_LIST *table_list)
   {
     table_list->next_local=                save_next_local;
+    table_list->next_name_resolution_table= save_next_name_resolution_table;
     context->table_list=                   save_table_list;
     context->first_name_resolution_table=  save_first_name_resolution_table;
-    if (context->first_name_resolution_table)
-      context->first_name_resolution_table->
-               next_name_resolution_table= save_next_name_resolution_table;
     context->resolve_in_select_list=       save_resolve_in_select_list;
   }
 };
