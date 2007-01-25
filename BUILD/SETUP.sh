@@ -92,7 +92,7 @@ if [ "x$warning_mode" != "xpedantic" ]; then
 # Both C and C++ warnings
   warnings="-Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W"
   warnings="$warnings -Wchar-subscripts -Wformat -Wparentheses -Wsign-compare"
-  warnings="$warnings -Wwrite-strings -Wunused-function -Wunused-label -Wunused-value -Wunused-variable -Wshadow"
+  warnings="$warnings -Wwrite-strings -Wunused-function -Wunused-label -Wunused-value -Wunused-variable"
 # C warnings
   c_warnings="$warnings -Wunused-parameter"
 # C++ warnings
