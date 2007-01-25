@@ -139,8 +139,16 @@ fi
 #
 base_configs="--prefix=$prefix --enable-assembler "
 base_configs="$base_configs --with-extra-charsets=complex "
-base_configs="$base_configs --enable-thread-safe-client --with-readline "
+base_configs="$base_configs --enable-thread-safe-client "
 base_configs="$base_configs --with-big-tables"
+
+if test -d "$path/../cmd-line-utils/readline"
+then
+    base_configs="$base_configs --with-readline"
+elif test -d "$path/../cmd-line-utils/libedit"
+then
+    base_configs="$base_configs --with-libedit"
+fi
 
 static_link="--with-mysqld-ldflags=-all-static "
 static_link="$static_link --with-client-ldflags=-all-static"
