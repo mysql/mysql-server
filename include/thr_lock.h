@@ -121,6 +121,7 @@ typedef struct st_thr_lock {
   void (*get_status)(void*, int);	/* When one gets a lock */
   void (*copy_status)(void*,void*);
   void (*update_status)(void*);		/* Before release of write */
+  void (*restore_status)(void*);         /* Before release of read */
   my_bool (*check_status)(void *);
 } THR_LOCK;
 
