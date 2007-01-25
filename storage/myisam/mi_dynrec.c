@@ -254,7 +254,7 @@ int _mi_write_blob_record(MI_INFO *info, const byte *record)
 #endif
   if (!(rec_buff=(byte*) my_alloca(reclength)))
   {
-    my_errno=ENOMEM;
+    my_errno= HA_ERR_OUT_OF_MEM; /* purecov: inspected */
     return(-1);
   }
   reclength2= _mi_rec_pack(info,rec_buff+ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER),
@@ -288,7 +288,7 @@ int _mi_update_blob_record(MI_INFO *info, my_off_t pos, const byte *record)
 #endif
   if (!(rec_buff=(byte*) my_alloca(reclength)))
   {
-    my_errno=ENOMEM;
+    my_errno= HA_ERR_OUT_OF_MEM; /* purecov: inspected */
     return(-1);
   }
   reclength=_mi_rec_pack(info,rec_buff+ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER),
