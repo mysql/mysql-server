@@ -67,7 +67,7 @@ SELECT * FROM t6 ORDER BY a,b,c;
 
 connection master;
 # Test for erroneous constructions
---error 1062
+--error ER_DUP_ENTRY_WITH_KEY_NAME
 CREATE TABLE t7 (UNIQUE(b)) SELECT a,b FROM tt3;
 # Shouldn't be written to the binary log
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
@@ -75,7 +75,7 @@ SHOW BINLOG EVENTS FROM 1118;
 
 # Test that INSERT-SELECT works the same way as for SBR.
 CREATE TABLE t7 (a INT, b INT UNIQUE);
---error 1062
+--error ER_DUP_ENTRY_WITH_KEY_NAME
 INSERT INTO t7 SELECT a,b FROM tt3;
 SELECT * FROM t7 ORDER BY a,b;
 # Should be written to the binary log
