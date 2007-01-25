@@ -81,7 +81,7 @@ explain select count(*) from t1 where v between 'a' and 'a ';
 --replace_column 9 #
 explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
 
---error 1062
+--error ER_DUP_ENTRY_WITH_KEY_NAME
 alter table t1 add unique(v);
 alter table t1 add key(v);
 select concat('*',v,'*',c,'*',t,'*') as qq from t1 where v='a';
@@ -179,17 +179,17 @@ drop table t1;
 
 create table t1 (a char(10), unique (a));
 insert into t1 values ('a   ');
---error 1062
+--error ER_DUP_ENTRY_WITH_KEY_NAME
 insert into t1 values ('a ');
 
 alter table t1 modify a varchar(10);
---error 1062
+--error ER_DUP_ENTRY_WITH_KEY_NAME
 insert into t1 values ('a '),('a  '),('a   '),('a         ');
---error 1062
+--error ER_DUP_ENTRY_WITH_KEY_NAME
 insert into t1 values ('a     ');
---error 1062
+--error ER_DUP_ENTRY_WITH_KEY_NAME
 insert into t1 values ('a          ');
---error 1062
+--error ER_DUP_ENTRY_WITH_KEY_NAME
 insert into t1 values ('a ');
 update t1 set a='a  ' where a like 'a%';
 select concat(a,'.') from t1;

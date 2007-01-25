@@ -562,6 +562,7 @@ NdbEventOperationImpl::execute_nolock()
   // add kernel reference
   // removed on TE_STOP, TE_CLUSTER_FAILURE, or error below
   m_ref_count++;
+  m_node_bit_mask.set(0u);
   DBUG_PRINT("info", ("m_ref_count: %u for op: %p", m_ref_count, this));
   int r= NdbDictionaryImpl::getImpl(*myDict).executeSubscribeEvent(*this);
   if (r == 0) {
@@ -594,6 +595,7 @@ NdbEventOperationImpl::execute_nolock()
   // remove kernel reference
   // added above
   m_ref_count--;
+  m_node_bit_mask.clear(0u);
   DBUG_PRINT("info", ("m_ref_count: %u for op: %p", m_ref_count, this));
   m_state= EO_ERROR;
   mi_type= 0;
@@ -1810,6 +1812,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
                   op->m_ref_count, op, SubTableData::getNdbdNodeId(ri)));
       break;
     case NdbDictionary::Event::_TE_ACTIVE:
+      DBUG_ASSERT(op->m_node_bit_mask.get(0u) != 0);
       op->m_node_bit_mask.set(SubTableData::getNdbdNodeId(ri));
       // internal event, do not relay to user
       DBUG_PRINT("info",
@@ -1818,7 +1821,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
       DBUG_RETURN_EVENT(0);
       break;
     case NdbDictionary::Event::_TE_CLUSTER_FAILURE:
-      if (!op->m_node_bit_mask.isclear())
+      if (op->m_node_bit_mask.get(0))
       {
         op->m_node_bit_mask.clear();
         DBUG_ASSERT(op->m_ref_count > 0);
@@ -1838,8 +1841,14 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
                               op->theMainOp->m_ref_count, op->theMainOp));
         }
       }
+      else
+      {
+        DBUG_ASSERT(op->m_node_bit_mask.isclear() != 0);
+      }
       break;
     case NdbDictionary::Event::_TE_STOP:
+      DBUG_ASSERT(op->m_node_bit_mask.get(0u) != 0);
+      op->m_node_bit_mask.clear(0u);
       op->m_node_bit_mask.clear(SubTableData::getNdbdNodeId(ri));
       if (op->m_node_bit_mask.isclear())
       {
@@ -1859,6 +1868,10 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
           DBUG_PRINT("info", ("m_ref_count: %u for op: %p",
                               op->theMainOp->m_ref_count, op->theMainOp));
         }
+      }
+      else
+      {
+        op->m_node_bit_mask.set(0u);
       }
       break;
     default:
@@ -2599,6 +2612,8 @@ EventBufData_list::add_gci_op(Gci_op g)
                                   this, old_list));
         delete [] old_list;
       }
+      else
+        assert(old_list == 0);
       DBUG_PRINT_EVENT("info", ("this: %p  new m_gci_op_list: %p",
                                 this, m_gci_op_list));
       m_gci_op_alloc = n;
