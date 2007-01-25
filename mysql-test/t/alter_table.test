@@ -528,6 +528,71 @@ SHOW INDEX FROM bug24219_2;
 
 DROP TABLE bug24219_2;
 
+#
+# Bug#24562 (ALTER TABLE ... ORDER BY ... with complex expression asserts)
+#
+
+--disable_warnings
+drop table if exists table_24562;
+--enable_warnings
+
+create table table_24562(
+  section int,
+  subsection int,
+  title varchar(50));
+
+insert into table_24562 values
+(1, 0, "Introduction"),
+(1, 1, "Authors"),
+(1, 2, "Acknowledgements"),
+(2, 0, "Basics"),
+(2, 1, "Syntax"),
+(2, 2, "Client"),
+(2, 3, "Server"),
+(3, 0, "Intermediate"),
+(3, 1, "Complex queries"),
+(3, 2, "Stored Procedures"),
+(3, 3, "Stored Functions"),
+(4, 0, "Advanced"),
+(4, 1, "Replication"),
+(4, 2, "Load balancing"),
+(4, 3, "High availability"),
+(5, 0, "Conclusion");
+
+select * from table_24562;
+
+alter table table_24562 add column reviewer varchar(20),
+order by title;
+
+select * from table_24562;
+
+update table_24562 set reviewer="Me" where section=2;
+update table_24562 set reviewer="You" where section=3;
+
+alter table table_24562
+order by section ASC, subsection DESC;
+
+select * from table_24562;
+
+alter table table_24562
+order by table_24562.subsection ASC, table_24562.section DESC;
+
+select * from table_24562;
+
+--error ER_PARSE_ERROR
+alter table table_24562 order by 12;
+--error ER_PARSE_ERROR
+alter table table_24562 order by (section + 12);
+--error ER_PARSE_ERROR
+alter table table_24562 order by length(title);
+--error ER_PARSE_ERROR
+alter table table_24562 order by (select 12 from dual);
+
+--error ER_BAD_FIELD_ERROR
+alter table table_24562 order by no_such_col;
+
+drop table table_24562;
+
 # End of 4.1 tests
 
 #
