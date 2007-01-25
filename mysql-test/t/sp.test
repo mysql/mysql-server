@@ -1763,11 +1763,11 @@ insert into t3 (a) values (1)|
 create procedure h_ee()
     deterministic
 begin
-  declare continue handler for 1062 -- ER_DUP_ENTRY
+  declare continue handler for 1582 -- ER_DUP_ENTRY_WITH_KEY_NAME
     select 'Outer (bad)' as 'h_ee';
 
   begin
-    declare continue handler for 1062 -- ER_DUP_ENTRY
+    declare continue handler for 1582 -- ER_DUP_ENTRY_WITH_KEY_NAME
         select 'Inner (good)' as 'h_ee';
 
     insert into t3 values (1);
@@ -1777,7 +1777,7 @@ end|
 create procedure h_es()
     deterministic
 begin
-  declare continue handler for 1062 -- ER_DUP_ENTRY
+  declare continue handler for 1582 -- ER_DUP_ENTRY_WITH_KEY_NAME
     select 'Outer (good)' as 'h_es';
 
   begin
@@ -1823,7 +1823,7 @@ end|
 create procedure h_ex()
     deterministic
 begin
-  declare continue handler for 1062 -- ER_DUP_ENTRY
+  declare continue handler for 1582 -- ER_DUP_ENTRY_WITH_KEY_NAME
     select 'Outer (good)' as 'h_ex';
 
   begin
@@ -1842,7 +1842,7 @@ begin
     select 'Outer (bad)' as 'h_se';
 
   begin
-    declare continue handler for 1062 -- ER_DUP_ENTRY
+    declare continue handler for 1582 -- ER_DUP_ENTRY_WITH_KEY_NAME
       select 'Inner (good)' as 'h_se';
 
     insert into t3 values (1);
@@ -2015,7 +2015,7 @@ begin
     select 'Outer (bad)' as 'h_xe';
 
   begin
-    declare continue handler for 1062 -- ER_DUP_ENTRY
+    declare continue handler for 1582 -- ER_DUP_ENTRY_WITH_KEY_NAME
       select 'Inner (good)' as 'h_xe';
 
     insert into t3 values (1);
@@ -4507,7 +4507,7 @@ begin
    select bug12379();
 end|
 
---error 1062
+--error ER_DUP_ENTRY_WITH_KEY_NAME
 select bug12379()|
 select 1|
 # statement-based binlogging will show warning which row-based won't;
@@ -4518,7 +4518,7 @@ select 2|
 call bug12379_2()|
 --enable_warnings
 select 3|
---error 1062
+--error ER_DUP_ENTRY_WITH_KEY_NAME
 call bug12379_3()|
 select 4|
 
@@ -4600,7 +4600,7 @@ end|
 
 call bug6127()|
 select * from t3|
---error ER_DUP_ENTRY
+--error ER_DUP_ENTRY_WITH_KEY_NAME
 call bug6127()|
 select * from t3|
 set sql_mode=@sm|
@@ -5528,11 +5528,11 @@ insert into t3 values (1)|
 create procedure bug15011()
   deterministic
 begin
-  declare continue handler for 1062
+  declare continue handler for 1582
     select 'Outer' as 'Handler';
 
   begin
-    declare continue handler for 1062
+    declare continue handler for 1582
       select 'Inner' as 'Handler';
 
     insert into t3 values (1);
