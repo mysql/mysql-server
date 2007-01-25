@@ -1135,13 +1135,17 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       /*
         Prepare a security context to check underlying objects of the view
       */
-      Security_context *save_security_ctx= thd->security_ctx;
       if (!(table->view_sctx= (Security_context *)
             thd->stmt_arena->alloc(sizeof(Security_context))))
         goto err;
       /* Assign the context to the tables referenced in the view */
-      for (tbl= view_tables; tbl; tbl= tbl->next_global)
-        tbl->security_ctx= table->view_sctx;
+      if (view_tables)
+      {
+        DBUG_ASSERT(view_tables_tail);
+        for (tbl= view_tables; tbl != view_tables_tail->next_global;
+             tbl= tbl->next_global)
+          tbl->security_ctx= table->view_sctx;
+      }
       /* assign security context to SELECT name resolution contexts of view */
       for(SELECT_LEX *sl= lex->all_selects_list;
           sl;
