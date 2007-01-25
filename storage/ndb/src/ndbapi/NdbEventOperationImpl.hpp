@@ -421,6 +421,8 @@ public:
 
     when m_node_bit_mask becomes clear, the kernel reference is
     removed from m_ref_count
+
+    node id 0 is used to denote that cluster has a reference
    */
 
   Bitmask<(unsigned int)_NDB_NODE_BITMASK_SIZE> m_node_bit_mask;
