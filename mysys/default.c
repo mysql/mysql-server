@@ -282,7 +282,7 @@ static int search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
 {
   char **ext;
 
-  for (ext= (char**) f_extensions; *ext; *ext++)
+  for (ext= (char**) f_extensions; *ext; ext++)
   {
     int error;
     if ((error= search_default_file_with_ext(args, alloc, dir, *ext,
@@ -543,7 +543,7 @@ void print_defaults(const char *conf_file, const char **groups)
 #endif
     for (dirs=default_directories ; *dirs; dirs++)
     {
-      for (ext= (char**) f_extensions; *ext; *ext++)
+      for (ext= (char**) f_extensions; *ext; ext++)
       {
 	const char *pos;
 	char *end;
