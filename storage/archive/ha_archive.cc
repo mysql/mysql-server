@@ -784,23 +784,22 @@ int ha_archive::write_row(byte *buf)
     temp_auto= table->next_number_field->val_int();
 
     /*
-      Simple optimization to see if we fail for duplicate key immediatly
-      because we have just given out this value.
+      We don't support decremening auto_increment. They make the performance
+      just cry.
     */
-    if (temp_auto == share->archive_write.auto_increment && 
+    if (temp_auto <= share->archive_write.auto_increment && 
         mkey->flags & HA_NOSAME)
     {
       rc= HA_ERR_FOUND_DUPP_KEY;
       goto error;
     }
+#ifdef DEAD_CODE
     /*
       Bad news, this will cause a search for the unique value which is very 
       expensive since we will have to do a table scan which will lock up 
       all other writers during this period. This could perhaps be optimized 
       in the future.
     */
-    if (temp_auto < share->archive_write.auto_increment && 
-        mkey->flags & HA_NOSAME)
     {
       /* 
         First we create a buffer that we can use for reading rows, and can pass
@@ -838,6 +837,7 @@ int ha_archive::write_row(byte *buf)
         }
       }
     }
+#endif
     else
     {
       if (temp_auto > share->archive_write.auto_increment)
