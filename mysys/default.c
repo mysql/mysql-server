@@ -49,7 +49,6 @@ const char *default_directories[]= {
 "sys:/etc/",
 #else
 "/etc/",
-"/etc/mysql/",
 #endif
 #ifdef DATADIR
 DATADIR,
