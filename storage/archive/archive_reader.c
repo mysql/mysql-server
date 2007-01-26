@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <m_ctype.h>
 #include <my_getopt.h>
 #include <mysql_version.h>
 
@@ -15,10 +16,12 @@ static void get_options(int *argc,char * * *argv);
 static void print_version(void);
 static void usage(void);
 static const char *opt_tmpdir;
-static const char *new_auto_increment_value;
+static const char *new_auto_increment;
+unsigned long long new_auto_increment_value;
 static const char *load_default_groups[]= { "archive_reader", 0 };
 static char **default_argv;
 int opt_check, opt_force, opt_quiet, opt_backup= 0, opt_extract_frm;
+int opt_autoincrement;
 
 int main(int argc, char *argv[])
 {
@@ -38,6 +41,35 @@ int main(int argc, char *argv[])
   {
     printf("Could not open Archive file\n");
     return 0;
+  }
+
+  if (opt_autoincrement)
+  {
+    azio_stream writer_handle;
+
+    if (new_auto_increment_value)
+    {
+      if (reader_handle.auto_increment >= new_auto_increment_value)
+      {
+        printf("Value is lower then current value\n");
+        goto end;
+      }
+    }
+    else
+    {
+      new_auto_increment_value= reader_handle.auto_increment + 1;
+    }
+
+    if (!(ret= azopen(&writer_handle, argv[0], O_CREAT|O_RDWR|O_BINARY)))
+    {
+      printf("Could not open file for update: %s\n", argv[0]);
+      goto end;
+    }
+
+    writer_handle.auto_increment= new_auto_increment_value;
+
+    azclose(&writer_handle);
+    azflush(&reader_handle, Z_SYNC_FLUSH);
   }
 
   printf("Version %u\n", reader_handle.version);
@@ -272,7 +304,11 @@ get_one_option(int optid,
     printf("Not implemented yet\n");
     break;
   case 'A':
-    printf("Not implemented yet\n");
+    opt_autoincrement= 1;
+    if (argument)
+      new_auto_increment_value= strtoull(argument, NULL, 0);
+    else
+      new_auto_increment_value= 0;
     break;
   case '?':
     usage();
@@ -317,9 +353,9 @@ static struct my_option my_long_options[] =
   {"repair", 'r', "Repair a damaged Archive version 3 or above file.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"set-auto-increment", 'A',
-   "Force auto_increment to start at this or higher value.",
-   (gptr*) &new_auto_increment_value,
-   (gptr*) &new_auto_increment_value,
+   "Force auto_increment to start at this or higher value. If no value is given, then sets the next auto_increment value to the highest used value for the auto key + 1.",
+   (gptr*) &new_auto_increment,
+   (gptr*) &new_auto_increment,
    0, GET_ULL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"silent", 's',
    "Only print errors. One can use two -s to make archive_reader very silent.",
