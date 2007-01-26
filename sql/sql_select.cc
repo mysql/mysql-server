@@ -855,6 +855,13 @@ JOIN::optimize()
   {
     ORDER *org_order= order;
     order=remove_const(this, order,conds,1, &simple_order);
+    if (thd->net.report_error)
+    {
+      error= 1;
+      DBUG_PRINT("error",("Error from remove_const"));
+      DBUG_RETURN(1);
+    }
+
     /*
       If we are using ORDER BY NULL or ORDER BY const_expression,
       return result in any order (even if we are using a GROUP BY)
@@ -962,6 +969,12 @@ JOIN::optimize()
     group_list= remove_const(this, (old_group_list= group_list), conds,
                              rollup.state == ROLLUP::STATE_NONE,
 			     &simple_group);
+    if (thd->net.report_error)
+    {
+      error= 1;
+      DBUG_PRINT("error",("Error from remove_const"));
+      DBUG_RETURN(1);
+    }
     if (old_group_list && !group_list)
       select_distinct= 0;
   }
@@ -978,6 +991,12 @@ JOIN::optimize()
   {
     group_list= procedure->group= remove_const(this, procedure->group, conds,
 					       1, &simple_group);
+    if (thd->net.report_error)
+    {
+      error= 1;
+      DBUG_PRINT("error",("Error from remove_const"));
+      DBUG_RETURN(1);
+    }   
     calc_group_buffer(this, group_list);
   }
 
@@ -6415,6 +6434,8 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond,
       *simple_order=0;				// Must do a temp table to sort
     else if (!(order_tables & not_const_tables))
     {
+      if (order->item[0]->with_subselect)
+        order->item[0]->val_str(&order->item[0]->str_value);
       DBUG_PRINT("info",("removing: %s", order->item[0]->full_name()));
       continue;					// skip const item
     }
