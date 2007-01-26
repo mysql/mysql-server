@@ -302,7 +302,7 @@ int mysql_update(THD *thd,
 	Doing an ORDER BY;  Let filesort find and sort the rows we are going
 	to update
       */
-      uint         length;
+      uint         length= 0;
       SORT_FIELD  *sortorder;
       ha_rows examined_rows;
 

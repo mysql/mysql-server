@@ -269,6 +269,7 @@ public:
   enum Functype functype() const { return NOT_FUNC; }
   const char *func_name() const { return "not"; }
   Item *neg_transformer(THD *thd);
+  void print(String *str);
 };
 
 class Item_maxmin_subselect;
@@ -311,6 +312,7 @@ public:
   enum Functype functype() const { return TRIG_COND_FUNC; };
   const char *func_name() const { return "trigcond"; };
   bool const_item() const { return FALSE; }
+  bool *get_trig_var() { return trig_var; }
 };
 
 class Item_func_not_all :public Item_func_not
@@ -965,6 +967,10 @@ class Item_func_in :public Item_func_opt_neg
 {
 public:
   Item_result cmp_type;
+  /* 
+    an array of values when the right hand arguments of IN
+    are all SQL constant and there are no nulls 
+  */
   in_vector *array;
   cmp_item *in_item;
   bool have_null;
@@ -990,7 +996,7 @@ public:
     DBUG_VOID_RETURN;
   }
   optimize_type select_optimize() const
-    { return array ? OPTIMIZE_KEY : OPTIMIZE_NONE; }
+    { return OPTIMIZE_KEY; }
   void print(String *str);
   enum Functype functype() const { return IN_FUNC; }
   const char *func_name() const { return " IN "; }
