@@ -457,11 +457,11 @@ class sys_var_thd_bit :public sys_var_thd
   sys_check_func check_func;
   sys_update_func update_func;
 public:
-  ulong bit_flag;
+  ulonglong bit_flag;
   bool reverse;
   sys_var_thd_bit(const char *name_arg, 
                   sys_check_func c_func, sys_update_func u_func,
-                  ulong bit, bool reverse_arg=0)
+                  ulonglong bit, bool reverse_arg=0)
     :sys_var_thd(name_arg), check_func(c_func), update_func(u_func),
     bit_flag(bit), reverse(reverse_arg)
   {}
