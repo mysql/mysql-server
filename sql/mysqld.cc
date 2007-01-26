@@ -524,10 +524,13 @@ char *mysqld_unix_port, *opt_mysql_tmpdir;
 const char **errmesg;			/* Error messages */
 const char *myisam_recover_options_str="OFF";
 const char *myisam_stats_method_str="nulls_unequal";
+
 /* name of reference on left espression in rewritten IN subquery */
 const char *in_left_expr_name= "<left expr>";
 /* name of additional condition */
 const char *in_additional_cond= "<IN COND>";
+const char *in_having_cond= "<IN HAVING>";
+
 my_decimal decimal_zero;
 /* classes for comparation parsing/processing */
 Eq_creator eq_creator;
