@@ -242,3 +242,50 @@ drop table bug18761;
 select is_const((1,2,3));
 
 drop function if exists is_const;
+
+#
+# Bug #25382: Passing NULL to an UDF called from stored procedures 
+# crashes server
+#
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION myfunc_double RETURNS REAL SONAME "$UDF_EXAMPLE_LIB";
+
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
+
+delimiter //;
+create function f1(p1 varchar(255))
+returns varchar(255)
+begin
+  return metaphon(p1);
+end//
+
+create function f2(p1 varchar(255))
+returns double
+begin
+  return myfunc_double(p1);
+end//
+
+create function f3(p1 varchar(255))
+returns double
+begin
+  return myfunc_int(p1);
+end//
+
+delimiter ;//
+
+select f3(NULL);
+select f2(NULL);
+select f1(NULL);
+
+drop function f1;
+drop function f2;
+drop function f3;
+drop function metaphon;
+drop function myfunc_double;
+drop function myfunc_int;
+
+--echo End of 5.0 tests.
