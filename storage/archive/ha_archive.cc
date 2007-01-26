@@ -587,7 +587,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   azio_stream create_stream;            /* Archive file we are working with */
   File frm_file;                   /* File handler for readers */
   MY_STAT file_stat;  // Stat information for the data file
-  char *frm_ptr;
+  byte *frm_ptr;
 
   DBUG_ENTER("ha_archive::create");
 
@@ -659,7 +659,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
     VOID(my_fstat(frm_file, &file_stat, MYF(MY_WME)));
     frm_ptr= (char *)my_malloc(sizeof(char) * file_stat.st_size , MYF(0));
     my_read(frm_file, frm_ptr, file_stat.st_size, MYF(0));
-    azwrite_frm(&create_stream, frm_ptr, file_stat.st_size);
+    azwrite_frm(&create_stream, (char *)frm_ptr, file_stat.st_size);
     my_close(frm_file, MYF(0));
     my_free(frm_ptr, MYF(0));
 
