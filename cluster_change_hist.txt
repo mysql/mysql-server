@@ -1,0 +1,26 @@
+
+mysql-5.1.14-ndb-6.1.1
+ 
+  - added extra version info to API to enable support for non-supported online
+    software upgrade
+  - 255 api support
+
+---------------------------------------------------
+
+mysql-5.1.14-ndb-6.1.0 
+
+  bug#25059 - Unique index lookup execute(Commit) on non existing tuple can lead to 4012
+  bug#25090 - Incorrect handling of execute(Commit, AO_IgnoreError), can lead to DBCT crash
+  bug#19956 - Problems with VARCHAR primary key and BLOB fields
+  bug#24949 - Pulling cable from _last_ db-node can cause 6min timeout in api
+  bug#25001 - MEDIUMTEXT column not stored on disk
+  bug#24664 - Rare problem in LCP, can lead to unability to restart
+  bug#24917 - Makeing node restart with "newly" dropped disk table can cause failure during restart
+  bug#24914 - Start Transaction with hint guessed incorrectly
+  bug#21948 - Repeated create/drop/truncate(DD) together with restarts can cause SR failure
+  bug#17605 - DD Extents are not available until after LCP
+  bug#22773 - NDB_LE_Connected sent when it should be NDB_LE_Disconnected
+  bug#24166 - SR-crash if DD and hidden key
+
+  * add support for periodic mem-reporting, config.ini parameter "MemReportFrequency" which is specified in seconds
+
