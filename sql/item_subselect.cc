@@ -199,6 +199,8 @@ bool Item_subselect::exec()
   /* Do not execute subselect in case of a fatal error */
     return 1;
 
+  res= engine->exec();
+
   if (engine_changed)
   {
     engine_changed= 0;
