@@ -499,6 +499,63 @@ set names latin1;
 select @@have_innodb;
 @@have_innodb
 #
+*** Various tests with LC_TIME_NAMES
+*** LC_TIME_NAMES: testing case insensitivity
+set @@lc_time_names='ru_ru';
+select @@lc_time_names;
+@@lc_time_names
+ru_RU
+*** LC_TIME_NAMES: testing with a user variable
+set @lc='JA_JP';
+set @@lc_time_names=@lc;
+select @@lc_time_names;
+@@lc_time_names
+ja_JP
+*** LC_TIME_NAMES: testing with string expressions
+set lc_time_names=concat('de','_','DE');
+select @@lc_time_names;
+@@lc_time_names
+de_DE
+set lc_time_names=concat('de','+','DE');
+ERROR HY000: Unknown locale: 'de+DE'
+select @@lc_time_names;
+@@lc_time_names
+de_DE
+LC_TIME_NAMES: testing with numeric expressions
+set @@lc_time_names=1+2;
+select @@lc_time_names;
+@@lc_time_names
+sv_SE
+set @@lc_time_names=1/0;
+ERROR 42000: Incorrect argument type to variable 'lc_time_names'
+select @@lc_time_names;
+@@lc_time_names
+sv_SE
+set lc_time_names=en_US;
+LC_TIME_NAMES: testing NULL and a negative number:
+set lc_time_names=NULL;
+ERROR 42000: Variable 'lc_time_names' can't be set to the value of 'NULL'
+set lc_time_names=-1;
+ERROR HY000: Unknown locale: '-1'
+select @@lc_time_names;
+@@lc_time_names
+en_US
+LC_TIME_NAMES: testing locale with the last ID:
+set lc_time_names=108;
+select @@lc_time_names;
+@@lc_time_names
+zh_HK
+LC_TIME_NAMES: testing a number beyond the valid ID range:
+set lc_time_names=109;
+ERROR HY000: Unknown locale: '109'
+select @@lc_time_names;
+@@lc_time_names
+zh_HK
+LC_TIME_NAMES: testing that 0 is en_US:
+set lc_time_names=0;
+select @@lc_time_names;
+@@lc_time_names
+en_US
 set @test = @@query_prealloc_size;
 set @@query_prealloc_size = @test;
 select @@query_prealloc_size = @test;
