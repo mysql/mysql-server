@@ -5753,15 +5753,45 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
         DBUG_RETURN(error);
       }
     }
+
     /*
-      When the open and locking succeeded, we add all the tables to
-      the table map and remove them from tables to lock.
+      When the open and locking succeeded, we check all tables to
+      ensure that they still have the correct type.
+
+      We can use a down cast here since we know that every table added
+      to the tables_to_lock is a RPL_TABLE_LIST.
+    */
+
+    {
+      RPL_TABLE_LIST *ptr= static_cast<RPL_TABLE_LIST*>(rli->tables_to_lock);
+      for ( ; ptr ; ptr= static_cast<RPL_TABLE_LIST*>(ptr->next_global))
+      {
+        if (ptr->m_tabledef.compatible_with(rli, ptr->table))
+        {
+          mysql_unlock_tables(thd, thd->lock);
+          thd->lock= 0;
+          thd->query_error= 1;
+          rli->clear_tables_to_lock();
+          DBUG_RETURN(ERR_BAD_TABLE_DEF);
+        }
+      }
+    }
+
+    /*
+      ... and then we add all the tables to the table map and remove
+      them from tables to lock.
 
       We also invalidate the query cache for all the tables, since
       they will now be changed.
+
+      TODO [/Matz]: Maybe the query cache should not be invalidated
+      here? It might be that a table is not changed, even though it
+      was locked for the statement.  We do know that each
+      Rows_log_event contain at least one row, so after processing one
+      Rows_log_event, we can invalidate the query cache for the
+      associated table.
      */
-    TABLE_LIST *ptr;
-    for (ptr= rli->tables_to_lock ; ptr ; ptr= ptr->next_global)
+    for (TABLE_LIST *ptr= rli->tables_to_lock ; ptr ; ptr= ptr->next_global)
     {
       rli->m_table_map.set_table(ptr->table_id, ptr->table);
     }
@@ -6214,11 +6244,11 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
   thd->query_id= next_query_id();
   pthread_mutex_unlock(&LOCK_thread_count);
 
-  TABLE_LIST *table_list;
+  RPL_TABLE_LIST *table_list;
   char *db_mem, *tname_mem;
   void *const memory=
     my_multi_malloc(MYF(MY_WME),
-                    &table_list, sizeof(TABLE_LIST),
+                    &table_list, sizeof(RPL_TABLE_LIST),
                     &db_mem, NAME_LEN + 1,
                     &tname_mem, NAME_LEN + 1,
                     NULL);
@@ -6264,11 +6294,27 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
     }
 
     /*
-      Open the table if it is not already open and add the table to table map.
-      Note that for any table that should not be replicated, a filter is needed.
+      Open the table if it is not already open and add the table to
+      table map.  Note that for any table that should not be
+      replicated, a filter is needed.
+
+      The creation of a new TABLE_LIST is used to up-cast the
+      table_list consisting of RPL_TABLE_LIST items. This will work
+      since the only case where the argument to open_tables() is
+      changed, is when thd->lex->query_tables == table_list, i.e.,
+      when the statement requires prelocking. Since this is not
+      executed when a statement is executed, this case will not occur.
+      As a precaution, an assertion is added to ensure that the bad
+      case is not a fact.
+
+      Either way, the memory in the list is *never* released
+      internally in the open_tables() function, hence we take a copy
+      of the pointer to make sure that it's not lost.
     */
     uint count;
-    if ((error= open_tables(thd, &table_list, &count, 0)))
+    DBUG_ASSERT(thd->lex->query_tables != table_list);
+    TABLE_LIST *tmp_table_list= table_list;
+    if ((error= open_tables(thd, &tmp_table_list, &count, 0)))
     {
       if (thd->query_error || thd->is_fatal_error)
       {
@@ -6295,14 +6341,12 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
     */
     DBUG_ASSERT(m_table->in_use);
 
-    table_def const def(m_coltype, m_colcnt);
-    if (def.compatible_with(rli, m_table))
-    {
-      thd->query_error= 1;
-      error= ERR_BAD_TABLE_DEF;
-      goto err;
-      /* purecov: end */
-    }
+    /*
+      Use placement new to construct the table_def instance in the
+      memory allocated for it inside table_list.
+    */
+    const table_def *const def=
+      new (&table_list->m_tabledef) table_def(m_coltype, m_colcnt);
 
     /*
       We record in the slave's information that the table should be

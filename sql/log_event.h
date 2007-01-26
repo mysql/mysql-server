@@ -1721,14 +1721,17 @@ public:
     TYPE_CODE = TABLE_MAP_EVENT
   };
 
+  /**
+     Enumeration of the errors that can be returned.
+   */
   enum enum_error
   {
-    ERR_OPEN_FAILURE = -1,                 /* Failure to open table */
-    ERR_OK = 0,                                  /* No error */
-    ERR_TABLE_LIMIT_EXCEEDED = 1,        /* No more room for tables */
-    ERR_OUT_OF_MEM = 2,                         /* Out of memory */
-    ERR_BAD_TABLE_DEF = 3,       /* Table definition does not match */
-    ERR_RBR_TO_SBR = 4    /* daisy-chanining RBR to SBR not allowed */
+    ERR_OPEN_FAILURE = -1,               /**< Failure to open table */
+    ERR_OK = 0,                                 /**< No error */
+    ERR_TABLE_LIMIT_EXCEEDED = 1,      /**< No more room for tables */
+    ERR_OUT_OF_MEM = 2,                         /**< Out of memory */
+    ERR_BAD_TABLE_DEF = 3,     /**< Table definition does not match */
+    ERR_RBR_TO_SBR = 4  /**< daisy-chanining RBR to SBR not allowed */
   };
 
   enum enum_flag
@@ -1808,7 +1811,7 @@ private:
 
  Row level log event class.
 
- Common base class for all row-level log events.
+ Common base class for all row-containing log events.
 
  RESPONSIBILITIES
 
@@ -1822,6 +1825,19 @@ private:
 class Rows_log_event : public Log_event
 {
 public:
+  /**
+     Enumeration of the errors that can be returned.
+   */
+  enum enum_error
+  {
+    ERR_OPEN_FAILURE = -1,               /**< Failure to open table */
+    ERR_OK = 0,                                 /**< No error */
+    ERR_TABLE_LIMIT_EXCEEDED = 1,      /**< No more room for tables */
+    ERR_OUT_OF_MEM = 2,                         /**< Out of memory */
+    ERR_BAD_TABLE_DEF = 3,     /**< Table definition does not match */
+    ERR_RBR_TO_SBR = 4  /**< daisy-chanining RBR to SBR not allowed */
+  };
+
   /*
     These definitions allow you to combine the flags into an
     appropriate flag set using the normal bitwise operators.  The
@@ -1829,7 +1845,6 @@ public:
     accepted by the compiler, which is then used to set the real set
     of flags.
   */
-
   enum enum_flag
   {
     /* Last event of a statement */
