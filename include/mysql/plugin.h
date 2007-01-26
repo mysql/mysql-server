@@ -29,7 +29,8 @@
 #define MYSQL_STORAGE_ENGINE_PLUGIN  1  /* Storage Engine               */
 #define MYSQL_FTPARSER_PLUGIN        2  /* Full-text parser plugin      */
 #define MYSQL_DAEMON_PLUGIN          3  /* The daemon/raw plugin type */
-#define MYSQL_MAX_PLUGIN_TYPE_NUM    4  /* The number of plugin types   */
+#define MYSQL_INFORMATION_SCHEMA_PLUGIN  4  /* The I_S plugin type */
+#define MYSQL_MAX_PLUGIN_TYPE_NUM    5  /* The number of plugin types   */
 
 /* We use the following strings to define licenses for plugins */
 #define PLUGIN_LICENSE_PROPRIETARY 0
@@ -303,6 +304,13 @@ struct st_mysql_ftparser
 #define MYSQL_DAEMON_INTERFACE_VERSION (MYSQL_VERSION_ID << 8)
 
 /*************************************************************************
+  API for I_S plugin. (MYSQL_INFORMATION_SCHEMA_PLUGIN)
+*/
+
+/* handlertons of different MySQL releases are incompatible */
+#define MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION (MYSQL_VERSION_ID << 8)
+
+/*************************************************************************
   API for Storage Engine plugin. (MYSQL_STORAGE_ENGINE_PLUGIN)
 */
 
@@ -326,6 +334,16 @@ struct st_mysql_storage_engine
 */
 
 struct st_mysql_daemon
+{
+  int interface_version;
+};
+
+/*
+  Here we define only the descriptor structure, that is referred from
+  st_mysql_plugin.
+*/
+
+struct st_mysql_information_schema
 {
   int interface_version;
 };
