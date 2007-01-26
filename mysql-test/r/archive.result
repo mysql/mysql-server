@@ -12665,4 +12665,4 @@ t6	CREATE TABLE `t6` (
   `c` int(11) DEFAULT NULL,
   KEY `a` (`a`)
 ) ENGINE=ARCHIVE DEFAULT CHARSET=latin1
-DROP TABLE t1, t2, t4, t5;
+DROP TABLE t1, t2, t4, t5, t6;
