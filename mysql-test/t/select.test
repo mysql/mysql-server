@@ -3103,6 +3103,16 @@ SELECT t3.a FROM t1,t2,t3
         t3.c IN ('bb','ee');
 
 DROP TABLE t1,t2,t3;
+ 
+#
+# Bug#25172: Not checked buffer size leads to a server crash
+#
+CREATE TABLE t1 ( f1 int primary key, f2 int, f3 int, f4 int, f5 int, f6 int, checked_out int);
+CREATE TABLE t2 ( f11 int PRIMARY KEY );
+INSERT INTO t1 VALUES (1,1,1,0,0,0,0),(2,1,1,3,8,1,0),(3,1,1,4,12,1,0);
+INSERT INTO t2 VALUES (62);
+SELECT * FROM t1 LEFT JOIN t2 ON f11 = t1.checked_out GROUP BY f1 ORDER BY f2, f3, f4, f5 LIMIT 0, 1;
+DROP TABLE t1, t2;
 
 #
 # Bug#6298: LIMIT #, -1 no longer works to set start with no end limit

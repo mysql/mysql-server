@@ -447,7 +447,8 @@ public:
   Item *next;
   uint32 max_length;
   uint name_length;                     /* Length of name */
-  uint8 marker, decimals;
+  int8 marker;
+  uint8 decimals;
   my_bool maybe_null;			/* If item may be null */
   my_bool null_value;			/* if item is null */
   my_bool unsigned_flag;
@@ -2263,6 +2264,9 @@ public:
   bool fix_fields(THD *, Item **);
   void print(String *str);
   table_map used_tables() const { return (table_map)0L; }
+  Field *get_tmp_table_field() { return 0; }
+  Item *copy_or_same(THD *thd) { return this; }
+  Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
   void cleanup();
 
 private:
