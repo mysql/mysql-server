@@ -39,6 +39,7 @@ Item_subselect::Item_subselect():
   engine(0), old_engine(0), used_tables_cache(0), have_to_be_excluded(0),
   const_item_cache(1), engine_changed(0), changed(0)
 {
+  with_subselect= 1;
   reset();
   /*
     item value is NULL if select_subselect not changed this value
@@ -201,6 +202,9 @@ bool Item_subselect::exec()
     mem root
   */
   thd->mem_root= &thd->main_mem_root;
+  if (thd->net.report_error)
+  /* Do not execute subselect in case of a fatal error */
+    return 1;
   res= engine->exec();
   thd->mem_root= old_root;
 

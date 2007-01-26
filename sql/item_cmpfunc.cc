@@ -2139,6 +2139,7 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     and_tables_cache&=      tmp_table_map;
     const_item_cache&=	    item->const_item();
     with_sum_func=	    with_sum_func || item->with_sum_func;
+    with_subselect|=        item->with_subselect;
     if (item->maybe_null)
       maybe_null=1;
   }
@@ -2351,7 +2352,7 @@ longlong Item_func_isnull::val_int()
     Handle optimization if the argument can't be null
     This has to be here because of the test in update_used_tables().
   */
-  if (!used_tables_cache)
+  if (!used_tables_cache && !with_subselect)
     return cached_value;
   return args[0]->is_null() ? 1: 0;
 }
@@ -2360,7 +2361,7 @@ longlong Item_is_not_null_test::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_is_not_null_test::val_int");
-  if (!used_tables_cache)
+  if (!used_tables_cache && !with_subselect)
   {
     owner->was_null|= (!cached_value);
     DBUG_PRINT("info", ("cached :%d", cached_value));
@@ -2387,7 +2388,7 @@ void Item_is_not_null_test::update_used_tables()
   else
   {
     args[0]->update_used_tables();
-    if (!(used_tables_cache=args[0]->used_tables()))
+    if (!(used_tables_cache=args[0]->used_tables()) && !with_subselect)
     {
       /* Remember if the value is always NULL or never NULL */
       cached_value= (longlong) !args[0]->is_null();

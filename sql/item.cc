@@ -47,6 +47,7 @@ Item::Item():
   collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
   name= 0;
   decimals= 0; max_length= 0;
+  with_subselect= 0;
 
   /* Put item in free list so that we can free all items at end */
   THD *thd= current_thd;
