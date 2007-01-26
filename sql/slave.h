@@ -213,6 +213,15 @@ extern I_List<THD> threads;
 #define SLAVE_IO  1
 #define SLAVE_SQL 2
 
+/*
+  Define placement versions of operator new and operator delete since
+  we cannot be sure that the <new> include exists.
+ */
+inline void *operator new(size_t, void *ptr) { return ptr; }
+inline void *operator new[](size_t, void *ptr) { return ptr; }
+inline void  operator delete(void*, void*) { /* Do nothing */ }
+inline void  operator delete[](void*, void*) { /* Do nothing */ }
+
 #endif
 
 
