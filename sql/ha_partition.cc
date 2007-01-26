@@ -4015,6 +4015,7 @@ int ha_partition::handle_ordered_index_scan(byte *buf, bool reverse_order)
     m_queue.elements= j;
     queue_fix(&m_queue);
     return_top_record(buf);
+    table->status= 0;
     DBUG_PRINT("info", ("Record returned from partition %d", m_top_entry));
     DBUG_RETURN(0);
   }
@@ -4083,6 +4084,7 @@ int ha_partition::handle_ordered_next(byte *buf, bool is_next_same)
          DBUG_PRINT("info", ("Record returned from partition %u (2)",
                      m_top_entry));
          return_top_record(buf);
+         table->status= 0;
          error= 0;
       }
     }
@@ -4126,6 +4128,7 @@ int ha_partition::handle_ordered_prev(byte *buf)
 	DBUG_PRINT("info", ("Record returned from partition %d (2)",
 			    m_top_entry));
         error= 0;
+        table->status= 0;
       }
     }
     DBUG_RETURN(error);

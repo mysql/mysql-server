@@ -318,7 +318,7 @@ int mysql_update(THD *thd,
 	to update
         NOTE: filesort will call table->prepare_for_position()
       */
-      uint         length;
+      uint         length= 0;
       SORT_FIELD  *sortorder;
       ha_rows examined_rows;
 

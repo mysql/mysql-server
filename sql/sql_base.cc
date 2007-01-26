@@ -5321,6 +5321,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
     bzero(ref_pointer_array, sizeof(Item *) * fields.elements);
 
   Item **ref= ref_pointer_array;
+  thd->lex->current_select->cur_pos_in_select_list= 0;
   while ((item= it++))
   {
     if (!item->fixed && item->fix_fields(thd, it.ref()) ||
@@ -5337,7 +5338,10 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
 	sum_func_list)
       item->split_sum_func(thd, ref_pointer_array, *sum_func_list);
     thd->used_tables|= item->used_tables();
+    thd->lex->current_select->cur_pos_in_select_list++;
   }
+  thd->lex->current_select->cur_pos_in_select_list= UNDEF_POS;
+
   thd->lex->allow_sum_func= save_allow_sum_func;
   thd->mark_used_columns= save_mark_used_columns;
   DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
