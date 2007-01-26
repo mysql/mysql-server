@@ -17,11 +17,14 @@
 #include <string.h>
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 #include <my_getopt.h>
 #include <mysql_version.h>
 
 #define ARCHIVE_ROW_HEADER_SIZE 4
 
+#define COMMENT_STRING "Your bases"
+#define FRM_STRING "My bases"
 #define TEST_FILENAME "test.az"
 #define TEST_STRING_INIT "YOU don't know about me without you have read a book by the name of The Adventures of Tom Sawyer; but that ain't no matter.  That book was made by Mr. Mark Twain, and he told the truth, mainly.  There was things which he stretched, but mainly he told the truth.  That is nothing.  I never seen anybody but lied one time or another, without it was Aunt Polly, or the widow, or maybe Mary.  Aunt Polly--Tom's Aunt Polly, she is--and Mary, and the Widow Douglas is all told about in that book, which is mostly a true book, with some stretchers, as I said before.  Now the way that the book winds up is this:  Tom and me found the money that the robbers hid in the cave, and it made us rich.  We got six thousand dollars apiece--all gold.  It was an awful sight of money when it was piled up.  Well, Judge Thatcher he took it and put it out at interest, and it fetched us a dollar a day apiece all the year round --more than a body could tell what to do with.  The Widow Douglas she took me for her son, and allowed she would..."
 #define TEST_LOOP_NUM 100
@@ -44,6 +47,7 @@ int size_test(unsigned long long length, unsigned long long rows_to_test_for);
 int main(int argc, char *argv[])
 {
   unsigned int ret;
+  char comment_str[10];
 
   int error;
   unsigned int x;
@@ -67,6 +71,19 @@ int main(int argc, char *argv[])
     return 0;
   }
 
+  azwrite_comment(&writer_handle, (char *)COMMENT_STRING, 
+                  (unsigned int)strlen(COMMENT_STRING));
+  azread_comment(&writer_handle, comment_str);
+  assert(!memcmp(COMMENT_STRING, comment_str,
+                strlen(COMMENT_STRING)));
+
+  azwrite_frm(&writer_handle, (char *)FRM_STRING, 
+                  (unsigned int)strlen(FRM_STRING));
+  azread_frm(&writer_handle, comment_str);
+  assert(!memcmp(FRM_STRING, comment_str,
+                strlen(FRM_STRING)));
+
+
   if (!(ret= azopen(&reader_handle, TEST_FILENAME, O_RDONLY|O_BINARY)))
   {
     printf("Could not open test file\n");
@@ -87,6 +104,10 @@ int main(int argc, char *argv[])
   }
   azflush(&writer_handle,  Z_SYNC_FLUSH);
 
+  azread_comment(&writer_handle, comment_str);
+  assert(!memcmp(COMMENT_STRING, comment_str,
+                strlen(COMMENT_STRING)));
+
   /* Lets test that our internal stats are good */
   assert(writer_handle.rows == TEST_LOOP_NUM);
 
@@ -94,15 +115,16 @@ int main(int argc, char *argv[])
   azflush(&reader_handle,  Z_SYNC_FLUSH);
   assert(reader_handle.rows == TEST_LOOP_NUM);
   assert(reader_handle.auto_increment == 0);
-  assert(reader_handle.check_point == 62);
+  assert(reader_handle.check_point == 96);
   assert(reader_handle.forced_flushes == 1);
+  assert(reader_handle.comment_length == 10);
   assert(reader_handle.dirty == AZ_STATE_SAVED);
 
   writer_handle.auto_increment= 4;
   azflush(&writer_handle, Z_SYNC_FLUSH);
   assert(writer_handle.rows == TEST_LOOP_NUM);
   assert(writer_handle.auto_increment == 4);
-  assert(writer_handle.check_point == 62);
+  assert(writer_handle.check_point == 96);
   assert(writer_handle.forced_flushes == 2);
   assert(writer_handle.dirty == AZ_STATE_SAVED);
 
@@ -181,7 +203,7 @@ int main(int argc, char *argv[])
   azflush(&reader_handle,  Z_SYNC_FLUSH);
   assert(reader_handle.rows == 102);
   assert(reader_handle.auto_increment == 4);
-  assert(reader_handle.check_point == 1256);
+  assert(reader_handle.check_point == 1290);
   assert(reader_handle.forced_flushes == 4);
   assert(reader_handle.dirty == AZ_STATE_SAVED);
 
