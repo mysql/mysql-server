@@ -12367,6 +12367,7 @@ INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (32, "foo");
 INSERT INTO t5 VALUES (23, "foo");
+ERROR 23000: Can't write; duplicate key in table 't5'
 INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (3, "foo");
@@ -12380,7 +12381,6 @@ a	b
 4	foo
 5	foo
 32	foo
-23	foo
 33	foo
 34	foo
 35	foo
