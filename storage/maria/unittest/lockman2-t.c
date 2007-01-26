@@ -171,10 +171,12 @@ void run_test(const char *test, pthread_handler handler, int n, int m)
 
 static void reinit_tlo(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo)
 {
+#ifdef NOT_USED_YET
   TABLE_LOCK_OWNER backup= *lo;
+#endif
 
   tablockman_release_locks(lm, lo);
-  /*
+#ifdef NOT_USED_YET
   pthread_mutex_destroy(lo->mutex);
   pthread_cond_destroy(lo->cond);
   bzero(lo, sizeof(*lo));
@@ -183,7 +185,8 @@ static void reinit_tlo(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo)
   lo->cond= backup.cond;
   lo->loid= backup.loid;
   pthread_mutex_init(lo->mutex, MY_MUTEX_INIT_FAST);
-  pthread_cond_init(lo->cond, 0);*/
+  pthread_cond_init(lo->cond, 0);
+#endif
 }
 
 pthread_mutex_t rt_mutex;
@@ -191,8 +194,8 @@ int Nrows= 100;
 int Ntables= 10;
 int table_lock_ratio= 10;
 enum lock_type lock_array[6]= {S, X, LS, LX, IS, IX};
-char *lock2str[6]= {"S", "X", "LS", "LX", "IS", "IX"};
-char *res2str[]= {
+const char *lock2str[6]= {"S", "X", "LS", "LX", "IS", "IX"};
+const char *res2str[]= {
   0,
   "OUT OF MEMORY",
   "DEADLOCK",
@@ -200,6 +203,7 @@ char *res2str[]= {
   "GOT THE LOCK",
   "GOT THE LOCK NEED TO LOCK A SUBRESOURCE",
   "GOT THE LOCK NEED TO INSTANT LOCK A SUBRESOURCE"};
+
 pthread_handler_t test_lockman(void *arg)
 {
   int    m= (*(int *)arg);
@@ -215,13 +219,16 @@ pthread_handler_t test_lockman(void *arg)
 
   for (x= ((int)(intptr)(&m)); m > 0; m--)
   {
-    x= (x*3628273133 + 1500450271) % 9576890767; /* three prime numbers */
+    /* three prime numbers */
+    x= (uint) ((x*LL(3628273133) + LL(1500450271)) % LL(9576890767));
     row=  x % Nrows + Ntables;
     table= row % Ntables;
     locklevel= (x/Nrows) & 3;
     if (table_lock_ratio && (x/Nrows/4) % table_lock_ratio == 0)
-    { /* table lock */
-      res= tablockman_getlock(&tablockman, lo1, ltarray+table, lock_array[locklevel]);
+    {
+      /* table lock */
+      res= tablockman_getlock(&tablockman, lo1, ltarray+table,
+                              lock_array[locklevel]);
       DIAG(("loid %2d, table %d, lock %s, res %s", loid, table,
             lock2str[locklevel], res2str[res]));
       if (res < GOT_THE_LOCK)

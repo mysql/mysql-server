@@ -101,7 +101,7 @@ uint check_page(uchar *buff, ulong offset, int page_locked, int page_no,
            (page_locked ? "locked" : "unlocked"),
            end, num, tag);
       h= my_open("wrong_page", O_CREAT | O_TRUNC | O_RDWR, MYF(0));
-      my_pwrite(h, buff, PAGE_SIZE, 0, MYF(0));
+      my_pwrite(h, (byte*) buff, PAGE_SIZE, 0, MYF(0));
       my_close(h, MYF(0));
       goto err;
     }

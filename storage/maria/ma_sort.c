@@ -534,8 +534,7 @@ int _ma_thr_write_keys(MARIA_SORT_PARAM *sort_param)
                          (ulonglong) info->state->records);
     }
     my_free((gptr) sinfo->sort_keys,MYF(0));
-    my_free(_ma_get_rec_buff_ptr(info, sinfo->rec_buff),
-	    MYF(MY_ALLOW_ZERO_PTR));
+    my_free(sinfo->rec_buff, MYF(MY_ALLOW_ZERO_PTR));
     sinfo->sort_keys=0;
   }
 

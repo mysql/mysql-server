@@ -37,8 +37,8 @@ static void get_double(double *d, const byte *pos)
   float8get(*d, pos);
 }
 
-uint sp_make_key(register MARIA_HA *info, uint keynr, byte *key,
-		 const byte *record, my_off_t filepos)
+uint _ma_sp_make_key(register MARIA_HA *info, uint keynr, byte *key,
+                     const byte *record, my_off_t filepos)
 {
   HA_KEYSEG *keyseg;
   MARIA_KEYDEF *keyinfo = &info->s->keyinfo[keynr];

@@ -38,3 +38,5 @@ ndb_autodiscover3        : bug#21806
 
 flush2                   : Bug#24805 Pushbuild can't handle test with --disable-log-bin
 
+maria			: Until maria is fully functional
+ps_maria		: Until maria is fully functional

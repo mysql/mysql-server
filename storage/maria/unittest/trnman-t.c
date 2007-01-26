@@ -35,7 +35,7 @@ int litmus;
 pthread_handler_t test_trnman(void *arg)
 {
   int    m= (*(int *)arg);
-  uint   x, y, i, j, n;
+  uint   x, y, i, n;
   TRN    *trn[MAX_ITER];
   pthread_mutex_t mutexes[MAX_ITER];
   pthread_cond_t conds[MAX_ITER];
@@ -48,7 +48,7 @@ pthread_handler_t test_trnman(void *arg)
 
   for (x= ((int)(intptr)(&m)); m > 0; )
   {
-    y= x= (x*3628273133 + 1500450271) % 9576890767; /* three prime numbers */
+    y= x= (x*LL(3628273133) + LL(1500450271)) % LL(9576890767); /* three prime numbers */
     m-= n= x % MAX_ITER;
     for (i= 0; i < n; i++)
     {
@@ -65,7 +65,6 @@ pthread_handler_t test_trnman(void *arg)
       trnman_end_trn(trn[i], y & 1);
     }
   }
-end:
   for (i= 0; i < MAX_ITER; i++)
   {
     pthread_mutex_destroy(&mutexes[i]);

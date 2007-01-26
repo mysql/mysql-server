@@ -135,8 +135,9 @@ typedef struct {
 */
 #if defined(__GNUC__) && defined(MY_LF_EXTRA_DEBUG)
 #define LF_REQUIRE_PINS(N)                                      \
-  static const char require_pins[LF_PINBOX_PINS-N];             \
+  static const char require_pins[LF_PINBOX_PINS-N] __attribute__ ((unused)); \
   static const int LF_NUM_PINS_IN_THIS_FILE= N
+
 #define _lf_pin(PINS, PIN, ADDR)                                \
   (                                                             \
     assert(PIN < LF_NUM_PINS_IN_THIS_FILE),                     \

@@ -42,7 +42,7 @@ char file_name[FN_REFLEN];
 LSN expect_checkpoint_lsn;
 uint32 expect_logno;
 
-static int delete_file();
+static int delete_file(myf my_flags);
 /*
   Those are test-specific wrappers around the module's API functions: after
   calling the module's API functions they perform checks on the result.
@@ -91,7 +91,7 @@ int main(int argc,char *argv[])
   get_options(argc,argv);
 
   diag("Deleting control file at startup, if there is an old one");
-  RET_ERR_UNLESS(0 == delete_file()); /* if fails, can't continue */
+  RET_ERR_UNLESS(0 == delete_file(0)); /* if fails, can't continue */
 
   diag("Tests of normal conditions");
   ok(0 == test_one_log(), "test of creating one log");
@@ -111,7 +111,7 @@ int main(int argc,char *argv[])
 }
 
 
-static int delete_file()
+static int delete_file(myf my_flags)
 {
   RET_ERR_UNLESS(fn_format(file_name, CONTROL_FILE_BASE_NAME,
                            maria_data_root, "", MYF(MY_WME)) != NullS);
@@ -119,7 +119,7 @@ static int delete_file()
     Maybe file does not exist, ignore error.
     The error will however be printed on stderr.
   */
-  my_delete(file_name, MYF(MY_WME));
+  my_delete(file_name, my_flags);
   expect_checkpoint_lsn= CONTROL_FILE_IMPOSSIBLE_LSN;
   expect_logno= CONTROL_FILE_IMPOSSIBLE_FILENO;
 
@@ -365,7 +365,7 @@ static int test_bad_size()
   int fd;
 
   /* A too short file */
-  RET_ERR_UNLESS(delete_file() == 0);
+  RET_ERR_UNLESS(delete_file(MYF(MY_WME)) == 0);
   RET_ERR_UNLESS((fd= my_open(file_name,
                           O_BINARY | O_RDWR | O_CREAT,
                           MYF(MY_WME))) >= 0);
@@ -378,7 +378,7 @@ static int test_bad_size()
   RET_ERR_UNLESS(my_close(fd, MYF(MY_WME)) == 0);
 
   /* Leave a correct control file */
-  RET_ERR_UNLESS(delete_file() == 0);
+  RET_ERR_UNLESS(delete_file(MYF(MY_WME)) == 0);
   RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
   RET_ERR_UNLESS(close_file() == 0);
 

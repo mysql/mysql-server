@@ -123,7 +123,8 @@ int maria_rkey(MARIA_HA *info, byte *buf, int inx, const byte *key,
             value.
           */
           if (search_flag == HA_READ_KEY_EXACT &&
-              ha_key_cmp(keyinfo->seg, key_buff, info->lastkey, use_key_length,
+              ha_key_cmp(keyinfo->seg, (uchar*) key_buff,
+                         (uchar*) info->lastkey, use_key_length,
                          SEARCH_FIND, not_used))
           {
             my_errno= HA_ERR_KEY_NOT_FOUND;

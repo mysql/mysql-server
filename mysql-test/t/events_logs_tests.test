@@ -91,7 +91,7 @@ CREATE EVENT long_event2 ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_te
 SELECT * FROM slow_event_test;
 --echo "Check slow log. Should see 1 row because 4 is over the threshold of 3 for GLOBAL, though under SESSION which is 10"
 --replace_column 1 USER_HOST 2 SLEEPVAL
-SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
+SELECT user_host, query_time, db, sql_text FROM mysql.slow_log where sql_text <> "DROP EVENT long_event";
 DROP EVENT long_event2;
 --echo "Make it quite long"
 SET SESSION long_query_time=300;

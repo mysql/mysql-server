@@ -351,8 +351,8 @@ void trnman_end_trn(TRN *trn, my_bool commit)
     those lists, and thus nobody may want to free them. Now we don't
     need a mutex to access free_me list
   */
+  /* QQ: send them to the purge thread */
   while (free_me)
-#warning XXX send them to the purge thread
   {
     TRN *t= free_me;
     free_me= free_me->next;

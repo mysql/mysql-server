@@ -33,7 +33,7 @@
   LSIX - Loose Shared + Intention eXclusive
 */
 #ifndef _lockman_h
-#warning TODO remove N-locks
+/* QQ: TODO remove N-locks */
 enum lock_type { N, S, X, IS, IX, SIX, LS, LX, SLX, LSIX, LOCK_TYPE_LAST };
 enum lockman_getlock_result {
   NO_MEMORY_FOR_LOCK=1, DEADLOCK, LOCK_TIMEOUT,

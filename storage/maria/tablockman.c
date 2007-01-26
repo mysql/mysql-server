@@ -1,5 +1,5 @@
-#warning TODO - allocate everything from dynarrays !!! (benchmark)
-#warning automatically place S instead of LS if possible
+/* QQ: TODO - allocate everything from dynarrays !!! (benchmark) */
+/* QQ: automatically place S instead of LS if possible */
 /* Copyright (C) 2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -219,7 +219,7 @@ static const enum lockman_getlock_result getlock_result[10][10]=
 */
 
 struct st_table_lock {
-#warning do we need upgraded_from ?
+  /* QQ: do we need upgraded_from ? */
   struct st_table_lock *next_in_lo, *upgraded_from, *next, *prev;
   struct st_locked_table *table;
   uint16 loid;

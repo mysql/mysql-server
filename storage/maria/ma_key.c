@@ -64,7 +64,7 @@ uint _ma_make_key(register MARIA_HA *info, uint keynr, byte *key,
       TODO: nulls processing
     */
 #ifdef HAVE_SPATIAL
-    DBUG_RETURN(sp_make_key(info,keynr, key,record,filepos));
+    DBUG_RETURN(_ma_sp_make_key(info,keynr, key,record,filepos));
 #else
     DBUG_ASSERT(0); /* maria_open should check that this never happens*/
 #endif
@@ -113,10 +113,10 @@ uint _ma_make_key(register MARIA_HA *info, uint keynr, byte *key,
       }
       else
       {
-        byte *end= pos + length;
+        const byte *end= pos + length;
 	while (pos < end && pos[0] == ' ')
 	  pos++;
-	length=(uint) (end-pos);
+	length= (uint) (end-pos);
       }
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key,char_length);

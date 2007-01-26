@@ -2553,7 +2553,9 @@ CREATE VIEW v1 AS
     FROM t1 HAVING Age < 75; 
 SHOW CREATE VIEW v1;           
 
+set timestamp=1136066400;
 SELECT (year(now())-year(DOB)) AS Age FROM t1 HAVING Age < 75;
+set timestamp=1136066400;
 SELECT * FROM v1;
 
 DROP VIEW v1;
@@ -2906,6 +2908,7 @@ DROP FUNCTION f1;
 DROP VIEW v1;
 DROP TABLE t1;
 
+#
 # Bug #16813 (WITH CHECK OPTION doesn't work with UPDATE)
 #
 CREATE TABLE t1(id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, val INT UNSIGNED NOT NULL);
@@ -2918,7 +2921,6 @@ INSERT INTO v1 (val) VALUES (6);
 UPDATE v1 SET val=6 WHERE id=2;
 DROP VIEW v1;
 DROP TABLE t1;
-
 
 #
 # BUG#22584: last_insert_id not updated after inserting a record
@@ -2957,6 +2959,20 @@ SELECT * FROM t1;
 DROP VIEW v1, v2;
 DROP TABLE t1;
 
+#
+# BUG#24293: '\Z' token is not handled correctly in views
+#
+
+--disable_warnings
+DROP VIEW IF EXISTS v1;
+--enable_warnings
+
+CREATE VIEW v1 AS SELECT 'The\ZEnd';
+SELECT * FROM v1;
+
+SHOW CREATE VIEW v1;
+
+DROP VIEW v1;
 
 --echo End of 5.0 tests.
 

@@ -967,7 +967,8 @@ static my_bool write_full_pages(MARIA_HA *info,
   my_off_t position;
   DBUG_ENTER("write_full_pages");
   DBUG_PRINT("enter", ("length: %lu  page: %lu  page_count: %lu",
-                       length, (ulong) block->page, block->page_count));
+                       (ulong) length, (ulong) block->page,
+                       (ulong) block->page_count));
   
   info->keybuff_used= 1;
   page=       block->page;
@@ -988,7 +989,7 @@ static my_bool write_full_pages(MARIA_HA *info,
       page= block->page;
       page_count= block->page_count - 1;
       DBUG_PRINT("info", ("page: %lu  page_count: %lu",
-                          (ulong) block->page, block->page_count));
+                          (ulong) block->page, (ulong) block->page_count));
 
       position= (page + page_count + 1) * block_size;
       if (info->state->data_file_length < position)
@@ -2387,18 +2388,18 @@ int _ma_read_block_record2(MARIA_HA *info, byte *record,
       blob_buffer+= blob_length;
       break;
     }
-#ifdef EXTRA_DEBUG
     default:
+#ifdef EXTRA_DEBUG
       DBUG_ASSERT(0);                           /* purecov: deadcode */
-      goto err;
 #endif
+      goto err;
     }
     continue;
   }
 
   if (row_extents)
   {
-    DBUG_PRINT("info", ("Row read:  page_count: %lu  extent_count: %lu",
+    DBUG_PRINT("info", ("Row read:  page_count: %u  extent_count: %u",
                         extent.page_count, extent.extent_count));
     *extent.tail_positions= 0;                  /* End marker */
     if (extent.page_count)

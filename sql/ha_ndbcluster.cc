@@ -7297,9 +7297,9 @@ static byte *ndbcluster_get_key(NDB_SHARE *share,uint *length,
 static void print_share(const char* where, NDB_SHARE* share)
 {
   fprintf(DBUG_FILE,
-          "%s %s.%s: use_count: %u, commit_count: %llu\n",
+          "%s %s.%s: use_count: %u, commit_count: %lu\n",
           where, share->db, share->table_name, share->use_count,
-          share->commit_count);
+          (ulong) share->commit_count);
   fprintf(DBUG_FILE,
           "  - key: %s, key_length: %d\n",
           share->key, share->key_length);

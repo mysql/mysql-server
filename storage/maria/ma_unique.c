@@ -26,7 +26,7 @@ my_bool _ma_check_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def, byte *record,
   MARIA_KEYDEF *key= &info->s->keyinfo[def->key];
   byte *key_buff= info->lastkey2;
   DBUG_ENTER("_ma_check_unique");
-  DBUG_PRINT("enter",("unique_hash: %lu", unique_hash));
+  DBUG_PRINT("enter",("unique_hash: %lu", (ulong) unique_hash));
 
   maria_unique_store(record+key->seg->start, unique_hash);
   _ma_make_key(info,def->key,key_buff,record,0);

@@ -252,10 +252,10 @@ void test_atomic(const char *test, pthread_handler handler, int n, int m)
   for (i= 0 ; i < n ; i++)
     pthread_join(threads[i], 0);
   now= my_getsystime()-now;
-err:
   ok(a32 == 0, "tested %s in %g secs (%d)", test, ((double)now)/1e7, a32);
   my_free((void *)threads, MYF(0));
 }
+
 
 int main()
 {

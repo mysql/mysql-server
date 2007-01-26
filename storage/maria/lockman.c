@@ -1,6 +1,7 @@
-#warning TODO - allocate everything from dynarrays !!! (benchmark)
-#warning TODO instant duration locks
-#warning automatically place S instead of LS if possible
+/* QQ: TODO - allocate everything from dynarrays !!! (benchmark) */
+/* QQ: TODO instant duration locks */
+/* QQ: #warning automatically place S instead of LS if possible */
+
 /* Copyright (C) 2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -218,7 +219,7 @@ typedef struct lockman_lock {
   struct lockman_lock  *lonext;
   intptr volatile link;
   uint32 hashnr;
-#warning TODO - remove hashnr from LOCK
+  /* QQ: TODO - remove hashnr from LOCK */
   uint16 loid;
   uchar lock;              /* sizeof(uchar) <= sizeof(enum) */
   uchar flags;
@@ -428,9 +429,11 @@ static int lockinsert(LOCK * volatile *head, LOCK *node, LF_PINS *pins,
       }
       if (res & LOCK_UPGRADE)
         cursor.upgrade_from->flags|= IGNORE_ME;
-#warning is this OK ? if a reader has already read upgrade_from, \
-         it may find it conflicting with node :(
-#warning another bug - see the last test from test_lockman_simple()
+      /*
+        QQ: is this OK ? if a reader has already read upgrade_from, 
+        it may find it conflicting with node :(
+        - see the last test from test_lockman_simple()
+      */
     }
 
   } while (res == REPEAT_ONCE_MORE);
@@ -673,7 +676,7 @@ enum lockman_getlock_result lockman_getlock(LOCKMAN *lm, LOCK_OWNER *lo,
       belong to _some_ LOCK_OWNER. It means, we can never free() a LOCK_OWNER,
       if there're other active LOCK_OWNERs.
     */
-#warning race condition here
+    /* QQ: race condition here */
     pthread_mutex_lock(wait_for_lo->mutex);
     if (DELETED(blocker->link))
     {
@@ -749,7 +752,7 @@ int lockman_release_locks(LOCKMAN *lm, LOCK_OWNER *lo)
 }
 
 #ifdef MY_LF_EXTRA_DEBUG
-static char *lock2str[]=
+static const char *lock2str[]=
 { "N", "S", "X", "IS", "IX", "SIX", "LS", "LX", "SLX", "LSIX" };
 /*
   NOTE
@@ -764,8 +767,9 @@ void print_lockhash(LOCKMAN *lm)
     intptr next= el->link;
     if (el->hashnr & 1)
     {
-      printf("0x%08x { resource %llu, loid %u, lock %s",
-             el->hashnr, el->resource, el->loid, lock2str[el->lock]);
+      printf("0x%08lx { resource %lu, loid %u, lock %s",
+             (long) el->hashnr, (ulong) el->resource, el->loid,
+             lock2str[el->lock]);
       if (el->flags & IGNORE_ME) printf(" IGNORE_ME");
       if (el->flags & UPGRADED) printf(" UPGRADED");
       if (el->flags & ACTIVE) printf(" ACTIVE");
@@ -781,4 +785,3 @@ void print_lockhash(LOCKMAN *lm)
   }
 }
 #endif
-

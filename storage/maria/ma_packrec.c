@@ -1288,7 +1288,7 @@ _ma_mempack_get_block_info(MARIA_HA *maria,
     header+= read_pack_length((uint) maria->s->pack.version, header,
                               &info->blob_len);
     /* _ma_alloc_rec_buff sets my_errno on error */
-    if (_ma_alloc_buffer(rec_buff_p, rec_buff_size,
+    if (_ma_alloc_buffer(rec_buff_p, rec_buff_size_p,
                          info->blob_len + maria->s->base.extra_rec_buff_size))
       return 0;				/* not enough memory */
     bit_buff->blob_pos= (uchar*) *rec_buff_p;

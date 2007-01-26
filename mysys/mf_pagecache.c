@@ -47,7 +47,6 @@
 #include <errno.h>
 #include <stdarg.h>
 
-
 /*
   Some compilation flags have been added specifically for this module
   to control the following:
@@ -429,7 +428,6 @@ error:
 
 #define FLUSH_CACHE         2000            /* sort this many blocks at once */
 
-static int flush_all_key_blocks(PAGECACHE *pagecache);
 #ifdef THREAD
 static void link_into_queue(PAGECACHE_WQUEUE *wqueue,
                                    struct st_my_thread_var *thread);
@@ -794,6 +792,40 @@ err:
 
 
 /*
+  Flush all blocks in the key cache to disk
+*/
+
+#ifdef NOT_USED
+static int flush_all_key_blocks(PAGECACHE *pagecache)
+{
+#if defined(PAGECACHE_DEBUG)
+  uint cnt=0;
+#endif
+  while (pagecache->blocks_changed > 0)
+  {
+    PAGECACHE_BLOCK_LINK *block;
+    for (block= pagecache->used_last->next_used ; ; block=block->next_used)
+    {
+      if (block->hash_link)
+      {
+#if defined(PAGECACHE_DEBUG)
+        cnt++;
+        KEYCACHE_DBUG_ASSERT(cnt <= pagecache->blocks_used);
+#endif
+        if (flush_pagecache_blocks_int(pagecache, &block->hash_link->file,
+                                       FLUSH_RELEASE))
+          return 1;
+        break;
+      }
+      if (block == pagecache->used_last)
+        break;
+    }
+  }
+  return 0;
+}
+#endif /* NOT_USED */
+
+/*
   Resize a key cache
 
   SYNOPSIS
@@ -827,7 +859,7 @@ err:
      resizing, due to the page locking specific to this page cache.
      So we disable it for now.
 */
-#if 0 /* keep disabled until code is fixed see above !! */
+#if NOT_USED /* keep disabled until code is fixed see above !! */
 int resize_pagecache(PAGECACHE *pagecache,
 		     my_size_t use_mem, uint division_limit,
 		     uint age_threshold)
@@ -1383,7 +1415,7 @@ static void unlink_block(PAGECACHE *pagecache, PAGECACHE_BLOCK_LINK *block)
      (ulong)block, BLOCK_NUMBER(pagecache, block), block->status,
      block->requests, pagecache->blocks_available));
   BLOCK_INFO(block);
-  KEYCACHE_DBUG_ASSERT(pagecache->blocks_available >= 0);
+  KEYCACHE_DBUG_ASSERT((int) pagecache->blocks_available >= 0);
 #endif
 }
 
@@ -2511,7 +2543,7 @@ void pagecache_unlock_page(PAGECACHE *pagecache,
     DBUG_ASSERT(lock == PAGECACHE_LOCK_WRITE_UNLOCK &&
                 pin == PAGECACHE_UNPIN);
     /* TODO: insert LSN writing code */
-    DBUG_ASSERT(first_REDO_LSN_for_page > 0);
+    DBUG_ASSERT(first_REDO_LSN_for_page != 0);
     set_if_bigger(block->rec_lsn, first_REDO_LSN_for_page);
   }
 
@@ -2675,7 +2707,7 @@ void pagecache_unlock(PAGECACHE *pagecache,
     DBUG_ASSERT(lock == PAGECACHE_LOCK_WRITE_UNLOCK &&
                 pin == PAGECACHE_UNPIN);
     /* TODO: insert LSN writing code */
-    DBUG_ASSERT(first_REDO_LSN_for_page > 0);
+    DBUG_ASSERT(first_REDO_LSN_for_page != 0);
     set_if_bigger(block->rec_lsn, first_REDO_LSN_for_page);
   }
 
@@ -3251,7 +3283,9 @@ restart:
 #ifndef DBUG_OFF
       int rc=
 #endif
-#warning we are doing an unlock here, so need to give the page its rec_lsn!
+        /*
+          QQ: We are doing an unlock here, so need to give the page its rec_lsn
+        */
         pagecache_make_lock_and_pin(pagecache, block,
                                     write_lock_change_table[lock].unlock_lock,
                                     write_pin_change_table[pin].unlock_pin);
@@ -3612,11 +3646,14 @@ restart:
         else
         {
 	  /* Link the block into a list of blocks 'in switch' */
-#warning this unlink_changed() is a serious problem for Maria's Checkpoint: it \
-removes a page from the list of dirty pages, while it's still dirty. A  \
-  solution is to abandon first_in_switch, just wait for this page to be \
-  flushed by somebody else, and loop. TODO: check all places where we remove a \
-  page from the list of dirty pages
+          /* QQ:
+             #warning this unlink_changed() is a serious problem for
+             Maria's Checkpoint: it removes a page from the list of dirty
+             pages, while it's still dirty. A solution is to abandon
+             first_in_switch, just wait for this page to be
+             flushed by somebody else, and loop. TODO: check all places
+             where we remove a page from the list of dirty pages
+          */
           unlink_changed(block);
           link_changed(block, &first_in_switch);
         }
@@ -3724,39 +3761,6 @@ int flush_pagecache_blocks(PAGECACHE *pagecache,
   dec_counter_for_resize_op(pagecache);
   pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
   DBUG_RETURN(res);
-}
-
-
-/*
-  Flush all blocks in the key cache to disk
-*/
-
-static int flush_all_key_blocks(PAGECACHE *pagecache)
-{
-#if defined(PAGECACHE_DEBUG)
-  uint cnt=0;
-#endif
-  while (pagecache->blocks_changed > 0)
-  {
-    PAGECACHE_BLOCK_LINK *block;
-    for (block= pagecache->used_last->next_used ; ; block=block->next_used)
-    {
-      if (block->hash_link)
-      {
-#if defined(PAGECACHE_DEBUG)
-        cnt++;
-        KEYCACHE_DBUG_ASSERT(cnt <= pagecache->blocks_used);
-#endif
-        if (flush_pagecache_blocks_int(pagecache, &block->hash_link->file,
-                                       FLUSH_RELEASE))
-          return 1;
-        break;
-      }
-      if (block == pagecache->used_last)
-        break;
-    }
-  }
-  return 0;
 }
 
 
@@ -3876,7 +3880,7 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
         1) and 2) are critical problems.
         TODO: fix this when Monty has explained how he writes BLOB pages.
       */
-      if (0 == block->rec_lsn)
+      if (block->rec_lsn == 0)
       {
         DBUG_ASSERT(0);
         goto err;
@@ -3908,7 +3912,7 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
       ptr+= 4;
       int4store(ptr, block->hash_link->pageno);
       ptr+= 4;
-      int8store(ptr, (ulonglong)block->rec_lsn);
+      int8store(ptr, (ulonglong) block->rec_lsn);
       ptr+= 8;
       set_if_bigger(*max_lsn, block->rec_lsn);
     }

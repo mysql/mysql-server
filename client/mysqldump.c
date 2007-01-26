@@ -2877,7 +2877,7 @@ static int dump_tablespaces_for_tables(char *db, char **table_names, int tables)
   dynstr_trunc(&where, 1);
   dynstr_append(&where,"))");
 
-  DBUG_PRINT("info",("Dump TS for Tables where: %s",where));
+  DBUG_PRINT("info",("Dump TS for Tables where: %s",where.str));
   r= dump_tablespaces(where.str);
   dynstr_free(&where);
   return r;
@@ -2907,7 +2907,7 @@ static int dump_tablespaces_for_databases(char** databases)
   dynstr_trunc(&where, 1);
   dynstr_append(&where,"))");
 
-  DBUG_PRINT("info",("Dump TS for DBs where: %s",where));
+  DBUG_PRINT("info",("Dump TS for DBs where: %s",where.str));
   r= dump_tablespaces(where.str);
   dynstr_free(&where);
   return r;

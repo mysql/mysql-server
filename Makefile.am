@@ -137,9 +137,9 @@ test-binlog-statement:
 	cd mysql-test ; \
 	./mysql-test-run.pl $(force) --mysqld=--binlog-format=statement
 
-test:	test-unit test-ns test-pr
+test:	test-ns test-pr
 
-test-full:	test test-nr test-ps
+test-full:	test-unit test test-nr test-ps
 
 test-force:
 	$(MAKE) force=--force test

@@ -86,7 +86,7 @@ retry:
     if (!cursor->curr)
       return 0;
     do {
-#warning XXX or goto retry ?
+      /* QQ: XXX or goto retry ? */
       link= cursor->curr->link;
       cursor->next= PTR(link);
       _lf_pin(pins, 0, cursor->next);
@@ -105,7 +105,8 @@ retry:
       {
         int r= 1;
         if (cur_hashnr > hashnr ||
-            (r= my_strnncoll(cs, cur_key, cur_keylen, key, keylen)) >= 0)
+            (r= my_strnncoll(cs, (uchar*) cur_key, cur_keylen, (uchar*) key,
+                             keylen)) >= 0)
           return !r;
       }
       cursor->prev= &(cursor->curr->link);
@@ -243,7 +244,8 @@ static inline const byte* hash_key(const LF_HASH *hash,
 static inline uint calc_hash(LF_HASH *hash, const byte *key, uint keylen)
 {
   ulong nr1= 1, nr2= 4;
-  hash->charset->coll->hash_sort(hash->charset, key, keylen, &nr1, &nr2);
+  hash->charset->coll->hash_sort(hash->charset, (uchar*) key, keylen,
+                                 &nr1, &nr2);
   return nr1 & INT_MAX32;
 }
 
@@ -375,7 +377,7 @@ void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen)
   return found ? found+1 : 0;
 }
 
-static char *dummy_key= "";
+static const char *dummy_key= "";
 
 static void initialize_bucket(LF_HASH *hash, LF_SLIST * volatile *node,
                               uint bucket, LF_PINS *pins)
@@ -387,7 +389,7 @@ static void initialize_bucket(LF_HASH *hash, LF_SLIST * volatile *node,
   if (*el == NULL && bucket)
     initialize_bucket(hash, el, parent, pins);
   dummy->hashnr= my_reverse_bits(bucket);
-  dummy->key= dummy_key;
+  dummy->key= (char*) dummy_key;
   dummy->keylen= 0;
   if ((cur= linsert(el, hash->charset, dummy, pins, 0)))
   {
@@ -396,4 +398,3 @@ static void initialize_bucket(LF_HASH *hash, LF_SLIST * volatile *node,
   }
   my_atomic_casptr((void **)node, (void **)&tmp, dummy);
 }
-

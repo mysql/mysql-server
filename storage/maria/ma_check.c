@@ -1078,6 +1078,10 @@ static int check_dynamic_record(HA_CHECK *param, MARIA_HA *info, int extend,
   char llbuff[22],llbuff2[22],llbuff3[22];
   DBUG_ENTER("check_dynamic_record");
 
+  LINT_INIT(left_length);
+  LINT_INIT(start_recpos);
+  LINT_INIT(to);
+
   pos= 0;  
   while (pos < info->state->data_file_length)
   {
@@ -1096,7 +1100,8 @@ static int check_dynamic_record(HA_CHECK *param, MARIA_HA *info, int extend,
                          (flag ? 0 : READING_NEXT) | READING_HEADER))
       {
         _ma_check_print_error(param,
-                              "got error: %d when reading datafile at position: %s",
+                              "got error: %d when reading datafile at "
+                              "position: %s",
                               my_errno, llstr(start_block, llbuff));
         DBUG_RETURN(1);
       }
@@ -1309,7 +1314,8 @@ static int check_compressed_record(HA_CHECK *param, MARIA_HA *info, int extend,
     start_recpos= pos;
     param->splits++;
     VOID(_ma_pack_get_block_info(info, &info->bit_buff, &block_info,
-                                 &info->rec_buff, -1, start_recpos));
+                                 &info->rec_buff, &info->rec_buff_size, -1,
+                                 start_recpos));
     pos=block_info.filepos+block_info.rec_len;
     if (block_info.rec_len < (uint) info->s->min_pack_length ||
         block_info.rec_len > (uint) info->s->max_pack_length)
@@ -1727,7 +1733,7 @@ int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info,int extend)
   param->used= param->link_used= param->splits= param->del_length= 0;
   param->tmp_record_checksum= param->glob_crc= 0;
   param->err_count= 0;
-  LINT_INIT(left_length);  LINT_INIT(start_recpos);  LINT_INIT(to);
+
   error= 0;
   param->empty= info->s->pack.header_length;
 
@@ -2206,7 +2212,7 @@ static int writekeys(MARIA_SORT_PARAM *sort_param)
   }
   /* Remove checksum that was added to glob_crc in sort_get_next_record */
   if (sort_param->calc_checksum)
-    sort_param->glob_crc-= info->cur_row.checksum;
+    sort_param->sort_info->param->glob_crc-= info->cur_row.checksum;
   DBUG_PRINT("error",("errno: %d",my_errno));
   DBUG_RETURN(-1);
 } /* writekeys */
@@ -2317,8 +2323,7 @@ int maria_sort_index(HA_CHECK *param, register MARIA_HA *info, my_string name)
 			 param->temp_filename);
     DBUG_RETURN(-1);
   }
-  if (new_header_length &&
-      maria_filecopy(param, new_file,share->kfile,0L,
+  if (maria_filecopy(param, new_file,share->kfile,0L,
                      (ulong) share->base.keystart, "headerblock"))
     goto err;
 
@@ -3070,8 +3075,9 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
 			   param->temp_filename);
       goto err;
     }
-    if (maria_filecopy(param, new_file,info->dfile,0L,new_header_length,
-		 "datafile-header"))
+    if (new_header_length &&
+        maria_filecopy(param, new_file,info->dfile,0L,new_header_length,
+                       "datafile-header"))
       goto err;
     if (param->testflag & T_UNPACK)
       restore_data_file_type(share);
@@ -3814,16 +3820,18 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
 	if (left_length < block_info.data_len || ! block_info.data_len)
 	{
 	  _ma_check_print_info(param,
-			      "Found block with too small length at %s; Skipped",
-			      llstr(sort_param->start_recpos,llbuff));
+			      "Found block with too small length at %s; "
+                               "Skipped",
+                               llstr(sort_param->start_recpos,llbuff));
 	  goto try_next;
 	}
 	if (block_info.filepos + block_info.data_len >
 	    sort_param->read_cache.end_of_file)
 	{
 	  _ma_check_print_info(param,
-			      "Found block that points outside data file at %s",
-			      llstr(sort_param->start_recpos,llbuff));
+			      "Found block that points outside data file "
+                               "at %s",
+                               llstr(sort_param->start_recpos,llbuff));
 	  goto try_next;
 	}
         /*
@@ -3923,7 +3931,9 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
       }
       sort_param->start_recpos=sort_param->pos;
       if (_ma_pack_get_block_info(info, &sort_param->bit_buff, &block_info,
-                                  &sort_param->rec_buff, -1, sort_param->pos))
+                                  &sort_param->rec_buff,
+                                  &sort_param->rec_buff_size, -1,
+                                  sort_param->pos))
 	DBUG_RETURN(-1);
       if (!block_info.rec_len &&
 	  sort_param->pos + MEMMAP_EXTRA_MARGIN ==

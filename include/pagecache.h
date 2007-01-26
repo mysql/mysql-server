@@ -73,7 +73,7 @@ typedef void *PAGECACHE_PAGE_LINK;
 
 /* TODO: move to loghandler emulator */
 typedef void LOG_HANDLER;
-typedef void *LSN;
+typedef ulonglong LSN;
 
 /* file descriptor for Maria */
 typedef struct st_pagecache_file
