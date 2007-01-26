@@ -35,8 +35,17 @@ typedef struct keyuse_t {
     satisfied if val has NULL 'value'.
   */
   bool null_rejecting;
-  /* TRUE<=> This ref access is an outer subquery reference access */
-  bool outer_ref;
+  /*
+    !NULL - This KEYUSE was created from an equality that was wrapped into
+            an Item_func_trig_cond. This means the equality (and validity of 
+            this KEYUSE element) can be turned on and off. The on/off state 
+            is indicted by the pointed value:
+              *cond_guard == TRUE <=> equality condition is on
+              *cond_guard == FALSE <=> equality condition is off
+
+    NULL  - Otherwise (the source equality can't be turned off)
+  */
+  bool *cond_guard;
 } KEYUSE;
 
 class store_key;
@@ -51,6 +60,18 @@ typedef struct st_table_ref
   byte          *key_buff2;               // key_buff+key_length
   store_key     **key_copy;               //
   Item          **items;                  // val()'s for each keypart
+  /*  
+    Array of pointers to trigger variables. Some/all of the pointers may be
+    NULL.  The ref access can be used iff
+    
+      for each used key part i, (!cond_guards[i] || *cond_guards[i]) 
+
+    This array is used by subquery code. The subquery code may inject
+    triggered conditions, i.e. conditions that can be 'switched off'. A ref 
+    access created from such condition is not valid when at least one of the 
+    underlying conditions is switched off (see subquery code for more details)
+  */
+  bool          **cond_guards;
   /*
     (null_rejecting & (1<<i)) means the condition is '=' and no matching
     rows will be produced if items[i] IS NULL (see add_not_null_conds())
@@ -99,6 +120,13 @@ enum enum_nested_loop_state
   NESTED_LOOP_QUERY_LIMIT= 3, NESTED_LOOP_CURSOR_LIMIT= 4
 };
 
+
+/* Values for JOIN_TAB::packed_info */
+#define TAB_INFO_HAVE_VALUE 1
+#define TAB_INFO_USING_INDEX 2
+#define TAB_INFO_USING_WHERE 4
+#define TAB_INFO_FULL_SCAN_ON_NULL 8
+
 typedef enum_nested_loop_state
 (*Next_select_func)(JOIN *, struct st_join_table *, bool);
 typedef int (*Read_record_func)(struct st_join_table *tab);
@@ -120,7 +148,15 @@ typedef struct st_join_table {
   st_join_table *last_inner;    /* last table table for embedding outer join */
   st_join_table *first_upper;  /* first inner table for embedding outer join */
   st_join_table *first_unmatched; /* used for optimization purposes only     */
+  
+  /* Special content for EXPLAIN 'Extra' column or NULL if none */
   const char	*info;
+  /* 
+    Bitmap of TAB_INFO_* bits that encodes special line for EXPLAIN 'Extra'
+    column, or 0 if there is no info.
+  */
+  uint          packed_info;
+
   Read_record_func read_first_record;
   Next_select_func next_select;
   READ_RECORD	read_record;
@@ -425,7 +461,7 @@ public:
 			  Item_sum ***func);
   int rollup_send_data(uint idx);
   int rollup_write_data(uint idx, TABLE *table);
-  bool test_in_subselect(Item **where);
+  void remove_subq_pushed_predicates(Item **where);
   /*
     Release memory and, if possible, the open tables held by this execution
     plan (and nested plans). It's used to release some tables before

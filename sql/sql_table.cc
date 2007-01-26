@@ -6712,7 +6712,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   Copy_field *copy,*copy_end;
   ulong found_count,delete_count;
   THD *thd= current_thd;
-  uint length;
+  uint length= 0;
   SORT_FIELD *sortorder;
   READ_RECORD info;
   TABLE_LIST   tables;

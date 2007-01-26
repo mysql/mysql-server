@@ -460,6 +460,7 @@ typedef struct st_foreign_key_info
   LEX_STRING *referenced_table;
   LEX_STRING *update_method;
   LEX_STRING *delete_method;
+  LEX_STRING *referenced_key_name;
   List<LEX_STRING> foreign_fields;
   List<LEX_STRING> referenced_fields;
 } FOREIGN_KEY_INFO;
