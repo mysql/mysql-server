@@ -142,6 +142,9 @@ public:
   my_bool with_sum_func;
   my_bool fixed;                        /* If item fixed with fix_fields */
   DTCollation collation;
+  my_bool with_subselect;               /* If this item is a subselect or some
+                                           of its arguments is or contains a
+                                           subselect */
 
   // alloc & destruct is done as start of select using sql_alloc
   Item();
