@@ -873,6 +873,7 @@ fi
 
 cat << END_OF_DATA
 use mysql;
+set sql_mode='';
 set storage_engine=myisam;
 $c_d
 $i_d

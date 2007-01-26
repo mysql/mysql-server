@@ -453,9 +453,9 @@ create table t1 (a int not null auto_increment primary key, b text not null, uni
 insert into t1 (b) values ('a'),('b'),('c');
 select concat(b,'.') from t1;
 update t1 set b='b ' where a=2;
---error 1062
+--error ER_DUP_ENTRY_WITH_KEY_NAME
 update t1 set b='b  ' where a > 1;
---error 1062
+--error ER_DUP_ENTRY_WITH_KEY_NAME
 insert into t1 (b) values ('b');
 select * from t1;
 delete from t1 where b='b';
@@ -846,6 +846,33 @@ DROP TABLE t1;
 #
 SET @@myisam_repair_threads=1;
 SHOW VARIABLES LIKE 'myisam_repair%';
+
+#
+# BUG#21310 - Trees in SQL causing a "crashed" table with MyISAM storage
+#             engine
+#
+
+# A simplified test case that reflect crashed table issue.
+CREATE TABLE t1(a VARCHAR(16));
+INSERT INTO t1 VALUES('aaaaaaaa'),(NULL);
+UPDATE t1 AS ta1, t1 AS ta2 SET ta1.a='aaaaaaaaaaaaaaaa';
+SELECT * FROM t1;
+DROP TABLE t1;
+
+# A test case that reflect wrong result set.
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1),(2);
+UPDATE t1,t1 AS t2 SET t1.a=t1.a+2 WHERE t1.a=t2.a-1;
+SELECT * FROM t1 ORDER BY a;
+DROP TABLE t1;
+
+#
+# Bug#24607 - MyISAM pointer size determined incorrectly
+#
+CREATE TABLE t1 (c1 TEXT) AVG_ROW_LENGTH=70100 MAX_ROWS=4100100100;
+--replace_column 5 X 6 X 7 X 9 X 10 X 11 X 12 X 13 X 14 X 16 X
+SHOW TABLE STATUS LIKE 't1';
+DROP TABLE t1;
 
 --echo End of 4.1 tests
 

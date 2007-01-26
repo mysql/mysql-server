@@ -334,7 +334,13 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	for (j=0 ; j < share->keyinfo[i].keysegs; j++,pos++)
 	{
 	  disk_pos=mi_keyseg_read(disk_pos, pos);
-
+          if (pos->flag & HA_BLOB_PART &&
+              ! (share->options & (HA_OPTION_COMPRESS_RECORD |
+                                   HA_OPTION_PACK_RECORD)))
+          {
+            my_errno= HA_ERR_CRASHED;
+            goto err;
+          }
 	  if (pos->type == HA_KEYTYPE_TEXT ||
               pos->type == HA_KEYTYPE_VARTEXT1 ||
               pos->type == HA_KEYTYPE_VARTEXT2)
@@ -453,6 +459,13 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       offset+=share->rec[i].length;
     }
     share->rec[i].type=(int) FIELD_LAST;	/* End marker */
+    if (offset > share->base.reclength)
+    {
+      /* purecov: begin inspected */
+      my_errno= HA_ERR_CRASHED;
+      goto err;
+      /* purecov: end */
+    }
 
     if (! lock_error)
     {
@@ -518,6 +531,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	share->lock.get_status=mi_get_status;
 	share->lock.copy_status=mi_copy_status;
 	share->lock.update_status=mi_update_status;
+        share->lock.restore_status= mi_restore_status;
 	share->lock.check_status=mi_check_status;
       }
     }

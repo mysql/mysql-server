@@ -780,6 +780,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   memcpy(comment_pos, disk_buff+read_length-com_length, com_length);
 
   fix_type_pointers(&interval_array, &share->fieldnames, 1, &names);
+  if (share->fieldnames.count != share->fields)
+    goto err;
   fix_type_pointers(&interval_array, share->intervals, interval_count,
 		    &names);
 
