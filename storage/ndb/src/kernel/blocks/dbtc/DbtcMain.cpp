@@ -871,11 +871,11 @@ void Dbtc::execREAD_NODESCONF(Signal* signal)
 
   for (unsigned i = 1; i < MAX_NDB_NODES; i++) {
     jam();
-    if (NodeBitmask::get(readNodes->allNodes, i)) {
+    if (NdbNodeBitmask::get(readNodes->allNodes, i)) {
       hostptr.i = i;
       ptrCheckGuard(hostptr, chostFilesize, hostRecord);
 
-      if (NodeBitmask::get(readNodes->inactiveNodes, i)) {
+      if (NdbNodeBitmask::get(readNodes->inactiveNodes, i)) {
         jam();
         hostptr.p->hostStatus = HS_DEAD;
       } else {
@@ -2824,6 +2824,12 @@ void Dbtc::execTCKEYREQ(Signal* signal)
         tmp.p->apiNodeId     = refToNode(regApiPtr->ndbapiBlockref);
         tmp.p->apiConnectPtr = TapiIndex;
         tmp.p->noOfLqhs      = 0;
+#if defined VM_TRACE || defined ERROR_INSERT
+	{
+	  CommitAckMarkerPtr check;
+	  ndbrequire(!m_commitAckMarkerHash.find(check, *tmp.p));
+	}
+#endif
         m_commitAckMarkerHash.add(tmp);
       }
     }
@@ -6945,7 +6951,7 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
   int index = 0;
   for (i = 1; i< MAX_NDB_NODES; i++) 
   {
-    if(NodeBitmask::get(nodeFail->theNodes, i))
+    if(NdbNodeBitmask::get(nodeFail->theNodes, i))
     {
       cdata[index] = i;
       index++;
@@ -8114,6 +8120,13 @@ void Dbtc::initApiConnectFail(Signal* signal)
     tmp.p->noOfLqhs      = 1;
     tmp.p->lqhNodeId[0]  = tnodeid;
     tmp.p->apiConnectPtr = apiConnectptr.i;
+
+#if defined VM_TRACE || defined ERROR_INSERT
+    {
+      CommitAckMarkerPtr check;
+      ndbrequire(!m_commitAckMarkerHash.find(check, *tmp.p));
+    }
+#endif
     m_commitAckMarkerHash.add(tmp);
   } 
 }//Dbtc::initApiConnectFail()
@@ -8270,6 +8283,12 @@ void Dbtc::updateApiStateFail(Signal* signal)
       tmp.p->noOfLqhs      = 1;
       tmp.p->lqhNodeId[0]  = tnodeid;
       tmp.p->apiConnectPtr = apiConnectptr.i;
+#if defined VM_TRACE || defined ERROR_INSERT
+      {
+	CommitAckMarkerPtr check;
+	ndbrequire(!m_commitAckMarkerHash.find(check, *tmp.p));
+      }
+#endif
       m_commitAckMarkerHash.add(tmp);
     } else {
       jam();
