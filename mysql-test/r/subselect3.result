@@ -629,3 +629,19 @@ cc	NULL	NULL
 aa	1	1
 bb	NULL	NULL
 drop table t1,t2;
+create table t1 (a int, b int);
+insert into t1 values (0,0), (2,2), (3,3);
+create table t2 (a int, b int);
+insert into t2 values (1,1), (3,3);
+select a, b, (a,b) in (select a, min(b) from t2 group by a) Z from t1;
+a	b	Z
+0	0	0
+2	2	0
+3	3	1
+insert into t2 values (NULL,4);
+select a, b, (a,b) in (select a, min(b) from t2 group by a) Z from t1;
+a	b	Z
+0	0	0
+2	2	0
+3	3	1
+drop table t1,t2;
