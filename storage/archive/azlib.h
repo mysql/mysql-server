@@ -49,9 +49,10 @@ extern "C" {
 #define AZMETA_BUFFER_SIZE sizeof(unsigned long long) \
   + sizeof(unsigned long long) + sizeof(unsigned long long) + sizeof(unsigned long long) \
   + sizeof(unsigned int) + sizeof(unsigned int) \
+  + sizeof(unsigned int) + sizeof(unsigned int) \
   + sizeof(unsigned char)
 
-#define AZHEADER_SIZE 21
+#define AZHEADER_SIZE 29
 
 #define AZ_MAGIC_POS 0
 #define AZ_VERSION_POS 1
@@ -59,15 +60,19 @@ extern "C" {
 #define AZ_BLOCK_POS 3
 #define AZ_STRATEGY_POS 4
 #define AZ_FRM_POS 5
-#define AZ_META_POS 9
-#define AZ_START_POS 13
-#define AZ_ROW_POS 21
-#define AZ_FLUSH_POS 29
-#define AZ_CHECK_POS 37
-#define AZ_AUTOINCREMENT_POS 45
-#define AZ_LONGEST_POS 53
-#define AZ_SHORTEST_POS 57
-#define AZ_DIRTY_POS 61
+#define AZ_FRM_LENGTH_POS 9
+#define AZ_META_POS 13
+#define AZ_META_LENGTH_POS 17
+#define AZ_START_POS 21
+#define AZ_ROW_POS 29
+#define AZ_FLUSH_POS 37
+#define AZ_CHECK_POS 45
+#define AZ_AUTOINCREMENT_POS 53
+#define AZ_LONGEST_POS 61
+#define AZ_SHORTEST_POS 65
+#define AZ_COMMENT_POS 69
+#define AZ_COMMENT_LENGTH_POS 73
+#define AZ_DIRTY_POS 77
 
 
 /*
@@ -220,6 +225,10 @@ typedef struct azio_stream {
   unsigned int longest_row;   /* Longest row */
   unsigned int shortest_row;   /* Shortest row */
   unsigned char dirty;   /* State of file */
+  unsigned int frm_start_pos;   /* Position for start of FRM */
+  unsigned int frm_length;   /* Position for start of FRM */
+  unsigned int comment_start_pos;   /* Position for start of comment */
+  unsigned int comment_length;   /* Position for start of comment */
 } azio_stream;
 
                         /* basic functions */
@@ -321,6 +330,11 @@ extern int azclose(azio_stream *file);
    and deallocates all the (de)compression state. The return value is the zlib
    error number (see function gzerror below).
 */
+
+extern int azwrite_frm (azio_stream *s, char *blob, unsigned int length);
+extern int azread_frm (azio_stream *s, char *blob);
+extern int azwrite_comment (azio_stream *s, char *blob, unsigned int length);
+extern int azread_comment (azio_stream *s, char *blob);
 
 #ifdef	__cplusplus
 }
