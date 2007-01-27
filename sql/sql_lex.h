@@ -432,7 +432,8 @@ protected:
 
   select_result *result;
   ulonglong found_rows_for_union;
-  bool res;
+  bool saved_error;
+
 public:
   bool  prepared, // prepare phase already performed for UNION (unit)
     optimized, // optimize phase already performed for UNION (unit)

@@ -27,8 +27,10 @@
 #include <stdarg.h>
 
 static const unsigned int PACKET_BUFFER_EXTRA_ALLOC= 1024;
-static void write_eof_packet(THD *thd, NET *net);
 void net_send_error_packet(THD *thd, uint sql_errno, const char *err);
+#ifndef EMBEDDED_LIBRARY
+static void write_eof_packet(THD *thd, NET *net);
+#endif
 
 #ifndef EMBEDDED_LIBRARY
 bool Protocol::net_store_data(const char *from, uint length)

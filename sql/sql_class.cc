@@ -214,6 +214,8 @@ THD::THD()
    stmt_depends_on_first_successful_insert_id_in_prev_stmt(FALSE),
    spcont(NULL)
 {
+  ulong tmp;
+
   stmt_arena= this;
   thread_stack= 0;
   db= 0;
@@ -305,8 +307,8 @@ THD::THD()
   protocol_prep.init(this);
 
   tablespace_op=FALSE;
-  ulong tmp=sql_rnd_with_mutex();
-  randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::query_id);
+  tmp= sql_rnd_with_mutex();
+  randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::global_query_id);
   substitute_null_with_insert_id = FALSE;
   thr_lock_info_init(&lock_info); /* safety: will be reset after start */
   thr_lock_owner_init(&main_lock_id, &lock_info);
@@ -1532,7 +1534,7 @@ bool select_max_min_finder_subselect::send_data(List<Item> &items)
 
 bool select_max_min_finder_subselect::cmp_real()
 {
-  Item *maxmin= ((Item_singlerow_subselect *)item)->el(0);
+  Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   double val1= cache->val_real(), val2= maxmin->val_real();
   if (fmax)
     return (cache->null_value && !maxmin->null_value) ||
@@ -1545,7 +1547,7 @@ bool select_max_min_finder_subselect::cmp_real()
 
 bool select_max_min_finder_subselect::cmp_int()
 {
-  Item *maxmin= ((Item_singlerow_subselect *)item)->el(0);
+  Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   longlong val1= cache->val_int(), val2= maxmin->val_int();
   if (fmax)
     return (cache->null_value && !maxmin->null_value) ||
@@ -1558,7 +1560,7 @@ bool select_max_min_finder_subselect::cmp_int()
 
 bool select_max_min_finder_subselect::cmp_decimal()
 {
-  Item *maxmin= ((Item_singlerow_subselect *)item)->el(0);
+  Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   my_decimal cval, *cvalue= cache->val_decimal(&cval);
   my_decimal mval, *mvalue= maxmin->val_decimal(&mval);
   if (fmax)
@@ -1573,7 +1575,7 @@ bool select_max_min_finder_subselect::cmp_decimal()
 bool select_max_min_finder_subselect::cmp_str()
 {
   String *val1, *val2, buf1, buf2;
-  Item *maxmin= ((Item_singlerow_subselect *)item)->el(0);
+  Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   /*
     as far as both operand is Item_cache buf1 & buf2 will not be used,
     but added for safety

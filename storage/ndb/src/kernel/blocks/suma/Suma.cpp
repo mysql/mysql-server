@@ -2103,7 +2103,6 @@ Suma::SyncRecord::nextScan(Signal* signal)
   LocalDataBuffer<15> attrBuf(suma.c_dataBufferPool, head);
   
   ScanFragReq * req = (ScanFragReq *)signal->getDataPtrSend();
-  const Uint32 parallelism = 16;
   const Uint32 attrLen = 5 + attrBuf.getSize();
 
   req->senderData = ptrI;
@@ -3186,10 +3185,6 @@ Suma::Table::checkRelease(Suma &suma)
 
 static Uint32 f_bufferLock = 0;
 static Uint32 f_buffer[SUMA_BUF_SZ];
-static Uint32 f_trigBufferSize = 0;
-static Uint32 b_bufferLock = 0;
-static Uint32 b_buffer[SUMA_BUF_SZ];
-static Uint32 b_trigBufferSize = 0;
 
 void
 Suma::execTRANSID_AI(Signal* signal)

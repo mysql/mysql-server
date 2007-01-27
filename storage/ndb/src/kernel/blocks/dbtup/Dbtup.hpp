@@ -788,6 +788,7 @@ typedef Ptr<PageRange> PageRangePtr;
   /* WHEN THE TRIGGER IS DEACTIVATED.         */
   /* **************************************** */
 struct TupTriggerData {
+  TupTriggerData() {}
   
   /**
    * Trigger id, used by DICT/TRIX to identify the trigger

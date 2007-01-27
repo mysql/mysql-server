@@ -288,10 +288,8 @@ int ha_archive::read_data_header(azio_stream *file_to_read)
 
   See ha_example.cc for a longer description.
 */
-ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, 
-                                     TABLE *table, int *rc)
+ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, int *rc)
 {
-  ARCHIVE_SHARE *share;
   uint length;
   DBUG_ENTER("ha_archive::get_share");
 
@@ -364,7 +362,7 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name,
   Free the share.
   See ha_example.cc for a description.
 */
-int ha_archive::free_share(ARCHIVE_SHARE *share_to_free)
+int ha_archive::free_share()
 {
   int rc= 0;
   DBUG_ENTER("ha_archive::free_share");
@@ -373,7 +371,7 @@ int ha_archive::free_share(ARCHIVE_SHARE *share_to_free)
                       share_to_free->use_count));
 
   pthread_mutex_lock(&archive_mutex);
-  if (!--share_to_free->use_count)
+  if (!--share->use_count)
   {
     hash_delete(&archive_open_tables, (byte*) share_to_free);
     thr_lock_delete(&share_to_free->lock);
@@ -385,12 +383,12 @@ int ha_archive::free_share(ARCHIVE_SHARE *share_to_free)
       Since we will close the data down after this, we go on and count
       the flush on close;
     */
-    if (share_to_free->archive_write_open)
+    if (share->archive_write_open)
     {
-      if (azclose(&(share_to_free->archive_write)))
+      if (azclose(&(share->archive_write)))
         rc= 1;
     }
-    my_free((gptr) share_to_free, MYF(0));
+    my_free((gptr) share, MYF(0));
   }
   pthread_mutex_unlock(&archive_mutex);
 
@@ -445,12 +443,14 @@ int ha_archive::open(const char *name, int mode, uint open_options)
 
   DBUG_PRINT("ha_archive", ("archive table was opened for crash: %s", 
                       (open_options & HA_OPEN_FOR_REPAIR) ? "yes" : "no"));
-  share= get_share(name, table, &rc);
+  share= get_share(name, &rc);
 
   if (rc == HA_ERR_CRASHED_ON_USAGE && !(open_options & HA_OPEN_FOR_REPAIR))
   {
-    free_share(share);
+    /* purecov: begin inspected */
+    free_share();
     DBUG_RETURN(rc);
+    /* purecov: end */    
   }
   else if (rc == HA_ERR_OUT_OF_MEM)
   {
@@ -518,7 +518,7 @@ int ha_archive::close(void)
   if (azclose(&archive))
     rc= 1;
   /* then also close share */
-  rc|= free_share(share);
+  rc|= free_share();
 
   DBUG_RETURN(rc);
 }

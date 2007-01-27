@@ -449,7 +449,7 @@ int main(int argc, char **argv)
   
   char *forced_defaults_file;
   char *forced_extra_defaults;
-  char *defaults_group_suffix;
+  char *local_defaults_group_suffix;
   const char *script_line;
   char *upgrade_defaults_path; 
   char *defaults_to_use= NULL;
@@ -466,7 +466,7 @@ int main(int argc, char **argv)
   /* Check if we are forced to use specific defaults */
   get_defaults_options(argc, argv,
                        &forced_defaults_file, &forced_extra_defaults,
-                       &defaults_group_suffix);
+                       &local_defaults_group_suffix);
   
   load_defaults("my", load_default_groups, &argc, &argv);
 
