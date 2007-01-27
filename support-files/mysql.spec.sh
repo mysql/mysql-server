@@ -722,16 +722,16 @@ fi
   in the server RPM.
 - The "mysqlmanager" man page got moved from section 1 to 8.
 
+* Thu Nov 30 2006 Joerg Bruehe <joerg@mysql.com>
+
+- Call "make install" using "benchdir_root=%{_datadir}", 
+  because that is affecting the regression test suite as well.
+
 * Thu Nov 16 2006 Joerg Bruehe <joerg@mysql.com>
 
 - Explicitly note that the "MySQL-shared" RPMs (as built by MySQL AB) 
   replace "mysql-shared" (as distributed by SuSE) to allow easy upgrading
   (bug#22081).
-
-* Thu Nov 30 2006 Joerg Bruehe <joerg@mysql.com>
-
-- Call "make install" using "benchdir_root=%{_datadir}", 
-  because that is affecting the regression test suite as well.
 
 * Mon Nov 13 2006 Joerg Bruehe <joerg@mysql.com>
 
