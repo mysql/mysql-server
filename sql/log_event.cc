@@ -381,12 +381,14 @@ append_query_string(CHARSET_INFO *csinfo,
 }
 #endif
 
+
 /*
   Prints a "session_var=value" string. Used by mysqlbinlog to print some SET
   commands just before it prints a query.
 */
 
 #ifdef MYSQL_CLIENT
+
 static void print_set_option(IO_CACHE* file, uint32 bits_changed,
                              uint32 option, uint32 flags, const char* name,
                              bool* need_comma)
@@ -3269,7 +3271,6 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       thd->main_lex.select_lex.context.resolve_in_table_list_only(&tables);
       set_fields(tables.db, field_list, &thd->main_lex.select_lex.context);
       thd->variables.pseudo_thread_id= thread_id;
-      List<Item> set_fields;
       if (net)
       {
 	// mysql_load will use thd->net to read the file
@@ -3280,10 +3281,11 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 	thd->net.pkt_nr = net->pkt_nr;
       }
       /*
-        It is safe to use set_fields twice because we are not going to
+        It is safe to use tmp_list twice because we are not going to
         update it inside mysql_load().
       */
-      if (mysql_load(thd, &ex, &tables, field_list, set_fields, set_fields,
+      List<Item> tmp_list;
+      if (mysql_load(thd, &ex, &tables, field_list, tmp_list, tmp_list,
                      handle_dup, ignore, net != 0))
         thd->query_error= 1;
       if (thd->cuted_fields)

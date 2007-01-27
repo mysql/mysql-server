@@ -48,8 +48,6 @@ KEY_CREATE_INFO default_key_create_info= { HA_KEY_ALG_UNDEF, 0, {NullS,0} };
 
 static handler *create_default(TABLE_SHARE *table, MEM_ROOT *mem_root);
 
-static SHOW_COMP_OPTION have_yes= SHOW_OPTION_YES;
-
 /* number of entries in handlertons[] */
 ulong total_ha= 0;
 /* number of storage engines (from handlertons[]) that support 2pc */
@@ -724,7 +722,7 @@ int ha_commit_trans(THD *thd, bool all)
       }
       DBUG_EXECUTE_IF("crash_commit_after_prepare", abort(););
       if (error || (is_real_trans && xid &&
-                    (error= !(cookie= tc_log->log(thd, xid)))))
+                    (error= !(cookie= tc_log->log_xid(thd, xid)))))
       {
         ha_rollback_trans(thd, all);
         error= 1;
@@ -732,7 +730,7 @@ int ha_commit_trans(THD *thd, bool all)
       }
       DBUG_EXECUTE_IF("crash_commit_after_log", abort(););
     }
-    error=ha_commit_one_phase(thd, all) ? cookie ? 2 : 1 : 0;
+    error=ha_commit_one_phase(thd, all) ? (cookie ? 2 : 1) : 0;
     DBUG_EXECUTE_IF("crash_commit_before_unlog", abort(););
     if (cookie)
       tc_log->unlog(cookie, xid);

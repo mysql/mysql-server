@@ -171,10 +171,10 @@ void bitmap_free(MY_BITMAP *map)
 
 my_bool bitmap_fast_test_and_set(MY_BITMAP *map, uint bitmap_bit)
 {
-  uchar *byte= (uchar*)map->bitmap + (bitmap_bit / 8);
+  uchar *value= (uchar*) (map->bitmap + (bitmap_bit / 8));
   uchar bit= 1 << ((bitmap_bit) & 7);
-  uchar res= (*byte) & bit;
-  *byte|= bit;
+  uchar res= (*value) & bit;
+  *value|= bit;
   return res;
 }
 
