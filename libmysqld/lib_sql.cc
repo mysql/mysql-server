@@ -547,6 +547,11 @@ int init_embedded_server(int argc, char **argv, char **groups)
     }
   }
 
+  // FIXME initialize binlog_filter and rpl_filter if not already done
+  //       corresponding delete is in clean_up()
+  if(!binlog_filter) binlog_filter = new Rpl_filter;
+  if(!rpl_filter) rpl_filter = new Rpl_filter;
+
   execute_ddl_log_recovery();
   return 0;
 }
