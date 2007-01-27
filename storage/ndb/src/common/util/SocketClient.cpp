@@ -88,7 +88,7 @@ SocketClient::bind(const char* bindaddress, unsigned short localport)
     int ret = errno;
     NDB_CLOSE_SOCKET(m_sockfd);
     m_sockfd= NDB_INVALID_SOCKET;
-    return errno;
+    return ret;
   }
   
   if (::bind(m_sockfd, (struct sockaddr*)&local, sizeof(local)) == -1) 

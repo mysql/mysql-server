@@ -60,7 +60,6 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
                        tAttrInfo->m_name.c_str(), theOperationType,
                        (long) aValuePassed));
   
-  Uint32 tData;
   const char* aValue = aValuePassed;
   Uint64 tempData[512];
 
@@ -343,7 +342,6 @@ NdbOperation::insertKEYINFO(const char* aValue,
   Uint32 tEndPos;
   Uint32 tPos;
   Uint32 signalCounter;
-  Uint32 tData;
 
 /*****************************************************************************
  *	Calculate the end position of the attribute in the key information.  *
@@ -543,7 +541,6 @@ NdbOperation::handle_distribution_key(const Uint64* value, Uint32 len)
      * Copy distribution key to linear memory
      */
     NdbColumnImpl* const * cols = m_accessTable->m_columns.getBase();
-    Uint32 len = 0;
     Uint64 tmp[1000];
 
     Uint32 chunk = 8;

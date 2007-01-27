@@ -306,7 +306,7 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
 void Item_bool_func2::fix_length_and_dec()
 {
   max_length= 1;				     // Function returns 0 or 1
-  THD *thd= current_thd;
+  THD *thd;
 
   /*
     As some compare functions are generated after sql_yacc,
@@ -344,12 +344,13 @@ void Item_bool_func2::fix_length_and_dec()
     return;
   }
 
+  thd= current_thd;
   if (!thd->is_context_analysis_only())
   {
-    Item *real_item= args[0]->real_item();
-    if (real_item->type() == FIELD_ITEM)
+    Item *arg_real_item= args[0]->real_item();
+    if (arg_real_item->type() == FIELD_ITEM)
     {
-      Field *field=((Item_field*) real_item)->field;
+      Field *field=((Item_field*) arg_real_item)->field;
       if (field->can_be_compared_as_longlong())
       {
         if (convert_constant_item(thd, field,&args[1]))
@@ -361,10 +362,10 @@ void Item_bool_func2::fix_length_and_dec()
         }
       }
     }
-    real_item= args[1]->real_item();
-    if (real_item->type() == FIELD_ITEM /* && !real_item->const_item() */)
+    arg_real_item= args[1]->real_item();
+    if (arg_real_item->type() == FIELD_ITEM)
     {
-      Field *field=((Item_field*) real_item)->field;
+      Field *field=((Item_field*) arg_real_item)->field;
       if (field->can_be_compared_as_longlong())
       {
         if (convert_constant_item(thd, field,&args[0]))
@@ -400,9 +401,9 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
       return 1;
     for (uint i=0; i < n; i++)
     {
-      if ((*a)->el(i)->cols() != (*b)->el(i)->cols())
+      if ((*a)->element_index(i)->cols() != (*b)->element_index(i)->cols())
       {
-	my_error(ER_OPERAND_COLUMNS, MYF(0), (*a)->el(i)->cols());
+	my_error(ER_OPERAND_COLUMNS, MYF(0), (*a)->element_index(i)->cols());
 	return 1;
       }
       comparators[i].set_cmp_func(owner, (*a)->addr(i), (*b)->addr(i));
@@ -787,10 +788,10 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
     uint n= cache->cols();
     for (uint i= 0; i < n; i++)
     {
-      if (args[0]->el(i)->used_tables())
-	((Item_cache *)cache->el(i))->set_used_tables(OUTER_REF_TABLE_BIT);
+      if (args[0]->element_index(i)->used_tables())
+	((Item_cache *)cache->element_index(i))->set_used_tables(OUTER_REF_TABLE_BIT);
       else
-	((Item_cache *)cache->el(i))->set_used_tables(0);
+	((Item_cache *)cache->element_index(i))->set_used_tables(0);
     }
     used_tables_cache= args[0]->used_tables();
   }
@@ -862,7 +863,7 @@ longlong Item_in_optimizer::val_int()
           subselect and see if it has produced any rows.
         */
         ((Item_in_subselect*)args[1])->enable_pushed_conds= FALSE;
-        longlong tmp= args[1]->val_bool_result();
+        (void) args[1]->val_bool_result();
         result_for_null_param= null_value= 
           !((Item_in_subselect*)args[1])->engine->no_rows();
         ((Item_in_subselect*)args[1])->enable_pushed_conds= TRUE;
@@ -979,15 +980,15 @@ longlong Item_func_strcmp::val_int()
 
 void Item_func_interval::fix_length_and_dec()
 {
-  use_decimal_comparison= (row->el(0)->result_type() == DECIMAL_RESULT) ||
-    (row->el(0)->result_type() == INT_RESULT);
+  use_decimal_comparison= (row->element_index(0)->result_type() == DECIMAL_RESULT) ||
+    (row->element_index(0)->result_type() == INT_RESULT);
   if (row->cols() > 8)
   {
     bool consts=1;
 
     for (uint i=1 ; consts && i < row->cols() ; i++)
     {
-      consts&= row->el(i)->const_item();
+      consts&= row->element_index(i)->const_item();
     }
 
     if (consts &&
@@ -998,7 +999,7 @@ void Item_func_interval::fix_length_and_dec()
       {
         for (uint i=1 ; i < row->cols(); i++)
         {
-          Item *el= row->el(i);
+          Item *el= row->element_index(i);
           interval_range *range= intervals + (i-1);
           if ((el->result_type() == DECIMAL_RESULT) ||
               (el->result_type() == INT_RESULT))
@@ -1023,7 +1024,7 @@ void Item_func_interval::fix_length_and_dec()
       {
         for (uint i=1 ; i < row->cols(); i++)
         {
-          intervals[i-1].dbl= row->el(i)->val_real();
+          intervals[i-1].dbl= row->element_index(i)->val_real();
         }
       }
     }
@@ -1063,15 +1064,15 @@ longlong Item_func_interval::val_int()
 
   if (use_decimal_comparison)
   {
-    dec= row->el(0)->val_decimal(&dec_buf);
-    if (row->el(0)->null_value)
+    dec= row->element_index(0)->val_decimal(&dec_buf);
+    if (row->element_index(0)->null_value)
       return -1;
     my_decimal2double(E_DEC_FATAL_ERROR, dec, &value);
   }
   else
   {
-    value= row->el(0)->val_real();
-    if (row->el(0)->null_value)
+    value= row->element_index(0)->val_real();
+    if (row->element_index(0)->null_value)
       return -1;
   }
 
@@ -1107,16 +1108,16 @@ longlong Item_func_interval::val_int()
 
   for (i=1 ; i < row->cols() ; i++)
   {
-    Item *el= row->el(i);
+    Item *el= row->element_index(i);
     if (use_decimal_comparison &&
         ((el->result_type() == DECIMAL_RESULT) ||
          (el->result_type() == INT_RESULT)))
     {
-      my_decimal e_dec_buf, *e_dec= row->el(i)->val_decimal(&e_dec_buf);
+      my_decimal e_dec_buf, *e_dec= row->element_index(i)->val_decimal(&e_dec_buf);
       if (my_decimal_cmp(e_dec, dec) > 0)
         return i-1;
     }
-    else if (row->el(i)->val_real() > value)
+    else if (row->element_index(i)->val_real() > value)
       return i-1;
   }
   return i-1;
@@ -1810,7 +1811,9 @@ bool Item_func_case::fix_fields(THD *thd, Item **ref)
     buff should match stack usage from
     Item_func_case::val_int() -> Item_func_case::find_item()
   */
+#ifndef EMBEDDED_LIBRARY
   char buff[MAX_FIELD_WIDTH*2+sizeof(String)*2+sizeof(String*)*2+sizeof(double)*2+sizeof(longlong)*2];
+#endif
   bool res= Item_func::fix_fields(thd, ref);
   /*
     Call check_stack_overrun after fix_fields to be sure that stack variable
@@ -2288,11 +2291,11 @@ void cmp_item_row::store_value(Item *item)
     {
       if (!comparators[i])
         if (!(comparators[i]=
-              cmp_item::get_comparator(item->el(i)->result_type(),
-                                       item->el(i)->collation.collation)))
+              cmp_item::get_comparator(item->element_index(i)->result_type(),
+                                       item->element_index(i)->collation.collation)))
 	  break;					// new failed
-      comparators[i]->store_value(item->el(i));
-      item->null_value|= item->el(i)->null_value;
+      comparators[i]->store_value(item->element_index(i));
+      item->null_value|= item->element_index(i)->null_value;
     }
   }
   DBUG_VOID_RETURN;
@@ -2317,8 +2320,8 @@ void cmp_item_row::store_value_by_template(cmp_item *t, Item *item)
       if (!(comparators[i]= tmpl->comparators[i]->make_same()))
 	break;					// new failed
       comparators[i]->store_value_by_template(tmpl->comparators[i],
-					      item->el(i));
-      item->null_value|= item->el(i)->null_value;
+					      item->element_index(i));
+      item->null_value|= item->element_index(i)->null_value;
     }
   }
 }
@@ -2336,9 +2339,9 @@ int cmp_item_row::cmp(Item *arg)
   arg->bring_value();
   for (uint i=0; i < n; i++)
   {
-    if (comparators[i]->cmp(arg->el(i)))
+    if (comparators[i]->cmp(arg->element_index(i)))
     {
-      if (!arg->el(i)->null_value)
+      if (!arg->element_index(i)->null_value)
 	return 1;
       was_null= 1;
     }
@@ -2349,11 +2352,11 @@ int cmp_item_row::cmp(Item *arg)
 
 int cmp_item_row::compare(cmp_item *c)
 {
-  cmp_item_row *cmp= (cmp_item_row *) c;
+  cmp_item_row *l_cmp= (cmp_item_row *) c;
   for (uint i=0; i < n; i++)
   {
     int res;
-    if ((res= comparators[i]->compare(cmp->comparators[i])))
+    if ((res= comparators[i]->compare(l_cmp->comparators[i])))
       return res;
   }
   return 0;
@@ -2380,8 +2383,8 @@ int cmp_item_decimal::cmp(Item *arg)
 
 int cmp_item_decimal::compare(cmp_item *arg)
 {
-  cmp_item_decimal *cmp= (cmp_item_decimal*) arg;
-  return my_decimal_cmp(&value, &cmp->value);
+  cmp_item_decimal *l_cmp= (cmp_item_decimal*) arg;
+  return my_decimal_cmp(&value, &l_cmp->value);
 }
 
 

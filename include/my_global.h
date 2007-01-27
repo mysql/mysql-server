@@ -629,7 +629,7 @@ typedef unsigned short ushort;
   duplicate declaration of __cxa_pure_virtual, solved by declaring it a
   weak symbol.
 */
-#ifdef USE_MYSYS_NEW
+#if defined(USE_MYSYS_NEW) && ! defined(DONT_DECLARE_CXA_PURE_VIRTUAL)
 C_MODE_START
 int __cxa_pure_virtual () __attribute__ ((weak));
 C_MODE_END

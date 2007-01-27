@@ -886,12 +886,14 @@ static void make_sortkey(register SORTPARAM *param,
       }
       else
       {
-        uchar *end= (uchar*) field->pack((char *) to, field->ptr);
 #ifdef HAVE_purify
+        uchar *end= (uchar*) field->pack((char *) to, field->ptr);
 	uint length= (uint) ((to + addonf->length) - end);
 	DBUG_ASSERT((int) length >= 0);
 	if (length)
 	  bzero(end, length);
+#else
+        (void) field->pack((char *) to, field->ptr);
 #endif
       }
       to+= addonf->length;
