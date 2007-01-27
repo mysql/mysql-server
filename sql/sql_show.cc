@@ -2451,10 +2451,48 @@ int make_db_list(THD *thd, List<char> *files,
                      mysql_data_home, NullS, 1) != FIND_FILES_OK);
 }
 
+struct st_add_schema_table 
+{
+  List<char> *files;
+  const char *wild;
+};
+
+static my_bool add_schema_table(THD *thd, st_plugin_int *plugin,
+                                void* p_data)
+{
+  st_add_schema_table *data= (st_add_schema_table *)p_data;
+  List<char> *file_list= data->files;
+  const char *wild= data->wild;
+  ST_SCHEMA_TABLE *schema_table= (ST_SCHEMA_TABLE *)plugin->data;
+  DBUG_ENTER("add_schema_table");
+
+  if (schema_table->hidden)
+      DBUG_RETURN(0);
+  if (wild)
+  {
+    if (lower_case_table_names)
+    {
+      if (wild_case_compare(files_charset_info,
+                            schema_table->table_name,
+                            wild))
+        DBUG_RETURN(0);
+    }
+    else if (wild_compare(schema_table->table_name, wild, 0))
+      DBUG_RETURN(0);
+  }
+
+  if (file_list->push_back(thd->strdup(schema_table->table_name)))
+    DBUG_RETURN(1);
+
+  DBUG_RETURN(0);
+}
 
 int schema_tables_add(THD *thd, List<char> *files, const char *wild)
 {
   ST_SCHEMA_TABLE *tmp_schema_table= schema_tables;
+  st_add_schema_table add_data;
+  DBUG_ENTER("schema_tables_add");
+
   for (; tmp_schema_table->table_name; tmp_schema_table++)
   {
     if (tmp_schema_table->hidden)
@@ -2472,9 +2510,16 @@ int schema_tables_add(THD *thd, List<char> *files, const char *wild)
         continue;
     }
     if (files->push_back(thd->strdup(tmp_schema_table->table_name)))
-      return 1;
+      DBUG_RETURN(1);
   }
-  return 0;
+
+  add_data.files= files;
+  add_data.wild= wild;
+  if (plugin_foreach(thd, add_schema_table,
+                     MYSQL_INFORMATION_SCHEMA_PLUGIN, &add_data))
+      DBUG_RETURN(1);
+
+  DBUG_RETURN(0);
 }
 
 
@@ -4513,6 +4558,44 @@ get_referential_constraints_record(THD *thd, struct st_table_list *tables,
   DBUG_RETURN(0);
 }
 
+struct schema_table_ref 
+{
+  const char *table_name;
+  ST_SCHEMA_TABLE *schema_table;
+};
+
+
+/*
+  Find schema_tables elment by name
+
+  SYNOPSIS
+    find_schema_table_in_plugin()
+    thd                 thread handler
+    plugin              plugin
+    table_name          table name
+
+  RETURN
+    0	table not found
+    1   found the schema table
+*/
+static my_bool find_schema_table_in_plugin(THD *thd, st_plugin_int *plugin,
+                                           void* p_table)
+{
+  schema_table_ref *p_schema_table= (schema_table_ref *)p_table;
+  const char* table_name= p_schema_table->table_name;
+  ST_SCHEMA_TABLE *schema_table= (ST_SCHEMA_TABLE *)plugin->data;
+  DBUG_ENTER("find_schema_table_in_plugin");
+
+  if (!my_strcasecmp(system_charset_info,
+                     schema_table->table_name,
+                     table_name)) {
+    p_schema_table->schema_table= schema_table;
+    DBUG_RETURN(1);
+  }
+
+  DBUG_RETURN(0);
+}
+
 
 /*
   Find schema_tables elment by name
@@ -4529,15 +4612,24 @@ get_referential_constraints_record(THD *thd, struct st_table_list *tables,
 
 ST_SCHEMA_TABLE *find_schema_table(THD *thd, const char* table_name)
 {
+  schema_table_ref schema_table_a;
   ST_SCHEMA_TABLE *schema_table= schema_tables;
+  DBUG_ENTER("find_schema_table");
+
   for (; schema_table->table_name; schema_table++)
   {
     if (!my_strcasecmp(system_charset_info,
                        schema_table->table_name,
                        table_name))
-      return schema_table;
+      DBUG_RETURN(schema_table);
   }
-  return 0;
+
+  schema_table_a.table_name= table_name;
+  if (plugin_foreach(thd, find_schema_table_in_plugin, 
+                     MYSQL_INFORMATION_SCHEMA_PLUGIN, &schema_table_a))
+    DBUG_RETURN(schema_table_a.schema_table);
+
+  DBUG_RETURN(NULL);
 }
 
 
@@ -5755,3 +5847,54 @@ ST_SCHEMA_TABLE schema_tables[]=
 template class List_iterator_fast<char>;
 template class List<char>;
 #endif
+
+int initialize_schema_table(st_plugin_int *plugin)
+{
+  ST_SCHEMA_TABLE *schema_table;
+  DBUG_ENTER("initialize_schema_table");
+
+  if (!(schema_table= (ST_SCHEMA_TABLE *)my_malloc(sizeof(ST_SCHEMA_TABLE),
+                                MYF(MY_WME | MY_ZEROFILL))))
+      DBUG_RETURN(1);
+  /* Historical Requirement */
+  plugin->data= schema_table; // shortcut for the future
+  if (plugin->plugin->init)
+  {
+    schema_table->create_table= create_schema_table;
+    schema_table->old_format= make_old_format;
+    schema_table->idx_field1= -1, 
+    schema_table->idx_field2= -1; 
+
+    if (plugin->plugin->init(schema_table))
+    {
+      sql_print_error("Plugin '%s' init function returned error.",
+                      plugin->name.str);
+      goto err;
+    }
+    schema_table->table_name= plugin->name.str;
+  }
+
+  DBUG_RETURN(0);
+err:
+  my_free((gptr)schema_table, MYF(0));
+  DBUG_RETURN(1);
+}
+
+int finalize_schema_table(st_plugin_int *plugin)
+{
+  ST_SCHEMA_TABLE *schema_table= (ST_SCHEMA_TABLE *)plugin->data;
+  DBUG_ENTER("finalize_schema_table");
+
+  if (schema_table && plugin->plugin->deinit)
+  {
+    DBUG_PRINT("info", ("Deinitializing plugin: '%s'", plugin->name.str));
+    if (plugin->plugin->deinit(NULL))
+    {
+      DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
+                             plugin->name.str));
+    }
+    my_free((gptr)schema_table, MYF(0));
+  }
+
+  DBUG_RETURN(0);
+}

@@ -31,17 +31,26 @@ const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   { C_STRING_WITH_LEN("UDF") },
   { C_STRING_WITH_LEN("STORAGE ENGINE") },
   { C_STRING_WITH_LEN("FTPARSER") },
-  { C_STRING_WITH_LEN("DAEMON") }
+  { C_STRING_WITH_LEN("DAEMON") },
+  { C_STRING_WITH_LEN("INFORMATION SCHEMA") }
 };
 
+extern int initialize_schema_table(st_plugin_int *plugin);
+extern int finalize_schema_table(st_plugin_int *plugin);
+
+/*
+  The number of elements in both plugin_type_initialize and 
+  plugin_type_deinitialize should equal to the number of plugins
+  defined.
+*/  
 plugin_type_init plugin_type_initialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
-  0,ha_initialize_handlerton,0,0
+  0,ha_initialize_handlerton,0,0,initialize_schema_table
 };
 
 plugin_type_init plugin_type_deinitialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
-  0,ha_finalize_handlerton,0,0
+  0,ha_finalize_handlerton,0,0,finalize_schema_table
 };
 
 static const char *plugin_interface_version_sym=
@@ -58,14 +67,16 @@ static int min_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   0x0000,
   MYSQL_HANDLERTON_INTERFACE_VERSION,
   MYSQL_FTPARSER_INTERFACE_VERSION,
-  MYSQL_DAEMON_INTERFACE_VERSION
+  MYSQL_DAEMON_INTERFACE_VERSION,
+  MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION
 };
 static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
   0x0000, /* UDF: not implemented */
   MYSQL_HANDLERTON_INTERFACE_VERSION,
   MYSQL_FTPARSER_INTERFACE_VERSION,
-  MYSQL_DAEMON_INTERFACE_VERSION
+  MYSQL_DAEMON_INTERFACE_VERSION,
+  MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION
 };
 
 static DYNAMIC_ARRAY plugin_dl_array;
