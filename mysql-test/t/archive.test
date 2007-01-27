@@ -6,8 +6,10 @@
 -- source include/have_binlog_format_mixed_or_statement.inc
 
 --disable_warnings
-drop table if exists t1,t2,t3,t4,t5;
+DROP TABLE if exists t1,t2,t3,t4,t5,t6;
 --enable_warnings
+
+SET storage_engine=ARCHIVE;
 
 CREATE TABLE t1 (
   Period smallint(4) unsigned zerofill DEFAULT '0000' NOT NULL,
@@ -1294,7 +1296,7 @@ select fld1,fld3 FROM t2 where fld1 like "25050_";
 #
 # Test rename of table
 #
-create table t3 engine=archive select * FROM t2;
+CREATE TABLE t3 engine=archive select * FROM t2;
 select * FROM t3 where fld3='bonfire';
 select count(*) FROM t3;
 # Clean up path in error message
@@ -1356,7 +1358,7 @@ while (`SELECT COUNT(auto)!=1214 FROM t2`)
 }
 SELECT COUNT(auto) FROM t2;
 
-# Adding test for alter table
+# Adding test for ALTER TABLE
 ALTER TABLE t2 DROP COLUMN fld6; 
 SHOW CREATE TABLE t2;
 SELECT * FROM t2;
@@ -1369,7 +1371,7 @@ CREATE TABLE `t5` (
 `a` int(11) NOT NULL auto_increment,
 b char(12),
 PRIMARY KEY  (`a`)
-) ENGINE=ARCHIVE DEFAULT CHARSET=latin1;
+)  DEFAULT CHARSET=latin1;
 
 INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (NULL, "foo");
@@ -1377,6 +1379,7 @@ INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (32, "foo");
+--error 1022
 INSERT INTO t5 VALUES (23, "foo");
 INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (NULL, "foo");
@@ -1393,7 +1396,7 @@ CREATE TABLE `t5` (
 `a` int(11) NOT NULL auto_increment,
 b char(12),
 KEY  (`a`)
-) ENGINE=ARCHIVE DEFAULT CHARSET=latin1 AUTO_INCREMENT=5;
+)  DEFAULT CHARSET=latin1 AUTO_INCREMENT=5;
 
 INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (NULL, "foo");
@@ -1419,7 +1422,7 @@ CREATE TABLE `t5` (
 `a` int(11) NOT NULL auto_increment,
 b blob(12),
 KEY  (`a`)
-) ENGINE=ARCHIVE DEFAULT CHARSET=latin1;
+)  DEFAULT CHARSET=latin1;
 
 INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (NULL, "We the people");
@@ -1447,7 +1450,7 @@ CREATE TABLE `t5` (
 b blob(12),
 c blob(12),
 KEY  (`a`)
-) ENGINE=ARCHIVE DEFAULT CHARSET=latin1;
+)  DEFAULT CHARSET=latin1;
 
 INSERT INTO t5 VALUES (NULL, "foo", "grok this!");
 INSERT INTO t5 VALUES (NULL, "We the people", NULL);
@@ -1464,35 +1467,24 @@ SELECT c FROM t5;
 SELECT c FROM t5 WHERE a =3;
 SELECT c FROM t5 WHERE a IN (32, 23, 5);
 
-# Adding this in case someone tries to add fast alter table and doesn't tes
+# Adding this in case someone tries to add fast ALTER TABLE and doesn't tes
 # it.
-# Some additional tests for new, faster alter table.  Note that most of the
-# whole alter table code is being tested all around the test suite already.
+# Some additional tests for new, faster ALTER TABLE.  Note that most of the
+# whole ALTER TABLE code is being tested all around the test suite already.
 #
 
-drop table t1;
-create table t1 (v varchar(32));
+DROP TABLE t1;
+CREATE TABLE t1 (v varchar(32)) ;
 insert into t1 values ('def'),('abc'),('hij'),('3r4f');
 select * from t1;
 # Fast alter, no copy performed
-alter table t1 change v v2 varchar(32);
+ALTER TABLE t1 change v v2 varchar(32);
 select * from t1;
 # Fast alter, no copy performed
-alter table t1 change v2 v varchar(64);
+ALTER TABLE t1 change v2 v varchar(64);
 select * from t1;
-update t1 set v = 'lmn' where v = 'hij';
-select * from t1;
-# Regular alter table
-alter table t1 add i int auto_increment not null primary key first;
-select * from t1;
-update t1 set i=5 where i=3;
-select * from t1;
-alter table t1 change i i bigint;
-select * from t1;
-alter table t1 add unique key (i, v);
-select * from t1 where i between 2 and 4 and v in ('def','3r4f','lmn');
-
-alter table t1 data directory="$MYSQLTEST_VARDIR/tmp";
+# Regular ALTER TABLE
+ALTER TABLE t1 add i int auto_increment not null primary key first;
 select * from t1;
 
 # Testing cleared row key
@@ -1503,7 +1495,7 @@ CREATE TABLE `t5` (
 b varchar(250),
 c varchar(800),
 KEY  (`a`)
-) ENGINE=ARCHIVE DEFAULT CHARSET=latin1;
+)  DEFAULT CHARSET=latin1;
 
 INSERT INTO t5 VALUES (NULL, "foo", "grok this!");
 INSERT INTO t5 VALUES (NULL, "We the people", NULL);
@@ -1516,11 +1508,35 @@ INSERT INTO t5 VALUES (NULL, "abcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyz
 
 SELECT * FROM t5;
 
+CREATE TABLE `t6` (
+`a` int(11) NOT NULL auto_increment,
+b blob(12),
+c int,
+KEY  (`a`)
+)  DEFAULT CHARSET=latin1;
+SELECT * FROM t6;
+INSERT INTO t6 VALUES (NULL, "foo", NULL);
+INSERT INTO t6 VALUES (NULL, "We the people", 5);
+INSERT INTO t6 VALUES (NULL, "in order to form a more pefect union", 9);
+INSERT INTO t6 VALUES (NULL, "establish justice", NULL);
+INSERT INTO t6 VALUES (NULL, NULL, NULL);
+INSERT INTO t6 VALUES (32, "ensure domestic tranquility", NULL);
+INSERT INTO t6 VALUES (23, "provide for the common defense", 30);
+INSERT INTO t6 VALUES (NULL, "fo fooo", 70);
+INSERT INTO t6 VALUES (NULL, NULL, 98);
+INSERT INTO t6 VALUES (NULL, "promote the general welfare", 50);
+SELECT * FROM t6;
+SELECT * FROM t6 ORDER BY a;
+SELECT * FROM t6 ORDER BY a DESC;
+
+SHOW CREATE TABLE t6;
+
+
 # 
 # Cleanup, test is over
 #
 
 
 --disable_warnings
-drop table t1, t2, t4, t5;
+DROP TABLE t1, t2, t4, t5, t6;
 --enable_warnings
