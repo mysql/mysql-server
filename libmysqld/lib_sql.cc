@@ -538,6 +538,11 @@ int init_embedded_server(int argc, char **argv, char **groups)
       sql_print_error("Warning: Can't create thread to manage maintenance");
   }
 
+  // FIXME initialize binlog_filter and rpl_filter if not already done
+  //       corresponding delete is in clean_up()
+  if(!binlog_filter) binlog_filter = new Rpl_filter;
+  if(!rpl_filter) rpl_filter = new Rpl_filter;
+
   if (opt_init_file)
   {
     if (read_init_file(opt_init_file))
@@ -546,11 +551,6 @@ int init_embedded_server(int argc, char **argv, char **groups)
       return 1;
     }
   }
-
-  // FIXME initialize binlog_filter and rpl_filter if not already done
-  //       corresponding delete is in clean_up()
-  if(!binlog_filter) binlog_filter = new Rpl_filter;
-  if(!rpl_filter) rpl_filter = new Rpl_filter;
 
   execute_ddl_log_recovery();
   return 0;
