@@ -139,22 +139,6 @@ static void pretty_print_str(IO_CACHE* cache, char* str, int len)
 }
 #endif /* MYSQL_CLIENT */
 
-#ifdef HAVE_purify
-static void
-valgrind_check_mem(void *ptr, size_t len)
-{
-  static volatile uchar dummy;
-  for (volatile uchar *p= (uchar*) ptr ; p != (uchar*) ptr + len ; ++p)
-  {
-    int const c = *p;
-    if (c < 128)
-      dummy= c + 1;
-    else
-      dummy = c - 1;
-  }
-}
-#endif
-
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 
 static void clear_all_errors(THD *thd, struct st_relay_log_info *rli)
@@ -5483,7 +5467,6 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
   if (static_cast<my_size_t>(m_rows_end - m_rows_cur) < length)
   {
     my_size_t const block_size= 1024;
-    my_ptrdiff_t const old_alloc= m_rows_end - m_rows_buf;
     my_ptrdiff_t const cur_size= m_rows_cur - m_rows_buf;
     my_ptrdiff_t const new_alloc= 
         block_size * ((cur_size + length) / block_size + block_size - 1);

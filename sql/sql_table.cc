@@ -598,7 +598,6 @@ bool read_ddl_log_entry(uint read_entry, DDL_LOG_ENTRY *ddl_log_entry)
 
 static bool init_ddl_log()
 {
-  bool error= FALSE;
   char file_name[FN_REFLEN];
   DBUG_ENTER("init_ddl_log");
 

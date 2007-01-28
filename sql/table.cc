@@ -1261,7 +1261,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->column_bitmap_size= bitmap_buffer_size(share->fields);
 
   if (!(bitmaps= (my_bitmap_map*) alloc_root(&share->mem_root,
-                                    share->column_bitmap_size)))
+                                             share->column_bitmap_size)))
     goto err;
   bitmap_init(&share->all_set, bitmaps, share->fields, FALSE);
   bitmap_set_all(&share->all_set);

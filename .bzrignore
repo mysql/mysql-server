@@ -2934,3 +2934,4 @@ win/vs71cache.txt
 win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
+storage/archive/archive_reader

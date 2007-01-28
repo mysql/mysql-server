@@ -318,7 +318,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     runs without --log-update or --log-bin).
   */
   bool log_on= ((thd->options & OPTION_BIN_LOG) ||
-                (!(thd->security_ctx->master_access & SUPER_ACL));
+                (!(thd->security_ctx->master_access & SUPER_ACL)));
 #endif
   thr_lock_type lock_type = table_list->lock_type;
   Item *unused_conds= 0;
@@ -3090,8 +3090,9 @@ void select_create::send_error(uint errcode,const char *err)
              ("Current statement %s row-based",
               thd->current_stmt_binlog_row_based ? "is" : "is NOT"));
   DBUG_PRINT("info",
-             ("Current table (at 0x%lu) %s a temporary (or non-existant) table",
-              table,
+             ("Current table (at 0x%lx) %s a temporary (or non-existing) "
+              "table",
+              (ulong) table,
               table && !table->s->tmp_table ? "is NOT" : "is"));
   DBUG_PRINT("info",
              ("Table %s prior to executing this statement",

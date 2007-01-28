@@ -451,7 +451,7 @@ int main(int argc, char **argv)
   char *forced_extra_defaults;
   char *local_defaults_group_suffix;
   const char *script_line;
-  char *upgrade_defaults_path; 
+  char *upgrade_defaults_path= 0;
   char *defaults_to_use= NULL;
   int upgrade_defaults_created= 0;
   

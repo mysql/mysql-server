@@ -2556,7 +2556,7 @@ uint Field_new_decimal::is_equal(create_field *new_field)
            (uint) (flags & UNSIGNED_FLAG)) &&
           ((new_field->flags & AUTO_INCREMENT_FLAG) ==
            (uint) (flags & AUTO_INCREMENT_FLAG)) &&
-          (new_field->length == max_length()) &&
+          (new_field->length == max_display_length()) &&
           (new_field->decimals == dec));
 }
 
@@ -6165,7 +6165,7 @@ uint Field_str::is_equal(create_field *new_field)
 
   return ((new_field->sql_type == real_type()) &&
 	  new_field->charset == field_charset &&
-	  new_field->length == max_length());
+	  new_field->length == max_display_length());
 }
 
 
@@ -6999,11 +6999,11 @@ uint Field_varstring::is_equal(create_field *new_field)
   if (new_field->sql_type == real_type() &&
       new_field->charset == field_charset)
   {
-    if (new_field->length == max_length())
+    if (new_field->length == max_display_length())
       return IS_EQUAL_YES;
-    if (new_field->length > max_length() &&
-	((new_field->length <= 255 && max_length() <= 255) ||
-	 (new_field->length > 255 && max_length() > 255)))
+    if (new_field->length > max_display_length() &&
+	((new_field->length <= 255 && max_display_length() <= 255) ||
+	 (new_field->length > 255 && max_display_length() > 255)))
       return IS_EQUAL_PACK_LENGTH; // VARCHAR, longer variable length
   }
   return IS_EQUAL_NO;
@@ -8196,7 +8196,7 @@ uint Field_num::is_equal(create_field *new_field)
 							 UNSIGNED_FLAG)) &&
 	  ((new_field->flags & AUTO_INCREMENT_FLAG) ==
 	   (uint) (flags & AUTO_INCREMENT_FLAG)) &&
-	  (new_field->length <= max_length()));
+	  (new_field->length <= max_display_length()));
 }
 
 

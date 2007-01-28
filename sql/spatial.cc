@@ -928,6 +928,8 @@ int Gis_polygon::centroid_xy(double *x, double *y) const
   n_linear_rings= uint4korr(data);
   data+= 4;
 
+  DBUG_ASSERT(n_linear_rings > 0);
+
   while (n_linear_rings--)
   {
     uint32 n_points, org_n_points;
