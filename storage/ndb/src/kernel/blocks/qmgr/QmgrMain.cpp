@@ -3525,8 +3525,10 @@ void Qmgr::execCOMMIT_FAILREQ(Signal* signal)
       nodePtr.p->phase = ZFAIL_CLOSING;
       nodePtr.p->failState = WAITING_FOR_NDB_FAILCONF;
       setNodeInfo(nodePtr.i).m_heartbeat_cnt= 0;
+      setNodeInfo(nodePtr.i).m_version = 0;
       c_clusterNodes.clear(nodePtr.i);
     }//for
+    recompute_version_info(NodeInfo::DB);
     /*----------------------------------------------------------------------*/
     /*       WE INFORM THE API'S WE HAVE CONNECTED ABOUT THE FAILED NODES.  */
     /*----------------------------------------------------------------------*/
