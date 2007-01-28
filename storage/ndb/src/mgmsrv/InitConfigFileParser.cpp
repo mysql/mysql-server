@@ -701,34 +701,35 @@ load_defaults(Vector<struct my_option>& options, const char* groups[])
   BaseString extra_file;
   BaseString group_suffix;
 
-  const char *save_file = defaults_file;
-  char *save_extra_file = defaults_extra_file;
-  const char *save_group_suffix = defaults_group_suffix;
+  const char *save_file = my_defaults_file;
+  char *save_extra_file = my_defaults_extra_file;
+  const char *save_group_suffix = my_defaults_group_suffix;
 
-  if (defaults_file)
+  if (my_defaults_file)
   {
-    file.assfmt("--defaults-file=%s", defaults_file);
+    file.assfmt("--defaults-file=%s", my_defaults_file);
     argv[argc++] = file.c_str();
   }
 
-  if (defaults_extra_file)
+  if (my_defaults_extra_file)
   {
-    extra_file.assfmt("--defaults-extra-file=%s", defaults_extra_file);
+    extra_file.assfmt("--defaults-extra-file=%s", my_defaults_extra_file);
     argv[argc++] = extra_file.c_str();
   }
 
-  if (defaults_group_suffix)
+  if (my_defaults_group_suffix)
   {
-    group_suffix.assfmt("--defaults-group-suffix=%s", defaults_group_suffix);
+    group_suffix.assfmt("--defaults-group-suffix=%s",
+                        my_defaults_group_suffix);
     argv[argc++] = group_suffix.c_str();
   }
 
   char ** tmp = (char**)argv;
   int ret = load_defaults("my", groups, &argc, &tmp);
   
-  defaults_file = save_file;
-  defaults_extra_file = save_extra_file;
-  defaults_group_suffix = save_group_suffix;
+  my_defaults_file = save_file;
+  my_defaults_extra_file = save_extra_file;
+  my_defaults_group_suffix = save_group_suffix;
   
   if (ret == 0)
   {

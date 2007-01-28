@@ -828,9 +828,10 @@ static inline void link_changed(BLOCK_LINK *block, BLOCK_LINK **phead)
 */
 
 static void link_to_file_list(KEY_CACHE *keycache,
-                              BLOCK_LINK *block, int file, my_bool unlink)
+                              BLOCK_LINK *block, int file,
+                              my_bool unlink_block)
 {
-  if (unlink)
+  if (unlink_block)
     unlink_changed(block);
   link_changed(block, &keycache->file_blocks[FILE_HASH(file)]);
   if (block->status & BLOCK_CHANGED)

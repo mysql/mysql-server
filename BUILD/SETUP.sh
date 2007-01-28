@@ -93,6 +93,10 @@ if [ "x$warning_mode" != "xpedantic" ]; then
   warnings="-Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W"
   warnings="$warnings -Wchar-subscripts -Wformat -Wparentheses -Wsign-compare"
   warnings="$warnings -Wwrite-strings -Wunused-function -Wunused-label -Wunused-value -Wunused-variable"
+
+# For more warnings, uncomment the following line
+# warnings="$global_warnings -Wshadow"
+
 # C warnings
   c_warnings="$warnings -Wunused-parameter"
 # C++ warnings
@@ -183,6 +187,12 @@ fi
 # (http://samba.org/ccache) is installed, use it.
 # We use 'grep' and hope 'grep' will work as expected
 # (returns 0 if finds lines)
+if test "$USING_GCOV" != "1"
+then
+  # Not using gcov; Safe to use ccache
+  CCACHE_GCOV_VERSION_ENABLED=1
+fi
+
 if ccache -V > /dev/null 2>&1 && test "$CCACHE_GCOV_VERSION_ENABLED" = "1"
 then
   echo "$CC" | grep "ccache" > /dev/null || CC="ccache $CC"

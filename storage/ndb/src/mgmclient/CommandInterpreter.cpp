@@ -1478,7 +1478,6 @@ CommandInterpreter::executePurge(char* parameters)
     return -1;
   }
 
-  int i;
   char *str;
   
   if (ndb_mgm_purge_stale_sessions(m_mgmsrv, &str)) {
@@ -1596,7 +1595,6 @@ CommandInterpreter::executeConnect(char* parameters, bool interactive)
 {
   BaseString *basestring = NULL;
 
-  int retval;
   disconnect();
   if (!emptyString(parameters)) {
     basestring= new BaseString(parameters);
@@ -2039,7 +2037,6 @@ CommandInterpreter::executeStatus(int processId,
 
   ndb_mgm_node_status status;
   Uint32 startPhase, version;
-  bool system;
   
   struct ndb_mgm_cluster_state *cl;
   cl = ndb_mgm_get_status(m_mgmsrv);
