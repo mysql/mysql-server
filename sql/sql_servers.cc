@@ -32,7 +32,6 @@ uint servers_cache_initialised=FALSE;
 static uint servers_version=0;
 static MEM_ROOT mem;
 static rw_lock_t THR_LOCK_servers;
-static bool initialized=0;
 
 static byte *servers_cache_get_key(FOREIGN_SERVER *server, uint *length,
 			       my_bool not_used __attribute__((unused)))
@@ -329,23 +328,21 @@ my_bool get_server_from_table_to_cache(TABLE *table)
 
 my_bool server_exists_in_table(THD *thd, LEX_SERVER_OPTIONS *server_options)
 {
-  byte server_key[MAX_KEY_LENGTH];
   int result= 1;
   int error= 0;
   TABLE_LIST tables;
   TABLE *table;
-
   DBUG_ENTER("server_exists");
 
   bzero((char*) &tables, sizeof(tables));
   tables.db= (char*) "mysql";
   tables.alias= tables.table_name= (char*) "servers";
 
-  table->use_all_columns();
-
   /* need to open before acquiring THR_LOCK_plugin or it will deadlock */
   if (! (table= open_ltable(thd, &tables, TL_WRITE)))
     DBUG_RETURN(TRUE);
+
+  table->use_all_columns();
 
   rw_wrlock(&THR_LOCK_servers);
   VOID(pthread_mutex_lock(&servers_cache_mutex));
@@ -393,7 +390,6 @@ my_bool server_exists_in_table(THD *thd, LEX_SERVER_OPTIONS *server_options)
 
 int insert_server(THD *thd, FOREIGN_SERVER *server)
 {
-  byte server_key[MAX_KEY_LENGTH];
   int error= 0;
   TABLE_LIST tables;
   TABLE *table;
@@ -608,7 +604,6 @@ int insert_server_record(TABLE *table, FOREIGN_SERVER *server)
 
 int drop_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
 {
-  byte server_key[MAX_KEY_LENGTH];
   int error= 0;
   TABLE_LIST tables;
   TABLE *table;
@@ -1208,7 +1203,7 @@ void servers_free(bool end)
 FOREIGN_SERVER *get_server_by_name(const char *server_name)
 {
   ulong error_num=0;
-  uint i, server_name_length;
+  uint server_name_length;
   FOREIGN_SERVER *server= 0;
   DBUG_ENTER("get_server_by_name");
   DBUG_PRINT("info", ("server_name %s", server_name));
