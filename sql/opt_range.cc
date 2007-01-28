@@ -2420,8 +2420,6 @@ static int find_used_partitions_imerge(PART_PRUNE_PARAM *ppar,
 static int find_used_partitions_imerge_list(PART_PRUNE_PARAM *ppar,
                                             List<SEL_IMERGE> &merges);
 static void mark_all_partitions_as_used(partition_info *part_info);
-static uint32 part_num_to_part_id_range(PART_PRUNE_PARAM* prune_par, 
-                                        uint32 num);
 
 #ifndef DBUG_OFF
 static void print_partitioning_index(KEY_PART *parts, KEY_PART *parts_end);
@@ -4682,8 +4680,7 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
                          param->table->key_info[keynr].name, found_read_time,
                          read_time));
 
-      if (read_time > found_read_time && found_records != HA_POS_ERROR
-          /*|| read_time == DBL_MAX*/ )
+      if (read_time > found_read_time && found_records != HA_POS_ERROR)
       {
         read_time=    found_read_time;
         best_records= found_records;

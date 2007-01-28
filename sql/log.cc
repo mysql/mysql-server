@@ -147,8 +147,7 @@ public:
    */
   void truncate(my_off_t pos)
   {
-    DBUG_PRINT("info", ("truncating to position %lu", pos));
-    DBUG_PRINT("info", ("before_stmt_pos=%lu", pos));
+    DBUG_PRINT("info", ("truncating to position %lu", (ulong) pos));
     delete pending();
     set_pending(0);
     reinit_io_cache(&trans_log, WRITE_CACHE, pos, 0, 0);
@@ -909,7 +908,7 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
 
   my_time_t current_time;
   Security_context *sctx= thd->security_ctx;
-  uint message_buff_len= 0, user_host_len= 0;
+  uint user_host_len= 0;
   longlong query_time= 0, lock_time= 0;
 
   /*
@@ -1551,11 +1550,9 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all)
 
 static int binlog_commit(handlerton *hton, THD *thd, bool all)
 {
-  int error= 0;
   DBUG_ENTER("binlog_commit");
   binlog_trx_data *const trx_data=
     (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
-  IO_CACHE *trans_log= &trx_data->trans_log;
   DBUG_ASSERT(mysql_bin_log.is_open());
 
   if (all && trx_data->empty())
@@ -1584,7 +1581,6 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
   int error=0;
   binlog_trx_data *const trx_data=
     (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
-  IO_CACHE *trans_log= &trx_data->trans_log;
   DBUG_ASSERT(mysql_bin_log.is_open());
 
   if (trx_data->empty()) {
@@ -1647,9 +1643,6 @@ static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
 static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
 {
   DBUG_ENTER("binlog_savepoint_rollback");
-  binlog_trx_data *const trx_data=
-    (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
-  IO_CACHE *trans_log= &trx_data->trans_log;
   DBUG_ASSERT(mysql_bin_log.is_open());
 
   /*
@@ -1660,7 +1653,7 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
   if (unlikely(thd->options &
                (OPTION_STATUS_NO_TRANS_UPDATE | OPTION_KEEP_LOG)))
   {
-    int const error=
+    int error=
       thd->binlog_query(THD::STMT_QUERY_TYPE,
                         thd->query, thd->query_length, TRUE, FALSE);
     DBUG_RETURN(error);
@@ -1668,6 +1661,7 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
   binlog_trans_log_truncate(thd, *(my_off_t*)sv);
   DBUG_RETURN(0);
 }
+
 
 int check_binlog_magic(IO_CACHE* log, const char** errmsg)
 {
@@ -1688,6 +1682,7 @@ int check_binlog_magic(IO_CACHE* log, const char** errmsg)
   }
   return 0;
 }
+
 
 File open_binlog(IO_CACHE *log, const char *log_file_name, const char **errmsg)
 {
@@ -2195,7 +2190,6 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
 
     if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT))
     {
-      Security_context *sctx= thd->security_ctx;
       if (current_time != last_time)
       {
         last_time= current_time;
@@ -2434,7 +2428,6 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
                          bool null_created_arg)
 {
   File file= -1;
-  int open_flags = O_CREAT | O_BINARY;
   DBUG_ENTER("MYSQL_BIN_LOG::open");
   DBUG_PRINT("enter",("log_type: %d",(int) log_type_arg));
 
@@ -3245,7 +3238,6 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
         We log the whole file name for log file as the user may decide
         to change base names at some point.
       */
-      THD *thd = current_thd; /* may be 0 if we are reacting to SIGHUP */
       Rotate_log_event r(new_name+dirname_length(new_name),
                          0, LOG_EVENT_OFFSET, 0);
       r.write(&log_file);
@@ -3481,10 +3473,10 @@ int THD::binlog_flush_transaction_cache()
 {
   DBUG_ENTER("binlog_flush_transaction_cache");
   binlog_trx_data *trx_data= (binlog_trx_data*) ha_data[binlog_hton->slot];
-  DBUG_PRINT("enter", ("trx_data=0x%lu", trx_data));
+  DBUG_PRINT("enter", ("trx_data: 0x%lx", (ulong) trx_data));
   if (trx_data)
-    DBUG_PRINT("enter", ("trx_data->before_stmt_pos=%u",
-                         trx_data->before_stmt_pos));
+    DBUG_PRINT("enter", ("trx_data->before_stmt_pos: %lu",
+                         (ulong) trx_data->before_stmt_pos));
 
   /*
     Write the transaction cache to the binary log.  We don't flush and
@@ -3982,8 +3974,6 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
 
   if (likely(is_open()))                       // Should always be true
   {
-    uint length;
-
     /*
       We only bother to write to the binary log if there is anything
       to write.
@@ -4023,9 +4013,6 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
       
       if (commit_event && commit_event->write(&log_file))
         goto err;
-#ifndef DBUG_OFF
-  DBUG_skip_commit:
-#endif
       if (flush_and_sync())
         goto err;
       DBUG_EXECUTE_IF("half_binlogged_transaction", abort(););

@@ -39,6 +39,8 @@ EventLogger g_eventLogger;
 NdbMutex *ndb_print_state_mutex= NULL;
 #endif
 
+static int g_ndb_connection_count = 0;
+
 /*
  * Ndb_cluster_connection
  */

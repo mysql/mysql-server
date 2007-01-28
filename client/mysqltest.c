@@ -1845,7 +1845,7 @@ void do_copy_file(struct st_command *command)
 
 void do_chmod_file(struct st_command *command)
 {
-  ulong mode= 0;
+  long mode= 0;
   static DYNAMIC_STRING ds_mode;
   static DYNAMIC_STRING ds_file;
   const struct command_arg chmod_file_args[] = {

@@ -997,7 +997,7 @@ String *Item_decimal_typecast::val_str(String *str)
   my_decimal tmp_buf, *tmp= val_decimal(&tmp_buf);
   if (null_value)
     return NULL;
-  my_decimal2string(E_DEC_FATAL_ERROR, &tmp_buf, 0, 0, 0, str);
+  my_decimal2string(E_DEC_FATAL_ERROR, tmp, 0, 0, 0, str);
   return str;
 }
 
@@ -4860,7 +4860,7 @@ longlong Item_func_bit_xor::val_int()
     thd			Thread handler
     var_type		global / session
     name		Name of base or system variable
-    component		Component.
+    component		Component
 
   NOTES
     If component.str = 0 then the variable name is in 'name'

@@ -30,9 +30,6 @@
 ** MyISAM MERGE tables
 *****************************************************************************/
 
-static handler *myisammrg_create_handler(TABLE_SHARE *table,
-                                         MEM_ROOT *mem_root);
-
 static handler *myisammrg_create_handler(handlerton *hton,
                                          TABLE_SHARE *table,
                                          MEM_ROOT *mem_root)

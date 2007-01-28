@@ -309,10 +309,6 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
  equal_error2:
   setErrorCodeAbort(4206);
   DBUG_RETURN(-1);
-
- equal_error3:
-  setErrorCodeAbort(4209);
-  DBUG_RETURN(-1);
 }
 
 /******************************************************************************

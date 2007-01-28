@@ -988,7 +988,7 @@ sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
     DBUG_PRINT("info", ("found: 0x%lx", (ulong)sp));
     if (sp->m_first_free_instance)
     {
-      DBUG_PRINT("info", ("first free: 0x%lx, level: %lu, flags %x",
+      DBUG_PRINT("info", ("first free: 0x%lx  level: %lu  flags %x",
                           (ulong)sp->m_first_free_instance,
                           sp->m_first_free_instance->m_recursion_level,
                           sp->m_first_free_instance->m_flags));

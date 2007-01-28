@@ -614,6 +614,8 @@ Suma::removeSubscribersOnNode(Signal *signal, Uint32 nodeId)
   bool found = false;
 
   KeyTable<Table>::Iterator it;
+  LINT_INIT(it.bucket);
+  LINT_INIT(it.curr.p);
   for(c_tables.first(it);!it.isNull();c_tables.next(it))
   {
     LocalDLList<Subscriber> subbs(c_subscriberPool,it.curr.p->c_subscribers);
@@ -1265,7 +1267,7 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
     jam();
     syncPtr.p->m_tableList.append(&subPtr.p->m_tableId, 1);
     if(signal->getNoOfSections() > 0){
-      SegmentedSectionPtr ptr;
+      SegmentedSectionPtr ptr(0,0,0);
       signal->getSection(ptr, SubSyncReq::ATTRIBUTE_LIST);
       LocalDataBuffer<15> attrBuf(c_dataBufferPool,syncPtr.p->m_attributeList);
       append(attrBuf, ptr, getSectionSegmentPool());
@@ -1711,7 +1713,7 @@ Suma::execGET_TABINFO_CONF(Signal* signal){
   Uint32 tableId = conf->tableId;
   TablePtr tabPtr;
   c_tablePool.getPtr(tabPtr, conf->senderData);
-  SegmentedSectionPtr ptr;
+  SegmentedSectionPtr ptr(0,0,0);
   signal->getSection(ptr, GetTabInfoConf::DICT_TAB_INFO);
   ndbrequire(tabPtr.p->parseTable(ptr, *this));
   releaseSections(signal);
@@ -2103,6 +2105,7 @@ Suma::SyncRecord::nextScan(Signal* signal)
   LocalDataBuffer<15> attrBuf(suma.c_dataBufferPool, head);
   
   ScanFragReq * req = (ScanFragReq *)signal->getDataPtrSend();
+  const Uint32 parallelism = 16;
   const Uint32 attrLen = 5 + attrBuf.getSize();
 
   req->senderData = ptrI;
@@ -3185,6 +3188,10 @@ Suma::Table::checkRelease(Suma &suma)
 
 static Uint32 f_bufferLock = 0;
 static Uint32 f_buffer[SUMA_BUF_SZ];
+static Uint32 f_trigBufferSize = 0;
+static Uint32 b_bufferLock = 0;
+static Uint32 b_buffer[SUMA_BUF_SZ];
+static Uint32 b_trigBufferSize = 0;
 
 void
 Suma::execTRANSID_AI(Signal* signal)
@@ -3621,7 +3628,6 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
     
     if(c_buckets[i].m_buffer_tail != RNIL)
     {
-      Uint32* dst;
       get_buffer_ptr(signal, i, gci, 0);
     }
   }
@@ -3966,9 +3972,6 @@ void
 Suma::completeSubRemove(SubscriptionPtr subPtr)
 {
   DBUG_ENTER("Suma::completeSubRemove");
-  Uint32 subscriptionId  = subPtr.p->m_subscriptionId;
-  Uint32 subscriptionKey = subPtr.p->m_subscriptionKey;
-
   c_subscriptions.release(subPtr);
   DBUG_PRINT("info",("c_subscriptionPool  size: %d free: %d",
 		     c_subscriptionPool.getSize(),
@@ -4561,6 +4564,7 @@ Suma::execSUMA_HANDOVER_CONF(Signal* signal) {
   DBUG_VOID_RETURN;
 }
 
+#ifdef NOT_USED
 static
 NdbOut&
 operator<<(NdbOut & out, const Suma::Page_pos & pos)
@@ -4572,6 +4576,7 @@ operator<<(NdbOut & out, const Suma::Page_pos & pos)
       << " ]";
   return out;
 }
+#endif
 
 Uint32*
 Suma::get_buffer_ptr(Signal* signal, Uint32 buck, Uint32 gci, Uint32 sz)
@@ -4742,6 +4747,7 @@ loop:
   ptr.p->m_free = count;
 
   Buffer_page* page;
+  LINT_INIT(page);
   for(Uint32 i = 0; i<count; i++)
   {
     page = (Buffer_page*)m_tup->c_page_pool.getPtr(ref);

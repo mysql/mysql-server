@@ -639,7 +639,8 @@ Create_file event for file_id: %u\n",exv->file_id);
     case FORMAT_DESCRIPTION_EVENT:
       delete glob_description_event;
       glob_description_event= (Format_description_log_event*) ev;
-      print_event_info->common_header_len= glob_description_event->common_header_len;
+      print_event_info->common_header_len=
+        glob_description_event->common_header_len;
       ev->print(result_file, print_event_info);
       /*
         We don't want this event to be deleted now, so let's hide it (I
@@ -649,7 +650,7 @@ Create_file event for file_id: %u\n",exv->file_id);
       */
       ev= 0;
       if (!force_if_open_opt &&
-          (description_event->flags & LOG_EVENT_BINLOG_IN_USE_F))
+          (glob_description_event->flags & LOG_EVENT_BINLOG_IN_USE_F))
       {
         file_not_closed_error= 1;
         DBUG_RETURN(1); 

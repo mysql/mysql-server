@@ -2,6 +2,7 @@
 
 # Need to disable ccache, or we loose the gcov-needed compiler output files.
 
+USING_GCOV=1
 CCACHE_GCOV_VERSION_ENABLED=0
 if ccache -V > /dev/null 2>&1
 then

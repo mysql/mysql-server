@@ -920,7 +920,6 @@ bool partition_info::set_up_charset_field_preps()
       if (field_is_partition_charset(field))
       {
         char *field_buf;
-        CHARSET_INFO *cs= ((Field_str*)field)->charset();
         size= field->pack_length();
         if (!(field_buf= sql_calloc(size)))
           goto error;

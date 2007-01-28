@@ -502,7 +502,7 @@ public:
   sys_var_thd_dbug(const char *name_arg) :sys_var_thd(name_arg) {}
   bool check_update_type(Item_result type) { return type != STRING_RESULT; }
   bool check(THD *thd, set_var *var);
-  SHOW_TYPE type() { return SHOW_CHAR; }
+  SHOW_TYPE show_type() { return SHOW_CHAR; }
   bool update(THD *thd, set_var *var);
   void set_default(THD *thd, enum_var_type type) { DBUG_POP(); }
   byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *b);
@@ -557,7 +557,7 @@ public:
   bool check_type(enum_var_type type) { return type != OPT_GLOBAL; }
   /*
     We can't retrieve the value of this, so we don't have to define
-    type() or value_ptr()
+    show_type() or value_ptr()
   */
 };
 
@@ -803,7 +803,7 @@ public:
   byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
   bool check_update_type(Item_result type) { return 0; }
   void set_default(THD *thd, enum_var_type type);
-  SHOW_TYPE type() { return SHOW_CHAR; }
+  SHOW_TYPE show_type() { return SHOW_CHAR; }
 };
 
 
@@ -852,7 +852,7 @@ public:
   bool check_default(enum_var_type type) { return 1; }
   bool check_type(enum_var_type type) { return type != OPT_GLOBAL; }
   bool check_update_type(Item_result type) { return 1; }
-  SHOW_TYPE type() { return SHOW_CHAR; }
+  SHOW_TYPE show_type() { return SHOW_CHAR; }
   bool is_readonly() const { return 1; }
 };
 
@@ -951,7 +951,7 @@ public:
     sys_var_long_ptr(name_arg, NULL, NULL) {};
   bool update(THD *thd, set_var *var);
   byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
-  SHOW_TYPE type() { return SHOW_CHAR; }
+  SHOW_TYPE show_type() { return SHOW_CHAR; }
   bool check(THD *thd, set_var *var);
   bool check_update_type(Item_result type)
   {

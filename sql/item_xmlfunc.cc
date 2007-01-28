@@ -577,7 +577,6 @@ String * Item_nodeset_func_union::val_nodeset(String *nodeset)
   both_str.alloc(numnodes);
   char *both= (char*) both_str.ptr();
   bzero((void*)both, numnodes);
-  uint pos= 0;
   MY_XPATH_FLT *flt;
 
   fltbeg= (MY_XPATH_FLT*) s0->ptr();
@@ -1484,7 +1483,6 @@ static int my_xpath_parse_AxisName(MY_XPATH *xpath)
 static int my_xpath_parse_LocationPath(MY_XPATH *xpath);
 static int my_xpath_parse_AbsoluteLocationPath(MY_XPATH *xpath);
 static int my_xpath_parse_RelativeLocationPath(MY_XPATH *xpath);
-static int my_xpath_parse_AbbreviatedAbsoluteLocationPath(MY_XPATH *xpath);
 static int my_xpath_parse_AbbreviatedStep(MY_XPATH *xpath);
 static int my_xpath_parse_Step(MY_XPATH *xpath);
 static int my_xpath_parse_AxisSpecifier(MY_XPATH *xpath);
@@ -1503,7 +1501,6 @@ static int my_xpath_parse_RelationalExpr(MY_XPATH *xpath);
 static int my_xpath_parse_AndExpr(MY_XPATH *xpath);
 static int my_xpath_parse_EqualityExpr(MY_XPATH *xpath);
 static int my_xpath_parse_VariableReference(MY_XPATH *xpath);
-static int my_xpath_parse_slash_opt_slash(MY_XPATH *xpath);
 
 
 /*
@@ -2699,7 +2696,6 @@ String *Item_func_xml_update::val_str(String *str)
   }
 
   MY_XML_NODE *nodebeg= (MY_XML_NODE*) pxml.ptr();
-  MY_XML_NODE *nodeend= (MY_XML_NODE*) pxml.ptr() + pxml.length();
   MY_XPATH_FLT *fltbeg= (MY_XPATH_FLT*) nodeset->ptr();
   MY_XPATH_FLT *fltend= (MY_XPATH_FLT*) (nodeset->ptr() + nodeset->length());
 

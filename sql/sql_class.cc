@@ -2409,11 +2409,12 @@ THD::binlog_prepare_pending_rows_event(TABLE*, uint32, MY_BITMAP const*,
 				       my_size_t colcnt, my_size_t, bool,
 				       Update_rows_log_event *);
 #endif
+
+#ifdef NOT_USED
 static char const* 
 field_type_name(enum_field_types type) 
 {
-  switch (type) 
-  {
+  switch (type) {
   case MYSQL_TYPE_DECIMAL:
     return "MYSQL_TYPE_DECIMAL";
   case MYSQL_TYPE_TINY:
@@ -2471,6 +2472,7 @@ field_type_name(enum_field_types type)
   }
   return "Unknown";
 }
+#endif
 
 
 my_size_t THD::max_row_length_blob(TABLE *table, const byte *data) const
@@ -2651,8 +2653,6 @@ int THD::binlog_write_row(TABLE* table, bool is_trans,
     Pack records into format for transfer. We are allocating more
     memory than needed, but that doesn't matter.
   */
-  int error= 0;
-
   Row_data_memory memory(table, max_row_length(table, record));
   if (!memory.has_memory())
     return HA_ERR_OUT_OF_MEM;
@@ -2679,7 +2679,6 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
 { 
   DBUG_ASSERT(current_stmt_binlog_row_based && mysql_bin_log.is_open());
 
-  int error= 0;
   my_size_t const before_maxlen = max_row_length(table, before_record);
   my_size_t const after_maxlen  = max_row_length(table, after_record);
 
@@ -2729,8 +2728,6 @@ int THD::binlog_delete_row(TABLE* table, bool is_trans,
      Pack records into format for transfer. We are allocating more
      memory than needed, but that doesn't matter.
   */
-  int error= 0;
-
   Row_data_memory memory(table, max_row_length(table, record));
   if (unlikely(!memory.has_memory()))
     return HA_ERR_OUT_OF_MEM;

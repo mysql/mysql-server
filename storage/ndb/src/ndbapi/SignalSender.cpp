@@ -19,6 +19,7 @@
 #include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/NodeFailRep.hpp>
 
+#ifdef NOT_USED
 static
 void
 require(bool x)
@@ -26,6 +27,7 @@ require(bool x)
   if (!x)
     abort();
 }
+#endif
 
 SimpleSignal::SimpleSignal(bool dealloc){
   memset(this, 0, sizeof(* this));

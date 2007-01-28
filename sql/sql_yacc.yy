@@ -3738,7 +3738,6 @@ part_definition:
           LEX *lex= Lex;
           partition_info *part_info= lex->part_info;
           partition_element *p_elem= new partition_element();
-          uint part_id= part_info->partitions.elements;
 
           if (!p_elem || part_info->partitions.push_back(p_elem))
           {
@@ -3890,7 +3889,6 @@ part_bit_expr:
         bit_expr
         {
           Item *part_expr= $1;
-          int part_expression_ok= 1;
           THD *thd= YYTHD;
           LEX *lex= thd->lex;
           Name_resolution_context *context= &lex->current_select->context;
@@ -5071,9 +5069,9 @@ alter:
         | ALTER SERVER_SYM ident_or_text OPTIONS_SYM '(' server_options_list ')'
           {
             LEX *lex= Lex;
-            Lex->sql_command= SQLCOM_ALTER_SERVER;
-            Lex->server_options.server_name= $3.str;
-            Lex->server_options.server_name_length= $3.length;
+            lex->sql_command= SQLCOM_ALTER_SERVER;
+            lex->server_options.server_name= $3.str;
+            lex->server_options.server_name_length= $3.length;
           }
 	;
 
@@ -5745,9 +5743,9 @@ db_to_db:
 	ident TO_SYM ident
 	{
 	  LEX *lex=Lex;
-          if (Lex->db_list.push_back((LEX_STRING*)
+          if (lex->db_list.push_back((LEX_STRING*)
                                      sql_memdup(&$1, sizeof(LEX_STRING))) ||
-              Lex->db_list.push_back((LEX_STRING*)
+              lex->db_list.push_back((LEX_STRING*)
                                      sql_memdup(&$3, sizeof(LEX_STRING))))
               YYABORT;
 	};
@@ -6673,7 +6671,6 @@ function_call_generic:
         udf_expr_list ')'
         {
           THD *thd= YYTHD;
-          LEX *lex= thd->lex;
           Create_func *builder;
           Item *item= NULL;
 
