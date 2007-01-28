@@ -1,4 +1,4 @@
-gmake -k clean || true 
+gmake -k maintainer-clean || true 
 /bin/rm -f */.deps/*.P config.cache storage/innobase/config.cache
 
 path=`dirname $0`
