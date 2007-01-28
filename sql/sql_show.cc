@@ -139,7 +139,6 @@ static my_bool show_plugins(THD *thd, st_plugin_int *plugin,
 {
   TABLE *table= (TABLE*) arg;
   struct st_mysql_plugin *plug= plugin->plugin;
-  Protocol *protocol= thd->protocol;
   CHARSET_INFO *cs= system_charset_info;
   char version_buf[20];
 
@@ -152,8 +151,7 @@ static my_bool show_plugins(THD *thd, st_plugin_int *plugin,
         cs);
 
 
-  switch (plugin->state)
-  {
+  switch (plugin->state) {
   /* case PLUGIN_IS_FREED: does not happen */
   case PLUGIN_IS_DELETED:
     table->field[2]->store(STRING_WITH_LEN("DELETED"), cs);
@@ -1375,6 +1373,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     }
     if (table->s->key_block_size)
     {
+      char *end;
       packet->append(STRING_WITH_LEN(" KEY_BLOCK_SIZE="));
       end= longlong10_to_str(table->s->key_block_size, buff, 10);
       packet->append(buff, (uint) (end - buff));
@@ -4026,7 +4025,6 @@ static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
     partition_element *part_elem;
     List_iterator<partition_element> part_it(part_info->partitions);
     uint part_pos= 0, part_id= 0;
-    uint no_parts= part_info->no_parts;
 
     restore_record(table, s->default_values);
     table->field[1]->store(base_name, strlen(base_name), cs);
@@ -4196,6 +4194,7 @@ static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
 }
 
 
+#ifdef NOT_USED
 static interval_type get_real_interval_type(interval_type i_type)
 {
   switch (i_type) {
@@ -4238,6 +4237,8 @@ static interval_type get_real_interval_type(interval_type i_type)
   DBUG_ASSERT(0);
   return INTERVAL_SECOND;
 }
+
+#endif
 
 
 /*
@@ -5033,7 +5034,6 @@ static my_bool run_hton_fill_schema_files(THD *thd, st_plugin_int *plugin,
 
 int fill_schema_files(THD *thd, TABLE_LIST *tables, COND *cond)
 {
-  TABLE *table= tables->table;
   DBUG_ENTER("fill_schema_files");
 
   struct run_hton_fill_schema_files_args args;
@@ -5091,7 +5091,7 @@ int fill_schema_status(THD *thd, SHOW_VAR *variables,
       
       if (show_type == SHOW_SYS)
       {
-        show_type= ((sys_var*) value)->type();
+        show_type= ((sys_var*) value)->show_type();
         value= (char*) ((sys_var*) value)->value_ptr(thd, OPT_GLOBAL,
                                                      &null_lex_str);
       }

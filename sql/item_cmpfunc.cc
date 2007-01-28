@@ -1830,7 +1830,6 @@ void Item_func_case::fix_length_and_dec()
 {
   Item **agg;
   uint nagg;
-  THD *thd= current_thd;
   uint found_types= 0;
   if (!(agg= (Item**) sql_alloc(sizeof(Item*)*(ncases+1))))
     return;

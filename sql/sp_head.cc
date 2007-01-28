@@ -1367,7 +1367,6 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   MEM_ROOT call_mem_root;
   Query_arena call_arena(&call_mem_root, Query_arena::INITIALIZED_FOR_SP);
   Query_arena backup_arena;
-
   DBUG_ENTER("sp_head::execute_function");
   DBUG_PRINT("info", ("function %s", m_name.str));
 

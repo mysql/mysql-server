@@ -366,16 +366,17 @@ int ha_archive::free_share()
 {
   int rc= 0;
   DBUG_ENTER("ha_archive::free_share");
-  DBUG_PRINT("ha_archive", ("archive table %.*s has %d open handles on entrance", 
-                      share_to_free->table_name_length, share_to_free->table_name,
-                      share_to_free->use_count));
+  DBUG_PRINT("ha_archive",
+             ("archive table %.*s has %d open handles on entrance", 
+              share->table_name_length, share->table_name,
+              share->use_count));
 
   pthread_mutex_lock(&archive_mutex);
   if (!--share->use_count)
   {
-    hash_delete(&archive_open_tables, (byte*) share_to_free);
-    thr_lock_delete(&share_to_free->lock);
-    VOID(pthread_mutex_destroy(&share_to_free->mutex));
+    hash_delete(&archive_open_tables, (byte*) share);
+    thr_lock_delete(&share->lock);
+    VOID(pthread_mutex_destroy(&share->mutex));
     /* 
       We need to make sure we don't reset the crashed state.
       If we open a crashed file, wee need to close it as crashed unless
@@ -465,7 +466,7 @@ int ha_archive::open(const char *name, int mode, uint open_options)
 
   if (!record_buffer)
   {
-    free_share(share);
+    free_share();
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
   }
 
@@ -783,7 +784,7 @@ int ha_archive::write_row(byte *buf)
       {
         if (!memcmp(read_buf + mfield->offset(record),
                     table->next_number_field->ptr,
-                    mfield->max_length()))
+                    mfield->max_display_length()))
         {
           rc= HA_ERR_FOUND_DUPP_KEY;
           goto error;

@@ -44,10 +44,6 @@ static handlerton *installed_htons[128];
 
 KEY_CREATE_INFO default_key_create_info= { HA_KEY_ALG_UNDEF, 0, {NullS,0} };
 
-/* static functions defined in this file */
-
-static handler *create_default(TABLE_SHARE *table, MEM_ROOT *mem_root);
-
 /* number of entries in handlertons[] */
 ulong total_ha= 0;
 /* number of storage engines (from handlertons[]) that support 2pc */
@@ -164,11 +160,13 @@ const char *ha_get_storage_engine(enum legacy_db_type db_type)
 }
 
 
+#ifdef NOT_USED
 static handler *create_default(TABLE_SHARE *table, MEM_ROOT *mem_root)
 {
   handlerton *hton= ha_default_handlerton(current_thd);
   return (hton && hton->create) ? hton->create(hton, table, mem_root) : NULL;
 }
+#endif
 
 
 handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type)
@@ -3363,7 +3361,6 @@ static my_bool exts_handlerton(THD *unused, st_plugin_int *plugin,
 
 TYPELIB *ha_known_exts(void)
 {
-  MEM_ROOT *mem_root= current_thd->mem_root;
   if (!known_extensions.type_names || mysys_usage_id != known_extensions_id)
   {
     List<char> found_exts;

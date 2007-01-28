@@ -73,6 +73,7 @@ static int request_table_dump(MYSQL* mysql, const char* db, const char* table);
 static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
                                   const char* table_name, bool overwrite);
 static int get_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi);
+static Log_event* next_event(RELAY_LOG_INFO* rli);
 
 /*
   Find out which replications threads are running

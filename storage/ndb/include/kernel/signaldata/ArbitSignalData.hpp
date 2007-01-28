@@ -35,8 +35,6 @@ public:
   STATIC_CONST( DataLength = 2 );
   STATIC_CONST( TextLength = DataLength * 8 );  // hex digits
 
-  ArbitTicket() {}
-
   inline void clear() {
     data[0] = 0;
     data[1] = 0;
@@ -148,7 +146,6 @@ public:
   ArbitSignalData() {}
   STATIC_CONST( SignalLength = 3 + ArbitTicket::DataLength + NodeBitmask::Size );
 
-   ArbitSignalData() {}
   inline bool match(ArbitSignalData& aData) const {
     return
       node == aData.node &&

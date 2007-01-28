@@ -44,12 +44,15 @@ plugin_type_init plugin_type_deinitialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   0,ha_finalize_handlerton,0,0
 };
 
+#ifdef HAVE_DLOPEN
 static const char *plugin_interface_version_sym=
                    "_mysql_plugin_interface_version_";
 static const char *sizeof_st_plugin_sym=
                    "_mysql_sizeof_struct_st_plugin_";
 static const char *plugin_declarations_sym= "_mysql_plugin_declarations_";
 static int min_plugin_interface_version= MYSQL_PLUGIN_INTERFACE_VERSION & ~0xFF;
+#endif
+
 /* Note that 'int version' must be the first field of every plugin
    sub-structure (plugin->info).
 */
@@ -79,6 +82,8 @@ static int plugin_array_version=0;
 /* prototypes */
 my_bool plugin_register_builtin(struct st_mysql_plugin *plugin);
 void plugin_load(void);
+
+#ifdef HAVE_DLOPEN
 
 static struct st_plugin_dl *plugin_dl_find(const LEX_STRING *dl)
 {
@@ -117,6 +122,8 @@ static st_plugin_dl *plugin_dl_insert_or_reuse(struct st_plugin_dl *plugin_dl)
   DBUG_RETURN(dynamic_element(&plugin_dl_array, plugin_dl_array.elements - 1,
                               struct st_plugin_dl *));
 }
+#endif /* HAVE_DLOPEN */
+
 
 static inline void free_plugin_mem(struct st_plugin_dl *p)
 {
@@ -534,6 +541,8 @@ static void plugin_del(struct st_plugin_int *plugin)
   DBUG_VOID_RETURN;
 }
 
+#ifdef NOT_USED
+
 static void plugin_del(const LEX_STRING *name)
 {
   struct st_plugin_int *plugin;
@@ -542,6 +551,8 @@ static void plugin_del(const LEX_STRING *name)
     plugin_del(plugin);
   DBUG_VOID_RETURN;
 }
+
+#endif
 
 void plugin_unlock(struct st_plugin_int *plugin)
 {

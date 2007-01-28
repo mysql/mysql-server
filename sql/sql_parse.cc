@@ -1900,6 +1900,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     /* Locked closure of all tables */
     TABLE_LIST table_list;
     LEX_STRING conv_name;
+    uint dummy;
 
     /* used as fields initializator */
     lex_start(thd, 0, 0);
@@ -4041,7 +4042,6 @@ end_with_restore_list:
                                                      lex->spname->m_name);
     else
     {
-      uint affected= 1;
       if (!(res= Events::get_instance()->drop_event(thd,
                                                     lex->spname->m_db,
                                                     lex->spname->m_name,

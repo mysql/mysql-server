@@ -722,7 +722,6 @@ pthread_handler_t handle_slave(void *arg);
 static ulong find_bit_type(const char *x, TYPELIB *bit_lib);
 static void clean_up(bool print_message);
 static int test_if_case_insensitive(const char *dir_name);
-static void end_ssl();
 
 #ifndef EMBEDDED_LIBRARY
 static void start_signal_handler(void);
@@ -730,6 +729,7 @@ static void close_server_sock();
 static void clean_up_mutexes(void);
 static void wait_for_signal_thread_to_end(void);
 static void create_pid_file();
+static void end_ssl();
 #endif
 
 
@@ -1236,7 +1236,9 @@ void clean_up(bool print_message)
 #endif
   delete binlog_filter;
   delete rpl_filter;
+#ifndef EMBEDDED_LIBRARY
   end_ssl();
+#endif
   vio_end();
 #ifdef USE_REGEX
   my_regex_end();
