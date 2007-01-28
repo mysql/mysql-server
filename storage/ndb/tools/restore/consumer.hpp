@@ -24,6 +24,7 @@ extern const char *Ndb_apply_table;
 
 class BackupConsumer {
 public:
+  BackupConsumer() {}
   virtual ~BackupConsumer() { }
   virtual bool init() { return true;}
   virtual bool object(Uint32 tableType, const void*) { return true;}

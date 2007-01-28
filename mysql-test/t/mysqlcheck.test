@@ -1,3 +1,4 @@
+
 # Embedded server doesn't support external clients
 --source include/not_embedded.inc
 
@@ -5,13 +6,16 @@
 # depends on the presence of the log tables (which are CSV-based).
 --source include/have_csv.inc
 
+#
+# Clean up after previous tests
+#
+
 --disable_warnings
+DROP TABLE IF EXISTS t1;
+drop view if exists v1;
 drop database if exists client_test_db;
 --enable_warnings
 
-DROP SCHEMA test;
-CREATE SCHEMA test;
-use test;
 #
 # Bug #13783  mysqlcheck tries to optimize and analyze information_schema
 #

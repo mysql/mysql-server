@@ -22,7 +22,6 @@
 #include <NdbMutex.h>
 
 extern NdbMutex *g_ndb_connection_mutex;
-static int g_ndb_connection_count = 0;
 
 class TransporterFacade;
 class ConfigRetriever;
