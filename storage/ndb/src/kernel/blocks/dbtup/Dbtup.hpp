@@ -1735,7 +1735,8 @@ private:
                       Operationrec* regOperPtr,
                       Fragrecord* regFragPtr,
                       Tablerec* regTabPtr,
-                      KeyReqStruct* req_struct);
+                      KeyReqStruct* req_struct,
+		      bool disk);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
