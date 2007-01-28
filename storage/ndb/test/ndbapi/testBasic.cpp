@@ -1272,6 +1272,52 @@ runBug25090(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int
+runDeleteRead(NDBT_Context* ctx, NDBT_Step* step){
+  
+  Ndb* pNdb = GETNDB(step);
+
+  const NdbDictionary::Table* tab = ctx->getTab();
+  NDBT_ResultRow row(*ctx->getTab());
+  HugoTransactions tmp(*ctx->getTab());
+
+  int a;
+  int loops = ctx->getNumLoops();
+  const int rows = ctx->getNumRecords();
+  
+  while (loops--)
+  {
+    NdbTransaction* pTrans = pNdb->startTransaction();
+    NdbOperation* pOp = pTrans->getNdbOperation(tab->getName());
+    pOp->deleteTuple();
+    for(a = 0; a<tab->getNoOfColumns(); a++)
+    {
+      if (tab->getColumn(a)->getPrimaryKey() == true)
+      {
+	if(tmp.equalForAttr(pOp, a, 0) != 0)
+	{
+	  ERR(pTrans->getNdbError());
+	  return NDBT_FAILED;
+	}
+      }
+    }
+    
+    // Define attributes to read  
+    for(a = 0; a<tab->getNoOfColumns(); a++)
+    {
+      if((row.attributeStore(a) = pOp->getValue(tab->getColumn(a)->getName())) == 0) {
+	ERR(pTrans->getNdbError());
+	return NDBT_FAILED;
+      }
+    }
+
+    pTrans->execute(Commit);
+    pTrans->close();
+  }
+  
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testBasic);
 TESTCASE("PkInsert", 
 	 "Verify that we can insert and delete from this table using PK"
@@ -1541,6 +1587,12 @@ TESTCASE("Fill",
 TESTCASE("Bug25090", 
 	 "Verify what happens when we fill the db" ){
   STEP(runBug25090);
+}
+TESTCASE("DeleteRead", 
+	 "Verify Delete+Read" ){
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runDeleteRead);
+  FINALIZER(runClearTable2);
 }
 NDBT_TESTSUITE_END(testBasic);
 
