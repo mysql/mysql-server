@@ -1,6 +1,6 @@
 #! /bin/sh
 
-gmake -k clean || true
+gmake -k maintainer-clean || true
 /bin/rm -f */.deps/*.P config.cache
  
 path=`dirname $0`
