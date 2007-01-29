@@ -1043,7 +1043,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <interval_time_st> interval_time_st
 
-%type <db_type> storage_engines
+%type <db_type> storage_engines known_storage_engines
 
 %type <row_type> row_types
 
@@ -4250,19 +4250,31 @@ default_collation:
             Lex->create_info.used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
         };
 
+known_storage_engines:
+        ident_or_text
+        {
+          $$ = ha_resolve_by_name(YYTHD, &$1);
+          if ($$ == NULL)
+          {
+            my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), $1.str);
+            YYABORT;
+          }
+        }
+        ;
+
 storage_engines:
 	ident_or_text
 	{
 	  $$ = ha_resolve_by_name(YYTHD, &$1);
 	  if ($$ == NULL)
-          if (YYTHD->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION)
-	  {
-	    my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), $1.str);
-	    YYABORT;
-	  }
-          else
           {
-            push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_ERROR,
+            if (YYTHD->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION)
+	    {
+	      my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), $1.str);
+	      YYABORT;
+	    }
+
+            push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
                                 ER_UNKNOWN_STORAGE_ENGINE,
                                 ER(ER_UNKNOWN_STORAGE_ENGINE), $1.str);
           }
@@ -8455,12 +8467,10 @@ show_param:
             if (prepare_schema_table(YYTHD, lex, 0, SCH_PLUGINS))
               YYABORT;
 	  }
-	| ENGINE_SYM storage_engines 
+	| ENGINE_SYM known_storage_engines show_engine_param
 	  { Lex->create_info.db_type= $2; }
-	  show_engine_param
-	| ENGINE_SYM ALL 
+	| ENGINE_SYM ALL show_engine_param
 	  { Lex->create_info.db_type= NULL; }
-	  show_engine_param
 	| opt_full COLUMNS from_or_in table_ident opt_db wild_and_where
 	  {
  	    LEX *lex= Lex;
