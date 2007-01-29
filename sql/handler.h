@@ -867,6 +867,18 @@ public:
   {}
 };
 
+uint calculate_key_len(TABLE *, uint, const byte *, ulonglong);
+/*
+  bitmap with first N+1 bits set
+  (keypart_map for a key prefix of [0..N] keyparts)
+*/
+#define make_keypart_map(N) (((ulonglong)2 << (N)) - 1)
+/*
+  bitmap with first N bits set
+  (keypart_map for a key prefix of [0..N-1] keyparts)
+*/
+#define make_prev_keypart_map(N) (((ulonglong)1 << (N)) - 1)
+
 /*
   The handler class is the interface for dynamically loadable
   storage engines. Do not add ifdefs and take care when adding or
@@ -1202,11 +1214,20 @@ public:
     DBUG_ASSERT(FALSE);
     return HA_ERR_WRONG_COMMAND;
   }
-  virtual int index_read(byte * buf, const byte * key,
-			 uint key_len, enum ha_rkey_function find_flag)
+  private:
+  virtual int index_read(byte * buf, const byte * key, uint key_len,
+                         enum ha_rkey_function find_flag)
    { return  HA_ERR_WRONG_COMMAND; }
+  public:
+  virtual int index_read(byte * buf, const byte * key, ulonglong keypart_map,
+                         enum ha_rkey_function find_flag)
+   {
+     uint key_len= calculate_key_len(table, active_index, key, keypart_map);
+     return  index_read(buf, key, key_len, find_flag);
+   }
   virtual int index_read_idx(byte * buf, uint index, const byte * key,
-			     uint key_len, enum ha_rkey_function find_flag);
+                             ulonglong keypart_map,
+                             enum ha_rkey_function find_flag);
   virtual int index_next(byte * buf)
    { return  HA_ERR_WRONG_COMMAND; }
   virtual int index_prev(byte * buf)
@@ -1216,8 +1237,16 @@ public:
   virtual int index_last(byte * buf)
    { return  HA_ERR_WRONG_COMMAND; }
   virtual int index_next_same(byte *buf, const byte *key, uint keylen);
+  private:
   virtual int index_read_last(byte * buf, const byte * key, uint key_len)
    { return (my_errno=HA_ERR_WRONG_COMMAND); }
+  public:
+  virtual int index_read_last(byte * buf, const byte * key,
+                              ulonglong keypart_map)
+   {
+     uint key_len= calculate_key_len(table, active_index, key, keypart_map);
+     return  index_read_last(buf, key, key_len);
+   }
   virtual int read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
                                      KEY_MULTI_RANGE *ranges, uint range_count,
                                      bool sorted, HANDLER_BUFFER *buffer);
@@ -1243,8 +1272,7 @@ public:
     { return HA_ERR_WRONG_COMMAND; }
   virtual int rnd_same(byte *buf, uint inx)
     { return HA_ERR_WRONG_COMMAND; }
-  virtual ha_rows records_in_range(uint inx, key_range *min_key,
-                                   key_range *max_key)
+  virtual ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key)
     { return (ha_rows) 10; }
   virtual void position(const byte *record)=0;
   virtual int info(uint)=0; // see my_base.h for full description

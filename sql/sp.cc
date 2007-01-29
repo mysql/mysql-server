@@ -218,8 +218,7 @@ db_find_routine_aux(THD *thd, int type, sp_name *name, TABLE *table)
   key_copy(key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  if (table->file->index_read_idx(table->record[0], 0,
-				  key, table->key_info->key_length,
+  if (table->file->index_read_idx(table->record[0], 0, key, ~ULL(0),
 				  HA_READ_KEY_EXACT))
     DBUG_RETURN(SP_KEY_NOT_FOUND);
 
@@ -494,8 +493,6 @@ db_create_routine(THD *thd, int type, sp_head *sp)
   int ret;
   TABLE *table;
   char definer[USER_HOST_BUFF_SIZE];
-  char old_db_buf[NAME_LEN+1];
-  LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
   DBUG_ENTER("db_create_routine");
   DBUG_PRINT("enter", ("type: %d name: %.*s",type,sp->m_name.length,
                        sp->m_name.str));
@@ -906,7 +903,7 @@ sp_drop_db_routines(THD *thd, char *db)
   table->file->ha_index_init(0, 1);
   if (! table->file->index_read(table->record[0],
                                 (byte *)table->field[MYSQL_PROC_FIELD_DB]->ptr,
-				key_len, HA_READ_KEY_EXACT))
+                                (ulonglong)1, HA_READ_KEY_EXACT))
   {
     int nxtres;
     bool deleted= FALSE;

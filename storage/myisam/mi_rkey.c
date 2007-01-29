@@ -21,8 +21,8 @@
 	/* Read a record using key */
 	/* Ordinary search_flag is 0 ; Give error if no record with key */
 
-int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
-	    enum ha_rkey_function search_flag)
+int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key,
+            ulonglong keypart_map, enum ha_rkey_function search_flag)
 {
   uchar *key_buff;
   MYISAM_SHARE *share=info->s;
@@ -30,8 +30,8 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
   HA_KEYSEG *last_used_keyseg;
   uint pack_key_length, use_key_length, nextflag;
   DBUG_ENTER("mi_rkey");
-  DBUG_PRINT("enter", ("base: %lx  buf: %lx  inx: %d  search_flag: %d",
-                       (long) info, (long) buf, inx, search_flag));
+  DBUG_PRINT("enter", ("base: %lx  buf: %lx  inx: %d  keyparts %lx search_flag: %d",
+                       (long) info, (long) buf, inx, keypart_map, search_flag));
 
   if ((inx = _mi_check_index(info,inx)) < 0)
     DBUG_RETURN(my_errno);
@@ -47,18 +47,17 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
       key is already packed!;  This happens when we are using a MERGE TABLE
     */
     key_buff=info->lastkey+info->s->base.max_key_length;
-    pack_key_length= key_len;
-    bmove(key_buff,key,key_len);
+    pack_key_length= keypart_map;
+    bmove(key_buff, key, pack_key_length);
     last_used_keyseg= 0;
   }
   else
   {
-    if (key_len == 0)
-      key_len=USE_WHOLE_KEY;
+    DBUG_ASSERT(keypart_map);
     /* Save the packed key for later use in the second buffer of lastkey. */
     key_buff=info->lastkey+info->s->base.max_key_length;
     pack_key_length=_mi_pack_key(info,(uint) inx, key_buff, (uchar*) key,
-				 key_len, &last_used_keyseg);
+				 keypart_map, &last_used_keyseg);
     /* Save packed_key_length for use by the MERGE engine. */
     info->pack_key_length= pack_key_length;
     DBUG_EXECUTE("key",_mi_print_key(DBUG_FILE, keyinfo->seg,

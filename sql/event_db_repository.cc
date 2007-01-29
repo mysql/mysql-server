@@ -288,7 +288,7 @@ Event_db_repository::index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
   {
     key_copy(key_buf, event_table->record[0], key_info, key_len);
     if (!(ret= event_table->file->index_read(event_table->record[0], key_buf,
-                                             key_len, HA_READ_PREFIX)))
+                                             (ulonglong)1, HA_READ_PREFIX)))
     {
       DBUG_PRINT("info",("Found rows. Let's retrieve them. ret=%d", ret));
       do
@@ -518,7 +518,6 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
                                   my_bool create_if_not)
 {
   int ret= 0;
-  CHARSET_INFO *scs= system_charset_info;
   TABLE *table= NULL;
   char old_db_buf[NAME_LEN+1];
   LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
@@ -844,8 +843,7 @@ Event_db_repository::find_named_event(THD *thd, LEX_STRING db, LEX_STRING name,
 
   key_copy(key, table->record[0], table->key_info, table->key_info->key_length);
 
-  if (table->file->index_read_idx(table->record[0], 0, key,
-                                  table->key_info->key_length,
+  if (table->file->index_read_idx(table->record[0], 0, key, ~ULL(0),
                                   HA_READ_KEY_EXACT))
   {
     DBUG_PRINT("info", ("Row not found"));
