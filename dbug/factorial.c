@@ -1,6 +1,13 @@
 #ifdef DBUG_OFF				/* We are testing dbug */
-#undef DBUG_OFF
-#endif
+
+int factorial(register int value) {
+	if(value > 1) {
+		value *= factorial(value-1);
+	}
+	return value;
+}
+
+#else
 
 #include <my_global.h>
 
@@ -15,3 +22,6 @@ register int value)
     DBUG_PRINT ("result", ("result is %d", value));
     DBUG_RETURN (value);
 }
+
+#endif
+
