@@ -89,8 +89,8 @@ static int send_file(THD *thd)
     The client might be slow loading the data, give him wait_timeout to do
     the job
   */
-  old_timeout = thd->net.read_timeout;
-  thd->net.read_timeout = thd->variables.net_wait_timeout;
+  old_timeout= net->read_timeout;
+  net_set_read_timeout(net, thd->variables.net_wait_timeout);
 
   /*
     We need net_flush here because the client will not know it needs to send
@@ -134,7 +134,7 @@ static int send_file(THD *thd)
   error = 0;
 
  err:
-  thd->net.read_timeout = old_timeout;
+  net_set_read_timeout(net, old_timeout);
   if (fd >= 0)
     (void) my_close(fd, MYF(0));
   if (errmsg)
