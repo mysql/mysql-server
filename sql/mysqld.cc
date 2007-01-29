@@ -3886,10 +3886,9 @@ static bool read_init_file(char *file_name)
 
 static void create_new_thread(THD *thd)
 {
+  NET *net=&thd->net;
   DBUG_ENTER("create_new_thread");
 
-  NET *net=&thd->net;				// For easy ref
-  net->read_timeout = (uint) connect_timeout;
   if (protocol_version > 9)
     net->return_errno=1;
 
@@ -4183,12 +4182,7 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
     }
     if (sock == unix_sock)
       thd->security_ctx->host=(char*) my_localhost;
-#ifdef __WIN__
-    /* Set default wait_timeout */
-    ulong wait_timeout= global_system_variables.net_wait_timeout * 1000;
-    (void) setsockopt(new_sock, SOL_SOCKET, SO_RCVTIMEO, (char*)&wait_timeout,
-                    sizeof(wait_timeout));
-#endif
+
     create_new_thread(thd);
   }
 
