@@ -90,14 +90,13 @@
 static handler *example_create_handler(handlerton *hton,
                                        TABLE_SHARE *table, 
                                        MEM_ROOT *mem_root);
-static int example_init_func();
+static int example_init_func(void *);
 
 handlerton *example_hton;
 
 /* Variables for example share methods */
 static HASH example_open_tables; ///< Hash used to track the number of open tables; variable for example share methods
 pthread_mutex_t example_mutex;   ///< This is the mutex used to init the hash; variable for example share methods
-static int example_init= 0;      ///< This variable is used to check the init state of hash; variable for example share methods
 
 /** @brief
   Function we use in the creation of our hash to get key.
@@ -372,7 +371,7 @@ int ha_example::delete_row(const byte * buf)
   index.
 */
 int ha_example::index_read(byte * buf, const byte * key,
-                           uint key_len __attribute__((unused)),
+                           ulonglong keypart_map __attribute__((unused)),
                            enum ha_rkey_function find_flag
                            __attribute__((unused)))
 {
