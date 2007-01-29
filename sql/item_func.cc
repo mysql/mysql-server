@@ -3085,7 +3085,13 @@ public:
   int count;
   bool locked;
   pthread_cond_t cond;
+#ifndef EMBEDDED_LIBRARY
   pthread_t thread;
+  void set_thread(THD *thd) { thread= thd->real_id; }
+#else
+  THD       *thread;
+  void set_thread(THD *thd) { thread= thd; }
+#endif /*EMBEDDED_LIBRARY*/
   ulong thread_id;
 
   User_level_lock(const char *key_arg,uint length, ulong id) 
@@ -3239,7 +3245,7 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
   else
   {
     ull->locked=1;
-    ull->thread=thd->real_id;
+    ull->set_thread(thd);
     thd->ull=ull;
   }
   pthread_mutex_unlock(&LOCK_user_locks);
@@ -3314,7 +3320,7 @@ longlong Item_func_get_lock::val_int()
       null_value=1;				// Probably out of memory
       return 0;
     }
-    ull->thread=thd->real_id;
+    ull->set_thread(thd);
     thd->ull=ull;
     pthread_mutex_unlock(&LOCK_user_locks);
     return 1;					// Got new lock
@@ -3355,7 +3361,7 @@ longlong Item_func_get_lock::val_int()
   else                                          // We got the lock
   {
     ull->locked=1;
-    ull->thread=thd->real_id;
+    ull->set_thread(thd);
     ull->thread_id= thd->thread_id;
     thd->ull=ull;
     error=0;
@@ -3404,7 +3410,7 @@ longlong Item_func_release_lock::val_int()
   else
   {
 #ifdef EMBEDDED_LIBRARY
-    if (ull->locked && pthread_equal(current_thd->real_id,ull->thread))
+    if (ull->locked && (current_thd == ull->thread))
 #else
     if (ull->locked && pthread_equal(pthread_self(),ull->thread))
 #endif
