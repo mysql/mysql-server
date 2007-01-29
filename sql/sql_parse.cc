@@ -4047,8 +4047,7 @@ end_with_restore_list:
       if (!(res= Events::get_instance()->drop_event(thd,
                                                     lex->spname->m_db,
                                                     lex->spname->m_name,
-                                                    lex->drop_if_exists,
-                                                    FALSE)))
+                                                    lex->drop_if_exists)))
         send_ok(thd);
     }
     break;
