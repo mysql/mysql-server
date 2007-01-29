@@ -210,12 +210,6 @@ inline void reset_floating_point_exceptions()
 
 } /* cplusplus */
 
-
-#if defined(HAVE_LINUXTHREADS)
-#define THR_KILL_SIGNAL SIGINT
-#else
-#define THR_KILL_SIGNAL SIGUSR2		// Can't use this with LinuxThreads
-#endif
 #define MYSQL_KILL_SIGNAL SIGTERM
 
 #ifdef HAVE_GLIBC2_STYLE_GETHOSTBYNAME_R
@@ -587,6 +581,7 @@ static void clean_up_mutexes(void);
 static void wait_for_signal_thread_to_end(void);
 static int test_if_case_insensitive(const char *dir_name);
 static void create_pid_file();
+static uint get_thread_lib(void);
 
 #ifndef EMBEDDED_LIBRARY
 /****************************************************************************
@@ -626,7 +621,8 @@ static void close_connections(void)
     DBUG_PRINT("info",("Waiting for select thread"));
 
 #ifndef DONT_USE_THR_ALARM
-    if (pthread_kill(select_thread,THR_CLIENT_ALARM))
+    if (pthread_kill(select_thread,
+                     thd_lib_detected == THD_LIB_LT ? SIGALRM : SIGUSR1))
       break;					// allready dead
 #endif
     set_timespec(abstime, 2);
@@ -2049,7 +2045,10 @@ static void init_signals(void)
   DBUG_ENTER("init_signals");
 
   if (test_flags & TEST_SIGINT)
-    my_sigset(THR_KILL_SIGNAL,end_thread_signal);
+  {
+    my_sigset(thd_lib_detected == THD_LIB_LT ? SIGINT : SIGUSR2,
+              end_thread_signal);
+  }
   my_sigset(THR_SERVER_ALARM,print_signal_warning); // Should never be called!
 
   if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
@@ -2106,8 +2105,12 @@ static void init_signals(void)
 #endif
   sigaddset(&set,THR_SERVER_ALARM);
   if (test_flags & TEST_SIGINT)
-    sigdelset(&set,THR_KILL_SIGNAL);		// May be SIGINT
-  sigdelset(&set,THR_CLIENT_ALARM);		// For alarms
+  {
+    // May be SIGINT
+    sigdelset(&set, thd_lib_detected == THD_LIB_LT ? SIGINT : SIGUSR2);
+  }
+  // For alarms
+  sigdelset(&set, thd_lib_detected == THD_LIB_LT ? SIGALRM : SIGUSR1);
   sigprocmask(SIG_SETMASK,&set,NULL);
   pthread_sigmask(SIG_SETMASK,&set,NULL);
   DBUG_VOID_RETURN;
@@ -2163,23 +2166,19 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
   */
   init_thr_alarm(max_connections +
 		 global_system_variables.max_insert_delayed_threads + 10);
-#if SIGINT != THR_KILL_SIGNAL
-  if (test_flags & TEST_SIGINT)
+  if (thd_lib_detected != THD_LIB_LT && test_flags & TEST_SIGINT)
   {
     (void) sigemptyset(&set);			// Setup up SIGINT for debug
     (void) sigaddset(&set,SIGINT);		// For debugging
     (void) pthread_sigmask(SIG_UNBLOCK,&set,NULL);
   }
-#endif
   (void) sigemptyset(&set);			// Setup up SIGINT for debug
 #ifdef USE_ONE_SIGNAL_HAND
   (void) sigaddset(&set,THR_SERVER_ALARM);	// For alarms
 #endif
 #ifndef IGNORE_SIGHUP_SIGQUIT
   (void) sigaddset(&set,SIGQUIT);
-#if THR_CLIENT_ALARM != SIGHUP
   (void) sigaddset(&set,SIGHUP);
-#endif
 #endif
   (void) sigaddset(&set,SIGTERM);
   (void) sigaddset(&set,SIGTSTP);
@@ -3148,6 +3147,7 @@ int main(int argc, char **argv)
   }
 #endif
 
+  thd_lib_detected= get_thread_lib();
   if (init_common_variables(MYSQL_CONFIG_NAME,
 			    argc, argv, load_default_groups))
     unireg_abort(1);				// Will do exit
@@ -3241,7 +3241,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   */
   error_handler_hook = my_message_sql;
   start_signal_handler();				// Creates pidfile
-  if (acl_init(opt_noacl) ||
+  if (mysql_rm_tmp_tables() || acl_init(opt_noacl) ||
       my_tz_init((THD *)0, default_tz_name, opt_bootstrap))
   {
     abort_loop=1;
@@ -7021,6 +7021,22 @@ static void create_pid_file()
   }
   sql_perror("Can't start server: can't create PID file");
   exit(1);  
+}
+
+
+static uint get_thread_lib(void)
+{
+  char buff[64];
+    
+#ifdef _CS_GNU_LIBPTHREAD_VERSION
+  confstr(_CS_GNU_LIBPTHREAD_VERSION, buff, sizeof(buff));
+
+  if (!strncasecmp(buff, "NPTL", 4))
+    return THD_LIB_NPTL;
+  else if (!strncasecmp(buff, "linuxthreads", 12))
+    return THD_LIB_LT;
+#endif
+  return THD_LIB_OTHER;
 }
 
 

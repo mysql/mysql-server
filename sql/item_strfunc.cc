@@ -1583,6 +1583,19 @@ String *Item_func_encode::val_str(String *str)
   return res;
 }
 
+void Item_func_encode::print(String *str)
+{
+  str->append(func_name());
+  str->append('(');
+  args[0]->print(str);
+  str->append(',');
+  str->append('\'');
+  str->append(seed);
+  str->append('\'');
+  str->append(')');
+}
+
+
 String *Item_func_decode::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);

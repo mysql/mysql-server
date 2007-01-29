@@ -181,6 +181,7 @@ static my_bool emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   stmt->stmt_id= thd->client_stmt_id;
   stmt->param_count= thd->client_param_count;
   stmt->field_count= mysql->field_count;
+  mysql->warning_count= thd->total_warn_count;
 
   if (stmt->field_count != 0)
   {
@@ -249,7 +250,11 @@ int emb_read_binary_rows(MYSQL_STMT *stmt)
 {
   MYSQL_DATA *data;
   if (!(data= emb_read_rows(stmt->mysql, 0, 0)))
+  {
+    set_stmt_errmsg(stmt, stmt->mysql->net.last_error,
+                    stmt->mysql->net.last_errno, stmt->mysql->net.sqlstate);
     return 1;
+  }
   return 0;
 }
 
@@ -521,6 +526,7 @@ void *create_embedded_thd(int client_flag)
   thd->set_time();
   thd->init_for_queries();
   thd->client_capabilities= client_flag;
+  thd->real_id= (pthread_t) thd;
 
   thd->db= NULL;
   thd->db_length= 0;
@@ -818,6 +824,9 @@ void Protocol_simple::prepare_for_resend()
   MYSQL_DATA *data= thd->data;
 
   DBUG_ENTER("send_data");
+
+  if (!thd->mysql)            // bootstrap file handling
+    DBUG_VOID_RETURN;
 
   if (!data)
   {
