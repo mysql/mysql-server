@@ -1,5 +1,5 @@
--- source include/have_ndb.inc
--- source include/not_embedded.inc
+--source include/have_ndb.inc
+--source include/not_embedded.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
@@ -48,7 +48,7 @@ CREATE TABLE t1 (
 );
 
 set @now = now();
-sleep 1;
+--sleep 1.5
 insert into t1 
 (string,vstring,bin,vbin,tiny,short,medium,long_int,longlong,
  real_float,real_double, utiny, ushort, umedium,ulong,ulonglong,
@@ -64,7 +64,7 @@ from t1;
 select time_stamp>@now from t1;
 
 set @now = now();
-sleep 1;
+--sleep 1.5
 update t1 set string="bbbb",vstring="bbbb",bin=0xBBBB,vbin=0xBBBB,
 tiny=-2,short=-2,medium=-2,long_int=-2,longlong=-2,real_float=2.2,
 real_double=2.2,utiny=2,ushort=2,umedium=2,ulong=2,ulonglong=2, 
@@ -79,4 +79,4 @@ select time_stamp>@now from t1;
 
 drop table t1;
 
-# End of 4.1 tests
+--echo End of 4.1 tests

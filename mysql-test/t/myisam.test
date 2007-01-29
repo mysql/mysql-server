@@ -495,7 +495,7 @@ insert into t1 values (1),(2),(3),(4),(5),(6);
 insert into t2 values (1,1),(2,1);
 lock tables t1 read local, t2 read local;
 select straight_join * from t1,t2 force index (primary) where t1.a=t2.a;
-connect (root,localhost,root,,test,$MASTER_MYPORT,master.sock);
+connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 insert into t2 values(2,0);
 disconnect root;
 connection default;
@@ -882,4 +882,4 @@ CREATE TABLE t1 (c1 TEXT) AVG_ROW_LENGTH=70100 MAX_ROWS=4100100100;
 SHOW TABLE STATUS LIKE 't1';
 DROP TABLE t1;
 
-# End of 4.1 tests
+--echo End of 4.1 tests

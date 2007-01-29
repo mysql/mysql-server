@@ -28,6 +28,14 @@
 extern "C" {
 #endif /* __cplusplus */ 
 
+/* Thread library */
+
+#define THD_LIB_OTHER 1
+#define THD_LIB_NPTL  2
+#define THD_LIB_LT    4
+
+extern uint thd_lib_detected;
+
 #if defined(__WIN__) || defined(OS2)
 
 #ifdef OS2

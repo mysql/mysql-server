@@ -123,3 +123,4 @@ select * from t1;
 a
 42
 drop table t1;
+End of 4.1 tests

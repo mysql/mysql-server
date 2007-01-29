@@ -85,6 +85,42 @@
 #endif
 
 /*
+  The macros below are used to allow build of Universal/fat binaries of
+  MySQL and MySQL applications under darwin. 
+*/
+#ifdef TARGET_FAT_BINARY
+# undef SIZEOF_CHARP 
+# undef SIZEOF_INT 
+# undef SIZEOF_LONG 
+# undef SIZEOF_LONG_LONG 
+# undef SIZEOF_OFF_T 
+# undef SIZEOF_SHORT 
+
+#if defined(__i386__)
+# undef WORDS_BIGENDIAN
+# define SIZEOF_CHARP 4
+# define SIZEOF_INT 4
+# define SIZEOF_LONG 4
+# define SIZEOF_LONG_LONG 8
+# define SIZEOF_OFF_T 8
+# define SIZEOF_SHORT 2
+
+#elif defined(__ppc__)
+# define WORDS_BIGENDIAN
+# define SIZEOF_CHARP 4
+# define SIZEOF_INT 4
+# define SIZEOF_LONG 4
+# define SIZEOF_LONG_LONG 8
+# define SIZEOF_OFF_T 8
+# define SIZEOF_SHORT 2
+
+#else
+# error Building FAT binary for an unknown architecture.
+#endif
+#endif /* TARGET_FAT_BINARY */
+
+
+/*
   The macros below are borrowed from include/linux/compiler.h in the
   Linux kernel. Use them to indicate the likelyhood of the truthfulness
   of a condition. This serves two purposes - newer versions of gcc will be
@@ -102,7 +138,7 @@
 
 
 /* Fix problem with S_ISLNK() on Linux */
-#if defined(TARGET_OS_LINUX)
+#if defined(TARGET_OS_LINUX) || defined(__GLIBC__)
 #undef  _GNU_SOURCE
 #define _GNU_SOURCE 1
 #endif
@@ -379,7 +415,10 @@ int	__void__;
 #endif
 
 /* Define some useful general macros */
-#if !defined(max)
+#if defined(__cplusplus) && defined(__GNUC__)
+#define max(a, b)     ((a) >? (b))
+#define min(a, b)     ((a) <? (b))
+#elif !defined(max)
 #define max(a, b)	((a) > (b) ? (a) : (b))
 #define min(a, b)	((a) < (b) ? (a) : (b))
 #endif

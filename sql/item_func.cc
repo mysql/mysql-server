@@ -2239,7 +2239,11 @@ longlong Item_func_release_lock::val_int()
   }
   else
   {
+#ifdef EMBEDDED_LIBRARY
+    if (ull->locked && pthread_equal(current_thd->real_id,ull->thread))
+#else
     if (ull->locked && pthread_equal(pthread_self(),ull->thread))
+#endif
     {
       result=1;					// Release is ok
       item_user_lock_release(ull);
@@ -2469,8 +2473,9 @@ bool Item_func_set_user_var::update_hash(void *ptr, uint length,
 	char *pos= (char*) entry+ ALIGN_SIZE(sizeof(user_var_entry));
 	if (entry->value == pos)
 	  entry->value=0;
-	if (!(entry->value=(char*) my_realloc(entry->value, length,
-					      MYF(MY_ALLOW_ZERO_PTR))))
+        entry->value= (char*) my_realloc(entry->value, length,
+                                         MYF(MY_ALLOW_ZERO_PTR | MY_WME));
+        if (!entry->value)
 	  goto err;
       }
     }
@@ -3243,7 +3248,7 @@ double Item_func_match::val()
   if (ft_handler == NULL)
     DBUG_RETURN(-1.0);
 
-  if (table->null_row) /* NULL row from an outer join */
+  if (key != NO_SUCH_KEY && table->null_row) /* NULL row from an outer join */
     return 0.0;
 
   if (join_key)
