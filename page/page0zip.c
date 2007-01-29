@@ -600,6 +600,22 @@ page_zip_free(
 {
 }
 
+/**************************************************************************
+Configure the zlib allocator to use the given memory heap. */
+
+void
+page_zip_set_alloc(
+/*===============*/
+	void*		stream,		/* in/out: zlib stream */
+	mem_heap_t*	heap)		/* in: memory heap to use */
+{
+	z_stream*	strm = stream;
+
+	strm->zalloc = page_zip_malloc;
+	strm->zfree = page_zip_free;
+	strm->opaque = heap;
+}
+
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 /* Set this variable in a debugger to enable
 excessive logging in page_zip_compress(). */
@@ -993,9 +1009,7 @@ page_zip_compress(
 	buf_end = buf + page_zip_get_size(page_zip) - PAGE_DATA;
 
 	/* Compress the data payload. */
-	c_stream.zalloc = page_zip_malloc;
-	c_stream.zfree = page_zip_free;
-	c_stream.opaque = heap;
+	page_zip_set_alloc(&c_stream, heap);
 
 	err = deflateInit2(&c_stream, Z_DEFAULT_COMPRESSION,
 			   Z_DEFLATED, UNIV_PAGE_SIZE_SHIFT,
@@ -2279,9 +2293,7 @@ zlib_error:
 	memcpy(page + (PAGE_NEW_SUPREMUM - REC_N_NEW_EXTRA_BYTES + 1),
 	       supremum_extra_data, sizeof supremum_extra_data);
 
-	d_stream.zalloc = page_zip_malloc;
-	d_stream.zfree = page_zip_free;
-	d_stream.opaque = heap;
+	page_zip_set_alloc(&d_stream, heap);
 
 	if (UNIV_UNLIKELY(inflateInit2(&d_stream, UNIV_PAGE_SIZE_SHIFT)
 			  != Z_OK)) {

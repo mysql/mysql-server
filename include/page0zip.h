@@ -18,7 +18,7 @@ Created June 2005 by Marko Makela
 #include "page0types.h"
 #include "buf0types.h"
 #include "dict0types.h"
-#include "ut0byte.h"
+#include "mem0mem.h"
 
 /**************************************************************************
 Determine the size of a compressed page in bytes. */
@@ -70,6 +70,15 @@ page_zip_des_init(
 /*==============*/
 	page_zip_des_t*	page_zip);	/* in/out: compressed page
 					descriptor */
+
+/**************************************************************************
+Configure the zlib allocator to use the given memory heap. */
+
+void
+page_zip_set_alloc(
+/*===============*/
+	void*		stream,		/* in/out: zlib stream */
+	mem_heap_t*	heap);		/* in: memory heap to use */
 
 /**************************************************************************
 Compress a page. */
