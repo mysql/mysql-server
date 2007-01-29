@@ -48,8 +48,6 @@ KEY_CREATE_INFO default_key_create_info= { HA_KEY_ALG_UNDEF, 0, {NullS,0} };
 
 static handler *create_default(TABLE_SHARE *table, MEM_ROOT *mem_root);
 
-static SHOW_COMP_OPTION have_yes= SHOW_OPTION_YES;
-
 /* number of entries in handlertons[] */
 ulong total_ha= 0;
 /* number of storage engines (from handlertons[]) that support 2pc */
@@ -1854,7 +1852,7 @@ int handler::update_auto_increment()
       nr= compute_next_insert_id(nr-1, variables);
     }
     
-    if (table->s->next_number_key_offset == 0)
+    if (table->s->next_number_keypart == 0)
     {
       /* We must defer the appending until "nr" has been possibly truncated */
       append= TRUE;
@@ -1976,7 +1974,7 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
                                         table->read_set);
   column_bitmaps_signal();
   index_init(table->s->next_number_index, 1);
-  if (!table->s->next_number_key_offset)
+  if (table->s->next_number_keypart == 0)
   {						// Autoincrement at key-start
     error=index_last(table->record[1]);
     /*
@@ -1992,7 +1990,8 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
     key_copy(key, table->record[0],
              table->key_info + table->s->next_number_index,
              table->s->next_number_key_offset);
-    error= index_read(table->record[1], key, table->s->next_number_key_offset,
+    error= index_read(table->record[1], key,
+                      make_prev_keypart_map(table->s->next_number_keypart),
                       HA_READ_PREFIX_LAST);
     /*
       MySQL needs to call us for next row: assume we are inserting ("a",null)
@@ -3103,9 +3102,9 @@ int handler::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
        multi_range_curr < multi_range_end;
        multi_range_curr++)
   {
-    result= read_range_first(multi_range_curr->start_key.length ?
+    result= read_range_first(multi_range_curr->start_key.keypart_map ?
                              &multi_range_curr->start_key : 0,
-                             multi_range_curr->end_key.length ?
+                             multi_range_curr->end_key.keypart_map ?
                              &multi_range_curr->end_key : 0,
                              test(multi_range_curr->range_flag & EQ_RANGE),
                              multi_range_sorted);
@@ -3171,9 +3170,9 @@ int handler::read_multi_range_next(KEY_MULTI_RANGE **found_range_p)
          multi_range_curr < multi_range_end;
          multi_range_curr++)
     {
-      result= read_range_first(multi_range_curr->start_key.length ?
+      result= read_range_first(multi_range_curr->start_key.keypart_map ?
                                &multi_range_curr->start_key : 0,
-                               multi_range_curr->end_key.length ?
+                               multi_range_curr->end_key.keypart_map ?
                                &multi_range_curr->end_key : 0,
                                test(multi_range_curr->range_flag & EQ_RANGE),
                                multi_range_sorted);
@@ -3233,7 +3232,7 @@ int handler::read_range_first(const key_range *start_key,
   else
     result= index_read(table->record[0],
 		       start_key->key,
-		       start_key->length,
+                       start_key->keypart_map,
 		       start_key->flag);
   if (result)
     DBUG_RETURN((result == HA_ERR_KEY_NOT_FOUND) 
@@ -3307,15 +3306,19 @@ int handler::compare_key(key_range *range)
   return cmp;
 }
 
+
 int handler::index_read_idx(byte * buf, uint index, const byte * key,
-			     uint key_len, enum ha_rkey_function find_flag)
+                             ulonglong keypart_map,
+                             enum ha_rkey_function find_flag)
 {
-  int error= ha_index_init(index, 0);
+  int error, error1;
+  error= index_init(index, 0);
   if (!error)
-    error= index_read(buf, key, key_len, find_flag);
-  if (!error)
-    error= ha_index_end();
-  return error;
+  {
+    error= index_read(buf, key, keypart_map, find_flag);
+    error1= index_end();
+  }
+  return error ?  error : error1;
 }
 
 
@@ -3365,7 +3368,6 @@ static my_bool exts_handlerton(THD *unused, st_plugin_int *plugin,
 
 TYPELIB *ha_known_exts(void)
 {
-  MEM_ROOT *mem_root= current_thd->mem_root;
   if (!known_extensions.type_names || mysys_usage_id != known_extensions_id)
   {
     List<char> found_exts;

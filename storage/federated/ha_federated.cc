@@ -362,7 +362,7 @@ static handler *federated_create_handler(handlerton *hton,
                                          MEM_ROOT *mem_root);
 static int federated_commit(handlerton *hton, THD *thd, bool all);
 static int federated_rollback(handlerton *hton, THD *thd, bool all);
-static int federated_db_init(void);
+static int federated_db_init(void *);
 
 
 /* Federated storage engine handlerton */
@@ -573,9 +573,6 @@ int get_connection(FEDERATED_SHARE *share)
   int error_num= ER_FOREIGN_SERVER_DOESNT_EXIST;
   char error_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   FOREIGN_SERVER *server;
-  MYSQL *mysql_conn= 0;
-  MYSQL_RES *result= 0;
-  MYSQL_ROW row= 0;
   DBUG_ENTER("ha_federated::get_connection");
 
   if (!(server=

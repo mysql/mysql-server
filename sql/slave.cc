@@ -31,6 +31,8 @@
 #include "rpl_tblmap.h"
 
 int queue_event(MASTER_INFO* mi,const char* buf,ulong event_len);
+static Log_event* next_event(RELAY_LOG_INFO* rli);
+
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
