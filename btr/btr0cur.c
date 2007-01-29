@@ -3658,6 +3658,7 @@ btr_store_big_rec_extern_fields(
 	ulint	hint_page_no;
 	ulint	i;
 	mtr_t	mtr;
+	mem_heap_t* heap = NULL;
 	page_zip_des_t*	page_zip;
 	z_stream c_stream;
 
@@ -3679,11 +3680,16 @@ btr_store_big_rec_extern_fields(
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		int	err;
 
-		c_stream.zalloc = (alloc_func) 0;
-		c_stream.zfree = (free_func) 0;
-		c_stream.opaque = (voidpf) 0;
+		/* Zlib deflate needs 128 kilobytes for the default
+		window size, plus 512 << memLevel, plus a few
+		kilobytes for small objects.  We use reduced memLevel
+		to limit the memory consumption, and preallocate the
+		heap, hoping to avoid memory fragmentation. */
+		heap = mem_heap_create(250000);
+		page_zip_set_alloc(&c_stream, heap);
 
-		err = deflateInit(&c_stream, Z_DEFAULT_COMPRESSION);
+		err = deflateInit2(&c_stream, Z_DEFAULT_COMPRESSION,
+				   Z_DEFLATED, 15, 7, Z_DEFAULT_STRATEGY);
 		ut_a(err == Z_OK);
 	}
 
@@ -3736,6 +3742,7 @@ btr_store_big_rec_extern_fields(
 
 				if (UNIV_LIKELY_NULL(page_zip)) {
 					deflateEnd(&c_stream);
+					mem_heap_free(heap);
 				}
 
 				return(DB_OUT_OF_FILE_SPACE);
@@ -3965,6 +3972,7 @@ next_zip_page:
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		deflateEnd(&c_stream);
+		mem_heap_free(heap);
 	}
 
 	return(DB_SUCCESS);
@@ -4437,10 +4445,12 @@ btr_copy_externally_stored_field_prefix_low(
 	if (UNIV_UNLIKELY(zip_size)) {
 		int		err;
 		z_stream	d_stream;
+		mem_heap_t*	heap;
 
-		d_stream.zalloc = (alloc_func) 0;
-		d_stream.zfree = (free_func) 0;
-		d_stream.opaque = (voidpf) 0;
+		/* Zlib inflate needs 32 kilobytes for the default
+		window size, plus a few kilobytes for small objects. */
+		heap = mem_heap_create(40000);
+		page_zip_set_alloc(&d_stream, heap);
 
 		err = inflateInit(&d_stream);
 		ut_a(err == Z_OK);
@@ -4452,6 +4462,7 @@ btr_copy_externally_stored_field_prefix_low(
 		btr_copy_zblob_prefix(&d_stream, zip_size,
 				      space_id, page_no, offset);
 		inflateEnd(&d_stream);
+		mem_heap_free(heap);
 		return(d_stream.total_out);
 	} else {
 		return(btr_copy_blob_prefix(buf, len, space_id,
