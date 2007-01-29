@@ -965,7 +965,7 @@ static int check_connection(THD *thd)
       return(ER_HANDSHAKE_ERROR);
     }
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    if (sslaccept(ssl_acceptor_fd, net->vio, thd->variables.net_wait_timeout))
+    if (sslaccept(ssl_acceptor_fd, net->vio, net->read_timeout))
     {
       DBUG_PRINT("error", ("Failed to accept new SSL connection"));
       inc_host_errors(&thd->remote.sin_addr);
@@ -994,7 +994,6 @@ static int check_connection(THD *thd)
   if ((thd->client_capabilities & CLIENT_TRANSACTIONS) &&
       opt_using_transactions)
     net->return_status= &thd->server_status;
-  net->read_timeout=(uint) thd->variables.net_read_timeout;
 
   char *user= end;
   char *passwd= strend(user)+1;
@@ -1138,6 +1137,10 @@ pthread_handler_t handle_one_connection(void *arg)
     Security_context *sctx= thd->security_ctx;
     net->no_send_error= 0;
 
+    /* Use "connect_timeout" value during connection phase */
+    net_set_read_timeout(net, connect_timeout);
+    net_set_write_timeout(net, connect_timeout);
+
     if ((error=check_connection(thd)))
     {						// Wrong permissions
       if (error > 0)
@@ -1179,6 +1182,10 @@ pthread_handler_t handle_one_connection(void *arg)
       thd->set_time();
       thd->init_for_queries();
     }
+
+    /* Connect completed, set read/write timeouts back to tdefault */
+    net_set_read_timeout(net, thd->variables.net_read_timeout);
+    net_set_write_timeout(net, thd->variables.net_write_timeout);
 
     while (!net->error && net->vio != 0 &&
            !(thd->killed == THD::KILL_CONNECTION))
@@ -1486,7 +1493,7 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
 #ifndef EMBEDDED_LIBRARY
 
 /*
-  Read one command from socket and execute it (query or simple command).
+  Read one command from connection and execute it (query or simple command).
   This function is called in loop from thread function.
   SYNOPSIS
     do_command()
@@ -1497,24 +1504,26 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
 
 bool do_command(THD *thd)
 {
-  char *packet;
-  uint old_timeout;
+  char *packet= 0;
   ulong packet_length;
-  NET *net;
+  NET *net= &thd->net;
   enum enum_server_command command;
   DBUG_ENTER("do_command");
 
-  net= &thd->net;
   /*
     indicator of uninitialized lex => normal flow of errors handling
     (see my_message_sql)
   */
   thd->lex->current_select= 0;
 
-  packet=0;
-  old_timeout=net->read_timeout;
-  /* Wait max for 8 hours */
-  net->read_timeout=(uint) thd->variables.net_wait_timeout;
+  /*
+    This thread will do a blocking read from the client which
+    will be interrupted when the next command is received from
+    the client, the connection is closed or "net_wait_timeout"
+    number of seconds has passed
+  */
+  net_set_read_timeout(net, thd->variables.net_wait_timeout);
+
   thd->clear_error();				// Clear error message
 
   net_new_transaction(net);
@@ -1543,7 +1552,10 @@ bool do_command(THD *thd)
 		       vio_description(net->vio), command,
 		       command_name[command]));
   }
-  net->read_timeout=old_timeout;		// restore it
+
+  /* Restore read timeout value */
+  net_set_read_timeout(net, thd->variables.net_read_timeout);
+
   /*
     packet_length contains length of data, as it was stored in packet
     header. In case of malformed header, packet_length can be zero.
