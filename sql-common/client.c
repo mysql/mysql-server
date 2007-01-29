@@ -1881,11 +1881,17 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     goto error;
   }
   vio_keepalive(net->vio,TRUE);
-  /* Override local client variables */
+
+  /* If user set read_timeout, let it override the default */
   if (mysql->options.read_timeout)
     net->read_timeout= mysql->options.read_timeout;
+  vio_timeout(net->vio, 0, net->read_timeout);
+
+  /* If user set write_timeout, let it override the default */
   if (mysql->options.write_timeout)
     net->write_timeout= mysql->options.write_timeout;
+  vio_timeout(net->vio, 1, net->write_timeout);
+
   if (mysql->options.max_allowed_packet)
     net->max_packet_size= mysql->options.max_allowed_packet;
 

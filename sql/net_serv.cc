@@ -491,7 +491,7 @@ net_real_write(NET *net,const char *packet,ulong len)
     thr_alarm(&alarmed,(uint) net->write_timeout,&alarm_buff);
 #else
   alarmed=0;
-  vio_timeout(net->vio, 1, net->write_timeout);
+  /* Write timeout is set in net_set_write_timeout */
 #endif /* NO_ALARM */
 
   pos=(char*) packet; end=pos+len;
@@ -684,7 +684,7 @@ my_real_read(NET *net, ulong *complen)
   if (net_blocking)
     thr_alarm(&alarmed,net->read_timeout,&alarm_buff);
 #else
-  vio_timeout(net->vio, 0, net->read_timeout);
+  /* Read timeout is set in net_set_read_timeout */
 #endif /* NO_ALARM */
 
     pos = net->buff + net->where_b;		/* net->packet -4 */
@@ -995,3 +995,26 @@ my_net_read(NET *net)
   return len;
 }
 
+
+void net_set_read_timeout(NET *net, uint timeout)
+{
+  DBUG_ENTER("net_set_read_timeout");
+  DBUG_PRINT("enter", ("timeout: %d", timeout));
+  net->read_timeout= timeout;
+#ifdef NO_ALARM
+  vio_timeout(net->vio, 0, timeout);
+#endif
+  DBUG_VOID_RETURN;
+}
+
+
+void net_set_write_timeout(NET *net, uint timeout)
+{
+  DBUG_ENTER("net_set_write_timeout");
+  DBUG_PRINT("enter", ("timeout: %d", timeout));
+  net->write_timeout= timeout;
+#ifdef NO_ALARM
+  vio_timeout(net->vio, 1, timeout);
+#endif
+  DBUG_VOID_RETURN;
+}
