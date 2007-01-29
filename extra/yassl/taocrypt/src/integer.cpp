@@ -1,27 +1,20 @@
-/* integer.cpp                                
- *
- * Copyright (C) 2003 Sawtooth Consulting Ltd.
- *
- * This file is part of yaSSL.
- *
- * yaSSL is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * There are special exceptions to the terms and conditions of the GPL as it
- * is applied to yaSSL. View the full text of the exception in the file
- * FLOSS-EXCEPTIONS in the directory of this software distribution.
- *
- * yaSSL is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
- */
+/*
+   Copyright (C) 2000-2007 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; see the file COPYING. If not, write to the
+   Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+   MA  02110-1301  USA.
+*/
 
 
 
@@ -38,22 +31,11 @@
     #include <c_asm.h>  // for asm overflow assembly
 #endif
 
-
-// 64bit multiply overflow intrinsic
-#if defined(_MSC_VER) && defined(_WIN64) && !defined(__INTEL_COMPILER) && \
-   !defined(TAOCRYPT_NATIVE_DWORD_AVAILABLE)
-    #ifdef __ia64__
-        #define myUMULH __UMULH
-    #elif  __x86_64__
-        #define myUMULH __umulh
-    #else
-        #error unknown 64bit windows
-    #endif
-
-extern "C" word myUMULH(word, word); 
-
-#pragma intrinsic (myUMULH)
+#if defined(_M_X64) || defined(_M_IA64)
+    #include <intrin.h> 
+#pragma intrinsic(_umul128)
 #endif
+
 
 #ifdef __GNUC__
     #include <signal.h>
@@ -184,9 +166,8 @@ DWord() {}
         #ifdef TAOCRYPT_NATIVE_DWORD_AVAILABLE
             r.whole_ = (dword)a * b;
 
-        #elif defined(_MSC_VER)
-            r.halfs_.low = a*b;
-            r.halfs_.high = myUMULH(a,b);
+        #elif defined(_M_X64) || defined(_M_IA64)
+            r.halfs_.low = _umul128(a, b, &r.halfs_.high);
 
         #elif defined(__alpha__)
             r.halfs_.low = a*b;
