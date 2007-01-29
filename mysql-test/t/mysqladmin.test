@@ -1,3 +1,5 @@
+# Embedded server doesn't support external clients
+--source include/not_embedded.inc
 #
 # Test "mysqladmin ping"
 #
@@ -15,7 +17,7 @@
 database=db1
 EOF
 
---replace_regex /\/.*mysqladmin/mysqladmin/
+--replace_regex /.*mysqladmin.*: unknown/mysqladmin: unknown/
 --error 7
 --exec $MYSQLADMIN --defaults-file=$MYSQLTEST_VARDIR/tmp/bug10608.cnf -S $MASTER_MYSOCK -P $MASTER_MYPORT  -u root --password= ping 2>&1
 
@@ -27,6 +29,6 @@ EOF
 loose-database=db2
 EOF
 
---replace_regex /Warning: .*mysqladmin/Warning: mysqladmin/
+--replace_regex /Warning: .*mysqladmin.*: unknown/Warning: mysqladmin: unknown/
 --exec $MYSQLADMIN --defaults-file=$MYSQLTEST_VARDIR/tmp/bug10608.cnf -S $MASTER_MYSOCK -P $MASTER_MYPORT  -u root --password= ping 2>&1
 

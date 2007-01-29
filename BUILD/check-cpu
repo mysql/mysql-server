@@ -5,9 +5,13 @@
 #
 
 check_cpu () {
-  if test -r /proc/cpuinfo ; then
+  CPUINFO=/proc/cpuinfo
+  if test -n "$TEST_CPUINFO" ; then
+    CPUINFO=$TEST_CPUINFO
+  fi
+  if test -r "$CPUINFO" -a "$CPUINFO" != " " ; then
     # on Linux (and others?) we can get detailed CPU information out of /proc
-    cpuinfo="cat /proc/cpuinfo"
+    cpuinfo="cat $CPUINFO"
 
     # detect CPU family
     cpu_family=`$cpuinfo | grep 'family' | cut -d ':' -f 2 | cut -d ' ' -f 2 | head -1`
@@ -28,11 +32,12 @@ check_cpu () {
     fi
 
     # parse CPU flags
-    for flag in `$cpuinfo | grep '^flags' | sed -e 's/^flags.*: //'`; do 
+    for flag in `$cpuinfo | grep '^flags' | sed -e 's/^flags.*: //' -e 's/[^a-zA-Z0-9_ ]/_/g'`; do 
           eval cpu_flag_$flag=yes
     done
   else
     # Fallback when there is no /proc/cpuinfo
+    CPUINFO=" "
     case "`uname -s`" in
       FreeBSD|OpenBSD)
         cpu_family=`uname -m`;
@@ -84,6 +89,18 @@ check_cpu () {
     *Pentium*M*pro*)
       cpu_arg="pentium-m";
     ;;
+    *Celeron\(R\)*\ M*)
+      cpu_arg="pentium-m";
+    ;;
+    *Celeron*Coppermine*)
+      cpu_arg="pentium3"
+    ;;
+    *Celeron\(R\)*)
+      cpu_arg="pentium4"
+    ;;
+    *Celeron*)
+      cpu_arg="pentium2";
+    ;;
     *Athlon*64*)
       cpu_arg="athlon64";
       ;;
@@ -113,7 +130,14 @@ check_cpu () {
   esac
 
 
-  if test -z "$cpu_arg"; then
+  if test -z "$cpu_arg" ; then
+    if test "$CPUINFO" != " " ; then
+      # fallback to uname if necessary
+      TEST_CPUINFO=" "
+      check_cpu_cflags=""
+      check_cpu
+      return
+    fi
     echo "BUILD/check-cpu: Oops, could not find out what kind of cpu this machine is using." >&2
     check_cpu_cflags=""
     return
@@ -167,8 +191,7 @@ check_cpu () {
   touch __test.c
 
   while [ "$cpu_arg" ] ; do
-    # FIXME: echo -n isn't portable - see contortions autoconf goes through
-    echo -n testing $cpu_arg "... " >&2
+    printf "testing $cpu_arg ... " >&2
           
     # compile check
     check_cpu_cflags=`eval echo $check_cpu_args`

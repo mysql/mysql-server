@@ -90,6 +90,8 @@ public:
   int init()
   {
     key_part_info= head->key_info[index].key_part;
+    if (file->inited != handler::NONE)
+      file->ha_index_or_rnd_end();
     return error=file->ha_index_init(index);
   }
   virtual int get_next();

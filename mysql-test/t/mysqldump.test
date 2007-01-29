@@ -702,4 +702,19 @@ create table t1 (a int);
 --exec $MYSQL_DUMP --skip-comments --force test t1 --where='xx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' 2>&1
 drop table t1;
 
+#
+# BUG#13926: --order-by-primary fails if PKEY contains quote character
+#
+CREATE TABLE `t1` (
+  `a b` INT,
+  `c"d` INT,
+  `e``f` INT,
+  PRIMARY KEY (`a b`, `c"d`, `e``f`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+insert into t1 values (0815, 4711, 2006);
+
+--exec $MYSQL_DUMP --skip-comments --compatible=ansi --order-by-primary test t1
+--exec $MYSQL_DUMP --skip-comments --order-by-primary test t1
+DROP TABLE `t1`;
+
 --echo End of 4.1 tests

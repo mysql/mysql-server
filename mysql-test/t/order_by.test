@@ -575,4 +575,19 @@ SELECT a + 1 AS num, (select num + 2 FROM t1 LIMIT 1) FROM t1;
 SELECT a.a + 1 AS num FROM t1 a JOIN t1 b ON num = b.a;
 DROP TABLE t1;
 
+#
+# Bug #25427: crash when order by expression contains a name
+#             that cannot be resolved unambiguously               
+#
+
+CREATE TABLE t1 (a int);
+
+SELECT p.a AS val, q.a AS val1 FROM t1 p, t1 q ORDER BY val > 1;
+--error 1052
+SELECT p.a AS val, q.a AS val FROM t1 p, t1 q ORDER BY val;
+--error 1052
+SELECT p.a AS val, q.a AS val FROM t1 p, t1 q ORDER BY val > 1;
+
+DROP TABLE t1;
+
 # End of 4.1 tests

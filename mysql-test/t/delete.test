@@ -174,4 +174,14 @@ delete from t1 where a is null;
 select count(*) from t1; 
 drop table t1; 
 
+#
+# Bug#17711: DELETE doesn't use index when ORDER BY, LIMIT and
+#            non-restricting WHERE is present.
+#
+create table t1(f1 int primary key);
+insert into t1 values (4),(3),(1),(2);
+delete from t1 where (@a:= f1) order by f1 limit 1;
+select @a;
+drop table t1;
+
 --echo End of 4.1 tests
