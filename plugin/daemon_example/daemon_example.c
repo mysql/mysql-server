@@ -40,7 +40,7 @@
     1                    failure (cannot happen)
 */
 
-static int daemon_example_plugin_init(void *p)
+static int daemon_example_plugin_init(void *p __attribute__ ((unused)))
 {
   return(0);
 }
@@ -59,7 +59,7 @@ static int daemon_example_plugin_init(void *p)
 
 */
 
-static int daemon_example_plugin_deinit(void *p)
+static int daemon_example_plugin_deinit(void *p __attribute__ ((unused)))
 {
   return(0);
 }
