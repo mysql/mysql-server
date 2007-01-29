@@ -896,7 +896,7 @@ longlong Item_in_optimizer::val_int()
           */
           for (i= 0; i < ncols; i++)
           {
-            if (cache->el(i)->null_value)
+            if (cache->element_index(i)->null_value)
               item_subs->set_cond_guard_var(i, FALSE);
           }
           
@@ -1020,8 +1020,10 @@ longlong Item_func_strcmp::val_int()
 
 void Item_func_interval::fix_length_and_dec()
 {
-  use_decimal_comparison= (row->element_index(0)->result_type() == DECIMAL_RESULT) ||
-    (row->element_index(0)->result_type() == INT_RESULT);
+  use_decimal_comparison= ((row->element_index(0)->result_type() ==
+                            DECIMAL_RESULT) ||
+                           (row->element_index(0)->result_type() ==
+                            INT_RESULT));
   if (row->cols() > 8)
   {
     bool consts=1;

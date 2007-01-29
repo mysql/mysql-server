@@ -731,10 +731,6 @@ NdbEventOperationImpl::receive_event()
     {
       // Parse the new table definition and
       // create a table object
-      NdbDictionary::Dictionary *myDict = m_ndb->getDictionary();
-#ifdef NOT_USED
-      NdbDictionaryImpl *dict =&NdbDictionaryImpl::getImpl(*myDict);
-#endif
       NdbError error;
       NdbDictInterface dif(error);
       NdbTableImpl *at;

@@ -98,7 +98,6 @@ int main(int argc, char** argv){
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
-  NdbDictionary::Dictionary * dict= MyNdb.getDictionary();
   for(int i= 0; i<argc;i++)
   {
     if(desc_table(&MyNdb,argv[i]))

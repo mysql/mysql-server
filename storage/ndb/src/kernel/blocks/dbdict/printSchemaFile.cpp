@@ -40,6 +40,8 @@ usage()
     << "Example: " << progname << " -ceq ndb_*_fs/D[12]/DBDICT/P0.SchemaLog" << endl;
 }
 
+#ifdef NOT_USED
+
 static void
 fill(const char * buf, int mod)
 {
@@ -50,6 +52,7 @@ fill(const char * buf, int mod)
     len++;
   }
 }
+#endif
 
 static const char*
 version(Uint32 v)
