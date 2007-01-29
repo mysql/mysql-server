@@ -2613,6 +2613,14 @@ static int init_common_variables(const char *conf_file_name, int argc,
 
   max_system_variables.pseudo_thread_id= (ulong)~0;
   start_time=time((time_t*) 0);
+  rpl_filter= new Rpl_filter;
+  binlog_filter= new Rpl_filter;
+  if (!rpl_filter || !binlog_filter) 
+  {
+    sql_perror("Could not allocate replication and binlog filters");
+    exit(1);
+  }
+
   if (init_thread_environment())
     return 1;
   mysql_init_variables();
@@ -3472,14 +3480,6 @@ int main(int argc, char **argv)
 {
   MY_INIT(argv[0]);		// init my_sys library & pthreads
   /* nothing should come before this line ^^^ */
-
-  rpl_filter= new Rpl_filter;
-  binlog_filter= new Rpl_filter;
-  if (!rpl_filter || !binlog_filter) 
-  {
-    sql_perror("Could not allocate replication and binlog filters");
-    exit(1);
-  }
 
   /*
     Perform basic logger initialization logger. Should be called after
