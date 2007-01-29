@@ -2625,7 +2625,6 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
 */
   thd->variables.max_allowed_packet= global_system_variables.max_allowed_packet
     + MAX_LOG_EVENT_HEADER;  /* note, incr over the global not session var */
-  thd->net.read_timeout = slave_net_timeout;
   thd->master_access= ~(ulong)0;
   thd->priv_user = 0;
   thd->slave_thread = 1;
