@@ -24,11 +24,6 @@ extern "C" {
 #ifndef USE_ALARM_THREAD
 #define USE_ONE_SIGNAL_HAND		/* One must call process_alarm */
 #endif
-#ifdef HAVE_LINUXTHREADS
-#define THR_CLIENT_ALARM SIGALRM
-#else
-#define THR_CLIENT_ALARM SIGUSR1
-#endif
 #ifdef HAVE_rts_threads
 #undef USE_ONE_SIGNAL_HAND
 #define USE_ALARM_THREAD
