@@ -30,6 +30,14 @@ extern "C" {
 #define EXTERNC
 #endif /* __cplusplus */ 
 
+/* Thread library */
+
+#define THD_LIB_OTHER 1
+#define THD_LIB_NPTL  2
+#define THD_LIB_LT    4
+
+extern uint thd_lib_detected;
+
 /*
   BUG#24507: Race conditions inside current NPTL pthread_exit() implementation.
   
@@ -48,7 +56,6 @@ extern "C" {
     defined(__GLIBC__) && ( __GLIBC__ < 2 || __GLIBC__ == 2 && __GLIBC_MINOR__ < 5 )
 #define NPTL_PTHREAD_EXIT_BUG	1
 #endif 
-
 
 #if defined(__WIN__) || defined(OS2)
 
