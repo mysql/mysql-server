@@ -18,6 +18,7 @@
 #include "event_data_objects.h"
 #include "event_scheduler.h"
 #include "event_queue.h"
+#include "event_db_repository.h"
 
 #ifdef __GNUC__
 #if __GNUC__ >= 2
@@ -33,6 +34,11 @@
         cond_wait(mythd, abstime, msg, SCHED_FUNC, __LINE__)
 
 extern pthread_attr_t connection_attrib;
+
+
+Event_db_repository *Event_worker_thread::db_repository;
+Events *Event_worker_thread::events_facade;
+
 
 static
 const LEX_STRING scheduler_states_names[] =
@@ -60,8 +66,8 @@ struct scheduler_param {
       et   The event itself
 */
 
-static void
-evex_print_warnings(THD *thd, Event_job_data *et)
+void
+Event_worker_thread::print_warnings(THD *thd, Event_job_data *et)
 {
   MYSQL_ERROR *err;
   DBUG_ENTER("evex_print_warnings");
@@ -253,49 +259,97 @@ event_worker_thread(void *arg)
 {
   /* needs to be first for thread_stack */
   THD *thd; 
-  Event_job_data *event= (Event_job_data *)arg;
-  int ret;
+  Event_queue_element_for_exec *event= (Event_queue_element_for_exec *)arg;
 
   thd= event->thd;
-
   thd->thread_stack= (char *) &thd;             // remember where our stack is
-  DBUG_ENTER("event_worker_thread");
 
-  if (!post_init_event_thread(thd))
-  {
-    DBUG_PRINT("info", ("Baikonur, time is %ld, BURAN reporting and operational."
-                        "THD: 0x%lx",
-                        (long) time(NULL), (long) thd));
-
-    sql_print_information("SCHEDULER: [%s.%s of %s] executing in thread %lu. "
-                          "Execution %u",
-                          event->dbname.str, event->name.str,
-                          event->definer.str, thd->thread_id,
-                          event->execution_count);
-
-    thd->enable_slow_log= TRUE;
-
-    ret= event->execute(thd);
-
-    evex_print_warnings(thd, event);
-
-    sql_print_information("SCHEDULER: [%s.%s of %s] executed in thread %lu. "
-                          "RetCode=%d", event->dbname.str, event->name.str,
-                          event->definer.str, thd->thread_id, ret);
-    if (ret == EVEX_COMPILE_ERROR)
-      sql_print_information("SCHEDULER: COMPILE ERROR for event %s.%s of %s",
-                            event->dbname.str, event->name.str,
-                            event->definer.str);
-    else if (ret == EVEX_MICROSECOND_UNSUP)
-      sql_print_information("SCHEDULER: MICROSECOND is not supported");
-  }
-  DBUG_PRINT("info", ("BURAN %s.%s is landing!", event->dbname.str,
-             event->name.str));
-  delete event;
+  Event_worker_thread worker_thread;
+  worker_thread.run(thd, (Event_queue_element_for_exec *)arg);
 
   deinit_event_thread(thd);
 
-  DBUG_RETURN(0);                               // Can't return anything here
+  return 0;                                     // Can't return anything here
+}
+
+
+/*
+  Function that executes an event in a child thread. Setups the 
+  environment for the event execution and cleans after that.
+
+  SYNOPSIS
+    Event_worker_thread::run()
+      thd    Thread context
+      event  The Event_queue_element_for_exec object to be processed
+*/
+
+void
+Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
+{
+  int ret;
+  Event_job_data *job_data= NULL;
+  DBUG_ENTER("Event_worker_thread::run");
+  DBUG_PRINT("info", ("Baikonur, time is %d, BURAN reporting and operational."
+             "THD=0x%lx", time(NULL), thd));
+
+  if (post_init_event_thread(thd))
+    goto end;
+
+  if (!(job_data= new Event_job_data()))
+    goto end;
+  else if ((ret= db_repository->
+                  load_named_event(thd, event->dbname, event->name, job_data)))
+  {
+    DBUG_PRINT("error", ("Got %d from load_named_event", ret));
+    goto end;
+  }
+
+  sql_print_information("SCHEDULER: [%s.%s of %s] executing in thread %lu. ",
+                        job_data->dbname.str, job_data->name.str,
+                        job_data->definer.str, thd->thread_id);
+
+  thd->enable_slow_log= TRUE;
+
+  ret= job_data->execute(thd);
+
+  print_warnings(thd, job_data);
+
+  sql_print_information("SCHEDULER: [%s.%s of %s] executed in thread %lu. "
+                        "RetCode=%d", job_data->dbname.str, job_data->name.str,
+                        job_data->definer.str, thd->thread_id, ret);
+  if (ret == EVEX_COMPILE_ERROR)
+    sql_print_information("SCHEDULER: COMPILE ERROR for event %s.%s of %s",
+                          job_data->dbname.str, job_data->name.str,
+                          job_data->definer.str);
+  else if (ret == EVEX_MICROSECOND_UNSUP)
+end:
+  delete job_data;
+
+  if (event->dropped)
+  {
+    sql_print_information("SCHEDULER: Dropping %s.%s", event->dbname.str,
+                          event->name.str);
+    /*
+      Using db_repository can lead to a race condition because we access
+      the table without holding LOCK_metadata.
+      Scenario:
+      1. CREATE EVENT xyz AT ...    (conn thread)
+      2. execute xyz                (worker)
+      3. CREATE EVENT XYZ EVERY ... (conn thread)
+      4. drop xyz                   (worker)
+      5. XYZ was just created on disk but `drop xyz` of the worker dropped it.
+         A consequent load to create Event_queue_element will fail.
+
+      If all operations are performed under LOCK_metadata there is no such
+      problem. However, this comes at the price of introduction bi-directional
+      association between class Events and class Event_worker_thread.
+    */
+    events_facade->drop_event(thd, event->dbname, event->name, FALSE);
+  }
+  DBUG_PRINT("info", ("BURAN %s.%s is landing!", event->dbname.str,
+             event->name.str));
+
+  delete event;
 }
 
 
@@ -441,7 +495,6 @@ bool
 Event_scheduler::run(THD *thd)
 {
   int res= FALSE;
-  Event_job_data *job_data;
   DBUG_ENTER("Event_scheduler::run");
 
   sql_print_information("SCHEDULER: Manager thread started with id %lu",
@@ -454,18 +507,20 @@ Event_scheduler::run(THD *thd)
 
   while (is_running())
   {
+    Event_queue_element_for_exec *event_name;
+
     /* Gets a minimized version */
-    if (queue->get_top_for_execution_if_time(thd, &job_data))
+    if (queue->get_top_for_execution_if_time(thd, &event_name))
     {
       sql_print_information("SCHEDULER: Serious error during getting next "
                             "event to execute. Stopping");
       break;
     }
 
-    DBUG_PRINT("info", ("get_top returned job_data: 0x%lx", (long) job_data));
-    if (job_data)
+    DBUG_PRINT("info", ("get_top returned job_data=0x%lx", event_name));
+    if (event_name)
     {
-      if ((res= execute_top(thd, job_data)))
+      if ((res= execute_top(thd, event_name)))
         break;
     }
     else
@@ -499,7 +554,7 @@ Event_scheduler::run(THD *thd)
 */
 
 bool
-Event_scheduler::execute_top(THD *thd, Event_job_data *job_data)
+Event_scheduler::execute_top(THD *thd, Event_queue_element_for_exec *event_name)
 {
   THD *new_thd;
   pthread_t th;
@@ -510,13 +565,13 @@ Event_scheduler::execute_top(THD *thd, Event_job_data *job_data)
 
   pre_init_event_thread(new_thd);
   new_thd->system_thread= SYSTEM_THREAD_EVENT_WORKER;
-  job_data->thd= new_thd;
+  event_name->thd= new_thd;
   DBUG_PRINT("info", ("BURAN %s@%s ready for start t-3..2..1..0..ignition",
-             job_data->dbname.str, job_data->name.str));
+             event_name->dbname.str, event_name->name.str));
 
   /* Major failure */
   if ((res= pthread_create(&th, &connection_attrib, event_worker_thread,
-                           job_data)))
+                           event_name)))
     goto error;
 
   ++started_events;
@@ -537,7 +592,7 @@ error:
     delete new_thd;
     pthread_mutex_unlock(&LOCK_thread_count);
   }
-  delete job_data;
+  delete event_name;
   DBUG_RETURN(TRUE);
 }
 

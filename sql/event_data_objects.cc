@@ -20,6 +20,8 @@
 #include "event_db_repository.h"
 #include "sp_head.h"
 
+/* That's a provisional solution */
+extern Event_db_repository events_event_db_repository;
 
 #define EVEX_MAX_INTERVAL_VALUE 1000000000L
 
@@ -29,6 +31,47 @@ event_change_security_context(THD *thd, LEX_STRING user, LEX_STRING host,
 
 static void
 event_restore_security_context(THD *thd, Security_context *backup);
+
+
+/*
+  Initiliazes dbname and name of an Event_queue_element_for_exec
+  object
+
+  SYNOPSIS
+    Event_queue_element_for_exec::init()
+
+  RETURN VALUE
+    FALSE  OK
+    TRUE   Error (OOM)
+*/
+
+bool
+Event_queue_element_for_exec::init(LEX_STRING db, LEX_STRING n)
+{
+  if (!(dbname.str= my_strndup(db.str, dbname.length= db.length, MYF(MY_WME))))
+    return TRUE;
+  if (!(name.str= my_strndup(n.str, name.length= n.length, MYF(MY_WME))))
+  {
+    my_free((gptr) dbname.str, MYF(0));
+    return TRUE;
+  }
+  return FALSE;
+}
+
+
+/*
+  Destructor
+
+  SYNOPSIS
+    Event_queue_element_for_exec::~Event_queue_element_for_exec()
+*/
+
+Event_queue_element_for_exec::~Event_queue_element_for_exec()
+{
+  my_free((gptr) dbname.str, MYF(0));
+  my_free((gptr) name.str, MYF(0));
+}
+
 
 /*
   Returns a new instance
@@ -743,7 +786,7 @@ Event_timed::~Event_timed()
 */
 
 Event_job_data::Event_job_data()
-  :thd(NULL), sphead(NULL), sql_mode(0)
+  :sphead(NULL), sql_mode(0)
 {
 }
 
@@ -1239,6 +1282,7 @@ Event_queue_element::compute_next_execution_time()
     DBUG_PRINT("info", ("Dropped: %d", dropped));
     status= Event_queue_element::DISABLED;
     status_changed= TRUE;
+    dropped= TRUE;
 
     goto ret;
   }
@@ -1447,32 +1491,6 @@ Event_queue_element::mark_last_executed(THD *thd)
 
 
 /*
-  Drops the event
-
-  SYNOPSIS
-    Event_queue_element::drop()
-      thd   thread context
-
-  RETURN VALUE
-    0       OK
-   -1       Cannot open mysql.event
-   -2       Cannot find the event in mysql.event (already deleted?)
-
-   others   return code from SE in case deletion of the event row
-            failed.
-*/
-
-int
-Event_queue_element::drop(THD *thd)
-{
-  DBUG_ENTER("Event_queue_element::drop");
-
-  DBUG_RETURN(Events::get_instance()->
-                    drop_event(thd, dbname, name, FALSE, TRUE));
-}
-
-
-/*
   Saves status and last_executed_at to the disk if changed.
 
   SYNOPSIS
@@ -1503,13 +1521,13 @@ Event_queue_element::update_timing_fields(THD *thd)
 
   thd->reset_n_backup_open_tables_state(&backup);
 
-  if (Events::get_instance()->open_event_table(thd, TL_WRITE, &table))
+  if (events_event_db_repository.open_event_table(thd, TL_WRITE, &table))
   {
     ret= TRUE;
     goto done;
   }
   fields= table->field;
-  if ((ret= Events::get_instance()->db_repository->
+  if ((ret= events_event_db_repository.
                                  find_named_event(thd, dbname, name, table)))
     goto done;
 
