@@ -1,0 +1,13 @@
+
+-- source include/have_openssl.inc
+
+# Repeat connect/disconnect
+
+let $i=100;
+while ($i)
+{
+  connect (test_con1,localhost,root,,,,,SSL);
+  disconnect test_con1;
+  dec $i;
+}
+echo completed;
