@@ -57,6 +57,7 @@ static Slave_log_event* find_slave_event(IO_CACHE* log,
   functions like register_slave()) are working.
 */
 
+#if NOT_USED
 static int init_failsafe_rpl_thread(THD* thd)
 {
   DBUG_ENTER("init_failsafe_rpl_thread");
@@ -98,7 +99,7 @@ static int init_failsafe_rpl_thread(THD* thd)
   thd->set_time();
   DBUG_RETURN(0);
 }
-
+#endif
 
 void change_rpl_status(RPL_STATUS from_status, RPL_STATUS to_status)
 {
@@ -572,12 +573,14 @@ err:
 }
 
 
+#if NOT_USED
 int find_recovery_captain(THD* thd, MYSQL* mysql)
 {
   return 0;
 }
+#endif
 
-
+#if NOT_USED
 pthread_handler_t handle_failsafe_rpl(void *arg)
 {
   DBUG_ENTER("handle_failsafe_rpl");
@@ -625,7 +628,7 @@ err:
   pthread_exit(0);
   DBUG_RETURN(0);
 }
-
+#endif
 
 bool show_slave_hosts(THD* thd)
 {
