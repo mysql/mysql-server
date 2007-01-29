@@ -269,7 +269,7 @@ int emb_unbuffered_fetch(MYSQL *mysql, char **row)
     *row= NULL;
     if (data)
     {
-      free_rows(data);
+      free_root(&data->alloc,MYF(0));
       ((THD*)mysql->thd)->data= NULL;
     }
   }
