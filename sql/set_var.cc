@@ -1221,14 +1221,14 @@ static int check_completion_type(THD *thd, set_var *var)
 static void fix_net_read_timeout(THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL)
-    thd->net.read_timeout=thd->variables.net_read_timeout;
+    net_set_read_timeout(&thd->net, thd->variables.net_read_timeout);
 }
 
 
 static void fix_net_write_timeout(THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL)
-    thd->net.write_timeout=thd->variables.net_write_timeout;
+    net_set_write_timeout(&thd->net, thd->variables.net_write_timeout);
 }
 
 static void fix_net_retry_count(THD *thd, enum_var_type type)
