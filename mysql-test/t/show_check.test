@@ -563,4 +563,22 @@ show keys from `mysqlttest\1`.`a\b`;
 drop table `mysqlttest\1`.`a\b`;
 drop database `mysqlttest\1`;
 
+#
+# Bug#24392: SHOW ENGINE MUTEX STATUS is a synonym for SHOW INNODB STATUS
+#
+
+--error ER_UNKNOWN_STORAGE_ENGINE
+show engine foobar status;
+--error ER_UNKNOWN_STORAGE_ENGINE
+show engine foobar logs;
+--error ER_UNKNOWN_STORAGE_ENGINE
+show engine foobar mutex;
+
+--error ER_UNKNOWN_STORAGE_ENGINE
+show engine mutex status;
+
+show engine csv status;
+show engine csv logs;
+show engine csv mutex;
+
 --echo End of 5.1 tests
