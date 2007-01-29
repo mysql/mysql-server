@@ -27,6 +27,27 @@ class sp_head;
 class Sql_alloc;
 
 
+class Event_queue_element_for_exec
+{
+public:
+  Event_queue_element_for_exec(){};
+  ~Event_queue_element_for_exec();
+
+  bool
+  init(LEX_STRING dbname, LEX_STRING name);
+
+  LEX_STRING dbname;
+  LEX_STRING name;
+  bool dropped;
+  THD *thd;
+
+private:
+  /* Prevent use of these */
+  Event_queue_element_for_exec(const Event_queue_element_for_exec &);
+  void operator=(Event_queue_element_for_exec &);
+};
+
+
 class Event_basic
 {
 protected:
@@ -96,9 +117,6 @@ public:
   bool
   compute_next_execution_time();
 
-  int
-  drop(THD *thd);
-
   void
   mark_last_executed(THD *thd);
 
@@ -160,7 +178,6 @@ public:
 class Event_job_data : public Event_basic
 {
 public:
-  THD *thd;
   sp_head *sphead;
 
   LEX_STRING body;
