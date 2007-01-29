@@ -16,12 +16,10 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 class Event_basic;
-class Event_db_repository;
-class Event_job_data;
 class Event_queue_element;
+class Event_queue_element_for_exec;
 
 class THD;
-class Event_scheduler;
 
 class Event_queue
 {
@@ -35,19 +33,19 @@ public:
   deinit_mutexes();
 
   bool
-  init_queue(THD *thd, Event_db_repository *db_repo);
+  init_queue(THD *thd);
   
   void
   deinit_queue();
 
   /* Methods for queue management follow */
 
-  int
-  create_event(THD *thd, LEX_STRING dbname, LEX_STRING name);
+  void
+  create_event(THD *thd, Event_queue_element *new_element);
 
-  int
+  void
   update_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
-               LEX_STRING *new_schema, LEX_STRING *new_name);
+               Event_queue_element *new_element);
 
   void
   drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name);
@@ -59,14 +57,15 @@ public:
   recalculate_activation_times(THD *thd);
 
   bool
-  get_top_for_execution_if_time(THD *thd, Event_job_data **job_data);
+  get_top_for_execution_if_time(THD *thd,
+                                Event_queue_element_for_exec **event_name);
+
 
   void
   dump_internal_status();
 
-  int
-  load_events_from_db(THD *thd);
-
+  void
+  empty_queue();
 protected:
   void
   find_n_remove_event(LEX_STRING db, LEX_STRING name);
@@ -76,8 +75,6 @@ protected:
   drop_matching_events(THD *thd, LEX_STRING pattern,
                        bool (*)(LEX_STRING, Event_basic *));
 
-  void
-  empty_queue();
 
   void
   dbug_dump_queue(time_t now);
@@ -86,11 +83,7 @@ protected:
   pthread_mutex_t LOCK_event_queue;
   pthread_cond_t COND_queue_state;
 
-  Event_db_repository *db_repository;
-
-  Event_scheduler *scheduler;
-
-  /* The sorted queue with the Event_job_data objects */
+  /* The sorted queue with the Event_queue_element objects */
   QUEUE queue;
 
   TIME next_activation_at;

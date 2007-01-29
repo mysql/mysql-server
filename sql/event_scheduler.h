@@ -15,8 +15,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+
 class Event_queue;
 class Event_job_data;
+class Event_db_repository;
+class Events;
 
 void
 pre_init_event_thread(THD* thd);
@@ -26,6 +29,29 @@ post_init_event_thread(THD* thd);
 
 void
 deinit_event_thread(THD *thd);
+
+
+class Event_worker_thread 
+{
+public:
+  static void
+  init(Events *events, Event_db_repository *db_repo)
+  {
+    db_repository= db_repo;
+    events_facade= events;
+  }
+
+  void
+  run(THD *thd, Event_queue_element_for_exec *event);
+
+private:
+  void
+  print_warnings(THD *thd, Event_job_data *et);
+
+  static Event_db_repository *db_repository;
+  static Events *events_facade;
+};
+
 
 class Event_scheduler
 {
@@ -71,10 +97,9 @@ private:
   uint
   workers_count();
 
-
   /* helper functions */
   bool
-  execute_top(THD *thd, Event_job_data *job_data);
+  execute_top(THD *thd, Event_queue_element_for_exec *event_name);
 
   /* helper functions for working with mutexes & conditionals */
   void
