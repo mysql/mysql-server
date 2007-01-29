@@ -97,7 +97,7 @@ Event_queue events_event_queue;
 static
 Event_scheduler events_event_scheduler;
 
-static
+
 Event_db_repository events_event_db_repository;
 
 Events Events::singleton;
@@ -296,29 +296,6 @@ Events::Events()
 
 
 /*
-  Opens mysql.event table with specified lock
-
-  SYNOPSIS
-    Events::open_event_table()
-    thd         Thread context
-    lock_type   How to lock the table
-    table       We will store the open table here
-
-  RETURN VALUE
-    1   Cannot lock table
-    2   The table is corrupted - different number of fields
-    0   OK
-*/
-
-int
-Events::open_event_table(THD *thd, enum thr_lock_type lock_type,
-                         TABLE **table)
-{
-  return db_repository->open_event_table(thd, lock_type, table);
-}
-
-
-/*
   The function exported to the world for creating of events.
 
   SYNOPSIS
@@ -351,16 +328,24 @@ Events::create_event(THD *thd, Event_parse_data *parse_data, bool if_not_exists)
   /* On error conditions my_error() is called so no need to handle here */
   if (!(ret= db_repository->create_event(thd, parse_data, if_not_exists)))
   {
-    if ((ret= event_queue->create_event(thd, parse_data->dbname,
-                                        parse_data->name)))
+    Event_queue_element *new_element;
+
+    if (!(new_element= new Event_queue_element()))
+      ret= TRUE;                                // OOM
+    else if ((ret= db_repository->load_named_event(thd, parse_data->dbname,
+                                                   parse_data->name,
+                                                   new_element)))
     {
       DBUG_ASSERT(ret == OP_LOAD_ERROR);
-      my_error(ER_EVENT_MODIFY_QUEUE_ERROR, MYF(0));
+      delete new_element;
     }
+    else
+      event_queue->create_event(thd, new_element);
   }
   pthread_mutex_unlock(&LOCK_event_metadata);
 
   DBUG_RETURN(ret);
+  
 }
 
 
@@ -387,6 +372,7 @@ bool
 Events::update_event(THD *thd, Event_parse_data *parse_data, sp_name *rename_to)
 {
   int ret;
+  Event_queue_element *new_element;
   DBUG_ENTER("Events::update_event");
   LEX_STRING *new_dbname= rename_to ? &rename_to->m_db : NULL;
   LEX_STRING *new_name= rename_to ? &rename_to->m_name : NULL;
@@ -400,12 +386,20 @@ Events::update_event(THD *thd, Event_parse_data *parse_data, sp_name *rename_to)
   /* On error conditions my_error() is called so no need to handle here */
   if (!(ret= db_repository->update_event(thd, parse_data, new_dbname, new_name)))
   {
-    if ((ret= event_queue->update_event(thd, parse_data->dbname,
-                                        parse_data->name, new_dbname, new_name)))
+    LEX_STRING dbname= new_dbname ? *new_dbname : parse_data->dbname;
+    LEX_STRING name= new_name ? *new_name : parse_data->name;
+
+    if (!(new_element= new Event_queue_element()))
+      ret= TRUE;                                // OOM
+    else if ((ret= db_repository->load_named_event(thd, dbname, name,
+                                                   new_element)))
     {
       DBUG_ASSERT(ret == OP_LOAD_ERROR);
-      my_error(ER_EVENT_MODIFY_QUEUE_ERROR, MYF(0));
+      delete new_element;   
     }
+    else
+      event_queue->update_event(thd, parse_data->dbname, parse_data->name,
+                                new_element);
   }
   pthread_mutex_unlock(&LOCK_event_metadata);
 
@@ -423,10 +417,6 @@ Events::update_event(THD *thd, Event_parse_data *parse_data, sp_name *rename_to)
       name            [in]  Event's name
       if_exists       [in]  When set and the event does not exist =>
                             warning onto the stack
-      only_from_disk  [in]  Whether to remove the event from the queue too.
-                            In case of Event_job_data::drop() it's needed to
-                            do only disk drop because Event_queue will handle
-                            removal from memory queue.
 
   RETURN VALUE
     FALSE  OK
@@ -434,8 +424,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data, sp_name *rename_to)
 */
 
 bool
-Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists,
-                   bool only_from_disk)
+Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
 {
   int ret;
   DBUG_ENTER("Events::drop_event");
@@ -448,10 +437,7 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists,
   pthread_mutex_lock(&LOCK_event_metadata);
   /* On error conditions my_error() is called so no need to handle here */
   if (!(ret= db_repository->drop_event(thd, dbname, name, if_exists)))
-  {
-    if (!only_from_disk)
-      event_queue->drop_event(thd, dbname, name);
-  }
+    event_queue->drop_event(thd, dbname, name);
   pthread_mutex_unlock(&LOCK_event_metadata);
   DBUG_RETURN(ret);
 }
@@ -655,11 +641,12 @@ Events::init()
   }
   check_system_tables_error= FALSE;
 
-  if (event_queue->init_queue(thd, db_repository))
+  if (event_queue->init_queue(thd) || load_events_from_db(thd))
   {
     sql_print_error("SCHEDULER: Error while loading from disk.");
     goto end;
   }
+
   scheduler->init_scheduler(event_queue);
 
   DBUG_ASSERT(opt_event_scheduler == Events::EVENTS_ON ||
@@ -667,6 +654,7 @@ Events::init()
   if (opt_event_scheduler == Events::EVENTS_ON)
     res= scheduler->start();
 
+  Event_worker_thread::init(this, db_repository);
 end:
   delete thd;
   /* Remember that we don't have a THD */
@@ -901,5 +889,133 @@ Events::check_system_tables(THD *thd)
 
   thd->restore_backup_open_tables_state(&backup);
 
+  DBUG_RETURN(ret);
+}
+
+
+/*
+  Loads all ENABLED events from mysql.event into the prioritized
+  queue. Called during scheduler main thread initialization. Compiles
+  the events. Creates Event_queue_element instances for every ENABLED event
+  from mysql.event.
+
+  SYNOPSIS
+    Events::load_events_from_db()
+      thd  Thread context. Used for memory allocation in some cases.
+
+  RETURN VALUE
+    0  OK
+   !0  Error (EVEX_OPEN_TABLE_FAILED, EVEX_MICROSECOND_UNSUP, 
+              EVEX_COMPILE_ERROR) - in all these cases mysql.event was
+              tampered.
+
+  NOTES
+    Reports the error to the console
+*/
+
+int
+Events::load_events_from_db(THD *thd)
+{
+  TABLE *table;
+  READ_RECORD read_record_info;
+  int ret= -1;
+  uint count= 0;
+  bool clean_the_queue= TRUE;
+
+  DBUG_ENTER("Events::load_events_from_db");
+  DBUG_PRINT("enter", ("thd=0x%lx", thd));
+
+  if ((ret= db_repository->open_event_table(thd, TL_READ, &table)))
+  {
+    sql_print_error("SCHEDULER: Table mysql.event is damaged. Can not open");
+    DBUG_RETURN(EVEX_OPEN_TABLE_FAILED);
+  }
+
+  init_read_record(&read_record_info, thd, table ,NULL,1,0);
+  while (!(read_record_info.read_record(&read_record_info)))
+  {
+    Event_queue_element *et;
+    if (!(et= new Event_queue_element))
+    {
+      DBUG_PRINT("info", ("Out of memory"));
+      break;
+    }
+    DBUG_PRINT("info", ("Loading event from row."));
+
+    if ((ret= et->load_from_row(table)))
+    {
+      sql_print_error("SCHEDULER: Error while loading from mysql.event. "
+                      "Table probably corrupted");
+      break;
+    }
+    if (et->status != Event_queue_element::ENABLED)
+    {
+      DBUG_PRINT("info",("%s is disabled",et->name.str));
+      delete et;
+      continue;
+    }
+
+    /* let's find when to be executed */
+    if (et->compute_next_execution_time())
+    {
+      sql_print_error("SCHEDULER: Error while computing execution time of %s.%s."
+                      " Skipping", et->dbname.str, et->name.str);
+      continue;
+    }
+
+    {
+      Event_job_data temp_job_data;
+      DBUG_PRINT("info", ("Event %s loaded from row. ", et->name.str));
+
+      temp_job_data.load_from_row(table);
+
+      /*
+        We load only on scheduler root just to check whether the body
+        compiles.
+      */
+      switch (ret= temp_job_data.compile(thd, thd->mem_root)) {
+      case EVEX_MICROSECOND_UNSUP:
+        sql_print_error("SCHEDULER: mysql.event is tampered. MICROSECOND is not "
+                        "supported but found in mysql.event");
+        break;
+      case EVEX_COMPILE_ERROR:
+        sql_print_error("SCHEDULER: Error while compiling %s.%s. Aborting load",
+                        et->dbname.str, et->name.str);
+        break;
+      default:
+        break;
+      }
+      thd->end_statement();
+      thd->cleanup_after_query();
+    }
+    if (ret)
+    {
+      delete et;
+      goto end;
+    }
+
+    DBUG_PRINT("load_events_from_db", ("Adding 0x%lx to the exec list."));
+    event_queue->create_event(thd, et);
+    count++;
+  }
+  clean_the_queue= FALSE;
+end:
+  end_read_record(&read_record_info);
+
+  if (clean_the_queue)
+  {
+    event_queue->empty_queue();
+    ret= -1;
+  }
+  else
+  {
+    ret= 0;
+    sql_print_information("SCHEDULER: Loaded %d event%s", count,
+                          (count == 1)?"":"s");
+  }
+
+  close_thread_tables(thd);
+
+  DBUG_PRINT("info", ("Status code %d. Loaded %d event(s)", ret, count));
   DBUG_RETURN(ret);
 }

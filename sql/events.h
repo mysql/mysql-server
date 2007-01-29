@@ -42,13 +42,6 @@ sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs);
 class Events
 {
 public:
-  /*
-    Quite NOT the best practice and will be removed once
-    Event_timed::drop() and Event_timed is fixed not do drop directly
-    or other scheme will be found.
-  */
-  friend class Event_queue_element;
-  
   /* The order should match the order in opt_typelib */
   enum enum_opt_event_scheduler
   {
@@ -92,14 +85,10 @@ public:
   update_event(THD *thd, Event_parse_data *parse_data, sp_name *rename_to);
 
   bool
-  drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists,
-             bool only_from_disk);
+  drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists);
 
   void
   drop_schema_events(THD *thd, char *db);
-
-  int
-  open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table);
 
   bool
   show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name);
@@ -118,6 +107,9 @@ public:
 private:
   bool
   check_system_tables(THD *thd);
+
+  int
+  load_events_from_db(THD *thd);
 
   /* Singleton DP is used */
   Events();
