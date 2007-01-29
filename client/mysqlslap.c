@@ -128,6 +128,7 @@ static my_bool opt_slave;
 static my_bool opt_compress= FALSE, tty_password= FALSE,
                opt_silent= FALSE,
                auto_generate_sql= FALSE;
+const char *auto_generate_sql_type= "mixed";
 
 static unsigned long connect_flags= CLIENT_MULTI_RESULTS;
 
@@ -136,6 +137,7 @@ static int iterations;
 static char *default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
 static ulonglong actual_queries= 0;
 static ulonglong num_of_query;
+static ulonglong auto_generate_sql_number;
 const char *concurrency_str= NULL;
 static char *create_string;
 uint *concurrency;
@@ -395,19 +397,27 @@ static struct my_option my_long_options[] =
     "Generate SQL where not supplied by file or command line.",
     (gptr*) &auto_generate_sql, (gptr*) &auto_generate_sql,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"auto-generate-sql-load-type", OPT_SLAP_AUTO_GENERATE_SQL_LOAD_TYPE,
+    "Load types are mixed, write, or read. Default is mixed\n",
+    (gptr*) &auto_generate_sql_type, (gptr*) &auto_generate_sql_type,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"auto-generate-sql-write_number", OPT_SLAP_AUTO_GENERATE_WRITE_NUM,
+    "Number of rows to insert to used in read and write loads (default is 100).\n",
+    (gptr*) &auto_generate_sql_number, (gptr*) &auto_generate_sql_number,
+    0, GET_ULL, REQUIRED_ARG, 100, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use compression in server/client protocol.",
     (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
     0, 0, 0},
   {"concurrency", 'c', "Number of clients to simulate for query to run.",
     (gptr*) &concurrency_str, (gptr*) &concurrency_str, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"create", OPT_CREATE_SLAP_SCHEMA, "File or string to use create tables.",
+  {"create", OPT_SLAP_CREATE_STRING, "File or string to use create tables.",
     (gptr*) &create_string, (gptr*) &create_string, 0, GET_STR, REQUIRED_ARG,
     0, 0, 0, 0, 0, 0},
   {"create-schema", OPT_CREATE_SLAP_SCHEMA, "Schema to run tests in.",
     (gptr*) &create_schema_string, (gptr*) &create_schema_string, 0, GET_STR, 
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"csv", OPT_CREATE_SLAP_SCHEMA,
+  {"csv", OPT_SLAP_CSV,
 	"Generate CSV output to named file or to stdout if no file is named.",
     (gptr*) &opt_csv_str, (gptr*) &opt_csv_str, 0, GET_STR, 
     OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -591,7 +601,6 @@ get_random_string(char *buf)
   DBUG_ENTER("get_random_string");
   for (x= RAND_STRING_SIZE; x > 0; x--)
     *buf_ptr++= ALPHANUMERICS[random() % ALPHANUMERICS_SIZE];
-  DBUG_PRINT("info", ("random string: '%*s'", (int) (buf_ptr - buf), buf));
   DBUG_RETURN(buf_ptr - buf);
 }
 
@@ -638,7 +647,6 @@ build_table_string(void)
   ptr->string = (char *)my_malloc(table_string.length+1, MYF(MY_WME));
   ptr->length= table_string.length+1;
   strmov(ptr->string, table_string.str);
-  DBUG_PRINT("info", ("create_string %s", ptr->string));
   dynstr_free(&table_string);
   DBUG_RETURN(ptr);
 }
@@ -686,7 +694,6 @@ build_insert_string(void)
   ptr->string= (char *)my_malloc(insert_string.length+1, MYF(MY_WME));
   ptr->length= insert_string.length+1;
   strmov(ptr->string, insert_string.str);
-  DBUG_PRINT("info", ("generated_insert_data %s", ptr->string));
   dynstr_free(&insert_string);
   DBUG_RETURN(ptr);
 }
@@ -733,7 +740,6 @@ build_query_string(void)
   ptr->string= (char *)my_malloc(query_string.length+1, MYF(MY_WME));
   ptr->length= query_string.length+1;
   strmov(ptr->string, query_string.str);
-  DBUG_PRINT("info", ("user_supplied_query %s", ptr->string));
   dynstr_free(&query_string);
   DBUG_RETURN(ptr);
 }
@@ -799,19 +805,62 @@ get_options(int *argc,char ***argv)
 
   if (auto_generate_sql)
   {
-      create_statements= build_table_string();
-      query_statements= build_insert_string();
-      DBUG_PRINT("info", ("auto-generated insert is %s", query_statements->string));
-      query_statements->next= build_query_string();
-      DBUG_PRINT("info", ("auto-generated is %s", query_statements->next->string));
-      if (verbose >= 1)
+    unsigned long long x= 0;
+    statement *ptr_statement;
+
+    create_statements= build_table_string();
+
+    if (auto_generate_sql_type[0] == 'r')
+    {
+      for (ptr_statement= create_statements, x= 0; 
+           x < auto_generate_sql_number; 
+           x++, ptr_statement= ptr_statement->next)
       {
-        fprintf(stderr, "auto-generated insert is:\n");
-        fprintf(stderr,  "%s\n", query_statements->string);
-        fprintf(stderr, "auto-generated is:\n");
-        fprintf(stderr,  "%s\n", query_statements->next->string);
+        ptr_statement->next= build_insert_string();
       }
 
+      query_statements= build_query_string();
+    }
+    else if (auto_generate_sql_type[0] == 'w')
+    {
+      /*
+        We generate a number of strings in case the engine is 
+        Archive (since strings which were identical one after another
+        would be too easily optimized).
+      */
+      query_statements= build_insert_string();
+      for (ptr_statement= query_statements, x= 0; 
+           x < auto_generate_sql_number; 
+           x++, ptr_statement= ptr_statement->next)
+      {
+        ptr_statement->next= build_insert_string();
+      }
+    }
+    else /* Mixed mode is default */
+    {
+      int coin= 0;
+
+      query_statements= build_insert_string();
+      /* 
+        This logic should be extended to do a more mixed load,
+        at the moment it results in "every other".
+      */
+      for (ptr_statement= query_statements, x= 0; 
+           x < 4; 
+           x++, ptr_statement= ptr_statement->next)
+      {
+        if (coin)
+        {
+          ptr_statement->next= build_insert_string();
+          coin= 0;
+        }
+        else
+        {
+          ptr_statement->next= build_query_string();
+          coin= 1;
+        }
+      }
+    }
   }
   else
   {
@@ -905,7 +954,6 @@ create_schema(MYSQL *mysql, const char *db, statement *stmt,
   DBUG_ENTER("create_schema");
 
   len= snprintf(query, HUGE_STRING_LENGTH, "CREATE SCHEMA `%s`", db);
-  DBUG_PRINT("info", ("query %s", query)); 
 
   if (run_query(mysql, query, len))
   {
@@ -1190,7 +1238,7 @@ limit_not_met:
         goto end;
     }
 
-    if (!con->stmt && con->limit && queries < con->limit)
+    if (con->limit && queries < con->limit)
       goto limit_not_met;
 
 end:
@@ -1220,8 +1268,6 @@ parse_delimiter(const char *script, statement **stmt, char delm)
   uint length= strlen(script);
   uint count= 0; /* We know that there is always one */
 
-  DBUG_PRINT("info", ("Parsing %s\n", script));
-
   for (tmp= *sptr= (statement *)my_malloc(sizeof(statement), MYF(MY_ZEROFILL));
        (retstr= strchr(ptr, delm)); 
        tmp->next=  (statement *)my_malloc(sizeof(statement), MYF(MY_ZEROFILL)),
@@ -1230,7 +1276,6 @@ parse_delimiter(const char *script, statement **stmt, char delm)
     count++;
     tmp->string= my_strndup(ptr, (size_t)(retstr - ptr), MYF(MY_FAE));
     tmp->length= (size_t)(retstr - ptr);
-    DBUG_PRINT("info", (" Creating : %.*s\n", (uint)tmp->length, tmp->string));
     ptr+= retstr - ptr + 1;
     if (isspace(*ptr))
       ptr++;
@@ -1242,7 +1287,6 @@ parse_delimiter(const char *script, statement **stmt, char delm)
     tmp->string= my_strndup(ptr, (size_t)((script + length) - ptr), 
                                        MYF(MY_FAE));
     tmp->length= (size_t)((script + length) - ptr);
-    DBUG_PRINT("info", (" Creating : %.*s\n", (uint)tmp->length, tmp->string));
     count++;
   }
 
