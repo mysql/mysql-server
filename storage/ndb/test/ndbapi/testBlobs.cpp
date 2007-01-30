@@ -735,7 +735,7 @@ verifyHeadInline(const Tup& tup)
   if (! g_opt.m_oneblob)
     CHK((ra2 = g_opr->getValue("BL2")) != 0);
   if (tup.m_exists) {
-    CHK(g_con->execute(Commit) == 0);
+    CHK(g_con->execute(Commit, AbortOnError) == 0);
     DBG("verifyHeadInline BL1");
     CHK(verifyHeadInline(g_opt.m_blob1, tup.m_blob1, ra1) == 0);
     if (! g_opt.m_oneblob) {
@@ -743,7 +743,8 @@ verifyHeadInline(const Tup& tup)
       CHK(verifyHeadInline(g_opt.m_blob2, tup.m_blob2, ra2) == 0);
     }
   } else {
-    CHK(g_con->execute(Commit) == -1 && g_con->getNdbError().code == 626);
+    CHK(g_con->execute(Commit, AbortOnError) == -1 && 
+	g_con->getNdbError().code == 626);
   }
   g_ndb->closeTransaction(g_con);
   g_opr = 0;
@@ -1535,7 +1536,7 @@ testperf()
   g_dic = g_ndb->getDictionary();
   NdbDictionary::Table tab(g_opt.m_tnameperf);
   if (g_dic->getTable(tab.getName()) != 0)
-    CHK(g_dic->dropTable(tab) == 0);
+    CHK(g_dic->dropTable(tab.getName()) == 0);
   // col A - pk
   { NdbDictionary::Column col("A");
     col.setType(NdbDictionary::Column::Unsigned);
