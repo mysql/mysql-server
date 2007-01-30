@@ -400,9 +400,10 @@ dict_table_get_col_name(
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	s = table->col_names;
-
-	for (i = 0; i < col_nr; i++) {
-		s += strlen(s) + 1;
+	if (s) {
+		for (i = 0; i < col_nr; i++) {
+			s += strlen(s) + 1;
+		}
 	}
 
 	return(s);
@@ -837,7 +838,8 @@ Adds system columns to a table object. */
 void
 dict_table_add_system_columns(
 /*==========================*/
-	dict_table_t*	table)	/* in/out: table */
+	dict_table_t*	table,	/* in/out: table */
+	mem_heap_t*	heap)	/* in: temporary heap */
 {
 	ut_ad(table);
 	ut_ad(table->n_def == table->n_cols - DATA_N_SYS_COLS);
@@ -850,19 +852,19 @@ dict_table_add_system_columns(
 	The clustered index will not always physically contain all
 	system columns. */
 
-	dict_mem_table_add_col(table, "DB_ROW_ID", DATA_SYS,
+	dict_mem_table_add_col(table, heap, "DB_ROW_ID", DATA_SYS,
 			       DATA_ROW_ID | DATA_NOT_NULL,
 			       DATA_ROW_ID_LEN);
 #if DATA_ROW_ID != 0
 #error "DATA_ROW_ID != 0"
 #endif
-	dict_mem_table_add_col(table, "DB_TRX_ID", DATA_SYS,
+	dict_mem_table_add_col(table, heap, "DB_TRX_ID", DATA_SYS,
 			       DATA_TRX_ID | DATA_NOT_NULL,
 			       DATA_TRX_ID_LEN);
 #if DATA_TRX_ID != 1
 #error "DATA_TRX_ID != 1"
 #endif
-	dict_mem_table_add_col(table, "DB_ROLL_PTR", DATA_SYS,
+	dict_mem_table_add_col(table, heap, "DB_ROLL_PTR", DATA_SYS,
 			       DATA_ROLL_PTR | DATA_NOT_NULL,
 			       DATA_ROLL_PTR_LEN);
 #if DATA_ROLL_PTR != 2
@@ -882,7 +884,8 @@ Adds a table object to the dictionary cache. */
 void
 dict_table_add_to_cache(
 /*====================*/
-	dict_table_t*	table)	/* in: table */
+	dict_table_t*	table,	/* in: table */
+	mem_heap_t*	heap)	/* in: temporary heap */
 {
 	ulint	fold;
 	ulint	id_fold;
@@ -894,7 +897,7 @@ dict_table_add_to_cache(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	dict_table_add_system_columns(table);
+	dict_table_add_system_columns(table, heap);
 
 	table->cached = TRUE;
 
