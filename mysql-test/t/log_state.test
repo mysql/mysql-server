@@ -37,7 +37,6 @@ set session long_query_time=1;
 select sleep(2);
 --replace_column 1 TIMESTAMP 2 USER_HOST 3 QUERY_TIME
 select * from mysql.slow_log;
-disconnect con1;
 connection default;
 show global variables
 where Variable_name = 'log' or Variable_name = 'log_slow_queries' or
@@ -121,3 +120,8 @@ drop table t1;
 select * from mysql.general_log;
 
 --enable_ps_protocol
+
+#
+# Cleanup (must be done last to avoid delayed 'Quit' message in general log)
+#
+disconnect con1;
