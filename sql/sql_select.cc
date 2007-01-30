@@ -531,22 +531,24 @@ JOIN::optimize()
   {
     int res;
     /*
-      opt_sum_query() returns -1 if no rows match to the WHERE conditions,
-      or 1 if all items were resolved, or 0, or an error number HA_ERR_...
+      opt_sum_query() returns HA_ERR_KEY_NOT_FOUND if no rows match
+      to the WHERE conditions,
+      or 1 if all items were resolved,
+      or 0, or an error number HA_ERR_...
     */
     if ((res=opt_sum_query(tables_list, all_fields, conds)))
     {
+      if (res == HA_ERR_KEY_NOT_FOUND)
+      {
+	zero_result_cause= "No matching min/max row";
+	error=0;
+	DBUG_RETURN(0);
+      }
       if (res > 1)
       {
         thd->fatal_error();
         error= res;
 	DBUG_RETURN(1);
-      }
-      if (res < 0)
-      {
-	zero_result_cause= "No matching min/max row";
-	error=0;
-	DBUG_RETURN(0);
       }
       zero_result_cause= "Select tables optimized away";
       tables_list= 0;				// All tables resolved
