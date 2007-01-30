@@ -19,10 +19,6 @@
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include "ha_ndbcluster.h"
 
-#ifdef HAVE_purify
-#include <valgrind/memcheck.h>
-#endif
-
 #ifdef HAVE_NDB_BINLOG
 #include "rpl_injector.h"
 #include "rpl_filter.h"
@@ -3492,9 +3488,6 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   pthread_cond_signal(&injector_cond);
 
 restart:
-#ifdef HAVE_purify
-  VALGRIND_DO_LEAK_CHECK;
-#endif
   /*
     Main NDB Injector loop
   */
@@ -3587,9 +3580,6 @@ restart:
       }
     }
   }
-#ifdef HAVE_purify
-  VALGRIND_DO_LEAK_CHECK;
-#endif
   {
     static char db[]= "";
     thd->db= db;
@@ -3956,9 +3946,6 @@ restart:
     goto restart;
   }
 err:
-#ifdef HAVE_purify
-  VALGRIND_DO_LEAK_CHECK;
-#endif
   sql_print_information("Stopping Cluster Binlog");
   DBUG_PRINT("info",("Shutting down cluster binlog thread"));
   thd->proc_info= "Shutting down";
