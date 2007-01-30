@@ -1077,7 +1077,7 @@ Ndb::opTupleIdOnNdb(const NdbTableImpl* table,
       tOperation->incValue("NEXTID", opValue);
       tRecAttrResult = tOperation->getValue("NEXTID");
 
-      if (tConnection->execute( Commit ) == -1 )
+      if (tConnection->execute( NdbTransaction::Commit ) == -1 )
         goto error_handler;
 
       tValue = tRecAttrResult->u_64_value();
@@ -1092,7 +1092,7 @@ Ndb::opTupleIdOnNdb(const NdbTableImpl* table,
       tOperation->equal("SYSKEY_0", aTableId );
       tOperation->setValue("NEXTID", opValue);
 
-      if (tConnection->execute( Commit ) == -1 )
+      if (tConnection->execute( NdbTransaction::Commit ) == -1 )
         goto error_handler;
 
       range.reset();
@@ -1109,7 +1109,7 @@ Ndb::opTupleIdOnNdb(const NdbTableImpl* table,
       tOperation->def_label(0);
       tOperation->interpret_exit_nok(9999);
       
-      if (tConnection->execute( Commit ) == -1)
+      if (tConnection->execute( NdbTransaction::Commit ) == -1)
       {
         if (tConnection->theError.code != 9999)
           goto error_handler;
@@ -1126,7 +1126,7 @@ Ndb::opTupleIdOnNdb(const NdbTableImpl* table,
       tOperation->readTuple();
       tOperation->equal("SYSKEY_0", aTableId );
       tRecAttrResult = tOperation->getValue("NEXTID");
-      if (tConnection->execute( Commit ) == -1 )
+      if (tConnection->execute( NdbTransaction::Commit ) == -1 )
         goto error_handler;
       opValue = tRecAttrResult->u_64_value(); // out
       break;
