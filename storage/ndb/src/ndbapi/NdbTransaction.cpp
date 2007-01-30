@@ -57,7 +57,6 @@ NdbTransaction::NdbTransaction( Ndb* aNdb ) :
   theCompletedLastOp(NULL),
   theNoOfOpSent(0),
   theNoOfOpCompleted(0),
-  theNoOfOpFetched(0),
   theMyRef(0),
   theTCConPtr(0),
   theTransactionId(0),
@@ -132,7 +131,6 @@ NdbTransaction::init()
     theNdb->theImpl->m_ndb_cluster_connection.get_latest_trans_gci();
   theCommitStatus         = Started;
   theCompletionStatus     = NotCompleted;
-  m_abortOption           = AbortOnError;
 
   theError.code		  = 0;
   theErrorLine		  = 0;
@@ -177,12 +175,9 @@ void
 NdbTransaction::setOperationErrorCodeAbort(int error, int abortOption)
 {
   DBUG_ENTER("NdbTransaction::setOperationErrorCodeAbort");
-  if (abortOption == -1)
-    abortOption = m_abortOption;
   if (theTransactionIsStarted == false) {
     theCommitStatus = Aborted;
-  } else if ((abortOption == AbortOnError) && 
-	     (theCommitStatus != Committed) &&
+  } else if ((theCommitStatus != Committed) &&
              (theCommitStatus != Aborted)) {
     theCommitStatus = NeedAbort;
   }//if
@@ -264,8 +259,8 @@ Remark:        Initialise connection object for new transaction.
 *****************************************************************************/
 int 
 NdbTransaction::execute(ExecType aTypeOfExec, 
-		       AbortOption abortOption,
-		       int forceSend)
+			NdbOperation::AbortOption abortOption,
+			int forceSend)
 {
   NdbError savedError= theError;
   DBUG_ENTER("NdbTransaction::execute");
@@ -355,40 +350,14 @@ NdbTransaction::execute(ExecType aTypeOfExec,
       theCompletedLastOp = NULL;
     }
 
-    if (executeNoBlobs(tExecType, abortOption, forceSend) == -1)
+    if (executeNoBlobs(tExecType, 
+		       NdbOperation::DefaultAbortOption,
+		       forceSend) == -1)
     {
-      ret = -1;
       if(savedError.code==0)
 	savedError= theError;
       
-      /**
-       * If AO_IgnoreError, error codes arent always set on individual
-       *   operations, making postExecute impossible
-       */
-      if (abortOption == AO_IgnoreError)
-      {
-         if (theCompletedFirstOp != NULL)
-	 {
-	   if (tCompletedFirstOp != NULL)
-	   {
-	     tCompletedLastOp->next(theCompletedFirstOp);
-	     theCompletedFirstOp = tCompletedFirstOp;
-	   } 
-	 }
-	 else
-	 {
-	   theCompletedFirstOp = tCompletedFirstOp;
-	   theCompletedLastOp = tCompletedLastOp;
-	 }
-         if (tPrepOp != NULL && tRestOp != NULL) {
-           if (theFirstOpInList == NULL)
-             theFirstOpInList = tRestOp;
-           else
-             theLastOpInList->next(tRestOp);
-           theLastOpInList = tLastOp;
-        }
-	DBUG_RETURN(-1);
-      }
+      DBUG_RETURN(-1);
     }
     
 #ifdef ndb_api_crash_on_complex_blob_abort
@@ -448,9 +417,9 @@ NdbTransaction::execute(ExecType aTypeOfExec,
 }
 
 int 
-NdbTransaction::executeNoBlobs(ExecType aTypeOfExec, 
-                              AbortOption abortOption,
-                              int forceSend)
+NdbTransaction::executeNoBlobs(NdbTransaction::ExecType aTypeOfExec, 
+			       NdbOperation::AbortOption abortOption,
+			       int forceSend)
 {
   DBUG_ENTER("NdbTransaction::executeNoBlobs");
   DBUG_PRINT("enter", ("aTypeOfExec: %d, abortOption: %d", 
@@ -528,10 +497,10 @@ Parameters :   aTypeOfExec:   Type of execute.
 Remark:        Prepare a part of a transaction in an asynchronous manner. 
 *****************************************************************************/
 void 
-NdbTransaction::executeAsynchPrepare( ExecType           aTypeOfExec,
+NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
                                      NdbAsynchCallback  aCallback,
                                      void*              anyObject,
-                                     AbortOption abortOption)
+                                     NdbOperation::AbortOption abortOption)
 {
   DBUG_ENTER("NdbTransaction::executeAsynchPrepare");
   DBUG_PRINT("enter", ("aTypeOfExec: %d, aCallback: 0x%lx, anyObject: Ox%lx",
@@ -571,7 +540,6 @@ NdbTransaction::executeAsynchPrepare( ExecType           aTypeOfExec,
   theReturnStatus     = ReturnSuccess;
   theCallbackFunction = aCallback;
   theCallbackObject   = anyObject;
-  m_abortOption   = abortOption;
   m_waitForReply = true;
   tNdb->thePreparedTransactionsArray[tnoOfPreparedTransactions] = this;
   theTransArrayIndex = tnoOfPreparedTransactions;
@@ -666,8 +634,7 @@ NdbTransaction::executeAsynchPrepare( ExecType           aTypeOfExec,
   while (tOp) {
     int tReturnCode;
     NdbOperation* tNextOp = tOp->next();
-
-    tReturnCode = tOp->prepareSend(theTCConPtr, theTransactionId);
+    tReturnCode = tOp->prepareSend(theTCConPtr, theTransactionId, abortOption);
     if (tReturnCode == -1) {
       theSendStatus = sendABORTfail;
       DBUG_VOID_RETURN;
@@ -1800,14 +1767,8 @@ from other transactions.
       }
     } else if ((tNoComp >= tNoSent) &&
                (theLastExecOpInList->theCommitIndicator == 1)){
-
-
-      if (m_abortOption == AO_IgnoreError && theError.code != 0){
-	/**
-	 * There's always a TCKEYCONF when using IgnoreError
-	 */
-	return -1;
-      }
+      
+      
 /**********************************************************************/
 // We sent the transaction with Commit flag set and received a CONF with
 // no Commit flag set. This is clearly an anomaly.
@@ -1981,13 +1942,6 @@ NdbTransaction::receiveTCINDXCONF(const TcIndxConf * indxConf,
     } else if ((tNoComp >= tNoSent) &&
                (theLastExecOpInList->theCommitIndicator == 1)){
 
-      if (m_abortOption == AO_IgnoreError && theError.code != 0){
-	/**
-	 * There's always a TCKEYCONF when using IgnoreError
-	 */
-	return -1;
-      }
-
       /**********************************************************************/
       // We sent the transaction with Commit flag set and received a CONF with
       // no Commit flag set. This is clearly an anomaly.
@@ -2011,41 +1965,6 @@ NdbTransaction::receiveTCINDXCONF(const TcIndxConf * indxConf,
   return -1;
 }//NdbTransaction::receiveTCINDXCONF()
 
-/*****************************************************************************
-int receiveTCINDXREF( NdbApiSignal* aSignal)
-
-Return Value:   Return 0 : send was succesful.
-                Return -1: In all other case.   
-Parameters:     aSignal: the signal object that contains the 
-                TCINDXREF signal from TC.
-Remark:         Handles the reception of the TCINDXREF signal.
-*****************************************************************************/
-int
-NdbTransaction::receiveTCINDXREF( NdbApiSignal* aSignal)
-{
-  if(checkState_TransId(aSignal->getDataPtr()+1)){
-    theError.code = aSignal->readData(4);	// Override any previous errors
-
-    /**********************************************************************/
-    /*	A serious error has occured. This could be due to deadlock or */
-    /*	lack of resources or simply a programming error in NDB. This  */
-    /*	transaction will be aborted. Actually it has already been     */
-    /*	and we only need to report completion and return with the     */
-    /*	error code to the application.				      */
-    /**********************************************************************/
-    theCompletionStatus = NdbTransaction::CompletedFailure;
-    theCommitStatus = NdbTransaction::Aborted;
-    theReturnStatus = NdbTransaction::ReturnFailure;
-    return 0;
-  } else {
-#ifdef NDB_NO_DROPPED_SIGNAL
-    abort();
-#endif
-  }
-
-  return -1;
-}//NdbTransaction::receiveTCINDXREF()
-
 /*******************************************************************************
 int OpCompletedFailure();
 
@@ -2055,36 +1974,15 @@ Parameters:    aErrorCode: The error code.
 Remark:        An operation was completed with failure.
 *******************************************************************************/
 int 
-NdbTransaction::OpCompleteFailure(Uint8 abortOption, bool setFailure)
+NdbTransaction::OpCompleteFailure(NdbOperation* op)
 {
   Uint32 tNoComp = theNoOfOpCompleted;
   Uint32 tNoSent = theNoOfOpSent;
-  if (setFailure)
-    theCompletionStatus = NdbTransaction::CompletedFailure;
+
   tNoComp++;
   theNoOfOpCompleted = tNoComp;
-  if (tNoComp == tNoSent) {
-    //------------------------------------------------------------------------
-    //If the transaction consists of only simple reads we can set
-    //Commit state Aborted.  Otherwise this simple operation cannot
-    //decide the success of the whole transaction since a simple
-    //operation is not really part of that transaction.
-    //------------------------------------------------------------------------
-    if (abortOption == AO_IgnoreError){
-      /**
-       * There's always a TCKEYCONF when using IgnoreError
-       */
-      return -1;
-    }
-    
-    return 0;	// Last operation received
-  } else if (tNoComp > tNoSent) {
-    setOperationErrorCodeAbort(4113);	// Too many operations, 
-                                        // stop waiting for more
-    return 0;
-  } else {
-    return -1;	// Continue waiting for more signals
-  }//if
+  
+  return (tNoComp == tNoSent) ? 0 : -1;
 }//NdbTransaction::OpCompleteFailure()
 
 /******************************************************************************

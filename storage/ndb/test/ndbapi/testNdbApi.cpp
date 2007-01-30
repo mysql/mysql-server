@@ -1250,6 +1250,274 @@ int runScan_4006(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
+char pkIdxName[255];
+
+int createPkIndex(NDBT_Context* ctx, NDBT_Step* step){
+  bool orderedIndex = ctx->getProperty("OrderedIndex", (unsigned)0);
+
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  Ndb* pNdb = GETNDB(step);
+
+  bool logged = ctx->getProperty("LoggedIndexes", 1);
+
+  // Create index    
+  BaseString::snprintf(pkIdxName, 255, "IDC_PK_%s", pTab->getName());
+  if (orderedIndex)
+    ndbout << "Creating " << ((logged)?"logged ": "temporary ") << "ordered index "
+	   << pkIdxName << " (";
+  else
+    ndbout << "Creating " << ((logged)?"logged ": "temporary ") << "unique index "
+	   << pkIdxName << " (";
+
+  NdbDictionary::Index pIdx(pkIdxName);
+  pIdx.setTable(pTab->getName());
+  if (orderedIndex)
+    pIdx.setType(NdbDictionary::Index::OrderedIndex);
+  else
+    pIdx.setType(NdbDictionary::Index::UniqueHashIndex);
+  for (int c = 0; c< pTab->getNoOfColumns(); c++){
+    const NdbDictionary::Column * col = pTab->getColumn(c);
+    if(col->getPrimaryKey()){
+      pIdx.addIndexColumn(col->getName());
+      ndbout << col->getName() <<" ";
+    }
+  }
+  
+  pIdx.setStoredIndex(logged);
+  ndbout << ") ";
+  if (pNdb->getDictionary()->createIndex(pIdx) != 0){
+    ndbout << "FAILED!" << endl;
+    const NdbError err = pNdb->getDictionary()->getNdbError();
+    ERR(err);
+    return NDBT_FAILED;
+  }
+
+  ndbout << "OK!" << endl;
+  return NDBT_OK;
+}
+
+int createPkIndex_Drop(NDBT_Context* ctx, NDBT_Step* step){
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  Ndb* pNdb = GETNDB(step);
+
+  // Drop index
+  ndbout << "Dropping index " << pkIdxName << " ";
+  if (pNdb->getDictionary()->dropIndex(pkIdxName, 
+				       pTab->getName()) != 0){
+    ndbout << "FAILED!" << endl;
+    ERR(pNdb->getDictionary()->getNdbError());
+    return NDBT_FAILED;
+  } else {
+    ndbout << "OK!" << endl;
+  }
+  
+  return NDBT_OK;
+}
+
+static
+int
+op_row(NdbTransaction* pTrans, HugoOperations& hugoOps,
+       const NdbDictionary::Table* pTab, int op, int row)
+{
+  NdbOperation * pOp = 0;
+  switch(op){
+  case 0:
+  case 1:
+  case 2:
+  case 3:
+  case 4:
+  case 5:
+    pOp = pTrans->getNdbOperation(pTab->getName());
+    break;
+  case 9:
+    return 0;
+  case 6:
+  case 7:
+  case 8:
+  case 10:
+  case 11:
+    pOp = pTrans->getNdbIndexOperation(pkIdxName, pTab->getName());
+  default:
+    break;
+  }
+  
+  switch(op){
+  case 0:
+  case 6:
+    pOp->readTuple();
+    break;
+  case 1:
+  case 7:
+    pOp->committedRead();
+    break;
+  case 2:
+  case 8:
+    pOp->readTupleExclusive();
+    break;
+  case 3:
+  case 9:
+    pOp->insertTuple();
+    break;
+  case 4:
+  case 10:
+    pOp->updateTuple();
+    break;
+  case 5:
+  case 11:
+    pOp->deleteTuple();
+    break;
+  default:
+    abort();
+  }
+  
+  for(int a = 0; a<pTab->getNoOfColumns(); a++){
+    if (pTab->getColumn(a)->getPrimaryKey() == true){
+      if(hugoOps.equalForAttr(pOp, a, row) != 0){
+	return NDBT_FAILED;
+      }
+    }
+  }
+
+  switch(op){
+  case 0:
+  case 1:
+  case 2:
+  case 6:
+  case 7:
+  case 8:
+    for(int a = 0; a<pTab->getNoOfColumns(); a++){
+      pOp->getValue(a);
+    }
+    break;
+  case 3: 
+  case 4:
+  case 10:
+    for(int a = 0; a<pTab->getNoOfColumns(); a++){
+      if (pTab->getColumn(a)->getPrimaryKey() == false){
+	if(hugoOps.setValueForAttr(pOp, a, row, 2) != 0){
+	  return NDBT_FAILED;
+	}
+      }
+    }
+    break;
+  case 5:
+  case 11:
+    pOp->deleteTuple();
+    break;
+  case 9:
+  default:
+    abort();
+  }
+  
+  return NDBT_OK;
+}
+
+static void print(int op)
+{
+  const char * str = 0;
+  switch(op){
+  case 0:  str = "pk read-sh"; break;
+  case 1:  str = "pk read-nl"; break;
+  case 2:  str = "pk read-ex"; break;
+  case 3:  str = "pk insert "; break;
+  case 4:  str = "pk update "; break;
+  case 5:  str = "pk delete "; break;
+  case 6:  str = "uk read-sh"; break;
+  case 7:  str = "uk read-nl"; break;
+  case 8:  str = "uk read-ex"; break;
+  case 9:  str = "noop      "; break;
+  case 10: str = "uk update "; break;
+  case 11: str = "uk delete "; break;
+  default:
+    abort();
+  }
+  printf("%s ", str);
+}
+
+int
+runTestIgnoreError(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  Uint32 loops = ctx->getNumRecords();
+  const NdbDictionary::Table* pTab = ctx->getTab();
+
+  HugoOperations hugoOps(*pTab);
+  HugoTransactions hugoTrans(*pTab);
+
+  Ndb* pNdb = GETNDB(step);
+
+  struct {
+    ExecType et;
+    AbortOption ao;
+  } tests[] = {
+    { Commit, AbortOnError },
+    { Commit, AO_IgnoreError },
+    { NoCommit, AbortOnError },
+    { NoCommit, AO_IgnoreError },
+  };
+
+  printf("case: <op1>     <op2>       c/nc ao/ie\n");
+  Uint32 tno = 0;
+  for (Uint32 op1 = 0; op1 < 12; op1++)
+  {
+    for (Uint32 op2 = op1; op2 < 12; op2++)
+    {
+      int ret;
+      NdbTransaction* pTrans = 0;
+      
+      for (Uint32 i = 0; i<4; i++, tno++)
+      {
+	if (loops != 1000 && loops != tno)
+	  continue;
+	ExecType et = tests[i].et;
+	AbortOption ao = tests[i].ao;
+	
+	printf("%.3d : ", tno);
+	print(op1);
+	print(op2);
+	switch(et){
+	case Commit: printf("c    "); break;
+	case NoCommit: printf("nc   "); break;
+	}
+	switch(ao){
+	case AbortOnError: printf("aoe  "); break;
+	case AO_IgnoreError: printf("ie   "); break;
+	}
+	printf(": ");
+	
+
+	hugoTrans.loadTable(pNdb, 1);
+	pTrans = pNdb->startTransaction();
+	op_row(pTrans, hugoOps, pTab, op1, 0);
+	ret = pTrans->execute(et, ao);
+	pTrans->close();
+	printf("%d ", ret);
+	hugoTrans.clearTable(pNdb);
+
+	hugoTrans.loadTable(pNdb, 1);
+	pTrans = pNdb->startTransaction();
+	op_row(pTrans, hugoOps, pTab, op1, 1);
+	ret = pTrans->execute(et, ao);
+	pTrans->close();
+	printf("%d ", ret);
+	hugoTrans.clearTable(pNdb);
+      
+	hugoTrans.loadTable(pNdb, 1);
+	pTrans = pNdb->startTransaction();
+	op_row(pTrans, hugoOps, pTab, op1, 0);
+	op_row(pTrans, hugoOps, pTab, op2, 1);
+	ret = pTrans->execute(et, ao);
+	pTrans->close();
+	printf("%d\n", ret);
+	hugoTrans.clearTable(pNdb);
+	
+	hugoTrans.clearTable(pNdb);
+      }
+    }
+  }
+  return NDBT_OK;
+}
+
 template class Vector<NdbScanOperation*>;
 
 
@@ -1342,6 +1610,12 @@ TESTCASE("Scan_4006",
   INITIALIZER(runLoadTable);
   INITIALIZER(runScan_4006);
   FINALIZER(runClearTable);
+}
+TESTCASE("IgnoreError", ""){
+  INITIALIZER(createPkIndex);
+  STEP(runTestIgnoreError);
+  FINALIZER(runClearTable);
+  FINALIZER(createPkIndex_Drop);
 }
 NDBT_TESTSUITE_END(testNdbApi);
 
