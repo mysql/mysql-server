@@ -1268,7 +1268,7 @@ page_zip_fields_decode(
 			mtype = DATA_FIXBINARY;
 		}
 
-		dict_mem_table_add_col(table, "DUMMY", mtype,
+		dict_mem_table_add_col(table, NULL, NULL, mtype,
 				       val & 1 ? DATA_NOT_NULL : 0, len);
 		dict_index_add_col(index, table,
 				   dict_table_get_nth_col(table, i), 0);
