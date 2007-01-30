@@ -682,7 +682,7 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
   mysql->info=0;
   mysql->affected_rows= ~(my_ulonglong) 0;
   /*
-    We don't want to clear the protocol buffer on COM_QUIT, beacsue if
+    We don't want to clear the protocol buffer on COM_QUIT, because if
     the previous command was a shutdown command, we may have the
     response for the COM_QUIT already in the communication buffer
   */

@@ -19,11 +19,11 @@
 #include <mysql/plugin.h>
 
 /*
-#if !defined(__attribute__) && (defined(__cplusplus) || !defined(__GNUC__)  || __GNUC__ == 2 && __GNUC_MINOR__ < 8)
+  Disable __attribute__() on non-gcc compilers.
+*/
+#if !defined(__attribute__) && !defined(__GNUC__)
 #define __attribute__(A)
 #endif
-*/
-
 
 
 /*
