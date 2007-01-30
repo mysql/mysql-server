@@ -322,7 +322,7 @@ struct st_table {
 
   /*
     A set of keys that can be used in the query that references this
-    table 
+    table.
 
     All indexes disabled on the table's TABLE_SHARE (see TABLE::s) will be 
     subtracted from this set upon instantiation. Thus for any TABLE t it holds
