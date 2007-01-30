@@ -707,24 +707,26 @@ JOIN::optimize()
   {
     int res;
     /*
-      opt_sum_query() returns -1 if no rows match to the WHERE conditions,
-      or 1 if all items were resolved, or 0, or an error number HA_ERR_...
+      opt_sum_query() returns HA_ERR_KEY_NOT_FOUND if no rows match
+      to the WHERE conditions,
+      or 1 if all items were resolved,
+      or 0, or an error number HA_ERR_...
     */
     if ((res=opt_sum_query(select_lex->leaf_tables, all_fields, conds)))
     {
+      if (res == HA_ERR_KEY_NOT_FOUND)
+      {
+        DBUG_PRINT("info",("No matching min/max row"));
+	zero_result_cause= "No matching min/max row";
+	error=0;
+	DBUG_RETURN(0);
+      }
       if (res > 1)
       {
         thd->fatal_error();
         error= res;
         DBUG_PRINT("error",("Error from opt_sum_query"));
 	DBUG_RETURN(1);
-      }
-      if (res < 0)
-      {
-        DBUG_PRINT("info",("No matching min/max row"));
-	zero_result_cause= "No matching min/max row";
-	error=0;
-	DBUG_RETURN(0);
       }
       DBUG_PRINT("info",("Select tables optimized away"));
       zero_result_cause= "Select tables optimized away";
