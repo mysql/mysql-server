@@ -13,8 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/** @file handler.cc
 
-/* Handler-calling-functions */
+    @brief
+  Handler-calling-functions
+*/
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
@@ -80,17 +83,16 @@ static TYPELIB known_extensions= {0,"known_exts", NULL, NULL};
 uint known_extensions_id= 0;
 
 
-/*
+/** @brief
   Return the default storage engine handlerton for thread
-  
+
   SYNOPSIS
     ha_default_handlerton(thd)
     thd         current thread
-  
+
   RETURN
     pointer to handlerton
 */
-
 handlerton *ha_default_handlerton(THD *thd)
 {
   return (thd->variables.table_type != NULL) ?
@@ -100,7 +102,7 @@ handlerton *ha_default_handlerton(THD *thd)
 }
 
 
-/*
+/** @brief
   Return the storage engine handlerton for the supplied name
   
   SYNOPSIS
@@ -111,7 +113,6 @@ handlerton *ha_default_handlerton(THD *thd)
   RETURN
     pointer to handlerton
 */
-
 handlerton *ha_resolve_by_name(THD *thd, const LEX_STRING *name)
 {
   const LEX_STRING *table_alias;
@@ -188,8 +189,9 @@ handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type)
 }
 
 
-/* Use other database handler if databasehandler is not compiled in */
-
+/** @brief
+  Use other database handler if databasehandler is not compiled in
+*/
 handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
                           bool no_substitute, bool report_error)
 {
@@ -269,7 +271,7 @@ handler *get_ha_partition(partition_info *part_info)
 #endif
 
 
-/*
+/** @brief
   Register handler error messages for use with my_error().
 
   SYNOPSIS
@@ -279,7 +281,6 @@ handler *get_ha_partition(partition_info *part_info)
     0           OK
     != 0        Error
 */
-
 static int ha_init_errors(void)
 {
 #define SETMSG(nr, msg) errmsgs[(nr) - HA_ERR_FIRST]= (msg)
@@ -339,7 +340,7 @@ static int ha_init_errors(void)
 }
 
 
-/*
+/** @brief
   Unregister handler error messages.
 
   SYNOPSIS
@@ -349,7 +350,6 @@ static int ha_init_errors(void)
     0           OK
     != 0        Error
 */
-
 static int ha_finish_errors(void)
 {
   const char    **errmsgs;
@@ -557,7 +557,9 @@ static my_bool closecon_handlerton(THD *thd, st_plugin_int *plugin,
 }
 
 
-/* don't bother to rollback here, it's done already */
+/** @brief
+  don't bother to rollback here, it's done already
+*/
 void ha_close_connection(THD* thd)
 {
   plugin_foreach(thd, closecon_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, 0);
@@ -566,7 +568,7 @@ void ha_close_connection(THD* thd)
 /* ========================================================================
  ======================= TRANSACTIONS ===================================*/
 
-/*
+/** @brief
   Register a storage engine for a transaction
 
   DESCRIPTION
@@ -608,7 +610,7 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
   DBUG_VOID_RETURN;
 }
 
-/*
+/** @brief
   RETURN
       0  - ok
       1  - error, transaction was rolled back
@@ -648,7 +650,7 @@ int ha_prepare(THD *thd)
   DBUG_RETURN(error);
 }
 
-/*
+/** @brief
   RETURN
       0  - ok
       1  - transaction was rolled back
@@ -745,7 +747,7 @@ end:
   DBUG_RETURN(error);
 }
 
-/*
+/** @brief
   NOTE - this function does not care about global read lock.
   A caller should.
 */
@@ -854,7 +856,7 @@ int ha_rollback_trans(THD *thd, bool all)
   DBUG_RETURN(error);
 }
 
-/*
+/** @brief
   This is used to commit or rollback a single statement depending on the value
   of error. Note that if the autocommit is on, then the following call inside
   InnoDB will commit or rollback the whole transaction (= the statement). The
@@ -862,7 +864,6 @@ int ha_rollback_trans(THD *thd, bool all)
   the user has used LOCK TABLES then that mechanism does not know to do the
   commit.
 */
-
 int ha_autocommit_or_rollback(THD *thd, int error)
 {
   DBUG_ENTER("ha_autocommit_or_rollback");
@@ -980,7 +981,7 @@ static char* xid_to_str(char *buf, XID *xid)
 }
 #endif
 
-/*
+/** @brief
   recover() step of xa
 
   NOTE
@@ -999,7 +1000,6 @@ static char* xid_to_str(char *buf, XID *xid)
      in this case commit_list==0, tc_heuristic_recover == 0
      there should be no prepared transactions in this case.
 */
-
 struct xarecover_st
 {
   int len, found_foreign_xids, found_my_xids;
@@ -1131,7 +1131,7 @@ int ha_recover(HASH *commit_list)
   DBUG_RETURN(0);
 }
 
-/*
+/** @brief
   return the list of XID's to a client, the same way SHOW commands do
 
   NOTE
@@ -1180,7 +1180,7 @@ bool mysql_xa_recover(THD *thd)
   DBUG_RETURN(0);
 }
 
-/*
+/** @brief
   This function should be called when MySQL sends rows of a SELECT result set
   or the EOF mark to the client. It releases a possible adaptive hash index
   S-latch held by thd in InnoDB and also releases a possible InnoDB query
@@ -1196,7 +1196,6 @@ bool mysql_xa_recover(THD *thd)
   thd:           the thread handle of the current connection
   return value:  always 0
 */
-
 static my_bool release_temporary_latches(THD *thd, st_plugin_int *plugin,
                                  void *unused)
 {
@@ -1263,12 +1262,11 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
   DBUG_RETURN(error);
 }
 
-/*
+/** @brief
   note, that according to the sql standard (ISO/IEC 9075-2:2003)
   section "4.33.4 SQL-statements and transaction states",
   SAVEPOINT is *not* transaction-initiating SQL-statement
 */
-
 int ha_savepoint(THD *thd, SAVEPOINT *sv)
 {
   int error=0;
@@ -1383,11 +1381,10 @@ bool ha_flush_logs(handlerton *db_type)
   return FALSE;
 }
 
-/*
+/** @brief
   This should return ENOENT if the file doesn't exists.
   The .frm file will be deleted only if we return 0 or ENOENT
 */
-
 int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
                     const char *db, const char *alias, bool generate_warning)
 {
@@ -1510,14 +1507,13 @@ bool handler::check_if_log_table_locking_is_allowed(uint sql_command,
   return TRUE;
 }
 
-/*
+/** @brief
   Open database-handler.
 
   IMPLEMENTATION
     Try O_RDONLY if cannot open as O_RDWR
     Don't wait for locks if not HA_OPEN_WAIT_IF_LOCKED is set
 */
-
 int handler::ha_open(TABLE *table_arg, const char *name, int mode,
                      int test_if_locked)
 {
@@ -1565,12 +1561,11 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
 }
 
 
-/*
+/** @brief
   Read first row (only) from a table
   This is never called for InnoDB tables, as these table types
   has the HA_STATS_RECORDS_IS_EXACT set.
 */
-
 int handler::read_first_row(byte * buf, uint primary_key)
 {
   register int error;
@@ -1601,7 +1596,7 @@ int handler::read_first_row(byte * buf, uint primary_key)
   DBUG_RETURN(error);
 }
 
-/*
+/** @brief
   Generate the next auto-increment number based on increment and offset:
   computes the lowest number
   - strictly greater than "nr"
@@ -1612,7 +1607,6 @@ int handler::read_first_row(byte * buf, uint primary_key)
   If increment=10 and offset=5 and previous number is 1, we get:
   1,5,15,25,35,...
 */
-
 inline ulonglong
 compute_next_insert_id(ulonglong nr,struct system_variables *variables)
 {
@@ -1638,7 +1632,7 @@ void handler::adjust_next_insert_id_after_explicit_value(ulonglong nr)
 }
 
 
-/*
+/** @brief
   Computes the largest number X:
   - smaller than or equal to "nr"
   - of the form: auto_increment_offset + N * auto_increment_increment
@@ -1653,7 +1647,6 @@ void handler::adjust_next_insert_id_after_explicit_value(ulonglong nr)
   RETURN
     The number X if it exists, "nr" otherwise.
 */
-
 inline ulonglong
 prev_insert_id(ulonglong nr, struct system_variables *variables)
 {
@@ -1922,7 +1915,7 @@ int handler::update_auto_increment()
 }
 
 
-/*
+/** @brief
   MySQL signal that it changed the column bitmap
 
   USAGE
@@ -1935,7 +1928,6 @@ int handler::update_auto_increment()
     rnd_init() call is made as after this, MySQL will not use the bitmap
     for any program logic checking.
 */
-
 void handler::column_bitmaps_signal()
 {
   DBUG_ENTER("column_bitmaps_signal");
@@ -1945,7 +1937,7 @@ void handler::column_bitmaps_signal()
 }
 
 
-/*
+/** @brief
   Reserves an interval of auto_increment values from the handler.
 
   SYNOPSIS
@@ -1962,7 +1954,6 @@ void handler::column_bitmaps_signal()
   If the function sets *nb_reserved_values to ULONGLONG_MAX it means it has
   reserved to "positive infinite".
 */
-
 void handler::get_auto_increment(ulonglong offset, ulonglong increment,
                                  ulonglong nb_desired_values,
                                  ulonglong *first_value,
@@ -2060,7 +2051,7 @@ void handler::print_keydup_error(uint key_nr, const char *msg)
 }
 
 
-/*
+/** @brief
   Print error that we got from handler function
 
   NOTE
@@ -2069,7 +2060,6 @@ void handler::print_keydup_error(uint key_nr, const char *msg)
      table->s->path
      table->alias
 */
-
 void handler::print_error(int error, myf errflag)
 {
   DBUG_ENTER("handler::print_error");
@@ -2255,7 +2245,7 @@ void handler::print_error(int error, myf errflag)
 }
 
 
-/*
+/** @brief
    Return an error message specific to this handler
 
    SYNOPSIS
@@ -2263,8 +2253,7 @@ void handler::print_error(int error, myf errflag)
    buf          Pointer to String where to add error message
 
    Returns true if this is a temporary error
- */
-
+*/
 bool handler::get_error_message(int error, String* buf)
 {
   return FALSE;
@@ -2369,8 +2358,8 @@ err:
 
 
 
-/* Return key if error because of duplicated keys */
-
+/** @brief
+  Return key if error because of duplicated keys */
 uint handler::get_dup_key(int error)
 {
   DBUG_ENTER("handler::get_dup_key");
@@ -2383,7 +2372,7 @@ uint handler::get_dup_key(int error)
 }
 
 
-/*
+/** @brief
   Delete all files with extension from bas_ext()
 
   SYNOPSIS
@@ -2399,7 +2388,6 @@ uint handler::get_dup_key(int error)
 	didn't get any other errors than ENOENT
     #   Error
 */
-
 int handler::delete_table(const char *name)
 {
   int error= 0;
@@ -2445,7 +2433,7 @@ void handler::drop_table(const char *name)
 }
 
 
-/*
+/** @brief
    Performs checks upon the table.
 
    SYNOPSIS
@@ -2461,7 +2449,6 @@ void handler::drop_table(const char *name)
    HA_ADMIN_NEEDS_ALTER        Table has structures requiring ALTER TABLE
    HA_ADMIN_NOT_IMPLEMENTED
 */
-
 int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt)
 {
   int error;
@@ -2495,7 +2482,7 @@ int handler::ha_repair(THD* thd, HA_CHECK_OPT* check_opt)
 }
 
 
-/*
+/** @brief
   Tell the storage engine that it is allowed to "disable transaction" in the
   handler. It is a hint that ACID is not required - it is used in NDB for
   ALTER TABLE, for example, when data are copied to temporary table.
@@ -2503,7 +2490,6 @@ int handler::ha_repair(THD* thd, HA_CHECK_OPT* check_opt)
   starts to commit every now and then automatically.
   This hint can be safely ignored.
 */
-
 int ha_enable_transaction(THD *thd, bool on)
 {
   int error=0;
@@ -2564,7 +2550,7 @@ void handler::get_dynamic_partition_info(PARTITION_INFO *stat_info,
 ** Some general functions that isn't in the handler class
 ****************************************************************************/
 
-/*
+/** @brief
   Initiates table-file and calls appropriate database-creator
 
   NOTES
@@ -2575,7 +2561,6 @@ void handler::get_dynamic_partition_info(PARTITION_INFO *stat_info,
    0  ok
    1  error
 */
-
 int ha_create_table(THD *thd, const char *path,
                     const char *db, const char *table_name,
                     HA_CREATE_INFO *create_info,
@@ -2619,7 +2604,7 @@ err:
   DBUG_RETURN(error != 0);
 }
 
-/*
+/** @brief
   Try to discover table from engine
 
   NOTES
@@ -2631,7 +2616,6 @@ err:
    > 0  Error, table existed but could not be created
 
 */
-
 int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
 {
   int error;
@@ -2706,9 +2690,9 @@ void st_ha_check_opt::init()
   call to ha_init_key_cache() (probably out of memory)
 *****************************************************************************/
 
-/* Init a key cache if it has not been initied before */
-
-
+/** @brief
+  Init a key cache if it has not been initied before
+*/
 int ha_init_key_cache(const char *name, KEY_CACHE *key_cache)
 {
   DBUG_ENTER("ha_init_key_cache");
@@ -2730,8 +2714,9 @@ int ha_init_key_cache(const char *name, KEY_CACHE *key_cache)
 }
 
 
-/* Resize key cache */
-
+/** @brief
+  Resize key cache
+*/
 int ha_resize_key_cache(KEY_CACHE *key_cache)
 {
   DBUG_ENTER("ha_resize_key_cache");
@@ -2752,8 +2737,9 @@ int ha_resize_key_cache(KEY_CACHE *key_cache)
 }
 
 
-/* Change parameters for key cache (like size) */
-
+/** @brief
+  Change parameters for key cache (like size)
+*/
 int ha_change_key_cache_param(KEY_CACHE *key_cache)
 {
   if (key_cache->key_cache_inited)
@@ -2767,16 +2753,18 @@ int ha_change_key_cache_param(KEY_CACHE *key_cache)
   return 0;
 }
 
-/* Free memory allocated by a key cache */
-
+/** @brief
+  Free memory allocated by a key cache
+*/
 int ha_end_key_cache(KEY_CACHE *key_cache)
 {
   end_key_cache(key_cache, 1);		// Can never fail
   return 0;
 }
 
-/* Move all tables from one key cache to another one */
-
+/** @brief
+  Move all tables from one key cache to another one
+*/
 int ha_change_key_cache(KEY_CACHE *old_key_cache,
 			KEY_CACHE *new_key_cache)
 {
@@ -2785,7 +2773,7 @@ int ha_change_key_cache(KEY_CACHE *old_key_cache,
 }
 
 
-/*
+/** @brief
   Try to discover one table from handler(s)
 
   RETURN
@@ -2793,7 +2781,6 @@ int ha_change_key_cache(KEY_CACHE *old_key_cache,
     0  : OK. In this case *frmblob and *frmlen are set
     >0 : error.  frmblob and frmlen may not be set
 */
-
 struct st_discover_args
 {
   const char *db;
@@ -2837,7 +2824,7 @@ int ha_discover(THD *thd, const char *db, const char *name,
 }
 
 
-/*
+/** @brief
   Call this function in order to give the handler the possibility 
   to ask engine if there are any new tables that should be written to disk 
   or any dropped tables that need to be removed from disk
@@ -2883,7 +2870,7 @@ ha_find_files(THD *thd,const char *db,const char *path,
 }
 
 
-/*
+/** @brief
   Ask handler if the table exists in engine
 
   RETURN
@@ -2891,8 +2878,7 @@ ha_find_files(THD *thd,const char *db,const char *path,
     1                   Table exists
     #                   Error code
 
- */
-
+*/
 struct st_table_exists_in_engine_args
 {
   const char *db;
@@ -2944,7 +2930,7 @@ struct binlog_func_st
   void *arg;
 };
 
-/*
+/** @brief
   Listing handlertons first to avoid recursive calls and deadlock
 */
 static my_bool binlog_func_list(THD *thd, st_plugin_int *plugin, void *arg)
@@ -3062,7 +3048,7 @@ void ha_binlog_log_query(THD *thd, handlerton *hton,
 }
 #endif
 
-/*
+/** @brief
   Read the first row of a multi-range set.
 
   SYNOPSIS
@@ -3086,7 +3072,6 @@ void ha_binlog_log_query(THD *thd, handlerton *hton,
     HA_ERR_END_OF_FILE	No rows in range
     #			Error code
 */
-
 int handler::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
                                     KEY_MULTI_RANGE *ranges, uint range_count,
                                     bool sorted, HANDLER_BUFFER *buffer)
@@ -3119,7 +3104,7 @@ int handler::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 }
 
 
-/*
+/** @brief
   Read the next row of a multi-range set.
 
   SYNOPSIS
@@ -3137,7 +3122,6 @@ int handler::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
     HA_ERR_END_OF_FILE	No (more) rows in range
     #			Error code
 */
-
 int handler::read_multi_range_next(KEY_MULTI_RANGE **found_range_p)
 {
   int result;
@@ -3190,7 +3174,7 @@ int handler::read_multi_range_next(KEY_MULTI_RANGE **found_range_p)
 }
 
 
-/*
+/** @brief
   Read first row between two ranges.
   Store ranges for future calls to read_range_next
 
@@ -3209,7 +3193,6 @@ int handler::read_multi_range_next(KEY_MULTI_RANGE **found_range_p)
     HA_ERR_END_OF_FILE	No rows in range
     #			Error code
 */
-
 int handler::read_range_first(const key_range *start_key,
 			      const key_range *end_key,
 			      bool eq_range_arg, bool sorted)
@@ -3244,7 +3227,7 @@ int handler::read_range_first(const key_range *start_key,
 }
 
 
-/*
+/** @brief
   Read next row between two ranges.
 
   SYNOPSIS
@@ -3258,7 +3241,6 @@ int handler::read_range_first(const key_range *start_key,
     HA_ERR_END_OF_FILE	No rows in range
     #			Error code
 */
-
 int handler::read_range_next()
 {
   int result;
@@ -3278,7 +3260,7 @@ int handler::read_range_next()
 }
 
 
-/*
+/** @brief
   Compare if found key (in row) is over max-value
 
   SYNOPSIS
@@ -3295,7 +3277,6 @@ int handler::read_range_next()
    -1			Key is less than range
     1			Key is larger than range
 */
-
 int handler::compare_key(key_range *range)
 {
   int cmp;
@@ -3319,7 +3300,7 @@ int handler::index_read_idx(byte * buf, uint index, const byte * key,
 }
 
 
-/*
+/** @brief
   Returns a list of all known extensions.
 
   SYNOPSIS
@@ -3333,7 +3314,6 @@ int handler::index_read_idx(byte * buf, uint index, const byte * key,
   RETURN VALUE
     pointer		pointer to TYPELIB structure
 */
-
 static my_bool exts_handlerton(THD *unused, st_plugin_int *plugin,
                                void *arg)
 {
@@ -3495,7 +3475,7 @@ namespace {
   }
 }
 
-/*
+/** @brief
    Write table maps for all (manually or automatically) locked tables
    to the binary log.
 
@@ -3516,7 +3496,7 @@ namespace {
    SEE ALSO
        THD::lock
        THD::locked_tables
- */
+*/
 namespace
 {
   int write_locked_table_maps(THD *thd)
@@ -3639,10 +3619,9 @@ int handler::ha_external_lock(THD *thd, int lock_type)
 }
 
 
-/*
+/** @brief
   Check handler usage and reset state of file to after 'open'
 */
-
 int handler::ha_reset()
 {
   DBUG_ENTER("ha_reset");
@@ -3699,12 +3678,11 @@ int handler::ha_delete_row(const byte *buf)
 
 
 
-/*
+/** @brief
   use_hidden_primary_key() is called in case of an update/delete when
   (table_flags() and HA_PRIMARY_KEY_REQUIRED_FOR_DELETE) is defined
   but we don't have a primary key
 */
-
 void handler::use_hidden_primary_key()
 {
   /* fallback to use all columns in the table to identify row */
@@ -3712,11 +3690,10 @@ void handler::use_hidden_primary_key()
 }
 
 
-/*
+/** @brief
   Dummy function which accept information about log files which is not need
   by handlers
 */
-
 void signal_log_not_needed(struct handlerton, char *log_file)
 {
   DBUG_ENTER("signal_log_not_needed");
@@ -3772,12 +3749,11 @@ err:
 #define fl_dir FN_ROOTDIR
 
 
-/*
+/** @brief
   Dummy function to return log status should be replaced by function which
   really detect the log status and check that the file is a log of this
   handler.
 */
-
 enum log_status fl_get_log_status(char *log)
 {
   MY_STAT stat_buff;
@@ -3817,7 +3793,7 @@ void fl_log_iterator_destroy(struct handler_iterator *iterator)
 }
 
 
-/*
+/** @brief
   returns buffer, to be assigned in handler_iterator struct
 */
 enum handler_create_iterator_result
