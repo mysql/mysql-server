@@ -126,6 +126,12 @@ public:
   enum_parsing_place place() { return parsing_place; }
   bool walk(Item_processor processor, bool walk_subquery, byte *arg);
 
+  /**
+    Get the SELECT_LEX structure associated with this Item.
+    @return the SELECT_LEX structure associated with this Item
+  */
+  st_select_lex* get_select_lex();
+
   friend class select_subselect;
   friend class Item_in_optimizer;
   friend bool Item_field::fix_fields(THD *, Item **);
@@ -168,6 +174,16 @@ public:
   bool check_cols(uint c);
   bool null_inside();
   void bring_value();
+
+  /**
+    This method is used to implement a special case of semantic tree
+    rewriting, mandated by a SQL:2003 exception in the specification.
+    The only caller of this method is handle_sql2003_note184_exception(),
+    see the code there for more details.
+    Do not call this method for other purposes.
+    @return the SELECT_LEX structure that was given in the constructor.
+  */
+  st_select_lex* invalidate_and_restore_select_lex();
 
   friend class select_singlerow_subselect;
 };

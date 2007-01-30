@@ -310,6 +310,81 @@ void case_stmt_action_end_case(LEX *lex, bool simple)
   lex->sphead->do_cont_backpatch();
 }
 
+/**
+  Helper to resolve the SQL:2003 Syntax exception 1) in <in predicate>.
+  See SQL:2003, Part 2, section 8.4 <in predicate>, Note 184, page 383.
+  This function returns the proper item for the SQL expression
+  <code>left [NOT] IN ( expr )</code>
+  @param thd the current thread
+  @param left the in predicand
+  @param equal true for IN predicates, false for NOT IN predicates
+  @param expr first and only expression of the in value list
+  @return an expression representing the IN predicate.
+*/
+Item* handle_sql2003_note184_exception(THD *thd, Item* left, bool equal,
+                                       Item *expr)
+{
+  /*
+    Relevant references for this issue:
+    - SQL:2003, Part 2, section 8.4 <in predicate>, page 383,
+    - SQL:2003, Part 2, section 7.2 <row value expression>, page 296,
+    - SQL:2003, Part 2, section 6.3 <value expression primary>, page 174,
+    - SQL:2003, Part 2, section 7.15 <subquery>, page 370,
+    - SQL:2003 Feature F561, "Full value expressions".
+
+    The exception in SQL:2003 Note 184 means:
+    Item_singlerow_subselect, which corresponds to a <scalar subquery>,
+    should be re-interpreted as an Item_in_subselect, which corresponds
+    to a <table subquery> when used inside an <in predicate>.
+
+    Our reading of Note 184 is reccursive, so that all:
+    - IN (( <subquery> ))
+    - IN ((( <subquery> )))
+    - IN '('^N <subquery> ')'^N
+    - etc
+    should be interpreted as a <table subquery>, no matter how deep in the
+    expression the <subquery> is.
+  */
+
+  Item *result;
+
+  DBUG_ENTER("handle_sql2003_note184_exception");
+
+  if (expr->type() == Item::SUBSELECT_ITEM)
+  {
+    Item_subselect *expr2 = (Item_subselect*) expr;
+
+    if (expr2->substype() == Item_subselect::SINGLEROW_SUBS)
+    {
+      Item_singlerow_subselect *expr3 = (Item_singlerow_subselect*) expr2;
+      st_select_lex *subselect;
+
+      /*
+        Implement the mandated change, by altering the semantic tree:
+          left IN Item_singlerow_subselect(subselect)
+        is modified to
+          left IN (subselect)
+        which is represented as
+          Item_in_subselect(left, subselect)
+      */
+      subselect= expr3->invalidate_and_restore_select_lex();
+      result= new (thd->mem_root) Item_in_subselect(left, subselect);
+
+      if (! equal)
+        result = negate_expression(thd, result);
+
+      DBUG_RETURN(result);
+    }
+  }
+
+  if (equal)
+    result= new (thd->mem_root) Item_func_eq(left, expr);
+  else
+    result= new (thd->mem_root) Item_func_ne(left, expr);
+
+  DBUG_RETURN(result);
+}
+
 %}
 %union {
   int  num;
@@ -6168,31 +6243,37 @@ bool_pri:
 	| predicate ;
 
 predicate:
-        bit_expr IN_SYM '(' subselect ')'
-	  { $$= new Item_in_subselect($1, $4); }
-	| bit_expr not IN_SYM '(' subselect ')'
-          { $$= negate_expression(YYTHD, new Item_in_subselect($1, $5)); }
+          bit_expr IN_SYM '(' subselect ')'
+          {
+            $$= new (YYTHD->mem_root) Item_in_subselect($1, $4);
+          }
+        | bit_expr not IN_SYM '(' subselect ')'
+          {
+            THD *thd= YYTHD;
+            Item *item= new (thd->mem_root) Item_in_subselect($1, $5);
+            $$= negate_expression(thd, item);
+          }
         | bit_expr IN_SYM '(' expr ')'
           {
-              $$= new Item_func_eq($1, $4);
+            $$= handle_sql2003_note184_exception(YYTHD, $1, true, $4);
           }
-	| bit_expr IN_SYM '(' expr ',' expr_list ')'
-	  { 
-              $6->push_front($4);
-              $6->push_front($1);
-              $$= new Item_func_in(*$6);
+        | bit_expr IN_SYM '(' expr ',' expr_list ')'
+          { 
+            $6->push_front($4);
+            $6->push_front($1);
+            $$= new (YYTHD->mem_root) Item_func_in(*$6);
           }
         | bit_expr not IN_SYM '(' expr ')'
           {
-              $$= new Item_func_ne($1, $5);
+            $$= handle_sql2003_note184_exception(YYTHD, $1, false, $5);
           }
-	| bit_expr not IN_SYM '(' expr ',' expr_list ')'
+        | bit_expr not IN_SYM '(' expr ',' expr_list ')'
           {
-              $7->push_front($5);
-              $7->push_front($1);
-              Item_func_in *item = new Item_func_in(*$7);
-              item->negate();
-              $$= item;
+            $7->push_front($5);
+            $7->push_front($1);
+            Item_func_in *item = new (YYTHD->mem_root) Item_func_in(*$7);
+            item->negate();
+            $$= item;
           }
 	| bit_expr BETWEEN_SYM bit_expr AND_SYM predicate
 	  { $$= new Item_func_between($1,$3,$5); }
