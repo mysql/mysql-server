@@ -560,7 +560,7 @@ mlog_parse_index(
 			the rest is 0 or 0x7fff for variable-length fields,
 			and 1..0x7ffe for fixed-length fields. */
 			dict_mem_table_add_col(
-				table, "DUMMY",
+				table, NULL, NULL,
 				((len + 1) & 0x7fff) <= 1
 				? DATA_BINARY : DATA_FIXBINARY,
 				len & 0x8000 ? DATA_NOT_NULL : 0,
@@ -570,7 +570,7 @@ mlog_parse_index(
 					   dict_table_get_nth_col(table, i),
 					   0);
 		}
-		dict_table_add_system_columns(table);
+		dict_table_add_system_columns(table, table->heap);
 		if (n_uniq != n) {
 			/* Identify DB_TRX_ID and DB_ROLL_PTR in the index. */
 			ut_a(DATA_TRX_ID_LEN
