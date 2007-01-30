@@ -2479,8 +2479,16 @@ Dblqh::execREMOVE_MARKER_ORD(Signal* signal)
   
   CommitAckMarkerPtr removedPtr;
   m_commitAckMarkerHash.remove(removedPtr, key);
+#if defined VM_TRACE || defined ERROR_INSERT
   ndbrequire(removedPtr.i != RNIL);
   m_commitAckMarkerPool.release(removedPtr);
+#else
+  if (removedPtr.i != RNIL)
+  {
+    jam();
+    m_commitAckMarkerPool.release(removedPtr);
+  }
+#endif
 #ifdef MARKER_TRACE
   ndbout_c("Rem marker[%.8x %.8x]", key.transid1, key.transid2);
 #endif
@@ -3138,20 +3146,23 @@ void Dblqh::lqhAttrinfoLab(Signal* signal, Uint32* dataPtr, Uint32 length)
 {
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
   if (regTcPtr->operation != ZREAD) {
-    if (regTcPtr->opExec != 1) {
-      if (saveTupattrbuf(signal, dataPtr, length) == ZOK) {
-        ;
-      } else {
-        jam();
+    if (regTcPtr->operation != ZDELETE)
+    {
+      if (regTcPtr->opExec != 1) {
+	if (saveTupattrbuf(signal, dataPtr, length) == ZOK) {
+	  ;
+	} else {
+	  jam();
 /* ------------------------------------------------------------------------- */
 /* WE MIGHT BE WAITING FOR RESPONSE FROM SOME BLOCK HERE. THUS WE NEED TO    */
 /* GO THROUGH THE STATE MACHINE FOR THE OPERATION.                           */
 /* ------------------------------------------------------------------------- */
-        localAbortStateHandlerLab(signal);
-        return;
+	  localAbortStateHandlerLab(signal);
+	  return;
+	}//if
       }//if
     }//if
-  }//if
+  }
   c_tup->receive_attrinfo(signal, regTcPtr->tupConnectrec, dataPtr, length);
 }//Dblqh::lqhAttrinfoLab()
 
@@ -3405,7 +3416,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     markerPtr.p->tcNodeId = tcNodeId;
     
     CommitAckMarkerPtr tmp;
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
 #ifdef MARKER_TRACE
     ndbout_c("Add marker[%.8x %.8x]", markerPtr.p->transid1, markerPtr.p->transid2);
 #endif
@@ -9629,7 +9640,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
   active.add(scanptr);
   if(scanptr.p->scanKeyinfoFlag){
     jam();
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
     ScanRecordPtr tmp;
     ndbrequire(!c_scanTakeOverHash.find(tmp, * scanptr.p));
 #endif
@@ -9753,7 +9764,7 @@ void Dblqh::finishScanrec(Signal* signal)
   scans.add(restart);
   if(restart.p->scanKeyinfoFlag){
     jam();
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
     ScanRecordPtr tmp;
     ndbrequire(!c_scanTakeOverHash.find(tmp, * restart.p));
 #endif
