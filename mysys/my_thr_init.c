@@ -21,6 +21,7 @@
 
 #include "mysys_priv.h"
 #include <m_string.h>
+#include <signal.h>
 
 #ifdef THREAD
 #ifdef USE_TLS
@@ -44,6 +45,8 @@ pthread_mutexattr_t my_fast_mutexattr;
 pthread_mutexattr_t my_errchk_mutexattr;
 #endif
 
+static uint get_thread_lib(void);
+
 /*
   initialize thread environment
 
@@ -57,6 +60,12 @@ pthread_mutexattr_t my_errchk_mutexattr;
 
 my_bool my_thread_global_init(void)
 {
+  thd_lib_detected= get_thread_lib();
+  if (thd_lib_detected == THD_LIB_LT)
+    thr_client_alarm= SIGALRM;
+  else
+    thr_client_alarm= SIGUSR1;
+
   if (pthread_key_create(&THR_KEY_mysys,0))
   {
     fprintf(stderr,"Can't initialize threads: error %d\n",errno);
@@ -275,5 +284,21 @@ const char *my_thread_name(void)
   return tmp->name;
 }
 #endif /* DBUG_OFF */
+
+
+static uint get_thread_lib(void)
+{
+  char buff[64];
+    
+#ifdef _CS_GNU_LIBPTHREAD_VERSION
+  confstr(_CS_GNU_LIBPTHREAD_VERSION, buff, sizeof(buff));
+
+  if (!strncasecmp(buff, "NPTL", 4))
+    return THD_LIB_NPTL;
+  if (!strncasecmp(buff, "linuxthreads", 12))
+    return THD_LIB_LT;
+#endif
+  return THD_LIB_OTHER;
+}
 
 #endif /* THREAD */
