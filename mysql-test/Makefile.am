@@ -46,8 +46,6 @@ CLEANFILES = 		$(GENSCRIPTS) $(test_DATA)
 
 INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include -I..
 
-noinst_HEADERS =	my_manage.h
-
 dist-hook:
 	mkdir -p $(distdir)/t $(distdir)/r $(distdir)/include \
 		$(distdir)/std_data $(distdir)/lib
