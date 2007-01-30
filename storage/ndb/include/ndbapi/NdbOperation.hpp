@@ -99,6 +99,19 @@ public:
   };
 
   /**
+   * How should transaction be handled if operation fails
+   *
+   * For READ, default is AO_IgnoreError
+   *     DML,  default is AbortOnError
+   * CommittedRead does _only_ support AO_IgnoreError
+   */
+  enum AbortOption {
+    DefaultAbortOption = -1,///< Use default as specified by op-type
+    AbortOnError = 0,       ///< Abort transaction on failed operation
+    AO_IgnoreError = 2      ///< Transaction continues on failed operation
+  };
+
+  /**
    * Define the NdbOperation to be a standard operation of type insertTuple.
    * When calling NdbTransaction::execute, this operation 
    * adds a new tuple to the table.
@@ -777,8 +790,13 @@ public:
    */
   LockMode getLockMode() const { return theLockMode; }
 
+  /**
+   * Get/set abort option
+   */
+  AbortOption getAbortOption() const;
+  int setAbortOption(AbortOption);
+  
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-  void setAbortOption(Int8 ao) { m_abortOption = ao; }
   
   /**
    * Set/get partition key
@@ -857,7 +875,8 @@ protected:
 
   int    doSend(int ProcessorId, Uint32 lastFlag);
   virtual int	 prepareSend(Uint32  TC_ConnectPtr,
-                             Uint64  TransactionId);
+                             Uint64  TransactionId,
+			     AbortOption);
   virtual void   setLastFlag(NdbApiSignal* signal, Uint32 lastFlag);
     
   int	 prepareSendInterpreted();            // Help routine to prepare*
