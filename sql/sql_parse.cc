@@ -413,7 +413,11 @@ int check_user(THD *thd, enum enum_server_command command,
         }
       }
 
-      /* Why logging is performed before all checks've passed? */
+      /*
+        Log the command before authentication checks, so that the user can
+        check the log for the tried login tried and also to detect
+        break-in attempts.
+      */
       general_log_print(thd, command,
                         (thd->main_security_ctx.priv_user ==
                          thd->main_security_ctx.user ?
