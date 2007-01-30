@@ -428,7 +428,7 @@ NdbIndexStat::records_in_range(const NdbDictionary::Index* index, NdbIndexScanOp
       DBUG_RETURN(-1);
     }
     if (trans->execute(NdbTransaction::NoCommit,
-                       NdbTransaction::AbortOnError, forceSend) == -1) {
+                       NdbOperation::AbortOnError, forceSend) == -1) {
       m_error = trans->getNdbError();
       DBUG_PRINT("error", ("trans:%d op:%d", trans->getNdbError().code,
                            op->getNdbError().code));
