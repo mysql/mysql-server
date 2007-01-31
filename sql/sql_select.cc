@@ -848,10 +848,11 @@ JOIN::optimize()
   }
   /*
      Check if we can optimize away GROUP BY/DISTINCT.
-     We can do that if there are no aggregate functions and the
+     We can do that if there are no aggregate functions, the
      fields in DISTINCT clause (if present) and/or columns in GROUP BY
      (if present) contain direct references to all key parts of
-     an unique index (in whatever order).
+     an unique index (in whatever order) and if the key parts of the
+     unique index cannot contain NULLs.
      Note that the unique keys for DISTINCT and GROUP BY should not
      be the same (as long as they are unique).
 
@@ -11856,7 +11857,7 @@ test_if_subkey(ORDER *order, TABLE *table, uint ref, uint ref_key_parts,
 
 
 /*
-  Check if GROUP BY/DISTINCT can be optimized away because the set is 
+  Check if GROUP BY/DISTINCT can be optimized away because the set is
   already known to be distinct.
   
   SYNOPSIS
@@ -11864,7 +11865,7 @@ test_if_subkey(ORDER *order, TABLE *table, uint ref, uint ref_key_parts,
     table                The table to operate on.
     find_func            function to iterate over the list and search
                          for a field
-  
+
   DESCRIPTION
     Used in removing the GROUP BY/DISTINCT of the following types of
     statements:
@@ -11875,12 +11876,13 @@ test_if_subkey(ORDER *order, TABLE *table, uint ref, uint ref_key_parts,
       then <any combination of a,b,c>,{whatever} is also distinct
 
     This function checks if all the key parts of any of the unique keys
-    of the table are referenced by a list : either the select list 
+    of the table are referenced by a list : either the select list
     through find_field_in_item_list or GROUP BY list through
     find_field_in_order_list.
-    If the above holds then we can safely remove the GROUP BY/DISTINCT,
+    If the above holds and the key parts cannot contain NULLs then we 
+    can safely remove the GROUP BY/DISTINCT,
     as no result set can be more distinct than an unique key.
-  
+ 
   RETURN VALUE
     1                    found
     0                    not found.
@@ -11903,7 +11905,8 @@ list_contains_unique_index(TABLE *table,
            key_part < key_part_end;
            key_part++)
       {
-        if (!find_func(key_part->field, data))
+        if (key_part->field->maybe_null() || 
+            !find_func(key_part->field, data))
           break;
       }
       if (key_part == key_part_end)
