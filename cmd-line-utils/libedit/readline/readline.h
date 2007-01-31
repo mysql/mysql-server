@@ -102,7 +102,7 @@ extern int		 max_input_history;
 extern char		*rl_basic_word_break_characters;
 extern char		*rl_completer_word_break_characters;
 extern char		*rl_completer_quote_characters;
-extern Function		*rl_completion_entry_function;
+extern CPFunction	*rl_completion_entry_function;
 extern CPPFunction	*rl_attempted_completion_function;
 extern int		rl_completion_type;
 extern int		rl_completion_query_items;

@@ -1,0 +1,25 @@
+# MySQL Database Server
+
+#
+# /etc
+#
+/etc/my\.cnf		--	gen_context(system_u:object_r:mysqld_etc_t,s0)
+/etc/mysql(/.*)?		gen_context(system_u:object_r:mysqld_etc_t,s0)
+
+#
+# /usr
+# Red Hat compatibility
+/usr/libexec/mysqld	--	gen_context(system_u:object_r:mysqld_exec_t,s0)
+
+# MySQL AB compatibility
+/usr/sbin/mysqld(-max)?	--	gen_context(system_u:object_r:mysqld_exec_t,s0)
+
+#
+# /var
+#
+/var/lib/mysql(/.*)?		gen_context(system_u:object_r:mysqld_db_t,s0)
+/var/lib/mysql/mysql\.sock -s	gen_context(system_u:object_r:mysqld_var_run_t,s0)
+
+/var/log/mysql.*	--	gen_context(system_u:object_r:mysqld_log_t,s0)
+
+/var/run/mysqld(/.*)?		gen_context(system_u:object_r:mysqld_var_run_t,s0)
