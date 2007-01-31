@@ -238,3 +238,18 @@ select * from t12 order by 1,2,3;
 select * from t21 order by 1,2,3;
 select * from t22 order by 1,2,3;
 DROP TABLE t1, t11, t12, t21, t22;
+
+# bug#19956
+CREATE TABLE t1 (id varchar(255) NOT NULL,
+		 tag int(11) NOT NULL,
+                 doc text NOT NULL,
+                 type varchar(150) NOT NULL,
+                 modified timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                 PRIMARY KEY (id)
+                ) ENGINE=ndbcluster;
+
+INSERT INTO t1 VALUES ('sakila',1,'Some text goes here','text',CURRENT_TIMESTAMP);
+SELECT id, tag, doc, type FROM t1 WHERE id IN ('flipper','orka');
+SELECT id, tag, doc, type FROM t1 WHERE id IN ('flipper','sakila');
+
+DROP TABLE t1;

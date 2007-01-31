@@ -2959,6 +2959,17 @@ SELECT * FROM t1;
 DROP VIEW v1, v2;
 DROP TABLE t1;
 
+#
+# Bug #25580: !0 as an operand in a select expression of a view
+#
+
+CREATE VIEW v AS SELECT !0 * 5 AS x FROM DUAL;
+SHOW CREATE VIEW v;
+
+SELECT !0 * 5 AS x FROM DUAL;
+SELECT * FROM v;
+
+DROP VIEW v;
 
 #
 # BUG#24293: '\Z' token is not handled correctly in views

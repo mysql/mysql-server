@@ -153,6 +153,22 @@ longlong Item_func_not::val_int()
 }
 
 /*
+  We put any NOT expression into parenthesis to avoid
+  possible problems with internal view representations where
+  any '!' is converted to NOT. It may cause a problem if
+  '!' is used in an expression together with other operators
+  whose precedence is lower than the precedence of '!' yet
+  higher than the precedence of NOT.
+*/
+
+void Item_func_not::print(String *str)
+{
+  str->append('(');
+  Item_func::print(str);
+  str->append(')');
+}
+
+/*
   special NOT for ALL subquery
 */
 
@@ -868,11 +884,35 @@ longlong Item_in_optimizer::val_int()
           We disable the predicates we've pushed down into subselect, run the
           subselect and see if it has produced any rows.
         */
-        ((Item_in_subselect*)args[1])->enable_pushed_conds= FALSE;
-        longlong tmp= args[1]->val_bool_result();
-        result_for_null_param= null_value= 
-          !((Item_in_subselect*)args[1])->engine->no_rows();
-        ((Item_in_subselect*)args[1])->enable_pushed_conds= TRUE;
+        Item_in_subselect *item_subs=(Item_in_subselect*)args[1]; 
+        if (cache->cols() == 1)
+        {
+          item_subs->set_cond_guard_var(0, FALSE);
+          longlong tmp= args[1]->val_bool_result();
+          result_for_null_param= null_value= !item_subs->engine->no_rows();
+          item_subs->set_cond_guard_var(0, TRUE);
+        }
+        else
+        {
+          uint i;
+          uint ncols= cache->cols();
+          /*
+            Turn off the predicates that are based on column compares for
+            which the left part is currently NULL
+          */
+          for (i= 0; i < ncols; i++)
+          {
+            if (cache->el(i)->null_value)
+              item_subs->set_cond_guard_var(i, FALSE);
+          }
+          
+          longlong tmp= args[1]->val_bool_result();
+          result_for_null_param= null_value= !item_subs->engine->no_rows();
+          
+          /* Turn all predicates back on */
+          for (i= 0; i < ncols; i++)
+            item_subs->set_cond_guard_var(i, TRUE);
+        }
       }
     }
     return 0;

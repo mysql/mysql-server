@@ -336,23 +336,18 @@ public:
   {
     save_table_list=                  context->table_list;
     save_first_name_resolution_table= context->first_name_resolution_table;
-    save_next_name_resolution_table=  (context->first_name_resolution_table) ?
-                                      context->first_name_resolution_table->
-                                               next_name_resolution_table :
-                                      NULL;
     save_resolve_in_select_list=      context->resolve_in_select_list;
     save_next_local=                  table_list->next_local;
+    save_next_name_resolution_table=  table_list->next_name_resolution_table;
   }
 
   /* Restore a name resolution context from saved state. */
   void restore_state(Name_resolution_context *context, TABLE_LIST *table_list)
   {
     table_list->next_local=                save_next_local;
+    table_list->next_name_resolution_table= save_next_name_resolution_table;
     context->table_list=                   save_table_list;
     context->first_name_resolution_table=  save_first_name_resolution_table;
-    if (context->first_name_resolution_table)
-      context->first_name_resolution_table->
-               next_name_resolution_table= save_next_name_resolution_table;
     context->resolve_in_select_list=       save_resolve_in_select_list;
   }
 };
@@ -452,7 +447,8 @@ public:
   Item *next;
   uint32 max_length;
   uint name_length;                     /* Length of name */
-  uint8 marker, decimals;
+  int8 marker;
+  uint8 decimals;
   my_bool maybe_null;			/* If item may be null */
   my_bool null_value;			/* if item is null */
   my_bool unsigned_flag;
@@ -2268,6 +2264,9 @@ public:
   bool fix_fields(THD *, Item **);
   void print(String *str);
   table_map used_tables() const { return (table_map)0L; }
+  Field *get_tmp_table_field() { return 0; }
+  Item *copy_or_same(THD *thd) { return this; }
+  Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
   void cleanup();
 
 private:

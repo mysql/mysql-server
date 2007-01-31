@@ -80,6 +80,65 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view);
 #define my_safe_afree(ptr, size, min_length) if (size > min_length) my_free(ptr,MYF(0))
 #endif
 
+/*
+  Check that insert/update fields are from the same single table of a view.
+
+  SYNOPSIS
+    check_view_single_update()
+    fields            The insert/update fields to be checked.
+    view              The view for insert.
+    map     [in/out]  The insert table map.
+
+  DESCRIPTION
+    This function is called in 2 cases:
+    1. to check insert fields. In this case *map will be set to 0.
+       Insert fields are checked to be all from the same single underlying
+       table of the given view. Otherwise the error is thrown. Found table
+       map is returned in the map parameter.
+    2. to check update fields of the ON DUPLICATE KEY UPDATE clause.
+       In this case *map contains table_map found on the previous call of
+       the function to check insert fields. Update fields are checked to be
+       from the same table as the insert fields.
+
+  RETURN
+    0   OK
+    1   Error
+*/
+
+bool check_view_single_update(List<Item> &fields, TABLE_LIST *view,
+                              table_map *map)
+{
+  /* it is join view => we need to find the table for update */
+  List_iterator_fast<Item> it(fields);
+  Item *item;
+  TABLE_LIST *tbl= 0;            // reset for call to check_single_table()
+  table_map tables= 0;
+
+  while ((item= it++))
+    tables|= item->used_tables();
+
+  /* Check found map against provided map */
+  if (*map)
+  {
+    if (tables != *map)
+      goto error;
+    return FALSE;
+  }
+
+  if (view->check_single_table(&tbl, tables, view) || tbl == 0)
+    goto error;
+
+  view->table= tbl->table;
+  *map= tables;
+
+  return FALSE;
+
+error:
+  my_error(ER_VIEW_MULTIUPDATE, MYF(0),
+           view->view_db.str, view->view_name.str);
+  return TRUE;
+}
+
 
 /*
   Check if insert fields are correct.
@@ -104,7 +163,7 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view);
 
 static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
                                List<Item> &fields, List<Item> &values,
-                               bool check_unique)
+                               bool check_unique, table_map *map)
 {
   TABLE *table= table_list->table;
 
@@ -177,21 +236,9 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
 
     if (table_list->effective_algorithm == VIEW_ALGORITHM_MERGE)
     {
-      /* it is join view => we need to find table for update */
-      List_iterator_fast<Item> it(fields);
-      Item *item;
-      TABLE_LIST *tbl= 0;            // reset for call to check_single_table()
-      table_map map= 0;
-
-      while ((item= it++))
-        map|= item->used_tables();
-      if (table_list->check_single_table(&tbl, map, table_list) || tbl == 0)
-      {
-        my_error(ER_VIEW_MULTIUPDATE, MYF(0),
-                 table_list->view_db.str, table_list->view_name.str);
+      if (check_view_single_update(fields, table_list, map))
         return -1;
-      }
-      table_list->table= table= tbl->table;
+      table= table_list->table;
     }
 
     if (check_unique && thd->dupp_field)
@@ -241,7 +288,7 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
 */
 
 static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
-                               List<Item> &update_fields)
+                               List<Item> &update_fields, table_map *map)
 {
   TABLE *table= insert_table_list->table;
   query_id_t timestamp_query_id;
@@ -262,6 +309,10 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
     of all used fields to the threads query_id.
   */
   if (setup_fields(thd, 0, update_fields, 1, 0, 0))
+    return -1;
+
+  if (insert_table_list->effective_algorithm == VIEW_ALGORITHM_MERGE &&
+      check_view_single_update(update_fields, insert_table_list, map))
     return -1;
 
   if (table->timestamp_field)
@@ -910,6 +961,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
   Name_resolution_context_state ctx_state;
   bool insert_into_view= (table_list->view != 0);
   bool res= 0;
+  table_map map= 0;
   DBUG_ENTER("mysql_prepare_insert");
   DBUG_PRINT("enter", ("table_list 0x%lx, table 0x%lx, view %d",
 		       (ulong)table_list, (ulong)table,
@@ -959,12 +1011,12 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
   /* Prepare the fields in the statement. */
   if (values &&
       !(res= check_insert_fields(thd, context->table_list, fields, *values,
-                                 !insert_into_view) ||
+                                 !insert_into_view, &map) ||
         setup_fields(thd, 0, *values, 0, 0, 0)) &&
       duplic == DUP_UPDATE)
   {
     select_lex->no_wrap_view_item= TRUE;
-    res= check_update_fields(thd, context->table_list, update_fields);
+    res= check_update_fields(thd, context->table_list, update_fields, &map);
     select_lex->no_wrap_view_item= FALSE;
     /*
       When we are not using GROUP BY we can refer to other tables in the
@@ -2286,6 +2338,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
   LEX *lex= thd->lex;
   int res;
+  table_map map= 0;
   SELECT_LEX *lex_current_select_save= lex->current_select;
   DBUG_ENTER("select_insert::prepare");
 
@@ -2297,7 +2350,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   */
   lex->current_select= &lex->select_lex;
   res= check_insert_fields(thd, table_list, *fields, values,
-                           !insert_into_view) ||
+                           !insert_into_view, &map) ||
        setup_fields(thd, 0, values, 0, 0, 0);
 
   if (info.handle_duplicates == DUP_UPDATE)
@@ -2315,7 +2368,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
     lex->select_lex.no_wrap_view_item= TRUE;
     res= res || check_update_fields(thd, context->table_list,
-                                    *info.update_fields);
+                                    *info.update_fields, &map);
     lex->select_lex.no_wrap_view_item= FALSE;
     /*
       When we are not using GROUP BY we can refer to other tables in the
