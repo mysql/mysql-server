@@ -91,6 +91,7 @@ static BlockInfo ALL_BLOCKS[] = {
 static const Uint32 ALL_BLOCKS_SZ = sizeof(ALL_BLOCKS)/sizeof(BlockInfo);
 
 static BlockReference readConfigOrder[ALL_BLOCKS_SZ] = {
+  NDBFS_REF, // let it run first to make sure it can start the threads
   CMVMI_REF,
   DBTUP_REF,
   DBACC_REF,
@@ -99,7 +100,6 @@ static BlockReference readConfigOrder[ALL_BLOCKS_SZ] = {
   DBTUX_REF,
   DBDICT_REF,
   DBDIH_REF,
-  NDBFS_REF,
   NDBCNTR_REF,
   QMGR_REF,
   TRIX_REF,
