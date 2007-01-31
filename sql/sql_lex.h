@@ -469,7 +469,7 @@ public:
   void set_thd(THD *thd_arg) { thd= thd_arg; }
 
   friend void lex_start(THD *thd, uchar *buf, uint length);
-  friend int subselect_union_engine::exec(bool);
+  friend int subselect_union_engine::exec();
 
   List<Item> *get_unit_column_types();
 };
@@ -580,6 +580,10 @@ public:
   bool no_wrap_view_item;
   /* exclude this select from check of unique_table() */
   bool exclude_from_table_unique_test;
+  /* List of fields that aren't under an aggregate function */
+  List<Item_field> non_agg_fields;
+  /* index in the select list of the expression currently being fixed */
+  int cur_pos_in_select_list;
 
   List<udf_func>     udf_list;                  /* udf function calls stack */
 

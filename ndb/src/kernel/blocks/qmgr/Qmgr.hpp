@@ -425,6 +425,10 @@ private:
   
   StopReq c_stopReq;
   bool check_multi_node_shutdown(Signal* signal);
+
+#ifdef ERROR_INSERT
+  Uint32 c_error_insert_extra;
+#endif
 };
 
 #endif
