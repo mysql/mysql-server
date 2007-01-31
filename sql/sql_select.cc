@@ -8598,6 +8598,8 @@ Field* create_tmp_field_from_field(THD *thd, Field* org_field,
     if (org_field->type() == MYSQL_TYPE_VAR_STRING ||
         org_field->type() == MYSQL_TYPE_VARCHAR)
       table->s->db_create_options|= HA_OPTION_PACK_RECORD;
+    else if (org_field->type() == FIELD_TYPE_DOUBLE)
+      ((Field_double *) new_field)->not_fixed= TRUE;
   }
   return new_field;
 }
@@ -8638,7 +8640,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
   switch (item->result_type()) {
   case REAL_RESULT:
     new_field=new Field_double(item->max_length, maybe_null,
-			       item->name, table, item->decimals);
+			       item->name, table, item->decimals, TRUE);
     break;
   case INT_RESULT:
     /* Select an integer type with the minimal fit precision */

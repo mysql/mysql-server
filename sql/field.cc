@@ -4064,7 +4064,7 @@ int Field_double::store(double nr)
   else 
   {
     double max_value;
-    if (dec >= NOT_FIXED_DEC)
+    if (not_fixed)
     {
       max_value= DBL_MAX;
     }
