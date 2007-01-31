@@ -70,6 +70,7 @@
 
 #include <NdbOut.hpp>
 #include <DebuggerNames.hpp>
+#include <signaldata/CheckNodeGroups.hpp>
 
 #include <signaldata/RouteOrd.hpp>
 
@@ -7514,12 +7515,24 @@ Dbtc::sendTCKEY_FAILREF(Signal* signal, const ApiConnectRecord * regApiPtr){
   jam();
 
   const Uint32 ref = regApiPtr->ndbapiBlockref;
-  if(ref != 0){
+  const Uint32 nodeId = refToNode(ref);
+  if(ref != 0)
+  {
+    jam();
+    bool connectedToNode = getNodeInfo(nodeId).m_connected;
     signal->theData[0] = regApiPtr->ndbapiConnect;
     signal->theData[1] = regApiPtr->transid[0];
     signal->theData[2] = regApiPtr->transid[1];
-  
-    sendSignal(ref, GSN_TCKEY_FAILREF, signal, 3, JBB);
+    
+    if (likely(connectedToNode))
+    {
+      jam();
+      sendSignal(ref, GSN_TCKEY_FAILREF, signal, 3, JBB);
+    }
+    else
+    {
+      routeTCKEY_FAILREFCONF(signal, regApiPtr, GSN_TCKEY_FAILREF, 3);
+    }
   }
 }
 
@@ -7530,15 +7543,99 @@ Dbtc::sendTCKEY_FAILCONF(Signal* signal, ApiConnectRecord * regApiPtr){
   
   const Uint32 ref = regApiPtr->ndbapiBlockref;
   const Uint32 marker = regApiPtr->commitAckMarker;
-  if(ref != 0){
+  const Uint32 nodeId = refToNode(ref);
+  if(ref != 0)
+  {
+    jam()
     failConf->apiConnectPtr = regApiPtr->ndbapiConnect | (marker != RNIL);
     failConf->transId1 = regApiPtr->transid[0];
     failConf->transId2 = regApiPtr->transid[1];
     
-    sendSignal(regApiPtr->ndbapiBlockref,
-	       GSN_TCKEY_FAILCONF, signal, TcKeyFailConf::SignalLength, JBB);
+    bool connectedToNode = getNodeInfo(nodeId).m_connected;
+    if (likely(connectedToNode))
+    {
+      jam();
+      sendSignal(ref, GSN_TCKEY_FAILCONF, signal, 
+		 TcKeyFailConf::SignalLength, JBB);
+    }
+    else
+    {
+      routeTCKEY_FAILREFCONF(signal, regApiPtr,
+			     GSN_TCKEY_FAILCONF, TcKeyFailConf::SignalLength);
+    }
   }
   regApiPtr->commitAckMarker = RNIL;
+}
+
+void
+Dbtc::routeTCKEY_FAILREFCONF(Signal* signal, const ApiConnectRecord* regApiPtr,
+			     Uint32 gsn, Uint32 len)
+{
+  jam();
+
+  Uint32 ref = regApiPtr->ndbapiBlockref;
+
+  /**
+   * We're not connected
+   *   so we find another node in same node group as died node
+   *   and send to it, so that it can forward
+   */
+  tcNodeFailptr.i = regApiPtr->takeOverRec;
+  ptrCheckGuard(tcNodeFailptr, 1, tcFailRecord);
+
+  /**
+   * Save signal
+   */
+  Uint32 save[25];
+  ndbrequire(len <= 25);
+  memcpy(save, signal->theData, 4*len);
+  
+  Uint32 node = tcNodeFailptr.p->takeOverNode;
+  
+  CheckNodeGroups * sd = (CheckNodeGroups*)signal->getDataPtrSend();
+  sd->blockRef = reference();
+  sd->requestType =
+    CheckNodeGroups::Direct |
+    CheckNodeGroups::GetNodeGroupMembers;
+  sd->nodeId = node;
+  EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
+		 CheckNodeGroups::SignalLength);
+  jamEntry();
+  
+  NdbNodeBitmask mask;
+  mask.assign(sd->mask);
+  mask.clear(getOwnNodeId());
+  memcpy(signal->theData, save, 4*len);
+  
+  Uint32 i = 0;
+  while((i = mask.find(i + 1)) != NdbNodeBitmask::NotFound)
+  {
+    jam();
+    HostRecordPtr localHostptr;
+    localHostptr.i = i;
+    ptrCheckGuard(localHostptr, chostFilesize, hostRecord);
+    if (localHostptr.p->hostStatus == HS_ALIVE) 
+    {
+      jam();
+      signal->theData[len] = gsn;
+      signal->theData[len+1] = ref;
+      sendSignal(calcTcBlockRef(i), GSN_TCKEY_FAILREFCONF_R, 
+		 signal, len+2, JBB);
+      return;
+    }
+  }
+  
+  ndbrequire(false); // Unable to find alive node in node group...
+}
+
+void
+Dbtc::execTCKEY_FAILREFCONF_R(Signal* signal)
+{
+  jamEntry();
+  Uint32 len = signal->getLength();
+  Uint32 gsn = signal->theData[len-2];
+  Uint32 ref = signal->theData[len-1];
+  sendSignal(ref, gsn, signal, len-2, JBB);
 }
 
 /*------------------------------------------------------------*/
