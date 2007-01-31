@@ -187,6 +187,31 @@ select 1e-308, 1.00000001e-300, 100000000e-300;
 # check if overflows are detected correctly
 select 10e307;
 
+#
+# Bug #19690: ORDER BY eliminates rows from the result
+#
+create table t1(a int, b double(8, 2));
+insert into t1 values
+(1, 28.50), (1, 121.85), (1, 157.23), (1, 1351.00), (1, -1965.35), (1, 81.75), 
+(1, 217.08), (1, 7.94), (4, 96.07), (4, 6404.65), (4, -6500.72), (2, 100.00),
+(5, 5.00), (5, -2104.80), (5, 2033.80), (5, 0.07), (5, 65.93),
+(3, -4986.24), (3, 5.00), (3, 4857.34), (3, 123.74), (3,  0.16),
+(6, -1695.31), (6, 1003.77), (6, 499.72), (6, 191.82);
+explain select sum(b) s from t1 group by a;
+select sum(b) s from t1 group by a;
+select sum(b) s from t1 group by a having s <> 0;
+select sum(b) s from t1 group by a having s <> 0 order by s;
+select sum(b) s from t1 group by a having s <=> 0;
+select sum(b) s from t1 group by a having s <=> 0 order by s;
+alter table t1 add key (a, b);
+explain select sum(b) s from t1 group by a;
+select sum(b) s from t1 group by a;
+select sum(b) s from t1 group by a having s <> 0;
+select sum(b) s from t1 group by a having s <> 0 order by s;
+select sum(b) s from t1 group by a having s <=> 0;
+select sum(b) s from t1 group by a having s <=> 0 order by s;
+drop table t1;
+
 --echo End of 4.1 tests
 
 #
