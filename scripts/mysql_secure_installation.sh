@@ -22,6 +22,16 @@ command=".mysql.$$"
 trap "interrupt" 2
 
 rootpass=""
+echo_n=
+echo_c=
+
+set_echo_compat() {
+    case `echo "testing\c"`,`echo -n testing` in
+	*c*,-n*) echo_n=   echo_c=     ;;
+	*c*,*)   echo_n=-n echo_c=     ;;
+	*)       echo_n=   echo_c='\c' ;;
+    esac
+}
 
 prepare() {
     touch $config $command
@@ -45,7 +55,7 @@ get_root_password() {
     status=1
     while [ $status -eq 1 ]; do
 	stty -echo
-	echo -n "Enter current password for root (enter for none): "
+	echo $echo_n "Enter current password for root (enter for none): $echo_c"
 	read password
 	echo
 	stty echo
@@ -65,10 +75,10 @@ get_root_password() {
 
 set_root_password() {
     stty -echo
-    echo -n "New password: "
+    echo $echo_n "New password: $echo_c"
     read password1
     echo
-    echo -n "Re-enter new password: "
+    echo $echo_n "Re-enter new password: $echo_c"
     read password2
     echo
     stty echo
@@ -173,6 +183,7 @@ cleanup() {
 # The actual script starts here
 
 prepare
+set_echo_compat
 
 echo
 echo
@@ -201,11 +212,11 @@ echo "root user without the proper authorisation."
 echo
 
 if [ $hadpass -eq 0 ]; then
-    echo -n "Set root password? [Y/n] "
+    echo $echo_n "Set root password? [Y/n] $echo_c"
 else
     echo "You already have a root password set, so you can safely answer 'n'."
     echo
-    echo -n "Change the root password? [Y/n] "
+    echo $echo_n "Change the root password? [Y/n] $echo_c"
 fi
 
 read reply
@@ -232,7 +243,7 @@ echo "go a bit smoother.  You should remove them before moving into a"
 echo "production environment."
 echo
 
-echo -n "Remove anonymous users? [Y/n] "
+echo $echo_n "Remove anonymous users? [Y/n] $echo_c"
 
 read reply
 if [ "$reply" = "n" ]; then
@@ -251,7 +262,7 @@ echo "Normally, root should only be allowed to connect from 'localhost'.  This"
 echo "ensures that someone cannot guess at the root password from the network."
 echo
 
-echo -n "Disallow root login remotely? [Y/n] "
+echo $echo_n "Disallow root login remotely? [Y/n] $echo_c"
 read reply
 if [ "$reply" = "n" ]; then
     echo " ... skipping."
@@ -270,7 +281,7 @@ echo "access.  This is also intended only for testing, and should be removed"
 echo "before moving into a production environment."
 echo
 
-echo -n "Remove test database and access to it? [Y/n] "
+echo $echo_n "Remove test database and access to it? [Y/n] $echo_c"
 read reply
 if [ "$reply" = "n" ]; then
     echo " ... skipping."
@@ -288,7 +299,7 @@ echo "Reloading the privilege tables will ensure that all changes made so far"
 echo "will take effect immediately."
 echo
 
-echo -n "Reload privilege tables now? [Y/n] "
+echo $echo_n "Reload privilege tables now? [Y/n] $echo_c"
 read reply
 if [ "$reply" = "n" ]; then
     echo " ... skipping."

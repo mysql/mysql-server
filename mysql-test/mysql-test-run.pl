@@ -58,6 +58,7 @@ $Devel::Trace::TRACE= 0;       # Don't trace boring init stuff
 use File::Path;
 use File::Basename;
 use File::Copy;
+use File::Temp qw / tempdir /;
 use Cwd;
 use Getopt::Long;
 use Sys::Hostname;
@@ -222,10 +223,12 @@ our $opt_ndbconnectstring_slave;
 our $opt_record;
 our $opt_report_features;
 our $opt_check_testcases;
+our $opt_mark_progress;
 
 our $opt_skip;
 our $opt_skip_rpl;
 our $max_slave_num= 0;
+our $max_master_num= 0;
 our $use_innodb;
 our $opt_skip_test;
 our $opt_skip_im;
@@ -403,6 +406,15 @@ sub main () {
 	$max_slave_num= $test->{slave_num};
 	mtr_error("Too many slaves") if $max_slave_num > 3;
       }
+
+      # Count max number of masters used by a test case
+      if ( $test->{master_num} > $max_master_num)
+      {
+	$max_master_num= $test->{master_num};
+	mtr_error("Too many masters") if $max_master_num > 2;
+	mtr_error("Too few masters") if $max_master_num < 1;
+      }
+
       $use_innodb||= $test->{'innodb_test'};
     }
 
@@ -555,6 +567,7 @@ sub command_line_setup () {
              # Test case authoring
              'record'                   => \$opt_record,
              'check-testcases'          => \$opt_check_testcases,
+             'mark-progress'            => \$opt_mark_progress,
 
              # Extra options used when starting mysqld
              'mysqld=s'                 => \@opt_extra_mysqld_opt,
@@ -1030,6 +1043,11 @@ sub command_line_setup () {
   my $sockdir = $opt_tmpdir;
   $sockdir =~ s|/+$||;
 
+  # On some operating systems, there is a limit to the length of a
+  # UNIX domain socket's path far below PATH_MAX, so try to avoid long
+  # socket path names.
+  $sockdir = tempdir(CLEANUP => 0) if ( length($sockdir) > 80 );
+
   # Put this into a hash, will be a C struct
 
   $master->[0]=
@@ -1215,14 +1233,28 @@ sub command_line_setup () {
   $path_ndb_testrun_log= "$opt_vardir/log/ndb_testrun.log";
 
   $path_snapshot= "$opt_tmpdir/snapshot_$opt_master_myport/";
+
+  if ( $opt_valgrind and $opt_debug )
+  {
+    # When both --valgrind and --debug is selected, send
+    # all output to the trace file, making it possible to
+    # see the exact location where valgrind complains
+    foreach my $mysqld (@{$master}, @{$slave})
+    {
+      my $sidx= $mysqld->{idx} ? "$mysqld->{idx}" : "";
+      $mysqld->{path_myerr}=
+	"$opt_vardir/log/" . $mysqld->{type} . "$sidx.trace";
+    }
+  }
 }
 
 sub datadir_list_setup () {
 
   # Make a list of all data_dirs
-  @data_dir_lst = (
-    $master->[0]->{'path_myddir'},
-    $master->[1]->{'path_myddir'});
+  for (my $idx= 0; $idx < $max_master_num; $idx++)
+  {
+    push(@data_dir_lst, $master->[$idx]->{'path_myddir'});
+  }
 
   for (my $idx= 0; $idx < $max_slave_num; $idx++)
   {
@@ -2629,8 +2661,10 @@ sub mysql_install_db () {
 
   install_db('master', $master->[0]->{'path_myddir'});
 
-  # FIXME check if testcase really is using second master
-  copy_install_db('master', $master->[1]->{'path_myddir'});
+  if ($max_master_num)
+  {
+    copy_install_db('master', $master->[1]->{'path_myddir'});
+  }
 
   # Install the number of slave databses needed
   for (my $idx= 0; $idx < $max_slave_num; $idx++)
@@ -3432,10 +3466,9 @@ sub mysqld_arguments ($$$$$) {
   if ( $glob_use_embedded_server )
   {
     $prefix= "--server-arg=";
-  } else {
-    # We can't pass embedded server --no-defaults
-    mtr_add_arg($args, "--no-defaults");
   }
+
+  mtr_add_arg($args, "%s--no-defaults", $prefix);
 
   mtr_add_arg($args, "%s--console", $prefix);
   mtr_add_arg($args, "%s--basedir=%s", $prefix, $path_my_basedir);
@@ -4165,7 +4198,8 @@ sub run_testcase_start_servers($) {
 
     }
 
-    if ( $clusters->[0]->{'pid'} and ! $master->[1]->{'pid'} )
+    if ( $clusters->[0]->{'pid'} and ! $master->[1]->{'pid'} and
+	 $tinfo->{'master_num'} > 1 )
     {
       # Test needs cluster, start an extra mysqld connected to cluster
 
@@ -4375,6 +4409,10 @@ sub run_mysqltest ($) {
   mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
   mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
+
+  # Log line number and time  for each line in .test file
+  mtr_add_arg($args, "--mark-progress")
+    if $opt_mark_progress;
 
   if ($tinfo->{'component_id'} eq 'im')
   {
@@ -4829,6 +4867,7 @@ Options for test case authoring
 
   record TESTNAME       (Re)genereate the result file for TESTNAME
   check-testcases       Check testcases for sideeffects
+  mark-progress         Log line number and elapsed time to <testname>.progress
 
 Options that pass on options
 

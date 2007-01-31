@@ -6,3 +6,9 @@ use prn;
 ERROR 42000: Unknown database 'prn'
 create table nu (a int);
 drop table nu;
+drop table if exists t1;
+CREATE TABLE t1 ( `ID` int(6) ) data directory 'c:/tmp/' index directory 'c:/tmp/' engine=MyISAM;
+Warnings:
+Warning	0	DATA DIRECTORY option ignored
+Warning	0	INDEX DIRECTORY option ignored
+drop table t1;
