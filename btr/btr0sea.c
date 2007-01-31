@@ -727,9 +727,7 @@ btr_search_guess_on_hash(
 	rec_t*		rec;
 	const page_t*	page;
 	ulint		fold;
-	ulint		tuple_n_fields;
 	dulint		index_id;
-	ibool		can_only_compare_to_cursor_rec = TRUE;
 #ifdef notdefined
 	btr_cur_t	cursor2;
 	btr_pcur_t	pcur;
@@ -749,15 +747,8 @@ btr_search_guess_on_hash(
 	cursor->n_fields = info->n_fields;
 	cursor->n_bytes = info->n_bytes;
 
-	tuple_n_fields = dtuple_get_n_fields(tuple);
-
-	if (UNIV_UNLIKELY(tuple_n_fields < cursor->n_fields)) {
-
-		return(FALSE);
-	}
-
-	if (UNIV_UNLIKELY(tuple_n_fields == cursor->n_fields)
-	    && (cursor->n_bytes > 0)) {
+	if (UNIV_UNLIKELY(dtuple_get_n_fields(tuple)
+			  < cursor->n_fields + (cursor->n_bytes > 0))) {
 
 		return(FALSE);
 	}
@@ -820,7 +811,6 @@ btr_search_guess_on_hash(
 		}
 
 		rw_lock_s_unlock(&btr_search_latch);
-		can_only_compare_to_cursor_rec = FALSE;
 
 #ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE_FROM_HASH);
@@ -852,7 +842,7 @@ btr_search_guess_on_hash(
 	if (UNIV_EXPECT(
 		    ut_dulint_cmp(index_id, btr_page_get_index_id(page)), 0)
 	    || !btr_search_check_guess(cursor,
-				       can_only_compare_to_cursor_rec,
+				       has_search_latch,
 				       tuple, mode, mtr)) {
 		if (UNIV_LIKELY(!has_search_latch)) {
 			btr_leaf_page_release(block, latch_mode, mtr);
