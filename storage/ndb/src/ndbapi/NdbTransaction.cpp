@@ -361,10 +361,10 @@ NdbTransaction::execute(ExecType aTypeOfExec,
 	savedError= theError;
       
       /**
-       * If AO_IgnoreError, error codes arent always set on individual
-       *   operations, making postExecute impossible
+       * If transaction is aborted, postExecute is impossible
        */
-      if (abortOption == AO_IgnoreError)
+      if (aTypeOfExec != Rollback && 
+	  (commitStatus() == Aborted || commitStatus() == NeedAbort))
       {
          if (theCompletedFirstOp != NULL)
 	 {
