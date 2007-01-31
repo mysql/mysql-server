@@ -1811,16 +1811,21 @@ Event_job_data::compile(THD *thd, MEM_ROOT *mem_root)
     DBUG_PRINT("error", ("error during compile or thd->is_fatal_error: %d",
                           thd->is_fatal_error));
     /*
-      Free lex associated resources
-      QQ: Do we really need all this stuff here?
+      The first thing we do after parse error is freeing sp_head to
+      ensure that we have restored original memroot.
     */
+    if (lex.sphead)
+    {
+      /* Clean up after failed stored procedure/function */
+      delete lex.sphead;
+      lex.sphead= NULL;
+    }
+    lex.unit.cleanup();
+
     sql_print_error("SCHEDULER: Error during compilation of %s.%s or "
                     "thd->is_fatal_error: %d",
                     dbname.str, name.str, thd->is_fatal_error);
 
-    lex.unit.cleanup();
-    delete lex.sphead;
-    sphead= lex.sphead= NULL;
     ret= EVEX_COMPILE_ERROR;
     goto done;
   }
