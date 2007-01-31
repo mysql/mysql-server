@@ -337,7 +337,7 @@ then
   cp -fp mysql-debug-%{mysql_version}/config.log "$MYSQL_DEBUGCONFLOG_DEST"
 fi
 
-(cd mysql-debug-%{mysql_version}/mysql-test ; \
+(cd mysql-debug-%{mysql_version}/mysql-test ; MTR_BUILD_THREAD=auto ; export MTR_BUILD_THREAD ; \
  ./mysql-test-run.pl --comment=debug --skip-rpl --skip-ndbcluster --force --report-features ; \
  true)
 
@@ -369,6 +369,8 @@ then
 fi
 
 cd mysql-release-%{mysql_version}/mysql-test
+MTR_BUILD_THREAD=auto
+export MTR_BUILD_THREAD
 ./mysql-test-run.pl --comment=normal --force --skip-ndbcluster --timer --report-features || true
 ./mysql-test-run.pl --comment=ps --ps-protocol --force --skip-ndbcluster --timer || true
 ./mysql-test-run.pl --comment=normal+rowrepl --mysqld=--binlog-format=row --force --skip-ndbcluster --timer || true
