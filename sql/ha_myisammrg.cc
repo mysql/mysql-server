@@ -97,7 +97,7 @@ int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
   MI_COLUMNDEF *recinfo;
   MYRG_TABLE *u_table;
   uint recs;
-  uint keys= table->keys;
+  uint keys= table->s->keys;
   int error;
   char name_buff[FN_REFLEN];
 
