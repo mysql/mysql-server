@@ -1853,6 +1853,9 @@ private:
   };
   AbortAllRecord c_abortRec;
 
+  bool validate_filter(Signal*);
+  bool match_and_print(Signal*, ApiConnectRecordPtr);
+
   /************************** API CONNECT RECORD ***********************/
   /* *******************************************************************/
   /* THE API CONNECT RECORD CONTAINS THE CONNECTION RECORD TO WHICH THE*/
