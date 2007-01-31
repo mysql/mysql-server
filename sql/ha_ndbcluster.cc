@@ -4347,10 +4347,10 @@ int ha_ndbcluster::start_stmt(THD *thd, thr_lock_type lock_type)
       ERR_RETURN(ndb->getNdbError());
     no_uncommitted_rows_reset(thd);
     thd_ndb->stmt= trans;
+    thd_ndb->query_state&= NDB_QUERY_NORMAL;
+    m_active_trans= trans;
     trans_register_ha(thd, FALSE, ndbcluster_hton);
   }
-  thd_ndb->query_state&= NDB_QUERY_NORMAL;
-  m_active_trans= trans;
 
   // Start of statement
   m_ops_pending= 0;    
@@ -8292,6 +8292,8 @@ close_scan:
   if (multi_range_curr == multi_range_end)
   {
     DBUG_MULTI_RANGE(16);
+    Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
+    thd_ndb->query_state&= NDB_QUERY_NORMAL;
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
   
