@@ -44,6 +44,7 @@ typedef struct st_keycache_wqueue
 typedef struct st_key_cache
 {
   my_bool key_cache_inited;
+  my_bool in_resize;             /* true during resize operation             */
   my_bool resize_in_flush;       /* true during flush of resize operation    */
   my_bool can_be_used;           /* usage of cache for read/write is allowed */
   uint key_cache_shift;
@@ -72,6 +73,11 @@ typedef struct st_key_cache
   BLOCK_LINK *used_ins;          /* ptr to the insertion block in LRU chain  */
   pthread_mutex_t cache_lock;    /* to lock access to the cache structure    */
   KEYCACHE_WQUEUE resize_queue;  /* threads waiting during resize operation  */
+  /*
+    Waiting for a zero resize count. Using a queue for symmetry though
+    only one thread can wait here.
+  */
+  KEYCACHE_WQUEUE waiting_for_resize_cnt;
   KEYCACHE_WQUEUE waiting_for_hash_link; /* waiting for a free hash link     */
   KEYCACHE_WQUEUE waiting_for_block;    /* requests waiting for a free block */
   BLOCK_LINK *changed_blocks[CHANGED_BLOCKS_HASH]; /* hash for dirty file bl.*/
