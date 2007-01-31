@@ -48,9 +48,6 @@ struct st_remember _my_sig_remember[MAX_SIGNALS]={{0,0}};
 sigset_t my_signals;			/* signals blocked by mf_brkhant */
 #endif
 
-	/* from mf_keycache.c */
-my_bool key_cache_inited=0;
-
 	/* from mf_reccache.c */
 ulong my_default_record_cache_size=RECORD_CACHE_SIZE;
 
