@@ -361,6 +361,7 @@ ulong my_bind_addr;			/* the address we bind to */
 volatile ulong cached_thread_count= 0;
 
 double log_10[32];			/* 10 potences */
+double log_01[32];
 time_t start_time;
 
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];

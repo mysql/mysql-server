@@ -907,6 +907,7 @@ extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
 extern char log_error_file[FN_REFLEN];
 extern double log_10[32];
+extern double log_01[32];
 extern ulonglong log_10_int[20];
 extern ulonglong keybuff_size;
 extern ulong refresh_version,flush_version, thread_id,query_id,opened_tables;
