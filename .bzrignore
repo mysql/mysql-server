@@ -1644,6 +1644,7 @@ ndb/src/kernel/error/liberror.dsp
 ndb/src/kernel/ndbd
 ndb/src/kernel/ndbd.dsp
 ndb/src/kernel/vm/libkernel.dsp
+ndb/src/libndb.ver
 ndb/src/libndbclient.dsp
 ndb/src/mgmapi/libmgmapi.dsp
 ndb/src/mgmclient/libndbmgmclient.dsp
@@ -2638,6 +2639,7 @@ storage/ndb/src/kernel/error/liberror.dsp
 storage/ndb/src/kernel/ndbd
 storage/ndb/src/kernel/ndbd.dsp
 storage/ndb/src/kernel/vm/libkernel.dsp
+storage/ndb/src/libndb.ver
 storage/ndb/src/libndbclient.dsp
 storage/ndb/src/mgmapi/libmgmapi.dsp
 storage/ndb/src/mgmclient/libndbmgmclient.dsp

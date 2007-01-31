@@ -119,7 +119,8 @@ ulint
 ut_2_power_up(
 /*==========*/
 			/* out: first power of 2 which is >= n */
-	ulint	n);	/* in: number != 0 */
+	ulint	n)	/* in: number != 0 */
+	__attribute__((const));
 /****************************************************************
 Sort function for ulint arrays. */
 

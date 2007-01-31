@@ -2498,6 +2498,22 @@ INSERT INTO t1 VALUES (1);
 OPTIMIZE TABLE t1;
 DROP TABLE t1;
 
+#
+# Bug #24741 (existing cascade clauses disappear when adding foreign keys)
+#
+
+CREATE TABLE t1 (id int PRIMARY KEY, f int NOT NULL, INDEX(f)) ENGINE=InnoDB;
+
+CREATE TABLE t2 (id int PRIMARY KEY, f INT NOT NULL,
+  CONSTRAINT t2_t1 FOREIGN KEY (id) REFERENCES t1 (id)
+  ON DELETE CASCADE ON UPDATE CASCADE) ENGINE=InnoDB;
+
+ALTER TABLE t2 ADD FOREIGN KEY (f) REFERENCES t1 (f) ON
+DELETE CASCADE ON UPDATE CASCADE;
+
+SHOW CREATE TABLE t2;
+DROP TABLE t2, t1;
+
 #######################################################################
 #                                                                     #
 # Please, DO NOT TOUCH this file as well as the innodb.result file.   #
