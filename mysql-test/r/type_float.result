@@ -268,6 +268,77 @@ select 1e-308, 1.00000001e-300, 100000000e-300;
 select 10e307;
 10e307
 1e+308
+create table t1(a int, b double(8, 2));
+insert into t1 values
+(1, 28.50), (1, 121.85), (1, 157.23), (1, 1351.00), (1, -1965.35), (1, 81.75), 
+(1, 217.08), (1, 7.94), (4, 96.07), (4, 6404.65), (4, -6500.72), (2, 100.00),
+(5, 5.00), (5, -2104.80), (5, 2033.80), (5, 0.07), (5, 65.93),
+(3, -4986.24), (3, 5.00), (3, 4857.34), (3, 123.74), (3,  0.16),
+(6, -1695.31), (6, 1003.77), (6, 499.72), (6, 191.82);
+explain select sum(b) s from t1 group by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	26	Using temporary; Using filesort
+select sum(b) s from t1 group by a;
+s
+0.00
+100.00
+0.00
+-0.00
+-0.00
+0.00
+select sum(b) s from t1 group by a having s <> 0;
+s
+100.00
+select sum(b) s from t1 group by a having s <> 0 order by s;
+s
+100.00
+select sum(b) s from t1 group by a having s <=> 0;
+s
+0.00
+0.00
+-0.00
+-0.00
+0.00
+select sum(b) s from t1 group by a having s <=> 0 order by s;
+s
+-0.00
+-0.00
+0.00
+0.00
+0.00
+alter table t1 add key (a, b);
+explain select sum(b) s from t1 group by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	a	14	NULL	26	Using index
+select sum(b) s from t1 group by a;
+s
+0.00
+100.00
+0.00
+-0.00
+0.00
+0.00
+select sum(b) s from t1 group by a having s <> 0;
+s
+100.00
+select sum(b) s from t1 group by a having s <> 0 order by s;
+s
+100.00
+select sum(b) s from t1 group by a having s <=> 0;
+s
+0.00
+0.00
+-0.00
+0.00
+0.00
+select sum(b) s from t1 group by a having s <=> 0 order by s;
+s
+-0.00
+0.00
+0.00
+0.00
+0.00
+drop table t1;
 End of 4.1 tests
 create table t1 (s1 float(0,2));
 ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column 's1').
