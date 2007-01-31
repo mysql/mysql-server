@@ -402,7 +402,7 @@ trx_undo_page_report_modify(
 	trx_t*		trx,		/* in: transaction */
 	dict_index_t*	index,		/* in: clustered index where update or
 					delete marking is done */
-	rec_t*		rec,		/* in: clustered index record which
+	const rec_t*	rec,		/* in: clustered index record which
 					has NOT yet been modified */
 	const ulint*	offsets,	/* in: rec_get_offsets(rec, index) */
 	upd_t*		update,		/* in: update vector which tells the
@@ -413,18 +413,12 @@ trx_undo_page_report_modify(
 	mtr_t*		mtr)		/* in: mtr */
 {
 	dict_table_t*	table;
-	upd_field_t*	upd_field;
 	ulint		first_free;
 	byte*		ptr;
 	ulint		len;
-	byte*		field;
+	const byte*	field;
 	ulint		flen;
-	ulint		pos;
-	dulint		roll_ptr;
-	dulint		trx_id;
-	ulint		bits;
 	ulint		col_no;
-	byte*		old_ptr;
 	ulint		type_cmpl;
 	byte*		type_cmpl_ptr;
 	ulint		i;
@@ -454,17 +448,15 @@ trx_undo_page_report_modify(
 
 	/* Store first some general parameters to the undo log */
 
-	if (update) {
-		if (rec_get_deleted_flag(rec, dict_table_is_comp(table))) {
-			type_cmpl = TRX_UNDO_UPD_DEL_REC;
-		} else {
-			type_cmpl = TRX_UNDO_UPD_EXIST_REC;
-		}
-	} else {
+	if (!update) {
 		type_cmpl = TRX_UNDO_DEL_MARK_REC;
+	} else if (rec_get_deleted_flag(rec, dict_table_is_comp(table))) {
+		type_cmpl = TRX_UNDO_UPD_DEL_REC;
+	} else {
+		type_cmpl = TRX_UNDO_UPD_EXIST_REC;
 	}
 
-	type_cmpl = type_cmpl | (cmpl_info * TRX_UNDO_CMPL_INFO_MULT);
+	type_cmpl |= cmpl_info * TRX_UNDO_CMPL_INFO_MULT;
 
 	mach_write_to_1(ptr, type_cmpl);
 
@@ -480,26 +472,23 @@ trx_undo_page_report_modify(
 	/*----------------------------------------*/
 	/* Store the state of the info bits */
 
-	bits = rec_get_info_bits(rec, dict_table_is_comp(table));
-	mach_write_to_1(ptr, bits);
-	ptr += 1;
+	*ptr++ = rec_get_info_bits(rec, dict_table_is_comp(table));
 
 	/* Store the values of the system columns */
 	field = rec_get_nth_field(rec, offsets,
 				  dict_index_get_sys_col_pos(
 					  index, DATA_TRX_ID), &len);
 	ut_ad(len == DATA_TRX_ID_LEN);
-	trx_id = trx_read_trx_id(field);
+
+	len = mach_dulint_write_compressed(ptr, trx_read_trx_id(field));
+	ptr += len;
+
 	field = rec_get_nth_field(rec, offsets,
 				  dict_index_get_sys_col_pos(
 					  index, DATA_ROLL_PTR), &len);
 	ut_ad(len == DATA_ROLL_PTR_LEN);
-	roll_ptr = trx_read_roll_ptr(field);
 
-	len = mach_dulint_write_compressed(ptr, trx_id);
-	ptr += len;
-
-	len = mach_dulint_write_compressed(ptr, roll_ptr);
+	len = mach_dulint_write_compressed(ptr, trx_read_roll_ptr(field));
 	ptr += len;
 
 	/*----------------------------------------*/
@@ -543,8 +532,7 @@ trx_undo_page_report_modify(
 
 		for (i = 0; i < upd_get_n_fields(update); i++) {
 
-			upd_field = upd_get_nth_field(update, i);
-			pos = upd_field->field_no;
+			ulint	pos = upd_get_nth_field(update, i)->field_no;
 
 			/* Write field number to undo log */
 			if (trx_undo_left(undo_page, ptr) < 5) {
@@ -576,8 +564,7 @@ trx_undo_page_report_modify(
 
 				trx->update_undo->del_marks = TRUE;
 
-				*type_cmpl_ptr = *type_cmpl_ptr
-					| TRX_UNDO_UPD_EXTERN;
+				*type_cmpl_ptr |= TRX_UNDO_UPD_EXTERN;
 			} else {
 				len = mach_write_compressed(ptr, flen);
 			}
@@ -609,6 +596,7 @@ trx_undo_page_report_modify(
 	stored data. */
 
 	if (!update || !(cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
+		byte*	old_ptr = ptr;
 
 		trx->update_undo->del_marks = TRUE;
 
@@ -616,8 +604,6 @@ trx_undo_page_report_modify(
 
 			return(0);
 		}
-
-		old_ptr = ptr;
 
 		/* Reserve 2 bytes to write the number of bytes the stored
 		fields take in this undo record */
@@ -632,8 +618,8 @@ trx_undo_page_report_modify(
 
 			if (col->ord_part > 0) {
 
-				pos = dict_index_get_nth_col_pos(index,
-								 col_no);
+				ulint	pos = dict_index_get_nth_col_pos(
+					index, col_no);
 
 				/* Write field number to undo log */
 				if (trx_undo_left(undo_page, ptr) < 5) {
@@ -1018,7 +1004,7 @@ trx_undo_report_row_operation(
 					the update vector, otherwise NULL */
 	ulint		cmpl_info,	/* in: compiler info on secondary
 					index updates */
-	rec_t*		rec,		/* in: in case of an update or delete
+	const rec_t*	rec,		/* in: in case of an update or delete
 					marking, the record in the clustered
 					index, otherwise NULL */
 	dulint*		roll_ptr)	/* out: rollback pointer to the
@@ -1028,11 +1014,8 @@ trx_undo_report_row_operation(
 {
 	trx_t*		trx;
 	trx_undo_t*	undo;
-	buf_block_t*	undo_block;
-	page_t*		undo_page;
 	ulint		offset;
 	ulint		page_no;
-	ibool		is_insert;
 	trx_rseg_t*	rseg;
 	mtr_t		mtr;
 	mem_heap_t*	heap		= NULL;
@@ -1068,7 +1051,13 @@ trx_undo_report_row_operation(
 		}
 
 		undo = trx->insert_undo;
-		is_insert = TRUE;
+
+		if (UNIV_UNLIKELY(!undo)) {
+			/* Did not succeed: out of space */
+			mutex_exit(&(trx->undo_mutex));
+
+			return(DB_OUT_OF_FILE_SPACE);
+		}
 	} else {
 		ut_ad(op_type == TRX_UNDO_MODIFY_OP);
 
@@ -1079,14 +1068,16 @@ trx_undo_report_row_operation(
 		}
 
 		undo = trx->update_undo;
-		is_insert = FALSE;
-	}
 
-	if (undo == NULL) {
-		/* Did not succeed: out of space */
-		mutex_exit(&(trx->undo_mutex));
+		if (UNIV_UNLIKELY(!undo)) {
+			/* Did not succeed: out of space */
+			mutex_exit(&(trx->undo_mutex));
 
-		return(DB_OUT_OF_FILE_SPACE);
+			return(DB_OUT_OF_FILE_SPACE);
+		}
+
+		offsets = rec_get_offsets(rec, index, offsets,
+					  ULINT_UNDEFINED, &heap);
 	}
 
 	page_no = undo->last_page_no;
@@ -1094,6 +1085,9 @@ trx_undo_report_row_operation(
 	mtr_start(&mtr);
 
 	for (;;) {
+		buf_block_t*	undo_block;
+		page_t*		undo_page;
+
 		undo_block = buf_page_get_gen(undo->space, undo->zip_size,
 					      page_no, RW_X_LATCH,
 					      undo->guess_block, BUF_GET,
@@ -1107,8 +1101,6 @@ trx_undo_report_row_operation(
 			offset = trx_undo_page_report_insert(
 				undo_page, trx, index, clust_entry, &mtr);
 		} else {
-			offsets = rec_get_offsets(rec, index, offsets,
-						  ULINT_UNDEFINED, &heap);
 			offset = trx_undo_page_report_modify(
 				undo_page, trx, index, rec, offsets, update,
 				cmpl_info, &mtr);
@@ -1120,13 +1112,21 @@ trx_undo_report_row_operation(
 			record of it to to ensure deterministic contents. */
 
 			trx_undo_erase_page_end(undo_page, &mtr);
-		}
-
-		mtr_commit(&mtr);
-
-		if (offset != 0) {
+			mtr_commit(&mtr);
+		} else {
 			/* Success */
 
+			mtr_commit(&mtr);
+
+			undo->empty = FALSE;
+			undo->top_page_no = page_no;
+			undo->top_offset  = offset;
+			undo->top_undo_no = trx->undo_no;
+			undo->guess_block = undo_block;
+
+			UT_DULINT_INC(trx->undo_no);
+
+			mutex_exit(&trx->undo_mutex);
 			break;
 		}
 
@@ -1146,7 +1146,7 @@ trx_undo_report_row_operation(
 
 		mutex_exit(&(rseg->mutex));
 
-		if (page_no == FIL_NULL) {
+		if (UNIV_UNLIKELY(page_no == FIL_NULL)) {
 			/* Did not succeed: out of space */
 
 			mutex_exit(&(trx->undo_mutex));
@@ -1158,18 +1158,8 @@ trx_undo_report_row_operation(
 		}
 	}
 
-	undo->empty = FALSE;
-	undo->top_page_no = page_no;
-	undo->top_offset  = offset;
-	undo->top_undo_no = trx->undo_no;
-	undo->guess_block = undo_block;
-
-	UT_DULINT_INC(trx->undo_no);
-
-	mutex_exit(&(trx->undo_mutex));
-
-	*roll_ptr = trx_undo_build_roll_ptr(is_insert, rseg->id, page_no,
-					    offset);
+	*roll_ptr = trx_undo_build_roll_ptr(op_type == TRX_UNDO_INSERT_OP,
+					    rseg->id, page_no, offset);
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
