@@ -194,7 +194,7 @@ trx_undo_report_row_operation(
 					the update vector, otherwise NULL */
 	ulint		cmpl_info,	/* in: compiler info on secondary
 					index updates */
-	rec_t*		rec,		/* in: case of an update or delete
+	const rec_t*	rec,		/* in: case of an update or delete
 					marking, the record in the clustered
 					index, otherwise NULL */
 	dulint*		roll_ptr);	/* out: rollback pointer to the
