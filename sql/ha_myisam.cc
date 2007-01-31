@@ -1728,12 +1728,13 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 		      HA_CREATE_INFO *info)
 {
   int error;
-  uint create_flags= 0, options= table_arg->db_options_in_use, records;
+  uint create_flags= 0, records;
   char buff[FN_REFLEN];
   MI_KEYDEF *keydef;
   MI_COLUMNDEF *recinfo;
   MI_CREATE_INFO create_info;
   TABLE_SHARE *share= table->s;
+  uint options= share->db_options_in_use;
   DBUG_ENTER("ha_myisam::create");
   if ((error= table2myisam(table_arg, &keydef, &recinfo, &records)))
     DBUG_RETURN(error); /* purecov: inspected */
