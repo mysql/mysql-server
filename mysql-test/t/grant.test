@@ -939,4 +939,16 @@ REVOKE EXECUTE ON PROCEDURE p1 FROM 1234567890abcdefGHIKL@localhost;
 
 --error ER_WRONG_STRING_LENGTH
 REVOKE EXECUTE ON PROCEDURE t1 FROM some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
+
+#
+# Bug #6774: Replication fails with Wrong usage of DB GRANT and GLOBAL PRIVILEGES
+#
+# Check if GRANT ... ON * ... fails when no database is selected
+connect (con1, localhost, root,,*NO-ONE*)
+connection con1;
+--error ER_NO_DB_ERROR
+GRANT PROCESS ON * TO user@localhost;
+disconnect con1;
+connection default;
+
 --echo End of 5.0 tests

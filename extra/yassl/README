@@ -1,4 +1,20 @@
-yaSSL Release notes, version 1.5.0 (11/09/06)
+*****************yaSSL Release notes, version 1.5.8 (1/10/07)
+
+    This release of yaSSL contains bug fixes, portability enhancements, and
+    support for GCC 4.1.1 and vs2005 sp1.
+
+
+
+    Since yaSSL now supports zlib, as does libcur, the libcurl build test can
+    fail if yaSSL is built with zlib support since the zlib library isn't 
+    passed.  You can do two things to fix this: 
+
+        1) build yaSSL w/o zlib --without-zlib
+        2) or add flags to curl configure LDFLAGS="-lm -lz"
+
+
+
+*****************yaSSL Release notes, version 1.5.0 (11/09/06)
 
     This release of yaSSL contains bug fixes, portability enhancements,
     and full TLS 1.1 support.  Use the functions:
@@ -7,7 +23,7 @@ yaSSL Release notes, version 1.5.0 (11/09/06)
         SSL_METHOD *TLSv1_1_client_method(void);
     
     or the SSLv23 versions (even though yaSSL doesn't support SSL 2.0 the v23
-    means to pick the highest of SSL 3.0, TLS 1.0, or TLS 1.1.
+    means to pick the highest of SSL 3.0, TLS 1.0, or TLS 1.1).
 
 
 See normal  build instructions below under 1.0.6.

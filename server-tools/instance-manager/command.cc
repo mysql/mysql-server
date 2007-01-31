@@ -17,9 +17,8 @@
 #pragma implementation
 #endif
 
-#include "command.h"
 #include "manager.h"
-
+#include "command.h"
 
 Command::Command()
   :guardian(Manager::get_guardian()),
