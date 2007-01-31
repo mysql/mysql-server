@@ -3642,3 +3642,33 @@ INSERT into t1 values (1), (2), (3);
 SELECT * FROM t1 LIMIT 2, -1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 1
 DROP TABLE t1;
+create table t1 (a bigint unsigned);
+insert into t1 values
+(if(1, 9223372036854775808, 1)),
+(case when 1 then 9223372036854775808 else 1 end),
+(coalesce(9223372036854775808, 1));
+select * from t1;
+a
+9223372036854775808
+9223372036854775808
+9223372036854775808
+drop table t1;
+create table t1 select
+if(1, 9223372036854775808, 1) i,
+case when 1 then 9223372036854775808 else 1 end c,
+coalesce(9223372036854775808, 1) co;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` decimal(19,0) NOT NULL DEFAULT '0',
+  `c` decimal(19,0) NOT NULL DEFAULT '0',
+  `co` decimal(19,0) NOT NULL DEFAULT '0'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+select 
+if(1, cast(1111111111111111111 as unsigned), 1) i,
+case when 1 then cast(1111111111111111111 as unsigned) else 1 end c,
+coalesce(cast(1111111111111111111 as unsigned), 1) co;
+i	c	co
+1111111111111111111	1111111111111111111	1111111111111111111
+End of 5.0 tests

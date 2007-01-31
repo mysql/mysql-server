@@ -400,7 +400,7 @@ Field *Item_sum::create_tmp_field(bool group, TABLE *table,
   Field *field;
   switch (result_type()) {
   case REAL_RESULT:
-    field= new Field_double(max_length, maybe_null, name, decimals);
+    field= new Field_double(max_length, maybe_null, name, decimals, TRUE);
     break;
   case INT_RESULT:
     field= new Field_longlong(max_length, maybe_null, name, unsigned_flag);
@@ -1135,7 +1135,7 @@ Field *Item_sum_avg::create_tmp_field(bool group, TABLE *table,
     field= new Field_new_decimal(max_length, maybe_null, name,
                                  decimals, unsigned_flag);
   else
-    field= new Field_double(max_length, maybe_null, name, decimals);
+    field= new Field_double(max_length, maybe_null, name, decimals, TRUE);
   if (field)
     field->init(table);
   return field;
@@ -1334,7 +1334,7 @@ Field *Item_sum_variance::create_tmp_field(bool group, TABLE *table,
     field= new Field_string(sizeof(double)*2 + sizeof(longlong), 0, name, &my_charset_bin);
   }
   else
-    field= new Field_double(max_length, maybe_null, name, decimals);
+    field= new Field_double(max_length, maybe_null, name, decimals, TRUE);
 
   if (field != NULL)
     field->init(table);

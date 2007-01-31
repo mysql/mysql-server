@@ -3134,3 +3134,27 @@ SELECT * FROM t1 LIMIT 2, -1;
 
 DROP TABLE t1;
 
+#
+# Bug #22026: Warning when using IF statement and large unsigned bigint
+#
+
+create table t1 (a bigint unsigned);
+insert into t1 values
+  (if(1, 9223372036854775808, 1)),
+  (case when 1 then 9223372036854775808 else 1 end),
+  (coalesce(9223372036854775808, 1));
+select * from t1;
+drop table t1;
+create table t1 select
+  if(1, 9223372036854775808, 1) i,
+  case when 1 then 9223372036854775808 else 1 end c,
+  coalesce(9223372036854775808, 1) co;
+show create table t1;
+drop table t1;
+# Ensure we handle big values properly
+select 
+  if(1, cast(1111111111111111111 as unsigned), 1) i,
+  case when 1 then cast(1111111111111111111 as unsigned) else 1 end c,
+  coalesce(cast(1111111111111111111 as unsigned), 1) co;
+
+--echo End of 5.0 tests

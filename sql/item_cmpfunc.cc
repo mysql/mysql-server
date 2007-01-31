@@ -26,13 +26,17 @@
 
 static bool convert_constant_item(THD *thd, Field *field, Item **item);
 
-static Item_result item_store_type(Item_result a,Item_result b)
+static Item_result item_store_type(Item_result a, Item *item,
+                                   my_bool unsigned_flag)
 {
+  Item_result b= item->result_type();
+
   if (a == STRING_RESULT || b == STRING_RESULT)
     return STRING_RESULT;
   else if (a == REAL_RESULT || b == REAL_RESULT)
     return REAL_RESULT;
-  else if (a == DECIMAL_RESULT || b == DECIMAL_RESULT)
+  else if (a == DECIMAL_RESULT || b == DECIMAL_RESULT ||
+           unsigned_flag != item->unsigned_flag)
     return DECIMAL_RESULT;
   else
     return INT_RESULT;
@@ -41,6 +45,7 @@ static Item_result item_store_type(Item_result a,Item_result b)
 static void agg_result_type(Item_result *type, Item **items, uint nitems)
 {
   Item **item, **item_end;
+  my_bool unsigned_flag= 0;
 
   *type= STRING_RESULT;
   /* Skip beginning NULL items */
@@ -49,6 +54,7 @@ static void agg_result_type(Item_result *type, Item **items, uint nitems)
     if ((*item)->type() != Item::NULL_ITEM)
     {
       *type= (*item)->result_type();
+      unsigned_flag= (*item)->unsigned_flag;
       item++;
       break;
     }
@@ -57,7 +63,7 @@ static void agg_result_type(Item_result *type, Item **items, uint nitems)
   for (; item < item_end; item++)
   {
     if ((*item)->type() != Item::NULL_ITEM)
-      *type= item_store_type(type[0], (*item)->result_type());
+      *type= item_store_type(*type, *item, unsigned_flag);
   }
 }
 
@@ -480,8 +486,19 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
     break;
   }
   case DECIMAL_RESULT:
-  case REAL_RESULT:
     break;
+  case REAL_RESULT:
+  {
+    if ((*a)->decimals < NOT_FIXED_DEC && (*b)->decimals < NOT_FIXED_DEC)
+    {
+      precision= 5 * log_01[max((*a)->decimals, (*b)->decimals)];
+      if (func == &Arg_comparator::compare_real)
+        func= &Arg_comparator::compare_real_fixed;
+      else if (func == &Arg_comparator::compare_e_real)
+        func= &Arg_comparator::compare_e_real_fixed;
+    }
+    break;
+  }
   default:
     DBUG_ASSERT(0);
   }
@@ -619,6 +636,44 @@ int Arg_comparator::compare_e_decimal()
     return test((*a)->null_value && (*b)->null_value);
   return test(my_decimal_cmp(val1, val2) == 0);
 }
+
+
+int Arg_comparator::compare_real_fixed()
+{
+  /*
+    Fix yet another manifestation of Bug#2338. 'Volatile' will instruct
+    gcc to flush double values out of 80-bit Intel FPU registers before
+    performing the comparison.
+  */
+  volatile double val1, val2;
+  val1= (*a)->val_real();
+  if (!(*a)->null_value)
+  {
+    val2= (*b)->val_real();
+    if (!(*b)->null_value)
+    {
+      owner->null_value= 0;
+      if (val1 == val2 || fabs(val1 - val2) < precision)
+        return 0;
+      if (val1 < val2)
+        return -1;
+      return 1;
+    }
+  }
+  owner->null_value= 1;
+  return -1;
+}
+
+
+int Arg_comparator::compare_e_real_fixed()
+{
+  double val1= (*a)->val_real();
+  double val2= (*b)->val_real();
+  if ((*a)->null_value || (*b)->null_value)
+    return test((*a)->null_value && (*b)->null_value);
+  return test(val1 == val2 || fabs(val1 - val2) < precision);
+}
+
 
 int Arg_comparator::compare_int_signed()
 {

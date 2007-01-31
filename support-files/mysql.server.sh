@@ -143,11 +143,12 @@ parse_manager_arguments() {
 
 wait_for_pid () {
   i=0
-  while test $i -lt 35 ; do
+  while test $i -lt 900 ; do
     sleep 1
     case "$1" in
       'created')
         test -s $pid_file && i='' && break
+        kill -0 $2 || break # if the program goes away, stop waiting
         ;;
       'removed')
         test ! -s $pid_file && i='' && break
@@ -163,8 +164,10 @@ wait_for_pid () {
 
   if test -z "$i" ; then
     log_success_msg
+    return 0
   else
     log_failure_msg
+    return 1
   fi
 }
 
@@ -280,26 +283,28 @@ case "$mode" in
         --mysqld-safe-compatible \
         --user="$user" \
         --pid-file="$pid_file" >/dev/null 2>&1 &
-      wait_for_pid created
+      wait_for_pid created $!; return_value=$?
 
       # Make lock for RedHat / SuSE
       if test -w /var/lock/subsys
       then
         touch /var/lock/subsys/mysqlmanager
       fi
+      exit $return_value
     elif test -x $bindir/mysqld_safe
     then
       # Give extra arguments to mysqld with the my.cnf file. This script
       # may be overwritten at next upgrade.
       pid_file=$server_pid_file
       $bindir/mysqld_safe --datadir=$datadir --pid-file=$server_pid_file $other_args >/dev/null 2>&1 &
-      wait_for_pid created
+      wait_for_pid created $!; return_value=$?
 
       # Make lock for RedHat / SuSE
       if test -w /var/lock/subsys
       then
         touch /var/lock/subsys/mysql
       fi
+      exit $return_value
     else
       log_failure_msg "Couldn't find MySQL manager or server"
     fi
@@ -325,13 +330,14 @@ case "$mode" in
       echo $echo_n "Shutting down MySQL"
       kill $mysqlmanager_pid
       # mysqlmanager should remove the pid_file when it exits, so wait for it.
-      wait_for_pid removed
+      wait_for_pid removed; return_value=$?
 
       # delete lock for RedHat / SuSE
       if test -f $lock_dir
       then
         rm -f $lock_dir
       fi
+      exit $return_value
     else
       log_failure_msg "MySQL manager or server PID file could not be found!"
     fi
@@ -340,8 +346,12 @@ case "$mode" in
   'restart')
     # Stop the service and regardless of whether it was
     # running or not, start it again.
-    $0 stop  $other_args
-    $0 start $other_args
+    if $0 stop  $other_args; then
+      $0 start $other_args
+    else
+      log_failure_msg "Failed to stop running server, so refusing to try to start."
+      exit 1
+    fi
     ;;
 
   'reload')
@@ -360,3 +370,5 @@ case "$mode" in
     exit 1
     ;;
 esac
+
+exit 0
