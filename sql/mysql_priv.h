@@ -985,7 +985,8 @@ bool push_new_name_resolution_context(THD *thd,
                                       TABLE_LIST *left_op,
                                       TABLE_LIST *right_op);
 void add_join_on(TABLE_LIST *b,Item *expr);
-void add_join_natural(TABLE_LIST *a,TABLE_LIST *b,List<String> *using_fields);
+void add_join_natural(TABLE_LIST *a,TABLE_LIST *b,List<String> *using_fields,
+                      SELECT_LEX *lex);
 bool add_proc_to_list(THD *thd, Item *item);
 TABLE *unlink_open_table(THD *thd,TABLE *list,TABLE *find);
 void update_non_unique_table_error(TABLE_LIST *update,
