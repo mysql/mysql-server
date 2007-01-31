@@ -132,7 +132,13 @@ if test -z "$VISUAL"
 then
   if test -z "$EDITOR"
   then
-    EDIT=emacs
+    # Honor debian sensible-editor
+    if test -x "/usr/bin/sensible-editor"
+    then
+      EDIT=/usr/bin/sensible-editor
+    else
+      EDIT=emacs
+    fi
   else
     EDIT="$EDITOR"
   fi

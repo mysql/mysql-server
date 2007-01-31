@@ -1240,7 +1240,9 @@ void var_set(const char *var_name, const char *var_name_end,
       v->int_dirty= 0;
       v->str_val_len= strlen(v->str_val);
     }
-    strxmov(buf, v->name, "=", v->str_val, NullS);
+    my_snprintf(buf, sizeof(buf), "%.*s=%.*s",
+                v->name_len, v->name,
+                v->str_val_len, v->str_val);
     if (!(v->env_s= my_strdup(buf, MYF(MY_WME))))
       die("Out of memory");
     putenv(v->env_s);
@@ -2968,7 +2970,12 @@ void safe_connect(MYSQL* mysql, const char *name, const char *host,
     if ((mysql_errno(mysql) == CR_CONN_HOST_ERROR ||
          mysql_errno(mysql) == CR_CONNECTION_ERROR) &&
         failed_attempts < opt_max_connect_retries)
+    {
+      verbose_msg("Connect attempt %d/%d failed: %d: %s", failed_attempts,
+                  opt_max_connect_retries, mysql_errno(mysql),
+                  mysql_error(mysql));
       my_sleep(connection_retry_sleep);
+    }
     else
     {
       if (failed_attempts > 0)
@@ -4678,10 +4685,9 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
     }
 
     /*
-      Store the result. If res is NULL, use mysql_field_count to
-      determine if that was expected
+      Store the result of the query if it will return any fields
     */
-    if (!(res= mysql_store_result(mysql)) && mysql_field_count(mysql))
+    if (mysql_field_count(mysql) && ((res= mysql_store_result(mysql)) == 0))
     {
       handle_error(command, mysql_errno(mysql), mysql_error(mysql),
 		   mysql_sqlstate(mysql), ds);
@@ -4733,7 +4739,10 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
     }
 
     if (res)
+    {
       mysql_free_result(res);
+      res= 0;
+    }
     counter++;
   } while (!(err= mysql_next_result(mysql)));
   if (err > 0)
@@ -4800,7 +4809,7 @@ void handle_error(struct st_command *command,
           err_errno, err_error);
 
     /* Abort the run of this test, pass the failed query as reason */
-    abort_not_supported_test("Query '%s' failed, required functionality" \
+    abort_not_supported_test("Query '%s' failed, required functionality " \
                              "not supported", command->query);
   }
 

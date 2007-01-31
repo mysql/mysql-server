@@ -1958,6 +1958,7 @@ static void reset_one_shot_variables(THD *thd)
   thd->update_charset();
   thd->variables.time_zone=
     global_system_variables.time_zone;
+  thd->variables.lc_time_names= &my_locale_en_US;
   thd->one_shot_set= 0;
 }
 
@@ -2478,19 +2479,42 @@ mysql_execute_command(THD *thd)
     }
     /* Skip first table, which is the table we are creating */
     TABLE_LIST *create_table, *create_table_local;
+    /*
+      Code below (especially in mysql_create_table() and select_create
+      methods) may modify HA_CREATE_INFO structure in LEX, so we have to
+      use a copy of this structure to make execution prepared statement-
+      safe. A shallow copy is enough as this code won't modify any memory
+      referenced from this structure.
+    */
+    HA_CREATE_INFO create_info(lex->create_info);
+    Alter_info alter_info(lex->alter_info, thd->mem_root);
+
+    if (thd->is_fatal_error)
+    {
+      /* out of memory when creating a copy of alter_info */
+      res= 1;
+      goto unsent_create_error;
+    }
     tables= lex->unlink_first_table(tables, &create_table,
 				    &create_table_local);
 
     if ((res= create_table_precheck(thd, tables, create_table)))
       goto unsent_create_error;
 
+    create_info.alias= create_table->alias;
 #ifndef HAVE_READLINK
-    lex->create_info.data_file_name=lex->create_info.index_file_name=0;
+    if (create_info.data_file_name)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                   "DATA DIRECTORY option ignored");
+    if (create_info.index_file_name)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                   "INDEX DIRECTORY option ignored");
+    create_info.data_file_name= create_info.index_file_name= NULL;
 #else
     /* Fix names if symlinked tables */
-    if (append_file_to_dir(thd, &lex->create_info.data_file_name,
+    if (append_file_to_dir(thd, &create_info.data_file_name,
 			   create_table->real_name) ||
-	append_file_to_dir(thd,&lex->create_info.index_file_name,
+	append_file_to_dir(thd, &create_info.index_file_name,
 			   create_table->real_name))
     {
       res=-1;
@@ -2501,14 +2525,14 @@ mysql_execute_command(THD *thd)
       If we are using SET CHARSET without DEFAULT, add an implicite
       DEFAULT to not confuse old users. (This may change).
     */
-    if ((lex->create_info.used_fields & 
+    if ((create_info.used_fields &
 	 (HA_CREATE_USED_DEFAULT_CHARSET | HA_CREATE_USED_CHARSET)) ==
 	HA_CREATE_USED_CHARSET)
     {
-      lex->create_info.used_fields&= ~HA_CREATE_USED_CHARSET;
-      lex->create_info.used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
-      lex->create_info.default_table_charset= lex->create_info.table_charset;
-      lex->create_info.table_charset= 0;
+      create_info.used_fields&= ~HA_CREATE_USED_CHARSET;
+      create_info.used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
+      create_info.default_table_charset= create_info.table_charset;
+      create_info.table_charset= 0;
     }
     /*
       The create-select command will open and read-lock the select table
@@ -2542,11 +2566,14 @@ mysql_execute_command(THD *thd)
       if (!(res=open_and_lock_tables(thd,tables)))
       {
 	res= -1;				// If error
+        /*
+          select_create is currently not re-execution friendly and
+          needs to be created for every execution of a PS/SP.
+        */
         if ((result=new select_create(create_table->db,
                                       create_table->real_name,
-				      &lex->create_info,
-                                      lex->create_list,
-                                      lex->key_list,
+                                      &create_info,
+                                      &alter_info,
                                       select_lex->item_list, lex->duplicates,
                                       lex->ignore)))
         {
@@ -2558,22 +2585,18 @@ mysql_execute_command(THD *thd)
           res=handle_select(thd, lex, result);
           select_lex->resolve_mode= SELECT_LEX::NOMATTER_MODE;
         }
-	//reset for PS
-	lex->create_list.empty();
-	lex->key_list.empty();
       }
     }
     else // regular create
     {
       if (lex->name)
-        res= mysql_create_like_table(thd, create_table, &lex->create_info, 
+        res= mysql_create_like_table(thd, create_table, &create_info,
                                      (Table_ident *)lex->name); 
       else
       {
-        res= mysql_create_table(thd,create_table->db,
-			         create_table->real_name, &lex->create_info,
-			         lex->create_list,
-			         lex->key_list,0,0);
+        res= mysql_create_table(thd, create_table->db,
+                                create_table->real_name, &create_info,
+                                &alter_info, 0, 0);
       }
       if (!res)
 	send_ok(thd);
@@ -2591,15 +2614,49 @@ unsent_create_error:
     break;
   }
   case SQLCOM_CREATE_INDEX:
+    /* Fall through */
+  case SQLCOM_DROP_INDEX:
+  /*
+    CREATE INDEX and DROP INDEX are implemented by calling ALTER
+    TABLE with proper arguments. This isn't very fast but it
+    should work for most cases.
+
+    In the future ALTER TABLE will notice that only added
+    indexes and create these one by one for the existing table
+    without having to do a full rebuild.
+
+    One should normally create all indexes with CREATE TABLE or
+    ALTER TABLE.
+  */
+  {
+    Alter_info alter_info(lex->alter_info, thd->mem_root);
+    HA_CREATE_INFO create_info;
+
+    if (thd->is_fatal_error) /* out of memory creating a copy of alter_info*/
+      goto error;
+
     if (check_one_table_access(thd, INDEX_ACL, tables))
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
     if (end_active_trans(thd))
-      res= -1;
-    else
-      res = mysql_create_index(thd, tables, lex->key_list);
-    break;
+      goto error;
+    /*
+      Currently CREATE INDEX or DROP INDEX cause a full table rebuild
+      and thus classify as slow administrative statements just like
+      ALTER TABLE.
+    */
+    thd->enable_slow_log= opt_log_slow_admin_statements;
 
+    bzero((char*) &create_info, sizeof(create_info));
+    create_info.db_type= DB_TYPE_DEFAULT;
+    create_info.row_type= ROW_TYPE_NOT_USED;
+    create_info.default_table_charset= thd->variables.collation_database;
+
+    res= mysql_alter_table(thd, tables->db, tables->real_name,
+                           &create_info, tables, &alter_info,
+                           0, (ORDER*)0, DUP_ERROR, 0);
+    break;
+  }
 #ifdef HAVE_REPLICATION
   case SQLCOM_SLAVE_START:
   {
@@ -2642,6 +2699,17 @@ unsent_create_error:
 #else
     {
       ulong priv=0;
+      /*
+        Code in mysql_alter_table() may modify its HA_CREATE_INFO argument,
+        so we have to use a copy of this structure to make execution
+        prepared statement- safe. A shallow copy is enough as no memory
+        referenced from this structure will be modified.
+      */
+      HA_CREATE_INFO create_info(lex->create_info);
+      Alter_info alter_info(lex->alter_info, thd->mem_root);
+
+      if (thd->is_fatal_error) /* out of memory creating a copy of alter_info */
+        goto error;
       if (lex->name && (!lex->name[0] || strlen(lex->name) > NAME_LEN))
       {
 	net_printf(thd, ER_WRONG_TABLE_NAME, lex->name);
@@ -2655,7 +2723,7 @@ unsent_create_error:
           default database if the new name is not explicitly qualified
           by a database. (Bug #11493)
         */
-        if (lex->alter_info.flags & ALTER_RENAME)
+        if (alter_info.flags & ALTER_RENAME)
         {
           if (! thd->db)
           {
@@ -2671,7 +2739,7 @@ unsent_create_error:
 	  check_access(thd,INSERT_ACL | CREATE_ACL,select_lex->db,&priv,0,0)||
 	  check_merge_table_access(thd, tables->db,
 				   (TABLE_LIST *)
-				   lex->create_info.merge_list.first))
+				   create_info.merge_list.first))
 	goto error;				/* purecov: inspected */
       if (grant_option)
       {
@@ -2690,26 +2758,26 @@ unsent_create_error:
 	}
       }
       /* Don't yet allow changing of symlinks with ALTER TABLE */
-      if (lex->create_info.data_file_name)
+      if (create_info.data_file_name)
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
                      "DATA DIRECTORY option ignored");
-      if (lex->create_info.index_file_name)
+      if (create_info.index_file_name)
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
                      "INDEX DIRECTORY option ignored");
-      lex->create_info.data_file_name=lex->create_info.index_file_name=0;
+      create_info.data_file_name= create_info.index_file_name= NULL;
       /* ALTER TABLE ends previous transaction */
       if (end_active_trans(thd))
 	res= -1;
       else
       {
         thd->enable_slow_log= opt_log_slow_admin_statements;
-	res= mysql_alter_table(thd, select_lex->db, lex->name,
-			       &lex->create_info,
-			       tables, lex->create_list,
-			       lex->key_list,
-			       select_lex->order_list.elements,
+        res= mysql_alter_table(thd, select_lex->db, lex->name,
+                               &create_info,
+                               tables,
+                               &alter_info,
+                               select_lex->order_list.elements,
                                (ORDER *) select_lex->order_list.first,
-			       lex->duplicates, lex->ignore, &lex->alter_info);
+                               lex->duplicates, lex->ignore);
       }
       break;
     }
@@ -2846,7 +2914,7 @@ unsent_create_error:
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
     res= (specialflag & (SPECIAL_SAFE_MODE | SPECIAL_NO_NEW_FUNC)) ?
-      mysql_recreate_table(thd, tables, 1) :
+      mysql_recreate_table(thd, tables) :
       mysql_optimize_table(thd, tables, &lex->check_opt);
     /* ! we write after unlocking the table */
     if (!res && !lex->no_write_to_binlog)
@@ -3123,14 +3191,6 @@ unsent_create_error:
     res= mysql_rm_table(thd,tables,lex->drop_if_exists, lex->drop_temporary);
   }
   break;
-  case SQLCOM_DROP_INDEX:
-    if (check_one_table_access(thd, INDEX_ACL, tables))
-      goto error;				/* purecov: inspected */
-    if (end_active_trans(thd))
-      res= -1;
-    else
-      res = mysql_drop_index(thd, tables, &lex->alter_info);
-    break;
   case SQLCOM_SHOW_DATABASES:
 #if defined(DONT_ALLOW_SHOW_COMMANDS)
     send_error(thd,ER_NOT_ALLOWED_COMMAND);   /* purecov: inspected */
@@ -3363,6 +3423,12 @@ purposes internal to the MySQL server", MYF(0));
     break;
   case SQLCOM_CREATE_DB:
   {
+    /*
+      As mysql_create_db() may modify HA_CREATE_INFO structure passed to
+      it, we need to use a copy of LEX::create_info to make execution
+      prepared statement- safe.
+    */
+    HA_CREATE_INFO create_info(lex->create_info);
     if (end_active_trans(thd))
     {
       res= -1;
@@ -3393,7 +3459,7 @@ purposes internal to the MySQL server", MYF(0));
     if (check_access(thd,CREATE_ACL,lex->name,0,1,0))
       break;
     res= mysql_create_db(thd,(lower_case_table_names == 2 ? alias : lex->name),
-			 &lex->create_info, 0);
+			 &create_info, 0);
     break;
   }
   case SQLCOM_DROP_DB:
@@ -4443,15 +4509,17 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
   if (type_modifier & PRI_KEY_FLAG)
   {
     lex->col_list.push_back(new key_part_spec(field_name,0));
-    lex->key_list.push_back(new Key(Key::PRIMARY, NullS, HA_KEY_ALG_UNDEF,
-				    0, lex->col_list));
+    lex->alter_info.key_list.push_back(new Key(Key::PRIMARY, NullS,
+                                               HA_KEY_ALG_UNDEF, 0,
+                                               lex->col_list));
     lex->col_list.empty();
   }
   if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG))
   {
     lex->col_list.push_back(new key_part_spec(field_name,0));
-    lex->key_list.push_back(new Key(Key::UNIQUE, NullS, HA_KEY_ALG_UNDEF, 0,
-				    lex->col_list));
+    lex->alter_info.key_list.push_back(new Key(Key::UNIQUE, NullS,
+                                               HA_KEY_ALG_UNDEF, 0,
+                                               lex->col_list));
     lex->col_list.empty();
   }
 
@@ -4778,7 +4846,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 					    new_field->sql_type,
 					    new_field->length);
   new_field->char_length= new_field->length;
-  lex->create_list.push_back(new_field);
+  lex->alter_info.create_list.push_back(new_field);
   lex->last_field=new_field;
   DBUG_RETURN(0);
 }
@@ -5459,57 +5527,6 @@ Item * all_any_subquery_creator(Item *left_expr,
 
 
 /*
-  CREATE INDEX and DROP INDEX are implemented by calling ALTER TABLE with
-  the proper arguments.  This isn't very fast but it should work for most
-  cases.
-
-  In the future ALTER TABLE will notice that only added indexes
-  and create these one by one for the existing table without having to do
-  a full rebuild.
-
-  One should normally create all indexes with CREATE TABLE or ALTER TABLE.
-*/
-
-int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
-{
-  List<create_field> fields;
-  ALTER_INFO alter_info;
-  alter_info.flags= ALTER_ADD_INDEX;
-  alter_info.is_simple= 0;
-  HA_CREATE_INFO create_info;
-  DBUG_ENTER("mysql_create_index");
-  bzero((char*) &create_info,sizeof(create_info));
-  create_info.db_type=DB_TYPE_DEFAULT;
-  create_info.default_table_charset= thd->variables.collation_database;
-  create_info.row_type= ROW_TYPE_NOT_USED;
-  DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
-				&create_info, table_list,
-				fields, keys, 0, (ORDER*)0,
-				DUP_ERROR, 0, &alter_info));
-}
-
-
-int mysql_drop_index(THD *thd, TABLE_LIST *table_list, ALTER_INFO *alter_info)
-{
-  List<create_field> fields;
-  List<Key> keys;
-  HA_CREATE_INFO create_info;
-  DBUG_ENTER("mysql_drop_index");
-  bzero((char*) &create_info,sizeof(create_info));
-  create_info.db_type=DB_TYPE_DEFAULT;
-  create_info.default_table_charset= thd->variables.collation_database;
-  create_info.row_type= ROW_TYPE_NOT_USED;
-  alter_info->clear();
-  alter_info->flags= ALTER_DROP_INDEX;
-  alter_info->is_simple= 0;
-  DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
-				&create_info, table_list,
-				fields, keys, 0, (ORDER*)0,
-				DUP_ERROR, 0, alter_info));
-}
-
-
-/*
   Multi update query pre-check
 
   SYNOPSIS
@@ -5791,7 +5808,6 @@ int create_table_precheck(THD *thd, TABLE_LIST *tables,
 
   want_priv= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
               CREATE_TMP_ACL : CREATE_ACL);
-  lex->create_info.alias= create_table->alias;
   if (check_access(thd, want_priv, create_table->db,
 		   &create_table->grant.privilege, 0, 0) ||
       check_merge_table_access(thd, create_table->db,
