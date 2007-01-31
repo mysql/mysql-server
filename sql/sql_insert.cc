@@ -1805,7 +1805,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   unit= u;
   table= create_table_from_items(thd, create_info, db, name,
-				 extra_fields, keys, &values, &lock);
+                                 alter_info, &values, &lock);
   if (!table)
     DBUG_RETURN(-1);				// abort() deletes table
 

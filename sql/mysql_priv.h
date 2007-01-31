@@ -71,6 +71,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 
 typedef struct my_locale_st
 {
+  uint  number;
   const char *name;
   const char *description;
   const bool is_ascii;
@@ -84,6 +85,7 @@ extern MY_LOCALE my_locale_en_US;
 extern MY_LOCALE *my_locales[];
 
 MY_LOCALE *my_locale_by_name(const char *name);
+MY_LOCALE *my_locale_by_number(uint number);
 
 /***************************************************************************
   Configuration parameters
@@ -563,25 +565,22 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 		       uint &key_count, int select_field_count);
 int mysql_create_table(THD *thd,const char *db, const char *table_name,
 		       HA_CREATE_INFO *create_info,
-		       List<create_field> &fields, List<Key> &keys,
+                       Alter_info *alter_info,
 		       bool tmp_table, uint select_field_count);
 
 TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 			       const char *db, const char *name,
-			       List<create_field> *extra_fields,
-			       List<Key> *keys,
+                               Alter_info *alter_info,
 			       List<Item> *items,
 			       MYSQL_LOCK **lock);
 int mysql_alter_table(THD *thd, char *new_db, char *new_name,
 		      HA_CREATE_INFO *create_info,
 		      TABLE_LIST *table_list,
-		      List<create_field> &fields,
-		      List<Key> &keys,
+                      Alter_info *alter_info,
 		      uint order_num, ORDER *order,
 		      enum enum_duplicates handle_duplicates,
-                      bool ignore,
-		      ALTER_INFO *alter_info, bool do_send_ok=1);
-int mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool do_send_ok);
+                      bool ignore);
+int mysql_recreate_table(THD *thd, TABLE_LIST *table_list);
 int mysql_create_like_table(THD *thd, TABLE_LIST *table,
                             HA_CREATE_INFO *create_info,
                             Table_ident *src_table);
@@ -590,9 +589,6 @@ bool mysql_rename_table(enum db_type base,
 			const char * old_name,
 			const char *new_db,
 			const char * new_name);
-int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys);
-int mysql_drop_index(THD *thd, TABLE_LIST *table_list,
-		     ALTER_INFO *alter_info);
 int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
 			 TABLE_LIST *update_table_list,
 			 Item **conds, uint order_num, ORDER *order);
@@ -679,7 +675,8 @@ int get_quote_char_for_identifier(THD *thd, const char *name, uint length);
 void mysqld_list_fields(THD *thd,TABLE_LIST *table, const char *wild);
 int mysqld_dump_create_info(THD *thd, TABLE *table, int fd = -1);
 int mysqld_show_create(THD *thd, TABLE_LIST *table_list);
-int mysqld_show_create_db(THD *thd, char *dbname, HA_CREATE_INFO *create);
+int mysqld_show_create_db(THD *thd, char *dbname,
+                          const HA_CREATE_INFO *create);
 
 void mysqld_list_processes(THD *thd,const char *user,bool verbose);
 int mysqld_show_status(THD *thd);

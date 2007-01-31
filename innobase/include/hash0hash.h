@@ -18,6 +18,9 @@ typedef struct hash_cell_struct hash_cell_t;
 
 typedef void*	hash_node_t;
 
+/* Fix Bug #13859: symbol collision between imap/mysql */
+#define hash_create hash0_create
+
 /*****************************************************************
 Creates a hash table with >= n array cells. The actual number
 of cells is chosen to be a prime number slightly bigger than n. */

@@ -1350,6 +1350,21 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
         if (e.write(file))
           goto err;
       }
+      /*
+        Use the same ONE_SHOT trick for making replication of lc_time_names.
+      */
+      if (thd->variables.lc_time_names->number) // Not en_US
+      {
+        char buf[32];
+        uint length= my_snprintf(buf, sizeof(buf),
+                                 "SET ONE_SHOT LC_TIME_NAMES=%u", 
+                                 (uint) thd->variables.lc_time_names->number);
+        Query_log_event e(thd, buf, length, 0, FALSE);
+        e.set_log_pos(this);
+	e.error_code= 0;	// This statement cannot fail (see [1]).
+        if (e.write(file))
+          goto err;
+      }
 #endif
 
       if (thd->last_insert_id_used)
