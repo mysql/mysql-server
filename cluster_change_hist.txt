@@ -1,6 +1,9 @@
 
-mysql-5.1.14-ndb-6.1.1
- 
+mysql-5.1.15-ndb-6.1.1
+  - valgrind leak - no injected events if operation is not connected
+  - bug#25794 - Delete+Read (in same op) crashes datanodes if >5 cols or disk/varchar
+  - bug#25286 - NDB data node crashed in DBLQH, Line 2483
+  - Fix so that node version is recomputed at node failure
   - added extra version info to API to enable support for non-supported online
     software upgrade
   - 255 api support
