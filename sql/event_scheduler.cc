@@ -322,6 +322,8 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
                           job_data->dbname.str, job_data->name.str,
                           job_data->definer.str);
   else if (ret == EVEX_MICROSECOND_UNSUP)
+    sql_print_information("SCHEDULER: MICROSECOND is not supported");
+
 end:
   delete job_data;
 
