@@ -416,15 +416,4 @@ int vio_ssl_blocking(Vio * vio __attribute__((unused)),
 }
 
 
-void vio_ssl_timeout(Vio *vio __attribute__((unused)),
-		     uint which __attribute__((unused)),
-                     uint timeout __attribute__((unused)))
-{
-#ifdef __WIN__
-  ulong wait_timeout= (ulong) timeout * 1000;
-  (void) setsockopt(vio->sd, SOL_SOCKET,
-	which ? SO_SNDTIMEO : SO_RCVTIMEO, (char*) &wait_timeout,
-        sizeof(wait_timeout));
-#endif /* __WIN__ */
-}
 #endif /* HAVE_OPENSSL */

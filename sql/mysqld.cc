@@ -355,6 +355,7 @@ ulong my_bind_addr;			/* the address we bind to */
 volatile ulong cached_thread_count= 0;
 
 double log_10[32];			/* 10 potences */
+double log_01[32];
 time_t start_time;
 
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];
@@ -3601,10 +3602,9 @@ static bool read_init_file(char *file_name)
 #ifndef EMBEDDED_LIBRARY
 static void create_new_thread(THD *thd)
 {
+  NET *net=&thd->net;
   DBUG_ENTER("create_new_thread");
 
-  NET *net=&thd->net;				// For easy ref
-  net->read_timeout = (uint) connect_timeout;
   if (protocol_version > 9)
     net->return_errno=1;
 
@@ -3899,12 +3899,7 @@ extern "C" pthread_handler_decl(handle_connections_sockets,
     }
     if (sock == unix_sock)
       thd->host=(char*) my_localhost;
-#ifdef __WIN__
-    /* Set default wait_timeout */
-    ulong wait_timeout= global_system_variables.net_wait_timeout * 1000;
-    (void) setsockopt(new_sock, SOL_SOCKET, SO_RCVTIMEO, (char*)&wait_timeout,
-                    sizeof(wait_timeout));
-#endif
+
     create_new_thread(thd);
   }
 

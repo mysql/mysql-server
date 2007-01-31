@@ -5006,6 +5006,8 @@ static Field* create_tmp_field_from_field(THD *thd, Field* org_field,
       new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
     if (org_field->type() == FIELD_TYPE_VAR_STRING)
       table->db_create_options|= HA_OPTION_PACK_RECORD;
+    else if (org_field->type() == FIELD_TYPE_DOUBLE)
+      ((Field_double *) new_field)->not_fixed= TRUE;
   }
   return new_field;
 }
@@ -5045,7 +5047,7 @@ static Field* create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
   switch (item->result_type()) {
   case REAL_RESULT:
     new_field=new Field_double(item->max_length, maybe_null,
-			       item->name, table, item->decimals);
+			       item->name, table, item->decimals, TRUE);
     break;
   case INT_RESULT:
     new_field=new Field_longlong(item->max_length, maybe_null,
@@ -5136,8 +5138,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 	return new Field_string(sizeof(double)+sizeof(longlong),
 				0, item->name,table,&my_charset_bin);
       else
-	return new Field_double(item_sum->max_length,maybe_null,
-				item->name, table, item_sum->decimals);
+	return new Field_double(item_sum->max_length, maybe_null,
+				item->name, table, item_sum->decimals, TRUE);
     case Item_sum::VARIANCE_FUNC:		/* Place for sum & count */
     case Item_sum::STD_FUNC:
       if (group)
@@ -5145,7 +5147,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 				 0, item->name,table,&my_charset_bin);
       else
 	return new Field_double(item_sum->max_length, maybe_null,
-				item->name,table,item_sum->decimals);
+				item->name, table, item_sum->decimals, TRUE);
     case Item_sum::UNIQUE_USERS_FUNC:
       return new Field_long(9,maybe_null,item->name,table,1);
     case Item_sum::MIN_FUNC:
@@ -5160,8 +5162,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     default:
       switch (item_sum->result_type()) {
       case REAL_RESULT:
-	return new Field_double(item_sum->max_length,maybe_null,
-				item->name,table,item_sum->decimals);
+	return new Field_double(item_sum->max_length, maybe_null,
+				item->name, table, item_sum->decimals, TRUE);
       case INT_RESULT:
 	return new Field_longlong(item_sum->max_length,maybe_null,
 				  item->name,table,item->unsigned_flag);
