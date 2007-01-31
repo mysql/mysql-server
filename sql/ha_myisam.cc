@@ -91,6 +91,296 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
   return;
 }
 
+
+/*
+  Convert TABLE object to MyISAM key and column definition
+
+  SYNOPSIS
+    table2myisam()
+      table_arg   in     TABLE object.
+      keydef_out  out    MyISAM key definition.
+      recinfo_out out    MyISAM column definition.
+      records_out out    Number of fields.
+
+  DESCRIPTION
+    This function will allocate and initialize MyISAM key and column
+    definition for further use in mi_create or for a check for underlying
+    table conformance in merge engine.
+
+  RETURN VALUE
+    0  OK
+    !0 error code
+*/
+
+int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
+                 MI_COLUMNDEF **recinfo_out, uint *records_out)
+{
+  uint i, j, recpos, minpos, fieldpos, temp_length, length;
+  uint options= table_arg->db_options_in_use;
+  enum ha_base_keytype type= HA_KEYTYPE_BINARY;
+  KEY *pos;
+  MI_KEYDEF *keydef;
+  MI_COLUMNDEF *recinfo, *recinfo_pos;
+  HA_KEYSEG *keyseg;
+
+  DBUG_ENTER("table2myisam");
+  if (!(my_multi_malloc(MYF(MY_WME),
+          recinfo_out, (table_arg->fields * 2 + 2) * sizeof(MI_COLUMNDEF),
+          keydef_out, table_arg->keys * sizeof(MI_KEYDEF),
+          &keyseg,
+          (table_arg->key_parts + table_arg->keys) * sizeof(HA_KEYSEG),
+          NullS)))
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM); /* purecov: inspected */
+  keydef= *keydef_out;
+  recinfo= *recinfo_out;
+  pos= table_arg->key_info;
+  for (i= 0; i < table_arg->keys; i++, pos++)
+  {
+    keydef[i].flag= (pos->flags & (HA_NOSAME | HA_FULLTEXT | HA_SPATIAL));
+    keydef[i].key_alg= pos->algorithm == HA_KEY_ALG_UNDEF ?
+      (pos->flags & HA_SPATIAL ? HA_KEY_ALG_RTREE : HA_KEY_ALG_BTREE) :
+      pos->algorithm;
+    keydef[i].seg= keyseg;
+    keydef[i].keysegs= pos->key_parts;
+    for (j= 0; j < pos->key_parts; j++)
+    {
+      keydef[i].seg[j].flag= pos->key_part[j].key_part_flag;
+      Field *field= pos->key_part[j].field;
+      type= field->key_type();
+
+      if (options & HA_OPTION_PACK_KEYS ||
+          (pos->flags & (HA_PACK_KEY | HA_BINARY_PACK_KEY |
+                         HA_SPACE_PACK_USED)))
+      {
+        if (pos->key_part[j].length > 8 &&
+            (type == HA_KEYTYPE_TEXT ||
+             type == HA_KEYTYPE_NUM ||
+             (type == HA_KEYTYPE_BINARY && !field->zero_pack())))
+        {
+          /* No blobs here */
+          if (j == 0)
+            keydef[i].flag|= HA_PACK_KEY;
+          if (!(field->flags & ZEROFILL_FLAG) &&
+              (field->type() == FIELD_TYPE_STRING ||
+               field->type() == FIELD_TYPE_VAR_STRING ||
+               ((int) (pos->key_part[j].length - field->decimals())) >= 4))
+            keydef[i].seg[j].flag|= HA_SPACE_PACK;
+        }
+        else if (j == 0 && (!(pos->flags & HA_NOSAME) || pos->key_length > 16))
+          keydef[i].flag|= HA_BINARY_PACK_KEY;
+      }
+      keydef[i].seg[j].type= (int) type;
+      keydef[i].seg[j].start= pos->key_part[j].offset;
+      keydef[i].seg[j].length= pos->key_part[j].length;
+      keydef[i].seg[j].bit_start= keydef[i].seg[j].bit_end= 0;
+      keydef[i].seg[j].language= field->charset()->number;
+
+      if (field->null_ptr)
+      {
+        keydef[i].seg[j].null_bit= field->null_bit;
+        keydef[i].seg[j].null_pos= (uint) (field->null_ptr-
+                                           (uchar*) table_arg->record[0]);
+      }
+      else
+      {
+        keydef[i].seg[j].null_bit= 0;
+        keydef[i].seg[j].null_pos= 0;
+      }
+      if (field->type() == FIELD_TYPE_BLOB ||
+          field->type() == FIELD_TYPE_GEOMETRY)
+      {
+        keydef[i].seg[j].flag|= HA_BLOB_PART;
+        /* save number of bytes used to pack length */
+        keydef[i].seg[j].bit_start= (uint) (field->pack_length() -
+                                            table_arg->blob_ptr_size);
+      }
+    }
+    keyseg+= pos->key_parts;
+  }
+  if (table_arg->found_next_number_field)
+    keydef[table_arg->next_number_index].flag|= HA_AUTO_KEY;
+  recpos= 0;
+  recinfo_pos= recinfo;
+  while (recpos < (uint) table_arg->reclength)
+  {
+    Field **field, *found= 0;
+    minpos= table_arg->reclength;
+    length= 0;
+
+    for (field= table_arg->field; *field; field++)
+    {
+      if ((fieldpos= (*field)->offset()) >= recpos &&
+          fieldpos <= minpos)
+      {
+        /* skip null fields */
+        if (!(temp_length= (*field)->pack_length()))
+          continue; /* Skip null-fields */
+        if (! found || fieldpos < minpos ||
+            (fieldpos == minpos && temp_length < length))
+        {
+          minpos= fieldpos;
+          found= *field;
+          length= temp_length;
+        }
+      }
+    }
+    DBUG_PRINT("loop", ("found: %lx  recpos: %d  minpos: %d  length: %d",
+                        (long) found, recpos, minpos, length));
+    if (recpos != minpos)
+    { // Reserved space (Null bits?)
+      bzero((char*) recinfo_pos, sizeof(*recinfo_pos));
+      recinfo_pos->type= (int) FIELD_NORMAL;
+      recinfo_pos++->length= (uint16) (minpos - recpos);
+    }
+    if (!found)
+      break;
+
+    if (found->flags & BLOB_FLAG)
+    {
+      recinfo_pos->type= (int) FIELD_BLOB;
+    }
+    else if (!(options & HA_OPTION_PACK_RECORD))
+      recinfo_pos->type= (int) FIELD_NORMAL;
+    else if (found->zero_pack())
+      recinfo_pos->type= (int) FIELD_SKIP_ZERO;
+    else
+      recinfo_pos->type= (int) ((length <= 3 ||
+                                 (found->flags & ZEROFILL_FLAG)) ?
+                                  FIELD_NORMAL :
+                                  found->type() == FIELD_TYPE_STRING ||
+                                  found->type() == FIELD_TYPE_VAR_STRING ?
+                                  FIELD_SKIP_ENDSPACE :
+                                  FIELD_SKIP_PRESPACE);
+    if (found->null_ptr)
+    {
+      recinfo_pos->null_bit= found->null_bit;
+      recinfo_pos->null_pos= (uint) (found->null_ptr -
+                                     (uchar*) table_arg->record[0]);
+    }
+    else
+    {
+      recinfo_pos->null_bit= 0;
+      recinfo_pos->null_pos= 0;
+    }
+    (recinfo_pos++)->length= (uint16) length;
+    recpos= minpos + length;
+    DBUG_PRINT("loop", ("length: %d  type: %d",
+                        recinfo_pos[-1].length,recinfo_pos[-1].type));
+  }
+  *records_out= (uint) (recinfo_pos - recinfo);
+  DBUG_RETURN(0);
+}
+
+
+/*
+  Check for underlying table conformance
+
+  SYNOPSIS
+    check_definition()
+      t1_keyinfo       in    First table key definition
+      t1_recinfo       in    First table record definition
+      t1_keys          in    Number of keys in first table
+      t1_recs          in    Number of records in first table
+      t2_keyinfo       in    Second table key definition
+      t2_recinfo       in    Second table record definition
+      t2_keys          in    Number of keys in second table
+      t2_recs          in    Number of records in second table
+      strict           in    Strict check switch
+
+  DESCRIPTION
+    This function compares two MyISAM definitions. By intention it was done
+    to compare merge table definition against underlying table definition.
+    It may also be used to compare dot-frm and MYI definitions of MyISAM
+    table as well to compare different MyISAM table definitions.
+
+    For merge table it is not required that number of keys in merge table
+    must exactly match number of keys in underlying table. When calling this
+    function for underlying table conformance check, 'strict' flag must be
+    set to false, and converted merge definition must be passed as t1_*.
+
+    Otherwise 'strict' flag must be set to 1 and it is not required to pass
+    converted dot-frm definition as t1_*.
+
+  RETURN VALUE
+    0 - Equal definitions.
+    1 - Different definitions.
+*/
+
+int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
+                     uint t1_keys, uint t1_recs,
+                     MI_KEYDEF *t2_keyinfo, MI_COLUMNDEF *t2_recinfo,
+                     uint t2_keys, uint t2_recs, bool strict)
+{
+  uint i, j;
+  DBUG_ENTER("check_definition");
+  if ((strict ? t1_keys != t2_keys : t1_keys > t2_keys))
+  {
+    DBUG_PRINT("error", ("Number of keys differs: t1_keys=%u, t2_keys=%u",
+                         t1_keys, t2_keys));
+    DBUG_RETURN(1);
+  }
+  if (t1_recs != t2_recs)
+  {
+    DBUG_PRINT("error", ("Number of recs differs: t1_recs=%u, t2_recs=%u",
+                         t1_recs, t2_recs));
+    DBUG_RETURN(1);
+  }
+  for (i= 0; i < t1_keys; i++)
+  {
+    HA_KEYSEG *t1_keysegs= t1_keyinfo[i].seg;
+    HA_KEYSEG *t2_keysegs= t2_keyinfo[i].seg;
+    if (t1_keyinfo[i].keysegs != t2_keyinfo[i].keysegs ||
+        t1_keyinfo[i].key_alg != t2_keyinfo[i].key_alg)
+    {
+      DBUG_PRINT("error", ("Key %d has different definition", i));
+      DBUG_PRINT("error", ("t1_keysegs=%d, t1_key_alg=%d",
+                           t1_keyinfo[i].keysegs, t1_keyinfo[i].key_alg));
+      DBUG_PRINT("error", ("t2_keysegs=%d, t2_key_alg=%d",
+                           t2_keyinfo[i].keysegs, t2_keyinfo[i].key_alg));
+      DBUG_RETURN(1);
+    }
+    for (j=  t1_keyinfo[i].keysegs; j--;)
+    {
+      if (t1_keysegs[j].type != t2_keysegs[j].type ||
+          t1_keysegs[j].language != t2_keysegs[j].language ||
+          t1_keysegs[j].null_bit != t2_keysegs[j].null_bit ||
+          t1_keysegs[j].length != t2_keysegs[j].length)
+      {
+        DBUG_PRINT("error", ("Key segment %d (key %d) has different "
+                             "definition", j, i));
+        DBUG_PRINT("error", ("t1_type=%d, t1_language=%d, t1_null_bit=%d, "
+                             "t1_length=%d",
+                             t1_keysegs[j].type, t1_keysegs[j].language,
+                             t1_keysegs[j].null_bit, t1_keysegs[j].length));
+        DBUG_PRINT("error", ("t2_type=%d, t2_language=%d, t2_null_bit=%d, "
+                             "t2_length=%d",
+                             t2_keysegs[j].type, t2_keysegs[j].language,
+                             t2_keysegs[j].null_bit, t2_keysegs[j].length));
+
+        DBUG_RETURN(1);
+      }
+    }
+  }
+  for (i= 0; i < t1_recs; i++)
+  {
+    MI_COLUMNDEF *t1_rec= &t1_recinfo[i];
+    MI_COLUMNDEF *t2_rec= &t2_recinfo[i];
+    if (t1_rec->type != t2_rec->type ||
+        t1_rec->length != t2_rec->length ||
+        t1_rec->null_bit != t2_rec->null_bit)
+    {
+      DBUG_PRINT("error", ("Field %d has different definition", i));
+      DBUG_PRINT("error", ("t1_type=%d, t1_length=%d, t1_null_bit=%d",
+                           t1_rec->type, t1_rec->length, t1_rec->null_bit));
+      DBUG_PRINT("error", ("t2_type=%d, t2_length=%d, t2_null_bit=%d",
+                           t2_rec->type, t2_rec->length, t2_rec->null_bit));
+      DBUG_RETURN(1);
+    }
+  }
+  DBUG_RETURN(0);
+}
+
+
 extern "C" {
 
 volatile my_bool *killed_ptr(MI_CHECK *param)
@@ -1345,181 +1635,30 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 		      HA_CREATE_INFO *info)
 {
   int error;
-  uint i,j,recpos,minpos,fieldpos,temp_length,length, create_flags= 0;
-  bool found_real_auto_increment=0;
-  enum ha_base_keytype type;
+  uint create_flags= 0, options= table_arg->db_options_in_use, records;
   char buff[FN_REFLEN];
-  KEY *pos;
   MI_KEYDEF *keydef;
-  MI_COLUMNDEF *recinfo,*recinfo_pos;
-  HA_KEYSEG *keyseg;
-  uint options=table_arg->db_options_in_use;
-  DBUG_ENTER("ha_myisam::create");
-
-  type=HA_KEYTYPE_BINARY;				// Keep compiler happy
-  if (!(my_multi_malloc(MYF(MY_WME),
-			&recinfo,(table_arg->fields*2+2)*sizeof(MI_COLUMNDEF),
-			&keydef, table_arg->keys*sizeof(MI_KEYDEF),
-			&keyseg,
-			((table_arg->key_parts + table_arg->keys) *
-			 sizeof(HA_KEYSEG)),
-			NullS)))
-    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
-
-  pos=table_arg->key_info;
-  for (i=0; i < table_arg->keys ; i++, pos++)
-  {
-    keydef[i].flag= (pos->flags & (HA_NOSAME | HA_FULLTEXT | HA_SPATIAL));
-    keydef[i].key_alg= pos->algorithm == HA_KEY_ALG_UNDEF ? 
-      (pos->flags & HA_SPATIAL ? HA_KEY_ALG_RTREE : HA_KEY_ALG_BTREE) :
-      pos->algorithm;
-    keydef[i].seg=keyseg;
-    keydef[i].keysegs=pos->key_parts;
-    for (j=0 ; j < pos->key_parts ; j++)
-    {
-      keydef[i].seg[j].flag=pos->key_part[j].key_part_flag;
-      Field *field=pos->key_part[j].field;
-      type=field->key_type();
-
-      if (options & HA_OPTION_PACK_KEYS ||
-	  (pos->flags & (HA_PACK_KEY | HA_BINARY_PACK_KEY |
-			 HA_SPACE_PACK_USED)))
-      {
-	if (pos->key_part[j].length > 8 &&
-	    (type == HA_KEYTYPE_TEXT ||
-	     type == HA_KEYTYPE_NUM ||
-	     (type == HA_KEYTYPE_BINARY && !field->zero_pack())))
-	{
-	  /* No blobs here */
-	  if (j == 0)
-	    keydef[i].flag|=HA_PACK_KEY;
-	  if (!(field->flags & ZEROFILL_FLAG) &&
-	      (field->type() == FIELD_TYPE_STRING ||
-	       field->type() == FIELD_TYPE_VAR_STRING ||
-	       ((int) (pos->key_part[j].length - field->decimals()))
-	       >= 4))
-	    keydef[i].seg[j].flag|=HA_SPACE_PACK;
-	}
-	else if (j == 0 && (!(pos->flags & HA_NOSAME) || pos->key_length > 16))
-	  keydef[i].flag|= HA_BINARY_PACK_KEY;
-      }
-      keydef[i].seg[j].type=   (int) type;
-      keydef[i].seg[j].start=  pos->key_part[j].offset;
-      keydef[i].seg[j].length= pos->key_part[j].length;
-      keydef[i].seg[j].bit_start=keydef[i].seg[j].bit_end=0;
-      keydef[i].seg[j].language = field->charset()->number;
-
-      if (field->null_ptr)
-      {
-	keydef[i].seg[j].null_bit=field->null_bit;
-	keydef[i].seg[j].null_pos= (uint) (field->null_ptr-
-					   (uchar*) table_arg->record[0]);
-      }
-      else
-      {
-	keydef[i].seg[j].null_bit=0;
-	keydef[i].seg[j].null_pos=0;
-      }
-      if (field->type() == FIELD_TYPE_BLOB ||
-	  field->type() == FIELD_TYPE_GEOMETRY)
-      {
-	keydef[i].seg[j].flag|=HA_BLOB_PART;
-	/* save number of bytes used to pack length */
-	keydef[i].seg[j].bit_start= (uint) (field->pack_length() -
-					    table_arg->blob_ptr_size);
-      }
-    }
-    keyseg+=pos->key_parts;
-  }
-
-  if (table_arg->found_next_number_field)
-  {
-    keydef[table_arg->next_number_index].flag|= HA_AUTO_KEY;
-    found_real_auto_increment= table_arg->next_number_key_offset == 0;
-  }
-
-  recpos=0; recinfo_pos=recinfo;
-  while (recpos < (uint) table_arg->reclength)
-  {
-    Field **field,*found=0;
-    minpos=table_arg->reclength; length=0;
-
-    for (field=table_arg->field ; *field ; field++)
-    {
-      if ((fieldpos=(*field)->offset()) >= recpos &&
-	  fieldpos <= minpos)
-      {
-	/* skip null fields */
-	if (!(temp_length= (*field)->pack_length()))
-	  continue;				/* Skip null-fields */
-	if (! found || fieldpos < minpos ||
-	    (fieldpos == minpos && temp_length < length))
-	{
-	  minpos=fieldpos; found= *field; length=temp_length;
-	}
-      }
-    }
-    DBUG_PRINT("loop",("found: %lx  recpos: %d  minpos: %d  length: %d",
-		       found,recpos,minpos,length));
-    if (recpos != minpos)
-    {						// Reserved space (Null bits?)
-      bzero((char*) recinfo_pos,sizeof(*recinfo_pos));
-      recinfo_pos->type=(int) FIELD_NORMAL;
-      recinfo_pos++->length= (uint16) (minpos-recpos);
-    }
-    if (! found)
-      break;
-
-    if (found->flags & BLOB_FLAG)
-    {
-      recinfo_pos->type= (int) FIELD_BLOB;
-    }
-    else if (!(options & HA_OPTION_PACK_RECORD))
-      recinfo_pos->type= (int) FIELD_NORMAL;
-    else if (found->zero_pack())
-      recinfo_pos->type= (int) FIELD_SKIP_ZERO;
-    else
-      recinfo_pos->type= (int) ((length <= 3 ||
-				      (found->flags & ZEROFILL_FLAG)) ?
-				     FIELD_NORMAL :
-				     found->type() == FIELD_TYPE_STRING ||
-				     found->type() == FIELD_TYPE_VAR_STRING ?
-				     FIELD_SKIP_ENDSPACE :
-				     FIELD_SKIP_PRESPACE);
-    if (found->null_ptr)
-    {
-      recinfo_pos->null_bit=found->null_bit;
-      recinfo_pos->null_pos= (uint) (found->null_ptr-
-				  (uchar*) table_arg->record[0]);
-    }
-    else
-    {
-      recinfo_pos->null_bit=0;
-      recinfo_pos->null_pos=0;
-    }
-    (recinfo_pos++) ->length=(uint16) length;
-    recpos=minpos+length;
-    DBUG_PRINT("loop",("length: %d  type: %d",
-		       recinfo_pos[-1].length,recinfo_pos[-1].type));
-
-  }
+  MI_COLUMNDEF *recinfo;
   MI_CREATE_INFO create_info;
-  bzero((char*) &create_info,sizeof(create_info));
-  create_info.max_rows=table_arg->max_rows;
-  create_info.reloc_rows=table_arg->min_rows;
-  create_info.with_auto_increment=found_real_auto_increment;
-  create_info.auto_increment=(info->auto_increment_value ?
-			      info->auto_increment_value -1 :
-			      (ulonglong) 0);
+  DBUG_ENTER("ha_myisam::create");
+  if ((error= table2myisam(table_arg, &keydef, &recinfo, &records)))
+    DBUG_RETURN(error); /* purecov: inspected */
+  bzero((char*) &create_info, sizeof(create_info));
+  create_info.max_rows= table_arg->max_rows;
+  create_info.reloc_rows= table_arg->min_rows;
+  create_info.with_auto_increment= table_arg->next_number_key_offset == 0;
+  create_info.auto_increment= (info->auto_increment_value ?
+                               info->auto_increment_value -1 :
+                               (ulonglong) 0);
   create_info.data_file_length= ((ulonglong) table_arg->max_rows *
-				 table_arg->avg_row_length);
-  create_info.raid_type=info->raid_type;
+                                 table_arg->avg_row_length);
+  create_info.raid_type= info->raid_type;
   create_info.raid_chunks= (info->raid_chunks ? info->raid_chunks :
-			    RAID_DEFAULT_CHUNKS);
-  create_info.raid_chunksize=(info->raid_chunksize ? info->raid_chunksize :
-			      RAID_DEFAULT_CHUNKSIZE);
+                            RAID_DEFAULT_CHUNKS);
+  create_info.raid_chunksize= (info->raid_chunksize ? info->raid_chunksize :
+                               RAID_DEFAULT_CHUNKSIZE);
   create_info.data_file_name= info->data_file_name;
-  create_info.index_file_name=info->index_file_name;
+  create_info.index_file_name= info->index_file_name;
 
   if (info->options & HA_LEX_CREATE_TMP_TABLE)
     create_flags|= HA_CREATE_TMP_TABLE;
@@ -1531,13 +1670,13 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
     create_flags|= HA_CREATE_DELAY_KEY_WRITE;
 
   /* TODO: Check that the following fn_format is really needed */
-  error=mi_create(fn_format(buff,name,"","",2+4),
-		  table_arg->keys,keydef,
-		  (uint) (recinfo_pos-recinfo), recinfo,
-		  0, (MI_UNIQUEDEF*) 0,
-		  &create_info, create_flags);
-
-  my_free((gptr) recinfo,MYF(0));
+  error= mi_create(fn_format(buff, name, "", "",
+                             MY_UNPACK_FILENAME|MY_REPLACE_EXT),
+                   table_arg->keys, keydef,
+                   records, recinfo,
+                   0, (MI_UNIQUEDEF*) 0,
+                   &create_info, create_flags);
+  my_free((gptr) recinfo, MYF(0));
   DBUG_RETURN(error);
 }
 
