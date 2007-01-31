@@ -1053,14 +1053,12 @@ btr_cur_optimistic_insert(
 	page_cur_t*	page_cursor;
 	buf_block_t*	block;
 	page_t*		page;
-	page_zip_des_t*	page_zip;
 	ulint		max_size;
 	rec_t*		dummy_rec;
 	ulint		level;
 	ibool		reorg;
 	ibool		inherit;
 	ulint		rec_size;
-	ulint		type;
 	mem_heap_t*	heap		= NULL;
 	ulint		err;
 
@@ -1069,7 +1067,6 @@ btr_cur_optimistic_insert(
 	block = btr_cur_get_block(cursor);
 	page = buf_block_get_frame(block);
 	index = cursor->index;
-	page_zip = buf_block_get_page_zip(block);
 
 	if (!dtuple_check_typed_no_assert(entry)) {
 		fputs("InnoDB: Error in a tuple to insert into ", stderr);
@@ -1089,8 +1086,8 @@ btr_cur_optimistic_insert(
 	/* Calculate the record size when entry is converted to a record */
 	rec_size = rec_get_converted_size(index, entry, ext, n_ext);
 
-	if (page_zip_rec_needs_ext(rec_size, page_is_comp(page), page_zip
-				   ? page_zip_get_size(page_zip) : 0)) {
+	if (page_zip_rec_needs_ext(rec_size, page_is_comp(page),
+				   buf_block_get_zip_size(block))) {
 
 		/* The record is so big that we have to store some fields
 		externally on separate database pages */
@@ -1100,18 +1097,18 @@ btr_cur_optimistic_insert(
 
 			return(DB_TOO_BIG_RECORD);
 		}
+
+		rec_size = rec_get_converted_size(index, entry, ext, n_ext);
 	}
 
 	/* If there have been many consecutive inserts, and we are on the leaf
 	level, check if we have to split the page to reserve enough free space
 	for future updates of records. */
 
-	type = index->type;
-
-	if ((type & DICT_CLUSTERED)
-	    && (dict_index_get_space_reserve() + rec_size > max_size)
+	if (dict_index_is_clust(index)
 	    && (page_get_n_recs(page) >= 2)
-	    && (0 == level)
+	    && UNIV_LIKELY(0 == level)
+	    && (dict_index_get_space_reserve() + rec_size > max_size)
 	    && (btr_page_get_split_rec_to_right(cursor, &dummy_rec)
 		|| btr_page_get_split_rec_to_left(cursor, &dummy_rec))) {
 fail:
@@ -1122,10 +1119,10 @@ fail:
 		return(DB_FAIL);
 	}
 
-	if (!(((max_size >= rec_size)
-	       && (max_size >= BTR_CUR_PAGE_REORGANIZE_LIMIT))
-	      || (page_get_max_insert_size(page, 1) >= rec_size)
-	      || (page_get_n_recs(page) <= 1))) {
+	if (UNIV_UNLIKELY(max_size < BTR_CUR_PAGE_REORGANIZE_LIMIT
+	     || max_size < rec_size)
+	    && UNIV_LIKELY(page_get_n_recs(page) > 1)
+	    && page_get_max_insert_size(page, 1) < rec_size) {
 
 		goto fail;
 	}
@@ -1157,7 +1154,7 @@ fail:
 	if (UNIV_UNLIKELY(!(*rec))) {
 		/* If the record did not fit, reorganize */
 		if (UNIV_UNLIKELY(!btr_page_reorganize(block, index, mtr))) {
-			ut_a(page_zip);
+			ut_a(buf_block_get_page_zip(block));
 
 			goto fail;
 		}
@@ -1172,7 +1169,7 @@ fail:
 					     ext, n_ext, mtr);
 
 		if (UNIV_UNLIKELY(!*rec)) {
-			if (UNIV_LIKELY(page_zip != NULL)) {
+			if (UNIV_LIKELY(buf_block_get_page_zip(block) != 0)) {
 
 				goto fail;
 			}
@@ -1208,9 +1205,9 @@ fail:
 	fprintf(stderr, "Insert into page %lu, max ins size %lu,"
 		" rec %lu ind type %lu\n",
 		buf_block_get_page_no(block), max_size,
-		rec_size + PAGE_DIR_SLOT_SIZE, type);
+		rec_size + PAGE_DIR_SLOT_SIZE, index->type);
 #endif
-	if (!(type & DICT_CLUSTERED)) {
+	if (!dict_index_is_clust(index)) {
 		/* We have added a record to page: update its free bits */
 		ibuf_update_free_bits_if_full(cursor->index, block, max_size,
 					      rec_size + PAGE_DIR_SLOT_SIZE);
