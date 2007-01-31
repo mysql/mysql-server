@@ -417,12 +417,8 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
     break;
   }
   case DECIMAL_RESULT:
-  case REAL_RESULT:
     break;
-  default:
-    DBUG_ASSERT(0);
-  }
-  else if (type == REAL_RESULT)
+  case REAL_RESULT:
   {
     if ((*a)->decimals < NOT_FIXED_DEC && (*b)->decimals < NOT_FIXED_DEC)
     {
@@ -432,6 +428,10 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
       else if (func == &Arg_comparator::compare_e_real)
         func= &Arg_comparator::compare_e_real_fixed;
     }
+    break;
+  }
+  default:
+    DBUG_ASSERT(0);
   }
   return 0;
 }
@@ -577,10 +577,10 @@ int Arg_comparator::compare_real_fixed()
     performing the comparison.
   */
   volatile double val1, val2;
-  val1= (*a)->val();
+  val1= (*a)->val_real();
   if (!(*a)->null_value)
   {
-    val2= (*b)->val();
+    val2= (*b)->val_real();
     if (!(*b)->null_value)
     {
       owner->null_value= 0;
@@ -598,8 +598,8 @@ int Arg_comparator::compare_real_fixed()
 
 int Arg_comparator::compare_e_real_fixed()
 {
-  double val1= (*a)->val();
-  double val2= (*b)->val();
+  double val1= (*a)->val_real();
+  double val2= (*b)->val_real();
   if ((*a)->null_value || (*b)->null_value)
     return test((*a)->null_value && (*b)->null_value);
   return test(val1 == val2 || fabs(val1 - val2) < precision);
