@@ -104,50 +104,21 @@
 eval SELECT "let \$result_pattern= $result_pattern ;" AS "";
 SELECT '--source include/wait_slave_status.inc' AS "";
 
-# We accept to wait maximum 30 seconds (0.2 sec/loop).
-let $max_wait= 150;
-while ($max_wait)
-{
-    let $my_val= `SHOW SLAVE STATUS`;
-    # Now we have the first record of the SHOW result set as one fat string
-    # within the variable  $my_val.
-
-    eval SET @my_val = '$my_val';
-    # DEBUG eval SELECT @my_val AS "response to SHOW SLAVE STATUS";
-
-    eval SELECT @my_val LIKE $result_pattern INTO @success;
-    # @success is     '1' if we have a match
-    #                 '0' if we have no match
-    # DEBUG SELECT @success;
-
-    let $success= `SELECT @success`;
-    let $no_success= `SELECT @success = 0`;
-    if ($success)
-    {
-       # We reached the expected result and want to jump out of the loop
-       # without unneeded sleeps.
-       # Attention: Do not set $max_wait to 0, because "while" with negative value
-       #            does not work.
-       let $max_wait= 1;
-    }
-    if ($no_success)
-    {
-       # We did not reach the expected result and will have to sleep again
-       # or jump out of the loop, when max_wait is exhausted.
-       real_sleep 0.2;
-    }
-    dec $max_wait;
-}
+let $show_type= SLAVE STATUS;
+let $show_pattern= $result_pattern;
 --enable_query_log
-if ($no_success)
+
+--source include/wait_show_pattern.inc
+
+if (!$success)
 {
 let $message= ! Attention: Timeout in wait_slave_status.inc.
               |       Possible reasons with decreasing probability:
-              |       - The LIKE pattern ($result_pattern) is wrong, because the
+              |       - The LIKE pattern is wrong, because the
               |         testcase was altered or the layout of the
               |         SHOW SLAVE STATUS result set changed.
               |       - There is a new bug within the replication.
-              |       - We met an extreme testing environment and $max_wait is
+              |       - We met an extreme testing environment and timeout is
               |         too small.;
 --source include/show_msg80.inc
 --echo DEBUG INFO START (wait_slave_status.inc):

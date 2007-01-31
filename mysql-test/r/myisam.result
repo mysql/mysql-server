@@ -922,6 +922,27 @@ SET @@myisam_repair_threads=1;
 SHOW VARIABLES LIKE 'myisam_repair%';
 Variable_name	Value
 myisam_repair_threads	1
+CREATE TABLE t1(a VARCHAR(16));
+INSERT INTO t1 VALUES('aaaaaaaa'),(NULL);
+UPDATE t1 AS ta1, t1 AS ta2 SET ta1.a='aaaaaaaaaaaaaaaa';
+SELECT * FROM t1;
+a
+aaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaa
+DROP TABLE t1;
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1),(2);
+UPDATE t1,t1 AS t2 SET t1.a=t1.a+2 WHERE t1.a=t2.a-1;
+SELECT * FROM t1 ORDER BY a;
+a
+2
+3
+DROP TABLE t1;
+CREATE TABLE t1 (c1 TEXT) AVG_ROW_LENGTH=70100 MAX_ROWS=4100100100;
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Dynamic	X	X	X	72057594037927935	X	X	X	X	X	X	latin1_swedish_ci	X	max_rows=4100100100 avg_row_length=70100	
+DROP TABLE t1;
 End of 4.1 tests
 set storage_engine=MyISAM;
 drop table if exists t1,t2,t3;
