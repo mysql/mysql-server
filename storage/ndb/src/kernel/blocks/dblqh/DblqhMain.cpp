@@ -18472,7 +18472,12 @@ Dblqh::match_and_print(Signal* signal, Ptr<TcConnectionrec> tcRec)
     sp.i = tcRec.p->tcScanRec;
     c_scanRecordPool.getPtr(sp);
 
-    op = "SCAN";
+    if (sp.p->scanLockMode)
+      op = "SCAN-EX";
+    else if(sp.p->scanLockHold)
+      op = "SCAN-SH";
+    else
+      op = "SCAN";
     
     switch(sp.p->scanState){
     case ScanRecord::WAIT_NEXT_SCAN:
@@ -18501,13 +18506,20 @@ Dblqh::match_and_print(Signal* signal, Ptr<TcConnectionrec> tcRec)
   else
   {
     switch(tcRec.p->operation){
-    case ZREAD: op = "READ"; break;
+    case ZREAD: 
+      if (tcRec.p->lockType)
+	op = "READ-EX";
+      else if(!tcRec.p->dirtyOp)
+	op = "READ-SH";
+      else
+	op = "READ";
+      break;
     case ZINSERT: op = "INSERT"; break;
     case ZUPDATE: op = "UPDATE"; break;
     case ZDELETE: op = "DELETE"; break;
     case ZWRITE: op = "WRITE"; break;
     }
-
+    
     switch(tcRec.p->transactionState){
     case TcConnectionrec::IDLE:
     case TcConnectionrec::WAIT_ACC:
@@ -19171,6 +19183,47 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
       signal->theData[2] = tcRec.i;
       sendSignalWithDelay(reference(), GSN_DUMP_STATE_ORD, signal, 200, len);
       return;
+    }
+  }
+
+  if (arg == 2352 && signal->getLength() == 2)
+  {
+    jam();
+    Uint32 i;
+    Uint32 opNo = signal->theData[1];
+    TcConnectionrecPtr tcRec;
+    if (opNo < ttcConnectrecFileSize)
+    {
+      jam();
+      tcRec.i = opNo;
+      ptrCheckGuard(tcRec, ttcConnectrecFileSize, regTcConnectionrec);
+
+      Uint32 keyLen = tcRec.p->primKeyLen;
+      BaseString key;
+      for(i = 0; i<keyLen && i < 4; i++)
+      {
+	jam();
+	key.appfmt("0x%x ", tcRec.p->tupkeyData[i]);
+      }
+      
+      if (keyLen > 4)
+      {
+	jam();
+	tcConnectptr = tcRec;
+	sendKeyinfoAcc(signal, 4);
+	for (i = 4; i<keyLen; i++)
+	{
+	  jam();
+	  key.appfmt("0x%x ", signal->theData[i]);
+	}
+      }
+      
+      char buf[100];
+      BaseString::snprintf(buf, sizeof(buf),
+			   "OP[%u]: transid: 0x%x 0x%x key: %s",
+			   tcRec.i,
+			   tcRec.p->transid[0], tcRec.p->transid[1], key.c_str());
+      infoEvent(buf);
     }
   }
 }//Dblqh::execDUMP_STATE_ORD()
