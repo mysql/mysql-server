@@ -355,6 +355,8 @@ then
 fi
 
 ( cd mysql-test
+  MTR_BUILD_THREAD=auto
+  export MTR_BUILD_THREAD
   perl ./mysql-test-run.pl --force --report-features
   perl ./mysql-test-run.pl --force --ps-protocol
   true )
@@ -417,6 +419,8 @@ then
 fi
 
 ( cd mysql-test
+  MTR_BUILD_THREAD=auto
+  export MTR_BUILD_THREAD
   perl ./mysql-test-run.pl --force --report-features
   perl ./mysql-test-run.pl --force --ps-protocol
   true )
@@ -765,6 +769,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Wed Jan 31 2007 Daniel Fischer <df@mysql.com>
+
+- add MTR_BUILD_THREAD=auto to test runs.
+
 * Fri Jan 05 2007 Kent Boortz <kent@mysql.com>
 
 - Add CFLAGS to gcc call with --print-libgcc-file, to make sure the
