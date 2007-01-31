@@ -33,6 +33,7 @@ class Arg_comparator: public Sql_alloc
   arg_cmp_func func;
   Item_bool_func2 *owner;
   Arg_comparator *comparators;   // used only for compare_row()
+  double precision;
 
 public:
   DTCollation cmp_collation;
@@ -77,6 +78,8 @@ public:
   int compare_e_int();           // compare args[0] & args[1]
   int compare_e_int_diff_signedness();
   int compare_e_row();           // compare args[0] & args[1]
+  int compare_real_fixed();
+  int compare_e_real_fixed();
 
   static arg_cmp_func comparator_matrix [4][2];
 
