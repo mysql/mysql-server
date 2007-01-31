@@ -1,5 +1,5 @@
 INCLUDES = -I$(srcdir)/../include -I$(srcdir)/../mySTL
-bin_PROGRAMS = test
+noinst_PROGRAMS = test
 test_SOURCES = test.cpp
 test_LDADD    = $(top_builddir)/extra/yassl/taocrypt/src/libtaocrypt.la
 test_CXXFLAGS = -DYASSL_PURE_C
