@@ -1,3 +1,18 @@
+# Copyright (C) 2000-2007 MySQL AB
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; see the file COPYING. If not, write to the
+# Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
+# MA  02110-1301  USA.
 
 %define mysql_version		@VERSION@
 
@@ -71,12 +86,9 @@ is intended for mission-critical, heavy-load production systems as well
 as for embedding into mass-deployed software. MySQL is a trademark of
 MySQL AB.
 
-The MySQL software has Dual Licensing, which means you can use the MySQL
-software free of charge under the GNU General Public License
-(http://www.gnu.org/licenses/). You can also purchase commercial MySQL
-licenses from MySQL AB if you do not wish to be bound by the terms of
-the GPL. See the chapter "Licensing and Support" in the manual for
-further info.
+Copyright (C) 2000-2007 MySQL AB
+This software comes with ABSOLUTELY NO WARRANTY. This is free software,
+and you are welcome to modify and redistribute it under the GPL license.
 
 The MySQL web site (http://www.mysql.com/) provides the latest
 news and information about the MySQL software. Also please see the
@@ -96,12 +108,9 @@ is intended for mission-critical, heavy-load production systems as well
 as for embedding into mass-deployed software. MySQL is a trademark of
 MySQL AB.
 
-The MySQL software has Dual Licensing, which means you can use the MySQL
-software free of charge under the GNU General Public License
-(http://www.gnu.org/licenses/). You can also purchase commercial MySQL
-licenses from MySQL AB if you do not wish to be bound by the terms of
-the GPL. See the chapter "Licensing and Support" in the manual for
-further info.
+Copyright (C) 2000-2007 MySQL AB
+This software comes with ABSOLUTELY NO WARRANTY. This is free software,
+and you are welcome to modify and redistribute it under the GPL license.
 
 The MySQL web site (http://www.mysql.com/) provides the latest
 news and information about the MySQL software. Also please see the
@@ -328,7 +337,7 @@ then
   cp -fp mysql-debug-%{mysql_version}/config.log "$MYSQL_DEBUGCONFLOG_DEST"
 fi
 
-(cd mysql-debug-%{mysql_version}/mysql-test ; \
+(cd mysql-debug-%{mysql_version}/mysql-test ; MTR_BUILD_THREAD=auto ; export MTR_BUILD_THREAD ; \
  ./mysql-test-run.pl --comment=debug --skip-rpl --skip-ndbcluster --force --report-features ; \
  true)
 
@@ -360,6 +369,8 @@ then
 fi
 
 cd mysql-release-%{mysql_version}/mysql-test
+MTR_BUILD_THREAD=auto
+export MTR_BUILD_THREAD
 ./mysql-test-run.pl --comment=normal --force --skip-ndbcluster --timer --report-features || true
 ./mysql-test-run.pl --comment=ps --ps-protocol --force --skip-ndbcluster --timer || true
 ./mysql-test-run.pl --comment=normal+rowrepl --mysqld=--binlog-format=row --force --skip-ndbcluster --timer || true
@@ -722,16 +733,16 @@ fi
   in the server RPM.
 - The "mysqlmanager" man page got moved from section 1 to 8.
 
+* Thu Nov 30 2006 Joerg Bruehe <joerg@mysql.com>
+
+- Call "make install" using "benchdir_root=%{_datadir}", 
+  because that is affecting the regression test suite as well.
+
 * Thu Nov 16 2006 Joerg Bruehe <joerg@mysql.com>
 
 - Explicitly note that the "MySQL-shared" RPMs (as built by MySQL AB) 
   replace "mysql-shared" (as distributed by SuSE) to allow easy upgrading
   (bug#22081).
-
-* Thu Nov 30 2006 Joerg Bruehe <joerg@mysql.com>
-
-- Call "make install" using "benchdir_root=%{_datadir}", 
-  because that is affecting the regression test suite as well.
 
 * Mon Nov 13 2006 Joerg Bruehe <joerg@mysql.com>
 
