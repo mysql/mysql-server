@@ -627,13 +627,20 @@ int ha_archive::create(const char *name, TABLE *table_arg,
     /*
       Here is where we open up the frm and pass it to archive to store 
     */
-    frm_file= my_open(name_buff, O_RDONLY, MYF(0));
-    VOID(my_fstat(frm_file, &file_stat, MYF(MY_WME)));
-    frm_ptr= (byte *)my_malloc(sizeof(byte) * file_stat.st_size , MYF(0));
-    my_read(frm_file, frm_ptr, file_stat.st_size, MYF(0));
-    azwrite_frm(&create_stream, (char *)frm_ptr, file_stat.st_size);
-    my_close(frm_file, MYF(0));
-    my_free((gptr)frm_ptr, MYF(0));
+    if ((frm_file= my_open(name_buff, O_RDONLY, MYF(0))) > 0)
+    {
+      if (!my_fstat(frm_file, &file_stat, MYF(MY_WME)))
+      {
+        frm_ptr= (byte *)my_malloc(sizeof(byte) * file_stat.st_size , MYF(0));
+        if (frm_ptr)
+        {
+          my_read(frm_file, frm_ptr, file_stat.st_size, MYF(0));
+          azwrite_frm(&create_stream, (char *)frm_ptr, file_stat.st_size);
+          my_free((gptr)frm_ptr, MYF(0));
+        }
+      }
+      my_close(frm_file, MYF(0));
+    }
 
     if (create_info->comment.str)
       azwrite_comment(&create_stream, create_info->comment.str, 
