@@ -3882,11 +3882,10 @@ int ha_ndbcluster::start_stmt(THD *thd, thr_lock_type lock_type)
       ERR_RETURN(ndb->getNdbError());
     no_uncommitted_rows_reset(thd);
     thd_ndb->stmt= trans;
+    thd_ndb->query_state&= NDB_QUERY_NORMAL;
     trans_register_ha(thd, FALSE, &ndbcluster_hton);
   }
-  thd_ndb->query_state&= NDB_QUERY_NORMAL;
   m_active_trans= trans;
-
   // Start of statement
   m_retrieve_all_fields= FALSE;
   m_retrieve_primary_key= FALSE;
@@ -6528,7 +6527,11 @@ close_scan:
   }
   
   if (multi_range_curr == multi_range_end)
+  {
+    Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
+    thd_ndb->query_state&= NDB_QUERY_NORMAL;
     DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
   
   /**
    * Read remaining ranges
