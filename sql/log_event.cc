@@ -5717,9 +5717,26 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
     {
       if (!need_reopen)
       {
-        slave_print_msg(ERROR_LEVEL, rli, error,
-                        "Error in %s event: when locking tables",
-                        get_type_str());
+        if (thd->query_error || thd->is_fatal_error)
+        {
+          /*
+            Error reporting borrowed from Query_log_event with many excessive
+            simplifications (we don't honour --slave-skip-errors)
+          */
+          uint actual_error= thd->net.last_errno;
+          slave_print_msg(ERROR_LEVEL, rli, actual_error,
+                          "Error '%s' in %s event: when locking tables",
+                          (actual_error ? thd->net.last_error :
+                           "unexpected success or fatal error"),
+                          get_type_str());
+          thd->is_fatal_error= 1;
+        }
+        else
+        {
+          slave_print_msg(ERROR_LEVEL, rli, error,
+                         "Error in %s event: when locking tables",
+                         get_type_str());
+        }
         rli->clear_tables_to_lock();
         DBUG_RETURN(error);
       }
