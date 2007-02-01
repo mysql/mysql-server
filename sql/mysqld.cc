@@ -1069,7 +1069,10 @@ void clean_up(bool print_message)
 #endif
 #ifdef HAVE_OPENSSL
   if (ssl_acceptor_fd)
+  {
+    SSL_CTX_free(ssl_acceptor_fd->ssl_context);
     my_free((gptr) ssl_acceptor_fd, MYF(MY_ALLOW_ZERO_PTR));
+  }
 #endif /* HAVE_OPENSSL */
 #ifdef USE_REGEX
   my_regex_end();
