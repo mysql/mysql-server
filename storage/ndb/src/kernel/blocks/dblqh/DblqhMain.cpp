@@ -7208,7 +7208,8 @@ void Dblqh::execACC_ABORTCONF(Signal* signal)
   TRACE_OP(regTcPtr, "ACC_ABORTCONF");
   signal->theData[0] = regTcPtr->tupConnectrec;
   EXECUTE_DIRECT(DBTUP, GSN_TUP_ABORTREQ, signal, 1);
-  
+
+  jamEntry(); 
   continueAbortLab(signal);
   return;
 }//Dblqh::execACC_ABORTCONF()
