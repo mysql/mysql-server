@@ -348,7 +348,7 @@ Write data to the uncompressed header portion of a page.  The data must
 already have been written to the uncompressed page.
 However, the data portion of the uncompressed page may differ from
 the compressed page when a record is being inserted in
-page_cur_insert_rec_low(). */
+page_cur_insert_rec_zip(). */
 UNIV_INLINE
 void
 page_zip_write_header(
@@ -369,7 +369,7 @@ page_zip_write_header(
 
 	memcpy(page_zip->data + pos, str, length);
 
-	/* The following would fail in page_cur_insert_rec_low(). */
+	/* The following would fail in page_cur_insert_rec_zip(). */
 	/* ut_ad(page_zip_validate(page_zip, str - pos)); */
 
 	if (UNIV_LIKELY_NULL(mtr)) {

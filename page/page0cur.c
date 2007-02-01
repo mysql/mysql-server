@@ -883,20 +883,263 @@ page_cur_parse_insert_rec(
 }
 
 /***************************************************************
-Inserts a record next to page cursor. Returns pointer to inserted record if
-succeed, i.e., enough space available, NULL otherwise. The record to be
-inserted can be in a data tuple or as a physical record. The other parameter
-must then be NULL. The cursor stays at the same position. */
+Inserts a record next to page cursor on an uncompressed page.
+Returns pointer to inserted record if succeed, i.e., enough
+space available, NULL otherwise. The cursor stays at the same position. */
 
 rec_t*
 page_cur_insert_rec_low(
 /*====================*/
 				/* out: pointer to record if succeed, NULL
 				otherwise */
+	rec_t*		current_rec,/* in: pointer to current record after
+				which the new record is inserted */
+	dict_index_t*	index,	/* in: record descriptor */
+	rec_t*		rec,	/* in: pointer to a physical record */
+	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
+	mtr_t*		mtr)	/* in: mini-transaction handle, or NULL */
+{
+	byte*		insert_buf	= NULL;
+	ulint		rec_size;
+	page_t*		page;		/* the relevant page */
+	rec_t*		last_insert;	/* cursor position at previous
+					insert */
+	rec_t*		free_rec;	/* a free record that was reused,
+					or NULL */
+	rec_t*		insert_rec;	/* inserted record */
+	ulint		heap_no;	/* heap number of the inserted
+					record */
+
+	ut_ad(rec_offs_validate(rec, index, offsets));
+
+	page = page_align(current_rec);
+	ut_ad(dict_table_is_comp(index->table)
+	      == (ibool) !!page_is_comp(page));
+
+	ut_ad(!page_rec_is_supremum(current_rec));
+
+	/* 1. Get the size of the physical record in the page */
+	rec_size = rec_offs_size(offsets);
+
+	/* 2. Try to find suitable space from page memory management */
+
+	free_rec = page_header_get_ptr(page, PAGE_FREE);
+	if (UNIV_LIKELY_NULL(free_rec)) {
+		/* Try to allocate from the head of the free list. */
+		ulint		foffsets_[REC_OFFS_NORMAL_SIZE];
+		ulint*		foffsets	= foffsets_;
+		mem_heap_t*	heap		= NULL;
+
+		*foffsets = sizeof(foffsets_) / sizeof *foffsets_;
+
+		foffsets = rec_get_offsets(free_rec, index, foffsets,
+					ULINT_UNDEFINED, &heap);
+		if (rec_offs_size(foffsets) < rec_size) {
+			if (UNIV_LIKELY_NULL(heap)) {
+				mem_heap_free(heap);
+			}
+
+			goto use_heap;
+		}
+
+		insert_buf = free_rec - rec_offs_extra_size(foffsets);
+
+		if (page_is_comp(page)) {
+			heap_no = rec_get_heap_no_new(free_rec);
+			page_mem_alloc_free(page, NULL,
+					rec_get_next_ptr(free_rec, TRUE),
+					rec_size);
+		} else {
+			heap_no = rec_get_heap_no_old(free_rec);
+			page_mem_alloc_free(page, NULL,
+					rec_get_next_ptr(free_rec, FALSE),
+					rec_size);
+		}
+
+		if (UNIV_LIKELY_NULL(heap)) {
+			mem_heap_free(heap);
+		}
+	} else {
+use_heap:
+		free_rec = NULL;
+		insert_buf = page_mem_alloc_heap(page, NULL,
+						 rec_size, &heap_no);
+
+		if (UNIV_UNLIKELY(insert_buf == NULL)) {
+			return(NULL);
+		}
+	}
+
+	/* 3. Create the record */
+	insert_rec = rec_copy(insert_buf, rec, offsets);
+	rec_offs_make_valid(insert_rec, index, offsets);
+
+	/* 4. Insert the record in the linked list of records */
+	ut_ad(current_rec != insert_rec);
+
+	{
+		/* next record after current before the insertion */
+		rec_t*	next_rec = page_rec_get_next(current_rec);
+#ifdef UNIV_DEBUG
+		if (page_is_comp(page)) {
+			ut_ad(rec_get_status(current_rec)
+				<= REC_STATUS_INFIMUM);
+			ut_ad(rec_get_status(insert_rec) < REC_STATUS_INFIMUM);
+			ut_ad(rec_get_status(next_rec) != REC_STATUS_INFIMUM);
+		}
+#endif
+		page_rec_set_next(insert_rec, next_rec);
+		page_rec_set_next(current_rec, insert_rec);
+	}
+
+	page_header_set_field(page, NULL, PAGE_N_RECS,
+			      1 + page_get_n_recs(page));
+
+	/* 5. Set the n_owned field in the inserted record to zero,
+	and set the heap_no field */
+	if (page_is_comp(page)) {
+		rec_set_n_owned_new(insert_rec, NULL, 0);
+		rec_set_heap_no_new(insert_rec, heap_no);
+	} else {
+		rec_set_n_owned_old(insert_rec, 0);
+		rec_set_heap_no_old(insert_rec, heap_no);
+	}
+
+	/* 6. Update the last insertion info in page header */
+
+	last_insert = page_header_get_ptr(page, PAGE_LAST_INSERT);
+	ut_ad(!last_insert || !page_is_comp(page)
+	      || rec_get_node_ptr_flag(last_insert)
+	      == rec_get_node_ptr_flag(insert_rec));
+
+	if (UNIV_UNLIKELY(last_insert == NULL)) {
+		page_header_set_field(page, NULL, PAGE_DIRECTION,
+				      PAGE_NO_DIRECTION);
+		page_header_set_field(page, NULL, PAGE_N_DIRECTION, 0);
+
+	} else if ((last_insert == current_rec)
+		   && (page_header_get_field(page, PAGE_DIRECTION)
+		       != PAGE_LEFT)) {
+
+		page_header_set_field(page, NULL, PAGE_DIRECTION,
+							PAGE_RIGHT);
+		page_header_set_field(page, NULL, PAGE_N_DIRECTION,
+				      page_header_get_field(
+					      page, PAGE_N_DIRECTION) + 1);
+
+	} else if ((page_rec_get_next(insert_rec) == last_insert)
+		   && (page_header_get_field(page, PAGE_DIRECTION)
+		       != PAGE_RIGHT)) {
+
+		page_header_set_field(page, NULL, PAGE_DIRECTION,
+							PAGE_LEFT);
+		page_header_set_field(page, NULL, PAGE_N_DIRECTION,
+				      page_header_get_field(
+					      page, PAGE_N_DIRECTION) + 1);
+	} else {
+		page_header_set_field(page, NULL, PAGE_DIRECTION,
+							PAGE_NO_DIRECTION);
+		page_header_set_field(page, NULL, PAGE_N_DIRECTION, 0);
+	}
+
+	page_header_set_ptr(page, NULL, PAGE_LAST_INSERT, insert_rec);
+
+	/* 7. It remains to update the owner record. */
+	{
+		rec_t*	owner_rec	= page_rec_find_owner_rec(insert_rec);
+		ulint	n_owned;
+		if (page_is_comp(page)) {
+			n_owned = rec_get_n_owned_new(owner_rec);
+			rec_set_n_owned_new(owner_rec, NULL, n_owned + 1);
+		} else {
+			n_owned = rec_get_n_owned_old(owner_rec);
+			rec_set_n_owned_old(owner_rec, n_owned + 1);
+		}
+
+		/* 8. Now we have incremented the n_owned field of the owner
+		record. If the number exceeds PAGE_DIR_SLOT_MAX_N_OWNED,
+		we have to split the corresponding directory slot in two. */
+
+		if (UNIV_UNLIKELY(n_owned == PAGE_DIR_SLOT_MAX_N_OWNED)) {
+			page_dir_split_slot(
+				page, NULL,
+				page_dir_find_owner_slot(owner_rec));
+		}
+	}
+
+	/* 9. Write log record of the insert */
+	if (UNIV_LIKELY(mtr != NULL)) {
+		page_cur_insert_rec_write_log(insert_rec, rec_size,
+					      current_rec, index, mtr);
+	}
+
+	return(insert_rec);
+}
+
+/***************************************************************
+Compresses or reorganizes a page after an optimistic insert. */
+static
+rec_t*
+page_cur_insert_rec_zip_reorg(
+/*==========================*/
+				/* out: rec if succeed, NULL otherwise */
 	rec_t**		current_rec,/* in/out: pointer to current record after
 				which the new record is inserted */
-	buf_block_t*	block,	/* in: buffer block of *current_rec, or NULL
-				if the compressed page is not to be updated */
+	buf_block_t*	block,	/* in: buffer block */
+	dict_index_t*	index,	/* in: record descriptor */
+	rec_t*		rec,	/* in: inserted record */
+	page_t*		page,	/* in: uncompressed page */
+	page_zip_des_t*	page_zip,/* in: compressed page */
+	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
+{
+	ulint		pos;
+
+	/* Recompress or reorganize and recompress the page. */
+	if (UNIV_LIKELY(page_zip_compress(page_zip, page, index, mtr))) {
+		return(rec);
+	}
+
+	/* Before trying to reorganize the page,
+	store the number of preceding records on the page. */
+	pos = page_rec_get_n_recs_before(rec);
+
+	if (page_zip_reorganize(block, index, mtr)) {
+		/* The page was reorganized: Find rec by seeking to pos,
+		and update *current_rec. */
+		rec = page + PAGE_NEW_INFIMUM;
+
+		while (--pos) {
+			rec = page + rec_get_next_offs(rec, TRUE);
+		}
+
+		*current_rec = rec;
+		rec = page + rec_get_next_offs(rec, TRUE);
+
+		return(rec);
+	}
+
+	/* Out of space: restore the page */
+	if (!page_zip_decompress(page_zip, page)) {
+		ut_error; /* Memory corrupted? */
+	}
+	ut_ad(page_validate(page, index));
+	return(NULL);
+}
+
+/***************************************************************
+Inserts a record next to page cursor on a compressed and uncompressed
+page. Returns pointer to inserted record if succeed, i.e.,
+enough space available, NULL otherwise.
+The cursor stays at the same position. */
+
+rec_t*
+page_cur_insert_rec_zip(
+/*====================*/
+				/* out: pointer to record if succeed, NULL
+				otherwise */
+	rec_t**		current_rec,/* in/out: pointer to current record after
+				which the new record is inserted */
+	buf_block_t*	block,	/* in: buffer block of *current_rec */
 	dict_index_t*	index,	/* in: record descriptor */
 	rec_t*		rec,	/* in: pointer to a physical record */
 	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
@@ -914,33 +1157,44 @@ page_cur_insert_rec_low(
 					record */
 	page_zip_des_t*	page_zip;
 
-	page_zip = block ? buf_block_get_page_zip(block) : NULL;
+	page_zip = buf_block_get_page_zip(block);
+	ut_ad(page_zip);
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	page = page_align(*current_rec);
-	ut_ad(dict_table_is_comp(index->table)
-	      == (ibool) !!page_is_comp(page));
+	ut_ad(dict_table_is_comp(index->table));
+	ut_ad(page_is_comp(page));
 
 	ut_ad(!page_rec_is_supremum(*current_rec));
 #ifdef UNIV_ZIP_DEBUG
-	ut_a(!page_zip || page_zip_validate(page_zip, page));
+	ut_a(page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
 
 	/* 1. Get the size of the physical record in the page */
 	rec_size = rec_offs_size(offsets);
 
 	/* 2. Try to find suitable space from page memory management */
-	if (UNIV_LIKELY_NULL(page_zip)
-	    && !page_zip_available(page_zip, index, rec_size, 1)) {
+	if (!page_zip_available(page_zip, index, rec_size, 1)) {
 
 		/* Try compressing the whole page afterwards. */
-		page_zip = NULL;
+		insert_rec = page_cur_insert_rec_low(*current_rec,
+						     index, rec, offsets,
+						     NULL);
+
+		if (UNIV_LIKELY(insert_rec != NULL)) {
+			insert_rec = page_cur_insert_rec_zip_reorg(
+				current_rec, block, index, insert_rec,
+				page, page_zip, mtr);
+		}
+
+		return(insert_rec);
 	}
 
 	free_rec = page_header_get_ptr(page, PAGE_FREE);
 	if (UNIV_LIKELY_NULL(free_rec)) {
 		/* Try to allocate from the head of the free list. */
+		lint	extra_size_diff;
 		ulint		foffsets_[REC_OFFS_NORMAL_SIZE];
 		ulint*		foffsets	= foffsets_;
 		mem_heap_t*	heap		= NULL;
@@ -960,42 +1214,31 @@ too_small:
 
 		insert_buf = free_rec - rec_offs_extra_size(foffsets);
 
-		if (page_is_comp(page)) {
-			if (UNIV_LIKELY_NULL(page_zip)) {
-				/* On compressed pages, do not
-				relocate records from the free list.
-				If extra_size would grow, use the heap. */
-				lint	extra_size_diff
-					= rec_offs_extra_size(offsets)
-					- rec_offs_extra_size(foffsets);
+		/* On compressed pages, do not relocate records from
+		the free list.  If extra_size would grow, use the heap. */
+		extra_size_diff
+			= rec_offs_extra_size(offsets)
+			- rec_offs_extra_size(foffsets);
 
-				if (UNIV_UNLIKELY(extra_size_diff < 0)) {
-					/* Add an offset to the extra_size. */
-					if (rec_offs_size(foffsets)
-					    < rec_size - extra_size_diff) {
+		if (UNIV_UNLIKELY(extra_size_diff < 0)) {
+			/* Add an offset to the extra_size. */
+			if (rec_offs_size(foffsets)
+			    < rec_size - extra_size_diff) {
 
-						goto too_small;
-					}
-
-					insert_buf -= extra_size_diff;
-				} else if (UNIV_UNLIKELY(extra_size_diff)) {
-					/* Do not allow extra_size to grow */
-
-					goto too_small;
-				}
+				goto too_small;
 			}
 
-			heap_no = rec_get_heap_no_new(free_rec);
-			page_mem_alloc_free(page, page_zip,
-					rec_get_next_ptr(free_rec, TRUE),
-					rec_size);
-		} else {
-			ut_ad(!page_zip);
-			heap_no = rec_get_heap_no_old(free_rec);
-			page_mem_alloc_free(page, NULL,
-					rec_get_next_ptr(free_rec, FALSE),
-					rec_size);
+			insert_buf -= extra_size_diff;
+		} else if (UNIV_UNLIKELY(extra_size_diff)) {
+			/* Do not allow extra_size to grow */
+
+			goto too_small;
 		}
+
+		heap_no = rec_get_heap_no_new(free_rec);
+		page_mem_alloc_free(page, page_zip,
+				    rec_get_next_ptr(free_rec, TRUE),
+				    rec_size);
 
 		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
@@ -1010,10 +1253,7 @@ use_heap:
 			return(NULL);
 		}
 
-		if (UNIV_LIKELY_NULL(page_zip)) {
-			page_zip_dir_add_slot(page_zip,
-					dict_index_is_clust(index));
-		}
+		page_zip_dir_add_slot(page_zip, dict_index_is_clust(index));
 	}
 
 	/* 3. Create the record */
@@ -1026,14 +1266,11 @@ use_heap:
 	{
 		/* next record after current before the insertion */
 		rec_t*	next_rec = page_rec_get_next(*current_rec);
-#ifdef UNIV_DEBUG
-		if (page_is_comp(page)) {
-			ut_ad(rec_get_status(*current_rec)
-				<= REC_STATUS_INFIMUM);
-			ut_ad(rec_get_status(insert_rec) < REC_STATUS_INFIMUM);
-			ut_ad(rec_get_status(next_rec) != REC_STATUS_INFIMUM);
-		}
-#endif
+		ut_ad(rec_get_status(*current_rec)
+		      <= REC_STATUS_INFIMUM);
+		ut_ad(rec_get_status(insert_rec) < REC_STATUS_INFIMUM);
+		ut_ad(rec_get_status(next_rec) != REC_STATUS_INFIMUM);
+
 		page_rec_set_next(insert_rec, next_rec);
 		page_rec_set_next(*current_rec, insert_rec);
 	}
@@ -1043,23 +1280,15 @@ use_heap:
 
 	/* 5. Set the n_owned field in the inserted record to zero,
 	and set the heap_no field */
-	if (page_is_comp(page)) {
-		rec_set_n_owned_new(insert_rec, NULL, 0);
-		rec_set_heap_no_new(insert_rec, heap_no);
-		if (UNIV_LIKELY_NULL(page_zip)) {
-			page_zip_dir_insert(page_zip, *current_rec, free_rec,
-					insert_rec);
-		}
-	} else {
-		ut_ad(!page_zip);
-		rec_set_n_owned_old(insert_rec, 0);
-		rec_set_heap_no_old(insert_rec, heap_no);
-	}
+	rec_set_n_owned_new(insert_rec, NULL, 0);
+	rec_set_heap_no_new(insert_rec, heap_no);
+
+	page_zip_dir_insert(page_zip, *current_rec, free_rec, insert_rec);
 
 	/* 6. Update the last insertion info in page header */
 
 	last_insert = page_header_get_ptr(page, PAGE_LAST_INSERT);
-	ut_ad(!last_insert || !page_is_comp(page)
+	ut_ad(!last_insert
 	      || rec_get_node_ptr_flag(last_insert)
 	      == rec_get_node_ptr_flag(insert_rec));
 
@@ -1099,68 +1328,22 @@ use_heap:
 	{
 		rec_t*	owner_rec	= page_rec_find_owner_rec(insert_rec);
 		ulint	n_owned;
-		if (page_is_comp(page)) {
-			n_owned = rec_get_n_owned_new(owner_rec);
-			rec_set_n_owned_new(owner_rec, page_zip, n_owned + 1);
-		} else {
-			n_owned = rec_get_n_owned_old(owner_rec);
-			rec_set_n_owned_old(owner_rec, n_owned + 1);
-		}
+
+		n_owned = rec_get_n_owned_new(owner_rec);
+		rec_set_n_owned_new(owner_rec, page_zip, n_owned + 1);
 
 		/* 8. Now we have incremented the n_owned field of the owner
 		record. If the number exceeds PAGE_DIR_SLOT_MAX_N_OWNED,
 		we have to split the corresponding directory slot in two. */
 
 		if (UNIV_UNLIKELY(n_owned == PAGE_DIR_SLOT_MAX_N_OWNED)) {
-			page_dir_split_slot(page, page_zip,
-					page_dir_find_owner_slot(owner_rec));
+			page_dir_split_slot(
+				page, page_zip,
+				page_dir_find_owner_slot(owner_rec));
 		}
 	}
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
-		page_zip_write_rec(page_zip, insert_rec, index, offsets, 1);
-	} else if (UNIV_LIKELY_NULL(block)
-		   && UNIV_LIKELY_NULL(buf_block_get_page_zip(block))) {
-		ut_a(page_is_comp(page));
-
-		page_zip = buf_block_get_page_zip(block);
-
-		/* Recompress or reorganize and recompress the page. */
-		if (UNIV_UNLIKELY
-		    (!page_zip_compress(page_zip, page, index, mtr))) {
-			/* Before trying to reorganize the page,
-			store the number of preceding records on the page. */
-			ulint		insert_pos
-				= page_rec_get_n_recs_before(insert_rec);
-
-			if (page_zip_reorganize(block, index, mtr)) {
-				/* The page was reorganized:
-				Seek to insert_pos to find insert_rec,
-				and update *current_rec. */
-				insert_rec = page + PAGE_NEW_INFIMUM;
-
-				while (--insert_pos) {
-					insert_rec = page + rec_get_next_offs(
-						insert_rec, TRUE);
-				}
-
-				*current_rec = insert_rec;
-				insert_rec = page
-					+ rec_get_next_offs(insert_rec, TRUE);
-
-				return(insert_rec);
-			}
-
-			/* Out of space: restore the page */
-			if (!page_zip_decompress(page_zip, page)) {
-				ut_error; /* Memory corrupted? */
-			}
-			ut_ad(page_validate(page, index));
-			return(NULL);
-		}
-
-		return(insert_rec);
-	}
+	page_zip_write_rec(page_zip, insert_rec, index, offsets, 1);
 
 	/* 9. Write log record of the insert */
 	if (UNIV_LIKELY(mtr != NULL)) {
