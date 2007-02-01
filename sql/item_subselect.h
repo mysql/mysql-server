@@ -179,7 +179,11 @@ public:
     rewriting, mandated by a SQL:2003 exception in the specification.
     The only caller of this method is handle_sql2003_note184_exception(),
     see the code there for more details.
-    Do not call this method for other purposes.
+    Note that this method breaks the object internal integrity, by
+    removing it's association with the corresponding SELECT_LEX,
+    making this object orphan from the parse tree.
+    No other method, beside the destructor, should be called on this
+    object, as it is now invalid.
     @return the SELECT_LEX structure that was given in the constructor.
   */
   st_select_lex* invalidate_and_restore_select_lex();
