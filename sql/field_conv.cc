@@ -605,6 +605,10 @@ void field_conv(Field *to,Field *from)
         from->charset() == to->charset() &&
 	to->table->db_low_byte_first == from->table->db_low_byte_first)
     {						// Identical fields
+#ifdef HAVE_purify
+      /* This may happen if one does 'UPDATE ... SET x=x' */
+      if (to->ptr != from->ptr)
+#endif
       memcpy(to->ptr,from->ptr,to->pack_length());
       return;
     }
