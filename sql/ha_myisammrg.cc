@@ -32,6 +32,13 @@
 ** MyISAM MERGE tables
 *****************************************************************************/
 
+extern int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
+                        MI_COLUMNDEF **recinfo_out, uint *records_out);
+extern int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
+                            uint t1_keys, uint t1_recs,
+                            MI_KEYDEF *t2_keyinfo, MI_COLUMNDEF *t2_recinfo,
+                            uint t2_keys, uint t2_recs, bool strict);
+
 const char **ha_myisammrg::bas_ext() const
 { static const char *ext[]= { ".MRG", NullS }; return ext; }
 
@@ -49,6 +56,12 @@ const char *ha_myisammrg::index_type(uint key_number)
 
 int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
 {
+  MI_KEYDEF *keyinfo;
+  MI_COLUMNDEF *recinfo;
+  MYRG_TABLE *u_table;
+  uint recs;
+  uint keys= table->keys;
+  int error;
   char name_buff[FN_REFLEN];
 
   DBUG_PRINT("info", ("ha_myisammrg::open"));
@@ -69,20 +82,45 @@ int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
 
   if (table->reclength != mean_rec_length && mean_rec_length)
   {
-    DBUG_PRINT("error",("reclength: %d  mean_rec_length: %d",
+    DBUG_PRINT("error",("reclength: %d  mean_rec_length: %lu",
 			table->reclength, mean_rec_length));
+    error= HA_ERR_WRONG_MRG_TABLE_DEF;
     goto err;
   }
+  if ((error= table2myisam(table, &keyinfo, &recinfo, &recs)))
+  {
+    /* purecov: begin inspected */
+    DBUG_PRINT("error", ("Failed to convert TABLE object to MyISAM "
+                         "key and column definition"));
+    goto err;
+    /* purecov: end */
+  }
+  for (u_table= file->open_tables; u_table < file->end_table; u_table++)
+  {
+    if (check_definition(keyinfo, recinfo, keys, recs,
+                         u_table->table->s->keyinfo, u_table->table->s->rec,
+                         u_table->table->s->base.keys,
+                         u_table->table->s->base.fields, false))
+    {
+      my_free((gptr) recinfo, MYF(0));
+      error= HA_ERR_WRONG_MRG_TABLE_DEF;
+      goto err;
+    }
+  }
+  my_free((gptr) recinfo, MYF(0));
 #if !defined(BIG_TABLES) || SIZEOF_OFF_T == 4
   /* Merge table has more than 2G rows */
   if (table->crashed)
+  {
+    error= HA_ERR_WRONG_MRG_TABLE_DEF;
     goto err;
+  }
 #endif
   return (0);
 err:
   myrg_close(file);
   file=0;
-  return (my_errno= HA_ERR_WRONG_MRG_TABLE_DEF);
+  return (my_errno= error);
 }
 
 int ha_myisammrg::close(void)
