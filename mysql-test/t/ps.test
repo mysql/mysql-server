@@ -1128,22 +1128,4 @@ drop database mysqltest;
 deallocate prepare stmt1;
 deallocate prepare stmt2;
 #
-# CREATE TABLE with DATA DIRECTORY option
-#
-# Protect ourselves from data left in tmp/ by a previos possibly failed
-# test
---system rm -f $MYSQLTEST_VARDIR/tmp/t1.*
---disable_query_log
-eval prepare stmt from "create table t1 (c char(10)) data directory='$MYSQLTEST_VARDIR/tmp'";
---enable_query_log
-execute stmt;
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-show create table t1;
-drop table t1;
-execute stmt;
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-show create table t1;
-drop table t1;
-deallocate prepare stmt;
-#
 --echo End of 4.1 tests.
