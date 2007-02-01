@@ -3878,10 +3878,9 @@ int ha_ndbcluster::start_stmt(THD *thd, thr_lock_type lock_type)
     no_uncommitted_rows_reset(thd);
     thd_ndb->stmt= trans;
     thd_ndb->query_state&= NDB_QUERY_NORMAL;
-    m_active_trans= trans;
     trans_register_ha(thd, FALSE, &ndbcluster_hton);
   }
-
+  m_active_trans= trans;
   // Start of statement
   m_retrieve_all_fields= FALSE;
   m_retrieve_primary_key= FALSE;
