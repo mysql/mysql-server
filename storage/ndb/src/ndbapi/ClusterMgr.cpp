@@ -360,8 +360,6 @@ ClusterMgr::execAPI_REGREQ(const Uint32 * theData){
   theFacade.sendSignalUnCond(&signal, nodeId);
 }
 
-int global_mgmt_server_check = 0; // set to one in mgmtsrvr main;
-
 void
 ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
   const ApiRegConf * const apiRegConf = (ApiRegConf *)&theData[0];
@@ -379,7 +377,7 @@ ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
 
   if(node.m_info.m_version != apiRegConf->version){
     node.m_info.m_version = apiRegConf->version;
-    if (global_mgmt_server_check == 1)
+    if(theNodes[theFacade.ownId()].m_info.m_type == NodeInfo::MGM)
       node.compatible = ndbCompatible_mgmt_ndb(NDB_VERSION,
 					       node.m_info.m_version);
     else
