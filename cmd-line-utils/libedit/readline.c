@@ -112,7 +112,7 @@ int rl_attempted_completion_over = 0;
 char *rl_basic_word_break_characters = break_chars;
 char *rl_completer_word_break_characters = NULL;
 char *rl_completer_quote_characters = NULL;
-Function *rl_completion_entry_function = NULL;
+CPFunction *rl_completion_entry_function = NULL;
 CPPFunction *rl_attempted_completion_function = NULL;
 Function *rl_pre_input_hook = NULL;
 Function *rl_startup1_hook = NULL;
@@ -1724,7 +1724,7 @@ rl_display_match_list (matches, len, max)
 static int
 _rl_complete_internal(int what_to_do)
 {
-	Function *complet_func;
+	CPFunction *complet_func;
 	const LineInfo *li;
 	char *temp, **matches;
 	const char *ctemp;
@@ -1737,7 +1737,7 @@ _rl_complete_internal(int what_to_do)
 
 	complet_func = rl_completion_entry_function;
 	if (!complet_func)
-		complet_func = (Function *)(void *)filename_completion_function;
+		complet_func = filename_completion_function;
 
 	/* We now look backwards for the start of a filename/variable word */
 	li = el_line(e);
@@ -1764,7 +1764,7 @@ _rl_complete_internal(int what_to_do)
 	} else
 		matches = 0;
 	if (!rl_attempted_completion_function || !matches)
-		matches = completion_matches(temp, (CPFunction *)complet_func);
+		matches = completion_matches(temp, complet_func);
 
 	if (matches) {
 		int i, retval = CC_REFRESH;
@@ -1789,8 +1789,7 @@ _rl_complete_internal(int what_to_do)
 			 * object is a directory.
 			 */
 			size_t alen = strlen(matches[0]);
-			if ((complet_func !=
-			    (Function *)filename_completion_function
+			if ((complet_func != filename_completion_function
 			      || (alen > 0 && (matches[0])[alen - 1] != '/'))
 			    && rl_completion_append_character) {
 				char buf[2];
