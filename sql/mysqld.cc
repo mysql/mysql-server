@@ -517,6 +517,7 @@ rw_lock_t	LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 pthread_cond_t COND_refresh,COND_thread_count, COND_global_read_lock;
 pthread_t signal_thread;
 pthread_attr_t connection_attrib;
+static uint thr_kill_signal;
 
 File_parser_dummy_hook file_parser_dummy_hook;
 
@@ -653,7 +654,6 @@ static void clean_up_mutexes(void);
 static void wait_for_signal_thread_to_end(void);
 static int test_if_case_insensitive(const char *dir_name);
 static void create_pid_file();
-static uint get_thread_lib(void);
 
 #ifndef EMBEDDED_LIBRARY
 /****************************************************************************
@@ -693,8 +693,7 @@ static void close_connections(void)
     DBUG_PRINT("info",("Waiting for select thread"));
 
 #ifndef DONT_USE_THR_ALARM
-    if (pthread_kill(select_thread,
-                     thd_lib_detected == THD_LIB_LT ? SIGALRM : SIGUSR1))
+    if (pthread_kill(select_thread, thr_client_alarm))
       break;					// allready dead
 #endif
     set_timespec(abstime, 2);
@@ -2151,8 +2150,7 @@ static void init_signals(void)
 
   if (test_flags & TEST_SIGINT)
   {
-    my_sigset(thd_lib_detected == THD_LIB_LT ? SIGINT : SIGUSR2,
-              end_thread_signal);
+    my_sigset(thr_kill_signal, end_thread_signal);
   }
   my_sigset(THR_SERVER_ALARM,print_signal_warning); // Should never be called!
 
@@ -2212,10 +2210,10 @@ static void init_signals(void)
   if (test_flags & TEST_SIGINT)
   {
     // May be SIGINT
-    sigdelset(&set, thd_lib_detected == THD_LIB_LT ? SIGINT : SIGUSR2);
+    sigdelset(&set, thr_kill_signal);
   }
   // For alarms
-  sigdelset(&set, thd_lib_detected == THD_LIB_LT ? SIGALRM : SIGUSR1);
+  sigdelset(&set, thr_client_alarm);
   sigprocmask(SIG_SETMASK,&set,NULL);
   pthread_sigmask(SIG_SETMASK,&set,NULL);
   DBUG_VOID_RETURN;
@@ -2279,7 +2277,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
   */
   init_thr_alarm(max_connections +
 		 global_system_variables.max_insert_delayed_threads + 10);
-  if (thd_lib_detected != THD_LIB_LT && test_flags & TEST_SIGINT)
+  if (thd_lib_detected != THD_LIB_LT && (test_flags & TEST_SIGINT))
   {
     (void) sigemptyset(&set);			// Setup up SIGINT for debug
     (void) sigaddset(&set,SIGINT);		// For debugging
@@ -3350,6 +3348,9 @@ int main(int argc, char **argv)
 
   DEBUGGER_OFF;
 
+  /* Set signal used to kill MySQL */
+  thr_kill_signal= thd_lib_detected == THD_LIB_LT ? SIGINT : SIGUSR2;
+
 #ifdef _CUSTOMSTARTUPCONFIG_
   if (_cust_check_startup())
   {
@@ -3374,7 +3375,6 @@ int main(int argc, char **argv)
   }
 #endif /* __WIN__ */
 
-  thd_lib_detected= get_thread_lib();
   if (init_common_variables(MYSQL_CONFIG_NAME,
 			    argc, argv, load_default_groups))
     unireg_abort(1);				// Will do exit
@@ -7542,22 +7542,6 @@ static void create_pid_file()
   }
   sql_perror("Can't start server: can't create PID file");
   exit(1);
-}
-
-
-static uint get_thread_lib(void)
-{
-  char buff[64];
-    
-#ifdef _CS_GNU_LIBPTHREAD_VERSION
-  confstr(_CS_GNU_LIBPTHREAD_VERSION, buff, sizeof(buff));
-
-  if (!strncasecmp(buff, "NPTL", 4))
-    return THD_LIB_NPTL;
-  else if (!strncasecmp(buff, "linuxthreads", 12))
-    return THD_LIB_LT;
-#endif
-  return THD_LIB_OTHER;
 }
 
 

@@ -30,14 +30,6 @@ extern "C" {
 #define EXTERNC
 #endif /* __cplusplus */ 
 
-/* Thread library */
-
-#define THD_LIB_OTHER 1
-#define THD_LIB_NPTL  2
-#define THD_LIB_LT    4
-
-extern uint thd_lib_detected;
-
 /*
   BUG#24507: Race conditions inside current NPTL pthread_exit() implementation.
   
@@ -771,6 +763,16 @@ extern uint my_thread_end_wait_time;
   Keep track of shutdown,signal, and main threads so that my_end() will not
   report errors with them
 */
+
+/* Which kind of thread library is in use */
+
+#define THD_LIB_OTHER 1
+#define THD_LIB_NPTL  2
+#define THD_LIB_LT    4
+
+extern uint thd_lib_detected;
+extern uint thr_client_alarm;
+
 	/* statistics_xxx functions are for not essential statistic */
 
 #ifndef thread_safe_increment
