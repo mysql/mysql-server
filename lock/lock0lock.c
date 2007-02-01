@@ -311,6 +311,39 @@ locks on the inserted record. */
  * statement-level MySQL binlog.
  * See also lock_mode_compatible().
  */
+#define LK(a,b) (1 << ((a) * LOCK_NUM + (b)))
+#define LKS(a,b) LK(a,b) | LK(b,a)
+
+/* Define the lock compatibility matrix in a ulint.  The first line below
+defines the diagonal entries.  The following lines define the compatibility
+for LOCK_IX, LOCK_S, and LOCK_AUTO_INC using LKS(), since the matrix
+is symmetric. */
+#define LOCK_MODE_COMPATIBILITY 0					\
+ | LK(LOCK_IS, LOCK_IS) | LK(LOCK_IX, LOCK_IX) | LK(LOCK_S, LOCK_S)	\
+ | LKS(LOCK_IX, LOCK_IS) | LKS(LOCK_IS, LOCK_AUTO_INC)			\
+ | LKS(LOCK_S, LOCK_IS)							\
+ | LKS(LOCK_AUTO_INC, LOCK_IS) | LKS(LOCK_AUTO_INC, LOCK_IX)
+
+/* STRONGER-OR-EQUAL RELATION (mode1=row, mode2=column)
+ *    IS IX S  X  AI
+ * IS +  -  -  -  -
+ * IX +  +  -  -  -
+ * S  +  -  +  -  -
+ * X  +  +  +  +  +
+ * AI -  -  -  -  +
+ * See lock_mode_stronger_or_eq().
+ */
+
+/* Define the stronger-or-equal lock relation in a ulint.  This relation
+contains all pairs LK(mode1, mode2) where mode1 is stronger than or
+equal to mode2. */
+#define LOCK_MODE_STRONGER_OR_EQ 0					\
+ | LK(LOCK_IS, LOCK_IS)							\
+ | LK(LOCK_IX, LOCK_IS) | LK(LOCK_IX, LOCK_IX)				\
+ | LK(LOCK_S, LOCK_IS) | LK(LOCK_S, LOCK_S)				\
+ | LK(LOCK_AUTO_INC, LOCK_AUTO_INC)					\
+ | LK(LOCK_X, LOCK_IS) | LK(LOCK_X, LOCK_IX) | LK(LOCK_X, LOCK_S)	\
+ | LK(LOCK_X, LOCK_AUTO_INC) | LK(LOCK_X, LOCK_X)
 
 #ifdef UNIV_DEBUG
 ibool	lock_print_waits	= FALSE;
@@ -623,7 +656,7 @@ lock_get_size(void)
 /*************************************************************************
 Gets the mode of a lock. */
 UNIV_INLINE
-ulint
+enum lock_mode
 lock_get_mode(
 /*==========*/
 				/* out: mode */
@@ -667,7 +700,7 @@ lock_get_src_table(
 				two tables or an inconsistency is found */
 	trx_t*		trx,	/* in: transaction */
 	dict_table_t*	dest,	/* in: destination of ALTER TABLE */
-	ulint*		mode)	/* out: lock mode of the source table */
+	enum lock_mode*	mode)	/* out: lock mode of the source table */
 {
 	dict_table_t*	src;
 	lock_t*		lock;
@@ -679,7 +712,7 @@ lock_get_src_table(
 	     lock;
 	     lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
 		lock_table_t*	tab_lock;
-		ulint		lock_mode;
+		enum lock_mode	lock_mode;
 		if (!(lock_get_type(lock) & LOCK_TABLE)) {
 			/* We are only interested in table locks. */
 			continue;
@@ -706,15 +739,12 @@ lock_get_src_table(
 		/* Check that the source table is locked by
 		LOCK_IX or LOCK_IS. */
 		lock_mode = lock_get_mode(lock);
-		switch (lock_mode) {
-		case LOCK_IX:
-		case LOCK_IS:
+		if (lock_mode == LOCK_IX || lock_mode == LOCK_IS) {
 			if (*mode != LOCK_NONE && *mode != lock_mode) {
 				/* There are multiple locks on src. */
 				return(NULL);
 			}
 			*mode = lock_mode;
-			break;
 		}
 	}
 
@@ -872,81 +902,38 @@ lock_rec_get_insert_intention(
 /*************************************************************************
 Calculates if lock mode 1 is stronger or equal to lock mode 2. */
 UNIV_INLINE
-ibool
+ulint
 lock_mode_stronger_or_eq(
 /*=====================*/
-			/* out: TRUE if mode1 stronger or equal to mode2 */
-	ulint	mode1,	/* in: lock mode */
-	ulint	mode2)	/* in: lock mode */
+				/* out: nonzero
+				if mode1 stronger or equal to mode2 */
+	enum lock_mode	mode1,	/* in: lock mode */
+	enum lock_mode	mode2)	/* in: lock mode */
 {
 	ut_ad(mode1 == LOCK_X || mode1 == LOCK_S || mode1 == LOCK_IX
 	      || mode1 == LOCK_IS || mode1 == LOCK_AUTO_INC);
 	ut_ad(mode2 == LOCK_X || mode2 == LOCK_S || mode2 == LOCK_IX
 	      || mode2 == LOCK_IS || mode2 == LOCK_AUTO_INC);
-	if (mode1 == LOCK_X) {
 
-		return(TRUE);
-
-	} else if (mode1 == LOCK_AUTO_INC && mode2 == LOCK_AUTO_INC) {
-
-		return(TRUE);
-
-	} else if (mode1 == LOCK_S
-		   && (mode2 == LOCK_S || mode2 == LOCK_IS)) {
-		return(TRUE);
-
-	} else if (mode1 == LOCK_IS && mode2 == LOCK_IS) {
-
-		return(TRUE);
-
-	} else if (mode1 == LOCK_IX && (mode2 == LOCK_IX
-					|| mode2 == LOCK_IS)) {
-		return(TRUE);
-	}
-
-	return(FALSE);
+	return((LOCK_MODE_STRONGER_OR_EQ) & LK(mode1, mode2));
 }
 
 /*************************************************************************
 Calculates if lock mode 1 is compatible with lock mode 2. */
 UNIV_INLINE
-ibool
+ulint
 lock_mode_compatible(
 /*=================*/
-			/* out: TRUE if mode1 compatible with mode2 */
-	ulint	mode1,	/* in: lock mode */
-	ulint	mode2)	/* in: lock mode */
+			/* out: nonzero if mode1 compatible with mode2 */
+	enum lock_mode	mode1,	/* in: lock mode */
+	enum lock_mode	mode2)	/* in: lock mode */
 {
 	ut_ad(mode1 == LOCK_X || mode1 == LOCK_S || mode1 == LOCK_IX
 	      || mode1 == LOCK_IS || mode1 == LOCK_AUTO_INC);
 	ut_ad(mode2 == LOCK_X || mode2 == LOCK_S || mode2 == LOCK_IX
 	      || mode2 == LOCK_IS || mode2 == LOCK_AUTO_INC);
 
-	if (mode1 == LOCK_S && (mode2 == LOCK_IS || mode2 == LOCK_S)) {
-
-		return(TRUE);
-
-	} else if (mode1 == LOCK_X) {
-
-		return(FALSE);
-
-	} else if (mode1 == LOCK_AUTO_INC && (mode2 == LOCK_IS
-					      || mode2 == LOCK_IX)) {
-		return(TRUE);
-
-	} else if (mode1 == LOCK_IS && (mode2 == LOCK_IS
-					|| mode2 == LOCK_IX
-					|| mode2 == LOCK_AUTO_INC
-					|| mode2 == LOCK_S)) {
-		return(TRUE);
-
-	} else if (mode1 == LOCK_IX && (mode2 == LOCK_IS
-					|| mode2 == LOCK_AUTO_INC
-					|| mode2 == LOCK_IX)) {
-		return(TRUE);
-	}
-
-	return(FALSE);
+	return((LOCK_MODE_COMPATIBILITY) & LK(mode1, mode2));
 }
 
 /*************************************************************************
@@ -1422,7 +1409,7 @@ lock_table_has(
 				/* out: lock or NULL */
 	trx_t*		trx,	/* in: transaction */
 	dict_table_t*	table,	/* in: table */
-	ulint		mode)	/* in: lock mode */
+	enum lock_mode	mode)	/* in: lock mode */
 {
 	lock_t*	lock;
 
@@ -1511,7 +1498,7 @@ lock_t*
 lock_rec_other_has_expl_req(
 /*========================*/
 					/* out: lock or NULL */
-	ulint			mode,	/* in: LOCK_S or LOCK_X */
+	enum lock_mode		mode,	/* in: LOCK_S or LOCK_X */
 	ulint			gap,	/* in: LOCK_GAP if also gap
 					locks are taken into account,
 					or 0 if not */
@@ -1560,7 +1547,7 @@ lock_t*
 lock_rec_other_has_conflicting(
 /*===========================*/
 					/* out: lock or NULL */
-	ulint			mode,	/* in: LOCK_S or LOCK_X,
+	enum lock_mode		mode,	/* in: LOCK_S or LOCK_X,
 					possibly ORed to LOCK_GAP or
 					LOC_REC_NOT_GAP,
 					LOCK_INSERT_INTENTION */
@@ -3734,7 +3721,7 @@ lock_table_other_has_incompatible(
 	ulint		wait,	/* in: LOCK_WAIT if also waiting locks are
 				taken into account, or 0 if not */
 	dict_table_t*	table,	/* in: table */
-	ulint		mode)	/* in: lock mode */
+	enum lock_mode	mode)	/* in: lock mode */
 {
 	lock_t*	lock;
 
@@ -3769,7 +3756,7 @@ lock_table(
 	ulint		flags,	/* in: if BTR_NO_LOCKING_FLAG bit is set,
 				does nothing */
 	dict_table_t*	table,	/* in: database table in dictionary cache */
-	ulint		mode,	/* in: lock mode */
+	enum lock_mode	mode,	/* in: lock mode */
 	que_thr_t*	thr)	/* in: query thread */
 {
 	trx_t*	trx;
@@ -3929,7 +3916,7 @@ lock_rec_unlock(
 					set a record lock */
 	const buf_block_t*	block,	/* in: buffer block containing rec */
 	const rec_t*		rec,	/* in: record */
-	ulint			lock_mode)/* in: LOCK_S or LOCK_X */
+	enum lock_mode		lock_mode)/* in: LOCK_S or LOCK_X */
 {
 	lock_t*	lock;
 	lock_t*	release_lock	= NULL;
@@ -4720,7 +4707,7 @@ lock_rec_queue_validate(
 
 		if (!lock_rec_get_gap(lock) && !lock_get_wait(lock)) {
 
-			ulint	mode;
+			enum lock_mode	mode;
 
 			if (lock_get_mode(lock) == LOCK_S) {
 				mode = LOCK_X;
@@ -5233,7 +5220,7 @@ lock_sec_rec_read_check_and_lock(
 					read cursor */
 	dict_index_t*		index,	/* in: secondary index */
 	const ulint*		offsets,/* in: rec_get_offsets(rec, index) */
-	ulint			mode,	/* in: mode of the lock which
+	enum lock_mode		mode,	/* in: mode of the lock which
 					the read cursor should set on
 					records: LOCK_S or LOCK_X; the
 					latter is possible in
@@ -5309,7 +5296,7 @@ lock_clust_rec_read_check_and_lock(
 					read cursor */
 	dict_index_t*		index,	/* in: clustered index */
 	const ulint*		offsets,/* in: rec_get_offsets(rec, index) */
-	ulint			mode,	/* in: mode of the lock which
+	enum lock_mode		mode,	/* in: mode of the lock which
 					the read cursor should set on
 					records: LOCK_S or LOCK_X; the
 					latter is possible in
@@ -5380,7 +5367,7 @@ lock_clust_rec_read_check_and_lock_alt(
 					be read or passed over by a
 					read cursor */
 	dict_index_t*		index,	/* in: clustered index */
-	ulint			mode,	/* in: mode of the lock which
+	enum lock_mode		mode,	/* in: mode of the lock which
 					the read cursor should set on
 					records: LOCK_S or LOCK_X; the
 					latter is possible in

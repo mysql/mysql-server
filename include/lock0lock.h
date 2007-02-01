@@ -25,6 +25,18 @@ extern ibool	lock_print_waits;
 /* Buffer for storing information about the most recent deadlock error */
 extern FILE*	lock_latest_err_file;
 
+/* Basic lock modes */
+enum lock_mode {
+	LOCK_IS = 0,	/* intention shared */
+	LOCK_IX,	/* intention exclusive */
+	LOCK_S,		/* shared */
+	LOCK_X,		/* exclusive */
+	LOCK_AUTO_INC,	/* locks the auto-inc counter of a table
+			in an exclusive mode */
+	LOCK_NONE,	/* this is used elsewhere to note consistent read */
+	LOCK_NUM = LOCK_NONE/* number of lock modes */
+};
+
 /*************************************************************************
 Gets the size of a lock struct. */
 
@@ -354,7 +366,7 @@ lock_sec_rec_read_check_and_lock(
 					read cursor */
 	dict_index_t*		index,	/* in: secondary index */
 	const ulint*		offsets,/* in: rec_get_offsets(rec, index) */
-	ulint			mode,	/* in: mode of the lock which
+	enum lock_mode		mode,	/* in: mode of the lock which
 					the read cursor should set on
 					records: LOCK_S or LOCK_X; the
 					latter is possible in
@@ -385,7 +397,7 @@ lock_clust_rec_read_check_and_lock(
 					read cursor */
 	dict_index_t*		index,	/* in: clustered index */
 	const ulint*		offsets,/* in: rec_get_offsets(rec, index) */
-	ulint			mode,	/* in: mode of the lock which
+	enum lock_mode		mode,	/* in: mode of the lock which
 					the read cursor should set on
 					records: LOCK_S or LOCK_X; the
 					latter is possible in
@@ -417,7 +429,7 @@ lock_clust_rec_read_check_and_lock_alt(
 					be read or passed over by a
 					read cursor */
 	dict_index_t*		index,	/* in: clustered index */
-	ulint			mode,	/* in: mode of the lock which
+	enum lock_mode		mode,	/* in: mode of the lock which
 					the read cursor should set on
 					records: LOCK_S or LOCK_X; the
 					latter is possible in
@@ -473,7 +485,7 @@ lock_table(
 	ulint		flags,	/* in: if BTR_NO_LOCKING_FLAG bit is set,
 				does nothing */
 	dict_table_t*	table,	/* in: database table in dictionary cache */
-	ulint		mode,	/* in: lock mode */
+	enum lock_mode	mode,	/* in: lock mode */
 	que_thr_t*	thr);	/* in: query thread */
 /*************************************************************************
 Checks if there are any locks set on the table. */
@@ -495,7 +507,7 @@ lock_rec_unlock(
 					set a record lock */
 	const buf_block_t*	block,	/* in: buffer block containing rec */
 	const rec_t*		rec,	/* in: record */
-	ulint			lock_mode);/* in: LOCK_S or LOCK_X */
+	enum lock_mode		lock_mode);/* in: LOCK_S or LOCK_X */
 /*************************************************************************
 Releases a table lock.
 Releases possible other transactions waiting for this lock. */
@@ -571,7 +583,7 @@ lock_get_src_table(
 				two tables or an inconsistency is found */
 	trx_t*		trx,	/* in: transaction */
 	dict_table_t*	dest,	/* in: destination of ALTER TABLE */
-	ulint*		mode);	/* out: lock mode of the source table */
+	enum lock_mode*	mode);	/* out: lock mode of the source table */
 /*************************************************************************
 Determine if the given table is exclusively "owned" by the given
 transaction, i.e., transaction holds LOCK_IX and possibly LOCK_AUTO_INC
@@ -641,15 +653,6 @@ lock_number_of_rows_locked(
 extern lock_sys_t*	lock_sys;
 
 /* Lock modes and types */
-/* Basic modes */
-#define	LOCK_NONE	0	/* this flag is used elsewhere to note
-				consistent read */
-#define	LOCK_IS		2	/* intention shared */
-#define	LOCK_IX		3	/* intention exclusive */
-#define	LOCK_S		4	/* shared */
-#define	LOCK_X		5	/* exclusive */
-#define	LOCK_AUTO_INC	6	/* locks the auto-inc counter of a table
-				in an exclusive mode */
 #define LOCK_MODE_MASK	0xFUL	/* mask used to extract mode from the
 				type_mode field in a lock */
 /* Lock types */
@@ -700,7 +703,7 @@ extern lock_sys_t*	lock_sys;
 typedef struct lock_op_struct	lock_op_t;
 struct lock_op_struct{
 	dict_table_t*	table;	/* table to be locked */
-	ulint		mode;	/* lock mode */
+	enum lock_mode	mode;	/* lock mode */
 };
 
 #define LOCK_OP_START		1
