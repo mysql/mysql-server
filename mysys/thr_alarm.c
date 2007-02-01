@@ -36,6 +36,7 @@
 #define ETIME ETIMEDOUT
 #endif
 
+uint thr_client_alarm;
 static int alarm_aborted=1;			/* No alarm thread */
 my_bool thr_alarm_inited= 0;
 volatile my_bool alarm_thread_running= 0;
@@ -77,12 +78,15 @@ void init_thr_alarm(uint max_alarms)
   sigfillset(&full_signal_set);			/* Neaded to block signals */
   pthread_mutex_init(&LOCK_alarm,MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND_alarm,NULL);
+  if (thd_lib_detected == THD_LIB_LT)
+    thr_client_alarm= SIGALRM;
+  else
+    thr_client_alarm= SIGUSR1;
 #ifndef USE_ALARM_THREAD
   if (thd_lib_detected != THD_LIB_LT)
 #endif
   {
-    my_sigset(thd_lib_detected == THD_LIB_LT ? SIGALRM : SIGUSR1,
-	      thread_alarm);
+    my_sigset(thr_client_alarm, thread_alarm);
   }
   sigemptyset(&s);
   sigaddset(&s, THR_SERVER_ALARM);
@@ -103,8 +107,7 @@ void init_thr_alarm(uint max_alarms)
   pthread_sigmask(SIG_BLOCK, &s, NULL);		/* used with sigwait() */
   if (thd_lib_detected == THD_LIB_LT)
   {
-    my_sigset(thd_lib_detected == THD_LIB_LT ? SIGALRM : SIGUSR1,
-              process_alarm);        /* Linuxthreads */
+    my_sigset(thr_client_alarm, process_alarm);        /* Linuxthreads */
     pthread_sigmask(SIG_UNBLOCK, &s, NULL);
   }
 #else
@@ -284,8 +287,7 @@ sig_handler process_alarm(int sig __attribute__((unused)))
     printf("thread_alarm in process_alarm\n"); fflush(stdout);
 #endif
 #ifdef DONT_REMEMBER_SIGNAL
-    my_sigset(thd_lib_detected == THD_LIB_LT ? SIGALRM : SIGUSR1,
-              process_alarm);	/* int. thread system calls */
+    my_sigset(thr_client_alarm, process_alarm);	/* int. thread system calls */
 #endif
     return;
   }
@@ -332,8 +334,7 @@ static sig_handler process_alarm_part2(int sig __attribute__((unused)))
 	alarm_data=(ALARM*) queue_element(&alarm_queue,i);
 	alarm_data->alarmed=1;			/* Info to thread */
 	if (pthread_equal(alarm_data->thread,alarm_thread) ||
-	    pthread_kill(alarm_data->thread,
-			 thd_lib_detected == THD_LIB_LT ? SIGALRM : SIGUSR1))
+	    pthread_kill(alarm_data->thread, thr_client_alarm))
 	{
 #ifdef MAIN
 	  printf("Warning: pthread_kill couldn't find thread!!!\n");
@@ -357,8 +358,7 @@ static sig_handler process_alarm_part2(int sig __attribute__((unused)))
 	alarm_data->alarmed=1;			/* Info to thread */
 	DBUG_PRINT("info",("sending signal to waiting thread"));
 	if (pthread_equal(alarm_data->thread,alarm_thread) ||
-	    pthread_kill(alarm_data->thread,
-			 thd_lib_detected == THD_LIB_LT ? SIGALRM : SIGUSR1))
+	    pthread_kill(alarm_data->thread, thr_client_alarm))
 	{
 #ifdef MAIN
 	  printf("Warning: pthread_kill couldn't find thread!!!\n");
@@ -947,7 +947,7 @@ static void *signal_hand(void *arg __attribute__((unused)))
 #endif
 #endif /* OS2 */
   printf("server alarm: %d  thread alarm: %d\n",
-	 THR_SERVER_ALARM, thd_lib_detected == THD_LIB_LT ? SIGALRM : SIGUSR1);
+         THR_SERVER_ALARM, thr_client_alarm);
   DBUG_PRINT("info",("Starting signal and alarm handling thread"));
   for(;;)
   {
@@ -1019,11 +1019,11 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
   sigaddset(&set,SIGTSTP);
 #endif
   sigaddset(&set,THR_SERVER_ALARM);
-  sigdelset(&set, thd_lib_detected == THD_LIB_LT ? SIGALRM : SIGUSR1);
+  sigdelset(&set, thr_client_alarm);
   (void) pthread_sigmask(SIG_SETMASK,&set,NULL);
 #ifdef NOT_USED
   sigemptyset(&set);
-  sigaddset(&set, thd_lib_detected == THD_LIB_LT ? SIGALRM : SIGUSR1);
+  sigaddset(&set, thr_client_alarm);
   VOID(pthread_sigmask(SIG_UNBLOCK, &set, (sigset_t*) 0));
 #endif
 #endif /* OS2 */
