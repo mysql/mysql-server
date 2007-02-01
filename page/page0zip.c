@@ -3247,7 +3247,7 @@ page_zip_dir_insert(
 
 		if (UNIV_LIKELY(!free_rec)) {
 			/* PAGE_N_RECS was already incremented
-			in page_cur_insert_rec_low(), but the
+			in page_cur_insert_rec_zip(), but the
 			dense directory slot at that position
 			contains garbage.  Skip it. */
 			start += PAGE_ZIP_DIR_SLOT_SIZE;
@@ -3266,7 +3266,7 @@ page_zip_dir_insert(
 		/* The record was allocated from the free list.
 		Shift the dense directory only up to that slot.
 		Note that in this case, n_dense is actually
-		off by one, because page_cur_insert_rec_low()
+		off by one, because page_cur_insert_rec_zip()
 		did not increment n_heap. */
 		ut_ad(rec_get_heap_no_new(rec) < n_dense + 1
 		      + PAGE_HEAP_NO_USER_LOW);

@@ -168,20 +168,35 @@ page_cur_rec_insert(
 	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
 	mtr_t*		mtr);	/* in: mini-transaction handle, or NULL */
 /***************************************************************
-Inserts a record next to page cursor. Returns pointer to inserted record if
-succeed, i.e., enough space available, NULL otherwise. The record to be
-inserted can be in a data tuple or as a physical record. The other parameter
-must then be NULL. The cursor stays at the same position. */
+Inserts a record next to page cursor on an uncompressed page.
+Returns pointer to inserted record if succeed, i.e., enough
+space available, NULL otherwise. The cursor stays at the same position. */
 
 rec_t*
 page_cur_insert_rec_low(
 /*====================*/
 				/* out: pointer to record if succeed, NULL
 				otherwise */
+	rec_t*		current_rec,/* in: pointer to current record after
+				which the new record is inserted */
+	dict_index_t*	index,	/* in: record descriptor */
+	rec_t*		rec,	/* in: pointer to a physical record */
+	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
+	mtr_t*		mtr);	/* in: mini-transaction handle, or NULL */
+/***************************************************************
+Inserts a record next to page cursor on a compressed and uncompressed
+page. Returns pointer to inserted record if succeed, i.e.,
+enough space available, NULL otherwise.
+The cursor stays at the same position. */
+
+rec_t*
+page_cur_insert_rec_zip(
+/*====================*/
+				/* out: pointer to record if succeed, NULL
+				otherwise */
 	rec_t**		current_rec,/* in/out: pointer to current record after
 				which the new record is inserted */
-	buf_block_t*	block,	/* in: buffer block of *current_rec, or NULL
-				if the compressed page is not to be updated */
+	buf_block_t*	block,	/* in: buffer block of *current_rec */
 	dict_index_t*	index,	/* in: record descriptor */
 	rec_t*		rec,	/* in: pointer to a physical record */
 	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
