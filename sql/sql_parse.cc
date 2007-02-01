@@ -3555,7 +3555,7 @@ end_with_restore_list:
       break;
     }
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_one_table_access(thd, DELETE_ACL, all_tables))
+    if (check_one_table_access(thd, DROP_ACL, all_tables))
       goto error;
     /*
       Don't allow this within a transaction because we want to use
