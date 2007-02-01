@@ -1,0 +1,437 @@
+#
+# Suppress some common (not fatal) errors in system libraries found by valgrind
+#
+
+#
+# Pthread doesn't free all thread specific memory before program exists
+#
+{
+   pthread allocate_tls memory loss
+   Memcheck:Leak
+   fun:calloc
+   fun:_dl_allocate_tls
+   fun:allocate_stack
+   fun:pthread_create*
+}
+
+{
+   pthread allocate_tls memory loss
+   Memcheck:Leak
+   fun:calloc
+   fun:_dl_allocate_tls
+   fun:pthread_create*
+}
+
+{
+   pthread allocate_dtv memory loss
+   Memcheck:Leak
+   fun:calloc
+   fun:allocate_dtv
+   fun:_dl_allocate_tls_storage
+   fun:__GI__dl_allocate_tls
+   fun:pthread_create
+}
+
+{
+   pthread allocate_dtv memory loss second
+   Memcheck:Leak
+   fun:calloc
+   fun:allocate_dtv
+   fun:_dl_allocate_tls
+   fun:pthread_create*
+}
+
+{
+   pthread memalign memory loss
+   Memcheck:Leak
+   fun:memalign
+   fun:_dl_allocate_tls_storage
+   fun:__GI__dl_allocate_tls
+   fun:pthread_create
+}
+
+{
+   pthread pthread_key_create
+   Memcheck:Leak
+   fun:malloc
+   fun:*
+   fun:*
+   fun:pthread_key_create
+   fun:my_thread_global_init
+}
+
+{
+   pthread strstr uninit
+   Memcheck:Cond
+   fun:strstr
+   obj:/lib/tls/libpthread.so.*
+   obj:/lib/tls/libpthread.so.*
+   fun:call_init
+   fun:_dl_init
+   obj:/lib/ld-*.so
+}
+
+{
+   pthread errno
+   Memcheck:Leak
+   fun:calloc
+   fun:_dlerror_run
+   fun:dlsym
+   fun:__errno_location
+}
+
+
+#
+# Warnings in libz becasue it works with aligned memory(?)
+#
+
+{
+   libz tr_flush_block
+   Memcheck:Cond
+   fun:_tr_flush_block
+   fun:deflate_slow
+   fun:deflate
+   fun:do_flush
+   fun:gzclose
+}
+
+{
+   libz tr_flush_block2
+   Memcheck:Cond
+   fun:_tr_flush_block
+   fun:deflate_slow
+   fun:deflate
+   fun:compress2
+}
+
+{
+   libz longest_match
+   Memcheck:Cond
+   fun:longest_match
+   fun:deflate_slow
+   fun:deflate
+   fun:do_flush
+}
+
+{
+   libz longest_match2
+   Memcheck:Cond
+   fun:longest_match
+   fun:deflate_slow
+   fun:deflate
+   fun:compress2
+}
+
+{
+   libz longest_match 3
+   Memcheck:Cond
+   fun:longest_match
+   fun:deflate_slow
+   fun:deflate
+   fun:gzclose
+}
+
+{
+   libz longest_match 4 
+   Memcheck:Cond
+   fun:longest_match
+   fun:deflate_slow
+   fun:deflate
+   fun:gzflush
+}
+
+{
+   libz deflate
+   Memcheck:Cond
+   obj:*/libz.so.*
+   obj:*/libz.so.*
+   fun:deflate
+   fun:compress2
+}
+
+{
+   libz deflate2
+   Memcheck:Cond
+   obj:*/libz.so.*
+   obj:*/libz.so.*
+   fun:deflate
+   obj:*/libz.so.*
+   fun:gzflush
+}
+
+
+#
+# Warning from my_thread_init becasue mysqld dies before kill thread exists
+#
+
+{
+   my_thread_init kill thread memory loss second
+   Memcheck:Leak
+   fun:calloc
+   fun:my_thread_init
+   fun:kill_server_thread
+}
+
+#
+# Leaks reported in _dl_* internal functions on Linux amd64 / glibc2.3.2.
+#
+
+{
+   _dl_start invalid write8
+   Memcheck:Addr8
+   fun:_dl_start
+}
+
+{
+   _dl_start invalid write4
+   Memcheck:Addr4
+   fun:_dl_start
+}
+
+{
+   _dl_start/_dl_setup_hash invalid read8
+   Memcheck:Addr8
+   fun:_dl_setup_hash
+   fun:_dl_start
+}
+
+{
+   _dl_sysdep_start invalid write8
+   Memcheck:Addr8
+   fun:_dl_sysdep_start
+}
+
+{
+   _dl_init invalid write8
+   Memcheck:Addr8
+   fun:_dl_init
+}
+
+{
+   _dl_init invalid write4
+   Memcheck:Addr4
+   fun:_dl_init
+}
+
+{
+   _dl_init/_dl_init invalid read8
+   Memcheck:Addr8
+   fun:_dl_debug_initialize
+   fun:_dl_init
+}
+
+{
+   _dl_init/_dl_debug_state invalid read8
+   Memcheck:Addr8
+   fun:_dl_debug_state
+   fun:_dl_init
+}
+
+{
+   init invalid write8
+   Memcheck:Addr8
+   fun:init
+}
+
+{
+   fixup invalid write8
+   Memcheck:Addr8
+   fun:fixup
+}
+
+{
+   fixup/_dl_lookup_versioned_symbol invalid read8
+   Memcheck:Addr8
+   fun:_dl_lookup_versioned_symbol
+   fun:fixup
+}
+
+{
+   _dl_runtime_resolve invalid read8
+   Memcheck:Addr8
+   fun:_dl_runtime_resolve
+}
+
+{
+   __libc_start_main invalid write8
+   Memcheck:Addr8
+   fun:__libc_start_main
+}
+
+{
+   __libc_start_main/__sigjmp_save invalid write4
+   Memcheck:Addr4
+   fun:__sigjmp_save
+   fun:__libc_start_main
+}
+
+#
+# These seem to be libc threading stuff, not related to MySQL code (allocations
+# during pthread_exit()). Googling shows other projects also using these
+# suppressions.
+#
+# Note that these all stem from pthread_exit() deeper in the call stack, but
+# Valgrind only allows the top four calls in the suppressions.
+#
+
+{
+   libc pthread_exit 1
+   Memcheck:Leak
+   fun:malloc
+   fun:_dl_new_object
+   fun:_dl_map_object_from_fd
+   fun:_dl_map_object
+}
+
+{
+   libc pthread_exit 2
+   Memcheck:Leak
+   fun:malloc
+   fun:_dl_map_object
+   fun:dl_open_worker
+   fun:_dl_catch_error
+}
+
+{
+   libc pthread_exit 3
+   Memcheck:Leak
+   fun:malloc
+   fun:_dl_map_object_deps
+   fun:dl_open_worker
+   fun:_dl_catch_error
+}
+
+{
+   libc pthread_exit 4
+   Memcheck:Leak
+   fun:calloc
+   fun:_dl_check_map_versions
+   fun:dl_open_worker
+   fun:_dl_catch_error
+}
+
+{
+   libc pthread_exit 5
+   Memcheck:Leak
+   fun:calloc
+   fun:_dl_new_object
+   fun:_dl_map_object_from_fd
+   fun:_dl_map_object
+}
+
+
+
+#
+# This is seen internally in the system libraries on 64-bit RHAS3.
+#
+
+{
+   __lll_mutex_unlock_wake uninitialized
+   Memcheck:Param
+   futex(utime)
+   fun:__lll_mutex_unlock_wake
+}
+
+#
+# BUG#19940: NDB sends uninitialized parts of field buffers across the wire.
+# This is "works as designed"; the uninitialized part is not used at the
+# other end (but Valgrind cannot see this).
+#
+{
+   bug19940
+   Memcheck:Param
+   socketcall.sendto(msg)
+   fun:send
+   fun:_ZN15TCP_Transporter6doSendEv
+   fun:_ZN19TransporterRegistry11performSendEv
+   fun:_ZN19TransporterRegistry14forceSendCheckEi
+}
+
+{
+   OpenSSL_1
+   Memcheck:Cond
+   fun:BN_num_bits_word
+   fun:BN_num_bits
+   fun:BN_mod_exp_mont_consttime
+   fun:BN_mod_exp_mont
+   obj:*libcrypto.so.*
+   obj:*libcrypto.so.*
+   fun:DH_generate_key
+   fun:ssl3_ctx_ctrl
+   fun:SSL_CTX_ctrl
+   fun:new_VioSSLAcceptorFd
+   fun:main
+}
+
+{
+   OpenSSL_2
+   Memcheck:Value4
+   fun:BN_num_bits_word
+   fun:BN_num_bits
+   fun:BN_mod_exp_mont_consttime
+   fun:BN_mod_exp_mont
+   obj:*libcrypto.so.*
+   obj:*libcrypto.so.*
+   fun:DH_generate_key
+   fun:ssl3_ctx_ctrl
+   fun:SSL_CTX_ctrl
+   fun:new_VioSSLAcceptorFd
+   fun:main
+}
+
+{
+   OpenSSL_3
+   Memcheck:Value4
+   fun:BN_mod_exp_mont_consttime
+   fun:BN_mod_exp_mont
+   obj:*libcrypto.so.*
+   obj:*libcrypto.so.*
+   fun:DH_generate_key
+   fun:ssl3_ctx_ctrl
+   fun:SSL_CTX_ctrl
+   fun:new_VioSSLAcceptorFd
+   fun:main
+}
+
+{
+   OpenSSL_4
+   Memcheck:Cond
+   fun:BN_bin2bn
+   obj:*libcrypto.so.*
+   obj:*libcrypto.so.*
+   fun:DH_generate_key
+   fun:ssl3_ctx_ctrl
+   fun:SSL_CTX_ctrl
+   fun:new_VioSSLAcceptorFd
+   fun:main
+}
+
+{
+  OpenSSL_5
+  Memcheck:Leak
+  fun:realloc
+  obj:*libcrypto.so.*
+  fun:CRYPTO_realloc
+  fun:lh_insert
+  fun:OBJ_NAME_add
+  fun:EVP_add_cipher
+  fun:OpenSSL_add_all_ciphers
+  fun:OPENSSL_add_all_algorithms_noconf
+  fun:new_VioSSLAcceptorFd
+  fun:main
+}
+
+{
+  OpenSSL_6
+  Memcheck:Leak
+  fun:malloc
+  obj:*libcrypto.so.*
+  fun:CRYPTO_malloc
+  fun:lh_new
+  fun:OBJ_NAME_init
+  fun:OBJ_NAME_add
+  fun:EVP_add_cipher
+  fun:SSL_library_init
+  fun:new_VioSSLAcceptorFd
+  fun:main
+}

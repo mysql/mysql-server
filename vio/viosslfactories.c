@@ -289,6 +289,8 @@ new_VioSSLConnectorFd(const char* key_file,
   DBUG_RETURN(ptr);
 ctor_failure:
   DBUG_PRINT("exit", ("there was an error"));
+  if (ptr->ssl_context)
+    SSL_CTX_free(ptr->ssl_context);
   my_free((gptr)ptr,MYF(0));
   DBUG_RETURN(0);
 }
@@ -390,6 +392,8 @@ new_VioSSLAcceptorFd(const char *key_file,
 
 ctor_failure:
   DBUG_PRINT("exit", ("there was an error"));
+  if (ptr->ssl_context)
+    SSL_CTX_free(ptr->ssl_context);
   my_free((gptr) ptr,MYF(0));
   DBUG_RETURN(0);
 }

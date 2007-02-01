@@ -1087,19 +1087,4 @@ t2	CREATE TABLE `t2` (
 drop database mysqltest;
 deallocate prepare stmt1;
 deallocate prepare stmt2;
-execute stmt;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `c` char(10) default NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/'
-drop table t1;
-execute stmt;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `c` char(10) default NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/'
-drop table t1;
-deallocate prepare stmt;
 End of 4.1 tests.
