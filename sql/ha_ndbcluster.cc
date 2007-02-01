@@ -4348,10 +4348,9 @@ int ha_ndbcluster::start_stmt(THD *thd, thr_lock_type lock_type)
     no_uncommitted_rows_reset(thd);
     thd_ndb->stmt= trans;
     thd_ndb->query_state&= NDB_QUERY_NORMAL;
-    m_active_trans= trans;
     trans_register_ha(thd, FALSE, ndbcluster_hton);
   }
-
+  m_active_trans= trans;
   // Start of statement
   m_ops_pending= 0;    
   thd->set_current_stmt_binlog_row_based_if_mixed();
