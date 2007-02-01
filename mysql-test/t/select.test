@@ -3133,3 +3133,77 @@ SELECT * FROM t1 LIMIT 2, -1;
 
 DROP TABLE t1;
 
+#
+# 25407: wrong estimate of NULL keys for unique indexes
+#
+
+CREATE TABLE t1 (
+  ID_with_null int NULL,
+  ID_better int NOT NULL,
+  INDEX idx1 (ID_with_null),
+  INDEX idx2 (ID_better)
+);
+
+INSERT INTO t1 VALUES (1,1), (2,1), (null,3), (null,3), (null,3), (null,3);
+INSERT INTO t1 SELECT * FROM t1 WHERE ID_with_null IS NULL;
+INSERT INTO t1 SELECT * FROM t1 WHERE ID_with_null IS NULL;
+INSERT INTO t1 SELECT * FROM t1 WHERE ID_with_null IS NULL;
+INSERT INTO t1 SELECT * FROM t1 WHERE ID_with_null IS NULL;
+INSERT INTO t1 SELECT * FROM t1 WHERE ID_with_null IS NULL;
+
+SELECT COUNT(*) FROM t1 WHERE ID_with_null IS NULL;
+SELECT COUNT(*) FROM t1 WHERE ID_better=1;
+
+EXPLAIN SELECT * FROM t1 WHERE ID_better=1 AND ID_with_null IS NULL;
+
+DROP INDEX idx1 ON t1;
+CREATE UNIQUE INDEX idx1 ON t1(ID_with_null);
+
+EXPLAIN SELECT * FROM t1 WHERE ID_better=1 AND ID_with_null IS NULL;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (
+  ID1_with_null int NULL,
+  ID2_with_null int NULL,
+  ID_better int NOT NULL,
+  INDEX idx1 (ID1_with_null, ID2_with_null),
+  INDEX idx2 (ID_better)
+);
+
+INSERT INTO t1 VALUES (1,1,1), (2,2,1), (3,null,3), (null,3,3), (null,null,3),
+  (3,null,3), (null,3,3), (null,null,3), (3,null,3), (null,3,3), (null,null,3);
+
+INSERT INTO t1 SELECT * FROM t1 WHERE ID1_with_null IS NULL;
+INSERT INTO t1 SELECT * FROM t1 WHERE ID2_with_null IS NULL;
+INSERT INTO t1 SELECT * FROM t1 WHERE ID1_with_null IS NULL;
+INSERT INTO t1 SELECT * FROM t1 WHERE ID2_with_null IS NULL;
+INSERT INTO t1 SELECT * FROM t1 WHERE ID1_with_null IS NULL;
+INSERT INTO t1 SELECT * FROM t1 WHERE ID2_with_null IS NULL;
+
+SELECT COUNT(*) FROM t1 WHERE ID1_with_null IS NULL AND ID2_with_null=3;
+SELECT COUNT(*) FROM t1 WHERE ID1_with_null=3 AND ID2_with_null IS NULL;
+SELECT COUNT(*) FROM t1 WHERE ID1_with_null IS NULL AND ID2_with_null IS NULL;
+SELECT COUNT(*) FROM t1 WHERE ID_better=1;
+
+EXPLAIN SELECT * FROM t1
+  WHERE ID_better=1 AND ID1_with_null IS NULL AND ID2_with_null=3 ;
+EXPLAIN SELECT * FROM t1
+  WHERE ID_better=1 AND ID1_with_null=3 AND ID2_with_null=3 IS NULL ;
+EXPLAIN SELECT * FROM t1
+  WHERE ID_better=1 AND ID1_with_null IS NULL AND ID2_with_null IS NULL;
+
+DROP INDEX idx1 ON t1;
+CREATE UNIQUE INDEX idx1 ON t1(ID1_with_null,ID2_with_null);
+
+EXPLAIN SELECT * FROM t1
+  WHERE ID_better=1 AND ID1_with_null IS NULL AND ID2_with_null=3 ;
+EXPLAIN SELECT * FROM t1
+  WHERE ID_better=1 AND ID1_with_null=3 AND ID2_with_null IS NULL ;
+EXPLAIN SELECT * FROM t1
+  WHERE ID_better=1 AND ID1_with_null IS NULL AND ID2_with_null IS NULL;
+EXPLAIN SELECT * FROM t1
+  WHERE ID_better=1 AND ID1_with_null IS NULL AND 
+        (ID2_with_null=1 OR ID2_with_null=2);
+
+DROP TABLE t1;
