@@ -763,6 +763,7 @@ public:
   uint32 pack_length() const { return sizeof(double); }
   void sql_type(String &str) const;
   uint32 max_length() { return 53; }
+  uint size_of() const { return sizeof(*this); }
 };
 
 
