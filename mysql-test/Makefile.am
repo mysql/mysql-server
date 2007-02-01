@@ -35,7 +35,6 @@ CLEANFILES = 		$(GENSCRIPTS)
 
 INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include -I..
 
-
 dist-hook:
 	mkdir -p \
 		$(distdir)/t \
