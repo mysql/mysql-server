@@ -1408,7 +1408,7 @@ static char **new_mysql_completion (const char *text, int start, int end);
 #if defined(USE_NEW_READLINE_INTERFACE) || defined(USE_LIBEDIT_INTERFACE)
 char *no_completion(const char*,int)
 #else
-int no_completion()
+char *no_completion()
 #endif
 {
   return 0;					/* No filename completion */
@@ -1496,10 +1496,10 @@ static void initialize_readline (char *name)
   setlocale(LC_ALL,""); /* so as libedit use isprint */
 #endif
   rl_attempted_completion_function= (CPPFunction*)&new_mysql_completion;
-  rl_completion_entry_function= (Function*)&no_completion;
+  rl_completion_entry_function= &no_completion;
 #else
   rl_attempted_completion_function= (CPPFunction*)&new_mysql_completion;
-  rl_completion_entry_function= (Function*)&no_completion;
+  rl_completion_entry_function= &no_completion;
 #endif
 }
 
