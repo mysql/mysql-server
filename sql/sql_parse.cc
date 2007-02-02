@@ -2492,6 +2492,91 @@ static void reset_one_shot_variables(THD *thd)
 }
 
 
+static
+bool sp_process_definer(THD *thd)
+{
+  DBUG_ENTER("sp_process_definer");
+
+  LEX *lex= thd->lex;
+
+  /*
+    If the definer is not specified, this means that CREATE-statement missed
+    DEFINER-clause. DEFINER-clause can be missed in two cases:
+
+      - The user submitted a statement w/o the clause. This is a normal
+        case, we should assign CURRENT_USER as definer.
+
+      - Our slave received an updated from the master, that does not
+        replicate definer for stored rountines. We should also assign
+        CURRENT_USER as definer here, but also we should mark this routine
+        as NON-SUID. This is essential for the sake of backward
+        compatibility.
+
+        The problem is the slave thread is running under "special" user (@),
+        that actually does not exist. In the older versions we do not fail
+        execution of a stored routine if its definer does not exist and
+        continue the execution under the authorization of the invoker
+        (BUG#13198). And now if we try to switch to slave-current-user (@),
+        we will fail.
+
+        Actually, this leads to the inconsistent state of master and
+        slave (different definers, different SUID behaviour), but it seems,
+        this is the best we can do.
+  */
+
+  if (!lex->definer)
+  {
+    Query_arena original_arena;
+    Query_arena *ps_arena= thd->activate_stmt_arena_if_needed(&original_arena);
+
+    lex->definer= create_default_definer(thd);
+
+    if (ps_arena)
+      thd->restore_active_arena(ps_arena, &original_arena);
+
+    /* Error has been already reported. */
+    if (lex->definer == NULL)
+      DBUG_RETURN(TRUE);
+
+    if (thd->slave_thread)
+      lex->sphead->m_chistics->suid= SP_IS_NOT_SUID;
+  }
+  else
+  {
+    /*
+      If the specified definer differs from the current user, we
+      should check that the current user has SUPER privilege (in order
+      to create a stored routine under another user one must have
+      SUPER privilege).
+    */
+    if ((strcmp(lex->definer->user.str, thd->security_ctx->priv_user) ||
+         my_strcasecmp(system_charset_info, lex->definer->host.str,
+                       thd->security_ctx->priv_host)) &&
+        check_global_access(thd, SUPER_ACL))
+    {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
+      DBUG_RETURN(TRUE);
+    }
+  }
+
+  /* Check that the specified definer exists. Emit a warning if not. */
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (!is_acl_user(lex->definer->host.str, lex->definer->user.str))
+  {
+    push_warning_printf(thd,
+                        MYSQL_ERROR::WARN_LEVEL_NOTE,
+                        ER_NO_SUCH_USER,
+                        ER(ER_NO_SUCH_USER),
+                        lex->definer->user.str,
+                        lex->definer->host.str);
+  }
+#endif /* NO_EMBEDDED_ACCESS_CHECKS */
+
+  DBUG_RETURN(FALSE);
+}
+
+
 /*
   Execute command saved in thd and lex->sql_command
 
@@ -3992,6 +4077,11 @@ end_with_restore_list:
                "function calls as part of this statement");
       break;
     }
+
+    res= sp_process_definer(thd);
+    if (res)
+      break;
+
     switch (lex->sql_command) {
     case SQLCOM_CREATE_EVENT:
       res= Events::get_instance()->
@@ -4487,83 +4577,8 @@ end_with_restore_list:
     }
 #endif
 
-    /*
-      If the definer is not specified, this means that CREATE-statement missed
-      DEFINER-clause. DEFINER-clause can be missed in two cases:
-
-        - The user submitted a statement w/o the clause. This is a normal
-          case, we should assign CURRENT_USER as definer.
-
-        - Our slave received an updated from the master, that does not
-          replicate definer for stored rountines. We should also assign
-          CURRENT_USER as definer here, but also we should mark this routine
-          as NON-SUID. This is essential for the sake of backward
-          compatibility.
-
-          The problem is the slave thread is running under "special" user (@),
-          that actually does not exist. In the older versions we do not fail
-          execution of a stored routine if its definer does not exist and
-          continue the execution under the authorization of the invoker
-          (BUG#13198). And now if we try to switch to slave-current-user (@),
-          we will fail.
-
-          Actually, this leads to the inconsistent state of master and
-          slave (different definers, different SUID behaviour), but it seems,
-          this is the best we can do.
-    */
-
-    if (!lex->definer)
-    {
-      bool res= FALSE;
-      Query_arena original_arena;
-      Query_arena *ps_arena = thd->activate_stmt_arena_if_needed(&original_arena);
-
-      if (!(lex->definer= create_default_definer(thd)))
-        res= TRUE;
-
-      if (ps_arena)
-        thd->restore_active_arena(ps_arena, &original_arena);
-
-      /* Error has been already reported. */
-      if (res)
-        goto create_sp_error;
-
-      if (thd->slave_thread)
-        lex->sphead->m_chistics->suid= SP_IS_NOT_SUID;
-    }
-
-    /*
-      If the specified definer differs from the current user, we should check
-      that the current user has SUPER privilege (in order to create a stored
-      routine under another user one must have SUPER privilege).
-    */
-
-    else if (strcmp(lex->definer->user.str, thd->security_ctx->priv_user) ||
-        my_strcasecmp(system_charset_info,
-                      lex->definer->host.str,
-                      thd->security_ctx->priv_host))
-    {
-      if (check_global_access(thd, SUPER_ACL))
-      {
-        my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
-        goto create_sp_error;
-      }
-    }
-
-    /* Check that the specified definer exists. Emit a warning if not. */
-
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-    if (!is_acl_user(lex->definer->host.str,
-                     lex->definer->user.str))
-    {
-      push_warning_printf(thd,
-                          MYSQL_ERROR::WARN_LEVEL_NOTE,
-                          ER_NO_SUCH_USER,
-                          ER(ER_NO_SUCH_USER),
-                          lex->definer->user.str,
-                          lex->definer->host.str);
-    }
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
+    if (sp_process_definer(thd))
+      goto create_sp_error;
 
     res= (result= lex->sphead->create(thd));
     switch (result) {
