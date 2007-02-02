@@ -362,7 +362,6 @@ static handler *federated_create_handler(handlerton *hton,
                                          MEM_ROOT *mem_root);
 static int federated_commit(handlerton *hton, THD *thd, bool all);
 static int federated_rollback(handlerton *hton, THD *thd, bool all);
-static int federated_db_init(void);
 
 
 /* Federated storage engine handlerton */
@@ -389,7 +388,7 @@ static byte *federated_get_key(FEDERATED_SHARE *share, uint *length,
 
   SYNOPSIS
     federated_db_init()
-    void
+    p		Handlerton
 
   RETURN
     FALSE       OK
@@ -573,9 +572,6 @@ int get_connection(FEDERATED_SHARE *share)
   int error_num= ER_FOREIGN_SERVER_DOESNT_EXIST;
   char error_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   FOREIGN_SERVER *server;
-  MYSQL *mysql_conn= 0;
-  MYSQL_RES *result= 0;
-  MYSQL_ROW row= 0;
   DBUG_ENTER("ha_federated::get_connection");
 
   if (!(server=
@@ -1223,7 +1219,7 @@ bool ha_federated::create_where_from_key(String *to,
                                          KEY *key_info,
                                          const key_range *start_key,
                                          const key_range *end_key,
-                                         bool records_in_range,
+                                         bool from_records_in_range,
                                          bool eq_range)
 {
   bool both_not_null=
@@ -1294,7 +1290,7 @@ bool ha_federated::create_where_from_key(String *to,
           if (emit_key_part_name(&tmp, key_part))
             goto err;
 
-          if (records_in_range)
+          if (from_records_in_range)
           {
             if (tmp.append(STRING_WITH_LEN(" >= ")))
               goto err;
@@ -1534,7 +1530,7 @@ static int free_share(FEDERATED_SHARE *share)
 
 
 ha_rows ha_federated::records_in_range(uint inx, key_range *start_key,
-                                   key_range *end_key)
+                                       key_range *end_key)
 {
   /*
 
@@ -2306,7 +2302,7 @@ int ha_federated::index_init(uint keynr, bool sorted)
 
 int ha_federated::read_range_first(const key_range *start_key,
                                    const key_range *end_key,
-                                   bool eq_range, bool sorted)
+                                   bool eq_range_arg, bool sorted)
 {
   char sql_query_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   int retval;
@@ -2321,7 +2317,7 @@ int ha_federated::read_range_first(const key_range *start_key,
   sql_query.append(share->select_query);
   create_where_from_key(&sql_query,
                         &table->key_info[active_index],
-                        start_key, end_key, 0, eq_range);
+                        start_key, end_key, 0, eq_range_arg);
 
   if (stored_result)
   {
@@ -3044,4 +3040,3 @@ mysql_declare_plugin(federated)
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
-

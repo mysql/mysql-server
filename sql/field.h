@@ -158,12 +158,12 @@ public:
   virtual void reset_fields() {}
   virtual void set_default()
   {
-    my_ptrdiff_t offset = (my_ptrdiff_t) (table->s->default_values -
+    my_ptrdiff_t l_offset= (my_ptrdiff_t) (table->s->default_values -
 					  table->record[0]);
-    memcpy(ptr, ptr + offset, pack_length());
+    memcpy(ptr, ptr + l_offset, pack_length());
     if (null_ptr)
       *null_ptr= ((*null_ptr & (uchar) ~null_bit) |
-		  null_ptr[offset] & null_bit);
+		  null_ptr[l_offset] & null_bit);
   }
   virtual bool binary() const { return 1; }
   virtual bool zero_pack() const { return 1; }
@@ -276,7 +276,7 @@ public:
     { memcpy(buff,ptr,length); }
   inline void set_image(char *buff,uint length, CHARSET_INFO *cs)
     { memcpy(ptr,buff,length); }
-  virtual void get_key_image(char *buff, uint length, imagetype type)
+  virtual void get_key_image(char *buff, uint length, imagetype type_arg)
     { get_image(buff,length, &my_charset_bin); }
   virtual void set_key_image(char *buff,uint length)
     { set_image(buff,length, &my_charset_bin); }
@@ -352,10 +352,10 @@ public:
   virtual CHARSET_INFO *charset(void) const { return &my_charset_bin; }
   virtual CHARSET_INFO *sort_charset(void) const { return charset(); }
   virtual bool has_charset(void) const { return FALSE; }
-  virtual void set_charset(CHARSET_INFO *charset) { }
+  virtual void set_charset(CHARSET_INFO *charset_arg) { }
   virtual enum Derivation derivation(void) const
   { return DERIVATION_IMPLICIT; }
-  virtual void set_derivation(enum Derivation derivation) { }
+  virtual void set_derivation(enum Derivation derivation_arg) { }
   bool set_warning(MYSQL_ERROR::enum_warning_level, unsigned int code,
                    int cuted_increment);
   bool check_int(const char *str, int length, const char *int_end,
@@ -380,7 +380,7 @@ public:
   }
 
   /* maximum possible display length */
-  virtual uint32 max_length()= 0;
+  virtual uint32 max_display_length()= 0;
 
   virtual uint is_equal(create_field *new_field);
   /* convert decimal to longlong with overflow check */
@@ -464,12 +464,12 @@ public:
   int  store(const char *to,uint length,CHARSET_INFO *cs)=0;
   uint size_of() const { return sizeof(*this); }
   CHARSET_INFO *charset(void) const { return field_charset; }
-  void set_charset(CHARSET_INFO *charset) { field_charset=charset; }
+  void set_charset(CHARSET_INFO *charset_arg) { field_charset= charset_arg; }
   enum Derivation derivation(void) const { return field_derivation; }
   virtual void set_derivation(enum Derivation derivation_arg)
   { field_derivation= derivation_arg; }
   bool binary() const { return field_charset == &my_charset_bin; }
-  uint32 max_length() { return field_length; }
+  uint32 max_display_length() { return field_length; }
   friend class create_field;
   my_decimal *val_decimal(my_decimal *);
   virtual bool str_needs_quotes() { return TRUE; }
@@ -484,9 +484,9 @@ class Field_longstr :public Field_str
 public:
   Field_longstr(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
                 uchar null_bit_arg, utype unireg_check_arg,
-                const char *field_name_arg, CHARSET_INFO *charset)
+                const char *field_name_arg, CHARSET_INFO *charset_arg)
     :Field_str(ptr_arg, len_arg, null_ptr_arg, null_bit_arg, unireg_check_arg,
-               field_name_arg, charset)
+               field_name_arg, charset_arg)
     {}
 
   int store_decimal(const my_decimal *d);
@@ -532,7 +532,7 @@ public:
   void overflow(bool negative);
   bool zero_pack() const { return 0; }
   void sql_type(String &str) const;
-  uint32 max_length() { return field_length; }
+  uint32 max_display_length() { return field_length; }
 };
 
 
@@ -574,7 +574,7 @@ public:
   void sort_string(char *buff, uint length);
   bool zero_pack() const { return 0; }
   void sql_type(String &str) const;
-  uint32 max_length() { return field_length; }
+  uint32 max_display_length() { return field_length; }
   uint size_of() const { return sizeof(*this); } 
   uint32 pack_length() const { return (uint32) bin_size; }
   uint is_equal(create_field *new_field);
@@ -607,7 +607,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 1; }
   void sql_type(String &str) const;
-  uint32 max_length() { return 4; }
+  uint32 max_display_length() { return 4; }
 };
 
 
@@ -642,7 +642,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 2; }
   void sql_type(String &str) const;
-  uint32 max_length() { return 6; }
+  uint32 max_display_length() { return 6; }
 };
 
 
@@ -672,7 +672,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 3; }
   void sql_type(String &str) const;
-  uint32 max_length() { return 8; }
+  uint32 max_display_length() { return 8; }
 };
 
 
@@ -707,7 +707,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 4; }
   void sql_type(String &str) const;
-  uint32 max_length() { return 11; }
+  uint32 max_display_length() { return 11; }
 };
 
 
@@ -749,7 +749,7 @@ public:
   uint32 pack_length() const { return 8; }
   void sql_type(String &str) const;
   bool can_be_compared_as_longlong() const { return TRUE; }
-  uint32 max_length() { return 20; }
+  uint32 max_display_length() { return 20; }
 };
 #endif
 
@@ -783,7 +783,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return sizeof(float); }
   void sql_type(String &str) const;
-  uint32 max_length() { return 24; }
+  uint32 max_display_length() { return 24; }
 };
 
 
@@ -816,7 +816,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return sizeof(double); }
   void sql_type(String &str) const;
-  uint32 max_length() { return 53; }
+  uint32 max_display_length() { return 53; }
 };
 
 
@@ -848,7 +848,7 @@ public:
   uint32 pack_length() const { return 0; }
   void sql_type(String &str) const;
   uint size_of() const { return sizeof(*this); }
-  uint32 max_length() { return 4; }
+  uint32 max_display_length() { return 4; }
 };
 
 
@@ -1229,10 +1229,10 @@ public:
     packlength= 4;
     if (set_packlength)
     {
-      uint32 char_length= len_arg/cs->mbmaxlen;
-      packlength= char_length <= 255 ? 1 :
-                  char_length <= 65535 ? 2 :
-                  char_length <= 16777215 ? 3 : 4;
+      uint32 l_char_length= len_arg/cs->mbmaxlen;
+      packlength= l_char_length <= 255 ? 1 :
+                  l_char_length <= 65535 ? 2 :
+                  l_char_length <= 16777215 ? 3 : 4;
     }
   }
   enum_field_types type() const { return MYSQL_TYPE_BLOB;}
@@ -1316,7 +1316,7 @@ public:
   uint size_of() const { return sizeof(*this); }
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
-  uint32 max_length();
+  uint32 max_display_length();
 };
 
 
@@ -1445,7 +1445,7 @@ public:
   enum_field_types type() const { return MYSQL_TYPE_BIT; }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BIT; }
   uint32 key_length() const { return (uint32) (field_length + 7) / 8; }
-  uint32 max_length() { return field_length; }
+  uint32 max_display_length() { return field_length; }
   uint size_of() const { return sizeof(*this); }
   Item_result result_type () const { return INT_RESULT; }
   int reset(void) { bzero(ptr, bytes_in_rec); return 0; }

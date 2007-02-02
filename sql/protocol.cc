@@ -27,8 +27,10 @@
 #include <stdarg.h>
 
 static const unsigned int PACKET_BUFFER_EXTRA_ALLOC= 1024;
-static void write_eof_packet(THD *thd, NET *net);
 void net_send_error_packet(THD *thd, uint sql_errno, const char *err);
+#ifndef EMBEDDED_LIBRARY
+static void write_eof_packet(THD *thd, NET *net);
+#endif
 
 #ifndef EMBEDDED_LIBRARY
 bool Protocol::net_store_data(const char *from, uint length)
@@ -935,15 +937,15 @@ bool Protocol_simple::store(Field *field)
   char buff[MAX_FIELD_WIDTH];
   String str(buff,sizeof(buff), &my_charset_bin);
   CHARSET_INFO *tocs= this->thd->variables.character_set_results;
+#ifndef DBUG_OFF
   TABLE *table= field->table;
-#ifdef DBUG_OFF
   my_bitmap_map *old_map= 0;
   if (table->file)
     old_map= dbug_tmp_use_all_columns(table, table->read_set);
 #endif
 
   field->val_str(&str);
-#ifdef DBUG_OFF
+#ifndef DBUG_OFF
   if (old_map)
     dbug_tmp_restore_column_map(table->read_set, old_map);
 #endif

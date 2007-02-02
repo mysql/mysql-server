@@ -49,7 +49,7 @@ static Gci_container_pod g_empty_gci_container;
 static const Uint32 ACTIVE_GCI_DIRECTORY_SIZE = 4;
 static const Uint32 ACTIVE_GCI_MASK = ACTIVE_GCI_DIRECTORY_SIZE - 1;
 
-#ifdef VM_TRACE
+#if defined(VM_TRACE) && defined(NOT_USED)
 static void
 print_std(const SubTableData * sdata, LinearSectionPtr ptr[3])
 {
@@ -731,8 +731,6 @@ NdbEventOperationImpl::receive_event()
     {
       // Parse the new table definition and
       // create a table object
-      NdbDictionary::Dictionary *myDict = m_ndb->getDictionary();
-      NdbDictionaryImpl *dict = & NdbDictionaryImpl::getImpl(*myDict);
       NdbError error;
       NdbDictInterface dif(error);
       NdbTableImpl *at;

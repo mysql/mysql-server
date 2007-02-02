@@ -518,7 +518,6 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
                                   my_bool create_if_not)
 {
   int ret= 0;
-  CHARSET_INFO *scs= system_charset_info;
   TABLE *table= NULL;
   char old_db_buf[NAME_LEN+1];
   LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };

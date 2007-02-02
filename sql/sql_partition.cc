@@ -2002,7 +2002,6 @@ char *generate_partition_syntax(partition_info *part_info,
 {
   uint i,j, tot_no_parts, no_subparts;
   partition_element *part_elem;
-  partition_element *save_part_elem= NULL;
   ulonglong buffer_length;
   char path[FN_REFLEN];
   int err= 0;
@@ -5369,7 +5368,6 @@ static bool write_log_dropped_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
   List_iterator<partition_element> temp_it(part_info->temp_partitions);
   uint no_temp_partitions= part_info->temp_partitions.elements;
   uint no_elements= part_info->partitions.elements;
-  uint i= 0;
   DBUG_ENTER("write_log_dropped_partitions");
 
   ddl_log_entry.action_type= DDL_LOG_DELETE_ACTION;
@@ -5742,7 +5740,6 @@ static void write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt,
                                 bool dont_crash)
 {
   partition_info *part_info= lpt->part_info;
-  uint count_loop= 0;
   DDL_LOG_MEMORY_ENTRY *log_entry= part_info->exec_log_entry;
   DBUG_ENTER("write_log_completed");
 
@@ -6016,8 +6013,6 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
                                 uint fast_alter_partition)
 {
   /* Set-up struct used to write frm files */
-  ulonglong copied= 0;
-  ulonglong deleted= 0;
   partition_info *part_info= table->part_info;
   ALTER_PARTITION_PARAM_TYPE lpt_obj;
   ALTER_PARTITION_PARAM_TYPE *lpt= &lpt_obj;
