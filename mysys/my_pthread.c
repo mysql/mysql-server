@@ -31,7 +31,6 @@
 #endif
 
 uint thd_lib_detected;
-uint thr_client_alarm;
 
 #ifndef my_pthread_setprio
 void my_pthread_setprio(pthread_t thread_id,int prior)
@@ -318,8 +317,6 @@ void sigwait_handle_sig(int sig)
   VOID(pthread_cond_signal(&COND_sigwait)); /* inform sigwait() about signal */
   pthread_mutex_unlock(&LOCK_sigwait);
 }
-
-extern pthread_t alarm_thread;
 
 void *sigwait_thread(void *set_arg)
 {
