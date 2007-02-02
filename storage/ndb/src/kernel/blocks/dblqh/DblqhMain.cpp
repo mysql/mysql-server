@@ -886,10 +886,10 @@ void Dblqh::execREAD_NODESCONF(Signal* signal)
   unsigned i = 0;
   for (i = 1; i < MAX_NDB_NODES; i++) {
     jam();
-    if (NodeBitmask::get(readNodes->allNodes, i)) {
+    if (NdbNodeBitmask::get(readNodes->allNodes, i)) {
       jam();
       cnodeData[ind]    = i;
-      cnodeStatus[ind]  = NodeBitmask::get(readNodes->inactiveNodes, i);
+      cnodeStatus[ind]  = NdbNodeBitmask::get(readNodes->inactiveNodes, i);
       //readNodes->getVersionId(i, readNodes->theVersionIds) not used
       if (!NodeBitmask::get(readNodes->inactiveNodes, i))
       {
@@ -7421,7 +7421,7 @@ void Dblqh::execNODE_FAILREP(Signal* signal)
   UintR index = 0;
   for (i = 1; i < MAX_NDB_NODES; i++) {
     jam();
-    if(NodeBitmask::get(nodeFail->theNodes, i)){
+    if(NdbNodeBitmask::get(nodeFail->theNodes, i)){
       jam();
       Tdata[index] = i;
       index++;
