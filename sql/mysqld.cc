@@ -3141,7 +3141,11 @@ int main(int argc, char **argv)
   MY_INIT(argv[0]);		// init my_sys library & pthreads
 
   /* Set signal used to kill MySQL */
+#if defined(SIGUSR2)
   thr_kill_signal= thd_lib_detected == THD_LIB_LT ? SIGINT : SIGUSR2;
+#else
+  thr_kill_signal= SIGINT;
+#endif
 
 #ifdef _CUSTOMSTARTUPCONFIG_
   if (_cust_check_startup())
