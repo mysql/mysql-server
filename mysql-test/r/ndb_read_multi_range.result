@@ -417,12 +417,12 @@ a	b	c
 9199	9200	NULL
 223456	223457	NULL
 245651	245652	2005-12-08 15:58:27
-select c, count(*)
+select t21.c, count(*)
 from t21 
 inner join t22 using (a)
 where t22.b in (2,256,257,1121,1134,4102,9200,223457,245652)
-group by c
-order by c;
+group by t21.c
+order by t21.c;
 c	count(*)
 NULL	7
 2005-12-08 15:58:27	1

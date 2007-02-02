@@ -3555,7 +3555,7 @@ end_with_restore_list:
       break;
     }
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_one_table_access(thd, DELETE_ACL, all_tables))
+    if (check_one_table_access(thd, DROP_ACL, all_tables))
       goto error;
     /*
       Don't allow this within a transaction because we want to use
@@ -6666,11 +6666,8 @@ TABLE_LIST *st_select_lex::nest_last_join(THD *thd)
         If this is a JOIN ... USING, move the list of joined fields to the
         table reference that describes the join.
       */
-      if (table->join_using_fields)
-      {
-        ptr->join_using_fields= table->join_using_fields;
-        table->join_using_fields= NULL;
-      }
+      if (prev_join_using)
+        ptr->join_using_fields= prev_join_using;
     }
   }
   join_list->push_front(ptr);
@@ -6926,6 +6923,7 @@ void add_join_on(TABLE_LIST *b, Item *expr)
     a			Left join argument
     b			Right join argument
     using_fields        Field names from USING clause
+    lex                 The current st_select_lex
   
   IMPLEMENTATION
     This function marks that table b should be joined with a either via
@@ -6954,10 +6952,11 @@ void add_join_on(TABLE_LIST *b, Item *expr)
     None
 */
 
-void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields)
+void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields,
+                      SELECT_LEX *lex)
 {
   b->natural_join= a;
-  b->join_using_fields= using_fields;
+  lex->prev_join_using= using_fields;
 }
 
 

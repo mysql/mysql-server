@@ -3430,6 +3430,7 @@ Field *Natural_join_column::field()
 
 const char *Natural_join_column::table_name()
 {
+  DBUG_ASSERT(table_ref);
   return table_ref->alias;
 }
 
