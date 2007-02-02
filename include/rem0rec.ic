@@ -1046,6 +1046,20 @@ rec_offs_comp(
 }
 
 /**********************************************************
+Determine if the offsets are for a record containing
+externally stored columns. */
+UNIV_INLINE
+ulint
+rec_offs_any_extern(
+/*================*/
+				/* out: nonzero if externally stored */
+	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
+{
+	ut_ad(rec_offs_validate(NULL, NULL, offsets));
+	return(UNIV_UNLIKELY(*rec_offs_base(offsets) & REC_OFFS_EXTERNAL));
+}
+
+/**********************************************************
 Returns nonzero if the extern bit is set in nth field of rec. */
 UNIV_INLINE
 ulint
@@ -1094,25 +1108,6 @@ rec_offs_nth_size(
 }
 
 /**********************************************************
-Returns TRUE if the extern bit is set in any of the fields
-of a record. */
-UNIV_INLINE
-ibool
-rec_offs_any_extern(
-/*================*/
-				/* out: TRUE if a field is stored externally */
-	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
-{
-	ulint	i;
-	for (i = rec_offs_n_fields(offsets); i--; ) {
-		if (rec_offs_nth_extern(offsets, i)) {
-			return(TRUE);
-		}
-	}
-	return(FALSE);
-}
-
-/**********************************************************
 Returns the number of extern bits set in a record. */
 UNIV_INLINE
 ulint
@@ -1121,13 +1116,18 @@ rec_offs_n_extern(
 				/* out: number of externally stored fields */
 	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
 {
-	ulint	i;
 	ulint	n = 0;
-	for (i = rec_offs_n_fields(offsets); i--; ) {
-		if (rec_offs_nth_extern(offsets, i)) {
-			n++;
+
+	if (rec_offs_any_extern(offsets)) {
+		ulint	i;
+
+		for (i = rec_offs_n_fields(offsets); i--; ) {
+			if (rec_offs_nth_extern(offsets, i)) {
+				n++;
+			}
 		}
 	}
+
 	return(n);
 }
 
@@ -1416,7 +1416,7 @@ rec_offs_extra_size(
 {
 	ulint	size;
 	ut_ad(rec_offs_validate(NULL, NULL, offsets));
-	size = *rec_offs_base(offsets) & ~REC_OFFS_COMPACT;
+	size = *rec_offs_base(offsets) & ~(REC_OFFS_COMPACT | REC_OFFS_EXTERNAL);
 	ut_ad(size < UNIV_PAGE_SIZE);
 	return(size);
 }

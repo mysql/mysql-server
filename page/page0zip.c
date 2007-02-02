@@ -2200,6 +2200,9 @@ zlib_done:
 		columns in this record.  For each externally
 		stored column, restore or clear the
 		BTR_EXTERN_FIELD_REF. */
+		if (!rec_offs_any_extern(offsets)) {
+			continue;
+		}
 
 		for (i = 0; i < rec_offs_n_fields(offsets); i++) {
 			if (!rec_offs_nth_extern(offsets, i)) {
@@ -3159,16 +3162,20 @@ page_zip_clear_rec(
 		/* Do not clear the record, because there is not enough space
 		to log the operation. */
 
-		ulint	i;
-		for (i = rec_offs_n_fields(offsets); i--; ) {
-			/* Clear all BLOB pointers in order to make
-			page_zip_validate() pass. */
-			if (rec_offs_nth_extern(offsets, i)) {
-				ulint	len;
-				byte*	field = rec_get_nth_field(rec, offsets,
-								  i, &len);
-				memset(field + len - BTR_EXTERN_FIELD_REF_SIZE,
-				       0, BTR_EXTERN_FIELD_REF_SIZE);
+		if (rec_offs_any_extern(offsets)) {
+			ulint	i;
+
+			for (i = rec_offs_n_fields(offsets); i--; ) {
+				/* Clear all BLOB pointers in order to make
+				page_zip_validate() pass. */
+				if (rec_offs_nth_extern(offsets, i)) {
+					ulint	len;
+					byte*	field = rec_get_nth_field(
+						rec, offsets, i, &len);
+					memset(field + len
+					       - BTR_EXTERN_FIELD_REF_SIZE,
+					       0, BTR_EXTERN_FIELD_REF_SIZE);
+				}
 			}
 		}
 	}
