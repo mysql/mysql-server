@@ -2405,6 +2405,18 @@ Backup::defineBackupRef(Signal* signal, BackupRecordPtr ptr, Uint32 errCode)
   if(ptr.p->is_lcp()) 
   {
     jam();
+     if (ptr.p->ctlFilePtr == RNIL) {
+       ptr.p->m_gsn = GSN_DEFINE_BACKUP_REF;
+       ndbrequire(ptr.p->errorCode != 0);
+       DefineBackupRef* ref = (DefineBackupRef*)signal->getDataPtrSend();
+       ref->backupId = ptr.p->backupId;
+       ref->backupPtr = ptr.i;
+       ref->errorCode = ptr.p->errorCode;
+       ref->nodeId = getOwnNodeId();
+       sendSignal(ptr.p->masterRef, GSN_DEFINE_BACKUP_REF, signal,
+                  DefineBackupRef::SignalLength, JBB);
+       return;
+     }
 
     BackupFilePtr filePtr LINT_SET_PTR;
     ptr.p->files.getPtr(filePtr, ptr.p->ctlFilePtr);
