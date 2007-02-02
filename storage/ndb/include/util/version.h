@@ -29,7 +29,8 @@ extern "C" {
 
   Uint32 makeVersion(Uint32 major, Uint32 minor, Uint32 build);
 
-  const char* getVersionString(Uint32 version, const char * status,
+  const char* getVersionString(Uint32 version, Uint32 mysql_version,
+			       const char * status,
 			       char *buf, unsigned sz);
   
   void ndbPrintVersion();

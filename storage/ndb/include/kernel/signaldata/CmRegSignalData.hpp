@@ -29,12 +29,13 @@ class CmRegReq {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 5 + NdbNodeBitmask::Size );
+  STATIC_CONST( SignalLength = 6 + NdbNodeBitmask::Size );
 private:
   
   Uint32 blockRef;
   Uint32 nodeId;
   Uint32 version;    // See ndb_version.h
+  Uint32 mysql_version;
 
   Uint32 start_type; // As specified by cmd-line or mgm, NodeState::StartType
   Uint32 latest_gci; // 0 means no fs
@@ -52,12 +53,13 @@ class CmRegConf {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 4 + NdbNodeBitmask::Size );
+  STATIC_CONST( SignalLength = 5 + NdbNodeBitmask::Size );
 private:
   
   Uint32 presidentBlockRef;
   Uint32 presidentNodeId;
   Uint32 presidentVersion;
+  Uint32 presidentMysqlVersion;
 
   /**
    * The dynamic id that the node reciving this signal has
@@ -122,7 +124,7 @@ class CmAdd {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 4 );
   
 private:
   enum RequestType {
@@ -134,6 +136,7 @@ private:
   Uint32 requestType;
   Uint32 startingNodeId;
   Uint32 startingVersion;
+  Uint32 startingMysqlVersion;
 };
 
 class CmAckAdd {
@@ -158,7 +161,7 @@ class CmNodeInfoReq {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 4 );
   
 private:
   /**
@@ -167,6 +170,7 @@ private:
   Uint32 nodeId;
   Uint32 dynamicId;
   Uint32 version;
+  Uint32 mysql_version;
 };
 
 class CmNodeInfoRef {
@@ -194,12 +198,13 @@ class CmNodeInfoConf {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 4 );
   
 private:
   Uint32 nodeId;
   Uint32 dynamicId;
   Uint32 version;
+  Uint32 mysql_version;
 };
 
 #endif
