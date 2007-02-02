@@ -582,6 +582,26 @@ Dblqh::execDEFINE_BACKUP_REF(Signal* signal)
 {
   jamEntry();
   m_backup_ptr = RNIL;
+  DefineBackupRef* ref = (DefineBackupRef*)signal->getDataPtrSend();
+  int err_code = 0;
+  char * extra_msg = NULL;
+
+  switch(ref->errorCode){
+    case DefineBackupRef::Undefined:
+    case DefineBackupRef::FailedToSetupFsBuffers:
+    case DefineBackupRef::FailedToAllocateBuffers: 
+    case DefineBackupRef::FailedToAllocateTables: 
+    case DefineBackupRef::FailedAllocateTableMem: 
+    case DefineBackupRef::FailedToAllocateFileRecord:
+    case DefineBackupRef::FailedToAllocateAttributeRecord:
+    case DefineBackupRef::FailedInsertFileHeader: 
+    case DefineBackupRef::FailedInsertTableList: 
+      jam();
+      err_code = NDBD_EXIT_INVALID_CONFIG;
+      extra_msg = "Probably Backup parameters configuration error, Please consult the manual";
+      progError(__LINE__, err_code, extra_msg);
+  }
+
   sendsttorryLab(signal);
 }
 
@@ -7208,7 +7228,8 @@ void Dblqh::execACC_ABORTCONF(Signal* signal)
   TRACE_OP(regTcPtr, "ACC_ABORTCONF");
   signal->theData[0] = regTcPtr->tupConnectrec;
   EXECUTE_DIRECT(DBTUP, GSN_TUP_ABORTREQ, signal, 1);
-  
+
+  jamEntry(); 
   continueAbortLab(signal);
   return;
 }//Dblqh::execACC_ABORTCONF()
