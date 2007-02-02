@@ -5104,7 +5104,7 @@ alter:
 	  }
 	  view_list_opt AS view_select view_check_option
 	  {}
-	| ALTER EVENT_SYM sp_name
+	| ALTER definer EVENT_SYM sp_name
           /*
             BE CAREFUL when you add a new rule to update the block where
             YYTHD->client_capabilities is set back to original value
@@ -5120,7 +5120,7 @@ alter:
 
             if (!(Lex->event_parse_data= Event_parse_data::new_instance(YYTHD)))
               YYABORT;
-            Lex->event_parse_data->identifier= $3;
+            Lex->event_parse_data->identifier= $4;
 
             /*
               We have to turn off CLIENT_MULTI_QUERIES while parsing a
@@ -5140,13 +5140,14 @@ alter:
           {
             /*
               $1 - ALTER
-              $2 - EVENT_SYM
-              $3 - sp_name
-              $4 - the block above
+              $2 - definer
+              $3 - EVENT_SYM
+              $4 - sp_name
+              $5 - the block above
             */
-            YYTHD->client_capabilities |= $<ulong_num>4;
+            YYTHD->client_capabilities |= $<ulong_num>5;
 
-            if (!($5 || $6 || $7 || $8 || $9))
+            if (!($6 || $7 || $8 || $9 || $10))
             {
 	      yyerror(ER(ER_SYNTAX_ERROR));
               YYABORT;
