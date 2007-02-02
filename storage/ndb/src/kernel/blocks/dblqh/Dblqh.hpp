@@ -493,6 +493,7 @@ public:
   typedef Ptr<Databuf> DatabufPtr;
 
   struct ScanRecord {
+    ScanRecord() {}
     enum ScanState {
       SCAN_FREE = 0,
       WAIT_STORED_PROC_COPY = 1,
@@ -2898,6 +2899,7 @@ public:
    *
    */
   struct CommitAckMarker {
+    CommitAckMarker() {}
     Uint32 transid1;
     Uint32 transid2;
     
@@ -2924,6 +2926,7 @@ public:
   void scanMarkers(Signal* signal, Uint32 tcNodeFail, Uint32 bucket, Uint32 i);
 
   struct Counters {
+    Counters() {}
     Uint32 operations;
     
     inline void clear(){

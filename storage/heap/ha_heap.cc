@@ -327,11 +327,11 @@ int ha_heap::rnd_next(byte *buf)
 int ha_heap::rnd_pos(byte * buf, byte *pos)
 {
   int error;
-  HEAP_PTR position;
+  HEAP_PTR heap_position;
   statistic_increment(table->in_use->status_var.ha_read_rnd_count,
 		      &LOCK_status);
-  memcpy_fixed((char*) &position,pos,sizeof(HEAP_PTR));
-  error=heap_rrnd(file, buf, position);
+  memcpy_fixed((char*) &heap_position, pos, sizeof(HEAP_PTR));
+  error=heap_rrnd(file, buf, heap_position);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
@@ -343,19 +343,19 @@ void ha_heap::position(const byte *record)
 
 int ha_heap::info(uint flag)
 {
-  HEAPINFO info;
-  (void) heap_info(file,&info,flag);
+  HEAPINFO hp_info;
+  (void) heap_info(file,&hp_info,flag);
 
-  errkey= info.errkey;
-  stats.records = info.records;
-  stats.deleted = info.deleted;
-  stats.mean_rec_length=info.reclength;
-  stats.data_file_length=info.data_length;
-  stats.index_file_length=info.index_length;
-  stats.max_data_file_length= info.max_records* info.reclength;
-  stats.delete_length= info.deleted * info.reclength;
+  errkey=                     hp_info.errkey;
+  stats.records=              hp_info.records;
+  stats.deleted=              hp_info.deleted;
+  stats.mean_rec_length=      hp_info.reclength;
+  stats.data_file_length=     hp_info.data_length;
+  stats.index_file_length=    hp_info.index_length;
+  stats.max_data_file_length= hp_info.max_records * hp_info.reclength;
+  stats.delete_length=        hp_info.deleted * hp_info.reclength;
   if (flag & HA_STATUS_AUTO)
-    stats.auto_increment_value= info.auto_increment;
+    stats.auto_increment_value= hp_info.auto_increment;
   /*
     If info() is called for the first time after open(), we will still
     have to update the key statistics. Hoping that a table lock is now

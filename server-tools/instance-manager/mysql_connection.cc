@@ -297,16 +297,15 @@ int Mysql_connection::dispatch_command(enum enum_server_command command,
 	     (unsigned long) connection_id,
              (const char *) packet);
 
-    if (Command *command= parse_command(packet))
+    if (Command *com= parse_command(packet))
     {
       int res= 0;
 
       log_info("Connection %lu: query parsed successfully.",
                (unsigned long) connection_id);
 
-      res= command->execute(&net, connection_id);
-      delete command;
-
+      res= com->execute(&net, connection_id);
+      delete com;
       if (!res)
       {
         log_info("Connection %lu: query executed successfully",

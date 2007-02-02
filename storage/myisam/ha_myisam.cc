@@ -656,11 +656,11 @@ int ha_myisam::optimize(THD* thd, HA_CHECK_OPT *check_opt)
 }
 
 
-int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
+int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
 {
   int error=0;
   uint local_testflag=param.testflag;
-  bool optimize_done= !optimize, statistics_done=0;
+  bool optimize_done= !do_optimize, statistics_done=0;
   const char *old_proc_info=thd->proc_info;
   char fixed_name[FN_REFLEN];
   MYISAM_SHARE* share = file->s;
@@ -684,7 +684,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
     DBUG_RETURN(HA_ADMIN_FAILED);
   }
 
-  if (!optimize ||
+  if (!do_optimize ||
       ((file->state->del || share->state.split != file->state->records) &&
        (!(param.testflag & T_QUICK) ||
 	!(share->state.changed & STATE_NOT_OPTIMIZED_KEYS))))
@@ -1320,46 +1320,46 @@ int ha_myisam::rnd_pos(byte * buf, byte *pos)
 
 void ha_myisam::position(const byte* record)
 {
-  my_off_t position=mi_position(file);
-  my_store_ptr(ref, ref_length, position);
+  my_off_t row_position= mi_position(file);
+  my_store_ptr(ref, ref_length, row_position);
 }
 
 int ha_myisam::info(uint flag)
 {
-  MI_ISAMINFO info;
+  MI_ISAMINFO misam_info;
   char name_buff[FN_REFLEN];
 
-  (void) mi_status(file,&info,flag);
+  (void) mi_status(file,&misam_info,flag);
   if (flag & HA_STATUS_VARIABLE)
   {
-    stats.records = info.records;
-    stats.deleted = info.deleted;
-    stats.data_file_length=info.data_file_length;
-    stats.index_file_length=info.index_file_length;
-    stats.delete_length = info.delete_length;
-    stats.check_time  = info.check_time;
-    stats. mean_rec_length=info.mean_reclength;
+    stats.records=           misam_info.records;
+    stats.deleted=           misam_info.deleted;
+    stats.data_file_length=  misam_info.data_file_length;
+    stats.index_file_length= misam_info.index_file_length;
+    stats.delete_length=     misam_info.delete_length;
+    stats.check_time=        misam_info.check_time;
+    stats.mean_rec_length=   misam_info.mean_reclength;
   }
   if (flag & HA_STATUS_CONST)
   {
     TABLE_SHARE *share= table->s;
-    stats.max_data_file_length=  info.max_data_file_length;
-    stats.max_index_file_length= info.max_index_file_length;
-    stats.create_time= info.create_time;
-    ref_length= info.reflength;
-    share->db_options_in_use= info.options;
+    stats.max_data_file_length=  misam_info.max_data_file_length;
+    stats.max_index_file_length= misam_info.max_index_file_length;
+    stats.create_time= misam_info.create_time;
+    ref_length= misam_info.reflength;
+    share->db_options_in_use= misam_info.options;
     stats.block_size= myisam_block_size;        /* record block size */
 
     /* Update share */
     if (share->tmp_table == NO_TMP_TABLE)
       pthread_mutex_lock(&share->mutex);
     share->keys_in_use.set_prefix(share->keys);
-    share->keys_in_use.intersect_extended(info.key_map);
+    share->keys_in_use.intersect_extended(misam_info.key_map);
     share->keys_for_keyread.intersect(share->keys_in_use);
-    share->db_record_offset= info.record_offset;
+    share->db_record_offset= misam_info.record_offset;
     if (share->key_parts)
       memcpy((char*) table->key_info[0].rec_per_key,
-	     (char*) info.rec_per_key,
+	     (char*) misam_info.rec_per_key,
 	     sizeof(table->key_info[0].rec_per_key)*share->key_parts);
     if (share->tmp_table == NO_TMP_TABLE)
       pthread_mutex_unlock(&share->mutex);
@@ -1371,22 +1371,22 @@ int ha_myisam::info(uint flag)
     data_file_name= index_file_name= 0;
     fn_format(name_buff, file->filename, "", MI_NAME_DEXT,
               MY_APPEND_EXT | MY_UNPACK_FILENAME);
-    if (strcmp(name_buff, info.data_file_name))
-      data_file_name=info.data_file_name;
+    if (strcmp(name_buff, misam_info.data_file_name))
+      data_file_name=misam_info.data_file_name;
     fn_format(name_buff, file->filename, "", MI_NAME_IEXT,
               MY_APPEND_EXT | MY_UNPACK_FILENAME);
-    if (strcmp(name_buff, info.index_file_name))
-      index_file_name=info.index_file_name;
+    if (strcmp(name_buff, misam_info.index_file_name))
+      index_file_name=misam_info.index_file_name;
   }
   if (flag & HA_STATUS_ERRKEY)
   {
-    errkey  = info.errkey;
-    my_store_ptr(dup_ref, ref_length, info.dupp_key_pos);
+    errkey  = misam_info.errkey;
+    my_store_ptr(dup_ref, ref_length, misam_info.dupp_key_pos);
   }
   if (flag & HA_STATUS_TIME)
-    stats.update_time = info.update_time;
+    stats.update_time = misam_info.update_time;
   if (flag & HA_STATUS_AUTO)
-    stats.auto_increment_value= info.auto_increment;
+    stats.auto_increment_value= misam_info.auto_increment;
 
   return 0;
 }
@@ -1454,7 +1454,7 @@ void ha_myisam::update_create_info(HA_CREATE_INFO *create_info)
 
 
 int ha_myisam::create(const char *name, register TABLE *table_arg,
-		      HA_CREATE_INFO *info)
+		      HA_CREATE_INFO *ha_create_info)
 {
   int error;
   uint i,j,recpos,minpos,fieldpos,temp_length,length, create_flags= 0;
@@ -1638,15 +1638,15 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
   create_info.max_rows= share->max_rows;
   create_info.reloc_rows= share->min_rows;
   create_info.with_auto_increment=found_real_auto_increment;
-  create_info.auto_increment=(info->auto_increment_value ?
-			      info->auto_increment_value -1 :
-			      (ulonglong) 0);
+  create_info.auto_increment= (ha_create_info->auto_increment_value ?
+                               ha_create_info->auto_increment_value -1 :
+                               (ulonglong) 0);
   create_info.data_file_length= ((ulonglong) share->max_rows *
 				 share->avg_row_length);
-  create_info.data_file_name=  info->data_file_name;
-  create_info.index_file_name= info->index_file_name;
+  create_info.data_file_name=  ha_create_info->data_file_name;
+  create_info.index_file_name= ha_create_info->index_file_name;
 
-  if (info->options & HA_LEX_CREATE_TMP_TABLE)
+  if (ha_create_info->options & HA_LEX_CREATE_TMP_TABLE)
     create_flags|= HA_CREATE_TMP_TABLE;
   if (options & HA_OPTION_PACK_RECORD)
     create_flags|= HA_PACK_RECORD;

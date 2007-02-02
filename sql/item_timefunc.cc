@@ -1120,14 +1120,14 @@ String* Item_func_dayname::val_str(String* str)
 {
   DBUG_ASSERT(fixed == 1);
   uint weekday=(uint) val_int();		// Always Item_func_daynr()
-  const char *name;
+  const char *day_name;
   THD *thd= current_thd;
 
   if (null_value)
     return (String*) 0;
   
-  name= thd->variables.lc_time_names->day_names->type_names[weekday];
-  str->set(name, strlen(name), system_charset_info);
+  day_name= thd->variables.lc_time_names->day_names->type_names[weekday];
+  str->set(day_name, strlen(day_name), system_charset_info);
   return str;
 }
 
@@ -3171,10 +3171,10 @@ bool Item_func_str_to_date::get_date(TIME *ltime, uint fuzzy_date)
 {
   DATE_TIME_FORMAT date_time_format;
   char val_buff[64], format_buff[64];
-  String val_str(val_buff, sizeof(val_buff), &my_charset_bin), *val;
+  String val_string(val_buff, sizeof(val_buff), &my_charset_bin), *val;
   String format_str(format_buff, sizeof(format_buff), &my_charset_bin), *format;
 
-  val=    args[0]->val_str(&val_str);
+  val=    args[0]->val_str(&val_string);
   format= args[1]->val_str(&format_str);
   if (args[0]->null_value || args[1]->null_value)
     goto null_date;
