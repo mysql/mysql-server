@@ -4985,6 +4985,7 @@ bool get_schema_tables_result(JOIN *join)
 
       if (is_subselect) // is subselect
       {
+        table_list->table->file->extra(HA_EXTRA_NO_CACHE);
         table_list->table->file->extra(HA_EXTRA_RESET_STATE);
         table_list->table->file->delete_all_rows();
         free_io_cache(table_list->table);
