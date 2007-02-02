@@ -1505,6 +1505,31 @@ update t1 set i= i+ 10 where j > 2;
 select * from t1;
 drop table t1;
 
+#
+# Bug#23556 TRUNCATE TABLE still maps to DELETE
+#
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (a INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8);
+
+CREATE TRIGGER trg_t1 BEFORE DELETE on t1 FOR EACH ROW 
+  INSERT INTO t2 VALUES (OLD.a);
+
+FLUSH STATUS;
+TRUNCATE t1;
+SHOW STATUS LIKE 'handler_delete';
+SELECT COUNT(*) FROM t2;
+
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8);
+DELETE FROM t2;
+
+FLUSH STATUS;
+DELETE FROM t1;
+SHOW STATUS LIKE 'handler_delete';
+SELECT COUNT(*) FROM t2;
+
+DROP TRIGGER trg_t1;
+DROP TABLE t1,t2;
 
 #
 # Bug #23651 "Server crashes when trigger which uses stored function
