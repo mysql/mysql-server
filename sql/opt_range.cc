@@ -563,7 +563,7 @@ public:
   /* Number of ranges in the last checked tree->key */
   uint n_ranges;
   uint8 first_null_comp; /* first null component if any, 0 - otherwise */
-} PARAM;
+};
 
 class TABLE_READ_PLAN;
   class TRP_RANGE;
