@@ -340,16 +340,50 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
   Uint64 shared_mem = 8*1024*1024;
   ndb_mgm_get_int64_parameter(p, CFG_DB_SGA, &shared_mem);
   shared_mem /= GLOBAL_PAGE_SIZE;
-  if (shared_mem)
+
+  Uint32 tupmem = 0;
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE, &tupmem));
+  if (tupmem)
+  {
+    Resource_limit rl;
+    rl.m_min = tupmem;
+    rl.m_max = tupmem;
+    rl.m_resource_id = 3;
+    m_ctx.m_mm.set_resource_limit(rl);
+  }
+
+  if (shared_mem+tupmem)
   {
     Resource_limit rl;
     rl.m_min = 0;
-    rl.m_max = shared_mem;
+    rl.m_max = shared_mem + tupmem;
     rl.m_resource_id = 0;
     m_ctx.m_mm.set_resource_limit(rl);
   }
   
-  ndbrequire(m_ctx.m_mm.init());
+  if (!m_ctx.m_mm.init())
+  {
+    char buf[255];
+
+    struct ndb_mgm_param_info dm;
+    struct ndb_mgm_param_info sga;
+    size_t size = sizeof(ndb_mgm_param_info);
+    
+    ndb_mgm_get_db_parameter_info(CFG_DB_DATA_MEM, &dm, &size);
+    size = sizeof(ndb_mgm_param_info);
+    ndb_mgm_get_db_parameter_info(CFG_DB_SGA, &sga, &size);
+
+    BaseString::snprintf(buf, sizeof(buf), 
+			 "Malloc (%lld bytes) for %s and %s failed", 
+			 Uint64(shared_mem + tupmem) * 32768,
+			 dm.m_name, sga.m_name);
+    
+    ErrorReporter::handleAssert(buf,
+				__FILE__, __LINE__, NDBD_EXIT_MEMALLOC);
+    
+    ndbrequire(false);
+  }
+
   {
     void* ptr = m_ctx.m_mm.get_memroot();
     m_shared_page_pool.set((GlobalPage*)ptr, ~0);
