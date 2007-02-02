@@ -220,6 +220,18 @@ static int free_share(TINA_SHARE *share)
 }
 
 
+bool tina_end()
+{
+  if (tina_init)
+  {
+    hash_free(&tina_open_tables);
+    VOID(pthread_mutex_destroy(&tina_mutex));
+  }
+  tina_init= 0;
+  return FALSE;
+}
+
+
 /* 
   Finds the end of a line.
   Currently only supports files written on a UNIX OS.
