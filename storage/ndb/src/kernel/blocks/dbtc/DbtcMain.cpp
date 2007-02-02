@@ -2522,7 +2522,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   ApiConnectRecord * const regApiPtr = &localApiConnectRecord[TapiIndex];
   apiConnectptr.p = regApiPtr;
 
-  Uint32 TstartFlag = tcKeyReq->getStartFlag(Treqinfo);
+  Uint32 TstartFlag = TcKeyReq::getStartFlag(Treqinfo);
   Uint32 TexecFlag = TcKeyReq::getExecuteFlag(Treqinfo);
 
   Uint8 isIndexOp = regApiPtr->isIndexOp;
@@ -2692,14 +2692,14 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   /*                                                                        */
   /* ---------------------------------------------------------------------- */
 
-  UintR TapiVersionNo = tcKeyReq->getAPIVersion(tcKeyReq->attrLen);
+  UintR TapiVersionNo = TcKeyReq::getAPIVersion(tcKeyReq->attrLen);
   UintR Tlqhkeyreqrec = regApiPtr->lqhkeyreqrec;
   regApiPtr->lqhkeyreqrec = Tlqhkeyreqrec + 1;
   regCachePtr->apiVersionNo = TapiVersionNo;
 
   UintR TapiConnectptrIndex = apiConnectptr.i;
   UintR TsenderData = tcKeyReq->senderData;
-  UintR TattrLen = tcKeyReq->getAttrinfoLen(tcKeyReq->attrLen);
+  UintR TattrLen = TcKeyReq::getAttrinfoLen(tcKeyReq->attrLen);
   UintR TattrinfoCount = c_counters.cattrinfoCount;
 
   regTcPtr->apiConnect = TapiConnectptrIndex;
@@ -2725,15 +2725,15 @@ void Dbtc::execTCKEYREQ(Signal* signal)
 
   UintR TtabptrIndex = localTabptr.i;
   UintR TtableSchemaVersion = tcKeyReq->tableSchemaVersion;
-  Uint8 TOperationType = tcKeyReq->getOperationType(Treqinfo);
+  Uint8 TOperationType = TcKeyReq::getOperationType(Treqinfo);
   regCachePtr->tableref = TtabptrIndex;
   regCachePtr->schemaVersion = TtableSchemaVersion;
   regTcPtr->operation = TOperationType;
 
-  Uint8 TSimpleFlag         = tcKeyReq->getSimpleFlag(Treqinfo);
-  Uint8 TDirtyFlag          = tcKeyReq->getDirtyFlag(Treqinfo);
-  Uint8 TInterpretedFlag    = tcKeyReq->getInterpretedFlag(Treqinfo);
-  Uint8 TDistrKeyFlag       = tcKeyReq->getDistributionKeyFlag(Treqinfo);
+  Uint8 TSimpleFlag         = TcKeyReq::getSimpleFlag(Treqinfo);
+  Uint8 TDirtyFlag          = TcKeyReq::getDirtyFlag(Treqinfo);
+  Uint8 TInterpretedFlag    = TcKeyReq::getInterpretedFlag(Treqinfo);
+  Uint8 TDistrKeyFlag       = TcKeyReq::getDistributionKeyFlag(Treqinfo);
   Uint8 TNoDiskFlag         = TcKeyReq::getNoDiskFlag(Treqinfo);
   Uint8 TexecuteFlag        = TexecFlag;
   
@@ -2749,10 +2749,10 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   Uint32 TkeyIndex;
   Uint32* TOptionalDataPtr = (Uint32*)&tcKeyReq->scanInfo;
   {
-    Uint32  TDistrGHIndex    = tcKeyReq->getScanIndFlag(Treqinfo);
+    Uint32  TDistrGHIndex    = TcKeyReq::getScanIndFlag(Treqinfo);
     Uint32  TDistrKeyIndex   = TDistrGHIndex;
 
-    Uint32 TscanInfo = tcKeyReq->getTakeOverScanInfo(TOptionalDataPtr[0]);
+    Uint32 TscanInfo = TcKeyReq::getTakeOverScanInfo(TOptionalDataPtr[0]);
 
     regCachePtr->scanTakeOverInd = TDistrGHIndex;
     regCachePtr->scanInfo = TscanInfo;
@@ -2774,7 +2774,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   regCachePtr->keydata[2] = Tdata3;
   regCachePtr->keydata[3] = Tdata4;
 
-  TkeyLength = tcKeyReq->getKeyLength(Treqinfo);
+  TkeyLength = TcKeyReq::getKeyLength(Treqinfo);
   Uint32 TAIDataIndex;
   if (TkeyLength > 8) {
     TAIDataIndex = TkeyIndex + 8;
@@ -2787,7 +2787,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   }//if
   Uint32* TAIDataPtr = &TOptionalDataPtr[TAIDataIndex];
 
-  titcLenAiInTckeyreq = tcKeyReq->getAIInTcKeyReq(Treqinfo);
+  titcLenAiInTckeyreq = TcKeyReq::getAIInTcKeyReq(Treqinfo);
   regCachePtr->keylen = TkeyLength;
   regCachePtr->lenAiInTckeyreq = titcLenAiInTckeyreq;
   regCachePtr->currReclenAi = titcLenAiInTckeyreq;
@@ -2824,6 +2824,12 @@ void Dbtc::execTCKEYREQ(Signal* signal)
         tmp.p->apiNodeId     = refToNode(regApiPtr->ndbapiBlockref);
         tmp.p->apiConnectPtr = TapiIndex;
         tmp.p->noOfLqhs      = 0;
+#if defined VM_TRACE || defined ERROR_INSERT
+	{
+	  CommitAckMarkerPtr check;
+	  ndbrequire(!m_commitAckMarkerHash.find(check, *tmp.p));
+	}
+#endif
         m_commitAckMarkerHash.add(tmp);
       }
     }
@@ -2852,14 +2858,14 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     }//switch
   }//if
   
-  Uint32 TabortOption = tcKeyReq->getAbortOption(Treqinfo);
+  Uint32 TabortOption = TcKeyReq::getAbortOption(Treqinfo);
   regTcPtr->m_execAbortOption = TabortOption;
   
   /*-------------------------------------------------------------------------
    * Check error handling per operation
    * If CommitFlag is set state accordingly and check for early abort
    *------------------------------------------------------------------------*/
-  if (tcKeyReq->getCommitFlag(Treqinfo) == 1) {
+  if (TcKeyReq::getCommitFlag(Treqinfo) == 1) {
     ndbrequire(TexecuteFlag);
     regApiPtr->apiConnectstate = CS_REC_COMMITTING;
   } else {
@@ -8114,6 +8120,13 @@ void Dbtc::initApiConnectFail(Signal* signal)
     tmp.p->noOfLqhs      = 1;
     tmp.p->lqhNodeId[0]  = tnodeid;
     tmp.p->apiConnectPtr = apiConnectptr.i;
+
+#if defined VM_TRACE || defined ERROR_INSERT
+    {
+      CommitAckMarkerPtr check;
+      ndbrequire(!m_commitAckMarkerHash.find(check, *tmp.p));
+    }
+#endif
     m_commitAckMarkerHash.add(tmp);
   } 
 }//Dbtc::initApiConnectFail()
@@ -8270,6 +8283,12 @@ void Dbtc::updateApiStateFail(Signal* signal)
       tmp.p->noOfLqhs      = 1;
       tmp.p->lqhNodeId[0]  = tnodeid;
       tmp.p->apiConnectPtr = apiConnectptr.i;
+#if defined VM_TRACE || defined ERROR_INSERT
+      {
+	CommitAckMarkerPtr check;
+	ndbrequire(!m_commitAckMarkerHash.find(check, *tmp.p));
+      }
+#endif
       m_commitAckMarkerHash.add(tmp);
     } else {
       jam();
@@ -11472,7 +11491,7 @@ void Dbtc::execTCINDXREQ(Signal* signal)
   // If operation is readTupleExclusive or updateTuple then read index 
   // table with exclusive lock
   Uint32 indexLength = TcKeyReq::getKeyLength(tcIndxRequestInfo);
-  Uint32 attrLength = tcIndxReq->attrLen;
+  Uint32 attrLength = TcKeyReq::getAttrinfoLen(tcIndxReq->attrLen);
   indexOp->expectedKeyInfo = indexLength;
   Uint32 includedIndexLength = MIN(indexLength, indexBufSize);
   indexOp->expectedAttrInfo = attrLength;
