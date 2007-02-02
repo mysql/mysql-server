@@ -75,8 +75,8 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   if (!using_limit && const_cond && (!conds || conds->val_int()) &&
       !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
       (thd->lex->sql_command == SQLCOM_TRUNCATE ||
-       !(table->triggers && table->triggers->has_delete_triggers()))
-     )
+       !(table->triggers && table->triggers->has_delete_triggers())) &&
+      !thd->current_stmt_binlog_row_based)
   {
     /* Update the table->file->stats.records number */
     table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
