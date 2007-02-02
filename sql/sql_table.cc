@@ -3163,19 +3163,30 @@ view_err:
   if (!(alter_info->flags & ~(ALTER_RENAME | ALTER_KEYS_ONOFF)) &&
       !table->s->tmp_table) // no need to touch frm
   {
-    VOID(pthread_mutex_lock(&LOCK_open));
-
     switch (alter_info->keys_onoff) {
     case LEAVE_AS_IS:
       error= 0;
       break;
     case ENABLE:
+      /*
+        wait_while_table_is_used() ensures that table being altered is
+        opened only by this thread and that TABLE::TABLE_SHARE::version
+        of TABLE object corresponding to this table is 0.
+        The latter guarantees that no DML statement will open this table
+        until ALTER TABLE finishes (i.e. until close_thread_tables())
+        while the fact that the table is still open gives us protection
+        from concurrent DDL statements.
+      */
+      VOID(pthread_mutex_lock(&LOCK_open));
       wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
+      VOID(pthread_mutex_unlock(&LOCK_open));
       error= table->file->enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
       /* COND_refresh will be signaled in close_thread_tables() */
       break;
     case DISABLE:
+      VOID(pthread_mutex_lock(&LOCK_open));
       wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
+      VOID(pthread_mutex_unlock(&LOCK_open));
       error=table->file->disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
       /* COND_refresh will be signaled in close_thread_tables() */
       break;
@@ -3187,6 +3198,16 @@ view_err:
 			  table->alias);
       error= 0;
     }
+
+    VOID(pthread_mutex_lock(&LOCK_open));
+    /*
+      Unlike to the above case close_cached_table() below will remove ALL
+      instances of TABLE from table cache (it will also remove table lock
+      held by this thread). So to make actual table renaming and writing
+      to binlog atomic we have to put them into the same critical section
+      protected by LOCK_open mutex. This also removes gap for races between
+      access() and mysql_rename_table() calls.
+    */
 
     if (!error && (new_name != table_name || new_db != db))
     {
@@ -3910,7 +3931,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   Copy_field *copy,*copy_end;
   ulong found_count,delete_count;
   THD *thd= current_thd;
-  uint length;
+  uint length= 0;
   SORT_FIELD *sortorder;
   READ_RECORD info;
   TABLE_LIST   tables;

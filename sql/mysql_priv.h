@@ -20,6 +20,9 @@
   except the part which must be in the server and in the client.
 */
 
+#ifndef MYSQL_PRIV_H_INCLUDED
+#define MYSQL_PRIV_H_INCLUDED
+
 #ifndef MYSQL_CLIENT
 
 #include <my_global.h>
@@ -85,6 +88,9 @@ char *sql_strmake_with_convert(const char *str, uint32 arg_length,
 void kill_one_thread(THD *thd, ulong id, bool only_kill_query);
 bool net_request_file(NET* net, const char* fname);
 char* query_table_status(THD *thd,const char *db,const char *table_name);
+
+void net_set_write_timeout(NET *net, uint timeout);
+void net_set_read_timeout(NET *net, uint timeout);
 
 #define x_free(A)	{ my_free((gptr) (A),MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR)); }
 #define safeFree(x)	{ if(x) { my_free((gptr) x,MYF(0)); x = NULL; } }
@@ -300,55 +306,56 @@ MY_LOCALE *my_locale_by_number(uint number);
    TODO: separate three contexts above, move them to separate bitfields.
 */
 
-#define SELECT_DISTINCT         (1L << 0)       // SELECT, user
-#define SELECT_STRAIGHT_JOIN    (1L << 1)       // SELECT, user
-#define SELECT_DESCRIBE         (1L << 2)       // SELECT, user
-#define SELECT_SMALL_RESULT     (1L << 3)       // SELECT, user
-#define SELECT_BIG_RESULT       (1L << 4)       // SELECT, user
-#define OPTION_FOUND_ROWS       (1L << 5)       // SELECT, user
-#define OPTION_TO_QUERY_CACHE   (1L << 6)       // SELECT, user
-#define SELECT_NO_JOIN_CACHE    (1L << 7)       // intern
-#define OPTION_BIG_TABLES       (1L << 8)       // THD, user
-#define OPTION_BIG_SELECTS      (1L << 9)       // THD, user
-#define OPTION_LOG_OFF          (1L << 10)      // THD, user
-#define OPTION_UPDATE_LOG       (1L << 11)      // THD, user, unused
-#define TMP_TABLE_ALL_COLUMNS   (1L << 12)      // SELECT, intern
-#define OPTION_WARNINGS         (1L << 13)      // THD, user
-#define OPTION_AUTO_IS_NULL     (1L << 14)      // THD, user, binlog
-#define OPTION_FOUND_COMMENT    (1L << 15)      // SELECT, intern, parser
-#define OPTION_SAFE_UPDATES     (1L << 16)      // THD, user
-#define OPTION_BUFFER_RESULT    (1L << 17)      // SELECT, user
-#define OPTION_BIN_LOG          (1L << 18)      // THD, user
-#define OPTION_NOT_AUTOCOMMIT   (1L << 19)      // THD, user
-#define OPTION_BEGIN            (1L << 20)      // THD, intern
-#define OPTION_TABLE_LOCK       (1L << 21)      // THD, intern
-#define OPTION_QUICK            (1L << 22)      // SELECT (for DELETE)
-#define OPTION_QUOTE_SHOW_CREATE (1L << 23)     // THD, user
+#define SELECT_DISTINCT         (1ULL << 0)     // SELECT, user
+#define SELECT_STRAIGHT_JOIN    (1ULL << 1)     // SELECT, user
+#define SELECT_DESCRIBE         (1ULL << 2)     // SELECT, user
+#define SELECT_SMALL_RESULT     (1ULL << 3)     // SELECT, user
+#define SELECT_BIG_RESULT       (1ULL << 4)     // SELECT, user
+#define OPTION_FOUND_ROWS       (1ULL << 5)     // SELECT, user
+#define OPTION_TO_QUERY_CACHE   (1ULL << 6)     // SELECT, user
+#define SELECT_NO_JOIN_CACHE    (1ULL << 7)     // intern
+#define OPTION_BIG_TABLES       (1ULL << 8)     // THD, user
+#define OPTION_BIG_SELECTS      (1ULL << 9)     // THD, user
+#define OPTION_LOG_OFF          (1ULL << 10)    // THD, user
+#define OPTION_UPDATE_LOG       (1ULL << 11)    // THD, user, unused
+#define TMP_TABLE_ALL_COLUMNS   (1ULL << 12)    // SELECT, intern
+#define OPTION_WARNINGS         (1ULL << 13)    // THD, user
+#define OPTION_AUTO_IS_NULL     (1ULL << 14)    // THD, user, binlog
+#define OPTION_FOUND_COMMENT    (1ULL << 15)    // SELECT, intern, parser
+#define OPTION_SAFE_UPDATES     (1ULL << 16)    // THD, user
+#define OPTION_BUFFER_RESULT    (1ULL << 17)    // SELECT, user
+#define OPTION_BIN_LOG          (1ULL << 18)    // THD, user
+#define OPTION_NOT_AUTOCOMMIT   (1ULL << 19)    // THD, user
+#define OPTION_BEGIN            (1ULL << 20)    // THD, intern
+#define OPTION_TABLE_LOCK       (1ULL << 21)    // THD, intern
+#define OPTION_QUICK            (1ULL << 22)    // SELECT (for DELETE)
+#define OPTION_QUOTE_SHOW_CREATE (1ULL << 23)   // THD, user
 
 /* Thr following is used to detect a conflict with DISTINCT
    in the user query has requested */
-#define SELECT_ALL              (1L << 24)      // SELECT, user, parser
+#define SELECT_ALL              (1ULL << 24)    // SELECT, user, parser
 
 /* Set if we are updating a non-transaction safe table */
-#define OPTION_STATUS_NO_TRANS_UPDATE   (1L << 25) // THD, intern
+#define OPTION_STATUS_NO_TRANS_UPDATE   (1ULL << 25) // THD, intern
 
 /* The following can be set when importing tables in a 'wrong order'
    to suppress foreign key checks */
-#define OPTION_NO_FOREIGN_KEY_CHECKS    (1L << 26) // THD, user, binlog
+#define OPTION_NO_FOREIGN_KEY_CHECKS    (1ULL << 26) // THD, user, binlog
 /* The following speeds up inserts to InnoDB tables by suppressing unique
    key checks in some cases */
-#define OPTION_RELAXED_UNIQUE_CHECKS    (1L << 27) // THD, user, binlog
-#define SELECT_NO_UNLOCK                (1L << 28) // SELECT, intern
-#define OPTION_SCHEMA_TABLE             (1L << 29) // SELECT, intern
+#define OPTION_RELAXED_UNIQUE_CHECKS    (1ULL << 27) // THD, user, binlog
+#define SELECT_NO_UNLOCK                (1ULL << 28) // SELECT, intern
+#define OPTION_SCHEMA_TABLE             (1ULL << 29) // SELECT, intern
 /* Flag set if setup_tables already done */
-#define OPTION_SETUP_TABLES_DONE        (1L << 30) // intern
+#define OPTION_SETUP_TABLES_DONE        (1ULL << 30) // intern
 /* If not set then the thread will ignore all warnings with level notes. */
-#define OPTION_SQL_NOTES                (1UL << 31) // THD, user
+#define OPTION_SQL_NOTES                (1ULL << 31) // THD, user
 /* 
   Force the used temporary table to be a MyISAM table (because we will use
   fulltext functions when reading from it.
 */
-#define TMP_TABLE_FORCE_MYISAM          (LL(1) << 32)
+#define TMP_TABLE_FORCE_MYISAM          (1ULL << 32)
+
 
 /*
   Maximum length of time zone name that we support
@@ -414,7 +421,11 @@ MY_LOCALE *my_locale_by_number(uint number);
 #define UNCACHEABLE_EXPLAIN     8
 /* Don't evaluate subqueries in prepare even if they're not correlated */
 #define UNCACHEABLE_PREPARE    16
+/* For uncorrelated SELECT in an UNION with some correlated SELECTs */
+#define UNCACHEABLE_UNITED     32
 
+/* Used to check GROUP BY list in the MODE_ONLY_FULL_GROUP_BY mode */
+#define UNDEF_POS (-1)
 #ifdef EXTRA_DEBUG
 /*
   Sync points allow us to force the server to reach a certain line of code
@@ -1197,7 +1208,7 @@ extern const char *command_name[];
 extern const char *first_keyword, *my_localhost, *delayed_user, *binary_keyword;
 extern const char **errmesg;			/* Error messages */
 extern const char *myisam_recover_options_str;
-extern const char *in_left_expr_name, *in_additional_cond;
+extern const char *in_left_expr_name, *in_additional_cond, *in_having_cond;
 extern const char * const triggers_file_ext;
 extern const char * const trigname_file_ext;
 extern Eq_creator eq_creator;
@@ -1211,6 +1222,7 @@ extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
 extern char log_error_file[FN_REFLEN], *opt_tc_log_file;
 extern double log_10[32];
+extern double log_01[32];
 extern ulonglong log_10_int[20];
 extern ulonglong keybuff_size;
 extern ulonglong thd_startup_options;
@@ -1682,3 +1694,5 @@ inline void kill_delayed_threads(void) {}
 #endif
 
 #endif /* MYSQL_CLIENT */
+
+#endif

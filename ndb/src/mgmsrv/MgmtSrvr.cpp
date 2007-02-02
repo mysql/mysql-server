@@ -137,8 +137,11 @@ MgmtSrvr::logLevelThreadRun()
         m_started_nodes.erase(0, false);
         m_started_nodes.unlock();
 
-        setEventReportingLevelImpl(node, req);
-
+        if (setEventReportingLevelImpl(node, req))
+	{
+	  ndbout_c("setEventReportingLevelImpl(%d): failed", node);
+	}
+	
         SetLogLevelOrd ord;
         ord = m_nodeLogLevel[node];
         setNodeLogLevelImpl(node, ord);
@@ -155,10 +158,16 @@ MgmtSrvr::logLevelThreadRun()
       m_log_level_requests.erase(0, false);
       m_log_level_requests.unlock();
 
-      if(req.blockRef == 0){
+      if(req.blockRef == 0)
+      {
 	req.blockRef = _ownReference;
-	setEventReportingLevelImpl(0, req);
-      } else {
+	if (setEventReportingLevelImpl(0, req))
+	{
+	  ndbout_c("setEventReportingLevelImpl: failed 2!");
+	}
+      } 
+      else 
+      {
         SetLogLevelOrd ord;
         ord = req;
 	setNodeLogLevelImpl(req.blockRef, ord);
@@ -1376,9 +1385,6 @@ int MgmtSrvr::restartDB(bool nostart, bool initialStart,
   NodeId nodeId = 0;
   NDB_TICKS maxTime = NdbTick_CurrentMillisecond() + waitTime;
 
-  ndbout_c(" %d", nodes.get(1));
-  ndbout_c(" %d", nodes.get(2));
-
   while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) {
     if (!nodes.get(nodeId))
       continue;
@@ -1584,6 +1590,11 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId,
     }
   }
 
+  if (nodes.isclear())
+  {
+    return SEND_OR_RECEIVE_FAILED;
+  }
+  
   int error = 0;
   while (!nodes.isclear())
   {
@@ -1600,14 +1611,22 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId,
       error = 1;
       break;
     }
+      // Since sending okToSend(true), 
+      // there is no guarantee that NF_COMPLETEREP will come
+      // i.e listen also to NODE_FAILREP
+    case GSN_NODE_FAILREP: {
+      const NodeFailRep * const rep =
+	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
+      NdbNodeBitmask mask;
+      mask.assign(NdbNodeBitmask::Size, rep->theNodes);
+      nodes.bitANDC(mask);
+      break;
+    }
+      
     case GSN_NF_COMPLETEREP:{
       const NFCompleteRep * const rep =
 	CAST_CONSTPTR(NFCompleteRep, signal->getDataPtr());
       nodes.clear(rep->failedNodeId);
-      break;
-    }
-    case GSN_NODE_FAILREP:{
-      // ignore, NF_COMPLETEREP will arrive later
       break;
     }
     default:
@@ -1909,7 +1928,10 @@ MgmtSrvr::handleStatus(NodeId nodeId, bool alive, bool nfComplete)
 
   theData[1] = nodeId;
   if (alive) {
-    m_started_nodes.push_back(nodeId);
+    if (nodeTypes[nodeId] == NODE_TYPE_DB)
+    {
+      m_started_nodes.push_back(nodeId);
+    }
     rep->setEventType(NDB_LE_Connected);
   } else {
     rep->setEventType(NDB_LE_Disconnected);

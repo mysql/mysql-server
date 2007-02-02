@@ -1,0 +1,62 @@
+# In order to be more or less robust test for bug#25044 has to take
+# significant time (e.g. about 9 seconds on my (Dmitri's) computer)
+# so we probably want execute it only in --big-test mode.
+# Also in 5.1 this test will require statement-based binlog.
+--source include/big_test.inc
+
+
+#
+# Test for bug #25044 "ALTER TABLE ... ENABLE KEYS acquires global
+# 'opening tables' lock".
+#
+# ALTER TABLE ... ENABLE KEYS should not acquire LOCK_open mutex for
+# the whole its duration as it prevents other queries from execution.
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+connect (addconroot, localhost, root,,);
+connection default;
+create table t1 (n1 int, n2 int, n3 int,
+                key (n1, n2, n3),
+                key (n2, n3, n1),
+                key (n3, n1, n2));
+create table t2 (i int);
+
+# Populating 't1' table with keys disabled, so ALTER TABLE .. ENABLE KEYS
+# will run for some time
+alter table t1 disable keys;
+--disable_query_log
+insert into t1 values (RAND()*1000,RAND()*1000,RAND()*1000);
+let $1=19;
+while ($1)
+{
+ eval insert into t1 select RAND()*1000,RAND()*1000,RAND()*1000 from t1;
+ dec $1;
+}
+--enable_query_log
+
+# Later we use binlog to check the order in which statements are
+# executed so let us reset it first.
+reset master;
+--send alter table t1 enable keys;
+connection addconroot;
+let $show_type= PROCESSLIST;
+let $show_pattern= '%Repair by sorting%alter table t1 enable keys%';
+--source include/wait_show_pattern.inc
+# This statement should not be blocked by in-flight ALTER and therefore
+# should be executed and written to binlog before ALTER TABLE ... ENABLE KEYS
+# finishes.
+insert into t2 values (1);
+# And this should wait until the end of ALTER TABLE ... ENABLE KEYS.
+insert into t1 values (1, 1, 1);
+connection default;
+--reap
+# Check that statements were executed/binlogged in correct order.
+--replace_column 2 # 5 #
+show binlog events in 'master-bin.000001' from 98;
+
+# Clean up
+drop tables t1, t2;
+
+
+--echo End of 5.0 tests

@@ -731,3 +731,46 @@ SELECT * FROM v1;
 ERROR HY000: There is no 'def_17254'@'localhost' registered
 DROP USER inv_17254@localhost;
 DROP DATABASE db17254;
+DROP DATABASE IF EXISTS mysqltest_db1;
+DROP DATABASE IF EXISTS mysqltest_db2;
+DROP USER mysqltest_u1;
+DROP USER mysqltest_u2;
+CREATE USER mysqltest_u1@localhost;
+CREATE USER mysqltest_u2@localhost;
+CREATE DATABASE mysqltest_db1;
+CREATE DATABASE mysqltest_db2;
+GRANT ALL ON mysqltest_db1.* TO mysqltest_u1@localhost WITH GRANT OPTION;
+GRANT ALL ON mysqltest_db2.* TO mysqltest_u2@localhost;
+CREATE TABLE t1 (i INT);
+INSERT INTO t1 VALUES (1);
+CREATE VIEW v1 AS SELECT i FROM t1 WHERE 1 IN (SELECT * FROM t1);
+CREATE TABLE t2 (s CHAR(7));
+INSERT INTO t2 VALUES ('public');
+GRANT SELECT ON v1 TO mysqltest_u2@localhost;
+GRANT SELECT ON t2 TO mysqltest_u2@localhost;
+SELECT * FROM mysqltest_db1.v1, mysqltest_db1.t2;
+i	s
+1	public
+PREPARE stmt1 FROM "SELECT * FROM mysqltest_db1.t2";
+EXECUTE stmt1;
+s
+public
+PREPARE stmt2 FROM "SELECT * FROM mysqltest_db1.v1, mysqltest_db1.t2";
+EXECUTE stmt2;
+i	s
+1	public
+REVOKE SELECT ON t2 FROM mysqltest_u2@localhost;
+UPDATE t2 SET s = 'private' WHERE s = 'public';
+SELECT * FROM mysqltest_db1.v1, mysqltest_db1.t2;
+ERROR 42000: SELECT command denied to user 'mysqltest_u2'@'localhost' for table 't2'
+EXECUTE stmt1;
+ERROR 42000: SELECT command denied to user 'mysqltest_u2'@'localhost' for table 't2'
+EXECUTE stmt2;
+ERROR 42000: SELECT command denied to user 'mysqltest_u2'@'localhost' for table 't2'
+REVOKE ALL ON mysqltest_db1.* FROM mysqltest_u1@localhost;
+REVOKE ALL ON mysqltest_db2.* FROM mysqltest_u2@localhost;
+DROP DATABASE mysqltest_db1;
+DROP DATABASE mysqltest_db2;
+DROP USER mysqltest_u1@localhost;
+DROP USER mysqltest_u2@localhost;
+End of 5.0 tests.

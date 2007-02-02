@@ -1809,6 +1809,38 @@ DROP TABLE t1;
 
 
 #
+# BUG#24491 "using alias from source table in insert ... on duplicate key"
+#
+--disable_warnings
+drop tables if exists t1;
+drop procedure if exists bug24491;
+--enable_warnings
+create table t1 (id int primary key auto_increment, value varchar(10));
+insert into t1 (id, value) values (1, 'FIRST'), (2, 'SECOND'), (3, 'THIRD');
+# Let us create routine with INSERT ... SELECT ... ON DUPLICATE KEY UPDATE 
+# statement which in its ON DUPLICATE KEY clause erroneously tries to assign
+# value to a column which is mentioned only in SELECT part.
+create procedure bug24491()
+  insert into t1 (id, value) select * from (select 4 as i, 'FOURTH' as v) as y on duplicate key update v = 'DUP';
+# Both first and second calls to it should fail
+--error ER_BAD_FIELD_ERROR 
+call bug24491();
+--error ER_BAD_FIELD_ERROR
+call bug24491();
+drop procedure bug24491;
+# And now the same test for more complex case which is more close
+# to the one that was reported originally.
+create procedure bug24491()
+  insert into t1 (id, value) select * from (select 4 as id, 'FOURTH' as value) as y on duplicate key update y.value = 'DUP';
+--error ER_BAD_FIELD_ERROR 
+call bug24491();
+--error ER_BAD_FIELD_ERROR
+call bug24491();
+drop procedure bug24491;
+drop tables t1;
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
