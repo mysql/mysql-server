@@ -220,6 +220,8 @@ my_bool net_realloc(NET *net, ulong length)
     -1  Don't know if data is ready or not
 */
 
+#if !defined(EMBEDDED_LIBRARY)
+
 static int net_data_is_ready(my_socket sd)
 {
 #ifdef HAVE_POLL
@@ -254,9 +256,10 @@ static int net_data_is_ready(my_socket sd)
     return 0;
   else
     return test(res ? FD_ISSET(sd, &sfds) : 0);
-#endif
+#endif /* HAVE_POLL */
 }
 
+#endif /* EMBEDDED_LIBRARY */
 
 /*
   Remove unwanted characters from connection
@@ -282,8 +285,11 @@ static int net_data_is_ready(my_socket sd)
 
 void net_clear(NET *net, my_bool clear_buffer)
 {
+#if !defined(EMBEDDED_LIBRARY)
   int count, ready;
+#endif
   DBUG_ENTER("net_clear");
+
 #if !defined(EMBEDDED_LIBRARY)
   if (clear_buffer)
   {
@@ -295,7 +301,7 @@ void net_clear(NET *net, my_bool clear_buffer)
       {
         DBUG_PRINT("info",("skipped %d bytes from file: %s",
                            count, vio_description(net->vio)));
-#ifdef EXTRA_DEBUG
+#if defined(EXTRA_DEBUG) && (MYSQL_VERSION_ID < 51000)
         fprintf(stderr,"Error: net_clear() skipped %d bytes from file: %s\n",
                 count, vio_description(net->vio));
 #endif

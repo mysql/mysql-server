@@ -149,6 +149,7 @@ public:
    */
 
   struct Subscription {
+    Subscription() {}
     Uint32 m_senderRef;
     Uint32 m_senderData;
     Uint32 m_subscriptionId;

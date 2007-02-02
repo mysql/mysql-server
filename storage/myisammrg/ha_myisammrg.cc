@@ -30,9 +30,6 @@
 ** MyISAM MERGE tables
 *****************************************************************************/
 
-static handler *myisammrg_create_handler(TABLE_SHARE *table,
-                                         MEM_ROOT *mem_root);
-
 static handler *myisammrg_create_handler(handlerton *hton,
                                          TABLE_SHARE *table,
                                          MEM_ROOT *mem_root)
@@ -249,8 +246,8 @@ int ha_myisammrg::rnd_pos(byte * buf, byte *pos)
 
 void ha_myisammrg::position(const byte *record)
 {
-  ulonglong position= myrg_position(file);
-  my_store_ptr(ref, ref_length, (my_off_t) position);
+  ulonglong row_position= myrg_position(file);
+  my_store_ptr(ref, ref_length, (my_off_t) row_position);
 }
 
 
@@ -263,24 +260,23 @@ ha_rows ha_myisammrg::records_in_range(uint inx, key_range *min_key,
 
 int ha_myisammrg::info(uint flag)
 {
-  MYMERGE_INFO info;
-  (void) myrg_status(file,&info,flag);
+  MYMERGE_INFO mrg_info;
+  (void) myrg_status(file,&mrg_info,flag);
   /*
     The following fails if one has not compiled MySQL with -DBIG_TABLES
     and one has more than 2^32 rows in the merge tables.
   */
-  stats.records = (ha_rows) info.records;
-  stats.deleted = (ha_rows) info.deleted;
+  stats.records = (ha_rows) mrg_info.records;
+  stats.deleted = (ha_rows) mrg_info.deleted;
 #if !defined(BIG_TABLES) || SIZEOF_OFF_T == 4
-  if ((info.records >= (ulonglong) 1 << 32) ||
-      (info.deleted >= (ulonglong) 1 << 32))
+  if ((mrg_info.records >= (ulonglong) 1 << 32) ||
+      (mrg_info.deleted >= (ulonglong) 1 << 32))
     table->s->crashed= 1;
 #endif
-  stats.data_file_length=info.data_file_length;
-  errkey  = info.errkey;
+  stats.data_file_length= mrg_info.data_file_length;
+  errkey= mrg_info.errkey;
   table->s->keys_in_use.set_prefix(table->s->keys);
-  table->s->db_options_in_use= info.options;
-  stats.mean_rec_length= info.reclength;
+  stats.mean_rec_length= mrg_info.reclength;
   
   /* 
     The handler::block_size is used all over the code in index scan cost
@@ -310,7 +306,7 @@ int ha_myisammrg::info(uint flag)
 #endif
   if (flag & HA_STATUS_CONST)
   {
-    if (table->s->key_parts && info.rec_per_key)
+    if (table->s->key_parts && mrg_info.rec_per_key)
     {
 #ifdef HAVE_purify
       /*
@@ -323,7 +319,7 @@ int ha_myisammrg::info(uint flag)
             sizeof(table->key_info[0].rec_per_key) * table->s->key_parts);
 #endif
       memcpy((char*) table->key_info[0].rec_per_key,
-	     (char*) info.rec_per_key,
+	     (char*) mrg_info.rec_per_key,
              sizeof(table->key_info[0].rec_per_key) *
              min(file->keys, table->s->key_parts));
     }

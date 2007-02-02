@@ -560,12 +560,12 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
 #if defined (HANDLE_MULTIBYTE)
       if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
 	{
-	  int c, l;
+	  int chr, l;
 	  l = _rl_find_prev_mbchar (string, i, MB_FIND_ANY);
-	  c = string[l];
+	  chr = string[l];
 	  /* XXX - original patch had i - 1 ???  If i == 0 it would fail. */
-	  if (i && (c == '\'' || c == '"'))
-	    quoted_search_delimiter = c;
+	  if (i && (chr == '\'' || chr == '"'))
+	    quoted_search_delimiter = chr;
 	}
       else
 #endif /* HANDLE_MULTIBYTE */	  
