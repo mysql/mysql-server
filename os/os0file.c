@@ -1733,7 +1733,7 @@ os_file_set_size(
 		}
 
 		/* Print about progress for each 100 MB written */
-		if ((current_size + n_bytes) / (ib_longlong)(100 * 1024 * 1024)
+		if ((ib_longlong) (current_size + n_bytes) / (ib_longlong)(100 * 1024 * 1024)
 		    != current_size / (ib_longlong)(100 * 1024 * 1024)) {
 
 			fprintf(stderr, " %lu00",
