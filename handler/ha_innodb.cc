@@ -2553,10 +2553,10 @@ innobase_mysql_cmp(
 	case MYSQL_TYPE_BIT:
 	case MYSQL_TYPE_STRING:
 	case MYSQL_TYPE_VAR_STRING:
-	case FIELD_TYPE_TINY_BLOB:
-	case FIELD_TYPE_MEDIUM_BLOB:
-	case FIELD_TYPE_BLOB:
-	case FIELD_TYPE_LONG_BLOB:
+	case MYSQL_TYPE_TINY_BLOB:
+	case MYSQL_TYPE_MEDIUM_BLOB:
+	case MYSQL_TYPE_BLOB:
+	case MYSQL_TYPE_LONG_BLOB:
 	case MYSQL_TYPE_VARCHAR:
 		/* Use the charset number to pick the right charset struct for
 		the comparison. Since the MySQL function get_charset may be
@@ -2620,11 +2620,11 @@ get_innobase_type_from_mysql_type(
 	8 bits: this is used in ibuf and also when DATA_NOT_NULL is ORed to
 	the type */
 
-	DBUG_ASSERT((ulint)FIELD_TYPE_STRING < 256);
-	DBUG_ASSERT((ulint)FIELD_TYPE_VAR_STRING < 256);
-	DBUG_ASSERT((ulint)FIELD_TYPE_DOUBLE < 256);
-	DBUG_ASSERT((ulint)FIELD_TYPE_FLOAT < 256);
-	DBUG_ASSERT((ulint)FIELD_TYPE_DECIMAL < 256);
+	DBUG_ASSERT((ulint)MYSQL_TYPE_STRING < 256);
+	DBUG_ASSERT((ulint)MYSQL_TYPE_VAR_STRING < 256);
+	DBUG_ASSERT((ulint)MYSQL_TYPE_DOUBLE < 256);
+	DBUG_ASSERT((ulint)MYSQL_TYPE_FLOAT < 256);
+	DBUG_ASSERT((ulint)MYSQL_TYPE_DECIMAL < 256);
 
 	if (field->flags & UNSIGNED_FLAG) {
 
@@ -2633,8 +2633,8 @@ get_innobase_type_from_mysql_type(
 		*unsigned_flag = 0;
 	}
 
-	if (field->real_type() == FIELD_TYPE_ENUM
-		|| field->real_type() == FIELD_TYPE_SET) {
+	if (field->real_type() == MYSQL_TYPE_ENUM
+		|| field->real_type() == MYSQL_TYPE_SET) {
 
 		/* MySQL has field->type() a string type for these, but the
 		data is actually internally stored as an unsigned integer
@@ -2672,31 +2672,31 @@ get_innobase_type_from_mysql_type(
 		} else {
 			return(DATA_MYSQL);
 		}
-	case FIELD_TYPE_NEWDECIMAL:
+	case MYSQL_TYPE_NEWDECIMAL:
 		return(DATA_FIXBINARY);
-	case FIELD_TYPE_LONG:
-	case FIELD_TYPE_LONGLONG:
-	case FIELD_TYPE_TINY:
-	case FIELD_TYPE_SHORT:
-	case FIELD_TYPE_INT24:
-	case FIELD_TYPE_DATE:
-	case FIELD_TYPE_DATETIME:
-	case FIELD_TYPE_YEAR:
-	case FIELD_TYPE_NEWDATE:
-	case FIELD_TYPE_TIME:
-	case FIELD_TYPE_TIMESTAMP:
+	case MYSQL_TYPE_LONG:
+	case MYSQL_TYPE_LONGLONG:
+	case MYSQL_TYPE_TINY:
+	case MYSQL_TYPE_SHORT:
+	case MYSQL_TYPE_INT24:
+	case MYSQL_TYPE_DATE:
+	case MYSQL_TYPE_DATETIME:
+	case MYSQL_TYPE_YEAR:
+	case MYSQL_TYPE_NEWDATE:
+	case MYSQL_TYPE_TIME:
+	case MYSQL_TYPE_TIMESTAMP:
 		return(DATA_INT);
-	case FIELD_TYPE_FLOAT:
+	case MYSQL_TYPE_FLOAT:
 		return(DATA_FLOAT);
-	case FIELD_TYPE_DOUBLE:
+	case MYSQL_TYPE_DOUBLE:
 		return(DATA_DOUBLE);
-	case FIELD_TYPE_DECIMAL:
+	case MYSQL_TYPE_DECIMAL:
 		return(DATA_DECIMAL);
-	case FIELD_TYPE_GEOMETRY:
-	case FIELD_TYPE_TINY_BLOB:
-	case FIELD_TYPE_MEDIUM_BLOB:
-	case FIELD_TYPE_BLOB:
-	case FIELD_TYPE_LONG_BLOB:
+	case MYSQL_TYPE_GEOMETRY:
+	case MYSQL_TYPE_TINY_BLOB:
+	case MYSQL_TYPE_MEDIUM_BLOB:
+	case MYSQL_TYPE_BLOB:
+	case MYSQL_TYPE_LONG_BLOB:
 		return(DATA_BLOB);
 	default:
 		assert(0);
@@ -2864,10 +2864,10 @@ ha_innobase::store_key_val_for_row(
 
 			buff += key_len;
 
-		} else if (mysql_type == FIELD_TYPE_TINY_BLOB
-			|| mysql_type == FIELD_TYPE_MEDIUM_BLOB
-			|| mysql_type == FIELD_TYPE_BLOB
-			|| mysql_type == FIELD_TYPE_LONG_BLOB) {
+		} else if (mysql_type == MYSQL_TYPE_TINY_BLOB
+			|| mysql_type == MYSQL_TYPE_MEDIUM_BLOB
+			|| mysql_type == MYSQL_TYPE_BLOB
+			|| mysql_type == MYSQL_TYPE_LONG_BLOB) {
 
 			CHARSET_INFO*	cs;
 			ulint		key_len;
@@ -2961,8 +2961,8 @@ ha_innobase::store_key_val_for_row(
 			type is not enum or set. For these fields check
 			if character set is multi byte. */
 
-			if (real_type != FIELD_TYPE_ENUM
-				&& real_type != FIELD_TYPE_SET
+			if (real_type != MYSQL_TYPE_ENUM
+				&& real_type != MYSQL_TYPE_SET
 				&& ( mysql_type == MYSQL_TYPE_VAR_STRING
 					|| mysql_type == MYSQL_TYPE_STRING)) {
 
@@ -5865,6 +5865,9 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
 	  uint i;
 	  FOREIGN_KEY_INFO f_key_info;
 	  LEX_STRING *name= 0;
+          uint ulen;
+          char uname[NAME_LEN*3+1];           /* Unencoded name */
+          char db_name[NAME_LEN*3+1];
 	  const char *tmp_buff;
 
 	  tmp_buff= foreign->id;
@@ -5875,14 +5878,23 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
 	  f_key_info.forein_id= make_lex_string(thd, 0, tmp_buff,
 		  (uint) strlen(tmp_buff), 1);
 	  tmp_buff= foreign->referenced_table_name;
+
+          /* Database name */
 	  i= 0;
 	  while (tmp_buff[i] != '/')
-		  i++;
-	  f_key_info.referenced_db= make_lex_string(thd, 0,
-		  tmp_buff, i, 1);
+          {
+            db_name[i]= tmp_buff[i];
+            i++;
+          }
+          db_name[i]= 0;
+          ulen= filename_to_tablename(db_name, uname, sizeof(uname));
+          f_key_info.referenced_db= make_lex_string(thd, 0, uname, ulen, 1);
+
+          /* Table name */
 	  tmp_buff+= i + 1;
-	  f_key_info.referenced_table= make_lex_string(thd, 0, tmp_buff,
-		  (uint) strlen(tmp_buff), 1);
+          ulen= filename_to_tablename(tmp_buff, uname, sizeof(uname));
+          f_key_info.referenced_table= make_lex_string(thd, 0, uname,
+                                                       ulen, 1);
 
 	  for (i= 0;;) {
 		  tmp_buff= foreign->foreign_col_names[i];
@@ -5944,8 +5956,14 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
           }
           f_key_info.update_method= make_lex_string(thd, f_key_info.update_method,
                                                     tmp_buff, length, 1);
-
-
+          if (foreign->referenced_index &&
+              foreign->referenced_index->name)
+          {
+            f_key_info.referenced_key_name= 
+              make_lex_string(thd, f_key_info.referenced_key_name,
+                              foreign->referenced_index->name,
+                              strlen(foreign->referenced_index->name), 1);
+          }
 
 	  FOREIGN_KEY_INFO *pf_key_info= ((FOREIGN_KEY_INFO *)
 		  thd->memdup((gptr) &f_key_info,
@@ -6560,7 +6578,7 @@ innodb_mutex_show_status(
 					mutex->count_spin_rounds,
 					mutex->count_os_wait,
 					mutex->count_os_yield,
-					(ulong) mutex->lspent_time/1000);
+					(ulong) (mutex->lspent_time/1000));
 
 				if (stat_print(thd, innobase_hton_name,
 						hton_name_len, buf1, buf1len,
@@ -6605,7 +6623,7 @@ innodb_mutex_show_status(
 		rw_lock_count, rw_lock_count_spin_loop,
 		rw_lock_count_spin_rounds,
 		rw_lock_count_os_wait, rw_lock_count_os_yield,
-		(ulong) rw_lock_wait_time/1000);
+		(ulong) (rw_lock_wait_time/1000));
 
 	if (stat_print(thd, innobase_hton_name, hton_name_len,
 			STRING_WITH_LEN("rw_lock_mutexes"), buf2, buf2len)) {
@@ -7157,10 +7175,10 @@ ha_innobase::cmp_ref(
 		field = key_part->field;
 		mysql_type = field->type();
 
-		if (mysql_type == FIELD_TYPE_TINY_BLOB
-			|| mysql_type == FIELD_TYPE_MEDIUM_BLOB
-			|| mysql_type == FIELD_TYPE_BLOB
-			|| mysql_type == FIELD_TYPE_LONG_BLOB) {
+		if (mysql_type == MYSQL_TYPE_TINY_BLOB
+			|| mysql_type == MYSQL_TYPE_MEDIUM_BLOB
+			|| mysql_type == MYSQL_TYPE_BLOB
+			|| mysql_type == MYSQL_TYPE_LONG_BLOB) {
 
 			/* In the MySQL key value format, a column prefix of
 			a BLOB is preceded by a 2-byte length field */
