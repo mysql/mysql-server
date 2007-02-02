@@ -1106,6 +1106,16 @@ int ha_ndbcluster::build_index_list(Ndb *ndb, TABLE *tab, enum ILBP phase)
 	error= create_unique_index(unique_index_name, key_info);
         break;
       case ORDERED_INDEX:
+	if (key_info->algorithm == HA_KEY_ALG_HASH)
+	{
+	  push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+			      ER_UNSUPPORTED_EXTENSION,
+			      ER(ER_UNSUPPORTED_EXTENSION),
+			      "Ndb does not support non-unique "
+			      "hash based indexes");
+	  error= HA_ERR_UNSUPPORTED;
+	  break;
+	}
         error= create_ordered_index(index_name, key_info);
         break;
       default:
@@ -2955,13 +2965,10 @@ KEY* key_info;
       DBUG_RETURN(error == HA_ERR_KEY_NOT_FOUND ? HA_ERR_END_OF_FILE : error);
     }
     else if (type == UNIQUE_INDEX)
-    {
-      error= unique_index_scan(key_info, 
-			       start_key->key, 
-			       start_key->length, 
-			       buf);
-      DBUG_RETURN(error == HA_ERR_KEY_NOT_FOUND ? HA_ERR_END_OF_FILE : error);
-    }
+      DBUG_RETURN(unique_index_scan(key_info, 
+				    start_key->key, 
+				    start_key->length, 
+				    buf));
     break;
   default:
     break;
@@ -3137,20 +3144,26 @@ void ha_ndbcluster::position(const byte *record)
       size_t len = key_part->length;
       const byte * ptr = record + key_part->offset;
       Field *field = key_part->field;
-      if ((field->type() ==  MYSQL_TYPE_VARCHAR) &&
-	  ((Field_varstring*)field)->length_bytes == 1)
+      if (field->type() ==  MYSQL_TYPE_VARCHAR)
       {
-	/** 
-	 * Keys always use 2 bytes length
-	 */
-	buff[0] = ptr[0];
-	buff[1] = 0;
-	memcpy(buff+2, ptr + 1, len);	
-	len += 2;
+        if (((Field_varstring*)field)->length_bytes == 1)
+        {
+          /**
+           * Keys always use 2 bytes length
+           */
+          buff[0] = ptr[0];
+          buff[1] = 0;
+          memcpy(buff+2, ptr + 1, len);
+        }
+        else
+        {
+          memcpy(buff, ptr, len + 2);
+        }
+        len += 2;
       }
       else
       {
-	memcpy(buff, ptr, len);
+        memcpy(buff, ptr, len);
       }
       buff += len;
     }
@@ -4172,19 +4185,29 @@ static int create_ndb_column(NDBCOL &col,
       col.setType(NDBCOL::Text);
       col.setCharset(cs);
     }
-    // Use "<=" even if "<" is the exact condition
-    if (field->max_length() <= (1 << 8))
-      goto mysql_type_tiny_blob;
-    else if (field->max_length() <= (1 << 16))
     {
-      col.setInlineSize(256);
-      col.setPartSize(2000);
-      col.setStripeSize(16);
+      Field_blob *field_blob= (Field_blob *)field;
+      /*
+       * max_data_length is 2^8-1, 2^16-1, 2^24-1 for tiny, blob, medium.
+       * Tinyblob gets no blob parts.  The other cases are just a crude
+       * way to control part size and striping.
+       *
+       * In mysql blob(256) is promoted to blob(65535) so it does not
+       * in fact fit "inline" in NDB.
+       */
+      if (field_blob->max_data_length() < (1 << 8))
+        goto mysql_type_tiny_blob;
+      else if (field_blob->max_data_length() < (1 << 16))
+      {
+        col.setInlineSize(256);
+        col.setPartSize(2000);
+        col.setStripeSize(16);
+      }
+      else if (field_blob->max_data_length() < (1 << 24))
+        goto mysql_type_medium_blob;
+      else
+        goto mysql_type_long_blob;
     }
-    else if (field->max_length() <= (1 << 24))
-      goto mysql_type_medium_blob;
-    else
-      goto mysql_type_long_blob;
     break;
   mysql_type_medium_blob:
   case MYSQL_TYPE_MEDIUM_BLOB:   
@@ -6111,7 +6134,7 @@ ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
 retry:
     if(report_error)
     {
-      if (file)
+      if (file && pTrans)
       {
         reterr= file->ndb_err(pTrans);
       }

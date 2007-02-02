@@ -26,6 +26,7 @@ SocketClient::SocketClient(const char *server_name, unsigned short port, SocketA
   m_port= port;
   m_server_name= server_name ? strdup(server_name) : 0;
   m_sockfd= NDB_INVALID_SOCKET;
+  m_connect_timeout_sec= 0;
 }
 
 SocketClient::~SocketClient()
@@ -58,7 +59,7 @@ SocketClient::init()
   if (m_sockfd == NDB_INVALID_SOCKET) {
     return false;
   }
-  
+
   DBUG_PRINT("info",("NDB_SOCKET: %d", m_sockfd));
 
   return true;
@@ -104,6 +105,13 @@ SocketClient::bind(const char* bindaddress, unsigned short localport)
 NDB_SOCKET_TYPE
 SocketClient::connect(const char *toaddress, unsigned short toport)
 {
+  fd_set rset, wset;
+  struct timeval tval;
+  int r;
+  bool use_timeout;
+  SOCKOPT_OPTLEN_TYPE len;
+  int flags;
+
   if (m_sockfd == NDB_INVALID_SOCKET)
   {
     if (!init()) {
@@ -127,13 +135,57 @@ SocketClient::connect(const char *toaddress, unsigned short toport)
     if (Ndb_getInAddr(&m_servaddr.sin_addr, m_server_name))
       return NDB_INVALID_SOCKET;
   }
-  
-  const int r = ::connect(m_sockfd, (struct sockaddr*) &m_servaddr, sizeof(m_servaddr));
-  if (r == -1) {
+
+  flags= fcntl(m_sockfd, F_GETFL, 0);
+  fcntl(m_sockfd, F_SETFL, flags | O_NONBLOCK);
+
+  r= ::connect(m_sockfd, (struct sockaddr*) &m_servaddr, sizeof(m_servaddr));
+
+  if (r == 0)
+    goto done; // connected immediately.
+
+  if (r < 0 && (errno != EINPROGRESS)) {
     NDB_CLOSE_SOCKET(m_sockfd);
     m_sockfd= NDB_INVALID_SOCKET;
     return NDB_INVALID_SOCKET;
   }
+
+  FD_ZERO(&rset);
+  FD_SET(m_sockfd, &rset);
+  wset= rset;
+  tval.tv_sec= m_connect_timeout_sec;
+  tval.tv_usec= 0;
+  use_timeout= m_connect_timeout_sec;
+
+  if ((r= select(m_sockfd+1, &rset, &wset, NULL,
+                 use_timeout? &tval : NULL)) == 0)
+  {
+    NDB_CLOSE_SOCKET(m_sockfd);
+    m_sockfd= NDB_INVALID_SOCKET;
+    return NDB_INVALID_SOCKET;
+  }
+
+  if (FD_ISSET(m_sockfd, &rset) || FD_ISSET(m_sockfd, &wset))
+  {
+    len= sizeof(r);
+    if (getsockopt(m_sockfd, SOL_SOCKET, SO_ERROR, &r, &len) < 0 || r)
+    {
+      // Solaris got an error... different than others
+      NDB_CLOSE_SOCKET(m_sockfd);
+      m_sockfd= NDB_INVALID_SOCKET;
+      return NDB_INVALID_SOCKET;
+    }
+  }
+  else
+  {
+    // select error, probably m_sockfd not set.
+    NDB_CLOSE_SOCKET(m_sockfd);
+    m_sockfd= NDB_INVALID_SOCKET;
+    return NDB_INVALID_SOCKET;
+  }
+
+done:
+  fcntl(m_sockfd, F_SETFL, flags);
 
   if (m_auth) {
     if (!m_auth->client_authenticate(m_sockfd))

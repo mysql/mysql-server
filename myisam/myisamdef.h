@@ -731,6 +731,7 @@ int mi_unique_comp(MI_UNIQUEDEF *def, const byte *a, const byte *b,
 		   my_bool null_are_equal);
 void mi_get_status(void* param, int concurrent_insert);
 void mi_update_status(void* param);
+void mi_restore_status(void* param);
 void mi_copy_status(void* to,void *from);
 my_bool mi_check_status(void* param);
 void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows);

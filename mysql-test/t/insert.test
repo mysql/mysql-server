@@ -198,3 +198,21 @@ select row_count();
 insert into t1 values (5, 5) on duplicate key update data= data + 10;
 select row_count();
 drop table t1;
+
+#
+# Bug#25123: ON DUPLICATE KEY clause allows fields not from the insert table
+#
+create table t1 (f1 int unique, f2 int);
+create table t2 (f3 int, f4 int);
+create view v1 as select * from t1, t2 where f1= f3;
+insert into t1 values (1,11), (2,22);
+insert into t2 values (1,12), (2,24);
+--error 1393
+insert into v1 (f1) values (3) on duplicate key update f3= f3 + 10;
+insert into v1 (f1) values (3) on duplicate key update f1= f3 + 10;
+select * from t1;
+insert into v1 (f1) values (3) on duplicate key update f1= f3 + 10;
+select * from t1;
+drop view v1;
+drop table t1,t2;
+

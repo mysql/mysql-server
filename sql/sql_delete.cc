@@ -142,7 +142,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
 
   if (order && order->elements)
   {
-    uint         length;
+    uint         length= 0;
     SORT_FIELD  *sortorder;
     TABLE_LIST   tables;
     List<Item>   fields;
@@ -162,7 +162,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       DBUG_RETURN(TRUE);
     }
     
-    if (!select && limit != HA_POS_ERROR)
+    if ((!select || table->quick_keys.is_clear_all()) && limit != HA_POS_ERROR)
       usable_index= get_index_for_order(table, (ORDER*)(order->first), limit);
 
     if (usable_index == MAX_KEY)

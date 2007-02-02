@@ -153,6 +153,22 @@ longlong Item_func_not::val_int()
 }
 
 /*
+  We put any NOT expression into parenthesis to avoid
+  possible problems with internal view representations where
+  any '!' is converted to NOT. It may cause a problem if
+  '!' is used in an expression together with other operators
+  whose precedence is lower than the precedence of '!' yet
+  higher than the precedence of NOT.
+*/
+
+void Item_func_not::print(String *str)
+{
+  str->append('(');
+  Item_func::print(str);
+  str->append(')');
+}
+
+/*
   special NOT for ALL subquery
 */
 
@@ -423,8 +439,19 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
     break;
   }
   case DECIMAL_RESULT:
-  case REAL_RESULT:
     break;
+  case REAL_RESULT:
+  {
+    if ((*a)->decimals < NOT_FIXED_DEC && (*b)->decimals < NOT_FIXED_DEC)
+    {
+      precision= 5 * log_01[max((*a)->decimals, (*b)->decimals)];
+      if (func == &Arg_comparator::compare_real)
+        func= &Arg_comparator::compare_real_fixed;
+      else if (func == &Arg_comparator::compare_e_real)
+        func= &Arg_comparator::compare_e_real_fixed;
+    }
+    break;
+  }
   default:
     DBUG_ASSERT(0);
   }
@@ -562,6 +589,44 @@ int Arg_comparator::compare_e_decimal()
     return test((*a)->null_value && (*b)->null_value);
   return test(my_decimal_cmp(val1, val2) == 0);
 }
+
+
+int Arg_comparator::compare_real_fixed()
+{
+  /*
+    Fix yet another manifestation of Bug#2338. 'Volatile' will instruct
+    gcc to flush double values out of 80-bit Intel FPU registers before
+    performing the comparison.
+  */
+  volatile double val1, val2;
+  val1= (*a)->val_real();
+  if (!(*a)->null_value)
+  {
+    val2= (*b)->val_real();
+    if (!(*b)->null_value)
+    {
+      owner->null_value= 0;
+      if (val1 == val2 || fabs(val1 - val2) < precision)
+        return 0;
+      if (val1 < val2)
+        return -1;
+      return 1;
+    }
+  }
+  owner->null_value= 1;
+  return -1;
+}
+
+
+int Arg_comparator::compare_e_real_fixed()
+{
+  double val1= (*a)->val_real();
+  double val2= (*b)->val_real();
+  if ((*a)->null_value || (*b)->null_value)
+    return test((*a)->null_value && (*b)->null_value);
+  return test(val1 == val2 || fabs(val1 - val2) < precision);
+}
+
 
 int Arg_comparator::compare_int_signed()
 {
@@ -819,11 +884,35 @@ longlong Item_in_optimizer::val_int()
           We disable the predicates we've pushed down into subselect, run the
           subselect and see if it has produced any rows.
         */
-        ((Item_in_subselect*)args[1])->enable_pushed_conds= FALSE;
-        longlong tmp= args[1]->val_bool_result();
-        result_for_null_param= null_value= 
-          !((Item_in_subselect*)args[1])->engine->no_rows();
-        ((Item_in_subselect*)args[1])->enable_pushed_conds= TRUE;
+        Item_in_subselect *item_subs=(Item_in_subselect*)args[1]; 
+        if (cache->cols() == 1)
+        {
+          item_subs->set_cond_guard_var(0, FALSE);
+          longlong tmp= args[1]->val_bool_result();
+          result_for_null_param= null_value= !item_subs->engine->no_rows();
+          item_subs->set_cond_guard_var(0, TRUE);
+        }
+        else
+        {
+          uint i;
+          uint ncols= cache->cols();
+          /*
+            Turn off the predicates that are based on column compares for
+            which the left part is currently NULL
+          */
+          for (i= 0; i < ncols; i++)
+          {
+            if (cache->el(i)->null_value)
+              item_subs->set_cond_guard_var(i, FALSE);
+          }
+          
+          longlong tmp= args[1]->val_bool_result();
+          result_for_null_param= null_value= !item_subs->engine->no_rows();
+          
+          /* Turn all predicates back on */
+          for (i= 0; i < ncols; i++)
+            item_subs->set_cond_guard_var(i, TRUE);
+        }
       }
     }
     return 0;

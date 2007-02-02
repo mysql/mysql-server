@@ -432,6 +432,7 @@ ulong expire_logs_days = 0;
 ulong rpl_recovery_rank=0;
 
 double log_10[32];			/* 10 potences */
+double log_01[32];
 time_t start_time;
 
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];
@@ -453,10 +454,13 @@ char *mysqld_unix_port, *opt_mysql_tmpdir;
 const char **errmesg;			/* Error messages */
 const char *myisam_recover_options_str="OFF";
 const char *myisam_stats_method_str="nulls_unequal";
+
 /* name of reference on left espression in rewritten IN subquery */
 const char *in_left_expr_name= "<left expr>";
 /* name of additional condition */
 const char *in_additional_cond= "<IN COND>";
+const char *in_having_cond= "<IN HAVING>";
+
 my_decimal decimal_zero;
 /* classes for comparation parsing/processing */
 Eq_creator eq_creator;
@@ -3886,10 +3890,9 @@ static bool read_init_file(char *file_name)
 
 static void create_new_thread(THD *thd)
 {
+  NET *net=&thd->net;
   DBUG_ENTER("create_new_thread");
 
-  NET *net=&thd->net;				// For easy ref
-  net->read_timeout = (uint) connect_timeout;
   if (protocol_version > 9)
     net->return_errno=1;
 
@@ -4183,12 +4186,7 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
     }
     if (sock == unix_sock)
       thd->security_ctx->host=(char*) my_localhost;
-#ifdef __WIN__
-    /* Set default wait_timeout */
-    ulong wait_timeout= global_system_variables.net_wait_timeout * 1000;
-    (void) setsockopt(new_sock, SOL_SOCKET, SO_RCVTIMEO, (char*)&wait_timeout,
-                    sizeof(wait_timeout));
-#endif
+
     create_new_thread(thd);
   }
 
@@ -4577,8 +4575,8 @@ enum options_mysqld
   OPT_LOG_BIN_TRUST_FUNCTION_CREATORS,
   OPT_SAFE_SHOW_DB, OPT_INNODB_SAFE_BINLOG,
   OPT_INNODB, OPT_ISAM,
-  OPT_ENGINE_CONDITION_PUSHDOWN,
-  OPT_NDBCLUSTER, OPT_NDB_CONNECTSTRING, OPT_NDB_USE_EXACT_COUNT,
+  OPT_ENGINE_CONDITION_PUSHDOWN, OPT_NDBCLUSTER, OPT_NDB_CONNECTSTRING, 
+  OPT_NDB_USE_EXACT_COUNT, OPT_NDB_USE_TRANSACTIONS,
   OPT_NDB_FORCE_SEND, OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
   OPT_NDB_SHM, OPT_NDB_OPTIMIZED_NODE_SELECTION, OPT_NDB_CACHE_CHECK_TIME,
   OPT_NDB_MGMD, OPT_NDB_NODEID,
@@ -5212,6 +5210,17 @@ Disable with --skip-ndbcluster (will save memory).",
    "same as --ndb-use-exact-count.",
    (gptr*) &global_system_variables.ndb_use_exact_count,
    (gptr*) &global_system_variables.ndb_use_exact_count,
+   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+  {"ndb-use-transactions", OPT_NDB_USE_TRANSACTIONS,
+   "Use transactions for large inserts, if enabled then large "
+   "inserts will be split into several smaller transactions",
+   (gptr*) &global_system_variables.ndb_use_transactions,
+   (gptr*) &global_system_variables.ndb_use_transactions,
+   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+  {"ndb_use_transactions", OPT_NDB_USE_TRANSACTIONS,
+   "same as --ndb-use-transactions.",
+   (gptr*) &global_system_variables.ndb_use_transactions,
+   (gptr*) &global_system_variables.ndb_use_transactions,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
   {"ndb-shm", OPT_NDB_SHM,
    "Use shared memory connections when available.",
