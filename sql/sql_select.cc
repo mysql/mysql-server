@@ -717,24 +717,26 @@ JOIN::optimize()
   {
     int res;
     /*
-      opt_sum_query() returns -1 if no rows match to the WHERE conditions,
-      or 1 if all items were resolved, or 0, or an error number HA_ERR_...
+      opt_sum_query() returns HA_ERR_KEY_NOT_FOUND if no rows match
+      to the WHERE conditions,
+      or 1 if all items were resolved,
+      or 0, or an error number HA_ERR_...
     */
     if ((res=opt_sum_query(select_lex->leaf_tables, all_fields, conds)))
     {
+      if (res == HA_ERR_KEY_NOT_FOUND)
+      {
+        DBUG_PRINT("info",("No matching min/max row"));
+	zero_result_cause= "No matching min/max row";
+	error=0;
+	DBUG_RETURN(0);
+      }
       if (res > 1)
       {
         thd->fatal_error();
         error= res;
         DBUG_PRINT("error",("Error from opt_sum_query"));
 	DBUG_RETURN(1);
-      }
-      if (res < 0)
-      {
-        DBUG_PRINT("info",("No matching min/max row"));
-	zero_result_cause= "No matching min/max row";
-	error=0;
-	DBUG_RETURN(0);
       }
       DBUG_PRINT("info",("Select tables optimized away"));
       zero_result_cause= "Select tables optimized away";
@@ -865,6 +867,13 @@ JOIN::optimize()
   {
     ORDER *org_order= order;
     order=remove_const(this, order,conds,1, &simple_order);
+    if (thd->net.report_error)
+    {
+      error= 1;
+      DBUG_PRINT("error",("Error from remove_const"));
+      DBUG_RETURN(1);
+    }
+
     /*
       If we are using ORDER BY NULL or ORDER BY const_expression,
       return result in any order (even if we are using a GROUP BY)
@@ -874,10 +883,11 @@ JOIN::optimize()
   }
   /*
      Check if we can optimize away GROUP BY/DISTINCT.
-     We can do that if there are no aggregate functions and the
+     We can do that if there are no aggregate functions, the
      fields in DISTINCT clause (if present) and/or columns in GROUP BY
      (if present) contain direct references to all key parts of
-     an unique index (in whatever order).
+     an unique index (in whatever order) and if the key parts of the
+     unique index cannot contain NULLs.
      Note that the unique keys for DISTINCT and GROUP BY should not
      be the same (as long as they are unique).
 
@@ -972,6 +982,12 @@ JOIN::optimize()
     group_list= remove_const(this, (old_group_list= group_list), conds,
                              rollup.state == ROLLUP::STATE_NONE,
 			     &simple_group);
+    if (thd->net.report_error)
+    {
+      error= 1;
+      DBUG_PRINT("error",("Error from remove_const"));
+      DBUG_RETURN(1);
+    }
     if (old_group_list && !group_list)
       select_distinct= 0;
   }
@@ -988,6 +1004,12 @@ JOIN::optimize()
   {
     group_list= procedure->group= remove_const(this, procedure->group, conds,
 					       1, &simple_group);
+    if (thd->net.report_error)
+    {
+      error= 1;
+      DBUG_PRINT("error",("Error from remove_const"));
+      DBUG_RETURN(1);
+    }   
     calc_group_buffer(this, group_list);
   }
 
@@ -6578,6 +6600,8 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond,
       *simple_order=0;				// Must do a temp table to sort
     else if (!(order_tables & not_const_tables))
     {
+      if (order->item[0]->with_subselect)
+        order->item[0]->val_str(&order->item[0]->str_value);
       DBUG_PRINT("info",("removing: %s", order->item[0]->full_name()));
       continue;					// skip const item
     }
@@ -12107,7 +12131,7 @@ test_if_subkey(ORDER *order, TABLE *table, uint ref, uint ref_key_parts,
 
 
 /*
-  Check if GROUP BY/DISTINCT can be optimized away because the set is 
+  Check if GROUP BY/DISTINCT can be optimized away because the set is
   already known to be distinct.
   
   SYNOPSIS
@@ -12115,7 +12139,7 @@ test_if_subkey(ORDER *order, TABLE *table, uint ref, uint ref_key_parts,
     table                The table to operate on.
     find_func            function to iterate over the list and search
                          for a field
-  
+
   DESCRIPTION
     Used in removing the GROUP BY/DISTINCT of the following types of
     statements:
@@ -12126,12 +12150,13 @@ test_if_subkey(ORDER *order, TABLE *table, uint ref, uint ref_key_parts,
       then <any combination of a,b,c>,{whatever} is also distinct
 
     This function checks if all the key parts of any of the unique keys
-    of the table are referenced by a list : either the select list 
+    of the table are referenced by a list : either the select list
     through find_field_in_item_list or GROUP BY list through
     find_field_in_order_list.
-    If the above holds then we can safely remove the GROUP BY/DISTINCT,
+    If the above holds and the key parts cannot contain NULLs then we 
+    can safely remove the GROUP BY/DISTINCT,
     as no result set can be more distinct than an unique key.
-  
+ 
   RETURN VALUE
     1                    found
     0                    not found.
@@ -12154,7 +12179,8 @@ list_contains_unique_index(TABLE *table,
            key_part < key_part_end;
            key_part++)
       {
-        if (!find_func(key_part->field, data))
+        if (key_part->field->maybe_null() || 
+            !find_func(key_part->field, data))
           break;
       }
       if (key_part == key_part_end)
@@ -12262,13 +12288,14 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   DBUG_ENTER("test_if_skip_sort_order");
   LINT_INIT(ref_key_parts);
 
+  /* Check which keys can be used to resolve ORDER BY. */
+  usable_keys= table->keys_in_use_for_query;
+
   /*
-    Check which keys can be used to resolve ORDER BY.
-    We must not try to use disabled keys.
+    Keys disabled by ALTER TABLE ... DISABLE KEYS should have already
+    been taken into account.
   */
-  usable_keys= table->s->keys_in_use;
-  /* we must not consider keys that are disabled by IGNORE INDEX */
-  usable_keys.intersect(table->keys_in_use_for_query);
+  DBUG_ASSERT(usable_keys.is_subset(table->s->keys_in_use));
 
   for (ORDER *tmp_order=order; tmp_order ; tmp_order=tmp_order->next)
   {
