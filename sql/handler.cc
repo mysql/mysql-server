@@ -341,6 +341,10 @@ int ha_panic(enum ha_panic_function flag)
   if (have_archive_db == SHOW_OPTION_YES)
     error|= archive_db_end();
 #endif
+#ifdef HAVE_CSV_DB
+  if (have_csv_db == SHOW_OPTION_YES)
+    error|= tina_end();
+#endif
   return error;
 } /* ha_panic */
 
