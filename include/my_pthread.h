@@ -683,7 +683,6 @@ extern pthread_t shutdown_th, main_th, signal_th;
 #define THD_LIB_LT    4
 
 extern uint thd_lib_detected;
-extern uint thr_client_alarm;
 
 	/* statistics_xxx functions are for not essential statistic */
 
