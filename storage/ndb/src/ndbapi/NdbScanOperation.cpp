@@ -995,6 +995,7 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbTransaction* pTrans)
     
     newOp->theTupKeyLen = len;
     newOp->theOperationType = opType;
+    newOp->m_abortOption = AbortOnError;
     switch (opType) {
     case (ReadRequest):
       newOp->theLockMode = theLockMode;

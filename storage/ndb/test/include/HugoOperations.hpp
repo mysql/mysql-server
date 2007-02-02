@@ -106,8 +106,8 @@ public:
 
   NDBT_ResultRow& get_row(Uint32 idx) { return *rows[idx];}
 
-  int execute_async(Ndb*, NdbTransaction::ExecType, NdbTransaction::AbortOption = NdbTransaction::AbortOnError);
-  int execute_async_prepare(Ndb*, NdbTransaction::ExecType, NdbTransaction::AbortOption = NdbTransaction::AbortOnError);
+  int execute_async(Ndb*, NdbTransaction::ExecType, NdbOperation::AbortOption = NdbOperation::AbortOnError);
+  int execute_async_prepare(Ndb*, NdbTransaction::ExecType, NdbOperation::AbortOption = NdbOperation::AbortOnError);
   
   int wait_async(Ndb*, int timeout = -1);
 
