@@ -136,3 +136,5 @@ class ha_tina: public handler
   int find_current_row(byte *buf);
   int chain_append();
 };
+
+bool tina_end();
