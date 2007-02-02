@@ -698,7 +698,6 @@ extern uint my_thread_end_wait_time;
 #define THD_LIB_LT    4
 
 extern uint thd_lib_detected;
-extern uint thr_client_alarm;
 
 	/* statistics_xxx functions are for not essential statistic */
 
