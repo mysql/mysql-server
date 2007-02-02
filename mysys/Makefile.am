@@ -55,7 +55,7 @@ libmysys_a_SOURCES =    my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			my_handler.c my_netware.c my_largepage.c \
 			my_memmem.c \
 			my_windac.c my_access.c base64.c my_libwrap.c \
-		        mf_pagecache.c
+		        mf_pagecache.c wqueue.c
 EXTRA_DIST =		thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
 			thr_mutex.c thr_rwlock.c \
 			CMakeLists.txt mf_soundex.c \

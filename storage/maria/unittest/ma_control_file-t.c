@@ -33,7 +33,7 @@
 #endif
 
 #include "maria.h"
-#include "../../../storage/maria/ma_control_file.h"
+#include "../../../storage/maria/maria_def.h"
 #include <my_getopt.h>
 
 char file_name[FN_REFLEN];

@@ -1008,12 +1008,12 @@ static void unlink_block(KEY_CACHE *keycache, BLOCK_LINK *block)
 
   KEYCACHE_THREAD_TRACE("unlink_block");
 #if defined(KEYCACHE_DEBUG)
+  KEYCACHE_DBUG_ASSERT(keycache->blocks_available != 0);
   keycache->blocks_available--;
   KEYCACHE_DBUG_PRINT("unlink_block",
     ("unlinked block %u  status=%x   #requests=%u  #available=%u",
      BLOCK_NUMBER(block), block->status,
      block->requests, keycache->blocks_available));
-  KEYCACHE_DBUG_ASSERT(keycache->blocks_available >= 0);
 #endif
 }
 
