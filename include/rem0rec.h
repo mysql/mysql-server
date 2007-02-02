@@ -420,6 +420,15 @@ rec_offs_comp(
 				/* out: nonzero if compact format */
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /**********************************************************
+Determine if the offsets are for a record containing
+externally stored columns. */
+UNIV_INLINE
+ulint
+rec_offs_any_extern(
+/*================*/
+				/* out: nonzero if externally stored */
+	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
+/**********************************************************
 Returns nonzero if the extern bit is set in nth field of rec. */
 UNIV_INLINE
 ulint
@@ -447,15 +456,6 @@ rec_offs_nth_size(
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	ulint		n);	/* in: nth field */
 
-/**********************************************************
-Returns TRUE if the extern bit is set in any of the fields
-of a record. */
-UNIV_INLINE
-ibool
-rec_offs_any_extern(
-/*================*/
-				/* out: TRUE if a field is stored externally */
-	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /**********************************************************
 Returns the number of extern bits set in a record. */
 UNIV_INLINE

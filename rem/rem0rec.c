@@ -218,7 +218,8 @@ ulint, where rec_offs_n_fields(offsets) has been initialized to the
 number of fields in the record.	 The rest of the array will be
 initialized by this function.  rec_offs_base(offsets)[0] will be set
 to the extra size (if REC_OFFS_COMPACT is set, the record is in the
-new format), and rec_offs_base(offsets)[1..n_fields] will be set to
+new format; if REC_OFFS_EXTERNAL is set, the record contains externally
+stored columns), and rec_offs_base(offsets)[1..n_fields] will be set to
 offsets past the end of fields 0..n_fields, or to the beginning of
 fields 1..n_fields+1.  When the high-order bit of the offset at [i+1]
 is set (REC_OFFS_SQL_NULL), the field i is NULL.  When the second
@@ -240,6 +241,7 @@ rec_init_offsets(
 	rec_offs_make_valid(rec, index, offsets);
 
 	if (dict_table_is_comp(index->table)) {
+		ulint		any_ext;
 		const byte*	nulls;
 		const byte*	lens;
 		dict_field_t*	field;
@@ -266,6 +268,7 @@ rec_init_offsets(
 		nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
 		lens = nulls - (index->n_nullable + 7) / 8;
 		offs = 0;
+		any_ext = 0;
 		null_mask = 1;
 
 		/* read the lengths of fields 0..n */
@@ -316,6 +319,7 @@ rec_init_offsets(
 								  & 0x4000)) {
 							ut_ad(dict_index_is_clust
 							      (index));
+							any_ext = REC_OFFS_EXTERNAL;
 							len = offs
 								| REC_OFFS_EXTERNAL;
 						} else {
@@ -335,7 +339,7 @@ resolved:
 		} while (++i < rec_offs_n_fields(offsets));
 
 		*rec_offs_base(offsets)
-			= (rec - (lens + 1)) | REC_OFFS_COMPACT;
+			= (rec - (lens + 1)) | REC_OFFS_COMPACT | any_ext;
 	} else {
 		/* Old-style record: determine extra size and end offsets */
 		offs = REC_N_OLD_EXTRA_BYTES;
@@ -364,6 +368,7 @@ resolved:
 				if (offs & REC_2BYTE_EXTERN_MASK) {
 					offs &= ~REC_2BYTE_EXTERN_MASK;
 					offs |= REC_OFFS_EXTERNAL;
+					*rec_offs_base(offsets) |= REC_OFFS_EXTERNAL;
 				}
 				rec_offs_base(offsets)[1 + i] = offs;
 			} while (++i < rec_offs_n_fields(offsets));
@@ -459,6 +464,7 @@ rec_get_offsets_reverse(
 	ulint		n;
 	ulint		i;
 	ulint		offs;
+	ulint		any_ext;
 	const byte*	nulls;
 	const byte*	lens;
 	dict_field_t*	field;
@@ -485,6 +491,7 @@ rec_get_offsets_reverse(
 	lens = nulls + (index->n_nullable + 7) / 8;
 	i = offs = 0;
 	null_mask = 1;
+	any_ext = 0;
 
 	/* read the lengths of fields 0..n */
 	do {
@@ -529,6 +536,7 @@ rec_get_offsets_reverse(
 
 					offs += len & 0x3fff;
 					if (UNIV_UNLIKELY(len & 0x4000)) {
+						any_ext = REC_OFFS_EXTERNAL;
 						len = offs | REC_OFFS_EXTERNAL;
 					} else {
 						len = offs;
@@ -548,7 +556,7 @@ resolved:
 
 	ut_ad(lens >= extra);
 	*rec_offs_base(offsets) = (lens - extra + REC_N_NEW_EXTRA_BYTES)
-		| REC_OFFS_COMPACT;
+		| REC_OFFS_COMPACT | any_ext;
 }
 
 /****************************************************************
