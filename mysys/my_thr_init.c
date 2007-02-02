@@ -80,10 +80,6 @@ static uint get_thread_lib(void);
 my_bool my_thread_global_init(void)
 {
   thd_lib_detected= get_thread_lib();
-  if (thd_lib_detected == THD_LIB_LT)
-    thr_client_alarm= SIGALRM;
-  else
-    thr_client_alarm= SIGUSR1;
 
   if (pthread_key_create(&THR_KEY_mysys,0))
   {
