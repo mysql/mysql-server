@@ -26,6 +26,10 @@
 #include <my_no_pthread.h>
 #endif
 
+#include <pagecache.h>
+#include "ma_loghandler.h"
+#include "ma_control_file.h"
+
 /* undef map from my_nosys; We need test-if-disk full */
 #undef my_write	
 
@@ -438,6 +442,7 @@ extern LIST *maria_open_list;
 extern uchar NEAR maria_file_magic[], NEAR maria_pack_file_magic[];
 extern uint NEAR maria_read_vec[], NEAR maria_readnext_vec[];
 extern uint maria_quick_table_bits;
+extern const char *maria_data_root;
 extern my_bool maria_inited;
 
 	/* This is used by _ma_calc_xxx_key_length och _ma_store_key */

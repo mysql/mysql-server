@@ -17,28 +17,10 @@
 /*
   WL#3234 Maria control file
   First version written by Guilhem Bichot on 2006-04-27.
-  Does not compile yet.
 */
 
-#ifndef _control_file_h
-#define _control_file_h
-
-/*
-  Not everybody needs to call the control file that's why control_file.h is
-  not in maria_def.h. However, policy or habit may want to change this.
-*/
-
-#ifndef REMOVE_WHEN_SANJA_PUSHES_LOG_HANDLER
-/*
-  this is to get the control file to compile, until Sanja pushes the log
-  handler which will supersede those definitions.
-*/
-typedef struct st_lsn {
-  uint32 file_no;
-  uint32 rec_offset;
-} LSN;
-#define maria_data_root "."
-#endif
+#ifndef _ma_control_file_h
+#define _ma_control_file_h
 
 #define CONTROL_FILE_BASE_NAME "maria_control"
 /*

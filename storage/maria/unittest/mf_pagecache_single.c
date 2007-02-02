@@ -346,7 +346,7 @@ int simple_big_test()
   unsigned char *buffw= (unsigned char *)malloc(PAGE_SIZE);
   unsigned char *buffr= (unsigned char *)malloc(PAGE_SIZE);
   struct file_desc *desc=
-    (struct file_desc *)malloc((PCACHE_SIZE/(PAGE_SIZE/2)) *
+    (struct file_desc *)malloc((PCACHE_SIZE/(PAGE_SIZE/2) + 1) *
                                sizeof(struct file_desc));
   int res, i;
   DBUG_ENTER("simple_big_test");
@@ -363,6 +363,8 @@ int simple_big_test()
                     PAGECACHE_WRITE_DELAY,
                     0);
   }
+  desc[i].length= 0;
+  desc[i].content= NULL;
   ok(1, "Simple big file write");
   /* check written pages sequentally read */
   for (i= 0; i < PCACHE_SIZE/(PAGE_SIZE/2); i++)
@@ -528,7 +530,7 @@ int main(int argc, char **argv __attribute__((unused)))
   plan(12);
 
   if ((pagen= init_pagecache(&pagecache, PCACHE_SIZE, 0, 0,
-                             PAGE_SIZE, 0)) == 0)
+                             PAGE_SIZE)) == 0)
   {
     fprintf(stderr,"Got error: init_pagecache() (errno: %d)\n",
             errno);

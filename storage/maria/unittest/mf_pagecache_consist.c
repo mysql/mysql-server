@@ -57,6 +57,29 @@ static uint flush_divider= 1000;
 #endif /*TEST_HIGH_CONCURENCY*/
 
 
+/*
+  Get pseudo-random length of the field in (0;limit)
+
+  SYNOPSYS
+    get_len()
+    limit                limit for generated value
+
+  RETURN
+    length where length >= 0 & length < limit
+*/
+
+static uint get_len(uint limit)
+{
+  uint32 rec_len;
+  do
+  {
+    rec_len= random() /
+      (RAND_MAX / limit);
+  } while (rec_len >= limit || rec_len == 0);
+  return rec_len;
+}
+
+
 /* check page consistency */
 uint check_page(uchar *buff, ulong offset, int page_locked, int page_no,
                 int tag)
@@ -70,7 +93,7 @@ uint check_page(uchar *buff, ulong offset, int page_locked, int page_no,
   {
     uint len= *((uint *)(buff + end));
     uint j;
-    end+= sizeof(uint)+ sizeof(uint);
+    end+= sizeof(uint) + sizeof(uint);
     if (len + end > PAGE_SIZE)
     {
       diag("incorrect field header #%u by offset %lu\n", i, offset + end + j);
@@ -178,7 +201,7 @@ void reader(int num)
 
   for (i= 0; i < number_of_tests; i++)
   {
-    uint page= rand()/(RAND_MAX/number_of_pages);
+    uint page= get_len(number_of_pages);
     pagecache_read(&pagecache, &file1, page, 3, (char*)buffr,
                    PAGECACHE_PLAIN_PAGE,
                    PAGECACHE_LOCK_LEFT_UNLOCKED,
@@ -201,13 +224,13 @@ void writer(int num)
   for (i= 0; i < number_of_tests; i++)
   {
     uint end;
-    uint page= rand()/(RAND_MAX/number_of_pages);
+    uint page= get_len(number_of_pages);
     pagecache_read(&pagecache, &file1, page, 3, (char*)buffr,
                    PAGECACHE_PLAIN_PAGE,
                    PAGECACHE_LOCK_WRITE,
                    0);
     end= check_page(buffr, page * PAGE_SIZE, 1, page, num);
-    put_rec(buffr, end, rand()/(RAND_MAX/record_length_limit), num);
+    put_rec(buffr, end, get_len(record_length_limit), num);
     pagecache_write(&pagecache, &file1, page, 3, (char*)buffr,
                     PAGECACHE_PLAIN_PAGE,
                     PAGECACHE_LOCK_WRITE_UNLOCK,
@@ -348,7 +371,7 @@ int main(int argc, char **argv __attribute__((unused)))
 
 
   if ((pagen= init_pagecache(&pagecache, PCACHE_SIZE, 0, 0,
-                             PAGE_SIZE, 0)) == 0)
+                             PAGE_SIZE)) == 0)
   {
     fprintf(stderr,"Got error: init_pagecache() (errno: %d)\n",
             errno);

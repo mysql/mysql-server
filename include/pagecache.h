@@ -20,11 +20,13 @@
 #define _pagecache_h
 C_MODE_START
 
+#include "../storage/maria/ma_loghandler_lsn.h"
+
 /* Type of the page */
 enum pagecache_page_type
 {
 #ifndef DBUG_OFF
-  /* used only for control page type chenging during debugging */
+  /* used only for control page type changing during debugging */
   PAGECACHE_EMPTY_PAGE,
 #endif
   /* the page does not contain LSN */
@@ -34,7 +36,7 @@ enum pagecache_page_type
 };
 
 /*
-  This enum describe lock status changing. every typr of page cache will
+  This enum describe lock status changing. every type of page cache will
   interpret WRITE/READ lock as it need.
 */
 enum pagecache_page_lock
@@ -71,9 +73,7 @@ enum pagecache_write_mode
 
 typedef void *PAGECACHE_PAGE_LINK;
 
-/* TODO: move to loghandler emulator */
-typedef void LOG_HANDLER;
-typedef void *LSN;
+typedef void *LSN_PTR;
 
 /* file descriptor for Maria */
 typedef struct st_pagecache_file
@@ -82,7 +82,7 @@ typedef struct st_pagecache_file
 } PAGECACHE_FILE;
 
 /* page number for maria */
-typedef uint32 maria_page_no_t;
+typedef uint32 pgcache_page_no_t;
 
 /* declare structures that is used by  st_pagecache */
 
@@ -93,11 +93,9 @@ typedef struct st_pagecache_page PAGECACHE_PAGE;
 struct st_pagecache_hash_link;
 typedef struct st_pagecache_hash_link PAGECACHE_HASH_LINK;
 
-/* info about requests in a waiting queue */
-typedef struct st_pagecache_wqueue
-{
-  struct st_my_thread_var *last_thread;  /* circular list of waiting threads */
-} PAGECACHE_WQUEUE;
+#include <wqueue.h>
+
+typedef my_bool (*pagecache_disk_read_validator)(byte *page, gptr data);
 
 #define PAGECACHE_CHANGED_BLOCKS_HASH 128  /* must be power of 2 */
 
@@ -136,15 +134,13 @@ typedef struct st_pagecache
   PAGECACHE_BLOCK_LINK *used_last;/* ptr to the last block of the LRU chain  */
   PAGECACHE_BLOCK_LINK *used_ins;/* ptr to the insertion block in LRU chain  */
   pthread_mutex_t cache_lock;    /* to lock access to the cache structure    */
-  PAGECACHE_WQUEUE resize_queue; /* threads waiting during resize operation  */
-  PAGECACHE_WQUEUE waiting_for_hash_link;/* waiting for a free hash link     */
-  PAGECACHE_WQUEUE waiting_for_block;   /* requests waiting for a free block */
+  WQUEUE resize_queue; /* threads waiting during resize operation  */
+  WQUEUE waiting_for_hash_link;/* waiting for a free hash link     */
+  WQUEUE waiting_for_block;   /* requests waiting for a free block */
   /* hash for dirty file bl.*/
   PAGECACHE_BLOCK_LINK *changed_blocks[PAGECACHE_CHANGED_BLOCKS_HASH];
   /* hash for other file bl.*/
   PAGECACHE_BLOCK_LINK *file_blocks[PAGECACHE_CHANGED_BLOCKS_HASH];
-
-  LOG_HANDLER *loghandler;       /* loghandler structure */
 
   /*
     The following variables are and variables used to hold parameters for
@@ -169,24 +165,29 @@ typedef struct st_pagecache
 
 extern int init_pagecache(PAGECACHE *pagecache, my_size_t use_mem,
                           uint division_limit, uint age_threshold,
-                          uint block_size,
-                          LOG_HANDLER *loghandler);
+                          uint block_size);
 extern int resize_pagecache(PAGECACHE *pagecache,
                             my_size_t use_mem, uint division_limit,
                             uint age_threshold);
 extern void change_pagecache_param(PAGECACHE *pagecache, uint division_limit,
                                    uint age_threshold);
-extern byte *pagecache_read(PAGECACHE *pagecache,
-                            PAGECACHE_FILE *file,
-                            maria_page_no_t pageno,
-                            uint level,
-                            byte *buff,
-                            enum pagecache_page_type type,
-                            enum pagecache_page_lock lock,
-                            PAGECACHE_PAGE_LINK *link);
+
+#define pagecache_read(P,F,N,L,B,T,K,I) \
+  pagecache_valid_read(P,F,N,L,B,T,K,I,0,0)
+
+extern byte *pagecache_valid_read(PAGECACHE *pagecache,
+                                  PAGECACHE_FILE *file,
+                                  pgcache_page_no_t pageno,
+                                  uint level,
+                                  byte *buff,
+                                  enum pagecache_page_type type,
+                                  enum pagecache_page_lock lock,
+                                  PAGECACHE_PAGE_LINK *link,
+                                  pagecache_disk_read_validator validator,
+                                  gptr validator_data);
 extern my_bool pagecache_write(PAGECACHE *pagecache,
                                PAGECACHE_FILE *file,
-                               maria_page_no_t pageno,
+                               pgcache_page_no_t pageno,
                                uint level,
                                byte *buff,
                                enum pagecache_page_type type,
@@ -196,20 +197,20 @@ extern my_bool pagecache_write(PAGECACHE *pagecache,
                                PAGECACHE_PAGE_LINK *link);
 extern void pagecache_unlock_page(PAGECACHE *pagecache,
                                   PAGECACHE_FILE *file,
-                                  maria_page_no_t pageno,
+                                  pgcache_page_no_t pageno,
                                   enum pagecache_page_lock lock,
                                   enum pagecache_page_pin pin,
                                   my_bool stamp_this_page,
-                                  LSN first_REDO_LSN_for_page);
+                                  LSN_PTR first_REDO_LSN_for_page);
 extern void pagecache_unlock(PAGECACHE *pagecache,
                              PAGECACHE_PAGE_LINK *link,
                              enum pagecache_page_lock lock,
                              enum pagecache_page_pin pin,
                              my_bool stamp_this_page,
-                             LSN first_REDO_LSN_for_page);
+                             LSN_PTR first_REDO_LSN_for_page);
 extern void pagecache_unpin_page(PAGECACHE *pagecache,
                                  PAGECACHE_FILE *file,
-                                 maria_page_no_t pageno);
+                                 pgcache_page_no_t pageno);
 extern void pagecache_unpin(PAGECACHE *pagecache,
                             PAGECACHE_PAGE_LINK *link);
 extern int flush_pagecache_blocks(PAGECACHE *keycache,
@@ -217,7 +218,7 @@ extern int flush_pagecache_blocks(PAGECACHE *keycache,
                                   enum flush_type type);
 extern my_bool pagecache_delete_page(PAGECACHE *pagecache,
                                      PAGECACHE_FILE *file,
-                                     maria_page_no_t pageno,
+                                     pgcache_page_no_t pageno,
                                      enum pagecache_page_lock lock,
                                      my_bool flush);
 extern void end_pagecache(PAGECACHE *keycache, my_bool cleanup);

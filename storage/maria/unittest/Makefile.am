@@ -14,8 +14,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-AM_CPPFLAGS      = @ZLIB_INCLUDES@ -I$(top_builddir)/include 
-AM_CPPFLAGS     += -I$(top_srcdir)/include -I$(top_srcdir)/unittest/mytap
+AM_CPPFLAGS      = @ZLIB_INCLUDES@ -I$(top_builddir)/include \
+                  -I$(top_srcdir)/include -I$(top_srcdir)/unittest/mytap
+INCLUDES         = @ZLIB_INCLUDES@ -I$(top_builddir)/include \
+                  -I$(top_srcdir)/include -I$(top_srcdir)/unittest/mytap
 
 # Only reason to link with libmyisam.a here is that it's where some fulltext
 # pieces are (but soon we'll remove fulltext dependencies from Maria).
@@ -24,6 +26,54 @@ LDADD=			$(top_builddir)/unittest/mytap/libmytap.a \
                         $(top_builddir)/storage/myisam/libmyisam.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
-			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
-noinst_PROGRAMS =	ma_control_file-t trnman-t lockman-t lockman1-t lockman2-t
-CLEANFILES =		maria_control
+			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@ \
+			$(top_builddir)/storage/maria/ma_loghandler.o
+noinst_PROGRAMS =	ma_control_file-t trnman-t lockman-t lockman1-t \
+                        lockman2-t \
+			mf_pagecache_single_1k-t mf_pagecache_single_8k-t \
+			mf_pagecache_single_64k-t \
+			mf_pagecache_consist_1k-t mf_pagecache_consist_64k-t \
+			mf_pagecache_consist_1kHC-t \
+			mf_pagecache_consist_64kHC-t \
+			mf_pagecache_consist_1kRD-t \
+			mf_pagecache_consist_64kRD-t \
+			mf_pagecache_consist_1kWR-t \
+			mf_pagecache_consist_64kWR-t \
+			ma_test_loghandler-t \
+                        ma_test_loghandler_multigroup-t \
+			ma_test_loghandler_multithread-t \
+			ma_test_loghandler_pagecache-t
+
+mf_pagecache_single_src =	mf_pagecache_single.c $(top_srcdir)/mysys/mf_pagecache.c test_file.c
+mf_pagecache_consist_src =	mf_pagecache_consist.c $(top_srcdir)/mysys/mf_pagecache.c test_file.c
+mf_pagecache_common_cppflags =	-DEXTRA_DEBUG -DPAGECACHE_DEBUG -DMAIN
+
+mf_pagecache_single_1k_t_SOURCES =	$(mf_pagecache_single_src)
+mf_pagecache_single_8k_t_SOURCES =	$(mf_pagecache_single_src)
+mf_pagecache_single_64k_t_SOURCES =	$(mf_pagecache_single_src)
+mf_pagecache_single_1k_t_CPPFLAGS = 	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=1024
+mf_pagecache_single_8k_t_CPPFLAGS = 	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=8192
+mf_pagecache_single_64k_t_CPPFLAGS = 	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=65536
+
+mf_pagecache_consist_1k_t_SOURCES =	$(mf_pagecache_consist_src)
+mf_pagecache_consist_1k_t_CPPFLAGS = 	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=1024
+mf_pagecache_consist_64k_t_SOURCES =	$(mf_pagecache_consist_src)
+mf_pagecache_consist_64k_t_CPPFLAGS = 	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=65536
+
+mf_pagecache_consist_1kHC_t_SOURCES =	$(mf_pagecache_consist_src)
+mf_pagecache_consist_1kHC_t_CPPFLAGS = 	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=1024 -DTEST_HIGH_CONCURENCY
+mf_pagecache_consist_64kHC_t_SOURCES =	$(mf_pagecache_consist_src)
+mf_pagecache_consist_64kHC_t_CPPFLAGS =	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=65536 -DTEST_HIGH_CONCURENCY
+
+mf_pagecache_consist_1kRD_t_SOURCES =	$(mf_pagecache_consist_src)
+mf_pagecache_consist_1kRD_t_CPPFLAGS = 	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=1024 -DTEST_READERS
+mf_pagecache_consist_64kRD_t_SOURCES =	$(mf_pagecache_consist_src)
+mf_pagecache_consist_64kRD_t_CPPFLAGS =	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=65536 -DTEST_READERS
+
+mf_pagecache_consist_1kWR_t_SOURCES =	$(mf_pagecache_consist_src)
+mf_pagecache_consist_1kWR_t_CPPFLAGS = 	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=1024 -DTEST_WRITERS
+mf_pagecache_consist_64kWR_t_SOURCES =	$(mf_pagecache_consist_src)
+mf_pagecache_consist_64kWR_t_CPPFLAGS =	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=65536 -DTEST_WRITERS
+
+CLEANFILES =		maria_control page_cache_test_file_1 \
+			maria_log.???????? maria_control
