@@ -250,6 +250,7 @@ mutex_enter_func(
 	ulint		line)		/* in: line where locked */
 {
 	ut_ad(mutex_validate(mutex));
+	ut_ad(!mutex_own(mutex));
 
 	/* Note that we do not peek at the value of lock_word before trying
 	the atomic test_and_set; we could peek, and possibly save time. */
