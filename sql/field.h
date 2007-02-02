@@ -725,6 +725,7 @@ public:
 
 class Field_double :public Field_real {
 public:
+  my_bool not_fixed;
   Field_double(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
 	       uchar null_bit_arg,
 	       enum utype unireg_check_arg, const char *field_name_arg,
@@ -732,12 +733,20 @@ public:
 	       uint8 dec_arg,bool zero_arg,bool unsigned_arg)
     :Field_real(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
                 unireg_check_arg, field_name_arg, table_arg,
-                dec_arg, zero_arg, unsigned_arg)
+                dec_arg, zero_arg, unsigned_arg),
+     not_fixed(dec_arg >= NOT_FIXED_DEC)
     {}
   Field_double(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
 	       struct st_table *table_arg, uint8 dec_arg)
-    :Field_real((char*) 0, len_arg, maybe_null_arg ? (uchar*) "": 0, (uint) 0,
-                NONE, field_name_arg, table_arg, dec_arg, 0, 0)
+    :Field_real((char*) 0, len_arg, maybe_null_arg ? (uchar*) "" : 0, (uint) 0,
+                NONE, field_name_arg, table_arg, dec_arg, 0, 0),
+     not_fixed(dec_arg >= NOT_FIXED_DEC)
+    {}
+  Field_double(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
+	       struct st_table *table_arg, uint8 dec_arg, my_bool not_fixed_srg)
+    :Field_real((char*) 0, len_arg, maybe_null_arg ? (uchar*) "" : 0, (uint) 0,
+	        NONE, field_name_arg, table_arg, dec_arg, 0, 0), 
+    not_fixed(not_fixed_srg)
     {}
   enum_field_types type() const { return FIELD_TYPE_DOUBLE;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_DOUBLE; }
@@ -754,6 +763,7 @@ public:
   uint32 pack_length() const { return sizeof(double); }
   void sql_type(String &str) const;
   uint32 max_length() { return 53; }
+  uint size_of() const { return sizeof(*this); }
 };
 
 

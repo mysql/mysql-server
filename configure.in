@@ -2524,9 +2524,9 @@ linked_client_targets="linked_libmysql_sources"
 
 if test "$THREAD_SAFE_CLIENT" = "no"
 then
-  sql_client_dirs="strings regex mysys extra libmysql client"
+  sql_client_dirs="strings regex mysys dbug extra libmysql client"
 else
-  sql_client_dirs="strings regex mysys extra libmysql libmysql_r client"
+  sql_client_dirs="strings regex mysys dbug extra libmysql libmysql_r client"
   linked_client_targets="$linked_client_targets linked_libmysql_r_sources"
   AC_CONFIG_FILES(libmysql_r/Makefile)
   AC_DEFINE([THREAD_SAFE_CLIENT], [1], [Should be client be thread safe])

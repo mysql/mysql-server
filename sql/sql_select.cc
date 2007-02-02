@@ -513,71 +513,87 @@ err:
 
 
 /*
-  test if it is known for optimisation IN subquery
+  Remove the predicates pushed down into the subquery
 
   SYNOPSIS
-    JOIN::test_in_subselect()
-    where - pointer for variable in which conditions should be
-            stored if subquery is known
+    JOIN::remove_subq_pushed_predicates()
+      where   IN  Must be NULL
+              OUT The remaining WHERE condition, or NULL
 
-  RETURN
-    1 - known
-    0 - unknown
+  DESCRIPTION
+    Given that this join will be executed using (unique|index)_subquery,
+    without "checking NULL", remove the predicates that were pushed down
+    into the subquery.
+
+    We can remove the equalities that will be guaranteed to be true by the
+    fact that subquery engine will be using index lookup.
+
+    If the subquery compares scalar values, we can remove the condition that
+    was wrapped into trig_cond (it will be checked when needed by the subquery
+    engine)
+
+    If the subquery compares row values, we need to keep the wrapped
+    equalities in the WHERE clause: when the left (outer) tuple has both NULL
+    and non-NULL values, we'll do a full table scan and will rely on the
+    equalities corresponding to non-NULL parts of left tuple to filter out
+    non-matching records.
 */
 
-bool JOIN::test_in_subselect(Item **where)
+void JOIN::remove_subq_pushed_predicates(Item **where)
 {
   if (conds->type() == Item::FUNC_ITEM &&
       ((Item_func *)this->conds)->functype() == Item_func::EQ_FUNC &&
       ((Item_func *)conds)->arguments()[0]->type() == Item::REF_ITEM &&
       ((Item_func *)conds)->arguments()[1]->type() == Item::FIELD_ITEM)
   {
-    join_tab->info= "Using index";
     *where= 0;
-    return 1;
+    return;
   }
   if (conds->type() == Item::COND_ITEM &&
       ((class Item_func *)this->conds)->functype() ==
       Item_func::COND_AND_FUNC)
   {
-    if ((*where= remove_additional_cond(conds)))
-      join_tab->info= "Using index; Using where";
-    else
-      join_tab->info= "Using index";
-    return 1;
+    *where= remove_additional_cond(conds);
   }
-  return 0;
 }
 
 
 /*
-  Check if the passed HAVING clause is a clause added by subquery optimizer
+  Index lookup-based subquery: save some flags for EXPLAIN output
 
   SYNOPSIS
-    is_having_subq_predicates()
-      having  Having clause
+    save_index_subquery_explain_info()
+      join_tab  Subquery's join tab (there is only one as index lookup is
+                only used for subqueries that are single-table SELECTs)
+      where     Subquery's WHERE clause
 
-  RETURN
-    TRUE   The passed HAVING clause was added by the subquery optimizer
-    FALSE  Otherwise
+  DESCRIPTION
+    For index lookup-based subquery (i.e. one executed with
+    subselect_uniquesubquery_engine or subselect_indexsubquery_engine),
+    check its EXPLAIN output row should contain 
+      "Using index" (TAB_INFO_FULL_SCAN_ON_NULL) 
+      "Using Where" (TAB_INFO_USING_WHERE)
+      "Full scan on NULL key" (TAB_INFO_FULL_SCAN_ON_NULL)
+    and set appropriate flags in join_tab->packed_info.
 */
 
-bool is_having_subq_predicates(Item *having)
+static void save_index_subquery_explain_info(JOIN_TAB *join_tab, Item* where)
 {
-  if (having->type() == Item::FUNC_ITEM)
+  join_tab->packed_info= TAB_INFO_HAVE_VALUE;
+  if (join_tab->table->used_keys.is_set(join_tab->ref.key))
+    join_tab->packed_info |= TAB_INFO_USING_INDEX;
+  if (where)
+    join_tab->packed_info |= TAB_INFO_USING_WHERE;
+  for (uint i = 0; i < join_tab->ref.key_parts; i++)
   {
-    if (((Item_func *) having)->functype() == Item_func::ISNOTNULLTEST_FUNC)
-      return TRUE;
-    if (((Item_func *) having)->functype() == Item_func::TRIG_COND_FUNC)
+    if (join_tab->ref.cond_guards[i])
     {
-      having= ((Item_func*)having)->arguments()[0];
-      if (((Item_func *) having)->functype() == Item_func::ISNOTNULLTEST_FUNC)
-        return TRUE;
+      join_tab->packed_info |= TAB_INFO_FULL_SCAN_ON_NULL;
+      break;
     }
-    return TRUE;
   }
-  return FALSE;
 }
+
 
 /*
   global select optimisation.
@@ -1017,51 +1033,47 @@ JOIN::optimize()
       if (join_tab[0].type == JT_EQ_REF &&
 	  join_tab[0].ref.items[0]->name == in_left_expr_name)
       {
-	if (test_in_subselect(&where))
-	{
-	  join_tab[0].type= JT_UNIQUE_SUBQUERY;
-	  error= 0;
-	  DBUG_RETURN(unit->item->
-		      change_engine(new
-				    subselect_uniquesubquery_engine(thd,
-								    join_tab,
-								    unit->item,
-								    where)));
-	}
+        remove_subq_pushed_predicates(&where);
+        save_index_subquery_explain_info(join_tab, where);
+        join_tab[0].type= JT_UNIQUE_SUBQUERY;
+        error= 0;
+        DBUG_RETURN(unit->item->
+                    change_engine(new
+                                  subselect_uniquesubquery_engine(thd,
+                                                                  join_tab,
+                                                                  unit->item,
+                                                                  where)));
       }
       else if (join_tab[0].type == JT_REF &&
 	       join_tab[0].ref.items[0]->name == in_left_expr_name)
       {
-	if (test_in_subselect(&where))
-	{
-	  join_tab[0].type= JT_INDEX_SUBQUERY;
-	  error= 0;
-	  DBUG_RETURN(unit->item->
-		      change_engine(new
-				    subselect_indexsubquery_engine(thd,
-								   join_tab,
-								   unit->item,
-								   where,
-								   0)));
-	}
+	remove_subq_pushed_predicates(&where);
+        save_index_subquery_explain_info(join_tab, where);
+        join_tab[0].type= JT_INDEX_SUBQUERY;
+        error= 0;
+        DBUG_RETURN(unit->item->
+                    change_engine(new
+                                  subselect_indexsubquery_engine(thd,
+                                                                 join_tab,
+                                                                 unit->item,
+                                                                 where,
+                                                                 NULL,
+                                                                 0)));
       }
     } else if (join_tab[0].type == JT_REF_OR_NULL &&
 	       join_tab[0].ref.items[0]->name == in_left_expr_name &&
-               is_having_subq_predicates(having))
+               having->name == in_having_cond)
     {
       join_tab[0].type= JT_INDEX_SUBQUERY;
       error= 0;
-
-      if ((conds= remove_additional_cond(conds)))
-	join_tab->info= "Using index; Using where";
-      else
-	join_tab->info= "Using index";
-
+      conds= remove_additional_cond(conds);
+      save_index_subquery_explain_info(join_tab, conds);
       DBUG_RETURN(unit->item->
 		  change_engine(new subselect_indexsubquery_engine(thd,
 								   join_tab,
 								   unit->item,
 								   conds,
+                                                                   having,
 								   1)));
     }
 
@@ -2557,9 +2569,7 @@ typedef struct key_field_t {		// Used when finding key fields
     when val IS NULL.
   */
   bool          null_rejecting; 
-
-  /* TRUE<=> This ref access is an outer subquery reference access */
-  bool          outer_ref;
+  bool         *cond_guard; /* See KEYUSE::cond_guard */
 } KEY_FIELD;
 
 /* Values in optimize */
@@ -2858,7 +2868,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
                                    cond->functype() == Item_func::MULT_EQUAL_FUNC) &&
                                   ((*value)->type() == Item::FIELD_ITEM) &&
                                   ((Item_field*)*value)->field->maybe_null());
-  (*key_fields)->outer_ref=      FALSE;
+  (*key_fields)->cond_guard= NULL;
   (*key_fields)++;
 }
 
@@ -2955,25 +2965,26 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
   }
 
   /* 
-    Subquery optimization: check if the encountered condition is one
-    added by condition push down into subquery.
+    Subquery optimization: Conditions that are pushed down into subqueries
+    are wrapped into Item_func_trig_cond. We process the wrapped condition
+    but need to set cond_guard for KEYUSE elements generated from it.
   */
   {
     if (cond->type() == Item::FUNC_ITEM &&
         ((Item_func*)cond)->functype() == Item_func::TRIG_COND_FUNC)
     {
-      cond= ((Item_func*)cond)->arguments()[0];
+      Item *cond_arg= ((Item_func*)cond)->arguments()[0];
       if (!join->group_list && !join->order &&
           join->unit->item && 
           join->unit->item->substype() == Item_subselect::IN_SUBS &&
           !join->unit->first_select()->next_select())
       {
         KEY_FIELD *save= *key_fields;
-        add_key_fields(join, key_fields, and_level, cond, usable_tables,
+        add_key_fields(join, key_fields, and_level, cond_arg, usable_tables,
                        sargables);
         // Indicate that this ref access candidate is for subquery lookup:
         for (; save != *key_fields; save++)
-          save->outer_ref= TRUE;
+          save->cond_guard= ((Item_func_trig_cond*)cond)->get_trig_var();
       }
       return;
     }
@@ -3153,7 +3164,7 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
 	  keyuse.used_tables=key_field->val->used_tables();
 	  keyuse.optimize= key_field->optimize & KEY_OPTIMIZE_REF_OR_NULL;
           keyuse.null_rejecting= key_field->null_rejecting;
-          keyuse.outer_ref= key_field->outer_ref;
+          keyuse.cond_guard= key_field->cond_guard;
 	  VOID(insert_dynamic(keyuse_array,(gptr) &keyuse));
 	}
       }
@@ -4992,7 +5003,8 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
   if (!(j->ref.key_buff= (byte*) thd->calloc(ALIGN_SIZE(length)*2)) ||
       !(j->ref.key_copy= (store_key**) thd->alloc((sizeof(store_key*) *
 						   (keyparts+1)))) ||
-      !(j->ref.items=    (Item**) thd->alloc(sizeof(Item*)*keyparts)))
+      !(j->ref.items=    (Item**) thd->alloc(sizeof(Item*)*keyparts)) ||
+      !(j->ref.cond_guards= (bool**) thd->alloc(sizeof(uint*)*keyparts)))
   {
     DBUG_RETURN(TRUE);
   }
@@ -5007,6 +5019,8 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
   if (ftkey)
   {
     j->ref.items[0]=((Item_func*)(keyuse->val))->key_item();
+    /* Predicates pushed down into subquery can't be used FT access */
+    j->ref.cond_guards[0]= NULL;
     if (keyuse->used_tables)
       DBUG_RETURN(TRUE);                        // not supported yet. SerG
 
@@ -5023,6 +5037,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 
       uint maybe_null= test(keyinfo->key_part[i].null_bit);
       j->ref.items[i]=keyuse->val;		// Save for cond removal
+      j->ref.cond_guards[i]= keyuse->cond_guard;
       if (keyuse->null_rejecting) 
         j->ref.null_rejecting |= 1 << i;
       keyuse_uses_no_tables= keyuse_uses_no_tables && !keyuse->used_tables;
@@ -7653,7 +7668,7 @@ change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
 
   SYNOPSIS
     remove_additional_cond()
-    conds - condition for processing
+      conds  Condition for processing
 
   RETURN VALUES
     new conditions
@@ -8598,6 +8613,8 @@ Field* create_tmp_field_from_field(THD *thd, Field* org_field,
     if (org_field->type() == MYSQL_TYPE_VAR_STRING ||
         org_field->type() == MYSQL_TYPE_VARCHAR)
       table->s->db_create_options|= HA_OPTION_PACK_RECORD;
+    else if (org_field->type() == FIELD_TYPE_DOUBLE)
+      ((Field_double *) new_field)->not_fixed= TRUE;
   }
   return new_field;
 }
@@ -8638,7 +8655,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
   switch (item->result_type()) {
   case REAL_RESULT:
     new_field=new Field_double(item->max_length, maybe_null,
-			       item->name, table, item->decimals);
+			       item->name, table, item->decimals, TRUE);
     break;
   case INT_RESULT:
     /* Select an integer type with the minimal fit precision */
@@ -8766,8 +8783,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 
   if (type != Item::FIELD_ITEM &&
       item->real_item()->type() == Item::FIELD_ITEM &&
-      (item->type() != Item::REF_ITEM ||
-       !((Item_ref *) item)->depended_from))
+      !((Item_ref *) item)->depended_from)
   {
     orig_item= item;
     item= item->real_item();
@@ -10912,7 +10928,9 @@ int rr_sequential(READ_RECORD *info);
 int init_read_record_seq(JOIN_TAB *tab)
 {
   tab->read_record.read_record= rr_sequential;
-  return tab->read_record.file->ha_rnd_init(1);
+  if (tab->read_record.file->ha_rnd_init(1))
+    return 1;
+  return (*tab->read_record.read_record)(&tab->read_record);
 }
 
 static int
@@ -12263,7 +12281,7 @@ static int
 create_sort_index(THD *thd, JOIN *join, ORDER *order,
 		  ha_rows filesort_limit, ha_rows select_limit)
 {
-  uint length;
+  uint length= 0;
   ha_rows examined_rows;
   TABLE *table;
   SQL_SELECT *select;
@@ -12284,8 +12302,10 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
        !(join->select_options & SELECT_BIG_RESULT)) &&
       test_if_skip_sort_order(tab,order,select_limit,0))
     DBUG_RETURN(0);
+  for (ORDER *ord= join->order; ord; ord= ord->next)
+    length++;
   if (!(join->sortorder= 
-        make_unireg_sortorder(order,&length,join->sortorder)))
+        make_unireg_sortorder(order, &length, join->sortorder)))
     goto err;				/* purecov: inspected */
 
   table->sort.io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
@@ -12691,8 +12711,10 @@ SORT_FIELD *make_unireg_sortorder(ORDER *order, uint *length,
   for (ORDER *tmp = order; tmp; tmp=tmp->next)
     count++;
   if (!sortorder)
-    sortorder= (SORT_FIELD*) sql_alloc(sizeof(SORT_FIELD)*(count+1));
-  pos=sort=sortorder;
+    sortorder= (SORT_FIELD*) sql_alloc(sizeof(SORT_FIELD) *
+                                       (max(count, *length) + 1));
+  pos= sort= sortorder;
+
   if (!pos)
     return 0;
 
@@ -13215,49 +13237,83 @@ setup_group(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 	    bool *hidden_group_fields)
 {
   *hidden_group_fields=0;
+  ORDER *ord;
+
   if (!order)
     return 0;				/* Everything is ok */
 
-  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
-  {
-    Item *item;
-    List_iterator<Item> li(fields);
-    while ((item=li++))
-      item->marker=0;			/* Marker that field is not used */
-  }
   uint org_fields=all_fields.elements;
 
   thd->where="group statement";
-  for (; order; order=order->next)
+  for (ord= order; ord; ord= ord->next)
   {
-    if (find_order_in_list(thd, ref_pointer_array, tables, order, fields,
+    if (find_order_in_list(thd, ref_pointer_array, tables, ord, fields,
 			   all_fields, TRUE))
       return 1;
-    (*order->item)->marker=1;		/* Mark found */
-    if ((*order->item)->with_sum_func)
+    (*ord->item)->marker= UNDEF_POS;		/* Mark found */
+    if ((*ord->item)->with_sum_func)
     {
-      my_error(ER_WRONG_GROUP_FIELD, MYF(0), (*order->item)->full_name());
+      my_error(ER_WRONG_GROUP_FIELD, MYF(0), (*ord->item)->full_name());
       return 1;
     }
   }
   if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
   {
-    /* Don't allow one to use fields that is not used in GROUP BY */
-    Item *item;
-    List_iterator<Item> li(fields);
+    /*
+      Don't allow one to use fields that is not used in GROUP BY
+      For each select a list of field references that aren't under an
+      aggregate function is created. Each field in this list keeps the
+      position of the select list expression which it belongs to.
 
-    while ((item=li++))
+      First we check an expression from the select list against the GROUP BY
+      list. If it's found there then it's ok. It's also ok if this expression
+      is a constant or an aggregate function. Otherwise we scan the list
+      of non-aggregated fields and if we'll find at least one field reference
+      that belongs to this expression and doesn't occur in the GROUP BY list
+      we throw an error. If there are no fields in the created list for a
+      select list expression this means that all fields in it are used under
+      aggregate functions.
+    */
+    Item *item;
+    Item_field *field;
+    int cur_pos_in_select_list= 0;
+    List_iterator<Item> li(fields);
+    List_iterator<Item_field> naf_it(thd->lex->current_select->non_agg_fields);
+
+    field= naf_it++;
+    while (field && (item=li++))
     {
-      if (item->type() != Item::SUM_FUNC_ITEM && !item->marker &&
-	  !item->const_item())
+      if (item->type() != Item::SUM_FUNC_ITEM && item->marker >= 0 &&
+          !item->const_item() &&
+          !(item->real_item()->type() == Item::FIELD_ITEM &&
+            item->used_tables() & OUTER_REF_TABLE_BIT))
       {
-        /*
-          TODO: change ER_WRONG_FIELD_WITH_GROUP to more detailed
-          ER_NON_GROUPING_FIELD_USED
-        */
-	my_error(ER_WRONG_FIELD_WITH_GROUP, MYF(0), item->full_name());
-	return 1;
+        while (field)
+        {
+          /* Skip fields from previous expressions. */
+          if (field->marker < cur_pos_in_select_list)
+            goto next_field;
+          /* Found a field from the next expression. */
+          if (field->marker > cur_pos_in_select_list)
+            break;
+          /*
+            Check whether the field occur in the GROUP BY list.
+            Throw the error later if the field isn't found.
+          */
+          for (ord= order; ord; ord= ord->next)
+            if ((*ord->item)->eq((Item*)field, 0))
+              goto next_field;
+          /*
+            TODO: change ER_WRONG_FIELD_WITH_GROUP to more detailed
+            ER_NON_GROUPING_FIELD_USED
+          */
+          my_error(ER_WRONG_FIELD_WITH_GROUP, MYF(0), field->full_name());
+          return 1;
+next_field:
+          field= naf_it++;
+        }
       }
+      cur_pos_in_select_list++;
     }
   }
   if (org_fields != all_fields.elements)
@@ -13383,10 +13439,12 @@ count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
   param->quick_group=1;
   while ((field=li++))
   {
-    Item::Type type=field->real_item()->type();
-    if (type == Item::FIELD_ITEM)
+    Item::Type type=field->type();
+    Item::Type real_type= field->real_item()->type();
+    if (type == Item::FIELD_ITEM || (real_type == Item::FIELD_ITEM &&
+        !((Item_ref *) field)->depended_from))
       param->field_count++;
-    else if (type == Item::SUM_FUNC_ITEM)
+    else if (real_type == Item::SUM_FUNC_ITEM)
     {
       if (! field->const_item())
       {
@@ -14820,6 +14878,24 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         
       if (tab->info)
 	item_list.push_back(new Item_string(tab->info,strlen(tab->info),cs));
+      else if (tab->packed_info & TAB_INFO_HAVE_VALUE)
+      {
+        if (tab->packed_info & TAB_INFO_USING_INDEX)
+          extra.append(STRING_WITH_LEN("; Using index"));
+        if (tab->packed_info & TAB_INFO_USING_WHERE)
+          extra.append(STRING_WITH_LEN("; Using where"));
+        if (tab->packed_info & TAB_INFO_FULL_SCAN_ON_NULL)
+          extra.append(STRING_WITH_LEN("; Full scan on NULL key"));
+        /* Skip initial "; "*/
+        const char *str= extra.ptr();
+        uint32 len= extra.length();
+        if (len)
+        {
+          str += 2;
+          len -= 2;
+        }
+	item_list.push_back(new Item_string(str, len, cs));
+      }
       else
       {
         if (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION || 
@@ -14878,6 +14954,15 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	}
 	if (distinct & test_all_bits(used_tables,thd->used_tables))
 	  extra.append(STRING_WITH_LEN("; Distinct"));
+
+        for (uint part= 0; part < tab->ref.key_parts; part++)
+        {
+          if (tab->ref.cond_guards[part])
+          {
+            extra.append(STRING_WITH_LEN("; Full scan on NULL key"));
+            break;
+          }
+        }
         
         /* Skip initial "; "*/
         const char *str= extra.ptr();

@@ -507,6 +507,7 @@ ClusterMgr::reportConnected(NodeId nodeId){
   theNode.m_info.m_version = 0;
   theNode.compatible = true;
   theNode.nfCompleteRep = true;
+  theNode.m_state.startLevel = NodeState::SL_NOTHING;
   
   theFacade.ReportNodeAlive(nodeId);
 }
@@ -518,14 +519,13 @@ ClusterMgr::reportDisconnected(NodeId nodeId){
 
   noOfConnectedNodes--;
   theNodes[nodeId].connected = false;
-
   theNodes[nodeId].m_state.m_connected_nodes.clear();
 
-  reportNodeFailed(nodeId);
+  reportNodeFailed(nodeId, true);
 }
 
 void
-ClusterMgr::reportNodeFailed(NodeId nodeId){
+ClusterMgr::reportNodeFailed(NodeId nodeId, bool disconnect){
 
   Node & theNode = theNodes[nodeId];
  
@@ -536,10 +536,11 @@ ClusterMgr::reportNodeFailed(NodeId nodeId){
   {
     theFacade.doDisconnect(nodeId);
   }
+  
   const bool report = (theNode.m_state.startLevel != NodeState::SL_NOTHING);  
   theNode.m_state.startLevel = NodeState::SL_NOTHING;
   
-  if(report)
+  if(disconnect || report)
   {
     theFacade.ReportNodeDead(nodeId);
   }
