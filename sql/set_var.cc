@@ -2617,7 +2617,7 @@ bool update_sys_var_str_path(THD *thd, sys_var_str *var_str,
   {
     switch (log_type) {
     case QUERY_LOG_SLOW:
-      file_log->open_slow_log(sys_var_general_log_path.value);
+      file_log->open_slow_log(sys_var_slow_log_path.value);
       break;
     case QUERY_LOG_GENERAL:
       file_log->open_query_log(sys_var_general_log_path.value);
