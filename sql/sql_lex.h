@@ -620,6 +620,21 @@ public:
   /* index in the select list of the expression currently being fixed */
   int cur_pos_in_select_list;
 
+  List<udf_func>     udf_list;                  /* udf function calls stack */
+  /* 
+    This is a copy of the original JOIN USING list that comes from
+    the parser. The parser :
+      1. Sets the natural_join of the second TABLE_LIST in the join
+         and the st_select_lex::prev_join_using.
+      2. Makes a parent TABLE_LIST and sets its is_natural_join/
+       join_using_fields members.
+      3. Uses the wrapper TABLE_LIST as a table in the upper level.
+    We cannot assign directly to join_using_fields in the parser because
+    at stage (1.) the parent TABLE_LIST is not constructed yet and
+    the assignment will override the JOIN USING fields of the lower level
+    joins on the right.
+  */
+  List<String> *prev_join_using;
   void init_query();
   void init_select();
   st_select_lex_unit* master_unit();
