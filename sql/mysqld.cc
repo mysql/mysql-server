@@ -3479,7 +3479,11 @@ int main(int argc, char **argv)
   /* nothing should come before this line ^^^ */
 
   /* Set signal used to kill MySQL */
+#if defined(SIGUSR2)
   thr_kill_signal= thd_lib_detected == THD_LIB_LT ? SIGINT : SIGUSR2;
+#else
+  thr_kill_signal= SIGINT;
+#endif
 
   /*
     Perform basic logger initialization logger. Should be called after
