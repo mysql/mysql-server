@@ -337,8 +337,9 @@ then
   cp -fp mysql-debug-%{mysql_version}/config.log "$MYSQL_DEBUGCONFLOG_DEST"
 fi
 
+  MTR_BUILD_THREAD=auto
+  export MTR_BUILD_THREAD
 (cd mysql-debug-%{mysql_version}/mysql-test ; \
- MTR_BUILD_THREAD=auto ; export MTR_BUILD_THREAD ; \
  ./mysql-test-run.pl --comment=debug --skip-rpl --skip-ndbcluster --force --report-features ; \
  true)
 
@@ -369,9 +370,9 @@ then
   cp -fp  mysql-release-%{mysql_version}/config.log "$MYSQL_CONFLOG_DEST"
 fi
 
+  MTR_BUILD_THREAD=auto
+  export MTR_BUILD_THREAD
 cd mysql-release-%{mysql_version}/mysql-test
-MTR_BUILD_THREAD=auto
-export MTR_BUILD_THREAD
 ./mysql-test-run.pl --comment=normal --force --skip-ndbcluster --timer --report-features || true
 ./mysql-test-run.pl --comment=ps --ps-protocol --force --skip-ndbcluster --timer || true
 ./mysql-test-run.pl --comment=normal+rowrepl --mysqld=--binlog-format=row --force --skip-ndbcluster --timer || true
@@ -717,10 +718,6 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
-* Wed Jan 31 2007 Daniel Fischer <df@mysql.com>
-
-- add MTR_BUILD_THREAD=auto to test runs.
-
 * Fri Jan 05 2007 Kent Boortz <kent@mysql.com>
 
 - Put back "libmygcc.a", found no real reason it was removed.
@@ -738,16 +735,16 @@ fi
   in the server RPM.
 - The "mysqlmanager" man page got moved from section 1 to 8.
 
+* Thu Nov 30 2006 Joerg Bruehe <joerg@mysql.com>
+
+- Call "make install" using "benchdir_root=%{_datadir}", 
+  because that is affecting the regression test suite as well.
+
 * Thu Nov 16 2006 Joerg Bruehe <joerg@mysql.com>
 
 - Explicitly note that the "MySQL-shared" RPMs (as built by MySQL AB) 
   replace "mysql-shared" (as distributed by SuSE) to allow easy upgrading
   (bug#22081).
-
-* Thu Nov 30 2006 Joerg Bruehe <joerg@mysql.com>
-
-- Call "make install" using "benchdir_root=%{_datadir}", 
-  because that is affecting the regression test suite as well.
 
 * Mon Nov 13 2006 Joerg Bruehe <joerg@mysql.com>
 
