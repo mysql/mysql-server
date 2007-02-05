@@ -126,9 +126,6 @@ Tsman::execSTTOR(Signal* signal)
 {
   jamEntry();                            
 
-  const Uint32 startphase  = signal->theData[1];
-  const Uint32 typeOfStart = signal->theData[7];
-
   sendSTTORRY(signal);
   
   return;
@@ -1186,7 +1183,6 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
   Uint32 firstFree= RNIL;
   Uint32 size = ptr.p->m_extent_size;
   Uint32 per_page = ptr.p->m_online.m_extent_headers_per_extent_page;
-  Uint32 SZ= File_formats::Datafile::EXTENT_HEADER_BITMASK_BITS_PER_PAGE;  
   Uint32 pages= ptr.p->m_online.m_offset_data_pages - 1;
   Uint32 datapages= ptr.p->m_online.m_data_pages;
   Dbtup* tup= (Dbtup*)globalData.getBlock(DBTUP);

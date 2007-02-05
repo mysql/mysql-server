@@ -2904,7 +2904,6 @@ int
 NdbDictionaryImpl::dropTableGlobal(NdbTableImpl & impl)
 {
   int res;
-  const char * name = impl.getName();
   DBUG_ENTER("NdbDictionaryImpl::dropTableGlobal");
   DBUG_ASSERT(impl.m_status != NdbDictionary::Object::New);
   DBUG_ASSERT(impl.m_indexType == NdbDictionary::Object::TypeUndefined);
@@ -4277,8 +4276,6 @@ void
 NdbDictInterface::execWAIT_GCP_CONF(NdbApiSignal* signal,
 				    LinearSectionPtr ptr[3])
 {
-  const WaitGCPConf * const conf=
-    CAST_CONSTPTR(WaitGCPConf, signal->getDataPtr());
   m_waiter.signal(NO_WAIT);
 }
 

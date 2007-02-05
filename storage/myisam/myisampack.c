@@ -2689,8 +2689,9 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
 	}
 	case FIELD_VARCHAR:
 	{
-          uint pack_length= HA_VARCHAR_PACKLENGTH(count->field_length-1);
-	  ulong col_length= (pack_length == 1 ? (uint) *(uchar*) start_pos :
+          uint var_pack_length= HA_VARCHAR_PACKLENGTH(count->field_length-1);
+          ulong col_length= (var_pack_length == 1 ?
+                             (uint) *(uchar*) start_pos :
                              uint2korr(start_pos));
           /* Empty varchar are encoded with a single 1 bit. */
 	  if (!col_length)
@@ -2700,7 +2701,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
 	  }
 	  else
 	  {
-	    byte *end=start_pos+pack_length+col_length;
+	    byte *end= start_pos + var_pack_length + col_length;
             DBUG_PRINT("fields", ("FIELD_VARCHAR not empty, bits:  1"));
 	    write_bits(0,1);
             /* Write the varchar length. */
@@ -2708,7 +2709,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
                                   col_length, count->length_bits));
 	    write_bits(col_length,count->length_bits);
             /* Encode the varchar bytes. */
-	    for (start_pos+=pack_length ; start_pos < end ; start_pos++)
+	    for (start_pos+= var_pack_length ; start_pos < end ; start_pos++)
             {
               DBUG_PRINT("fields",
                          ("value: 0x%02x  code: 0x%s  bits: %2u  bin: %s",

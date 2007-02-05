@@ -33,7 +33,7 @@ class TC_LOG
 
   virtual int open(const char *opt_name)=0;
   virtual void close()=0;
-  virtual int log(THD *thd, my_xid xid)=0;
+  virtual int log_xid(THD *thd, my_xid xid)=0;
   virtual void unlog(ulong cookie, my_xid xid)=0;
 };
 
@@ -43,7 +43,7 @@ public:
   TC_LOG_DUMMY() {}
   int open(const char *opt_name)        { return 0; }
   void close()                          { }
-  int log(THD *thd, my_xid xid)         { return 1; }
+  int log_xid(THD *thd, my_xid xid)         { return 1; }
   void unlog(ulong cookie, my_xid xid)  { }
 };
 
@@ -88,7 +88,7 @@ class TC_LOG_MMAP: public TC_LOG
   TC_LOG_MMAP(): inited(0) {}
   int open(const char *opt_name);
   void close();
-  int log(THD *thd, my_xid xid);
+  int log_xid(THD *thd, my_xid xid);
   void unlog(ulong cookie, my_xid xid);
   int recover();
 
@@ -287,7 +287,7 @@ public:
 
   int open(const char *opt_name);
   void close();
-  int log(THD *thd, my_xid xid);
+  int log_xid(THD *thd, my_xid xid);
   void unlog(ulong cookie, my_xid xid);
   int recover(IO_CACHE *log, Format_description_log_event *fdle);
 #if !defined(MYSQL_CLIENT)
