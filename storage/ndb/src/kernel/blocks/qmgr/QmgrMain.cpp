@@ -1092,7 +1092,8 @@ void Qmgr::execCM_REGREF(Signal* signal)
     jam();
     c_start.m_starting_nodes_w_log.set(TaddNodeno);
   }
-  
+  c_start.m_node_gci[TaddNodeno] = node_gci;
+
   skip_nodes.bitAND(c_definedNodes);
   c_start.m_skip_nodes.bitOR(skip_nodes);
   
@@ -1241,6 +1242,7 @@ Qmgr::check_startup(Signal* signal)
   wait.bitANDC(tmp);
 
   Uint32 retVal = 0;
+  Uint32 incompleteng = MAX_NDB_NODES; // Illegal value
   NdbNodeBitmask report_mask;
 
   if ((c_start.m_latest_gci == 0) || 
@@ -1325,7 +1327,7 @@ Qmgr::check_startup(Signal* signal)
         report_mask.assign(c_definedNodes);
         report_mask.bitANDC(c_start.m_starting_nodes);
         retVal = 1;
-        goto start_report;
+        goto check_log;
       case CheckNodeGroups::Partitioning:
         ndbrequire(result != CheckNodeGroups::Lose);
         signal->theData[1] = 
@@ -1333,7 +1335,7 @@ Qmgr::check_startup(Signal* signal)
         report_mask.assign(c_definedNodes);
         report_mask.bitANDC(c_start.m_starting_nodes);
         retVal = 1;
-        goto start_report;
+        goto check_log;
       }
     }
 
@@ -1357,12 +1359,7 @@ Qmgr::check_startup(Signal* signal)
     case CheckNodeGroups::Partitioning:
       if (now < partitioned_timeout && result != CheckNodeGroups::Win)
       {
-        signal->theData[1] = c_restartPartionedTimeout == (Uint32) ~0 ? 4 : 5;
-        signal->theData[2] = Uint32((partitioned_timeout - now + 500) / 1000);
-        report_mask.assign(c_definedNodes);
-        report_mask.bitANDC(c_start.m_starting_nodes);
-        retVal = 0;
-        goto start_report;
+        goto missinglog;
       }
       // Fall through...
     case CheckNodeGroups::Win:
@@ -1370,12 +1367,61 @@ Qmgr::check_startup(Signal* signal)
         all ? 0x8001 : (result == CheckNodeGroups::Win ? 0x8002 : 0x8003);
       report_mask.assign(c_definedNodes);
       report_mask.bitANDC(c_start.m_starting_nodes);
-      retVal = 1;
-      goto start_report;
+      retVal = 2;
+      goto check_log;
     }
   }
   ndbrequire(false);
 
+check_log:
+  jam();
+  {
+    Uint32 save[4+4*NdbNodeBitmask::Size];
+    memcpy(save, signal->theData, sizeof(save));
+    
+    signal->theData[0] = 0;
+    c_start.m_starting_nodes.copyto(NdbNodeBitmask::Size, signal->theData+1);
+    memcpy(signal->theData+1+NdbNodeBitmask::Size, c_start.m_node_gci,
+	   4*MAX_NDB_NODES);
+    EXECUTE_DIRECT(DBDIH, GSN_DIH_RESTARTREQ, signal, 
+		   1+NdbNodeBitmask::Size+MAX_NDB_NODES);
+    
+    incompleteng = signal->theData[0];
+    memcpy(signal->theData, save, sizeof(save));
+
+    if (incompleteng != MAX_NDB_NODES)
+    {
+      jam();
+      if (retVal == 1)
+      {
+	jam();
+	goto incomplete_log;
+      }
+      else if (retVal == 2)
+      {
+	if (now <= partitioned_timeout)
+	{
+	  jam();
+	  goto missinglog;
+	}
+	else
+	{
+	  goto incomplete_log;
+	}
+      }
+      ndbrequire(false);
+    }
+  }
+  goto start_report;
+
+missinglog:
+  signal->theData[1] = c_restartPartionedTimeout == (Uint32) ~0 ? 4 : 5;
+  signal->theData[2] = Uint32((partitioned_timeout - now + 500) / 1000);
+  report_mask.assign(c_definedNodes);
+  report_mask.bitANDC(c_start.m_starting_nodes);
+  retVal = 0;
+  goto start_report;
+  
 start_report:
   jam();
   {
@@ -1394,17 +1440,32 @@ start_report:
   
 missing_nodegroup:
   jam();
-  char buf[100], mask1[100], mask2[100];
-  c_start.m_starting_nodes.getText(mask1);
-  tmp.assign(c_start.m_starting_nodes);
-  tmp.bitANDC(c_start.m_starting_nodes_w_log);
-  tmp.getText(mask2);
-  BaseString::snprintf(buf, sizeof(buf),
-		       "Unable to start missing node group! "
-		       " starting: %s (missing fs for: %s)",
-		       mask1, mask2);
-  progError(__LINE__, NDBD_EXIT_SR_RESTARTCONFLICT, buf);
-  return 0;                                     // Deadcode
+  {
+    char buf[100], mask1[100], mask2[100];
+    c_start.m_starting_nodes.getText(mask1);
+    tmp.assign(c_start.m_starting_nodes);
+    tmp.bitANDC(c_start.m_starting_nodes_w_log);
+    tmp.getText(mask2);
+    BaseString::snprintf(buf, sizeof(buf),
+			 "Unable to start missing node group! "
+			 " starting: %s (missing fs for: %s)",
+			 mask1, mask2);
+    progError(__LINE__, NDBD_EXIT_INSUFFICENT_NODES, buf);
+    return 0;                                     // Deadcode
+  }
+
+incomplete_log:
+  jam();
+  {
+    char buf[100], mask1[100];
+    c_start.m_starting_nodes.getText(mask1);
+    BaseString::snprintf(buf, sizeof(buf),
+			 "Incomplete log for node group: %d! "
+			 " starting nodes: %s",
+			 incompleteng, mask1);
+    progError(__LINE__, NDBD_EXIT_INSUFFICENT_NODES, buf);
+    return 0;                                     // Deadcode
+  }
 }
 
 void
