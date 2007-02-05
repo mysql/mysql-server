@@ -2445,8 +2445,10 @@ int ndbcluster_create_binlog_setup(Ndb *ndb, const char *key,
       pthread_mutex_unlock(&ndbcluster_mutex);
       DBUG_RETURN(1);
     }
+#ifdef NOT_YET
     if (share->connect_count != 
         g_ndb_cluster_connection->get_connect_count())
+#endif
     {
       handle_trailing_share(share);
       share= NULL;
@@ -2454,11 +2456,14 @@ int ndbcluster_create_binlog_setup(Ndb *ndb, const char *key,
   }
 
   /* Create share which is needed to hold replication information */
+#ifdef NOT_YET
   if (share)
   {
     ++share->use_count;
   }
-  else if (!(share= get_share(key, 0, TRUE, TRUE)))
+  else
+#endif
+  if (!(share= get_share(key, 0, TRUE, TRUE)))
   {
     sql_print_error("NDB Binlog: "
                     "allocating table share for %s failed", key);
