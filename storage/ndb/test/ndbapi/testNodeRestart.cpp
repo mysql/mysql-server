@@ -1178,6 +1178,101 @@ int runBug25554(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int runBug25984(NDBT_Context* ctx, NDBT_Step* step){
+  
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  NdbRestarter restarter;
+
+  if (restarter.getNumDbNodes() < 2)
+    return NDBT_OK;
+
+  if (restarter.restartAll(true, true, true))
+    return NDBT_FAILED;
+
+  if (restarter.waitClusterNoStart())
+    return NDBT_FAILED;
+
+  if (restarter.startAll())
+    return NDBT_FAILED;
+
+  if (restarter.waitClusterStarted())
+    return NDBT_FAILED;
+
+  int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };    
+  int master = restarter.getMasterNodeId();
+  int victim = restarter.getRandomNodeOtherNodeGroup(master, rand());
+  if (victim == -1)
+    victim = restarter.getRandomNodeSameNodeGroup(master, rand());
+
+  restarter.restartOneDbNode(victim, false, true, true);
+
+  for (Uint32 i = 0; i<6; i++)
+  {
+    ndbout_c("Loop: %d", i);
+    if (restarter.waitNodesNoStart(&victim, 1))
+      return NDBT_FAILED;
+    
+    if (restarter.dumpStateOneNode(victim, val2, 2))
+      return NDBT_FAILED;
+    
+    if (restarter.insertErrorInNode(victim, 7016))
+      return NDBT_FAILED;
+    
+    if (restarter.startNodes(&victim, 1))
+      return NDBT_FAILED;
+
+    if (restarter.waitNodesStartPhase(&victim, 1, 2))
+      return NDBT_FAILED;
+  }
+
+  if (restarter.waitNodesNoStart(&victim, 1))
+    return NDBT_FAILED;
+
+  if (restarter.dumpStateOneNode(victim, val2, 2))
+    return NDBT_FAILED;
+  
+  if (restarter.insertErrorInNode(victim, 7170))
+    return NDBT_FAILED;
+
+  if (restarter.startNodes(&victim, 1))
+    return NDBT_FAILED;
+
+  if (restarter.waitNodesNoStart(&victim, 1))
+    return NDBT_FAILED;
+  
+  if (restarter.restartAll(false, true, true))
+    return NDBT_FAILED;
+
+  if (restarter.insertErrorInAllNodes(932))
+    return NDBT_FAILED;
+
+  if (restarter.insertErrorInNode(master, 7170))
+    return NDBT_FAILED;
+
+  if (restarter.dumpStateAllNodes(val2, 2))
+    return NDBT_FAILED;
+  
+  restarter.startNodes(&master, 1);
+  NdbSleep_MilliSleep(3000);
+  restarter.startAll();
+
+  if (restarter.waitClusterNoStart())
+    return NDBT_FAILED;
+
+  if (restarter.restartOneDbNode(victim, true, true, true))
+    return NDBT_FAILED;
+
+  if (restarter.startAll())
+    return NDBT_FAILED;
+
+  if (restarter.waitClusterStarted())
+    return NDBT_FAILED;
+
+  return NDBT_OK;
+}
+
 
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
@@ -1513,6 +1608,9 @@ TESTCASE("Bug25468", ""){
 }
 TESTCASE("Bug25554", ""){
   INITIALIZER(runBug25554);
+}
+TESTCASE("Bug25984", ""){
+  INITIALIZER(runBug25984);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 

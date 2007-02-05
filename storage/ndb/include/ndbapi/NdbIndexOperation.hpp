@@ -181,8 +181,6 @@ private:
 	       const class NdbTableImpl* aTable, 
 	       NdbTransaction*);
 
-  int prepareSend(Uint32  TC_ConnectPtr, Uint64  TransactionId);
-
   // Private attributes
   const NdbIndexImpl* m_theIndex;
   friend struct Ndb_free_list_t<NdbIndexOperation>;
