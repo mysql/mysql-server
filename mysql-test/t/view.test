@@ -2908,6 +2908,7 @@ DROP FUNCTION f1;
 DROP VIEW v1;
 DROP TABLE t1;
 
+
 #
 # Bug #16813 (WITH CHECK OPTION doesn't work with UPDATE)
 #
@@ -2974,7 +2975,26 @@ SHOW CREATE VIEW v1;
 
 DROP VIEW v1;
 
+
+#
+# BUG#25897: Some queries are no longer possible after a CREATE VIEW
+# fails 
+#
+--disable_warnings
+DROP VIEW IF EXISTS v1;
+--enable_warnings
+
+let $query = SELECT * FROM (SELECT 1) AS t;
+
+eval $query;
+--error ER_VIEW_SELECT_DERIVED
+eval CREATE VIEW v1 AS $query;
+--echo # Previously the following would fail.
+eval $query;
+
+
 --echo End of 5.0 tests.
+
 
 #
 # Bug#21370 View renaming lacks tablename_to_filename encoding
