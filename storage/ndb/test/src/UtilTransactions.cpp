@@ -1398,7 +1398,8 @@ loop:
 	    ERR(err= cmp.getTransaction()->getNdbError());
 	    goto error;
 	  }
-	  if(cmp.execute_Commit(pNdb) != NDBT_OK)
+	  if(cmp.execute_Commit(pNdb) != NDBT_OK ||
+	     cmp.getTransaction()->getNdbError().code)
 	  {
 	    ERR(err= cmp.getTransaction()->getNdbError());
 	    goto error;
