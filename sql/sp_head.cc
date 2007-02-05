@@ -94,8 +94,6 @@ sp_map_item_type(enum enum_field_types type)
 static String *
 sp_get_item_value(THD *thd, Item *item, String *str)
 {
-  Item_result result_type= item->result_type();
-
   switch (item->result_type()) {
   case REAL_RESULT:
   case INT_RESULT:
@@ -1369,7 +1367,6 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   MEM_ROOT call_mem_root;
   Query_arena call_arena(&call_mem_root, Query_arena::INITIALIZED_FOR_SP);
   Query_arena backup_arena;
-
   DBUG_ENTER("sp_head::execute_function");
   DBUG_PRINT("info", ("function %s", m_name.str));
 
@@ -1777,7 +1774,7 @@ sp_head::reset_lex(THD *thd)
   DBUG_ENTER("sp_head::reset_lex");
   LEX *sublex;
   LEX *oldlex= thd->lex;
-  my_lex_states state= oldlex->next_state; // Keep original next_state
+  my_lex_states org_next_state= oldlex->next_state;
 
   (void)m_lex.push_front(oldlex);
   thd->lex= sublex= new st_lex;
@@ -1786,10 +1783,10 @@ sp_head::reset_lex(THD *thd)
   lex_start(thd, oldlex->buf, (ulong) (oldlex->end_of_query - oldlex->ptr));
 
   /*
-   * next_state is normally the same (0), but it happens that we swap lex in
-   * "mid-sentence", so we must restore it.
+    next_state is normally the same (0), but it happens that we swap lex in
+    "mid-sentence", so we must restore it.
    */
-  sublex->next_state= state;
+  sublex->next_state= org_next_state;
   /* We must reset ptr and end_of_query again */
   sublex->ptr= oldlex->ptr;
   sublex->end_of_query= oldlex->end_of_query;

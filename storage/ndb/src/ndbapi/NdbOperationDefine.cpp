@@ -530,11 +530,9 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
     }//if
   }//if
   
-  // Including bits in last word
-  const Uint32 totalSizeInWords = (sizeInBytes + 3)/4; 
   // Excluding bits in last word
   const Uint32 sizeInWords = sizeInBytes / 4;          
-  AttributeHeader& ah = AttributeHeader::init(&ahValue, tAttrId, sizeInBytes);
+  (void) AttributeHeader::init(&ahValue, tAttrId, sizeInBytes);
   insertATTRINFO( ahValue );
 
   /***********************************************************************
@@ -560,10 +558,6 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   }//if
   theErrorLine++;  
   DBUG_RETURN(0);
-
-error:
-  setErrorCodeAbort(tReturnCode);
-  DBUG_RETURN(-1);  
 }//NdbOperation::setValue()
 
 NdbBlob*

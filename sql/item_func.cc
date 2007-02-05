@@ -997,7 +997,7 @@ String *Item_decimal_typecast::val_str(String *str)
   my_decimal tmp_buf, *tmp= val_decimal(&tmp_buf);
   if (null_value)
     return NULL;
-  my_decimal2string(E_DEC_FATAL_ERROR, &tmp_buf, 0, 0, 0, str);
+  my_decimal2string(E_DEC_FATAL_ERROR, tmp, 0, 0, 0, str);
   return str;
 }
 
@@ -2375,7 +2375,7 @@ longlong Item_func_locate::val_int()
                                             b->ptr(), b->length(),
                                             &match, 1))
     return 0;
-  return (longlong) match.mblen + start0 + 1;
+  return (longlong) match.mb_len + start0 + 1;
 }
 
 
@@ -3179,9 +3179,9 @@ longlong Item_master_pos_wait::val_int()
     null_value = 1;
     return 0;
   }
+#ifdef HAVE_REPLICATION
   longlong pos = (ulong)args[1]->val_int();
   longlong timeout = (arg_count==3) ? args[2]->val_int() : 0 ;
-#ifdef HAVE_REPLICATION
   if ((event_count = active_mi->rli.wait_for_pos(thd, log_name, pos, timeout)) == -2)
   {
     null_value = 1;
@@ -3717,7 +3717,8 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
 
 
 bool
-Item_func_set_user_var::update_hash(void *ptr, uint length, Item_result type,
+Item_func_set_user_var::update_hash(void *ptr, uint length,
+                                    Item_result res_type,
                                     CHARSET_INFO *cs, Derivation dv,
                                     bool unsigned_arg)
 {
@@ -3726,9 +3727,9 @@ Item_func_set_user_var::update_hash(void *ptr, uint length, Item_result type,
     result type of the variable
   */
   if ((null_value= args[0]->null_value) && null_item)
-    type= entry->type;                          // Don't change type of item
+    res_type= entry->type;                      // Don't change type of item
   if (::update_hash(entry, (null_value= args[0]->null_value),
-                    ptr, length, type, cs, dv, unsigned_arg))
+                    ptr, length, res_type, cs, dv, unsigned_arg))
   {
     current_thd->fatal_error();     // Probably end of memory
     null_value= 1;
@@ -4866,7 +4867,7 @@ longlong Item_func_bit_xor::val_int()
     thd			Thread handler
     var_type		global / session
     name		Name of base or system variable
-    component		Component.
+    component		Component
 
   NOTES
     If component.str = 0 then the variable name is in 'name'
@@ -4978,8 +4979,9 @@ longlong Item_func_row_count::val_int()
 }
 
 
-Item_func_sp::Item_func_sp(Name_resolution_context *context_arg, sp_name *name)
-  :Item_func(), context(context_arg), m_name(name), m_sp(NULL),
+Item_func_sp::Item_func_sp(Name_resolution_context *context_arg,
+                           sp_name *name_arg)
+  :Item_func(), context(context_arg), m_name(name_arg), m_sp(NULL),
    result_field(NULL)
 {
   maybe_null= 1;
@@ -4990,8 +4992,8 @@ Item_func_sp::Item_func_sp(Name_resolution_context *context_arg, sp_name *name)
 
 
 Item_func_sp::Item_func_sp(Name_resolution_context *context_arg,
-                           sp_name *name, List<Item> &list)
-  :Item_func(list), context(context_arg), m_name(name), m_sp(NULL),
+                           sp_name *name_arg, List<Item> &list)
+  :Item_func(list), context(context_arg), m_name(name_arg), m_sp(NULL),
    result_field(NULL)
 {
   maybe_null= 1;

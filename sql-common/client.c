@@ -682,7 +682,7 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
   mysql->info=0;
   mysql->affected_rows= ~(my_ulonglong) 0;
   /*
-    We don't want to clear the protocol buffer on COM_QUIT, beacsue if
+    We don't want to clear the protocol buffer on COM_QUIT, because if
     the previous command was a shutdown command, we may have the
     response for the COM_QUIT already in the communication buffer
   */
@@ -2364,12 +2364,12 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   {
     DYNAMIC_ARRAY *init_commands= mysql->options.init_commands;
     char **ptr= (char**)init_commands->buffer;
-    char **end= ptr + init_commands->elements;
+    char **end_command= ptr + init_commands->elements;
 
     my_bool reconnect=mysql->reconnect;
     mysql->reconnect=0;
 
-    for (; ptr<end; ptr++)
+    for (; ptr < end_command; ptr++)
     {
       MYSQL_RES *res;
       if (mysql_real_query(mysql,*ptr, (ulong) strlen(*ptr)))

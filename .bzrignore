@@ -2080,6 +2080,7 @@ storage/archive/.deps/ha_archive_la-azio.Plo
 storage/archive/.deps/ha_archive_la-ha_archive.Plo
 storage/archive/.deps/libarchive_a-azio.Po
 storage/archive/.deps/libarchive_a-ha_archive.Po
+storage/archive/archive_reader
 storage/archive/archive_test
 storage/bdb/*.ds?
 storage/bdb/*.vcproj

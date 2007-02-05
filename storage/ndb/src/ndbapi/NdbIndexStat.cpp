@@ -240,7 +240,6 @@ NdbIndexStat::stat_oldest(const Area& a)
   m = ~(Uint32)0;     // shut up incorrect CC warning
   for (i = 0; i < a.m_entries; i++) {
     Pointer& p = a.get_pointer(i);
-    Entry& e = a.get_entry(i);
     Uint32 m2 = m_seq >= p.m_seq ? m_seq - p.m_seq : p.m_seq - m_seq;
     if (! found || m < m2) {
       m = m2;

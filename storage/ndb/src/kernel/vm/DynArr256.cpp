@@ -303,7 +303,6 @@ DynArr256::expand(Uint32 pos)
   Uint32 idx = 0;
   Uint32 alloc[5];
   Uint32 sz = m_head.m_sz;
-  Uint32 shl = 0;
 
   for (; pos >= g_max_sizes[sz]; sz++);
 
