@@ -2076,6 +2076,107 @@ zlib_done:
 }
 
 /**************************************************************************
+Decompress a record of a leaf node of a clustered index that contains
+externally stored columns. */
+static
+ibool
+page_zip_decompress_clust_ext(
+/*==========================*/
+					/* out: TRUE on success */
+	z_stream*	d_stream,	/* in/out: compressed page stream */
+	rec_t*		rec,		/* in/out: record */
+	const ulint*	offsets,	/* in: rec_get_offsets(rec) */
+	ulint		trx_id_col)	/* in: position of of DB_TRX_ID */
+{
+	ulint	i;
+
+	for (i = 0; i < rec_offs_n_fields(offsets); i++) {
+		ulint	len;
+		byte*	dst;
+
+		if (UNIV_UNLIKELY(i == trx_id_col)) {
+			/* Skip trx_id and roll_ptr */
+			dst = rec_get_nth_field(rec, offsets, i, &len);
+			if (UNIV_UNLIKELY(len < DATA_TRX_ID_LEN
+					  + DATA_ROLL_PTR_LEN)
+			    || rec_offs_nth_extern(offsets, i)) {
+
+				return(FALSE);
+			}
+
+			d_stream->avail_out = dst - d_stream->next_out;
+
+			switch (inflate(d_stream, Z_SYNC_FLUSH)) {
+			case Z_STREAM_END:
+			case Z_OK:
+			case Z_BUF_ERROR:
+				if (!d_stream->avail_out) {
+					break;
+				}
+				/* fall through */
+			default:
+				return(FALSE);
+			}
+
+			ut_ad(d_stream->next_out == dst);
+
+			d_stream->next_out += DATA_TRX_ID_LEN
+				+ DATA_ROLL_PTR_LEN;
+		} else if (rec_offs_nth_extern(offsets, i)) {
+			dst = rec_get_nth_field(rec, offsets, i, &len);
+			ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
+			dst += len - BTR_EXTERN_FIELD_REF_SIZE;
+
+			d_stream->avail_out = dst - d_stream->next_out;
+			switch (inflate(d_stream,
+					Z_SYNC_FLUSH)) {
+			case Z_STREAM_END:
+			case Z_OK:
+			case Z_BUF_ERROR:
+				if (!d_stream->avail_out) {
+					break;
+				}
+				/* fall through */
+			default:
+				return(FALSE);
+			}
+
+			ut_ad(d_stream->next_out == dst);
+
+			/* Reserve space for the data at
+			the end of the space reserved for
+			the compressed data and the
+			page modification log. */
+
+			if (UNIV_UNLIKELY
+			    (d_stream->avail_in
+			     <= BTR_EXTERN_FIELD_REF_SIZE)) {
+				/* out of space */
+				return(FALSE);
+			}
+
+			/* Clear the BLOB pointer in case
+			the record will be deleted and the
+			space will not be reused.  Note that
+			the final initialization of the BLOB
+			pointers (copying from "externs"
+			or clearing) will have to take place
+			only after the page modification log
+			has been applied.  Otherwise, we
+			could end up with an uninitialized
+			BLOB pointer when a record is deleted,
+			reallocated and deleted. */
+			memset(d_stream->next_out, 0,
+			       BTR_EXTERN_FIELD_REF_SIZE);
+			d_stream->next_out
+				+= BTR_EXTERN_FIELD_REF_SIZE;
+		}
+	}
+
+	return(TRUE);
+}
+
+/**************************************************************************
 Compress the records of a leaf node of a clustered index. */
 static
 ibool
@@ -2108,7 +2209,6 @@ page_zip_decompress_clust(
 	/* Decompress the records in heap_no order. */
 	for (slot = 0; slot < n_dense; slot++) {
 		rec_t*	rec	= recs[slot];
-		ulint	i;
 
 		d_stream->avail_out = rec - REC_N_NEW_EXTRA_BYTES
 			- d_stream->next_out;
@@ -2148,87 +2248,42 @@ page_zip_decompress_clust(
 		For each externally stored column, restore the
 		BTR_EXTERN_FIELD_REF separately. */
 
-		for (i = 0; i < rec_offs_n_fields(offsets); i++) {
-			ulint	len;
-			byte*	dst;
+		if (UNIV_UNLIKELY(rec_offs_any_extern(offsets))) {
+			if (UNIV_UNLIKELY
+			    (!page_zip_decompress_clust_ext(
+				    d_stream, rec, offsets, trx_id_col))) {
 
-			if (UNIV_UNLIKELY(i == trx_id_col)) {
-				/* Skip trx_id and roll_ptr */
-				dst = rec_get_nth_field(rec, offsets, i, &len);
-				if (UNIV_UNLIKELY(len < DATA_TRX_ID_LEN
-						  + DATA_ROLL_PTR_LEN)
-				    || rec_offs_nth_extern(offsets, i)) {
-
-					goto zlib_error;
-				}
-
-				d_stream->avail_out = dst - d_stream->next_out;
-
-				switch (inflate(d_stream, Z_SYNC_FLUSH)) {
-				case Z_STREAM_END:
-				case Z_OK:
-				case Z_BUF_ERROR:
-					if (!d_stream->avail_out) {
-						break;
-					}
-					/* fall through */
-				default:
-					goto zlib_error;
-				}
-
-				ut_ad(d_stream->next_out == dst);
-
-				d_stream->next_out += DATA_TRX_ID_LEN
-					+ DATA_ROLL_PTR_LEN;
-			} else if (rec_offs_nth_extern(offsets, i)) {
-				dst = rec_get_nth_field(rec, offsets, i, &len);
-				ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
-				dst += len - BTR_EXTERN_FIELD_REF_SIZE;
-
-				d_stream->avail_out = dst - d_stream->next_out;
-				switch (inflate(d_stream,
-						Z_SYNC_FLUSH)) {
-				case Z_STREAM_END:
-				case Z_OK:
-				case Z_BUF_ERROR:
-					if (!d_stream->avail_out) {
-						break;
-					}
-					/* fall through */
-				default:
-					goto zlib_error;
-				}
-
-				ut_ad(d_stream->next_out == dst);
-
-				/* Reserve space for the data at
-				the end of the space reserved for
-				the compressed data and the
-				page modification log. */
-
-				if (UNIV_UNLIKELY
-				    (d_stream->avail_in
-				     <= BTR_EXTERN_FIELD_REF_SIZE)) {
-					/* out of space */
-					goto zlib_error;
-				}
-
-				/* Clear the BLOB pointer in case
-				the record will be deleted and the
-				space will not be reused.  Note that
-				the final initialization of the BLOB
-				pointers (copying from "externs"
-				or clearing) will have to take place
-				only after the page modification log
-				has been applied.  Otherwise, we
-				could end up with an uninitialized
-				BLOB pointer when a record is deleted,
-				reallocated and deleted. */
-				memset(d_stream->next_out, 0,
-				       BTR_EXTERN_FIELD_REF_SIZE);
-				d_stream->next_out
-					+= BTR_EXTERN_FIELD_REF_SIZE;
+				goto zlib_error;
 			}
+		} else {
+			/* Skip trx_id and roll_ptr */
+			ulint	len;
+			byte*	dst = rec_get_nth_field(rec, offsets,
+							trx_id_col, &len);
+			if (UNIV_UNLIKELY(len < DATA_TRX_ID_LEN
+					  + DATA_ROLL_PTR_LEN)) {
+
+				goto zlib_error;
+			}
+
+			d_stream->avail_out = dst - d_stream->next_out;
+
+			switch (inflate(d_stream, Z_SYNC_FLUSH)) {
+			case Z_STREAM_END:
+			case Z_OK:
+			case Z_BUF_ERROR:
+				if (!d_stream->avail_out) {
+					break;
+				}
+				/* fall through */
+			default:
+				goto zlib_error;
+			}
+
+			ut_ad(d_stream->next_out == dst);
+
+			d_stream->next_out += DATA_TRX_ID_LEN
+				+ DATA_ROLL_PTR_LEN;
 		}
 
 		/* Decompress the last bytes of the record. */
