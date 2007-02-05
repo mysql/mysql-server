@@ -1194,11 +1194,58 @@ void Dbdih::execTAB_COMMITREQ(Signal* signal)
 void Dbdih::execDIH_RESTARTREQ(Signal* signal) 
 {
   jamEntry();
-  cntrlblockref = signal->theData[0];
-  if(m_ctx.m_config.getInitialStart()){
-    sendSignal(cntrlblockref, GSN_DIH_RESTARTREF, signal, 1, JBB);
-  } else {
-    readGciFileLab(signal);
+  if (signal->theData[0])
+  {
+    jam();
+    cntrlblockref = signal->theData[0];
+    if(m_ctx.m_config.getInitialStart()){
+      sendSignal(cntrlblockref, GSN_DIH_RESTARTREF, signal, 1, JBB);
+    } else {
+      readGciFileLab(signal);
+    }
+  }
+  else
+  {
+    /**
+     * Precondition, (not checked)
+     *   atleast 1 node in each node group
+     */
+    Uint32 i;
+    NdbNodeBitmask mask;
+    mask.assign(NdbNodeBitmask::Size, signal->theData + 1);
+    Uint32 *node_gcis = signal->theData+1+NdbNodeBitmask::Size;
+    Uint32 node_group_gcis[MAX_NDB_NODES+1];
+    bzero(node_group_gcis, sizeof(node_group_gcis));
+    for (i = 0; i<MAX_NDB_NODES; i++)
+    {
+      if (mask.get(i))
+      {
+	jam();
+	Uint32 ng = Sysfile::getNodeGroup(i, SYSFILE->nodeGroups);
+	ndbrequire(ng < MAX_NDB_NODES);
+	Uint32 gci = node_gcis[i];
+	if (gci > node_group_gcis[ng])
+	{
+	  jam();
+	  node_group_gcis[ng] = gci;
+	}
+      }
+    }
+    for (i = 0; i<MAX_NDB_NODES && node_group_gcis[i] == 0; i++);
+    
+    Uint32 gci = node_group_gcis[i];
+    for (i++ ; i<MAX_NDB_NODES; i++)
+    {
+      jam();
+      if (node_group_gcis[i] && node_group_gcis[i] != gci)
+      {
+	jam();
+	signal->theData[0] = i;
+	return;
+      }
+    }
+    signal->theData[0] = MAX_NDB_NODES;
+    return;
   }
   return;
 }//Dbdih::execDIH_RESTARTREQ()
@@ -12391,7 +12438,7 @@ void Dbdih::makeNodeGroups(Uint32 nodeArray[])
 	(buf, sizeof(buf), 
 	 "Illegal initial start, no alive node in nodegroup %u", i);
       progError(__LINE__, 
-		NDBD_EXIT_SR_RESTARTCONFLICT,
+		NDBD_EXIT_INSUFFICENT_NODES,
 		buf);
       
     }
