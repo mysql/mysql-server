@@ -97,6 +97,7 @@ static ulonglong ndb_latest_received_binlog_epoch= 0;
 
 NDB_SHARE *ndb_apply_status_share= 0;
 NDB_SHARE *ndb_schema_share= 0;
+pthread_mutex_t ndb_schema_share_mutex;
 
 /* Schema object distribution handling */
 HASH ndb_schema_objects;
@@ -361,6 +362,8 @@ void ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *_table)
   int do_event_op= ndb_binlog_running;
   DBUG_ENTER("ndbcluster_binlog_init_share");
 
+  share->connect_count= g_ndb_cluster_connection->get_connect_count();
+
   share->op= 0;
   share->table= 0;
 
@@ -604,7 +607,7 @@ static int ndbcluster_binlog_end(THD *thd)
                    ("table->s->db.table_name: %s.%s",
                     share->table->s->db.str, share->table->s->table_name.str));
       if (share->state != NSS_DROPPED && !--share->use_count)
-        real_free_share(&share);
+        ndbcluster_real_free_share(&share);
       else
       {
         DBUG_PRINT("share",
@@ -621,6 +624,7 @@ static int ndbcluster_binlog_end(THD *thd)
 
   pthread_mutex_destroy(&injector_mutex);
   pthread_cond_destroy(&injector_cond);
+  pthread_mutex_destroy(&ndb_schema_share_mutex);
 #endif
   DBUG_RETURN(0);
 }
@@ -1271,6 +1275,16 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
     int no_storage_nodes= g_ndb_cluster_connection->no_db_nodes();
     bitmap_init(&schema_subscribers, bitbuf, sizeof(bitbuf)*8, FALSE);
     bitmap_set_all(&schema_subscribers);
+
+    /* begin protect ndb_schema_share */
+    pthread_mutex_lock(&ndb_schema_share_mutex);
+    if (ndb_schema_share == 0)
+    {
+      pthread_mutex_unlock(&ndb_schema_share_mutex);
+      if (ndb_schema_object)
+        ndb_free_schema_object(&ndb_schema_object, FALSE);
+      DBUG_RETURN(0);    
+    }
     (void) pthread_mutex_lock(&ndb_schema_share->mutex);
     for (i= 0; i < no_storage_nodes; i++)
     {
@@ -1283,6 +1297,9 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
       }
     }
     (void) pthread_mutex_unlock(&ndb_schema_share->mutex);
+    pthread_mutex_unlock(&ndb_schema_share_mutex);
+    /* end protect ndb_schema_share */
+
     if (updated)
     {
       bitmap_clear_bit(&schema_subscribers, node_id);
@@ -1478,6 +1495,14 @@ end:
                                       &abstime);
       if (thd->killed)
         break;
+
+      /* begin protect ndb_schema_share */
+      pthread_mutex_lock(&ndb_schema_share_mutex);
+      if (ndb_schema_share == 0)
+      {
+        pthread_mutex_unlock(&ndb_schema_share_mutex);
+        break;
+      }
       (void) pthread_mutex_lock(&ndb_schema_share->mutex);
       for (i= 0; i < no_storage_nodes; i++)
       {
@@ -1487,6 +1512,8 @@ end:
           bitmap_intersect(&schema_subscribers, tmp);
       }
       (void) pthread_mutex_unlock(&ndb_schema_share->mutex);
+      pthread_mutex_unlock(&ndb_schema_share_mutex);
+      /* end protect ndb_schema_share */
 
       /* remove any unsubscribed from ndb_schema_object->slock */
       bitmap_intersect(&ndb_schema_object->slock_bitmap, &schema_subscribers);
@@ -1910,8 +1937,14 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           ndb_binlog_tables_inited && ndb_binlog_running)
         sql_print_information("NDB Binlog: ndb tables initially "
                               "read only on reconnect.");
+
+      /* begin protect ndb_schema_share */
+      pthread_mutex_lock(&ndb_schema_share_mutex);
       free_share(&ndb_schema_share);
       ndb_schema_share= 0;
+      pthread_mutex_unlock(&ndb_schema_share_mutex);
+      /* end protect ndb_schema_share */
+
       close_cached_tables((THD*) 0, 0, (TABLE_LIST*) 0, FALSE);
       // fall through
     case NDBEVENT::TE_ALTER:
@@ -2278,6 +2311,7 @@ int ndbcluster_binlog_start()
 
   pthread_mutex_init(&injector_mutex, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&injector_cond, NULL);
+  pthread_mutex_init(&ndb_schema_share_mutex, MY_MUTEX_INIT_FAST);
 
   /* Create injector thread */
   if (pthread_create(&ndb_binlog_thread, &connection_attrib,
@@ -2411,11 +2445,20 @@ int ndbcluster_create_binlog_setup(Ndb *ndb, const char *key,
       pthread_mutex_unlock(&ndbcluster_mutex);
       DBUG_RETURN(1);
     }
-    handle_trailing_share(share);
+    if (share->connect_count != 
+        g_ndb_cluster_connection->get_connect_count())
+    {
+      handle_trailing_share(share);
+      share= NULL;
+    }
   }
 
   /* Create share which is needed to hold replication information */
-  if (!(share= get_share(key, 0, TRUE, TRUE)))
+  if (share)
+  {
+    ++share->use_count;
+  }
+  else if (!(share= get_share(key, 0, TRUE, TRUE)))
   {
     sql_print_error("NDB Binlog: "
                     "allocating table share for %s failed", key);
@@ -3924,9 +3967,9 @@ restart:
                               "%ld(%d e/s), total time %ld(%d e/s)",
                               (ulong)gci, event_count,
                               write_timer.elapsed_ms(),
-                              event_count / write_timer.elapsed_ms(),
+                              (1000*event_count) / write_timer.elapsed_ms(),
                               gci_timer.elapsed_ms(),
-                              event_count / gci_timer.elapsed_ms());
+                              (1000*event_count) / gci_timer.elapsed_ms());
 #endif
       }
     }
@@ -3966,8 +4009,12 @@ err:
   }
   if (ndb_schema_share)
   {
+    /* begin protect ndb_schema_share */
+    pthread_mutex_lock(&ndb_schema_share_mutex);
     free_share(&ndb_schema_share);
     ndb_schema_share= 0;
+    pthread_mutex_unlock(&ndb_schema_share_mutex);
+    /* end protect ndb_schema_share */
   }
 
   /* remove all event operations */
