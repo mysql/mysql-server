@@ -248,6 +248,182 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
     check = pTrans->execute(NoCommit, AbortOnError);
     if( check == -1 ) {
       const NdbError err = pTrans->getNdbError();
+      if (err.status == NdbError::TemporaryError){
+	ERR(err);
+	closeTransaction(pNdb);
+	NdbSleep_MilliSleep(50);
+	retryAttempt++;
+	continue;
+      }
+      ERR(err);
+      closeTransaction(pNdb);
+      return NDBT_FAILED;
+    }
+
+    // Abort after 1-100 or 1-records rows
+    int ranVal = rand();
+    int abortCount = ranVal % (records == 0 ? 100 : records); 
+    bool abortTrans = false;
+    if (abort > 0){
+      // Abort if abortCount is less then abortPercent 
+      if (abortCount < abortPercent) 
+	abortTrans = true;
+    }
+    
+    int eof;
+    int rows = 0;
+    while((eof = pOp->nextResult(true)) == 0){
+      rows++;
+      if (calc.verifyRowValues(&row) != 0){
+	closeTransaction(pNdb);
+	return NDBT_FAILED;
+      }
+
+      if (abortCount == rows && abortTrans == true){
+	ndbout << "Scan is aborted" << endl;
+	g_info << "Scan is aborted" << endl;
+	pOp->close();
+	if( check == -1 ) {
+	  ERR(pTrans->getNdbError());
+	  closeTransaction(pNdb);
+	  return NDBT_FAILED;
+	}
+	
+	closeTransaction(pNdb);
+	return NDBT_OK;
+      }
+    }
+    if (eof == -1) {
+      const NdbError err = pTrans->getNdbError();
+      
+      if (err.status == NdbError::TemporaryError){
+	ERR_INFO(err);
+	closeTransaction(pNdb);
+	NdbSleep_MilliSleep(50);
+	switch (err.code){
+	case 488:
+	case 245:
+	case 490:
+	  // Too many active scans, no limit on number of retry attempts
+	  break;
+	default:
+	  retryAttempt++;
+	}
+	continue;
+      }
+      ERR(err);
+      closeTransaction(pNdb);
+      return NDBT_FAILED;
+    }
+
+    closeTransaction(pNdb);
+
+    g_info << rows << " rows have been read" << endl;
+    if (records != 0 && rows != records){
+      g_err << "Check expected number of records failed" << endl 
+	    << "  expected=" << records <<", " << endl
+	    << "  read=" << rows << endl;
+      return NDBT_FAILED;
+    }
+    
+    return NDBT_OK;
+  }
+  return NDBT_FAILED;
+}
+
+
+#define RESTART_SCAN 99
+
+int
+HugoTransactions::scanUpdateRecords(Ndb* pNdb, 
+				    int records,
+				    int abortPercent,
+				    int parallelism){
+  if(m_defaultScanUpdateMethod == 1){
+    return scanUpdateRecords1(pNdb, records, abortPercent, parallelism);
+  } else if(m_defaultScanUpdateMethod == 2){
+    return scanUpdateRecords2(pNdb, records, abortPercent, parallelism);
+  } else {
+    return scanUpdateRecords3(pNdb, records, abortPercent, parallelism);
+  }
+}
+
+// Scan all records exclusive and update 
+// them one by one
+int
+HugoTransactions::scanUpdateRecords1(Ndb* pNdb, 
+				     int records,
+				     int abortPercent,
+				     int parallelism){
+  return scanUpdateRecords3(pNdb, records, abortPercent, 1);
+}
+
+// Scan all records exclusive and update 
+// them batched by asking nextScanResult to
+// give us all cached records before fetching new 
+// records from db
+int
+HugoTransactions::scanUpdateRecords2(Ndb* pNdb, 
+				     int records,
+				     int abortPercent,
+				     int parallelism){
+  return scanUpdateRecords3(pNdb, records, abortPercent, parallelism);
+}
+
+int
+HugoTransactions::scanUpdateRecords3(Ndb* pNdb, 
+				     int records,
+				     int abortPercent,
+				     int parallelism){
+  int                  retryAttempt = 0;
+  int check, a;
+  NdbScanOperation *pOp;
+
+
+  while (true){
+restart:
+    if (retryAttempt++ >= m_retryMax){
+      g_info << "ERROR: has retried this operation " << retryAttempt 
+	     << " times, failing!" << endl;
+      return NDBT_FAILED;
+    }
+
+    pTrans = pNdb->startTransaction();
+    if (pTrans == NULL) {
+      const NdbError err = pNdb->getNdbError();
+      ERR(err);
+      if (err.status == NdbError::TemporaryError){
+	NdbSleep_MilliSleep(50);
+	continue;
+      }
+      return NDBT_FAILED;
+    }
+
+    pOp = getScanOperation(pTrans);
+    if (pOp == NULL) {
+      ERR(pTrans->getNdbError());
+      closeTransaction(pNdb);
+      return NDBT_FAILED;
+    }
+    
+    if( pOp->readTuplesExclusive(parallelism) ) {
+      ERR(pTrans->getNdbError());
+      closeTransaction(pNdb);
+      return NDBT_FAILED;
+    }
+    
+    // Read all attributes from this table    
+    for(a=0; a<tab.getNoOfColumns(); a++){
+      if((row.attributeStore(a) = pOp->getValue(tab.getColumn(a)->getName())) == NULL){
+	ERR(pTrans->getNdbError());
+	closeTransaction(pNdb);
+	return NDBT_FAILED;
+      }
+    }
+    
+    check = pTrans->execute(NoCommit, AbortOnError);
+    if( check == -1 ) {
+      const NdbError err = pTrans->getNdbError();
       ERR(err);
       closeTransaction(pNdb);
       if (err.status == NdbError::TemporaryError){
@@ -541,7 +717,7 @@ HugoTransactions::fillTable(Ndb* pNdb,
     }
     
     // Execute the transaction and insert the record
-    check = pTrans->execute(Commit, CommitAsMuchAsPossible ); 
+    check = pTrans->execute(Commit, CommitAsMuchAsPossible); 
     if(check == -1 ) {
       const NdbError err = pTrans->getNdbError();
       closeTransaction(pNdb);
@@ -815,7 +991,7 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
 	
 	if(check != 2)
 	  break;
-	if((check = pTrans->execute(NoCommit, , AbortOnError)) != 0)
+	if((check = pTrans->execute(NoCommit, AbortOnError)) != 0)
 	  break;
       }
       if(check != 1 || rows_found != batch)
