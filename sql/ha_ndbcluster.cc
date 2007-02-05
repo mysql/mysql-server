@@ -260,13 +260,14 @@ static int ndb_to_mysql_error(const NdbError *ndberr)
 int execute_no_commit_ignore_no_key(ha_ndbcluster *h, NdbTransaction *trans)
 {
   int res= trans->execute(NdbTransaction::NoCommit,
-                          NdbTransaction::AO_IgnoreError,
+                          NdbOperation::AO_IgnoreError,
                           h->m_force_send);
-  if (res == 0)
-    return 0;
+  if (res == -1)
+    return -1;
 
   const NdbError &err= trans->getNdbError();
-  if (err.classification != NdbError::ConstraintViolation &&
+  if (err.classification != NdbError::NoError &&
+      err.classification != NdbError::ConstraintViolation &&
       err.classification != NdbError::NoDataFound)
     return res;
 
@@ -286,7 +287,7 @@ int execute_no_commit(ha_ndbcluster *h, NdbTransaction *trans,
   return h->m_ignore_no_key ?
     execute_no_commit_ignore_no_key(h,trans) :
     trans->execute(NdbTransaction::NoCommit,
-		   NdbTransaction::AbortOnError,
+		   NdbOperation::AbortOnError,
 		   h->m_force_send);
 }
 
@@ -299,7 +300,7 @@ int execute_commit(ha_ndbcluster *h, NdbTransaction *trans)
     return 0;
 #endif
   return trans->execute(NdbTransaction::Commit,
-                        NdbTransaction::AbortOnError,
+                        NdbOperation::AbortOnError,
                         h->m_force_send);
 }
 
@@ -312,7 +313,7 @@ int execute_commit(THD *thd, NdbTransaction *trans)
     return 0;
 #endif
   return trans->execute(NdbTransaction::Commit,
-                        NdbTransaction::AbortOnError,
+                        NdbOperation::AbortOnError,
                         thd->variables.ndb_force_send);
 }
 
@@ -327,7 +328,7 @@ int execute_no_commit_ie(ha_ndbcluster *h, NdbTransaction *trans,
 #endif
   h->release_completed_operations(trans, force_release);
   return trans->execute(NdbTransaction::NoCommit,
-                        NdbTransaction::AO_IgnoreError,
+                        NdbOperation::AO_IgnoreError,
                         h->m_force_send);
 }
 
@@ -1726,7 +1727,8 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf,
       ERR_RETURN(trans->getNdbError());
   }
 
-  if (execute_no_commit_ie(this,trans,FALSE) != 0) 
+  if ((res = execute_no_commit_ie(this,trans,FALSE)) != 0 ||
+      op->getNdbError().code) 
   {
     table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(ndb_err(trans));
@@ -1998,7 +2000,8 @@ int ha_ndbcluster::unique_index_read(const byte *key,
   if ((res= define_read_attrs(buf, op)))
     DBUG_RETURN(res);
 
-  if (execute_no_commit_ie(this,trans,FALSE) != 0) 
+  if (execute_no_commit_ie(this,trans,FALSE) != 0 ||
+      op->getNdbError().code) 
   {
     table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(ndb_err(trans));
@@ -4337,11 +4340,10 @@ int ha_ndbcluster::start_stmt(THD *thd, thr_lock_type lock_type)
       ERR_RETURN(ndb->getNdbError());
     no_uncommitted_rows_reset(thd);
     thd_ndb->stmt= trans;
+    thd_ndb->query_state&= NDB_QUERY_NORMAL;
     trans_register_ha(thd, FALSE, ndbcluster_hton);
   }
-  thd_ndb->query_state&= NDB_QUERY_NORMAL;
   m_active_trans= trans;
-
   // Start of statement
   m_ops_pending= 0;    
   thd->set_current_stmt_binlog_row_based_if_mixed();
@@ -6829,7 +6831,7 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
       fprintf(stderr, "NDB: table share %s with use_count %d not freed\n",
               share->key, share->use_count);
 #endif
-      real_free_share(&share);
+      ndbcluster_real_free_share(&share);
     }
     pthread_mutex_unlock(&ndbcluster_mutex);
   }
@@ -7441,14 +7443,20 @@ int handle_trailing_share(NDB_SHARE *share)
   bzero((char*) &table_list,sizeof(table_list));
   table_list.db= share->db;
   table_list.alias= table_list.table_name= share->table_name;
+  safe_mutex_assert_owner(&LOCK_open);
   close_cached_tables(thd, 0, &table_list, TRUE);
 
   pthread_mutex_lock(&ndbcluster_mutex);
   if (!--share->use_count)
   {
-    DBUG_PRINT("info", ("NDB_SHARE: close_cashed_tables %s freed share.",
-               share->key)); 
-    real_free_share(&share);
+    if (ndb_extra_logging)
+      sql_print_information("NDB_SHARE: trailing share %s(connect_count: %u) "
+                            "released by close_cached_tables at "
+                            "connect_count: %u",
+                            share->key,
+                            share->connect_count,
+                            g_ndb_cluster_connection->get_connect_count());
+    ndbcluster_real_free_share(&share);
     DBUG_RETURN(0);
   }
 
@@ -7458,10 +7466,14 @@ int handle_trailing_share(NDB_SHARE *share)
   */
   if (share->state != NSS_DROPPED && !--share->use_count)
   {
-    DBUG_PRINT("info", ("NDB_SHARE: %s already exists, "
-                        "use_count=%d  state != NSS_DROPPED.",
-                        share->key, share->use_count)); 
-    real_free_share(&share);
+    if (ndb_extra_logging)
+      sql_print_information("NDB_SHARE: trailing share %s(connect_count: %u) "
+                            "released after NSS_DROPPED check "
+                            "at connect_count: %u",
+                            share->key,
+                            share->connect_count,
+                            g_ndb_cluster_connection->get_connect_count());
+    ndbcluster_real_free_share(&share);
     DBUG_RETURN(0);
   }
   DBUG_PRINT("error", ("NDB_SHARE: %s already exists  use_count=%d.",
@@ -7727,7 +7739,7 @@ void ndbcluster_free_share(NDB_SHARE **share, bool have_lock)
     (*share)->util_lock= 0;
   if (!--(*share)->use_count)
   {
-    real_free_share(share);
+    ndbcluster_real_free_share(share);
   }
   else
   {
@@ -7800,7 +7812,7 @@ ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb, const
 		  (char*)&var_mem);
     
     if (pTrans->execute(NdbTransaction::NoCommit,
-                        NdbTransaction::AbortOnError,
+                        NdbOperation::AbortOnError,
                         TRUE) == -1)
     {
       error= pTrans->getNdbError();
@@ -8057,7 +8069,6 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
           !op->readTuple(lm) && 
           !set_primary_key(op, multi_range_curr->start_key.key) &&
           !define_read_attrs(curr, op) &&
-          (op->setAbortOption(AO_IgnoreError), TRUE) &&
           (!m_use_partition_function ||
            (op->setPartitionId(part_spec.start_part), TRUE)))
         curr += reclength;
@@ -8079,8 +8090,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
       if ((op= m_active_trans->getNdbIndexOperation(unique_idx, tab)) && 
           !op->readTuple(lm) && 
           !set_index_key(op, key_info, multi_range_curr->start_key.key) &&
-          !define_read_attrs(curr, op) &&
-          (op->setAbortOption(AO_IgnoreError), TRUE))
+          !define_read_attrs(curr, op))
         curr += reclength;
       else
         ERR_RETURN(op ? op->getNdbError() : m_active_trans->getNdbError());
@@ -8280,6 +8290,8 @@ close_scan:
   if (multi_range_curr == multi_range_end)
   {
     DBUG_MULTI_RANGE(16);
+    Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
+    thd_ndb->query_state&= NDB_QUERY_NORMAL;
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
   

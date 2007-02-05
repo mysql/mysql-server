@@ -1133,7 +1133,7 @@ NdbBlob::readTableParts(char* buf, Uint32 part, Uint32 count)
       setErrorCode(tOp);
       DBUG_RETURN(-1);
     }
-    tOp->m_abortOption = NdbTransaction::AbortOnError;
+    tOp->m_abortOption = NdbOperation::AbortOnError;
     buf += thePartSize;
     n++;
     thePendingBlobOps |= (1 << NdbOperation::ReadRequest);
@@ -1169,7 +1169,7 @@ NdbBlob::insertParts(const char* buf, Uint32 part, Uint32 count)
       setErrorCode(tOp);
       DBUG_RETURN(-1);
     }
-    tOp->m_abortOption = NdbTransaction::AbortOnError;
+    tOp->m_abortOption = NdbOperation::AbortOnError;
     buf += thePartSize;
     n++;
     thePendingBlobOps |= (1 << NdbOperation::InsertRequest);
@@ -1193,7 +1193,7 @@ NdbBlob::updateParts(const char* buf, Uint32 part, Uint32 count)
       setErrorCode(tOp);
       DBUG_RETURN(-1);
     }
-    tOp->m_abortOption = NdbTransaction::AbortOnError;
+    tOp->m_abortOption = NdbOperation::AbortOnError;
     buf += thePartSize;
     n++;
     thePendingBlobOps |= (1 << NdbOperation::UpdateRequest);
@@ -1216,7 +1216,7 @@ NdbBlob::deleteParts(Uint32 part, Uint32 count)
       setErrorCode(tOp);
       DBUG_RETURN(-1);
     }
-    tOp->m_abortOption = NdbTransaction::AbortOnError;
+    tOp->m_abortOption = NdbOperation::AbortOnError;
     n++;
     thePendingBlobOps |= (1 << NdbOperation::DeleteRequest);
     theNdbCon->thePendingBlobOps |= (1 << NdbOperation::DeleteRequest);
@@ -1252,7 +1252,7 @@ NdbBlob::deletePartsUnknown(Uint32 part)
         setErrorCode(tOp);
         DBUG_RETURN(-1);
       }
-      tOp->m_abortOption= NdbTransaction::AO_IgnoreError;
+      tOp->m_abortOption= NdbOperation::AO_IgnoreError;
       n++;
     }
     DBUG_PRINT("info", ("bat=%u", bat));
@@ -1588,7 +1588,7 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType, bool& batch)
         DBUG_RETURN(-1);
       }
       if (isWriteOp()) {
-        tOp->m_abortOption = NdbTransaction::AO_IgnoreError;
+        tOp->m_abortOption = NdbOperation::AO_IgnoreError;
       }
       theHeadInlineReadOp = tOp;
       // execute immediately
@@ -1634,7 +1634,7 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType, bool& batch)
         DBUG_RETURN(-1);
       }
       if (isWriteOp()) {
-        tOp->m_abortOption = NdbTransaction::AO_IgnoreError;
+        tOp->m_abortOption = NdbOperation::AO_IgnoreError;
       }
       theHeadInlineReadOp = tOp;
       // execute immediately
@@ -1807,7 +1807,7 @@ NdbBlob::postExecute(NdbTransaction::ExecType anExecType)
       setErrorCode(NdbBlobImpl::ErrAbort);
       DBUG_RETURN(-1);
     }
-    tOp->m_abortOption = NdbTransaction::AbortOnError;
+    tOp->m_abortOption = NdbOperation::AbortOnError;
     DBUG_PRINT("info", ("added op to update head+inline"));
   }
   DBUG_RETURN(0);
@@ -1837,7 +1837,7 @@ NdbBlob::preCommit()
           setErrorCode(NdbBlobImpl::ErrAbort);
           DBUG_RETURN(-1);
         }
-        tOp->m_abortOption = NdbTransaction::AbortOnError;
+        tOp->m_abortOption = NdbOperation::AbortOnError;
         DBUG_PRINT("info", ("added op to update head+inline"));
     }
   }
