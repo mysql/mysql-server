@@ -6837,7 +6837,7 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
       fprintf(stderr, "NDB: table share %s with use_count %d not freed\n",
               share->key, share->use_count);
 #endif
-      real_free_share(&share);
+      ndbcluster_real_free_share(&share);
     }
     pthread_mutex_unlock(&ndbcluster_mutex);
   }
@@ -7449,14 +7449,20 @@ int handle_trailing_share(NDB_SHARE *share)
   bzero((char*) &table_list,sizeof(table_list));
   table_list.db= share->db;
   table_list.alias= table_list.table_name= share->table_name;
+  safe_mutex_assert_owner(&LOCK_open);
   close_cached_tables(thd, 0, &table_list, TRUE);
 
   pthread_mutex_lock(&ndbcluster_mutex);
   if (!--share->use_count)
   {
-    DBUG_PRINT("info", ("NDB_SHARE: close_cashed_tables %s freed share.",
-               share->key)); 
-    real_free_share(&share);
+    if (ndb_extra_logging)
+      sql_print_information("NDB_SHARE: trailing share %s(connect_count: %u) "
+                            "released by close_cached_tables at "
+                            "connect_count: %u",
+                            share->key,
+                            share->connect_count,
+                            g_ndb_cluster_connection->get_connect_count());
+    ndbcluster_real_free_share(&share);
     DBUG_RETURN(0);
   }
 
@@ -7466,10 +7472,14 @@ int handle_trailing_share(NDB_SHARE *share)
   */
   if (share->state != NSS_DROPPED && !--share->use_count)
   {
-    DBUG_PRINT("info", ("NDB_SHARE: %s already exists, "
-                        "use_count=%d  state != NSS_DROPPED.",
-                        share->key, share->use_count)); 
-    real_free_share(&share);
+    if (ndb_extra_logging)
+      sql_print_information("NDB_SHARE: trailing share %s(connect_count: %u) "
+                            "released after NSS_DROPPED check "
+                            "at connect_count: %u",
+                            share->key,
+                            share->connect_count,
+                            g_ndb_cluster_connection->get_connect_count());
+    ndbcluster_real_free_share(&share);
     DBUG_RETURN(0);
   }
   DBUG_PRINT("error", ("NDB_SHARE: %s already exists  use_count=%d.",
@@ -7736,7 +7746,7 @@ void ndbcluster_free_share(NDB_SHARE **share, bool have_lock)
     (*share)->util_lock= 0;
   if (!--(*share)->use_count)
   {
-    real_free_share(share);
+    ndbcluster_real_free_share(share);
   }
   else
   {

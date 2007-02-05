@@ -362,6 +362,8 @@ void ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *_table)
   int do_event_op= ndb_binlog_running;
   DBUG_ENTER("ndbcluster_binlog_init_share");
 
+  share->connect_count= g_ndb_cluster_connection->get_connect_count();
+
   share->op= 0;
   share->table= 0;
 
@@ -605,7 +607,7 @@ static int ndbcluster_binlog_end(THD *thd)
                    ("table->s->db.table_name: %s.%s",
                     share->table->s->db.str, share->table->s->table_name.str));
       if (share->state != NSS_DROPPED && !--share->use_count)
-        real_free_share(&share);
+        ndbcluster_real_free_share(&share);
       else
       {
         DBUG_PRINT("share",
@@ -2443,11 +2445,20 @@ int ndbcluster_create_binlog_setup(Ndb *ndb, const char *key,
       pthread_mutex_unlock(&ndbcluster_mutex);
       DBUG_RETURN(1);
     }
-    handle_trailing_share(share);
+    if (share->connect_count != 
+        g_ndb_cluster_connection->get_connect_count())
+    {
+      handle_trailing_share(share);
+      share= NULL;
+    }
   }
 
   /* Create share which is needed to hold replication information */
-  if (!(share= get_share(key, 0, TRUE, TRUE)))
+  if (share)
+  {
+    ++share->use_count;
+  }
+  else if (!(share= get_share(key, 0, TRUE, TRUE)))
   {
     sql_print_error("NDB Binlog: "
                     "allocating table share for %s failed", key);
