@@ -25,10 +25,6 @@
 #include "sql_trigger.h"
 #include "sql_select.h"
 
-static void mark_as_dependent(THD *thd,
-			      SELECT_LEX *last, SELECT_LEX *current,
-			      Item_ident *item);
-
 const String my_null_string("NULL", 4, default_charset_info);
 
 /****************************************************************************/
@@ -1718,7 +1714,7 @@ void Item_field::set_field(Field *field_par)
   field=result_field=field_par;			// for easy coding with fields
   maybe_null=field->maybe_null();
   decimals= field->decimals();
-  max_length= field_par->max_length();
+  max_length= field_par->max_display_length();
   table_name= *field_par->table_name;
   field_name= field_par->field_name;
   db_name= field_par->table->s->db.str;
@@ -2427,21 +2423,22 @@ void Item_param::set_decimal(const char *str, ulong length)
     the fact that even wrong value sent over binary protocol fits into
     MAX_DATE_STRING_REP_LENGTH buffer.
 */
-void Item_param::set_time(TIME *tm, timestamp_type type, uint32 max_length_arg)
+void Item_param::set_time(TIME *tm, timestamp_type time_type,
+                          uint32 max_length_arg)
 { 
   DBUG_ENTER("Item_param::set_time");
 
   value.time= *tm;
-  value.time.time_type= type;
+  value.time.time_type= time_type;
 
   if (value.time.year > 9999 || value.time.month > 12 ||
       value.time.day > 31 ||
-      type != MYSQL_TIMESTAMP_TIME && value.time.hour > 23 ||
+      time_type != MYSQL_TIMESTAMP_TIME && value.time.hour > 23 ||
       value.time.minute > 59 || value.time.second > 59)
   {
     char buff[MAX_DATE_STRING_REP_LENGTH];
     uint length= my_TIME_to_str(&value.time, buff);
-    make_truncated_value_warning(current_thd, buff, length, type, 0);
+    make_truncated_value_warning(current_thd, buff, length, time_type, 0);
     set_zero_time(&value.time, MYSQL_TIMESTAMP_ERROR);
   }
 
@@ -2907,7 +2904,7 @@ bool Item_param::basic_const_item() const
 
 
 Item *
-Item_param::new_item()
+Item_param::clone_item()
 {
   /* see comments in the header file */
   switch (state) {
@@ -3524,28 +3521,29 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
               thd->lex->in_sum_func->nest_level == 
               thd->lex->current_select->nest_level)
           {
-            Item::Type type= (*reference)->type();
+            Item::Type ref_type= (*reference)->type();
             set_if_bigger(thd->lex->in_sum_func->max_arg_level,
                           select->nest_level);
             set_field(*from_field);
             fixed= 1;
             mark_as_dependent(thd, last_checked_context->select_lex,
                               context->select_lex, this,
-                              ((type == REF_ITEM || type == FIELD_ITEM) ?
+                              ((ref_type == REF_ITEM ||
+                                ref_type == FIELD_ITEM) ?
                                (Item_ident*) (*reference) : 0));
             return 0;
           }
         }
         else
         {
-          Item::Type type= (*reference)->type();
+          Item::Type ref_type= (*reference)->type();
           prev_subselect_item->used_tables_cache|=
             (*reference)->used_tables();
           prev_subselect_item->const_item_cache&=
             (*reference)->const_item();
           mark_as_dependent(thd, last_checked_context->select_lex,
                             context->select_lex, this,
-                            ((type == REF_ITEM || type == FIELD_ITEM) ?
+                            ((ref_type == REF_ITEM || ref_type == FIELD_ITEM) ?
                              (Item_ident*) (*reference) :
                              0));
           /*
@@ -4088,7 +4086,7 @@ Item *Item_field::replace_equal_field(byte *arg)
 
 
 void Item::init_make_field(Send_field *tmp_field,
-			   enum enum_field_types field_type)
+			   enum enum_field_types field_type_arg)
 {
   char *empty_name= (char*) "";
   tmp_field->db_name=		empty_name;
@@ -4100,7 +4098,7 @@ void Item::init_make_field(Send_field *tmp_field,
   tmp_field->flags=             (maybe_null ? 0 : NOT_NULL_FLAG) | 
                                 (my_binary_compare(collation.collation) ?
                                  BINARY_FLAG : 0);
-  tmp_field->type=field_type;
+  tmp_field->type=              field_type_arg;
   tmp_field->length=max_length;
   tmp_field->decimals=decimals;
   if (unsigned_flag)
@@ -4115,12 +4113,12 @@ void Item::make_field(Send_field *tmp_field)
 
 enum_field_types Item::string_field_type() const
 {
-  enum_field_types type= MYSQL_TYPE_VAR_STRING;
+  enum_field_types f_type= MYSQL_TYPE_VAR_STRING;
   if (max_length >= 16777216)
-    type= MYSQL_TYPE_LONG_BLOB;
+    f_type= MYSQL_TYPE_LONG_BLOB;
   else if (max_length >= 65536)
-    type= MYSQL_TYPE_MEDIUM_BLOB;
-  return type;
+    f_type= MYSQL_TYPE_MEDIUM_BLOB;
+  return f_type;
 }
 
 
@@ -4490,7 +4488,7 @@ bool Item_int::eq(const Item *arg, bool binary_cmp) const
 }
 
 
-Item *Item_int_with_ref::new_item()
+Item *Item_int_with_ref::clone_item()
 {
   DBUG_ASSERT(ref->const_item());
   /*
@@ -4768,10 +4766,10 @@ bool Item_null::send(Protocol *protocol, String *packet)
 bool Item::send(Protocol *protocol, String *buffer)
 {
   bool result;
-  enum_field_types type;
+  enum_field_types f_type;
   LINT_INIT(result);                     // Will be set if null_value == 0
 
-  switch ((type=field_type())) {
+  switch ((f_type=field_type())) {
   default:
   case MYSQL_TYPE_NULL:
   case MYSQL_TYPE_DECIMAL:
@@ -4850,7 +4848,7 @@ bool Item::send(Protocol *protocol, String *buffer)
     get_date(&tm, TIME_FUZZY_DATE);
     if (!null_value)
     {
-      if (type == MYSQL_TYPE_DATE)
+      if (f_type == MYSQL_TYPE_DATE)
 	return protocol->store_date(&tm);
       else
 	result= protocol->store(&tm);
@@ -5063,7 +5061,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
             goto error;
           if (from_field == view_ref_found)
           {
-            Item::Type type= (*reference)->type();
+            Item::Type refer_type= (*reference)->type();
             prev_subselect_item->used_tables_cache|=
               (*reference)->used_tables();
             prev_subselect_item->const_item_cache&=
@@ -5071,7 +5069,8 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
             DBUG_ASSERT((*reference)->type() == REF_ITEM);
             mark_as_dependent(thd, last_checked_context->select_lex,
                               context->select_lex, this,
-                              ((type == REF_ITEM || type == FIELD_ITEM) ?
+                              ((refer_type == REF_ITEM ||
+                                refer_type == FIELD_ITEM) ?
                                (Item_ident*) (*reference) :
                                0));
             /*
@@ -5817,8 +5816,8 @@ bool Item_trigger_field::fix_fields(THD *thd, Item **items)
     {
       table_grants->want_privilege= want_privilege;
 
-      if (check_grant_column(thd, table_grants, triggers->table->s->db.str,
-                             triggers->table->s->table_name.str, field_name,
+      if (check_grant_column(thd, table_grants, triggers->trigger_table->s->db.str,
+                             triggers->trigger_table->s->table_name.str, field_name,
                              strlen(field_name), thd->security_ctx))
         return TRUE;
     }
@@ -5931,7 +5930,8 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     DBUG_ASSERT(item_row->cols() == comp_item_row->cols());
     col= item_row->cols();
     while (col-- > 0)
-      resolve_const_item(thd, item_row->addr(col), comp_item_row->el(col));
+      resolve_const_item(thd, item_row->addr(col),
+                         comp_item_row->element_index(col));
     break;
   }
   /* Fallthrough */
@@ -6199,7 +6199,7 @@ bool Item_cache_row::setup(Item * item)
     return 1;
   for (uint i= 0; i < item_count; i++)
   {
-    Item *el= item->el(i);
+    Item *el= item->element_index(i);
     Item_cache *tmp;
     if (!(tmp= values[i]= Item_cache::get_cache(el->result_type())))
       return 1;
@@ -6215,7 +6215,7 @@ void Item_cache_row::store(Item * item)
   item->bring_value();
   for (uint i= 0; i < item_count; i++)
   {
-    values[i]->store(item->el(i));
+    values[i]->store(item->element_index(i));
     null_value|= values[i]->null_value;
   }
 }
