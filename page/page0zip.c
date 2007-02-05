@@ -748,6 +748,129 @@ page_zip_compress_sec(
 }
 
 /**************************************************************************
+Compress a record of a leaf node of a clustered index that contains
+externally stored columns. */
+static
+int
+page_zip_compress_clust_ext(
+/*========================*/
+					/* out: Z_OK, or a zlib error code */
+	z_stream*	c_stream,	/* in/out: compressed page stream */
+	const rec_t*	rec,		/* in: record */
+	const ulint*	offsets,	/* in: rec_get_offsets(rec) */
+	ulint		trx_id_col,	/* in: position of of DB_TRX_ID */
+	byte*		deleted,	/* in: dense directory entry pointing
+					to the head of the free list */
+	byte*		storage,	/* in: end of dense page directory */
+	byte**		externs,	/* in/out: pointer to the next
+					available BLOB pointer */
+	ulint*		n_blobs)	/* in/out: number of
+					externally stored columns */
+{
+	int	err;
+	ulint	i;
+
+	for (i = 0; i < rec_offs_n_fields(offsets); i++) {
+		ulint		len;
+		const byte*	src;
+
+		if (UNIV_UNLIKELY(i == trx_id_col)) {
+			ut_ad(!rec_offs_nth_extern(offsets, i));
+			/* Store trx_id and roll_ptr
+			in uncompressed form. */
+			src = rec_get_nth_field(rec, offsets, i, &len);
+			ut_ad(src + DATA_TRX_ID_LEN
+			      == rec_get_nth_field(rec, offsets,
+						   i + 1, &len));
+			ut_ad(len == DATA_ROLL_PTR_LEN);
+
+			/* Compress any preceding bytes. */
+			c_stream->avail_in
+				= src - c_stream->next_in;
+
+			if (c_stream->avail_in) {
+				err = deflate(c_stream, Z_NO_FLUSH);
+				if (UNIV_UNLIKELY(err != Z_OK)) {
+
+					return(err);
+				}
+			}
+
+			ut_ad(!c_stream->avail_in);
+			ut_ad(c_stream->next_in == src);
+
+			memcpy(storage
+			       - (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)
+			       * (rec_get_heap_no_new(rec) - 1),
+			       c_stream->next_in,
+			       DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
+
+			c_stream->next_in
+				+= DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
+
+			/* Skip also roll_ptr */
+			i++;
+		} else if (rec_offs_nth_extern(offsets, i)) {
+			src = rec_get_nth_field(rec, offsets, i, &len);
+			ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
+			src += len - BTR_EXTERN_FIELD_REF_SIZE;
+
+			c_stream->avail_in = src
+				- c_stream->next_in;
+			if (UNIV_LIKELY(c_stream->avail_in)) {
+				err = deflate(c_stream, Z_NO_FLUSH);
+				if (UNIV_UNLIKELY(err != Z_OK)) {
+
+					return(err);
+				}
+			}
+
+			ut_ad(!c_stream->avail_in);
+			ut_ad(c_stream->next_in == src);
+
+			/* Reserve space for the data at
+			the end of the space reserved for
+			the compressed data and the page
+			modification log. */
+
+			if (UNIV_UNLIKELY
+			    (c_stream->avail_out
+			     <= BTR_EXTERN_FIELD_REF_SIZE)) {
+				/* out of space */
+				return(Z_BUF_ERROR);
+			}
+
+			ut_ad(*externs == c_stream->next_out
+			      + c_stream->avail_out
+			      + 1/* end of modif. log */);
+
+			c_stream->next_in
+				+= BTR_EXTERN_FIELD_REF_SIZE;
+
+			/* Skip deleted records. */
+			if (UNIV_LIKELY_NULL
+			    (page_zip_dir_find_low(
+				    storage, deleted,
+				    page_offset(rec)))) {
+				continue;
+			}
+
+			(*n_blobs)++;
+			c_stream->avail_out
+				-= BTR_EXTERN_FIELD_REF_SIZE;
+			*externs -= BTR_EXTERN_FIELD_REF_SIZE;
+
+			/* Copy the BLOB pointer */
+			memcpy(*externs, c_stream->next_in
+			       - BTR_EXTERN_FIELD_REF_SIZE,
+			       BTR_EXTERN_FIELD_REF_SIZE);
+		}
+	}
+
+	return(Z_OK);
+}
+
+/**************************************************************************
 Compress the records of a leaf node of a clustered index. */
 static
 int
@@ -759,7 +882,7 @@ page_zip_compress_clust(
 					sorted by address */
 	ulint		n_dense,	/* in: size of recs[] */
 	dict_index_t*	index,		/* in: the index of the page */
-	ulint*		n_blobs_out,	/* out: number of
+	ulint*		n_blobs,	/* in: 0; out: number of
 					externally stored columns */
 	ulint		trx_id_col,	/* index of the trx_id column */
 	byte*		deleted,	/* in: dense directory entry pointing
@@ -772,16 +895,16 @@ page_zip_compress_clust(
 	/* BTR_EXTERN_FIELD_REF storage */
 	byte*	externs		= storage - n_dense
 		* (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
-	ulint	n_blobs		= 0;
-	ulint	n_fields	= dict_index_get_n_fields(index);
+
+	ut_ad(*n_blobs == 0);
 
 	do {
-		ulint		i;
 		const rec_t*	rec = *recs++;
 
 		offsets = rec_get_offsets(rec, index, offsets,
 					  ULINT_UNDEFINED, &heap);
-		ut_ad(rec_offs_n_fields(offsets) == n_fields);
+		ut_ad(rec_offs_n_fields(offsets)
+		      == dict_index_get_n_fields(index));
 
 		/* Compress the extra bytes. */
 		c_stream->avail_in = rec - REC_N_NEW_EXTRA_BYTES
@@ -804,103 +927,54 @@ page_zip_compress_clust(
 		/* Check if there are any externally stored columns.
 		For each externally stored column, store the
 		BTR_EXTERN_FIELD_REF separately. */
+		if (UNIV_UNLIKELY(rec_offs_any_extern(offsets))) {
+			ut_ad(dict_index_is_clust(index));
 
-		for (i = 0; i < n_fields; i++) {
+			err = page_zip_compress_clust_ext(
+				c_stream, rec, offsets, trx_id_col,
+				deleted, storage, &externs, n_blobs);
+
+			if (UNIV_UNLIKELY(err != Z_OK)) {
+
+				goto func_exit;
+			}
+		} else {
 			ulint		len;
 			const byte*	src;
 
-			if (UNIV_UNLIKELY(i == trx_id_col)) {
-				ut_ad(!rec_offs_nth_extern(offsets, i));
-				/* Store trx_id and roll_ptr
-				in uncompressed form. */
-				src = rec_get_nth_field(rec, offsets, i, &len);
-				ut_ad(src + DATA_TRX_ID_LEN
-				      == rec_get_nth_field(rec, offsets,
-							   i + 1, &len));
-				ut_ad(len == DATA_ROLL_PTR_LEN);
+			/* Store trx_id and roll_ptr in uncompressed form. */
+			src = rec_get_nth_field(rec, offsets,
+						trx_id_col, &len);
+			ut_ad(src + DATA_TRX_ID_LEN
+			      == rec_get_nth_field(rec, offsets,
+						   trx_id_col + 1, &len));
+			ut_ad(len == DATA_ROLL_PTR_LEN);
 
-				/* Compress any preceding bytes. */
-				c_stream->avail_in
-					= src - c_stream->next_in;
+			/* Compress any preceding bytes. */
+			c_stream->avail_in = src - c_stream->next_in;
 
-				if (c_stream->avail_in) {
-					err = deflate(c_stream, Z_NO_FLUSH);
-					if (UNIV_UNLIKELY(err != Z_OK)) {
+			if (c_stream->avail_in) {
+				err = deflate(c_stream, Z_NO_FLUSH);
+				if (UNIV_UNLIKELY(err != Z_OK)) {
 
-						goto func_exit;
-					}
+					return(err);
 				}
-
-				ut_ad(!c_stream->avail_in);
-				ut_ad(c_stream->next_in == src);
-
-				memcpy(storage
-				       - (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)
-				       * (rec_get_heap_no_new(rec) - 1),
-				       c_stream->next_in,
-				       DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
-
-				c_stream->next_in
-					+= DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
-
-				/* Skip also roll_ptr */
-				i++;
-			} else if (rec_offs_nth_extern(offsets, i)) {
-				src = rec_get_nth_field(rec, offsets, i, &len);
-				ut_ad(dict_index_is_clust(index));
-				ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
-				src += len - BTR_EXTERN_FIELD_REF_SIZE;
-
-				c_stream->avail_in = src
-					- c_stream->next_in;
-				if (UNIV_LIKELY(c_stream->avail_in)) {
-					err = deflate(c_stream, Z_NO_FLUSH);
-					if (UNIV_UNLIKELY(err != Z_OK)) {
-
-						goto func_exit;
-					}
-				}
-
-				ut_ad(!c_stream->avail_in);
-				ut_ad(c_stream->next_in == src);
-
-				/* Reserve space for the data at
-				the end of the space reserved for
-				the compressed data and the page
-				modification log. */
-
-				if (UNIV_UNLIKELY
-				    (c_stream->avail_out
-				     <= BTR_EXTERN_FIELD_REF_SIZE)) {
-					/* out of space */
-					goto func_exit;
-				}
-
-				ut_ad(externs == c_stream->next_out
-				      + c_stream->avail_out
-				      + 1/* end of modif. log */);
-
-				c_stream->next_in
-					+= BTR_EXTERN_FIELD_REF_SIZE;
-
-				/* Skip deleted records. */
-				if (UNIV_LIKELY_NULL
-				    (page_zip_dir_find_low(
-					    storage, deleted,
-					    page_offset(rec)))) {
-					continue;
-				}
-
-				n_blobs++;
-				c_stream->avail_out
-					-= BTR_EXTERN_FIELD_REF_SIZE;
-				externs -= BTR_EXTERN_FIELD_REF_SIZE;
-
-				/* Copy the BLOB pointer */
-				memcpy(externs, c_stream->next_in
-				       - BTR_EXTERN_FIELD_REF_SIZE,
-				       BTR_EXTERN_FIELD_REF_SIZE);
 			}
+
+			ut_ad(!c_stream->avail_in);
+			ut_ad(c_stream->next_in == src);
+
+			memcpy(storage
+			       - (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)
+			       * (rec_get_heap_no_new(rec) - 1),
+			       c_stream->next_in,
+			       DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
+
+			c_stream->next_in
+				+= DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
+
+			/* Skip also roll_ptr */
+			ut_ad(trx_id_col + 1 < rec_offs_n_fields(offsets));
 		}
 
 		/* Compress the last bytes of the record. */
@@ -918,7 +992,6 @@ page_zip_compress_clust(
 	} while (--n_dense);
 
 func_exit:
-	*n_blobs_out = n_blobs;
 	return(err);
 }
 
@@ -1477,6 +1550,81 @@ page_zip_set_extra_bytes(
 }
 
 /**************************************************************************
+Apply the modification log to a record containing externally stored
+columns.  Do not copy the fields that are stored separately. */
+static
+const byte*
+page_zip_apply_log_ext(
+/*===================*/
+					/* out: pointer to modification log,
+					or NULL on failure */
+	rec_t*		rec,		/* in/out: record */
+	const ulint*	offsets,	/* in: rec_get_offsets(rec) */
+	ulint		trx_id_col,	/* in: position of of DB_TRX_ID */
+	const byte*	data,		/* in: modification log */
+	const byte*	end)		/* in: end of modification log */
+{
+	ulint	i;
+	ulint	len;
+	byte*	next_out = rec;
+
+	/* Check if there are any externally stored columns.
+	For each externally stored column, skip the
+	BTR_EXTERN_FIELD_REF. */
+
+	for (i = 0; i < rec_offs_n_fields(offsets); i++) {
+		byte*	dst;
+
+		if (UNIV_UNLIKELY(i == trx_id_col)) {
+			/* Skip trx_id and roll_ptr */
+			dst = rec_get_nth_field(rec, offsets,
+						i, &len);
+			if (UNIV_UNLIKELY(dst - next_out
+					  >= end - data)
+			    || UNIV_UNLIKELY
+			    (len < (DATA_TRX_ID_LEN
+				    + DATA_ROLL_PTR_LEN))
+			    || rec_offs_nth_extern(offsets,
+						   i)) {
+				return(NULL);
+			}
+
+			memcpy(next_out, data, dst - next_out);
+			data += dst - next_out;
+			next_out = dst + (DATA_TRX_ID_LEN
+					  + DATA_ROLL_PTR_LEN);
+		} else if (rec_offs_nth_extern(offsets, i)) {
+			dst = rec_get_nth_field(rec, offsets,
+						i, &len);
+			ut_ad(len
+			      >= BTR_EXTERN_FIELD_REF_SIZE);
+
+			len += dst - next_out
+				- BTR_EXTERN_FIELD_REF_SIZE;
+
+			if (UNIV_UNLIKELY(data + len >= end)) {
+				return(NULL);
+			}
+
+			memcpy(next_out, data, len);
+			data += len;
+			next_out += len
+				+ BTR_EXTERN_FIELD_REF_SIZE;
+		}
+	}
+
+	/* Copy the last bytes of the record. */
+	len = rec_get_end(rec, offsets) - next_out;
+	if (UNIV_UNLIKELY(data + len >= end)) {
+		return(NULL);
+	}
+	memcpy(next_out, data, len);
+	data += len;
+
+	return(data);
+}
+
+/**************************************************************************
 Apply the modification log to an uncompressed page.
 Do not copy the fields that are stored separately. */
 static
@@ -1575,13 +1723,20 @@ page_zip_apply_log(
 		}
 
 		/* Copy the data bytes. */
-		if (UNIV_UNLIKELY(hs & REC_STATUS_NODE_PTR)) {
+		if (UNIV_UNLIKELY(rec_offs_any_extern(offsets))) {
 			/* Non-leaf nodes should not contain any
 			externally stored columns. */
-			if (UNIV_UNLIKELY(rec_offs_any_extern(offsets))) {
+			if (UNIV_UNLIKELY(hs & REC_STATUS_NODE_PTR)) {
 				return(NULL);
 			}
 
+			data = page_zip_apply_log_ext(
+				rec, offsets, trx_id_col, data, end);
+
+			if (UNIV_UNLIKELY(!data)) {
+				return(NULL);
+			}
+		} else if (UNIV_UNLIKELY(hs & REC_STATUS_NODE_PTR)) {
 			len = rec_offs_data_size(offsets)
 				- REC_NODE_PTR_SIZE;
 			/* Copy the data bytes, except node_ptr. */
@@ -1590,61 +1745,40 @@ page_zip_apply_log(
 			}
 			memcpy(rec, data, len);
 			data += len;
-		} else {
-			ulint	i;
-			byte*	next_out = rec;
+		} else if (UNIV_LIKELY(trx_id_col == ULINT_UNDEFINED)) {
+			len = rec_offs_data_size(offsets);
 
-			/* Check if there are any externally stored columns.
-			For each externally stored column, skip the
-			BTR_EXTERN_FIELD_REF. */
-
-			for (i = 0; i < rec_offs_n_fields(offsets); i++) {
-				byte*	dst;
-
-				if (UNIV_UNLIKELY(i == trx_id_col)) {
-					/* Skip trx_id and roll_ptr */
-					dst = rec_get_nth_field(rec, offsets,
-								i, &len);
-					if (UNIV_UNLIKELY(dst - next_out
-							  >= end - data)
-					    || UNIV_UNLIKELY
-					    (len < (DATA_TRX_ID_LEN
-						    + DATA_ROLL_PTR_LEN))
-					    || rec_offs_nth_extern(offsets,
-								   i)) {
-						return(NULL);
-					}
-
-					memcpy(next_out, data, dst - next_out);
-					data += dst - next_out;
-					next_out = dst + (DATA_TRX_ID_LEN
-							  + DATA_ROLL_PTR_LEN);
-				} else if (rec_offs_nth_extern(offsets, i)) {
-					dst = rec_get_nth_field(rec, offsets,
-								i, &len);
-					ut_ad(len
-					      >= BTR_EXTERN_FIELD_REF_SIZE);
-
-					len += dst - next_out
-						- BTR_EXTERN_FIELD_REF_SIZE;
-
-					if (UNIV_UNLIKELY(data + len >= end)) {
-						return(NULL);
-					}
-
-					memcpy(next_out, data, len);
-					data += len;
-					next_out += len
-						+ BTR_EXTERN_FIELD_REF_SIZE;
-				}
-			}
-
-			/* Copy the last bytes of the record. */
-			len = rec_get_end(rec, offsets) - next_out;
+			/* Copy all data bytes of
+			a record in a secondary index. */
 			if (UNIV_UNLIKELY(data + len >= end)) {
 				return(NULL);
 			}
-			memcpy(next_out, data, len);
+
+			memcpy(rec, data, len);
+			data += len;
+		} else {
+			/* Skip DB_TRX_ID and DB_ROLL_PTR. */
+			ulint	l = rec_get_nth_field_offs(offsets,
+							   trx_id_col, &len);
+			byte*	b;
+
+			if (UNIV_UNLIKELY(data + l >= end)
+			    || UNIV_UNLIKELY(len < (DATA_TRX_ID_LEN
+						    + DATA_ROLL_PTR_LEN))) {
+				return(NULL);
+			}
+
+			/* Copy any preceding data bytes. */
+			memcpy(rec, data, l);
+			data += l;
+
+			/* Copy any bytes following DB_TRX_ID, DB_ROLL_PTR. */
+			b = rec + l + (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
+			len = rec_get_end(rec, offsets) - b;
+			if (UNIV_UNLIKELY(data + len >= end)) {
+				return(NULL);
+			}
+			memcpy(b, data, len);
 			data += len;
 		}
 	}
@@ -2831,6 +2965,7 @@ page_zip_write_blob_ptr(
 	      > PAGE_DATA + page_zip_dir_size(page_zip));
 	ut_ad(rec_offs_comp(offsets));
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
+	ut_ad(rec_offs_any_extern(offsets));
 	ut_ad(rec_offs_nth_extern(offsets, n));
 
 	ut_ad(page_zip->m_start >= PAGE_DATA);
