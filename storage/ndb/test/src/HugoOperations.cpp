@@ -457,7 +457,7 @@ HugoOperations::callback(int res, NdbTransaction* pCon)
 
 int 
 HugoOperations::execute_async(Ndb* pNdb, NdbTransaction::ExecType et, 
-			      NdbTransaction::AbortOption eao){
+			      NdbOperation::AbortOption eao){
   
   m_async_reply= 0;
   pTrans->executeAsynchPrepare(et,
@@ -472,7 +472,7 @@ HugoOperations::execute_async(Ndb* pNdb, NdbTransaction::ExecType et,
 
 int 
 HugoOperations::execute_async_prepare(Ndb* pNdb, NdbTransaction::ExecType et, 
-				      NdbTransaction::AbortOption eao){
+				      NdbOperation::AbortOption eao){
   
   m_async_reply= 0;
   pTrans->executeAsynchPrepare(et,
