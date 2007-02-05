@@ -70,6 +70,7 @@ static void default_reporter(enum loglevel level,
     fprintf(stderr, "%s", "Info: ");
   vfprintf(stderr, format, args);
   va_end(args);
+  fflush(stderr);
 }
 
 /* 
