@@ -4283,6 +4283,13 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
 	hot_log=0;				// Using old binary log
       }
     }
+    /* 
+      As there is no guarantee that the relay is open (for example, an I/O
+      error during a write by the slave I/O thread may have closed it), we
+      have to test it.
+    */
+    if (!my_b_inited(cur_log))
+      goto err;
 #ifndef DBUG_OFF
     {
       char llbuf1[22], llbuf2[22];
