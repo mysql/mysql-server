@@ -121,7 +121,7 @@ UtilTransactions::clearTable3(Ndb* pNdb,
       goto failed;
     }
     
-    if(pTrans->execute(NoCommit) != 0){
+    if(pTrans->execute(NoCommit, AbortOnError) != 0){
       err = pTrans->getNdbError();    
       if(err.status == NdbError::TemporaryError){
 	ERR(err);
@@ -141,7 +141,7 @@ UtilTransactions::clearTable3(Ndb* pNdb,
       } while((check = pOp->nextResult(false)) == 0);
       
       if(check != -1){
-	check = pTrans->execute(Commit);   
+	check = pTrans->execute(Commit, AbortOnError);   
 	pTrans->restart();
       }
       
@@ -245,7 +245,7 @@ UtilTransactions::copyTableData(Ndb* pNdb,
       }
     }
     
-    check = pTrans->execute(NoCommit);
+    check = pTrans->execute(NoCommit, AbortOnError);
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
       closeTransaction(pNdb);
@@ -262,7 +262,7 @@ UtilTransactions::copyTableData(Ndb* pNdb,
 	}
       } while((eof = pOp->nextResult(false)) == 0);
       
-      check = pTrans->execute(Commit);   
+      check = pTrans->execute(Commit, AbortOnError);   
       pTrans->restart();
       if( check == -1 ) {
 	const NdbError err = pTrans->getNdbError();    
@@ -414,7 +414,7 @@ UtilTransactions::scanReadRecords(Ndb* pNdb,
     }
     // *************************************************
     
-    check = pTrans->execute(NoCommit);
+    check = pTrans->execute(NoCommit, AbortOnError);
     if( check == -1 ) {
       const NdbError err = pTrans->getNdbError();
 
@@ -520,7 +520,7 @@ UtilTransactions::selectCount(Ndb* pNdb,
     }
     
     
-    check = pTrans->execute(NoCommit);
+    check = pTrans->execute(NoCommit, AbortOnError);
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
       closeTransaction(pNdb);
@@ -693,7 +693,7 @@ restart:
       }
     }
 
-    check = pTrans->execute(NoCommit);
+    check = pTrans->execute(NoCommit, AbortOnError);
     if( check == -1 ) {
       const NdbError err = pTrans->getNdbError();
       
@@ -956,7 +956,7 @@ UtilTransactions::readRowFromTableAndIndex(Ndb* pNdb,
     printf("\n");
 #endif
     scanTrans->refresh();
-    check = pTrans1->execute(Commit);
+    check = pTrans1->execute(Commit, AbortOnError);
     if( check == -1 ) {
       const NdbError err = pTrans1->getNdbError();
       
@@ -1078,7 +1078,7 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
       abort();
     }
 
-    check = pTrans->execute(NoCommit);
+    check = pTrans->execute(NoCommit, AbortOnError);
     if( check == -1 ) {
       const NdbError err = pTrans->getNdbError();
       
@@ -1137,7 +1137,7 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
 	  goto error;
       }     
 
-      check = pTrans->execute(NoCommit);
+      check = pTrans->execute(NoCommit, AbortOnError);
       if(check)
 	goto error;
 
@@ -1376,7 +1376,7 @@ loop:
       }
     }
     
-    if( pTrans->execute(NoCommit) == -1 ) {
+    if( pTrans->execute(NoCommit, AbortOnError) == -1 ) {
       ERR(err= pTrans->getNdbError());
       goto error;
     }
