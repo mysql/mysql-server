@@ -208,11 +208,6 @@ inline void free_share(NDB_SHARE **share, bool have_lock= FALSE)
   ndbcluster_free_share(share, have_lock);
 }
 
-inline void real_free_share(NDB_SHARE **share)
-{
-  ndbcluster_real_free_share(share);
-}
-
 inline
 Thd_ndb *
 get_thd_ndb(THD *thd) { return (Thd_ndb *) thd->ha_data[ndbcluster_hton->slot]; }
