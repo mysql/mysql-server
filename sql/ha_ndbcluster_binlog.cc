@@ -3924,9 +3924,9 @@ restart:
                               "%ld(%d e/s), total time %ld(%d e/s)",
                               (ulong)gci, event_count,
                               write_timer.elapsed_ms(),
-                              event_count / write_timer.elapsed_ms(),
+                              (1000*event_count) / write_timer.elapsed_ms(),
                               gci_timer.elapsed_ms(),
-                              event_count / gci_timer.elapsed_ms());
+                              (1000*event_count) / gci_timer.elapsed_ms());
 #endif
       }
     }

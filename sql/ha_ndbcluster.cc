@@ -260,13 +260,14 @@ static int ndb_to_mysql_error(const NdbError *ndberr)
 int execute_no_commit_ignore_no_key(ha_ndbcluster *h, NdbTransaction *trans)
 {
   int res= trans->execute(NdbTransaction::NoCommit,
-                          NdbTransaction::AO_IgnoreError,
+                          NdbOperation::AO_IgnoreError,
                           h->m_force_send);
-  if (res == 0)
-    return 0;
+  if (res == -1)
+    return -1;
 
   const NdbError &err= trans->getNdbError();
-  if (err.classification != NdbError::ConstraintViolation &&
+  if (err.classification != NdbError::NoError &&
+      err.classification != NdbError::ConstraintViolation &&
       err.classification != NdbError::NoDataFound)
     return res;
 
@@ -286,7 +287,7 @@ int execute_no_commit(ha_ndbcluster *h, NdbTransaction *trans,
   return h->m_ignore_no_key ?
     execute_no_commit_ignore_no_key(h,trans) :
     trans->execute(NdbTransaction::NoCommit,
-		   NdbTransaction::AbortOnError,
+		   NdbOperation::AbortOnError,
 		   h->m_force_send);
 }
 
@@ -299,7 +300,7 @@ int execute_commit(ha_ndbcluster *h, NdbTransaction *trans)
     return 0;
 #endif
   return trans->execute(NdbTransaction::Commit,
-                        NdbTransaction::AbortOnError,
+                        NdbOperation::AbortOnError,
                         h->m_force_send);
 }
 
@@ -312,7 +313,7 @@ int execute_commit(THD *thd, NdbTransaction *trans)
     return 0;
 #endif
   return trans->execute(NdbTransaction::Commit,
-                        NdbTransaction::AbortOnError,
+                        NdbOperation::AbortOnError,
                         thd->variables.ndb_force_send);
 }
 
@@ -327,7 +328,7 @@ int execute_no_commit_ie(ha_ndbcluster *h, NdbTransaction *trans,
 #endif
   h->release_completed_operations(trans, force_release);
   return trans->execute(NdbTransaction::NoCommit,
-                        NdbTransaction::AO_IgnoreError,
+                        NdbOperation::AO_IgnoreError,
                         h->m_force_send);
 }
 
@@ -1726,7 +1727,8 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf,
       ERR_RETURN(trans->getNdbError());
   }
 
-  if (execute_no_commit_ie(this,trans,FALSE) != 0) 
+  if ((res = execute_no_commit_ie(this,trans,FALSE)) != 0 ||
+      op->getNdbError().code) 
   {
     table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(ndb_err(trans));
@@ -1998,7 +2000,8 @@ int ha_ndbcluster::unique_index_read(const byte *key,
   if ((res= define_read_attrs(buf, op)))
     DBUG_RETURN(res);
 
-  if (execute_no_commit_ie(this,trans,FALSE) != 0) 
+  if (execute_no_commit_ie(this,trans,FALSE) != 0 ||
+      op->getNdbError().code) 
   {
     table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(ndb_err(trans));
@@ -4337,11 +4340,10 @@ int ha_ndbcluster::start_stmt(THD *thd, thr_lock_type lock_type)
       ERR_RETURN(ndb->getNdbError());
     no_uncommitted_rows_reset(thd);
     thd_ndb->stmt= trans;
+    thd_ndb->query_state&= NDB_QUERY_NORMAL;
     trans_register_ha(thd, FALSE, ndbcluster_hton);
   }
-  thd_ndb->query_state&= NDB_QUERY_NORMAL;
   m_active_trans= trans;
-
   // Start of statement
   m_ops_pending= 0;    
   thd->set_current_stmt_binlog_row_based_if_mixed();
@@ -7800,7 +7802,7 @@ ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb, const
 		  (char*)&var_mem);
     
     if (pTrans->execute(NdbTransaction::NoCommit,
-                        NdbTransaction::AbortOnError,
+                        NdbOperation::AbortOnError,
                         TRUE) == -1)
     {
       error= pTrans->getNdbError();
@@ -8057,7 +8059,6 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
           !op->readTuple(lm) && 
           !set_primary_key(op, multi_range_curr->start_key.key) &&
           !define_read_attrs(curr, op) &&
-          (op->setAbortOption(AO_IgnoreError), TRUE) &&
           (!m_use_partition_function ||
            (op->setPartitionId(part_spec.start_part), TRUE)))
         curr += reclength;
@@ -8079,8 +8080,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
       if ((op= m_active_trans->getNdbIndexOperation(unique_idx, tab)) && 
           !op->readTuple(lm) && 
           !set_index_key(op, key_info, multi_range_curr->start_key.key) &&
-          !define_read_attrs(curr, op) &&
-          (op->setAbortOption(AO_IgnoreError), TRUE))
+          !define_read_attrs(curr, op))
         curr += reclength;
       else
         ERR_RETURN(op ? op->getNdbError() : m_active_trans->getNdbError());
@@ -8280,6 +8280,8 @@ close_scan:
   if (multi_range_curr == multi_range_end)
   {
     DBUG_MULTI_RANGE(16);
+    Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
+    thd_ndb->query_state&= NDB_QUERY_NORMAL;
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
   
