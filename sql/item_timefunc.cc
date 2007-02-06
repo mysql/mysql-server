@@ -2528,7 +2528,10 @@ longlong Item_date_typecast::val_int()
   DBUG_ASSERT(fixed == 1);
   TIME ltime;
   if (args[0]->get_date(&ltime, TIME_FUZZY_DATE))
+  {
+    null_value= 1;
     return 0;
+  }
   return (longlong) (ltime.year * 10000L + ltime.month * 100 + ltime.day);
 }
 
