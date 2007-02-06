@@ -2945,7 +2945,7 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
 {
   List_iterator_fast<Natural_join_column>
     field_it(*(table_ref->join_columns));
-  Natural_join_column *nj_col;
+  Natural_join_column *nj_col, *curr_nj_col;
   Field *found_field;
   Query_arena *arena, backup;
   DBUG_ENTER("find_field_in_natural_join");
@@ -2956,14 +2956,21 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
 
   LINT_INIT(found_field);
 
-  for (;;)
+  for (nj_col= NULL, curr_nj_col= field_it++; curr_nj_col; 
+       curr_nj_col= field_it++)
   {
-    if (!(nj_col= field_it++))
-      DBUG_RETURN(NULL);
-
-    if (!my_strcasecmp(system_charset_info, nj_col->name(), name))
-      break;
+    if (!my_strcasecmp(system_charset_info, curr_nj_col->name(), name))
+    {
+      if (nj_col)
+      {
+        my_error(ER_NON_UNIQ_ERROR, MYF(0), name, thd->where);
+        DBUG_RETURN(NULL);
+      }
+      nj_col= curr_nj_col;
+    }
   }
+  if (!nj_col)
+    DBUG_RETURN(NULL);
 
   if (nj_col->view_field)
   {
@@ -3774,9 +3781,16 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
   {
     bool found= FALSE;
     const char *field_name_1;
+    /* true if field_name_1 is a member of using_fields */
+    bool is_using_column_1;
     if (!(nj_col_1= it_1.get_or_create_column_ref(leaf_1)))
       goto err;
     field_name_1= nj_col_1->name();
+    is_using_column_1= using_fields && 
+      test_if_string_in_list(field_name_1, using_fields);
+    DBUG_PRINT ("info", ("field_name_1=%s.%s", 
+                         nj_col_1->table_name() ? nj_col_1->table_name() : "", 
+                         field_name_1));
 
     /*
       Find a field with the same name in table_ref_2.
@@ -3793,6 +3807,10 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
       if (!(cur_nj_col_2= it_2.get_or_create_column_ref(leaf_2)))
         goto err;
       cur_field_name_2= cur_nj_col_2->name();
+      DBUG_PRINT ("info", ("cur_field_name_2=%s.%s", 
+                           cur_nj_col_2->table_name() ? 
+                             cur_nj_col_2->table_name() : "", 
+                           cur_field_name_2));
 
       /*
         Compare the two columns and check for duplicate common fields.
@@ -3800,10 +3818,16 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
         table_ref_2 (then found == TRUE), or if a field in table_ref_2
         was already matched by some previous field in table_ref_1
         (then cur_nj_col_2->is_common == TRUE).
+        Note that it is too early to check the columns outside of the
+        USING list for ambiguity because they are not actually "referenced"
+        here. These columns must be checked only on unqualified reference 
+        by name (e.g. in SELECT list).
       */
       if (!my_strcasecmp(system_charset_info, field_name_1, cur_field_name_2))
       {
-        if (found || cur_nj_col_2->is_common)
+        DBUG_PRINT ("info", ("match c1.is_common=%d", nj_col_1->is_common));
+        if (cur_nj_col_2->is_common ||
+            (found && (!using_fields || is_using_column_1)))
         {
           my_error(ER_NON_UNIQ_ERROR, MYF(0), field_name_1, thd->where);
           goto err;
@@ -3829,9 +3853,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
       clause (if present), mark them as common fields, and add a new
       equi-join condition to the ON clause.
     */
-    if (nj_col_2 &&
-        (!using_fields ||
-          test_if_string_in_list(field_name_1, using_fields)))
+    if (nj_col_2 && (!using_fields ||is_using_column_1))
     {
       Item *item_1=   nj_col_1->create_item(thd);
       Item *item_2=   nj_col_2->create_item(thd);
@@ -3886,6 +3908,13 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
                   eq_cond);
 
       nj_col_1->is_common= nj_col_2->is_common= TRUE;
+      DBUG_PRINT ("info", ("%s.%s and %s.%s are common", 
+                           nj_col_1->table_name() ? 
+                             nj_col_1->table_name() : "", 
+                           nj_col_1->name(),
+                           nj_col_2->table_name() ? 
+                             nj_col_2->table_name() : "", 
+                           nj_col_2->name()));
 
       if (field_1)
       {
