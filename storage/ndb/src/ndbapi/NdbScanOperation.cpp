@@ -1219,7 +1219,7 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
      * so it's safe to use [tIndexAttrId] 
      * (instead of looping as is NdbOperation::equal_impl)
      */
-    if(type == BoundEQ && tDistrKey)
+    if(type == BoundEQ && tDistrKey && !m_multi_range)
     {
       theNoOfTupKeyLeft--;
       return handle_distribution_key((Uint64*)aValue, sizeInWords);
@@ -1305,7 +1305,8 @@ NdbIndexScanOperation::readTuples(LockMode lm,
   const bool order_by = scan_flags & SF_OrderBy;
   const bool order_desc = scan_flags & SF_Descending;
   const bool read_range_no = scan_flags & SF_ReadRangeNo;
-  
+  m_multi_range = scan_flags & SF_MultiRange;
+
   int res = NdbScanOperation::readTuples(lm, scan_flags, parallel, batch);
   if(!res && read_range_no)
   {
