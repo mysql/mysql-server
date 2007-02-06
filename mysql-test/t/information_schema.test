@@ -987,4 +987,16 @@ explain select * from v1;
 explain select * from (select table_name from information_schema.tables) as a;
 drop view v1;
 
+#
+# Bug#23299 Some queries against INFORMATION_SCHEMA with subqueries fail
+#
+create table t1 (f1 int(11));
+create table t2 (f1 int(11), f2 int(11));
+
+select table_name from information_schema.tables
+where table_schema = 'test' and table_name not in
+(select table_name from information_schema.columns
+ where table_schema = 'test' and column_name = 'f3');
+drop table t1,t2;
+
 # End of 5.0 tests.
