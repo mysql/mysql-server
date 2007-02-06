@@ -29,7 +29,6 @@
 #define SCHED_POLICY SCHED_OTHER
 #endif
 
-uint thd_lib_detected;
 
 #ifndef my_pthread_setprio
 void my_pthread_setprio(pthread_t thread_id,int prior)
