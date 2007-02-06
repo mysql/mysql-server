@@ -2202,13 +2202,13 @@ static void reset_stmt_params(Prepared_statement *stmt)
 
 void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
 {
-  uchar *packet= (uchar*)packet_arg; // GCC 4.0.1 workaround
+  uchar* packet= (uchar*)packet_arg; // gcc 4.0 stgrict-aliasing
   ulong stmt_id= uint4korr(packet);
   ulong flags= (ulong) ((uchar) packet[4]);
   /* Query text for binary, general or slow log, if any of them is open */
   String expanded_query;
 #ifndef EMBEDDED_LIBRARY
-  uchar *packet_end= (uchar *) packet + packet_length - 1;
+  uchar *packet_end= packet + packet_length - 1;
 #endif
   Prepared_statement *stmt;
   bool error;
@@ -2231,9 +2231,9 @@ void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
 #ifndef EMBEDDED_LIBRARY
   if (stmt->param_count)
   {
-    uchar *null_array= (uchar *) packet;
-    if (setup_conversion_functions(stmt, (uchar **) &packet, packet_end) ||
-        stmt->set_params(stmt, null_array, (uchar *) packet, packet_end,
+    uchar *null_array= packet;
+    if (setup_conversion_functions(stmt, &packet, packet_end) ||
+        stmt->set_params(stmt, null_array, packet, packet_end,
                          &expanded_query))
       goto set_params_data_err;
   }
