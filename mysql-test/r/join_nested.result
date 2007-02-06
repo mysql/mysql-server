@@ -1605,3 +1605,31 @@ WHERE t1.id='5';
 id	ct	pc	nm
 5	NULL	NULL	NULL
 DROP TABLE t1,t2,t3,t4;
+CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t2 (a INT);
+CREATE TABLE t3 (a INT, c INT);
+CREATE TABLE t4 (a INT, c INT);
+CREATE TABLE t5 (a INT, c INT);
+SELECT b FROM t1 JOIN (t2 LEFT JOIN t3 USING (a) LEFT JOIN t4 USING (a)
+LEFT JOIN t5 USING (a)) USING (a);
+b
+SELECT c FROM t1 JOIN (t2 LEFT JOIN t3 USING (a) LEFT JOIN t4 USING (a)
+LEFT JOIN t5 USING (a)) USING (a);
+ERROR 23000: Column 'c' in field list is ambiguous
+SELECT b FROM t1 JOIN (t2 JOIN t3 USING (a) JOIN t4 USING (a)
+JOIN t5 USING (a)) USING (a);
+b
+SELECT c FROM t1 JOIN (t2 JOIN t3 USING (a) JOIN t4 USING (a)
+JOIN t5 USING (a)) USING (a);
+ERROR 23000: Column 'c' in field list is ambiguous
+DROP TABLE t1,t2,t3,t4,t5;
+CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t2 (a INT, b INT);
+CREATE TABLE t3 (a INT, b INT);
+INSERT INTO t1 VALUES (1,1);
+INSERT INTO t2 VALUES (1,1);
+INSERT INTO t3 VALUES (1,1);
+SELECT * FROM t1 JOIN (t2 JOIN t3 USING (b)) USING (a);
+ERROR 23000: Column 'a' in from clause is ambiguous
+DROP TABLE t1,t2,t3;
+End of 5.0 tests
