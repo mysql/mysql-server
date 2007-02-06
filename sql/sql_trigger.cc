@@ -781,7 +781,7 @@ bool Table_triggers_list::prepare_record1_accessors(TABLE *table)
                                       table == (*fld)->table)))
       return 1;
     (*old_fld)->move_field_offset((my_ptrdiff_t)(table->record[1] -
-                                          table->record[0]));
+                                                 table->record[0]));
   }
   *old_fld= 0;
 
@@ -799,8 +799,8 @@ bool Table_triggers_list::prepare_record1_accessors(TABLE *table)
 
 void Table_triggers_list::set_table(TABLE *new_table)
 {
-  table= new_table;
-  for (Field **field= table->triggers->record1_field ; *field ; field++)
+  trigger_table= new_table;
+  for (Field **field= new_table->triggers->record1_field ; *field ; field++)
   {
     (*field)->table= (*field)->orig_table= new_table;
     (*field)->table_name= &new_table->alias;
@@ -1363,7 +1363,8 @@ Table_triggers_list::change_table_name_in_triggers(THD *thd,
       It is OK to allocate some memory on table's MEM_ROOT since this
       table instance will be thrown out at the end of rename anyway.
     */
-    new_def.str= memdup_root(&table->mem_root, buff.ptr(), buff.length());
+    new_def.str= memdup_root(&trigger_table->mem_root, buff.ptr(),
+                             buff.length());
     new_def.length= buff.length();
     on_table_name->str= new_def.str + before_on_len;
     on_table_name->length= on_q_table_name_len;
@@ -1541,12 +1542,12 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
     if (old_row_is_record1)
     {
       old_field= record1_field;
-      new_field= table->field;
+      new_field= trigger_table->field;
     }
     else
     {
       new_field= record1_field;
-      old_field= table->field;
+      old_field= trigger_table->field;
     }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     Security_context *save_ctx;
@@ -1562,7 +1563,8 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
 
     fill_effective_table_privileges(thd,
                                     &subject_table_grants[event][time_type],
-                                    table->s->db.str, table->s->table_name.str);
+                                    trigger_table->s->db.str,
+                                    trigger_table->s->table_name.str);
 
     /* Check that the definer has TRIGGER privilege on the subject table. */
 
@@ -1573,7 +1575,7 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
 
       my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0), priv_desc,
                thd->security_ctx->priv_user, thd->security_ctx->host_or_ip,
-               table->s->table_name.str);
+               trigger_table->s->table_name.str);
 
       sp_restore_security_context(thd, save_ctx);
       return TRUE;
@@ -1582,7 +1584,7 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
 
     thd->reset_sub_statement_state(&statement_state, SUB_STMT_TRIGGER);
     err_status= sp_trigger->execute_trigger
-      (thd, table->s->db.str, table->s->table_name.str,
+      (thd, trigger_table->s->db.str, trigger_table->s->table_name.str,
        &subject_table_grants[event][time_type]);
     thd->restore_sub_statement_state(&statement_state);
 
@@ -1623,13 +1625,13 @@ void Table_triggers_list::mark_fields_used(trg_event_type event)
       /* We cannot mark fields which does not present in table. */
       if (trg_field->field_idx != (uint)-1)
       {
-        bitmap_set_bit(table->read_set, trg_field->field_idx);
+        bitmap_set_bit(trigger_table->read_set, trg_field->field_idx);
         if (trg_field->get_settable_routine_parameter())
-          bitmap_set_bit(table->write_set, trg_field->field_idx);
+          bitmap_set_bit(trigger_table->write_set, trg_field->field_idx);
       }
     }
   }
-  table->file->column_bitmaps_signal();
+  trigger_table->file->column_bitmaps_signal();
 }
 
 

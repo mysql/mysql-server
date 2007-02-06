@@ -82,7 +82,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   uchar fileinfo[64],forminfo[288],*keybuff;
   TYPELIB formnames;
   uchar *screen_buff;
-  char buff[32];
+  char buff[128];
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *part_info= thd->work_part_info;
 #endif
@@ -175,7 +175,6 @@ bool mysql_create_frm(THD *thd, const char *file_name,
                                               create_info->comment.length, 60);
   if (tmp_len < create_info->comment.length)
   {
-    char buff[128];
     (void) my_snprintf(buff, sizeof(buff), "Too long comment for table '%s'",
                        table);
     if ((thd->variables.sql_mode &
@@ -549,11 +548,11 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
   create_field *field;
   while ((field=it++))
   {
-
     uint tmp_len= system_charset_info->cset->charpos(system_charset_info,
                                                      field->comment.str,
                                                      field->comment.str +
-                                                     field->comment.length, 255);
+                                                     field->comment.length,
+                                                     255);
     if (tmp_len < field->comment.length)
     {
       char buff[128];
@@ -622,8 +621,9 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
         for (uint pos= 0; pos < field->interval->count; pos++)
         {
           char *dst;
-          uint length= field->save_interval->type_lengths[pos], hex_length;
           const char *src= field->save_interval->type_names[pos];
+          uint hex_length;
+          length= field->save_interval->type_lengths[pos];
           hex_length= length * 2;
           field->interval->type_lengths[pos]= hex_length;
           field->interval->type_names[pos]= dst= sql_alloc(hex_length + 1);

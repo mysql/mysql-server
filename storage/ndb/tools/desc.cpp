@@ -54,10 +54,12 @@ static struct my_option my_long_options[] =
 };
 static void usage()
 {
+#ifdef NOT_USED
   char desc[] = 
     "tabname\n"\
     "This program list all properties of table(s) in NDB Cluster.\n"\
     "  ex: desc T1 T2 T4\n";
+#endif
   ndb_std_print_version();
   print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
   puts("");
@@ -96,7 +98,6 @@ int main(int argc, char** argv){
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
-  NdbDictionary::Dictionary * dict= MyNdb.getDictionary();
   for(int i= 0; i<argc;i++)
   {
     if(desc_table(&MyNdb,argv[i]))

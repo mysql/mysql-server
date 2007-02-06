@@ -147,8 +147,7 @@ public:
    */
   void truncate(my_off_t pos)
   {
-    DBUG_PRINT("info", ("truncating to position %lu", pos));
-    DBUG_PRINT("info", ("before_stmt_pos=%lu", pos));
+    DBUG_PRINT("info", ("truncating to position %lu", (ulong) pos));
     delete pending();
     set_pending(0);
     reinit_io_cache(&trans_log, WRITE_CACHE, pos, 0, 0);
@@ -909,7 +908,7 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
 
   my_time_t current_time;
   Security_context *sctx= thd->security_ctx;
-  uint message_buff_len= 0, user_host_len= 0;
+  uint user_host_len= 0;
   longlong query_time= 0, lock_time= 0;
 
   /*
@@ -1544,23 +1543,21 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all)
     do nothing.
     just pretend we can do 2pc, so that MySQL won't
     switch to 1pc.
-    real work will be done in MYSQL_BIN_LOG::log()
+    real work will be done in MYSQL_BIN_LOG::log_xid()
   */
   return 0;
 }
 
 static int binlog_commit(handlerton *hton, THD *thd, bool all)
 {
-  int error= 0;
   DBUG_ENTER("binlog_commit");
   binlog_trx_data *const trx_data=
     (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
-  IO_CACHE *trans_log= &trx_data->trans_log;
   DBUG_ASSERT(mysql_bin_log.is_open());
 
   if (all && trx_data->empty())
   {
-    // we're here because trans_log was flushed in MYSQL_BIN_LOG::log()
+    // we're here because trans_log was flushed in MYSQL_BIN_LOG::log_xid()
     trx_data->reset();
     DBUG_RETURN(0);
   }
@@ -1584,7 +1581,6 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
   int error=0;
   binlog_trx_data *const trx_data=
     (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
-  IO_CACHE *trans_log= &trx_data->trans_log;
   DBUG_ASSERT(mysql_bin_log.is_open());
 
   if (trx_data->empty()) {
@@ -1647,9 +1643,6 @@ static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
 static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
 {
   DBUG_ENTER("binlog_savepoint_rollback");
-  binlog_trx_data *const trx_data=
-    (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
-  IO_CACHE *trans_log= &trx_data->trans_log;
   DBUG_ASSERT(mysql_bin_log.is_open());
 
   /*
@@ -1660,7 +1653,7 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
   if (unlikely(thd->options &
                (OPTION_STATUS_NO_TRANS_UPDATE | OPTION_KEEP_LOG)))
   {
-    int const error=
+    int error=
       thd->binlog_query(THD::STMT_QUERY_TYPE,
                         thd->query, thd->query_length, TRUE, FALSE);
     DBUG_RETURN(error);
@@ -1668,6 +1661,7 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
   binlog_trans_log_truncate(thd, *(my_off_t*)sv);
   DBUG_RETURN(0);
 }
+
 
 int check_binlog_magic(IO_CACHE* log, const char** errmsg)
 {
@@ -1688,6 +1682,7 @@ int check_binlog_magic(IO_CACHE* log, const char** errmsg)
   }
   return 0;
 }
+
 
 File open_binlog(IO_CACHE *log, const char *log_file_name, const char **errmsg)
 {
@@ -2195,7 +2190,6 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
 
     if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT))
     {
-      Security_context *sctx= thd->security_ctx;
       if (current_time != last_time)
       {
         last_time= current_time;
@@ -2434,7 +2428,6 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
                          bool null_created_arg)
 {
   File file= -1;
-  int open_flags = O_CREAT | O_BINARY;
   DBUG_ENTER("MYSQL_BIN_LOG::open");
   DBUG_PRINT("enter",("log_type: %d",(int) log_type_arg));
 
@@ -2596,6 +2589,8 @@ int MYSQL_BIN_LOG::raw_get_current_log(LOG_INFO* linfo)
     0	ok
 */
 
+#ifdef HAVE_REPLICATION
+
 static bool copy_up_file_and_fill(IO_CACHE *index_file, my_off_t offset)
 {
   int bytes_read;
@@ -2629,6 +2624,7 @@ err:
   DBUG_RETURN(1);
 }
 
+#endif /* HAVE_REPLICATION */
 
 /*
   Find the position in the log-index-file for the given log name
@@ -3121,8 +3117,6 @@ err:
   pthread_mutex_unlock(&LOCK_index);
   DBUG_RETURN(error);
 }
-
-
 #endif /* HAVE_REPLICATION */
 
 
@@ -3244,7 +3238,6 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
         We log the whole file name for log file as the user may decide
         to change base names at some point.
       */
-      THD *thd = current_thd; /* may be 0 if we are reacting to SIGHUP */
       Rotate_log_event r(new_name+dirname_length(new_name),
                          0, LOG_EVENT_OFFSET, 0);
       r.write(&log_file);
@@ -3480,10 +3473,10 @@ int THD::binlog_flush_transaction_cache()
 {
   DBUG_ENTER("binlog_flush_transaction_cache");
   binlog_trx_data *trx_data= (binlog_trx_data*) ha_data[binlog_hton->slot];
-  DBUG_PRINT("enter", ("trx_data=0x%lu", trx_data));
+  DBUG_PRINT("enter", ("trx_data: 0x%lx", (ulong) trx_data));
   if (trx_data)
-    DBUG_PRINT("enter", ("trx_data->before_stmt_pos=%u",
-                         trx_data->before_stmt_pos));
+    DBUG_PRINT("enter", ("trx_data->before_stmt_pos: %lu",
+                         (ulong) trx_data->before_stmt_pos));
 
   /*
     Write the transaction cache to the binary log.  We don't flush and
@@ -3698,14 +3691,14 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
   */
   if (likely(is_open()))
   {
-    const char *local_db= event_info->get_db();
     IO_CACHE *file= &log_file;
 #ifdef HAVE_REPLICATION
     /*
-       In the future we need to add to the following if tests like
-       "do the involved tables match (to be implemented)
-        binlog_[wild_]{do|ignore}_table?" (WL#1049)"
+      In the future we need to add to the following if tests like
+      "do the involved tables match (to be implemented)
+      binlog_[wild_]{do|ignore}_table?" (WL#1049)"
     */
+    const char *local_db= event_info->get_db();
     if ((thd && !(thd->options & OPTION_BIN_LOG)) ||
 	(!binlog_filter->db_ok(local_db)))
     {
@@ -3981,8 +3974,6 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
 
   if (likely(is_open()))                       // Should always be true
   {
-    uint length;
-
     /*
       We only bother to write to the binary log if there is anything
       to write.
@@ -4022,9 +4013,6 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
       
       if (commit_event && commit_event->write(&log_file))
         goto err;
-#ifndef DBUG_OFF
-  DBUG_skip_commit:
-#endif
       if (flush_and_sync())
         goto err;
       DBUG_EXECUTE_IF("half_binlogged_transaction", abort(););
@@ -4684,21 +4672,34 @@ int TC_LOG_MMAP::overflow()
 }
 
 /*
-  all access to active page is serialized but it's not a problem, as
-  we're assuming that fsync() will be a main bottleneck.
-  That is, parallelizing writes to log pages we'll decrease number of
-  threads waiting for a page, but then all these threads will be waiting
-  for a fsync() anyway
+  Record that transaction XID is committed on the persistent storage
+
+  NOTES
+    This function is called in the middle of two-phase commit:
+    First all resources prepare the transaction, then tc_log->log() is called,
+    then all resources commit the transaction, then tc_log->unlog() is called.
+
+    All access to active page is serialized but it's not a problem, as
+    we're assuming that fsync() will be a main bottleneck.
+    That is, parallelizing writes to log pages we'll decrease number of
+    threads waiting for a page, but then all these threads will be waiting
+    for a fsync() anyway
+
+  IMPLEMENTATION
+   If tc_log == MYSQL_LOG then tc_log writes transaction to binlog and
+   records XID in a special Xid_log_event.
+   If tc_log = TC_LOG_MMAP then xid is written in a special memory-mapped
+   log.
 
   RETURN
-         0  - error
-  otherwise - "cookie", a number that will be passed as an argument
-              to unlog() call. tc_log can define it any way it wants,
-              and use for whatever purposes. TC_LOG_MMAP sets it
-              to the position in memory where xid was logged to.
+    0  Error
+    #  "cookie", a number that will be passed as an argument
+       to unlog() call. tc_log can define it any way it wants,
+       and use for whatever purposes. TC_LOG_MMAP sets it
+       to the position in memory where xid was logged to.
 */
 
-int TC_LOG_MMAP::log(THD *thd, my_xid xid)
+int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid)
 {
   int err;
   PAGE *p;
@@ -4807,6 +4808,7 @@ int TC_LOG_MMAP::sync()
   erase xid from the page, update page free space counters/pointers.
   cookie points directly to the memory where xid was logged
 */
+
 void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid)
 {
   PAGE *p=pages+(cookie/tc_log_page_size);
@@ -5049,7 +5051,7 @@ void TC_LOG_BINLOG::close()
          0  - error
          1  - success
 */
-int TC_LOG_BINLOG::log(THD *thd, my_xid xid)
+int TC_LOG_BINLOG::log_xid(THD *thd, my_xid xid)
 {
   DBUG_ENTER("TC_LOG_BINLOG::log");
   Xid_log_event xle(thd, xid);

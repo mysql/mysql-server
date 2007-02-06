@@ -18,8 +18,6 @@
 #include <NdbOut.hpp>
 #include <NdbTCP.h>
 
-static Uint32 hash(Uint32 key, Uint32 size);
-static Uint32 nextHash(Uint32 key, Uint32 size, Uint32 pos, Uint32 count);
 static bool findKey(const Uint32 * vals, Uint32 sz, Uint32 key, Uint32 * pos);
 
 /**

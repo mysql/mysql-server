@@ -302,6 +302,7 @@ public:
   /* WHEN THE TRIGGER IS DEACTIVATED.         */
   /* **************************************** */
   struct TcDefinedTriggerData {
+    TcDefinedTriggerData() {}
     /**
      * Trigger id, used to identify the trigger
      */
@@ -958,6 +959,7 @@ public:
   /* ALL TABLES IN THE SYSTEM.                            */
   /********************************************************/
   struct TableRecord {
+    TableRecord() {}
     Uint32 currentSchemaVersion;
     Uint8 enabled;
     Uint8 dropping;
@@ -1667,6 +1669,7 @@ private:
   UintR tcheckGcpId;
 
   struct TransCounters {
+    TransCounters() {}
     enum { Off, Timer, Started } c_trans_status;
     UintR cattrinfoCount;
     UintR ctransCount;
@@ -1805,6 +1808,7 @@ private:
    */
 public:
   struct CommitAckMarker {
+    CommitAckMarker() {}
     Uint32 transid1;
     Uint32 transid2;
     union { Uint32 nextPool; Uint32 nextHash; };

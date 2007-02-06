@@ -116,8 +116,8 @@ public:
   int get_row(azio_stream *file_to_read, byte *buf);
   int get_row_version2(azio_stream *file_to_read, byte *buf);
   int get_row_version3(azio_stream *file_to_read, byte *buf);
-  ARCHIVE_SHARE *get_share(const char *table_name, TABLE *table, int *rc);
-  int free_share(ARCHIVE_SHARE *share);
+  ARCHIVE_SHARE *get_share(const char *table_name, int *rc);
+  int free_share();
   int init_archive_writer();
   bool auto_repair() const { return 1; } // For the moment we just do this
   int read_data_header(azio_stream *file_to_read);

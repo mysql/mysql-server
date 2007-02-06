@@ -538,6 +538,11 @@ int init_embedded_server(int argc, char **argv, char **groups)
       sql_print_error("Warning: Can't create thread to manage maintenance");
   }
 
+  // FIXME initialize binlog_filter and rpl_filter if not already done
+  //       corresponding delete is in clean_up()
+  if(!binlog_filter) binlog_filter = new Rpl_filter;
+  if(!rpl_filter) rpl_filter = new Rpl_filter;
+
   if (opt_init_file)
   {
     if (read_init_file(opt_init_file))
@@ -593,7 +598,7 @@ void *create_embedded_thd(int client_flag)
   thd->set_time();
   thd->init_for_queries();
   thd->client_capabilities= client_flag;
-  thd->real_id= (pthread_t) thd;
+  thd->real_id= pthread_self();
 
   thd->db= NULL;
   thd->db_length= 0;
@@ -1055,6 +1060,7 @@ void Protocol_simple::prepare_for_resend()
   data->embedded_info->prev_ptr= &cur->next;
   next_field=cur->data;
   next_mysql_field= data->embedded_info->fields_list;
+
   DBUG_VOID_RETURN;
 }
 

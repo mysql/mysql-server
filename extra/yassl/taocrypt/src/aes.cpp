@@ -90,13 +90,14 @@ void AES::SetKey(const byte* userKey, word32 keylen, CipherDir /*dummy*/)
     rounds_ = keylen/4 + 6;
 
     word32 temp, *rk = key_;
-    unsigned int i=0;
 
     GetUserKey(BigEndianOrder, rk, keylen/4, userKey, keylen);
 
     switch(keylen)
     {
     case 16:
+    {
+        unsigned int i=0;
         while (true)
         {
             temp  = rk[3];
@@ -114,8 +115,10 @@ void AES::SetKey(const byte* userKey, word32 keylen, CipherDir /*dummy*/)
             rk += 4;
         }
         break;
-
+    }
     case 24:
+    {
+        unsigned int i=0;
         while (true)    // for (;;) here triggers a bug in VC60 SP4 w/ Pro Pack
         {
             temp = rk[ 5];
@@ -136,7 +139,10 @@ void AES::SetKey(const byte* userKey, word32 keylen, CipherDir /*dummy*/)
         }
         break;
 
+    }
     case 32:
+    {
+        unsigned int i=0;
         while (true)
         {
             temp = rk[ 7];
@@ -164,6 +170,7 @@ void AES::SetKey(const byte* userKey, word32 keylen, CipherDir /*dummy*/)
             rk += 8;
         }
         break;
+    }
     }
 
     if (dir_ == DECRYPTION)
