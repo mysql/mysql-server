@@ -472,7 +472,6 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
   LocalConfig &cfg= handle->cfg;
   NDB_SOCKET_TYPE sockfd= NDB_INVALID_SOCKET;
   Uint32 i;
-  int binderror = 0;
   SocketClient s(0, 0);
   s.set_connect_timeout(handle->connect_timeout);
   if (!s.init())
@@ -842,12 +841,12 @@ ndb_mgm_get_status(NdbMgmHandle handle)
       break;
     }
     
-    Vector<BaseString> split;
-    tmp.split(split, ":.", 4);
-    if(split.size() != 4)
+    Vector<BaseString> split2;
+    tmp.split(split2, ":.", 4);
+    if(split2.size() != 4)
       break;
     
-    const int id = atoi(split[1].c_str());
+    const int id = atoi(split2[1].c_str());
     if(id != nodeId){
       ptr++;
       i++;
@@ -855,9 +854,9 @@ ndb_mgm_get_status(NdbMgmHandle handle)
       ptr->node_id = id;
     }
 
-    split[3].trim(" \t\n");
+    split2[3].trim(" \t\n");
 
-    if(status_ackumulate(ptr,split[2].c_str(), split[3].c_str()) != 0) {
+    if(status_ackumulate(ptr,split2[2].c_str(), split2[3].c_str()) != 0) {
       break;
     }
   }

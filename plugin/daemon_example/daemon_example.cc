@@ -22,13 +22,15 @@
 #include <my_dir.h>
 
 /*
-#if !defined(__attribute__) && (defined(__cplusplus) || !defined(__GNUC__)  || __GNUC__ == 2 && __GNUC_MINOR__ < 8)
+  Disable __attribute__() on non-gcc compilers.
+*/
+#if !defined(__attribute__) && !defined(__GNUC__)
 #define __attribute__(A)
 #endif
-*/
+
 
 #define HEART_STRING_BUFFER 100
-
+  
 struct mysql_heartbeat_context
 {
   pthread_t heartbeat_thread;
@@ -62,7 +64,6 @@ pthread_handler_t mysql_heartbeat(void *p)
     x++;
   }
 
-  
   DBUG_RETURN(0);
 }
 
@@ -82,6 +83,7 @@ pthread_handler_t mysql_heartbeat(void *p)
 
 static int daemon_example_plugin_init(void *p)
 {
+
   DBUG_ENTER("daemon_example_plugin_init");
   struct mysql_heartbeat_context *con;
   pthread_attr_t attr;          /* Thread attributes */
@@ -92,9 +94,11 @@ static int daemon_example_plugin_init(void *p)
 
   struct st_plugin_int *plugin= (struct st_plugin_int *)p;
 
-  con= (struct mysql_heartbeat_context *)my_malloc(sizeof(struct mysql_heartbeat_context), MYF(0)); 
+  con= (struct mysql_heartbeat_context *)
+    my_malloc(sizeof(struct mysql_heartbeat_context), MYF(0)); 
 
-  fn_format(heartbeat_filename, "mysql-heartbeat", "", ".log", MY_REPLACE_EXT | MY_UNPACK_FILENAME);
+  fn_format(heartbeat_filename, "mysql-heartbeat", "", ".log",
+            MY_REPLACE_EXT | MY_UNPACK_FILENAME);
   unlink(heartbeat_filename);
   con->heartbeat_file= my_open(heartbeat_filename, O_CREAT|O_RDWR, MYF(0));
 
@@ -118,12 +122,12 @@ static int daemon_example_plugin_init(void *p)
 
 
   /* now create the thread */
-  if (pthread_create(&con->heartbeat_thread, &attr, mysql_heartbeat, (void *)con) != 0)
+  if (pthread_create(&con->heartbeat_thread, &attr, mysql_heartbeat,
+                     (void *)con) != 0)
   {
     fprintf(stderr,"Could not create heartbeat thread!\n");
     exit(0);
   }
-
   plugin->data= (void *)con;
 
   DBUG_RETURN(0);
@@ -142,12 +146,14 @@ static int daemon_example_plugin_init(void *p)
     1                    failure (cannot happen)
 
 */
+
 static int daemon_example_plugin_deinit(void *p)
 {
   DBUG_ENTER("daemon_example_plugin_deinit");
   char buffer[HEART_STRING_BUFFER];
   struct st_plugin_int *plugin= (struct st_plugin_int *)p;
-  struct mysql_heartbeat_context *con= (struct mysql_heartbeat_context *)plugin->data;
+  struct mysql_heartbeat_context *con=
+    (struct mysql_heartbeat_context *)plugin->data;
   time_t result= time(NULL);
   struct tm tm_tmp;
 
@@ -165,11 +171,11 @@ static int daemon_example_plugin_deinit(void *p)
   my_write(con->heartbeat_file, buffer, strlen(buffer), MYF(0));
   my_close(con->heartbeat_file, MYF(0));
 
-
   my_free((char *)con, MYF(0));
 
   DBUG_RETURN(0);
 }
+
 
 struct st_mysql_daemon daemon_example_plugin=
 { MYSQL_DAEMON_INTERFACE_VERSION  };

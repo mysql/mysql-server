@@ -692,6 +692,18 @@ set time_zone= @@global.time_zone;
 #
 
 select str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE;
+
+#
+# Bug #25643: SEC_TO_TIME function problem
+#
+CREATE TABLE t1 (a int, t1 time, t2 time, d date, PRIMARY KEY  (a));
+INSERT INTO t1 VALUES (1, '10:00:00', NULL, NULL), 
+       (2, '11:00:00', '11:15:00', '1972-02-06');
+SELECT t1, t2, SEC_TO_TIME( TIME_TO_SEC( t2 ) - TIME_TO_SEC( t1 ) ), QUARTER(d) 
+  FROM t1;
+SELECT t1, t2, SEC_TO_TIME( TIME_TO_SEC( t2 ) - TIME_TO_SEC( t1 ) ), QUARTER(d)
+  FROM t1 ORDER BY a DESC;
+DROP TABLE t1;
 --echo End of 5.0 tests
 
 #

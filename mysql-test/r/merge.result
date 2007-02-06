@@ -775,7 +775,7 @@ CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES(2),(1);
 CREATE TABLE t2(a INT, KEY(a)) ENGINE=MERGE UNION=(t1);
 SELECT * FROM t2 WHERE a=2;
-ERROR HY000: Got error 124 from storage engine
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 DROP TABLE t1, t2;
 CREATE TABLE t1(a INT) ENGINE=MEMORY;
 CREATE TABLE t2(a INT) ENGINE=MERGE UNION=(t1);
@@ -786,6 +786,26 @@ CREATE TABLE t2(a INT) ENGINE=MERGE UNION=(t3);
 SELECT * FROM t2;
 ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 DROP TABLE t2;
+CREATE TABLE t1(a INT, b TEXT);
+CREATE TABLE tm1(a TEXT, b INT) ENGINE=MERGE UNION=(t1);
+SELECT * FROM tm1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+DROP TABLE t1, tm1;
+CREATE TABLE t1(a SMALLINT, b SMALLINT);
+CREATE TABLE tm1(a INT) ENGINE=MERGE UNION=(t1);
+SELECT * FROM tm1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+DROP TABLE t1, tm1;
+CREATE TABLE t1(a SMALLINT, b SMALLINT, KEY(a, b));
+CREATE TABLE tm1(a SMALLINT, b SMALLINT, KEY(a)) ENGINE=MERGE UNION=(t1);
+SELECT * FROM tm1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+DROP TABLE t1, tm1;
+CREATE TABLE t1(a SMALLINT, b SMALLINT, KEY(b));
+CREATE TABLE tm1(a SMALLINT, b SMALLINT, KEY(a)) ENGINE=MERGE UNION=(t1);
+SELECT * FROM tm1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+DROP TABLE t1, tm1;
 create table t1 (b bit(1));
 create table t2 (b bit(1));
 create table tm (b bit(1)) engine = merge union = (t1,t2);

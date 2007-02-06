@@ -818,10 +818,10 @@ public:
     return (value_res ? (res ? sortcmp(value_res, res, cmp_charset) : 1) :
             (res ? -1 : 0));
   }
-  int compare(cmp_item *c)
+  int compare(cmp_item *ci)
   {
-    cmp_item_string *cmp= (cmp_item_string *)c;
-    return sortcmp(value_res, cmp->value_res, cmp_charset);
+    cmp_item_string *l_cmp= (cmp_item_string *) ci;
+    return sortcmp(value_res, l_cmp->value_res, cmp_charset);
   } 
   cmp_item *make_same();
   void set_charset(CHARSET_INFO *cs)
@@ -844,10 +844,10 @@ public:
   {
     return value != arg->val_int();
   }
-  int compare(cmp_item *c)
+  int compare(cmp_item *ci)
   {
-    cmp_item_int *cmp= (cmp_item_int *)c;
-    return (value < cmp->value) ? -1 : ((value == cmp->value) ? 0 : 1);
+    cmp_item_int *l_cmp= (cmp_item_int *)ci;
+    return (value < l_cmp->value) ? -1 : ((value == l_cmp->value) ? 0 : 1);
   }
   cmp_item *make_same();
 };
@@ -865,10 +865,10 @@ public:
   {
     return value != arg->val_real();
   }
-  int compare(cmp_item *c)
+  int compare(cmp_item *ci)
   {
-    cmp_item_real *cmp= (cmp_item_real *)c;
-    return (value < cmp->value)? -1 : ((value == cmp->value) ? 0 : 1);
+    cmp_item_real *l_cmp= (cmp_item_real *) ci;
+    return (value < l_cmp->value)? -1 : ((value == l_cmp->value) ? 0 : 1);
   }
   cmp_item *make_same();
 };
@@ -934,10 +934,10 @@ public:
     DBUG_ASSERT(0);
     return 1;
   }
-  int compare(cmp_item *c)
+  int compare(cmp_item *ci)
   {
-    cmp_item_string *cmp= (cmp_item_string *)c;
-    return sortcmp(value_res, cmp->value_res, cmp_charset);
+    cmp_item_string *l_cmp= (cmp_item_string *) ci;
+    return sortcmp(value_res, l_cmp->value_res, cmp_charset);
   }
   cmp_item *make_same()
   {
@@ -1455,7 +1455,7 @@ public:
   Item_cond_and() :Item_cond() {}
   Item_cond_and(Item *i1,Item *i2) :Item_cond(i1,i2) {}
   Item_cond_and(THD *thd, Item_cond_and *item) :Item_cond(thd, item) {}
-  Item_cond_and(List<Item> &list): Item_cond(list) {}
+  Item_cond_and(List<Item> &list_arg): Item_cond(list_arg) {}
   enum Functype functype() const { return COND_AND_FUNC; }
   longlong val_int();
   const char *func_name() const { return "and"; }
@@ -1477,7 +1477,7 @@ public:
   Item_cond_or() :Item_cond() {}
   Item_cond_or(Item *i1,Item *i2) :Item_cond(i1,i2) {}
   Item_cond_or(THD *thd, Item_cond_or *item) :Item_cond(thd, item) {}
-  Item_cond_or(List<Item> &list): Item_cond(list) {}
+  Item_cond_or(List<Item> &list_arg): Item_cond(list_arg) {}
   enum Functype functype() const { return COND_OR_FUNC; }
   longlong val_int();
   const char *func_name() const { return "or"; }

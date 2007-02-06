@@ -100,6 +100,7 @@ MgmtSrvr::logLevelThread_C(void* m)
 
 extern EventLogger g_eventLogger;
 
+#ifdef NOT_USED
 static NdbOut&
 operator<<(NdbOut& out, const LogLevel & ll)
 {
@@ -109,6 +110,7 @@ operator<<(NdbOut& out, const LogLevel & ll)
   out << "]";
   return out;
 }
+#endif
 
 void
 MgmtSrvr::logLevelThreadRun() 
@@ -1127,7 +1129,9 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
       break;
     }
     case GSN_STOP_CONF:{
+#ifdef NOT_USED
       const StopConf * const ref = CAST_CONSTPTR(StopConf, signal->getDataPtr());
+#endif
       const NodeId nodeId = refToNode(signal->header.theSendersBlockRef);
 #ifdef VM_TRACE
       ndbout_c("Node %d single user mode", nodeId);
@@ -1160,7 +1164,6 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
       const NodeFailRep * const rep =
 	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
       NdbNodeBitmask mask;
-      char buf[100];
       mask.assign(NdbNodeBitmask::Size, rep->theNodes);
       mask.bitAND(notstarted);
       nodes.bitANDC(mask);
@@ -1354,7 +1357,7 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
 
   for (unsigned i = 0; i < node_ids.size(); i++)
   {
-    int result = start(node_ids[i]);
+    (void) start(node_ids[i]);
   }
   return 0;
 }
@@ -2064,8 +2067,10 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id, enum ndb_mgm_node_type type)
     switch (gsn) {
     case GSN_ALLOC_NODEID_CONF:
     {
+#ifdef NOT_USED
       const AllocNodeIdConf * const conf =
         CAST_CONSTPTR(AllocNodeIdConf, signal->getDataPtr());
+#endif
       return 0;
     }
     case GSN_ALLOC_NODEID_REF:

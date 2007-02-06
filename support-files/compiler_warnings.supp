@@ -1,0 +1,17 @@
+DictTabInfo.cpp : .*invalid access to non-static.*
+DictTabInfo.cpp : .*macro was used incorrectly.*
+EventLogger.cpp : .*defined but not used.* : 916
+NdbSqlUtil.cpp : .*unused variable.* : 684 - 685
+DbdihMain.cpp : .*unused variable.* : 6666
+DbtcMain.cpp : .*unused variable.* : 6947
+DbtcMain.cpp : .*unused variable.* : 11870
+DbtupExecQuery.cpp : .*unused variable.* : 1449
+DbtupSystemRestart.cpp : .*unused variable.* : 95 - 96
+DbtupIndex.cpp : .*unused variable.* : 188 - 242
+ndbd_malloc.cpp : .*defined but not used.* : 25
+main.cpp : .*unused variable.* : 131 - 132
+kernel_types.h : .*only defines private constructors and has no friends.* : 51
+Dbtup.hpp:   .*only defines private constructors and has no friends.*
+diskpage.hpp:   .*only defines private constructors and has no friends.*
+tuppage.hpp:   .*only defines private constructors and has no friends.*
+NdbScanOperation.cpp: .*unused variable '__align'.* : 1192

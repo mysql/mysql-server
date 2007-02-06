@@ -701,8 +701,9 @@ double Item_func_glength::val_real()
 
   null_value= (!swkb || 
 	       !(geom= Geometry::construct(&buffer,
-                                           swkb->ptr(), swkb->length())) ||
-	       geom->length(&res));
+                                           swkb->ptr(),
+                                           swkb->length())) ||
+	       geom->geom_length(&res));
   return res;
 }
 
