@@ -2934,3 +2934,16 @@ win/vs71cache.txt
 win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
+mysql-test/suite/funcs_1/r/innodb_views.warnings
+mysql-test/suite/funcs_1/r/memory_trig_03e.warnings
+mysql-test/suite/funcs_1/r/memory_views.warnings
+mysql-test/suite/funcs_1/r/myisam_trig_03e.warnings
+mysql-test/suite/funcs_1/r/myisam_views.warnings
+mysql-test/suite/funcs_1/r/ndb_trig_03e.warnings
+mysql-test/suite/funcs_1/r/ndb_views.warnings
+mysql-test/suite/partitions/r/diff
+mysql-test/suite/partitions/r/partition_bit_ndb.warnings
+mysql-test/suite/partitions/r/partition_special_innodb.warnings
+mysql-test/suite/partitions/r/partition_special_myisam.warnings
+storage/archive/archive_reader
+mysql-test/suite/funcs_1/r/innodb_trig_03e.warnings

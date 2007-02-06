@@ -1,0 +1,6 @@
+partition_basic_ndb            : crash to be analyzed and reported
+partition_alter1_ndb           : Why do we get 1114: The table 't1' is full ?
+partition_alter2_ndb           : please test
+partition_alter3_ndb           : As ndb is partitioned,different test are needed
+partition_char_innodb          : t
+partition_sessions             : has an error
