@@ -178,6 +178,9 @@ main(int argc, const char** argv){
     }
   }
 end:
+  for(i= 0; i<(int)event_ops.size(); i++)
+    MyNdb.dropEventOperation(event_ops[i]);
+
   return NDBT_ProgramExit(NDBT_OK);
 }
 

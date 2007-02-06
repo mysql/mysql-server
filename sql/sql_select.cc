@@ -3520,7 +3520,11 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 	  continue;
       }
 
-      *save_pos= *use;
+#ifdef HAVE_purify
+      /* Valgrind complains about overlapped memcpy when save_pos==use. */
+      if (save_pos != use)
+#endif
+        *save_pos= *use;
       prev=use;
       found_eq_constant= !use->used_tables;
       /* Save ptr to first use */

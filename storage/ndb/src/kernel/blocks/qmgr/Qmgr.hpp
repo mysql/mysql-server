@@ -129,6 +129,7 @@ public:
     Uint32 m_president_candidate_gci;
     Uint16 m_regReqReqSent;
     Uint16 m_regReqReqRecv;
+    Uint32 m_node_gci[MAX_NDB_NODES];
   } c_start;
   
   NdbNodeBitmask c_definedNodes; // DB nodes in config
