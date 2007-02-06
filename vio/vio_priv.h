@@ -32,6 +32,7 @@ int	vio_ssl_write(Vio *vio,const gptr buf,int size);
 
 /* When the workday is over... */
 int vio_ssl_close(Vio *vio);
+void vio_ssl_delete(Vio *vio);
 
 int vio_ssl_blocking(Vio *vio, my_bool set_blocking_mode, my_bool *old_mode);
 

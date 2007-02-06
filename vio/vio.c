@@ -86,7 +86,7 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
 #ifdef HAVE_OPENSSL 
   if (type == VIO_TYPE_SSL)
   {
-    vio->viodelete	=vio_delete;
+    vio->viodelete	=vio_ssl_delete;
     vio->vioerrno	=vio_errno;
     vio->read		=vio_ssl_read;
     vio->write		=vio_ssl_write;
@@ -220,17 +220,16 @@ Vio *vio_new_win32shared_memory(NET *net,HANDLE handle_file_map, HANDLE handle_m
 #endif
 #endif
 
+
 void vio_delete(Vio* vio)
 {
-  /* It must be safe to delete null pointers. */
-  /* This matches the semantics of C++'s delete operator. */
-  if (vio)
-  {
-    if (vio->type != VIO_CLOSED)
-      vio->vioclose(vio);
-    my_free((gptr) vio->read_buffer, MYF(MY_ALLOW_ZERO_PTR));
-    my_free((gptr) vio,MYF(0));
-  }
+  if (!vio)
+    return; /* It must be safe to delete null pointers. */
+
+  if (vio->type != VIO_CLOSED)
+    vio->vioclose(vio);
+  my_free((gptr) vio->read_buffer, MYF(MY_ALLOW_ZERO_PTR));
+  my_free((gptr) vio,MYF(0));
 }
 
 
