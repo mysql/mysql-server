@@ -94,7 +94,7 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
       }
     }
 
-    check = pTrans->execute(NoCommit);
+    check = pTrans->execute(NoCommit, AbortOnError);
     if( check == -1 ) {
       const NdbError err = pTrans->getNdbError();
       if (err.status == NdbError::TemporaryError){
@@ -245,7 +245,7 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
       }
     }
 
-    check = pTrans->execute(NoCommit);
+    check = pTrans->execute(NoCommit, AbortOnError);
     if( check == -1 ) {
       const NdbError err = pTrans->getNdbError();
       if (err.status == NdbError::TemporaryError){
@@ -421,7 +421,7 @@ restart:
       }
     }
     
-    check = pTrans->execute(NoCommit);
+    check = pTrans->execute(NoCommit, AbortOnError);
     if( check == -1 ) {
       const NdbError err = pTrans->getNdbError();
       ERR(err);
@@ -474,7 +474,7 @@ restart:
       } while((check = pOp->nextResult(false)) == 0);
 
       if(check != -1){
-	check = pTrans->execute(Commit);   
+	check = pTrans->execute(Commit, AbortOnError);   
 	if(check != -1)
 	  m_latest_gci = pTrans->getGCI();
 	pTrans->restart();
@@ -587,14 +587,14 @@ HugoTransactions::loadTable(Ndb* pNdb,
       closeTrans = false;
       if (!abort)
       {
-	check = pTrans->execute( Commit );
+	check = pTrans->execute(Commit, AbortOnError);
 	if(check != -1)
 	  m_latest_gci = pTrans->getGCI();
 	pTrans->restart();
       }
       else
       {
-	check = pTrans->execute( NoCommit );
+	check = pTrans->execute(NoCommit, AbortOnError);
 	if (check != -1)
 	{
 	  check = pTrans->execute( Rollback );	
@@ -603,7 +603,7 @@ HugoTransactions::loadTable(Ndb* pNdb,
       }
     } else {
       closeTrans = false;
-      check = pTrans->execute( NoCommit );
+      check = pTrans->execute(NoCommit, AbortOnError);
     }
     if(check == -1 ) {
       const NdbError err = pTrans->getNdbError();
@@ -717,7 +717,7 @@ HugoTransactions::fillTable(Ndb* pNdb,
     }
     
     // Execute the transaction and insert the record
-    check = pTrans->execute( Commit, CommitAsMuchAsPossible ); 
+    check = pTrans->execute(Commit, CommitAsMuchAsPossible); 
     if(check == -1 ) {
       const NdbError err = pTrans->getNdbError();
       closeTransaction(pNdb);
@@ -829,7 +829,7 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
       return NDBT_FAILED;
     }
     
-    check = pTrans->execute(Commit);   
+    check = pTrans->execute(Commit, AbortOnError);   
     if( check == -1 ) {
       const NdbError err = pTrans->getNdbError();
       
@@ -950,7 +950,7 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
       return NDBT_FAILED;
     }
     
-    check = pTrans->execute(NoCommit);   
+    check = pTrans->execute(NoCommit, AbortOnError);   
     if( check == -1 ) {
       const NdbError err = pTrans->getNdbError();
       
@@ -991,7 +991,7 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
 	
 	if(check != 2)
 	  break;
-	if((check = pTrans->execute(NoCommit)) != 0)
+	if((check = pTrans->execute(NoCommit, AbortOnError)) != 0)
 	  break;
       }
       if(check != 1 || rows_found != batch)
@@ -1019,7 +1019,7 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
 	  return NDBT_FAILED;
 	}
       }
-      check = pTrans->execute(Commit);   
+      check = pTrans->execute(Commit, AbortOnError);   
     }
     if( check == -1 ) {
       const NdbError err = pTrans->getNdbError();
@@ -1119,7 +1119,7 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
      }
    }
    
-    check = pTrans->execute(NoCommit);   
+    check = pTrans->execute(NoCommit, AbortOnError);   
     if( check == -1 ) {
       const NdbError err = pTrans->getNdbError();
 
@@ -1194,7 +1194,7 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
 
 
     
-    check = pTrans->execute(Commit);   
+    check = pTrans->execute(Commit, AbortOnError);   
     if( check == -1 ) {
       const NdbError err = pTrans->getNdbError();
 
@@ -1274,7 +1274,7 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    check = pTrans->execute(Commit);   
+    check = pTrans->execute(Commit, AbortOnError);   
     if( check == -1) {
       const NdbError err = pTrans->getNdbError();
       
@@ -1387,7 +1387,7 @@ HugoTransactions::lockRecords(Ndb* pNdb,
     int lockCount = lockTime / sleepInterval;
     int commitCount = 0;
     do {
-      check = pTrans->execute(NoCommit);   
+      check = pTrans->execute(NoCommit, AbortOnError);   
       if( check == -1) {
 	const NdbError err = pTrans->getNdbError();
 	
@@ -1413,7 +1413,7 @@ HugoTransactions::lockRecords(Ndb* pNdb,
     } while (commitCount < lockCount);
     
     // Really commit the trans, puuh!
-    check = pTrans->execute(Commit);   
+    check = pTrans->execute(Commit, AbortOnError);   
     if( check == -1) {
       const NdbError err = pTrans->getNdbError();
       
@@ -1543,7 +1543,7 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
       }
     }
 
-    check = pTrans->execute(Commit);   
+    check = pTrans->execute(Commit, AbortOnError);   
     check = (check == -1 ? -1 : !ordered ? check : sOp->nextResult(true));
     if( check == -1 ) {
       const NdbError err = pTrans->getNdbError();
@@ -1684,7 +1684,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
       }
     }
      
-    check = pTrans->execute(NoCommit);   
+    check = pTrans->execute(NoCommit, AbortOnError);   
     check = (check == -1 ? -1 : !ordered ? check : sOp->nextResult(true));
     if( check == -1 ) {
       const NdbError err = pTrans->getNdbError();
@@ -1756,7 +1756,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
       }
     }
     
-    check = pTrans->execute(Commit);   
+    check = pTrans->execute(Commit, AbortOnError);   
     if( check == -1 ) {
       const NdbError err = pTrans->getNdbError();
       ERR(err);
