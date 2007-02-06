@@ -1037,8 +1037,6 @@ REVOKE EXECUTE ON PROCEDURE p1 FROM 1234567890abcdefGHIKL@localhost;
 ERROR HY000: String '1234567890abcdefGHIKL' is too long for user name (should be no longer than 16)
 REVOKE EXECUTE ON PROCEDURE t1 FROM some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
 ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY' is too long for host name (should be no longer than 60)
-GRANT PROCESS ON * TO user@localhost;
-ERROR 3D000: No database selected
 CREATE USER bug23556@localhost;
 CREATE DATABASE bug23556;
 GRANT SELECT ON bug23556.* TO bug23556@localhost;
@@ -1059,4 +1057,6 @@ DROP TABLE t1;
 USE test;
 DROP DATABASE bug23556;
 DROP USER bug23556@localhost;
+GRANT PROCESS ON * TO user@localhost;
+ERROR 3D000: No database selected
 End of 5.0 tests
