@@ -12,5 +12,4 @@
 
 ndb_load        : Bug#17233
 user_limits     : Bug#23921 random failure of user_limits.test
-flush2          : Bug#24805 Pushbuild can't handle test with --disable-log-bin
 
