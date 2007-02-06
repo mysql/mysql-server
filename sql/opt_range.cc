@@ -193,6 +193,8 @@ public:
   }
   inline void merge_flags(SEL_ARG *arg) { maybe_flag|=arg->maybe_flag; }
   inline void maybe_smaller() { maybe_flag=1; }
+  /* Return true iff it's a single-point null interval */
+  inline bool is_null_interval() { return maybe_null && max_value[0] == 1; } 
   inline int cmp_min_to_min(SEL_ARG* arg)
   {
     return sel_cmp(field,min_value, arg->min_value, min_flag, arg->min_flag);
@@ -452,6 +454,7 @@ typedef struct st_qsel_param {
   bool is_ror_scan;
   /* Number of ranges in the last checked tree->key */
   uint n_ranges;
+  uint8 first_null_comp; /* first null component if any, 0 - otherwise */
 } PARAM;
 
 class TABLE_READ_PLAN;
@@ -5619,6 +5622,7 @@ check_quick_select(PARAM *param,uint idx,SEL_ARG *tree)
   DBUG_ENTER("check_quick_select");
 
   param->is_ror_scan= FALSE;
+  param->first_null_comp= 0;
 
   if (!tree)
     DBUG_RETURN(HA_POS_ERROR);			// Can't use it
@@ -5710,6 +5714,7 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
   ha_rows records=0, tmp;
   uint tmp_min_flag, tmp_max_flag, keynr, min_key_length, max_key_length;
   char *tmp_min_key, *tmp_max_key;
+  uint8 save_first_null_comp= param->first_null_comp;
 
   param->max_key_part=max(param->max_key_part,key_tree->part);
   if (key_tree->left != &null_element)
@@ -5746,6 +5751,9 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
         param->key[idx][key_tree->part].length)
       param->is_ror_scan= FALSE;
   }
+
+  if (!param->first_null_comp && key_tree->is_null_interval())
+    param->first_null_comp= key_tree->part+1;
 
   if (key_tree->next_key_part &&
       key_tree->next_key_part->part == key_tree->part+1 &&
@@ -5790,7 +5798,8 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
       (param->table->key_info[keynr].flags & (HA_NOSAME | HA_END_SPACE_KEY)) ==
       HA_NOSAME &&
       min_key_length == max_key_length &&
-      !memcmp(param->min_key,param->max_key,min_key_length))
+      !memcmp(param->min_key,param->max_key,min_key_length) &&
+      !param->first_null_comp)
   {
     tmp=1;					// Max one record
     param->n_ranges++;
@@ -5865,6 +5874,7 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
       return tmp;
     records+=tmp;
   }
+  param->first_null_comp= save_first_null_comp;
   return records;
 }
 

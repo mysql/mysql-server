@@ -30,13 +30,13 @@ EXTRA_DIST =		mysql.spec.sh \
 			MySQL-shared-compat.spec.sh \
 			ndb-config-2-node.ini.sh
 
-SUBDIRS = MacOSX
+SUBDIRS =		MacOSX RHEL4-SElinux
 
 pkgdata_DATA =		my-small.cnf \
 			my-medium.cnf \
 			my-large.cnf \
 			my-huge.cnf \
-      my-innodb-heavy-4G.cnf \
+			my-innodb-heavy-4G.cnf \
 			mysql-log-rotate \
 			binary-configure \
 			ndb-config-2-node.ini
