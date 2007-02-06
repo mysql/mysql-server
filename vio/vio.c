@@ -96,7 +96,7 @@ void vio_reset(Vio* vio, enum enum_vio_type type,
     vio->in_addr	=vio_ssl_in_addr;
     vio->vioblocking	=vio_ssl_blocking;
     vio->is_blocking	=vio_is_blocking;
-    vio->timeout	=vio_ssl_timeout;
+    vio->timeout	=vio_timeout;
   }
   else					/* default is VIO_TYPE_TCPIP */
 #endif /* HAVE_OPENSSL */
