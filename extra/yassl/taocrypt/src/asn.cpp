@@ -734,8 +734,8 @@ void CertDecoder::GetName(NameType nt)
         else {
             // skip
             source_.advance(oidSz + 1);
-            word32 length = GetLength(source_);
-            source_.advance(length);
+            word32 length2 = GetLength(source_);
+            source_.advance(length2);
         }
     }
     ptr[idx++] = 0;

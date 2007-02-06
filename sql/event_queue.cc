@@ -139,8 +139,6 @@ bool
 Event_queue::init_queue(THD *thd, Event_db_repository *db_repo)
 {
   bool res;
-  struct event_queue_param *event_queue_param_value= NULL;
-
   DBUG_ENTER("Event_queue::init_queue");
   DBUG_PRINT("enter", ("this: 0x%lx", (long) this));
 

@@ -1222,7 +1222,7 @@ statement:
 deallocate:
         deallocate_or_drop PREPARE_SYM ident
         {
-          THD *thd=YYTHD;
+          THD *thd= YYTHD;
           LEX *lex= thd->lex;
           if (lex->stmt_prepare_mode)
           {
@@ -1242,7 +1242,7 @@ deallocate_or_drop:
 prepare:
         PREPARE_SYM ident FROM prepare_src
         {
-          THD *thd=YYTHD;
+          THD *thd= YYTHD;
           LEX *lex= thd->lex;
           if (lex->stmt_prepare_mode)
           {
@@ -1256,14 +1256,14 @@ prepare:
 prepare_src:
         TEXT_STRING_sys
         {
-          THD *thd=YYTHD;
+          THD *thd= YYTHD;
           LEX *lex= thd->lex;
           lex->prepared_stmt_code= $1;
           lex->prepared_stmt_code_is_varref= FALSE;
         }
         | '@' ident_or_text
         {
-          THD *thd=YYTHD;
+          THD *thd= YYTHD;
           LEX *lex= thd->lex;
           lex->prepared_stmt_code= $2;
           lex->prepared_stmt_code_is_varref= TRUE;
@@ -1272,7 +1272,7 @@ prepare_src:
 execute:
         EXECUTE_SYM ident
         {
-          THD *thd=YYTHD;
+          THD *thd= YYTHD;
           LEX *lex= thd->lex;
           if (lex->stmt_prepare_mode)
           {
@@ -1433,7 +1433,7 @@ create:
 	CREATE opt_table_options TABLE_SYM opt_if_not_exists table_ident
 	{
 	  THD *thd= YYTHD;
-	  LEX *lex=Lex;
+	  LEX *lex= thd->lex;
 	  lex->sql_command= SQLCOM_CREATE_TABLE;
 	  if (!lex->select_lex.add_table_to_list(thd, $5, NULL,
 						 TL_OPTION_UPDATING,
@@ -1811,7 +1811,7 @@ create_function_tail:
 	  RETURNS_SYM udf_type SONAME_SYM TEXT_STRING_sys
 	  {
             THD *thd= YYTHD;
-	    LEX *lex=Lex;
+	    LEX *lex= thd->lex;
             if (lex->definer != NULL)
             {
               /*
@@ -1918,7 +1918,7 @@ create_function_tail:
 	  sp_proc_stmt
 	  {
             THD *thd= YYTHD;
-	    LEX *lex= Lex;
+	    LEX *lex= thd->lex;
 	    sp_head *sp= lex->sphead;
 
             if (sp->is_not_allowed_in_function("function"))
@@ -3458,8 +3458,8 @@ create2:
           create3 {}
         | LIKE table_ident
           {
-            LEX *lex=Lex;
-            THD *thd= lex->thd;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
             if (!(lex->like_name= $2))
               YYABORT;
             if ($2->db.str == NULL &&
@@ -3470,8 +3470,8 @@ create2:
           }
         | '(' LIKE table_ident ')'
           {
-            LEX *lex=Lex;
-            THD *thd= lex->thd;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
             if (!(lex->like_name= $3))
               YYABORT;
             if ($3->db.str == NULL &&
@@ -3760,7 +3760,6 @@ part_definition:
           LEX *lex= Lex;
           partition_info *part_info= lex->part_info;
           partition_element *p_elem= new partition_element();
-          uint part_id= part_info->partitions.elements;
 
           if (!p_elem || part_info->partitions.push_back(p_elem))
           {
@@ -3912,9 +3911,8 @@ part_bit_expr:
         bit_expr
         {
           Item *part_expr= $1;
-          int part_expression_ok= 1;
-          LEX *lex= Lex;
           THD *thd= YYTHD;
+          LEX *lex= thd->lex;
           Name_resolution_context *context= &lex->current_select->context;
           TABLE_LIST *save_list= context->table_list;
           const char *save_where= thd->where;
@@ -4961,8 +4959,8 @@ alter:
           }
           opt_create_database_options
 	  {
-	    LEX *lex=Lex;
-            THD *thd= Lex->thd;
+            THD *thd= YYTHD;
+	    LEX *lex= thd->lex;
 	    lex->sql_command=SQLCOM_ALTER_DB;
 	    lex->name= $3;
             if (lex->name.str == NULL &&
@@ -5093,9 +5091,9 @@ alter:
         | ALTER SERVER_SYM ident_or_text OPTIONS_SYM '(' server_options_list ')'
           {
             LEX *lex= Lex;
-            Lex->sql_command= SQLCOM_ALTER_SERVER;
-            Lex->server_options.server_name= $3.str;
-            Lex->server_options.server_name_length= $3.length;
+            lex->sql_command= SQLCOM_ALTER_SERVER;
+            lex->server_options.server_name= $3.str;
+            lex->server_options.server_name_length= $3.length;
           }
 	;
 
@@ -5399,8 +5397,8 @@ alter_list_item:
 	  }
 	| RENAME opt_to table_ident
 	  {
-	    LEX *lex=Lex;
-            THD *thd= lex->thd;
+            THD *thd= YYTHD;
+	    LEX *lex= thd->lex;
 	    uint dummy;
 	    lex->select_lex.db=$3->db.str;
             if (lex->select_lex.db == NULL &&
@@ -5767,9 +5765,9 @@ db_to_db:
 	ident TO_SYM ident
 	{
 	  LEX *lex=Lex;
-          if (Lex->db_list.push_back((LEX_STRING*)
+          if (lex->db_list.push_back((LEX_STRING*)
                                      sql_memdup(&$1, sizeof(LEX_STRING))) ||
-              Lex->db_list.push_back((LEX_STRING*)
+              lex->db_list.push_back((LEX_STRING*)
                                      sql_memdup(&$3, sizeof(LEX_STRING))))
               YYABORT;
 	};
@@ -6695,7 +6693,6 @@ function_call_generic:
         udf_expr_list ')'
         {
           THD *thd= YYTHD;
-          LEX *lex= Lex;
           Create_func *builder;
           Item *item= NULL;
 
@@ -6718,7 +6715,6 @@ function_call_generic:
 #ifdef HAVE_DLOPEN
             /* Retrieving the result of find_udf */
             udf_func *udf= $<udf>3;
-            LEX *lex= Lex;
 
             if (udf)
             {
@@ -7112,15 +7108,14 @@ join_table:
 	| table_ref normal_join table_ref
 	  USING
 	  {
-	    SELECT_LEX *sel= Select;
             YYERROR_UNLESS($1 && $3);
 	  }
 	  '(' using_list ')'
-          { add_join_natural($1,$3,$7); $$=$3; }
+          { add_join_natural($1,$3,$7,Select); $$=$3; }
 	| table_ref NATURAL JOIN_SYM table_factor
 	  {
             YYERROR_UNLESS($1 && ($$=$4));
-            add_join_natural($1,$4,NULL);
+            add_join_natural($1,$4,NULL,Select);
           }
 
 /* LEFT JOIN variants */
@@ -7143,15 +7138,18 @@ join_table:
           }
 	| table_ref LEFT opt_outer JOIN_SYM table_factor
 	  {
-	    SELECT_LEX *sel= Select;
             YYERROR_UNLESS($1 && $5);
 	  }
 	  USING '(' using_list ')'
-          { add_join_natural($1,$5,$9); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
+          { 
+            add_join_natural($1,$5,$9,Select); 
+            $5->outer_join|=JOIN_TYPE_LEFT; 
+            $$=$5; 
+          }
 	| table_ref NATURAL LEFT opt_outer JOIN_SYM table_factor
 	  {
             YYERROR_UNLESS($1 && $6);
- 	    add_join_natural($1,$6,NULL);
+ 	    add_join_natural($1,$6,NULL,Select);
 	    $6->outer_join|=JOIN_TYPE_LEFT;
 	    $$=$6;
 	  }
@@ -7177,7 +7175,6 @@ join_table:
           }
 	| table_ref RIGHT opt_outer JOIN_SYM table_factor
 	  {
-	    SELECT_LEX *sel= Select;
             YYERROR_UNLESS($1 && $5);
 	  }
 	  USING '(' using_list ')'
@@ -7185,12 +7182,12 @@ join_table:
 	    LEX *lex= Lex;
             if (!($$= lex->current_select->convert_right_join()))
               YYABORT;
-            add_join_natural($$,$5,$9);
+            add_join_natural($$,$5,$9,Select);
           }
 	| table_ref NATURAL RIGHT opt_outer JOIN_SYM table_factor
 	  {
             YYERROR_UNLESS($1 && $6);
-	    add_join_natural($6,$1,NULL);
+	    add_join_natural($6,$1,NULL,Select);
 	    LEX *lex= Lex;
             if (!($$= lex->current_select->convert_right_join()))
               YYABORT;
@@ -9128,7 +9125,7 @@ text_string:
 param_marker:
         PARAM_MARKER
         {
-          THD *thd=YYTHD;
+          THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
           Item_param *item;
           if (! lex->parsing_options.allows_variable)
@@ -10116,7 +10113,7 @@ option_value:
 	| charset old_or_new_charset_name_or_default
 	{
 	  THD *thd= YYTHD;
-	  LEX *lex= Lex;
+	  LEX *lex= thd->lex;
 	  $2= $2 ? $2: global_system_variables.character_set_client;
 	  lex->var_list.push_back(new set_var_collation_client($2,thd->variables.collation_database,$2));
 	}
@@ -10150,9 +10147,9 @@ option_value:
 	}
 	| PASSWORD equal text_or_password
 	  {
-	    THD *thd=YYTHD;
+	    THD *thd= YYTHD;
+	    LEX *lex= thd->lex;
 	    LEX_USER *user;
-	    LEX *lex= Lex;	    
             sp_pcontext *spc= lex->spcont;
 	    LEX_STRING pw;
 
@@ -10633,8 +10630,8 @@ require_list_element:
 grant_ident:
 	'*'
 	  {
-	    LEX *lex= Lex;
-            THD *thd= lex->thd;
+            THD *thd= YYTHD;
+	    LEX *lex= thd->lex;
             uint dummy;
             if (thd->copy_db_to(&lex->current_select->db, &dummy))
               YYABORT;
@@ -10997,7 +10994,6 @@ subselect:
         }
         | '(' subselect_start subselect ')'
           {
-            LEX *lex= Lex;
 	    THD *thd= YYTHD;
             /*
               note that a local variable can't be used for
@@ -11197,7 +11193,7 @@ view_select:
 view_select_aux:
 	SELECT_SYM remember_name select_init2
 	{
-          THD *thd=YYTHD;
+          THD *thd= YYTHD;
           LEX *lex= thd->lex;
           char *stmt_beg= (lex->sphead ?
                            (char *)lex->sphead->m_tmp_query :
@@ -11206,7 +11202,7 @@ view_select_aux:
 	}
 	| '(' remember_name select_paren ')' union_opt
 	{
-          THD *thd=YYTHD;
+          THD *thd= YYTHD;
           LEX *lex= thd->lex;
           char *stmt_beg= (lex->sphead ?
                            (char *)lex->sphead->m_tmp_query :

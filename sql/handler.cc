@@ -47,12 +47,6 @@ static handlerton *installed_htons[128];
 
 KEY_CREATE_INFO default_key_create_info= { HA_KEY_ALG_UNDEF, 0, {NullS,0} };
 
-/* static functions defined in this file */
-
-static handler *create_default(TABLE_SHARE *table, MEM_ROOT *mem_root);
-
-static SHOW_COMP_OPTION have_yes= SHOW_OPTION_YES;
-
 /* number of entries in handlertons[] */
 ulong total_ha= 0;
 /* number of storage engines (from handlertons[]) that support 2pc */
@@ -167,11 +161,13 @@ const char *ha_get_storage_engine(enum legacy_db_type db_type)
 }
 
 
+#ifdef NOT_USED
 static handler *create_default(TABLE_SHARE *table, MEM_ROOT *mem_root)
 {
   handlerton *hton= ha_default_handlerton(current_thd);
   return (hton && hton->create) ? hton->create(hton, table, mem_root) : NULL;
 }
+#endif
 
 
 handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type)
@@ -726,7 +722,7 @@ int ha_commit_trans(THD *thd, bool all)
       }
       DBUG_EXECUTE_IF("crash_commit_after_prepare", abort(););
       if (error || (is_real_trans && xid &&
-                    (error= !(cookie= tc_log->log(thd, xid)))))
+                    (error= !(cookie= tc_log->log_xid(thd, xid)))))
       {
         ha_rollback_trans(thd, all);
         error= 1;
@@ -734,7 +730,7 @@ int ha_commit_trans(THD *thd, bool all)
       }
       DBUG_EXECUTE_IF("crash_commit_after_log", abort(););
     }
-    error=ha_commit_one_phase(thd, all) ? cookie ? 2 : 1 : 0;
+    error=ha_commit_one_phase(thd, all) ? (cookie ? 2 : 1) : 0;
     DBUG_EXECUTE_IF("crash_commit_before_unlog", abort(););
     if (cookie)
       tc_log->unlog(cookie, xid);
@@ -3345,7 +3341,6 @@ static my_bool exts_handlerton(THD *unused, st_plugin_int *plugin,
 
 TYPELIB *ha_known_exts(void)
 {
-  MEM_ROOT *mem_root= current_thd->mem_root;
   if (!known_extensions.type_names || mysys_usage_id != known_extensions_id)
   {
     List<char> found_exts;

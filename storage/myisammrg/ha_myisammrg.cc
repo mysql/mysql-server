@@ -30,9 +30,6 @@
 ** MyISAM MERGE tables
 *****************************************************************************/
 
-static handler *myisammrg_create_handler(TABLE_SHARE *table,
-                                         MEM_ROOT *mem_root);
-
 static handler *myisammrg_create_handler(handlerton *hton,
                                          TABLE_SHARE *table,
                                          MEM_ROOT *mem_root)
@@ -49,6 +46,12 @@ static const char *ha_myisammrg_exts[] = {
   ".MRG",
   NullS
 };
+extern int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
+                        MI_COLUMNDEF **recinfo_out, uint *records_out);
+extern int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
+                            uint t1_keys, uint t1_recs,
+                            MI_KEYDEF *t2_keyinfo, MI_COLUMNDEF *t2_recinfo,
+                            uint t2_keys, uint t2_recs, bool strict);
 
 const char **ha_myisammrg::bas_ext() const
 {
@@ -70,6 +73,12 @@ const char *ha_myisammrg::index_type(uint key_number)
 
 int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
 {
+  MI_KEYDEF *keyinfo;
+  MI_COLUMNDEF *recinfo;
+  MYRG_TABLE *u_table;
+  uint recs;
+  uint keys= table->s->keys;
+  int error;
   char name_buff[FN_REFLEN];
 
   DBUG_PRINT("info", ("ha_myisammrg::open"));
@@ -93,18 +102,43 @@ int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
   {
     DBUG_PRINT("error",("reclength: %lu  mean_rec_length: %lu",
 			table->s->reclength, stats.mean_rec_length));
+    error= HA_ERR_WRONG_MRG_TABLE_DEF;
     goto err;
   }
+  if ((error= table2myisam(table, &keyinfo, &recinfo, &recs)))
+  {
+    /* purecov: begin inspected */
+    DBUG_PRINT("error", ("Failed to convert TABLE object to MyISAM "
+                         "key and column definition"));
+    goto err;
+    /* purecov: end */
+  }
+  for (u_table= file->open_tables; u_table < file->end_table; u_table++)
+  {
+    if (check_definition(keyinfo, recinfo, keys, recs,
+                         u_table->table->s->keyinfo, u_table->table->s->rec,
+                         u_table->table->s->base.keys,
+                         u_table->table->s->base.fields, false))
+    {
+      my_free((gptr) recinfo, MYF(0));
+      error= HA_ERR_WRONG_MRG_TABLE_DEF;
+      goto err;
+    }
+  }
+  my_free((gptr) recinfo, MYF(0));
 #if !defined(BIG_TABLES) || SIZEOF_OFF_T == 4
   /* Merge table has more than 2G rows */
   if (table->s->crashed)
+  {
+    error= HA_ERR_WRONG_MRG_TABLE_DEF;
     goto err;
+  }
 #endif
   return (0);
 err:
   myrg_close(file);
   file=0;
-  return (my_errno= HA_ERR_WRONG_MRG_TABLE_DEF);
+  return (my_errno= error);
 }
 
 int ha_myisammrg::close(void)
@@ -249,8 +283,8 @@ int ha_myisammrg::rnd_pos(byte * buf, byte *pos)
 
 void ha_myisammrg::position(const byte *record)
 {
-  ulonglong position= myrg_position(file);
-  my_store_ptr(ref, ref_length, (my_off_t) position);
+  ulonglong row_position= myrg_position(file);
+  my_store_ptr(ref, ref_length, (my_off_t) row_position);
 }
 
 
@@ -263,24 +297,23 @@ ha_rows ha_myisammrg::records_in_range(uint inx, key_range *min_key,
 
 int ha_myisammrg::info(uint flag)
 {
-  MYMERGE_INFO info;
-  (void) myrg_status(file,&info,flag);
+  MYMERGE_INFO mrg_info;
+  (void) myrg_status(file,&mrg_info,flag);
   /*
     The following fails if one has not compiled MySQL with -DBIG_TABLES
     and one has more than 2^32 rows in the merge tables.
   */
-  stats.records = (ha_rows) info.records;
-  stats.deleted = (ha_rows) info.deleted;
+  stats.records = (ha_rows) mrg_info.records;
+  stats.deleted = (ha_rows) mrg_info.deleted;
 #if !defined(BIG_TABLES) || SIZEOF_OFF_T == 4
-  if ((info.records >= (ulonglong) 1 << 32) ||
-      (info.deleted >= (ulonglong) 1 << 32))
+  if ((mrg_info.records >= (ulonglong) 1 << 32) ||
+      (mrg_info.deleted >= (ulonglong) 1 << 32))
     table->s->crashed= 1;
 #endif
-  stats.data_file_length=info.data_file_length;
-  errkey  = info.errkey;
+  stats.data_file_length= mrg_info.data_file_length;
+  errkey= mrg_info.errkey;
   table->s->keys_in_use.set_prefix(table->s->keys);
-  table->s->db_options_in_use= info.options;
-  stats.mean_rec_length= info.reclength;
+  stats.mean_rec_length= mrg_info.reclength;
   
   /* 
     The handler::block_size is used all over the code in index scan cost
@@ -310,7 +343,7 @@ int ha_myisammrg::info(uint flag)
 #endif
   if (flag & HA_STATUS_CONST)
   {
-    if (table->s->key_parts && info.rec_per_key)
+    if (table->s->key_parts && mrg_info.rec_per_key)
     {
 #ifdef HAVE_purify
       /*
@@ -323,7 +356,7 @@ int ha_myisammrg::info(uint flag)
             sizeof(table->key_info[0].rec_per_key) * table->s->key_parts);
 #endif
       memcpy((char*) table->key_info[0].rec_per_key,
-	     (char*) info.rec_per_key,
+	     (char*) mrg_info.rec_per_key,
              sizeof(table->key_info[0].rec_per_key) *
              min(file->keys, table->s->key_parts));
     }

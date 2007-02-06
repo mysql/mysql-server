@@ -471,7 +471,6 @@ Pgman::lirs_stack_prune()
   debugOut << "PGMAN: >lirs_stack_prune" << endl;
 #endif
   Page_stack& pl_stack = m_page_stack;
-  Page_queue& pl_queue = m_page_queue;
   Ptr<Page_entry> ptr;
 
   while (pl_stack.first(ptr))      // first is stack bottom
@@ -804,7 +803,6 @@ Pgman::process_bind(Signal* signal, Ptr<Page_entry> ptr)
 #ifdef VM_TRACE
   debugOut << "PGMAN: " << ptr << " : process_bind" << endl;
 #endif
-  Page_sublist& pl_bind = *m_page_sublist[Page_entry::SL_BIND];
   Page_queue& pl_queue = m_page_queue;
   Ptr<GlobalPage> gptr;
 
