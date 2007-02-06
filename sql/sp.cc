@@ -494,8 +494,6 @@ db_create_routine(THD *thd, int type, sp_head *sp)
   int ret;
   TABLE *table;
   char definer[USER_HOST_BUFF_SIZE];
-  char old_db_buf[NAME_LEN+1];
-  LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
   DBUG_ENTER("db_create_routine");
   DBUG_PRINT("enter", ("type: %d name: %.*s",type,sp->m_name.length,
                        sp->m_name.str));
@@ -990,7 +988,7 @@ sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
     DBUG_PRINT("info", ("found: 0x%lx", (ulong)sp));
     if (sp->m_first_free_instance)
     {
-      DBUG_PRINT("info", ("first free: 0x%lx, level: %lu, flags %x",
+      DBUG_PRINT("info", ("first free: 0x%lx  level: %lu  flags %x",
                           (ulong)sp->m_first_free_instance,
                           sp->m_first_free_instance->m_recursion_level,
                           sp->m_first_free_instance->m_flags));
@@ -1839,9 +1837,7 @@ create_string(THD *thd, String *buf,
   SYNOPSIS
     sp_use_new_db()
       thd            thread handle
-
       new_db         new database name (a string and its length)
-
       old_db         [IN] str points to a buffer where to store the old
                           database, length contains the size of the buffer
                      [OUT] if old db was not NULL, its name is copied
@@ -1849,7 +1845,6 @@ create_string(THD *thd, String *buf,
                      accordingly. Otherwise str[0] is set to '\0' and length
                      is set to 0. The out parameter should be used only if
                      the database name has been changed (see dbchangedp).
-
      dbchangedp      [OUT] is set to TRUE if the current database is changed,
                      FALSE otherwise. A database is not changed if the old
                      name is the same as the new one, both names are empty,

@@ -49,7 +49,8 @@ sleep 1;
 connection default;
 # When the connection is closed in this way, the error code should
 # be consistent see bug#2845 for an explanation
---error 2006
+# depending on platform/client, either errno 2006 or 2013 can occur below
+--error 2006,2013
 select 2;
 --enable_reconnect
 select 3;
@@ -96,7 +97,8 @@ sleep 1;
 connection con1;
 # When the connection is closed in this way, the error code should
 # be consistent see bug#2845 for an explanation
---error 2006
+# depending on platform/client, either errno 2006 or 2013 can occur below
+--error 2006,2013
 select 2;
 --enable_reconnect
 select 3;

@@ -60,7 +60,6 @@
 #include "sql_select.h"
 #include "sql_show.h"
 
-static int check_null_fields(THD *thd,TABLE *entry);
 #ifndef EMBEDDED_LIBRARY
 static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list);
 static int write_delayed(THD *thd, TABLE *table, enum_duplicates dup,
@@ -190,11 +189,11 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (grant_option)
     {
-      Field_iterator_table fields;
-      fields.set_table(table);
+      Field_iterator_table field_it;
+      field_it.set_table(table);
       if (check_grant_all_columns(thd, INSERT_ACL, &table->grant,
                                   table->s->db.str, table->s->table_name.str,
-                                  &fields))
+                                  &field_it))
         return -1;
     }
 #endif
@@ -351,13 +350,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 		  bool ignore)
 {
   int error, res;
-  /*
-    log_on is about delayed inserts only.
-    By default, both logs are enabled (this won't cause problems if the server
-    runs without --log-update or --log-bin).
-  */
-  bool log_on= ((thd->options & OPTION_BIN_LOG) ||
-                (!(thd->security_ctx->master_access & SUPER_ACL)));
   bool transactional_table, joins_freed= FALSE;
   bool changed;
   uint value_count;
@@ -371,6 +363,13 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   Name_resolution_context_state ctx_state;
 #ifndef EMBEDDED_LIBRARY
   char *query= thd->query;
+  /*
+    log_on is about delayed inserts only.
+    By default, both logs are enabled (this won't cause problems if the server
+    runs without --log-update or --log-bin).
+  */
+  bool log_on= ((thd->options & OPTION_BIN_LOG) ||
+                (!(thd->security_ctx->master_access & SUPER_ACL)));
 #endif
   thr_lock_type lock_type = table_list->lock_type;
   Item *unused_conds= 0;
@@ -791,7 +790,6 @@ static bool check_view_insertability(THD * thd, TABLE_LIST *view)
   Field_translator *trans_start= view->field_translation,
 		   *trans_end= trans_start + num;
   Field_translator *trans;
-  Field **field_ptr= table->field;
   uint used_fields_buff_size= bitmap_buffer_size(table->s->fields);
   uint32 *used_fields_buff= (uint32*)thd->alloc(used_fields_buff_size);
   MY_BITMAP used_fields;
@@ -3145,8 +3143,9 @@ void select_create::send_error(uint errcode,const char *err)
              ("Current statement %s row-based",
               thd->current_stmt_binlog_row_based ? "is" : "is NOT"));
   DBUG_PRINT("info",
-             ("Current table (at 0x%lu) %s a temporary (or non-existant) table",
-              table,
+             ("Current table (at 0x%lx) %s a temporary (or non-existing) "
+              "table",
+              (ulong) table,
               table && !table->s->tmp_table ? "is NOT" : "is"));
   DBUG_PRINT("info",
              ("Table %s prior to executing this statement",

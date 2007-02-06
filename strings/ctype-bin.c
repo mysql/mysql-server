@@ -415,7 +415,7 @@ uint my_instr_bin(CHARSET_INFO *cs __attribute__((unused)),
       {
         match->beg= 0;
         match->end= 0;
-        match->mblen= 0;
+        match->mb_len= 0;
       }
       return 1;		/* Empty string is always found */
     }
@@ -443,13 +443,13 @@ skip:
 	{
 	  match[0].beg= 0;
 	  match[0].end= (uint) (str- (const uchar*)b-1);
-	  match[0].mblen= match[0].end;
+	  match[0].mb_len= match[0].end;
 
 	  if (nmatch > 1)
 	  {
 	    match[1].beg= match[0].end;
 	    match[1].end= match[0].end+s_length;
-	    match[1].mblen= match[1].end-match[1].beg;
+	    match[1].mb_len= match[1].end-match[1].beg;
 	  }
 	}
 	return 2;

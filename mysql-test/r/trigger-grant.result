@@ -14,8 +14,8 @@ CREATE TABLE t1(num_value INT);
 CREATE TABLE t2(user_str TEXT);
 
 ---> connection: default
-GRANT INSERT, DELETE ON mysqltest_db1.t1 TO mysqltest_dfn@localhost;
-GRANT INSERT, DELETE ON mysqltest_db1.t2 TO mysqltest_dfn@localhost;
+GRANT INSERT, DROP ON mysqltest_db1.t1 TO mysqltest_dfn@localhost;
+GRANT INSERT, DROP ON mysqltest_db1.t2 TO mysqltest_dfn@localhost;
 
 ---> connection: default
 GRANT SUPER ON *.* TO mysqltest_dfn@localhost;

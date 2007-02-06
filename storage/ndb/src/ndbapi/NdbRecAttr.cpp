@@ -120,8 +120,8 @@ NdbRecAttr::clone() const {
 }
 
 bool
-NdbRecAttr::receive_data(const Uint32 * data, Uint32 sz){
-  const Uint32 n = m_size_in_bytes;
+NdbRecAttr::receive_data(const Uint32 * data, Uint32 sz)
+{
   if(sz)
   {
     if(!copyoutRequired())

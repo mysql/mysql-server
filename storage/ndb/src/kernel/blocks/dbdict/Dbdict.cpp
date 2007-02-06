@@ -6119,11 +6119,6 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   tablePtr.p->defaultNoPartFlag = c_tableDesc.DefaultNoPartFlag; 
   tablePtr.p->linearHashFlag = c_tableDesc.LinearHashFlag; 
   
-  Uint64 maxRows =
-    (((Uint64)tablePtr.p->maxRowsHigh) << 32) + tablePtr.p->maxRowsLow;
-  Uint64 minRows =
-    (((Uint64)tablePtr.p->minRowsHigh) << 32) + tablePtr.p->minRowsLow;
-
   {
     Rope frm(c_rope_pool, tablePtr.p->frmData);
     tabRequire(frm.assign(c_tableDesc.FrmData, c_tableDesc.FrmLen),
