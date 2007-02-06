@@ -1609,17 +1609,24 @@ NdbEventBuffer::insert_event(NdbEventOperationImpl* impl,
                              Uint32 &oid_ref)
 {
   NdbEventOperationImpl *dropped_ev_op = m_dropped_ev_op;
+  DBUG_PRINT("info", ("gci: %u", data.gci));
   do
   {
     do
     {
-      oid_ref = impl->m_oid;
-      insertDataL(impl, &data, ptr);
+      if (impl->m_node_bit_mask.get(0u))
+      {
+        oid_ref = impl->m_oid;
+        insertDataL(impl, &data, ptr);
+      }
       NdbEventOperationImpl* blob_op = impl->theBlobOpList;
       while (blob_op != NULL)
       {
-        oid_ref = blob_op->m_oid;
-        insertDataL(blob_op, &data, ptr);
+        if (blob_op->m_node_bit_mask.get(0u))
+        {
+          oid_ref = blob_op->m_oid;
+          insertDataL(blob_op, &data, ptr);
+        }
         blob_op = blob_op->m_next;
       }
     } while((impl = impl->m_next));
@@ -1804,6 +1811,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
     switch (operation)
     {
     case NdbDictionary::Event::_TE_NODE_FAILURE:
+      DBUG_ASSERT(op->m_node_bit_mask.get(0u) != 0);
       op->m_node_bit_mask.clear(SubTableData::getNdbdNodeId(ri));
       DBUG_PRINT("info",
                  ("_TE_NODE_FAILURE: m_ref_count: %u for op: %p id: %u",
@@ -1819,29 +1827,23 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
       DBUG_RETURN_EVENT(0);
       break;
     case NdbDictionary::Event::_TE_CLUSTER_FAILURE:
-      if (op->m_node_bit_mask.get(0))
+      DBUG_ASSERT(op->m_node_bit_mask.get(0u) != 0);
+      op->m_node_bit_mask.clear();
+      DBUG_ASSERT(op->m_ref_count > 0);
+      // remove kernel reference
+      // added in execute_nolock
+      op->m_ref_count--;
+      DBUG_PRINT("info", ("_TE_CLUSTER_FAILURE: m_ref_count: %u for op: %p",
+                          op->m_ref_count, op));
+      if (op->theMainOp)
       {
-        op->m_node_bit_mask.clear();
-        DBUG_ASSERT(op->m_ref_count > 0);
-        // remove kernel reference
-        // added in execute_nolock
-        op->m_ref_count--;
-        DBUG_PRINT("info", ("_TE_CLUSTER_FAILURE: m_ref_count: %u for op: %p",
-                            op->m_ref_count, op));
-        if (op->theMainOp)
-        {
-          DBUG_ASSERT(op->m_ref_count == 0);
-          DBUG_ASSERT(op->theMainOp->m_ref_count > 0);
-          // remove blob reference in main op
-          // added in execute_no_lock
-          op->theMainOp->m_ref_count--;
-          DBUG_PRINT("info", ("m_ref_count: %u for op: %p",
-                              op->theMainOp->m_ref_count, op->theMainOp));
-        }
-      }
-      else
-      {
-        DBUG_ASSERT(op->m_node_bit_mask.isclear() != 0);
+        DBUG_ASSERT(op->m_ref_count == 0);
+        DBUG_ASSERT(op->theMainOp->m_ref_count > 0);
+        // remove blob reference in main op
+        // added in execute_no_lock
+        op->theMainOp->m_ref_count--;
+        DBUG_PRINT("info", ("m_ref_count: %u for op: %p",
+                            op->theMainOp->m_ref_count, op->theMainOp));
       }
       break;
     case NdbDictionary::Event::_TE_STOP:
