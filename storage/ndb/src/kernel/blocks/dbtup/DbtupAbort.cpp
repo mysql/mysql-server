@@ -145,7 +145,7 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
     {
       if(copy_bits & Tuple_header::MM_GROWN)
       {
-	ndbout_c("abort grow");
+	if (0) ndbout_c("abort grow");
 	Ptr<Page> vpage;
 	Uint32 idx= regOperPtr.p->m_tuple_location.m_page_idx;
 	Uint32 mm_vars= regTabPtr.p->m_attributes[MM].m_no_of_varsize;
@@ -168,7 +168,7 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
       } 
       else if(bits & Tuple_header::MM_SHRINK)
       {
-	ndbout_c("abort shrink");
+	if (0) ndbout_c("abort shrink");
       }
     }
     else if (regOperPtr.p->is_first_operation() && 
