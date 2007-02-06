@@ -1783,8 +1783,9 @@ static void reset_stmt_params(Prepared_statement *stmt)
       packet_length  Query string length, including terminator character.
 */
 
-void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
+void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
 {
+  uchar* packet= (uchar*)packet_arg; // gcc 4.0 stgrict-aliasing
   ulong stmt_id= uint4korr(packet);
   /*
     Query text for binary log, or empty string if the query is not put into
@@ -1792,7 +1793,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   */
   String expanded_query;
 #ifndef EMBEDDED_LIBRARY
-  uchar *packet_end= (uchar *) packet + packet_length - 1;
+  uchar *packet_end= packet + packet_length - 1;
 #endif
   Prepared_statement *stmt;
   DBUG_ENTER("mysql_stmt_execute");
@@ -1818,9 +1819,9 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
 #ifndef EMBEDDED_LIBRARY
   if (stmt->param_count)
   {
-    uchar *null_array= (uchar *) packet;
-    if (setup_conversion_functions(stmt, (uchar **) &packet, packet_end) ||
-        stmt->set_params(stmt, null_array, (uchar *) packet, packet_end,
+    uchar *null_array= packet;
+    if (setup_conversion_functions(stmt, &packet, packet_end) ||
+        stmt->set_params(stmt, null_array, packet, packet_end,
                          &expanded_query))
       goto set_params_data_err;
   }
