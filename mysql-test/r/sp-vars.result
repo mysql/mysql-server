@@ -431,17 +431,17 @@ SELECT HEX(v10);
 END|
 CALL p1();
 HEX(v1)
-01
+1
 HEX(v2)
-00
+0
 HEX(v3)
-05
+5
 HEX(v4)
 5555555555555555
 HEX(v5)
-07
+7
 HEX(v6)
-0000000000000005
+5
 HEX(v7)
 80
 HEX(v8)
@@ -748,12 +748,60 @@ HEX(b)	b = 0	b = FALSE	b IS FALSE	b = 1	b = TRUE	b IS TRUE
 1	0	0	0	1	1	1
 call p2();
 HEX(vb)	vb = 0	vb = FALSE	vb IS FALSE	vb = 1	vb = TRUE	vb IS TRUE
-00	1	1	1	0	0	0
+0	1	1	1	0	0	0
 HEX(vb)	vb = 0	vb = FALSE	vb IS FALSE	vb = 1	vb = TRUE	vb IS TRUE
-01	0	0	1	1	1	0
+1	0	0	0	1	1	1
 DROP TABLE t1;
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
+DROP TABLE IF EXISTS table_12976_a;
+DROP TABLE IF EXISTS table_12976_b;
+DROP PROCEDURE IF EXISTS proc_12976_a;
+DROP PROCEDURE IF EXISTS proc_12976_b;
+CREATE TABLE table_12976_a (val bit(1));
+CREATE TABLE table_12976_b(
+appname varchar(15),
+emailperm bit not null default 1,
+phoneperm bit not null default 0);
+insert into table_12976_b values ('A', b'1', b'1'), ('B', b'0', b'0');
+CREATE PROCEDURE proc_12976_a()
+BEGIN
+declare localvar bit(1);
+SELECT val INTO localvar FROM table_12976_a;
+SELECT coalesce(localvar, 1)+1, coalesce(val, 1)+1 FROM table_12976_a;
+END||
+CREATE PROCEDURE proc_12976_b(
+name varchar(15),
+out ep bit,
+out msg varchar(10))
+BEGIN
+SELECT emailperm into ep FROM table_12976_b where (appname = name);
+IF ep is true THEN
+SET msg = 'True';
+ELSE
+SET msg = 'False';
+END IF;
+END||
+INSERT table_12976_a VALUES (0);
+call proc_12976_a();
+coalesce(localvar, 1)+1	coalesce(val, 1)+1
+1	1
+UPDATE table_12976_a set val=1;
+call proc_12976_a();
+coalesce(localvar, 1)+1	coalesce(val, 1)+1
+2	2
+call proc_12976_b('A', @ep, @msg);
+select @ep, @msg;
+@ep	@msg
+1	True
+call proc_12976_b('B', @ep, @msg);
+select @ep, @msg;
+@ep	@msg
+0	False
+DROP TABLE table_12976_a;
+DROP TABLE table_12976_b;
+DROP PROCEDURE proc_12976_a;
+DROP PROCEDURE proc_12976_b;
 
 ---------------------------------------------------------------
 BUG#9572
