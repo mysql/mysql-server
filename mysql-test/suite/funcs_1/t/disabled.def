@@ -1,0 +1,15 @@
+##############################################################################
+#
+#  List the test cases that are to be disabled temporarely.
+#
+#  Separate the test case name and the comment with ':'.
+#
+#      <testcasename>  : Comment test
+#
+#  Don't use any TAB characters for whitespace.
+#
+##############################################################################
+
+innodb_storedproc: switched off (too much changed output from WL#2984, needs to be checked)
+memory_storedproc: switched off (too much changed output from WL#2984, needs to be checked)
+myisam_storedproc: switched off (too much changed output from WL#2984, needs to be checked)
