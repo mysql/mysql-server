@@ -158,7 +158,12 @@ typedef struct st_table_share
   LEX_STRING path;                	/* Path to .frm file (from datadir) */
   LEX_STRING normalized_path;		/* unpack_filename(path) */
   LEX_STRING connect_string;
-  key_map keys_in_use;                  /* Keys in use for table */
+
+  /* 
+     Set of keys in use, implemented as a Bitmap.
+     Excludes keys disabled by ALTER TABLE ... DISABLE KEYS.
+  */
+  key_map keys_in_use;
   key_map keys_for_keyread;
   ha_rows min_rows, max_rows;		/* create information */
   ulong   avg_row_length;		/* create information */
@@ -313,7 +318,21 @@ struct st_table {
   byte *write_row_record;		/* Used as optimisation in
 					   THD::write_row */
   byte *insert_values;                  /* used by INSERT ... UPDATE */
-  key_map quick_keys, used_keys, keys_in_use_for_query, merge_keys;
+  key_map quick_keys, used_keys;
+
+  /*
+    A set of keys that can be used in the query that references this
+    table.
+
+    All indexes disabled on the table's TABLE_SHARE (see TABLE::s) will be 
+    subtracted from this set upon instantiation. Thus for any TABLE t it holds
+    that t.keys_in_use_for_query is a subset of t.s.keys_in_use. Generally we 
+    must not introduce any new keys here (see setup_tables).
+
+    The set is implemented as a bitmap.
+  */
+  key_map keys_in_use_for_query;
+  key_map merge_keys;
   KEY  *key_info;			/* data of keys in database */
 
   Field *next_number_field;		/* Set if next_number is activated */

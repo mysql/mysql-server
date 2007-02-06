@@ -157,14 +157,15 @@ ConfigRetriever::getConfig() {
 }
 
 ndb_mgm_configuration *
-ConfigRetriever::getConfig(NdbMgmHandle m_handle)
+ConfigRetriever::getConfig(NdbMgmHandle m_handle_arg)
 {
-  ndb_mgm_configuration * conf = ndb_mgm_get_configuration(m_handle,m_version);
+  ndb_mgm_configuration * conf = ndb_mgm_get_configuration(m_handle_arg,
+                                                           m_version);
   if(conf == 0)
   {
-    BaseString tmp(ndb_mgm_get_latest_error_msg(m_handle));
+    BaseString tmp(ndb_mgm_get_latest_error_msg(m_handle_arg));
     tmp.append(" : ");
-    tmp.append(ndb_mgm_get_latest_error_desc(m_handle));
+    tmp.append(ndb_mgm_get_latest_error_desc(m_handle_arg));
     setError(CR_ERROR, tmp.c_str());
     return 0;
   }

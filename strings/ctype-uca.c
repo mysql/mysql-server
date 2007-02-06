@@ -6929,23 +6929,23 @@ static int my_uca_scanner_next_any(my_uca_scanner *scanner)
     uint16 **ucaw= scanner->uca_weight;
     uchar *ucal= scanner->uca_length;
     my_wc_t wc;
-    int mblen;
+    int mb_len;
     
-    if (((mblen= scanner->cs->cset->mb_wc(scanner->cs, &wc, 
+    if (((mb_len= scanner->cs->cset->mb_wc(scanner->cs, &wc, 
                                           scanner->sbeg,
                                           scanner->send)) <= 0))
       return -1;
     
     scanner->page= wc >> 8;
     scanner->code= wc & 0xFF;
-    scanner->sbeg+= mblen;
+    scanner->sbeg+= mb_len;
     
     if (scanner->contractions && !scanner->page &&
         (scanner->code > 0x40) && (scanner->code < 0x80))
     {
       uint page1, code1, cweight;
       
-      if (((mblen= scanner->cs->cset->mb_wc(scanner->cs, &wc,
+      if (((mb_len= scanner->cs->cset->mb_wc(scanner->cs, &wc,
                                             scanner->sbeg, 
                                             scanner->send)) >=0) &&
            (!(page1= (wc >> 8))) &&
@@ -6955,7 +6955,7 @@ static int my_uca_scanner_next_any(my_uca_scanner *scanner)
       {
         scanner->implicit[0]= 0;
         scanner->wbeg= scanner->implicit;
-        scanner->sbeg+= mblen;
+        scanner->sbeg+= mb_len;
         return cweight;
       }
     }
@@ -7314,8 +7314,8 @@ int my_wildcmp_uca(CHARSET_INFO *cs,
   int result= -1;			/* Not found, using wildcards */
   my_wc_t s_wc, w_wc;
   int scan;
-  int (*mb_wc)(struct charset_info_st *cs, my_wc_t *wc,
-               const unsigned char *s,const unsigned char *e);
+  int (*mb_wc)(struct charset_info_st *, my_wc_t *,
+               const unsigned char *, const unsigned char *);
   mb_wc= cs->cset->mb_wc;
   
   while (wildstr != wildend)
@@ -7508,7 +7508,7 @@ typedef struct my_coll_lexem_st
     my_coll_lexem_init
     lexem                Lex analizer to init
     str                  Const string to parse
-    strend               End of the string
+    str_end               End of the string
   USAGE
   
   RETURN VALUES
@@ -7516,11 +7516,11 @@ typedef struct my_coll_lexem_st
 */
 
 static void my_coll_lexem_init(MY_COLL_LEXEM *lexem,
-                               const char *str, const char *strend)
+                               const char *str, const char *str_end)
 {
   lexem->beg= str;
   lexem->prev= str;
-  lexem->end= strend;
+  lexem->end= str_end;
   lexem->diff= 0;
   lexem->code= 0;
 }
@@ -7677,7 +7677,7 @@ typedef struct my_coll_rule_item_st
     my_coll_rule_parse
     rule                 Collation rule list to load to.
     str                  A string containin collation language expression.
-    strend               End of the string.
+    str_end              End of the string.
   USAGE
     
   RETURN VALUES
@@ -7686,7 +7686,7 @@ typedef struct my_coll_rule_item_st
 */
 
 static int my_coll_rule_parse(MY_COLL_RULE *rule, size_t mitems,
-                              const char *str, const char *strend,
+                              const char *str, const char *str_end,
                               char *errstr, size_t errsize)
 {
   MY_COLL_LEXEM lexem;
@@ -7699,7 +7699,7 @@ static int my_coll_rule_parse(MY_COLL_RULE *rule, size_t mitems,
   /* Init all variables */
   errstr[0]= '\0';
   bzero(&item, sizeof(item));
-  my_coll_lexem_init(&lexem, str, strend);
+  my_coll_lexem_init(&lexem, str, str_end);
   
   while ((lexnum= my_coll_lexem_next(&lexem)))
   {

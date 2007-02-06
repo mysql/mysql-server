@@ -97,9 +97,9 @@ static ulonglong get_exact_record_count(TABLE_LIST *tables)
     GROUP BY part.
 
   RETURN VALUES
-    0 No errors
-    1 if all items were resolved
-   -1 on impossible conditions
+    0                    no errors
+    1                    if all items were resolved
+    HA_ERR_KEY_NOT_FOUND on impossible conditions
     OR an error number from my_base.h HA_ERR_... if a deadlock or a lock
        wait timeout happens, for example
 */
@@ -267,7 +267,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
           if (error)
 	  {
 	    if (error == HA_ERR_KEY_NOT_FOUND || error == HA_ERR_END_OF_FILE)
-	      return -1;		       // No rows matching WHERE
+	      return HA_ERR_KEY_NOT_FOUND;	      // No rows matching WHERE
 	    /* HA_ERR_LOCK_DEADLOCK or some other error */
  	    table->file->print_error(error, MYF(0));
             return(error);
@@ -354,7 +354,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
           if (error)
           {
 	    if (error == HA_ERR_KEY_NOT_FOUND || error == HA_ERR_END_OF_FILE)
-	      return -1;		       // No rows matching WHERE
+	      return HA_ERR_KEY_NOT_FOUND;	     // No rows matching WHERE
 	    /* HA_ERR_LOCK_DEADLOCK or some other error */
  	    table->file->print_error(error, MYF(0));
             return(error);

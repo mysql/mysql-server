@@ -34,7 +34,7 @@
 
 
 /* Global Thread counter */
-int counter;
+uint counter;
 #ifdef HAVE_LIBPTHREAD
 pthread_mutex_t counter_mutex;
 pthread_cond_t count_threshhold;

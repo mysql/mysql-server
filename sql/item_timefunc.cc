@@ -1007,7 +1007,8 @@ longlong Item_func_quarter::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   TIME ltime;
-  (void) get_arg0_date(&ltime, TIME_FUZZY_DATE);
+  if (get_arg0_date(&ltime, TIME_FUZZY_DATE))
+    return 0;
   return (longlong) ((ltime.month+2)/3);
 }
 
@@ -1119,14 +1120,14 @@ String* Item_func_dayname::val_str(String* str)
 {
   DBUG_ASSERT(fixed == 1);
   uint weekday=(uint) val_int();		// Always Item_func_daynr()
-  const char *name;
+  const char *day_name;
   THD *thd= current_thd;
 
   if (null_value)
     return (String*) 0;
   
-  name= thd->variables.lc_time_names->day_names->type_names[weekday];
-  str->set(name, strlen(name), system_charset_info);
+  day_name= thd->variables.lc_time_names->day_names->type_names[weekday];
+  str->set(day_name, strlen(day_name), system_charset_info);
   return str;
 }
 
@@ -1647,6 +1648,7 @@ String *Item_func_sec_to_time::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   TIME ltime;
+  longlong arg_val= args[0]->val_int(); 
 
   if ((null_value=args[0]->null_value) || str->alloc(19))
   {
@@ -1654,7 +1656,7 @@ String *Item_func_sec_to_time::val_str(String *str)
     return (String*) 0;
   }
 
-  sec_to_time(args[0]->val_int(), args[0]->unsigned_flag, &ltime);
+  sec_to_time(arg_val, args[0]->unsigned_flag, &ltime);
   
   make_time((DATE_TIME_FORMAT *) 0, &ltime, str);
   return str;
@@ -1665,11 +1667,12 @@ longlong Item_func_sec_to_time::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   TIME ltime;
+  longlong arg_val= args[0]->val_int(); 
   
   if ((null_value=args[0]->null_value))
     return 0;
 
-  sec_to_time(args[0]->val_int(), args[0]->unsigned_flag, &ltime);
+  sec_to_time(arg_val, args[0]->unsigned_flag, &ltime);
 
   return (ltime.neg ? -1 : 1) *
     ((ltime.hour)*10000 + ltime.minute*100 + ltime.second);
@@ -3168,10 +3171,10 @@ bool Item_func_str_to_date::get_date(TIME *ltime, uint fuzzy_date)
 {
   DATE_TIME_FORMAT date_time_format;
   char val_buff[64], format_buff[64];
-  String val_str(val_buff, sizeof(val_buff), &my_charset_bin), *val;
+  String val_string(val_buff, sizeof(val_buff), &my_charset_bin), *val;
   String format_str(format_buff, sizeof(format_buff), &my_charset_bin), *format;
 
-  val=    args[0]->val_str(&val_str);
+  val=    args[0]->val_str(&val_string);
   format= args[1]->val_str(&format_str);
   if (args[0]->null_value || args[1]->null_value)
     goto null_date;
