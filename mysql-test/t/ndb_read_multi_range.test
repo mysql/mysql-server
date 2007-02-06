@@ -249,12 +249,12 @@ t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a a
 delete from t22 where a > 245651;
 update t22 set b = a + 1;
 select * from t22 order by 1,2,3;
-select c, count(*)
+select t21.c, count(*)
 from t21 
 inner join t22 using (a)
 where t22.b in (2,256,257,1121,1134,4102,9200,223457,245652)
-group by c
-order by c;
+group by t21.c
+order by t21.c;
 
 DROP TABLE t1, t11, t12, t21, t22;
 

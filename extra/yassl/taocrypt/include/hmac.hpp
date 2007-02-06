@@ -109,11 +109,11 @@ void HMAC<T>::KeyInnerHash()
 
 // Update
 template <class T>
-void HMAC<T>::Update(const byte* msg, word32 length)
+void HMAC<T>::Update(const byte* msg_arg, word32 length)
 {
     if (!innerHashKeyed_)
         KeyInnerHash();
-    mac_.Update(msg, length);
+    mac_.Update(msg_arg, length);
 }
 
 

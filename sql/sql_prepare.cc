@@ -976,19 +976,19 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
     /* Insert @'escaped-varname' instead of parameter in the query */
     if (entry)
     {
-      char *begin, *ptr;
+      char *start, *ptr;
       buf.length(0);
       if (buf.reserve(entry->name.length*2+3))
         DBUG_RETURN(1);
 
-      begin= ptr= buf.c_ptr_quick();
+      start= ptr= buf.c_ptr_quick();
       *ptr++= '@';
       *ptr++= '\'';
       ptr+= escape_string_for_mysql(&my_charset_utf8_general_ci,
                                     ptr, 0, entry->name.str,
                                     entry->name.length);
       *ptr++= '\'';
-      buf.length(ptr - begin);
+      buf.length(ptr - start);
       val= &buf;
     }
     else
@@ -1026,7 +1026,6 @@ static bool mysql_test_insert(Prepared_statement *stmt,
                               enum_duplicates duplic)
 {
   THD *thd= stmt->thd;
-  LEX *lex= stmt->lex;
   List_iterator_fast<List_item> its(values_list);
   List_item *values;
   DBUG_ENTER("mysql_test_insert");
@@ -2241,13 +2240,13 @@ static void reset_stmt_params(Prepared_statement *stmt)
 
 void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
 {
-  uchar *packet= (uchar*)packet_arg; // GCC 4.0.1 workaround
+  uchar* packet= (uchar*)packet_arg; // gcc 4.0 stgrict-aliasing
   ulong stmt_id= uint4korr(packet);
   ulong flags= (ulong) ((uchar) packet[4]);
   /* Query text for binary, general or slow log, if any of them is open */
   String expanded_query;
 #ifndef EMBEDDED_LIBRARY
-  uchar *packet_end= (uchar *) packet + packet_length - 1;
+  uchar *packet_end= packet + packet_length - 1;
 #endif
   Prepared_statement *stmt;
   bool error;
@@ -2270,9 +2269,9 @@ void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
 #ifndef EMBEDDED_LIBRARY
   if (stmt->param_count)
   {
-    uchar *null_array= (uchar *) packet;
-    if (setup_conversion_functions(stmt, (uchar **) &packet, packet_end) ||
-        stmt->set_params(stmt, null_array, (uchar *) packet, packet_end,
+    uchar *null_array= packet;
+    if (setup_conversion_functions(stmt, &packet, packet_end) ||
+        stmt->set_params(stmt, null_array, packet, packet_end,
                          &expanded_query))
       goto set_params_data_err;
   }
@@ -2566,7 +2565,9 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
   uint param_number;
   Prepared_statement *stmt;
   Item_param *param;
+#ifndef EMBEDDED_LIBRARY
   char *packet_end= packet + packet_length - 1;
+#endif
   DBUG_ENTER("mysql_stmt_get_longdata");
 
   statistic_increment(thd->status_var.com_stmt_send_long_data, &LOCK_status);
@@ -2620,8 +2621,8 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
  Select_fetch_protocol_prep
 ****************************************************************************/
 
-Select_fetch_protocol_prep::Select_fetch_protocol_prep(THD *thd)
-  :protocol(thd)
+Select_fetch_protocol_prep::Select_fetch_protocol_prep(THD *thd_arg)
+  :protocol(thd_arg)
 {}
 
 bool Select_fetch_protocol_prep::send_fields(List<Item> &list, uint flags)

@@ -111,8 +111,6 @@ extern ulonglong relay_log_space_limit;
 #define MYSQL_SLAVE_RUN_NOT_CONNECT 1
 #define MYSQL_SLAVE_RUN_CONNECT     2
 
-static Log_event* next_event(RELAY_LOG_INFO* rli);
-
 #define RPL_LOG_NAME (rli->group_master_log_name[0] ? rli->group_master_log_name :\
  "FIRST")
 #define IO_RPL_LOG_NAME (mi->master_log_name[0] ? mi->master_log_name :\

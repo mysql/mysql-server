@@ -1131,6 +1131,7 @@ private:
    * seize/release invokes ctor/dtor automatically.
    */
   struct OpRecordCommon {
+    OpRecordCommon() {}
     Uint32 key;         // key shared between master and slaves
     Uint32 nextHash;
     Uint32 prevHash;
@@ -1146,6 +1147,7 @@ private:
    * Create table record
    */
   struct CreateTableRecord : OpRecordCommon {
+    CreateTableRecord() {}
     Uint32 m_senderRef;
     Uint32 m_senderData;
     Uint32 m_coordinatorRef;
@@ -1189,6 +1191,7 @@ private:
    * Drop table record
    */
   struct DropTableRecord : OpRecordCommon {
+    DropTableRecord() {}
     DropTableReq m_request;
     
     Uint32 m_requestType;

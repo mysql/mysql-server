@@ -269,14 +269,14 @@ int sigwait(sigset_t *setp, int *sigp);		/* Use our implemention */
   we want to make sure that no such flags are set.
 */
 #if defined(HAVE_SIGACTION) && !defined(my_sigset)
-#define my_sigset(A,B) do { struct sigaction s; sigset_t set; int rc;      \
-                            DBUG_ASSERT((A) != 0);                         \
-                            sigemptyset(&set);                             \
-                            s.sa_handler = (B);                            \
-                            s.sa_mask    = set;                            \
-                            s.sa_flags   = 0;                              \
-                            rc= sigaction((A), &s, (struct sigaction *) NULL);\
-                            DBUG_ASSERT(rc == 0);                          \
+#define my_sigset(A,B) do { struct sigaction l_s; sigset_t l_set; int l_rc; \
+                            DBUG_ASSERT((A) != 0);                          \
+                            sigemptyset(&l_set);                            \
+                            l_s.sa_handler = (B);                           \
+                            l_s.sa_mask   = l_set;                          \
+                            l_s.sa_flags   = 0;                             \
+                            l_rc= sigaction((A), &l_s, (struct sigaction *) NULL);\
+                            DBUG_ASSERT(l_rc == 0);                         \
                           } while (0)
 #elif defined(HAVE_SIGSET) && !defined(my_sigset)
 #define my_sigset(A,B) sigset((A),(B))
@@ -690,6 +690,15 @@ extern uint my_thread_end_wait_time;
   Keep track of shutdown,signal, and main threads so that my_end() will not
   report errors with them
 */
+
+/* Which kind of thread library is in use */
+
+#define THD_LIB_OTHER 1
+#define THD_LIB_NPTL  2
+#define THD_LIB_LT    4
+
+extern uint thd_lib_detected;
+
 	/* statistics_xxx functions are for not essential statistic */
 
 #ifndef thread_safe_increment

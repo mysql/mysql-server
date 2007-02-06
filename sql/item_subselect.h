@@ -164,7 +164,7 @@ public:
   void fix_length_and_dec();
 
   uint cols();
-  Item* el(uint i) { return my_reinterpret_cast(Item*)(row[i]); }
+  Item* element_index(uint i) { return my_reinterpret_cast(Item*)(row[i]); }
   Item** addr(uint i) { return (Item**)row + i; }
   bool check_cols(uint c);
   bool null_inside();
@@ -532,10 +532,10 @@ class subselect_indexsubquery_engine: public subselect_uniquesubquery_engine
 public:
 
   // constructor can assign THD because it will be called after JOIN::prepare
-  subselect_indexsubquery_engine(THD *thd, st_join_table *tab_arg,
+  subselect_indexsubquery_engine(THD *thd_arg, st_join_table *tab_arg,
 				 Item_subselect *subs, Item *where,
                                  Item *having_arg, bool chk_null)
-    :subselect_uniquesubquery_engine(thd, tab_arg, subs, where),
+    :subselect_uniquesubquery_engine(thd_arg, tab_arg, subs, where),
      check_null(chk_null),
      having(having_arg)
   {}

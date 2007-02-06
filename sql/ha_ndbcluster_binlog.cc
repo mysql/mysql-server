@@ -1131,7 +1131,7 @@ ndbcluster_update_slock(THD *thd,
     ndb_error= this_error;
     break;
   }
-end:
+
   if (ndb_error)
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                         ER_GET_ERRMSG, ER(ER_GET_ERRMSG),

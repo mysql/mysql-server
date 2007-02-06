@@ -117,6 +117,10 @@ struct SegmentedSectionPtr {
   struct SectionSegment * p;
 
   SegmentedSectionPtr() {}
+  SegmentedSectionPtr(Uint32 sz_arg, Uint32 i_arg,
+                      struct SectionSegment *p_arg)
+    :sz(sz_arg), i(i_arg), p(p_arg)
+  {}
   void setNull() { p = 0;}
   bool isNull() const { return p == 0;}
 };
