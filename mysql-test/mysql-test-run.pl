@@ -3600,13 +3600,14 @@ sub mysqld_arguments ($$$$$) {
     }
   }
 
-  my $pidfile;
+  # Check if "extra_opt" contains --skip-log-bin
+  my $skip_binlog= grep('--skip-log-bin', @$extra_opt);
 
   if ( $type eq 'master' )
   {
     my $id= $idx > 0 ? $idx + 101 : 1;
 
-    if (! $opt_skip_master_binlog)
+    if (! ($opt_skip_master_binlog || $skip_binlog) )
     {
       mtr_add_arg($args, "%s--log-bin=%s/log/master-bin%s", $prefix,
                   $opt_vardir, $sidx);
@@ -3665,7 +3666,7 @@ sub mysqld_arguments ($$$$$) {
     mtr_add_arg($args, "%s--datadir=%s", $prefix,
                 $slave->[$idx]->{'path_myddir'});
     mtr_add_arg($args, "%s--init-rpl-role=slave", $prefix);
-    if (! $opt_skip_slave_binlog)
+    if (! ( $opt_skip_slave_binlog || $skip_binlog ))
     {
       mtr_add_arg($args, "%s--log-bin=%s/log/slave%s-bin", $prefix,
                   $opt_vardir, $sidx); # FIXME use own dir for binlogs
@@ -3801,6 +3802,10 @@ sub mysqld_arguments ($$$$$) {
     if ($arg eq "--skip-core-file")
     {
       $found_skip_core= 1;
+    }
+    elsif ($skip_binlog and mtr_match_prefix($arg, "--binlog-format"))
+    {
+      ; # Dont add --binlog-format when running without binlog
     }
     else
     {
