@@ -3601,7 +3601,7 @@ sub mysqld_arguments ($$$$$) {
   }
 
   # Check if "extra_opt" contains --skip-log-bin
-  my $skip_binlog= grep('--skip-log-bin', @$extra_opt);
+  my $skip_binlog= grep(/^--skip-log-bin/, @$extra_opt);
 
   if ( $type eq 'master' )
   {
