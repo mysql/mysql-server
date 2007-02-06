@@ -17,7 +17,7 @@
 #pragma implementation
 #endif
 
-
+#include <my_global.h>
 #include <mysql.h>
 
 #include <signal.h>
