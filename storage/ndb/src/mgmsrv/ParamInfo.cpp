@@ -275,7 +275,7 @@ const ParamInfo ParamInfoArray[] = {
     CI_INT,
     "128",
     "8",
-    STR_VALUE(MAX_INT_RNIL) },
+    STR_VALUE(MAX_TABLES) },
   
   {
     CFG_DB_NO_ORDERED_INDEXES,
