@@ -428,7 +428,8 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   byte *ref_pos,*next_pos,ref_buff[MAX_REFLENGTH];
   my_off_t record;
   TABLE *sort_form;
-  volatile THD::killed_state *killed= &current_thd->killed;
+  THD *thd= current_thd;
+  volatile THD::killed_state *killed= &thd->killed;
   handler *file;
   DBUG_ENTER("find_all_keys");
   DBUG_PRINT("info",("using: %s",(select?select->quick?"ranges":"where":"every row")));
@@ -525,6 +526,9 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     }
     else
       file->unlock_row();
+    /* It does not make sense to read more keys in case of a fatal error */
+    if (thd->net.report_error)
+      DBUG_RETURN(HA_POS_ERROR);
   }
   if (quick_select)
   {

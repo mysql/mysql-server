@@ -276,6 +276,7 @@ bool tina_end()
   return FALSE;
 }
 
+
 /* 
   Finds the end of a line.
   Currently only supports files written on a UNIX OS.
