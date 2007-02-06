@@ -1615,13 +1615,19 @@ NdbEventBuffer::insert_event(NdbEventOperationImpl* impl,
   {
     do
     {
-      oid_ref = impl->m_oid;
-      insertDataL(impl, &data, ptr);
+      if (impl->m_node_bit_mask.get(0u))
+      {
+        oid_ref = impl->m_oid;
+        insertDataL(impl, &data, ptr);
+      }
       NdbEventOperationImpl* blob_op = impl->theBlobOpList;
       while (blob_op != NULL)
       {
-        oid_ref = blob_op->m_oid;
-        insertDataL(blob_op, &data, ptr);
+        if (blob_op->m_node_bit_mask.get(0u))
+        {
+          oid_ref = blob_op->m_oid;
+          insertDataL(blob_op, &data, ptr);
+        }
         blob_op = blob_op->m_next;
       }
     } while((impl = impl->m_next));
