@@ -195,6 +195,10 @@ bool Item_subselect::exec()
 {
   int res;
 
+  if (thd->net.report_error)
+  /* Do not execute subselect in case of a fatal error */
+    return 1;
+
   res= engine->exec();
 
   if (engine_changed)
