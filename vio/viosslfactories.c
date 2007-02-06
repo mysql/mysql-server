@@ -84,10 +84,10 @@ vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file, const char *key_file)
   {
     if (SSL_CTX_use_certificate_file(ctx, cert_file, SSL_FILETYPE_PEM) <= 0)
     {
-      DBUG_PRINT("error",("unable to get certificate from '%s'\n", cert_file));
-      fprintf(stderr,"SSL error: ");
-      ERR_print_errors_fp(stderr);
-      fprintf(stderr,"Unable to get certificate from '%s'\n", cert_file);
+      DBUG_PRINT("error",("unable to get certificate from '%s'", cert_file));
+      DBUG_EXECUTE("error", ERR_print_errors_fp(DBUG_FILE););
+      fprintf(stderr, "SSL error: Unable to get certificate from '%s'\n",
+              cert_file);
       fflush(stderr);
       DBUG_RETURN(1);
     }
@@ -97,10 +97,10 @@ vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file, const char *key_file)
 
     if (SSL_CTX_use_PrivateKey_file(ctx, key_file, SSL_FILETYPE_PEM) <= 0)
     {
-      DBUG_PRINT("error", ("unable to get private key from '%s'\n", key_file));
-      fprintf(stderr,"SSL error: ");
-      ERR_print_errors_fp(stderr);
-      fprintf(stderr,"Unable to get private key from '%s'\n", key_file);
+      DBUG_PRINT("error", ("unable to get private key from '%s'", key_file));
+      DBUG_EXECUTE("error", ERR_print_errors_fp(DBUG_FILE););
+      fprintf(stderr, "SSL error: Unable to get private key from '%s'\n",
+              key_file);
       fflush(stderr);
       DBUG_RETURN(1);
     }
@@ -112,7 +112,12 @@ vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file, const char *key_file)
     if (!SSL_CTX_check_private_key(ctx))
     {
       DBUG_PRINT("error",
-		 ("Private key does not match the certificate public key\n"));
+		 ("Private key does not match the certificate public key"));
+      DBUG_EXECUTE("error", ERR_print_errors_fp(DBUG_FILE););
+      fprintf(stderr,
+              "SSL error: "
+              "Private key does not match the certificate public key\n");
+      fflush(stderr);
       DBUG_RETURN(1);
     }
   }
