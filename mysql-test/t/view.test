@@ -2986,4 +2986,20 @@ SHOW CREATE VIEW v1;
 
 DROP VIEW v1;
 
+#
+# Bug #26124: BETWEEN over a view column of the DATETIME type
+#
+
+CREATE TABLE t1 (mydate DATETIME);
+INSERT INTO t1 VALUES 
+  ('2007-01-01'), ('2007-01-02'), ('2007-01-30'), ('2007-01-31');
+
+CREATE VIEW v1 AS SELECT mydate from t1;
+
+SELECT * FROM t1 WHERE mydate BETWEEN '2007-01-01' AND '2007-01-31';
+SELECT * FROM v1 WHERE mydate BETWEEN '2007-01-01' AND '2007-01-31';
+
+DROP VIEW v1;
+DROP TABLE t1;
+
 --echo End of 5.0 tests.
