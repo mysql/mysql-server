@@ -74,7 +74,7 @@ public:
 #ifdef ndb_readtuples_impossible_overload
   int readTuples(LockMode lock_mode = LM_Read, 
 		 Uint32 batch = 0, Uint32 parallel = 0, 
-                 bool keyinfo = false, bool multi_range);
+                 bool keyinfo = false, bool multi_range = false);
 #endif
   
   inline int readTuples(int parallell){
