@@ -1995,8 +1995,7 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
           DBUG_PRINT("error", ("key %d unknown flag %d", j, p.key->flag));
           DBUG_ASSERT(FALSE);
           // Stop setting bounds but continue with what we have
-          op->end_of_bound(range_no);
-          DBUG_RETURN(0);
+          DBUG_RETURN(op->end_of_bound(range_no));
         }
       }
     }
@@ -2043,8 +2042,7 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
 
     tot_len+= part_store_len;
   }
-  op->end_of_bound(range_no);
-  DBUG_RETURN(0);
+  DBUG_RETURN(op->end_of_bound(range_no));
 }
 
 /*
@@ -6364,7 +6362,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
         }
         else if ((scanOp= m_active_trans->getNdbIndexScanOperation(idx, tab)) 
                  &&!scanOp->readTuples(lm, 0, parallelism, sorted, 
-				       FALSE, TRUE, need_pk)
+				       FALSE, TRUE, need_pk, TRUE)
                  &&!generate_scan_filter(m_cond_stack, scanOp)
                  &&!define_read_attrs(end_of_buffer-reclength, scanOp))
         {
