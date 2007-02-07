@@ -2543,7 +2543,7 @@ create table t1(f1 int, f2 int);
 create view v1 as select ta.f1 as a, tb.f1 as b from t1 ta, t1 tb where ta.f1=tb
 .f1 and ta.f2=tb.f2;
 insert into t1 values(1,1),(2,2);
-create view v2 as select * from v1 where a > 1 with check option;
+create view v2 as select * from v1 where a > 1 with local check option;
 select * from v2;
 a	b
 2	2
@@ -3052,4 +3052,30 @@ mydate
 2007-01-31 00:00:00
 DROP VIEW v1;
 DROP TABLE t1;
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (b int);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (2);
+CREATE VIEW v1 AS
+SELECT t2.b FROM t1,t2 WHERE t1.a = t2.b WITH CHECK OPTION;
+SELECT * FROM v1;
+b
+1
+2
+UPDATE v1 SET b=3;
+ERROR HY000: CHECK OPTION failed 'test.v1'
+SELECT * FROM v1;
+b
+1
+2
+SELECT * FROM t1;
+a
+1
+2
+SELECT * FROM t2;
+b
+1
+2
+DROP VIEW v1;
+DROP TABLE t1,t2;
 End of 5.0 tests.
