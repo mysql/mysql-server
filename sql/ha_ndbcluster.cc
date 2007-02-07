@@ -259,17 +259,16 @@ static int ndb_to_mysql_error(const NdbError *ndberr)
 
 int execute_no_commit_ignore_no_key(ha_ndbcluster *h, NdbTransaction *trans)
 {
-  int res= trans->execute(NdbTransaction::NoCommit,
-                          NdbOperation::AO_IgnoreError,
-                          h->m_force_send);
-  if (res == -1)
+  if (trans->execute(NdbTransaction::NoCommit,
+                     NdbOperation::AO_IgnoreError,
+                     h->m_force_send) == -1)
     return -1;
 
   const NdbError &err= trans->getNdbError();
   if (err.classification != NdbError::NoError &&
       err.classification != NdbError::ConstraintViolation &&
       err.classification != NdbError::NoDataFound)
-    return res;
+    return -1;
 
   return 0;
 }
