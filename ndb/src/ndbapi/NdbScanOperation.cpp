@@ -1718,6 +1718,12 @@ NdbIndexScanOperation::reset_bounds(bool forceSend){
 int
 NdbIndexScanOperation::end_of_bound(Uint32 no)
 {
+  DBUG_ENTER("end_of_bound");
+  DBUG_PRINT("info", ("Range number %u", no));
+  /* Check that SF_MultiRange has been specified if more
+     than one range is specified */
+  if (no > 0 && !m_multi_range)
+    DBUG_RETURN(-1);
   if(no < (1 << 13)) // Only 12-bits no of ranges
   {
     Uint32 bound_head = * m_first_bound_word;
@@ -1726,9 +1732,9 @@ NdbIndexScanOperation::end_of_bound(Uint32 no)
     
     m_first_bound_word = theKEYINFOptr + theTotalNrOfKeyWordInSignal;;
     m_this_bound_start = theTupKeyLen;
-    return 0;
+    DBUG_RETURN(0);
   }
-  return -1;
+  DBUG_RETURN(-1);
 }
 
 int

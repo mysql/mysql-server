@@ -38,7 +38,8 @@ class NdbScanOperation : public NdbOperation {
 public:
   /**
    * Scan flags.  OR-ed together and passed as second argument to
-   * readTuples.
+   * readTuples. Note that SF_MultiRange has to be set if several
+   * ranges (bounds) are to be passed.
    */
   enum ScanFlag {
     SF_TupScan = (1 << 16),     // scan TUP

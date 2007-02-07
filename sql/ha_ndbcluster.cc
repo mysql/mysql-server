@@ -1996,8 +1996,7 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
           DBUG_PRINT("error", ("key %d unknown flag %d", j, p.key->flag));
           DBUG_ASSERT(FALSE);
           // Stop setting bounds but continue with what we have
-          op->end_of_bound(range_no);
-          DBUG_RETURN(0);
+          DBUG_RETURN(op->end_of_bound(range_no));
         }
       }
     }
@@ -2044,8 +2043,7 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
 
     tot_len+= part_store_len;
   }
-  op->end_of_bound(range_no);
-  DBUG_RETURN(0);
+  DBUG_RETURN(op->end_of_bound(range_no));
 }
 
 /*
