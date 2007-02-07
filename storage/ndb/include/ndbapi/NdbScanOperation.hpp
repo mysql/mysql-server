@@ -46,6 +46,7 @@ public:
     SF_OrderBy = (1 << 24),     // index scan in order
     SF_Descending = (2 << 24),  // index scan in descending order
     SF_ReadRangeNo = (4 << 24), // enable @ref get_range_no
+    SF_MultiRange = (8 << 24),  // scan is part of multi-range scan
     SF_KeyInfo = 1              // request KeyInfo to be sent back
   };
 
@@ -72,7 +73,8 @@ public:
    */ 
 #ifdef ndb_readtuples_impossible_overload
   int readTuples(LockMode lock_mode = LM_Read, 
-		 Uint32 batch = 0, Uint32 parallel = 0, bool keyinfo = false);
+		 Uint32 batch = 0, Uint32 parallel = 0, 
+                 bool keyinfo = false, bool multi_range = false);
 #endif
   
   inline int readTuples(int parallell){
@@ -264,6 +266,7 @@ protected:
   bool m_descending;
   Uint32 m_read_range_no;
   NdbRecAttr *m_curr_row; // Pointer to last returned row
+  bool m_multi_range; // Mark if operation is part of multi-range scan
   bool m_executed; // Marker if operation should be released at close
 };
 
