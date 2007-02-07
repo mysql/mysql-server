@@ -1596,6 +1596,89 @@ lookup:
 }
 
 /************************************************************************
+Initialize some fields of a control block. */
+UNIV_INLINE
+void
+buf_block_init_low(
+/*===============*/
+	buf_block_t*	block)	/* in: block to init */
+{
+	block->check_index_page_at_flush = FALSE;
+	block->index		= NULL;
+
+	block->n_hash_helps	= 0;
+	block->is_hashed	= FALSE;
+	block->n_fields		= 1;
+	block->n_bytes		= 0;
+	block->left_side	= TRUE;
+}
+
+/************************************************************************
+Decompress a block. */
+static
+ibool
+buf_zip_decompress(
+/*===============*/
+				/* out: TRUE if successful */
+	buf_block_t*	block,	/* in/out: block */
+	ibool		check)	/* in: TRUE=verify the page checksum */
+{
+	const byte* frame = block->page.zip.data;
+
+	ut_ad(buf_block_get_zip_size(block));
+	ut_a(buf_block_get_space(block) != 0);
+
+	if (UNIV_LIKELY(check)) {
+		ulint	stamp_checksum	= mach_read_from_4(
+			frame + FIL_PAGE_SPACE_OR_CHKSUM);
+		ulint	calc_checksum	= page_zip_calc_checksum(
+			frame, page_zip_get_size(&block->page.zip));
+
+		if (UNIV_UNLIKELY(stamp_checksum != calc_checksum)) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: compressed page checksum mismatch"
+				" (space %u page %u): %lu != %lu\n",
+				block->page.space, block->page.offset,
+				stamp_checksum, calc_checksum);
+			return(FALSE);
+		}
+	}
+
+	switch (fil_page_get_type(frame)) {
+	case FIL_PAGE_INDEX:
+		if (page_zip_decompress(&block->page.zip,
+					block->frame)) {
+			return(TRUE);
+		}
+
+		fprintf(stderr,
+			"InnoDB: unable to decompress space %lu page %lu\n",
+			(ulong) block->page.space,
+			(ulong) block->page.offset);
+		return(FALSE);
+
+	case FIL_PAGE_TYPE_ALLOCATED:
+	case FIL_PAGE_INODE:
+	case FIL_PAGE_IBUF_BITMAP:
+	case FIL_PAGE_TYPE_FSP_HDR:
+	case FIL_PAGE_TYPE_XDES:
+	case FIL_PAGE_TYPE_ZBLOB:
+		/* Copy to uncompressed storage. */
+		memcpy(block->frame, frame,
+		       buf_block_get_zip_size(block));
+		return(TRUE);
+	}
+
+	ut_print_timestamp(stderr);
+	fprintf(stderr,
+		"  InnoDB: unknown compressed page"
+		" type %lu\n",
+		fil_page_get_type(frame));
+	return(FALSE);
+}
+
+/************************************************************************
 This is the general function used to get access to a database page. */
 
 buf_block_t*
@@ -1633,12 +1716,10 @@ buf_page_get_gen(
 #endif
 	buf_pool->n_page_gets++;
 loop:
-	block = NULL;
+	block = guess;
 	mutex_enter_fast(&(buf_pool->mutex));
 
-	if (guess) {
-		block = guess;
-
+	if (block) {
 		if (offset != block->page.offset
 		    || space != block->page.space
 		    || !buf_page_in_file(&block->page)) {
@@ -1651,15 +1732,13 @@ loop:
 		block = (buf_block_t*) buf_page_hash_get(space, offset);
 	}
 
-	if (block == NULL
-	    || UNIV_UNLIKELY(buf_block_get_state(block)
-			     != BUF_BLOCK_FILE_PAGE)) {
-		/* Uncompressed page not in buf_pool: needs to be
-		decompressed or read from file */
+loop2:
+	if (block == NULL) {
+		/* Page not in buf_pool: needs to be read from file */
 
 		mutex_exit(&(buf_pool->mutex));
 
-		if (!block && mode == BUF_GET_IF_IN_POOL) {
+		if (mode == BUF_GET_IF_IN_POOL) {
 
 			return(NULL);
 		}
@@ -1672,19 +1751,140 @@ loop:
 		goto loop;
 	}
 
-	mutex_enter(&block->mutex);
-
-	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+	ut_ad(page_zip_get_size(&block->page.zip) == zip_size);
 
 	must_read = buf_block_get_io_fix(block) == BUF_IO_READ;
 
 	if (must_read && mode == BUF_GET_IF_IN_POOL) {
 		/* The page is only being read to buffer */
 		mutex_exit(&buf_pool->mutex);
-		mutex_exit(&block->mutex);
 
 		return(NULL);
 	}
+
+	switch (buf_block_get_state(block)) {
+		buf_page_t*	bpage;
+
+	case BUF_BLOCK_FILE_PAGE:
+		break;
+
+	case BUF_BLOCK_ZIP_PAGE:
+	case BUF_BLOCK_ZIP_DIRTY:
+		bpage = &block->page;
+
+		if (bpage->buf_fix_count
+		    || buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
+
+			/* The block is buffer-fixed or I/O-fixed.
+			Try again later. */
+			mutex_exit(&buf_pool->mutex);
+			os_thread_sleep(WAIT_FOR_READ);
+
+			goto loop;
+		}
+
+		/* Allocate an uncompressed page. */
+		mutex_exit(&buf_pool->mutex);
+
+		block = buf_LRU_get_free_block(0);
+		ut_a(block);
+
+		mutex_enter(&buf_pool->mutex);
+		mutex_enter(&block->mutex);
+
+		{
+			buf_page_t*	hash_bpage
+				= buf_page_hash_get(space, offset);
+
+			if (UNIV_UNLIKELY(bpage != hash_bpage)) {
+				/* The buf_pool->page_hash was modified
+				while buf_pool->mutex was released.
+				Free the block that was allocated. */
+
+				buf_LRU_block_free_non_file_page(block);
+				mutex_exit(&block->mutex);
+
+				block = (buf_block_t*) hash_bpage;
+				goto loop2;
+			}
+		}
+
+		/* Move the compressed page from bpage to block,
+		and uncompress it. */
+
+		mutex_enter(&buf_pool->zip_mutex);
+
+		buf_relocate(bpage, &block->page);
+		buf_block_init_low(block);
+		block->lock_hash_val = lock_rec_hash(space, offset);
+
+		UNIV_MEM_DESC(bpage->zip.data,
+			      page_zip_get_size(&bpage->zip), block);
+
+		if (buf_page_get_state(&block->page)
+		    == BUF_BLOCK_ZIP_PAGE) {
+			UT_LIST_REMOVE(list, buf_pool->zip_clean,
+				       &block->page);
+			ut_ad(!block->page.in_flush_list);
+		} else {
+			/* Relocate buf_pool->flush_list. */
+			buf_page_t*	b;
+
+			b = UT_LIST_GET_PREV(list, &block->page);
+			ut_ad(block->page.in_flush_list);
+			UT_LIST_REMOVE(list, buf_pool->flush_list,
+				       &block->page);
+
+			if (b) {
+				UT_LIST_INSERT_AFTER(
+					list, buf_pool->flush_list, b,
+					&block->page);
+			} else {
+				UT_LIST_ADD_FIRST(
+					list, buf_pool->flush_list,
+					&block->page);
+			}
+		}
+
+		/* Buffer-fix, I/O-fix, and X-latch the block
+		for the duration of the decompression. */
+		block->page.state = BUF_BLOCK_FILE_PAGE;
+		block->page.buf_fix_count = 1;
+		buf_block_set_io_fix(block, BUF_IO_READ);
+		rw_lock_x_lock(&block->lock);
+		mutex_exit(&block->mutex);
+		mutex_exit(&buf_pool->zip_mutex);
+
+		buf_buddy_free(bpage, sizeof *bpage);
+
+		mutex_exit(&buf_pool->mutex);
+
+		/* Decompress the page while not holding
+		buf_pool->mutex or block->mutex. */
+		buf_zip_decompress(block, srv_use_checksums);
+
+		/* Unfix and unlatch the block. */
+		mutex_enter(&buf_pool->mutex);
+		mutex_enter(&block->mutex);
+		block->page.buf_fix_count--;
+		buf_block_set_io_fix(block, BUF_IO_NONE);
+		mutex_exit(&block->mutex);
+		rw_lock_x_unlock(&block->lock);
+
+		break;
+
+	case BUF_BLOCK_ZIP_FREE:
+	case BUF_BLOCK_NOT_USED:
+	case BUF_BLOCK_READY_FOR_USE:
+	case BUF_BLOCK_MEMORY:
+	case BUF_BLOCK_REMOVE_HASH:
+		ut_error;
+		break;
+	}
+
+	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+
+	mutex_enter(&block->mutex);
 
 	buf_block_buf_fix_inc(block, file, line);
 	mutex_exit(&buf_pool->mutex);
@@ -2002,24 +2202,6 @@ buf_page_get_known_nowait(
 Initialize some fields of a control block. */
 UNIV_INLINE
 void
-buf_block_init_low(
-/*===============*/
-	buf_block_t*	block)	/* in: block to init */
-{
-	block->check_index_page_at_flush = FALSE;
-	block->index		= NULL;
-
-	block->n_hash_helps	= 0;
-	block->is_hashed	= FALSE;
-	block->n_fields		= 1;
-	block->n_bytes		= 0;
-	block->left_side	= TRUE;
-}
-
-/************************************************************************
-Initialize some fields of a control block. */
-UNIV_INLINE
-void
 buf_page_init_low(
 /*==============*/
 	buf_page_t*	bpage)	/* in: block to init */
@@ -2134,71 +2316,6 @@ buf_page_init(
 }
 
 /************************************************************************
-Decompress a block. */
-static
-ibool
-buf_zip_decompress(
-/*===============*/
-				/* out: TRUE if successful */
-	buf_block_t*	block,	/* in/out: block */
-	ibool		check)	/* in: TRUE=verify the page checksum */
-{
-	const byte* frame = block->page.zip.data;
-
-	ut_ad(buf_block_get_zip_size(block));
-	ut_a(buf_block_get_space(block) != 0);
-
-	if (UNIV_LIKELY(check)) {
-		ulint	stamp_checksum	= mach_read_from_4(
-			frame + FIL_PAGE_SPACE_OR_CHKSUM);
-		ulint	calc_checksum	= page_zip_calc_checksum(
-			frame, page_zip_get_size(&block->page.zip));
-
-		if (UNIV_UNLIKELY(stamp_checksum != calc_checksum)) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB: compressed page checksum mismatch"
-				" (space %u page %u): %lu != %lu\n",
-				block->page.space, block->page.offset,
-				stamp_checksum, calc_checksum);
-			return(FALSE);
-		}
-	}
-
-	switch (fil_page_get_type(frame)) {
-	case FIL_PAGE_INDEX:
-		if (page_zip_decompress(&block->page.zip,
-					block->frame)) {
-			return(TRUE);
-		}
-
-		fprintf(stderr,
-			"InnoDB: unable to decompress space %lu page %lu\n",
-			(ulong) block->page.space,
-			(ulong) block->page.offset);
-		return(FALSE);
-
-	case FIL_PAGE_TYPE_ALLOCATED:
-	case FIL_PAGE_INODE:
-	case FIL_PAGE_IBUF_BITMAP:
-	case FIL_PAGE_TYPE_FSP_HDR:
-	case FIL_PAGE_TYPE_XDES:
-	case FIL_PAGE_TYPE_ZBLOB:
-		/* Copy to uncompressed storage. */
-		memcpy(block->frame, frame,
-		       buf_block_get_zip_size(block));
-		return(TRUE);
-	}
-
-	ut_print_timestamp(stderr);
-	fprintf(stderr,
-		"  InnoDB: unknown compressed page"
-		" type %lu\n",
-		fil_page_get_type(frame));
-	return(FALSE);
-}
-
-/************************************************************************
 Function which inits a page for read to the buffer buf_pool. If the page is
 (1) already in buf_pool, or
 (2) if we specify to read only ibuf pages and the page is not an ibuf page, or
@@ -2224,7 +2341,6 @@ buf_page_init_for_read(
 	ulint		offset)	/* in: page number */
 {
 	buf_block_t*	block;
-	buf_page_t*	bpage;
 	mtr_t		mtr;
 
 	ut_ad(buf_pool);
@@ -2256,115 +2372,12 @@ buf_page_init_for_read(
 	mutex_enter(&(buf_pool->mutex));
 	mutex_enter(&block->mutex);
 
-	if (fil_tablespace_deleted_or_being_deleted_in_mem(
-		    space, tablespace_version)) {
-		*err = DB_TABLESPACE_DELETED;
-
-		goto err_exit;
-	}
-
-	bpage = buf_page_hash_get(space, offset);
-
-	if (UNIV_LIKELY_NULL(bpage)) {
-
-		switch (buf_page_get_state(bpage)) {
-		case BUF_BLOCK_ZIP_PAGE:
-		case BUF_BLOCK_ZIP_DIRTY:
-			ut_a(page_zip_get_size(&bpage->zip) == zip_size);
-
-			if (bpage->buf_fix_count
-			    || buf_page_get_io_fix(bpage)
-			    != BUF_IO_NONE) {
-
-				goto err_exit;
-			}
-
-			/* Move the compressed page from bpage to block,
-			and uncompress it. */
-
-			mutex_enter(&buf_pool->zip_mutex);
-
-			buf_relocate(bpage, &block->page);
-			buf_block_init_low(block);
-			block->lock_hash_val = lock_rec_hash(space, offset);
-
-			UNIV_MEM_DESC(bpage->zip.data, zip_size, block);
-
-			if (buf_page_get_state(&block->page)
-			    == BUF_BLOCK_ZIP_PAGE) {
-				UT_LIST_REMOVE(list, buf_pool->zip_clean,
-					       &block->page);
-				ut_ad(!block->page.in_flush_list);
-			} else {
-				/* Relocate buf_pool->flush_list. */
-				buf_page_t*	b;
-
-				b = UT_LIST_GET_PREV(list, &block->page);
-				ut_ad(block->page.in_flush_list);
-				UT_LIST_REMOVE(list, buf_pool->flush_list,
-					       &block->page);
-
-				if (b) {
-					UT_LIST_INSERT_AFTER(
-						list, buf_pool->flush_list, b,
-						&block->page);
-				} else {
-					UT_LIST_ADD_FIRST(
-						list, buf_pool->flush_list,
-						&block->page);
-				}
-			}
-
-			/* Buffer-fix, I/O-fix, and X-latch the block
-			for the duration of the decompression. */
-			block->page.state = BUF_BLOCK_FILE_PAGE;
-			block->page.buf_fix_count = 1;
-			buf_block_set_io_fix(block, BUF_IO_READ);
-			rw_lock_x_lock(&block->lock);
-			mutex_exit(&block->mutex);
-			mutex_exit(&buf_pool->zip_mutex);
-
-			buf_buddy_free(bpage, sizeof *bpage);
-
-			mutex_exit(&buf_pool->mutex);
-
-			if (mode == BUF_READ_IBUF_PAGES_ONLY) {
-
-				mtr_commit(&mtr);
-			}
-
-			/* Decompress the page while not holding
-			buf_pool->mutex or block->mutex. */
-			buf_zip_decompress(block, srv_use_checksums);
-
-			/* Unfix and unlatch the block. */
-			mutex_enter(&buf_pool->mutex);
-			mutex_enter(&block->mutex);
-			block->page.buf_fix_count--;
-			buf_block_set_io_fix(block, BUF_IO_NONE);
-			mutex_exit(&buf_pool->mutex);
-			mutex_exit(&block->mutex);
-			rw_lock_x_unlock(&block->lock);
-
-			return(NULL);
-		case BUF_BLOCK_FILE_PAGE:
-			break;
-		case BUF_BLOCK_ZIP_FREE:
-		case BUF_BLOCK_NOT_USED:
-		case BUF_BLOCK_READY_FOR_USE:
-		case BUF_BLOCK_MEMORY:
-		case BUF_BLOCK_REMOVE_HASH:
-			ut_error;
-			break;
-		}
+	if (buf_page_hash_get(space, offset)) {
+		/* The page is already in the buffer pool. */
 
 err_exit:
-		/* The page belongs to a space which has been
-		deleted or is being deleted, or the page is
-		already in buf_pool, return */
-
 		mutex_exit(&block->mutex);
-		mutex_exit(&(buf_pool->mutex));
+		mutex_exit(&buf_pool->mutex);
 
 		buf_block_free(block);
 
@@ -2374,6 +2387,15 @@ err_exit:
 		}
 
 		return(NULL);
+	}
+
+	if (fil_tablespace_deleted_or_being_deleted_in_mem(
+		    space, tablespace_version)) {
+		/* The page belongs to a space which has been
+		deleted or is being deleted. */
+		*err = DB_TABLESPACE_DELETED;
+
+		goto err_exit;
 	}
 
 	ut_ad(block);
@@ -2427,7 +2449,7 @@ err_exit:
 Initializes a page to the buffer buf_pool. The page is usually not read
 from a file even if it cannot be found in the buffer buf_pool. This is one
 of the functions which perform to a block a state transition NOT_USED =>
-FILE_PAGE (the other is buf_page_init_for_read above). */
+FILE_PAGE (others are buf_page_init_for_read and buf_page_get_gen). */
 
 buf_block_t*
 buf_page_create(
@@ -2915,8 +2937,8 @@ buf_validate(void)
 		case BUF_IO_READ:
 			/* In buf_LRU_free_block(), we temporarily set
 			b->io_fix = BUF_IO_READ for a newly allocated
-			control block in order to lock out
-			buf_page_init_for_read(). */
+			control block in order to prevent
+			buf_page_get_gen() from decompressing the block. */
 			break;
 		default:
 			ut_error;
