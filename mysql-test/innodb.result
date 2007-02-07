@@ -3447,8 +3447,6 @@ SELECT p0.a FROM t2 p0 WHERE BINARY p0.b = 'customer_over';
 a
 1
 drop table t2, t1;
-create table t1 (g geometry not null, spatial gk(g)) engine=innodb;
-ERROR HY000: The used table type doesn't support SPATIAL indexes
 CREATE TABLE t1 ( a int ) ENGINE=innodb;
 BEGIN;
 INSERT INTO t1 VALUES (1);
