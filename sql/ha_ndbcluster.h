@@ -661,7 +661,6 @@ private:
                                       const NdbOperation *first,
                                       const NdbOperation *last,
                                       uint errcode);
-  bool key_fields_not_in_write_set(THD *thd, const KEY* key_info);
   int peek_indexed_rows(const byte *record, bool check_pk);
   int unique_index_read(const byte *key, uint key_len, 
                         byte *buf);
