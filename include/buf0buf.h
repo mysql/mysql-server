@@ -256,7 +256,7 @@ buf_page_get_gen(
 Initializes a page to the buffer buf_pool. The page is usually not read
 from a file even if it cannot be found in the buffer buf_pool. This is one
 of the functions which perform to a block a state transition NOT_USED =>
-FILE_PAGE (the other is buf_page_init_for_read above). */
+FILE_PAGE (others are buf_page_init_for_read and buf_page_get_gen). */
 
 buf_block_t*
 buf_page_create(

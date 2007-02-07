@@ -992,7 +992,7 @@ alloc:
 			bpage->zip.data = NULL;
 			page_zip_set_size(&bpage->zip, 0);
 
-			/* Prevent buf_page_init_for_read() from
+			/* Prevent buf_page_get_gen() from
 			decompressing the block while we release
 			buf_pool->mutex and block_mutex. */
 			b->buf_fix_count++;
