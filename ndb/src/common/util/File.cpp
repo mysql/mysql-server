@@ -123,13 +123,25 @@ bool
 File_class::close()
 {
   bool rc = true;
+  int retval = 0;
+
   if (m_file != NULL)
   { 
     ::fflush(m_file);
-    rc = (::fclose(m_file) == 0 ? true : false);
-    m_file = NULL; // Try again?
+    retval = ::fclose(m_file);
+    while ( (retval != 0) && (errno == EINTR) ){
+      retval = ::fclose(m_file);
+    }
+    if( retval == 0){
+      rc = true;
+    }
+    else {
+      rc = false;
+      ndbout_c("ERROR: Close file error in File.cpp for %s",strerror(errno));
+    }
   }  
-  
+  m_file = NULL;  
+
   return rc;
 }
 
