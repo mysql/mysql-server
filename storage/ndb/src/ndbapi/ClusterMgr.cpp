@@ -164,7 +164,7 @@ ClusterMgr::forceHB()
     NodeBitmask ndb_nodes;
     ndb_nodes.clear();
     waitForHBFromNodes.clear();
-    for(Uint32 i = 0; i < MAX_NODES; i++)
+    for(Uint32 i = 0; i < MAX_NDB_NODES; i++)
     {
       if(!theNodes[i].defined)
         continue;
