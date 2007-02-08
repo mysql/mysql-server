@@ -286,8 +286,8 @@ extern int my_pthread_create_detached;
 #undef HAVE_PTHREAD_RWLOCK_RDLOCK
 #undef HAVE_SNPRINTF
 
-#define sigset(A,B) pthread_signal((A),(void (*)(int)) (B))
-#define signal(A,B) pthread_signal((A),(void (*)(int)) (B))
+#define my_sigset(A,B) pthread_signal((A),(void (*)(int)) (B))
+#define my_signal(A,B) pthread_signal((A),(void (*)(int)) (B))
 #define my_pthread_attr_setprio(A,B)
 #endif /* defined(PTHREAD_SCOPE_GLOBAL) && !defined(PTHREAD_SCOPE_SYSTEM) */
 
@@ -324,14 +324,27 @@ extern int my_pthread_cond_init(pthread_cond_t *mp,
 #if !defined(HAVE_SIGWAIT) && !defined(HAVE_mit_thread) && !defined(HAVE_rts_threads) && !defined(sigwait) && !defined(alpha_linux_port) && !defined(HAVE_NONPOSIX_SIGWAIT) && !defined(HAVE_DEC_3_2_THREADS) && !defined(_AIX)
 int sigwait(sigset_t *setp, int *sigp);		/* Use our implemention */
 #endif
-#if !defined(HAVE_SIGSET) && !defined(HAVE_mit_thread) && !defined(sigset)
-#define sigset(A,B) do { struct sigaction s; sigset_t set;              \
-                         sigemptyset(&set);                             \
-                         s.sa_handler = (B);                            \
-                         s.sa_mask    = set;                            \
-                         s.sa_flags   = 0;                              \
-                         sigaction((A), &s, (struct sigaction *) NULL); \
+
+/*
+  We define my_sigset() and use that instead of the system sigset() so that
+  we can favor an implementation based on sigaction(). On some systems, such
+  as Mac OS X, sigset() results in flags such as SA_RESTART being set, and
+  we want to make sure that no such flags are set.
+*/
+#if defined(HAVE_SIGACTION) && !defined(my_sigset)
+#define my_sigset(A,B) do { struct sigaction s; sigset_t set; int rc;      \
+                            DBUG_ASSERT((A) != 0);                         \
+                            sigemptyset(&set);                             \
+                            s.sa_handler = (B);                            \
+                            s.sa_mask    = set;                            \
+                            s.sa_flags   = 0;                              \
+                            rc= sigaction((A), &s, (struct sigaction *) NULL); \
+                            DBUG_ASSERT(rc == 0);                          \
                        } while (0)
+#elif defined(HAVE_SIGSET) && !defined(my_sigset)
+#define my_sigset(A,B) sigset((A),(B))
+#elif !defined(my_sigset)
+#define my_sigset(A,B) signal((A),(B))
 #endif
 
 #ifndef my_pthread_setprio
@@ -416,7 +429,7 @@ struct tm *localtime_r(const time_t *clock, struct tm *res);
 #undef	pthread_detach_this_thread
 #define pthread_detach_this_thread() { pthread_t tmp=pthread_self() ; pthread_detach(tmp); }
 #undef sigset
-#define sigset(A,B) pthread_signal((A),(void (*)(int)) (B))
+#define my_sigset(A,B) pthread_signal((A),(void (*)(int)) (B))
 #endif
 
 #if ((defined(HAVE_PTHREAD_ATTR_CREATE) && !defined(HAVE_SIGWAIT)) || defined(HAVE_DEC_3_2_THREADS)) && !defined(HAVE_CTHREADS_WRAPPER)
@@ -662,6 +675,15 @@ extern struct st_my_thread_var *_my_thread_var(void) __attribute__ ((const));
   report errors with them
 */
 extern pthread_t shutdown_th, main_th, signal_th;
+
+/* Which kind of thread library is in use */
+
+#define THD_LIB_OTHER 1
+#define THD_LIB_NPTL  2
+#define THD_LIB_LT    4
+
+extern uint thd_lib_detected;
+extern uint thr_client_alarm;
 
 	/* statistics_xxx functions are for not essential statistic */
 
