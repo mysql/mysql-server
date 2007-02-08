@@ -864,7 +864,7 @@ master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1
 master-bin.000001	#	Xid	1	#	#
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t2
 master-bin.000001	#	Xid	1	#	#
-master-bin.000001	#	Begin_load_query	1	#	;file_id=1;block_len=29
+master-bin.000001	#	Begin_load_query	1	#	;file_id=1;block_len=30
 master-bin.000001	#	Execute_load_query	1	#	use `test_rpl`; LOAD DATA INFILE '../../suite/rpl/data/rpl_mixed.dat' INTO TABLE t1 FIELDS TERMINATED BY '|' ;file_id=1
 master-bin.000001	#	Xid	1	#	#
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1
