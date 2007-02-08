@@ -20,6 +20,7 @@
 #include "NdbError.hpp"
 #include "NdbDictionary.hpp"
 #include "Ndb.hpp"
+#include "NdbOperation.hpp"
 
 class NdbTransaction;
 class NdbOperation;
@@ -44,11 +45,12 @@ typedef void (* NdbAsynchCallback)(int, NdbTransaction*, void*);
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
 enum AbortOption {
-  CommitIfFailFree= 0,         
-  TryCommit= 0,
-  AbortOnError= 0,
-  CommitAsMuchAsPossible= 2,
-  AO_IgnoreError= 2
+  DefaultAbortOption = NdbOperation::DefaultAbortOption,
+  CommitIfFailFree = NdbOperation::AbortOnError,         
+  TryCommit = NdbOperation::AbortOnError,
+  AbortOnError= NdbOperation::AbortOnError,
+  CommitAsMuchAsPossible = NdbOperation::AO_IgnoreError,
+  AO_IgnoreError= NdbOperation::AO_IgnoreError
 };
 enum ExecType { 
   NoExecTypeDef = -1,
@@ -143,20 +145,6 @@ class NdbTransaction
 #endif
 
 public:
-
-  /**
-   * Commit type of transaction
-   */
-  enum AbortOption {
-    AbortOnError=               ///< Abort transaction on failed operation
-#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-    ::AbortOnError
-#endif
-    ,AO_IgnoreError=            ///< Transaction continues on failed operation
-#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-    ::AO_IgnoreError
-#endif
-  };
 
   /**
    * Execution type of transaction
@@ -316,13 +304,15 @@ public:
    * @return 0 if successful otherwise -1.
    */
   int execute(ExecType execType,
-	      AbortOption abortOption = AbortOnError,
+	      NdbOperation::AbortOption = NdbOperation::DefaultAbortOption,
 	      int force = 0 );
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   int execute(::ExecType execType,
-	      ::AbortOption abortOption = ::AbortOnError,
-	      int force = 0 )
-  { return execute ((ExecType)execType,(AbortOption)abortOption,force); }
+	      ::AbortOption abortOption = ::DefaultAbortOption,
+	      int force = 0 ) {
+    return execute ((ExecType)execType,
+		    (NdbOperation::AbortOption)abortOption,
+		    force); }
 #endif
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -353,14 +343,14 @@ public:
   void executeAsynchPrepare(ExecType          execType,
 			    NdbAsynchCallback callback,
 			    void*             anyObject,
-			    AbortOption abortOption = AbortOnError);
+			    NdbOperation::AbortOption = NdbOperation::DefaultAbortOption);
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   void executeAsynchPrepare(::ExecType       execType,
 			    NdbAsynchCallback callback,
 			    void*             anyObject,
-			    ::AbortOption abortOption = ::AbortOnError)
-  { executeAsynchPrepare((ExecType)execType, callback, anyObject,
-			 (AbortOption)abortOption); }
+			    ::AbortOption ao = ::DefaultAbortOption) {
+    executeAsynchPrepare((ExecType)execType, callback, anyObject,
+			 (NdbOperation::AbortOption)ao); }
 #endif
 
   /**
@@ -379,14 +369,14 @@ public:
   void executeAsynch(ExecType            aTypeOfExec,
 		     NdbAsynchCallback   aCallback,
 		     void*               anyObject,
-		     AbortOption abortOption = AbortOnError);
+		     NdbOperation::AbortOption = NdbOperation::DefaultAbortOption);
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   void executeAsynch(::ExecType         aTypeOfExec,
 		     NdbAsynchCallback   aCallback,
 		     void*               anyObject,
-		     ::AbortOption abortOption= ::AbortOnError)
+		     ::AbortOption abortOption= ::DefaultAbortOption)
   { executeAsynch((ExecType)aTypeOfExec, aCallback, anyObject,
-		  (AbortOption)abortOption); }
+		  (NdbOperation::AbortOption)abortOption); }
 #endif
 #endif
   /**
@@ -588,7 +578,7 @@ private:
   void init();           // Initialize connection object for new transaction
 
   int executeNoBlobs(ExecType execType, 
-	             AbortOption abortOption = AbortOnError,
+	             NdbOperation::AbortOption = NdbOperation::DefaultAbortOption,
 	             int force = 0 );
   
   /**
@@ -642,7 +632,7 @@ private:
   int 	sendCOMMIT();                   // Send a TC_COMMITREQ signal;
   void	setGCI(int GCI);		// Set the global checkpoint identity
  
-  int	OpCompleteFailure(Uint8 abortoption, bool setFailure = true);
+  int	OpCompleteFailure(NdbOperation*);
   int	OpCompleteSuccess();
   void	CompletedOperations();	        // Move active ops to list of completed
  
@@ -732,7 +722,6 @@ private:
 
   Uint32	theNoOfOpSent;				// How many operations have been sent	    
   Uint32	theNoOfOpCompleted;			// How many operations have completed
-  Uint32        theNoOfOpFetched;           	        // How many operations was actually fetched
   Uint32	theMyRef;				// Our block reference		
   Uint32	theTCConPtr;				// Transaction Co-ordinator connection pointer.
   Uint64	theTransactionId;			// theTransactionId of the transaction
@@ -756,7 +745,6 @@ private:
   bool theTransactionIsStarted; 
   bool theInUseState;
   bool theSimpleState;
-  Uint8 m_abortOption;           // Type of commi
 
   enum ListState {  
     NotInList, 
