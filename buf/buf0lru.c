@@ -492,8 +492,9 @@ loop:
 			block->page.zip.n_blobs = 0;
 
 		if (zip_size) {
+			ibool	lru;
 			page_zip_set_size(&block->page.zip, zip_size);
-			block->page.zip.data = buf_buddy_alloc(zip_size, TRUE);
+			block->page.zip.data = buf_buddy_alloc(zip_size, &lru);
 			UNIV_MEM_DESC(block->page.zip.data, zip_size, block);
 		} else {
 			page_zip_set_size(&block->page.zip, 0);
@@ -924,9 +925,9 @@ buf_LRU_free_block(
 		If it cannot be allocated (without freeing a block
 		from the LRU list), refuse to free bpage. */
 alloc:
-		b = buf_buddy_alloc(sizeof *b, FALSE);
+		b = buf_buddy_alloc(sizeof *b, NULL);
 
-		if (!b) {
+		if (UNIV_UNLIKELY(!b)) {
 			return(FALSE);
 		}
 	}
