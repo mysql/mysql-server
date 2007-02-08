@@ -611,16 +611,18 @@ Event_parse_data::check_parse_data(THD *thd)
 void
 Event_parse_data::init_definer(THD *thd)
 {
-  int definer_user_len;
-  int definer_host_len;
   DBUG_ENTER("Event_parse_data::init_definer");
 
-  DBUG_PRINT("info",("init definer_user thd->mem_root: 0x%lx  "
-                     "thd->sec_ctx->priv_user: 0x%lx", (long) thd->mem_root,
-                     (long) thd->security_ctx->priv_user));
+  DBUG_ASSERT(thd->lex->definer);
 
-  definer_user_len= strlen(thd->security_ctx->priv_user);
-  definer_host_len= strlen(thd->security_ctx->priv_host);
+  const char *definer_user= thd->lex->definer->user.str;
+  const char *definer_host= thd->lex->definer->host.str;
+  int definer_user_len= thd->lex->definer->user.length;
+  int definer_host_len= thd->lex->definer->host.length;
+
+  DBUG_PRINT("info",("init definer_user thd->mem_root: 0x%lx  "
+                     "definer_user: 0x%lx", (long) thd->mem_root,
+                     (long) definer_user));
 
   /* + 1 for @ */
   DBUG_PRINT("info",("init definer as whole"));
@@ -628,12 +630,11 @@ Event_parse_data::init_definer(THD *thd)
   definer.str= thd->alloc(definer.length + 1);
 
   DBUG_PRINT("info",("copy the user"));
-  memcpy(definer.str, thd->security_ctx->priv_user, definer_user_len);
+  memcpy(definer.str, definer_user, definer_user_len);
   definer.str[definer_user_len]= '@';
 
   DBUG_PRINT("info",("copy the host"));
-  memcpy(definer.str + definer_user_len + 1, thd->security_ctx->priv_host,
-         definer_host_len);
+  memcpy(definer.str + definer_user_len + 1, definer_host, definer_host_len);
   definer.str[definer.length]= '\0';
   DBUG_PRINT("info",("definer [%s] initted", definer.str));
 
