@@ -1414,29 +1414,23 @@ public:
   };
 
   struct RecordSpecification {
-    enum RecTypes {
-      AttrOffsetNotNULL= 1,
-      AttrOffsetNULL= 2
-    };
-
-    enum RecTypes type;
     /*
-      Column is given by NdbDictionary::Column pointer, if not NULL, else by
-      name, if not NULL, else by id.
+      Column described by this entry (the column maximum size defines field
+      size in row).
+      Note that even when creating an NdbRecord for an index, the column
+      pointers must be to columns obtained from the underlying table, not
+      from the index itself.
     */
-    // ToDo: Hm, a bit clumsy interface that one needs to init colPtr and
-    // colName to NULL to use colNumber...
-    const Column *colPtr;
-    const char *colName;
-    Uint32 colNumber;
-
+    const Column *column;
     /* Offset of data from start of a row. */
-    Uint32 dataOffset;
-
-    /* Offset from start of row of byte containing NULL bit. */
-    Uint32 bmOffset;
-    /* NULL bit, 0-7. */
-    Uint32 bmBit;
+    Uint32 offset;
+    /*
+      Offset from start of row of byte containing NULL bit.
+      Not used for columns that are not NULLable.
+    */
+    Uint32 nullbit_byte_offset;
+    /* NULL bit, 0-7. Not used for columns that are not NULLable. */
+    Uint32 nullbit_bit_in_byte;
   };
 
   struct AutoGrowSpecification {
@@ -1939,23 +1933,22 @@ public:
     int removeTableGlobal(const Table &ndbtab, int invalidate) const;
 #endif
 
-    NdbRecord *createRecord(const char *tableName,
-                            const RecordSpecification *recSpec,
-                            Uint32 length,
-                            Uint32 elemSize);
+    /*
+      Create an NdbRecord for use in table operations.
+    */
     NdbRecord *createRecord(const Table *table,
                             const RecordSpecification *recSpec,
                             Uint32 length,
                             Uint32 elemSize);
+
+    /*
+      Create an NdbRecord for use in index operations.
+    */
+    NdbRecord *createRecord(const Index *index,
+                            const RecordSpecification *recSpec,
+                            Uint32 length,
+                            Uint32 elemSize);
     void releaseRecord(NdbRecord *rec);
-
-    Uint32 *getRecAttrSet(const NdbRecord *rec);
-    void releaseRecAttrSet(Uint32 *attrSet);
-
-    void recAttrSetEnable(Uint32 *attrSet, Uint32 attrId);
-    void recAttrSetEnable(Uint32 *attrSet, const char *tableName,
-                          const char *colName);
-
   };
 };
 

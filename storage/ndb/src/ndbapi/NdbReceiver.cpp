@@ -29,7 +29,7 @@ NdbReceiver::NdbReceiver(Ndb *aNdb) :
   m_id(NdbObjectIdMap::InvalidId),
   m_type(NDB_UNINITIALIZED),
   m_owner(0),
-  usingNdbRecord(false)
+  m_using_ndb_record(false)
 {
   theCurrentRecAttr = theFirstRecAttr = 0;
   m_defined_rows = 0;
@@ -51,20 +51,31 @@ NdbReceiver::init(ReceiverType type, bool useRec, void* owner)
 {
   theMagicNumber = 0x11223344;
   m_type = type;
-  usingNdbRecord= useRec;
+  m_using_ndb_record= useRec;
   m_owner = owner;
   if (m_id == NdbObjectIdMap::InvalidId) {
     if (m_ndb)
       m_id = m_ndb->theImpl->theNdbObjectIdMap.map(this);
   }
 
-  theFirstRecAttr = NULL;
-  theCurrentRecAttr = NULL;
+  if (useRec)
+  {
+    m_ndb_record= NULL;
+    m_row= NULL;
+    m_row_buffer= NULL;
+    m_row_offset= 0;
+    m_read_range_no= false;
+  }
+  else
+  {
+    theFirstRecAttr = NULL;
+    theCurrentRecAttr = NULL;
+  }
 }
 
 void
 NdbReceiver::release(){
-  if (!usingNdbRecord)
+  if (!m_using_ndb_record)
   {
     NdbRecAttr* tRecAttr = theFirstRecAttr;
     while (tRecAttr != NULL)
@@ -76,11 +87,16 @@ NdbReceiver::release(){
     theFirstRecAttr = NULL;
     theCurrentRecAttr = NULL;
   }
+  else
+  {
+    delete[] m_row_buffer;
+    m_row_buffer= NULL;
+  }      
 }
   
 NdbRecAttr *
 NdbReceiver::getValue(const NdbColumnImpl* tAttrInfo, char * user_dst_ptr){
-  assert(!usingNdbRecord);
+  assert(!m_using_ndb_record);
 
   NdbRecAttr* tRecAttr = m_ndb->getRecAttr();
   if(tRecAttr && !tRecAttr->setup(tAttrInfo, user_dst_ptr)){
@@ -101,11 +117,10 @@ NdbReceiver::getValue(const NdbColumnImpl* tAttrInfo, char * user_dst_ptr){
 void
 NdbReceiver::getValues(const NdbRecord* rec, char *row_ptr)
 {
-  assert(usingNdbRecord);
+  assert(m_using_ndb_record);
 
-  theNdbRecord= rec;
-  m_RecPos= 0;
-  theRow= row_ptr;
+  m_ndb_record= rec;
+  m_row= row_ptr;
 }
 
 #define KEY_ATTR_ID (~(Uint32)0)
@@ -129,6 +144,7 @@ NdbReceiver::calculate_batch_size(Uint32 key_size,
   Uint32 max_batch_byte_size= tp->get_batch_byte_size();
   Uint32 max_batch_size= tp->get_batch_size();
   Uint32 tot_size= (key_size ? (key_size + 32) : 0); //key + signal overhead
+  /* ToDo: Use the NdbRecord to calculate size here instead for NdbRecord operation. */
   NdbRecAttr *rec_attr= theFirstRecAttr;
   while (rec_attr != NULL) {
     Uint32 attr_size= rec_attr->getColumn()->getSizeInBytes();
@@ -179,6 +195,7 @@ NdbReceiver::do_get_value(NdbReceiver * org,
 			  Uint32 batch_size, 
 			  Uint32 key_size,
 			  Uint32 range_no){
+  assert(!m_using_ndb_record);
   if(batch_size > m_defined_rows){
     delete[] m_rows;
     m_defined_rows = batch_size;
@@ -239,8 +256,40 @@ NdbReceiver::do_get_value(NdbReceiver * org,
   return;
 }
 
+int
+NdbReceiver::do_setup_ndbrecord(const NdbRecord *ndb_record, Uint32 batch_size,
+                                Uint32 key_size, Uint32 read_range_no)
+{
+  Uint32 rowsize= ndb_record->m_row_size;
+  /* Room for range_no. */
+  if (read_range_no)
+    rowsize+= 4;
+  /*
+    If keyinfo, need room for max. key + 4 bytes of actual key length + 4
+    bytes of scan info (all from KEYINFO20 signal).
+  */
+  if (key_size)
+    rowsize+= 8 + key_size*4;
+  /* Ensure 4-byte alignment. */
+  rowsize= (rowsize+3) & 0xfffffffc;
+
+  char *row_buffer= new char[batch_size*rowsize];
+  if (!row_buffer)
+    return -1;
+
+  m_using_ndb_record= true;
+  m_ndb_record= ndb_record;
+  m_row= row_buffer;
+  m_row_buffer= row_buffer;
+  m_row_offset= rowsize;
+  m_read_range_no= read_range_no;
+
+  return 0;
+}
+
 NdbRecAttr*
 NdbReceiver::copyout(NdbReceiver & dstRec){
+  assert(!m_using_ndb_record);
   NdbRecAttr *src = m_rows[m_current_row++];
   NdbRecAttr *dst = dstRec.theFirstRecAttr;
   NdbRecAttr *start = src;
@@ -258,75 +307,107 @@ NdbReceiver::copyout(NdbReceiver & dstRec){
   return start;
 }
 
+int
+NdbReceiver::get_range_no() const
+{
+  int range_no;
+  assert(m_using_ndb_record);
+  Uint32 idx= m_current_row;
+  if (idx == 0 || !m_read_range_no)
+    return -1;
+  memcpy(&range_no,
+         m_row_buffer + (idx-1)*m_row_offset + m_ndb_record->m_row_size,
+         4);
+  return range_no;
+}
+
+int
+NdbReceiver::get_keyinfo20(Uint32 & scaninfo, Uint32 & length,
+                           const char * & data_ptr) const
+{
+  assert(m_using_ndb_record);
+  Uint32 idx= m_current_row;
+  if (idx == 0)
+    return -1;                                  // No rows fetched yet
+  const char *p= m_row_buffer + (idx-1)*m_row_offset + m_ndb_record->m_row_size;
+  if (m_read_range_no)
+    p+= 4;
+  scaninfo= uint4korr(p);
+  p+= 4;
+  length= uint4korr(p);
+  p+= 4;
+  data_ptr= p;
+  return 0;
+}
+
+/* Set NdbRecord field to non-NULL value. */
 static void assignToRec(const NdbRecord::Attr *col,
                         char *row,
                         const Uint32 *src,
                         Uint32 byteSize)
 {
-  switch (col->type)
-  {
-    case NdbRecord::AttrNotNULL:
-      memcpy(&row[col->offset], src, byteSize);
-      break;
+  /* Set NULLable attribute to "not NULL". */
+  if (col->flags & NdbRecord::IsNullable)
+    row[col->nullbit_byte_offset]&= ~(1 << col->nullbit_bit_in_byte);
 
-    default:
-      assert(false);
-  }
+  memcpy(&row[col->offset], src, byteSize);
 }
 
+/* Set NdbRecord field to NULL. */
 static void setRecToNULL(const NdbRecord::Attr *col,
                          char *row)
 {
-  switch (col->type)
-  {
-    case NdbRecord::AttrNotNULL:
-      assert(false);
-      break;
-
-    default:
-      assert(false);
-  }
+  assert(col->flags & NdbRecord::IsNullable);
+  row[col->nullbit_byte_offset]|= 1 << col->nullbit_bit_in_byte;
 }
 
 int
 NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
 {
-  if (usingNdbRecord)
+  if (m_using_ndb_record)
   {
     Uint32 exp= m_expected_result_length;
     Uint32 tmp= m_received_result_length + aLength;
-    const NdbRecord *rec= theNdbRecord;
+    const NdbRecord *rec= m_ndb_record;
+    Uint32 rec_pos= 0;
 
     while (aLength > 0)
     {
       AttributeHeader ah(* aDataPtr++);
       const Uint32 attrId= ah.getAttributeId();
+      Uint32 attrSize= ah.getByteSize();
       aLength--;
 
+      /* Special case for RANGE_NO, which is stored just after the row. */
+      if (attrId==AttributeHeader::RANGE_NO)
+      {
+        assert(m_read_range_no);
+        assert(attrSize==4);
+        memcpy(m_row+m_ndb_record->m_row_size, aDataPtr++, 4);
+        aLength--;
+        continue;
+      }
+
       /*
-        Set all not returned columns to NULL.
+        Skip all not returned columns.
         The rows should be returned in the same order as we requested them
         (which is in any case in attribute ID order).
       */
-      while (m_RecPos < rec->noOfColumns &&
-             rec->columns[m_RecPos].attrId < attrId)
-      {
-        setRecToNULL(&rec->columns[m_RecPos], theRow);
-        m_RecPos++;
-      }
+      while (rec_pos < rec->noOfColumns &&
+             rec->columns[rec_pos].attrId < attrId)
+        rec_pos++;
 
       /* We should never get back an attribute not originally requested. */
-      assert(m_RecPos < rec->noOfColumns &&
-             rec->columns[m_RecPos].attrId == attrId);
+      assert(rec_pos < rec->noOfColumns &&
+             rec->columns[rec_pos].attrId == attrId);
 
-      Uint32 attrSize= ah.getByteSize();
       if (attrSize == 0)
       {
-        setRecToNULL(&rec->columns[m_RecPos], theRow);
+        setRecToNULL(&rec->columns[rec_pos], m_row);
       }
       else
       {
-        assert(attrSize <= rec->columns[m_RecPos].maxSize);
+        assert(attrSize <= rec->columns[rec_pos].maxSize);
         Uint32 sizeInWords= (attrSize+3)>>2;
         /* Not sure how to deal with this, shouldn't happen. */
         if (unlikely(sizeInWords > aLength))
@@ -335,14 +416,15 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
           attrSize= 4*aLength;
         }
 
-        assignToRec(&rec->columns[m_RecPos], theRow, aDataPtr, attrSize);
+        assignToRec(&rec->columns[rec_pos], m_row, aDataPtr, attrSize);
         aDataPtr+= sizeInWords;
         aLength-= sizeInWords;
       }
-      m_RecPos++;
+      rec_pos++;
     }
 
     m_received_result_length = tmp;
+    m_row+= m_row_offset;
 
     return (tmp == exp || (exp > TcKeyConf::SimpleReadBit) ? 1 : 0);
   }
@@ -374,9 +456,10 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
         back attributes in the wrong order).
         So dump some info for debugging, and abort.
       */
-      ndbout_c("%p: tAttrId: %d currRecAttr: %p tAttrSize: %d %d", this,
-	       tAttrId, currRecAttr, 
-	       tAttrSize, currRecAttr->get_size_in_bytes());
+      ndbout_c("this=%p: tAttrId: %d currRecAttr: %p theCurrentRecAttr: %p "
+               "tAttrSize: %d %d", this,
+	       tAttrId, currRecAttr, theCurrentRecAttr, tAttrSize,
+               currRecAttr ? currRecAttr->get_size_in_bytes() : 0);
       currRecAttr = theCurrentRecAttr;
       while(currRecAttr != 0){
 	ndbout_c("%d ", currRecAttr->attrId());
@@ -402,6 +485,29 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
 int
 NdbReceiver::execKEYINFO20(Uint32 info, const Uint32* aDataPtr, Uint32 aLength)
 {
+  if (m_using_ndb_record)
+  {
+    /* Copy in the keyinfo after the user row and any range_no value. */
+
+    char *keyinfo_ptr= m_row_buffer + 
+                       m_current_row++ * m_row_offset +
+                       m_ndb_record->m_row_size;
+    if (m_read_range_no)
+      keyinfo_ptr+= 4;
+
+    int4store(keyinfo_ptr, info);
+    keyinfo_ptr+= 4;
+    int4store(keyinfo_ptr, aLength);
+    keyinfo_ptr+= 4;
+    memcpy(keyinfo_ptr, aDataPtr, 4*aLength);
+
+    Uint32 tmp= m_received_result_length + aLength;
+    m_received_result_length = tmp;
+  
+    return (tmp == m_expected_result_length ? 1 : 0);
+  }
+
+  /* The old method, using NdbRecAttr. */
   NdbRecAttr* currRecAttr = m_rows[m_current_row++];
   assert(currRecAttr->attrId() == KEY_ATTR_ID);
   /*

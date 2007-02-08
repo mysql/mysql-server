@@ -20,9 +20,10 @@
 #include "NdbError.hpp"
 #include "NdbDictionary.hpp"
 #include "Ndb.hpp"
+#include "NdbOperation.hpp"
+#include <NdbIndexScanOperation.hpp>
 
 class NdbTransaction;
-class NdbOperation;
 class NdbScanOperation;
 class NdbIndexScanOperation;
 class NdbIndexOperation;
@@ -571,72 +572,104 @@ public:
 #endif
 
 
-  NdbOperation *readTuple(const NdbDictionary::Table *table,
-                          const NdbRecord *key_rec, const char *key_row,
+  NdbOperation *readTuple(const NdbRecord *key_rec, const char *key_row,
                           const NdbRecord *result_rec, char *result_row,
-                          const Uint32 *result_mask= 0);
-  NdbOperation *readTuple(const char *tableName,
-                          const NdbRecord *key_rec, const char *key_row,
-                          const NdbRecord *result_rec, char *result_row,
-                          const Uint32 *result_mask= 0);
-  NdbOperation *insertTuple(const NdbDictionary::Table *table,
-                            const NdbRecord *rec, const char *row,
-                            const Uint32 *mask= 0);
-  NdbOperation *insertTuple(const char *tableName,
-                            const NdbRecord *rec, const char *row,
-                            const Uint32 *mask= 0);
-  NdbOperation *updateTuple(const NdbDictionary::Table *table,
-                            const NdbRecord *pk_rec, const char *pk_row,
+                          NdbOperation::LockMode lock_mode= NdbOperation::LM_Read,
+                          const unsigned char *result_mask= 0);
+  NdbOperation *insertTuple(const NdbRecord *rec, const char *row,
+                            const unsigned char *mask= 0);
+  NdbOperation *updateTuple(const NdbRecord *key_rec, const char *key_row,
                             const NdbRecord *attr_rec, const char *attr_row,
-                            const Uint32 *mask= 0);
-  NdbOperation *updateTuple(const char *tableName,
-                            const NdbRecord *pk_rec, const char *pk_row,
-                            const NdbRecord *attr_rec, const char *attr_row,
-                            const Uint32 *mask= 0);
-  NdbOperation *deleteTuple(const NdbDictionary::Table *table,
-                            const NdbRecord *rec, const char *row= 0);
-  NdbOperation *deleteTuple(const char *tableName,
-                            const NdbRecord *rec, const char *row= 0);
-  NdbOperation *dirtyWriteTuple(const NdbDictionary::Table *table,
-                                const NdbRecord *pk_rec, const char *pk_row,
-                                const NdbRecord *attr_rec, const char *attr_row,
-                                const Uint32 *mask= 0);
-  NdbOperation *dirtyWriteTuple(const char *tableName,
-                                const NdbRecord *pk_rec, const char *pk_row,
-                                const NdbRecord *attr_rec, const char *attr_row,
-                                const Uint32 *mask= 0);
-  NdbOperation *writeTuple(const NdbDictionary::Table *table,
-                           const NdbRecord *pk_rec, const char *pk_row,
+                            const unsigned char *mask= 0);
+  NdbOperation *writeTuple(const NdbRecord *key_rec, const char *key_row,
                            const NdbRecord *attr_rec, const char *attr_row,
-                           const Uint32 *mask= 0);
-  NdbOperation *writeTuple(const char *tableName,
-                           const NdbRecord *pk_rec, const char *pk_row,
-                           const NdbRecord *attr_rec, const char *attr_row,
-                           const Uint32 *mask= 0);
-  NdbOperation *simpleReadTuple(const NdbDictionary::Table *table,
-                                const NdbRecord *key_rec, char *key_row,
-                                const NdbRecord *result_rec, char *result_row,
-                                const Uint32 *result_mask= 0);
-  NdbOperation *simpleReadTuple(const char *tableName,
-                                const NdbRecord *key_rec, char *key_row,
-                                const NdbRecord *result_rec, char *result_row,
-                                const Uint32 *result_mask= 0);
-  NdbOperation *dirtyReadTuple(const NdbDictionary::Table *table,
-                               const NdbRecord *key_rec, char *key_row,
-                               const NdbRecord *result_rec, char *result_row,
-                               const Uint32 *result_mask= 0);
-  NdbOperation *dirtyReadTuple(const char *tableName,
-                               const NdbRecord *key_rec, char *key_row,
-                               const NdbRecord *result_rec, char *result_row,
-                               const Uint32 *result_mask= 0);
-  NdbOperation *dirtyUpdateTuple(const NdbDictionary::Table *table,
-                                 const NdbRecord *pk_rec, const char *pk_row,
-                                 const NdbRecord *attr_rec, const char *attr_row,
-                                 const Uint32 *mask= 0);
-  NdbOperation *dirtyUpdateTuple(const char *tableName,
-                                 const NdbRecord *pk_rec, const char *pk_row,
-                                 const NdbRecord *attr_rec, const char *attr_row,
-                                 const Uint32 *mask= 0);
+                           const unsigned char *mask= 0);
+  NdbOperation *deleteTuple(const NdbRecord *key_rec, const char *key_row);
+
+  /*
+    Scan a table, using NdbRecord to read out column data.
+
+    The result_record pointer must remain valid until after the call to
+    execute().
+
+    The result_mask pointer is optional, if present only columns for which
+    the corresponding bit in result_mask is set will be retrieved in the
+    scan. The result_mask is copied internally, so in contrast to
+    result_record need not be valid at execute().
+
+    The parallel argument is the desired parallelism, or 0 for maximum
+    parallelism (receiving rows from all fragments in parallel).
+  */
+  NdbScanOperation *
+  scanTable(const NdbRecord *result_record,
+            NdbOperation::LockMode lock_mode= NdbOperation::LM_Read,
+            const unsigned char *result_mask= 0,
+            Uint32 scan_flags= 0,
+            Uint32 parallel= 0,
+            Uint32 batch= 0);
+
+//private:
+  /*
+    Do an index range scan (optionally ordered) of a table.
+
+    The key_record describes the index to be scanned. It must be a
+    primary key record for the index, ie. it must specify exactly the
+    key columns of the index.
+
+    The result_record describes the rows to be returned from the scan. For an
+    ordered index scan, result_record must be a key record for the index to
+    be scanned, that is it must include at least all of the column in the
+    index.
+
+    Both the key_record and the result_record must be created from the Index
+    to be scanned, not from the underlying table.
+
+    The call uses a callback function as a flexible way of specifying multiple
+    range bounds. The callback will be called once for each bound to define
+    lower and upper key value etc.
+
+    The callback received a private callback_data void *, and the index of the
+    bound (0 .. num_key_bounds). However, it is guaranteed that it will be
+    called in ordered sequence, so it is permissible to ignore the passed
+    bound_index and just return the values for the next bound (for example
+    if data is kept in a linked list).
+
+    The callback can return 0 to denote success, and -1 to denote error (the
+    latter causing the creation of the NdbIndexScanOperation to fail).
+
+    This multi-range method is only for use in mysqld code.
+  */
+  NdbIndexScanOperation *
+  scanIndex(const NdbRecord *key_record,
+            int (*get_bound_callback)(void *callback_data,
+                                      Uint32 bound_index,
+                                      NdbIndexScanOperation::IndexBound & bound),
+            void *callback_data,
+            Uint32 num_key_bounds,
+            const NdbRecord *result_record,
+            NdbOperation::LockMode lock_mode= NdbOperation::LM_Read,
+            const unsigned char *result_mask= 0,
+            Uint32 scan_flags= 0,
+            Uint32 parallel= 0,
+            Uint32 batch= 0);
+
+public:
+
+  /* A convenience wrapper for simpler specification of a single bound. */
+  NdbIndexScanOperation *
+  scanIndex(const NdbRecord *key_record,
+            const char *low_key,
+            Uint32 low_key_count,
+            bool low_inclusive,
+            const char * high_key,
+            Uint32 high_key_count,
+            bool high_inclusive,
+            const NdbRecord *result_record,
+            NdbOperation::LockMode lock_mode= NdbOperation::LM_Read,
+            const unsigned char *result_mask= 0,
+            Uint32 scan_flags= 0,
+            Uint32 parallel= 0,
+            Uint32 batch= 0);
 
 private:						
   /**
@@ -748,39 +781,6 @@ private:
   NdbOperation* getNdbOperation(const class NdbTableImpl* aTable,
                                 NdbOperation* aNextOp = 0,
                                 bool useRec= false);
-  NdbOperation *readTuple(const NdbTableImpl *table,
-                          const NdbRecord *key_rec, const char *key_row,
-                          const NdbRecord *result_rec, char *result_row,
-                          const Uint32 *result_mask);
-  NdbOperation *insertTuple(const NdbTableImpl *table,
-                            const NdbRecord *rec, const char *row,
-                            const Uint32 *mask);
-  NdbOperation *updateTuple(const NdbTableImpl *table,
-                            const NdbRecord *pk_rec, const char *pk_row,
-                            const NdbRecord *attr_rec, const char *attr_row,
-                            const Uint32 *mask);
-  NdbOperation *deleteTuple(const NdbTableImpl *table,
-                            const NdbRecord *rec, const char *row);
-  NdbOperation *dirtyWriteTuple(const NdbTableImpl *table,
-                                const NdbRecord *pk_rec, const char *pk_row,
-                                const NdbRecord *attr_rec, const char *attr_row,
-                                const Uint32 *mask);
-  NdbOperation *writeTuple(const NdbTableImpl *table,
-                           const NdbRecord *pk_rec, const char *pk_row,
-                           const NdbRecord *attr_rec, const char *attr_row,
-                           const Uint32 *mask);
-  NdbOperation *simpleReadTuple(const NdbTableImpl *table,
-                                const NdbRecord *key_rec, char *key_row,
-                                const NdbRecord *result_rec, char *result_row,
-                                const Uint32 *result_mask);
-  NdbOperation *dirtyReadTuple(const NdbTableImpl *table,
-                               const NdbRecord *key_rec, char *key_row,
-                               const NdbRecord *result_rec, char *result_row,
-                               const Uint32 *result_mask);
-  NdbOperation *dirtyUpdateTuple(const NdbTableImpl *table,
-                                 const NdbRecord *pk_rec, const char *pk_row,
-                                 const NdbRecord *attr_rec, const char *attr_row,
-                                 const Uint32 *mask);
 
   NdbIndexScanOperation* getNdbScanOperation(const class NdbTableImpl* aTable);
   NdbIndexOperation* getNdbIndexOperation(const class NdbIndexImpl* anIndex, 

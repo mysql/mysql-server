@@ -356,7 +356,7 @@ NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
 	  setErrorCodeAbort(4230);
 	  return NULL;
 	}//if
-	// MASV - How would execution come here?
+        /* Final read, after running interpreted instructions. */
 	theStatus = FinalGetValue;
       } else {
 	setErrorCodeAbort(4230);

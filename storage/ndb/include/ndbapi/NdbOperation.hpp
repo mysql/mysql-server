@@ -740,11 +740,13 @@ public:
 
   /**
    * Get table name of this operation.
+   * Not supported for NdbRecord operation.
    */
   const char* getTableName() const;
 
   /**
    * Get table object for this operation
+   * Not supported for NdbRecord operation.
    */
   const NdbDictionary::Table * getTable() const;
 
@@ -987,9 +989,6 @@ protected:
   virtual void setErrorCode(int aErrorCode);
   virtual void setErrorCodeAbort(int aErrorCode);
 
-  void        handleFailedAI_ElemLen();	   // When not all attribute data
-                                           // were received
-
   int	      incCheck(const NdbColumnImpl* anAttrObject);
   int	      initial_interpreterCheck();
   int	      intermediate_interpreterCheck();
@@ -1104,16 +1103,31 @@ protected:
     sure if it is worth the loss of code clarity though.
   */
 
-  /* NdbRecord describing the placement of Primary key in row. */
-  const NdbRecord *thePKRec;
-  /* Row containing the primary key to operate on. */
-  const char *thePKRow;
-  /* NdbRecord describing attributes to update. */
-  const NdbRecord *theUpdRec;
+  /*
+    NdbRecord describing the placement of Primary key in row.
+    As a special case, we set this to NULL for scan lock take-over operations,
+    in which case the m_key_row points to keyinfo obtained from the KEYINFO20
+    signal.
+  */
+  const NdbRecord *m_key_record;
+  /* Row containing the primary key to operate on, or KEYINFO20 data. */
+  const char *m_key_row;
+  /* Size in words of keyinfo in m_key_row. */
+  Uint32 m_keyinfo_length;
+  /*
+    NdbRecord describing attributes to update (or read for scans).
+    We also use m_attribute_record!=NULL to indicate that the operation is
+    using the NdbRecord interface (as opposed to NdbRecAttr).
+  */
+  const NdbRecord *m_attribute_record;
   /* Row containing the update values. */
-  const char *theUpdRow;
-  /* Optional bitmask to disable selected columns. */
-  const Uint32 *theReadMask;
+  const char *m_attribute_row;
+  /*
+    Bitmask to disable selected columns.
+    Do not use clas Bitmask/BitmaskPOD here, to avoid having to
+    #include <Bitmask.hpp> in application code.
+  */
+  Uint32 m_read_mask[(NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5];
 
   // Blobs in this operation
   NdbBlob* theBlobList;
