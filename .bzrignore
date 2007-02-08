@@ -2947,3 +2947,5 @@ mysql-test/suite/partitions/r/partition_special_innodb.warnings
 mysql-test/suite/partitions/r/partition_special_myisam.warnings
 storage/archive/archive_reader
 mysql-test/suite/funcs_1/r/innodb_trig_03e.warnings
+mysql-test/partitions.log
+mysql-test/rpl.log
