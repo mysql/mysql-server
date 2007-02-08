@@ -31,6 +31,9 @@
 #define SCHED_POLICY SCHED_OTHER
 #endif
 
+uint thd_lib_detected;
+uint thr_client_alarm;
+
 #ifndef my_pthread_setprio
 void my_pthread_setprio(pthread_t thread_id,int prior)
 {
@@ -320,7 +323,9 @@ void *sigwait_thread(void *set_arg)
       sigaction(i, &sact, (struct sigaction*) 0);
     }
   }
-  sigaddset(set,THR_CLIENT_ALARM);
+  /* Ensure that init_thr_alarm() is called */
+  DBUG_ASSERT(thr_client_alarm);
+  sigaddset(set, thr_client_alarm);
   pthread_sigmask(SIG_UNBLOCK,(sigset_t*) set,(sigset_t*) 0);
   alarm_thread=pthread_self();			/* For thr_alarm */
 

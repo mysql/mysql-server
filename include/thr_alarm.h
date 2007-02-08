@@ -25,11 +25,6 @@ extern "C" {
 #ifndef USE_ALARM_THREAD
 #define USE_ONE_SIGNAL_HAND		/* One must call process_alarm */
 #endif
-#ifdef HAVE_LINUXTHREADS
-#define THR_CLIENT_ALARM SIGALRM
-#else
-#define THR_CLIENT_ALARM SIGUSR1
-#endif
 #ifdef HAVE_rts_threads
 #undef USE_ONE_SIGNAL_HAND
 #define USE_ALARM_THREAD
@@ -97,6 +92,8 @@ typedef struct st_alarm {
   pthread_t thread;
   my_bool malloced;
 } ALARM;
+
+extern uint thr_client_alarm;
 
 #define thr_alarm_init(A) (*(A))=0
 #define thr_alarm_in_use(A) (*(A)!= 0)
