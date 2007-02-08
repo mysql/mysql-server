@@ -325,4 +325,57 @@ drop event e22830_3;
 drop event e22830_4;
 drop table t1;
 drop table t2;
+DROP USER mysqltest_u1@localhost;
+CREATE USER mysqltest_u1@localhost;
+GRANT EVENT ON events_test.* TO mysqltest_u1@localhost;
+CREATE EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
+SELECT event_name, definer FROM INFORMATION_SCHEMA.EVENTS;
+event_name	definer
+e1	root@localhost
+DROP EVENT e1;
+CREATE DEFINER=CURRENT_USER EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
+SELECT event_name, definer FROM INFORMATION_SCHEMA.EVENTS;
+event_name	definer
+e1	root@localhost
+ALTER DEFINER=mysqltest_u1@localhost EVENT e1 ON SCHEDULE EVERY 1 HOUR;
+SELECT event_name, definer FROM INFORMATION_SCHEMA.EVENTS;
+event_name	definer
+e1	mysqltest_u1@localhost
+DROP EVENT e1;
+CREATE DEFINER=CURRENT_USER() EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
+SELECT event_name, definer FROM INFORMATION_SCHEMA.EVENTS;
+event_name	definer
+e1	root@localhost
+DROP EVENT e1;
+CREATE DEFINER=mysqltest_u1@localhost EVENT e1 ON SCHEDULE EVERY 1 DAY DO
+SELECT 1;
+SELECT event_name, definer FROM INFORMATION_SCHEMA.EVENTS;
+event_name	definer
+e1	mysqltest_u1@localhost
+DROP EVENT e1;
+CREATE EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
+SELECT event_name, definer FROM INFORMATION_SCHEMA.EVENTS;
+event_name	definer
+e1	mysqltest_u1@localhost
+DROP EVENT e1;
+CREATE DEFINER=CURRENT_USER EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
+SELECT event_name, definer FROM INFORMATION_SCHEMA.EVENTS;
+event_name	definer
+e1	mysqltest_u1@localhost
+ALTER DEFINER=root@localhost EVENT e1 ON SCHEDULE EVERY 1 HOUR;
+ERROR 42000: Access denied; you need the SUPER privilege for this operation
+SELECT event_name, definer FROM INFORMATION_SCHEMA.EVENTS;
+event_name	definer
+e1	mysqltest_u1@localhost
+DROP EVENT e1;
+CREATE DEFINER=CURRENT_USER() EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
+SELECT event_name, definer FROM INFORMATION_SCHEMA.EVENTS;
+event_name	definer
+e1	mysqltest_u1@localhost
+DROP EVENT e1;
+CREATE DEFINER=root@localhost EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
+ERROR 42000: Access denied; you need the SUPER privilege for this operation
+DROP EVENT e1;
+ERROR HY000: Unknown event 'e1'
+DROP USER mysqltest_u1@localhost;
 drop database events_test;
