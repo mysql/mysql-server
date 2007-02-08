@@ -1194,11 +1194,58 @@ void Dbdih::execTAB_COMMITREQ(Signal* signal)
 void Dbdih::execDIH_RESTARTREQ(Signal* signal) 
 {
   jamEntry();
-  cntrlblockref = signal->theData[0];
-  if(m_ctx.m_config.getInitialStart()){
-    sendSignal(cntrlblockref, GSN_DIH_RESTARTREF, signal, 1, JBB);
-  } else {
-    readGciFileLab(signal);
+  if (signal->theData[0])
+  {
+    jam();
+    cntrlblockref = signal->theData[0];
+    if(m_ctx.m_config.getInitialStart()){
+      sendSignal(cntrlblockref, GSN_DIH_RESTARTREF, signal, 1, JBB);
+    } else {
+      readGciFileLab(signal);
+    }
+  }
+  else
+  {
+    /**
+     * Precondition, (not checked)
+     *   atleast 1 node in each node group
+     */
+    Uint32 i;
+    NdbNodeBitmask mask;
+    mask.assign(NdbNodeBitmask::Size, signal->theData + 1);
+    Uint32 *node_gcis = signal->theData+1+NdbNodeBitmask::Size;
+    Uint32 node_group_gcis[MAX_NDB_NODES+1];
+    bzero(node_group_gcis, sizeof(node_group_gcis));
+    for (i = 0; i<MAX_NDB_NODES; i++)
+    {
+      if (mask.get(i))
+      {
+	jam();
+	Uint32 ng = Sysfile::getNodeGroup(i, SYSFILE->nodeGroups);
+	ndbrequire(ng < MAX_NDB_NODES);
+	Uint32 gci = node_gcis[i];
+	if (gci > node_group_gcis[ng])
+	{
+	  jam();
+	  node_group_gcis[ng] = gci;
+	}
+      }
+    }
+    for (i = 0; i<MAX_NDB_NODES && node_group_gcis[i] == 0; i++);
+    
+    Uint32 gci = node_group_gcis[i];
+    for (i++ ; i<MAX_NDB_NODES; i++)
+    {
+      jam();
+      if (node_group_gcis[i] && node_group_gcis[i] != gci)
+      {
+	jam();
+	signal->theData[0] = i;
+	return;
+      }
+    }
+    signal->theData[0] = MAX_NDB_NODES;
+    return;
   }
   return;
 }//Dbdih::execDIH_RESTARTREQ()
@@ -1525,10 +1572,26 @@ void Dbdih::ndbStartReqLab(Signal* signal, BlockReference ref)
        */
       SYSFILE->lastCompletedGCI[nodePtr.i] = 0;
       ndbrequire(nodePtr.p->nodeStatus != NodeRecord::ALIVE);
-      warningEvent("Making filesystem for node %d unusable",
+      warningEvent("Making filesystem for node %d unusable (need --initial)",
 		   nodePtr.i);
     }
+    else if (nodePtr.p->nodeStatus == NodeRecord::ALIVE &&
+	     SYSFILE->lastCompletedGCI[nodePtr.i] == 0)
+    {
+      jam();
+      CRASH_INSERTION(7170);
+      char buf[255];
+      BaseString::snprintf(buf, sizeof(buf), 
+			   "Cluster requires this node to be started "
+			   " with --initial as partial start has been performed"
+			   " and this filesystem is unusable");
+      progError(__LINE__, 
+		NDBD_EXIT_SR_RESTARTCONFLICT,
+		buf);
+      ndbrequire(false);
+    }
   }
+
   /**
    * This set which GCI we will try to restart to
    */
@@ -12375,7 +12438,7 @@ void Dbdih::makeNodeGroups(Uint32 nodeArray[])
 	(buf, sizeof(buf), 
 	 "Illegal initial start, no alive node in nodegroup %u", i);
       progError(__LINE__, 
-		NDBD_EXIT_SR_RESTARTCONFLICT,
+		NDBD_EXIT_INSUFFICENT_NODES,
 		buf);
       
     }
@@ -12515,14 +12578,23 @@ void Dbdih::newCrashedReplica(Uint32 nodeId, ReplicaRecordPtr ncrReplicaPtr)
   /*       THAT THE NEW REPLICA IS NOT STARTED YET AND REPLICA_LAST_GCI IS*/
   /*       SET TO -1 TO INDICATE THAT IT IS NOT DEAD YET.                 */
   /*----------------------------------------------------------------------*/
+  Uint32 lastGCI = SYSFILE->lastCompletedGCI[nodeId];
   arrGuardErr(ncrReplicaPtr.p->noCrashedReplicas + 1, 8,
               NDBD_EXIT_MAX_CRASHED_REPLICAS);
   ncrReplicaPtr.p->replicaLastGci[ncrReplicaPtr.p->noCrashedReplicas] = 
-    SYSFILE->lastCompletedGCI[nodeId];
+    lastGCI;
   ncrReplicaPtr.p->noCrashedReplicas = ncrReplicaPtr.p->noCrashedReplicas + 1;
   ncrReplicaPtr.p->createGci[ncrReplicaPtr.p->noCrashedReplicas] = 0;
   ncrReplicaPtr.p->replicaLastGci[ncrReplicaPtr.p->noCrashedReplicas] = 
     (Uint32)-1;
+
+  if (ncrReplicaPtr.p->noCrashedReplicas == 7 && lastGCI)
+  {
+    jam();
+    SYSFILE->lastCompletedGCI[nodeId] = 0;
+    warningEvent("Making filesystem for node %d unusable (need --initial)",
+		 nodeId);
+  }
 }//Dbdih::newCrashedReplica()
 
 /*************************************************************************/

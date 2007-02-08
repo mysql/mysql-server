@@ -160,6 +160,7 @@ static const ErrStruct errArray[] =
    {NDBD_EXIT_AFS_READ_UNDERFLOW        , XFI, "Read underflow"},
    
    {NDBD_EXIT_INVALID_LCP_FILE, XFI, "Invalid LCP" },
+   {NDBD_EXIT_INSUFFICENT_NODES, XRE, "Insufficent nodes for system restart" },
    
    /* Sentinel */
    {0, XUE,

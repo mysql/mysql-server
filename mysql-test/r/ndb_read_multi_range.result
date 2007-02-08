@@ -442,3 +442,34 @@ SELECT id, tag, doc, type FROM t1 WHERE id IN ('flipper','sakila');
 id	tag	doc	type
 sakila	1	Some text goes here	text
 DROP TABLE t1;
+CREATE TABLE t1 (
+var1 int(2) NOT NULL,
+var2 int(2) NOT NULL,
+PRIMARY KEY  (var1)
+) ENGINE=ndbcluster DEFAULT CHARSET=ascii CHECKSUM=1;
+CREATE TABLE t2 (
+var1 int(2) NOT NULL,
+var2 int(2) NOT NULL,
+PRIMARY KEY  (var1)
+) ENGINE=MyISAM DEFAULT CHARSET=ascii CHECKSUM=1;
+CREATE TRIGGER testtrigger
+AFTER UPDATE ON t1 FOR EACH ROW BEGIN
+REPLACE INTO t2 SELECT * FROM t1 WHERE t1.var1 = NEW.var1;END|
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3);
+UPDATE t1 SET var2 = 9 WHERE var1 IN(1,2,3);
+DROP TRIGGER testtrigger;
+DROP TABLE t1, t2;
+create table t1 (a int, b int, primary key (a), key ab (a,b)) engine=ndbcluster;
+insert into t1 values (1,1), (10,10);
+select * from t1 use index (ab) where a in(1,10) order by a;
+a	b
+1	1
+10	10
+create table t2 (a int, b int, primary key (a,b)) engine=ndbcluster
+partition by key(a);
+insert into t2 values (1,1), (10,10);
+select * from t2 where a in (1,10) order by a;
+a	b
+1	1
+10	10
+drop table t1, t2;

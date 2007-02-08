@@ -994,6 +994,7 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbTransaction* pTrans)
     
     newOp->theTupKeyLen = len;
     newOp->theOperationType = opType;
+    newOp->m_abortOption = AbortOnError;
     switch (opType) {
     case (ReadRequest):
       newOp->theLockMode = theLockMode;
@@ -1224,7 +1225,7 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
      * so it's safe to use [tIndexAttrId] 
      * (instead of looping as is NdbOperation::equal_impl)
      */
-    if(type == BoundEQ && tDistrKey)
+    if(type == BoundEQ && tDistrKey && !m_multi_range)
     {
       theNoOfTupKeyLeft--;
       return handle_distribution_key(valPtr, sizeInWords);
@@ -1310,7 +1311,8 @@ NdbIndexScanOperation::readTuples(LockMode lm,
   const bool order_by = scan_flags & SF_OrderBy;
   const bool order_desc = scan_flags & SF_Descending;
   const bool read_range_no = scan_flags & SF_ReadRangeNo;
-  
+  m_multi_range = scan_flags & SF_MultiRange;
+
   int res = NdbScanOperation::readTuples(lm, scan_flags, parallel, batch);
   if(!res && read_range_no)
   {
@@ -1791,6 +1793,12 @@ NdbIndexScanOperation::reset_bounds(bool forceSend){
 int
 NdbIndexScanOperation::end_of_bound(Uint32 no)
 {
+  DBUG_ENTER("end_of_bound");
+  DBUG_PRINT("info", ("Range number %u", no));
+  /* Check that SF_MultiRange has been specified if more
+     than one range is specified */
+  if (no > 0 && !m_multi_range)
+    DBUG_RETURN(-1);
   if(no < (1 << 13)) // Only 12-bits no of ranges
   {
     Uint32 bound_head = * m_first_bound_word;
@@ -1799,9 +1807,9 @@ NdbIndexScanOperation::end_of_bound(Uint32 no)
     
     m_first_bound_word = theKEYINFOptr + theTotalNrOfKeyWordInSignal;;
     m_this_bound_start = theTupKeyLen;
-    return 0;
+    DBUG_RETURN(0);
   }
-  return -1;
+  DBUG_RETURN(-1);
 }
 
 int
