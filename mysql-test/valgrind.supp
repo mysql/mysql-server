@@ -346,3 +346,20 @@
    fun:_ZN19TransporterRegistry11performSendEv
    fun:_ZN19TransporterRegistry14forceSendCheckEi
 }
+
+#
+# BUG#25463: Probable cause - slave thread doesn't have time to terminate properly
+# because rest of the server shuts down before that. The server shutdown code has
+# been fixed in 5.1 and there this leak should not happen. Suppression has been 
+# approved by Monty.
+#
+# Important: do not propagate this rule to 5.1 tree!
+#
+
+{
+   Slave thread shutdown (BUG#25463)
+   Memcheck:Leak
+   fun:calloc
+   fun:my_thread_init
+   fun:handle_slave_io
+}
