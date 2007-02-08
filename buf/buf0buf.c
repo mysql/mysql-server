@@ -2341,6 +2341,8 @@ buf_page_init_for_read(
 	buf_block_t*	block;
 	buf_page_t*	bpage;
 	mtr_t		mtr;
+	ibool		lru	= FALSE;
+	void*		data;
 
 	ut_ad(buf_pool);
 
@@ -2365,46 +2367,25 @@ buf_page_init_for_read(
 	}
 
 	if (zip_size && UNIV_LIKELY(!recv_recovery_is_on())) {
-		void*	data;
-		mutex_enter(&buf_pool->mutex);
-
-		/* This must be allocated before bpage, in order to
-		avoid the invocation of buf_buddy_relocate_block()
-		on uninitialized data. */
-		data = buf_buddy_alloc(zip_size, TRUE);
-
-		bpage = buf_buddy_alloc(sizeof *bpage, TRUE);
-		page_zip_des_init(&bpage->zip);
-		page_zip_set_size(&bpage->zip, zip_size);
-		bpage->zip.data = data;
-
 		block = NULL;
-		mutex_enter(&buf_pool->zip_mutex);
 	} else {
 		block = buf_LRU_get_free_block(0);
-
 		ut_ad(block);
-		bpage = &block->page;
-		mutex_enter(&buf_pool->mutex);
-		mutex_enter(&block->mutex);
 	}
+
+	mutex_enter(&buf_pool->mutex);
 
 	if (buf_page_hash_get(space, offset)) {
 		/* The page is already in the buffer pool. */
 err_exit:
 		if (block) {
+			mutex_enter(&block->mutex);
 			buf_LRU_block_free_non_file_page(block);
-			mutex_exit(&buf_pool->mutex);
 			mutex_exit(&block->mutex);
-		} else {
-			void*	data = bpage->zip.data;
-			bpage->zip.data = NULL;
-
-			mutex_exit(&buf_pool->zip_mutex);
-			buf_buddy_free(data, zip_size);
-			buf_buddy_free(bpage, sizeof *bpage);
-			mutex_exit(&buf_pool->mutex);
 		}
+
+err_exit2:
+		mutex_exit(&buf_pool->mutex);
 
 		if (mode == BUF_READ_IBUF_PAGES_ONLY) {
 
@@ -2424,7 +2405,9 @@ err_exit:
 	}
 
 	if (block) {
-		buf_page_init(space, offset, (buf_block_t*) bpage);
+		bpage = &block->page;
+		mutex_enter(&block->mutex);
+		buf_page_init(space, offset, block);
 
 		/* The block must be put to the LRU list, to the old blocks */
 		buf_LRU_add_block(bpage, TRUE/* to old blocks */);
@@ -2438,12 +2421,11 @@ err_exit:
 		read is completed.  The x-lock is cleared by the
 		io-handler thread. */
 
-		rw_lock_x_lock_gen(&((buf_block_t*) bpage)->lock, BUF_IO_READ);
+		rw_lock_x_lock_gen(&block->lock, BUF_IO_READ);
 
 		if (UNIV_UNLIKELY(zip_size)) {
-			void*	data;
 			page_zip_set_size(&block->page.zip, zip_size);
-			mutex_exit(&block->mutex);
+
 			/* buf_pool->mutex may be released and
 			reacquired by buf_buddy_alloc().  Thus, we
 			must release block->mutex in order not to
@@ -2452,27 +2434,51 @@ err_exit:
 			operation until after the block descriptor has
 			been added to buf_pool->LRU and
 			buf_pool->page_hash. */
-			data = buf_buddy_alloc(zip_size, TRUE);
+			mutex_exit(&block->mutex);
+			data = buf_buddy_alloc(zip_size, &lru);
 			mutex_enter(&block->mutex);
 			block->page.zip.data = data;
 		}
 
 		buf_page_set_io_fix(bpage, BUF_IO_READ);
 
-		buf_pool->n_pend_reads++;
-
 		mutex_exit(&block->mutex);
-		mutex_exit(&buf_pool->mutex);
 	} else {
+		/* Defer buf_buddy_alloc() until after the block has
+		been found not to exist.  The buf_buddy_alloc() and
+		buf_buddy_free() calls may be expensive because of
+		buf_buddy_relocate(). */
+
+		/* The compressed page must be allocated before the
+		control block (bpage), in order to avoid the
+		invocation of buf_buddy_relocate_block() on
+		uninitialized data. */
+		data = buf_buddy_alloc(zip_size, &lru);
+		bpage = buf_buddy_alloc(sizeof *bpage, &lru);
+
+		/* If buf_buddy_alloc() allocated storage from the LRU list,
+		it released and reacquired buf_pool->mutex.  Thus, we must
+		check the page_hash again, as it may have been modified. */
+		if (UNIV_UNLIKELY(lru)
+		    && UNIV_LIKELY_NULL(buf_page_hash_get(space, offset))) {
+
+			/* The block was added by some other thread. */
+			buf_buddy_free(data, zip_size);
+			buf_buddy_free(bpage, sizeof *bpage);
+			goto err_exit2;
+		}
+
+		page_zip_des_init(&bpage->zip);
+		page_zip_set_size(&bpage->zip, zip_size);
+		bpage->zip.data = data;
+
+		mutex_enter(&buf_pool->zip_mutex);
 		UNIV_MEM_DESC(bpage->zip.data,
 			      page_zip_get_size(&bpage->zip), bpage);
 		buf_page_init_low(bpage);
 		bpage->state	= BUF_BLOCK_ZIP_PAGE;
 		bpage->space	= space;
 		bpage->offset	= offset;
-#ifdef UNIV_DEBUG_FILE_ACCESSES
-		bpage->file_page_was_freed = FALSE;
-#endif /* UNIV_DEBUG_FILE_ACCESSES */
 
 #ifdef UNIV_DEBUG
 		bpage->in_page_hash = FALSE;
@@ -2492,11 +2498,11 @@ err_exit:
 
 		buf_page_set_io_fix(bpage, BUF_IO_READ);
 
-		buf_pool->n_pend_reads++;
-
 		mutex_exit(&buf_pool->zip_mutex);
-		mutex_exit(&buf_pool->mutex);
 	}
+
+	buf_pool->n_pend_reads++;
+	mutex_exit(&buf_pool->mutex);
 
 	if (mode == BUF_READ_IBUF_PAGES_ONLY) {
 
@@ -2575,6 +2581,7 @@ buf_page_create(
 
 	if (zip_size) {
 		void*	data;
+		ibool	lru;
 
 		/* Prevent race conditions during buf_buddy_alloc(),
 		which may release and reacquire buf_pool->mutex,
@@ -2591,7 +2598,7 @@ buf_page_create(
 		the reacquisition of buf_pool->mutex.  We also must
 		defer this operation until after the block descriptor
 		has been added to buf_pool->LRU and buf_pool->page_hash. */
-		data = buf_buddy_alloc(zip_size, TRUE);
+		data = buf_buddy_alloc(zip_size, &lru);
 		mutex_enter(&block->mutex);
 		block->page.zip.data = data;
 

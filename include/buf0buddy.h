@@ -18,14 +18,21 @@ Created December 2006 by Marko Makela
 #include "buf0types.h"
 
 /**************************************************************************
-Allocate a block. */
+Allocate a block.  The thread calling this function must hold
+buf_pool->mutex and must not hold buf_pool->zip_mutex or any block->mutex.
+The buf_pool->mutex may only be released and reacquired if
+lru == BUF_BUDDY_USE_LRU. */
 UNIV_INLINE
 void*
 buf_buddy_alloc(
 /*============*/
-			/* out: pointer to the start of the block */
+			/* out: allocated block,
+			possibly NULL if lru == NULL */
 	ulint	size,	/* in: block size, up to UNIV_PAGE_SIZE */
-	ibool	lru)	/* in: TRUE=allocate from the LRU list if needed */
+	ibool*	lru)	/* in: pointer to a variable that will be assigned
+			TRUE if storage was allocated from the LRU list
+			and buf_pool->mutex was temporarily released,
+			or NULL if the LRU list should not be used */
 	__attribute__((malloc));
 
 /**************************************************************************
