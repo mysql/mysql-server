@@ -1485,6 +1485,36 @@ NdbDictionary::Dictionary::removeTableGlobal(const Table &ndbtab,
   return m_impl.releaseTableGlobal(NdbTableImpl::getImpl(ndbtab), invalidate);
 }
 
+NdbRecord *
+NdbDictionary::Dictionary::createRecord(const Table *table,
+                                        const RecordSpecification *recSpec,
+                                        Uint32 length,
+                                        Uint32 elemSize)
+{
+  return m_impl.createRecord(&NdbTableImpl::getImpl(*table),
+                             recSpec,
+                             length,
+                             elemSize);
+}
+
+NdbRecord *
+NdbDictionary::Dictionary::createRecord(const Index *index,
+                                        const RecordSpecification *recSpec,
+                                        Uint32 length,
+                                        Uint32 elemSize)
+{
+  return m_impl.createRecord(&NdbIndexImpl::getImpl(*index),
+                             recSpec,
+                             length,
+                             elemSize);
+}
+
+void 
+NdbDictionary::Dictionary::releaseRecord(NdbRecord *rec)
+{
+  m_impl.releaseRecord_impl(rec);
+}
+
 void NdbDictionary::Dictionary::putTable(const NdbDictionary::Table * table)
 {
  NdbDictionary::Table  *copy_table = new NdbDictionary::Table;

@@ -67,7 +67,7 @@
 
    If the operation is of type <var>Commit</var>, then the transaction is
    immediately committed. The transaction <em>must</em> be closed after it has been 
-   commited (event if commit fails), and no further addition or definition of 
+   commited (even if commit fails), and no further addition or definition of 
    operations for this transaction is allowed.
 
    @section secSync                     Synchronous Transactions
@@ -85,7 +85,7 @@
        - NdbTransaction::getNdbIndexOperation()
        - NdbTransaction::getNdbIndexScanOperation()
        along with the appropriate methods of the respective NdbOperation class 
-       (or one possiblt one or more of its subclasses).
+       (or possibly one or more of its subclasses).
        Note that the transaction has still not yet been sent to the NDB kernel.
     -# Execute the transaction, using the NdbTransaction::execute() method.
     -# Close the transaction (call Ndb::closeTransaction()).
@@ -318,7 +318,8 @@
       either NdbScanOperation::updateCurrentTuple() or 
       NdbScanOperation::deleteCurrentTuple()
    -# (If performing NdbScanOperation::updateCurrentTuple():) 
-      Setting new values for records simply by using @ref NdbOperation::setValue().
+      Setting new values for records simply by using @ref NdbOperation::setValue()
+      (on the new NdbOperation object retured from updateCurrentTuple()).
       NdbOperation::equal() should <em>not</em> be called in such cases, as the primary 
       key is retrieved from the scan.
 
@@ -345,7 +346,7 @@
 
    @subsection secScanLocks Lock handling with scans
 
-   Performing scans on either a tables or an index has the potential 
+   Performing scans on either a table or an index has the potential  to
    return a great many records; however, Ndb will lock only a predetermined 
    number of rows per fragment at a time.
    How many rows will be locked per fragment is controlled by the 
@@ -845,7 +846,6 @@
    The interface is used to send many transactions 
    at the same time to the NDB kernel.  
    This is often much more efficient than using synchronous transactions.
-   The main reason for using this method is to ensure that 
    Sending many transactions at the same time ensures that bigger 
    chunks of data are sent when actually sending and thus decreasing 
    the operating system overhead.

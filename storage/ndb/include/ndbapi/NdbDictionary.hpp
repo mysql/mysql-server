@@ -22,6 +22,9 @@ class Ndb;
 struct charset_info_st;
 typedef struct charset_info_st CHARSET_INFO;
 
+/* Forward declaration only. */
+class NdbRecord;
+
 /**
  * @class NdbDictionary
  * @brief Data dictionary class
@@ -991,7 +994,7 @@ public:
     const char * getName() const;
     
     /**
-     * Get the name of the table being indexed
+     * Get the name of the underlying table being indexed
      */
     const char * getTable() const;
     
@@ -1408,6 +1411,26 @@ public:
 #endif
     class NdbEventImpl & m_impl;
     Event(NdbEventImpl&);
+  };
+
+  struct RecordSpecification {
+    /*
+      Column described by this entry (the column maximum size defines field
+      size in row).
+      Note that even when creating an NdbRecord for an index, the column
+      pointers must be to columns obtained from the underlying table, not
+      from the index itself.
+    */
+    const Column *column;
+    /* Offset of data from start of a row. */
+    Uint32 offset;
+    /*
+      Offset from start of row of byte containing NULL bit.
+      Not used for columns that are not NULLable.
+    */
+    Uint32 nullbit_byte_offset;
+    /* NULL bit, 0-7. Not used for columns that are not NULLable. */
+    Uint32 nullbit_bit_in_byte;
   };
 
   struct AutoGrowSpecification {
@@ -1909,6 +1932,23 @@ public:
     int removeIndexGlobal(const Index &ndbidx, int invalidate) const;
     int removeTableGlobal(const Table &ndbtab, int invalidate) const;
 #endif
+
+    /*
+      Create an NdbRecord for use in table operations.
+    */
+    NdbRecord *createRecord(const Table *table,
+                            const RecordSpecification *recSpec,
+                            Uint32 length,
+                            Uint32 elemSize);
+
+    /*
+      Create an NdbRecord for use in index operations.
+    */
+    NdbRecord *createRecord(const Index *index,
+                            const RecordSpecification *recSpec,
+                            Uint32 length,
+                            Uint32 elemSize);
+    void releaseRecord(NdbRecord *rec);
   };
 };
 
