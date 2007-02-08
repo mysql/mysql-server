@@ -356,16 +356,21 @@ free_LRU:
 }
 
 /**************************************************************************
-Allocate a block. */
+Allocate a block.  The thread calling this function must hold
+buf_pool->mutex and must not hold buf_pool->zip_mutex or any block->mutex.
+The buf_pool->mutex may only be released and reacquired if lru != NULL. */
 
 void*
 buf_buddy_alloc_low(
 /*================*/
-			/* out: allocated block, or NULL
-			if buf_pool->zip_free[] was empty */
+			/* out: allocated block,
+			possibly NULL if lru==NULL */
 	ulint	i,	/* in: index of buf_pool->zip_free[],
 			or BUF_BUDDY_SIZES */
-	ibool	lru)	/* in: TRUE=allocate from the LRU list if needed */
+	ibool*	lru)	/* in: pointer to a variable that will be assigned
+			TRUE if storage was allocated from the LRU list
+			and buf_pool->mutex was temporarily released,
+			or NULL if the LRU list should not be used */
 {
 	buf_block_t*	block;
 
@@ -407,6 +412,7 @@ buf_buddy_alloc_low(
 	/* Try replacing an uncompressed page in the buffer pool. */
 	mutex_exit(&buf_pool->mutex);
 	block = buf_LRU_get_free_block(0);
+	*lru = TRUE;
 	mutex_enter(&buf_pool->mutex);
 
 alloc_big:
