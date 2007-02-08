@@ -46,8 +46,6 @@ pthread_mutexattr_t my_fast_mutexattr;
 pthread_mutexattr_t my_errorcheck_mutexattr;
 #endif
 
-uint thd_lib_detected;
-
 #ifdef NPTL_PTHREAD_EXIT_BUG /* see my_pthread.h */
 
 /*
