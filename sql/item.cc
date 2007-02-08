@@ -4245,18 +4245,19 @@ void Item_field::save_org_in_field(Field *to)
 
 int Item_field::save_in_field(Field *to, bool no_conversions)
 {
+  int res;
   if (result_field->is_null())
   {
     null_value=1;
-    return set_field_to_null_with_conversions(to, no_conversions);
+    res= set_field_to_null_with_conversions(to, no_conversions);
   }
   else
   {
     to->set_notnull();
-    field_conv(to,result_field);
+    res= field_conv(to,result_field);
     null_value=0;
   }
-  return 0;
+  return res;
 }
 
 
@@ -5284,9 +5285,9 @@ int Item_ref::save_in_field(Field *to, bool no_conversions)
       return set_field_to_null_with_conversions(to, no_conversions);
     }
     to->set_notnull();
-    field_conv(to, result_field);
+    res= field_conv(to, result_field);
     null_value= 0;
-    return 0;
+    return res;
   }
   res= (*ref)->save_in_field(to, no_conversions);
   null_value= (*ref)->null_value;

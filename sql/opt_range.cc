@@ -4296,7 +4296,22 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
   err= value->save_in_field_no_warnings(field, 1);
   if (err > 0 && field->cmp_type() != value->result_type())
   {
-    tree= 0;
+    if ((type == Item_func::EQ_FUNC || type == Item_func::EQUAL_FUNC) &&
+	value->result_type() == item_cmp_type(field->result_type(),
+                                              value->result_type()))
+
+    {
+      tree= new (alloc) SEL_ARG(field, 0, 0);
+      tree->type= SEL_ARG::IMPOSSIBLE;
+    }
+    else
+    {
+      /*
+        TODO: We should return trees of the type SEL_ARG::IMPOSSIBLE
+        for the cases like int_field > 999999999999999999999999 as well.
+      */
+      tree= 0;
+    }
     goto end;
   } 
   if (err < 0)
