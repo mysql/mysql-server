@@ -690,3 +690,116 @@ SHOW INDEX FROM bug24219_2;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 bug24219_2	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled
 DROP TABLE bug24219_2;
+drop table if exists table_24562;
+create table table_24562(
+section int,
+subsection int,
+title varchar(50));
+insert into table_24562 values
+(1, 0, "Introduction"),
+(1, 1, "Authors"),
+(1, 2, "Acknowledgements"),
+(2, 0, "Basics"),
+(2, 1, "Syntax"),
+(2, 2, "Client"),
+(2, 3, "Server"),
+(3, 0, "Intermediate"),
+(3, 1, "Complex queries"),
+(3, 2, "Stored Procedures"),
+(3, 3, "Stored Functions"),
+(4, 0, "Advanced"),
+(4, 1, "Replication"),
+(4, 2, "Load balancing"),
+(4, 3, "High availability"),
+(5, 0, "Conclusion");
+select * from table_24562;
+section	subsection	title
+1	0	Introduction
+1	1	Authors
+1	2	Acknowledgements
+2	0	Basics
+2	1	Syntax
+2	2	Client
+2	3	Server
+3	0	Intermediate
+3	1	Complex queries
+3	2	Stored Procedures
+3	3	Stored Functions
+4	0	Advanced
+4	1	Replication
+4	2	Load balancing
+4	3	High availability
+5	0	Conclusion
+alter table table_24562 add column reviewer varchar(20),
+order by title;
+select * from table_24562;
+section	subsection	title	reviewer
+1	2	Acknowledgements	NULL
+4	0	Advanced	NULL
+1	1	Authors	NULL
+2	0	Basics	NULL
+2	2	Client	NULL
+3	1	Complex queries	NULL
+5	0	Conclusion	NULL
+4	3	High availability	NULL
+3	0	Intermediate	NULL
+1	0	Introduction	NULL
+4	2	Load balancing	NULL
+4	1	Replication	NULL
+2	3	Server	NULL
+3	3	Stored Functions	NULL
+3	2	Stored Procedures	NULL
+2	1	Syntax	NULL
+update table_24562 set reviewer="Me" where section=2;
+update table_24562 set reviewer="You" where section=3;
+alter table table_24562
+order by section ASC, subsection DESC;
+select * from table_24562;
+section	subsection	title	reviewer
+1	2	Acknowledgements	NULL
+1	1	Authors	NULL
+1	0	Introduction	NULL
+2	3	Server	Me
+2	2	Client	Me
+2	1	Syntax	Me
+2	0	Basics	Me
+3	3	Stored Functions	You
+3	2	Stored Procedures	You
+3	1	Complex queries	You
+3	0	Intermediate	You
+4	3	High availability	NULL
+4	2	Load balancing	NULL
+4	1	Replication	NULL
+4	0	Advanced	NULL
+5	0	Conclusion	NULL
+alter table table_24562
+order by table_24562.subsection ASC, table_24562.section DESC;
+select * from table_24562;
+section	subsection	title	reviewer
+5	0	Conclusion	NULL
+4	0	Advanced	NULL
+3	0	Intermediate	You
+2	0	Basics	Me
+1	0	Introduction	NULL
+4	1	Replication	NULL
+3	1	Complex queries	You
+2	1	Syntax	Me
+1	1	Authors	NULL
+4	2	Load balancing	NULL
+3	2	Stored Procedures	You
+2	2	Client	Me
+1	2	Acknowledgements	NULL
+4	3	High availability	NULL
+3	3	Stored Functions	You
+2	3	Server	Me
+alter table table_24562 order by 12;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '12' at line 1
+alter table table_24562 order by (section + 12);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(section + 12)' at line 1
+alter table table_24562 order by length(title);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'length(title)' at line 1
+alter table table_24562 order by (select 12 from dual);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select 12 from dual)' at line 1
+alter table table_24562 order by no_such_col;
+ERROR 42S22: Unknown column 'no_such_col' in 'order clause'
+drop table table_24562;
