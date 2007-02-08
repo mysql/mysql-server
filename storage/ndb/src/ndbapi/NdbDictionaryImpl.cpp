@@ -3066,12 +3066,12 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
   NdbDictionary::Object::Type type = idx->m_type = tab->m_indexType;
   idx->m_logging = tab->m_logging;
   idx->m_temporary = tab->m_temporary;
-  // skip last attribute (NDB$PK or NDB$TNODE)
 
   const Uint32 distKeys = prim->m_noOfDistributionKeys;
   Uint32 keyCount = (distKeys ? distKeys : prim->m_noOfKeys);
 
   unsigned i;
+  // skip last attribute (NDB$PK or NDB$TNODE)
   for(i = 0; i+1<tab->m_columns.size(); i++){
     NdbColumnImpl* org = tab->m_columns[i];
 
@@ -4511,6 +4511,256 @@ int
 NdbDictionaryImpl::dropLogfileGroup(const NdbLogfileGroupImpl & fg)
 {
   return m_receiver.drop_filegroup(fg);
+}
+
+static int
+cmp_ndbrec_attr(const void *a, const void *b)
+{
+  const NdbRecord::Attr *r1= (const NdbRecord::Attr *)a;
+  const NdbRecord::Attr *r2= (const NdbRecord::Attr *)b;
+  if(r1->attrId < r2->attrId)
+    return -1;
+  else if(r1->attrId == r2->attrId)
+    return 0;
+  else
+    return 1;
+}
+
+NdbRecord *
+NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
+                                const NdbDictionary::RecordSpecification *recSpec,
+                                Uint32 length,
+                                Uint32 elemSize)
+{
+  NdbRecord *rec= NULL;
+  Uint32 numKeys, tableNumKeys;
+  Uint32 oldAttrId;
+  bool isIndex;
+  Uint32 i;
+
+  /*
+    In later versions we can use elemSize to provide backwards
+    compatibility if we extend the RecordSpecification structure.
+  */
+  if (elemSize != sizeof(NdbDictionary::RecordSpecification))
+  {
+    m_error.code= 4276;
+    return NULL;
+  }
+
+  isIndex= table->m_indexType==NdbDictionary::Object::OrderedIndex;
+
+  /* Count the number of key columns in the table or index. */
+  if (isIndex)
+  {
+    assert(table->m_index);
+    /* Ignore the extra NDB$TNODE column at the end. */
+    tableNumKeys= table->m_columns.size() - 1;
+  }
+  else
+  {
+    tableNumKeys= 0;
+    for (i= 0; i<table->m_columns.size(); i++)
+    {
+      if (table->m_columns[i]->m_pk)
+        tableNumKeys++;
+    }
+  }
+  /*
+    We need to allocate space for
+     1. The struct itself.
+     2. The columns[] array at the end of struct (length #columns).
+     3. An extra Uint32 array key_indexes (length #key columns).
+  */
+  rec= (NdbRecord *)calloc(1, sizeof(NdbRecord) +
+                              (length-1)*sizeof(NdbRecord::Attr) +
+                              tableNumKeys*sizeof(Uint32));
+  if (!rec)
+  {
+    m_error.code= 4000;
+    return NULL;
+  }
+  Uint32 *key_indexes= (Uint32 *)((unsigned char *)rec + sizeof(NdbRecord) +
+                                  (length-1)*sizeof(NdbRecord::Attr));
+
+  rec->table= table;
+  rec->tableId= table->m_id;
+  rec->tableVersion= table->m_version;
+  rec->flags= 0;
+  rec->noOfColumns= length;
+
+  Uint32 max_offset= 0;
+  for (i= 0; i<length; i++)
+  {
+    const NdbDictionary::RecordSpecification *rs= &recSpec[i];
+    const NdbColumnImpl *col;
+    col= &NdbColumnImpl::getImpl(*(rs->column));
+    if (!col)
+    {
+      m_error.code= 4277;
+      goto err;
+    }
+    if (col->getBlobType())
+    {
+      /* Blobs are not yet supported for NdbRecord. */
+      m_error.code= 4275;
+      goto err;
+    }
+
+    NdbRecord::Attr *recCol= &rec->columns[i];
+
+    recCol->attrId= col->m_attrId;
+    recCol->column_no= col->m_column_no;
+    recCol->index_attrId= ~0;
+    recCol->offset= rs->offset;
+    recCol->maxSize= col->m_attrSize*col->m_arraySize;
+    if (recCol->offset+recCol->maxSize > max_offset)
+      max_offset= recCol->offset+recCol->maxSize;
+    recCol->charset_info= col->m_cs;
+    recCol->compare_function= NdbSqlUtil::getType(col->m_type).m_cmp;
+    recCol->flags= 0;
+    if (!isIndex && col->m_pk)
+      recCol->flags|= NdbRecord::IsKey;
+    /* For indexes, we set key membership below. */
+    if (col->m_storageType == NDB_STORAGETYPE_DISK)
+      recCol->flags|= NdbRecord::IsDisk;
+    if (col->m_nullable)
+    {
+      recCol->flags|= NdbRecord::IsNullable;
+      recCol->nullbit_byte_offset= rs->nullbit_byte_offset;
+      recCol->nullbit_bit_in_byte= rs->nullbit_bit_in_byte;
+    }
+    bool isVarCol;
+    if (col->m_arrayType==NDB_ARRAYTYPE_SHORT_VAR)
+    {
+      recCol->flags|= NdbRecord::IsVar1ByteLen;
+      isVarCol= true;
+    }
+    else if (col->m_arrayType==NDB_ARRAYTYPE_MEDIUM_VAR)
+    {
+      recCol->flags|= NdbRecord::IsVar2ByteLen;
+      isVarCol= true;
+    }
+    else
+    {
+      isVarCol= false;
+    }
+  }
+  rec->m_row_size= max_offset;
+
+  /* Now we sort the array in attrId order. */
+  qsort(rec->columns,
+        rec->noOfColumns,
+        sizeof(rec->columns[0]),
+        cmp_ndbrec_attr);
+
+  /*
+    Now check for the presense of primary keys, and set flags for whether
+    this NdbRecord can be used for insert and/or for specifying keys for
+    read/update.
+
+    Also test for duplicate columns, easy now that they are sorted.
+    Also set up key_indexes array.
+  */
+
+  oldAttrId= ~0;
+  numKeys= 0;
+  for (i= 0; i<rec->noOfColumns; i++)
+  {
+    NdbRecord::Attr *recCol= &rec->columns[i];
+    if (i > 0 && oldAttrId==recCol->attrId)
+    {
+      m_error.code= 4278;
+      goto err;
+    }
+    oldAttrId= recCol->attrId;
+
+    if (isIndex)
+    {
+      Uint32 colNo= recCol->column_no;
+      int key_idx;
+      if (colNo < table->m_index->m_key_ids.size() &&
+          (key_idx= table->m_index->m_key_ids[colNo]) != -1)
+      {
+        assert((Uint32)key_idx < tableNumKeys);
+        recCol->flags|= NdbRecord::IsKey;
+        key_indexes[key_idx]= i;
+        recCol->index_attrId= table->m_columns[key_idx]->m_attrId;
+        numKeys++;
+      }
+    }
+    else
+    {
+      if (recCol->flags & NdbRecord::IsKey)
+      {
+        key_indexes[numKeys]= i;
+        numKeys++;
+      }
+    }
+  }
+  rec->key_indexes= key_indexes;
+  rec->key_index_length= tableNumKeys;
+  /*
+    Since we checked for duplicates, we can check for primary key completeness
+    simply by counting.
+  */
+  if (numKeys == tableNumKeys)
+  {
+    rec->flags|= NdbRecord::RecHasAllKeys;
+    if (rec->noOfColumns == tableNumKeys)
+      rec->flags|= NdbRecord::RecIsKeyRecord;
+  }
+  if (isIndex)
+    rec->flags|= NdbRecord::RecIsIndex;
+
+  return rec;
+
+ err:
+  if (rec)
+    free(rec);
+  return NULL;
+}
+
+NdbRecord *
+NdbDictionaryImpl::createRecord(const NdbIndexImpl *index_impl,
+                                const NdbDictionary::RecordSpecification *recSpec,
+                                Uint32 length,
+                                Uint32 elemSize)
+{
+  return createRecord(index_impl->getIndexTable(), recSpec, length, elemSize);
+}
+
+void
+NdbRecord::copyMask(Uint32 *dst, const unsigned char *src) const
+{
+  Uint32 i;
+
+  BitmaskImpl::clear((NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5, dst);
+  if (src)
+  {
+    for (i= 0; i<noOfColumns; i++)
+    {
+      Uint32 attrId= columns[i].attrId;
+      if (!(attrId & AttributeHeader::PSEUDO) &&
+          src[attrId>>3] & (1 << (attrId&7)))
+        BitmaskImpl::set((NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5, dst, attrId);
+    }
+  }
+  else
+  {
+    for (i= 0; i<noOfColumns; i++)
+    {
+      Uint32 attrId= columns[i].attrId;
+      if (!(attrId & AttributeHeader::PSEUDO))
+        BitmaskImpl::set((NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5, dst, attrId);
+    }
+  }
+}
+
+void NdbDictionaryImpl::releaseRecord_impl(NdbRecord *rec)
+{
+  if (rec)
+    free(rec);
 }
 
 int

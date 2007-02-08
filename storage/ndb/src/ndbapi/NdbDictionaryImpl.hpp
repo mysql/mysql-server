@@ -22,6 +22,7 @@
 #include <BaseString.hpp>
 #include <Vector.hpp>
 #include <UtilBuffer.hpp>
+#include <NdbSqlUtil.hpp>
 #include <NdbDictionary.hpp>
 #include <Bitmask.hpp>
 #include <AttributeList.hpp>
@@ -82,7 +83,7 @@ public:
   int m_length;
   int m_column_no;
   CHARSET_INFO * m_cs;          // not const in MySQL
-  
+
   bool m_pk;
   bool m_distributionKey;
   bool m_nullable;
@@ -180,6 +181,12 @@ public:
    */
   Uint32 m_columnHashMask;
   Vector<Uint32> m_columnHash;
+  /*
+    List of all columns in the table.
+    Note that for index table objects, there is one additional column at the
+    end, NDB$TNODE (ordered index) or NDB$PK. This must be taken into account
+    if iterating over columns.
+  */
   Vector<NdbColumnImpl *> m_columns;
   void computeAggregates();
   void buildColumnHash(); 
@@ -214,7 +221,7 @@ public:
   /**
    * Index only stuff
    */
-  BaseString m_primaryTable;
+  BaseString m_primaryTable;    // Name of table indexed by us
   NdbDictionary::Object::Type m_indexType;
 
   /**
@@ -274,6 +281,11 @@ public:
   bool m_logging;
   bool m_temporary;
   
+  /*
+    The m_table member refers to the NDB table object that holds the actual
+    index, not the table that is indexed by the index (so it is of index
+    type, not table type).
+  */
   NdbTableImpl * m_table;
   
   static NdbIndexImpl & getImpl(NdbDictionary::Index & t);
@@ -571,6 +583,138 @@ public:
   virtual int init(NdbTableImpl &tab) const = 0;
 };
 
+class NdbRecord {
+public:
+  /* Flag bits for the entire NdbRecord. */
+  enum RecFlags
+  {
+    /*
+      This flag tells whether this NdbRecord is a PK record for the table,
+      ie. that it describes _exactly_ the primary key attributes, no more and
+      no less. This is a requirement for the PK record used in read/update.
+    */
+    RecIsKeyRecord= 0x1,
+
+    /*
+      This flag tells whether this NdbRecord includes _at least_ all PK columns
+      (and possibly other columns), which is a requirement for insert.
+    */
+    RecHasAllKeys= 0x2,
+
+    /* This NdbRecord is for an ordered index, not a table. */
+    RecIsIndex= 0x4
+  };
+
+  /* Flag bits for individual columns in the NdbRecord. */
+  enum ColFlags
+  {
+    /*
+      This flag tells whether the column is part of the primary key, used
+      for insert.
+    */
+    IsKey=   0x1,
+    /* This flag is true if column is disk based. */
+    IsDisk= 0x2,
+    /* True if column can be NULL and has a NULL bit. */
+    IsNullable= 0x04,
+    /*
+      Flags for determining the actual length of data (which for varsize
+      columns is different from the maximum size.
+      The flags are mutually exclusive.
+    */
+    IsVar1ByteLen= 0x08,
+    IsVar2ByteLen= 0x10
+  };
+
+  struct Attr
+  {
+    Uint32 attrId;
+    Uint32 column_no;
+    /*
+      The index_attrId member is the attribute id in the index table object,
+      which is used to specify ordered index bounds in KEYINFO signal.
+      Note that this is different from the normal attribute id in the main
+      table, unless the ordered index is on columns (0..N).
+    */
+    Uint32 index_attrId;
+    /* Offset of data from the start of a row. */
+    Uint32 offset;
+    /*
+      Maximum size of the attribute. This is duplicated here to avoid having
+      to dig into Table object for every attribute fetch/store.
+    */
+    Uint32 maxSize;
+
+    /* Flags, or-ed from enum ColFlags. */
+    Uint32 flags;
+
+    /* Character set information, for ordered index merge sort. */
+    CHARSET_INFO *charset_info;
+    /* Function used to compare attributes during merge sort. */
+    NdbSqlUtil::Cmp *compare_function;
+
+
+    /* NULL bit location (only for nullable columns, ie. flags&IsNullable). */
+    Uint32 nullbit_byte_offset;
+    Uint32 nullbit_bit_in_byte;
+
+    bool get_var_length(const char *row, Uint32& len) const
+    {
+      if (flags & IsVar1ByteLen)
+        len= 1 + *((Uint8*)(row+offset));
+      else if (flags & IsVar2ByteLen)
+        len= 2 + uint2korr(row+offset);
+      else
+        len= maxSize;
+      return len <= maxSize;
+    }
+    bool is_null(const char *row) const
+    {
+      return (flags & IsNullable) &&
+             (row[nullbit_byte_offset] & (1 << nullbit_bit_in_byte));
+    }
+  };
+
+  /*
+    ToDo: For now we need to hang on to the Table *, since lots of the
+    existing code (class NdbOperation*, class NdbScanFilter) depends
+    on having access to it.
+    Long-term, we want to eliminate it (instead relying only on copying
+    tableId, fragmentCount etc. into the NdbRecord.
+  */
+  const NdbTableImpl *table;
+
+  Uint32 tableId;
+  Uint32 tableVersion;
+  /* Flags, or-ed from enum RecFlags. */
+  Uint32 flags;
+  /* Size of row (really end of right-most defined attribute in row). */
+  Uint32 m_row_size;
+
+  /*
+    Array of index (into columns[]) of primary key columns, in order.
+    Physical storage for these is after columns[] array.
+    This array is only fully initialised if flags&RecHasAllKeys.
+  */
+  const Uint32 *key_indexes;
+  /* Length of key_indexes array. */
+  Uint32 key_index_length;
+
+  /* The real size of the array at the end of this struct. */
+  Uint32 noOfColumns;
+  struct Attr columns[1];
+
+  /* Copy a user-supplied mask to internal mask. */
+  void copyMask(Uint32 *dst, const unsigned char *src) const;
+
+  /* Clear internal mask. */
+  void clearMask(Uint32 *dst) const
+  {
+    BitmaskImpl::clear((NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5, dst);
+  }
+};
+
+
 class NdbDictionaryImpl : public NdbDictionary::Dictionary {
 public:
   NdbDictionaryImpl(Ndb &ndb);
@@ -665,6 +809,18 @@ public:
                              NdbTableImpl &prim);
   NdbIndexImpl * getIndexImpl(const char * name,
                               const BaseString& internalName);
+
+
+  NdbRecord *createRecord(const NdbTableImpl *table,
+                          const NdbDictionary::RecordSpecification *recSpec,
+                          Uint32 length,
+                          Uint32 elemSize);
+  NdbRecord *createRecord(const NdbIndexImpl *index,
+                          const NdbDictionary::RecordSpecification *recSpec,
+                          Uint32 length,
+                          Uint32 elemSize);
+  void releaseRecord_impl(NdbRecord *rec);
+
 private:
   NdbTableImpl * fetchGlobalTableImplRef(const GlobalCacheInitObject &obj);
 };
