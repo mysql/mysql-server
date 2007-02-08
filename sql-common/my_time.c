@@ -85,8 +85,7 @@ my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
         (!(flags & TIME_INVALID_DATES) &&
          ltime->month && ltime->day > days_in_month[ltime->month-1] &&
          (ltime->month != 2 || calc_days_in_year(ltime->year) != 366 ||
-          ltime->day != 29)) ||
-        (ltime->year == 0 && (ltime->month != 0 || ltime->day != 0)))
+          ltime->day != 29)))
     {
       *was_cut= 2;
       return TRUE;
@@ -410,9 +409,7 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
   if (number_of_fields < 3 ||
       l_time->year > 9999 || l_time->month > 12 ||
       l_time->day > 31 || l_time->hour > 23 ||
-      l_time->minute > 59 || l_time->second > 59 ||
-      (l_time->year == 0 && l_time->month == 0 && l_time->day == 0 && 
-       (l_time->hour != 0 || l_time->minute != 0 || l_time->second != 0)))
+      l_time->minute > 59 || l_time->second > 59)
   {
     /* Only give warning for a zero date if there is some garbage after */
     if (!not_zero_date)                         /* If zero date */
