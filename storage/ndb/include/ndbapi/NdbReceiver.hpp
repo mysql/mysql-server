@@ -179,7 +179,7 @@ private:
   */
   const char *peek_row() const;
   /* get_range_no() returns the range_no from the last returned row. */
-  int NdbReceiver::get_range_no() const;
+  int get_range_no() const;
   /* get_keyinfo20)_ returns keyinfo from KEYINFO20 signal. */
   int get_keyinfo20(Uint32 & scaninfo, Uint32 & length,
                     const char * & data_ptr) const;
