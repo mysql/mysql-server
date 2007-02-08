@@ -1995,8 +1995,7 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
           DBUG_PRINT("error", ("key %d unknown flag %d", j, p.key->flag));
           DBUG_ASSERT(FALSE);
           // Stop setting bounds but continue with what we have
-          op->end_of_bound(range_no);
-          DBUG_RETURN(0);
+          DBUG_RETURN(op->end_of_bound(range_no));
         }
       }
     }
@@ -2043,8 +2042,7 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
 
     tot_len+= part_store_len;
   }
-  op->end_of_bound(range_no);
-  DBUG_RETURN(0);
+  DBUG_RETURN(op->end_of_bound(range_no));
 }
 
 /*
@@ -3882,11 +3880,10 @@ int ha_ndbcluster::start_stmt(THD *thd, thr_lock_type lock_type)
       ERR_RETURN(ndb->getNdbError());
     no_uncommitted_rows_reset(thd);
     thd_ndb->stmt= trans;
+    thd_ndb->query_state&= NDB_QUERY_NORMAL;
     trans_register_ha(thd, FALSE, &ndbcluster_hton);
   }
-  thd_ndb->query_state&= NDB_QUERY_NORMAL;
   m_active_trans= trans;
-
   // Start of statement
   m_retrieve_all_fields= FALSE;
   m_retrieve_primary_key= FALSE;
@@ -6365,7 +6362,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
         }
         else if ((scanOp= m_active_trans->getNdbIndexScanOperation(idx, tab)) 
                  &&!scanOp->readTuples(lm, 0, parallelism, sorted, 
-				       FALSE, TRUE, need_pk)
+				       FALSE, TRUE, need_pk, TRUE)
                  &&!generate_scan_filter(m_cond_stack, scanOp)
                  &&!define_read_attrs(end_of_buffer-reclength, scanOp))
         {
@@ -6528,7 +6525,11 @@ close_scan:
   }
   
   if (multi_range_curr == multi_range_end)
+  {
+    Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
+    thd_ndb->query_state&= NDB_QUERY_NORMAL;
     DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
   
   /**
    * Read remaining ranges
