@@ -29,7 +29,6 @@ Arguments:
     -lkn Number of long primary keys, default 1
     -lks Size of each long primary key, default 1
     -simple Use simple read to read from database
-    -dirty Use dirty read to read from database
     -write Use writeTuple in insert and update
     -stdtables Use standard table names
     -no_table_create Don't create tables in db
@@ -112,7 +111,6 @@ static unsigned int         tSizeOfLongPK = 1;
 
 //Program Flags
 static int                  theSimpleFlag = 0;
-static int                  theDirtyFlag = 0;
 static int                  theWriteFlag = 0;
 static int                  theStdTableNameFlag = 0;
 static int                  theTableCreateFlag = 0;
@@ -609,7 +607,7 @@ static void* flexBenchThread(void* pArg)
     tNoOfOperations * tNoOfAttributes * sizeof(int) * tAttributeSize ;
   unsigned**        longKeyAttrValue;
   NdbRecord**       pRec= NULL;
-  Uint32**          pAttrSet= NULL;
+  unsigned char**   pAttrSet= NULL;
   int               nRefOpOffset= 0;
   NdbDictionary::Dictionary *dict= NULL;
   NdbDictionary::RecordSpecification recSpec[MAXATTR+MAXNOLONGKEY];
@@ -625,7 +623,7 @@ static void* flexBenchThread(void* pArg)
   pOps = (NdbOperation**)malloc(tNoOfTables*sizeof(NdbOperation*)) ;
   pNdb = new Ndb(g_cluster_connection, "TEST_DB" );
   pRec= (NdbRecord **)calloc(tNoOfTables*3, sizeof(*pRec));
-  pAttrSet= (Uint32 **)calloc(tNoOfTables, sizeof(*pAttrSet));
+  pAttrSet= (unsigned char **)calloc(tNoOfTables, sizeof(*pAttrSet));
   
   if (!attrValue || !attrRefValue || !pOps || !pNdb || !pRec || !pAttrSet)
   {
@@ -648,17 +646,15 @@ static void* flexBenchThread(void* pArg)
   dict= pNdb->getDictionary();
   for (int tab= 0; tab<tNoOfTables; tab++)
   {
+    const NdbDictionary::Table *table= dict->getTable(tableName[tab]);
     int numPKs= (useLongKeys ? tNoOfLongPK : 1);
 
     /* First create NdbRecord for just the primary key(s). */
     if (!useLongKeys)
     {
-      recSpec[0].type= NdbDictionary::RecordSpecification::AttrOffsetNotNULL;
-      recSpec[0].colPtr= NULL;
-      recSpec[0].colName= NULL;
-      recSpec[0].colNumber= 0;
-      recSpec[0].dataOffset= 0;
-      pRec[tab]= dict->createRecord(tableName[tab],
+      recSpec[0].column= table->getColumn(0);;
+      recSpec[0].offset= 0;
+      pRec[tab]= dict->createRecord(table,
                                     recSpec,
                                     1,
                                     sizeof(recSpec[0]));
@@ -667,12 +663,10 @@ static void* flexBenchThread(void* pArg)
     {
       for (Uint32 i= 0; i<tNoOfLongPK; i++)
       {
-        recSpec[i].type= NdbDictionary::RecordSpecification::AttrOffsetNotNULL;
-        recSpec[i].colPtr= NULL;
-        recSpec[i].colName= longKeyAttrName[i];
-        recSpec[i].dataOffset= sizeof(unsigned)*tSizeOfLongPK*i;
+        recSpec[i].column= table->getColumn(longKeyAttrName[i]);
+        recSpec[i].offset= sizeof(unsigned)*tSizeOfLongPK*i;
       }
-      pRec[tab]= dict->createRecord(tableName[tab],
+      pRec[tab]= dict->createRecord(table,
                                     recSpec,
                                     tNoOfLongPK,
                                     sizeof(recSpec[0]));
@@ -682,14 +676,11 @@ static void* flexBenchThread(void* pArg)
     Uint32 count= 0;
     for (Uint32 i= 1; i<tNoOfAttributes; i++)
     {
-      recSpec[count].type= NdbDictionary::RecordSpecification::AttrOffsetNotNULL;
-      recSpec[count].colPtr= NULL;
-      recSpec[count].colName= NULL;
-      recSpec[count].colNumber= i+numPKs-1;
-      recSpec[count].dataOffset= sizeof(int)*tAttributeSize*i;
+      recSpec[count].column= table->getColumn(i+numPKs-1);
+      recSpec[count].offset= sizeof(int)*tAttributeSize*i;
       count++;
     }
-    pRec[tab+tNoOfTables]= dict->createRecord(tableName[tab],
+    pRec[tab+tNoOfTables]= dict->createRecord(table,
                                               recSpec,
                                               count,
                                               sizeof(recSpec[0]));
@@ -699,26 +690,21 @@ static void* flexBenchThread(void* pArg)
     count= 0;
     for (Uint32 i= (useLongKeys?1:0); i<tNoOfAttributes; i++)
     {
-      recSpec[count].type= NdbDictionary::RecordSpecification::AttrOffsetNotNULL;
-      recSpec[count].colPtr= NULL;
-      recSpec[count].colName= NULL;
-      recSpec[count].colNumber= i-1+numPKs;
-      recSpec[count].dataOffset= sizeof(int)*tAttributeSize*i;
+      recSpec[count].column= table->getColumn(i-1+numPKs);
+      recSpec[count].offset= sizeof(int)*tAttributeSize*i;
       count++;
     }
     if (useLongKeys)
     {
       for (Uint32 i= 0; i<tNoOfLongPK; i++)
       {
-        recSpec[count].type= NdbDictionary::RecordSpecification::AttrOffsetNotNULL;
-        recSpec[count].colPtr= NULL;
-        recSpec[count].colName= longKeyAttrName[i];
-        recSpec[count].dataOffset= sizeof(int)*tAttributeSize*tNoOfAttributes +
-                                   sizeof(unsigned)*tSizeOfLongPK*i;
+        recSpec[count].column= table->getColumn(longKeyAttrName[i]);
+        recSpec[count].offset= sizeof(int)*tAttributeSize*tNoOfAttributes +
+                               sizeof(unsigned)*tSizeOfLongPK*i;
         count++;
       }
     }
-    pRec[tab+2*tNoOfTables]= dict->createRecord(tableName[tab],
+    pRec[tab+2*tNoOfTables]= dict->createRecord(table,
                                                 recSpec,
                                                 count,
                                                 sizeof(recSpec[0]));
@@ -734,7 +720,8 @@ static void* flexBenchThread(void* pArg)
     }
 
     /* Attribute set for reading just one attribute, when verifying delete. */
-    pAttrSet[tab]= dict->getRecAttrSet(pRec[tab]);
+    pAttrSet[tab]=
+      (unsigned char *)calloc(tNoOfAttributes-1+numPKs, sizeof(char));
     if (pAttrSet[tab]==NULL) {
       // This is a fatal error, abort program
       ndbout << "Failed to allocate NdbRecAttrSet in thread" << threadNo;
@@ -742,10 +729,7 @@ static void* flexBenchThread(void* pArg)
       tResult = 13;
       goto end;
     }
-    if (useLongKeys)
-      dict->recAttrSetEnable(pAttrSet[tab], tableName[tab], longKeyAttrName[0]);
-    else
-      dict->recAttrSetEnable(pAttrSet[tab], (Uint32)0);
+    pAttrSet[tab][0]|= 1;                       // Set bit for attrId 0
   }
 
   if(useLongKeys){
@@ -878,50 +862,41 @@ static void* flexBenchThread(void* pArg)
 
 	switch (tType) {
 	case stInsert:          // Insert case
-	  if (theWriteFlag == 1 && theDirtyFlag == 1)
-	    pOps[countTables]= pTrans->dirtyWriteTuple(tabName, pk_record, pRowPK,
-                                                       attr_record, pRowAttr);
-	  else if (theWriteFlag == 1)
-	    pOps[countTables]= pTrans->writeTuple(tabName, pk_record, pRowPK,
+	  if (theWriteFlag == 1)
+	    pOps[countTables]= pTrans->writeTuple(pk_record, pRowPK,
                                                   attr_record, pRowAttr);
 	  else
-	    pOps[countTables]= pTrans->insertTuple(tabName, all_record, (char *)pRow);
+	    pOps[countTables]= pTrans->insertTuple(all_record, (char *)pRow);
 	  break;
 	case stRead:            // Read Case
 	  if (theSimpleFlag == 1)
-	    pOps[countTables]= pTrans->simpleReadTuple(tabName, pk_record, pRowPK,
-                                                       attr_record, (char *)pRow);
-	  else if (theDirtyFlag == 1)
-	    pOps[countTables]= pTrans->dirtyReadTuple(tabName, pk_record, pRowPK,
-                                                      attr_record, (char *)pRow);
+            /* Apparently simpleRead is identical to normal read currently. */
+	    pOps[countTables]= pTrans->readTuple(pk_record, pRowPK,
+                                                 attr_record, (char *)pRow,
+                                                 NdbOperation::LM_Read);
 	  else
-	    pOps[countTables]= pTrans->readTuple(tabName, pk_record, pRowPK,
+	    pOps[countTables]= pTrans->readTuple(pk_record, pRowPK,
                                                  attr_record, (char *)pRow);
 	  break;
 	case stUpdate:          // Update Case
-	  if (theWriteFlag == 1 && theDirtyFlag == 1)
-	    pOps[countTables]= pTrans->dirtyWriteTuple(tabName, pk_record, pRowPK,
-                                                       attr_record, pRowAttr);
-	  else if (theWriteFlag == 1)
-	    pOps[countTables]= pTrans->writeTuple(tabName, pk_record, pRowPK,
+	  if (theWriteFlag == 1)
+	    pOps[countTables]= pTrans->writeTuple(pk_record, pRowPK,
                                                   attr_record, pRowAttr);
-	  else if (theDirtyFlag == 1)
-	    pOps[countTables]= pTrans->dirtyUpdateTuple(tabName, pk_record, pRowPK,
-                                                       attr_record, pRowAttr);
 	  else
-	    pOps[countTables]= pTrans->updateTuple(tabName, pk_record, pRowPK,
-                                                       attr_record, pRowAttr);
+	    pOps[countTables]= pTrans->updateTuple(pk_record, pRowPK,
+                                                   attr_record, pRowAttr);
 	  break;
 	case stDelete:          // Delete Case
-	  pOps[countTables]= pTrans->deleteTuple(tabName, pk_record, pRowPK);
+	  pOps[countTables]= pTrans->deleteTuple(pk_record, pRowPK);
 	  break;
 	case stVerify:
-	  pOps[countTables]= pTrans->readTuple(tabName, pk_record, pRowPK,
+	  pOps[countTables]= pTrans->readTuple(pk_record, pRowPK,
                                                attr_record, (char *)pRow);
 	  break;
 	case stVerifyDelete:
-	  pOps[countTables]= pTrans->readTuple(tabName, pk_record, pRowPK,
+	  pOps[countTables]= pTrans->readTuple(pk_record, pRowPK,
                                                pk_record, (char *)pRow,
+                                               NdbOperation::LM_Read,
                                                pAttrSet[countTables]);
 	  break;
 	default:
@@ -1063,7 +1038,7 @@ static void* flexBenchThread(void* pArg)
   {
     for (Uint32 i= 0; i<tNoOfTables; i++)
       if (pAttrSet[i])
-        dict->releaseRecAttrSet(pAttrSet[i]);
+        free(pAttrSet[i]);
     free(pAttrSet);
   }
   if(pRec)
@@ -1167,8 +1142,6 @@ static int readArguments(int argc, const char** argv)
       theSimpleFlag = 1;
     }else if (strcmp(argv[i], "-write") == 0){
       theWriteFlag = 1;
-    }else if (strcmp(argv[i], "-dirty") == 0){
-      theDirtyFlag = 1;
     }else if (strcmp(argv[i], "-no_table_create") == 0){
       theTableCreateFlag = 1;
     }else if (strcmp(argv[i], "-temp") == 0){
@@ -1293,7 +1266,6 @@ static void input_error(){
   ndbout << "   -lks Size of each long primary key, default 1" << endl;
 
   ndbout << "   -simple Use simple read to read from database" << endl;
-  ndbout << "   -dirty Use dirty read to read from database" << endl;
   ndbout << "   -write Use writeTuple in insert and update" << endl;
   ndbout << "   -stdtables Use standard table names" << endl;
   ndbout << "   -no_table_create Don't create tables in db" << endl;
