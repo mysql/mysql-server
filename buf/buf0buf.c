@@ -2573,15 +2573,16 @@ buf_page_create(
 	buf_block_buf_fix_inc(block, __FILE__, __LINE__);
 	buf_pool->n_pages_created++;
 
-	/* Prevent race conditions during buf_buddy_alloc(),
-	which may release and reacquire buf_pool->mutex,
-	by IO-fixing and X-latching the block. */
-
-	buf_page_set_io_fix(&block->page, BUF_IO_READ);
-	rw_lock_x_lock(&block->lock);
-
 	if (zip_size) {
 		void*	data;
+
+		/* Prevent race conditions during buf_buddy_alloc(),
+		which may release and reacquire buf_pool->mutex,
+		by IO-fixing and X-latching the block. */
+
+		buf_page_set_io_fix(&block->page, BUF_IO_READ);
+		rw_lock_x_lock(&block->lock);
+
 		page_zip_set_size(&block->page.zip, zip_size);
 		mutex_exit(&block->mutex);
 		/* buf_pool->mutex may be released and reacquired by
@@ -2593,10 +2594,10 @@ buf_page_create(
 		data = buf_buddy_alloc(zip_size, TRUE);
 		mutex_enter(&block->mutex);
 		block->page.zip.data = data;
-	}
 
-	buf_page_set_io_fix(&block->page, BUF_IO_NONE);
-	rw_lock_x_unlock(&block->lock);
+		buf_page_set_io_fix(&block->page, BUF_IO_NONE);
+		rw_lock_x_unlock(&block->lock);
+	}
 
 	mutex_exit(&(buf_pool->mutex));
 
