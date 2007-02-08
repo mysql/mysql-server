@@ -869,7 +869,7 @@ Sets the io_fix flag to BUF_IO_READ and sets a non-recursive exclusive lock
 on the buffer frame. The io-handler must take care that the flag is cleared
 and the lock released later. */
 
-buf_block_t*
+buf_page_t*
 buf_page_init_for_read(
 /*===================*/
 				/* out: pointer to the block or NULL */
