@@ -27,6 +27,9 @@ Created 1/8/1996 Heikki Tuuri
 #include "que0que.h"
 #include "rem0cmp.h"
 
+/* Implement isspace() in a locale-independent way. (Bug #24299) */
+#define ib_isspace(c) ((char) (c) && strchr(" \v\f\t\r\n", c))
+
 dict_sys_t*	dict_sys	= NULL;	/* the dictionary system */
 
 rw_lock_t	dict_operation_lock;	/* table create, drop, etc. reserve
@@ -2374,7 +2377,7 @@ dict_accept(
 
 	*success = FALSE;
 	
-	while (isspace(*ptr)) {
+	while (ib_isspace(*ptr)) {
 		ptr++;
 	}
 
@@ -2419,7 +2422,7 @@ dict_scan_id(
 
 	*id = NULL;
 
-	while (isspace(*ptr)) {
+	while (ib_isspace(*ptr)) {
 		ptr++;
 	}
 
@@ -2450,7 +2453,7 @@ dict_scan_id(
 			len++;
 		}
 	} else {
-		while (!isspace(*ptr) && *ptr != '(' && *ptr != ')'
+		while (!ib_isspace(*ptr) && *ptr != '(' && *ptr != ')'
 		       && (accept_also_dot || *ptr != '.')
 		       && *ptr != ',' && *ptr != '\0') {
 
@@ -2480,12 +2483,12 @@ dict_scan_id(
 	if (heap && !quote) {
 		/* EMS MySQL Manager sometimes adds characters 0xA0 (in
 		latin1, a 'non-breakable space') to the end of a table name.
-		But isspace(0xA0) is not true, which confuses our foreign key
-		parser. After the UTF-8 conversion in ha_innodb.cc, bytes 0xC2
-		and 0xA0 are at the end of the string.
+		After the UTF-8 conversion in ha_innodb.cc, bytes 0xC2
+		and 0xA0 are at the end of the string, and ib_isspace()
+		does not work for multi-byte UTF-8 characters.
 
-		TODO: we should lex the string using thd->charset_info, and
-		my_isspace(). Only after that, convert id names to UTF-8. */
+		In MySQL 5.1 we lex the string using thd->charset_info, and
+		my_isspace(). This workaround is not needed there. */
 
 		b = (byte*)(*id);
 		id_len = strlen(b);
@@ -2956,11 +2959,11 @@ loop:
 
 		ut_a(success);
 
-		if (!isspace(*ptr) && *ptr != '"' && *ptr != '`') {
+		if (!ib_isspace(*ptr) && *ptr != '"' && *ptr != '`') {
 	        	goto loop;
 		}
 
-		while (isspace(*ptr)) {
+		while (ib_isspace(*ptr)) {
 			ptr++;
 		}
 
@@ -2990,7 +2993,7 @@ loop:
 		goto loop;
 	}
 
-	if (!isspace(*ptr)) {
+	if (!ib_isspace(*ptr)) {
 	        goto loop;
 	}
 
@@ -3078,7 +3081,7 @@ col_loop1:
 	}
 	ptr = dict_accept(ptr, "REFERENCES", &success);
 
-	if (!success || !isspace(*ptr)) {
+	if (!success || !ib_isspace(*ptr)) {
 		dict_foreign_report_syntax_err(name, start_of_latest_foreign,
 									ptr);
 		return(DB_CANNOT_ADD_CONSTRAINT);
@@ -3461,7 +3464,7 @@ loop:
 
 	ptr = dict_accept(ptr, "DROP", &success);
 
-	if (!isspace(*ptr)) {
+	if (!ib_isspace(*ptr)) {
 
 	        goto loop;
 	}

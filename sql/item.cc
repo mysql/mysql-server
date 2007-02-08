@@ -2369,18 +2369,31 @@ longlong Item_varbinary::val_int()
 
 int Item_varbinary::save_in_field(Field *field, bool no_conversions)
 {
-  int error;
   field->set_notnull();
   if (field->result_type() == STRING_RESULT)
+    return field->store(str_value.ptr(), str_value.length(), 
+                        collation.collation);
+
+  ulonglong nr;
+  uint32 length= str_value.length();
+  if (length > 8)
   {
-    error=field->store(str_value.ptr(),str_value.length(),collation.collation);
+    nr= field->flags & UNSIGNED_FLAG ? ULONGLONG_MAX : LONGLONG_MAX;
+    goto warn;
   }
-  else
+  nr= (ulonglong) val_int();
+  if ((length == 8) && !(field->flags & UNSIGNED_FLAG) && (nr > LONGLONG_MAX))
   {
-    longlong nr=val_int();
-    error=field->store(nr);
+    nr= LONGLONG_MAX;
+    goto warn;
   }
-  return error;
+  return field->store((longlong) nr);
+
+warn:
+  if (!field->store((longlong) nr))
+    field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE,
+                       1);
+  return 1;
 }
 
 
