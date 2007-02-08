@@ -63,12 +63,14 @@ public:
                         bool order_by,
                         bool order_desc = false,
                         bool read_range_no = false,
-			bool keyinfo = false) {
+			bool keyinfo = false,
+			bool multi_range = false) {
     Uint32 scan_flags =
       (SF_OrderBy & -(Int32)order_by) |
       (SF_Descending & -(Int32)order_desc) |
       (SF_ReadRangeNo & -(Int32)read_range_no) | 
-      (SF_KeyInfo & -(Int32)keyinfo);
+      (SF_KeyInfo & -(Int32)keyinfo) |
+      (SF_MultiRange & -(Int32)multi_range);
     
     return readTuples(lock_mode, scan_flags, parallel, batch);
   }
