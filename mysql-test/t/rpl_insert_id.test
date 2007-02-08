@@ -246,6 +246,59 @@ connection master;
 drop table t1;
 
 #
+# BUG#24432 "INSERT... ON DUPLICATE KEY UPDATE skips auto_increment values"
+#
+
+# testcase with INSERT VALUES
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b INT,
+UNIQUE(b));
+INSERT INTO t1(b) VALUES(1),(1),(2) ON DUPLICATE KEY UPDATE t1.b=10;
+SELECT * FROM t1;
+sync_slave_with_master;
+SELECT * FROM t1;
+connection master;
+drop table t1;
+
+# tescase with INSERT SELECT
+CREATE TABLE t1 (
+  id bigint(20) unsigned NOT NULL auto_increment,
+  field_1 int(10) unsigned NOT NULL,
+  field_2 varchar(255) NOT NULL,
+  field_3 varchar(255) NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY field_1 (field_1, field_2)
+);
+CREATE TABLE t2 (
+  field_a int(10) unsigned NOT NULL,
+  field_b varchar(255) NOT NULL,
+  field_c varchar(255) NOT NULL
+);
+INSERT INTO t2 (field_a, field_b, field_c) VALUES (1, 'a', '1a');
+INSERT INTO t2 (field_a, field_b, field_c) VALUES (2, 'b', '2b');
+INSERT INTO t2 (field_a, field_b, field_c) VALUES (3, 'c', '3c');
+INSERT INTO t2 (field_a, field_b, field_c) VALUES (4, 'd', '4d');
+INSERT INTO t2 (field_a, field_b, field_c) VALUES (5, 'e', '5e');
+# Updating table t1 based on values from table t2
+INSERT INTO t1 (field_1, field_2, field_3)
+SELECT t2.field_a, t2.field_b, t2.field_c
+FROM t2
+ON DUPLICATE KEY UPDATE
+t1.field_3 = t2.field_c;
+# Inserting new record into t2
+INSERT INTO t2 (field_a, field_b, field_c) VALUES (6, 'f', '6f');
+# Updating t1 again
+INSERT INTO t1 (field_1, field_2, field_3)
+SELECT t2.field_a, t2.field_b, t2.field_c
+FROM t2
+ON DUPLICATE KEY UPDATE
+t1.field_3 = t2.field_c;
+SELECT * FROM t1;
+sync_slave_with_master;
+SELECT * FROM t1;
+connection master;
+drop table t1, t2;
+
+#
 # BUG#20339: stored procedure using LAST_INSERT_ID() does not
 # replicate statement-based 
 #
