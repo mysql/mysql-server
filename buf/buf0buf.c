@@ -2325,7 +2325,7 @@ Sets the io_fix flag to BUF_IO_READ and sets a non-recursive exclusive lock
 on the buffer frame. The io-handler must take care that the flag is cleared
 and the lock released later. */
 
-buf_block_t*
+buf_page_t*
 buf_page_init_for_read(
 /*===================*/
 				/* out: pointer to the block or NULL */
@@ -2339,6 +2339,7 @@ buf_page_init_for_read(
 	ulint		offset)	/* in: page number */
 {
 	buf_block_t*	block;
+	buf_page_t*	bpage;
 	mtr_t		mtr;
 
 	ut_ad(buf_pool);
@@ -2363,21 +2364,47 @@ buf_page_init_for_read(
 		ut_ad(mode == BUF_READ_ANY_PAGE);
 	}
 
-	block = buf_LRU_get_free_block(0);
+	if (zip_size && UNIV_LIKELY(!recv_recovery_is_on())) {
+		void*	data;
+		mutex_enter(&buf_pool->mutex);
 
-	ut_a(block);
+		/* This must be allocated before bpage, in order to
+		avoid the invocation of buf_buddy_relocate_block()
+		on uninitialized data. */
+		data = buf_buddy_alloc(zip_size, TRUE);
 
-	mutex_enter(&(buf_pool->mutex));
-	mutex_enter(&block->mutex);
+		bpage = buf_buddy_alloc(sizeof *bpage, TRUE);
+		page_zip_des_init(&bpage->zip);
+		page_zip_set_size(&bpage->zip, zip_size);
+		bpage->zip.data = data;
+
+		block = NULL;
+		mutex_enter(&buf_pool->zip_mutex);
+	} else {
+		block = buf_LRU_get_free_block(0);
+
+		ut_ad(block);
+		bpage = &block->page;
+		mutex_enter(&buf_pool->mutex);
+		mutex_enter(&block->mutex);
+	}
 
 	if (buf_page_hash_get(space, offset)) {
 		/* The page is already in the buffer pool. */
-
 err_exit:
-		mutex_exit(&block->mutex);
-		mutex_exit(&buf_pool->mutex);
+		if (block) {
+			buf_LRU_block_free_non_file_page(block);
+			mutex_exit(&buf_pool->mutex);
+			mutex_exit(&block->mutex);
+		} else {
+			void*	data = bpage->zip.data;
+			bpage->zip.data = NULL;
 
-		buf_block_free(block);
+			mutex_exit(&buf_pool->zip_mutex);
+			buf_buddy_free(data, zip_size);
+			buf_buddy_free(bpage, sizeof *bpage);
+			mutex_exit(&buf_pool->mutex);
+		}
 
 		if (mode == BUF_READ_IBUF_PAGES_ONLY) {
 
@@ -2396,51 +2423,87 @@ err_exit:
 		goto err_exit;
 	}
 
-	ut_ad(block);
+	if (block) {
+		buf_page_init(space, offset, (buf_block_t*) bpage);
 
-	buf_page_init(space, offset, block);
+		/* The block must be put to the LRU list, to the old blocks */
+		buf_LRU_add_block(bpage, TRUE/* to old blocks */);
 
-	/* The block must be put to the LRU list, to the old blocks */
+		/* We set a pass-type x-lock on the frame because then
+		the same thread which called for the read operation
+		(and is running now at this point of code) can wait
+		for the read to complete by waiting for the x-lock on
+		the frame; if the x-lock were recursive, the same
+		thread would illegally get the x-lock before the page
+		read is completed.  The x-lock is cleared by the
+		io-handler thread. */
 
-	buf_LRU_add_block(&block->page, TRUE/* to old blocks */);
+		rw_lock_x_lock_gen(&((buf_block_t*) bpage)->lock, BUF_IO_READ);
 
-	buf_page_set_io_fix(&block->page, BUF_IO_READ);
+		if (UNIV_UNLIKELY(zip_size)) {
+			void*	data;
+			page_zip_set_size(&block->page.zip, zip_size);
+			mutex_exit(&block->mutex);
+			/* buf_pool->mutex may be released and
+			reacquired by buf_buddy_alloc().  Thus, we
+			must release block->mutex in order not to
+			break the latching order in the reacquisition
+			of buf_pool->mutex.  We also must defer this
+			operation until after the block descriptor has
+			been added to buf_pool->LRU and
+			buf_pool->page_hash. */
+			data = buf_buddy_alloc(zip_size, TRUE);
+			mutex_enter(&block->mutex);
+			block->page.zip.data = data;
+		}
 
-	buf_pool->n_pend_reads++;
+		buf_page_set_io_fix(bpage, BUF_IO_READ);
 
-	/* We set a pass-type x-lock on the frame because then the same
-	thread which called for the read operation (and is running now at
-	this point of code) can wait for the read to complete by waiting
-	for the x-lock on the frame; if the x-lock were recursive, the
-	same thread would illegally get the x-lock before the page read
-	is completed. The x-lock is cleared by the io-handler thread. */
+		buf_pool->n_pend_reads++;
 
-	rw_lock_x_lock_gen(&(block->lock), BUF_IO_READ);
-
-	if (zip_size) {
-		void*	data;
-		page_zip_set_size(&block->page.zip, zip_size);
 		mutex_exit(&block->mutex);
-		/* buf_pool->mutex may be released and reacquired by
-		buf_buddy_alloc().  Thus, we must release block->mutex
-		in order not to break the latching order in
-		the reacquisition of buf_pool->mutex.  We also must
-		defer this operation until after the block descriptor
-		has been added to buf_pool->LRU and buf_pool->page_hash. */
-		data = buf_buddy_alloc(zip_size, TRUE);
-		mutex_enter(&block->mutex);
-		block->page.zip.data = data;
-	}
+		mutex_exit(&buf_pool->mutex);
+	} else {
+		UNIV_MEM_DESC(bpage->zip.data,
+			      page_zip_get_size(&bpage->zip), bpage);
+		buf_page_init_low(bpage);
+		bpage->state	= BUF_BLOCK_ZIP_PAGE;
+		bpage->space	= space;
+		bpage->offset	= offset;
+#ifdef UNIV_DEBUG_FILE_ACCESSES
+		bpage->file_page_was_freed = FALSE;
+#endif /* UNIV_DEBUG_FILE_ACCESSES */
 
-	mutex_exit(&block->mutex);
-	mutex_exit(&(buf_pool->mutex));
+#ifdef UNIV_DEBUG
+		bpage->in_page_hash = FALSE;
+		bpage->in_zip_hash = FALSE;
+		bpage->in_flush_list = FALSE;
+		bpage->in_free_list = FALSE;
+		bpage->in_LRU_list = FALSE;
+#endif /* UNIV_DEBUG */
+
+		ut_d(bpage->in_page_hash = TRUE);
+		HASH_INSERT(buf_page_t, hash, buf_pool->page_hash,
+			    buf_page_address_fold(space, offset), bpage);
+
+		/* The block must be put to the LRU list, to the old blocks */
+		buf_LRU_add_block(bpage, TRUE/* to old blocks */);
+		buf_LRU_insert_zip_clean(bpage);
+
+		buf_page_set_io_fix(bpage, BUF_IO_READ);
+
+		buf_pool->n_pend_reads++;
+
+		mutex_exit(&buf_pool->zip_mutex);
+		mutex_exit(&buf_pool->mutex);
+	}
 
 	if (mode == BUF_READ_IBUF_PAGES_ONLY) {
 
 		mtr_commit(&mtr);
 	}
 
-	return(block);
+	return(bpage);
 }
 
 /************************************************************************

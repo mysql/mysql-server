@@ -73,7 +73,7 @@ buf_read_page_low(
 			which we have DISCARDed + IMPORTed back */
 	ulint	offset)	/* in: page number */
 {
-	buf_block_t*	block;
+	buf_page_t*	bpage;
 	ulint		wake_later;
 
 	*err = DB_SUCCESS;
@@ -113,9 +113,9 @@ buf_read_page_low(
 	or is being dropped; if we succeed in initing the page in the buffer
 	pool for read, then DISCARD cannot proceed until the read has
 	completed */
-	block = buf_page_init_for_read(err, mode, space, zip_size,
+	bpage = buf_page_init_for_read(err, mode, space, zip_size,
 				       tablespace_version, offset);
-	if (block == NULL) {
+	if (bpage == NULL) {
 
 		return(0);
 	}
@@ -129,23 +129,25 @@ buf_read_page_low(
 	}
 #endif
 
-	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+	ut_ad(buf_page_in_file(bpage));
 
 	if (zip_size) {
 		*err = fil_io(OS_FILE_READ | wake_later,
 			      sync, space, zip_size, offset, 0, zip_size,
-			      (void*) block->page.zip.data, (void*) block);
+			      bpage->zip.data, bpage);
 	} else {
+		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
+
 		*err = fil_io(OS_FILE_READ | wake_later,
 			      sync, space, 0, offset, 0, UNIV_PAGE_SIZE,
-			      (void*) block->frame, (void*) block);
+			      ((buf_block_t*) bpage)->frame, bpage);
 	}
 	ut_a(*err == DB_SUCCESS);
 
 	if (sync) {
 		/* The i/o is already completed when we arrive from
 		fil_read */
-		buf_page_io_complete(&block->page);
+		buf_page_io_complete(bpage);
 	}
 
 	return(1);
