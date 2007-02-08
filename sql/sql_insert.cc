@@ -58,6 +58,7 @@
 #include "sp_head.h"
 #include "sql_trigger.h"
 #include "sql_select.h"
+#include "slave.h"
 
 static int check_null_fields(THD *thd,TABLE *entry);
 #ifndef EMBEDDED_LIBRARY
@@ -467,6 +468,14 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 			    CHECK_FIELD_WARN);
   thd->cuted_fields = 0L;
   table->next_number_field=table->found_next_number_field;
+
+#ifdef HAVE_REPLICATION
+  if (thd->slave_thread &&
+      (info.handle_duplicates == DUP_UPDATE) &&
+      (table->next_number_field != NULL) &&
+      rpl_master_has_bug(&active_mi->rli, 24432))
+    goto abort;
+#endif
 
   error=0;
   id=0;
@@ -1133,11 +1142,11 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
         if (res == VIEW_CHECK_ERROR)
           goto before_trg_err;
 
+        table->file->restore_auto_increment();
         if ((error=table->file->update_row(table->record[1],table->record[0])))
 	{
 	  if ((error == HA_ERR_FOUND_DUPP_KEY) && info->ignore)
           {
-            table->file->restore_auto_increment();
             goto ok_or_after_trg_err;
           }
           goto err;
@@ -2369,6 +2378,15 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   }
   restore_record(table,s->default_values);		// Get empty record
   table->next_number_field=table->found_next_number_field;
+
+#ifdef HAVE_REPLICATION
+  if (thd->slave_thread &&
+      (info.handle_duplicates == DUP_UPDATE) &&
+      (table->next_number_field != NULL) &&
+      rpl_master_has_bug(&active_mi->rli, 24432))
+    DBUG_RETURN(1);
+#endif
+
   thd->cuted_fields=0;
   if (info.ignore || info.handle_duplicates != DUP_ERROR)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
