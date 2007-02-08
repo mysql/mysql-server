@@ -138,7 +138,7 @@ ALTER TABLE t2 DROP COLUMN d;
 ******************** SHOW BINLOG EVENTS ********************
 show binlog events from 1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Format_desc	1	#	Server ver: 5.1.15-beta-debug-log, Binlog ver: 4
+master-bin.000001	#	Format_desc	1	#	Server ver: 5.1.16-beta-debug-log, Binlog ver: 4
 master-bin.000001	#	Query	1	#	DROP DATABASE IF EXISTS test_rpl
 master-bin.000001	#	Query	1	#	DROP DATABASE IF EXISTS test_rpl_1
 master-bin.000001	#	Query	1	#	CREATE DATABASE test_rpl_1 CHARACTER SET utf8 COLLATE utf8_general_ci

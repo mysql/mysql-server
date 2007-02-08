@@ -1772,7 +1772,7 @@ SELECT * FROM v1 ORDER BY f1;
 --enable_info
 # 1.   The record to be inserted will be within the scope of the view.
 #      But there is already a record with the PRIMARY KEY f1 = 2 .
---error 1062
+--error ER_DUP_ENTRY_WITH_KEY_NAME
 INSERT INTO v1 VALUES(2,'two');
 # 2.   The record to be inserted will be within the scope of the view.
 #      There is no already existing record with the PRIMARY KEY f1 = 3 .
@@ -1789,7 +1789,7 @@ SELECT * FROM v1 ORDER BY f1;
 # 1.   The record to be updated is within the scope of the view
 #      and will stay inside the scope.
 #      But there is already a record with the PRIMARY KEY f1 = 2 .
---error 1062
+--error ER_DUP_ENTRY_WITH_KEY_NAME
 UPDATE v1 SET f1 = 2 WHERE f1 = 3;
 # 2.   The record to be updated is within the scope of the view
 #      and will stay inside the scope.
@@ -3283,7 +3283,7 @@ DELETE FROM t1;
 #           f1 gets the default 0, because we are in the native sql_mode
 INSERT INTO v1 SET f2 = 'ABC';
 #           f1 gets the default 0, but this value is already exists
---error 1062
+--error ER_DUP_ENTRY_WITH_KEY_NAME
 INSERT INTO v1 SET f2 = 'ABC';
 SELECT * from t1;
 DELETE FROM t1;
@@ -3371,7 +3371,7 @@ CREATE VIEW v1 AS SELECT f2, f3 FROM t1;
 #           f1 gets the default 0, because we are in the native sql_mode
 INSERT INTO v1 SET f2 = 'ABC';
 #           f1 gets the default 0 and this value is already exists
---error 1062
+--error ER_DUP_ENTRY_WITH_KEY_NAME
 INSERT INTO v1 SET f2 = 'ABC';
 SELECT * from t1;
 DELETE FROM t1;

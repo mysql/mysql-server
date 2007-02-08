@@ -2488,6 +2488,7 @@ NULL	information_schema	REFERENTIAL_CONSTRAINTS	MATCH_OPTION	7		NO	varchar	64	19
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	UPDATE_RULE	8		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	DELETE_RULE	9		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	TABLE_NAME	10		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+NULL	information_schema	REFERENTIAL_CONSTRAINTS	REFERENCED_TABLE_NAME	11		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	ROUTINES	SPECIFIC_NAME	1		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	ROUTINES	ROUTINE_CATALOG	2	NULL	YES	varchar	4096	12288	NULL	NULL	utf8	utf8_general_ci	varchar(4096)			select	
 NULL	information_schema	ROUTINES	ROUTINE_SCHEMA	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
@@ -3594,7 +3595,7 @@ PLUGINS	10
 proc	16
 PROCESSLIST	8
 procs_priv	8
-REFERENTIAL_CONSTRAINTS	10
+REFERENTIAL_CONSTRAINTS	11
 ROUTINES	20
 SCHEMATA	5
 SCHEMA_PRIVILEGES	5
@@ -3686,7 +3687,7 @@ TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATA
 SELECT * FROM parameters LIMIT 1;
 ERROR 42S02: Unknown table 'parameters' in information_schema
 SELECT * FROM referential_constraints LIMIT 1;
-CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
 use db_datadict;
 select * from schemata;
 ERROR 42S02: Table 'db_datadict.schemata' doesn't exist
@@ -5705,7 +5706,7 @@ COUNT(*)
 68
 SELECT COUNT(*) FROM information_schema. columns                               ;
 COUNT(*)
-822
+823
 SELECT COUNT(*) FROM information_schema. character_sets                        ;
 COUNT(*)
 36
@@ -5770,7 +5771,7 @@ tot_tabs
 65
 select count(*) as the_cols from columns;
 the_cols
-797
+798
 select max(maxlen) as the_max from character_sets;
 the_max
 3
@@ -8960,6 +8961,7 @@ REFERENTIAL_CONSTRAINTS	MATCH_OPTION	varchar(64)
 REFERENTIAL_CONSTRAINTS	UPDATE_RULE	varchar(64)
 REFERENTIAL_CONSTRAINTS	DELETE_RULE	varchar(64)
 REFERENTIAL_CONSTRAINTS	TABLE_NAME	varchar(64)
+REFERENTIAL_CONSTRAINTS	REFERENCED_TABLE_NAME	varchar(64)
 ROUTINES	SPECIFIC_NAME	varchar(64)
 ROUTINES	ROUTINE_CATALOG	varchar(4096)
 ROUTINES	ROUTINE_SCHEMA	varchar(64)
@@ -10457,6 +10459,7 @@ NULL	information_schema	REFERENTIAL_CONSTRAINTS	MATCH_OPTION	7		NO	varchar	64	19
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	UPDATE_RULE	8		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	DELETE_RULE	9		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	TABLE_NAME	10		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+NULL	information_schema	REFERENTIAL_CONSTRAINTS	REFERENCED_TABLE_NAME	11		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	ROUTINES	SPECIFIC_NAME	1		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	ROUTINES	ROUTINE_CATALOG	2	NULL	YES	varchar	4096	12288	NULL	NULL	utf8	utf8_general_ci	varchar(4096)			select	
 NULL	information_schema	ROUTINES	ROUTINE_SCHEMA	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
@@ -11260,6 +11263,7 @@ NULL	information_schema	REFERENTIAL_CONSTRAINTS	MATCH_OPTION	7		NO	varchar	64	19
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	UPDATE_RULE	8		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	DELETE_RULE	9		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	TABLE_NAME	10		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+NULL	information_schema	REFERENTIAL_CONSTRAINTS	REFERENCED_TABLE_NAME	11		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	ROUTINES	SPECIFIC_NAME	1		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	ROUTINES	ROUTINE_CATALOG	2	NULL	YES	varchar	4096	12288	NULL	NULL	utf8	utf8_general_ci	varchar(4096)			select	
 NULL	information_schema	ROUTINES	ROUTINE_SCHEMA	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
@@ -11803,6 +11807,7 @@ NULL	information_schema	REFERENTIAL_CONSTRAINTS	MATCH_OPTION	7		NO	varchar	64	19
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	UPDATE_RULE	8		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	DELETE_RULE	9		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	TABLE_NAME	10		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+NULL	information_schema	REFERENTIAL_CONSTRAINTS	REFERENCED_TABLE_NAME	11		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	ROUTINES	SPECIFIC_NAME	1		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	ROUTINES	ROUTINE_CATALOG	2	NULL	YES	varchar	4096	12288	NULL	NULL	utf8	utf8_general_ci	varchar(4096)			select	
 NULL	information_schema	ROUTINES	ROUTINE_SCHEMA	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
@@ -12434,6 +12439,7 @@ NULL	information_schema	PROCESSLIST	TIME	bigint	NULL	NULL	NULL	NULL	bigint(7)
 3.0000	information_schema	REFERENTIAL_CONSTRAINTS	UPDATE_RULE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	REFERENTIAL_CONSTRAINTS	DELETE_RULE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	REFERENTIAL_CONSTRAINTS	TABLE_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+3.0000	information_schema	REFERENTIAL_CONSTRAINTS	REFERENCED_TABLE_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	ROUTINES	SPECIFIC_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	ROUTINES	ROUTINE_CATALOG	varchar	4096	12288	utf8	utf8_general_ci	varchar(4096)
 3.0000	information_schema	ROUTINES	ROUTINE_SCHEMA	varchar	64	192	utf8	utf8_general_ci	varchar(64)
@@ -15098,6 +15104,7 @@ MATCH_OPTION	varchar(64)	NO
 UPDATE_RULE	varchar(64)	NO			
 DELETE_RULE	varchar(64)	NO			
 TABLE_NAME	varchar(64)	NO			
+REFERENCED_TABLE_NAME	varchar(64)	NO			
 
 *** End of Data Dictionary Tests ***
 --------------------------------------------------------------------------------
