@@ -639,7 +639,8 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
     NdbOperation* tNextOp = tOp->next();
 
     if (tOp->Status() == NdbOperation::UseNdbRecord)
-      tReturnCode= tOp->prepareSendNdbRecord(theTCConPtr, theTransactionId);
+      tReturnCode= tOp->prepareSendNdbRecord(theTCConPtr, theTransactionId,
+                                             abortOption);
     else
       tReturnCode= tOp->prepareSend(theTCConPtr, theTransactionId, abortOption);
 
@@ -2095,6 +2096,7 @@ NdbTransaction::readTuple(const NdbRecord *key_rec, const char *key_row,
   op->theOperationType= NdbOperation::ReadRequest;
   op->theErrorLine++;
   op->theLockMode= NdbOperation::LM_Read;
+  op->m_abortOption= AO_IgnoreError;
 
   theSimpleState= 0;
 
@@ -2128,6 +2130,7 @@ NdbTransaction::insertTuple(const NdbRecord *rec, const char *row,
   op->theOperationType= NdbOperation::InsertRequest;
   op->theErrorLine++;
   op->theLockMode= NdbOperation::LM_Exclusive;
+  op->m_abortOption = AbortOnError;
 
   theSimpleState= 0;
 
@@ -2161,6 +2164,7 @@ NdbTransaction::updateTuple(const NdbRecord *key_rec, const char *key_row,
   op->theOperationType= NdbOperation::UpdateRequest;
   op->theErrorLine++;
   op->theLockMode= NdbOperation::LM_Exclusive;
+  op->m_abortOption = AbortOnError;
 
   theSimpleState= 0;
 
@@ -2192,6 +2196,7 @@ NdbTransaction::deleteTuple(const NdbRecord *key_rec, const char *key_row)
   op->theOperationType= NdbOperation::DeleteRequest;
   op->theErrorLine++;
   op->theLockMode= NdbOperation::LM_Exclusive;
+  op->m_abortOption = AbortOnError;
 
   theSimpleState= 0;
 
@@ -2224,6 +2229,7 @@ NdbTransaction::writeTuple(const NdbRecord *key_rec, const char *key_row,
   op->theOperationType= NdbOperation::WriteRequest;
   op->theErrorLine++;
   op->theLockMode= NdbOperation::LM_Exclusive;
+  op->m_abortOption = AbortOnError;
 
   theSimpleState= 0;
 

@@ -1284,6 +1284,7 @@ NdbScanOperation::takeOverScanOpNdbRecord(OperationType opType,
   pTrans->theSimpleState= 0;
   op->theStatus= NdbOperation::UseNdbRecord;
   op->theOperationType= opType;
+  op->m_abortOption= AbortOnError;
   op->m_key_record= NULL;       // This means m_key_row has KEYINFO20 data
   op->m_attribute_record= record;
   /*
@@ -1699,7 +1700,7 @@ NdbIndexScanOperation::fix_get_values(){
   /**
    * Loop through all getValues and set buffer pointer to "API" pointer
    */
-  NdbRecAttr * curr = theReceiver.theFirstRecAttr;
+  NdbRecAttr * curr = theReceiver.m_recattr.theFirstRecAttr;
   Uint32 cnt = m_accessTable->getNoOfColumns() - 1;
   assert(cnt <  NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY);
   

@@ -942,13 +942,15 @@ protected:
     
   int	 prepareSendInterpreted();            // Help routine to prepare*
 
-  int    prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId);
+  int    prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
+                              AbortOption ao);
 
   /* Helper routines for prepareSendNdbRecord(). */
   Uint32 fillTcKeyReqHdr(TcKeyReq *tcKeyReq,
                          Uint32 connectPtr,
                          Uint64 transId,
-                         const NdbRecord *rec);
+                         const NdbRecord *rec,
+                         AbortOption ao);
   int    allocKeyInfo(Uint32 connectPtr, Uint64 transId,
                       Uint32 **dstPtr, Uint32 *remain);
   int    allocAttrInfo(Uint32 connectPtr, Uint64 transId,
@@ -1232,7 +1234,7 @@ inline
 const NdbRecAttr*
 NdbOperation::getFirstRecAttr() const 
 {
-  return theReceiver.theFirstRecAttr;
+  return theReceiver.m_recattr.theFirstRecAttr;
 }
 
 /******************************************************************************

@@ -31,7 +31,7 @@ NdbReceiver::NdbReceiver(Ndb *aNdb) :
   m_owner(0),
   m_using_ndb_record(false)
 {
-  theCurrentRecAttr = theFirstRecAttr = 0;
+  m_recattr.theCurrentRecAttr = m_recattr.theFirstRecAttr = 0;
   m_defined_rows = 0;
   m_rows = new NdbRecAttr*[0];
 }
@@ -60,16 +60,16 @@ NdbReceiver::init(ReceiverType type, bool useRec, void* owner)
 
   if (useRec)
   {
-    m_ndb_record= NULL;
-    m_row= NULL;
-    m_row_buffer= NULL;
-    m_row_offset= 0;
-    m_read_range_no= false;
+    m_record.m_ndb_record= NULL;
+    m_record.m_row= NULL;
+    m_record.m_row_buffer= NULL;
+    m_record.m_row_offset= 0;
+    m_record.m_read_range_no= false;
   }
   else
   {
-    theFirstRecAttr = NULL;
-    theCurrentRecAttr = NULL;
+    m_recattr.theFirstRecAttr = NULL;
+    m_recattr.theCurrentRecAttr = NULL;
   }
 }
 
@@ -77,20 +77,20 @@ void
 NdbReceiver::release(){
   if (!m_using_ndb_record)
   {
-    NdbRecAttr* tRecAttr = theFirstRecAttr;
+    NdbRecAttr* tRecAttr = m_recattr.theFirstRecAttr;
     while (tRecAttr != NULL)
     {
       NdbRecAttr* tSaveRecAttr = tRecAttr;
       tRecAttr = tRecAttr->next();
       m_ndb->releaseRecAttr(tSaveRecAttr);
     }
-    theFirstRecAttr = NULL;
-    theCurrentRecAttr = NULL;
+    m_recattr.theFirstRecAttr = NULL;
+    m_recattr.theCurrentRecAttr = NULL;
   }
   else
   {
-    delete[] m_row_buffer;
-    m_row_buffer= NULL;
+    delete[] m_record.m_row_buffer;
+    m_record.m_row_buffer= NULL;
   }      
 }
   
@@ -100,11 +100,11 @@ NdbReceiver::getValue(const NdbColumnImpl* tAttrInfo, char * user_dst_ptr){
 
   NdbRecAttr* tRecAttr = m_ndb->getRecAttr();
   if(tRecAttr && !tRecAttr->setup(tAttrInfo, user_dst_ptr)){
-    if (theFirstRecAttr == NULL)
-      theFirstRecAttr = tRecAttr;
+    if (m_recattr.theFirstRecAttr == NULL)
+      m_recattr.theFirstRecAttr = tRecAttr;
     else
-      theCurrentRecAttr->next(tRecAttr);
-    theCurrentRecAttr = tRecAttr;
+      m_recattr.theCurrentRecAttr->next(tRecAttr);
+    m_recattr.theCurrentRecAttr = tRecAttr;
     tRecAttr->next(NULL);
     return tRecAttr;
   }
@@ -119,8 +119,8 @@ NdbReceiver::getValues(const NdbRecord* rec, char *row_ptr)
 {
   assert(m_using_ndb_record);
 
-  m_ndb_record= rec;
-  m_row= row_ptr;
+  m_record.m_ndb_record= rec;
+  m_record.m_row= row_ptr;
 }
 
 #define KEY_ATTR_ID (~(Uint32)0)
@@ -145,7 +145,7 @@ NdbReceiver::calculate_batch_size(Uint32 key_size,
   Uint32 max_batch_size= tp->get_batch_size();
   Uint32 tot_size= (key_size ? (key_size + 32) : 0); //key + signal overhead
   /* ToDo: Use the NdbRecord to calculate size here instead for NdbRecord operation. */
-  NdbRecAttr *rec_attr= theFirstRecAttr;
+  NdbRecAttr *rec_attr= m_recattr.theFirstRecAttr;
   while (rec_attr != NULL) {
     Uint32 attr_size= rec_attr->getColumn()->getSizeInBytes();
     attr_size= ((attr_size + 7) >> 2) << 2; //Even to word + overhead
@@ -213,10 +213,10 @@ NdbReceiver::do_get_value(NdbReceiver * org,
     key.m_attrSize = 4;
     key.m_nullable = true; // So that receive works w.r.t KEYINFO20
   }
-  m_hidden_count = (key_size ? 1 : 0) + range_no ;
+  m_recattr.m_hidden_count = (key_size ? 1 : 0) + range_no ;
   
   for(Uint32 i = 0; i<batch_size; i++){
-    NdbRecAttr * prev = theCurrentRecAttr;
+    NdbRecAttr * prev = m_recattr.theCurrentRecAttr;
     assert(prev == 0 || i > 0);
     
     // Put key-recAttr fir on each row
@@ -231,7 +231,7 @@ NdbReceiver::do_get_value(NdbReceiver * org,
       abort();
     }
 
-    NdbRecAttr* tRecAttr = org->theFirstRecAttr;
+    NdbRecAttr* tRecAttr = org->m_recattr.theFirstRecAttr;
     while(tRecAttr != 0){
       if(getValue(&NdbColumnImpl::getImpl(*tRecAttr->m_column), (char*)0) != 0)
 	tRecAttr = tRecAttr->next();
@@ -248,7 +248,7 @@ NdbReceiver::do_get_value(NdbReceiver * org,
     if(prev){
       m_rows[i] = prev->next();
     } else {
-      m_rows[i] = theFirstRecAttr;
+      m_rows[i] = m_recattr.theFirstRecAttr;
     }
   } 
 
@@ -278,11 +278,11 @@ NdbReceiver::do_setup_ndbrecord(const NdbRecord *ndb_record, Uint32 batch_size,
     return -1;
 
   m_using_ndb_record= true;
-  m_ndb_record= ndb_record;
-  m_row= row_buffer;
-  m_row_buffer= row_buffer;
-  m_row_offset= rowsize;
-  m_read_range_no= read_range_no;
+  m_record.m_ndb_record= ndb_record;
+  m_record.m_row= row_buffer;
+  m_record.m_row_buffer= row_buffer;
+  m_record.m_row_offset= rowsize;
+  m_record.m_read_range_no= read_range_no;
 
   return 0;
 }
@@ -291,9 +291,9 @@ NdbRecAttr*
 NdbReceiver::copyout(NdbReceiver & dstRec){
   assert(!m_using_ndb_record);
   NdbRecAttr *src = m_rows[m_current_row++];
-  NdbRecAttr *dst = dstRec.theFirstRecAttr;
+  NdbRecAttr *dst = dstRec.m_recattr.theFirstRecAttr;
   NdbRecAttr *start = src;
-  Uint32 tmp = m_hidden_count;
+  Uint32 tmp = m_recattr.m_hidden_count;
   while(tmp--)
     src = src->next();
   
@@ -313,10 +313,12 @@ NdbReceiver::get_range_no() const
   int range_no;
   assert(m_using_ndb_record);
   Uint32 idx= m_current_row;
-  if (idx == 0 || !m_read_range_no)
+  if (idx == 0 || !m_record.m_read_range_no)
     return -1;
   memcpy(&range_no,
-         m_row_buffer + (idx-1)*m_row_offset + m_ndb_record->m_row_size,
+         m_record.m_row_buffer +
+           (idx-1)*m_record.m_row_offset +
+           m_record.m_ndb_record->m_row_size,
          4);
   return range_no;
 }
@@ -329,8 +331,10 @@ NdbReceiver::get_keyinfo20(Uint32 & scaninfo, Uint32 & length,
   Uint32 idx= m_current_row;
   if (idx == 0)
     return -1;                                  // No rows fetched yet
-  const char *p= m_row_buffer + (idx-1)*m_row_offset + m_ndb_record->m_row_size;
-  if (m_read_range_no)
+  const char *p= m_record.m_row_buffer +
+    (idx-1)*m_record.m_row_offset +
+    m_record.m_ndb_record->m_row_size;
+  if (m_record.m_read_range_no)
     p+= 4;
   scaninfo= uint4korr(p);
   p+= 4;
@@ -368,7 +372,7 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
   {
     Uint32 exp= m_expected_result_length;
     Uint32 tmp= m_received_result_length + aLength;
-    const NdbRecord *rec= m_ndb_record;
+    const NdbRecord *rec= m_record.m_ndb_record;
     Uint32 rec_pos= 0;
 
     while (aLength > 0)
@@ -381,9 +385,9 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
       /* Special case for RANGE_NO, which is stored just after the row. */
       if (attrId==AttributeHeader::RANGE_NO)
       {
-        assert(m_read_range_no);
+        assert(m_record.m_read_range_no);
         assert(attrSize==4);
-        memcpy(m_row+m_ndb_record->m_row_size, aDataPtr++, 4);
+        memcpy(m_record.m_row+m_record.m_ndb_record->m_row_size, aDataPtr++, 4);
         aLength--;
         continue;
       }
@@ -403,7 +407,7 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
 
       if (attrSize == 0)
       {
-        setRecToNULL(&rec->columns[rec_pos], m_row);
+        setRecToNULL(&rec->columns[rec_pos], m_record.m_row);
       }
       else
       {
@@ -416,7 +420,7 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
           attrSize= 4*aLength;
         }
 
-        assignToRec(&rec->columns[rec_pos], m_row, aDataPtr, attrSize);
+        assignToRec(&rec->columns[rec_pos], m_record.m_row, aDataPtr, attrSize);
         aDataPtr+= sizeInWords;
         aLength-= sizeInWords;
       }
@@ -424,13 +428,13 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
     }
 
     m_received_result_length = tmp;
-    m_row+= m_row_offset;
+    m_record.m_row+= m_record.m_row_offset;
 
     return (tmp == exp || (exp > TcKeyConf::SimpleReadBit) ? 1 : 0);
   }
 
   /* The old way, using getValue() and NdbRecAttr. */
-  NdbRecAttr* currRecAttr = theCurrentRecAttr;
+  NdbRecAttr* currRecAttr = m_recattr.theCurrentRecAttr;
   
   for (Uint32 used = 0; used < aLength ; used++){
     AttributeHeader ah(* aDataPtr++);
@@ -458,9 +462,9 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
       */
       ndbout_c("this=%p: tAttrId: %d currRecAttr: %p theCurrentRecAttr: %p "
                "tAttrSize: %d %d", this,
-	       tAttrId, currRecAttr, theCurrentRecAttr, tAttrSize,
+	       tAttrId, currRecAttr, m_recattr.theCurrentRecAttr, tAttrSize,
                currRecAttr ? currRecAttr->get_size_in_bytes() : 0);
-      currRecAttr = theCurrentRecAttr;
+      currRecAttr = m_recattr.theCurrentRecAttr;
       while(currRecAttr != 0){
 	ndbout_c("%d ", currRecAttr->attrId());
 	currRecAttr = currRecAttr->next();
@@ -470,7 +474,7 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
     }
   }
 
-  theCurrentRecAttr = currRecAttr;
+  m_recattr.theCurrentRecAttr = currRecAttr;
   
   /**
    * Update m_received_result_length
@@ -489,10 +493,10 @@ NdbReceiver::execKEYINFO20(Uint32 info, const Uint32* aDataPtr, Uint32 aLength)
   {
     /* Copy in the keyinfo after the user row and any range_no value. */
 
-    char *keyinfo_ptr= m_row_buffer + 
-                       m_current_row++ * m_row_offset +
-                       m_ndb_record->m_row_size;
-    if (m_read_range_no)
+    char *keyinfo_ptr= m_record.m_row_buffer + 
+                       m_current_row++ * m_record.m_row_offset +
+                       m_record.m_ndb_record->m_row_size;
+    if (m_record.m_read_range_no)
       keyinfo_ptr+= 4;
 
     int4store(keyinfo_ptr, info);

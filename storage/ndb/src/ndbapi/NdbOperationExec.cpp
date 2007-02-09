@@ -527,7 +527,8 @@ NdbOperation::prepareSendInterpreted()
   operations using NdbRecord.
 */
 int
-NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId)
+NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
+                                   AbortOption ao)
 {
   Uint32 *keyInfoPtr, *attrInfoPtr;
   Uint32 remain;
@@ -545,7 +546,7 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId)
 
   TcKeyReq *tcKeyReq= CAST_PTR(TcKeyReq, theTCREQ->getDataPtrSend());
   Uint32 hdrSize= fillTcKeyReqHdr(tcKeyReq, aTC_ConnectPtr, aTransId,
-                                  m_attribute_record);
+                                  m_attribute_record, ao);
   keyInfoPtr= theTCREQ->getDataPtrSend() + hdrSize;
   remain= TcKeyReq::MaxKeyInfo;
 
@@ -643,7 +644,7 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId)
   }
   else if (tOpType == ReadRequest)
   {
-    result_rec= theReceiver.m_ndb_record;
+    result_rec= theReceiver.m_record.m_ndb_record;
     for (Uint32 i= 0; i<result_rec->noOfColumns; i++)
     {
       const NdbRecord::Attr *col;
@@ -701,7 +702,8 @@ Uint32
 NdbOperation::fillTcKeyReqHdr(TcKeyReq *tcKeyReq,
                               Uint32 connectPtr,
                               Uint64 transId,
-                              const NdbRecord *rec)
+                              const NdbRecord *rec,
+                              AbortOption ao)
 {
   Uint32 hdrLen;
   UintR *hdrPtr;
@@ -724,10 +726,10 @@ NdbOperation::fillTcKeyReqHdr(TcKeyReq *tcKeyReq,
   /* We will setNoDiskFlag() later when we have checked all columns. */
   TcKeyReq::setDirtyFlag(reqInfo, theDirtyIndicator);
   TcKeyReq::setOperationType(reqInfo, theOperationType);
-  Uint8 abortOption=
-    m_abortOption != -1 ? m_abortOption : theNdbCon->m_abortOption;
-  TcKeyReq::setAbortOption
-    (reqInfo, theSimpleIndicator ? (Uint8)AO_IgnoreError : abortOption);
+  Uint8 abortOption= (ao == DefaultAbortOption) ? m_abortOption : ao;
+  m_abortOption= theSimpleIndicator && theOperationType==ReadRequest ?
+    AO_IgnoreError : abortOption;
+  TcKeyReq::setAbortOption(reqInfo, m_abortOption);
   TcKeyReq::setDistributionKeyFlag(reqInfo, theDistrKeyIndicator_);
   TcKeyReq::setScanIndFlag(reqInfo, theScanInfo & 1);
   /* We will setAIInTcKeyReq() and setKeyLength() later. */
