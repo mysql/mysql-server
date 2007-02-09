@@ -4034,11 +4034,9 @@ longlong Item_equal::val_int()
 
 void Item_equal::fix_length_and_dec()
 {
-  Item *item= const_item ? const_item : get_first();
+  Item *item= get_first();
   eval_item= cmp_item::get_comparator(item->result_type(),
                                       item->collation.collation);
-  if (item->result_type() == STRING_RESULT)
-    eval_item->cmp_charset= cmp_collation.collation;
 }
 
 bool Item_equal::walk(Item_processor processor, byte *arg)
