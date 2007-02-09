@@ -1,0 +1,16 @@
+###################################################
+#                                                 #
+#  Functions within VIEWs based on InnoDB tables  #
+#                                                 #
+###################################################
+
+#
+# NOTE: PLEASE SEE THE DETAILED DESCRIPTION IN
+#       suite/funcs_1/views/func_view.inc
+#       BEFORE ADDING NEW TEST CASES HERE !!!
+
+let $type= 'InnoDB' ;
+--source include/have_innodb.inc
+
+--source suite/funcs_1/views/func_view.inc
+
