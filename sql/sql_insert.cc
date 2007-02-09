@@ -2630,7 +2630,7 @@ bool select_insert::send_eof()
   }
 
   if (last_insert_id)
-    thd->insert_id(last_insert_id);		// For binary log
+    thd->insert_id(info.copied ? last_insert_id : 0);		// For binary log
   /* Write to binlog before commiting transaction */
   if (mysql_bin_log.is_open())
   {
