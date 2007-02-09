@@ -717,3 +717,17 @@ select * from t1;
 f1	f2
 1	2
 drop table t1;
+create table t1(f1 int primary key auto_increment, f2 int unique);
+insert into t1(f2) values(1);
+select @@identity;
+@@identity
+1
+insert ignore t1(f2) values(1);
+select @@identity;
+@@identity
+0
+insert ignore t1(f2) select 1;
+select @@identity;
+@@identity
+0
+drop table t1;
