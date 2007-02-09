@@ -611,16 +611,18 @@ void getTextTransporterError(QQQQ) {
     if(theData[2] == TransporterErrorString[i].errorNum)
     {
       BaseString::snprintf(m_text, m_text_len,
-                          "Transporter to node %d reported error: %s",
+                          "Transporter to node %d reported error 0x%x: %s",
                           theData[1],
+			  theData[2],
                           TransporterErrorString[i].errorString);
       break;
     }
   }
   if(i == lenth)
     BaseString::snprintf(m_text, m_text_len,   
-                        "Transporter to node %d reported error: no such error",
-                          theData[1]);
+                        "Transporter to node %d reported error 0x%x: unknown error",
+                          theData[1],
+			  theData[2]);
 }
 void getTextTransporterWarning(QQQQ) {
   getTextTransporterError(m_text, m_text_len, theData);
