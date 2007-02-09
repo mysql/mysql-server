@@ -3024,4 +3024,18 @@ SELECT * FROM t2;
 DROP VIEW v1;
 DROP TABLE t1,t2;
 
+#
+# Bug#12122: Views with ORDER BY can't be resolved using MERGE algorithm.
+#
+create table t1(f1 int, f2 int);
+insert into t1 values(1,2),(1,3),(1,1),(2,3),(2,1),(2,2);
+select * from t1;
+create view v1 as select * from t1 order by f2;
+select * from v1;
+explain extended select * from v1;
+select * from v1 order by f1;
+explain extended select * from v1 order by f1;
+drop view v1;
+drop table t1;
+
 --echo End of 5.0 tests.
