@@ -221,8 +221,8 @@ private:
   int ordered_send_scan_wait_for_all(bool forceSend);
   int send_next_scan_ordered(Uint32 idx);
   int compare(Uint32 key, Uint32 cols, const NdbReceiver*, const NdbReceiver*);
-  int NdbIndexScanOperation::compare_ndbrecord(const NdbReceiver *r1,
-                                               const NdbReceiver *r2) const;
+  int compare_ndbrecord(const NdbReceiver *r1,
+                        const NdbReceiver *r2) const;
   Uint32 m_sort_columns;
   Uint32 m_this_bound_start;
   Uint32 * m_first_bound_word;
