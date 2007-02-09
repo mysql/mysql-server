@@ -2251,7 +2251,11 @@ int main(int argc, char **argv)
 #endif
 
   /* Set signal used to kill MySQL */
+#if defined(SIGUSR2)
   thr_kill_signal= thd_lib_detected == THD_LIB_LT ? SIGINT : SIGUSR2;
+#else
+  thr_kill_signal= SIGINT;
+#endif
 
   /*
     Init mutexes for the global MYSQL_LOG objects.
