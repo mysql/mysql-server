@@ -102,7 +102,7 @@ private:
       class NdbRecAttr* theFirstRecAttr;
       class NdbRecAttr* theCurrentRecAttr;
       Uint32 m_hidden_count;
-    };
+    } m_recattr;
 
     /* members used for NdbRecord operation. */
     struct {
@@ -122,7 +122,7 @@ private:
         each row during scans.
       */
       bool m_read_range_no;
-    };
+    } m_record;
   };
   /*
     m_rows is only used in NdbRecAttr mode, but is kept during NdbRecord mode
@@ -211,11 +211,11 @@ NdbReceiver::prepareSend(){
   if (m_using_ndb_record)
   {
     if (m_type==NDB_SCANRECEIVER)
-      m_row= m_row_buffer;
+      m_record.m_row= m_record.m_row_buffer;
   }
   else
   {
-    theCurrentRecAttr = theFirstRecAttr;
+    m_recattr.theCurrentRecAttr = m_recattr.theFirstRecAttr;
   }
 }
 
@@ -244,14 +244,14 @@ inline
 const char *
 NdbReceiver::get_row()
 {
-  return m_row_buffer + m_current_row++ * m_row_offset;
+  return m_record.m_row_buffer + m_current_row++ * m_record.m_row_offset;
 }
 
 inline
 const char *
 NdbReceiver::peek_row() const
 {
-  return m_row_buffer + m_current_row * m_row_offset;
+  return m_record.m_row_buffer + m_current_row * m_record.m_row_offset;
 }
 
 
