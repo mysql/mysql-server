@@ -221,6 +221,139 @@ static handler *innobase_create_handler(handlerton *hton,
   return new (mem_root) ha_innobase(hton, table);
 }
 
+/***********************************************************************
+This function is used to prepare X/Open XA distributed transaction   */
+static
+int
+innobase_xa_prepare(
+/*================*/
+			/* out: 0 or error number */
+	handlerton* hton,
+	THD*	thd,	/* in: handle to the MySQL thread of the user
+			whose XA transaction should be prepared */
+	bool	all);	/* in: TRUE - commit transaction
+			FALSE - the current SQL statement ended */
+/***********************************************************************
+This function is used to recover X/Open XA distributed transactions   */
+static
+int
+innobase_xa_recover(
+/*================*/
+				/* out: number of prepared transactions
+				stored in xid_list */
+	handlerton* hton,
+	XID*	xid_list,	/* in/out: prepared transactions */
+	uint	len);		/* in: number of slots in xid_list */
+/***********************************************************************
+This function is used to commit one X/Open XA distributed transaction
+which is in the prepared state */
+static
+int
+innobase_commit_by_xid(
+/*===================*/
+			/* out: 0 or error number */
+	handlerton* hton,
+	XID*	xid);	/* in: X/Open XA transaction identification */
+/***********************************************************************
+This function is used to rollback one X/Open XA distributed transaction
+which is in the prepared state */
+static
+int
+innobase_rollback_by_xid(
+/*=====================*/
+			/* out: 0 or error number */
+	handlerton* hton,
+	XID	*xid);	/* in: X/Open XA transaction identification */
+/***********************************************************************
+Create a consistent view for a cursor based on current transaction
+which is created if the corresponding MySQL thread still lacks one.
+This consistent view is then used inside of MySQL when accessing records
+using a cursor. */
+static
+void*
+innobase_create_cursor_view(
+/*========================*/
+				/* out: pointer to cursor view or NULL */
+	handlerton*	hton,	/* in: innobase hton */
+	THD*		thd);	/* in: user thread handle */
+/***********************************************************************
+Set the given consistent cursor view to a transaction which is created
+if the corresponding MySQL thread still lacks one. If the given
+consistent cursor view is NULL global read view of a transaction is
+restored to a transaction read view. */
+static
+void
+innobase_set_cursor_view(
+/*=====================*/
+	handlerton* hton,
+	THD*	thd,	/* in: user thread handle */
+	void*	curview);/* in: Consistent cursor view to be set */
+/***********************************************************************
+Close the given consistent cursor view of a transaction and restore
+global read view to a transaction read view. Transaction is created if the
+corresponding MySQL thread still lacks one. */
+static
+void
+innobase_close_cursor_view(
+/*=======================*/
+	handlerton* hton,
+	THD*	thd,	/* in: user thread handle */
+	void*	curview);/* in: Consistent read view to be closed */
+/*********************************************************************
+Removes all tables in the named database inside InnoDB. */
+static
+void
+innobase_drop_database(
+/*===================*/
+			/* out: error number */
+	handlerton* hton, /* in: handlerton of Innodb */
+	char*	path);	/* in: database path; inside InnoDB the name
+			of the last directory in the path is used as
+			the database name: for example, in 'mysql/data/test'
+			the database name is 'test' */
+/***********************************************************************
+Closes an InnoDB database. */
+static
+int
+innobase_end(handlerton *hton, ha_panic_function type);
+
+/*********************************************************************
+Creates an InnoDB transaction struct for the thd if it does not yet have one.
+Starts a new InnoDB transaction if a transaction is not yet started. And
+assigns a new snapshot for a consistent read if the transaction does not yet
+have one. */
+static
+int
+innobase_start_trx_and_assign_read_view(
+/*====================================*/
+			/* out: 0 */
+	handlerton* hton, /* in: Innodb handlerton */ 
+	THD*	thd);	/* in: MySQL thread handle of the user for whom
+			the transaction should be committed */
+/********************************************************************
+Flushes InnoDB logs to disk and makes a checkpoint. Really, a commit flushes
+the logs, and the name of this function should be innobase_checkpoint. */
+static
+bool
+innobase_flush_logs(
+/*================*/
+				/* out: TRUE if error */
+	handlerton*	hton);	/* in: InnoDB handlerton */
+
+/****************************************************************************
+Implements the SHOW INNODB STATUS command. Sends the output of the InnoDB
+Monitor to the client. */
+static
+bool
+innodb_show_status(
+/*===============*/
+	handlerton*	hton,	/* in: the innodb handlerton */
+	THD*	thd,	/* in: the MySQL query thread of the caller */
+	stat_print_fn *stat_print);
+static
+bool innobase_show_status(handlerton *hton, THD* thd, 
+                          stat_print_fn* stat_print,
+                          enum ha_stat_type stat_type);
 
 /*********************************************************************
 Commits a transaction in an InnoDB database. */
@@ -382,7 +515,7 @@ innobase_release_stat_resources(
 Call this function when mysqld passes control to the client. That is to
 avoid deadlocks on the adaptive hash S-latch possibly held by thd. For more
 documentation, see handler.cc. */
-
+static
 int
 innobase_release_temporary_latches(
 /*===============================*/
@@ -1324,7 +1457,7 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 
 /*************************************************************************
 Opens an InnoDB database. */
-
+static
 int
 innobase_init(void *p)
 /*===============*/
@@ -1611,7 +1744,7 @@ error:
 
 /***********************************************************************
 Closes an InnoDB database. */
-
+static
 int
 innobase_end(handlerton *hton, ha_panic_function type)
 /*==============*/
@@ -1649,7 +1782,7 @@ innobase_end(handlerton *hton, ha_panic_function type)
 /********************************************************************
 Flushes InnoDB logs to disk and makes a checkpoint. Really, a commit flushes
 the logs, and the name of this function should be innobase_checkpoint. */
-
+static
 bool
 innobase_flush_logs(handlerton *hton)
 /*=====================*/
@@ -1685,7 +1818,7 @@ Creates an InnoDB transaction struct for the thd if it does not yet have one.
 Starts a new InnoDB transaction if a transaction is not yet started. And
 assigns a new snapshot for a consistent read if the transaction does not yet
 have one. */
-
+static
 int
 innobase_start_trx_and_assign_read_view(
 /*====================================*/
@@ -1899,7 +2032,7 @@ innobase_report_binlog_offset_and_commit(
 #if 0
 /***********************************************************************
 This function stores the binlog offset and flushes logs. */
-
+static
 void
 innobase_store_binlog_offset_and_flush_log(
 /*=======================================*/
@@ -5087,7 +5220,7 @@ ha_innobase::delete_table(
 
 /*********************************************************************
 Removes all tables in the named database inside InnoDB. */
-
+static
 void
 innobase_drop_database(
 /*===================*/
@@ -6455,7 +6588,7 @@ innodb_export_status()
 /****************************************************************************
 Implements the SHOW INNODB STATUS command. Sends the output of the InnoDB
 Monitor to the client. */
-
+static
 bool
 innodb_show_status(
 /*===============*/
@@ -6645,6 +6778,7 @@ innodb_mutex_show_status(
 	DBUG_RETURN(FALSE);
 }
 
+static
 bool innobase_show_status(handlerton *hton, THD* thd, 
                           stat_print_fn* stat_print,
                           enum ha_stat_type stat_type)
@@ -7350,7 +7484,7 @@ innobase_query_is_update(void)
 
 /***********************************************************************
 This function is used to prepare X/Open XA distributed transaction   */
-
+static
 int
 innobase_xa_prepare(
 /*================*/
@@ -7446,7 +7580,7 @@ innobase_xa_prepare(
 
 /***********************************************************************
 This function is used to recover X/Open XA distributed transactions   */
-
+static
 int
 innobase_xa_recover(
 /*================*/
@@ -7467,7 +7601,7 @@ innobase_xa_recover(
 /***********************************************************************
 This function is used to commit one X/Open XA distributed transaction
 which is in the prepared state */
-
+static
 int
 innobase_commit_by_xid(
 /*===================*/
@@ -7491,7 +7625,7 @@ innobase_commit_by_xid(
 /***********************************************************************
 This function is used to rollback one X/Open XA distributed transaction
 which is in the prepared state */
-
+static
 int
 innobase_rollback_by_xid(
 /*=====================*/
@@ -7515,9 +7649,10 @@ Create a consistent view for a cursor based on current transaction
 which is created if the corresponding MySQL thread still lacks one.
 This consistent view is then used inside of MySQL when accessing records
 using a cursor. */
-
+static
 void*
 innobase_create_cursor_view(
+/*========================*/
                           /* out: pointer to cursor view or NULL */
         handlerton *hton, /* in: innobase hton */
 	THD* thd)	  /* in: user thread handle */
@@ -7530,9 +7665,10 @@ innobase_create_cursor_view(
 Close the given consistent cursor view of a transaction and restore
 global read view to a transaction read view. Transaction is created if the
 corresponding MySQL thread still lacks one. */
-
+static
 void
 innobase_close_cursor_view(
+/*=======================*/
         handlerton *hton,
 	THD*	thd,	/* in: user thread handle */
 	void*	curview)/* in: Consistent read view to be closed */
@@ -7546,7 +7682,7 @@ Set the given consistent cursor view to a transaction which is created
 if the corresponding MySQL thread still lacks one. If the given
 consistent cursor view is NULL global read view of a transaction is
 restored to a transaction read view. */
-
+static
 void
 innobase_set_cursor_view(
 /*=====================*/
