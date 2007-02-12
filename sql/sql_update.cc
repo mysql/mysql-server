@@ -26,7 +26,7 @@
 
 /* Return 0 if row hasn't changed */
 
-static bool compare_record(TABLE *table, query_id_t query_id)
+bool compare_record(TABLE *table, query_id_t query_id)
 {
   if (table->s->blob_fields + table->s->varchar_fields == 0)
     return cmp_record(table,record[1]);
@@ -1445,6 +1445,15 @@ int multi_update::do_updates(bool from_send_error)
 
       if (!can_compare_record || compare_record(table, thd->query_id))
       {
+        int error;
+        if ((error= cur_table->view_check_option(thd, ignore)) !=
+            VIEW_CHECK_OK)
+        {
+          if (error == VIEW_CHECK_SKIP)
+            continue;
+          else if (error == VIEW_CHECK_ERROR)
+            goto err;
+        }
 	if ((local_error=table->file->update_row(table->record[1],
 						 table->record[0])))
 	{
