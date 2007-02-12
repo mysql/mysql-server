@@ -58,15 +58,6 @@ const LEX_STRING null_lex_str={0,0};
     YYABORT;				\
   }
 
-/* Helper for parsing "IS [NOT] truth_value" */
-inline Item *is_truth_value(Item *A, bool v1, bool v2)
-{
-  return new Item_func_if(create_func_ifnull(A,
-	new Item_int((char *) (v2 ? "TRUE" : "FALSE"), v2, 1)),
-	new Item_int((char *) (v1 ? "TRUE" : "FALSE"), v1, 1),
-	new Item_int((char *) (v1 ? "FALSE" : "TRUE"),!v1, 1));
-}
-
 #ifndef DBUG_OFF
 #define YYDEBUG 1
 #else
@@ -4457,13 +4448,18 @@ bool_factor:
 	| bool_test ;
 
 bool_test:
-	bool_pri IS TRUE_SYM	{ $$= is_truth_value($1,1,0); }
-	| bool_pri IS not TRUE_SYM { $$= is_truth_value($1,0,0); }
-	| bool_pri IS FALSE_SYM	{ $$= is_truth_value($1,0,1); }
-	| bool_pri IS not FALSE_SYM { $$= is_truth_value($1,1,1); }
-	| bool_pri IS UNKNOWN_SYM { $$= new Item_func_isnull($1); }
-	| bool_pri IS not UNKNOWN_SYM { $$= new Item_func_isnotnull($1); }
-	| bool_pri ;
+          bool_pri IS TRUE_SYM
+          { $$= new (YYTHD->mem_root) Item_func_istrue($1); }
+        | bool_pri IS not TRUE_SYM
+          { $$= new (YYTHD->mem_root) Item_func_isnottrue($1); }
+        | bool_pri IS FALSE_SYM
+          { $$= new (YYTHD->mem_root) Item_func_isfalse($1); }
+        | bool_pri IS not FALSE_SYM
+          { $$= new (YYTHD->mem_root) Item_func_isnotfalse($1); }
+        | bool_pri IS UNKNOWN_SYM { $$= new Item_func_isnull($1); }
+        | bool_pri IS not UNKNOWN_SYM { $$= new Item_func_isnotnull($1); }
+        | bool_pri
+        ;
 
 bool_pri:
 	bool_pri IS NULL_SYM	{ $$= new Item_func_isnull($1); }
