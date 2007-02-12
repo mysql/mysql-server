@@ -1185,11 +1185,11 @@ void Item_func_between::fix_length_and_dec()
     They are compared as integers, so for const item this time-consuming
     conversion can be done only once, not for every single comparison
   */
-  if (args[0]->type() == FIELD_ITEM &&
+  if (args[0]->real_item()->type() == FIELD_ITEM &&
       thd->lex->sql_command != SQLCOM_CREATE_VIEW &&
       thd->lex->sql_command != SQLCOM_SHOW_CREATE)
   {
-    Field *field=((Item_field*) args[0])->field;
+    Field *field=((Item_field*) (args[0]->real_item()))->field;
     if (field->can_be_compared_as_longlong())
     {
       /*
@@ -4034,11 +4034,9 @@ longlong Item_equal::val_int()
 
 void Item_equal::fix_length_and_dec()
 {
-  Item *item= const_item ? const_item : get_first();
+  Item *item= get_first();
   eval_item= cmp_item::get_comparator(item->result_type(),
                                       item->collation.collation);
-  if (item->result_type() == STRING_RESULT)
-    eval_item->cmp_charset= cmp_collation.collation;
 }
 
 bool Item_equal::walk(Item_processor processor, byte *arg)

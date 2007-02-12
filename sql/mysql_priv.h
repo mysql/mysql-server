@@ -701,6 +701,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
 void log_slow_statement(THD *thd);
 bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
+bool compare_record(TABLE *table, query_id_t query_id);
 
 bool table_cache_init(void);
 void table_cache_free(void);
@@ -931,7 +932,8 @@ int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
 int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
 int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
 int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
-bool get_schema_tables_result(JOIN *join);
+bool get_schema_tables_result(JOIN *join,
+                              enum enum_schema_table_state executed_place);
 #define is_schema_db(X) \
   !my_strcasecmp(system_charset_info, information_schema_name.str, (X))
 
