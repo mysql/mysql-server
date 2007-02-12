@@ -1098,6 +1098,7 @@ btr_cur_optimistic_insert(
 			return(DB_TOO_BIG_RECORD);
 		}
 
+		ext = btr_cur_add_ext(ext, &n_ext, big_rec_vec, &heap);
 		rec_size = rec_get_converted_size(index, entry, ext, n_ext);
 	}
 
@@ -1112,11 +1113,18 @@ btr_cur_optimistic_insert(
 	    && (btr_page_get_split_rec_to_right(cursor, &dummy_rec)
 		|| btr_page_get_split_rec_to_left(cursor, &dummy_rec))) {
 fail:
+		err = DB_FAIL;
+fail_err:
+
 		if (big_rec_vec) {
 			dtuple_convert_back_big_rec(index, entry, big_rec_vec);
 		}
 
-		return(DB_FAIL);
+		if (UNIV_LIKELY_NULL(heap)) {
+			mem_heap_free(heap);
+		}
+
+		return(err);
 	}
 
 	if (UNIV_UNLIKELY(max_size < BTR_CUR_PAGE_REORGANIZE_LIMIT
@@ -1130,22 +1138,14 @@ fail:
 	/* Check locks and write to the undo log, if specified */
 	err = btr_cur_ins_lock_and_undo(flags, cursor, entry, thr, &inherit);
 
-	if (err != DB_SUCCESS) {
+	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
 
-		if (big_rec_vec) {
-			dtuple_convert_back_big_rec(index, entry, big_rec_vec);
-		}
-		return(err);
+		goto fail_err;
 	}
 
 	page_cursor = btr_cur_get_page_cur(cursor);
 
 	reorg = FALSE;
-
-	/* Add externally stored records, if needed */
-	if (UNIV_LIKELY_NULL(big_rec_vec)) {
-		ext = btr_cur_add_ext(ext, &n_ext, big_rec_vec, &heap);
-	}
 
 	/* Now, try the insert */
 
