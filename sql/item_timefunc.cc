@@ -1054,7 +1054,8 @@ longlong Item_func_quarter::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   TIME ltime;
-  (void) get_arg0_date(&ltime, TIME_FUZZY_DATE);
+  if (get_arg0_date(&ltime, TIME_FUZZY_DATE))
+    return 0;
   return (longlong) ((ltime.month+2)/3);
 }
 
@@ -1668,6 +1669,7 @@ String *Item_func_sec_to_time::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   TIME ltime;
+  longlong arg_val= args[0]->val_int(); 
 
   if ((null_value=args[0]->null_value) || str->alloc(19))
   {
@@ -1675,7 +1677,7 @@ String *Item_func_sec_to_time::val_str(String *str)
     return (String*) 0;
   }
 
-  sec_to_time(args[0]->val_int(), args[0]->unsigned_flag, &ltime);
+  sec_to_time(arg_val, args[0]->unsigned_flag, &ltime);
   
   make_time((DATE_TIME_FORMAT *) 0, &ltime, str);
   return str;
@@ -1686,11 +1688,12 @@ longlong Item_func_sec_to_time::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   TIME ltime;
+  longlong arg_val= args[0]->val_int(); 
   
   if ((null_value=args[0]->null_value))
     return 0;
 
-  sec_to_time(args[0]->val_int(), args[0]->unsigned_flag, &ltime);
+  sec_to_time(arg_val, args[0]->unsigned_flag, &ltime);
 
   return (ltime.neg ? -1 : 1) *
     ((ltime.hour)*10000 + ltime.minute*100 + ltime.second);
@@ -2644,7 +2647,10 @@ longlong Item_date_typecast::val_int()
   DBUG_ASSERT(fixed == 1);
   TIME ltime;
   if (args[0]->get_date(&ltime, TIME_FUZZY_DATE))
+  {
+    null_value= 1;
     return 0;
+  }
   return (longlong) (ltime.year * 10000L + ltime.month * 100 + ltime.day);
 }
 

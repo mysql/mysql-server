@@ -5466,11 +5466,11 @@ join_table:
             YYERROR_UNLESS($1 && $3);
 	  }
 	  '(' using_list ')'
-          { add_join_natural($1,$3,$7); $$=$3; }
+          { add_join_natural($1,$3,$7,Select); $$=$3; }
 	| table_ref NATURAL JOIN_SYM table_factor
 	  {
             YYERROR_UNLESS($1 && ($$=$4));
-            add_join_natural($1,$4,NULL);
+            add_join_natural($1,$4,NULL,Select);
           }
 
 /* LEFT JOIN variants */
@@ -5497,11 +5497,15 @@ join_table:
             YYERROR_UNLESS($1 && $5);
 	  }
 	  USING '(' using_list ')'
-          { add_join_natural($1,$5,$9); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
+          { 
+            add_join_natural($1,$5,$9,Select); 
+            $5->outer_join|=JOIN_TYPE_LEFT; 
+            $$=$5; 
+          }
 	| table_ref NATURAL LEFT opt_outer JOIN_SYM table_factor
 	  {
             YYERROR_UNLESS($1 && $6);
- 	    add_join_natural($1,$6,NULL);
+ 	    add_join_natural($1,$6,NULL,Select);
 	    $6->outer_join|=JOIN_TYPE_LEFT;
 	    $$=$6;
 	  }
@@ -5535,12 +5539,12 @@ join_table:
 	    LEX *lex= Lex;
             if (!($$= lex->current_select->convert_right_join()))
               YYABORT;
-            add_join_natural($$,$5,$9);
+            add_join_natural($$,$5,$9,Select);
           }
 	| table_ref NATURAL RIGHT opt_outer JOIN_SYM table_factor
 	  {
             YYERROR_UNLESS($1 && $6);
-	    add_join_natural($6,$1,NULL);
+	    add_join_natural($6,$1,NULL,Select);
 	    LEX *lex= Lex;
             if (!($$= lex->current_select->convert_right_join()))
               YYABORT;
