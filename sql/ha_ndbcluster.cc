@@ -195,10 +195,10 @@ static int update_status_variables(Ndb_cluster_connection *c)
 {
   ndb_connected_port= c->get_connected_port();
   ndb_connected_host= c->get_connected_host();
-  if (ndb_cluster_node_id != c->node_id())
+  if (ndb_cluster_node_id != (int) c->node_id())
   {
     ndb_cluster_node_id= c->node_id();
-    sql_print_information("NDB: NodeID is %d, management server '%s:%u'",
+    sql_print_information("NDB: NodeID is %lu, management server '%s:%lu'",
                           ndb_cluster_node_id, ndb_connected_host,
                           ndb_connected_port);
   }
@@ -6834,9 +6834,8 @@ static int ndbcluster_init(void *p)
     {
       struct timeval now_time;
       gettimeofday(&now_time, 0);
-      ulong wait_until_ready_time= end_time.tv_sec - now_time.tv_sec;
-      if (wait_until_ready_time < 1)
-        wait_until_ready_time= 1;
+      ulong wait_until_ready_time = (end_time.tv_sec > now_time.tv_sec) ?
+        end_time.tv_sec - now_time.tv_sec : 1;
       res= g_ndb_cluster_connection->wait_until_ready(wait_until_ready_time,3);
     }
     if (res == 0)
