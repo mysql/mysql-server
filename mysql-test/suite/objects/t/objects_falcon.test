@@ -1,0 +1,21 @@
+# +--------------------------------------------------------------------+
+# |                         FOR INTERNAL USE ONLY!                     |
+# +--------------------------------------------------------------------+
+# |                           objects_falcon.test                      |
+# |                        Copyright 2006 by MySQL AB                  |
+# +--------------------------------------------------------------------+
+# |                         FOR INTERNAL USE ONLY!                     |
+# +--------------------------------------------------------------------+
+--source include/have_falcon.inc
+let $engine_type= Falcon;
+
+#
+# Should the created database be dropped? Default is 1.
+#
+let $drop_database= 1;
+
+#
+# Create the objects.
+#
+--source suite/objects/include/objects.inc
+
