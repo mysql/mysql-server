@@ -97,3 +97,14 @@ create table t1 (f1 int, f2 int);
 insert into t1 values(1,1),(0,0);
 select f1, f2, if(f1, 40.0, 5.00) from t1 group by f1 order by f2;
 drop table t1;
+
+#
+# Bug#24532 (The return data type of IS TRUE is different from similar
+# operations)
+#
+# IF(x, unsigned, unsigned) should be unsigned.
+#
+
+select if(0, 18446744073709551610, 18446744073709551610);
+
+
