@@ -5505,6 +5505,13 @@ int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
   {
     if (field_arg->flags & NO_DEFAULT_VALUE_FLAG)
     {
+      if (field_arg->reset())
+      {
+        my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
+                   ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
+        return -1;
+      }
+
       if (context->error_processor == &view_error_processor)
       {
         TABLE_LIST *view= cached_table->top_table();
@@ -5523,7 +5530,6 @@ int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
                             ER(ER_NO_DEFAULT_FOR_FIELD),
                             field_arg->field_name);
       }
-      field_arg->set_default();
       return 1;
     }
     field_arg->set_default();
