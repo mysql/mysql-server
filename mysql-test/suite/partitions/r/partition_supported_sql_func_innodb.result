@@ -1,0 +1,4575 @@
+-------------------------------------------------------------------------
+---  abs(col1)  in partition with coltype  int
+-------------------------------------------------------------------------
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+-------------------------------------------------------------------------
+---  Create tables with abs(col1)
+-------------------------------------------------------------------------
+create table t1 (col1 int) engine='INNODB' 
+partition by range(abs(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t2 (col1 int) engine='INNODB' 
+partition by list(abs(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t3 (col1 int) engine='INNODB' 
+partition by hash(abs(col1));
+create table t4 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(abs(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t5 (colint int, col1 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(abs(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t6 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (abs(15)),
+partition p1 values less than maxvalue);
+-------------------------------------------------------------------------
+---  Access tables with abs(col1) 
+-------------------------------------------------------------------------
+insert into t1 values (5 );
+insert into t1 values (13 );
+insert into t2 values (5 );
+insert into t2 values (13 );
+insert into t2 values (17 );
+insert into t3 values (5 );
+insert into t3 values (13 );
+insert into t3 values (17 );
+insert into t4 values (1,5 );
+insert into t4 values (2,13 );
+insert into t5 values (1,5 );
+insert into t5 values (2,13 );
+insert into t5 values (3,17 );
+insert into t6 values (1,13 );
+insert into t6 values (2,17 );
+select abs(col1) from t1;
+abs(col1)
+5
+13
+select * from t1;
+col1
+5
+13
+select * from t2;
+col1
+5
+13
+17
+select * from t3;
+col1
+5
+13
+17
+select * from t4;
+colint	col1
+1	5
+2	13
+select * from t5;
+colint	col1
+1	5
+2	13
+3	17
+select * from t6;
+colint	col1
+1	13
+2	17
+-------------------------------------------------------------------------
+---  Alter tables with abs(col1)
+-------------------------------------------------------------------------
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 engine='INNODB' as select * from t1;
+create table t22 engine='INNODB' as select * from t2;
+create table t33 engine='INNODB' as select * from t3;
+create table t44 engine='INNODB' as select * from t4;
+create table t55 engine='INNODB' as select * from t5;
+create table t66 engine='INNODB' as select * from t6;
+alter table t11
+partition by range(abs(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t22
+partition by list(abs(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t33
+partition by hash(abs(col1));
+alter table t44
+partition by range(colint) 
+subpartition by hash(abs(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t55
+partition by list(colint)
+subpartition by hash(abs(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t66
+partition by range(colint) 
+(partition p0 values less than (abs(15)),
+partition p1 values less than maxvalue);
+select * from t11;
+col1
+5
+13
+select * from t22;
+col1
+5
+13
+17
+select * from t33;
+col1
+5
+13
+17
+select * from t44;
+colint	col1
+1	5
+2	13
+select * from t55;
+colint	col1
+1	5
+2	13
+3	17
+select * from t66;
+colint	col1
+1	13
+2	17
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  ascii(col1)  in partition with coltype  char(1)
+-------------------------------------------------------------------------
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+-------------------------------------------------------------------------
+---  Create tables with ascii(col1)
+-------------------------------------------------------------------------
+create table t1 (col1 char(1)) engine='INNODB' 
+partition by range(ascii(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t2 (col1 char(1)) engine='INNODB' 
+partition by list(ascii(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t3 (col1 char(1)) engine='INNODB' 
+partition by hash(ascii(col1));
+create table t4 (colint int, col1 char(1)) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(ascii(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t5 (colint int, col1 char(1)) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(ascii(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t6 (colint int, col1 char(1)) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (ascii('5')),
+partition p1 values less than maxvalue);
+-------------------------------------------------------------------------
+---  Access tables with ascii(col1) 
+-------------------------------------------------------------------------
+insert into t1 values ('1');
+insert into t1 values ('9');
+insert into t2 values ('1');
+insert into t2 values ('9');
+insert into t2 values ('3');
+insert into t3 values ('1');
+insert into t3 values ('9');
+insert into t3 values ('3');
+insert into t4 values (1,'1');
+insert into t4 values (2,'9');
+insert into t5 values (1,'1');
+insert into t5 values (2,'9');
+insert into t5 values (3,'3');
+insert into t6 values (1,'9');
+insert into t6 values (2,'3');
+select ascii(col1) from t1;
+ascii(col1)
+49
+57
+select * from t1;
+col1
+1
+9
+select * from t2;
+col1
+1
+9
+3
+select * from t3;
+col1
+1
+9
+3
+select * from t4;
+colint	col1
+1	1
+2	9
+select * from t5;
+colint	col1
+1	1
+2	9
+3	3
+select * from t6;
+colint	col1
+1	9
+2	3
+-------------------------------------------------------------------------
+---  Alter tables with ascii(col1)
+-------------------------------------------------------------------------
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 engine='INNODB' as select * from t1;
+create table t22 engine='INNODB' as select * from t2;
+create table t33 engine='INNODB' as select * from t3;
+create table t44 engine='INNODB' as select * from t4;
+create table t55 engine='INNODB' as select * from t5;
+create table t66 engine='INNODB' as select * from t6;
+alter table t11
+partition by range(ascii(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t22
+partition by list(ascii(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t33
+partition by hash(ascii(col1));
+alter table t44
+partition by range(colint) 
+subpartition by hash(ascii(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t55
+partition by list(colint)
+subpartition by hash(ascii(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t66
+partition by range(colint) 
+(partition p0 values less than (ascii('5')),
+partition p1 values less than maxvalue);
+select * from t11;
+col1
+1
+9
+select * from t22;
+col1
+1
+9
+3
+select * from t33;
+col1
+1
+9
+3
+select * from t44;
+colint	col1
+1	1
+2	9
+select * from t55;
+colint	col1
+1	1
+2	9
+3	3
+select * from t66;
+colint	col1
+1	9
+2	3
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  cast(ceiling(col1) as signed integer)  in partition with coltype  float(7,4)
+-------------------------------------------------------------------------
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+-------------------------------------------------------------------------
+---  Create tables with cast(ceiling(col1) as signed integer)
+-------------------------------------------------------------------------
+create table t1 (col1 float(7,4)) engine='INNODB' 
+partition by range(cast(ceiling(col1) as signed integer)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t2 (col1 float(7,4)) engine='INNODB' 
+partition by list(cast(ceiling(col1) as signed integer)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t3 (col1 float(7,4)) engine='INNODB' 
+partition by hash(cast(ceiling(col1) as signed integer));
+create table t4 (colint int, col1 float(7,4)) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(cast(ceiling(col1) as signed integer)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t5 (colint int, col1 float(7,4)) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(cast(ceiling(col1) as signed integer)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t6 (colint int, col1 float(7,4)) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (cast(ceiling(15) as signed integer)),
+partition p1 values less than maxvalue);
+-------------------------------------------------------------------------
+---  Access tables with cast(ceiling(col1) as signed integer) 
+-------------------------------------------------------------------------
+insert into t1 values (5.1230);
+insert into t1 values (13.345);
+insert into t2 values (5.1230);
+insert into t2 values (13.345);
+insert into t2 values (17.987);
+insert into t3 values (5.1230);
+insert into t3 values (13.345);
+insert into t3 values (17.987);
+insert into t4 values (1,5.1230);
+insert into t4 values (2,13.345);
+insert into t5 values (1,5.1230);
+insert into t5 values (2,13.345);
+insert into t5 values (3,17.987);
+insert into t6 values (1,13.345);
+insert into t6 values (2,17.987);
+select cast(ceiling(col1) as signed integer) from t1;
+cast(ceiling(col1) as signed integer)
+6
+14
+select * from t1;
+col1
+5.1230
+13.3450
+select * from t2;
+col1
+5.1230
+13.3450
+17.9870
+select * from t3;
+col1
+5.1230
+13.3450
+17.9870
+select * from t4;
+colint	col1
+1	5.1230
+2	13.3450
+select * from t5;
+colint	col1
+1	5.1230
+2	13.3450
+3	17.9870
+select * from t6;
+colint	col1
+1	13.3450
+2	17.9870
+-------------------------------------------------------------------------
+---  Alter tables with cast(ceiling(col1) as signed integer)
+-------------------------------------------------------------------------
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 engine='INNODB' as select * from t1;
+create table t22 engine='INNODB' as select * from t2;
+create table t33 engine='INNODB' as select * from t3;
+create table t44 engine='INNODB' as select * from t4;
+create table t55 engine='INNODB' as select * from t5;
+create table t66 engine='INNODB' as select * from t6;
+alter table t11
+partition by range(cast(ceiling(col1) as signed integer)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t22
+partition by list(cast(ceiling(col1) as signed integer)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t33
+partition by hash(cast(ceiling(col1) as signed integer));
+alter table t44
+partition by range(colint) 
+subpartition by hash(cast(ceiling(col1) as signed integer)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t55
+partition by list(colint)
+subpartition by hash(cast(ceiling(col1) as signed integer)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t66
+partition by range(colint) 
+(partition p0 values less than (cast(ceiling(15) as signed integer)),
+partition p1 values less than maxvalue);
+select * from t11;
+col1
+5.1230
+13.3450
+select * from t22;
+col1
+5.1230
+13.3450
+17.9870
+select * from t33;
+col1
+5.1230
+13.3450
+17.9870
+select * from t44;
+colint	col1
+1	5.1230
+2	13.3450
+select * from t55;
+colint	col1
+1	5.1230
+2	13.3450
+3	17.9870
+select * from t66;
+colint	col1
+1	13.3450
+2	17.9870
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  cast(floor(col1) as signed)  in partition with coltype  float(7,4)
+-------------------------------------------------------------------------
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+-------------------------------------------------------------------------
+---  Create tables with cast(floor(col1) as signed)
+-------------------------------------------------------------------------
+create table t1 (col1 float(7,4)) engine='INNODB' 
+partition by range(cast(floor(col1) as signed)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t2 (col1 float(7,4)) engine='INNODB' 
+partition by list(cast(floor(col1) as signed)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t3 (col1 float(7,4)) engine='INNODB' 
+partition by hash(cast(floor(col1) as signed));
+create table t4 (colint int, col1 float(7,4)) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(cast(floor(col1) as signed)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t5 (colint int, col1 float(7,4)) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(cast(floor(col1) as signed)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t6 (colint int, col1 float(7,4)) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (cast(floor(15.123) as signed)),
+partition p1 values less than maxvalue);
+-------------------------------------------------------------------------
+---  Access tables with cast(floor(col1) as signed) 
+-------------------------------------------------------------------------
+insert into t1 values (5.1230);
+insert into t1 values (13.345);
+insert into t2 values (5.1230);
+insert into t2 values (13.345);
+insert into t2 values (17.987);
+insert into t3 values (5.1230);
+insert into t3 values (13.345);
+insert into t3 values (17.987);
+insert into t4 values (1,5.1230);
+insert into t4 values (2,13.345);
+insert into t5 values (1,5.1230);
+insert into t5 values (2,13.345);
+insert into t5 values (3,17.987);
+insert into t6 values (1,13.345);
+insert into t6 values (2,17.987);
+select cast(floor(col1) as signed) from t1;
+cast(floor(col1) as signed)
+5
+13
+select * from t1;
+col1
+5.1230
+13.3450
+select * from t2;
+col1
+5.1230
+13.3450
+17.9870
+select * from t3;
+col1
+5.1230
+13.3450
+17.9870
+select * from t4;
+colint	col1
+1	5.1230
+2	13.3450
+select * from t5;
+colint	col1
+1	5.1230
+2	13.3450
+3	17.9870
+select * from t6;
+colint	col1
+1	13.3450
+2	17.9870
+-------------------------------------------------------------------------
+---  Alter tables with cast(floor(col1) as signed)
+-------------------------------------------------------------------------
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 engine='INNODB' as select * from t1;
+create table t22 engine='INNODB' as select * from t2;
+create table t33 engine='INNODB' as select * from t3;
+create table t44 engine='INNODB' as select * from t4;
+create table t55 engine='INNODB' as select * from t5;
+create table t66 engine='INNODB' as select * from t6;
+alter table t11
+partition by range(cast(floor(col1) as signed)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t22
+partition by list(cast(floor(col1) as signed)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t33
+partition by hash(cast(floor(col1) as signed));
+alter table t44
+partition by range(colint) 
+subpartition by hash(cast(floor(col1) as signed)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t55
+partition by list(colint)
+subpartition by hash(cast(floor(col1) as signed)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t66
+partition by range(colint) 
+(partition p0 values less than (cast(floor(15.123) as signed)),
+partition p1 values less than maxvalue);
+select * from t11;
+col1
+5.1230
+13.3450
+select * from t22;
+col1
+5.1230
+13.3450
+17.9870
+select * from t33;
+col1
+5.1230
+13.3450
+17.9870
+select * from t44;
+colint	col1
+1	5.1230
+2	13.3450
+select * from t55;
+colint	col1
+1	5.1230
+2	13.3450
+3	17.9870
+select * from t66;
+colint	col1
+1	13.3450
+2	17.9870
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  cast(mod(col1,10) as signed)  in partition with coltype  float(7,4)
+-------------------------------------------------------------------------
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+-------------------------------------------------------------------------
+---  Create tables with cast(mod(col1,10) as signed)
+-------------------------------------------------------------------------
+create table t1 (col1 float(7,4)) engine='INNODB' 
+partition by range(cast(mod(col1,10) as signed)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t2 (col1 float(7,4)) engine='INNODB' 
+partition by list(cast(mod(col1,10) as signed)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t3 (col1 float(7,4)) engine='INNODB' 
+partition by hash(cast(mod(col1,10) as signed));
+create table t4 (colint int, col1 float(7,4)) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(cast(mod(col1,10) as signed)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t5 (colint int, col1 float(7,4)) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(cast(mod(col1,10) as signed)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t6 (colint int, col1 float(7,4)) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (cast(mod(15,10) as signed)),
+partition p1 values less than maxvalue);
+-------------------------------------------------------------------------
+---  Access tables with cast(mod(col1,10) as signed) 
+-------------------------------------------------------------------------
+insert into t1 values (5.0000);
+insert into t1 values (19);
+insert into t2 values (5.0000);
+insert into t2 values (19);
+insert into t2 values (17);
+insert into t3 values (5.0000);
+insert into t3 values (19);
+insert into t3 values (17);
+insert into t4 values (1,5.0000);
+insert into t4 values (2,19);
+insert into t5 values (1,5.0000);
+insert into t5 values (2,19);
+insert into t5 values (3,17);
+insert into t6 values (1,19);
+insert into t6 values (2,17);
+select cast(mod(col1,10) as signed) from t1;
+cast(mod(col1,10) as signed)
+5
+9
+select * from t1;
+col1
+5.0000
+19.0000
+select * from t2;
+col1
+5.0000
+19.0000
+17.0000
+select * from t3;
+col1
+5.0000
+19.0000
+17.0000
+select * from t4;
+colint	col1
+1	5.0000
+2	19.0000
+select * from t5;
+colint	col1
+1	5.0000
+2	19.0000
+3	17.0000
+select * from t6;
+colint	col1
+1	19.0000
+2	17.0000
+-------------------------------------------------------------------------
+---  Alter tables with cast(mod(col1,10) as signed)
+-------------------------------------------------------------------------
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 engine='INNODB' as select * from t1;
+create table t22 engine='INNODB' as select * from t2;
+create table t33 engine='INNODB' as select * from t3;
+create table t44 engine='INNODB' as select * from t4;
+create table t55 engine='INNODB' as select * from t5;
+create table t66 engine='INNODB' as select * from t6;
+alter table t11
+partition by range(cast(mod(col1,10) as signed)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t22
+partition by list(cast(mod(col1,10) as signed)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t33
+partition by hash(cast(mod(col1,10) as signed));
+alter table t44
+partition by range(colint) 
+subpartition by hash(cast(mod(col1,10) as signed)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t55
+partition by list(colint)
+subpartition by hash(cast(mod(col1,10) as signed)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t66
+partition by range(colint) 
+(partition p0 values less than (cast(mod(15,10) as signed)),
+partition p1 values less than maxvalue);
+select * from t11;
+col1
+5.0000
+19.0000
+select * from t22;
+col1
+5.0000
+19.0000
+17.0000
+select * from t33;
+col1
+5.0000
+19.0000
+17.0000
+select * from t44;
+colint	col1
+1	5.0000
+2	19.0000
+select * from t55;
+colint	col1
+1	5.0000
+2	19.0000
+3	17.0000
+select * from t66;
+colint	col1
+1	19.0000
+2	17.0000
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  ord(col1)  in partition with coltype  char(3)
+-------------------------------------------------------------------------
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+-------------------------------------------------------------------------
+---  Create tables with ord(col1)
+-------------------------------------------------------------------------
+create table t1 (col1 char(3)) engine='INNODB' 
+partition by range(ord(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t2 (col1 char(3)) engine='INNODB' 
+partition by list(ord(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t3 (col1 char(3)) engine='INNODB' 
+partition by hash(ord(col1));
+create table t4 (colint int, col1 char(3)) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(ord(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t5 (colint int, col1 char(3)) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(ord(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t6 (colint int, col1 char(3)) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (ord('a')),
+partition p1 values less than maxvalue);
+-------------------------------------------------------------------------
+---  Access tables with ord(col1) 
+-------------------------------------------------------------------------
+insert into t1 values ('1');
+insert into t1 values ('9');
+insert into t2 values ('1');
+insert into t2 values ('9');
+insert into t2 values ('3');
+insert into t3 values ('1');
+insert into t3 values ('9');
+insert into t3 values ('3');
+insert into t4 values (1,'1');
+insert into t4 values (2,'9');
+insert into t5 values (1,'1');
+insert into t5 values (2,'9');
+insert into t5 values (3,'3');
+insert into t6 values (1,'9');
+insert into t6 values (2,'3');
+select ord(col1) from t1;
+ord(col1)
+49
+57
+select * from t1;
+col1
+1
+9
+select * from t2;
+col1
+1
+9
+3
+select * from t3;
+col1
+1
+9
+3
+select * from t4;
+colint	col1
+1	1
+2	9
+select * from t5;
+colint	col1
+1	1
+2	9
+3	3
+select * from t6;
+colint	col1
+1	9
+2	3
+-------------------------------------------------------------------------
+---  Alter tables with ord(col1)
+-------------------------------------------------------------------------
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 engine='INNODB' as select * from t1;
+create table t22 engine='INNODB' as select * from t2;
+create table t33 engine='INNODB' as select * from t3;
+create table t44 engine='INNODB' as select * from t4;
+create table t55 engine='INNODB' as select * from t5;
+create table t66 engine='INNODB' as select * from t6;
+alter table t11
+partition by range(ord(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t22
+partition by list(ord(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t33
+partition by hash(ord(col1));
+alter table t44
+partition by range(colint) 
+subpartition by hash(ord(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t55
+partition by list(colint)
+subpartition by hash(ord(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t66
+partition by range(colint) 
+(partition p0 values less than (ord('a')),
+partition p1 values less than maxvalue);
+select * from t11;
+col1
+1
+9
+select * from t22;
+col1
+1
+9
+3
+select * from t33;
+col1
+1
+9
+3
+select * from t44;
+colint	col1
+1	1
+2	9
+select * from t55;
+colint	col1
+1	1
+2	9
+3	3
+select * from t66;
+colint	col1
+1	9
+2	3
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  day(col1)  in partition with coltype  date
+-------------------------------------------------------------------------
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+-------------------------------------------------------------------------
+---  Create tables with day(col1)
+-------------------------------------------------------------------------
+create table t1 (col1 date) engine='INNODB' 
+partition by range(day(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t2 (col1 date) engine='INNODB' 
+partition by list(day(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t3 (col1 date) engine='INNODB' 
+partition by hash(day(col1));
+create table t4 (colint int, col1 date) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(day(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t5 (colint int, col1 date) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(day(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t6 (colint int, col1 date) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (day('2006-12-21')),
+partition p1 values less than maxvalue);
+-------------------------------------------------------------------------
+---  Access tables with day(col1) 
+-------------------------------------------------------------------------
+insert into t1 values ('2006-02-03');
+insert into t1 values ('2006-01-17');
+insert into t2 values ('2006-02-03');
+insert into t2 values ('2006-01-17');
+insert into t2 values ('2006-01-25');
+insert into t3 values ('2006-02-03');
+insert into t3 values ('2006-01-17');
+insert into t3 values ('2006-01-25');
+insert into t4 values (1,'2006-02-03');
+insert into t4 values (2,'2006-01-17');
+insert into t5 values (1,'2006-02-03');
+insert into t5 values (2,'2006-01-17');
+insert into t5 values (3,'2006-01-25');
+insert into t6 values (1,'2006-01-17');
+insert into t6 values (2,'2006-01-25');
+select day(col1) from t1;
+day(col1)
+3
+17
+select * from t1;
+col1
+2006-02-03
+2006-01-17
+select * from t2;
+col1
+2006-02-03
+2006-01-17
+2006-01-25
+select * from t3;
+col1
+2006-02-03
+2006-01-17
+2006-01-25
+select * from t4;
+colint	col1
+1	2006-02-03
+2	2006-01-17
+select * from t5;
+colint	col1
+1	2006-02-03
+2	2006-01-17
+3	2006-01-25
+select * from t6;
+colint	col1
+1	2006-01-17
+2	2006-01-25
+-------------------------------------------------------------------------
+---  Alter tables with day(col1)
+-------------------------------------------------------------------------
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 engine='INNODB' as select * from t1;
+create table t22 engine='INNODB' as select * from t2;
+create table t33 engine='INNODB' as select * from t3;
+create table t44 engine='INNODB' as select * from t4;
+create table t55 engine='INNODB' as select * from t5;
+create table t66 engine='INNODB' as select * from t6;
+alter table t11
+partition by range(day(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t22
+partition by list(day(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t33
+partition by hash(day(col1));
+alter table t44
+partition by range(colint) 
+subpartition by hash(day(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t55
+partition by list(colint)
+subpartition by hash(day(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t66
+partition by range(colint) 
+(partition p0 values less than (day('2006-12-21')),
+partition p1 values less than maxvalue);
+select * from t11;
+col1
+2006-02-03
+2006-01-17
+select * from t22;
+col1
+2006-02-03
+2006-01-17
+2006-01-25
+select * from t33;
+col1
+2006-02-03
+2006-01-17
+2006-01-25
+select * from t44;
+colint	col1
+1	2006-02-03
+2	2006-01-17
+select * from t55;
+colint	col1
+1	2006-02-03
+2	2006-01-17
+3	2006-01-25
+select * from t66;
+colint	col1
+1	2006-01-17
+2	2006-01-25
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  dayofmonth(col1)  in partition with coltype  date
+-------------------------------------------------------------------------
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+-------------------------------------------------------------------------
+---  Create tables with dayofmonth(col1)
+-------------------------------------------------------------------------
+create table t1 (col1 date) engine='INNODB' 
+partition by range(dayofmonth(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t2 (col1 date) engine='INNODB' 
+partition by list(dayofmonth(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t3 (col1 date) engine='INNODB' 
+partition by hash(dayofmonth(col1));
+create table t4 (colint int, col1 date) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(dayofmonth(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t5 (colint int, col1 date) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(dayofmonth(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t6 (colint int, col1 date) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (dayofmonth('2006-12-24')),
+partition p1 values less than maxvalue);
+-------------------------------------------------------------------------
+---  Access tables with dayofmonth(col1) 
+-------------------------------------------------------------------------
+insert into t1 values ('2006-02-03');
+insert into t1 values ('2006-01-17');
+insert into t2 values ('2006-02-03');
+insert into t2 values ('2006-01-17');
+insert into t2 values ('2006-01-25');
+insert into t3 values ('2006-02-03');
+insert into t3 values ('2006-01-17');
+insert into t3 values ('2006-01-25');
+insert into t4 values (1,'2006-02-03');
+insert into t4 values (2,'2006-01-17');
+insert into t5 values (1,'2006-02-03');
+insert into t5 values (2,'2006-01-17');
+insert into t5 values (3,'2006-01-25');
+insert into t6 values (1,'2006-01-17');
+insert into t6 values (2,'2006-01-25');
+select dayofmonth(col1) from t1;
+dayofmonth(col1)
+3
+17
+select * from t1;
+col1
+2006-02-03
+2006-01-17
+select * from t2;
+col1
+2006-02-03
+2006-01-17
+2006-01-25
+select * from t3;
+col1
+2006-02-03
+2006-01-17
+2006-01-25
+select * from t4;
+colint	col1
+1	2006-02-03
+2	2006-01-17
+select * from t5;
+colint	col1
+1	2006-02-03
+2	2006-01-17
+3	2006-01-25
+select * from t6;
+colint	col1
+1	2006-01-17
+2	2006-01-25
+-------------------------------------------------------------------------
+---  Alter tables with dayofmonth(col1)
+-------------------------------------------------------------------------
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 engine='INNODB' as select * from t1;
+create table t22 engine='INNODB' as select * from t2;
+create table t33 engine='INNODB' as select * from t3;
+create table t44 engine='INNODB' as select * from t4;
+create table t55 engine='INNODB' as select * from t5;
+create table t66 engine='INNODB' as select * from t6;
+alter table t11
+partition by range(dayofmonth(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t22
+partition by list(dayofmonth(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t33
+partition by hash(dayofmonth(col1));
+alter table t44
+partition by range(colint) 
+subpartition by hash(dayofmonth(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t55
+partition by list(colint)
+subpartition by hash(dayofmonth(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t66
+partition by range(colint) 
+(partition p0 values less than (dayofmonth('2006-12-24')),
+partition p1 values less than maxvalue);
+select * from t11;
+col1
+2006-02-03
+2006-01-17
+select * from t22;
+col1
+2006-02-03
+2006-01-17
+2006-01-25
+select * from t33;
+col1
+2006-02-03
+2006-01-17
+2006-01-25
+select * from t44;
+colint	col1
+1	2006-02-03
+2	2006-01-17
+select * from t55;
+colint	col1
+1	2006-02-03
+2	2006-01-17
+3	2006-01-25
+select * from t66;
+colint	col1
+1	2006-01-17
+2	2006-01-25
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  dayofweek(col1)  in partition with coltype  date
+-------------------------------------------------------------------------
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+-------------------------------------------------------------------------
+---  Create tables with dayofweek(col1)
+-------------------------------------------------------------------------
+create table t1 (col1 date) engine='INNODB' 
+partition by range(dayofweek(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t2 (col1 date) engine='INNODB' 
+partition by list(dayofweek(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t3 (col1 date) engine='INNODB' 
+partition by hash(dayofweek(col1));
+create table t4 (colint int, col1 date) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(dayofweek(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t5 (colint int, col1 date) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(dayofweek(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t6 (colint int, col1 date) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (dayofweek('2006-12-24')),
+partition p1 values less than maxvalue);
+-------------------------------------------------------------------------
+---  Access tables with dayofweek(col1) 
+-------------------------------------------------------------------------
+insert into t1 values ('2006-01-03');
+insert into t1 values ('2006-02-17');
+insert into t2 values ('2006-01-03');
+insert into t2 values ('2006-02-17');
+insert into t2 values ('2006-01-25');
+insert into t3 values ('2006-01-03');
+insert into t3 values ('2006-02-17');
+insert into t3 values ('2006-01-25');
+insert into t4 values (1,'2006-01-03');
+insert into t4 values (2,'2006-02-17');
+insert into t5 values (1,'2006-01-03');
+insert into t5 values (2,'2006-02-17');
+insert into t5 values (3,'2006-01-25');
+insert into t6 values (1,'2006-02-17');
+insert into t6 values (2,'2006-01-25');
+select dayofweek(col1) from t1;
+dayofweek(col1)
+3
+6
+select * from t1;
+col1
+2006-01-03
+2006-02-17
+select * from t2;
+col1
+2006-01-03
+2006-02-17
+2006-01-25
+select * from t3;
+col1
+2006-01-03
+2006-02-17
+2006-01-25
+select * from t4;
+colint	col1
+2	2006-02-17
+1	2006-01-03
+select * from t5;
+colint	col1
+2	2006-02-17
+3	2006-01-25
+1	2006-01-03
+select * from t6;
+colint	col1
+1	2006-02-17
+2	2006-01-25
+-------------------------------------------------------------------------
+---  Alter tables with dayofweek(col1)
+-------------------------------------------------------------------------
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 engine='INNODB' as select * from t1;
+create table t22 engine='INNODB' as select * from t2;
+create table t33 engine='INNODB' as select * from t3;
+create table t44 engine='INNODB' as select * from t4;
+create table t55 engine='INNODB' as select * from t5;
+create table t66 engine='INNODB' as select * from t6;
+alter table t11
+partition by range(dayofweek(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t22
+partition by list(dayofweek(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t33
+partition by hash(dayofweek(col1));
+alter table t44
+partition by range(colint) 
+subpartition by hash(dayofweek(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t55
+partition by list(colint)
+subpartition by hash(dayofweek(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t66
+partition by range(colint) 
+(partition p0 values less than (dayofweek('2006-12-24')),
+partition p1 values less than maxvalue);
+select * from t11;
+col1
+2006-01-03
+2006-02-17
+select * from t22;
+col1
+2006-01-03
+2006-02-17
+2006-01-25
+select * from t33;
+col1
+2006-01-03
+2006-02-17
+2006-01-25
+select * from t44;
+colint	col1
+2	2006-02-17
+1	2006-01-03
+select * from t55;
+colint	col1
+2	2006-02-17
+3	2006-01-25
+1	2006-01-03
+select * from t66;
+colint	col1
+1	2006-02-17
+2	2006-01-25
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  dayofyear(col1)  in partition with coltype  date
+-------------------------------------------------------------------------
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+-------------------------------------------------------------------------
+---  Create tables with dayofyear(col1)
+-------------------------------------------------------------------------
+create table t1 (col1 date) engine='INNODB' 
+partition by range(dayofyear(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t2 (col1 date) engine='INNODB' 
+partition by list(dayofyear(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t3 (col1 date) engine='INNODB' 
+partition by hash(dayofyear(col1));
+create table t4 (colint int, col1 date) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(dayofyear(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t5 (colint int, col1 date) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(dayofyear(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t6 (colint int, col1 date) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (dayofyear('2006-12-25')),
+partition p1 values less than maxvalue);
+-------------------------------------------------------------------------
+---  Access tables with dayofyear(col1) 
+-------------------------------------------------------------------------
+insert into t1 values ('2006-01-03');
+insert into t1 values ('2006-01-17');
+insert into t2 values ('2006-01-03');
+insert into t2 values ('2006-01-17');
+insert into t2 values ('2006-02-25');
+insert into t3 values ('2006-01-03');
+insert into t3 values ('2006-01-17');
+insert into t3 values ('2006-02-25');
+insert into t4 values (1,'2006-01-03');
+insert into t4 values (2,'2006-01-17');
+insert into t5 values (1,'2006-01-03');
+insert into t5 values (2,'2006-01-17');
+insert into t5 values (3,'2006-02-25');
+insert into t6 values (1,'2006-01-17');
+insert into t6 values (2,'2006-02-25');
+select dayofyear(col1) from t1;
+dayofyear(col1)
+3
+17
+select * from t1;
+col1
+2006-01-03
+2006-01-17
+select * from t2;
+col1
+2006-01-03
+2006-01-17
+2006-02-25
+select * from t3;
+col1
+2006-01-03
+2006-01-17
+2006-02-25
+select * from t4;
+colint	col1
+1	2006-01-03
+2	2006-01-17
+select * from t5;
+colint	col1
+3	2006-02-25
+1	2006-01-03
+2	2006-01-17
+select * from t6;
+colint	col1
+1	2006-01-17
+2	2006-02-25
+-------------------------------------------------------------------------
+---  Alter tables with dayofyear(col1)
+-------------------------------------------------------------------------
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 engine='INNODB' as select * from t1;
+create table t22 engine='INNODB' as select * from t2;
+create table t33 engine='INNODB' as select * from t3;
+create table t44 engine='INNODB' as select * from t4;
+create table t55 engine='INNODB' as select * from t5;
+create table t66 engine='INNODB' as select * from t6;
+alter table t11
+partition by range(dayofyear(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t22
+partition by list(dayofyear(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t33
+partition by hash(dayofyear(col1));
+alter table t44
+partition by range(colint) 
+subpartition by hash(dayofyear(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t55
+partition by list(colint)
+subpartition by hash(dayofyear(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t66
+partition by range(colint) 
+(partition p0 values less than (dayofyear('2006-12-25')),
+partition p1 values less than maxvalue);
+select * from t11;
+col1
+2006-01-03
+2006-01-17
+select * from t22;
+col1
+2006-01-03
+2006-01-17
+2006-02-25
+select * from t33;
+col1
+2006-01-03
+2006-01-17
+2006-02-25
+select * from t44;
+colint	col1
+1	2006-01-03
+2	2006-01-17
+select * from t55;
+colint	col1
+3	2006-02-25
+1	2006-01-03
+2	2006-01-17
+select * from t66;
+colint	col1
+1	2006-01-17
+2	2006-02-25
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  dayofyear(col1)  in partition with coltype  char(30)
+-------------------------------------------------------------------------
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+-------------------------------------------------------------------------
+---  Create tables with dayofyear(col1)
+-------------------------------------------------------------------------
+create table t1 (col1 char(30)) engine='INNODB' 
+partition by range(dayofyear(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t2 (col1 char(30)) engine='INNODB' 
+partition by list(dayofyear(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t3 (col1 char(30)) engine='INNODB' 
+partition by hash(dayofyear(col1));
+create table t4 (colint int, col1 char(30)) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(dayofyear(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t5 (colint int, col1 char(30)) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(dayofyear(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t6 (colint int, col1 char(30)) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (dayofyear('2006-12-25')),
+partition p1 values less than maxvalue);
+-------------------------------------------------------------------------
+---  Access tables with dayofyear(col1) 
+-------------------------------------------------------------------------
+insert into t1 values ('2006-01-03');
+insert into t1 values ('2006-01-17');
+insert into t2 values ('2006-01-03');
+insert into t2 values ('2006-01-17');
+insert into t2 values ('2006-02-25');
+insert into t3 values ('2006-01-03');
+insert into t3 values ('2006-01-17');
+insert into t3 values ('2006-02-25');
+insert into t4 values (1,'2006-01-03');
+insert into t4 values (2,'2006-01-17');
+insert into t5 values (1,'2006-01-03');
+insert into t5 values (2,'2006-01-17');
+insert into t5 values (3,'2006-02-25');
+insert into t6 values (1,'2006-01-17');
+insert into t6 values (2,'2006-02-25');
+select dayofyear(col1) from t1;
+dayofyear(col1)
+3
+17
+select * from t1;
+col1
+2006-01-03
+2006-01-17
+select * from t2;
+col1
+2006-01-03
+2006-01-17
+2006-02-25
+select * from t3;
+col1
+2006-01-03
+2006-01-17
+2006-02-25
+select * from t4;
+colint	col1
+1	2006-01-03
+2	2006-01-17
+select * from t5;
+colint	col1
+3	2006-02-25
+1	2006-01-03
+2	2006-01-17
+select * from t6;
+colint	col1
+1	2006-01-17
+2	2006-02-25
+-------------------------------------------------------------------------
+---  Alter tables with dayofyear(col1)
+-------------------------------------------------------------------------
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 engine='INNODB' as select * from t1;
+create table t22 engine='INNODB' as select * from t2;
+create table t33 engine='INNODB' as select * from t3;
+create table t44 engine='INNODB' as select * from t4;
+create table t55 engine='INNODB' as select * from t5;
+create table t66 engine='INNODB' as select * from t6;
+alter table t11
+partition by range(dayofyear(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t22
+partition by list(dayofyear(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t33
+partition by hash(dayofyear(col1));
+alter table t44
+partition by range(colint) 
+subpartition by hash(dayofyear(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t55
+partition by list(colint)
+subpartition by hash(dayofyear(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t66
+partition by range(colint) 
+(partition p0 values less than (dayofyear('2006-12-25')),
+partition p1 values less than maxvalue);
+select * from t11;
+col1
+2006-01-03
+2006-01-17
+select * from t22;
+col1
+2006-01-03
+2006-01-17
+2006-02-25
+select * from t33;
+col1
+2006-01-03
+2006-01-17
+2006-02-25
+select * from t44;
+colint	col1
+1	2006-01-03
+2	2006-01-17
+select * from t55;
+colint	col1
+3	2006-02-25
+1	2006-01-03
+2	2006-01-17
+select * from t66;
+colint	col1
+1	2006-01-17
+2	2006-02-25
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  extract(month from col1)  in partition with coltype  date
+-------------------------------------------------------------------------
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+-------------------------------------------------------------------------
+---  Create tables with extract(month from col1)
+-------------------------------------------------------------------------
+create table t1 (col1 date) engine='INNODB' 
+partition by range(extract(month from col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t2 (col1 date) engine='INNODB' 
+partition by list(extract(month from col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t3 (col1 date) engine='INNODB' 
+partition by hash(extract(month from col1));
+create table t4 (colint int, col1 date) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(extract(month from col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t5 (colint int, col1 date) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(extract(month from col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t6 (colint int, col1 date) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (extract(year from '1998-11-23')),
+partition p1 values less than maxvalue);
+-------------------------------------------------------------------------
+---  Access tables with extract(month from col1) 
+-------------------------------------------------------------------------
+insert into t1 values ('2006-01-03');
+insert into t1 values ('2006-02-17');
+insert into t2 values ('2006-01-03');
+insert into t2 values ('2006-02-17');
+insert into t2 values ('2006-01-25');
+insert into t3 values ('2006-01-03');
+insert into t3 values ('2006-02-17');
+insert into t3 values ('2006-01-25');
+insert into t4 values (1,'2006-01-03');
+insert into t4 values (2,'2006-02-17');
+insert into t5 values (1,'2006-01-03');
+insert into t5 values (2,'2006-02-17');
+insert into t5 values (3,'2006-01-25');
+insert into t6 values (1,'2006-02-17');
+insert into t6 values (2,'2006-01-25');
+select extract(month from col1) from t1;
+extract(month from col1)
+1
+2
+select * from t1;
+col1
+2006-01-03
+2006-02-17
+select * from t2;
+col1
+2006-01-03
+2006-02-17
+2006-01-25
+select * from t3;
+col1
+2006-01-03
+2006-02-17
+2006-01-25
+select * from t4;
+colint	col1
+2	2006-02-17
+1	2006-01-03
+select * from t5;
+colint	col1
+2	2006-02-17
+1	2006-01-03
+3	2006-01-25
+select * from t6;
+colint	col1
+1	2006-02-17
+2	2006-01-25
+-------------------------------------------------------------------------
+---  Alter tables with extract(month from col1)
+-------------------------------------------------------------------------
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 engine='INNODB' as select * from t1;
+create table t22 engine='INNODB' as select * from t2;
+create table t33 engine='INNODB' as select * from t3;
+create table t44 engine='INNODB' as select * from t4;
+create table t55 engine='INNODB' as select * from t5;
+create table t66 engine='INNODB' as select * from t6;
+alter table t11
+partition by range(extract(month from col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t22
+partition by list(extract(month from col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t33
+partition by hash(extract(month from col1));
+alter table t44
+partition by range(colint) 
+subpartition by hash(extract(month from col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t55
+partition by list(colint)
+subpartition by hash(extract(month from col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t66
+partition by range(colint) 
+(partition p0 values less than (extract(year from '1998-11-23')),
+partition p1 values less than maxvalue);
+select * from t11;
+col1
+2006-01-03
+2006-02-17
+select * from t22;
+col1
+2006-01-03
+2006-02-17
+2006-01-25
+select * from t33;
+col1
+2006-01-03
+2006-02-17
+2006-01-25
+select * from t44;
+colint	col1
+2	2006-02-17
+1	2006-01-03
+select * from t55;
+colint	col1
+2	2006-02-17
+1	2006-01-03
+3	2006-01-25
+select * from t66;
+colint	col1
+1	2006-02-17
+2	2006-01-25
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  hour(col1)  in partition with coltype  time
+-------------------------------------------------------------------------
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+-------------------------------------------------------------------------
+---  Create tables with hour(col1)
+-------------------------------------------------------------------------
+create table t1 (col1 time) engine='INNODB' 
+partition by range(hour(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t2 (col1 time) engine='INNODB' 
+partition by list(hour(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t3 (col1 time) engine='INNODB' 
+partition by hash(hour(col1));
+create table t4 (colint int, col1 time) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(hour(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t5 (colint int, col1 time) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(hour(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t6 (colint int, col1 time) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (hour('18:30')),
+partition p1 values less than maxvalue);
+-------------------------------------------------------------------------
+---  Access tables with hour(col1) 
+-------------------------------------------------------------------------
+insert into t1 values ('09:09');
+insert into t1 values ('14:30');
+insert into t2 values ('09:09');
+insert into t2 values ('14:30');
+insert into t2 values ('21:59');
+insert into t3 values ('09:09');
+insert into t3 values ('14:30');
+insert into t3 values ('21:59');
+insert into t4 values (1,'09:09');
+insert into t4 values (2,'14:30');
+insert into t5 values (1,'09:09');
+insert into t5 values (2,'14:30');
+insert into t5 values (3,'21:59');
+insert into t6 values (1,'14:30');
+insert into t6 values (2,'21:59');
+select hour(col1) from t1;
+hour(col1)
+9
+14
+select * from t1;
+col1
+09:09:00
+14:30:00
+select * from t2;
+col1
+09:09:00
+14:30:00
+21:59:00
+select * from t3;
+col1
+09:09:00
+14:30:00
+21:59:00
+select * from t4;
+colint	col1
+2	14:30:00
+1	09:09:00
+select * from t5;
+colint	col1
+2	14:30:00
+1	09:09:00
+3	21:59:00
+select * from t6;
+colint	col1
+1	14:30:00
+2	21:59:00
+-------------------------------------------------------------------------
+---  Alter tables with hour(col1)
+-------------------------------------------------------------------------
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 engine='INNODB' as select * from t1;
+create table t22 engine='INNODB' as select * from t2;
+create table t33 engine='INNODB' as select * from t3;
+create table t44 engine='INNODB' as select * from t4;
+create table t55 engine='INNODB' as select * from t5;
+create table t66 engine='INNODB' as select * from t6;
+alter table t11
+partition by range(hour(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t22
+partition by list(hour(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t33
+partition by hash(hour(col1));
+alter table t44
+partition by range(colint) 
+subpartition by hash(hour(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t55
+partition by list(colint)
+subpartition by hash(hour(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t66
+partition by range(colint) 
+(partition p0 values less than (hour('18:30')),
+partition p1 values less than maxvalue);
+select * from t11;
+col1
+09:09:00
+14:30:00
+select * from t22;
+col1
+09:09:00
+14:30:00
+21:59:00
+select * from t33;
+col1
+09:09:00
+14:30:00
+21:59:00
+select * from t44;
+colint	col1
+2	14:30:00
+1	09:09:00
+select * from t55;
+colint	col1
+2	14:30:00
+1	09:09:00
+3	21:59:00
+select * from t66;
+colint	col1
+1	14:30:00
+2	21:59:00
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  microsecond(col1)  in partition with coltype  time
+-------------------------------------------------------------------------
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+-------------------------------------------------------------------------
+---  Create tables with microsecond(col1)
+-------------------------------------------------------------------------
+create table t1 (col1 time) engine='INNODB' 
+partition by range(microsecond(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t2 (col1 time) engine='INNODB' 
+partition by list(microsecond(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t3 (col1 time) engine='INNODB' 
+partition by hash(microsecond(col1));
+create table t4 (colint int, col1 time) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(microsecond(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t5 (colint int, col1 time) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(microsecond(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t6 (colint int, col1 time) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (microsecond('10:30:10.000010')),
+partition p1 values less than maxvalue);
+-------------------------------------------------------------------------
+---  Access tables with microsecond(col1) 
+-------------------------------------------------------------------------
+insert into t1 values ('09:09:15.000002');
+insert into t1 values ('04:30:01.000018');
+insert into t2 values ('09:09:15.000002');
+insert into t2 values ('04:30:01.000018');
+insert into t2 values ('00:59:22.000024');
+insert into t3 values ('09:09:15.000002');
+insert into t3 values ('04:30:01.000018');
+insert into t3 values ('00:59:22.000024');
+insert into t4 values (1,'09:09:15.000002');
+insert into t4 values (2,'04:30:01.000018');
+insert into t5 values (1,'09:09:15.000002');
+insert into t5 values (2,'04:30:01.000018');
+insert into t5 values (3,'00:59:22.000024');
+insert into t6 values (1,'04:30:01.000018');
+insert into t6 values (2,'00:59:22.000024');
+select microsecond(col1) from t1;
+microsecond(col1)
+0
+0
+select * from t1;
+col1
+09:09:15
+04:30:01
+select * from t2;
+col1
+09:09:15
+04:30:01
+00:59:22
+select * from t3;
+col1
+09:09:15
+04:30:01
+00:59:22
+select * from t4;
+colint	col1
+1	09:09:15
+2	04:30:01
+select * from t5;
+colint	col1
+1	09:09:15
+2	04:30:01
+3	00:59:22
+select * from t6;
+colint	col1
+1	04:30:01
+2	00:59:22
+-------------------------------------------------------------------------
+---  Alter tables with microsecond(col1)
+-------------------------------------------------------------------------
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 engine='INNODB' as select * from t1;
+create table t22 engine='INNODB' as select * from t2;
+create table t33 engine='INNODB' as select * from t3;
+create table t44 engine='INNODB' as select * from t4;
+create table t55 engine='INNODB' as select * from t5;
+create table t66 engine='INNODB' as select * from t6;
+alter table t11
+partition by range(microsecond(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t22
+partition by list(microsecond(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t33
+partition by hash(microsecond(col1));
+alter table t44
+partition by range(colint) 
+subpartition by hash(microsecond(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t55
+partition by list(colint)
+subpartition by hash(microsecond(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t66
+partition by range(colint) 
+(partition p0 values less than (microsecond('10:30:10.000010')),
+partition p1 values less than maxvalue);
+select * from t11;
+col1
+09:09:15
+04:30:01
+select * from t22;
+col1
+09:09:15
+04:30:01
+00:59:22
+select * from t33;
+col1
+09:09:15
+04:30:01
+00:59:22
+select * from t44;
+colint	col1
+1	09:09:15
+2	04:30:01
+select * from t55;
+colint	col1
+1	09:09:15
+2	04:30:01
+3	00:59:22
+select * from t66;
+colint	col1
+1	04:30:01
+2	00:59:22
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  minute(col1)  in partition with coltype  time
+-------------------------------------------------------------------------
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+-------------------------------------------------------------------------
+---  Create tables with minute(col1)
+-------------------------------------------------------------------------
+create table t1 (col1 time) engine='INNODB' 
+partition by range(minute(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t2 (col1 time) engine='INNODB' 
+partition by list(minute(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t3 (col1 time) engine='INNODB' 
+partition by hash(minute(col1));
+create table t4 (colint int, col1 time) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(minute(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t5 (colint int, col1 time) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(minute(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t6 (colint int, col1 time) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (minute('18:30')),
+partition p1 values less than maxvalue);
+-------------------------------------------------------------------------
+---  Access tables with minute(col1) 
+-------------------------------------------------------------------------
+insert into t1 values ('09:09:15');
+insert into t1 values ('14:30:45');
+insert into t2 values ('09:09:15');
+insert into t2 values ('14:30:45');
+insert into t2 values ('21:59:22');
+insert into t3 values ('09:09:15');
+insert into t3 values ('14:30:45');
+insert into t3 values ('21:59:22');
+insert into t4 values (1,'09:09:15');
+insert into t4 values (2,'14:30:45');
+insert into t5 values (1,'09:09:15');
+insert into t5 values (2,'14:30:45');
+insert into t5 values (3,'21:59:22');
+insert into t6 values (1,'14:30:45');
+insert into t6 values (2,'21:59:22');
+select minute(col1) from t1;
+minute(col1)
+9
+30
+select * from t1;
+col1
+09:09:15
+14:30:45
+select * from t2;
+col1
+09:09:15
+14:30:45
+21:59:22
+select * from t3;
+col1
+09:09:15
+14:30:45
+21:59:22
+select * from t4;
+colint	col1
+2	14:30:45
+1	09:09:15
+select * from t5;
+colint	col1
+2	14:30:45
+1	09:09:15
+3	21:59:22
+select * from t6;
+colint	col1
+1	14:30:45
+2	21:59:22
+-------------------------------------------------------------------------
+---  Alter tables with minute(col1)
+-------------------------------------------------------------------------
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 engine='INNODB' as select * from t1;
+create table t22 engine='INNODB' as select * from t2;
+create table t33 engine='INNODB' as select * from t3;
+create table t44 engine='INNODB' as select * from t4;
+create table t55 engine='INNODB' as select * from t5;
+create table t66 engine='INNODB' as select * from t6;
+alter table t11
+partition by range(minute(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t22
+partition by list(minute(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t33
+partition by hash(minute(col1));
+alter table t44
+partition by range(colint) 
+subpartition by hash(minute(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t55
+partition by list(colint)
+subpartition by hash(minute(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t66
+partition by range(colint) 
+(partition p0 values less than (minute('18:30')),
+partition p1 values less than maxvalue);
+select * from t11;
+col1
+09:09:15
+14:30:45
+select * from t22;
+col1
+09:09:15
+14:30:45
+21:59:22
+select * from t33;
+col1
+09:09:15
+14:30:45
+21:59:22
+select * from t44;
+colint	col1
+2	14:30:45
+1	09:09:15
+select * from t55;
+colint	col1
+2	14:30:45
+1	09:09:15
+3	21:59:22
+select * from t66;
+colint	col1
+1	14:30:45
+2	21:59:22
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  second(col1)  in partition with coltype  time
+-------------------------------------------------------------------------
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+-------------------------------------------------------------------------
+---  Create tables with second(col1)
+-------------------------------------------------------------------------
+create table t1 (col1 time) engine='INNODB' 
+partition by range(second(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t2 (col1 time) engine='INNODB' 
+partition by list(second(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t3 (col1 time) engine='INNODB' 
+partition by hash(second(col1));
+create table t4 (colint int, col1 time) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(second(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t5 (colint int, col1 time) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(second(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t6 (colint int, col1 time) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (second('18:30:14')),
+partition p1 values less than maxvalue);
+-------------------------------------------------------------------------
+---  Access tables with second(col1) 
+-------------------------------------------------------------------------
+insert into t1 values ('09:09:09');
+insert into t1 values ('14:30:20');
+insert into t2 values ('09:09:09');
+insert into t2 values ('14:30:20');
+insert into t2 values ('21:59:22');
+insert into t3 values ('09:09:09');
+insert into t3 values ('14:30:20');
+insert into t3 values ('21:59:22');
+insert into t4 values (1,'09:09:09');
+insert into t4 values (2,'14:30:20');
+insert into t5 values (1,'09:09:09');
+insert into t5 values (2,'14:30:20');
+insert into t5 values (3,'21:59:22');
+insert into t6 values (1,'14:30:20');
+insert into t6 values (2,'21:59:22');
+select second(col1) from t1;
+second(col1)
+9
+20
+select * from t1;
+col1
+09:09:09
+14:30:20
+select * from t2;
+col1
+09:09:09
+14:30:20
+21:59:22
+select * from t3;
+col1
+09:09:09
+14:30:20
+21:59:22
+select * from t4;
+colint	col1
+2	14:30:20
+1	09:09:09
+select * from t5;
+colint	col1
+2	14:30:20
+3	21:59:22
+1	09:09:09
+select * from t6;
+colint	col1
+1	14:30:20
+2	21:59:22
+-------------------------------------------------------------------------
+---  Alter tables with second(col1)
+-------------------------------------------------------------------------
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 engine='INNODB' as select * from t1;
+create table t22 engine='INNODB' as select * from t2;
+create table t33 engine='INNODB' as select * from t3;
+create table t44 engine='INNODB' as select * from t4;
+create table t55 engine='INNODB' as select * from t5;
+create table t66 engine='INNODB' as select * from t6;
+alter table t11
+partition by range(second(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t22
+partition by list(second(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t33
+partition by hash(second(col1));
+alter table t44
+partition by range(colint) 
+subpartition by hash(second(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t55
+partition by list(colint)
+subpartition by hash(second(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t66
+partition by range(colint) 
+(partition p0 values less than (second('18:30:14')),
+partition p1 values less than maxvalue);
+select * from t11;
+col1
+09:09:09
+14:30:20
+select * from t22;
+col1
+09:09:09
+14:30:20
+21:59:22
+select * from t33;
+col1
+09:09:09
+14:30:20
+21:59:22
+select * from t44;
+colint	col1
+2	14:30:20
+1	09:09:09
+select * from t55;
+colint	col1
+2	14:30:20
+3	21:59:22
+1	09:09:09
+select * from t66;
+colint	col1
+1	14:30:20
+2	21:59:22
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  second(col1)  in partition with coltype  char(30)
+-------------------------------------------------------------------------
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+-------------------------------------------------------------------------
+---  Create tables with second(col1)
+-------------------------------------------------------------------------
+create table t1 (col1 char(30)) engine='INNODB' 
+partition by range(second(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t2 (col1 char(30)) engine='INNODB' 
+partition by list(second(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t3 (col1 char(30)) engine='INNODB' 
+partition by hash(second(col1));
+create table t4 (colint int, col1 char(30)) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(second(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t5 (colint int, col1 char(30)) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(second(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t6 (colint int, col1 char(30)) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (second('18:30:14')),
+partition p1 values less than maxvalue);
+-------------------------------------------------------------------------
+---  Access tables with second(col1) 
+-------------------------------------------------------------------------
+insert into t1 values ('09:09:09');
+insert into t1 values ('14:30:20');
+insert into t2 values ('09:09:09');
+insert into t2 values ('14:30:20');
+insert into t2 values ('21:59:22');
+insert into t3 values ('09:09:09');
+insert into t3 values ('14:30:20');
+insert into t3 values ('21:59:22');
+insert into t4 values (1,'09:09:09');
+insert into t4 values (2,'14:30:20');
+insert into t5 values (1,'09:09:09');
+insert into t5 values (2,'14:30:20');
+insert into t5 values (3,'21:59:22');
+insert into t6 values (1,'14:30:20');
+insert into t6 values (2,'21:59:22');
+select second(col1) from t1;
+second(col1)
+9
+20
+select * from t1;
+col1
+09:09:09
+14:30:20
+select * from t2;
+col1
+09:09:09
+14:30:20
+21:59:22
+select * from t3;
+col1
+09:09:09
+14:30:20
+21:59:22
+select * from t4;
+colint	col1
+2	14:30:20
+1	09:09:09
+select * from t5;
+colint	col1
+2	14:30:20
+3	21:59:22
+1	09:09:09
+select * from t6;
+colint	col1
+1	14:30:20
+2	21:59:22
+-------------------------------------------------------------------------
+---  Alter tables with second(col1)
+-------------------------------------------------------------------------
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 engine='INNODB' as select * from t1;
+create table t22 engine='INNODB' as select * from t2;
+create table t33 engine='INNODB' as select * from t3;
+create table t44 engine='INNODB' as select * from t4;
+create table t55 engine='INNODB' as select * from t5;
+create table t66 engine='INNODB' as select * from t6;
+alter table t11
+partition by range(second(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t22
+partition by list(second(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t33
+partition by hash(second(col1));
+alter table t44
+partition by range(colint) 
+subpartition by hash(second(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t55
+partition by list(colint)
+subpartition by hash(second(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t66
+partition by range(colint) 
+(partition p0 values less than (second('18:30:14')),
+partition p1 values less than maxvalue);
+select * from t11;
+col1
+09:09:09
+14:30:20
+select * from t22;
+col1
+09:09:09
+14:30:20
+21:59:22
+select * from t33;
+col1
+09:09:09
+14:30:20
+21:59:22
+select * from t44;
+colint	col1
+2	14:30:20
+1	09:09:09
+select * from t55;
+colint	col1
+2	14:30:20
+3	21:59:22
+1	09:09:09
+select * from t66;
+colint	col1
+1	14:30:20
+2	21:59:22
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  month(col1)  in partition with coltype  date
+-------------------------------------------------------------------------
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+-------------------------------------------------------------------------
+---  Create tables with month(col1)
+-------------------------------------------------------------------------
+create table t1 (col1 date) engine='INNODB' 
+partition by range(month(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t2 (col1 date) engine='INNODB' 
+partition by list(month(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t3 (col1 date) engine='INNODB' 
+partition by hash(month(col1));
+create table t4 (colint int, col1 date) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(month(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t5 (colint int, col1 date) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(month(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t6 (colint int, col1 date) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (month('2006-10-14')),
+partition p1 values less than maxvalue);
+-------------------------------------------------------------------------
+---  Access tables with month(col1) 
+-------------------------------------------------------------------------
+insert into t1 values ('2006-01-03');
+insert into t1 values ('2006-12-17');
+insert into t2 values ('2006-01-03');
+insert into t2 values ('2006-12-17');
+insert into t2 values ('2006-05-25');
+insert into t3 values ('2006-01-03');
+insert into t3 values ('2006-12-17');
+insert into t3 values ('2006-05-25');
+insert into t4 values (1,'2006-01-03');
+insert into t4 values (2,'2006-12-17');
+insert into t5 values (1,'2006-01-03');
+insert into t5 values (2,'2006-12-17');
+insert into t5 values (3,'2006-05-25');
+insert into t6 values (1,'2006-12-17');
+insert into t6 values (2,'2006-05-25');
+select month(col1) from t1;
+month(col1)
+1
+12
+select * from t1;
+col1
+2006-01-03
+2006-12-17
+select * from t2;
+col1
+2006-01-03
+2006-05-25
+2006-12-17
+select * from t3;
+col1
+2006-01-03
+2006-12-17
+2006-05-25
+select * from t4;
+colint	col1
+2	2006-12-17
+1	2006-01-03
+select * from t5;
+colint	col1
+2	2006-12-17
+1	2006-01-03
+3	2006-05-25
+select * from t6;
+colint	col1
+1	2006-12-17
+2	2006-05-25
+-------------------------------------------------------------------------
+---  Alter tables with month(col1)
+-------------------------------------------------------------------------
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 engine='INNODB' as select * from t1;
+create table t22 engine='INNODB' as select * from t2;
+create table t33 engine='INNODB' as select * from t3;
+create table t44 engine='INNODB' as select * from t4;
+create table t55 engine='INNODB' as select * from t5;
+create table t66 engine='INNODB' as select * from t6;
+alter table t11
+partition by range(month(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t22
+partition by list(month(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t33
+partition by hash(month(col1));
+alter table t44
+partition by range(colint) 
+subpartition by hash(month(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t55
+partition by list(colint)
+subpartition by hash(month(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t66
+partition by range(colint) 
+(partition p0 values less than (month('2006-10-14')),
+partition p1 values less than maxvalue);
+select * from t11;
+col1
+2006-01-03
+2006-12-17
+select * from t22;
+col1
+2006-01-03
+2006-05-25
+2006-12-17
+select * from t33;
+col1
+2006-01-03
+2006-12-17
+2006-05-25
+select * from t44;
+colint	col1
+2	2006-12-17
+1	2006-01-03
+select * from t55;
+colint	col1
+2	2006-12-17
+1	2006-01-03
+3	2006-05-25
+select * from t66;
+colint	col1
+1	2006-12-17
+2	2006-05-25
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  quarter(col1)  in partition with coltype  date
+-------------------------------------------------------------------------
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+-------------------------------------------------------------------------
+---  Create tables with quarter(col1)
+-------------------------------------------------------------------------
+create table t1 (col1 date) engine='INNODB' 
+partition by range(quarter(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t2 (col1 date) engine='INNODB' 
+partition by list(quarter(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t3 (col1 date) engine='INNODB' 
+partition by hash(quarter(col1));
+create table t4 (colint int, col1 date) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(quarter(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t5 (colint int, col1 date) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(quarter(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t6 (colint int, col1 date) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (quarter('2006-10-14')),
+partition p1 values less than maxvalue);
+-------------------------------------------------------------------------
+---  Access tables with quarter(col1) 
+-------------------------------------------------------------------------
+insert into t1 values ('2006-01-03');
+insert into t1 values ('2006-12-17');
+insert into t2 values ('2006-01-03');
+insert into t2 values ('2006-12-17');
+insert into t2 values ('2006-09-25');
+insert into t3 values ('2006-01-03');
+insert into t3 values ('2006-12-17');
+insert into t3 values ('2006-09-25');
+insert into t4 values (1,'2006-01-03');
+insert into t4 values (2,'2006-12-17');
+insert into t5 values (1,'2006-01-03');
+insert into t5 values (2,'2006-12-17');
+insert into t5 values (3,'2006-09-25');
+insert into t6 values (1,'2006-12-17');
+insert into t6 values (2,'2006-09-25');
+select quarter(col1) from t1;
+quarter(col1)
+1
+4
+select * from t1;
+col1
+2006-01-03
+2006-12-17
+select * from t2;
+col1
+2006-01-03
+2006-12-17
+2006-09-25
+select * from t3;
+col1
+2006-01-03
+2006-12-17
+2006-09-25
+select * from t4;
+colint	col1
+2	2006-12-17
+1	2006-01-03
+select * from t5;
+colint	col1
+2	2006-12-17
+1	2006-01-03
+3	2006-09-25
+select * from t6;
+colint	col1
+1	2006-12-17
+2	2006-09-25
+-------------------------------------------------------------------------
+---  Alter tables with quarter(col1)
+-------------------------------------------------------------------------
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 engine='INNODB' as select * from t1;
+create table t22 engine='INNODB' as select * from t2;
+create table t33 engine='INNODB' as select * from t3;
+create table t44 engine='INNODB' as select * from t4;
+create table t55 engine='INNODB' as select * from t5;
+create table t66 engine='INNODB' as select * from t6;
+alter table t11
+partition by range(quarter(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t22
+partition by list(quarter(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t33
+partition by hash(quarter(col1));
+alter table t44
+partition by range(colint) 
+subpartition by hash(quarter(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t55
+partition by list(colint)
+subpartition by hash(quarter(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t66
+partition by range(colint) 
+(partition p0 values less than (quarter('2006-10-14')),
+partition p1 values less than maxvalue);
+select * from t11;
+col1
+2006-01-03
+2006-12-17
+select * from t22;
+col1
+2006-01-03
+2006-12-17
+2006-09-25
+select * from t33;
+col1
+2006-01-03
+2006-12-17
+2006-09-25
+select * from t44;
+colint	col1
+2	2006-12-17
+1	2006-01-03
+select * from t55;
+colint	col1
+2	2006-12-17
+1	2006-01-03
+3	2006-09-25
+select * from t66;
+colint	col1
+1	2006-12-17
+2	2006-09-25
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  time_to_sec(col1)-(time_to_sec(col1)-20)  in partition with coltype  time
+-------------------------------------------------------------------------
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+-------------------------------------------------------------------------
+---  Create tables with time_to_sec(col1)-(time_to_sec(col1)-20)
+-------------------------------------------------------------------------
+create table t1 (col1 time) engine='INNODB' 
+partition by range(time_to_sec(col1)-(time_to_sec(col1)-20)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t2 (col1 time) engine='INNODB' 
+partition by list(time_to_sec(col1)-(time_to_sec(col1)-20)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t3 (col1 time) engine='INNODB' 
+partition by hash(time_to_sec(col1)-(time_to_sec(col1)-20));
+create table t4 (colint int, col1 time) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(time_to_sec(col1)-(time_to_sec(col1)-20)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t5 (colint int, col1 time) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(time_to_sec(col1)-(time_to_sec(col1)-20)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t6 (colint int, col1 time) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (time_to_sec('18:30:14')-(time_to_sec('17:59:59'))),
+partition p1 values less than maxvalue);
+-------------------------------------------------------------------------
+---  Access tables with time_to_sec(col1)-(time_to_sec(col1)-20) 
+-------------------------------------------------------------------------
+insert into t1 values ('09:09:15');
+insert into t1 values ('14:30:45');
+insert into t2 values ('09:09:15');
+insert into t2 values ('14:30:45');
+insert into t2 values ('21:59:22');
+insert into t3 values ('09:09:15');
+insert into t3 values ('14:30:45');
+insert into t3 values ('21:59:22');
+insert into t4 values (1,'09:09:15');
+insert into t4 values (2,'14:30:45');
+insert into t5 values (1,'09:09:15');
+insert into t5 values (2,'14:30:45');
+insert into t5 values (3,'21:59:22');
+insert into t6 values (1,'14:30:45');
+insert into t6 values (2,'21:59:22');
+select time_to_sec(col1)-(time_to_sec(col1)-20) from t1;
+time_to_sec(col1)-(time_to_sec(col1)-20)
+20
+20
+select * from t1;
+col1
+09:09:15
+14:30:45
+select * from t2;
+col1
+09:09:15
+14:30:45
+21:59:22
+select * from t3;
+col1
+09:09:15
+14:30:45
+21:59:22
+select * from t4;
+colint	col1
+1	09:09:15
+2	14:30:45
+select * from t5;
+colint	col1
+1	09:09:15
+2	14:30:45
+3	21:59:22
+select * from t6;
+colint	col1
+1	14:30:45
+2	21:59:22
+-------------------------------------------------------------------------
+---  Alter tables with time_to_sec(col1)-(time_to_sec(col1)-20)
+-------------------------------------------------------------------------
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 engine='INNODB' as select * from t1;
+create table t22 engine='INNODB' as select * from t2;
+create table t33 engine='INNODB' as select * from t3;
+create table t44 engine='INNODB' as select * from t4;
+create table t55 engine='INNODB' as select * from t5;
+create table t66 engine='INNODB' as select * from t6;
+alter table t11
+partition by range(time_to_sec(col1)-(time_to_sec(col1)-20)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t22
+partition by list(time_to_sec(col1)-(time_to_sec(col1)-20)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t33
+partition by hash(time_to_sec(col1)-(time_to_sec(col1)-20));
+alter table t44
+partition by range(colint) 
+subpartition by hash(time_to_sec(col1)-(time_to_sec(col1)-20)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t55
+partition by list(colint)
+subpartition by hash(time_to_sec(col1)-(time_to_sec(col1)-20)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t66
+partition by range(colint) 
+(partition p0 values less than (time_to_sec('18:30:14')-(time_to_sec('17:59:59'))),
+partition p1 values less than maxvalue);
+select * from t11;
+col1
+09:09:15
+14:30:45
+select * from t22;
+col1
+09:09:15
+14:30:45
+21:59:22
+select * from t33;
+col1
+09:09:15
+14:30:45
+21:59:22
+select * from t44;
+colint	col1
+1	09:09:15
+2	14:30:45
+select * from t55;
+colint	col1
+1	09:09:15
+2	14:30:45
+3	21:59:22
+select * from t66;
+colint	col1
+1	14:30:45
+2	21:59:22
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  to_days(col1)-to_days('2006-01-01')  in partition with coltype  date
+-------------------------------------------------------------------------
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+-------------------------------------------------------------------------
+---  Create tables with to_days(col1)-to_days('2006-01-01')
+-------------------------------------------------------------------------
+create table t1 (col1 date) engine='INNODB' 
+partition by range(to_days(col1)-to_days('2006-01-01')) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t2 (col1 date) engine='INNODB' 
+partition by list(to_days(col1)-to_days('2006-01-01')) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t3 (col1 date) engine='INNODB' 
+partition by hash(to_days(col1)-to_days('2006-01-01'));
+create table t4 (colint int, col1 date) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(to_days(col1)-to_days('2006-01-01')) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t5 (colint int, col1 date) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(to_days(col1)-to_days('2006-01-01')) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t6 (colint int, col1 date) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (to_days('2006-02-02')-to_days('2006-01-01')),
+partition p1 values less than maxvalue);
+-------------------------------------------------------------------------
+---  Access tables with to_days(col1)-to_days('2006-01-01') 
+-------------------------------------------------------------------------
+insert into t1 values ('2006-02-03');
+insert into t1 values ('2006-01-17');
+insert into t2 values ('2006-02-03');
+insert into t2 values ('2006-01-17');
+insert into t2 values ('2006-01-25');
+insert into t3 values ('2006-02-03');
+insert into t3 values ('2006-01-17');
+insert into t3 values ('2006-01-25');
+insert into t4 values (1,'2006-02-03');
+insert into t4 values (2,'2006-01-17');
+insert into t5 values (1,'2006-02-03');
+insert into t5 values (2,'2006-01-17');
+insert into t5 values (3,'2006-01-25');
+insert into t6 values (1,'2006-01-17');
+insert into t6 values (2,'2006-01-25');
+select to_days(col1)-to_days('2006-01-01') from t1;
+to_days(col1)-to_days('2006-01-01')
+33
+16
+select * from t1;
+col1
+2006-02-03
+2006-01-17
+select * from t2;
+col1
+2006-01-17
+2006-01-25
+2006-02-03
+select * from t3;
+col1
+2006-02-03
+2006-01-17
+2006-01-25
+select * from t4;
+colint	col1
+2	2006-01-17
+1	2006-02-03
+select * from t5;
+colint	col1
+2	2006-01-17
+3	2006-01-25
+1	2006-02-03
+select * from t6;
+colint	col1
+1	2006-01-17
+2	2006-01-25
+-------------------------------------------------------------------------
+---  Alter tables with to_days(col1)-to_days('2006-01-01')
+-------------------------------------------------------------------------
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 engine='INNODB' as select * from t1;
+create table t22 engine='INNODB' as select * from t2;
+create table t33 engine='INNODB' as select * from t3;
+create table t44 engine='INNODB' as select * from t4;
+create table t55 engine='INNODB' as select * from t5;
+create table t66 engine='INNODB' as select * from t6;
+alter table t11
+partition by range(to_days(col1)-to_days('2006-01-01')) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t22
+partition by list(to_days(col1)-to_days('2006-01-01')) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t33
+partition by hash(to_days(col1)-to_days('2006-01-01'));
+alter table t44
+partition by range(colint) 
+subpartition by hash(to_days(col1)-to_days('2006-01-01')) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t55
+partition by list(colint)
+subpartition by hash(to_days(col1)-to_days('2006-01-01')) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t66
+partition by range(colint) 
+(partition p0 values less than (to_days('2006-02-02')-to_days('2006-01-01')),
+partition p1 values less than maxvalue);
+select * from t11;
+col1
+2006-02-03
+2006-01-17
+select * from t22;
+col1
+2006-01-17
+2006-01-25
+2006-02-03
+select * from t33;
+col1
+2006-02-03
+2006-01-17
+2006-01-25
+select * from t44;
+colint	col1
+2	2006-01-17
+1	2006-02-03
+select * from t55;
+colint	col1
+2	2006-01-17
+3	2006-01-25
+1	2006-02-03
+select * from t66;
+colint	col1
+1	2006-01-17
+2	2006-01-25
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  weekday(col1)  in partition with coltype  date
+-------------------------------------------------------------------------
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+-------------------------------------------------------------------------
+---  Create tables with weekday(col1)
+-------------------------------------------------------------------------
+create table t1 (col1 date) engine='INNODB' 
+partition by range(weekday(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t2 (col1 date) engine='INNODB' 
+partition by list(weekday(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t3 (col1 date) engine='INNODB' 
+partition by hash(weekday(col1));
+create table t4 (colint int, col1 date) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(weekday(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t5 (colint int, col1 date) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(weekday(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t6 (colint int, col1 date) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (weekday('2006-10-14')),
+partition p1 values less than maxvalue);
+-------------------------------------------------------------------------
+---  Access tables with weekday(col1) 
+-------------------------------------------------------------------------
+insert into t1 values ('2006-12-03');
+insert into t1 values ('2006-11-17');
+insert into t2 values ('2006-12-03');
+insert into t2 values ('2006-11-17');
+insert into t2 values ('2006-05-25');
+insert into t3 values ('2006-12-03');
+insert into t3 values ('2006-11-17');
+insert into t3 values ('2006-05-25');
+insert into t4 values (1,'2006-12-03');
+insert into t4 values (2,'2006-11-17');
+insert into t5 values (1,'2006-12-03');
+insert into t5 values (2,'2006-11-17');
+insert into t5 values (3,'2006-05-25');
+insert into t6 values (1,'2006-11-17');
+insert into t6 values (2,'2006-05-25');
+select weekday(col1) from t1;
+weekday(col1)
+6
+4
+select * from t1;
+col1
+2006-12-03
+2006-11-17
+select * from t2;
+col1
+2006-12-03
+2006-11-17
+2006-05-25
+select * from t3;
+col1
+2006-12-03
+2006-11-17
+2006-05-25
+select * from t4;
+colint	col1
+1	2006-12-03
+2	2006-11-17
+select * from t5;
+colint	col1
+1	2006-12-03
+2	2006-11-17
+3	2006-05-25
+select * from t6;
+colint	col1
+1	2006-11-17
+2	2006-05-25
+-------------------------------------------------------------------------
+---  Alter tables with weekday(col1)
+-------------------------------------------------------------------------
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 engine='INNODB' as select * from t1;
+create table t22 engine='INNODB' as select * from t2;
+create table t33 engine='INNODB' as select * from t3;
+create table t44 engine='INNODB' as select * from t4;
+create table t55 engine='INNODB' as select * from t5;
+create table t66 engine='INNODB' as select * from t6;
+alter table t11
+partition by range(weekday(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t22
+partition by list(weekday(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t33
+partition by hash(weekday(col1));
+alter table t44
+partition by range(colint) 
+subpartition by hash(weekday(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t55
+partition by list(colint)
+subpartition by hash(weekday(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t66
+partition by range(colint) 
+(partition p0 values less than (weekday('2006-10-14')),
+partition p1 values less than maxvalue);
+select * from t11;
+col1
+2006-12-03
+2006-11-17
+select * from t22;
+col1
+2006-12-03
+2006-11-17
+2006-05-25
+select * from t33;
+col1
+2006-12-03
+2006-11-17
+2006-05-25
+select * from t44;
+colint	col1
+1	2006-12-03
+2	2006-11-17
+select * from t55;
+colint	col1
+1	2006-12-03
+2	2006-11-17
+3	2006-05-25
+select * from t66;
+colint	col1
+1	2006-11-17
+2	2006-05-25
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  weekofyear(col1)  in partition with coltype  date
+-------------------------------------------------------------------------
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+-------------------------------------------------------------------------
+---  Create tables with weekofyear(col1)
+-------------------------------------------------------------------------
+create table t1 (col1 date) engine='INNODB' 
+partition by range(weekofyear(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t2 (col1 date) engine='INNODB' 
+partition by list(weekofyear(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t3 (col1 date) engine='INNODB' 
+partition by hash(weekofyear(col1));
+create table t4 (colint int, col1 date) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(weekofyear(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t5 (colint int, col1 date) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(weekofyear(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t6 (colint int, col1 date) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (weekofyear('2006-02-14')),
+partition p1 values less than maxvalue);
+-------------------------------------------------------------------------
+---  Access tables with weekofyear(col1) 
+-------------------------------------------------------------------------
+insert into t1 values ('2006-01-03');
+insert into t1 values ('2006-03-17');
+insert into t2 values ('2006-01-03');
+insert into t2 values ('2006-03-17');
+insert into t2 values ('2006-05-25');
+insert into t3 values ('2006-01-03');
+insert into t3 values ('2006-03-17');
+insert into t3 values ('2006-05-25');
+insert into t4 values (1,'2006-01-03');
+insert into t4 values (2,'2006-03-17');
+insert into t5 values (1,'2006-01-03');
+insert into t5 values (2,'2006-03-17');
+insert into t5 values (3,'2006-05-25');
+insert into t6 values (1,'2006-03-17');
+insert into t6 values (2,'2006-05-25');
+select weekofyear(col1) from t1;
+weekofyear(col1)
+1
+11
+select * from t1;
+col1
+2006-01-03
+2006-03-17
+select * from t2;
+col1
+2006-01-03
+2006-03-17
+2006-05-25
+select * from t3;
+col1
+2006-01-03
+2006-03-17
+2006-05-25
+select * from t4;
+colint	col1
+1	2006-01-03
+2	2006-03-17
+select * from t5;
+colint	col1
+1	2006-01-03
+2	2006-03-17
+3	2006-05-25
+select * from t6;
+colint	col1
+1	2006-03-17
+2	2006-05-25
+-------------------------------------------------------------------------
+---  Alter tables with weekofyear(col1)
+-------------------------------------------------------------------------
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 engine='INNODB' as select * from t1;
+create table t22 engine='INNODB' as select * from t2;
+create table t33 engine='INNODB' as select * from t3;
+create table t44 engine='INNODB' as select * from t4;
+create table t55 engine='INNODB' as select * from t5;
+create table t66 engine='INNODB' as select * from t6;
+alter table t11
+partition by range(weekofyear(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t22
+partition by list(weekofyear(col1)) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t33
+partition by hash(weekofyear(col1));
+alter table t44
+partition by range(colint) 
+subpartition by hash(weekofyear(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t55
+partition by list(colint)
+subpartition by hash(weekofyear(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t66
+partition by range(colint) 
+(partition p0 values less than (weekofyear('2006-02-14')),
+partition p1 values less than maxvalue);
+select * from t11;
+col1
+2006-01-03
+2006-03-17
+select * from t22;
+col1
+2006-01-03
+2006-03-17
+2006-05-25
+select * from t33;
+col1
+2006-01-03
+2006-03-17
+2006-05-25
+select * from t44;
+colint	col1
+1	2006-01-03
+2	2006-03-17
+select * from t55;
+colint	col1
+1	2006-01-03
+2	2006-03-17
+3	2006-05-25
+select * from t66;
+colint	col1
+1	2006-03-17
+2	2006-05-25
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  year(col1)-1990  in partition with coltype  date
+-------------------------------------------------------------------------
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+-------------------------------------------------------------------------
+---  Create tables with year(col1)-1990
+-------------------------------------------------------------------------
+create table t1 (col1 date) engine='INNODB' 
+partition by range(year(col1)-1990) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t2 (col1 date) engine='INNODB' 
+partition by list(year(col1)-1990) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t3 (col1 date) engine='INNODB' 
+partition by hash(year(col1)-1990);
+create table t4 (colint int, col1 date) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(year(col1)-1990) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t5 (colint int, col1 date) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(year(col1)-1990) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t6 (colint int, col1 date) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (year('2005-10-14')-1990),
+partition p1 values less than maxvalue);
+-------------------------------------------------------------------------
+---  Access tables with year(col1)-1990 
+-------------------------------------------------------------------------
+insert into t1 values ('1996-01-03');
+insert into t1 values ('2000-02-17');
+insert into t2 values ('1996-01-03');
+insert into t2 values ('2000-02-17');
+insert into t2 values ('2004-05-25');
+insert into t3 values ('1996-01-03');
+insert into t3 values ('2000-02-17');
+insert into t3 values ('2004-05-25');
+insert into t4 values (1,'1996-01-03');
+insert into t4 values (2,'2000-02-17');
+insert into t5 values (1,'1996-01-03');
+insert into t5 values (2,'2000-02-17');
+insert into t5 values (3,'2004-05-25');
+insert into t6 values (1,'2000-02-17');
+insert into t6 values (2,'2004-05-25');
+select year(col1)-1990 from t1;
+year(col1)-1990
+6
+10
+select * from t1;
+col1
+1996-01-03
+2000-02-17
+select * from t2;
+col1
+1996-01-03
+2000-02-17
+2004-05-25
+select * from t3;
+col1
+1996-01-03
+2000-02-17
+2004-05-25
+select * from t4;
+colint	col1
+1	1996-01-03
+2	2000-02-17
+select * from t5;
+colint	col1
+1	1996-01-03
+2	2000-02-17
+3	2004-05-25
+select * from t6;
+colint	col1
+1	2000-02-17
+2	2004-05-25
+-------------------------------------------------------------------------
+---  Alter tables with year(col1)-1990
+-------------------------------------------------------------------------
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 engine='INNODB' as select * from t1;
+create table t22 engine='INNODB' as select * from t2;
+create table t33 engine='INNODB' as select * from t3;
+create table t44 engine='INNODB' as select * from t4;
+create table t55 engine='INNODB' as select * from t5;
+create table t66 engine='INNODB' as select * from t6;
+alter table t11
+partition by range(year(col1)-1990) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t22
+partition by list(year(col1)-1990) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t33
+partition by hash(year(col1)-1990);
+alter table t44
+partition by range(colint) 
+subpartition by hash(year(col1)-1990) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t55
+partition by list(colint)
+subpartition by hash(year(col1)-1990) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t66
+partition by range(colint) 
+(partition p0 values less than (year('2005-10-14')-1990),
+partition p1 values less than maxvalue);
+select * from t11;
+col1
+1996-01-03
+2000-02-17
+select * from t22;
+col1
+1996-01-03
+2000-02-17
+2004-05-25
+select * from t33;
+col1
+1996-01-03
+2000-02-17
+2004-05-25
+select * from t44;
+colint	col1
+1	1996-01-03
+2	2000-02-17
+select * from t55;
+colint	col1
+1	1996-01-03
+2	2000-02-17
+3	2004-05-25
+select * from t66;
+colint	col1
+1	2000-02-17
+2	2004-05-25
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  yearweek(col1)-200600  in partition with coltype  date
+-------------------------------------------------------------------------
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+-------------------------------------------------------------------------
+---  Create tables with yearweek(col1)-200600
+-------------------------------------------------------------------------
+create table t1 (col1 date) engine='INNODB' 
+partition by range(yearweek(col1)-200600) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t2 (col1 date) engine='INNODB' 
+partition by list(yearweek(col1)-200600) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t3 (col1 date) engine='INNODB' 
+partition by hash(yearweek(col1)-200600);
+create table t4 (colint int, col1 date) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(yearweek(col1)-200600) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+create table t5 (colint int, col1 date) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(yearweek(col1)-200600) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+create table t6 (colint int, col1 date) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (yearweek('2006-10-14')-200600),
+partition p1 values less than maxvalue);
+-------------------------------------------------------------------------
+---  Access tables with yearweek(col1)-200600 
+-------------------------------------------------------------------------
+insert into t1 values ('2006-01-03');
+insert into t1 values ('2006-08-17');
+insert into t2 values ('2006-01-03');
+insert into t2 values ('2006-08-17');
+insert into t2 values ('2006-03-25');
+insert into t3 values ('2006-01-03');
+insert into t3 values ('2006-08-17');
+insert into t3 values ('2006-03-25');
+insert into t4 values (1,'2006-01-03');
+insert into t4 values (2,'2006-08-17');
+insert into t5 values (1,'2006-01-03');
+insert into t5 values (2,'2006-08-17');
+insert into t5 values (3,'2006-03-25');
+insert into t6 values (1,'2006-08-17');
+insert into t6 values (2,'2006-03-25');
+select yearweek(col1)-200600 from t1;
+yearweek(col1)-200600
+1
+33
+select * from t1;
+col1
+2006-01-03
+2006-08-17
+select * from t2;
+col1
+2006-01-03
+2006-03-25
+2006-08-17
+select * from t3;
+col1
+2006-01-03
+2006-08-17
+2006-03-25
+select * from t4;
+colint	col1
+1	2006-01-03
+2	2006-08-17
+select * from t5;
+colint	col1
+3	2006-03-25
+1	2006-01-03
+2	2006-08-17
+select * from t6;
+colint	col1
+1	2006-08-17
+2	2006-03-25
+-------------------------------------------------------------------------
+---  Alter tables with yearweek(col1)-200600
+-------------------------------------------------------------------------
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 engine='INNODB' as select * from t1;
+create table t22 engine='INNODB' as select * from t2;
+create table t33 engine='INNODB' as select * from t3;
+create table t44 engine='INNODB' as select * from t4;
+create table t55 engine='INNODB' as select * from t5;
+create table t66 engine='INNODB' as select * from t6;
+alter table t11
+partition by range(yearweek(col1)-200600) 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t22
+partition by list(yearweek(col1)-200600) 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t33
+partition by hash(yearweek(col1)-200600);
+alter table t44
+partition by range(colint) 
+subpartition by hash(yearweek(col1)-200600) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than maxvalue);
+alter table t55
+partition by list(colint)
+subpartition by hash(yearweek(col1)-200600) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+alter table t66
+partition by range(colint) 
+(partition p0 values less than (yearweek('2006-10-14')-200600),
+partition p1 values less than maxvalue);
+select * from t11;
+col1
+2006-01-03
+2006-08-17
+select * from t22;
+col1
+2006-01-03
+2006-03-25
+2006-08-17
+select * from t33;
+col1
+2006-01-03
+2006-08-17
+2006-03-25
+select * from t44;
+colint	col1
+1	2006-01-03
+2	2006-08-17
+select * from t55;
+colint	col1
+3	2006-03-25
+1	2006-01-03
+2	2006-08-17
+select * from t66;
+colint	col1
+1	2006-08-17
+2	2006-03-25
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
