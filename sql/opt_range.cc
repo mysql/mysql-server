@@ -8820,7 +8820,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
 #else
   int result;
 #endif
-  int is_last_prefix;
+  int is_last_prefix= 0;
 
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::get_next");
 
@@ -8835,13 +8835,18 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
       Check if this is the last group prefix. Notice that at this point
       this->record contains the current prefix in record format.
     */
-    is_last_prefix= key_cmp(index_info->key_part, last_prefix,
-                            group_prefix_len);
-    DBUG_ASSERT(is_last_prefix <= 0);
-    if (result == HA_ERR_KEY_NOT_FOUND)
-      continue;
-    else if (result)
+    if (!result)
+    {
+      is_last_prefix= key_cmp(index_info->key_part, last_prefix,
+                              group_prefix_len);
+      DBUG_ASSERT(is_last_prefix <= 0);
+    }
+    else 
+    {
+      if (result == HA_ERR_KEY_NOT_FOUND)
+        continue;
       break;
+    }
 
     if (have_min)
     {
