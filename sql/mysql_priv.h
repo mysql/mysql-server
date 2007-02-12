@@ -932,7 +932,8 @@ int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
 int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
 int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
 int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
-bool get_schema_tables_result(JOIN *join);
+bool get_schema_tables_result(JOIN *join,
+                              enum enum_schema_table_state executed_place);
 #define is_schema_db(X) \
   !my_strcasecmp(system_charset_info, information_schema_name.str, (X))
 
