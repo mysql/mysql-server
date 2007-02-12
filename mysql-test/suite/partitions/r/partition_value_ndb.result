@@ -1,0 +1,189 @@
+SET @max_row = 20;
+SET @@session.storage_engine = 'ndbcluster';
+
+#------------------------------------------------------------------------
+# There are several testcases disabled because of the open bugs
+# #15890
+# #18730, Bug#18735
+# The expected results suffer from the following bugs
+# harmless #17455, #19305
+# which cannot be suppressed because of technical reasons.
+#------------------------------------------------------------------------
+
+#------------------------------------------------------------------------
+#  0. Setting of auxiliary variables + Creation of an auxiliary tables
+#     needed in many testcases
+#------------------------------------------------------------------------
+SELECT @max_row DIV 2 INTO @max_row_div2;
+SELECT @max_row DIV 3 INTO @max_row_div3;
+SELECT @max_row DIV 4 INTO @max_row_div4;
+SET @max_int_4 = 2147483647;
+DROP TABLE IF EXISTS t0_template;
+CREATE TABLE t0_template (
+f_int1 INTEGER,
+f_int2 INTEGER,
+f_char1 CHAR(20),
+f_char2 CHAR(20),
+f_charbig VARCHAR(1000) ,
+PRIMARY KEY(f_int1))
+ENGINE = MEMORY;
+#     Logging of <max_row> INSERTs into t0_template suppressed
+DROP TABLE IF EXISTS t0_definition;
+CREATE TABLE t0_definition (
+state CHAR(3),
+create_command VARBINARY(5000),
+file_list      VARBINARY(5000),
+PRIMARY KEY (state)
+) ENGINE = MEMORY;
+DROP TABLE IF EXISTS t0_aux;
+CREATE TABLE t0_aux ( f_int1 INTEGER,
+f_int2 INTEGER,
+f_char1 CHAR(20),
+f_char2 CHAR(20),
+f_charbig VARCHAR(1000) )
+ENGINE = MEMORY;
+SET AUTOCOMMIT= 1;
+SET @@session.sql_mode= '';
+# End of basic preparations needed for all tests
+#-----------------------------------------------
+
+#========================================================================
+#  Calculation of "exotic" results within the partition function
+#        outside of SIGNED BIGINT value range, 0, NULL
+#     column used in partitioning function has type CHAR
+#========================================================================
+#  1.   HASH(<check value>)
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (
+f_int1 INTEGER,
+f_int2 INTEGER,
+f_char1 CHAR(20),
+f_char2 CHAR(20),
+f_charbig VARCHAR(1000)
+)
+PARTITION BY HASH(CAST(f_char1 AS SIGNED INTEGER) * CAST(5.0E+18 AS SIGNED INTEGER)) PARTITIONS 8;
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+VALUES(2147483646,2147483646,'2147483646','2147483646','#2147483646#');
+SELECT COUNT(*) = 1 FROM t1 WHERE f_char1 = '2147483646';
+COUNT(*) = 1
+1
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+VALUES(-2147483646,-2147483646,'-2147483646','-2147483646','#-2147483646#');
+SELECT COUNT(*) = 1 FROM t1 WHERE f_char1 = '-2147483646';
+COUNT(*) = 1
+1
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+VALUES(0,0,'0','0','#0#');
+SELECT COUNT(*) = 1 FROM t1 WHERE f_char1 = '0';
+COUNT(*) = 1
+1
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+VALUES(NULL,NULL,NULL,NULL,NULL);
+SELECT COUNT(*) = 1 FROM t1 WHERE f_char1 IS NULL;
+COUNT(*) = 1
+1
+DROP TABLE t1;
+#  2.   RANGE(<check value>)
+CREATE TABLE t1 (
+f_int1 INTEGER,
+f_int2 INTEGER,
+f_char1 CHAR(20),
+f_char2 CHAR(20),
+f_charbig VARCHAR(1000)
+)
+PARTITION BY RANGE(CAST(f_char1 AS SIGNED INTEGER) * CAST(5.0E+18 AS SIGNED INTEGER))
+(PARTITION p0 VALUES LESS THAN (0),
+PARTITION p1 VALUES LESS THAN (1000000),
+PARTITION p2 VALUES LESS THAN MAXVALUE);
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+VALUES(2147483646,2147483646,'2147483646','2147483646','#2147483646#');
+SELECT COUNT(*) = 1 FROM t1 WHERE f_char1 = '2147483646';
+COUNT(*) = 1
+1
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+VALUES(-2147483646,-2147483646,'-2147483646','-2147483646','#-2147483646#');
+SELECT COUNT(*) = 1 FROM t1 WHERE f_char1 = '-2147483646';
+COUNT(*) = 1
+1
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+VALUES(0,0,'0','0','#0#');
+SELECT COUNT(*) = 1 FROM t1 WHERE f_char1 = '0';
+COUNT(*) = 1
+1
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+VALUES(NULL,NULL,NULL,NULL,NULL);
+SELECT COUNT(*) = 1 FROM t1 WHERE f_char1 IS NULL;
+COUNT(*) = 1
+1
+DROP TABLE t1;
+#  4.   Partition by RANGE(...) subpartition by HASH(<check value>)
+CREATE TABLE t1 (
+f_int1 INTEGER,
+f_int2 INTEGER,
+f_char1 CHAR(20),
+f_char2 CHAR(20),
+f_charbig VARCHAR(1000)
+)
+PARTITION BY RANGE(CAST(f_char1 AS SIGNED INTEGER))
+SUBPARTITION BY HASH(CAST(f_char2 AS SIGNED INTEGER) * CAST(5.0E+18 AS SIGNED INTEGER)) SUBPARTITIONS 4
+(PARTITION p0 VALUES LESS THAN (0),
+PARTITION p1 VALUES LESS THAN MAXVALUE);
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+VALUES(2147483646,2147483646,'1','2147483646','#2147483646#');
+SELECT COUNT(*) = 1 FROM t1 WHERE f_char2 = '2147483646';
+COUNT(*) = 1
+1
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+VALUES(-2147483646,-2147483646,'-1','-2147483646','#-2147483646#');
+SELECT COUNT(*) = 1 FROM t1 WHERE f_char2 = '-2147483646';
+COUNT(*) = 1
+1
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+VALUES(0,0,'0','0','#0#');
+SELECT COUNT(*) = 1 FROM t1 WHERE f_char2 = '0';
+COUNT(*) = 1
+1
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+VALUES(NULL,NULL,NULL,NULL,NULL);
+SELECT COUNT(*) = 1 FROM t1 WHERE f_char2 IS NULL;
+COUNT(*) = 1
+1
+DROP TABLE t1;
+#  5.   Partition by LIST(...) subpartition by HASH(<check value>)
+CREATE TABLE t1 (
+f_int1 INTEGER,
+f_int2 INTEGER,
+f_char1 CHAR(20),
+f_char2 CHAR(20),
+f_charbig VARCHAR(1000)
+)
+PARTITION BY LIST(CAST(f_char1 AS SIGNED INTEGER))
+SUBPARTITION BY HASH(CAST(f_char2 AS SIGNED INTEGER) * CAST(5.0E+18 AS SIGNED INTEGER)) SUBPARTITIONS 4
+(PARTITION p0 VALUES IN (NULL),
+PARTITION p1 VALUES IN (1));
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+VALUES(2147483646,2147483646,'1','2147483646','#2147483646#');
+SELECT COUNT(*) = 1 FROM t1 WHERE f_char2 = '2147483646';
+COUNT(*) = 1
+1
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+VALUES(-2147483646,-2147483646,'1','-2147483646','#-2147483646#');
+SELECT COUNT(*) = 1 FROM t1 WHERE f_char2 = '-2147483646';
+COUNT(*) = 1
+1
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+VALUES(0,0,'1','0','#0#');
+SELECT COUNT(*) = 1 FROM t1 WHERE f_char2 = '0';
+COUNT(*) = 1
+1
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+VALUES(NULL,NULL,NULL,NULL,NULL);
+SELECT COUNT(*) = 1 FROM t1 WHERE f_char2 IS NULL;
+COUNT(*) = 1
+1
+DROP TABLE t1;
+DROP VIEW  IF EXISTS v1;
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t0_aux;
+DROP TABLE IF EXISTS t0_definition;
+DROP TABLE IF EXISTS t0_template;
