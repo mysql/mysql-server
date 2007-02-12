@@ -3938,13 +3938,15 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
   SYNOPSIS
     get_schema_tables_result()
     join  join which use schema tables
+    executed_place place where I_S table processed
 
   RETURN
     FALSE success
     TRUE  error
 */
 
-bool get_schema_tables_result(JOIN *join)
+bool get_schema_tables_result(JOIN *join,
+                              enum enum_schema_table_state executed_place)
 {
   JOIN_TAB *tmp_join_tab= join->join_tab+join->tables;
   THD *thd= join->thd;
@@ -3964,14 +3966,24 @@ bool get_schema_tables_result(JOIN *join)
       bool is_subselect= (&lex->unit != lex->current_select->master_unit() &&
                           lex->current_select->master_unit()->item);
       /*
-        The schema table is already processed and 
-        the statement is not a subselect.
-        So we don't need to handle this table again.
+        If schema table is already processed and
+        the statement is not a subselect then
+        we don't need to fill this table again.
+        If schema table is already processed and
+        schema_table_state != executed_place then
+        table is already processed and
+        we should skip second data processing.
       */
-      if (table_list->is_schema_table_processed && !is_subselect)
+      if (table_list->schema_table_state &&
+          (!is_subselect || table_list->schema_table_state != executed_place))
         continue;
 
-      if (is_subselect) // is subselect
+      /*
+        if table is used in a subselect and
+        table has been processed earlier with the same
+        'executed_place' value then we should refresh the table.
+      */
+      if (table_list->schema_table_state && is_subselect)
       {
         table_list->table->file->extra(HA_EXTRA_NO_CACHE);
         table_list->table->file->extra(HA_EXTRA_RESET_STATE);
@@ -3988,10 +4000,10 @@ bool get_schema_tables_result(JOIN *join)
       {
         result= 1;
         join->error= 1;
-        table_list->is_schema_table_processed= TRUE;
+        table_list->schema_table_state= executed_place;
         break;
       }
-      table_list->is_schema_table_processed= TRUE;
+      table_list->schema_table_state= executed_place;
     }
   }
   thd->no_warnings_for_error= 0;
