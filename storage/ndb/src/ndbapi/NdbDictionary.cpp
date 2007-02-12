@@ -1668,6 +1668,18 @@ NdbDictionary::Dictionary::getEvent(const char * eventName)
 }
 
 int
+NdbDictionary::Dictionary::listEvents(List& list)
+{
+  return m_impl.listEvents(list);
+}
+
+int
+NdbDictionary::Dictionary::listEvents(List& list) const
+{
+  return m_impl.listEvents(list);
+}
+
+int
 NdbDictionary::Dictionary::listObjects(List& list, Object::Type type)
 {
   return m_impl.listObjects(list, type);

@@ -69,6 +69,9 @@ struct TransporterConfiguration {
     struct {
       Uint32 sendBufferSize;     // Size of SendBuffer of priority B 
       Uint32 maxReceiveSize;     // Maximum no of bytes to receive
+      Uint32 tcpSndBufSize;
+      Uint32 tcpRcvBufSize;
+      Uint32 tcpMaxsegSize;
     } tcp;
     
     struct {
