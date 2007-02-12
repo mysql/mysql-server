@@ -1754,3 +1754,28 @@ t1	CREATE TABLE `t1` (
   `f2` enum('ÿÿ') default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+create table t1(russian enum('E','F','EÿF','FÿE') NOT NULL DEFAULT'E');
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `russian` enum('E','F','EÿF','FÿE') NOT NULL default 'E'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1(denormal enum('E','F','E,F','F,E') NOT NULL DEFAULT'E');
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `denormal` enum('E','F','E,F','F,E') NOT NULL default 'E'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1(russian_deviant enum('E','F','EÿF','F,E') NOT NULL DEFAULT'E');
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `russian_deviant` enum('E','F','EÿF','F,E') NOT NULL default 'E'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1(exhausting_charset enum('ABCDEFGHIJKLMNOPQRSTUVWXYZ','	
+ !"','#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~','xx\','yy\€','zz‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ'));
+ERROR 42000: Field separator argument is not what is expected; check the manual
+End of 4.1 tests
