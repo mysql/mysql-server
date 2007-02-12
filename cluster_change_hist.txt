@@ -1,4 +1,20 @@
 
+mysql-5.1.16-ndb-6.2.0 (unreleased)
+
+  * WAN settings for TCP transporters
+  * moved initialization of ndbd fs block first to ensure that it gets enough space for allocation of file system thread stacks
+  * added listEvents
+  * modified ndb_show_tables to also handle Table Events
+  * added mysqld option --ndb-wait-connected
+  * Add possibility to disable arbitration by setting arbitrationrank=0 on all nodes
+  * Add all dump 2352
+  * Add different READ/SCAN (EX-SH)
+  * ndb - add new dump commands for tracking hanging locks
+  * Change level on StartREDOLog to make it default come up in cluster log
+  * Make ndbd_redo_log_reader be build default
+
+---------------------------------------------------
+
 mysql-5.1.15-ndb-6.1.2 (7 Feb 2007)
 
   Bug #26267 - using node ids > 48 causes invalid memory access
