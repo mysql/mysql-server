@@ -1000,7 +1000,8 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     ev = new Execute_load_query_log_event(buf, event_len, description_event);
     break;
   default:
-    DBUG_PRINT("error",("Unknown evernt code: %d",(int) buf[EVENT_TYPE_OFFSET]));
+    DBUG_PRINT("error",("Unknown event code: %d",
+                        (int) buf[EVENT_TYPE_OFFSET]));
     ev= NULL;
     break;
   }
@@ -5449,19 +5450,19 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
   
   SYNOPSIS
     unpack_row()
-    rli     Relay log info
-    table   Table to unpack into
-    colcnt  Number of columns to read from record
-    record  Record where the data should be unpacked
-    row     Packed row data
-    cols    Pointer to columns data to fill in
-    row_end Pointer to variable that will hold the value of the
-            one-after-end position for the row
+    rli      Relay log info
+    table    Table to unpack into
+    colcnt   Number of columns to read from record
+    record   Record where the data should be unpacked
+    row_data Packed row data
+    cols     Pointer to columns data to fill in
+    row_end  Pointer to variable that will hold the value of the
+             one-after-end position for the row
     master_reclength
-            Pointer to variable that will be set to the length of the
-            record on the master side
-    rw_set  Pointer to bitmap that holds either the read_set or the
-            write_set of the table
+             Pointer to variable that will be set to the length of the
+             record on the master side
+    rw_set   Pointer to bitmap that holds either the read_set or the
+             write_set of the table
 
   DESCRIPTION
 
@@ -5484,62 +5485,78 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
 static int
 unpack_row(RELAY_LOG_INFO *rli,
            TABLE *table, uint const colcnt, byte *record,
-           char const *row, MY_BITMAP const *cols,
-           char const **row_end, ulong *master_reclength,
+           char const *const row_data, MY_BITMAP const *cols,
+           char const **const row_end, ulong *const master_reclength,
            MY_BITMAP* const rw_set, Log_event_type const event_type)
 {
-  DBUG_ASSERT(record && row);
+  DBUG_ENTER("unpack_row");
+  DBUG_ASSERT(record && row_data);
   my_ptrdiff_t const offset= record - (byte*) table->record[0];
-  my_size_t master_null_bytes= table->s->null_bytes;
-
-  if (colcnt != table->s->fields)
-  {
-    Field **fptr= &table->field[colcnt-1];
-    do
-      master_null_bytes= (*fptr)->last_null_byte();
-    while (master_null_bytes == Field::LAST_NULL_BYTE_UNDEF &&
-           fptr-- > table->field);
-
-    /*
-      If master_null_bytes is LAST_NULL_BYTE_UNDEF (0) at this time,
-      there were no nullable fields nor BIT fields at all in the
-      columns that are common to the master and the slave. In that
-      case, there is only one null byte holding the X bit.
-
-      OBSERVE! There might still be nullable columns following the
-      common columns, so table->s->null_bytes might be greater than 1.
-     */
-    if (master_null_bytes == Field::LAST_NULL_BYTE_UNDEF)
-      master_null_bytes= 1;
-  }
-
-  DBUG_ASSERT(master_null_bytes <= table->s->null_bytes);
-  memcpy(record, row, master_null_bytes);            // [1]
+  my_size_t const master_null_byte_count= (bitmap_bits_set(cols) + 7) / 8;
   int error= 0;
 
-  bitmap_set_all(rw_set);
+  char const *null_ptr= row_data;
+  char const *pack_ptr= row_data + master_null_byte_count;
+
+  bitmap_clear_all(rw_set);
+
+  memcpy(record, table->s->default_values, table->s->null_bytes);
 
   Field **const begin_ptr = table->field;
   Field **field_ptr;
-  char const *ptr= row + master_null_bytes;
   Field **const end_ptr= begin_ptr + colcnt;
+
+  DBUG_ASSERT(null_ptr < row_data + master_null_byte_count);
+
+  // Mask to mask out the correct bit among the null bits
+  unsigned int null_mask= 1U;
+  // The "current" null bits
+  unsigned int null_bits= *null_ptr++;
   for (field_ptr= begin_ptr ; field_ptr < end_ptr ; ++field_ptr)
   {
     Field *const f= *field_ptr;
 
     if (bitmap_is_set(cols, field_ptr -  begin_ptr))
     {
-      f->move_field_offset(offset);
-      ptr= f->unpack(f->ptr, ptr);
-      f->move_field_offset(-offset);
+      if ((null_mask & 0xFF) == 0)
+      {
+        DBUG_ASSERT(null_ptr < row_data + master_null_byte_count);
+        null_mask= 1U;
+        null_bits= *null_ptr++;
+      }
+
+      DBUG_ASSERT(null_mask & 0xFF); // One of the 8 LSB should be set
+
+
       /* Field...::unpack() cannot return 0 */
-      DBUG_ASSERT(ptr != NULL);
+      DBUG_ASSERT(pack_ptr != NULL);
+
+      if ((null_bits & null_mask) && f->maybe_null())
+        f->set_null(offset);
+      else
+      {
+        f->set_notnull(offset);
+
+        /*
+          We only unpack the field if it was non-null
+        */
+        f->move_field_offset(offset);
+        pack_ptr= f->unpack(f->ptr, pack_ptr);
+        f->move_field_offset(-offset);
+      }
+
+      bitmap_set_bit(rw_set, field_ptr - begin_ptr);
+      null_mask <<= 1;
     }
-    else
-      bitmap_clear_bit(rw_set, field_ptr - begin_ptr);
   }
 
-  *row_end = ptr;
+  /*
+    We should now have read all the null bytes, otherwise something is
+    really wrong.
+   */
+  DBUG_ASSERT(null_ptr == row_data + master_null_byte_count);
+
+  *row_end = pack_ptr;
   if (master_reclength)
   {
     if (*field_ptr)
@@ -5563,10 +5580,6 @@ unpack_row(RELAY_LOG_INFO *rli,
   {
     uint32 const mask= NOT_NULL_FLAG | NO_DEFAULT_VALUE_FLAG;
 
-    DBUG_PRINT("debug", ("flags = 0x%x, mask = 0x%x, flags & mask = 0x%x",
-                         (*field_ptr)->flags, mask,
-                         (*field_ptr)->flags & mask));
-
     if (event_type == WRITE_ROWS_EVENT &&
         ((*field_ptr)->flags & mask) == mask)
     {
@@ -5581,7 +5594,7 @@ unpack_row(RELAY_LOG_INFO *rli,
       (*field_ptr)->set_default();
   }
 
-  return error;
+  DBUG_RETURN(error);
 }
 
 int Rows_log_event::exec_event(st_relay_log_info *rli)
@@ -6740,6 +6753,8 @@ static int find_and_fetch_row(TABLE *table, byte *key)
 
   DBUG_ASSERT(table->in_use != NULL);
 
+  DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
+
   if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION) &&
       table->s->primary_key < MAX_KEY)
   {
@@ -6842,16 +6857,18 @@ static int find_and_fetch_row(TABLE *table, byte *key)
     /* Continue until we find the right record or have made a full loop */
     do
     {
+      error= table->file->rnd_next(table->record[1]);
+
       /*
-        We need to set the null bytes to ensure that the filler bit
-        are all set when returning.  There are storage engines that
-        just set the necessary bits on the bytes and don't set the
-        filler bits correctly.
+        Patching the returned record since some storage engines do
+        not set the filler bits correctly.
       */
       my_ptrdiff_t const pos=
         table->s->null_bytes > 0 ? table->s->null_bytes - 1 : 0;
-      table->record[1][pos]= 0xFF;
-      error= table->file->rnd_next(table->record[1]);
+      table->record[1][pos]|= 256U - (1U << table->s->last_null_bit_pos);
+
+      DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
+      DBUG_DUMP("record[1]", table->record[1], table->s->reclength);
 
       switch (error)
       {
