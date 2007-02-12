@@ -1,0 +1,16 @@
+ndb_blob_partition             : cannot create t1
+ndb_dd_backuprestore           : cannot create t1
+ndb_partition_error            : cannot create t1
+ndb_partition_list             : cannot create t1
+ndb_partition_range            : cannot create t1
+partition_bit_ndb              : cannot create t1
+partition_int_ndb              : cannot create t1
+partition_syntax_ndb           : cannot create t1
+partition_value_ndb            : cannot create t1
+partition_basic_ndb            : cannot create t1
+partition_alter1_ndb           : timeout. Needs too much time.
+partition_alter2_ndb           : cannot create t1
+partition_char_innodb          : crash. Bug? More investigations
+partition_sessions             : needs system_3_init.inc
+partition_engine_ndb           : cannot create t1
+

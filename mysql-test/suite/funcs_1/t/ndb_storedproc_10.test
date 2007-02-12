@@ -1,0 +1,9 @@
+#### suite/funcs_1/t/ndb_storedproc_10.test
+#
+# 1. Check if ndb is available
+--source include/have_ndb.inc
+
+# 2. Set $engine_type
+let $engine_type= ndb;
+
+--source suite/funcs_1/storedproc/storedproc_10.inc

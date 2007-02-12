@@ -1,0 +1,11 @@
+#################################################################################
+# Author:  Serge Kozlov								#
+# Date:    09/21/2005								#
+# Purpose: Testing the charsets for InnoDB engine				#
+#################################################################################
+
+--source include/have_innodb.inc
+
+let $engine_type= InnoDB;
+--source suite/funcs_2/charset/charset_master.test
+
