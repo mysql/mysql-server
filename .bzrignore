@@ -2935,3 +2935,4 @@ win/vs71cache.txt
 win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
+storage/ndb/src/kernel/blocks/dblqh/ndbd_redo_log_reader
