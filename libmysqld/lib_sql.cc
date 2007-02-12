@@ -66,6 +66,16 @@ void embedded_get_error(MYSQL *mysql)
   }
 }
 
+
+static void emb_free_rows(THD *thd)
+{
+  if (thd->current_stmt)
+    free_root(&thd->data->alloc,MYF(0));
+  else
+    free_rows(thd->data);
+}
+
+
 static my_bool
 emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 		     const char *header, ulong header_length,
@@ -78,7 +88,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 
   if (thd->data)
   {
-    free_rows(thd->data);
+    emb_free_rows(thd);
     thd->data= 0;
   }
   /* Check that we are calling the client functions in right order */
@@ -248,13 +258,23 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
 
 int emb_read_binary_rows(MYSQL_STMT *stmt)
 {
-  MYSQL_DATA *data;
-  if (!(data= emb_read_rows(stmt->mysql, 0, 0)))
+  MYSQL *mysql= stmt->mysql;
+  embedded_get_error(mysql);
+  if (mysql->net.last_errno)
   {
-    set_stmt_errmsg(stmt, stmt->mysql->net.last_error,
-                    stmt->mysql->net.last_errno, stmt->mysql->net.sqlstate);
+    set_stmt_errmsg(stmt, mysql->net.last_error,
+                    mysql->net.last_errno, mysql->net.sqlstate);
     return 1;
   }
+
+  if (((THD*)mysql->thd)->data)
+  {
+    DBUG_ASSERT(((THD*) mysql->thd)->data == &stmt->result);
+    stmt->result.prev_ptr= NULL;
+    ((THD*)mysql->thd)->data= NULL;
+  }
+  else
+    stmt->result.rows= 0;
   return 0;
 }
 
@@ -285,7 +305,7 @@ static void emb_free_embedded_thd(MYSQL *mysql)
 {
   THD *thd= (THD*)mysql->thd;
   if (thd->data)
-    free_rows(thd->data);
+    emb_free_rows(thd);
   thread_count--;
   delete thd;
   mysql->thd=0;
