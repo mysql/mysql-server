@@ -5490,10 +5490,12 @@ Disable with --skip-ndbcluster (will save memory).",
    (gptr*) &global_system_variables.ndb_use_copying_alter_table,
    (gptr*) &global_system_variables.ndb_use_copying_alter_table,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},  
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   { "ndb-wait-connected", OPT_NDB_WAIT_CONNECTED,
     "Time (in seconds) for mysqld to wait for connection to cluster management and data nodes.",
     (gptr*) &opt_ndb_wait_connected, (gptr*) &opt_ndb_wait_connected,
     0, GET_ULONG, REQUIRED_ARG, 0, 0, LONG_TIMEOUT, 0, 0, 0},
+#endif
   {"new", 'n', "Use very new possible 'unsafe' functions.",
    (gptr*) &global_system_variables.new_mode,
    (gptr*) &max_system_variables.new_mode,
