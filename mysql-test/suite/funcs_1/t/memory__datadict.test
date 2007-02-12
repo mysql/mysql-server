@@ -1,0 +1,5 @@
+#### suite/funcs_1/t/datadict_memory.test
+#
+let $engine_type= memory;
+
+--source suite/funcs_1/datadict/datadict_master.inc
