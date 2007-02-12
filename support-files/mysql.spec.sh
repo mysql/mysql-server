@@ -1,3 +1,19 @@
+# Copyright (C) 2000-2007 MySQL AB
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; see the file COPYING. If not, write to the
+# Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
+# MA  02110-1301  USA.
+
 %define mysql_version		@VERSION@
 
 # use "rpmbuild --with static" or "rpm --define '_with_static 1'" (for RPM 3.x)
@@ -70,12 +86,9 @@ is intended for mission-critical, heavy-load production systems as well
 as for embedding into mass-deployed software. MySQL is a trademark of
 MySQL AB.
 
-The MySQL software has Dual Licensing, which means you can use the MySQL
-software free of charge under the GNU General Public License
-(http://www.gnu.org/licenses/). You can also purchase commercial MySQL
-licenses from MySQL AB if you do not wish to be bound by the terms of
-the GPL. See the chapter "Licensing and Support" in the manual for
-further info.
+Copyright (C) 2000-2007 MySQL AB
+This software comes with ABSOLUTELY NO WARRANTY. This is free software,
+and you are welcome to modify and redistribute it under the GPL license.
 
 The MySQL web site (http://www.mysql.com/) provides the latest
 news and information about the MySQL software. Also please see the
@@ -95,12 +108,9 @@ is intended for mission-critical, heavy-load production systems as well
 as for embedding into mass-deployed software. MySQL is a trademark of
 MySQL AB.
 
-The MySQL software has Dual Licensing, which means you can use the MySQL
-software free of charge under the GNU General Public License
-(http://www.gnu.org/licenses/). You can also purchase commercial MySQL
-licenses from MySQL AB if you do not wish to be bound by the terms of
-the GPL. See the chapter "Licensing and Support" in the manual for
-further info.
+Copyright (C) 2000-2007 MySQL AB
+This software comes with ABSOLUTELY NO WARRANTY. This is free software,
+and you are welcome to modify and redistribute it under the GPL license.
 
 The MySQL web site (http://www.mysql.com/) provides the latest
 news and information about the MySQL software. Also please see the
@@ -345,6 +355,8 @@ then
 fi
 
 ( cd mysql-test
+  MTR_BUILD_THREAD=auto
+  export MTR_BUILD_THREAD
   perl ./mysql-test-run.pl --force --report-features
   perl ./mysql-test-run.pl --force --ps-protocol
   true )
@@ -407,6 +419,8 @@ then
 fi
 
 ( cd mysql-test
+  MTR_BUILD_THREAD=auto
+  export MTR_BUILD_THREAD
   perl ./mysql-test-run.pl --force --report-features
   perl ./mysql-test-run.pl --force --ps-protocol
   true )
@@ -755,6 +769,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Wed Jan 31 2007 Daniel Fischer <df@mysql.com>
+
+- add MTR_BUILD_THREAD=auto to test runs.
+
 * Fri Jan 05 2007 Kent Boortz <kent@mysql.com>
 
 - Add CFLAGS to gcc call with --print-libgcc-file, to make sure the

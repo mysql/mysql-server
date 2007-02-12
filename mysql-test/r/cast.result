@@ -348,6 +348,10 @@ Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '-1e+30'
 Warning	1292	Truncated incorrect INTEGER value: '1e+30'
 DROP TABLE t1;
+select isnull(date(NULL)), isnull(cast(NULL as DATE));
+isnull(date(NULL))	isnull(cast(NULL as DATE))
+1	1
+End of 4.1 tests
 select cast('1.2' as decimal(3,2));
 cast('1.2' as decimal(3,2))
 1.20
