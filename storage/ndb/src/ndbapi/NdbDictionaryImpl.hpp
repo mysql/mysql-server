@@ -602,6 +602,7 @@ public:
   int dropEvent(const char * eventName);
   int dropEvent(const NdbEventImpl &);
   int dropBlobEvents(const NdbEventImpl &);
+  int listEvents(List& list);
 
   int executeSubscribeEvent(NdbEventOperationImpl &);
   int stopSubscribeEvent(NdbEventOperationImpl &);
