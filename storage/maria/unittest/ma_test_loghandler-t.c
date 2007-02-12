@@ -1,6 +1,7 @@
 #include "../maria_def.h"
 #include <stdio.h>
 #include <errno.h>
+#include <tap.h>
 
 #ifndef DBUG_OFF
 static const char *default_dbug_option;
@@ -83,7 +84,7 @@ static my_bool read_and_check_content(TRANSLOG_HEADER_BUFFER *rec,
                                       uchar *buffer, uint skip)
 {
   DBUG_ASSERT(rec->record_length < LONG_BUFFER_SIZE * 2 + 7 * 2 + 2);
-  if (translog_read_record(&rec->lsn, 0, rec->record_length, buffer, NULL) !=
+  if (translog_read_record(rec->lsn, 0, rec->record_length, buffer, NULL) !=
       rec->record_length)
       return 1;
   return check_content(buffer + skip, rec->record_length - skip);
@@ -103,7 +104,7 @@ int main(int argc, char *argv[])
   };
   uchar long_buffer[LONG_BUFFER_SIZE * 2 + 7 * 2 + 2];
   PAGECACHE pagecache;
-  LSN lsn, lsn_base, first_lsn, *lsn_ptr;
+  LSN lsn, lsn_base, first_lsn, lsn_ptr;
   TRANSLOG_HEADER_BUFFER rec;
   struct st_translog_scanner_data scanner;
   int rc;
@@ -172,7 +173,7 @@ int main(int argc, char *argv[])
       printf("write %d\n", i);
     if (i % 2)
     {
-      lsn7store(lsn_buff, &lsn_base);
+      lsn7store(lsn_buff, lsn_base);
       if (translog_write_record(&lsn,
                                 LOGREC_CLR_END,
                                 (i % 0xFFFF), NULL, 7, lsn_buff, 0))
@@ -182,7 +183,7 @@ int main(int argc, char *argv[])
         translog_destroy();
         exit(1);
       }
-      lsn7store(lsn_buff, &lsn_base);
+      lsn7store(lsn_buff, lsn_base);
       if ((rec_len= random() / (RAND_MAX / (LONG_BUFFER_SIZE + 1))) < 12)
         rec_len= 12;
       if (translog_write_record(&lsn,
@@ -198,8 +199,8 @@ int main(int argc, char *argv[])
     }
     else
     {
-      lsn7store(lsn_buff, &lsn_base);
-      lsn7store(lsn_buff + 7, &first_lsn);
+      lsn7store(lsn_buff, lsn_base);
+      lsn7store(lsn_buff + 7, first_lsn);
       if (translog_write_record(&lsn,
                                 LOGREC_UNDO_ROW_DELETE,
                                 (i % 0xFFFF), NULL, 23, lsn_buff, 0))
@@ -209,8 +210,8 @@ int main(int argc, char *argv[])
         translog_destroy();
         exit(1);
       }
-      lsn7store(lsn_buff, &lsn_base);
-      lsn7store(lsn_buff + 7, &first_lsn);
+      lsn7store(lsn_buff, lsn_base);
+      lsn7store(lsn_buff + 7, first_lsn);
       if ((rec_len= random() / (RAND_MAX / (LONG_BUFFER_SIZE + 1))) < 19)
         rec_len= 19;
       if (translog_write_record(&lsn,
@@ -246,7 +247,7 @@ int main(int argc, char *argv[])
       translog_destroy();
       exit(1);
     }
-    if (translog_flush(&lsn))
+    if (translog_flush(lsn))
     {
       fprintf(stderr, "Can't flush #%lu\n", (ulong) i);
       translog_destroy();
@@ -282,7 +283,7 @@ int main(int argc, char *argv[])
   rc= 1;
 
   {
-    translog_size_t len= translog_read_record_header(&first_lsn, &rec);
+    translog_size_t len= translog_read_record_header(first_lsn, &rec);
     if (len == 0)
     {
       fprintf(stderr, "translog_read_record_header failed (%d)\n", errno);
@@ -291,19 +292,19 @@ int main(int argc, char *argv[])
     if (rec.type !=LOGREC_LONG_TRANSACTION_ID || rec.short_trid != 0 ||
         rec.record_length != 6 || uint4korr(rec.header) != 0 ||
         (uint)rec.header[4] != 0 || rec.header[5] != 0xFF ||
-        first_lsn.file_no != rec.lsn.file_no ||
-        first_lsn.rec_offset != rec.lsn.rec_offset)
+        first_lsn != rec.lsn)
     {
       fprintf(stderr, "Incorrect LOGREC_LONG_TRANSACTION_ID data read(0)\n"
               "type %u, strid %u, len %u, i: %u, 4: %u 5: %u, "
-              "lsn(0x%lx,0x%lx)\n",
+              "lsn(%lu,0x%lx)\n",
               (uint) rec.type, (uint) rec.short_trid, (uint) rec.record_length,
-              uint4korr(rec.header), (uint) rec.header[4], (uint) rec.header[5],
-              (ulong) rec.lsn.file_no, (ulong) rec.lsn.rec_offset);
+              (uint) uint4korr(rec.header), (uint) rec.header[4],
+              (uint) rec.header[5],
+              (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
       goto err;
     }
     lsn= first_lsn;
-    lsn_ptr= &first_lsn;
+    lsn_ptr= first_lsn;
     for (i= 1;; i++)
     {
       if (i % 1000 == 0)
@@ -315,7 +316,7 @@ int main(int argc, char *argv[])
                 i, errno);
         goto err;
       }
-      if (rec.lsn.file_no == CONTROL_FILE_IMPOSSIBLE_FILENO)
+      if (rec.lsn == CONTROL_FILE_IMPOSSIBLE_LSN)
       {
         if (i != ITERATIONS)
         {
@@ -325,37 +326,35 @@ int main(int argc, char *argv[])
         }
         break;
       }
-      lsn_ptr= NULL;                            /* use scanner after its
-                                                   initialization */
+      /* use scanner after its initialization */
+      lsn_ptr= 0;
       if (i % 2)
       {
         LSN ref;
-        lsn7korr(&ref, rec.header);
+        ref= lsn7korr(rec.header);
         if (rec.type !=LOGREC_CLR_END || rec.short_trid != (i % 0xFFFF) ||
-            rec.record_length != 7 || ref.file_no != lsn.file_no ||
-            ref.rec_offset != lsn.rec_offset)
+            rec.record_length != 7 || ref != lsn)
         {
-          fprintf(stderr, "Incorrect LOGREC_CLR_END data read(%d)"
-                  "type %u, strid %u, len %u, ref(%u,0x%lx), lsn(%u,0x%lx)\n",
+          fprintf(stderr, "Incorrect LOGREC_CLR_END data read(%d) "
+                  "type %u, strid %u, len %u, ref(%lu,0x%lx), "
+                  "lsn(%lu,0x%lx)\n",
                   i, (uint) rec.type, (uint) rec.short_trid,
                   (uint) rec.record_length,
-                  (uint) ref.file_no, (ulong) ref.rec_offset,
-                  (uint) rec.lsn.file_no, (ulong) rec.lsn.rec_offset);
+                  (ulong) LSN_FILE_NO(ref), (ulong) LSN_OFFSET(ref),
+                  (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
           goto err;
         }
       }
       else
       {
         LSN ref1, ref2;
-        lsn7korr(&ref1, rec.header);
-        lsn7korr(&ref2, rec.header + 7);
+        ref1= lsn7korr(rec.header);
+        ref2= lsn7korr(rec.header + 7);
         if (rec.type !=LOGREC_UNDO_ROW_DELETE ||
             rec.short_trid != (i % 0xFFFF) ||
             rec.record_length != 23 ||
-            ref1.file_no != lsn.file_no ||
-            ref1.rec_offset != lsn.rec_offset ||
-            ref2.file_no != first_lsn.file_no ||
-            ref2.rec_offset != first_lsn.rec_offset ||
+            ref1 != lsn ||
+            ref2 != first_lsn ||
             rec.header[22] != 0x55 || rec.header[21] != 0xAA ||
             rec.header[20] != 0x55 || rec.header[19] != 0xAA ||
             rec.header[18] != 0x55 || rec.header[17] != 0xAA ||
@@ -363,19 +362,19 @@ int main(int argc, char *argv[])
             rec.header[14] != 0x55)
         {
           fprintf(stderr, "Incorrect LOGREC_UNDO_ROW_DELETE data read(%d)"
-                  "type %u, strid %u, len %u, ref1(%u,0x%lx), "
-                  "ref2(%u,0x%lx) %x%x%x%x%x%x%x%x%x "
-                  "lsn(%u,0x%lx)\n",
+                  "type %u, strid %u, len %u, ref1(%lu,0x%lx), "
+                  "ref2(%lu,0x%lx) %x%x%x%x%x%x%x%x%x "
+                  "lsn(%lu,0x%lx)\n",
                   i, (uint) rec.type, (uint) rec.short_trid,
                   (uint) rec.record_length,
-                  (uint) ref1.file_no, (ulong) ref1.rec_offset,
-                  (uint) ref2.file_no, (ulong) ref2.rec_offset,
+                  (ulong) LSN_FILE_NO(ref1), (ulong) LSN_OFFSET(ref1),
+                  (ulong) LSN_FILE_NO(ref2), (ulong) LSN_OFFSET(ref2),
                   (uint) rec.header[14], (uint) rec.header[15],
                   (uint) rec.header[16], (uint) rec.header[17],
                   (uint) rec.header[18], (uint) rec.header[19],
                   (uint) rec.header[20], (uint) rec.header[21],
                   (uint) rec.header[22],
-                  (uint) rec.lsn.file_no, (ulong) rec.lsn.rec_offset);
+                  (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
           goto err;
         }
       }
@@ -386,7 +385,7 @@ int main(int argc, char *argv[])
                 "failed (%d)\n", i, errno);
         goto err;
       }
-      if (rec.lsn.file_no == CONTROL_FILE_IMPOSSIBLE_FILENO)
+      if (rec.lsn == CONTROL_FILE_IMPOSSIBLE_LSN)
       {
         fprintf(stderr, "EOL met at the middle of iteration (first var) %u "
                 "instead of beginning of %u\n", i, ITERATIONS);
@@ -395,20 +394,19 @@ int main(int argc, char *argv[])
       if (i % 2)
       {
         LSN ref;
-        lsn7korr(&ref, rec.header);
+        ref= lsn7korr(rec.header);
         if ((rec_len= random() / (RAND_MAX / (LONG_BUFFER_SIZE + 1))) < 12)
           rec_len= 12;
         if (rec.type !=LOGREC_UNDO_KEY_INSERT ||
             rec.short_trid != (i % 0xFFFF) ||
             rec.record_length != rec_len + 7 ||
-            len != 12 || ref.file_no != lsn.file_no ||
-            ref.rec_offset != lsn.rec_offset ||
+            len != 12 || ref != lsn ||
             check_content(rec.header + 7, len - 7))
         {
           fprintf(stderr, "Incorrect LOGREC_UNDO_KEY_INSERT data read(%d)"
                   "type %u (%d), strid %u (%d), len %lu, %lu + 7 (%d), "
                   "hdr len: %u (%d), "
-                  "ref(%u,0x%lx), lsn(%u,0x%lx) (%d), content: %d\n",
+                  "ref(%lu,0x%lx), lsn(%lu,0x%lx) (%d), content: %d\n",
                   i, (uint) rec.type,
                   rec.type !=LOGREC_UNDO_KEY_INSERT,
                   (uint) rec.short_trid,
@@ -417,10 +415,9 @@ int main(int argc, char *argv[])
                   rec.record_length != rec_len + 7,
                   (uint) len,
                   len != 12,
-                  (uint) ref.file_no, (ulong) ref.rec_offset,
-                  (uint) rec.lsn.file_no, (ulong) rec.lsn.rec_offset,
-                  (len != 12 || ref.file_no != lsn.file_no ||
-                   ref.rec_offset != lsn.rec_offset),
+                  (ulong) LSN_FILE_NO(ref), (ulong) LSN_OFFSET(ref),
+                  (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn),
+                  (len != 12 || ref != lsn),
                   check_content(rec.header + 7, len - 7));
           goto err;
         }
@@ -428,46 +425,44 @@ int main(int argc, char *argv[])
         {
           fprintf(stderr,
                   "Incorrect LOGREC_UNDO_KEY_INSERT in whole rec read "
-                  "lsn(%u,0x%lx)\n",
-                  (uint) rec.lsn.file_no, (ulong) rec.lsn.rec_offset);
+                  "lsn(%lu,0x%lx)\n",
+                  (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
           goto err;
         }
       }
       else
       {
         LSN ref1, ref2;
-        lsn7korr(&ref1, rec.header);
-        lsn7korr(&ref2, rec.header + 7);
+        ref1= lsn7korr(rec.header);
+        ref2= lsn7korr(rec.header + 7);
         if ((rec_len= random() / (RAND_MAX / (LONG_BUFFER_SIZE + 1))) < 19)
           rec_len= 19;
         if (rec.type !=LOGREC_UNDO_KEY_DELETE ||
             rec.short_trid != (i % 0xFFFF) ||
             rec.record_length != rec_len + 14 ||
             len != 19 ||
-            ref1.file_no != lsn.file_no ||
-            ref1.rec_offset != lsn.rec_offset ||
-            ref2.file_no != first_lsn.file_no ||
-            ref2.rec_offset != first_lsn.rec_offset ||
+            ref1 != lsn ||
+            ref2 != first_lsn ||
             check_content(rec.header + 14, len - 14))
         {
           fprintf(stderr, "Incorrect LOGREC_UNDO_KEY_DELETE data read(%d)"
                   "type %u, strid %u, len %lu != %lu + 7, hdr len: %u, "
-                  "ref1(%u,0x%lx), ref2(%u,0x%lx), "
-                  "lsn(%u,0x%lx)\n",
+                  "ref1(%lu,0x%lx), ref2(%lu,0x%lx), "
+                  "lsn(%lu,0x%lx)\n",
                   i, (uint) rec.type, (uint) rec.short_trid,
                   (ulong) rec.record_length, (ulong) rec_len,
                   (uint) len,
-                  (uint) ref1.file_no, (ulong) ref1.rec_offset,
-                  (uint) ref2.file_no, (ulong) ref2.rec_offset,
-                  (uint) rec.lsn.file_no, (ulong) rec.lsn.rec_offset);
+                  (ulong) LSN_FILE_NO(ref1), (ulong) LSN_OFFSET(ref1),
+                  (ulong) LSN_FILE_NO(ref2), (ulong) LSN_OFFSET(ref2),
+                  (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
           goto err;
         }
         if (read_and_check_content(&rec, long_buffer, 14))
         {
           fprintf(stderr,
                   "Incorrect LOGREC_UNDO_KEY_DELETE in whole rec read "
-                  "lsn(%u,0x%lx)\n",
-                  (uint) rec.lsn.file_no, (ulong) rec.lsn.rec_offset);
+                  "lsn(%lu,0x%lx)\n",
+                  (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
           goto err;
         }
       }
@@ -479,7 +474,7 @@ int main(int argc, char *argv[])
                 i, errno);
         goto err;
       }
-      if (rec.lsn.file_no == CONTROL_FILE_IMPOSSIBLE_FILENO)
+      if (rec.lsn == CONTROL_FILE_IMPOSSIBLE_LSN)
       {
         fprintf(stderr, "EOL met at the middle of iteration %u "
                 "instead of beginning of %u\n", i, ITERATIONS);
@@ -492,12 +487,12 @@ int main(int argc, char *argv[])
       {
         fprintf(stderr, "Incorrect LOGREC_LONG_TRANSACTION_ID data read(%d)\n"
                 "type %u, strid %u, len %u, i: %u, 4: %u 5: %u "
-                "lsn(%u,0x%lx)\n",
+                "lsn(%lu,0x%lx)\n",
                 i, (uint) rec.type, (uint) rec.short_trid,
                 (uint) rec.record_length,
-                uint4korr(rec.header), (uint) rec.header[4],
+                (uint) uint4korr(rec.header), (uint) rec.header[4],
                 (uint) rec.header[5],
-                (uint) rec.lsn.file_no, (ulong) rec.lsn.rec_offset);
+                (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
         goto err;
       }
 
@@ -513,18 +508,19 @@ int main(int argc, char *argv[])
       {
         fprintf(stderr, "Incorrect LOGREC_REDO_INSERT_ROW_HEAD data read(%d)"
                 "type %u, strid %u, len %lu != %lu, hdr len: %u, "
-                "lsn(%u,0x%lx)\n",
+                "lsn(%lu,0x%lx)\n",
                 i, (uint) rec.type, (uint) rec.short_trid,
                 (ulong) rec.record_length, (ulong) rec_len,
-                (uint) len, (uint) rec.lsn.file_no, (ulong) rec.lsn.rec_offset);
+                (uint) len,
+                (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
         goto err;
       }
       if (read_and_check_content(&rec, long_buffer, 0))
       {
         fprintf(stderr,
                 "Incorrect LOGREC_UNDO_KEY_DELETE in whole rec read "
-                "lsn(%u,0x%lx)\n",
-                (uint) rec.lsn.file_no, (ulong) rec.lsn.rec_offset);
+                "lsn(%lu,0x%lx)\n",
+                (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
         goto err;
       }
     }

@@ -7,6 +7,7 @@
 #include <my_sys.h>
 #include <m_string.h>
 #include "test_file.h"
+#include <tap.h>
 
 #define PCACHE_SIZE (PAGE_SIZE*1024*10)
 
@@ -235,7 +236,7 @@ int simple_pin_test()
                         0,
                         PAGECACHE_LOCK_READ_UNLOCK,
                         PAGECACHE_UNPIN,
-                        0, 0);
+                        0);
   if (flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE))
   {
     diag("Got error in flush_pagecache_blocks\n");
@@ -364,7 +365,7 @@ int simple_big_test()
                     0);
   }
   desc[i].length= 0;
-  desc[i].content= NULL;
+  desc[i].content= '\0';
   ok(1, "Simple big file write");
   /* check written pages sequentally read */
   for (i= 0; i < PCACHE_SIZE/(PAGE_SIZE/2); i++)

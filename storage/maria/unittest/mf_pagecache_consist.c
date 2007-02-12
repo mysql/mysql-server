@@ -8,6 +8,7 @@
 #include <my_sys.h>
 #include <m_string.h>
 #include "test_file.h"
+#include <tap.h>
 
 #define PCACHE_SIZE (PAGE_SIZE*1024*8)
 

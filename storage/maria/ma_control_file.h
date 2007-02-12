@@ -30,16 +30,14 @@
 #define CONTROL_FILE_IMPOSSIBLE_FILENO 0
 /* logs always have a header */
 #define CONTROL_FILE_IMPOSSIBLE_LOG_OFFSET 0
-/*
-  indicate absence of LSN.
-*/
-#define CONTROL_FILE_IMPOSSIBLE_LSN ((LSN){CONTROL_FILE_IMPOSSIBLE_FILENO,CONTROL_FILE_IMPOSSIBLE_LOG_OFFSET})
+/* indicate absence of LSN.  */
+#define CONTROL_FILE_IMPOSSIBLE_LSN ((LSN)0)
 
 /* Here is the interface of this module */
 
 /*
   LSN of the last checkoint
-  (if last_checkpoint_lsn.file_no == CONTROL_FILE_IMPOSSIBLE_FILENO
+  (if last_checkpoint_lsn == CONTROL_FILE_IMPOSSIBLE_LSN
   then there was never a checkpoint)
 */
 extern LSN last_checkpoint_lsn;
@@ -72,7 +70,7 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open();
 #define CONTROL_FILE_UPDATE_ALL 0
 #define CONTROL_FILE_UPDATE_ONLY_LSN 1
 #define CONTROL_FILE_UPDATE_ONLY_LOGNO 2
-int ma_control_file_write_and_force(const LSN *checkpoint_lsn, uint32 logno,
+int ma_control_file_write_and_force(const LSN checkpoint_lsn, uint32 logno,
                                     uint objs_to_write);
 
 

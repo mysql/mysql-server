@@ -37,7 +37,7 @@
 #define CONTROL_FILE_CHECKSUM_OFFSET (CONTROL_FILE_MAGIC_STRING_OFFSET + CONTROL_FILE_MAGIC_STRING_SIZE)
 #define CONTROL_FILE_CHECKSUM_SIZE 1
 #define CONTROL_FILE_LSN_OFFSET (CONTROL_FILE_CHECKSUM_OFFSET + CONTROL_FILE_CHECKSUM_SIZE)
-#define CONTROL_FILE_LSN_SIZE (4+4)
+#define CONTROL_FILE_LSN_SIZE (3+4)
 #define CONTROL_FILE_FILENO_OFFSET (CONTROL_FILE_LSN_OFFSET + CONTROL_FILE_LSN_SIZE)
 #define CONTROL_FILE_FILENO_SIZE 4
 #define CONTROL_FILE_SIZE (CONTROL_FILE_FILENO_OFFSET + CONTROL_FILE_FILENO_SIZE)
@@ -58,20 +58,6 @@ uint32 last_logno;
   to be as atomic as possible
 */
 static int control_file_fd= -1;
-
-static void lsn8store(char *buffer, const LSN *lsn)
-{
-  int4store(buffer, lsn->file_no);
-  int4store(buffer + CONTROL_FILE_FILENO_SIZE, lsn->rec_offset);
-}
-
-static LSN lsn8korr(char *buffer)
-{
-  LSN tmp;
-  tmp.file_no= uint4korr(buffer);
-  tmp.rec_offset= uint4korr(buffer + CONTROL_FILE_FILENO_SIZE);
-  return tmp;
-}
 
 static char simple_checksum(char *buffer, uint size)
 {
@@ -120,7 +106,7 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
     "*store" and "*korr" calls in this file, and can even create backward
     compatibility problems. Beware!
   */
-  DBUG_ASSERT(CONTROL_FILE_LSN_SIZE == (4+4));
+  DBUG_ASSERT(CONTROL_FILE_LSN_SIZE == (3+4));
   DBUG_ASSERT(CONTROL_FILE_FILENO_SIZE == 4);
 
   if (control_file_fd >= 0) /* already open */
@@ -154,11 +140,9 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
       usable as soon as it has been written to the log).
     */
 
-    LSN imposs_lsn= CONTROL_FILE_IMPOSSIBLE_LSN;
-    uint32 imposs_logno= CONTROL_FILE_IMPOSSIBLE_FILENO;
-
     /* init the file with these "undefined" values */
-    DBUG_RETURN(ma_control_file_write_and_force(&imposs_lsn, imposs_logno,
+    DBUG_RETURN(ma_control_file_write_and_force(CONTROL_FILE_IMPOSSIBLE_LSN,
+                                                CONTROL_FILE_IMPOSSIBLE_FILENO,
                                                 CONTROL_FILE_UPDATE_ALL));
   }
 
@@ -216,7 +200,7 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
     error= CONTROL_FILE_BAD_CHECKSUM;
     goto err;
   }
-  last_checkpoint_lsn= lsn8korr(buffer + CONTROL_FILE_LSN_OFFSET);
+  last_checkpoint_lsn= lsn7korr(buffer + CONTROL_FILE_LSN_OFFSET);
   last_logno= uint4korr(buffer + CONTROL_FILE_FILENO_OFFSET);
 
   DBUG_RETURN(0);
@@ -253,7 +237,7 @@ err:
     1 - Error
 */
 
-int ma_control_file_write_and_force(const LSN *checkpoint_lsn, uint32 logno,
+int ma_control_file_write_and_force(const LSN checkpoint_lsn, uint32 logno,
                                  uint objs_to_write)
 {
   char buffer[CONTROL_FILE_SIZE];
@@ -277,9 +261,9 @@ int ma_control_file_write_and_force(const LSN *checkpoint_lsn, uint32 logno,
     DBUG_ASSERT(0);
 
   if (update_checkpoint_lsn)
-    lsn8store(buffer + CONTROL_FILE_LSN_OFFSET, checkpoint_lsn);
+    lsn7store(buffer + CONTROL_FILE_LSN_OFFSET, checkpoint_lsn);
   else /* store old value == change nothing */
-    lsn8store(buffer + CONTROL_FILE_LSN_OFFSET, &last_checkpoint_lsn);
+    lsn7store(buffer + CONTROL_FILE_LSN_OFFSET, last_checkpoint_lsn);
 
   if (update_logno)
     int4store(buffer + CONTROL_FILE_FILENO_OFFSET, logno);
@@ -297,7 +281,7 @@ int ma_control_file_write_and_force(const LSN *checkpoint_lsn, uint32 logno,
 
   /* TODO: you need some protection to be able to write last_* global vars */
   if (update_checkpoint_lsn)
-    last_checkpoint_lsn= *checkpoint_lsn;
+    last_checkpoint_lsn= checkpoint_lsn;
   if (update_logno)
     last_logno= logno;
 

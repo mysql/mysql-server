@@ -21,6 +21,7 @@
 C_MODE_START
 
 #include "../storage/maria/ma_loghandler_lsn.h"
+#include <m_string.h>
 
 /* Type of the page */
 enum pagecache_page_type
@@ -72,8 +73,6 @@ enum pagecache_write_mode
 };
 
 typedef void *PAGECACHE_PAGE_LINK;
-
-typedef uint64 LSN;
 
 /* file descriptor for Maria */
 typedef struct st_pagecache_file
@@ -152,8 +151,8 @@ typedef struct st_pagecache
   ulong param_division_limit;   /* min. percentage of warm blocks           */
   ulong param_age_threshold;    /* determines when hot block is downgraded  */
 
-  /* Statistics variables. These are reset in reset_key_cache_counters(). */
-  ulong global_blocks_changed;	/* number of currently dirty blocks         */
+  /* Statistics variables. These are reset in reset_pagecache_counters().    */
+  ulong global_blocks_changed;	/* number of currently dirty blocks          */
   ulonglong global_cache_w_requests;/* number of write requests (write hits) */
   ulonglong global_cache_write;     /* number of writes from cache to files  */
   ulonglong global_cache_r_requests;/* number of read requests (read hits)   */
@@ -200,14 +199,12 @@ extern void pagecache_unlock_page(PAGECACHE *pagecache,
                                   pgcache_page_no_t pageno,
                                   enum pagecache_page_lock lock,
                                   enum pagecache_page_pin pin,
-                                  my_bool stamp_this_page,
-                                  LSN_PTR first_REDO_LSN_for_page);
+                                  LSN first_REDO_LSN_for_page);
 extern void pagecache_unlock(PAGECACHE *pagecache,
                              PAGECACHE_PAGE_LINK *link,
                              enum pagecache_page_lock lock,
                              enum pagecache_page_pin pin,
-                             my_bool stamp_this_page,
-                             LSN_PTR first_REDO_LSN_for_page);
+                             LSN first_REDO_LSN_for_page);
 extern void pagecache_unpin_page(PAGECACHE *pagecache,
                                  PAGECACHE_FILE *file,
                                  pgcache_page_no_t pageno);
@@ -225,6 +222,7 @@ extern void end_pagecache(PAGECACHE *keycache, my_bool cleanup);
 extern my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
                                                          LEX_STRING *str,
                                                          LSN *max_lsn);
+extern int reset_pagecache_counters(const char *name, PAGECACHE *pagecache);
 
 C_MODE_END
 #endif /* _keycache_h */

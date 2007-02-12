@@ -218,7 +218,7 @@ void translog_destroy();
       part of the header
 */
 
-translog_size_t translog_read_record_header(LSN *lsn,
+translog_size_t translog_read_record_header(LSN lsn,
                                             TRANSLOG_HEADER_BUFFER *buff);
 
 
@@ -249,7 +249,7 @@ void translog_free_record_header(TRANSLOG_HEADER_BUFFER *buff);
     length of data actually read
 */
 
-translog_size_t translog_read_record(LSN *lsn,
+translog_size_t translog_read_record(LSN lsn,
                                      translog_size_t offset,
                                      translog_size_t length,
                                      uchar *buffer,
@@ -269,7 +269,7 @@ translog_size_t translog_read_record(LSN *lsn,
     1 - Error
 */
 
-my_bool translog_flush(LSN *lsn);
+my_bool translog_flush(LSN lsn);
 
 
 /*
@@ -304,7 +304,7 @@ my_bool translog_flush(LSN *lsn);
       part of the header
 */
 
-translog_size_t translog_read_next_record_header(LSN *lsn,
+translog_size_t translog_read_next_record_header(LSN lsn,
                                                  TRANSLOG_HEADER_BUFFER *buff,
                                                  my_bool fixed_horizon,
                                                  struct

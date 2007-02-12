@@ -133,10 +133,8 @@ static int delete_file(myf my_flags)
 static int verify_module_values_match_expected()
 {
   RET_ERR_UNLESS(last_logno == expect_logno);
-  RET_ERR_UNLESS(last_checkpoint_lsn.file_no ==
-                 expect_checkpoint_lsn.file_no);
-  RET_ERR_UNLESS(last_checkpoint_lsn.rec_offset ==
-               expect_checkpoint_lsn.rec_offset);
+  RET_ERR_UNLESS(last_checkpoint_lsn ==
+                 expect_checkpoint_lsn);
   return 0;
 }
 
@@ -148,10 +146,8 @@ static int verify_module_values_match_expected()
 static int verify_module_values_are_impossible()
 {
   RET_ERR_UNLESS(last_logno == CONTROL_FILE_IMPOSSIBLE_FILENO);
-  RET_ERR_UNLESS(last_checkpoint_lsn.file_no ==
-                 CONTROL_FILE_IMPOSSIBLE_FILENO);
-  RET_ERR_UNLESS(last_checkpoint_lsn.rec_offset ==
-                 CONTROL_FILE_IMPOSSIBLE_LOG_OFFSET);
+  RET_ERR_UNLESS(last_checkpoint_lsn ==
+                 CONTROL_FILE_IMPOSSIBLE_LSN);
   return 0;
 }
 
@@ -173,9 +169,9 @@ static int create_or_open_file()
   return 0;
 }
 
-static int write_file(const LSN *checkpoint_lsn,
-                                        uint32 logno,
-                                        uint objs_to_write)
+static int write_file(const LSN checkpoint_lsn,
+                      uint32 logno,
+                      uint objs_to_write)
 {
   RET_ERR_UNLESS(ma_control_file_write_and_force(checkpoint_lsn, logno,
                                              objs_to_write) == 0);
@@ -191,8 +187,9 @@ static int test_one_log()
   RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
   objs_to_write= CONTROL_FILE_UPDATE_ONLY_LOGNO;
   expect_logno= 123;
-  RET_ERR_UNLESS(write_file(NULL, expect_logno,
-                                          objs_to_write) == 0);
+  RET_ERR_UNLESS(write_file(CONTROL_FILE_IMPOSSIBLE_LSN,
+                            expect_logno,
+                            objs_to_write) == 0);
   RET_ERR_UNLESS(close_file() == 0);
   return 0;
 }
@@ -208,8 +205,8 @@ static int test_five_logs()
   for (i= 0; i<5; i++)
   {
     expect_logno*= 3;
-    RET_ERR_UNLESS(write_file(NULL, expect_logno,
-                                            objs_to_write) == 0);
+    RET_ERR_UNLESS(write_file(CONTROL_FILE_IMPOSSIBLE_LSN, expect_logno,
+                              objs_to_write) == 0);
   }
   RET_ERR_UNLESS(close_file() == 0);
   return 0;
@@ -224,29 +221,29 @@ static int test_3_checkpoints_and_2_logs()
   */
   RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
   objs_to_write= CONTROL_FILE_UPDATE_ONLY_LSN;
-  expect_checkpoint_lsn= (LSN){5, 10000};
-  RET_ERR_UNLESS(write_file(&expect_checkpoint_lsn,
-                                          expect_logno, objs_to_write) == 0);
+  expect_checkpoint_lsn= MAKE_LSN(5, 10000);
+  RET_ERR_UNLESS(write_file(expect_checkpoint_lsn,
+                            expect_logno, objs_to_write) == 0);
 
   objs_to_write= CONTROL_FILE_UPDATE_ONLY_LOGNO;
   expect_logno= 17;
-  RET_ERR_UNLESS(write_file(&expect_checkpoint_lsn,
-                                          expect_logno, objs_to_write) == 0);
+  RET_ERR_UNLESS(write_file(expect_checkpoint_lsn,
+                            expect_logno, objs_to_write) == 0);
 
   objs_to_write= CONTROL_FILE_UPDATE_ONLY_LSN;
-  expect_checkpoint_lsn= (LSN){17, 20000};
-  RET_ERR_UNLESS(write_file(&expect_checkpoint_lsn,
-                                          expect_logno, objs_to_write) == 0);
+  expect_checkpoint_lsn= MAKE_LSN(17, 20000);
+  RET_ERR_UNLESS(write_file(expect_checkpoint_lsn,
+                            expect_logno, objs_to_write) == 0);
 
   objs_to_write= CONTROL_FILE_UPDATE_ONLY_LSN;
-  expect_checkpoint_lsn= (LSN){17, 45000};
-  RET_ERR_UNLESS(write_file(&expect_checkpoint_lsn,
-                                          expect_logno, objs_to_write) == 0);
+  expect_checkpoint_lsn= MAKE_LSN(17, 45000);
+  RET_ERR_UNLESS(write_file(expect_checkpoint_lsn,
+                            expect_logno, objs_to_write) == 0);
 
   objs_to_write= CONTROL_FILE_UPDATE_ONLY_LOGNO;
   expect_logno= 19;
-  RET_ERR_UNLESS(write_file(&expect_checkpoint_lsn,
-                                          expect_logno, objs_to_write) == 0);
+  RET_ERR_UNLESS(write_file(expect_checkpoint_lsn,
+                            expect_logno, objs_to_write) == 0);
   RET_ERR_UNLESS(close_file() == 0);
   return 0;
 }
@@ -274,9 +271,9 @@ static int test_binary_content()
   RET_ERR_UNLESS(my_close(fd, MYF(MY_WME)) == 0);
   RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
   i= uint4korr(buffer+5);
-  RET_ERR_UNLESS(i == last_checkpoint_lsn.file_no);
+  RET_ERR_UNLESS(i == LSN_FILE_NO(last_checkpoint_lsn));
   i= uint4korr(buffer+9);
-  RET_ERR_UNLESS(i == last_checkpoint_lsn.rec_offset);
+  RET_ERR_UNLESS(i == LSN_OFFSET(last_checkpoint_lsn));
   i= uint4korr(buffer+13);
   RET_ERR_UNLESS(i == last_logno);
   RET_ERR_UNLESS(close_file() == 0);

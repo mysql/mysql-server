@@ -1,6 +1,7 @@
 #include "../maria_def.h"
 #include <stdio.h>
 #include <errno.h>
+#include <tap.h>
 
 #ifndef DBUG_OFF
 static const char *default_dbug_option;
@@ -102,7 +103,7 @@ static my_bool read_and_check_content(TRANSLOG_HEADER_BUFFER *rec,
   translog_size_t len;
   DBUG_ENTER("read_and_check_content");
   DBUG_ASSERT(rec->record_length < LONG_BUFFER_SIZE + 7 * 2 + 2);
-  if ((len= translog_read_record(&rec->lsn, 0, rec->record_length,
+  if ((len= translog_read_record(rec->lsn, 0, rec->record_length,
                                  buffer, NULL)) != rec->record_length)
   {
     fprintf(stderr, "Requested %lu byte, read %lu\n",
@@ -149,16 +150,17 @@ void writer(int num)
     DBUG_PRINT("info", ("thread: %u, iteration: %u, len: %lu, "
                         "lsn1 (%lu,0x%lx) lsn2 (%lu,0x%lx)",
                         num, i, (ulong) lens[num][i],
-                        (ulong) lsns1[num][i].file_no,
-                        (ulong) lsns1[num][i].rec_offset,
-                        (ulong) lsns2[num][i].file_no,
-                        (ulong) lsns2[num][i].rec_offset));
+                        (ulong) LSN_FILE_NO(lsns1[num][i]),
+                        (ulong) LSN_OFFSET(lsns1[num][i]),
+                        (ulong) LSN_FILE_NO(lsns2[num][i]),
+                        (ulong) LSN_OFFSET(lsns2[num][i])));
     printf("thread: %u, iteration: %u, len: %lu, "
            "lsn1 (%lu,0x%lx) lsn2 (%lu,0x%lx)\n",
            num, i, (ulong) lens[num][i],
-           (ulong) lsns1[num][i].file_no,
-           (ulong) lsns1[num][i].rec_offset,
-           (ulong) lsns2[num][i].file_no, (ulong) lsns2[num][i].rec_offset);
+           (ulong) LSN_FILE_NO(lsns1[num][i]),
+           (ulong) LSN_OFFSET(lsns1[num][i]),
+           (ulong) LSN_FILE_NO(lsns2[num][i]),
+           (ulong) LSN_OFFSET(lsns2[num][i]));
   }
   DBUG_VOID_RETURN;
 }
@@ -191,7 +193,7 @@ int main(int argc, char **argv __attribute__ ((unused)))
   uint32 i;
   uint pagen;
   PAGECACHE pagecache;
-  LSN first_lsn, *lsn_ptr;
+  LSN first_lsn, lsn_ptr;
   TRANSLOG_HEADER_BUFFER rec;
   struct st_translog_scanner_data scanner;
   pthread_t tid;
@@ -344,20 +346,18 @@ int main(int argc, char **argv __attribute__ ((unused)))
 
   /* Find last LSN and flush up to it (all our log) */
   {
-    LSN max=
-    {
-      0, 0
-    };
+    LSN max= 0;
     for (i= 0; i < WRITERS; i++)
     {
       if (cmp_translog_addr(lsns2[i][ITERATIONS - 1], max) > 0)
         max= lsns2[i][ITERATIONS - 1];
     }
     DBUG_PRINT("info", ("first lsn: (%lu,0x%lx), max lsn: (%lu,0x%lx)",
-                        (ulong) first_lsn.file_no,
-                        (ulong) first_lsn.rec_offset,
-                        (ulong) max.file_no, (ulong) max.rec_offset));
-    translog_flush(&max);
+                        (ulong) LSN_FILE_NO(first_lsn),
+                        (ulong) LSN_OFFSET(first_lsn),
+                        (ulong) LSN_FILE_NO(max),
+                        (ulong) LSN_OFFSET(max)));
+    translog_flush(max);
   }
 
   rc= 1;
@@ -369,11 +369,11 @@ int main(int argc, char **argv __attribute__ ((unused)))
 
     bzero(indeces, sizeof(indeces));
 
-    lsn_ptr= &first_lsn;
+    lsn_ptr= first_lsn;
     for (i= 0;; i++)
     {
       len= translog_read_next_record_header(lsn_ptr, &rec, 1, &scanner);
-      lsn_ptr= NULL;
+      lsn_ptr= 0;
 
       if (len == 0)
       {
@@ -382,7 +382,7 @@ int main(int argc, char **argv __attribute__ ((unused)))
         translog_free_record_header(&rec);
         goto err;
       }
-      if (rec.lsn.file_no == CONTROL_FILE_IMPOSSIBLE_FILENO)
+      if (rec.lsn == CONTROL_FILE_IMPOSSIBLE_LSN)
       {
         if (i != WRITERS * ITERATIONS * 2)
         {
@@ -412,9 +412,10 @@ int main(int argc, char **argv __attribute__ ((unused)))
                   (uint) rec.short_trid, (uint) uint2korr(rec.header),
                   (uint) rec.record_length,
                   (uint) index, (uint) uint4korr(rec.header + 2),
-                  (ulong) rec.lsn.file_no, (ulong) rec.lsn.rec_offset,
-                  (ulong) lsns1[rec.short_trid][index].file_no,
-                  (ulong) lsns1[rec.short_trid][index].rec_offset);
+                  (ulong) LSN_FILE_NO(rec.lsn),
+                  (ulong) LSN_OFFSET(rec.lsn),
+                  (ulong) LSN_FILE_NO(lsns1[rec.short_trid][index]),
+                  (ulong) LSN_OFFSET(lsns1[rec.short_trid][index]));
           translog_free_record_header(&rec);
           goto err;
         }
@@ -437,9 +438,10 @@ int main(int argc, char **argv __attribute__ ((unused)))
                   (uint) len,
                   (ulong) rec.record_length, lens[rec.short_trid][index],
                   (rec.record_length != lens[rec.short_trid][index]),
-                  (ulong) rec.lsn.file_no, (ulong) rec.lsn.rec_offset,
-                  (ulong) lsns2[rec.short_trid][index].file_no,
-                  (ulong) lsns2[rec.short_trid][index].rec_offset);
+                  (ulong) LSN_FILE_NO(rec.lsn),
+                  (ulong) LSN_OFFSET(rec.lsn),
+                  (ulong) LSN_FILE_NO(lsns2[rec.short_trid][index]),
+                  (ulong) LSN_OFFSET(lsns2[rec.short_trid][index]));
           translog_free_record_header(&rec);
           goto err;
         }
@@ -447,8 +449,9 @@ int main(int argc, char **argv __attribute__ ((unused)))
         {
           fprintf(stderr,
                   "Incorrect LOGREC_REDO_INSERT_ROW_HEAD in whole rec read "
-                  "lsn(%u,0x%lx)\n",
-                  (uint) rec.lsn.file_no, (ulong) rec.lsn.rec_offset);
+                  "lsn(%lu,0x%lx)\n",
+                  (ulong) LSN_FILE_NO(rec.lsn),
+                  (ulong) LSN_OFFSET(rec.lsn));
           translog_free_record_header(&rec);
           goto err;
         }
