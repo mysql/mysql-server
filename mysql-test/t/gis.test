@@ -430,6 +430,14 @@ desc t1;
 drop table t1;
 
 #
+# Bug #20691 (DEFAULT over NOT NULL field)
+#
+create table t1 (g geometry not null);
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+insert into t1 values(default);
+drop table t1;
+
+#
 # Bug #11335 View redefines column types
 #
 create table t1 (f1 tinyint(1), f2 char(1), f3 varchar(1), f4 geometry, f5 datetime);
