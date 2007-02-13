@@ -3254,4 +3254,3 @@ select
   coalesce(cast(1111111111111111111 as unsigned), 1) co;
 
 --echo End of 5.0 tests
-
