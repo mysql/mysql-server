@@ -828,7 +828,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
 void log_slow_statement(THD *thd);
 bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
-bool compare_record(TABLE *table, query_id_t query_id);
+bool compare_record(TABLE *table);
 bool append_file_to_dir(THD *thd, const char **filename_ptr, 
                         const char *table_name);
 

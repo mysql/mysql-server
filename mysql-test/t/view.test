@@ -748,12 +748,12 @@ drop view v1;
 #
 # VIEWs with national characters
 #
-create table tÃ¼ (cÃ¼ char);
-create view vÃ¼ as select cÃ¼ from tÃ¼;
-insert into vÃ¼ values ('Ã¼');
-select * from vÃ¼;
-drop view vÃ¼;
-drop table tÃ¼;
+create table tü (cü char);
+create view vü as select cü from tü;
+insert into vü values ('ü');
+select * from vü;
+drop view vü;
+drop table tü;
 
 #
 # problem with used_tables() of outer reference resolved in VIEW
@@ -2951,7 +2951,7 @@ DROP VIEW v;
 #                                                                                                        
 # BUG#24293: '\Z' token is not handled correctly in views                                                
 #                                                                                                        
-                                                                                                         
+                                                                                                     
 --disable_warnings                                                                                       
 DROP VIEW IF EXISTS v1;                                                                                  
 --enable_warnings                                                                                        
@@ -3016,6 +3016,7 @@ drop view v1;
 drop table t1;
 
 --echo End of 5.0 tests.
+
 # Bug #16813 (WITH CHECK OPTION doesn't work with UPDATE)
 #
 CREATE TABLE t1(id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, val INT UNSIGNED NOT NULL);
