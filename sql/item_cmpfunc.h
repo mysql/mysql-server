@@ -1378,7 +1378,6 @@ class Item_equal: public Item_bool_func
   Item *const_item;        /* optional constant item equal to fields items */
   cmp_item *eval_item;
   bool cond_false;
-  DTCollation cmp_collation;
 public:
   inline Item_equal()
     : Item_bool_func(), const_item(0), eval_item(0), cond_false(0)
