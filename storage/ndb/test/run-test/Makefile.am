@@ -18,26 +18,32 @@ testdir=$(prefix)/mysql-test/ndb
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_util.mk.am
 include $(top_srcdir)/storage/ndb/config/type_mgmapiclient.mk.am
+include $(top_srcdir)/storage/ndb/config/type_ndbapitools.mk.am
 
 test_PROGRAMS = atrt
 test_DATA=daily-basic-tests.txt daily-devel-tests.txt 16node-tests.txt \
-          conf-daily-basic-ndb08.txt \
-          conf-daily-devel-ndb08.txt \
-          conf-daily-sql-ndb08.txt \
-          conf-ndbmaster.txt \
-          conf-shark.txt \
-          conf-dl145a.txt
+          conf-ndbmaster.cnf \
+          conf-dl145a.cnf test-tests.txt
 
 test_SCRIPTS=atrt-analyze-result.sh atrt-gather-result.sh atrt-setup.sh \
-          atrt-clear-result.sh make-config.sh make-index.sh make-html-reports.sh
+          atrt-clear-result.sh autotest-run.sh
 
-atrt_SOURCES = main.cpp run-test.hpp
+atrt_SOURCES = main.cpp setup.cpp files.cpp
+
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/test/include
 LDADD_LOC = $(top_builddir)/storage/ndb/test/src/libNDBT.a \
 	    $(top_builddir)/storage/ndb/src/libndbclient.la \
             $(top_builddir)/dbug/libdbug.a \
             $(top_builddir)/mysys/libmysys.a \
             $(top_builddir)/strings/libmystrings.a @NDB_SCI_LIBS@
+
+atrt_CXXFLAGS = -I$(top_srcdir)/ndb/src/mgmapi \
+                      -I$(top_srcdir)/ndb/src/mgmsrv \
+                      -I$(top_srcdir)/ndb/include/mgmcommon \
+                      -DMYSQLCLUSTERDIR="\"\"" \
+                 -DDEFAULT_PREFIX="\"$(prefix)\""
+
+atrt_LDFLAGS = -static @ndb_bin_am_ldflags@
 
 wrappersdir=$(prefix)/bin
 wrappers_SCRIPTS=atrt-testBackup atrt-mysql-test-run
