@@ -17,6 +17,21 @@ Created December 2006 by Marko Makela
 #include "buf0flu.h"
 #include "page0zip.h"
 
+/* Statistic counters, protected by buf_pool->mutex */
+
+/** Number of frames allocated from the buffer pool to the buddy system */
+static ulint buf_buddy_n_frames;
+/** Counts of blocks allocated from the buddy system */
+static ulint buf_buddy_used[BUF_BUDDY_SIZES + 1];
+/** Counts of blocks relocated by the buddy system */
+static ib_uint64_t buf_buddy_relocated[BUF_BUDDY_SIZES + 1];
+
+/** Preferred minimum number of frames allocated from the buffer pool
+to the buddy system.  When this number is exceeded, the buddy allocator
+will not try to free clean compressed-only pages in order to satisfy
+an allocation request.  Protected by buf_pool->mutex. */
+static ulint buf_buddy_min_n_frames = ULINT_UNDEFINED;
+
 /**************************************************************************
 Get the offset of the buddy of a compressed page frame. */
 UNIV_INLINE
@@ -176,6 +191,9 @@ buf_buddy_block_free(
 	mutex_enter(&block->mutex);
 	buf_LRU_block_free_non_file_page(block);
 	mutex_exit(&block->mutex);
+
+	ut_ad(buf_buddy_n_frames > 0);
+	buf_buddy_n_frames--;
 }
 
 /**************************************************************************
@@ -199,6 +217,8 @@ buf_buddy_block_register(
 	ut_ad(!block->page.in_zip_hash);
 	ut_d(block->page.in_zip_hash = TRUE);
 	HASH_INSERT(buf_page_t, hash, buf_pool->zip_hash, fold, &block->page);
+
+	buf_buddy_n_frames++;
 }
 
 /**************************************************************************
@@ -214,6 +234,9 @@ buf_buddy_alloc_from(
 				of buf_pool->zip_free[] */
 {
 	ulint	offs	= BUF_BUDDY_LOW << j;
+	ut_ad(j <= BUF_BUDDY_SIZES);
+	ut_ad(j > i);
+	ut_ad(!ut_align_offset(buf, offs));
 
 	/* Add the unused parts of the block to the free lists. */
 	while (j > i) {
@@ -248,6 +271,11 @@ buf_buddy_alloc_clean(
 
 	ut_ad(mutex_own(&buf_pool->mutex));
 	ut_ad(!mutex_own(&buf_pool->zip_mutex));
+
+	if (buf_buddy_n_frames > buf_buddy_min_n_frames) {
+
+		goto free_LRU;
+	}
 
 	if (BUF_BUDDY_LOW << i >= PAGE_ZIP_MIN_SIZE
 	    && i < BUF_BUDDY_SIZES) {
@@ -303,7 +331,7 @@ free_LRU:
 		void*		ret;
 		mutex_t*	block_mutex = buf_page_get_mutex(bpage);
 
-		if (!buf_page_in_file(bpage)) {
+		if (UNIV_UNLIKELY(!buf_page_in_file(bpage))) {
 
 			/* This is most likely BUF_BLOCK_REMOVE_HASH,
 			that is, the block is already being freed. */
@@ -383,7 +411,7 @@ buf_buddy_alloc_low(
 
 		if (block) {
 
-			return(block);
+			goto func_exit;
 		}
 	}
 
@@ -406,7 +434,7 @@ buf_buddy_alloc_low(
 
 	if (block) {
 
-		return(block);
+		goto func_exit;
 	}
 
 	/* Try replacing an uncompressed page in the buffer pool. */
@@ -418,7 +446,11 @@ buf_buddy_alloc_low(
 alloc_big:
 	buf_buddy_block_register(block);
 
-	return(buf_buddy_alloc_from(block->frame, i, BUF_BUDDY_SIZES));
+	block = buf_buddy_alloc_from(block->frame, i, BUF_BUDDY_SIZES);
+
+func_exit:
+	buf_buddy_used[i]++;
+	return(block);
 }
 
 /**************************************************************************
@@ -551,9 +583,11 @@ buf_buddy_relocate(
 			/* Relocate the compressed page. */
 			ut_a(bpage->zip.data == src);
 			memcpy(dst, src, size);
-			UNIV_MEM_INVALID(src, size);
 			bpage->zip.data = dst;
 			mutex_exit(mutex);
+success:
+			UNIV_MEM_INVALID(src, size);
+			buf_buddy_relocated[i]++;
 			return(TRUE);
 		}
 
@@ -561,16 +595,12 @@ buf_buddy_relocate(
 	} else if (i == buf_buddy_get_slot(sizeof(buf_page_t))) {
 		/* This must be a buf_page_t object. */
 #ifdef UNIV_VALGRIND_DEBUG
-		ibool	success;
 		VALGRIND_CHECK_MEM_IS_DEFINED(src, size);
-		success = buf_buddy_relocate_block(src, dst);
-		if (success) {
-			UNIV_MEM_INVALID(src, size);
-		}
-		return(success);
-#else /* UNIV_VALGRIND_DEBUG */
-		return(buf_buddy_relocate_block(src, dst));
 #endif /* UNIV_VALGRIND_DEBUG */
+		if (buf_buddy_relocate_block(src, dst)) {
+
+			goto success;
+		}
 	}
 
 	return(FALSE);
@@ -591,6 +621,10 @@ buf_buddy_free_low(
 
 	ut_ad(mutex_own(&buf_pool->mutex));
 	ut_ad(!mutex_own(&buf_pool->zip_mutex));
+	ut_ad(i <= BUF_BUDDY_SIZES);
+	ut_ad(buf_buddy_used[i] > 0);
+
+	buf_buddy_used[i]--;
 recombine:
 #ifdef UNIV_DEBUG_VALGRIND
 	VALGRIND_CHECK_MEM_IS_ADDRESSABLE(buf, BUF_BUDDY_LOW << i);
