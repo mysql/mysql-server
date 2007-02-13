@@ -2202,7 +2202,7 @@ static void reset_stmt_params(Prepared_statement *stmt)
 
 void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
 {
-  uchar* packet= (uchar*)packet_arg; // gcc 4.0 stgrict-aliasing
+  uchar *packet= (uchar*)packet_arg; // GCC 4.0.1 workaround
   ulong stmt_id= uint4korr(packet);
   ulong flags= (ulong) ((uchar) packet[4]);
   /* Query text for binary, general or slow log, if any of them is open */
