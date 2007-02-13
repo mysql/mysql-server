@@ -1507,7 +1507,7 @@ JOIN::exec()
 
   if ((curr_join->select_lex->options & OPTION_SCHEMA_TABLE) &&
       !thd->lex->describe &&
-      get_schema_tables_result(curr_join))
+      get_schema_tables_result(curr_join, PROCESSED_BY_JOIN_EXEC))
   {
     DBUG_VOID_RETURN;
   }
@@ -12619,7 +12619,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   /* Fill schema tables with data before filesort if it's necessary */
   if ((join->select_lex->options & OPTION_SCHEMA_TABLE) &&
       !thd->lex->describe &&
-      get_schema_tables_result(join))
+      get_schema_tables_result(join, PROCESSED_BY_CREATE_SORT_INDEX))
     goto err;
 
   if (table->s->tmp_table)
