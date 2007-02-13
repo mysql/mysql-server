@@ -1,0 +1,23 @@
+[atrt]
+basedir = CHOOSE_dir
+baseport = 14000
+clusters = .4node
+
+[ndb_mgmd]
+
+[mysqld]
+skip-innodb
+skip-bdb
+
+[cluster_config.4node]
+ndb_mgmd = CHOOSE_host1
+ndbd = CHOOSE_host2,CHOOSE_host3,CHOOSE_host2,CHOOSE_host3
+ndbapi= CHOOSE_host1,CHOOSE_host1,CHOOSE_host1
+
+NoOfReplicas = 2
+IndexMemory = 100M 
+DataMemory = 300M
+BackupMemory = 64M
+MaxNoOfConcurrentScans = 100
+MaxNoOfSavedMessages= 1000
+SendBufferMemory = 2M
