@@ -578,6 +578,7 @@ void do_eval(DYNAMIC_STRING *query_eval, const char *query,
 	dynstr_append_mem(query_eval, p, 1);
       break;
     default:
+      escaped= 0;
       dynstr_append_mem(query_eval, p, 1);
       break;
     }
