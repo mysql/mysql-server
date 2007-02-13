@@ -10173,7 +10173,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void)
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::reset");
 
   file->extra(HA_EXTRA_KEYREAD); /* We need only the key attributes */
-  if ((result= file->ha_index_init(index)))
+  if ((result= file->ha_index_init(index,1)))
     DBUG_RETURN(result);
   if (quick_prefix_select && quick_prefix_select->reset())
     DBUG_RETURN(1);
