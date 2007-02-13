@@ -428,3 +428,12 @@ drop table t1;
 create table t1 select GeomFromText('point(1 1)');
 desc t1;
 drop table t1;
+
+#
+# Bug #20691 (DEFAULT over NOT NULL field)
+#
+create table t1 (g geometry not null);
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+insert into t1 values(default);
+drop table t1;
+

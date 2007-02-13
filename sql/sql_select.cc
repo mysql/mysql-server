@@ -1505,7 +1505,7 @@ JOIN::exec()
 
   if ((curr_join->select_lex->options & OPTION_SCHEMA_TABLE) &&
       !thd->lex->describe &&
-      get_schema_tables_result(curr_join))
+      get_schema_tables_result(curr_join, PROCESSED_BY_JOIN_EXEC))
   {
     DBUG_VOID_RETURN;
   }
@@ -12374,7 +12374,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   /* Fill schema tables with data before filesort if it's necessary */
   if ((join->select_lex->options & OPTION_SCHEMA_TABLE) &&
       !thd->lex->describe &&
-      get_schema_tables_result(join))
+      get_schema_tables_result(join, PROCESSED_BY_CREATE_SORT_INDEX))
     goto err;
 
   if (table->s->tmp_table)
@@ -12746,15 +12746,15 @@ SORT_FIELD *make_unireg_sortorder(ORDER *order, uint *length,
 
   for (;order;order=order->next,pos++)
   {
-    pos->field=0; pos->item=0;
-    if (order->item[0]->type() == Item::FIELD_ITEM)
-      pos->field= ((Item_field*) (*order->item))->field;
-    else if (order->item[0]->type() == Item::SUM_FUNC_ITEM &&
-	     !order->item[0]->const_item())
-      pos->field= ((Item_sum*) order->item[0])->get_tmp_table_field();
-    else if (order->item[0]->type() == Item::COPY_STR_ITEM)
+    Item *item= order->item[0]->real_item();
+    pos->field= 0; pos->item= 0;
+    if (item->type() == Item::FIELD_ITEM)
+      pos->field= ((Item_field*) item)->field;
+    else if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item())
+      pos->field= ((Item_sum*) item)->get_tmp_table_field();
+    else if (item->type() == Item::COPY_STR_ITEM)
     {						// Blob patch
-      pos->item= ((Item_copy_string*) (*order->item))->item;
+      pos->item= ((Item_copy_string*) item)->item;
     }
     else
       pos->item= *order->item;
