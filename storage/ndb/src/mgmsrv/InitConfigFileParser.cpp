@@ -837,7 +837,7 @@ InitConfigFileParser::parse_mycnf()
     opt.arg_type = REQUIRED_ARG;
     options.push_back(opt);
 
-    opt.name = "api";
+    opt.name = "ndbapi";
     opt.id = 256;
     opt.value = (gptr*)malloc(sizeof(char*));
     opt.var_type = GET_STR;
