@@ -491,7 +491,7 @@ loop:
 			block->page.zip.m_nonempty =
 			block->page.zip.n_blobs = 0;
 
-		if (zip_size) {
+		if (UNIV_UNLIKELY(zip_size)) {
 			ibool	lru;
 			page_zip_set_size(&block->page.zip, zip_size);
 			block->page.zip.data = buf_buddy_alloc(zip_size, &lru);
