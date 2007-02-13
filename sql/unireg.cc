@@ -657,29 +657,48 @@ static bool pack_fields(File file, List<create_field> &create_fields,
     {
       if (field->interval_id > int_count)
       {
-	int_count=field->interval_id;
-	tmp.append(NAMES_SEP_CHAR);
-	for (const char **pos=field->interval->type_names ; *pos ; pos++)
-	{
-          char *val= (char*) *pos;
-          uint str_len= strlen(val);
-          /*
-            Note, hack: in old frm NAMES_SEP_CHAR is used to separate
-            names in the interval (ENUM/SET). To allow names to contain
-            NAMES_SEP_CHAR, we replace it with a comma before writing frm.
-            Backward conversion is done during frm file opening,
-            See table.cc, openfrm() function
-          */
-          for (uint cnt= 0 ; cnt < str_len ; cnt++)
+        unsigned char  sep= 0;
+        unsigned char  occ[256];
+        uint           i;
+        unsigned char *val= NULL;
+
+        bzero(occ, sizeof(occ));
+
+        for (i=0; (val= (unsigned char*) field->interval->type_names[i]); i++)
+          for (uint j = 0; j < field->interval->type_lengths[i]; j++)
+            occ[(unsigned int) (val[j])]= 1;
+
+        if (!occ[(unsigned char)NAMES_SEP_CHAR])
+          sep= (unsigned char) NAMES_SEP_CHAR;
+        else if (!occ[(unsigned int)','])
+          sep= ',';
+        else
+        {
+          for (uint i=1; i<256; i++)
           {
-            char c= val[cnt];
-            if (c == NAMES_SEP_CHAR)
-              val[cnt]= ',';
+            if(!occ[i])
+            {
+              sep= i;
+              break;
+            }
           }
-	  tmp.append(*pos);
-	  tmp.append(NAMES_SEP_CHAR);
-	}
-	tmp.append('\0');			// End of intervall
+
+          if(!sep)    /* disaster, enum uses all characters, none left as separator */
+          {
+            my_message(ER_WRONG_FIELD_TERMINATORS,ER(ER_WRONG_FIELD_TERMINATORS),
+                       MYF(0));
+            DBUG_RETURN(1);
+          }
+        }
+
+        int_count= field->interval_id;
+        tmp.append(sep);
+        for (const char **pos=field->interval->type_names ; *pos ; pos++)
+        {
+          tmp.append(*pos);
+          tmp.append(sep);
+        }
+        tmp.append('\0');                      // End of intervall
       }
     }
     if (my_write(file,(byte*) tmp.ptr(),tmp.length(),MYF_RW))
