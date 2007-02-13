@@ -414,9 +414,9 @@ parse_args(int argc, char** argv)
   const char *groups[] = { "atrt", 0 };
   int ret = load_defaults(mycnf.c_str(), groups, &argc, &argv);
   
-  save_file = defaults_file;
-  save_extra_file = defaults_extra_file;
-  save_group_suffix = defaults_group_suffix;
+  save_file = my_defaults_file;
+  save_extra_file = my_defaults_extra_file;
+  save_group_suffix = my_defaults_group_suffix;
 
   if (save_extra_file)
   {
