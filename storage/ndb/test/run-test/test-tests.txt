@@ -1,0 +1,24 @@
+max-time: 600
+cmd: testBasic
+args: -n PkRead T1
+
+max-time: 1800
+cmd: testMgm
+args: -n SingleUserMode T1 
+
+#
+#
+# SYSTEM RESTARTS
+#
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR3 T6 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR4 T6 
+
+max-time: 600
+cmd: testBasic
+args: -n PkRead T1
+
