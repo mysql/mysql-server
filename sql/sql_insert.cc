@@ -1186,23 +1186,29 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
           goto before_trg_err;
 
         if ((error=table->file->update_row(table->record[1],table->record[0])))
-	{
-	  if ((error == HA_ERR_FOUND_DUPP_KEY) && info->ignore)
+        {
+          if ((error == HA_ERR_FOUND_DUPP_KEY) && info->ignore)
           {
             table->file->restore_auto_increment();
             goto ok_or_after_trg_err;
           }
           goto err;
-	}
-        info->updated++;
+        }
+        if ((table->file->table_flags() & HA_PARTIAL_COLUMN_READ) ||
+            compare_record(table, query_id))
+        {
+          info->updated++;
 
-        if (table->next_number_field)
-          table->file->adjust_next_insert_id_after_explicit_value(table->next_number_field->val_int());
+          if (table->next_number_field)
+            table->file->adjust_next_insert_id_after_explicit_value(
+              table->next_number_field->val_int());
 
-        trg_error= (table->triggers &&
-                    table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                                      TRG_ACTION_AFTER, TRUE));
-        info->copied++;
+          trg_error= (table->triggers &&
+                      table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+                                                        TRG_ACTION_AFTER,
+                                                        TRUE));
+          info->copied++;
+        }
         goto ok_or_after_trg_err;
       }
       else /* DUP_REPLACE */
@@ -2624,7 +2630,7 @@ bool select_insert::send_eof()
   }
 
   if (last_insert_id)
-    thd->insert_id(last_insert_id);		// For binary log
+    thd->insert_id(info.copied ? last_insert_id : 0);		// For binary log
   /* Write to binlog before commiting transaction */
   if (mysql_bin_log.is_open())
   {
