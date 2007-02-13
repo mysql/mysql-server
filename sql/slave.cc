@@ -2625,7 +2625,6 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
 */
   thd->variables.max_allowed_packet= global_system_variables.max_allowed_packet
     + MAX_LOG_EVENT_HEADER;  /* note, incr over the global not session var */
-  thd->net.read_timeout = slave_net_timeout;
   thd->master_access= ~(ulong)0;
   thd->priv_user = 0;
   thd->slave_thread = 1;
@@ -4284,6 +4283,13 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
 	hot_log=0;				// Using old binary log
       }
     }
+    /* 
+      As there is no guarantee that the relay is open (for example, an I/O
+      error during a write by the slave I/O thread may have closed it), we
+      have to test it.
+    */
+    if (!my_b_inited(cur_log))
+      goto err;
 #ifndef DBUG_OFF
     {
       char llbuf1[22], llbuf2[22];
