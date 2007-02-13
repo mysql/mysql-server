@@ -26,7 +26,7 @@
 
 /* Return 0 if row hasn't changed */
 
-bool compare_record(TABLE *table, query_id_t query_id)
+bool compare_record(TABLE *table)
 {
   if (table->s->blob_fields + table->s->varchar_fields == 0)
     return cmp_record(table,record[1]);

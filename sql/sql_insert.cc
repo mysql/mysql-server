@@ -1208,8 +1208,8 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
           }
           goto err;
         }
-        if ((table->file->table_flags() & HA_PARTIAL_COLUMN_READ) ||
-            compare_record(table, query_id))
+        if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) ||
+             compare_record(table))
         {
           info->updated++;
           /*
