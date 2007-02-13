@@ -3038,4 +3038,24 @@ explain extended select * from v1 order by f1;
 drop view v1;
 drop table t1;
 
+#
+# Bug#26209: queries with GROUP BY and ORDER BY using views 
+#
+
+CREATE TABLE t1 (
+  id int(11) NOT NULL PRIMARY KEY,
+  country varchar(32),
+  code int(11) default NULL
+);
+INSERT INTO t1 VALUES
+  (1,'ITALY',100),(2,'ITALY',200),(3,'FRANCE',100), (4,'ITALY',100);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SELECT code, COUNT(DISTINCT country) FROM t1 GROUP BY code ORDER BY MAX(id);
+SELECT code, COUNT(DISTINCT country) FROM v1 GROUP BY code ORDER BY MAX(id);
+
+DROP VIEW v1;
+DROP TABLE t1;
+
 --echo End of 5.0 tests.
