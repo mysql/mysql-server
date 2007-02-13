@@ -340,6 +340,7 @@ if [ x$NDBCLUSTER = x1 ]; then
   $CP $BASE/ndb-stage@bindir@/* $BASE/bin/.
   $CP $BASE/ndb-stage@libexecdir@/* $BASE/bin/.
   $CP $BASE/ndb-stage@pkglibdir@/* $BASE/lib/.
+  $CP $BASE/ndb-stage@pkgdatadir@/* $BASE/share/mysql/.
   $CP -r $BASE/ndb-stage@pkgincludedir@/ndb $BASE/include
   $CP -r $BASE/ndb-stage@prefix@/mysql-test/ndb $BASE/mysql-test/. || exit 1
   rm -rf $BASE/ndb-stage
