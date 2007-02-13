@@ -1774,7 +1774,7 @@ loop2:
 
 		if (bpage->buf_fix_count
 		    || buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
-
+wait_until_unfixed:
 			/* The block is buffer-fixed or I/O-fixed.
 			Try again later. */
 			mutex_exit(&buf_pool->mutex);
@@ -1807,6 +1807,20 @@ loop2:
 				block = (buf_block_t*) hash_bpage;
 				goto loop2;
 			}
+		}
+
+		if (UNIV_UNLIKELY
+		    (bpage->buf_fix_count
+		     || buf_page_get_io_fix(bpage) != BUF_IO_NONE)) {
+
+			/* The block was buffer-fixed or I/O-fixed
+			while buf_pool->mutex was released.  Free the
+			block that was allocated and try again. */
+
+			buf_LRU_block_free_non_file_page(block);
+			mutex_exit(&block->mutex);
+
+			goto wait_until_unfixed;
 		}
 
 		/* Move the compressed page from bpage to block,
