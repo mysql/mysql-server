@@ -589,6 +589,36 @@ SELECT a.a + 1 AS num FROM t1 a JOIN t1 b ON num = b.a;
 DROP TABLE t1;
 
 #
+# Bug#25126: Reference to non-existant column in UPDATE...ORDER BY... 
+#       crashes server
+#
+CREATE TABLE bug25126 (
+  val int unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY
+);
+--error 1054
+UPDATE bug25126 SET MissingCol = MissingCol;
+--error 1054
+UPDATE bug25126 SET val = val ORDER BY MissingCol;
+UPDATE bug25126 SET val = val ORDER BY val;
+UPDATE bug25126 SET val = 1 ORDER BY val;
+--error 1054
+UPDATE bug25126 SET val = 1 ORDER BY MissingCol;
+--error 1054
+UPDATE bug25126 SET val = 1 ORDER BY val, MissingCol;
+--error 1054
+UPDATE bug25126 SET val = MissingCol ORDER BY MissingCol;
+--error 1054
+UPDATE bug25126 SET MissingCol = 1 ORDER BY val, MissingCol;
+--error 1054
+UPDATE bug25126 SET MissingCol = 1 ORDER BY MissingCol;
+--error 1054
+UPDATE bug25126 SET MissingCol = val ORDER BY MissingCol;
+--error 1054
+UPDATE bug25126 SET MissingCol = MissingCol ORDER BY MissingCol;
+DROP TABLE bug25126;
+
+
+#
 # Bug #25427: crash when order by expression contains a name
 #             that cannot be resolved unambiguously               
 #
@@ -603,7 +633,6 @@ SELECT p.a AS val, q.a AS val FROM t1 p, t1 q ORDER BY val > 1;
 
 DROP TABLE t1;
 
-# End of 4.1 tests
 create table t1 (a int not null, b  int not null, c int not null);
 insert t1 values (1,1,1),(1,1,2),(1,2,1);
 select a, b from t1 group by a, b order by sum(c);
