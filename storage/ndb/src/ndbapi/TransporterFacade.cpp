@@ -38,7 +38,7 @@
 #include <signaldata/SumaImpl.hpp>
 
 //#define REPORT_TRANSPORTER
-//#define API_TRACE;
+//#define API_TRACE
 
 static int numberToIndex(int number)
 {

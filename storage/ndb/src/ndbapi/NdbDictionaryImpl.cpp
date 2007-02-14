@@ -4548,7 +4548,8 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
     return NULL;
   }
 
-  isIndex= table->m_indexType==NdbDictionary::Object::OrderedIndex;
+  isIndex= (table->m_indexType==NdbDictionary::Object::OrderedIndex ||
+            table->m_indexType==NdbDictionary::Object::UniqueHashIndex);
 
   /* Count the number of key columns in the table or index. */
   if (isIndex)

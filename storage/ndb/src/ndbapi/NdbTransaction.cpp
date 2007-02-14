@@ -1334,7 +1334,8 @@ NdbTransaction::getNdbScanOperation(const NdbDictionary::Table * table)
 NdbIndexOperation* getNdbIndexOperation(const char* anIndexName,
 					const char* aTableName);
 
-Return Value    Return a pointer to a NdbOperation object if getNdbIndexOperation was succesful.
+Return Value    Return a pointer to an NdbIndexOperation object if
+                getNdbIndexOperation was succesful.
                 Return NULL : In all other case. 	
 Parameters:     aTableName : Name of the database table. 	
 Remark:         Get an operation from NdbIndexOperation idlelist and get the NdbTransaction object 
@@ -1396,8 +1397,9 @@ Remark:         Get an operation from NdbIndexOperation object idlelist and get 
 *****************************************************************************/
 NdbIndexOperation*
 NdbTransaction::getNdbIndexOperation(const NdbIndexImpl * anIndex, 
-				    const NdbTableImpl * aTable,
-                                    NdbOperation* aNextOp)
+                                     const NdbTableImpl * aTable,
+                                     NdbOperation* aNextOp,
+                                     bool useRec)
 { 
   NdbIndexOperation* tOp;
   
@@ -1426,7 +1428,7 @@ NdbTransaction::getNdbIndexOperation(const NdbIndexImpl * anIndex,
     }
     tOp->next(aNextOp);
   }
-  if (tOp->indxInit(anIndex, aTable, this)!= -1) {
+  if (tOp->indxInit(anIndex, aTable, this, useRec)!= -1) {
     return tOp;
   } else {
     theNdb->releaseOperation(tOp);
@@ -2076,6 +2078,42 @@ NdbTransaction::getNextCompletedOperation(const NdbOperation * current) const {
 }
 
 NdbOperation *
+NdbTransaction::setupRecordOp(NdbOperation::OperationType type,
+                              NdbOperation::LockMode lock_mode,
+                              const NdbRecord *key_record,
+                              const char *key_row,
+                              const NdbRecord *attribute_record,
+                              const char *attribute_row)
+{
+  NdbOperation *op;
+  /*
+    We are actually passing the table object for the index here, not the table
+    object of the underlying table. But we only need it to keep the existing
+    NdbOperation code happy, it is not actually used for NdbRecord operation.
+    We will eliminate the need for passing table and index completely when
+    implementing WL#3707.
+  */
+  if (key_record->flags & NdbRecord::RecIsIndex)
+    op= getNdbIndexOperation(key_record->table->m_index, key_record->table,
+                             NULL, true);
+  else
+    op= getNdbOperation(key_record->table, NULL, true);
+  if(!op)
+    return op;
+
+  op->theStatus= NdbOperation::UseNdbRecord;
+  op->theOperationType= type;
+  op->theErrorLine++;
+  op->theLockMode= lock_mode;
+  op->m_key_record= key_record;
+  op->m_key_row= key_row;
+  op->m_attribute_record= attribute_record;
+  op->m_attribute_row= attribute_row;
+
+  return op;
+}
+
+NdbOperation *
 NdbTransaction::readTuple(const NdbRecord *key_rec, const char *key_row,
                           const NdbRecord *result_rec, char *result_row,
                           NdbOperation::LockMode lock_mode,
@@ -2088,21 +2126,15 @@ NdbTransaction::readTuple(const NdbRecord *key_rec, const char *key_row,
     return NULL;
   }
 
-  NdbOperation *op= getNdbOperation(key_rec->table, NULL, true);
-  if(!op)
-    return op;
+  NdbOperation *op= setupRecordOp(NdbOperation::ReadRequest,
+                                  lock_mode, key_rec, key_row,
+                                  result_rec, NULL);
+  if (!op)
+    return NULL;
 
-  op->theStatus= NdbOperation::UseNdbRecord;
-  op->theOperationType= NdbOperation::ReadRequest;
-  op->theErrorLine++;
-  op->theLockMode= NdbOperation::LM_Read;
   op->m_abortOption= AO_IgnoreError;
-
-  theSimpleState= 0;
-
-  /* Setup the record/row for sending the primary key. */
-  op->m_key_record= key_rec;
-  op->m_key_row= key_row;
+  if (lock_mode != NdbOperation::LM_CommittedRead)
+    theSimpleState= 0;
   result_rec->copyMask(op->m_read_mask, result_mask);
 
   /* Setup the record/row for receiving the results. */
@@ -2122,23 +2154,14 @@ NdbTransaction::insertTuple(const NdbRecord *rec, const char *row,
     return NULL;
   }
 
-  NdbOperation *op= getNdbOperation(rec->table, NULL, true);
-  if(!op)
-    return op;
+  NdbOperation *op= setupRecordOp(NdbOperation::InsertRequest,
+                                  NdbOperation::LM_Exclusive, rec, row,
+                                  rec, row);
+  if (!op)
+    return NULL;
 
-  op->theStatus= NdbOperation::UseNdbRecord;
-  op->theOperationType= NdbOperation::InsertRequest;
-  op->theErrorLine++;
-  op->theLockMode= NdbOperation::LM_Exclusive;
   op->m_abortOption = AbortOnError;
-
   theSimpleState= 0;
-
-  /* Setup the record/row for sending the primary key. */
-  op->m_key_record= rec;
-  op->m_key_row= row;
-  op->m_attribute_record= rec;
-  op->m_attribute_row= row;
   rec->copyMask(op->m_read_mask, mask);
 
   return op;
@@ -2156,23 +2179,14 @@ NdbTransaction::updateTuple(const NdbRecord *key_rec, const char *key_row,
     return NULL;
   }
 
-  NdbOperation *op= getNdbOperation(key_rec->table, NULL, true);
+  NdbOperation *op= setupRecordOp(NdbOperation::UpdateRequest,
+                                  NdbOperation::LM_Exclusive, key_rec, key_row,
+                                  attr_rec, attr_row);
   if(!op)
     return op;
 
-  op->theStatus= NdbOperation::UseNdbRecord;
-  op->theOperationType= NdbOperation::UpdateRequest;
-  op->theErrorLine++;
-  op->theLockMode= NdbOperation::LM_Exclusive;
   op->m_abortOption = AbortOnError;
-
   theSimpleState= 0;
-
-  /* Setup the record/row for sending the primary key. */
-  op->m_key_record= key_rec;
-  op->m_key_row= key_row;
-  op->m_attribute_record= attr_rec;
-  op->m_attribute_row= attr_row;
   attr_rec->copyMask(op->m_read_mask, mask);
 
   return op;
@@ -2188,23 +2202,14 @@ NdbTransaction::deleteTuple(const NdbRecord *key_rec, const char *key_row)
     return NULL;
   }
 
-  NdbOperation *op= getNdbOperation(key_rec->table, NULL, true);
+  NdbOperation *op= setupRecordOp(NdbOperation::DeleteRequest,
+                                  NdbOperation::LM_Exclusive, key_rec, key_row,
+                                  key_rec, NULL);
   if(!op)
     return op;
 
-  op->theStatus= NdbOperation::UseNdbRecord;
-  op->theOperationType= NdbOperation::DeleteRequest;
-  op->theErrorLine++;
-  op->theLockMode= NdbOperation::LM_Exclusive;
   op->m_abortOption = AbortOnError;
-
   theSimpleState= 0;
-
-  /* Setup the record/row for sending the primary key. */
-  op->m_key_record= key_rec;
-  op->m_key_row= key_row;
-  /* Set the m_attribute_record so we know this is an NdbRecord operation. */
-  op->m_attribute_record= key_rec;
 
   return op;
 }
@@ -2221,22 +2226,14 @@ NdbTransaction::writeTuple(const NdbRecord *key_rec, const char *key_row,
     return NULL;
   }
 
-  NdbOperation *op= getNdbOperation(key_rec->table, NULL, true);
+  NdbOperation *op= setupRecordOp(NdbOperation::WriteRequest,
+                                  NdbOperation::LM_Exclusive, key_rec, key_row,
+                                  attr_rec, attr_row);
   if(!op)
     return op;
 
-  op->theStatus= NdbOperation::UseNdbRecord;
-  op->theOperationType= NdbOperation::WriteRequest;
-  op->theErrorLine++;
-  op->theLockMode= NdbOperation::LM_Exclusive;
   op->m_abortOption = AbortOnError;
-
   theSimpleState= 0;
-
-  op->m_key_record= key_rec;
-  op->m_key_row= key_row;
-  op->m_attribute_record= attr_rec;
-  op->m_attribute_row= attr_row;
   attr_rec->copyMask(op->m_read_mask, mask);
 
   return op;
@@ -2256,7 +2253,6 @@ NdbTransaction::scanTable(const NdbRecord *result_record,
   */
   NdbIndexScanOperation *op_idx;
   NdbScanOperation *op;
-  Uint32 fragCount;
   int res;
 
   op_idx= getNdbScanOperation(result_record->table);

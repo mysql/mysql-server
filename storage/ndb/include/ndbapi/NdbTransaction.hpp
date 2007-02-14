@@ -295,7 +295,8 @@ public:
    *                     ExecType::Rollback rollbacks the entire transaction.
    * @param abortOption  Handling of error while excuting
    *                     AbortOnError - Abort transaction if an operation fail
-   *                     IgnoreError  - Accept failing operations
+   *                     AO_IgnoreError  - Accept failing operations
+   *                     DefaultAbortOption - Use per-operation abort option
    * @param force        When operations should be sent to NDB Kernel.
    *                     (See @ref secAdapt.)
    *                     - 0: non-force, adaptive algorithm notices it 
@@ -560,6 +561,23 @@ public:
   Uint32 getConnectedNodeId(); // Get Connected node id
 #endif
 
+  /*
+    NdbRecord primary key and unique key operations.
+
+    If the key_rec passed in is for a table, the operation will be a primary
+    key operation. If it is for an index, it will be a unique key operation
+    using that index.
+
+    The key_row passed in defined the primary or unique key of the affected
+    tuple, and must remain valid until execute() is called.
+
+    The mask, if != NULL, defines a subset of attributes to read, update, or
+    insert. It is copied by the methods, so need not remain valid after the
+    call returns.
+
+    For unique index operations, the attr_rec must refer to the underlying
+    table of the index.
+  */
 
   NdbOperation *readTuple(const NdbRecord *key_rec, const char *key_row,
                           const NdbRecord *result_rec, char *result_row,
@@ -774,10 +792,18 @@ private:
   NdbIndexScanOperation* getNdbScanOperation(const class NdbTableImpl* aTable);
   NdbIndexOperation* getNdbIndexOperation(const class NdbIndexImpl* anIndex, 
                                           const class NdbTableImpl* aTable,
-                                          NdbOperation* aNextOp = 0);
+                                          NdbOperation* aNextOp = 0,
+                                          bool useRec= false);
   NdbIndexScanOperation* getNdbIndexScanOperation(const NdbIndexImpl* index,
 						  const NdbTableImpl* table);
   
+  NdbOperation *setupRecordOp(NdbOperation::OperationType type,
+                              NdbOperation::LockMode lock_mode,
+                              const NdbRecord *key_record,
+                              const char *key_row,
+                              const NdbRecord *attribute_record,
+                              const char *attribute_row);
+
   void		handleExecuteCompletion();
   
   /****************************************************************************

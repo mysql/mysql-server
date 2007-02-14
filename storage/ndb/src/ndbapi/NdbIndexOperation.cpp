@@ -52,9 +52,10 @@ NdbIndexOperation::~NdbIndexOperation()
 int
 NdbIndexOperation::indxInit(const NdbIndexImpl * anIndex,
 			    const NdbTableImpl * aTable, 
-			    NdbTransaction* myConnection)
+			    NdbTransaction* myConnection,
+                            bool useRec)
 {
-  NdbOperation::init(aTable, myConnection, false);
+  NdbOperation::init(aTable, myConnection, useRec);
 
   switch (anIndex->m_type) {
   case(NdbDictionary::Index::UniqueHashIndex):
