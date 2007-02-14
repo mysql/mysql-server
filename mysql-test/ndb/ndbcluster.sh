@@ -63,12 +63,17 @@ stop_ndb=
 initial_ndb=
 status_ndb=
 ndb_diskless=0
+ndbd_nodes=2
+relative_config_data_dir=
+opt_core=
 
 ndb_no_ord=512
+ndb_no_attr=2048
 ndb_con_op=105000
 ndb_dmem=80M
 ndb_imem=24M
 
+VERBOSE=100
 NDB_MGM_EXTRA_OPTS=
 NDB_MGMD_EXTRA_OPTS=
 NDBD_EXTRA_OPTS=
@@ -89,6 +94,9 @@ while test $# -gt 0; do
     --debug*)
      flags_ndb="$flags_ndb $1"
      ;;
+    --ndbd-nodes=*)
+     ndbd_nodes=`echo "$1" | sed -e "s;--ndbd-nodes=;;"`
+     ;;
     --status)
      status_ndb=1
      ;;
@@ -103,6 +111,9 @@ while test $# -gt 0; do
      ;;
     --data-dir=*)
      fsdir=`echo "$1" | sed -e "s;--data-dir=;;"`
+     ;;
+    --relative-config-data-dir)
+     relative_config_data_dir=1
      ;;
     --port=*)
      port=`echo "$1" | sed -e "s;--port=;;"`
@@ -122,6 +133,12 @@ while test $# -gt 0; do
     --character-sets-dir=*)
      CHARSETSDIR=`echo "$1" | sed -e "s;--character-sets-dir=;;"`
      ;;
+    --core)
+     opt_core="--core"
+     ;;
+    --verbose=*)
+     VERBOSE=`echo "$1" | sed -e "s;--verbose=;;"`
+     ;;
     -- )  shift; break ;;
     --* ) $ECHO "Unrecognized option: $1"; exit 1 ;;
     * ) break ;;
@@ -130,9 +147,10 @@ while test $# -gt 0; do
 done
 
 fs_ndb="$fsdir/ndbcluster-$port"
+config_ini=ndb/ndb_config_${ndbd_nodes}_node.ini
 
 NDB_HOME=
-if [ ! -x "$fsdir" ]; then
+if [ ! -d "$fsdir" ]; then
   echo "$fsdir missing"
   exit 1
 fi
@@ -148,11 +166,15 @@ if [ ! -x "$exec_waiter" ]; then
   echo "$exec_waiter missing"
   exit 1
 fi
+if [ ! -f "$config_ini" ]; then
+  echo "$config_ini missing, unsupported number of nodes"
+  exit 1
+fi
 
-exec_mgmtclient="$exec_mgmtclient --no-defaults $NDB_MGM_EXTRA_OPTS"
-exec_mgmtsrvr="$exec_mgmtsrvr --no-defaults $NDB_MGMD_EXTRA_OPTS"
-exec_ndb="$exec_ndb --no-defaults $NDBD_EXTRA_OPTS --character-sets-dir=$CHARSETSDIR"
-exec_waiter="$exec_waiter --no-defaults"
+exec_mgmtclient="$exec_mgmtclient --no-defaults $opt_core $NDB_MGM_EXTRA_OPTS"
+exec_mgmtsrvr="$exec_mgmtsrvr --no-defaults $opt_core $NDB_MGMD_EXTRA_OPTS"
+exec_ndb="$exec_ndb --no-defaults $opt_core $NDBD_EXTRA_OPTS --character-sets-dir=$CHARSETSDIR"
+exec_waiter="$exec_waiter --no-defaults $opt_core"
 
 ndb_host="localhost"
 ndb_mgmd_port=$port
@@ -196,18 +218,24 @@ fi
 # Start management server as deamon
 
 # Edit file system path and ports in config file
+if [ $relative_config_data_dir ] ; then
+  config_fs_ndb="."
+else
+  config_fs_ndb=$fs_ndb
+fi
 if [ $initial_ndb ] ; then
-  rm -f $fs_ndb/ndb_* 2>&1 | cat > /dev/null
+  rm -rf $fs_ndb/ndb_* 2>&1 | cat > /dev/null
   sed \
+    -e s,"CHOOSE_MaxNoOfAttributes","$ndb_no_attr",g \
     -e s,"CHOOSE_MaxNoOfOrderedIndexes","$ndb_no_ord",g \
     -e s,"CHOOSE_MaxNoOfConcurrentOperations","$ndb_con_op",g \
     -e s,"CHOOSE_DataMemory","$ndb_dmem",g \
     -e s,"CHOOSE_IndexMemory","$ndb_imem",g \
     -e s,"CHOOSE_Diskless","$ndb_diskless",g \
     -e s,"CHOOSE_HOSTNAME_".*,"$ndb_host",g \
-    -e s,"CHOOSE_FILESYSTEM","$fs_ndb",g \
+    -e s,"CHOOSE_FILESYSTEM","$config_fs_ndb",g \
     -e s,"CHOOSE_PORT_MGM","$ndb_mgmd_port",g \
-    < ndb/ndb_config_2_node.ini \
+    < "$config_ini" \
     > "$fs_ndb/config.ini"
 fi
 
@@ -218,7 +246,7 @@ if ( cd "$fs_ndb" ; $exec_mgmtsrvr -f config.ini ) ; then :; else
   echo "Unable to start $exec_mgmtsrvr from `pwd`"
   exit 1
 fi
-if sleep_until_file_created $fs_ndb/ndb_3.pid 120
+if sleep_until_file_created $fs_ndb/ndb_`expr $ndbd_nodes + 1`.pid 120
 then :; else
   exit 1
 fi
@@ -226,38 +254,43 @@ cat `find "$fs_ndb" -name 'ndb_*.pid'` > "$fs_ndb/$pidfile"
 
 # Start database node 
 
-echo "Starting ndbd"
-( cd "$fs_ndb" ; $exec_ndb $flags_ndb & )
-if sleep_until_file_created $fs_ndb/ndb_1.pid 120
-then :; else
-  stop_default_ndbcluster
-  exit 1
-fi
-cat `find "$fs_ndb" -name 'ndb_*.pid'` > "$fs_ndb/$pidfile"
-
-# Start database node 
-
-echo "Starting ndbd"
-( cd "$fs_ndb" ; $exec_ndb $flags_ndb & )
-if sleep_until_file_created $fs_ndb/ndb_2.pid 120
-then :; else
-  stop_default_ndbcluster
-  exit 1
-fi
-cat `find "$fs_ndb" -name 'ndb_*.pid'` > "$fs_ndb/$pidfile"
+id=1
+while [ $id -le $ndbd_nodes ]
+do
+  if [ `expr $VERBOSE \> 1` = 1 ] ; then
+    echo "Starting ndbd $id($ndbd_nodes)"
+  fi
+  ( cd "$fs_ndb" ; $exec_ndb $flags_ndb & )
+  if sleep_until_file_created $fs_ndb/ndb_${id}.pid 120
+  then :; else
+    stop_default_ndbcluster
+    exit 1
+  fi
+  cat `find "$fs_ndb" -name 'ndb_*.pid'` > "$fs_ndb/$pidfile"
+  id=`expr $id + 1`
+done
 
 # test if Ndb Cluster starts properly
 
-echo "Waiting for NDB data nodes to start..."
-if ( $exec_waiter ) | grep "NDBT_ProgramExit: 0 - OK" > /dev/null 2>&1; then :; else
-  echo "Ndbcluster startup failed"
+if [ `expr $VERBOSE \> 1` = 1 ] ; then
+  echo "Waiting for NDB data nodes to start..."
+fi
+if ( $exec_waiter ) | grep "NDBT_ProgramExit: 0 - OK" > /dev/null 2>&1 ; then :; else
+  if [ `expr $VERBOSE \> 0` = 1 ] ; then
+    echo "Ndbcluster startup failed"
+  fi
   stop_default_ndbcluster
   exit 1
+fi
+if [ `expr $VERBOSE \> 1` = 1 ] ; then
+  echo "Ok"
 fi
 
 cat `find "$fs_ndb" -name 'ndb_*.pid'` > $fs_ndb/$pidfile
 
-status_ndbcluster
+if [ `expr $VERBOSE \> 2` = 1 ] ; then
+  status_ndbcluster
+fi
 }
 
 status_ndbcluster() {
