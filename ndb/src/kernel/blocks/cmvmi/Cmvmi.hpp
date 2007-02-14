@@ -55,7 +55,6 @@ private:
   void execSIZEALT_ACK(Signal* signal);
   void execTEST_ORD(Signal* signal);
 
-  void execSTATISTICS_REQ(Signal* signal);
   void execSTOP_ORD(Signal* signal);
   void execSTART_ORD(Signal* signal);
   void execTAMPER_ORD(Signal* signal);
