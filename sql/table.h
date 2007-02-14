@@ -287,6 +287,12 @@ struct st_table {
   void reset_item_list(List<Item> *item_list) const;
 };
 
+enum enum_schema_table_state
+{ 
+  NOT_PROCESSED= 0,
+  PROCESSED_BY_CREATE_SORT_INDEX,
+  PROCESSED_BY_JOIN_EXEC
+};
 
 typedef struct st_foreign_key_info
 {
@@ -529,7 +535,6 @@ typedef struct st_table_list
   st_select_lex_unit *derived;		/* SELECT_LEX_UNIT of derived table */
   ST_SCHEMA_TABLE *schema_table;        /* Information_schema table */
   st_select_lex	*schema_select_lex;
-  bool is_schema_table_processed;
   /*
     True when the view field translation table is used to convert
     schema table fields for backwards compatibility with SHOW command.
@@ -638,6 +643,7 @@ typedef struct st_table_list
   */
   bool          prelocking_placeholder;
 
+  enum enum_schema_table_state schema_table_state;
   void calc_md5(char *buffer);
   void set_underlying_merge();
   int view_check_option(THD *thd, bool ignore_failure);

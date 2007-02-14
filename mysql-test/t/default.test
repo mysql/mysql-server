@@ -137,6 +137,13 @@ insert into bug20691 values (DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAUL
 select * from bug20691 order by x asc;
 drop table bug20691;
 
-###
+create table t1 (id int not null);
+insert into t1 values(default);
+
+create view v1 (c) as select id from t1;
+insert into t1 values(default);
+drop view v1;
+drop table t1;
+
 --echo End of 5.0 tests.
 

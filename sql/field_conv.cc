@@ -679,7 +679,7 @@ void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
 
 /* Simple quick field convert that is called on insert */
 
-void field_conv(Field *to,Field *from)
+int field_conv(Field *to,Field *from)
 {
   if (to->real_type() == from->real_type() &&
       !(to->type() == FIELD_TYPE_BLOB && to->table->copy_blobs))
@@ -707,7 +707,7 @@ void field_conv(Field *to,Field *from)
       if (to->ptr != from->ptr)
 #endif
         memcpy(to->ptr,from->ptr,to->pack_length());
-      return;
+      return 0;
     }
   }
   if (to->type() == FIELD_TYPE_BLOB)
@@ -723,8 +723,7 @@ void field_conv(Field *to,Field *from)
          from->real_type() != MYSQL_TYPE_STRING &&
          from->real_type() != MYSQL_TYPE_VARCHAR))
       blob->value.copy();
-    blob->store(blob->value.ptr(),blob->value.length(),from->charset());
-    return;
+    return blob->store(blob->value.ptr(),blob->value.length(),from->charset());
   }
   if ((from->result_type() == STRING_RESULT &&
        (to->result_type() == STRING_RESULT ||
@@ -741,15 +740,15 @@ void field_conv(Field *to,Field *from)
       end with \0. Can be replaced with .ptr() when we have our own
       string->double conversion.
     */
-    to->store(result.c_ptr_quick(),result.length(),from->charset());
+    return to->store(result.c_ptr_quick(),result.length(),from->charset());
   }
   else if (from->result_type() == REAL_RESULT)
-    to->store(from->val_real());
+    return to->store(from->val_real());
   else if (from->result_type() == DECIMAL_RESULT)
   {
     my_decimal buff;
-    to->store_decimal(from->val_decimal(&buff));
+    return to->store_decimal(from->val_decimal(&buff));
   }
   else
-    to->store(from->val_int(), test(from->flags & UNSIGNED_FLAG));
+    return to->store(from->val_int(), test(from->flags & UNSIGNED_FLAG));
 }
