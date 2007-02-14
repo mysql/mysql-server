@@ -42,16 +42,16 @@ FileOutputStream::println(const char * fmt, ...){
 }
 
 SocketOutputStream::SocketOutputStream(NDB_SOCKET_TYPE socket,
-				       unsigned timeout){
+				       unsigned write_timeout_ms){
   m_socket = socket;
-  m_timeout = timeout;
+  m_timeout_ms = write_timeout_ms;
 }
 
 int
 SocketOutputStream::print(const char * fmt, ...){
   va_list ap;
   va_start(ap, fmt);
-  const int ret = vprint_socket(m_socket, m_timeout, fmt, ap);
+  const int ret = vprint_socket(m_socket, m_timeout_ms, fmt, ap);
   va_end(ap);
   return ret;
 }
@@ -59,7 +59,7 @@ int
 SocketOutputStream::println(const char * fmt, ...){
   va_list ap;
   va_start(ap, fmt);
-  const int ret = vprintln_socket(m_socket, m_timeout, fmt, ap);
+  const int ret = vprintln_socket(m_socket, m_timeout_ms, fmt, ap);
   va_end(ap);
   return ret;
 }
