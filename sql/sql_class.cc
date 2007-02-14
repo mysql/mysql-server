@@ -1179,7 +1179,7 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
 			IO_CACHE *cache)
 {
   File file;
-  uint option= MY_UNPACK_FILENAME;
+  uint option= MY_UNPACK_FILENAME | MY_RELATIVE_PATH;
 
 #ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
   option|= MY_REPLACE_DIR;			// Force use of db directory
@@ -1193,7 +1193,15 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
   }
   else
     (void) fn_format(path, exchange->file_name, mysql_real_data_home, "", option);
-    
+
+  if (opt_secure_file_priv &&
+      strncmp(opt_secure_file_priv, path, strlen(opt_secure_file_priv)))
+  {
+    /* Write only allowed to dir or subdir specified by secure_file_priv */
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
+    return -1;
+  }
+
   if (!access(path, F_OK))
   {
     my_error(ER_FILE_EXISTS_ERROR, MYF(0), exchange->file_name);
