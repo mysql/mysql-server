@@ -259,17 +259,16 @@ static int ndb_to_mysql_error(const NdbError *ndberr)
 
 int execute_no_commit_ignore_no_key(ha_ndbcluster *h, NdbTransaction *trans)
 {
-  int res= trans->execute(NdbTransaction::NoCommit,
-                          NdbOperation::AO_IgnoreError,
-                          h->m_force_send);
-  if (res == -1)
+  if (trans->execute(NdbTransaction::NoCommit,
+                     NdbOperation::AO_IgnoreError,
+                     h->m_force_send) == -1)
     return -1;
 
   const NdbError &err= trans->getNdbError();
   if (err.classification != NdbError::NoError &&
       err.classification != NdbError::ConstraintViolation &&
       err.classification != NdbError::NoDataFound)
-    return res;
+    return -1;
 
   return 0;
 }
@@ -9052,7 +9051,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
             Check that the field is part of the table of the handler
             instance and that we expect a field with of this result type.
           */
-          if (context->table == field->table)
+          if (context->table->s == field->table->s)
           {       
             const NDBTAB *tab= (const NDBTAB *) context->ndb_table;
             DBUG_PRINT("info", ("FIELD_ITEM"));
