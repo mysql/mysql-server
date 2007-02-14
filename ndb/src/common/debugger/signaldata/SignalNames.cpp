@@ -383,9 +383,6 @@ const GsnName SignalNames [] = {
   ,{ GSN_START_ORD,              "START_ORD" }
   ,{ GSN_STOP_ORD,               "STOP_ORD" }
   ,{ GSN_TAMPER_ORD,             "TAMPER_ORD" }
-  ,{ GSN_SET_VAR_REQ,            "SET_VAR_REQ" }
-  ,{ GSN_SET_VAR_CONF,           "SET_VAR_CONF" }
-  ,{ GSN_SET_VAR_REF,            "SET_VAR_REF" }
 
   ,{ GSN_EVENT_SUBSCRIBE_REQ,    "EVENT_SUBSCRIBE_REQ" }
   ,{ GSN_EVENT_SUBSCRIBE_CONF,   "EVENT_SUBSCRIBE_CONF" }
