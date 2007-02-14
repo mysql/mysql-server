@@ -14575,30 +14575,6 @@ Dbdih::execNDB_TAMPER(Signal* signal)
   return;
 }//Dbdih::execNDB_TAMPER()
 
-void Dbdih::execSET_VAR_REQ(Signal* signal) {
-#if 0
-  SetVarReq* const setVarReq = (SetVarReq*)&signal->theData[0];
-  ConfigParamId var = setVarReq->variable();
-  int val = setVarReq->value();
-
-
-  switch (var) {
-  case TimeBetweenLocalCheckpoints:
-    c_lcpState.clcpDelay = val;
-    sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
-    break;
-
-  case TimeBetweenGlobalCheckpoints:
-    cgcpDelay = val;
-    sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
-    break;
-
-  default:
-    sendSignal(CMVMI_REF, GSN_SET_VAR_REF, signal, 1, JBB);
-  } // switch
-#endif
-}
-
 void Dbdih::execBLOCK_COMMIT_ORD(Signal* signal){
   BlockCommitOrd* const block = (BlockCommitOrd *)&signal->theData[0];
 

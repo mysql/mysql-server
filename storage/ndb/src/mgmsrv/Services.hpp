@@ -24,9 +24,6 @@
 
 #include "MgmtSrvr.hpp"
 
-/** Undefine this to remove backwards compatibility for "GET CONFIG". */
-#define MGM_GET_CONFIG_BACKWARDS_COMPAT
-
 class MgmApiSession : public SocketServer::Session
 {
   static void stop_session_if_timed_out(SocketServer::Session *_s, void *data);
@@ -49,9 +46,6 @@ private:
   Parser_t::Context *m_ctx;
   Uint64 m_session_id;
 
-  void getConfig_common(Parser_t::Context &ctx,
-			const class Properties &args,
-			bool compat = false);
   const char *get_error_text(int err_no)
   { return m_mgmsrv.getErrorText(err_no, m_err_str, sizeof(m_err_str)); }
 
@@ -61,9 +55,6 @@ public:
   void runSession();
 
   void getConfig(Parser_t::Context &ctx, const class Properties &args);
-#ifdef MGM_GET_CONFIG_BACKWARDS_COMPAT
-  void getConfig_old(Parser_t::Context &ctx);
-#endif /* MGM_GET_CONFIG_BACKWARDS_COMPAT */
 
   void get_nodeid(Parser_t::Context &ctx, const class Properties &args);
   void getVersion(Parser_t::Context &ctx, const class Properties &args);
