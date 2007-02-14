@@ -897,7 +897,7 @@ void Cmvmi::execSET_VAR_REQ(Signal* signal)
   case TimeToWaitAlive:
 
     // QMGR
-  case HeartbeatIntervalDbDb: // TODO ev till Ndbcnt också
+  case HeartbeatIntervalDbDb: // TODO possibly Ndbcnt too
   case HeartbeatIntervalDbApi:
   case ArbitTimeout:
     sendSignal(QMGR_REF, GSN_SET_VAR_REQ, signal, 3, JBB);
@@ -1105,6 +1105,24 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     }
   }
   
+  if (arg == DumpStateOrd::CmvmiDumpSubscriptions)
+  {
+    SubscriberPtr ptr;
+    subscribers.first(ptr);  
+    g_eventLogger.info("List subscriptions:");
+    while(ptr.i != RNIL)
+    {
+      g_eventLogger.info("Subscription: %u, nodeId: %u, ref: 0x%x",
+                         ptr.i,  refToNode(ptr.p->blockRef), ptr.p->blockRef);
+      for(Uint32 i = 0; i < LogLevel::LOGLEVEL_CATEGORIES; i++)
+      {
+        Uint32 level = ptr.p->logLevel.getLogLevel((LogLevel::EventCategory)i);
+        g_eventLogger.info("Category %u Level %u", i, level);
+      }
+      subscribers.next(ptr);
+    }
+  }
+
   if (arg == DumpStateOrd::CmvmiDumpLongSignalMemory){
     infoEvent("Cmvmi: g_sectionSegmentPool size: %d free: %d",
 	      g_sectionSegmentPool.getSize(),
