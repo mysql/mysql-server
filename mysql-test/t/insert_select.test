@@ -265,4 +265,17 @@ INSERT INTO bug21774_2.t1 SELECT t1.* FROM t1;
 
 DROP DATABASE bug21774_1;
 DROP DATABASE bug21774_2;
+USE test;
 
+#
+# Bug#19978: INSERT .. ON DUPLICATE erroneously reports some records were
+#            updated.
+#
+create table t1(f1 int primary key, f2 int);
+--enable_info
+insert into t1 values (1,1);
+insert into t1 values (1,1) on duplicate key update f2=1;
+insert into t1 values (1,1) on duplicate key update f2=2;
+--disable_info
+select * from t1;
+drop table t1;
