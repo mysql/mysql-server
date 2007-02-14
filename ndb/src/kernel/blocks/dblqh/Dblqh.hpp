@@ -2201,7 +2201,6 @@ private:
   void execFSREADCONF(Signal* signal);
   void execFSREADREF(Signal* signal);
   void execSCAN_HBREP(Signal* signal);
-  void execSET_VAR_REQ(Signal* signal);
   void execTIME_SIGNAL(Signal* signal);
   void execFSSYNCCONF(Signal* signal);
 
