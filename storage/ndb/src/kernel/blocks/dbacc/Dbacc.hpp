@@ -660,7 +660,6 @@ private:
   void execNDB_STTOR(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
   void execREAD_CONFIG_REQ(Signal* signal);
-  void execSET_VAR_REQ(Signal* signal);
   void execDUMP_STATE_ORD(Signal* signal);
 
   // Statement blocks
