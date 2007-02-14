@@ -4063,17 +4063,217 @@ NdbDictInterface::execDROP_EVNT_REF(NdbApiSignal * signal,
   DBUG_VOID_RETURN;
 }
 
+#include <NdbScanOperation.hpp>
+#include <NdbSleep.h>
+static int scanEventTable(Ndb* pNdb, 
+                          const NdbDictionary::Table* pTab,
+                          NdbDictionary::Dictionary::List &list)
+{
+  int                  retryAttempt = 0;
+  const int            retryMax = 100;
+  int                  check;
+  NdbTransaction       *pTrans = NULL;
+  NdbScanOperation     *pOp = NULL;
+  NdbRecAttr *event_name, *event_id;
+  NdbError err;
+
+  while (true)
+  {
+    NdbDictionary::Dictionary::List tmp_list;
+
+    if (retryAttempt)
+    {
+      if (retryAttempt >= retryMax)
+      {
+        ndbout << "ERROR: has retried this operation " << retryAttempt 
+               << " times, failing!" << endl;
+        goto error;
+      }
+      if (pTrans)
+        pNdb->closeTransaction(pTrans);
+      NdbSleep_MilliSleep(50);
+    }
+    retryAttempt++;
+    pTrans = pNdb->startTransaction();
+    if (pTrans == NULL)
+    {
+      if (pNdb->getNdbError().status == NdbError::TemporaryError)
+        continue;
+      goto error;
+    }
+
+    Uint64 row_count = 0;
+    {
+      if ((pOp = pTrans->getNdbScanOperation(pTab->getName())) == NULL)
+        goto error;
+      if (pOp->readTuples(NdbScanOperation::LM_CommittedRead, 0, 1) != 0)
+        goto error;
+      if (pOp->interpret_exit_last_row() == -1)
+        goto error;
+
+      Uint64 tmp;
+      pOp->getValue(NdbDictionary::Column::ROW_COUNT, (char*)&tmp);
+      if (pTrans->execute(NdbTransaction::NoCommit) == -1)
+        goto error;
+
+      int eof;
+      while ((eof = pOp->nextResult(true)) == 0)
+        row_count += tmp;
+    
+      if (eof == -1)
+      {
+        if (pTrans->getNdbError().status == NdbError::TemporaryError)
+          continue;
+        goto error;
+      }
+    }
+
+    if ((pOp = pTrans->getNdbScanOperation(pTab->getName())) == NULL)
+      goto error;
+
+    if (pOp->readTuples(NdbScanOperation::LM_CommittedRead, 0, 1) != 0)
+      goto error;
+    
+    if (pOp->interpret_exit_ok() == -1)
+      goto error;
+    
+    if ((event_id   = pOp->getValue(6)) == 0 ||
+        (event_name = pOp->getValue(0u)) == 0)
+      goto error;
+
+    if (pTrans->execute(NdbTransaction::NoCommit) == -1)
+    {
+      const NdbError err = pTrans->getNdbError();
+      if (err.status == NdbError::TemporaryError)
+        continue;
+      goto error;
+    }
+
+    tmp_list.count = row_count;
+    tmp_list.elements =
+      new NdbDictionary::Dictionary::List::Element[row_count];
+
+    int eof;
+    unsigned rows = 0;
+    while((eof = pOp->nextResult()) == 0)
+    {
+      if (rows < tmp_list.count)
+      {
+        NdbDictionary::Dictionary::List::Element &el = tmp_list.elements[rows];
+        el.id = event_id->u_32_value();
+        el.type = NdbDictionary::Object::TableEvent;
+        el.state = NdbDictionary::Object::StateOnline;
+        el.store = NdbDictionary::Object::StorePermanent;
+        el.name = strdup(event_name->aRef());
+      }
+      rows++;
+    }
+    if (eof == -1)
+    {
+      if (pTrans->getNdbError().status == NdbError::TemporaryError)
+        continue;
+      goto error;
+    }
+
+    pNdb->closeTransaction(pTrans);
+
+    if (rows < tmp_list.count)
+      tmp_list.count = rows;
+
+    list = tmp_list;
+    tmp_list.count = 0;
+    tmp_list.elements = NULL;
+
+    return 0;
+  }
+error:
+  int error_code;
+  if (pTrans)
+  {
+    error_code = pTrans->getNdbError().code;
+    pNdb->closeTransaction(pTrans);
+  }
+  else
+    error_code = pNdb->getNdbError().code;
+
+  return error_code;
+}
+
+int
+NdbDictionaryImpl::listEvents(List& list)
+{
+  int error_code;
+
+  BaseString currentDb(m_ndb.getDatabaseName());
+  BaseString currentSchema(m_ndb.getDatabaseSchemaName());
+
+  m_ndb.setDatabaseName("sys");
+  m_ndb.setDatabaseSchemaName("def");
+
+  const NdbDictionary::Table* pTab =
+    m_facade->getTable("NDB$EVENTS_0");
+
+  if(pTab == NULL)
+    error_code = m_facade->getNdbError().code;
+  else
+    error_code = scanEventTable(&m_ndb, pTab, list);
+
+  m_ndb.setDatabaseName(currentDb.c_str());
+  m_ndb.setDatabaseSchemaName(currentSchema.c_str());
+  if (error_code)
+  {
+    m_error.code = error_code;
+    return -1;
+  }
+  return 0;
+}
+
 /*****************************************************************
  * List objects or indexes
  */
 int
 NdbDictionaryImpl::listObjects(List& list, NdbDictionary::Object::Type type)
 {
+  int ret;
+  List list1, list2;
+  if (type == NdbDictionary::Object::TableEvent)
+    return listEvents(list);
+
+  if (type == NdbDictionary::Object::TypeUndefined)
+  {
+    ret = listEvents(list2);
+    if (ret)
+      return ret;
+  }
+
   ListTablesReq req;
   req.requestData = 0;
   req.setTableType(getKernelConstant(type, objectTypeMapping, 0));
   req.setListNames(true);
-  return m_receiver.listObjects(list, req.requestData, m_ndb.usingFullyQualifiedNames());
+  if (!list2.count)
+    return m_receiver.listObjects(list, req.requestData,
+                                  m_ndb.usingFullyQualifiedNames());
+  ret = m_receiver.listObjects(list1, req.requestData,
+                               m_ndb.usingFullyQualifiedNames());
+  if (ret)
+    return ret;
+  list.count = list1.count + list2.count;
+  list.elements = new NdbDictionary::Dictionary::List::Element[list.count];
+  unsigned i;
+  const NdbDictionary::Dictionary::List::Element null_el;
+  for (i = 0; i < list1.count; i++)
+  {
+    NdbDictionary::Dictionary::List::Element &el = list1.elements[i];
+    list.elements[i] = el;
+    el = null_el;
+  }
+  for (i = 0; i < list2.count; i++)
+  {
+    NdbDictionary::Dictionary::List::Element &el = list2.elements[i];
+    list.elements[i + list1.count] = el;
+    el = null_el;
+  }
+  return 0;
 }
 
 int
