@@ -718,6 +718,10 @@ desc t1;
 Field	Type	Null	Key	Default	Extra
 GeomFromText('point(1 1)')	geometry	NO			
 drop table t1;
+create table t1 (g geometry not null);
+insert into t1 values(default);
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+drop table t1;
 create table t1 (f1 tinyint(1), f2 char(1), f3 varchar(1), f4 geometry, f5 datetime);
 create view v1 as select * from t1;
 desc v1;
