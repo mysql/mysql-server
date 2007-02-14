@@ -5072,7 +5072,7 @@ struct my_option my_long_options[] =
    "Push supported query conditions to the storage engine.",
    (gptr*) &global_system_variables.engine_condition_pushdown,
    (gptr*) &global_system_variables.engine_condition_pushdown,
-   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   /* See how it's handled in get_one_option() */
   {"event-scheduler", OPT_EVENT_SCHEDULER, "Enable/disable the event scheduler.",
    NULL,  NULL, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
