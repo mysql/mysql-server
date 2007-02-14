@@ -597,7 +597,6 @@ private:
    */
   enum WaitSignalType { 
     NO_WAIT,			// We don't expect to receive any signal
-    WAIT_SET_VAR,		// Accept SET_VAR_CONF and SET_VAR_REF
     WAIT_SUBSCRIBE_CONF 	// Accept event subscription confirmation
   };
   
