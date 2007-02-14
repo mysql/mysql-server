@@ -543,9 +543,9 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 /* 448 unused - formerly GSN_STATISTICS_REQ */
 #define GSN_STOP_ORD                    449
 #define GSN_TAMPER_ORD                  450
-#define GSN_SET_VAR_REQ                 451
-#define GSN_SET_VAR_CONF                452
-#define GSN_SET_VAR_REF                 453
+/* 451 unused - formerly GSN_SET_VAR_REQ  */
+/* 452 unused - formerly GSN_SET_VAR_CONF */
+/* 453 unused - formerly GSN_SET_VAR_REF  */
 /* 454 unused - formerly GSN_STATISTICS_CONF */
 
 #define GSN_START_ORD                   455
