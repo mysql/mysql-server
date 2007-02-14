@@ -3817,7 +3817,7 @@ int ha_ndbcluster::info(uint flag)
   if (flag & HA_STATUS_AUTO)
   {
     DBUG_PRINT("info", ("HA_STATUS_AUTO"));
-    if (m_table)
+    if (m_table && table->found_next_number_field)
     {
       Ndb *ndb= get_ndb();
       Ndb_tuple_id_range_guard g(m_share);
