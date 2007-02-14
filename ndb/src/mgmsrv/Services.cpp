@@ -764,8 +764,7 @@ MgmApiSession::setClusterLogLevel(Parser<MgmApiSession>::Context &,
 
   DBUG_PRINT("enter",("node=%d, category=%d, level=%d", node, cat, level));
 
-  /* XXX should use constants for this value */
-  if(level > 15) {
+  if(level > NDB_MGM_MAX_LOGLEVEL) {
     m_output->println(reply);
     m_output->println("result: Invalid loglevel %d", level);
     m_output->println("");
@@ -809,8 +808,7 @@ MgmApiSession::setLogLevel(Parser<MgmApiSession>::Context &,
   args.get("category", &cat);
   args.get("level", &level);
 
-  /* XXX should use constants for this value */
-  if(level > 15) {
+  if(level > NDB_MGM_MAX_LOGLEVEL) {
     m_output->println("set loglevel reply");
     m_output->println("result: Invalid loglevel", errorString.c_str());
     m_output->println("");
@@ -1510,7 +1508,7 @@ MgmApiSession::listen_event(Parser<MgmApiSession>::Context & ctx,
     }
     
     int level = atoi(spec[1].c_str());
-    if(level < 0 || level > 15){
+    if(level < 0 || level > NDB_MGM_MAX_LOGLEVEL){
       msg.appfmt("Invalid level: >%s<", spec[1].c_str());
       result = -1;
       goto done;

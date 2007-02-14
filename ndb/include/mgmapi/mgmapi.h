@@ -16,6 +16,8 @@
 #ifndef MGMAPI_H
 #define MGMAPI_H
 
+#define NDB_MGM_MAX_LOGLEVEL 15
+
 /**
  * @mainpage MySQL Cluster Management API
  *
