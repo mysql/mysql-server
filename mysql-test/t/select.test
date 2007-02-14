@@ -3207,6 +3207,29 @@ EXPLAIN SELECT * FROM t1
         (ID2_with_null=1 OR ID2_with_null=2);
 
 DROP TABLE t1;
+
+#
+# Bug #22344: InnoDB keys act strange on datetime vs timestamp comparison
+#
+CREATE TABLE t1 (a INT, ts TIMESTAMP, KEY ts(ts));
+INSERT INTO t1 VALUES (30,"2006-01-03 23:00:00"), (31,"2006-01-03 23:00:00");
+ANALYZE TABLE t1;
+
+CREATE TABLE t2 (a INT, dt1 DATETIME, dt2 DATETIME, PRIMARY KEY (a));
+INSERT INTO t2 VALUES (30, "2006-01-01 00:00:00", "2999-12-31 00:00:00");
+INSERT INTO t2 SELECT a+1,dt1,dt2 FROM t2;
+ANALYZE TABLE t2;
+
+EXPLAIN
+SELECT * FROM t1 LEFT JOIN t2 ON (t1.a=t2.a) WHERE t1.a=30
+  AND t1.ts BETWEEN t2.dt1 AND t2.dt2
+  AND t1.ts BETWEEN "2006-01-01" AND "2006-12-31";
+
+SELECT * FROM t1 LEFT JOIN t2 ON (t1.a=t2.a) WHERE t1.a=30
+  AND t1.ts BETWEEN t2.dt1 AND t2.dt2
+  AND t1.ts BETWEEN "2006-01-01" AND "2006-12-31";
+
+DROP TABLE t1,t2;
 #
 # Bug #22026: Warning when using IF statement and large unsigned bigint
 #
