@@ -62,6 +62,7 @@
 #include <signaldata/AttrInfo.hpp>
 #include <KeyDescriptor.hpp>
 #include <signaldata/RouteOrd.hpp>
+#include <signaldata/FsRef.hpp>
 
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
@@ -11434,7 +11435,17 @@ void Dblqh::execLCP_PREPARE_CONF(Signal* signal)
 
 void Dblqh::execBACKUP_FRAGMENT_REF(Signal* signal) 
 {
-  ndbrequire(false);
+  BackupFragmentRef *ref= (BackupFragmentRef*)signal->getDataPtr();
+  char buf[100];
+  BaseString::snprintf(buf,sizeof(buf),
+                       "Unable to store fragment during LCP. NDBFS Error: %u",
+                       ref->errorCode);
+
+  progError(__LINE__,
+            (ref->errorCode & FsRef::FS_ERR_BIT)?
+            NDBD_EXIT_AFS_UNKNOWN
+            : ref->errorCode,
+            buf);
 }
 
 void Dblqh::execBACKUP_FRAGMENT_CONF(Signal* signal) 
