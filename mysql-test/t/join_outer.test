@@ -808,3 +808,26 @@ SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1=1 OR 2=2);
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1=1 OR 1=0);
 
 DROP TABLE t1,t2;
+
+#
+# Bug 26017: LEFT OUTER JOIN over two constant tables and 
+#            a case-insensitive comparison predicate field=const 
+# 
+
+CREATE TABLE t1 (
+  f1 varchar(16) collate latin1_swedish_ci PRIMARY KEY,
+  f2 varchar(16) collate latin1_swedish_ci
+);
+CREATE TABLE t2 (
+  f1 varchar(16) collate latin1_swedish_ci PRIMARY KEY,
+  f3 varchar(16) collate latin1_swedish_ci
+);
+
+INSERT INTO t1 VALUES ('bla','blah');
+INSERT INTO t2 VALUES ('bla','sheep');
+
+SELECT * FROM t1 JOIN t2 USING(f1) WHERE f1='Bla';
+SELECT * FROM t1 LEFT JOIN t2 USING(f1) WHERE f1='bla';
+SELECT * FROM t1 LEFT JOIN t2 USING(f1) WHERE f1='Bla';
+
+DROP TABLE t1,t2;
