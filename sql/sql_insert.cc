@@ -1203,25 +1203,30 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
               !table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
           {
             table->file->restore_auto_increment(prev_insert_id);
+ 
             goto ok_or_after_trg_err;
           }
           goto err;
-	}
-        info->updated++;
-        /*
-          If ON DUP KEY UPDATE updates a row instead of inserting one, it's
-          like a regular UPDATE statement: it should not affect the value of a
-          next SELECT LAST_INSERT_ID() or mysql_insert_id().
-          Except if LAST_INSERT_ID(#) was in the INSERT query, which is
-          handled separately by THD::arg_of_last_insert_id_function.
-        */
-        insert_id_for_cur_row= table->file->insert_id_for_cur_row= 0;
-        if (table->next_number_field)
-          table->file->adjust_next_insert_id_after_explicit_value(table->next_number_field->val_int());
-        trg_error= (table->triggers &&
-                    table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                                      TRG_ACTION_AFTER, TRUE));
-        info->copied++;
+        }
+        if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) ||
+             compare_record(table))
+        {
+          info->updated++;
+          /*
+            If ON DUP KEY UPDATE updates a row instead of inserting one, it's
+            like a regular UPDATE statement: it should not affect the value of a
+            next SELECT LAST_INSERT_ID() or mysql_insert_id().
+            Except if LAST_INSERT_ID(#) was in the INSERT query, which is
+            handled separately by THD::arg_of_last_insert_id_function.
+          */
+          insert_id_for_cur_row= table->file->insert_id_for_cur_row= 0;
+          if (table->next_number_field)
+            table->file->adjust_next_insert_id_after_explicit_value(table->next_number_field->val_int());
+          trg_error= (table->triggers &&
+                      table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+                                                        TRG_ACTION_AFTER, TRUE));
+          info->copied++;
+        }
         goto ok_or_after_trg_err;
       }
       else /* DUP_REPLACE */
