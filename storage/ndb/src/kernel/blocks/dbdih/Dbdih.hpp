@@ -700,7 +700,6 @@ private:
   void execFSREADREF(Signal *);
   void execFSWRITECONF(Signal *);
   void execFSWRITEREF(Signal *);
-  void execSET_VAR_REQ(Signal *);
   void execCHECKNODEGROUPSREQ(Signal *);
   void execSTART_INFOREQ(Signal*);
   void execSTART_INFOREF(Signal*);
