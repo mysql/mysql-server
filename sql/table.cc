@@ -4086,7 +4086,7 @@ void st_table_list::reinit_before_use(THD *thd)
   */
   table= 0;
   /* Reset is_schema_table_processed value(needed for I_S tables */
-  is_schema_table_processed= FALSE;
+  schema_table_state= NOT_PROCESSED;
 
   TABLE_LIST *embedded; /* The table at the current level of nesting. */
   TABLE_LIST *parent_embedding= this; /* The parent nested table reference. */
