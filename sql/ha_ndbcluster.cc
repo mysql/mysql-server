@@ -47,6 +47,7 @@
 extern my_bool opt_ndb_optimized_node_selection;
 extern const char *opt_ndbcluster_connectstring;
 extern ulong opt_ndb_cache_check_time;
+extern ulong opt_ndb_wait_connected;
 
 // ndb interface initialization/cleanup
 #ifdef  __cplusplus
@@ -192,9 +193,15 @@ long ndb_connect_count= 0;
 
 static int update_status_variables(Ndb_cluster_connection *c)
 {
-  ndb_cluster_node_id=         c->node_id();
-  ndb_connected_port=          c->get_connected_port();
-  ndb_connected_host=          c->get_connected_host();
+  ndb_connected_port= c->get_connected_port();
+  ndb_connected_host= c->get_connected_host();
+  if (ndb_cluster_node_id != (int) c->node_id())
+  {
+    ndb_cluster_node_id= c->node_id();
+    sql_print_information("NDB: NodeID is %lu, management server '%s:%lu'",
+                          ndb_cluster_node_id, ndb_connected_host,
+                          ndb_connected_port);
+  }
   ndb_number_of_replicas=      0;
   ndb_number_of_ready_data_nodes= c->get_no_ready();
   ndb_number_of_data_nodes=     c->no_db_nodes();
@@ -6801,13 +6808,48 @@ static int ndbcluster_init(void *p)
     goto ndbcluster_init_error;
   }
 
-  if ((res= g_ndb_cluster_connection->connect(0,0,0)) == 0)
+  /* Connect to management server */
+
+  struct timeval end_time;
+  gettimeofday(&end_time, 0);
+  end_time.tv_sec+= opt_ndb_wait_connected;
+
+  while ((res= g_ndb_cluster_connection->connect(0,0,0)) == 1)
+  {
+    struct timeval now_time;
+    gettimeofday(&now_time, 0);
+    if (now_time.tv_sec > end_time.tv_sec ||
+        (now_time.tv_sec == end_time.tv_sec &&
+         now_time.tv_usec >= end_time.tv_usec))
+      break;
+    sleep(1);
+  }
+
+  if (res == 0)
   {
     connect_callback();
     DBUG_PRINT("info",("NDBCLUSTER storage engine at %s on port %d",
                        g_ndb_cluster_connection->get_connected_host(),
                        g_ndb_cluster_connection->get_connected_port()));
-    g_ndb_cluster_connection->wait_until_ready(10,3);
+    {
+      struct timeval now_time;
+      gettimeofday(&now_time, 0);
+      ulong wait_until_ready_time = (end_time.tv_sec > now_time.tv_sec) ?
+        end_time.tv_sec - now_time.tv_sec : 1;
+      res= g_ndb_cluster_connection->wait_until_ready(wait_until_ready_time,3);
+    }
+    if (res == 0)
+    {
+      sql_print_information("NDB: all storage nodes connected");
+    }
+    else if (res > 0)
+    {
+      sql_print_information("NDB: some storage nodes connected");
+    }
+    else if (res < 0)
+    {
+      sql_print_information("NDB: no storage nodes connected (timed out)");
+    }
   } 
   else if (res == 1)
   {

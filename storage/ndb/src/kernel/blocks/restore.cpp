@@ -1253,7 +1253,7 @@ Restore::check_file_version(Signal* signal, Uint32 file_version)
   {
     char buf[255];
     char verbuf[255];
-    getVersionString(file_version, 0, verbuf, sizeof(verbuf));
+    getVersionString(file_version, 0, 0, verbuf, sizeof(verbuf));
     BaseString::snprintf(buf, sizeof(buf),
 			 "Unsupported version of LCP files found on disk, "
 			 " found: %s", verbuf);
