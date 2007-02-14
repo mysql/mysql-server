@@ -90,7 +90,6 @@ Qmgr::Qmgr(Block_context& ctx)
   addRecSignal(GSN_API_FAILREQ, &Qmgr::execAPI_FAILREQ);
   addRecSignal(GSN_API_FAILCONF, &Qmgr::execAPI_FAILCONF);
   addRecSignal(GSN_READ_NODESREQ, &Qmgr::execREAD_NODESREQ);
-  addRecSignal(GSN_SET_VAR_REQ,  &Qmgr::execSET_VAR_REQ);
   addRecSignal(GSN_API_BROADCAST_REP,  &Qmgr::execAPI_BROADCAST_REP);
 
   addRecSignal(GSN_NODE_FAILREP, &Qmgr::execNODE_FAILREP);
