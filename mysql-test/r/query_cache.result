@@ -624,7 +624,7 @@ word
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
-load data infile 'TEST_DIR/std_data/words.dat' into table t1;
+load data infile 'MYSQLTEST_VARDIR/std_data_ln/words.dat' into table t1;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0

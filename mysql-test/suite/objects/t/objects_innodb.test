@@ -1,0 +1,24 @@
+# +--------------------------------------------------------------------+
+# |                         FOR INTERNAL USE ONLY!                     |
+# +--------------------------------------------------------------------+
+# |                           objects_falcon.test                      |
+# |                        Copyright 2006 by MySQL AB                  |
+# +--------------------------------------------------------------------+
+# |                         FOR INTERNAL USE ONLY!                     |
+# +--------------------------------------------------------------------+
+
+# have_innodb.inc is missing
+--source include/have_innodb.inc
+
+let $engine_type= InnoDB;
+
+#
+# Should the created database be dropped? Default is 1.
+#
+let $drop_database= 1;
+
+#
+# Create the objects.
+#
+--source suite/objects/include/objects.inc
+
