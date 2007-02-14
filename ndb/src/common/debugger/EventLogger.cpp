@@ -530,8 +530,8 @@ void getTextUndoLogBlocked(QQQQ) {
 }
 void getTextTransporterError(QQQQ) {
   struct myTransporterError{
-    int errorNum;
-    char  errorString[256];
+    Uint32 errorNum;
+    char   errorString[256];
   };
   int i = 0;
   int lenth = 0;
