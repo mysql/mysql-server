@@ -1272,6 +1272,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
 	but it will not be included to SELECT_LEX tree, because it
 	will not be executed
       */
+      table->select_lex->order_list.push_back(&lex->select_lex.order_list);
       goto ok;
     }
 
