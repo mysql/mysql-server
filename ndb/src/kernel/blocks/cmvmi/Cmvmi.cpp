@@ -77,7 +77,6 @@ Cmvmi::Cmvmi(const Configuration & conf) :
   addRecSignal(GSN_OPEN_COMREQ,  &Cmvmi::execOPEN_COMREQ);
   addRecSignal(GSN_TEST_ORD,  &Cmvmi::execTEST_ORD);
 
-  addRecSignal(GSN_STATISTICS_REQ,  &Cmvmi::execSTATISTICS_REQ);
   addRecSignal(GSN_TAMPER_ORD,  &Cmvmi::execTAMPER_ORD);
   addRecSignal(GSN_SET_VAR_REQ,  &Cmvmi::execSET_VAR_REQ);
   addRecSignal(GSN_SET_VAR_CONF,  &Cmvmi::execSET_VAR_CONF);
@@ -702,24 +701,6 @@ Cmvmi::execTEST_ORD(Signal * signal){
 
 #endif
 }
-
-void Cmvmi::execSTATISTICS_REQ(Signal* signal) 
-{
-  // TODO Note ! This is only a test implementation...
-
-  static int stat1 = 0;
-  jamEntry();
-
-  //ndbout << "data 1: " << signal->theData[1];
-
-  int x = signal->theData[0];
-  stat1++;
-  signal->theData[0] = stat1;
-  sendSignal(x, GSN_STATISTICS_CONF, signal, 7, JBB);
-
-}//execSTATISTICS_REQ()
-
-
 
 void Cmvmi::execSTOP_ORD(Signal* signal) 
 {
