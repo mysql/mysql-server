@@ -512,6 +512,19 @@ innobase_release_stat_resources(
 }
 
 /************************************************************************
+Obtain the InnoDB transaction of a MySQL thread. */
+inline
+trx_t*&
+thd_to_trx(
+/*=======*/
+				/* out: reference to transaction pointer */
+	THD*		thd,	/* in: MySQL thread */
+	handlerton*	hton)	/* in: InnoDB handlerton */
+{
+	return(*(trx_t**) thd_ha_data(thd, hton));
+}
+
+/************************************************************************
 Call this function when mysqld passes control to the client. That is to
 avoid deadlocks on the adaptive hash S-latch possibly held by thd. For more
 documentation, see handler.cc. */
@@ -529,7 +542,7 @@ innobase_release_temporary_latches(
 		return 0;
 	}
 
-	trx = (trx_t*) thd->ha_data[hton->slot];
+	trx = thd_to_trx(thd, hton);
 
 	if (trx) {
 		innobase_release_stat_resources(trx);
@@ -988,11 +1001,9 @@ check_trx_exists(
 	handlerton*	hton,	/* in: handlerton for innodb */
 	THD*	thd)	/* in: user thread handle */
 {
-	trx_t*	trx;
+	trx_t*&	trx = thd_to_trx(thd, hton);
 
 	ut_ad(thd == current_thd);
-
-	trx = (trx_t*) thd->ha_data[hton->slot];
 
 	if (trx == NULL) {
 		DBUG_ASSERT(thd != NULL);
@@ -1005,8 +1016,6 @@ check_trx_exists(
 		/* Update the info whether we should skip XA steps that eat
 		CPU time */
 		trx->support_xa = (ibool)(thd->variables.innodb_support_xa);
-
-		thd->ha_data[hton->slot] = trx;
 	} else {
 		if (trx->magic_n != TRX_MAGIC_N) {
 			mem_analyze_corruption(trx);
@@ -2075,7 +2084,7 @@ innobase_commit_complete(
 {
 	trx_t*	trx;
 
-	trx = (trx_t*) thd->ha_data[hton->slot];
+	trx = thd_to_trx(thd, hton);
 
 	if (trx && trx->active_trans) {
 
@@ -2299,7 +2308,7 @@ innobase_close_connection(
 {
 	trx_t*	trx;
 
-	trx = (trx_t*)thd->ha_data[hton->slot];
+	trx = thd_to_trx(thd, hton);
 
 	ut_a(trx);
 
@@ -3385,29 +3394,27 @@ ha_innobase::write_row(
 	longlong	auto_inc;
 	longlong	dummy;
 	ibool		auto_inc_used= FALSE;
+	THD*		thd = current_thd;
+	trx_t*		trx = thd_to_trx(thd, ht);
 
 	DBUG_ENTER("ha_innobase::write_row");
 
-	if (prebuilt->trx !=
-			(trx_t*) current_thd->ha_data[ht->slot]) {
+	if (prebuilt->trx != trx) {
 	  sql_print_error("The transaction object for the table handle is at "
 			  "%p, but for the current thread it is at %p",
-			  prebuilt->trx,
-			  (trx_t*) current_thd->ha_data[ht->slot]);
+			  prebuilt->trx, trx);
 
 		fputs("InnoDB: Dump of 200 bytes around prebuilt: ", stderr);
 		ut_print_buf(stderr, ((const byte*)prebuilt) - 100, 200);
 		fputs("\n"
-			"InnoDB: Dump of 200 bytes around transaction.all: ",
+			"InnoDB: Dump of 200 bytes around ha_data: ",
 			stderr);
-		ut_print_buf(stderr,
-		 ((byte*)(&(current_thd->ha_data[ht->slot]))) - 100,
-								200);
+		ut_print_buf(stderr, ((const byte*) trx) - 100, 200);
 		putc('\n', stderr);
 		ut_error;
 	}
 
-	statistic_increment(current_thd->status_var.ha_write_count,
+	statistic_increment(thd->status_var.ha_write_count,
 		&LOCK_status);
 
 	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
@@ -3773,11 +3780,11 @@ ha_innobase::update_row(
 {
 	upd_t*		uvect;
 	int		error = 0;
+	trx_t*		trx = thd_to_trx(current_thd, ht);
 
 	DBUG_ENTER("ha_innobase::update_row");
 
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[ht->slot]);
+	ut_a(prebuilt->trx == trx);
 
 	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
 		table->timestamp_field->set_time();
@@ -3786,7 +3793,7 @@ ha_innobase::update_row(
 		prebuilt->sql_stat_start = TRUE;
 		last_query_id = user_thd->query_id;
 
-		innobase_release_stat_resources(prebuilt->trx);
+		innobase_release_stat_resources(trx);
 	}
 
 	if (prebuilt->upd_node) {
@@ -3807,11 +3814,11 @@ ha_innobase::update_row(
 
 	assert(prebuilt->template_type == ROW_MYSQL_WHOLE_ROW);
 
-	innodb_srv_conc_enter_innodb(prebuilt->trx);
+	innodb_srv_conc_enter_innodb(trx);
 
 	error = row_update_for_mysql((byte*) old_row, prebuilt);
 
-	innodb_srv_conc_exit_innodb(prebuilt->trx);
+	innodb_srv_conc_exit_innodb(trx);
 
 	error = convert_error_code_to_mysql(error, user_thd);
 
@@ -3833,17 +3840,17 @@ ha_innobase::delete_row(
 	const mysql_byte* record)	/* in: a row in MySQL format */
 {
 	int		error = 0;
+	trx_t*		trx = thd_to_trx(current_thd, ht);
 
 	DBUG_ENTER("ha_innobase::delete_row");
 
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[ht->slot]);
+	ut_a(prebuilt->trx == trx);
 
 	if (last_query_id != user_thd->query_id) {
 		prebuilt->sql_stat_start = TRUE;
 		last_query_id = user_thd->query_id;
 
-		innobase_release_stat_resources(prebuilt->trx);
+		innobase_release_stat_resources(trx);
 	}
 
 	if (!prebuilt->upd_node) {
@@ -3854,11 +3861,11 @@ ha_innobase::delete_row(
 
 	prebuilt->upd_node->is_delete = TRUE;
 
-	innodb_srv_conc_enter_innodb(prebuilt->trx);
+	innodb_srv_conc_enter_innodb(trx);
 
 	error = row_update_for_mysql((byte*) record, prebuilt);
 
-	innodb_srv_conc_exit_innodb(prebuilt->trx);
+	innodb_srv_conc_exit_innodb(trx);
 
 	error = convert_error_code_to_mysql(error, user_thd);
 
@@ -3886,7 +3893,7 @@ ha_innobase::unlock_row(void)
 		sql_print_error("last_query_id is %lu != user_thd_query_id is "
 				"%lu", (ulong) last_query_id,
 				(ulong) user_thd->query_id);
-		mem_analyze_corruption((byte *) prebuilt->trx);
+		mem_analyze_corruption(prebuilt->trx);
 		ut_error;
 	}
 
@@ -3928,8 +3935,7 @@ void
 ha_innobase::try_semi_consistent_read(bool yes)
 /*===========================================*/
 {
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[ht->slot]);
+	ut_a(prebuilt->trx == thd_to_trx(current_thd, ht));
 
 	/* Row read type is set to semi consistent read if this was
 	requested by the MySQL and either innodb_locks_unsafe_for_binlog
@@ -4094,8 +4100,7 @@ ha_innobase::index_read(
 
 	DBUG_ENTER("index_read");
 
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[ht->slot]);
+	ut_a(prebuilt->trx == thd_to_trx(current_thd, ht));
 
 	statistic_increment(current_thd->status_var.ha_read_key_count,
 		&LOCK_status);
@@ -4203,13 +4208,12 @@ ha_innobase::change_active_index(
 			InnoDB */
 {
 	KEY*		key=0;
-	statistic_increment(current_thd->status_var.ha_read_key_count,
-		&LOCK_status);
+	THD*		thd = current_thd;
+	statistic_increment(thd->status_var.ha_read_key_count, &LOCK_status);
 	DBUG_ENTER("change_active_index");
 
-	ut_ad(user_thd == current_thd);
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[ht->slot]);
+	ut_ad(user_thd == thd);
+	ut_a(prebuilt->trx == thd_to_trx(thd, ht));
 
 	active_index = keynr;
 
@@ -4297,8 +4301,7 @@ ha_innobase::general_fetch(
 
 	DBUG_ENTER("general_fetch");
 
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[ht->slot]);
+	ut_a(prebuilt->trx == thd_to_trx(current_thd, ht));
 
 	innodb_srv_conc_enter_innodb(prebuilt->trx);
 
@@ -4530,8 +4533,7 @@ ha_innobase::rnd_pos(
 	statistic_increment(current_thd->status_var.ha_read_rnd_count,
 		&LOCK_status);
 
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[ht->slot]);
+	ut_a(prebuilt->trx == thd_to_trx(current_thd, ht));
 
 	if (prebuilt->clust_index_was_generated) {
 		/* No primary key was defined for the table and we
@@ -4579,8 +4581,7 @@ ha_innobase::position(
 {
 	uint		len;
 
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[ht->slot]);
+	ut_a(prebuilt->trx == thd_to_trx(current_thd, ht));
 
 	if (prebuilt->clust_index_was_generated) {
 		/* No primary key was defined for the table and we
@@ -5077,9 +5078,9 @@ ha_innobase::discard_or_import_tablespace(
 
 	DBUG_ENTER("ha_innobase::discard_or_import_tablespace");
 
-	ut_a(prebuilt->trx && prebuilt->trx->magic_n == TRX_MAGIC_N);
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[ht->slot]);
+	ut_a(prebuilt->trx);
+	ut_a(prebuilt->trx->magic_n == TRX_MAGIC_N);
+	ut_a(prebuilt->trx == thd_to_trx(current_thd, ht));
 
 	dict_table = prebuilt->table;
 	trx = prebuilt->trx;
@@ -5405,8 +5406,7 @@ ha_innobase::records_in_range(
 
 	DBUG_ENTER("records_in_range");
 
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[ht->slot]);
+	ut_a(prebuilt->trx == thd_to_trx(current_thd, ht));
 
 	prebuilt->trx->op_info = (char*)"estimating records in index range";
 
@@ -5836,8 +5836,7 @@ ha_innobase::check(
 	ulint		ret;
 
 	ut_a(prebuilt->trx && prebuilt->trx->magic_n == TRX_MAGIC_N);
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[ht->slot]);
+	ut_a(prebuilt->trx == thd_to_trx(current_thd, ht));
 
 	if (prebuilt->mysql_template == NULL) {
 		/* Build the template; we will use a dummy template
@@ -6134,8 +6133,7 @@ ha_innobase::can_switch_engines(void)
 
 	DBUG_ENTER("ha_innobase::can_switch_engines");
 
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[ht->slot]);
+	ut_a(prebuilt->trx == thd_to_trx(current_thd, ht));
 
 	prebuilt->trx->op_info =
 			"determining if there are foreign key constraints";
