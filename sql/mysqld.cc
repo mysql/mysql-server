@@ -369,6 +369,7 @@ ulong opt_ndb_nodeid;
 my_bool opt_readonly, use_temp_pool, relay_log_purge;
 my_bool opt_sync_frm, opt_allow_suspicious_udfs;
 my_bool opt_secure_auth= 0;
+char* opt_secure_file_priv= 0;
 my_bool opt_log_slow_admin_statements= 0;
 my_bool lower_case_file_system= 0;
 my_bool opt_large_pages= 0;
@@ -1145,6 +1146,7 @@ void clean_up(bool print_message)
 #endif
   x_free(opt_bin_logname);
   x_free(opt_relay_logname);
+  x_free(opt_secure_file_priv);
   bitmap_free(&temp_pool);
   free_max_user_conn();
 #ifdef HAVE_REPLICATION
@@ -4698,7 +4700,8 @@ enum options_mysqld
   OPT_TABLE_LOCK_WAIT_TIMEOUT,
   OPT_PORT_OPEN_TIMEOUT,
   OPT_MERGE,
-  OPT_INNODB_ROLLBACK_ON_TIMEOUT
+  OPT_INNODB_ROLLBACK_ON_TIMEOUT,
+  OPT_SECURE_FILE_PRIV
 };
 
 
@@ -5337,6 +5340,10 @@ Can't be set to 1 if --log-slave-updates is used.",
   {"secure-auth", OPT_SECURE_AUTH, "Disallow authentication for accounts that have old (pre-4.1) passwords.",
    (gptr*) &opt_secure_auth, (gptr*) &opt_secure_auth, 0, GET_BOOL, NO_ARG,
    my_bool(0), 0, 0, 0, 0, 0},
+  {"secure-file-priv", OPT_SECURE_FILE_PRIV,
+   "Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to files within specified directory",
+   (gptr*) &opt_secure_file_priv, (gptr*) &opt_secure_file_priv, 0,
+   GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-id",	OPT_SERVER_ID,
    "Uniquely identifies the server instance in the community of replication partners.",
    (gptr*) &server_id, (gptr*) &server_id, 0, GET_ULONG, REQUIRED_ARG, 0, 0, 0,
@@ -6366,6 +6373,7 @@ static void mysql_init_variables(void)
   opt_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname= 0;
   opt_tc_log_file= (char *)"tc.log";      // no hostname in tc_log file name !
   opt_secure_auth= 0;
+  opt_secure_file_priv= 0;
   opt_bootstrap= opt_myisam_log= 0;
   mqh_used= 0;
   segfaulted= kill_in_progress= 0;
@@ -7404,6 +7412,16 @@ static void fix_paths(void)
       exit(1);
   }
 #endif /* HAVE_REPLICATION */
+  /*
+    Convert the secure-file-priv option to system format, allowing
+    a quick strcmp to check if read or write is in an allowed dir
+   */
+  if (opt_secure_file_priv)
+  {
+    convert_dirname(buff, opt_secure_file_priv, NullS);
+    my_free(opt_secure_file_priv, MYF(0));
+    opt_secure_file_priv= my_strdup(buff, MYF(MY_FAE));
+  }
 }
 
 
