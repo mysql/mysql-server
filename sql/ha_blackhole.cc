@@ -180,7 +180,7 @@ int ha_blackhole::index_read(byte * buf, const byte * key,
                              uint key_len, enum ha_rkey_function find_flag)
 {
   DBUG_ENTER("ha_blackhole::index_read");
-  DBUG_RETURN(0);
+  DBUG_RETURN(HA_ERR_END_OF_FILE);
 }
 
 
