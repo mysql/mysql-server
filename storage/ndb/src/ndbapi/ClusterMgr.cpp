@@ -314,7 +314,7 @@ ClusterMgr::showState(NodeId nodeId){
 ClusterMgr::Node::Node()
   : m_state(NodeState::SL_NOTHING) { 
   compatible = nfCompleteRep = true;
-  connected = defined = m_alive = false; 
+  connected = defined = m_alive = m_api_reg_conf = false; 
   m_state.m_connected_nodes.clear();
 }
 
@@ -392,6 +392,8 @@ ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
       node.compatible = ndbCompatible_api_ndb(NDB_VERSION,
 					      node.m_info.m_version);
   }
+
+  node.m_api_reg_conf = true;
 
   if (node.m_info.m_version >= NDBD_255_NODES_VERSION)
   {
@@ -520,6 +522,7 @@ ClusterMgr::reportDisconnected(NodeId nodeId){
 
   noOfConnectedNodes--;
   theNodes[nodeId].connected = false;
+  theNodes[nodeId].m_api_reg_conf = false;
   theNodes[nodeId].m_state.m_connected_nodes.clear();
 
   reportNodeFailed(nodeId, true);
