@@ -3581,6 +3581,12 @@ sub mysqld_arguments ($$$$$) {
   mtr_add_arg($args, "%s--basedir=%s", $prefix, $path_my_basedir);
   mtr_add_arg($args, "%s--character-sets-dir=%s", $prefix, $path_charsetsdir);
 
+  if ( $mysql_version_id >= 50036)
+  {
+    # Prevent the started mysqld to access files outside of vardir
+    mtr_add_arg($args, "%s--secure-file-priv=%s", $prefix, $opt_vardir);
+  }
+
   if ( $mysql_version_id >= 50000 )
   {
     mtr_add_arg($args, "%s--log-bin-trust-function-creators", $prefix);

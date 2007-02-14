@@ -5045,7 +5045,7 @@ ER_OPTION_PREVENTS_STATEMENT
 	ger "Der MySQL-Server läuft mit der Option %s und kann diese Anweisung deswegen nicht ausführen"
 	por "O servidor MySQL está rodando com a opção %s razão pela qual não pode executar esse commando"
 	spa "El servidor MySQL está rodando con la opción %s tal que no puede ejecutar este comando"
-	swe "MySQL är startad med --skip-grant-tables. Pga av detta kan du inte använda detta kommando"
+	swe "MySQL är startad med %s. Pga av detta kan du inte använda detta kommando"
 ER_DUPLICATED_VALUE_IN_TYPE  
 	eng "Column '%-.100s' has duplicated value '%-.64s' in %s"
 	ger "Feld '%-.100s' hat doppelten Wert '%-.64s' in %s"
