@@ -4329,18 +4329,19 @@ void Item_field::save_org_in_field(Field *to)
 
 int Item_field::save_in_field(Field *to, bool no_conversions)
 {
+  int res;
   if (result_field->is_null())
   {
     null_value=1;
-    return set_field_to_null_with_conversions(to, no_conversions);
+    res= set_field_to_null_with_conversions(to, no_conversions);
   }
   else
   {
     to->set_notnull();
-    field_conv(to,result_field);
+    res= field_conv(to,result_field);
     null_value=0;
   }
-  return 0;
+  return res;
 }
 
 
@@ -5361,18 +5362,7 @@ my_decimal *Item_ref::val_decimal(my_decimal *decimal_value)
 int Item_ref::save_in_field(Field *to, bool no_conversions)
 {
   int res;
-  if (result_field)
-  {
-    if (result_field->is_null())
-    {
-      null_value= 1;
-      return set_field_to_null_with_conversions(to, no_conversions);
-    }
-    to->set_notnull();
-    field_conv(to, result_field);
-    null_value= 0;
-    return 0;
-  }
+  DBUG_ASSERT(!result_field);
   res= (*ref)->save_in_field(to, no_conversions);
   null_value= (*ref)->null_value;
   return res;
@@ -5591,6 +5581,13 @@ int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
   {
     if (field_arg->flags & NO_DEFAULT_VALUE_FLAG)
     {
+      if (field_arg->reset())
+      {
+        my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
+                   ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
+        return -1;
+      }
+
       if (context->error_processor == &view_error_processor)
       {
         TABLE_LIST *view= cached_table->top_table();
@@ -5609,7 +5606,6 @@ int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
                             ER(ER_NO_DEFAULT_FOR_FIELD),
                             field_arg->field_name);
       }
-      field_arg->set_default();
       return 1;
     }
     field_arg->set_default();

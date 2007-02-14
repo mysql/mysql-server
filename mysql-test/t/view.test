@@ -2377,7 +2377,7 @@ create table t1(f1 int, f2 int);
 create view v1 as select ta.f1 as a, tb.f1 as b from t1 ta, t1 tb where ta.f1=tb
 .f1 and ta.f2=tb.f2;
 insert into t1 values(1,1),(2,2);
-create view v2 as select * from v1 where a > 1 with check option;
+create view v2 as select * from v1 where a > 1 with local check option;
 select * from v2;
 update v2 set b=3 where a=2;
 select * from v2;
@@ -2900,6 +2900,20 @@ DROP VIEW v1;
 DROP TABLE t1;
 
 #
+# Bug #16813 (WITH CHECK OPTION doesn't work with UPDATE)
+#
+CREATE TABLE t1(id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, val INT UNSIGNED NOT NULL);
+CREATE VIEW v1 AS SELECT id, val FROM t1 WHERE val >= 1 AND val <= 5 WITH CHECK OPTION;
+INSERT INTO v1 (val) VALUES (2);
+INSERT INTO v1 (val) VALUES (4);
+-- error 1369
+INSERT INTO v1 (val) VALUES (6);
+-- error 1369
+UPDATE v1 SET val=6 WHERE id=2;
+DROP VIEW v1;
+DROP TABLE t1;
+
+#
 # BUG#22584: last_insert_id not updated after inserting a record
 # through a updatable view
 #
@@ -2963,57 +2977,79 @@ SHOW CREATE VIEW v1;
                                                                                                          
 DROP VIEW v1;
 
---echo End of 5.0 tests.
-
-# Bug #16813 (WITH CHECK OPTION doesn't work with UPDATE)
 #
-CREATE TABLE t1(id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, val INT UNSIGNED NOT NULL);
-CREATE VIEW v1 AS SELECT id, val FROM t1 WHERE val >= 1 AND val <= 5 WITH CHECK OPTION;
-INSERT INTO v1 (val) VALUES (2);
-INSERT INTO v1 (val) VALUES (4);
--- error 1369
-INSERT INTO v1 (val) VALUES (6);
--- error 1369
-UPDATE v1 SET val=6 WHERE id=2;
+# Bug #26124: BETWEEN over a view column of the DATETIME type
+#
+
+CREATE TABLE t1 (mydate DATETIME);
+INSERT INTO t1 VALUES 
+  ('2007-01-01'), ('2007-01-02'), ('2007-01-30'), ('2007-01-31');
+
+CREATE VIEW v1 AS SELECT mydate from t1;
+
+SELECT * FROM t1 WHERE mydate BETWEEN '2007-01-01' AND '2007-01-31';
+SELECT * FROM v1 WHERE mydate BETWEEN '2007-01-01' AND '2007-01-31';
+
 DROP VIEW v1;
 DROP TABLE t1;
 
 #
-# BUG#22584: last_insert_id not updated after inserting a record
-# through a updatable view
+# Bug #25931: update of a multi-table view with check option
 #
-# We still do not update LAST_INSERT_ID if AUTO_INCREMENT column is
-# not accessible through a view.  However, we do not reset the value
-# of LAST_INSERT_ID, but keep it unchanged.
-#
---disable_warnings
-DROP VIEW IF EXISTS v1, v2;
-DROP TABLE IF EXISTS t1;
---enable_warnings
 
-CREATE TABLE t1 (i INT AUTO_INCREMENT PRIMARY KEY, j INT);
-CREATE VIEW v1 AS SELECT j FROM t1;
-CREATE VIEW v2 AS SELECT * FROM t1;
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (b int);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (2);
 
-INSERT INTO t1 (j) VALUES (1);
-SELECT LAST_INSERT_ID();
+CREATE VIEW v1 AS
+  SELECT t2.b FROM t1,t2 WHERE t1.a = t2.b WITH CHECK OPTION;
 
-INSERT INTO v1 (j) VALUES (2);
---echo # LAST_INSERT_ID() should not change.
-SELECT LAST_INSERT_ID();
-
-INSERT INTO v2 (j) VALUES (3);
---echo # LAST_INSERT_ID() should be updated.
-SELECT LAST_INSERT_ID();
-
-INSERT INTO v1 (j) SELECT j FROM t1;
---echo # LAST_INSERT_ID() should not change.
-SELECT LAST_INSERT_ID();
-
+SELECT * FROM v1;
+--error 1369
+UPDATE v1 SET b=3;
+SELECT * FROM v1;
 SELECT * FROM t1;
+SELECT * FROM t2;
 
-DROP VIEW v1, v2;
+DROP VIEW v1;
+DROP TABLE t1,t2;
+
+#
+# Bug#12122: Views with ORDER BY can't be resolved using MERGE algorithm.
+#
+create table t1(f1 int, f2 int);
+insert into t1 values(1,2),(1,3),(1,1),(2,3),(2,1),(2,2);
+select * from t1;
+create view v1 as select * from t1 order by f2;
+select * from v1;
+explain extended select * from v1;
+select * from v1 order by f1;
+explain extended select * from v1 order by f1;
+drop view v1;
+drop table t1;
+
+#
+# Bug#26209: queries with GROUP BY and ORDER BY using views 
+#
+
+CREATE TABLE t1 (
+  id int(11) NOT NULL PRIMARY KEY,
+  country varchar(32),
+  code int(11) default NULL
+);
+INSERT INTO t1 VALUES
+  (1,'ITALY',100),(2,'ITALY',200),(3,'FRANCE',100), (4,'ITALY',100);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SELECT code, COUNT(DISTINCT country) FROM t1 GROUP BY code ORDER BY MAX(id);
+SELECT code, COUNT(DISTINCT country) FROM v1 GROUP BY code ORDER BY MAX(id);
+
+DROP VIEW v1;
 DROP TABLE t1;
+
+--echo End of 5.0 tests.
 
 #
 # Bug#21370 View renaming lacks tablename_to_filename encoding
