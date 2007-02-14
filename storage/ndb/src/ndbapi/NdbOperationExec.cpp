@@ -546,7 +546,7 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
 
   TcKeyReq *tcKeyReq= CAST_PTR(TcKeyReq, theTCREQ->getDataPtrSend());
   Uint32 hdrSize= fillTcKeyReqHdr(tcKeyReq, aTC_ConnectPtr, aTransId,
-                                  m_attribute_record, ao);
+                                  m_key_record, ao);
   keyInfoPtr= theTCREQ->getDataPtrSend() + hdrSize;
   remain= TcKeyReq::MaxKeyInfo;
 
