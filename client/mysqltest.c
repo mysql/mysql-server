@@ -955,7 +955,7 @@ void log_msg(const char *fmt, ...)
 
   memset(buff, 0, sizeof(buff));
   va_start(args, fmt);
-  len= vsnprintf(buff, sizeof(buff)-1, fmt, args);
+  len= my_vsnprintf(buff, sizeof(buff)-1, fmt, args);
   va_end(args);
 
   dynstr_append_mem(&ds_res, buff, len);
