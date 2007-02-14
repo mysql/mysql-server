@@ -377,3 +377,60 @@ create table t1(f1 int, `*f2` int);
 insert into t1 values (1,1);
 update t1 set `*f2`=1;
 drop table t1;
+CREATE TABLE t1 (
+request_id int unsigned NOT NULL auto_increment,
+user_id varchar(12) default NULL,
+time_stamp datetime NOT NULL default '0000-00-00 00:00:00',
+ip_address varchar(15) default NULL,
+PRIMARY KEY (request_id),
+KEY user_id_2 (user_id,time_stamp)
+);
+INSERT INTO t1 (user_id) VALUES ('user1');
+INSERT INTO t1(user_id) SELECT user_id FROM t1;
+INSERT INTO t1(user_id) SELECT user_id FROM t1;
+INSERT INTO t1(user_id) SELECT user_id FROM t1;
+INSERT INTO t1(user_id) SELECT user_id FROM t1;
+INSERT INTO t1(user_id) SELECT user_id FROM t1;
+INSERT INTO t1(user_id) SELECT user_id FROM t1;
+INSERT INTO t1(user_id) SELECT user_id FROM t1;
+INSERT INTO t1(user_id) SELECT user_id FROM t1;
+flush status;
+SELECT user_id FROM t1 WHERE request_id=9999999999999;
+user_id
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+SELECT user_id FROM t1 WHERE request_id=999999999999999999999999999999;
+user_id
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+UPDATE t1 SET user_id=null WHERE request_id=9999999999999;
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	3
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+UPDATE t1 SET user_id=null WHERE request_id=999999999999999999999999999999;
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	3
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+DROP TABLE t1;

@@ -1,0 +1,10 @@
+a`	a`	1000-01-1	-5000	a`	-5000
+aaa	aaa	1000-01-2	-4999	aaa	-4999
+abaa	abaa	1000-01-3	-4998	abaa	-4998
+acaaa	acaaa	1000-01-4	-4997	acaaa	-4997
+adaaaa	adaaaa	1000-01-5	-4996	adaaaa	-4996
+aeaaaaa	aeaaaaa	1000-01-6	-4995	aeaaaaa	-4995
+afaaaaaa	afaaaaaa	1000-01-7	-4994	afaaaaaa	-4994
+agaaaaaaa	agaaaaaaa	1000-01-8	-4993	agaaaaaaa	-4993
+a^aaaaaaaa	a^aaaaaaaa	1000-01-9	-4992	a^aaaaaaaa	-4992
+a_aaaaaaaaa	a_aaaaaaaaa	1000-01-10	-4991	a_aaaaaaaaa	-4991
