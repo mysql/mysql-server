@@ -839,7 +839,7 @@ void Cmvmi::execTAMPER_ORD(Signal* signal)
   // to be able to indicate if we really introduced an error.
 #ifdef ERROR_INSERT
   TamperOrd* const tamperOrd = (TamperOrd*)&signal->theData[0];
-  
+  signal->theData[2] = 0;
   signal->theData[1] = tamperOrd->errorNo;
   signal->theData[0] = 5;
   sendSignal(DBDIH_REF, GSN_DIHNDBTAMPER, signal, 3,JBB);
