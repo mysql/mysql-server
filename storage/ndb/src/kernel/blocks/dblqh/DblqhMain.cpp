@@ -18855,30 +18855,6 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
   
 }//Dblqh::execDUMP_STATE_ORD()
 
-void Dblqh::execSET_VAR_REQ(Signal* signal) 
-{
-#if 0
-  SetVarReq* const setVarReq = (SetVarReq*)&signal->theData[0];
-  ConfigParamId var = setVarReq->variable();
-
-  switch (var) {
-
-  case NoOfConcurrentCheckpointsAfterRestart:
-    sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
-    break;
-
-  case NoOfConcurrentCheckpointsDuringRestart:
-    // Valid only during start so value not set.
-    sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
-    break;
-
-  default:
-    sendSignal(CMVMI_REF, GSN_SET_VAR_REF, signal, 1, JBB);
-  } // switch
-#endif
-}//execSET_VAR_REQ()
-
-
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */
 /* ---------------------- TRIGGER HANDLING ------------------------ */
