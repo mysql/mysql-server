@@ -388,6 +388,35 @@ EXPLAIN SELECT SQL_BIG_RESULT b, SUM(c) FROM t1 GROUP BY b;
 DROP TABLE t1;
 
 #
+# Bug#26159: crash for a loose scan of a table that has been emptied 
+#
+
+CREATE TABLE t1 (
+  id int NOT NULL,
+  name varchar(20) NOT NULL,
+  dept varchar(20) NOT NULL,
+  age tinyint(3) unsigned NOT NULL,
+  PRIMARY KEY (id),
+  INDEX (name,dept)
+) ENGINE=InnoDB;
+INSERT INTO t1(id, dept, age, name) VALUES
+  (3987, 'cs1', 10, 'rs1'), (3988, 'cs2', 20, 'rs1'), (3995, 'cs3', 10, 'rs2'),
+  (3996, 'cs4', 20, 'rs2'), (4003, 'cs5', 10, 'rs3'), (4004, 'cs6', 20, 'rs3'),
+  (4011, 'cs7', 10, 'rs4'), (4012, 'cs8', 20, 'rs4'), (4019, 'cs9', 10, 'rs5'),
+  (4020, 'cs10', 20, 'rs5'),(4027, 'cs11', 10, 'rs6'),(4028, 'cs12', 20, 'rs6');
+
+EXPLAIN SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
+SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
+DELETE FROM t1;
+EXPLAIN SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
+SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
+
+DROP TABLE t1;
+
+--source include/innodb_rollback_on_timeout.inc
+
+--echo End of 5.0 tests
+#
 # Test of behaviour with CREATE ... SELECT
 #
 
