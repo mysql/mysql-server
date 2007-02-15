@@ -2495,7 +2495,7 @@ ha_innobase::open(
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
 
-	if (ib_table->ibd_file_missing && !thd->tablespace_op) {
+	if (ib_table->ibd_file_missing && !thd_tablespace_op(thd)) {
 		ut_print_timestamp(stderr);
 		sql_print_error("MySQL is trying to open a table handle but "
 				"the .ibd file for\ntable %s does not exist.\n"
@@ -6501,7 +6501,8 @@ ha_innobase::transactional_table_lock(
 
 	update_thd(thd);
 
-	if (prebuilt->table->ibd_file_missing && !current_thd->tablespace_op) {
+	if (prebuilt->table->ibd_file_missing
+	    && !thd_tablespace_op(current_thd)) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr, "  InnoDB error:\n"
 "MySQL is trying to use a table handle but the .ibd file for\n"
@@ -7015,7 +7016,7 @@ ha_innobase::store_lock(
 		&& lock_type <= TL_WRITE)
 		&& !(in_lock_tables
 			&& thd->lex->sql_command == SQLCOM_LOCK_TABLES)
-		&& !thd->tablespace_op
+		&& !thd_tablespace_op(thd)
 		&& thd->lex->sql_command != SQLCOM_TRUNCATE
 		&& thd->lex->sql_command != SQLCOM_OPTIMIZE
 
