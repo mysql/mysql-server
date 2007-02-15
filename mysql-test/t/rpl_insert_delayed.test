@@ -1,0 +1,67 @@
+--source include/master-slave.inc
+--source include/not_embedded.inc
+--source include/not_windows.inc
+
+connection master;
+
+let $binlog_format_statement=1;
+
+CREATE TABLE t1 (id INT primary key auto_increment, name VARCHAR(64));
+
+sync_slave_with_master;
+
+#
+# BUG#26116 "If multi-row INSERT DELAYED has errors,
+# statement-based binlogging breaks";
+# happened only in statement-based binlogging.
+#
+
+connection master;
+truncate table t1;
+# first scenario: duplicate on first row
+insert delayed into t1 values(10, "my name");
+if ($binlog_format_statement)
+{
+  # statement below will be converted to non-delayed INSERT and so
+  # will stop at first error, guaranteeing replication.
+  --error ER_DUP_ENTRY
+  insert delayed into t1 values(10, "is Bond"), (20, "James Bond");
+}
+if (!$binlog_format_statement)
+{
+  insert delayed into t1 values(10, "is Bond"), (20, "James Bond");
+}
+flush table t1; # to wait for INSERT DELAYED to be done
+select * from t1;
+sync_slave_with_master;
+# when bug existed in statement-based binlogging, t1 on slave had
+# different content from on master
+select * from t1;
+
+# second scenario: duplicate on second row
+connection master;
+delete from t1 where id!=10;
+if ($binlog_format_statement)
+{
+  # statement below will be converted to non-delayed INSERT and so
+  # will be binlogged with its ER_DUP_ENTRY error code, guaranteeing
+  # replication (slave will hit the same error code and so be fine).
+  --error ER_DUP_ENTRY
+  insert delayed into t1 values(20, "is Bond"), (10, "James Bond");
+}
+if (!$binlog_format_statement)
+{
+  insert delayed into t1 values(20, "is Bond"), (10, "James Bond");
+}
+flush table t1; # to wait for INSERT DELAYED to be done
+select * from t1;
+sync_slave_with_master;
+# when bug existed in statement-based binlogging, query was binlogged
+# with error_code=0 so slave stopped
+select * from t1;
+
+# clean up
+connection master;
+drop table t1;
+sync_slave_with_master;
+connection master;
