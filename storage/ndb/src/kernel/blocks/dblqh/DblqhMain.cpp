@@ -4257,7 +4257,7 @@ Dblqh::nr_copy_delete_row(Signal* signal,
 	   signal->theData, sizeof(Local_key));
     regTcPtr.p->m_nr_delete.m_page_id[pos] = RNIL;
     regTcPtr.p->m_nr_delete.m_cnt = pos + 2;
-    ndbout << "PENDING DISK DELETE: " << 
+    if (0) ndbout << "PENDING DISK DELETE: " << 
       regTcPtr.p->m_nr_delete.m_disk_ref[pos] << endl;
   }
   
@@ -7573,7 +7573,7 @@ void Dblqh::lqhTransNextLab(Signal* signal)
 	       * THE RECEIVER OF THE COPY HAVE FAILED. 
 	       * WE HAVE TO CLOSE THE COPY PROCESS. 
 	       * ----------------------------------------------------------- */
-	      ndbout_c("close copy");
+	      if (0) ndbout_c("close copy");
               tcConnectptr.p->tcNodeFailrec = tcNodeFailptr.i;
               tcConnectptr.p->abortState = TcConnectionrec::NEW_FROM_TC;
               closeCopyRequestLab(signal);
@@ -10834,7 +10834,7 @@ void Dblqh::tupCopyCloseConfLab(Signal* signal)
 void Dblqh::closeCopyRequestLab(Signal* signal) 
 {
   scanptr.p->scanErrorCounter++;
-  ndbout_c("closeCopyRequestLab: scanState: %d", scanptr.p->scanState);
+  if (0) ndbout_c("closeCopyRequestLab: scanState: %d", scanptr.p->scanState);
   switch (scanptr.p->scanState) {
   case ScanRecord::WAIT_TUPKEY_COPY:
   case ScanRecord::WAIT_NEXT_SCAN_COPY:
