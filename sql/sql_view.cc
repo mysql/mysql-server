@@ -862,7 +862,8 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
   Query_arena *arena, backup;
   TABLE_LIST *top_view= table->top_table();
   int res;
-  bool result;
+  bool result, view_is_mergeable;
+  TABLE_LIST *view_main_select_tables;
   DBUG_ENTER("mysql_make_view");
   DBUG_PRINT("info", ("table: 0x%lx (%s)", (ulong) table, table->table_name));
 
@@ -1095,9 +1096,8 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     */
     if (lex->binlog_row_based_if_mixed)
       old_lex->binlog_row_based_if_mixed= TRUE;
-    bool view_is_mergeable= (table->algorithm != VIEW_ALGORITHM_TMPTABLE &&
-                             lex->can_be_merged());
-    TABLE_LIST *view_main_select_tables;
+    view_is_mergeable= (table->algorithm != VIEW_ALGORITHM_TMPTABLE &&
+                        lex->can_be_merged());
     LINT_INIT(view_main_select_tables);
 
     if (view_is_mergeable)
@@ -1272,6 +1272,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
 	but it will not be included to SELECT_LEX tree, because it
 	will not be executed
       */
+      table->select_lex->order_list.push_back(&lex->select_lex.order_list);
       goto ok;
     }
 

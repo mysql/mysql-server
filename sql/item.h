@@ -477,7 +477,8 @@ public:
   Item *next;
   uint32 max_length;
   uint name_length;                     /* Length of name */
-  uint8 marker, decimals;
+  int8 marker;
+  uint8 decimals;
   my_bool maybe_null;			/* If item may be null */
   my_bool null_value;			/* if item is null */
   my_bool unsigned_flag;
@@ -686,7 +687,7 @@ public:
   */
   virtual bool basic_const_item() const { return 0; }
   /* cloning of constant items (0 if it is not const) */
-  virtual Item *new_item() { return 0; }
+  virtual Item *clone_item() { return 0; }
   virtual cond_result eq_cmp_result() const { return COND_OK; }
   inline uint float_length(uint decimals_par) const
   { return decimals != NOT_FIXED_DEC ? (DBL_DIG+2+decimals_par) : DBL_DIG+8;}
@@ -817,6 +818,7 @@ public:
   virtual bool collect_item_field_processor(byte * arg) { return 0; }
   virtual bool find_item_in_field_list_processor(byte *arg) { return 0; }
   virtual bool change_context_processor(byte *context) { return 0; }
+  virtual bool reset_query_id_processor(byte *query_id_arg) { return 0; }
   virtual bool is_expensive_processor(byte *arg) { return 0; }
   virtual bool register_field_in_read_map(byte *arg) { return 0; }
   /*
@@ -894,11 +896,11 @@ public:
     For SP local variable returns address of pointer to Item representing its
     current value and pointer passed via parameter otherwise.
   */
-  virtual Item **this_item_addr(THD *thd, Item **addr) { return addr; }
+  virtual Item **this_item_addr(THD *thd, Item **addr_arg) { return addr_arg; }
 
   // Row emulation
   virtual uint cols() { return 1; }
-  virtual Item* el(uint i) { return this; }
+  virtual Item* element_index(uint i) { return this; }
   virtual Item** addr(uint i) { return 0; }
   virtual bool check_cols(uint c);
   // It is not row => null inside is impossible
@@ -1164,7 +1166,8 @@ class Item_name_const : public Item
   Item *value_item;
   Item *name_item;
 public:
-  Item_name_const(Item *name, Item *val): value_item(val), name_item(name)
+  Item_name_const(Item *name_arg, Item *val):
+    value_item(val), name_item(name_arg)
   {
     Item::maybe_null= TRUE;
   }
@@ -1384,7 +1387,7 @@ public:
   Item *equal_fields_propagator(byte *arg);
   bool set_no_const_sub(byte *arg);
   Item *replace_equal_field(byte *arg);
-  inline uint32 max_disp_length() { return field->max_length(); }
+  inline uint32 max_disp_length() { return field->max_display_length(); }
   Item_field *filed_for_view_update() { return this; }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
   int fix_outer_field(THD *thd, Field **field, Item **reference);
@@ -1418,7 +1421,7 @@ public:
   /* to prevent drop fixed flag (no need parent cleanup call) */
   void cleanup() {}
   bool basic_const_item() const { return 1; }
-  Item *new_item() { return new Item_null(name); }
+  Item *clone_item() { return new Item_null(name); }
   bool is_null() { return 1; }
   void print(String *str) { str->append(STRING_WITH_LEN("NULL")); }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
@@ -1567,7 +1570,7 @@ public:
     basic_const_item returned TRUE.
   */
   Item *safe_charset_converter(CHARSET_INFO *tocs);
-  Item *new_item();
+  Item *clone_item();
   /*
     Implement by-value equality evaluation if parameter value
     is set and is a basic constant (integer, real or string).
@@ -1599,7 +1602,7 @@ public:
   String *val_str(String*);
   int save_in_field(Field *field, bool no_conversions);
   bool basic_const_item() const { return 1; }
-  Item *new_item() { return new Item_int(name,value,max_length); }
+  Item *clone_item() { return new Item_int(name,value,max_length); }
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
   void print(String *str);
@@ -1619,7 +1622,7 @@ public:
   double val_real()
     { DBUG_ASSERT(fixed == 1); return ulonglong2double((ulonglong)value); }
   String *val_str(String*);
-  Item *new_item() { return new Item_uint(name,max_length); }
+  Item *clone_item() { return new Item_uint(name,max_length); }
   int save_in_field(Field *field, bool no_conversions);
   void print(String *str);
   Item_num *neg ();
@@ -1650,7 +1653,7 @@ public:
   my_decimal *val_decimal(my_decimal *val) { return &decimal_value; }
   int save_in_field(Field *field, bool no_conversions);
   bool basic_const_item() const { return 1; }
-  Item *new_item()
+  Item *clone_item()
   {
     return new Item_decimal(name, &decimal_value, decimals, max_length);
   }
@@ -1708,7 +1711,7 @@ public:
   bool basic_const_item() const { return 1; }
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
-  Item *new_item()
+  Item *clone_item()
   { return new Item_float(name, value, decimals, max_length); }
   Item_num *neg() { value= -value; return this; }
   void print(String *str);
@@ -1794,7 +1797,7 @@ public:
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
   bool basic_const_item() const { return 1; }
   bool eq(const Item *item, bool binary_cmp) const;
-  Item *new_item() 
+  Item *clone_item() 
   {
     return new Item_string(name, str_value.ptr(), 
     			   str_value.length(), collation.collation);
@@ -1848,9 +1851,9 @@ class Item_return_int :public Item_int
 {
   enum_field_types int_field_type;
 public:
-  Item_return_int(const char *name, uint length,
+  Item_return_int(const char *name_arg, uint length,
 		  enum_field_types field_type_arg)
-    :Item_int(name, 0, length), int_field_type(field_type_arg)
+    :Item_int(name_arg, 0, length), int_field_type(field_type_arg)
   {
     unsigned_flag=1;
   }
@@ -2114,7 +2117,7 @@ public:
   {
     return ref->save_in_field(field, no_conversions);
   }
-  Item *new_item();
+  Item *clone_item();
   virtual Item *real_item() { return ref; }
   bool check_partition_func_processor(byte *int_arg) {return TRUE;}
 };
@@ -2367,6 +2370,9 @@ public:
   bool fix_fields(THD *, Item **);
   void print(String *str);
   table_map used_tables() const { return (table_map)0L; }
+  Field *get_tmp_table_field() { return 0; }
+  Item *copy_or_same(THD *thd) { return this; }
+  Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
   void cleanup();
 
 private:
@@ -2549,8 +2555,8 @@ public:
   enum Item_result result_type() const { return ROW_RESULT; }
   
   uint cols() { return item_count; }
-  Item* el(uint i) { return values[i]; }
-  Item** addr(uint i) { return (Item **) (values + i); }
+  Item *element_index(uint i) { return values[i]; }
+  Item **addr(uint i) { return (Item **) (values + i); }
   bool check_cols(uint c);
   bool null_inside();
   void bring_value();

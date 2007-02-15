@@ -3628,9 +3628,161 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	range	si,ai	si	5	NULL	2	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	Using where
 DROP TABLE t1,t2,t3;
+CREATE TABLE t1 ( f1 int primary key, f2 int, f3 int, f4 int, f5 int, f6 int, checked_out int);
+CREATE TABLE t2 ( f11 int PRIMARY KEY );
+INSERT INTO t1 VALUES (1,1,1,0,0,0,0),(2,1,1,3,8,1,0),(3,1,1,4,12,1,0);
+INSERT INTO t2 VALUES (62);
+SELECT * FROM t1 LEFT JOIN t2 ON f11 = t1.checked_out GROUP BY f1 ORDER BY f2, f3, f4, f5 LIMIT 0, 1;
+f1	f2	f3	f4	f5	f6	checked_out	f11
+1	1	1	0	0	0	0	NULL
+DROP TABLE t1, t2;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1(a int);
 INSERT into t1 values (1), (2), (3);
 SELECT * FROM t1 LIMIT 2, -1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 1
 DROP TABLE t1;
+CREATE TABLE t1 (
+ID_with_null int NULL,
+ID_better int NOT NULL,
+INDEX idx1 (ID_with_null),
+INDEX idx2 (ID_better)
+);
+INSERT INTO t1 VALUES (1,1), (2,1), (null,3), (null,3), (null,3), (null,3);
+INSERT INTO t1 SELECT * FROM t1 WHERE ID_with_null IS NULL;
+INSERT INTO t1 SELECT * FROM t1 WHERE ID_with_null IS NULL;
+INSERT INTO t1 SELECT * FROM t1 WHERE ID_with_null IS NULL;
+INSERT INTO t1 SELECT * FROM t1 WHERE ID_with_null IS NULL;
+INSERT INTO t1 SELECT * FROM t1 WHERE ID_with_null IS NULL;
+SELECT COUNT(*) FROM t1 WHERE ID_with_null IS NULL;
+COUNT(*)
+128
+SELECT COUNT(*) FROM t1 WHERE ID_better=1;
+COUNT(*)
+2
+EXPLAIN SELECT * FROM t1 WHERE ID_better=1 AND ID_with_null IS NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	idx1,idx2	idx2	4	const	1	Using where
+DROP INDEX idx1 ON t1;
+CREATE UNIQUE INDEX idx1 ON t1(ID_with_null);
+EXPLAIN SELECT * FROM t1 WHERE ID_better=1 AND ID_with_null IS NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	idx1,idx2	idx2	4	const	1	Using where
+DROP TABLE t1;
+CREATE TABLE t1 (
+ID1_with_null int NULL,
+ID2_with_null int NULL,
+ID_better int NOT NULL,
+INDEX idx1 (ID1_with_null, ID2_with_null),
+INDEX idx2 (ID_better)
+);
+INSERT INTO t1 VALUES (1,1,1), (2,2,1), (3,null,3), (null,3,3), (null,null,3),
+(3,null,3), (null,3,3), (null,null,3), (3,null,3), (null,3,3), (null,null,3);
+INSERT INTO t1 SELECT * FROM t1 WHERE ID1_with_null IS NULL;
+INSERT INTO t1 SELECT * FROM t1 WHERE ID2_with_null IS NULL;
+INSERT INTO t1 SELECT * FROM t1 WHERE ID1_with_null IS NULL;
+INSERT INTO t1 SELECT * FROM t1 WHERE ID2_with_null IS NULL;
+INSERT INTO t1 SELECT * FROM t1 WHERE ID1_with_null IS NULL;
+INSERT INTO t1 SELECT * FROM t1 WHERE ID2_with_null IS NULL;
+SELECT COUNT(*) FROM t1 WHERE ID1_with_null IS NULL AND ID2_with_null=3;
+COUNT(*)
+24
+SELECT COUNT(*) FROM t1 WHERE ID1_with_null=3 AND ID2_with_null IS NULL;
+COUNT(*)
+24
+SELECT COUNT(*) FROM t1 WHERE ID1_with_null IS NULL AND ID2_with_null IS NULL;
+COUNT(*)
+192
+SELECT COUNT(*) FROM t1 WHERE ID_better=1;
+COUNT(*)
+2
+EXPLAIN SELECT * FROM t1
+WHERE ID_better=1 AND ID1_with_null IS NULL AND ID2_with_null=3 ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	idx1,idx2	idx2	4	const	1	Using where
+EXPLAIN SELECT * FROM t1
+WHERE ID_better=1 AND ID1_with_null=3 AND ID2_with_null=3 IS NULL ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	idx1,idx2	idx2	4	const	1	Using where
+EXPLAIN SELECT * FROM t1
+WHERE ID_better=1 AND ID1_with_null IS NULL AND ID2_with_null IS NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	idx1,idx2	idx2	4	const	1	Using where
+DROP INDEX idx1 ON t1;
+CREATE UNIQUE INDEX idx1 ON t1(ID1_with_null,ID2_with_null);
+EXPLAIN SELECT * FROM t1
+WHERE ID_better=1 AND ID1_with_null IS NULL AND ID2_with_null=3 ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	idx1,idx2	idx2	4	const	1	Using where
+EXPLAIN SELECT * FROM t1
+WHERE ID_better=1 AND ID1_with_null=3 AND ID2_with_null IS NULL ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	idx1,idx2	idx2	4	const	1	Using where
+EXPLAIN SELECT * FROM t1
+WHERE ID_better=1 AND ID1_with_null IS NULL AND ID2_with_null IS NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	idx1,idx2	idx2	4	const	1	Using where
+EXPLAIN SELECT * FROM t1
+WHERE ID_better=1 AND ID1_with_null IS NULL AND 
+(ID2_with_null=1 OR ID2_with_null=2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	idx1,idx2	idx2	4	const	1	Using where
+DROP TABLE t1;
+CREATE TABLE t1 (a INT, ts TIMESTAMP, KEY ts(ts));
+INSERT INTO t1 VALUES (30,"2006-01-03 23:00:00"), (31,"2006-01-03 23:00:00");
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+CREATE TABLE t2 (a INT, dt1 DATETIME, dt2 DATETIME, PRIMARY KEY (a));
+INSERT INTO t2 VALUES (30, "2006-01-01 00:00:00", "2999-12-31 00:00:00");
+INSERT INTO t2 SELECT a+1,dt1,dt2 FROM t2;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+EXPLAIN
+SELECT * FROM t1 LEFT JOIN t2 ON (t1.a=t2.a) WHERE t1.a=30
+AND t1.ts BETWEEN t2.dt1 AND t2.dt2
+AND t1.ts BETWEEN "2006-01-01" AND "2006-12-31";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	
+1	SIMPLE	t1	range	ts	ts	4	NULL	1	Using where
+Warnings:
+Warning	1292	Incorrect datetime value: '2999-12-31 00:00:00' for column 'ts' at row 1
+SELECT * FROM t1 LEFT JOIN t2 ON (t1.a=t2.a) WHERE t1.a=30
+AND t1.ts BETWEEN t2.dt1 AND t2.dt2
+AND t1.ts BETWEEN "2006-01-01" AND "2006-12-31";
+a	ts	a	dt1	dt2
+30	2006-01-03 23:00:00	30	2006-01-01 00:00:00	2999-12-31 00:00:00
+Warnings:
+Warning	1292	Incorrect datetime value: '2999-12-31 00:00:00' for column 'ts' at row 1
+DROP TABLE t1,t2;
+create table t1 (a bigint unsigned);
+insert into t1 values
+(if(1, 9223372036854775808, 1)),
+(case when 1 then 9223372036854775808 else 1 end),
+(coalesce(9223372036854775808, 1));
+select * from t1;
+a
+9223372036854775808
+9223372036854775808
+9223372036854775808
+drop table t1;
+create table t1 select
+if(1, 9223372036854775808, 1) i,
+case when 1 then 9223372036854775808 else 1 end c,
+coalesce(9223372036854775808, 1) co;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` decimal(19,0) NOT NULL DEFAULT '0',
+  `c` decimal(19,0) NOT NULL DEFAULT '0',
+  `co` decimal(19,0) NOT NULL DEFAULT '0'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+select 
+if(1, cast(1111111111111111111 as unsigned), 1) i,
+case when 1 then cast(1111111111111111111 as unsigned) else 1 end c,
+coalesce(cast(1111111111111111111 as unsigned), 1) co;
+i	c	co
+1111111111111111111	1111111111111111111	1111111111111111111
+End of 5.0 tests

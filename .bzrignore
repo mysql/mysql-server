@@ -1255,6 +1255,7 @@ mysql-test/mysql-test-run-shell
 mysql-test/mysql-test-run.log
 mysql-test/mysql_test_run_new
 mysql-test/ndb/ndbcluster
+mysql-test/partitions.log
 mysql-test/r/*.err
 mysql-test/r/*.log
 mysql-test/r/*.out
@@ -1334,8 +1335,21 @@ mysql-test/r/symlink.log
 mysql-test/r/system_mysql_db.log
 mysql-test/r/tmp.result
 mysql-test/r/udf.log
+mysql-test/rpl.log
 mysql-test/share/mysql
 mysql-test/std_data/*.pem
+mysql-test/suite/funcs_1/r/innodb_trig_03e.warnings
+mysql-test/suite/funcs_1/r/innodb_views.warnings
+mysql-test/suite/funcs_1/r/memory_trig_03e.warnings
+mysql-test/suite/funcs_1/r/memory_views.warnings
+mysql-test/suite/funcs_1/r/myisam_trig_03e.warnings
+mysql-test/suite/funcs_1/r/myisam_views.warnings
+mysql-test/suite/funcs_1/r/ndb_trig_03e.warnings
+mysql-test/suite/funcs_1/r/ndb_views.warnings
+mysql-test/suite/partitions/r/diff
+mysql-test/suite/partitions/r/partition_bit_ndb.warnings
+mysql-test/suite/partitions/r/partition_special_innodb.warnings
+mysql-test/suite/partitions/r/partition_special_myisam.warnings
 mysql-test/t/index_merge.load
 mysql-test/t/tmp.test
 mysql-test/var
@@ -1644,6 +1658,7 @@ ndb/src/kernel/error/liberror.dsp
 ndb/src/kernel/ndbd
 ndb/src/kernel/ndbd.dsp
 ndb/src/kernel/vm/libkernel.dsp
+ndb/src/libndb.ver
 ndb/src/libndbclient.dsp
 ndb/src/mgmapi/libmgmapi.dsp
 ndb/src/mgmclient/libndbmgmclient.dsp
@@ -2080,6 +2095,7 @@ storage/archive/.deps/ha_archive_la-azio.Plo
 storage/archive/.deps/ha_archive_la-ha_archive.Plo
 storage/archive/.deps/libarchive_a-azio.Po
 storage/archive/.deps/libarchive_a-ha_archive.Po
+storage/archive/archive_reader
 storage/archive/archive_test
 storage/bdb/*.ds?
 storage/bdb/*.vcproj
@@ -2638,6 +2654,7 @@ storage/ndb/src/kernel/error/liberror.dsp
 storage/ndb/src/kernel/ndbd
 storage/ndb/src/kernel/ndbd.dsp
 storage/ndb/src/kernel/vm/libkernel.dsp
+storage/ndb/src/libndb.ver
 storage/ndb/src/libndbclient.dsp
 storage/ndb/src/mgmapi/libmgmapi.dsp
 storage/ndb/src/mgmclient/libndbmgmclient.dsp

@@ -220,9 +220,9 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
 
   if (my_b_inited(&tempfile_for_exceptions))
   {
-    MI_INFO *index=info->sort_info->info;
+    MI_INFO *idx=info->sort_info->info;
     uint     keyno=info->key;
-    uint     key_length, ref_length=index->s->rec_reflength;
+    uint     key_length, ref_length=idx->s->rec_reflength;
 
     if (!no_messages)
       printf("  - Adding exceptions\n"); /* purecov: tested */
@@ -235,7 +235,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
         && !my_b_read(&tempfile_for_exceptions,(byte*)sort_keys,
 		      (uint) key_length))
     {
-	if (_mi_ck_write(index,keyno,(uchar*) sort_keys,key_length-ref_length))
+	if (_mi_ck_write(idx,keyno,(uchar*) sort_keys,key_length-ref_length))
 	  goto err;
     }
   }

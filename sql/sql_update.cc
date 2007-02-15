@@ -26,7 +26,7 @@
 
 /* Return 0 if row hasn't changed */
 
-static bool compare_record(TABLE *table)
+bool compare_record(TABLE *table)
 {
   if (table->s->blob_fields + table->s->varchar_fields == 0)
     return cmp_record(table,record[1]);
@@ -64,7 +64,6 @@ static bool check_fields(THD *thd, List<Item> &items)
   List_iterator<Item> it(items);
   Item *item;
   Item_field *field;
-  Name_resolution_context *context= &thd->lex->select_lex.context;
 
   while ((item= it++))
   {
@@ -318,7 +317,7 @@ int mysql_update(THD *thd,
 	to update
         NOTE: filesort will call table->prepare_for_position()
       */
-      uint         length;
+      uint         length= 0;
       SORT_FIELD  *sortorder;
       ha_rows examined_rows;
 
@@ -1570,6 +1569,15 @@ int multi_update::do_updates(bool from_send_error)
 
       if (!can_compare_record || compare_record(table))
       {
+        int error;
+        if ((error= cur_table->view_check_option(thd, ignore)) !=
+            VIEW_CHECK_OK)
+        {
+          if (error == VIEW_CHECK_SKIP)
+            continue;
+          else if (error == VIEW_CHECK_ERROR)
+            goto err;
+        }
 	if ((local_error=table->file->ha_update_row(table->record[1],
 						    table->record[0])))
 	{

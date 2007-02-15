@@ -73,6 +73,7 @@ static int request_table_dump(MYSQL* mysql, const char* db, const char* table);
 static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
                                   const char* table_name, bool overwrite);
 static int get_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi);
+static Log_event* next_event(RELAY_LOG_INFO* rli);
 
 /*
   Find out which replications threads are running
@@ -1295,7 +1296,7 @@ bool show_master_info(THD* thd, MASTER_INFO* mi)
     rpl_filter->get_wild_ignore_table(&tmp);
     protocol->store(&tmp);
 
-    protocol->store((uint32) mi->rli.last_slave_errno);
+    protocol->store(mi->rli.last_slave_errno);
     protocol->store(mi->rli.last_slave_error, &my_charset_bin);
     protocol->store((uint32) mi->rli.slave_skip_counter);
     protocol->store((ulonglong) mi->rli.group_master_log_pos);
@@ -1326,12 +1327,12 @@ bool show_master_info(THD* thd, MASTER_INFO* mi)
     if ((mi->slave_running == MYSQL_SLAVE_RUN_CONNECT) &&
         mi->rli.slave_running)
     {
-      long tmp= (long)((time_t)time((time_t*) 0)
-                               - mi->rli.last_master_timestamp)
-        - mi->clock_diff_with_master;
+      long time_diff= ((long)((time_t)time((time_t*) 0)
+                              - mi->rli.last_master_timestamp)
+                       - mi->clock_diff_with_master);
       /*
-        Apparently on some systems tmp can be <0. Here are possible reasons
-        related to MySQL:
+        Apparently on some systems time_diff can be <0. Here are possible
+        reasons related to MySQL:
         - the master is itself a slave of another master whose time is ahead.
         - somebody used an explicit SET TIMESTAMP on the master.
         Possible reason related to granularity-to-second of time functions
@@ -1349,8 +1350,8 @@ bool show_master_info(THD* thd, MASTER_INFO* mi)
         last_master_timestamp == 0 (an "impossible" timestamp 1970) is a
         special marker to say "consider we have caught up".
       */
-      protocol->store((longlong)(mi->rli.last_master_timestamp ? max(0, tmp)
-                                 : 0));
+      protocol->store((longlong)(mi->rli.last_master_timestamp ?
+                                 max(0, time_diff) : 0));
     }
     else
       protocol->store_null();
@@ -1421,7 +1422,6 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
 */
   thd->variables.max_allowed_packet= global_system_variables.max_allowed_packet
     + MAX_LOG_EVENT_HEADER;  /* note, incr over the global not session var */
-  thd->net.read_timeout = slave_net_timeout;
   thd->slave_thread = 1;
   set_slave_thread_options(thd);
   thd->client_capabilities = CLIENT_LOCAL_FILES;
@@ -2052,15 +2052,16 @@ after reconnect");
 
     while (!io_slave_killed(thd,mi))
     {
-      bool suppress_warnings= 0;
+      ulong event_len;
+      suppress_warnings= 0;
       /*
          We say "waiting" because read_event() will wait if there's nothing to
          read. But if there's something to read, it will not wait. The
          important thing is to not confuse users by saying "reading" whereas
          we're in fact receiving nothing.
       */
-      thd->proc_info = "Waiting for master to send event";
-      ulong event_len = read_event(mysql, mi, &suppress_warnings);
+      thd->proc_info= "Waiting for master to send event";
+      event_len= read_event(mysql, mi, &suppress_warnings);
       if (io_slave_killed(thd,mi))
       {
         if (global_system_variables.log_warnings)
@@ -2861,6 +2862,8 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
   pthread_mutex_t *log_lock= rli->relay_log.get_log_lock();
   DBUG_ENTER("queue_event");
 
+  LINT_INIT(inc_pos);
+
   if (mi->rli.relay_log.description_event_for_queue->binlog_version<4 &&
       buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT /* a way to escape */)
     DBUG_RETURN(queue_old_event(mi,buf,event_len));
@@ -3002,7 +3005,7 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
 
 err:
   pthread_mutex_unlock(&mi->data_lock);
-  DBUG_PRINT("info", ("error=%d", error));
+  DBUG_PRINT("info", ("error: %d", error));
   DBUG_RETURN(error);
 }
 
@@ -3322,7 +3325,13 @@ static Log_event* next_event(RELAY_LOG_INFO* rli)
         hot_log=0;                              // Using old binary log
       }
     }
-
+    /* 
+      As there is no guarantee that the relay is open (for example, an I/O
+      error during a write by the slave I/O thread may have closed it), we
+      have to test it.
+    */
+    if (!my_b_inited(cur_log))
+      goto err;
 #ifndef DBUG_OFF
     {
       /* This is an assertion which sometimes fails, let's try to track it */

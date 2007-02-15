@@ -157,6 +157,7 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
 		  pbool use_async_io, myf cache_myflags)
 {
   uint min_cache;
+  my_off_t pos;
   my_off_t end_of_file= ~(my_off_t) 0;
   DBUG_ENTER("init_io_cache");
   DBUG_PRINT("enter",("cache: 0x%lx  type: %d  pos: %ld",
@@ -169,7 +170,25 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
   info->arg = 0;
   info->alloced_buffer = 0;
   info->buffer=0;
-  info->seek_not_done= test(file >= 0 && seek_offset != my_tell(file, MYF(0)));
+
+  pos= my_tell(file, MYF(0));
+  if ((pos == (my_off_t) -1) && (my_errno == ESPIPE))
+  {
+    /* 
+      This kind of object doesn't support seek() or tell().  Don't set a flag
+      that will make us again try to seek() later and fail.
+    */
+    info->seek_not_done= 0;
+    /*
+      Additionally, if we're supposed to start somewhere other than the
+      the beginning of whatever this file is, then somebody made a bad
+      assumption.
+    */
+    DBUG_ASSERT(seek_offset == 0);
+  }
+  else
+    info->seek_not_done= test(file >= 0 && seek_offset != pos);
+
   info->disk_writes= 0;
 #ifdef THREAD
   info->share=0;
@@ -454,13 +473,23 @@ int _my_b_read(register IO_CACHE *info, byte *Buffer, uint Count)
   */
   if (info->seek_not_done)
   {
-    if (my_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(0)) 
-        == MY_FILEPOS_ERROR)
+    if ((my_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(0)) 
+        != MY_FILEPOS_ERROR))
     {
-        info->error= -1;
-        DBUG_RETURN(1);
+      /* No error, reset seek_not_done flag. */
+      info->seek_not_done= 0;
     }
-    info->seek_not_done=0;
+    else
+    {
+      /*
+        If the seek failed and the error number is ESPIPE, it is because
+        info->file is a pipe or socket or FIFO.  We never should have tried
+        to seek on that.  See Bugs#25807 and #22828 for more info.
+      */
+      DBUG_ASSERT(my_errno != ESPIPE);
+      info->error= -1;
+      DBUG_RETURN(1);
+    }
   }
 
   diff_length=(uint) (pos_in_file & (IO_SIZE-1));

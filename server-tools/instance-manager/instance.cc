@@ -17,8 +17,7 @@
 #pragma implementation
 #endif
 
-#include "instance.h"
-
+#include <my_global.h>
 #include <mysql.h>
 
 #include <signal.h>
@@ -26,14 +25,16 @@
 #include <sys/wait.h>
 #endif
 
-#include "guardian.h"
 #include "manager.h"
+#include "guardian.h"
+#include "instance.h"
 #include "log.h"
 #include "mysql_manager_error.h"
 #include "portability.h"
 #include "priv.h"
 #include "thread_registry.h"
 #include "instance_map.h"
+
 
 /*************************************************************************
   {{{ Platform-specific functions.

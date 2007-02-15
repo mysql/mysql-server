@@ -71,8 +71,6 @@ Restore::execSTTOR(Signal* signal)
 {
   jamEntry();                            
 
-  const Uint32 startphase  = signal->theData[1];
-  const Uint32 typeOfStart = signal->theData[7];
   c_lqh = (Dblqh*)globalData.getBlock(DBLQH);
   c_tup = (Dbtup*)globalData.getBlock(DBTUP);
   sendSTTORRY(signal);
@@ -801,7 +799,6 @@ Restore::parse_table_description(Signal* signal, FilePtr file_ptr,
     return;
   }
   
-  Uint32 null_offset = 0;
   Column c; 
   Uint32 colstore[sizeof(Column)/sizeof(Uint32)];
 

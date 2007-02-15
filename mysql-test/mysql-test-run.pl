@@ -310,6 +310,8 @@ our %mysqld_variables;
 
 my $source_dist= 0;
 
+our $opt_max_save_core= 5;
+my $num_saved_cores= 0;  # Number of core files saved in vardir/log/ so far.
 
 ######################################################################
 #
@@ -570,6 +572,7 @@ sub command_line_setup () {
              'strace-client'            => \$opt_strace_client,
              'master-binary=s'          => \$exe_master_mysqld,
              'slave-binary=s'           => \$exe_slave_mysqld,
+             'max-save-core=i'          => \$opt_max_save_core,
 
              # Coverage, profiling etc
              'gcov'                     => \$opt_gcov,
@@ -3418,10 +3421,12 @@ sub save_files_before_restore($$) {
   # Look for core files
   foreach my $core_file ( glob("$data_dir/core*") )
   {
+    last if $opt_max_save_core > 0 && $num_saved_cores >= $opt_max_save_core;
     my $core_name= basename($core_file);
     mtr_report("Saving $core_name");
     mkdir($save_name) if ! -d $save_name;
     rename("$core_file", "$save_name/$core_name");
+    ++$num_saved_cores;
   }
 }
 
@@ -3610,13 +3615,14 @@ sub mysqld_arguments ($$$$$) {
     }
   }
 
-  my $pidfile;
+  # Check if "extra_opt" contains --skip-log-bin
+  my $skip_binlog= grep(/^--skip-log-bin/, @$extra_opt);
 
   if ( $type eq 'master' )
   {
     my $id= $idx > 0 ? $idx + 101 : 1;
 
-    if (! $opt_skip_master_binlog)
+    if (! ($opt_skip_master_binlog || $skip_binlog) )
     {
       mtr_add_arg($args, "%s--log-bin=%s/log/master-bin%s", $prefix,
                   $opt_vardir, $sidx);
@@ -3678,7 +3684,7 @@ sub mysqld_arguments ($$$$$) {
     mtr_add_arg($args, "%s--datadir=%s", $prefix,
                 $slave->[$idx]->{'path_myddir'});
     mtr_add_arg($args, "%s--init-rpl-role=slave", $prefix);
-    if (! $opt_skip_slave_binlog)
+    if (! ( $opt_skip_slave_binlog || $skip_binlog ))
     {
       mtr_add_arg($args, "%s--log-bin=%s/log/slave%s-bin", $prefix,
                   $opt_vardir, $sidx); # FIXME use own dir for binlogs
@@ -3814,6 +3820,10 @@ sub mysqld_arguments ($$$$$) {
     if ($arg eq "--skip-core-file")
     {
       $found_skip_core= 1;
+    }
+    elsif ($skip_binlog and mtr_match_prefix($arg, "--binlog-format"))
+    {
+      ; # Dont add --binlog-format when running without binlog
     }
     else
     {
@@ -5020,6 +5030,9 @@ Options for debugging the product
   master-binary=PATH    Specify the master "mysqld" to use
   slave-binary=PATH     Specify the slave "mysqld" to use
   strace-client         Create strace output for mysqltest client
+  max-save-core         Limit the number of core files saved (to avoid filling
+                        up disks for heavily crashing server). Defaults to
+                        $opt_max_save_core, set to 0 for no limit.
 
 Options for coverage, profiling etc
 

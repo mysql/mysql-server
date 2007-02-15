@@ -105,6 +105,7 @@ public:
   };
 
   struct StartRecord {
+    StartRecord() {}
     void reset(){ 
       m_startKey++; 
       m_startNode = 0; 
@@ -128,6 +129,7 @@ public:
     Uint32 m_president_candidate_gci;
     Uint16 m_regReqReqSent;
     Uint16 m_regReqReqRecv;
+    Uint32 m_node_gci[MAX_NDB_NODES];
   } c_start;
   
   NdbNodeBitmask c_definedNodes; // DB nodes in config
@@ -173,6 +175,7 @@ public:
   };
 
   struct ArbitRec {
+    ArbitRec() {}
     ArbitState state;		// state
     bool newstate;		// flag to initialize new state
     unsigned thread;		// identifies a continueB "thread"

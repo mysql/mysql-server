@@ -582,6 +582,26 @@ Dblqh::execDEFINE_BACKUP_REF(Signal* signal)
 {
   jamEntry();
   m_backup_ptr = RNIL;
+  DefineBackupRef* ref = (DefineBackupRef*)signal->getDataPtrSend();
+  int err_code = 0;
+  char * extra_msg = NULL;
+
+  switch(ref->errorCode){
+    case DefineBackupRef::Undefined:
+    case DefineBackupRef::FailedToSetupFsBuffers:
+    case DefineBackupRef::FailedToAllocateBuffers: 
+    case DefineBackupRef::FailedToAllocateTables: 
+    case DefineBackupRef::FailedAllocateTableMem: 
+    case DefineBackupRef::FailedToAllocateFileRecord:
+    case DefineBackupRef::FailedToAllocateAttributeRecord:
+    case DefineBackupRef::FailedInsertFileHeader: 
+    case DefineBackupRef::FailedInsertTableList: 
+      jam();
+      err_code = NDBD_EXIT_INVALID_CONFIG;
+      extra_msg = "Probably Backup parameters configuration error, Please consult the manual";
+      progError(__LINE__, err_code, extra_msg);
+  }
+
   sendsttorryLab(signal);
 }
 
@@ -2479,8 +2499,16 @@ Dblqh::execREMOVE_MARKER_ORD(Signal* signal)
   
   CommitAckMarkerPtr removedPtr;
   m_commitAckMarkerHash.remove(removedPtr, key);
+#if defined VM_TRACE || defined ERROR_INSERT
   ndbrequire(removedPtr.i != RNIL);
   m_commitAckMarkerPool.release(removedPtr);
+#else
+  if (removedPtr.i != RNIL)
+  {
+    jam();
+    m_commitAckMarkerPool.release(removedPtr);
+  }
+#endif
 #ifdef MARKER_TRACE
   ndbout_c("Rem marker[%.8x %.8x]", key.transid1, key.transid2);
 #endif
@@ -3138,20 +3166,23 @@ void Dblqh::lqhAttrinfoLab(Signal* signal, Uint32* dataPtr, Uint32 length)
 {
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
   if (regTcPtr->operation != ZREAD) {
-    if (regTcPtr->opExec != 1) {
-      if (saveTupattrbuf(signal, dataPtr, length) == ZOK) {
-        ;
-      } else {
-        jam();
+    if (regTcPtr->operation != ZDELETE)
+    {
+      if (regTcPtr->opExec != 1) {
+	if (saveTupattrbuf(signal, dataPtr, length) == ZOK) {
+	  ;
+	} else {
+	  jam();
 /* ------------------------------------------------------------------------- */
 /* WE MIGHT BE WAITING FOR RESPONSE FROM SOME BLOCK HERE. THUS WE NEED TO    */
 /* GO THROUGH THE STATE MACHINE FOR THE OPERATION.                           */
 /* ------------------------------------------------------------------------- */
-        localAbortStateHandlerLab(signal);
-        return;
+	  localAbortStateHandlerLab(signal);
+	  return;
+	}//if
       }//if
     }//if
-  }//if
+  }
   c_tup->receive_attrinfo(signal, regTcPtr->tupConnectrec, dataPtr, length);
 }//Dblqh::lqhAttrinfoLab()
 
@@ -3405,7 +3436,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     markerPtr.p->tcNodeId = tcNodeId;
     
     CommitAckMarkerPtr tmp;
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
 #ifdef MARKER_TRACE
     ndbout_c("Add marker[%.8x %.8x]", markerPtr.p->transid1, markerPtr.p->transid2);
 #endif
@@ -7197,7 +7228,8 @@ void Dblqh::execACC_ABORTCONF(Signal* signal)
   TRACE_OP(regTcPtr, "ACC_ABORTCONF");
   signal->theData[0] = regTcPtr->tupConnectrec;
   EXECUTE_DIRECT(DBTUP, GSN_TUP_ABORTREQ, signal, 1);
-  
+
+  jamEntry(); 
   continueAbortLab(signal);
   return;
 }//Dblqh::execACC_ABORTCONF()
@@ -8325,7 +8357,6 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   const Uint32 scanLockMode = ScanFragReq::getLockMode(reqinfo);
   const Uint8 keyinfo = ScanFragReq::getKeyinfoFlag(reqinfo);
   const Uint8 rangeScan = ScanFragReq::getRangeScanFlag(reqinfo);
-  const Uint8 tupScan = ScanFragReq::getTupScanFlag(reqinfo);
   
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
   if(tabptr.p->tableStatus != Tablerec::TABLE_DEFINED){
@@ -9629,7 +9660,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
   active.add(scanptr);
   if(scanptr.p->scanKeyinfoFlag){
     jam();
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
     ScanRecordPtr tmp;
     ndbrequire(!c_scanTakeOverHash.find(tmp, * scanptr.p));
 #endif
@@ -9753,7 +9784,7 @@ void Dblqh::finishScanrec(Signal* signal)
   scans.add(restart);
   if(restart.p->scanKeyinfoFlag){
     jam();
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
     ScanRecordPtr tmp;
     ndbrequire(!c_scanTakeOverHash.find(tmp, * restart.p));
 #endif
@@ -9814,9 +9845,11 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
   const Uint32 scanOp = scanP->m_curr_batch_size_rows;
   const Uint32 nodeId = refToNode(ref);
   const bool connectedToNode = getNodeInfo(nodeId).m_connected;
-  //const Uint32 type = getNodeInfo(nodeId).m_type;
-  //const bool is_api= (type >= NodeInfo::API && type <= NodeInfo::REP);
-  //const bool old_dest= (getNodeInfo(nodeId).m_version < MAKE_VERSION(3,5,0));
+#ifdef NOT_USED
+  const Uint32 type = getNodeInfo(nodeId).m_type;
+  const bool is_api= (type >= NodeInfo::API && type <= NodeInfo::REP);
+  const bool old_dest= (getNodeInfo(nodeId).m_version < MAKE_VERSION(3,5,0));
+#endif
   const bool longable = true; // TODO is_api && !old_dest;
 
   Uint32 * dst = keyInfo->keyData;
@@ -9917,7 +9950,9 @@ void Dblqh::sendScanFragConf(Signal* signal, Uint32 scanCompleted)
     return;
   }
   ScanFragConf * conf = (ScanFragConf*)&signal->theData[0];
-  //NodeId tc_node_id= refToNode(tcConnectptr.p->clientBlockref);
+#ifdef NOT_USED
+  NodeId tc_node_id= refToNode(tcConnectptr.p->clientBlockref);
+#endif
   Uint32 trans_id1= tcConnectptr.p->transid[0];
   Uint32 trans_id2= tcConnectptr.p->transid[1];
 
@@ -15187,8 +15222,6 @@ void Dblqh::execDEBUG_SIG(Signal* signal)
 2.5 TEMPORARY VARIABLES
 -----------------------
 */
-  UintR tdebug;
-
   jamEntry();
   //logPagePtr.i = signal->theData[0];
   //tdebug = logPagePtr.p->logPageWord[0];

@@ -432,7 +432,8 @@ protected:
 
   select_result *result;
   ulonglong found_rows_for_union;
-  bool res;
+  bool saved_error;
+
 public:
   bool  prepared, // prepare phase already performed for UNION (unit)
     optimized, // optimize phase already performed for UNION (unit)
@@ -504,7 +505,7 @@ public:
   void set_thd(THD *thd_arg) { thd= thd_arg; }
 
   friend void lex_start(THD *thd, const uchar *buf, uint length);
-  friend int subselect_union_engine::exec(bool);
+  friend int subselect_union_engine::exec();
 
   List<Item> *get_unit_column_types();
 };
@@ -615,7 +616,26 @@ public:
   bool no_wrap_view_item;
   /* exclude this select from check of unique_table() */
   bool exclude_from_table_unique_test;
+  /* List of fields that aren't under an aggregate function */
+  List<Item_field> non_agg_fields;
+  /* index in the select list of the expression currently being fixed */
+  int cur_pos_in_select_list;
 
+  List<udf_func>     udf_list;                  /* udf function calls stack */
+  /* 
+    This is a copy of the original JOIN USING list that comes from
+    the parser. The parser :
+      1. Sets the natural_join of the second TABLE_LIST in the join
+         and the st_select_lex::prev_join_using.
+      2. Makes a parent TABLE_LIST and sets its is_natural_join/
+       join_using_fields members.
+      3. Uses the wrapper TABLE_LIST as a table in the upper level.
+    We cannot assign directly to join_using_fields in the parser because
+    at stage (1.) the parent TABLE_LIST is not constructed yet and
+    the assignment will override the JOIN USING fields of the lower level
+    joins on the right.
+  */
+  List<String> *prev_join_using;
   void init_query();
   void init_select();
   st_select_lex_unit* master_unit();
