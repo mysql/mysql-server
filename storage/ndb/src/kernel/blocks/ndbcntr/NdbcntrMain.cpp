@@ -91,6 +91,7 @@ static BlockInfo ALL_BLOCKS[] = {
 static const Uint32 ALL_BLOCKS_SZ = sizeof(ALL_BLOCKS)/sizeof(BlockInfo);
 
 static BlockReference readConfigOrder[ALL_BLOCKS_SZ] = {
+  NDBFS_REF, // let it run first to make sure it can start the threads
   CMVMI_REF,
   DBTUP_REF,
   DBACC_REF,
@@ -99,7 +100,6 @@ static BlockReference readConfigOrder[ALL_BLOCKS_SZ] = {
   DBTUX_REF,
   DBDICT_REF,
   DBDIH_REF,
-  NDBFS_REF,
   NDBCNTR_REF,
   QMGR_REF,
   TRIX_REF,
@@ -2294,7 +2294,7 @@ Ndbcntr::StopRecord::checkNodeFail(Signal* signal){
   /**
    * Check if I can survive me stopping
    */
-  NodeBitmask ndbMask; 
+  NdbNodeBitmask ndbMask; 
   ndbMask.assign(cntr.c_startedNodes);
 
   if (StopReq::getStopNodes(stopReq.requestInfo))
@@ -2763,7 +2763,8 @@ Ndbcntr::execFSREMOVECONF(Signal* signal){
 void Ndbcntr::Missra::execSTART_ORD(Signal* signal){
   signal->theData[0] = NDB_LE_NDBStartStarted;
   signal->theData[1] = NDB_VERSION;
-  cntr.sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
+  signal->theData[2] = NDB_MYSQL_VERSION_D;
+  cntr.sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
 
   currentBlockIndex = 0;
   sendNextREAD_CONFIG_REQ(signal);
@@ -2906,7 +2907,8 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal){
 
   signal->theData[0] = NDB_LE_NDBStartCompleted;
   signal->theData[1] = NDB_VERSION;
-  cntr.sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
+  signal->theData[2] = NDB_MYSQL_VERSION_D;
+  cntr.sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
   
   NodeState newState(NodeState::SL_STARTED);
   cntr.updateNodeState(signal, newState);
@@ -3042,7 +3044,7 @@ UpgradeStartup::execCNTR_MASTER_REPLY(SimulatedBlock & block, Signal* signal){
       conf->masterNodeId = node;
       conf->noStartNodes = 1;
       conf->startType = NodeState::ST_INITIAL_NODE_RESTART;
-      NodeBitmask mask;
+      NdbNodeBitmask mask;
       mask.clear();
       mask.copyto(NdbNodeBitmask::Size, conf->startedNodes);
       mask.clear();

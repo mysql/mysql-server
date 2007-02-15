@@ -203,6 +203,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
   
   for(iter.first(); iter.valid(); iter.next()){
     
+    bzero(&conf, sizeof(conf));
     Uint32 nodeId1, nodeId2, remoteNodeId;
     const char * remoteHostName= 0, * localHostName= 0;
     if(iter.get(CFG_CONNECTION_NODE_1, &nodeId1)) continue;
@@ -346,6 +347,10 @@ IPCConfig::configureTransporters(Uint32 nodeId,
 	  conf.s_port = atoi(proxy);
 	}
       }
+
+      iter.get(CFG_TCP_SND_BUF_SIZE, &conf.tcp.tcpSndBufSize);
+      iter.get(CFG_TCP_RCV_BUF_SIZE, &conf.tcp.tcpRcvBufSize);
+      iter.get(CFG_TCP_MAXSEG_SIZE, &conf.tcp.tcpMaxsegSize);
       
       if(!tr.createTCPTransporter(&conf)){
 	ndbout << "Failed to create TCP Transporter from: " 
