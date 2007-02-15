@@ -107,7 +107,10 @@ public:
     CmvmiDumpLongSignalMemory = 2601,
     CmvmiSetRestartOnErrorInsert = 2602,
     CmvmiTestLongSigWithDelay = 2603,
-    
+    CmvmiDumpSubscriptions = 2604, /* note: done to respective outfile
+                                      to be able to debug if events
+                                      for some reason does not end up
+                                      in clusterlog */
     LCPContinue = 5900,
     // 7000 DIH
     // 7001 DIH
