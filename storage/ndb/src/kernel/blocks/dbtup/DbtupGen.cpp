@@ -57,7 +57,7 @@ Dbtup::Dbtup(Block_context& ctx, Pgman* pgman)
     c_extent_hash(c_extent_pool),
     c_storedProcPool(),
     c_buildIndexList(c_buildIndexPool),
-    c_undo_buffer(this)
+    c_undo_buffer(&ctx.m_mm)
 {
   BLOCK_CONSTRUCTOR(Dbtup);
 
@@ -110,6 +110,7 @@ Dbtup::Dbtup(Block_context& ctx, Pgman* pgman)
   tableDescriptor = 0;
   totNoOfPagesAllocated = 0;
   cnoOfAllocatedPages = 0;
+  c_no_of_pages = 0;
   
   initData();
 }//Dbtup::Dbtup()
@@ -117,6 +118,7 @@ Dbtup::Dbtup(Block_context& ctx, Pgman* pgman)
 Dbtup::~Dbtup() 
 {
   // Records with dynamic sizes
+  c_page_pool.clear();
   deallocRecord((void **)&attrbufrec,"Attrbufrec", 
 		sizeof(Attrbufrec), 
 		cnoOfAttrbufrec);
@@ -168,7 +170,7 @@ void Dbtup::execCONTINUEB(Signal* signal)
     ljam();
     static int c_currentMemUsed = 0;
     Uint32 cnt = signal->theData[1];
-    Uint32 tmp = c_page_pool.getSize();
+    Uint32 tmp = c_no_of_pages;
     int now = tmp ? (cnoOfAllocatedPages * 100)/tmp : 0;
     const int thresholds[] = { 100, 90, 80, 0 };
     
@@ -365,9 +367,10 @@ void Dbtup::initRecords()
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE, &tmp));
 
   // Records with dynamic sizes
-  Page* ptr =(Page*)allocRecord("Page", sizeof(Page), tmp, false, CFG_DB_DATA_MEM);
-  c_page_pool.set(ptr, tmp);
-  
+  void* ptr = m_ctx.m_mm.get_memroot();
+  c_page_pool.set((Page*)ptr, (Uint32)~0);
+  c_no_of_pages = tmp;
+
   attrbufrec = (Attrbufrec*)allocRecord("Attrbufrec", 
 					sizeof(Attrbufrec), 
 					cnoOfAttrbufrec);
