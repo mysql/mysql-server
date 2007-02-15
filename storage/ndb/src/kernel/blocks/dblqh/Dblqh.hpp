@@ -2542,6 +2542,9 @@ private:
   void initData();
   void initRecords();
 
+  bool validate_filter(Signal*);
+  bool match_and_print(Signal*, Ptr<TcConnectionrec>);
+
   void define_backup(Signal*);
   void execDEFINE_BACKUP_REF(Signal*);
   void execDEFINE_BACKUP_CONF(Signal*);
