@@ -356,6 +356,27 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       (duplic == DUP_UPDATE))
     lock_type=TL_WRITE;
 #endif
+  if ((lock_type == TL_WRITE_DELAYED) &&
+      log_on && mysql_bin_log.is_open() &&
+      (values_list.elements > 1))
+  {
+    /*
+      Statement-based binary logging does not work in this case, because:
+      a) two concurrent statements may have their rows intermixed in the
+      queue, leading to autoincrement replication problems on slave (because
+      the values generated used for one statement don't depend only on the
+      value generated for the first row of this statement, so are not
+      replicable)
+      b) if first row of the statement has an error the full statement is
+      not binlogged, while next rows of the statement may be inserted.
+      c) if first row succeeds, statement is binlogged immediately with a
+      zero error code (i.e. "no error"), if then second row fails, query
+      will fail on slave too and slave will stop (wrongly believing that the
+      master got no error).
+      So we fallback to non-delayed INSERT.
+    */
+    lock_type= TL_WRITE;
+  }
   table_list->lock_type= lock_type;
 
 #ifndef EMBEDDED_LIBRARY
