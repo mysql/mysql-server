@@ -239,11 +239,8 @@ main(int argc, char ** argv)
       if(!stop_processes(g_config, ~0))
 	goto end;
       
-      if (!setup_directories(g_config, 2))
-	goto end;
-      
-      if (!setup_files(g_config, 2, 1))
-	goto end;
+      if(!setup_hosts(g_config))
+        goto end;
       
       if (!start(g_config, p_ndb | p_servers))
 	goto end;
@@ -1070,14 +1067,14 @@ gather_result(atrt_config& config, int * result){
     tmp.appfmt(" %s:%s/*", 
 	       config.m_hosts[i]->m_hostname.c_str(),
 	       config.m_hosts[i]->m_basedir.c_str());
-    
-    g_logger.debug("system(%s)", tmp.c_str());
-    const int r1 = system(tmp.c_str());
-    if(r1 != 0)
-    {
-      g_logger.critical("Failed to gather result!");
-      return false;
-    }
+  }
+
+  g_logger.debug("system(%s)", tmp.c_str());
+  const int r1 = system(tmp.c_str());
+  if(r1 != 0)
+  {
+    g_logger.critical("Failed to gather result!");
+    return false;
   }
   
   g_logger.debug("system(%s)", g_analyze_progname);
