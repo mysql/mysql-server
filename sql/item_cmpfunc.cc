@@ -352,6 +352,17 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
         func= &Arg_comparator::compare_e_int_diff_signedness;
     }
   }
+  else if (type == REAL_RESULT)
+  {
+    if ((*a)->decimals < NOT_FIXED_DEC && (*b)->decimals < NOT_FIXED_DEC)
+    {
+      precision= 5 * log_01[max((*a)->decimals, (*b)->decimals)];
+      if (func == &Arg_comparator::compare_real)
+        func= &Arg_comparator::compare_real_fixed;
+      else if (func == &Arg_comparator::compare_e_real)
+        func= &Arg_comparator::compare_e_real_fixed;
+    }
+  }
   return 0;
 }
 
@@ -458,6 +469,44 @@ int Arg_comparator::compare_e_real()
     return test((*a)->null_value && (*b)->null_value);
   return test(val1 == val2);
 }
+
+
+int Arg_comparator::compare_real_fixed()
+{
+  /*
+    Fix yet another manifestation of Bug#2338. 'Volatile' will instruct
+    gcc to flush double values out of 80-bit Intel FPU registers before
+    performing the comparison.
+  */
+  volatile double val1, val2;
+  val1= (*a)->val();
+  if (!(*a)->null_value)
+  {
+    val2= (*b)->val();
+    if (!(*b)->null_value)
+    {
+      owner->null_value= 0;
+      if (val1 == val2 || fabs(val1 - val2) < precision)
+        return 0;
+      if (val1 < val2)
+        return -1;
+      return 1;
+    }
+  }
+  owner->null_value= 1;
+  return -1;
+}
+
+
+int Arg_comparator::compare_e_real_fixed()
+{
+  double val1= (*a)->val();
+  double val2= (*b)->val();
+  if ((*a)->null_value || (*b)->null_value)
+    return test((*a)->null_value && (*b)->null_value);
+  return test(val1 == val2 || fabs(val1 - val2) < precision);
+}
+
 
 int Arg_comparator::compare_int_signed()
 {
