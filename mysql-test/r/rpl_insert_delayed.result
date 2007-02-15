@@ -1,0 +1,31 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t1 (id INT primary key auto_increment, name VARCHAR(64));
+truncate table t1;
+insert delayed into t1 values(10, "my name");
+insert delayed into t1 values(10, "is Bond"), (20, "James Bond");
+ERROR 23000: Duplicate entry '10' for key 1
+flush table t1;
+select * from t1;
+id	name
+10	my name
+select * from t1;
+id	name
+10	my name
+delete from t1 where id!=10;
+insert delayed into t1 values(20, "is Bond"), (10, "James Bond");
+ERROR 23000: Duplicate entry '10' for key 1
+flush table t1;
+select * from t1;
+id	name
+10	my name
+20	is Bond
+select * from t1;
+id	name
+10	my name
+20	is Bond
+drop table t1;
