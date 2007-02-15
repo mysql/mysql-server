@@ -2342,4 +2342,15 @@ select min(key1) from t1 where key1 >= 0.3762 and rand() + 0.5 >= 0.5;
 DROP TABLE t1,t2;
 --enable_ps_protocol
 
-# End of 4.1 tests
+#
+# Bug #22533: storing large hex strings
+#
+
+create table t1(a bigint unsigned, b bigint);
+insert into t1 values (0xfffffffffffffffff, 0xfffffffffffffffff), 
+  (0x10000000000000000, 0x10000000000000000), 
+  (0x8fffffffffffffff, 0x8fffffffffffffff);
+select hex(a), hex(b) from t1;
+drop table t1;
+
+--echo End of 4.1 tests

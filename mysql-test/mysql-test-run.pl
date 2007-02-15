@@ -301,6 +301,8 @@ our %mysqld_variables;
 
 my $source_dist= 0;
 
+our $opt_max_save_core= 5;
+my $num_saved_cores= 0;  # Number of core files saved in vardir/log/ so far.
 
 ######################################################################
 #
@@ -589,6 +591,7 @@ sub command_line_setup () {
              'strace-client'            => \$opt_strace_client,
              'master-binary=s'          => \$exe_master_mysqld,
              'slave-binary=s'           => \$exe_slave_mysqld,
+             'max-save-core=i'          => \$opt_max_save_core,
 
              # Coverage, profiling etc
              'gcov'                     => \$opt_gcov,
@@ -3301,10 +3304,12 @@ sub save_files_before_restore($$) {
   # Look for core files
   foreach my $core_file ( glob("$data_dir/core*") )
   {
+    last if $opt_max_save_core > 0 && $num_saved_cores >= $opt_max_save_core;
     my $core_name= basename($core_file);
     mtr_report("Saving $core_name");
     mkdir($save_name) if ! -d $save_name;
     rename("$core_file", "$save_name/$core_name");
+    ++$num_saved_cores;
   }
 }
 
@@ -4897,6 +4902,9 @@ Options for debugging the product
   master-binary=PATH    Specify the master "mysqld" to use
   slave-binary=PATH     Specify the slave "mysqld" to use
   strace-client         Create strace output for mysqltest client
+  max-save-core         Limit the number of core files saved (to avoid filling
+                        up disks for heavily crashing server). Defaults to
+                        $opt_max_save_core, set to 0 for no limit.
 
 Options for coverage, profiling etc
 
