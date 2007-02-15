@@ -2854,15 +2854,9 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
           /*
             We can't use indexes if the effective collation
             of the operation differ from the field collation.
-
-            We also cannot use index on a text column, as the column may
-            contain 'x' 'x\t' 'x ' and 'read_next_same' will stop after
-            'x' when searching for WHERE col='x '
           */
           if (field->cmp_type() == STRING_RESULT &&
-              (((Field_str*)field)->charset() != cond->compare_collation() ||
-               ((*value)->type() != Item::NULL_ITEM &&
-                (field->flags & BLOB_FLAG) && !field->binary())))
+              ((Field_str*)field)->charset() != cond->compare_collation())
             return;
         }
       }
