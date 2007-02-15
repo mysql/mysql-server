@@ -192,7 +192,6 @@ private:
   void execNDB_STARTCONF(Signal* signal);
   void execREAD_NODESREQ(Signal* signal);
   void execNDB_STARTREF(Signal* signal);
-  void execSET_VAR_REQ(Signal* signal);
 
   void execSTOP_PERM_REF(Signal* signal);
   void execSTOP_PERM_CONF(Signal* signal);

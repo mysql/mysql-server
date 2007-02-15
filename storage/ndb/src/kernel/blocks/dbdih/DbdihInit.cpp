@@ -203,7 +203,6 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_FSREADREF, &Dbdih::execFSREADREF, true);
   addRecSignal(GSN_FSWRITECONF, &Dbdih::execFSWRITECONF);
   addRecSignal(GSN_FSWRITEREF, &Dbdih::execFSWRITEREF, true);
-  addRecSignal(GSN_SET_VAR_REQ, &Dbdih::execSET_VAR_REQ);
 
   addRecSignal(GSN_START_INFOREQ, 
                &Dbdih::execSTART_INFOREQ);
