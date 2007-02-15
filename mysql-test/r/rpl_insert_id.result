@@ -196,7 +196,7 @@ id	last_id
 3	5
 drop function bug15728;
 drop function bug15728_insert;
-drop table t1;
+drop table t1,t2;
 drop procedure foo;
 create table t1 (n int primary key auto_increment not null,
 b int, unique(b));
