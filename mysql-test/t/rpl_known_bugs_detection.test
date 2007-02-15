@@ -6,6 +6,9 @@
 source include/have_debug.inc;
 source include/master-slave.inc;
 
+# Currently only statement-based-specific bugs are here
+-- source include/have_binlog_format_mixed_or_statement.inc
+
 #
 # This is to test that slave properly detects if
 # master may suffer from:
