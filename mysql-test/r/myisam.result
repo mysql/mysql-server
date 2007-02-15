@@ -1071,7 +1071,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	c	c	11	const	#	Using where; Using index
 explain select count(*) from t1 where t='a  ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	t	t	13	NULL	#	Using where
+1	SIMPLE	t1	ref	t	t	13	const	#	Using where
 explain select count(*) from t1 where v like 'a%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	13	NULL	#	Using where; Using index
