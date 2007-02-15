@@ -22,7 +22,10 @@
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
 #include <ErrorHandlingMacros.hpp>
-   
+#include <EventLogger.hpp>
+
+extern EventLogger g_eventLogger;
+
 extern "C" 
 void* 
 runWatchDog(void* w){
@@ -125,7 +128,7 @@ WatchDog::run(){
         last_stuck_action = "Unknown place";
         break;
       }//switch
-      ndbout << "Ndb kernel is stuck in: " << last_stuck_action << endl;
+      g_eventLogger.warning("Ndb kernel is stuck in: %s", last_stuck_action);
       if(alerts == 3){
 	shutdownSystem(last_stuck_action);
       }

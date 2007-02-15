@@ -20,6 +20,7 @@
 #include "ndb_logevent.h"
 
 #define MGM_LOGLEVELS CFG_MAX_LOGLEVEL - CFG_MIN_LOGLEVEL + 1
+#define NDB_MGM_MAX_LOGLEVEL 15
 
 /**
  * @mainpage MySQL Cluster Management API
