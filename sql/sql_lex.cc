@@ -1751,7 +1751,6 @@ bool st_lex::can_be_merged()
   }
 
   return (selects_allow_merge &&
-	  select_lex.order_list.elements == 0 &&
 	  select_lex.group_list.elements == 0 &&
 	  select_lex.having == 0 &&
           select_lex.with_sum_func == 0 &&
