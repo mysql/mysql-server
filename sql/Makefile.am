@@ -153,7 +153,8 @@ mysql_tzinfo_to_sql.o:	$(mysql_tzinfo_to_sql_SOURCES)
 # flags, so can't pregenerate and include in source TAR. Revert to
 # dist pregenerated if this changes, so the file doesn't differ.
 lex_hash.h:	gen_lex_hash$(EXEEXT)
-		./gen_lex_hash$(EXEEXT) > $@
+		./gen_lex_hash$(EXEEXT) > $@-t
+		$(MV) $@-t $@
 
 # the following three should eventually be moved out of this directory
 ha_ndbcluster.o:ha_ndbcluster.cc ha_ndbcluster.h
