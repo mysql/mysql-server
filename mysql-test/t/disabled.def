@@ -38,4 +38,5 @@ synchronization          : Bug#24529  	Test 'synchronization' fails on Mac pushb
 
 flush2                   : Bug#24805 Pushbuild can't handle test with --disable-log-bin
 mysql_upgrade            : Bug#25074 mysql_upgrade gives inconsisten results
+rpl_insert_id            : Guilhem will enable as soon as replication team tree has merged with main tree and so got version number 5.1.16
 
