@@ -69,13 +69,13 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     Test if the user wants to delete all rows and deletion doesn't have
     any side-effects (because of triggers), so we can use optimized
     handler::delete_all_rows() method.
-
-    If row-based replication is used, we also delete the table row by
-    row.
+    We implement fast TRUNCATE for InnoDB even if triggers are present. 
+    TRUNCATE ignores triggers.
   */
   if (!using_limit && const_cond && (!conds || conds->val_int()) &&
       !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
-      !(table->triggers && table->triggers->has_delete_triggers()) &&
+      (thd->lex->sql_command == SQLCOM_TRUNCATE ||
+       !(table->triggers && table->triggers->has_delete_triggers())) &&
       !thd->current_stmt_binlog_row_based)
   {
     /* Update the table->file->stats.records number */
@@ -153,7 +153,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
 
   if (order && order->elements)
   {
-    uint         length;
+    uint         length= 0;
     SORT_FIELD  *sortorder;
     TABLE_LIST   tables;
     List<Item>   fields;
@@ -173,7 +173,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       DBUG_RETURN(TRUE);
     }
     
-    if (!select && limit != HA_POS_ERROR)
+    if ((!select || table->quick_keys.is_clear_all()) && limit != HA_POS_ERROR)
       usable_index= get_index_for_order(table, (ORDER*)(order->first), limit);
 
     if (usable_index == MAX_KEY)

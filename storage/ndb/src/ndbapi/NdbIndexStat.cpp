@@ -240,7 +240,6 @@ NdbIndexStat::stat_oldest(const Area& a)
   m = ~(Uint32)0;     // shut up incorrect CC warning
   for (i = 0; i < a.m_entries; i++) {
     Pointer& p = a.get_pointer(i);
-    Entry& e = a.get_entry(i);
     Uint32 m2 = m_seq >= p.m_seq ? m_seq - p.m_seq : p.m_seq - m_seq;
     if (! found || m < m2) {
       m = m2;
@@ -427,7 +426,7 @@ NdbIndexStat::records_in_range(const NdbDictionary::Index* index, NdbIndexScanOp
       DBUG_RETURN(-1);
     }
     if (trans->execute(NdbTransaction::NoCommit,
-                       NdbTransaction::AbortOnError, forceSend) == -1) {
+                       NdbOperation::AbortOnError, forceSend) == -1) {
       m_error = trans->getNdbError();
       DBUG_PRINT("error", ("trans:%d op:%d", trans->getNdbError().code,
                            op->getNdbError().code));

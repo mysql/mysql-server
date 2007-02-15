@@ -426,7 +426,7 @@ rl_redisplay ()
 #if defined (HANDLE_MULTIBYTE)
   wchar_t wc;
   size_t wc_bytes;
-  int wc_width;
+  int wc_width= 0;
   mbstate_t ps;
   int _rl_wrapped_multicolumn = 0;
 #endif
@@ -524,6 +524,17 @@ rl_redisplay ()
       wrap_offset = prompt_invis_chars_first_line = 0;
     }
 
+#if defined (HANDLE_MULTIBYTE)	  
+#define CHECK_INV_LBREAKS() \
+      do { \
+	if (newlines >= (inv_lbsize - 2)) \
+	  { \
+	    inv_lbsize *= 2; \
+	    inv_lbreaks = (int *)xrealloc (inv_lbreaks, inv_lbsize * sizeof (int)); \
+            _rl_wrapped_line = (int *)xrealloc (_rl_wrapped_line, inv_lbsize * sizeof (int)); \
+	  } \
+      } while (0)
+#else
 #define CHECK_INV_LBREAKS() \
       do { \
 	if (newlines >= (inv_lbsize - 2)) \
@@ -532,6 +543,7 @@ rl_redisplay ()
 	    inv_lbreaks = (int *)xrealloc (inv_lbreaks, inv_lbsize * sizeof (int)); \
 	  } \
       } while (0)
+#endif
 
 #if defined (HANDLE_MULTIBYTE)	  
 #define CHECK_LPOS() \

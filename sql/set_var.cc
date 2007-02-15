@@ -116,9 +116,6 @@ TYPELIB delay_key_write_typelib=
   delay_key_write_type_names, NULL
 };
 
-static int sys_check_charset(THD *thd, set_var *var);
-static bool sys_update_charset(THD *thd, set_var *var);
-static void sys_set_default_charset(THD *thd, enum_var_type type);
 static int  sys_check_ftb_syntax(THD *thd,  set_var *var);
 static bool sys_update_ftb_syntax(THD *thd, set_var * var);
 static void sys_default_ftb_syntax(THD *thd, enum_var_type type);
@@ -1221,14 +1218,14 @@ static int check_completion_type(THD *thd, set_var *var)
 static void fix_net_read_timeout(THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL)
-    thd->net.read_timeout=thd->variables.net_read_timeout;
+    net_set_read_timeout(&thd->net, thd->variables.net_read_timeout);
 }
 
 
 static void fix_net_write_timeout(THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL)
-    thd->net.write_timeout=thd->variables.net_write_timeout;
+    net_set_write_timeout(&thd->net, thd->variables.net_write_timeout);
 }
 
 static void fix_net_retry_count(THD *thd, enum_var_type type)
@@ -1414,9 +1411,9 @@ static void fix_server_id(THD *thd, enum_var_type type)
 
 
 sys_var_long_ptr::
-sys_var_long_ptr(const char *name_arg, ulong *value_ptr,
+sys_var_long_ptr(const char *name_arg, ulong *value_ptr_arg,
                  sys_after_update_func after_update_arg)
-  :sys_var_long_ptr_global(name_arg, value_ptr,
+  :sys_var_long_ptr_global(name_arg, value_ptr_arg,
                            &LOCK_global_system_variables, after_update_arg)
 {}
 
@@ -1766,7 +1763,7 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
     /* As there was no local variable, return the global value */
     var_type= OPT_GLOBAL;
   }
-  switch (type()) {
+  switch (show_type()) {
   case SHOW_INT:
   {
     uint value;
@@ -3998,8 +3995,6 @@ sys_var_event_scheduler::update(THD *thd, set_var *var)
   }
 
   DBUG_PRINT("info", ("new_value: %d", (int) var->save_result.ulong_value));
-
-  Item_result var_type= var->value->result_type();
 
   if (var->save_result.ulong_value == Events::EVENTS_ON)
     res= Events::get_instance()->start_execution_of_events();

@@ -158,7 +158,12 @@ typedef struct st_table_share
   LEX_STRING path;                	/* Path to .frm file (from datadir) */
   LEX_STRING normalized_path;		/* unpack_filename(path) */
   LEX_STRING connect_string;
-  key_map keys_in_use;                  /* Keys in use for table */
+
+  /* 
+     Set of keys in use, implemented as a Bitmap.
+     Excludes keys disabled by ALTER TABLE ... DISABLE KEYS.
+  */
+  key_map keys_in_use;
   key_map keys_for_keyread;
   ha_rows min_rows, max_rows;		/* create information */
   ulong   avg_row_length;		/* create information */
@@ -313,7 +318,21 @@ struct st_table {
   byte *write_row_record;		/* Used as optimisation in
 					   THD::write_row */
   byte *insert_values;                  /* used by INSERT ... UPDATE */
-  key_map quick_keys, used_keys, keys_in_use_for_query, merge_keys;
+  key_map quick_keys, used_keys;
+
+  /*
+    A set of keys that can be used in the query that references this
+    table.
+
+    All indexes disabled on the table's TABLE_SHARE (see TABLE::s) will be 
+    subtracted from this set upon instantiation. Thus for any TABLE t it holds
+    that t.keys_in_use_for_query is a subset of t.s.keys_in_use. Generally we 
+    must not introduce any new keys here (see setup_tables).
+
+    The set is implemented as a bitmap.
+  */
+  key_map keys_in_use_for_query;
+  key_map merge_keys;
   KEY  *key_info;			/* data of keys in database */
 
   Field *next_number_field;		/* Set if next_number is activated */
@@ -452,6 +471,12 @@ struct st_table {
 
 };
 
+enum enum_schema_table_state
+{ 
+  NOT_PROCESSED= 0,
+  PROCESSED_BY_CREATE_SORT_INDEX,
+  PROCESSED_BY_JOIN_EXEC
+};
 
 typedef struct st_foreign_key_info
 {
@@ -460,6 +485,7 @@ typedef struct st_foreign_key_info
   LEX_STRING *referenced_table;
   LEX_STRING *update_method;
   LEX_STRING *delete_method;
+  LEX_STRING *referenced_key_name;
   List<LEX_STRING> foreign_fields;
   List<LEX_STRING> referenced_fields;
 } FOREIGN_KEY_INFO;
@@ -710,7 +736,6 @@ typedef struct st_table_list
   st_select_lex_unit *derived;		/* SELECT_LEX_UNIT of derived table */
   ST_SCHEMA_TABLE *schema_table;        /* Information_schema table */
   st_select_lex	*schema_select_lex;
-  bool is_schema_table_processed;
   /*
     True when the view field translation table is used to convert
     schema table fields for backwards compatibility with SHOW command.
@@ -820,6 +845,7 @@ typedef struct st_table_list
   */
   bool          prelocking_placeholder;
 
+  enum enum_schema_table_state schema_table_state;
   void calc_md5(char *buffer);
   void set_underlying_merge();
   int view_check_option(THD *thd, bool ignore_failure);

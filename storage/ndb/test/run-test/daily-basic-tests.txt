@@ -81,6 +81,10 @@ args: -n UpdateAndRead
 
 max-time: 500
 cmd: testBasic
+args: -n DeleteRead
+
+max-time: 500
+cmd: testBasic
 args: -n PkReadAndLocker T6 D1 D2
 
 max-time: 500
@@ -461,7 +465,7 @@ max-time: 500
 cmd: testScan
 args: -n Bug24447 T1
 
-max-time: 500
+max-time: 1000
 cmd: testScan
 args: -n ScanVariants
 
@@ -520,6 +524,10 @@ args: -n Bug25364 T1
 max-time: 1000
 cmd: testNodeRestart
 args: -n Bug25554 T1
+
+max-time: 1000
+cmd: testNodeRestart
+args: -n Bug25984
 
 #
 # DICT TESTS

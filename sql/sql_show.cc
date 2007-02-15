@@ -32,7 +32,6 @@
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
 #endif
-
 enum enum_i_s_events_fields
 {
   ISE_EVENT_CATALOG= 0,
@@ -57,11 +56,11 @@ enum enum_i_s_events_fields
 };
 
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static const char *grant_names[]={
   "select","insert","update","delete","create","drop","reload","shutdown",
   "process","file","grant","references","index","alter"};
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
                                "grant_types",
                                grant_names, NULL};
@@ -140,7 +139,6 @@ static my_bool show_plugins(THD *thd, st_plugin_int *plugin,
 {
   TABLE *table= (TABLE*) arg;
   struct st_mysql_plugin *plug= plugin->plugin;
-  Protocol *protocol= thd->protocol;
   CHARSET_INFO *cs= system_charset_info;
   char version_buf[20];
 
@@ -153,8 +151,7 @@ static my_bool show_plugins(THD *thd, st_plugin_int *plugin,
         cs);
 
 
-  switch (plugin->state)
-  {
+  switch (plugin->state) {
   /* case PLUGIN_IS_FREED: does not happen */
   case PLUGIN_IS_DELETED:
     table->field[2]->store(STRING_WITH_LEN("DELETED"), cs);
@@ -688,10 +685,10 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 bool mysqld_show_create_db(THD *thd, char *dbname,
                            HA_CREATE_INFO *create_info)
 {
-  Security_context *sctx= thd->security_ctx;
   char buff[2048];
   String buffer(buff, sizeof(buff), system_charset_info);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+  Security_context *sctx= thd->security_ctx;
   uint db_access;
 #endif
   HA_CREATE_INFO create;
@@ -1020,7 +1017,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                       HA_CREATE_INFO *create_info_arg)
 {
   List<Item> field_list;
-  char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], *end;
+  char tmp[MAX_FIELD_WIDTH], *for_str, buff[128];
   const char *alias;
   String type(tmp, sizeof(tmp), system_charset_info);
   Field **ptr,*field;
@@ -1307,8 +1304,9 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       but may extrapolate its existence from that of an AUTO_INCREMENT column.
     */
 
-    if(create_info.auto_increment_value > 1)
+    if (create_info.auto_increment_value > 1)
     {
+      char *end;
       packet->append(STRING_WITH_LEN(" AUTO_INCREMENT="));
       end= longlong10_to_str(create_info.auto_increment_value, buff,10);
       packet->append(buff, (uint) (end - buff));
@@ -1338,6 +1336,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 
     if (share->min_rows)
     {
+      char *end;
       packet->append(STRING_WITH_LEN(" MIN_ROWS="));
       end= longlong10_to_str(share->min_rows, buff, 10);
       packet->append(buff, (uint) (end- buff));
@@ -1345,6 +1344,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 
     if (share->max_rows && !table_list->schema_table)
     {
+      char *end;
       packet->append(STRING_WITH_LEN(" MAX_ROWS="));
       end= longlong10_to_str(share->max_rows, buff, 10);
       packet->append(buff, (uint) (end - buff));
@@ -1352,6 +1352,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 
     if (share->avg_row_length)
     {
+      char *end;
       packet->append(STRING_WITH_LEN(" AVG_ROW_LENGTH="));
       end= longlong10_to_str(share->avg_row_length, buff,10);
       packet->append(buff, (uint) (end - buff));
@@ -1372,6 +1373,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     }
     if (table->s->key_block_size)
     {
+      char *end;
       packet->append(STRING_WITH_LEN(" KEY_BLOCK_SIZE="));
       end= longlong10_to_str(table->s->key_block_size, buff, 10);
       packet->append(buff, (uint) (end - buff));
@@ -2067,7 +2069,7 @@ static bool show_status_array(THD *thd, const char *wild,
 
         if (show_type == SHOW_SYS)
         {
-          show_type= ((sys_var*) value)->type();
+          show_type= ((sys_var*) value)->show_type();
           value=     (char*) ((sys_var*) value)->value_ptr(thd, value_type,
                                                            &null_lex_str);
         }
@@ -2120,7 +2122,7 @@ static bool show_status_array(THD *thd, const char *wild,
           end= strend(pos);
           break;
         }
-        case SHOW_CHAR_PTR:
+       case SHOW_CHAR_PTR:
         {
           if (!(pos= *(char**) value))
             pos= "";
@@ -2451,10 +2453,48 @@ int make_db_list(THD *thd, List<char> *files,
                      mysql_data_home, NullS, 1) != FIND_FILES_OK);
 }
 
+struct st_add_schema_table 
+{
+  List<char> *files;
+  const char *wild;
+};
+
+static my_bool add_schema_table(THD *thd, st_plugin_int *plugin,
+                                void* p_data)
+{
+  st_add_schema_table *data= (st_add_schema_table *)p_data;
+  List<char> *file_list= data->files;
+  const char *wild= data->wild;
+  ST_SCHEMA_TABLE *schema_table= (ST_SCHEMA_TABLE *)plugin->data;
+  DBUG_ENTER("add_schema_table");
+
+  if (schema_table->hidden)
+      DBUG_RETURN(0);
+  if (wild)
+  {
+    if (lower_case_table_names)
+    {
+      if (wild_case_compare(files_charset_info,
+                            schema_table->table_name,
+                            wild))
+        DBUG_RETURN(0);
+    }
+    else if (wild_compare(schema_table->table_name, wild, 0))
+      DBUG_RETURN(0);
+  }
+
+  if (file_list->push_back(thd->strdup(schema_table->table_name)))
+    DBUG_RETURN(1);
+
+  DBUG_RETURN(0);
+}
 
 int schema_tables_add(THD *thd, List<char> *files, const char *wild)
 {
   ST_SCHEMA_TABLE *tmp_schema_table= schema_tables;
+  st_add_schema_table add_data;
+  DBUG_ENTER("schema_tables_add");
+
   for (; tmp_schema_table->table_name; tmp_schema_table++)
   {
     if (tmp_schema_table->hidden)
@@ -2472,9 +2512,16 @@ int schema_tables_add(THD *thd, List<char> *files, const char *wild)
         continue;
     }
     if (files->push_back(thd->strdup(tmp_schema_table->table_name)))
-      return 1;
+      DBUG_RETURN(1);
   }
-  return 0;
+
+  add_data.files= files;
+  add_data.wild= wild;
+  if (plugin_foreach(thd, add_schema_table,
+                     MYSQL_INFORMATION_SCHEMA_PLUGIN, &add_data))
+      DBUG_RETURN(1);
+
+  DBUG_RETURN(0);
 }
 
 
@@ -2496,19 +2543,21 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   List<char> bases;
   List_iterator_fast<char> it(bases);
   COND *partial_cond;
-  Security_context *sctx= thd->security_ctx;
   uint derived_tables= lex->derived_tables; 
   int error= 1;
   enum legacy_db_type not_used;
   Open_tables_state open_tables_state_backup;
   bool save_view_prepare_mode= lex->view_prepare_mode;
   Query_tables_list query_tables_list_backup;
-  lex->view_prepare_mode= TRUE;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  Security_context *sctx= thd->security_ctx;
+#endif
   DBUG_ENTER("get_all_tables");
 
   LINT_INIT(end);
   LINT_INIT(len);
 
+  lex->view_prepare_mode= TRUE;
   lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
 
   /*
@@ -2747,7 +2796,9 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
   bool with_i_schema;
   HA_CREATE_INFO create;
   TABLE *table= tables->table;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *sctx= thd->security_ctx;
+#endif
   DBUG_ENTER("fill_schema_shemata");
 
   if (make_db_list(thd, &files, &idx_field_vals,
@@ -3102,7 +3153,7 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
         field->real_type() == MYSQL_TYPE_VARCHAR ||  // For varbinary type
         field->real_type() == MYSQL_TYPE_STRING)     // For binary type
     {
-      uint32 octet_max_length= field->max_length();
+      uint32 octet_max_length= field->max_display_length();
       if (is_blob && octet_max_length != (uint32) 4294967295U)
         octet_max_length /= field->charset()->mbmaxlen;
       longlong char_max_len= is_blob ? 
@@ -3132,10 +3183,10 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_LONGLONG:
     case MYSQL_TYPE_INT24:
-      field_length= field->max_length() - 1;
+      field_length= field->max_display_length() - 1;
       break;
     case MYSQL_TYPE_BIT:
-      field_length= field->max_length();
+      field_length= field->max_display_length();
       decimals= -1;                             // return NULL
       break;
     case MYSQL_TYPE_FLOAT:  
@@ -3854,8 +3905,8 @@ static int get_schema_key_column_usage_record(THD *thd,
 
     show_table->file->get_foreign_key_list(thd, &f_key_list);
     FOREIGN_KEY_INFO *f_key_info;
-    List_iterator_fast<FOREIGN_KEY_INFO> it(f_key_list);
-    while ((f_key_info= it++))
+    List_iterator_fast<FOREIGN_KEY_INFO> fkey_it(f_key_list);
+    while ((f_key_info= fkey_it++))
     {
       LEX_STRING *f_info;
       LEX_STRING *r_info;
@@ -4019,7 +4070,6 @@ static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
     partition_element *part_elem;
     List_iterator<partition_element> part_it(part_info->partitions);
     uint part_pos= 0, part_id= 0;
-    uint no_parts= part_info->no_parts;
 
     restore_record(table, s->default_values);
     table->field[1]->store(base_name, strlen(base_name), cs);
@@ -4189,6 +4239,7 @@ static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
 }
 
 
+#ifdef NOT_USED
 static interval_type get_real_interval_type(interval_type i_type)
 {
   switch (i_type) {
@@ -4231,6 +4282,8 @@ static interval_type get_real_interval_type(interval_type i_type)
   DBUG_ASSERT(0);
   return INTERVAL_SECOND;
 }
+
+#endif
 
 
 /*
@@ -4497,8 +4550,10 @@ get_referential_constraints_record(THD *thd, struct st_table_list *tables,
                              f_key_info->forein_id->length, cs);
       table->field[4]->store(f_key_info->referenced_db->str, 
                              f_key_info->referenced_db->length, cs);
-      table->field[5]->store(f_key_info->referenced_table->str, 
+      table->field[10]->store(f_key_info->referenced_table->str, 
                              f_key_info->referenced_table->length, cs);
+      table->field[5]->store(f_key_info->referenced_key_name->str, 
+                             f_key_info->referenced_key_name->length, cs);
       table->field[6]->store(STRING_WITH_LEN("NONE"), cs);
       table->field[7]->store(f_key_info->update_method->str, 
                              f_key_info->update_method->length, cs);
@@ -4508,6 +4563,44 @@ get_referential_constraints_record(THD *thd, struct st_table_list *tables,
         DBUG_RETURN(1);
     }
   }
+  DBUG_RETURN(0);
+}
+
+struct schema_table_ref 
+{
+  const char *table_name;
+  ST_SCHEMA_TABLE *schema_table;
+};
+
+
+/*
+  Find schema_tables elment by name
+
+  SYNOPSIS
+    find_schema_table_in_plugin()
+    thd                 thread handler
+    plugin              plugin
+    table_name          table name
+
+  RETURN
+    0	table not found
+    1   found the schema table
+*/
+static my_bool find_schema_table_in_plugin(THD *thd, st_plugin_int *plugin,
+                                           void* p_table)
+{
+  schema_table_ref *p_schema_table= (schema_table_ref *)p_table;
+  const char* table_name= p_schema_table->table_name;
+  ST_SCHEMA_TABLE *schema_table= (ST_SCHEMA_TABLE *)plugin->data;
+  DBUG_ENTER("find_schema_table_in_plugin");
+
+  if (!my_strcasecmp(system_charset_info,
+                     schema_table->table_name,
+                     table_name)) {
+    p_schema_table->schema_table= schema_table;
+    DBUG_RETURN(1);
+  }
+
   DBUG_RETURN(0);
 }
 
@@ -4527,15 +4620,24 @@ get_referential_constraints_record(THD *thd, struct st_table_list *tables,
 
 ST_SCHEMA_TABLE *find_schema_table(THD *thd, const char* table_name)
 {
+  schema_table_ref schema_table_a;
   ST_SCHEMA_TABLE *schema_table= schema_tables;
+  DBUG_ENTER("find_schema_table");
+
   for (; schema_table->table_name; schema_table++)
   {
     if (!my_strcasecmp(system_charset_info,
                        schema_table->table_name,
                        table_name))
-      return schema_table;
+      DBUG_RETURN(schema_table);
   }
-  return 0;
+
+  schema_table_a.table_name= table_name;
+  if (plugin_foreach(thd, find_schema_table_in_plugin, 
+                     MYSQL_INFORMATION_SCHEMA_PLUGIN, &schema_table_a))
+    DBUG_RETURN(schema_table_a.schema_table);
+
+  DBUG_RETURN(NULL);
 }
 
 
@@ -4948,13 +5050,15 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
   SYNOPSIS
     get_schema_tables_result()
     join  join which use schema tables
+    executed_place place where I_S table processed
 
   RETURN
     FALSE success
     TRUE  error
 */
 
-bool get_schema_tables_result(JOIN *join)
+bool get_schema_tables_result(JOIN *join,
+                              enum enum_schema_table_state executed_place)
 {
   JOIN_TAB *tmp_join_tab= join->join_tab+join->tables;
   THD *thd= join->thd;
@@ -4974,15 +5078,26 @@ bool get_schema_tables_result(JOIN *join)
       bool is_subselect= (&lex->unit != lex->current_select->master_unit() &&
                           lex->current_select->master_unit()->item);
       /*
-        The schema table is already processed and 
-        the statement is not a subselect.
-        So we don't need to handle this table again.
+        If schema table is already processed and
+        the statement is not a subselect then
+        we don't need to fill this table again.
+        If schema table is already processed and
+        schema_table_state != executed_place then
+        table is already processed and
+        we should skip second data processing.
       */
-      if (table_list->is_schema_table_processed && !is_subselect)
+      if (table_list->schema_table_state &&
+          (!is_subselect || table_list->schema_table_state != executed_place))
         continue;
 
-      if (is_subselect) // is subselect
+      /*
+        if table is used in a subselect and
+        table has been processed earlier with the same
+        'executed_place' value then we should refresh the table.
+      */
+      if (table_list->schema_table_state && is_subselect)
       {
+        table_list->table->file->extra(HA_EXTRA_NO_CACHE);
         table_list->table->file->extra(HA_EXTRA_RESET_STATE);
         table_list->table->file->delete_all_rows();
         free_io_cache(table_list->table);
@@ -4997,10 +5112,10 @@ bool get_schema_tables_result(JOIN *join)
       {
         result= 1;
         join->error= 1;
-        table_list->is_schema_table_processed= TRUE;
+        table_list->schema_table_state= executed_place;
         break;
       }
-      table_list->is_schema_table_processed= TRUE;
+      table_list->schema_table_state= executed_place;
     }
   }
   thd->no_warnings_for_error= 0;
@@ -5026,7 +5141,6 @@ static my_bool run_hton_fill_schema_files(THD *thd, st_plugin_int *plugin,
 
 int fill_schema_files(THD *thd, TABLE_LIST *tables, COND *cond)
 {
-  TABLE *table= tables->table;
   DBUG_ENTER("fill_schema_files");
 
   struct run_hton_fill_schema_files_args args;
@@ -5084,7 +5198,7 @@ int fill_schema_status(THD *thd, SHOW_VAR *variables,
       
       if (show_type == SHOW_SYS)
       {
-        show_type= ((sys_var*) value)->type();
+        show_type= ((sys_var*) value)->show_type();
         value= (char*) ((sys_var*) value)->value_ptr(thd, OPT_GLOBAL,
                                                      &null_lex_str);
       }
@@ -5668,6 +5782,7 @@ ST_FIELD_INFO referential_constraints_fields_info[]=
   {"UPDATE_RULE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"DELETE_RULE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"REFERENCED_TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
@@ -5752,3 +5867,54 @@ ST_SCHEMA_TABLE schema_tables[]=
 template class List_iterator_fast<char>;
 template class List<char>;
 #endif
+
+int initialize_schema_table(st_plugin_int *plugin)
+{
+  ST_SCHEMA_TABLE *schema_table;
+  DBUG_ENTER("initialize_schema_table");
+
+  if (!(schema_table= (ST_SCHEMA_TABLE *)my_malloc(sizeof(ST_SCHEMA_TABLE),
+                                MYF(MY_WME | MY_ZEROFILL))))
+      DBUG_RETURN(1);
+  /* Historical Requirement */
+  plugin->data= schema_table; // shortcut for the future
+  if (plugin->plugin->init)
+  {
+    schema_table->create_table= create_schema_table;
+    schema_table->old_format= make_old_format;
+    schema_table->idx_field1= -1, 
+    schema_table->idx_field2= -1; 
+
+    if (plugin->plugin->init(schema_table))
+    {
+      sql_print_error("Plugin '%s' init function returned error.",
+                      plugin->name.str);
+      goto err;
+    }
+    schema_table->table_name= plugin->name.str;
+  }
+
+  DBUG_RETURN(0);
+err:
+  my_free((gptr)schema_table, MYF(0));
+  DBUG_RETURN(1);
+}
+
+int finalize_schema_table(st_plugin_int *plugin)
+{
+  ST_SCHEMA_TABLE *schema_table= (ST_SCHEMA_TABLE *)plugin->data;
+  DBUG_ENTER("finalize_schema_table");
+
+  if (schema_table && plugin->plugin->deinit)
+  {
+    DBUG_PRINT("info", ("Deinitializing plugin: '%s'", plugin->name.str));
+    if (plugin->plugin->deinit(NULL))
+    {
+      DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
+                             plugin->name.str));
+    }
+    my_free((gptr)schema_table, MYF(0));
+  }
+
+  DBUG_RETURN(0);
+}

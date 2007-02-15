@@ -2000,6 +2000,65 @@ SELECT a FROM t1 WHERE (SELECT 1 FROM DUAL WHERE 1=0) IS NULL;
 EXPLAIN SELECT a FROM t1 WHERE (SELECT 1 FROM DUAL WHERE 1=0) IS NULL;
 
 DROP TABLE t1;
+
+#
+# Bug 24653: sorting by expressions containing subselects 
+#            that return more than one row
+#
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (2), (4), (1), (3);
+
+CREATE TABLE t2 (b int, c int);
+INSERT INTO t2 VALUES
+  (2,1), (1,3), (2,1), (4,4), (2,2), (1,4);
+
+SELECT a FROM t1 ORDER BY (SELECT c FROM t2 WHERE b > 2 );
+--error 1242   
+SELECT a FROM t1 ORDER BY (SELECT c FROM t2 WHERE b > 1);  
+SELECT a FROM t1 ORDER BY (SELECT c FROM t2 WHERE b > 2), a;  
+--error 1242   
+SELECT a FROM t1 ORDER BY (SELECT c FROM t2 WHERE b > 1), a;
+ 
+SELECT b, MAX(c) FROM t2 GROUP BY b, (SELECT c FROM t2 WHERE b > 2);
+--error 1242
+SELECT b, MAX(c) FROM t2 GROUP BY b, (SELECT c FROM t2 WHERE b > 1);
+
+
+SELECT a FROM t1 GROUP BY a
+  HAVING IFNULL((SELECT b FROM t2 WHERE b > 2),
+                (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b)) > 3;
+--error 1242
+SELECT a FROM t1 GROUP BY a
+  HAVING IFNULL((SELECT b FROM t2 WHERE b > 1),
+                (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b)) > 3;
+
+SELECT a FROM t1 GROUP BY a
+  HAVING IFNULL((SELECT b FROM t2 WHERE b > 4),
+                (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b)) > 3;
+--error 1242 
+SELECT a FROM t1 GROUP BY a
+  HAVING IFNULL((SELECT b FROM t2 WHERE b > 4),
+                (SELECT c FROM t2 WHERE c=a AND b > 1 ORDER BY b)) > 3;
+
+SELECT a FROM t1 
+  ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 2),
+                  (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b));
+--error 1242
+SELECT a FROM t1 
+  ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 1),
+                  (SELECT c FROM t2 WHERE c=a AND b > 1 ORDER BY b));
+
+SELECT a FROM t1 
+  ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 4),
+                  (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b));
+--error 1242
+SELECT a FROM t1 
+  ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 4),
+                  (SELECT c FROM t2 WHERE c=a AND b > 1 ORDER BY b));
+
+DROP TABLE t1,t2; 
+
 # End of 4.1 tests
 
 #
@@ -2508,6 +2567,40 @@ SELECT SQL_NO_CACHE COUNT(*)
           FROM t1) t;
 
 DROP TABLE t1,t2;
+
+#
+# Bug #25219: EXIST subquery with UNION over a mix of
+#             correlated and uncorrelated selects
+#             
+
+CREATE TABLE t1 (id char(4) PRIMARY KEY, c int);
+CREATE TABLE t2 (c int);
+
+INSERT INTO t1 VALUES ('aa', 1);
+INSERT INTO t2 VALUES (1);
+
+SELECT * FROM t1 
+  WHERE EXISTS (SELECT c FROM t2 WHERE c=1
+                UNION 
+                SELECT c from t2 WHERE c=t1.c);
+
+INSERT INTO t1 VALUES ('bb', 2), ('cc', 3), ('dd',1);
+
+SELECT * FROM t1 
+  WHERE EXISTS (SELECT c FROM t2 WHERE c=1
+                UNION 
+                SELECT c from t2 WHERE c=t1.c);
+
+INSERT INTO t2 VALUES (2);
+CREATE TABLE t3 (c int);
+INSERT INTO t3 VALUES (1);
+
+SELECT * FROM t1 
+  WHERE EXISTS (SELECT t2.c FROM t2 JOIN t3 ON t2.c=t3.c WHERE t2.c=1
+                UNION 
+                SELECT c from t2 WHERE c=t1.c);
+
+DROP TABLE t1,t2,t3;
 
 #
 # Bug#20835 (literal string with =any values)

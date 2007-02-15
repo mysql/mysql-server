@@ -45,5 +45,11 @@ void unireg_init(ulong options)
   {					/* It's used by filesort... */
     log_10[i]= nr ; nr*= 10.0;
   }
+  /* Make a tab of powers of 0.1 */
+  for (i= 0, nr= 0.1; i < array_elements(log_01); i++)
+  {
+    log_01[i]= nr;
+    nr*= 0.1;
+  }
   DBUG_VOID_RETURN;
 }

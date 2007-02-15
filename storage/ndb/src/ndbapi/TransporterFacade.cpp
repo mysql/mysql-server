@@ -1379,7 +1379,7 @@ int PollGuard::wait_scan(int wait_time, NodeId nodeId, bool forceSend)
 
 int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
 {
-  int ret_val, response_time;
+  int ret_val;
   if (forceSend)
     m_tp->forceSend(m_block_no);
   else
@@ -1403,7 +1403,7 @@ int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
     }
     if (wait_time == -1)
     {
-#ifdef VM_TRACE
+#ifdef NOT_USED
       ndbout << "Waited WAITFOR_RESPONSE_TIMEOUT, continuing wait" << endl;
 #endif
       continue;
@@ -1441,7 +1441,7 @@ void PollGuard::wait_for_input(int wait_time)
       queue if it hasn't happened already. It is usually already out of the
       queue but at time-out it could be that the object is still there.
     */
-    Uint32 cond_wait_index= m_tp->put_in_cond_wait_queue(m_waiter);
+    (void) m_tp->put_in_cond_wait_queue(m_waiter);
     m_waiter->wait(wait_time);
     if (m_waiter->get_cond_wait_index() != TransporterFacade::MAX_NO_THREADS)
     {

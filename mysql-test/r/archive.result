@@ -1,4 +1,5 @@
-drop table if exists t1,t2,t3,t4,t5;
+DROP TABLE if exists t1,t2,t3,t4,t5,t6;
+SET storage_engine=ARCHIVE;
 CREATE TABLE t1 (
 Period smallint(4) unsigned zerofill DEFAULT '0000' NOT NULL,
 Varor_period smallint(4) unsigned DEFAULT '0' NOT NULL
@@ -184,7 +185,7 @@ fld1	fld3
 250503	heaving
 250504	population
 250505	bomb
-create table t3 engine=archive select * FROM t2;
+CREATE TABLE t3 engine=archive select * FROM t2;
 select * FROM t3 where fld3='bonfire';
 auto	fld1	companynr	fld3	fld4	fld5	fld6
 1191	068504	00	bonfire	corresponds	positively	
@@ -12358,7 +12359,7 @@ CREATE TABLE `t5` (
 `a` int(11) NOT NULL auto_increment,
 b char(12),
 PRIMARY KEY  (`a`)
-) ENGINE=ARCHIVE DEFAULT CHARSET=latin1;
+)  DEFAULT CHARSET=latin1;
 INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (NULL, "foo");
@@ -12366,6 +12367,7 @@ INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (32, "foo");
 INSERT INTO t5 VALUES (23, "foo");
+ERROR 23000: Can't write; duplicate key in table 't5'
 INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (3, "foo");
@@ -12379,7 +12381,6 @@ a	b
 4	foo
 5	foo
 32	foo
-23	foo
 33	foo
 34	foo
 35	foo
@@ -12391,7 +12392,7 @@ CREATE TABLE `t5` (
 `a` int(11) NOT NULL auto_increment,
 b char(12),
 KEY  (`a`)
-) ENGINE=ARCHIVE DEFAULT CHARSET=latin1 AUTO_INCREMENT=5;
+)  DEFAULT CHARSET=latin1 AUTO_INCREMENT=5;
 INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (NULL, "foo");
@@ -12443,7 +12444,7 @@ CREATE TABLE `t5` (
 `a` int(11) NOT NULL auto_increment,
 b blob(12),
 KEY  (`a`)
-) ENGINE=ARCHIVE DEFAULT CHARSET=latin1;
+)  DEFAULT CHARSET=latin1;
 INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (NULL, "We the people");
 INSERT INTO t5 VALUES (NULL, "in order to form a more pefect union");
@@ -12496,7 +12497,7 @@ CREATE TABLE `t5` (
 b blob(12),
 c blob(12),
 KEY  (`a`)
-) ENGINE=ARCHIVE DEFAULT CHARSET=latin1;
+)  DEFAULT CHARSET=latin1;
 INSERT INTO t5 VALUES (NULL, "foo", "grok this!");
 INSERT INTO t5 VALUES (NULL, "We the people", NULL);
 INSERT INTO t5 VALUES (NULL, "in order to form a more peefect union", "secure the blessing of liberty");
@@ -12545,8 +12546,8 @@ SELECT c FROM t5 WHERE a IN (32, 23, 5);
 c
 NULL
 posterity
-drop table t1;
-create table t1 (v varchar(32));
+DROP TABLE t1;
+CREATE TABLE t1 (v varchar(32)) ;
 insert into t1 values ('def'),('abc'),('hij'),('3r4f');
 select * from t1;
 v
@@ -12554,68 +12555,34 @@ def
 abc
 hij
 3r4f
-alter table t1 change v v2 varchar(32);
+ALTER TABLE t1 change v v2 varchar(32);
 select * from t1;
 v2
 def
 abc
 hij
 3r4f
-alter table t1 change v2 v varchar(64);
+ALTER TABLE t1 change v2 v varchar(64);
 select * from t1;
 v
 def
 abc
 hij
 3r4f
-update t1 set v = 'lmn' where v = 'hij';
-select * from t1;
-v
-def
-abc
-lmn
-3r4f
-alter table t1 add i int auto_increment not null primary key first;
+ALTER TABLE t1 add i int auto_increment not null primary key first;
 select * from t1;
 i	v
 1	def
 2	abc
-3	lmn
+3	hij
 4	3r4f
-update t1 set i=5 where i=3;
-select * from t1;
-i	v
-1	def
-2	abc
-5	lmn
-4	3r4f
-alter table t1 change i i bigint;
-select * from t1;
-i	v
-1	def
-2	abc
-5	lmn
-4	3r4f
-alter table t1 add unique key (i, v);
-select * from t1 where i between 2 and 4 and v in ('def','3r4f','lmn');
-i	v
-4	3r4f
-alter table t1 data directory="$MYSQLTEST_VARDIR/tmp";
-Warnings:
-Warning	0	DATA DIRECTORY option ignored
-select * from t1;
-i	v
-1	def
-2	abc
-4	3r4f
-5	lmn
 DROP TABLE t5;
 CREATE TABLE `t5` (
 `a` int(11) NOT NULL auto_increment,
 b varchar(250),
 c varchar(800),
 KEY  (`a`)
-) ENGINE=ARCHIVE DEFAULT CHARSET=latin1;
+)  DEFAULT CHARSET=latin1;
 INSERT INTO t5 VALUES (NULL, "foo", "grok this!");
 INSERT INTO t5 VALUES (NULL, "We the people", NULL);
 INSERT INTO t5 VALUES (NULL, "in order to form a more peefect union", "secure the blessing of liberty");
@@ -12636,4 +12603,66 @@ a	b	c
 23	provide for the common defense	posterity
 33	promote the general welfare	do ordain
 34	abcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyz	do ordain
-drop table t1, t2, t4, t5;
+CREATE TABLE `t6` (
+`a` int(11) NOT NULL auto_increment,
+b blob(12),
+c int,
+KEY  (`a`)
+)  DEFAULT CHARSET=latin1;
+SELECT * FROM t6;
+a	b	c
+INSERT INTO t6 VALUES (NULL, "foo", NULL);
+INSERT INTO t6 VALUES (NULL, "We the people", 5);
+INSERT INTO t6 VALUES (NULL, "in order to form a more pefect union", 9);
+INSERT INTO t6 VALUES (NULL, "establish justice", NULL);
+INSERT INTO t6 VALUES (NULL, NULL, NULL);
+INSERT INTO t6 VALUES (32, "ensure domestic tranquility", NULL);
+INSERT INTO t6 VALUES (23, "provide for the common defense", 30);
+INSERT INTO t6 VALUES (NULL, "fo fooo", 70);
+INSERT INTO t6 VALUES (NULL, NULL, 98);
+INSERT INTO t6 VALUES (NULL, "promote the general welfare", 50);
+SELECT * FROM t6;
+a	b	c
+1	foo	NULL
+2	We the people	5
+3	in order to form a more pefect union	9
+4	establish justice	NULL
+5	NULL	NULL
+32	ensure domestic tranquility	NULL
+23	provide for the common defense	30
+33	fo fooo	70
+34	NULL	98
+35	promote the general welfare	50
+SELECT * FROM t6 ORDER BY a;
+a	b	c
+1	foo	NULL
+2	We the people	5
+3	in order to form a more pefect union	9
+4	establish justice	NULL
+5	NULL	NULL
+23	provide for the common defense	30
+32	ensure domestic tranquility	NULL
+33	fo fooo	70
+34	NULL	98
+35	promote the general welfare	50
+SELECT * FROM t6 ORDER BY a DESC;
+a	b	c
+35	promote the general welfare	50
+34	NULL	98
+33	fo fooo	70
+32	ensure domestic tranquility	NULL
+23	provide for the common defense	30
+5	NULL	NULL
+4	establish justice	NULL
+3	in order to form a more pefect union	9
+2	We the people	5
+1	foo	NULL
+SHOW CREATE TABLE t6;
+Table	Create Table
+t6	CREATE TABLE `t6` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` tinyblob,
+  `c` int(11) DEFAULT NULL,
+  KEY `a` (`a`)
+) ENGINE=ARCHIVE DEFAULT CHARSET=latin1
+DROP TABLE t1, t2, t4, t5, t6;

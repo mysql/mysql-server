@@ -1,27 +1,20 @@
-/* algebra.cpp                                
- *
- * Copyright (C) 2003 Sawtooth Consulting Ltd.
- *
- * This file is part of yaSSL.
- *
- * yaSSL is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * There are special exceptions to the terms and conditions of the GPL as it
- * is applied to yaSSL. View the full text of the exception in the file
- * FLOSS-EXCEPTIONS in the directory of this software distribution.
- *
- * yaSSL is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
- */
+/*
+   Copyright (C) 2000-2007 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; see the file COPYING. If not, write to the
+   Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+   MA  02110-1301  USA.
+*/
 
 /* based on Wei Dai's algebra.cpp from CryptoPP */
 #undef  NDEBUG
@@ -193,10 +186,10 @@ Integer AbstractGroup::CascadeScalarMultiply(const Element &x,
 
 struct WindowSlider
 {
-    WindowSlider(const Integer &exp, bool fastNegate,
+    WindowSlider(const Integer &exp_arg, bool fastNegate_arg,
                  unsigned int windowSizeIn=0)
-        : exp(exp), windowModulus(Integer::One()), windowSize(windowSizeIn),
-          windowBegin(0), fastNegate(fastNegate), firstTime(true),
+        : exp(exp_arg), windowModulus(Integer::One()), windowSize(windowSizeIn),
+          windowBegin(0), fastNegate(fastNegate_arg), firstTime(true),
           finished(false)
     {
         if (windowSize == 0)

@@ -2375,4 +2375,18 @@ va_list ap;
 
 #endif  /* NO_VARARGS */
 
+#else
+
+/*
+ * Dummy function, workaround for MySQL bug#14420 related
+ * build failure on a platform where linking with an empty
+ * archive fails.
+ *
+ * This block can be removed as soon as a fix for bug#14420
+ * is implemented.
+ */
+int i_am_a_dummy_function() {
+       return 0;
+}
+
 #endif

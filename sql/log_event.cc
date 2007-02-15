@@ -139,22 +139,6 @@ static void pretty_print_str(IO_CACHE* cache, char* str, int len)
 }
 #endif /* MYSQL_CLIENT */
 
-#ifdef HAVE_purify
-static void
-valgrind_check_mem(void *ptr, size_t len)
-{
-  static volatile uchar dummy;
-  for (volatile uchar *p= (uchar*) ptr ; p != (uchar*) ptr + len ; ++p)
-  {
-    int const c = *p;
-    if (c < 128)
-      dummy= c + 1;
-    else
-      dummy = c - 1;
-  }
-}
-#endif
-
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 
 static void clear_all_errors(THD *thd, struct st_relay_log_info *rli)
@@ -381,12 +365,14 @@ append_query_string(CHARSET_INFO *csinfo,
 }
 #endif
 
+
 /*
   Prints a "session_var=value" string. Used by mysqlbinlog to print some SET
   commands just before it prints a query.
 */
 
 #ifdef MYSQL_CLIENT
+
 static void print_set_option(IO_CACHE* file, uint32 bits_changed,
                              uint32 option, uint32 flags, const char* name,
                              bool* need_comma)
@@ -3269,7 +3255,6 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       thd->main_lex.select_lex.context.resolve_in_table_list_only(&tables);
       set_fields(tables.db, field_list, &thd->main_lex.select_lex.context);
       thd->variables.pseudo_thread_id= thread_id;
-      List<Item> set_fields;
       if (net)
       {
 	// mysql_load will use thd->net to read the file
@@ -3280,10 +3265,11 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 	thd->net.pkt_nr = net->pkt_nr;
       }
       /*
-        It is safe to use set_fields twice because we are not going to
+        It is safe to use tmp_list twice because we are not going to
         update it inside mysql_load().
       */
-      if (mysql_load(thd, &ex, &tables, field_list, set_fields, set_fields,
+      List<Item> tmp_list;
+      if (mysql_load(thd, &ex, &tables, field_list, tmp_list, tmp_list,
                      handle_dup, ignore, net != 0))
         thd->query_error= 1;
       if (thd->cuted_fields)
@@ -5481,7 +5467,6 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
   if (static_cast<my_size_t>(m_rows_end - m_rows_cur) < length)
   {
     my_size_t const block_size= 1024;
-    my_ptrdiff_t const old_alloc= m_rows_end - m_rows_buf;
     my_ptrdiff_t const cur_size= m_rows_cur - m_rows_buf;
     my_ptrdiff_t const new_alloc= 
         block_size * ((cur_size + length) / block_size + block_size - 1);
@@ -5717,9 +5702,26 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
     {
       if (!need_reopen)
       {
-        slave_print_msg(ERROR_LEVEL, rli, error,
-                        "Error in %s event: when locking tables",
-                        get_type_str());
+        if (thd->query_error || thd->is_fatal_error)
+        {
+          /*
+            Error reporting borrowed from Query_log_event with many excessive
+            simplifications (we don't honour --slave-skip-errors)
+          */
+          uint actual_error= thd->net.last_errno;
+          slave_print_msg(ERROR_LEVEL, rli, actual_error,
+                          "Error '%s' in %s event: when locking tables",
+                          (actual_error ? thd->net.last_error :
+                           "unexpected success or fatal error"),
+                          get_type_str());
+          thd->is_fatal_error= 1;
+        }
+        else
+        {
+          slave_print_msg(ERROR_LEVEL, rli, error,
+                         "Error in %s event: when locking tables",
+                         get_type_str());
+        }
         rli->clear_tables_to_lock();
         DBUG_RETURN(error);
       }

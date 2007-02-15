@@ -220,6 +220,8 @@ my_bool net_realloc(NET *net, ulong length)
     -1  Don't know if data is ready or not
 */
 
+#if !defined(EMBEDDED_LIBRARY)
+
 static int net_data_is_ready(my_socket sd)
 {
 #ifdef HAVE_POLL
@@ -254,9 +256,10 @@ static int net_data_is_ready(my_socket sd)
     return 0;
   else
     return test(res ? FD_ISSET(sd, &sfds) : 0);
-#endif
+#endif /* HAVE_POLL */
 }
 
+#endif /* EMBEDDED_LIBRARY */
 
 /*
   Remove unwanted characters from connection
@@ -282,8 +285,11 @@ static int net_data_is_ready(my_socket sd)
 
 void net_clear(NET *net, my_bool clear_buffer)
 {
+#if !defined(EMBEDDED_LIBRARY)
   int count, ready;
+#endif
   DBUG_ENTER("net_clear");
+
 #if !defined(EMBEDDED_LIBRARY)
   if (clear_buffer)
   {
@@ -295,7 +301,7 @@ void net_clear(NET *net, my_bool clear_buffer)
       {
         DBUG_PRINT("info",("skipped %d bytes from file: %s",
                            count, vio_description(net->vio)));
-#ifdef EXTRA_DEBUG
+#if defined(EXTRA_DEBUG) && (MYSQL_VERSION_ID < 51000)
         fprintf(stderr,"Error: net_clear() skipped %d bytes from file: %s\n",
                 count, vio_description(net->vio));
 #endif
@@ -609,7 +615,7 @@ net_real_write(NET *net,const char *packet,ulong len)
     thr_alarm(&alarmed,(uint) net->write_timeout,&alarm_buff);
 #else
   alarmed=0;
-  vio_timeout(net->vio, 1, net->write_timeout);
+  /* Write timeout is set in net_set_write_timeout */
 #endif /* NO_ALARM */
 
   pos=(char*) packet; end=pos+len;
@@ -802,7 +808,7 @@ my_real_read(NET *net, ulong *complen)
   if (net_blocking)
     thr_alarm(&alarmed,net->read_timeout,&alarm_buff);
 #else
-  vio_timeout(net->vio, 0, net->read_timeout);
+  /* Read timeout is set in net_set_read_timeout */
 #endif /* NO_ALARM */
 
     pos = net->buff + net->where_b;		/* net->packet -4 */
@@ -1113,3 +1119,26 @@ my_net_read(NET *net)
   return len;
 }
 
+
+void net_set_read_timeout(NET *net, uint timeout)
+{
+  DBUG_ENTER("net_set_read_timeout");
+  DBUG_PRINT("enter", ("timeout: %d", timeout));
+  net->read_timeout= timeout;
+#ifdef NO_ALARM
+  vio_timeout(net->vio, 0, timeout);
+#endif
+  DBUG_VOID_RETURN;
+}
+
+
+void net_set_write_timeout(NET *net, uint timeout)
+{
+  DBUG_ENTER("net_set_write_timeout");
+  DBUG_PRINT("enter", ("timeout: %d", timeout));
+  net->write_timeout= timeout;
+#ifdef NO_ALARM
+  vio_timeout(net->vio, 1, timeout);
+#endif
+  DBUG_VOID_RETURN;
+}

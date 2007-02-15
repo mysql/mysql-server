@@ -57,10 +57,10 @@ typedef ulonglong nested_join_map;
 
 /* query_id */
 typedef ulonglong query_id_t;
-extern query_id_t query_id;
+extern query_id_t global_query_id;
 
 /* increment query_id and return it.  */
-inline query_id_t next_query_id() { return query_id++; }
+inline query_id_t next_query_id() { return global_query_id++; }
 
 /* useful constants */
 extern const key_map key_map_empty;
@@ -86,6 +86,9 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query);
 void sql_kill(THD *thd, ulong id, bool only_kill_query);
 bool net_request_file(NET* net, const char* fname);
 char* query_table_status(THD *thd,const char *db,const char *table_name);
+
+void net_set_write_timeout(NET *net, uint timeout);
+void net_set_read_timeout(NET *net, uint timeout);
 
 #define x_free(A)	{ my_free((gptr) (A),MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR)); }
 #define safeFree(x)	{ if(x) { my_free((gptr) x,MYF(0)); x = NULL; } }
@@ -167,7 +170,7 @@ MY_LOCALE *my_locale_by_number(uint number);
  Feel free to raise this by the smallest amount you can to get the
  "execution_constants" test to pass.
  */
-#define STACK_MIN_SIZE          10788   // Abort if less stack during eval.
+#define STACK_MIN_SIZE          12000   // Abort if less stack during eval.
 
 #define STACK_MIN_SIZE_FOR_OPEN 1024*80
 #define STACK_BUFF_ALLOC	256	// For stack overrun checks
@@ -307,33 +310,33 @@ MY_LOCALE *my_locale_by_number(uint number);
    TODO: separate three contexts above, move them to separate bitfields.
 */
 
-#define SELECT_DISTINCT          (ULL(1) << 0)       // SELECT, user
-#define SELECT_STRAIGHT_JOIN     (ULL(1) << 1)       // SELECT, user
-#define SELECT_DESCRIBE          (ULL(1) << 2)       // SELECT, user
-#define SELECT_SMALL_RESULT      (ULL(1) << 3)       // SELECT, user
-#define SELECT_BIG_RESULT        (ULL(1) << 4)       // SELECT, user
-#define OPTION_FOUND_ROWS        (ULL(1) << 5)       // SELECT, user
-#define OPTION_TO_QUERY_CACHE    (ULL(1) << 6)       // SELECT, user
-#define SELECT_NO_JOIN_CACHE     (ULL(1) << 7)       // intern
-#define OPTION_BIG_TABLES        (ULL(1) << 8)       // THD, user
-#define OPTION_BIG_SELECTS       (ULL(1) << 9)       // THD, user
-#define OPTION_LOG_OFF           (ULL(1) << 10)      // THD, user
-#define OPTION_QUOTE_SHOW_CREATE (ULL(1) << 11)      // THD, user
-#define TMP_TABLE_ALL_COLUMNS    (ULL(1) << 12)      // SELECT, intern
-#define OPTION_WARNINGS          (ULL(1) << 13)      // THD, user
-#define OPTION_AUTO_IS_NULL      (ULL(1) << 14)      // THD, user, binlog
-#define OPTION_FOUND_COMMENT     (ULL(1) << 15)      // SELECT, intern, parser
-#define OPTION_SAFE_UPDATES      (ULL(1) << 16)      // THD, user
-#define OPTION_BUFFER_RESULT     (ULL(1) << 17)      // SELECT, user
-#define OPTION_BIN_LOG           (ULL(1) << 18)      // THD, user
-#define OPTION_NOT_AUTOCOMMIT    (ULL(1) << 19)      // THD, user
-#define OPTION_BEGIN             (ULL(1) << 20)      // THD, intern
-#define OPTION_TABLE_LOCK        (ULL(1) << 21)      // THD, intern
-#define OPTION_QUICK             (ULL(1) << 22)      // SELECT (for DELETE)
-#define OPTION_KEEP_LOG          (ULL(1) << 23)      // Keep binlog on rollback
+#define SELECT_DISTINCT         (ULL(1) << 0)     // SELECT, user
+#define SELECT_STRAIGHT_JOIN    (ULL(1) << 1)     // SELECT, user
+#define SELECT_DESCRIBE         (ULL(1) << 2)     // SELECT, user
+#define SELECT_SMALL_RESULT     (ULL(1) << 3)     // SELECT, user
+#define SELECT_BIG_RESULT       (ULL(1) << 4)     // SELECT, user
+#define OPTION_FOUND_ROWS       (ULL(1) << 5)     // SELECT, user
+#define OPTION_TO_QUERY_CACHE   (ULL(1) << 6)     // SELECT, user
+#define SELECT_NO_JOIN_CACHE    (ULL(1) << 7)     // intern
+#define OPTION_BIG_TABLES       (ULL(1) << 8)     // THD, user
+#define OPTION_BIG_SELECTS      (ULL(1) << 9)     // THD, user
+#define OPTION_LOG_OFF          (ULL(1) << 10)    // THD, user
+#define OPTION_QUOTE_SHOW_CREATE (ULL(1) << 11)   // THD, user, unused
+#define TMP_TABLE_ALL_COLUMNS   (ULL(1) << 12)    // SELECT, intern
+#define OPTION_WARNINGS         (ULL(1) << 13)    // THD, user
+#define OPTION_AUTO_IS_NULL     (ULL(1) << 14)    // THD, user, binlog
+#define OPTION_FOUND_COMMENT    (ULL(1) << 15)    // SELECT, intern, parser
+#define OPTION_SAFE_UPDATES     (ULL(1) << 16)    // THD, user
+#define OPTION_BUFFER_RESULT    (ULL(1) << 17)    // SELECT, user
+#define OPTION_BIN_LOG          (ULL(1) << 18)    // THD, user
+#define OPTION_NOT_AUTOCOMMIT   (ULL(1) << 19)    // THD, user
+#define OPTION_BEGIN            (ULL(1) << 20)    // THD, intern
+#define OPTION_TABLE_LOCK       (ULL(1) << 21)    // THD, intern
+#define OPTION_QUICK            (ULL(1) << 22)    // SELECT (for DELETE)
+#define OPTION_KEEP_LOG         (ULL(1) << 23)    // THD, user
 
 /* The following is used to detect a conflict with DISTINCT */
-#define SELECT_ALL               (ULL(1) << 24)      // SELECT, user, parser
+#define SELECT_ALL              (ULL(1) << 24)    // SELECT, user, parser
 
 /* Set if we are updating a non-transaction safe table */
 #define OPTION_STATUS_NO_TRANS_UPDATE   (ULL(1) << 25) // THD, intern
@@ -350,11 +353,12 @@ MY_LOCALE *my_locale_by_number(uint number);
 #define OPTION_SETUP_TABLES_DONE        (ULL(1) << 30) // intern
 /* If not set then the thread will ignore all warnings with level notes. */
 #define OPTION_SQL_NOTES                (ULL(1) << 31) // THD, user
-/*
+/* 
   Force the used temporary table to be a MyISAM table (because we will use
   fulltext functions when reading from it.
 */
 #define TMP_TABLE_FORCE_MYISAM          (ULL(1) << 32)
+
 
 /*
   Maximum length of time zone name that we support
@@ -420,7 +424,11 @@ MY_LOCALE *my_locale_by_number(uint number);
 #define UNCACHEABLE_EXPLAIN     8
 /* Don't evaluate subqueries in prepare even if they're not correlated */
 #define UNCACHEABLE_PREPARE    16
+/* For uncorrelated SELECT in an UNION with some correlated SELECTs */
+#define UNCACHEABLE_UNITED     32
 
+/* Used to check GROUP BY list in the MODE_ONLY_FULL_GROUP_BY mode */
+#define UNDEF_POS (-1)
 #ifdef EXTRA_DEBUG
 /*
   Sync points allow us to force the server to reach a certain line of code
@@ -824,6 +832,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
 void log_slow_statement(THD *thd);
 bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
+bool compare_record(TABLE *table);
 bool append_file_to_dir(THD *thd, const char **filename_ptr, 
                         const char *table_name);
 
@@ -1093,7 +1102,8 @@ int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
 int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
 int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
 int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
-bool get_schema_tables_result(JOIN *join);
+bool get_schema_tables_result(JOIN *join,
+                              enum enum_schema_table_state executed_place);
 #define is_schema_db(X) \
   !my_strcasecmp(system_charset_info, information_schema_name.str, (X))
 
@@ -1147,7 +1157,8 @@ bool push_new_name_resolution_context(THD *thd,
                                       TABLE_LIST *left_op,
                                       TABLE_LIST *right_op);
 void add_join_on(TABLE_LIST *b,Item *expr);
-void add_join_natural(TABLE_LIST *a,TABLE_LIST *b,List<String> *using_fields);
+void add_join_natural(TABLE_LIST *a,TABLE_LIST *b,List<String> *using_fields,
+                      SELECT_LEX *lex);
 bool add_proc_to_list(THD *thd, Item *item);
 TABLE *unlink_open_table(THD *thd,TABLE *list,TABLE *find);
 void update_non_unique_table_error(TABLE_LIST *update,
@@ -1518,7 +1529,7 @@ extern int creating_table;    // How many mysql_create_table() are running
   External variables
 */
 
-extern time_t start_time;
+extern time_t server_start_time;
 extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
 	    mysql_real_data_home[], *opt_mysql_tmpdir, mysql_charsets_dir[],
             def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
@@ -1528,7 +1539,7 @@ extern const LEX_STRING command_name[];
 extern const char *first_keyword, *my_localhost, *delayed_user, *binary_keyword;
 extern const char **errmesg;			/* Error messages */
 extern const char *myisam_recover_options_str;
-extern const char *in_left_expr_name, *in_additional_cond;
+extern const char *in_left_expr_name, *in_additional_cond, *in_having_cond;
 extern const char * const triggers_file_ext;
 extern const char * const trigname_file_ext;
 extern Eq_creator eq_creator;
@@ -1543,6 +1554,7 @@ extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
 extern char log_error_file[FN_REFLEN], *opt_tc_log_file;
 extern double log_10[32];
+extern double log_01[32];
 extern ulonglong log_10_int[20];
 extern ulonglong keybuff_size;
 extern ulonglong thd_startup_options;

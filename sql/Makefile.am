@@ -40,7 +40,8 @@ mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ \
 			@pstack_libs@ \
 			@mysql_plugin_libs@ \
 			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS) @LIBDL@ \
-                        @yassl_libs@ @openssl_libs@
+                        $(yassl_libs) $(openssl_libs)
+
 noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			item_strfunc.h item_timefunc.h \
 			item_xmlfunc.h \
