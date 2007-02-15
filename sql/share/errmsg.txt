@@ -5305,7 +5305,7 @@ ER_TRG_ON_VIEW_OR_TEMP_TABLE
 	eng "Trigger's '%-.64s' is view or temporary table"
 	ger "'%-.64s' des Triggers ist View oder temporäre Tabelle"
 ER_TRG_CANT_CHANGE_ROW  
-	eng "Updating of %s row is not allowed in %s trigger"
+	eng "Updating of %s row is not allowed in %strigger"
 	ger "Aktualisieren einer %s-Zeile ist in einem %s-Trigger nicht erlaubt"
 ER_TRG_NO_SUCH_ROW_IN_TRG  
 	eng "There is no %s row in %s trigger"
