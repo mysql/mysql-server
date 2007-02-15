@@ -2261,7 +2261,6 @@ ConfigInfo::ConfigInfo()
 	    break;
 	  case CI_BOOL:
 	    {
-	      bool tmp_bool;
 	      require(InitConfigFileParser::convertStringToBool(param._default, default_bool));
 	      require(p->put(param._fname, default_bool));
 	      break;
@@ -2269,7 +2268,6 @@ ConfigInfo::ConfigInfo()
 	  case CI_INT:
 	  case CI_INT64:
 	    {
-	      Uint64 tmp_uint64;
 	      require(InitConfigFileParser::convertStringToUint64(param._default, default_uint64));
 	      require(p->put(param._fname, default_uint64));
 	      break;
@@ -2780,7 +2778,7 @@ applyDefaultValues(InitConfigFileParser::Context & ctx,
     Properties::Iterator it(defaults);
 
     for(const char * name = it.first(); name != NULL; name = it.next()){
-      ConfigInfo::Status st = ctx.m_info->getStatus(ctx.m_currentInfo, name);
+      (void) ctx.m_info->getStatus(ctx.m_currentInfo, name);
       if(!ctx.m_currentSection->contains(name)){
 	switch (ctx.m_info->getType(ctx.m_currentInfo, name)){
 	case ConfigInfo::CI_INT:
@@ -3411,7 +3409,7 @@ saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
       if(!ctx.m_currentInfo->get(n, &info))
 	continue;
 
-      Uint32 id = 0;
+      id = 0;
       info->get("Id", &id);
       
       if(id == KEY_INTERNAL)
@@ -3615,6 +3613,7 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
   Uint32 db_nodes= 0;
   Uint32 replicas= 0;
   Uint32 db_host_count= 0;
+  bool  with_arbitration_rank= false;
   ctx.m_userProperties.get(DB_TOKEN, &db_nodes);
   ctx.m_userProperties.get("NoOfReplicas", &replicas);
   if((db_nodes % replicas) != 0){
@@ -3650,83 +3649,90 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
       tmp->get("HostName", &host);
 
       if (strcmp(type,DB_TOKEN) == 0)
-      {
-	{
-	  Uint32 ii;
-	  if (!p_db_hosts.get(host,&ii))
-	    db_host_count++;
-	  p_db_hosts.put(host,i);
-	  if (p_arbitrators.get(host,&ii))
-	  {
-	    arbitration_warning.appfmt(arbit_warn_fmt, ii, i, host);
-	    p_arbitrators.remove(host); // only one warning per db node
-	  }
-	}
-	{
-	  unsigned j;
-	  BaseString str, str2;
-	  str.assfmt("#group%d_",group);
-	  p_db_hosts.put(str.c_str(),i_group,host);
-	  str2.assfmt("##group%d_",group);
-	  p_db_hosts.put(str2.c_str(),i_group,i);
-	  for (j= 0; j < i_group; j++)
-	  {
-	    const char *other_host;
-	    p_db_hosts.get(str.c_str(),j,&other_host);
-	    if (strcmp(host,other_host) == 0) {
-	      unsigned int other_i, c= 0;
-	      p_db_hosts.get(str2.c_str(),j,&other_i);
-	      p_db_hosts.get(str.c_str(),&c);
-	      if (c == 0) // first warning in this node group
-		node_group_warning.appfmt("  Node group %d", group);
-	      c|= 1 << j;
-	      p_db_hosts.put(str.c_str(),c);
-
-	      node_group_warning.appfmt(",\n    db node with id %d and id %d "
-					"on same host %s", other_i, i, host);
-	    }
-	  }
-	  i_group++;
-	  DBUG_ASSERT(i_group <= replicas);
-	  if (i_group == replicas)
-	  {
-	    unsigned c= 0;
-	    p_db_hosts.get(str.c_str(),&c);
-	    if (c+1 == (1u << (replicas-1))) // all nodes on same machine
-	      node_group_warning.append(".\n    Host failure will "
-					"cause complete cluster shutdown.");
-	    else if (c > 0)
-	      node_group_warning.append(".\n    Host failure may "
-					"cause complete cluster shutdown.");
-	    group++;
-	    i_group= 0;
-	  }
-	}
+      { 
+        { 
+          Uint32 ii; 
+          if (!p_db_hosts.get(host,&ii)) 
+            db_host_count++; 
+          p_db_hosts.put(host,i); 
+          if (p_arbitrators.get(host,&ii)) 
+          { 
+            arbitration_warning.appfmt(arbit_warn_fmt, ii, i, host); 
+            p_arbitrators.remove(host); // only one warning per db node 
+          } 
+        } 
+        { 
+          unsigned j; 
+          BaseString str, str2; 
+          str.assfmt("#group%d_",group); 
+          p_db_hosts.put(str.c_str(),i_group,host); 
+          str2.assfmt("##group%d_",group); 
+          p_db_hosts.put(str2.c_str(),i_group,i); 
+          for (j= 0; j < i_group; j++) 
+          { 
+            const char *other_host; 
+            p_db_hosts.get(str.c_str(),j,&other_host); 
+            if (strcmp(host,other_host) == 0) { 
+              unsigned int other_i, c= 0; 
+              p_db_hosts.get(str2.c_str(),j,&other_i); 
+              p_db_hosts.get(str.c_str(),&c); 
+              if (c == 0) // first warning in this node group 
+                node_group_warning.appfmt("  Node group %d", group); 
+              c|= 1 << j; 
+              p_db_hosts.put(str.c_str(),c); 
+              node_group_warning.appfmt(",\n    db node with id %d and id %d " 
+              "on same host %s", other_i, i, host); 
+            } 
+          } 
+          i_group++; 
+          DBUG_ASSERT(i_group <= replicas); 
+          if (i_group == replicas) 
+          { 
+            unsigned c= 0; 
+            p_db_hosts.get(str.c_str(),&c); 
+            if (c+1 == (1u << (replicas-1))) // all nodes on same machine 
+              node_group_warning.append(".\n    Host failure will " 
+              "cause complete cluster shutdown."); 
+            else if (c > 0) 
+              node_group_warning.append(".\n    Host failure may " 
+              "cause complete cluster shutdown."); 
+            group++; 
+            i_group= 0; 
+          } 
+        }
       }
       else if (strcmp(type,API_TOKEN) == 0 ||
 	       strcmp(type,MGM_TOKEN) == 0)
-      {
-	Uint32 rank;
-	if(tmp->get("ArbitrationRank", &rank) && rank > 0)
-	{
-	  if(host && host[0] != 0)
-	  {
-	    Uint32 ii;
-	    p_arbitrators.put(host,i);
-	    if (p_db_hosts.get(host,&ii))
-	    {
-	      arbitration_warning.appfmt(arbit_warn_fmt, i, ii, host);
-	    }
-	  }
-	  else
-	  {
-	    arbitration_warning.appfmt(arbit_warn_fmt2, i);
-	  }
-	}
+      { 
+        Uint32 rank; 
+        if(tmp->get("ArbitrationRank", &rank) && rank > 0) 
+        { 
+          with_arbitration_rank = true;  //check whether MGM or API node configured with rank >0 
+          if(host && host[0] != 0) 
+          { 
+            Uint32 ii; 
+            p_arbitrators.put(host,i); 
+            if (p_db_hosts.get(host,&ii)) 
+            { 
+              arbitration_warning.appfmt(arbit_warn_fmt, i, ii, host); 
+            } 
+          } 
+          else 
+          { 
+            arbitration_warning.appfmt(arbit_warn_fmt2, i); 
+          } 
+        }
       }
     }
     if (db_host_count > 1 && node_group_warning.length() > 0)
       ndbout_c("Cluster configuration warning:\n%s",node_group_warning.c_str());
+    if (!with_arbitration_rank) 
+    {
+      ndbout_c("Cluster configuration warning:" 
+         "\n  Neither %s nor %s nodes are configured with arbitrator,"
+         "\n  may cause complete cluster shutdown in case of host failure.", 
+         MGM_TOKEN, API_TOKEN);
+    }
     if (db_host_count > 1 && arbitration_warning.length() > 0)
       ndbout_c("Cluster configuration warning:%s%s",arbitration_warning.c_str(),
 	       "\n  Running arbitrator on the same host as a database node may"

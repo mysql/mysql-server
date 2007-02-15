@@ -1,27 +1,20 @@
-/* aes.cpp                                
- *
- * Copyright (C) 2003 Sawtooth Consulting Ltd.
- *
- * This file is part of yaSSL.
- *
- * yaSSL is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * There are special exceptions to the terms and conditions of the GPL as it
- * is applied to yaSSL. View the full text of the exception in the file
- * FLOSS-EXCEPTIONS in the directory of this software distribution.
- *
- * yaSSL is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
- */
+/*
+   Copyright (C) 2000-2007 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; see the file COPYING. If not, write to the
+   Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+   MA  02110-1301  USA.
+*/
 
 /* C++ based on Wei Dai's aes.cpp from CryptoPP */
 /* x86 asm original */
@@ -97,13 +90,14 @@ void AES::SetKey(const byte* userKey, word32 keylen, CipherDir /*dummy*/)
     rounds_ = keylen/4 + 6;
 
     word32 temp, *rk = key_;
-    unsigned int i=0;
 
     GetUserKey(BigEndianOrder, rk, keylen/4, userKey, keylen);
 
     switch(keylen)
     {
     case 16:
+    {
+        unsigned int i=0;
         while (true)
         {
             temp  = rk[3];
@@ -121,8 +115,10 @@ void AES::SetKey(const byte* userKey, word32 keylen, CipherDir /*dummy*/)
             rk += 4;
         }
         break;
-
+    }
     case 24:
+    {
+        unsigned int i=0;
         while (true)    // for (;;) here triggers a bug in VC60 SP4 w/ Pro Pack
         {
             temp = rk[ 5];
@@ -143,7 +139,10 @@ void AES::SetKey(const byte* userKey, word32 keylen, CipherDir /*dummy*/)
         }
         break;
 
+    }
     case 32:
+    {
+        unsigned int i=0;
         while (true)
         {
             temp = rk[ 7];
@@ -171,6 +170,7 @@ void AES::SetKey(const byte* userKey, word32 keylen, CipherDir /*dummy*/)
             rk += 8;
         }
         break;
+    }
     }
 
     if (dir_ == DECRYPTION)

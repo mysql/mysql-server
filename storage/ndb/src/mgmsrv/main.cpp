@@ -131,8 +131,6 @@ bool g_StopServer;
 bool g_RestartServer;
 extern EventLogger g_eventLogger;
 
-extern int global_mgmt_server_check;
-
 enum ndb_mgmd_options {
   OPT_INTERACTIVE = NDB_STD_OPTIONS_LAST,
   OPT_NO_NODEID_CHECKS,
@@ -190,7 +188,6 @@ static void usage()
  */
 int main(int argc, char** argv)
 {
-  int mgm_connect_result;
 
   NDB_INIT(argv[0]);
 
@@ -206,8 +203,6 @@ int main(int argc, char** argv)
 
 start:
   glob= new MgmGlobals;
-
-  global_mgmt_server_check = 1;
 
   if (opt_interactive ||
       opt_non_interactive ||

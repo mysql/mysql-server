@@ -26,7 +26,6 @@ typedef struct st_federated_server
 
 /* cache handlers */
 my_bool servers_init(bool dont_read_server_table);
-static my_bool servers_load(THD *thd, TABLE_LIST *tables);
 my_bool servers_reload(THD *thd);
 my_bool get_server_from_table_to_cache(TABLE *table);
 void servers_free(bool end=0);

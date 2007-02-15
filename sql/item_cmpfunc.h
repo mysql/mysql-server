@@ -34,6 +34,7 @@ class Arg_comparator: public Sql_alloc
   arg_cmp_func func;
   Item_bool_func2 *owner;
   Arg_comparator *comparators;   // used only for compare_row()
+  double precision;
 
 public:
   DTCollation cmp_collation;
@@ -80,6 +81,8 @@ public:
   int compare_e_int();           // compare args[0] & args[1]
   int compare_e_int_diff_signedness();
   int compare_e_row();           // compare args[0] & args[1]
+  int compare_real_fixed();
+  int compare_e_real_fixed();
 
   static arg_cmp_func comparator_matrix [5][2];
 
@@ -357,6 +360,7 @@ public:
   const char *func_name() const { return "not"; }
   Item *neg_transformer(THD *thd);
   bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  void print(String *str);
 };
 
 class Item_maxmin_subselect;
@@ -399,6 +403,7 @@ public:
   enum Functype functype() const { return TRIG_COND_FUNC; };
   const char *func_name() const { return "trigcond"; };
   bool const_item() const { return FALSE; }
+  bool *get_trig_var() { return trig_var; }
 };
 
 class Item_func_not_all :public Item_func_not
@@ -899,10 +904,10 @@ public:
     return (value_res ? (res ? sortcmp(value_res, res, cmp_charset) : 1) :
             (res ? -1 : 0));
   }
-  int compare(cmp_item *c)
+  int compare(cmp_item *ci)
   {
-    cmp_item_string *cmp= (cmp_item_string *)c;
-    return sortcmp(value_res, cmp->value_res, cmp_charset);
+    cmp_item_string *l_cmp= (cmp_item_string *) ci;
+    return sortcmp(value_res, l_cmp->value_res, cmp_charset);
   } 
   cmp_item *make_same();
   void set_charset(CHARSET_INFO *cs)
@@ -925,10 +930,10 @@ public:
   {
     return value != arg->val_int();
   }
-  int compare(cmp_item *c)
+  int compare(cmp_item *ci)
   {
-    cmp_item_int *cmp= (cmp_item_int *)c;
-    return (value < cmp->value) ? -1 : ((value == cmp->value) ? 0 : 1);
+    cmp_item_int *l_cmp= (cmp_item_int *)ci;
+    return (value < l_cmp->value) ? -1 : ((value == l_cmp->value) ? 0 : 1);
   }
   cmp_item *make_same();
 };
@@ -946,10 +951,10 @@ public:
   {
     return value != arg->val_real();
   }
-  int compare(cmp_item *c)
+  int compare(cmp_item *ci)
   {
-    cmp_item_real *cmp= (cmp_item_real *)c;
-    return (value < cmp->value)? -1 : ((value == cmp->value) ? 0 : 1);
+    cmp_item_real *l_cmp= (cmp_item_real *) ci;
+    return (value < l_cmp->value)? -1 : ((value == l_cmp->value) ? 0 : 1);
   }
   cmp_item *make_same();
 };
@@ -1015,10 +1020,10 @@ public:
     DBUG_ASSERT(0);
     return 1;
   }
-  int compare(cmp_item *c)
+  int compare(cmp_item *ci)
   {
-    cmp_item_string *cmp= (cmp_item_string *)c;
-    return sortcmp(value_res, cmp->value_res, cmp_charset);
+    cmp_item_string *l_cmp= (cmp_item_string *) ci;
+    return sortcmp(value_res, l_cmp->value_res, cmp_charset);
   }
   cmp_item *make_same()
   {
@@ -1119,6 +1124,11 @@ public:
 class Item_func_in :public Item_func_opt_neg
 {
 public:
+  Item_result cmp_type;
+  /* 
+    an array of values when the right hand arguments of IN
+    are all SQL constant and there are no nulls 
+  */
   in_vector *array;
   bool have_null;
   Item_result left_result_type;
@@ -1150,7 +1160,7 @@ public:
     DBUG_VOID_RETURN;
   }
   optimize_type select_optimize() const
-    { return array ? OPTIMIZE_KEY : OPTIMIZE_NONE; }
+    { return OPTIMIZE_KEY; }
   void print(String *str);
   enum Functype functype() const { return IN_FUNC; }
   const char *func_name() const { return " IN "; }
@@ -1457,7 +1467,6 @@ class Item_equal: public Item_bool_func
   Item *const_item;        /* optional constant item equal to fields items */
   cmp_item *eval_item;
   bool cond_false;
-  DTCollation cmp_collation;
 public:
   inline Item_equal()
     : Item_bool_func(), const_item(0), eval_item(0), cond_false(0)
@@ -1531,7 +1540,7 @@ public:
   Item_cond_and() :Item_cond() {}
   Item_cond_and(Item *i1,Item *i2) :Item_cond(i1,i2) {}
   Item_cond_and(THD *thd, Item_cond_and *item) :Item_cond(thd, item) {}
-  Item_cond_and(List<Item> &list): Item_cond(list) {}
+  Item_cond_and(List<Item> &list_arg): Item_cond(list_arg) {}
   enum Functype functype() const { return COND_AND_FUNC; }
   longlong val_int();
   const char *func_name() const { return "and"; }
@@ -1553,7 +1562,7 @@ public:
   Item_cond_or() :Item_cond() {}
   Item_cond_or(Item *i1,Item *i2) :Item_cond(i1,i2) {}
   Item_cond_or(THD *thd, Item_cond_or *item) :Item_cond(thd, item) {}
-  Item_cond_or(List<Item> &list): Item_cond(list) {}
+  Item_cond_or(List<Item> &list_arg): Item_cond(list_arg) {}
   enum Functype functype() const { return COND_OR_FUNC; }
   longlong val_int();
   const char *func_name() const { return "or"; }

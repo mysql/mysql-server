@@ -269,6 +269,15 @@ mysqltest: At line 1: Missing assignment operator in let
 1
 # Execute: echo $success ;
 1 
+# Check if let $B = $A is an assignment per value.
+let $A = initial value of A;
+let $B = initial value of B;
+let $B = $A
+# Content of $A is: initial value of B
+let $A = changed value of A;
+# Content of $B is: initial value of B
+let $B = changed value of B;
+# Content of $A is: changed value of A
 mysqltest: At line 1: Missing required argument 'filename' to command 'source'
 mysqltest: At line 1: Could not open file ./non_existingFile
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/recursive.sql": At line 1: Source directives are nesting too deep
@@ -413,6 +422,8 @@ mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": At line 7: Con
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": At line 3: connection 'test_con1' not found in connection pool
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": At line 2: Connection test_con1 already exists
 connect(localhost,root,,test,MASTER_PORT,MASTER_SOCKET);
+show tables;
+ERROR 3D000: No database selected
 Output from mysqltest-x.inc
 Output from mysqltest-x.inc
 Output from mysqltest-x.inc

@@ -1,27 +1,20 @@
-/* error.hpp                                
- *
- * Copyright (C) 2003 Sawtooth Consulting Ltd.
- *
- * This file is part of yaSSL.
- *
- * yaSSL is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * There are special exceptions to the terms and conditions of the GPL as it
- * is applied to yaSSL. View the full text of the exception in the file
- * FLOSS-EXCEPTIONS in the directory of this software distribution.
- *
- * yaSSL is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
- */
+/*
+   Copyright (C) 2000-2007 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; see the file COPYING. If not, write to the
+   Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+   MA  02110-1301  USA.
+*/
 
 /* error.hpp provides a taocrypt error numbers
  *
@@ -70,8 +63,12 @@ DSA_SZ_E        = 1035, // "bad DSA r or s size"
 BEFORE_DATE_E   = 1036, // "before date in the future"
 AFTER_DATE_E    = 1037, // "after date in the past"
 SIG_CONFIRM_E   = 1038, // "bad self  signature confirmation"
-SIG_OTHER_E     = 1039  // "bad other signature confirmation"
+SIG_OTHER_E     = 1039, // "bad other signature confirmation"
 
+CONTENT_E       = 1040, // "bad content processing"
+PEM_E           = 1041  // "bad pem format error"
+
+    //  add error string to yassl/src/yassl_error.cpp !!! 
 };
 
 

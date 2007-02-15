@@ -133,10 +133,6 @@ void
 Lgman::execSTTOR(Signal* signal) 
 {
   jamEntry();                            
-
-  const Uint32 startphase  = signal->theData[1];
-  const Uint32 typeOfStart = signal->theData[7];
-
   sendSTTORRY(signal);
   
   return;
@@ -274,7 +270,6 @@ Lgman::execDUMP_STATE_ORD(Signal* signal){
 		!ptr.p->m_log_sync_waiters.isEmpty());
       if (!ptr.p->m_log_buffer_waiters.isEmpty())
       {
-	Uint32 free_buffer= ptr.p->m_free_buffer_words;
 	Ptr<Log_waiter> waiter;
 	Local_log_waiter_list 
 	  list(m_log_waiter_pool, ptr.p->m_log_buffer_waiters);
@@ -1937,8 +1932,7 @@ void
 Lgman::execSUB_GCP_COMPLETE_REP(Signal* signal)
 {
   jamEntry();
-  Uint32 gci= ((SubGcpCompleteRep*)signal->getDataPtr())->gci;
-  
+
   Ptr<Logfile_group> ptr;
   m_logfile_group_list.first(ptr);
 

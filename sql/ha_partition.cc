@@ -584,7 +584,6 @@ int ha_partition::drop_partitions(const char *path)
   List_iterator<partition_element> part_it(m_part_info->partitions);
   char part_name_buff[FN_REFLEN];
   uint no_parts= m_part_info->partitions.elements;
-  uint part_count= 0;
   uint no_subparts= m_part_info->no_subparts;
   uint i= 0;
   uint name_variant;
@@ -1075,7 +1074,6 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
   uint no_parts= m_part_info->no_parts;
   uint no_subparts= m_part_info->no_subparts;
   uint i= 0;
-  LEX *lex= thd->lex;
   int error;
   DBUG_ENTER("ha_partition::handle_opt_partitions");
   DBUG_PRINT("enter", ("all_parts %u, flag= %u", all_parts, flag));
@@ -1087,11 +1085,9 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
     {
       if (m_is_sub_partitioned)
       {
-        List_iterator<partition_element> sub_it(part_elem->subpartitions);
         uint j= 0, part;
         do
         {
-          partition_element *sub_elem= sub_it++;
           part= i * no_subparts + j;
           DBUG_PRINT("info", ("Optimize subpartition %u",
                      part));
@@ -1136,7 +1132,6 @@ int ha_partition::prepare_new_partition(TABLE *table,
 {
   int error;
   bool create_flag= FALSE;
-  bool open_flag= FALSE;
   DBUG_ENTER("prepare_new_partition");
 
   if ((error= set_up_table_before_create(table, part_name, create_info,
@@ -1245,7 +1240,6 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
   handler **new_file_array;
   int error= 1;
   bool first;
-  bool copy_parts= FALSE;
   uint temp_partitions= m_part_info->temp_partitions.elements;
   THD *thd= current_thd;
   DBUG_ENTER("ha_partition::change_partitions");
@@ -2061,7 +2055,6 @@ bool ha_partition::new_handlers_from_part_info(MEM_ROOT *mem_root)
   partition_element *part_elem;
   uint alloc_len= (m_tot_parts + 1) * sizeof(handler*);
   List_iterator_fast <partition_element> part_it(m_part_info->partitions);
-  THD *thd= current_thd;
   DBUG_ENTER("ha_partition::new_handlers_from_part_info");
 
   if (!(m_file= (handler **) alloc_root(mem_root, alloc_len)))
@@ -4015,6 +4008,7 @@ int ha_partition::handle_ordered_index_scan(byte *buf, bool reverse_order)
     m_queue.elements= j;
     queue_fix(&m_queue);
     return_top_record(buf);
+    table->status= 0;
     DBUG_PRINT("info", ("Record returned from partition %d", m_top_entry));
     DBUG_RETURN(0);
   }
@@ -4083,6 +4077,7 @@ int ha_partition::handle_ordered_next(byte *buf, bool is_next_same)
          DBUG_PRINT("info", ("Record returned from partition %u (2)",
                      m_top_entry));
          return_top_record(buf);
+         table->status= 0;
          error= 0;
       }
     }
@@ -4126,6 +4121,7 @@ int ha_partition::handle_ordered_prev(byte *buf)
 	DBUG_PRINT("info", ("Record returned from partition %d (2)",
 			    m_top_entry));
         error= 0;
+        table->status= 0;
       }
     }
     DBUG_RETURN(error);

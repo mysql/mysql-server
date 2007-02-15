@@ -1,27 +1,20 @@
-/* crypto_wrapper.hpp                          
- *
- * Copyright (C) 2003 Sawtooth Consulting Ltd.
- *
- * This file is part of yaSSL.
- *
- * yaSSL is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * There are special exceptions to the terms and conditions of the GPL as it
- * is applied to yaSSL. View the full text of the exception in the file
- * FLOSS-EXCEPTIONS in the directory of this software distribution.
- *
- * yaSSL is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
- */
+/*
+   Copyright (C) 2000-2007 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; see the file COPYING. If not, write to the
+   Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+   MA  02110-1301  USA.
+*/
 
 
 /*  The crypto wrapper header is used to define policies for the cipher 
@@ -49,6 +42,7 @@ namespace yaSSL {
 // Digest policy should implement a get_digest, update, and get sizes for pad
 // and  digest
 struct Digest : public virtual_base {
+    Digest() {}
     virtual void   get_digest(byte*) = 0;
     virtual void   get_digest(byte*, const byte*, unsigned int) = 0;
     virtual void   update(const byte*, unsigned int) = 0;
@@ -60,6 +54,7 @@ struct Digest : public virtual_base {
 
 // For use with NULL Digests
 struct NO_MAC : public Digest {
+    NO_MAC() {}
     void   get_digest(byte*);
     void   get_digest(byte*, const byte*, unsigned int);
     void   update(const byte*, unsigned int);
@@ -184,6 +179,7 @@ private:
 // BulkCipher policy should implement encrypt, decrypt, get block size, 
 // and set keys for encrypt and decrypt
 struct BulkCipher : public virtual_base {
+    BulkCipher() {}
     virtual void   encrypt(byte*, const byte*, unsigned int) = 0;
     virtual void   decrypt(byte*, const byte*, unsigned int) = 0;
     virtual void   set_encryptKey(const byte*, const byte* = 0) = 0;
@@ -197,6 +193,7 @@ struct BulkCipher : public virtual_base {
 
 // For use with NULL Ciphers
 struct NO_Cipher : public BulkCipher {
+    NO_Cipher() {}
     void   encrypt(byte*, const byte*, unsigned int) {}
     void   decrypt(byte*, const byte*, unsigned int) {}
     void   set_encryptKey(const byte*, const byte*)  {}
@@ -318,12 +315,14 @@ struct Auth : public virtual_base {
     virtual bool verify(const byte*, unsigned int, const byte*,
                         unsigned int) = 0;
     virtual uint get_signatureLength() const = 0;
+    Auth() {}
     virtual ~Auth() {}
 };
 
 
 // For use with NULL Authentication schemes
 struct NO_Auth : public Auth {
+    NO_Auth() {}
     void   sign(byte*, const byte*, unsigned int, const RandomPool&) {}
     bool   verify(const byte*, unsigned int, const byte*, unsigned int) 
                     { return true; }

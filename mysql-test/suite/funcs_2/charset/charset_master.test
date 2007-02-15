@@ -1,0 +1,606 @@
+#################################################################################
+# Author:  Serge Kozlov								#
+# Date:    09/21/2005								#
+# Purpose: used by ../t/*_charset.test						#
+# Require: set $engine_type= [NDB,MyISAM,InnoDB,etc] before calling		#
+#################################################################################
+
+#
+#
+#
+
+let $check_std_csets= 1;
+let $check_ucs2_csets= 1;
+let $check_utf8_csets= 1;
+
+#
+# Check all charsets/collation combinations
+#
+
+if ($check_std_csets)
+{
+
+# armscii8
+
+let $cset= armscii8;
+let $coll= armscii8_bin;
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= armscii8;
+let $coll= armscii8_general_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+# ascii
+
+let $cset= ascii;
+let $coll= ascii_bin;
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= ascii;
+let $coll= ascii_general_ci;
+--source suite/funcs_2/include/check_charset.inc
+ 
+# big5
+
+let $cset= big5;
+let $coll= big5_bin;
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= big5;
+let $coll= big5_chinese_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+# binary
+
+let $cset= binary;
+let $coll= ;
+let $bin_cset= 1;
+--source suite/funcs_2/include/check_charset.inc
+
+# cp1250
+
+let $cset= cp1250;
+let $coll= cp1250_bin;
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= cp1250;
+let $coll= cp1250_croatian_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+
+let $cset= cp1250;
+let $coll= cp1250_czech_cs;
+--source suite/funcs_2/include/check_charset.inc
+
+
+let $cset= cp1250;
+let $coll= cp1250_general_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+# cp1251
+
+let $cset= cp1251;
+let $coll= cp1251_bin;
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= cp1251;
+let $coll= cp1251_bulgarian_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= cp1251;
+let $coll= cp1251_general_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= cp1251;
+let $coll= cp1251_general_cs;
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= cp1251;
+let $coll= cp1251_ukrainian_ci; 
+--source suite/funcs_2/include/check_charset.inc
+
+# cp1256
+
+let $cset= cp1256;
+let $coll= cp1256_bin; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= cp1256;
+let $coll= cp1256_general_ci; 
+--source suite/funcs_2/include/check_charset.inc
+
+# cp1257
+
+let $cset= cp1257;
+let $coll= cp1257_bin; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= cp1257;
+let $coll= cp1257_general_ci; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= cp1257;
+let $coll= cp1257_lithuanian_ci; 
+--source suite/funcs_2/include/check_charset.inc
+
+# cp850
+
+let $cset= cp850;
+let $coll= cp850_bin; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= cp850;
+let $coll= cp850_general_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+# cp852
+
+let $cset= cp852;
+let $coll= cp852_bin; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= cp852;
+let $coll= cp852_general_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+# cp866
+
+let $cset= cp866;
+let $coll= cp866_bin; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= cp866;
+let $coll= cp866_general_ci;
+--source suite/funcs_2/include/check_charset.inc
+ 
+# cp932
+
+let $cset= cp932;
+let $coll= cp932_bin; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= cp932;
+let $coll= cp932_japanese_ci;
+--source suite/funcs_2/include/check_charset.inc
+ 
+# dec8
+
+let $cset= dec8;
+let $coll= dec8_bin; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= dec8;
+let $coll= dec8_swedish_ci; 
+--source suite/funcs_2/include/check_charset.inc
+
+# eucjpms
+
+let $cset= eucjpms;
+let $coll= eucjpms_bin; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= eucjpms;
+let $coll= eucjpms_japanese_ci; 
+--source suite/funcs_2/include/check_charset.inc
+
+# euckr
+
+let $cset= euckr;
+let $coll= euckr_bin; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= euckr;
+let $coll= euckr_korean_ci; 
+--source suite/funcs_2/include/check_charset.inc
+ 
+# gb2312
+
+let $cset= gb2312;
+let $coll= gb2312_bin;
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= gb2312;
+let $coll= gb2312_chinese_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+# gbk
+
+let $cset= gbk;
+let $coll= gbk_bin;
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= gbk;
+let $coll= gbk_chinese_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+# geostd8
+
+let $cset= geostd8;
+let $coll= geostd8_bin; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= geostd8;
+let $coll= geostd8_general_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+# greek
+
+let $cset= greek;
+let $coll= greek_bin; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= greek;
+let $coll= greek_general_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+# hebrew
+
+let $cset= hebrew;
+let $coll= hebrew_bin; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= hebrew;
+let $coll= hebrew_general_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+# hp8
+
+let $cset= hp8;
+let $coll= hp8_bin; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= hp8;
+let $coll= hp8_english_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+# keybcs2
+
+let $cset= keybcs2;
+let $coll= keybcs2_bin; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= keybcs2;
+let $coll= keybcs2_general_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+# koi8r
+
+let $cset= koi8r;
+let $coll= koi8r_bin; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= koi8r;
+let $coll= koi8r_general_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+# koi8u
+
+let $cset= koi8u;
+let $coll= koi8u_bin; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= koi8u;
+let $coll= koi8u_general_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+# latin1
+
+let $cset= latin1;
+let $coll= latin1_bin; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= latin1;
+let $coll= latin1_danish_ci; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= latin1;
+let $coll= latin1_general_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= latin1;
+let $coll= latin1_general_cs;
+--source suite/funcs_2/include/check_charset.inc
+
+
+let $cset= latin1;
+let $coll= latin1_german1_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= latin1;
+let $coll= latin1_german2_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= latin1;
+let $coll= latin1_spanish_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= latin1;
+let $coll= latin1_swedish_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+# latin2
+
+let $cset= latin2;
+let $coll= latin2_bin;
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= latin2;
+let $coll= latin2_croatian_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= latin2;
+let $coll= latin2_czech_cs; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= latin2;
+let $coll= latin2_general_ci; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= latin2;
+let $coll= latin2_hungarian_ci; 
+--source suite/funcs_2/include/check_charset.inc
+
+# latin5
+
+let $cset= latin5;
+let $coll= latin5_bin;
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= latin5;
+let $coll= latin5_turkish_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+# latin7
+
+let $cset= latin7;
+let $coll= latin7_bin;
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= latin7;
+let $coll= latin7_estonian_cs;
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= latin7;
+let $coll= latin7_general_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= latin7;
+let $coll= latin7_general_cs;
+--source suite/funcs_2/include/check_charset.inc
+
+# macce
+
+let $cset= macce;
+let $coll= macce_bin; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= macce;
+let $coll= macce_general_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+# macroman
+
+let $cset= macroman;
+let $coll= macroman_bin; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= macroman;
+let $coll= macroman_general_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+# sjis
+
+let $cset= sjis;
+let $coll= sjis_bin; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= sjis;
+let $coll= sjis_japanese_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+# swe7
+
+let $cset= swe7;
+let $coll= swe7_bin; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= swe7;
+let $coll= swe7_swedish_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+# tis620
+
+let $cset= tis620;
+let $coll= tis620_bin; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= tis620;
+let $coll= tis620_thai_ci;
+--source suite/funcs_2/include/check_charset.inc
+
+# ujis
+
+let $cset= ujis;
+let $coll= ujis_bin; 
+--source suite/funcs_2/include/check_charset.inc
+
+let $cset= ujis;
+let $coll= ujis_japanese_ci; 
+--source suite/funcs_2/include/check_charset.inc
+
+}
+
+if ($check_ucs2_csets)
+{
+
+# ucs2
+
+let $cset= ucs2;
+let $coll= ucs2_bin;
+--source suite/funcs_2/include/check_charset_ucs2.inc
+
+let $cset= ucs2;
+let $coll= ucs2_czech_ci;
+--source suite/funcs_2/include/check_charset_ucs2.inc
+
+let $cset= ucs2;
+let $coll= ucs2_danish_ci;
+--source suite/funcs_2/include/check_charset_ucs2.inc
+
+let $cset= ucs2;
+let $coll= ucs2_estonian_ci;
+--source suite/funcs_2/include/check_charset_ucs2.inc
+
+let $cset= ucs2;
+let $coll= ucs2_general_ci; 
+--source suite/funcs_2/include/check_charset_ucs2.inc
+
+let $cset= ucs2;
+let $coll= ucs2_hungarian_ci; 
+--source suite/funcs_2/include/check_charset_ucs2.inc
+
+let $cset= ucs2;
+let $coll= ucs2_icelandic_ci; 
+--source suite/funcs_2/include/check_charset_ucs2.inc
+
+let $cset= ucs2;
+let $coll= ucs2_latvian_ci; 
+--source suite/funcs_2/include/check_charset_ucs2.inc
+
+let $cset= ucs2;
+let $coll= ucs2_lithuanian_ci; 
+--source suite/funcs_2/include/check_charset_ucs2.inc
+
+let $cset= ucs2;
+let $coll= ucs2_persian_ci; 
+--source suite/funcs_2/include/check_charset_ucs2.inc
+
+let $cset= ucs2;
+let $coll= ucs2_polish_ci; 
+--source suite/funcs_2/include/check_charset_ucs2.inc
+
+let $cset= ucs2;
+let $coll= ucs2_roman_ci; 
+--source suite/funcs_2/include/check_charset_ucs2.inc
+
+let $cset= ucs2;
+let $coll= ucs2_romanian_ci; 
+--source suite/funcs_2/include/check_charset_ucs2.inc
+
+let $cset= ucs2;
+let $coll= ucs2_slovak_ci; 
+--source suite/funcs_2/include/check_charset_ucs2.inc
+
+let $cset= ucs2;
+let $coll= ucs2_slovenian_ci; 
+--source suite/funcs_2/include/check_charset_ucs2.inc
+
+let $cset= ucs2;
+let $coll= ucs2_spanish2_ci; 
+--source suite/funcs_2/include/check_charset_ucs2.inc
+
+let $cset= ucs2;
+let $coll= ucs2_spanish_ci; 
+--source suite/funcs_2/include/check_charset_ucs2.inc
+
+let $cset= ucs2;
+let $coll= ucs2_swedish_ci; 
+--source suite/funcs_2/include/check_charset_ucs2.inc
+
+let $cset= ucs2;
+let $coll= ucs2_turkish_ci; 
+--source suite/funcs_2/include/check_charset_ucs2.inc
+
+let $cset= ucs2;
+let $coll= ucs2_unicode_ci; 
+--source suite/funcs_2/include/check_charset_ucs2.inc
+
+}
+
+if ($check_utf8_csets)
+{
+
+# utf8
+
+let $cset= utf8;
+let $coll= utf8_bin; 
+--source suite/funcs_2/include/check_charset_utf8.inc
+
+let $cset= utf8;
+let $coll= utf8_czech_ci; 
+--source suite/funcs_2/include/check_charset_utf8.inc
+
+let $cset= utf8;
+let $coll= utf8_danish_ci; 
+--source suite/funcs_2/include/check_charset_utf8.inc
+
+let $cset= utf8;
+let $coll= utf8_estonian_ci; 
+--source suite/funcs_2/include/check_charset_utf8.inc
+
+let $cset= utf8;
+let $coll= utf8_general_ci; 
+--source suite/funcs_2/include/check_charset_utf8.inc
+
+let $cset= utf8;
+let $coll= utf8_hungarian_ci; 
+--source suite/funcs_2/include/check_charset_utf8.inc
+
+let $cset= utf8;
+let $coll= utf8_icelandic_ci; 
+--source suite/funcs_2/include/check_charset_utf8.inc
+
+let $cset= utf8;
+let $coll= utf8_latvian_ci; 
+--source suite/funcs_2/include/check_charset_utf8.inc
+
+let $cset= utf8;
+let $coll= utf8_lithuanian_ci; 
+--source suite/funcs_2/include/check_charset_utf8.inc
+
+let $cset= utf8;
+let $coll= utf8_persian_ci; 
+--source suite/funcs_2/include/check_charset_utf8.inc
+
+let $cset= utf8;
+let $coll= utf8_polish_ci; 
+--source suite/funcs_2/include/check_charset_utf8.inc
+
+let $cset= utf8;
+let $coll= utf8_roman_ci; 
+--source suite/funcs_2/include/check_charset_utf8.inc
+
+let $cset= utf8;
+let $coll= utf8_romanian_ci; 
+--source suite/funcs_2/include/check_charset_utf8.inc
+
+let $cset= utf8;
+let $coll= utf8_slovak_ci; 
+--source suite/funcs_2/include/check_charset_utf8.inc
+
+let $cset= utf8;
+let $coll= utf8_slovenian_ci; 
+--source suite/funcs_2/include/check_charset_utf8.inc
+
+let $cset= utf8;
+let $coll= utf8_spanish2_ci; 
+--source suite/funcs_2/include/check_charset_utf8.inc
+
+let $cset= utf8;
+let $coll= utf8_spanish_ci; 
+--source suite/funcs_2/include/check_charset_utf8.inc
+
+let $cset= utf8;
+let $coll= utf8_swedish_ci; 
+--source suite/funcs_2/include/check_charset_utf8.inc
+
+let $cset= utf8;
+let $coll= utf8_turkish_ci; 
+--source suite/funcs_2/include/check_charset_utf8.inc
+
+let $cset= utf8;
+let $coll= utf8_unicode_ci; 
+--source suite/funcs_2/include/check_charset_utf8.inc
+
+}
+

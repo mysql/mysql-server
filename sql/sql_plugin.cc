@@ -31,25 +31,37 @@ const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   { C_STRING_WITH_LEN("UDF") },
   { C_STRING_WITH_LEN("STORAGE ENGINE") },
   { C_STRING_WITH_LEN("FTPARSER") },
-  { C_STRING_WITH_LEN("DAEMON") }
+  { C_STRING_WITH_LEN("DAEMON") },
+  { C_STRING_WITH_LEN("INFORMATION SCHEMA") }
 };
 
+extern int initialize_schema_table(st_plugin_int *plugin);
+extern int finalize_schema_table(st_plugin_int *plugin);
+
+/*
+  The number of elements in both plugin_type_initialize and 
+  plugin_type_deinitialize should equal to the number of plugins
+  defined.
+*/  
 plugin_type_init plugin_type_initialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
-  0,ha_initialize_handlerton,0,0
+  0,ha_initialize_handlerton,0,0,initialize_schema_table
 };
 
 plugin_type_init plugin_type_deinitialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
-  0,ha_finalize_handlerton,0,0
+  0,ha_finalize_handlerton,0,0,finalize_schema_table
 };
 
+#ifdef HAVE_DLOPEN
 static const char *plugin_interface_version_sym=
                    "_mysql_plugin_interface_version_";
 static const char *sizeof_st_plugin_sym=
                    "_mysql_sizeof_struct_st_plugin_";
 static const char *plugin_declarations_sym= "_mysql_plugin_declarations_";
 static int min_plugin_interface_version= MYSQL_PLUGIN_INTERFACE_VERSION & ~0xFF;
+#endif
+
 /* Note that 'int version' must be the first field of every plugin
    sub-structure (plugin->info).
 */
@@ -58,14 +70,16 @@ static int min_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   0x0000,
   MYSQL_HANDLERTON_INTERFACE_VERSION,
   MYSQL_FTPARSER_INTERFACE_VERSION,
-  MYSQL_DAEMON_INTERFACE_VERSION
+  MYSQL_DAEMON_INTERFACE_VERSION,
+  MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION
 };
 static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
   0x0000, /* UDF: not implemented */
   MYSQL_HANDLERTON_INTERFACE_VERSION,
   MYSQL_FTPARSER_INTERFACE_VERSION,
-  MYSQL_DAEMON_INTERFACE_VERSION
+  MYSQL_DAEMON_INTERFACE_VERSION,
+  MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION
 };
 
 static DYNAMIC_ARRAY plugin_dl_array;
@@ -79,6 +93,8 @@ static int plugin_array_version=0;
 /* prototypes */
 my_bool plugin_register_builtin(struct st_mysql_plugin *plugin);
 void plugin_load(void);
+
+#ifdef HAVE_DLOPEN
 
 static struct st_plugin_dl *plugin_dl_find(const LEX_STRING *dl)
 {
@@ -117,6 +133,8 @@ static st_plugin_dl *plugin_dl_insert_or_reuse(struct st_plugin_dl *plugin_dl)
   DBUG_RETURN(dynamic_element(&plugin_dl_array, plugin_dl_array.elements - 1,
                               struct st_plugin_dl *));
 }
+#endif /* HAVE_DLOPEN */
+
 
 static inline void free_plugin_mem(struct st_plugin_dl *p)
 {
@@ -534,6 +552,8 @@ static void plugin_del(struct st_plugin_int *plugin)
   DBUG_VOID_RETURN;
 }
 
+#ifdef NOT_USED
+
 static void plugin_del(const LEX_STRING *name)
 {
   struct st_plugin_int *plugin;
@@ -542,6 +562,8 @@ static void plugin_del(const LEX_STRING *name)
     plugin_del(plugin);
   DBUG_VOID_RETURN;
 }
+
+#endif
 
 void plugin_unlock(struct st_plugin_int *plugin)
 {

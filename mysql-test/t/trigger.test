@@ -1505,6 +1505,31 @@ update t1 set i= i+ 10 where j > 2;
 select * from t1;
 drop table t1;
 
+#
+# Bug#23556 TRUNCATE TABLE still maps to DELETE
+#
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (a INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8);
+
+CREATE TRIGGER trg_t1 BEFORE DELETE on t1 FOR EACH ROW 
+  INSERT INTO t2 VALUES (OLD.a);
+
+FLUSH STATUS;
+TRUNCATE t1;
+SHOW STATUS LIKE 'handler_delete';
+SELECT COUNT(*) FROM t2;
+
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8);
+DELETE FROM t2;
+
+FLUSH STATUS;
+DELETE FROM t1;
+SHOW STATUS LIKE 'handler_delete';
+SELECT COUNT(*) FROM t2;
+
+DROP TRIGGER trg_t1;
+DROP TABLE t1,t2;
 
 #
 # Bug #23651 "Server crashes when trigger which uses stored function
@@ -1553,5 +1578,51 @@ insert into t1 values (3, "c");
 select * from t1;
 
 drop table t1;
+
+#
+# Bug#25398: crash when a trigger contains a SELECT with 
+#            trigger fields in the select list under DISTINCT
+#
+
+CREATE TABLE t1 (
+  id int NOT NULL DEFAULT '0',
+  a  varchar(10) NOT NULL,
+  b  varchar(10),
+  c  varchar(10),
+  d  timestamp NOT NULL,
+  PRIMARY KEY (id, a)
+);
+
+CREATE TABLE t2 (
+  fubar_id         int unsigned NOT NULL DEFAULT '0',
+  last_change_time datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY  (fubar_id)
+);
+
+DELIMITER |;
+
+CREATE TRIGGER fubar_change
+  AFTER UPDATE ON t1
+    FOR EACH ROW
+      BEGIN
+        INSERT INTO t2 (fubar_id, last_change_time)
+          SELECT DISTINCT NEW.id AS fubar_id, NOW() AS last_change_time
+            FROM t1 WHERE (id = NEW.id) AND (OLD.c != NEW.c)
+        ON DUPLICATE KEY UPDATE
+          last_change_time =
+            IF((fubar_id = NEW.id)AND(OLD.c != NEW.c),NOW(),last_change_time);
+      END
+|
+
+DELIMITER ;|
+
+INSERT INTO t1 (id,a, b,c,d) VALUES
+ (1,'a','b','c',now()),(2,'a','b','c',now());
+
+UPDATE t1 SET c='Bang!' WHERE id=1;
+
+SELECT fubar_id FROM t2;
+
+DROP TABLE t1,t2;
 
 --echo End of 5.0 tests

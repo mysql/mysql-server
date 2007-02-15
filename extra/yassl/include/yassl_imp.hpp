@@ -1,27 +1,20 @@
-/* yassl_imp.hpp                                
- *
- * Copyright (C) 2003 Sawtooth Consulting Ltd.
- *
- * This file is part of yaSSL.
- *
- * yaSSL is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * There are special exceptions to the terms and conditions of the GPL as it
- * is applied to yaSSL. View the full text of the exception in the file
- * FLOSS-EXCEPTIONS in the directory of this software distribution.
- *
- * yaSSL is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
- */
+/*
+   Copyright (C) 2000-2007 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; see the file COPYING. If not, write to the
+   Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+   MA  02110-1301  USA.
+*/
 
 /*  yaSSL implementation header defines all strucutres from the SSL.v3 
  *  specification "draft-freier-ssl-version3-02.txt"
@@ -71,6 +64,7 @@ struct RecordLayerHeader {
 
 // base for all messages
 struct Message : public virtual_base {
+    Message() {}
     virtual input_buffer& set(input_buffer&) =0;   
     virtual output_buffer& get(output_buffer&) const =0;
 
@@ -184,6 +178,7 @@ private:
 class HandShakeBase : public virtual_base {
     int     length_;
 public:
+    HandShakeBase() {}
     int     get_length() const;
     void    set_length(int);
 
@@ -201,6 +196,7 @@ public:
 
 
 struct HelloRequest : public HandShakeBase {
+    HelloRequest() {}
     input_buffer&  set(input_buffer& in);
     output_buffer& get(output_buffer& out) const;
 
@@ -334,6 +330,7 @@ private:
 
 
 struct ServerKeyBase : public virtual_base {
+    ServerKeyBase() {}
     virtual ~ServerKeyBase() {}
     virtual void build(SSL&) {}
     virtual void read(SSL&, input_buffer&) {}
@@ -344,15 +341,21 @@ struct ServerKeyBase : public virtual_base {
 
 // Server random number for FORTEZZA KEA
 struct Fortezza_Server : public ServerKeyBase {
+    Fortezza_Server() {}
     opaque r_s_[FORTEZZA_MAX];
 };
 
 
 struct SignatureBase : public virtual_base {
+  SignatureBase() {}
     virtual ~SignatureBase() {}
 };
 
-struct anonymous_sa : public SignatureBase {};
+struct anonymous_sa : public SignatureBase
+{
+public:
+  anonymous_sa() {}
+};
 
 
 struct Hashes {
@@ -362,11 +365,13 @@ struct Hashes {
     
 
 struct rsa_sa : public SignatureBase {
+    rsa_sa() {}
     Hashes hashes_;
 };
 
 
 struct dsa_sa : public SignatureBase {
+    dsa_sa() {}
     uint8 sha_[SHA_LEN];
 };
 
@@ -394,6 +399,7 @@ private:
 
 // Server's RSA exchange
 struct RSA_Server : public ServerKeyBase {
+    RSA_Server() {}
     ServerRSAParams params_;
     opaque*         signature_;   // signed rsa_sa hashes
 };
@@ -468,6 +474,7 @@ struct PreMasterSecret {
 
 
 struct ClientKeyBase : public virtual_base {
+  ClientKeyBase() {}
     virtual ~ClientKeyBase() {}
     virtual void build(SSL&) {}
     virtual void read(SSL&, input_buffer&) {}
@@ -498,6 +505,7 @@ private:
 // Fortezza Key Parameters from page 29
 // hard code lengths cause only used here
 struct FortezzaKeys : public ClientKeyBase {
+    FortezzaKeys() {}
     opaque  y_c_                      [128];    // client's Yc, public value
     opaque  r_c_                      [128];    // client's Rc
     opaque  y_signature_              [40];     // DSS signed public key

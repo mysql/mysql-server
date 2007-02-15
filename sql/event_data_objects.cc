@@ -1579,7 +1579,6 @@ done:
 int
 Event_timed::get_create_event(THD *thd, String *buf)
 {
-  int multipl= 0;
   char tmp_buf[2 * STRING_BUFFER_USUAL_SIZE];
   String expr_buf(tmp_buf, sizeof(tmp_buf), system_charset_info);
   expr_buf.length(0);

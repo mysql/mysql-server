@@ -57,6 +57,7 @@ static Slave_log_event* find_slave_event(IO_CACHE* log,
   functions like register_slave()) are working.
 */
 
+#if NOT_USED
 static int init_failsafe_rpl_thread(THD* thd)
 {
   DBUG_ENTER("init_failsafe_rpl_thread");
@@ -98,7 +99,7 @@ static int init_failsafe_rpl_thread(THD* thd)
   thd->set_time();
   DBUG_RETURN(0);
 }
-
+#endif
 
 void change_rpl_status(RPL_STATUS from_status, RPL_STATUS to_status)
 {
@@ -529,11 +530,11 @@ HOSTS";
 
   while ((row= mysql_fetch_row(res)))
   {
-    uint32 server_id;
+    uint32 log_server_id;
     SLAVE_INFO* si, *old_si;
-    server_id = atoi(row[0]);
+    log_server_id = atoi(row[0]);
     if ((old_si= (SLAVE_INFO*)hash_search(&slave_list,
-					  (byte*)&server_id,4)))
+					  (byte*)&log_server_id,4)))
       si = old_si;
     else
     {
@@ -543,7 +544,7 @@ HOSTS";
 	pthread_mutex_unlock(&LOCK_slave_list);
 	goto err;
       }
-      si->server_id = server_id;
+      si->server_id = log_server_id;
       my_hash_insert(&slave_list, (byte*)si);
     }
     strmake(si->host, row[1], sizeof(si->host)-1);
@@ -572,12 +573,14 @@ err:
 }
 
 
+#if NOT_USED
 int find_recovery_captain(THD* thd, MYSQL* mysql)
 {
   return 0;
 }
+#endif
 
-
+#if NOT_USED
 pthread_handler_t handle_failsafe_rpl(void *arg)
 {
   DBUG_ENTER("handle_failsafe_rpl");
@@ -625,7 +628,7 @@ err:
   pthread_exit(0);
   DBUG_RETURN(0);
 }
-
+#endif
 
 bool show_slave_hosts(THD* thd)
 {
@@ -915,14 +918,14 @@ bool load_master_data(THD* thd)
           setting active_mi, because init_master_info() sets active_mi with
           defaults.
         */
-        int error;
+        int error_2;
 
         if (init_master_info(active_mi, master_info_file, relay_log_info_file, 
 			     0, (SLAVE_IO | SLAVE_SQL)))
           my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
 	strmake(active_mi->master_log_name, row[0],
 		sizeof(active_mi->master_log_name));
-	active_mi->master_log_pos= my_strtoll10(row[1], (char**) 0, &error);
+	active_mi->master_log_pos= my_strtoll10(row[1], (char**) 0, &error_2);
         /* at least in recent versions, the condition below should be false */
 	if (active_mi->master_log_pos < BIN_LOG_HEADER_SIZE)
 	  active_mi->master_log_pos = BIN_LOG_HEADER_SIZE;

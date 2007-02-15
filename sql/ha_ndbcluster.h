@@ -108,6 +108,7 @@ typedef struct st_ndbcluster_share {
   char *table_name;
   Ndb::TupleIdRange tuple_id_range;
 #ifdef HAVE_NDB_BINLOG
+  uint32 connect_count;
   uint32 flags;
   NdbEventOperation *op;
   NdbEventOperation *op_old; // for rename table

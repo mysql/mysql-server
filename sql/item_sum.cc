@@ -400,7 +400,7 @@ Field *Item_sum::create_tmp_field(bool group, TABLE *table,
   Field *field;
   switch (result_type()) {
   case REAL_RESULT:
-    field= new Field_double(max_length, maybe_null, name, decimals);
+    field= new Field_double(max_length, maybe_null, name, decimals, TRUE);
     break;
   case INT_RESULT:
     field= new Field_longlong(max_length, maybe_null, name, unsigned_flag);
@@ -1135,7 +1135,7 @@ Field *Item_sum_avg::create_tmp_field(bool group, TABLE *table,
     field= new Field_new_decimal(max_length, maybe_null, name,
                                  decimals, unsigned_flag);
   else
-    field= new Field_double(max_length, maybe_null, name, decimals);
+    field= new Field_double(max_length, maybe_null, name, decimals, TRUE);
   if (field)
     field->init(table);
   return field;
@@ -1172,7 +1172,7 @@ double Item_sum_avg::val_real()
 
 my_decimal *Item_sum_avg::val_decimal(my_decimal *val)
 {
-  my_decimal sum, cnt;
+  my_decimal sum_buff, cnt;
   const my_decimal *sum_dec;
   DBUG_ASSERT(fixed == 1);
   if (!count)
@@ -1180,7 +1180,7 @@ my_decimal *Item_sum_avg::val_decimal(my_decimal *val)
     null_value=1;
     return NULL;
   }
-  sum_dec= Item_sum_sum::val_decimal(&sum);
+  sum_dec= Item_sum_sum::val_decimal(&sum_buff);
   int2my_decimal(E_DEC_FATAL_ERROR, count, 0, &cnt);
   my_decimal_div(E_DEC_FATAL_ERROR, val, sum_dec, &cnt, prec_increment);
   return val;
@@ -1334,7 +1334,7 @@ Field *Item_sum_variance::create_tmp_field(bool group, TABLE *table,
     field= new Field_string(sizeof(double)*2 + sizeof(longlong), 0, name, &my_charset_bin);
   }
   else
-    field= new Field_double(max_length, maybe_null, name, decimals);
+    field= new Field_double(max_length, maybe_null, name, decimals, TRUE);
 
   if (field != NULL)
     field->init(table);
@@ -1627,7 +1627,7 @@ bool Item_sum_min::add()
   break;
   case DECIMAL_RESULT:
   {
-    my_decimal value, *val= args[0]->val_decimal(&value);
+    my_decimal value_buff, *val= args[0]->val_decimal(&value_buff);
     if (!args[0]->null_value &&
         (null_value || (my_decimal_cmp(&sum_dec, val) > 0)))
     {
@@ -1691,7 +1691,7 @@ bool Item_sum_max::add()
   break;
   case DECIMAL_RESULT:
   {
-    my_decimal value, *val= args[0]->val_decimal(&value);
+    my_decimal value_buff, *val= args[0]->val_decimal(&value_buff);
     if (!args[0]->null_value &&
         (null_value || (my_decimal_cmp(val, &sum_dec) > 0)))
     {
@@ -1856,7 +1856,7 @@ void Item_sum_hybrid::reset_field()
   }
   case DECIMAL_RESULT:
   {
-    my_decimal value, *arg_dec= args[0]->val_decimal(&value);
+    my_decimal value_buff, *arg_dec= args[0]->val_decimal(&value_buff);
 
     if (maybe_null)
     {
@@ -2484,11 +2484,11 @@ bool Item_sum_count_distinct::setup(THD *thd)
     for (tree_key_length= 0; field < field_end; ++field)
     {
       Field *f= *field;
-      enum enum_field_types type= f->type();
+      enum enum_field_types f_type= f->type();
       tree_key_length+= f->pack_length();
-      if ((type == MYSQL_TYPE_VARCHAR) ||
-          !f->binary() && (type == MYSQL_TYPE_STRING ||
-                           type == MYSQL_TYPE_VAR_STRING))
+      if ((f_type == MYSQL_TYPE_VARCHAR) ||
+          !f->binary() && (f_type == MYSQL_TYPE_STRING ||
+                           f_type == MYSQL_TYPE_VAR_STRING))
       {
         all_binary= FALSE;
         break;
@@ -3073,8 +3073,6 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
 
 void Item_func_group_concat::cleanup()
 {
-  THD *thd= current_thd;
-
   DBUG_ENTER("Item_func_group_concat::cleanup");
   Item_sum::cleanup();
 
@@ -3083,7 +3081,7 @@ void Item_func_group_concat::cleanup()
   {
     char warn_buff[MYSQL_ERRMSG_SIZE];
     sprintf(warn_buff, ER(ER_CUT_VALUE_GROUP_CONCAT), count_cut_values);
-    warning->set_msg(thd, warn_buff);
+    warning->set_msg(current_thd, warn_buff);
     warning= 0;
   }
 
@@ -3113,8 +3111,7 @@ void Item_func_group_concat::cleanup()
         warning= 0;
       }
     }
-    DBUG_ASSERT(tree == 0);
-    DBUG_ASSERT(warning == 0);
+    DBUG_ASSERT(tree == 0 && warning == 0);
   }
   DBUG_VOID_RETURN;
 }

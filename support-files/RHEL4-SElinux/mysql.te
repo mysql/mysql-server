@@ -1,0 +1,132 @@
+
+policy_module(mysql,1.0.0)
+
+########################################
+#
+# Declarations
+#
+
+type mysqld_t;
+type mysqld_exec_t;
+init_daemon_domain(mysqld_t,mysqld_exec_t)
+
+type mysqld_var_run_t;
+files_pid_file(mysqld_var_run_t)
+
+type mysqld_db_t;
+files_type(mysqld_db_t)
+
+type mysqld_etc_t alias etc_mysqld_t;
+files_config_file(mysqld_etc_t)
+
+type mysqld_log_t;
+logging_log_file(mysqld_log_t)
+
+type mysqld_tmp_t;
+files_tmp_file(mysqld_tmp_t)
+
+########################################
+#
+# Local policy
+#
+
+allow mysqld_t self:capability { dac_override setgid setuid sys_resource net_bind_service };
+dontaudit mysqld_t self:capability sys_tty_config;
+allow mysqld_t self:process { setsched getsched setrlimit signal_perms rlimitinh };
+allow mysqld_t self:fifo_file { read write };
+allow mysqld_t self:unix_stream_socket create_stream_socket_perms;
+allow mysqld_t self:tcp_socket create_stream_socket_perms;
+allow mysqld_t self:udp_socket create_socket_perms;
+
+allow mysqld_t mysqld_db_t:dir create_dir_perms;
+allow mysqld_t mysqld_db_t:file create_file_perms;
+allow mysqld_t mysqld_db_t:lnk_file create_lnk_perms;
+files_var_lib_filetrans(mysqld_t,mysqld_db_t,{ dir file })
+
+allow mysqld_t mysqld_etc_t:file { getattr read };
+allow mysqld_t mysqld_etc_t:lnk_file { getattr read };
+allow mysqld_t mysqld_etc_t:dir list_dir_perms;
+
+allow mysqld_t mysqld_log_t:file create_file_perms;
+logging_log_filetrans(mysqld_t,mysqld_log_t,file)
+
+allow mysqld_t mysqld_tmp_t:dir create_dir_perms;
+allow mysqld_t mysqld_tmp_t:file create_file_perms;
+files_tmp_filetrans(mysqld_t, mysqld_tmp_t, { file dir })
+
+allow mysqld_t mysqld_var_run_t:dir rw_dir_perms;
+allow mysqld_t mysqld_var_run_t:sock_file create_file_perms;
+allow mysqld_t mysqld_var_run_t:file create_file_perms;
+files_pid_filetrans(mysqld_t,mysqld_var_run_t,file)
+
+kernel_read_system_state(mysqld_t)
+kernel_read_kernel_sysctls(mysqld_t)
+
+corenet_non_ipsec_sendrecv(mysqld_t)
+corenet_tcp_sendrecv_all_if(mysqld_t)
+corenet_udp_sendrecv_all_if(mysqld_t)
+corenet_tcp_sendrecv_all_nodes(mysqld_t)
+corenet_udp_sendrecv_all_nodes(mysqld_t)
+corenet_tcp_sendrecv_all_ports(mysqld_t)
+corenet_udp_sendrecv_all_ports(mysqld_t)
+corenet_tcp_bind_all_nodes(mysqld_t)
+corenet_tcp_bind_mysqld_port(mysqld_t)
+corenet_tcp_connect_mysqld_port(mysqld_t)
+corenet_sendrecv_mysqld_client_packets(mysqld_t)
+corenet_sendrecv_mysqld_server_packets(mysqld_t)
+
+dev_read_sysfs(mysqld_t)
+
+fs_getattr_all_fs(mysqld_t)
+fs_search_auto_mountpoints(mysqld_t)
+
+term_dontaudit_use_console(mysqld_t)
+
+domain_use_interactive_fds(mysqld_t)
+
+files_getattr_var_lib_dirs(mysqld_t)
+files_read_etc_runtime_files(mysqld_t)
+files_read_etc_files(mysqld_t)
+files_read_usr_files(mysqld_t)
+files_search_var_lib(mysqld_t)
+
+auth_use_nsswitch(mysqld_t)
+
+init_use_fds(mysqld_t)
+init_use_script_ptys(mysqld_t)
+
+libs_use_ld_so(mysqld_t)
+libs_use_shared_libs(mysqld_t)
+
+logging_send_syslog_msg(mysqld_t)
+
+miscfiles_read_localization(mysqld_t)
+
+sysnet_read_config(mysqld_t)
+
+userdom_dontaudit_use_unpriv_user_fds(mysqld_t)
+# for /root/.my.cnf - should not be needed:
+userdom_read_sysadm_home_content_files(mysqld_t)
+
+ifdef(`distro_redhat',`
+	# because Fedora has the sock_file in the database directory
+	type_transition mysqld_t mysqld_db_t:sock_file mysqld_var_run_t;
+')
+
+ifdef(`targeted_policy',`
+	term_dontaudit_use_unallocated_ttys(mysqld_t)
+	term_dontaudit_use_generic_ptys(mysqld_t)
+	files_dontaudit_read_root_files(mysqld_t)
+')
+
+optional_policy(`
+	daemontools_service_domain(mysqld_t, mysqld_exec_t)
+')
+
+optional_policy(`
+	seutil_sigchld_newrole(mysqld_t)
+')
+
+optional_policy(`
+	udev_read_db(mysqld_t)
+')
