@@ -162,7 +162,8 @@ sql_yacc.o:	sql_yacc.cc sql_yacc.h $(HEADERS)
 # this avoid the rebuild of the built files in a source dist
 lex_hash.h:	gen_lex_hash.cc lex.h
 		$(MAKE) $(AM_MAKEFLAGS) gen_lex_hash$(EXEEXT)
-		./gen_lex_hash$(EXEEXT) > $@
+		./gen_lex_hash$(EXEEXT) > $@-t
+		$(MV) $@-t $@
 
 # For testing of udf_example.so
 noinst_LTLIBRARIES= udf_example.la
