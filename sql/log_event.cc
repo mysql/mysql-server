@@ -2254,6 +2254,8 @@ Start_log_event_v3::Start_log_event_v3(const char* buf,
   binlog_version= uint2korr(buf+ST_BINLOG_VER_OFFSET);
   memcpy(server_version, buf+ST_SERVER_VER_OFFSET,
 	 ST_SERVER_VER_LEN);
+  // prevent overrun if log is corrupted on disk
+  server_version[ST_SERVER_VER_LEN-1]= 0;
   created= uint4korr(buf+ST_CREATED_OFFSET);
   /* We use log_pos to mark if this was an artificial event or not */
   artificial_event= (log_pos == 0);
@@ -2377,6 +2379,8 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
   switch (binlog_ver) {
   case 4: /* MySQL 5.0 */
     memcpy(server_version, ::server_version, ST_SERVER_VER_LEN);
+    DBUG_EXECUTE_IF("pretend_version_50034_in_binlog",
+                    strmov(server_version, "5.0.34"););
     common_header_len= LOG_EVENT_HEADER_LEN;
     number_of_event_types= LOG_EVENT_TYPES;
     /* we'll catch my_malloc() error in is_valid() */
@@ -2467,6 +2471,7 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
     post_header_len= 0; /* will make is_valid() fail */
     break;
   }
+  calc_server_version_split();
 }
 
 
@@ -2506,6 +2511,7 @@ Format_description_log_event(const char* buf,
   post_header_len= (uint8*) my_memdup((byte*)buf+ST_COMMON_HEADER_LEN_OFFSET+1,
                                       number_of_event_types*
                                       sizeof(*post_header_len), MYF(0));
+  calc_server_version_split();
   DBUG_VOID_RETURN;
 }
 
@@ -2605,6 +2611,37 @@ int Format_description_log_event::exec_event(struct st_relay_log_info* rli)
   DBUG_RETURN(Start_log_event_v3::exec_event(rli));
 }
 #endif
+
+
+/**
+   Splits the event's 'server_version' string into three numeric pieces stored
+   into 'server_version_split':
+   X.Y.Zabc (X,Y,Z numbers, a not a digit) -> {X,Y,Z}
+   X.Yabc -> {X,Y,0}
+   Xabc -> {X,0,0}
+   'server_version_split' is then used for lookups to find if the server which
+   created this event has some known bug.
+*/
+void Format_description_log_event::calc_server_version_split()
+{
+  char *p= server_version, *r;
+  ulong number;
+  for (uint i= 0; i<=2; i++)
+  {
+    number= strtoul(p, &r, 10);
+    server_version_split[i]= (uchar)number;
+    DBUG_ASSERT(number < 256); // fit in uchar
+    p= r;
+    DBUG_ASSERT(!((i == 0) && (*r != '.'))); // should be true in practice
+    if (*r == '.')
+      p++; // skip the dot
+  }
+  DBUG_PRINT("info",("Format_description_log_event::server_version_split:"
+                     " '%s' %d %d %d", server_version,
+                     server_version_split[0],
+                     server_version_split[1], server_version_split[2]));
+}
+
 
   /**************************************************************************
         Load_log_event methods

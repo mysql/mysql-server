@@ -1153,6 +1153,7 @@ public:
   uint8 number_of_event_types;
   /* The list of post-headers' lengthes */
   uint8 *post_header_len;
+  uchar server_version_split[3];
 
   Format_description_log_event(uint8 binlog_ver, const char* server_ver=0);
 
@@ -1184,6 +1185,7 @@ public:
     */
     return FORMAT_DESCRIPTION_HEADER_LEN;
   }
+  void calc_server_version_split();
 };
 
 
