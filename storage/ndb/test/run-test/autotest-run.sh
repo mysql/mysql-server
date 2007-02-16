@@ -246,8 +246,9 @@ cd $res_dir
 
 echo "date=$DATE" > info.txt
 echo "suite=$RUN" >> info.txt
-echo "clone=$clone" >> info.txt
+echo "clone=mysql-$clone" >> info.txt
 echo "arch=$target" >> info.txt
+find . | xargs chmod ugo+r
 
 cd ..
 p2=`pwd`
