@@ -330,8 +330,8 @@ int HugoOperations::execute_Commit(Ndb* pNdb,
   int check = 0;
   check = pTrans->execute(Commit, eao);   
 
-  if( check == -1 ) {
-    const NdbError err = pTrans->getNdbError();
+  const NdbError err = pTrans->getNdbError();
+  if( check == -1 || err.code) {
     ERR(err);
     NdbOperation* pOp = pTrans->getNdbErrorOperation();
     if (pOp != NULL){
@@ -379,13 +379,16 @@ int HugoOperations::execute_NoCommit(Ndb* pNdb, AbortOption eao){
   int check;
   check = pTrans->execute(NoCommit, eao);   
 
-  if( check == -1 ) {
-    const NdbError err = pTrans->getNdbError();
+  const NdbError err = pTrans->getNdbError();
+  if( check == -1 || err.code) {
     ERR(err);
-    NdbOperation* pOp;
-    while ((pOp = pTrans->getNdbErrorOperation()) != NULL){
+    const NdbOperation* pOp = pTrans->getNdbErrorOperation();
+    while (pOp != NULL)
+    {
       const NdbError err2 = pOp->getNdbError();
-      ERR(err2);
+      if (err2.code)
+	ERR(err2);
+      pOp = pTrans->getNextCompletedOperation(pOp);
     }
     if (err.code == 0)
       return NDBT_FAILED;
