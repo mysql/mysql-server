@@ -17,20 +17,23 @@ Created December 2006 by Marko Makela
 #include "buf0flu.h"
 #include "page0zip.h"
 
-/* Statistic counters, protected by buf_pool->mutex */
+/* Statistic counters */
 
-/** Number of frames allocated from the buffer pool to the buddy system */
-static ulint buf_buddy_n_frames;
-/** Counts of blocks allocated from the buddy system */
+/** Number of frames allocated from the buffer pool to the buddy system.
+Protected by buf_pool->mutex. */
+ulint buf_buddy_n_frames;
+/** Counts of blocks allocated from the buddy system.
+Protected by buf_pool->mutex. */
 static ulint buf_buddy_used[BUF_BUDDY_SIZES + 1];
-/** Counts of blocks relocated by the buddy system */
+/** Counts of blocks relocated by the buddy system.
+Protected by buf_pool->mutex. */
 static ib_uint64_t buf_buddy_relocated[BUF_BUDDY_SIZES + 1];
 
 /** Preferred minimum number of frames allocated from the buffer pool
 to the buddy system.  When this number is exceeded, the buddy allocator
 will not try to free clean compressed-only pages in order to satisfy
 an allocation request.  Protected by buf_pool->mutex. */
-static ulint buf_buddy_min_n_frames = ULINT_UNDEFINED;
+ulint buf_buddy_min_n_frames = ULINT_UNDEFINED;
 
 /**************************************************************************
 Get the offset of the buddy of a compressed page frame. */
