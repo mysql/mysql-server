@@ -2385,7 +2385,7 @@ create table t1(f1 int, f2 int);
 create view v1 as select ta.f1 as a, tb.f1 as b from t1 ta, t1 tb where ta.f1=tb
 .f1 and ta.f2=tb.f2;
 insert into t1 values(1,1),(2,2);
-create view v2 as select * from v1 where a > 1 with local check option;
+create view v2 as select * from v1 where a > 1 with check option;
 select * from v2;
 update v2 set b=3 where a=2;
 select * from v2;
@@ -2959,17 +2959,6 @@ SELECT * FROM t1;
 DROP VIEW v1, v2;
 DROP TABLE t1;
 
-#
-# Bug #25580: !0 as an operand in a select expression of a view
-#
-
-CREATE VIEW v AS SELECT !0 * 5 AS x FROM DUAL;
-SHOW CREATE VIEW v;
-
-SELECT !0 * 5 AS x FROM DUAL;
-SELECT * FROM v;
-
-DROP VIEW v;
 
 #
 # BUG#24293: '\Z' token is not handled correctly in views
@@ -2986,76 +2975,108 @@ SHOW CREATE VIEW v1;
 
 DROP VIEW v1;
 
-#
-# Bug #26124: BETWEEN over a view column of the DATETIME type
-#
-
-CREATE TABLE t1 (mydate DATETIME);
-INSERT INTO t1 VALUES 
-  ('2007-01-01'), ('2007-01-02'), ('2007-01-30'), ('2007-01-31');
-
-CREATE VIEW v1 AS SELECT mydate from t1;
-
-SELECT * FROM t1 WHERE mydate BETWEEN '2007-01-01' AND '2007-01-31';
-SELECT * FROM v1 WHERE mydate BETWEEN '2007-01-01' AND '2007-01-31';
-
-DROP VIEW v1;
-DROP TABLE t1;
 
 #
-# Bug #25931: update of a multi-table view with check option
+# BUG#25897: Some queries are no longer possible after a CREATE VIEW
+# fails 
 #
+--disable_warnings
+DROP VIEW IF EXISTS v1;
+--enable_warnings
 
-CREATE TABLE t1 (a int);
-CREATE TABLE t2 (b int);
-INSERT INTO t1 VALUES (1), (2);
-INSERT INTO t2 VALUES (1), (2);
+let $query = SELECT * FROM (SELECT 1) AS t;
 
-CREATE VIEW v1 AS
-  SELECT t2.b FROM t1,t2 WHERE t1.a = t2.b WITH CHECK OPTION;
-
-SELECT * FROM v1;
---error 1369
-UPDATE v1 SET b=3;
-SELECT * FROM v1;
-SELECT * FROM t1;
-SELECT * FROM t2;
-
-DROP VIEW v1;
-DROP TABLE t1,t2;
+eval $query;
+--error ER_VIEW_SELECT_DERIVED
+eval CREATE VIEW v1 AS $query;
+--echo # Previously the following would fail.
+eval $query;
 
 #
-# Bug#12122: Views with ORDER BY can't be resolved using MERGE algorithm.
-#
-create table t1(f1 int, f2 int);
-insert into t1 values(1,2),(1,3),(1,1),(2,3),(2,1),(2,2);
-select * from t1;
-create view v1 as select * from t1 order by f2;
-select * from v1;
-explain extended select * from v1;
-select * from v1 order by f1;
-explain extended select * from v1 order by f1;
-drop view v1;
-drop table t1;
-
-#
-# Bug#26209: queries with GROUP BY and ORDER BY using views 
+# Bug#24532: The return data type of IS TRUE is different from similar
+# operations
 #
 
-CREATE TABLE t1 (
-  id int(11) NOT NULL PRIMARY KEY,
-  country varchar(32),
-  code int(11) default NULL
+--disable_warnings
+drop view if exists view_24532_a;
+drop view if exists view_24532_b;
+drop table if exists table_24532;
+--enable_warnings
+
+create table table_24532 (
+  a int,
+  b bigint,
+  c int(4),
+  d bigint(48)
 );
-INSERT INTO t1 VALUES
-  (1,'ITALY',100),(2,'ITALY',200),(3,'FRANCE',100), (4,'ITALY',100);
 
-CREATE VIEW v1 AS SELECT * FROM t1;
+create view view_24532_a as
+select
+  a IS TRUE,
+  a IS NOT TRUE,
+  a IS FALSE,
+  a IS NOT FALSE,
+  a IS UNKNOWN,
+  a IS NOT UNKNOWN,
+  a is NULL,
+  a IS NOT NULL,
+  ISNULL(a),
+  b IS TRUE,
+  b IS NOT TRUE,
+  b IS FALSE,
+  b IS NOT FALSE,
+  b IS UNKNOWN,
+  b IS NOT UNKNOWN,
+  b is NULL,
+  b IS NOT NULL,
+  ISNULL(b),
+  c IS TRUE,
+  c IS NOT TRUE,
+  c IS FALSE,
+  c IS NOT FALSE,
+  c IS UNKNOWN,
+  c IS NOT UNKNOWN,
+  c is NULL,
+  c IS NOT NULL,
+  ISNULL(c),
+  d IS TRUE,
+  d IS NOT TRUE,
+  d IS FALSE,
+  d IS NOT FALSE,
+  d IS UNKNOWN,
+  d IS NOT UNKNOWN,
+  d is NULL,
+  d IS NOT NULL,
+  ISNULL(d)
+from table_24532;
 
-SELECT code, COUNT(DISTINCT country) FROM t1 GROUP BY code ORDER BY MAX(id);
-SELECT code, COUNT(DISTINCT country) FROM v1 GROUP BY code ORDER BY MAX(id);
+describe view_24532_a;
 
-DROP VIEW v1;
-DROP TABLE t1;
+create view view_24532_b as
+select
+  a IS TRUE,
+  if(ifnull(a, 0), 1, 0) as old_istrue,
+  a IS NOT TRUE,
+  if(ifnull(a, 0), 0, 1) as old_isnottrue,
+  a IS FALSE,
+  if(ifnull(a, 1), 0, 1) as old_isfalse,
+  a IS NOT FALSE,
+  if(ifnull(a, 1), 1, 0) as old_isnotfalse
+from table_24532;
+
+describe view_24532_b;
+
+show create view view_24532_b;
+
+insert into table_24532 values (0, 0, 0, 0);
+select * from view_24532_b;
+update table_24532 set a=1;
+select * from view_24532_b;
+update table_24532 set a=NULL;
+select * from view_24532_b;
+
+drop view view_24532_a;
+drop view view_24532_b;
+drop table table_24532;
 
 --echo End of 5.0 tests.
