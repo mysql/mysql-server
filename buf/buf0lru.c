@@ -264,7 +264,6 @@ buf_LRU_search_and_free_block(
 				of the LRU list */
 {
 	buf_page_t*	bpage;
-	ulint		distance = 0;
 	ibool		freed;
 
 	mutex_enter(&(buf_pool->mutex));
@@ -272,25 +271,88 @@ buf_LRU_search_and_free_block(
 	freed = FALSE;
 	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 
-	while (bpage != NULL) {
-		mutex_t*	block_mutex = buf_page_get_mutex(bpage);
+	if (UNIV_UNLIKELY(n_iterations > 10)) {
+		/* The buffer pool is scarce.  Search the whole
+		LRU list, and also free any compressed pages. */
 
-		mutex_enter(block_mutex);
-		freed = buf_LRU_free_block(bpage, n_iterations > 10);
-		mutex_exit(block_mutex);
+		while (bpage != NULL) {
+			mutex_t*	block_mutex
+				= buf_page_get_mutex(bpage);
 
-		if (freed) {
+			mutex_enter(block_mutex);
+			/* Discard also the compressed page. */
+			freed = buf_LRU_free_block(bpage, TRUE);
+			if (!freed && bpage->zip.data) {
+				/* Could not free the compressed page;
+				try freeing the uncompressed page then. */
+				freed = buf_LRU_free_block(bpage, FALSE);
+			}
+			mutex_exit(block_mutex);
 
-			break;
+			if (freed) {
+
+				break;
+			}
+
+			bpage = UT_LIST_GET_PREV(LRU, bpage);
 		}
+	} else if (buf_buddy_n_frames > buf_buddy_min_n_frames) {
+		/* There are enough compressed blocks.  Free the
+		least recently used block, whether or not it
+		comprises an uncompressed page. */
 
-		bpage = UT_LIST_GET_PREV(LRU, bpage);
-		distance++;
+		ulint	distance = 100
+			+ (n_iterations * buf_pool->curr_size) / 10;
 
-		if (n_iterations <= 10
-		    && distance > 100 + (n_iterations * buf_pool->curr_size)
-		    / 10) {
-			goto func_exit;
+		while (bpage != NULL) {
+			mutex_t*	block_mutex
+				= buf_page_get_mutex(bpage);
+
+			mutex_enter(block_mutex);
+			/* Preserve any compressed page. */
+			freed = buf_LRU_free_block(bpage, FALSE);
+			mutex_exit(block_mutex);
+
+			if (freed) {
+
+				break;
+			}
+
+			bpage = UT_LIST_GET_PREV(LRU, bpage);
+
+			if (!--distance) {
+				goto func_exit;
+			}
+		}
+	} else {
+		/* There are few compressed blocks.  Skip compressed-only
+		blocks in the search for the least recently used block
+		that can be freed.  Preserve any compressed page. */
+
+		ulint	distance = 100
+			+ (n_iterations * buf_pool->curr_size) / 10;
+
+		while (bpage != NULL) {
+			if (buf_page_get_state(bpage)
+			    == BUF_BLOCK_FILE_PAGE) {
+
+				buf_block_t*	block = (buf_block_t*) bpage;
+				mutex_enter(&block->mutex);
+				/* Preserve any compressed page. */
+				freed = buf_LRU_free_block(bpage, FALSE);
+				mutex_exit(&block->mutex);
+
+				if (freed) {
+
+					break;
+				}
+			}
+
+			bpage = UT_LIST_GET_PREV(LRU, bpage);
+
+			if (!--distance) {
+				goto func_exit;
+			}
 		}
 	}
 

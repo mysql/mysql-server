@@ -46,6 +46,15 @@ buf_buddy_free(
 	ulint	size)	/* in: block size, up to UNIV_PAGE_SIZE */
 	__attribute__((nonnull));
 
+/** Number of frames allocated from the buffer pool to the buddy system.
+Protected by buf_pool->mutex. */
+extern ulint buf_buddy_n_frames;
+/** Preferred minimum number of frames allocated from the buffer pool
+to the buddy system.  When this number is exceeded, the buddy allocator
+will not try to free clean compressed-only pages in order to satisfy
+an allocation request.  Protected by buf_pool->mutex. */
+extern ulint buf_buddy_min_n_frames;
+
 #ifndef UNIV_NONINL
 # include "buf0buddy.ic"
 #endif
