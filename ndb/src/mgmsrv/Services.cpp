@@ -332,19 +332,6 @@ MgmApiSession::runSession()
 
     switch(ctx.m_status) {
     case Parser_t::UnknownCommand:
-#ifdef MGM_GET_CONFIG_BACKWARDS_COMPAT
-      /* Backwards compatibility for old NDBs that still use
-       * the old "GET CONFIG" command.
-       */
-	  size_t i;
-      for(i=0; i<strlen(ctx.m_currentToken); i++)
-	ctx.m_currentToken[i] = toupper(ctx.m_currentToken[i]);
-
-      if(strncmp("GET CONFIG ", 
-		 ctx.m_currentToken,
-		 strlen("GET CONFIG ")) == 0)
-	getConfig_old(ctx);
-#endif /* MGM_GET_CONFIG_BACKWARDS_COMPAT */
       break;
     default:
       break;
@@ -357,32 +344,6 @@ MgmApiSession::runSession()
   }
 
   DBUG_VOID_RETURN;
-}
-
-#ifdef MGM_GET_CONFIG_BACKWARDS_COMPAT
-void
-MgmApiSession::getConfig_old(Parser_t::Context &ctx) {
-  Properties args;
-
-  Uint32 version, node;
-
-  if(sscanf(ctx.m_currentToken, "GET CONFIG %d %d",
-	    (int *)&version, (int *)&node) != 2) {
-    m_output->println("Expected 2 arguments for GET CONFIG");
-    return;
-  }
-
-  /* Put arguments in properties object so we can call the real function */  
-  args.put("version", version);
-  args.put("node", node);
-  getConfig_common(ctx, args, true);
-}
-#endif /* MGM_GET_CONFIG_BACKWARDS_COMPAT */
-
-void
-MgmApiSession::getConfig(Parser_t::Context &ctx, 
-			 const class Properties &args) {
-  getConfig_common(ctx, args);
 }
 
 static Properties *
@@ -560,9 +521,9 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
 }
 
 void
-MgmApiSession::getConfig_common(Parser_t::Context &,
-				const class Properties &args,
-				bool compat) {
+MgmApiSession::getConfig(Parser_t::Context &,
+                         const class Properties &args)
+{
   Uint32 version, node = 0;
 
   args.get("version", &version);
@@ -573,47 +534,6 @@ MgmApiSession::getConfig_common(Parser_t::Context &,
     m_output->println("get config reply");
     m_output->println("result: Could not fetch configuration");
     m_output->println("");
-    return;
-  }
-
-  if(version > 0 && version < makeVersion(3, 5, 0) && compat){
-    Properties *reply = backward("", conf->m_oldConfig);
-    reply->put("Version", version);
-    reply->put("LocalNodeId", node);
-
-    backward("", reply);
-    //reply->print();
-    
-    const Uint32 size = reply->getPackedSize();
-    Uint32 *buffer = new Uint32[size/4+1];
-    
-    reply->pack(buffer);
-    delete reply;
-    
-    const int uurows = (size + 44)/45;
-    char * uubuf = new char[uurows * 62+5];
-      
-    const int uusz = uuencode_mem(uubuf, (char *)buffer, size);
-    delete[] buffer;
-      
-    m_output->println("GET CONFIG %d %d %d %d %d",
-		      0, version, node, size, uusz);
-    
-    m_output->println("begin 664 Ndb_cfg.bin");
-      
-    /* XXX Need to write directly to the socket, because the uubuf is not
-     * NUL-terminated. This could/should probably be done in a nicer way.
-     */
-    write_socket(m_socket, MAX_WRITE_TIMEOUT, uubuf, uusz);
-    delete[] uubuf;
-      
-    m_output->println("end");
-    m_output->println("");
-    return;
-  }
-
-  if(compat){
-    m_output->println("GET CONFIG %d %d %d %d %d",1, version, 0, 0, 0);
     return;
   }
 
@@ -844,8 +764,7 @@ MgmApiSession::setClusterLogLevel(Parser<MgmApiSession>::Context &,
 
   DBUG_PRINT("enter",("node=%d, category=%d, level=%d", node, cat, level));
 
-  /* XXX should use constants for this value */
-  if(level > 15) {
+  if(level > NDB_MGM_MAX_LOGLEVEL) {
     m_output->println(reply);
     m_output->println("result: Invalid loglevel %d", level);
     m_output->println("");
@@ -889,8 +808,7 @@ MgmApiSession::setLogLevel(Parser<MgmApiSession>::Context &,
   args.get("category", &cat);
   args.get("level", &level);
 
-  /* XXX should use constants for this value */
-  if(level > 15) {
+  if(level > NDB_MGM_MAX_LOGLEVEL) {
     m_output->println("set loglevel reply");
     m_output->println("result: Invalid loglevel", errorString.c_str());
     m_output->println("");
@@ -1590,7 +1508,7 @@ MgmApiSession::listen_event(Parser<MgmApiSession>::Context & ctx,
     }
     
     int level = atoi(spec[1].c_str());
-    if(level < 0 || level > 15){
+    if(level < 0 || level > NDB_MGM_MAX_LOGLEVEL){
       msg.appfmt("Invalid level: >%s<", spec[1].c_str());
       result = -1;
       goto done;

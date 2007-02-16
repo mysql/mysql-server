@@ -2187,43 +2187,6 @@ ndb_mgm_alloc_nodeid(NdbMgmHandle handle, unsigned int version, int nodetype,
   return nodeid;
 }
 
-/*****************************************************************************
- * Global Replication
- ******************************************************************************/
-extern "C"
-int 
-ndb_mgm_rep_command(NdbMgmHandle handle, unsigned int request,
-		    unsigned int* replication_id,
-		    struct ndb_mgm_reply* /*reply*/) 
-{
-  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_rep_command");
-  const ParserRow<ParserDummy> replication_reply[] = {
-    MGM_CMD("global replication reply", NULL, ""),
-    MGM_ARG("result", String, Mandatory, "Error message"),
-    MGM_ARG("id", Int, Optional, "Id of global replication"),
-    MGM_END()
-  };
-  CHECK_HANDLE(handle, -1);
-  CHECK_CONNECTED(handle, -1);
-
-  Properties args;
-  args.put("request", request);
-  const Properties *reply;
-  reply = ndb_mgm_call(handle, replication_reply, "rep", &args);
-  CHECK_REPLY(reply, -1);
-  
-  const char * result;
-  reply->get("result", &result);
-  reply->get("id", replication_id);
-  if(strcmp(result,"Ok")!=0) {
-    delete reply;
-    return -1;
-  }
-
-  delete reply;
-  return 0;
-}
-
 extern "C"
 int
 ndb_mgm_set_int_parameter(NdbMgmHandle handle,
