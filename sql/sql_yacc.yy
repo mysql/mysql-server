@@ -7926,6 +7926,7 @@ keyword_sp:
 	| COMPACT_SYM		{}
 	| COMPRESSED_SYM	{}
 	| CONCURRENT		{}
+	| CONNECTION_SYM	{}
 	| CONSISTENT_SYM	{}
 	| CUBE_SYM		{}
 	| DATA_SYM		{}
