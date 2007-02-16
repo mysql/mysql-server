@@ -8,7 +8,7 @@ rm -rf *
 
 while [ $# -gt 0 ]
 do
-  rsync -a --exclude='ndb_*_fs/*' "$1" .
+  rsync -a --exclude='BACKUP' --exclude='ndb_*_fs' "$1" .
   shift
 done
 
