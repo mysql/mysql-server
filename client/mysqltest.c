@@ -408,6 +408,8 @@ TYPELIB command_typelib= {array_elements(command_names),"",
 
 DYNAMIC_STRING ds_res, ds_progress, ds_warning_messages;
 
+char builtin_echo[FN_REFLEN];
+
 void die(const char *fmt, ...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
 void abort_not_supported_test(const char *fmt, ...)
@@ -935,10 +937,10 @@ void warning_msg(const char *fmt, ...)
     dynstr_append_mem(&ds_warning_messages,
                       buff, len);
   }
-#ifndef __WIN__
-  len= vsnprintf(buff, sizeof(buff), fmt, args);
+
+  len= my_vsnprintf(buff, sizeof(buff), fmt, args);
   dynstr_append_mem(&ds_warning_messages, buff, len);
-#endif
+
   dynstr_append(&ds_warning_messages, "\n");
   va_end(args);
 
@@ -1538,35 +1540,100 @@ void do_source(struct st_command *command)
 }
 
 
-#ifdef __WIN__
+#if defined __WIN__
+
+#ifdef USE_CYGWIN
 /* Variables used for temporary sh files used for emulating Unix on Windows */
 char tmp_sh_name[64], tmp_sh_cmd[70];
+#endif
 
 void init_tmp_sh_file()
 {
+#ifdef USE_CYGWIN
   /* Format a name for the tmp sh file that is unique for this process */
   my_snprintf(tmp_sh_name, sizeof(tmp_sh_name), "tmp_%d.sh", getpid());
   /* Format the command to execute in order to run the script */
   my_snprintf(tmp_sh_cmd, sizeof(tmp_sh_cmd), "sh %s", tmp_sh_name);
+#endif
 }
 
 
 void free_tmp_sh_file()
 {
+#ifdef USE_CYGWIN
   my_delete(tmp_sh_name, MYF(0));
+#endif
 }
 #endif
 
 
 FILE* my_popen(DYNAMIC_STRING *ds_cmd, const char *mode)
 {
-#ifdef __WIN__
+#if defined __WIN__ && defined USE_CYGWIN
   /* Dump the command into a sh script file and execute with popen */
   str_to_file(tmp_sh_name, ds_cmd->str, ds_cmd->length);
   return popen(tmp_sh_cmd, mode);
 #else
   return popen(ds_cmd->str, mode);
 #endif
+}
+
+
+static void init_builtin_echo(void)
+{
+#ifdef __WIN__
+
+  /* Look for "echo.exe" in same dir as mysqltest was started from */
+  dirname_part(builtin_echo, my_progname);
+  fn_format(builtin_echo, ".\\echo.exe",
+            builtin_echo, "", MYF(MY_REPLACE_DIR));
+
+  /* Make sure echo.exe exists */
+  if (access(builtin_echo, F_OK) != 0)
+    builtin_echo[0]= 0;
+  return;
+
+#else
+
+  builtin_echo[0]= 0;
+  return;
+
+#endif
+}
+
+
+/*
+  Replace a substring
+
+  SYNOPSIS
+    replace
+    ds_str      The string to search and perform the replace in
+    search_str  The string to search for
+    search_len  Length of the string to search for
+    replace_str The string to replace with
+    replace_len Length of the string to replace with
+
+  RETURN
+    0 String replaced
+    1 Could not find search_str in str
+*/
+
+static int replace(DYNAMIC_STRING *ds_str,
+                   const char *search_str, ulong search_len,
+                   const char *replace_str, ulong replace_len)
+{
+  DYNAMIC_STRING ds_tmp;
+  const char *start= strstr(ds_str->str, search_str);
+  if (!start)
+    return 1;
+  init_dynamic_string(&ds_tmp, "",
+                      ds_str->length + replace_len, 256);
+  dynstr_append_mem(&ds_tmp, ds_str->str, start - ds_str->str);
+  dynstr_append_mem(&ds_tmp, replace_str, replace_len);
+  dynstr_append(&ds_tmp, start + search_len);
+  dynstr_set(ds_str, ds_tmp.str);
+  dynstr_free(&ds_tmp);
+  return 0;
 }
 
 
@@ -1588,13 +1655,13 @@ FILE* my_popen(DYNAMIC_STRING *ds_cmd, const char *mode)
   NOTE
   Although mysqltest is executed from cygwin shell, the command will be
   executed in "cmd.exe". Thus commands like "rm" etc can NOT be used, use
-  system for those commands.
+  mysqltest commmand(s) like "remove_file" for that
 */
 
 void do_exec(struct st_command *command)
 {
   int error;
-  char buf[1024];
+  char buf[512];
   FILE *res_file;
   char *cmd= command->first_argument;
   DYNAMIC_STRING ds_cmd;
@@ -1611,6 +1678,13 @@ void do_exec(struct st_command *command)
   init_dynamic_string(&ds_cmd, 0, command->query_len+256, 256);
   /* Eval the command, thus replacing all environment variables */
   do_eval(&ds_cmd, cmd, command->end, TRUE);
+
+  /* Check if echo should be replaced with "builtin" echo */
+  if (builtin_echo[0] && strncmp(cmd, "echo", 4) == 0)
+  {
+    /* Replace echo with our "builtin" echo */
+    replace(&ds_cmd, "echo", 4, builtin_echo, strlen(builtin_echo));
+  }
 
   DBUG_PRINT("info", ("Executing '%s' as '%s'",
                       command->first_argument, ds_cmd.str));
@@ -1737,7 +1811,7 @@ int do_modify_var(struct st_command *command,
 
 int my_system(DYNAMIC_STRING* ds_cmd)
 {
-#ifdef __WIN__
+#if defined __WIN__ && defined USE_CYGWIN
   /* Dump the command into a sh script file and execute with system */
   str_to_file(tmp_sh_name, ds_cmd->str, ds_cmd->length);
   return system(tmp_sh_cmd);
@@ -5670,6 +5744,7 @@ int main(int argc, char **argv)
   parser.current_line= parser.read_lines= 0;
   memset(&var_reg, 0, sizeof(var_reg));
 
+  init_builtin_echo();
 #ifdef __WIN__
   init_tmp_sh_file();
   init_win_path_patterns();
