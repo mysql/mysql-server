@@ -51,6 +51,10 @@ Item_subselect::Item_subselect():
 void Item_subselect::init(st_select_lex *select_lex,
 			  select_subselect *result)
 {
+  /*
+    Please see Item_singlerow_subselect::invalidate_and_restore_select_lex(),
+    which depends on alterations to the parse tree implemented here.
+  */
 
   DBUG_ENTER("Item_subselect::init");
   DBUG_PRINT("enter", ("select_lex: 0x%lx", (long) select_lex));
@@ -89,6 +93,12 @@ void Item_subselect::init(st_select_lex *select_lex,
       upper->subquery_in_having= 1;
   }
   DBUG_VOID_RETURN;
+}
+
+st_select_lex *
+Item_subselect::get_select_lex()
+{
+  return unit->first_select();
 }
 
 void Item_subselect::cleanup()
@@ -266,6 +276,26 @@ Item_singlerow_subselect::Item_singlerow_subselect(st_select_lex *select_lex)
   maybe_null= 1;
   max_columns= UINT_MAX;
   DBUG_VOID_RETURN;
+}
+
+st_select_lex *
+Item_singlerow_subselect::invalidate_and_restore_select_lex()
+{
+  DBUG_ENTER("Item_singlerow_subselect::invalidate_and_restore_select_lex");
+  st_select_lex *result= get_select_lex();
+
+  DBUG_ASSERT(result);
+
+  /*
+    This code restore the parse tree in it's state before the execution of
+    Item_singlerow_subselect::Item_singlerow_subselect(),
+    and in particular decouples this object from the SELECT_LEX,
+    so that the SELECT_LEX can be used with a different flavor
+    or Item_subselect instead, as part of query rewriting.
+  */
+  unit->item= NULL;
+
+  DBUG_RETURN(result);
 }
 
 Item_maxmin_subselect::Item_maxmin_subselect(THD *thd_param,
