@@ -2857,7 +2857,7 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
     if(needed <= alloc)
     {
       //ndbassert(!regOperPtr->is_first_operation());
-      ndbout_c(" no grow");
+      if (0) ndbout_c(" no grow");
       return 0;
     }
     copy_bits |= Tuple_header::MM_GROWN;
@@ -3143,7 +3143,7 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
       break;
     }
 
-    ndbout << "DIRECT DISK DELETE: " << disk << endl;
+    if (0) ndbout << "DIRECT DISK DELETE: " << disk << endl;
     disk_page_free(signal, tablePtr.p, fragPtr.p,
 		   &disk, *(PagePtr*)&disk_page, gci);
     return 0;
@@ -3195,7 +3195,7 @@ Dbtup::nr_delete_page_callback(Signal* signal,
     break;
   }
     
-  ndbout << "PAGE CALLBACK DISK DELETE: " << op.m_disk_ref << endl;
+  if (0) ndbout << "PAGE CALLBACK DISK DELETE: " << op.m_disk_ref << endl;
   disk_page_free(signal, tablePtr.p, fragPtr.p,
 		 &op.m_disk_ref, pagePtr, op.m_gci);
   
@@ -3227,7 +3227,7 @@ Dbtup::nr_delete_log_buffer_callback(Signal* signal,
   /**
    * reset page no
    */
-  ndbout << "LOGBUFFER CALLBACK DISK DELETE: " << op.m_disk_ref << endl;
+  if (0) ndbout << "LOGBUFFER CALLBACK DISK DELETE: " << op.m_disk_ref << endl;
   
   disk_page_free(signal, tablePtr.p, fragPtr.p,
 		 &op.m_disk_ref, pagePtr, op.m_gci);
