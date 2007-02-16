@@ -748,12 +748,12 @@ drop view v1;
 #
 # VIEWs with national characters
 #
-create table tü (cü char);
-create view vü as select cü from tü;
-insert into vü values ('ü');
-select * from vü;
-drop view vü;
-drop table tü;
+create table t (c char);
+create view v as select c from t;
+insert into v values ('');
+select * from v;
+drop view v;
+drop table t;
 
 #
 # problem with used_tables() of outer reference resolved in VIEW
@@ -1879,15 +1879,6 @@ DROP VIEW v1;
 DROP TABLE t1;
 
 #
-# Bug #11335 View redefines column types
-#
-create table t1 (f1 tinyint(1), f2 char(1), f3 varchar(1), f4 geometry, f5 datetime);
-create view v1 as select * from t1;
-desc v1;
-drop view v1;
-drop table t1;
-
-#
 # Bug #11760 Typo in Item_func_add_time::print() results in NULLs returned
 #             subtime() in view
 create table t1(f1 datetime);
@@ -2386,7 +2377,7 @@ create table t1(f1 int, f2 int);
 create view v1 as select ta.f1 as a, tb.f1 as b from t1 ta, t1 tb where ta.f1=tb
 .f1 and ta.f2=tb.f2;
 insert into t1 values(1,1),(2,2);
-create view v2 as select * from v1 where a > 1 with check option;
+create view v2 as select * from v1 where a > 1 with local check option;
 select * from v2;
 update v2 set b=3 where a=2;
 select * from v2;
@@ -2908,7 +2899,6 @@ DROP FUNCTION f1;
 DROP VIEW v1;
 DROP TABLE t1;
 
-
 #
 # Bug #16813 (WITH CHECK OPTION doesn't work with UPDATE)
 #
@@ -2961,6 +2951,18 @@ DROP VIEW v1, v2;
 DROP TABLE t1;
 
 #
+# Bug #25580: !0 as an operand in a select expression of a view
+#
+
+CREATE VIEW v AS SELECT !0 * 5 AS x FROM DUAL;
+SHOW CREATE VIEW v;
+
+SELECT !0 * 5 AS x FROM DUAL;
+SELECT * FROM v;
+
+DROP VIEW v;
+
+#
 # BUG#24293: '\Z' token is not handled correctly in views
 #
 
@@ -2975,6 +2977,77 @@ SHOW CREATE VIEW v1;
 
 DROP VIEW v1;
 
+#
+# Bug #26124: BETWEEN over a view column of the DATETIME type
+#
+
+CREATE TABLE t1 (mydate DATETIME);
+INSERT INTO t1 VALUES
+  ('2007-01-01'), ('2007-01-02'), ('2007-01-30'), ('2007-01-31');
+
+CREATE VIEW v1 AS SELECT mydate from t1;
+
+SELECT * FROM t1 WHERE mydate BETWEEN '2007-01-01' AND '2007-01-31';
+SELECT * FROM v1 WHERE mydate BETWEEN '2007-01-01' AND '2007-01-31';
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+#
+# Bug #25931: update of a multi-table view with check option
+#
+
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (b int);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (2);
+
+CREATE VIEW v1 AS
+  SELECT t2.b FROM t1,t2 WHERE t1.a = t2.b WITH CHECK OPTION;
+
+SELECT * FROM v1;
+--error 1369
+UPDATE v1 SET b=3;
+SELECT * FROM v1;
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+DROP VIEW v1;
+DROP TABLE t1,t2;
+
+#
+# Bug#12122: Views with ORDER BY can't be resolved using MERGE algorithm.
+#
+create table t1(f1 int, f2 int);
+insert into t1 values(1,2),(1,3),(1,1),(2,3),(2,1),(2,2);
+select * from t1;
+create view v1 as select * from t1 order by f2;
+select * from v1;
+explain extended select * from v1;
+select * from v1 order by f1;
+explain extended select * from v1 order by f1;
+drop view v1;
+drop table t1;
+
+#
+# Bug#26209: queries with GROUP BY and ORDER BY using views
+#
+
+CREATE TABLE t1 (
+  id int(11) NOT NULL PRIMARY KEY,
+  country varchar(32),
+  code int(11) default NULL
+);
+INSERT INTO t1 VALUES
+  (1,'ITALY',100),(2,'ITALY',200),(3,'FRANCE',100), (4,'ITALY',100);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SELECT code, COUNT(DISTINCT country) FROM t1 GROUP BY code ORDER BY MAX(id);
+SELECT code, COUNT(DISTINCT country) FROM v1 GROUP BY code ORDER BY MAX(id);
+
+DROP VIEW v1;
+DROP TABLE t1;
 
 #
 # BUG#25897: Some queries are no longer possible after a CREATE VIEW
@@ -3081,7 +3154,6 @@ drop table table_24532;
 
 
 --echo End of 5.0 tests.
-
 
 #
 # Bug#21370 View renaming lacks tablename_to_filename encoding
