@@ -2388,7 +2388,23 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
         next_name_resolution_table=          ctx_state.save_next_local;
     }
     res= res || setup_fields(thd, 0, *info.update_values, 1, 0, 0);
+    if (!res)
+    {
+      /*
+        Traverse the update values list and substitute fields from the
+        select for references (Item_ref objects) to them. This is done in
+        order to get correct values from those fields when the select
+        employs a temporary table.
+      */
+      List_iterator<Item> li(*info.update_values);
+      Item *item;
 
+      while ((item= li++))
+      {
+        item->transform(&Item::update_value_transformer,
+                        (byte*)lex->current_select);
+      }
+    }
     /* Restore the current context. */
     ctx_state.restore_state(context, table_list);
   }

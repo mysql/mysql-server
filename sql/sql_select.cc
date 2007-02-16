@@ -482,6 +482,9 @@ JOIN::prepare(Item ***rref_pointer_array,
     }
   }
 
+  if (!procedure && result && result->prepare(fields_list, unit_arg))
+    goto err;					/* purecov: inspected */
+
   /* Init join struct */
   count_field_types(&tmp_table_param, all_fields, 0);
   ref_pointer_array_size= all_fields.elements*sizeof(Item*);
@@ -495,9 +498,6 @@ JOIN::prepare(Item ***rref_pointer_array,
     goto err;
   }
 #endif
-  if (!procedure && result && result->prepare(fields_list, unit_arg))
-    goto err;					/* purecov: inspected */
-
   if (select_lex->olap == ROLLUP_TYPE && rollup_init())
     goto err;
   if (alloc_func_list())

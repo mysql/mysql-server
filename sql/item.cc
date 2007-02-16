@@ -4809,6 +4809,51 @@ void Item_field::update_null_value()
 }
 
 
+/*
+  Add the field to the select list and substitute it for the reference to
+  the field.
+
+  SYNOPSIS
+    Item_field::update_value_transformer()
+    select_arg      current select
+
+  DESCRIPTION
+    If the field doesn't belong to the table being inserted into then it is
+    added to the select list, pointer to it is stored in the ref_pointer_array
+    of the select and the field itself is substituted for the Item_ref object.
+    This is done in order to get correct values from update fields that
+    belongs to the SELECT part in the INSERT .. SELECT .. ON DUPLICATE KEY
+    UPDATE statement.
+
+  RETURN
+    0             if error occured
+    ref           if all conditions are met
+    this field    otherwise
+*/
+
+Item *Item_field::update_value_transformer(byte *select_arg)
+{
+  SELECT_LEX *select= (SELECT_LEX*)select_arg;
+  DBUG_ASSERT(fixed);
+
+  if (field->table != select->context.table_list->table &&
+      type() != Item::TRIGGER_FIELD_ITEM)
+  {
+    List<Item> *all_fields= &select->join->all_fields;
+    Item **ref_pointer_array= select->ref_pointer_array;
+    int el= all_fields->elements;
+    Item_ref *ref;
+
+    ref_pointer_array[el]= (Item*)this;
+    all_fields->push_front((Item*)this);
+    ref= new Item_ref(&select->context, ref_pointer_array + el,
+                      table_name, field_name);
+    return ref;
+  }
+  return this;
+}
+
+
 Item_ref::Item_ref(Name_resolution_context *context_arg,
                    Item **item, const char *table_name_arg,
                    const char *field_name_arg)
