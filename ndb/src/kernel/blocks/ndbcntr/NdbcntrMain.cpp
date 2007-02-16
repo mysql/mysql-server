@@ -75,8 +75,8 @@ static BlockInfo ALL_BLOCKS[] = {
   { DBDICT_REF,  1 ,  6000,  6003 },
   { NDBFS_REF,   0 ,  2000,  2999 },
   { NDBCNTR_REF, 0 ,  1000,  1999 },
+  { CMVMI_REF,   1 ,  9000,  9999 }, // before QMGR
   { QMGR_REF,    1 ,     1,   999 },
-  { CMVMI_REF,   1 ,  9000,  9999 },
   { TRIX_REF,    1 ,     0,     0 },
   { BACKUP_REF,  1 , 10000, 10999 },
   { DBUTIL_REF,  1 , 11000, 11999 },
