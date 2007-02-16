@@ -238,6 +238,12 @@ main(int argc, char ** argv)
       g_logger.info("(Re)starting server processes processes");
       if(!stop_processes(g_config, ~0))
 	goto end;
+
+      if (!setup_directories(g_config, 2))
+	goto end;
+      
+      if (!setup_files(g_config, 2, 1))
+	goto end;
       
       if(!setup_hosts(g_config))
         goto end;
