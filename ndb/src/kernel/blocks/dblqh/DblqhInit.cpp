@@ -314,7 +314,6 @@ Dblqh::Dblqh(const class Configuration & conf):
   addRecSignal(GSN_FSREADCONF, &Dblqh::execFSREADCONF);
   addRecSignal(GSN_FSREADREF, &Dblqh::execFSREADREF, true);
   addRecSignal(GSN_ACC_ABORTCONF, &Dblqh::execACC_ABORTCONF);
-  addRecSignal(GSN_SET_VAR_REQ,  &Dblqh::execSET_VAR_REQ);
   addRecSignal(GSN_TIME_SIGNAL,  &Dblqh::execTIME_SIGNAL);
   addRecSignal(GSN_FSSYNCCONF,  &Dblqh::execFSSYNCCONF);
   addRecSignal(GSN_REMOVE_MARKER_ORD, &Dblqh::execREMOVE_MARKER_ORD);
