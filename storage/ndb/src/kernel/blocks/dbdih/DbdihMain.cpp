@@ -4891,6 +4891,8 @@ void
 Dbdih::startLcpMasterTakeOver(Signal* signal, Uint32 nodeId){
   jam();
 
+  Uint32 oldNode = c_lcpMasterTakeOverState.failedNodeId;
+
   c_lcpMasterTakeOverState.minTableId = ~0;
   c_lcpMasterTakeOverState.minFragId = ~0;
   c_lcpMasterTakeOverState.failedNodeId = nodeId;
@@ -4909,7 +4911,20 @@ Dbdih::startLcpMasterTakeOver(Signal* signal, Uint32 nodeId){
     /**
      * Node failure during master take over...
      */
-    ndbout_c("Nodefail during master take over");
+    ndbout_c("Nodefail during master take over (old: %d)", oldNode);
+  }
+  
+  NodeRecordPtr nodePtr;
+  nodePtr.i = oldNode;
+  if (oldNode > 0 && oldNode < MAX_NDB_NODES)
+  {
+    jam();
+    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+    if (nodePtr.p->m_nodefailSteps.get(NF_LCP_TAKE_OVER))
+    {
+      jam();
+      checkLocalNodefailComplete(signal, oldNode, NF_LCP_TAKE_OVER);
+    }
   }
   
   setLocalNodefailHandling(signal, nodeId, NF_LCP_TAKE_OVER);
@@ -5925,6 +5940,14 @@ void Dbdih::execMASTER_LCPREQ(Signal* signal)
   jamEntry();
   const BlockReference newMasterBlockref = req->masterRef;
 
+  if (newMasterBlockref != cmasterdihref)
+  {
+    jam();
+    ndbout_c("resending GSN_MASTER_LCPREQ");
+    sendSignalWithDelay(reference(), GSN_MASTER_LCPREQ, signal,
+			signal->getLength(), 50);
+    return;
+  }
   Uint32 failedNodeId = req->failedNodeId;
 
   /**
@@ -6221,6 +6244,8 @@ void Dbdih::execMASTER_LCPCONF(Signal* signal)
   ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
   nodePtr.p->lcpStateAtTakeOver = lcpState;
 
+  CRASH_INSERTION(7180);
+  
 #ifdef VM_TRACE
   ndbout_c("MASTER_LCPCONF");
   printMASTER_LCP_CONF(stdout, &signal->theData[0], 0, 0);
