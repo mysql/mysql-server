@@ -1044,6 +1044,45 @@ int runBug25554(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int
+runBug26457(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+  if (res.getNumDbNodes() < 4)
+    return NDBT_OK;
+
+  int loops = ctx->getNumLoops();
+  while (loops --)
+  {
+retry:
+    int master = res.getMasterNodeId();
+    int next = res.getNextMasterNodeId(master);
+
+    ndbout_c("master: %d next: %d", master, next);
+
+    if (res.getNodeGroup(master) == res.getNodeGroup(next))
+    {
+      res.restartOneDbNode(next, false, false, true);
+      if (res.waitClusterStarted())
+	return NDBT_FAILED;
+      goto retry;
+    }
+
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 2 };
+    
+    if (res.dumpStateOneNode(next, val2, 2))
+      return NDBT_FAILED;
+    
+    if (res.insertErrorInNode(next, 7180))
+      return NDBT_FAILED;
+    
+    res.restartOneDbNode(master, false, false, true);
+    if (res.waitClusterStarted())
+      return NDBT_FAILED;
+  }
+  
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
@@ -1365,6 +1404,9 @@ TESTCASE("Bug25364", ""){
 }
 TESTCASE("Bug25554", ""){
   INITIALIZER(runBug25554);
+}
+TESTCASE("Bug26457", ""){
+  INITIALIZER(runBug26457);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 
