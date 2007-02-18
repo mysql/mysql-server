@@ -32,7 +32,7 @@ class Manager
 public:
   static int main();
 
-  static bool flush_instances();
+  static int flush_instances();
 
 public:
   /**

@@ -14,19 +14,29 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include <windows.h>
-#include <assert.h>
-#include ".\windowsservice.h"
+
+#include "WindowsService.h"
 
 static WindowsService *gService;
 
-WindowsService::WindowsService(void) :
+WindowsService::WindowsService(const char *p_serviceName,
+                               const char *p_displayName) :
   statusCheckpoint(0),
-  serviceName(NULL),
+  serviceName(p_serviceName),
+  displayName(p_displayName),
   inited(FALSE),
   dwAcceptedControls(SERVICE_ACCEPT_STOP),
   debugging(FALSE)
 {
+  DBUG_ASSERT(serviceName != NULL);
+
+  /* TODO: shouldn't we check displayName too (can it really be NULL)? */
+
+  /* WindowsService is assumed to be singleton. Let's assure this. */
+  DBUG_ASSERT(gService == NULL);
+
   gService= this;
+
   status.dwServiceType= SERVICE_WIN32_OWN_PROCESS;
   status.dwServiceSpecificExitCode= 0;
 }
@@ -35,7 +45,7 @@ WindowsService::~WindowsService(void)
 {
 }
 
-BOOL WindowsService::Install()
+BOOL WindowsService::Install(const char *username, const char *password)
 {
   bool ret_val= FALSE;
   SC_HANDLE newService;
@@ -70,7 +80,7 @@ BOOL WindowsService::Install()
 
 BOOL WindowsService::Init()
 {
-  assert(serviceName != NULL);
+  DBUG_ASSERT(serviceName != NULL);
 
   if (inited)
     return TRUE;
@@ -207,7 +217,7 @@ void WindowsService::HandleControlCode(DWORD opcode)
 
 void WINAPI WindowsService::ServiceMain(DWORD argc, LPTSTR *argv)
 {
-  assert(gService != NULL);
+  DBUG_ASSERT(gService != NULL);
 
   // register our service control handler:
   gService->RegisterAndRun(argc, argv);
@@ -215,7 +225,7 @@ void WINAPI WindowsService::ServiceMain(DWORD argc, LPTSTR *argv)
 
 void WINAPI WindowsService::ControlHandler(DWORD opcode)
 {
-  assert(gService != NULL);
+  DBUG_ASSERT(gService != NULL);
 
   return gService->HandleControlCode(opcode);
 }

@@ -47,7 +47,7 @@ unsigned long open_files_limit;
 
 
 
-int create_pid_file(const char *pid_file_name, int pid)
+bool create_pid_file(const char *pid_file_name, int pid)
 {
   FILE *pid_file;
 
@@ -58,7 +58,7 @@ int create_pid_file(const char *pid_file_name, int pid)
               (const char *) pid_file_name,
               (const char *) strerror(errno),
               (int) errno);
-    return 1;
+    return TRUE;
   }
 
   if (fprintf(pid_file, "%d\n", (int) pid) <= 0)
@@ -67,10 +67,10 @@ int create_pid_file(const char *pid_file_name, int pid)
               (const char *) pid_file_name,
               (const char *) strerror(errno),
               (int) errno);
-    return 1;
+    return TRUE;
   }
 
   my_fclose(pid_file, MYF(0));
 
-  return 0;
+  return FALSE;
 }

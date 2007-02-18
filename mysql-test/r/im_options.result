@@ -1,13 +1,9 @@
---------------------------------------------------------------------
-server_id           = 1
-server_id           = 2
---------------------------------------------------------------------
 SHOW VARIABLES LIKE 'server_id';
 Variable_name	Value
 server_id	1
 SHOW INSTANCES;
 instance_name	state
-mysqld1	starting
+mysqld1	XXXXX
 mysqld2	offline
 UNSET mysqld1.server_id;
 ERROR HY000: The instance is active. Stop the instance first
@@ -86,7 +82,7 @@ UNSET mysqld2.aaa, mysqld3.bbb, mysqld2.ccc, mysqld3.ddd;
 --------------------------------------------------------------------
 --------------------------------------------------------------------
 SET mysqld2.aaa, mysqld3.bbb, mysqld.ccc = 0010;
-ERROR HY000: Bad instance name. Check that the instance with such a name exists
+ERROR HY000: Unknown instance name
 --------------------------------------------------------------------
 --------------------------------------------------------------------
 --------------------------------------------------------------------
@@ -98,7 +94,7 @@ ERROR HY000: The instance is active. Stop the instance first
 --------------------------------------------------------------------
 --------------------------------------------------------------------
 UNSET mysqld2.server_id, mysqld3.server_id, mysqld.ccc;
-ERROR HY000: Bad instance name. Check that the instance with such a name exists
+ERROR HY000: Unknown instance name
 --------------------------------------------------------------------
 server_id           = 1
 server_id=2

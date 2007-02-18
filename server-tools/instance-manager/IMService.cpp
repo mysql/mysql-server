@@ -15,17 +15,19 @@
 
 #include <windows.h>
 #include <signal.h>
-#include "log.h"
-#include "options.h"
+
 #include "IMService.h"
+
+#include "log.h"
 #include "manager.h"
+#include "options.h"
+
+static const char * const IM_SVC_USERNAME= NULL;
+static const char * const IM_SVC_PASSWORD= NULL;
 
 IMService::IMService(void)
+  :WindowsService("MySqlManager", "MySQL Manager")
 {
-  serviceName= "MySqlManager";
-  displayName= "MySQL Manager";
-  username= NULL;
-  password= NULL;
 }
 
 IMService::~IMService(void)
@@ -60,50 +62,63 @@ void IMService::Log(const char *msg)
   log_info(msg);
 }
 
-int HandleServiceOptions()
+int IMService::main()
 {
-  int ret_val= 0;
-
   IMService winService;
 
   if (Options::Service::install_as_service)
   {
     if (winService.IsInstalled())
+    {
       log_info("Service is already installed.");
-    else if (winService.Install())
+      return 1;
+    }
+
+    if (winService.Install(IM_SVC_USERNAME, IM_SVC_PASSWORD))
+    {
       log_info("Service installed successfully.");
+      return 0;
+    }
     else
     {
       log_error("Service failed to install.");
-      ret_val= 1;
+      return 1;
     }
   }
-  else if (Options::Service::remove_service)
+
+  if (Options::Service::remove_service)
   {
-    if (! winService.IsInstalled())
+    if (!winService.IsInstalled())
+    {
       log_info("Service is not installed.");
-    else if (winService.Remove())
+      return 1;
+    }
+
+    if (winService.Remove())
+    {
       log_info("Service removed successfully.");
+      return 0;
+    }
     else
     {
       log_error("Service failed to remove.");
-      ret_val= 1;
+      return 1;
     }
   }
-  else
+
+  log_info("Initializing Instance Manager service...");
+
+  if (!winService.Init())
   {
-    log_info("Initializing Instance Manager service...");
+    log_error("Service failed to initialize.");
 
-    if (!winService.Init())
-    {
-      log_error("Service failed to initialize.");
-      fprintf(stderr,
-              "The service should be started by Windows Service Manager.\n"
-              "The MySQL Manager should be started with '--standalone'\n"
-              "to run from command line.");
-      ret_val= 1;
-    }
+    fprintf(stderr,
+      "The service should be started by Windows Service Manager.\n"
+      "The MySQL Manager should be started with '--standalone'\n"
+      "to run from command line.");
+
+    return 1;
   }
 
-  return ret_val;
+  return 0;
 }
