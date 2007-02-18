@@ -29,6 +29,8 @@
 #include "guardian.h"
 #include "instance_map.h"
 #include "listener.h"
+#include "mysql_manager_error.h"
+#include "mysqld_error.h"
 #include "log.h"
 #include "options.h"
 #include "priv.h"
@@ -205,14 +207,16 @@ int Manager::main()
   bool shutdown_complete= FALSE;
   pid_t manager_pid= getpid();
 
+  log_info("Manager: initializing...");
+
 #ifndef __WIN__
   if (check_if_linux_threads(&linux_threads))
   {
-    log_error("Can not determine thread model.");
+    log_error("Manager: can not determine thread model.");
     return 1;
   }
 
-  log_info("Detected threads model: %s.",
+  log_info("Manager: detected threads model: %s.",
            (const char *) (linux_threads ? "LINUX threads" : "POSIX threads"));
 #endif // __WIN__
 
@@ -250,7 +254,7 @@ int Manager::main()
 
   if (instance_map.init())
   {
-    log_error("Can not initialize instance list: out of memory.");
+    log_error("Manager: can not initialize instance list: out of memory.");
     return 1;
   }
 
@@ -258,7 +262,7 @@ int Manager::main()
 
   if (user_map.init())
   {
-    log_error("Can not initialize user list: out of memory.");
+    log_error("Manager: can not initialize user list: out of memory.");
     return 1;
   }
 
@@ -277,19 +281,18 @@ int Manager::main()
     }
     else
     {
-      log_error("%s.", (const char *) err_msg);
+      log_error("Manager: %s.", (const char *) err_msg);
       return 1;
     }
   }
 
   /* Write Instance Manager pid file. */
 
-  log_info("IM pid file: '%s'; PID: %d.",
-           (const char *) Options::Main::pid_file_name,
-           (int) manager_pid);
-
   if (create_pid_file(Options::Main::pid_file_name, manager_pid))
     return 1; /* necessary logging has been already done. */
+
+  log_info("Manager: pid file (%s) created.",
+           (const char *) Options::Main::pid_file_name);
 
   /*
     Initialize signals and alarm-infrastructure.
@@ -326,7 +329,7 @@ int Manager::main()
 
   if (guardian.start(Thread::DETACHED))
   {
-    log_error("Can not start Guardian thread.");
+    log_error("Manager: can not start Guardian thread.");
     goto err;
   }
 
@@ -334,7 +337,7 @@ int Manager::main()
 
   if (Manager::flush_instances())
   {
-    log_error("Can not init instances repository.");
+    log_error("Manager: can not init instances repository.");
     stop_all_threads();
     goto err;
   }
@@ -343,7 +346,7 @@ int Manager::main()
 
   if (listener.start(Thread::DETACHED))
   {
-    log_error("Can not start Listener thread.");
+    log_error("Manager: can not start Listener thread.");
     stop_all_threads();
     goto err;
   }
@@ -366,7 +369,7 @@ int Manager::main()
 
     if ((status= my_sigwait(&mask, &signo)) != 0)
     {
-      log_error("sigwait() failed");
+      log_error("Manager: sigwait() failed");
       stop_all_threads();
       goto err;
     }
@@ -426,7 +429,6 @@ err:
 #ifndef __WIN__
   /* free alarm structures */
   end_thr_alarm(1);
-  /* don't pthread_exit to kill all threads who did not shut down in time */
 #endif
   return rc;
 }
@@ -460,34 +462,41 @@ err:
 
     In order to avoid such side effects one should never call
     FLUSH INSTANCES without prior stop of all running instances.
+
+  RETURN
+    0                           On success
+    ER_OUT_OF_RESOURCES         Not enough resources to complete the operation
+    ER_THERE_IS_ACTIVE_INSTACE  If there is an active instance
 */
 
-bool Manager::flush_instances()
+int Manager::flush_instances()
 {
   p_instance_map->lock();
 
   if (p_instance_map->is_there_active_instance())
   {
     p_instance_map->unlock();
-    return TRUE;
+    return ER_THERE_IS_ACTIVE_INSTACE;
   }
 
   if (p_instance_map->reset())
   {
     p_instance_map->unlock();
-    return TRUE;
+    return ER_OUT_OF_RESOURCES;
   }
 
   if (p_instance_map->load())
   {
     p_instance_map->unlock();
-    return TRUE; /* Don't init guardian if we failed to load instances. */
+
+    /* Don't init guardian if we failed to load instances. */
+    return ER_OUT_OF_RESOURCES;
   }
 
-  get_guardian()->init(); /* TODO: check error status. */
+  get_guardian()->init();
   get_guardian()->ping();
 
   p_instance_map->unlock();
 
-  return FALSE;
+  return 0;
 }

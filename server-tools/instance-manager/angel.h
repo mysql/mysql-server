@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB
+/* Copyright (C) 2003-2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,22 +11,24 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#pragma once
-#include "WindowsService.h"
+#ifndef INCLUDES_MYSQL_ANGEL_H
+#define INCLUDES_MYSQL_ANGEL_H
 
-class IMService: public WindowsService
+#ifndef __WIN__
+
+#if defined(__GNUC__) && defined(USE_PRAGMA_INTERFACE)
+#pragma interface
+#endif
+
+#include <my_global.h>
+
+class Angel
 {
 public:
   static int main();
-
-private:
-  IMService(void);
-  ~IMService(void);
-
-protected:
-  void Log(const char *msg);
-  void Stop();
-  void Run(DWORD argc, LPTSTR *argv);
 };
+
+#endif // INCLUDES_MYSQL_ANGEL_H
+#endif // __WIN__

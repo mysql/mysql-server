@@ -80,7 +80,9 @@ mysqlmanager_SOURCES=	command.cc command.h mysqlmanager.cc \
                         portability.h \
 			exit_codes.h \
 			user_management_commands.h \
-			user_management_commands.cc
+			user_management_commands.cc \
+			angel.h \
+			angel.cc
 
 mysqlmanager_LDADD=	@CLIENT_EXTRA_LDFLAGS@ \
 			liboptions.la \

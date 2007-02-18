@@ -94,6 +94,6 @@ extern unsigned long bytes_sent, bytes_received;
 extern unsigned long mysqld_net_retry_count;
 extern unsigned long open_files_limit;
 
-int create_pid_file(const char *pid_file_name, int pid);
+bool create_pid_file(const char *pid_file_name, int pid);
 
 #endif // INCLUDES_MYSQL_INSTANCE_MANAGER_PRIV_H
