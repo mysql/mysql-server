@@ -210,8 +210,10 @@ int Show_instances::write_data(st_net *net)
 
 int Flush_instances::execute(st_net *net, ulong connection_id)
 {
-  if (Manager::flush_instances())
-    return ER_OUT_OF_RESOURCES;
+  int err_status= Manager::flush_instances();
+
+  if (err_status)
+    return err_status;
 
   return net_send_ok(net, connection_id, NULL) ? ER_OUT_OF_RESOURCES : 0;
 }

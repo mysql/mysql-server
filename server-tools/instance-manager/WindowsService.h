@@ -21,8 +21,6 @@ protected:
   bool                  inited;
   const char            *serviceName;
   const char            *displayName;
-  const char            *username;
-  const char            *password;
   SERVICE_STATUS_HANDLE statusHandle;
   DWORD                 statusCheckpoint;
   SERVICE_STATUS        status;
@@ -30,7 +28,7 @@ protected:
   bool                  debugging;
 
 public:
-  WindowsService(void);
+  WindowsService(const char *p_serviceName, const char *p_displayName);
   ~WindowsService(void);
 
   BOOL  Install();
