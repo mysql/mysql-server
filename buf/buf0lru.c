@@ -272,21 +272,14 @@ buf_LRU_search_and_free_block(
 	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 
 	if (UNIV_UNLIKELY(n_iterations > 10)) {
-		/* The buffer pool is scarce.  Search the whole
-		LRU list, and also free any compressed pages. */
+		/* The buffer pool is scarce.  Search the whole LRU list. */
 
 		while (bpage != NULL) {
 			mutex_t*	block_mutex
 				= buf_page_get_mutex(bpage);
 
 			mutex_enter(block_mutex);
-			/* Discard also the compressed page. */
 			freed = buf_LRU_free_block(bpage, TRUE);
-			if (!freed && bpage->zip.data) {
-				/* Could not free the compressed page;
-				try freeing the uncompressed page then. */
-				freed = buf_LRU_free_block(bpage, FALSE);
-			}
 			mutex_exit(block_mutex);
 
 			if (freed) {
@@ -309,8 +302,7 @@ buf_LRU_search_and_free_block(
 				= buf_page_get_mutex(bpage);
 
 			mutex_enter(block_mutex);
-			/* Preserve any compressed page. */
-			freed = buf_LRU_free_block(bpage, FALSE);
+			freed = buf_LRU_free_block(bpage, TRUE);
 			mutex_exit(block_mutex);
 
 			if (freed) {
@@ -327,7 +319,7 @@ buf_LRU_search_and_free_block(
 	} else {
 		/* There are few compressed blocks.  Skip compressed-only
 		blocks in the search for the least recently used block
-		that can be freed.  Preserve any compressed page. */
+		that can be freed. */
 
 		ulint	distance = 100
 			+ (n_iterations * buf_pool->curr_size) / 10;
@@ -338,8 +330,7 @@ buf_LRU_search_and_free_block(
 
 				buf_block_t*	block = (buf_block_t*) bpage;
 				mutex_enter(&block->mutex);
-				/* Preserve any compressed page. */
-				freed = buf_LRU_free_block(bpage, FALSE);
+				freed = buf_LRU_free_block(bpage, TRUE);
 				mutex_exit(&block->mutex);
 
 				if (freed) {
