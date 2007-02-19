@@ -5866,7 +5866,7 @@ int main(int argc, char **argv)
 
   init_builtin_echo();
 #ifdef __WIN__
-  is_windows= 0;
+  is_windows= 1;
   init_tmp_sh_file();
   init_win_path_patterns();
 #endif
