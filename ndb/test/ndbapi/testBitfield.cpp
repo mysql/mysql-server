@@ -36,9 +36,10 @@ main(int argc, char** argv){
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
 
-  argc--;
-  argv++;
-  
+  if ((ho_error=handle_options(&argc, &argv, my_long_options,
+			       ndb_std_get_one_option)))
+    return NDBT_ProgramExit(NDBT_WRONGARGS);
+
   Ndb_cluster_connection con(opt_connect_str);
   if(con.connect(12, 5, 1))
   {
