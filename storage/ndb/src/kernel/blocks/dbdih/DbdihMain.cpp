@@ -677,6 +677,12 @@ done:
     Uint32 tmp= SYSFILE->m_restart_seq;
     memcpy(sysfileData, cdata, sizeof(sysfileData));
     SYSFILE->m_restart_seq = tmp;
+
+    if (c_set_initial_start_flag)
+    {
+      jam();
+      Sysfile::setInitialStartOngoing(SYSFILE->systemRestartBits);
+    }
   }
 
   c_copyGCISlave.m_copyReason = reason;
@@ -1290,6 +1296,11 @@ void Dbdih::execNDB_STTOR(Signal* signal)
     // The permission is given by the master node in the alive set.  
     /*-----------------------------------------------------------------------*/
     createMutexes(signal, 0);
+    if (cstarttype == NodeState::ST_INITIAL_NODE_RESTART)
+    {
+      jam();
+      c_set_initial_start_flag = TRUE; // In sysfile...
+    }
     break;
     
   case ZNDB_SPH3:
@@ -4828,6 +4839,8 @@ void
 Dbdih::startLcpMasterTakeOver(Signal* signal, Uint32 nodeId){
   jam();
 
+  Uint32 oldNode = c_lcpMasterTakeOverState.failedNodeId;
+
   c_lcpMasterTakeOverState.minTableId = ~0;
   c_lcpMasterTakeOverState.minFragId = ~0;
   c_lcpMasterTakeOverState.failedNodeId = nodeId;
@@ -4846,7 +4859,20 @@ Dbdih::startLcpMasterTakeOver(Signal* signal, Uint32 nodeId){
     /**
      * Node failure during master take over...
      */
-    ndbout_c("Nodefail during master take over");
+    ndbout_c("Nodefail during master take over (old: %d)", oldNode);
+  }
+  
+  NodeRecordPtr nodePtr;
+  nodePtr.i = oldNode;
+  if (oldNode > 0 && oldNode < MAX_NDB_NODES)
+  {
+    jam();
+    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+    if (nodePtr.p->m_nodefailSteps.get(NF_LCP_TAKE_OVER))
+    {
+      jam();
+      checkLocalNodefailComplete(signal, oldNode, NF_LCP_TAKE_OVER);
+    }
   }
   
   setLocalNodefailHandling(signal, nodeId, NF_LCP_TAKE_OVER);
@@ -5862,6 +5888,14 @@ void Dbdih::execMASTER_LCPREQ(Signal* signal)
   jamEntry();
   const BlockReference newMasterBlockref = req->masterRef;
 
+  if (newMasterBlockref != cmasterdihref)
+  {
+    jam();
+    ndbout_c("resending GSN_MASTER_LCPREQ");
+    sendSignalWithDelay(reference(), GSN_MASTER_LCPREQ, signal,
+			signal->getLength(), 50);
+    return;
+  }
   Uint32 failedNodeId = req->failedNodeId;
 
   /**
@@ -6158,6 +6192,8 @@ void Dbdih::execMASTER_LCPCONF(Signal* signal)
   ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
   nodePtr.p->lcpStateAtTakeOver = lcpState;
 
+  CRASH_INSERTION(7180);
+  
 #ifdef VM_TRACE
   ndbout_c("MASTER_LCPCONF");
   printMASTER_LCP_CONF(stdout, &signal->theData[0], 0, 0);
@@ -10716,6 +10752,17 @@ Dbdih::sendLCP_COMPLETE_REP(Signal* signal){
   
   sendSignal(c_lcpState.m_masterLcpDihRef, GSN_LCP_COMPLETE_REP, signal, 
 	     LcpCompleteRep::SignalLength, JBB);
+
+  /**
+   * Say that an initial node restart does not need to be redone
+   *   once node has been part of first LCP
+   */
+  if (c_set_initial_start_flag &&
+      c_lcpState.m_participatingLQH.get(getOwnNodeId()))
+  {
+    jam();
+    c_set_initial_start_flag = FALSE;
+  }
 }
 
 /*-------------------------------------------------------------------------- */
