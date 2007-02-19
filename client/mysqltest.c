@@ -31,7 +31,7 @@
   Holyfoot
 */
 
-#define MTEST_VERSION "3.1"
+#define MTEST_VERSION "3.2"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -273,7 +273,7 @@ enum enum_commands {
   Q_DISABLE_PARSING, Q_ENABLE_PARSING,
   Q_REPLACE_REGEX, Q_REMOVE_FILE, Q_FILE_EXIST,
   Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT,
-  Q_CHMOD_FILE,
+  Q_CHMOD_FILE, Q_APPEND_FILE,
 
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
@@ -358,6 +358,7 @@ const char *command_names[]=
   /* Don't execute any more commands, compare result */
   "exit",
   "chmod",
+  "append_file",
   0
 };
 
@@ -437,6 +438,7 @@ void dump_progress();
 void do_eval(DYNAMIC_STRING *query_eval, const char *query,
              const char *query_end, my_bool pass_through_escape_chars);
 void str_to_file(const char *fname, char *str, int size);
+void str_to_file2(const char *fname, char *str, int size, my_bool append);
 
 #ifdef __WIN__
 void free_tmp_sh_file();
@@ -2082,6 +2084,38 @@ void read_until_delimiter(DYNAMIC_STRING *ds,
 }
 
 
+void do_write_file_command(struct st_command *command, my_bool append)
+{
+  static DYNAMIC_STRING ds_content;
+  static DYNAMIC_STRING ds_filename;
+  static DYNAMIC_STRING ds_delimiter;
+  const struct command_arg write_file_args[] = {
+    "filename", ARG_STRING, TRUE, &ds_filename, "File to write to",
+    "delimiter", ARG_STRING, FALSE, &ds_delimiter, "Delimiter to read until"
+  };
+  DBUG_ENTER("do_write_file");
+
+  check_command_args(command,
+                     command->first_argument,
+                     write_file_args,
+                     sizeof(write_file_args)/sizeof(struct command_arg),
+                     ' ');
+
+  /* If no delimiter was provided, use EOF */
+  if (ds_delimiter.length == 0)
+    dynstr_set(&ds_delimiter, "EOF");
+
+  init_dynamic_string(&ds_content, "", 1024, 1024);
+  read_until_delimiter(&ds_content, &ds_delimiter);
+  DBUG_PRINT("info", ("Writing to file: %s", ds_filename.str));
+  str_to_file2(ds_filename.str, ds_content.str, ds_content.length, append);
+  dynstr_free(&ds_content);
+  dynstr_free(&ds_filename);
+  dynstr_free(&ds_delimiter);
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   SYNOPSIS
   do_write_file
@@ -2111,33 +2145,38 @@ void read_until_delimiter(DYNAMIC_STRING *ds,
 
 void do_write_file(struct st_command *command)
 {
-  static DYNAMIC_STRING ds_content;
-  static DYNAMIC_STRING ds_filename;
-  static DYNAMIC_STRING ds_delimiter;
-  const struct command_arg write_file_args[] = {
-    "filename", ARG_STRING, TRUE, &ds_filename, "File to write to",
-    "delimiter", ARG_STRING, FALSE, &ds_delimiter, "Delimiter to read until"
-  };
-  DBUG_ENTER("do_write_file");
+  do_write_file_command(command, FALSE);
+}
 
-  check_command_args(command,
-                     command->first_argument,
-                     write_file_args,
-                     sizeof(write_file_args)/sizeof(struct command_arg),
-                     ' ');
 
-  /* If no delimiter was provided, use EOF */
-  if (ds_delimiter.length == 0)
-    dynstr_set(&ds_delimiter, "EOF");
+/*
+  SYNOPSIS
+  do_append_file
+  command	called command
 
-  init_dynamic_string(&ds_content, "", 1024, 1024);
-  read_until_delimiter(&ds_content, &ds_delimiter);
-  DBUG_PRINT("info", ("Writing to file: %s", ds_filename.str));
-  str_to_file(ds_filename.str, ds_content.str, ds_content.length);
-  dynstr_free(&ds_content);
-  dynstr_free(&ds_filename);
-  dynstr_free(&ds_delimiter);
-  DBUG_VOID_RETURN;
+  DESCRIPTION
+  append_file <file_name> [<delimiter>];
+  <what to write line 1>
+  <...>
+  < what to write line n>
+  EOF
+
+  --append_file <file_name>;
+  <what to write line 1>
+  <...>
+  < what to write line n>
+  EOF
+
+  Append everything between the "append_file" command
+  and 'delimiter' to "file_name"
+
+  Default <delimiter> is EOF
+
+*/
+
+void do_append_file(struct st_command *command)
+{
+  do_write_file_command(command, TRUE);
 }
 
 
@@ -4295,6 +4334,40 @@ int parse_args(int argc, char **argv)
   return 0;
 }
 
+/*
+  Write the content of str into file
+
+  SYNOPSIS
+  str_to_file2
+  fname - name of file to truncate/create and write to
+  str - content to write to file
+  size - size of content witten to file
+  append - append to file instead of overwriting old file
+*/
+
+void str_to_file2(const char *fname, char *str, int size, my_bool append)
+{
+  int fd;
+  char buff[FN_REFLEN];
+  int flags= O_WRONLY | O_CREAT;
+  if (!test_if_hard_path(fname))
+  {
+    strxmov(buff, opt_basedir, fname, NullS);
+    fname= buff;
+  }
+  fn_format(buff, fname, "", "", MY_UNPACK_FILENAME);
+
+  if (!append)
+    flags|= O_TRUNC;
+  if ((fd= my_open(buff, flags,
+                   MYF(MY_WME | MY_FFNF))) < 0)
+    die("Could not open %s: errno = %d", buff, errno);
+  if (append && my_seek(fd, 0, SEEK_END, MYF(0)) == MY_FILEPOS_ERROR)
+    die("Could not find end of file %s: errno = %d", buff, errno);
+  if (my_write(fd, (byte*)str, size, MYF(MY_WME|MY_FNABP)))
+    die("write failed");
+  my_close(fd, MYF(0));
+}
 
 /*
   Write the content of str into file
@@ -4308,21 +4381,7 @@ int parse_args(int argc, char **argv)
 
 void str_to_file(const char *fname, char *str, int size)
 {
-  int fd;
-  char buff[FN_REFLEN];
-  if (!test_if_hard_path(fname))
-  {
-    strxmov(buff, opt_basedir, fname, NullS);
-    fname= buff;
-  }
-  fn_format(buff, fname, "", "", MY_UNPACK_FILENAME);
-
-  if ((fd= my_open(buff, O_WRONLY | O_CREAT | O_TRUNC,
-                   MYF(MY_WME | MY_FFNF))) < 0)
-    die("Could not open %s: errno = %d", buff, errno);
-  if (my_write(fd, (byte*)str, size, MYF(MY_WME|MY_FNABP)))
-    die("write failed");
-  my_close(fd, MYF(0));
+  str_to_file2(fname, str, size, FALSE);
 }
 
 
@@ -5897,6 +5956,7 @@ int main(int argc, char **argv)
       case Q_REMOVE_FILE: do_remove_file(command); break;
       case Q_FILE_EXIST: do_file_exist(command); break;
       case Q_WRITE_FILE: do_write_file(command); break;
+      case Q_APPEND_FILE: do_append_file(command); break;
       case Q_COPY_FILE: do_copy_file(command); break;
       case Q_CHMOD_FILE: do_chmod_file(command); break;
       case Q_PERL: do_perl(command); break;
