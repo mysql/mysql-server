@@ -1504,6 +1504,20 @@ Appended text on nonexisting file
 EOF
 
 # ----------------------------------------------------------------------------
+# test for cat_file
+# ----------------------------------------------------------------------------
+
+--write_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp
+Some data
+for cat_file command
+of mysqltest
+EOF
+cat_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+
+--error 1
+--exec echo "cat_file non_existing_file;" | $MYSQL_TEST 2>&1
+
+# ----------------------------------------------------------------------------
 # test for file_exist
 # ----------------------------------------------------------------------------
 --error 1
