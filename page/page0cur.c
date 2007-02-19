@@ -1175,7 +1175,8 @@ page_cur_insert_rec_zip(
 	rec_size = rec_offs_size(offsets);
 
 	/* 2. Try to find suitable space from page memory management */
-	if (!page_zip_available(page_zip, index, rec_size, 1)) {
+	if (!page_zip_available(page_zip, dict_index_is_clust(index),
+				rec_size, 1)) {
 
 		/* Try compressing the whole page afterwards. */
 		insert_rec = page_cur_insert_rec_low(*current_rec,
