@@ -792,6 +792,8 @@ void
 ibuf_set_free_bits_low(
 /*===================*/
 	ulint		type,	/* in: index type */
+	ulint		zip_size,/* in: compressed page size in bytes;
+				0 for uncompressed pages */
 	buf_block_t*	block,	/* in: index page; free bits are set if
 				the index is non-clustered and page
 				level is 0 */
@@ -801,7 +803,6 @@ ibuf_set_free_bits_low(
 	page_t*	bitmap_page;
 	ulint	space;
 	ulint	page_no;
-	ulint	zip_size;
 
 	if (type & DICT_CLUSTERED) {
 
@@ -815,17 +816,16 @@ ibuf_set_free_bits_low(
 
 	space = buf_block_get_space(block);
 	page_no = buf_block_get_page_no(block);
-	zip_size = buf_block_get_zip_size(block);
 	bitmap_page = ibuf_bitmap_get_map_page(space, page_no, zip_size, mtr);
 #ifdef UNIV_IBUF_DEBUG
 # if 0
 	fprintf(stderr,
-		"Setting page no %lu free bits to %lu should be %lu\n",
-		page_get_page_no(page), val,
-		ibuf_index_page_calc_free(buf_block_get_frame(block)));
+		"Setting space %lu page %lu free bits to %lu should be %lu\n",
+		space, page_no, val,
+		ibuf_index_page_calc_free(zip_size, block));
 # endif
 
-	ut_a(val <= ibuf_index_page_calc_free(buf_block_get_frame(block)));
+	ut_a(val <= ibuf_index_page_calc_free(zip_size, block));
 #endif /* UNIV_IBUF_DEBUG */
 	ibuf_bitmap_page_set_bits(bitmap_page, page_no, zip_size,
 				  IBUF_BITMAP_FREE, val, mtr);
@@ -898,10 +898,10 @@ ibuf_set_free_bits(
 # if 0
 	fprintf(stderr, "Setting page no %lu free bits to %lu should be %lu\n",
 		page_get_page_no(page), val,
-		ibuf_index_page_calc_free(page));
+		ibuf_index_page_calc_free(zip_size, block));
 # endif
 
-	ut_a(val <= ibuf_index_page_calc_free(page));
+	ut_a(val <= ibuf_index_page_calc_free(zip_size, block));
 #endif
 	ibuf_bitmap_page_set_bits(bitmap_page, page_no, zip_size,
 				  IBUF_BITMAP_FREE, val, &mtr);
@@ -934,6 +934,8 @@ void
 ibuf_update_free_bits_low(
 /*======================*/
 	dict_index_t*	index,		/* in: index */
+	ulint		zip_size,	/* in: compressed page size in bytes;
+					0 for uncompressed pages */
 	buf_block_t*	block,		/* in: index page */
 	ulint		max_ins_size,	/* in: value of maximum insert size
 					with reorganize before the latest
@@ -943,12 +945,13 @@ ibuf_update_free_bits_low(
 	ulint	before;
 	ulint	after;
 
-	before = ibuf_index_page_calc_free_bits(max_ins_size);
+	before = ibuf_index_page_calc_free_bits(zip_size, max_ins_size);
 
-	after = ibuf_index_page_calc_free(buf_block_get_frame(block));
+	after = ibuf_index_page_calc_free(zip_size, block);
 
 	if (before != after) {
-		ibuf_set_free_bits_low(index->type, block, after, mtr);
+		ibuf_set_free_bits_low(index->type, zip_size,
+				       block, after, mtr);
 	}
 }
 
@@ -961,6 +964,8 @@ void
 ibuf_update_free_bits_for_two_pages_low(
 /*====================================*/
 	dict_index_t*	index,	/* in: index */
+	ulint		zip_size,/* in: compressed page size in bytes;
+				0 for uncompressed pages */
 	buf_block_t*	block1,	/* in: index page */
 	buf_block_t*	block2,	/* in: index page */
 	mtr_t*		mtr)	/* in: mtr */
@@ -973,13 +978,13 @@ ibuf_update_free_bits_for_two_pages_low(
 
 	mutex_enter(&ibuf_bitmap_mutex);
 
-	state = ibuf_index_page_calc_free(buf_block_get_frame(block1));
+	state = ibuf_index_page_calc_free(zip_size, block1);
 
-	ibuf_set_free_bits_low(index->type, block1, state, mtr);
+	ibuf_set_free_bits_low(index->type, zip_size, block1, state, mtr);
 
-	state = ibuf_index_page_calc_free(buf_block_get_frame(block2));
+	state = ibuf_index_page_calc_free(zip_size, block2);
 
-	ibuf_set_free_bits_low(index->type, block2, state, mtr);
+	ibuf_set_free_bits_low(index->type, zip_size, block2, state, mtr);
 
 	mutex_exit(&ibuf_bitmap_mutex);
 }
@@ -1302,6 +1307,9 @@ ibuf_build_entry_from_ibuf_rec(
 
 		ibuf_dummy_index_add_col(index, dfield_get_type(field), len);
 	}
+
+	/* Fix an ut_ad() failure in page_zip_write_rec(). */
+	ut_d(dict_table_add_system_columns(index->table, index->table->heap));
 
 	*pindex = index;
 	return(tuple);
@@ -2691,7 +2699,7 @@ ibuf_insert_low(
 					 IBUF_BITMAP_FREE, &bitmap_mtr);
 
 	if (buffered + entry_size + page_dir_calc_reserved_space(1)
-	    > ibuf_index_page_calc_free_from_bits(bits)) {
+	    > ibuf_index_page_calc_free_from_bits(zip_size, bits)) {
 		mtr_commit(&bitmap_mtr);
 
 		/* It may not fit */
@@ -2827,7 +2835,6 @@ ibuf_insert(
 	ut_ad(dtuple_check_typed(entry));
 
 	ut_a(!dict_index_is_clust(index));
-	ut_a(!dict_table_zip_size(index->table));
 
 	if (rec_get_converted_size(index, entry, NULL, 0)
 	    >= (page_get_free_space_of_empty(dict_table_is_comp(index->table))
@@ -3374,11 +3381,11 @@ reset_bit:
 		ibuf_bitmap_page_set_bits(bitmap_page, page_no, zip_size,
 					  IBUF_BITMAP_BUFFERED, FALSE, &mtr);
 		if (block) {
-			page_t* page = block->frame;
 			ulint old_bits = ibuf_bitmap_page_get_bits(
 				bitmap_page, page_no, zip_size,
 				IBUF_BITMAP_FREE, &mtr);
-			ulint new_bits = ibuf_index_page_calc_free(page);
+			ulint new_bits = ibuf_index_page_calc_free(
+				zip_size, block);
 #if 0 /* defined UNIV_IBUF_DEBUG */
 			fprintf(stderr, "Old bits %lu new bits %lu"
 				" max size %lu\n",

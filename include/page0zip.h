@@ -134,8 +134,19 @@ page_zip_validate(
 #endif /* UNIV_ZIP_DEBUG */
 
 /**************************************************************************
-Determine if enough space is available for a page_zip_write_rec() call
-in the modification log. */
+Determine how big record can be inserted without recompressing the page. */
+UNIV_INLINE
+lint
+page_zip_max_ins_size(
+/*==================*/
+					/* out: TRUE if page_zip_write_rec()
+					will succeed */
+	const page_zip_des_t*	page_zip,/* in: compressed page */
+	ibool			is_clust)/* in: TRUE if clustered index */
+	__attribute__((warn_unused_result, nonnull, pure));
+
+/**************************************************************************
+Determine if enough space is available in the modification log. */
 UNIV_INLINE
 ibool
 page_zip_available(

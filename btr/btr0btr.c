@@ -1949,17 +1949,8 @@ func_start:
 #endif /* UNIV_ZIP_DEBUG */
 
 	if (UNIV_LIKELY(rec != NULL)) {
-		/* Insert fit on the page: update the free bits for the
-		left and right pages in the same mtr */
 
-		ibuf_update_free_bits_for_two_pages_low(cursor->index,
-							left_block,
-							right_block, mtr);
-		/* fprintf(stderr, "Split and insert done %lu %lu\n",
-		page_get_page_no(buf_block_get_frame(left_block)),
-		page_get_page_no(buf_block_get_frame(right_block))); */
-		mem_heap_free(heap);
-		return(rec);
+		goto func_exit;
 	}
 
 	/* 8. If insert did not fit, try page reorganization */
@@ -1993,11 +1984,17 @@ insert_failed:
 		goto func_start;
 	}
 
+func_exit:
 	/* Insert fit on the page: update the free bits for the
 	left and right pages in the same mtr */
 
-	ibuf_update_free_bits_for_two_pages_low(cursor->index, left_block,
-						right_block, mtr);
+	if (!dict_index_is_clust(cursor->index) && page_is_leaf(page)) {
+		ibuf_update_free_bits_for_two_pages_low(
+			cursor->index,
+			buf_block_get_zip_size(left_block),
+			left_block, right_block, mtr);
+	}
+
 #if 0
 	fprintf(stderr, "Split and insert done %lu %lu\n",
 		buf_block_get_page_no(left_block),
@@ -2510,9 +2507,12 @@ err_exit:
 
 	mem_heap_free(heap);
 
-	/* We have added new records to merge_page: update its free bits */
-	ibuf_update_free_bits_if_full(index, merge_block,
-				      UNIV_PAGE_SIZE, ULINT_UNDEFINED);
+	if (!dict_index_is_clust(index) && page_is_leaf(merge_page)) {
+		/* We have added new records to merge_page:
+		update its free bits */
+		ibuf_update_free_bits_if_full(index, zip_size, merge_block,
+					      UNIV_PAGE_SIZE, ULINT_UNDEFINED);
+	}
 
 	ut_ad(page_validate(merge_page, index));
 

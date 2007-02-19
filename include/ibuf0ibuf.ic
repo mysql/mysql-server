@@ -8,6 +8,7 @@ Created 7/19/1997 Heikki Tuuri
 
 #include "buf0lru.h"
 #include "page0page.h"
+#include "page0zip.h"
 
 extern ulint	ibuf_flush_count;
 
@@ -81,7 +82,6 @@ ibuf_should_try(
 						decide */
 {
 	if (!dict_index_is_clust(index)
-	    && !dict_table_zip_size(index->table)
 	    && (ignore_sec_unique || !(index->type & DICT_UNIQUE))) {
 
 		ibuf_flush_count++;
@@ -126,12 +126,23 @@ ulint
 ibuf_index_page_calc_free_bits(
 /*===========================*/
 				/* out: value for ibuf bitmap bits */
+	ulint	zip_size,	/* in: compressed page size in bytes;
+				0 for uncompressed pages */
 	ulint	max_ins_size)	/* in: maximum insert size after reorganize
 				for the page */
 {
 	ulint	n;
+	ut_ad(ut_is_2pow(zip_size));
+	ut_ad(!zip_size || zip_size > IBUF_PAGE_SIZE_PER_FREE_SPACE);
+	ut_ad(zip_size <= UNIV_PAGE_SIZE);
 
-	n = max_ins_size / (UNIV_PAGE_SIZE / IBUF_PAGE_SIZE_PER_FREE_SPACE);
+	if (zip_size) {
+		n = max_ins_size
+			/ (zip_size / IBUF_PAGE_SIZE_PER_FREE_SPACE);
+	} else {
+		n = max_ins_size
+			/ (UNIV_PAGE_SIZE / IBUF_PAGE_SIZE_PER_FREE_SPACE);
+	}
 
 	if (n == 3) {
 		n = 2;
@@ -152,15 +163,28 @@ ibuf_index_page_calc_free_from_bits(
 /*================================*/
 			/* out: maximum insert size after reorganize for the
 			page */
+	ulint	zip_size,/* in: compressed page size in bytes;
+			0 for uncompressed pages */
 	ulint	bits)	/* in: value for ibuf bitmap bits */
 {
 	ut_ad(bits < 4);
+	ut_ad(ut_is_2pow(zip_size));
+	ut_ad(!zip_size || zip_size > IBUF_PAGE_SIZE_PER_FREE_SPACE);
+	ut_ad(zip_size <= UNIV_PAGE_SIZE);
+
+	if (zip_size) {
+		if (bits == 3) {
+			return(4 * zip_size / IBUF_PAGE_SIZE_PER_FREE_SPACE);
+		}
+
+		return(bits * zip_size / IBUF_PAGE_SIZE_PER_FREE_SPACE);
+	}
 
 	if (bits == 3) {
 		return(4 * UNIV_PAGE_SIZE / IBUF_PAGE_SIZE_PER_FREE_SPACE);
 	}
 
-	return(bits * UNIV_PAGE_SIZE / IBUF_PAGE_SIZE_PER_FREE_SPACE);
+	return(bits * (UNIV_PAGE_SIZE / IBUF_PAGE_SIZE_PER_FREE_SPACE));
 }
 
 /*************************************************************************
@@ -169,11 +193,31 @@ UNIV_INLINE
 ulint
 ibuf_index_page_calc_free(
 /*======================*/
-			/* out: value for ibuf bitmap bits */
-	page_t*	page)	/* in: non-unique secondary index page */
+				/* out: value for ibuf bitmap bits */
+	ulint		zip_size,/* in: compressed page size in bytes;
+				0 for uncompressed pages */
+	buf_block_t*	block)	/* in: buffer block */
 {
-	return(ibuf_index_page_calc_free_bits(
-		       page_get_max_insert_size_after_reorganize(page, 1)));
+	ulint	max_ins_size;
+
+	ut_ad(zip_size == buf_block_get_zip_size(block));
+
+	max_ins_size = page_get_max_insert_size_after_reorganize(
+		buf_block_get_frame(block), 1);
+
+	if (!zip_size) {
+		return(ibuf_index_page_calc_free_bits(0, max_ins_size));
+	} else {
+		page_zip_des_t*	page_zip = buf_block_get_page_zip(block);
+		lint		zip_max_ins = page_zip_max_ins_size(
+			page_zip, FALSE/* not clustered */);
+
+		if (UNIV_LIKELY(max_ins_size > (ulint) zip_max_ins)) {
+			max_ins_size = (ulint) zip_max_ins;
+		}
+
+		return(ibuf_index_page_calc_free_bits(zip_size, max_ins_size));
+	}
 }
 
 /****************************************************************************
@@ -186,6 +230,8 @@ void
 ibuf_update_free_bits_if_full(
 /*==========================*/
 	dict_index_t*	index,	/* in: index */
+	ulint		zip_size,/* in: compressed page size in bytes;
+				0 for uncompressed pages */
 	buf_block_t*	block,	/* in: index page to which we have added new
 				records; the free bits are updated if the
 				index is non-clustered and non-unique and
@@ -201,20 +247,19 @@ ibuf_update_free_bits_if_full(
 	ulint	before;
 	ulint	after;
 
-	before = ibuf_index_page_calc_free_bits(max_ins_size);
+	before = ibuf_index_page_calc_free_bits(zip_size, max_ins_size);
 
 	if (max_ins_size >= increase) {
 #if ULINT32_UNDEFINED <= UNIV_PAGE_SIZE
 # error "ULINT32_UNDEFINED <= UNIV_PAGE_SIZE"
 #endif
-		after = ibuf_index_page_calc_free_bits(max_ins_size
+		after = ibuf_index_page_calc_free_bits(zip_size, max_ins_size
 						       - increase);
 #ifdef UNIV_IBUF_DEBUG
-		ut_a(after <= ibuf_index_page_calc_free(buf_block_get_frame(
-								block)));
+		ut_a(after <= ibuf_index_page_calc_free(zip_size, block));
 #endif
 	} else {
-		after = ibuf_index_page_calc_free(buf_block_get_frame(block));
+		after = ibuf_index_page_calc_free(zip_size, block);
 	}
 
 	if (after == 0) {
