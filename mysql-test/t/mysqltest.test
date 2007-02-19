@@ -552,8 +552,8 @@ echo ;
 
 # Illegal use of echo
 
---error 1
---exec echo "echo \$;" | $MYSQL_TEST 2>&1
+#--error 1
+#--exec echo "echo \$;" | $MYSQL_TEST 2>&1
 
 
 # ----------------------------------------------------------------------------
@@ -1469,8 +1469,8 @@ remove_file non_existing_file;
 --error 1
 --exec echo "write_file filename ;" | $MYSQL_TEST 2>&1
 
---error 1
---exec echo "write_file filename \";" | $MYSQL_TEST 2>&1
+#--error 1
+#--exec echo "write_file filename \";" | $MYSQL_TEST 2>&1
 
 write_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
 Content for test_file1
