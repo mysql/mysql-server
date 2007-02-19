@@ -273,7 +273,7 @@ enum enum_commands {
   Q_DISABLE_PARSING, Q_ENABLE_PARSING,
   Q_REPLACE_REGEX, Q_REMOVE_FILE, Q_FILE_EXIST,
   Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT,
-  Q_CHMOD_FILE, Q_APPEND_FILE,
+  Q_CHMOD_FILE, Q_APPEND_FILE, Q_CAT_FILE,
 
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
@@ -359,6 +359,7 @@ const char *command_names[]=
   "exit",
   "chmod",
   "append_file",
+  "cat_file",
   0
 };
 
@@ -2177,6 +2178,50 @@ void do_write_file(struct st_command *command)
 void do_append_file(struct st_command *command)
 {
   do_write_file_command(command, TRUE);
+}
+
+
+/*
+  SYNOPSIS
+  do_cat_file
+  command	called command
+
+  DESCRIPTION
+  cat_file <file_name>;
+
+  Print the given file to result log
+
+*/
+
+void do_cat_file(struct st_command *command)
+{
+  int fd;
+  uint len;
+  byte buff[512];
+  static DYNAMIC_STRING ds_filename;
+  const struct command_arg cat_file_args[] = {
+    "filename", ARG_STRING, TRUE, &ds_filename, "File to read from"
+  };
+  DBUG_ENTER("do_cat_file");
+
+  check_command_args(command,
+                     command->first_argument,
+                     cat_file_args,
+                     sizeof(cat_file_args)/sizeof(struct command_arg),
+                     ' ');
+
+  DBUG_PRINT("info", ("Reading from, file: %s", ds_filename.str));
+
+  if ((fd= my_open(ds_filename.str, O_RDONLY, MYF(0))) < 0)
+    die("Failed to open file %s", ds_filename.str);
+  while((len= my_read(fd, &buff,
+                      sizeof(buff), MYF(0))) > 0)
+  {
+    dynstr_append_mem(&ds_res, buff, len);
+  }
+  my_close(fd, MYF(0));
+  dynstr_free(&ds_filename);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -5957,6 +6002,7 @@ int main(int argc, char **argv)
       case Q_FILE_EXIST: do_file_exist(command); break;
       case Q_WRITE_FILE: do_write_file(command); break;
       case Q_APPEND_FILE: do_append_file(command); break;
+      case Q_CAT_FILE: do_cat_file(command); break;
       case Q_COPY_FILE: do_copy_file(command); break;
       case Q_CHMOD_FILE: do_chmod_file(command); break;
       case Q_PERL: do_perl(command); break;
