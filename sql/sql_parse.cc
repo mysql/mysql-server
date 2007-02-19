@@ -1225,9 +1225,6 @@ pthread_handler_t handle_one_connection(void *arg)
                           sctx->host_or_ip, "init_connect command failed");
         sql_print_warning("%s", net->last_error);
       }
-      thd->proc_info=0;
-      thd->set_time();
-      thd->init_for_queries();
     }
 
     /* Connect completed, set read/write timeouts back to default */
