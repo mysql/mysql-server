@@ -77,6 +77,8 @@ void
 ibuf_update_free_bits_if_full(
 /*==========================*/
 	dict_index_t*	index,	/* in: index */
+	ulint		zip_size,/* in: compressed page size in bytes;
+				0 for uncompressed pages */
 	buf_block_t*	block,	/* in: index page to which we have added new
 				records; the free bits are updated if the
 				index is non-clustered and non-unique and
@@ -97,6 +99,8 @@ void
 ibuf_update_free_bits_low(
 /*======================*/
 	dict_index_t*	index,		/* in: index */
+	ulint		zip_size,	/* in: compressed page size in bytes;
+					0 for uncompressed pages */
 	buf_block_t*	block,		/* in: index page */
 	ulint		max_ins_size,	/* in: value of maximum insert size
 					with reorganize before the latest
@@ -111,6 +115,8 @@ void
 ibuf_update_free_bits_for_two_pages_low(
 /*====================================*/
 	dict_index_t*	index,	/* in: index */
+	ulint		zip_size,/* in: compressed page size in bytes;
+				0 for uncompressed pages */
 	buf_block_t*	block1,	/* in: index page */
 	buf_block_t*	block2,	/* in: index page */
 	mtr_t*		mtr);	/* in: mtr */
