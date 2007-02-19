@@ -1873,9 +1873,11 @@ wait_until_unfixed:
 
 		mutex_exit(&buf_pool->mutex);
 
-		/* Decompress the page while not holding
-		buf_pool->mutex or block->mutex. */
+		/* Decompress the page and apply buffered operations
+		while not holding buf_pool->mutex or block->mutex. */
 		buf_zip_decompress(block, srv_use_checksums);
+		ibuf_merge_or_delete_for_page(block, space, offset,
+					      zip_size, TRUE);
 
 		/* Unfix and unlatch the block. */
 		mutex_enter(&buf_pool->mutex);
@@ -2807,7 +2809,12 @@ corrupt:
 	mutex_enter(buf_page_get_mutex(bpage));
 
 #ifdef UNIV_IBUF_DEBUG
-	ut_a(ibuf_count_get(bpage->space, bpage->offset) == 0);
+	if (io_type == BUF_IO_WRITE || uncompressed) {
+		/* For BUF_IO_READ of compressed-only blocks, the
+		buffered operations will be merged by buf_page_get_gen()
+		after the block has been uncompressed. */
+		ut_a(ibuf_count_get(bpage->space, bpage->offset) == 0);
+	}
 #endif
 	/* Because this thread which does the unlocking is not the same that
 	did the locking, we use a pass value != 0 in unlock, which simply

@@ -1058,6 +1058,7 @@ btr_cur_optimistic_insert(
 	ulint		level;
 	ibool		reorg;
 	ibool		inherit;
+	ulint		zip_size;
 	ulint		rec_size;
 	mem_heap_t*	heap		= NULL;
 	ulint		err;
@@ -1067,6 +1068,7 @@ btr_cur_optimistic_insert(
 	block = btr_cur_get_block(cursor);
 	page = buf_block_get_frame(block);
 	index = cursor->index;
+	zip_size = buf_block_get_zip_size(block);
 
 	if (!dtuple_check_typed_no_assert(entry)) {
 		fputs("InnoDB: Error in a tuple to insert into ", stderr);
@@ -1086,8 +1088,7 @@ btr_cur_optimistic_insert(
 	/* Calculate the record size when entry is converted to a record */
 	rec_size = rec_get_converted_size(index, entry, ext, n_ext);
 
-	if (page_zip_rec_needs_ext(rec_size, page_is_comp(page),
-				   buf_block_get_zip_size(block))) {
+	if (page_zip_rec_needs_ext(rec_size, page_is_comp(page), zip_size)) {
 
 		/* The record is so big that we have to store some fields
 		externally on separate database pages */
@@ -1149,6 +1150,19 @@ fail_err:
 
 	/* Now, try the insert */
 
+	if (zip_size
+	    && !dict_index_is_clust(index) && UNIV_LIKELY(0 == level)) {
+		/* Compute the reduced max_size for the insert buffer
+		before inserting the record. */
+
+		lint	zip_max_ins = page_zip_max_ins_size(
+			buf_block_get_page_zip(block), FALSE);
+
+		if (UNIV_LIKELY(max_size > (ulint) zip_max_ins)) {
+			max_size = (ulint) zip_max_ins;
+		}
+	}
+
 	*rec = page_cur_tuple_insert(page_cursor, entry, index,
 				     ext, n_ext, mtr);
 	if (UNIV_UNLIKELY(!(*rec))) {
@@ -1159,7 +1173,9 @@ fail_err:
 			goto fail;
 		}
 
-		ut_ad(page_get_max_insert_size(page, 1) == max_size);
+		ut_ad(page_get_max_insert_size(page, 1) <= max_size);
+		ut_ad(zip_size
+		      || page_get_max_insert_size(page, 1) == max_size);
 
 		reorg = TRUE;
 
@@ -1207,9 +1223,10 @@ fail_err:
 		buf_block_get_page_no(block), max_size,
 		rec_size + PAGE_DIR_SLOT_SIZE, index->type);
 #endif
-	if (!dict_index_is_clust(index)) {
+	if (!dict_index_is_clust(index) && UNIV_LIKELY(0 == level)) {
 		/* We have added a record to page: update its free bits */
-		ibuf_update_free_bits_if_full(cursor->index, block, max_size,
+		ibuf_update_free_bits_if_full(cursor->index, zip_size,
+					      block, max_size,
 					      rec_size + PAGE_DIR_SLOT_SIZE);
 	}
 
@@ -2671,9 +2688,8 @@ btr_cur_optimistic_delete(
 	if (no_compress_needed) {
 
 		page_t*		page	= buf_block_get_frame(block);
-#ifdef UNIV_ZIP_DEBUG
 		page_zip_des_t*	page_zip= buf_block_get_page_zip(block);
-#endif /* UNIV_ZIP_DEBUG */
+		ulint		zip_size= buf_block_get_zip_size(block);
 
 		lock_update_delete(block, rec);
 
@@ -2681,6 +2697,14 @@ btr_cur_optimistic_delete(
 
 		max_ins_size = page_get_max_insert_size_after_reorganize(
 			page, 1);
+		if (zip_size) {
+			lint	zip_max_ins = page_zip_max_ins_size(
+				page_zip, FALSE/* not clustered */);
+
+			if (UNIV_LIKELY(max_ins_size > (ulint) zip_max_ins)) {
+				max_ins_size = (ulint) zip_max_ins;
+			}
+		}
 #ifdef UNIV_ZIP_DEBUG
 		ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
@@ -2690,8 +2714,8 @@ btr_cur_optimistic_delete(
 		ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
 
-		ibuf_update_free_bits_low(cursor->index, block, max_ins_size,
-					  mtr);
+		ibuf_update_free_bits_low(cursor->index, zip_size,
+					  block, max_ins_size, mtr);
 	}
 
 	if (UNIV_LIKELY_NULL(heap)) {
