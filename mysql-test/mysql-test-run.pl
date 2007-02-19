@@ -757,7 +757,7 @@ sub command_line_setup () {
 
     foreach my $arg ( @opt_extra_mysqld_opt )
     {
-      if ( $arg =~ /binlog-format=(\S+)/ )
+      if ( $arg =~ /binlog[-_]format=(\S+)/ )
       {
 	$used_binlog_format= $1;
       }
