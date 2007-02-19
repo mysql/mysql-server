@@ -325,10 +325,10 @@ private:
   TABLE_LIST *save_first_name_resolution_table;
   TABLE_LIST *save_next_name_resolution_table;
   bool        save_resolve_in_select_list;
+  TABLE_LIST *save_next_local;
 
 public:
   Name_resolution_context_state() {}          /* Remove gcc warning */
-  TABLE_LIST *save_next_local;
 
 public:
   /* Save the state of a name resolution context. */
@@ -349,6 +349,11 @@ public:
     context->table_list=                   save_table_list;
     context->first_name_resolution_table=  save_first_name_resolution_table;
     context->resolve_in_select_list=       save_resolve_in_select_list;
+  }
+
+  TABLE_LIST *get_first_name_resolution_table()
+  {
+    return save_first_name_resolution_table;
   }
 };
 
