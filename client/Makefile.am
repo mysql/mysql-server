@@ -58,7 +58,7 @@ DEFS =			-DUNDEF_THREADS_HACK \
 			-DDEFAULT_MYSQL_HOME="\"$(prefix)\"" \
 			-DDATADIR="\"$(localstatedir)\""
 
-EXTRA_DIST =		get_password.c CMakeLists.txt
+EXTRA_DIST =		get_password.c CMakeLists.txt echo.c
 
 link_sources:
 	for f in $(sql_src) ; do \
