@@ -17,3 +17,10 @@
 0       belong&0xffffff00 0xfefe0600    MySQL ISAM compressed data file
 >3      byte            x               Version %d
 0       string           \376bin        MySQL replication log
+0       belong&0xffffff00 0xfefe0b00
+>4      string          MARIALOG        MySQL Maria transaction log file
+>>3     byte            x               Version %d
+0       belong&0xffffff00 0xfefe0c00
+>4      string          MACF            MySQL Maria control file
+>>3     byte            x               Version %d
+

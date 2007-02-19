@@ -21,7 +21,6 @@
 */
 
 #include "maria_def.h"
-#include "ma_control_file.h"
 
 /* Here is the implementation of this module */
 
@@ -31,13 +30,13 @@
 */
 
 /* total size should be < sector size for atomic write operation */
-#define CONTROL_FILE_MAGIC_STRING "MACF"
+#define CONTROL_FILE_MAGIC_STRING "\xfe\xfe\xc\1MACF"
 #define CONTROL_FILE_MAGIC_STRING_OFFSET 0
 #define CONTROL_FILE_MAGIC_STRING_SIZE (sizeof(CONTROL_FILE_MAGIC_STRING)-1)
 #define CONTROL_FILE_CHECKSUM_OFFSET (CONTROL_FILE_MAGIC_STRING_OFFSET + CONTROL_FILE_MAGIC_STRING_SIZE)
 #define CONTROL_FILE_CHECKSUM_SIZE 1
 #define CONTROL_FILE_LSN_OFFSET (CONTROL_FILE_CHECKSUM_OFFSET + CONTROL_FILE_CHECKSUM_SIZE)
-#define CONTROL_FILE_LSN_SIZE (3+4)
+#define CONTROL_FILE_LSN_SIZE LSN_STORE_SIZE
 #define CONTROL_FILE_FILENO_OFFSET (CONTROL_FILE_LSN_OFFSET + CONTROL_FILE_LSN_SIZE)
 #define CONTROL_FILE_FILENO_SIZE 4
 #define CONTROL_FILE_SIZE (CONTROL_FILE_FILENO_OFFSET + CONTROL_FILE_FILENO_SIZE)
@@ -200,7 +199,7 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
     error= CONTROL_FILE_BAD_CHECKSUM;
     goto err;
   }
-  last_checkpoint_lsn= lsn7korr(buffer + CONTROL_FILE_LSN_OFFSET);
+  last_checkpoint_lsn= lsn_korr(buffer + CONTROL_FILE_LSN_OFFSET);
   last_logno= uint4korr(buffer + CONTROL_FILE_FILENO_OFFSET);
 
   DBUG_RETURN(0);
@@ -261,9 +260,9 @@ int ma_control_file_write_and_force(const LSN checkpoint_lsn, uint32 logno,
     DBUG_ASSERT(0);
 
   if (update_checkpoint_lsn)
-    lsn7store(buffer + CONTROL_FILE_LSN_OFFSET, checkpoint_lsn);
+    lsn_store(buffer + CONTROL_FILE_LSN_OFFSET, checkpoint_lsn);
   else /* store old value == change nothing */
-    lsn7store(buffer + CONTROL_FILE_LSN_OFFSET, last_checkpoint_lsn);
+    lsn_store(buffer + CONTROL_FILE_LSN_OFFSET, last_checkpoint_lsn);
 
   if (update_logno)
     int4store(buffer + CONTROL_FILE_FILENO_OFFSET, logno);

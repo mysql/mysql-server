@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
 
     bzero(page, PCACHE_PAGE);
 #define PAGE_LSN_OFFSET 0
-    lsn7store(page + PAGE_LSN_OFFSET, lsn);
+    lsn_store(page + PAGE_LSN_OFFSET, lsn);
     pagecache_write(&pagecache, &file1, 0, 3, (char*)page,
                     PAGECACHE_LSN_PAGE,
                     PAGECACHE_LOCK_LEFT_UNLOCKED,

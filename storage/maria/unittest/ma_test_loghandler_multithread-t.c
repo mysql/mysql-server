@@ -27,7 +27,7 @@ static uint thread_count;
 static ulong lens[WRITERS][ITERATIONS];
 static LSN lsns1[WRITERS][ITERATIONS];
 static LSN lsns2[WRITERS][ITERATIONS];
-static uchar *long_buffer;
+static byte *long_buffer;
 
 /*
   Get pseudo-random length of the field in
@@ -65,12 +65,12 @@ static uint32 get_len()
     1 - Error
 */
 
-static my_bool check_content(uchar *ptr, ulong length)
+static my_bool check_content(byte *ptr, ulong length)
 {
   ulong i;
   for (i= 0; i < length; i++)
   {
-    if (ptr[i] != (i & 0xFF))
+    if (((uchar)ptr[i]) != (i & 0xFF))
     {
       fprintf(stderr, "Byte # %lu is %x instead of %x",
               i, (uint) ptr[i], (uint) (i & 0xFF));
@@ -97,7 +97,7 @@ static my_bool check_content(uchar *ptr, ulong length)
 
 
 static my_bool read_and_check_content(TRANSLOG_HEADER_BUFFER *rec,
-                                      uchar *buffer, uint skip)
+                                      byte *buffer, uint skip)
 {
   int res= 0;
   translog_size_t len;
@@ -117,7 +117,7 @@ static my_bool read_and_check_content(TRANSLOG_HEADER_BUFFER *rec,
 void writer(int num)
 {
   LSN lsn;
-  uchar long_tr_id[6];
+  byte long_tr_id[6];
   uint i;
   DBUG_ENTER("writer");
 
@@ -193,7 +193,7 @@ int main(int argc, char **argv __attribute__ ((unused)))
   uint32 i;
   uint pagen;
   PAGECACHE pagecache;
-  LSN first_lsn, lsn_ptr;
+  LSN first_lsn;
   TRANSLOG_HEADER_BUFFER rec;
   struct st_translog_scanner_data scanner;
   pthread_t tid;
@@ -290,7 +290,7 @@ int main(int argc, char **argv __attribute__ ((unused)))
 
   srandom(122334817L);
   {
-    uchar long_tr_id[6]=
+    byte long_tr_id[6]=
     {
       0x11, 0x22, 0x33, 0x44, 0x55, 0x66
     };
@@ -369,11 +369,14 @@ int main(int argc, char **argv __attribute__ ((unused)))
 
     bzero(indeces, sizeof(indeces));
 
-    lsn_ptr= first_lsn;
+    if (translog_init_scanner(first_lsn, 1, &scanner))
+    {
+      fprintf(stderr, "scanner init failed\n");
+      goto err;
+    }
     for (i= 0;; i++)
     {
-      len= translog_read_next_record_header(lsn_ptr, &rec, 1, &scanner);
-      lsn_ptr= 0;
+      len= translog_read_next_record_header(&scanner, &rec);
 
       if (len == 0)
       {

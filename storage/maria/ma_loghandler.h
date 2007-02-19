@@ -1,19 +1,30 @@
 
-#ifndef _ma_loghandler_h
-#define _ma_loghandler_h
-
 /* Transaction log flags */
 #define TRANSLOG_PAGE_CRC              1
 #define TRANSLOG_SECTOR_PROTECTION     (1<<1)
 #define TRANSLOG_RECORD_CRC            (1<<2)
+#define TRANSLOG_FLAGS_NUM ((TRANSLOG_PAGE_CRC | TRANSLOG_SECTOR_PROTECTION | \
+                           TRANSLOG_RECORD_CRC) + 1)
 
-/* page size in transaction log */
+/*
+  Page size in transaction log
+  It should be Power of 2 and multiple of DISK_DRIVE_SECTOR_SIZE
+  (DISK_DRIVE_SECTOR_SIZE * 2^N)
+*/
 #define TRANSLOG_PAGE_SIZE (8*1024)
 
 #include "ma_loghandler_lsn.h"
 
 /* short transaction ID type */
 typedef uint16 SHORT_TRANSACTION_ID;
+
+/* Length of CRC at end of pages */
+#define CRC_LENGTH 4
+/*
+  Length of disk drive sector size (we assume that writing it
+  to disk is atomic operation)
+*/
+#define DISK_DRIVE_SECTOR_SIZE 512
 
 /* types of records in the transaction log */
 enum translog_record_type
@@ -51,8 +62,9 @@ enum translog_record_type
   LOGREC_LONG_TRANSACTION_ID= 30,
   LOGREC_RESERVED_FUTURE_EXTENSION= 63
 };
-#define LOGREC_NUMBER_OF_TYPES 64
+#define LOGREC_NUMBER_OF_TYPES 64              /* Maximum, can't be extended */
 
+/* Size of log file; One log file is restricted to 4G */
 typedef uint32 translog_size_t;
 
 #define TRANSLOG_RECORD_HEADER_MAX_SIZE 1024
@@ -68,8 +80,8 @@ typedef struct st_translog_header_buffer
 {
   /* LSN of the read record */
   LSN lsn;
-  /* type of the read record */
-  enum translog_record_type type;
+  /* array of groups descriptors, can be used only if groups_no > 0 */
+  TRANSLOG_GROUP *groups;
   /* short transaction ID or 0 if it has no sense for the record */
   SHORT_TRANSACTION_ID short_trid;
   /*
@@ -78,55 +90,55 @@ typedef struct st_translog_header_buffer
   */
   translog_size_t record_length;
   /*
-     Real compressed LSN(s) size economy (<number of LSN(s)>*7 - <real_size>)
-  */
-  uint16 compressed_LSN_economy;
-  /*
      Buffer for write decoded header of the record (depend on the record
      type)
   */
-  uchar header[TRANSLOG_RECORD_HEADER_MAX_SIZE];
-  /* non read body data offset on the page */
+  byte header[TRANSLOG_RECORD_HEADER_MAX_SIZE];
+  /* number of groups listed in  */
+  uint groups_no;
+  /* in multi-group number of chunk0 pages (valid only if groups_no > 0) */
+  uint chunk0_pages;
+  /* type of the read record */
+   enum translog_record_type type;
+  /* chunk 0 data address (valid only if groups_no > 0) */
+  TRANSLOG_ADDRESS chunk0_data_addr;
+   /*
+     Real compressed LSN(s) size economy (<number of LSN(s)>*7 - <real_size>)
+  */
+  uint16 compressed_LSN_economy;
+  /* short transaction ID or 0 if it has no sense for the record */
   uint16 non_header_data_start_offset;
   /* non read body data length in this first chunk */
   uint16 non_header_data_len;
-  /* number of groups listed in  */
-  uint groups_no;
-  /* array of groups descriptors, can be used only if groups_no > 0 */
-  TRANSLOG_GROUP *groups;
-  /* in multi-group number of chunk0 pages (valid only if groups_no > 0) */
-  uint chunk0_pages;
-  /* chunk 0 data address (valid only if groups_no > 0) */
-  TRANSLOG_ADDRESS chunk0_data_addr;
   /* chunk 0 data size (valid only if groups_no > 0) */
   uint16 chunk0_data_len;
 } TRANSLOG_HEADER_BUFFER;
 
 
-struct st_translog_scanner_data
+typedef struct st_translog_scanner_data
 {
-  uchar buffer[TRANSLOG_PAGE_SIZE];             /* buffer for page content */
-  TRANSLOG_ADDRESS page_addr;                   /* current page address */
-  TRANSLOG_ADDRESS horizon;                     /* end of the log which we saw
-                                                   last time */
-  TRANSLOG_ADDRESS last_file_page;              /* Last page on in this file */
-  uchar *page;                                  /* page content pointer */
-  translog_size_t page_offset;                  /* offset of the chunk in the
-                                                   page */
-  my_bool fixed_horizon;                        /* set horizon only once at
-                                                   init */
-};
+  byte buffer[TRANSLOG_PAGE_SIZE];             /* buffer for page content */
+  TRANSLOG_ADDRESS page_addr;                  /* current page address */
+  /* end of the log which we saw last time */
+  TRANSLOG_ADDRESS horizon;
+  TRANSLOG_ADDRESS last_file_page;             /* Last page on in this file */
+  byte *page;                                  /* page content pointer */
+  /* offset of the chunk in the page */
+  translog_size_t page_offset;
+  /* set horizon only once at init */
+  my_bool fixed_horizon;
+} TRANSLOG_SCANNER_DATA;
 
 
 struct st_translog_reader_data
 {
   TRANSLOG_HEADER_BUFFER header;                /* Header */
-  struct st_translog_scanner_data scanner;      /* chunks scanner */
+  TRANSLOG_SCANNER_DATA scanner;                /* chunks scanner */
   translog_size_t body_offset;                  /* current chunk body offset */
-  translog_size_t current_offset;               /* data offset from the record
-                                                   beginning */
-  uint16 read_header;                           /* number of bytes read in
-                                                   header */
+  /* data offset from the record beginning */
+  translog_size_t current_offset;
+  /* number of bytes read in header */
+  uint16 read_header;
   uint16 chunk_size;                            /* current chunk size */
   uint current_group;                           /* current group */
   uint current_chunk;                           /* current chunk in the group */
@@ -134,181 +146,37 @@ struct st_translog_reader_data
 };
 
 
-/*
-  Initialize transaction log
-
-  SYNOPSIS
-    translog_init()
-    directory            Directory where log files are put
-    log_file_max_size    max size of one log size (for new logs creation)
-    server_version       version of MySQL servger (MYSQL_VERSION_ID)
-    server_id            server ID (replication & Co)
-    pagecache            Page cache for the log reads
-    flags                flags (TRANSLOG_PAGE_CRC, TRANSLOG_SECTOR_PROTECTION
-                           TRANSLOG_RECORD_CRC)
-
-  RETURN
-    0 - OK
-    1 - Error
-*/
-
 my_bool translog_init(const char *directory, uint32 log_file_max_size,
-                      uint32 server_version,
-                      uint32 server_id, PAGECACHE *pagecache, uint flags);
-
-
-/*
-  Write the log record
-
-  SYNOPSIS
-    translog_write_record()
-    lsn                  LSN of the record will be writen here
-    type                 the log record type
-    short_trid           Sort transaction ID or 0 if it has no sense
-    tcb                  Transaction control block pointer for hooks by
-                         record log type
-    partN_length         length of Ns part of the log
-    partN_buffer         pointer on Ns part buffer
-    0                    sign of the end of parts
-
-  RETURN
-    0 - OK
-    1 - Error
-*/
+                      uint32 server_version, uint32 server_id,
+                      PAGECACHE *pagecache, uint flags);
 
 my_bool translog_write_record(LSN *lsn,
                               enum translog_record_type type,
                               SHORT_TRANSACTION_ID short_trid,
                               void *tcb,
                               translog_size_t part1_length,
-                              uchar *part1_buff, ...);
-
-
-/*
-  Free log handler resources
-
-  SYNOPSIS
-    translog_destroy()
-*/
+                              byte *part1_buff, ...);
 
 void translog_destroy();
-
-
-/*
-  Read record header and some fixed part of a record (the part depend on
-  record type).
-
-  SYNOPSIS
-    translog_read_record_header()
-    lsn                  log record serial number (address of the record)
-    buff                 log record header buffer
-
-  NOTE
-    - lsn can point to TRANSLOG_HEADER_BUFFER::lsn and it will be processed
-      correctly.
-    - Some type of record can be read completely by this call
-    - "Decoded" header stored in TRANSLOG_HEADER_BUFFER::header (relative
-      LSN can be translated to absolute one), some fields can be added
-      (like actual header length in the record if the header has variable
-      length)
-
-  RETURN
-    0 - error
-    number of bytes in TRANSLOG_HEADER_BUFFER::header where stored decoded
-      part of the header
-*/
 
 translog_size_t translog_read_record_header(LSN lsn,
                                             TRANSLOG_HEADER_BUFFER *buff);
 
-
-/*
-  Free resources used by TRANSLOG_HEADER_BUFFER
-
-  SYNOPSIS
-    translog_free_record_header();
-*/
-
 void translog_free_record_header(TRANSLOG_HEADER_BUFFER *buff);
-
-
-/*
-  Read a part of the record.
-
-  SYNOPSIS
-    translog_read_record_header()
-    lsn                  log record serial number (address of the record)
-    offset               from the beginning of the record beginning (read
-                         by translog_read_record_header).
-    length               length of record part which have to be read.
-    buffer               buffer where to read the record part (have to be at
-                         least 'length' bytes length)
-
-  RETURN
-    0 - error (or read out of the record)
-    length of data actually read
-*/
 
 translog_size_t translog_read_record(LSN lsn,
                                      translog_size_t offset,
                                      translog_size_t length,
-                                     uchar *buffer,
+                                     byte *buffer,
                                      struct st_translog_reader_data *data);
-
-
-/*
-  Flush the log up to given LSN (included)
-
-  SYNOPSIS
-    translog_flush()
-    lsn                  log record serial number up to which (inclusive)
-                         the log have to be flushed
-
-  RETURN
-    0 - OK
-    1 - Error
-*/
 
 my_bool translog_flush(LSN lsn);
 
+my_bool translog_init_scanner(LSN lsn,
+                              my_bool fixed_horizon,
+                              struct st_translog_scanner_data *scanner);
 
-/*
-  Read record header and some fixed part of the next record (the part
-  depend on record type).
+translog_size_t translog_read_next_record_header(TRANSLOG_SCANNER_DATA
+                                                 *scanner,
+                                                 TRANSLOG_HEADER_BUFFER *buff);
 
-  SYNOPSIS
-    translog_read_next_record_header()
-    lsn                  log record serial number (address of the record)
-                         previous to  the record which will be read
-                         If LSN present scanner will be initialized from it,
-                         do not use LSN after initialization for fast scanning.
-    buff                 log record header buffer
-    fixed_horizon        true if it is OK do not read records which was written
-                         after scaning begining
-    scanner              data for scaning if lsn is NULL scanner data
-                         will be used for continue scaning.
-                         scanner can be NULL.
-
-  NOTE
-    - lsn can point to TRANSLOG_HEADER_BUFFER::lsn and it will be processed
-      correctly (lsn in buffer will be replaced by next record, but initial
-      lsn will be read correctly).
-    - it is like translog_read_record_header, but read next record, so see
-      its NOTES.
-    - in case of end of the log buff->lsn will be set to
-      (CONTROL_FILE_IMPOSSIBLE_LOGNO, 0)
-  RETURN
-    0                                    - error
-    TRANSLOG_RECORD_HEADER_MAX_SIZE + 1  - End of the log
-    number of bytes in TRANSLOG_HEADER_BUFFER::header where stored decoded
-      part of the header
-*/
-
-translog_size_t translog_read_next_record_header(LSN lsn,
-                                                 TRANSLOG_HEADER_BUFFER *buff,
-                                                 my_bool fixed_horizon,
-                                                 struct
-                                                 st_translog_scanner_data
-                                                 *scanner);
-
-#endif

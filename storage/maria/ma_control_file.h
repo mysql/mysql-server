@@ -19,9 +19,6 @@
   First version written by Guilhem Bichot on 2006-04-27.
 */
 
-#ifndef _ma_control_file_h
-#define _ma_control_file_h
-
 #define CONTROL_FILE_BASE_NAME "maria_control"
 /*
   indicate absence of the log file number; first log is always number 1, 0 is
@@ -47,11 +44,6 @@ extern LSN last_checkpoint_lsn;
 */
 extern uint32 last_logno;
 
-/*
-  Looks for the control file. If absent, it's a fresh start, create file.
-  If present, read it to find out last checkpoint's LSN and last log.
-  Called at engine's start.
-*/
 typedef enum enum_control_file_error {
   CONTROL_FILE_OK= 0,
   CONTROL_FILE_TOO_SMALL,
@@ -60,21 +52,26 @@ typedef enum enum_control_file_error {
   CONTROL_FILE_BAD_CHECKSUM,
   CONTROL_FILE_UNKNOWN_ERROR /* any other error */
 } CONTROL_FILE_ERROR;
-CONTROL_FILE_ERROR ma_control_file_create_or_open();
 
+#define CONTROL_FILE_UPDATE_ALL 0
+#define CONTROL_FILE_UPDATE_ONLY_LSN 1
+#define CONTROL_FILE_UPDATE_ONLY_LOGNO 2
+
+
+/*
+  Looks for the control file. If absent, it's a fresh start, create file.
+  If present, read it to find out last checkpoint's LSN and last log.
+  Called at engine's start.
+*/
+CONTROL_FILE_ERROR ma_control_file_create_or_open();
 /*
   Write information durably to the control file.
   Called when we have created a new log (after syncing this log's creation)
   and when we have written a checkpoint (after syncing this log record).
 */
-#define CONTROL_FILE_UPDATE_ALL 0
-#define CONTROL_FILE_UPDATE_ONLY_LSN 1
-#define CONTROL_FILE_UPDATE_ONLY_LOGNO 2
 int ma_control_file_write_and_force(const LSN checkpoint_lsn, uint32 logno,
                                     uint objs_to_write);
 
 
 /* Free resources taken by control file subsystem */
 int ma_control_file_end();
-
-#endif

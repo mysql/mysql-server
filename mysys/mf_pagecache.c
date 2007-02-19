@@ -570,7 +570,7 @@ static uint pagecache_fwrite(PAGECACHE *pagecache,
     DBUG_PRINT("info", ("Log handler call"));
     /* TODO: integrate with page format */
 #define PAGE_LSN_OFFSET 0
-    lsn= lsn7korr(buffer + PAGE_LSN_OFFSET);
+    lsn= lsn_korr(buffer + PAGE_LSN_OFFSET);
     /*
       check CONTROL_FILE_IMPOSSIBLE_FILENO &
       CONTROL_FILE_IMPOSSIBLE_LOG_OFFSET

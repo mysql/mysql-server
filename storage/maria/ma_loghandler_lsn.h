@@ -30,15 +30,18 @@ typedef TRANSLOG_ADDRESS LSN;
 /* checks LSN */
 #define LSN_VALID(L) DBUG_ASSERT((L) >= 0 && (L) < (uint64)0xFFFFFFFFFFFFFFLL)
 
+/* size of stored LSN on a disk */
+#define LSN_STORE_SIZE 7
+
 /* Puts LSN into buffer (dst) */
-#define lsn7store(dst, lsn) \
+#define lsn_store(dst, lsn) \
   do { \
     int3store((dst), LSN_FILE_NO(lsn)); \
     int4store((dst) + 3, LSN_OFFSET(lsn)); \
   } while (0)
 
 /* Unpacks LSN from the buffer (P) */
-#define lsn7korr(P) MAKE_LSN(uint3korr(P), uint4korr((P) + 3))
+#define lsn_korr(P) MAKE_LSN(uint3korr(P), uint4korr((P) + 3))
 
 /* what we need to add to LSN to increase it on one file */
 #define LSN_ONE_FILE ((int64)0x100000000LL)
