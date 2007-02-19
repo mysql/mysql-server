@@ -103,7 +103,7 @@ static my_bool disable_query_log= 0, disable_result_log= 0;
 static my_bool disable_warnings= 0, disable_ps_warnings= 0;
 static my_bool disable_info= 1;
 static my_bool abort_on_error= 1;
-
+static my_bool is_windows= 0;
 static char **default_argv;
 static const char *load_default_groups[]= { "mysqltest", "client", 0 };
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos= line_buffer;
@@ -1658,7 +1658,7 @@ void do_exec(struct st_command *command)
 
   init_dynamic_string(&ds_cmd, 0, command->query_len+256, 256);
   /* Eval the command, thus replacing all environment variables */
-  do_eval(&ds_cmd, cmd, command->end, TRUE);
+  do_eval(&ds_cmd, cmd, command->end, !is_windows);
 
   /* Check if echo should be replaced with "builtin" echo */
   if (builtin_echo[0] && strncmp(cmd, "echo", 4) == 0)
@@ -1666,6 +1666,15 @@ void do_exec(struct st_command *command)
     /* Replace echo with our "builtin" echo */
     replace(&ds_cmd, "echo", 4, builtin_echo, strlen(builtin_echo));
   }
+
+#ifdef __WIN__
+  /* Replace /dev/null with NUL */
+  while(replace(&ds_cmd, "/dev/null", 9, "NUL", 3) == 0)
+    ;
+  /* Replace "closed stdout" with non existing output fd */
+  while(replace(&ds_cmd, ">&-", 3, ">&4", 3) == 0)
+    ;
+#endif
 
   DBUG_PRINT("info", ("Executing '%s' as '%s'",
                       command->first_argument, ds_cmd.str));
@@ -1826,7 +1835,14 @@ void do_system(struct st_command *command)
   init_dynamic_string(&ds_cmd, 0, command->query_len + 64, 256);
 
   /* Eval the system command, thus replacing all environment variables */
-  do_eval(&ds_cmd, command->first_argument, command->end, TRUE);
+  do_eval(&ds_cmd, command->first_argument, command->end, !is_windows);
+
+#ifdef __WIN__
+   /* Replace /dev/null with NUL */
+   while(replace(&ds_cmd, "/dev/null", 9, "NUL", 3) == 0)
+     ;
+#endif
+
 
   DBUG_PRINT("info", ("running system command '%s' as '%s'",
                       command->first_argument, ds_cmd.str));
@@ -5717,6 +5733,7 @@ int main(int argc, char **argv)
 
   init_builtin_echo();
 #ifdef __WIN__
+  is_windows= 0;
   init_tmp_sh_file();
   init_win_path_patterns();
 #endif
