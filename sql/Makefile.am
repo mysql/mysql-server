@@ -128,6 +128,7 @@ EXTRA_DIST =		udf_example.c udf_example.def $(BUILT_MAINT_SRC) \
 			nt_servc.cc nt_servc.h message.mc CMakeLists.txt \
 			udf_example.c udf_example.def
 CLEANFILES =        	lex_hash.h sql_yacc.output
+DISTCLEANFILES =        $(EXTRA_PROGRAMS)
 MAINTAINERCLEANFILES =  $(BUILT_MAINT_SRC)
 AM_YFLAGS =		-d --verbose
 
