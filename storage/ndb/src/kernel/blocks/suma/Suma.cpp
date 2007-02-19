@@ -4668,9 +4668,7 @@ Suma::out_of_buffer(Signal* signal)
   m_out_of_buffer_gci = m_last_complete_gci - 1;
   infoEvent("Out of event buffer: nodefailure will cause event failures");
 
-  signal->theData[0] = SumaContinueB::OUT_OF_BUFFER_RELEASE;
-  signal->theData[1] = 0;
-  sendSignal(SUMA_REF, GSN_CONTINUEB, signal, 2, JBB);
+  out_of_buffer_release(signal, 0);
 }
 
 void
@@ -4738,7 +4736,8 @@ loop:
 
   Uint32 count;
   m_tup->allocConsPages(16, count, ref);
-  ndbrequire(count > 0);
+  if (count == 0)
+    return RNIL;
 
   ndbout_c("alloc_chunk(%d %d) - ", ref, count);
 
