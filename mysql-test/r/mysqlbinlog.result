@@ -173,25 +173,9 @@ insert t1 values (1);
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 flush logs;
-create table t3 (f text character set utf8);
-create table t4 (f text character set cp932);
-flush logs;
-rename table t3 to t03, t4 to t04;
-select HEX(f) from t03;
-HEX(f)
-E382BD
-select HEX(f) from t3;
-HEX(f)
-E382BD
-select HEX(f) from t04;
-HEX(f)
-835C
-select HEX(f) from t4;
-HEX(f)
-835C
-flush logs;
 select * from t5  /* must be (1),(1) */;
 a
 1
 1
-drop table t1, t2, t03, t04, t3, t4, t5;
+drop table t1, t2, t5;
+End of 5.0 tests
