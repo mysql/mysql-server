@@ -8419,7 +8419,6 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
     goto ndb_util_thread_fail;
   thd->init_for_queries();
   thd->version=refresh_version;
-  thd->set_time();
   thd->main_security_ctx.host_or_ip= "";
   thd->client_capabilities = 0;
   my_net_init(&thd->net, 0);
