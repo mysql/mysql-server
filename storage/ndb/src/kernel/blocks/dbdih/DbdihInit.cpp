@@ -61,6 +61,7 @@ void Dbdih::initData()
   c_blockCommit    = false;
   c_blockCommitNo  = 1;
   cntrlblockref    = RNIL;
+  c_set_initial_start_flag = FALSE;
 }//Dbdih::initData()
 
 void Dbdih::initRecords() 
