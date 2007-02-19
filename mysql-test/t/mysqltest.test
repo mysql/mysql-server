@@ -902,9 +902,9 @@ echo $d;
 # ----------------------------------------------------------------------------
 # Test system
 # ----------------------------------------------------------------------------
-system ls > /dev/null;
+#system ls > /dev/null;
 system echo "hej" > /dev/null;
---system ls > /dev/null
+#--system ls > /dev/null
 --system echo "hej" > /dev/null;
 
 --error 1
@@ -1134,18 +1134,24 @@ EOF
 --error 1
 --exec echo "{;" | $MYSQL_TEST 2>&1
 
---system echo "while (0)" > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo "echo hej;" >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+while (0)
+echo hej;
+EOF
 --error 1
 --exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
 
---system echo "while (0)" > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo "{echo hej;" >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+while (0)
+{echo hej;
+EOF
 --error 1
 --exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
 
---system echo "while (0){" > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo "echo hej;" >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+while (0){
+ echo hej;
+EOF
 --error 1
 --exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
 
@@ -1244,28 +1250,34 @@ EOF
 --exec echo "source $MYSQLTEST_VARDIR/tmp/mysqltest.sql; echo OK;" | $MYSQL_TEST 2>&1
 
 # Repeat connect/disconnect, exceed max number of connections
---system echo "let \$i=200;"                              > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo "while (\$i)"                              >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo "{"                                        >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo " connect (test_con1,localhost,root,,); "  >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo " disconnect test_con1; "                  >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo " dec \$i;                               " >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo "}"                                        >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+let $i=200;
+while ($i)
+{
+ connect (test_con1,localhost,root,,);
+ disconnect test_con1;
+ dec $i;
+}
+EOF
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error 1
 --exec echo "source $MYSQLTEST_VARDIR/tmp/mysqltest.sql;" | $MYSQL_TEST 2>&1
 
 # Select disconnected connection
---system echo "connect (test_con1,localhost,root,,);"    > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo "disconnect test_con1; "                  >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo "connection test_con1;"                   >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+connect (test_con1,localhost,root,,);
+disconnect test_con1;
+connection test_con1;
+EOF
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error 1
 --exec echo "source $MYSQLTEST_VARDIR/tmp/mysqltest.sql;" | $MYSQL_TEST 2>&1
 
 # Connection name already used
---system echo "connect (test_con1,localhost,root,,);"    > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo "connect (test_con1,localhost,root,,);"   >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+connect (test_con1,localhost,root,,);
+connect (test_con1,localhost,root,,);
+EOF
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error 1
 --exec echo "source $MYSQLTEST_VARDIR/tmp/mysqltest.sql;" | $MYSQL_TEST 2>&1
@@ -1502,8 +1514,9 @@ remove_file non_existing_file;
 --error 1
 --exec echo "write_file filename ;" | $MYSQL_TEST 2>&1
 
---error 1
---exec echo "write_file filename \";" | $MYSQL_TEST 2>&1
+# Comment out this test as it confuses cmd.exe with unmatched "
+#--error 1
+#--exec echo "write_file filename \";" | $MYSQL_TEST 2>&1
 
 write_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
 Content for test_file1
