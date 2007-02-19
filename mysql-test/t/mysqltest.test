@@ -1539,6 +1539,25 @@ file_exists $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
 remove_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
 
 # ----------------------------------------------------------------------------
+# test for append_file
+# ----------------------------------------------------------------------------
+
+write_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+Content for test_file1
+EOF
+file_exists $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+
+append_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+Appended text
+EOF
+file_exists $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+
+remove_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+append_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+Appended text on nonexisting file
+EOF
+
+# ----------------------------------------------------------------------------
 # test for file_exist
 # ----------------------------------------------------------------------------
 --error 1
