@@ -1084,6 +1084,46 @@ retry:
   return NDBT_OK;
 }
 
+int 
+runBug26481(NDBT_Context* ctx, NDBT_Step* step)
+{
+  
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  NdbRestarter res;
+  
+  int node = res.getRandomNotMasterNodeId(rand());
+  ndbout_c("node: %d", node);
+  if (res.restartOneDbNode(node, true, true, true))
+    return NDBT_FAILED;
+
+  if (res.waitNodesNoStart(&node, 1))
+    return NDBT_FAILED;
+
+  int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+  if (res.dumpStateOneNode(node, val2, 2))
+    return NDBT_FAILED;
+
+  if (res.insertErrorInNode(node, 7018))
+    return NDBT_FAILED;
+
+  if (res.startNodes(&node, 1))
+    return NDBT_FAILED;
+
+  res.waitNodesStartPhase(&node, 1, 3);
+  
+  if (res.waitNodesNoStart(&node, 1))
+    return NDBT_FAILED;
+
+  res.startNodes(&node, 1);
+  
+  if (res.waitClusterStarted())
+    return NDBT_FAILED;
+  
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -1407,6 +1447,9 @@ TESTCASE("Bug25554", ""){
 }
 TESTCASE("Bug26457", ""){
   INITIALIZER(runBug26457);
+}
+TESTCASE("Bug26481", ""){
+  INITIALIZER(runBug26481);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 
