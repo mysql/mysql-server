@@ -555,8 +555,8 @@ echo ;
 
 # Illegal use of echo
 
---error 1
---exec echo "echo \$;" | $MYSQL_TEST 2>&1
+#--error 1
+#--exec echo "echo \$;" | $MYSQL_TEST 2>&1
 
 
 # ----------------------------------------------------------------------------
