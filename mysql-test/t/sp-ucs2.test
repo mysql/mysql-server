@@ -1,0 +1,28 @@
+-- source include/have_ucs2.inc
+
+delimiter |;
+
+#
+# BUG#17615: problem with character set
+#
+--disable_warnings
+drop function if exists bug17615|
+--enable_warnings
+
+create table t3 (a varchar(256) unicode)|
+
+create function bug17615() returns varchar(256) unicode
+begin
+  declare tmp_res varchar(256) unicode;
+  set tmp_res= 'foo string';
+  return tmp_res;
+end|
+
+insert into t3 values(bug17615())|
+select * from t3|
+
+drop function bug17615|
+drop table t3|
+
+
+delimiter ;|
