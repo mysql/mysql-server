@@ -852,7 +852,6 @@ InitConfigFileParser::parse_mycnf()
     mysqld = &options[idx+2];
     api = &options[idx+3];
   }
-
   
   Context ctx(m_info, m_errstream); 
   const char *groups[]= { "cluster_config", 0 };
