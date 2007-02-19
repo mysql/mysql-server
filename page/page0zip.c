@@ -1928,7 +1928,8 @@ zlib_done:
 		}
 		page_zip->m_end = mod_log_ptr - page_zip->data;
 		page_zip->m_nonempty = mod_log_ptr != d_stream->next_in;
-		ut_a(page_zip_get_trailer_len(page_zip, index, NULL)
+		ut_a(page_zip_get_trailer_len(page_zip,
+					      dict_index_is_clust(index), NULL)
 		     + page_zip->m_end < page_zip_get_size(page_zip));
 	}
 
@@ -1972,6 +1973,8 @@ page_zip_decompress_sec(
 	ulint	heap_status	= REC_STATUS_ORDINARY
 		| PAGE_HEAP_NO_USER_LOW << REC_HEAP_NO_SHIFT;
 	ulint	slot;
+
+	ut_a(!dict_index_is_clust(index));
 
 	/* Subtract the space reserved for uncompressed data. */
 	d_stream->avail_in -= n_dense * PAGE_ZIP_DIR_SLOT_SIZE;
@@ -2065,7 +2068,7 @@ zlib_done:
 		}
 		page_zip->m_end = mod_log_ptr - page_zip->data;
 		page_zip->m_nonempty = mod_log_ptr != d_stream->next_in;
-		ut_a(page_zip_get_trailer_len(page_zip, index, NULL)
+		ut_a(page_zip_get_trailer_len(page_zip, FALSE, NULL)
 		     + page_zip->m_end < page_zip_get_size(page_zip));
 	}
 
@@ -2200,6 +2203,8 @@ page_zip_decompress_clust(
 		| PAGE_HEAP_NO_USER_LOW << REC_HEAP_NO_SHIFT;
 	const byte*	storage;
 	const byte*	externs;
+
+	ut_a(dict_index_is_clust(index));
 
 	/* Subtract the space reserved for uncompressed data. */
 	d_stream->avail_in -= n_dense * (PAGE_ZIP_DIR_SLOT_SIZE
@@ -2356,7 +2361,7 @@ zlib_done:
 		}
 		page_zip->m_end = mod_log_ptr - page_zip->data;
 		page_zip->m_nonempty = mod_log_ptr != d_stream->next_in;
-		ut_a(page_zip_get_trailer_len(page_zip, index, NULL)
+		ut_a(page_zip_get_trailer_len(page_zip, TRUE, NULL)
 		     + page_zip->m_end < page_zip_get_size(page_zip));
 	}
 
@@ -3370,7 +3375,8 @@ page_zip_clear_rec(
 #endif /* UNIV_ZIP_DEBUG */
 	    page_zip->m_end
 	    + 1 + ((heap_no - 1) >= 64)/* size of the log entry */
-	    + page_zip_get_trailer_len(page_zip, index, NULL)
+	    + page_zip_get_trailer_len(page_zip,
+				       dict_index_is_clust(index), NULL)
 	    < page_zip_get_size(page_zip)) {
 		byte*	data;
 
@@ -3909,7 +3915,8 @@ page_zip_copy(
 		memcpy(page_zip, src_zip, sizeof *page_zip);
 		page_zip->data = data;
 	}
-	ut_ad(page_zip_get_trailer_len(page_zip, index, NULL)
+	ut_ad(page_zip_get_trailer_len(page_zip,
+				       dict_index_is_clust(index), NULL)
 	      + page_zip->m_end < page_zip_get_size(page_zip));
 
 	if (!page_is_leaf(src)

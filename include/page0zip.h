@@ -143,7 +143,7 @@ page_zip_available(
 					/* out: TRUE if page_zip_write_rec()
 					will succeed */
 	const page_zip_des_t*	page_zip,/* in: compressed page */
-	dict_index_t*		index,	/* in: index of the B-tree node */
+	ibool			is_clust,/* in: TRUE if clustered index */
 	ulint			length,	/* in: combined size of the record */
 	ulint			create)	/* in: nonzero=add the record to
 					the heap */

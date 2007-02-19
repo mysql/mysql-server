@@ -208,7 +208,7 @@ page_zip_get_trailer_len(
 					in bytes, not including the terminating
 					zero byte of the modification log */
 	const page_zip_des_t*	page_zip,/* in: compressed page */
-	dict_index_t*		index,	/* in: index of the B-tree node */
+	ibool			is_clust,/* in: TRUE if clustered index */
 	ulint*			entry_size)/* out: size of the uncompressed
 					portion of a user record */
 {
@@ -220,7 +220,7 @@ page_zip_get_trailer_len(
 		uncompressed_size = PAGE_ZIP_DIR_SLOT_SIZE
 			+ REC_NODE_PTR_SIZE;
 		ut_ad(!page_zip->n_blobs);
-	} else if (dict_index_is_clust(index)) {
+	} else if (UNIV_UNLIKELY(is_clust)) {
 		uncompressed_size = PAGE_ZIP_DIR_SLOT_SIZE
 			+ DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
 	} else {
@@ -246,7 +246,7 @@ page_zip_available(
 					/* out: TRUE if enough space
 					is available */
 	const page_zip_des_t*	page_zip,/* in: compressed page */
-	dict_index_t*		index,	/* in: index of the B-tree node */
+	ibool			is_clust,/* in: TRUE if clustered index */
 	ulint			length,	/* in: combined size of the record */
 	ulint			create)	/* in: nonzero=add the record to
 					the heap */
@@ -256,7 +256,7 @@ page_zip_available(
 
 	ut_ad(length > REC_N_NEW_EXTRA_BYTES);
 
-	trailer_len = page_zip_get_trailer_len(page_zip, index,
+	trailer_len = page_zip_get_trailer_len(page_zip, is_clust,
 					       &uncompressed_size);
 
 	/* Subtract the fixed extra bytes and add the maximum
@@ -314,7 +314,8 @@ page_zip_alloc(
 	ut_a(page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
 
-	if (page_zip_available(page_zip, index, length, create)) {
+	if (page_zip_available(page_zip, dict_index_is_clust(index),
+			       length, create)) {
 		return(TRUE);
 	}
 
@@ -330,7 +331,8 @@ page_zip_alloc(
 	}
 
 	/* Check if there is enough space available after compression. */
-	return(page_zip_available(page_zip, index, length, create));
+	return(page_zip_available(page_zip, dict_index_is_clust(index),
+				  length, create));
 }
 
 /**************************************************************************
