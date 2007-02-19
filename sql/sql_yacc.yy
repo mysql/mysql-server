@@ -4188,8 +4188,13 @@ select_into:
 	| select_from into;
 
 select_from:
-	  FROM join_table_list where_clause group_clause having_clause
+        FROM join_table_list where_clause group_clause having_clause
 	       opt_order_clause opt_limit_clause procedure_clause
+          {
+            Select->context.table_list=
+              Select->context.first_name_resolution_table= 
+                (TABLE_LIST *) Select->table_list.first;
+          }
         | FROM DUAL_SYM where_clause opt_limit_clause
           /* oracle compatibility: oracle always requires FROM clause,
              and DUAL is system table without fields.
