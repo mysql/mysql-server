@@ -677,6 +677,12 @@ done:
     Uint32 tmp= SYSFILE->m_restart_seq;
     memcpy(sysfileData, cdata, sizeof(sysfileData));
     SYSFILE->m_restart_seq = tmp;
+
+    if (c_set_initial_start_flag)
+    {
+      jam();
+      Sysfile::setInitialStartOngoing(SYSFILE->systemRestartBits);
+    }
   }
 
   c_copyGCISlave.m_copyReason = reason;
@@ -1337,6 +1343,11 @@ void Dbdih::execNDB_STTOR(Signal* signal)
     // The permission is given by the master node in the alive set.  
     /*-----------------------------------------------------------------------*/
     createMutexes(signal, 0);
+    if (cstarttype == NodeState::ST_INITIAL_NODE_RESTART)
+    {
+      jam();
+      c_set_initial_start_flag = TRUE; // In sysfile...
+    }
     break;
     
   case ZNDB_SPH3:
@@ -10804,6 +10815,17 @@ Dbdih::sendLCP_COMPLETE_REP(Signal* signal){
   
   sendSignal(c_lcpState.m_masterLcpDihRef, GSN_LCP_COMPLETE_REP, signal, 
 	     LcpCompleteRep::SignalLength, JBB);
+
+  /**
+   * Say that an initial node restart does not need to be redone
+   *   once node has been part of first LCP
+   */
+  if (c_set_initial_start_flag &&
+      c_lcpState.m_participatingLQH.get(getOwnNodeId()))
+  {
+    jam();
+    c_set_initial_start_flag = FALSE;
+  }
 }
 
 /*-------------------------------------------------------------------------- */
