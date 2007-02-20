@@ -275,7 +275,7 @@ enum enum_commands {
   Q_DISABLE_PARSING, Q_ENABLE_PARSING,
   Q_REPLACE_REGEX, Q_REMOVE_FILE, Q_FILE_EXIST,
   Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT,
-  Q_CHMOD_FILE, Q_APPEND_FILE, Q_CAT_FILE,
+  Q_CHMOD_FILE, Q_APPEND_FILE, Q_CAT_FILE, Q_DIFF_FILES,
 
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
@@ -361,6 +361,7 @@ const char *command_names[]=
   "chmod",
   "append_file",
   "cat_file",
+  "diff_files",
   0
 };
 
@@ -2240,6 +2241,78 @@ void do_cat_file(struct st_command *command)
   DBUG_VOID_RETURN;
 }
 
+
+
+/*
+  SYNOPSIS
+  do_diff_files
+  command	called command
+
+  DESCRIPTION
+  diff_files <file1> <file2>;
+
+  Fails if the two files differ.
+
+*/
+
+void do_diff_files(struct st_command *command)
+{
+  int error= 0;
+  int fd, fd2;
+  uint len, len2;
+  char buff[512], buff2[512];
+  static DYNAMIC_STRING ds_filename;
+  static DYNAMIC_STRING ds_filename2;
+  const struct command_arg diff_file_args[] = {
+    "file1", ARG_STRING, TRUE, &ds_filename, "First file to diff",
+    "file2", ARG_STRING, TRUE, &ds_filename2, "Second file to diff"
+  };
+  DBUG_ENTER("do_diff_files");
+
+  check_command_args(command,
+                     command->first_argument,
+                     diff_file_args,
+                     sizeof(diff_file_args)/sizeof(struct command_arg),
+                     ' ');
+
+  if ((fd= my_open(ds_filename.str, O_RDONLY, MYF(0))) < 0)
+    die("Failed to open first file %s", ds_filename.str);
+  if ((fd2= my_open(ds_filename2.str, O_RDONLY, MYF(0))) < 0)
+  {
+    my_close(fd, MYF(0));
+    die("Failed to open second file %s", ds_filename2.str);
+  }
+  while((len= my_read(fd, (byte*)&buff,
+                      sizeof(buff), MYF(0))) > 0)
+  {
+    if ((len2= my_read(fd2, (byte*)&buff2,
+                       sizeof(buff2), MYF(0))) != len)
+    {
+      /* File 2 was smaller */
+      error= 1;
+      break;
+    }
+    if ((memcmp(buff, buff2, len)))
+    {
+      /* Content of this part differed */
+      error= 1;
+      break;
+    }
+  }
+  if (my_read(fd2, (byte*)&buff2,
+              sizeof(buff2), MYF(0)) > 0)
+  {
+    /* File 1 was smaller */
+    error= 1;
+  }
+
+  my_close(fd, MYF(0));
+  my_close(fd2, MYF(0));
+  dynstr_free(&ds_filename);
+  dynstr_free(&ds_filename2);
+  handle_command_error(command, error);
+  DBUG_VOID_RETURN;
+}
 
 /*
   SYNOPSIS
@@ -6018,6 +6091,7 @@ int main(int argc, char **argv)
       case Q_FILE_EXIST: do_file_exist(command); break;
       case Q_WRITE_FILE: do_write_file(command); break;
       case Q_APPEND_FILE: do_append_file(command); break;
+      case Q_DIFF_FILES: do_diff_files(command); break;
       case Q_CAT_FILE: do_cat_file(command); break;
       case Q_COPY_FILE: do_copy_file(command); break;
       case Q_CHMOD_FILE: do_chmod_file(command); break;
