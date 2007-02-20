@@ -94,8 +94,8 @@ Variable_name	Value
 log_output	FILE,TABLE
 set global general_log_file='/not exiting path/log.master';
 ERROR 42000: Variable 'general_log_file' can't be set to the value of '/not exiting path/log.master'
-set global general_log_file='/tmp';
-ERROR 42000: Variable 'general_log_file' can't be set to the value of '/tmp'
+set global general_log_file='MYSQLTEST_VARDIR';
+ERROR 42000: Variable 'general_log_file' can't be set to the value of 'MYSQLTEST_VARDIR'
 set global general_log_file='';
 ERROR 42000: Variable 'general_log_file' can't be set to the value of ''
 show variables like 'general_log_file';
