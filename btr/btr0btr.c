@@ -974,7 +974,8 @@ btr_page_reorganize_low(
 	}
 
 	/* On compressed pages, recompute the insert buffer free bits. */
-	if (UNIV_LIKELY_NULL(page_zip) && !dict_index_is_clust(index)) {
+	if (UNIV_LIKELY_NULL(page_zip)
+	    && !dict_index_is_clust(index) && page_is_leaf(page)) {
 
 		ibuf_update_free_bits_if_full(
 			index, page_zip_get_size(page_zip), block,
@@ -1961,10 +1962,13 @@ func_start:
 		goto func_exit;
 	}
 
-	/* 8. If insert did not fit, try page reorganization */
+	/* 8. If insert did not fit, try page reorganization.
+	For compressed pages, that is already attempted in
+	page_cur_tuple_insert(). */
 
 	if (UNIV_UNLIKELY
-	    (!btr_page_reorganize(insert_block, cursor->index, mtr))) {
+	    (buf_block_get_page_zip(insert_block)
+	     || !btr_page_reorganize(insert_block, cursor->index, mtr))) {
 
 		goto insert_failed;
 	}

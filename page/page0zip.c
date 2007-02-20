@@ -19,6 +19,7 @@ Created June 2005 by Marko Makela
 #include "dict0dict.h"
 #include "btr0sea.h"
 #include "btr0cur.h"
+#include "ibuf0ibuf.h"
 #include "page0types.h"
 #include "lock0lock.h"
 #include "log0recv.h"
@@ -3871,6 +3872,13 @@ page_zip_reorganize(
 
 	lock_move_reorganize_page(block, temp_block);
 	btr_search_drop_page_hash_index(block);
+
+	if (!dict_index_is_clust(index) && page_is_leaf(page)) {
+		/* Recompute the insert buffer free bits. */
+		ibuf_update_free_bits_if_full(
+			index, page_zip_get_size(page_zip), block,
+			UNIV_PAGE_SIZE, ULINT_UNDEFINED);
+	}
 
 	buf_block_free(temp_block);
 	return(TRUE);
