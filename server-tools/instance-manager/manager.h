@@ -51,6 +51,7 @@ public:
 
 private:
   static void stop_all_threads();
+  static bool init_user_map(User_map *user_map);
 
 private:
   static Guardian *p_guardian;

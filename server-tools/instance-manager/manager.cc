@@ -185,6 +185,53 @@ void Manager::stop_all_threads()
 
 
 /**
+  Initialize user map and load password file.
+
+  SYNOPSIS
+    init_user_map()
+
+  RETURN
+    FALSE   on success
+    TRUE    on failure
+*/
+
+bool Manager::init_user_map(User_map *user_map)
+{
+  int err_code;
+  const char *err_msg;
+
+  if (user_map->init())
+  {
+    log_error("Manager: can not initialize user list: out of memory.");
+    return TRUE;
+  }
+
+  err_code= user_map->load(Options::Main::password_file_name, &err_msg);
+
+  if (!err_code)
+    return FALSE;
+
+  if (err_code == ERR_PASSWORD_FILE_DOES_NOT_EXIST &&
+      Options::Main::mysqld_safe_compatible)
+  {
+    /*
+      The password file does not exist, but we are running in
+      mysqld_safe-compatible mode. Continue, but complain in log.
+    */
+
+    log_info("Warning: password file does not exist, "
+             "nobody will be able to connect to Instance Manager.");
+
+    return FALSE;
+  }
+
+  log_error("Manager: %s.", (const char *) err_msg);
+
+  return TRUE;
+}
+
+
+/**
   Main manager function.
 
   SYNOPSIS
@@ -201,9 +248,7 @@ void Manager::stop_all_threads()
 
 int Manager::main()
 {
-  int err_code;
   int rc= 1;
-  const char *err_msg;
   bool shutdown_complete= FALSE;
   pid_t manager_pid= getpid();
 
@@ -258,33 +303,10 @@ int Manager::main()
     return 1;
   }
 
-  /* Initialize user map and load password file. */
+  /* Initialize user db. */
 
-  if (user_map.init())
-  {
-    log_error("Manager: can not initialize user list: out of memory.");
-    return 1;
-  }
-
-  if ((err_code= user_map.load(Options::Main::password_file_name, &err_msg)))
-  {
-    if (err_code == ERR_PASSWORD_FILE_DOES_NOT_EXIST &&
-        Options::Main::mysqld_safe_compatible)
-    {
-      /*
-        The password file does not exist, but we are running in
-        mysqld_safe-compatible mode. Continue, but complain in log.
-      */
-
-      log_info("Warning: password file does not exist, "
-               "nobody will be able to connect to Instance Manager.");
-    }
-    else
-    {
-      log_error("Manager: %s.", (const char *) err_msg);
-      return 1;
-    }
-  }
+  if (init_user_map(&user_map))
+    return 1; /* logging has been already done. */
 
   /* Write Instance Manager pid file. */
 
