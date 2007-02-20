@@ -36,7 +36,6 @@
 #define ETIME ETIMEDOUT
 #endif
 
-uint thr_client_alarm;
 static int alarm_aborted=1;			/* No alarm thread */
 my_bool thr_alarm_inited= 0;
 volatile my_bool alarm_thread_running= 0;
