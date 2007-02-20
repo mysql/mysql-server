@@ -639,6 +639,17 @@ select @@&;
 --error ER_PARSE_ERROR
 select @@@;
 
+#
+# Bug#20166 mysql-test-run.pl does not test system privilege tables creation
+#
+# Don't actually output, since it depends on the system
+--replace_column 1 #
+select @@hostname;
+--error 1238
+set @@hostname= "anothername";
+--replace_column 2 #
+show variables like 'hostname';
+
 --echo End of 5.0 tests
 
 # This is at the very after the versioned tests, since it involves doing
