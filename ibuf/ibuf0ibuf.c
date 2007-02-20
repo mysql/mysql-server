@@ -1632,12 +1632,7 @@ ibuf_data_enough_free_for_insert(
 	inserts buffered for pages that we read to the buffer pool, without
 	any risk of running out of free space in the insert buffer. */
 
-	if (data->free_list_len >= data->size / 2 + 3 * data->height) {
-
-		return(TRUE);
-	}
-
-	return(FALSE);
+	return(data->free_list_len >= data->size / 2 + 3 * data->height);
 }
 
 /*************************************************************************
@@ -2930,58 +2925,65 @@ dump:
 		rec = page_cur_tuple_insert(&page_cur, entry, index,
 					    NULL, 0, mtr);
 
-		if (UNIV_UNLIKELY(rec == NULL)) {
-			/* If the record did not fit, reorganize */
+		if (UNIV_LIKELY(rec != NULL)) {
+			return;
+		}
 
-			btr_page_reorganize(block, index, mtr);
+		if (UNIV_LIKELY_NULL(buf_block_get_page_zip(block))) {
+			/* For compressed pages, reorganization was
+			attempted (in vain) in page_cur_tuple_insert(). */
 
-			page_cur_search(block, index, entry,
-					PAGE_CUR_LE, &page_cur);
+			goto ibuf_fail;
+		}
 
-			/* This time the record must fit */
-			if (UNIV_UNLIKELY
-			    (!page_cur_tuple_insert(&page_cur, entry, index,
-						    NULL, 0, mtr))) {
+		/* If the record did not fit, reorganize */
 
-				ulint	space;
-				ulint	page_no;
-				ulint	zip_size;
+		btr_page_reorganize(block, index, mtr);
+		page_cur_search(block, index, entry, PAGE_CUR_LE, &page_cur);
 
-				ut_print_timestamp(stderr);
+		/* This time the record must fit */
+		if (UNIV_UNLIKELY
+		    (!page_cur_tuple_insert(&page_cur, entry, index,
+					    NULL, 0, mtr))) {
+			ulint	space;
+			ulint	page_no;
+			ulint	zip_size;
 
-				fprintf(stderr,
-					"InnoDB: Error: Insert buffer insert"
-					" fails; page free %lu,"
-					" dtuple size %lu\n",
-					(ulong) page_get_max_insert_size(
-						page, 1),
-					(ulong) rec_get_converted_size(
-						index, entry, NULL, 0));
-				fputs("InnoDB: Cannot insert index record ",
-				      stderr);
-				dtuple_print(stderr, entry);
-				fputs("\nInnoDB: The table where"
-				      " this index record belongs\n"
-				      "InnoDB: is now probably corrupt."
-				      " Please run CHECK TABLE on\n"
-				      "InnoDB: that table.\n", stderr);
+ibuf_fail:
+			ut_print_timestamp(stderr);
 
-				space = page_get_space_id(page);
-				zip_size = buf_block_get_zip_size(block);
-				page_no = page_get_page_no(page);
+			fprintf(stderr,
+				"InnoDB: Error: Insert buffer insert"
+				" fails; page free %lu,"
+				" dtuple size %lu\n",
+				(ulong) page_get_max_insert_size(
+					page, 1),
+				(ulong) rec_get_converted_size(
+					index, entry, NULL, 0));
+			fputs("InnoDB: Cannot insert index record ",
+			      stderr);
+			dtuple_print(stderr, entry);
+			fputs("\nInnoDB: The table where"
+			      " this index record belongs\n"
+			      "InnoDB: is now probably corrupt."
+			      " Please run CHECK TABLE on\n"
+			      "InnoDB: that table.\n", stderr);
 
-				bitmap_page = ibuf_bitmap_get_map_page(
-					space, page_no, zip_size, mtr);
-				old_bits = ibuf_bitmap_page_get_bits(
-					bitmap_page, page_no, zip_size,
-					IBUF_BITMAP_FREE, mtr);
+			space = page_get_space_id(page);
+			zip_size = buf_block_get_zip_size(block);
+			page_no = page_get_page_no(page);
 
-				fprintf(stderr, "Bitmap bits %lu\n",
-					(ulong) old_bits);
+			bitmap_page = ibuf_bitmap_get_map_page(
+				space, page_no, zip_size, mtr);
+			old_bits = ibuf_bitmap_page_get_bits(
+				bitmap_page, page_no, zip_size,
+				IBUF_BITMAP_FREE, mtr);
 
-				fputs("InnoDB: Submit a detailed bug report"
-				      " to http://bugs.mysql.com\n", stderr);
-			}
+			fprintf(stderr, "Bitmap bits %lu\n",
+				(ulong) old_bits);
+
+			fputs("InnoDB: Submit a detailed bug report"
+			      " to http://bugs.mysql.com\n", stderr);
 		}
 	}
 }

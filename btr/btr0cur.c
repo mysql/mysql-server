@@ -883,8 +883,10 @@ btr_cur_insert_if_possible(
 	rec = page_cur_tuple_insert(page_cursor, tuple,
 				    cursor->index, ext, n_ext, mtr);
 
-	if (UNIV_UNLIKELY(!rec)) {
-		/* If record did not fit, reorganize */
+	if (UNIV_UNLIKELY(!rec) && !buf_block_get_page_zip(block)) {
+		/* If record did not fit, reorganize.
+		For compressed pages, this is attempted already in
+		page_cur_tuple_insert(). */
 
 		if (btr_page_reorganize(block, cursor->index, mtr)) {
 
@@ -1173,8 +1175,13 @@ fail_err:
 		}
 	}
 
-	if (UNIV_UNLIKELY(!*rec) && !zip_size) {
-		/* If the record did not fit, reorganize */
+	if (UNIV_LIKELY(*rec != NULL)) {
+	} else if (zip_size) {
+		/* If the record did not fit on a compressed page, fail. */
+		goto fail;
+	} else {
+		/* If the record did not fit, reorganize.  For compressed
+		pages, this is attempted already in page_cur_tuple_insert(). */
 		if (UNIV_UNLIKELY(!btr_page_reorganize(block, index, mtr))) {
 			ut_error;
 		}
