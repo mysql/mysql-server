@@ -2905,8 +2905,6 @@ sub install_db ($$) {
 
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--bootstrap");
-  mtr_add_arg($args, "--console");
-  mtr_add_arg($args, "--skip-grant-tables");
   mtr_add_arg($args, "--basedir=%s", $path_my_basedir);
   mtr_add_arg($args, "--datadir=%s", $data_dir);
   mtr_add_arg($args, "--skip-innodb");
@@ -2932,6 +2930,11 @@ sub install_db ($$) {
   # MYSQLD_BOOTSTRAP to the full path to a mysqld which does accept
   # --bootstrap, to accommodate this.
   my $exe_mysqld_bootstrap = $ENV{'MYSQLD_BOOTSTRAP'} || $exe_mysqld;
+
+  # ----------------------------------------------------------------------
+  # export MYSQLD_BOOTSTRAP_CMD variable containing <path>/mysqld <args>
+  # ----------------------------------------------------------------------
+  $ENV{'MYSQLD_BOOTSTRAP_CMD'}= "$exe_mysqld_bootstrap " . join(" ", @$args);
 
   # Log bootstrap command
   my $path_bootstrap_log= "$opt_vardir/log/bootstrap.log";
