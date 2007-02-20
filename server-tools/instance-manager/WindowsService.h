@@ -31,7 +31,7 @@ public:
   WindowsService(const char *p_serviceName, const char *p_displayName);
   ~WindowsService(void);
 
-  BOOL  Install();
+  BOOL  Install(const char *username, const char *password);
   BOOL  Remove();
   BOOL  Init();
   BOOL  IsInstalled();
