@@ -4530,10 +4530,11 @@ NdbRecord *
 NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
                                 const NdbDictionary::RecordSpecification *recSpec,
                                 Uint32 length,
-                                Uint32 elemSize)
+                                Uint32 elemSize,
+                                const NdbTableImpl *base_table)
 {
   NdbRecord *rec= NULL;
-  Uint32 numKeys, tableNumKeys;
+  Uint32 numKeys, tableNumKeys, numIndexDistrKeys, min_distkey_prefix_length;
   Uint32 oldAttrId;
   bool isIndex;
   Uint32 i;
@@ -4567,15 +4568,23 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
         tableNumKeys++;
     }
   }
+  Uint32 tableNumDistKeys;
+  if (base_table->m_noOfDistributionKeys != 0)
+    tableNumDistKeys= base_table->m_noOfDistributionKeys;
+  else
+    tableNumDistKeys= base_table->m_noOfKeys;
+
   /*
     We need to allocate space for
      1. The struct itself.
      2. The columns[] array at the end of struct (length #columns).
      3. An extra Uint32 array key_indexes (length #key columns).
+     4. An extra Uint32 array distkey_indexes (length #distribution keys).
   */
   rec= (NdbRecord *)calloc(1, sizeof(NdbRecord) +
                               (length-1)*sizeof(NdbRecord::Attr) +
-                              tableNumKeys*sizeof(Uint32));
+                              tableNumKeys*sizeof(Uint32) +
+                              tableNumDistKeys*sizeof(Uint32));
   if (!rec)
   {
     m_error.code= 4000;
@@ -4583,14 +4592,19 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
   }
   Uint32 *key_indexes= (Uint32 *)((unsigned char *)rec + sizeof(NdbRecord) +
                                   (length-1)*sizeof(NdbRecord::Attr));
+  Uint32 *distkey_indexes= (Uint32 *)((unsigned char *)rec + sizeof(NdbRecord) +
+                                      (length-1)*sizeof(NdbRecord::Attr) +
+                                      tableNumKeys*sizeof(Uint32));
 
   rec->table= table;
   rec->tableId= table->m_id;
   rec->tableVersion= table->m_version;
   rec->flags= 0;
   rec->noOfColumns= length;
+  rec->m_no_of_distribution_keys= tableNumDistKeys;
 
   Uint32 max_offset= 0;
+  Uint32 max_transid_ai_bytes= 0;
   for (i= 0; i<length; i++)
   {
     const NdbDictionary::RecordSpecification *rs= &recSpec[i];
@@ -4617,6 +4631,8 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
     recCol->maxSize= col->m_attrSize*col->m_arraySize;
     if (recCol->offset+recCol->maxSize > max_offset)
       max_offset= recCol->offset+recCol->maxSize;
+    /* Round data size to whole words + 4 bytes of AttributeHeader. */
+    max_transid_ai_bytes+= (recCol->maxSize+7) & ~3;
     recCol->charset_info= col->m_cs;
     recCol->compare_function= NdbSqlUtil::getType(col->m_type).m_cmp;
     recCol->flags= 0;
@@ -4646,8 +4662,11 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
     {
       isVarCol= false;
     }
+    if (col->m_distributionKey)
+      recCol->flags|= NdbRecord::IsDistributionKey;
   }
   rec->m_row_size= max_offset;
+  rec->m_max_transid_ai_bytes= max_transid_ai_bytes;
 
   /* Now we sort the array in attrId order. */
   qsort(rec->columns,
@@ -4662,10 +4681,14 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
 
     Also test for duplicate columns, easy now that they are sorted.
     Also set up key_indexes array.
+    Also compute if an index includes all of the distribution key.
+    Also set up distkey_indexes array.
   */
 
   oldAttrId= ~0;
   numKeys= 0;
+  min_distkey_prefix_length= 0;
+  numIndexDistrKeys= 0;
   for (i= 0; i<rec->noOfColumns; i++)
   {
     NdbRecord::Attr *recCol= &rec->columns[i];
@@ -4688,6 +4711,13 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
         key_indexes[key_idx]= i;
         recCol->index_attrId= table->m_columns[key_idx]->m_attrId;
         numKeys++;
+
+        if (recCol->flags & NdbRecord::IsDistributionKey)
+        {
+          if (min_distkey_prefix_length <= key_idx)
+            min_distkey_prefix_length= key_idx+1;
+          distkey_indexes[numIndexDistrKeys++]= i;
+        }
       }
     }
     else
@@ -4701,6 +4731,13 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
   }
   rec->key_indexes= key_indexes;
   rec->key_index_length= tableNumKeys;
+  if (numIndexDistrKeys==rec->m_no_of_distribution_keys)
+    rec->m_min_distkey_prefix_length= min_distkey_prefix_length;
+  else
+    rec->m_min_distkey_prefix_length= 0;
+  rec->distkey_indexes= distkey_indexes;
+  rec->distkey_index_length= numIndexDistrKeys;
+
   /*
     Since we checked for duplicates, we can check for primary key completeness
     simply by counting.
@@ -4712,7 +4749,14 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
       rec->flags|= NdbRecord::RecIsKeyRecord;
   }
   if (isIndex)
+  {
     rec->flags|= NdbRecord::RecIsIndex;
+    rec->m_keyLenInWords= base_table->m_keyLenInWords;
+  }
+  else
+  {
+    rec->m_keyLenInWords= table->m_keyLenInWords;
+  }
 
   return rec;
 
@@ -4724,11 +4768,13 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
 
 NdbRecord *
 NdbDictionaryImpl::createRecord(const NdbIndexImpl *index_impl,
+                                const NdbTableImpl *base_table_impl,
                                 const NdbDictionary::RecordSpecification *recSpec,
                                 Uint32 length,
                                 Uint32 elemSize)
 {
-  return createRecord(index_impl->getIndexTable(), recSpec, length, elemSize);
+  return createRecord(index_impl->getIndexTable(), recSpec, length, elemSize,
+                      base_table_impl);
 }
 
 void

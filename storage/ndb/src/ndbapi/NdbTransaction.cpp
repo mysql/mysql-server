@@ -2094,10 +2094,19 @@ NdbTransaction::setupRecordOp(NdbOperation::OperationType type,
     implementing WL#3707.
   */
   if (key_record->flags & NdbRecord::RecIsIndex)
+  {
     op= getNdbIndexOperation(key_record->table->m_index, key_record->table,
                              NULL, true);
+  }
   else
+  {
+    if (key_record->tableId != attribute_record->tableId)
+    {
+      setOperationErrorCodeAbort(4287);
+      return NULL;
+    }
     op= getNdbOperation(key_record->table, NULL, true);
+  }
   if(!op)
     return op;
 
@@ -2248,8 +2257,9 @@ NdbTransaction::scanTable(const NdbRecord *result_record,
                           Uint32 batch)
 {
   /*
-    For some reason, normal scan operations are created as index scan
-    operations ... :-(
+    Normal scan operations are created as NdbIndexScanOperations.
+    The reason for this is that they can then share a pool of allocated
+    objects.
   */
   NdbIndexScanOperation *op_idx;
   NdbScanOperation *op;
@@ -2308,6 +2318,84 @@ NdbTransaction::scanTable(const NdbRecord *result_record,
   return NULL;
 }
 
+/*
+  Compare two rows on some prefix of the index.
+  This is used to see if we can determine that all rows in an index range scan
+  will come from a single fragment (if the two rows bound a single distribution
+  key).
+ */
+static int
+compare_index_row_prefix(const NdbRecord *rec,
+                         const char *row1,
+                         const char *row2,
+                         Uint32 prefix_length)
+{
+  Uint32 i;
+
+  for (i= 0; i<prefix_length; i++)
+  {
+    const NdbRecord::Attr *col= &rec->columns[rec->key_indexes[i]];
+
+    bool is_null1= col->is_null(row1);
+    bool is_null2= col->is_null(row2);
+    if (is_null1)
+    {
+      if (!is_null2)
+        return -1;
+      /* Fall-through to compare next one. */
+    }
+    else
+    {
+      if (is_null2)
+        return 1;
+
+      Uint32 offset= col->offset;
+      Uint32 maxSize= col->maxSize;
+      const char *ptr1= row1 + offset;
+      const char *ptr2= row2 + offset;
+      void *info= col->charset_info;
+      int res=
+        (*col->compare_function)(info, ptr1, maxSize, ptr2, maxSize, true);
+      if (res)
+      {
+        assert(res != NdbSqlUtil::CmpUnknown);
+        return res;
+      }
+    }
+  }
+
+  return 0;
+}
+
+static void
+set_distribution_key_from_range(NdbIndexScanOperation *op,
+                                const NdbRecord *record,
+                                const char *row,
+                                Uint32 distkey_max)
+{
+  Uint64 tmp[1000];
+  char *dst= (char *)(&tmp[0]);
+  Uint32 i;
+  Uint32 len, padded_len, total_len;
+
+  total_len= 0;
+  for (i= 0; i<record->distkey_index_length; i++)
+  {
+    const NdbRecord::Attr *col= &record->columns[record->distkey_indexes[i]];
+    /* Distribution key cannot be NULL. */
+    col->get_var_length(row, len);
+    padded_len= (len+3)&~3;
+    total_len+= padded_len;
+    if (total_len > sizeof(tmp))
+      break;
+    memcpy(dst, row + col->offset, len);
+    if (padded_len != len)
+      bzero(dst + len, padded_len - len);
+    dst+= padded_len;
+  }
+  op->setPartitionHash(tmp, total_len>>2);
+}
+
 NdbIndexScanOperation *
 NdbTransaction::scanIndex(
             const NdbRecord *key_record,
@@ -2342,7 +2430,9 @@ NdbTransaction::scanIndex(
     setOperationErrorCodeAbort(4279);
     return NULL;
   }
-  if (key_record->tableId != result_record->tableId)
+  if (!(key_record->flags & NdbRecord::RecIsIndex) ||
+      !(result_record->flags & NdbRecord::RecIsIndex) ||
+      key_record->tableId != result_record->tableId)
   {
     setOperationErrorCodeAbort(4283);
     return NULL;
@@ -2415,7 +2505,9 @@ NdbTransaction::scanIndex(
   {
     NdbIndexScanOperation::IndexBound bound;
     int res;
-    Uint32 key_count;
+    Uint32 key_count, common_key_count;
+    Uint32 range_no;
+    Uint32 bound_head;
 
     res= get_key_bound_callback(callback_data, i, bound);
     if (res==-1)
@@ -2423,20 +2515,30 @@ NdbTransaction::scanIndex(
       setOperationErrorCodeAbort(4280);
       goto giveup_err;
     }
+    range_no= bound.range_no;
+    if (range_no >= (1 << 12))
+    {
+      setOperationErrorCodeAbort(4286);
+      goto giveup_err;
+    }
+
     if ( (scan_flags & NdbScanOperation::SF_ReadRangeNo) &&
          (scan_flags & NdbScanOperation::SF_OrderBy) )
     {
-      if (i>0 && previous_range_no >= bound.range_no)
+      if (i>0 && previous_range_no >= range_no)
       {
         setOperationErrorCodeAbort(4282);
         goto giveup_err;
       }
-      previous_range_no= bound.range_no;
+      previous_range_no= range_no;
     }
 
     key_count= bound.low_key_count;
+    common_key_count= key_count;
     if (key_count < bound.high_key_count)
       key_count= bound.high_key_count;
+    else
+      common_key_count= bound.high_key_count;
 
     if (key_count > key_record->key_index_length)
     {
@@ -2464,12 +2566,38 @@ NdbTransaction::scanIndex(
                                      NdbIndexScanOperation::BoundGT);
       }
     }
-    op->end_of_bound(bound.range_no);
+
+    /* Set the length of this bound. */
+    bound_head= *op->m_first_bound_word;
+    bound_head|=
+      (op->theTupKeyLen - op->m_this_bound_start) << 16 | (range_no << 4);
+    *op->m_first_bound_word= bound_head;
+    op->m_first_bound_word= op->theKEYINFOptr + op->theTotalNrOfKeyWordInSignal;
+    op->m_this_bound_start= op->theTupKeyLen;
+
     /*
-      ToDo: If both lower and upper, non-strict bounds, compare for
-      equality, to transform into a single 'equal' constraint, and possibly
-      set distributionKey.
+      Now check if the range bounds a single distribution key. If so, we need
+      scan only a single fragment.
+
+      ToDo: we do not attempt to identify the case where we have multiple
+      ranges, but they all bound the same single distribution key. It seems
+      not really worth the effort to optimise this case, better to fix the
+      multi-range protocol so that the distribution key could be specified
+      individually for each of the multiple ranges.
     */
+    if (num_key_bounds==1)
+    {
+      Uint32 distkey_min= key_record->m_min_distkey_prefix_length;
+      if (distkey_min > 0 &&
+          common_key_count >= distkey_min &&
+          bound.low_key &&
+          bound.high_key &&
+          0==compare_index_row_prefix(key_record,
+                                      bound.low_key,
+                                      bound.high_key,
+                                      distkey_min))
+        set_distribution_key_from_range(op, key_record, bound.low_key, distkey_min);
+    }
   }
 
   return op;

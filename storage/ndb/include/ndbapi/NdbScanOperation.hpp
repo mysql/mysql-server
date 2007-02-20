@@ -401,6 +401,9 @@ protected:
   NdbRecAttr *m_curr_row;
   bool m_multi_range; // Mark if operation is part of multi-range scan
   bool m_executed; // Marker if operation should be released at close
+
+  /* Buffer for rows received during NdbRecord scans, or NULL. */
+  char *m_scan_buffer;
 };
 
 inline

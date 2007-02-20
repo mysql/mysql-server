@@ -949,7 +949,6 @@ protected:
   Uint32 fillTcKeyReqHdr(TcKeyReq *tcKeyReq,
                          Uint32 connectPtr,
                          Uint64 transId,
-                         const NdbRecord *rec,
                          AbortOption ao);
   int    allocKeyInfo(Uint32 connectPtr, Uint64 transId,
                       Uint32 **dstPtr, Uint32 *remain);

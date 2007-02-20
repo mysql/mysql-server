@@ -1945,6 +1945,11 @@ public:
       Create an NdbRecord for use in index operations.
     */
     NdbRecord *createRecord(const Index *index,
+                            const Table *table,
+                            const RecordSpecification *recSpec,
+                            Uint32 length,
+                            Uint32 elemSize);
+    NdbRecord *createRecord(const Index *index,
                             const RecordSpecification *recSpec,
                             Uint32 length,
                             Uint32 elemSize);

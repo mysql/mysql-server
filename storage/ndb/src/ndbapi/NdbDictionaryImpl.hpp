@@ -623,7 +623,9 @@ public:
       The flags are mutually exclusive.
     */
     IsVar1ByteLen= 0x08,
-    IsVar2ByteLen= 0x10
+    IsVar2ByteLen= 0x10,
+    /* Flag for column that is a part of the distribution key. */
+    IsDistributionKey= 0x20
   };
 
   struct Attr
@@ -686,6 +688,12 @@ public:
 
   Uint32 tableId;
   Uint32 tableVersion;
+  /* Copy of table->m_keyLenInWords. */
+  Uint32 m_keyLenInWords;
+  /* Total maximum size of TRANSID_AI data (for computing batch size). */
+  Uint32 m_max_transid_ai_bytes;
+  /* Number of distribution keys (usually == number of primary keys). */
+  Uint32 m_no_of_distribution_keys;
   /* Flags, or-ed from enum RecFlags. */
   Uint32 flags;
   /* Size of row (really end of right-most defined attribute in row). */
@@ -699,7 +707,23 @@ public:
   const Uint32 *key_indexes;
   /* Length of key_indexes array. */
   Uint32 key_index_length;
+  /*
+    Array of index (into columns[]) of distribution keys, in attrId order.
+    This is used to build the distribution key, which is the concatenation
+    of key values in attrId order.
+  */
+  const Uint32 *distkey_indexes;
+  /* Length of distkey_indexes array. */
+  Uint32 distkey_index_length;
 
+  /*
+    m_min_distkey_prefix_length is the minimum lenght of an index prefix
+    needed to include all distribution keys. In other words, it is one more
+    that the index of the last distribution key in the index order.
+    If the index does not include all distribution keys, it is set to 0.
+    This member is only valid for an index NdbRecord.
+  */
+  Uint32 m_min_distkey_prefix_length;
   /* The real size of the array at the end of this struct. */
   Uint32 noOfColumns;
   struct Attr columns[1];
@@ -814,8 +838,10 @@ public:
   NdbRecord *createRecord(const NdbTableImpl *table,
                           const NdbDictionary::RecordSpecification *recSpec,
                           Uint32 length,
-                          Uint32 elemSize);
+                          Uint32 elemSize,
+                          const NdbTableImpl *base_table= 0);
   NdbRecord *createRecord(const NdbIndexImpl *index,
+                          const NdbTableImpl *base_table,
                           const NdbDictionary::RecordSpecification *recSpec,
                           Uint32 length,
                           Uint32 elemSize);

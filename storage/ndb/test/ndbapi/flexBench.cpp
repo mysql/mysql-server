@@ -60,7 +60,7 @@ Arguments:
 #include <NdbTest.hpp>
 
 #define MAXSTRLEN 16 
-#define MAXATTR 64
+#define MAXATTR 128
 #define MAXTABLES 128
 #define MAXATTRSIZE 1000
 #define MAXNOLONGKEY 16 // Max number of long keys.

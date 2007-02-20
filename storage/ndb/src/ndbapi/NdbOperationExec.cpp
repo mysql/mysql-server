@@ -541,12 +541,11 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
 
   const NdbRecord *key_rec= m_key_record;
   const char *key_row= m_key_row;
-  const NdbRecord *result_rec, *upd_rec;
+  const NdbRecord *attr_rec= m_attribute_record;
   const char *updRow;
 
   TcKeyReq *tcKeyReq= CAST_PTR(TcKeyReq, theTCREQ->getDataPtrSend());
-  Uint32 hdrSize= fillTcKeyReqHdr(tcKeyReq, aTC_ConnectPtr, aTransId,
-                                  m_key_record, ao);
+  Uint32 hdrSize= fillTcKeyReqHdr(tcKeyReq, aTC_ConnectPtr, aTransId, ao);
   keyInfoPtr= theTCREQ->getDataPtrSend() + hdrSize;
   remain= TcKeyReq::MaxKeyInfo;
 
@@ -554,6 +553,8 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
   if (!key_rec)
   {
     /* This means that key_row contains the KEYINFO20 data. */
+    tcKeyReq->tableId= attr_rec->tableId;
+    tcKeyReq->tableSchemaVersion= attr_rec->tableVersion;
     res= insertKEYINFO_NdbRecord(aTC_ConnectPtr, aTransId, key_row,
                                  m_keyinfo_length*4, &keyInfoPtr, &remain);
     if (res)
@@ -561,6 +562,8 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
   }
   else
   {
+    tcKeyReq->tableId= key_rec->tableId;
+    tcKeyReq->tableSchemaVersion= key_rec->tableVersion;
     theTotalNrOfKeyWordInSignal= 0;
     for (Uint32 i= 0; i<key_rec->key_index_length; i++)
     {
@@ -601,13 +604,12 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
   if ((tOpType == InsertRequest) || (tOpType == WriteRequest) ||
       (tOpType == UpdateRequest))
   {
-    upd_rec= m_attribute_record;
     updRow= m_attribute_row;
-    for (Uint32 i= 0; i<upd_rec->noOfColumns; i++)
+    for (Uint32 i= 0; i<attr_rec->noOfColumns; i++)
     {
       const NdbRecord::Attr *col;
 
-      col= &upd_rec->columns[i];
+      col= &attr_rec->columns[i];
       Uint32 attrId= col->attrId;
 
       if (!(attrId & AttributeHeader::PSEUDO) &&
@@ -644,12 +646,11 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
   }
   else if (tOpType == ReadRequest)
   {
-    result_rec= theReceiver.m_record.m_ndb_record;
-    for (Uint32 i= 0; i<result_rec->noOfColumns; i++)
+    for (Uint32 i= 0; i<attr_rec->noOfColumns; i++)
     {
       const NdbRecord::Attr *col;
 
-      col= &result_rec->columns[i];
+      col= &attr_rec->columns[i];
       Uint32 attrId= col->attrId;
 
       if (!(attrId & AttributeHeader::PSEUDO) &&
@@ -702,7 +703,6 @@ Uint32
 NdbOperation::fillTcKeyReqHdr(TcKeyReq *tcKeyReq,
                               Uint32 connectPtr,
                               Uint64 transId,
-                              const NdbRecord *rec,
                               AbortOption ao)
 {
   Uint32 hdrLen;
@@ -715,8 +715,6 @@ NdbOperation::fillTcKeyReqHdr(TcKeyReq *tcKeyReq,
   TcKeyReq::setAPIVersion(attrLen, NDB_VERSION);
   /* We will setAttrinfoLen() later when AttrInfo has been written. */
   tcKeyReq->attrLen= attrLen;
-
-  tcKeyReq->tableId= rec->tableId;
 
   UintR reqInfo= 0;
   TcKeyReq::setSimpleFlag(reqInfo, theSimpleIndicator);
@@ -735,7 +733,6 @@ NdbOperation::fillTcKeyReqHdr(TcKeyReq *tcKeyReq,
   /* We will setAIInTcKeyReq() and setKeyLength() later. */
   tcKeyReq->requestInfo= reqInfo;
 
-  tcKeyReq->tableSchemaVersion= rec->tableVersion;
   tcKeyReq->transId1= (Uint32)transId;
   tcKeyReq->transId2= (Uint32)(transId>>32);
 
