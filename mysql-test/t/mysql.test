@@ -140,7 +140,7 @@ drop table t1;
 #
 --exec $MYSQL -e "help" > $MYSQLTEST_VARDIR/tmp/bug20328_1.result
 --exec $MYSQL -e "help " > $MYSQLTEST_VARDIR/tmp/bug20328_2.result
---exec diff $MYSQLTEST_VARDIR/tmp/bug20328_1.result $MYSQLTEST_VARDIR/tmp/bug20328_2.result
+--diff_files $MYSQLTEST_VARDIR/tmp/bug20328_1.result $MYSQLTEST_VARDIR/tmp/bug20328_2.result
 
 #
 # Bug #19216: Client crashes on long SELECT
