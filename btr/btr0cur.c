@@ -1170,6 +1170,8 @@ fail_err:
 		if (UNIV_UNLIKELY(!btr_page_reorganize(block, index, mtr))) {
 			ut_a(buf_block_get_page_zip(block));
 
+			ibuf_reset_free_bits_with_type(index->type, block);
+
 			goto fail;
 		}
 
