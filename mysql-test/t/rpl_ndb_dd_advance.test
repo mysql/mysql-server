@@ -571,7 +571,7 @@ connection master;
 
 --echo ****** Do dumps compare ************
 
---exec diff $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_M.sql $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_S.sql
+diff_files $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_M.sql $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_S.sql;
 
 ## Note: Ths files should only get removed, if the above diff succeeds.
 

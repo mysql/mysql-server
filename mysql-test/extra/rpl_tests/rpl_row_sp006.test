@@ -84,7 +84,7 @@ DROP DATABASE mysqltest1;
 # the files your self to see what is not matching :-) Failed test 
 # Dump files will be located in $MYSQLTEST_VARDIR/tmp.
 
-exec diff $MYSQLTEST_VARDIR/tmp/sp006_master.sql $MYSQLTEST_VARDIR/tmp/sp006_slave.sql;
+diff_files $MYSQLTEST_VARDIR/tmp/sp006_master.sql $MYSQLTEST_VARDIR/tmp/sp006_slave.sql;
 
 sync_slave_with_master;
 

@@ -72,7 +72,7 @@ DROP TABLE test.t2;
 # will be created. You will need to go to the mysql-test dir and diff
 # the files your self to see what is not matching :-)
 
---exec diff $MYSQLTEST_VARDIR/tmp/rpl_row_UUID_master.sql $MYSQLTEST_VARDIR/tmp/rpl_row_UUID_slave.sql;
+diff_files $MYSQLTEST_VARDIR/tmp/rpl_row_UUID_master.sql $MYSQLTEST_VARDIR/tmp/rpl_row_UUID_slave.sql;
 
 # Cleanup dump files.
 # Long-term "system rm" is not portable; we could live without
