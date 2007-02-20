@@ -973,6 +973,14 @@ btr_page_reorganize_low(
 		success = TRUE;
 	}
 
+	/* On compressed pages, recompute the insert buffer free bits. */
+	if (UNIV_LIKELY_NULL(page_zip) && !dict_index_is_clust(index)) {
+
+		ibuf_update_free_bits_if_full(
+			index, page_zip_get_size(page_zip), block,
+			UNIV_PAGE_SIZE, ULINT_UNDEFINED);
+	}
+
 func_exit:
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));

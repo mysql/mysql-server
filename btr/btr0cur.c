@@ -1146,8 +1146,6 @@ fail_err:
 
 	page_cursor = btr_cur_get_page_cur(cursor);
 
-	reorg = FALSE;
-
 	/* Now, try the insert */
 
 	if (zip_size
@@ -1163,21 +1161,25 @@ fail_err:
 		}
 	}
 
-	*rec = page_cur_tuple_insert(page_cursor, entry, index,
-				     ext, n_ext, mtr);
-	if (UNIV_UNLIKELY(!(*rec))) {
+	{
+		const rec_t* page_cursor_rec = page_cur_get_rec(page_cursor);
+		*rec = page_cur_tuple_insert(page_cursor, entry, index,
+					     ext, n_ext, mtr);
+		reorg = page_cursor_rec != page_cur_get_rec(page_cursor);
+
+		if (UNIV_UNLIKELY(reorg)) {
+			ut_a(zip_size);
+			ut_a(*rec);
+		}
+	}
+
+	if (UNIV_UNLIKELY(!*rec) && !zip_size) {
 		/* If the record did not fit, reorganize */
 		if (UNIV_UNLIKELY(!btr_page_reorganize(block, index, mtr))) {
-			ut_a(buf_block_get_page_zip(block));
-
-			ibuf_reset_free_bits_with_type(index->type, block);
-
-			goto fail;
+			ut_error;
 		}
 
-		ut_ad(page_get_max_insert_size(page, 1) <= max_size);
-		ut_ad(zip_size
-		      || page_get_max_insert_size(page, 1) == max_size);
+		ut_ad(page_get_max_insert_size(page, 1) == max_size);
 
 		reorg = TRUE;
 
@@ -1187,11 +1189,6 @@ fail_err:
 					     ext, n_ext, mtr);
 
 		if (UNIV_UNLIKELY(!*rec)) {
-			if (UNIV_LIKELY(buf_block_get_page_zip(block) != 0)) {
-
-				goto fail;
-			}
-
 			fputs("InnoDB: Error: cannot insert tuple ", stderr);
 			dtuple_print(stderr, entry);
 			fputs(" into ", stderr);
