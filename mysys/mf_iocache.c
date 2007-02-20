@@ -170,24 +170,28 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
   info->arg = 0;
   info->alloced_buffer = 0;
   info->buffer=0;
+  info->seek_not_done= 0;
 
-  pos= my_tell(file, MYF(0));
-  if ((pos == (my_off_t) -1) && (my_errno == ESPIPE))
+  if (file >= 0)
   {
-    /* 
-      This kind of object doesn't support seek() or tell().  Don't set a flag
-      that will make us again try to seek() later and fail.
-    */
-    info->seek_not_done= 0;
-    /*
-      Additionally, if we're supposed to start somewhere other than the
-      the beginning of whatever this file is, then somebody made a bad
-      assumption.
-    */
-    DBUG_ASSERT(seek_offset == 0);
+    pos= my_tell(file, MYF(0));
+    if ((pos == (my_off_t) -1) && (my_errno == ESPIPE))
+    {
+      /*
+         This kind of object doesn't support seek() or tell(). Don't set a
+         flag that will make us again try to seek() later and fail.
+      */
+      info->seek_not_done= 0;
+      /*
+        Additionally, if we're supposed to start somewhere other than the
+        the beginning of whatever this file is, then somebody made a bad
+        assumption.
+      */
+      DBUG_ASSERT(seek_offset == 0);
+    }
+    else
+      info->seek_not_done= test(seek_offset != pos);
   }
-  else
-    info->seek_not_done= test(file >= 0 && seek_offset != pos);
 
   info->disk_writes= 0;
 #ifdef THREAD
