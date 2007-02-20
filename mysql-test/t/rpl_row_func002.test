@@ -97,7 +97,7 @@ sync_slave_with_master;
 # the files your self to see what is not matching :-). The files are located
 # in mysql-test/var/tmp
 
-exec diff $MYSQLTEST_VARDIR/tmp/func002_master.sql $MYSQLTEST_VARDIR/tmp/func002_slave.sql;
+diff_files $MYSQLTEST_VARDIR/tmp/func002_master.sql $MYSQLTEST_VARDIR/tmp/func002_slave.sql;
 
 # End of 5.0 test case
 

@@ -95,6 +95,6 @@ sync_slave_with_master;
 # the files your self to see what is not matching :-) Failed tests 
 # will leave dump files in $MYSQLTEST_VARDIR/tmp
 
-exec diff $MYSQLTEST_VARDIR/tmp/trig001_master.sql $MYSQLTEST_VARDIR/tmp/trig001_slave.sql;
+diff_files $MYSQLTEST_VARDIR/tmp/trig001_master.sql $MYSQLTEST_VARDIR/tmp/trig001_slave.sql;
 
 # End of 5.0 test case

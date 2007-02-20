@@ -90,7 +90,7 @@ DROP TABLE test.t1;
 # the files yourself to see what is not matching :-) File are located
 # in $MYSQLTEST_VARDIR/tmp
 
-exec diff $MYSQLTEST_VARDIR/tmp/func003_master.sql $MYSQLTEST_VARDIR/tmp/func003_slave.sql;
+diff_files $MYSQLTEST_VARDIR/tmp/func003_master.sql $MYSQLTEST_VARDIR/tmp/func003_slave.sql;
 
 
 # End of 5.0 test case

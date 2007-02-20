@@ -509,7 +509,7 @@ sync_slave_with_master;
 # will be created. You will need to go to the mysql-test dir and diff
 # the files your self to see what is not matching
 
---exec diff $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_slave.sql;
+diff_files $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_slave.sql;
 
 connection master;
 --replace_column 2 # 5 #
@@ -537,7 +537,7 @@ drop database mysqltest1;
 --exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info mysqltest1 > $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql
 # the old mysqldump output on slave is the same as what it was on
 # master before restoring on master.
---exec diff $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_slave.sql;
+diff_files $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_slave.sql;
 }
 
 drop database mysqltest1;

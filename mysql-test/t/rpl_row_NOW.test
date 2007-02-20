@@ -63,7 +63,7 @@ DROP FUNCTION mysqltest1.f1;
 # the files your self to see what is not matching :-) The failed dump 
 # files will be located in $MYSQLTEST_VARDIR/tmp
 
-exec diff $MYSQLTEST_VARDIR/tmp/NOW_master.sql $MYSQLTEST_VARDIR/tmp/NOW_slave.sql;
+diff_files $MYSQLTEST_VARDIR/tmp/NOW_master.sql $MYSQLTEST_VARDIR/tmp/NOW_slave.sql;
 
 # If all is good, when can cleanup our dump files.
 system rm $MYSQLTEST_VARDIR/tmp/NOW_master.sql;
