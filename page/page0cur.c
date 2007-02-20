@@ -148,14 +148,14 @@ page_cur_rec_field_extends(
 				/* out: TRUE if rec field
 				extends tuple field */
 	const dtuple_t*	tuple,	/* in: data tuple */
-	rec_t*		rec,	/* in: record */
+	const rec_t*	rec,	/* in: record */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	ulint		n)	/* in: compare nth field */
 {
-	dtype_t* type;
-	dfield_t* dfield;
-	byte*	  rec_f;
-	ulint	  rec_f_len;
+	const dtype_t*	type;
+	const dfield_t*	dfield;
+	const byte*	rec_f;
+	ulint		rec_f_len;
 
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 	dfield = dtuple_get_nth_field(tuple, n);
@@ -175,7 +175,7 @@ page_cur_rec_field_extends(
 		if (dfield_get_len(dfield) != UNIV_SQL_NULL
 		    && rec_f_len != UNIV_SQL_NULL
 		    && rec_f_len >= dfield_get_len(dfield)
-		    && !cmp_data_data_slow(type,
+		    && !cmp_data_data_slow(type->mtype, type->prtype,
 					   dfield_get_data(dfield),
 					   dfield_get_len(dfield),
 					   rec_f, dfield_get_len(dfield))) {
