@@ -641,6 +641,14 @@ public:
     bound_index and just return the values for the next bound (for example
     if data is kept in a linked list).
 
+    Note that for multi-range, the IndexBound::low_key and IndexBound::high_key
+    pointers must be unique, ie. it is not permissible to re-use the same row
+    buffer for several different range bounds within a single scan. It is
+    however permissible to use the same row pointer as low_key and high_key (to
+    specify an equals bound), and it is also permissible to re-use the rows
+    after the scanIndex() method returns (ie. they need not remain valid until
+    ececute() time, like the NdbRecord pointers do).
+
     The callback can return 0 to denote success, and -1 to denote error (the
     latter causing the creation of the NdbIndexScanOperation to fail).
 

@@ -62,7 +62,7 @@ private:
   SCAN_TABREQ and associated ATTRINFO stream (using
   NdbIndexScanOperation::end_of_bound(RANGE_NO) ). In this case, the first word
   of each range bound contains additional information: bits 16-31 holds the
-  length of this bound, in words of ATTRINFO data, and bits 4-11 holds a
+  length of this bound, in words of ATTRINFO data, and bits 4-15 holds a
   number RANGE_NO specified by the application that can be read back from the
   RANGE_NO pseudo-column.
 

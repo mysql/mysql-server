@@ -50,6 +50,7 @@ NdbScanOperation::NdbScanOperation(Ndb* aNdb, NdbOperation::Type aType) :
   m_array = new Uint32[1]; // skip if on delete in fix_receivers
   theSCAN_TABREQ = 0;
   m_executed = false;
+  m_scan_buffer= NULL;
 }
 
 NdbScanOperation::~NdbScanOperation()
@@ -257,7 +258,13 @@ NdbScanOperation::fix_receivers(Uint32 parallel){
   if(parallel > m_allocated_receivers){
     const Uint32 sz = parallel * (4*sizeof(char*)+sizeof(Uint32));
 
+    /* Allocate as Uint64 to ensure proper alignment for pointers. */
     Uint64 * tmp = new Uint64[(sz+7)/8];
+    if (tmp == NULL)
+    {
+      setErrorCodeAbort(4000);
+      return -1;
+    }
     // Save old receivers
     memcpy(tmp, m_receivers, m_allocated_receivers*sizeof(char*));
     delete[] m_array;
@@ -889,6 +896,11 @@ void NdbScanOperation::release()
   for(Uint32 i = 0; i<m_allocated_receivers; i++){
     m_receivers[i]->release();
   }
+  if (m_scan_buffer)
+  {
+    delete[] m_scan_buffer;
+    m_scan_buffer= NULL;
+  }
 
   NdbOperation::release();
   
@@ -947,7 +959,10 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
    */
   theReceiver.prepareSend();
   bool keyInfo = m_keyInfo;
-  Uint32 key_size = keyInfo ? m_currentTable->m_keyLenInWords : 0;
+  Uint32 key_size= keyInfo ?
+    (m_attribute_record ? m_attribute_record->m_keyLenInWords :
+                          m_currentTable->m_keyLenInWords) :
+    0;
   /**
    * The number of records sent by each LQH is calculated and the kernel
    * is informed of this number by updating the SCAN_TABREQ signal
@@ -959,7 +974,8 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
                                    theParallelism,
                                    batch_size,
                                    batch_byte_size,
-                                   first_batch_size);
+                                   first_batch_size,
+                                   m_attribute_record);
   ScanTabReq::setScanBatch(req->requestInfo, batch_size);
   req->batch_byte_size= batch_byte_size;
   req->first_batch_size= first_batch_size;
@@ -975,20 +991,27 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
   
   if (theStatus == UseNdbRecord)
   {
-    for (Uint32 i = 0; i<theParallelism; i++)
+    if (theParallelism > 0)
     {
-      /*
-        ToDo: Allocate receive buffers here in one big chunk, and hand it over
-        to receivers in pieces.
-        Needs some delicate handling of the way the memory is freed to avoid
-        dangling pointers and leaks in error case.
-      */
-      res= m_receivers[i]->do_setup_ndbrecord(m_attribute_record, batch_size,
-                                              key_size, m_read_range_no);
-      if (res==-1)
+      Uint32 rowsize= m_receivers[0]->ndbrecord_rowsize(m_attribute_record,
+                                                        key_size,
+                                                        m_read_range_no);
+      Uint32 bufsize= batch_size*rowsize;
+      char *buf= new char[bufsize*theParallelism];
+      if (!buf)
       {
         setErrorCodeAbort(4000); // "Memory allocation error"
-        return res;
+        return -1;
+      }
+      assert(!m_scan_buffer);
+      m_scan_buffer= buf;
+
+      for (Uint32 i = 0; i<theParallelism; i++)
+      {
+        m_receivers[i]->do_setup_ndbrecord(m_attribute_record, batch_size,
+                                           key_size, m_read_range_no,
+                                           rowsize, buf);
+        buf+= bufsize;
       }
     }
   }
@@ -2400,13 +2423,13 @@ NdbIndexScanOperation::end_of_bound(Uint32 no)
      than one range is specified */
   if (no > 0 && !m_multi_range)
     DBUG_RETURN(-1);
-  if(no < (1 << 13)) // Only 12-bits no of ranges
+  if(no < (1 << 12)) // Only 12-bits no of ranges
   {
     Uint32 bound_head = * m_first_bound_word;
     bound_head |= (theTupKeyLen - m_this_bound_start) << 16 | (no << 4);
     * m_first_bound_word = bound_head;
     
-    m_first_bound_word = theKEYINFOptr + theTotalNrOfKeyWordInSignal;;
+    m_first_bound_word = theKEYINFOptr + theTotalNrOfKeyWordInSignal;
     m_this_bound_start = theTupKeyLen;
     DBUG_RETURN(0);
   }

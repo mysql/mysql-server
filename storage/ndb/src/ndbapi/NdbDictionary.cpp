@@ -1499,11 +1499,29 @@ NdbDictionary::Dictionary::createRecord(const Table *table,
 
 NdbRecord *
 NdbDictionary::Dictionary::createRecord(const Index *index,
+                                        const Table *table,
                                         const RecordSpecification *recSpec,
                                         Uint32 length,
                                         Uint32 elemSize)
 {
   return m_impl.createRecord(&NdbIndexImpl::getImpl(*index),
+                             &NdbTableImpl::getImpl(*table),
+                             recSpec,
+                             length,
+                             elemSize);
+}
+
+NdbRecord *
+NdbDictionary::Dictionary::createRecord(const Index *index,
+                                        const RecordSpecification *recSpec,
+                                        Uint32 length,
+                                        Uint32 elemSize)
+{
+  const NdbDictionary::Table *table= getTable(index->getTable());
+  if (!table)
+    return NULL;
+  return m_impl.createRecord(&NdbIndexImpl::getImpl(*index),
+                             &NdbTableImpl::getImpl(*table),
                              recSpec,
                              length,
                              elemSize);

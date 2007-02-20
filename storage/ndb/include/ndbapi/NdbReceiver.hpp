@@ -78,13 +78,17 @@ private:
   void getValues(const NdbRecord*, char*);
   void do_get_value(NdbReceiver*, Uint32 rows, Uint32 key_size, Uint32 range);
   void prepareSend();
-  void calculate_batch_size(Uint32, Uint32, Uint32&, Uint32&, Uint32&);
+  void calculate_batch_size(Uint32, Uint32, Uint32&, Uint32&, Uint32&,
+                            const NdbRecord *);
   /*
     Set up buffers for receiving TRANSID_AI and KEYINFO20 signals
     during a scan using NdbRecord.
   */
-  int do_setup_ndbrecord(const NdbRecord *ndb_record, Uint32 batch_size,
-                         Uint32 key_size, Uint32 read_range_no);
+  void do_setup_ndbrecord(const NdbRecord *ndb_record, Uint32 batch_size,
+                          Uint32 key_size, Uint32 read_range_no,
+                          Uint32 rowsize, char *buf);
+  Uint32 ndbrecord_rowsize(const NdbRecord *ndb_record, Uint32 key_size,
+                           Uint32 read_range_no);
 
   int execKEYINFO20(Uint32 info, const Uint32* ptr, Uint32 len);
   int execTRANSID_AI(const Uint32* ptr, Uint32 len); 
