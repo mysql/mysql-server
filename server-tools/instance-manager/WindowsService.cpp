@@ -15,6 +15,7 @@
 
 #include <windows.h>
 
+#include "my_global.h"
 #include "WindowsService.h"
 
 static WindowsService *gService;
