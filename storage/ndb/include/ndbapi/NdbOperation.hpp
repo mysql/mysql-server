@@ -98,7 +98,20 @@ public:
   };
 
   /**
-   * How should transaction be handled if operation fails
+   * How should transaction be handled if operation fails.
+   *
+   * If AO_IgnoreError, a failure in one operation will not abort the
+   * transaction, and NdbTransaction::execute() will return 0 (success). Use
+   * NdbOperation::getNdbError() to check for errors from individual
+   * operations.
+   *
+   * If AbortOnError, a failure in one operation will abort the transaction
+   * and cause NdbTransaction::execute() to return -1.
+   * 
+   * Abort option can be set on execute(), or in the individual operation.
+   * Setting AO_IgnoreError or AbortOnError in execute() overrides the settings
+   * on individual operations. Setting DefaultAbortOption in execute() (the
+   * default) causes individual operation settings to be used.
    *
    * For READ, default is AO_IgnoreError
    *     DML,  default is AbortOnError
@@ -1019,10 +1032,8 @@ protected:
   NdbBlob* theBlobList;
 
   /*
-   * Abort option per operation, used by blobs.  Default -1.  If set,
-   * overrides abort option on connection level.  If set to IgnoreError,
-   * does not cause execute() to return failure.  This is different from
-   * IgnoreError on connection level.
+   * Abort option per operation, used by blobs.
+   * See also comments on enum AbortOption.
    */
   Int8 m_abortOption;
 
