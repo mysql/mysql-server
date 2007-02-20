@@ -2197,7 +2197,7 @@ void do_cat_file(struct st_command *command)
 {
   int fd;
   uint len;
-  byte buff[512];
+  char buff[512];
   static DYNAMIC_STRING ds_filename;
   const struct command_arg cat_file_args[] = {
     "filename", ARG_STRING, TRUE, &ds_filename, "File to read from"
@@ -2214,10 +2214,27 @@ void do_cat_file(struct st_command *command)
 
   if ((fd= my_open(ds_filename.str, O_RDONLY, MYF(0))) < 0)
     die("Failed to open file %s", ds_filename.str);
-  while((len= my_read(fd, &buff,
+  while((len= my_read(fd, (byte*)&buff,
                       sizeof(buff), MYF(0))) > 0)
   {
-    dynstr_append_mem(&ds_res, buff, len);
+    char *p= buff, *start= buff;
+    while (p < buff+len)
+    {
+      /* Convert cr/lf to lf */
+      if (*p == '\r' && *(p+1) && *(p+1)== '\n')
+      {
+        /* Add fake newline instead of cr and output the line */
+        *p= '\n';
+        p++; /* Step past the "fake" newline */
+        dynstr_append_mem(&ds_res, start, p-start);
+        p++; /* Step past the "fake" newline */
+        start= p;
+      }
+      else
+        p++;
+    }
+    /* Output any chars that migh be left */
+    dynstr_append_mem(&ds_res, start, p-start);
   }
   my_close(fd, MYF(0));
   dynstr_free(&ds_filename);
