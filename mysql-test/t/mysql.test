@@ -251,16 +251,22 @@ drop table t17583;
 #
 
 # This should work just fine...
---exec echo "DELIMITER /" > $MYSQLTEST_VARDIR/tmp/bug21412.sql
---exec echo "SELECT 1/"   >> $MYSQLTEST_VARDIR/tmp/bug21412.sql
+--write_file $MYSQLTEST_VARDIR/tmp/bug21412.sql
+DELIMITER /
+SELECT 1/
+EOF
 --exec $MYSQL             < $MYSQLTEST_VARDIR/tmp/bug21412.sql 2>&1
 
 # This should give an error...
---exec echo "DELIMITER \\" > $MYSQLTEST_VARDIR/tmp/bug21412.sql
+--write_file $MYSQLTEST_VARDIR/tmp/bug21412.sql
+DELIMITER \
+EOF
 --exec $MYSQL             < $MYSQLTEST_VARDIR/tmp/bug21412.sql 2>&1
 
 # As should this...
---exec echo "DELIMITER \\\\" > $MYSQLTEST_VARDIR/tmp/bug21412.sql
+--write_file $MYSQLTEST_VARDIR/tmp/bug21412.sql
+DELIMITER \\
+EOF
 --exec $MYSQL             < $MYSQLTEST_VARDIR/tmp/bug21412.sql 2>&1
 
 #
