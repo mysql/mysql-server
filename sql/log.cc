@@ -75,7 +75,7 @@ sql_print_message_func sql_print_message_handlers[3] =
 
 char *make_default_log_name(char *buff,const char* log_ext)
 {
-  strmake(buff, glob_hostname, FN_REFLEN-5);
+  strmake(buff, pidfile_name, FN_REFLEN-5);
   return fn_format(buff, buff, mysql_data_home, log_ext,
                    MYF(MY_UNPACK_FILENAME|MY_APPEND_EXT));
 }
