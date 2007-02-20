@@ -114,6 +114,9 @@ void stop_all(Guardian_thread *guardian, Thread_registry *registry)
   pthread_cond_signal(&guardian->COND_guardian);
   /* stop all threads */
   registry->deliver_shutdown();
+
+  /* Set error status in the thread registry. */
+  registry->set_error_status();
 }
 
 /*
@@ -123,7 +126,7 @@ void stop_all(Guardian_thread *guardian, Thread_registry *registry)
   architecture.
 */
 
-void manager(const Options &options)
+int manager(const Options &options)
 {
   Thread_registry thread_registry;
   /*
@@ -145,10 +148,10 @@ void manager(const Options &options)
   instance_map.guardian= &guardian_thread;
 
   if (instance_map.init() || user_map.init())
-    return;
+    return 1;
 
   if (user_map.load(options.password_file_name))
-    return;
+    return 1;
 
   /* write Instance Manager pid file */
 
@@ -157,7 +160,7 @@ void manager(const Options &options)
            (int) manager_pid);
 
   if (create_pid_file(options.pid_file_name, manager_pid))
-    return;
+    return 1;
 
   /*
     Initialize signals and alarm-infrastructure.
@@ -301,5 +304,6 @@ err:
   end_thr_alarm(1);
   /* don't pthread_exit to kill all threads who did not shut down in time */
 #endif
-}
 
+  return thread_registry.get_error_status() ? 1 : 0;
+}
