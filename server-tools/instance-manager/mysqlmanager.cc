@@ -62,7 +62,7 @@
       mysql subsystem.
 */
 
-static int im_main(int argc, char *argv[]);
+static int main_impl(int argc, char *argv[]);
 
 #ifndef __WIN__
 static struct passwd *check_user();
@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
 
   log_info("IM: started.");
 
-  return_value= im_main(argc, argv);
+  return_value= main_impl(argc, argv);
 
   log_info("IM: finished.");
 
@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
   Instance Manager main functionality.
 *************************************************************************/
 
-int im_main(int argc, char *argv[])
+int main_impl(int argc, char *argv[])
 {
   int rc;
 

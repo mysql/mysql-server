@@ -17,19 +17,16 @@
 
 #include "angel.h"
 
-#include <signal.h>
-#include <string.h>
-
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/wait.h>
-
 /*
-  Include my_global.h right after system includes so that we can change
-  system defines if needed.
+  sys/wait.h is needed for waitpid(). Unfortunately, there is no MySQL
+  include file, that can serve for this. Include it before MySQL system
+  headers so that we can change system defines if needed.
 */
 
 #include "my_global.h"
+#include "my_alarm.h"
+#include "my_sys.h"
 
 /* Include other IM files. */
 
