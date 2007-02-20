@@ -53,6 +53,7 @@ Thread_info::Thread_info(pthread_t thread_id_arg) :
 Thread_registry::Thread_registry() :
    shutdown_in_progress(false)
   ,sigwait_thread_pid(pthread_self())
+  ,error_status(FALSE)
 {
   pthread_mutex_init(&LOCK_thread_registry, 0);
   pthread_cond_init(&COND_thread_registry_is_empty, 0);
@@ -242,4 +243,24 @@ void Thread_registry::deliver_shutdown()
 void Thread_registry::request_shutdown()
 {
   pthread_kill(sigwait_thread_pid, SIGTERM);
+}
+
+
+int Thread_registry::get_error_status()
+{
+  int ret_error_status;
+
+  pthread_mutex_lock(&LOCK_thread_registry);
+  ret_error_status= error_status;
+  pthread_mutex_unlock(&LOCK_thread_registry);
+
+  return ret_error_status;
+}
+
+
+void Thread_registry::set_error_status()
+{
+  pthread_mutex_lock(&LOCK_thread_registry);
+  error_status= TRUE;
+  pthread_mutex_unlock(&LOCK_thread_registry);
 }
