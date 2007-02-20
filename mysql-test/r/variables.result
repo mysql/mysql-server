@@ -752,6 +752,14 @@ select @@&;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '&' at line 1
 select @@@;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@' at line 1
+select @@hostname;
+@@hostname
+#
+set @@hostname= "anothername";
+ERROR HY000: Variable 'hostname' is a read only variable
+show variables like 'hostname';
+Variable_name	Value
+hostname	#
 End of 5.0 tests
 set global binlog_cache_size         =@my_binlog_cache_size;
 set global connect_timeout           =@my_connect_timeout;
