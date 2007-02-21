@@ -8,27 +8,27 @@ CREATE TABLE t1 (a INT, b INT);
 CREATE TABLE t2 (a INT, b INT) ENGINE=Merge;
 CREATE TABLE t3 (a INT, b INT) CHARSET=utf8;
 CREATE TABLE t4 (a INT, b INT) ENGINE=Merge CHARSET=utf8;
-SHOW BINLOG EVENTS FROM 212;
+SHOW BINLOG EVENTS FROM 215;
 Log_name	#
-Pos	212
+Pos	215
 Event_type	Query
 Server_id	#
 End_log_pos	#
 Info	use `test`; CREATE TABLE t1 (a INT, b INT)
 Log_name	#
-Pos	305
+Pos	308
 Event_type	Query
 Server_id	#
 End_log_pos	#
 Info	use `test`; CREATE TABLE t2 (a INT, b INT) ENGINE=Merge
 Log_name	#
-Pos	411
+Pos	414
 Event_type	Query
 Server_id	#
 End_log_pos	#
 Info	use `test`; CREATE TABLE t3 (a INT, b INT) CHARSET=utf8
 Log_name	#
-Pos	517
+Pos	520
 Event_type	Query
 Server_id	#
 End_log_pos	#
@@ -127,7 +127,7 @@ NULL	5	10
 NULL	6	12
 CREATE TABLE t7 (UNIQUE(b)) SELECT a,b FROM tt3;
 ERROR 23000: Duplicate entry '2' for key 'b'
-SHOW BINLOG EVENTS FROM 1118;
+SHOW BINLOG EVENTS FROM 959;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 CREATE TABLE t7 (a INT, b INT UNIQUE);
 INSERT INTO t7 SELECT a,b FROM tt3;
@@ -137,11 +137,11 @@ a	b
 1	2
 2	4
 3	6
-SHOW BINLOG EVENTS FROM 1118;
+SHOW BINLOG EVENTS FROM 1097;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	1118	Query	1	1218	use `test`; CREATE TABLE t7 (a INT, b INT UNIQUE)
-master-bin.000001	1218	Table_map	1	1258	table_id: # (test.t7)
-master-bin.000001	1258	Write_rows	1	1314	table_id: # flags: STMT_END_F
+master-bin.000001	1097	Query	1	1197	use `test`; CREATE TABLE t7 (a INT, b INT UNIQUE)
+master-bin.000001	1197	Table_map	1	1237	table_id: # (test.t7)
+master-bin.000001	1237	Write_rows	1	1293	table_id: # flags: STMT_END_F
 SELECT * FROM t7 ORDER BY a,b;
 a	b
 1	2
@@ -154,10 +154,10 @@ INSERT INTO t7 SELECT a,b FROM tt4;
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
-SHOW BINLOG EVENTS FROM 1314;
+SHOW BINLOG EVENTS FROM 1293;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	1314	Table_map	1	1354	table_id: # (test.t7)
-master-bin.000001	1354	Write_rows	1	1410	table_id: # flags: STMT_END_F
+master-bin.000001	1293	Table_map	1	1333	table_id: # (test.t7)
+master-bin.000001	1333	Write_rows	1	1389	table_id: # flags: STMT_END_F
 SELECT * FROM t7 ORDER BY a,b;
 a	b
 1	2
@@ -192,10 +192,10 @@ Create Table	CREATE TABLE `t9` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-SHOW BINLOG EVENTS FROM 1410;
+SHOW BINLOG EVENTS FROM 1389;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	1410	Query	1	1496	use `test`; CREATE TABLE t8 LIKE t4
-master-bin.000001	1496	Query	1	1635	use `test`; CREATE TABLE `t9` (
+master-bin.000001	1389	Query	1	1475	use `test`; CREATE TABLE t8 LIKE t4
+master-bin.000001	1475	Query	1	1614	use `test`; CREATE TABLE `t9` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
 )
