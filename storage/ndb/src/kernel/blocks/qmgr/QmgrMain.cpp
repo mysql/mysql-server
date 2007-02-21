@@ -269,7 +269,18 @@ void Qmgr::execSTTOR(Signal* signal)
      * we have all nodes (or a winning majority).
      */
     if (cpresident == getOwnNodeId())
-      handleArbitStart(signal);
+    {
+      if (arbitRec.m_disabled == false)
+      {
+	jam();
+	handleArbitStart(signal);
+      }
+      else
+      {
+	jam();
+	infoEvent("Arbitration disabled");
+      }
+    }
     break;
   }
   
@@ -2212,9 +2223,11 @@ void Qmgr::initData(Signal* signal)
   setHbApiDelay(hbDBAPI);
   setArbitTimeout(arbitTimeout);
   
+  arbitRec.m_disabled = false;
   arbitRec.state = ARBIT_NULL;          // start state for all nodes
   arbitRec.apiMask[0].clear();          // prepare for ARBIT_CFG
 
+  Uint32 sum = 0;
   ArbitSignalData* const sd = (ArbitSignalData*)&signal->theData[0];
   for (unsigned rank = 1; rank <= 2; rank++) {
     sd->sender = getOwnNodeId();
@@ -2233,9 +2246,19 @@ void Qmgr::initData(Signal* signal)
 	sd->mask.set(nodeId);
       }
     }
-    
+    sum += sd->mask.count();
     execARBIT_CFG(signal);
   }
+
+  if (sum == 0)
+  {
+    jam();
+    /**
+     * Disabled arbitration
+     */
+    arbitRec.m_disabled = true;
+  }
+
   setNodeInfo(getOwnNodeId()).m_version = NDB_VERSION;
   setNodeInfo(getOwnNodeId()).m_mysql_version = NDB_MYSQL_VERSION_D;
 }//Qmgr::initData()
@@ -3436,7 +3459,17 @@ void Qmgr::execPREP_FAILCONF(Signal* signal)
      */
     return;
   }
-  handleArbitCheck(signal);
+
+  if (arbitRec.m_disabled == false)
+  {
+    jam();
+    handleArbitCheck(signal);
+  }
+  else
+  {
+    jam();
+    sendCommitFailReq(signal);
+  }
   return;
 }//Qmgr::execPREP_FAILCONF()
 
