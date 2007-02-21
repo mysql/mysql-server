@@ -30,6 +30,7 @@ void Item_geometry_func::fix_length_and_dec()
   collation.set(&my_charset_bin);
   decimals=0;
   max_length=MAX_BLOB_WIDTH;
+  maybe_null= 1;
 }
 
 
@@ -109,6 +110,7 @@ String *Item_func_as_wkt::val_str(String *str)
 void Item_func_as_wkt::fix_length_and_dec()
 {
   max_length=MAX_BLOB_WIDTH;
+  maybe_null= 1;
 }
 
 
@@ -356,7 +358,8 @@ String *Item_func_spatial_collection::val_str(String *str)
   for (i= 0; i < arg_count; ++i)
   {
     String *res= args[i]->val_str(&arg_value);
-    if (args[i]->null_value)
+    uint32 len;
+    if (args[i]->null_value || ((len= res->length()) < WKB_HEADER_SIZE))
       goto err;
 
     if (coll_type == Geometry::wkb_geometrycollection)
@@ -365,13 +368,12 @@ String *Item_func_spatial_collection::val_str(String *str)
 	In the case of GeometryCollection we don't need any checkings
 	for item types, so just copy them into target collection
       */
-      if (str->append(res->ptr(), res->length(), (uint32) 512))
+      if (str->append(res->ptr(), len, (uint32) 512))
         goto err;
     }
     else
     {
       enum Geometry::wkbType wkb_type;
-      uint32 len=res->length();
       const char *data= res->ptr() + 1;
 
       /*
@@ -379,8 +381,6 @@ String *Item_func_spatial_collection::val_str(String *str)
 	are of specific type, let's do this checking now
       */
 
-      if (len < 5)
-        goto err;
       wkb_type= (Geometry::wkbType) uint4korr(data);
       data+= 4;
       len-= 5;
@@ -502,9 +502,13 @@ longlong Item_func_spatial_rel::val_int()
 longlong Item_func_isempty::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  String tmp; 
-  null_value=0;
-  return args[0]->null_value ? 1 : 0;
+  String tmp;
+  String *swkb= args[0]->val_str(&tmp);
+  Geometry_buffer buffer;
+  
+  null_value= args[0]->null_value ||
+              !(Geometry::construct(&buffer, swkb->ptr(), swkb->length()));
+  return null_value ? 1 : 0;
 }
 
 
@@ -512,10 +516,11 @@ longlong Item_func_issimple::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   String tmp;
-  String *wkb=args[0]->val_str(&tmp);
-
-  if ((null_value= (!wkb || args[0]->null_value)))
-    return 0;
+  String *swkb= args[0]->val_str(&tmp);
+  Geometry_buffer buffer;
+  
+  null_value= args[0]->null_value ||
+              !(Geometry::construct(&buffer, swkb->ptr(), swkb->length()));
   /* TODO: Ramil or Holyfoot, add real IsSimple calculation */
   return 0;
 }
