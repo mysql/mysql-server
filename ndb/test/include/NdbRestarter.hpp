@@ -61,6 +61,8 @@ public:
   int dumpStateAllNodes(int * _args, int _num_args);
 
   int getMasterNodeId();
+  int getNextMasterNodeId(int nodeId);
+  int getNodeGroup(int nodeId);
   int getRandomNodeSameNodeGroup(int nodeId, int randomNumber);
   int getRandomNodeOtherNodeGroup(int nodeId, int randomNumber);
   int getRandomNotMasterNodeId(int randomNumber);
