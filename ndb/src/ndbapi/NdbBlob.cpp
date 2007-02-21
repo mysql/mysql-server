@@ -388,8 +388,6 @@ NdbBlob::setPartKeyValue(NdbOperation* anOp, Uint32 part)
   DBUG_ENTER("NdbBlob::setPartKeyValue");
   DBUG_PRINT("info", ("dist=%u part=%u key=", getDistKey(part), part));
   DBUG_DUMP("info", theKeyBuf.data, 4 * theTable->m_keyLenInWords);
-  Uint32* data = (Uint32*)theKeyBuf.data;
-  unsigned size = theTable->m_keyLenInWords;
   // TODO use attr ids after compatibility with 4.1.7 not needed
   if (anOp->equal("PK", theKeyBuf.data) == -1 ||
       anOp->equal("DIST", getDistKey(part)) == -1 ||

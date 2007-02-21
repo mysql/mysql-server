@@ -2317,7 +2317,6 @@ ConfigInfo::ConfigInfo()
 	    break;
 	  case CI_BOOL:
 	    {
-	      bool tmp_bool;
 	      require(InitConfigFileParser::convertStringToBool(param._default, default_bool));
 	      require(p->put(param._fname, default_bool));
 	      break;
@@ -2325,7 +2324,6 @@ ConfigInfo::ConfigInfo()
 	  case CI_INT:
 	  case CI_INT64:
 	    {
-	      Uint64 tmp_uint64;
 	      require(InitConfigFileParser::convertStringToUint64(param._default, default_uint64));
 	      require(p->put(param._fname, default_uint64));
 	      break;
@@ -2841,7 +2839,7 @@ applyDefaultValues(InitConfigFileParser::Context & ctx,
     Properties::Iterator it(defaults);
 
     for(const char * name = it.first(); name != NULL; name = it.next()){
-      ConfigInfo::Status st = ctx.m_info->getStatus(ctx.m_currentInfo, name);
+      (void) ctx.m_info->getStatus(ctx.m_currentInfo, name);
       if(!ctx.m_currentSection->contains(name)){
 	switch (ctx.m_info->getType(ctx.m_currentInfo, name)){
 	case ConfigInfo::CI_INT:
@@ -3448,7 +3446,7 @@ saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
       if(!ctx.m_currentInfo->get(n, &info))
 	continue;
 
-      Uint32 id = 0;
+      id = 0;
       info->get("Id", &id);
       
       if(id == KEY_INTERNAL)

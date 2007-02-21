@@ -64,7 +64,6 @@ static bool check_fields(THD *thd, List<Item> &items)
   List_iterator<Item> it(items);
   Item *item;
   Item_field *field;
-  Name_resolution_context *context= &thd->lex->select_lex.context;
 
   while ((item= it++))
   {

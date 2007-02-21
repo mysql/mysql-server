@@ -60,10 +60,10 @@ typedef ulonglong nested_join_map;
 
 /* query_id */
 typedef ulonglong query_id_t;
-extern query_id_t query_id;
+extern query_id_t global_query_id;
 
 /* increment query_id and return it.  */
-inline query_id_t next_query_id() { return query_id++; }
+inline query_id_t next_query_id() { return global_query_id++; }
 
 /* useful constants */
 extern const key_map key_map_empty;
@@ -163,7 +163,7 @@ MY_LOCALE *my_locale_by_number(uint number);
  Feel free to raise this by the smallest amount you can to get the
  "execution_constants" test to pass.
  */
-#define STACK_MIN_SIZE          10788   // Abort if less stack during eval.
+#define STACK_MIN_SIZE          12000   // Abort if less stack during eval.
 
 #define STACK_MIN_SIZE_FOR_OPEN 1024*80
 #define STACK_BUFF_ALLOC	256	// For stack overrun checks
@@ -1201,7 +1201,7 @@ void my_dbopt_free(void);
   External variables
 */
 
-extern time_t start_time;
+extern time_t server_start_time;
 extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
 	    mysql_real_data_home[], *opt_mysql_tmpdir, mysql_charsets_dir[],
             def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];

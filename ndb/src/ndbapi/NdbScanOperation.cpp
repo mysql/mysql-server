@@ -829,7 +829,6 @@ NdbScanOperation::doSendScan(int aProcessorId)
   tSignal = theSCAN_TABREQ;
   
   Uint32 tupKeyLen = theTupKeyLen;
-  Uint32 len = theTotalNrOfKeyWordInSignal;
   Uint32 aTC_ConnectPtr = theNdbCon->theTCConPtr;
   Uint64 transId = theNdbCon->theTransactionId;
   
@@ -1300,8 +1299,6 @@ NdbIndexScanOperation::fix_get_values(){
   Uint32 cnt = m_accessTable->getNoOfColumns() - 1;
   assert(cnt <  NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY);
   
-  const NdbIndexImpl * idx = m_accessTable->m_index;
-  const NdbTableImpl * tab = m_currentTable;
   for(Uint32 i = 0; i<cnt; i++){
     Uint32 val = theTupleKeyDefined[i][0];
     switch(val){
