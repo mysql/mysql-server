@@ -1674,7 +1674,7 @@ public:
 #define SYSTEM_THREAD_SLAVE_SQL 4
 
 /*
-  Used to hold information about file and file structure in exchainge
+  Used to hold information about file and file structure in exchange
   via non-DB file (...INTO OUTFILE..., ...LOAD DATA...)
   XXX: We never call destructor for objects of this class.
 */

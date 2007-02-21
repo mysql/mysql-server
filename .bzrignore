@@ -698,6 +698,7 @@ mysql-test/gmon.out
 mysql-test/install_test_db
 mysql-test/mtr
 mysql-test/mysql-test-run
+mysql-test/mysql-test-run-shell
 mysql-test/mysql-test-run.log
 mysql-test/mysql_test_run_new
 mysql-test/ndb/ndbcluster
@@ -967,6 +968,7 @@ ndb/src/kernel/error/liberror.dsp
 ndb/src/kernel/ndbd
 ndb/src/kernel/ndbd.dsp
 ndb/src/kernel/vm/libkernel.dsp
+ndb/src/libndb.ver
 ndb/src/libndbclient.dsp
 ndb/src/mgmapi/libmgmapi.dsp
 ndb/src/mgmclient/libndbmgmclient.dsp
@@ -1333,4 +1335,3 @@ win/vs71cache.txt
 win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
-ndb/src/libndb.ver
