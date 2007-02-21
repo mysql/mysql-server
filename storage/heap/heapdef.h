@@ -100,7 +100,7 @@ extern int hp_close(register HP_INFO *info);
 extern void hp_clear(HP_SHARE *info);
 extern void hp_clear_keys(HP_SHARE *info);
 extern uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old, 
-			   uint k_len);
+                    ulonglong keypart_map);
 #ifdef THREAD
 extern pthread_mutex_t THR_LOCK_heap;
 #else

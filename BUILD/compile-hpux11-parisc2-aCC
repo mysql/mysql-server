@@ -61,7 +61,7 @@ done
 
 
 set -x
-make distclean
+make maintainer-clean
 
 path=`dirname $0`
 . "$path/autorun.sh"
