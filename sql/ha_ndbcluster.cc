@@ -6660,6 +6660,9 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   for (;;)
   {
 
+    if (abort_loop)
+      break; /* Shutting down server */
+
     pthread_mutex_lock(&LOCK_ndb_util_thread);
     pthread_cond_timedwait(&COND_ndb_util_thread,
                            &LOCK_ndb_util_thread,
