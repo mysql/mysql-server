@@ -20,12 +20,14 @@
 
 struct RWPage
 {
+  STATIC_CONST( RWPAGE_WORDS = GLOBAL_PAGE_SIZE_WORDS - 4 );
+
   Uint32 m_type_id;
   Uint16 m_first_free;
   Uint16 m_ref_count;
   Uint32 m_next_page;
   Uint32 m_prev_page;
-  Uint32 m_data[GLOBAL_PAGE_SIZE_WORDS - 4];
+  Uint32 m_data[RWPAGE_WORDS];
 };
 
 /**
