@@ -40,3 +40,4 @@ flush2                   : Bug#24805 Pushbuild can't handle test with --disable-
 
 maria			: Until maria is fully functional
 ps_maria		: Until maria is fully functional
+rpl_ndb_dd_advance      : unstable test disable till next merge
