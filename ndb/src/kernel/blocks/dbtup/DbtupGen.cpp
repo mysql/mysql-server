@@ -103,7 +103,6 @@ Dbtup::Dbtup(const class Configuration & conf)
   addRecSignal(GSN_FSREADCONF, &Dbtup::execFSREADCONF);
   addRecSignal(GSN_NDB_STTOR, &Dbtup::execNDB_STTOR);
   addRecSignal(GSN_READ_CONFIG_REQ, &Dbtup::execREAD_CONFIG_REQ, true);
-  addRecSignal(GSN_SET_VAR_REQ,  &Dbtup::execSET_VAR_REQ);
 
   // Trigger Signals
   addRecSignal(GSN_CREATE_TRIG_REQ, &Dbtup::execCREATE_TRIG_REQ);
@@ -1314,33 +1313,6 @@ void Dbtup::seizePendingFileOpenInfoRecord(PendingFileOpenInfoPtr& pfoiPtr)
   cfirstfreePfo = pfoiPtr.p->pfoNextRec;
   pfoiPtr.p->pfoNextRec = RNIL;
 }//Dbtup::seizePendingFileOpenInfoRecord()
-
-void Dbtup::execSET_VAR_REQ(Signal* signal) 
-{
-#if 0
-  SetVarReq* const setVarReq = (SetVarReq*)signal->getDataPtrSend();
-  ConfigParamId var = setVarReq->variable();
-  int val = setVarReq->value();
-
-  switch (var) {
-
-  case NoOfDiskPagesToDiskAfterRestartTUP:
-    clblPagesPerTick = val;
-    sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
-    break;
-
-  case NoOfDiskPagesToDiskDuringRestartTUP:
-    // Valid only during start so value not set.
-    sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
-    break;
-
-  default:
-    sendSignal(CMVMI_REF, GSN_SET_VAR_REF, signal, 1, JBB);
-  } // switch
-#endif
-
-}//execSET_VAR_REQ()
-
 
 
 
