@@ -456,6 +456,12 @@ arjen@fred.bitbike.com|scripts/mysql_fix_extensions.sh|20020516001337|12363|f104
 ccarkner@nslinuxw10.bedford.progress.com|mysql-test/r/isolation.result|20010327145543|25059|4da11e109a3d93a9
 ccarkner@nslinuxw10.bedford.progress.com|mysql-test/t/isolation.test|20010327145543|39049|6a39e4138dd4a456
 fs
+jani@a88-113-38-195.elisa-laajakaista.fi|BUILD/SETUP.sh.rej|20070122013357|30052|b0650da46e7c4e54
+jani@a88-113-38-195.elisa-laajakaista.fi|configure.in.rej|20070122013357|43533|4b7ec608b9c90e83
+jani@a88-113-38-195.elisa-laajakaista.fi|include/my_global.h.rej|20070122013357|29911|dc7f1642f6061af
+jani@a88-113-38-195.elisa-laajakaista.fi|include/my_pthread.h.rej|20070122013357|18348|a6b632d992e5df16
+jani@a88-113-38-195.elisa-laajakaista.fi|mysys/thr_alarm.c.rej|20070122013357|21935|c169568388079966
+jani@a88-113-38-195.elisa-laajakaista.fi|sql/mysqld.cc.rej|20070122013357|09337|84aad00c2111bc3
 jani@hynda.mysql.fi|client/mysqlcheck|20010419221207|26716|363e3278166d84ec
 jcole@tetra.bedford.progress.com|BitKeeper/etc/logging_ok|20001004201211|30554
 jimw@mysql.com|mysql-test/t/ndb_alter_table.disabled|20050311230559|27526|411e026940e7a0aa

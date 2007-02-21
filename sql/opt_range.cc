@@ -4296,7 +4296,22 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
   err= value->save_in_field_no_warnings(field, 1);
   if (err > 0 && field->cmp_type() != value->result_type())
   {
-    tree= 0;
+    if ((type == Item_func::EQ_FUNC || type == Item_func::EQUAL_FUNC) &&
+	value->result_type() == item_cmp_type(field->result_type(),
+                                              value->result_type()))
+
+    {
+      tree= new (alloc) SEL_ARG(field, 0, 0);
+      tree->type= SEL_ARG::IMPOSSIBLE;
+    }
+    else
+    {
+      /*
+        TODO: We should return trees of the type SEL_ARG::IMPOSSIBLE
+        for the cases like int_field > 999999999999999999999999 as well.
+      */
+      tree= 0;
+    }
     goto end;
   } 
   if (err < 0)
@@ -8750,14 +8765,13 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void)
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::reset");
 
   file->extra(HA_EXTRA_KEYREAD); /* We need only the key attributes */
-  result= file->ha_index_init(index);
-  result= file->index_last(record);
-  if (result == HA_ERR_END_OF_FILE)
-    DBUG_RETURN(0);
-  if (result)
+  if ((result= file->ha_index_init(index)))
     DBUG_RETURN(result);
   if (quick_prefix_select && quick_prefix_select->reset())
     DBUG_RETURN(1);
+  result= file->index_last(record);
+  if (result == HA_ERR_END_OF_FILE)
+    DBUG_RETURN(0);
   /* Save the prefix of the last group. */
   key_copy(last_prefix, record, index_info, group_prefix_len);
 
@@ -8806,7 +8820,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
 #else
   int result;
 #endif
-  int is_last_prefix;
+  int is_last_prefix= 0;
 
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::get_next");
 
@@ -8821,13 +8835,18 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
       Check if this is the last group prefix. Notice that at this point
       this->record contains the current prefix in record format.
     */
-    is_last_prefix= key_cmp(index_info->key_part, last_prefix,
-                            group_prefix_len);
-    DBUG_ASSERT(is_last_prefix <= 0);
-    if (result == HA_ERR_KEY_NOT_FOUND)
-      continue;
-    else if (result)
+    if (!result)
+    {
+      is_last_prefix= key_cmp(index_info->key_part, last_prefix,
+                              group_prefix_len);
+      DBUG_ASSERT(is_last_prefix <= 0);
+    }
+    else 
+    {
+      if (result == HA_ERR_KEY_NOT_FOUND)
+        continue;
       break;
+    }
 
     if (have_min)
     {

@@ -193,6 +193,16 @@ a	b	c	d	e	f	g	h	i	x
 two	large	00:00:05	0007-01-01	11	13	17	0019-01-01 00:00:00	23	1
 	small	00:00:00	0000-00-00	0			0000-00-00 00:00:00	0	2
 two	large	00:00:05	0007-01-01	11	13	17	0019-01-01 00:00:00	23	3
-	small	00:00:00	0000-00-00	0			0000-00-00 00:00:00	0	4
+		00:00:00	0000-00-00	0			0000-00-00 00:00:00	0	4
 drop table bug20691;
+create table t1 (id int not null);
+insert into t1 values(default);
+Warnings:
+Warning	1364	Field 'id' doesn't have a default value
+create view v1 (c) as select id from t1;
+insert into t1 values(default);
+Warnings:
+Warning	1364	Field 'id' doesn't have a default value
+drop view v1;
+drop table t1;
 End of 5.0 tests.

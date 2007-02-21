@@ -306,55 +306,55 @@ MY_LOCALE *my_locale_by_number(uint number);
    TODO: separate three contexts above, move them to separate bitfields.
 */
 
-#define SELECT_DISTINCT         (1ULL << 0)     // SELECT, user
-#define SELECT_STRAIGHT_JOIN    (1ULL << 1)     // SELECT, user
-#define SELECT_DESCRIBE         (1ULL << 2)     // SELECT, user
-#define SELECT_SMALL_RESULT     (1ULL << 3)     // SELECT, user
-#define SELECT_BIG_RESULT       (1ULL << 4)     // SELECT, user
-#define OPTION_FOUND_ROWS       (1ULL << 5)     // SELECT, user
-#define OPTION_TO_QUERY_CACHE   (1ULL << 6)     // SELECT, user
-#define SELECT_NO_JOIN_CACHE    (1ULL << 7)     // intern
-#define OPTION_BIG_TABLES       (1ULL << 8)     // THD, user
-#define OPTION_BIG_SELECTS      (1ULL << 9)     // THD, user
-#define OPTION_LOG_OFF          (1ULL << 10)    // THD, user
-#define OPTION_UPDATE_LOG       (1ULL << 11)    // THD, user, unused
-#define TMP_TABLE_ALL_COLUMNS   (1ULL << 12)    // SELECT, intern
-#define OPTION_WARNINGS         (1ULL << 13)    // THD, user
-#define OPTION_AUTO_IS_NULL     (1ULL << 14)    // THD, user, binlog
-#define OPTION_FOUND_COMMENT    (1ULL << 15)    // SELECT, intern, parser
-#define OPTION_SAFE_UPDATES     (1ULL << 16)    // THD, user
-#define OPTION_BUFFER_RESULT    (1ULL << 17)    // SELECT, user
-#define OPTION_BIN_LOG          (1ULL << 18)    // THD, user
-#define OPTION_NOT_AUTOCOMMIT   (1ULL << 19)    // THD, user
-#define OPTION_BEGIN            (1ULL << 20)    // THD, intern
-#define OPTION_TABLE_LOCK       (1ULL << 21)    // THD, intern
-#define OPTION_QUICK            (1ULL << 22)    // SELECT (for DELETE)
-#define OPTION_QUOTE_SHOW_CREATE (1ULL << 23)   // THD, user
+#define SELECT_DISTINCT         (ULL(1) << 0)     // SELECT, user
+#define SELECT_STRAIGHT_JOIN    (ULL(1) << 1)     // SELECT, user
+#define SELECT_DESCRIBE         (ULL(1) << 2)     // SELECT, user
+#define SELECT_SMALL_RESULT     (ULL(1) << 3)     // SELECT, user
+#define SELECT_BIG_RESULT       (ULL(1) << 4)     // SELECT, user
+#define OPTION_FOUND_ROWS       (ULL(1) << 5)     // SELECT, user
+#define OPTION_TO_QUERY_CACHE   (ULL(1) << 6)     // SELECT, user
+#define SELECT_NO_JOIN_CACHE    (ULL(1) << 7)     // intern
+#define OPTION_BIG_TABLES       (ULL(1) << 8)     // THD, user
+#define OPTION_BIG_SELECTS      (ULL(1) << 9)     // THD, user
+#define OPTION_LOG_OFF          (ULL(1) << 10)    // THD, user
+#define OPTION_UPDATE_LOG       (ULL(1) << 11)    // THD, user, unused
+#define TMP_TABLE_ALL_COLUMNS   (ULL(1) << 12)    // SELECT, intern
+#define OPTION_WARNINGS         (ULL(1) << 13)    // THD, user
+#define OPTION_AUTO_IS_NULL     (ULL(1) << 14)    // THD, user, binlog
+#define OPTION_FOUND_COMMENT    (ULL(1) << 15)    // SELECT, intern, parser
+#define OPTION_SAFE_UPDATES     (ULL(1) << 16)    // THD, user
+#define OPTION_BUFFER_RESULT    (ULL(1) << 17)    // SELECT, user
+#define OPTION_BIN_LOG          (ULL(1) << 18)    // THD, user
+#define OPTION_NOT_AUTOCOMMIT   (ULL(1) << 19)    // THD, user
+#define OPTION_BEGIN            (ULL(1) << 20)    // THD, intern
+#define OPTION_TABLE_LOCK       (ULL(1) << 21)    // THD, intern
+#define OPTION_QUICK            (ULL(1) << 22)    // SELECT (for DELETE)
+#define OPTION_QUOTE_SHOW_CREATE (ULL(1) << 23)   // THD, user
 
 /* Thr following is used to detect a conflict with DISTINCT
    in the user query has requested */
-#define SELECT_ALL              (1ULL << 24)    // SELECT, user, parser
+#define SELECT_ALL              (ULL(1) << 24)    // SELECT, user, parser
 
 /* Set if we are updating a non-transaction safe table */
-#define OPTION_STATUS_NO_TRANS_UPDATE   (1ULL << 25) // THD, intern
+#define OPTION_STATUS_NO_TRANS_UPDATE   (ULL(1) << 25) // THD, intern
 
 /* The following can be set when importing tables in a 'wrong order'
    to suppress foreign key checks */
-#define OPTION_NO_FOREIGN_KEY_CHECKS    (1ULL << 26) // THD, user, binlog
+#define OPTION_NO_FOREIGN_KEY_CHECKS    (ULL(1) << 26) // THD, user, binlog
 /* The following speeds up inserts to InnoDB tables by suppressing unique
    key checks in some cases */
-#define OPTION_RELAXED_UNIQUE_CHECKS    (1ULL << 27) // THD, user, binlog
-#define SELECT_NO_UNLOCK                (1ULL << 28) // SELECT, intern
-#define OPTION_SCHEMA_TABLE             (1ULL << 29) // SELECT, intern
+#define OPTION_RELAXED_UNIQUE_CHECKS    (ULL(1) << 27) // THD, user, binlog
+#define SELECT_NO_UNLOCK                (ULL(1) << 28) // SELECT, intern
+#define OPTION_SCHEMA_TABLE             (ULL(1) << 29) // SELECT, intern
 /* Flag set if setup_tables already done */
-#define OPTION_SETUP_TABLES_DONE        (1ULL << 30) // intern
+#define OPTION_SETUP_TABLES_DONE        (ULL(1) << 30) // intern
 /* If not set then the thread will ignore all warnings with level notes. */
-#define OPTION_SQL_NOTES                (1ULL << 31) // THD, user
+#define OPTION_SQL_NOTES                (ULL(1) << 31) // THD, user
 /* 
   Force the used temporary table to be a MyISAM table (because we will use
   fulltext functions when reading from it.
 */
-#define TMP_TABLE_FORCE_MYISAM          (1ULL << 32)
+#define TMP_TABLE_FORCE_MYISAM          (ULL(1) << 32)
 
 
 /*
@@ -708,6 +708,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
 void log_slow_statement(THD *thd);
 bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
+bool compare_record(TABLE *table, query_id_t query_id);
 
 bool table_cache_init(void);
 void table_cache_free(void);
@@ -938,7 +939,8 @@ int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
 int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
 int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
 int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
-bool get_schema_tables_result(JOIN *join);
+bool get_schema_tables_result(JOIN *join,
+                              enum enum_schema_table_state executed_place);
 #define is_schema_db(X) \
   !my_strcasecmp(system_charset_info, information_schema_name.str, (X))
 
@@ -1272,6 +1274,7 @@ extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern my_bool opt_readonly, lower_case_file_system;
 extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
 extern my_bool opt_secure_auth;
+extern char* opt_secure_file_priv;
 extern my_bool opt_log_slow_admin_statements;
 extern my_bool sp_automatic_privileges, opt_noacl;
 extern my_bool opt_old_style_user_limits, trust_function_creators;
