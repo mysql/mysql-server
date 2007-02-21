@@ -353,6 +353,7 @@ bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
   Item *fake_conds= 0;
   SELECT_LEX *select_lex= &thd->lex->select_lex;
   DBUG_ENTER("mysql_prepare_delete");
+  List<Item> all_fields;
 
   thd->lex->allow_sum_func= 0;
   if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,
@@ -376,6 +377,11 @@ bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
       DBUG_RETURN(TRUE);
     }
   }
+
+  if (select_lex->inner_refs_list.elements &&
+    fix_inner_refs(thd, all_fields, select_lex, select_lex->ref_pointer_array))
+    DBUG_RETURN(-1);
+
   select_lex->fix_prepare_information(thd, conds, &fake_conds);
   DBUG_RETURN(FALSE);
 }
