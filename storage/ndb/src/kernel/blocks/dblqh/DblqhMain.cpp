@@ -12205,6 +12205,10 @@ void Dblqh::execFSCLOSECONF(Signal* signal)
     // Set the prev file to check if we shall close it.
     logFilePtr.i = logFilePtr.p->prevLogFile;
     ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
+
+    logPartPtr.i = logFilePtr.p->logPartRec;
+    ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
+
     exitFromInvalidate(signal);
     return;
   case LogFileRecord::CLOSING_INIT:
