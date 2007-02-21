@@ -23,13 +23,13 @@
 
 String Geometry::bad_geometry_data("Bad object", &my_charset_bin);
 
-Geometry::Class_info *Geometry::ci_collection[Geometry::wkb_end+1]=
+Geometry::Class_info *Geometry::ci_collection[Geometry::wkb_last+1]=
 {
   NULL, NULL, NULL, NULL, NULL, NULL, NULL
 };
 
 static Geometry::Class_info **ci_collection_end=
-                                Geometry::ci_collection+Geometry::wkb_end + 1;
+                                Geometry::ci_collection+Geometry::wkb_last + 1;
 
 Geometry::Class_info::Class_info(const char *name, int type_id,
 					 void(*create_func)(void *)):
@@ -549,7 +549,7 @@ bool Gis_line_string::get_mbr(MBR *mbr, const char **end) const
 }
 
 
-int Gis_line_string::length(double *len) const
+int Gis_line_string::geom_length(double *len) const
 {
   uint32 n_points;
   double prev_x, prev_y;
@@ -945,15 +945,14 @@ int Gis_polygon::centroid_xy(double *x, double *y) const
 
     while (--n_points)				// One point is already read
     {
-      double x, y;
-      get_point(&x, &y, data);
+      double tmp_x, tmp_y;
+      get_point(&tmp_x, &tmp_y, data);
       data+= (SIZEOF_STORED_DOUBLE*2);
-      /* QQ: Is the following prev_x+x right ? */
-      cur_area+= (prev_x + x) * (prev_y - y);
-      cur_cx+= x;
-      cur_cy+= y;
-      prev_x= x;
-      prev_y= y;
+      cur_area+= (prev_x + tmp_x) * (prev_y - tmp_y);
+      cur_cx+= tmp_x;
+      cur_cy+= tmp_y;
+      prev_x= tmp_x;
+      prev_y= tmp_y;
     }
     cur_area= fabs(cur_area) / 2;
     cur_cx= cur_cx / (org_n_points - 1);
@@ -1297,7 +1296,7 @@ int Gis_multi_line_string::geometry_n(uint32 num, String *result) const
 }
 
 
-int Gis_multi_line_string::length(double *len) const
+int Gis_multi_line_string::geom_length(double *len) const
 {
   uint32 n_line_strings;
   const char *data= m_data;
@@ -1314,7 +1313,7 @@ int Gis_multi_line_string::length(double *len) const
     Gis_line_string ls;
     data+= WKB_HEADER_SIZE;
     ls.set_data_ptr(data, (uint32) (m_data_end - data));
-    if (ls.length(&ls_len))
+    if (ls.geom_length(&ls_len))
       return 1;
     *len+= ls_len;
     /*

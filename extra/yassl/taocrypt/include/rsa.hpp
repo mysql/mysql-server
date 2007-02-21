@@ -131,6 +131,7 @@ private:
 // block type 2 padding
 class RSA_BlockType2  {
 public:
+    RSA_BlockType2() {}
     void   Pad(const byte*, word32, byte*, word32,
                RandomNumberGenerator&) const;
     word32 UnPad(const byte*, word32, byte*) const;
@@ -140,6 +141,7 @@ public:
 // block type 1 padding
 class RSA_BlockType1  {
 public:
+    RSA_BlockType1() {}
     void   Pad(const byte*, word32, byte*, word32, 
                RandomNumberGenerator&) const;
     word32 UnPad(const byte*, word32, byte*) const;
@@ -174,25 +176,27 @@ public:
 
 // Public Encrypt
 template<class Pad>
-void RSA_Encryptor<Pad>::Encrypt(const byte* plain, word32 sz, byte* cipher,
-                                 RandomNumberGenerator& rng)
+void RSA_Encryptor<Pad>::Encrypt(const byte* plain_arg, word32 sz,
+                                 byte* cipher_arg,
+                                 RandomNumberGenerator& rng_arg)
 {
     PK_Lengths lengths(key_.GetModulus());
     assert(sz <= lengths.FixedMaxPlaintextLength());
 
     ByteBlock paddedBlock(lengths.PaddedBlockByteLength());
-    padding_.Pad(plain, sz, paddedBlock.get_buffer(),
-                 lengths.PaddedBlockBitLength(), rng);
+    padding_.Pad(plain_arg, sz, paddedBlock.get_buffer(),
+                 lengths.PaddedBlockBitLength(), rng_arg);
 
     key_.ApplyFunction(Integer(paddedBlock.get_buffer(), paddedBlock.size())).
-        Encode(cipher, lengths.FixedCiphertextLength());
+        Encode(cipher_arg, lengths.FixedCiphertextLength());
 }
 
 
 // Private Decrypt
 template<class Pad>
-word32 RSA_Decryptor<Pad>::Decrypt(const byte* cipher, word32 sz, byte* plain,
-                                   RandomNumberGenerator& rng)
+word32 RSA_Decryptor<Pad>::Decrypt(const byte* cipher_arg, word32 sz,
+                                   byte* plain_arg,
+                                   RandomNumberGenerator& rng_arg)
 {
     PK_Lengths lengths(key_.GetModulus());
     assert(sz == lengths.FixedCiphertextLength());
@@ -201,29 +205,29 @@ word32 RSA_Decryptor<Pad>::Decrypt(const byte* cipher, word32 sz, byte* plain,
         return 0;
        
     ByteBlock paddedBlock(lengths.PaddedBlockByteLength());
-    Integer x = key_.CalculateInverse(rng, Integer(cipher,
+    Integer x = key_.CalculateInverse(rng_arg, Integer(cipher_arg,
                                       lengths.FixedCiphertextLength()).Ref());
     if (x.ByteCount() > paddedBlock.size())
         x = Integer::Zero();	// don't return false, prevents timing attack
     x.Encode(paddedBlock.get_buffer(), paddedBlock.size());
     return padding_.UnPad(paddedBlock.get_buffer(),
-                          lengths.PaddedBlockBitLength(), plain);
+                          lengths.PaddedBlockBitLength(), plain_arg);
 }
 
 
 // Private SSL type (block 1) Encrypt
 template<class Pad>
 void RSA_Decryptor<Pad>::SSL_Sign(const byte* message, word32 sz, byte* sig,
-                                  RandomNumberGenerator& rng)
+                                  RandomNumberGenerator& rng_arg)
 {
     RSA_PublicKey inverse;
     inverse.Initialize(key_.GetModulus(), key_.GetPrivateExponent());
     RSA_Encryptor<RSA_BlockType1> enc(inverse); // SSL Type
-    enc.Encrypt(message, sz, sig, rng);
+    enc.Encrypt(message, sz, sig, rng_arg);
 }
 
 
-word32 SSL_Decrypt(const RSA_PublicKey& key, const byte* sig, byte* plain);
+word32 SSL_Decrypt(const RSA_PublicKey& key, const byte* sig, byte* plain_arg);
 
 
 // Public SSL type (block 1) Decrypt
@@ -231,11 +235,11 @@ template<class Pad>
 bool RSA_Encryptor<Pad>::SSL_Verify(const byte* message, word32 sz,
                                     const byte* sig)
 {
-    ByteBlock plain(PK_Lengths(key_.GetModulus()).FixedMaxPlaintextLength());
-    if (SSL_Decrypt(key_, sig, plain.get_buffer()) != sz)
+    ByteBlock local_plain(PK_Lengths(key_.GetModulus()).FixedMaxPlaintextLength());
+    if (SSL_Decrypt(key_, sig, local_plain.get_buffer()) != sz)
         return false;   // not right justified or bad padding
 
-    if ( (memcmp(plain.get_buffer(), message, sz)) == 0)
+    if ( (memcmp(local_plain.get_buffer(), message, sz)) == 0)
         return true;
     return false;
 }

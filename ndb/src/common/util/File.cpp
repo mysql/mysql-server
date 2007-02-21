@@ -162,9 +162,9 @@ File_class::readChar(char* buf)
 }
 
 int 
-File_class::write(const void* buf, size_t size, size_t nitems)
+File_class::write(const void* buf, size_t size_arg, size_t nitems)
 {
-  return ::fwrite(buf, size, nitems, m_file);
+  return ::fwrite(buf, size_arg, nitems, m_file);
 }
  
 int

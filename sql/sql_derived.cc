@@ -109,8 +109,6 @@ bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
     SELECT_LEX *first_select= unit->first_select();
     TABLE *table= 0;
     select_union *derived_result;
-    bool is_union= first_select->next_select() && 
-      first_select->next_select()->linkage == UNION_TYPE;
 
     /* prevent name resolving out of derived table */
     for (SELECT_LEX *sl= first_select; sl; sl= sl->next_select())

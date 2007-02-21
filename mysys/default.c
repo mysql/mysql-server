@@ -41,9 +41,9 @@
 #include <winbase.h>
 #endif
 
-const char *defaults_file=0;
-const char *defaults_group_suffix=0;
-char *defaults_extra_file=0;
+const char *my_defaults_file=0;
+const char *my_defaults_group_suffix=0;
+char *my_defaults_extra_file=0;
 
 /* Which directories are searched for options (and in which order) */
 
@@ -116,7 +116,7 @@ static char *remove_end_comment(char *ptr);
     0  ok
     1  given cinf_file doesn't exist
 
-    The global variable 'defaults_group_suffix' is updated with value for
+    The global variable 'my_defaults_group_suffix' is updated with value for
     --defaults_group_suffix
 */
 
@@ -132,28 +132,28 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
   *args_used+= get_defaults_options(*argc - *args_used, *argv + *args_used,
                                     (char **) &forced_default_file,
                                     (char **) &forced_extra_defaults,
-                                    (char **) &defaults_group_suffix);
+                                    (char **) &my_defaults_group_suffix);
 
-  if (! defaults_group_suffix)
-    defaults_group_suffix= getenv(STRINGIFY_ARG(DEFAULT_GROUP_SUFFIX_ENV));
+  if (! my_defaults_group_suffix)
+    my_defaults_group_suffix= getenv(STRINGIFY_ARG(DEFAULT_GROUP_SUFFIX_ENV));
 
   if (forced_extra_defaults)
-    defaults_extra_file= (char *) forced_extra_defaults;
+    my_defaults_extra_file= (char *) forced_extra_defaults;
   
   if (forced_default_file)
-    defaults_file= forced_default_file;
+    my_defaults_file= forced_default_file;
 
   /*
     We can only handle 'defaults-group-suffix' if we are called from
     load_defaults() as otherwise we can't know the type of 'func_ctx'
   */
 
-  if (defaults_group_suffix && func == handle_default_option)
+  if (my_defaults_group_suffix && func == handle_default_option)
   {
     /* Handle --defaults-group-suffix= */
     uint i;
     const char **extra_groups;
-    const uint instance_len= strlen(defaults_group_suffix); 
+    const uint instance_len= strlen(my_defaults_group_suffix); 
     struct handle_option_ctx *ctx= (struct handle_option_ctx*) func_ctx;
     char *ptr;
     TYPELIB *group= ctx->group;
@@ -176,7 +176,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
       
       /** Construct new group */
       memcpy(ptr, extra_groups[i], len);
-      memcpy(ptr+len, defaults_group_suffix, instance_len+1);
+      memcpy(ptr+len, my_defaults_group_suffix, instance_len+1);
     }
     
     group->count*= 2;
@@ -210,15 +210,15 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
 	if (search_default_file(func, func_ctx, *dirs, conf_file) < 0)
 	  goto err;
       }
-      else if (defaults_extra_file)
+      else if (my_defaults_extra_file)
       {
         if ((error= search_default_file_with_ext(func, func_ctx, "", "",
-                                                defaults_extra_file, 0)) < 0)
+                                                my_defaults_extra_file, 0)) < 0)
 	  goto err;				/* Fatal error */
         if (error > 0)
         {
           fprintf(stderr, "Could not open required defaults file: %s\n",
-                  defaults_extra_file);
+                  my_defaults_extra_file);
           goto err;
         }
       }
@@ -866,8 +866,8 @@ void my_print_default_files(const char *conf_file)
 	char *end;
 	if (**dirs)
 	  pos= *dirs;
-	else if (defaults_extra_file)
-	  pos= defaults_extra_file;
+	else if (my_defaults_extra_file)
+	  pos= my_defaults_extra_file;
 	else
 	  continue;
 	end= convert_dirname(name, pos, NullS);
@@ -893,14 +893,14 @@ void print_defaults(const char *conf_file, const char **groups)
     fputs(*groups,stdout);
   }
 
-  if (defaults_group_suffix)
+  if (my_defaults_group_suffix)
   {
     groups= groups_save;
     for ( ; *groups ; groups++)
     {
       fputc(' ',stdout);
       fputs(*groups,stdout);
-      fputs(defaults_group_suffix,stdout);
+      fputs(my_defaults_group_suffix,stdout);
     }
   }
   puts("\nThe following options may be given as the first argument:\n\

@@ -39,7 +39,7 @@ NDB_STD_OPTS_VARS;
 
 static const char* _dbname = "TEST_DB";
 static const char* _delimiter = "\t";
-static int _unqualified, _header, _parallelism, _useHexFormat, _lock,
+static int _header, _parallelism, _useHexFormat, _lock,
   _order, _descending;
 
 const char *load_default_groups[]= { "mysql_cluster",0 };
@@ -75,6 +75,7 @@ static struct my_option my_long_options[] =
 };
 static void usage()
 {
+#ifdef NOT_USED
   char desc[] = 
     "tabname\n"\
     "This program reads all records from one table in NDB Cluster\n"\
@@ -82,6 +83,7 @@ static void usage()
     "(It only print error messages if it encounters a permanent error.)\n"\
     "It can also be used to dump the content of a table to file \n"\
     "  ex: select_all --no-header --delimiter=';' T4 > T4.data\n";
+#endif
   ndb_std_print_version();
   print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
   puts("");

@@ -2370,12 +2370,12 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   {
     DYNAMIC_ARRAY *init_commands= mysql->options.init_commands;
     char **ptr= (char**)init_commands->buffer;
-    char **end= ptr + init_commands->elements;
+    char **end_command= ptr + init_commands->elements;
 
     my_bool reconnect=mysql->reconnect;
     mysql->reconnect=0;
 
-    for (; ptr<end; ptr++)
+    for (; ptr < end_command; ptr++)
     {
       MYSQL_RES *res;
       if (mysql_real_query(mysql,*ptr, (ulong) strlen(*ptr)))

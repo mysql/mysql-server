@@ -401,8 +401,6 @@ Dbtux::nodePopUpScans(NodeHandle& node, unsigned pos)
 void
 Dbtux::nodeSlide(NodeHandle& dstNode, NodeHandle& srcNode, unsigned cnt, unsigned i)
 {
-  Frag& frag = dstNode.m_frag;
-  TreeHead& tree = frag.m_tree;
   ndbrequire(i <= 1);
   while (cnt != 0) {
     TreeEnt ent;

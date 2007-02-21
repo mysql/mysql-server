@@ -634,9 +634,9 @@ class sp_instr_set : public sp_instr
 public:
 
   sp_instr_set(uint ip, sp_pcontext *ctx,
-	       uint offset, Item *val, enum enum_field_types type,
+	       uint offset, Item *val, enum enum_field_types type_arg,
                LEX *lex, bool lex_resp)
-    : sp_instr(ip, ctx), m_offset(offset), m_value(val), m_type(type),
+    : sp_instr(ip, ctx), m_offset(offset), m_value(val), m_type(type_arg),
       m_lex_keeper(lex, lex_resp)
   {}
 
@@ -834,8 +834,9 @@ class sp_instr_freturn : public sp_instr
 public:
 
   sp_instr_freturn(uint ip, sp_pcontext *ctx,
-		   Item *val, enum enum_field_types type, LEX *lex)
-    : sp_instr(ip, ctx), m_value(val), m_type(type), m_lex_keeper(lex, TRUE)
+		   Item *val, enum enum_field_types type_arg, LEX *lex)
+    : sp_instr(ip, ctx), m_value(val), m_type(type_arg),
+      m_lex_keeper(lex, TRUE)
   {}
 
   virtual ~sp_instr_freturn()

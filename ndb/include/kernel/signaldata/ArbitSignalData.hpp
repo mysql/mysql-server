@@ -31,6 +31,7 @@ private:
   Uint32 data[2];
 
 public:
+  ArbitTicket() {}
   STATIC_CONST( DataLength = 2 );
   STATIC_CONST( TextLength = DataLength * 8 );  // hex digits
 
@@ -142,6 +143,7 @@ public:
   ArbitTicket ticket;           // ticket
   NodeBitmask mask;             // set of nodes
 
+  ArbitSignalData() {}
   STATIC_CONST( SignalLength = 3 + ArbitTicket::DataLength + NodeBitmask::Size );
 
   inline bool match(ArbitSignalData& aData) const {

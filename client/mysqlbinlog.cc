@@ -91,15 +91,14 @@ static bool stop_passed= 0;
   This is because the event will be created (alloced) in read_log_event()
   (which returns a pointer) in check_header().
 */
-Format_description_log_event* description_event; 
+Format_description_log_event* glob_description_event; 
 
 static int dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
                                   const char* logname);
 static int dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
                                    const char* logname);
 static int dump_log_entries(const char* logname);
-static int dump_remote_file(NET* net, const char* fname);
-static void die(const char* fmt, ...);
+static void die(const char* fmt, ...)  __attribute__ ((__noreturn__));
 static MYSQL* safe_connect();
 
 
@@ -560,7 +559,7 @@ int process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       ce->print(result_file, print_event_info, TRUE);
 
       // If this binlog is not 3.23 ; why this test??
-      if (description_event->binlog_version >= 3)
+      if (glob_description_event->binlog_version >= 3)
       {
 	if (load_processor.process(ce))
 	  break;				// Error
@@ -595,9 +594,9 @@ Create_file event for file_id: %u\n",exv->file_id);
       break;
     }
     case FORMAT_DESCRIPTION_EVENT:
-      delete description_event;
-      description_event= (Format_description_log_event*) ev;
-      print_event_info->common_header_len= description_event->common_header_len;
+      delete glob_description_event;
+      glob_description_event= (Format_description_log_event*) ev;
+      print_event_info->common_header_len= glob_description_event->common_header_len;
       ev->print(result_file, print_event_info);
       /*
         We don't want this event to be deleted now, so let's hide it (I
@@ -803,7 +802,7 @@ static void die(const char* fmt, ...)
 
 static void print_version()
 {
-  printf("%s Ver 3.1 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
+  printf("%s Ver 3.2 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
   NETWARE_SET_SCREEN_MODE(1);
 }
 
@@ -974,7 +973,7 @@ static int dump_log_entries(const char* logname)
   This is not as smart as check_header() (used for local log); it will not work
   for a binlog which mixes format. TODO: fix this.
 */
-static int check_master_version(MYSQL* mysql,
+static int check_master_version(MYSQL *mysql_arg,
                                 Format_description_log_event
                                 **description_event)
 {
@@ -982,26 +981,31 @@ static int check_master_version(MYSQL* mysql,
   MYSQL_ROW row;
   const char* version;
 
-  if (mysql_query(mysql, "SELECT VERSION()") ||
-      !(res = mysql_store_result(mysql)))
+  if (mysql_query(mysql_arg, "SELECT VERSION()") ||
+      !(res = mysql_store_result(mysql_arg)))
   {
+    /* purecov: begin inspected */
     char errmsg[256];
-    strmake(errmsg, mysql_error(mysql), sizeof(errmsg)-1);
-    mysql_close(mysql);
+    strmake(errmsg, mysql_error(mysql_arg), sizeof(errmsg)-1);
+    mysql_close(mysql_arg);
     die("Error checking master version: %s", errmsg);
+    /* purecov: end */
   }
   if (!(row = mysql_fetch_row(res)))
   {
+    /* purecov: begin inspected */
     mysql_free_result(res);
     mysql_close(mysql);
     die("Master returned no rows for SELECT VERSION()");
-    return 1;
+    /* purecov: end */
   }
   if (!(version = row[0]))
   {
+    /* purecov: begin inspected */
     mysql_free_result(res);
-    mysql_close(mysql);
+    mysql_close(mysql_arg);
     die("Master reported NULL for the version");
+    /* purecov: end */
   }
 
   switch (*version) {
@@ -1020,11 +1024,11 @@ static int check_master_version(MYSQL* mysql,
     *description_event= new Format_description_log_event(3);
     break;
   default:
-    sql_print_error("Master reported unrecognized MySQL version '%s'",
-		    version);
+    /* purecov: begin inspected */
     mysql_free_result(res);
-    mysql_close(mysql);
-    return 1;
+    mysql_close(mysql_arg);
+    die("Master reported unrecognized MySQL version '%s'", version);
+    /* purecov: end */
   }
   mysql_free_result(res);
   return 0;
@@ -1052,12 +1056,12 @@ static int dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
   mysql= safe_connect();
   net= &mysql->net;
 
-  if (check_master_version(mysql, &description_event))
+  if (check_master_version(mysql, &glob_description_event))
   {
     fprintf(stderr, "Could not find server version");
     DBUG_RETURN(1);
   }
-  if (!description_event || !description_event->is_valid())
+  if (!glob_description_event || !glob_description_event->is_valid())
   {
     fprintf(stderr, "Invalid Format_description log event; \
 could be out of memory");
@@ -1107,7 +1111,7 @@ could be out of memory");
 			len, net->read_pos[5]));
     if (!(ev= Log_event::read_log_event((const char*) net->read_pos + 1 ,
                                         len - 1, &error_msg,
-                                        description_event)))
+                                        glob_description_event)))
     {
       fprintf(stderr, "Could not construct log event object\n");
       error= 1;
@@ -1115,7 +1119,7 @@ could be out of memory");
     }   
 
     Log_event_type type= ev->get_type_code();
-    if (description_event->binlog_version >= 3 ||
+    if (glob_description_event->binlog_version >= 3 ||
         (type != LOAD_EVENT && type != CREATE_FILE_EVENT))
     {
       /*
@@ -1321,7 +1325,7 @@ static int dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
       my_close(fd, MYF(MY_WME));
       return 1;
     }
-    check_header(file, &description_event);
+    check_header(file, &glob_description_event);
   }
   else // reading from stdin;
   {
@@ -1347,7 +1351,7 @@ static int dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
     if (init_io_cache(file, fileno(stdin), 0, READ_CACHE, (my_off_t) 0,
 		      0, MYF(MY_WME | MY_NABP | MY_DONT_CHECK_FILESIZE)))
       return 1;
-    check_header(file, &description_event);
+    check_header(file, &glob_description_event);
     if (start_position)
     {
       /* skip 'start_position' characters from stdin */
@@ -1365,7 +1369,7 @@ static int dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
     }
   }
 
-  if (!description_event || !description_event->is_valid())
+  if (!glob_description_event || !glob_description_event->is_valid())
     die("Invalid Format_description log event; could be out of memory");
 
   if (!start_position && my_b_read(file, tmp_buff, BIN_LOG_HEADER_SIZE))
@@ -1378,14 +1382,14 @@ static int dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
     char llbuff[21];
     my_off_t old_off = my_b_tell(file);
 
-    Log_event* ev = Log_event::read_log_event(file, description_event);
+    Log_event* ev = Log_event::read_log_event(file, glob_description_event);
     if (!ev)
     {
       /*
         if binlog wasn't closed properly ("in use" flag is set) don't complain
         about a corruption, but treat it as EOF and move to the next binlog.
       */
-      if (description_event->flags & LOG_EVENT_BINLOG_IN_USE_F)
+      if (glob_description_event->flags & LOG_EVENT_BINLOG_IN_USE_F)
         file->error= 0;
       else if (file->error)
       {
@@ -1410,7 +1414,7 @@ end:
   if (fd >= 0)
     my_close(fd, MYF(MY_WME));
   end_io_cache(file);
-  delete description_event;
+  delete glob_description_event;
   return error;
 }
 
