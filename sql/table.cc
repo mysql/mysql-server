@@ -472,17 +472,6 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       {
         char *val= (char*) interval->type_names[count];
         interval->type_lengths[count]= strlen(val);
-        /*
-          Replace all ',' symbols with NAMES_SEP_CHAR.
-          See the comment in unireg.cc, pack_fields() function
-          for details.
-        */
-        for (uint cnt= 0 ; cnt < interval->type_lengths[count] ; cnt++)
-        {
-          char c= val[cnt];
-          if (c == ',')
-            val[cnt]= NAMES_SEP_CHAR;
-        }       
       }
       interval->type_lengths[count]= 0;
     }
@@ -3031,7 +3020,7 @@ void st_table_list::reinit_before_use(THD *thd)
   */
   table= 0;
   /* Reset is_schema_table_processed value(needed for I_S tables */
-  is_schema_table_processed= FALSE;
+  schema_table_state= NOT_PROCESSED;
 
   TABLE_LIST *embedded; /* The table at the current level of nesting. */
   TABLE_LIST *embedding= this; /* The parent nested table reference. */

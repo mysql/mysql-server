@@ -416,6 +416,8 @@ void verbose_msg(const char *fmt, ...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
 void warning_msg(const char *fmt, ...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
+void log_msg(const char *fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 1, 2);
 
 VAR* var_from_env(const char *, const char *);
 VAR* var_init(VAR* v, const char *name, int name_len, const char *val,
@@ -578,6 +580,7 @@ void do_eval(DYNAMIC_STRING *query_eval, const char *query,
 	dynstr_append_mem(query_eval, p, 1);
       break;
     default:
+      escaped= 0;
       dynstr_append_mem(query_eval, p, 1);
       break;
     }
@@ -938,6 +941,25 @@ void warning_msg(const char *fmt, ...)
 #endif
   dynstr_append(&ds_warning_messages, "\n");
   va_end(args);
+
+  DBUG_VOID_RETURN;
+}
+
+
+void log_msg(const char *fmt, ...)
+{
+  va_list args;
+  char buff[512];
+  size_t len;
+  DBUG_ENTER("log_msg");
+
+  memset(buff, 0, sizeof(buff));
+  va_start(args, fmt);
+  len= my_vsnprintf(buff, sizeof(buff)-1, fmt, args);
+  va_end(args);
+
+  dynstr_append_mem(&ds_res, buff, len);
+  dynstr_append(&ds_res, "\n");
 
   DBUG_VOID_RETURN;
 }
@@ -1615,7 +1637,11 @@ void do_exec(struct st_command *command)
     my_bool ok= 0;
 
     if (command->abort_on_error)
+    {
+      log_msg("exec of '%s failed, error: %d, status: %d, errno: %d",
+              ds_cmd.str, error, status, errno);
       die("command \"%s\" failed", command->first_argument);
+    }
 
     DBUG_PRINT("info",
                ("error: %d, status: %d", error, status));
@@ -1639,6 +1665,8 @@ void do_exec(struct st_command *command)
            command->expected_errors.err[0].code.errnum != 0)
   {
     /* Error code we wanted was != 0, i.e. not an expected success */
+    log_msg("exec of '%s failed, error: %d, errno: %d",
+            ds_cmd.str, error, errno);
     die("command \"%s\" succeeded - should have failed with errno %d...",
         command->first_argument, command->expected_errors.err[0].code.errnum);
   }
