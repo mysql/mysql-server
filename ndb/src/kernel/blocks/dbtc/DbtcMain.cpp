@@ -6944,7 +6944,6 @@ void Dbtc::execGCP_NOMORETRANS(Signal* signal)
 /*****************************************************************************/
 void Dbtc::execNODE_FAILREP(Signal* signal) 
 {
-  HostRecordPtr tmpHostptr;
   jamEntry();
 
   NodeFailRep * const nodeFail = (NodeFailRep *)&signal->theData[0];
@@ -11866,8 +11865,6 @@ void Dbtc::execTCKEYREF(Signal* signal)
   }
   const UintR TconnectIndex = indexOp->connectionIndex;
   ApiConnectRecord * const regApiPtr = &apiConnectRecord[TconnectIndex];
-  Uint32 tcKeyRequestInfo  = indexOp->tcIndxReq.requestInfo;
-  Uint32 commitFlg = TcKeyReq::getCommitFlag(tcKeyRequestInfo);
 
   switch(indexOp->indexOpState) {
   case(IOS_NOOP): {

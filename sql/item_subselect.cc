@@ -1164,7 +1164,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     optimizer->keep_top_level_cache();
 
     thd->lex->current_select= current;
-    unit->uncacheable|= UNCACHEABLE_DEPENDENT;
+    master_unit->uncacheable|= UNCACHEABLE_DEPENDENT;
 
     if (!abort_on_null && left_expr->maybe_null && !pushed_cond_guards)
     {
@@ -1220,7 +1220,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
                                       (char *)"<list ref>")
                             );
       Item *col_item= new Item_cond_or(item_eq, item_isnull);
-      if (!abort_on_null && left_expr->el(i)->maybe_null)
+      if (!abort_on_null && left_expr->element_index(i)->maybe_null)
       {
         if (!(col_item= new Item_func_trig_cond(col_item, get_cond_guard(i))))
           DBUG_RETURN(RES_ERROR);
@@ -1234,7 +1234,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
                                                 ref_pointer_array + i,
                                                 (char *)"<no matter>",
                                                 (char *)"<list ref>"));
-      if (!abort_on_null && left_expr->el(i)->maybe_null)
+      if (!abort_on_null && left_expr->element_index(i)->maybe_null)
       {
         if (!(item_nnull_test= 
               new Item_func_trig_cond(item_nnull_test, get_cond_guard(i))))
@@ -1311,7 +1311,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
           TODO: why we create the above for cases where the right part
                 cant be NULL?
         */
-        if (left_expr->el(i)->maybe_null)
+        if (left_expr->element_index(i)->maybe_null)
         {
           if (!(item= new Item_func_trig_cond(item, get_cond_guard(i))))
             DBUG_RETURN(RES_ERROR);
@@ -1762,7 +1762,6 @@ int subselect_single_select_engine::exec()
   if (!executed)
   {
     item->reset_value_registration();
-    bool have_changed_access= FALSE;
     JOIN_TAB *changed_tabs[MAX_TABLES];
     JOIN_TAB **last_changed_tab= changed_tabs;
     if (item->have_guarded_conds())
