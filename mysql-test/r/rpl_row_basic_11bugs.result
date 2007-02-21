@@ -24,11 +24,11 @@ SHOW TABLES;
 Tables_in_test_ignore
 t2
 INSERT INTO t2 VALUES (3,3), (4,4);
-SHOW BINLOG EVENTS FROM 102;
+SHOW BINLOG EVENTS FROM 105;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	102	Query	1	195	use `test`; CREATE TABLE t1 (a INT, b INT)
-master-bin.000001	195	Table_map	1	235	table_id: # (test.t1)
-master-bin.000001	235	Write_rows	1	282	table_id: # flags: STMT_END_F
+master-bin.000001	105	Query	1	198	use `test`; CREATE TABLE t1 (a INT, b INT)
+master-bin.000001	198	Table_map	1	238	table_id: # (test.t1)
+master-bin.000001	238	Write_rows	1	285	table_id: # flags: STMT_END_F
 **** On Slave ****
 SHOW DATABASES;
 Database
@@ -54,10 +54,10 @@ DELETE FROM t1 WHERE a = 0;
 UPDATE t1 SET a=99 WHERE a = 0;
 SHOW BINLOG EVENTS;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	102	Server ver: SERVER_VERSION, Binlog ver: 4
-master-bin.000001	102	Query	1	188	use `test`; CREATE TABLE t1 (a INT)
-master-bin.000001	188	Table_map	1	227	table_id: # (test.t1)
-master-bin.000001	227	Write_rows	1	266	table_id: # flags: STMT_END_F
+master-bin.000001	4	Format_desc	1	105	Server ver: SERVER_VERSION, Binlog ver: 4
+master-bin.000001	105	Query	1	191	use `test`; CREATE TABLE t1 (a INT)
+master-bin.000001	191	Table_map	1	230	table_id: # (test.t1)
+master-bin.000001	230	Write_rows	1	269	table_id: # flags: STMT_END_F
 DROP TABLE t1;
 ================ Test for BUG#17620 ================
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
@@ -118,3 +118,102 @@ HEX(a)	b
 SELECT HEX(a),b FROM t1;
 HEX(a)	b
 0	2
+DROP TABLE IF EXISTS t1;
+================ Test for BUG#22583 ================
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+**** On Master **** 
+CREATE TABLE t1_myisam (k INT, a BIT(1), b BIT(9)) ENGINE=MYISAM;
+CREATE TABLE t1_innodb (k INT, a BIT(1), b BIT(9)) ENGINE=INNODB;
+CREATE TABLE t2_myisam (k INT, a BIT(1) NOT NULL, b BIT(4) NOT NULL) ENGINE=MYISAM;
+CREATE TABLE t2_innodb (k INT, a BIT(1) NOT NULL, b BIT(4) NOT NULL) ENGINE=INNODB;
+**** On Slave **** 
+ALTER TABLE t1_myisam ENGINE=INNODB;
+ALTER TABLE t1_innodb ENGINE=MYISAM;
+ALTER TABLE t2_myisam ENGINE=INNODB;
+ALTER TABLE t2_innodb ENGINE=MYISAM;
+**** On Master **** 
+INSERT INTO t1_myisam VALUES(1, b'0', 257);
+INSERT INTO t1_myisam VALUES(2, b'1', 256);
+INSERT INTO t1_innodb VALUES(1, b'0', 257);
+INSERT INTO t1_innodb VALUES(2, b'1', 256);
+SELECT k, HEX(a),HEX(b) FROM t1_myisam;
+k	HEX(a)	HEX(b)
+1	0	101
+2	1	100
+SELECT k, HEX(a),HEX(b) FROM t1_innodb;
+k	HEX(a)	HEX(b)
+1	0	101
+2	1	100
+INSERT INTO t2_myisam VALUES(1, b'0', 9);
+INSERT INTO t2_myisam VALUES(2, b'1', 8);
+INSERT INTO t2_innodb VALUES(1, b'0', 9);
+INSERT INTO t2_innodb VALUES(2, b'1', 8);
+SELECT k, HEX(a),HEX(b) FROM t2_myisam;
+k	HEX(a)	HEX(b)
+1	0	9
+2	1	8
+SELECT k, HEX(a),HEX(b) FROM t2_innodb;
+k	HEX(a)	HEX(b)
+1	0	9
+2	1	8
+**** On Slave **** 
+SELECT k, HEX(a),HEX(b) FROM t1_myisam;
+k	HEX(a)	HEX(b)
+1	0	101
+2	1	100
+SELECT k, HEX(a),HEX(b) FROM t1_innodb;
+k	HEX(a)	HEX(b)
+1	0	101
+2	1	100
+SELECT k, HEX(a),HEX(b) FROM t2_myisam;
+k	HEX(a)	HEX(b)
+1	0	9
+2	1	8
+SELECT k, HEX(a),HEX(b) FROM t2_innodb;
+k	HEX(a)	HEX(b)
+1	0	9
+2	1	8
+**** On Master **** 
+UPDATE t1_myisam SET a=0 WHERE k=2;
+SELECT k, HEX(a),HEX(b) FROM t1_myisam;
+k	HEX(a)	HEX(b)
+1	0	101
+2	0	100
+UPDATE t1_innodb SET a=0 WHERE k=2;
+SELECT k, HEX(a),HEX(b) FROM t1_innodb;
+k	HEX(a)	HEX(b)
+1	0	101
+2	0	100
+UPDATE t2_myisam SET a=0 WHERE k=2;
+SELECT k, HEX(a),HEX(b) FROM t2_myisam;
+k	HEX(a)	HEX(b)
+1	0	9
+2	0	8
+UPDATE t2_innodb SET a=0 WHERE k=2;
+SELECT k, HEX(a),HEX(b) FROM t2_innodb;
+k	HEX(a)	HEX(b)
+1	0	9
+2	0	8
+**** On Slave **** 
+SELECT k, HEX(a),HEX(b) FROM t1_myisam;
+k	HEX(a)	HEX(b)
+1	0	101
+2	0	100
+SELECT k, HEX(a),HEX(b) FROM t1_innodb;
+k	HEX(a)	HEX(b)
+1	0	101
+2	0	100
+SELECT k, HEX(a),HEX(b) FROM t2_myisam;
+k	HEX(a)	HEX(b)
+1	0	9
+2	0	8
+SELECT k, HEX(a),HEX(b) FROM t2_innodb;
+k	HEX(a)	HEX(b)
+1	0	9
+2	0	8
+**** On Master **** 
+DROP TABLE IF EXISTS t1_myisam, t1_innodb, t2_myisam, t2_innodb;
