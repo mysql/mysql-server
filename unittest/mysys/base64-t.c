@@ -18,13 +18,18 @@
 #include <tap.h>
 #include <string.h>
 
+#define BASE64_LOOP_COUNT 500
+#define BASE64_ROWS 4                           /* Number of ok(..) */
+
 int
 main(void)
 {
   int i, cmp;
   size_t j, k, l, dst_len, needed_length;
 
-  for (i= 0; i < 500; i++)
+  plan(BASE64_LOOP_COUNT * BASE64_ROWS);
+
+  for (i= 0; i < BASE64_LOOP_COUNT; i++)
   {
     /* Create source data */
     const size_t src_len= rand() % 1000 + 1;
