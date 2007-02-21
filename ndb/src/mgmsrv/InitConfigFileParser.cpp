@@ -800,6 +800,7 @@ InitConfigFileParser::parse_mycnf()
   /**
    * Add ndbd, ndb_mgmd, api/mysqld
    */
+  Uint32 idx = options.size();
   {
     struct my_option opt;
     bzero(&opt, sizeof(opt));
@@ -809,7 +810,6 @@ InitConfigFileParser::parse_mycnf()
     opt.var_type = GET_STR;
     opt.arg_type = REQUIRED_ARG;
     options.push_back(opt);
-    ndbd = &options.back();
 
     opt.name = "ndb_mgmd";
     opt.id = 256;
@@ -817,7 +817,6 @@ InitConfigFileParser::parse_mycnf()
     opt.var_type = GET_STR;
     opt.arg_type = REQUIRED_ARG;
     options.push_back(opt);
-    ndb_mgmd = &options.back();
 
     opt.name = "mysqld";
     opt.id = 256;
@@ -825,20 +824,22 @@ InitConfigFileParser::parse_mycnf()
     opt.var_type = GET_STR;
     opt.arg_type = REQUIRED_ARG;
     options.push_back(opt);
-    mysqld = &options.back();
 
-    opt.name = "api";
+    opt.name = "ndbapi";
     opt.id = 256;
     opt.value = (gptr*)malloc(sizeof(char*));
     opt.var_type = GET_STR;
     opt.arg_type = REQUIRED_ARG;
     options.push_back(opt);
-    api = &options.back();
 
     bzero(&opt, sizeof(opt));
     options.push_back(opt);
-  }
 
+    ndbd = &options[idx];
+    ndb_mgmd = &options[idx+1];
+    mysqld = &options[idx+2];
+    api = &options[idx+3];
+  }
   
   Context ctx(m_info, m_errstream); 
   const char *groups[]= { "cluster_config", 0 };

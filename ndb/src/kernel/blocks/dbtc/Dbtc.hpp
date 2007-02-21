@@ -1325,7 +1325,6 @@ private:
   void execTIME_SIGNAL(Signal* signal);
   void execAPI_FAILREQ(Signal* signal);
   void execSCAN_HBREP(Signal* signal);
-  void execSET_VAR_REQ(Signal* signal);
 
   void execABORT_ALL_REQ(Signal* signal);
 

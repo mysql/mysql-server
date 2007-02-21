@@ -256,7 +256,6 @@ Dbtc::Dbtc(const class Configuration & conf):
   addRecSignal(GSN_INCL_NODEREQ, &Dbtc::execINCL_NODEREQ);
   addRecSignal(GSN_TIME_SIGNAL, &Dbtc::execTIME_SIGNAL);
   addRecSignal(GSN_API_FAILREQ, &Dbtc::execAPI_FAILREQ);
-  addRecSignal(GSN_SET_VAR_REQ, &Dbtc::execSET_VAR_REQ);
 
   addRecSignal(GSN_TC_COMMIT_ACK, &Dbtc::execTC_COMMIT_ACK);
   addRecSignal(GSN_ABORT_ALL_REQ, &Dbtc::execABORT_ALL_REQ);
