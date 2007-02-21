@@ -35,7 +35,8 @@ if [ -d ../sql ] ; then
    exec_mgmtsrvr=$ndbtop/src/mgmsrv/ndb_mgmd
    exec_waiter=$ndbtop/tools/ndb_waiter
    exec_test=$ndbtop/tools/ndb_test_platform
-   exec_mgmtclient=$ndbtop/src/mgmclient/ndb_mgm
+   exec_test_ndberror=
+   exec_test_ndberror=$ndbtop/src/ndbapi/ndberror_check
 else
    BINARY_DIST=1
    if test -x "$BASEDIR/libexec/ndbd"
@@ -48,12 +49,20 @@ else
    fi
    exec_waiter=$BASEDIR/bin/ndb_waiter
    exec_test=$BASEDIR/bin/ndb_test_platform
+   exec_test_ndberror=
    exec_mgmtclient=$BASEDIR/bin/ndb_mgm
 fi
 
 if $exec_test ; then :; else
   echo "ndb not correctly compiled to support this platform"
   exit 1
+fi
+
+if [ $exec_test_ndberror ] ; then
+if $exec_test_ndberror ; then :; else
+  echo "please fix in ndberror.c"
+  exit 1
+fi
 fi
 
 pidfile=ndbcluster.pid
