@@ -10675,7 +10675,9 @@ void Dbtc::unlinkGcp(Signal* signal)
 void
 Dbtc::execDUMP_STATE_ORD(Signal* signal)
 {
+  jamEntry();
   DumpStateOrd * const dumpState = (DumpStateOrd *)&signal->theData[0];
+  Uint32 arg = signal->theData[0];
   if(signal->theData[0] == DumpStateOrd::CommitAckMarkersSize){
     infoEvent("TC: m_commitAckMarkerPool: %d free size: %d",
               m_commitAckMarkerPool.getNoOfFree(),
@@ -11002,7 +11004,241 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     sendSignalWithDelay(cownref, GSN_SYSTEM_ERROR, signal, 300, 1);    
     return;
   }
+
+  if (arg == 2550)
+  {
+    jam();
+    Uint32 len = signal->getLength() - 1;
+    if (len + 2 > 25)
+    {
+      jam();
+      infoEvent("Too long filter");
+      return;
+    }
+    if (validate_filter(signal))
+    {
+      jam();
+      memmove(signal->theData + 2, signal->theData + 1, 4 * len);
+      signal->theData[0] = 2551;
+      signal->theData[1] = 0;    // record
+      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, len + 2, JBB);
+      
+      infoEvent("Starting dump of transactions");
+    }
+    return;
+  }
+
+  if (arg == 2551)
+  {
+    jam();
+    Uint32 record = signal->theData[1];
+    Uint32 len = signal->getLength();
+    ndbassert(len > 1);
+
+    ApiConnectRecordPtr ap;
+    ap.i = record;
+    ptrAss(ap, apiConnectRecord);
+
+    bool print = false;
+    for (Uint32 i = 0; i<32; i++)
+    {
+      jam();
+      print = match_and_print(signal, ap);
+
+      ap.i++;
+      if (ap.i == capiConnectFilesize || print)
+      {
+	jam();
+	break;
+      }
+      
+      ptrAss(ap, apiConnectRecord);
+    }
+
+    if (ap.i == capiConnectFilesize)
+    {
+      jam();
+      infoEvent("End of transaction dump");
+      return;
+    }
+    
+    signal->theData[1] = ap.i;
+    if (print)
+    {
+      jam();
+      sendSignalWithDelay(reference(), GSN_DUMP_STATE_ORD, signal, 200, len);
+    }
+    else
+    {
+      jam();
+      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, len, JBB);
+    }
+    return;
+  }
 }//Dbtc::execDUMP_STATE_ORD()
+
+bool
+Dbtc::validate_filter(Signal* signal)
+{
+  Uint32 * start = signal->theData + 1;
+  Uint32 * end = signal->theData + signal->getLength();
+  if (start == end)
+  {
+    infoEvent("No filter specified, not listing...");
+    return false;
+  }
+
+  while(start < end)
+  {
+    switch(* start){
+    case 1: // API Node
+    case 4: // Inactive time
+      start += 2;
+      break;
+    case 2: // Transid
+      start += 3;
+      break;
+    default:
+      infoEvent("Invalid filter op: 0x%x pos: %d",
+		* start,
+		start - (signal->theData + 1));
+      return false;
+    }
+  }
+
+  if (start != end)
+  {
+    infoEvent("Invalid filter, unexpected end");
+    return false;
+  }
+
+  return true;
+}
+
+bool
+Dbtc::match_and_print(Signal* signal, ApiConnectRecordPtr apiPtr)
+{
+  Uint32 conState = apiPtr.p->apiConnectstate;
+  if (conState == CS_CONNECTED ||
+      conState == CS_DISCONNECTED ||
+      conState == CS_RESTART)
+    return false;
+
+  Uint32 len = signal->getLength();
+  Uint32* start = signal->theData + 2;
+  Uint32* end = signal->theData + len;
+  Uint32 apiTimer = getApiConTimer(apiPtr.i);
+  while (start < end)
+  {
+    jam();
+    switch(* start){
+    case 1:
+      jam();
+      if (refToNode(apiPtr.p->ndbapiBlockref) != * (start + 1))
+	return false;
+      start += 2;
+      break;
+    case 2:
+      jam();
+      if (apiPtr.p->transid[0] != * (start + 1) ||
+	  apiPtr.p->transid[1] != * (start + 2))
+	return false;
+      start += 3;
+      break;
+    case 4:{
+      jam();
+      if (apiTimer == 0 || ((ctcTimer - apiTimer) / 100) < * (start + 1))
+	return false;
+      start += 2;
+      break;
+    }
+    default:
+      ndbassert(false);
+      return false;
+    }
+  }
+  
+  if (start != end)
+  {
+    ndbassert(false);
+    return false;
+  }
+
+  /**
+   * Do print
+   */
+  Uint32 *temp = signal->theData + 25;
+  memcpy(temp, signal->theData, 4 * len);
+
+  char state[10];
+  const char *stateptr = "";
+  
+  switch(apiPtr.p->apiConnectstate){
+  case CS_STARTED:
+    stateptr = "Prepared";
+    break;
+  case CS_RECEIVING:
+  case CS_REC_COMMITTING:
+  case CS_START_COMMITTING:
+    stateptr = "Running";
+    break;
+  case CS_COMMITTING:
+    stateptr = "Committing";
+    break;
+  case CS_COMPLETING:
+    stateptr = "Completing";
+    break;
+  case CS_PREPARE_TO_COMMIT:
+    stateptr = "Prepare to commit";
+    break;
+  case CS_COMMIT_SENT:
+    stateptr = "Commit sent";
+    break;
+  case CS_COMPLETE_SENT:
+    stateptr = "Complete sent";
+    break;
+  case CS_ABORTING:
+    stateptr = "Aborting";
+    break;
+  case CS_START_SCAN:
+    stateptr = "Scanning";
+    break;
+  case CS_WAIT_ABORT_CONF:
+  case CS_WAIT_COMMIT_CONF:
+  case CS_WAIT_COMPLETE_CONF:
+  case CS_FAIL_PREPARED:
+  case CS_FAIL_COMMITTING:
+  case CS_FAIL_COMMITTED:
+  case CS_REC_PREPARING:
+  case CS_START_PREPARING:
+  case CS_PREPARED:
+  case CS_RESTART:
+  case CS_FAIL_ABORTED:
+  case CS_DISCONNECTED:
+  default:
+    BaseString::snprintf(state, sizeof(state), 
+			 "%u", apiPtr.p->apiConnectstate);
+    stateptr = state;
+    break;
+  }
+
+  char buf[100];
+  BaseString::snprintf(buf, sizeof(buf),
+		       "TRX[%u]: API: %d(0x%x)"
+		       "transid: 0x%x 0x%x inactive: %u(%d) state: %s",
+		       apiPtr.i,
+		       refToNode(apiPtr.p->ndbapiBlockref),
+		       refToBlock(apiPtr.p->ndbapiBlockref),
+		       apiPtr.p->transid[0],
+		       apiPtr.p->transid[1],
+		       apiTimer ? (ctcTimer - apiTimer) / 100 : 0,
+		       c_apiConTimer_line[apiPtr.i],
+		       stateptr);
+  infoEvent(buf);
+  
+  memcpy(signal->theData, temp, 4*len);
+  return true;
+}
 
 void Dbtc::execSET_VAR_REQ(Signal* signal)
 {
