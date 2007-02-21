@@ -19,14 +19,6 @@
 #include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/NodeFailRep.hpp>
 
-static
-void
-require(bool x)
-{
-  if (!x)
-    abort();
-}
-
 SimpleSignal::SimpleSignal(bool dealloc){
   memset(this, 0, sizeof(* this));
   deallocSections = dealloc;

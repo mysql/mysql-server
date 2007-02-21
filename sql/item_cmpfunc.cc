@@ -904,7 +904,7 @@ longlong Item_in_optimizer::val_int()
           */
           for (i= 0; i < ncols; i++)
           {
-            if (cache->el(i)->null_value)
+            if (cache->element_index(i)->null_value)
               item_subs->set_cond_guard_var(i, FALSE);
           }
           
