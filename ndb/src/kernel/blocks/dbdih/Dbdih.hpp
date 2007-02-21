@@ -1366,6 +1366,7 @@ private:
   Uint32 csystemnodes;
   Uint32 currentgcp;
   Uint32 c_newest_restorable_gci;
+  Uint32 c_set_initial_start_flag;
 
   enum GcpMasterTakeOverState {
     GMTOS_IDLE = 0,

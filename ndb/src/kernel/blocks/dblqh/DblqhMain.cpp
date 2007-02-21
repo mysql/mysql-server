@@ -11672,7 +11672,8 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
     return;
   }
 
-  if(getNodeState().getNodeRestartInProgress()){
+  if(getNodeState().getNodeRestartInProgress() && cstartRecReq == ZFALSE)
+  {
     GCPSaveRef * const saveRef = (GCPSaveRef*)&signal->theData[0];
     saveRef->dihPtr = dihPtr;
     saveRef->nodeId = getOwnNodeId();
