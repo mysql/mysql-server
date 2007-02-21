@@ -183,6 +183,7 @@ public:
     NdbNodeBitmask newMask;	// new nodes to process in RUN state
     Uint8 sendCount;		// control send/recv of signals
     Uint8 recvCount;
+    Uint8 m_disabled;
     NdbNodeBitmask recvMask;	// left to recv
     Uint32 code;		// code field from signal
     Uint32 failureNr;            // cfailureNr at arbitration start
