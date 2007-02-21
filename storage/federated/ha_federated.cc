@@ -363,7 +363,6 @@ static handler *federated_create_handler(handlerton *hton,
 static int federated_commit(handlerton *hton, THD *thd, bool all);
 static int federated_rollback(handlerton *hton, THD *thd, bool all);
 
-
 /* Federated storage engine handlerton */
 
 static handler *federated_create_handler(handlerton *hton, 

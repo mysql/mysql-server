@@ -385,9 +385,10 @@ enum ha_base_keytype {
 #define HA_ERR_TABLE_NEEDS_UPGRADE 164  /* The table changed in storage engine */
 #define HA_ERR_TABLE_READONLY    165  /* The table is not writable */
 
-#define HA_ERR_AUTOINC_READ_FAILED 166/* Failed to get the next autoinc value */
-#define HA_ERR_AUTOINC_ERANGE    167  /* Failed to set the row autoinc value */
-#define HA_ERR_LAST              167  /*Copy last error nr.*/
+#define HA_ERR_AUTOINC_READ_FAILED 166   /* Failed to get next autoinc value */
+#define HA_ERR_AUTOINC_ERANGE    167     /* Failed to set row autoinc value */
+#define HA_ERR_GENERIC           168     /* Generic error */
+#define HA_ERR_LAST              168 /*Copy last error nr.*/
 /* Add error numbers before HA_ERR_LAST and change it accordingly. */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
 
@@ -468,6 +469,7 @@ typedef struct st_key_range
 {
   const byte *key;
   uint length;
+  ulonglong keypart_map;
   enum ha_rkey_function flag;
 } key_range;
 
