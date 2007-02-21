@@ -3,6 +3,8 @@
 #include <errno.h>
 #include <tap.h>
 
+extern my_bool maria_log_remove();
+
 #ifndef DBUG_OFF
 static const char *default_dbug_option;
 #endif
@@ -113,6 +115,8 @@ int main(int argc, char *argv[])
 
   bzero(&pagecache, sizeof(pagecache));
   maria_data_root= ".";
+  if (maria_log_remove())
+    exit(1);
 
   for (i= 0; i < (LONG_BUFFER_SIZE + LSN_STORE_SIZE * 2 + 2); i+= 2)
   {
@@ -152,6 +156,8 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
+  plan(((ITERATIONS - 1) * 4 + 1)*2 + ITERATIONS - 1);
+
   srandom(122334817L);
 
   long_tr_id[5]= 0xff;
@@ -163,14 +169,14 @@ int main(int argc, char *argv[])
   {
     fprintf(stderr, "Can't write record #%lu\n", (ulong) 0);
     translog_destroy();
+    ok(0, "write LOGREC_LONG_TRANSACTION_ID");
     exit(1);
   }
+  ok(1, "write LOGREC_LONG_TRANSACTION_ID");
   lsn_base= first_lsn= lsn;
 
   for (i= 1; i < ITERATIONS; i++)
   {
-    if (i % 1000 == 0)
-      printf("write %d\n", i);
     if (i % 2)
     {
       lsn_store(lsn_buff, lsn_base);
@@ -181,8 +187,10 @@ int main(int argc, char *argv[])
         fprintf(stderr, "1 Can't write reference defore record #%lu\n",
                 (ulong) i);
         translog_destroy();
+        ok(0, "write LOGREC_CLR_END");
         exit(1);
       }
+      ok(1, "write LOGREC_CLR_END");
       lsn_store(lsn_buff, lsn_base);
       if ((rec_len= random() / (RAND_MAX / (LONG_BUFFER_SIZE + 1))) < 12)
         rec_len= 12;
@@ -194,8 +202,10 @@ int main(int argc, char *argv[])
         fprintf(stderr, "1 Can't write var reference defore record #%lu\n",
                 (ulong) i);
         translog_destroy();
+        ok(0, "write LOGREC_UNDO_KEY_INSERT");
         exit(1);
       }
+      ok(1, "write LOGREC_UNDO_KEY_INSERT");
     }
     else
     {
@@ -208,8 +218,10 @@ int main(int argc, char *argv[])
         fprintf(stderr, "0 Can't write reference defore record #%lu\n",
                 (ulong) i);
         translog_destroy();
+        ok(0, "write LOGREC_UNDO_ROW_DELETE");
         exit(1);
       }
+      ok(1, "write LOGREC_UNDO_ROW_DELETE");
       lsn_store(lsn_buff, lsn_base);
       lsn_store(lsn_buff + LSN_STORE_SIZE, first_lsn);
       if ((rec_len= random() / (RAND_MAX / (LONG_BUFFER_SIZE + 1))) < 19)
@@ -222,8 +234,10 @@ int main(int argc, char *argv[])
         fprintf(stderr, "0 Can't write var reference defore record #%lu\n",
                 (ulong) i);
         translog_destroy();
+        ok(0, "write LOGREC_UNDO_KEY_DELETE");
         exit(1);
       }
+      ok(1, "write LOGREC_UNDO_KEY_DELETE");
     }
     int4store(long_tr_id, i);
     if (translog_write_record(&lsn,
@@ -232,8 +246,10 @@ int main(int argc, char *argv[])
     {
       fprintf(stderr, "Can't write record #%lu\n", (ulong) i);
       translog_destroy();
+      ok(0, "write LOGREC_LONG_TRANSACTION_ID");
       exit(1);
     }
+    ok(1, "write LOGREC_LONG_TRANSACTION_ID");
 
     lsn_base= lsn;
 
@@ -245,14 +261,18 @@ int main(int argc, char *argv[])
     {
       fprintf(stderr, "Can't write variable record #%lu\n", (ulong) i);
       translog_destroy();
+      ok(0, "write LOGREC_REDO_INSERT_ROW_HEAD");
       exit(1);
     }
+    ok(1, "write LOGREC_REDO_INSERT_ROW_HEAD");
     if (translog_flush(lsn))
     {
       fprintf(stderr, "Can't flush #%lu\n", (ulong) i);
       translog_destroy();
+      ok(0, "flush");
       exit(1);
     }
+    ok(1, "flush");
   }
 
   translog_destroy();
@@ -303,6 +323,8 @@ int main(int argc, char *argv[])
               (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
       goto err;
     }
+    ok(1, "read record");
+    translog_free_record_header(&rec);
     lsn= first_lsn;
     if (translog_init_scanner(first_lsn, 1, &scanner))
     {
@@ -311,8 +333,6 @@ int main(int argc, char *argv[])
     }
     for (i= 1;; i++)
     {
-      if (i % 1000 == 0)
-        printf("read %d\n", i);
       len= translog_read_next_record_header(&scanner, &rec);
       if (len == 0)
       {
@@ -386,6 +406,9 @@ int main(int argc, char *argv[])
           goto err;
         }
       }
+      ok(1, "read record");
+      translog_free_record_header(&rec);
+
       len= translog_read_next_record_header(&scanner, &rec);
       if (len == 0)
       {
@@ -476,6 +499,8 @@ int main(int argc, char *argv[])
           goto err;
         }
       }
+      ok(1, "read record");
+      translog_free_record_header(&rec);
 
       len= translog_read_next_record_header(&scanner, &rec);
       if (len == 0)
@@ -505,8 +530,9 @@ int main(int argc, char *argv[])
                 (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
         goto err;
       }
-
       lsn= rec.lsn;
+      ok(1, "read record");
+      translog_free_record_header(&rec);
 
       len= translog_read_next_record_header(&scanner, &rec);
       if ((rec_len= random() / (RAND_MAX / (LONG_BUFFER_SIZE + 1))) < 9)
@@ -533,14 +559,20 @@ int main(int argc, char *argv[])
                 (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
         goto err;
       }
+      ok(1, "read record");
+      translog_free_record_header(&rec);
     }
   }
 
-  rc= 1;
+  rc= 0;
 err:
+  if (rc)
+    ok(0, "read record");
   translog_destroy();
   end_pagecache(&pagecache, 1);
   ma_control_file_end();
 
-  return(test(exit_status() || rc));
+  if (maria_log_remove())
+    exit(1);
+  return(test(exit_status()));
 }

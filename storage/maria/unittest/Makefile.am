@@ -44,6 +44,11 @@ noinst_PROGRAMS =	ma_control_file-t trnman-t lockman2-t \
 			ma_test_loghandler_multithread-t \
 			ma_test_loghandler_pagecache-t
 
+ma_test_loghandler_t_SOURCES= ma_test_loghandler-t.c ma_maria_log_cleanup.c
+ma_test_loghandler_multigroup_t_SOURCES= ma_test_loghandler_multigroup-t.c ma_maria_log_cleanup.c
+ma_test_loghandler_multithread_t_SOURCES= ma_test_loghandler_multithread-t.c ma_maria_log_cleanup.c
+ma_test_loghandler_pagecache_t_SOURCES= ma_test_loghandler_pagecache-t.c ma_maria_log_cleanup.c
+
 mf_pagecache_single_src =	mf_pagecache_single.c $(top_srcdir)/mysys/mf_pagecache.c test_file.c
 mf_pagecache_consist_src =	mf_pagecache_consist.c $(top_srcdir)/mysys/mf_pagecache.c test_file.c
 mf_pagecache_common_cppflags =	-DEXTRA_DEBUG -DPAGECACHE_DEBUG -DMAIN

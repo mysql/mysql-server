@@ -83,6 +83,7 @@ static void get_options(int argc, char *argv[]);
 int main(int argc,char *argv[])
 {
   MY_INIT(argv[0]);
+  maria_data_root= ".";
 
   plan(9);
 
@@ -263,18 +264,18 @@ static int test_binary_content()
     future change/breakage.
   */
 
-  char buffer[17];
+  char buffer[20];
   RET_ERR_UNLESS((fd= my_open(file_name,
                           O_BINARY | O_RDWR,
                           MYF(MY_WME))) >= 0);
-  RET_ERR_UNLESS(my_read(fd, buffer, 17, MYF(MY_FNABP |  MY_WME)) == 0);
+  RET_ERR_UNLESS(my_read(fd, buffer, 20, MYF(MY_FNABP |  MY_WME)) == 0);
   RET_ERR_UNLESS(my_close(fd, MYF(MY_WME)) == 0);
   RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
-  i= uint4korr(buffer+5);
+  i= uint3korr(buffer+9);
   RET_ERR_UNLESS(i == LSN_FILE_NO(last_checkpoint_lsn));
-  i= uint4korr(buffer+9);
+  i= uint4korr(buffer+12);
   RET_ERR_UNLESS(i == LSN_OFFSET(last_checkpoint_lsn));
-  i= uint4korr(buffer+13);
+  i= uint4korr(buffer+16);
   RET_ERR_UNLESS(i == last_logno);
   RET_ERR_UNLESS(close_file() == 0);
   return 0;
@@ -341,9 +342,9 @@ static int test_bad_checksum()
   RET_ERR_UNLESS((fd= my_open(file_name,
                           O_BINARY | O_RDWR,
                           MYF(MY_WME))) >= 0);
-  RET_ERR_UNLESS(my_pread(fd, buffer, 1, 4, MYF(MY_FNABP |  MY_WME)) == 0);
+  RET_ERR_UNLESS(my_pread(fd, buffer, 1, 8, MYF(MY_FNABP |  MY_WME)) == 0);
   buffer[0]+= 3; /* mangle checksum */
-  RET_ERR_UNLESS(my_pwrite(fd, buffer, 1, 4, MYF(MY_FNABP |  MY_WME)) == 0);
+  RET_ERR_UNLESS(my_pwrite(fd, buffer, 1, 8, MYF(MY_FNABP |  MY_WME)) == 0);
   /* Check that control file module sees the problem */
   RET_ERR_UNLESS(ma_control_file_create_or_open() ==
                  CONTROL_FILE_BAD_CHECKSUM);

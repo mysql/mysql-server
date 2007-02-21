@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <tap.h>
+extern my_bool maria_log_remove();
 
 #ifndef DBUG_OFF
 static const char *default_dbug_option;
@@ -33,7 +34,7 @@ static byte *long_buffer;
   Get pseudo-random length of the field in
     limits [MIN_REC_LENGTH..LONG_BUFFER_SIZE]
 
-  SYNOPSYS
+  SYNOPSIS
     get_len()
 
   RETURN
@@ -101,8 +102,7 @@ static my_bool read_and_check_content(TRANSLOG_HEADER_BUFFER *rec,
 {
   int res= 0;
   translog_size_t len;
-  DBUG_ENTER("read_and_check_content");
-  DBUG_ASSERT(rec->record_length < LONG_BUFFER_SIZE + 7 * 2 + 2);
+
   if ((len= translog_read_record(rec->lsn, 0, rec->record_length,
                                  buffer, NULL)) != rec->record_length)
   {
@@ -111,7 +111,7 @@ static my_bool read_and_check_content(TRANSLOG_HEADER_BUFFER *rec,
     res= 1;
   }
   res|= check_content(buffer + skip, rec->record_length - skip);
-  DBUG_RETURN(res);
+  return(res);
 }
 
 void writer(int num)
@@ -119,7 +119,6 @@ void writer(int num)
   LSN lsn;
   byte long_tr_id[6];
   uint i;
-  DBUG_ENTER("writer");
 
   for (i= 0; i < ITERATIONS; i++)
   {
@@ -135,6 +134,9 @@ void writer(int num)
       fprintf(stderr, "Can't write LOGREC_LONG_TRANSACTION_ID record #%lu "
               "thread %i\n", (ulong) i, num);
       translog_destroy();
+      pthread_mutex_lock(&LOCK_thread_count);
+      ok(0, "write records");
+      pthread_mutex_unlock(&LOCK_thread_count);
       return;
     }
     lsns1[num][i]= lsn;
@@ -144,25 +146,17 @@ void writer(int num)
     {
       fprintf(stderr, "Can't write variable record #%lu\n", (ulong) i);
       translog_destroy();
+      pthread_mutex_lock(&LOCK_thread_count);
+      ok(0, "write records");
+      pthread_mutex_unlock(&LOCK_thread_count);
       return;
     }
     lsns2[num][i]= lsn;
-    DBUG_PRINT("info", ("thread: %u, iteration: %u, len: %lu, "
-                        "lsn1 (%lu,0x%lx) lsn2 (%lu,0x%lx)",
-                        num, i, (ulong) lens[num][i],
-                        (ulong) LSN_FILE_NO(lsns1[num][i]),
-                        (ulong) LSN_OFFSET(lsns1[num][i]),
-                        (ulong) LSN_FILE_NO(lsns2[num][i]),
-                        (ulong) LSN_OFFSET(lsns2[num][i])));
-    printf("thread: %u, iteration: %u, len: %lu, "
-           "lsn1 (%lu,0x%lx) lsn2 (%lu,0x%lx)\n",
-           num, i, (ulong) lens[num][i],
-           (ulong) LSN_FILE_NO(lsns1[num][i]),
-           (ulong) LSN_OFFSET(lsns1[num][i]),
-           (ulong) LSN_FILE_NO(lsns2[num][i]),
-           (ulong) LSN_OFFSET(lsns2[num][i]));
+    pthread_mutex_lock(&LOCK_thread_count);
+    ok(1, "write records");
+    pthread_mutex_unlock(&LOCK_thread_count);
   }
-  DBUG_VOID_RETURN;
+  return;
 }
 
 
@@ -171,20 +165,18 @@ static void *test_thread_writer(void *arg)
   int param= *((int*) arg);
 
   my_thread_init();
-  DBUG_ENTER("test_writer");
-  DBUG_PRINT("enter", ("param: %d", param));
 
   writer(param);
 
-  DBUG_PRINT("info", ("Thread %s ended\n", my_thread_name()));
   pthread_mutex_lock(&LOCK_thread_count);
   thread_count--;
+  ok(1, "writer finished"); /* just to show progress */
   VOID(pthread_cond_signal(&COND_thread_count));        /* Tell main we are
                                                            ready */
   pthread_mutex_unlock(&LOCK_thread_count);
   free((gptr) arg);
   my_thread_end();
-  DBUG_RETURN(0);
+  return(0);
 }
 
 
@@ -201,6 +193,8 @@ int main(int argc, char **argv __attribute__ ((unused)))
   int *param, error;
   int rc;
 
+  plan(WRITERS + ITERATIONS * WRITERS * 3);
+
   bzero(&pagecache, sizeof(pagecache));
   maria_data_root= ".";
   long_buffer= malloc(LONG_BUFFER_SIZE + 7 * 2 + 2);
@@ -212,8 +206,10 @@ int main(int argc, char **argv __attribute__ ((unused)))
   for (i= 0; i < (LONG_BUFFER_SIZE + 7 * 2 + 2); i++)
     long_buffer[i]= (i & 0xFF);
 
-
   MY_INIT(argv[0]);
+  if (maria_log_remove())
+    exit(1);
+
 
 #ifndef DBUG_OFF
 #if defined(__WIN__)
@@ -228,8 +224,6 @@ int main(int argc, char **argv __attribute__ ((unused)))
   }
 #endif
 
-  DBUG_ENTER("main");
-  DBUG_PRINT("info", ("Main thread: %s\n", my_thread_name()));
 
   if ((error= pthread_cond_init(&COND_thread_count, NULL)))
   {
@@ -327,7 +321,6 @@ int main(int argc, char **argv __attribute__ ((unused)))
     thread_count++;
     number_of_writers--;
   }
-  DBUG_PRINT("info", ("All threads are started"));
   pthread_mutex_unlock(&LOCK_thread_count);
 
   pthread_attr_destroy(&thr_attr);
@@ -342,7 +335,6 @@ int main(int argc, char **argv __attribute__ ((unused)))
   }
   if ((error= pthread_mutex_unlock(&LOCK_thread_count)))
     fprintf(stderr, "LOCK_thread_count: %d from pthread_mutex_unlock\n", error);
-  DBUG_PRINT("info", ("All threads ended"));
 
   /* Find last LSN and flush up to it (all our log) */
   {
@@ -352,11 +344,6 @@ int main(int argc, char **argv __attribute__ ((unused)))
       if (cmp_translog_addr(lsns2[i][ITERATIONS - 1], max) > 0)
         max= lsns2[i][ITERATIONS - 1];
     }
-    DBUG_PRINT("info", ("first lsn: (%lu,0x%lx), max lsn: (%lu,0x%lx)",
-                        (ulong) LSN_FILE_NO(first_lsn),
-                        (ulong) LSN_OFFSET(first_lsn),
-                        (ulong) LSN_FILE_NO(max),
-                        (ulong) LSN_OFFSET(max)));
     translog_flush(max);
   }
 
@@ -398,8 +385,6 @@ int main(int argc, char **argv __attribute__ ((unused)))
       }
       index= indeces[rec.short_trid] / 2;
       stage= indeces[rec.short_trid] % 2;
-      printf("read(%d) thread: %d, iteration %d, stage %d\n",
-             i, (uint) rec.short_trid, index, stage);
       if (stage == 0)
       {
         if (rec.type !=LOGREC_LONG_TRANSACTION_ID ||
@@ -459,6 +444,7 @@ int main(int argc, char **argv __attribute__ ((unused)))
           goto err;
         }
       }
+      ok(1, "record read");
       translog_free_record_header(&rec);
       indeces[rec.short_trid]++;
     }
@@ -466,9 +452,13 @@ int main(int argc, char **argv __attribute__ ((unused)))
 
   rc= 0;
 err:
+  if (rc)
+    ok(0, "record read");
   translog_destroy();
   end_pagecache(&pagecache, 1);
   ma_control_file_end();
+  if (maria_log_remove())
+    exit(1);
 
-  DBUG_RETURN(test(exit_status() || rc));
+  return(exit_status());
 }

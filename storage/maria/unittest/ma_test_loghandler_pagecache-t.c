@@ -3,6 +3,8 @@
 #include <errno.h>
 #include <tap.h>
 
+extern my_bool maria_log_remove();
+
 #ifndef DBUG_OFF
 static const char *default_dbug_option;
 #endif
@@ -26,8 +28,12 @@ int main(int argc, char *argv[])
 
   MY_INIT(argv[0]);
 
+  plan(1);
+
   bzero(&pagecache, sizeof(pagecache));
   maria_data_root= ".";
+  if (maria_log_remove())
+    exit(1);
   /* be sure that we have no logs in the directory*/
   if (my_stat(CONTROL_FILE_BASE_NAME, &st,  MYF(0)))
     my_delete(CONTROL_FILE_BASE_NAME, MYF(0));
@@ -127,8 +133,10 @@ int main(int argc, char *argv[])
             "incorrect initial size of %s: %ld instead of %ld\n",
             first_translog_file,
             (long)st.st_size, (long)(TRANSLOG_PAGE_SIZE * 2));
+    ok(0, "log triggered");
     exit(1);
   }
+  ok(1, "log triggered");
 
   translog_destroy();
   end_pagecache(&pagecache, 1);
