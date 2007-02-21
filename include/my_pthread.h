@@ -69,7 +69,17 @@ typedef struct st_pthread_link {
 
 typedef struct {
   uint32 waiting;
-  HANDLE semaphore;
+  CRITICAL_SECTION lock_waiting;
+ 
+  enum {
+    SIGNAL= 0,
+    BROADCAST= 1,
+    MAX_EVENTS= 2
+  } EVENTS;
+
+  HANDLE events[MAX_EVENTS];
+  HANDLE broadcast_block_event;
+
 } pthread_cond_t;
 
 
