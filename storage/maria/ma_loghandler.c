@@ -360,6 +360,27 @@ const char *maria_data_root;
 
 
 /*
+  Check cursor/buffer consistence
+
+  SYNOPSIS
+    translog_check_cursor
+    cursor               cursor which will be checked
+*/
+
+#ifndef DBUG_OFF
+static void translog_check_cursor(struct st_buffer_cursor *cursor)
+{
+  DBUG_ASSERT(cursor->chaser ||
+              ((ulong) (cursor->ptr - cursor->buffer->buffer) ==
+               cursor->buffer->size));
+  DBUG_ASSERT(cursor->buffer->buffer_no == cursor->buffer_no);
+  DBUG_ASSERT((cursor->ptr -cursor->buffer->buffer) %TRANSLOG_PAGE_SIZE ==
+              cursor->current_page_fill % TRANSLOG_PAGE_SIZE);
+  DBUG_ASSERT(cursor->current_page_fill <= TRANSLOG_PAGE_SIZE);
+}
+#endif
+
+/*
   Get file name of the log by log number
 
   SYNOPSIS
@@ -696,11 +717,7 @@ static void translog_new_page_header(TRANSLOG_ADDRESS *horizon,
                       (uint) cursor->buffer->buffer_no, (ulong) cursor->buffer,
                       cursor->chaser, (ulong) cursor->buffer->size,
                       (ulong) (cursor->ptr - cursor->buffer->buffer)));
-  DBUG_ASSERT(cursor->chaser ||
-              ((ulong) (cursor->ptr - cursor->buffer->buffer) ==
-               cursor->buffer->size));
-  DBUG_ASSERT(cursor->buffer->buffer_no == cursor->buffer_no);
-  DBUG_ASSERT(cursor->current_page_fill <= TRANSLOG_PAGE_SIZE);
+  DBUG_EXECUTE("info", translog_check_cursor(cursor););
   DBUG_VOID_RETURN;
 }
 
@@ -814,12 +831,8 @@ static void translog_finish_page(TRANSLOG_ADDRESS *horizon,
                        (ulong) cursor->buffer->size,
                        (ulong) (cursor->ptr -cursor->buffer->buffer),
                        (uint) cursor->current_page_fill, (uint) left));
-  DBUG_ASSERT(cursor->ptr !=NULL);
-  DBUG_ASSERT((cursor->ptr -cursor->buffer->buffer) %TRANSLOG_PAGE_SIZE ==
-              cursor->current_page_fill % TRANSLOG_PAGE_SIZE);
   DBUG_ASSERT(LSN_FILE_NO(*horizon) == LSN_FILE_NO(cursor->buffer->offset));
-  DBUG_ASSERT(LSN_OFFSET(cursor->buffer->offset) +
-              (cursor->ptr -cursor->buffer->buffer) == LSN_OFFSET(*horizon));
+  DBUG_EXECUTE("info", translog_check_cursor(cursor););
   if (cursor->protected)
   {
     DBUG_PRINT("info", ("Already protected and finished"));
@@ -843,10 +856,7 @@ static void translog_finish_page(TRANSLOG_ADDRESS *horizon,
                         (ulong) cursor->buffer, cursor->chaser,
                         (ulong) cursor->buffer->size,
                         (ulong) (cursor->ptr - cursor->buffer->buffer)));
-    DBUG_ASSERT(cursor->chaser
-                || ((ulong) (cursor->ptr - cursor->buffer->buffer) ==
-                    cursor->buffer->size));
-    DBUG_ASSERT(cursor->buffer->buffer_no == cursor->buffer_no);
+    DBUG_EXECUTE("info", translog_check_cursor(cursor););
   }
   if (page[TRANSLOG_PAGE_FLAGS] & TRANSLOG_SECTOR_PROTECTION)
   {
@@ -1011,10 +1021,7 @@ static void translog_start_buffer(struct st_translog_buffer *buffer,
                       (uint) cursor->buffer->buffer_no, (ulong) cursor->buffer,
                       cursor->chaser, (ulong) cursor->buffer->size,
                       (ulong) (cursor->ptr - cursor->buffer->buffer)));
-  DBUG_ASSERT(cursor->chaser ||
-              ((ulong) (cursor->ptr - cursor->buffer->buffer) ==
-               cursor->buffer->size));
-  DBUG_ASSERT(cursor->buffer->buffer_no == cursor->buffer_no);
+  DBUG_EXECUTE("info", translog_check_cursor(cursor););
   DBUG_VOID_RETURN;
 }
 
@@ -1890,7 +1897,7 @@ my_bool translog_init(const char *directory,
        highest XXXXXXXX & set logs_found
       TODO: check that last checkpoint within present log addresses space
 
-       find the log end
+      find the log end
     */
     if (LSN_FILE_NO(last_checkpoint_lsn) == CONTROL_FILE_IMPOSSIBLE_FILENO)
     {
@@ -2042,13 +2049,7 @@ my_bool translog_init(const char *directory,
                           (ulong) log_descriptor.bc.buffer->size,
                           (ulong) (log_descriptor.bc.ptr - log_descriptor.bc.
                                    buffer->buffer)));
-      DBUG_ASSERT(log_descriptor.bc.chaser ||
-                  ((ulong)
-                   (log_descriptor.bc.ptr -log_descriptor.bc.buffer->buffer) ==
-                   log_descriptor.bc.buffer->size));
-      DBUG_ASSERT(log_descriptor.bc.buffer->buffer_no ==
-                  log_descriptor.bc.buffer_no);
-      DBUG_ASSERT(log_descriptor.bc.current_page_fill <= TRANSLOG_PAGE_SIZE);
+      DBUG_EXECUTE("info", translog_check_cursor(&log_descriptor.bc););
     }
   }
   DBUG_PRINT("info", ("Logs found: %d  was recovered: %d",
@@ -2332,11 +2333,7 @@ static my_bool translog_write_data_on_page(TRANSLOG_ADDRESS *horizon,
                       (uint) cursor->buffer->buffer_no, (ulong) cursor->buffer,
                       cursor->chaser, (ulong) cursor->buffer->size,
                       (ulong) (cursor->ptr - cursor->buffer->buffer)));
-  DBUG_ASSERT(cursor->chaser ||
-              ((ulong) (cursor->ptr - cursor->buffer->buffer) ==
-               cursor->buffer->size));
-  DBUG_ASSERT(cursor->buffer->buffer_no == cursor->buffer_no);
-  DBUG_ASSERT(cursor->current_page_fill <= TRANSLOG_PAGE_SIZE);
+  DBUG_EXECUTE("info", translog_check_cursor(cursor););
 
   DBUG_RETURN(0);
 }
@@ -2430,17 +2427,7 @@ static my_bool translog_write_parts_on_page(TRANSLOG_ADDRESS *horizon,
                       (ulong) LSN_OFFSET(*horizon),
                       (ulong) (LSN_OFFSET(cursor->buffer->offset) +
                                cursor->buffer->size)));
-  /*
-    TODO: make one check function for the buffer/loghandler
-  */
-
-  DBUG_ASSERT(cursor->chaser ||
-              ((ulong) (cursor->ptr - cursor->buffer->buffer) ==
-               cursor->buffer->size));
-  DBUG_ASSERT(cursor->buffer->buffer_no == cursor->buffer_no);
-  DBUG_ASSERT((cursor->ptr -cursor->buffer->buffer) %TRANSLOG_PAGE_SIZE ==
-              cursor->current_page_fill % TRANSLOG_PAGE_SIZE);
-  DBUG_ASSERT(cursor->current_page_fill <= TRANSLOG_PAGE_SIZE);
+  DBUG_EXECUTE("info", translog_check_cursor(cursor););
 
   DBUG_RETURN(0);
 }
@@ -2698,9 +2685,7 @@ static my_bool translog_advance_pointer(uint pages, uint16 last_page_data)
     translog_wait_for_buffer_free(new_buffer);
 
     min_offset= min(buffer_end_offset, file_end_offset);
-    /*
-      TODO: check is it ptr or size enough
-    */
+    /* TODO: check is it ptr or size enough */
     log_descriptor.bc.buffer->size+= min_offset;
     log_descriptor.bc.ptr+= min_offset;
     DBUG_PRINT("info", ("NewP buffer #%u: 0x%lx  chaser: %d  Size: %lu (%lu)",
@@ -2761,16 +2746,7 @@ static my_bool translog_advance_pointer(uint pages, uint16 last_page_data)
              ("pointer moved to: (%lu, 0x%lx)",
               (ulong) LSN_FILE_NO(log_descriptor.horizon),
               (ulong) LSN_OFFSET(log_descriptor.horizon)));
-  DBUG_ASSERT(log_descriptor.bc.chaser ||
-              ((ulong) (log_descriptor.bc.ptr -
-                        log_descriptor.bc.buffer->buffer)
-               == log_descriptor.bc.buffer->size));
-  DBUG_ASSERT(log_descriptor.bc.buffer->buffer_no ==
-              log_descriptor.bc.buffer_no);
-  DBUG_ASSERT((log_descriptor.bc.ptr - log_descriptor.bc.buffer->
-               buffer) %TRANSLOG_PAGE_SIZE ==
-              log_descriptor.bc.current_page_fill % TRANSLOG_PAGE_SIZE);
-  DBUG_ASSERT(log_descriptor.bc.current_page_fill <= TRANSLOG_PAGE_SIZE);
+  DBUG_EXECUTE("info", translog_check_cursor(&log_descriptor.bc););
   log_descriptor.bc.protected= 0;
   DBUG_RETURN(0);
 }
@@ -5132,14 +5108,9 @@ static void translog_force_current_buffer_to_finish()
   new_buff_begunning+= log_descriptor.bc.buffer->size; /* increase offset */
 
   DBUG_ASSERT(log_descriptor.bc.ptr !=NULL);
-  DBUG_ASSERT((log_descriptor.bc.ptr -log_descriptor.bc.buffer->buffer)
-              % TRANSLOG_PAGE_SIZE ==
-              log_descriptor.bc.current_page_fill % TRANSLOG_PAGE_SIZE);
   DBUG_ASSERT(LSN_FILE_NO(log_descriptor.horizon) ==
               LSN_FILE_NO(log_descriptor.bc.buffer->offset));
-  DBUG_ASSERT(LSN_OFFSET(log_descriptor.bc.buffer->offset) +
-              (log_descriptor.bc.ptr -log_descriptor.bc.buffer->buffer) ==
-              LSN_OFFSET(log_descriptor.horizon));
+  DBUG_EXECUTE("info", translog_check_cursor(&log_descriptor.bc););
   DBUG_ASSERT(left < TRANSLOG_PAGE_SIZE);
   if (left != 0)
   {
