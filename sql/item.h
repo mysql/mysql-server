@@ -1220,7 +1220,7 @@ public:
   uint have_privileges;
   /* field need any privileges (for VIEW creation) */
   bool any_privileges;
-
+  bool fixed_as_field;
   Item_field(Name_resolution_context *context_arg,
              const char *db_arg,const char *table_name_arg,
 	     const char *field_name_arg);
@@ -1824,7 +1824,7 @@ class Item_ref :public Item_ident
 protected:
   void set_properties();
 public:
-  enum Ref_Type { REF, DIRECT_REF, VIEW_REF };
+  enum Ref_Type { REF, DIRECT_REF, VIEW_REF, OUTER_REF };
   Field *result_field;			 /* Save result here */
   Item **ref;
   Item_ref(Name_resolution_context *context_arg,
@@ -1885,7 +1885,7 @@ public:
                           (*ref)->get_tmp_table_item(thd));
   }
   table_map used_tables() const		
-  { 
+  {
     return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
   }
   table_map not_null_tables() const { return (*ref)->not_null_tables(); }
@@ -1955,6 +1955,40 @@ public:
   bool fix_fields(THD *, Item **);
   bool eq(const Item *item, bool binary_cmp) const;
   virtual Ref_Type ref_type() { return VIEW_REF; }
+};
+
+
+class Item_outer_ref :public Item_direct_ref
+{
+public:
+  Item_field *outer_field;
+  Item_outer_ref(Name_resolution_context *context_arg,
+                 Item_field *outer_field_arg)
+    :Item_direct_ref(context_arg, 0, outer_field_arg->table_name,
+                          outer_field_arg->field_name),
+    outer_field(outer_field_arg)
+  {
+    ref= (Item**)&outer_field;
+    set_properties();
+    fixed= 0;
+  }
+  void cleanup()
+  {
+    ref= (Item**)&outer_field;
+    fixed= 0;
+    Item_direct_ref::cleanup();
+    outer_field->cleanup();
+  }
+  void save_in_result_field(bool no_conversions)
+  {
+    outer_field->save_org_in_field(result_field);
+  }
+  bool fix_fields(THD *, Item **);
+  table_map used_tables() const
+  {
+    return (*ref)->const_item() ? 0 : OUTER_REF_TABLE_BIT;
+  }
+  virtual Ref_Type ref_type() { return OUTER_REF; }
 };
 
 
