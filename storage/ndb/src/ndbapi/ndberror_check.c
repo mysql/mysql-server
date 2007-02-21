@@ -20,7 +20,7 @@ int main()
 {
   int i, j, error = 0;
 
-  // check for duplicate error codes
+  /* check for duplicate error codes */
   for(i = 0; i < NbErrorCodes; i++)
   {
     for(j = i + 1; j < NbErrorCodes; j++)
