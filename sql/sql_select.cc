@@ -269,6 +269,70 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
 
 
 /*
+  Fix fields referenced from inner selects.
+
+  SYNOPSIS
+    fix_inner_refs()
+    thd               Thread handle
+    all_fields        List of all fields used in select
+    select            Current select
+    ref_pointer_array Array of references to Items used in current select
+
+  DESCRIPTION
+    The function fixes fields referenced from inner selects and
+    also fixes references (Item_ref objects) to these fields. Each field
+    is fixed as a usual hidden field of the current select - it is added
+    to the all_fields list and the pointer to it is saved in the
+    ref_pointer_array if latter is provided.
+    After the field has been fixed we proceed with fixing references
+    (Item_ref objects) to this field from inner subqueries. If the
+    ref_pointer_array is provided then Item_ref objects is set to
+    reference element in that array with the pointer to the field.
+
+  RETURN
+    TRUE  an error occured
+    FALSE ok
+*/
+
+bool
+fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
+                 Item **ref_pointer_array)
+{
+  Item_outer_ref *ref;
+  bool res= FALSE;
+  List_iterator<Item_outer_ref> ref_it(select->inner_refs_list);
+  while ((ref= ref_it++))
+  {
+    Item_field *item= ref->outer_field;
+    /*
+      TODO: this field item already might be present in the select list.
+      In this case instead of adding new field item we could use an
+      existing one. The change will lead to less operations for copying fields,
+      smaller temporary tables and less data passed through filesort.
+    */
+    if (ref_pointer_array)
+    {
+      int el= all_fields.elements;
+      ref_pointer_array[el]= (Item*)item;
+      /* Add the field item to the select list of the current select. */
+      all_fields.push_front((Item*)item);
+      /*
+        If it's needed reset each Item_ref item that refers this field with
+        a new reference taken from ref_pointer_array.
+      */
+      ref->ref= ref_pointer_array + el;
+    }
+    if (!ref->fixed && ref->fix_fields(thd, 0))
+    {
+      res= TRUE;
+      break;
+    }
+    thd->used_tables|= item->used_tables();
+  }
+  return res;
+}
+
+/*
   Function to setup clauses without sum functions
 */
 inline int setup_without_group(THD *thd, Item **ref_pointer_array,
@@ -395,6 +459,10 @@ JOIN::prepare(Item ***rref_pointer_array,
   if (having && having->with_sum_func)
     having->split_sum_func2(thd, ref_pointer_array, all_fields,
                             &having, TRUE);
+  if (select_lex->inner_refs_list.elements &&
+      fix_inner_refs(thd, all_fields, select_lex, ref_pointer_array))
+    DBUG_RETURN(-1);
+
   if (select_lex->inner_sum_func_list)
   {
     Item_sum *end=select_lex->inner_sum_func_list;
@@ -5127,13 +5195,15 @@ get_store_key(THD *thd, KEYUSE *keyuse, table_map used_tables,
 				    key_part->length,
 				    keyuse->val);
   }
-  else if (keyuse->val->type() == Item::FIELD_ITEM)
+  else if (keyuse->val->type() == Item::FIELD_ITEM ||
+           (keyuse->val->type() == Item::REF_ITEM &&
+            ((Item_ref*)keyuse->val)->ref_type() == Item_ref::OUTER_REF) )
     return new store_key_field(thd,
 			       key_part->field,
 			       key_buff + maybe_null,
 			       maybe_null ? key_buff : 0,
 			       key_part->length,
-			       ((Item_field*) keyuse->val)->field,
+			       ((Item_field*) keyuse->val->real_item())->field,
 			       keyuse->val->full_name());
   return new store_key_item(thd,
 			    key_part->field,
@@ -8693,7 +8763,8 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
       type they needed to be handled separately.
     */
     if ((type= item->field_type()) == MYSQL_TYPE_DATETIME ||
-        type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE)
+        type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE ||
+        type == MYSQL_TYPE_TIMESTAMP)
       new_field= item->tmp_table_field_from_field_type(table);
     /* 
       Make sure that the blob fits into a Field_varstring which has 
@@ -8800,8 +8871,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   Item *orig_item= 0;
 
   if (type != Item::FIELD_ITEM &&
-      item->real_item()->type() == Item::FIELD_ITEM &&
-      !((Item_ref *) item)->depended_from)
+      item->real_item()->type() == Item::FIELD_ITEM)
   {
     orig_item= item;
     item= item->real_item();
@@ -13461,8 +13531,7 @@ count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
   {
     Item::Type type=field->type();
     Item::Type real_type= field->real_item()->type();
-    if (type == Item::FIELD_ITEM || (real_type == Item::FIELD_ITEM &&
-        !((Item_ref *) field)->depended_from))
+    if (real_type == Item::FIELD_ITEM)
       param->field_count++;
     else if (real_type == Item::SUM_FUNC_ITEM)
     {
