@@ -8195,7 +8195,7 @@ int QUICK_RANGE_SELECT::get_next()
       */
       end_key->flag=     (last_range->flag & NEAR_MAX ? HA_READ_BEFORE_KEY :
                           HA_READ_AFTER_KEY);
-      end_key->keypart_map= range->max_keypart_map;
+      end_key->keypart_map= last_range->max_keypart_map;
 
       mrange_slot->range_flag= last_range->flag;
     }
