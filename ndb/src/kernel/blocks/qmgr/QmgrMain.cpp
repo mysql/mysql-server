@@ -4774,34 +4774,6 @@ Qmgr::execDUMP_STATE_ORD(Signal* signal)
 #endif
 }//Qmgr::execDUMP_STATE_ORD()
 
-void Qmgr::execSET_VAR_REQ(Signal* signal) 
-{
-#if 0
-  SetVarReq* const setVarReq = (SetVarReq*)&signal->theData[0];
-  ConfigParamId var = setVarReq->variable();
-  UintR val = setVarReq->value();
-
-  switch (var) {
-  case HeartbeatIntervalDbDb:
-    setHbDelay(val/10);
-    sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
-    break;
-
-  case HeartbeatIntervalDbApi:
-    setHbApiDelay(val/10);
-    sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
-    break;
-
-  case ArbitTimeout:
-    setArbitTimeout(val);
-    sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
-    break;
-
-  default:
-    sendSignal(CMVMI_REF, GSN_SET_VAR_REF, signal, 1, JBB);
-  }// switch
-#endif
-}//execSET_VAR_REQ()
 
 void
 Qmgr::execAPI_BROADCAST_REP(Signal* signal)

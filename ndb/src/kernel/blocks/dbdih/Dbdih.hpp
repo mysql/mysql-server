@@ -693,7 +693,6 @@ private:
   void execFSREADREF(Signal *);
   void execFSWRITECONF(Signal *);
   void execFSWRITEREF(Signal *);
-  void execSET_VAR_REQ(Signal *);
   void execCHECKNODEGROUPSREQ(Signal *);
   void execSTART_INFOREQ(Signal*);
   void execSTART_INFOREF(Signal*);
@@ -1367,6 +1366,7 @@ private:
   Uint32 csystemnodes;
   Uint32 currentgcp;
   Uint32 c_newest_restorable_gci;
+  Uint32 c_set_initial_start_flag;
 
   enum GcpMasterTakeOverState {
     GMTOS_IDLE = 0,
