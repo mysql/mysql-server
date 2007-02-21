@@ -232,11 +232,11 @@ bool Item_subselect::const_item() const
   return const_item_cache;
 }
 
-Item *Item_subselect::get_tmp_table_item(THD *thd)
+Item *Item_subselect::get_tmp_table_item(THD *thd_arg)
 {
   if (!with_sum_func && !const_item())
     return new Item_field(result_field);
-  return copy_or_same(thd);
+  return copy_or_same(thd_arg);
 }
 
 void Item_subselect::update_used_tables()
@@ -551,13 +551,13 @@ void Item_exists_subselect::print(String *str)
 }
 
 
-bool Item_in_subselect::test_limit(SELECT_LEX_UNIT *unit)
+bool Item_in_subselect::test_limit(SELECT_LEX_UNIT *unit_arg)
 {
-  if (unit->fake_select_lex &&
-      unit->fake_select_lex->test_limit())
+  if (unit_arg->fake_select_lex &&
+      unit_arg->fake_select_lex->test_limit())
     return(1);
 
-  SELECT_LEX *sl= unit->first_select();
+  SELECT_LEX *sl= unit_arg->first_select();
   for (; sl; sl= sl->next_select())
   {
     if (sl->test_limit())
@@ -829,7 +829,6 @@ Item_subselect::trans_res
 Item_in_subselect::single_value_transformer(JOIN *join,
 					    Comp_creator *func)
 {
-  Item_subselect::trans_res result= RES_ERROR;
   SELECT_LEX *select_lex= join->select_lex;
   DBUG_ENTER("Item_in_subselect::single_value_transformer");
 
@@ -927,7 +926,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   if (!substitution)
   {
     /* We're invoked for the 1st (or the only) SELECT in the subquery UNION */
-    SELECT_LEX_UNIT *unit= select_lex->master_unit();
+    SELECT_LEX_UNIT *master_unit= select_lex->master_unit();
     substitution= optimizer;
 
     SELECT_LEX *current= thd->lex->current_select, *up;
@@ -950,7 +949,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 			      (char *)"<no matter>",
 			      (char *)in_left_expr_name);
 
-    unit->uncacheable|= UNCACHEABLE_DEPENDENT;
+    master_unit->uncacheable|= UNCACHEABLE_DEPENDENT;
   }
   if (!abort_on_null && left_expr->maybe_null && !pushed_cond_guards)
   {
@@ -1149,7 +1148,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
   if (!substitution)
   {
     //first call for this unit
-    SELECT_LEX_UNIT *unit= select_lex->master_unit();
+    SELECT_LEX_UNIT *master_unit= select_lex->master_unit();
     substitution= optimizer;
 
     SELECT_LEX *current= thd->lex->current_select, *up;
@@ -1198,7 +1197,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     {
       DBUG_ASSERT(left_expr->fixed && select_lex->ref_pointer_array[i]->fixed);
       if (select_lex->ref_pointer_array[i]->
-          check_cols(left_expr->el(i)->cols()))
+          check_cols(left_expr->element_index(i)->cols()))
         DBUG_RETURN(RES_ERROR);
       Item *item_eq=
         new Item_func_eq(new
@@ -1272,7 +1271,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
       Item *item, *item_isnull;
       DBUG_ASSERT(left_expr->fixed && select_lex->ref_pointer_array[i]->fixed);
       if (select_lex->ref_pointer_array[i]->
-          check_cols(left_expr->el(i)->cols()))
+          check_cols(left_expr->element_index(i)->cols()))
         DBUG_RETURN(RES_ERROR);
       item=
         new Item_func_eq(new
@@ -1474,14 +1473,14 @@ void Item_in_subselect::print(String *str)
 }
 
 
-bool Item_in_subselect::fix_fields(THD *thd, Item **ref)
+bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
 {
   bool result = 0;
   
-  if(thd->lex->view_prepare_mode && left_expr && !left_expr->fixed)
-    result = left_expr->fix_fields(thd, &left_expr);
+  if (thd_arg->lex->view_prepare_mode && left_expr && !left_expr->fixed)
+    result = left_expr->fix_fields(thd_arg, &left_expr);
 
-  return result || Item_subselect::fix_fields(thd, ref);
+  return result || Item_subselect::fix_fields(thd_arg, ref);
 }
 
 
@@ -1520,13 +1519,13 @@ void subselect_engine::set_thd(THD *thd_arg)
 
 subselect_single_select_engine::
 subselect_single_select_engine(st_select_lex *select,
-			       select_subselect *result,
-			       Item_subselect *item)
-  :subselect_engine(item, result),
+			       select_subselect *result_arg,
+			       Item_subselect *item_arg)
+  :subselect_engine(item_arg, result_arg),
    prepared(0), optimized(0), executed(0),
    select_lex(select), join(0)
 {
-  select_lex->master_unit()->item= item;
+  select_lex->master_unit()->item= item_arg;
 }
 
 

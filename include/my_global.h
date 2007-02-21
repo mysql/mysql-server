@@ -540,7 +540,7 @@ typedef unsigned short ushort;
   duplicate declaration of __cxa_pure_virtual, solved by declaring it a
   weak symbol.
 */
-#ifdef USE_MYSYS_NEW
+#if defined(USE_MYSYS_NEW) && ! defined(DONT_DECLARE_CXA_PURE_VIRTUAL)
 C_MODE_START
 int __cxa_pure_virtual () __attribute__ ((weak));
 C_MODE_END
@@ -1078,7 +1078,7 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 */
 #define uint3korr(A)	(long) (*((unsigned int *) (A)) & 0xFFFFFF)
 #endif
-#define uint4korr(A)	(*((unsigned long *) (A)))
+#define uint4korr(A)	(*((uint32 *) (A)))
 #define uint5korr(A)	((ulonglong)(((uint32) ((uchar) (A)[0])) +\
 				    (((uint32) ((uchar) (A)[1])) << 8) +\
 				    (((uint32) ((uchar) (A)[2])) << 16) +\

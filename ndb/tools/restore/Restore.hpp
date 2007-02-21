@@ -25,7 +25,7 @@
 #include <ndb_version.h>
 #include <version.h>
 
-static const char * delimiter = ";"; // Delimiter in file dump
+#define delimiter ";"
 
 const int FileNameLenC = 256;
 const int TableNameLenC = 256;
@@ -358,6 +358,7 @@ public:
       m_values_e.push_back(m_values[i]);
     m_values.clear();
   }
+  LogEntry() {}
   ~LogEntry()
   {
     Uint32 i;

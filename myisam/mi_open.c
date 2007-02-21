@@ -364,11 +364,11 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
           }
           else
           {
-            uint j;
+            uint k;
             share->keyinfo[i].seg=pos;
-            for (j=0; j < FT_SEGS; j++)
+            for (k=0; k < FT_SEGS; k++)
             {
-              *pos=ft_keysegs[j];
+              *pos= ft_keysegs[k];
               pos[0].language= pos[-1].language;
               if (!(pos[0].charset= pos[-1].charset))
               {

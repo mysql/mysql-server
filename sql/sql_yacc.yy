@@ -4922,9 +4922,9 @@ simple_expr:
           }
           udf_expr_list ')'
           {
+            LEX *lex= Lex;
 #ifdef HAVE_DLOPEN
             udf_func *udf;
-            LEX *lex= Lex;
 
             if (NULL != (udf= lex->current_select->udf_list.pop()))
             {
@@ -5003,7 +5003,6 @@ simple_expr:
             else
 #endif /* HAVE_DLOPEN */
             {
-	      LEX *lex= Lex;
               THD *thd= lex->thd;
               LEX_STRING db;
               if (thd->copy_db_to(&db.str, &db.length))
@@ -5462,7 +5461,6 @@ join_table:
 	| table_ref normal_join table_ref
 	  USING
 	  {
-	    SELECT_LEX *sel= Select;
             YYERROR_UNLESS($1 && $3);
 	  }
 	  '(' using_list ')'
@@ -5493,7 +5491,6 @@ join_table:
           }
 	| table_ref LEFT opt_outer JOIN_SYM table_factor
 	  {
-	    SELECT_LEX *sel= Select;
             YYERROR_UNLESS($1 && $5);
 	  }
 	  USING '(' using_list ')'
@@ -5531,7 +5528,6 @@ join_table:
           }
 	| table_ref RIGHT opt_outer JOIN_SYM table_factor
 	  {
-	    SELECT_LEX *sel= Select;
             YYERROR_UNLESS($1 && $5);
 	  }
 	  USING '(' using_list ')'
@@ -9219,7 +9215,6 @@ subselect:
         }
         | '(' subselect_start subselect ')'
           {
-            LEX *lex= Lex;
 	    THD *thd= YYTHD;
             /*
               note that a local variable can't be used for
