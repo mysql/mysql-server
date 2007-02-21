@@ -1609,7 +1609,7 @@ void Item_ident_for_show::make_field(Send_field *tmp_field)
 Item_field::Item_field(Field *f)
   :Item_ident(0, NullS, *f->table_name, f->field_name),
   item_equal(0), no_const_subst(0),
-   have_privileges(0), any_privileges(0)
+   have_privileges(0), any_privileges(0), fixed_as_field(0)
 {
   set_field(f);
   /*
@@ -1623,7 +1623,7 @@ Item_field::Item_field(THD *thd, Name_resolution_context *context_arg,
                        Field *f)
   :Item_ident(context_arg, f->table->s->db, *f->table_name, f->field_name),
    item_equal(0), no_const_subst(0),
-   have_privileges(0), any_privileges(0)
+   have_privileges(0), any_privileges(0), fixed_as_field(0)
 {
   /*
     We always need to provide Item_field with a fully qualified field
@@ -1662,7 +1662,7 @@ Item_field::Item_field(Name_resolution_context *context_arg,
                        const char *field_name_arg)
   :Item_ident(context_arg, db_arg,table_name_arg,field_name_arg),
    field(0), result_field(0), item_equal(0), no_const_subst(0),
-   have_privileges(0), any_privileges(0)
+   have_privileges(0), any_privileges(0), fixed_as_field(0)
 {
   collation.set(DERIVATION_IMPLICIT);
 }
@@ -1675,7 +1675,8 @@ Item_field::Item_field(THD *thd, Item_field *item)
    item_equal(item->item_equal),
    no_const_subst(item->no_const_subst),
    have_privileges(item->have_privileges),
-   any_privileges(item->any_privileges)
+   any_privileges(item->any_privileges),
+   fixed_as_field(item->fixed_as_field)
 {
   collation.set(DERIVATION_IMPLICIT);
 }
@@ -3484,8 +3485,46 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
         }
         if (*from_field != view_ref_found)
         {
+
           prev_subselect_item->used_tables_cache|= (*from_field)->table->map;
           prev_subselect_item->const_item_cache= 0;
+          if (!last_checked_context->select_lex->having_fix_field &&
+              !fixed_as_field)
+          {
+            Item_outer_ref *rf;
+            Query_arena *arena= 0, backup;
+            /*
+              Each outer field is replaced for an Item_outer_ref object.
+              This is done in order to get correct results when the outer
+              select employs a temporary table.
+              The original fields are saved in the inner_fields_list of the
+              outer select. This list is created by the following reasons:
+              1. We can't add field items to the outer select list directly
+                 because the outer select hasn't been fully fixed yet.
+              2. We need a location to refer to in the Item_ref object
+                 so the inner_fields_list is used as such temporary
+                 reference storage.
+              The new Item_outer_ref object replaces the original field and is
+              also saved in the inner_refs_list of the outer select. Here
+              it is only created. It can be fixed only after the original
+              field has been fixed and this is done in the fix_inner_refs()
+              function.
+            */
+            set_field(*from_field);
+            arena= thd->activate_stmt_arena_if_needed(&backup);
+            rf= new Item_outer_ref(context, this);
+            if (!rf)
+            {
+              if (arena)
+                thd->restore_active_arena(arena, &backup);
+              return -1;
+            }
+            *reference= rf;
+            select->inner_refs_list.push_back(rf);
+            if (arena)
+              thd->restore_active_arena(arena, &backup);
+            fixed_as_field= 1;
+          }
           if (thd->lex->in_sum_func &&
               thd->lex->in_sum_func->nest_level == 
               thd->lex->current_select->nest_level)
@@ -3612,7 +3651,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
   {
     mark_as_dependent(thd, last_checked_context->select_lex,
                       context->select_lex,
-                      this, this);
+                      this, (Item_ident*)*reference);
     if (last_checked_context->select_lex->having_fix_field)
     {
       Item_ref *rf;
@@ -4818,8 +4857,7 @@ Item_ref::Item_ref(Name_resolution_context *context_arg,
   /*
     This constructor used to create some internals references over fixed items
   */
-  DBUG_ASSERT(ref != 0);
-  if (*ref && (*ref)->fixed)
+  if (ref && *ref && (*ref)->fixed)
     set_properties();
 }
 
@@ -5119,7 +5157,7 @@ void Item_ref::print(String *str)
   if (ref)
   {
     if ((*ref)->type() != Item::CACHE_ITEM && ref_type() != VIEW_REF &&
-        name && alias_name_used)
+        ref_type() != OUTER_REF && name && alias_name_used)
     {
       THD *thd= current_thd;
       append_identifier(thd, str, name, (uint) strlen(name));
@@ -5367,7 +5405,7 @@ bool Item_direct_ref::get_date(TIME *ltime,uint fuzzydate)
 
 
 /*
-  Prepare referenced view viewld then call usual Item_direct_ref::fix_fields
+  Prepare referenced field then call usual Item_direct_ref::fix_fields
 
   SYNOPSIS
     Item_direct_view_ref::fix_fields()
@@ -5386,6 +5424,30 @@ bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
   /* (*ref)->check_cols() will be made in Item_direct_ref::fix_fields */
   if (!(*ref)->fixed &&
       ((*ref)->fix_fields(thd, ref)))
+    return TRUE;
+  return Item_direct_ref::fix_fields(thd, reference);
+}
+
+/*
+  Prepare referenced outer field then call usual Item_direct_ref::fix_fields
+
+  SYNOPSIS
+    Item_outer_ref::fix_fields()
+    thd         thread handler
+    reference   reference on reference where this item stored
+
+  RETURN
+    FALSE   OK
+    TRUE    Error
+*/
+
+bool Item_outer_ref::fix_fields(THD *thd, Item **reference)
+{
+  DBUG_ASSERT(*ref);
+  /* outer_field->check_cols() will be made in Item_direct_ref::fix_fields */
+  outer_field->fixed_as_field= 1;
+  if (!outer_field->fixed &&
+      (outer_field->fix_fields(thd, reference)))
     return TRUE;
   return Item_direct_ref::fix_fields(thd, reference);
 }
