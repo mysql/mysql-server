@@ -2058,7 +2058,7 @@ my_bool translog_init(const char *directory,
   {
     /* Start new log system from scratch */
     /* Used space */
-    log_descriptor.horizon= MAKE_LSN(1, TRANSLOG_PAGE_SIZE);    // header page
+    log_descriptor.horizon= MAKE_LSN(1, TRANSLOG_PAGE_SIZE); /* header page */
     /* Current logs file number in page cache */
     if ((log_descriptor.log_file_num[0]=
          open_logfile_by_number_no_cache(1)) == -1 ||
