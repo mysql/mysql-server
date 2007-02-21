@@ -3649,6 +3649,7 @@ sub mysqld_arguments ($$$$$) {
       mtr_add_arg($args, "%s--ndbcluster", $prefix);
       mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
 		  $cluster->{'connect_string'});
+      mtr_add_arg($args, "%s--ndb-wait-connected=20", $prefix);
       if ( $mysql_version_id >= 50100 )
       {
 	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
@@ -3740,6 +3741,7 @@ sub mysqld_arguments ($$$$$) {
       mtr_add_arg($args, "%s--ndbcluster", $prefix);
       mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
 		  $clusters->[$slave->[$idx]->{'cluster'}]->{'connect_string'});
+      mtr_add_arg($args, "%s--ndb-wait-connected=20", $prefix);
       if ( $mysql_version_id >= 50100 )
       {
 	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
