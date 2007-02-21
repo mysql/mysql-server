@@ -244,7 +244,6 @@ private:
   void execAPI_REGREQ(Signal* signal);
   void execAPI_FAILCONF(Signal* signal);
   void execREAD_NODESREQ(Signal* signal);
-  void execSET_VAR_REQ(Signal* signal);
 
   void execREAD_NODESREF(Signal* signal);
   void execREAD_NODESCONF(Signal* signal);

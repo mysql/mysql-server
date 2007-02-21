@@ -132,6 +132,8 @@ SignalSender::getNoOfConnectedNodes() const {
 
 SendStatus
 SignalSender::sendSignal(Uint16 nodeId, const SimpleSignal * s){
+  assert(getNodeInfo(nodeId).m_api_reg_conf == true ||
+         s->readSignalNumber() == GSN_API_REGREQ);
   return theFacade->theTransporterRegistry->prepareSend(&s->header,
 							1, // JBB
 							&s->theData[0],
