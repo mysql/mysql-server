@@ -1353,6 +1353,68 @@ runBug26481(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int 
+runBug26450(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Uint32 i;
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  NdbRestarter res;
+  Ndb* pNdb = GETNDB(step);
+  
+  int node = res.getRandomNotMasterNodeId(rand());
+  Vector<int> nodes;
+  for (unsigned i = 0; i<res.getNumDbNodes(); i++)
+  {
+    if (res.getDbNodeId(i) != node)
+      nodes.push_back(res.getDbNodeId(i));
+  }
+  
+  if (res.restartAll())
+    return NDBT_FAILED;
+
+  if (res.waitClusterStarted())
+    return NDBT_FAILED;
+
+  ndbout_c("node: %d", node);
+  if (res.restartOneDbNode(node, false, true, true))
+    return NDBT_FAILED;
+  
+  if (res.waitNodesNoStart(&node, 1))
+    return NDBT_FAILED;
+
+  if (runClearTable(ctx, step))
+    return NDBT_FAILED;
+
+  for (i = 0; i < 2; i++)
+  {
+    if (res.restartAll(false, true, i > 0))
+      return NDBT_FAILED;
+    
+    if (res.waitClusterNoStart())
+      return NDBT_FAILED;
+    
+    if (res.startNodes(nodes.getBase(), nodes.size()))
+      return NDBT_FAILED;
+
+    if (res.waitNodesStarted(nodes.getBase(), nodes.size()))
+      return NDBT_FAILED;
+  }
+
+  if (res.startNodes(&node, 1))
+    return NDBT_FAILED;
+
+  if (res.waitNodesStarted(&node, 1))
+    return NDBT_FAILED;
+
+  HugoTransactions trans (* ctx->getTab());
+  if (trans.selectCount(pNdb) != 0)
+    return NDBT_FAILED;
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -1696,6 +1758,10 @@ TESTCASE("Bug26457", ""){
 }
 TESTCASE("Bug26481", ""){
   INITIALIZER(runBug26481);
+}
+TESTCASE("Bug26450", ""){
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runBug26450);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 
