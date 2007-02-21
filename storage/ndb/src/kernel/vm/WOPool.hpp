@@ -20,9 +20,11 @@
 
 struct WOPage
 {
+  STATIC_CONST( WOPAGE_WORDS = GLOBAL_PAGE_SIZE_WORDS - 2 );
+
   Uint32 m_type_id;
   Uint32 m_ref_count;
-  Uint32 m_data[GLOBAL_PAGE_SIZE_WORDS - 2];
+  Uint32 m_data[WOPAGE_WORDS];
 };
 
 /**
@@ -61,7 +63,7 @@ WOPool::seize(Ptr<void>& ptr)
   Uint32 pos = m_current_pos;
   Uint32 size = m_record_info.m_size;
   WOPage *pageP = m_current_page;
-  if (likely(pos + size < GLOBAL_PAGE_SIZE_WORDS))
+  if (likely(pos + size < WOPage::WOPAGE_WORDS))
   {
     ptr.i = (m_current_page_no << POOL_RECORD_BITS) + pos;
     ptr.p = (pageP->m_data + pos);
