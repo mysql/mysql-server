@@ -1356,6 +1356,7 @@ int bin2decimal(char *from, decimal_t *to, int precision, int scale)
   {
     int i=dig2bytes[intg0x];
     dec1 x;
+    LINT_INIT(x);
     switch (i)
     {
       case 1: x=mi_sint1korr(from); break;
@@ -1397,6 +1398,7 @@ int bin2decimal(char *from, decimal_t *to, int precision, int scale)
   {
     int i=dig2bytes[frac0x];
     dec1 x;
+    LINT_INIT(x);
     switch (i)
     {
       case 1: x=mi_sint1korr(from); break;
@@ -1483,6 +1485,7 @@ decimal_round(decimal_t *from, decimal_t *to, int scale,
 
   sanity(to);
 
+  LINT_INIT(round_digit);
   switch (mode) {
   case HALF_UP:
   case HALF_EVEN:       round_digit=5; break;

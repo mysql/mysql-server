@@ -839,7 +839,10 @@ static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
 			       field->field_name,
 			       &table);
     if (!regfield)
+    {
+      error= 1;
       goto err;                                 // End of memory
+    }
 
     if (!(field->flags & NOT_NULL_FLAG))
     {
