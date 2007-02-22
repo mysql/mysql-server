@@ -434,3 +434,22 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	21
 DROP TABLE t1;
+CREATE TABLE t1 (
+a INT(11),
+quux decimal( 31, 30 ),
+UNIQUE KEY bar (a),
+KEY quux (quux)
+);
+INSERT INTO
+t1 ( a, quux )
+VALUES
+( 1,    1 ),
+( 2,  0.1 );
+INSERT INTO t1( a )
+SELECT @newA := 1 + a FROM t1 WHERE quux <= 0.1;
+SELECT * FROM t1;
+a	quux
+1	1.000000000000000000000000000000
+2	0.100000000000000000000000000000
+3	NULL
+DROP TABLE t1;
