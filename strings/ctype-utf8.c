@@ -1719,8 +1719,8 @@ int my_wildcmp_unicode(CHARSET_INFO *cs,
   int result= -1;			/* Not found, using wildcards */
   my_wc_t s_wc, w_wc;
   int scan, plane;
-  int (*mb_wc)(struct charset_info_st *cs, my_wc_t *wc,
-               const unsigned char *s,const unsigned char *e);
+  int (*mb_wc)(struct charset_info_st *, my_wc_t *,
+               const unsigned char *, const unsigned char *);
   mb_wc= cs->cset->mb_wc;
   
   while (wildstr != wildend)
@@ -2310,6 +2310,7 @@ static int my_strnncoll_utf8(CHARSET_INFO *cs,
   const uchar *se=s+slen;
   const uchar *te=t+tlen;
   MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  LINT_INIT(s_wc);
 
   while ( s < se && t < te )
   {
@@ -2379,6 +2380,7 @@ static int my_strnncollsp_utf8(CHARSET_INFO *cs,
   my_wc_t s_wc,t_wc;
   const uchar *se= s+slen, *te= t+tlen;
   MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  LINT_INIT(s_wc);
 
 #ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
   diff_if_only_endspace_difference= 0;

@@ -229,7 +229,7 @@ void SSL_free(SSL* ssl)
 }
 
 
-int SSL_set_fd(SSL* ssl, int fd)
+int SSL_set_fd(SSL* ssl, socket_t fd)
 {
     ssl->useSocket().set_fd(fd);
     return SSL_SUCCESS;
@@ -950,7 +950,7 @@ void ERR_print_errors_fp(FILE* /*fp*/)
 
 char* ERR_error_string(unsigned long errNumber, char* buffer)
 {
-    static char* msg = "Please supply a buffer for error string";
+  static char* msg = (char*) "Please supply a buffer for error string";
 
     if (buffer) {
         SetErrorString(YasslError(errNumber), buffer);

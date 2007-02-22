@@ -376,16 +376,16 @@ int decimal2string(decimal_t *from, char *to, int *to_len,
   }
   else if (unlikely(len > --*to_len)) /* reserve one byte for \0 */
   {
-    int i=len-*to_len;
-    error= (frac && i <= frac + 1) ? E_DEC_TRUNCATED : E_DEC_OVERFLOW;
-    if (frac && i >= frac + 1) i--;
-    if (i > frac)
+    int j= len-*to_len;
+    error= (frac && j <= frac + 1) ? E_DEC_TRUNCATED : E_DEC_OVERFLOW;
+    if (frac && j >= frac + 1) j--;
+    if (j > frac)
     {
-      intg-= i-frac;
+      intg-= j-frac;
       frac= 0;
     }
     else
-      frac-=i;
+      frac-=j;
     len= from->sign + intg_len + test(frac) + frac_len;
   }
   *to_len=len;
@@ -905,7 +905,8 @@ internal_str2dec(const char *from, decimal_t *to, char **end, my_bool fixed)
   if (endp+1 < end_of_string && (*endp == 'e' || *endp == 'E'))
   {
     int str_error;
-    longlong exp= my_strtoll10(endp+1, (char**) &end_of_string, &str_error);
+    longlong exponent= my_strtoll10(endp+1, (char**) &end_of_string,
+                                    &str_error);
 
     if (end_of_string != endp +1)               /* If at least one digit */
     {
@@ -915,18 +916,18 @@ internal_str2dec(const char *from, decimal_t *to, char **end, my_bool fixed)
         error= E_DEC_BAD_NUM;
         goto fatal_error;
       }
-      if (exp > INT_MAX/2 || (str_error == 0 && exp < 0))
+      if (exponent > INT_MAX/2 || (str_error == 0 && exponent < 0))
       {
         error= E_DEC_OVERFLOW;
         goto fatal_error;
       }
-      if (exp < INT_MIN/2 && error != E_DEC_OVERFLOW)
+      if (exponent < INT_MIN/2 && error != E_DEC_OVERFLOW)
       {
         error= E_DEC_TRUNCATED;
         goto fatal_error;
       }
       if (error != E_DEC_OVERFLOW)
-        error= decimal_shift(to, (int) exp);
+        error= decimal_shift(to, (int) exponent);
     }
   }
   return error;
@@ -1355,6 +1356,7 @@ int bin2decimal(char *from, decimal_t *to, int precision, int scale)
   {
     int i=dig2bytes[intg0x];
     dec1 x;
+    LINT_INIT(x);
     switch (i)
     {
       case 1: x=mi_sint1korr(from); break;
@@ -1396,6 +1398,7 @@ int bin2decimal(char *from, decimal_t *to, int precision, int scale)
   {
     int i=dig2bytes[frac0x];
     dec1 x;
+    LINT_INIT(x);
     switch (i)
     {
       case 1: x=mi_sint1korr(from); break;
@@ -1482,6 +1485,7 @@ decimal_round(decimal_t *from, decimal_t *to, int scale,
 
   sanity(to);
 
+  LINT_INIT(round_digit);
   switch (mode) {
   case HALF_UP:
   case HALF_EVEN:       round_digit=5; break;
@@ -2080,7 +2084,7 @@ static int do_div_mod(decimal_t *from1, decimal_t *from2,
 {
   int frac1=ROUND_UP(from1->frac)*DIG_PER_DEC1, prec1=from1->intg+frac1,
       frac2=ROUND_UP(from2->frac)*DIG_PER_DEC1, prec2=from2->intg+frac2,
-      error, i, intg0, frac0, len1, len2, dintg, div=(!mod);
+      error, i, intg0, frac0, len1, len2, dintg, div_mod=(!mod);
   dec1 *buf0, *buf1=from1->buf, *buf2=from2->buf, *tmp1,
        *start2, *stop2, *stop1, *stop0, norm2, carry, *start1, dcarry;
   dec2 norm_factor, x, guess, y;
@@ -2163,7 +2167,7 @@ static int do_div_mod(decimal_t *from1, decimal_t *from2,
   }
   buf0=to->buf;
   stop0=buf0+intg0+frac0;
-  if (likely(div))
+  if (likely(div_mod))
     while (dintg++ < 0)
       *buf0++=0;
 
@@ -2254,7 +2258,7 @@ static int do_div_mod(decimal_t *from1, decimal_t *from2,
         }
       }
     }
-    if (likely(div))
+    if (likely(div_mod))
       *buf0=(dec1)guess;
     dcarry= *start1;
     start1++;

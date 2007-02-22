@@ -244,8 +244,6 @@ NdbIndexOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64  aTransactionId)
 // Simple state is set if start and commit is set and it is
 // a read request. Otherwise it is set to zero.
 //-------------------------------------------------------------
-  Uint8 tReadInd = (theOperationType == ReadRequest);
-  Uint8 tSimpleState = tReadInd & tSimpleAlt;
   //theNdbCon->theSimpleState = tSimpleState;
 
   tcKeyReq->transId1           = tTransId1;

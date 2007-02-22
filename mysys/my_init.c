@@ -197,7 +197,9 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
   }
 
   if (!(infoflag & MY_DONT_FREE_DBUG))
+  {
     DBUG_END();                /* Must be done before my_thread_end */
+  }
 #ifdef THREAD
   my_thread_end();
   my_thread_global_end();

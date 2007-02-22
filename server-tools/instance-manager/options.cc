@@ -312,27 +312,27 @@ int Options::load(int argc, char **argv)
         '.angel.pid'.
       */
 
-      char *angel_pid_file_name;
+      char *local_angel_pid_file_name;
       char *base_name_ptr;
       char *ext_ptr;
 
-      angel_pid_file_name= (char *) malloc(strlen(Options::pid_file_name) +
-                                           ANGEL_PID_FILE_SUFFIX_LEN);
+      local_angel_pid_file_name= (char *) malloc(strlen(Options::pid_file_name) +
+                                                 ANGEL_PID_FILE_SUFFIX_LEN);
 
-      strcpy(angel_pid_file_name, Options::pid_file_name);
+      strcpy(local_angel_pid_file_name, Options::pid_file_name);
 
-      base_name_ptr= strrchr(angel_pid_file_name, '/');
+      base_name_ptr= strrchr(local_angel_pid_file_name, '/');
 
       if (!base_name_ptr)
-        base_name_ptr= angel_pid_file_name + 1;
+        base_name_ptr= local_angel_pid_file_name + 1;
 
       ext_ptr= strrchr(base_name_ptr, '.');
       if (ext_ptr)
         *ext_ptr= 0;
 
-      strcat(angel_pid_file_name, ANGEL_PID_FILE_SUFFIX);
+      strcat(local_angel_pid_file_name, ANGEL_PID_FILE_SUFFIX);
 
-      Options::angel_pid_file_name= angel_pid_file_name;
+      Options::angel_pid_file_name= local_angel_pid_file_name;
     }
     else
     {

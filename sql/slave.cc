@@ -1695,7 +1695,7 @@ static int init_relay_log_info(RELAY_LOG_INFO* rli,
   char fname[FN_REFLEN+128];
   int info_fd;
   const char* msg = 0;
-  int error = 0;
+  int error;
   DBUG_ENTER("init_relay_log_info");
 
   if (rli->inited)                       // Set if this function called
@@ -1800,11 +1800,11 @@ file '%s', errno %d)", fname, my_errno);
   }
   else // file exists
   {
+    error= 0;
     if (info_fd >= 0)
       reinit_io_cache(&rli->info_file, READ_CACHE, 0L,0,0);
     else 
     {
-      int error=0;
       if ((info_fd = my_open(fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0)
       {
         sql_print_error("\
@@ -2514,12 +2514,12 @@ bool show_master_info(THD* thd, MASTER_INFO* mi)
     if ((mi->slave_running == MYSQL_SLAVE_RUN_CONNECT) &&
         mi->rli.slave_running)
     {
-      long tmp= (long)((time_t)time((time_t*) 0)
-                               - mi->rli.last_master_timestamp)
-        - mi->clock_diff_with_master;
+      long time_diff= ((long)((time_t)time((time_t*) 0)
+                              - mi->rli.last_master_timestamp)
+                       - mi->clock_diff_with_master);
       /*
-        Apparently on some systems tmp can be <0. Here are possible reasons
-        related to MySQL:
+        Apparently on some systems time_diff can be <0. Here are possible
+        reasons related to MySQL:
         - the master is itself a slave of another master whose time is ahead.
         - somebody used an explicit SET TIMESTAMP on the master.
         Possible reason related to granularity-to-second of time functions
@@ -2537,8 +2537,8 @@ bool show_master_info(THD* thd, MASTER_INFO* mi)
         last_master_timestamp == 0 (an "impossible" timestamp 1970) is a
         special marker to say "consider we have caught up".
       */
-      protocol->store((longlong)(mi->rli.last_master_timestamp ? max(0, tmp)
-                                 : 0));
+      protocol->store((longlong)(mi->rli.last_master_timestamp ?
+                                 max(0, time_diff) : 0));
     }
     else
       protocol->store_null();
@@ -3586,15 +3586,17 @@ after reconnect");
 
     while (!io_slave_killed(thd,mi))
     {
-      bool suppress_warnings= 0;
+      ulong event_len;
+
+      suppress_warnings= 0;
       /*
          We say "waiting" because read_event() will wait if there's nothing to
          read. But if there's something to read, it will not wait. The
          important thing is to not confuse users by saying "reading" whereas
          we're in fact receiving nothing.
       */
-      thd->proc_info = "Waiting for master to send event";
-      ulong event_len = read_event(mysql, mi, &suppress_warnings);
+      thd->proc_info= "Waiting for master to send event";
+      event_len= read_event(mysql, mi, &suppress_warnings);
       if (io_slave_killed(thd,mi))
       {
 	if (global_system_variables.log_warnings)
@@ -4389,6 +4391,8 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
   pthread_mutex_t *log_lock= rli->relay_log.get_log_lock();
   DBUG_ENTER("queue_event");
 
+  LINT_INIT(inc_pos);
+
   if (mi->rli.relay_log.description_event_for_queue->binlog_version<4 &&
       buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT /* a way to escape */)
     DBUG_RETURN(queue_old_event(mi,buf,event_len));
@@ -4529,7 +4533,7 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
 
 err:
   pthread_mutex_unlock(&mi->data_lock);
-  DBUG_PRINT("info", ("error=%d", error));
+  DBUG_PRINT("info", ("error: %d", error));
   DBUG_RETURN(error);
 }
 

@@ -65,7 +65,7 @@ int main(int argc, char** argv)
 
 const int megs = 5;  // how much to test
 
-const byte key[] = 
+const byte global_key[] = 
 {
     0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,
     0xfe,0xde,0xba,0x98,0x76,0x54,0x32,0x10,
@@ -81,19 +81,19 @@ const byte iv[] =
 };
 
 
-byte plain [1024*1024];
-byte cipher[1024*1024];
+byte global_plain [1024*1024];
+byte global_cipher[1024*1024];
 
 
 void bench_des()
 {
     DES_EDE3_CBC_Encryption enc;
-    enc.SetKey(key, 16, iv);
+    enc.SetKey(global_key, 16, iv);
 
     double start = current_time();
 
     for(int i = 0; i < megs; i++)
-        enc.Process(plain, cipher, sizeof(plain));
+        enc.Process(global_plain, global_cipher, sizeof(global_plain));
 
     double total = current_time() - start;
 
@@ -107,12 +107,12 @@ void bench_des()
 void bench_aes(bool show)
 {
     AES_CBC_Encryption enc;
-    enc.SetKey(key, 16, iv);
+    enc.SetKey(global_key, 16, iv);
 
     double start = current_time();
  
     for(int i = 0; i < megs; i++)
-        enc.Process(plain, cipher, sizeof(plain));
+        enc.Process(global_plain, global_cipher, sizeof(global_plain));
 
     double total = current_time() - start;
 
@@ -127,12 +127,12 @@ void bench_aes(bool show)
 void bench_twofish()
 {
     Twofish_CBC_Encryption enc;
-    enc.SetKey(key, 16, iv);
+    enc.SetKey(global_key, 16, iv);
 
     double start = current_time();
 
     for(int i = 0; i < megs; i++)
-        enc.Process(plain, cipher, sizeof(plain));
+        enc.Process(global_plain, global_cipher, sizeof(global_plain));
 
     double total = current_time() - start;
 
@@ -147,12 +147,12 @@ void bench_twofish()
 void bench_blowfish()
 {
     Blowfish_CBC_Encryption enc;
-    enc.SetKey(key, 16, iv);
+    enc.SetKey(global_key, 16, iv);
 
     double start = current_time();
 
     for(int i = 0; i < megs; i++)
-        enc.Process(plain, cipher, sizeof(plain));
+        enc.Process(global_plain, global_cipher, sizeof(global_plain));
 
     double total = current_time() - start;
 
@@ -166,12 +166,12 @@ void bench_blowfish()
 void bench_arc4()
 {
     ARC4 enc;
-    enc.SetKey(key, 16);
+    enc.SetKey(global_key, 16);
 
     double start = current_time();
 
     for(int i = 0; i < megs; i++)
-        enc.Process(cipher, plain, sizeof(plain));
+        enc.Process(global_cipher, global_plain, sizeof(global_plain));
 
     double total = current_time() - start;
 
@@ -191,7 +191,7 @@ void bench_md5()
 
     
     for(int i = 0; i < megs; i++)
-        hash.Update(plain, sizeof(plain));
+        hash.Update(global_plain, sizeof(global_plain));
    
     hash.Final(digest);
 
@@ -213,7 +213,7 @@ void bench_sha()
 
     
     for(int i = 0; i < megs; i++)
-        hash.Update(plain, sizeof(plain));
+        hash.Update(global_plain, sizeof(global_plain));
    
     hash.Final(digest);
 
@@ -241,7 +241,7 @@ void bench_ripemd()
 
     
     for(int i = 0; i < megs; i++)
-        hash.Update(plain, sizeof(plain));
+        hash.Update(global_plain, sizeof(global_plain));
    
     hash.Final(digest);
 

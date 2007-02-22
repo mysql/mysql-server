@@ -170,5 +170,5 @@ ut_2_exp(
 			/* out: 2 to power n */
 	ulint	n)	/* in: number */
 {
-	return(1 << n);
+	return((ulint) 1 << n);
 }

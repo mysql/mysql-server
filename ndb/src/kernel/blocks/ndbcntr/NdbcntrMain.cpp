@@ -818,7 +818,6 @@ Ndbcntr::trySystemRestart(Signal* signal){
    */
   const bool allNodes = c_start.m_waiting.equal(c_allDefinedNodes);
   const bool allClusterNodes = c_start.m_waiting.equal(c_clusterNodes);
-  const Uint64 now = NdbTick_CurrentMillisecond();
 
   if(!allClusterNodes){
     jam();
@@ -1390,7 +1389,6 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
   const bool tMasterFailed = allFailed.get(cmasterNodeId);
   const bool tStarted = !failedStarted.isclear();
   const bool tStarting = !failedStarting.isclear();
-  const bool tWaiting = !failedWaiting.isclear();
 
   if(tMasterFailed){
     jam();
@@ -2454,8 +2452,6 @@ void Ndbcntr::execABORT_ALL_CONF(Signal* signal){
 
 void Ndbcntr::execABORT_ALL_REF(Signal* signal){
   jamEntry();
-  AbortAllRef *abortAllRef = (AbortAllRef *)&signal->theData[0];
-  AbortAllRef::ErrorCode errorCode = (AbortAllRef::ErrorCode) abortAllRef->errorCode;
 
   StopRef * const stopRef = (StopRef *)&signal->theData[0];
   stopRef->senderData = c_stopRec.stopReq.senderData;
