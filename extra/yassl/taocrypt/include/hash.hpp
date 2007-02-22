@@ -31,6 +31,7 @@ namespace TaoCrypt {
 // HASH
 class HASH : public virtual_base {
 public:
+    HASH() {}
     virtual ~HASH() {}
 
     virtual void Update(const byte*, word32) = 0;

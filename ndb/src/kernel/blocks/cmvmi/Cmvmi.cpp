@@ -1103,7 +1103,7 @@ Cmvmi::execTESTSIG(Signal* signal){
     fprintf(stdout, "\n");
     
     for(i = 0; i<signal->header.m_noOfSections; i++){
-      SegmentedSectionPtr ptr = {0,0,0};
+      SegmentedSectionPtr ptr(0,0,0);
       ndbout_c("-- Section %d --", i);
       signal->getSection(ptr, i);
       ndbrequire(ptr.p != 0);
@@ -1161,7 +1161,7 @@ Cmvmi::execTESTSIG(Signal* signal){
     LinearSectionPtr ptr[3];
     const Uint32 secs = signal->getNoOfSections();
     for(i = 0; i<secs; i++){
-      SegmentedSectionPtr sptr = {0,0,0};
+      SegmentedSectionPtr sptr(0,0,0);
       signal->getSection(sptr, i);
       ptr[i].sz = sptr.sz;
       ptr[i].p = new Uint32[sptr.sz];
@@ -1210,7 +1210,7 @@ Cmvmi::execTESTSIG(Signal* signal){
     LinearSectionPtr ptr[3];
     const Uint32 secs = signal->getNoOfSections();
     for(i = 0; i<secs; i++){
-      SegmentedSectionPtr sptr = {0,0,0};
+      SegmentedSectionPtr sptr(0,0,0);
       signal->getSection(sptr, i);
       ptr[i].sz = sptr.sz;
       ptr[i].p = new Uint32[sptr.sz];
@@ -1276,7 +1276,7 @@ Cmvmi::execTESTSIG(Signal* signal){
     const Uint32 secs = signal->getNoOfSections();
     memset(g_test, 0, sizeof(g_test));
     for(i = 0; i<secs; i++){
-      SegmentedSectionPtr sptr  = {0,0,0};
+      SegmentedSectionPtr sptr(0,0,0);
       signal->getSection(sptr, i);
       g_test[i].sz = sptr.sz;
       g_test[i].p = new Uint32[sptr.sz];

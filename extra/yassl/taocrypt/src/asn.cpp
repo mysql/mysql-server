@@ -737,17 +737,17 @@ void CertDecoder::GetName(NameType nt)
                 email = true;
 
             source_.advance(oidSz + 1);
-            word32 length = GetLength(source_);
+            word32 length2 = GetLength(source_);
 
             if (email) {
                 memcpy(&ptr[idx], "/emailAddress=", 14);
                 idx += 14;
 
-                memcpy(&ptr[idx], source_.get_current(), length);
-                idx += length;
+                memcpy(&ptr[idx], source_.get_current(), length2);
+                idx += length2;
             }
 
-            source_.advance(length);
+            source_.advance(length2);
         }
     }
     ptr[idx++] = 0;

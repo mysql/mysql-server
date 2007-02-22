@@ -44,7 +44,7 @@ unlock tables;
 drop table t1;
 
 #
-# BUG#16217 - MySQL client misinterpretes multi-byte char as escape `\' 
+# BUG#16217 - MySQL client misinterprets multi-byte char as escape `\' 
 #
 
 # new command \C or charset
@@ -261,5 +261,15 @@ drop table t17583;
 # As should this...
 --exec echo "DELIMITER \\\\" > $MYSQLTEST_VARDIR/tmp/bug21412.sql
 --exec $MYSQL             < $MYSQLTEST_VARDIR/tmp/bug21412.sql 2>&1
+
+#
+# Some coverage of not normally used parts
+#
+
+--disable_query_log
+--exec $MYSQL test -e "show status" 2>&1 > /dev/null
+--exec $MYSQL --help 2>&1 > /dev/null
+--exec $MYSQL --version 2>&1 > /dev/null
+--enable_quary_log
 
 --echo End of 5.0 tests

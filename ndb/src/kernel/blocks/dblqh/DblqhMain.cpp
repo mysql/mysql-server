@@ -7548,7 +7548,6 @@ Dblqh::get_acc_ptr_from_scan_record(ScanRecord* scanP,
                                     bool crash_flag)
 {
   Uint32* acc_ptr;
-  Uint32 attr_buf_rec, attr_buf_index;
   if (!((index < MAX_PARALLEL_OP_PER_SCAN) &&
        index < scanP->scan_acc_index)) {
     ndbrequire(crash_flag);
@@ -7593,7 +7592,6 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   const Uint32 scanLockMode = ScanFragReq::getLockMode(reqinfo);
   const Uint8 keyinfo = ScanFragReq::getKeyinfoFlag(reqinfo);
   const Uint8 rangeScan = ScanFragReq::getRangeScanFlag(reqinfo);
-  const Uint8 tupScan = ScanFragReq::getTupScanFlag(reqinfo);
   
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
   if(tabptr.p->tableStatus != Tablerec::TABLE_DEFINED){
@@ -8979,9 +8977,6 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
   const Uint32 scanOp = scanP->m_curr_batch_size_rows;
   const Uint32 nodeId = refToNode(ref);
   const bool connectedToNode = getNodeInfo(nodeId).m_connected;
-  const Uint32 type = getNodeInfo(nodeId).m_type;
-  const bool is_api = (type >= NodeInfo::API && type <= NodeInfo::REP);
-  const bool old_dest = (getNodeInfo(nodeId).m_version < MAKE_VERSION(3,5,0));
   const bool longable = true; // TODO is_api && !old_dest;
 
   Uint32 * dst = keyInfo->keyData;
@@ -9082,7 +9077,6 @@ void Dblqh::sendScanFragConf(Signal* signal, Uint32 scanCompleted)
     return;
   }
   ScanFragConf * conf = (ScanFragConf*)&signal->theData[0];
-  NodeId tc_node_id= refToNode(tcConnectptr.p->clientBlockref);
   Uint32 trans_id1= tcConnectptr.p->transid[0];
   Uint32 trans_id2= tcConnectptr.p->transid[1];
 
@@ -11368,7 +11362,6 @@ void Dblqh::sendAccContOp(Signal* signal)
 {
   LcpLocRecordPtr sacLcpLocptr;
 
-  int count = 0;
   sacLcpLocptr.i = lcpPtr.p->firstLcpLocAcc;
   do {
     ptrCheckGuard(sacLcpLocptr, clcpLocrecFileSize, lcpLocRecord);
@@ -15071,8 +15064,6 @@ void Dblqh::execDEBUG_SIG(Signal* signal)
 2.5 TEMPORARY VARIABLES
 -----------------------
 */
-  UintR tdebug;
-
   jamEntry();
   //logPagePtr.i = signal->theData[0];
   //tdebug = logPagePtr.p->logPageWord[0];

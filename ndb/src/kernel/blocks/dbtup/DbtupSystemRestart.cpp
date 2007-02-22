@@ -92,8 +92,6 @@ void Dbtup::rfrReadRestartInfoLab(Signal* signal, RestartInfoRecordPtr riPtr)
   seizeDiskBufferSegmentRecord(dbsiPtr);
   riPtr.p->sriDataBufferSegmentP = dbsiPtr.i;
   Uint32 retPageRef = RNIL;
-  Uint32 noAllocPages = 1;
-  Uint32 noOfPagesAllocated;
   {
     /**
      * Use low pages for 0-pages during SR

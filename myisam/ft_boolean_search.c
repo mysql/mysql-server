@@ -490,7 +490,7 @@ static void _ftb_climb_the_tree(FTB *ftb, FTB_WORD *ftbw, FT_SEG_ITERATOR *ftsi_
   FT_SEG_ITERATOR ftsi;
   FTB_EXPR *ftbe;
   float weight=ftbw->weight;
-  int  yn=ftbw->flags, ythresh, mode=(ftsi_orig != 0);
+  int  yn_flag= ftbw->flags, ythresh, mode=(ftsi_orig != 0);
   my_off_t curdoc=ftbw->docid[mode];
 
   for (ftbe=ftbw->up; ftbe; ftbe=ftbe->up)
@@ -504,13 +504,13 @@ static void _ftb_climb_the_tree(FTB *ftb, FTB_WORD *ftbw, FT_SEG_ITERATOR *ftsi_
     }
     if (ftbe->nos)
       break;
-    if (yn & FTB_FLAG_YES)
+    if (yn_flag & FTB_FLAG_YES)
     {
       weight /= ftbe->ythresh;
       ftbe->cur_weight += weight;
       if ((int) ++ftbe->yesses == ythresh)
       {
-        yn=ftbe->flags;
+        yn_flag=ftbe->flags;
         weight=ftbe->cur_weight*ftbe->weight;
         if (mode && ftbe->phrase)
         {
@@ -531,14 +531,14 @@ static void _ftb_climb_the_tree(FTB *ftb, FTB_WORD *ftbw, FT_SEG_ITERATOR *ftsi_
         break;
     }
     else
-    if (yn & FTB_FLAG_NO)
+    if (yn_flag & FTB_FLAG_NO)
     {
       /*
         NOTE: special sort function of queue assures that all
-        (yn & FTB_FLAG_NO) != 0
+        (yn_flag & FTB_FLAG_NO) != 0
         events for every particular subexpression will
         "auto-magically" happen BEFORE all the
-        (yn & FTB_FLAG_YES) != 0 events. So no
+        (yn_flag & FTB_FLAG_YES) != 0 events. So no
         already matched expression can become not-matched again.
       */
       ++ftbe->nos;
@@ -551,8 +551,8 @@ static void _ftb_climb_the_tree(FTB *ftb, FTB_WORD *ftbw, FT_SEG_ITERATOR *ftsi_
       ftbe->cur_weight +=  weight;
       if ((int) ftbe->yesses < ythresh)
         break;
-      if (!(yn & FTB_FLAG_WONLY))
-        yn= ((int) ftbe->yesses++ == ythresh) ? ftbe->flags : FTB_FLAG_WONLY ;
+      if (!(yn_flag & FTB_FLAG_WONLY))
+        yn_flag= ((int) ftbe->yesses++ == ythresh) ? ftbe->flags : FTB_FLAG_WONLY ;
       weight*= ftbe->weight;
     }
   }
