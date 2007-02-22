@@ -177,10 +177,13 @@ void Listener::run()
   return;
 
 err:
+  log_error("Listener: failed to initialize. Initiate shutdown...");
+
   // we have to close the ip sockets in case of error
   for (i= 0; i < num_sockets; i++)
     closesocket(sockets[i]);
 
+  thread_registry->set_error_status();
   thread_registry->unregister_thread(&thread_info);
   thread_registry->request_shutdown();
   return;

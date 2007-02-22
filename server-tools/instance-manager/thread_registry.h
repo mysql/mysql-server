@@ -143,6 +143,8 @@ public:
                  pthread_mutex_t *mutex);
   int cond_timedwait(Thread_info *info, pthread_cond_t *cond,
                      pthread_mutex_t *mutex, struct timespec *wait_time);
+  int get_error_status();
+  void set_error_status();
 
 private:
   void interrupt_threads();
@@ -154,6 +156,7 @@ private:
   pthread_mutex_t LOCK_thread_registry;
   pthread_cond_t COND_thread_registry_is_empty;
   pthread_t sigwait_thread_pid;
+  bool error_status;
 
 private:
   Thread_registry(const Thread_registry &);

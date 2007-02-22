@@ -181,6 +181,9 @@ void Manager::stop_all_threads()
 
   /* Stop all threads. */
   p_thread_registry->deliver_shutdown();
+
+  /* Set error status in the thread registry. */
+  p_thread_registry->set_error_status();
 }
 
 
@@ -248,7 +251,6 @@ bool Manager::init_user_map(User_map *user_map)
 
 int Manager::main()
 {
-  int rc= 1;
   bool shutdown_complete= FALSE;
   pid_t manager_pid= getpid();
 
@@ -442,8 +444,6 @@ int Manager::main()
 
   log_info("Manager: finished.");
 
-  rc= 0;
-
 err:
   /* delete the pid file */
   my_delete(Options::Main::pid_file_name, MYF(0));
@@ -452,7 +452,7 @@ err:
   /* free alarm structures */
   end_thr_alarm(1);
 #endif
-  return rc;
+  return thread_registry.get_error_status() ? 1 : 0;
 }
 
 
