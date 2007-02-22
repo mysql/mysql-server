@@ -339,7 +339,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
   MYISAM_SHARE* share = file->s;
   const char *old_proc_info=thd->proc_info;
 
-  THD_PROC_INFO(thd, "Checking table");
+  thd_proc_info(thd, "Checking table");
   myisamchk_init(&param);
   param.thd = thd;
   param.op_name =   "check";
@@ -413,7 +413,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
     file->update |= HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
   }
 
-  THD_PROC_INFO(thd, old_proc_info);
+  thd_proc_info(thd, old_proc_info);
   return error ? HA_ADMIN_CORRUPT : HA_ADMIN_OK;
 }
 
@@ -679,22 +679,22 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
         char buf[40];
         /* TODO: respect myisam_repair_threads variable */
         my_snprintf(buf, 40, "Repair with %d threads", my_count_bits(key_map));
-        THD_PROC_INFO(thd, buf);
+        thd_proc_info(thd, buf);
         error = mi_repair_parallel(&param, file, fixed_name,
             param.testflag & T_QUICK);
-        THD_PROC_INFO(thd, "Repair done"); // to reset proc_info, as
+        thd_proc_info(thd, "Repair done"); // to reset proc_info, as
                                       // it was pointing to local buffer
       }
       else
       {
-        THD_PROC_INFO(thd, "Repair by sorting");
+        thd_proc_info(thd, "Repair by sorting");
         error = mi_repair_by_sort(&param, file, fixed_name,
             param.testflag & T_QUICK);
       }
     }
     else
     {
-      THD_PROC_INFO(thd, "Repair with keycache");
+      thd_proc_info(thd, "Repair with keycache");
       param.testflag &= ~T_REP_BY_SORT;
       error=  mi_repair(&param, file, fixed_name,
 			param.testflag & T_QUICK);
@@ -708,7 +708,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
 	(share->state.changed & STATE_NOT_SORTED_PAGES))
     {
       optimize_done=1;
-      THD_PROC_INFO(thd, "Sorting index");
+      thd_proc_info(thd, "Sorting index");
       error=mi_sort_index(&param,file,fixed_name);
     }
     if (!statistics_done && (local_testflag & T_STATISTICS))
@@ -716,14 +716,14 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
       if (share->state.changed & STATE_NOT_ANALYZED)
       {
 	optimize_done=1;
-	THD_PROC_INFO(thd, "Analyzing");
+	thd_proc_info(thd, "Analyzing");
 	error = chk_key(&param, file);
       }
       else
 	local_testflag&= ~T_STATISTICS;		// Don't update statistics
     }
   }
-  THD_PROC_INFO(thd, "Saving state");
+  thd_proc_info(thd, "Saving state");
   if (!error)
   {
     if ((share->state.changed & STATE_CHANGED) || mi_is_crashed(file))
@@ -761,7 +761,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
     file->update |= HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
     update_state_info(&param, file, 0);
   }
-  THD_PROC_INFO(thd, old_proc_info);
+  thd_proc_info(thd, old_proc_info);
   if (!thd->locked_tables)
     mi_lock_database(file,F_UNLCK);
   DBUG_RETURN(error ? HA_ADMIN_FAILED :
@@ -986,7 +986,7 @@ int ha_myisam::enable_indexes(uint mode)
     THD *thd=current_thd;
     MI_CHECK param;
     const char *save_proc_info=thd->proc_info;
-    THD_PROC_INFO(thd, "Creating index");
+    thd_proc_info(thd, "Creating index");
     myisamchk_init(&param);
     param.op_name= "recreating_index";
     param.testflag= (T_SILENT | T_REP_BY_SORT | T_QUICK |
@@ -1011,7 +1011,7 @@ int ha_myisam::enable_indexes(uint mode)
         thd->clear_error();
     }
     info(HA_STATUS_CONST);
-    THD_PROC_INFO(thd, save_proc_info);
+    thd_proc_info(thd, save_proc_info);
   }
   else
   {

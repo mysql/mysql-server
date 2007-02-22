@@ -667,6 +667,20 @@ else
   AC_MSG_RESULT([no])
 fi
 
+# Add query profiler
+AC_ARG_ENABLE(profiling,
+    [  --disable-profiling     Build a version without query profiling code ],
+    [ ENABLED_PROFILING=$enableval ],
+    [ ENABLED_PROFILING=yes ])
+
+if test "$ENABLED_PROFILING" = "yes"
+then
+  AC_DEFINE([ENABLED_PROFILING], [1],
+            [If SHOW PROFILE should be enabled])
+  AC_MSG_RESULT([yes])
+else
+  AC_MSG_RESULT([no])
+fi
 
 # Use this to set the place used for unix socket used to local communication.
 AC_ARG_WITH(unix-socket-path,

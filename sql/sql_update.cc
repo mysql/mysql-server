@@ -166,7 +166,7 @@ int mysql_update(THD *thd,
        mysql_handle_derived(thd->lex, &mysql_derived_filling)))
     DBUG_RETURN(1);
 
-  THD_PROC_INFO(thd, "init");
+  thd_proc_info(thd, "init");
   table= table_list->table;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
@@ -358,7 +358,7 @@ int mysql_update(THD *thd,
       else
         init_read_record_idx(&info, thd, table, 1, used_index);
 
-      THD_PROC_INFO(thd, "Searching rows for update");
+      thd_proc_info(thd, "Searching rows for update");
       uint tmp_limit= limit;
 
       while (!(error=info.read_record(&info)) && !thd->killed)
@@ -423,7 +423,7 @@ int mysql_update(THD *thd,
   updated= found= 0;
   thd->count_cuted_fields= CHECK_FIELD_WARN;		/* calc cuted fields */
   thd->cuted_fields=0L;
-  THD_PROC_INFO(thd, "Updating");
+  thd_proc_info(thd, "Updating");
   query_id=thd->query_id;
 
   transactional_table= table->file->has_transactions();
@@ -511,7 +511,7 @@ int mysql_update(THD *thd,
   end_read_record(&info);
   free_io_cache(table);				// If ORDER BY
   delete select;
-  THD_PROC_INFO(thd, "end");
+  thd_proc_info(thd, "end");
   VOID(table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY));
 
   /*
@@ -959,7 +959,7 @@ int multi_update::prepare(List<Item> &not_used_values,
 
   thd->count_cuted_fields= CHECK_FIELD_WARN;
   thd->cuted_fields=0L;
-  THD_PROC_INFO(thd, "updating main table");
+  thd_proc_info(thd, "updating main table");
 
   tables_to_update= get_table_map(fields);
 
@@ -1511,11 +1511,11 @@ err2:
 bool multi_update::send_eof()
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
-  THD_PROC_INFO(thd, "updating reference tables");
+  thd_proc_info(thd, "updating reference tables");
 
   /* Does updates for the last n - 1 tables, returns 0 if ok */
   int local_error = (table_count) ? do_updates(0) : 0;
-  THD_PROC_INFO(thd, "end");
+  thd_proc_info(thd, "end");
 
   /* We must invalidate the query cache before binlog writing and
   ha_autocommit_... */
