@@ -515,7 +515,8 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
       }
       List_iterator<Item> it_ke(*key_expr);
       Item *item;
-      for (key_len=0 ; (item=it_ke++) ; key_part++)
+      ulonglong keypart_map;
+      for (keypart_map= key_len=0 ; (item=it_ke++) ; key_part++)
       {
         my_bitmap_map *old_map;
 	// 'item' can be changed by fix_fields() call
@@ -532,6 +533,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
 	(void) item->save_in_field(key_part->field, 1);
         dbug_tmp_restore_column_map(table->write_set, old_map);
 	key_len+=key_part->store_length;
+        keypart_map= (keypart_map << 1) | 1;
       }
 
       if (!(key= (byte*) thd->calloc(ALIGN_SIZE(key_len))))
@@ -540,7 +542,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
       table->file->ha_index_init(keyno, 1);
       key_copy(key, table->record[0], table->key_info + keyno, key_len);
       error= table->file->index_read(table->record[0],
-                                     key,key_len,ha_rkey_mode);
+                                     key, keypart_map, ha_rkey_mode);
       mode=rkey_to_rnext[(int)ha_rkey_mode];
       break;
     }
