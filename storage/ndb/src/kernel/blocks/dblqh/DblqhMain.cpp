@@ -440,6 +440,7 @@ void Dblqh::execCONTINUEB(Signal* signal)
     else
     {
       jam();
+      cstartRecReq = 2;
       ndbrequire(c_redo_complete_fragments.isEmpty());
       StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
       conf->startingNodeId = getOwnNodeId();
@@ -11904,7 +11905,7 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
     return;
   }
 
-  if (getNodeState().getNodeRestartInProgress() && cstartRecReq == ZFALSE)
+  if (getNodeState().getNodeRestartInProgress() && cstartRecReq < 2)
   {
     GCPSaveRef * const saveRef = (GCPSaveRef*)&signal->theData[0];
     saveRef->dihPtr = dihPtr;
@@ -13989,7 +13990,7 @@ void Dblqh::execRESTORE_LCP_CONF(Signal* signal)
     return;
   }
 
-  if (c_lcp_restoring_fragments.isEmpty() && cstartRecReq == ZTRUE)
+  if (c_lcp_restoring_fragments.isEmpty() && cstartRecReq == 1)
   {
     jam();
     /* ----------------------------------------------------------------
@@ -14030,7 +14031,7 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
   ndbrequire(req->receivingNodeId == cownNodeid);
 
   cnewestCompletedGci = cnewestGci;
-  cstartRecReq = ZTRUE;
+  cstartRecReq = 1;
   for (logPartPtr.i = 0; logPartPtr.i < 4; logPartPtr.i++) {
     ptrAss(logPartPtr, logPartRecord);
     logPartPtr.p->logPartNewestCompletedGCI = cnewestCompletedGci;
@@ -14044,6 +14045,7 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
    *------------------------------------------------------------------------ */
   if(cstartType == NodeState::ST_INITIAL_NODE_RESTART){
     jam();
+    cstartRecReq = 2;
     StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
     conf->startingNodeId = getOwnNodeId();
     sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
@@ -15867,6 +15869,7 @@ void Dblqh::srFourthComp(Signal* signal)
 	return;
       }
     }
+    cstartRecReq = 2;
     StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
     conf->startingNodeId = getOwnNodeId();
     sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
@@ -16735,7 +16738,7 @@ void Dblqh::initialiseRecordsLab(Signal* signal, Uint32 data,
     cnoActiveCopy = 0;
     ccurrentGcprec = RNIL;
     caddNodeState = ZFALSE;
-    cstartRecReq = ZFALSE;
+    cstartRecReq = 0;
     cnewestGci = 0;
     cnewestCompletedGci = 0;
     crestartOldestGci = 0;
