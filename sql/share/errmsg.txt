@@ -1479,7 +1479,7 @@ ER_DUP_KEYNAME 42000 S1009
         swe "Nyckelnamn '%-.64s' finns flera gånger"
         ukr "äÕÂÌÀÀŞÅ ¦Í'Ñ ËÌÀŞÁ '%-.64s'"
 ER_DUP_ENTRY 23000 S1009
-	cze "Zvojen-Bı klíè '%-.64s' (èíslo klíèe %d)"
+	cze "Zdvojen-Bı klíè '%-.64s' (èíslo klíèe %d)"
 	dan "Ens værdier '%-.64s' for indeks %d"
 	nla "Dubbele ingang '%-.64s' voor zoeksleutel %d"
 	eng "Duplicate entry '%-.64s' for key %d"
