@@ -21,13 +21,10 @@
 #include "myisamdef.h"
 #include "rt_index.h"
 
-static ha_rows _mi_record_pos(MI_INFO *info,const byte *key,uint key_len,
-			      enum ha_rkey_function search_flag);
-static double _mi_search_pos(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *key,
-			     uint key_len,uint nextflag,my_off_t pos);
-static uint _mi_keynr(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *page,
-		      uchar *keypos,uint *ret_max_key);
-
+static ha_rows _mi_record_pos(MI_INFO *, const byte *, ulonglong,
+                              enum ha_rkey_function);
+static double _mi_search_pos(MI_INFO *,MI_KEYDEF *,uchar *, uint,uint,my_off_t);
+static uint _mi_keynr(MI_INFO *info,MI_KEYDEF *,uchar *, uchar *,uint *);
 
 /*
   Estimate how many records there is in a given range
@@ -47,9 +44,8 @@ static uint _mi_keynr(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *page,
     number	  Estimated number of rows
 */
   
-
-ha_rows mi_records_in_range(MI_INFO *info, int inx, key_range *min_key,
-                            key_range *max_key)
+ha_rows mi_records_in_range(MI_INFO *info, int inx,
+                            key_range *min_key, key_range *max_key)
 {
   ha_rows start_pos,end_pos,res;
   DBUG_ENTER("mi_records_in_range");
@@ -87,7 +83,7 @@ ha_rows mi_records_in_range(MI_INFO *info, int inx, key_range *min_key,
     }
     key_buff= info->lastkey+info->s->base.max_key_length;
     start_key_len= _mi_pack_key(info,inx, key_buff,
-                                (uchar*) min_key->key, min_key->length,
+                                (uchar*) min_key->key, min_key->keypart_map,
                                 (HA_KEYSEG**) 0);
     res= rtree_estimate(info, inx, key_buff, start_key_len,
                         myisam_read_vec[min_key->flag]);
@@ -97,14 +93,12 @@ ha_rows mi_records_in_range(MI_INFO *info, int inx, key_range *min_key,
 #endif
   case HA_KEY_ALG_BTREE:
   default:
-    start_pos= (min_key ?
-                _mi_record_pos(info, min_key->key, min_key->length, 
-                               min_key->flag) :
-                (ha_rows) 0);
-    end_pos=   (max_key ?
-                _mi_record_pos(info, max_key->key, max_key->length,
-                               max_key->flag) :
-                info->state->records+ (ha_rows) 1);
+    start_pos= (min_key ?  _mi_record_pos(info, min_key->key,
+                                          min_key->keypart_map, min_key->flag)
+                        : (ha_rows) 0);
+    end_pos=   (max_key ?  _mi_record_pos(info, max_key->key,
+                                          max_key->keypart_map, max_key->flag)
+                        : info->state->records + (ha_rows) 1);
     res= (end_pos < start_pos ? (ha_rows) 0 :
           (end_pos == start_pos ? (ha_rows) 1 : end_pos-start_pos));
     if (start_pos == HA_POS_ERROR || end_pos == HA_POS_ERROR)
@@ -122,21 +116,21 @@ ha_rows mi_records_in_range(MI_INFO *info, int inx, key_range *min_key,
 
 	/* Find relative position (in records) for key in index-tree */
 
-static ha_rows _mi_record_pos(MI_INFO *info, const byte *key, uint key_len,
+static ha_rows _mi_record_pos(MI_INFO *info, const byte *key,
+                              ulonglong keypart_map,
 			      enum ha_rkey_function search_flag)
 {
-  uint inx=(uint) info->lastinx, nextflag;
+  uint inx=(uint) info->lastinx, nextflag, key_len;
   MI_KEYDEF *keyinfo=info->s->keyinfo+inx;
   uchar *key_buff;
   double pos;
 
   DBUG_ENTER("_mi_record_pos");
   DBUG_PRINT("enter",("search_flag: %d",search_flag));
+  DBUG_ASSERT(keypart_map);
 
-  if (key_len == 0)
-    key_len=USE_WHOLE_KEY;
   key_buff=info->lastkey+info->s->base.max_key_length;
-  key_len=_mi_pack_key(info,inx,key_buff,(uchar*) key,key_len,
+  key_len=_mi_pack_key(info,inx,key_buff,(uchar*) key, keypart_map,
 		       (HA_KEYSEG**) 0);
   DBUG_EXECUTE("key",_mi_print_key(DBUG_FILE,keyinfo->seg,
 				    (uchar*) key_buff,key_len););

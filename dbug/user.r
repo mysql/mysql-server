@@ -908,9 +908,10 @@ via the
 .B DBUG_PUSH 
 or
 .B DBUG_SET
-macros. Control string consists of colon separate flags. A flag
-may take an argument or a list of arguments. If a control string
-starts from a '+' sign it works
+macros. Control string consists of colon separate flags.  Colons
+that are part of ':\\',  ':/', or '::' are not considered flag
+separators. A flag may take an argument or a list of arguments.
+If a control string starts from a '+' sign it works
 .I incrementally,
 that is, it can modify existing state without overriding it. In such a
 string every flag may be preceded by a '+' or '-' to enable or disable
@@ -923,9 +924,7 @@ optional.
 .LI a[,file]
 Redirect the debugger output stream and append it to the specified
 file.  The default output stream is stderr.  A null argument list
-causes output to be redirected to stdout.  A colon that is followed by
-the '\\' or '/' is cosidered a part of the path and not a flag
-separator.
+causes output to be redirected to stdout.
 .SP 1
 EX: \fCa,C:\\tmp\\log\fR
 .LI A[,file]
