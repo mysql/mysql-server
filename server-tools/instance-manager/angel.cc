@@ -26,6 +26,7 @@
 
 #include "my_global.h"
 #include "my_alarm.h"
+#include "my_dir.h"
 #include "my_sys.h"
 
 /* Include other IM files. */
