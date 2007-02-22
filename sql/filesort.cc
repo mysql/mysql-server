@@ -98,7 +98,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   uint maxbuffer;
   BUFFPEK *buffpek;
   ha_rows records= HA_POS_ERROR;
-  uchar **sort_keys;
+  uchar **sort_keys= 0;
   IO_CACHE tempfile, buffpek_pointers, *selected_records_file, *outfile; 
   SORTPARAM param;
   bool multi_byte_charset;

@@ -410,6 +410,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 #ifndef EMBEDDED_LIBRARY
   if (lock_type == TL_WRITE_DELAYED)
   {
+    res= 1;
     if (thd->locked_tables)
     {
       DBUG_ASSERT(table_list->db); /* Must be set in the parser */

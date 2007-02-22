@@ -1,5 +1,4 @@
 LIBRARY		LIBMYSQL
-DESCRIPTION	'MySQL 5.0 Client Library'
 VERSION		6.0
 EXPORTS
 	_dig_vec_lower
