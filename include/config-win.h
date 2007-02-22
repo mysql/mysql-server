@@ -167,7 +167,7 @@ typedef uint rf_SetTimer;
 
 /* Convert some simple functions to Posix */
 
-#define sigset(A,B) signal((A),(B))
+#define my_sigset(A,B) signal((A),(B))
 #define finite(A) _finite(A)
 #define sleep(A)  Sleep((A)*1000)
 
