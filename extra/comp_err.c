@@ -41,7 +41,9 @@ static char *NAMEFILE= (char*) "mysqld_ername.h";
 static char *STATEFILE= (char*) "sql_state.h";
 static char *TXTFILE= (char*) "../sql/share/errmsg.txt";
 static char *DATADIRECTORY= (char*) "../sql/share/";
+#ifndef DBUG_OFF
 static char *default_dbug_option= (char*) "d:t:O,/tmp/comp_err.trace";
+#endif
 
 /* Header for errmsg.sys files */
 uchar file_head[]= { 254, 254, 2, 1 };
@@ -402,6 +404,8 @@ static int parse_input_file(const char *file_name, struct errors **top_error,
   int rcount= 0;
   DBUG_ENTER("parse_input_file");
 
+  *top_error= 0;
+  *top_lang= 0;
   if (!(file= my_fopen(file_name, O_RDONLY | O_SHARE, MYF(MY_WME))))
     DBUG_RETURN(0);
 

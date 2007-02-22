@@ -233,6 +233,7 @@ static int berkeley_close_connection(THD *thd)
   return 0;
 }
 
+
 bool berkeley_flush_logs()
 {
   int error;
@@ -436,6 +437,15 @@ ulong ha_berkeley::index_flags(uint idx, uint part, bool all_parts) const
     }
   }
   return flags;
+}
+
+
+void ha_berkeley::get_auto_primary_key(byte *to)
+{
+  pthread_mutex_lock(&share->mutex);
+  share->auto_ident++;
+  int5store(to,share->auto_ident);
+  pthread_mutex_unlock(&share->mutex);
 }
 
 

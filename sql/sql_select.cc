@@ -8081,7 +8081,7 @@ static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
       */
       if (nested_join->join_list.elements != 1)
       {
-        nested_join->nj_map= 1 << first_unused++;
+        nested_join->nj_map= (nested_join_map) 1 << first_unused++;
         first_unused= build_bitmap_for_nested_joins(&nested_join->join_list,
                                                     first_unused);
       }
@@ -10056,6 +10056,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   enum_nested_loop_state error= NESTED_LOOP_OK;
   JOIN_TAB *join_tab;
   DBUG_ENTER("do_select");
+  LINT_INIT(join_tab);
 
   join->procedure=procedure;
   join->tmp_table= table;			/* Save for easy recursion */
@@ -10100,7 +10101,6 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   else
   {
     DBUG_ASSERT(join->tables);
-    DBUG_ASSERT(join_tab);
     error= sub_select(join,join_tab,0);
     if (error == NESTED_LOOP_OK || error == NESTED_LOOP_NO_MORE_ROWS)
       error= sub_select(join,join_tab,1);
