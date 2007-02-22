@@ -457,6 +457,7 @@ void Dblqh::execCONTINUEB(Signal* signal)
     else
     {
       jam();
+      cstartRecReq = 2;
       StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
       conf->startingNodeId = getOwnNodeId();
       sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
@@ -11673,7 +11674,7 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
     return;
   }
 
-  if(getNodeState().getNodeRestartInProgress() && cstartRecReq == ZFALSE)
+  if(getNodeState().getNodeRestartInProgress() && cstartRecReq < 2)
   {
     GCPSaveRef * const saveRef = (GCPSaveRef*)&signal->theData[0];
     saveRef->dihPtr = dihPtr;
@@ -13822,7 +13823,7 @@ void Dblqh::srCompletedLab(Signal* signal)
        *  NO MORE FRAGMENTS ARE WAITING FOR SYSTEM RESTART.
        * -------------------------------------------------------------------- */
       lcpPtr.p->lcpState = LcpRecord::LCP_IDLE;
-      if (cstartRecReq == ZTRUE) {
+      if (cstartRecReq == 1) {
         jam();
 	/* ----------------------------------------------------------------
          *  WE HAVE ALSO RECEIVED AN INDICATION THAT NO MORE FRAGMENTS 
@@ -13892,7 +13893,7 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
   ndbrequire(req->receivingNodeId == cownNodeid);
 
   cnewestCompletedGci = cnewestGci;
-  cstartRecReq = ZTRUE;
+  cstartRecReq = 1;
   for (logPartPtr.i = 0; logPartPtr.i < 4; logPartPtr.i++) {
     ptrAss(logPartPtr, logPartRecord);
     logPartPtr.p->logPartNewestCompletedGCI = cnewestCompletedGci;
@@ -13913,6 +13914,7 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
   }//if
   if(cstartType == NodeState::ST_INITIAL_NODE_RESTART){
     jam();
+    cstartRecReq = 2;
     StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
     conf->startingNodeId = getOwnNodeId();
     sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
@@ -15733,6 +15735,7 @@ void Dblqh::srFourthComp(Signal* signal)
     else
     {
       jam();
+      cstartRecReq = 2;
       StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
       conf->startingNodeId = getOwnNodeId();
       sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
@@ -16699,7 +16702,7 @@ void Dblqh::initialiseRecordsLab(Signal* signal, Uint32 data,
     cCommitBlocked = false;
     ccurrentGcprec = RNIL;
     caddNodeState = ZFALSE;
-    cstartRecReq = ZFALSE;
+    cstartRecReq = 0;
     cnewestGci = (UintR)-1;
     cnewestCompletedGci = (UintR)-1;
     crestartOldestGci = 0;
