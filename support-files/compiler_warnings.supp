@@ -5,8 +5,22 @@ DbtupExecQuery.cpp : .*unused variable.* : 1448-1449
 sql_yacc.cc : .*switch statement contains 'default' but no 'case' labels.*
 
 #
+# bdb is not critical to keep up to date
+#
+.*/bdb/.* : .*discards qualifiers from pointer target type.*
+.*/bdb/.* : .*unused parameter.*
+.*/bdb/.* : .*may be used uninitialized.*
+.*/bdb/.* : .*empty body in an if-statement.*
+db_vrfy.c : .*comparison is always false due to limited range of data type.*
+
+#
 # Ignore all conversion warnings on windows 64
 # (Is safe as we are not yet supporting strings >= 2G)
 #
 .* : conversion from 'size_t' to .*int'.*
 .* : conversion from '__int64' to .*int'.*
+
+#
+# The following should be fixed by the ndb team
+#
+.*/ndb/.* : .*used uninitialized in this function.*
