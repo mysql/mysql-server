@@ -2515,20 +2515,21 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
     if (file->create_time)
     {
       thd->variables.time_zone->gmt_sec_to_TIME(&time,
-                                                file->create_time);
+                                                (my_time_t) file->create_time);
       table->field[14]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
       table->field[14]->set_notnull();
     }
     if (file->update_time)
     {
       thd->variables.time_zone->gmt_sec_to_TIME(&time,
-                                                file->update_time);
+                                                (my_time_t) file->update_time);
       table->field[15]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
       table->field[15]->set_notnull();
     }
     if (file->check_time)
     {
-      thd->variables.time_zone->gmt_sec_to_TIME(&time, file->check_time);
+      thd->variables.time_zone->gmt_sec_to_TIME(&time,
+                                                (my_time_t) file->check_time);
       table->field[16]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
       table->field[16]->set_notnull();
     }

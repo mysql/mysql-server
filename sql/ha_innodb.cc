@@ -2711,7 +2711,8 @@ ha_innobase::store_key_val_for_row(
 				true_len = (ulint) cs->cset->well_formed_len(cs,
 						(const char *) data,
 						(const char *) data + len,
-						key_len / cs->mbmaxlen,
+                                                (uint) (key_len /
+                                                        cs->mbmaxlen),
 						&error);
 			}
 
@@ -2780,7 +2781,8 @@ ha_innobase::store_key_val_for_row(
 						(const char *) blob_data,
 						(const char *) blob_data
 							+ blob_len,
-						key_len / cs->mbmaxlen,
+                                                (uint) (key_len /
+                                                        cs->mbmaxlen),
 						&error);
 			}
 
@@ -2852,7 +2854,8 @@ ha_innobase::store_key_val_for_row(
 							(const char *)src_start,
 							(const char *)src_start
 								+ key_len,
-							key_len / cs->mbmaxlen,
+                                                        (uint) (key_len /
+                                                                cs->mbmaxlen),
 							&error);
 				}
 			}
