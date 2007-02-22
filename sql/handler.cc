@@ -2311,7 +2311,7 @@ int handler::check_old_types()
 }
 
 
-static bool update_frm_version(TABLE *table, bool needs_lock)
+static bool update_frm_version(TABLE *table)
 {
   char path[FN_REFLEN];
   File file;
@@ -2322,9 +2322,6 @@ static bool update_frm_version(TABLE *table, bool needs_lock)
     DBUG_RETURN(0);
 
   strxmov(path, table->s->normalized_path.str, reg_ext, NullS);
-
-  if (needs_lock)
-    pthread_mutex_lock(&LOCK_open);
 
   if ((file= my_open(path, O_RDWR|O_BINARY, MYF(MY_WME))) >= 0)
   {
@@ -2347,8 +2344,6 @@ static bool update_frm_version(TABLE *table, bool needs_lock)
 err:
   if (file >= 0)
     VOID(my_close(file,MYF(MY_WME)));
-  if (needs_lock)
-    pthread_mutex_unlock(&LOCK_open);
   DBUG_RETURN(result);
 }
 
@@ -2465,7 +2460,7 @@ int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt)
   }
   if ((error= check(thd, check_opt)))
     return error;
-  return update_frm_version(table, 0);
+  return update_frm_version(table);
 }
 
 
@@ -2474,7 +2469,7 @@ int handler::ha_repair(THD* thd, HA_CHECK_OPT* check_opt)
   int result;
   if ((result= repair(thd, check_opt)))
     return result;
-  return update_frm_version(table, 0);
+  return update_frm_version(table);
 }
 
 
