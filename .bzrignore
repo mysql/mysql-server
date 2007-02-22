@@ -2694,6 +2694,8 @@ storage/ndb/test/ndbapi/testDataBuffers
 storage/ndb/test/ndbapi/testDeadlock
 storage/ndb/test/ndbapi/testDict
 storage/ndb/test/ndbapi/testIndex
+storage/ndb/test/ndbapi/testIndexStat
+storage/ndb/test/ndbapi/testInterpreter
 storage/ndb/test/ndbapi/testLcp
 storage/ndb/test/ndbapi/testMgm
 storage/ndb/test/ndbapi/testNdbApi
