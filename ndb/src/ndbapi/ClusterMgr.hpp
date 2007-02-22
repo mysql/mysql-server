@@ -180,6 +180,7 @@ private:
     ArbitSignalData data;
     NDB_TICKS timestamp;
 
+    ArbitSignal() {}
     inline void init(GlobalSignalNumber aGsn, const Uint32* aData) {
       gsn = aGsn;
       if (aData != NULL)

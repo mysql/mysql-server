@@ -67,6 +67,7 @@ public:
    */
   class Table {
   public:
+    Table() {}
     /* Table id (array index in DICT and other blocks) */
     Uint32 tableId;
 

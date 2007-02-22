@@ -1520,11 +1520,6 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
   tmpTab.MinRowsHigh = (Uint32)(impl.m_min_rows >> 32);
   tmpTab.MinRowsLow = (Uint32)(impl.m_min_rows & 0xFFFFFFFF);
   
-  Uint64 maxRows =
-    (((Uint64)tmpTab.MaxRowsHigh) << 32) + tmpTab.MaxRowsLow;
-  Uint64 minRows =
-    (((Uint64)tmpTab.MinRowsHigh) << 32) + tmpTab.MinRowsLow;
-
   tmpTab.FragmentType = getKernelConstant(impl.m_fragmentType,
 					  fragmentTypeMapping,
 					  DictTabInfo::AllNodesSmallTable);

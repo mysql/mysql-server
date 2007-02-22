@@ -2975,6 +2975,7 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
   if (nj_col->view_field)
   {
     Item *item;
+    LINT_INIT(arena);
     if (register_tree_change)
       arena= thd->activate_stmt_arena_if_needed(&backup);
     /*

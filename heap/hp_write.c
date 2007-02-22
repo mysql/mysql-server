@@ -68,7 +68,7 @@ int heap_write(HP_INFO *info, const byte *record)
 
 err:
   if (my_errno == HA_ERR_FOUND_DUPP_KEY)
-    DBUG_PRINT("info",("Duplicate key: %d", keydef - share->keydef));
+    DBUG_PRINT("info",("Duplicate key: %d", (int) (keydef - share->keydef)));
   info->errkey= keydef - share->keydef;
   /*
     We don't need to delete non-inserted key from rb-tree.  Also, if

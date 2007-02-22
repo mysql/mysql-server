@@ -46,17 +46,17 @@ inline int my_decimal_get_binary_size(uint precision, uint scale)
 #endif
 
 #define DTIMAP(x, y, z) \
-  { DictTabInfo::y, offsetof(x, z), SimpleProperties::Uint32Value, 0, (~0), 0 }
+  { DictTabInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, (~0), 0 }
 
 #define DTIMAP2(x, y, z, u, v) \
-  { DictTabInfo::y, offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
+  { DictTabInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
 
 #define DTIMAPS(x, y, z, u, v) \
-  { DictTabInfo::y, offsetof(x, z), SimpleProperties::StringValue, u, v, 0 }
+  { DictTabInfo::y, my_offsetof(x, z), SimpleProperties::StringValue, u, v, 0 }
 
 #define DTIMAPB(x, y, z, u, v, l) \
-  { DictTabInfo::y, offsetof(x, z), SimpleProperties::BinaryValue, u, v, \
-                     offsetof(x, l) }
+  { DictTabInfo::y, my_offsetof(x, z), SimpleProperties::BinaryValue, u, v, \
+                     my_offsetof(x, l) }
 
 #define DTIBREAK(x) \
   { DictTabInfo::x, 0, SimpleProperties::InvalidValue, 0, 0, 0 }
@@ -274,6 +274,7 @@ public:
     Uint32 MinRowsLow;
     Uint32 MinRowsHigh;
     
+    Table() {}
     void init();
   };
 
@@ -334,6 +335,7 @@ public:
     Uint32 AttributeAutoIncrement;
     char   AttributeDefaultValue[MAX_ATTR_DEFAULT_VALUE_SIZE];
     
+    Attribute() {}
     void init();
 
     inline

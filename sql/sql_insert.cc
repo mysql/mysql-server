@@ -59,7 +59,6 @@
 #include "sql_trigger.h"
 #include "sql_select.h"
 
-static int check_null_fields(THD *thd,TABLE *entry);
 #ifndef EMBEDDED_LIBRARY
 static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list);
 static int write_delayed(THD *thd,TABLE *table, enum_duplicates dup, bool ignore,
@@ -189,11 +188,11 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (grant_option)
     {
-      Field_iterator_table fields;
-      fields.set_table(table);
+      Field_iterator_table field_it;
+      field_it.set_table(table);
       if (check_grant_all_columns(thd, INSERT_ACL, &table->grant,
                                   table->s->db, table->s->table_name,
-                                  &fields))
+                                  &field_it))
         return -1;
     }
 #endif
@@ -370,8 +369,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     By default, both logs are enabled (this won't cause problems if the server
     runs without --log-update or --log-bin).
   */
-  bool log_on= (thd->options & OPTION_BIN_LOG) ||
-    (!(thd->security_ctx->master_access & SUPER_ACL));
   bool transactional_table, joins_freed= FALSE;
   bool changed;
   uint value_count;
@@ -385,6 +382,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   Name_resolution_context_state ctx_state;
 #ifndef EMBEDDED_LIBRARY
   char *query= thd->query;
+  bool log_on= (thd->options & OPTION_BIN_LOG) ||
+    (!(thd->security_ctx->master_access & SUPER_ACL));
 #endif
   thr_lock_type lock_type = table_list->lock_type;
   Item *unused_conds= 0;
@@ -411,6 +410,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 #ifndef EMBEDDED_LIBRARY
   if (lock_type == TL_WRITE_DELAYED)
   {
+    res= 1;
     if (thd->locked_tables)
     {
       DBUG_ASSERT(table_list->db); /* Must be set in the parser */
@@ -808,7 +808,6 @@ static bool check_view_insertability(THD * thd, TABLE_LIST *view)
   Field_translator *trans_start= view->field_translation,
 		   *trans_end= trans_start + num;
   Field_translator *trans;
-  Field **field_ptr= table->field;
   uint used_fields_buff_size= (table->s->fields + 7) / 8;
   uchar *used_fields_buff= (uchar*)thd->alloc(used_fields_buff_size);
   MY_BITMAP used_fields;
@@ -1195,7 +1194,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
           goto err;
         }
         if ((table->file->table_flags() & HA_PARTIAL_COLUMN_READ) ||
-            compare_record(table, query_id))
+            compare_record(table, thd->query_id))
         {
           info->updated++;
 

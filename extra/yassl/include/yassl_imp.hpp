@@ -64,6 +64,7 @@ struct RecordLayerHeader {
 
 // base for all messages
 struct Message : public virtual_base {
+    Message() {}
     virtual input_buffer& set(input_buffer&) =0;   
     virtual output_buffer& get(output_buffer&) const =0;
 
@@ -177,6 +178,7 @@ private:
 class HandShakeBase : public virtual_base {
     int     length_;
 public:
+    HandShakeBase() {}
     int     get_length() const;
     void    set_length(int);
 
@@ -194,6 +196,7 @@ public:
 
 
 struct HelloRequest : public HandShakeBase {
+    HelloRequest() {}
     input_buffer&  set(input_buffer& in);
     output_buffer& get(output_buffer& out) const;
 
@@ -327,6 +330,7 @@ private:
 
 
 struct ServerKeyBase : public virtual_base {
+    ServerKeyBase() {}
     virtual ~ServerKeyBase() {}
     virtual void build(SSL&) {}
     virtual void read(SSL&, input_buffer&) {}
@@ -337,15 +341,21 @@ struct ServerKeyBase : public virtual_base {
 
 // Server random number for FORTEZZA KEA
 struct Fortezza_Server : public ServerKeyBase {
+    Fortezza_Server() {}
     opaque r_s_[FORTEZZA_MAX];
 };
 
 
 struct SignatureBase : public virtual_base {
+  SignatureBase() {}
     virtual ~SignatureBase() {}
 };
 
-struct anonymous_sa : public SignatureBase {};
+struct anonymous_sa : public SignatureBase
+{
+public:
+  anonymous_sa() {}
+};
 
 
 struct Hashes {
@@ -355,11 +365,13 @@ struct Hashes {
     
 
 struct rsa_sa : public SignatureBase {
+    rsa_sa() {}
     Hashes hashes_;
 };
 
 
 struct dsa_sa : public SignatureBase {
+    dsa_sa() {}
     uint8 sha_[SHA_LEN];
 };
 
@@ -387,6 +399,7 @@ private:
 
 // Server's RSA exchange
 struct RSA_Server : public ServerKeyBase {
+    RSA_Server() {}
     ServerRSAParams params_;
     opaque*         signature_;   // signed rsa_sa hashes
 };
@@ -461,6 +474,7 @@ struct PreMasterSecret {
 
 
 struct ClientKeyBase : public virtual_base {
+  ClientKeyBase() {}
     virtual ~ClientKeyBase() {}
     virtual void build(SSL&) {}
     virtual void read(SSL&, input_buffer&) {}
@@ -491,6 +505,7 @@ private:
 // Fortezza Key Parameters from page 29
 // hard code lengths cause only used here
 struct FortezzaKeys : public ClientKeyBase {
+    FortezzaKeys() {}
     opaque  y_c_                      [128];    // client's Yc, public value
     opaque  r_c_                      [128];    // client's Rc
     opaque  y_signature_              [40];     // DSS signed public key

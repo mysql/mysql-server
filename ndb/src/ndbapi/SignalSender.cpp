@@ -19,14 +19,6 @@
 #include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/NodeFailRep.hpp>
 
-static
-void
-require(bool x)
-{
-  if (!x)
-    abort();
-}
-
 SimpleSignal::SimpleSignal(bool dealloc){
   memset(this, 0, sizeof(* this));
   deallocSections = dealloc;
@@ -183,6 +175,7 @@ SignalSender::waitFor(Uint32 timeOutMillis, T & t)
 
 class WaitForAny {
 public:
+  WaitForAny() {}
   SimpleSignal * check(Vector<SimpleSignal*> & m_jobBuffer){
     if(m_jobBuffer.size() > 0){
       SimpleSignal * s = m_jobBuffer[0];
@@ -202,6 +195,7 @@ SignalSender::waitFor(Uint32 timeOutMillis){
 
 class WaitForNode {
 public:
+  WaitForNode() {}
   Uint32 m_nodeId;
   SimpleSignal * check(Vector<SimpleSignal*> & m_jobBuffer){
     Uint32 len = m_jobBuffer.size();

@@ -98,7 +98,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   uint maxbuffer;
   BUFFPEK *buffpek;
   ha_rows records= HA_POS_ERROR;
-  uchar **sort_keys;
+  uchar **sort_keys= 0;
   IO_CACHE tempfile, buffpek_pointers, *selected_records_file, *outfile; 
   SORTPARAM param;
   bool multi_byte_charset;
@@ -857,12 +857,14 @@ static void make_sortkey(register SORTPARAM *param,
       }
       else
       {
-        uchar *end= (uchar*) field->pack((char *) to, field->ptr);
 #ifdef HAVE_purify
+        uchar *end= (uchar*) field->pack((char *) to, field->ptr);
 	uint length= (uint) ((to + addonf->length) - end);
 	DBUG_ASSERT((int) length >= 0);
 	if (length)
 	  bzero(end, length);
+#else
+        (void) field->pack((char *) to, field->ptr);
 #endif
       }
       to+= addonf->length;

@@ -111,7 +111,7 @@ static char compatible_mode_normal_str[255];
 static ulong opt_compatible_mode= 0;
 #define MYSQL_OPT_MASTER_DATA_EFFECTIVE_SQL 1
 #define MYSQL_OPT_MASTER_DATA_COMMENTED_SQL 2
-static uint     opt_mysql_port= 0, err_len= 0, opt_master_data;
+static uint     opt_mysql_port= 0, opt_master_data;
 static my_string opt_mysql_unix_port=0;
 static int   first_error=0;
 static DYNAMIC_STRING extended_row;
@@ -723,6 +723,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       char *end= compatible_mode_normal_str;
       int i;
       ulong mode;
+      uint err_len;
 
       opt_quoted= 1;
       opt_set_charset= 0;
@@ -860,11 +861,11 @@ static int get_options(int *argc, char ***argv)
 /*
 ** DB_error -- prints mysql error message and exits the program.
 */
-static void DB_error(MYSQL *mysql, const char *when)
+static void DB_error(MYSQL *mysql_arg, const char *when)
 {
   DBUG_ENTER("DB_error");
   fprintf(stderr, "%s: Got error: %d: %s %s\n", my_progname,
-          mysql_errno(mysql), mysql_error(mysql), when);
+          mysql_errno(mysql_arg), mysql_error(mysql_arg), when);
   fflush(stderr);
   safe_exit(EX_MYSQLERR);
   DBUG_VOID_RETURN;
@@ -1192,7 +1193,7 @@ static void print_quoted_xml(FILE *xml_file, const char *str, ulong len)
                     ..., attribute_name_n, attribute_value_n, NullS)
     xml_file              - output file
     sbeg                  - line beginning
-    send                  - line ending
+    line_end              - line ending
     tag_name              - XML tag name.
     first_attribute_name  - tag and first attribute
     first_attribute_value - (Implied) value of first attribute
@@ -1212,7 +1213,8 @@ static void print_quoted_xml(FILE *xml_file, const char *str, ulong len)
     All attribute_value arguments will be quoted before output.
 */
 
-static void print_xml_tag(FILE * xml_file, const char* sbeg, const char* send, 
+static void print_xml_tag(FILE * xml_file, const char* sbeg,
+                          const char* line_end, 
                           const char* tag_name, 
                           const char* first_attribute_name, ...)
 {
@@ -1242,7 +1244,7 @@ static void print_xml_tag(FILE * xml_file, const char* sbeg, const char* send,
   va_end(arg_list);
 
   fputc('>', xml_file);
-  fputs(send, xml_file);
+  fputs(line_end, xml_file);
   check_io(xml_file);
 }
 
@@ -1256,7 +1258,7 @@ static void print_xml_tag(FILE * xml_file, const char* sbeg, const char* send,
     sbeg        - line beginning
     stag_atr    - tag and attribute
     sval        - value of attribute
-    send        - line ending
+    line_end        - line ending
 
   DESCRIPTION
     Print tag with one attribute to the xml_file. Format is:
@@ -1268,7 +1270,7 @@ static void print_xml_tag(FILE * xml_file, const char* sbeg, const char* send,
 
 static void print_xml_null_tag(FILE * xml_file, const char* sbeg,
                                const char* stag_atr, const char* sval,
-                               const char* send)
+                               const char* line_end)
 {
   fputs(sbeg, xml_file);
   fputs("<", xml_file);
@@ -1276,7 +1278,7 @@ static void print_xml_null_tag(FILE * xml_file, const char* sbeg,
   fputs("\"", xml_file);
   print_quoted_xml(xml_file, sval, strlen(sval));
   fputs("\" xsi:nil=\"true\" />", xml_file);
-  fputs(send, xml_file);
+  fputs(line_end, xml_file);
   check_io(xml_file);
 }
 
@@ -2014,7 +2016,8 @@ continue_xml:
 
 */
 
-static void dump_triggers_for_table(char *table, char *db)
+static void dump_triggers_for_table(char *table,
+                                    char *db __attribute__((unused)))
 {
   char       *result_table;
   char       name_buff[NAME_LEN*4+3], table_buff[NAME_LEN*2+3];
@@ -2023,7 +2026,6 @@ static void dump_triggers_for_table(char *table, char *db)
   FILE       *sql_file= md_result_file;
   MYSQL_RES  *result;
   MYSQL_ROW  row;
-
   DBUG_ENTER("dump_triggers_for_table");
   DBUG_PRINT("enter", ("db: %s, table: %s", db, table));
 

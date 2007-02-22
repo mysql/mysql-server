@@ -49,6 +49,7 @@ class Ndb_mgmd_event_service : public EventLoggerBase
   friend class MgmtSrvr;
 public:
   struct Event_listener : public EventLoggerBase {
+    Event_listener() {}
     NDB_SOCKET_TYPE m_socket;
     Uint32 m_parsable;
   };

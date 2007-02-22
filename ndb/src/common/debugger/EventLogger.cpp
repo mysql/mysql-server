@@ -1004,6 +1004,8 @@ EventLogger::close()
   removeAllHandlers();
 }
 
+#ifdef NOT_USED
+
 static NdbOut&
 operator<<(NdbOut& out, const LogLevel & ll)
 {
@@ -1013,6 +1015,7 @@ operator<<(NdbOut& out, const LogLevel & ll)
   out << "]";
   return out;
 }
+#endif
 
 int
 EventLoggerBase::event_lookup(int eventType,
