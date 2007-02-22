@@ -453,7 +453,7 @@ bool QUERY_PROFILE::show(uint options)
         protocol->store(entry->function, strlen(entry->function),
                         system_charset_info);        
         protocol->store(entry->file, strlen(entry->file), system_charset_info);
-        protocol->store(entry->line);
+        protocol->store((uint32) entry->line);
       } else {
         protocol->store_null();
         protocol->store_null();
