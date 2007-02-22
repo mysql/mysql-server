@@ -52,6 +52,7 @@ void Thread_info::init(bool send_signal_on_shutdown_arg)
 Thread_registry::Thread_registry() :
    shutdown_in_progress(FALSE)
   ,sigwait_thread_pid(pthread_self())
+  ,error_status(FALSE)
 {
   pthread_mutex_init(&LOCK_thread_registry, 0);
   pthread_cond_init(&COND_thread_registry_is_empty, 0);
@@ -390,4 +391,24 @@ bool Thread::join()
   DBUG_ASSERT(!detached);
 
   return pthread_join(id, NULL) != 0;
+}
+
+
+int Thread_registry::get_error_status()
+{
+  int ret_error_status;
+
+  pthread_mutex_lock(&LOCK_thread_registry);
+  ret_error_status= error_status;
+  pthread_mutex_unlock(&LOCK_thread_registry);
+
+  return ret_error_status;
+}
+
+
+void Thread_registry::set_error_status()
+{
+  pthread_mutex_lock(&LOCK_thread_registry);
+  error_status= TRUE;
+  pthread_mutex_unlock(&LOCK_thread_registry);
 }
