@@ -1657,7 +1657,7 @@ void end_thread(THD *thd, bool put_in_cache)
       ! abort_loop && !kill_cached_threads)
   {
     /* Don't kill the thread, just put it in cache for reuse */
-    DBUG_PRINT("info", ("Adding thread to cache"))
+    DBUG_PRINT("info", ("Adding thread to cache"));
     cached_thread_count++;
     while (!abort_loop && ! wake_thread && ! kill_cached_threads)
       (void) pthread_cond_wait(&COND_thread_cache, &LOCK_thread_count);
@@ -4696,6 +4696,7 @@ enum options_mysqld
   OPT_TABLE_LOCK_WAIT_TIMEOUT,
   OPT_PORT_OPEN_TIMEOUT,
   OPT_MERGE,
+  OPT_PROFILING,
   OPT_INNODB_ROLLBACK_ON_TIMEOUT
 };
 
@@ -5257,6 +5258,12 @@ Disable with --skip-ndbcluster (will save memory).",
    "Maximum time in seconds to wait for the port to become free. "
    "(Default: no wait)", (gptr*) &mysqld_port_timeout,
    (gptr*) &mysqld_port_timeout, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef ENABLED_PROFILING
+  {"profiling_history_size", OPT_PROFILING, "Limit of query profiling memory",
+   (gptr*) &global_system_variables.profiling_history_size,
+   (gptr*) &max_system_variables.profiling_history_size,
+   0, GET_UINT, REQUIRED_ARG, 15, 0, 100, 0, 0, 0},
+#endif
   {"relay-log", OPT_RELAY_LOG,
    "The location and name to use for relay logs.",
    (gptr*) &opt_relay_logname, (gptr*) &opt_relay_logname, 0,
