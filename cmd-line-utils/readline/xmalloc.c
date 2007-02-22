@@ -57,7 +57,7 @@ xmalloc (bytes)
 
   temp = malloc (bytes);
   if (temp == 0)
-    memory_error_and_abort ("xmalloc");
+    memory_error_and_abort ((char*) "xmalloc");
   return (temp);
 }
 
@@ -71,7 +71,7 @@ xrealloc (pointer, bytes)
   temp = pointer ? realloc (pointer, bytes) : malloc (bytes);
 
   if (temp == 0)
-    memory_error_and_abort ("xrealloc");
+    memory_error_and_abort ((char*) "xrealloc");
   return (temp);
 }
 

@@ -135,7 +135,7 @@ int Mysql_connection_thread::init()
   /* Initialize random number generator */
   {
     ulong seed1= (ulong) &rand_st + rand();
-    ulong seed2= rand() + time(0);
+    ulong seed2= rand() + (ulong) time(0);
     randominit(&rand_st, seed1, seed2);
   }
   /* Fill scramble - server's random message used for handshake */

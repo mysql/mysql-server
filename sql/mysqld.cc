@@ -324,6 +324,7 @@ static I_List<THD> thread_cache;
 #ifndef EMBEDDED_LIBRARY
 static struct passwd *user_info;
 static pthread_t select_thread;
+static uint thr_kill_signal;
 #endif
 
 static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
@@ -522,7 +523,6 @@ rw_lock_t	LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 pthread_cond_t COND_refresh,COND_thread_count, COND_global_read_lock;
 pthread_t signal_thread;
 pthread_attr_t connection_attrib;
-static uint thr_kill_signal;
 
 File_parser_dummy_hook file_parser_dummy_hook;
 
@@ -3216,7 +3216,7 @@ server.");
 #ifdef HAVE_REPLICATION
   if (opt_bin_log && expire_logs_days)
   {
-    long purge_time= time(0) - expire_logs_days*24*60*60;
+    long purge_time= (long) (time(0) - expire_logs_days*24*60*60);
     if (purge_time >= 0)
       mysql_bin_log.purge_logs_before_date(purge_time);
   }

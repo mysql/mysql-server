@@ -98,10 +98,10 @@ base64_encode(const void *src, size_t src_len, char *dst)
 }
 
 
-static inline unsigned
+static inline uint
 pos(unsigned char c)
 {
-  return strchr(base64_table, c) - base64_table;
+  return (uint) (strchr(base64_table, c) - base64_table);
 }
 
 
