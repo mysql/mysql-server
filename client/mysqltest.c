@@ -1844,7 +1844,7 @@ void do_copy_file(struct st_command *command)
 
 void do_chmod_file(struct st_command *command)
 {
-  ulong mode= 0;
+  long mode= 0;
   static DYNAMIC_STRING ds_mode;
   static DYNAMIC_STRING ds_file;
   const struct command_arg chmod_file_args[] = {
@@ -1864,7 +1864,7 @@ void do_chmod_file(struct st_command *command)
     die("You must write a 4 digit octal number for mode");
 
   DBUG_PRINT("info", ("chmod %o %s", (uint)mode, ds_file.str));
-  handle_command_error(command, chmod(ds_file.str, mode));
+  handle_command_error(command, chmod(ds_file.str, (mode_t) mode));
   dynstr_free(&ds_mode);
   dynstr_free(&ds_file);
   DBUG_VOID_RETURN;
@@ -6275,7 +6275,8 @@ typedef struct st_replace_found {
 
 
 void replace_strings_append(REPLACE *rep, DYNAMIC_STRING* ds,
-                            const char *str, int len)
+                            const char *str,
+                            int len __attribute__((unused)))
 {
   reg1 REPLACE *rep_pos;
   reg2 REPLACE_STRING *rep_str;
@@ -6666,7 +6667,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
         we need at least what we have so far in the buffer + the part
         before this match
       */
-      need_buf_len= (res_p - buf) + subs[0].rm_so;
+      need_buf_len= (res_p - buf) + (int) subs[0].rm_so;
 
       /* on this pass, calculate the memory for the result buffer */
       while (expr_p < replace_end)
@@ -6676,17 +6677,17 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
 
         if (c == '\\' && expr_p + 1 < replace_end)
         {
-          back_ref_num= expr_p[1] - '0';
+          back_ref_num= (int) (expr_p[1] - '0');
         }
 
         /* found a valid back_ref (eg. \1)*/
         if (back_ref_num >= 0 && back_ref_num <= (int)r.re_nsub)
         {
-          int start_off,end_off;
+          regoff_t start_off, end_off;
           if ((start_off=subs[back_ref_num].rm_so) > -1 &&
               (end_off=subs[back_ref_num].rm_eo) > -1)
           {
-            need_buf_len += (end_off - start_off);
+            need_buf_len += (int) (end_off - start_off);
           }
           expr_p += 2;
         }
@@ -6706,7 +6707,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
         /* copy the pre-match part */
         if (subs[0].rm_so)
         {
-          memcpy(res_p, str_p, subs[0].rm_so);
+          memcpy(res_p, str_p, (size_t) subs[0].rm_so);
           res_p+= subs[0].rm_so;
         }
 
