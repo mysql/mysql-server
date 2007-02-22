@@ -246,7 +246,8 @@ bool Manager::init_user_map(User_map *user_map)
     See also comments in mysqlmanager.cc to picture general Instance Manager
     architecture.
 
-  TODO: how about returning error status.
+  RETURNS
+    main() returns exit status (exit code).
 */
 
 int Manager::main()
@@ -452,6 +453,7 @@ err:
   /* free alarm structures */
   end_thr_alarm(1);
 #endif
+
   return thread_registry.get_error_status() ? 1 : 0;
 }
 

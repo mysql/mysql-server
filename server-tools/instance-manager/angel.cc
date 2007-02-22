@@ -43,6 +43,7 @@ enum { CHILD_OK= 0, CHILD_NEED_RESPAWN, CHILD_EXIT_ANGEL };
 static int log_fd;
 
 static volatile sig_atomic_t child_status= CHILD_OK;
+static volatile sig_atomic_t child_exit_code= 0;
 static volatile sig_atomic_t shutdown_request_signo= 0;
 
 
@@ -171,7 +172,7 @@ static bool create_pid_file()
 /**
   SIGCHLD handler.
 
-  Reap child, analyze child exit status, and set child_status
+  Reap child, analyze child exit code, and set child_status
   appropriately.
 *************************************************************************/
 
@@ -179,13 +180,12 @@ void reap_child(int __attribute__((unused)) signo)
 {
   /* NOTE: As we have only one child, no need to cycle waitpid(). */
 
-  int child_exit_status;
+  int exit_code;
 
-  if (waitpid(0, &child_exit_status, WNOHANG) > 0)
+  if (waitpid(0, &exit_code, WNOHANG) > 0)
   {
-    child_status= WIFSIGNALED(child_exit_status) ?
-                  CHILD_NEED_RESPAWN :
-                  CHILD_EXIT_ANGEL;
+    child_exit_code= exit_code;
+    child_status= exit_code ? CHILD_NEED_RESPAWN : CHILD_EXIT_ANGEL;
   }
 }
 
@@ -312,7 +312,8 @@ static int angel_main_loop()
     {
       child_status= CHILD_OK;
 
-      log_error("Angel: Manager exited abnormally.");
+      log_error("Angel: Manager exited abnormally (exit code: %d).",
+                (int) child_exit_code);
 
       log_info("Angel: sleeping 1 second...");
 
