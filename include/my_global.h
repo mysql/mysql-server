@@ -1512,4 +1512,15 @@ do { doubleget_union _tmp; \
 #define dlerror() ""
 #endif
 
+/*
+  Define placement versions of operator new and operator delete since
+  we cannot be sure that the <new> include exists.
+ */
+#ifdef __cplusplus
+inline void *operator new(size_t, void *ptr) { return ptr; }
+inline void *operator new[](size_t, void *ptr) { return ptr; }
+inline void  operator delete(void*, void*) { /* Do nothing */ }
+inline void  operator delete[](void*, void*) { /* Do nothing */ }
+#endif
+
 #endif /* my_global_h */
