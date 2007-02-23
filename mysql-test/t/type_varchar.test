@@ -3,7 +3,7 @@ drop table if exists t1, t2;
 --enable_warnings
 
 create table t1 (v varchar(30), c char(3), e enum('abc','def','ghi'), t text);
-system cp $MYSQL_TEST_DIR/std_data/vchar.frm $MYSQLTEST_VARDIR/master-data/test/;
+copy_file $MYSQL_TEST_DIR/std_data/vchar.frm $MYSQLTEST_VARDIR/master-data/test/vchar.frm;
 truncate table vchar;
 show create table t1;
 show create table vchar;
@@ -162,7 +162,8 @@ create table t3 (
   en varchar(255) character set utf8,
   cz varchar(255) character set utf8
 );
-system cp $MYSQL_TEST_DIR/std_data/14897.frm $MYSQLTEST_VARDIR/master-data/test/t3.frm;
+remove_file $MYSQLTEST_VARDIR/master-data/test/t3.frm;
+copy_file $MYSQL_TEST_DIR/std_data/14897.frm $MYSQLTEST_VARDIR/master-data/test/t3.frm;
 truncate table t3;
 insert into t3 (id, en, cz) values 
 (1,'en string 1','cz string 1'),
