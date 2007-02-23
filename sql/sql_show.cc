@@ -1687,10 +1687,6 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         if (mysys_var)
           pthread_mutex_unlock(&mysys_var->mutex);
 
-#if !defined(DONT_USE_THR_ALARM) && ! defined(SCO)
-        if (pthread_kill(tmp->real_id,0))
-          tmp->proc_info="*** DEAD ***";        // This shouldn't happen
-#endif
 #ifdef EXTRA_DEBUG
         thd_info->start_time= tmp->time_after_lock;
 #else
@@ -2942,20 +2938,21 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
     if (file->stats.create_time)
     {
       thd->variables.time_zone->gmt_sec_to_TIME(&time,
-                                                file->stats.create_time);
+                                                (my_time_t) file->stats.create_time);
       table->field[14]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
       table->field[14]->set_notnull();
     }
     if (file->stats.update_time)
     {
       thd->variables.time_zone->gmt_sec_to_TIME(&time,
-                                                file->stats.update_time);
+                                                (my_time_t) file->stats.update_time);
       table->field[15]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
       table->field[15]->set_notnull();
     }
     if (file->stats.check_time)
     {
-      thd->variables.time_zone->gmt_sec_to_TIME(&time, file->stats.check_time);
+      thd->variables.time_zone->gmt_sec_to_TIME(&time,
+                                                (my_time_t) file->stats.check_time);
       table->field[16]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
       table->field[16]->set_notnull();
     }

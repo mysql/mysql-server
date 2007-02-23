@@ -843,7 +843,7 @@ err_exit:
 	table = dict_mem_table_create(name, space, n_cols & ~0x80000000UL,
 				      flags);
 
-	table->ibd_file_missing = ibd_file_missing;
+	table->ibd_file_missing = (unsigned int) ibd_file_missing;
 
 	ut_a(name_of_col_is(sys_tables, sys_index, 3, "ID"));
 
@@ -1180,8 +1180,8 @@ dict_load_foreign(
 
 	/* We store the type in the bits 24..29 of n_fields_and_type. */
 
-	foreign->type = n_fields_and_type >> 24;
-	foreign->n_fields = n_fields_and_type & 0x3FFUL;
+	foreign->type = (unsigned int) (n_fields_and_type >> 24);
+	foreign->n_fields = (unsigned int) (n_fields_and_type & 0x3FFUL);
 
 	foreign->id = mem_heap_strdup(foreign->heap, id);
 

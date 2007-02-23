@@ -390,8 +390,8 @@ ut_bit_set_nth(
 # error "TRUE != 1"
 #endif
 	if (val) {
-		return((1 << n) | a);
+		return(((ulint) 1 << n) | a);
 	} else {
-		return(~(1 << n) & a);
+		return(~((ulint) 1 << n) & a);
 	}
 }

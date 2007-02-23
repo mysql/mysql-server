@@ -350,6 +350,7 @@ inline double ulonglong2double(ulonglong value)
 #define HAVE_SETFILEPOINTER
 #define HAVE_VIO_READ_BUFF
 #define HAVE_STRNLEN
+#define HAVE_WINSOCK2
 
 #define strcasecmp stricmp
 #define strncasecmp strnicmp

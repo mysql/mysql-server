@@ -1488,7 +1488,6 @@ Backup::execCREATE_TRIG_CONF(Signal* signal)
   const Uint32 ptrI = conf->getConnectionPtr();
   const Uint32 tableId = conf->getTableId();
   const TriggerEvent::Value type = conf->getTriggerEvent();
-  const Uint32 triggerId = conf->getTriggerId();
 
   BackupRecordPtr ptr LINT_SET_PTR;
   c_backupPool.getPtr(ptr, ptrI);
@@ -2152,7 +2151,6 @@ Backup::execDROP_TRIG_CONF(Signal* signal)
   
   DropTrigConf* conf = (DropTrigConf*)signal->getDataPtr();
   const Uint32 ptrI = conf->getConnectionPtr();
-  const Uint32 triggerId= conf->getTriggerId();
 
   BackupRecordPtr ptr LINT_SET_PTR;
   c_backupPool.getPtr(ptr, ptrI);
@@ -4658,7 +4656,6 @@ Backup::execABORT_BACKUP_ORD(Signal* signal)
   }
   ndbrequire(ok);
   
-  Uint32 ref= ptr.p->masterRef;
   ptr.p->masterRef = reference();
   ptr.p->nodes.clear();
   ptr.p->nodes.set(getOwnNodeId());

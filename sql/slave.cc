@@ -1425,9 +1425,8 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->slave_thread = 1;
   set_slave_thread_options(thd);
   thd->client_capabilities = CLIENT_LOCAL_FILES;
-  thd->real_id=pthread_self();
   pthread_mutex_lock(&LOCK_thread_count);
-  thd->thread_id = thread_id++;
+  thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
   pthread_mutex_unlock(&LOCK_thread_count);
 
   if (init_thr_lock() || thd->store_globals())
@@ -1436,12 +1435,6 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
     delete thd;
     DBUG_RETURN(-1);
   }
-
-#if !defined(__WIN__) && !defined(__NETWARE__)
-  sigset_t set;
-  VOID(sigemptyset(&set));                      // Get mask in use
-  VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
-#endif
 
   if (thd_type == SLAVE_THD_SQL)
     thd->proc_info= "Waiting for the next event in relay log";

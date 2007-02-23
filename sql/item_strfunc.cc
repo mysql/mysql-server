@@ -1926,7 +1926,7 @@ String *Item_func_format::val_str(String *str)
   int diff;
   DBUG_ASSERT(fixed == 1);
 
-  dec= args[1]->val_int();
+  dec= (int) args[1]->val_int();
   if (args[1]->null_value)
   {
     null_value=1;

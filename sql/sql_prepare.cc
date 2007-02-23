@@ -2054,6 +2054,7 @@ void mysql_sql_stmt_prepare(THD *thd)
   uint query_len;
   DBUG_ENTER("mysql_sql_stmt_prepare");
   DBUG_ASSERT(thd->protocol == &thd->protocol_simple);
+  LINT_INIT(query_len);
 
   if ((stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
   {
@@ -2242,7 +2243,7 @@ void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
 {
   uchar *packet= (uchar*)packet_arg; // GCC 4.0.1 workaround
   ulong stmt_id= uint4korr(packet);
-  ulong flags= (ulong) ((uchar) packet[4]);
+  ulong flags= (ulong) packet[4];
   /* Query text for binary, general or slow log, if any of them is open */
   String expanded_query;
 #ifndef EMBEDDED_LIBRARY

@@ -1,0 +1,5 @@
+#
+# Test the --thread-handler=no-threads option
+#
+select 1+1;
+select 1+2;

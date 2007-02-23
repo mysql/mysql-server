@@ -1975,6 +1975,7 @@ public:
     NodeBitmask m_nodes;
     
     Uint32 m_errorCode;
+    SchemaTransaction() {}
     void setErrorCode(Uint32 c){ if(m_errorCode == 0) m_errorCode = c;}
 
     /**

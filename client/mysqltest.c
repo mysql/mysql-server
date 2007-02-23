@@ -407,7 +407,8 @@ struct st_command
 TYPELIB command_typelib= {array_elements(command_names),"",
 			  command_names, 0};
 
-DYNAMIC_STRING ds_res, ds_progress, ds_warning_messages;
+static DYNAMIC_STRING ds_res, ds_progress, ds_warning_messages;
+static DYNAMIC_STRING global_ds_warnings, global_eval_query;
 
 void die(const char *fmt, ...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
@@ -781,6 +782,9 @@ void free_used_memory()
   dynstr_free(&ds_res);
   dynstr_free(&ds_progress);
   dynstr_free(&ds_warning_messages);
+  dynstr_free(&global_ds_warnings);
+  dynstr_free(&global_eval_query);
+
   free_all_replace();
   my_free(opt_pass,MYF(MY_ALLOW_ZERO_PTR));
   free_defaults(default_argv);
@@ -5191,8 +5195,6 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   MYSQL *mysql= &cn->mysql;
   DYNAMIC_STRING *ds;
   DYNAMIC_STRING ds_result;
-  DYNAMIC_STRING ds_warnings;
-  DYNAMIC_STRING eval_query;
   char *query;
   int query_len;
   my_bool view_created= 0, sp_created= 0;
@@ -5200,7 +5202,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
                            (flags & QUERY_REAP_FLAG));
   DBUG_ENTER("run_query");
 
-  init_dynamic_string(&ds_warnings, NULL, 0, 256);
+  init_dynamic_string(&global_ds_warnings, NULL, 0, 256);
 
   /* Scan for warning before sendign to server */
   scan_command_for_warnings(command);
@@ -5210,10 +5212,10 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   */
   if (command->type == Q_EVAL)
   {
-    init_dynamic_string(&eval_query, "", command->query_len+256, 1024);
-    do_eval(&eval_query, command->query, command->end, FALSE);
-    query = eval_query.str;
-    query_len = eval_query.length;
+    init_dynamic_string(&global_eval_query, "", command->query_len+256, 1024);
+    do_eval(&global_eval_query, command->query, command->end, FALSE);
+    query = global_eval_query.str;
+    query_len = global_eval_query.length;
   }
   else
   {
@@ -5285,7 +5287,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
         Collect warnings from create of the view that should otherwise
         have been produced when the SELECT was executed
       */
-      append_warnings(&ds_warnings, cur_con->util_mysql);
+      append_warnings(&global_ds_warnings, cur_con->util_mysql);
     }
 
     dynstr_free(&query_str);
@@ -5344,10 +5346,10 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   if (ps_protocol_enabled &&
       complete_query &&
       match_re(&ps_re, query))
-    run_query_stmt(mysql, command, query, query_len, ds, &ds_warnings);
+    run_query_stmt(mysql, command, query, query_len, ds, &global_ds_warnings);
   else
     run_query_normal(cn, command, flags, query, query_len,
-		     ds, &ds_warnings);
+		     ds, &global_ds_warnings);
 
   if (sp_created)
   {
@@ -5371,11 +5373,11 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
     check_require(ds, command->require_file);
   }
 
-  dynstr_free(&ds_warnings);
+  dynstr_free(&global_ds_warnings);
   if (ds == &ds_result)
     dynstr_free(&ds_result);
   if (command->type == Q_EVAL)
-    dynstr_free(&eval_query);
+    dynstr_free(&global_eval_query);
   DBUG_VOID_RETURN;
 }
 
@@ -6282,7 +6284,8 @@ typedef struct st_replace_found {
 
 
 void replace_strings_append(REPLACE *rep, DYNAMIC_STRING* ds,
-                            const char *str, int len)
+                            const char *str,
+                            int len __attribute__((unused)))
 {
   reg1 REPLACE *rep_pos;
   reg2 REPLACE_STRING *rep_str;
@@ -6673,7 +6676,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
         we need at least what we have so far in the buffer + the part
         before this match
       */
-      need_buf_len= (res_p - buf) + subs[0].rm_so;
+      need_buf_len= (res_p - buf) + (int) subs[0].rm_so;
 
       /* on this pass, calculate the memory for the result buffer */
       while (expr_p < replace_end)
@@ -6683,17 +6686,17 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
 
         if (c == '\\' && expr_p + 1 < replace_end)
         {
-          back_ref_num= expr_p[1] - '0';
+          back_ref_num= (int) (expr_p[1] - '0');
         }
 
         /* found a valid back_ref (eg. \1)*/
         if (back_ref_num >= 0 && back_ref_num <= (int)r.re_nsub)
         {
-          int start_off,end_off;
+          regoff_t start_off, end_off;
           if ((start_off=subs[back_ref_num].rm_so) > -1 &&
               (end_off=subs[back_ref_num].rm_eo) > -1)
           {
-            need_buf_len += (end_off - start_off);
+            need_buf_len += (int) (end_off - start_off);
           }
           expr_p += 2;
         }
@@ -6713,7 +6716,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
         /* copy the pre-match part */
         if (subs[0].rm_so)
         {
-          memcpy(res_p, str_p, subs[0].rm_so);
+          memcpy(res_p, str_p, (size_t) subs[0].rm_so);
           res_p+= subs[0].rm_so;
         }
 
@@ -6732,11 +6735,11 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
 
         if (back_ref_num >= 0 && back_ref_num <= (int)r.re_nsub)
         {
-          int start_off,end_off;
-          if ((start_off=subs[back_ref_num].rm_so) > -1 &&
+          regoff_t start_off, end_off;
+          if ((start_off= subs[back_ref_num].rm_so) > -1 &&
               (end_off=subs[back_ref_num].rm_eo) > -1)
           {
-            int block_len= end_off - start_off;
+            int block_len= (int) (end_off - start_off);
             memcpy(res_p,str_p + start_off, block_len);
             res_p += block_len;
           }

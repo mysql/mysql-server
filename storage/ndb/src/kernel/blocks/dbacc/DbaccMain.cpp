@@ -698,7 +698,6 @@ Dbacc::execDROP_TAB_REQ(Signal* signal){
 
 void Dbacc::releaseRootFragResources(Signal* signal, Uint32 tableId)
 {
-  FragmentrecPtr rootPtr;
   TabrecPtr tabPtr;
   tabPtr.i = tableId;
   ptrCheckGuard(tabPtr, ctablesize, tabrec);
@@ -2266,7 +2265,6 @@ void Dbacc::execACCMINUPDATE(Signal* signal)
   Page8Ptr ulkPageidptr;
   Uint32 tulkLocalPtr;
   Uint32 tlocalkey1, tlocalkey2;
-  Uint32 TlogStart;
 
   jamEntry();
   operationRecPtr.i = signal->theData[0];

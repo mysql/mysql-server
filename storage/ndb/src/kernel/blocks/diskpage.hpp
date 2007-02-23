@@ -54,6 +54,7 @@ struct File_formats
     Uint32 m_node_id;
     Uint32 m_file_type;
     Uint32 m_time; // time(0)
+    Zero_page_header() {}
     void init(File_type ft, Uint32 node_id, Uint32 version, Uint32 now);
     int validate(File_type ft, Uint32 node_id, Uint32 version, Uint32 now);
   };
@@ -86,6 +87,7 @@ struct File_formats
 	Uint32 m_fragment_id;
 	Uint32 m_next_free_extent;
       };
+      Extent_header() {}
       Uint32 m_page_bitmask[1]; // (BitsPerPage*ExtentSize)/(32*PageSize)
       Uint32 get_free_bits(Uint32 page) const;
       Uint32 get_free_word_offset(Uint32 page) const;
@@ -102,6 +104,7 @@ struct File_formats
       struct Page_header m_page_header;
       Extent_header m_extents[1];
       
+      Extent_page() {}
       Extent_header* get_header(Uint32 extent_no, Uint32 extent_size);
     };
     

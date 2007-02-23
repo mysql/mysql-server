@@ -546,8 +546,8 @@ sec_to_TIME(TIME * tmp, my_time_t t, long offset)
   int yleap;
   const uint *ip;
 
-  days= t / SECS_PER_DAY;
-  rem= t % SECS_PER_DAY;
+  days= (long) (t / SECS_PER_DAY);
+  rem=  (long) (t % SECS_PER_DAY);
 
   /*
     We do this as separate step after dividing t, because this
