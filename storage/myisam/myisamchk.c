@@ -713,6 +713,7 @@ get_one_option(int optid,
     case 2:
       method_conv= MI_STATS_METHOD_IGNORE_NULLS;
       break;
+    default: assert(0);                         /* Impossible */
     }
     check_param.stats_method= method_conv;
     break;

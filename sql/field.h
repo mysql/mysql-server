@@ -825,8 +825,8 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return sizeof(double); }
   void sql_type(String &str) const;
-  uint size_of() const { return sizeof(*this); }
   uint32 max_display_length() { return 53; }
+  uint size_of() const { return sizeof(*this); }
 };
 
 

@@ -529,7 +529,7 @@ mlog_parse_index(
 	ind = dict_mem_index_create("LOG_DUMMY", "LOG_DUMMY",
 				    DICT_HDR_SPACE, 0, n);
 	ind->table = table;
-	ind->n_uniq = n_uniq;
+	ind->n_uniq = (unsigned int) n_uniq;
 	if (n_uniq != n) {
 		ind->type = DICT_CLUSTERED;
 	}

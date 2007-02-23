@@ -923,7 +923,7 @@ void Instance::remove_pid()
 
 bool Instance::wait_for_stop()
 {
-  int start_time= time(NULL);
+  int start_time= (int) time(NULL);
   int finish_time= start_time + options.get_shutdown_delay();
 
   log_info("Instance '%s': waiting for mysqld to stop "

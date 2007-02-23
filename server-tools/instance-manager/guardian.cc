@@ -212,8 +212,8 @@ void Guardian::process_instance(Instance *instance)
       return;
 
     case Instance::CRASHED:    /* just regular restarts */
-      if (current_time - instance->last_checked <=
-          Options::Main::monitoring_interval)
+      if ((ulong) (current_time - instance->last_checked) <=
+          (ulong) Options::Main::monitoring_interval)
         return;
 
       if (instance->restart_counter < restart_retry)

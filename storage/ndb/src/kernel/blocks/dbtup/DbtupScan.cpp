@@ -831,7 +831,6 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       {
 	ndbassert(bits & ScanOp::SCAN_NR);
 	Local_key& key_mm = pos.m_key_mm;
-        Fix_page* page = (Fix_page*)pos.m_page;
 	if (! (bits & ScanOp::SCAN_DD)) {
 	  key_mm = pos.m_key;
 	  // caller has already set pos.m_get to next tuple

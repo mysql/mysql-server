@@ -194,6 +194,7 @@ int handle_options(int *argc, char ***argv,
 	  Find first the right option. Return error in case of an ambiguous,
 	  or unknown option
 	*/
+        LINT_INIT(prev_found);
 	optp= longopts;
 	if (!(opt_found= findopt(opt_str, length, &optp, &prev_found)))
 	{
@@ -960,7 +961,7 @@ void my_print_variables(const struct my_option *options)
 	printf("%d\n", *((uint*) value));
 	break;
       case GET_LONG:
-	printf("%lu\n", *((long*) value));
+	printf("%ld\n", *((long*) value));
 	break;
       case GET_ULONG:
 	printf("%lu\n", *((ulong*) value));

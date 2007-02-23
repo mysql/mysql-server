@@ -78,7 +78,7 @@ extern enum thr_lock_type thr_upgraded_concurrent_insert_lock;
 typedef struct st_thr_lock_info
 {
   pthread_t thread;
-  ulong thread_id;
+  my_thread_id thread_id;
   ulong n_cursors;
 } THR_LOCK_INFO;
 
@@ -144,7 +144,7 @@ enum enum_thr_lock_result thr_multi_lock(THR_LOCK_DATA **data,
                                          uint count, THR_LOCK_OWNER *owner);
 void thr_multi_unlock(THR_LOCK_DATA **data,uint count);
 void thr_abort_locks(THR_LOCK *lock, bool upgrade_lock);
-my_bool thr_abort_locks_for_thread(THR_LOCK *lock, pthread_t thread);
+my_bool thr_abort_locks_for_thread(THR_LOCK *lock, my_thread_id thread);
 void thr_print_locks(void);		/* For debugging */
 my_bool thr_upgrade_write_delay_lock(THR_LOCK_DATA *data);
 void    thr_downgrade_write_lock(THR_LOCK_DATA *data,

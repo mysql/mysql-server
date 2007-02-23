@@ -255,7 +255,7 @@ dict_build_table_def_step(
 		error = fil_create_new_single_table_tablespace(
 			&space, path_or_name, is_path,
 			FIL_IBD_FILE_INITIAL_SIZE);
-		table->space = space;
+		table->space = (unsigned int) space;
 
 		if (error != DB_SUCCESS) {
 
@@ -806,7 +806,7 @@ dict_truncate_index_tree(
 
 	root_page_no = btr_create(type, space, index_id, comp, mtr);
 	if (index) {
-		index->page = root_page_no;
+		index->page = (unsigned int) root_page_no;
 	} else {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,

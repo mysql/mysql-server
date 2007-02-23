@@ -236,8 +236,10 @@ sub mtr_report_stats ($) {
       "the documentation at\n",
       "http://www.mysql.com/doc/en/MySQL_test_suite.html\n";
   }
-  print
-      "The servers were restarted $tot_restarts times\n";
+  if (!$::opt_extern)
+  {
+    print "The servers where restarted $tot_restarts times\n";
+  }
 
   if ( $::opt_timer )
   {

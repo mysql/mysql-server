@@ -537,6 +537,7 @@ struct Operationrec {
     ,OP_INITIAL             = ~(Uint32)0
   };
   
+  Operationrec() {}
   bool is_same_trans(const Operationrec* op) const {
     return 
       transId1 == op->transId1 && transId2 == op->transId2;

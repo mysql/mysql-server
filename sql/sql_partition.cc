@@ -6731,7 +6731,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
     }
   }
   else
-    DBUG_ASSERT(0);
+    assert(0);
 
   /* 
     Find minimum: Do special handling if the interval has left bound in form

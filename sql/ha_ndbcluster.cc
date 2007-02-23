@@ -2820,7 +2820,7 @@ int ha_ndbcluster::key_cmp(uint keynr, const byte * old_row,
 
 int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
 {
-  THD *thd= current_thd;
+  THD *thd= table->in_use;
   NdbTransaction *trans= m_active_trans;
   NdbScanOperation* cursor= m_active_cursor;
   NdbOperation *op;
@@ -3007,7 +3007,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
 
 int ha_ndbcluster::delete_row(const byte *record)
 {
-  THD *thd= current_thd;
+  THD *thd= table->in_use;
   NdbTransaction *trans= m_active_trans;
   NdbScanOperation* cursor= m_active_cursor;
   NdbOperation *op;
@@ -6016,7 +6016,7 @@ void ha_ndbcluster::set_part_info(partition_info *part_info)
 int ha_ndbcluster::close(void)
 {
   DBUG_ENTER("close");
-  THD *thd= current_thd;
+  THD *thd= table->in_use;
   Ndb *ndb= thd ? check_ndb_in_thd(thd) : g_ndb;
   /* ndb_share reference handler free */
   DBUG_PRINT("NDB_SHARE", ("%s handler free  use_count: %u",

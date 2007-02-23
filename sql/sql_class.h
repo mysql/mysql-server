@@ -214,7 +214,7 @@ struct system_variables
   ulong read_rnd_buff_size;
   ulong div_precincrement;
   ulong sortbuff_size;
-  handlerton *table_type;
+  ulong thread_handling;
   ulong tx_isolation;
   ulong completion_type;
   /* Determines which non-standard SQL behaviour should be enabled */
@@ -231,11 +231,15 @@ struct system_variables
   ulong trans_prealloc_size;
   ulong log_warnings;
   ulong group_concat_max_len;
+  ulong ndb_autoincrement_prefetch_sz;
+  ulong ndb_index_stat_cache_entries;
+  ulong ndb_index_stat_update_freq;
+  ulong binlog_format; // binlog format for this thd (see enum_binlog_format)
   /*
     In slave thread we need to know in behalf of which
     thread the query is being run to replicate temp tables properly
   */
-  ulong pseudo_thread_id;
+  my_thread_id pseudo_thread_id;
 
   my_bool low_priority_updates;
   my_bool new_mode;
@@ -248,13 +252,11 @@ struct system_variables
   my_bool ndb_use_exact_count;
   my_bool ndb_use_transactions;
   my_bool ndb_index_stat_enable;
-  ulong ndb_autoincrement_prefetch_sz;
-  ulong ndb_index_stat_cache_entries;
-  ulong ndb_index_stat_update_freq;
-  ulong binlog_format; // binlog format for this thd (see enum_binlog_format)
 
   my_bool old_alter_table;
   my_bool old_passwords;
+
+  handlerton *table_type;
 
   /* Only charset part of these variables is sensible */
   CHARSET_INFO  *character_set_filesystem;
@@ -1064,7 +1066,7 @@ public:
   } transaction;
   Field      *dup_field;
 #ifndef __WIN__
-  sigset_t signals,block_signals;
+  sigset_t signals;
 #endif
 #ifdef SIGNAL_WITH_VIO_CLOSE
   Vio* active_vio;
@@ -1255,7 +1257,7 @@ public:
     update auto-updatable fields (like auto_increment and timestamp).
   */
   query_id_t query_id, warn_id;
-  ulong      thread_id, col_access;
+  ulong      col_access;
 
 #ifdef ERROR_INJECT_SUPPORT
   ulong      error_inject_value;
@@ -1264,8 +1266,8 @@ public:
   ulong      statement_id_counter;
   ulong	     rand_saved_seed1, rand_saved_seed2;
   ulong      row_count;  // Row counter, mainly for errors and warnings
-  long	     dbug_thread_id;
-  pthread_t  real_id;
+  pthread_t  real_id;                           /* For debugging */
+  my_thread_id  thread_id;
   uint	     tmp_table, global_read_lock;
   uint	     server_status,open_options;
   enum enum_thread_type system_thread;
@@ -1629,6 +1631,7 @@ public:
     *p_db_length= db_length;
     return FALSE;
   }
+  thd_scheduler scheduler;
 };
 
 

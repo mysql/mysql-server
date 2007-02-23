@@ -50,14 +50,14 @@ dict_mem_table_create(
 
 	table->heap = heap;
 
-	table->flags = flags;
+	table->flags = (unsigned int) flags;
 	table->name = mem_heap_strdup(heap, name);
 	table->dir_path_of_temp_table = NULL;
-	table->space = space;
+	table->space = (unsigned int) space;
 	table->ibd_file_missing = FALSE;
 	table->tablespace_discarded = FALSE;
 	table->n_def = 0;
-	table->n_cols = n_cols + DATA_N_SYS_COLS;
+	table->n_cols = (unsigned int) (n_cols + DATA_N_SYS_COLS);
 
 	table->n_mysql_handles_opened = 0;
 	table->n_foreign_key_checks_running = 0;
@@ -208,14 +208,14 @@ dict_mem_table_add_col(
 	col->ind = table->n_def - 1;
 	col->ord_part = 0;
 
-	col->mtype = mtype;
-	col->prtype = prtype;
-	col->len = len;
+	col->mtype = (unsigned int) mtype;
+	col->prtype = (unsigned int) prtype;
+	col->len = (unsigned int) len;
 
 	dtype_get_mblen(mtype, prtype, &mbminlen, &mbmaxlen);
 
-	col->mbminlen = mbminlen;
-	col->mbmaxlen = mbmaxlen;
+	col->mbminlen = (unsigned int) mbminlen;
+	col->mbmaxlen = (unsigned int) mbmaxlen;
 }
 
 /**************************************************************************
@@ -245,13 +245,13 @@ dict_mem_index_create(
 	index->heap = heap;
 
 	index->type = type;
-	index->space = space;
+	index->space = (unsigned int) space;
 	index->page = 0;
 	index->name = mem_heap_strdup(heap, index_name);
 	index->table_name = table_name;
 	index->table = NULL;
 	index->n_def = index->n_nullable = 0;
-	index->n_fields = n_fields;
+	index->n_fields = (unsigned int) n_fields;
 	index->fields = mem_heap_alloc(heap, 1 + n_fields
 				       * sizeof(dict_field_t));
 	/* The '1 +' above prevents allocation
@@ -326,7 +326,7 @@ dict_mem_index_add_field(
 	field = dict_index_get_nth_field(index, index->n_def - 1);
 
 	field->name = name;
-	field->prefix_len = prefix_len;
+	field->prefix_len = (unsigned int) prefix_len;
 }
 
 /**************************************************************************

@@ -2965,7 +2965,6 @@ Dbdih::nr_start_fragment(Signal* signal,
     if (replicaPtr.p->lcpStatus[idx] == ZVALID) 
     {
       ndbrequire(replicaPtr.p->lcpId[idx] > maxLcpId);
-      Uint32 startGci = replicaPtr.p->maxGciCompleted[idx];
       Uint32 stopGci = replicaPtr.p->maxGciStarted[idx];
       for (;j < replicaPtr.p->noCrashedReplicas; j++)
       {
@@ -10620,8 +10619,6 @@ Dbdih::handle_invalid_lcp_no(const LcpFragRep* rep,
   ndbrequire(!isMaster());
   Uint32 lcpNo = rep->lcpNo;
   Uint32 lcpId = rep->lcpId;
-  Uint32 replicaLcpNo = replicaPtr.p->nextLcp;
-  Uint32 prevReplicaLcpNo = prevLcpNo(replicaLcpNo);
 
   warningEvent("Detected previous node failure of %d during lcp",
 	       rep->nodeId);

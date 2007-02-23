@@ -2116,7 +2116,7 @@ row_fetch_store_uint4(
 	ut_a(len == 4);
 
 	tmp = mach_read_from_4(dfield_get_data(dfield));
-	*val = tmp;
+	*val = (ib_uint32_t) tmp;
 
 	return(NULL);
 }
