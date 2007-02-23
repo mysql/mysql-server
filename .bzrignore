@@ -2664,6 +2664,7 @@ storage/ndb/src/mgmclient/test_cpcd/*.d
 storage/ndb/src/mgmsrv/ndb_mgmd
 storage/ndb/src/mgmsrv/ndb_mgmd.dsp
 storage/ndb/src/ndbapi/libndbapi.dsp
+storage/ndb/src/ndbapi/ndberror_check
 storage/ndb/test/ndbapi/DbAsyncGenerator
 storage/ndb/test/ndbapi/DbCreate
 storage/ndb/test/ndbapi/bank/bankCreator
@@ -2951,4 +2952,3 @@ win/vs71cache.txt
 win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
-storage/ndb/src/ndbapi/ndberror_check
