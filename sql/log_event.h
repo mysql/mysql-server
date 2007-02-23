@@ -546,16 +546,19 @@ typedef struct st_print_event_info
       bzero(db, sizeof(db));
       bzero(charset, sizeof(charset));
       bzero(time_zone_str, sizeof(time_zone_str));
-      strcpy(delimiter, ";");
-      uint const flags = MYF(MY_WME | MY_NABP);
-      init_io_cache(&head_cache, -1, 0, WRITE_CACHE, 0L, FALSE, flags);
-      init_io_cache(&body_cache, -1, 0, WRITE_CACHE, 0L, FALSE, flags);
+      delimiter[0]= ';';
+      delimiter[1]= 0;
+      myf const flags = MYF(MY_WME | MY_NABP);
+      open_cached_file(&head_cache, NULL, NULL, 0, flags);
+      open_cached_file(&body_cache, NULL, NULL, 0, flags);
     }
 
   ~st_print_event_info() {
-    end_io_cache(&head_cache);
-    end_io_cache(&body_cache);
+    close_cached_file(&head_cache);
+    close_cached_file(&body_cache);
   }
+  bool init_ok() /* tells if construction was successful */
+    { return my_b_inited(&head_cache) && my_b_inited(&body_cache); }
 
 
   /* Settings on how to print the events */
