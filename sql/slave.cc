@@ -3667,8 +3667,8 @@ bool rpl_master_has_bug(RELAY_LOG_INFO *rli, uint bug_id)
   };
   static struct st_version_range_for_one_bug versions_for_all_bugs[]=
   {
-    {24432, { 5, 0, 24 }, { 5, 0, 36 } },
-    {24432, { 5, 1, 12 }, { 5, 1, 16 } }
+    {24432, { 5, 0, 24 }, { 5, 0, 38 } },
+    {24432, { 5, 1, 12 }, { 5, 1, 17 } }
   };
   const uchar *master_ver=
     rli->relay_log.description_event_for_exec->server_version_split;
