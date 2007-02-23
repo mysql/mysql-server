@@ -35,6 +35,12 @@
 
 #define YASSL_VERSION "1.5.8"
 
+#if defined(_WIN32) || defined(_WIN64)
+    #include <winsock2.h>
+    typedef SOCKET socket_t;
+#else
+    typedef int socket_t;
+#endif
 
 #if defined(__cplusplus)
 extern "C" {
@@ -188,13 +194,6 @@ enum {  /* ERR Constants */
     ERR_TXT_STRING = 1,
     EVP_R_BAD_DECRYPT = 2
 };
-
-#if defined(_WIN32) || defined(_WIN64)
-    #include <winsock2.h>
-    typedef SOCKET socket_t;
-#else
-    typedef int socket_t;
-#endif
 
 
 SSL_CTX* SSL_CTX_new(SSL_METHOD*);
