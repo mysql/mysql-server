@@ -30,7 +30,13 @@ extern uchar days_in_month[];
 
 /*
   Portable time_t replacement.
-  Should be signed and hold seconds for 1902-2038 range.
+  Should be signed and hold seconds for 1902 -- 2038-01-19 range
+  i.e at least a 32bit variable
+
+  Using the system built in time_t is not an option as
+  we rely on the above requirements in the time functions
+
+  For example QNX has an unsigned time_t type
 */
 #if defined(_WIN64) || defined(WIN64)
 /* on Win64 long is still 4 bytes (not 8!) */
