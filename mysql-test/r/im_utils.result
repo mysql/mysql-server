@@ -19,6 +19,7 @@ language	VALUE
 character-sets-dir	VALUE
 basedir	VALUE
 server_id	VALUE
+shutdown-delay	VALUE
 skip-stack-trace	VALUE
 skip-innodb	VALUE
 skip-ndbcluster	VALUE
@@ -37,6 +38,7 @@ language	VALUE
 character-sets-dir	VALUE
 basedir	VALUE
 server_id	VALUE
+shutdown-delay	VALUE
 skip-stack-trace	VALUE
 skip-innodb	VALUE
 skip-ndbcluster	VALUE
