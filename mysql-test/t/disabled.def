@@ -14,4 +14,5 @@ im_daemon_life_cycle     : Bug#24415  see note: [19 Dec 23:17] Trudy Pelzer
 ndb_load        : Bug#17233
 user_limits     : Bug#23921 random failure of user_limits.test
 flush2          : Bug#24805 Pushbuild can't handle test with --disable-log-bin
+rpl_insert_id   : replication team will enable as soon as they merge their tree with main tree and so got version number 5.0.38
 
