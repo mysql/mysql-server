@@ -637,27 +637,26 @@ static char checksum_format_specifier(const char* msg)
 {
   char chksum= 0;
   const char* p= msg;
-  int is_format_specifier= 0;
+  const char* start= 0;
   int num_format_specifiers= 0;
   while (*p)
   {
 
     if (*p == '%')
     {
-      is_format_specifier= 1; /* Entering format specifier */
+      start= p+1; /* Entering format specifier */
       num_format_specifiers++;
     }
-
-    if (is_format_specifier)
+    else if (start)
     {
-      chksum^= *p;
       switch(*p)
       {
       case 'd':
       case 'u':
       case 'x':
       case 's':
-        is_format_specifier= 0; /* Not in format specifier anymore */
+        chksum= my_checksum(chksum, start, p-start);
+        start= 0; /* Not in format specifier anymore */
         break;
 
       default:
@@ -668,13 +667,13 @@ static char checksum_format_specifier(const char* msg)
     p++;
   }
 
-  if (is_format_specifier)
+  if (start)
   {
     /* Still inside a format specifier after end of string */
 
     fprintf(stderr, "Still inside formatspecifier after end of string"
                     " in'%s'\n", msg);
-    DBUG_ASSERT(is_format_specifier==0);
+    DBUG_ASSERT(start==0);
   }
 
   /* Add number of format specifiers to checksum as extra safeguard */
