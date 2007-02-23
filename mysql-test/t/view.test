@@ -748,12 +748,14 @@ drop view v1;
 #
 # VIEWs with national characters
 #
-create table t (c char);
-create view v as select c from t;
-insert into v values ('');
-select * from v;
-drop view v;
-drop table t;
+set names utf8;
+create table tü (cü char);
+create view vü as select cü from tü;
+insert into vü values ('ü');
+select * from vü;
+drop view vü;
+drop table tü;
+set names latin1;
 
 #
 # problem with used_tables() of outer reference resolved in VIEW

@@ -834,14 +834,16 @@ show create view v1;
 View	Create View
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 99999999999999999999999999999999999999999999999999999 AS `col1`
 drop view v1;
-create table t (c char);
-create view v as select c from t;
-insert into v values ('');
-select * from v;
-c
-
-drop view v;
-drop table t;
+set names utf8;
+create table tü (cü char);
+create view vü as select cü from tü;
+insert into vü values ('ü');
+select * from vü;
+cü
+ü
+drop view vü;
+drop table tü;
+set names latin1;
 create table t1 (a int, b int);
 insert into t1 values (1,2), (1,3), (2,4), (2,5), (3,10);
 create view v1(c) as select a+1 from t1 where b >= 4;
