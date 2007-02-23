@@ -1,0 +1,14 @@
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+--source include/not_embedded.inc
+--source include/not_windows.inc
+
+connection master;
+set @old_global_binlog_format = @@global.binlog_format;
+
+let $binlog_format_statement=0;
+set @@global.binlog_format = row;
+--source extra/rpl_tests/rpl_insert_delayed.test
+
+connection master;
+set @@global.binlog_format = @old_global_binlog_format;
