@@ -3,7 +3,7 @@
 #pragma hdrstop
 
 #include "emb_samples.h"
-#include <winsock.h>
+#include <winsock2.h>
 #include <mysql.h>
 #include <stdarg.h>
 #include <stdio.h>

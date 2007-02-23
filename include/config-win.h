@@ -27,7 +27,7 @@ functions */
 #endif
 
 #include <sys/locking.h>
-#include <windows.h>
+#include <winsock2.h>
 #include <math.h>			/* Because of rint() */
 #include <fcntl.h>
 #include <io.h>
