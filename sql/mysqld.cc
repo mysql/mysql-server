@@ -3308,7 +3308,7 @@ server.");
                                (TC_LOG *) &tc_log_mmap) :
            (TC_LOG *) &tc_log_dummy);
 
-  if (tc_log->open(opt_bin_logname))
+  if (tc_log->open(opt_bin_log ? opt_bin_logname : opt_tc_log_file))
   {
     sql_print_error("Can't init tc log");
     unireg_abort(1);
@@ -7486,7 +7486,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int) OPT_STANDALONE:		/* Dummy option for NT */
     break;
 #endif
- /*
+  /*
     The following change issues a deprecation warning if the slave
     configuration is specified either in the my.cnf file or on
     the command-line. See BUG#21490.
