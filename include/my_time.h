@@ -38,13 +38,7 @@ extern uchar days_in_month[];
 
   For example QNX has an unsigned time_t type
 */
-#if defined(_WIN64) || defined(WIN64)
-/* on Win64 long is still 4 bytes (not 8!) */
-typedef LONG64 my_time_t;
-#else
-typedef time_t my_time_t;
-
-#endif
+typedef long my_time_t;
 
 #define MY_TIME_T_MAX LONG_MAX
 #define MY_TIME_T_MIN LONG_MIN
