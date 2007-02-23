@@ -1144,13 +1144,18 @@ void Log_event::print_header(IO_CACHE* file,
       char emit_buf[256];
       int const bytes_written=
         my_snprintf(emit_buf, sizeof(emit_buf),
-                    "# %8.8lx %-48.48s |%s|\n# ",
+                    "# %8.8lx %-48.48s |%s|\n",
                     (unsigned long) (hexdump_from + (i & 0xfffffff0)),
                     hex_string, char_string);
       DBUG_ASSERT(bytes_written >= 0);
       DBUG_ASSERT(static_cast<my_size_t>(bytes_written) < sizeof(emit_buf));
       my_b_write(file, (byte*) emit_buf, bytes_written);
     }
+    /*
+      need a # to prefix the rest of printouts for example those of
+      Rows_log_event::print_helper().
+    */
+    my_b_write(file, "# ", 2);
   }
   DBUG_VOID_RETURN;
 }
@@ -6106,7 +6111,7 @@ void Rows_log_event::print_helper(FILE *file,
   {
     bool const last_stmt_event= get_flags(STMT_END_F);
     print_header(head, print_event_info, !last_stmt_event);
-    my_b_printf(head, "\t%s: table id %lu", name, m_table_id);
+    my_b_printf(head, "\t%s: table id %lu\n", name, m_table_id);
     print_base64(body, print_event_info, !last_stmt_event);
   }
 
