@@ -291,7 +291,6 @@ Dbdict::execDUMP_STATE_ORD(Signal* signal)
     for(; ok; ok = c_obj_hash.next(iter))
     {
       Rope name(c_rope_pool, iter.curr.p->m_name);
-      const Uint32 size = name.size();
       char buf[1024];
       name.copy(buf);
       ndbout_c("%s m_ref_count: %d", buf, iter.curr.p->m_ref_count); 
@@ -3793,7 +3792,7 @@ Dbdict::execCREATE_TABLE_REQ(Signal* signal){
     createTabPtr.p->m_dihAddFragPtr = RNIL;
 
     Uint32 key = c_opRecordSequence + 1;
-    Uint32 *theData = signal->getDataPtrSend(), i;
+    Uint32 *theData = signal->getDataPtrSend();
     Uint16 *frag_data= (Uint16*)&signal->theData[25];
     CreateFragmentationReq * const req = (CreateFragmentationReq*)theData;
     req->senderRef = reference();
@@ -4940,7 +4939,6 @@ Dbdict::execCREATE_FRAGMENTATION_CONF(Signal* signal){
   packTableIntoPages(w, tabPtr);
   
   SegmentedSectionPtr spDataPtr;
-  Ptr<SectionSegment> tmpTsPtr;
   w.getPtr(spDataPtr);
   
   signal->setSection(spDataPtr, CreateTabReq::DICT_TAB_INFO);
@@ -5425,7 +5423,6 @@ Dbdict::execADD_FRAGREQ(Signal* signal) {
   Uint32 fragCount = req->totalFragments;
   Uint32 requestInfo = req->requestInfo;
   Uint32 startGci = req->startGci;
-  Uint32 tablespace_id= req->tablespaceId;
   Uint32 logPart = req->logPartId;
 
   ndbrequire(node == getOwnNodeId());
@@ -7538,7 +7535,6 @@ void
 Dbdict::execLIST_TABLES_REQ(Signal* signal)
 {
   jamEntry();
-  Uint32 i;
   ListTablesReq * req = (ListTablesReq*)signal->getDataPtr();
   Uint32 senderRef  = req->senderRef;
   Uint32 senderData = req->senderData;
@@ -9415,7 +9411,6 @@ Dbdict::createEventUTIL_PREPARE(Signal* signal,
     evntRecPtr.i = ref->getSenderData();
     ndbrequire((evntRecPtr.p = c_opCreateEvent.getPtr(evntRecPtr.i)) != NULL);
 
-    Uint32 err;
     interpretUtilPrepareErrorCode(errorCode, evntRecPtr.p->m_errorCode,
 				  evntRecPtr.p->m_errorLine);
     evntRecPtr.p->m_errorNode = reference();
@@ -15184,7 +15179,6 @@ Dbdict::execDROP_OBJ_REQ(Signal* signal){
   const Uint32 objId = req->objId;
   const Uint32 objVersion = req->objVersion;
   const Uint32 objType = req->objType;
-  const Uint32 requestInfo = req->requestInfo;
   
   DropObjRecordPtr dropObjPtr;  
   ndbrequire(c_opDropObj.seize(dropObjPtr));
@@ -15683,8 +15677,7 @@ Dbdict::execCREATE_FILEGROUP_CONF(Signal* signal){
 
 void
 Dbdict::create_fg_abort_start(Signal* signal, SchemaOp* op){
-  CreateFilegroupImplReq* req = 
-    (CreateFilegroupImplReq*)signal->getDataPtrSend();
+  (void) signal->getDataPtrSend();
 
   if (op->m_obj_ptr_i != RNIL)
   {

@@ -460,10 +460,10 @@ static bool write_ddl_log_header()
             global_ddl_log.num_entries);
   const_var= FN_LEN;
   int4store(&global_ddl_log.file_entry_buf[DDL_LOG_NAME_LEN_POS],
-            const_var);
+            (ulong) const_var);
   const_var= IO_SIZE;
   int4store(&global_ddl_log.file_entry_buf[DDL_LOG_IO_SIZE_POS],
-            const_var);
+            (ulong) const_var);
   if (write_ddl_log_file_entry(0UL))
   {
     sql_print_error("Error writing ddl log header");
@@ -3416,16 +3416,11 @@ bool mysql_create_table_internal(THD *thd,
   {
  #ifdef FN_DEVCHAR
     /* check if the table name contains FN_DEVCHAR when defined */
-    const char *start= alias;
-    while (*start != '\0')
+    if (strchr(alias, FN_DEVCHAR))
     {
-      if (*start == FN_DEVCHAR)
-      {
-        my_error(ER_WRONG_TABLE_NAME, MYF(0), alias);
-        DBUG_RETURN(TRUE);
-      }
-      start++;
-    }	  
+      my_error(ER_WRONG_TABLE_NAME, MYF(0), alias);
+      DBUG_RETURN(TRUE);
+    }
 #endif
     path_length= build_table_filename(path, sizeof(path), db, alias, reg_ext,
                                       internal_tmp_table ? FN_IS_TMP : 0);

@@ -1587,7 +1587,7 @@ int Item_func_now::save_in_field(Field *to, bool no_conversions)
 void Item_func_sysdate_local::store_now_in_TIME(TIME *now_time)
 {
   THD *thd= current_thd;
-  thd->variables.time_zone->gmt_sec_to_TIME(now_time, time(NULL));
+  thd->variables.time_zone->gmt_sec_to_TIME(now_time, (my_time_t) time(NULL));
   thd->time_zone_used= 1;
 }
 

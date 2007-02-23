@@ -932,7 +932,6 @@ typedef unsigned long long my_size_t;
 #define my_offsetof(TYPE, MEMBER) \
         ((size_t)((char *)&(((TYPE *)0x10)->MEMBER) - (char*)0x10))
 
-
 #define NullS		(char *) 0
 /* Nowdays we do not support MessyDos */
 #ifndef NEAR
@@ -1171,7 +1170,7 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 */
 #define uint3korr(A)	(long) (*((unsigned int *) (A)) & 0xFFFFFF)
 #endif
-#define uint4korr(A)	(*((unsigned long *) (A)))
+#define uint4korr(A)	(*((uint32 *) (A)))
 #define uint5korr(A)	((ulonglong)(((uint32) ((uchar) (A)[0])) +\
 				    (((uint32) ((uchar) (A)[1])) << 8) +\
 				    (((uint32) ((uchar) (A)[2])) << 16) +\
@@ -1285,17 +1284,19 @@ do { doubleget_union _tmp; \
                                   *(((char *)(T))+1)=(char) (((A) >> 8));\
                                   *(((char *)(T))+2)=(char) (((A) >> 16));\
                                   *(((char *)(T))+3)=(char) (((A) >> 24)); } while(0)
-#define int5store(T,A)       do { *((char *)(T))=((A));\
-                                  *(((char *)(T))+1)=(((A) >> 8));\
-                                  *(((char *)(T))+2)=(((A) >> 16));\
-                                  *(((char *)(T))+3)=(((A) >> 24)); \
-                                  *(((char *)(T))+4)=(((A) >> 32)); } while(0)
-#define int6store(T,A)       do { *((char *)(T))=((A));\
-                                  *(((char *)(T))+1)=(((A) >> 8));  \
-                                  *(((char *)(T))+2)=(((A) >> 16)); \
-                                  *(((char *)(T))+3)=(((A) >> 24)); \
-                                  *(((char *)(T))+4)=(((A) >> 32)); \
-                                  *(((char *)(T))+5)=(((A) >> 40)); } while(0)
+#define int5store(T,A)       do { *((char *)(T))=     (char)((A));  \
+                                  *(((char *)(T))+1)= (char)(((A) >> 8)); \
+                                  *(((char *)(T))+2)= (char)(((A) >> 16)); \
+                                  *(((char *)(T))+3)= (char)(((A) >> 24)); \
+                                  *(((char *)(T))+4)= (char)(((A) >> 32)); \
+		                } while(0)
+#define int6store(T,A)       do { *((char *)(T))=     (char)((A)); \
+                                  *(((char *)(T))+1)= (char)(((A) >> 8)); \
+                                  *(((char *)(T))+2)= (char)(((A) >> 16)); \
+                                  *(((char *)(T))+3)= (char)(((A) >> 24)); \
+                                  *(((char *)(T))+4)= (char)(((A) >> 32)); \
+                                  *(((char *)(T))+5)= (char)(((A) >> 40)); \
+                                } while(0)
 #define int8store(T,A)       do { uint def_temp= (uint) (A), def_temp2= (uint) ((A) >> 32); \
                                   int4store((T),def_temp); \
                                   int4store((T+4),def_temp2); } while(0)

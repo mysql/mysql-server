@@ -228,7 +228,7 @@ sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
 
   if (dir)
   {
-    fn_format(path, file_name->str, dir->str, 0, MY_UNPACK_FILENAME);
+    fn_format(path, file_name->str, dir->str, "", MY_UNPACK_FILENAME);
     path_end= strlen(path);
   }
   else

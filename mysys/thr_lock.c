@@ -343,8 +343,9 @@ void thr_lock_delete(THR_LOCK *lock)
 
 void thr_lock_info_init(THR_LOCK_INFO *info)
 {
-  info->thread= pthread_self();
-  info->thread_id= my_thread_id();              /* for debugging */
+  struct st_my_thread_var *tmp= my_thread_var;
+  info->thread=    tmp->pthread_self;
+  info->thread_id= tmp->id;
   info->n_cursors= 0;
 }
 
@@ -622,8 +623,10 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
 	statistic_increment(locks_immediate,&THR_LOCK_lock);
 	goto end;
       }
+      /* purecov: begin inspected */
       DBUG_PRINT("lock",("write locked by thread: 0x%lx",
 			 lock->write.data->owner->info->thread_id));
+      /* purecov: end */
     }
     else
     {
@@ -658,7 +661,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
 	  goto end;
 	}
       }
-      DBUG_PRINT("lock",("write locked by thread: 0x%lx, type: %d",
+      DBUG_PRINT("lock",("write locked by thread: 0x%lx  type: %d",
 			 lock->read.data->owner->info->thread_id, data->type));
     }
     wait_queue= &lock->write_wait;
@@ -720,8 +723,10 @@ static inline void free_all_read_locks(THR_LOCK *lock,
       }
       lock->read_no_write_count++;
     }      
+    /* purecov: begin inspected */
     DBUG_PRINT("lock",("giving read lock to thread: 0x%lx",
 		       data->owner->info->thread_id));
+    /* purecov: end */
     data->cond=0;				/* Mark thread free */
     VOID(pthread_cond_signal(cond));
   } while ((data=data->next));
@@ -806,8 +811,10 @@ void thr_unlock(THR_LOCK_DATA *data)
 	  if (data->type == TL_WRITE_CONCURRENT_INSERT &&
 	      (*lock->check_status)(data->status_param))
 	    data->type=TL_WRITE;			/* Upgrade lock */
+          /* purecov: begin inspected */
 	  DBUG_PRINT("lock",("giving write lock of type %d to thread: 0x%lx",
 			     data->type, data->owner->info->thread_id));
+          /* purecov: end */
 	  {
 	    pthread_cond_t *cond=data->cond;
 	    data->cond=0;				/* Mark thread free */
@@ -1006,7 +1013,7 @@ void thr_multi_unlock(THR_LOCK_DATA **data,uint count)
       thr_unlock(*pos);
     else
     {
-      DBUG_PRINT("lock",("Free lock: data: 0x%lx  thread: %ld  lock: 0x%lx",
+      DBUG_PRINT("lock",("Free lock: data: 0x%lx  thread: 0x%lx  lock: 0x%lx",
                          (long) *pos, (*pos)->owner->info->thread_id,
                          (long) (*pos)->lock));
     }
@@ -1054,7 +1061,7 @@ void thr_abort_locks(THR_LOCK *lock, bool upgrade_lock)
   This is used to abort all locks for a specific thread
 */
 
-my_bool thr_abort_locks_for_thread(THR_LOCK *lock, pthread_t thread)
+my_bool thr_abort_locks_for_thread(THR_LOCK *lock, my_thread_id thread_id)
 {
   THR_LOCK_DATA *data;
   my_bool found= FALSE;
@@ -1063,7 +1070,7 @@ my_bool thr_abort_locks_for_thread(THR_LOCK *lock, pthread_t thread)
   pthread_mutex_lock(&lock->mutex);
   for (data= lock->read_wait.data; data ; data= data->next)
   {
-    if (pthread_equal(thread, data->owner->info->thread))
+    if (data->owner->info->thread_id == thread_id)    /* purecov: tested */
     {
       DBUG_PRINT("info",("Aborting read-wait lock"));
       data->type= TL_UNLOCK;			/* Mark killed */
@@ -1080,7 +1087,7 @@ my_bool thr_abort_locks_for_thread(THR_LOCK *lock, pthread_t thread)
   }
   for (data= lock->write_wait.data; data ; data= data->next)
   {
-    if (pthread_equal(thread, data->owner->info->thread))
+    if (data->owner->info->thread_id == thread_id) /* purecov: tested */
     {
       DBUG_PRINT("info",("Aborting write-wait lock"));
       data->type= TL_UNLOCK;
@@ -1133,7 +1140,9 @@ void thr_downgrade_write_lock(THR_LOCK_DATA *in_data,
                               enum thr_lock_type new_lock_type)
 {
   THR_LOCK *lock=in_data->lock;
+#ifndef DBUG_OFF
   enum thr_lock_type old_lock_type= in_data->type;
+#endif
 #ifdef TO_BE_REMOVED
   THR_LOCK_DATA *data, *next;
   bool start_writers= FALSE;
@@ -1528,6 +1537,10 @@ static void test_get_status(void* param __attribute__((unused)),
 {
 }
 
+static void test_update_status(void* param __attribute__((unused)))
+{
+}
+
 static void test_copy_status(void* to __attribute__((unused)) ,
 			     void *from __attribute__((unused)))
 {
@@ -1620,7 +1633,7 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
   {
     thr_lock_init(locks+i);
     locks[i].check_status= test_check_status;
-    locks[i].update_status=test_get_status;
+    locks[i].update_status=test_update_status;
     locks[i].copy_status=  test_copy_status;
     locks[i].get_status=   test_get_status;
   }

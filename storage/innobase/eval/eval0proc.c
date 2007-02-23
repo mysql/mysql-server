@@ -194,7 +194,7 @@ for_step(
 		loop_var_value = eval_node_get_int_val(node->loop_start_limit);
 
 		node->loop_end_value
-			= eval_node_get_int_val(node->loop_end_limit);
+                  = (int) eval_node_get_int_val(node->loop_end_limit);
 	}
 
 	/* Check if we should do another loop */

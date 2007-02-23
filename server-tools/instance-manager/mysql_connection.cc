@@ -87,7 +87,7 @@ bool Mysql_connection::init()
   /* Initialize random number generator */
   {
     ulong seed1= (ulong) &rand_st + rand();
-    ulong seed2= (ulong) rand() + time(0);
+    ulong seed2= (ulong) rand() + (ulong) time(0);
     randominit(&rand_st, seed1, seed2);
   }
 

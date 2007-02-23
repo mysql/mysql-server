@@ -26,7 +26,7 @@
 #include "m_ctype.h"
 
 
-byte *my_strchr(CHARSET_INFO *cs, const char *str, const char *end,
+char *my_strchr(CHARSET_INFO *cs, const char *str, const char *end,
                 pchar c)
 {
   uint mbl;

@@ -95,7 +95,7 @@ extern FILE *_db_fp_(void);
 #define DBUG_SET(a1)
 #define DBUG_SET_INITIAL(a1)
 #define DBUG_POP()
-#define DBUG_PROCESS(a1) (a1)
+#define DBUG_PROCESS(a1)
 #define DBUG_SETJMP(a1) setjmp(a1)
 #define DBUG_LONGJMP(a1) longjmp(a1)
 #define DBUG_DUMP(keyword,a1,a2)

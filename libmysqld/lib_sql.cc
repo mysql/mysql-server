@@ -34,11 +34,6 @@ extern "C"
 #include "../sql/mysqld.cc"
 #endif
 
-int check_user(THD *thd, enum enum_server_command command, 
-	       const char *passwd, uint passwd_len, const char *db,
-	       bool check_count);
-void thd_init_client_charset(THD *thd, uint cs_number);
-
 C_MODE_START
 
 #include <mysql.h>
@@ -585,10 +580,7 @@ void *create_embedded_thd(int client_flag)
     goto err;
   }
 
-  thd->mysys_var= my_thread_var;
-  thd->dbug_thread_id= my_thread_id();
-
-/* TODO - add init_connect command execution */
+  /* TODO - add init_connect command execution */
 
   if (thd->variables.max_join_size == HA_POS_ERROR)
     thd->options |= OPTION_BIG_SELECTS;

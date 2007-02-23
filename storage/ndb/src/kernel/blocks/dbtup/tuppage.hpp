@@ -94,6 +94,7 @@ struct Tup_fixsize_page
    * Alloc record from page
    *   return page_idx
    **/
+  Tup_fixsize_page() {}
   Uint32 alloc_record();
   Uint32 alloc_record(Uint32 page_idx);
   Uint32 free_record(Uint32 page_idx);
@@ -148,6 +149,7 @@ struct Tup_varsize_page
   
   Uint32 m_data[DATA_WORDS];
   
+  Tup_varsize_page() {}
   void init();
   
   Uint32* get_free_space_ptr() { 

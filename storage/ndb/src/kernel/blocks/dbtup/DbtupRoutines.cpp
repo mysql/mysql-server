@@ -341,7 +341,6 @@ Dbtup::readFixedSizeTHManyWordNotNULL(Uint32* outBuffer,
     Uint32 maxIndexBuf = indexBuf + (dstLen >> 2);
     if (maxIndexBuf <= maxRead && ok) {
       ljam();
-      const char* ssrcPtr = (const char*)srcPtr;
       int n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, srcPtr + lb, len);
       ndbrequire(n != -1);
       int m = n;
@@ -510,7 +509,6 @@ Dbtup::readVarSizeNotNULL(Uint32* out_buffer,
     Uint32 maxIndexBuf = index_buf + (dstLen >> 2);
     if (maxIndexBuf <= max_read && ok) {
       ljam();
-      const char* ssrcPtr = (const char*)srcPtr;
       int n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, srcPtr + lb, len);
       ndbrequire(n != -1);
       int m = n;
@@ -618,7 +616,6 @@ Dbtup::readDiskFixedSizeNotNULL(Uint32* outBuffer,
     Uint32 maxIndexBuf = indexBuf + (dstLen >> 2);
     if (maxIndexBuf <= maxRead && ok) {
       ljam();
-      const char* ssrcPtr = (const char*)srcPtr;
       int n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, srcPtr + lb, len);
       ndbrequire(n != -1);
       int m = n;
@@ -1025,7 +1022,7 @@ Dbtup::updateVarSizeNotNULL(Uint32* in_buffer,
                             Uint32 attr_des2)
 {
   Uint32 attr_descriptor, index_buf, in_buf_len, var_index, null_ind;
-  Uint32 vsize_in_bytes, vsize_in_words, new_index, max_var_size;
+  Uint32 vsize_in_words, new_index, max_var_size;
   Uint32 var_attr_pos;
   char *var_data_start;
   Uint16 *vpos_array;
@@ -1445,7 +1442,7 @@ Dbtup::updateDiskVarSizeNotNULL(Uint32* in_buffer,
                             Uint32 attr_des2)
 {
   Uint32 attr_descriptor, index_buf, in_buf_len, var_index, null_ind;
-  Uint32 vsize_in_bytes, vsize_in_words, new_index, max_var_size;
+  Uint32 vsize_in_words, new_index, max_var_size;
   Uint32 var_attr_pos;
   char *var_data_start;
   Uint16 *vpos_array;

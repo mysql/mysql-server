@@ -461,9 +461,8 @@ operator<< (NdbOut& out, const Tup_fixsize_page& page)
       << " free: " << page.free_space;
   
   out << " free list: " << hex << page.next_free_index << " " << flush;
-  Uint32 startTuple = page.next_free_index >> 16;
-  
 #if 0
+  Uint32 startTuple = page.next_free_index >> 16;
   Uint32 cnt = 0;
   Uint32 next= startTuple;
   while((next & 0xFFFF) != 0xFFFF)

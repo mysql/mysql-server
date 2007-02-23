@@ -20,28 +20,6 @@ drop table events;
 
 # End of 4.1 tests
 
-
-#
-# Bug#12204 - CONNECTION should not be a reserved word
-#
-
-create table t1 (connection int, b int);
-delimiter |;
-create procedure p1()
-begin
-  declare connection int;
-  select max(t1.connection) into connection from t1;
-  select concat("max=",connection) 'p1';
-end|
-delimiter ;|
-insert into t1 (connection) values (1);
-call p1();
-drop procedure p1;
-drop table t1;
-
-
-# End of 5.0 tests
-
 #
 # Bug#19939 "AUTHORS is not a keyword"
 #
@@ -65,3 +43,24 @@ drop procedure p1;
 drop procedure p2;
 
 # End of 5.1 tests
+
+#
+# Bug#12204 - CONNECTION should not be a reserved word
+#
+
+create table t1 (connection int, b int);
+delimiter |;
+create procedure p1()
+begin
+  declare connection int;
+  select max(t1.connection) into connection from t1;
+  select concat("max=",connection) 'p1';
+end|
+delimiter ;|
+insert into t1 (connection) values (1);
+call p1();
+drop procedure p1;
+drop table t1;
+
+
+# End of 5.0 tests
