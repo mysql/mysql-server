@@ -1940,4 +1940,18 @@ abcxx
 select lpad('abc', cast(5 as unsigned integer), 'x');
 lpad('abc', cast(5 as unsigned integer), 'x')
 xxabc
+DROP TABLE IF EXISTS t1;
+CREATE TABLE `t1` (
+`id` varchar(20) NOT NULL,
+`tire` tinyint(3) unsigned NOT NULL,
+PRIMARY KEY (`id`)
+);
+INSERT INTO `t1` (`id`, `tire`) VALUES ('A', 0), ('B', 1),('C', 2);
+SELECT REPEAT( '#', tire ) AS A,
+REPEAT( '#', tire % 999 ) AS B, tire FROM `t1`;
+A	B	tire
+		0
+#	#	1
+##	##	2
+DROP TABLE t1;
 End of 5.0 tests
