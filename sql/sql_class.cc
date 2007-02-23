@@ -2554,7 +2554,7 @@ namespace {
       : m_memory(0)
     {
 #ifndef DBUG_OFF
-      m_alloc_checked= false;
+      m_alloc_checked= FALSE;
 #endif
       allocate_memory(table, len1);
       m_ptr[0]= has_memory() ? m_memory : 0;
@@ -2565,7 +2565,7 @@ namespace {
       : m_memory(0)
     {
 #ifndef DBUG_OFF
-      m_alloc_checked= false;
+      m_alloc_checked= FALSE;
 #endif
       allocate_memory(table, len1 + len2);
       m_ptr[0]= has_memory() ? m_memory        : 0;
@@ -2586,7 +2586,7 @@ namespace {
      */
     bool has_memory() const {
 #ifndef DBUG_OFF
-      m_alloc_checked= true;
+      m_alloc_checked= TRUE;
 #endif
       return m_memory != 0;
     }
@@ -2595,7 +2595,7 @@ namespace {
     {
       DBUG_ASSERT(s < sizeof(m_ptr)/sizeof(*m_ptr));
       DBUG_ASSERT(m_ptr[s] != 0);
-      DBUG_ASSERT(m_alloc_checked == true);
+      DBUG_ASSERT(m_alloc_checked == TRUE);
       return m_ptr[s];
     }
 
@@ -2625,12 +2625,12 @@ namespace {
           table->write_row_record=
             (byte *) alloc_root(&table->mem_root, 2 * maxlen);
         m_memory= table->write_row_record;
-        m_release_memory_on_destruction= false;
+        m_release_memory_on_destruction= FALSE;
       }
       else
       {
         m_memory= (byte *) my_malloc(total_length, MYF(MY_WME));
-        m_release_memory_on_destruction= true;
+        m_release_memory_on_destruction= TRUE;
       }
     }
 

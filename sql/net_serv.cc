@@ -47,9 +47,6 @@
 #include <violite.h>
 #include <signal.h>
 #include <errno.h>
-#ifdef __WIN__
-#include <winsock.h>
-#endif
 #ifdef __NETWARE__
 #include <sys/select.h>
 #endif

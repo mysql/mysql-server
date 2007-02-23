@@ -28,9 +28,8 @@
 
 #include <assert.h>
 
-#if defined(_WIN32) || defined(_WIN64)
-    #include <winsock2.h>
-#else 
+#include "openssl/ssl.h"                        /* for socket_t */
+#if !defined(_WIN32) && !defined(_WIN64)
     #include <sys/time.h>
     #include <sys/types.h>
     #include <sys/socket.h>
@@ -38,7 +37,6 @@
     #include <netinet/in.h>
     #include <arpa/inet.h>
 #endif
-#include "openssl/ssl.h"                        /* for socket_t */
 
 
 namespace yaSSL {
