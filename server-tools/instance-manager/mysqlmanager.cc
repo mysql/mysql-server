@@ -355,6 +355,10 @@ spawn:
       sleep(1); /* don't respawn too fast */
       goto spawn;
     }
+
+    /* Delete IM-angel pid file. */
+    my_delete(Options::angel_pid_file_name, MYF(0));
+
     /*
       mysqlmanager successfully exited, let's silently evaporate
       If we return to main we fall into the manager() function, so let's
