@@ -2524,7 +2524,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
       goto err;
     if (using_heuristic_recover())
       return 1;
-    if ((fd= my_create(logname, O_RDWR, 0, MYF(MY_WME))) < 0)
+    if ((fd= my_create(logname, CREATE_MODE, O_RDWR, MYF(MY_WME))) < 0)
       goto err;
     inited=1;
     file_length= opt_tc_log_size;
