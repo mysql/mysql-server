@@ -124,12 +124,34 @@ create table t1 select date_format("2004-01-19 10:10:10", "%Y-%m-%d");
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `date_format("2004-01-19 10:10:10", "%Y-%m-%d")` binary(10) default NULL
+  `date_format("2004-01-19 10:10:10", "%Y-%m-%d")` char(10) character set utf8 default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t1;
 date_format("2004-01-19 10:10:10", "%Y-%m-%d")
 2004-01-19
 drop table t1;
+set names utf8;
+set LC_TIME_NAMES='fr_FR';
+create table t1 (s1 char(20) character set latin1);
+insert into t1 values (date_format('2004-02-02','%M'));
+select hex(s1) from t1;
+hex(s1)
+66E97672696572
+drop table t1;
+create table t1 (s1 char(20) character set koi8r);
+set LC_TIME_NAMES='ru_RU';
+insert into t1 values (date_format('2004-02-02','%M'));
+insert into t1 values (date_format('2004-02-02','%b'));
+insert into t1 values (date_format('2004-02-02','%W'));
+insert into t1 values (date_format('2004-02-02','%a'));
+select hex(s1), s1 from t1;
+hex(s1)	s1
+E6C5D7D2C1CCD1	Февраля
+E6C5D7	Фев
+F0CFCEC5C4C5CCD8CEC9CB	Понедельник
+F0CEC4	Пнд
+drop table t1;
+set LC_TIME_NAMES='en_US';
 set names koi8r;
 create table t1 (s1 char(1) character set utf8);
 insert into t1 values (_koi8r'��');

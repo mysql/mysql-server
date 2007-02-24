@@ -2570,19 +2570,38 @@ void sys_var_thd_time_zone::set_default(THD *thd, enum_var_type type)
 
 bool sys_var_thd_lc_time_names::check(THD *thd, set_var *var)
 {
-  char *locale_str =var->value->str_value.c_ptr();
-  MY_LOCALE *locale_match=  my_locale_by_name(locale_str);
+  MY_LOCALE *locale_match;
 
-  if(locale_match == NULL) 
+  if (var->value->result_type() == INT_RESULT)
   {
-    my_printf_error(ER_UNKNOWN_ERROR, "Unknown locale: '%s'", MYF(0), locale_str);
-    return 1;
+    if (!(locale_match= my_locale_by_number((uint) var->value->val_int())))
+    {
+      char buf[20];
+      int10_to_str((int) var->value->val_int(), buf, -10);
+      my_printf_error(ER_UNKNOWN_ERROR, "Unknown locale: '%s'", MYF(0), buf);
+      return 1;
+    }
   }
-  else 
+  else // STRING_RESULT
   {
-    var->save_result.locale_value= locale_match;
-    return 0;
+    char buff[6]; 
+    String str(buff, sizeof(buff), &my_charset_latin1), *res;
+    if (!(res=var->value->val_str(&str)))
+    {
+      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, "NULL");
+      return 1;
+    }
+    const char *locale_str= res->c_ptr();
+    if (!(locale_match= my_locale_by_name(locale_str)))
+    {
+      my_printf_error(ER_UNKNOWN_ERROR,
+                      "Unknown locale: '%s'", MYF(0), locale_str);
+      return 1;
+    }
   }
+
+  var->save_result.locale_value= locale_match;
+  return 0;
 }
 
 

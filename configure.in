@@ -2990,10 +2990,14 @@ AM_CONDITIONAL(HAVE_NETWARE, test "$netware_dir" = "netware")
 export CC CXX CFLAGS CXXFLAGS LD LDFLAGS AR
 ac_configure_args="$ac_configure_args CFLAGS='$CFLAGS' CXXFLAGS='$CXXFLAGS'"
 
-if test "$with_server" = "yes" -o "$THREAD_SAFE_CLIENT" != "no"
+if test "$with_server" != "no" -o "$THREAD_SAFE_CLIENT" != "no"
 then
   AC_DEFINE([THREAD], [1],
             [Define if you want to have threaded code. This may be undef on client code])
+fi
+
+if test "$with_server" != "no"
+then
   # Avoid _PROGRAMS names
   THREAD_LPROGRAMS="test_thr_alarm\$(EXEEXT) test_thr_lock\$(EXEEXT)"
   AC_SUBST(THREAD_LPROGRAMS)

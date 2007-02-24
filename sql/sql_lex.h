@@ -571,19 +571,61 @@ typedef class st_select_lex SELECT_LEX;
 #define ALTER_ORDER		64
 #define ALTER_OPTIONS		128
 
-typedef struct st_alter_info
+/**
+  @brief Parsing data for CREATE or ALTER TABLE.
+
+  This structure contains a list of columns or indexes to be created,
+  altered or dropped.
+*/
+
+class Alter_info
 {
+public:
   List<Alter_drop>            drop_list;
   List<Alter_column>          alter_list;
+  List<Key>	              key_list;
+  List<create_field>          create_list;
   uint                        flags;
   enum enum_enable_or_disable keys_onoff;
   enum tablespace_op_type     tablespace_op;
   bool                        is_simple;
 
-  st_alter_info(){clear();}
-  void clear(){keys_onoff= LEAVE_AS_IS;tablespace_op= NO_TABLESPACE_OP;}
-  void reset(){drop_list.empty();alter_list.empty();clear();}
-} ALTER_INFO;
+  Alter_info() :
+    flags(0),
+    keys_onoff(LEAVE_AS_IS),
+    tablespace_op(NO_TABLESPACE_OP),
+    is_simple(1)
+  {}
+  void reset()
+  {
+    drop_list.empty();
+    alter_list.empty();
+    key_list.empty();
+    create_list.empty();
+    flags= 0;
+    keys_onoff= LEAVE_AS_IS;
+    tablespace_op= NO_TABLESPACE_OP;
+    is_simple= 1;
+  }
+  /**
+    Construct a copy of this object to be used for mysql_alter_table
+    and mysql_create_table. Historically, these two functions modify
+    their Alter_info arguments. This behaviour breaks re-execution of
+    prepared statements and stored procedures and is compensated by
+    always supplying a copy of Alter_info to these functions.
+    The constructed copy still shares key Key, Alter_drop, create_field
+    and Alter_column elements of the lists - these structures are not
+    modified and thus are not copied.
+
+    @note You need to use check thd->is_fatal_error for out
+    of memory condition after calling this function.
+  */
+  Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root);
+private:
+  Alter_info &operator=(const Alter_info &rhs); // not implemented
+  Alter_info(const Alter_info &rhs);            // not implemented
+};
+
 
 /* The state of the lex parsing. This is saved in the THD struct */
 
@@ -620,8 +662,6 @@ typedef struct st_lex
   List<String>	      interval_list;
   List<LEX_USER>      users_list;
   List<LEX_COLUMN>    columns;
-  List<Key>	      key_list;
-  List<create_field>  create_list;
   List<Item>	      *insert_list,field_list,value_list,update_list;
   List<List_item>     many_values;
   List<set_var_base>  var_list;
@@ -654,7 +694,7 @@ typedef struct st_lex
   bool derived_tables;
   bool safe_to_cache_query;
   bool subqueries, ignore;
-  ALTER_INFO alter_info;
+  Alter_info alter_info;
   /* Prepared statements SQL syntax:*/
   LEX_STRING prepared_stmt_name; /* Statement name (in all queries) */
   /* 
