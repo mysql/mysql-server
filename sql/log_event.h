@@ -546,16 +546,19 @@ typedef struct st_print_event_info
       bzero(db, sizeof(db));
       bzero(charset, sizeof(charset));
       bzero(time_zone_str, sizeof(time_zone_str));
-      strcpy(delimiter, ";");
-      uint const flags = MYF(MY_WME | MY_NABP);
-      init_io_cache(&head_cache, -1, 0, WRITE_CACHE, 0L, FALSE, flags);
-      init_io_cache(&body_cache, -1, 0, WRITE_CACHE, 0L, FALSE, flags);
+      delimiter[0]= ';';
+      delimiter[1]= 0;
+      myf const flags = MYF(MY_WME | MY_NABP);
+      open_cached_file(&head_cache, NULL, NULL, 0, flags);
+      open_cached_file(&body_cache, NULL, NULL, 0, flags);
     }
 
   ~st_print_event_info() {
-    end_io_cache(&head_cache);
-    end_io_cache(&body_cache);
+    close_cached_file(&head_cache);
+    close_cached_file(&body_cache);
   }
+  bool init_ok() /* tells if construction was successful */
+    { return my_b_inited(&head_cache) && my_b_inited(&body_cache); }
 
 
   /* Settings on how to print the events */
@@ -1153,6 +1156,7 @@ public:
   uint8 number_of_event_types;
   /* The list of post-headers' lengthes */
   uint8 *post_header_len;
+  uchar server_version_split[3];
 
   Format_description_log_event(uint8 binlog_ver, const char* server_ver=0);
 
@@ -1184,6 +1188,7 @@ public:
     */
     return FORMAT_DESCRIPTION_HEADER_LEN;
   }
+  void calc_server_version_split();
 };
 
 
@@ -1727,14 +1732,17 @@ public:
     TYPE_CODE = TABLE_MAP_EVENT
   };
 
+  /**
+     Enumeration of the errors that can be returned.
+   */
   enum enum_error
   {
-    ERR_OPEN_FAILURE = -1,                 /* Failure to open table */
-    ERR_OK = 0,                                  /* No error */
-    ERR_TABLE_LIMIT_EXCEEDED = 1,        /* No more room for tables */
-    ERR_OUT_OF_MEM = 2,                         /* Out of memory */
-    ERR_BAD_TABLE_DEF = 3,       /* Table definition does not match */
-    ERR_RBR_TO_SBR = 4    /* daisy-chanining RBR to SBR not allowed */
+    ERR_OPEN_FAILURE = -1,               /**< Failure to open table */
+    ERR_OK = 0,                                 /**< No error */
+    ERR_TABLE_LIMIT_EXCEEDED = 1,      /**< No more room for tables */
+    ERR_OUT_OF_MEM = 2,                         /**< Out of memory */
+    ERR_BAD_TABLE_DEF = 3,     /**< Table definition does not match */
+    ERR_RBR_TO_SBR = 4  /**< daisy-chanining RBR to SBR not allowed */
   };
 
   enum enum_flag
@@ -1814,7 +1822,7 @@ private:
 
  Row level log event class.
 
- Common base class for all row-level log events.
+ Common base class for all row-containing log events.
 
  RESPONSIBILITIES
 
@@ -1828,6 +1836,19 @@ private:
 class Rows_log_event : public Log_event
 {
 public:
+  /**
+     Enumeration of the errors that can be returned.
+   */
+  enum enum_error
+  {
+    ERR_OPEN_FAILURE = -1,               /**< Failure to open table */
+    ERR_OK = 0,                                 /**< No error */
+    ERR_TABLE_LIMIT_EXCEEDED = 1,      /**< No more room for tables */
+    ERR_OUT_OF_MEM = 2,                         /**< Out of memory */
+    ERR_BAD_TABLE_DEF = 3,     /**< Table definition does not match */
+    ERR_RBR_TO_SBR = 4  /**< daisy-chanining RBR to SBR not allowed */
+  };
+
   /*
     These definitions allow you to combine the flags into an
     appropriate flag set using the normal bitwise operators.  The
@@ -1835,7 +1856,6 @@ public:
     accepted by the compiler, which is then used to set the real set
     of flags.
   */
-
   enum enum_flag
   {
     /* Last event of a statement */

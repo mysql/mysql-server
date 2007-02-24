@@ -31,15 +31,6 @@
 
 #include <mysql/plugin.h>
 
-/*
-  Define placement versions of operator new and operator delete since
-  we cannot be sure that the <new> include exists.
- */
-inline void *operator new(size_t, void *ptr) { return ptr; }
-inline void *operator new[](size_t, void *ptr) { return ptr; }
-inline void  operator delete(void*, void*) { /* Do nothing */ }
-inline void  operator delete[](void*, void*) { /* Do nothing */ }
-
 /* max size of the log message */
 #define MAX_LOG_BUFFER_SIZE 1024
 #define MAX_USER_HOST_SIZE 512
@@ -147,7 +138,8 @@ public:
    */
   void truncate(my_off_t pos)
   {
-    DBUG_PRINT("info", ("truncating to position %lu", (ulong) pos));
+    DBUG_PRINT("info", ("truncating to position %ld", pos));
+    DBUG_PRINT("info", ("before_stmt_pos=%lu", (void*) pos));
     delete pending();
     set_pending(0);
     reinit_io_cache(&trans_log, WRITE_CACHE, pos, 0, 0);
@@ -3473,10 +3465,10 @@ int THD::binlog_flush_transaction_cache()
 {
   DBUG_ENTER("binlog_flush_transaction_cache");
   binlog_trx_data *trx_data= (binlog_trx_data*) ha_data[binlog_hton->slot];
-  DBUG_PRINT("enter", ("trx_data: 0x%lx", (ulong) trx_data));
+  DBUG_PRINT("enter", ("trx_data=0x%lu", (void*) trx_data));
   if (trx_data)
-    DBUG_PRINT("enter", ("trx_data->before_stmt_pos: %lu",
-                         (ulong) trx_data->before_stmt_pos));
+    DBUG_PRINT("enter", ("trx_data->before_stmt_pos=%d",
+                         trx_data->before_stmt_pos));
 
   /*
     Write the transaction cache to the binary log.  We don't flush and
@@ -4525,7 +4517,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
       goto err;
     if (using_heuristic_recover())
       return 1;
-    if ((fd= my_create(logname, O_RDWR, 0, MYF(MY_WME))) < 0)
+    if ((fd= my_create(logname, CREATE_MODE, O_RDWR, MYF(MY_WME))) < 0)
       goto err;
     inited=1;
     file_length= opt_tc_log_size;
