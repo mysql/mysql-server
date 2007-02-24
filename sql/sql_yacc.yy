@@ -9275,6 +9275,12 @@ subselect_end:
 	  lex->current_select = lex->current_select->return_after_parsing();
           lex->nest_level--;
           lex->current_select->n_child_sum_items += child->n_sum_items;
+          /*
+            A subselect can add fields to an outer select. Reserve space for
+            them.
+          */
+          lex->current_select->select_n_where_fields+=
+            child->select_n_where_fields;
 	};
 
 /**************************************************************************
