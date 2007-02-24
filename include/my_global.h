@@ -1479,14 +1479,10 @@ do { doubleget_union _tmp; \
 #endif
 
 /*
-  Define placement versions of operator new and operator delete since
-  we cannot be sure that the <new> include exists.
+  Include standard definitions of operator new and delete.
  */
 #ifdef __cplusplus
-inline void *operator new(size_t, void *ptr) { return ptr; }
-inline void *operator new[](size_t, void *ptr) { return ptr; }
-inline void  operator delete(void*, void*) { /* Do nothing */ }
-inline void  operator delete[](void*, void*) { /* Do nothing */ }
+#include <new>
 #endif
 
 #endif /* my_global_h */
