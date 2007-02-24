@@ -2536,7 +2536,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   ST_SCHEMA_TABLE *schema_table= tables->schema_table;
   SELECT_LEX sel;
   INDEX_FIELD_VALUES idx_field_vals;
-  char path[FN_REFLEN], *end, *base_name, *orig_base_name, *file_name;
+  char path[FN_REFLEN], *base_name, *orig_base_name, *file_name;
   uint len;
   bool with_i_schema;
   enum enum_schema_tables schema_table_idx;
@@ -2554,7 +2554,6 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
 #endif
   DBUG_ENTER("get_all_tables");
 
-  LINT_INIT(end);
   LINT_INIT(len);
 
   lex->view_prepare_mode= TRUE;
@@ -2646,7 +2645,6 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
       else
       {
         len= build_table_filename(path, sizeof(path), base_name, "", "", 0);
-        end= path + len;
         len= FN_LEN - len;
         find_files_result res= find_files(thd, &files, base_name, 
                                           path, idx_field_vals.table_value, 0);
@@ -2696,7 +2694,9 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
               }
               else
               {
-                my_snprintf(end, len, "/%s%s", file_name, reg_ext);
+                build_table_filename(path, sizeof(path),
+                                     base_name, file_name, reg_ext, 0);
+
                 switch (mysql_frm_type(thd, path, &not_used)) {
                 case FRMTYPE_ERROR:
                   table->field[3]->store(STRING_WITH_LEN("ERROR"),

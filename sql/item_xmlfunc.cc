@@ -1044,12 +1044,12 @@ static struct my_xpath_keyword_names_st my_keyword_names[] =
   {MY_XPATH_LEX_OR      , "or"                     ,  2, 0 },
   {MY_XPATH_LEX_DIV     , "div"                    ,  3, 0 },
   {MY_XPATH_LEX_MOD     , "mod"                    ,  3, 0 },
-  
-  {MY_XPATH_LEX_NODETYPE, "comment"                ,  7, 0 },
-  {MY_XPATH_LEX_NODETYPE, "text"                   ,  4, 0 },
-  {MY_XPATH_LEX_NODETYPE, "processing-instruction" ,  22,0 },
-  {MY_XPATH_LEX_NODETYPE, "node"                   ,  4, 0 },
-  
+  {0,NULL,0,0}
+};  
+
+
+static struct my_xpath_keyword_names_st my_axis_names[]=
+{
   {MY_XPATH_LEX_AXIS,"ancestor"          , 8,MY_XPATH_AXIS_ANCESTOR          },
   {MY_XPATH_LEX_AXIS,"ancestor-or-self"  ,16,MY_XPATH_AXIS_ANCESTOR_OR_SELF  },
   {MY_XPATH_LEX_AXIS,"attribute"         , 9,MY_XPATH_AXIS_ATTRIBUTE         },
@@ -1063,7 +1063,16 @@ static struct my_xpath_keyword_names_st my_keyword_names[] =
   {MY_XPATH_LEX_AXIS,"preceding"         , 9,MY_XPATH_AXIS_PRECEDING         },
   {MY_XPATH_LEX_AXIS,"preceding-sibling" ,17,MY_XPATH_AXIS_PRECEDING_SIBLING },
   {MY_XPATH_LEX_AXIS,"self"              , 4,MY_XPATH_AXIS_SELF              },
+  {0,NULL,0,0}
+};
 
+
+static struct my_xpath_keyword_names_st my_nodetype_names[]=
+{
+  {MY_XPATH_LEX_NODETYPE, "comment"                ,  7, 0 },
+  {MY_XPATH_LEX_NODETYPE, "text"                   ,  4, 0 },
+  {MY_XPATH_LEX_NODETYPE, "processing-instruction" ,  22,0 },
+  {MY_XPATH_LEX_NODETYPE, "node"                   ,  4, 0 },
   {0,NULL,0,0}
 };
 
@@ -1078,11 +1087,14 @@ static struct my_xpath_keyword_names_st my_keyword_names[] =
     - Token type, on lookup success.
     - MY_XPATH_LEX_IDENT, on lookup failure.
 */
-static int my_xpath_keyword(MY_XPATH *x, const char *beg, const char *end)
+static int
+my_xpath_keyword(MY_XPATH *x,
+                 struct my_xpath_keyword_names_st *keyword_names,
+                 const char *beg, const char *end)
 {
   struct my_xpath_keyword_names_st *k;
   size_t length= end-beg;
-  for (k= my_keyword_names; k->name; k++)
+  for (k= keyword_names; k->name; k++)
   {
     if (length == k->length && !strncasecmp(beg, k->name, length))
     {
@@ -1368,15 +1380,32 @@ my_xpath_lex_scan(MY_XPATH *xpath,
          beg+= length) /* no op */;
     lex->end= beg;
 
-    // check if a function call
-    if (*beg == '(' && (xpath->func= my_xpath_function(lex->beg, beg)))
+    if (beg < end)
     {
-      lex->term= MY_XPATH_LEX_FUNC;
-      return;
+      if (*beg == '(')
+      {
+        /*
+         check if a function call, e.g.: count(/a/b)
+         or a nodetype test,       e.g.: /a/b/text()
+        */
+        if ((xpath->func= my_xpath_function(lex->beg, beg)))
+          lex->term= MY_XPATH_LEX_FUNC;
+        else
+          lex->term= my_xpath_keyword(xpath, my_nodetype_names,
+                                      lex->beg, beg);
+        return;
+      }
+      // check if an axis specifier, e.g.: /a/b/child::*
+      else if (*beg == ':' && beg + 1 < end && beg[1] == ':')
+      {
+        lex->term= my_xpath_keyword(xpath, my_axis_names,
+                                    lex->beg, beg);
+        return;
+      }
     }
-
     // check if a keyword
-    lex->term= my_xpath_keyword(xpath, lex->beg, beg);
+    lex->term= my_xpath_keyword(xpath, my_keyword_names,
+                                lex->beg, beg);
     return;
   }
 
@@ -2329,6 +2358,36 @@ static int my_xpath_parse_Number(MY_XPATH *xpath)
 
 
 /*
+  Scan NCName.
+  
+  SYNOPSYS
+    
+    The keywords AND, OR, MOD, DIV are valid identitiers
+    when they are in identifier context:
+    
+    SELECT
+    ExtractValue('<and><or><mod><div>VALUE</div></mod></or></and>',
+                 '/and/or/mod/div')
+    ->  VALUE
+    
+  RETURN
+    1 - success
+    0 - failure
+*/
+
+static int
+my_xpath_parse_NCName(MY_XPATH *xpath)
+{
+  return
+    my_xpath_parse_term(xpath, MY_XPATH_LEX_IDENT) ||
+    my_xpath_parse_term(xpath, MY_XPATH_LEX_AND)   ||
+    my_xpath_parse_term(xpath, MY_XPATH_LEX_OR)    ||
+    my_xpath_parse_term(xpath, MY_XPATH_LEX_MOD)   ||
+    my_xpath_parse_term(xpath, MY_XPATH_LEX_DIV) ? 1 : 0;
+}
+
+
+/*
   QName grammar can be found in a separate document
   http://www.w3.org/TR/REC-xml-names/#NT-QName
 
@@ -2336,16 +2395,17 @@ static int my_xpath_parse_Number(MY_XPATH *xpath)
   [7] 	Prefix    ::= NCName
   [8] 	LocalPart ::= NCName
 */
+
 static int
 my_xpath_parse_QName(MY_XPATH *xpath)
 {
   const char *beg;
-  if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_IDENT))
+  if (!my_xpath_parse_NCName(xpath))
     return 0;
   beg= xpath->prevtok.beg;
   if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_COLON))
     return 1; /* Non qualified name */
-  if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_IDENT))
+  if (!my_xpath_parse_NCName(xpath))
     return 0;
   xpath->prevtok.beg= beg;
   return 1;
