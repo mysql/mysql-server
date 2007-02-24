@@ -1479,4 +1479,11 @@ do { doubleget_union _tmp; \
 #define dlerror() ""
 #endif
 
+/*
+  Include standard definitions of operator new and delete.
+ */
+#ifdef __cplusplus
+#include <new>
+#endif
+
 #endif /* my_global_h */
