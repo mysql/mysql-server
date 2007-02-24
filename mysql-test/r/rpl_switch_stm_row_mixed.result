@@ -7,8 +7,31 @@ start slave;
 drop database if exists mysqltest1;
 create database mysqltest1;
 use mysqltest1;
+set session binlog_format=mixed;
+show session variables like "binlog_format%";
+Variable_name	Value
+binlog_format	MIXED
+set session binlog_format=statement;
+show session variables like "binlog_format%";
+Variable_name	Value
+binlog_format	STATEMENT
 set session binlog_format=row;
-set global binlog_format=row;
+show session variables like "binlog_format%";
+Variable_name	Value
+binlog_format	ROW
+set global binlog_format=DEFAULT;
+show global variables like "binlog_format%";
+Variable_name	Value
+binlog_format	MIXED
+set global binlog_format=MIXED;
+show global variables like "binlog_format%";
+Variable_name	Value
+binlog_format	MIXED
+set global binlog_format=STATEMENT;
+show global variables like "binlog_format%";
+Variable_name	Value
+binlog_format	STATEMENT
+set global binlog_format=ROW;
 show global variables like "binlog_format%";
 Variable_name	Value
 binlog_format	ROW
@@ -67,12 +90,11 @@ execute stmt1 using @string;
 deallocate prepare stmt1;
 insert into t1 values("for_10_");
 insert into t1 select "yesterday_11_";
-set binlog_format=default;
+set binlog_format=statement;
 select @@global.binlog_format, @@session.binlog_format;
 @@global.binlog_format	@@session.binlog_format
 STATEMENT	STATEMENT
-set global binlog_format=default;
-ERROR 42000: Variable 'binlog_format' doesn't have a default value
+set global binlog_format=statement;
 select @@global.binlog_format, @@session.binlog_format;
 @@global.binlog_format	@@session.binlog_format
 STATEMENT	STATEMENT
@@ -87,11 +109,11 @@ execute stmt1 using @string;
 deallocate prepare stmt1;
 insert into t1 values("for_15_");
 insert into t1 select "yesterday_16_";
-set binlog_format=mixed;
+set global binlog_format=mixed;
 select @@global.binlog_format, @@session.binlog_format;
 @@global.binlog_format	@@session.binlog_format
-STATEMENT	MIXED
-set global binlog_format=mixed;
+MIXED	STATEMENT
+set binlog_format=default;
 select @@global.binlog_format, @@session.binlog_format;
 @@global.binlog_format	@@session.binlog_format
 MIXED	MIXED

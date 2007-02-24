@@ -50,7 +50,6 @@
 int
 my_b_copy_to_file(IO_CACHE *cache, FILE *file)
 {
-  byte buf[IO_SIZE];
   uint bytes_in_cache;
   DBUG_ENTER("my_b_copy_to_file");
 
@@ -58,18 +57,16 @@ my_b_copy_to_file(IO_CACHE *cache, FILE *file)
   if (reinit_io_cache(cache, READ_CACHE, 0L, FALSE, FALSE))
     DBUG_RETURN(1);
   bytes_in_cache= my_b_bytes_in_cache(cache);
-  while (bytes_in_cache > 0) {
-    uint const read_bytes= min(bytes_in_cache, sizeof(buf));
-    DBUG_PRINT("debug", ("Remaining %u bytes - Reading %u bytes",
-                         bytes_in_cache, read_bytes));
-    if (my_b_read(cache, buf, read_bytes))
+  do
+  {
+    if (my_fwrite(file, cache->read_pos, bytes_in_cache,
+                  MYF(MY_WME | MY_NABP)) == (uint) -1)
       DBUG_RETURN(1);
-    if (my_fwrite(file, buf, read_bytes, MYF(MY_WME | MY_NABP)) == (uint) -1)
-      DBUG_RETURN(1);
-    bytes_in_cache -= read_bytes;
-  }
+    cache->read_pos= cache->read_end;
+  } while ((bytes_in_cache= my_b_fill(cache)));
   DBUG_RETURN(0);
 }
+
 
 my_off_t my_b_append_tell(IO_CACHE* info)
 {

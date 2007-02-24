@@ -32,6 +32,34 @@ select * from t1;
 select * from t2;
 
 #
+#  Verify that events larger than the default IO_CACHE buffer
+#  are handled correctly (BUG#25628).
+#
+flush logs;
+drop table t2;
+create table t2 (word varchar(20));
+load data infile '../std_data_ln/words.dat' into table t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+select count(*) from t2;
+
+flush logs;
+--exec $MYSQL_BINLOG --hexdump $MYSQLTEST_VARDIR/log/master-bin.000003 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_base64.sql
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/mysqlbinlog_base64.sql
+
+#
+#  Verify that all binlog events have been executed
+#
+select count(*) from t2;
+
+#
 #  Test cleanup
 #
 --exec rm $MYSQLTEST_VARDIR/tmp/mysqlbinlog_base64.sql

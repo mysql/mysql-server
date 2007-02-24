@@ -486,18 +486,15 @@ write_event_header_and_base64(Log_event *ev, FILE *result_file,
   DBUG_ENTER("write_event_header_and_base64");
   /* Write header and base64 output to cache */
   IO_CACHE result_cache;
-  if (init_io_cache(&result_cache, -1, 0, WRITE_CACHE, 0L, FALSE,
-                    MYF(MY_WME | MY_NABP)))
-  {
+  if (open_cached_file(&result_cache, NULL, NULL, 0, MYF(MY_WME | MY_NABP)))
     return 1;
-  }
 
   ev->print_header(&result_cache, print_event_info, FALSE);
   ev->print_base64(&result_cache, print_event_info, FALSE);
 
   /* Read data from cache and write to result file */
   my_b_copy_to_file(&result_cache, result_file);
-  end_io_cache(&result_cache);
+  close_cached_file(&result_cache);
   DBUG_RETURN(0);
 }
 
@@ -1016,6 +1013,9 @@ static int dump_log_entries(const char* logname)
 {
   int rc;
   PRINT_EVENT_INFO print_event_info;
+
+  if (!print_event_info.init_ok())
+    return 1;
   /*
      Set safe delimiter, to dump things
      like CREATE PROCEDURE safely
