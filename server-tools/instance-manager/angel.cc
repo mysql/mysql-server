@@ -324,6 +324,12 @@ static int angel_main_loop()
       continue;
     }
 
+    /* Delete IM-angel PID file. */
+
+    my_delete(Options::Daemon::angel_pid_file_name, MYF(0));
+
+    /* IM-angel finished. */
+
     log_info("Angel: Manager exited normally. Exiting...");
 
     return 0;
