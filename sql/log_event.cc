@@ -5506,12 +5506,12 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
   DBUG_ASSERT(m_rows_cur <= m_rows_end);
 
   /* The cast will always work since m_rows_cur <= m_rows_end */
-  if (static_cast<my_size_t>(m_rows_end - m_rows_cur) < length)
+  if (static_cast<my_size_t>(m_rows_end - m_rows_cur) <= length)
   {
     my_size_t const block_size= 1024;
     my_ptrdiff_t const cur_size= m_rows_cur - m_rows_buf;
     my_ptrdiff_t const new_alloc= 
-        block_size * ((cur_size + length) / block_size + block_size - 1);
+        block_size * ((cur_size + length + block_size - 1) / block_size);
 
     byte* const new_buf= (byte*)my_realloc((gptr)m_rows_buf, new_alloc,
                                            MYF(MY_ALLOW_ZERO_PTR|MY_WME));
@@ -5532,7 +5532,7 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
     m_rows_end= m_rows_buf + new_alloc;
   }
 
-  DBUG_ASSERT(m_rows_cur + length < m_rows_end);
+  DBUG_ASSERT(m_rows_cur + length <= m_rows_end);
   memcpy(m_rows_cur, row_data, length);
   m_rows_cur+= length;
   m_row_count++;
