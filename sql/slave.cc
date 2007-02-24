@@ -5170,6 +5170,70 @@ end:
 }
 
 
+/**
+   Detects, based on master's version (as found in the relay log), if master
+   has a certain bug.
+   @param rli RELAY_LOG_INFO which tells the master's version
+   @param bug_id Number of the bug as found in bugs.mysql.com
+   @return TRUE if master has the bug, FALSE if it does not.
+*/
+bool rpl_master_has_bug(RELAY_LOG_INFO *rli, uint bug_id)
+{
+  struct st_version_range_for_one_bug {
+    uint        bug_id;
+    const uchar introduced_in[3]; // first version with bug
+    const uchar fixed_in[3];      // first version with fix
+  };
+  static struct st_version_range_for_one_bug versions_for_all_bugs[]=
+  {
+    {24432, { 5, 0, 24 }, { 5, 0, 38 } },
+    {24432, { 5, 1, 12 }, { 5, 1, 17 } }
+  };
+  const uchar *master_ver=
+    rli->relay_log.description_event_for_exec->server_version_split;
+
+  DBUG_ASSERT(sizeof(rli->relay_log.description_event_for_exec->server_version_split) == 3);
+
+  for (uint i= 0;
+       i < sizeof(versions_for_all_bugs)/sizeof(*versions_for_all_bugs);i++)
+  {
+    const uchar *introduced_in= versions_for_all_bugs[i].introduced_in,
+      *fixed_in= versions_for_all_bugs[i].fixed_in;
+    if ((versions_for_all_bugs[i].bug_id == bug_id) &&
+        (memcmp(introduced_in, master_ver, 3) <= 0) &&
+        (memcmp(fixed_in,      master_ver, 3) >  0))
+    {
+      // a verbose message for the error log
+      slave_print_error(rli, ER_UNKNOWN_ERROR,
+                        "According to the master's version ('%s'),"
+                        " it is probable that master suffers from this bug:"
+                        " http://bugs.mysql.com/bug.php?id=%u"
+                        " and thus replicating the current binary log event"
+                        " may make the slave's data become different from the"
+                        " master's data."
+                        " To take no risk, slave refuses to replicate"
+                        " this event and stops."
+                        " We recommend that all updates be stopped on the"
+                        " master and slave, that the data of both be"
+                        " manually synchronized,"
+                        " that master's binary logs be deleted,"
+                        " that master be upgraded to a version at least"
+                        " equal to '%d.%d.%d'. Then replication can be"
+                        " restarted.",
+                        rli->relay_log.description_event_for_exec->server_version,
+                        bug_id,
+                        fixed_in[0], fixed_in[1], fixed_in[2]);
+      // a short message for SHOW SLAVE STATUS (message length constraints)
+      my_printf_error(ER_UNKNOWN_ERROR, "master may suffer from"
+                      " http://bugs.mysql.com/bug.php?id=%u"
+                      " so slave stops; check error log on slave"
+                      " for more info", MYF(0), bug_id);
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
 #ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 template class I_List_iterator<i_string>;
 template class I_List_iterator<i_string_pair>;
