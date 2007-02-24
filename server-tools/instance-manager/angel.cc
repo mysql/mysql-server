@@ -247,10 +247,10 @@ static int angel_main_loop()
 
   /* NOTE: sigaction() fails only if arguments are wrong. */
 
-  DBUG_ASSERT(!sigaction(SIGCHLD, &sa_chld, &sa_chld_orig));
-  DBUG_ASSERT(!sigaction(SIGTERM, &sa_term, &sa_term_orig));
-  DBUG_ASSERT(!sigaction(SIGINT, &sa_term, &sa_int_orig));
-  DBUG_ASSERT(!sigaction(SIGHUP, &sa_term, &sa_hup_orig));
+  sigaction(SIGCHLD, &sa_chld, &sa_chld_orig);
+  sigaction(SIGTERM, &sa_term, &sa_term_orig);
+  sigaction(SIGINT, &sa_term, &sa_int_orig);
+  sigaction(SIGHUP, &sa_term, &sa_hup_orig);
 
   /* The main Angel loop. */
 
@@ -279,10 +279,10 @@ static int angel_main_loop()
 
       /* NOTE: sigaction() fails only if arguments are wrong. */
 
-      DBUG_ASSERT(!sigaction(SIGCHLD, &sa_chld_orig, NULL));
-      DBUG_ASSERT(!sigaction(SIGTERM, &sa_term_orig, NULL));
-      DBUG_ASSERT(!sigaction(SIGINT, &sa_int_orig, NULL));
-      DBUG_ASSERT(!sigaction(SIGHUP, &sa_hup_orig, NULL));
+      sigaction(SIGCHLD, &sa_chld_orig, NULL);
+      sigaction(SIGTERM, &sa_term_orig, NULL);
+      sigaction(SIGINT, &sa_int_orig, NULL);
+      sigaction(SIGHUP, &sa_hup_orig, NULL);
 
       log_info("Angel: executing Manager...");
 
