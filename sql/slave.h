@@ -533,6 +533,7 @@ void table_rule_ent_hash_to_str(String* s, HASH* h);
 void table_rule_ent_dynamic_array_to_str(String* s, DYNAMIC_ARRAY* a);
 bool show_master_info(THD* thd, MASTER_INFO* mi);
 bool show_binlog_info(THD* thd);
+bool rpl_master_has_bug(RELAY_LOG_INFO *rli, uint bug_id);
 
 /* See if the query uses any tables that should not be replicated */
 bool tables_ok(THD* thd, TABLE_LIST* tables);
