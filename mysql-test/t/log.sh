@@ -17,7 +17,7 @@ if [ $# -lt 2 ]; then
 fi
 
 test_id="$1"
-log_file="$MYSQLTEST_VARDIR/log/$test_id.log"
+log_file="$MYSQLTEST_VARDIR/log/$test_id.script.log"
 
 shift
 
