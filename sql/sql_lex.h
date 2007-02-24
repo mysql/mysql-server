@@ -530,6 +530,11 @@ public:
   uint select_n_having_items;
   uint cond_count;    /* number of arguments of and/or/xor in where/having/on */
   uint between_count; /* number of between predicates in where/having/on      */   
+  /*
+    Number of fields used in select list or where clause of current select
+    and all inner subselects.
+  */
+  uint select_n_where_fields;
   enum_parsing_place parsing_place; /* where we are parsing expression */
   bool with_sum_func;   /* sum function indicator */
   /* 
