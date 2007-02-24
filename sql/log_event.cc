@@ -1141,7 +1141,7 @@ void Log_event::print_header(IO_CACHE* file,
       need a # to prefix the rest of printouts for example those of
       Rows_log_event::print_helper().
     */
-    my_b_write(file, "# ", 2);
+    my_b_write(file, reinterpret_cast<const byte*>("# "), 2);
   }
   DBUG_VOID_RETURN;
 }
