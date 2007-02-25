@@ -506,7 +506,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       share->data_file_type = DYNAMIC_RECORD;
     my_afree((gptr) disk_cache);
     mi_setup_functions(share);
-#if HAVE_MMAP
+#ifdef HAVE_MMAP
     if (open_flags & HA_OPEN_MMAP)
     {
       info.s= share;
