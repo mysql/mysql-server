@@ -4,9 +4,27 @@ mysql-5.1.15-ndb-6.1.X
 
 mysql-5.1.15-ndb-6.1.3 (not released yet)
 
+  Bug #26515 - Incorrect pointer after FSCLOSECONF in REDO invalidation
+  Bug #26514 - Invalid memory access could occur during DD usage
+  Bug #26490 - duplicate cluster error code
+  Bug #26487 - Bug in extent/page allocation when *using* >1gb datafiles
+  Bug #25801 - Internal error if starting partially with missing REDO
+  Bug #26481 - Node failure during initial node restart, can lead to subsequent node failures
+  Bug #26457 - Incorrect handling of LCP take-over during multi-master-node-failure
+  Bug #26454 - LockPagesInMemory=1 is called after distributed communcation has started
   Bug #25239 - Out of memory problem can cause crash in SUMA
   Bug #21033 - Error 0 in readAutoIncrementValue()
   Bug #26293 - cluster mgmt node sometimes doesn't receive events from all nodes on restart
+
+  * listEvents ndbapi extension
+  * Modified ndb_show_tables to also handle Table Events
+  * mysqld option --ndb-wait-connected
+  * Possibility to disable arbitration by setting arbitrationrank=0 on all nodes
+  * All dump 2352
+  * Different READ/SCAN (EX-SH)
+  * New dump commands for tracking hanging locks
+  * Change level on StartREDOLog to make it default come up in cluster log
+  * Make ndbd_redo_log_reader be build default
 
 ---------------------------------------------------
 
