@@ -1968,6 +1968,7 @@ public:
                           outer_field_arg->field_name),
     outer_field(outer_field_arg)
   {
+    table_name= my_strdup(outer_field_arg->table_name, MYF(MY_WME));
     ref= (Item**)&outer_field;
     set_properties();
     fixed= 0;
