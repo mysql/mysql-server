@@ -161,24 +161,6 @@ page_zip_available(
 	__attribute__((warn_unused_result, nonnull, pure));
 
 /**************************************************************************
-Ensure that enough space is available in the modification log.
-If not, try to compress the page. */
-UNIV_INLINE
-ibool
-page_zip_alloc(
-/*===========*/
-				/* out: TRUE if enough space is available */
-	page_zip_des_t*	page_zip,/* in/out: compressed page;
-				will only be modified if compression is needed
-				and successful */
-	const page_t*	page,	/* in: uncompressed page */
-	dict_index_t*	index,	/* in: index of the B-tree node */
-	ulint		length,	/* in: combined size of the record */
-	ulint		create,	/* in: nonzero=add the record to the heap */
-	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
-	__attribute__((warn_unused_result, nonnull(1,2,3)));
-
-/**************************************************************************
 Write data to the uncompressed header portion of a page.  The data must
 already have been written to the uncompressed page. */
 UNIV_INLINE
