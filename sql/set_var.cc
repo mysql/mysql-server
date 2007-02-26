@@ -548,7 +548,7 @@ static sys_var_thd_bit	sys_unique_checks("unique_checks", 0,
 #ifdef ENABLED_PROFILING
 static sys_var_thd_bit  sys_profiling("profiling", NULL, set_option_bit,
                                       ulonglong(OPTION_PROFILING));
-sys_var_thd_ulong	sys_profiling_history_size("profiling_history_size",
+static sys_var_thd_ulong	sys_profiling_history_size("profiling_history_size",
 					      &SV::profiling_history_size);
 #endif
 

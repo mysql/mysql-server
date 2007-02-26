@@ -1234,8 +1234,8 @@ JOIN::optimize()
 
       if (!group_list && ! exec_tmp_table1->distinct && order && simple_order)
       {
-	thd_proc_info(thd, "Sorting for order");
-	if (create_sort_index(thd, this, order,
+        thd_proc_info(thd, "Sorting for order");
+        if (create_sort_index(thd, this, order,
                               HA_POS_ERROR, HA_POS_ERROR))
         {
           DBUG_RETURN(1);
