@@ -28,7 +28,7 @@ UPDATE host SET References_priv=Create_priv,Index_priv=Create_priv,Alter_priv=Cr
 
 #
 # The second alter changes ssl_type to new 4.0.2 format
-# Adding columns needed by GRANT .. REQUIRE (openssl)"
+# Adding columns needed by GRANT .. REQUIRE (openssl)
 
 ALTER TABLE user
 ADD ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci NOT NULL,
