@@ -159,6 +159,11 @@ create table t1 (a int);
 create table if not exists t2 select * from t1;
 create temporary table tt1 (a int);
 create table if not exists t3 like tt1;
+USE mysql;
+INSERT INTO user SET host='localhost', user='@#@', password=password('Just a test');
+UPDATE user SET password=password('Another password') WHERE host='localhost' AND user='@#@';
+DELETE FROM user WHERE host='localhost' AND user='@#@';
+use test;
 show binlog events from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; create table t1 (id tinyint auto_increment primary key)
@@ -169,6 +174,9 @@ master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int)
 master-bin.000001	#	Query	1	#	use `test`; create table if not exists t2 select * from t1
 master-bin.000001	#	Query	1	#	use `test`; create temporary table tt1 (a int)
 master-bin.000001	#	Query	1	#	use `test`; create table if not exists t3 like tt1
+master-bin.000001	#	Query	1	#	use `mysql`; INSERT INTO user SET host='localhost', user='@#@', password=password('Just a test')
+master-bin.000001	#	Query	1	#	use `mysql`; UPDATE user SET password=password('Another password') WHERE host='localhost' AND user='@#@'
+master-bin.000001	#	Query	1	#	use `mysql`; DELETE FROM user WHERE host='localhost' AND user='@#@'
 drop table t1,t2,t3,tt1;
 create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
 set @@session.auto_increment_increment=1, @@session.auto_increment_offset=1;
@@ -185,6 +193,9 @@ master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int)
 master-bin.000001	#	Query	1	#	use `test`; create table if not exists t2 select * from t1
 master-bin.000001	#	Query	1	#	use `test`; create temporary table tt1 (a int)
 master-bin.000001	#	Query	1	#	use `test`; create table if not exists t3 like tt1
+master-bin.000001	#	Query	1	#	use `mysql`; INSERT INTO user SET host='localhost', user='@#@', password=password('Just a test')
+master-bin.000001	#	Query	1	#	use `mysql`; UPDATE user SET password=password('Another password') WHERE host='localhost' AND user='@#@'
+master-bin.000001	#	Query	1	#	use `mysql`; DELETE FROM user WHERE host='localhost' AND user='@#@'
 master-bin.000001	#	Query	1	#	use `test`; drop table t1,t2,t3,tt1
 master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int not null auto_increment, primary key (a)) engine=myisam
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)

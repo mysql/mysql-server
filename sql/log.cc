@@ -312,6 +312,7 @@ bool Log_to_csv_event_handler::open_log_table(uint log_table_type)
   {
     table->table->use_all_columns();
     table->table->locked_by_logger= TRUE;
+    table->table->no_replicate= TRUE;
   }
   /* restore thread settings */
   if (curr)
