@@ -2502,9 +2502,11 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
         the INSERT table and the tables in the SELECT part of INSERT ... SELECT.
         To do that we must concatenate the two lists
       */  
-      table_list->next_name_resolution_table= ctx_state.get_first_name_resolution_table();
+      table_list->next_name_resolution_table= 
+        ctx_state.get_first_name_resolution_table();
 
-    res= res || setup_fields(thd, 0, *info.update_values, MARK_COLUMNS_READ, 0, 0);
+    res= res || setup_fields(thd, 0, *info.update_values,
+                             MARK_COLUMNS_READ, 0, 0);
     if (!res)
     {
       /*
