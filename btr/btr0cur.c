@@ -1628,6 +1628,48 @@ func_exit:
 }
 
 /*****************************************************************
+See if there is enough place in the page modification log to log
+an update-in-place. */
+static
+ibool
+btr_cur_update_alloc_zip(
+/*=====================*/
+				/* out: TRUE if enough place */
+	page_zip_des_t*	page_zip,/* in/out: compressed page */
+	buf_block_t*	block,	/* in/out: buffer page */
+	dict_index_t*	index,	/* in: the index corresponding to the block */
+	ulint		length,	/* in: size needed */
+	mtr_t*		mtr)	/* in: mini-transaction */
+{
+	ut_a(page_zip == buf_block_get_page_zip(block));
+	ut_ad(page_zip);
+
+	if (page_zip_available(page_zip, dict_index_is_clust(index),
+			       length, 0)) {
+		return(TRUE);
+	}
+
+	if (!page_zip->m_nonempty) {
+		/* The page has been freshly compressed, so
+		recompressing it will not help. */
+		return(FALSE);
+	}
+
+	if (!page_zip_compress(page_zip, buf_block_get_frame(block),
+			       index, mtr)) {
+		/* Unable to compress the page */
+		return(FALSE);
+	}
+
+	/* Update the free bits in the insert buffer. */
+	ibuf_update_free_bits_if_full(index, buf_block_get_zip_size(block),
+				      block, UNIV_PAGE_SIZE, ULINT_UNDEFINED);
+
+	return(page_zip_available(page_zip, dict_index_is_clust(index),
+				  length, 0));
+}
+
+/*****************************************************************
 Updates a record when the update causes no size changes in its fields.
 We assume here that the ordering fields of the record do not change. */
 
@@ -1671,14 +1713,12 @@ btr_cur_update_in_place(
 #endif /* UNIV_DEBUG */
 
 	block = btr_cur_get_block(cursor);
+	page_zip = buf_block_get_page_zip(block);
 
 	/* Check that enough space is available on the compressed page. */
-	page_zip = buf_block_get_page_zip(block);
 	if (UNIV_LIKELY_NULL(page_zip)
-	    && UNIV_UNLIKELY(!page_zip_alloc(page_zip,
-					     buf_block_get_frame(block),
-					     index, rec_offs_size(offsets),
-					     0, mtr))) {
+	    && !btr_cur_update_alloc_zip(page_zip, block, index,
+					 rec_offs_size(offsets), mtr)) {
 		return(DB_ZIP_OVERFLOW);
 	}
 
@@ -1848,7 +1888,8 @@ btr_cur_optimistic_update(
 #endif /* UNIV_ZIP_DEBUG */
 
 	if (UNIV_LIKELY_NULL(page_zip)
-	    && !page_zip_alloc(page_zip, page, index, new_rec_size, 0, mtr)) {
+	    && !btr_cur_update_alloc_zip(page_zip, block, index,
+					 new_rec_size, mtr)) {
 		mem_heap_free(heap);
 
 		return(DB_ZIP_OVERFLOW);
