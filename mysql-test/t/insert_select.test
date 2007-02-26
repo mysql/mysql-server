@@ -281,19 +281,6 @@ select * from t1;
 drop table t1;
 
 #
-# Bug#23170: LAST_INSERT_ID isn't reset to 0 in INSERT .. SELECT if no rows
-#            were inserted.
-#
-create table t1(f1 int primary key auto_increment, f2 int unique);
-insert into t1(f2) values(1);
-select @@identity;
-insert ignore t1(f2) values(1);
-select @@identity;
-insert ignore t1(f2) select 1;
-select @@identity;
-drop table t1;
-
-#
 # Bug#16630: wrong result, when INSERT t1 SELECT ... FROM t1 ON DUPLICATE
 #
 CREATE TABLE t1 (f1 INT, f2 INT );
