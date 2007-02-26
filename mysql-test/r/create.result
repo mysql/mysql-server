@@ -509,9 +509,11 @@ drop database mysqltest;
 select database();
 database()
 NULL
+create user mysqltest_1;
 select database(), user();
 database()	user()
 NULL	mysqltest_1@localhost
+drop user mysqltest_1;
 use test;
 create table t1 (a int, index `primary` (a));
 ERROR 42000: Incorrect index name 'primary'
