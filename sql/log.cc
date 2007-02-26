@@ -1578,13 +1578,13 @@ bool MYSQL_LOG::flush_and_sync()
   return err;
 }
 
-void MYSQL_LOG::start_union_events(THD *thd)
+void MYSQL_LOG::start_union_events(THD *thd, query_id_t query_id_param)
 {
   DBUG_ASSERT(!thd->binlog_evt_union.do_union);
   thd->binlog_evt_union.do_union= TRUE;
   thd->binlog_evt_union.unioned_events= FALSE;
   thd->binlog_evt_union.unioned_events_trans= FALSE;
-  thd->binlog_evt_union.first_query_id= thd->query_id;
+  thd->binlog_evt_union.first_query_id= query_id_param;
 }
 
 void MYSQL_LOG::stop_union_events(THD *thd)
