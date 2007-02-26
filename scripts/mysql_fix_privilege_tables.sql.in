@@ -1,7 +1,7 @@
 # This part converts any old privilege tables to privilege tables suitable
 # for current version of MySQL
 
-# You can safely ignore all 'Duplicate column' and 'Unknown column' errors"
+# You can safely ignore all 'Duplicate column' and 'Unknown column' errors
 # because these just mean that your tables are already up to date.
 # This script is safe to run even if your tables are already up to date!
 
