@@ -440,7 +440,7 @@ public:
   }
   void set_default(THD *thd, enum_var_type type);
   byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
-  static byte *symbolic_mode_representation(THD *thd, ulong sql_mode,
+  static byte *symbolic_mode_representation(THD *thd, ulonglong sql_mode,
                                             ulong *length);
 };
 

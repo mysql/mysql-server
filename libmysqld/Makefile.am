@@ -59,7 +59,8 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	sql_load.cc discover.cc sql_locale.cc \
 	sql_analyse.cc sql_base.cc sql_cache.cc sql_class.cc \
 	sql_crypt.cc sql_db.cc sql_delete.cc sql_error.cc sql_insert.cc \
-	sql_lex.cc sql_list.cc sql_manager.cc sql_map.cc sql_parse.cc \
+	sql_lex.cc sql_list.cc sql_manager.cc sql_map.cc \
+	scheduler.cc sql_connect.cc sql_parse.cc \
 	sql_prepare.cc sql_derived.cc sql_rename.cc \
 	sql_select.cc sql_do.cc sql_show.cc set_var.cc \
 	sql_string.cc sql_table.cc sql_test.cc sql_udf.cc \

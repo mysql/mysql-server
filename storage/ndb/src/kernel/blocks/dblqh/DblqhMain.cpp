@@ -599,7 +599,7 @@ Dblqh::execDEFINE_BACKUP_REF(Signal* signal)
     case DefineBackupRef::FailedInsertTableList: 
       jam();
       err_code = NDBD_EXIT_INVALID_CONFIG;
-      extra_msg = "Probably Backup parameters configuration error, Please consult the manual";
+      extra_msg = (char*) "Probably Backup parameters configuration error, Please consult the manual";
       progError(__LINE__, err_code, extra_msg);
   }
 
@@ -3963,7 +3963,6 @@ void
 Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
 {
   jam();
-  Uint32 tableId = regTcPtr.p->tableref;
   Uint32 fragPtr = fragptr.p->tupFragptr;
   Uint32 op = regTcPtr.p->operation;
 
@@ -6728,7 +6727,6 @@ void Dblqh::execABORT(Signal* signal)
   }//if
   
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
-  Uint32 activeCreat = regTcPtr->activeCreat;
   if (ERROR_INSERTED(5100))
   {
     SET_ERROR_INSERT_VALUE(5101);
@@ -6808,7 +6806,6 @@ void Dblqh::execABORTREQ(Signal* signal)
     return;
   }//if
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
-  Uint32 activeCreat = regTcPtr->activeCreat;
   if (regTcPtr->transactionState != TcConnectionrec::PREPARED) {
     warningReport(signal, 10);
     return;

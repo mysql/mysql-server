@@ -998,7 +998,7 @@ for ($i=1 ; $i < $opt_loop_count*3 ; $i+=3)
 {
   $sth = $dbh->do("update bench1 set dummy1='updated' where id=$i") or die $DBI::errstr;
   $end_time=new Benchmark;
-  last if ($estimated=predict_query_time($loop_time,$end_time,\$i,$tests,
+  last if ($estimated=predict_query_time($loop_time,$end_time,\$i,($i-1)/3,
 					 $opt_loop_count));
 }
 if ($estimated)

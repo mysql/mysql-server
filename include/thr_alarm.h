@@ -86,6 +86,7 @@ typedef struct st_alarm {
   ulong expire_time;
   thr_alarm_entry alarmed;		/* set when alarm is due */
   pthread_t thread;
+  my_thread_id thread_id;
   my_bool malloced;
 } ALARM;
 
@@ -94,7 +95,7 @@ typedef struct st_alarm {
 void init_thr_alarm(uint max_alarm);
 void resize_thr_alarm(uint max_alarms);
 my_bool thr_alarm(thr_alarm_t *alarmed, uint sec, ALARM *buff);
-void thr_alarm_kill(pthread_t thread_id);
+void thr_alarm_kill(my_thread_id thread_id);
 void thr_end_alarm(thr_alarm_t *alarmed);
 void end_thr_alarm(my_bool free_structures);
 sig_handler process_alarm(int);

@@ -163,7 +163,6 @@ void Dbtup::free_var_rec(Fragrecord* fragPtr,
   /**
    * TODO free fix + var part
    */
-  Uint32 page_idx= key->m_page_idx;
   Uint32 *ptr = ((Fix_page*)pagePtr.p)->get_ptr(key->m_page_idx, 0);
   Tuple_header* tuple = (Tuple_header*)ptr;
 

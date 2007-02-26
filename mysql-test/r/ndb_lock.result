@@ -121,7 +121,7 @@ select * from t1 where x = 1 for update;
 x	y	z
 1	one	1
 select * from t1 where x = 2 for update;
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+Got one of the listed errors
 rollback;
 commit;
 begin;

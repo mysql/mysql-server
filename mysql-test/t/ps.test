@@ -2175,13 +2175,13 @@ drop table t1;
 
 create procedure proc_1() install plugin my_plug soname 'some_plugin.so';
 --replace_regex /(Can\'t open shared library).*$/\1/
---error ER_CANT_OPEN_LIBRARY
+--error ER_CANT_OPEN_LIBRARY,ER_FEATURE_DISABLED
 call proc_1();
 --replace_regex /(Can\'t open shared library).*$/\1/
---error ER_CANT_OPEN_LIBRARY
+--error ER_CANT_OPEN_LIBRARY,ER_FEATURE_DISABLED
 call proc_1();
 --replace_regex /(Can\'t open shared library).*$/\1/
---error ER_CANT_OPEN_LIBRARY
+--error ER_CANT_OPEN_LIBRARY,ER_FEATURE_DISABLED
 call proc_1();
 drop procedure proc_1;
 delimiter |;

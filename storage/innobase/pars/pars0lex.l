@@ -109,7 +109,7 @@ BOUND_ID	\$[a-z_A-Z0-9]+
 			yylval = sym_tab_add_bound_lit(pars_sym_tab_global,
 				yytext + 1, &type);
 
-			return(type);
+			return((int) type);
 }
 
 {BOUND_ID}	{

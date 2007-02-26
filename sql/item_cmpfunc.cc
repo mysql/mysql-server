@@ -903,6 +903,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
 
 longlong Item_in_optimizer::val_int()
 {
+  bool tmp;
   DBUG_ASSERT(fixed == 1);
   cache->store(args[0]);
   
@@ -966,7 +967,7 @@ longlong Item_in_optimizer::val_int()
     }
     return 0;
   }
-  bool tmp= args[1]->val_bool_result();
+  tmp= args[1]->val_bool_result();
   null_value= args[1]->null_value;
   return tmp;
 }

@@ -18,7 +18,6 @@
 #ifndef _my_pthread_h
 #define _my_pthread_h
 
-#include <errno.h>
 #ifndef ETIME
 #define ETIME ETIMEDOUT				/* For FreeBSD */
 #endif
@@ -75,6 +74,7 @@ typedef struct {
 
 typedef int pthread_mutexattr_t;
 #define win_pthread_self my_thread_var->pthread_self
+#define pthread_self() win_pthread_self
 #define pthread_handler_t EXTERNC void * __cdecl
 typedef void * (__cdecl *pthread_handler)(void *);
 
@@ -130,7 +130,6 @@ void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 
 #define ETIMEDOUT 145		    /* Win32 doesn't have this */
 #define getpid() GetCurrentThreadId()
-#define pthread_self() win_pthread_self
 #define HAVE_LOCALTIME_R		1
 #define _REENTRANT			1
 #define HAVE_PTHREAD_ATTR_SETSTACKSIZE	1
@@ -638,12 +637,14 @@ extern pthread_mutexattr_t my_errorcheck_mutexattr;
 #define MY_MUTEX_INIT_ERRCHK   NULL
 #endif
 
+typedef ulong my_thread_id;
+
 extern my_bool my_thread_global_init(void);
 extern void my_thread_global_end(void);
 extern my_bool my_thread_init(void);
 extern void my_thread_end(void);
 extern const char *my_thread_name(void);
-extern long my_thread_id(void);
+extern my_thread_id my_thread_dbug_id(void);
 extern int pthread_no_free(void *);
 extern int pthread_dummy(int);
 
@@ -670,7 +671,7 @@ struct st_my_thread_var
   pthread_mutex_t * volatile current_mutex;
   pthread_cond_t * volatile current_cond;
   pthread_t pthread_self;
-  long id;
+  my_thread_id id;
   int cmp_length;
   int volatile abort;
   my_bool init;

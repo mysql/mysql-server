@@ -1415,7 +1415,7 @@ dict_index_add_to_cache(
 		dict_index_get_nth_field(new_index, i)->col->ord_part = 1;
 	}
 
-	new_index->page = page_no;
+	new_index->page = (unsigned int) page_no;
 	rw_lock_create(&new_index->lock, SYNC_INDEX_TREE);
 
 	if (!UNIV_UNLIKELY(new_index->type & DICT_UNIVERSAL)) {
@@ -1531,10 +1531,10 @@ dict_index_add_col(
 	field = dict_index_get_nth_field(index, index->n_def - 1);
 
 	field->col = col;
-	field->fixed_len = dict_col_get_fixed_size(col);
+	field->fixed_len = (unsigned int) dict_col_get_fixed_size(col);
 
 	if (prefix_len && field->fixed_len > prefix_len) {
-		field->fixed_len = prefix_len;
+		field->fixed_len = (unsigned int) prefix_len;
 	}
 
 	/* Long fixed-length fields that need external storage are treated as
@@ -1736,7 +1736,7 @@ dict_index_build_internal_clust(
 				break;
 			}
 
-			new_index->trx_id_offset += fixed_size;
+			new_index->trx_id_offset += (unsigned int) fixed_size;
 		}
 
 	}
@@ -3045,7 +3045,7 @@ col_loop1:
 	foreign->foreign_table_name = mem_heap_strdup(foreign->heap,
 						      table->name);
 	foreign->foreign_index = index;
-	foreign->n_fields = i;
+	foreign->n_fields = (unsigned int) i;
 	foreign->foreign_col_names = mem_heap_alloc(foreign->heap,
 						    i * sizeof(void*));
 	for (i = 0; i < foreign->n_fields; i++) {
