@@ -6402,8 +6402,7 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
       inside st_relay_log_info::clear_tables_to_lock() by calling the
       table_def destructor explicitly.
     */
-    const table_def *const def=
-      new (&table_list->m_tabledef) table_def(m_coltype, m_colcnt);
+    new (&table_list->m_tabledef) table_def(m_coltype, m_colcnt);
     table_list->m_tabledef_valid= TRUE;
 
     /*

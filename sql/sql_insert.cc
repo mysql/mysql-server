@@ -3189,7 +3189,7 @@ void select_create::send_error(uint errcode,const char *err)
               thd->current_stmt_binlog_row_based ? "is" : "is NOT"));
   DBUG_PRINT("info",
              ("Current table (at 0x%lu) %s a temporary (or non-existant) table",
-              (void*) table,
+              (ulong) table,
               table && !table->s->tmp_table ? "is NOT" : "is"));
   DBUG_PRINT("info",
              ("Table %s prior to executing this statement",
