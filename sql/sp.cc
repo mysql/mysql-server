@@ -500,6 +500,13 @@ db_create_routine(THD *thd, int type, sp_head *sp)
   DBUG_PRINT("enter", ("type: %d name: %.*s",type,sp->m_name.length,
                        sp->m_name.str));
 
+  /*
+    This statement will be replicated as a statement, even when using
+    row-based replication.  The flag will be reset at the end of the
+    statement.
+  */
+  thd->clear_current_stmt_binlog_row_based();
+
   if (!(table= open_proc_table_for_update(thd)))
     ret= SP_OPEN_TABLE_FAILED;
   else
@@ -636,6 +643,13 @@ db_drop_routine(THD *thd, int type, sp_name *name)
   DBUG_PRINT("enter", ("type: %d name: %.*s",
 		       type, name->m_name.length, name->m_name.str));
 
+  /*
+    This statement will be replicated as a statement, even when using
+    row-based replication.  The flag will be reset at the end of the
+    statement.
+  */
+  thd->clear_current_stmt_binlog_row_based();
+
   if (!(table= open_proc_table_for_update(thd)))
     DBUG_RETURN(SP_OPEN_TABLE_FAILED);
   if ((ret= db_find_routine_aux(thd, type, name, table)) == SP_OK)
@@ -667,6 +681,13 @@ db_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
   DBUG_ENTER("db_update_routine");
   DBUG_PRINT("enter", ("type: %d name: %.*s",
 		       type, name->m_name.length, name->m_name.str));
+
+  /*
+    This statement will be replicated as a statement, even when using
+    row-based replication.  The flag will be reset at the end of the
+    statement.
+  */
+  thd->clear_current_stmt_binlog_row_based();
 
   if (!(table= open_proc_table_for_update(thd)))
     DBUG_RETURN(SP_OPEN_TABLE_FAILED);
