@@ -368,6 +368,8 @@ open(FILE, "<", $fname) or die;
 my @content= grep($_ !~ /^definers=/, <FILE>);
 close FILE;
 open(FILE, ">", $fname) or die;
+# Use binary file mode to avoid CR/LF's being added on windows
+binmode FILE;
 print FILE @content;
 print FILE "definers='' '\@' '\@abc\@def\@\@' '\@hostname' '\@abcdef\@\@\@hostname'\n";
 close FILE;
