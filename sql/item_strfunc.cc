@@ -25,9 +25,6 @@
 
 #include "mysql_priv.h"
 #include <m_ctype.h>
-#ifdef HAVE_OPENSSL
-#include <openssl/des.h>
-#endif /* HAVE_OPENSSL */
 #include "md5.h"
 #include "sha1.h"
 #include "my_aes.h"
@@ -1926,7 +1923,7 @@ String *Item_func_format::val_str(String *str)
   int diff;
   DBUG_ASSERT(fixed == 1);
 
-  dec= args[1]->val_int();
+  dec= (int) args[1]->val_int();
   if (args[1]->null_value)
   {
     null_value=1;

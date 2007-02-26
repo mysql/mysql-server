@@ -33,9 +33,14 @@
 #include "opensslv.h" /* for version number */
 #include "rsa.h"
 
-
 #define YASSL_VERSION "1.5.8"
 
+#if defined(_WIN32) || defined(_WIN64)
+    #include <winsock2.h>
+    typedef SOCKET socket_t;
+#else
+    typedef int socket_t;
+#endif
 
 #if defined(__cplusplus)
 extern "C" {
@@ -191,10 +196,9 @@ enum {  /* ERR Constants */
 };
 
 
-
 SSL_CTX* SSL_CTX_new(SSL_METHOD*);
 SSL* SSL_new(SSL_CTX*);
-int  SSL_set_fd (SSL*, int);
+int  SSL_set_fd (SSL*, socket_t);
 int  SSL_connect(SSL*);
 int  SSL_write(SSL*, const void*, int);
 int  SSL_read(SSL*, void*, int);

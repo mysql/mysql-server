@@ -1586,7 +1586,7 @@ NdbEventBuffer::complete_outof_order_gcis()
       ndbout_c(" moved %ld rows -> %ld", (long) bucket->m_data.m_count,
 	       (long) m_complete_data.m_data.m_count);
 #else
-      ndbout_c("");
+      ndbout_c(" ");
 #endif
     }
     bzero(bucket, sizeof(Gci_container));
