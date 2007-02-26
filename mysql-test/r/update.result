@@ -432,7 +432,7 @@ Handler_read_key	3
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
-Handler_read_rnd_next	21
+Handler_read_rnd_next	0
 DROP TABLE t1;
 CREATE TABLE t1 (
 a INT(11),
