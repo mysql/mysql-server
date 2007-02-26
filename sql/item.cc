@@ -5497,6 +5497,7 @@ bool Item_outer_ref::fix_fields(THD *thd, Item **reference)
   if (!outer_field->fixed &&
       (outer_field->fix_fields(thd, reference)))
     return TRUE;
+  table_name= outer_field->table_name;
   return Item_direct_ref::fix_fields(thd, reference);
 }
 
