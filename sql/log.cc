@@ -138,8 +138,8 @@ public:
    */
   void truncate(my_off_t pos)
   {
-    DBUG_PRINT("info", ("truncating to position %ld", pos));
-    DBUG_PRINT("info", ("before_stmt_pos=%lu", (void*) pos));
+    DBUG_PRINT("info", ("truncating to position %lu", (ulong) pos));
+    DBUG_PRINT("info", ("before_stmt_pos=%lu", (ulong) pos));
     delete pending();
     set_pending(0);
     reinit_io_cache(&trans_log, WRITE_CACHE, pos, 0, 0);
@@ -3466,10 +3466,10 @@ int THD::binlog_flush_transaction_cache()
 {
   DBUG_ENTER("binlog_flush_transaction_cache");
   binlog_trx_data *trx_data= (binlog_trx_data*) ha_data[binlog_hton->slot];
-  DBUG_PRINT("enter", ("trx_data=0x%lu", (void*) trx_data));
+  DBUG_PRINT("enter", ("trx_data=0x%lu", (ulong) trx_data));
   if (trx_data)
-    DBUG_PRINT("enter", ("trx_data->before_stmt_pos=%d",
-                         trx_data->before_stmt_pos));
+    DBUG_PRINT("enter", ("trx_data->before_stmt_pos=%lu",
+                         (ulong) trx_data->before_stmt_pos));
 
   /*
     Write the transaction cache to the binary log.  We don't flush and
