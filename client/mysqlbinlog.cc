@@ -1481,7 +1481,7 @@ end:
 
 int main(int argc, char** argv)
 {
-  static char **defaults_argv;
+  char **defaults_argv;
   int exit_value= 0;
   ulonglong save_stop_position;
   MY_INIT(argv[0]);

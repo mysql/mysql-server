@@ -396,6 +396,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 #ifndef EMBEDDED_LIBRARY
   if (lock_type == TL_WRITE_DELAYED)
   {
+    res= 1;
     if (thd->locked_tables)
     {
       DBUG_ASSERT(table_list->db); /* Must be set in the parser */
@@ -1895,7 +1896,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
   pthread_detach_this_thread();
   /* Add thread to THD list so that's it's visible in 'show processlist' */
   pthread_mutex_lock(&LOCK_thread_count);
-  thd->thread_id=thread_id++;
+  thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
   thd->end_time();
   threads.append(thd);
   thd->killed=abort_loop ? THD::KILL_CONNECTION : THD::NOT_KILLED;
@@ -1926,14 +1927,8 @@ pthread_handler_t handle_delayed_insert(void *arg)
     strmov(thd->net.last_error,ER(thd->net.last_errno=ER_OUT_OF_RESOURCES));
     goto err;
   }
-#if !defined(__WIN__) && !defined(__NETWARE__)
-  sigset_t set;
-  VOID(sigemptyset(&set));			// Get mask in use
-  VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
-#endif
 
   /* open table */
-
   if (!(di->table=open_ltable(thd,&di->table_list,TL_WRITE_DELAYED)))
   {
     thd->fatal_error();				// Abort waiting inserts

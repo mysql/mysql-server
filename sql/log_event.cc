@@ -1148,7 +1148,6 @@ void Log_event::print_base64(IO_CACHE* file,
 {
   const uchar *ptr= (const uchar *)temp_buf;
   uint32 size= uint4korr(ptr + EVENT_LEN_OFFSET);
-
   DBUG_ENTER("Log_event::print_base64");
 
   size_t const tmp_str_sz= base64_needed_encoded_length((int) size);
@@ -1159,8 +1158,10 @@ void Log_event::print_base64(IO_CACHE* file,
     DBUG_VOID_RETURN;
   }
 
-  int const res= base64_encode(ptr, (size_t) size, tmp_str);
-  DBUG_ASSERT(res == 0);
+  if (base64_encode(ptr, (size_t) size, tmp_str))
+  {
+    DBUG_ASSERT(0);
+  }
 
   if (my_b_tell(file) == 0)
     my_b_printf(file, "\nBINLOG '\n");
@@ -5471,7 +5472,7 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
     my_ptrdiff_t const new_alloc= 
         block_size * ((cur_size + length) / block_size + block_size - 1);
 
-    byte* const new_buf= (byte*)my_realloc((gptr)m_rows_buf, new_alloc,
+    byte* const new_buf= (byte*)my_realloc((gptr)m_rows_buf, (uint) new_alloc,
                                            MYF(MY_ALLOW_ZERO_PTR|MY_WME));
     if (unlikely(!new_buf))
       DBUG_RETURN(HA_ERR_OUT_OF_MEM);
@@ -6014,7 +6015,7 @@ bool Rows_log_event::write_data_body(IO_CACHE*file)
                           sbuf_end - sbuf) ||
           my_b_safe_write(file, reinterpret_cast<byte*>(m_cols.bitmap),
                           no_bytes_in_map(&m_cols)) ||
-          my_b_safe_write(file, m_rows_buf, data_size));
+          my_b_safe_write(file, m_rows_buf, (uint) data_size));
 }
 #endif
 
@@ -6367,8 +6368,8 @@ bool Table_map_log_event::write_data_body(IO_CACHE *file)
   DBUG_ASSERT(m_dblen < 128);
   DBUG_ASSERT(m_tbllen < 128);
 
-  byte const dbuf[]= { m_dblen };
-  byte const tbuf[]= { m_tbllen };
+  byte const dbuf[]= { (byte) m_dblen };
+  byte const tbuf[]= { (byte) m_tbllen };
 
   char cbuf[sizeof(m_colcnt)];
   char *const cbuf_end= net_store_length((char*) cbuf, (uint) m_colcnt);

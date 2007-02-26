@@ -8264,7 +8264,7 @@ static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
       */
       if (nested_join->join_list.elements != 1)
       {
-        nested_join->nj_map= 1 << first_unused++;
+        nested_join->nj_map= (nested_join_map) 1 << first_unused++;
         first_unused= build_bitmap_for_nested_joins(&nested_join->join_list,
                                                     first_unused);
       }
@@ -9166,7 +9166,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   uint  hidden_null_count, hidden_null_pack_length, hidden_field_count;
   uint  blob_count,group_null_items, string_count;
   uint  temp_pool_slot=MY_BIT_NONE;
-  ulong reclength, string_total_length, fieldnr= 0;
+  uint fieldnr= 0;
+  ulong reclength, string_total_length;
   bool  using_unique_constraint= 0;
   bool  use_packed_rows= 0;
   bool  not_all_columns= !(select_options & TMP_TABLE_ALL_COLUMNS);
@@ -10332,7 +10333,6 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   else
   {
     DBUG_ASSERT(join->tables);
-    DBUG_ASSERT(join_tab);
     error= sub_select(join,join_tab,0);
     if (error == NESTED_LOOP_OK || error == NESTED_LOOP_NO_MORE_ROWS)
       error= sub_select(join,join_tab,1);
@@ -15200,7 +15200,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         Item_float *filtered;
         float f; 
         if (examined_rows)
-          f= 100.0 * join->best_positions[i].records_read / examined_rows;
+          f= (float) (100.0 * join->best_positions[i].records_read /
+                      examined_rows);
         else
           f= 0.0;
         item_list.push_back((filtered= new Item_float(f)));
