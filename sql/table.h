@@ -389,6 +389,10 @@ struct st_table {
   /*
     If true, the current table row is considered to have all columns set to 
     NULL, including columns declared as "not null" (see maybe_null).
+
+    TODO: Each of these flags take up 8 bits. They can just as easily
+    be put into one single unsigned long and instead of taking up 18
+    bytes, it would take up 4.
   */
   my_bool null_row;
   my_bool force_index;
@@ -396,6 +400,7 @@ struct st_table {
   my_bool key_read, no_keyread;
   my_bool locked_by_flush;
   my_bool locked_by_logger;
+  my_bool no_replicate;
   my_bool locked_by_name;
   my_bool fulltext_searched;
   my_bool no_cache;
