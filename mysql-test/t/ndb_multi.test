@@ -19,8 +19,8 @@ select * from t2;
 show status like 'handler_discover%';
 
 # Check dropping and recreating table on same server
-connect (con1,localhost,,,test);
-connect (con2,localhost,,,test);
+connect (con1,localhost,root,,test);
+connect (con2,localhost,root,,test);
 connection con1;
 select * from t1;
 connection con2;
