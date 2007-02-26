@@ -22,6 +22,9 @@
 
 #include "mysql_priv.h"
 
+struct st_relay_log_info;
+typedef st_relay_log_info RELAY_LOG_INFO;
+
 uint32
 field_length_from_packed(enum_field_types field_type, byte const *data);
 
@@ -128,6 +131,7 @@ private:
 struct RPL_TABLE_LIST
   : public st_table_list
 {
+  bool m_tabledef_valid;
   table_def m_tabledef;
 };
 

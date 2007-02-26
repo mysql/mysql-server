@@ -18,6 +18,7 @@
 #include "rpl_rli.h"
 #include <my_dir.h>    // For MY_STAT
 #include "sql_repl.h"  // For check_binlog_magic
+#include "rpl_utility.h"
 
 static int count_relay_log_space(RELAY_LOG_INFO* rli);
 
@@ -1108,4 +1109,23 @@ void st_relay_log_info::cleanup_context(THD *thd, bool error)
   unsafe_to_stop_at= 0;
   DBUG_VOID_RETURN;
 }
+
+void st_relay_log_info::clear_tables_to_lock()
+{
+  while (tables_to_lock)
+  {
+    gptr to_free= reinterpret_cast<gptr>(tables_to_lock);
+    if (tables_to_lock->m_tabledef_valid)
+    {
+      tables_to_lock->m_tabledef.table_def::~table_def();
+      tables_to_lock->m_tabledef_valid= FALSE;
+    }
+    tables_to_lock=
+      static_cast<RPL_TABLE_LIST*>(tables_to_lock->next_global);
+    tables_to_lock_count--;
+    my_free(to_free, MYF(MY_WME));
+  }
+  DBUG_ASSERT(tables_to_lock == NULL && tables_to_lock_count == 0);
+}
+
 #endif

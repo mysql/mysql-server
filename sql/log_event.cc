@@ -5783,10 +5783,10 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
         need to add code to assert that is the case.
        */
       thd->binlog_flush_pending_rows_event(false);
-      close_tables_for_reopen(thd, &rli->tables_to_lock);
+      TABLE_LIST *tables= rli->tables_to_lock;
+      close_tables_for_reopen(thd, &tables);
 
-      if ((error= open_tables(thd, &rli->tables_to_lock,
-                              &rli->tables_to_lock_count, 0)))
+      if ((error= open_tables(thd, &tables, &rli->tables_to_lock_count, 0)))
       {
         if (thd->query_error || thd->is_fatal_error)
         {
@@ -5815,7 +5815,7 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
     */
 
     {
-      RPL_TABLE_LIST *ptr= static_cast<RPL_TABLE_LIST*>(rli->tables_to_lock);
+      RPL_TABLE_LIST *ptr= rli->tables_to_lock;
       for ( ; ptr ; ptr= static_cast<RPL_TABLE_LIST*>(ptr->next_global))
       {
         if (ptr->m_tabledef.compatible_with(rli, ptr->table))
@@ -6396,9 +6396,15 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
     /*
       Use placement new to construct the table_def instance in the
       memory allocated for it inside table_list.
+
+      The memory allocated by the table_def structure (i.e., not the
+      memory allocated *for* the table_def structure) is released
+      inside st_relay_log_info::clear_tables_to_lock() by calling the
+      table_def destructor explicitly.
     */
     const table_def *const def=
       new (&table_list->m_tabledef) table_def(m_coltype, m_colcnt);
+    table_list->m_tabledef_valid= TRUE;
 
     /*
       We record in the slave's information that the table should be
