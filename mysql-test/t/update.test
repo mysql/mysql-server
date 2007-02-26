@@ -342,3 +342,29 @@ UPDATE t1 SET user_id=null WHERE request_id=999999999999999999999999999999;
 show status like '%Handler_read%';
 
 DROP TABLE t1;
+
+#
+# Bug #24010: INSERT INTO ... SELECT fails on unique constraint with data it 
+# doesn't select
+#
+CREATE TABLE t1 (
+
+  a INT(11),
+  quux decimal( 31, 30 ),
+
+  UNIQUE KEY bar (a),
+  KEY quux (quux)
+);
+
+INSERT INTO
+ t1 ( a, quux )
+VALUES
+    ( 1,    1 ),
+    ( 2,  0.1 );
+
+INSERT INTO t1( a )
+  SELECT @newA := 1 + a FROM t1 WHERE quux <= 0.1;
+
+SELECT * FROM t1;
+
+DROP TABLE t1;

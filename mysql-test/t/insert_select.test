@@ -279,3 +279,31 @@ insert into t1 values (1,1) on duplicate key update f2=2;
 --disable_info
 select * from t1;
 drop table t1;
+
+#
+# Bug#23170: LAST_INSERT_ID isn't reset to 0 in INSERT .. SELECT if no rows
+#            were inserted.
+#
+create table t1(f1 int primary key auto_increment, f2 int unique);
+insert into t1(f2) values(1);
+select @@identity;
+insert ignore t1(f2) values(1);
+select @@identity;
+insert ignore t1(f2) select 1;
+select @@identity;
+drop table t1;
+
+#
+# Bug#16630: wrong result, when INSERT t1 SELECT ... FROM t1 ON DUPLICATE
+#
+CREATE TABLE t1 (f1 INT, f2 INT );
+CREATE TABLE t2  (f1 INT PRIMARY KEY, f2 INT);
+INSERT INTO t1 VALUES (1,1),(2,2),(10,10);
+INSERT INTO t2 (f1, f2) SELECT f1, f2 FROM t1;
+INSERT INTO t2 (f1, f2)
+  SELECT f1, f1 FROM t2 src WHERE f1 < 2
+  ON DUPLICATE KEY UPDATE f1 = 100 + src.f1;
+SELECT * FROM t2;
+DROP TABLE t1, t2;
+
+ 
