@@ -324,49 +324,6 @@ page_zip_des_init(
 }
 
 /**************************************************************************
-Ensure that enough space is available in the modification log.
-If not, try to compress the page. */
-UNIV_INLINE
-ibool
-page_zip_alloc(
-/*===========*/
-				/* out: TRUE if enough space is available */
-	page_zip_des_t*	page_zip,/* in/out: compressed page;
-				will only be modified if compression is needed
-				and successful */
-	const page_t*	page,	/* in: uncompressed page */
-	dict_index_t*	index,	/* in: index of the B-tree node */
-	ulint		length,	/* in: combined size of the record */
-	ulint		create,	/* in: nonzero=add the record to the heap */
-	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
-{
-	ut_ad(page_is_comp(page));
-#ifdef UNIV_ZIP_DEBUG
-	ut_a(page_zip_validate(page_zip, page));
-#endif /* UNIV_ZIP_DEBUG */
-
-	if (page_zip_available(page_zip, dict_index_is_clust(index),
-			       length, create)) {
-		return(TRUE);
-	}
-
-	if (!page_zip->m_nonempty) {
-		/* The page has been freshly compressed, so
-		recompressing it will not help. */
-		return(FALSE);
-	}
-
-	if (!page_zip_compress(page_zip, page, index, mtr)) {
-		/* Unable to compress the page */
-		return(FALSE);
-	}
-
-	/* Check if there is enough space available after compression. */
-	return(page_zip_available(page_zip, dict_index_is_clust(index),
-				  length, create));
-}
-
-/**************************************************************************
 Write a log record of writing to the uncompressed header portion of a page. */
 
 void
