@@ -37,7 +37,7 @@ begin;
 --error 1399
 create table t2 (a int);
 
-connect (con1,localhost,,,);
+connect (con1,localhost,root,,);
 connection con1;
 
 --error 1440
