@@ -2599,8 +2599,6 @@ SELECT * FROM t1
   WHERE EXISTS (SELECT t2.c FROM t2 JOIN t3 ON t2.c=t3.c WHERE t2.c=1
                 UNION 
                 SELECT c from t2 WHERE c=t1.c);
-
-
 DROP TABLE t1,t2,t3;
 
 #
@@ -2610,7 +2608,7 @@ CREATE TABLE t1 (s1 char(1));
 INSERT INTO t1 VALUES ('a');
 SELECT * FROM t1 WHERE _utf8'a' = ANY (SELECT s1 FROM t1);
 DROP TABLE t1;
-DROP TABLE t1,t2,t3;                                                                               
+
 #                                                                             
 # Bug#23800: Outer fields in correlated subqueries is used in a temporary     
 #            table created for sorting.                                       
