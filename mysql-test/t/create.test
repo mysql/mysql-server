@@ -410,12 +410,14 @@ select database();
 drop database mysqltest;
 select database();
 
-# Connect without a database
+# Connect without a database as user mysqltest_1
+create user mysqltest_1;
 connect (user1,localhost,mysqltest_1,,*NO-ONE*);
 connection user1;
 select database(), user();
 connection default;
 disconnect user1;
+drop user mysqltest_1;
 use test;
 
 #
