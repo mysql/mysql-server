@@ -656,6 +656,8 @@ bool mysqld_help(THD *thd, const char *mask)
     Init tables and fields to be usable from items
     tables do not contain VIEWs => we can pass 0 as conds
   */
+  thd->lex->select_lex.context.table_list= 
+    thd->lex->select_lex.context.first_name_resolution_table= &tables[0];
   setup_tables(thd, &thd->lex->select_lex.context,
                &thd->lex->select_lex.top_join_list,
                tables, 0, &leaves, FALSE);
