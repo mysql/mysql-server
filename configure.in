@@ -669,7 +669,7 @@ fi
 
 # Add query profiler
 AC_ARG_ENABLE(profiling,
-    [  --disable-profiling     Build a version without query profiling code ],
+    AS_HELP_STRING([--disable-profiling], [Build a version without query profiling code]),
     [ ENABLED_PROFILING=$enableval ],
     [ ENABLED_PROFILING=yes ])
 

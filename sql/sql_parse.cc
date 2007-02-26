@@ -2707,7 +2707,7 @@ mysql_execute_command(THD *thd)
     if (res)
       goto error;
 #else
-    my_error(ER_FEATURE_DISABLED, MYF(0), "query profiling", "enable-profiling");
+    my_error(ER_FEATURE_DISABLED, MYF(0), "SHOW PROFILES", "enable-profiling");
     goto error;
 #endif
     break;
@@ -2724,7 +2724,7 @@ mysql_execute_command(THD *thd)
     if (res)
       goto error;
 #else
-    my_error(ER_FEATURE_DISABLED, MYF(0), "query profiling", "enable-profiling");
+    my_error(ER_FEATURE_DISABLED, MYF(0), "SHOW PROFILE", "enable-profiling");
     goto error;
 #endif
     break;

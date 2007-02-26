@@ -1,9 +1,8 @@
-/* Copyright (C) 2005 MySQL AB
+/* Copyright (C) 2007 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
+   the Free Software Foundation; version 2 of the License.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -12,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA */
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
 #include "mysql_priv.h"
@@ -42,24 +41,24 @@ int fill_query_profile_statistics_info(THD *thd, struct st_table_list *tables,
 ST_FIELD_INFO query_profile_statistics_info[]=
 {
   /* name, length, type, value, maybe_null, old_name */
-  {"Query_id", 20, MYSQL_TYPE_LONG, 0, false, NULL},
-  {"Seq", 20, MYSQL_TYPE_LONG, 0, false, NULL},
-  {"State", 30, MYSQL_TYPE_STRING, 0, false, NULL},
-  {"Duration", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, false, NULL},
-  {"CPU_user", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, true, NULL},
-  {"CPU_system", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, true, NULL},
-  {"Context_voluntary", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"Context_involuntary", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"Block_ops_in", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"Block_ops_out", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"Messages_sent", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"Messages_received", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"Page_faults_major", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"Page_faults_minor", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"Swaps", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"Source_function", 30, MYSQL_TYPE_STRING, 0, true, NULL},
-  {"Source_file", 20, MYSQL_TYPE_STRING, 0, true, NULL},
-  {"Source_line", 20, MYSQL_TYPE_LONG, 0, true, NULL},
+  {"QUERY_ID", 20, MYSQL_TYPE_LONG, 0, false, NULL},
+  {"SEQ", 20, MYSQL_TYPE_LONG, 0, false, NULL},
+  {"STATE", 30, MYSQL_TYPE_STRING, 0, false, NULL},
+  {"DURATION", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, false, NULL},
+  {"CPU_USER", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, true, NULL},
+  {"CPU_SYSTEM", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, true, NULL},
+  {"CONTEXT_VOLUNTARY", 20, MYSQL_TYPE_LONG, 0, true, NULL},
+  {"CONTEXT_INVOLUNTARY", 20, MYSQL_TYPE_LONG, 0, true, NULL},
+  {"BLOCK_OPS_IN", 20, MYSQL_TYPE_LONG, 0, true, NULL},
+  {"BLOCK_OPS_OUT", 20, MYSQL_TYPE_LONG, 0, true, NULL},
+  {"MESSAGES_SENT", 20, MYSQL_TYPE_LONG, 0, true, NULL},
+  {"MESSAGES_RECEIVED", 20, MYSQL_TYPE_LONG, 0, true, NULL},
+  {"PAGE_FAULTS_MAJOR", 20, MYSQL_TYPE_LONG, 0, true, NULL},
+  {"PAGE_FAULTS_MINOR", 20, MYSQL_TYPE_LONG, 0, true, NULL},
+  {"SWAPS", 20, MYSQL_TYPE_LONG, 0, true, NULL},
+  {"SOURCE_FUNCTION", 30, MYSQL_TYPE_STRING, 0, true, NULL},
+  {"SOURCE_FILE", 20, MYSQL_TYPE_STRING, 0, true, NULL},
+  {"SOURCE_LINE", 20, MYSQL_TYPE_LONG, 0, true, NULL},
   {NULL, 0, MYSQL_TYPE_STRING, 0, true, NULL}
 };
 
@@ -107,20 +106,9 @@ void PROFILE_ENTRY::set_status(const char *status_arg, const char *function_arg,
     Compute all the space we'll need to allocate one block for everything
     we'll need, instead of N mallocs.
   */
-  if (status_arg != NULL)
-    sizes[0]= strlen(status_arg) + 1;
-  else
-    sizes[0]= 0;
-
-  if (function_arg != NULL)
-    sizes[1]= strlen(function_arg) + 1;
-  else
-    sizes[1]= 0;
-
-  if (file_arg != NULL)
-    sizes[2]= strlen(file_arg) + 1;
-  else
-    sizes[2]= 0;
+  sizes[0]= (status_arg == NULL) ? 0 : strlen(status_arg) + 1;
+  sizes[1]= (function_arg == NULL) ? 0 : strlen(function_arg) + 1;
+  sizes[2]= (file_arg == NULL) ? 0 : strlen(file_arg) + 1;
     
   allocated_status_memory= (char *) my_malloc(sizes[0] + sizes[1] + sizes[2], MYF(0));
   DBUG_ASSERT(allocated_status_memory != NULL);
@@ -237,7 +225,6 @@ void QUERY_PROFILE::status(const char *status_arg,
   */
   saved_mem_root= thd->mem_root;
   thd->mem_root= &profiling->mem_root;
-  //thd->mem_root= NULL;
 
   if (function_arg && file_arg) 
   {
@@ -375,7 +362,6 @@ bool QUERY_PROFILE::show(uint options)
     protocol->store(entry->status, strlen(entry->status), system_charset_info);
     protocol->store((double)(entry->time_usecs - last_time)/(1000.0*1000),
                     (uint32) TIME_FLOAT_DIGITS-1, &elapsed);
-    //protocol->store((double)(entry->time - last_time)/(1000*1000*10));
 
     if (options & PROFILE_CPU)
     {
@@ -739,54 +725,54 @@ int PROFILING::fill_statistics_info(THD *thd, struct st_table_list *tables, Item
 #ifdef HAVE_GETRUSAGE
       table->field[4]->store((double)RUSAGE_DIFF_USEC(entry->rusage.ru_utime,
                              last_rusage->ru_utime)/(1000.0*1000));
-      table->field[4]->null_ptr= NULL;
+      table->field[4]->set_notnull();
       table->field[5]->store((double)RUSAGE_DIFF_USEC(entry->rusage.ru_stime,
                              last_rusage->ru_stime)/(1000.0*1000));
 
-      table->field[5]->null_ptr= NULL;
+      table->field[5]->set_notnull();
 #else
       /* TODO: Add CPU-usage info for non-BSD systems */
 #endif
       
 #ifdef HAVE_GETRUSAGE
       table->field[6]->store((uint32)(entry->rusage.ru_nvcsw - last_rusage->ru_nvcsw));
-      table->field[6]->null_ptr= NULL;
+      table->field[6]->set_notnull();
       table->field[7]->store((uint32)(entry->rusage.ru_nivcsw - last_rusage->ru_nivcsw));
-      table->field[7]->null_ptr= NULL;
+      table->field[7]->set_notnull();
 #else
       /* TODO: Add context switch info for non-BSD systems */
 #endif
 
 #ifdef HAVE_GETRUSAGE
       table->field[8]->store((uint32)(entry->rusage.ru_inblock - last_rusage->ru_inblock));
-      table->field[8]->null_ptr= NULL;
+      table->field[8]->set_notnull();
       table->field[9]->store((uint32)(entry->rusage.ru_oublock - last_rusage->ru_oublock));
-      table->field[9]->null_ptr= NULL;
+      table->field[9]->set_notnull();
 #else
       /* TODO: Add block IO info for non-BSD systems */
 #endif
     
 #ifdef HAVE_GETRUSAGE
       table->field[10]->store((uint32)(entry->rusage.ru_msgsnd - last_rusage->ru_msgsnd), true);
-      table->field[10]->null_ptr= NULL;
+      table->field[10]->set_notnull();
       table->field[11]->store((uint32)(entry->rusage.ru_msgrcv - last_rusage->ru_msgrcv), true);
-      table->field[11]->null_ptr= NULL;
+      table->field[11]->set_notnull();
 #else
       /* TODO: Add message info for non-BSD systems */
 #endif
     
 #ifdef HAVE_GETRUSAGE
       table->field[12]->store((uint32)(entry->rusage.ru_majflt - last_rusage->ru_majflt), true);
-      table->field[12]->null_ptr= NULL;
+      table->field[12]->set_notnull();
       table->field[13]->store((uint32)(entry->rusage.ru_minflt - last_rusage->ru_minflt), true);
-      table->field[13]->null_ptr= NULL;
+      table->field[13]->set_notnull();
 #else
       /* TODO: Add page fault info for non-BSD systems */
 #endif
 
 #ifdef HAVE_GETRUSAGE
       table->field[14]->store((uint32)(entry->rusage.ru_nswap - last_rusage->ru_nswap), true);
-      table->field[14]->null_ptr= NULL;
+      table->field[14]->set_notnull();
 #else
       /* TODO: Add swap info for non-BSD systems */
 #endif
@@ -795,11 +781,11 @@ int PROFILING::fill_statistics_info(THD *thd, struct st_table_list *tables, Item
       {
         table->field[15]->store(entry->function, strlen(entry->function),
                         system_charset_info);        
-        table->field[15]->null_ptr= NULL;
+        table->field[15]->set_notnull();
         table->field[16]->store(entry->file, strlen(entry->file), system_charset_info);
-        table->field[16]->null_ptr= NULL;
+        table->field[16]->set_notnull();
         table->field[17]->store(entry->line, true);
-        table->field[17]->null_ptr= NULL;
+        table->field[17]->set_notnull();
       }
 
       if (schema_table_store_record(thd, table))
