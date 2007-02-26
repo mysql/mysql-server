@@ -4220,7 +4220,14 @@ int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
   user_var_entry *var_entry;
   var_entry= get_variable(&thd->user_vars, name, 0);
 
-  if (!(opt_bin_log && is_update_query(sql_command)))
+  /*
+    Any reference to user-defined variable which is done from stored
+    function or trigger affects their execution and execution of calling
+    statement. Hence we want to log all accesses to such variables and
+    not only those that happen from table-updating statement.
+  */
+  if (!(opt_bin_log && 
+       (is_update_query(sql_command) || thd->in_sub_stmt)))
   {
     *out_entry= var_entry;
     return 0;
