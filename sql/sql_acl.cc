@@ -3001,6 +3001,13 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_WRITE;
   tables[0].db=tables[1].db=tables[2].db=(char*) "mysql";
 
+  /*
+    This statement will be replicated as a statement, even when using
+    row-based replication.  The flag will be reset at the end of the
+    statement.
+  */
+  thd->clear_current_stmt_binlog_row_based();
+
 #ifdef HAVE_REPLICATION
   /*
     GRANT and REVOKE are applied the slave in/exclusion rules as they are
@@ -3218,6 +3225,13 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   tables[0].lock_type=tables[1].lock_type=TL_WRITE;
   tables[0].db=tables[1].db=(char*) "mysql";
 
+  /*
+    This statement will be replicated as a statement, even when using
+    row-based replication.  The flag will be reset at the end of the
+    statement.
+  */
+  thd->clear_current_stmt_binlog_row_based();
+
 #ifdef HAVE_REPLICATION
   /*
     GRANT and REVOKE are applied the slave in/exclusion rules as they are
@@ -3356,6 +3370,13 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   tables[0].next_local= tables[0].next_global= tables+1;
   tables[0].lock_type=tables[1].lock_type=TL_WRITE;
   tables[0].db=tables[1].db=(char*) "mysql";
+
+  /*
+    This statement will be replicated as a statement, even when using
+    row-based replication.  The flag will be reset at the end of the
+    statement.
+  */
+  thd->clear_current_stmt_binlog_row_based();
 
 #ifdef HAVE_REPLICATION
   /*
@@ -5401,6 +5422,13 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
   TABLE_LIST tables[GRANT_TABLES];
   DBUG_ENTER("mysql_create_user");
 
+  /*
+    This statement will be replicated as a statement, even when using
+    row-based replication.  The flag will be reset at the end of the
+    statement.
+  */
+  thd->clear_current_stmt_binlog_row_based();
+
   /* CREATE USER may be skipped on replication client. */
   if ((result= open_grant_tables(thd, tables)))
     DBUG_RETURN(result != 1);
@@ -5473,6 +5501,13 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
   TABLE_LIST tables[GRANT_TABLES];
   DBUG_ENTER("mysql_drop_user");
 
+  /*
+    This statement will be replicated as a statement, even when using
+    row-based replication.  The flag will be reset at the end of the
+    statement.
+  */
+  thd->clear_current_stmt_binlog_row_based();
+
   /* DROP USER may be skipped on replication client. */
   if ((result= open_grant_tables(thd, tables)))
     DBUG_RETURN(result != 1);
@@ -5536,6 +5571,13 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
   List_iterator <LEX_USER> user_list(list);
   TABLE_LIST tables[GRANT_TABLES];
   DBUG_ENTER("mysql_rename_user");
+
+  /*
+    This statement will be replicated as a statement, even when using
+    row-based replication.  The flag will be reset at the end of the
+    statement.
+  */
+  thd->clear_current_stmt_binlog_row_based();
 
   /* RENAME USER may be skipped on replication client. */
   if ((result= open_grant_tables(thd, tables)))
@@ -5611,6 +5653,13 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   ACL_DB *acl_db;
   TABLE_LIST tables[GRANT_TABLES];
   DBUG_ENTER("mysql_revoke_all");
+
+  /*
+    This statement will be replicated as a statement, even when using
+    row-based replication.  The flag will be reset at the end of the
+    statement.
+  */
+  thd->clear_current_stmt_binlog_row_based();
 
   if ((result= open_grant_tables(thd, tables)))
     DBUG_RETURN(result != 1);
@@ -5801,6 +5850,13 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
 
   rw_wrlock(&LOCK_grant);
   VOID(pthread_mutex_lock(&acl_cache->lock));
+
+  /*
+    This statement will be replicated as a statement, even when using
+    row-based replication.  The flag will be reset at the end of the
+    statement.
+  */
+  thd->clear_current_stmt_binlog_row_based();
 
   /* Remove procedure access */
   do

@@ -3456,7 +3456,7 @@ namespace {
     {
       int const check(table->s->tmp_table == NO_TMP_TABLE &&
                       binlog_filter->db_ok(table->s->db.str) &&
-                      strcmp("mysql", table->s->db.str) != 0);
+                      !table->no_replicate);
       table->s->cached_row_logging_check= check;
     }
 
