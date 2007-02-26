@@ -353,7 +353,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
   sprintf(name, ER(ER_LOAD_INFO), (ulong) info.records, (ulong) info.deleted,
 	  (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
-  send_ok(thd,info.copied+info.deleted,0L,name);
   // on the slave thd->query is never initialized
   if (!thd->slave_thread)
     mysql_update_log.write(thd,thd->query,thd->query_length);
@@ -378,6 +377,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 #endif /*!EMBEDDED_LIBRARY*/
   if (transactional_table)
     error=ha_autocommit_or_rollback(thd,error); 
+
+  /* ok to client sent only after binlog write and engine commit */
+  send_ok(thd, info.copied + info.deleted, 0L, name);
 err:
   if (thd->lock)
   {
