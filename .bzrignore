@@ -1813,6 +1813,7 @@ scripts/mysql_explain_log
 scripts/mysql_find_rows
 scripts/mysql_fix_extensions
 scripts/mysql_fix_privilege_tables
+scripts/mysql_fix_privilege_tables.sql
 scripts/mysql_install_db
 scripts/mysql_secure_installation
 scripts/mysql_setpermission
