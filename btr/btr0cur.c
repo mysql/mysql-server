@@ -1166,7 +1166,9 @@ fail_err:
 		lint	zip_max_ins = page_zip_max_ins_size(
 			buf_block_get_page_zip(block), FALSE);
 
-		if (UNIV_LIKELY(max_size > (ulint) zip_max_ins)) {
+		if (UNIV_UNLIKELY(zip_max_ins < 0)) {
+			max_size = 0;
+		} else if (UNIV_LIKELY(max_size > (ulint) zip_max_ins)) {
 			max_size = (ulint) zip_max_ins;
 		}
 	}
@@ -2779,7 +2781,10 @@ btr_cur_optimistic_delete(
 			lint	zip_max_ins = page_zip_max_ins_size(
 				page_zip, FALSE/* not clustered */);
 
-			if (UNIV_LIKELY(max_ins_size > (ulint) zip_max_ins)) {
+			if (UNIV_UNLIKELY(zip_max_ins < 0)) {
+				max_ins_size = 0;
+			} else if (UNIV_LIKELY
+				   (max_ins_size > (ulint) zip_max_ins)) {
 				max_ins_size = (ulint) zip_max_ins;
 			}
 		}
