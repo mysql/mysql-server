@@ -2157,7 +2157,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
       !current_stmt_binlog_row_based)
   {
     options&= ~OPTION_BIN_LOG;
-  }    
+  }
 
   if ((backup->options & OPTION_BIN_LOG) && is_update_query(lex->sql_command)&&
       !current_stmt_binlog_row_based)
@@ -2209,7 +2209,7 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   if ((options & OPTION_BIN_LOG) && is_update_query(lex->sql_command) &&
     !current_stmt_binlog_row_based)
     mysql_bin_log.stop_union_events(this);
- 
+
   /*
     The following is added to the old values as we are interested in the
     total complexity of the query
