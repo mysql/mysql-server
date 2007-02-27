@@ -1462,8 +1462,24 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   binlog_save_options= thd->options;
   if (need_binlog_call)
   {
+    query_id_t q;
     reset_dynamic(&thd->user_var_events);
-    mysql_bin_log.start_union_events(thd);
+    /*
+      In case of artificially constructed events for function calls
+      we have separate union for each such event and hence can't use
+      query_id of real calling statement as the start of all these
+      unions (this will break logic of replication of user-defined
+      variables). So we use artifical value which is guaranteed to
+      be greater than all query_id's of all statements belonging
+      to previous events/unions.
+      Possible alternative to this is logging of all function invocations
+      as one select and not resetting THD::user_var_events before
+      each invocation.
+    */
+    VOID(pthread_mutex_lock(&LOCK_thread_count));
+    q= global_query_id;
+    VOID(pthread_mutex_unlock(&LOCK_thread_count));
+    mysql_bin_log.start_union_events(thd, q + 1);
   }
 
   /*

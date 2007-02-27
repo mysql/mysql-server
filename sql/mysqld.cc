@@ -355,6 +355,8 @@ my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
 my_bool	opt_innodb;
+bool slave_warning_issued = false; 
+
 #ifdef HAVE_NDBCLUSTER_DB
 const char *opt_ndbcluster_connectstring= 0;
 const char *opt_ndb_connectstring= 0;
@@ -3198,7 +3200,7 @@ server.");
                                (TC_LOG *) &tc_log_mmap) :
            (TC_LOG *) &tc_log_dummy);
 
-  if (tc_log->open(opt_bin_logname))
+  if (tc_log->open(opt_bin_log ? opt_bin_logname : opt_tc_log_file))
   {
     sql_print_error("Can't init tc log");
     unireg_abort(1);
@@ -6936,6 +6938,29 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int) OPT_STANDALONE:		/* Dummy option for NT */
     break;
 #endif
+  /*
+    The following change issues a deprecation warning if the slave
+    configuration is specified either in the my.cnf file or on
+    the command-line. See BUG#21490.
+  */
+  case OPT_MASTER_HOST:
+  case OPT_MASTER_USER:
+  case OPT_MASTER_PASSWORD:
+  case OPT_MASTER_PORT:
+  case OPT_MASTER_CONNECT_RETRY:
+  case OPT_MASTER_SSL:          
+  case OPT_MASTER_SSL_KEY:
+  case OPT_MASTER_SSL_CERT:       
+  case OPT_MASTER_SSL_CAPATH:
+  case OPT_MASTER_SSL_CIPHER:
+  case OPT_MASTER_SSL_CA:
+    if (!slave_warning_issued)                 //only show the warning once
+    {
+      slave_warning_issued = true;   
+      WARN_DEPRECATED(0, "5.2", "for replication startup options", 
+        "'CHANGE MASTER'");
+    }
+    break;
   case OPT_CONSOLE:
     if (opt_console)
       opt_error_log= 0;			// Force logs to stdout
