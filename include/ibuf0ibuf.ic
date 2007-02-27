@@ -212,7 +212,9 @@ ibuf_index_page_calc_free(
 		lint		zip_max_ins = page_zip_max_ins_size(
 			page_zip, FALSE/* not clustered */);
 
-		if (UNIV_LIKELY(max_ins_size > (ulint) zip_max_ins)) {
+		if (UNIV_UNLIKELY(zip_max_ins < 0)) {
+			max_ins_size = 0;
+		} else if (UNIV_LIKELY(max_ins_size > (ulint) zip_max_ins)) {
 			max_ins_size = (ulint) zip_max_ins;
 		}
 
