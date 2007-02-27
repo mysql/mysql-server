@@ -3857,7 +3857,9 @@ restart:
               continue;
             }
             TABLE *table= share->table;
-            IF_DBUG(const LEX_STRING &name= table->s->table_name);
+#ifndef DBUG_OFF
+            const LEX_STRING &name= table->s->table_name;
+#endif
             if ((event_types & (NdbDictionary::Event::TE_INSERT |
                                 NdbDictionary::Event::TE_UPDATE |
                                 NdbDictionary::Event::TE_DELETE)) == 0)
@@ -3884,8 +3886,10 @@ restart:
           {
             TABLE *table= ndb_apply_status_share->table;
 
-            IF_DBUG(const LEX_STRING& name= table->s->table_name);
+#ifndef DBUG_OFF
+            const LEX_STRING& name= table->s->table_name;
             DBUG_PRINT("info", ("use_table: %.*s", name.length, name.str));
+#endif
             injector::transaction::table tbl(table, TRUE);
             IF_DBUG(int ret=) trans.use_table(::server_id, tbl);
             DBUG_ASSERT(ret == 0);
