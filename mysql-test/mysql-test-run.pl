@@ -409,24 +409,24 @@ sub main () {
     {
       next if $test->{skip};
 
-      $need_ndbcluster||= $test->{ndb_test};
-      $need_im||= $test->{component_id} eq 'im';
-
-      # Count max number of slaves used by a test case
-      if ( $test->{slave_num} > $max_slave_num)
+      if (!$opt_extern)
       {
-	$max_slave_num= $test->{slave_num};
-	mtr_error("Too many slaves") if $max_slave_num > 3;
-      }
+	$need_ndbcluster||= $test->{ndb_test};
+	$need_im||= $test->{component_id} eq 'im';
 
-      # Count max number of masters used by a test case
-      if ( $test->{master_num} > $max_master_num)
-      {
-	$max_master_num= $test->{master_num};
-	mtr_error("Too many masters") if $max_master_num > 2;
-	mtr_error("Too few masters") if $max_master_num < 1;
-      }
+	# Count max number of slaves used by a test case
+	if ( $test->{slave_num} > $max_slave_num) {
+	  $max_slave_num= $test->{slave_num};
+	  mtr_error("Too many slaves") if $max_slave_num > 3;
+	}
 
+	# Count max number of masters used by a test case
+	if ( $test->{master_num} > $max_master_num) {
+	  $max_master_num= $test->{master_num};
+	  mtr_error("Too many masters") if $max_master_num > 2;
+	  mtr_error("Too few masters") if $max_master_num < 1;
+	}
+      }
       $use_innodb||= $test->{'innodb_test'};
     }
 
