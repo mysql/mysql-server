@@ -4818,7 +4818,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
         else
           unlock_dst_table= TRUE;
 
-        int result= store_create_info(thd, table, &query, create_info);
+        IF_DBUG(int result=)store_create_info(thd, table, &query, create_info);
 
         DBUG_ASSERT(result == 0); // store_create_info() always return 0
         write_bin_log(thd, TRUE, query.ptr(), query.length());
