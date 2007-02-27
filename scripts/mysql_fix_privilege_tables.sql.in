@@ -1,7 +1,7 @@
 # This part converts any old privilege tables to privilege tables suitable
 # for current version of MySQL
 
-# You can safely ignore all 'Duplicate column' and 'Unknown column' errors"
+# You can safely ignore all 'Duplicate column' and 'Unknown column' errors
 # because these just mean that your tables are already up to date.
 # This script is safe to run even if your tables are already up to date!
 
@@ -29,7 +29,7 @@ UPDATE host SET References_priv=Create_priv,Index_priv=Create_priv,Alter_priv=Cr
 
 #
 # The second alter changes ssl_type to new 4.0.2 format
-# Adding columns needed by GRANT .. REQUIRE (openssl)"
+# Adding columns needed by GRANT .. REQUIRE (openssl)
 
 ALTER TABLE user
 ADD ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci NOT NULL,
