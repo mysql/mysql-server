@@ -144,7 +144,7 @@ static ulint ibuf_rnd		= 986058871;
 
 ulint	ibuf_flush_count	= 0;
 
-#ifdef UNIV_IBUF_DEBUG
+#ifdef UNIV_IBUF_COUNT_DEBUG
 /* Dimensions for the ibuf_count array */
 #define IBUF_COUNT_N_SPACES	500
 #define IBUF_COUNT_N_PAGES	2000
@@ -318,7 +318,7 @@ ibuf_tree_root_get(
 	return(buf_block_get_frame(block));
 }
 
-#ifdef UNIV_IBUF_DEBUG
+#ifdef UNIV_IBUF_COUNT_DEBUG
 /**********************************************************************
 Gets the ibuf count for a given page. */
 
@@ -380,7 +380,7 @@ ibuf_init_at_db_start(void)
 
 	ibuf->size = 0;
 
-#ifdef UNIV_IBUF_DEBUG
+#ifdef UNIV_IBUF_COUNT_DEBUG
 	{
 		ulint	i, j;
 
@@ -695,7 +695,7 @@ ibuf_bitmap_page_set_bits(
 #endif
 	ut_ad(ut_is_2pow(zip_size));
 	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
-#ifdef UNIV_IBUF_DEBUG
+#ifdef UNIV_IBUF_COUNT_DEBUG
 	ut_a((bit != IBUF_BITMAP_BUFFERED) || (val != FALSE)
 	     || (0 == ibuf_count_get(page_get_space_id(page),
 				     page_no)));
@@ -2671,7 +2671,7 @@ ibuf_insert_low(
 	page */
 	buffered = ibuf_get_volume_buffered(&pcur, space, page_no, &mtr);
 
-#ifdef UNIV_IBUF_DEBUG
+#ifdef UNIV_IBUF_COUNT_DEBUG
 	ut_a((buffered == 0) || ibuf_count_get(space, page_no));
 #endif
 	mtr_start(&bitmap_mtr);
@@ -2760,7 +2760,7 @@ ibuf_insert_low(
 	}
 
 function_exit:
-#ifdef UNIV_IBUF_DEBUG
+#ifdef UNIV_IBUF_COUNT_DEBUG
 	if (err == DB_SUCCESS) {
 		fprintf(stderr,
 			"Incrementing ibuf count of space %lu page %lu\n"
@@ -3017,7 +3017,7 @@ ibuf_delete_rec(
 	success = btr_cur_optimistic_delete(btr_pcur_get_btr_cur(pcur), mtr);
 
 	if (success) {
-#ifdef UNIV_IBUF_DEBUG
+#ifdef UNIV_IBUF_COUNT_DEBUG
 		fprintf(stderr,
 			"Decrementing ibuf count of space %lu page %lu\n"
 			"from %lu by 1\n", space, page_no,
@@ -3084,7 +3084,7 @@ ibuf_delete_rec(
 				   FALSE, mtr);
 	ut_a(err == DB_SUCCESS);
 
-#ifdef UNIV_IBUF_DEBUG
+#ifdef UNIV_IBUF_COUNT_DEBUG
 	ibuf_count_set(space, page_no, ibuf_count_get(space, page_no) - 1);
 #else
 	UT_NOT_USED(space);
@@ -3371,7 +3371,7 @@ loop:
 	}
 
 reset_bit:
-#ifdef UNIV_IBUF_DEBUG
+#ifdef UNIV_IBUF_COUNT_DEBUG
 	if (ibuf_count_get(space, page_no) > 0) {
 		/* btr_print_tree(ibuf_data->index->tree, 100);
 		ibuf_print(); */
@@ -3426,7 +3426,7 @@ reset_bit:
 	}
 
 	ibuf_exit();
-#ifdef UNIV_IBUF_DEBUG
+#ifdef UNIV_IBUF_COUNT_DEBUG
 	ut_a(ibuf_count_get(space, page_no) == 0);
 #endif
 }
@@ -3629,7 +3629,7 @@ ibuf_print(
 	FILE*	file)	/* in: file where to print */
 {
 	ibuf_data_t*	data;
-#ifdef UNIV_IBUF_DEBUG
+#ifdef UNIV_IBUF_COUNT_DEBUG
 	ulint		i;
 #endif
 
@@ -3647,7 +3647,7 @@ ibuf_print(
 			(ulong) data->n_inserts,
 			(ulong) data->n_merged_recs,
 			(ulong) data->n_merges);
-#ifdef UNIV_IBUF_DEBUG
+#ifdef UNIV_IBUF_COUNT_DEBUG
 		for (i = 0; i < IBUF_COUNT_N_PAGES; i++) {
 			if (ibuf_count_get(data->space, i) > 0) {
 
