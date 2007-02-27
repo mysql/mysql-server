@@ -2764,10 +2764,12 @@ int ha_ndbcluster::write_row(byte *record)
   {
     Ndb *ndb= get_ndb();
     Uint64 next_val= (Uint64) table->next_number_field->val_int() + 1;
+#ifndef DBUG_OFF
     char buff[22];
     DBUG_PRINT("info", 
                ("Trying to set next auto increment value to %s",
                 llstr(next_val, buff)));
+#endif
     Ndb_tuple_id_range_guard g(m_share);
     if (ndb->setAutoIncrementValue(m_table, g.range, next_val, TRUE)
         == -1)
@@ -3999,7 +4001,7 @@ int ha_ndbcluster::end_bulk_insert()
       }
       else
       {
-        int res= trans->restart();
+        IF_DBUG(int res=) trans->restart();
         DBUG_ASSERT(res == 0);
       }
     }
@@ -4717,7 +4719,7 @@ static int create_ndb_column(NDBCOL &col,
   // Set autoincrement
   if (field->flags & AUTO_INCREMENT_FLAG) 
   {
-    char buff[22];
+    IF_DBUG(char buff[22]);
     col.setAutoIncrement(TRUE);
     ulonglong value= info->auto_increment_value ?
       info->auto_increment_value : (ulonglong) 1;
@@ -5388,7 +5390,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
   {
     DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
                              share->key, share->use_count));
-    int r= rename_share(share, to);
+    IF_DBUG(int r=) rename_share(share, to);
     DBUG_ASSERT(r == 0);
   }
 #endif
@@ -5409,7 +5411,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
 #ifdef HAVE_NDB_BINLOG
     if (share)
     {
-      int r= rename_share(share, from);
+      IF_DBUG(int r=) rename_share(share, from);
       DBUG_ASSERT(r == 0);
       /* ndb_share reference temporary free */
       DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
@@ -7268,7 +7270,7 @@ uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
     if (share->commit_count != 0)
     {
       *commit_count= share->commit_count;
-      char buff[22];
+      IF_DBUG(char buff[22]);
       DBUG_PRINT("info", ("Getting commit_count: %s from share",
                           llstr(share->commit_count, buff)));
       pthread_mutex_unlock(&share->mutex);
@@ -7304,7 +7306,7 @@ uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
   pthread_mutex_lock(&share->mutex);
   if (share->commit_count_lock == lock)
   {
-    char buff[22];
+    IF_DBUG(char buff[22]);
     DBUG_PRINT("info", ("Setting commit_count to %s",
                         llstr(stat.commit_count, buff)));
     share->commit_count= stat.commit_count;
@@ -7363,7 +7365,8 @@ ndbcluster_cache_retrieval_allowed(THD *thd,
   bool is_autocommit= !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
   char *dbname= full_name;
   char *tabname= dbname+strlen(dbname)+1;
-  char buff[22], buff2[22];
+  IF_DBUG(char buff[22]);
+  IF_DBUG(char buff2[22]);
   DBUG_ENTER("ndbcluster_cache_retrieval_allowed");
   DBUG_PRINT("enter", ("dbname: %s, tabname: %s, is_autocommit: %d",
                        dbname, tabname, is_autocommit));
@@ -7430,7 +7433,7 @@ ha_ndbcluster::register_query_cache_table(THD *thd,
                                           ulonglong *engine_data)
 {
   Uint64 commit_count;
-  char buff[22];
+  IF_DBUG(char buff[22]);
   bool is_autocommit= !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
   DBUG_ENTER("ha_ndbcluster::register_query_cache_table");
   DBUG_PRINT("enter",("dbname: %s, tabname: %s, is_autocommit: %d",
@@ -7875,7 +7878,10 @@ ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb, const
   int retries= 10;
   int reterr= 0;
   int retry_sleep= 30 * 1000; /* 30 milliseconds */
-  char buff[22], buff2[22], buff3[22], buff4[22];
+  IF_DBUG(char buff[22]);
+  IF_DBUG(char buff2[22]);
+  IF_DBUG(char buff3[22]);
+  IF_DBUG(char buff4[22]);
   DBUG_ENTER("ndb_get_table_statistics");
   DBUG_PRINT("enter", ("table: %s", ndbtab->getName()));
 
@@ -8693,7 +8699,8 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
             ndb_get_table_statistics(NULL, FALSE, ndb,
                                      ndbtab_g.get_table(), &stat) == 0)
         {
-          char buff[22], buff2[22];
+          IF_DBUG(char buff[22]);
+	  IF_DBUG(char buff2[22]);
           DBUG_PRINT("info",
                      ("Table: %s  commit_count: %s  rows: %s",
                       share->key,
@@ -9545,7 +9552,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
           DBUG_PRINT("info", ("INT_ITEM"));
           if (context->expecting(Item::INT_ITEM)) 
           {
-            Item_int *int_item= (Item_int *) item;      
+            IF_DBUG(Item_int *int_item= (Item_int *) item);
             DBUG_PRINT("info", ("value %ld", (long) int_item->value));
             NDB_ITEM_QUALIFICATION q;
             q.value_type= Item::INT_ITEM;
@@ -9572,7 +9579,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
           DBUG_PRINT("info", ("REAL_ITEM"));
           if (context->expecting(Item::REAL_ITEM)) 
           {
-            Item_float *float_item= (Item_float *) item;      
+            IF_DBUG(Item_float *float_item= (Item_float *) item);
             DBUG_PRINT("info", ("value %f", float_item->value));
             NDB_ITEM_QUALIFICATION q;
             q.value_type= Item::REAL_ITEM;
@@ -9620,7 +9627,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
           DBUG_PRINT("info", ("DECIMAL_ITEM"));
           if (context->expecting(Item::DECIMAL_ITEM)) 
           {
-            Item_decimal *decimal_item= (Item_decimal *) item;      
+            IF_DBUG(Item_decimal *decimal_item= (Item_decimal *) item);
             DBUG_PRINT("info", ("value %f", decimal_item->val_real()));
             NDB_ITEM_QUALIFICATION q;
             q.value_type= Item::DECIMAL_ITEM;
