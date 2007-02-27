@@ -458,7 +458,6 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
   sprintf(name, ER(ER_LOAD_INFO), (ulong) info.records, (ulong) info.deleted,
 	  (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
-  send_ok(thd,info.copied+info.deleted,0L,name);
 
   if (!transactional_table)
     thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
@@ -494,6 +493,8 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   if (transactional_table)
     error=ha_autocommit_or_rollback(thd,error);
 
+  /* ok to client sent only after binlog write and engine commit */
+  send_ok(thd, info.copied + info.deleted, 0L, name);
 err:
   table->file->ha_release_auto_increment();
   if (thd->lock)
