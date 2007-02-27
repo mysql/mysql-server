@@ -153,13 +153,6 @@ Event_queue::init_queue(THD *thd, Event_db_repository *db_repo)
     goto err;
   }
 
-  if (sizeof(my_time_t) != sizeof(time_t))
-  {
-    sql_print_error("SCHEDULER: sizeof(my_time_t) != sizeof(time_t) ."
-                    "The scheduler may not work correctly. Stopping");
-    goto err;
-  }
-
   res= load_events_from_db(thd);
   UNLOCK_QUEUE_DATA();
   if (res)
