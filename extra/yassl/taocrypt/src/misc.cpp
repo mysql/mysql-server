@@ -122,7 +122,7 @@ void xorbuf(byte* buf, const byte* mask, unsigned int count)
 }
 
 
-unsigned int BytePrecision(unsigned long value)
+unsigned int BytePrecision(word value)
 {
     unsigned int i;
     for (i=sizeof(value); i; --i)
@@ -133,7 +133,7 @@ unsigned int BytePrecision(unsigned long value)
 }
 
 
-unsigned int BitPrecision(unsigned long value)
+unsigned int BitPrecision(word value)
 {
     if (!value)
         return 0;
@@ -154,7 +154,7 @@ unsigned int BitPrecision(unsigned long value)
 }
 
 
-unsigned long Crop(unsigned long value, unsigned int size)
+word Crop(word value, unsigned int size)
 {
     if (size < 8*sizeof(value))
         return (value & ((1L << size) - 1));
