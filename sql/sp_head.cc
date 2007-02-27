@@ -1497,7 +1497,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
       each invocation.
     */
     VOID(pthread_mutex_lock(&LOCK_thread_count));
-    q= ::query_id;
+    q= global_query_id;
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
     mysql_bin_log.start_union_events(thd, q + 1);
     binlog_save_options= thd->options;
