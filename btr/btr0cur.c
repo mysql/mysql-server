@@ -883,7 +883,15 @@ btr_cur_insert_if_possible(
 	rec = page_cur_tuple_insert(page_cursor, tuple,
 				    cursor->index, ext, n_ext, mtr);
 
-	if (UNIV_UNLIKELY(!rec) && !buf_block_get_page_zip(block)) {
+	if (buf_block_get_page_zip(block)) {
+		if (!dict_index_is_clust(cursor->index)) {
+			/* Update the free bits in the insert buffer. */
+			ibuf_update_free_bits_if_full(
+				cursor->index, buf_block_get_zip_size(block),
+				block, UNIV_PAGE_SIZE, ULINT_UNDEFINED);
+		}
+
+	} else if (UNIV_UNLIKELY(!rec)) {
 		/* If record did not fit, reorganize.
 		For compressed pages, this is attempted already in
 		page_cur_tuple_insert(). */
@@ -1661,12 +1669,16 @@ btr_cur_update_alloc_zip(
 		return(FALSE);
 	}
 
-	/* Update the free bits in the insert buffer. */
-	ibuf_update_free_bits_if_full(index, buf_block_get_zip_size(block),
-				      block, UNIV_PAGE_SIZE, ULINT_UNDEFINED);
+	if (!page_zip_available(page_zip, dict_index_is_clust(index),
+				length, 0)) {
+		if (!dict_index_is_clust(index)) {
+			/* No space on the page: reset the free bits. */
+			ibuf_reset_free_bits_with_type(index->type, block);
+		}
+		return(FALSE);
+	}
 
-	return(page_zip_available(page_zip, dict_index_is_clust(index),
-				  length, 0));
+	return(TRUE);
 }
 
 /*****************************************************************
@@ -1727,6 +1739,13 @@ btr_cur_update_in_place(
 					thr, &roll_ptr);
 	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
 
+		if (page_zip && !dict_index_is_clust(index)) {
+			/* Update the free bits in the insert buffer. */
+			ibuf_update_free_bits_if_full(
+				index, buf_block_get_zip_size(block),
+				block, UNIV_PAGE_SIZE, ULINT_UNDEFINED);
+		}
+
 		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
@@ -1760,6 +1779,14 @@ btr_cur_update_in_place(
 
 	if (block->is_hashed) {
 		rw_lock_x_unlock(&btr_search_latch);
+	}
+
+	if (page_zip && !dict_index_is_clust(index)) {
+		/* Update the free bits in the insert buffer. */
+		ibuf_update_free_bits_if_full(index,
+					      buf_block_get_zip_size(block),
+					      block,
+					      UNIV_PAGE_SIZE, ULINT_UNDEFINED);
 	}
 
 	btr_cur_update_in_place_log(flags, rec, index, update,
@@ -1854,6 +1881,14 @@ btr_cur_optimistic_update(
 					       cmpl_info, thr, mtr));
 	}
 
+	if (rec_offs_any_extern(offsets)) {
+		/* Externally stored fields are treated in pessimistic
+		update */
+
+		mem_heap_free(heap);
+		return(DB_OVERFLOW);
+	}
+
 	for (i = 0; i < upd_get_n_fields(update); i++) {
 		if (upd_get_nth_field(update, i)->extern_storage) {
 
@@ -1863,14 +1898,6 @@ btr_cur_optimistic_update(
 			mem_heap_free(heap);
 			return(DB_OVERFLOW);
 		}
-	}
-
-	if (rec_offs_any_extern(offsets)) {
-		/* Externally stored fields are treated in pessimistic
-		update */
-
-		mem_heap_free(heap);
-		return(DB_OVERFLOW);
 	}
 
 	page_cursor = btr_cur_get_page_cur(cursor);
@@ -1899,9 +1926,8 @@ btr_cur_optimistic_update(
 			  >= (page_get_free_space_of_empty(page_is_comp(page))
 			      / 2))) {
 
-		mem_heap_free(heap);
-
-		return(DB_OVERFLOW);
+		err = DB_OVERFLOW;
+		goto err_exit;
 	}
 
 	if (UNIV_UNLIKELY(page_get_data_size(page)
@@ -1910,9 +1936,8 @@ btr_cur_optimistic_update(
 
 		/* The page would become too empty */
 
-		mem_heap_free(heap);
-
-		return(DB_UNDERFLOW);
+		err = DB_UNDERFLOW;
+		goto err_exit;
 	}
 
 	max_size = old_rec_size
@@ -1926,15 +1951,21 @@ btr_cur_optimistic_update(
 		reorganize: for simplicity, we decide what to do assuming a
 		reorganization is needed, though it might not be necessary */
 
-		mem_heap_free(heap);
-
-		return(DB_OVERFLOW);
+		err = DB_OVERFLOW;
+		goto err_exit;
 	}
 
 	/* Do lock checking and undo logging */
 	err = btr_cur_upd_lock_and_undo(flags, cursor, update, cmpl_info, thr,
 					&roll_ptr);
 	if (err != DB_SUCCESS) {
+err_exit:
+		if (page_zip && !dict_index_is_clust(index)) {
+			/* Update the free bits in the insert buffer. */
+			ibuf_update_free_bits_if_full(
+				index, buf_block_get_zip_size(block),
+				block, UNIV_PAGE_SIZE, ULINT_UNDEFINED);
+		}
 
 		mem_heap_free(heap);
 
