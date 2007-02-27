@@ -19,6 +19,7 @@ sql_yacc.cc : .*switch statement contains 'default' but no 'case' labels.*
 #
 pars0grm.tab.c: .*'yyerrorlab' : unreferenced label.*
 _flex_tmp.c: .*not enough actual parameters for macro 'yywrap'.*
+pars0lex.l: .*conversion from 'ulint' to 'int', possible loss of data.*
 
 #
 # bdb is not critical to keep up to date
