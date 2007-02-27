@@ -1588,7 +1588,7 @@ lookup:
 		}
 	}
 
-#ifdef UNIV_IBUF_DEBUG
+#ifdef UNIV_IBUF_COUNT_DEBUG
 	ut_a(ibuf_count_get(buf_page_get_space(bpage),
 			    buf_page_get_page_no(bpage)) == 0);
 #endif
@@ -1992,7 +1992,7 @@ wait_until_unfixed:
 		buf_read_ahead_linear(space, zip_size, offset);
 	}
 
-#ifdef UNIV_IBUF_DEBUG
+#ifdef UNIV_IBUF_COUNT_DEBUG
 	ut_a(ibuf_count_get(buf_block_get_space(block),
 			    buf_block_get_page_no(block)) == 0);
 #endif
@@ -2111,7 +2111,7 @@ buf_page_optimistic_get_func(
 				      buf_block_get_page_no(block));
 	}
 
-#ifdef UNIV_IBUF_DEBUG
+#ifdef UNIV_IBUF_COUNT_DEBUG
 	ut_a(ibuf_count_get(buf_block_get_space(block),
 			    buf_block_get_page_no(block)) == 0);
 #endif
@@ -2204,7 +2204,7 @@ buf_page_get_known_nowait(
 	ut_a(block->page.file_page_was_freed == FALSE);
 #endif
 
-#ifdef UNIV_IBUF_DEBUG
+#ifdef UNIV_IBUF_COUNT_DEBUG
 	ut_a((mode == BUF_KEEP_OLD)
 	     || (ibuf_count_get(buf_block_get_space(block),
 				buf_block_get_page_no(block)) == 0));
@@ -2558,7 +2558,7 @@ buf_page_create(
 	block = (buf_block_t*) buf_page_hash_get(space, offset);
 
 	if (block && buf_page_in_file(&block->page)) {
-#ifdef UNIV_IBUF_DEBUG
+#ifdef UNIV_IBUF_COUNT_DEBUG
 		ut_a(ibuf_count_get(space, offset) == 0);
 #endif
 #ifdef UNIV_DEBUG_FILE_ACCESSES
@@ -2655,7 +2655,7 @@ buf_page_create(
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	ut_a(++buf_dbg_counter % 357 || buf_validate());
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
-#ifdef UNIV_IBUF_DEBUG
+#ifdef UNIV_IBUF_COUNT_DEBUG
 	ut_a(ibuf_count_get(buf_block_get_space(block),
 			    buf_block_get_page_no(block)) == 0);
 #endif
@@ -2808,7 +2808,7 @@ corrupt:
 	mutex_enter(&(buf_pool->mutex));
 	mutex_enter(buf_page_get_mutex(bpage));
 
-#ifdef UNIV_IBUF_DEBUG
+#ifdef UNIV_IBUF_COUNT_DEBUG
 	if (io_type == BUF_IO_WRITE || uncompressed) {
 		/* For BUF_IO_READ of compressed-only blocks, the
 		buffered operations will be merged by buf_page_get_gen()
@@ -2950,7 +2950,7 @@ buf_validate(void)
 							       block))
 				     == &block->page);
 
-#ifdef UNIV_IBUF_DEBUG
+#ifdef UNIV_IBUF_COUNT_DEBUG
 				ut_a(buf_page_get_io_fix(&block->page)
 				     == BUF_IO_READ
 				     || !ibuf_count_get(buf_block_get_space(
