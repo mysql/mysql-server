@@ -315,13 +315,13 @@ TODO list:
 #define MUTEX_UNLOCK(M) {DBUG_PRINT("lock", ("mutex unlock 0x%lx",\
   (ulong)(M))); pthread_mutex_unlock(M);}
 #define RW_WLOCK(M) {DBUG_PRINT("lock", ("rwlock wlock 0x%lx",(ulong)(M))); \
-  if (!rw_wrlock(M)) DBUG_PRINT("lock", ("rwlock wlock ok")) \
+  if (!rw_wrlock(M)) DBUG_PRINT("lock", ("rwlock wlock ok")); \
   else DBUG_PRINT("lock", ("rwlock wlock FAILED %d", errno)); }
 #define RW_RLOCK(M) {DBUG_PRINT("lock", ("rwlock rlock 0x%lx", (ulong)(M))); \
-  if (!rw_rdlock(M)) DBUG_PRINT("lock", ("rwlock rlock ok")) \
+  if (!rw_rdlock(M)) DBUG_PRINT("lock", ("rwlock rlock ok")); \
   else DBUG_PRINT("lock", ("rwlock wlock FAILED %d", errno)); }
 #define RW_UNLOCK(M) {DBUG_PRINT("lock", ("rwlock unlock 0x%lx",(ulong)(M))); \
-  if (!rw_unlock(M)) DBUG_PRINT("lock", ("rwlock unlock ok")) \
+  if (!rw_unlock(M)) DBUG_PRINT("lock", ("rwlock unlock ok")); \
   else DBUG_PRINT("lock", ("rwlock unlock FAILED %d", errno)); }
 #define STRUCT_LOCK(M) {DBUG_PRINT("lock", ("%d struct lock...",__LINE__)); \
   pthread_mutex_lock(M);DBUG_PRINT("lock", ("struct lock OK"));}
@@ -669,6 +669,7 @@ void query_cache_insert(NET *net, const char *packet, ulong length)
 void query_cache_abort(NET *net)
 {
   DBUG_ENTER("query_cache_abort");
+  THD *thd= current_thd;
 
   /* See the comment on double-check locking usage above. */
   if (net->query_cache_query == 0)
@@ -687,6 +688,7 @@ void query_cache_abort(NET *net)
                                    net->query_cache_query);
   if (query_block)			// Test if changed by other thread
   {
+    thd_proc_info(thd, "storing result in query cache");
     DUMP(&query_cache);
     BLOCK_LOCK_WR(query_block);
     // The following call will remove the lock on query_block
@@ -724,6 +726,7 @@ void query_cache_end_of_result(THD *thd)
   query_block= ((Query_cache_block*) thd->net.query_cache_query);
   if (query_block)
   {
+    thd_proc_info(thd, "storing result in query cache");
     DUMP(&query_cache);
     BLOCK_LOCK_WR(query_block);
     Query_cache_query *header= query_block->query();
@@ -1088,6 +1091,8 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     DBUG_PRINT("qcache", ("No active database"));
   }
 
+  thd_proc_info(thd, "checking query cache for query");
+
   // fill all gaps between fields with 0 to get repeatable key
   bzero(&flags, QUERY_CACHE_FLAGS_SIZE);
   flags.client_long_flag= test(thd->client_capabilities & CLIENT_LONG_FLAG);
@@ -1162,6 +1167,7 @@ sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
   }
       
   // Check access;
+  thd_proc_info(thd, "checking privileges on cached query");
   block_table= query_block->table(0);
   block_table_end= block_table+query_block->n_tables;
   for (; block_table != block_table_end; block_table++)
@@ -1254,6 +1260,7 @@ sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
     Send cached result to client
   */
 #ifndef EMBEDDED_LIBRARY
+  thd_proc_info(thd, "sending cached result to client");
   do
   {
     DBUG_PRINT("qcache", ("Results  (len: %lu  used: %lu  headers: %lu)",
@@ -1331,9 +1338,11 @@ void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
 
 void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
 {
+  THD *thd= current_thd;
   DBUG_ENTER("Query_cache::invalidate (changed table list)");
   if (tables_used)
   {
+    thd_proc_info(thd, "invalidating query cache entries (table list)");
     STRUCT_LOCK(&structure_guard_mutex);
     if (query_cache_size > 0 && !flush_in_progress)
     {
@@ -1364,9 +1373,11 @@ void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
 */
 void Query_cache::invalidate_locked_for_write(TABLE_LIST *tables_used)
 {
+  THD *thd= current_thd;
   DBUG_ENTER("Query_cache::invalidate_locked_for_write");
   if (tables_used)
   {
+    thd_proc_info(thd, "invalidating query cache entries (table)");
     STRUCT_LOCK(&structure_guard_mutex);
     if (query_cache_size > 0 && !flush_in_progress)
     {
@@ -1416,6 +1427,7 @@ void Query_cache::invalidate(THD *thd, const char *key, uint32  key_length,
   STRUCT_LOCK(&structure_guard_mutex);
   if (query_cache_size > 0 && !flush_in_progress)
   {
+    thd_proc_info(thd, "invalidating query cache entries (key)");
     using_transactions= using_transactions &&
       (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
     if (using_transactions) // used for innodb => has_transactions() is TRUE

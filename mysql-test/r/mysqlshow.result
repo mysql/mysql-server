@@ -85,6 +85,7 @@ Database: information_schema
 | COLUMNS                               |
 | COLUMN_PRIVILEGES                     |
 | KEY_COLUMN_USAGE                      |
+| PROFILING                             |
 | ROUTINES                              |
 | SCHEMATA                              |
 | SCHEMA_PRIVILEGES                     |
@@ -106,6 +107,7 @@ Database: INFORMATION_SCHEMA
 | COLUMNS                               |
 | COLUMN_PRIVILEGES                     |
 | KEY_COLUMN_USAGE                      |
+| PROFILING                             |
 | ROUTINES                              |
 | SCHEMATA                              |
 | SCHEMA_PRIVILEGES                     |
