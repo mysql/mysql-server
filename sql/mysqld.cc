@@ -2677,9 +2677,15 @@ static int init_common_variables(const char *conf_file_name, int argc,
   */
   mysql_bin_log.init_pthread_objects();
 
-  if (gethostname(glob_hostname,sizeof(glob_hostname)-4) < 0)
-    strmov(glob_hostname,"mysql");
-  strmake(pidfile_name, glob_hostname, sizeof(pidfile_name)-5);
+  if (gethostname(glob_hostname,sizeof(glob_hostname)) < 0)
+  {
+    strmake(glob_hostname, STRING_WITH_LEN("localhost"));
+    sql_print_warning("gethostname failed, using '%s' as hostname",
+                      glob_hostname);
+    strmake(pidfile_name, STRING_WITH_LEN("mysql"));
+  }
+  else
+    strmake(pidfile_name, glob_hostname, sizeof(pidfile_name)-5);
   strmov(fn_ext(pidfile_name),".pid");		// Add proper extension
 
   /*
@@ -3137,7 +3143,7 @@ static int init_server_components()
   if (opt_error_log)
   {
     if (!log_error_file_ptr[0])
-      fn_format(log_error_file, glob_hostname, mysql_data_home, ".err",
+      fn_format(log_error_file, pidfile_name, mysql_data_home, ".err",
                 MY_REPLACE_EXT); /* replace '.<domain>' by '.err', bug#4997 */
     else
       fn_format(log_error_file, log_error_file_ptr, mysql_data_home, ".err",

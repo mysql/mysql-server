@@ -1,6 +1,7 @@
-# This script converts any old privilege tables to privilege tables suitable
-# for this version of MySQL
-# You can safely ignore all 'Duplicate column' and 'Unknown column' errors"
+# This part converts any old privilege tables to privilege tables suitable
+# for current version of MySQL
+
+# You can safely ignore all 'Duplicate column' and 'Unknown column' errors
 # because these just mean that your tables are already up to date.
 # This script is safe to run even if your tables are already up to date!
 
@@ -10,20 +11,6 @@
 
 set sql_mode='';
 set storage_engine=MyISAM;
-
-CREATE TABLE IF NOT EXISTS func (
-  name char(64) binary DEFAULT '' NOT NULL,
-  ret tinyint(1) DEFAULT '0' NOT NULL,
-  dl char(128) DEFAULT '' NOT NULL,
-  type enum ('function','aggregate') COLLATE utf8_general_ci NOT NULL,
-  PRIMARY KEY (name)
-) CHARACTER SET utf8 COLLATE utf8_bin;
-
-CREATE TABLE IF NOT EXISTS plugin (
-  name char(64) binary DEFAULT '' NOT NULL,
-  dl char(128) DEFAULT '' NOT NULL,
-  PRIMARY KEY (name)
-) CHARACTER SET utf8 COLLATE utf8_bin;
 
 ALTER TABLE user add File_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL;
 
@@ -42,7 +29,7 @@ UPDATE host SET References_priv=Create_priv,Index_priv=Create_priv,Alter_priv=Cr
 
 #
 # The second alter changes ssl_type to new 4.0.2 format
-# Adding columns needed by GRANT .. REQUIRE (openssl)"
+# Adding columns needed by GRANT .. REQUIRE (openssl)
 
 ALTER TABLE user
 ADD ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci NOT NULL,
@@ -54,21 +41,6 @@ ALTER TABLE user MODIFY ssl_type enum('','ANY','X509', 'SPECIFIED') NOT NULL;
 #
 # tables_priv
 #
-CREATE TABLE IF NOT EXISTS tables_priv (
-  Host char(60) binary DEFAULT '' NOT NULL,
-  Db char(64) binary DEFAULT '' NOT NULL,
-  User char(16) binary DEFAULT '' NOT NULL,
-  Table_name char(64) binary DEFAULT '' NOT NULL,
-  Grantor char(77) DEFAULT '' NOT NULL,
-  Timestamp timestamp(14),
-  Table_priv set('Select','Insert','Update','Delete','Create',
-                 'Drop','Grant','References','Index','Alter')
-    COLLATE utf8_general_ci DEFAULT '' NOT NULL,
-  Column_priv set('Select','Insert','Update','References')
-    COLLATE utf8_general_ci DEFAULT '' NOT NULL,
-  PRIMARY KEY (Host,Db,User,Table_name)
-) CHARACTER SET utf8 COLLATE utf8_bin;
-# Fix collation of set fields
 ALTER TABLE tables_priv
   ADD KEY Grantor (Grantor);
 
@@ -93,16 +65,6 @@ ALTER TABLE tables_priv
 #
 # columns_priv
 #
-CREATE TABLE IF NOT EXISTS columns_priv (
-  Host char(60) DEFAULT '' NOT NULL,
-  Db char(64) DEFAULT '' NOT NULL,
-  User char(16) DEFAULT '' NOT NULL,
-  Table_name char(64) DEFAULT '' NOT NULL,
-  Column_name char(64) DEFAULT '' NOT NULL,
-  Timestamp timestamp(14),
-  Column_priv set('Select','Insert','Update','References') COLLATE utf8_general_ci DEFAULT '' NOT NULL,
-  PRIMARY KEY (Host,Db,User,Table_name,Column_name)
-) CHARACTER SET utf8 COLLATE utf8_bin;
 #
 # Name change of Type -> Column_priv from MySQL 3.22.12
 #
@@ -131,7 +93,7 @@ ALTER TABLE columns_priv
 ALTER TABLE func add type enum ('function','aggregate') COLLATE utf8_general_ci NOT NULL;
 
 #
-#  Change the user,db and host tables to MySQL 4.0 format
+#  Change the user,db and host tables to current format
 #
 
 # Detect whether we had Show_db_priv
@@ -154,6 +116,7 @@ UPDATE user SET Show_db_priv= Select_priv, Super_priv=Process_priv, Execute_priv
 
 #  Add fields that can be used to limit number of questions and connections
 #  for some users.
+
 ALTER TABLE user
 ADD max_questions int(11) NOT NULL DEFAULT 0 AFTER x509_subject,
 ADD max_updates   int(11) unsigned NOT NULL DEFAULT 0 AFTER max_questions,
@@ -254,7 +217,7 @@ ALTER TABLE func
 
 #
 # Detect whether we had Create_view_priv
-# 
+#
 SET @hadCreateViewPriv:=0;
 SELECT @hadCreateViewPriv:=1 FROM user WHERE Create_view_priv LIKE '%';
 
@@ -331,7 +294,7 @@ UPDATE db SET Create_routine_priv=Create_priv, Alter_routine_priv=Alter_priv, Ex
 UPDATE host SET Create_routine_priv=Create_priv, Alter_routine_priv=Alter_priv, Execute_priv=Select_priv where @hadCreateRoutinePriv = 0;
 
 #
-# Add max_user_connections resource limit 
+# Add max_user_connections resource limit
 #
 ALTER TABLE user ADD max_user_connections int(11) unsigned DEFAULT '0' NOT NULL AFTER max_connections;
 
@@ -348,22 +311,9 @@ UPDATE user LEFT JOIN db USING (Host,User) SET Create_user_priv='Y'
   WHERE @hadCreateUserPriv = 0 AND
         (user.Grant_priv = 'Y' OR db.Grant_priv = 'Y');
 
---
--- procs_priv
---
-CREATE TABLE IF NOT EXISTS procs_priv (
-  Host char(60) binary DEFAULT '' NOT NULL,
-  Db char(64) binary DEFAULT '' NOT NULL,
-  User char(16) binary DEFAULT '' NOT NULL,
-  Routine_name char(64) binary DEFAULT '' NOT NULL,
-  Routine_type enum('FUNCTION','PROCEDURE') NOT NULL,
-  Grantor char(77) DEFAULT '' NOT NULL,
-  Proc_priv set('Execute','Alter Routine','Grant')
-    COLLATE utf8_general_ci DEFAULT '' NOT NULL,
-  Timestamp timestamp(14),
-  PRIMARY KEY (Host, Db, User, Routine_name, Routine_type),
-  KEY Grantor (Grantor)
-) CHARACTER SET utf8 COLLATE utf8_bin comment='Procedure privileges';
+#
+# procs_priv
+#
 
 ALTER TABLE procs_priv
   ENGINE=MyISAM,
@@ -380,159 +330,9 @@ ALTER TABLE procs_priv
 ALTER TABLE procs_priv
   MODIFY Timestamp timestamp(14) AFTER Proc_priv;
 
---
--- servers 
---
-CREATE TABLE servers (
-  Server_name char(64) NOT NULL DEFAULT '',
-  Host char(64) NOT NULL DEFAULT '',
-  Db char(64) NOT NULL DEFAULT '',
-  Username char(64) NOT NULL DEFAULT '',
-  Password char(64) NOT NULL DEFAULT '',
-  Port INT(4) NOT NULL DEFAULT '0',
-  Socket char(64) NOT NULL DEFAULT '',
-  Wrapper char(64) NOT NULL DEFAULT '',
-  Owner char(64) NOT NULL DEFAULT '',
-  PRIMARY KEY (Server_name))
-  CHARACTER SET utf8 comment='MySQL Foreign Servers table';
-
---
--- help_topic
---
-CREATE TABLE IF NOT EXISTS help_topic (
-help_topic_id int unsigned not null,
-name varchar(64) not null,
-help_category_id smallint unsigned not null,
-description text not null,
-example text not null,
-url varchar(128) not null,
-primary key (help_topic_id), unique index (name)
-) CHARACTER SET utf8 comment='help topics';
-
-CREATE TABLE IF NOT EXISTS help_category (
-help_category_id smallint unsigned not null,
-name varchar(64) not null,
-parent_category_id smallint unsigned null,
-url varchar(128) not null,
-primary key (help_category_id),
-unique index (name)
-) CHARACTER SET utf8 comment='help categories';
-
-CREATE TABLE IF NOT EXISTS help_relation (
-help_topic_id int unsigned not null references help_topic,
-help_keyword_id  int unsigned not null references help_keyword,
-primary key (help_keyword_id, help_topic_id)
-) CHARACTER SET utf8 comment='keyword-topic relation';
-
-CREATE TABLE IF NOT EXISTS help_keyword (
-help_keyword_id int unsigned not null,
-name varchar(64) not null,
-primary key (help_keyword_id),
-unique index (name)
-) CHARACTER SET utf8 comment='help keywords';
-
 #
-# Create missing time zone related tables
+# proc
 #
-
-CREATE TABLE IF NOT EXISTS time_zone_name (
-Name char(64) NOT NULL,   
-Time_zone_id int  unsigned NOT NULL,
-PRIMARY KEY Name (Name) 
-) CHARACTER SET utf8 comment='Time zone names';
-
-CREATE TABLE IF NOT EXISTS time_zone (
-Time_zone_id int unsigned NOT NULL auto_increment,
-Use_leap_seconds  enum('Y','N') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-PRIMARY KEY TzId (Time_zone_id) 
-) CHARACTER SET utf8 comment='Time zones';
-# Make enum field case-insensitive
-ALTER TABLE time_zone
-  MODIFY Use_leap_seconds enum('Y','N') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
-
-CREATE TABLE IF NOT EXISTS time_zone_transition (
-Time_zone_id int unsigned NOT NULL,
-Transition_time bigint signed NOT NULL,   
-Transition_type_id int unsigned NOT NULL,
-PRIMARY KEY TzIdTranTime (Time_zone_id, Transition_time) 
-) CHARACTER SET utf8 comment='Time zone transitions';
-
-CREATE TABLE IF NOT EXISTS time_zone_transition_type (
-Time_zone_id int unsigned NOT NULL,
-Transition_type_id int unsigned NOT NULL,
-Offset int signed DEFAULT 0 NOT NULL,
-Is_DST tinyint unsigned DEFAULT 0 NOT NULL,
-Abbreviation char(8) DEFAULT '' NOT NULL,
-PRIMARY KEY TzIdTrTId (Time_zone_id, Transition_type_id) 
-) CHARACTER SET utf8 comment='Time zone transition types';
-
-CREATE TABLE IF NOT EXISTS time_zone_leap_second (
-Transition_time bigint signed NOT NULL,
-Correction int signed NOT NULL,   
-PRIMARY KEY TranTime (Transition_time) 
-) CHARACTER SET utf8 comment='Leap seconds information for time zones';
-
-
-#
-# Create proc table if it does not exists
-#
-
-CREATE TABLE IF NOT EXISTS proc (
-  db                char(64) collate utf8_bin DEFAULT '' NOT NULL,
-  name              char(64) DEFAULT '' NOT NULL,
-  type              enum('FUNCTION','PROCEDURE') NOT NULL,
-  specific_name     char(64) DEFAULT '' NOT NULL,
-  language          enum('SQL') DEFAULT 'SQL' NOT NULL,
-  sql_data_access   enum('CONTAINS_SQL',
-                         'NO_SQL',
-                         'READS_SQL_DATA',
-                         'MODIFIES_SQL_DATA'
-                    ) DEFAULT 'CONTAINS_SQL' NOT NULL,
-  is_deterministic  enum('YES','NO') DEFAULT 'NO' NOT NULL,
-  security_type     enum('INVOKER','DEFINER') DEFAULT 'DEFINER' NOT NULL,
-  param_list        blob DEFAULT '' NOT NULL,
-  returns           char(64) DEFAULT '' NOT NULL,
-  body              longblob DEFAULT '' NOT NULL,
-  definer           char(77) collate utf8_bin DEFAULT '' NOT NULL,
-  created           timestamp,
-  modified          timestamp,
-  sql_mode          set(
-                        'REAL_AS_FLOAT',
-                        'PIPES_AS_CONCAT',
-                        'ANSI_QUOTES',
-                        'IGNORE_SPACE',
-                        'NOT_USED',
-                        'ONLY_FULL_GROUP_BY',
-                        'NO_UNSIGNED_SUBTRACTION',
-                        'NO_DIR_IN_CREATE',
-                        'POSTGRESQL',
-                        'ORACLE',
-                        'MSSQL',
-                        'DB2',
-                        'MAXDB',
-                        'NO_KEY_OPTIONS',
-                        'NO_TABLE_OPTIONS',
-                        'NO_FIELD_OPTIONS',
-                        'MYSQL323',
-                        'MYSQL40',
-                        'ANSI',
-                        'NO_AUTO_VALUE_ON_ZERO',
-                        'NO_BACKSLASH_ESCAPES',
-                        'STRICT_TRANS_TABLES',
-                        'STRICT_ALL_TABLES',
-                        'NO_ZERO_IN_DATE',
-                        'NO_ZERO_DATE',
-                        'INVALID_DATES',
-                        'ERROR_FOR_DIVISION_BY_ZERO',
-                        'TRADITIONAL',
-                        'NO_AUTO_CREATE_USER',
-                        'HIGH_NOT_PRECEDENCE'
-                    ) DEFAULT '' NOT NULL,
-  comment           char(64) collate utf8_bin DEFAULT '' NOT NULL,
-  PRIMARY KEY (db,name,type)
-) engine=MyISAM
-  character set utf8
-  comment='Stored Procedures';
 
 # Correct the name fields to not binary, and expand sql_data_access
 ALTER TABLE proc MODIFY name char(64) DEFAULT '' NOT NULL,

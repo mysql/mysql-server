@@ -655,6 +655,10 @@ sys_var_thd_time_zone            sys_time_zone("time_zone");
 
 /* Read only variables */
 
+/* Global read-only variable containing hostname */
+sys_var_const_str		sys_hostname("hostname", glob_hostname);
+
+
 sys_var_have_variable sys_have_compress("have_compress", &have_compress);
 sys_var_have_variable sys_have_crypt("have_crypt", &have_crypt);
 sys_var_have_variable sys_have_csv_db("have_csv", &have_csv_db);
@@ -779,6 +783,7 @@ SHOW_VAR init_vars[]= {
   {sys_var_general_log.name, (char*) &opt_log,                      SHOW_MY_BOOL},
   {sys_var_general_log_path.name, (char*) &sys_var_general_log_path,  SHOW_SYS},
   {sys_group_concat_max_len.name, (char*) &sys_group_concat_max_len,  SHOW_SYS},
+  {sys_hostname.name,         (char*) &sys_hostname,                SHOW_SYS},
   {sys_have_compress.name,    (char*) &have_compress,               SHOW_HAVE},
   {sys_have_crypt.name,       (char*) &have_crypt,                  SHOW_HAVE},
   {sys_have_csv_db.name,      (char*) &have_csv_db,                 SHOW_HAVE},
