@@ -452,7 +452,7 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
       TODO: The following should be using fn_format();  We just need to
       first change fn_format() to cut the file name if it's too long.
     */
-    strmake(buff,glob_hostname,FN_REFLEN-5);
+    strmake(buff, pidfile_name,FN_REFLEN-5);
     strmov(fn_ext(buff),suffix);
     return (const char *)buff;
   }
