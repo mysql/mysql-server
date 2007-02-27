@@ -73,6 +73,7 @@ ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc
                time.cc tztime.cc uniques.cc unireg.cc 
                ../sql-common/my_user.c 
                sql_locale.cc
+               sql_profile.cc
                ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
   			   ${PROJECT_SOURCE_DIR}/sql/sql_yacc.h
 			   ${PROJECT_SOURCE_DIR}/include/mysqld_error.h
