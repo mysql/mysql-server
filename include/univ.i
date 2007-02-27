@@ -90,7 +90,8 @@ memory is read outside the allocated blocks. */
 #define UNIV_HASH_DEBUG				/* debug HASH_ macros */
 #define UNIV_LIST_DEBUG				/* debug UT_LIST_ macros */
 #define UNIV_MEM_DEBUG				/* detect memory leaks etc */
-#define UNIV_IBUF_DEBUG				/* debug the insert buffer;
+#define UNIV_IBUF_DEBUG				/* debug the insert buffer */
+#define UNIV_IBUF_COUNT_DEBUG			/* debug the insert buffer;
 this limits the database to IBUF_COUNT_N_SPACES and IBUF_COUNT_N_PAGES,
 and the insert buffer must be empty when the database is started */
 #define UNIV_SYNC_DEBUG				/* debug mutex and latch

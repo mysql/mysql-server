@@ -675,7 +675,7 @@ buf_flush_write_block_low(
 
 	ut_ad(buf_page_in_file(bpage));
 
-#ifdef UNIV_IBUF_DEBUG
+#ifdef UNIV_IBUF_COUNT_DEBUG
 	ut_a(ibuf_count_get(bpage->space, bpage->offset) == 0);
 #endif
 	ut_ad(bpage->newest_modification != 0);

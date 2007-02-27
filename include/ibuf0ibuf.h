@@ -269,7 +269,7 @@ ibuf_parse_bitmap_init(
 	byte*		end_ptr,/* in: buffer end */
 	buf_block_t*	block,	/* in: block or NULL */
 	mtr_t*		mtr);	/* in: mtr or NULL */
-#ifdef UNIV_IBUF_DEBUG
+#ifdef UNIV_IBUF_COUNT_DEBUG
 /**********************************************************************
 Gets the ibuf count for a given page. */
 
