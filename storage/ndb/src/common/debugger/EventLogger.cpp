@@ -963,7 +963,7 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(NDBStopCompleted,        LogLevel::llStartUp,     1, Logger::LL_INFO ),
   ROW(NDBStopForced,           LogLevel::llStartUp,     1, Logger::LL_ALERT ),
   ROW(NDBStopAborted,          LogLevel::llStartUp,     1, Logger::LL_INFO ),
-  ROW(StartREDOLog,            LogLevel::llStartUp,    10, Logger::LL_INFO ),
+  ROW(StartREDOLog,            LogLevel::llStartUp,     4, Logger::LL_INFO ),
   ROW(StartLog,                LogLevel::llStartUp,    10, Logger::LL_INFO ),
   ROW(UNDORecordsExecuted,     LogLevel::llStartUp,    15, Logger::LL_INFO ),
   ROW(StartReport,             LogLevel::llStartUp,     4, Logger::LL_INFO ),
