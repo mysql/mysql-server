@@ -54,7 +54,7 @@ enum SCHEMA_OP_TYPE
   SOT_TRUNCATE_TABLE= 11
 };
 
-const uint max_ndb_nodes= 64; /* multiple of 32 */
+const uint max_ndb_nodes= 256; /* multiple of 32 */
 
 static const char *ha_ndb_ext=".ndb";
 static const char share_prefix[]= "./";
