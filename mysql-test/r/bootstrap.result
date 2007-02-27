@@ -1,0 +1,8 @@
+drop table if exists t1;
+drop table t1;
+drop table t1;
+ERROR 42S02: Unknown table 't1'
+set @my_max_allowed_packet= @@max_allowed_packet;
+set global max_allowed_packet=100*@@max_allowed_packet;
+set global max_allowed_packet=@my_max_allowed_packet;
+drop table t1;

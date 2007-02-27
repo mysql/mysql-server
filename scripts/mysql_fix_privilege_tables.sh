@@ -175,7 +175,7 @@ s_echo()
 }
 
 s_echo "This script updates all the mysql privilege tables to be usable by"
-s_echo "MySQL 5.1 and above."
+s_echo "the current version of MySQL"
 s_echo ""
 
 if test $verbose = 1

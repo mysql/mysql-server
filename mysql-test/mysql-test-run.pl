@@ -300,6 +300,8 @@ our $path_ndb_examples_dir;
 our $exe_ndb_example;
 our $path_ndb_testrun_log;
 
+our $path_sql_dir;
+
 our @data_dir_lst;
 
 our $used_binlog_format;
@@ -1498,12 +1500,16 @@ sub executable_setup () {
     $exe_mysql_fix_system_tables=
       mtr_script_exists("$glob_basedir/scripts/mysql_fix_privilege_tables",
 			"$path_client_bindir/mysql_fix_privilege_tables");
+
   }
+
+  # Look for SQL scripts directory
+  $path_sql_dir= mtr_path_exists("$glob_basedir/share",
+				 "$glob_basedir/scripts");
 
   # Look for mysql_fix_privilege_tables.sql script
   $file_mysql_fix_privilege_tables=
-    mtr_file_exists("$glob_basedir/scripts/mysql_fix_privilege_tables.sql",
-		    "$glob_basedir/share/mysql_fix_privilege_tables.sql");
+    mtr_file_exists("$path_sql_dir/mysql_fix_privilege_tables.sql");
 
   if ( ! $opt_skip_ndbcluster and executable_setup_ndb())
   {
@@ -1954,6 +1960,7 @@ sub environment_setup () {
       "--port=$master->[0]->{'port'} " .
       "--socket=$master->[0]->{'path_sock'}";
     $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  $cmdline_mysql_fix_system_tables;
+
   }
   $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
 
@@ -2871,42 +2878,13 @@ sub install_db ($$) {
   my $type=      shift;
   my $data_dir=  shift;
 
-  my $init_db_sql=     "lib/init_db.sql";
-  my $init_db_sql_tmp= "/tmp/init_db.sql$$";
-  my $args;
-
   mtr_report("Installing \u$type Database");
 
-  open(IN, $init_db_sql)
-    or mtr_error("Can't open $init_db_sql: $!");
-  open(OUT, ">", $init_db_sql_tmp)
-    or mtr_error("Can't write to $init_db_sql_tmp: $!");
-  while (<IN>)
-  {
-    chomp;
-    s/\@HOSTNAME\@/$glob_hostname/;
-    if ( /^\s*$/ )
-    {
-      print OUT "\n";
-    }
-    elsif (/;$/)
-    {
-      print OUT "$_\n";
-    }
-    else
-    {
-      print OUT "$_ ";
-    }
-  }
-  close OUT;
-  close IN;
 
+  my $args;
   mtr_init_args(\$args);
-
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--bootstrap");
-  mtr_add_arg($args, "--console");
-  mtr_add_arg($args, "--skip-grant-tables");
   mtr_add_arg($args, "--basedir=%s", $path_my_basedir);
   mtr_add_arg($args, "--datadir=%s", $data_dir);
   mtr_add_arg($args, "--skip-innodb");
@@ -2933,21 +2911,49 @@ sub install_db ($$) {
   # --bootstrap, to accommodate this.
   my $exe_mysqld_bootstrap = $ENV{'MYSQLD_BOOTSTRAP'} || $exe_mysqld;
 
+  # ----------------------------------------------------------------------
+  # export MYSQLD_BOOTSTRAP_CMD variable containing <path>/mysqld <args>
+  # ----------------------------------------------------------------------
+  $ENV{'MYSQLD_BOOTSTRAP_CMD'}= "$exe_mysqld_bootstrap " . join(" ", @$args);
+
+  # ----------------------------------------------------------------------
+  # Create the bootstrap.sql file
+  # ----------------------------------------------------------------------
+  my $bootstrap_sql_file= "$opt_vardir/tmp/bootstrap.sql$$";
+
+  # Use the mysql database for system tables
+  mtr_tofile($bootstrap_sql_file, "use mysql");
+
+  # Add the offical mysql system tables and initial system data
+  # for a prodcuction system
+  mtr_appendfile_to_file("$path_sql_dir/mysql_system_tables.sql",
+			 $bootstrap_sql_file);
+
+  # Add test data for timezone - this is just a subset, on a real
+  # system these tables will be populated either by mysql_tzinfo_to_sql
+  # or by downloading the timezone table package from our website
+  mtr_appendfile_to_file("$path_sql_dir/mysql_test_data_timezone.sql",
+			 $bootstrap_sql_file);
+
+  # Fill help tables, just an empty file when running from bk repo
+  # but will be replaced by a real fill_help_tables.sql when
+  # building the source dist
+  mtr_appendfile_to_file("$path_sql_dir/fill_help_tables.sql",
+			 $bootstrap_sql_file);
+
   # Log bootstrap command
   my $path_bootstrap_log= "$opt_vardir/log/bootstrap.log";
   mtr_tofile($path_bootstrap_log,
 	     "$exe_mysqld_bootstrap " . join(" ", @$args) . "\n");
 
-  if ( mtr_run($exe_mysqld_bootstrap, $args, $init_db_sql_tmp,
+  if ( mtr_run($exe_mysqld_bootstrap, $args, $bootstrap_sql_file,
                $path_bootstrap_log, $path_bootstrap_log,
 	       "", { append_log_file => 1 }) != 0 )
 
   {
-    unlink($init_db_sql_tmp);
     mtr_error("Error executing mysqld --bootstrap\n" .
-              "Could not install $type test DBs");
+              "Could not install system database, see $path_bootstrap_log");
   }
-  unlink($init_db_sql_tmp);
 }
 
 
