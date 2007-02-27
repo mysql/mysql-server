@@ -1,7 +1,12 @@
 #ifndef _ma_loghandler_lsn_h
 #define _ma_loghandler_lsn_h
 
-/* Transaction log record address (file_no is int24 on the disk) */
+/*
+  Transaction log record address:
+  file_no << 32 | offset
+  file_no is only 3 bytes so we can use signed integer to make
+  comparison more simple.
+*/
 typedef int64 TRANSLOG_ADDRESS;
 
 /*

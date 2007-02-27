@@ -4679,8 +4679,6 @@ translog_read_record_header_from_buffer(byte *page,
     buff                 log record header buffer
 
   NOTE
-    - lsn can point to TRANSLOG_HEADER_BUFFER::lsn and it will be processed
-      correctly.
     - Some type of record can be read completely by this call
     - "Decoded" header stored in TRANSLOG_HEADER_BUFFER::header (relative
       LSN can be translated to absolute one), some fields can be added
@@ -4786,6 +4784,7 @@ translog_read_record_header_scan(TRANSLOG_SCANNER_DATA
       its NOTES.
     - in case of end of the log buff->lsn will be set to
       (CONTROL_FILE_IMPOSSIBLE_LSN)
+
   RETURN
     0                                    error
     TRANSLOG_RECORD_HEADER_MAX_SIZE + 1  End of the log
