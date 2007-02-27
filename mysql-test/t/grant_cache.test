@@ -2,6 +2,8 @@
 -- source include/not_embedded.inc
 -- source include/have_query_cache.inc
 
+--source include/add_anonymous_users.inc
+
 #
 # Test grants with query cache
 #
@@ -70,6 +72,7 @@ select c from t1;
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_hits";
 show status like "Qcache_not_cached";
+
 
 # Don't use '' as user because it will pick Unix login
 connect (unkuser,localhost,unkuser,,,$MASTER_MYPORT,$MASTER_MYSOCK);
@@ -149,5 +152,8 @@ drop table test.t1,mysqltest.t1,mysqltest.t2;
 drop database mysqltest;
 
 set GLOBAL query_cache_size=default;
+
+--source include/delete_anonymous_users.inc
+
 
 # End of 4.1 tests

@@ -590,6 +590,10 @@ sys_var_readonly                sys_have_innodb("have_innodb", OPT_GLOBAL,
 /* Global read-only variable describing server license */
 sys_var_const_str		sys_license("license", STRINGIFY_ARG(LICENSE));
 
+/* Global read-only variable containing hostname */
+sys_var_const_str		sys_hostname("hostname", glob_hostname);
+
+
 
 /*
   List of all variables for initialisation and storage in hash
@@ -642,6 +646,7 @@ sys_var *sys_variables[]=
   &sys_foreign_key_checks,
   &sys_group_concat_max_len,
   &sys_have_innodb,
+  &sys_hostname,
   &sys_identity,
   &sys_init_connect,
   &sys_init_slave,
@@ -874,6 +879,7 @@ struct show_var_st init_vars[]= {
   {"have_raid",		      (char*) &have_raid,		    SHOW_HAVE},
   {"have_rtree_keys",         (char*) &have_rtree_keys,             SHOW_HAVE},
   {"have_symlink",            (char*) &have_symlink,                SHOW_HAVE},
+  {sys_hostname.name,         (char*) &sys_hostname,                SHOW_SYS},
   {"init_connect",            (char*) &sys_init_connect,            SHOW_SYS},
   {"init_file",               (char*) &opt_init_file,               SHOW_CHAR_PTR},
   {"init_slave",              (char*) &sys_init_slave,              SHOW_SYS},
