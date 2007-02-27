@@ -460,6 +460,8 @@ void ha_myisammrg::update_create_info(HA_CREATE_INFO *create_info)
     {
       TABLE_LIST *ptr;
       LEX_STRING db, name;
+      db.length= 0;
+      db.str= 0;
 
       if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
 	goto err;
@@ -570,6 +572,8 @@ void ha_myisammrg::append_create_info(String *packet)
        open_table++)
   {
     LEX_STRING db, name;
+    db.length= 0;
+    db.str= 0;
     split_file_name(open_table->table->filename, &db, &name);
     if (open_table != first)
       packet->append(',');
