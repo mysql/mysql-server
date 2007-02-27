@@ -1578,13 +1578,13 @@ bool MYSQL_LOG::flush_and_sync()
   return err;
 }
 
-void MYSQL_LOG::start_union_events(THD *thd)
+void MYSQL_LOG::start_union_events(THD *thd, query_id_t query_id_param)
 {
   DBUG_ASSERT(!thd->binlog_evt_union.do_union);
   thd->binlog_evt_union.do_union= TRUE;
   thd->binlog_evt_union.unioned_events= FALSE;
   thd->binlog_evt_union.unioned_events_trans= FALSE;
-  thd->binlog_evt_union.first_query_id= thd->query_id;
+  thd->binlog_evt_union.first_query_id= query_id_param;
 }
 
 void MYSQL_LOG::stop_union_events(THD *thd)
@@ -2524,7 +2524,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
       goto err;
     if (using_heuristic_recover())
       return 1;
-    if ((fd= my_create(logname, O_RDWR, 0, MYF(MY_WME))) < 0)
+    if ((fd= my_create(logname, CREATE_MODE, O_RDWR, MYF(MY_WME))) < 0)
       goto err;
     inited=1;
     file_length= opt_tc_log_size;
