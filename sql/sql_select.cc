@@ -13534,7 +13534,6 @@ count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
   param->quick_group=1;
   while ((field=li++))
   {
-    Item::Type type=field->type();
     Item::Type real_type= field->real_item()->type();
     if (real_type == Item::FIELD_ITEM)
       param->field_count++;
