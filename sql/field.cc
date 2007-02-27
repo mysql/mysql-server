@@ -6297,12 +6297,10 @@ int Field_string::cmp(const char *a_ptr, const char *b_ptr)
 
 void Field_string::sort_string(char *to,uint length)
 {
-#ifndef DBUG_OFF
-  uint tmp= my_strnxfrm(field_charset,
-                        (uchar*) to, length,
-                        (uchar*) ptr, field_length);
+  IF_DBUG(uint tmp=) my_strnxfrm(field_charset,
+                                 (uchar*) to, length,
+                                 (uchar*) ptr, field_length);
   DBUG_ASSERT(tmp == length);
-#endif
 }
 
 

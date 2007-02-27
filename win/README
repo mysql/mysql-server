@@ -88,5 +88,5 @@ may be necessary to clean the build tree to remove any stale objects.
 
 2. To use Visual C++ Express Edition you also need to install the Platform SDK.
 Please see this link: http://msdn.microsoft.com/vstudio/express/visualc/usingpsdk/
-At step 4 you only need to add the libraries advapi32.lib and user32.lib to
+At step 5 you only need to add the libraries advapi32.lib and user32.lib to
 the file "corewin_express.vsprops" in order to avoid link errors.
