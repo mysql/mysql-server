@@ -992,6 +992,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	old_or_new_charset_name_or_default
 	collation_name
 	collation_name_or_default
+	opt_load_data_charset
 
 %type <variable> internal_variable_name
 
@@ -3262,6 +3263,10 @@ charset_name_or_default:
 	charset_name { $$=$1;   }
 	| DEFAULT    { $$=NULL; } ;
 
+opt_load_data_charset:
+	/* Empty */ { $$= NULL; }
+	| charset charset_name_or_default { $$= $2; }
+	;
 
 old_or_new_charset_name:
 	ident_or_text
@@ -7214,6 +7219,8 @@ load_data:
           lex->update_list.empty();
           lex->value_list.empty();
         }
+        opt_load_data_charset
+	{ Lex->exchange->cs= $12; }
         opt_field_term opt_line_term opt_ignore_lines opt_field_or_var_spec
         opt_load_data_set_spec
         {}
