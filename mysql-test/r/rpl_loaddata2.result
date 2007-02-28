@@ -1,0 +1,37 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+create table t1 (a varchar(10) character set utf8);
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+set @@character_set_database=koi8r;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+set @@character_set_database=DEFAULT;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+set @@character_set_database=koi8r;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+set @@character_set_database=DEFAULT;
+load data infile '../std_data_ln/loaddata6.dat' into table t1 character set koi8r;
+select hex(a) from t1;
+hex(a)
+C3BF
+D0AA
+C3BF
+C3BF
+C3BF
+D0AA
+D0AA
+select hex(a) from t1;
+hex(a)
+C3BF
+D0AA
+C3BF
+C3BF
+C3BF
+D0AA
+D0AA
+drop table t1;
