@@ -168,7 +168,7 @@ typedef struct st_table_share
   ha_rows min_rows, max_rows;		/* create information */
   ulong   avg_row_length;		/* create information */
   ulong   raid_chunksize;
-  ulong   version, flush_version, mysql_version;
+  ulong   version, mysql_version;
   ulong   timestamp_offset;		/* Set to offset+1 of record */
   ulong   reclength;			/* Recordlength */
 
