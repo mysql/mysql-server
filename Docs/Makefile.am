@@ -20,7 +20,7 @@ EXTRA_DIST =		$(noinst_SCRIPTS) mysql.info INSTALL-BINARY
 
 all:			txt_files
 
-txt_files:		../INSTALL-SOURCE ../EXCEPTIONS-CLIENT \
+txt_files:		../INSTALL-SOURCE \
 			INSTALL-BINARY ../support-files/MacOSX/ReadMe.txt
 
 # make sure that "make install" installs the info page, too
