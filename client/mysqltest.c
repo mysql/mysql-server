@@ -6726,7 +6726,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
 
         if (back_ref_num >= 0 && back_ref_num <= (int)r.re_nsub)
         {
-          int start_off,end_off;
+          regoff_t start_off, end_off;
           if ((start_off=subs[back_ref_num].rm_so) > -1 &&
               (end_off=subs[back_ref_num].rm_eo) > -1)
           {
