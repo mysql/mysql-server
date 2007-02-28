@@ -138,10 +138,12 @@ fi
 # Find SQL scripts needed for bootstrap
 fill_help_tables="fill_help_tables.sql"
 create_system_tables="mysql_system_tables.sql"
+fill_system_tables="mysql_system_tables_data.sql"
 if test -n "$srcdir"
 then
   fill_help_tables=$srcdir/scripts/$fill_help_tables
   create_system_tables=$srcdir/scripts/$create_system_tables
+  fill_system_tables=$srcdir/scripts/$fill_system_tables
 else
   for i in $basedir/support-files $basedir/share $basedir/share/mysql \
            $basedir/scripts `pwd` `pwd`/scripts @pkgdatadir@
@@ -154,6 +156,7 @@ else
 
   fill_help_tables=$pkgdatadir/$fill_help_tables
   create_system_tables=$pkgdatadir/$create_system_tables
+  fill_system_tables=$pkgdatadir/$fill_system_tables
 fi
 
 if test ! -f $create_system_tables
@@ -166,6 +169,13 @@ fi
 if test ! -f $fill_help_tables
 then
   echo "FATAL ERROR: Could not find help file '$fill_help_tables' in"
+  echo "@pkgdatadir@ or inside $basedir"
+  exit 1;
+fi
+
+if test ! -f $fill_system_tables
+then
+  echo "FATAL ERROR: Could not find help file '$fill_system_tables' in"
   echo "@pkgdatadir@ or inside $basedir"
   exit 1;
 fi
@@ -273,7 +283,7 @@ mysqld_install_cmd_line="$mysqld_bootstrap $defaults $mysqld_opt --bootstrap \
 
 # Pipe mysql_system_tables.sql to "mysqld --bootstrap"
 s_echo "Installing MySQL system tables..."
-if `(echo "use mysql;"; cat $create_system_tables) | $mysqld_install_cmd_line`
+if `(echo "use mysql;"; cat $create_system_tables $fill_system_tables) | $mysqld_install_cmd_line`
 then
   s_echo "OK"
 
