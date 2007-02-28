@@ -1933,7 +1933,10 @@ static void check_data_home(const char *path)
 
 extern "C" sig_handler handle_segfault(int sig)
 {
+  time_t curr_time;
+  struct tm tm;
   THD *thd=current_thd;
+
   /*
     Strictly speaking, one needs a mutex here
     but since we have got SIGSEGV already, things are a mess
@@ -1947,11 +1950,17 @@ extern "C" sig_handler handle_segfault(int sig)
   }
 
   segfaulted = 1;
+
+  curr_time= time(NULL);
+  localtime_r(&curr_time, &tm);
+
   fprintf(stderr,"\
-mysqld got signal %d;\n\
+%02d%02d%02d %2d:%02d:%02d - mysqld got signal %d;\n\
 This could be because you hit a bug. It is also possible that this binary\n\
 or one of the libraries it was linked against is corrupt, improperly built,\n\
 or misconfigured. This error can also be caused by malfunctioning hardware.\n",
+          tm.tm_year % 100, tm.tm_mon+1, tm.tm_mday,
+          tm.tm_hour, tm.tm_min, tm.tm_sec,
 	  sig);
   fprintf(stderr, "\
 We will try our best to scrape up some info that will hopefully help diagnose\n\
