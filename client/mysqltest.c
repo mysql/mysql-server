@@ -60,6 +60,11 @@
 # endif
 #endif
 
+/* Use cygwin for --exec and --system before 5.0 */
+#if MYSQL_VERSION_ID < 50000
+#define USE_CYGWIN
+#endif
+
 #define MAX_VAR_NAME_LENGTH    256
 #define MAX_COLUMNS            256
 #define MAX_EMBEDDED_SERVER_ARGS 64
@@ -5355,8 +5360,9 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
   /*
     If we got here the statement succeeded and was expected to do so,
     get data. Note that this can still give errors found during execution!
+    Store the result of the query if if will return any fields
   */
-  if (mysql_stmt_store_result(stmt))
+  if (mysql_stmt_field_count(stmt) && mysql_stmt_store_result(stmt))
   {
     handle_error(command, mysql_stmt_errno(stmt),
                  mysql_stmt_error(stmt), mysql_stmt_sqlstate(stmt), ds);

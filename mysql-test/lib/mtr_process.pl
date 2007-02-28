@@ -22,7 +22,7 @@ use Socket;
 use Errno;
 use strict;
 
-use POSIX 'WNOHANG';
+use POSIX qw(WNOHANG SIGHUP);
 
 sub mtr_run ($$$$$$;$);
 sub mtr_spawn ($$$$$$;$);
@@ -139,19 +139,18 @@ sub spawn_impl ($$$$$$$$) {
     {
       if ( $! == $!{EAGAIN} )           # See "perldoc Errno"
       {
-        mtr_debug("Got EAGAIN from fork(), sleep 1 second and redo");
+        mtr_warning("Got EAGAIN from fork(), sleep 1 second and redo");
         sleep(1);
         redo FORK;
       }
-      else
-      {
-        mtr_error("$path ($pid) can't be forked");
-      }
+
+      mtr_error("$path ($pid) can't be forked, error: $!");
+
     }
 
     if ( $pid )
     {
-      spawn_parent_impl($pid,$mode,$path);
+      return spawn_parent_impl($pid,$mode,$path);
     }
     else
     {
@@ -216,8 +215,11 @@ sub spawn_impl ($$$$$$$$) {
       {
         mtr_child_error("failed to execute \"$path\": $!");
       }
+      mtr_error("Should never come here 1!");
     }
+    mtr_error("Should never come here 2!");
   }
+  mtr_error("Should never come here 3!");
 }
 
 
@@ -230,12 +232,21 @@ sub spawn_parent_impl {
   {
     if ( $mode eq 'run' )
     {
-      # Simple run of command, we wait for it to return
+      # Simple run of command, wait blocking for it to return
       my $ret_pid= waitpid($pid,0);
       if ( $ret_pid != $pid )
       {
-        mtr_error("waitpid($pid, 0) returned $ret_pid " .
-		  "when waiting for '$path'");
+	# The "simple" waitpid has failed, print debug info
+	# and try to handle the error
+        mtr_warning("waitpid($pid, 0) returned $ret_pid " .
+		    "when waiting for '$path', error: '$!'");
+	if ( $ret_pid == -1 )
+	{
+	  # waitpid returned -1, that would indicate the process
+	  # no longer exist and waitpid couldn't wait for it.
+	  return 1;
+	}
+	mtr_error("Error handling failed");
       }
 
       return mtr_process_exit_status($?);
@@ -1109,12 +1120,6 @@ sub mtr_kill_processes ($) {
 #
 ##############################################################################
 
-# FIXME something is wrong, we sometimes terminate with "Hangup" written
-# to tty, and no STDERR output telling us why.
-
-# FIXME for some reason, setting HUP to 'IGNORE' will cause exit() to
-# write out "Hangup", and maybe loose some output. We insert a sleep...
-
 sub mtr_exit ($) {
   my $code= shift;
   mtr_timer_stop_all($::glob_timers);
@@ -1126,7 +1131,7 @@ sub mtr_exit ($) {
   # set ourselves as the group leader at startup (with
   # POSIX::setpgrp(0,0)), but then care must be needed to always do
   # proper child process cleanup.
-  kill('HUP', -$$) if !$::glob_win32_perl and $$ == getpgrp();
+  POSIX::kill(SIGHUP, -$$) if !$::glob_win32_perl and $$ == getpgrp();
 
   exit($code);
 }
