@@ -93,7 +93,6 @@ CLEANFILES =		@server_scripts@ \
 			mysql_upgrade_shell \
 			mysqld_multi \
 			make_win_src_distribution \
-			mysql_create_system_tables \
 			mysql_fix_privilege_tables.sql
 
 # mysqlbug should be distributed built so that people can report build
