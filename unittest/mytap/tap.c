@@ -169,6 +169,8 @@ static signal_entry install_signal[]= {
 void
 plan(int const count)
 {
+
+  setvbuf(tapout, 0, _IONBF, 0);  /* provide output at once */
   /*
     Install signal handler
   */

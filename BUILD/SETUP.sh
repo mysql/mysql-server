@@ -121,8 +121,9 @@ valgrind_flags="-USAFEMALLOC -UFORCE_INIT_OF_VARS -DHAVE_purify "
 valgrind_flags="$valgrind_flags -DMYSQL_SERVER_SUFFIX=-valgrind-max"
 #
 # Used in -debug builds
-debug_cflags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG -DFORCE_INIT_OF_VARS "
+debug_cflags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG -DFORCE_INIT_OF_VARS"
 debug_cflags="$debug_cflags -DSAFEMALLOC -DPEDANTIC_SAFEMALLOC -DSAFE_MUTEX"
+debug_cflags="$debug_cflags -DMY_LF_EXTRA_DEBUG"
 error_inject="--with-error-inject "
 #
 # Base C++ flags for all builds
@@ -154,8 +155,6 @@ then
     base_configs="$base_configs --with-libedit"
 fi
 
-static_link="--with-mysqld-ldflags=-all-static "
-static_link="$static_link --with-client-ldflags=-all-static"
 # we need local-infile in all binaries for rpl000001
 # if you need to disable local-infile in the client, write a build script
 # and unset local_infile_configs

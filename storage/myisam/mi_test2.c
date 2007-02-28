@@ -26,6 +26,7 @@
 #endif
 #include "myisamdef.h"
 #include <m_ctype.h>
+#include <my_bit.h>
 
 #define STANDARD_LENGTH 37
 #define MYISAM_KEYS 6
@@ -602,7 +603,7 @@ int main(int argc, char *argv[])
     if (mi_rsame(file,read_record2,(int) i)) goto err;
     if (bcmp(read_record,read_record2,reclength) != 0)
     {
-      printf("is_rsame didn't find same record\n");
+      printf("mi_rsame didn't find same record\n");
       goto end;
     }
   }

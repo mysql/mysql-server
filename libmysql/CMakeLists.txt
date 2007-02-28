@@ -52,6 +52,7 @@ ADD_LIBRARY(libmysql SHARED dll.c libmysql.def
                      ../mysys/my_open.c ../mysys/my_pread.c  ../mysys/my_pthread.c ../mysys/my_read.c 
                      ../mysys/my_realloc.c ../mysys/my_rename.c ../mysys/my_seek.c  
                      ../mysys/my_static.c ../strings/my_strtoll10.c ../mysys/my_symlink.c 
+                     ../mysys/my_sync.c
                      ../mysys/my_symlink2.c ../mysys/my_thr_init.c  ../sql-common/my_time.c 
                      ../strings/my_vsnprintf.c ../mysys/my_wincond.c ../mysys/my_winthread.c 
                      ../mysys/my_write.c ../sql/net_serv.cc ../sql-common/pack.c ../sql/password.c 

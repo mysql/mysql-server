@@ -1064,7 +1064,7 @@ uint read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
 
 void reuse_freed_buff(QUEUE *queue, BUFFPEK *reuse, uint key_length)
 {
-  uchar *reuse_end= reuse->base + reuse->max_keys * key_length;
+  byte *reuse_end= reuse->base + reuse->max_keys * key_length;
   for (uint i= 0; i < queue->elements; ++i)
   {
     BUFFPEK *bp= (BUFFPEK *) queue_element(queue, i);
@@ -1135,7 +1135,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   offset= rec_length-res_length;
   maxcount= (ulong) (param->keys/((uint) (Tb-Fb) +1));
   to_start_filepos= my_b_tell(to_file);
-  strpos= (uchar*) sort_buffer;
+  strpos= sort_buffer;
   org_max_rows=max_rows= param->max_rows;
 
   /* The following will fire if there is not enough space in sort_buffer */
@@ -1147,10 +1147,10 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     DBUG_RETURN(1);                                /* purecov: inspected */
   for (buffpek= Fb ; buffpek <= Tb ; buffpek++)
   {
-    buffpek->base= strpos;
+    buffpek->base= (byte*) strpos;
     buffpek->max_keys= maxcount;
     strpos+= (uint) (error= (int) read_to_buffer(from_file, buffpek,
-                                                                         rec_length));
+                                                 rec_length));
     if (error == -1)
       goto err;					/* purecov: inspected */
     buffpek->max_keys= buffpek->mem_count;	// If less data in buffers than expected
@@ -1239,7 +1239,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     }
   }
   buffpek= (BUFFPEK*) queue_top(&queue);
-  buffpek->base= sort_buffer;
+  buffpek->base= (byte*) sort_buffer;
   buffpek->max_keys= param->keys;
 
   /*
@@ -1274,7 +1274,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     else
     {
       register uchar *end;
-      strpos= buffpek->key+offset;
+      strpos= (uchar*) buffpek->key+offset;
       for (end= strpos+buffpek->mem_count*rec_length ;
            strpos != end ;
            strpos+= rec_length)

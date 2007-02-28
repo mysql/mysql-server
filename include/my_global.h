@@ -224,6 +224,8 @@
 #endif
 #undef inline_test_2
 #undef inline_test_1
+/* helper macro for "instantiating" inline functions */
+#define STATIC_INLINE static inline
 
 /*
   The following macros are used to control inlining a bit more than
@@ -457,6 +459,14 @@ C_MODE_END
   assert.h
 */
 #include <assert.h>
+
+/* an assert that works at compile-time. only for constant expression */
+#define compile_time_assert(X)                                  \
+  do                                                            \
+  {                                                             \
+    char compile_time_assert[(X) ? 1 : -1]                      \
+                             __attribute__ ((unused));          \
+  } while(0)
 
 /* Go around some bugs in different OS and compilers */
 #if defined (HPUX11) && defined(_LARGEFILE_SOURCE)
@@ -1016,6 +1026,14 @@ typedef unsigned __int64 my_ulonglong;
 typedef unsigned long long my_ulonglong;
 #endif
 
+#if SIZEOF_CHARP == SIZEOF_INT
+typedef int intptr;
+#elif SIZEOF_CHARP == SIZEOF_LONG
+typedef long intptr;
+#else
+#error
+#endif
+
 #ifdef USE_RAID
 /*
   The following is done with a if to not get problems with pre-processors
@@ -1477,6 +1495,14 @@ do { doubleget_union _tmp; \
 
 #ifndef HAVE_DLERROR
 #define dlerror() ""
+#endif
+
+/*
+  Only Linux is known to need an explicit sync of the directory to make sure a
+  file creation/deletion/renaming in(from,to) this directory durable.
+*/
+#ifdef TARGET_OS_LINUX
+#define NEED_EXPLICIT_SYNC_DIR 1
 #endif
 
 #endif /* my_global_h */

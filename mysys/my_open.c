@@ -161,6 +161,7 @@ File my_register_filename(File fd, const char *FileName, enum file_type
     }
     pthread_mutex_unlock(&THR_LOCK_open);
     (void) my_close(fd, MyFlags);
+    fd= -1;
     my_errno=ENOMEM;
   }
   else

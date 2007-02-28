@@ -81,7 +81,7 @@ pthread_handler_t mysql_heartbeat(void *p)
     1                    failure (cannot happen)
 */
 
-static int daemon_example_plugin_init(void *p)
+static int daemon_example_plugin_init(void *p __attribute__ ((unused)))
 {
 
   DBUG_ENTER("daemon_example_plugin_init");
@@ -147,7 +147,7 @@ static int daemon_example_plugin_init(void *p)
 
 */
 
-static int daemon_example_plugin_deinit(void *p)
+static int daemon_example_plugin_deinit(void *p __attribute__ ((unused)))
 {
   DBUG_ENTER("daemon_example_plugin_deinit");
   char buffer[HEART_STRING_BUFFER];

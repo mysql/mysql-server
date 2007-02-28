@@ -14,7 +14,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* This file includes constants used with all databases */
-/* Author: Michael Widenius */
 
 #ifndef _my_base_h
 #define _my_base_h
@@ -49,7 +48,7 @@
 #define HA_OPEN_FROM_SQL_LAYER          64
 #define HA_OPEN_MMAP                    128     /* open memory mapped */
 
-	/* The following is parameter to ha_rkey() how to use key */
+/* The following is parameter to ha_rkey() how to use key */
 
 /*
   We define a complete-field prefix of a key value as a prefix where
@@ -449,7 +448,7 @@ enum en_fieldtype {
 };
 
 enum data_file_type {
-  STATIC_RECORD,DYNAMIC_RECORD,COMPRESSED_RECORD
+  STATIC_RECORD, DYNAMIC_RECORD, COMPRESSED_RECORD, BLOCK_RECORD
 };
 
 /* For key ranges */
@@ -499,5 +498,8 @@ typedef ulong		ha_rows;
 #endif
 
 #define HA_VARCHAR_PACKLENGTH(field_length) ((field_length) < 256 ? 1 :2)
+
+/* invalidator function reference for Query Cache */
+typedef void (* invalidator_by_filename)(const char * filename);
 
 #endif /* _my_base_h */

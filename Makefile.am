@@ -130,7 +130,7 @@ test-binlog-statement:
 	cd mysql-test ; \
 	@PERL@ ./mysql-test-run.pl $(force) --mysqld=--binlog-format=statement
 
-test:	test-unit test-ns test-pr
+test:	test-ns test-pr
 
 test-full:	test test-nr test-ps
 

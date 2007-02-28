@@ -86,7 +86,7 @@ slo_val	val
 20	0
 1	0
 "Check slow log. Should see 1 row because 4 is over the threshold of 3 for GLOBAL, though under SESSION which is 10"
-SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
+SELECT user_host, query_time, db, sql_text FROM mysql.slow_log where sql_text <> "DROP EVENT long_event";
 user_host	query_time	db	sql_text
 USER_HOST	SLEEPVAL	events_test	INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(2)
 DROP EVENT long_event2;

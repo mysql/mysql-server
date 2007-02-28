@@ -17,6 +17,7 @@
 
 #include "ftdefs.h"
 #include "sp_defs.h"
+#include <my_bit.h>
 
 #if defined(MSDOS) || defined(__WIN__)
 #ifdef __WIN__
@@ -40,7 +41,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   File dfile,file;
   int errpos,save_errno, create_mode= O_RDWR | O_TRUNC;
   myf create_flag;
-  uint fields,length,max_key_length,packed,pointer,real_length_diff,
+  uint fields,length,max_key_length,packed,pack_bytes,pointer,real_length_diff,
        key_length,info_length,key_segs,options,min_key_length_skip,
        base_pos,long_varchar_count,varchar_length,
        max_key_block_length,unique_key_parts,fulltext_keys,offset;
@@ -56,7 +57,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   HA_KEYSEG *keyseg,tmp_keyseg;
   MI_COLUMNDEF *rec;
   ulong *rec_per_key_part;
-  my_off_t key_root[MI_MAX_POSSIBLE_KEY],key_del[MI_MAX_KEY_BLOCK_SIZE];
+  my_off_t key_root[HA_MAX_POSSIBLE_KEY],key_del[MI_MAX_KEY_BLOCK_SIZE];
   MI_CREATE_INFO tmp_create_info;
   DBUG_ENTER("mi_create");
   DBUG_PRINT("enter", ("keys: %u  columns: %u  uniques: %u  flags: %u",
@@ -94,7 +95,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     ci->reloc_rows=ci->max_rows;		/* Check if wrong parameter */
 
   if (!(rec_per_key_part=
-	(ulong*) my_malloc((keys + uniques)*MI_MAX_KEY_SEG*sizeof(long),
+	(ulong*) my_malloc((keys + uniques)*HA_MAX_KEY_SEG*sizeof(long),
 			   MYF(MY_WME | MY_ZEROFILL))))
     DBUG_RETURN(my_errno);
 
@@ -188,11 +189,11 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   if (flags & HA_CREATE_RELIES_ON_SQL_LAYER)
     options|= HA_OPTION_RELIES_ON_SQL_LAYER;
 
-  packed=(packed+7)/8;
+  pack_bytes= (packed+7)/8;
   if (pack_reclength != INT_MAX32)
     pack_reclength+= reclength+packed +
       test(test_all_bits(options, HA_OPTION_CHECKSUM | HA_PACK_RECORD));
-  min_pack_length+=packed;
+  min_pack_length+= pack_bytes;
 
   if (!ci->data_file_length && ci->max_rows)
   {
@@ -416,7 +417,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       }
     } /* if HA_FULLTEXT */
     key_segs+=keydef->keysegs;
-    if (keydef->keysegs > MI_MAX_KEY_SEG)
+    if (keydef->keysegs > HA_MAX_KEY_SEG)
     {
       my_errno=HA_WRONG_CREATE_OPTION;
       goto err;
@@ -431,7 +432,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       share.state.rec_per_key_part[key_segs-1]=1L;
     length+=key_length;
     /* Get block length for key, if defined by user */
-    block_length= (keydef->block_length ? 
+    block_length= (keydef->block_length ?
                    my_round_up_to_next_power(keydef->block_length) :
                    myisam_block_size);
     block_length= max(block_length, MI_MIN_KEY_BLOCK_LENGTH);
@@ -441,7 +442,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
                                                  pointer,MI_MAX_KEYPTR_SIZE,
                                                  block_length);
     if (keydef->block_length > MI_MAX_KEY_BLOCK_LENGTH ||
-        length >= MI_MAX_KEY_BUFF)
+        length >= HA_MAX_KEY_BUFF)
     {
       my_errno=HA_WRONG_CREATE_OPTION;
       goto err;
@@ -546,9 +547,9 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   share.base.pack_reclength=reclength+ test(options & HA_OPTION_CHECKSUM);
   share.base.max_pack_length=pack_reclength;
   share.base.min_pack_length=min_pack_length;
-  share.base.pack_bits=packed;
+  share.base.pack_bits= pack_bytes;
   share.base.fields=fields;
-  share.base.pack_fields=packed;
+  share.base.pack_fields= packed;
 #ifdef USE_RAID
   share.base.raid_type=ci->raid_type;
   share.base.raid_chunks=ci->raid_chunks;

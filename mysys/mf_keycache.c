@@ -42,6 +42,7 @@
 #include <keycache.h>
 #include "my_static.h"
 #include <m_string.h>
+#include <my_bit.h>
 #include <errno.h>
 #include <stdarg.h>
 
@@ -1009,12 +1010,12 @@ static void unlink_block(KEY_CACHE *keycache, BLOCK_LINK *block)
 
   KEYCACHE_THREAD_TRACE("unlink_block");
 #if defined(KEYCACHE_DEBUG)
+  KEYCACHE_DBUG_ASSERT(keycache->blocks_available != 0);
   keycache->blocks_available--;
   KEYCACHE_DBUG_PRINT("unlink_block",
     ("unlinked block %u  status=%x   #requests=%u  #available=%u",
      BLOCK_NUMBER(block), block->status,
      block->requests, keycache->blocks_available));
-  KEYCACHE_DBUG_ASSERT(keycache->blocks_available >= 0);
 #endif
 }
 
@@ -1643,9 +1644,9 @@ restart:
   KEYCACHE_DBUG_ASSERT(page_status != -1);
   *page_st=page_status;
   KEYCACHE_DBUG_PRINT("find_key_block",
-                      ("fd: %d  pos: %lu  block->status: %u  page_status: %u",
+                      ("fd: %d  pos: %lu  block->status: %u  page_status: %d",
                        file, (ulong) filepos, block->status,
-                       (uint) page_status));
+                       page_status));
 
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
   DBUG_EXECUTE("check_keycache2",
@@ -1793,8 +1794,6 @@ byte *key_cache_read(KEY_CACHE *keycache,
   uint offset= 0;
   byte *start= buff;
   DBUG_ENTER("key_cache_read");
-  DBUG_PRINT("enter", ("fd: %u  pos: %lu  length: %u",
-               (uint) file, (ulong) filepos, length));
 
   if (keycache->can_be_used)
   {
@@ -1803,6 +1802,11 @@ byte *key_cache_read(KEY_CACHE *keycache,
     uint read_length;
     uint status;
     int page_st;
+
+    DBUG_PRINT("enter", ("fd: %u  pos: %lu  page: %lu  length: %u",
+                         (uint) file, (ulong) filepos,
+                         (ulong) (filepos / keycache->key_cache_block_size),
+                         length));
 
     offset= (uint) (filepos & (keycache->key_cache_block_size-1));
     /* Read data in key_cache_block_size increments */
@@ -2055,10 +2059,6 @@ int key_cache_write(KEY_CACHE *keycache,
   reg1 BLOCK_LINK *block;
   int error=0;
   DBUG_ENTER("key_cache_write");
-  DBUG_PRINT("enter",
-	     ("fd: %u  pos: %lu  length: %u  block_length: %u  key_block_length: %u",
-	      (uint) file, (ulong) filepos, length, block_length,
-	      keycache ? keycache->key_cache_block_size : 0));
 
   if (!dont_write)
   {
@@ -2079,6 +2079,12 @@ int key_cache_write(KEY_CACHE *keycache,
     uint read_length;
     int page_st;
     uint offset;
+
+    DBUG_PRINT("enter",
+               ("fd: %u  pos: %lu  page: %lu  length: %u  block_length: %u",
+                (uint) file, (ulong) filepos,
+                (ulong) (filepos / keycache->key_cache_block_size),
+                length, block_length));
 
     offset= (uint) (filepos & (keycache->key_cache_block_size-1));
     do

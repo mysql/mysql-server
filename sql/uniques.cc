@@ -449,7 +449,7 @@ static bool merge_walk(uchar *merge_buffer, ulong merge_buffer_size,
   */
   for (top= begin; top != end; ++top)
   {
-    top->base= merge_buffer + (top - begin) * piece_size;
+    top->base= (byte*) (merge_buffer + (top - begin) * piece_size);
     top->max_keys= max_key_count_per_piece;
     bytes_read= read_to_buffer(file, top, key_length);
     if (bytes_read == (uint) (-1))
