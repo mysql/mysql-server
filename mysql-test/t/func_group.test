@@ -747,7 +747,7 @@ insert into bug22555 values (1,53,78,53,78,53,78),(2,17,78,17,78,17,78),(3,18,76
 insert into bug22555 values (1,53,78,53,78,53,78),(2,17,78,17,78,17,78),(3,18,76,18,76,18,76);
 
 select i, count(*), std(s1/s2) from bug22555 group by i order by i;
-select i, count(*), std(o1/o2) from bug22555 group by i order by i;
+select i, count(*), round(std(o1/o2), 16) from bug22555 group by i order by i;
 select i, count(*), std(e1/e2) from bug22555 group by i order by i;
 select std(s1/s2) from bug22555;
 select std(o1/o2) from bug22555;
@@ -755,14 +755,14 @@ select std(e1/e2) from bug22555;
 set @saved_div_precision_increment=@@div_precision_increment;
 set div_precision_increment=19;
 select i, count(*), std(s1/s2) from bug22555 group by i order by i;
-select i, count(*), std(o1/o2) from bug22555 group by i order by i;
+select i, count(*), round(std(o1/o2), 16) from bug22555 group by i order by i;
 select i, count(*), std(e1/e2) from bug22555 group by i order by i;
 select round(std(s1/s2), 17) from bug22555;
 select std(o1/o2) from bug22555;
 select round(std(e1/e2), 17) from bug22555;
 set div_precision_increment=20;
 select i, count(*), std(s1/s2) from bug22555 group by i order by i;
-select i, count(*), std(o1/o2) from bug22555 group by i order by i;
+select i, count(*), round(std(o1/o2), 16) from bug22555 group by i order by i;
 select i, count(*), std(e1/e2) from bug22555 group by i order by i;
 select round(std(s1/s2), 17) from bug22555;
 select std(o1/o2) from bug22555;
