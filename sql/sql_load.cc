@@ -314,7 +314,8 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   info.handle_duplicates=handle_duplicates;
   info.escape_char=escaped->length() ? (*escaped)[0] : INT_MAX;
 
-  READ_INFO read_info(file,tot_length,thd->variables.collation_database,
+  READ_INFO read_info(file,tot_length,
+                      ex->cs ? ex->cs : thd->variables.collation_database,
 		      *field_term,*ex->line_start, *ex->line_term, *enclosed,
 		      info.escape_char, read_file_from_client, is_fifo);
   if (read_info.error)

@@ -1092,7 +1092,8 @@ bool Query_log_event::write(IO_CACHE* file)
             1+4+           // code of autoinc and the 2 autoinc variables
             1+6+           // code of charset and charset
             1+1+MAX_TIME_ZONE_NAME_LENGTH+ // code of tz and tz length and tz name
-            1+2            // code of lc_time_names and lc_time_names_number
+            1+2+           // code of lc_time_names and lc_time_names_number
+            1+2            // code of charset_database and charset_database_number
             ], *start, *start_of_status;
   ulong event_length;
 
@@ -1211,6 +1212,13 @@ bool Query_log_event::write(IO_CACHE* file)
     int2store(start, lc_time_names_number);
     start+= 2;
   }
+  if (charset_database_number)
+  {
+    DBUG_ASSERT(charset_database_number <= 0xFFFF);
+    *start++= Q_CHARSET_DATABASE_CODE;
+    int2store(start, charset_database_number);
+    start+= 2;
+  }
   /*
     Here there could be code like
     if (command-line-option-which-says-"log_this_variable" && inited)
@@ -1276,7 +1284,8 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
    sql_mode(thd_arg->variables.sql_mode),
    auto_increment_increment(thd_arg->variables.auto_increment_increment),
    auto_increment_offset(thd_arg->variables.auto_increment_offset),
-   lc_time_names_number(thd_arg->variables.lc_time_names->number)
+   lc_time_names_number(thd_arg->variables.lc_time_names->number),
+   charset_database_number(0)
 {
   time_t end_time;
   time(&end_time);
@@ -1284,6 +1293,9 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   catalog_len = (catalog) ? (uint32) strlen(catalog) : 0;
   /* status_vars_len is set just before writing the event */
   db_len = (db) ? (uint32) strlen(db) : 0;
+  if (thd_arg->variables.collation_database != thd_arg->db_charset)
+    charset_database_number= thd_arg->variables.collation_database->number;
+  
   /*
     If we don't use flags2 for anything else than options contained in
     thd->options, it would be more efficient to flags2=thd_arg->options
@@ -1354,7 +1366,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
    db(NullS), catalog_len(0), status_vars_len(0),
    flags2_inited(0), sql_mode_inited(0), charset_inited(0),
    auto_increment_increment(1), auto_increment_offset(1),
-   time_zone_len(0), lc_time_names_number(0)
+   time_zone_len(0), lc_time_names_number(0), charset_database_number(0)
 {
   ulong data_len;
   uint32 tmp;
@@ -1457,6 +1469,10 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       break;
     case Q_LC_TIME_NAMES_CODE:
       lc_time_names_number= uint2korr(pos);
+      pos+= 2;
+      break;
+    case Q_CHARSET_DATABASE_CODE:
+      charset_database_number= uint2korr(pos);
       pos+= 2;
       break;
     default:
@@ -1656,6 +1672,16 @@ void Query_log_event::print_query_header(FILE* file,
             lc_time_names_number, print_event_info->delimiter);
     print_event_info->lc_time_names_number= lc_time_names_number;
   }
+  if (charset_database_number != print_event_info->charset_database_number)
+  {
+    if (charset_database_number)
+      fprintf(file, "SET @@session.collation_database=%d%s\n",
+              charset_database_number, print_event_info->delimiter);
+    else
+      fprintf(file, "SET @@session.collation_database=DEFAULT%s\n",
+              print_event_info->delimiter);
+    print_event_info->charset_database_number= charset_database_number;
+  }
 }
 
 
@@ -1821,7 +1847,21 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli,
       }
       else
         thd->variables.lc_time_names= &my_locale_en_US;
-
+      if (charset_database_number)
+      {
+        CHARSET_INFO *cs;
+        if (!(cs= get_charset(charset_database_number, MYF(0))))
+        {
+          char buf[20];
+          int10_to_str((int) charset_database_number, buf, -10);
+          my_error(ER_UNKNOWN_COLLATION, MYF(0), buf);
+          goto compare_errors;
+        }
+        thd->variables.collation_database= cs;
+      }
+      else
+        thd->variables.collation_database= thd->db_charset;
+      
       /* Execute the query (note that we bypass dispatch_command()) */
       mysql_parse(thd, thd->query, thd->query_length);
 
