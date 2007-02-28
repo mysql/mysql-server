@@ -80,6 +80,7 @@ extern FILE *_db_fp_(void);
 #define DBUG_ASSERT(A) assert(A)
 #define DBUG_EXPLAIN(buf,len) _db_explain_(0, (buf),(len))
 #define DBUG_EXPLAIN_INITIAL(buf,len) _db_explain_init_((buf),(len))
+#define IF_DBUG(A) A
 #else						/* No debugger */
 
 #define DBUG_ENTER(a1)
@@ -106,6 +107,7 @@ extern FILE *_db_fp_(void);
 #define DBUG_UNLOCK_FILE
 #define DBUG_EXPLAIN(buf,len)
 #define DBUG_EXPLAIN_INITIAL(buf,len)
+#define IF_DBUG(A)
 #endif
 #ifdef	__cplusplus
 }

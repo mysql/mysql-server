@@ -19,6 +19,7 @@ sql_yacc.cc : .*switch statement contains 'default' but no 'case' labels.*
 #
 pars0grm.tab.c: .*'yyerrorlab' : unreferenced label.*
 _flex_tmp.c: .*not enough actual parameters for macro 'yywrap'.*
+pars0lex.l: .*conversion from 'ulint' to 'int', possible loss of data.*
 
 #
 # bdb is not critical to keep up to date
@@ -33,17 +34,34 @@ db_vrfy.c : .*comparison is always false due to limited range of data type.*
 # Ignore all conversion warnings on windows 64
 # (Is safe as we are not yet supporting strings >= 2G)
 #
-.* : conversion from 'size_t' to .*int'.*
 .* : conversion from '__int64' to .*int'.*
+.* : conversion from '__int64' to 'uint8'.*
+.* : conversion from '__int64' to 'uint32'.*
+.* : conversion from '__int64' to 'u.*long'.*
+.* : conversion from '__int64' to 'long'.*
+.* : conversion from '__int64' to 'off_t'.*
+.* : conversion from '.*size_t' to .*int'.*
+.* : conversion from '.*size_t' to 'TaoCrypt::word32'.*
+.* : conversion from '.*size_t' to 'u.*long'.*
+.* : conversion from '.*size_t' to 'uint32'.*
+.* : conversion from '.*size_t' to 'off_t'.*
+.* : conversion from '.*size_t' to 'size_s'.*
 
 #
 # The following should be fixed by the ndb team
 #
 .*/ndb/.* : .*used uninitialized in this function.*
+.*/ndb/.* : .*unused variable.*
+.*/ndb/.* : .*defined but not used.*
 
 #
 # Unexplanable (?) stuff
 #
 listener.cc : .*conversion from 'SOCKET' to 'int'.*
-net_serv.c : .*conversion from 'SOCKET' to 'int'.*
+net_serv.cc : .*conversion from 'SOCKET' to 'int'.*
 mi_packrec.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 567
+
+#
+# Wrong compiler warnings
+#
+.* : .*no matching operator delete found; memory will not be freed if initialization throws an exception.*
