@@ -1249,6 +1249,7 @@ mysql-test/*.ds?
 mysql-test/*.vcproj
 mysql-test/gmon.out
 mysql-test/install_test_db
+mysql-test/lib/init_db.sql
 mysql-test/mtr
 mysql-test/mysql-test-run
 mysql-test/mysql-test-run-shell
