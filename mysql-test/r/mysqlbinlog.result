@@ -272,7 +272,6 @@ call p1();
 1
 1
 drop procedure p1;
-drop table t1, t2, t03, t04, t3, t4, t5;
 flush logs;
 create table t1 (a varchar(64) character set utf8);
 load data infile '../std_data_ln/loaddata6.dat' into table t1;
