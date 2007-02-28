@@ -2929,13 +2929,6 @@ dump:
 			return;
 		}
 
-		if (UNIV_LIKELY_NULL(buf_block_get_page_zip(block))) {
-			/* For compressed pages, reorganization was
-			attempted (in vain) in page_cur_tuple_insert(). */
-
-			goto ibuf_fail;
-		}
-
 		/* If the record did not fit, reorganize */
 
 		btr_page_reorganize(block, index, mtr);
@@ -2949,7 +2942,6 @@ dump:
 			ulint	page_no;
 			ulint	zip_size;
 
-ibuf_fail:
 			ut_print_timestamp(stderr);
 
 			fprintf(stderr,
@@ -3162,7 +3154,7 @@ ibuf_merge_or_delete_for_page(
 		return;
 	}
 
-	if (update_ibuf_bitmap) {
+	if (UNIV_LIKELY(update_ibuf_bitmap)) {
 		ut_a(ut_is_2pow(zip_size));
 
 		if (ibuf_fixed_addr_page(space, zip_size, page_no)
@@ -3177,7 +3169,7 @@ ibuf_merge_or_delete_for_page(
 
 		tablespace_being_deleted = fil_inc_pending_ibuf_merges(space);
 
-		if (tablespace_being_deleted) {
+		if (UNIV_UNLIKELY(tablespace_being_deleted)) {
 			/* Do not try to read the bitmap page from space;
 			just delete the ibuf records for the page */
 
@@ -3377,7 +3369,7 @@ reset_bit:
 		ibuf_print(); */
 	}
 #endif
-	if (update_ibuf_bitmap) {
+	if (UNIV_LIKELY(update_ibuf_bitmap)) {
 		bitmap_page = ibuf_bitmap_get_map_page(space, page_no,
 						       zip_size, &mtr);
 		ibuf_bitmap_page_set_bits(bitmap_page, page_no, zip_size,
