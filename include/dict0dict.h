@@ -633,8 +633,8 @@ Copies types of columns contained in table to tuple. */
 void
 dict_table_copy_types(
 /*==================*/
-	dtuple_t*	tuple,	/* in: data tuple */
-	dict_table_t*	table);	/* in: index */
+	dtuple_t*		tuple,	/* in/out: data tuple */
+	const dict_table_t*	table);	/* in: table */
 /**************************************************************************
 Looks for an index with the given id. NOTE that we do not reserve
 the dictionary mutex: this function is for emergency purposes like
@@ -813,9 +813,10 @@ Copies types of fields contained in index to tuple. */
 void
 dict_index_copy_types(
 /*==================*/
-	dtuple_t*	tuple,		/* in: data tuple */
-	dict_index_t*	index,		/* in: index */
-	ulint		n_fields);	/* in: number of field types to copy */
+	dtuple_t*		tuple,		/* in/out: data tuple */
+	const dict_index_t*	index,		/* in: index */
+	ulint			n_fields);	/* in: number of
+						field types to copy */
 /*************************************************************************
 Gets the field column. */
 UNIV_INLINE
