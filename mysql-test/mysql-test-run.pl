@@ -2904,14 +2904,19 @@ sub install_db ($$) {
   # ----------------------------------------------------------------------
   # Create the bootstrap.sql file
   # ----------------------------------------------------------------------
-  my $bootstrap_sql_file= "$opt_vardir/tmp/bootstrap.sql$$";
+  my $bootstrap_sql_file= "$opt_vardir/tmp/bootstrap.sql";
 
   # Use the mysql database for system tables
   mtr_tofile($bootstrap_sql_file, "use mysql");
 
-  # Add the offical mysql system tables and initial system data
-  # for a prodcuction system
+  # Add the offical mysql system tables
+  # for a production system
   mtr_appendfile_to_file("$path_sql_dir/mysql_system_tables.sql",
+			 $bootstrap_sql_file);
+
+  # Add the mysql system tables initial data
+  # for a production system
+  mtr_appendfile_to_file("$path_sql_dir/mysql_system_tables_data.sql",
 			 $bootstrap_sql_file);
 
   # Add test data for timezone - this is just a subset, on a real
@@ -2937,7 +2942,8 @@ sub install_db ($$) {
 
   {
     mtr_error("Error executing mysqld --bootstrap\n" .
-              "Could not install system database, see $path_bootstrap_log");
+              "Could not install system database from $bootstrap_sql_file\n" .
+	      "see $path_bootstrap_log for errors");
   }
 }
 
