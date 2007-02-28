@@ -2025,6 +2025,16 @@ sub remove_stale_vardir () {
       mtr_verbose("Removing $opt_vardir/");
       rmtree("$opt_vardir/");
     }
+
+    if ( $opt_mem )
+    {
+      # A symlink from var/ to $opt_mem will be set up
+      # remove the $opt_mem dir to assure the symlink
+      # won't point at an old directory
+      mtr_verbose("Removing $opt_mem");
+      rmtree($opt_mem);
+    }
+
   }
   else
   {
