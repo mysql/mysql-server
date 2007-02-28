@@ -1156,21 +1156,6 @@ fail_err:
 
 	/* Now, try the insert */
 
-	if (zip_size
-	    && !dict_index_is_clust(index) && UNIV_LIKELY(0 == level)) {
-		/* Compute the reduced max_size for the insert buffer
-		before inserting the record. */
-
-		lint	zip_max_ins = page_zip_max_ins_size(
-			buf_block_get_page_zip(block), FALSE);
-
-		if (UNIV_UNLIKELY(zip_max_ins < 0)) {
-			max_size = 0;
-		} else if (UNIV_LIKELY(max_size > (ulint) zip_max_ins)) {
-			max_size = (ulint) zip_max_ins;
-		}
-	}
-
 	{
 		const rec_t* page_cursor_rec = page_cur_get_rec(page_cursor);
 		*rec = page_cur_tuple_insert(page_cursor, entry, index,
@@ -1191,7 +1176,8 @@ fail_err:
 			goto fail;
 		}
 
-		ut_ad(page_get_max_insert_size(page, 1) == max_size);
+		ut_ad(zip_size
+		      || page_get_max_insert_size(page, 1) == max_size);
 
 		reorg = TRUE;
 
@@ -1241,9 +1227,15 @@ fail_err:
 #endif
 	if (!dict_index_is_clust(index) && UNIV_LIKELY(0 == level)) {
 		/* We have added a record to page: update its free bits */
-		ibuf_update_free_bits_if_full(cursor->index, zip_size,
-					      block, max_size,
-					      rec_size + PAGE_DIR_SLOT_SIZE);
+		if (zip_size) {
+			ibuf_update_free_bits_if_full(
+				cursor->index, zip_size, block,
+				UNIV_PAGE_SIZE, ULINT_UNDEFINED);
+		} else {
+			ibuf_update_free_bits_if_full(
+				cursor->index, zip_size, block, max_size,
+				rec_size + PAGE_DIR_SLOT_SIZE);
+		}
 	}
 
 	*big_rec = big_rec_vec;
