@@ -1962,13 +1962,10 @@ func_start:
 		goto func_exit;
 	}
 
-	/* 8. If insert did not fit, try page reorganization.
-	For compressed pages, that is already attempted in
-	page_cur_tuple_insert(). */
+	/* 8. If insert did not fit, try page reorganization */
 
 	if (UNIV_UNLIKELY
-	    (buf_block_get_page_zip(insert_block)
-	     || !btr_page_reorganize(insert_block, cursor->index, mtr))) {
+	    (!btr_page_reorganize(insert_block, cursor->index, mtr))) {
 
 		goto insert_failed;
 	}
