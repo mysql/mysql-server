@@ -189,8 +189,6 @@ drop procedure p1;
 --exec $MYSQL_BINLOG --version 2>&1 > /dev/null
 --exec $MYSQL_BINLOG --help 2>&1 > /dev/null
 --enable_query_log
-# clean up
-drop table t1, t2, t03, t04, t3, t4, t5; 
 
 #
 # Bug#15126 character_set_database is not replicated
