@@ -469,7 +469,7 @@ ulong open_files_limit, max_binlog_size, max_relay_log_size;
 ulong slave_net_timeout, slave_trans_retries;
 ulong thread_cache_size=0, binlog_cache_size=0, max_binlog_cache_size=0;
 ulong query_cache_size=0;
-ulong refresh_version, flush_version;	/* Increments on each reload */
+ulong refresh_version;  /* Increments on each reload */
 query_id_t global_query_id;
 ulong aborted_threads, aborted_connects;
 ulong delayed_insert_timeout, delayed_insert_limit, delayed_queue_size;
@@ -7015,7 +7015,7 @@ static void mysql_init_variables(void)
                         OPTION_QUOTE_SHOW_CREATE | OPTION_SQL_NOTES);
   protocol_version= PROTOCOL_VERSION;
   what_to_log= ~ (1L << (uint) COM_TIME);
-  refresh_version= flush_version= 1L;	/* Increments on each reload */
+  refresh_version= 1L;	/* Increments on each reload */
   global_query_id= thread_id= 1L;
   strmov(server_version, MYSQL_SERVER_VERSION);
   myisam_recover_options_str= sql_mode_str= "OFF";

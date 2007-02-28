@@ -1558,7 +1558,7 @@ extern double log_01[32];
 extern ulonglong log_10_int[20];
 extern ulonglong keybuff_size;
 extern ulonglong thd_startup_options;
-extern ulong refresh_version,flush_version, thread_id;
+extern ulong refresh_version, thread_id;
 extern ulong binlog_cache_use, binlog_cache_disk_use;
 extern ulong aborted_threads,aborted_connects;
 extern ulong delayed_insert_timeout;
