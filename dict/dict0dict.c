@@ -1572,9 +1572,10 @@ Copies types of fields contained in index to tuple. */
 void
 dict_index_copy_types(
 /*==================*/
-	dtuple_t*	tuple,		/* in: data tuple */
-	dict_index_t*	index,		/* in: index */
-	ulint		n_fields)	/* in: number of field types to copy */
+	dtuple_t*		tuple,		/* in/out: data tuple */
+	const dict_index_t*	index,		/* in: index */
+	ulint			n_fields)	/* in: number of
+						field types to copy */
 {
 	ulint		i;
 
@@ -1585,8 +1586,8 @@ dict_index_copy_types(
 	}
 
 	for (i = 0; i < n_fields; i++) {
-		dict_field_t*	ifield;
-		dtype_t*	dfield_type;
+		const dict_field_t*	ifield;
+		dtype_t*		dfield_type;
 
 		ifield = dict_index_get_nth_field(index, i);
 		dfield_type = dfield_get_type(dtuple_get_nth_field(tuple, i));
@@ -1603,8 +1604,8 @@ Copies types of columns contained in table to tuple. */
 void
 dict_table_copy_types(
 /*==================*/
-	dtuple_t*	tuple,	/* in: data tuple */
-	dict_table_t*	table)	/* in: index */
+	dtuple_t*		tuple,	/* in/out: data tuple */
+	const dict_table_t*	table)	/* in: table */
 {
 	dtype_t*	dfield_type;
 	ulint		i;
