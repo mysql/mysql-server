@@ -883,18 +883,8 @@ btr_cur_insert_if_possible(
 	rec = page_cur_tuple_insert(page_cursor, tuple,
 				    cursor->index, ext, n_ext, mtr);
 
-	if (buf_block_get_page_zip(block)) {
-		if (!dict_index_is_clust(cursor->index)) {
-			/* Update the free bits in the insert buffer. */
-			ibuf_update_free_bits_if_full(
-				cursor->index, buf_block_get_zip_size(block),
-				block, UNIV_PAGE_SIZE, ULINT_UNDEFINED);
-		}
-
-	} else if (UNIV_UNLIKELY(!rec)) {
-		/* If record did not fit, reorganize.
-		For compressed pages, this is attempted already in
-		page_cur_tuple_insert(). */
+	if (UNIV_UNLIKELY(!rec)) {
+		/* If record did not fit, reorganize */
 
 		if (btr_page_reorganize(block, cursor->index, mtr)) {
 
@@ -905,6 +895,14 @@ btr_cur_insert_if_possible(
 						    cursor->index,
 						    ext, n_ext, mtr);
 		}
+	}
+
+	if (buf_block_get_page_zip(block)
+	    && !dict_index_is_clust(cursor->index)) {
+		/* Update the free bits in the insert buffer. */
+		ibuf_update_free_bits_if_full(
+			cursor->index, buf_block_get_zip_size(block),
+			block, UNIV_PAGE_SIZE, ULINT_UNDEFINED);
 	}
 
 	return(rec);
@@ -1185,15 +1183,12 @@ fail_err:
 		}
 	}
 
-	if (UNIV_LIKELY(*rec != NULL)) {
-	} else if (zip_size) {
-		/* If the record did not fit on a compressed page, fail. */
-		goto fail;
-	} else {
-		/* If the record did not fit, reorganize.  For compressed
-		pages, this is attempted already in page_cur_tuple_insert(). */
+	if (UNIV_UNLIKELY(!*rec) && UNIV_LIKELY(!reorg)) {
+		/* If the record did not fit, reorganize */
 		if (UNIV_UNLIKELY(!btr_page_reorganize(block, index, mtr))) {
-			ut_error;
+			ut_a(zip_size);
+
+			goto fail;
 		}
 
 		ut_ad(page_get_max_insert_size(page, 1) == max_size);
@@ -1206,6 +1201,11 @@ fail_err:
 					     ext, n_ext, mtr);
 
 		if (UNIV_UNLIKELY(!*rec)) {
+			if (UNIV_LIKELY(zip_size != 0)) {
+
+				goto fail;
+			}
+
 			fputs("InnoDB: Error: cannot insert tuple ", stderr);
 			dtuple_print(stderr, entry);
 			fputs(" into ", stderr);
