@@ -2261,9 +2261,12 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
   }
 
   /* Initialise the bitmap we use to determine what partitions are used */
-  if (bitmap_init(&(m_part_info->used_partitions), NULL, m_tot_parts, TRUE))
-    DBUG_RETURN(1);
-  bitmap_set_all(&(m_part_info->used_partitions));
+  if (!is_clone)
+  {
+    if (bitmap_init(&(m_part_info->used_partitions), NULL, m_tot_parts, TRUE))
+      DBUG_RETURN(1);
+    bitmap_set_all(&(m_part_info->used_partitions));
+  }
 
   /* Recalculate table flags as they may change after open */
   m_table_flags= m_file[0]->table_flags();
