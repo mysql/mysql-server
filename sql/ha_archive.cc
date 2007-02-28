@@ -750,7 +750,7 @@ int ha_archive::write_row(byte *buf)
     if ((*field)->real_type() == MYSQL_TYPE_VARCHAR) 
     {
       uint actual_length= (*field)->data_length((char*) buf + (*field)->offset());
-      uint offset= (*field)->offset() + actual_length + 
+      IF_DBUG(uint offset=) (*field)->offset() + actual_length + 
         (actual_length > 255 ? 2 : 1);
       DBUG_PRINT("archive",("Offset is %d -> %d\n", actual_length, offset));
       /*
