@@ -2568,7 +2568,7 @@ void Item_func_in::fix_length_and_dec()
   THD *thd= current_thd;
   uint found_types= 0;
   uint type_cnt= 0, i;
-  Item_result cmp_type;
+  Item_result cmp_type= STRING_RESULT;
   left_result_type= args[0]->result_type();
   found_types= collect_cmp_types(args, arg_count);
   
