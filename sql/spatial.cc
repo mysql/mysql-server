@@ -213,23 +213,24 @@ static uint32 wkb_get_uint(const char *ptr, Geometry::wkbByteOrder bo)
 }
 
 
-int Geometry::create_from_wkb(Geometry_buffer *buffer,
-                              const char *wkb, uint32 len, String *res)
+Geometry *Geometry::create_from_wkb(Geometry_buffer *buffer,
+                                    const char *wkb, uint32 len, String *res)
 {
   uint32 geom_type;
   Geometry *geom;
 
   if (len < WKB_HEADER_SIZE)
-    return 1;
+    return NULL;
   geom_type= wkb_get_uint(wkb+1, (wkbByteOrder)wkb[0]);
   if (!(geom= create_by_typeid(buffer, (int) geom_type)) ||
       res->reserve(WKB_HEADER_SIZE, 512))
-    return 1;
+    return NULL;
 
   res->q_append((char) wkb_ndr);
   res->q_append(geom_type);
-  return geom->init_from_wkb(wkb+WKB_HEADER_SIZE, len - WKB_HEADER_SIZE,
-                             (wkbByteOrder) wkb[0], res);
+
+  return geom->init_from_wkb(wkb + WKB_HEADER_SIZE, len - WKB_HEADER_SIZE,
+                             (wkbByteOrder) wkb[0], res) ? geom : NULL;
 }
 
 
