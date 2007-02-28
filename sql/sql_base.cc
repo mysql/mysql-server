@@ -1142,12 +1142,7 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
   }
   else
   {
-    if (table->s->flush_version != flush_version)
-    {
-      table->s->flush_version= flush_version;
-      table->file->extra(HA_EXTRA_FLUSH);
-    }
-    // Free memory and reset for next loop
+    /* Free memory and reset for next loop */
     table->file->ha_reset();
     table->in_use=0;
     if (unused_tables)
@@ -1777,7 +1772,6 @@ bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
 
   share= table->s;
   share->version=0;
-  share->flush_version=0;
   table->in_use = thd;
   check_unused();
   table->next = thd->open_tables;

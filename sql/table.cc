@@ -120,7 +120,6 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
     share->normalized_path.length= path_length;
 
     share->version=       refresh_version;
-    share->flush_version= flush_version;
 
     /*
       This constant is used to mark that no table map version has been

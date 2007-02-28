@@ -4466,7 +4466,7 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
     2) It is called from close_thread_table which in turn is called from
        close_thread_tables except in the case where the tables are locked
        in which case ha_commit_stmt is called instead.
-       It is only called from here if flush_version hasn't changed and the
+       It is only called from here if refresh_version hasn't changed and the
        table is not an old table when calling close_thread_table.
        close_thread_tables is called from many places as a general clean up
        function after completing a query.
@@ -4487,8 +4487,9 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
     The handler will set HA_KEYREAD_ONLY in its table flags to indicate this
     feature is supported.
   HA_EXTRA_FLUSH:
-    Indication to flush tables to disk, called at close_thread_table to
+    Indication to flush tables to disk, is supposed to be used to
     ensure disk based tables are flushed at end of query execution.
+    Currently is never used.
 
   2) Parameters used by some non-MyISAM handlers
   ----------------------------------------------
