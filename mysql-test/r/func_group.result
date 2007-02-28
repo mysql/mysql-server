@@ -1180,11 +1180,11 @@ i	count(*)	std(s1/s2)
 1	4	0.00000000
 2	4	0.00000000
 3	4	0.00000000
-select i, count(*), std(o1/o2) from bug22555 group by i order by i;
-i	count(*)	std(o1/o2)
-1	4	0
-2	4	0
-3	4	0
+select i, count(*), round(std(o1/o2), 16) from bug22555 group by i order by i;
+i	count(*)	round(std(o1/o2), 16)
+1	4	0.0000000000000000
+2	4	0.0000000000000000
+3	4	0.0000000000000000
 select i, count(*), std(e1/e2) from bug22555 group by i order by i;
 i	count(*)	std(e1/e2)
 1	4	0.00000000
@@ -1206,11 +1206,11 @@ i	count(*)	std(s1/s2)
 1	4	0.000000000000000000000000000000
 2	4	0.000000000000000000000000000000
 3	4	0.000000000000000000000000000000
-select i, count(*), std(o1/o2) from bug22555 group by i order by i;
-i	count(*)	std(o1/o2)
-1	4	0
-2	4	0
-3	4	0
+select i, count(*), round(std(o1/o2), 16) from bug22555 group by i order by i;
+i	count(*)	round(std(o1/o2), 16)
+1	4	0.0000000000000000
+2	4	0.0000000000000000
+3	4	0.0000000000000000
 select i, count(*), std(e1/e2) from bug22555 group by i order by i;
 i	count(*)	std(e1/e2)
 1	4	0.000000000000000000000000000000
@@ -1231,11 +1231,11 @@ i	count(*)	std(s1/s2)
 1	4	0.000000000000000000000000000000
 2	4	0.000000000000000000000000000000
 3	4	0.000000000000000000000000000000
-select i, count(*), std(o1/o2) from bug22555 group by i order by i;
-i	count(*)	std(o1/o2)
-1	4	0
-2	4	0
-3	4	0
+select i, count(*), round(std(o1/o2), 16) from bug22555 group by i order by i;
+i	count(*)	round(std(o1/o2), 16)
+1	4	0.0000000000000000
+2	4	0.0000000000000000
+3	4	0.0000000000000000
 select i, count(*), std(e1/e2) from bug22555 group by i order by i;
 i	count(*)	std(e1/e2)
 1	4	0.000000000000000000000000000000
