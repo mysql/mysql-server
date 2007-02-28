@@ -55,9 +55,6 @@ GT = $(srcdir)/generate-text-files.pl
 INSTALL-BINARY:	$(srcdir)/mysql.info $(GT)
 	perl -w $(GT) $(srcdir)/mysql.info "installing-binary" "installing-source" > $@
 
-../EXCEPTIONS-CLIENT: $(srcdir)/mysql.info $(GT)
-	perl -w $(GT) $(srcdir)/mysql.info "mysql-floss-license-exception" "function-index" > $@
-
 ../support-files/MacOSX/ReadMe.txt:	$(srcdir)/mysql.info $(GT)
 	perl -w $(GT) $(srcdir)/mysql.info "mac-os-x-installation" "netware-installation" > $@
 
