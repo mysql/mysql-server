@@ -984,6 +984,8 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
   DBUG_PRINT("enter", ("table_list 0x%lx, table 0x%lx, view %d",
 		       (ulong)table_list, (ulong)table,
 		       (int)insert_into_view));
+  /* INSERT should have a SELECT or VALUES clause */
+  DBUG_ASSERT (!select_insert || !values);
 
   /*
     For subqueries in VALUES() we should not see the table in which we are
@@ -1015,43 +1017,39 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
   if (mysql_prepare_insert_check_table(thd, table_list, fields, select_insert))
     DBUG_RETURN(TRUE);
 
-  /* Save the state of the current name resolution context. */
-  ctx_state.save_state(context, table_list);
-
-  /*
-    Perform name resolution only in the first table - 'table_list',
-    which is the table that is inserted into.
-  */
-  table_list->next_local= 0;
-  context->resolve_in_table_list_only(table_list);
 
   /* Prepare the fields in the statement. */
-  if (values &&
-      !(res= check_insert_fields(thd, context->table_list, fields, *values,
-                                 !insert_into_view, &map) ||
-        setup_fields(thd, 0, *values, MARK_COLUMNS_READ, 0, 0)) &&
-      duplic == DUP_UPDATE)
+  if (values)
   {
-    select_lex->no_wrap_view_item= TRUE;
-    res= check_update_fields(thd, context->table_list, update_fields, &map);
-    select_lex->no_wrap_view_item= FALSE;
+    /* if we have INSERT ... VALUES () we cannot have a GROUP BY clause */
+    DBUG_ASSERT (!select_lex->group_list.elements);
+
+    /* Save the state of the current name resolution context. */
+    ctx_state.save_state(context, table_list);
+
     /*
-      When we are not using GROUP BY we can refer to other tables in the
-      ON DUPLICATE KEY part.
-    */       
-    if (select_lex->group_list.elements == 0)
+      Perform name resolution only in the first table - 'table_list',
+      which is the table that is inserted into.
+     */
+    table_list->next_local= 0;
+    context->resolve_in_table_list_only(table_list);
+
+    if (!(res= check_insert_fields(thd, context->table_list, fields, *values,
+                                 !insert_into_view, &map) ||
+          setup_fields(thd, 0, *values, MARK_COLUMNS_READ, 0, 0)) 
+        && duplic == DUP_UPDATE)
     {
-      context->table_list->next_local=       ctx_state.save_next_local;
-      /* first_name_resolution_table was set by resolve_in_table_list_only() */
-      context->first_name_resolution_table->
-        next_name_resolution_table=          ctx_state.save_next_local;
+      select_lex->no_wrap_view_item= TRUE;
+      res= check_update_fields(thd, context->table_list, update_fields, &map);
+      select_lex->no_wrap_view_item= FALSE;
     }
+
+    /* Restore the current context. */
+    ctx_state.restore_state(context, table_list);
+
     if (!res)
       res= setup_fields(thd, 0, update_values, MARK_COLUMNS_READ, 0, 0);
   }
-
-  /* Restore the current context. */
-  ctx_state.restore_state(context, table_list);
 
   if (res)
     DBUG_RETURN(res);
@@ -2508,7 +2506,6 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   if (info.handle_duplicates == DUP_UPDATE)
   {
-    /* Save the state of the current name resolution context. */
     Name_resolution_context *context= &lex->select_lex.context;
     Name_resolution_context_state ctx_state;
 
@@ -2524,18 +2521,40 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
                                     *info.update_fields, &map);
     lex->select_lex.no_wrap_view_item= FALSE;
     /*
-      When we are not using GROUP BY we can refer to other tables in the
-      ON DUPLICATE KEY part
-    */       
-    if (lex->select_lex.group_list.elements == 0)
+      When we are not using GROUP BY and there are no ungrouped aggregate functions 
+      we can refer to other tables in the ON DUPLICATE KEY part.
+      We use next_name_resolution_table descructively, so check it first (views?)
+    */
+    DBUG_ASSERT (!table_list->next_name_resolution_table);
+    if (lex->select_lex.group_list.elements == 0 &&
+        !lex->select_lex.with_sum_func)
+      /*
+        We must make a single context out of the two separate name resolution contexts :
+        the INSERT table and the tables in the SELECT part of INSERT ... SELECT.
+        To do that we must concatenate the two lists
+      */  
+      table_list->next_name_resolution_table= 
+        ctx_state.get_first_name_resolution_table();
+
+    res= res || setup_fields(thd, 0, *info.update_values,
+                             MARK_COLUMNS_READ, 0, 0);
+    if (!res)
     {
-      context->table_list->next_local=       ctx_state.save_next_local;
-      /* first_name_resolution_table was set by resolve_in_table_list_only() */
-      context->first_name_resolution_table->
-        next_name_resolution_table=          ctx_state.save_next_local;
+      /*
+        Traverse the update values list and substitute fields from the
+        select for references (Item_ref objects) to them. This is done in
+        order to get correct values from those fields when the select
+        employs a temporary table.
+      */
+      List_iterator<Item> li(*info.update_values);
+      Item *item;
+
+      while ((item= li++))
+      {
+        item->transform(&Item::update_value_transformer,
+                        (byte*)lex->current_select);
+      }
     }
-    res= res || setup_fields(thd, 0, *info.update_values, MARK_COLUMNS_READ,
-                             0, 0);
 
     /* Restore the current context. */
     ctx_state.restore_state(context, table_list);
