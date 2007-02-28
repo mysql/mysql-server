@@ -106,10 +106,6 @@ const LEX_STRING trg_event_type_names[]=
 };
 
 
-static int
-add_table_for_trigger(THD *thd, sp_name *trig, bool if_exists,
-                      TABLE_LIST ** table);
-
 class Handle_old_incorrect_sql_modes_hook: public Unknown_key_hook
 {
 private:
@@ -1182,7 +1178,7 @@ bool Table_triggers_list::get_trigger_info(THD *thd, trg_event_type event,
     1 Error
 */
 
-static int
+int
 add_table_for_trigger(THD *thd, sp_name *trig, bool if_exists,
                       TABLE_LIST **table)
 {
