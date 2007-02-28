@@ -8,7 +8,7 @@ use Socket;
 use Errno;
 use strict;
 
-use POSIX 'WNOHANG';
+use POSIX qw(WNOHANG SIGHUP);
 
 sub mtr_run ($$$$$$;$);
 sub mtr_spawn ($$$$$$;$);
@@ -1100,12 +1100,6 @@ sub mtr_kill_processes ($) {
 #
 ##############################################################################
 
-# FIXME something is wrong, we sometimes terminate with "Hangup" written
-# to tty, and no STDERR output telling us why.
-
-# FIXME for some reason, setting HUP to 'IGNORE' will cause exit() to
-# write out "Hangup", and maybe loose some output. We insert a sleep...
-
 sub mtr_exit ($) {
   my $code= shift;
   mtr_timer_stop_all($::glob_timers);
@@ -1117,7 +1111,7 @@ sub mtr_exit ($) {
   # set ourselves as the group leader at startup (with
   # POSIX::setpgrp(0,0)), but then care must be needed to always do
   # proper child process cleanup.
-  kill('HUP', -$$) if !$::glob_win32_perl and $$ == getpgrp();
+  POSIX::kill(SIGHUP, -$$) if !$::glob_win32_perl and $$ == getpgrp();
 
   exit($code);
 }
