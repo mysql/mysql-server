@@ -18,7 +18,7 @@ noinst_SCRIPTS =	Support/generate-text-files.pl
 
 EXTRA_DIST =		$(noinst_SCRIPTS) mysql.info INSTALL-BINARY
 
-TXT_FILES=		../INSTALL-SOURCE ../INSTALL-WIN-SOURCE ../EXCEPTIONS-CLIENT \
+TXT_FILES=		../INSTALL-SOURCE ../INSTALL-WIN-SOURCE \
 			INSTALL-BINARY ../support-files/MacOSX/ReadMe.txt
 
 all-local:		$(TXT_FILES)
