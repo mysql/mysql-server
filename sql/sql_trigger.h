@@ -139,3 +139,7 @@ private:
 
 extern const LEX_STRING trg_action_time_type_names[];
 extern const LEX_STRING trg_event_type_names[];
+
+int
+add_table_for_trigger(THD *thd, sp_name *trig, bool if_exists,
+                      TABLE_LIST **table);

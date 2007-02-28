@@ -8,9 +8,9 @@ SET @var1= x'8300';
 EXECUTE stmt1 USING @var1;
 SHOW BINLOG EVENTS FROM 98;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	98	Query	1	185	use `test`; CREATE TABLE t1(f1 blob)
-master-bin.000001	185	User var	1	224	@`var1`=_binary 0x8300 COLLATE binary
-master-bin.000001	224	Query	1	317	use `test`; INSERT INTO t1 VALUES(@'var1')
+master-bin.000001	98	Query	1	188	use `test`; CREATE TABLE t1(f1 blob)
+master-bin.000001	188	User var	1	227	@`var1`=_binary 0x8300 COLLATE binary
+master-bin.000001	227	Query	1	323	use `test`; INSERT INTO t1 VALUES(@'var1')
 SELECT HEX(f1) FROM t1;
 HEX(f1)
 8300
