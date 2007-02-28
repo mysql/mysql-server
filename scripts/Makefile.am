@@ -82,7 +82,6 @@ CLEANFILES =		@server_scripts@ \
 			mysqldumpslow \
 			mysql_tableinfo \
 			mysqld_multi \
-			mysql_create_system_tables \
 			mysql_fix_privilege_tables.sql
 
 # mysqlbug should be distributed built so that people can report build
