@@ -23,7 +23,9 @@
 
 int max_binlog_dump_events = 0; // unlimited
 my_bool opt_sporadic_binlog_dump_fail = 0;
+#ifndef DBUG_OFF
 static int binlog_dump_count = 0;
+#endif
 
 /*
     fake_rotate_event() builds a fake (=which does not exist physically in any

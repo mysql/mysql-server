@@ -3268,7 +3268,9 @@ end_with_restore_list:
         We WANT to write and we CAN write.
         ! we write after unlocking the table.
       */
-      /* Presumably, RESET and binlog writing doesn't require synchronization */
+      /*
+        Presumably, RESET and binlog writing doesn't require synchronization
+      */
       if (!lex->no_write_to_binlog && write_to_binlog)
       {
         if (mysql_bin_log.is_open())

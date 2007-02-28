@@ -163,7 +163,7 @@ void mysql_client_binlog_statement(THD* thd)
                           (ulong) uint4korr(bufptr+EVENT_LEN_OFFSET)));
 #endif
       ev->thd= thd;
-      if (int err= ev->exec_event(thd->rli_fake))
+      if (IF_DBUG(int err= ) ev->exec_event(thd->rli_fake))
       {
         DBUG_PRINT("error", ("exec_event() returned: %d", err));
         /*

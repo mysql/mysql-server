@@ -41,7 +41,7 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
 
 static bool prepare_blob_field(THD *thd, create_field *sql_field);
 static bool check_engine(THD *thd, const char *table_name,
-                         HA_CREATE_INFO *create_info);                             
+                         HA_CREATE_INFO *create_info);
 static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
                                List<create_field> *fields,
                                List<Key> *keys, bool tmp_table,
@@ -4818,7 +4818,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
         else
           unlock_dst_table= TRUE;
 
-        int result= store_create_info(thd, table, &query, create_info);
+        IF_DBUG(int result=) store_create_info(thd, table, &query,
+                                               create_info);
 
         DBUG_ASSERT(result == 0); // store_create_info() always return 0
         write_bin_log(thd, TRUE, query.ptr(), query.length());
@@ -6645,7 +6646,8 @@ view_err:
                       thd->query, thd->query_length,
                       db, table_name);
 
-  DBUG_ASSERT(!(mysql_bin_log.is_open() && thd->current_stmt_binlog_row_based &&
+  DBUG_ASSERT(!(mysql_bin_log.is_open() &&
+                thd->current_stmt_binlog_row_based &&
                 (create_info->options & HA_LEX_CREATE_TMP_TABLE)));
   write_bin_log(thd, TRUE, thd->query, thd->query_length);
 
