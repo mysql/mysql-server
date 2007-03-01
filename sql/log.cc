@@ -267,7 +267,7 @@ bool Log_to_csv_event_handler::open_log_table(uint log_table_type)
     table->table_name_length= 8;
     break;
   default:
-    DBUG_ASSERT(0);
+    assert(0);                                  // Impossible
   }
 
   /*
@@ -1161,7 +1161,7 @@ void LOGGER::deactivate_log_handler(THD *thd, uint log_type)
     log_thd= table_log_handler->general_log_thd;
     break;
   default:
-    DBUG_ASSERT(0);
+    assert(0);                                  // Impossible
   }
 
   if (!(*tmp_opt))
@@ -1310,7 +1310,7 @@ void Log_to_csv_event_handler::
     table= &slow_log;
     break;
   default:
-    DBUG_ASSERT(0);
+    assert(0);                                  // Impossible
   }
 
   /*
@@ -1742,7 +1742,7 @@ void setup_windows_event_source()
 
   /* Register EventMessageFile */
   dwError = RegSetValueEx(hRegKey, "EventMessageFile", 0, REG_EXPAND_SZ,
-                          (PBYTE) szPath, strlen(szPath)+1);
+                          (PBYTE) szPath, (DWORD) (strlen(szPath) + 1));
 
   /* Register supported event types */
   dwTypes= (EVENTLOG_ERROR_TYPE | EVENTLOG_WARNING_TYPE |
@@ -3887,7 +3887,7 @@ void MYSQL_BIN_LOG::rotate_and_purge(uint flags)
 #ifdef HAVE_REPLICATION
     if (expire_logs_days)
     {
-      long purge_time= time(0) - expire_logs_days*24*60*60;
+      long purge_time= (long) (time(0) - expire_logs_days*24*60*60);
       if (purge_time >= 0)
         purge_logs_before_date(purge_time);
     }

@@ -715,6 +715,22 @@ insertATTRINFO_error1:
 
 }//NdbOperation::insertATTRINFOloop()
 
+NdbOperation::AbortOption
+NdbOperation::getAbortOption() const
+{
+  return (AbortOption)m_abortOption;
+}
 
-
-
+int
+NdbOperation::setAbortOption(AbortOption ao)
+{
+  switch(ao)
+  {
+    case AO_IgnoreError:
+    case AbortOnError:
+      m_abortOption= ao;
+      return 0;
+    default:
+      return -1;
+  }
+}
