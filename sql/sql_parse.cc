@@ -1183,6 +1183,7 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
       free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
       break;
     }
+    thd->set_time();
     mysql_parse(thd,thd->query,length);
     close_thread_tables(thd);			// Free tables
     if (thd->is_fatal_error)

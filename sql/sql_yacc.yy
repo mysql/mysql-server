@@ -2021,7 +2021,7 @@ alter_list_item:
 	    lex->alter_info.is_simple= 0; 
 	    lex->alter_info.flags|= ALTER_OPTIONS;
 	  }
-	| order_clause         
+	| alter_order_clause
 	  {
 	    LEX *lex=Lex;
 	    lex->alter_info.is_simple= 0; 
@@ -3779,6 +3779,29 @@ olap_opt:
 	    lex->current_select->olap= ROLLUP_TYPE;
 	  }
 	;
+
+/*
+  Order by statement in ALTER TABLE
+*/
+
+alter_order_clause:
+          ORDER_SYM BY alter_order_list
+        ;
+
+alter_order_list:
+          alter_order_list ',' alter_order_item
+        | alter_order_item
+        ;
+
+alter_order_item:
+          simple_ident order_dir
+          {
+            THD *thd= YYTHD;
+            bool ascending= ($2 == 1) ? true : false;
+            if (add_order_to_list(thd, $1, ascending))
+              YYABORT;
+          }
+        ;
 
 /*
    Order by statement in select
