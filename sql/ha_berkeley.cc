@@ -807,7 +807,7 @@ int ha_berkeley::pack_row(DBT *row, const byte *record, bool new_row)
     ptr+=BDB_HIDDEN_PRIMARY_KEY_LENGTH;
   }
   row->data=rec_buff;
-  row->size= (size_t) (ptr - rec_buff);
+  row->size= (u_int32_t) (ptr - rec_buff);
   return 0;
 }
 
@@ -902,7 +902,7 @@ DBT *ha_berkeley::create_key(DBT *key, uint keynr, char *buff,
 				   key_part->length);
     key_length-=key_part->length;
   }
-  key->size= (buff  - (char*) key->data);
+  key->size= (u_int32_t) (buff  - (char*) key->data);
   DBUG_DUMP("key",(char*) key->data, key->size);
   DBUG_RETURN(key);
 }
@@ -946,7 +946,7 @@ DBT *ha_berkeley::pack_key(DBT *key, uint keynr, char *buff,
     key_ptr+=key_part->store_length;
     key_length-=key_part->store_length;
   }
-  key->size= (buff  - (char*) key->data);
+  key->size= (u_int32_t) (buff  - (char*) key->data);
   DBUG_DUMP("key",(char*) key->data, key->size);
   DBUG_RETURN(key);
 }
