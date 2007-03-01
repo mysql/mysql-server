@@ -179,7 +179,6 @@ drop procedure p1;
 --exec $MYSQL_BINLOG --version 2>&1 > /dev/null
 --exec $MYSQL_BINLOG --help 2>&1 > /dev/null
 --enable_query_log
-drop table t1, t2, t5; 
 
 #
 # Bug#15126 character_set_database is not replicated
@@ -203,6 +202,6 @@ select hex(a) from t1;
 drop table t1;
 flush logs;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
---exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000011
+--exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000009
 
 --echo End of 5.0 tests

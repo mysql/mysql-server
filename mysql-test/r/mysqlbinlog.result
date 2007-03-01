@@ -233,7 +233,6 @@ call p1();
 drop procedure p1;
 call p1();
 ERROR 42000: PROCEDURE test.p1 does not exist
-
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
@@ -254,6 +253,7 @@ ROLLBACK /* added by mysqlbinlog */;
 call p1();
 1
 1
+drop procedure p1;
 flush logs;
 create table t1 (a varchar(64) character set utf8);
 load data infile '../std_data_ln/loaddata6.dat' into table t1;
@@ -312,5 +312,4 @@ DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
-drop table t1, t2, t5;
 End of 5.0 tests
