@@ -35,7 +35,7 @@ testdir =	        $(benchdir_root)/mysql-test
 EXTRA_SCRIPTS = 	mysql-test-run-shell.sh install_test_db.sh \
 			valgrind.supp $(PRESCRIPTS)
 EXTRA_DIST = 		$(EXTRA_SCRIPTS)
-GENSCRIPTS =		mysql-test-run-shell mysql-test-run install_test_db mtr
+GENSCRIPTS =		mysql-test-run-shell mysql-test-run install_test_db mtr lib/init_db.sql
 PRESCRIPTS =		mysql-test-run.pl
 test_SCRIPTS = 		$(GENSCRIPTS) $(PRESCRIPTS)
 test_DATA = 		std_data/client-key.pem \
@@ -118,6 +118,11 @@ mtr:
 mysql-test-run:
 	$(RM) -f mysql-test-run
 	$(LN_S) mysql-test-run.pl mysql-test-run
+
+# Build init_db.sql by executing mysql_create_system_tables
+lib/init_db.sql:
+	$(top_builddir)/scripts/mysql_create_system_tables \
+          test . \@HOSTNAME\@ > lib/init_db.sql
 
 SUFFIXES = .sh
 
