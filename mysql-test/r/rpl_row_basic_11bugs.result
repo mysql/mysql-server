@@ -97,6 +97,7 @@ a
 7
 8
 9
+SET GLOBAL QUERY_CACHE_SIZE=0;
 ================ Test for BUG#22550 ================
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 reset master;
@@ -118,3 +119,4 @@ HEX(a)	b
 SELECT HEX(a),b FROM t1;
 HEX(a)	b
 0	2
+DROP TABLE t1;

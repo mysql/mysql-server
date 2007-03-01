@@ -12,6 +12,7 @@ DROP TABLE IF EXISTS t2,t3,t4,t5,t6,t9;
 --enable_warnings
 sync_slave_with_master;
 STOP SLAVE;
+SET @my_sql_mode= @@global.sql_mode;
 SET GLOBAL SQL_MODE='STRICT_ALL_TABLES';
 START SLAVE;
 
@@ -238,3 +239,6 @@ DROP TABLE IF EXISTS t1_int,t1_bit,t1_char,t1_nodef;
 DROP TABLE IF EXISTS t2,t3,t4,t5,t6,t7,t8,t9;
 --enable_warnings
 sync_slave_with_master;
+
+# Restore sql_mode
+SET @@global.sql_mode= @my_sql_mode;

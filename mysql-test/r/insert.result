@@ -383,3 +383,4 @@ id	data
 7	130
 8	140
 9	150
+drop table t1;

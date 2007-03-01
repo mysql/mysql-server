@@ -6755,6 +6755,7 @@ SELECT bug23760_rc_test(ROW_COUNT())|
 DROP TABLE bug23760, bug23760_log|
 DROP PROCEDURE bug23760_update_log|
 DROP PROCEDURE bug23760_test_row_count|
+DROP PROCEDURE bug23760_test_row_count2|
 DROP FUNCTION bug23760_rc_test|
 
 #

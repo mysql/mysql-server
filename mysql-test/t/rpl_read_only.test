@@ -108,4 +108,6 @@ drop user test;
 drop table t1;
 drop table t2;
 sync_slave_with_master;
+set global read_only=0;
+
 
