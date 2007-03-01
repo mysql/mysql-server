@@ -77,8 +77,6 @@ void
 ibuf_update_free_bits_if_full(
 /*==========================*/
 	dict_index_t*	index,	/* in: index */
-	ulint		zip_size,/* in: compressed page size in bytes;
-				0 for uncompressed pages */
 	buf_block_t*	block,	/* in: index page to which we have added new
 				records; the free bits are updated if the
 				index is non-clustered and non-unique and
@@ -90,6 +88,19 @@ ibuf_update_free_bits_if_full(
 	ulint		increase);/* in: upper limit for the additional space
 				used in the latest operation, if known, or
 				ULINT_UNDEFINED */
+/****************************************************************************
+Updates the free bits of a compressed page in the ibuf bitmap.  This
+is done in a separate mini-transaction, hence this operation does not
+restrict further work to only ibuf bitmap operations, which would
+result if the latch to the bitmap page were kept. */
+UNIV_INLINE
+void
+ibuf_update_free_bits_zip(
+/*======================*/
+	dict_index_t*	index,	/* in: index */
+	ulint		zip_size,/* in: compressed page size in bytes */
+	buf_block_t*	block);	/* in: B-tree leaf page of a secondary
+				index */
 /**************************************************************************
 Updates the free bits for the page to reflect the present state. Does this
 in the mtr given, which means that the latching order rules virtually
