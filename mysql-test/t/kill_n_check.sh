@@ -53,7 +53,7 @@ pid_path="$1"
 expected_result="$2"
 total_timeout="$3"
 test_id="$4"
-log_file="$MYSQLTEST_VARDIR/log/$test_id.log"
+log_file="$MYSQLTEST_VARDIR/log/$test_id.script.log"
 
 log_debug "-- $basename: starting --"
 log_debug "pid_path: '$pid_path'"

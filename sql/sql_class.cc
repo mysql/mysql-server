@@ -319,6 +319,7 @@ void THD::init(void)
 
 void THD::init_for_queries()
 {
+  set_time(); 
   ha_enable_transaction(this,TRUE);
 
   reset_root_defaults(mem_root, variables.query_alloc_block_size,
