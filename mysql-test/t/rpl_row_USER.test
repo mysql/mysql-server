@@ -2,7 +2,7 @@
 # Original Author: JBM                                                      #
 # Original Date: Aug/18/2005                                                #
 #############################################################################
-# TEST: To test the UUID() in rbr                                           #
+# TEST: To test the USER() and CURRENT_USER() in rbr                        #
 #############################################################################
 # Change Author: JBM
 # Change Date: 2006-01-16
@@ -52,6 +52,8 @@ connection master;
 DROP DATABASE mysqltest1;
 REVOKE ALL ON mysqltest1.* FROM 'tester'@'%';
 REVOKE ALL ON mysqltest1.* FROM ''@'localhost%';
+DROP USER tester@'%';
+DROP USER ''@'localhost%';
 
 sync_slave_with_master;
 

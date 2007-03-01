@@ -82,6 +82,7 @@ DROP TABLE IF EXISTS mysqltest1.t3;
 DROP TABLE IF EXISTS mysqltest1.t1;
 DROP TABLE IF EXISTS mysqltest1.t2;
 DROP TABLE IF EXISTS mysqltest1.t4;
+DROP DATABASE mysqltest1;
 sync_slave_with_master;
 
 # End of 5.1 test case

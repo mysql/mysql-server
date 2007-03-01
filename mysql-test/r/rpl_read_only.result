@@ -113,3 +113,4 @@ ERROR HY000: The MySQL server is running with the --read-only option so it canno
 drop user test;
 drop table t1;
 drop table t2;
+set global read_only=0;

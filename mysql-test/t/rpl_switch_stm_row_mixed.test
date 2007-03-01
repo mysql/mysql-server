@@ -8,6 +8,10 @@ create database mysqltest1;
 --enable_warnings
 use mysqltest1;
 
+# Save binlog format
+set @my_binlog_format= @@global.binlog_format;
+
+# Set binlog format to row
 set session binlog_format=row;
 set global binlog_format=row;
 
@@ -542,3 +546,7 @@ diff_files $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql $MYSQLTEST_
 
 drop database mysqltest1;
 sync_slave_with_master;
+
+connection master;
+# Restore binlog format setting
+set global binlog_format =@my_binlog_format;

@@ -56,6 +56,7 @@ connection master;
 # lets cleanup
 DROP TABLE IF EXISTS mysqltest1.t1;
 DROP FUNCTION mysqltest1.f1;
+DROP DATABASE mysqltest1;
 
 # Lets compare. Note: If they match test will pass, if they do not match
 # the test will show that the diff statement failed and not reject file
