@@ -289,9 +289,8 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
   res= post_init_event_thread(thd);
 
   DBUG_ENTER("Event_worker_thread::run");
-  DBUG_PRINT("info", ("Baikonur, time is %d, BURAN reporting and operational."
-             "THD=0x%lx", time(NULL), thd));
-
+  DBUG_PRINT("info", ("Time is %ld, THD: 0x%lx",
+                      (long) time(NULL), (long) thd));
 
   if (res)
     goto end;
@@ -349,7 +348,7 @@ end:
     */
     events_facade->drop_event(thd, event->dbname, event->name, FALSE);
   }
-  DBUG_PRINT("info", ("BURAN %s.%s is landing!", event->dbname.str,
+  DBUG_PRINT("info", ("Done with Event %s.%s", event->dbname.str,
              event->name.str));
 
   delete event;
@@ -522,7 +521,8 @@ Event_scheduler::run(THD *thd)
       break;
     }
 
-    DBUG_PRINT("info", ("get_top returned job_data=0x%lx", event_name));
+    DBUG_PRINT("info", ("get_top_for_execution_if_time returned "
+                        "event_name=0x%lx", (long) event_name));
     if (event_name)
     {
       if ((res= execute_top(thd, event_name)))
@@ -571,7 +571,7 @@ Event_scheduler::execute_top(THD *thd, Event_queue_element_for_exec *event_name)
   pre_init_event_thread(new_thd);
   new_thd->system_thread= SYSTEM_THREAD_EVENT_WORKER;
   event_name->thd= new_thd;
-  DBUG_PRINT("info", ("BURAN %s@%s ready for start t-3..2..1..0..ignition",
+  DBUG_PRINT("info", ("Event %s@%s ready for start",
              event_name->dbname.str, event_name->name.str));
 
   /* Major failure */
@@ -581,11 +581,11 @@ Event_scheduler::execute_top(THD *thd, Event_queue_element_for_exec *event_name)
 
   ++started_events;
 
-  DBUG_PRINT("info", ("Launch succeeded. BURAN is in THD: 0x%lx", (long) new_thd));
+  DBUG_PRINT("info", ("Event is in THD: 0x%lx", (long) new_thd));
   DBUG_RETURN(FALSE);
 
 error:
-  DBUG_PRINT("error", ("Baikonur, we have a problem! res: %d", res));
+  DBUG_PRINT("error", ("Event_scheduler::execute_top() res: %d", res));
   if (new_thd)
   {
     new_thd->proc_info= "Clearing";
