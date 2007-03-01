@@ -1865,11 +1865,11 @@ void Query_log_event::print_query_header(IO_CACHE* file,
   if (charset_database_number != print_event_info->charset_database_number)
   {
     if (charset_database_number)
-      fprintf(file, "SET @@session.collation_database=%d%s\n",
-              charset_database_number, print_event_info->delimiter);
+      my_b_printf(file, "SET @@session.collation_database=%d%s\n",
+                  charset_database_number, print_event_info->delimiter);
     else
-      fprintf(file, "SET @@session.collation_database=DEFAULT%s\n",
-              print_event_info->delimiter);
+      my_b_printf(file, "SET @@session.collation_database=DEFAULT%s\n",
+                  print_event_info->delimiter);
     print_event_info->charset_database_number= charset_database_number;
   }
 }

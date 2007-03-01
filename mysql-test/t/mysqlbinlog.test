@@ -214,7 +214,8 @@ load data infile '../std_data_ln/loaddata6.dat' into table t1 character set koi8
 select hex(a) from t1;
 drop table t1;
 flush logs;
---exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000011
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000012
 
 # End of 5.0 tests
 
@@ -223,7 +224,7 @@ flush logs;
 #
 flush logs;
 --error 1
---exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000012 >/dev/null 2>/dev/null
---exec $MYSQL_BINLOG --force-if-open $MYSQLTEST_VARDIR/log/master-bin.000012 >/dev/null 2>/dev/null
+--exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000014 >/dev/null 2>/dev/null
+--exec $MYSQL_BINLOG --force-if-open $MYSQLTEST_VARDIR/log/master-bin.000014 >/dev/null 2>/dev/null
 
 # End of 5.1 tests
