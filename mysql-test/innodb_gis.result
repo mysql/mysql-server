@@ -460,3 +460,5 @@ ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 (fl) values (pointfromtext('point(1,1)'));
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 drop table t1;
+create table t1 (g geometry not null, spatial gk(g)) engine=innodb;
+ERROR HY000: The used table type doesn't support SPATIAL indexes
