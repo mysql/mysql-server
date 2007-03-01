@@ -36,6 +36,7 @@ Item_result
 sp_map_result_type(enum enum_field_types type)
 {
   switch (type) {
+  case MYSQL_TYPE_BIT:
   case MYSQL_TYPE_TINY:
   case MYSQL_TYPE_SHORT:
   case MYSQL_TYPE_LONG:
@@ -58,6 +59,7 @@ Item::Type
 sp_map_item_type(enum enum_field_types type)
 {
   switch (type) {
+  case MYSQL_TYPE_BIT:
   case MYSQL_TYPE_TINY:
   case MYSQL_TYPE_SHORT:
   case MYSQL_TYPE_LONG:

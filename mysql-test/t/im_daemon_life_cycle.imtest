@@ -23,15 +23,20 @@
 #   - wait for IM-main to start accepting connections before continue test
 #     case;
 #
+# NOTE: timeout is 55 seconds. Timeout should be more than shutdown-delay
+# specified for managed MySQL instance. Now shutdown-delay is 10 seconds
+# (set in mysql-test-run.pl). So, 55 seconds should be enough to make 5
+# attempts.
+#
 ###########################################################################
 
 --exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle Main-test: starting...
 
 --exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle Killing IM-main...
---exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_PATH_PID restarted 30 im_daemon_life_cycle
+--exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_PATH_PID restarted 55 im_daemon_life_cycle
 
 --exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle Waiting for IM-main to start accepting connections...
---exec $MYSQL_TEST_DIR/t/wait_for_socket.sh $EXE_MYSQL $IM_PATH_SOCK $IM_USERNAME $IM_PASSWORD '' 30 im_daemon_life_cycle
+--exec $MYSQL_TEST_DIR/t/wait_for_socket.sh $EXE_MYSQL $IM_PATH_SOCK $IM_USERNAME $IM_PASSWORD '' 55 im_daemon_life_cycle
 
 --exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle Main-test: done.
 
@@ -58,23 +63,23 @@
 START INSTANCE mysqld2;
 
 --exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle mysqld2: waiting to start...
---exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 started im_daemon_life_cycle
+--exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 55 started im_daemon_life_cycle
 
 --exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle mysqld2: started.
 
 # 2. Restart IM-main;
 
 --exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle Killing IM-main...
---exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_PATH_PID restarted 30 im_daemon_life_cycle
+--exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_PATH_PID restarted 55 im_daemon_life_cycle
 
 --exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle Waiting for IM-main to start accepting connections...
---exec $MYSQL_TEST_DIR/t/wait_for_socket.sh $EXE_MYSQL $IM_PATH_SOCK $IM_USERNAME $IM_PASSWORD '' 30 im_daemon_life_cycle
+--exec $MYSQL_TEST_DIR/t/wait_for_socket.sh $EXE_MYSQL $IM_PATH_SOCK $IM_USERNAME $IM_PASSWORD '' 55 im_daemon_life_cycle
 
 # 3. Issue some statement -- connection should be re-established.
 
 --exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle Checking that IM-main processing commands...
 
---replace_column 3 VERSION
+--replace_column 2 STATE 3 VERSION
 SHOW INSTANCE STATUS mysqld1;
 
 # 4. Stop mysqld2, because it will not be stopped by IM, as it is nonguarded.
@@ -85,7 +90,7 @@ SHOW INSTANCE STATUS mysqld1;
 STOP INSTANCE mysqld2;
 
 --exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle mysqld2: waiting to stop...
---exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 stopped im_daemon_life_cycle
+--exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 55 stopped im_daemon_life_cycle
 --exec $MYSQL_TEST_DIR/t/log.sh im_daemon_life_cycle mysqld2: stopped.
 
 ###########################################################################
