@@ -201,7 +201,7 @@ void
 Event_queue::create_event(THD *thd, Event_queue_element *new_element)
 {
   DBUG_ENTER("Event_queue::create_event");
-  DBUG_PRINT("enter", ("thd=0x%lx et=%s.%s",thd,
+  DBUG_PRINT("enter", ("thd: 0x%lx et=%s.%s", (long) thd,
              new_element->dbname.str, new_element->name.str));
 
   if (new_element->status == Event_queue_element::DISABLED)
@@ -209,7 +209,7 @@ Event_queue::create_event(THD *thd, Event_queue_element *new_element)
   else
   {
     new_element->compute_next_execution_time();
-    DBUG_PRINT("info", ("new event in the queue 0x%lx", new_element));
+    DBUG_PRINT("info", ("new event in the queue: 0x%lx", (long) new_element));
 
     LOCK_QUEUE_DATA();
     queue_insert_safe(&queue, (byte *) new_element);

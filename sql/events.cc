@@ -923,7 +923,7 @@ Events::load_events_from_db(THD *thd)
   bool clean_the_queue= TRUE;
 
   DBUG_ENTER("Events::load_events_from_db");
-  DBUG_PRINT("enter", ("thd=0x%lx", thd));
+  DBUG_PRINT("enter", ("thd: 0x%lx", (long) thd));
 
   if ((ret= db_repository->open_event_table(thd, TL_READ, &table)))
   {
