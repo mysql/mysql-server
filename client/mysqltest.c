@@ -5933,7 +5933,9 @@ int main(int argc, char **argv)
 
   init_builtin_echo();
 #ifdef __WIN__
+#ifndef USE_CYGWIN
   is_windows= 1;
+#endif
   init_tmp_sh_file();
   init_win_path_patterns();
 #endif
