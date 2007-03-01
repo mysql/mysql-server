@@ -101,6 +101,7 @@ public:
   };
 
   struct StartRecord {
+    StartRecord() {}
     void reset(){ 
       m_startKey++; 
       m_startNode = 0; 
@@ -169,6 +170,7 @@ public:
   };
 
   struct ArbitRec {
+    ArbitRec() {}
     ArbitState state;		// state
     bool newstate;		// flag to initialize new state
     unsigned thread;		// identifies a continueB "thread"
@@ -242,7 +244,6 @@ private:
   void execAPI_REGREQ(Signal* signal);
   void execAPI_FAILCONF(Signal* signal);
   void execREAD_NODESREQ(Signal* signal);
-  void execSET_VAR_REQ(Signal* signal);
 
   void execREAD_NODESREF(Signal* signal);
   void execREAD_NODESCONF(Signal* signal);

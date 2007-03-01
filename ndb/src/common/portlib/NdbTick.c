@@ -60,9 +60,9 @@ NdbTick_CurrentMicrosecond(NDB_TICKS * secs, Uint32 * micros){
   int res = gettimeofday(&tick_time, 0);
 
   if(secs==0) {
-    NDB_TICKS secs   = tick_time.tv_sec;
+    NDB_TICKS local_secs   = tick_time.tv_sec;
     *micros = tick_time.tv_usec;
-    *micros = secs*1000000+*micros;    
+    *micros = local_secs*1000000+*micros;    
   } else {
       * secs   = tick_time.tv_sec;
       * micros = tick_time.tv_usec;

@@ -82,9 +82,6 @@ TYPELIB delay_key_write_typelib=
   delay_key_write_type_names, NULL
 };
 
-static int sys_check_charset(THD *thd, set_var *var);
-static bool sys_update_charset(THD *thd, set_var *var);
-static void sys_set_default_charset(THD *thd, enum_var_type type);
 static int  sys_check_ftb_syntax(THD *thd,  set_var *var);
 static bool sys_update_ftb_syntax(THD *thd, set_var * var);
 static void sys_default_ftb_syntax(THD *thd, enum_var_type type);
@@ -1424,9 +1421,9 @@ static void fix_server_id(THD *thd, enum_var_type type)
 
 
 sys_var_long_ptr::
-sys_var_long_ptr(const char *name_arg, ulong *value_ptr,
+sys_var_long_ptr(const char *name_arg, ulong *value_ptr_arg,
                  sys_after_update_func after_update_arg)
-  :sys_var_long_ptr_global(name_arg, value_ptr,
+  :sys_var_long_ptr_global(name_arg, value_ptr_arg,
                            &LOCK_global_system_variables, after_update_arg)
 {}
 
@@ -1776,7 +1773,7 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
     /* As there was no local variable, return the global value */
     var_type= OPT_GLOBAL;
   }
-  switch (type()) {
+  switch (show_type()) {
   case SHOW_INT:
   {
     uint value;

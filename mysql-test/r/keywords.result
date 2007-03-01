@@ -16,3 +16,16 @@ select events.binlog from events;
 binlog
 1
 drop table events;
+create table t1 (connection int, b int);
+create procedure p1()
+begin
+declare connection int;
+select max(t1.connection) into connection from t1;
+select concat("max=",connection) 'p1';
+end|
+insert into t1 (connection) values (1);
+call p1();
+p1
+max=1
+drop procedure p1;
+drop table t1;

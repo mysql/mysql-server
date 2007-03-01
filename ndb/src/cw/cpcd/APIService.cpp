@@ -389,7 +389,6 @@ CPCDAPISession::listProcesses(Parser_t::Context & /* unused */,
 void
 CPCDAPISession::showVersion(Parser_t::Context & /* unused */,
                             const class Properties & args){
-  Uint32 id;
   CPCD::RequestStatus rs;
 
   m_output->println("show version");

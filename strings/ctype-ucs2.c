@@ -206,6 +206,7 @@ static int my_strnncoll_ucs2(CHARSET_INFO *cs,
   const uchar *se=s+slen;
   const uchar *te=t+tlen;
   MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  LINT_INIT(s_wc);
 
   while ( s < se && t < te )
   {
@@ -320,7 +321,8 @@ static int my_strncasecmp_ucs2(CHARSET_INFO *cs,
   const char *se=s+len;
   const char *te=t+len;
   MY_UNICASE_INFO **uni_plane= cs->caseinfo;
-  
+  LINT_INIT(s_wc);
+
   while ( s < se && t < te )
   {
     int plane;
@@ -1382,6 +1384,7 @@ int my_strnncoll_ucs2_bin(CHARSET_INFO *cs,
   my_wc_t s_wc,t_wc;
   const uchar *se=s+slen;
   const uchar *te=t+tlen;
+  LINT_INIT(s_wc);
 
   while ( s < se && t < te )
   {

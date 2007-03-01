@@ -24,6 +24,7 @@
  */
 class OutputStream {
 public:
+  OutputStream() {}
   virtual ~OutputStream() {}
   virtual int print(const char * fmt, ...) = 0;
   virtual int println(const char * fmt, ...) = 0;
@@ -42,10 +43,10 @@ public:
 
 class SocketOutputStream : public OutputStream {
   NDB_SOCKET_TYPE m_socket;
-  unsigned m_timeout;
+  unsigned m_timeout_ms;
 public:
-  SocketOutputStream(NDB_SOCKET_TYPE socket, unsigned writeTimeout = 1000);
-  
+  SocketOutputStream(NDB_SOCKET_TYPE socket, unsigned write_timeout_ms = 1000);
+
   int print(const char * fmt, ...);
   int println(const char * fmt, ...);
 };
@@ -60,6 +61,7 @@ public:
 
 class NullOutputStream : public OutputStream {
 public:
+  NullOutputStream() {}
   int print(const char * /* unused */, ...) { return 1;}
   int println(const char * /* unused */, ...) { return 1;}
 };

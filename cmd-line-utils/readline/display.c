@@ -426,7 +426,7 @@ rl_redisplay ()
 #if defined (HANDLE_MULTIBYTE)
   wchar_t wc;
   size_t wc_bytes;
-  int wc_width;
+  int wc_width= 0;
   mbstate_t ps;
   int _rl_wrapped_multicolumn = 0;
 #endif

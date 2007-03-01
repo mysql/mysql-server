@@ -63,7 +63,7 @@ class TC_LOG
 
   virtual int open(const char *opt_name)=0;
   virtual void close()=0;
-  virtual int log(THD *thd, my_xid xid)=0;
+  virtual int log_xid(THD *thd, my_xid xid)=0;
   virtual void unlog(ulong cookie, my_xid xid)=0;
 };
 
@@ -73,7 +73,7 @@ public:
   TC_LOG_DUMMY() {}                           /* Remove gcc warning */
   int open(const char *opt_name)        { return 0; }
   void close()                          { }
-  int log(THD *thd, my_xid xid)         { return 1; }
+  int log_xid(THD *thd, my_xid xid)     { return 1; }
   void unlog(ulong cookie, my_xid xid)  { }
 };
 
@@ -118,7 +118,7 @@ class TC_LOG_MMAP: public TC_LOG
   TC_LOG_MMAP(): inited(0) {}
   int open(const char *opt_name);
   void close();
-  int log(THD *thd, my_xid xid);
+  int log_xid(THD *thd, my_xid xid);
   void unlog(ulong cookie, my_xid xid);
   int recover();
 
@@ -252,7 +252,7 @@ public:
 
   int open(const char *opt_name);
   void close();
-  int log(THD *thd, my_xid xid);
+  int log_xid(THD *thd, my_xid xid);
   void unlog(ulong cookie, my_xid xid);
   int recover(IO_CACHE *log, Format_description_log_event *fdle);
   void reset_bytes_written()
@@ -311,7 +311,7 @@ public:
   bool write(Log_event* event_info); // binary log write
   bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event);
 
-  void start_union_events(THD *thd);
+  void start_union_events(THD *thd, query_id_t query_id_param);
   void stop_union_events(THD *thd);
   bool is_query_in_union(THD *thd, query_id_t query_id_param);
 
@@ -1687,6 +1687,7 @@ public:
   bool opt_enclosed;
   bool dumpfile;
   ulong skip_lines;
+  CHARSET_INFO *cs;
   sql_exchange(char *name,bool dumpfile_flag);
 };
 
@@ -1844,13 +1845,13 @@ class select_create: public select_insert {
   MYSQL_LOCK *lock;
   Field **field;
 public:
-  select_create(TABLE_LIST *table,
+  select_create(TABLE_LIST *table_arg,
                 HA_CREATE_INFO *create_info_arg,
                 Alter_info *alter_info_arg,
                 List<Item> &select_fields,
                 enum_duplicates duplic, bool ignore)
     :select_insert(NULL, NULL, &select_fields, 0, 0, duplic, ignore),
-    create_table(table),
+    create_table(table_arg),
     create_info(create_info_arg),
     alter_info(alter_info_arg),
     lock(0)
@@ -1957,7 +1958,9 @@ public:
 class select_singlerow_subselect :public select_subselect
 {
 public:
-  select_singlerow_subselect(Item_subselect *item):select_subselect(item){}
+  select_singlerow_subselect(Item_subselect *item_arg)
+    :select_subselect(item_arg)
+  {}
   bool send_data(List<Item> &items);
 };
 
@@ -1968,8 +1971,8 @@ class select_max_min_finder_subselect :public select_subselect
   bool (select_max_min_finder_subselect::*op)();
   bool fmax;
 public:
-  select_max_min_finder_subselect(Item_subselect *item, bool mx)
-    :select_subselect(item), cache(0), fmax(mx)
+  select_max_min_finder_subselect(Item_subselect *item_arg, bool mx)
+    :select_subselect(item_arg), cache(0), fmax(mx)
   {}
   void cleanup();
   bool send_data(List<Item> &items);
@@ -1983,7 +1986,8 @@ public:
 class select_exists_subselect :public select_subselect
 {
 public:
-  select_exists_subselect(Item_subselect *item):select_subselect(item){}
+  select_exists_subselect(Item_subselect *item_arg)
+    :select_subselect(item_arg){}
   bool send_data(List<Item> &items);
 };
 

@@ -1096,7 +1096,7 @@ bool ha_federated::create_where_from_key(String *to,
                                          KEY *key_info,
                                          const key_range *start_key,
                                          const key_range *end_key,
-                                         bool records_in_range)
+                                         bool from_records_in_range)
 {
   bool both_not_null= 
     (start_key != NULL && end_key != NULL) ? TRUE : FALSE;
@@ -1164,7 +1164,7 @@ bool ha_federated::create_where_from_key(String *to,
           if (emit_key_part_name(&tmp, key_part))
             DBUG_RETURN(1);
 
-          if (records_in_range)
+          if (from_records_in_range)
           {
             if (tmp.append(FEDERATED_GE))
               DBUG_RETURN(1);
@@ -1383,7 +1383,7 @@ static int free_share(FEDERATED_SHARE *share)
 
 
 ha_rows ha_federated::records_in_range(uint inx, key_range *start_key,
-                                   key_range *end_key)
+                                       key_range *end_key)
 {
   /*
 
@@ -2072,7 +2072,7 @@ int ha_federated::index_init(uint keynr)
 
 int ha_federated::read_range_first(const key_range *start_key,
                                    const key_range *end_key,
-                                   bool eq_range, bool sorted)
+                                   bool eq_range_arg, bool sorted)
 {
   char sql_query_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   int retval;

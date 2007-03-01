@@ -94,8 +94,6 @@ sp_map_item_type(enum enum_field_types type)
 static String *
 sp_get_item_value(THD *thd, Item *item, String *str)
 {
-  Item_result result_type= item->result_type();
-
   switch (item->result_type()) {
   case REAL_RESULT:
   case INT_RESULT:
@@ -1464,8 +1462,24 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   binlog_save_options= thd->options;
   if (need_binlog_call)
   {
+    query_id_t q;
     reset_dynamic(&thd->user_var_events);
-    mysql_bin_log.start_union_events(thd);
+    /*
+      In case of artificially constructed events for function calls
+      we have separate union for each such event and hence can't use
+      query_id of real calling statement as the start of all these
+      unions (this will break logic of replication of user-defined
+      variables). So we use artifical value which is guaranteed to
+      be greater than all query_id's of all statements belonging
+      to previous events/unions.
+      Possible alternative to this is logging of all function invocations
+      as one select and not resetting THD::user_var_events before
+      each invocation.
+    */
+    VOID(pthread_mutex_lock(&LOCK_thread_count));
+    q= global_query_id;
+    VOID(pthread_mutex_unlock(&LOCK_thread_count));
+    mysql_bin_log.start_union_events(thd, q + 1);
   }
 
   /*
@@ -1733,7 +1747,7 @@ sp_head::reset_lex(THD *thd)
   DBUG_ENTER("sp_head::reset_lex");
   LEX *sublex;
   LEX *oldlex= thd->lex;
-  my_lex_states state= oldlex->next_state; // Keep original next_state
+  my_lex_states org_next_state= oldlex->next_state;
 
   (void)m_lex.push_front(oldlex);
   thd->lex= sublex= new st_lex;
@@ -1742,10 +1756,10 @@ sp_head::reset_lex(THD *thd)
   lex_start(thd, oldlex->buf, (ulong) (oldlex->end_of_query - oldlex->ptr));
 
   /*
-   * next_state is normally the same (0), but it happens that we swap lex in
-   * "mid-sentence", so we must restore it.
+    next_state is normally the same (0), but it happens that we swap lex in
+    "mid-sentence", so we must restore it.
    */
-  sublex->next_state= state;
+  sublex->next_state= org_next_state;
   /* We must reset ptr and end_of_query again */
   sublex->ptr= oldlex->ptr;
   sublex->end_of_query= oldlex->end_of_query;
