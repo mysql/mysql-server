@@ -996,6 +996,7 @@ sql_exchange::sql_exchange(char *name,bool flag)
   enclosed=   line_start= &my_empty_string;
   line_term=  &default_line_term;
   escaped=    &default_escaped;
+  cs= NULL;
 }
 
 bool select_send::send_fields(List<Item> &list, uint flags)

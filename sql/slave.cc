@@ -53,6 +53,10 @@ ulonglong relay_log_space_limit = 0;
 */
 
 int disconnect_slave_event_count = 0, abort_slave_event_count = 0;
+int events_till_abort = -1;
+#ifndef DBUG_OFF
+static int events_till_disconnect = -1;
+#endif
 
 typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL} SLAVE_THD_TYPE;
 

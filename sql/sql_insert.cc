@@ -362,7 +362,9 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   List_item *values;
   Name_resolution_context *context;
   Name_resolution_context_state ctx_state;
+#ifndef EMBEDDED_LIBRARY
   char *query= thd->query;
+#endif
   /*
     log_on is about delayed inserts only.
     By default, both logs are enabled (this won't cause problems if the server
