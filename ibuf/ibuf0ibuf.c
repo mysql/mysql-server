@@ -838,16 +838,18 @@ ibuf bitmap operations, which would result if the latch to the bitmap page
 were kept. */
 
 void
-ibuf_set_free_bits(
-/*===============*/
+ibuf_set_free_bits_func(
+/*====================*/
 	ulint		type,	/* in: index type */
 	buf_block_t*	block,	/* in: index page; free bit is reset
 				if the index is a non-clustered
 				non-unique, and page level is 0 */
-	ulint		val,	/* in: value to set: < 4 */
-	ulint		max_val)/* in: ULINT_UNDEFINED or a maximum
+#ifdef UNIV_IBUF_DEBUG
+	ulint		max_val,/* in: ULINT_UNDEFINED or a maximum
 				value which the bits must have before
 				setting; this is for debugging */
+#endif /* UNIV_IBUF_DEBUG */
+	ulint		val)	/* in: value to set: < 4 */
 {
 	mtr_t	mtr;
 	page_t*	page;
@@ -875,8 +877,8 @@ ibuf_set_free_bits(
 	zip_size = buf_block_get_zip_size(block);
 	bitmap_page = ibuf_bitmap_get_map_page(space, page_no, zip_size, &mtr);
 
-	if (max_val != ULINT_UNDEFINED) {
 #ifdef UNIV_IBUF_DEBUG
+	if (max_val != ULINT_UNDEFINED) {
 		ulint	old_val;
 
 		old_val = ibuf_bitmap_page_get_bits(
@@ -892,9 +894,7 @@ ibuf_set_free_bits(
 # endif
 
 		ut_a(old_val <= max_val);
-#endif
 	}
-#ifdef UNIV_IBUF_DEBUG
 # if 0
 	fprintf(stderr, "Setting page no %lu free bits to %lu should be %lu\n",
 		page_get_page_no(page), val,
@@ -902,7 +902,7 @@ ibuf_set_free_bits(
 # endif
 
 	ut_a(val <= ibuf_index_page_calc_free(zip_size, block));
-#endif
+#endif /* UNIV_IBUF_DEBUG */
 	ibuf_bitmap_page_set_bits(bitmap_page, page_no, zip_size,
 				  IBUF_BITMAP_FREE, val, &mtr);
 	mtr_commit(&mtr);
