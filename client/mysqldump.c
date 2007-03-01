@@ -2172,7 +2172,8 @@ continue_xml:
 
 */
 
-static void dump_triggers_for_table(char *table, char *db)
+static void dump_triggers_for_table(char *table,
+                                    char *db __attribute__((unused)))
 {
   char       *result_table;
   char       name_buff[NAME_LEN*4+3], table_buff[NAME_LEN*2+3];
@@ -2181,7 +2182,6 @@ static void dump_triggers_for_table(char *table, char *db)
   FILE       *sql_file= md_result_file;
   MYSQL_RES  *result;
   MYSQL_ROW  row;
-
   DBUG_ENTER("dump_triggers_for_table");
   DBUG_PRINT("enter", ("db: %s, table: %s", db, table));
 

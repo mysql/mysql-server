@@ -36,9 +36,9 @@
 
 char test_string[BUFFER_LEN];
 
-#define TWOGIG 2147483648
-#define FOURGIG 4294967296
-#define EIGHTGIG 8589934592
+#define TWOGIG LL(2147483648)
+#define FOURGIG LL(4294967296)
+#define EIGHTGIG LL(8589934592)
 
 /* prototypes */
 int size_test(unsigned long long length, unsigned long long rows_to_test_for);
@@ -222,9 +222,9 @@ int main(int argc, char *argv[])
 
   /* Start size tests */
   printf("About to run 2/4/8 gig tests now, you may want to hit CTRL-C\n");
-  size_test(TWOGIG, 2097152);
-  size_test(FOURGIG, 4194304);
-  size_test(EIGHTGIG, 8388608);
+  size_test(TWOGIG, 2097152L);
+  size_test(FOURGIG, 4194304L);
+  size_test(EIGHTGIG, 8388608L);
 
   return 0;
 }

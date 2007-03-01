@@ -514,7 +514,7 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
 	
 	c_lgman->free_log_space(regFragPtr.p->m_logfile_group_id, 
 				regOperPtr.p->m_undo_buffer_space);
-	ndbout_c("insert+delete");
+	if (0) ndbout_c("insert+delete");
 	goto skip_disk;
       }
     } 

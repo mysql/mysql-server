@@ -146,6 +146,7 @@ my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
   ulong now;
   sigset_t old_mask;
   my_bool reschedule;
+  struct st_my_thread_var *current_my_thread_var= my_thread_var;
   DBUG_ENTER("thr_alarm");
   DBUG_PRINT("enter",("thread: %s  sec: %d",my_thread_name(),sec));
 
@@ -195,7 +196,8 @@ my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
     alarm_data->malloced=0;
   alarm_data->expire_time=now+sec;
   alarm_data->alarmed=0;
-  alarm_data->thread=pthread_self();
+  alarm_data->thread=    current_my_thread_var->pthread_self;
+  alarm_data->thread_id= current_my_thread_var->id;
   queue_insert(&alarm_queue,(byte*) alarm_data);
 
   /* Reschedule alarm if the current one has more than sec left */
@@ -444,7 +446,7 @@ void end_thr_alarm(my_bool free_structures)
   Remove another thread from the alarm
 */
 
-void thr_alarm_kill(pthread_t thread_id)
+void thr_alarm_kill(my_thread_id thread_id)
 {
   uint i;
   if (alarm_aborted)
@@ -452,8 +454,7 @@ void thr_alarm_kill(pthread_t thread_id)
   pthread_mutex_lock(&LOCK_alarm);
   for (i=0 ; i < alarm_queue.elements ; i++)
   {
-    if (pthread_equal(((ALARM*) queue_element(&alarm_queue,i))->thread,
-		      thread_id))
+    if (((ALARM*) queue_element(&alarm_queue,i))->thread_id == thread_id)
     {
       ALARM *tmp=(ALARM*) queue_remove(&alarm_queue,i);
       tmp->expire_time=0;
@@ -567,7 +568,7 @@ static void *alarm_handler(void *arg __attribute__((unused)))
 
 #else /* __WIN__ */
 
-void thr_alarm_kill(pthread_t thread_id)
+void thr_alarm_kill(my_thread_id thread_id)
 {
   /* Can't do this yet */
 }

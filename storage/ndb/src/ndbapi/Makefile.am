@@ -15,6 +15,10 @@
 
 #SUBDIRS = signal-sender
 
+noinst_PROGRAMS = ndberror_check
+
+ndberror_check_SOURCES = ndberror_check.c
+
 noinst_LTLIBRARIES = libndbapi.la
 
 libndbapi_la_SOURCES = \
@@ -60,6 +64,11 @@ NDB_CXXFLAGS_RELEASE_LOC = -O2
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapi.mk.am
+
+ndberror_check_LDFLAGS = \
+         $(top_builddir)/dbug/libdbug.a \
+         $(top_builddir)/mysys/libmysys.a \
+         $(top_builddir)/strings/libmystrings.a
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

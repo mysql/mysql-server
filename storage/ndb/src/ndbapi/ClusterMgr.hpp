@@ -70,6 +70,7 @@ public:
     bool compatible;    // Version is compatible
     bool nfCompleteRep; // NF Complete Rep has arrived
     bool m_alive;       // Node is alive
+    bool m_api_reg_conf;// API_REGCONF has arrived
     
     NodeInfo  m_info;
     NodeState m_state;

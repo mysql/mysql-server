@@ -73,17 +73,18 @@ void print_cached_tables(void)
   uint idx,count,unused;
   TABLE *start_link,*lnk;
 
+  /* purecov: begin tested */
   VOID(pthread_mutex_lock(&LOCK_open));
-  puts("DB             Table                            Version  Thread  L.thread  Open  Lock");
+  puts("DB             Table                            Version  Thread  Open  Lock");
 
   for (idx=unused=0 ; idx < open_cache.records ; idx++)
   {
     TABLE *entry=(TABLE*) hash_element(&open_cache,idx);
-    printf("%-14.14s %-32s%6ld%8ld%10ld%6d  %s\n",
-	   entry->s->db.str, entry->s->table_name.str, entry->s->version,
+    printf("%-14.14s %-32s%6ld%8ld%6d  %s\n",
+           entry->s->db.str, entry->s->table_name.str, entry->s->version,
 	   entry->in_use ? entry->in_use->thread_id : 0L,
-	   entry->in_use ? entry->in_use->dbug_thread_id : 0L,
-	   entry->db_stat ? 1 : 0, entry->in_use ? lock_descriptions[(int)entry->reginfo.lock_type] : "Not in use");
+	   entry->db_stat ? 1 : 0,
+           entry->in_use ? lock_descriptions[(int)entry->reginfo.lock_type] : "Not in use");
     if (!entry->in_use)
       unused++;
   }
@@ -110,6 +111,7 @@ void print_cached_tables(void)
     printf("Error: File hash table is corrupted\n");
   fflush(stdout);
   VOID(pthread_mutex_unlock(&LOCK_open));
+  /* purecov: end */
   return;
 }
 

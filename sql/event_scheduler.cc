@@ -104,25 +104,22 @@ evex_print_warnings(THD *thd, Event_job_data *et)
   SYNOPSIS
     post_init_event_thread()
       thd  Thread
+
+  NOTES
+    Before this is called, one should not do any DBUG_XXX() calls.
+
 */
 
 bool
 post_init_event_thread(THD *thd)
 {
-  my_thread_init();
-  pthread_detach_this_thread();
-  thd->real_id= pthread_self();
+  (void) init_new_connection_handler_thread();
   if (init_thr_lock() || thd->store_globals())
   {
     thd->cleanup();
     return TRUE;
   }
 
-#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
-  sigset_t set;
-    VOID(sigemptyset(&set));                    // Get mask in use
-  VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
-#endif
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
   thread_count++;
@@ -187,7 +184,7 @@ pre_init_event_thread(THD* thd)
   thd->options|= OPTION_AUTO_IS_NULL;
   thd->client_capabilities|= CLIENT_MULTI_RESULTS;
   pthread_mutex_lock(&LOCK_thread_count);
-  thd->thread_id= thread_id++;
+  thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
   pthread_mutex_unlock(&LOCK_thread_count);
 
   /*
@@ -218,20 +215,20 @@ pthread_handler_t
 event_scheduler_thread(void *arg)
 {
   /* needs to be first for thread_stack */
-  THD *thd= (THD *)((struct scheduler_param *) arg)->thd;
+  THD *thd= (THD *) ((struct scheduler_param *) arg)->thd;
   Event_scheduler *scheduler= ((struct scheduler_param *) arg)->scheduler;
+  bool res;
 
-  my_free((char*)arg, MYF(0));
-
-  thd->thread_stack= (char *)&thd;              // remember where our stack is
+  thd->thread_stack= (char*) &thd;              // remember where our stack is
+  res= post_init_event_thread(thd);
 
   DBUG_ENTER("event_scheduler_thread");
-
-  if (!post_init_event_thread(thd))
+  my_free((char*)arg, MYF(0));
+  if (!res)
     scheduler->run(thd);
 
   deinit_event_thread(thd);
-
+  pthread_exit(0);
   DBUG_RETURN(0);                               // Against gcc warnings
 }
 
@@ -255,13 +252,14 @@ event_worker_thread(void *arg)
   THD *thd; 
   Event_job_data *event= (Event_job_data *)arg;
   int ret;
+  bool res;
 
   thd= event->thd;
-
   thd->thread_stack= (char *) &thd;             // remember where our stack is
+  res= post_init_event_thread(thd);
   DBUG_ENTER("event_worker_thread");
 
-  if (!post_init_event_thread(thd))
+  if (!res)
   {
     DBUG_PRINT("info", ("Baikonur, time is %ld, BURAN reporting and operational."
                         "THD: 0x%lx",
@@ -295,6 +293,7 @@ event_worker_thread(void *arg)
 
   deinit_event_thread(thd);
 
+  pthread_exit(0);
   DBUG_RETURN(0);                               // Can't return anything here
 }
 
