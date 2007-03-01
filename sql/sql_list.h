@@ -38,6 +38,8 @@ public:
   static void operator delete(void *ptr, size_t size) { TRASH(ptr, size); }
   static void operator delete(void *ptr, MEM_ROOT *mem_root)
   { /* never called */ }
+  static void operator delete[](void *ptr, MEM_ROOT *mem_root)
+  { /* never called */ }
   static void operator delete[](void *ptr, size_t size) { TRASH(ptr, size); }
 #ifdef HAVE_purify
   bool dummy;

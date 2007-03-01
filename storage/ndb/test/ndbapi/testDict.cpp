@@ -321,7 +321,11 @@ int runCreateAndDropAtRandom(NDBT_Context* ctx, NDBT_Step* step)
     }
     i++;
   }
-
+  
+  for (Uint32 i = 0; i<numTables; i++)
+    if (tabList[i])
+      pDic->dropTable(NDBT_Tables::getTable(i)->getName());
+  
   delete [] tabList;
   return result;
 }

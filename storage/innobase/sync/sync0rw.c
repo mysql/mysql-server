@@ -127,7 +127,7 @@ rw_lock_create_func(
 	lock->magic_n = RW_LOCK_MAGIC_N;
 
 	lock->cfile_name = cfile_name;
-	lock->cline = cline;
+	lock->cline = (unsigned int) cline;
 
 	lock->last_s_file_name = "not yet reserved";
 	lock->last_x_file_name = "not yet reserved";
@@ -356,7 +356,7 @@ rw_lock_x_lock_low(
 					       file_name, line);
 #endif
 			lock->last_x_file_name = file_name;
-			lock->last_x_line = line;
+			lock->last_x_line = (unsigned int) line;
 
 			/* Locking succeeded, we may return */
 			return(RW_LOCK_EX);
@@ -393,7 +393,7 @@ rw_lock_x_lock_low(
 #endif
 
 			lock->last_x_file_name = file_name;
-			lock->last_x_line = line;
+			lock->last_x_line = (unsigned int) line;
 
 			/* Locking succeeded, we may return */
 			return(RW_LOCK_EX);
@@ -415,7 +415,7 @@ rw_lock_x_lock_low(
 #endif
 
 		lock->last_x_file_name = file_name;
-		lock->last_x_line = line;
+		lock->last_x_line = (unsigned int) line;
 
 		/* Locking succeeded, we may return */
 		return(RW_LOCK_EX);
