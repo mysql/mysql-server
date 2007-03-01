@@ -99,7 +99,7 @@ void net_set_read_timeout(NET *net, uint timeout);
 #define WARN_DEPRECATED(Thd,Ver,Old,New)                                             \
   do {                                                                               \
     DBUG_ASSERT(strncmp(Ver, MYSQL_SERVER_VERSION, sizeof(Ver)-1) > 0);              \
-    if (Thd != NULL)                                                                 \
+    if (((gptr)Thd) != NULL)                                                         \
       push_warning_printf(((THD *)Thd), MYSQL_ERROR::WARN_LEVEL_WARN,                \
                         ER_WARN_DEPRECATED_SYNTAX, ER(ER_WARN_DEPRECATED_SYNTAX),    \
                         (Old), (Ver), (New));                                        \
