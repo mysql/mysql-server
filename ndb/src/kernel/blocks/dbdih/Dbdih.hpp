@@ -693,7 +693,6 @@ private:
   void execFSREADREF(Signal *);
   void execFSWRITECONF(Signal *);
   void execFSWRITEREF(Signal *);
-  void execSET_VAR_REQ(Signal *);
   void execCHECKNODEGROUPSREQ(Signal *);
   void execSTART_INFOREQ(Signal*);
   void execSTART_INFOREF(Signal*);
@@ -1288,6 +1287,7 @@ public:
 private:
   
   struct LcpState {
+    LcpState() {}
     LcpStatus lcpStatus;
     Uint32 lcpStatusUpdatedPlace;
 
@@ -1367,6 +1367,7 @@ private:
   Uint32 csystemnodes;
   Uint32 currentgcp;
   Uint32 c_newest_restorable_gci;
+  Uint32 c_set_initial_start_flag;
 
   enum GcpMasterTakeOverState {
     GMTOS_IDLE = 0,
@@ -1394,6 +1395,7 @@ public:
 private:
   class MasterTakeOverState {
   public:
+    MasterTakeOverState() {}
     void set(LcpMasterTakeOverState s, Uint32 line) { 
       state = s; updatePlace = line;
     }
@@ -1481,6 +1483,7 @@ private:
    * SwitchReplicaRecord - Should only be used by master
    */
   struct SwitchReplicaRecord {
+    SwitchReplicaRecord() {}
     void clear(){}
 
     Uint32 nodeId;

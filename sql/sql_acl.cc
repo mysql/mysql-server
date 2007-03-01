@@ -5021,6 +5021,8 @@ static int handle_grant_struct(uint struct_no, bool drop,
       user= grant_name->user;
       host= grant_name->host.hostname;
       break;
+    default:
+      assert(0);
     }
     if (! user)
       user= "";

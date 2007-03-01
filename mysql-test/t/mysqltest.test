@@ -1288,7 +1288,15 @@ EOF
 connect (con1,localhost,root,,);
 connection default;
 connection con1;
+disconnect con1;
 --enable_abort_on_error
+
+# Test connect without a database
+connect (con2,localhost,root,,*NO-ONE*);
+--error ER_NO_DB_ERROR
+show tables;
+disconnect con2;
+connection default;
 
 # ----------------------------------------------------------------------------
 # Test mysqltest arguments
@@ -1716,5 +1724,17 @@ EOF
 
 --exec echo "echo Some output; exit; echo Not this;" | $MYSQL_TEST 2>&1
 
+# ----------------------------------------------------------------------------
+# Some coverage tests
+# ----------------------------------------------------------------------------
+
+--disable_query_log
+--exec $MYSQL_TEST --help 2>&1 > /dev/null
+--exec $MYSQL_TEST --version 2>&1 > /dev/null
+--enable_quary_log
+--disable_abort_on_error
+--error 1
+--exec $MYSQL_TEST a b c 2>&1 > /dev/null
+--enable_abort_on_error
 
 --echo End of tests

@@ -325,10 +325,10 @@ private:
   TABLE_LIST *save_first_name_resolution_table;
   TABLE_LIST *save_next_name_resolution_table;
   bool        save_resolve_in_select_list;
+  TABLE_LIST *save_next_local;
 
 public:
   Name_resolution_context_state() {}          /* Remove gcc warning */
-  TABLE_LIST *save_next_local;
 
 public:
   /* Save the state of a name resolution context. */
@@ -349,6 +349,11 @@ public:
     context->table_list=                   save_table_list;
     context->first_name_resolution_table=  save_first_name_resolution_table;
     context->resolve_in_select_list=       save_resolve_in_select_list;
+  }
+
+  TABLE_LIST *get_first_name_resolution_table()
+  {
+    return save_first_name_resolution_table;
   }
 };
 
@@ -646,7 +651,7 @@ public:
   */
   virtual bool basic_const_item() const { return 0; }
   /* cloning of constant items (0 if it is not const) */
-  virtual Item *new_item() { return 0; }
+  virtual Item *clone_item() { return 0; }
   virtual cond_result eq_cmp_result() const { return COND_OK; }
   inline uint float_length(uint decimals_par) const
   { return decimals != NOT_FIXED_DEC ? (DBL_DIG+2+decimals_par) : DBL_DIG+8;}
@@ -777,7 +782,7 @@ public:
   virtual bool collect_item_field_processor(byte * arg) { return 0; }
   virtual bool find_item_in_field_list_processor(byte *arg) { return 0; }
   virtual bool change_context_processor(byte *context) { return 0; }
-  virtual bool reset_query_id_processor(byte *query_id) { return 0; }
+  virtual bool reset_query_id_processor(byte *query_id_arg) { return 0; }
   virtual bool is_expensive_processor(byte *arg) { return 0; }
   virtual bool subst_argument_checker(byte **arg)
   { 
@@ -801,11 +806,11 @@ public:
     For SP local variable returns address of pointer to Item representing its
     current value and pointer passed via parameter otherwise.
   */
-  virtual Item **this_item_addr(THD *thd, Item **addr) { return addr; }
+  virtual Item **this_item_addr(THD *thd, Item **addr_arg) { return addr_arg; }
 
   // Row emulation
   virtual uint cols() { return 1; }
-  virtual Item* el(uint i) { return this; }
+  virtual Item* element_index(uint i) { return this; }
   virtual Item** addr(uint i) { return 0; }
   virtual bool check_cols(uint c);
   // It is not row => null inside is impossible
@@ -817,6 +822,7 @@ public:
   virtual Item_field *filed_for_view_update() { return 0; }
 
   virtual Item *neg_transformer(THD *thd) { return NULL; }
+  virtual Item *update_value_transformer(byte *select_arg) { return this; }
   virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
   void delete_self()
   {
@@ -1071,7 +1077,8 @@ class Item_name_const : public Item
   Item *value_item;
   Item *name_item;
 public:
-  Item_name_const(Item *name, Item *val): value_item(val), name_item(name)
+  Item_name_const(Item *name_arg, Item *val):
+    value_item(val), name_item(name_arg)
   {
     Item::maybe_null= TRUE;
   }
@@ -1214,7 +1221,7 @@ public:
   uint have_privileges;
   /* field need any privileges (for VIEW creation) */
   bool any_privileges;
-
+  bool fixed_as_field;
   Item_field(Name_resolution_context *context_arg,
              const char *db_arg,const char *table_name_arg,
 	     const char *field_name_arg);
@@ -1291,10 +1298,11 @@ public:
   Item *equal_fields_propagator(byte *arg);
   bool set_no_const_sub(byte *arg);
   Item *replace_equal_field(byte *arg);
-  inline uint32 max_disp_length() { return field->max_length(); }
+  inline uint32 max_disp_length() { return field->max_display_length(); }
   Item_field *filed_for_view_update() { return this; }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
   int fix_outer_field(THD *thd, Field **field, Item **reference);
+  virtual Item *update_value_transformer(byte *select_arg);
   friend class Item_default_value;
   friend class Item_insert_value;
   friend class st_select_lex_unit;
@@ -1325,7 +1333,7 @@ public:
   /* to prevent drop fixed flag (no need parent cleanup call) */
   void cleanup() {}
   bool basic_const_item() const { return 1; }
-  Item *new_item() { return new Item_null(name); }
+  Item *clone_item() { return new Item_null(name); }
   bool is_null() { return 1; }
   void print(String *str) { str->append(STRING_WITH_LEN("NULL")); }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
@@ -1472,7 +1480,7 @@ public:
     basic_const_item returned TRUE.
   */
   Item *safe_charset_converter(CHARSET_INFO *tocs);
-  Item *new_item();
+  Item *clone_item();
   /*
     Implement by-value equality evaluation if parameter value
     is set and is a basic constant (integer, real or string).
@@ -1504,7 +1512,7 @@ public:
   String *val_str(String*);
   int save_in_field(Field *field, bool no_conversions);
   bool basic_const_item() const { return 1; }
-  Item *new_item() { return new Item_int(name,value,max_length); }
+  Item *clone_item() { return new Item_int(name,value,max_length); }
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
   void print(String *str);
@@ -1524,7 +1532,7 @@ public:
   double val_real()
     { DBUG_ASSERT(fixed == 1); return ulonglong2double((ulonglong)value); }
   String *val_str(String*);
-  Item *new_item() { return new Item_uint(name,max_length); }
+  Item *clone_item() { return new Item_uint(name,max_length); }
   int save_in_field(Field *field, bool no_conversions);
   void print(String *str);
   Item_num *neg ();
@@ -1555,7 +1563,7 @@ public:
   my_decimal *val_decimal(my_decimal *val) { return &decimal_value; }
   int save_in_field(Field *field, bool no_conversions);
   bool basic_const_item() const { return 1; }
-  Item *new_item()
+  Item *clone_item()
   {
     return new Item_decimal(name, &decimal_value, decimals, max_length);
   }
@@ -1613,7 +1621,7 @@ public:
   bool basic_const_item() const { return 1; }
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
-  Item *new_item()
+  Item *clone_item()
   { return new Item_float(name, value, decimals, max_length); }
   Item_num *neg() { value= -value; return this; }
   void print(String *str);
@@ -1698,7 +1706,7 @@ public:
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
   bool basic_const_item() const { return 1; }
   bool eq(const Item *item, bool binary_cmp) const;
-  Item *new_item() 
+  Item *clone_item() 
   {
     return new Item_string(name, str_value.ptr(), 
     			   str_value.length(), collation.collation);
@@ -1749,9 +1757,9 @@ class Item_return_int :public Item_int
 {
   enum_field_types int_field_type;
 public:
-  Item_return_int(const char *name, uint length,
+  Item_return_int(const char *name_arg, uint length,
 		  enum_field_types field_type_arg)
-    :Item_int(name, 0, length), int_field_type(field_type_arg)
+    :Item_int(name_arg, 0, length), int_field_type(field_type_arg)
   {
     unsigned_flag=1;
   }
@@ -1817,7 +1825,7 @@ class Item_ref :public Item_ident
 protected:
   void set_properties();
 public:
-  enum Ref_Type { REF, DIRECT_REF, VIEW_REF };
+  enum Ref_Type { REF, DIRECT_REF, VIEW_REF, OUTER_REF };
   Field *result_field;			 /* Save result here */
   Item **ref;
   Item_ref(Name_resolution_context *context_arg,
@@ -1878,7 +1886,7 @@ public:
                           (*ref)->get_tmp_table_item(thd));
   }
   table_map used_tables() const		
-  { 
+  {
     return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
   }
   table_map not_null_tables() const { return (*ref)->not_null_tables(); }
@@ -1951,6 +1959,40 @@ public:
 };
 
 
+class Item_outer_ref :public Item_direct_ref
+{
+public:
+  Item_field *outer_field;
+  Item_outer_ref(Name_resolution_context *context_arg,
+                 Item_field *outer_field_arg)
+    :Item_direct_ref(context_arg, 0, outer_field_arg->table_name,
+                          outer_field_arg->field_name),
+    outer_field(outer_field_arg)
+  {
+    ref= (Item**)&outer_field;
+    set_properties();
+    fixed= 0;
+  }
+  void cleanup()
+  {
+    ref= (Item**)&outer_field;
+    fixed= 0;
+    Item_direct_ref::cleanup();
+    outer_field->cleanup();
+  }
+  void save_in_result_field(bool no_conversions)
+  {
+    outer_field->save_org_in_field(result_field);
+  }
+  bool fix_fields(THD *, Item **);
+  table_map used_tables() const
+  {
+    return (*ref)->const_item() ? 0 : OUTER_REF_TABLE_BIT;
+  }
+  virtual Ref_Type ref_type() { return OUTER_REF; }
+};
+
+
 class Item_in_subselect;
 
 
@@ -2013,7 +2055,7 @@ public:
   {
     return ref->save_in_field(field, no_conversions);
   }
-  Item *new_item();
+  Item *clone_item();
   virtual Item *real_item() { return ref; }
 };
 
@@ -2449,8 +2491,8 @@ public:
   enum Item_result result_type() const { return ROW_RESULT; }
   
   uint cols() { return item_count; }
-  Item* el(uint i) { return values[i]; }
-  Item** addr(uint i) { return (Item **) (values + i); }
+  Item *element_index(uint i) { return values[i]; }
+  Item **addr(uint i) { return (Item **) (values + i); }
   bool check_cols(uint c);
   bool null_inside();
   void bring_value();

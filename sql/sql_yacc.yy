@@ -46,6 +46,7 @@ const LEX_STRING null_lex_str={0,0};
 
 #define yyoverflow(A,B,C,D,E,F) {ulong val= *(F); if (my_yyoverflow((B), (D), &val)) { yyerror((char*) (A)); return 2; } else { *(F)= (YYSIZE_T)val; }}
 
+#undef 	WARN_DEPRECATED			/* this macro is also defined in mysql_priv.h */
 #define WARN_DEPRECATED(A,B)                                        \
   push_warning_printf(((THD *)yythd), MYSQL_ERROR::WARN_LEVEL_WARN, \
 		      ER_WARN_DEPRECATED_SYNTAX,                    \
@@ -992,6 +993,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	old_or_new_charset_name_or_default
 	collation_name
 	collation_name_or_default
+	opt_load_data_charset
 
 %type <variable> internal_variable_name
 
@@ -3262,6 +3264,10 @@ charset_name_or_default:
 	charset_name { $$=$1;   }
 	| DEFAULT    { $$=NULL; } ;
 
+opt_load_data_charset:
+	/* Empty */ { $$= NULL; }
+	| charset charset_name_or_default { $$= $2; }
+	;
 
 old_or_new_charset_name:
 	ident_or_text
@@ -4188,8 +4194,13 @@ select_into:
 	| select_from into;
 
 select_from:
-	  FROM join_table_list where_clause group_clause having_clause
+        FROM join_table_list where_clause group_clause having_clause
 	       opt_order_clause opt_limit_clause procedure_clause
+          {
+            Select->context.table_list=
+              Select->context.first_name_resolution_table= 
+                (TABLE_LIST *) Select->table_list.first;
+          }
         | FROM DUAL_SYM where_clause opt_limit_clause
           /* oracle compatibility: oracle always requires FROM clause,
              and DUAL is system table without fields.
@@ -4922,9 +4933,9 @@ simple_expr:
           }
           udf_expr_list ')'
           {
+            LEX *lex= Lex;
 #ifdef HAVE_DLOPEN
             udf_func *udf;
-            LEX *lex= Lex;
 
             if (NULL != (udf= lex->current_select->udf_list.pop()))
             {
@@ -5003,7 +5014,6 @@ simple_expr:
             else
 #endif /* HAVE_DLOPEN */
             {
-	      LEX *lex= Lex;
               THD *thd= lex->thd;
               LEX_STRING db;
               if (thd->copy_db_to(&db.str, &db.length))
@@ -5462,7 +5472,6 @@ join_table:
 	| table_ref normal_join table_ref
 	  USING
 	  {
-	    SELECT_LEX *sel= Select;
             YYERROR_UNLESS($1 && $3);
 	  }
 	  '(' using_list ')'
@@ -5493,7 +5502,6 @@ join_table:
           }
 	| table_ref LEFT opt_outer JOIN_SYM table_factor
 	  {
-	    SELECT_LEX *sel= Select;
             YYERROR_UNLESS($1 && $5);
 	  }
 	  USING '(' using_list ')'
@@ -5531,7 +5539,6 @@ join_table:
           }
 	| table_ref RIGHT opt_outer JOIN_SYM table_factor
 	  {
-	    SELECT_LEX *sel= Select;
             YYERROR_UNLESS($1 && $5);
 	  }
 	  USING '(' using_list ')'
@@ -7241,6 +7248,8 @@ load_data:
           lex->update_list.empty();
           lex->value_list.empty();
         }
+        opt_load_data_charset
+	{ Lex->exchange->cs= $12; }
         opt_field_term opt_line_term opt_ignore_lines opt_field_or_var_spec
         opt_load_data_set_spec
         {}
@@ -7926,6 +7935,7 @@ keyword_sp:
 	| COMPACT_SYM		{}
 	| COMPRESSED_SYM	{}
 	| CONCURRENT		{}
+	| CONNECTION_SYM	{}
 	| CONSISTENT_SYM	{}
 	| CUBE_SYM		{}
 	| DATA_SYM		{}
@@ -9218,7 +9228,6 @@ subselect:
         }
         | '(' subselect_start subselect ')'
           {
-            LEX *lex= Lex;
 	    THD *thd= YYTHD;
             /*
               note that a local variable can't be used for
@@ -9270,6 +9279,12 @@ subselect_end:
 	  lex->current_select = lex->current_select->return_after_parsing();
           lex->nest_level--;
           lex->current_select->n_child_sum_items += child->n_sum_items;
+          /*
+            A subselect can add fields to an outer select. Reserve space for
+            them.
+          */
+          lex->current_select->select_n_where_fields+=
+            child->select_n_where_fields;
 	};
 
 /**************************************************************************

@@ -299,7 +299,7 @@ protected:
   DYNAMIC_ARRAY ranges;     /* ordered array of range ptrs */
   QUICK_RANGE **cur_range;  /* current element in ranges  */
 
-  QUICK_RANGE *range;
+  QUICK_RANGE *last_range;
   KEY_PART *key_parts;
   KEY_PART_INFO *key_part_info;
   int cmp_next(QUICK_RANGE *range);

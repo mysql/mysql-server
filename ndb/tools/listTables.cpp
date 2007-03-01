@@ -189,6 +189,7 @@ static struct my_option my_long_options[] =
 };
 static void usage()
 {
+#ifdef NOT_USED
   char desc[] = 
     "tabname\n"\
     "This program list all system objects in  NDB Cluster.\n"\
@@ -196,6 +197,7 @@ static void usage()
     " ex: ndb_show_tables -t 2 would show all UserTables\n"\
     "To show all indexes for a table write table name as final argument\n"\
     "  ex: ndb_show_tables T1\n";
+#endif
   ndb_std_print_version();
   print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
   puts("");

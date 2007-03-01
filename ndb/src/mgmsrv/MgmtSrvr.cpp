@@ -100,6 +100,8 @@ MgmtSrvr::logLevelThread_C(void* m)
 
 extern EventLogger g_eventLogger;
 
+#ifdef NOT_USED
+
 static NdbOut&
 operator<<(NdbOut& out, const LogLevel & ll)
 {
@@ -109,6 +111,7 @@ operator<<(NdbOut& out, const LogLevel & ll)
   out << "]";
   return out;
 }
+#endif
 
 void
 MgmtSrvr::logLevelThreadRun() 
@@ -704,7 +707,7 @@ int MgmtSrvr::okToSendTo(NodeId nodeId, bool unCond)
     return WRONG_PROCESS_TYPE;
   // Check if we have contact with it
   if(unCond){
-    if(theFacade->theClusterMgr->getNodeInfo(nodeId).connected)
+    if(theFacade->theClusterMgr->getNodeInfo(nodeId).m_api_reg_conf)
       return 0;
   }
   else if (theFacade->get_node_alive(nodeId) == true)
@@ -1123,7 +1126,6 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
       break;
     }
     case GSN_STOP_CONF:{
-      const StopConf * const ref = CAST_CONSTPTR(StopConf, signal->getDataPtr());
       const NodeId nodeId = refToNode(signal->header.theSendersBlockRef);
 #ifdef VM_TRACE
       ndbout_c("Node %d single user mode", nodeId);
@@ -1153,8 +1155,6 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
       break;
     }
     case GSN_NODE_FAILREP:{
-      const NodeFailRep * const rep =
-	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
       break;
     }
     default:
@@ -1342,7 +1342,7 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
 
   for (unsigned i = 0; i < node_ids.size(); i++)
   {
-    int result = start(node_ids[i]);
+    start(node_ids[i]);
   }
   return 0;
 }
@@ -1562,32 +1562,85 @@ MgmtSrvr::status(int nodeId,
 }
 
 int 
-MgmtSrvr::setEventReportingLevelImpl(int nodeId, 
+MgmtSrvr::setEventReportingLevelImpl(int nodeId_arg, 
 				     const EventSubscribeReq& ll)
 {
   SignalSender ss(theFacade);
-  ss.lock();
-
-  SimpleSignal ssig;
-  EventSubscribeReq * dst = 
-    CAST_PTR(EventSubscribeReq, ssig.getDataPtrSend());
-  ssig.set(ss,TestOrd::TraceAPI, CMVMI, GSN_EVENT_SUBSCRIBE_REQ,
-	   EventSubscribeReq::SignalLength);
-  *dst = ll;
-
-  NodeBitmask nodes;
+  NdbNodeBitmask nodes;
+  int retries = 30;
   nodes.clear();
-  Uint32 max = (nodeId == 0) ? (nodeId = 1, MAX_NDB_NODES) : nodeId;
-  for(; (Uint32) nodeId <= max; nodeId++)
+  while (1)
   {
-    if (nodeTypes[nodeId] != NODE_TYPE_DB)
-      continue;
-    if (okToSendTo(nodeId, true))
-      continue;
-    if (ss.sendSignal(nodeId, &ssig) == SEND_OK)
+    Uint32 nodeId, max;
+    ss.lock();
+    SimpleSignal ssig;
+    EventSubscribeReq * dst = 
+      CAST_PTR(EventSubscribeReq, ssig.getDataPtrSend());
+    ssig.set(ss,TestOrd::TraceAPI, CMVMI, GSN_EVENT_SUBSCRIBE_REQ,
+             EventSubscribeReq::SignalLength);
+    *dst = ll;
+
+    if (nodeId_arg == 0)
     {
-      nodes.set(nodeId);
+      // all nodes
+      nodeId = 1;
+      max = MAX_NDB_NODES;
     }
+    else
+    {
+      // only one node
+      max = nodeId = nodeId_arg;
+    }
+    // first make sure nodes are sendable
+    for(; nodeId <= max; nodeId++)
+    {
+      if (nodeTypes[nodeId] != NODE_TYPE_DB)
+        continue;
+      if (okToSendTo(nodeId, true))
+      {
+        if (theFacade->theClusterMgr->getNodeInfo(nodeId).connected  == false)
+        {
+          // node not connected we can safely skip this one
+          continue;
+        }
+        // api_reg_conf not recevied yet, need to retry
+        break;
+      }
+    }
+    if (nodeId <= max)
+    {
+      if (--retries)
+      {
+        ss.unlock();
+        NdbSleep_MilliSleep(100);  
+        continue;
+      }
+      return SEND_OR_RECEIVE_FAILED;
+    }
+
+    if (nodeId_arg == 0)
+    {
+      // all nodes
+      nodeId = 1;
+      max = MAX_NDB_NODES;
+    }
+    else
+    {
+      // only one node
+      max = nodeId = nodeId_arg;
+    }
+    // now send to all sendable nodes nodes
+    // note, lock is held, so states have not changed
+    for(; (Uint32) nodeId <= max; nodeId++)
+    {
+      if (nodeTypes[nodeId] != NODE_TYPE_DB)
+        continue;
+      if (theFacade->theClusterMgr->getNodeInfo(nodeId).connected  == false)
+        continue; // node is not connected, skip
+      if (ss.sendSignal(nodeId, &ssig) == SEND_OK)
+        nodes.set(nodeId);
+    }
+    break;
   }
 
   if (nodes.isclear())
@@ -1598,6 +1651,7 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId,
   int error = 0;
   while (!nodes.isclear())
   {
+    Uint32 nodeId;
     SimpleSignal *signal = ss.waitFor();
     int gsn = signal->readSignalNumber();
     nodeId = refToNode(signal->header.theSendersBlockRef);

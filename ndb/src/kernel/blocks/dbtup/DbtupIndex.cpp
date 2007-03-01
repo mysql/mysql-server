@@ -185,7 +185,6 @@ Dbtup::tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* data
   PagePtr pagePtr;
   pagePtr.i = pageId;
   ptrCheckGuard(pagePtr, cnoOfPage, page);
-  const Uint32 tabDescriptor = tablePtr.p->tabDescriptor;
   const Uint32* attrIds = &tableDescriptor[tablePtr.p->readKeyArray].tabDescr;
   const Uint32 numAttrs = tablePtr.p->noOfKeyAttr;
   // read pk attributes from original tuple
@@ -239,7 +238,6 @@ Dbtup::accReadPk(Uint32 tableId, Uint32 fragId, Uint32 fragPageId, Uint32 pageIn
   FragrecordPtr fragPtr;
   getFragmentrec(fragPtr, fragId, tablePtr.p);
   // get real page id and tuple offset
-  PagePtr pagePtr;
   Uint32 pageId = getRealpid(fragPtr.p, fragPageId);
   ndbrequire((pageIndex & 0x1) == 0);
   Uint32 pageOffset = ZPAGE_HEADER_SIZE + (pageIndex >> 1) * tablePtr.p->tupheadsize;

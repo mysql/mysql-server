@@ -199,7 +199,7 @@ static void init_environment(char *progname)
   MY_INIT(progname);
   log_init();
   umask(0117);
-  srand(time(0));
+  srand((uint) time(0));
 }
 
 

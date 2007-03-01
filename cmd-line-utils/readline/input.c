@@ -529,17 +529,17 @@ _rl_read_mbchar (mbchar, size)
    may be FIRST.  Used by the search functions, among others.  Very similar
    to _rl_read_mbchar. */
 int
-_rl_read_mbstring (first, mb, mblen)
+_rl_read_mbstring (first, mb, mb_len)
      int first;
      char *mb;
-     int mblen;
+     int mb_len;
 {
   int i, c;
   mbstate_t ps;
 
   c = first;
-  memset (mb, 0, mblen);
-  for (i = 0; i < mblen; i++)
+  memset (mb, 0, mb_len);
+  for (i = 0; i < mb_len; i++)
     {
       mb[i] = (char)c;
       memset (&ps, 0, sizeof (mbstate_t));

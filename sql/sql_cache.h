@@ -127,7 +127,7 @@ struct Query_cache_query
   inline void tables_type(uint8 type)      { tbls_type= type; }
   inline ulong length()			   { return len; }
   inline ulong add(ulong packet_len)	   { return(len+= packet_len); }
-  inline void length(ulong length)	   { len= length; }
+  inline void length(ulong length_arg)	   { len= length_arg; }
   inline gptr query()
   {
     return (gptr)(((byte*)this)+
@@ -155,7 +155,7 @@ struct Query_cache_table
 
   inline char *db()			     { return (char *) data(); }
   inline char *table()			     { return tbl; }
-  inline void table(char *table)	     { tbl= table; }
+  inline void table(char *table_arg)	     { tbl= table_arg; }
   inline uint32 key_length()                 { return key_len; }
   inline void key_length(uint32 len)         { key_len= len; }
   inline uint8 type()                        { return table_type; }
@@ -163,7 +163,7 @@ struct Query_cache_table
   inline qc_engine_callback callback()       { return callback_func; }
   inline void callback(qc_engine_callback fn){ callback_func= fn; }
   inline ulonglong engine_data()             { return engine_data_buff; }
-  inline void engine_data(ulonglong data)    { engine_data_buff= data; }
+  inline void engine_data(ulonglong data_arg){ engine_data_buff= data_arg; }
   inline gptr data()
   {
     return (gptr)(((byte*)this)+

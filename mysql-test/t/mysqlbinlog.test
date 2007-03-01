@@ -7,7 +7,7 @@
 set timestamp=1000000000;
 
 --disable_warnings
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3,t4,t5,t03,t04;
 --enable_warnings
 
 create table t1 (word varchar(20));
@@ -106,6 +106,7 @@ select "--- reading stdin --" as "";
 
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --exec $MYSQL_BINLOG --short-form --position=79 - < $MYSQL_TEST_DIR/std_data/trunc_binlog.000001
+drop table t1,t2;
 
 #
 #BUG#14157: utf8 encoding in binlog without set character_set_client
@@ -126,6 +127,7 @@ EOF
 # should use default-character-set same as the server.
 --exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000004 | $MYSQL
 select * from t5  /* must be (1),(1) */;
+drop table t5;
 
 #
 # Bug#22645 LC_TIME_NAMES: Statement not replicated
@@ -133,7 +135,6 @@ select * from t5  /* must be (1),(1) */;
 # lc_time_names dependent values correctly
 #
 flush logs;
-drop table if exists t5;
 create table t5 (c1 int, c2 varchar(128) character set latin1 not null);
 insert into t5 values (1, date_format('2001-01-01','%W'));
 set lc_time_names=de_DE;
@@ -145,6 +146,8 @@ flush logs;
 drop table t5;
 --exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000005 | $MYSQL
 select * from t5 order by c1;
+drop table t5;
+
 #
 # Bug#20396 Bin Log does not get DELIMETER cmd - Recover StoredProc fails 
 #
@@ -169,7 +172,37 @@ call p1();
 call p1();
 drop procedure p1;
 
-# clean up
+#
+# Some coverage of not normally used parts
+#
+--disable_query_log
+--exec $MYSQL_BINLOG --version 2>&1 > /dev/null
+--exec $MYSQL_BINLOG --help 2>&1 > /dev/null
+--enable_query_log
 drop table t1, t2, t5; 
+
+#
+# Bug#15126 character_set_database is not replicated
+# (LOAD DATA INFILE need it)
+#
+
+flush logs;
+create table t1 (a varchar(64) character set utf8);
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+set character_set_database=koi8r;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+set character_set_database=latin1;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+set character_set_database=koi8r;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+set character_set_database=latin1;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+load data infile '../std_data_ln/loaddata6.dat' into table t1 character set koi8r;
+select hex(a) from t1;
+drop table t1;
+flush logs;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000011
 
 --echo End of 5.0 tests

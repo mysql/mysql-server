@@ -74,6 +74,7 @@ void Dbdih::initData()
   c_blockCommit    = false;
   c_blockCommitNo  = 1;
   cntrlblockref    = RNIL;
+  c_set_initial_start_flag = FALSE;
 }//Dbdih::initData()
 
 void Dbdih::initRecords() 
@@ -216,7 +217,6 @@ Dbdih::Dbdih(const class Configuration & config):
   addRecSignal(GSN_FSREADREF, &Dbdih::execFSREADREF, true);
   addRecSignal(GSN_FSWRITECONF, &Dbdih::execFSWRITECONF);
   addRecSignal(GSN_FSWRITEREF, &Dbdih::execFSWRITEREF, true);
-  addRecSignal(GSN_SET_VAR_REQ, &Dbdih::execSET_VAR_REQ);
 
   addRecSignal(GSN_START_INFOREQ, 
                &Dbdih::execSTART_INFOREQ);
