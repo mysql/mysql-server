@@ -1,3 +1,9 @@
 --source include/have_innodb.inc
 SET storage_engine=innodb;
 --source include/gis_generic.inc
+
+#
+# Bug #15680 (SPATIAL key in innodb)
+#
+--error ER_TABLE_CANT_HANDLE_SPKEYS
+create table t1 (g geometry not null, spatial gk(g)) engine=innodb;
