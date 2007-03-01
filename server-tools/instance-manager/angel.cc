@@ -349,8 +349,6 @@ static int angel_main_loop()
 
 int Angel::main()
 {
-  int ret_status;
-
   log_info("Angel: started.");
 
   /* Open log file. */
