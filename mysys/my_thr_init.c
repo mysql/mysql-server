@@ -46,22 +46,22 @@ pthread_mutexattr_t my_fast_mutexattr;
 pthread_mutexattr_t my_errorcheck_mutexattr;
 #endif
 
-#ifdef NPTL_PTHREAD_EXIT_BUG /* see my_pthread.h */
+#ifdef NPTL_PTHREAD_EXIT_BUG                    /* see my_pthread.h */
 
 /*
- Dummy thread spawned in my_thread_global_init() below to avoid
- race conditions in NPTL pthread_exit code.
+  Dummy thread spawned in my_thread_global_init() below to avoid
+  race conditions in NPTL pthread_exit code.
 */
 
-static
-pthread_handler_t nptl_pthread_exit_hack_handler(void *arg)
+static pthread_handler_t
+nptl_pthread_exit_hack_handler(void *arg __attribute((unused)))
 {
   /* Do nothing! */
   pthread_exit(0);
   return 0;
 }
-
 #endif
+
 
 /*
   initialize thread environment
@@ -83,25 +83,28 @@ my_bool my_thread_global_init(void)
   }
   
 #ifdef NPTL_PTHREAD_EXIT_BUG
+  /*
+    BUG#24507: Race conditions inside current NPTL pthread_exit() 
+    implementation.
 
-/*
-  BUG#24507: Race conditions inside current NPTL pthread_exit() implementation.
-
-  To avoid a possible segmentation fault during concurrent executions of 
-  pthread_exit(), a dummy thread is spawned which initializes internal variables
-  of pthread lib. See bug description for thoroughfull explanation. 
+    To avoid a possible segmentation fault during concurrent
+    executions of pthread_exit(), a dummy thread is spawned which
+    initializes internal variables of pthread lib. See bug description
+    for a full explanation.
   
-  TODO: Remove this code when fixed versions of glibc6 are in common use. 
-*/
+    TODO: Remove this code when fixed versions of glibc6 are in common
+    use.
+  */
+  {
+    pthread_t       dummy_thread;
+    pthread_attr_t  dummy_thread_attr;
 
-  pthread_t       dummy_thread;
-  pthread_attr_t  dummy_thread_attr;
+    pthread_attr_init(&dummy_thread_attr);
+    pthread_attr_setdetachstate(&dummy_thread_attr, PTHREAD_CREATE_DETACHED);
 
-  pthread_attr_init(&dummy_thread_attr);
-  pthread_attr_setdetachstate(&dummy_thread_attr,PTHREAD_CREATE_DETACHED);
-
-  pthread_create(&dummy_thread,&dummy_thread_attr,nptl_pthread_exit_hack_handler,NULL);
-
+    pthread_create(&dummy_thread,&dummy_thread_attr,
+                   nptl_pthread_exit_hack_handler, NULL);
+  }
 #endif
 
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
@@ -206,7 +209,7 @@ void my_thread_global_end(void)
 #endif
 }
 
-static long thread_id=0;
+static my_thread_id thread_id= 0;
 
 /*
   Allocate thread specific memory for the thread, used by mysys and dbug
@@ -234,15 +237,16 @@ my_bool my_thread_init(void)
   my_bool error=0;
 
 #ifdef EXTRA_DEBUG_THREADS
-  fprintf(stderr,"my_thread_init(): thread_id=%ld\n",pthread_self());
+  fprintf(stderr,"my_thread_init(): thread_id: 0x%lx\n",
+          (ulong) pthread_self());
 #endif  
 
 #if !defined(__WIN__) || defined(USE_TLS)
   if (my_pthread_getspecific(struct st_my_thread_var *,THR_KEY_mysys))
   {
 #ifdef EXTRA_DEBUG_THREADS
-    fprintf(stderr,"my_thread_init() called more than once in thread %ld\n",
-	        pthread_self());
+    fprintf(stderr,"my_thread_init() called more than once in thread 0x%lx\n",
+            (long) pthread_self());
 #endif    
     goto end;
   }
@@ -262,7 +266,9 @@ my_bool my_thread_init(void)
   tmp= &THR_KEY_mysys;
 #endif
 #if defined(__WIN__) && defined(EMBEDDED_LIBRARY)
-  tmp->thread_self= (pthread_t)getpid();
+  tmp->pthread_self= (pthread_t) getpid();
+#else
+  tmp->pthread_self= pthread_self();
 #endif
   pthread_mutex_init(&tmp->mutex,MY_MUTEX_INIT_FAST);
   pthread_cond_init(&tmp->suspend, NULL);
@@ -272,6 +278,11 @@ my_bool my_thread_init(void)
   tmp->id= ++thread_id;
   ++THR_thread_count;
   pthread_mutex_unlock(&THR_LOCK_threads);
+#ifndef DBUG_OFF
+  /* Generate unique name for thread */
+  (void) my_thread_name();
+#endif
+
 end:
   return error;
 }
@@ -295,8 +306,8 @@ void my_thread_end(void)
   tmp= my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
 
 #ifdef EXTRA_DEBUG_THREADS
-  fprintf(stderr,"my_thread_end(): tmp: 0x%lx  thread_id=%ld\n",
-	  (long) tmp, pthread_self());
+  fprintf(stderr,"my_thread_end(): tmp: 0x%lx  pthread_self: 0x%lx  thread_id: %ld\n",
+	  (long) tmp, (long) pthread_self(), tmp ? (long) tmp->id : 0L);
 #endif  
   if (tmp && tmp->init)
   {
@@ -357,17 +368,9 @@ struct st_my_thread_var *_my_thread_var(void)
   Get name of current thread.
 ****************************************************************************/
 
-#define UNKNOWN_THREAD -1
-
-long my_thread_id()
+my_thread_id my_thread_dbug_id()
 {
-#if defined(HAVE_PTHREAD_GETSEQUENCE_NP)
-  return pthread_getsequence_np(pthread_self());
-#elif (defined(__sun) || defined(__sgi) || defined(__linux__))
-  return pthread_self();
-#else
   return my_thread_var->id;
-#endif
 }
 
 #ifdef DBUG_OFF
@@ -384,8 +387,8 @@ const char *my_thread_name(void)
   struct st_my_thread_var *tmp=my_thread_var;
   if (!tmp->name[0])
   {
-    long id=my_thread_id();
-    sprintf(name_buff,"T@%ld", id);
+    my_thread_id id= my_thread_dbug_id();
+    sprintf(name_buff,"T@%lu", (ulong) id);
     strmake(tmp->name,name_buff,THREAD_NAME_SIZE);
   }
   return tmp->name;

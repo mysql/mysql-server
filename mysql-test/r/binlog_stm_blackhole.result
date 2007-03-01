@@ -123,6 +123,17 @@ master-bin.000001	#	Query	1	#	use `test`; create table t3 like t1
 master-bin.000001	#	Query	1	#	use `test`; insert into t1 select * from t3
 master-bin.000001	#	Query	1	#	use `test`; replace into t1 select * from t3
 drop table t1,t2,t3;
+CREATE TABLE t1(a INT, b INT) ENGINE=BLACKHOLE;
+DELETE FROM t1 WHERE a=10;
+ALTER TABLE t1 ADD INDEX(a);
+DELETE FROM t1 WHERE a=10;
+ALTER TABLE t1 DROP INDEX a;
+ALTER TABLE t1 ADD UNIQUE INDEX(a);
+DELETE FROM t1 WHERE a=10;
+ALTER TABLE t1 DROP INDEX a;
+ALTER TABLE t1 ADD PRIMARY KEY(a);
+DELETE FROM t1 WHERE a=10;
+DROP TABLE t1;
 reset master;
 create table t1 (a int) engine=blackhole;
 set autocommit=0;

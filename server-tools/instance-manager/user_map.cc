@@ -24,8 +24,8 @@
 
 User::User(const LEX_STRING *user_name_arg, const char *password)
 {
-  user_length= strmake(user, user_name_arg->str, USERNAME_LENGTH + 1) - user;
-
+  user_length= (uint8) (strmake(user, user_name_arg->str,
+                                USERNAME_LENGTH + 1) - user);
   set_password(password);
 }
 
@@ -59,7 +59,7 @@ int User::init(const char *line)
     password= name_end + 1;
   }
 
-  user_length= name_end - name_begin;
+  user_length= (uint8) (name_end - name_begin);
   if (user_length > USERNAME_LENGTH)
   {
     log_error("User name is too long (%d). Max length: %d. "
@@ -70,7 +70,7 @@ int User::init(const char *line)
     return 1;
   }
 
-  password_length= strlen(password);
+  password_length= (int) strlen(password);
   if (password_length > SCRAMBLED_PASSWORD_CHAR_LENGTH)
   {
     log_error("Password is too long (%d). Max length: %d."

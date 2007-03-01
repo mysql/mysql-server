@@ -128,6 +128,68 @@ NdbRestarter::getMasterNodeId(){
 }
 
 int
+NdbRestarter::getNodeGroup(int nodeId){
+  if (!isConnected())
+    return -1;
+  
+  if (getStatus() != 0)
+    return -1;
+  
+  for(size_t i = 0; i < ndbNodes.size(); i++)
+  {
+    if(ndbNodes[i].node_id == nodeId)
+    {
+      return ndbNodes[i].node_group;
+    }
+  }
+  
+  return -1;
+}
+
+int
+NdbRestarter::getNextMasterNodeId(int nodeId){
+  if (!isConnected())
+    return -1;
+  
+  if (getStatus() != 0)
+    return -1;
+  
+  size_t i;
+  for(i = 0; i < ndbNodes.size(); i++)
+  {
+    if(ndbNodes[i].node_id == nodeId)
+    {
+      break;
+    }
+  }
+  assert(i < ndbNodes.size());
+  if (i == ndbNodes.size())
+    return -1;
+
+  int dynid = ndbNodes[i].dynamic_id;
+  int minid = dynid;
+  for (i = 0; i<ndbNodes.size(); i++)
+    if (ndbNodes[i].dynamic_id > minid)
+      minid = ndbNodes[i].dynamic_id;
+  
+  for (i = 0; i<ndbNodes.size(); i++)
+    if (ndbNodes[i].dynamic_id > dynid && 
+	ndbNodes[i].dynamic_id < minid)
+    {
+      minid = ndbNodes[i].dynamic_id;
+    }
+  
+  if (minid != ~0)
+  {
+    for (i = 0; i<ndbNodes.size(); i++)
+      if (ndbNodes[i].dynamic_id == minid)
+	return ndbNodes[i].node_id;
+  }
+  
+  return getMasterNodeId();
+}
+
+int
 NdbRestarter::getRandomNotMasterNodeId(int rand){
   int master = getMasterNodeId();
   if(master == -1)

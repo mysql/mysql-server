@@ -677,6 +677,12 @@ done:
     Uint32 tmp= SYSFILE->m_restart_seq;
     memcpy(sysfileData, cdata, sizeof(sysfileData));
     SYSFILE->m_restart_seq = tmp;
+
+    if (c_set_initial_start_flag)
+    {
+      jam();
+      Sysfile::setInitialStartOngoing(SYSFILE->systemRestartBits);
+    }
   }
 
   c_copyGCISlave.m_copyReason = reason;
@@ -1337,6 +1343,11 @@ void Dbdih::execNDB_STTOR(Signal* signal)
     // The permission is given by the master node in the alive set.  
     /*-----------------------------------------------------------------------*/
     createMutexes(signal, 0);
+    if (cstarttype == NodeState::ST_INITIAL_NODE_RESTART)
+    {
+      jam();
+      c_set_initial_start_flag = TRUE; // In sysfile...
+    }
     break;
     
   case ZNDB_SPH3:
@@ -1883,8 +1894,8 @@ void Dbdih::execSTART_PERMREQ(Signal* signal)
     return;
   }//if
   if (getNodeStatus(nodeId) != NodeRecord::DEAD){
-    ndbout << "nodeStatus in START_PERMREQ = " 
-	   << (Uint32) getNodeStatus(nodeId) << endl;
+    g_eventLogger.error("nodeStatus in START_PERMREQ = %u",
+                        (Uint32) getNodeStatus(nodeId));
     ndbrequire(false);
   }//if
 
@@ -2954,7 +2965,6 @@ Dbdih::nr_start_fragment(Signal* signal,
     if (replicaPtr.p->lcpStatus[idx] == ZVALID) 
     {
       ndbrequire(replicaPtr.p->lcpId[idx] > maxLcpId);
-      Uint32 startGci = replicaPtr.p->maxGciCompleted[idx];
       Uint32 stopGci = replicaPtr.p->maxGciStarted[idx];
       for (;j < replicaPtr.p->noCrashedReplicas; j++)
       {
@@ -4297,9 +4307,9 @@ void Dbdih::checkCopyTab(NodeRecordPtr failedNodePtr)
     jam();
     break;
   default:
-    ndbout_c("outstanding gsn: %s(%d)", 
-	     getSignalName(c_nodeStartMaster.m_outstandingGsn), 
-	     c_nodeStartMaster.m_outstandingGsn);
+    g_eventLogger.error("outstanding gsn: %s(%d)", 
+                        getSignalName(c_nodeStartMaster.m_outstandingGsn), 
+                        c_nodeStartMaster.m_outstandingGsn);
     ndbrequire(false);
   }
   
@@ -4752,9 +4762,10 @@ void Dbdih::failedNodeLcpHandling(Signal* signal, NodeRecordPtr failedNodePtr)
       failedNodePtr.p->activeStatus = Sysfile::NS_NotActive_NotTakenOver;
       break;
     default:
-      ndbout << "activeStatus = " << (Uint32) failedNodePtr.p->activeStatus;
-      ndbout << " at failure after NODE_FAILREP of node = ";
-      ndbout << failedNodePtr.i << endl;
+      g_eventLogger.error("activeStatus = %u "
+                          "at failure after NODE_FAILREP of node = %u",
+                          (Uint32) failedNodePtr.p->activeStatus,
+                          failedNodePtr.i);
       ndbrequire(false);
       break;
     }//switch
@@ -4891,6 +4902,8 @@ void
 Dbdih::startLcpMasterTakeOver(Signal* signal, Uint32 nodeId){
   jam();
 
+  Uint32 oldNode = c_lcpMasterTakeOverState.failedNodeId;
+
   c_lcpMasterTakeOverState.minTableId = ~0;
   c_lcpMasterTakeOverState.minFragId = ~0;
   c_lcpMasterTakeOverState.failedNodeId = nodeId;
@@ -4909,7 +4922,20 @@ Dbdih::startLcpMasterTakeOver(Signal* signal, Uint32 nodeId){
     /**
      * Node failure during master take over...
      */
-    ndbout_c("Nodefail during master take over");
+    g_eventLogger.info("Nodefail during master take over (old: %d)", oldNode);
+  }
+  
+  NodeRecordPtr nodePtr;
+  nodePtr.i = oldNode;
+  if (oldNode > 0 && oldNode < MAX_NDB_NODES)
+  {
+    jam();
+    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+    if (nodePtr.p->m_nodefailSteps.get(NF_LCP_TAKE_OVER))
+    {
+      jam();
+      checkLocalNodefailComplete(signal, oldNode, NF_LCP_TAKE_OVER);
+    }
   }
   
   setLocalNodefailHandling(signal, nodeId, NF_LCP_TAKE_OVER);
@@ -5149,7 +5175,8 @@ void Dbdih::execMASTER_GCPCONF(Signal* signal)
   if (latestLcpId > SYSFILE->latestLCP_ID) {
     jam();
 #if 0
-    ndbout_c("Dbdih: Setting SYSFILE->latestLCP_ID to %d", latestLcpId);
+    g_eventLogger.info("Dbdih: Setting SYSFILE->latestLCP_ID to %d",
+                       latestLcpId);
     SYSFILE->latestLCP_ID = latestLcpId;
 #endif
     SYSFILE->keepGCI = oldestKeepGci;
@@ -5808,7 +5835,7 @@ Dbdih::checkLocalNodefailComplete(Signal* signal, Uint32 failedNodeId,
 
   if (ERROR_INSERTED(7030))
   {
-    ndbout_c("Reenable GCP_PREPARE");
+    g_eventLogger.info("Reenable GCP_PREPARE");
     CLEAR_ERROR_INSERT_VALUE;
   }
   
@@ -5925,6 +5952,14 @@ void Dbdih::execMASTER_LCPREQ(Signal* signal)
   jamEntry();
   const BlockReference newMasterBlockref = req->masterRef;
 
+  if (newMasterBlockref != cmasterdihref)
+  {
+    jam();
+    ndbout_c("resending GSN_MASTER_LCPREQ");
+    sendSignalWithDelay(reference(), GSN_MASTER_LCPREQ, signal,
+			signal->getLength(), 50);
+    return;
+  }
   Uint32 failedNodeId = req->failedNodeId;
 
   /**
@@ -5981,7 +6016,7 @@ Dbdih::sendMASTER_LCPCONF(Signal * signal){
     c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
 #if 0
     if(c_copyGCISlave.m_copyReason == CopyGCIReq::LOCAL_CHECKPOINT){
-      ndbout_c("Dbdih: Also resetting c_copyGCISlave");
+      g_eventLogger.info("Dbdih: Also resetting c_copyGCISlave");
       c_copyGCISlave.m_copyReason = CopyGCIReq::IDLE;
       c_copyGCISlave.m_expectedNextWord = 0;
     }
@@ -6066,7 +6101,7 @@ Dbdih::sendMASTER_LCPCONF(Signal * signal){
 
   if(c_lcpState.lcpStatus == LCP_TAB_SAVED){
 #ifdef VM_TRACE
-    ndbout_c("Sending extra GSN_LCP_COMPLETE_REP to new master");    
+    g_eventLogger.info("Sending extra GSN_LCP_COMPLETE_REP to new master");    
 #endif
     sendLCP_COMPLETE_REP(signal);
   }
@@ -6221,8 +6256,10 @@ void Dbdih::execMASTER_LCPCONF(Signal* signal)
   ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
   nodePtr.p->lcpStateAtTakeOver = lcpState;
 
+  CRASH_INSERTION(7180);
+  
 #ifdef VM_TRACE
-  ndbout_c("MASTER_LCPCONF");
+  g_eventLogger.info("MASTER_LCPCONF");
   printMASTER_LCP_CONF(stdout, &signal->theData[0], 0, 0);
 #endif  
 
@@ -6299,7 +6336,7 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
     // protocol.
     /* --------------------------------------------------------------------- */
 #ifdef VM_TRACE
-    ndbout_c("MASTER_LCPhandling:: LMTOS_ALL_IDLE -> checkLcpStart");
+    g_eventLogger.info("MASTER_LCPhandling:: LMTOS_ALL_IDLE -> checkLcpStart");
 #endif
     checkLcpStart(signal, __LINE__);
     break;
@@ -6310,7 +6347,7 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
     // protocol by calculating the keep gci and storing the new lcp id.
     /* --------------------------------------------------------------------- */
 #ifdef VM_TRACE
-    ndbout_c("MASTER_LCPhandling:: LMTOS_COPY_ONGOING -> storeNewLcpId");
+    g_eventLogger.info("MASTER_LCPhandling:: LMTOS_COPY_ONGOING -> storeNewLcpId");
 #endif
     if (c_lcpState.lcpStatus == LCP_STATUS_ACTIVE) {
       jam();
@@ -6321,7 +6358,7 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
       /*---------------------------------------------------------------------*/
       Uint32 lcpId = SYSFILE->latestLCP_ID;
 #ifdef VM_TRACE
-      ndbout_c("Decreasing latestLCP_ID from %d to %d", lcpId, lcpId - 1);
+      g_eventLogger.info("Decreasing latestLCP_ID from %d to %d", lcpId, lcpId - 1);
 #endif
       SYSFILE->latestLCP_ID--;
     }//if
@@ -6338,10 +6375,10 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
        * complete before finalising the LCP process.
        * ------------------------------------------------------------------ */
 #ifdef VM_TRACE
-      ndbout_c("MASTER_LCPhandling:: LMTOS_ALL_ACTIVE -> "
-	       "startLcpRoundLoopLab(table=%u, fragment=%u)",
-	       c_lcpMasterTakeOverState.minTableId, 
-	       c_lcpMasterTakeOverState.minFragId);
+      g_eventLogger.info("MASTER_LCPhandling:: LMTOS_ALL_ACTIVE -> "
+                         "startLcpRoundLoopLab(table=%u, fragment=%u)",
+                         c_lcpMasterTakeOverState.minTableId, 
+                         c_lcpMasterTakeOverState.minFragId);
 #endif
     
       c_lcpState.keepGci = SYSFILE->keepGCI;
@@ -7745,8 +7782,8 @@ void Dbdih::checkGcpStopLab(Signal* signal)
         if (cgcpSameCounter == 1200) {
           jam();
 #ifdef VM_TRACE
-          ndbout << "System crash due to GCP Stop in state = ";
-          ndbout << (Uint32) cgcpStatus << endl;
+          g_eventLogger.error("System crash due to GCP Stop in state = %u",
+                              (Uint32) cgcpStatus);
 #endif
           crashSystemAtGcpStop(signal);
           return;
@@ -7759,8 +7796,8 @@ void Dbdih::checkGcpStopLab(Signal* signal)
           if (cgcpSameCounter == 1200) {
             jam();
 #ifdef VM_TRACE
-            ndbout << "System crash due to GCP Stop in state = ";
-            ndbout << (Uint32) cgcpStatus << endl;
+            g_eventLogger.error("System crash due to GCP Stop in state = %u",
+                                (Uint32) cgcpStatus);
 #endif
 	    crashSystemAtGcpStop(signal);
             return;
@@ -7951,7 +7988,7 @@ void Dbdih::GCP_SAVEhandling(Signal* signal, Uint32 nodeId)
      getNodeState().startLevel == NodeState::SL_STARTED){
     jam();
 #if 0
-    ndbout_c("Dbdih: Clearing initial start ongoing");
+    g_eventLogger.info("Dbdih: Clearing initial start ongoing");
 #endif
     Sysfile::clearInitialStartOngoing(SYSFILE->systemRestartBits);
   }
@@ -7970,7 +8007,7 @@ void Dbdih::execGCP_PREPARE(Signal* signal)
   if (ERROR_INSERTED(7030))
   {
     cgckptflag = true;
-    ndbout_c("Delayed GCP_PREPARE 5s");
+    g_eventLogger.info("Delayed GCP_PREPARE 5s");
     sendSignalWithDelay(reference(), GSN_GCP_PREPARE, signal, 5000,
 			signal->getLength());
     return;
@@ -7990,7 +8027,7 @@ void Dbdih::execGCP_PREPARE(Signal* signal)
 
   if (ERROR_INSERTED(7031))
   {
-    ndbout_c("Crashing delayed in GCP_PREPARE 3s");
+    g_eventLogger.info("Crashing delayed in GCP_PREPARE 3s");
     signal->theData[0] = 9999;
     sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 3000, 1);
     return;
@@ -8514,7 +8551,7 @@ void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId)
      * This is LCP master takeover
      */
 #ifdef VM_TRACE
-    ndbout_c("initLcpLab aborted due to LCP master takeover - 1");
+    g_eventLogger.info("initLcpLab aborted due to LCP master takeover - 1");
 #endif
     c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
     sendMASTER_LCPCONF(signal);
@@ -8527,7 +8564,7 @@ void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId)
      * Master take over but has not yet received MASTER_LCPREQ
      */
 #ifdef VM_TRACE
-    ndbout_c("initLcpLab aborted due to LCP master takeover - 2");    
+    g_eventLogger.info("initLcpLab aborted due to LCP master takeover - 2");
 #endif
     return;
   }
@@ -9836,9 +9873,10 @@ void Dbdih::checkTcCounterLab(Signal* signal)
 {
   CRASH_INSERTION(7009);
   if (c_lcpState.lcpStatus != LCP_STATUS_IDLE) {
-    ndbout << "lcpStatus = " << (Uint32) c_lcpState.lcpStatus;
-    ndbout << "lcpStatusUpdatedPlace = " << 
-      c_lcpState.lcpStatusUpdatedPlace << endl;
+    g_eventLogger.error("lcpStatus = %u"
+                        "lcpStatusUpdatedPlace = %d",
+                        (Uint32) c_lcpState.lcpStatus,
+                        c_lcpState.lcpStatusUpdatedPlace);
     ndbrequire(false);
     return;
   }//if
@@ -10421,9 +10459,8 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
 
     if(tabPtr.p->tabStatus == TabRecord::TS_DROPPING){
       jam();
-      ndbout_c("TS_DROPPING - Neglecting to save Table: %d Frag: %d - ",
-	       tableId,
-	       fragId);
+      g_eventLogger.info("TS_DROPPING - Neglecting to save Table: %d Frag: %d - ",
+                         tableId, fragId);
     } else {
       jam();
       /**
@@ -10553,7 +10590,7 @@ void Dbdih::findReplica(ReplicaRecordPtr& replicaPtr,
   };
 
 #ifdef VM_TRACE
-  ndbout_c("Fragment Replica(node=%d) not found", nodeId);
+  g_eventLogger.info("Fragment Replica(node=%d) not found", nodeId);
   replicaPtr.i = fragPtrP->oldStoredReplicas;
   while(replicaPtr.i != RNIL){
     ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
@@ -10566,9 +10603,9 @@ void Dbdih::findReplica(ReplicaRecordPtr& replicaPtr,
     }//if
   };
   if(replicaPtr.i != RNIL){
-    ndbout_c("...But was found in oldStoredReplicas");
+    g_eventLogger.info("...But was found in oldStoredReplicas");
   } else {
-    ndbout_c("...And wasn't found in oldStoredReplicas");
+    g_eventLogger.info("...And wasn't found in oldStoredReplicas");
   }
 #endif
   ndbrequire(false);
@@ -10582,8 +10619,6 @@ Dbdih::handle_invalid_lcp_no(const LcpFragRep* rep,
   ndbrequire(!isMaster());
   Uint32 lcpNo = rep->lcpNo;
   Uint32 lcpId = rep->lcpId;
-  Uint32 replicaLcpNo = replicaPtr.p->nextLcp;
-  Uint32 prevReplicaLcpNo = prevLcpNo(replicaLcpNo);
 
   warningEvent("Detected previous node failure of %d during lcp",
 	       rep->nodeId);
@@ -10635,8 +10670,8 @@ Dbdih::reportLcpCompletion(const LcpFragRep* lcpReport)
   if(lcpNo != replicaPtr.p->nextLcp){
     if (handle_invalid_lcp_no(lcpReport, replicaPtr))
     {
-      ndbout_c("lcpNo = %d replicaPtr.p->nextLcp = %d", 
-	       lcpNo, replicaPtr.p->nextLcp);
+      g_eventLogger.error("lcpNo = %d replicaPtr.p->nextLcp = %d",
+                          lcpNo, replicaPtr.p->nextLcp);
       ndbrequire(false);
     }
   }
@@ -10672,7 +10707,7 @@ Dbdih::reportLcpCompletion(const LcpFragRep* lcpReport)
       // Not all fragments in table have been checkpointed.
       /* ----------------------------------------------------------------- */
       if(0)
-	ndbout_c("reportLcpCompletion: fragment %d not ready", fid);
+	g_eventLogger.info("reportLcpCompletion: fragment %d not ready", fid);
       return false;
     }//if
   }//for
@@ -10779,6 +10814,17 @@ Dbdih::sendLCP_COMPLETE_REP(Signal* signal){
   
   sendSignal(c_lcpState.m_masterLcpDihRef, GSN_LCP_COMPLETE_REP, signal, 
 	     LcpCompleteRep::SignalLength, JBB);
+
+  /**
+   * Say that an initial node restart does not need to be redone
+   *   once node has been part of first LCP
+   */
+  if (c_set_initial_start_flag &&
+      c_lcpState.m_participatingLQH.get(getOwnNodeId()))
+  {
+    jam();
+    c_set_initial_start_flag = FALSE;
+  }
 }
 
 /*-------------------------------------------------------------------------- */
@@ -10789,7 +10835,7 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
   jamEntry();
 
 #if 0
-  ndbout_c("LCP_COMPLETE_REP"); 
+  g_eventLogger.info("LCP_COMPLETE_REP"); 
   printLCP_COMPLETE_REP(stdout, 
 			signal->getDataPtr(),
 			signal->length(), number());
@@ -10875,7 +10921,7 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
   if(c_lcpMasterTakeOverState.state != LMTOS_IDLE){
     jam();
 #ifdef VM_TRACE
-    ndbout_c("Exiting from allNodesLcpCompletedLab");
+    g_eventLogger.info("Exiting from allNodesLcpCompletedLab");
 #endif
     return;
   }
@@ -11112,14 +11158,14 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal)
     
     infoEvent("Detected GCP stop...sending kill to %s", 
 	      c_GCP_SAVEREQ_Counter.getText());
-    ndbout_c("Detected GCP stop...sending kill to %s", 
-	     c_GCP_SAVEREQ_Counter.getText());
+    g_eventLogger.error("Detected GCP stop...sending kill to %s", 
+                        c_GCP_SAVEREQ_Counter.getText());
     return;
   }
   case GCP_SAVE_LQH_FINISHED:
-    ndbout_c("m_copyReason: %d m_waiting: %d",
-	     c_copyGCIMaster.m_copyReason,
-	     c_copyGCIMaster.m_waiting);
+    g_eventLogger.error("m_copyReason: %d m_waiting: %d",
+                        c_copyGCIMaster.m_copyReason,
+                        c_copyGCIMaster.m_waiting);
     break;
   case GCP_READY: // shut up lint
   case GCP_PREPARE_SENT:
@@ -11127,11 +11173,11 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal)
     break;
   }
   
-  ndbout_c("c_copyGCISlave: sender{Data, Ref} %d %x reason: %d nextWord: %d",
-	   c_copyGCISlave.m_senderData,
-	   c_copyGCISlave.m_senderRef,
-	   c_copyGCISlave.m_copyReason,
-	   c_copyGCISlave.m_expectedNextWord);
+  g_eventLogger.error("c_copyGCISlave: sender{Data, Ref} %d %x reason: %d nextWord: %d",
+                      c_copyGCISlave.m_senderData,
+                      c_copyGCISlave.m_senderRef,
+                      c_copyGCISlave.m_copyReason,
+                      c_copyGCISlave.m_expectedNextWord);
 
   FileRecordPtr file0Ptr;
   file0Ptr.i = crestartInfoFile[0];
@@ -13350,9 +13396,9 @@ void Dbdih::setLcpActiveStatusEnd()
       nodePtr.i = getOwnNodeId();
       ptrAss(nodePtr, nodeRecord);
       ndbrequire(nodePtr.p->activeStatus == Sysfile::NS_Active);
-      ndbout_c("NR: setLcpActiveStatusEnd - m_participatingLQH");
+      g_eventLogger.info("NR: setLcpActiveStatusEnd - m_participatingLQH");
     } else {
-      ndbout_c("NR: setLcpActiveStatusEnd - !m_participatingLQH");
+      g_eventLogger.info("NR: setLcpActiveStatusEnd - !m_participatingLQH");
     }
   }
   
@@ -14184,8 +14230,8 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   }
 
   if(arg == DumpStateOrd::EnableUndoDelayDataWrite){
-    ndbout << "Dbdih:: delay write of datapages for table = " 
-	   << dumpState->args[1]<< endl;
+    g_eventLogger.info("Dbdih:: delay write of datapages for table = %s", 
+                       dumpState->args[1]);
     // Send this dump to ACC and TUP
     EXECUTE_DIRECT(DBACC, GSN_DUMP_STATE_ORD, signal, 2);
     EXECUTE_DIRECT(DBTUP, GSN_DUMP_STATE_ORD, signal, 2);
@@ -14202,13 +14248,13 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   }//if
   if (signal->theData[0] == DumpStateOrd::DihMinTimeBetweenLCP) {
     // Set time between LCP to min value
-    ndbout << "Set time between LCP to min value" << endl;
+    g_eventLogger.info("Set time between LCP to min value");
     c_lcpState.clcpDelay = 0; // TimeBetweenLocalCheckpoints.min
     return;
   }
   if (signal->theData[0] == DumpStateOrd::DihMaxTimeBetweenLCP) {
     // Set time between LCP to max value
-    ndbout << "Set time between LCP to max value" << endl;
+    g_eventLogger.info("Set time between LCP to max value");
     c_lcpState.clcpDelay = 31; // TimeBetweenLocalCheckpoints.max
     return;
   }
@@ -14244,7 +14290,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     {
       cgcpDelay = signal->theData[1];
     }
-    ndbout_c("Setting time between gcp : %d", cgcpDelay);
+    g_eventLogger.info("Setting time between gcp : %d", cgcpDelay);
   }
 
   if (arg == 7021 && signal->getLength() == 2)
@@ -14367,7 +14413,7 @@ Dbdih::execPREP_DROP_TAB_REQ(Signal* signal){
 	while(index < count){
 	  if(nodePtr.p->queuedChkpt[index].tableId == tabPtr.i){
 	    jam();
-	    //	    ndbout_c("Unqueuing %d", index);
+	    //	    g_eventLogger.info("Unqueuing %d", index);
 	    
 	    count--;
 	    for(Uint32 i = index; i<count; i++){
@@ -14407,7 +14453,7 @@ Dbdih::execPREP_DROP_TAB_REQ(Signal* signal){
       if(checkLcpAllTablesDoneInLqh()){
 	jam();
 	
-	ndbout_c("This is the last table");
+	g_eventLogger.info("This is the last table");
 	
 	/**
 	 * Then check if saving of tab info is done for all tables
@@ -14416,7 +14462,7 @@ Dbdih::execPREP_DROP_TAB_REQ(Signal* signal){
 	checkLcpCompletedLab(signal);
 	
 	if(a != c_lcpState.lcpStatus){
-	  ndbout_c("And all tables are written to already written disk");
+	  g_eventLogger.info("And all tables are written to already written disk");
 	}
       }
       break;
@@ -14572,30 +14618,6 @@ Dbdih::execNDB_TAMPER(Signal* signal)
   SET_ERROR_INSERT_VALUE(signal->theData[0]);
   return;
 }//Dbdih::execNDB_TAMPER()
-
-void Dbdih::execSET_VAR_REQ(Signal* signal) {
-#if 0
-  SetVarReq* const setVarReq = (SetVarReq*)&signal->theData[0];
-  ConfigParamId var = setVarReq->variable();
-  int val = setVarReq->value();
-
-
-  switch (var) {
-  case TimeBetweenLocalCheckpoints:
-    c_lcpState.clcpDelay = val;
-    sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
-    break;
-
-  case TimeBetweenGlobalCheckpoints:
-    cgcpDelay = val;
-    sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
-    break;
-
-  default:
-    sendSignal(CMVMI_REF, GSN_SET_VAR_REF, signal, 1, JBB);
-  } // switch
-#endif
-}
 
 void Dbdih::execBLOCK_COMMIT_ORD(Signal* signal){
   BlockCommitOrd* const block = (BlockCommitOrd *)&signal->theData[0];

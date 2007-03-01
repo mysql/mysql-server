@@ -698,7 +698,6 @@ Dbacc::execDROP_TAB_REQ(Signal* signal){
 
 void Dbacc::releaseRootFragResources(Signal* signal, Uint32 tableId)
 {
-  FragmentrecPtr rootPtr;
   TabrecPtr tabPtr;
   tabPtr.i = tableId;
   ptrCheckGuard(tabPtr, ctablesize, tabrec);
@@ -2266,7 +2265,6 @@ void Dbacc::execACCMINUPDATE(Signal* signal)
   Page8Ptr ulkPageidptr;
   Uint32 tulkLocalPtr;
   Uint32 tlocalkey1, tlocalkey2;
-  Uint32 TlogStart;
 
   jamEntry();
   operationRecPtr.i = signal->theData[0];
@@ -8510,33 +8508,6 @@ Dbacc::execDUMP_STATE_ORD(Signal* signal)
   }//if
 #endif
 }//Dbacc::execDUMP_STATE_ORD()
-
-void Dbacc::execSET_VAR_REQ(Signal* signal) 
-{
-#if 0
-  SetVarReq* const setVarReq = (SetVarReq*)&signal->theData[0];
-  ConfigParamId var = setVarReq->variable();
-  int val = setVarReq->value();
-
-
-  switch (var) {
-
-  case NoOfDiskPagesToDiskAfterRestartACC:
-    clblPagesPerTick = val;
-    sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
-    break;
-
-  case NoOfDiskPagesToDiskDuringRestartACC:
-    // Valid only during start so value not set.
-    sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
-    break;
-
-  default:
-    sendSignal(CMVMI_REF, GSN_SET_VAR_REF, signal, 1, JBB);
-  } // switch
-#endif
-
-}//execSET_VAR_REQ()
 
 void
 Dbacc::execREAD_PSEUDO_REQ(Signal* signal){

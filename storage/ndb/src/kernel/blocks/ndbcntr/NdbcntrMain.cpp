@@ -75,8 +75,8 @@ static BlockInfo ALL_BLOCKS[] = {
   { DBTUP_REF,   1 ,  4000,  4007 },
   { DBDICT_REF,  1 ,  6000,  6003 },
   { NDBCNTR_REF, 0 ,  1000,  1999 },
+  { CMVMI_REF,   1 ,  9000,  9999 }, // before QMGR
   { QMGR_REF,    1 ,     1,   999 },
-  { CMVMI_REF,   1 ,  9000,  9999 },
   { TRIX_REF,    1 ,     0,     0 },
   { BACKUP_REF,  1 , 10000, 10999 },
   { DBUTIL_REF,  1 , 11000, 11999 },
@@ -2066,23 +2066,6 @@ Ndbcntr::execDUMP_STATE_ORD(Signal* signal)
   }
 
 }//Ndbcntr::execDUMP_STATE_ORD()
-
-void Ndbcntr::execSET_VAR_REQ(Signal* signal) {
-#if 0
-  SetVarReq* const setVarReq = (SetVarReq*)&signal->theData[0];
-  ConfigParamId var = setVarReq->variable();
-
-  switch (var) {
-  case TimeToWaitAlive:
-    // Valid only during start so value not set.
-    sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
-    break;
-
-  default:
-    sendSignal(CMVMI_REF, GSN_SET_VAR_REF, signal, 1, JBB);
-  }// switch
-#endif
-}//Ndbcntr::execSET_VAR_REQ()
 
 void Ndbcntr::updateNodeState(Signal* signal, const NodeState& newState) const{
   NodeStateRep * const stateRep = (NodeStateRep *)&signal->theData[0];
