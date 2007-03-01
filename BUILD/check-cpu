@@ -179,7 +179,14 @@ check_cpu () {
                     check_cpu_args='-mcpu=$cpu_arg -mtune=$cpu_arg'
             ;;
           x86_64-*)
-                    check_cpu_args='-mtune=$cpu_arg'
+                case "$cc_verno" in
+                      3.4*|3.5*|4.*)
+                            check_cpu_args='-mtune=$cpu_arg'
+                            ;;
+                      *)
+                            check_cpu_args='-mcpu=$cpu_arg'
+                            ;;
+            esac
             ;;
           *)
             check_cpu_cflags=""
