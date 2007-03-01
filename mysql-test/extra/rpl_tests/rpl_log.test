@@ -125,6 +125,8 @@ show slave status;
 --error 1220
 show binlog events in 'slave-bin.000005' from 4;
 
+connection master;
+
 # The table drops caused Cluster Replication wrapper to fail as event ID would never be the same.# Moving drops here.
 
 DROP TABLE t1;
@@ -148,4 +150,6 @@ select * from t1;
 drop table t1;
 
 # End of 4.1 tests
+
+sync_with_master;
 
