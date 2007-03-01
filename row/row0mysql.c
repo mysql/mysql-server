@@ -3421,7 +3421,7 @@ row_delete_constraint_low(
 
 	pars_info_add_str_literal(info, "id", id);
 
-	return(que_eval_sql(info,
+	return((int) que_eval_sql(info,
 			    "PROCEDURE DELETE_CONSTRAINT () IS\n"
 			    "BEGIN\n"
 			    "DELETE FROM SYS_FOREIGN_COLS WHERE ID = :id;\n"
@@ -3460,7 +3460,7 @@ row_delete_constraint(
 		err = row_delete_constraint_low(id, trx);
 	}
 
-	return(err);
+	return((int) err);
 }
 
 /*************************************************************************

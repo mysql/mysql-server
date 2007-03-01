@@ -794,7 +794,7 @@ innobase_convert_from_table_id(
 	uint	errors;
 
 	strconvert(current_thd->charset(), from,
-		   &my_charset_filename, to, len, &errors);
+		   &my_charset_filename, to, (uint) len, &errors);
 }
 
 /**********************************************************************
@@ -813,7 +813,7 @@ innobase_convert_from_id(
 	uint	errors;
 
 	strconvert(current_thd->charset(), from,
-		   system_charset_info, to, len, &errors);
+		   system_charset_info, to, (uint) len, &errors);
 }
 
 /**********************************************************************
@@ -938,8 +938,9 @@ innobase_convert_string(
 	CHARSET_INFO*	from_cs,
 	uint*		errors)
 {
-	return(copy_and_convert((char*)to, to_length, to_cs,
-		       (const char*)from, from_length, from_cs, errors));
+  return(copy_and_convert((char*)to, (uint32) to_length, to_cs,
+                          (const char*)from, (uint32) from_length, from_cs,
+                          errors));
 }
 
 /*************************************************************************
@@ -1297,9 +1298,9 @@ innobase_print_identifier(
 		output strings buffers must not be shared.  The function
 		only produces more output when the name contains other
 		characters than [0-9A-Z_a-z]. */
-		char*	temp_name = my_malloc(namelen + 1, MYF(MY_WME));
-		uint	qnamelen = namelen
-				+ (1 + sizeof srv_mysql50_table_name_prefix);
+          char*	temp_name = my_malloc((uint) namelen + 1, MYF(MY_WME));
+          uint	qnamelen = (uint) (namelen
+                                   + (1 + sizeof srv_mysql50_table_name_prefix));
 
 		if (temp_name) {
 			qname = my_malloc(qnamelen, MYF(MY_WME));
@@ -2952,7 +2953,8 @@ ha_innobase::store_key_val_for_row(
 				true_len = (ulint) cs->cset->well_formed_len(cs,
 						(const char *) data,
 						(const char *) data + len,
-						key_len / cs->mbmaxlen,
+                                                (uint) (key_len /
+                                                        cs->mbmaxlen),
 						&error);
 			}
 
@@ -3021,7 +3023,8 @@ ha_innobase::store_key_val_for_row(
 						(const char *) blob_data,
 						(const char *) blob_data
 							+ blob_len,
-						key_len / cs->mbmaxlen,
+                                                (uint) (key_len /
+                                                        cs->mbmaxlen),
 						&error);
 			}
 
@@ -3093,7 +3096,8 @@ ha_innobase::store_key_val_for_row(
 							(const char *)src_start,
 							(const char *)src_start
 								+ key_len,
-							key_len / cs->mbmaxlen,
+                                                        (uint) (key_len /
+                                                                cs->mbmaxlen),
 							&error);
 				}
 			}
