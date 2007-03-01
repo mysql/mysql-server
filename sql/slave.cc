@@ -2205,11 +2205,16 @@ err:
   THD_CHECK_SENTRY(thd);
   delete thd;
   pthread_mutex_unlock(&LOCK_thread_count);
-  mi->abort_slave = 0;
-  mi->slave_running = 0;
-  mi->io_thd = 0;
-  pthread_mutex_unlock(&mi->run_lock);
+  mi->abort_slave= 0;
+  mi->slave_running= 0;
+  mi->io_thd= 0;
+  /*
+    Note: the order of the two following calls (first broadcast, then unlock)
+    is important. Otherwise a killer_thread can execute between the calls and
+    delete the mi structure leading to a crash! (see BUG#25306 for details)
+   */ 
   pthread_cond_broadcast(&mi->stop_cond);       // tell the world we are done
+  pthread_mutex_unlock(&mi->run_lock);
   my_thread_end();
   pthread_exit(0);
   DBUG_RETURN(0);                               // Can't return anything here
@@ -2455,9 +2460,21 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   THD_CHECK_SENTRY(thd);
   delete thd;
   pthread_mutex_unlock(&LOCK_thread_count);
+#ifndef DBUG_OFF
+  /*
+    Bug #19938 Valgrind error (race) in handle_slave_sql()
+    Read the value of rli->event_till_abort before releasing the mutex
+  */
+  const int eta= rli->events_till_abort;
+#endif
+ /*
+  Note: the order of the broadcast and unlock calls below (first broadcast, then unlock)
+  is important. Otherwise a killer_thread can execute between the calls and
+  delete the mi structure leading to a crash! (see BUG#25306 for details)
+ */ 
   pthread_cond_broadcast(&rli->stop_cond);
-  // tell the world we are done
-  pthread_mutex_unlock(&rli->run_lock);
+  pthread_mutex_unlock(&rli->run_lock);  // tell the world we are done
+  
   my_thread_end();
   pthread_exit(0);
   DBUG_RETURN(0);                               // Can't return anything here
