@@ -8,6 +8,7 @@ use strict;
 
 sub mtr_full_hostname ();
 sub mtr_short_hostname ();
+sub mtr_native_path($);
 sub mtr_init_args ($);
 sub mtr_add_arg ($$@);
 sub mtr_path_exists(@);
@@ -48,6 +49,16 @@ sub mtr_short_hostname () {
   $hostname =~ s/\..+$//;
   return $hostname;
 }
+
+# Convert path to OS native format
+sub mtr_native_path($)
+{
+  my $path= shift;
+  $path=~ s/\//\\/g
+    if ($::glob_win32);
+  return $path;
+}
+
 
 # FIXME move to own lib
 
