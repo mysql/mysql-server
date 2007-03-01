@@ -367,7 +367,7 @@ ErrorBundle ErrorCodes[] = {
   { 771,  HA_WRONG_CREATE_OPTION, AE, "Given NODEGROUP doesn't exist in this cluster" },
   { 772,  HA_WRONG_CREATE_OPTION, IE, "Given fragmentType doesn't exist" },
   { 749,  HA_WRONG_CREATE_OPTION, IE, "Primary Table in wrong state" },
-  { 763,  HA_WRONG_CREATE_OPTION, SE, "Invalid undo buffer size" },
+  { 779,  HA_WRONG_CREATE_OPTION, SE, "Invalid undo buffer size" },
   { 764,  HA_WRONG_CREATE_OPTION, SE, "Invalid extent size" },
   { 765,  DMEC, SE, "Out of filegroup records" },
   { 750,  IE, SE, "Invalid file type" },

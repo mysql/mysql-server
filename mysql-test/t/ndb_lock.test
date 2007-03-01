@@ -149,7 +149,7 @@ begin;
 # Have to check with pk access here since scans take locks on
 # all rows and then release them in chunks
 select * from t1 where x = 1 for update;
---error 1205
+--error 1105,1205
 select * from t1 where x = 2 for update;
 rollback;
 

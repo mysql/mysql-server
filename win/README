@@ -13,13 +13,21 @@ a variety of project systems.  This tool is combined with a set of jscript
 files to enable building of MySQL for Windows directly out of a bk clone.
 The steps required are below.
 
-Step 1
+Step 1:
+-------
+
+Install a Windows C++ compiler.  If you don't have one, you can use
+the free compiler "Visual C++ 2005 express edition", which from Cmake
+point of view is same as Visual studio 8:
+http://msdn.microsoft.com/vstudio/express/
+
+Step 2
 ------
 Download and install CMake.  It can be downloaded from http://www.cmake.org. 
 Once it is installed, modify your path to make sure you can execute
 the cmake binary.
 
-Step 2
+Step 3
 ------
 Download and install bison for Windows.  It can be downloaded from
 http://gnuwin32.sourceforge.net/packages/bison.htm.  Please download using
@@ -27,11 +35,15 @@ the link named "Complete package, excluding sources".  This includes an
 installer that will install bison.  After the installer finishes, modify
 your path so that you can execute bison.
 
-Step 3
+(Alternative you, can take the sql_yacc.yy and sql_yacc.h files from a
+matching mysql tar distribution and drop them into the sql directory just
+before you start the build)
+
+Step 4
 ------
 Clone your bk tree to any location you like.
 
-Step 4
+Step 5
 ------
 From the root of your bk clone, execute the command:  win\configure <options>.  
 The options right now are
@@ -42,7 +54,6 @@ The options right now are
     WITH_BLACKHOLE_STORAGE_ENGINE
     WITH_EXAMPLE_STORAGE_ENGINE
     WITH_FEDERATED_STORAGE_ENGINE
-    WITH_INNOBASE_STORAGE_ENGINE
     __NT__                               Enable named pipe support
     MYSQL_SERVER_SUFFIX=<suffix>         Server suffix, default none
     COMPILATION_COMMENT=<comment>        Server comment, default "Source distribution"
@@ -53,17 +64,17 @@ So the command line could look like:
 
 win\configure WITH_INNOBASE_STORAGE_ENGINE WITH_PARTITION_STORAGE_ENGINE MYSQL_SERVER_SUFFIX=-pro
 
-Step 5
+Step 6
 ------
 From the root of your bk clone, execute one of the batch files to generate the type
 of project files you desire.
 
-For Visual Studio 8, do win\build-vs8.
+For Visual Studio 8 (or Visual C++ 2005 express edition), do win\build-vs8.
 For Visual Studio 7.1, do win\build-vs71.
 
 We will support building with nmake in the near future.
 
-Step 6
+Step 7
 ------
 From the root of your bk clone, start your build.
 
@@ -77,5 +88,5 @@ may be necessary to clean the build tree to remove any stale objects.
 
 2. To use Visual C++ Express Edition you also need to install the Platform SDK.
 Please see this link: http://msdn.microsoft.com/vstudio/express/visualc/usingpsdk/
-At step 4 you only need to add the libraries advapi32.lib and user32.lib to
+At step 5 you only need to add the libraries advapi32.lib and user32.lib to
 the file "corewin_express.vsprops" in order to avoid link errors.

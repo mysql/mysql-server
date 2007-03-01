@@ -71,6 +71,14 @@ my_bool mi_dynmap_file(MI_INFO *info, my_off_t size)
     DBUG_PRINT("warning", ("File is too large for mmap"));
     DBUG_RETURN(1);
   }
+  /*
+    I wonder if it is good to use MAP_NORESERVE. From the Linux man page:
+    MAP_NORESERVE
+      Do not reserve swap space for this mapping. When swap space is
+      reserved, one has the guarantee that it is possible to modify the
+      mapping. When swap space is not reserved one might get SIGSEGV
+      upon a write if no physical memory is available.
+  */
   info->s->file_map= (byte*)
                   my_mmap(0, (size_t)(size + MEMMAP_EXTRA_MARGIN),
                           info->s->mode==O_RDONLY ? PROT_READ :
