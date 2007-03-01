@@ -5277,7 +5277,7 @@ Disable with --skip-ndbcluster (will save memory).",
   {"profiling_history_size", OPT_PROFILING, "Limit of query profiling memory",
    (gptr*) &global_system_variables.profiling_history_size,
    (gptr*) &max_system_variables.profiling_history_size,
-   0, GET_UINT, REQUIRED_ARG, 15, 0, 100, 0, 0, 0},
+   0, GET_ULONG, REQUIRED_ARG, 15, 0, 100, 0, 0, 0},
 #endif
   {"relay-log", OPT_RELAY_LOG,
    "The location and name to use for relay logs.",
