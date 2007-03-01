@@ -48,6 +48,7 @@ dbm.c : .*'item.dsize' is used uninitialized in this function.*
 .* : conversion from '.*size_t' to 'uint32'.*
 .* : conversion from '.*size_t' to 'off_t'.*
 .* : conversion from '.*size_t' to 'size_s'.*
+.* : conversion from 'u?lint' to 'int'.*
 ha_berkeley.cc : .*conversion from 'ulonglong' to 'char'.*
 
 #
@@ -74,4 +75,5 @@ mi_packrec.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 567
 # in 5.0. Please do not merge upwards.
 #
 socket_wrapper.cpp : .*truncation of constant value.*
+socket_wrapper.hpp : .*truncation of constant value.*
 viossl.c : .*conversion from 'SOCKET' to 'socket_t'.*

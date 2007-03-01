@@ -6730,7 +6730,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
           if ((start_off=subs[back_ref_num].rm_so) > -1 &&
               (end_off=subs[back_ref_num].rm_eo) > -1)
           {
-            int block_len= end_off - start_off;
+            int block_len= (int) (end_off - start_off);
             memcpy(res_p,str_p + start_off, block_len);
             res_p += block_len;
           }
