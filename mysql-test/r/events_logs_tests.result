@@ -97,3 +97,4 @@ DROP TABLE slow_event_test;
 SET GLOBAL  long_query_time =@old_global_long_query_time;
 SET SESSION long_query_time =@old_session_long_query_time;
 DROP DATABASE events_test;
+SET GLOBAL event_scheduler=off;

@@ -68,6 +68,7 @@ DROP PROCEDURE IF EXISTS test.p3;
 DROP PROCEDURE IF EXISTS test.p2;
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t2;
+DROP USER user1@localhost;
 sync_slave_with_master;
 
 # End of 5.0 test case

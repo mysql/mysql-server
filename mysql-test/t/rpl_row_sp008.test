@@ -51,6 +51,7 @@ SELECT * FROM test.t2;
 connection master;
 DROP PROCEDURE IF EXISTS test.p1;
 DROP TABLE IF EXISTS test.t1;
+DROP TABLE IF EXISTS test.t2;
 sync_slave_with_master;
 
 # End of 5.0 test case
