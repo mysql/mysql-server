@@ -1052,7 +1052,7 @@ void Protocol_simple::prepare_for_resend()
   data->embedded_info->prev_ptr= &cur->next;
   next_field=cur->data;
   next_mysql_field= data->embedded_info->fields_list;
-err:
+
   DBUG_VOID_RETURN;
 }
 

@@ -5067,11 +5067,6 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   tablePtr.p->minRowsLow = tableDesc.MinRowsLow;
   tablePtr.p->minRowsHigh = tableDesc.MinRowsHigh;
 
-  Uint64 maxRows =
-    (((Uint64)tablePtr.p->maxRowsHigh) << 32) + tablePtr.p->maxRowsLow;
-  Uint64 minRows =
-    (((Uint64)tablePtr.p->minRowsHigh) << 32) + tablePtr.p->minRowsLow;
-
   tablePtr.p->frmLen = tableDesc.FrmLen;
   memcpy(tablePtr.p->frmData, tableDesc.FrmData, tableDesc.FrmLen);  
 

@@ -1,0 +1,133 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b INT,
+UNIQUE(b));
+INSERT INTO t1(b) VALUES(1),(1),(2) ON DUPLICATE KEY UPDATE t1.b=10;
+SELECT * FROM t1;
+a	b
+1	10
+2	2
+show slave status;;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	#
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	#
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	Yes
+Slave_SQL_Running	No
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	1105
+Last_Error	Error 'master may suffer from http://bugs.mysql.com/bug.php?id=24432 so slave stops; check error log on slave for more info' on query. Default database: 'test'. Query: 'INSERT INTO t1(b) VALUES(1),(1),(2) ON DUPLICATE KEY UPDATE t1.b=10'
+Skip_Counter	0
+Exec_Master_Log_Pos	238
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+SELECT * FROM t1;
+a	b
+stop slave;
+reset slave;
+reset master;
+drop table t1;
+start slave;
+CREATE TABLE t1 (
+id bigint(20) unsigned NOT NULL auto_increment,
+field_1 int(10) unsigned NOT NULL,
+field_2 varchar(255) NOT NULL,
+field_3 varchar(255) NOT NULL,
+PRIMARY KEY (id),
+UNIQUE KEY field_1 (field_1, field_2)
+);
+CREATE TABLE t2 (
+field_a int(10) unsigned NOT NULL,
+field_b varchar(255) NOT NULL,
+field_c varchar(255) NOT NULL
+);
+INSERT INTO t2 (field_a, field_b, field_c) VALUES (1, 'a', '1a');
+INSERT INTO t2 (field_a, field_b, field_c) VALUES (2, 'b', '2b');
+INSERT INTO t2 (field_a, field_b, field_c) VALUES (3, 'c', '3c');
+INSERT INTO t2 (field_a, field_b, field_c) VALUES (4, 'd', '4d');
+INSERT INTO t2 (field_a, field_b, field_c) VALUES (5, 'e', '5e');
+INSERT INTO t1 (field_1, field_2, field_3)
+SELECT t2.field_a, t2.field_b, t2.field_c
+FROM t2
+ON DUPLICATE KEY UPDATE
+t1.field_3 = t2.field_c;
+INSERT INTO t2 (field_a, field_b, field_c) VALUES (6, 'f', '6f');
+INSERT INTO t1 (field_1, field_2, field_3)
+SELECT t2.field_a, t2.field_b, t2.field_c
+FROM t2
+ON DUPLICATE KEY UPDATE
+t1.field_3 = t2.field_c;
+SELECT * FROM t1;
+id	field_1	field_2	field_3
+1	1	a	1a
+2	2	b	2b
+3	3	c	3c
+4	4	d	4d
+5	5	e	5e
+6	6	f	6f
+show slave status;;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	#
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	#
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	Yes
+Slave_SQL_Running	No
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	1105
+Last_Error	Error 'master may suffer from http://bugs.mysql.com/bug.php?id=24432 so slave stops; check error log on slave for more info' on query. Default database: 'test'. Query: 'INSERT INTO t1 (field_1, field_2, field_3)
+SELECT t2.field_a, t2.field_b, t2.field_c
+FROM t2
+ON DUPLICATE KEY UPDATE
+t1.field_3 = t2.field_c'
+Skip_Counter	0
+Exec_Master_Log_Pos	1270
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+SELECT * FROM t1;
+id	field_1	field_2	field_3
+drop table t1, t2;
+drop table t1, t2;

@@ -515,7 +515,6 @@ int Ndb_cluster_connection::connect(int no_retries, int retry_delay_in_seconds,
   struct ndb_mgm_reply mgm_reply;
 
   DBUG_ENTER("Ndb_cluster_connection::connect");
-  const char* error = 0;
   do {
     if (m_impl.m_config_retriever == 0)
       DBUG_RETURN(-1);

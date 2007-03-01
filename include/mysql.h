@@ -87,6 +87,7 @@ extern char *mysql_unix_port;
 #define IS_NUM(t)	((t) <= FIELD_TYPE_INT24 || (t) == FIELD_TYPE_YEAR || (t) == FIELD_TYPE_NEWDECIMAL)
 #define IS_NUM_FIELD(f)	 ((f)->flags & NUM_FLAG)
 #define INTERNAL_NUM_FIELD(f) (((f)->type <= FIELD_TYPE_INT24 && ((f)->type != FIELD_TYPE_TIMESTAMP || (f)->length == 14 || (f)->length == 8)) || (f)->type == FIELD_TYPE_YEAR)
+#define IS_LONGDATA(t) ((t) >= MYSQL_TYPE_TINY_BLOB && (t) <= MYSQL_TYPE_STRING)
 
 
 typedef struct st_mysql_field {
@@ -783,7 +784,7 @@ int STDCALL mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query,
                                unsigned long length);
 int STDCALL mysql_stmt_execute(MYSQL_STMT *stmt);
 int STDCALL mysql_stmt_fetch(MYSQL_STMT *stmt);
-int STDCALL mysql_stmt_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *bind, 
+int STDCALL mysql_stmt_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *bind_arg, 
                                     unsigned int column,
                                     unsigned long offset);
 int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt);

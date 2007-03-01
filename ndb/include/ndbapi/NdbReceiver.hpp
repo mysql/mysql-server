@@ -57,7 +57,7 @@ public:
   
   bool checkMagicNumber() const;
 
-  inline void next(NdbReceiver* next) { m_next = next;}
+  inline void next(NdbReceiver* next_arg) { m_next = next_arg;}
   inline NdbReceiver* next() { return m_next; }
   
   void setErrorCode(int);

@@ -3785,4 +3785,152 @@ case when 1 then cast(1111111111111111111 as unsigned) else 1 end c,
 coalesce(cast(1111111111111111111 as unsigned), 1) co;
 i	c	co
 1111111111111111111	1111111111111111111	1111111111111111111
+CREATE TABLE t1 (name varchar(255));
+CREATE TABLE t2 (name varchar(255), n int, KEY (name(3)));
+INSERT INTO t1 VALUES ('ccc'), ('bb'), ('cc '), ('aa  '), ('aa');
+INSERT INTO t2 VALUES ('bb',1), ('aa',2), ('cc   ',3);
+INSERT INTO t2 VALUES (concat('cc ', 0x06), 4);
+INSERT INTO t2 VALUES ('cc',5), ('bb ',6), ('cc ',7);
+SELECT * FROM t2;
+name	n
+bb	1
+aa	2
+cc   	3
+cc 	4
+cc	5
+bb 	6
+cc 	7
+SELECT * FROM t2 ORDER BY name;
+name	n
+aa	2
+bb	1
+bb 	6
+cc 	4
+cc   	3
+cc	5
+cc 	7
+SELECT name, LENGTH(name), n FROM t2 ORDER BY name;
+name	LENGTH(name)	n
+aa	2	2
+bb	2	1
+bb 	3	6
+cc 	4	4
+cc   	5	3
+cc	2	5
+cc 	3	7
+EXPLAIN SELECT name, LENGTH(name), n FROM t2 WHERE name='cc ';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	name	name	6	const	3	Using where
+SELECT name, LENGTH(name), n FROM t2 WHERE name='cc ';
+name	LENGTH(name)	n
+cc   	5	3
+cc	2	5
+cc 	3	7
+EXPLAIN SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	name	name	6	NULL	3	Using where
+SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%';
+name	LENGTH(name)	n
+cc   	5	3
+cc 	4	4
+cc	2	5
+cc 	3	7
+EXPLAIN SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%' ORDER BY name;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	name	name	6	NULL	3	Using where; Using filesort
+SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%' ORDER BY name;
+name	LENGTH(name)	n
+cc 	4	4
+cc   	5	3
+cc	2	5
+cc 	3	7
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	SIMPLE	t2	ref	name	name	6	test.t1.name	2	
+SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
+name	name	n
+ccc	NULL	NULL
+bb	bb	1
+bb	bb 	6
+cc 	cc   	3
+cc 	cc	5
+cc 	cc 	7
+aa  	aa	2
+aa	aa	2
+DROP TABLE t1,t2;
+CREATE TABLE t1 (name text);
+CREATE TABLE t2 (name text, n int, KEY (name(3)));
+INSERT INTO t1 VALUES ('ccc'), ('bb'), ('cc '), ('aa  '), ('aa');
+INSERT INTO t2 VALUES ('bb',1), ('aa',2), ('cc   ',3);
+INSERT INTO t2 VALUES (concat('cc ', 0x06), 4);
+INSERT INTO t2 VALUES ('cc',5), ('bb ',6), ('cc ',7);
+SELECT * FROM t2;
+name	n
+bb	1
+aa	2
+cc   	3
+cc 	4
+cc	5
+bb 	6
+cc 	7
+SELECT * FROM t2 ORDER BY name;
+name	n
+aa	2
+bb	1
+bb 	6
+cc 	4
+cc   	3
+cc	5
+cc 	7
+SELECT name, LENGTH(name), n FROM t2 ORDER BY name;
+name	LENGTH(name)	n
+aa	2	2
+bb	2	1
+bb 	3	6
+cc 	4	4
+cc   	5	3
+cc	2	5
+cc 	3	7
+EXPLAIN SELECT name, LENGTH(name), n FROM t2 WHERE name='cc ';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	name	name	6	const	3	Using where
+SELECT name, LENGTH(name), n FROM t2 WHERE name='cc ';
+name	LENGTH(name)	n
+cc   	5	3
+cc	2	5
+cc 	3	7
+EXPLAIN SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	name	name	6	NULL	3	Using where
+SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%';
+name	LENGTH(name)	n
+cc   	5	3
+cc 	4	4
+cc	2	5
+cc 	3	7
+EXPLAIN SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%' ORDER BY name;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	name	name	6	NULL	3	Using where; Using filesort
+SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%' ORDER BY name;
+name	LENGTH(name)	n
+cc 	4	4
+cc   	5	3
+cc	2	5
+cc 	3	7
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	SIMPLE	t2	ref	name	name	6	test.t1.name	2	
+SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
+name	name	n
+ccc	NULL	NULL
+bb	bb	1
+bb	bb 	6
+cc 	cc   	3
+cc 	cc	5
+cc 	cc 	7
+aa  	aa	2
+aa	aa	2
+DROP TABLE t1,t2;
 End of 5.0 tests

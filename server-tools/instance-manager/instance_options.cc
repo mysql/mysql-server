@@ -221,8 +221,6 @@ err:
 int Instance_options::fill_log_options()
 {
   Buffer buff;
-  uint position= 0;
-  char **tmp_argv= argv;
   enum { MAX_LOG_OPTION_LENGTH= 256 };
   char datadir[MAX_LOG_OPTION_LENGTH];
   char hostname[MAX_LOG_OPTION_LENGTH];

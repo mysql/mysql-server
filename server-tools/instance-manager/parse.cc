@@ -124,7 +124,6 @@ Command *parse_command(Instance_map *map, const char *text)
   uint option_value_len;
   const char *log_size;
   Command *command;
-  const char *saved_text= text;
   bool skip= false;
   const char *tmp;
 

@@ -499,9 +499,6 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
                                          double read_time);
 static
 TRP_GROUP_MIN_MAX *get_best_group_min_max(PARAM *param, SEL_TREE *tree);
-static int get_index_merge_params(PARAM *param, key_map& needed_reg,
-                           SEL_IMERGE *imerge, double *read_time,
-                           ha_rows* imerge_rows);
 static double get_index_only_read_time(const PARAM* param, ha_rows records,
                                        int keynr);
 
@@ -511,7 +508,6 @@ static void print_sel_tree(PARAM *param, SEL_TREE *tree, key_map *tree_map,
 static void print_ror_scans_arr(TABLE *table, const char *msg,
                                 struct st_ror_scan_info **start,
                                 struct st_ror_scan_info **end);
-static void print_rowid(byte* val, int len);
 static void print_quick(QUICK_SELECT_I *quick, const key_map *needed_reg);
 #endif
 
@@ -823,7 +819,7 @@ QUICK_SELECT_I::QUICK_SELECT_I()
 
 QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
                                        bool no_alloc, MEM_ROOT *parent_alloc)
-  :dont_free(0),error(0),free_file(0),in_range(0),cur_range(NULL),range(0)
+  :dont_free(0),error(0),free_file(0),in_range(0),cur_range(NULL),last_range(0)
 {
   sorted= 0;
   index= key_nr;
@@ -1248,13 +1244,12 @@ int QUICK_ROR_UNION_SELECT::queue_cmp(void *arg, byte *val1, byte *val2)
 
 int QUICK_ROR_UNION_SELECT::reset()
 {
-  QUICK_SELECT_I* quick;
+  QUICK_SELECT_I *quick;
   int error;
   DBUG_ENTER("QUICK_ROR_UNION_SELECT::reset");
   have_prev_rowid= FALSE;
   if (!scans_inited)
   {
-    QUICK_SELECT_I *quick;
     List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
     while ((quick= it++))
     {
@@ -6614,7 +6609,7 @@ int QUICK_RANGE_SELECT::reset()
   byte  *mrange_buff;
   DBUG_ENTER("QUICK_RANGE_SELECT::reset");
   next=0;
-  range= NULL;
+  last_range= NULL;
   in_range= FALSE;
   cur_range= (QUICK_RANGE**) ranges.buffer;
 
@@ -6732,23 +6727,23 @@ int QUICK_RANGE_SELECT::get_next()
     {
       start_key= &mrange_slot->start_key;
       end_key= &mrange_slot->end_key;
-      range= *(cur_range++);
+      last_range= *(cur_range++);
 
-      start_key->key=    (const byte*) range->min_key;
-      start_key->length= range->min_length;
-      start_key->flag=   ((range->flag & NEAR_MIN) ? HA_READ_AFTER_KEY :
-                          (range->flag & EQ_RANGE) ?
+      start_key->key=    (const byte*) last_range->min_key;
+      start_key->length= last_range->min_length;
+      start_key->flag=   ((last_range->flag & NEAR_MIN) ? HA_READ_AFTER_KEY :
+                          (last_range->flag & EQ_RANGE) ?
                           HA_READ_KEY_EXACT : HA_READ_KEY_OR_NEXT);
-      end_key->key=      (const byte*) range->max_key;
-      end_key->length=   range->max_length;
+      end_key->key=      (const byte*) last_range->max_key;
+      end_key->length=   last_range->max_length;
       /*
         We use HA_READ_AFTER_KEY here because if we are reading on a key
         prefix. We want to find all keys with this prefix.
       */
-      end_key->flag=     (range->flag & NEAR_MAX ? HA_READ_BEFORE_KEY :
+      end_key->flag=     (last_range->flag & NEAR_MAX ? HA_READ_BEFORE_KEY :
                           HA_READ_AFTER_KEY);
 
-      mrange_slot->range_flag= range->flag;
+      mrange_slot->range_flag= last_range->flag;
     }
 
     result= file->read_multi_range_first(&mrange, multi_range, count,
@@ -6798,7 +6793,7 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length, byte *cur_prefix)
   {
     int result;
     key_range start_key, end_key;
-    if (range)
+    if (last_range)
     {
       /* Read the next record in the same range with prefix after cur_prefix. */
       DBUG_ASSERT(cur_prefix != 0);
@@ -6812,35 +6807,35 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length, byte *cur_prefix)
     if (count == 0)
     {
       /* Ranges have already been used up before. None is left for read. */
-      range= 0;
+      last_range= 0;
       DBUG_RETURN(HA_ERR_END_OF_FILE);
     }
-    range= *(cur_range++);
+    last_range= *(cur_range++);
 
-    start_key.key=    (const byte*) range->min_key;
-    start_key.length= min(range->min_length, prefix_length);
-    start_key.flag=   ((range->flag & NEAR_MIN) ? HA_READ_AFTER_KEY :
-		       (range->flag & EQ_RANGE) ?
+    start_key.key=    (const byte*) last_range->min_key;
+    start_key.length= min(last_range->min_length, prefix_length);
+    start_key.flag=   ((last_range->flag & NEAR_MIN) ? HA_READ_AFTER_KEY :
+		       (last_range->flag & EQ_RANGE) ?
 		       HA_READ_KEY_EXACT : HA_READ_KEY_OR_NEXT);
-    end_key.key=      (const byte*) range->max_key;
-    end_key.length=   min(range->max_length, prefix_length);
+    end_key.key=      (const byte*) last_range->max_key;
+    end_key.length=   min(last_range->max_length, prefix_length);
     /*
       We use READ_AFTER_KEY here because if we are reading on a key
       prefix we want to find all keys with this prefix
     */
-    end_key.flag=     (range->flag & NEAR_MAX ? HA_READ_BEFORE_KEY :
+    end_key.flag=     (last_range->flag & NEAR_MAX ? HA_READ_BEFORE_KEY :
 		       HA_READ_AFTER_KEY);
 
-    result= file->read_range_first(range->min_length ? &start_key : 0,
-				   range->max_length ? &end_key : 0,
-                                   test(range->flag & EQ_RANGE),
+    result= file->read_range_first(last_range->min_length ? &start_key : 0,
+				   last_range->max_length ? &end_key : 0,
+                                   test(last_range->flag & EQ_RANGE),
 				   sorted);
-    if (range->flag == (UNIQUE_RANGE | EQ_RANGE))
-      range=0;				// Stop searching
+    if (last_range->flag == (UNIQUE_RANGE | EQ_RANGE))
+      last_range= 0;			// Stop searching
 
     if (result != HA_ERR_END_OF_FILE)
       DBUG_RETURN(result);
-    range=0;				// No matching rows; go to next range
+    last_range= 0;			// No matching rows; go to next range
   }
 }
 
@@ -6854,11 +6849,11 @@ int QUICK_RANGE_SELECT_GEOM::get_next()
   for (;;)
   {
     int result;
-    if (range)
+    if (last_range)
     {
       // Already read through key
-      result= file->index_next_same(record, (byte*) range->min_key,
-				    range->min_length);
+      result= file->index_next_same(record, (byte*) last_range->min_key,
+				    last_range->min_length);
       if (result != HA_ERR_END_OF_FILE)
 	DBUG_RETURN(result);
     }
@@ -6867,18 +6862,18 @@ int QUICK_RANGE_SELECT_GEOM::get_next()
     if (count == 0)
     {
       /* Ranges have already been used up before. None is left for read. */
-      range= 0;
+      last_range= 0;
       DBUG_RETURN(HA_ERR_END_OF_FILE);
     }
-    range= *(cur_range++);
+    last_range= *(cur_range++);
 
     result= file->index_read(record,
-			     (byte*) range->min_key,
-			     range->min_length,
-			     (ha_rkey_function)(range->flag ^ GEOM_FLAG));
+			     (byte*) last_range->min_key,
+			     last_range->min_length,
+			     (ha_rkey_function)(last_range->flag ^ GEOM_FLAG));
     if (result != HA_ERR_KEY_NOT_FOUND)
       DBUG_RETURN(result);
-    range=0;				// Not found, to next range
+    last_range= 0;				// Not found, to next range
   }
 }
 
@@ -6903,7 +6898,7 @@ int QUICK_RANGE_SELECT_GEOM::get_next()
 
 bool QUICK_RANGE_SELECT::row_in_ranges()
 {
-  QUICK_RANGE *range;
+  QUICK_RANGE *res;
   uint min= 0;
   uint max= ranges.elements - 1;
   uint mid= (max + min)/2;
@@ -6919,8 +6914,8 @@ bool QUICK_RANGE_SELECT::row_in_ranges()
       max= mid;
     mid= (min + max) / 2;
   }
-  range= *(QUICK_RANGE**)dynamic_array_ptr(&ranges, mid);
-  return (!cmp_next(range) && !cmp_prev(range));
+  res= *(QUICK_RANGE**)dynamic_array_ptr(&ranges, mid);
+  return (!cmp_next(res) && !cmp_prev(res));
 }
 
 /*
@@ -6934,14 +6929,14 @@ bool QUICK_RANGE_SELECT::row_in_ranges()
  */
 
 QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q,
-                                     uint used_key_parts)
+                                     uint used_key_parts_arg)
  : QUICK_RANGE_SELECT(*q), rev_it(rev_ranges)
 {
   QUICK_RANGE *r;
 
   QUICK_RANGE **pr= (QUICK_RANGE**)ranges.buffer;
-  QUICK_RANGE **last_range= pr + ranges.elements;
-  for (; pr!=last_range; pr++)
+  QUICK_RANGE **end_range= pr + ranges.elements;
+  for (; pr!=end_range; pr++)
     rev_ranges.push_front(*pr);
 
   /* Remove EQ_RANGE flag for keys that are not using the full key */
@@ -6975,11 +6970,11 @@ int QUICK_SELECT_DESC::get_next()
   for (;;)
   {
     int result;
-    if (range)
+    if (last_range)
     {						// Already read through key
-      result = ((range->flag & EQ_RANGE)
-		? file->index_next_same(record, (byte*) range->min_key,
-					range->min_length) :
+      result = ((last_range->flag & EQ_RANGE)
+		? file->index_next_same(record, (byte*) last_range->min_key,
+					last_range->min_length) :
 		file->index_prev(record));
       if (!result)
       {
@@ -6990,47 +6985,49 @@ int QUICK_SELECT_DESC::get_next()
 	DBUG_RETURN(result);
     }
 
-    if (!(range=rev_it++))
+    if (!(last_range= rev_it++))
       DBUG_RETURN(HA_ERR_END_OF_FILE);		// All ranges used
 
-    if (range->flag & NO_MAX_RANGE)		// Read last record
+    if (last_range->flag & NO_MAX_RANGE)        // Read last record
     {
       int local_error;
       if ((local_error=file->index_last(record)))
 	DBUG_RETURN(local_error);		// Empty table
-      if (cmp_prev(range) == 0)
+      if (cmp_prev(last_range) == 0)
 	DBUG_RETURN(0);
-      range=0;			// No matching records; go to next range
+      last_range= 0;                            // No match; go to next range
       continue;
     }
 
-    if (range->flag & EQ_RANGE)
+    if (last_range->flag & EQ_RANGE)
     {
-      result = file->index_read(record, (byte*) range->max_key,
-				range->max_length, HA_READ_KEY_EXACT);
+      result= file->index_read(record, (byte*) last_range->max_key,
+                               last_range->max_length, HA_READ_KEY_EXACT);
     }
     else
     {
-      DBUG_ASSERT(range->flag & NEAR_MAX || range_reads_after_key(range));
-      result=file->index_read(record, (byte*) range->max_key,
-			      range->max_length,
-			      ((range->flag & NEAR_MAX) ?
-			       HA_READ_BEFORE_KEY : HA_READ_PREFIX_LAST_OR_PREV));
+      DBUG_ASSERT(last_range->flag & NEAR_MAX ||
+                  range_reads_after_key(last_range));
+      result=file->index_read(record, (byte*) last_range->max_key,
+			      last_range->max_length,
+			      ((last_range->flag & NEAR_MAX) ?
+			       HA_READ_BEFORE_KEY :
+                               HA_READ_PREFIX_LAST_OR_PREV));
     }
     if (result)
     {
       if (result != HA_ERR_KEY_NOT_FOUND)
 	DBUG_RETURN(result);
-      range=0;					// Not found, to next range
+      last_range= 0;                            // Not found, to next range
       continue;
     }
-    if (cmp_prev(range) == 0)
+    if (cmp_prev(last_range) == 0)
     {
-      if (range->flag == (UNIQUE_RANGE | EQ_RANGE))
-	range = 0;				// Stop searching
+      if (last_range->flag == (UNIQUE_RANGE | EQ_RANGE))
+	last_range= 0;				// Stop searching
       DBUG_RETURN(0);				// Found key is in range
     }
-    range = 0;					// To next range
+    last_range= 0;                              // To next range
   }
 }
 
@@ -9514,23 +9511,9 @@ static void print_quick(QUICK_SELECT_I *quick, const key_map *needed_reg)
 }
 
 
-static void print_rowid(byte* val, int len)
-{
-  byte *pb;
-  DBUG_LOCK_FILE;
-  fputc('\"', DBUG_FILE);
-  for (pb= val; pb!= val + len; ++pb)
-    fprintf(DBUG_FILE, "%c", *pb);
-  fprintf(DBUG_FILE, "\", hex: ");
-
-  for (pb= val; pb!= val + len; ++pb)
-    fprintf(DBUG_FILE, "%x ", *pb);
-  fputc('\n', DBUG_FILE);
-  DBUG_UNLOCK_FILE;
-}
-
 void QUICK_RANGE_SELECT::dbug_dump(int indent, bool verbose)
 {
+  /* purecov: begin inspected */
   fprintf(DBUG_FILE, "%*squick range select, key %s, length: %d\n",
 	  indent, "", head->key_info[index].name, max_used_key_length);
 
@@ -9538,8 +9521,8 @@ void QUICK_RANGE_SELECT::dbug_dump(int indent, bool verbose)
   {
     QUICK_RANGE *range;
     QUICK_RANGE **pr= (QUICK_RANGE**)ranges.buffer;
-    QUICK_RANGE **last_range= pr + ranges.elements;
-    for (; pr!=last_range; ++pr)
+    QUICK_RANGE **end_range= pr + ranges.elements;
+    for (; pr != end_range; ++pr)
     {
       fprintf(DBUG_FILE, "%*s", indent + 2, "");
       range= *pr;
@@ -9564,6 +9547,7 @@ void QUICK_RANGE_SELECT::dbug_dump(int indent, bool verbose)
       fputs("\n",DBUG_FILE);
     }
   }
+  /* purecov: end */    
 }
 
 void QUICK_INDEX_MERGE_SELECT::dbug_dump(int indent, bool verbose)

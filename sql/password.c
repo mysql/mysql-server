@@ -472,7 +472,7 @@ scramble(char *to, const char *message, const char *password)
 */
 
 my_bool
-check_scramble(const char *scramble, const char *message,
+check_scramble(const char *scramble_arg, const char *message,
                const uint8 *hash_stage2)
 {
   SHA1_CONTEXT sha1_context;
@@ -485,7 +485,7 @@ check_scramble(const char *scramble, const char *message,
   mysql_sha1_input(&sha1_context, hash_stage2, SHA1_HASH_SIZE);
   mysql_sha1_result(&sha1_context, buf);
   /* encrypt scramble */
-    my_crypt((char *) buf, buf, (const uchar *) scramble, SCRAMBLE_LENGTH);
+    my_crypt((char *) buf, buf, (const uchar *) scramble_arg, SCRAMBLE_LENGTH);
   /* now buf supposedly contains hash_stage1: so we can get hash_stage2 */
   mysql_sha1_reset(&sha1_context);
   mysql_sha1_input(&sha1_context, buf, SHA1_HASH_SIZE);
@@ -495,7 +495,8 @@ check_scramble(const char *scramble, const char *message,
 
 
 /*
-    Convert scrambled password from asciiz hex string to binary form.
+  Convert scrambled password from asciiz hex string to binary form.
+
   SYNOPSIS
     get_salt_from_password()
     res       OUT buf to hold password. Must be at least SHA1_HASH_SIZE

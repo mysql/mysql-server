@@ -42,8 +42,9 @@ class Table_triggers_list: public Sql_alloc
   */
   Field             **new_field;
   Field             **old_field;
+
   /* TABLE instance for which this triggers list object was created */
-  TABLE *table;
+  TABLE *trigger_table;
   /*
     Names of triggers.
     Should correspond to order of triggers on definitions_list,
@@ -83,7 +84,7 @@ public:
   List<LEX_STRING>  definers_list;
 
   Table_triggers_list(TABLE *table_arg):
-    record1_field(0), table(table_arg)
+    record1_field(0), trigger_table(table_arg)
   {
     bzero((char *)bodies, sizeof(bodies));
     bzero((char *)trigger_fields, sizeof(trigger_fields));
@@ -138,3 +139,7 @@ private:
 
 extern const LEX_STRING trg_action_time_type_names[];
 extern const LEX_STRING trg_event_type_names[];
+
+int
+add_table_for_trigger(THD *thd, sp_name *trig, bool if_exists,
+                      TABLE_LIST **table);

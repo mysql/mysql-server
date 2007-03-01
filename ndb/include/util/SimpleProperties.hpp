@@ -168,6 +168,7 @@ public:
     bool add(Uint16 key, Uint32 value);
     bool add(Uint16 key, const char * value);
     bool add(Uint16 key, const void* value, int len);
+    Writer() {}
   protected:
     virtual ~Writer() {}
     virtual bool reset() = 0;

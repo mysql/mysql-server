@@ -22,12 +22,14 @@
 #include <stdio.h>
 #endif
 
+#ifdef TRACE_MALLOC
 static void xxx(size_t size, size_t *s_m, size_t *s_k, size_t *s_b)
 {
   *s_m = size/1024/1024;
   *s_k = (size - *s_m*1024*1024)/1024;
   *s_b = size - *s_m*1024*1024-*s_k*1024;
 }
+#endif
 
 static Uint64 g_allocated_memory;
 void *ndbd_malloc(size_t size)

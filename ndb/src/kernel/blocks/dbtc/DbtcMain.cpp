@@ -6944,7 +6944,6 @@ void Dbtc::execGCP_NOMORETRANS(Signal* signal)
 /*****************************************************************************/
 void Dbtc::execNODE_FAILREP(Signal* signal) 
 {
-  HostRecordPtr tmpHostptr;
   jamEntry();
 
   NodeFailRep * const nodeFail = (NodeFailRep *)&signal->theData[0];
@@ -10999,36 +10998,6 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
   }
 }//Dbtc::execDUMP_STATE_ORD()
 
-void Dbtc::execSET_VAR_REQ(Signal* signal)
-{
-#if 0
-  SetVarReq* const setVarReq = (SetVarReq*)&signal->theData[0];
-  ConfigParamId var = setVarReq->variable();
-  int val = setVarReq->value();
-
-
-  switch (var) {
-
-  case TransactionInactiveTime:
-    jam();
-    set_appl_timeout_value(val);
-    break;
-  case TransactionDeadlockDetectionTimeout:
-    set_timeout_value(val);
-    sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
-    break;
-
-  case NoOfConcurrentProcessesHandleTakeover:
-    set_no_parallel_takeover(val);
-    sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
-    break;
-
-  default:
-    sendSignal(CMVMI_REF, GSN_SET_VAR_REF, signal, 1, JBB);
-  } // switch
-#endif
-}
-
 void Dbtc::execABORT_ALL_REQ(Signal* signal)
 {
   jamEntry();
@@ -11866,8 +11835,6 @@ void Dbtc::execTCKEYREF(Signal* signal)
   }
   const UintR TconnectIndex = indexOp->connectionIndex;
   ApiConnectRecord * const regApiPtr = &apiConnectRecord[TconnectIndex];
-  Uint32 tcKeyRequestInfo  = indexOp->tcIndxReq.requestInfo;
-  Uint32 commitFlg = TcKeyReq::getCommitFlag(tcKeyRequestInfo);
 
   switch(indexOp->indexOpState) {
   case(IOS_NOOP): {

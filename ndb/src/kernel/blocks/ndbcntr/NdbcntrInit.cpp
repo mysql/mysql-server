@@ -80,7 +80,6 @@ Ndbcntr::Ndbcntr(const class Configuration & conf):
   addRecSignal(GSN_NDB_STARTCONF, &Ndbcntr::execNDB_STARTCONF);
   addRecSignal(GSN_READ_NODESREQ, &Ndbcntr::execREAD_NODESREQ);
   addRecSignal(GSN_NDB_STARTREF, &Ndbcntr::execNDB_STARTREF);
-  addRecSignal(GSN_SET_VAR_REQ, &Ndbcntr::execSET_VAR_REQ);
 
   addRecSignal(GSN_STOP_PERM_REF, &Ndbcntr::execSTOP_PERM_REF);
   addRecSignal(GSN_STOP_PERM_CONF, &Ndbcntr::execSTOP_PERM_CONF);

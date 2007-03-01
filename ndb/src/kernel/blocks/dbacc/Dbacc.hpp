@@ -911,7 +911,6 @@ private:
   void execDROP_TAB_REQ(Signal* signal);
   void execFSREMOVECONF(Signal* signal);
   void execREAD_CONFIG_REQ(Signal* signal);
-  void execSET_VAR_REQ(Signal* signal);
   void execDUMP_STATE_ORD(Signal* signal);
 
   // Statement blocks

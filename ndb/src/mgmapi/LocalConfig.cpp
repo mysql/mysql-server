@@ -73,9 +73,9 @@ LocalConfig::init(const char *connectString,
   //4. Check Ndb.cfg in NDB_HOME
   {
     bool fopenError;
-    char *buf= NdbConfig_NdbCfgName(1 /*true*/);
-    NdbAutoPtr<char> tmp_aptr(buf);
-    if(readFile(buf, fopenError))
+    char *buf2= NdbConfig_NdbCfgName(1 /*true*/);
+    NdbAutoPtr<char> tmp_aptr(buf2);
+    if(readFile(buf2, fopenError))
       DBUG_RETURN(true);
     if (!fopenError)
       DBUG_RETURN(false);
@@ -84,9 +84,9 @@ LocalConfig::init(const char *connectString,
   //5. Check Ndb.cfg in cwd
   {
     bool fopenError;
-    char *buf= NdbConfig_NdbCfgName(0 /*false*/);
-    NdbAutoPtr<char> tmp_aptr(buf);
-    if(readFile(buf, fopenError))
+    char *buf2= NdbConfig_NdbCfgName(0 /*false*/);
+    NdbAutoPtr<char> tmp_aptr(buf2);
+    if(readFile(buf2, fopenError))
       DBUG_RETURN(true);
     if (!fopenError)
       DBUG_RETURN(false);
@@ -94,9 +94,9 @@ LocalConfig::init(const char *connectString,
 
   //7. Check
   {
-    char buf[256];
-    BaseString::snprintf(buf, sizeof(buf), "host=localhost:%s", NDB_PORT);
-    if(readConnectString(buf, "default connect string"))
+    char buf2[256];
+    BaseString::snprintf(buf2, sizeof(buf2), "host=localhost:%s", NDB_PORT);
+    if(readConnectString(buf2, "default connect string"))
       DBUG_RETURN(true);
   }
 

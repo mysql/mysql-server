@@ -167,8 +167,10 @@ static void unlink_from_queue(KEYCACHE_WQUEUE *wqueue,
                                      struct st_my_thread_var *thread);
 #endif
 static void free_block(KEY_CACHE *keycache, BLOCK_LINK *block);
+#ifndef DBUG_OFF
 static void test_key_cache(KEY_CACHE *keycache,
                            const char *where, my_bool lock);
+#endif
 
 #define KEYCACHE_HASH(f, pos)                                                 \
 (((ulong) ((pos) >> keycache->key_cache_shift)+                               \
@@ -840,9 +842,10 @@ static inline void link_changed(BLOCK_LINK *block, BLOCK_LINK **phead)
 */
 
 static void link_to_file_list(KEY_CACHE *keycache,
-                              BLOCK_LINK *block, int file, my_bool unlink)
+                              BLOCK_LINK *block, int file,
+                              my_bool unlink_block)
 {
-  if (unlink)
+  if (unlink_block)
     unlink_changed(block);
   link_changed(block, &keycache->file_blocks[FILE_HASH(file)]);
   if (block->status & BLOCK_CHANGED)
@@ -2604,7 +2607,8 @@ static int flush_all_key_blocks(KEY_CACHE *keycache)
     0 on success (always because it can't fail)
 */
 
-int reset_key_cache_counters(const char *name, KEY_CACHE *key_cache)
+int reset_key_cache_counters(const char *name __attribute__((unused)),
+                             KEY_CACHE *key_cache)
 {
   DBUG_ENTER("reset_key_cache_counters");
   if (!key_cache->key_cache_inited)

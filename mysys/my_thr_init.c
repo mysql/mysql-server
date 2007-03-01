@@ -54,8 +54,8 @@ pthread_mutexattr_t my_errorcheck_mutexattr;
  race conditions in NPTL pthread_exit code.
 */
 
-static
-pthread_handler_t nptl_pthread_exit_hack_handler(void *arg)
+static pthread_handler_t
+nptl_pthread_exit_hack_handler(void *arg __attribute__((unused)))
 {
   /* Do nothing! */
   pthread_exit(0);
@@ -400,9 +400,9 @@ const char *my_thread_name(void)
 
 static uint get_thread_lib(void)
 {
+#ifdef _CS_GNU_LIBPTHREAD_VERSION
   char buff[64];
     
-#ifdef _CS_GNU_LIBPTHREAD_VERSION
   confstr(_CS_GNU_LIBPTHREAD_VERSION, buff, sizeof(buff));
 
   if (!strncasecmp(buff, "NPTL", 4))

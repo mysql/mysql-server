@@ -77,7 +77,7 @@ void Guardian_thread::request_shutdown()
 
 void Guardian_thread::process_instance(Instance *instance,
                                        GUARD_NODE *current_node,
-                                       LIST **guarded_instances,
+                                       LIST **guarded_instances_arg,
                                        LIST *node)
 {
   uint waitchild= (uint) Instance::DEFAULT_SHUTDOWN_DELAY;
@@ -93,7 +93,7 @@ void Guardian_thread::process_instance(Instance *instance,
 
     /* this returns true if and only if an instance was stopped for sure */
     if (instance->is_crashed())
-      *guarded_instances= list_delete(*guarded_instances, node);
+      *guarded_instances_arg= list_delete(*guarded_instances_arg, node);
     else if ( (uint) (current_time - current_node->last_checked) > waitchild)
     {
       instance->kill_instance(SIGKILL);
@@ -101,7 +101,7 @@ void Guardian_thread::process_instance(Instance *instance,
         Later we do node= node->next. This is ok, as we are only removing
         the node from the list. The pointer to the next one is still valid.
       */
-      *guarded_instances= list_delete(*guarded_instances, node);
+      *guarded_instances_arg= list_delete(*guarded_instances_arg, node);
     }
 
     return;

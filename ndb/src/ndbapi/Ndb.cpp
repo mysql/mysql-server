@@ -268,8 +268,6 @@ Ndb::waitUntilReady(int timeout)
   DBUG_ENTER("Ndb::waitUntilReady");
   int secondsCounter = 0;
   int milliCounter = 0;
-  int noChecksSinceFirstAliveFound = 0;
-  int id;
 
   if (theInitState != Initialised) {
     // Ndb::init is not called

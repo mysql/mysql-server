@@ -57,8 +57,305 @@ insert into t1 select * FROM (select @var1 union  select @var2) AS t2;
 drop table t1;
 save_master_pos;
 
-connection slave;
-sync_with_master;
+--echo End of 4.1 tests.
+
+# BUG#20141
+# The following tests ensure that if user-defined variables are used in SF/Triggers
+# that they are replicated correctly. These tests should be run in both SBR and RBR
+# modes.
+
+# This test uses a procedure that inserts data values based on the value of a 
+# user-defined variable. It also has a trigger that inserts data based on the
+# same variable. Successful test runs show that the @var is replicated 
+# properly and that the procedure and trigger insert the correct data on the
+# slave.
+#
+# The test of stored procedure was included for completeness. Replication of stored
+# procedures was not directly affected by BUG#20141.
+#
+# This test was constructed for BUG#20141
+
+--disable_warnings
+DROP TABLE IF EXISTS t20;
+DROP TABLE IF EXISTS t21;
+DROP PROCEDURE IF EXISTS test.insert;
+--enable_warnings
+
+CREATE TABLE t20 (a VARCHAR(20));
+CREATE TABLE t21 (a VARCHAR(20));
+DELIMITER |;
+
+# Create a procedure that uses the @var for flow control
+
+CREATE PROCEDURE test.insert()
+BEGIN
+  IF (@VAR)
+  THEN
+      INSERT INTO test.t20 VALUES ('SP_TRUE');
+  ELSE
+      INSERT INTO test.t20 VALUES ('SP_FALSE');
+  END IF;
+END|
+
+# Create a trigger that uses the @var for flow control
+
+CREATE TRIGGER test.insert_bi BEFORE INSERT
+    ON test.t20 FOR EACH ROW
+    BEGIN
+      IF (@VAR)
+      THEN
+        INSERT INTO test.t21 VALUES ('TRIG_TRUE');
+      ELSE
+        INSERT INTO test.t21 VALUES ('TRIG_FALSE');
+      END IF;
+    END|
+DELIMITER ;|
+
+sync_slave_with_master;
+connection master;
+
+# Set @var and call the procedure, repeat with different values
+
+SET @VAR=0;
+CALL test.insert();
+SET @VAR=1;
+CALL test.insert();
+
+--echo On master: Check the tables for correct data
+
+SELECT * FROM t20;
+SELECT * FROM t21;
+
+sync_slave_with_master;
+
+--echo On slave: Check the tables for correct data and it matches master
+
+SELECT * FROM t20;
+SELECT * FROM t21;
+connection master;
+
+# Cleanup
+
+DROP TABLE t20;
+DROP TABLE t21;
+DROP PROCEDURE test.insert;
+
+# This test uses a stored function that uses user-defined variables to return data
+# This test was constructed for BUG#20141
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP FUNCTION IF EXISTS test.square;
+--enable_warnings
+
+CREATE TABLE t1 (i INT);
+
+# Create function that returns a value from @var. In this case, the square function
+
+CREATE FUNCTION test.square() RETURNS INTEGER DETERMINISTIC RETURN (@var * @var);
+
+sync_slave_with_master;
+connection master;
+
+# Set the @var to different values and insert them into a table
+
+SET @var = 1;
+INSERT INTO t1 VALUES (square());
+SET @var = 2;
+INSERT INTO t1 VALUES (square());
+SET @var = 3;
+INSERT INTO t1 VALUES (square());
+SET @var = 4;
+INSERT INTO t1 VALUES (square());
+SET @var = 5;
+INSERT INTO t1 VALUES (square());
+
+--echo On master: Retrieve the values from the table
+
+SELECT * FROM t1;
+
+sync_slave_with_master;
+
+--echo On slave: Retrieve the values from the table and verify they are the same as on master
+
+SELECT * FROM t1;
+
+connection master;
+
+# Cleanup
+
+DROP TABLE t1;
+DROP FUNCTION test.square;
+
+# This test uses stored functions that uses user-defined variables to return data
+# based on the use of @vars inside a function body.
+# This test was constructed for BUG#14914
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+--enable_warnings
+
+CREATE TABLE t1(a int);
+DELIMITER |;
+
+# Create a function that simply returns the value of an @var.
+# Create a function that uses an @var for flow control, creates and uses another
+# @var and sets its value to a value based on another @var.
+
+CREATE FUNCTION f1() returns int deterministic
+BEGIN
+  return @a;
+END |
+
+CREATE FUNCTION f2() returns int deterministic
+BEGIN
+  IF (@b > 0) then
+    SET @c = (@a + @b);
+  else
+    SET @c = (@a - 1);
+  END if;
+  return @c;
+END |
+DELIMITER ;|
+
+sync_slave_with_master;
+connection master;
+
+# Set an @var to a value and insert data into a table using the first function.
+# Set two more @vars to some values and insert data into a table using the second function.
+
+SET @a=500;
+INSERT INTO t1 values(f1());
+SET @b = 125;
+SET @c = 1;
+INSERT INTO t1 values(f2());
+
+sync_slave_with_master;
+
+--echo On master: Retrieve the values from the table
+
+SELECT * from t1;
+
+--echo On slave: Check the tables for correct data and it matches master
+
+SELECT * from t1;
+
+connection master;
+
+# Cleanup
+
+DROP TABLE t1;
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+
+# This test uses a function that changes a user-defined variable in its body. This test
+# will ensure the @vars are replicated when needed and not interrupt the normal execution
+# of the function on the slave. This also applies to triggers.
+#
+# This test was constructed for BUG#25167
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+--enable_warnings
+CREATE TABLE t1 (i int);
+CREATE TABLE t2 (k int);
+DELIMITER |;
+
+# Create a trigger that inserts data into another table, changes the @var then inserts 
+# another row with the modified value.
+
+CREATE trigger t1_bi before INSERT on t1 for each row
+BEGIN
+  INSERT INTO t2 values (@a);
+  SET @a:=42;
+  INSERT INTO t2 values (@a);
+END |
+DELIMITER ;|
+
+sync_slave_with_master;
+connection master;
+
+# Set the @var to a value then insert data into first table.
+
+SET @a:=100;
+INSERT INTO t1 values (5);
+
+--echo On master: Check to see that data was inserted correctly in both tables
+
+SELECT * from t1;
+SELECT * from t2;
+
+sync_slave_with_master;
+
+--echo On slave: Check the tables for correct data and it matches master
+
+SELECT * from t1;
+SELECT * from t2;
+
+connection master;
+
+--echo End of 5.0 tests.
+
+# Cleanup
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+# This test uses a stored function that uses user-defined variables to return data
+# The test ensures the value of the user-defined variable is replicated correctly
+# and in the correct order of assignment.
+# This test was constructed for BUG#20141
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+--enable_warnings
+
+CREATE TABLE t1 (i INT);
+
+# Create two functions. One simply returns the user-defined variable. The other
+# returns a value based on the user-defined variable.
+
+CREATE FUNCTION f1() RETURNS INT RETURN @a;
+DELIMITER |;
+CREATE FUNCTION f2() RETURNS INT
+BEGIN
+  INSERT INTO t1 VALUES (10 + @a);
+  RETURN 0;
+END|
+DELIMITER ;|
+
+sync_slave_with_master;
+connection master;
+
+# Set the variable and execute the functions.
+
+SET @a:=123;
+SELECT f1(), f2();
+
+--echo On master: Check to see that data was inserted correctly 
+
+INSERT INTO t1 VALUES(f1());
+SELECT * FROM t1;
+
+sync_slave_with_master;
+
+--echo On slave: Check the table for correct data and it matches master
+
+SELECT * FROM t1;
+
+connection master;
+
+# Cleanup
+
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP TABLE t1;
+
+sync_slave_with_master;
 stop slave;
 
-# End of 4.1 tests
