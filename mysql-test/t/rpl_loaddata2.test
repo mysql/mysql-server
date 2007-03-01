@@ -1,14 +1,33 @@
---source include/master-slave.inc
+#
+# Check LOAD DATA + character sets + replication
+#
+source include/master-slave.inc;
 
-CREATE TABLE t1 (word CHAR(20) NOT NULL);
-LOAD DATA INFILE '../std_data_ln/words.dat' INTO TABLE t1;
-SELECT * FROM t1 ORDER BY word;
-sync_slave_with_master;
+#
+# Bug#15126 character_set_database is not replicated
+# (LOAD DATA INFILE need it)
+#
+connection master;
+create table t1 (a varchar(10) character set utf8);
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+set @@character_set_database=koi8r;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+set @@character_set_database=DEFAULT;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+set @@character_set_database=koi8r;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+set @@character_set_database=DEFAULT;
+load data infile '../std_data_ln/loaddata6.dat' into table t1 character set koi8r;
 
-# Check
-SELECT * FROM t1 ORDER BY word;
+select hex(a) from t1;
 
-# Cleanup
+save_master_pos;
+connection slave;
+sync_with_master;
+
+select hex(a) from t1;
 connection master;
 drop table t1;
 sync_slave_with_master;
