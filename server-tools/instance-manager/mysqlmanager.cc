@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
   MY_INIT(argv[0]);
   log_init();
   umask(0117);
-  srand((unsigned int) time(0));
+  srand((uint) time(0));
 
   /* Main function. */
 

@@ -110,25 +110,22 @@ Event_worker_thread::print_warnings(THD *thd, Event_job_data *et)
   SYNOPSIS
     post_init_event_thread()
       thd  Thread
+
+  NOTES
+      Before this is called, one should not do any DBUG_XXX() calls.
+
 */
 
 bool
 post_init_event_thread(THD *thd)
 {
-  my_thread_init();
-  pthread_detach_this_thread();
-  thd->real_id= pthread_self();
+  (void) init_new_connection_handler_thread();
   if (init_thr_lock() || thd->store_globals())
   {
     thd->cleanup();
     return TRUE;
   }
 
-#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
-  sigset_t set;
-    VOID(sigemptyset(&set));                    // Get mask in use
-  VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
-#endif
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
   thread_count++;
@@ -193,7 +190,7 @@ pre_init_event_thread(THD* thd)
   thd->options|= OPTION_AUTO_IS_NULL;
   thd->client_capabilities|= CLIENT_MULTI_RESULTS;
   pthread_mutex_lock(&LOCK_thread_count);
-  thd->thread_id= thread_id++;
+  thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
   pthread_mutex_unlock(&LOCK_thread_count);
 
   /*
@@ -224,20 +221,20 @@ pthread_handler_t
 event_scheduler_thread(void *arg)
 {
   /* needs to be first for thread_stack */
-  THD *thd= (THD *)((struct scheduler_param *) arg)->thd;
+  THD *thd= (THD *) ((struct scheduler_param *) arg)->thd;
   Event_scheduler *scheduler= ((struct scheduler_param *) arg)->scheduler;
-
-  my_free((char*)arg, MYF(0));
+  bool res;
 
   thd->thread_stack= (char *)&thd;              // remember where our stack is
+  res= post_init_event_thread(thd);
 
   DBUG_ENTER("event_scheduler_thread");
-
-  if (!post_init_event_thread(thd))
+  my_free((char*)arg, MYF(0));
+  if (!res)
     scheduler->run(thd);
 
   deinit_event_thread(thd);
-
+  pthread_exit(0);
   DBUG_RETURN(0);                               // Against gcc warnings
 }
 
@@ -257,17 +254,13 @@ event_scheduler_thread(void *arg)
 pthread_handler_t
 event_worker_thread(void *arg)
 {
-  /* needs to be first for thread_stack */
   THD *thd; 
   Event_queue_element_for_exec *event= (Event_queue_element_for_exec *)arg;
 
   thd= event->thd;
-  thd->thread_stack= (char *) &thd;             // remember where our stack is
 
   Event_worker_thread worker_thread;
-  worker_thread.run(thd, (Event_queue_element_for_exec *)arg);
-
-  deinit_event_thread(thd);
+  worker_thread.run(thd, event);
 
   return 0;                                     // Can't return anything here
 }
@@ -286,13 +279,21 @@ event_worker_thread(void *arg)
 void
 Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
 {
+  /* needs to be first for thread_stack */
+  char my_stack;
   int ret;
   Event_job_data *job_data= NULL;
+  bool res;
+
+  thd->thread_stack= &my_stack;                // remember where our stack is
+  res= post_init_event_thread(thd);
+
   DBUG_ENTER("Event_worker_thread::run");
   DBUG_PRINT("info", ("Baikonur, time is %d, BURAN reporting and operational."
              "THD=0x%lx", time(NULL), thd));
 
-  if (post_init_event_thread(thd))
+
+  if (res)
     goto end;
 
   if (!(job_data= new Event_job_data()))
@@ -352,6 +353,8 @@ end:
              event->name.str));
 
   delete event;
+  deinit_event_thread(thd);
+  pthread_exit(0);
 }
 
 

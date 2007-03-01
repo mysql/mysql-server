@@ -224,7 +224,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
 3	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1276	Field or reference 't4.a' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t4.a' of SELECT #3 was resolved in SELECT #1
 Note	1003	select `test`.`t4`.`b` AS `b`,(select avg((`test`.`t2`.`a` + (select min(`test`.`t3`.`a`) AS `min(t3.a)` from `test`.`t3` where (`test`.`t3`.`a` >= `test`.`t4`.`a`)))) AS `avg(t2.a+(select min(t3.a) from t3 where t3.a >= t4.a))` from `test`.`t2`) AS `(select avg(t2.a+(select min(t3.a) from t3 where t3.a >= t4.a)) from t2)` from `test`.`t4`
 select * from t3 where exists (select * from t2 where t2.b=t3.a);
 a
@@ -313,8 +313,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 3	DEPENDENT UNION	t5	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
-Note	1276	Field or reference 't2.a' of SELECT #2 was resolved in SELECT #1
-Note	1276	Field or reference 't2.a' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t2.a' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t2.a' of SELECT #3 was resolved in SELECT #1
 Note	1003	select (select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`a`) union select `test`.`t5`.`a` AS `a` from `test`.`t5` where (`test`.`t5`.`a` = `test`.`t2`.`a`)) AS `(select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a)`,`test`.`t2`.`a` AS `a` from `test`.`t2`
 select (select a from t1 where t1.a=t2.a union all select a from t5 where t5.a=t2.a), a from t2;
 ERROR 21000: Subquery returns more than 1 row
@@ -330,9 +330,9 @@ patient_uq	clinic_uq
 explain extended select * from t6 where exists (select * from t7 where uq = clinic_uq);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t6	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-2	DEPENDENT SUBQUERY	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.clinic_uq	1	100.00	Using index
+2	DEPENDENT SUBQUERY	t7	eq_ref	PRIMARY	PRIMARY	4	t6.clinic_uq	1	100.00	Using where; Using index
 Warnings:
-Note	1276	Field or reference 'clinic_uq' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t6.clinic_uq' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t6`.`patient_uq` AS `patient_uq`,`test`.`t6`.`clinic_uq` AS `clinic_uq` from `test`.`t6` where exists(select 1 AS `Not_used` from `test`.`t7` where (`test`.`t7`.`uq` = `test`.`t6`.`clinic_uq`))
 select * from t1 where a= (select a from t2,t4 where t2.b=t4.b);
 ERROR 23000: Column 'a' in field list is ambiguous
@@ -868,7 +868,7 @@ explain extended select (select a+1) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
 Warnings:
-Note	1276	Field or reference 'a' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Note	1249	Select 2 was reduced during optimization
 Note	1003	select (`test`.`t1`.`a` + 1) AS `(select a+1)` from `test`.`t1`
 select (select a+1) from t1;
@@ -1741,9 +1741,9 @@ Note	1003	select `test`.`t1`.`id` AS `id`,`test`.`t1`.`text` AS `text` from `tes
 explain extended select * from t1 as tt where not exists (select id from t1 where id < 8 and (id = tt.id or id is null) having id is not null);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	tt	ALL	NULL	NULL	NULL	NULL	12	100.00	Using where
-2	DEPENDENT SUBQUERY	t1	eq_ref	PRIMARY	PRIMARY	4	test.tt.id	1	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t1	eq_ref	PRIMARY	PRIMARY	4	tt.id	1	100.00	Using where; Using index
 Warnings:
-Note	1276	Field or reference 'tt.id' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.tt.id' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`tt`.`id` AS `id`,`test`.`tt`.`text` AS `text` from `test`.`t1` `tt` where (not(exists(select `test`.`t1`.`id` AS `id` from `test`.`t1` where ((`test`.`t1`.`id` < 8) and (`test`.`t1`.`id` = `test`.`tt`.`id`)) having (`test`.`t1`.`id` is not null))))
 insert into t1 (id, text) values (1000, 'text1000'), (1001, 'text1001');
 create table t2 (id int not null, text varchar(20) not null default '', primary key (id));
@@ -2279,7 +2279,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	up	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Note	1276	Field or reference 'up.a' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.up.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`up`.`a` AS `a`,`test`.`up`.`b` AS `b` from `test`.`t1` `up` where exists(select 1 AS `Not_used` from `test`.`t1` where (`test`.`t1`.`a` = `test`.`up`.`a`))
 drop table t1;
 CREATE TABLE t1 (t1_a int);
