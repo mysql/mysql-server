@@ -74,6 +74,7 @@ extern	void _db_unlock_file(void);
 #define DBUG_ASSERT(A) assert(A)
 #define DBUG_EXECUTE_IF(keyword,a1) \
         {if (_db_on_) {if (_db_strict_keyword_ (keyword)) { a1 }}}
+#define IF_DBUG(A) A
 #else						/* No debugger */
 
 #define DBUG_ENTER(a1)
@@ -98,6 +99,7 @@ extern	void _db_unlock_file(void);
 #define DBUG_OUTPUT(A)
 #define DBUG_ASSERT(A) {}
 #define DBUG_LEAVE
+#define IF_DBUG(A)
 #endif
 #ifdef	__cplusplus
 }
