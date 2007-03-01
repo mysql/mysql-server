@@ -304,7 +304,7 @@ void setup_windows_event_source()
 
   /* Register EventMessageFile */
   dwError = RegSetValueEx(hRegKey, "EventMessageFile", 0, REG_EXPAND_SZ,
-                          (PBYTE) szPath, strlen(szPath)+1);
+                          (PBYTE) szPath, (DWORD) (strlen(szPath) + 1));
 
   /* Register supported event types */
   dwTypes= (EVENTLOG_ERROR_TYPE | EVENTLOG_WARNING_TYPE |
@@ -1784,7 +1784,7 @@ void MYSQL_LOG::rotate_and_purge(uint flags)
 #ifdef HAVE_REPLICATION
     if (expire_logs_days)
     {
-      long purge_time= time(0) - expire_logs_days*24*60*60;
+      long purge_time= (long) (time(0) - expire_logs_days*24*60*60);
       if (purge_time >= 0)
         purge_logs_before_date(purge_time);
     }
