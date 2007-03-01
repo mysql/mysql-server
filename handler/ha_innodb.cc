@@ -56,53 +56,6 @@ bool innodb_inited= 0;
 */
 static handlerton *legacy_innodb_hton;
 
-/*-----------------------------------------------------------------*/
-/* These variables are used to implement (semi-)synchronous MySQL binlog
-replication for InnoDB tables. */
-
-pthread_cond_t	innobase_repl_cond;		/* Posix cond variable;
-						this variable is signaled
-						when enough binlog has been
-						sent to slave, so that a
-						waiting trx can return the
-						'ok' message to the client
-						for a commit */
-pthread_mutex_t innobase_repl_cond_mutex;	/* Posix cond variable mutex
-						that also protects the next
-						innobase_repl_... variables */
-uint		innobase_repl_state;		/* 1 if synchronous replication
-						is switched on and is working
-						ok; else 0 */
-uint		innobase_repl_file_name_inited	= 0; /* This is set to 1 when
-						innobase_repl_file_name
-						contains meaningful data */
-char*		innobase_repl_file_name;	/* The binlog name up to which
-						we have sent some binlog to
-						the slave */
-my_off_t	innobase_repl_pos;		/* The position in that file
-						up to which we have sent the
-						binlog to the slave */
-uint		innobase_repl_n_wait_threads	= 0; /* This tells how many
-						transactions currently are
-						waiting for the binlog to be
-						sent to the client */
-uint		innobase_repl_wait_file_name_inited = 0; /* This is set to 1
-						when we know the 'smallest'
-						wait position */
-char*		innobase_repl_wait_file_name;	/* NULL, or the 'smallest'
-						innobase_repl_file_name that
-						a transaction is waiting for */
-my_off_t	innobase_repl_wait_pos;		/* The smallest position in
-						that file that a trx is
-						waiting for: the trx can
-						proceed and send an 'ok' to
-						the client when MySQL has sent
-						the binlog up to this position
-						to the slave */
-/*-----------------------------------------------------------------*/
-
-
-
 /* Store MySQL definition of 'byte': in Linux it is char while InnoDB
 uses unsigned char; the header univ.i which we include next defines
 'byte' as a macro which expands to 'unsigned char' */
