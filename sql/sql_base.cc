@@ -796,6 +796,7 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
     thd                   thread handle
     table                 table which should be checked
     table_list            list of tables
+    check_alias           whether to check tables' aliases
 
   NOTE: to exclude derived tables from check we use following mechanism:
     a) during derived table processing set THD::derived_tables_processing
@@ -823,10 +824,11 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
     0 if table is unique
 */
 
-TABLE_LIST* unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list)
+TABLE_LIST* unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
+                         bool check_alias)
 {
   TABLE_LIST *res;
-  const char *d_name, *t_name;
+  const char *d_name, *t_name, *t_alias;
   DBUG_ENTER("unique_table");
   DBUG_PRINT("enter", ("table alias: %s", table->alias));
 
@@ -854,6 +856,7 @@ TABLE_LIST* unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list)
   }
   d_name= table->db;
   t_name= table->table_name;
+  t_alias= table->alias;
 
   DBUG_PRINT("info", ("real table: %s.%s", d_name, t_name));
   for (;;)
@@ -861,6 +864,8 @@ TABLE_LIST* unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list)
     if (((! (res= find_table_in_global_list(table_list, d_name, t_name))) &&
          (! (res= mysql_lock_have_duplicate(thd, table, table_list)))) ||
         ((!res->table || res->table != table->table) &&
+         (!check_alias || !(lower_case_table_names ?
+          strcasecmp(t_alias, res->alias) : strcmp(t_alias, res->alias))) &&
          res->select_lex && !res->select_lex->exclude_from_table_unique_test &&
          !res->prelocking_placeholder))
       break;

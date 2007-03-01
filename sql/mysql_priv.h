@@ -1064,7 +1064,8 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
                                st_table_list *TABLE_LIST::*link,
                                const char *db_name,
                                const char *table_name);
-TABLE_LIST *unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list);
+TABLE_LIST *unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
+                         bool check_alias);
 TABLE **find_temporary_table(THD *thd, const char *db, const char *table_name);
 bool close_temporary_table(THD *thd, const char *db, const char *table_name);
 void close_temporary(TABLE *table, bool delete_table);
