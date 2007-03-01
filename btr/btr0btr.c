@@ -977,9 +977,8 @@ btr_page_reorganize_low(
 	if (UNIV_LIKELY_NULL(page_zip)
 	    && !dict_index_is_clust(index) && page_is_leaf(page)) {
 
-		ibuf_update_free_bits_if_full(
-			index, page_zip_get_size(page_zip), block,
-			UNIV_PAGE_SIZE, ULINT_UNDEFINED);
+		ibuf_update_free_bits_zip(
+			index, page_zip_get_size(page_zip), block);
 	}
 
 func_exit:
@@ -2519,8 +2518,14 @@ err_exit:
 	if (!dict_index_is_clust(index) && page_is_leaf(merge_page)) {
 		/* We have added new records to merge_page:
 		update its free bits */
-		ibuf_update_free_bits_if_full(index, zip_size, merge_block,
-					      UNIV_PAGE_SIZE, ULINT_UNDEFINED);
+		if (zip_size) {
+			ibuf_update_free_bits_zip(index, zip_size,
+						  merge_block);
+		} else {
+			ibuf_update_free_bits_if_full(index, merge_block,
+						      UNIV_PAGE_SIZE,
+						      ULINT_UNDEFINED);
+		}
 	}
 
 	ut_ad(page_validate(merge_page, index));

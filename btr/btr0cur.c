@@ -898,11 +898,12 @@ btr_cur_insert_if_possible(
 	}
 
 	if (buf_block_get_page_zip(block)
-	    && !dict_index_is_clust(cursor->index)) {
+	    && !dict_index_is_clust(cursor->index)
+	    && page_is_leaf(buf_block_get_frame(block))) {
 		/* Update the free bits in the insert buffer. */
-		ibuf_update_free_bits_if_full(
-			cursor->index, buf_block_get_zip_size(block),
-			block, UNIV_PAGE_SIZE, ULINT_UNDEFINED);
+		ibuf_update_free_bits_zip(cursor->index,
+					  buf_block_get_zip_size(block),
+					  block);
 	}
 
 	return(rec);
@@ -1228,12 +1229,11 @@ fail_err:
 	if (!dict_index_is_clust(index) && UNIV_LIKELY(0 == level)) {
 		/* We have added a record to page: update its free bits */
 		if (zip_size) {
-			ibuf_update_free_bits_if_full(
-				cursor->index, zip_size, block,
-				UNIV_PAGE_SIZE, ULINT_UNDEFINED);
+			ibuf_update_free_bits_zip(cursor->index,
+						  zip_size, block);
 		} else {
 			ibuf_update_free_bits_if_full(
-				cursor->index, zip_size, block, max_size,
+				cursor->index, block, max_size,
 				rec_size + PAGE_DIR_SLOT_SIZE);
 		}
 	}
@@ -1733,11 +1733,11 @@ btr_cur_update_in_place(
 					thr, &roll_ptr);
 	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
 
-		if (page_zip && !dict_index_is_clust(index)) {
+		if (page_zip && !dict_index_is_clust(index)
+		    && page_is_leaf(buf_block_get_frame(block))) {
 			/* Update the free bits in the insert buffer. */
-			ibuf_update_free_bits_if_full(
-				index, buf_block_get_zip_size(block),
-				block, UNIV_PAGE_SIZE, ULINT_UNDEFINED);
+			ibuf_update_free_bits_zip(
+				index, page_zip_get_size(page_zip), block);
 		}
 
 		if (UNIV_LIKELY_NULL(heap)) {
@@ -1775,12 +1775,11 @@ btr_cur_update_in_place(
 		rw_lock_x_unlock(&btr_search_latch);
 	}
 
-	if (page_zip && !dict_index_is_clust(index)) {
+	if (page_zip && !dict_index_is_clust(index)
+	    && page_is_leaf(buf_block_get_frame(block))) {
 		/* Update the free bits in the insert buffer. */
-		ibuf_update_free_bits_if_full(index,
-					      buf_block_get_zip_size(block),
-					      block,
-					      UNIV_PAGE_SIZE, ULINT_UNDEFINED);
+		ibuf_update_free_bits_zip(index, buf_block_get_zip_size(block),
+					  block);
 	}
 
 	btr_cur_update_in_place_log(flags, rec, index, update,
@@ -1954,11 +1953,11 @@ btr_cur_optimistic_update(
 					&roll_ptr);
 	if (err != DB_SUCCESS) {
 err_exit:
-		if (page_zip && !dict_index_is_clust(index)) {
+		if (page_zip && !dict_index_is_clust(index)
+		    && page_is_leaf(page)) {
 			/* Update the free bits in the insert buffer. */
-			ibuf_update_free_bits_if_full(
-				index, buf_block_get_zip_size(block),
-				block, UNIV_PAGE_SIZE, ULINT_UNDEFINED);
+			ibuf_update_free_bits_zip(
+				index, buf_block_get_zip_size(block), block);
 		}
 
 		mem_heap_free(heap);
