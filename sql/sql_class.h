@@ -1656,6 +1656,7 @@ public:
   bool opt_enclosed;
   bool dumpfile;
   ulong skip_lines;
+  CHARSET_INFO *cs;
   sql_exchange(char *name,bool dumpfile_flag);
 };
 
