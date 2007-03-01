@@ -46,6 +46,7 @@ const LEX_STRING null_lex_str={0,0};
 
 #define yyoverflow(A,B,C,D,E,F) {ulong val= *(F); if (my_yyoverflow((B), (D), &val)) { yyerror((char*) (A)); return 2; } else { *(F)= (YYSIZE_T)val; }}
 
+#undef 	WARN_DEPRECATED			/* this macro is also defined in mysql_priv.h */
 #define WARN_DEPRECATED(A,B)                                        \
   push_warning_printf(((THD *)yythd), MYSQL_ERROR::WARN_LEVEL_WARN, \
 		      ER_WARN_DEPRECATED_SYNTAX,                    \
