@@ -477,9 +477,9 @@ int _ma_prefix_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 	  else
 	  {
 	    /* We have to compare k and vseg as if they were space extended */
-	    uchar *end= k+ (cmplen - len);
-	    for ( ; k < end && *k == ' '; k++) ;
-	    if (k == end)
+	    uchar *k_end= k+ (cmplen - len);
+	    for ( ; k < k_end && *k == ' '; k++) ;
+	    if (k == k_end)
 	      goto cmp_rest;		/* should never happen */
 	    if ((uchar) *k < (uchar) ' ')
 	    {
@@ -491,15 +491,15 @@ int _ma_prefix_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
         }
         else if (len > cmplen)
         {
-	  uchar *end;
+	  uchar *vseg_end;
 	  if ((nextflag & SEARCH_PREFIX) && key_len_left == 0)
 	    goto fix_flag;
 
 	  /* We have to compare k and vseg as if they were space extended */
-	  for (end=vseg + (len-cmplen) ;
-	       vseg < end && *vseg == (byte) ' ';
+	  for (vseg_end= vseg + (len-cmplen) ;
+	       vseg < vseg_end && *vseg == (byte) ' ';
 	       vseg++, matched++) ;
-	  DBUG_ASSERT(vseg < end);
+	  DBUG_ASSERT(vseg < vseg_end);
 
 	  if ((uchar) *vseg > (uchar) ' ')
 	  {

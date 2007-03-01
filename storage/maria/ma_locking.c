@@ -291,6 +291,15 @@ void _ma_update_status(void* param)
   }
 }
 
+
+void _ma_restore_status(void *param)
+{
+  MARIA_HA *info= (MARIA_HA*) param;
+  info->state= &info->s->state.state;
+  info->append_insert_at_end= 0;
+}
+
+
 void _ma_copy_status(void* to,void *from)
 {
   ((MARIA_HA*) to)->state= &((MARIA_HA*) from)->save_state;

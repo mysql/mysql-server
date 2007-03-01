@@ -799,7 +799,7 @@ static void translog_put_sector_protection(byte *page,
 
 static uint32 translog_crc(byte *area, uint length)
 {
-  return crc32(0L, area, length);
+  return crc32(0L, (unsigned char*) area, length);
 }
 
 

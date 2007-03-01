@@ -310,7 +310,13 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 	for (j=0 ; j < share->keyinfo[i].keysegs; j++,pos++)
 	{
 	  disk_pos=_ma_keyseg_read(disk_pos, pos);
-
+          if (pos->flag & HA_BLOB_PART &&
+              ! (share->options & (HA_OPTION_COMPRESS_RECORD |
+                                   HA_OPTION_PACK_RECORD)))
+          {
+            my_errno= HA_ERR_CRASHED;
+            goto err;
+          }
 	  if (pos->type == HA_KEYTYPE_TEXT ||
               pos->type == HA_KEYTYPE_VARTEXT1 ||
               pos->type == HA_KEYTYPE_VARTEXT2)
@@ -346,11 +352,11 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
           }
           else
           {
-            uint j;
+            uint k;
             share->keyinfo[i].seg=pos;
-            for (j=0; j < FT_SEGS; j++)
+            for (k=0; k < FT_SEGS; k++)
             {
-              *pos= ft_keysegs[j];
+              *pos= ft_keysegs[k];
               pos[0].language= pos[-1].language;
               if (!(pos[0].charset= pos[-1].charset))
               {
@@ -444,6 +450,32 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       }
     }
     share->rec[i].type=(int) FIELD_LAST;	/* End marker */
+#ifdef ASKMONTY
+    /*
+      This code was added to mi_open.c in this cset:
+      "ChangeSet 1.1616.2941.5 2007/01/22 16:34:58 svoj@mysql.com
+      BUG#24401 - MySQL server crashes if you try to retrieve data from
+      corrupted table
+      Accessing a table with corrupted column definition results in server
+      crash.
+      This is fixed by refusing to open such tables. Affects MyISAM only.
+      No test case, since it requires crashed table.
+      storage/myisam/mi_open.c 1.80.2.10 2007/01/22 16:34:57 svoj@mysql.com
+      Refuse to open MyISAM table with summary columns length bigger than
+      length of the record."
+
+      The problem is that the "offset" variable was removed (by Monty in the
+      rows-in-block patch). Monty will know how to merge that.
+      Guilhem will make sure to notify him.
+    */
+    if (offset > share->base.reclength)
+    {
+      /* purecov: begin inspected */
+      my_errno= HA_ERR_CRASHED;
+      goto err;
+      /* purecov: end */
+    }
+#endif /* ASKMONTY */
 
     if (_ma_open_datafile(&info, share, -1))
       goto err;
@@ -465,6 +497,22 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     _ma_setup_functions(share);
     if ((*share->once_init)(share, info.dfile))
       goto err;
+    if (open_flags & HA_OPEN_MMAP)
+    {
+      info.s= share;
+      if (_ma_dynmap_file(&info, share->state.state.data_file_length))
+      {
+        /* purecov: begin inspected */
+        /* Ignore if mmap fails. Use file I/O instead. */
+        DBUG_PRINT("warning", ("mmap failed: errno: %d", errno));
+        /* purecov: end */
+      }
+      else
+      {
+        share->file_read= _ma_mmap_pread;
+        share->file_write= _ma_mmap_pwrite;
+      }
+    }
     share->is_log_table= FALSE;
 #ifdef THREAD
     thr_lock_init(&share->lock);
@@ -491,6 +539,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 	share->lock.get_status=_ma_get_status;
 	share->lock.copy_status=_ma_copy_status;
 	share->lock.update_status=_ma_update_status;
+	share->lock.restore_status=_ma_restore_status;
 	share->lock.check_status=_ma_check_status;
       }
     }

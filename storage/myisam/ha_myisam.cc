@@ -293,7 +293,7 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
   Check for underlying table conformance
 
   SYNOPSIS
-    check_definition()
+    myisam_check_definition()
       t1_keyinfo       in    First table key definition
       t1_recinfo       in    First table record definition
       t1_keys          in    Number of keys in first table
@@ -323,13 +323,13 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
     1 - Different definitions.
 */
 
-int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
-                     uint t1_keys, uint t1_recs,
-                     MI_KEYDEF *t2_keyinfo, MI_COLUMNDEF *t2_recinfo,
-                     uint t2_keys, uint t2_recs, bool strict)
+int myisam_check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
+                            uint t1_keys, uint t1_recs,
+                            MI_KEYDEF *t2_keyinfo, MI_COLUMNDEF *t2_recinfo,
+                            uint t2_keys, uint t2_recs, bool strict)
 {
   uint i, j;
-  DBUG_ENTER("check_definition");
+  DBUG_ENTER("myisam_check_definition");
   if ((strict ? t1_keys != t2_keys : t1_keys > t2_keys))
   {
     DBUG_PRINT("error", ("Number of keys differs: t1_keys=%u, t2_keys=%u",

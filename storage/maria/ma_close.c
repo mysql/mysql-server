@@ -59,7 +59,7 @@ int maria_close(register MARIA_HA *info)
   }
   flag= !--share->reopen;
   /*
-    RECOVERYTODO:
+    RECOVERY TODO:
     If "flag" is TRUE, in the line below we are going to make the table
     unknown to future checkpoints, so it needs to have fsync'ed itself
     entirely (bitmap, pages, etc) at this point.

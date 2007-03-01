@@ -33,7 +33,7 @@ int maria_rename(const char *old_name, const char *new_name)
   _ma_check_table_is_closed(old_name,"rename old_table");
   _ma_check_table_is_closed(new_name,"rename new table2");
 #endif
-  /* LOCKTODO take X-lock on table here */
+  /* LOCK TODO take X-lock on table here */
 #ifdef USE_RAID
   {
     MARIA_HA *info;
@@ -51,7 +51,7 @@ int maria_rename(const char *old_name, const char *new_name)
   fn_format(from,old_name,"",MARIA_NAME_IEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
   fn_format(to,new_name,"",MARIA_NAME_IEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
   /*
-    RECOVERYTODO log the two renames below. Update
+    RECOVERY TODO log the two renames below. Update
     ZeroDirtyPagesLSN of the table on disk (=> sync the files), this is
     needed so that Recovery does not pick a wrong table.
     Then do the file renames.

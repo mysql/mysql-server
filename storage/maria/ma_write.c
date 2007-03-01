@@ -205,7 +205,8 @@ err:
   fatal_error= 0;
   if (my_errno == HA_ERR_FOUND_DUPP_KEY ||
       my_errno == HA_ERR_RECORD_FILE_FULL ||
-      my_errno == HA_ERR_NULL_IN_SPATIAL)
+      my_errno == HA_ERR_NULL_IN_SPATIAL ||
+      my_errno == HA_ERR_OUT_OF_MEM)
   {
     if (info->bulk_insert)
     {
@@ -629,6 +630,7 @@ int _ma_split_page(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   my_off_t new_pos;
   MARIA_KEY_PARAM s_temp;
   DBUG_ENTER("maria_split_page");
+  LINT_INIT(after_key);
   DBUG_DUMP("buff",(byte*) buff,maria_getint(buff));
 
   if (info->s->keyinfo+info->lastinx == keyinfo)

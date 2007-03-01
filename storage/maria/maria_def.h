@@ -817,6 +817,7 @@ my_bool _ma_unique_comp(MARIA_UNIQUEDEF *def, const byte *a, const byte *b,
                         my_bool null_are_equal);
 void _ma_get_status(void *param, int concurrent_insert);
 void _ma_update_status(void *param);
+void _ma_restore_status(void *param);
 void _ma_copy_status(void *to, void *from);
 my_bool _ma_check_status(void *param);
 

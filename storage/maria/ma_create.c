@@ -921,7 +921,7 @@ int maria_create(const char *name, enum data_file_type record_type,
   if (my_close(file,MYF(0)))
     goto err;
   /*
-    RECOVERYTODO
+    RECOVERY TODO
     Write a log record describing the CREATE operation (just the file
     names, link names, and the full header's content).
     For this record to be of any use for Recovery, we need the upper
@@ -967,18 +967,19 @@ uint maria_get_pointer_length(ulonglong file_length, uint def)
   if (file_length)				/* If not default */
   {
 #ifdef NOT_YET_READY_FOR_8_BYTE_POINTERS
-    if (file_length >= (longlong) 1 << 56)
+    if (file_length >= (ULL(1) << 56))
       def=8;
+    else
 #endif
-    if (file_length >= (longlong) 1 << 48)
+      if (file_length >= (ULL(1) << 48))
       def=7;
-    if (file_length >= (longlong) 1 << 40)
+    else if (file_length >= (ULL(1) << 40))
       def=6;
-    else if (file_length >= (longlong) 1 << 32)
+    else if (file_length >= (ULL(1) << 32))
       def=5;
-    else if (file_length >= (1L << 24))
+    else if (file_length >= (ULL(1) << 24))
       def=4;
-    else if (file_length >= (1L << 16))
+    else if (file_length >= (ULL(1) << 16))
       def=3;
     else
       def=2;

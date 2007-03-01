@@ -30,7 +30,7 @@ int maria_delete_all_rows(MARIA_HA *info)
   {
     DBUG_RETURN(my_errno=EACCES);
   }
-  /* LOCKTODO take X-lock on table here */
+  /* LOCK TODO take X-lock on table here */
   if (_ma_readinfo(info,F_WRLCK,1))
     DBUG_RETURN(my_errno);
   if (_ma_mark_file_changed(info))
@@ -54,7 +54,7 @@ int maria_delete_all_rows(MARIA_HA *info)
   */
   flush_key_blocks(share->key_cache, share->kfile, FLUSH_IGNORE_CHANGED);
   /*
-    RECOVERYTODO Log the two chsize and header modifications and force the
+    RECOVERY TODO Log the two chsize and header modifications and force the
     log. So that if crash between the two chsize, we finish the work at
     Recovery. For this scenario:
     "TRUNCATE TABLE t1; DROP TABLE t1; RENAME TABLE t2 to t1; crash;"
@@ -66,7 +66,7 @@ int maria_delete_all_rows(MARIA_HA *info)
       my_chsize(share->kfile, share->base.keystart, 0, MYF(MY_WME))  )
     goto err;
   /*
-    RECOVERYTODO Consider updating ZeroDirtyPagesLSN here. It is
+    RECOVERY TODO Consider updating ZeroDirtyPagesLSN here. It is
     not a necessity (it is one only in RENAME commands) but an optional
     optimization which will allow some REDO skipping at Recovery.
   */
@@ -78,7 +78,7 @@ int maria_delete_all_rows(MARIA_HA *info)
   rw_unlock(&info->s->mmap_lock);
 #endif
   /*
-    RECOVERYTODO Until we have the TRUNCATE log record and take it into
+    RECOVERY TODO Until we have the TRUNCATE log record and take it into
     account for log-low-water-mark calculation and use it in Recovery, we need
     to sync.
   */
@@ -90,10 +90,10 @@ int maria_delete_all_rows(MARIA_HA *info)
 err:
   {
     int save_errno=my_errno;
-    /* RECOVERYTODO log the header modifications */
+    /* RECOVERY TODO log the header modifications */
     VOID(_ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
     info->update|=HA_STATE_WRITTEN;	/* Buffer changed */
-    /* RECOVERYTODO until we log above we have to sync */
+    /* RECOVERY TODO until we log above we have to sync */
     if (_ma_sync_table_files(info) && !save_errno)
       save_errno= my_errno;
     allow_break();			/* Allow SIGHUP & SIGINT */

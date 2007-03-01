@@ -355,7 +355,12 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
   case HA_EXTRA_MMAP:
 #ifdef HAVE_MMAP
     pthread_mutex_lock(&share->intern_lock);
-    if (!share->file_map)
+    /*
+      Memory map the data file if it is not already mapped and if there
+      are no other threads using this table. intern_lock prevents other
+      threads from starting to use the table while we are mapping it.
+    */
+    if (!share->file_map && (share->tot_locks == 1))
     {
       if (_ma_dynmap_file(info, share->state.state.data_file_length))
       {

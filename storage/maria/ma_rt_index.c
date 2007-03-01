@@ -637,8 +637,6 @@ static int maria_rtree_insert_level(MARIA_HA *info, uint keynr, byte *key,
 
   if ((old_root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
   {
-    int res;
-
     if ((old_root = _ma_new(info, keyinfo, DFLT_INIT_HITS)) == HA_OFFSET_ERROR)
       return -1;
     info->keybuff_used = 1;
@@ -929,7 +927,6 @@ int maria_rtree_delete(MARIA_HA *info, uint keynr, byte *key, uint key_length)
       ulong i;
       for (i = 0; i < ReinsertList.n_pages; ++i)
       {
-        uint nod_flag;
         byte *page_buf, *k, *last;
 
         if (!(page_buf = (byte*) my_alloca((uint)keyinfo->block_length)))

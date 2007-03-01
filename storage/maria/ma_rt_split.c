@@ -188,6 +188,10 @@ static int split_maria_rtree_node(SplitStruct *node, int n_entries,
   int next_node;
   int i;
   SplitStruct *end = node + n_entries;
+  LINT_INIT(a);
+  LINT_INIT(b);
+  LINT_INIT(next);
+  LINT_INIT(next_node);
 
   if (all_size < min_size * 2)
   {

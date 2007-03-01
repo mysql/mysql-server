@@ -31,7 +31,7 @@ int maria_delete_table(const char *name)
 #ifdef EXTRA_DEBUG
   _ma_check_table_is_closed(name,"delete");
 #endif
-  /* LOCKTODO take X-lock on table here */
+  /* LOCK TODO take X-lock on table here */
 #ifdef USE_RAID
   {
     MARIA_HA *info;
@@ -61,7 +61,7 @@ int maria_delete_table(const char *name)
 
   fn_format(from,name,"",MARIA_NAME_IEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
   /*
-    RECOVERYTODO log the two deletes below.
+    RECOVERY TODO log the two deletes below.
     Then do the file deletions.
     For this log record to be of any use for Recovery, we need the upper MySQL
     layer to be crash-safe in DDLs; when it is we should reconsider the moment

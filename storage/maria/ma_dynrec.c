@@ -69,6 +69,14 @@ my_bool _ma_dynmap_file(MARIA_HA *info, my_off_t size)
     DBUG_PRINT("warning", ("File is too large for mmap"));
     DBUG_RETURN(1);
   }
+  /*
+    Ingo wonders if it is good to use MAP_NORESERVE. From the Linux man page:
+    MAP_NORESERVE
+      Do not reserve swap space for this mapping. When swap space is
+      reserved, one has the guarantee that it is possible to modify the
+      mapping. When swap space is not reserved one might get SIGSEGV
+      upon a write if no physical memory is available.
+  */
   info->s->file_map= (byte*)
                   my_mmap(0, (size_t)(size + MEMMAP_EXTRA_MARGIN),
                           info->s->mode==O_RDONLY ? PROT_READ :
@@ -252,7 +260,7 @@ my_bool _ma_write_blob_record(MARIA_HA *info, const byte *record)
 	      _ma_calc_total_blob_length(info,record)+ extra);
   if (!(rec_buff=(byte*) my_alloca(reclength)))
   {
-    my_errno=ENOMEM;
+    my_errno= HA_ERR_OUT_OF_MEM; /* purecov: inspected */
     return(1);
   }
   reclength2= _ma_rec_pack(info,
@@ -289,7 +297,7 @@ my_bool _ma_update_blob_record(MARIA_HA *info, MARIA_RECORD_POS pos,
 #endif
   if (!(rec_buff=(byte*) my_alloca(reclength)))
   {
-    my_errno=ENOMEM;
+    my_errno= HA_ERR_OUT_OF_MEM; /* purecov: inspected */
     return(1);
   }
   reclength= _ma_rec_pack(info,rec_buff+ALIGN_SIZE(MARIA_MAX_DYN_BLOCK_HEADER),
@@ -1225,8 +1233,10 @@ ulong _ma_rec_unpack(register MARIA_HA *info, register byte *to, byte *from,
       {
 	uint size_length=rec_length- maria_portable_sizeof_char_ptr;
 	ulong blob_length= _ma_calc_blob_length(size_length,from);
-	if ((ulong) (from_end-from) - size_length < blob_length ||
-	    min_pack_length > (uint) (from_end -(from+size_length+blob_length)))
+        ulong from_left= (ulong) (from_end - from);
+        if (from_left < size_length ||
+            from_left - size_length < blob_length ||
+            from_left - size_length - blob_length < min_pack_length)
 	  goto err;
 	memcpy((byte*) to,(byte*) from,(size_t) size_length);
 	from+=size_length;

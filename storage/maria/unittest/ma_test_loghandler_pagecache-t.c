@@ -21,7 +21,7 @@ static PAGECACHE_FILE file1;
 int main(int argc, char *argv[])
 {
   uint pagen;
-  uchar long_tr_id[6];
+  byte long_tr_id[6];
   PAGECACHE pagecache;
   LSN lsn;
   MY_STAT st, *stat;

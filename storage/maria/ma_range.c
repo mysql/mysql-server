@@ -170,6 +170,7 @@ static double _ma_search_pos(register MARIA_HA *info,
   byte *keypos, *buff;
   double offset;
   DBUG_ENTER("_ma_search_pos");
+  LINT_INIT(max_keynr);
 
   if (pos == HA_OFFSET_ERROR)
     DBUG_RETURN(0.5);

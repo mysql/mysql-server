@@ -3228,7 +3228,8 @@ restart:
       int rc=
 #endif
         /*
-          QQ: We are doing an unlock here, so need to give the page its rec_lsn
+          RECOVERY TODO BUG We are doing an unlock here, so need to give the
+          page its rec_lsn
         */
         make_lock_and_pin(pagecache, block,
                           write_lock_change_table[lock].unlock_lock,
@@ -3590,13 +3591,13 @@ restart:
         else
         {
 	  /* Link the block into a list of blocks 'in switch' */
-          /* QQ:
-             #warning this unlink_changed() is a serious problem for
-             Maria's Checkpoint: it removes a page from the list of dirty
-             pages, while it's still dirty. A solution is to abandon
-             first_in_switch, just wait for this page to be
-             flushed by somebody else, and loop. TODO: check all places
-             where we remove a page from the list of dirty pages
+          /*
+            RECOVERY TODO BUG this unlink_changed() is a serious problem for
+            Maria's Checkpoint: it removes a page from the list of dirty
+            pages, while it's still dirty. A solution is to abandon
+            first_in_switch, just wait for this page to be
+            flushed by somebody else, and loop. TODO: check all places
+            where we remove a page from the list of dirty pages
           */
           unlink_changed(block);
           link_changed(block, &first_in_switch);
