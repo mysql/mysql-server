@@ -31,7 +31,7 @@
 
 #undef GETPID					/* For HPUX */
 #ifdef THREAD
-#define GETPID() (log_type == 1 ? (long) myisam_pid : (long) my_thread_id());
+#define GETPID() (log_type == 1 ? (long) myisam_pid : (long) my_thread_dbug_id())
 #else
 #define GETPID() myisam_pid
 #endif

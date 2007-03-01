@@ -64,7 +64,7 @@ struct CreateFilegroupRef {
     InvalidFormat = 740,
     OutOfFilegroupRecords = 765,
     InvalidExtentSize = 764,
-    InvalidUndoBufferSize = 763,
+    InvalidUndoBufferSize = 779,
     NoSuchLogfileGroup = 767,
     InvalidFilegroupVersion = 768
   };

@@ -75,4 +75,62 @@ alter table t1 engine = x;
 show create table t1;
 drop table t1;
 
+# BUG#26117: index_merge sort-union over partitioned table crashes
+
+create table t1
+(
+  id int unsigned auto_increment,
+  time datetime not null,
+  first_name varchar(40),
+  last_name varchar(50),
+  primary key (id, time),
+  index first_index (first_name),
+  index last_index (last_name)	
+) engine=Innodb partition by range (to_days(time)) (
+  partition p1 values less than (to_days('2007-02-07')),
+  partition p2 values less than (to_days('2007-02-08')),
+  partition p3 values less than MAXVALUE
+);
+
+insert into t1 (time, first_name, last_name) values ('2007-02-07', 'Q', 'Robert'),
+('2007-02-07', 'Mark', 'Nate'), ('2007-02-07', 'Nate', 'Oscar'),
+('2007-02-07', 'Zack', 'Alice'), ('2007-02-07', 'Jack', 'Kathy'),
+('2007-02-06', 'Alice', 'Alice'), ('2007-02-06', 'Brian', 'Charles'),
+('2007-02-06', 'Charles', 'David'), ('2007-02-06', 'David', 'Eric'),
+('2007-02-07', 'Hector', 'Isaac'), ('2007-02-07', 'Oscar', 'Patricia'),
+('2007-02-07', 'Patricia', 'Q'), ('2007-02-07', 'X', 'Yuri'),
+('2007-02-07', 'Robert', 'Shawn'), ('2007-02-07', 'Kathy', 'Lois'),
+('2007-02-07', 'Eric', 'Francis'), ('2007-02-06', 'Shawn', 'Theron'),
+('2007-02-06', 'U', 'Vincent'), ('2007-02-06', 'Francis', 'George'),
+('2007-02-06', 'George', 'Hector'), ('2007-02-06', 'Vincent', 'Walter'),
+('2007-02-06', 'Walter', 'X'), ('2007-02-07', 'Lois', 'Mark'),
+('2007-02-07', 'Yuri', 'Zack'), ('2007-02-07', 'Isaac', 'Jack'),
+('2007-02-07', 'Sharon', 'Mark'), ('2007-02-07', 'Michael', 'Michelle'),
+('2007-02-07', 'Derick', 'Nathan'), ('2007-02-07', 'Peter', 'Xavier'),
+('2007-02-07', 'Fred', 'Harold'), ('2007-02-07', 'Katherine', 'Lisa'),
+('2007-02-07', 'Tom', 'Rina'), ('2007-02-07', 'Jerry', 'Victor'),
+('2007-02-07', 'Alexander', 'Terry'), ('2007-02-07', 'Justin', 'John'),
+('2007-02-07', 'Greg', 'Ernest'), ('2007-02-07', 'Robert', 'Q'),
+('2007-02-07', 'Nate', 'Mark'), ('2007-02-07', 'Oscar', 'Nate'),
+('2007-02-07', 'Alice', 'Zack'), ('2007-02-07', 'Kathy', 'Jack'),
+('2007-02-06', 'Alice', 'Alice'), ('2007-02-06', 'Charles', 'Brian'),
+('2007-02-06', 'David', 'Charles'), ('2007-02-06', 'Eric', 'David'),
+('2007-02-07', 'Isaac', 'Hector'), ('2007-02-07', 'Patricia', 'Oscar'),
+('2007-02-07', 'Q', 'Patricia'), ('2007-02-07', 'Yuri', 'X'),
+('2007-02-07', 'Shawn', 'Robert'), ('2007-02-07', 'Lois', 'Kathy'),
+('2007-02-07', 'Francis', 'Eric'), ('2007-02-06', 'Theron', 'Shawn'),
+('2007-02-06', 'Vincent', 'U'), ('2007-02-06', 'George', 'Francis'),
+('2007-02-06', 'Hector', 'George'), ('2007-02-06', 'Walter', 'Vincent'),
+('2007-02-06', 'X', 'Walter'), ('2007-02-07', 'Mark', 'Lois'),
+('2007-02-07', 'Zack', 'Yuri'), ('2007-02-07', 'Jack', 'Isaac'),
+('2007-02-07', 'Mark', 'Sharon'), ('2007-02-07', 'Michelle', 'Michael'),
+('2007-02-07', 'Nathan', 'Derick'), ('2007-02-07', 'Xavier', 'Peter'),
+('2007-02-07', 'Harold', 'Fred'), ('2007-02-07', 'Lisa', 'Katherine'),
+('2007-02-07', 'Rina', 'Tom'), ('2007-02-07', 'Victor', 'Jerry'),
+('2007-02-07', 'Terry', 'Alexander'), ('2007-02-07', 'John', 'Justin'),
+('2007-02-07', 'Ernest', 'Greg');
+
+SELECT * FROM t1 WHERE first_name='Andy' OR last_name='Jake';
+
+drop table t1;
 

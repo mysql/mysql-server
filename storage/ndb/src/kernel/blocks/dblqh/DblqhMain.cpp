@@ -62,6 +62,7 @@
 #include <signaldata/AttrInfo.hpp>
 #include <KeyDescriptor.hpp>
 #include <signaldata/RouteOrd.hpp>
+#include <signaldata/FsRef.hpp>
 
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
@@ -598,7 +599,7 @@ Dblqh::execDEFINE_BACKUP_REF(Signal* signal)
     case DefineBackupRef::FailedInsertTableList: 
       jam();
       err_code = NDBD_EXIT_INVALID_CONFIG;
-      extra_msg = "Probably Backup parameters configuration error, Please consult the manual";
+      extra_msg = (char*) "Probably Backup parameters configuration error, Please consult the manual";
       progError(__LINE__, err_code, extra_msg);
   }
 
@@ -3962,7 +3963,6 @@ void
 Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
 {
   jam();
-  Uint32 tableId = regTcPtr.p->tableref;
   Uint32 fragPtr = fragptr.p->tupFragptr;
   Uint32 op = regTcPtr.p->operation;
 
@@ -4256,7 +4256,7 @@ Dblqh::nr_copy_delete_row(Signal* signal,
 	   signal->theData, sizeof(Local_key));
     regTcPtr.p->m_nr_delete.m_page_id[pos] = RNIL;
     regTcPtr.p->m_nr_delete.m_cnt = pos + 2;
-    ndbout << "PENDING DISK DELETE: " << 
+    if (0) ndbout << "PENDING DISK DELETE: " << 
       regTcPtr.p->m_nr_delete.m_disk_ref[pos] << endl;
   }
   
@@ -6727,7 +6727,6 @@ void Dblqh::execABORT(Signal* signal)
   }//if
   
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
-  Uint32 activeCreat = regTcPtr->activeCreat;
   if (ERROR_INSERTED(5100))
   {
     SET_ERROR_INSERT_VALUE(5101);
@@ -6807,7 +6806,6 @@ void Dblqh::execABORTREQ(Signal* signal)
     return;
   }//if
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
-  Uint32 activeCreat = regTcPtr->activeCreat;
   if (regTcPtr->transactionState != TcConnectionrec::PREPARED) {
     warningReport(signal, 10);
     return;
@@ -7572,7 +7570,7 @@ void Dblqh::lqhTransNextLab(Signal* signal)
 	       * THE RECEIVER OF THE COPY HAVE FAILED. 
 	       * WE HAVE TO CLOSE THE COPY PROCESS. 
 	       * ----------------------------------------------------------- */
-	      ndbout_c("close copy");
+	      if (0) ndbout_c("close copy");
               tcConnectptr.p->tcNodeFailrec = tcNodeFailptr.i;
               tcConnectptr.p->abortState = TcConnectionrec::NEW_FROM_TC;
               closeCopyRequestLab(signal);
@@ -10833,7 +10831,7 @@ void Dblqh::tupCopyCloseConfLab(Signal* signal)
 void Dblqh::closeCopyRequestLab(Signal* signal) 
 {
   scanptr.p->scanErrorCounter++;
-  ndbout_c("closeCopyRequestLab: scanState: %d", scanptr.p->scanState);
+  if (0) ndbout_c("closeCopyRequestLab: scanState: %d", scanptr.p->scanState);
   switch (scanptr.p->scanState) {
   case ScanRecord::WAIT_TUPKEY_COPY:
   case ScanRecord::WAIT_NEXT_SCAN_COPY:
@@ -11434,7 +11432,17 @@ void Dblqh::execLCP_PREPARE_CONF(Signal* signal)
 
 void Dblqh::execBACKUP_FRAGMENT_REF(Signal* signal) 
 {
-  ndbrequire(false);
+  BackupFragmentRef *ref= (BackupFragmentRef*)signal->getDataPtr();
+  char buf[100];
+  BaseString::snprintf(buf,sizeof(buf),
+                       "Unable to store fragment during LCP. NDBFS Error: %u",
+                       ref->errorCode);
+
+  progError(__LINE__,
+            (ref->errorCode & FsRef::FS_ERR_BIT)?
+            NDBD_EXIT_AFS_UNKNOWN
+            : ref->errorCode,
+            buf);
 }
 
 void Dblqh::execBACKUP_FRAGMENT_CONF(Signal* signal) 
@@ -11928,7 +11936,7 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
     return;
   }
 
-  if (getNodeState().getNodeRestartInProgress())
+  if (getNodeState().getNodeRestartInProgress() && cstartRecReq == ZFALSE)
   {
     GCPSaveRef * const saveRef = (GCPSaveRef*)&signal->theData[0];
     saveRef->dihPtr = dihPtr;
@@ -11975,7 +11983,6 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
   }//if
   
   ndbrequire(ccurrentGcprec == RNIL);
-    
   ccurrentGcprec = 0;
   gcpPtr.i = ccurrentGcprec;
   ptrCheckGuard(gcpPtr, cgcprecFileSize, gcpRecord);
@@ -18854,30 +18861,6 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 #endif
   
 }//Dblqh::execDUMP_STATE_ORD()
-
-void Dblqh::execSET_VAR_REQ(Signal* signal) 
-{
-#if 0
-  SetVarReq* const setVarReq = (SetVarReq*)&signal->theData[0];
-  ConfigParamId var = setVarReq->variable();
-
-  switch (var) {
-
-  case NoOfConcurrentCheckpointsAfterRestart:
-    sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
-    break;
-
-  case NoOfConcurrentCheckpointsDuringRestart:
-    // Valid only during start so value not set.
-    sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
-    break;
-
-  default:
-    sendSignal(CMVMI_REF, GSN_SET_VAR_REF, signal, 1, JBB);
-  } // switch
-#endif
-}//execSET_VAR_REQ()
-
 
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */

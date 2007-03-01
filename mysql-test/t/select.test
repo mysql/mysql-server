@@ -3253,4 +3253,50 @@ select
   case when 1 then cast(1111111111111111111 as unsigned) else 1 end c,
   coalesce(cast(1111111111111111111 as unsigned), 1) co;
 
+#
+# Bug #22971: indexes on text columns are ignored for ref accesses 
+#
+
+CREATE TABLE t1 (name varchar(255));
+CREATE TABLE t2 (name varchar(255), n int, KEY (name(3)));
+INSERT INTO t1 VALUES ('ccc'), ('bb'), ('cc '), ('aa  '), ('aa');
+INSERT INTO t2 VALUES ('bb',1), ('aa',2), ('cc   ',3);
+INSERT INTO t2 VALUES (concat('cc ', 0x06), 4);
+INSERT INTO t2 VALUES ('cc',5), ('bb ',6), ('cc ',7);
+SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY name;
+SELECT name, LENGTH(name), n FROM t2 ORDER BY name;
+
+EXPLAIN SELECT name, LENGTH(name), n FROM t2 WHERE name='cc '; 
+SELECT name, LENGTH(name), n FROM t2 WHERE name='cc '; 
+EXPLAIN SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%';
+SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%';
+EXPLAIN SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%' ORDER BY name;
+SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%' ORDER BY name;
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
+SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
+
+DROP TABLE t1,t2;
+
+CREATE TABLE t1 (name text);
+CREATE TABLE t2 (name text, n int, KEY (name(3)));
+INSERT INTO t1 VALUES ('ccc'), ('bb'), ('cc '), ('aa  '), ('aa');
+INSERT INTO t2 VALUES ('bb',1), ('aa',2), ('cc   ',3);
+INSERT INTO t2 VALUES (concat('cc ', 0x06), 4);
+INSERT INTO t2 VALUES ('cc',5), ('bb ',6), ('cc ',7);
+SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY name;
+SELECT name, LENGTH(name), n FROM t2 ORDER BY name;
+
+EXPLAIN SELECT name, LENGTH(name), n FROM t2 WHERE name='cc '; 
+SELECT name, LENGTH(name), n FROM t2 WHERE name='cc '; 
+EXPLAIN SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%';
+SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%';
+EXPLAIN SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%' ORDER BY name;
+SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%' ORDER BY name;
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
+SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
+
+DROP TABLE t1,t2;
+
 --echo End of 5.0 tests

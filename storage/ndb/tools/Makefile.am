@@ -50,7 +50,7 @@ ndb_restore_SOURCES = restore/restore_main.cpp \
                       restore/Restore.cpp \
                       ../test/src/NDBT_ResultRow.cpp $(tools_common_sources)
 
-ndb_config_SOURCES = ndb_condig.cpp \
+ndb_config_SOURCES = ndb_config.cpp \
 	../src/mgmsrv/Config.cpp \
 	../src/mgmsrv/ConfigInfo.cpp \
 	../src/mgmsrv/InitConfigFileParser.cpp

@@ -19,6 +19,17 @@
 //  Correct output from this program is:
 //
 //  ATTR1 ATTR2
+//    0     0
+//    1     1
+//    2     2
+//    3     3
+//    4     4
+//    5     5
+//    6     6
+//    7     7
+//    8     8
+//    9     9
+//  ATTR1 ATTR2
 //    0    10
 //    1     1
 //    2    12
@@ -166,7 +177,8 @@ int main(int argc, char** argv)
     NdbRecAttr *myRecAttr= myIndexOperation->getValue("ATTR1", NULL);
     if (myRecAttr == NULL) APIERROR(myTransaction->getNdbError());
 
-    if(myTransaction->execute( NdbTransaction::Commit ) != -1)
+    if(myTransaction->execute( NdbTransaction::Commit,
+                               NdbOperation::AbortOnError ) != -1)
       printf(" %2d    %2d\n", myRecAttr->u_32_value(), i);
 
     myNdb->closeTransaction(myTransaction);
@@ -232,7 +244,8 @@ int main(int argc, char** argv)
       NdbRecAttr *myRecAttr= myOperation->getValue("ATTR2", NULL);
       if (myRecAttr == NULL) APIERROR(myTransaction->getNdbError());
     
-      if(myTransaction->execute( NdbTransaction::Commit ) == -1)
+      if(myTransaction->execute( NdbTransaction::Commit,
+                                 NdbOperation::AbortOnError ) == -1)
 	if (i == 3) {
 	  std::cout << "Detected that deleted tuple doesn't exist!\n";
 	} else {

@@ -200,14 +200,14 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
 
   OperationType tOperationType = theOperationType;
   Uint32 tTupKeyLen = theTupKeyLen;
-  Uint8 abortOption = (ao == DefaultAbortOption) ? m_abortOption : ao;
+  Uint8 abortOption = (ao == DefaultAbortOption) ? (Uint8) m_abortOption : (Uint8) ao;
 
   tcKeyReq->setDirtyFlag(tReqInfo, tDirtyIndicator);
   tcKeyReq->setOperationType(tReqInfo, tOperationType);
   tcKeyReq->setKeyLength(tReqInfo, tTupKeyLen);
   
   // A simple read is always ignore error
-  abortOption = tSimpleState ? AO_IgnoreError : abortOption;
+  abortOption = tSimpleState ? (Uint8) AO_IgnoreError : (Uint8) abortOption;
   tcKeyReq->setAbortOption(tReqInfo, abortOption);
   m_abortOption = abortOption;
   

@@ -537,6 +537,7 @@ struct Operationrec {
     ,OP_INITIAL             = ~(Uint32)0
   };
   
+  Operationrec() {}
   bool is_same_trans(const Operationrec* op) const {
     return 
       transId1 == op->transId1 && transId2 == op->transId2;
@@ -660,7 +661,6 @@ private:
   void execNDB_STTOR(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
   void execREAD_CONFIG_REQ(Signal* signal);
-  void execSET_VAR_REQ(Signal* signal);
   void execDUMP_STATE_ORD(Signal* signal);
 
   // Statement blocks
