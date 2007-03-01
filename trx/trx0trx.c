@@ -1985,7 +1985,7 @@ trx_recover_for_mysql(
 			(ulong) count);
 	}
 
-	return (count);
+	return ((int) count);
 }
 
 /***********************************************************************
