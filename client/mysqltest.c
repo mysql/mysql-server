@@ -1694,12 +1694,14 @@ void do_exec(struct st_command *command)
   }
 
 #ifdef __WIN__
+#ifndef USE_CYGWIN
   /* Replace /dev/null with NUL */
   while(replace(&ds_cmd, "/dev/null", 9, "NUL", 3) == 0)
     ;
   /* Replace "closed stdout" with non existing output fd */
   while(replace(&ds_cmd, ">&-", 3, ">&4", 3) == 0)
     ;
+#endif
 #endif
 
   DBUG_PRINT("info", ("Executing '%s' as '%s'",
@@ -1864,9 +1866,11 @@ void do_system(struct st_command *command)
   do_eval(&ds_cmd, command->first_argument, command->end, !is_windows);
 
 #ifdef __WIN__
+#ifndef USE_CYGWIN
    /* Replace /dev/null with NUL */
    while(replace(&ds_cmd, "/dev/null", 9, "NUL", 3) == 0)
      ;
+#endif
 #endif
 
 
@@ -5954,7 +5958,9 @@ int main(int argc, char **argv)
 
   init_builtin_echo();
 #ifdef __WIN__
+#ifndef USE_CYGWIN
   is_windows= 1;
+#endif
   init_tmp_sh_file();
   init_win_path_patterns();
 #endif

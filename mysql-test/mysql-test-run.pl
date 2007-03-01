@@ -3793,7 +3793,7 @@ sub mysqld_arguments ($$$$$) {
     if ( $mysql_version_id <= 50106 )
     {
       # Force mysqld to use log files up until 5.1.6
-      mtr_add_arg($args, "%s--log=%s", $prefix, $master->[0]->{'path_mylog'});
+      mtr_add_arg($args, "%s--log=%s", $prefix, $slave->[0]->{'path_mylog'});
     }
     else
     {
