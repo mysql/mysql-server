@@ -97,7 +97,7 @@ int createTable(Ndb* pNdb, const NdbDictionary::Table* tab, bool _temp,
   do{
     NdbDictionary::Table tmpTab(* tab);
     tmpTab.setStoredTable(_temp ? 0 : 1);
-    if(f != 0 && f(pNdb, tmpTab, 0))
+    if(f != 0 && f(pNdb, tmpTab, 0, NULL))
     {
       ndbout << "Failed to create table" << endl;
       return NDBT_FAILED;
