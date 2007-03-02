@@ -52,7 +52,7 @@ const LEX_STRING null_lex_str={0,0};
 		      ER_WARN_DEPRECATED_SYNTAX,                    \
 		      ER(ER_WARN_DEPRECATED_SYNTAX), (A), (B));
 
-#define YYERROR_UNLESS(A)                  \
+#define YYABORT_UNLESS(A)                  \
   if (!(A))                             \
   {					\
     yyerror(ER(ER_SYNTAX_ERROR));	\
@@ -5485,7 +5485,7 @@ table_ref:
         ;
 
 join_table_list:
-	derived_table_list		{ YYERROR_UNLESS($$=$1); }
+	derived_table_list		{ YYABORT_UNLESS($$=$1); }
 	;
 
 /* Warning - may return NULL in case of incomplete SELECT */
@@ -5493,7 +5493,7 @@ derived_table_list:
         table_ref { $$=$1; }
         | derived_table_list ',' table_ref
           {
-            YYERROR_UNLESS($1 && ($$=$3));
+            YYABORT_UNLESS($1 && ($$=$3));
           }
         ;
 
@@ -5512,13 +5512,13 @@ join_table:
           left-associative joins.
         */
         table_ref %prec TABLE_REF_PRIORITY normal_join table_ref
-          { YYERROR_UNLESS($1 && ($$=$3)); }
+          { YYABORT_UNLESS($1 && ($$=$3)); }
 	| table_ref STRAIGHT_JOIN table_factor
-	  { YYERROR_UNLESS($1 && ($$=$3)); $3->straight=1; }
+	  { YYABORT_UNLESS($1 && ($$=$3)); $3->straight=1; }
 	| table_ref normal_join table_ref
           ON
           {
-            YYERROR_UNLESS($1 && $3);
+            YYABORT_UNLESS($1 && $3);
             /* Change the current name resolution context to a local context. */
             if (push_new_name_resolution_context(YYTHD, $1, $3))
               YYABORT;
@@ -5533,7 +5533,7 @@ join_table:
         | table_ref STRAIGHT_JOIN table_factor
           ON
           {
-            YYERROR_UNLESS($1 && $3);
+            YYABORT_UNLESS($1 && $3);
             /* Change the current name resolution context to a local context. */
             if (push_new_name_resolution_context(YYTHD, $1, $3))
               YYABORT;
@@ -5549,13 +5549,13 @@ join_table:
 	| table_ref normal_join table_ref
 	  USING
 	  {
-            YYERROR_UNLESS($1 && $3);
+            YYABORT_UNLESS($1 && $3);
 	  }
 	  '(' using_list ')'
           { add_join_natural($1,$3,$7,Select); $$=$3; }
 	| table_ref NATURAL JOIN_SYM table_factor
 	  {
-            YYERROR_UNLESS($1 && ($$=$4));
+            YYABORT_UNLESS($1 && ($$=$4));
             add_join_natural($1,$4,NULL,Select);
           }
 
@@ -5563,7 +5563,7 @@ join_table:
 	| table_ref LEFT opt_outer JOIN_SYM table_ref
           ON
           {
-            YYERROR_UNLESS($1 && $5);
+            YYABORT_UNLESS($1 && $5);
             /* Change the current name resolution context to a local context. */
             if (push_new_name_resolution_context(YYTHD, $1, $5))
               YYABORT;
@@ -5579,7 +5579,7 @@ join_table:
           }
 	| table_ref LEFT opt_outer JOIN_SYM table_factor
 	  {
-            YYERROR_UNLESS($1 && $5);
+            YYABORT_UNLESS($1 && $5);
 	  }
 	  USING '(' using_list ')'
           { 
@@ -5589,7 +5589,7 @@ join_table:
           }
 	| table_ref NATURAL LEFT opt_outer JOIN_SYM table_factor
 	  {
-            YYERROR_UNLESS($1 && $6);
+            YYABORT_UNLESS($1 && $6);
  	    add_join_natural($1,$6,NULL,Select);
 	    $6->outer_join|=JOIN_TYPE_LEFT;
 	    $$=$6;
@@ -5599,7 +5599,7 @@ join_table:
 	| table_ref RIGHT opt_outer JOIN_SYM table_ref
           ON
           {
-            YYERROR_UNLESS($1 && $5);
+            YYABORT_UNLESS($1 && $5);
             /* Change the current name resolution context to a local context. */
             if (push_new_name_resolution_context(YYTHD, $1, $5))
               YYABORT;
@@ -5616,7 +5616,7 @@ join_table:
           }
 	| table_ref RIGHT opt_outer JOIN_SYM table_factor
 	  {
-            YYERROR_UNLESS($1 && $5);
+            YYABORT_UNLESS($1 && $5);
 	  }
 	  USING '(' using_list ')'
           {
@@ -5627,7 +5627,7 @@ join_table:
           }
 	| table_ref NATURAL RIGHT opt_outer JOIN_SYM table_factor
 	  {
-            YYERROR_UNLESS($1 && $6);
+            YYABORT_UNLESS($1 && $6);
 	    add_join_natural($6,$1,NULL,Select);
 	    LEX *lex= Lex;
             if (!($$= lex->current_select->convert_right_join()))
@@ -5670,7 +5670,7 @@ table_factor:
           expr '}'
 	  {
 	    LEX *lex= Lex;
-            YYERROR_UNLESS($3 && $7);
+            YYABORT_UNLESS($3 && $7);
             add_join_on($7,$10);
             Lex->pop_context();
             $7->outer_join|=JOIN_TYPE_LEFT;
@@ -9722,21 +9722,21 @@ xa: XA_SYM begin_or_start xid opt_join_or_resume
 
 xid: text_string
      {
-       YYERROR_UNLESS($1->length() <= MAXGTRIDSIZE);
+       YYABORT_UNLESS($1->length() <= MAXGTRIDSIZE);
        if (!(Lex->xid=(XID *)YYTHD->alloc(sizeof(XID))))
          YYABORT;
        Lex->xid->set(1L, $1->ptr(), $1->length(), 0, 0);
      }
      | text_string ',' text_string
      {
-       YYERROR_UNLESS($1->length() <= MAXGTRIDSIZE && $3->length() <= MAXBQUALSIZE);
+       YYABORT_UNLESS($1->length() <= MAXGTRIDSIZE && $3->length() <= MAXBQUALSIZE);
        if (!(Lex->xid=(XID *)YYTHD->alloc(sizeof(XID))))
          YYABORT;
        Lex->xid->set(1L, $1->ptr(), $1->length(), $3->ptr(), $3->length());
      }
      | text_string ',' text_string ',' ulong_num
      {
-       YYERROR_UNLESS($1->length() <= MAXGTRIDSIZE && $3->length() <= MAXBQUALSIZE);
+       YYABORT_UNLESS($1->length() <= MAXGTRIDSIZE && $3->length() <= MAXBQUALSIZE);
        if (!(Lex->xid=(XID *)YYTHD->alloc(sizeof(XID))))
          YYABORT;
        Lex->xid->set($5, $1->ptr(), $1->length(), $3->ptr(), $3->length());
