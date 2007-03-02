@@ -206,7 +206,8 @@ public:
     NotUnique = 4251,
     AllocationError = 4252,
     CreateIndexTableFailed = 4253,
-    DuplicateAttributes = 4258
+    DuplicateAttributes = 4258,
+    SingleUser = 299
   };
 
   CreateIndxConf m_conf;
