@@ -723,6 +723,8 @@ fi
 %attr(755, root, root) %{_bindir}/mysqlmanager
 %attr(755, root, root) %{_bindir}/mysqlmanagerc
 %attr(755, root, root) %{_bindir}/mysqlmanager-pwgen
+%doc %attr(644, root, man) %{_mandir}/man1/mysql_client_test.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysql-test-run.pl.1*
 
 %files Max
 %defattr(-, root, root, 0755)
