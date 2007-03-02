@@ -26,9 +26,10 @@
   Initiate dynamic array
 
   SYNOPSIS
-    init_dynamic_array()
+    init_dynamic_array2()
       array		Pointer to an array
       element_size	Size of element
+      init_buffer       Initial buffer pointer
       init_alloc	Number of initial elements
       alloc_increment	Increment for adding new elements
 
@@ -36,14 +37,15 @@
     init_dynamic_array() initiates array and allocate space for 
     init_alloc eilements. 
     Array is usable even if space allocation failed.
+    Static buffers must begin immediately after the array structure.
 
   RETURN VALUE
     TRUE	my_malloc_ci() failed
     FALSE	Ok
 */
 
-my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
-			    uint init_alloc,
+my_bool init_dynamic_array2(DYNAMIC_ARRAY *array, uint element_size,
+			    void *init_buffer, uint init_alloc, 
 			    uint alloc_increment CALLER_INFO_PROTO)
 {
   DBUG_ENTER("init_dynamic_array");
@@ -56,10 +58,14 @@ my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
 
   if (!init_alloc)
     init_alloc=alloc_increment;
+  else
+    init_buffer= 0;
   array->elements=0;
   array->max_element=init_alloc;
   array->alloc_increment=alloc_increment;
   array->size_of_element=element_size;
+  if ((array->buffer= init_buffer))
+    DBUG_RETURN(FALSE);
   if (!(array->buffer=(char*) my_malloc_ci(element_size*init_alloc,MYF(MY_WME))))
   {
     array->max_element=0;
@@ -68,6 +74,14 @@ my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
   DBUG_RETURN(FALSE);
 } 
 
+my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
+			   uint init_alloc, 
+			   uint alloc_increment CALLER_INFO_PROTO)
+{
+  /* placeholder to preserve ABI */
+  return my_init_dynamic_array_ci(array, element_size, init_alloc, 
+                                  alloc_increment);
+}
 /*
   Insert element at the end of array. Allocate memory if needed.
 
@@ -121,6 +135,21 @@ byte *alloc_dynamic(DYNAMIC_ARRAY *array)
   if (array->elements == array->max_element)
   {
     char *new_ptr;
+    if (array->buffer == (char *)(array + 1))
+    {
+      /*
+        In this senerio, the buffer is statically preallocated,
+        so we have to create an all-new malloc since we overflowed
+      */
+      if (!(new_ptr= (char *) my_malloc((array->max_element+
+				         array->alloc_increment) *
+				        array->size_of_element,
+				        MYF(MY_WME))))
+        return 0;
+      memcpy(new_ptr, array->buffer, 
+             array->elements * array->size_of_element);
+    }
+    else
     if (!(new_ptr=(char*) my_realloc(array->buffer,(array->max_element+
 				     array->alloc_increment)*
 				     array->size_of_element,
@@ -180,6 +209,20 @@ my_bool set_dynamic(DYNAMIC_ARRAY *array, gptr element, uint idx)
       char *new_ptr;
       size=(idx+array->alloc_increment)/array->alloc_increment;
       size*= array->alloc_increment;
+      if (array->buffer == (char *)(array + 1))
+      {
+        /*
+          In this senerio, the buffer is statically preallocated,
+          so we have to create an all-new malloc since we overflowed
+        */
+        if (!(new_ptr= (char *) my_malloc(size *
+				          array->size_of_element,
+				          MYF(MY_WME))))
+          return 0;
+        memcpy(new_ptr, array->buffer, 
+               array->elements * array->size_of_element);
+      }
+      else
       if (!(new_ptr=(char*) my_realloc(array->buffer,size*
 				       array->size_of_element,
 				       MYF(MY_WME | MY_ALLOW_ZERO_PTR))))
@@ -230,6 +273,12 @@ void get_dynamic(DYNAMIC_ARRAY *array, gptr element, uint idx)
 
 void delete_dynamic(DYNAMIC_ARRAY *array)
 {
+  /*
+    Just mark as empty if we are using a static buffer
+  */
+  if (array->buffer == (char *)(array + 1))
+    array->elements= 0;
+  else
   if (array->buffer)
   {
     my_free(array->buffer,MYF(MY_WME));
@@ -269,6 +318,12 @@ void freeze_size(DYNAMIC_ARRAY *array)
 {
   uint elements=max(array->elements,1);
 
+  /*
+    Do nothing if we are using a static buffer
+  */
+  if (array->buffer == (char *)(array + 1))
+    return;
+    
   if (array->buffer && array->max_element != elements)
   {
     array->buffer=(char*) my_realloc(array->buffer,

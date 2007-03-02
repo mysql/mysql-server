@@ -1043,7 +1043,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <interval_time_st> interval_time_st
 
-%type <db_type> storage_engines
+%type <db_type> storage_engines known_storage_engine
 
 %type <row_type> row_types
 
@@ -1447,14 +1447,26 @@ create:
 	  lex->change=NullS;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.options=$2 | $4;
-	  lex->create_info.db_type= lex->thd->variables.table_type;
+	  lex->create_info.db_type= ha_default_handlerton(thd);
 	  lex->create_info.default_table_charset= NULL;
 	  lex->name.str= 0;
           lex->name.length= 0;
          lex->like_name= 0;
 	}
 	create2
-	  { Lex->current_select= &Lex->select_lex; }
+	{
+	  LEX *lex= YYTHD->lex;
+          lex->current_select= &lex->select_lex; 
+          if (!lex->create_info.db_type)
+          {
+            lex->create_info.db_type= ha_default_handlerton(YYTHD);
+            push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                ER_WARN_USING_OTHER_HANDLER,
+                                ER(ER_WARN_USING_OTHER_HANDLER),
+                                ha_resolve_storage_engine_name(lex->create_info.db_type),
+                                $5->table.str);
+          }
+        }
 	| CREATE opt_unique_or_fulltext INDEX_SYM ident key_alg ON
 	  table_ident
 	  {
@@ -3365,7 +3377,7 @@ opt_ts_comment:
           };
 
 opt_ts_engine:
-          opt_storage ENGINE_SYM opt_equal storage_engines
+          opt_storage ENGINE_SYM opt_equal known_storage_engine
           {
             LEX *lex= Lex;
             if (lex->alter_tablespace_info->storage_engine != NULL)
@@ -3533,6 +3545,13 @@ partitioning:
         {
 #ifdef WITH_PARTITION_STORAGE_ENGINE
           LEX *lex= Lex;
+          LEX_STRING partition_name={C_STRING_WITH_LEN("partition")};
+          if (!plugin_is_ready(&partition_name, MYSQL_STORAGE_ENGINE_PLUGIN))
+          {
+            my_error(ER_FEATURE_DISABLED, MYF(0),
+                     "partitioning", "--with-partition");
+            YYABORT;
+          }
           lex->part_info= new partition_info();
           if (!lex->part_info)
           {
@@ -4046,7 +4065,7 @@ opt_part_option_list:
 opt_part_option:
         TABLESPACE opt_equal ident_or_text
         { Lex->part_info->curr_part_elem->tablespace_name= $3.str; }
-        | opt_storage ENGINE_SYM opt_equal storage_engines
+        | opt_storage ENGINE_SYM opt_equal known_storage_engine
         {
           LEX *lex= Lex;
           lex->part_info->curr_part_elem->engine_type= $4;
@@ -4251,19 +4270,41 @@ default_collation:
 storage_engines:
 	ident_or_text
 	{
-	  $$ = ha_resolve_by_name(YYTHD, &$1);
-	  if ($$ == NULL)
+          LEX *lex= YYTHD->lex;
+          plugin_ref plugin;
+          
+          if ((plugin= ha_resolve_by_name(YYTHD, &$1)))
+            $$= plugin_data(plugin, handlerton*);
+          else
           if (YYTHD->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION)
 	  {
 	    my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), $1.str);
 	    YYABORT;
 	  }
           else
+          if (lex->sql_command == SQLCOM_ALTER_TABLE)
           {
-            push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_ERROR,
-                                ER_UNKNOWN_STORAGE_ENGINE,
-                                ER(ER_UNKNOWN_STORAGE_ENGINE), $1.str);
+            TABLE_LIST *table= (TABLE_LIST *) lex->select_lex.table_list.first;
+            $$= ha_default_handlerton(YYTHD);
+            push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                ER_WARN_USING_OTHER_HANDLER,
+                                ER(ER_WARN_USING_OTHER_HANDLER),
+                                ha_resolve_storage_engine_name($$),
+                                table->table_name);
           }
+	};
+
+known_storage_engine:
+	ident_or_text
+	{
+          plugin_ref plugin;
+          if ((plugin= ha_resolve_by_name(YYTHD, &$1)))
+            $$= plugin_data(plugin, handlerton*);
+          else
+	  {
+	    my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), $1.str);
+	    YYABORT;
+	  }
 	};
 
 row_types:
@@ -8452,7 +8493,7 @@ show_param:
             if (prepare_schema_table(YYTHD, lex, 0, SCH_PLUGINS))
               YYABORT;
 	  }
-	| ENGINE_SYM storage_engines 
+	| ENGINE_SYM known_storage_engine
 	  { Lex->create_info.db_type= $2; }
 	  show_engine_param
 	| ENGINE_SYM ALL 
@@ -10095,7 +10136,7 @@ sys_option_value:
 	  LEX *lex=Lex;
 	  lex->option_type= $1;
 	  lex->var_list.push_back(new set_var(lex->option_type,
-                                              find_sys_var("tx_isolation"),
+                                              find_sys_var(YYTHD, "tx_isolation"),
                                               &null_lex_str,
                                               new Item_int((int32) $5)));
 	}
@@ -10184,7 +10225,7 @@ internal_variable_name:
 	  if (!spc || !(spv = spc->find_variable(&$1)))
 	  {
             /* Not an SP local variable */
-	    sys_var *tmp=find_sys_var($1.str, $1.length);
+	    sys_var *tmp=find_sys_var(YYTHD, $1.str, $1.length);
 	    if (!tmp)
 	      YYABORT;
 	    $$.var= tmp;
@@ -10246,7 +10287,7 @@ internal_variable_name:
             }
             else
             {
-              sys_var *tmp=find_sys_var($3.str, $3.length);
+              sys_var *tmp=find_sys_var(YYTHD, $3.str, $3.length);
               if (!tmp)
                 YYABORT;
               if (!tmp->is_struct())
@@ -10257,7 +10298,7 @@ internal_variable_name:
 	  }
 	| DEFAULT '.' ident
 	  {
-	    sys_var *tmp=find_sys_var($3.str, $3.length);
+	    sys_var *tmp=find_sys_var(YYTHD, $3.str, $3.length);
 	    if (!tmp)
 	      YYABORT;
 	    if (!tmp->is_struct())

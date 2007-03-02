@@ -167,15 +167,15 @@ Open_tables_state::Open_tables_state(ulong version_arg)
   reset_open_tables_state();
 }
 
-my_bool thd_in_lock_tables(const THD *thd)
+int thd_in_lock_tables(const THD *thd)
 {
-  return thd->in_lock_tables;
+  return test(thd->in_lock_tables);
 }
 
 
-my_bool thd_tablespace_op(const THD *thd)
+int thd_tablespace_op(const THD *thd)
 {
-  return thd->tablespace_op;
+  return test(thd->tablespace_op);
 }
 
 
@@ -191,6 +191,82 @@ void **thd_ha_data(const THD *thd, const struct handlerton *hton)
   return (void **) thd->ha_data + hton->slot;
 }
 
+long long thd_test_options(const THD *thd, long long test_options)
+{
+  return thd->options & test_options;
+}
+
+int thd_sql_command(const THD *thd)
+{
+  return (int) thd->lex->sql_command;
+}
+
+
+/*
+  Dumps a text description of a thread, its security context
+  (user, host) and the current query.
+  
+  SYNOPSIS
+    thd_security_context()
+    thd                 current thread context
+    buffer              pointer to preferred result buffer
+    length              length of buffer
+    max_query_len       how many chars of query to copy (0 for all)
+  
+  RETURN VALUES
+    pointer to string
+*/
+char *thd_security_context(THD *thd, char *buffer, int length,
+                           int max_query_len)
+{
+  String str(buffer, length, &my_charset_latin1);
+  const Security_context *sctx= &thd->main_security_ctx;
+  char header[64];
+  int len;
+  
+  len= my_snprintf(header, sizeof(header), 
+                   "MySQL thread id %lu, query id %lu",
+                   thd->thread_id, (ulong) thd->query_id);
+  str.length(0);
+  str.append(header, len);
+  
+  if (sctx->host)
+  {
+    str.append(' ');
+    str.append(sctx->host);
+  }
+
+  if (sctx->ip)
+  {
+    str.append(' ');
+    str.append(sctx->ip);
+  }
+
+  if (sctx->user)
+  {
+    str.append(' ');
+    str.append(sctx->user);
+  }
+
+  if (thd->proc_info)
+  {
+    str.append(' ');
+    str.append(thd->proc_info);
+  }
+
+  if (thd->query)
+  {
+    if (max_query_len < 1)
+      len= thd->query_length;
+    else
+      len= min(thd->query_length, max_query_len);
+    str.append('\n');
+    str.append(thd->query, len);
+  }
+  if (str.c_ptr_safe() == buffer)
+    return buffer;
+  return thd->strmake(str.ptr(), str.length());
+}
 
 /*
   Pass nominal parameters to Statement constructor only to ensure that
@@ -320,6 +396,7 @@ void THD::init(void)
 {
   pthread_mutex_lock(&LOCK_global_system_variables);
   variables= global_system_variables;
+  plugin_thdvar_init(this, false);
   variables.time_format= date_time_format_copy((THD*) 0,
 					       variables.time_format);
   variables.date_format= date_time_format_copy((THD*) 0,
@@ -465,6 +542,7 @@ THD::~THD()
     cleanup();
 
   ha_close_connection(this);
+  plugin_thdvar_cleanup(this);
 
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
@@ -1682,7 +1760,7 @@ Statement::Statement(enum enum_state state_arg, ulong id_arg,
   :Query_arena(&main_mem_root, state_arg),
   id(id_arg),
   mark_used_columns(MARK_COLUMNS_READ),
-  lex(&main_lex),
+  main_lex(), lex(&main_lex),
   query(0),
   query_length(0),
   cursor(0)

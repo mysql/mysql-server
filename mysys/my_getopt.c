@@ -58,6 +58,13 @@ char *disabled_my_option= (char*) "0";
 
 my_bool my_getopt_print_errors= 1;
 
+/* 
+   This is a flag that can be set in client programs. 1 means that
+   my_getopt will skip over options it does not know how to handle.
+*/
+
+my_bool my_getopt_skip_unknown= 0;
+
 static void default_reporter(enum loglevel level,
                              const char *format, ...)
 {
@@ -110,6 +117,7 @@ int handle_options(int *argc, char ***argv,
 
   for (pos= *argv, pos_end=pos+ *argc; pos != pos_end ; pos++)
   {
+    char **first= pos;
     char *cur_arg= *pos;
     if (cur_arg[0] == '-' && cur_arg[1] && !end_of_options) /* must be opt */
     {
@@ -259,6 +267,19 @@ int handle_options(int *argc, char ***argv,
 	  }
 	  if (!opt_found)
 	  {
+            if (my_getopt_skip_unknown)
+            {
+              /*
+                preserve all the components of this unknown option, this may
+                occurr when the user provides options like: "-O foo" or
+                "--set-variable foo" (note that theres a space in there)
+                Generally, these kind of options are to be avoided
+              */
+              do {
+                (*argv)[argvpos++]= *first++;
+              } while (first <= pos);
+              continue;
+            }
 	    if (must_be_var)
 	    {
 	      if (my_getopt_print_errors)
@@ -596,6 +617,15 @@ static int setval(const struct my_option *opts, gptr *value, char *argument,
       if (!(*((char**) result_pos)= my_strdup(argument, MYF(MY_WME))))
 	return EXIT_OUT_OF_MEMORY;
       break;
+    case GET_ENUM:
+      if (((*(int*)result_pos)= find_type(argument, opts->typelib, 2) - 1) < 0)
+        return EXIT_ARGUMENT_INVALID;
+      break;
+    case GET_SET:
+      *((ulonglong*)result_pos)= find_typeset(argument, opts->typelib, &err);
+      if (err)
+        return EXIT_ARGUMENT_INVALID;
+      break;
     default:    /* dummy default to avoid compiler warnings */
       break;
     }
@@ -788,6 +818,7 @@ static void init_one_value(const struct my_option *option, gptr *variable,
     *((int*) variable)= (int) value;
     break;
   case GET_UINT:
+  case GET_ENUM:
     *((uint*) variable)= (uint) value;
     break;
   case GET_LONG:
@@ -800,6 +831,7 @@ static void init_one_value(const struct my_option *option, gptr *variable,
     *((longlong*) variable)= (longlong) value;
     break;
   case GET_ULL:
+  case GET_SET:
     *((ulonglong*) variable)=  (ulonglong) value;
     break;
   default: /* dummy default to avoid compiler warnings */
@@ -928,7 +960,8 @@ void my_print_help(const struct my_option *options)
 
 void my_print_variables(const struct my_option *options)
 {
-  uint name_space= 34, length;
+  uint name_space= 34, length, nr;
+  ulonglong bit, llvalue;
   char buff[255];
   const struct my_option *optp;
 
@@ -946,6 +979,21 @@ void my_print_variables(const struct my_option *options)
       for (; length < name_space; length++)
 	putchar(' ');
       switch ((optp->var_type & GET_TYPE_MASK)) {
+      case GET_SET:
+        if (!(llvalue= *(ulonglong*) value))
+	  printf("%s\n", "(No default value)");
+	else
+        for (nr= 0, bit= 1; llvalue && nr < optp->typelib->count; nr++, bit<<=1)
+	{
+	  if (!(bit & llvalue))
+	    continue;
+	  llvalue&= ~bit;
+	  printf( llvalue ? "%s," : "%s\n", get_type(optp->typelib, nr));
+	}
+	break;
+      case GET_ENUM:
+        printf("%s\n", get_type(optp->typelib, *(uint*) value));
+	break;
       case GET_STR:
       case GET_STR_ALLOC:                    /* fall through */
 	printf("%s\n", *((char**) value) ? *((char**) value) :
