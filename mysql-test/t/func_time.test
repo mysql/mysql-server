@@ -694,6 +694,19 @@ set time_zone= @@global.time_zone;
 select str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE;
 
 #
+# Bug #21103: DATE column not compared as DATE
+#
+
+create table t1 (field DATE);
+insert into t1 values ('2006-11-06');
+select * from t1 where field < '2006-11-06 04:08:36.0'; 
+select * from t1 where field = '2006-11-06 04:08:36.0'; 
+select * from t1 where field = '2006-11-06'; 
+select * from t1 where CAST(field as DATETIME) < '2006-11-06 04:08:36.0';
+select * from t1 where CAST(field as DATE) < '2006-11-06 04:08:36.0';
+drop table t1;
+
+#
 # Bug #25643: SEC_TO_TIME function problem
 #
 CREATE TABLE t1 (a int, t1 time, t2 time, d date, PRIMARY KEY  (a));
