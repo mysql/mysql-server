@@ -1152,19 +1152,19 @@ select '-- select .. where date/time column = .. --' as test_sequence ;
 ######## SELECT .. WHERE column(date/time/..)=value(CHAR(n)/LONGTEXT) ########
 set @arg00= '1991-01-01 01:01:01' ;
 select 'true' as found from t9 
-where c1= 20 and c13= '1991-01-01 01:01:01' and c14= '1991-01-01 01:01:01' and
+where c1= 20 and c13= CAST('1991-01-01 01:01:01' AS DATE) and c14= '1991-01-01 01:01:01' and
   c15= '1991-01-01 01:01:01' and c16= '1991-01-01 01:01:01' and
   c17= '1991-01-01 01:01:01' ;
 select 'true' as found from t9 
-where c1= 20 and c13= @arg00 and c14= @arg00 and c15= @arg00 and c16= @arg00
+where c1= 20 and c13= CAST(@arg00 AS DATE) and c14= @arg00 and c15= @arg00 and c16= @arg00
   and c17= @arg00 ;
 prepare stmt1 from "select 'true' as found from t9 
-where c1= 20 and c13= '1991-01-01 01:01:01' and c14= '1991-01-01 01:01:01' and
+where c1= 20 and c13= CAST('1991-01-01 01:01:01' AS DATE) and c14= '1991-01-01 01:01:01' and
   c15= '1991-01-01 01:01:01' and c16= '1991-01-01 01:01:01' and
   c17= '1991-01-01 01:01:01'" ;
 execute stmt1 ;
 prepare stmt1 from "select 'true' as found from t9 
-where c1= 20 and c13= ? and c14= ? and c15= ? and c16= ? and c17= ?" ;
+where c1= 20 and c13= CAST(? AS DATE) and c14= ? and c15= ? and c16= ? and c17= ?" ;
 execute stmt1 using @arg00, @arg00, @arg00, @arg00, @arg00 ;
 
 
@@ -1177,7 +1177,7 @@ where c1= 20 and c13= CAST('1991-01-01 01:01:01' as datetime) and
   c16= CAST('1991-01-01 01:01:01' as datetime) and
   c17= CAST('1991-01-01 01:01:01' as datetime) ;
 select 'true' as found from t9 
-where c1= 20 and c13= @arg00 and c14= @arg00 and c15= @arg00 and c16= @arg00
+where c1= 20 and c13= CAST(@arg00 AS DATE) and c14= @arg00 and c15= @arg00 and c16= @arg00
   and c17= @arg00 ;
 prepare stmt1 from "select 'true' as found from t9 
 where c1= 20 and c13= CAST('1991-01-01 01:01:01' as datetime) and
@@ -1187,7 +1187,7 @@ where c1= 20 and c13= CAST('1991-01-01 01:01:01' as datetime) and
   c17= CAST('1991-01-01 01:01:01' as datetime)" ;
 execute stmt1 ;
 prepare stmt1 from "select 'true' as found from t9 
-where c1= 20 and c13= ? and c14= ? and c15= ? and c16= ? and c17= ?" ;
+where c1= 20 and c13= CAST(? AS DATE) and c14= ? and c15= ? and c16= ? and c17= ?" ;
 execute stmt1 using @arg00, @arg00, @arg00, @arg00, @arg00 ;
 
 
