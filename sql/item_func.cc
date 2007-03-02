@@ -3456,6 +3456,7 @@ longlong Item_func_benchmark::val_int()
   DBUG_ASSERT(fixed == 1);
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff,sizeof(buff), &my_charset_bin);
+  my_decimal tmp_decimal;
   THD *thd=current_thd;
 
   for (ulong loop=0 ; loop < loop_count && !thd->killed; loop++)
@@ -3469,6 +3470,9 @@ longlong Item_func_benchmark::val_int()
       break;
     case STRING_RESULT:
       (void) args[0]->val_str(&tmp);
+      break;
+    case DECIMAL_RESULT:
+      (void) args[0]->val_decimal(&tmp_decimal);
       break;
     case ROW_RESULT:
     default:
