@@ -1766,7 +1766,10 @@ public:
   Item_hex_string(const char *str,uint str_length);
   enum Type type() const { return VARBIN_ITEM; }
   double val_real()
-    { DBUG_ASSERT(fixed == 1); return (double) Item_hex_string::val_int(); }
+  { 
+    DBUG_ASSERT(fixed == 1); 
+    return (double) (ulonglong) Item_hex_string::val_int();
+  }
   longlong val_int();
   bool basic_const_item() const { return 1; }
   String *val_str(String*) { DBUG_ASSERT(fixed == 1); return &str_value; }
