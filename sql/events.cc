@@ -994,7 +994,8 @@ Events::load_events_from_db(THD *thd)
       goto end;
     }
 
-    DBUG_PRINT("load_events_from_db", ("Adding 0x%lx to the exec list."));
+    DBUG_PRINT("load_events_from_db", ("Adding 0x%lx to the exec list.",
+                                       (long) et));
     event_queue->create_event(thd, et);
     count++;
   }
