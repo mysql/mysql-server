@@ -17,13 +17,13 @@
 #include "mysql_priv.h"
 #include "my_sys.h"
 
-#define TIME_FLOAT_DIGITS 7
+#define TIME_FLOAT_DIGITS 9
 #define MAX_QUERY_LENGTH 300
 
 bool schema_table_store_record(THD *thd, TABLE *table);
 
 /* Reserved for systems that can't record the function name in source. */
-const char *_db_func_= "<unknown>";
+const char * const _unknown_func_ = "<unknown>";
 
 /**
   Connects Information_Schema and Profiling.
