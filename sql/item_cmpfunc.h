@@ -757,7 +757,7 @@ public:
   void value_to_item(uint pos, Item *item)
   {
     ((Item_int*) item)->value= ((packed_longlong*) base)[pos].val;
-    ((Item_int*) item)->unsigned_flag= 
+    ((Item_int*) item)->unsigned_flag= (my_bool)
       ((packed_longlong*) base)[pos].unsigned_flag;
   }
 
