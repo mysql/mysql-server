@@ -2035,8 +2035,11 @@ void Dbdih::gcpBlockedLab(Signal* signal)
   /*-------------------------------------------------------------------------*/
   Uint32 startVersion = getNodeInfo(c_nodeStartMaster.startNode).m_version;
   
-  if ((getMajor(startVersion) == 4 && startVersion >= NDBD_INCL_NODECONF_VERSION_4) ||
-      (getMajor(startVersion) == 5 && startVersion >= NDBD_INCL_NODECONF_VERSION_5))
+  if ((getMajor(startVersion) == 4 && 
+       startVersion >= NDBD_INCL_NODECONF_VERSION_4) ||
+      (getMajor(startVersion) == 5 && 
+       startVersion >= NDBD_INCL_NODECONF_VERSION_5) ||
+      (getMajor(startVersion) > 5))
   {
     c_INCL_NODEREQ_Counter.setWaitingFor(c_nodeStartMaster.startNode);
   }
