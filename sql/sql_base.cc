@@ -865,7 +865,8 @@ TABLE_LIST* unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
          (! (res= mysql_lock_have_duplicate(thd, table, table_list)))) ||
         ((!res->table || res->table != table->table) &&
          (!check_alias || !(lower_case_table_names ?
-          strcasecmp(t_alias, res->alias) : strcmp(t_alias, res->alias))) &&
+          my_strcasecmp(files_charset_info, t_alias, res->alias) :
+          strcmp(t_alias, res->alias))) &&
          res->select_lex && !res->select_lex->exclude_from_table_unique_test &&
          !res->prelocking_placeholder))
       break;
