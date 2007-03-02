@@ -172,7 +172,8 @@ public:
     IndexNotFound = 4243,
     BadRequestType = 4247,
     InvalidName = 4248,
-    NotAnIndex = 4254
+    NotAnIndex = 4254,
+    SingleUser = 299
   };
   STATIC_CONST( SignalLength = DropIndxConf::SignalLength + 3 );
 
