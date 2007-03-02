@@ -966,6 +966,7 @@ bool login_connection(THD *thd)
 void end_connection(THD *thd)
 {
   NET *net= &thd->net;
+  plugin_thdvar_cleanup(thd);
   if (thd->user_connect)
     decrease_user_connections(thd->user_connect);
   if (net->error && net->vio != 0 && net->report_error)
@@ -1002,6 +1003,8 @@ void prepare_new_connection_state(THD* thd)
     thd->options |= OPTION_BIG_SELECTS;
   if (thd->client_capabilities & CLIENT_COMPRESS)
     thd->net.compress=1;				// Use compression
+
+  plugin_thdvar_init(thd, true);
 
   thd->version= refresh_version;
   thd->proc_info= 0;
