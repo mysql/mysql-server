@@ -58,7 +58,8 @@ public:
     InvalidTableVersion = 241,
     DropInProgress      = 283,
     NoDropTableRecordAvailable = 1229,
-    BackupInProgress = 761
+    BackupInProgress = 761,
+    SingleUser = 299
   };
 };
 
