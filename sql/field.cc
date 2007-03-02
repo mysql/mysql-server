@@ -5436,27 +5436,30 @@ int Field_newdate::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   TIME l_time;
-  long tmp;
   int error;
   THD *thd= table ? table->in_use : current_thd;
-  if (str_to_datetime(from, len, &l_time,
-                      (TIME_FUZZY_DATE |
-                       (thd->variables.sql_mode &
-                        (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
-                         MODE_INVALID_DATES))),
-                      &error) <= MYSQL_TIMESTAMP_ERROR)
+  enum enum_mysql_timestamp_type ret;
+  if ((ret= str_to_datetime(from, len, &l_time,
+                            (TIME_FUZZY_DATE |
+                             (thd->variables.sql_mode &
+                              (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
+                               MODE_INVALID_DATES))),
+                            &error)) <= MYSQL_TIMESTAMP_ERROR)
   {
-    tmp= 0L;
+    int3store(ptr,0L);
     error= 2;
   }
   else
-    tmp= l_time.day + l_time.month*32 + l_time.year*16*32;
+  {
+    int3store(ptr, l_time.day + l_time.month*32 + l_time.year*16*32);
+    if(!error && (ret != MYSQL_TIMESTAMP_DATE))
+      return 2;
+  }
 
   if (error)
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
                          from, len, MYSQL_TIMESTAMP_DATE, 1);
 
-  int3store(ptr,tmp);
   return error;
 }
 
