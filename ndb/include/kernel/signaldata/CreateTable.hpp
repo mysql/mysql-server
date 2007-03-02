@@ -91,7 +91,8 @@ public:
     RecordTooBig = 738,
     InvalidPrimaryKeySize  = 739,
     NullablePrimaryKey = 740,
-    InvalidCharset = 743
+    InvalidCharset = 743,
+    SingleUser = 299
   };
 
 private:

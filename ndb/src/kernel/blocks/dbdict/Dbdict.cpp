@@ -2910,6 +2910,15 @@ Dbdict::execCREATE_TABLE_REQ(Signal* signal){
       break;
     }
 
+    if(getNodeState().getSingleUserMode() &&
+       (refToNode(signal->getSendersBlockRef()) !=
+        getNodeState().getSingleUserApi()))
+    {
+      jam();
+      parseRecord.errorCode = CreateTableRef::SingleUser;
+      break;
+    }
+
     CreateTableRecordPtr createTabPtr;
     c_opCreateTable.seize(createTabPtr);
     
@@ -3072,6 +3081,15 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
     return;
   }
   
+  if(getNodeState().getSingleUserMode() &&
+     (refToNode(signal->getSendersBlockRef()) !=
+      getNodeState().getSingleUserApi()))
+  {
+    jam();
+    alterTableRef(signal, req, AlterTableRef::SingleUser);
+    return;
+  }
+
   const TableRecord::TabState tabState = tablePtr.p->tabState;
   bool ok = false;
   switch(tabState){
@@ -5401,6 +5419,15 @@ Dbdict::execDROP_TABLE_REQ(Signal* signal){
     return;
   }
   
+  if(getNodeState().getSingleUserMode() &&
+     (refToNode(signal->getSendersBlockRef()) !=
+      getNodeState().getSingleUserApi()))
+  {
+    jam();
+    dropTableRef(signal, req, DropTableRef::SingleUser);
+    return;
+  }
+
   const TableRecord::TabState tabState = tablePtr.p->tabState;
   bool ok = false;
   switch(tabState){
@@ -6531,6 +6558,13 @@ Dbdict::execCREATE_INDX_REQ(Signal* signal)
         jam();
         tmperr = CreateIndxRef::Busy;
       }
+      else if(getNodeState().getSingleUserMode() &&
+              (refToNode(senderRef) !=
+               getNodeState().getSingleUserApi()))
+      {
+        jam();
+        tmperr = CreateIndxRef::SingleUser;
+      }
       if (tmperr != CreateIndxRef::NoError) {
 	releaseSections(signal);
 	OpCreateIndex opBusy;
@@ -7100,6 +7134,13 @@ Dbdict::execDROP_INDX_REQ(Signal* signal)
       } else if (c_blockState != BS_IDLE) {
         jam();
         tmperr = DropIndxRef::Busy;
+      }
+      else if(getNodeState().getSingleUserMode() &&
+              (refToNode(senderRef) !=
+               getNodeState().getSingleUserApi()))
+      {
+        jam();
+        tmperr = DropIndxRef::SingleUser;
       }
       if (tmperr != DropIndxRef::NoError) {
 	err = tmperr;
