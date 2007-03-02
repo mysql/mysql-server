@@ -120,6 +120,54 @@ const char *get_type(TYPELIB *typelib, uint nr)
 }
 
 
+static const char field_separator=',';
+
+/*
+  Create an integer value to represent the supplied comma-seperated
+  string where each string in the TYPELIB denotes a bit position.
+
+  SYNOPSIS
+    find_typeset()
+    x		string to decompose
+    lib		TYPELIB (struct of pointer to values + count)
+    err		index (not char position) of string element which was not 
+                found or 0 if there was no error
+
+  RETURN
+    a integer representation of the supplied string
+*/
+
+my_ulonglong find_typeset(my_string x, TYPELIB *lib, int *err)
+{
+  my_ulonglong result;
+  int find;
+  my_string i;
+  DBUG_ENTER("find_set");
+  DBUG_PRINT("enter",("x: '%s'  lib: 0x%lx", x, (long) lib));
+
+  if (!lib->count)
+  {
+    DBUG_PRINT("exit",("no count"));
+    DBUG_RETURN(0);
+  }
+  result= 0;
+  *err= 0;
+  while (*x)
+  {
+    (*err)++;
+    i= x;
+    while (*x && *x != field_separator) x++;
+    if (*x)
+      *x++= 0;
+    if ((find= find_type(i, lib, 2) - 1) < 0)
+      DBUG_RETURN(0);
+    result|= (ULL(1) << find);
+  }
+  *err= 0;
+  DBUG_RETURN(result);
+} /* find_set */
+
+
 /*
   Create a copy of a specified TYPELIB structure.
 
