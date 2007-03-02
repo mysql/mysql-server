@@ -3348,21 +3348,21 @@ lock_deadlock_recursive(
 					      stderr);
 				}
 #endif /* UNIV_DEBUG */
+				if (too_far) {
+
+					fputs("TOO DEEP OR LONG SEARCH"
+					      " IN THE LOCK TABLE"
+					      " WAITS-FOR GRAPH\n", ef);
+
+					return(LOCK_VICTIM_IS_START);
+				}
+
 				if (ut_dulint_cmp(wait_lock->trx->undo_no,
 						  start->undo_no) >= 0) {
 					/* Our recursion starting point
 					transaction is 'smaller', let us
 					choose 'start' as the victim and roll
 					back it */
-
-					return(LOCK_VICTIM_IS_START);
-				}
-
-				if (too_far) {
-
-					fputs("TOO DEEP OR LONG SEARCH"
-					      " IN THE LOCK TABLE"
-					      " WAITS-FOR GRAPH\n", ef);
 
 					return(LOCK_VICTIM_IS_START);
 				}
