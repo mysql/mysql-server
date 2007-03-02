@@ -64,11 +64,8 @@ String *Item_func_geometry_from_text::val_str(String *str)
     return 0;
   str->length(0);
   str->q_append(srid);
-  if (!Geometry::create_from_wkt(&buffer, &trs, str, 0))
-    /* We shouldn't return NULL here as NULL is a legal spatial object     */
-    /*  Geometry::bad_spatial_data will produce error message beeing stored*/
-    /*  in GEOMETRY field                                                  */
-    return &Geometry::bad_geometry_data;
+  if ((null_value= !Geometry::create_from_wkt(&buffer, &trs, str, 0)))
+    return 0;
   return str;
 }
 
