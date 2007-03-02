@@ -292,3 +292,18 @@ select @@identity;
 insert ignore t1(f2) select 1;
 select @@identity;
 drop table t1;
+
+#
+# Bug#16630: wrong result, when INSERT t1 SELECT ... FROM t1 ON DUPLICATE
+#
+CREATE TABLE t1 (f1 INT, f2 INT );
+CREATE TABLE t2  (f1 INT PRIMARY KEY, f2 INT);
+INSERT INTO t1 VALUES (1,1),(2,2),(10,10);
+INSERT INTO t2 (f1, f2) SELECT f1, f2 FROM t1;
+INSERT INTO t2 (f1, f2)
+  SELECT f1, f1 FROM t2 src WHERE f1 < 2
+  ON DUPLICATE KEY UPDATE f1 = 100 + src.f1;
+SELECT * FROM t2;
+DROP TABLE t1, t2;
+
+ 
