@@ -268,14 +268,14 @@ static int test_binary_content()
   RET_ERR_UNLESS((fd= my_open(file_name,
                           O_BINARY | O_RDWR,
                           MYF(MY_WME))) >= 0);
-  RET_ERR_UNLESS(my_read(fd, buffer, 20, MYF(MY_FNABP |  MY_WME)) == 0);
+  RET_ERR_UNLESS(my_read(fd, buffer, 23, MYF(MY_FNABP |  MY_WME)) == 0);
   RET_ERR_UNLESS(my_close(fd, MYF(MY_WME)) == 0);
   RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
-  i= uint3korr(buffer+9);
+  i= uint3korr(buffer+12);
   RET_ERR_UNLESS(i == LSN_FILE_NO(last_checkpoint_lsn));
-  i= uint4korr(buffer+12);
+  i= uint4korr(buffer+15);
   RET_ERR_UNLESS(i == LSN_OFFSET(last_checkpoint_lsn));
-  i= uint4korr(buffer+16);
+  i= uint4korr(buffer+19);
   RET_ERR_UNLESS(i == last_logno);
   RET_ERR_UNLESS(close_file() == 0);
   return 0;

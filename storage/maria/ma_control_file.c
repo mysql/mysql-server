@@ -33,7 +33,7 @@
 #define CONTROL_FILE_MAGIC_STRING_OFFSET 0
 #define CONTROL_FILE_MAGIC_STRING_SIZE (sizeof(CONTROL_FILE_MAGIC_STRING)-1)
 #define CONTROL_FILE_CHECKSUM_OFFSET (CONTROL_FILE_MAGIC_STRING_OFFSET + CONTROL_FILE_MAGIC_STRING_SIZE)
-#define CONTROL_FILE_CHECKSUM_SIZE 1
+#define CONTROL_FILE_CHECKSUM_SIZE 4
 #define CONTROL_FILE_LSN_OFFSET (CONTROL_FILE_CHECKSUM_OFFSET + CONTROL_FILE_CHECKSUM_SIZE)
 #define CONTROL_FILE_LSN_SIZE LSN_STORE_SIZE
 #define CONTROL_FILE_FILENO_OFFSET (CONTROL_FILE_LSN_OFFSET + CONTROL_FILE_LSN_SIZE)
@@ -57,16 +57,6 @@ uint32 last_logno;
 */
 static int control_file_fd= -1;
 
-static char simple_checksum(char *buffer, uint size)
-{
-  /* TODO: improve this sum if we want */
-  char s= 0;
-  uint i;
-  for (i= 0; i<size; i++)
-    s+= buffer[i];
-  return s;
-}
-
 /*
   Initialize control file subsystem
 
@@ -80,7 +70,7 @@ static char simple_checksum(char *buffer, uint size)
 
   The format of the control file is:
   4 bytes: magic string
-  1 byte: checksum of the following bytes
+  4 bytes: checksum of the following bytes
   4 bytes: number of log where last checkpoint is
   4 bytes: offset in log where last checkpoint is
   4 bytes: number of last log
@@ -190,9 +180,9 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
     error= CONTROL_FILE_BAD_MAGIC_STRING;
     goto err;
   }
-  if (simple_checksum(buffer + CONTROL_FILE_LSN_OFFSET,
-                      CONTROL_FILE_SIZE - CONTROL_FILE_LSN_OFFSET) !=
-      buffer[CONTROL_FILE_CHECKSUM_OFFSET])
+  if (my_checksum(0, buffer + CONTROL_FILE_LSN_OFFSET,
+                  CONTROL_FILE_SIZE - CONTROL_FILE_LSN_OFFSET) !=
+      uint4korr(buffer + CONTROL_FILE_CHECKSUM_OFFSET))
   {
     /* TODO: store message "checksum mismatch" somewhere */
     error= CONTROL_FILE_BAD_CHECKSUM;
@@ -268,9 +258,12 @@ int ma_control_file_write_and_force(const LSN checkpoint_lsn, uint32 logno,
   else
     int4store(buffer + CONTROL_FILE_FILENO_OFFSET, last_logno);
 
-  buffer[CONTROL_FILE_CHECKSUM_OFFSET]=
-    simple_checksum(buffer + CONTROL_FILE_LSN_OFFSET,
-                    CONTROL_FILE_SIZE - CONTROL_FILE_LSN_OFFSET);
+  {
+    uint32 sum= (uint32)
+      my_checksum(0, buffer + CONTROL_FILE_LSN_OFFSET,
+                  CONTROL_FILE_SIZE - CONTROL_FILE_LSN_OFFSET);
+    int4store(buffer + CONTROL_FILE_CHECKSUM_OFFSET, sum);
+  }
 
   if (my_pwrite(control_file_fd, buffer, sizeof(buffer),
                 0, MYF(MY_FNABP |  MY_WME)) ||
