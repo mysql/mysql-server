@@ -96,6 +96,8 @@ printPACKED_SIGNAL(FILE * output, const Uint32 * theData, Uint32 len, Uint16 rec
     }
     default:
       fprintf(output, "Unknown signal type\n");
+      i = len; // terminate printing
+      break;
     }
   }//for
   fprintf(output, "--------- End Packed Signals ----------\n");
