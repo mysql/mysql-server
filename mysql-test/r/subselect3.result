@@ -29,7 +29,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	5	
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	6	Using where; Using temporary; Using filesort
 Warnings:
-Note	1276	Field or reference 't2.oref' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`oref` AS `oref`,<in_optimizer>(`test`.`t2`.`a`,<exists>(select max(`test`.`t1`.`ie`) AS `max(ie)` from `test`.`t1` where (`test`.`t1`.`oref` = `test`.`t2`.`oref`) group by `test`.`t1`.`grp` having trigcond((<cache>(`test`.`t2`.`a`) = <ref_null_helper>(max(`test`.`t1`.`ie`)))))) AS `Z` from `test`.`t2`
 explain extended
 select a, oref from t2 
@@ -38,7 +38,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	6	Using where; Using temporary; Using filesort
 Warnings:
-Note	1276	Field or reference 't2.oref' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`oref` AS `oref` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(select max(`test`.`t1`.`ie`) AS `max(ie)` from `test`.`t1` where (`test`.`t1`.`oref` = `test`.`t2`.`oref`) group by `test`.`t1`.`grp` having (<cache>(`test`.`t2`.`a`) = <ref_null_helper>(max(`test`.`t1`.`ie`)))))
 select a, oref, a in (
 select max(ie) from t1 where oref=t2.oref group by grp union
@@ -91,7 +91,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	4	
 2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	2	Using where; Full scan on NULL key
 Warnings:
-Note	1276	Field or reference 't2.oref' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a checking NULL where (`test`.`t1`.`oref` = `test`.`t2`.`oref`) having trigcond(<is_not_null_test>(`test`.`t1`.`a`))))) AS `Z` from `test`.`t2`
 flush status;
 select oref, a from t2 where a in (select a from t1 where oref=t2.oref);
@@ -156,7 +156,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	DEPENDENT SUBQUERY	t1	ref_or_null	a	a	5	func	4	Using where; Full scan on NULL key
 2	DEPENDENT SUBQUERY	t2	ref	a	a	5	test.t1.b	1	Using where
 Warnings:
-Note	1276	Field or reference 't3.oref' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t3.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t3`.`a` AS `a`,`test`.`t3`.`oref` AS `oref`,<in_optimizer>(`test`.`t3`.`a`,<exists>(select 1 AS `Not_used` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t3`.`oref`) and trigcond(((<cache>(`test`.`t3`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)))) having trigcond(<is_not_null_test>(`test`.`t1`.`a`)))) AS `Z` from `test`.`t3`
 drop table t1, t2, t3;
 create table t1 (a int NOT NULL, b int NOT NULL, key(a));
@@ -184,7 +184,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	DEPENDENT SUBQUERY	t1	ref	a	a	4	func	2	Using where; Full scan on NULL key
 2	DEPENDENT SUBQUERY	t2	ref	a	a	4	test.t1.b	1	Using where
 Warnings:
-Note	1276	Field or reference 't3.oref' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t3.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t3`.`a` AS `a`,`test`.`t3`.`oref` AS `oref`,<in_optimizer>(`test`.`t3`.`a`,<exists>(select 1 AS `Not_used` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t3`.`oref`) and trigcond((<cache>(`test`.`t3`.`a`) = `test`.`t1`.`a`))))) AS `Z` from `test`.`t3`
 drop table t1,t2,t3;
 create table t1 (oref int, grp int);
@@ -240,7 +240,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
 2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	2	Using where; Full scan on NULL key
 Warnings:
-Note	1276	Field or reference 't2.oref' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`oref` AS `oref`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a checking NULL where ((`test`.`t1`.`c` = `test`.`t2`.`oref`) and trigcond(((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`))) and trigcond(((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`b`) or isnull(`test`.`t1`.`b`)))) having (trigcond(<is_not_null_test>(`test`.`t1`.`a`)) and trigcond(<is_not_null_test>(`test`.`t1`.`b`)))))) AS `Z` from `test`.`t2`
 select a,b, oref, (a,b) in (select a,b from t1 where c=t2.oref) Z from t2;
 a	b	oref	Z
@@ -257,7 +257,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	DEPENDENT SUBQUERY	t1	ref_or_null	a	a	5	func	2	Using where; Full scan on NULL key
 2	DEPENDENT SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	100	Using where
 Warnings:
-Note	1276	Field or reference 't2.oref' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`oref` AS `oref`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` join `test`.`t4` where ((`test`.`t1`.`c` = `test`.`t2`.`oref`) and trigcond(((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`))) and trigcond(((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`b`) or isnull(`test`.`t1`.`b`)))) having (trigcond(<is_not_null_test>(`test`.`t1`.`a`)) and trigcond(<is_not_null_test>(`test`.`t1`.`b`))))) AS `Z` from `test`.`t2`
 select a,b, oref, 
 (a,b) in (select a,b from t1,t4 where c=t2.oref) Z 
@@ -302,7 +302,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	8	Using where
 2	DEPENDENT SUBQUERY	t1	index_subquery	idx	idx	5	func	4	Using where; Full scan on NULL key
 Warnings:
-Note	1276	Field or reference 't2.oref' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on idx checking NULL where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and trigcond(((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`ie1`) or isnull(`test`.`t1`.`ie1`))) and trigcond(((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`ie2`) or isnull(`test`.`t1`.`ie2`)))) having (trigcond(<is_not_null_test>(`test`.`t1`.`ie1`)) and trigcond(<is_not_null_test>(`test`.`t1`.`ie2`)))))) AS `Z` from `test`.`t2` where ((`test`.`t2`.`b` = 10) and (`test`.`t2`.`a` = 10))
 drop table t1, t2;
 create table t1 (oref char(4), grp int, ie int);
@@ -432,7 +432,7 @@ alter table t1 add index idx(oref,ie);
 explain select oref, a, a in (select ie from t1 where oref=t2.oref) Z from t2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	7	
-2	DEPENDENT SUBQUERY	t1	ref_or_null	idx	idx	10	test.t2.oref,func	4	Using where; Using index; Full scan on NULL key
+2	DEPENDENT SUBQUERY	t1	ref_or_null	idx	idx	10	t2.oref,func	4	Using where; Using index; Full scan on NULL key
 select oref, a, a in (select ie from t1 where oref=t2.oref) Z from t2;
 oref	a	Z
 ee	NULL	NULL
@@ -457,7 +457,7 @@ group by grp having min(ie) > 1) Z
 from t2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	7	
-2	DEPENDENT SUBQUERY	t1	ref	idx	idx	5	test.t2.oref	2	Using where; Using temporary; Using filesort
+2	DEPENDENT SUBQUERY	t1	ref	idx	idx	5	t2.oref	2	Using where; Using temporary; Using filesort
 select oref, a, 
 a in (select min(ie) from t1 where oref=t2.oref 
 group by grp having min(ie) > 1) Z 
@@ -572,7 +572,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	7	
 2	DEPENDENT SUBQUERY	t1	index_subquery	idx	idx	5	func	4	Using where; Full scan on NULL key
 Warnings:
-Note	1276	Field or reference 't2.oref' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on idx checking NULL where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and trigcond(((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`ie1`) or isnull(`test`.`t1`.`ie1`))) and trigcond(((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`ie2`) or isnull(`test`.`t1`.`ie2`)))) having (trigcond(<is_not_null_test>(`test`.`t1`.`ie1`)) and trigcond(<is_not_null_test>(`test`.`t1`.`ie2`)))))) AS `Z` from `test`.`t2`
 drop table t1,t2;
 create table t1 (oref char(4), grp int, ie int primary key);

@@ -1570,21 +1570,16 @@ error:
 
 static bool mysql_insert_select_prepare_tester(THD *thd)
 {
-  TABLE_LIST *first;
-  bool res;
   SELECT_LEX *first_select= &thd->lex->select_lex;
+  TABLE_LIST *second_table= ((TABLE_LIST*)first_select->table_list.first)->
+    next_local;
+
   /* Skip first table, which is the table we are inserting in */
-  first_select->table_list.first= (byte*)(first=
-                                          ((TABLE_LIST*)first_select->
-                                           table_list.first)->next_local);
-  res= mysql_insert_select_prepare(thd);
-  /*
-    insert/replace from SELECT give its SELECT_LEX for SELECT,
-    and item_list belong to SELECT
-  */
-  thd->lex->select_lex.context.resolve_in_select_list= TRUE;
-  thd->lex->select_lex.context.table_list= first;
-  return res;
+  first_select->table_list.first= (byte *) second_table;
+  thd->lex->select_lex.context.table_list=
+    thd->lex->select_lex.context.first_name_resolution_table= second_table;
+
+  return mysql_insert_select_prepare(thd);
 }
 
 
