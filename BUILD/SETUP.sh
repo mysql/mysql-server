@@ -34,6 +34,7 @@ Note:  this script is intended for internal use by MySQL developers.
 EOF
   * )
     echo "Unknown option '$1'"
+    echo "Use -h or --help for usage"
     exit 1
     break ;;
   esac
