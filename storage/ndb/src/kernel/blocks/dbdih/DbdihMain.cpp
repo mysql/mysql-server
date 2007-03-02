@@ -2282,8 +2282,11 @@ void Dbdih::execINCL_NODEREQ(Signal* signal)
     CRASH_INSERTION(7171);
     Uint32 masterVersion = getNodeInfo(refToNode(cmasterdihref)).m_version;
     
-    if ((NDB_VERSION_MAJOR == 4 && masterVersion >= NDBD_INCL_NODECONF_VERSION_4) ||
-	(NDB_VERSION_MAJOR == 5 && masterVersion >= NDBD_INCL_NODECONF_VERSION_5))
+    if ((NDB_VERSION_MAJOR == 4 && 
+	 masterVersion >= NDBD_INCL_NODECONF_VERSION_4) ||
+	(NDB_VERSION_MAJOR == 5 && 
+	 masterVersion >= NDBD_INCL_NODECONF_VERSION_5) ||
+	(NDB_VERSION_MAJOR > 5))
     {
       signal->theData[0] = getOwnNodeId();
       signal->theData[1] = getOwnNodeId();
