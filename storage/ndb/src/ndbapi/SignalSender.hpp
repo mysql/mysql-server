@@ -32,7 +32,7 @@ public:
   Uint32 theData[25];
   LinearSectionPtr ptr[3];
 
-  int readSignalNumber() {return header.theVerId_signalNumber; }
+  int readSignalNumber() const {return header.theVerId_signalNumber; }
   Uint32 *getDataPtrSend() { return theData; }
   const Uint32 *getDataPtr() const { return theData; }
 
