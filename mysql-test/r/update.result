@@ -377,3 +377,7 @@ create table t1(f1 int, `*f2` int);
 insert into t1 values (1,1);
 update t1 set `*f2`=1;
 drop table t1;
+create table t1(f1 int);
+update t1 set f2=1 order by f2;
+ERROR 42S22: Unknown column 'f2' in 'order clause'
+drop table t1;
