@@ -7625,7 +7625,7 @@ Dbtc::routeTCKEY_FAILREFCONF(Signal* signal, const ApiConnectRecord* regApiPtr,
     }
   }
   
-  ndbrequire(false); // Unable to find alive node in node group...
+  ndbrequire(getNodeInfo(refToNode(ref)).m_type == NodeInfo::DB);
 }
 
 void
