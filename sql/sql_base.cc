@@ -2518,11 +2518,14 @@ int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 {
   reg2 Item *item;
   List_iterator<Item> it(fields);
+  bool save_is_item_list_lookup;
   DBUG_ENTER("setup_fields");
 
   thd->set_query_id=set_query_id;
   thd->allow_sum_func= allow_sum_func;
   thd->where="field list";
+  save_is_item_list_lookup= thd->lex->current_select->is_item_list_lookup;
+  thd->lex->current_select->is_item_list_lookup= 0;
 
   /*
     To prevent fail on forward lookup we fill it with zerows,
@@ -2543,7 +2546,10 @@ int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   {
     if (!item->fixed && item->fix_fields(thd, tables, it.ref()) ||
 	(item= *(it.ref()))->check_cols(1))
+    {
+      thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
       DBUG_RETURN(-1); /* purecov: inspected */
+    }
     if (ref)
       *(ref++)= item;
     if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
@@ -2551,6 +2557,7 @@ int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
       item->split_sum_func(thd, ref_pointer_array, *sum_func_list);
     thd->used_tables|=item->used_tables();
   }
+  thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
   DBUG_RETURN(test(thd->net.report_error));
 }
 
@@ -2747,6 +2754,8 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 {
   table_map not_null_tables= 0;
   Item_arena *arena= 0, backup;
+  bool save_is_item_list_lookup= thd->lex->current_select->is_item_list_lookup;
+  thd->lex->current_select->is_item_list_lookup= 0;
   DBUG_ENTER("setup_conds");
 
   thd->set_query_id=1;
@@ -2756,7 +2765,10 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
     thd->where="where clause";
     if (!(*conds)->fixed && (*conds)->fix_fields(thd, tables, conds) ||
 	(*conds)->check_cols(1))
+    {
+      thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
       DBUG_RETURN(1);
+    }
     not_null_tables= (*conds)->not_null_tables();
   }
 
@@ -2772,7 +2784,10 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
       if (!table->on_expr->fixed &&
 	  table->on_expr->fix_fields(thd, tables, &table->on_expr) ||
 	  table->on_expr->check_cols(1))
+      {
+        thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
 	DBUG_RETURN(1);
+      }
       thd->lex->current_select->cond_count++;
 
       /*
@@ -2794,7 +2809,11 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
         }
 	if ((*conds) && !(*conds)->fixed &&
 	    (*conds)->fix_fields(thd, tables, conds))
+        {
+          thd->lex->current_select->is_item_list_lookup=
+            save_is_item_list_lookup;
 	  DBUG_RETURN(1);
+        }
       }
     }
     if (table->natural_join)
@@ -2846,7 +2865,11 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
           {
             if (!(*conds)->fixed && 
                 (*conds)->fix_fields(thd, tables, conds))
+            {
+              thd->lex->current_select->is_item_list_lookup=
+                save_is_item_list_lookup;
               DBUG_RETURN(1);
+            }
           }
         }
         else
@@ -2859,7 +2882,11 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
           {
             if (!table->on_expr->fixed && 
                 table->on_expr->fix_fields(thd, tables, &table->on_expr))
-             DBUG_RETURN(1);
+            {
+              thd->lex->current_select->is_item_list_lookup=
+                save_is_item_list_lookup;
+              DBUG_RETURN(1);
+            }
           }
         }
       }
@@ -2881,9 +2908,11 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
     */
     thd->lex->current_select->where= *conds;
   }
+  thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
   DBUG_RETURN(test(thd->net.report_error));
 
 err:
+  thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
   if (arena)
     thd->restore_backup_item_arena(arena, &backup);
   DBUG_RETURN(1);
