@@ -854,4 +854,8 @@ H
 select last_day('0000-00-00');
 last_day('0000-00-00')
 NULL
+select isnull(week(now() + 0)), isnull(week(now() + 0.2)),
+week(20061108), week(20061108.01), week(20061108085411.000002);
+isnull(week(now() + 0))	isnull(week(now() + 0.2))	week(20061108)	week(20061108.01)	week(20061108085411.000002)
+0	0	45	45	45
 End of 4.1 tests
