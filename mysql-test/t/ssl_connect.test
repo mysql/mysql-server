@@ -1,5 +1,5 @@
 
--- source include/have_openssl.inc
+-- source include/have_ssl.inc
 
 # Repeat connect/disconnect
 

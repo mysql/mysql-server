@@ -1,4 +1,4 @@
--- source include/have_openssl.inc
+-- source include/have_ssl.inc
 
 # This test can't be in func_encrypt.test, because it requires
 # --des-key-file to not be set.
