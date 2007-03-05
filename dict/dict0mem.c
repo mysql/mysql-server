@@ -107,11 +107,6 @@ dict_mem_table_free(
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	mutex_free(&(table->autoinc_mutex));
-
-	if (table->col_names && (table->n_def < table->n_cols)) {
-		ut_free((void*)table->col_names);
-	}
-
 	mem_heap_free(table->heap);
 }
 
