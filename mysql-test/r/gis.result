@@ -578,7 +578,7 @@ create table t1 select GeomFromWKB(POINT(1,3));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `GeomFromWKB(POINT(1,3))` geometry NOT NULL default ''
+  `GeomFromWKB(POINT(1,3))` geometry default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 CREATE TABLE `t1` (`object_id` bigint(20) unsigned NOT NULL default '0', `geo`
@@ -657,7 +657,7 @@ t1 where object_id=85984;
 object_id	geometrytype(geo)	ISSIMPLE(GEO)	ASTEXT(centroid(geo))
 85984	MULTIPOLYGON	0	POINT(-114.87787186923 36.33101763469)
 drop table t1;
-create table t1 (fl geometry);
+create table t1 (fl geometry not null);
 insert into t1 values (1);
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 values (1.11);
@@ -665,7 +665,7 @@ ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 values ("qwerty");
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 values (pointfromtext('point(1,1)'));
-ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+ERROR 23000: Column 'fl' cannot be null
 drop table t1;
 select (asWKT(geomfromwkb((0x000000000140240000000000004024000000000000))));
 (asWKT(geomfromwkb((0x000000000140240000000000004024000000000000))))
@@ -689,6 +689,48 @@ load data infile '../std_data_ln/bad_gis_data.dat' into table t1;
 ERROR 22004: Column was set to data type implicit default; NULL supplied for NOT NULL column 'b' at row 1
 alter table t1 enable keys;
 drop table t1;
+create table t1 (a int, b blob);
+insert into t1 values (1, ''), (2, NULL), (3, '1');
+select * from t1;
+a	b
+1	
+2	NULL
+3	1
+select
+geometryfromtext(b) IS NULL, geometryfromwkb(b) IS NULL, astext(b) IS NULL, 
+aswkb(b) IS NULL, geometrytype(b) IS NULL, centroid(b) IS NULL,
+envelope(b) IS NULL, startpoint(b) IS NULL, endpoint(b) IS NULL,
+exteriorring(b) IS NULL, pointn(b, 1) IS NULL, geometryn(b, 1) IS NULL,
+interiorringn(b, 1) IS NULL, multipoint(b) IS NULL, isempty(b) IS NULL,
+issimple(b) IS NULL, isclosed(b) IS NULL, dimension(b) IS NULL,
+numgeometries(b) IS NULL, numinteriorrings(b) IS NULL, numpoints(b) IS NULL,
+area(b) IS NULL, glength(b) IS NULL, srid(b) IS NULL, x(b) IS NULL, 
+y(b) IS NULL
+from t1;
+geometryfromtext(b) IS NULL	geometryfromwkb(b) IS NULL	astext(b) IS NULL	aswkb(b) IS NULL	geometrytype(b) IS NULL	centroid(b) IS NULL	envelope(b) IS NULL	startpoint(b) IS NULL	endpoint(b) IS NULL	exteriorring(b) IS NULL	pointn(b, 1) IS NULL	geometryn(b, 1) IS NULL	interiorringn(b, 1) IS NULL	multipoint(b) IS NULL	isempty(b) IS NULL	issimple(b) IS NULL	isclosed(b) IS NULL	dimension(b) IS NULL	numgeometries(b) IS NULL	numinteriorrings(b) IS NULL	numpoints(b) IS NULL	area(b) IS NULL	glength(b) IS NULL	srid(b) IS NULL	x(b) IS NULL	y(b) IS NULL
+1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1
+1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1
+1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1
+select 
+within(b, b) IS NULL, contains(b, b) IS NULL, overlaps(b, b) IS NULL, 
+equals(b, b) IS NULL, disjoint(b, b) IS NULL, touches(b, b) IS NULL, 
+intersects(b, b) IS NULL, crosses(b, b) IS NULL
+from t1;
+within(b, b) IS NULL	contains(b, b) IS NULL	overlaps(b, b) IS NULL	equals(b, b) IS NULL	disjoint(b, b) IS NULL	touches(b, b) IS NULL	intersects(b, b) IS NULL	crosses(b, b) IS NULL
+1	1	1	1	1	1	1	1
+1	1	1	1	1	1	1	1
+1	1	1	1	1	1	1	1
+select 
+point(b, b) IS NULL, linestring(b) IS NULL, polygon(b) IS NULL, multipoint(b) IS NULL, 
+multilinestring(b) IS NULL, multipolygon(b) IS NULL, 
+geometrycollection(b) IS NULL
+from t1;
+point(b, b) IS NULL	linestring(b) IS NULL	polygon(b) IS NULL	multipoint(b) IS NULL	multilinestring(b) IS NULL	multipolygon(b) IS NULL	geometrycollection(b) IS NULL
+0	1	1	1	1	1	1
+1	1	1	1	1	1	1
+0	1	1	1	1	1	1
+drop table t1;
+End of 4.1 tests
 create table t1 (s1 geometry not null,s2 char(100));
 create trigger t1_bu before update on t1 for each row set new.s1 = null;
 insert into t1 values (null,null);
@@ -715,7 +757,7 @@ drop table t1;
 create table t1 select GeomFromText('point(1 1)');
 desc t1;
 Field	Type	Null	Key	Default	Extra
-GeomFromText('point(1 1)')	geometry	NO			
+GeomFromText('point(1 1)')	geometry	YES		NULL	
 drop table t1;
 create table t1 (g geometry not null);
 insert into t1 values(default);
