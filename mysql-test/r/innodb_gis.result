@@ -446,7 +446,7 @@ ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert IGNORE into t1 values ('Garbage');
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 drop table t1;
-create table t1 (fl geometry);
+create table t1 (fl geometry not null);
 insert into t1 values (1);
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 values (1.11);
@@ -454,5 +454,5 @@ ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 values ("qwerty");
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 values (pointfromtext('point(1,1)'));
-ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+ERROR 23000: Column 'fl' cannot be null
 drop table t1;

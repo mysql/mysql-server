@@ -360,14 +360,14 @@ t1 where object_id=85984;
 
 drop table t1;
 
-create table t1 (fl geometry);
+create table t1 (fl geometry not null);
 --error 1416
 insert into t1 values (1);
 --error 1416
 insert into t1 values (1.11);
 --error 1416
 insert into t1 values ("qwerty");
---error 1416
+--error 1048
 insert into t1 values (pointfromtext('point(1,1)'));
 
 drop table t1;
@@ -389,7 +389,41 @@ load data infile '../std_data_ln/bad_gis_data.dat' into table t1;
 alter table t1 enable keys;
 drop table t1;
 
-# End of 4.1 tests
+#
+# Bug #26038: is null and bad data
+#
+
+create table t1 (a int, b blob);
+insert into t1 values (1, ''), (2, NULL), (3, '1');
+select * from t1;
+
+select
+  geometryfromtext(b) IS NULL, geometryfromwkb(b) IS NULL, astext(b) IS NULL, 
+  aswkb(b) IS NULL, geometrytype(b) IS NULL, centroid(b) IS NULL,
+  envelope(b) IS NULL, startpoint(b) IS NULL, endpoint(b) IS NULL,
+  exteriorring(b) IS NULL, pointn(b, 1) IS NULL, geometryn(b, 1) IS NULL,
+  interiorringn(b, 1) IS NULL, multipoint(b) IS NULL, isempty(b) IS NULL,
+  issimple(b) IS NULL, isclosed(b) IS NULL, dimension(b) IS NULL,
+  numgeometries(b) IS NULL, numinteriorrings(b) IS NULL, numpoints(b) IS NULL,
+  area(b) IS NULL, glength(b) IS NULL, srid(b) IS NULL, x(b) IS NULL, 
+  y(b) IS NULL
+from t1;
+
+select 
+  within(b, b) IS NULL, contains(b, b) IS NULL, overlaps(b, b) IS NULL, 
+  equals(b, b) IS NULL, disjoint(b, b) IS NULL, touches(b, b) IS NULL, 
+  intersects(b, b) IS NULL, crosses(b, b) IS NULL
+from t1;
+
+select 
+  point(b, b) IS NULL, linestring(b) IS NULL, polygon(b) IS NULL, multipoint(b) IS NULL, 
+  multilinestring(b) IS NULL, multipolygon(b) IS NULL, 
+  geometrycollection(b) IS NULL
+from t1;
+
+drop table t1;
+
+--echo End of 4.1 tests
 
 #
 # Bug #12281 (Geometry: crash in trigger)

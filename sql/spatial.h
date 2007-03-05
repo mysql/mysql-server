@@ -246,8 +246,8 @@ public:
   static Geometry *create_from_wkt(Geometry_buffer *buffer,
 				   Gis_read_stream *trs, String *wkt,
 				   bool init_stream=1);
-  static int create_from_wkb(Geometry_buffer *buffer,
-                             const char *wkb, uint32 len, String *res);
+  static Geometry *create_from_wkb(Geometry_buffer *buffer, const char *wkb, 
+                                   uint32 len, String *res);
   int as_wkt(String *wkt, const char **end)
   {
     uint32 len= get_class_info()->m_name.length;
