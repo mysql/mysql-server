@@ -33,6 +33,7 @@ public:
   Item_geometry_func(List<Item> &list) :Item_str_func(list) {}
   void fix_length_and_dec();
   enum_field_types field_type() const  { return MYSQL_TYPE_GEOMETRY; }
+  bool is_null() { (void) val_int(); return null_value; }
 };
 
 class Item_func_geometry_from_text: public Item_geometry_func
@@ -80,6 +81,7 @@ public:
   void fix_length_and_dec() 
   {
      max_length=20; // "GeometryCollection" is the most long
+     maybe_null= 1;
   };
 };
 
@@ -221,6 +223,8 @@ public:
     }
     }
   void print(String *str) { Item_func::print(str); }
+  void fix_length_and_dec() { maybe_null= 1; }
+  bool is_null() { (void) val_int(); return null_value; }
 };
 
 class Item_func_isempty: public Item_bool_func
@@ -230,6 +234,7 @@ public:
   longlong val_int();
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   const char *func_name() const { return "isempty"; }
+  void fix_length_and_dec() { maybe_null= 1; }
 };
 
 class Item_func_issimple: public Item_bool_func
@@ -239,6 +244,7 @@ public:
   longlong val_int();
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   const char *func_name() const { return "issimple"; }
+  void fix_length_and_dec() { maybe_null= 1; }
 };
 
 class Item_func_isclosed: public Item_bool_func
@@ -248,6 +254,7 @@ public:
   longlong val_int();
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   const char *func_name() const { return "isclosed"; }
+  void fix_length_and_dec() { maybe_null= 1; }
 };
 
 class Item_func_dimension: public Item_int_func
@@ -257,7 +264,7 @@ public:
   Item_func_dimension(Item *a): Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "dimension"; }
-  void fix_length_and_dec() { max_length=10; }
+  void fix_length_and_dec() { max_length= 10; maybe_null= 1; }
 };
 
 class Item_func_x: public Item_real_func
@@ -267,6 +274,11 @@ public:
   Item_func_x(Item *a): Item_real_func(a) {}
   double val();
   const char *func_name() const { return "x"; }
+  void fix_length_and_dec() 
+  { 
+    Item_real_func::fix_length_and_dec();
+    maybe_null= 1; 
+  }
 };
 
 
@@ -277,6 +289,11 @@ public:
   Item_func_y(Item *a): Item_real_func(a) {}
   double val();
   const char *func_name() const { return "y"; }
+  void fix_length_and_dec() 
+  { 
+    Item_real_func::fix_length_and_dec();
+    maybe_null= 1; 
+  }
 };
 
 
@@ -287,7 +304,7 @@ public:
   Item_func_numgeometries(Item *a): Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "numgeometries"; }
-  void fix_length_and_dec() { max_length=10; }
+  void fix_length_and_dec() { max_length= 10; maybe_null= 1; }
 };
 
 
@@ -298,7 +315,7 @@ public:
   Item_func_numinteriorring(Item *a): Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "numinteriorrings"; }
-  void fix_length_and_dec() { max_length=10; }
+  void fix_length_and_dec() { max_length= 10; maybe_null= 1; }
 };
 
 
@@ -309,7 +326,7 @@ public:
   Item_func_numpoints(Item *a): Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "numpoints"; }
-  void fix_length_and_dec() { max_length=10; }
+  void fix_length_and_dec() { max_length= 10; maybe_null= 1; }
 };
 
 
@@ -320,6 +337,11 @@ public:
   Item_func_area(Item *a): Item_real_func(a) {}
   double val();
   const char *func_name() const { return "area"; }
+  void fix_length_and_dec() 
+  { 
+    Item_real_func::fix_length_and_dec();
+    maybe_null= 1; 
+  }
 };
 
 
@@ -330,6 +352,11 @@ public:
   Item_func_glength(Item *a): Item_real_func(a) {}
   double val();
   const char *func_name() const { return "glength"; }
+  void fix_length_and_dec() 
+  { 
+    Item_real_func::fix_length_and_dec();
+    maybe_null= 1; 
+  }
 };
 
 
@@ -340,7 +367,7 @@ public:
   Item_func_srid(Item *a): Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "srid"; }
-  void fix_length_and_dec() { max_length= 10; }
+  void fix_length_and_dec() { max_length= 10; maybe_null= 1; }
 };
 
 #define GEOM_NEW(obj_constructor) new obj_constructor
