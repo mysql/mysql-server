@@ -1851,7 +1851,8 @@ public:
          with Bar, and if we have a more broader set of problems like this.
   */
   Item_ref(Name_resolution_context *context_arg, Item **item,
-           const char *table_name_arg, const char *field_name_arg);
+           const char *table_name_arg, const char *field_name_arg,
+           bool alias_name_used_arg= FALSE);
 
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_ref(THD *thd, Item_ref *item)
@@ -1926,8 +1927,11 @@ class Item_direct_ref :public Item_ref
 public:
   Item_direct_ref(Name_resolution_context *context_arg, Item **item,
                   const char *table_name_arg,
-                  const char *field_name_arg)
-    :Item_ref(context_arg, item, table_name_arg, field_name_arg) {}
+                  const char *field_name_arg,
+                  bool alias_name_used_arg= FALSE)
+    :Item_ref(context_arg, item, table_name_arg,
+              field_name_arg, alias_name_used_arg)
+  {}
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_direct_ref(THD *thd, Item_direct_ref *item) : Item_ref(thd, item) {}
 

@@ -3468,10 +3468,13 @@ find_field_in_tables(THD *thd, Item_ident *item,
 				return not_found_item, report other errors,
 				return 0
       IGNORE_ERRORS		Do not report errors, return 0 if error
-    unaliased                   Set to true if item is field which was found
-                                by original field name and not by its alias
-                                in item list. Set to false otherwise.
-
+    resolution                  Set to the resolution type if the item is found 
+                                (it says whether the item is resolved 
+                                 against an alias name,
+                                 or as a field name without alias,
+                                 or as a field hidden by alias,
+                                 or ignoring alias)
+                                
   RETURN VALUES
     0			Item is not found or item is not unique,
 			error message is reported
@@ -3487,7 +3490,8 @@ Item **not_found_item= (Item**) 0x1;
 
 Item **
 find_item_in_list(Item *find, List<Item> &items, uint *counter,
-                  find_item_error_report_type report_error, bool *unaliased)
+                  find_item_error_report_type report_error,
+                  enum_resolution_type *resolution)
 {
   List_iterator<Item> li(items);
   Item **found=0, **found_unaliased= 0, *item;
@@ -3501,10 +3505,9 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
   */
   bool is_ref_by_name= 0;
   uint unaliased_counter;
-
   LINT_INIT(unaliased_counter);                 // Dependent on found_unaliased
 
-  *unaliased= FALSE;
+  *resolution= NOT_RESOLVED;
 
   is_ref_by_name= (find->type() == Item::FIELD_ITEM  || 
                    find->type() == Item::REF_ITEM);
@@ -3571,63 +3574,77 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
           }
           found_unaliased= li.ref();
           unaliased_counter= i;
+          *resolution= RESOLVED_IGNORING_ALIAS;
           if (db_name)
             break;                              // Perfect match
         }
       }
-      else if (!my_strcasecmp(system_charset_info, item_field->name,
-                              field_name))
+      else
       {
-        /*
-          If table name was not given we should scan through aliases
-          (or non-aliased fields) first. We are also checking unaliased
-          name of the field in then next else-if, to be able to find
-          instantly field (hidden by alias) if no suitable alias (or
-          non-aliased field) was found.
-        */
-        if (found)
+        int fname_cmp= my_strcasecmp(system_charset_info,
+                                     item_field->field_name,
+                                     field_name);
+        if (!my_strcasecmp(system_charset_info,
+                           item_field->name,field_name))
         {
-          if ((*found)->eq(item, 0))
-            continue;                           // Same field twice
-          if (report_error != IGNORE_ERRORS)
-            my_error(ER_NON_UNIQ_ERROR, MYF(0),
-                     find->full_name(), current_thd->where);
-          return (Item**) 0;
+          /*
+            If table name was not given we should scan through aliases
+            and non-aliased fields first. We are also checking unaliased
+            name of the field in then next  else-if, to be able to find
+            instantly field (hidden by alias) if no suitable alias or
+            non-aliased field was found.
+          */
+          if (found)
+          {
+            if ((*found)->eq(item, 0))
+              continue;                           // Same field twice
+            if (report_error != IGNORE_ERRORS)
+              my_error(ER_NON_UNIQ_ERROR, MYF(0),
+                       find->full_name(), current_thd->where);
+            return (Item**) 0;
+          }
+          found= li.ref();
+          *counter= i;
+          *resolution= fname_cmp ? RESOLVED_AGAINST_ALIAS:
+	                           RESOLVED_WITH_NO_ALIAS;
         }
-        found= li.ref();
-        *counter= i;
-      }
-      else if (!my_strcasecmp(system_charset_info, item_field->field_name,
-                              field_name))
-      {
-        /*
-          We will use un-aliased field or react on such ambiguities only if
-          we won't be able to find aliased field.
-          Again if we have ambiguity with field outside of select list
-          we should prefer fields from select list.
-        */
-        if (found_unaliased)
+        else if (!fname_cmp)
         {
-          if ((*found_unaliased)->eq(item, 0))
-            continue;                           // Same field twice
-          found_unaliased_non_uniq= 1;
-        }
-        else
-        {
+          /*
+            We will use non-aliased field or react on such ambiguities only if
+            we won't be able to find aliased field.
+            Again if we have ambiguity with field outside of select list
+            we should prefer fields from select list.
+          */
+          if (found_unaliased)
+          {
+            if ((*found_unaliased)->eq(item, 0))
+              continue;                           // Same field twice
+            found_unaliased_non_uniq= 1;
+          }
           found_unaliased= li.ref();
           unaliased_counter= i;
         }
       }
     }
-    else if (!table_name && (find->eq(item,0) ||
-			     is_ref_by_name && find->name && item->name &&
-			     !my_strcasecmp(system_charset_info, 
-					    item->name,find->name)))
-    {
-      found= li.ref();
-      *counter= i;
-      break;
-    }
+    else if (!table_name)
+    { 
+      if (is_ref_by_name && find->name && item->name &&
+	  !my_strcasecmp(system_charset_info,item->name,find->name))
+      {
+        found= li.ref();
+        *counter= i;
+        *resolution= RESOLVED_AGAINST_ALIAS;
+        break;
+      }
+      else if (find->eq(item,0))
+      {
+        found= li.ref();
+        *counter= i;
+        *resolution= RESOLVED_IGNORING_ALIAS;
+        break;
+      }
+    } 
   }
   if (!found)
   {
@@ -3642,7 +3659,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
     {
       found= found_unaliased;
       *counter= unaliased_counter;
-      *unaliased= TRUE;
+      *resolution= RESOLVED_BEHIND_ALIAS;
     }
   }
   if (found)

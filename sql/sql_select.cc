@@ -13158,7 +13158,7 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   Item **select_item; /* The corresponding item from the SELECT clause. */
   Field *from_field;  /* The corresponding field from the FROM clause. */
   uint counter;
-  bool unaliased;
+  enum_resolution_type resolution;
 
   /*
     Local SP variables may be int but are expressions, not positions.
@@ -13181,7 +13181,7 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   }
   /* Lookup the current GROUP/ORDER field in the SELECT clause. */
   select_item= find_item_in_list(order_item, fields, &counter,
-                                 REPORT_EXCEPT_NOT_FOUND, &unaliased);
+                                 REPORT_EXCEPT_NOT_FOUND, &resolution);
   if (!select_item)
     return TRUE; /* The item is not unique, or some other error occured. */
 
@@ -13195,7 +13195,7 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
       original field name, we should additionaly check if we have conflict
       for this name (in case if we would perform lookup in all tables).
     */
-    if (unaliased && !order_item->fixed &&
+    if (resolution == RESOLVED_BEHIND_ALIAS && !order_item->fixed &&
         order_item->fix_fields(thd, order->item))
       return TRUE;
 
@@ -13429,7 +13429,7 @@ setup_new_fields(THD *thd, List<Item> &fields,
 
   thd->set_query_id=1;				// Not really needed, but...
   uint counter;
-  bool not_used;
+  enum_resolution_type not_used;
   for (; new_field ; new_field= new_field->next)
   {
     if ((item= find_item_in_list(*new_field->item, fields, &counter,
