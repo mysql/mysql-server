@@ -4420,12 +4420,15 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
   bool save_set_query_id= thd->set_query_id;
   nesting_map save_allow_sum_func= thd->lex->allow_sum_func;
   List_iterator<Item> it(fields);
+  bool save_is_item_list_lookup;
   DBUG_ENTER("setup_fields");
 
   thd->set_query_id=set_query_id;
   if (allow_sum_func)
     thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
   thd->where= THD::DEFAULT_WHERE;
+  save_is_item_list_lookup= thd->lex->current_select->is_item_list_lookup;
+  thd->lex->current_select->is_item_list_lookup= 0;
 
   /*
     To prevent fail on forward lookup we fill it with zerows,
@@ -4448,6 +4451,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
     if (!item->fixed && item->fix_fields(thd, it.ref()) ||
 	(item= *(it.ref()))->check_cols(1))
     {
+      thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
       thd->lex->allow_sum_func= save_allow_sum_func;
       thd->set_query_id= save_set_query_id;
       DBUG_RETURN(TRUE); /* purecov: inspected */
@@ -4460,6 +4464,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
     thd->used_tables|= item->used_tables();
     thd->lex->current_select->cur_pos_in_select_list++;
   }
+  thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
   thd->lex->current_select->cur_pos_in_select_list= UNDEF_POS;
 
   thd->lex->allow_sum_func= save_allow_sum_func;
@@ -4956,6 +4961,8 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
   */
   bool it_is_update= (select_lex == &thd->lex->select_lex) &&
     thd->lex->which_check_option_applicable();
+  bool save_is_item_list_lookup= select_lex->is_item_list_lookup;
+  select_lex->is_item_list_lookup= 0;
   DBUG_ENTER("setup_conds");
 
   if (select_lex->conds_processed_with_permanent_arena ||
@@ -5030,9 +5037,11 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
     select_lex->where= *conds;
     select_lex->conds_processed_with_permanent_arena= 1;
   }
+  thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
   DBUG_RETURN(test(thd->net.report_error));
 
 err_no_arena:
+  select_lex->is_item_list_lookup= save_is_item_list_lookup;
   DBUG_RETURN(1);
 }
 
