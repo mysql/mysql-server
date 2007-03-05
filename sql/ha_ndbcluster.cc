@@ -10606,10 +10606,23 @@ bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *create_info,
 
   int pk= 0;
   int ai= 0;
+
+  if (create_info->tablespace)
+    create_info->storage_media = HA_SM_DISK;
+  else
+    create_info->storage_media = HA_SM_MEMORY;
+
   for (i= 0; i < table->s->fields; i++) 
   {
     Field *field= table->field[i];
     const NDBCOL *col= tab->getColumn(i);
+    if (col->getStorageType() == NDB_STORAGETYPE_MEMORY && create_info->storage_media != HA_SM_MEMORY ||
+        col->getStorageType() == NDB_STORAGETYPE_DISK && create_info->storage_media != HA_SM_DISK)
+    {
+      DBUG_PRINT("info", ("Column storage media is changed"));
+      DBUG_RETURN(COMPATIBLE_DATA_NO);
+    }
+    
     if (field->flags & FIELD_IS_RENAMED)
     {
       DBUG_PRINT("info", ("Field has been renamed, copy table"));
