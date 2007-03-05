@@ -166,14 +166,14 @@ insert IGNORE into t1 (a) values ('Garbage');
 
 drop table t1;
 
-create table t1 (pk integer primary key auto_increment, fl geometry);
+create table t1 (pk integer primary key auto_increment, fl geometry not null);
 --error 1416
 insert into t1 (fl) values (1);
 --error 1416
 insert into t1 (fl) values (1.11);
 --error 1416
 insert into t1 (fl) values ("qwerty");
---error 1416
+--error 1048
 insert into t1 (fl) values (pointfromtext('point(1,1)'));
 
 drop table t1;
