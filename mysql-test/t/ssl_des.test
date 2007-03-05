@@ -2,7 +2,7 @@
 # then turn on ssl between the client and server
 # and run a number of standard tests
 
--- source include/have_openssl.inc
+-- source include/have_ssl.inc
 
 # Connect by ip to avoid turning on "ssl-verify-server-cert"
 connect (ssl_con,127.0.0.1,root,,,,$MASTER_MYPORT,SSL);
