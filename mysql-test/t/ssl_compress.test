@@ -1,7 +1,7 @@
 # Turn on compression between the client and server
 # and run a number of tests
 
--- source include/have_openssl.inc
+-- source include/have_ssl.inc
 -- source include/have_compress.inc
 
 connect (ssl_compress_con,localhost,root,,,,,SSL COMPRESS);

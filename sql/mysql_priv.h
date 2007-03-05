@@ -1702,7 +1702,7 @@ extern handlerton *partition_hton;
 extern handlerton *myisam_hton;
 extern handlerton *heap_hton;
 
-extern SHOW_COMP_OPTION have_openssl, have_symlink, have_dlopen;
+extern SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen;
 extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;
