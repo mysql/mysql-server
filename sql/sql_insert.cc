@@ -59,6 +59,7 @@
 #include "sql_trigger.h"
 #include "sql_select.h"
 #include "sql_show.h"
+#include "slave.h"
 
 #ifndef EMBEDDED_LIBRARY
 static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list);
@@ -363,6 +364,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   Name_resolution_context_state ctx_state;
 #ifndef EMBEDDED_LIBRARY
   char *query= thd->query;
+#endif
   /*
     log_on is about delayed inserts only.
     By default, both logs are enabled (this won't cause problems if the server
@@ -370,7 +372,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   */
   bool log_on= ((thd->options & OPTION_BIN_LOG) ||
                 (!(thd->security_ctx->master_access & SUPER_ACL)));
-#endif
   thr_lock_type lock_type = table_list->lock_type;
   Item *unused_conds= 0;
   DBUG_ENTER("mysql_insert");
@@ -391,6 +392,36 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       (duplic == DUP_UPDATE))
     lock_type=TL_WRITE;
 #endif
+  if ((lock_type == TL_WRITE_DELAYED) &&
+      (global_system_variables.binlog_format == BINLOG_FORMAT_STMT) &&
+      log_on && mysql_bin_log.is_open() &&
+      (values_list.elements > 1))
+  {
+    /*
+      Statement-based binary logging does not work in this case, because:
+      a) two concurrent statements may have their rows intermixed in the
+      queue, leading to autoincrement replication problems on slave (because
+      the values generated used for one statement don't depend only on the
+      value generated for the first row of this statement, so are not
+      replicable)
+      b) if first row of the statement has an error the full statement is
+      not binlogged, while next rows of the statement may be inserted.
+      c) if first row succeeds, statement is binlogged immediately with a
+      zero error code (i.e. "no error"), if then second row fails, query
+      will fail on slave too and slave will stop (wrongly believing that the
+      master got no error).
+      So we fallback to non-delayed INSERT.
+      Note that to be fully correct, we should test the "binlog format which
+      the delayed thread is going to use for this row". But in the common case
+      where the global binlog format is not changed and the session binlog
+      format may be changed, that is equal to the global binlog format.
+      We test it without mutex for speed reasons (condition rarely true), and
+      in the common case (global not changed) it is as good as without mutex;
+      if global value is changed, anyway there is uncertainty as the delayed
+      thread may be old and use the before-the-change value.
+    */
+    lock_type= TL_WRITE;
+  }
   table_list->lock_type= lock_type;
 
 #ifndef EMBEDDED_LIBRARY
@@ -504,6 +535,14 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 			    CHECK_FIELD_WARN);
   thd->cuted_fields = 0L;
   table->next_number_field=table->found_next_number_field;
+
+#ifdef HAVE_REPLICATION
+  if (thd->slave_thread &&
+      (info.handle_duplicates == DUP_UPDATE) &&
+      (table->next_number_field != NULL) &&
+      rpl_master_has_bug(&active_mi->rli, 24432))
+    goto abort;
+#endif
 
   error=0;
   thd->proc_info="update";
@@ -1195,14 +1234,13 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
         if (res == VIEW_CHECK_ERROR)
           goto before_trg_err;
 
+        table->file->restore_auto_increment(prev_insert_id);
         if ((error=table->file->ha_update_row(table->record[1],
                                               table->record[0])))
 	{
           if (info->ignore &&
               !table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
           {
-            table->file->restore_auto_increment(prev_insert_id);
- 
             goto ok_or_after_trg_err;
           }
           goto err;
@@ -2559,6 +2597,15 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   }
   restore_record(table,s->default_values);		// Get empty record
   table->next_number_field=table->found_next_number_field;
+
+#ifdef HAVE_REPLICATION
+  if (thd->slave_thread &&
+      (info.handle_duplicates == DUP_UPDATE) &&
+      (table->next_number_field != NULL) &&
+      rpl_master_has_bug(&active_mi->rli, 24432))
+    DBUG_RETURN(1);
+#endif
+
   thd->cuted_fields=0;
   if (info.ignore || info.handle_duplicates != DUP_ERROR)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
@@ -3162,8 +3209,7 @@ void select_create::send_error(uint errcode,const char *err)
              ("Current statement %s row-based",
               thd->current_stmt_binlog_row_based ? "is" : "is NOT"));
   DBUG_PRINT("info",
-             ("Current table (at 0x%lx) %s a temporary (or non-existing) "
-              "table",
+             ("Current table (at 0x%lu) %s a temporary (or non-existant) table",
               (ulong) table,
               table && !table->s->tmp_table ? "is NOT" : "is"));
   DBUG_PRINT("info",

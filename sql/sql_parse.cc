@@ -27,6 +27,7 @@
 #include "sp_cache.h"
 #include "events.h"
 #include "event_data_objects.h"
+#include "sql_trigger.h"
 
 /* Used in error handling only */
 #define SP_TYPE_STRING(LP) \
@@ -1682,6 +1683,30 @@ mysql_execute_command(THD *thd)
 #ifdef HAVE_REPLICATION
   if (unlikely(thd->slave_thread))
   {
+    if (lex->sql_command == SQLCOM_DROP_TRIGGER)
+    {
+      /*
+        When dropping a trigger, we need to load its table name
+        before checking slave filter rules.
+      */
+      add_table_for_trigger(thd, thd->lex->spname, 1, &all_tables);
+      
+      if (!all_tables)
+      {
+        /*
+          If table name cannot be loaded,
+          it means the trigger does not exists possibly because
+          CREATE TRIGGER was previously skipped for this trigger
+          according to slave filtering rules.
+          Returning success without producing any errors in this case.
+        */
+        DBUG_RETURN(0);
+      }
+      
+      // force searching in slave.cc:tables_ok() 
+      all_tables->updating= 1;
+    }
+    
     /*
       Check if statment should be skipped because of slave filtering
       rules

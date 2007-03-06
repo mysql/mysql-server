@@ -744,4 +744,12 @@ show engine csv logs;
 Type	Name	Status
 show engine csv mutex;
 Type	Name	Status
+set names utf8;
+drop table if exists `été`;
+create table `été` (field1 int);
+show full tables;
+Tables_in_test	Table_type
+été	BASE TABLE
+drop table `été`;
+set names latin1;
 End of 5.1 tests

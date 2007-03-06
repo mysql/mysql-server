@@ -1130,13 +1130,18 @@ void Log_event::print_header(IO_CACHE* file,
       char emit_buf[256];
       int const bytes_written=
         my_snprintf(emit_buf, sizeof(emit_buf),
-                    "# %8.8lx %-48.48s |%s|\n# ",
+                    "# %8.8lx %-48.48s |%s|\n",
                     (unsigned long) (hexdump_from + (i & 0xfffffff0)),
                     hex_string, char_string);
       DBUG_ASSERT(bytes_written >= 0);
       DBUG_ASSERT(static_cast<my_size_t>(bytes_written) < sizeof(emit_buf));
       my_b_write(file, (byte*) emit_buf, bytes_written);
     }
+    /*
+      need a # to prefix the rest of printouts for example those of
+      Rows_log_event::print_helper().
+    */
+    my_b_write(file, reinterpret_cast<const byte*>("# "), 2);
   }
   DBUG_VOID_RETURN;
 }
@@ -1276,7 +1281,8 @@ bool Query_log_event::write(IO_CACHE* file)
             1+4+           // code of autoinc and the 2 autoinc variables
             1+6+           // code of charset and charset
             1+1+MAX_TIME_ZONE_NAME_LENGTH+ // code of tz and tz length and tz name
-            1+2            // code of lc_time_names and lc_time_names_number
+            1+2+           // code of lc_time_names and lc_time_names_number
+            1+2            // code of charset_database and charset_database_number
             ], *start, *start_of_status;
   ulong event_length;
 
@@ -1395,6 +1401,13 @@ bool Query_log_event::write(IO_CACHE* file)
     int2store(start, lc_time_names_number);
     start+= 2;
   }
+  if (charset_database_number)
+  {
+    DBUG_ASSERT(charset_database_number <= 0xFFFF);
+    *start++= Q_CHARSET_DATABASE_CODE;
+    int2store(start, charset_database_number);
+    start+= 2;
+  }
   /*
     Here there could be code like
     if (command-line-option-which-says-"log_this_variable" && inited)
@@ -1460,7 +1473,8 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
    sql_mode(thd_arg->variables.sql_mode),
    auto_increment_increment(thd_arg->variables.auto_increment_increment),
    auto_increment_offset(thd_arg->variables.auto_increment_offset),
-   lc_time_names_number(thd_arg->variables.lc_time_names->number)
+   lc_time_names_number(thd_arg->variables.lc_time_names->number),
+   charset_database_number(0)
 {
   time_t end_time;
   time(&end_time);
@@ -1468,6 +1482,9 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   catalog_len = (catalog) ? (uint32) strlen(catalog) : 0;
   /* status_vars_len is set just before writing the event */
   db_len = (db) ? (uint32) strlen(db) : 0;
+  if (thd_arg->variables.collation_database != thd_arg->db_charset)
+    charset_database_number= thd_arg->variables.collation_database->number;
+  
   /*
     If we don't use flags2 for anything else than options contained in
     thd->options, it would be more efficient to flags2=thd_arg->options
@@ -1538,7 +1555,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
    db(NullS), catalog_len(0), status_vars_len(0),
    flags2_inited(0), sql_mode_inited(0), charset_inited(0),
    auto_increment_increment(1), auto_increment_offset(1),
-   time_zone_len(0), lc_time_names_number(0)
+   time_zone_len(0), lc_time_names_number(0), charset_database_number(0)
 {
   ulong data_len;
   uint32 tmp;
@@ -1641,6 +1658,10 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       break;
     case Q_LC_TIME_NAMES_CODE:
       lc_time_names_number= uint2korr(pos);
+      pos+= 2;
+      break;
+    case Q_CHARSET_DATABASE_CODE:
+      charset_database_number= uint2korr(pos);
       pos+= 2;
       break;
     default:
@@ -1841,6 +1862,16 @@ void Query_log_event::print_query_header(IO_CACHE* file,
                 lc_time_names_number, print_event_info->delimiter);
     print_event_info->lc_time_names_number= lc_time_names_number;
   }
+  if (charset_database_number != print_event_info->charset_database_number)
+  {
+    if (charset_database_number)
+      my_b_printf(file, "SET @@session.collation_database=%d%s\n",
+                  charset_database_number, print_event_info->delimiter);
+    else
+      my_b_printf(file, "SET @@session.collation_database=DEFAULT%s\n",
+                  print_event_info->delimiter);
+    print_event_info->charset_database_number= charset_database_number;
+  }
 }
 
 
@@ -1996,7 +2027,21 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli,
       }
       else
         thd->variables.lc_time_names= &my_locale_en_US;
-
+      if (charset_database_number)
+      {
+        CHARSET_INFO *cs;
+        if (!(cs= get_charset(charset_database_number, MYF(0))))
+        {
+          char buf[20];
+          int10_to_str((int) charset_database_number, buf, -10);
+          my_error(ER_UNKNOWN_COLLATION, MYF(0), buf);
+          goto compare_errors;
+        }
+        thd->variables.collation_database= cs;
+      }
+      else
+        thd->variables.collation_database= thd->db_charset;
+      
       /* Execute the query (note that we bypass dispatch_command()) */
       mysql_parse(thd, thd->query, thd->query_length);
 
@@ -2241,6 +2286,8 @@ Start_log_event_v3::Start_log_event_v3(const char* buf,
   binlog_version= uint2korr(buf+ST_BINLOG_VER_OFFSET);
   memcpy(server_version, buf+ST_SERVER_VER_OFFSET,
 	 ST_SERVER_VER_LEN);
+  // prevent overrun if log is corrupted on disk
+  server_version[ST_SERVER_VER_LEN-1]= 0;
   created= uint4korr(buf+ST_CREATED_OFFSET);
   /* We use log_pos to mark if this was an artificial event or not */
   artificial_event= (log_pos == 0);
@@ -2364,6 +2411,8 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
   switch (binlog_ver) {
   case 4: /* MySQL 5.0 */
     memcpy(server_version, ::server_version, ST_SERVER_VER_LEN);
+    DBUG_EXECUTE_IF("pretend_version_50034_in_binlog",
+                    strmov(server_version, "5.0.34"););
     common_header_len= LOG_EVENT_HEADER_LEN;
     number_of_event_types= LOG_EVENT_TYPES;
     /* we'll catch my_malloc() error in is_valid() */
@@ -2454,6 +2503,7 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
     post_header_len= 0; /* will make is_valid() fail */
     break;
   }
+  calc_server_version_split();
 }
 
 
@@ -2493,6 +2543,7 @@ Format_description_log_event(const char* buf,
   post_header_len= (uint8*) my_memdup((byte*)buf+ST_COMMON_HEADER_LEN_OFFSET+1,
                                       number_of_event_types*
                                       sizeof(*post_header_len), MYF(0));
+  calc_server_version_split();
   DBUG_VOID_RETURN;
 }
 
@@ -2592,6 +2643,37 @@ int Format_description_log_event::exec_event(struct st_relay_log_info* rli)
   DBUG_RETURN(Start_log_event_v3::exec_event(rli));
 }
 #endif
+
+
+/**
+   Splits the event's 'server_version' string into three numeric pieces stored
+   into 'server_version_split':
+   X.Y.Zabc (X,Y,Z numbers, a not a digit) -> {X,Y,Z}
+   X.Yabc -> {X,Y,0}
+   Xabc -> {X,0,0}
+   'server_version_split' is then used for lookups to find if the server which
+   created this event has some known bug.
+*/
+void Format_description_log_event::calc_server_version_split()
+{
+  char *p= server_version, *r;
+  ulong number;
+  for (uint i= 0; i<=2; i++)
+  {
+    number= strtoul(p, &r, 10);
+    server_version_split[i]= (uchar)number;
+    DBUG_ASSERT(number < 256); // fit in uchar
+    p= r;
+    DBUG_ASSERT(!((i == 0) && (*r != '.'))); // should be true in practice
+    if (*r == '.')
+      p++; // skip the dot
+  }
+  DBUG_PRINT("info",("Format_description_log_event::server_version_split:"
+                     " '%s' %d %d %d", server_version,
+                     server_version_split[0],
+                     server_version_split[1], server_version_split[2]));
+}
+
 
   /**************************************************************************
         Load_log_event methods
@@ -5465,12 +5547,12 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
   DBUG_ASSERT(m_rows_cur <= m_rows_end);
 
   /* The cast will always work since m_rows_cur <= m_rows_end */
-  if (static_cast<my_size_t>(m_rows_end - m_rows_cur) < length)
+  if (static_cast<my_size_t>(m_rows_end - m_rows_cur) <= length)
   {
     my_size_t const block_size= 1024;
     my_ptrdiff_t const cur_size= m_rows_cur - m_rows_buf;
     my_ptrdiff_t const new_alloc= 
-        block_size * ((cur_size + length) / block_size + block_size - 1);
+        block_size * ((cur_size + length + block_size - 1) / block_size);
 
     byte* const new_buf= (byte*)my_realloc((gptr)m_rows_buf, (uint) new_alloc,
                                            MYF(MY_ALLOW_ZERO_PTR|MY_WME));
@@ -5491,7 +5573,7 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
     m_rows_end= m_rows_buf + new_alloc;
   }
 
-  DBUG_ASSERT(m_rows_cur + length < m_rows_end);
+  DBUG_ASSERT(m_rows_cur + length <= m_rows_end);
   memcpy(m_rows_cur, row_data, length);
   m_rows_cur+= length;
   m_row_count++;
@@ -5741,10 +5823,10 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
         need to add code to assert that is the case.
        */
       thd->binlog_flush_pending_rows_event(false);
-      close_tables_for_reopen(thd, &rli->tables_to_lock);
+      TABLE_LIST *tables= rli->tables_to_lock;
+      close_tables_for_reopen(thd, &tables);
 
-      if ((error= open_tables(thd, &rli->tables_to_lock,
-                              &rli->tables_to_lock_count, 0)))
+      if ((error= open_tables(thd, &tables, &rli->tables_to_lock_count, 0)))
       {
         if (thd->query_error || thd->is_fatal_error)
         {
@@ -5763,15 +5845,45 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
         DBUG_RETURN(error);
       }
     }
+
     /*
-      When the open and locking succeeded, we add all the tables to
-      the table map and remove them from tables to lock.
+      When the open and locking succeeded, we check all tables to
+      ensure that they still have the correct type.
+
+      We can use a down cast here since we know that every table added
+      to the tables_to_lock is a RPL_TABLE_LIST.
+    */
+
+    {
+      RPL_TABLE_LIST *ptr= rli->tables_to_lock;
+      for ( ; ptr ; ptr= static_cast<RPL_TABLE_LIST*>(ptr->next_global))
+      {
+        if (ptr->m_tabledef.compatible_with(rli, ptr->table))
+        {
+          mysql_unlock_tables(thd, thd->lock);
+          thd->lock= 0;
+          thd->query_error= 1;
+          rli->clear_tables_to_lock();
+          DBUG_RETURN(ERR_BAD_TABLE_DEF);
+        }
+      }
+    }
+
+    /*
+      ... and then we add all the tables to the table map and remove
+      them from tables to lock.
 
       We also invalidate the query cache for all the tables, since
       they will now be changed.
+
+      TODO [/Matz]: Maybe the query cache should not be invalidated
+      here? It might be that a table is not changed, even though it
+      was locked for the statement.  We do know that each
+      Rows_log_event contain at least one row, so after processing one
+      Rows_log_event, we can invalidate the query cache for the
+      associated table.
      */
-    TABLE_LIST *ptr;
-    for (ptr= rli->tables_to_lock ; ptr ; ptr= ptr->next_global)
+    for (TABLE_LIST *ptr= rli->tables_to_lock ; ptr ; ptr= ptr->next_global)
     {
       rli->m_table_map.set_table(ptr->table_id, ptr->table);
     }
@@ -6042,7 +6154,7 @@ void Rows_log_event::print_helper(FILE *file,
   {
     bool const last_stmt_event= get_flags(STMT_END_F);
     print_header(head, print_event_info, !last_stmt_event);
-    my_b_printf(head, "\t%s: table id %lu", name, m_table_id);
+    my_b_printf(head, "\t%s: table id %lu\n", name, m_table_id);
     print_base64(body, print_event_info, !last_stmt_event);
   }
 
@@ -6224,11 +6336,11 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
   thd->query_id= next_query_id();
   pthread_mutex_unlock(&LOCK_thread_count);
 
-  TABLE_LIST *table_list;
+  RPL_TABLE_LIST *table_list;
   char *db_mem, *tname_mem;
   void *const memory=
     my_multi_malloc(MYF(MY_WME),
-                    &table_list, sizeof(TABLE_LIST),
+                    &table_list, sizeof(RPL_TABLE_LIST),
                     &db_mem, NAME_LEN + 1,
                     &tname_mem, NAME_LEN + 1,
                     NULL);
@@ -6274,11 +6386,27 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
     }
 
     /*
-      Open the table if it is not already open and add the table to table map.
-      Note that for any table that should not be replicated, a filter is needed.
+      Open the table if it is not already open and add the table to
+      table map.  Note that for any table that should not be
+      replicated, a filter is needed.
+
+      The creation of a new TABLE_LIST is used to up-cast the
+      table_list consisting of RPL_TABLE_LIST items. This will work
+      since the only case where the argument to open_tables() is
+      changed, is when thd->lex->query_tables == table_list, i.e.,
+      when the statement requires prelocking. Since this is not
+      executed when a statement is executed, this case will not occur.
+      As a precaution, an assertion is added to ensure that the bad
+      case is not a fact.
+
+      Either way, the memory in the list is *never* released
+      internally in the open_tables() function, hence we take a copy
+      of the pointer to make sure that it's not lost.
     */
     uint count;
-    if ((error= open_tables(thd, &table_list, &count, 0)))
+    DBUG_ASSERT(thd->lex->query_tables != table_list);
+    TABLE_LIST *tmp_table_list= table_list;
+    if ((error= open_tables(thd, &tmp_table_list, &count, 0)))
     {
       if (thd->query_error || thd->is_fatal_error)
       {
@@ -6305,14 +6433,17 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
     */
     DBUG_ASSERT(m_table->in_use);
 
-    table_def const def(m_coltype, m_colcnt);
-    if (def.compatible_with(rli, m_table))
-    {
-      thd->query_error= 1;
-      error= ERR_BAD_TABLE_DEF;
-      goto err;
-      /* purecov: end */
-    }
+    /*
+      Use placement new to construct the table_def instance in the
+      memory allocated for it inside table_list.
+
+      The memory allocated by the table_def structure (i.e., not the
+      memory allocated *for* the table_def structure) is released
+      inside st_relay_log_info::clear_tables_to_lock() by calling the
+      table_def destructor explicitly.
+    */
+    new (&table_list->m_tabledef) table_def(m_coltype, m_colcnt);
+    table_list->m_tabledef_valid= TRUE;
 
     /*
       We record in the slave's information that the table should be

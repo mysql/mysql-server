@@ -31,15 +31,6 @@
 
 #include <mysql/plugin.h>
 
-/*
-  Define placement versions of operator new and operator delete since
-  we cannot be sure that the <new> include exists.
- */
-inline void *operator new(size_t, void *ptr) { return ptr; }
-inline void *operator new[](size_t, void *ptr) { return ptr; }
-inline void  operator delete(void*, void*) { /* Do nothing */ }
-inline void  operator delete[](void*, void*) { /* Do nothing */ }
-
 /* max size of the log message */
 #define MAX_LOG_BUFFER_SIZE 1024
 #define MAX_USER_HOST_SIZE 512
@@ -148,6 +139,7 @@ public:
   void truncate(my_off_t pos)
   {
     DBUG_PRINT("info", ("truncating to position %lu", (ulong) pos));
+    DBUG_PRINT("info", ("before_stmt_pos=%lu", (ulong) pos));
     delete pending();
     set_pending(0);
     reinit_io_cache(&trans_log, WRITE_CACHE, pos, 0, 0);
@@ -311,6 +303,7 @@ bool Log_to_csv_event_handler::open_log_table(uint log_table_type)
   {
     table->table->use_all_columns();
     table->table->locked_by_logger= TRUE;
+    table->table->no_replicate= TRUE;
   }
   /* restore thread settings */
   if (curr)
@@ -3352,13 +3345,13 @@ bool MYSQL_BIN_LOG::flush_and_sync()
   return err;
 }
 
-void MYSQL_BIN_LOG::start_union_events(THD *thd)
+void MYSQL_BIN_LOG::start_union_events(THD *thd, query_id_t query_id_param)
 {
   DBUG_ASSERT(!thd->binlog_evt_union.do_union);
   thd->binlog_evt_union.do_union= TRUE;
   thd->binlog_evt_union.unioned_events= FALSE;
   thd->binlog_evt_union.unioned_events_trans= FALSE;
-  thd->binlog_evt_union.first_query_id= thd->query_id;
+  thd->binlog_evt_union.first_query_id= query_id_param;
 }
 
 void MYSQL_BIN_LOG::stop_union_events(THD *thd)
@@ -3473,9 +3466,9 @@ int THD::binlog_flush_transaction_cache()
 {
   DBUG_ENTER("binlog_flush_transaction_cache");
   binlog_trx_data *trx_data= (binlog_trx_data*) ha_data[binlog_hton->slot];
-  DBUG_PRINT("enter", ("trx_data: 0x%lx", (ulong) trx_data));
+  DBUG_PRINT("enter", ("trx_data=0x%lu", (ulong) trx_data));
   if (trx_data)
-    DBUG_PRINT("enter", ("trx_data->before_stmt_pos: %lu",
+    DBUG_PRINT("enter", ("trx_data->before_stmt_pos=%lu",
                          (ulong) trx_data->before_stmt_pos));
 
   /*
@@ -4525,7 +4518,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
       goto err;
     if (using_heuristic_recover())
       return 1;
-    if ((fd= my_create(logname, O_RDWR, 0, MYF(MY_WME))) < 0)
+    if ((fd= my_create(logname, CREATE_MODE, O_RDWR, MYF(MY_WME))) < 0)
       goto err;
     inited=1;
     file_length= opt_tc_log_size;
