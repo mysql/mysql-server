@@ -28,6 +28,59 @@
 #include <io.h>
 #endif
 
+/**
+  This internal handler is used to trap internally
+  errors that can occur when executing open table
+  during the prelocking phase.
+*/
+class Prelock_error_handler : public Internal_error_handler
+{
+public:
+  Prelock_error_handler()
+    : m_handled_errors(0), m_unhandled_errors(0)
+  {}
+
+  virtual ~Prelock_error_handler() {}
+
+  virtual bool handle_error(uint sql_errno,
+                            MYSQL_ERROR::enum_warning_level level,
+                            THD *thd);
+
+  bool safely_trapped_errors();
+
+private:
+  int m_handled_errors;
+  int m_unhandled_errors;
+};
+
+
+bool
+Prelock_error_handler::handle_error(uint sql_errno,
+                                    MYSQL_ERROR::enum_warning_level /* level */,
+                                    THD * /* thd */)
+{
+  if (sql_errno == ER_NO_SUCH_TABLE)
+  {
+    m_handled_errors++;
+    return TRUE;                                // 'TRUE', as per coding style
+  }
+
+  m_unhandled_errors++;
+  return FALSE;                                 // 'FALSE', as per coding style
+}
+
+
+bool Prelock_error_handler::safely_trapped_errors()
+{
+  /*
+    If m_unhandled_errors != 0, something else, unanticipated, happened,
+    so the error is not trapped but returned to the caller.
+    Multiple ER_NO_SUCH_TABLE can be raised in case of views.
+  */
+  return ((m_handled_errors > 0) && (m_unhandled_errors == 0));
+}
+
+
 TABLE *unused_tables;				/* Used by mysql_test */
 HASH open_cache;				/* Used by mysql_test */
 
@@ -1354,7 +1407,10 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
         VOID(pthread_mutex_unlock(&LOCK_open));
       }
     }
-    my_error(ER_TABLE_NOT_LOCKED, MYF(0), alias);
+    if ((thd->locked_tables) && (thd->locked_tables->lock_count > 0))
+      my_error(ER_TABLE_NOT_LOCKED, MYF(0), alias);
+    else
+      my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db, table_list->alias);
     DBUG_RETURN(0);
   }
 
@@ -2184,6 +2240,8 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
   MEM_ROOT new_frm_mem;
   /* Also used for indicating that prelocking is need */
   TABLE_LIST **query_tables_last_own;
+  bool safe_to_ignore_table;
+
   DBUG_ENTER("open_tables");
   /*
     temporary mem_root for new .frm parsing.
@@ -2243,6 +2301,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
   */
   for (tables= *start; tables ;tables= tables->next_global)
   {
+    safe_to_ignore_table= FALSE;                // 'FALSE', as per coding style
     /*
       Ignore placeholders for derived tables. After derived tables
       processing, link to created temporary table will be put here.
@@ -2273,8 +2332,27 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
       Not a placeholder: must be a base table or a view, and the table is
       not opened yet. Try to open the table.
     */
-    if (!tables->table &&
-	!(tables->table= open_table(thd, tables, &new_frm_mem, &refresh, flags)))
+    if (!tables->table)
+    {
+      if (tables->prelocking_placeholder)
+      {
+        /*
+          For the tables added by the pre-locking code, attempt to open
+          the table but fail silently if the table does not exist.
+          The real failure will occur when/if a statement attempts to use
+          that table.
+        */
+        Prelock_error_handler prelock_handler;
+        thd->push_internal_handler(& prelock_handler);
+        tables->table= open_table(thd, tables, &new_frm_mem, &refresh, flags);
+        thd->pop_internal_handler();
+        safe_to_ignore_table= prelock_handler.safely_trapped_errors();
+      }
+      else
+        tables->table= open_table(thd, tables, &new_frm_mem, &refresh, flags);
+    }
+
+    if (!tables->table)
     {
       free_root(&new_frm_mem, MYF(MY_KEEP_PREALLOC));
 
@@ -2325,6 +2403,14 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
         close_tables_for_reopen(thd, start);
 	goto restart;
       }
+
+      if (safe_to_ignore_table)
+      {
+        DBUG_PRINT("info", ("open_table: ignoring table '%s'.'%s'",
+                            tables->db, tables->alias));
+        continue;
+      }
+
       result= -1;				// Fatal error
       break;
     }
@@ -2628,7 +2714,7 @@ bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags)
 static void mark_real_tables_as_free_for_reuse(TABLE_LIST *table)
 {
   for (; table; table= table->next_global)
-    if (!table->placeholder() && !table->schema_table)
+    if (!table->placeholder())
       table->table->query_id= 0;
 }
 
@@ -2700,7 +2786,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
       DBUG_RETURN(-1);
     for (table= tables; table; table= table->next_global)
     {
-      if (!table->placeholder() && !table->schema_table)
+      if (!table->placeholder())
 	*(ptr++)= table->table;
     }
 
@@ -2742,7 +2828,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
 
       for (table= tables; table != first_not_own; table= table->next_global)
       {
-        if (!table->placeholder() && !table->schema_table)
+        if (!table->placeholder())
         {
           table->table->query_id= thd->query_id;
           if (check_lock_and_start_stmt(thd, table->table, table->lock_type))
@@ -2769,7 +2855,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
     TABLE_LIST *first_not_own= thd->lex->first_not_own_table();
     for (table= tables; table != first_not_own; table= table->next_global)
     {
-      if (!table->placeholder() && !table->schema_table &&
+      if (!table->placeholder() &&
 	  check_lock_and_start_stmt(thd, table->table, table->lock_type))
       {
 	ha_rollback_stmt(thd);
