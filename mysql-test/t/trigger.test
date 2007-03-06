@@ -1625,4 +1625,78 @@ SELECT fubar_id FROM t2;
 
 DROP TABLE t1,t2;
 
+#
+# Bug#21285 (Incorrect message error deleting records in a table with a
+#           trigger for inserting)
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS bug21825_A;
+DROP TABLE IF EXISTS bug21825_B;
+--enable_warnings
+
+CREATE TABLE bug21825_A (id int(10));
+CREATE TABLE bug21825_B (id int(10));
+
+delimiter //;
+
+CREATE TRIGGER trgA AFTER INSERT ON bug21825_A
+FOR EACH ROW
+BEGIN
+  INSERT INTO bug21825_B (id) values (1);
+END//
+delimiter ;//
+
+INSERT INTO bug21825_A (id) VALUES (10);
+INSERT INTO bug21825_A (id) VALUES (20);
+
+DROP TABLE bug21825_B;
+
+# Must pass, the missing table in the insert trigger should not matter.
+DELETE FROM bug21825_A WHERE id = 20;
+
+DROP TABLE bug21825_A;
+
+#
+# Bug#22580 (DROP TABLE in nested stored procedure causes strange dependancy
+# error)
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS bug22580_t1;
+DROP PROCEDURE IF EXISTS bug22580_proc_1;
+DROP PROCEDURE IF EXISTS bug22580_proc_2;
+--enable_warnings
+
+CREATE TABLE bug22580_t1 (a INT, b INT);
+
+DELIMITER ||;
+
+CREATE PROCEDURE bug22580_proc_2()
+BEGIN
+  DROP TABLE IF EXISTS bug22580_tmp;
+  CREATE TEMPORARY TABLE bug22580_tmp (a INT);
+  DROP TABLE bug22580_tmp;
+END||
+
+CREATE PROCEDURE bug22580_proc_1()
+BEGIN
+  CALL bug22580_proc_2();
+END||
+
+CREATE TRIGGER t1bu BEFORE UPDATE ON bug22580_t1
+FOR EACH ROW 
+BEGIN
+  CALL bug22580_proc_1();
+END||
+
+DELIMITER ;||
+
+# Must pass, the actions of the update trigger should not matter
+INSERT INTO bug22580_t1 VALUES (1,1);
+
+DROP TABLE bug22580_t1;
+DROP PROCEDURE bug22580_proc_1;
+DROP PROCEDURE bug22580_proc_2;
+
 --echo End of 5.0 tests
