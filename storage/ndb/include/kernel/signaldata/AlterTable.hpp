@@ -212,7 +212,8 @@ public:
     NullablePrimaryKey = 740,
     UnsupportedChange = 741,
     BackupInProgress = 762,
-    IncompatibleVersions = 763
+    IncompatibleVersions = 763,
+    SingleUser = 299
   };
 
 private:
