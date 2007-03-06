@@ -20,6 +20,8 @@
 
 #include "rpl_tblmap.h"
 
+struct RPL_TABLE_LIST;
+
 
 /****************************************************************************
 
@@ -279,7 +281,7 @@ typedef struct st_relay_log_info
 	    group_relay_log_pos);
   }
 
-  TABLE_LIST *tables_to_lock;               /* RBR: Tables to lock  */
+  RPL_TABLE_LIST *tables_to_lock;           /* RBR: Tables to lock  */
   uint tables_to_lock_count;        /* RBR: Count of tables to lock */
   table_mapping m_table_map;      /* RBR: Mapping table-id to table */
 
@@ -295,16 +297,7 @@ typedef struct st_relay_log_info
   void transaction_end(THD*);
 
   void cleanup_context(THD *, bool);
-  void clear_tables_to_lock() {
-    while (tables_to_lock)
-    {
-      char *to_free= reinterpret_cast<gptr>(tables_to_lock);
-      tables_to_lock= tables_to_lock->next_global;
-      tables_to_lock_count--;
-      my_free(to_free, MYF(MY_WME));
-    }
-    DBUG_ASSERT(tables_to_lock == NULL && tables_to_lock_count == 0);
-  }
+  void clear_tables_to_lock();
 
   time_t unsafe_to_stop_at;
 } RELAY_LOG_INFO;

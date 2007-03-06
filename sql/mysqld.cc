@@ -367,6 +367,7 @@ my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
 my_bool	opt_innodb;
+bool slave_warning_issued = false; 
 
 /*
   Legacy global handlerton. These will be removed (please do not add more).
@@ -454,9 +455,10 @@ my_bool sp_automatic_privileges= 1;
 ulong opt_binlog_rows_event_max_size;
 const char *binlog_format_names[]= {"STATEMENT", "ROW", "MIXED", NullS};
 TYPELIB binlog_format_typelib=
-  { array_elements(binlog_format_names)-1,"",
+  { array_elements(binlog_format_names) - 1, "",
     binlog_format_names, NULL };
-
+ulong opt_binlog_format_id= (ulong) BINLOG_FORMAT_UNSPEC;
+const char *opt_binlog_format= binlog_format_names[opt_binlog_format_id];
 #ifdef HAVE_INITGROUPS
 static bool calling_initgroups= FALSE; /* Used in SIGSEGV handler. */
 #endif
@@ -3255,17 +3257,24 @@ with --log-bin instead.");
                     "--log-slave-updates work.");
     unireg_abort(1);
   }
-
- if (!opt_bin_log && (global_system_variables.binlog_format != BINLOG_FORMAT_UNSPEC))
-  {
-    sql_print_error("You need to use --log-bin to make "
-                    "--binlog-format work.");
-    unireg_abort(1);
-  }
-  if (global_system_variables.binlog_format == BINLOG_FORMAT_UNSPEC)
-  {
+  if (!opt_bin_log)
+    if (opt_binlog_format_id != BINLOG_FORMAT_UNSPEC)
+    {
+      sql_print_error("You need to use --log-bin to make "
+		      "--binlog-format work.");
+      unireg_abort(1);
+    }
+    else
+    {
+      global_system_variables.binlog_format= BINLOG_FORMAT_UNSPEC;
+    }
+  else
+    if (opt_binlog_format_id == BINLOG_FORMAT_UNSPEC)
       global_system_variables.binlog_format= BINLOG_FORMAT_MIXED;
-  }
+    else
+    { 
+      DBUG_ASSERT(global_system_variables.binlog_format != BINLOG_FORMAT_UNSPEC);
+    }
 
   /* Check that we have not let the format to unspecified at this point */
   DBUG_ASSERT((uint)global_system_variables.binlog_format <=
@@ -3401,7 +3410,7 @@ server.");
                                (TC_LOG *) &tc_log_mmap) :
            (TC_LOG *) &tc_log_dummy);
 
-  if (tc_log->open(opt_bin_logname))
+  if (tc_log->open(opt_bin_log ? opt_bin_logname : opt_tc_log_file))
   {
     sql_print_error("Can't init tc log");
     unireg_abort(1);
@@ -5028,6 +5037,7 @@ struct my_option my_long_options[] =
    (gptr*) &my_bind_addr_str, (gptr*) &my_bind_addr_str, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"binlog_format", OPT_BINLOG_FORMAT,
+   "Does not have any effect without '--log-bin'. "
    "Tell the master the form of binary logging to use: either 'row' for "
    "row-based binary logging, or 'statement' for statement-based binary "
    "logging, or 'mixed'. 'mixed' is statement-based binary logging except "
@@ -5035,11 +5045,12 @@ struct my_option my_long_options[] =
    "involve user-defined functions (i.e. UDFs) or the UUID() function; for "
    "those, row-based binary logging is automatically used. "
 #ifdef HAVE_NDB_BINLOG
-   "If ndbcluster is enabled, the default is 'row'."
+   "If ndbcluster is enabled and binlog_format is `mixed', the format switches"
+   " to 'row' and back implicitly per each query accessing a NDB table."
 #endif
-   , 0, 0, 0, GET_STR, REQUIRED_ARG,
-   BINLOG_FORMAT_MIXED
-   , 0, 0, 0, 0, 0 },
+   ,(gptr*) &opt_binlog_format, (gptr*) &opt_binlog_format,
+   0, GET_STR, REQUIRED_ARG, BINLOG_FORMAT_MIXED, BINLOG_FORMAT_STMT,
+   BINLOG_FORMAT_MIXED, 0, 0, 0},
   {"binlog-do-db", OPT_BINLOG_DO_DB,
    "Tells the master it should log updates for the specified database, and exclude all others not explicitly mentioned.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -7423,7 +7434,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
               binlog_format_names[BINLOG_FORMAT_MIXED]);
       exit(1);
     }
-    global_system_variables.binlog_format= id-1;
+    global_system_variables.binlog_format= opt_binlog_format_id= id - 1;
     break;
   }
   case (int)OPT_BINLOG_DO_DB:
@@ -7602,6 +7613,29 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int) OPT_STANDALONE:		/* Dummy option for NT */
     break;
 #endif
+  /*
+    The following change issues a deprecation warning if the slave
+    configuration is specified either in the my.cnf file or on
+    the command-line. See BUG#21490.
+  */
+  case OPT_MASTER_HOST:
+  case OPT_MASTER_USER:
+  case OPT_MASTER_PASSWORD:
+  case OPT_MASTER_PORT:
+  case OPT_MASTER_CONNECT_RETRY:
+  case OPT_MASTER_SSL:          
+  case OPT_MASTER_SSL_KEY:
+  case OPT_MASTER_SSL_CERT:       
+  case OPT_MASTER_SSL_CAPATH:
+  case OPT_MASTER_SSL_CIPHER:
+  case OPT_MASTER_SSL_CA:
+    if (!slave_warning_issued)                 //only show the warning once
+    {
+      slave_warning_issued = true;   
+      WARN_DEPRECATED(NULL, "5.2", "for replication startup options", 
+        "'CHANGE MASTER'");
+    }
+    break;
   case OPT_CONSOLE:
     if (opt_console)
       opt_error_log= 0;			// Force logs to stdout

@@ -341,7 +341,7 @@ public:
 
   int  write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
 
-  void start_union_events(THD *thd);
+  void start_union_events(THD *thd, query_id_t query_id_param);
   void stop_union_events(THD *thd);
   bool is_query_in_union(THD *thd, query_id_t query_id_param);
 
