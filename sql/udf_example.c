@@ -684,7 +684,7 @@ longlong sequence(UDF_INIT *initid __attribute__((unused)), UDF_ARGS *args,
 ****************************************************************************/
 
 #ifdef __WIN__
-#include <winsock.h>
+#include <winsock2.h>
 #else
 #include <sys/socket.h>
 #include <netinet/in.h>

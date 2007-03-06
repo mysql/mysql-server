@@ -903,6 +903,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
 
 longlong Item_in_optimizer::val_int()
 {
+  bool tmp;
   DBUG_ASSERT(fixed == 1);
   cache->store(args[0]);
   
@@ -966,7 +967,7 @@ longlong Item_in_optimizer::val_int()
     }
     return 0;
   }
-  bool tmp= args[1]->val_bool_result();
+  tmp= args[1]->val_bool_result();
   null_value= args[1]->null_value;
   return tmp;
 }
@@ -2567,6 +2568,7 @@ void Item_func_in::fix_length_and_dec()
   THD *thd= current_thd;
   uint found_types= 0;
   uint type_cnt= 0, i;
+  Item_result cmp_type= STRING_RESULT;
   left_result_type= args[0]->result_type();
   found_types= collect_cmp_types(args, arg_count);
   
@@ -2581,25 +2583,28 @@ void Item_func_in::fix_length_and_dec()
   for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
   {
     if (found_types & 1 << i)
+    {
       (type_cnt)++;
+      cmp_type= (Item_result) i;
+    }
   }
+
+  if (type_cnt == 1)
+  {
+    if (cmp_type == STRING_RESULT && 
+        agg_arg_charsets(cmp_collation, args, arg_count, MY_COLL_CMP_CONV, 1))
+      return;
+    arg_types_compatible= TRUE;
+  }
+
   /*
     Row item with NULLs inside can return NULL or FALSE =>
     they can't be processed as static
   */
   if (type_cnt == 1 && const_itm && !nulls_in_row())
   {
-    uint tmp_type;
-    Item_result cmp_type;
-    /* Only one cmp type was found. Extract it here */
-    for (tmp_type= 0; found_types - 1; found_types>>= 1)
-      tmp_type++;
-    cmp_type= (Item_result)tmp_type;
-
     switch (cmp_type) {
     case STRING_RESULT:
-      if (agg_arg_charsets(cmp_collation, args, arg_count, MY_COLL_CMP_CONV, 1))
-        return;
       array=new in_string(arg_count - 1,(qsort2_cmp) srtcmp_in,
 			  cmp_collation.collation);
       break;

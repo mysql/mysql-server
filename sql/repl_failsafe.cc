@@ -73,22 +73,18 @@ static int init_failsafe_rpl_thread(THD* thd)
   thd->net.read_timeout = slave_net_timeout;
   thd->max_client_packet_length=thd->net.max_packet;
   pthread_mutex_lock(&LOCK_thread_count);
-  thd->thread_id = thread_id++;
+  thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
   pthread_mutex_unlock(&LOCK_thread_count);
 
   if (init_thr_lock() || thd->store_globals())
   {
+    /* purecov: begin inspected */
     close_connection(thd, ER_OUT_OF_RESOURCES, 1); // is this needed?
     statistic_increment(aborted_connects,&LOCK_status);
-    end_thread(thd,0);
+    one_thread_per_connection_end(thd,0);
     DBUG_RETURN(-1);
+    /* purecov: end */
   }
-
-#if !defined(__WIN__) && !defined(__NETWARE__)
-  sigset_t set;
-  VOID(sigemptyset(&set));			// Get mask in use
-  VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
-#endif
 
   thd->mem_root->free= thd->mem_root->used= 0;
   if (thd->variables.max_join_size == HA_POS_ERROR)

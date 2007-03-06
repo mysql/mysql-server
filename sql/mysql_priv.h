@@ -38,6 +38,7 @@
 #include <queues.h>
 #include "sql_bitmap.h"
 #include "sql_array.h"
+#include "scheduler.h"
 
 /* TODO convert all these three maps to Bitmap classes */
 typedef ulonglong table_map;          /* Used for table bits in join */
@@ -282,7 +283,6 @@ MY_LOCALE *my_locale_by_number(uint number);
 #define TEST_MIT_THREAD		4
 #define TEST_BLOCKING		8
 #define TEST_KEEP_TMP_TABLES	16
-#define TEST_NO_THREADS		32	/* For debugging under Linux */
 #define TEST_READCHECK		64	/* Force use of readcheck */
 #define TEST_NO_EXTRA		128
 #define TEST_CORE_ON_SIGNAL	256	/* Give core if signal */
@@ -787,6 +787,23 @@ uint build_table_path(char *buff, size_t bufflen, const char *db,
 void write_bin_log(THD *thd, bool clear_error,
                    char const *query, ulong query_length);
 
+/* sql_connect.cc */
+int check_user(THD *thd, enum enum_server_command command, 
+	       const char *passwd, uint passwd_len, const char *db,
+	       bool check_count);
+pthread_handler_t handle_one_connection(void *arg);
+bool init_new_connection_handler_thread();
+void reset_mqh(LEX_USER *lu, bool get_them);
+bool check_mqh(THD *thd, uint check_command);
+void time_out_user_resource_limits(THD *thd, USER_CONN *uc);
+int check_for_max_user_connections(THD *thd, USER_CONN *uc);
+void decrease_user_connections(USER_CONN *uc);
+void thd_init_client_charset(THD *thd, uint cs_number);
+bool setup_connection_thread_globals(THD *thd);
+bool login_connection(THD *thd);
+void prepare_new_connection_state(THD* thd);
+void end_connection(THD *thd);
+
 bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create, bool silent);
 bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create);
 bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent);
@@ -822,10 +839,7 @@ bool multi_delete_set_locks_and_link_aux_tables(LEX *lex);
 void init_max_user_conn(void);
 void init_update_queries(void);
 void free_max_user_conn(void);
-pthread_handler_t handle_one_connection(void *arg);
 pthread_handler_t handle_bootstrap(void *arg);
-void end_thread(THD *thd,bool put_in_cache);
-void flush_thread_cache();
 bool mysql_execute_command(THD *thd);
 bool do_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
@@ -901,6 +915,8 @@ int setup_order(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 int setup_group(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 		List<Item> &fields, List<Item> &all_fields, ORDER *order,
 		bool *hidden_group_fields);
+bool fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
+                   Item **ref_pointer_array);
 
 bool handle_select(THD *thd, LEX *lex, select_result *result,
                    ulong setup_tables_done_option);
@@ -1495,6 +1511,11 @@ File open_binlog(IO_CACHE *log, const char *log_file_name,
 extern void MYSQLerror(const char*);
 void refresh_status(THD *thd);
 my_bool mysql_rm_tmp_tables(void);
+void handle_connection_in_main_thread(THD *thd);
+void create_thread_to_handle_connection(THD *thd);
+void unlink_thd(THD *thd);
+bool one_thread_per_connection_end(THD *thd, bool put_in_cache);
+void flush_thread_cache();
 
 /* item_func.cc */
 extern bool check_reserved_words(LEX_STRING *name);
@@ -1578,7 +1599,7 @@ extern ulong max_prepared_stmt_count, prepared_stmt_count;
 extern ulong binlog_cache_size, max_binlog_cache_size, open_files_limit;
 extern ulong max_binlog_size, max_relay_log_size;
 extern ulong opt_binlog_rows_event_max_size;
-extern ulong rpl_recovery_rank, thread_cache_size;
+extern ulong rpl_recovery_rank, thread_cache_size, thread_pool_size;
 extern ulong back_log;
 extern ulong specialflag, current_pid;
 extern ulong expire_logs_days, sync_binlog_period, sync_binlog_counter;
@@ -1663,6 +1684,9 @@ extern TABLE *unused_tables;
 extern const char* any_db;
 extern struct my_option my_long_options[];
 extern const LEX_STRING view_type;
+extern scheduler_functions thread_scheduler;
+extern TYPELIB thread_handling_typelib;
+extern uint8 uc_update_queries[SQLCOM_END+1];
 extern uint sql_command_flags[];
 extern TYPELIB log_output_typelib;
 

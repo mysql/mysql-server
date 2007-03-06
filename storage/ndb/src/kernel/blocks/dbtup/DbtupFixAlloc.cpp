@@ -123,7 +123,6 @@ void Dbtup::convertThPage(Fix_page* regPagePtr,
 			  Uint32 mm) 
 {
   Uint32 nextTuple = regTabPtr->m_offsets[mm].m_fix_header_size;
-  Uint32 endOfList;
   /*
   ASSUMES AT LEAST ONE TUPLE HEADER FITS AND THEREFORE NO HANDLING
   OF ZERO AS EXTREME CASE

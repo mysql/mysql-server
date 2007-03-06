@@ -153,12 +153,10 @@ Dbtup::Disk_alloc_info::Disk_alloc_info(const Tablerec* tabPtrP,
     return;
   
   Uint32 min_size= 4*tabPtrP->m_offsets[DD].m_fix_header_size;
-  Uint32 var_size= tabPtrP->m_offsets[DD].m_max_var_offset;
   
   if (tabPtrP->m_attributes[DD].m_no_of_varsize == 0)
   {
     Uint32 recs_per_page= (4*Tup_fixsize_page::DATA_WORDS)/min_size;
-    Uint32 pct_free= 0;
     m_page_free_bits_map[0] = recs_per_page; // 100% free
     m_page_free_bits_map[1] = 1;
     m_page_free_bits_map[2] = 0;
@@ -317,7 +315,7 @@ Dbtup::restart_setup_page(Disk_alloc_info& alloc, PagePtr pagePtr)
 			    0, 0, 0);
     unsigned uncommitted, committed;
     uncommitted = committed = ~(unsigned)0;
-    int ret = tsman.get_page_free_bits(&page, &uncommitted, &committed);
+    (void) tsman.get_page_free_bits(&page, &uncommitted, &committed);
     
     idx = alloc.calc_page_free_bits(real_free);
     ddassert(idx == committed);
@@ -858,9 +856,6 @@ Dbtup::disk_page_set_dirty(PagePtr pagePtr)
 
   if (DBG_DISK)
     ndbout << " disk_page_set_dirty " << key << endl;
-  
-  Uint32 tableId = pagePtr.p->m_table_id;
-  Uint32 fragId = pagePtr.p->m_fragment_id;
   
   Ptr<Tablerec> tabPtr;
   tabPtr.i= pagePtr.p->m_table_id;

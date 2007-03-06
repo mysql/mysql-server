@@ -53,7 +53,6 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   regTabPtr.i           = tupFragReq->tableId;
   Uint32 noOfAttributes = tupFragReq->noOfAttr;
   Uint32 fragId         = tupFragReq->fragId;
-  Uint32 noOfNullAttr = tupFragReq->noOfNullAttr;
   /*  Uint32 schemaVersion = tupFragReq->schemaVersion;*/
   Uint32 noOfKeyAttr = tupFragReq->noOfKeyAttr;
   Uint32 noOfCharsets = tupFragReq->noOfCharsets;
@@ -594,8 +593,8 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
       Uint32 sz= sizeof(Disk_undo::Create) >> 2;
       
       Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
-      int r0 = c_lgman->alloc_log_space(regFragPtr.p->m_logfile_group_id,
-					sz);
+      (void)  c_lgman->alloc_log_space(regFragPtr.p->m_logfile_group_id,
+                                       sz);
       
       int res= lgman.get_log_buffer(signal, sz, &cb);
       switch(res){
@@ -951,7 +950,7 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
     cb.m_callbackFunction = 
       safe_cast(&Dbtup::drop_table_log_buffer_callback);
     Uint32 sz= sizeof(Disk_undo::Drop) >> 2;
-    int r0 = c_lgman->alloc_log_space(logfile_group_id, sz);
+    (void) c_lgman->alloc_log_space(logfile_group_id, sz);
     
     Logfile_client lgman(this, c_lgman, logfile_group_id);
     int res= lgman.get_log_buffer(signal, sz, &cb);
@@ -1081,7 +1080,7 @@ Dbtup::drop_fragment_free_extent(Signal *signal,
 	  safe_cast(&Dbtup::drop_fragment_free_extent_log_buffer_callback);
 #if NOT_YET_UNDO_FREE_EXTENT
 	Uint32 sz= sizeof(Disk_undo::FreeExtent) >> 2;
-	int r0 = c_lgman->alloc_log_space(fragPtr.p->m_logfile_group_id, sz);
+	(void) c_lgman->alloc_log_space(fragPtr.p->m_logfile_group_id, sz);
 	
 	Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
 	

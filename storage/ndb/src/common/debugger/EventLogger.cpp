@@ -623,21 +623,21 @@ void getTextTransporterError(QQQQ) {
   lenth = sizeof(TransporterErrorString)/sizeof(struct myTransporterError);
   for(i=0; i<lenth; i++)
   {
-    if(theData[2] == TransporterErrorString[i].errorNum)
+    if(theData[2] == (Uint32) TransporterErrorString[i].errorNum)
     {
       BaseString::snprintf(m_text, m_text_len,
-                          "Transporter to node %d reported error 0x%x: %s",
-                          theData[1],
-			  theData[2],
-                          TransporterErrorString[i].errorString);
+                           "Transporter to node %d reported error 0x%x: %s",
+                           theData[1],
+                           theData[2],
+                           TransporterErrorString[i].errorString);
       break;
     }
   }
   if(i == lenth)
     BaseString::snprintf(m_text, m_text_len,   
-                        "Transporter to node %d reported error 0x%x: unknown error",
-                          theData[1],
-			  theData[2]);
+                         "Transporter to node %d reported error 0x%x: unknown error",
+                         theData[1],
+                         theData[2]);
 }
 void getTextTransporterWarning(QQQQ) {
   getTextTransporterError(m_text, m_text_len, theData, len);
@@ -1058,6 +1058,7 @@ EventLogger::close()
 }
 
 #ifdef NOT_USED
+
 static NdbOut&
 operator<<(NdbOut& out, const LogLevel & ll)
 {

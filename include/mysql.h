@@ -42,7 +42,7 @@ extern "C" {
 #ifndef _global_h				/* If not standard header */
 #include <sys/types.h>
 #ifdef __LCC__
-#include <winsock.h>				/* For windows */
+#include <winsock2.h>				/* For windows */
 #endif
 typedef char my_bool;
 #if (defined(_WIN32) || defined(_WIN64)) && !defined(__WIN__)

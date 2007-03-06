@@ -1078,7 +1078,6 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
   if (!thd->active_transaction())
     thd->transaction.xid_state.xid.null();
 
-  /* VOID(pthread_sigmask(SIG_SETMASK,&thd->block_signals,NULL)); */
   if (!lock_in_use)
     VOID(pthread_mutex_lock(&LOCK_open));
 
@@ -1208,10 +1207,11 @@ void close_temporary_tables(THD *thd)
   const char stub[]= "DROP /*!40005 TEMPORARY */ TABLE IF EXISTS ";
   uint stub_len= sizeof(stub) - 1;
   char buf[256];
-  memcpy(buf, stub, stub_len);
   String s_query= String(buf, sizeof(buf), system_charset_info);
-  bool found_user_tables= false;
+  bool found_user_tables= FALSE;
   LINT_INIT(next);
+
+  memcpy(buf, stub, stub_len);
 
   /*
      insertion sort of temp tables by pseudo_thread_id to build ordered list
@@ -1263,10 +1263,13 @@ void close_temporary_tables(THD *thd)
   {
     if (is_user_table(table))
     {
+      my_thread_id save_pseudo_thread_id= thd->variables.pseudo_thread_id;
       /* Set pseudo_thread_id to be that of the processed table */
       thd->variables.pseudo_thread_id= tmpkeyval(thd, table);
-      /* Loop forward through all tables within the sublist of
-         common pseudo_thread_id to create single DROP query */
+      /*
+        Loop forward through all tables within the sublist of
+        common pseudo_thread_id to create single DROP query.
+      */
       for (s_query.length(stub_len);
            table && is_user_table(table) &&
              tmpkeyval(thd, table) == thd->variables.pseudo_thread_id;
@@ -1292,16 +1295,18 @@ void close_temporary_tables(THD *thd)
                             0, FALSE);
       thd->variables.character_set_client= cs_save;
       /*
-        Imagine the thread had created a temp table, then was doing a SELECT, and
-        the SELECT was killed. Then it's not clever to mark the statement above as
-        "killed", because it's not really a statement updating data, and there
-        are 99.99% chances it will succeed on slave.
-        If a real update (one updating a persistent table) was killed on the
-        master, then this real update will be logged with error_code=killed,
-        rightfully causing the slave to stop.
+        Imagine the thread had created a temp table, then was doing a
+        SELECT, and the SELECT was killed. Then it's not clever to
+        mark the statement above as "killed", because it's not really
+        a statement updating data, and there are 99.99% chances it
+        will succeed on slave.  If a real update (one updating a
+        persistent table) was killed on the master, then this real
+        update will be logged with error_code=killed, rightfully
+        causing the slave to stop.
       */
       qinfo.error_code= 0;
       mysql_bin_log.write(&qinfo);
+      thd->variables.pseudo_thread_id= save_pseudo_thread_id;
     }
     else
     {
@@ -1519,9 +1524,15 @@ TABLE *find_temporary_table(THD *thd, TABLE_LIST *table_list)
   {
     if (table->s->table_cache_key.length == key_length &&
 	!memcmp(table->s->table_cache_key.str, key, key_length))
+    {
+      DBUG_PRINT("info",
+                 ("Found table. server_id: %u  pseudo_thread_id: %lu",
+                  (uint) thd->server_id,
+                  (ulong) thd->variables.pseudo_thread_id));
       DBUG_RETURN(table);
+    }
   }
-  DBUG_RETURN(0);					// Not a temporary table
+  DBUG_RETURN(0);                               // Not a temporary table
 }
 
 
@@ -1857,6 +1868,10 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 	if (table->query_id == thd->query_id ||
             thd->prelocked_mode && table->query_id)
 	{
+          DBUG_PRINT("error",
+                     ("query_id: %lu  server_id: %u  pseudo_thread_id: %lu",
+                      (ulong) table->query_id, (uint) thd->server_id,
+                      (ulong) thd->variables.pseudo_thread_id));
 	  my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias);
 	  DBUG_RETURN(0);
 	}
@@ -3507,8 +3522,11 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   uint key_length;
   TABLE_LIST table_list;
   DBUG_ENTER("open_temporary_table");
-  DBUG_PRINT("enter", ("table: '%s'.'%s'  path: '%s'",
-                       db, table_name, path));
+  DBUG_PRINT("enter",
+             ("table: '%s'.'%s'  path: '%s'  server_id: %u  "
+              "pseudo_thread_id: %lu",
+              db, table_name, path,
+              (uint) thd->server_id, (ulong) thd->variables.pseudo_thread_id));
 
   table_list.db=         (char*) db;
   table_list.table_name= (char*) table_name;
@@ -3795,6 +3813,7 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
   if (nj_col->view_field)
   {
     Item *item;
+    LINT_INIT(arena);
     if (register_tree_change)
       arena= thd->activate_stmt_arena_if_needed(&backup);
     /*
@@ -3978,6 +3997,9 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
 {
   Field *fld;
   DBUG_ENTER("find_field_in_table_ref");
+  DBUG_ASSERT(table_list->alias);
+  DBUG_ASSERT(name);
+  DBUG_ASSERT(item_name);
   DBUG_PRINT("enter",
              ("table: '%s'  field name: '%s'  item name: '%s'  ref 0x%lx",
               table_list->alias, name, item_name, (ulong) ref));
@@ -5443,21 +5465,8 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
   uint tablenr= 0;
   DBUG_ENTER("setup_tables");
 
-  /*
-    Due to the various call paths that lead to setup_tables() it may happen
-    that context->table_list and context->first_name_resolution_table can be
-    NULL (this is typically done when creating TABLE_LISTs internally).
-    TODO:
-    Investigate all cases when this my happen, initialize the name resolution
-    context correctly in all those places, and remove the context reset below.
-  */
-  if (!context->table_list || !context->first_name_resolution_table)
-  {
-    /* Test whether the context is in a consistent state. */
-    DBUG_ASSERT(!context->first_name_resolution_table && !context->table_list);
-    context->table_list= context->first_name_resolution_table= tables;
-  }
-
+  DBUG_ASSERT ((select_insert && !tables->next_name_resolution_table) || !tables || 
+               (context->table_list && context->first_name_resolution_table));
   /*
     this is used for INSERT ... SELECT.
     For select we setup tables except first (and its underlying tables)

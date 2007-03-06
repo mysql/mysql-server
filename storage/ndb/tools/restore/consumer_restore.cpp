@@ -182,6 +182,7 @@ BackupRestore::finalize_table(const TableS & table){
 }
 
 
+#ifdef NOT_USED
 static bool default_nodegroups(NdbDictionary::Table *table)
 {
   Uint16 *node_groups = (Uint16*)table->getFragmentData();
@@ -197,6 +198,7 @@ static bool default_nodegroups(NdbDictionary::Table *table)
   }
   return true;
 }
+#endif
 
 
 static Uint32 get_no_fragments(Uint64 max_rows, Uint32 no_nodes)
@@ -424,7 +426,7 @@ bool BackupRestore::translate_frm(NdbDictionary::Table *table)
 {
   const void *pack_data, *data, *new_pack_data;
   char *new_data;
-  uint data_len, pack_len, new_data_len, new_pack_len;
+  uint data_len, new_data_len, new_pack_len;
   uint no_parts, extra_growth;
   DBUG_ENTER("translate_frm");
 
@@ -1183,6 +1185,7 @@ BackupRestore::endOfTuples()
   tuple_free();
 }
 
+#ifdef NOT_USED
 static bool use_part_id(const NdbDictionary::Table *table)
 {
   if (table->getDefaultNoPartitionsFlag() &&
@@ -1191,6 +1194,7 @@ static bool use_part_id(const NdbDictionary::Table *table)
   else
     return true;
 }
+#endif
 
 static Uint32 get_part_id(const NdbDictionary::Table *table,
                           Uint32 hash_value)
