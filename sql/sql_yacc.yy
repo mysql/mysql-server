@@ -556,7 +556,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  GLOBAL_SYM                    /* SQL-2003-R */
 %token  GRANT                         /* SQL-2003-R */
 %token  GRANTS
-%token  GROUP                         /* SQL-2003-R */
+%token  GROUP_SYM                     /* SQL-2003-R */
 %token  GROUP_CONCAT_SYM
 %token  GT_SYM                        /* OPERATOR */
 %token  HANDLER_SYM
@@ -1505,7 +1505,7 @@ create:
 	  {
 	    Lex->sql_command = SQLCOM_CREATE_USER;
           }
-	| CREATE LOGFILE_SYM GROUP logfile_group_info 
+	| CREATE LOGFILE_SYM GROUP_SYM logfile_group_info 
           {
             Lex->alter_tablespace_info->ts_cmd_type= CREATE_LOGFILE_GROUP;
           }
@@ -3081,11 +3081,11 @@ trg_event:
   ALTER TABLESPACE name CHANGE DATAFILE ...
   ALTER TABLESPACE name ADD DATAFILE ...
   ALTER TABLESPACE name access_mode
-  CREATE LOGFILE GROUP name ...
-  ALTER LOGFILE GROUP name ADD UNDOFILE ..
-  ALTER LOGFILE GROUP name ADD REDOFILE ..
+  CREATE LOGFILE GROUP_SYM name ...
+  ALTER LOGFILE GROUP_SYM name ADD UNDOFILE ..
+  ALTER LOGFILE GROUP_SYM name ADD REDOFILE ..
   DROP TABLESPACE name
-  DROP LOGFILE GROUP name
+  DROP LOGFILE GROUP_SYM name
 */
 change_tablespace_access:
           tablespace_name
@@ -3107,7 +3107,7 @@ tablespace_info:
 
 opt_logfile_group_name:
           /* empty */ {}
-          | USE_SYM LOGFILE_SYM GROUP ident
+          | USE_SYM LOGFILE_SYM GROUP_SYM ident
           {
             LEX *lex= Lex;
             lex->alter_tablespace_info->logfile_group_name= $4.str;
@@ -5073,7 +5073,7 @@ alter:
             LEX *lex= Lex;
             lex->alter_tablespace_info->ts_cmd_type= ALTER_TABLESPACE;
           }
-        | ALTER LOGFILE_SYM GROUP alter_logfile_group_info
+        | ALTER LOGFILE_SYM GROUP_SYM alter_logfile_group_info
           {
             LEX *lex= Lex;
             lex->alter_tablespace_info->ts_cmd_type= ALTER_LOGFILE_GROUP;
@@ -5941,8 +5941,13 @@ select_into:
 	| select_from into;
 
 select_from:
-	  FROM join_table_list where_clause group_clause having_clause
+        FROM join_table_list where_clause group_clause having_clause
 	       opt_order_clause opt_limit_clause procedure_clause
+          {
+            Select->context.table_list=
+              Select->context.first_name_resolution_table= 
+                (TABLE_LIST *) Select->table_list.first;
+          }
         | FROM DUAL_SYM where_clause opt_limit_clause
           /* oracle compatibility: oracle always requires FROM clause,
              and DUAL is system table without fields.
@@ -7552,7 +7557,7 @@ opt_escape:
 
 group_clause:
 	/* empty */
-	| GROUP BY group_list olap_opt;
+	| GROUP_SYM BY group_list olap_opt;
 
 group_list:
 	group_list ',' order_ident order_dir
@@ -8016,7 +8021,7 @@ drop:
             LEX *lex= Lex;
             lex->alter_tablespace_info->ts_cmd_type= DROP_TABLESPACE;
           }
-        | DROP LOGFILE_SYM GROUP logfile_group_name opt_ts_engine opt_ts_wait
+        | DROP LOGFILE_SYM GROUP_SYM logfile_group_name opt_ts_engine opt_ts_wait
           {
             LEX *lex= Lex;
             lex->alter_tablespace_info->ts_cmd_type= DROP_LOGFILE_GROUP;
@@ -11045,6 +11050,12 @@ subselect_end:
 	  lex->current_select = lex->current_select->return_after_parsing();
           lex->nest_level--;
           lex->current_select->n_child_sum_items += child->n_sum_items;
+          /*
+            A subselect can add fields to an outer select. Reserve space for
+            them.
+          */
+          lex->current_select->select_n_where_fields+=
+            child->select_n_where_fields;
 	};
 
 /**************************************************************************

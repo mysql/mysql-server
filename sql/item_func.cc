@@ -3087,14 +3087,8 @@ public:
   int count;
   bool locked;
   pthread_cond_t cond;
-#ifndef EMBEDDED_LIBRARY
-  pthread_t thread;
-  void set_thread(THD *thd) { thread= thd->real_id; }
-#else
-  THD       *thread;
-  void set_thread(THD *thd) { thread= thd; }
-#endif /*EMBEDDED_LIBRARY*/
-  ulong thread_id;
+  my_thread_id thread_id;
+  void set_thread(THD *thd) { thread_id= thd->thread_id; }
 
   User_level_lock(const char *key_arg,uint length, ulong id) 
     :key_length(length),count(1),locked(1), thread_id(id)
@@ -3411,11 +3405,7 @@ longlong Item_func_release_lock::val_int()
   }
   else
   {
-#ifdef EMBEDDED_LIBRARY
-    if (ull->locked && (current_thd == ull->thread))
-#else
-    if (ull->locked && pthread_equal(pthread_self(),ull->thread))
-#endif
+    if (ull->locked && current_thd->thread_id == ull->thread_id)
     {
       result=1;					// Release is ok
       item_user_lock_release(ull);
@@ -3460,7 +3450,7 @@ longlong Item_func_benchmark::val_int()
   THD *thd=current_thd;
   ulong loop_count;
 
-  loop_count= args[0]->val_int();
+  loop_count= (ulong) args[0]->val_int();
 
   if (args[0]->null_value)
   {

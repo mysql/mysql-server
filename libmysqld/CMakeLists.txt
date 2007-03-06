@@ -74,6 +74,7 @@ ADD_LIBRARY(mysqldemb emb_qcache.cc libmysqld.c lib_sql.cc
             ../sql/strfunc.cc ../sql/table.cc ../sql/thr_malloc.cc
             ../sql/time.cc ../sql/tztime.cc ../sql/uniques.cc ../sql/unireg.cc
             ../sql/partition_info.cc ../sql/sql_locale.cc
+	    ../sql/sql_connect.cc ../sql/scheduler.cc
             ../vio/vio.c ../vio/viosocket.c ../vio/viossl.c
             ../vio/viosslfactories.c
             ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc

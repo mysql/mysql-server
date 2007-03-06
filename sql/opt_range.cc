@@ -4923,8 +4923,8 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
       type. Tree won't be built for values with different result types,
       so we check it here to avoid unnecessary work.
     */
-    if (!func->array)
-      break;
+    if (!func->arg_types_compatible)
+      break;     
 
     if (inv)
     {

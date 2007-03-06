@@ -451,7 +451,6 @@ Dbtup::load_diskpage(Signal* signal,
   Tuple_header* ptr= (Tuple_header*)tmp;
   
   int res= 1;
-  Uint32 opPtr= ptr->m_operation_ptr_i;
   if(ptr->m_header_bits & Tuple_header::DISK_PART)
   {
     Page_cache_client::Request req;
@@ -536,7 +535,6 @@ Dbtup::load_diskpage_scan(Signal* signal,
   Tuple_header* ptr= (Tuple_header*)tmp;
   
   int res= 1;
-  Uint32 opPtr= ptr->m_operation_ptr_i;
   if(ptr->m_header_bits & Tuple_header::DISK_PART)
   {
     Page_cache_client::Request req;
@@ -2923,7 +2921,6 @@ Dbtup::nr_read_pk(Uint32 fragPtrI,
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
 
   Local_key tmp = *key;
-  Uint32 pages = fragPtr.p->noOfPages;
   
   int ret;
   PagePtr page_ptr;
