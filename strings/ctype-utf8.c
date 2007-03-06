@@ -2312,6 +2312,8 @@ static int my_strnncoll_utf8(CHARSET_INFO *cs,
   const uchar *se=s+slen;
   const uchar *te=t+tlen;
   MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  LINT_INIT(s_wc);
+  LINT_INIT(t_wc);
 
   while ( s < se && t < te )
   {
@@ -2381,6 +2383,8 @@ static int my_strnncollsp_utf8(CHARSET_INFO *cs,
   my_wc_t s_wc,t_wc;
   const uchar *se= s+slen, *te= t+tlen;
   MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  LINT_INIT(s_wc);
+  LINT_INIT(t_wc);
 
 #ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
   diff_if_only_endspace_difference= 0;
@@ -4101,7 +4105,7 @@ my_wc_mb_filename(CHARSET_INFO *cs __attribute__((unused)),
   char hex[]= "0123456789abcdef";
   if (wc < 128 && filename_safe_char[wc])
   {
-    *s= wc;
+    *s= (uchar) wc;
     return 1;
   }
   

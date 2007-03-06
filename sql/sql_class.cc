@@ -243,7 +243,7 @@ THD::THD()
   time_after_lock=(time_t) 0;
   current_linfo =  0;
   slave_thread = 0;
-  variables.pseudo_thread_id= 0;
+  thread_id= variables.pseudo_thread_id= 0;
   one_shot_set= 0;
   file_id = 0;
   query_id= 0;
@@ -267,9 +267,6 @@ THD::THD()
   cleanup_done= abort_on_warning= no_warnings_for_error= 0;
   peer_port= 0;					// For SHOW PROCESSLIST
   transaction.m_pending_rows_event= 0;
-#ifdef	__WIN__
-  real_id = 0;
-#endif
 #ifdef SIGNAL_WITH_VIO_CLOSE
   active_vio = 0;
 #endif
@@ -401,6 +398,8 @@ void THD::change_user(void)
 void THD::cleanup(void)
 {
   DBUG_ENTER("THD::cleanup");
+  DBUG_ASSERT(cleanup_done == 0);
+
 #ifdef ENABLE_WHEN_BINLOG_WILL_BE_ABLE_TO_PREPARE
   if (transaction.xid_state.xa_state == XA_PREPARED)
   {
@@ -436,7 +435,6 @@ void THD::cleanup(void)
     pthread_mutex_lock(&LOCK_user_locks);
     item_user_lock_release(ull);
     pthread_mutex_unlock(&LOCK_user_locks);
-    ull= 0;
   }
 
   cleanup_done=1;
@@ -550,7 +548,9 @@ void THD::awake(THD::killed_state state_to_set)
   killed= state_to_set;
   if (state_to_set != THD::KILL_QUERY)
   {
-    thr_alarm_kill(real_id);
+    thr_alarm_kill(thread_id);
+    if (!slave_thread)
+      thread_scheduler.post_kill_notification(this);
 #ifdef SIGNAL_WITH_VIO_CLOSE
     close_active_vio();
 #endif    
@@ -601,18 +601,19 @@ bool THD::store_globals()
     Assert that thread_stack is initialized: it's necessary to be able
     to track stack overrun.
   */
-  DBUG_ASSERT(this->thread_stack);
+  DBUG_ASSERT(thread_stack);
 
   if (my_pthread_setspecific_ptr(THR_THD,  this) ||
       my_pthread_setspecific_ptr(THR_MALLOC, &mem_root))
     return 1;
   mysys_var=my_thread_var;
-  dbug_thread_id=my_thread_id();
   /*
-    By default 'slave_proxy_id' is 'thread_id'. They may later become different
-    if this is the slave SQL thread.
+    Let mysqld define the thread id (not mysys)
+    This allows us to move THD to different threads if needed.
   */
-  variables.pseudo_thread_id= thread_id;
+  mysys_var->id= thread_id;
+  real_id= pthread_self();                      // For debugging
+
   /*
     We have to call thr_lock_info_init() again here as THD may have been
     created in another thread
@@ -2511,7 +2512,7 @@ my_size_t THD::pack_row(TABLE *table, MY_BITMAP const* cols, byte *row_data,
     if (bitmap_is_set(cols,i))
     {
       my_ptrdiff_t const offset=
-        field->is_null(rec_offset) ? def_offset : rec_offset;
+        field->is_null((uint) rec_offset) ? def_offset : rec_offset;
       field->move_field_offset(offset);
       ptr= (byte*)field->pack((char *) ptr, field->ptr);
       field->move_field_offset(-offset);
@@ -2553,7 +2554,7 @@ namespace {
       : m_memory(0)
     {
 #ifndef DBUG_OFF
-      m_alloc_checked= false;
+      m_alloc_checked= FALSE;
 #endif
       allocate_memory(table, len1);
       m_ptr[0]= has_memory() ? m_memory : 0;
@@ -2564,7 +2565,7 @@ namespace {
       : m_memory(0)
     {
 #ifndef DBUG_OFF
-      m_alloc_checked= false;
+      m_alloc_checked= FALSE;
 #endif
       allocate_memory(table, len1 + len2);
       m_ptr[0]= has_memory() ? m_memory        : 0;
@@ -2585,7 +2586,7 @@ namespace {
      */
     bool has_memory() const {
 #ifndef DBUG_OFF
-      m_alloc_checked= true;
+      m_alloc_checked= TRUE;
 #endif
       return m_memory != 0;
     }
@@ -2594,7 +2595,7 @@ namespace {
     {
       DBUG_ASSERT(s < sizeof(m_ptr)/sizeof(*m_ptr));
       DBUG_ASSERT(m_ptr[s] != 0);
-      DBUG_ASSERT(m_alloc_checked == true);
+      DBUG_ASSERT(m_alloc_checked == TRUE);
       return m_ptr[s];
     }
 
@@ -2624,12 +2625,12 @@ namespace {
           table->write_row_record=
             (byte *) alloc_root(&table->mem_root, 2 * maxlen);
         m_memory= table->write_row_record;
-        m_release_memory_on_destruction= false;
+        m_release_memory_on_destruction= FALSE;
       }
       else
       {
         m_memory= (byte *) my_malloc(total_length, MYF(MY_WME));
-        m_release_memory_on_destruction= true;
+        m_release_memory_on_destruction= TRUE;
       }
     }
 

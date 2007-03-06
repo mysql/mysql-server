@@ -2098,8 +2098,11 @@ void Dbdih::gcpBlockedLab(Signal* signal)
   /*-------------------------------------------------------------------------*/
   Uint32 startVersion = getNodeInfo(c_nodeStartMaster.startNode).m_version;
   
-  if ((getMajor(startVersion) == 4 && startVersion >= NDBD_INCL_NODECONF_VERSION_4) ||
-      (getMajor(startVersion) == 5 && startVersion >= NDBD_INCL_NODECONF_VERSION_5))
+  if ((getMajor(startVersion) == 4 && 
+       startVersion >= NDBD_INCL_NODECONF_VERSION_4) ||
+      (getMajor(startVersion) == 5 && 
+       startVersion >= NDBD_INCL_NODECONF_VERSION_5) ||
+      (getMajor(startVersion) > 5))
   {
     c_INCL_NODEREQ_Counter.setWaitingFor(c_nodeStartMaster.startNode);
   }
@@ -2342,8 +2345,11 @@ void Dbdih::execINCL_NODEREQ(Signal* signal)
     CRASH_INSERTION(7171);
     Uint32 masterVersion = getNodeInfo(refToNode(cmasterdihref)).m_version;
     
-    if ((NDB_VERSION_MAJOR == 4 && masterVersion >= NDBD_INCL_NODECONF_VERSION_4) ||
-	(NDB_VERSION_MAJOR == 5 && masterVersion >= NDBD_INCL_NODECONF_VERSION_5))
+    if ((NDB_VERSION_MAJOR == 4 && 
+	 masterVersion >= NDBD_INCL_NODECONF_VERSION_4) ||
+	(NDB_VERSION_MAJOR == 5 && 
+	 masterVersion >= NDBD_INCL_NODECONF_VERSION_5) ||
+	(NDB_VERSION_MAJOR > 5))
     {
       signal->theData[0] = getOwnNodeId();
       signal->theData[1] = getOwnNodeId();
@@ -2965,7 +2971,6 @@ Dbdih::nr_start_fragment(Signal* signal,
     if (replicaPtr.p->lcpStatus[idx] == ZVALID) 
     {
       ndbrequire(replicaPtr.p->lcpId[idx] > maxLcpId);
-      Uint32 startGci = replicaPtr.p->maxGciCompleted[idx];
       Uint32 stopGci = replicaPtr.p->maxGciStarted[idx];
       for (;j < replicaPtr.p->noCrashedReplicas; j++)
       {
@@ -10620,8 +10625,6 @@ Dbdih::handle_invalid_lcp_no(const LcpFragRep* rep,
   ndbrequire(!isMaster());
   Uint32 lcpNo = rep->lcpNo;
   Uint32 lcpId = rep->lcpId;
-  Uint32 replicaLcpNo = replicaPtr.p->nextLcp;
-  Uint32 prevReplicaLcpNo = prevLcpNo(replicaLcpNo);
 
   warningEvent("Detected previous node failure of %d during lcp",
 	       rep->nodeId);
