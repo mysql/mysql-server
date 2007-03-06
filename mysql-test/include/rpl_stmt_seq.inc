@@ -1,30 +1,51 @@
-# include/rpl_stmt_seq.inc
-#
-# Please be very careful when editing this routine, because the handling of 
-# the $variables is extreme sensitive. 
-#
+################### include/rpl_stmt_seq.inc ###########################
+#                                                                      #
+# Check if a given SQL statement (->$my_stmt) / AUTOCOMMIT mode /      #
+# storage engine somehow involved causes COMMIT or ROLLBACK.           #
+#                                                                      #
+#                                                                      #
+# The typical test sequence                                            #
+# -------------------------                                            #
+# 1. master connection: INSERT without commit                          #
+#    check table content of master and slave                           #
+# 2. master connection: EXECUTE the statement                          #
+#    check table content of master and slave                           #
+# 3. master connection: ROLLBACK                                       #
+#    check table content of master and slave                           #
+# 4. flush the logs                                                    #
+#                                                                      #
+# The variables                                                        #
+#    $show_binlog       -- print binlog entries                        #
+#                          0 - default + fits to the file with         #
+#                              results                                 #
+#                          1 - useful for debugging                    #
+#                          This variable is used within                #
+#                          include/rpl_stmt_seq.inc.                   #
+#    $manipulate        -- Manipulation of the binary logs             #
+#                          0 - do nothing                              #
+#                          1 - so that the output of SHOW BINLOG       #
+#                              EVENTS IN <current log> contains only   #
+#                              commands of the current test sequence   #
+#                              This is especially useful, if the       #
+#                              $show_binlog is set to 1 and many       #
+#                              subtest are executed.                   #
+#                          This variable is used within                #
+#                          include/rpl_stmt_seq.inc.                   #
+# have to be set before sourcing this script.                          #
+#                                                                      #
+# Please be very careful when editing this routine, because the        #
+# handling of the $variables is extreme sensitive.                     #
+#                                                                      #
+########################################################################
 
-###############################################################
-# Debug options : To debug this test script
-###############################################################
-let $show_binlog= 0;
-let $manipulate= 1;
-
-######## The typical test sequence
-# 1. INSERT without commit
-#    check table content of master and slave
-# 2. EXECUTE the statement
-#    check table content of master and slave
-# 3. ROLLBACK
-#    check table content of master and slave
-# 4. flush the logs
+# Last update:
+# 2007-02-12 ML Replace comments via SQL by "--echo ..."
+#
 
 let $VERSION=`select version()`;
 
---disable_query_log
-# SELECT '######## new test sequence ########' as "";
-eval SELECT CONCAT('######## ','$my_stmt','  ########') as "";
---enable_query_log
+--echo
+--echo ######## $my_stmt ########
 
 
 ###############################################################
@@ -49,11 +70,10 @@ let $_log_num_s= `select @aux`;
 ###############################################################
 # INSERT 
 ###############################################################
+--echo
+--echo -------- switch to master -------
 connection master;
---disable_query_log
-SELECT '-------- switch to master -------' as "";
---enable_query_log
-# Maybe it would be smarter to use a table with autoincrement column.
+# Maybe it would be smarter to use a table with an autoincrement column.
 let $MAX= `SELECT MAX(f1) FROM t1` ;
 eval INSERT INTO t1 SET f1= $MAX + 1;
 # results before DDL(to be tested)
@@ -66,10 +86,9 @@ eval SHOW BINLOG EVENTS IN 'master-bin.$_log_num_s';
 }
 sync_slave_with_master;
 
+--echo
+--echo -------- switch to slave --------
 connection slave;
---disable_query_log
-SELECT '-------- switch to slave --------' as "";
---enable_query_log
 # results before DDL(to be tested)
 SELECT MAX(f1) FROM t1;
 if ($show_binlog)
@@ -82,10 +101,9 @@ eval SHOW BINLOG EVENTS IN 'slave-bin.$_log_num_s';
 ###############################################################
 # command to be tested
 ###############################################################
+--echo
+--echo -------- switch to master -------
 connection master;
---disable_query_log
-SELECT '-------- switch to master -------' as "";
---enable_query_log
 eval $my_stmt;
 # Devaluate $my_stmt, to detect script bugs
 let $my_stmt= ERROR: YOU FORGOT TO FILL IN THE STATEMENT;
@@ -99,10 +117,9 @@ eval SHOW BINLOG EVENTS IN 'master-bin.$_log_num_s';
 }
 sync_slave_with_master;
 
+--echo
+--echo -------- switch to slave --------
 connection slave;
---disable_query_log
-SELECT '-------- switch to slave --------' as "";
---enable_query_log
 # results after DDL(to be tested)
 SELECT MAX(f1) FROM t1;
 if ($show_binlog)
@@ -115,10 +132,9 @@ eval SHOW BINLOG EVENTS IN 'slave-bin.$_log_num_s';
 ###############################################################
 # ROLLBACK
 ###############################################################
+--echo
+--echo -------- switch to master -------
 connection master;
---disable_query_log
-SELECT '-------- switch to master -------' as "";
---enable_query_log
 ROLLBACK;
 # results after final ROLLBACK
 SELECT MAX(f1) FROM t1;
@@ -140,10 +156,9 @@ eval SHOW BINLOG EVENTS IN 'master-bin.$_log_num_s';
 }
 sync_slave_with_master;
 
+--echo
+--echo -------- switch to slave --------
 connection slave;
---disable_query_log
-SELECT '-------- switch to slave --------' as "";
---enable_query_log
 # results after final ROLLBACK
 SELECT MAX(f1) FROM t1;
 --disable_query_log
@@ -172,19 +187,17 @@ if ($manipulate)
 # - flush the master and the slave log
 #   ---> both start to write into new logs with incremented number
 # - increment $_log_num_n
+--echo
+--echo -------- switch to master -------
 connection master;
---disable_query_log
-SELECT '-------- switch to master -------' as "";
---enable_query_log
 flush logs;
 # sleep 1;
 # eval SHOW BINLOG EVENTS IN 'master-bin.$_log_num_s';
 sync_slave_with_master;
 
+--echo
+--echo -------- switch to slave --------
 connection slave;
---disable_query_log
-SELECT '-------- switch to slave --------' as "";
---enable_query_log
 # the final content of the binary log
 flush logs;
 # The next sleep is urgent needed.
@@ -195,7 +208,6 @@ flush logs;
 inc $_log_num_n;
 }
 
+--echo
+--echo -------- switch to master -------
 connection master;
---disable_query_log
-SELECT '-------- switch to master -------' as "";
---enable_query_log
