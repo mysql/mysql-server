@@ -669,6 +669,8 @@ err:
 
 bool
 BackupRestore::createSystable(const TableS & tables){
+  if (!m_restore && !m_restore_meta && !m_restore_epoch)
+    return true;
   const char *tablename = tables.getTableName();
 
   if( strcmp(tablename, NDB_REP_DB "/def/" NDB_APPLY_TABLE) != 0 &&
