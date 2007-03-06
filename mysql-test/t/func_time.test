@@ -724,6 +724,13 @@ SELECT t1, t2, SEC_TO_TIME( TIME_TO_SEC( t2 ) - TIME_TO_SEC( t1 ) ), QUARTER(d)
 SELECT t1, t2, SEC_TO_TIME( TIME_TO_SEC( t2 ) - TIME_TO_SEC( t1 ) ), QUARTER(d)
   FROM t1 ORDER BY a DESC;
 DROP TABLE t1;
+
+#
+# Bug #20293: group by cuts off value from time_format
+#
+# Check if using GROUP BY with TIME_FORMAT() produces correct results
+
+SELECT TIME_FORMAT(SEC_TO_TIME(a),"%H:%i:%s") FROM (SELECT 3020399 AS a UNION SELECT 3020398 ) x GROUP BY 1;
 --echo End of 5.0 tests
 
 #
