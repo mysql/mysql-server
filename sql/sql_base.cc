@@ -1850,6 +1850,13 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   key_length= (create_table_def_key(thd, key, table_list, 1) -
                TMP_TABLE_KEY_EXTRA);
 
+  /*
+    Unless requested otherwise, try to resolve this table in the list
+    of temporary tables of this thread. In MySQL temporary tables
+    are always thread-local and "shadow" possible base tables with the
+    same name. This block implements the behaviour.
+    TODO: move this block into a separate function.
+  */
   if (!table_list->skip_temporary)
   {
     for (table= thd->temporary_tables; table ; table=table->next)
@@ -1859,6 +1866,12 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 	  !memcmp(table->s->table_cache_key.str, key,
 		  key_length + TMP_TABLE_KEY_EXTRA))
       {
+        /*
+          We're trying to use the same temporary table twice in a query.
+          Right now we don't support this because a temporary table
+          is always represented by only one TABLE object in THD, and
+          it can not be cloned. Emit an error for an unsupported behaviour.
+        */
 	if (table->query_id == thd->query_id ||
             thd->prelocked_mode && table->query_id)
 	{
@@ -1878,6 +1891,13 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     }
   }
 
+  /*
+    The table is not temporary - if we're in pre-locked or LOCK TABLES
+    mode, let's try to find the requested table in the list of pre-opened
+    and locked tables. If the table is not there, return an error - we can't
+    open not pre-opened tables in pre-locked/LOCK TABLES mode.
+    TODO: move this block into a separate function.
+  */
   if (!(flags & MYSQL_OPEN_IGNORE_LOCKED_TABLES) &&
       (thd->locked_tables || thd->prelocked_mode))
   {						// Using table locks
@@ -1949,7 +1969,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       goto reset;
     }
     /*
-      is it view?
+      Is this table a view and not a base table?
       (it is work around to allow to open view with locked tables,
       real fix will be made after definition cache will be made)
     */
@@ -1981,8 +2001,32 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     DBUG_RETURN(0);
   }
 
+  /*
+    Non pre-locked/LOCK TABLES mode, and the table is not temporary:
+    this is the normal use case.
+    Now we should:
+    - try to find the table in the table cache.
+    - if one of the discovered TABLE instances is name-locked
+      (table->s->version == 0) or some thread has started FLUSH TABLES
+      (refresh_version > table->s->version), back off -- we have to wait
+      until no one holds a name lock on the table.
+    - if there is no such TABLE in the name cache, read the table definition
+    and insert it into the cache.
+    We perform all of the above under LOCK_open which currently protects
+    the open cache (also known as table cache) and table definitions stored
+    on disk.
+  */
+
   VOID(pthread_mutex_lock(&LOCK_open));
 
+  /*
+    If it's the first table from a list of tables used in a query,
+    remember refresh_version (the version of open_cache state).
+    If the version changes while we're opening the remaining tables,
+    we will have to back off, close all the tables opened-so-far,
+    and try to reopen them.
+    Note: refresh_version is currently changed only during FLUSH TABLES.
+  */
   if (!thd->open_tables)
     thd->version=refresh_version;
   else if ((thd->version != refresh_version) &&
@@ -1999,6 +2043,16 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   if (thd->handler_tables)
     mysql_ha_flush(thd, (TABLE_LIST*) NULL, MYSQL_HA_REOPEN_ON_USAGE, TRUE);
 
+  /*
+    Actually try to find the table in the open_cache.
+    The cache may contain several "TABLE" instances for the same
+    physical table. The instances that are currently "in use" by
+    some thread have their "in_use" member != NULL.
+    There is no good reason for having more than one entry in the
+    hash for the same physical table, except that we use this as
+    an implicit "pending locks queue" - see
+    wait_for_locked_table_names for details.
+  */
   for (table= (TABLE*) hash_first(&open_cache, (byte*) key, key_length,
                                   &state);
        table && table->in_use ;
@@ -2008,6 +2062,21 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     /*
       Here we flush tables marked for flush. However we never flush log
       tables here. They are flushed only on FLUSH LOGS.
+      Normally, table->s->version contains the value of
+      refresh_version from the moment when this table was
+      (re-)opened and added to the cache.
+      If since then we did (or just started) FLUSH TABLES
+      statement, refresh_version has been increased.
+      For "name-locked" TABLE instances, table->s->version is set
+      to 0 (see lock_table_name for details).
+      In case there is a pending FLUSH TABLES or a name lock, we
+      need to back off and re-start opening tables.
+      If we do not back off now, we may dead lock in case of lock
+      order mismatch with some other thread:
+      c1: name lock t1; -- sort of exclusive lock 
+      c2: open t2;      -- sort of shared lock
+      c1: name lock t2; -- blocks
+      c2: open t1; -- blocks
     */
     if (table->s->version != refresh_version && !table->s->log_table)
     {
@@ -2023,16 +2092,35 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       }
 
       /*
-        There is a refresh in progress for this table
-        Wait until the table is freed or the thread is killed.
+        Back off, part 1: mark the table as "unused" for the
+        purpose of name-locking by setting table->db_stat to 0. Do
+        that only for the tables in this thread that have an old
+        table->s->version (this is an optimization (?)).
+        table->db_stat == 0 signals wait_for_locked_table_names
+        that the tables in question are not used any more. See
+        table_is_used call for details.
       */
       close_old_data_files(thd,thd->open_tables,0,0);
+      /*
+        Back-off part 2: try to avoid "busy waiting" on the table:
+        if the table is in use by some other thread, we suspend
+        and wait till the operation is complete: when any
+        operation that juggles with table->s->version completes,
+        it broadcasts COND_refresh condition variable.
+      */
       if (table->in_use != thd)
+      {
+        /* wait_for_conditionwill unlock LOCK_open for us */
         wait_for_condition(thd, &LOCK_open, &COND_refresh);
+      }
       else
       {
 	VOID(pthread_mutex_unlock(&LOCK_open));
       }
+      /*
+        There is a refresh in progress for this table.
+        Signal the caller that it has to try again.
+      */
       if (refresh)
 	*refresh=1;
       DBUG_RETURN(0);
@@ -2040,6 +2128,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   }
   if (table)
   {
+    /* Unlink the table from "unused_tables" list. */
     if (table == unused_tables)
     {						// First unused
       unused_tables=unused_tables->next;	// Remove from link
@@ -2052,6 +2141,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   }
   else
   {
+    /* Insert a new TABLE instance into the open cache */
     int error;
     /* Free cache if too big */
     while (open_cache.records > table_cache_size && unused_tables)
@@ -2906,6 +2996,10 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
     }
   }
 
+  /*
+    For every table in the list of tables to open, try to find or open
+    a table.
+  */
   for (tables= *start; tables ;tables= tables->next_global)
   {
     /*
@@ -2920,6 +3014,12 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
         goto process_view_routines;
       continue;
     }
+    /*
+      If this TABLE_LIST object is a placeholder for an information_schema
+      table, create a temporary table to represent the information_schema
+      table in the query. Do not fill it yet - will be filled during
+      execution.
+    */
     if (tables->schema_table)
     {
       if (!mysql_schema_table(thd, thd->lex, tables))
@@ -2927,7 +3027,11 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
       DBUG_RETURN(-1);
     }
     (*counter)++;
-    
+
+    /*
+      Not a placeholder: must be a base table or a view, and the table is
+      not opened yet. Try to open the table.
+    */
     if (!tables->table &&
 	!(tables->table= open_table(thd, tables, &new_frm_mem, &refresh, flags)))
     {
@@ -3034,7 +3138,7 @@ process_view_routines:
       {
         /*
           Serious error during reading stored routines from mysql.proc table.
-          Something's wrong with the table or its contents, and an error has
+          Something is wrong with the table or its contents, and an error has
           been emitted; we must abort.
         */
         result= -1;
