@@ -78,7 +78,8 @@ extern my_bool innobase_log_archive,
                innobase_use_checksums,
                innobase_file_per_table,
                innobase_locks_unsafe_for_binlog,
-               innobase_rollback_on_timeout;
+               innobase_rollback_on_timeout,
+               innobase_stats_on_metadata;
 
 extern "C" {
 extern ulong srv_max_buf_pool_modified_pct;
@@ -835,6 +836,7 @@ SHOW_VAR init_vars[]= {
   {"innodb_mirrored_log_groups", (char*) &innobase_mirrored_log_groups, SHOW_LONG},
   {"innodb_open_files", (char*) &innobase_open_files, SHOW_LONG },
   {"innodb_rollback_on_timeout", (char*) &innobase_rollback_on_timeout, SHOW_MY_BOOL},
+  {"innodb_stats_on_metadata", (char*) &innobase_stats_on_metadata, SHOW_MY_BOOL},
   {sys_innodb_support_xa.name, (char*) &sys_innodb_support_xa, SHOW_SYS},
   {sys_innodb_sync_spin_loops.name, (char*) &sys_innodb_sync_spin_loops, SHOW_SYS},
   {sys_innodb_table_locks.name, (char*) &sys_innodb_table_locks, SHOW_SYS},

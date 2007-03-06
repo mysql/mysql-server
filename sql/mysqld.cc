@@ -399,6 +399,7 @@ extern my_bool innobase_log_archive,
                innobase_use_native_aio,
                innobase_file_per_table, innobase_locks_unsafe_for_binlog,
                innobase_rollback_on_timeout,
+               innobase_stats_on_metadata,
                innobase_create_status_file;
 extern "C" {
 extern ulong srv_max_buf_pool_modified_pct;
@@ -4966,6 +4967,7 @@ enum options_mysqld
   OPT_INNODB_SYNC_SPIN_LOOPS,
   OPT_INNODB_CONCURRENCY_TICKETS,
   OPT_INNODB_THREAD_SLEEP_DELAY,
+  OPT_INNODB_STATS_ON_METADATA,
   OPT_BDB_CACHE_SIZE,
   OPT_BDB_CACHE_PARTS,
   OPT_BDB_LOG_BUFFER_SIZE,
@@ -5311,6 +5313,10 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    "Enable SHOW INNODB STATUS output in the innodb_status.<pid> file",
    (gptr*) &innobase_create_status_file, (gptr*) &innobase_create_status_file,
    0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"innodb_stats_on_metadata", OPT_INNODB_STATS_ON_METADATA,
+   "Enable statistics gathering for metadata commands such as SHOW TABLE STATUS (on by default)",
+   (gptr*) &innobase_stats_on_metadata, (gptr*) &innobase_stats_on_metadata,
+   0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"innodb_support_xa", OPT_INNODB_SUPPORT_XA,
    "Enable InnoDB support for the XA two-phase commit",
    (gptr*) &global_system_variables.innodb_support_xa,
@@ -8348,7 +8354,8 @@ my_bool innobase_log_archive,
         innobase_use_checksums,
         innobase_file_per_table,
         innobase_locks_unsafe_for_binlog,
-        innobase_rollback_on_timeout;
+        innobase_rollback_on_timeout,
+        innobase_stats_on_metadata;
 
 extern "C" {
 ulong srv_max_buf_pool_modified_pct;
