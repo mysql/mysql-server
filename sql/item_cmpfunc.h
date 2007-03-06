@@ -1045,12 +1045,18 @@ public:
   */
   in_vector *array;
   bool have_null;
+  /* 
+    true when all arguments of the IN clause are of compatible types
+    and can be used safely as comparisons for key conditions
+  */
+  bool arg_types_compatible;
   Item_result left_result_type;
   cmp_item *cmp_items[5]; /* One cmp_item for each result type */
   DTCollation cmp_collation;
 
   Item_func_in(List<Item> &list)
-    :Item_func_opt_neg(list), array(0), have_null(0)
+    :Item_func_opt_neg(list), array(0), have_null(0),
+    arg_types_compatible(FALSE)
   {
     bzero(&cmp_items, sizeof(cmp_items));
     allowed_arg_cols= 0;  // Fetch this value from first argument

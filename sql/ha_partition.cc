@@ -158,7 +158,7 @@ static uint alter_table_flags(uint flags __attribute__((unused)))
 
 ha_partition::ha_partition(handlerton *hton, TABLE_SHARE *share)
   :handler(hton, share), m_part_info(NULL), m_create_handler(FALSE),
-   m_is_sub_partitioned(0)
+   m_is_sub_partitioned(0), is_clone(FALSE)
 {
   DBUG_ENTER("ha_partition::ha_partition(table)");
   init_handler_variables();
@@ -180,8 +180,7 @@ ha_partition::ha_partition(handlerton *hton, TABLE_SHARE *share)
 ha_partition::ha_partition(handlerton *hton, partition_info *part_info)
   :handler(hton, NULL), m_part_info(part_info),
    m_create_handler(TRUE),
-   m_is_sub_partitioned(m_part_info->is_sub_partitioned())
-
+   m_is_sub_partitioned(m_part_info->is_sub_partitioned()), is_clone(FALSE)
 {
   DBUG_ENTER("ha_partition::ha_partition(part_info)");
   init_handler_variables();
@@ -2262,9 +2261,12 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
   }
 
   /* Initialise the bitmap we use to determine what partitions are used */
-  if (bitmap_init(&(m_part_info->used_partitions), NULL, m_tot_parts, TRUE))
-    DBUG_RETURN(1);
-  bitmap_set_all(&(m_part_info->used_partitions));
+  if (!is_clone)
+  {
+    if (bitmap_init(&(m_part_info->used_partitions), NULL, m_tot_parts, TRUE))
+      DBUG_RETURN(1);
+    bitmap_set_all(&(m_part_info->used_partitions));
+  }
 
   /* Recalculate table flags as they may change after open */
   m_table_flags= m_file[0]->table_flags();
@@ -2320,6 +2322,19 @@ err_handler:
   DBUG_RETURN(error);
 }
 
+handler *ha_partition::clone(MEM_ROOT *mem_root)
+{
+  handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type);
+  ((ha_partition*)new_handler)->m_part_info= m_part_info;
+  ((ha_partition*)new_handler)->is_clone= TRUE;
+  if (new_handler && !new_handler->ha_open(table,
+                                           table->s->normalized_path.str,
+                                           table->db_stat,
+                                           HA_OPEN_IGNORE_IF_LOCKED))
+    return new_handler;
+  return NULL;
+}
+
 
 /*
   Close handler object
@@ -2346,7 +2361,8 @@ int ha_partition::close(void)
   DBUG_ENTER("ha_partition::close");
 
   delete_queue(&m_queue);
-  bitmap_free(&(m_part_info->used_partitions));
+  if (!is_clone)
+    bitmap_free(&(m_part_info->used_partitions));
   file= m_file;
 
 repeat:
