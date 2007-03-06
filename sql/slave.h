@@ -159,6 +159,7 @@ int fetch_master_table(THD* thd, const char* db_name, const char* table_name,
 
 bool show_master_info(THD* thd, MASTER_INFO* mi);
 bool show_binlog_info(THD* thd);
+bool rpl_master_has_bug(RELAY_LOG_INFO *rli, uint bug_id);
 
 const char *print_slave_db_safe(const char *db);
 int check_expected_error(THD* thd, RELAY_LOG_INFO* rli, int error_code);

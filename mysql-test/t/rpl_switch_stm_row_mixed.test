@@ -1,3 +1,14 @@
+#
+# rpl_switch_stm_row_mixed tests covers
+#
+#   - switching explicitly between STATEMENT, ROW, and MIXED binlog format
+#     showing when it is possible and when not. 
+#   - switching from MIXED to RBR implicitly listing all use cases,
+#     e.g a query invokes UUID(), thereafter to serve as the definition
+#     of MIXED binlog format
+#   - correctness of execution
+
+
 -- source include/not_ndb_default.inc
 -- source include/master-slave.inc
 
@@ -8,9 +19,22 @@ create database mysqltest1;
 --enable_warnings
 use mysqltest1;
 
-set session binlog_format=row;
-set global binlog_format=row;
 
+#  play with switching
+set session binlog_format=mixed;
+show session variables like "binlog_format%";
+set session binlog_format=statement;
+show session variables like "binlog_format%";
+set session binlog_format=row;
+show session variables like "binlog_format%";
+
+set global binlog_format=DEFAULT;
+show global variables like "binlog_format%";
+set global binlog_format=MIXED;
+show global variables like "binlog_format%";
+set global binlog_format=STATEMENT;
+show global variables like "binlog_format%";
+set global binlog_format=ROW;
 show global variables like "binlog_format%";
 show session variables like "binlog_format%";
 select @@global.binlog_format, @@session.binlog_format;
@@ -63,12 +87,10 @@ deallocate prepare stmt1;
 insert into t1 values("for_10_");
 insert into t1 select "yesterday_11_";
 
-# test SET DEFAULT (=statement at this point of test)
-set binlog_format=default;
+# test statement (is not default after wl#3368)
+set binlog_format=statement;
 select @@global.binlog_format, @@session.binlog_format;
-# due to cluster it's hard to set back to default
---error ER_NO_DEFAULT
-set global binlog_format=default;
+set global binlog_format=statement;
 select @@global.binlog_format, @@session.binlog_format;
 
 prepare stmt1 from 'insert into t1 select ?';
@@ -87,9 +109,9 @@ insert into t1 select "yesterday_16_";
 
 # and now the mixed mode
 
-set binlog_format=mixed;
-select @@global.binlog_format, @@session.binlog_format;
 set global binlog_format=mixed;
+select @@global.binlog_format, @@session.binlog_format;
+set binlog_format=default;
 select @@global.binlog_format, @@session.binlog_format;
 
 prepare stmt1 from 'insert into t1 select concat(UUID(),?)';
