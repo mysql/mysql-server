@@ -132,7 +132,13 @@ private:
   THR_LOCK_DATA lock;                   /* MySQL lock */
   PARTITION_SHARE *share;               /* Shared lock info */
 
+  /* 
+    TRUE <=> this object was created with ha_partition::clone and doesn't
+    "own" the m_part_info structure.
+  */
+  bool is_clone;
 public:
+  handler *clone(MEM_ROOT *mem_root);
   virtual void set_part_info(partition_info *part_info)
   {
      m_part_info= part_info;

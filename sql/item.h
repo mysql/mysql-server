@@ -325,10 +325,10 @@ private:
   TABLE_LIST *save_first_name_resolution_table;
   TABLE_LIST *save_next_name_resolution_table;
   bool        save_resolve_in_select_list;
+  TABLE_LIST *save_next_local;
 
 public:
   Name_resolution_context_state() {}          /* Remove gcc warning */
-  TABLE_LIST *save_next_local;
 
 public:
   /* Save the state of a name resolution context. */
@@ -349,6 +349,11 @@ public:
     context->table_list=                   save_table_list;
     context->first_name_resolution_table=  save_first_name_resolution_table;
     context->resolve_in_select_list=       save_resolve_in_select_list;
+  }
+
+  TABLE_LIST *get_first_name_resolution_table()
+  {
+    return save_first_name_resolution_table;
   }
 };
 
@@ -912,6 +917,7 @@ public:
   virtual Item_field *filed_for_view_update() { return 0; }
 
   virtual Item *neg_transformer(THD *thd) { return NULL; }
+  virtual Item *update_value_transformer(byte *select_arg) { return this; }
   virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
   void delete_self()
   {
@@ -1311,7 +1317,7 @@ public:
   uint have_privileges;
   /* field need any privileges (for VIEW creation) */
   bool any_privileges;
-
+  bool fixed_as_field;
   Item_field(Name_resolution_context *context_arg,
              const char *db_arg,const char *table_name_arg,
 	     const char *field_name_arg);
@@ -1391,6 +1397,7 @@ public:
   Item_field *filed_for_view_update() { return this; }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
   int fix_outer_field(THD *thd, Field **field, Item **reference);
+  virtual Item *update_value_transformer(byte *select_arg);
   friend class Item_default_value;
   friend class Item_insert_value;
   friend class st_select_lex_unit;
@@ -1921,7 +1928,7 @@ class Item_ref :public Item_ident
 protected:
   void set_properties();
 public:
-  enum Ref_Type { REF, DIRECT_REF, VIEW_REF };
+  enum Ref_Type { REF, DIRECT_REF, VIEW_REF, OUTER_REF };
   Field *result_field;			 /* Save result here */
   Item **ref;
   Item_ref(Name_resolution_context *context_arg,
@@ -1982,7 +1989,7 @@ public:
                           (*ref)->get_tmp_table_item(thd));
   }
   table_map used_tables() const		
-  { 
+  {
     return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
   }
   table_map not_null_tables() const { return (*ref)->not_null_tables(); }
@@ -2052,6 +2059,40 @@ public:
   bool fix_fields(THD *, Item **);
   bool eq(const Item *item, bool binary_cmp) const;
   virtual Ref_Type ref_type() { return VIEW_REF; }
+};
+
+
+class Item_outer_ref :public Item_direct_ref
+{
+public:
+  Item_field *outer_field;
+  Item_outer_ref(Name_resolution_context *context_arg,
+                 Item_field *outer_field_arg)
+    :Item_direct_ref(context_arg, 0, outer_field_arg->table_name,
+                          outer_field_arg->field_name),
+    outer_field(outer_field_arg)
+  {
+    ref= (Item**)&outer_field;
+    set_properties();
+    fixed= 0;
+  }
+  void cleanup()
+  {
+    ref= (Item**)&outer_field;
+    fixed= 0;
+    Item_direct_ref::cleanup();
+    outer_field->cleanup();
+  }
+  void save_in_result_field(bool no_conversions)
+  {
+    outer_field->save_org_in_field(result_field);
+  }
+  bool fix_fields(THD *, Item **);
+  table_map used_tables() const
+  {
+    return (*ref)->const_item() ? 0 : OUTER_REF_TABLE_BIT;
+  }
+  virtual Ref_Type ref_type() { return OUTER_REF; }
 };
 
 
