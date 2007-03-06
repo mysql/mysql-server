@@ -199,7 +199,9 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
   }
 
   if (!(infoflag & MY_DONT_FREE_DBUG))
+  {
     DBUG_END();                /* Must be done before my_thread_end */
+  }
 #ifdef THREAD
   my_thread_end();
   my_thread_global_end();
@@ -248,14 +250,16 @@ void setEnvString(char *ret, const char *name, const char *value)
 }
 
 /*
-  my_paramter_handler
-  Invalid paramter handler we will use instead of the one "baked" into the CRT
-  for MSC v8.  This one just prints out what invalid parameter was encountered.
-  By providing this routine, routines like lseek will return -1 when we expect them 
-  to instead of crash.
+  my_parameter_handler
+  
+  Invalid parameter handler we will use instead of the one "baked"
+  into the CRT for MSC v8.  This one just prints out what invalid
+  parameter was encountered.  By providing this routine, routines like
+  lseek will return -1 when we expect them to instead of crash.
 */
-void my_parameter_handler(const wchar_t * expression, const wchar_t * function, 
-                          const wchar_t * file, unsigned int line, 
+
+void my_parameter_handler(const wchar_t * expression, const wchar_t * function,
+                          const wchar_t * file, unsigned int line,
                           uintptr_t pReserved)
 {
   DBUG_PRINT("my",("Expression: %s  function: %s  file: %s, line: %d",

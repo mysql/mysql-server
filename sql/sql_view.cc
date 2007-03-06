@@ -713,7 +713,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     File_parser *parser;
 
     path.str= path_buff;
-    fn_format(path_buff, file.str, dir.str, 0, MY_UNPACK_FILENAME);
+    fn_format(path_buff, file.str, dir.str, "", MY_UNPACK_FILENAME);
     path.length= strlen(path_buff);
 
     if (!access(path.str, F_OK))

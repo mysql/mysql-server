@@ -1,15 +1,15 @@
 #! /bin/sh
 
-gmake -k clean || true
+# Assume Forte is installed in /opt/SUNWSpro and ld is installed in
+# /usr/ccs/bin
+
+PATH=/opt/SUNWspro/bin/:/usr/ccs/bin:$PATH
+
+make -k clean || true
 /bin/rm -f */.deps/*.P config.cache
  
 path=`dirname $0`
 . "$path/autorun.sh"
-
-
-# Assume Forte is installed in /opt/SUNWSpro
-
-PATH=/opt/SUNWspro/bin/:$PATH
 
 # For "optimal" code for this computer add -fast to EXTRA
 # To compile 64 bit, add -xarch=v9 to EXTRA_64_BIT
@@ -27,7 +27,7 @@ CC=cc-5.0 CFLAGS="-Xa -xstrconst $STD" \
 CXX=CC CXXFLAGS="-noex $STD" \
 ./configure --prefix=/usr/local/mysql --enable-assembler --with-extra-charsets=complex --enable-thread-safe-client
 
-gmake -j 4
+make -j 4
 if [ $? = 0 ]
 then
   make test

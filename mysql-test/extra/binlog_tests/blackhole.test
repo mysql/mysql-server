@@ -128,6 +128,21 @@ show binlog events;
 
 drop table t1,t2,t3;
 
+#
+#Bug#19717: DELETE Query Error on BLACKHOLE when using WHERE on column with UNIQUE INDEX
+#
+CREATE TABLE t1(a INT, b INT) ENGINE=BLACKHOLE;
+DELETE FROM t1 WHERE a=10;
+ALTER TABLE t1 ADD INDEX(a);
+DELETE FROM t1 WHERE a=10;
+ALTER TABLE t1 DROP INDEX a;
+ALTER TABLE t1 ADD UNIQUE INDEX(a);
+DELETE FROM t1 WHERE a=10;
+ALTER TABLE t1 DROP INDEX a;
+ALTER TABLE t1 ADD PRIMARY KEY(a);
+DELETE FROM t1 WHERE a=10;
+DROP TABLE t1;
+
 # End of 4.1 tests
 # Test that a transaction which is rolled back does not go into binlog
 # and that a transaction which is committed does

@@ -222,7 +222,7 @@ static SYMBOL symbols[] = {
   { "GLOBAL",		SYM(GLOBAL_SYM)},
   { "GRANT",		SYM(GRANT)},
   { "GRANTS",	        SYM(GRANTS)},
-  { "GROUP",		SYM(GROUP)},
+  { "GROUP",		SYM(GROUP_SYM)},
   { "HANDLER",		SYM(HANDLER_SYM)},
   { "HASH",		SYM(HASH_SYM)},
   { "HAVING",		SYM(HAVING)},

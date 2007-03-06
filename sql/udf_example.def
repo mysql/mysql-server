@@ -1,5 +1,4 @@
 LIBRARY		udf_example
-DESCRIPTION	'MySQL Sample for UDF'
 VERSION		1.0
 EXPORTS
   lookup

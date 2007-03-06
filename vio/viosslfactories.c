@@ -234,6 +234,14 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
   DH *dh;
   struct st_VioSSLFd *ssl_fd;
   DBUG_ENTER("new_VioSSLFd");
+  DBUG_PRINT("enter",
+             ("key_file: '%s'  cert_file: '%s'  ca_file: '%s'  ca_path: '%s'  "
+              "cipher: '%s'",
+              key_file ? key_file : "NULL",
+              cert_file ? cert_file : "NULL",
+              ca_file ? ca_file : "NULL",
+              ca_path ? ca_path : "NULL",
+              cipher ? cipher : "NULL"));
 
   check_ssl_init();
 

@@ -396,6 +396,10 @@ sys_var_thd_ulong	sys_trans_alloc_block_size("transaction_alloc_block_size",
 sys_var_thd_ulong	sys_trans_prealloc_size("transaction_prealloc_size",
 						&SV::trans_prealloc_size,
 						0, fix_trans_mem_root);
+sys_var_thd_enum        sys_thread_handling("thread_handling",
+                                            &SV::thread_handling,
+                                            &thread_handling_typelib,
+                                            NULL);
 
 #ifdef HAVE_QUERY_CACHE
 sys_var_long_ptr	sys_query_cache_limit("query_cache_limit",
@@ -464,6 +468,10 @@ sys_var_long_ptr	sys_table_lock_wait_timeout("table_lock_wait_timeout",
                                                     &table_lock_wait_timeout);
 sys_var_long_ptr	sys_thread_cache_size("thread_cache_size",
 					      &thread_cache_size);
+#if HAVE_POOL_OF_THREADS == 1
+sys_var_long_ptr	sys_thread_pool_size("thread_pool_size",
+					      &thread_pool_size);
+#endif
 sys_var_thd_enum	sys_tx_isolation("tx_isolation",
 					 &SV::tx_isolation,
 					 &tx_isolation_typelib,
@@ -1006,6 +1014,10 @@ SHOW_VAR init_vars[]= {
   {sys_thread_cache_size.name,(char*) &sys_thread_cache_size,       SHOW_SYS},
 #ifdef HAVE_THR_SETCONCURRENCY
   {"thread_concurrency",      (char*) &concurrency,                 SHOW_LONG},
+#endif
+  {sys_thread_handling.name,  (char*) &sys_thread_handling,         SHOW_SYS},
+#if HAVE_POOL_OF_THREADS == 1
+  {sys_thread_pool_size.name, (char*) &sys_thread_pool_size,        SHOW_SYS},
 #endif
   {"thread_stack",            (char*) &thread_stack,                SHOW_LONG},
   {sys_time_format.name,      (char*) &sys_time_format,		    SHOW_SYS},
@@ -2587,7 +2599,7 @@ bool update_sys_var_str_path(THD *thd, sys_var_str *var_str,
     file_log= logger.get_log_file_handler();
     break;
   default:
-    DBUG_ASSERT(0);
+    assert(0);                                  // Impossible
   }
 
   if (!old_value)
@@ -3626,7 +3638,7 @@ bool sys_var_thd_table_type::update(THD *thd, set_var *var)
 */
 
 byte *sys_var_thd_sql_mode::symbolic_mode_representation(THD *thd,
-                                                         ulong val,
+                                                         ulonglong val,
                                                          ulong *len)
 {
   char buff[256];
@@ -4002,7 +4014,7 @@ sys_var_event_scheduler::update(THD *thd, set_var *var)
     res= Events::get_instance()->stop_execution_of_events();
   else
   {
-    DBUG_ASSERT(0);
+    assert(0);                                  // Impossible
   }
   if (res)
     my_error(ER_EVENT_SET_VAR_ERROR, MYF(0));

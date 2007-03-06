@@ -114,7 +114,6 @@ print "Server version:      $server_version\n";
 print "Optimization:        $opt_optimization\n";
 print "Hardware:            $opt_hw\n\n";
 
-
 $estimated=$warning=$got_warning=0;
 while (<test-*>)
 {
@@ -129,6 +128,11 @@ while (<test-*>)
       $skip_prog = 1;
       last;
     }
+  }
+  if ($opt_only_missing_tests && -f "$opt_dir$dir$prog-$filename")
+  {
+    # Test already run, skip it
+    $skip_prog= 1;
   }
   print "$prog: ";
   if ((!$opt_use_old_results) && (!$skip_prog))
