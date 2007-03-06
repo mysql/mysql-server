@@ -1829,15 +1829,15 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
         // fall through
         case SOT_CREATE_TABLE:
           pthread_mutex_lock(&LOCK_open);
-	  if (ndbcluster_check_if_local_table(schema->db, schema->name))
-	  {
-	    DBUG_PRINT("info", ("NDB binlog: Skipping locally defined table '%s.%s'",
-				schema->db, schema->name));
+          if (ndbcluster_check_if_local_table(schema->db, schema->name))
+          {
+            DBUG_PRINT("info", ("NDB binlog: Skipping locally defined table '%s.%s'",
+                                schema->db, schema->name));
             sql_print_error("NDB binlog: Skipping locally defined table '%s.%s' from "
                             "binlog schema event '%s' from node %d. ",
                             schema->db, schema->name, schema->query,
                             schema->node_id);
-	  }
+          }
           else if (ndb_create_table_from_engine(thd, schema->db, schema->name))
           {
             sql_print_error("NDB binlog: Could not discover table '%s.%s' from "
@@ -1854,27 +1854,27 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           log_query= 1;
           break;
         case SOT_DROP_DB:
-	  /* Drop the database locally if it only contains ndb tables */
-	  if (! ndbcluster_check_if_local_tables_in_db(thd, schema->db))
-	  {
-	    run_query(thd, schema->query,
-		      schema->query + schema->query_length,
-		      TRUE,    /* print error */
-		      TRUE);   /* don't binlog the query */
-	    /* binlog dropping database after any table operations */
-	    post_epoch_log_list->push_back(schema, mem_root);
-	    /* acknowledge this query _after_ epoch completion */
-	    post_epoch_unlock= 1;
-	  }
-	  else
-	  {
-	    /* Database contained local tables, leave it */
-	    sql_print_error("NDB binlog: Skipping drop database '%s' since it contained local tables "
+          /* Drop the database locally if it only contains ndb tables */
+          if (! ndbcluster_check_if_local_tables_in_db(thd, schema->db))
+          {
+            run_query(thd, schema->query,
+                      schema->query + schema->query_length,
+                      TRUE,    /* print error */
+                      TRUE);   /* don't binlog the query */
+            /* binlog dropping database after any table operations */
+            post_epoch_log_list->push_back(schema, mem_root);
+            /* acknowledge this query _after_ epoch completion */
+            post_epoch_unlock= 1;
+          }
+          else
+          {
+            /* Database contained local tables, leave it */
+            sql_print_error("NDB binlog: Skipping drop database '%s' since it contained local tables "
                             "binlog schema event '%s' from node %d. ",
                             schema->db, schema->query,
                             schema->node_id);
-	    log_query= 1;
-	  }
+            log_query= 1;
+          }
           break;
         case SOT_CREATE_DB:
           /* fall through */
@@ -2121,18 +2121,18 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
             share= 0;
           }
           pthread_mutex_lock(&LOCK_open);
-	  if (ndbcluster_check_if_local_table(schema->db, schema->name))
-	  {
-	    DBUG_PRINT("info", ("NDB binlog: Skipping locally defined table '%s.%s'",
-				schema->db, schema->name));
+          if (ndbcluster_check_if_local_table(schema->db, schema->name))
+          {
+            DBUG_PRINT("info", ("NDB binlog: Skipping locally defined table '%s.%s'",
+                                schema->db, schema->name));
             sql_print_error("NDB binlog: Skipping locally defined table '%s.%s' from "
                             "binlog schema event '%s' from node %d. ",
                             schema->db, schema->name, schema->query,
                             schema->node_id);
-	  }
+          }
           else if (ndb_create_table_from_engine(thd, schema->db, schema->name))
-	  {
-	    sql_print_error("NDB binlog: Could not discover table '%s.%s' from "
+          {
+            sql_print_error("NDB binlog: Could not discover table '%s.%s' from "
                             "binlog schema event '%s' from node %d. my_errno: %d",
                             schema->db, schema->name, schema->query,
                             schema->node_id, my_errno);
@@ -2260,7 +2260,7 @@ int ndb_add_ndb_binlog_index(THD *thd, void *_row)
       {
         TABLE_LIST *p_binlog_tables= &binlog_tables;
         close_tables_for_reopen(thd, &p_binlog_tables);
-	ndb_binlog_index= 0;
+        ndb_binlog_index= 0;
         continue;
       }
       sql_print_error("NDB Binlog: Unable to lock table ndb_binlog_index");
@@ -3225,15 +3225,17 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
       if (share->flags & NSF_BLOB_FLAG)
       {
         my_ptrdiff_t ptrdiff= 0;
-        int ret= get_ndb_blobs_value(table, share->ndb_value[0],
-                                     blobs_buffer[0], blobs_buffer_size[0],
-                                     ptrdiff);
+        IF_DBUG(int ret =) get_ndb_blobs_value(table, share->ndb_value[0],
+                                               blobs_buffer[0],
+                                               blobs_buffer_size[0],
+                                               ptrdiff);
         DBUG_ASSERT(ret == 0);
       }
       ndb_unpack_record(table, share->ndb_value[0], &b, table->record[0]);
-      int ret= trans.write_row(::server_id,
-                               injector::transaction::table(table, TRUE),
-                               &b, n_fields, table->record[0]);
+      IF_DBUG(int ret=) trans.write_row(::server_id,
+                                        injector::transaction::table(table,
+                                                                     TRUE),
+                                        &b, n_fields, table->record[0]);
       DBUG_ASSERT(ret == 0);
     }
     break;
@@ -3251,27 +3253,29 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
         n= 0; /*
                 use the primary key only as it save time and space and
                 it is the only thing needed to log the delete
-	      */
+              */
       else
         n= 1; /*
                 we use the before values since we don't have a primary key
                 since the mysql server does not handle the hidden primary
                 key
-	      */
+              */
 
       if (share->flags & NSF_BLOB_FLAG)
       {
         my_ptrdiff_t ptrdiff= table->record[n] - table->record[0];
-        int ret= get_ndb_blobs_value(table, share->ndb_value[n],
-                                     blobs_buffer[n], blobs_buffer_size[n],
-                                     ptrdiff);
+        IF_DBUG(int ret =) get_ndb_blobs_value(table, share->ndb_value[n],
+                                               blobs_buffer[n],
+                                               blobs_buffer_size[n],
+                                               ptrdiff);
         DBUG_ASSERT(ret == 0);
       }
       ndb_unpack_record(table, share->ndb_value[n], &b, table->record[n]);
       DBUG_EXECUTE("info", print_records(table, table->record[n]););
-      int ret= trans.delete_row(::server_id,
-                                injector::transaction::table(table, TRUE),
-                                &b, n_fields, table->record[n]);
+      IF_DBUG(int ret =) trans.delete_row(::server_id,
+                                          injector::transaction::table(table,
+                                                                       TRUE),
+                                          &b, n_fields, table->record[n]);
       DBUG_ASSERT(ret == 0);
     }
     break;
@@ -3283,9 +3287,10 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
       if (share->flags & NSF_BLOB_FLAG)
       {
         my_ptrdiff_t ptrdiff= 0;
-        int ret= get_ndb_blobs_value(table, share->ndb_value[0],
-                                     blobs_buffer[0], blobs_buffer_size[0],
-                                     ptrdiff);
+        IF_DBUG(int ret =) get_ndb_blobs_value(table, share->ndb_value[0],
+                                               blobs_buffer[0],
+                                               blobs_buffer_size[0],
+                                               ptrdiff);
         DBUG_ASSERT(ret == 0);
       }
       ndb_unpack_record(table, share->ndb_value[0],
@@ -3296,7 +3301,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
         /*
           since table has a primary key, we can do a write
           using only after values
-	*/
+        */
         trans.write_row(::server_id, injector::transaction::table(table, TRUE),
                         &b, n_fields, table->record[0]);// after values
       }
@@ -3305,22 +3310,24 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
         /*
           mysql server cannot handle the ndb hidden key and
           therefore needs the before image as well
-	*/
+        */
         if (share->flags & NSF_BLOB_FLAG)
         {
           my_ptrdiff_t ptrdiff= table->record[1] - table->record[0];
-          int ret= get_ndb_blobs_value(table, share->ndb_value[1],
-                                       blobs_buffer[1], blobs_buffer_size[1],
-                                       ptrdiff);
+          IF_DBUG(int ret =) get_ndb_blobs_value(table, share->ndb_value[1],
+                                                 blobs_buffer[1],
+                                                 blobs_buffer_size[1],
+                                                 ptrdiff);
           DBUG_ASSERT(ret == 0);
         }
         ndb_unpack_record(table, share->ndb_value[1], &b, table->record[1]);
         DBUG_EXECUTE("info", print_records(table, table->record[1]););
-        int ret= trans.update_row(::server_id,
-                                  injector::transaction::table(table, TRUE),
-                                  &b, n_fields,
-                                  table->record[1], // before values
-                                  table->record[0]);// after values
+        IF_DBUG(int ret =) trans.update_row(::server_id,
+                                            injector::transaction::table(table,
+                                                                         TRUE),
+                                            &b, n_fields,
+                                            table->record[1], // before values
+                                            table->record[0]);// after values
         DBUG_ASSERT(ret == 0);
       }
     }
@@ -3850,7 +3857,9 @@ restart:
               continue;
             }
             TABLE *table= share->table;
+#ifndef DBUG_OFF
             const LEX_STRING &name= table->s->table_name;
+#endif
             if ((event_types & (NdbDictionary::Event::TE_INSERT |
                                 NdbDictionary::Event::TE_UPDATE |
                                 NdbDictionary::Event::TE_DELETE)) == 0)
@@ -3867,7 +3876,7 @@ restart:
             }
             DBUG_PRINT("info", ("use_table: %.*s", name.length, name.str));
             injector::transaction::table tbl(table, TRUE);
-            int ret= trans.use_table(::server_id, tbl);
+            IF_DBUG(int ret=) trans.use_table(::server_id, tbl);
             DBUG_ASSERT(ret == 0);
           }
         }
@@ -3877,10 +3886,12 @@ restart:
           {
             TABLE *table= ndb_apply_status_share->table;
 
-            const LEX_STRING& name=table->s->table_name;
+#ifndef DBUG_OFF
+            const LEX_STRING& name= table->s->table_name;
             DBUG_PRINT("info", ("use_table: %.*s", name.length, name.str));
+#endif
             injector::transaction::table tbl(table, TRUE);
-            int ret= trans.use_table(::server_id, tbl);
+            IF_DBUG(int ret=) trans.use_table(::server_id, tbl);
             DBUG_ASSERT(ret == 0);
 
             // Set all fields non-null.
@@ -3945,7 +3956,7 @@ restart:
           else
           {
             // set injector_ndb database/schema from table internal name
-            int ret=
+            IF_DBUG(int ret=)
               i_ndb->setDatabaseAndSchemaName(pOp->getEvent()->getTable());
             DBUG_ASSERT(ret == 0);
             ndb_binlog_thread_handle_non_data_event(thd, i_ndb, pOp, row);
@@ -3979,7 +3990,7 @@ restart:
         /*
           note! pOp is not referring to an event in the next epoch
           or is == 0
-	*/
+        */
 #ifdef RUN_NDB_BINLOG_TIMER
         write_timer.stop();
 #endif

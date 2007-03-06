@@ -1172,6 +1172,7 @@ void st_select_lex::init_query()
   cond_count= between_count= with_wild= 0;
   conds_processed_with_permanent_arena= 0;
   ref_pointer_array= 0;
+  select_n_where_fields= 0;
   select_n_having_items= 0;
   subquery_in_having= explicit_limit= 0;
   is_item_list_lookup= 0;
@@ -1212,6 +1213,7 @@ void st_select_lex::init_select()
   is_correlated= 0;
   cur_pos_in_select_list= UNDEF_POS;
   non_agg_fields.empty();
+  inner_refs_list.empty();
 }
 
 /*
@@ -1569,6 +1571,7 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
           (Item **)arena->alloc(sizeof(Item*) * (n_child_sum_items +
                                                  item_list.elements +
                                                  select_n_having_items +
+                                                 select_n_where_fields +
                                                  order_group_num)*5)) == 0;
 }
 

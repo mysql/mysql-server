@@ -1338,6 +1338,7 @@ operator<<(NdbOut& out, const Gci_container& gci)
   return out;
 }
 
+#ifdef VM_TRACE
 static
 NdbOut&
 operator<<(NdbOut& out, const Gci_container_pod& gci)
@@ -1346,7 +1347,7 @@ operator<<(NdbOut& out, const Gci_container_pod& gci)
   out << *ptr;
   return out;
 }
-
+#endif
 
 static
 Gci_container*
