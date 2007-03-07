@@ -640,3 +640,11 @@ SELECT t2.b FROM t1 LEFT JOIN (t2, t3 LEFT JOIN t4 ON t3.a=t4.a)
 ON (t1.a=t2.a AND t1.b=t3.b) order by t2.b;
 
 DROP TABLE t1,t2,t3,t4;
+
+#
+# Bug#25376: Incomplete setup of ORDER BY clause results in a wrong result.
+#
+create table t1 (a int, b int, c int);
+insert into t1 values (1,2,3), (9,8,3), (19,4,3), (1,4,9);
+select a,(sum(b)/sum(c)) as ratio from t1 group by a order by sum(b)/sum(c) asc;
+drop table t1;
