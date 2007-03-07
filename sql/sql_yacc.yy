@@ -1609,7 +1609,7 @@ create:
 	    LEX *lex=Lex;
 	    if ($2 != Key::FULLTEXT && lex->key_create_info.parser_name.str)
 	    {
-	      mysql_parse_error(ER(ER_SYNTAX_ERROR));
+	      my_parse_error(ER(ER_SYNTAX_ERROR));
 	      MYSQL_YYABORT;
 	    }
 	    lex->key_list.push_back(new Key($2, $4.str, &lex->key_create_info, 0,
@@ -3694,7 +3694,7 @@ partition_entry:
           LEX *lex= Lex;
           if (!lex->part_info)
           {
-            mysql_parse_error(ER(ER_PARTITION_ENTRY_ERROR));
+            my_parse_error(ER(ER_PARTITION_ENTRY_ERROR));
             MYSQL_YYABORT;
           }
           /*
@@ -3836,7 +3836,7 @@ part_func_expr:
           lex->safe_to_cache_query= 1;
           if (not_corr_func)
           {
-            mysql_parse_error(ER(ER_CONST_EXPR_IN_PARTITION_FUNC_ERROR));
+            my_parse_error(ER(ER_CONST_EXPR_IN_PARTITION_FUNC_ERROR));
             MYSQL_YYABORT;
           }
           $$=$1;
@@ -3872,7 +3872,7 @@ part_defs:
             if (part_info->no_parts !=
                 count_curr_parts)
             {
-              mysql_parse_error(ER(ER_PARTITION_WRONG_NO_PART_ERROR));
+              my_parse_error(ER(ER_PARTITION_WRONG_NO_PART_ERROR));
               MYSQL_YYABORT;
             }
           }
@@ -3983,7 +3983,7 @@ part_func_max:
           LEX *lex= Lex;
           if (lex->part_info->defined_max_value)
           {
-            mysql_parse_error(ER(ER_PARTITION_MAXVALUE_ERROR));
+            my_parse_error(ER(ER_PARTITION_MAXVALUE_ERROR));
             MYSQL_YYABORT;
           }
           lex->part_info->defined_max_value= TRUE;
@@ -3994,12 +3994,12 @@ part_func_max:
         {
           if (Lex->part_info->defined_max_value)
           {
-            mysql_parse_error(ER(ER_PARTITION_MAXVALUE_ERROR));
+            my_parse_error(ER(ER_PARTITION_MAXVALUE_ERROR));
             MYSQL_YYABORT;
           }
           if (Lex->part_info->curr_part_elem->has_null_value)
           {
-            mysql_parse_error(ER(ER_NULL_IN_VALUES_LESS_THAN));
+            my_parse_error(ER(ER_NULL_IN_VALUES_LESS_THAN));
             MYSQL_YYABORT;
           }
         }
@@ -4094,7 +4094,7 @@ part_bit_expr:
           else if (part_expr->result_type() != INT_RESULT &&
                    !part_expr->null_value)
           {
-            mysql_parse_error(ER(ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR));
+            my_parse_error(ER(ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR));
             MYSQL_YYABORT;
           }
           $$= value_ptr; 
@@ -4107,7 +4107,7 @@ opt_sub_partition:
           if (Lex->part_info->no_subparts != 0 &&
               !Lex->part_info->use_default_subpartitions)
           {
-            mysql_parse_error(ER(ER_PARTITION_WRONG_NO_SUBPART_ERROR));
+            my_parse_error(ER(ER_PARTITION_WRONG_NO_SUBPART_ERROR));
             MYSQL_YYABORT;
           }
         }
@@ -4120,7 +4120,7 @@ opt_sub_partition:
             if (part_info->no_subparts !=
                 part_info->count_curr_subparts)
             {
-              mysql_parse_error(ER(ER_PARTITION_WRONG_NO_SUBPART_ERROR));
+              my_parse_error(ER(ER_PARTITION_WRONG_NO_SUBPART_ERROR));
               MYSQL_YYABORT;
             }
           }
@@ -4128,7 +4128,7 @@ opt_sub_partition:
           {
             if (part_info->partitions.elements > 1)
             {
-              mysql_parse_error(ER(ER_PARTITION_WRONG_NO_SUBPART_ERROR));
+              my_parse_error(ER(ER_PARTITION_WRONG_NO_SUBPART_ERROR));
               MYSQL_YYABORT;
             }
             part_info->no_subparts= part_info->count_curr_subparts;
@@ -4464,7 +4464,7 @@ key_def:
 	    LEX *lex=Lex;
 	    if ($1 != Key::FULLTEXT && lex->key_create_info.parser_name.str)
 	    {
-	      mysql_parse_error(ER(ER_SYNTAX_ERROR));
+	      my_parse_error(ER(ER_SYNTAX_ERROR));
 	      MYSQL_YYABORT;
 	    }
 	    lex->key_list.push_back(new Key($1,$2, &lex->key_create_info, 0,
@@ -5211,7 +5211,7 @@ alter:
 
             if (!($6 || $7 || $8 || $9 || $10))
             {
-	      mysql_parse_error(ER(ER_SYNTAX_ERROR));
+	      my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
             /*
@@ -6529,7 +6529,7 @@ simple_expr:
 	  {
             if ($1->type() != Item::ROW_ITEM)
             {
-              mysql_parse_error(ER(ER_SYNTAX_ERROR));
+              my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
             $$= new (YYTHD->mem_root) Item_func_interval((Item_row *)$1);
@@ -6850,7 +6850,7 @@ function_call_generic:
           {
             if (lex->current_select->inc_in_sum_expr())
             {
-              mysql_parse_error(ER(ER_SYNTAX_ERROR));
+              my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
           }
@@ -7928,7 +7928,7 @@ real_ulonglong_num:
 
 dec_num_error:
         dec_num
-        { mysql_parse_error(ER(ER_ONLY_INTEGERS_ALLOWED)); }
+        { my_parse_error(ER(ER_ONLY_INTEGERS_ALLOWED)); }
         ;
 
 dec_num:
