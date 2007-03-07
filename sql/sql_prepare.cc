@@ -1571,21 +1571,16 @@ error:
 
 static bool mysql_insert_select_prepare_tester(THD *thd)
 {
-  TABLE_LIST *first;
-  bool res;
   SELECT_LEX *first_select= &thd->lex->select_lex;
+  TABLE_LIST *second_table= ((TABLE_LIST*)first_select->table_list.first)->
+    next_local;
+
   /* Skip first table, which is the table we are inserting in */
-  first_select->table_list.first= (byte*)(first=
-                                          ((TABLE_LIST*)first_select->
-                                           table_list.first)->next_local);
-  res= mysql_insert_select_prepare(thd);
-  /*
-    insert/replace from SELECT give its SELECT_LEX for SELECT,
-    and item_list belong to SELECT
-  */
-  thd->lex->select_lex.context.resolve_in_select_list= TRUE;
-  thd->lex->select_lex.context.table_list= first;
-  return res;
+  first_select->table_list.first= (byte *) second_table;
+  thd->lex->select_lex.context.table_list=
+    thd->lex->select_lex.context.first_name_resolution_table= second_table;
+
+  return mysql_insert_select_prepare(thd);
 }
 
 
@@ -2054,6 +2049,7 @@ void mysql_sql_stmt_prepare(THD *thd)
   uint query_len;
   DBUG_ENTER("mysql_sql_stmt_prepare");
   DBUG_ASSERT(thd->protocol == &thd->protocol_simple);
+  LINT_INIT(query_len);
 
   if ((stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
   {
@@ -2242,7 +2238,7 @@ void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
 {
   uchar *packet= (uchar*)packet_arg; // GCC 4.0.1 workaround
   ulong stmt_id= uint4korr(packet);
-  ulong flags= (ulong) ((uchar) packet[4]);
+  ulong flags= (ulong) packet[4];
   /* Query text for binary, general or slow log, if any of them is open */
   String expanded_query;
 #ifndef EMBEDDED_LIBRARY

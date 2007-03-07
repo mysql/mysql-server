@@ -845,7 +845,7 @@ int ha_rollback_trans(THD *thd, bool all)
     message in the error log, so we don't send it.
   */
   if (is_real_trans && (thd->options & OPTION_STATUS_NO_TRANS_UPDATE) &&
-      !thd->slave_thread)
+      !thd->slave_thread && thd->killed != THD::KILL_CONNECTION)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                  ER_WARNING_NOT_COMPLETE_ROLLBACK,
                  ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
@@ -2855,8 +2855,8 @@ ha_find_files(THD *thd,const char *db,const char *path,
 {
   int error= 0;
   DBUG_ENTER("ha_find_files");
-  DBUG_PRINT("enter", ("db: %s, path: %s, wild: %s, dir: %d", 
-		       db, path, wild, dir));
+  DBUG_PRINT("enter", ("db: '%s'  path: '%s'  wild: '%s'  dir: %d", 
+		       db, path, wild ? wild : "NULL", dir));
   st_find_files_args args= {db, path, wild, dir, files};
 
   plugin_foreach(thd, find_files_handlerton,

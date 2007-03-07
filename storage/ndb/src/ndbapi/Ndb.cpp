@@ -59,6 +59,8 @@ NdbTransaction* Ndb::doConnect(Uint32 tConNode)
 // We have connections now to the desired node. Return
 //****************************************************************************
       DBUG_RETURN(getConnectedNdbTransaction(tConNode));
+    } else if (TretCode < 0) {
+      DBUG_RETURN(NULL);
     } else if (TretCode != 0) {
       tAnyAlive = 1;
     }//if
@@ -82,6 +84,8 @@ NdbTransaction* Ndb::doConnect(Uint32 tConNode)
 // We have connections now to the desired node. Return
 //****************************************************************************
 	DBUG_RETURN(getConnectedNdbTransaction(tNode));
+      } else if (TretCode < 0) {
+        DBUG_RETURN(NULL);
       } else if (TretCode != 0) {
 	tAnyAlive= 1;
       }//if
@@ -110,6 +114,8 @@ NdbTransaction* Ndb::doConnect(Uint32 tConNode)
 // We have connections now to the desired node. Return
 //****************************************************************************
 	DBUG_RETURN(getConnectedNdbTransaction(tNode));
+      } else if (TretCode < 0) {
+        DBUG_RETURN(NULL);
       } else if (TretCode != 0) {
 	tAnyAlive= 1;
       }//if
@@ -196,6 +202,11 @@ Ndb::NDB_connect(Uint32 tNode)
     DBUG_PRINT("info",
 	       ("unsuccessful connect tReturnCode %d, tNdbCon->Status() %d",
 		tReturnCode, tNdbCon->Status()));
+    if (theError.code == 299)
+    {
+      // single user mode so no need to retry with other node
+      DBUG_RETURN(-1);
+    }
     DBUG_RETURN(3);
   }//if
 }//Ndb::NDB_connect()

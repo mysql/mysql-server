@@ -913,7 +913,10 @@ static bool make_empty_rec(THD *thd, File file,enum legacy_db_type table_type,
                                 field->interval, 
                                 field->field_name);
     if (!regfield)
+    {
+      error= 1;
       goto err;                                 // End of memory
+    }
 
     /* save_in_field() will access regfield->table->in_use */
     regfield->init(&table);

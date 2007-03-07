@@ -140,7 +140,8 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
   else if (s->mode == 'w') 
   {
     unsigned char buffer[AZHEADER_SIZE + AZMETA_BUFFER_SIZE];
-    my_pread(s->file, buffer, AZHEADER_SIZE + AZMETA_BUFFER_SIZE, 0, MYF(0));
+    my_pread(s->file, (byte*) buffer, AZHEADER_SIZE + AZMETA_BUFFER_SIZE, 0,
+             MYF(0));
     read_header(s, buffer); /* skip the .az header */
     my_seek(s->file, 0, MY_SEEK_END, MYF(0));
   }
@@ -609,7 +610,8 @@ int ZEXPORT azflush (s, flush)
   if (s->mode == 'r') 
   {
     unsigned char buffer[AZHEADER_SIZE + AZMETA_BUFFER_SIZE];
-    my_pread(s->file, buffer, AZHEADER_SIZE + AZMETA_BUFFER_SIZE, 0, MYF(0));
+    my_pread(s->file, (byte*) buffer, AZHEADER_SIZE + AZMETA_BUFFER_SIZE, 0,
+             MYF(0));
     read_header(s, buffer); /* skip the .az header */
 
     return Z_OK;
@@ -810,7 +812,7 @@ int azwrite_frm(azio_stream *s, char *blob, unsigned int length)
   if (s->rows > 0) 
     return 1;
 
-  s->frm_start_pos= s->start;
+  s->frm_start_pos= (uint) s->start;
   s->frm_length= length;
   s->start+= length;
 
@@ -841,7 +843,7 @@ int azwrite_comment(azio_stream *s, char *blob, unsigned int length)
   if (s->rows > 0) 
     return 1;
 
-  s->comment_start_pos= s->start;
+  s->comment_start_pos= (uint) s->start;
   s->comment_length= length;
   s->start+= length;
 
