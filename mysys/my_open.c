@@ -352,7 +352,12 @@ File my_sopen(const char *path, int oflag, int shflag, int pmode)
     return -1;                      /* return error to caller */
   }
 
-  fh= _open_osfhandle((intptr_t)osfh, oflag & (_O_APPEND | _O_RDONLY | _O_TEXT));
+  if ((fh= _open_osfhandle((intptr_t)osfh, 
+                           oflag & (_O_APPEND | _O_RDONLY | _O_TEXT))) == -1)
+  {
+    _dosmaperr(GetLastError());     /* map error */
+    CloseHandle(osfh);
+  }
 
   return fh;                        /* return handle */
 }
