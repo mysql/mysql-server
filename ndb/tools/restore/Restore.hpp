@@ -25,8 +25,6 @@
 #include <ndb_version.h>
 #include <version.h>
 
-static const char * delimiter = ";"; // Delimiter in file dump
-
 const int FileNameLenC = 256;
 const int TableNameLenC = 256;
 const int AttrNameLenC = 256;
@@ -143,6 +141,10 @@ class TableS {
 
   int pos;
 
+  bool isSysTable;
+  TableS *m_main_table;
+  Uint32 m_local_id;
+
   Uint64 m_noOfRecords;
   Vector<FragmentInfo *> m_fragmentInfo;
 
@@ -155,6 +157,9 @@ public:
 
   Uint32 getTableId() const { 
     return m_dictTable->getTableId(); 
+  }
+  Uint32 getLocalId() const { 
+    return m_local_id; 
   }
   Uint32 getNoOfRecords() const { 
     return m_noOfRecords; 
@@ -235,6 +240,14 @@ public:
     return allAttributesDesc[attributeId]; 
   }
 
+  bool getSysTable() const {
+    return isSysTable;
+  }
+
+  const TableS *getMainTable() const {
+    return m_main_table;
+  }
+
   TableS& operator=(TableS& org) ; 
 }; // TableS;
 
@@ -285,6 +298,7 @@ class RestoreMetaData : public BackupFile {
   Vector<TableS *> allTables;
   bool readMetaFileHeader();
   bool readMetaTableDesc();
+  bool markSysTables();
 		
   bool readGCPEntry();
   bool readFragmentInfo();
