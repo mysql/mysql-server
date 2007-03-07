@@ -155,6 +155,7 @@
 #define CFG_TCP_RCV_BUF_SIZE          457
 #define CFG_TCP_SND_BUF_SIZE          458
 #define CFG_TCP_MAXSEG_SIZE           459
+#define CFG_TCP_BIND_INADDR_ANY       460
 
 #define CFG_SHM_SEND_SIGNAL_ID        500
 #define CFG_SHM_CHECKSUM              501
