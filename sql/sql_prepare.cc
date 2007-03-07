@@ -34,6 +34,12 @@ When one prepares a statement:
     [Params meta info (stubs only for now)]  (if Param_count > 0)
     [Columns meta info] (if Column_count > 0)
 
+  During prepare the tables used in a statement are opened, but no
+  locks are acquired.  Table opening will block any DDL during the
+  operation, and we do not need any locks as we neither read nor
+  modify any data during prepare.  Tables are closed after prepare
+  finishes.
+
 When one executes a statement:
 
   - Server gets the command 'COM_STMT_EXECUTE' to execute the
@@ -52,6 +58,10 @@ When one executes a statement:
   - Assign parameter items from the supplied data.
   - Execute the query without re-parsing and send back the results
     to client
+
+  During execution of prepared statement tables are opened and locked
+  the same way they would for normal (non-prepared) statement
+  execution.  Tables are unlocked and closed after the execution.
 
 When one supplies long data for a placeholder:
 
@@ -1132,37 +1142,19 @@ static int mysql_test_update(Prepared_statement *stmt,
   bool need_reopen;
   DBUG_ENTER("mysql_test_update");
 
-  if (update_precheck(thd, table_list))
+  if (update_precheck(thd, table_list) ||
+      open_normal_and_derived_tables(thd, table_list, 0))
     goto error;
 
-  for ( ; ; )
+  if (table_list->multitable_view)
   {
-    if (open_tables(thd, &table_list, &table_count, 0))
-      goto error;
-
-    if (table_list->multitable_view)
-    {
-      DBUG_ASSERT(table_list->view != 0);
-      DBUG_PRINT("info", ("Switch to multi-update"));
-      /* pass counter value */
-      thd->lex->table_count= table_count;
-      /* convert to multiupdate */
-      DBUG_RETURN(2);
-    }
-
-    if (!lock_tables(thd, table_list, table_count, &need_reopen))
-      break;
-    if (!need_reopen)
-      goto error;
-    close_tables_for_reopen(thd, &table_list);
+    DBUG_ASSERT(table_list->view != 0);
+    DBUG_PRINT("info", ("Switch to multi-update"));
+    /* pass counter value */
+    thd->lex->table_count= table_count;
+    /* convert to multiupdate */
+    DBUG_RETURN(2);
   }
-
-  /*
-    thd->fill_derived_tables() is false here for sure (because it is
-    preparation of PS, so we even do not check it).
-  */
-  if (mysql_handle_derived(thd->lex, &mysql_derived_prepare))
-    goto error;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* TABLE_LIST contain right privilages request */
@@ -1221,7 +1213,7 @@ static bool mysql_test_delete(Prepared_statement *stmt,
   DBUG_ENTER("mysql_test_delete");
 
   if (delete_precheck(thd, table_list) ||
-      open_and_lock_tables(thd, table_list))
+      open_normal_and_derived_tables(thd, table_list, 0))
     goto error;
 
   if (!table_list->table)
@@ -1280,7 +1272,7 @@ static int mysql_test_select(Prepared_statement *stmt,
     goto error;
   }
 
-  if (open_and_lock_tables(thd, tables))
+  if (open_normal_and_derived_tables(thd, tables, 0))
     goto error;
 
   thd->used_tables= 0;                        // Updated by setup_fields
@@ -1341,7 +1333,7 @@ static bool mysql_test_do_fields(Prepared_statement *stmt,
   if (tables && check_table_access(thd, SELECT_ACL, tables, 0))
     DBUG_RETURN(TRUE);
 
-  if (open_and_lock_tables(thd, tables))
+  if (open_normal_and_derived_tables(thd, tables, 0))
     DBUG_RETURN(TRUE);
   DBUG_RETURN(setup_fields(thd, 0, *values, MARK_COLUMNS_NONE, 0, 0));
 }
@@ -1371,7 +1363,7 @@ static bool mysql_test_set_fields(Prepared_statement *stmt,
   set_var_base *var;
 
   if (tables && check_table_access(thd, SELECT_ACL, tables, 0) ||
-      open_and_lock_tables(thd, tables))
+      open_normal_and_derived_tables(thd, tables, 0))
     goto error;
 
   while ((var= it++))
@@ -1397,7 +1389,7 @@ error:
   NOTE
     This function won't directly open tables used in select. They should
     be opened either by calling function (and in this case you probably
-    should use select_like_stmt_test_with_open_n_lock()) or by
+    should use select_like_stmt_test_with_open()) or by
     "specific_prepare" call (like this happens in case of multi-update).
 
   RETURN VALUE
@@ -1425,14 +1417,14 @@ static bool select_like_stmt_test(Prepared_statement *stmt,
 }
 
 /*
-  Check internal SELECT of the prepared command (with opening and
-  locking of used tables).
+  Check internal SELECT of the prepared command (with opening of used
+  tables).
 
   SYNOPSIS
-    select_like_stmt_test_with_open_n_lock()
+    select_like_stmt_test_with_open()
       stmt                      prepared statement
-      tables                    list of tables to be opened and locked
-                                before calling specific_prepare function
+      tables                    list of tables to be opened before calling
+                                specific_prepare function
       specific_prepare          function of command specific prepare
       setup_tables_done_option  options to be passed to LEX::unit.prepare()
 
@@ -1442,19 +1434,20 @@ static bool select_like_stmt_test(Prepared_statement *stmt,
 */
 
 static bool
-select_like_stmt_test_with_open_n_lock(Prepared_statement *stmt,
-                                       TABLE_LIST *tables,
-                                       bool (*specific_prepare)(THD *thd),
-                                       ulong setup_tables_done_option)
+select_like_stmt_test_with_open(Prepared_statement *stmt,
+                                TABLE_LIST *tables,
+                                bool (*specific_prepare)(THD *thd),
+                                ulong setup_tables_done_option)
 {
-  DBUG_ENTER("select_like_stmt_test_with_open_n_lock");
+  DBUG_ENTER("select_like_stmt_test_with_open");
 
   /*
-    We should not call LEX::unit.cleanup() after this open_and_lock_tables()
-    call because we don't allow prepared EXPLAIN yet so derived tables will
-    clean up after themself.
+    We should not call LEX::unit.cleanup() after this
+    open_normal_and_derived_tables() call because we don't allow
+    prepared EXPLAIN yet so derived tables will clean up after
+    themself.
   */
-  if (open_and_lock_tables(stmt->thd, tables))
+  if (open_normal_and_derived_tables(stmt->thd, tables, 0))
     DBUG_RETURN(TRUE);
 
   DBUG_RETURN(select_like_stmt_test(stmt, specific_prepare,
@@ -1493,7 +1486,7 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
   if (select_lex->item_list.elements)
   {
     select_lex->context.resolve_in_select_list= TRUE;
-    res= select_like_stmt_test_with_open_n_lock(stmt, tables, 0, 0);
+    res= select_like_stmt_test_with_open(stmt, tables, 0, 0);
   }
 
   /* put tables back for PS rexecuting */
@@ -1553,9 +1546,9 @@ static bool mysql_test_multidelete(Prepared_statement *stmt,
   }
 
   if (multi_delete_precheck(stmt->thd, tables) ||
-      select_like_stmt_test_with_open_n_lock(stmt, tables,
-                                             &mysql_multi_delete_prepare,
-                                             OPTION_SETUP_TABLES_DONE))
+      select_like_stmt_test_with_open(stmt, tables,
+                                      &mysql_multi_delete_prepare,
+                                      OPTION_SETUP_TABLES_DONE))
     goto error;
   if (!tables->table)
   {
@@ -1571,15 +1564,16 @@ error:
 
 /*
   Wrapper for mysql_insert_select_prepare, to make change of local tables
-  after open_and_lock_tables() call.
+  after open_normal_and_derived_tables() call.
 
   SYNOPSIS
     mysql_insert_select_prepare_tester()
       thd                thread handle
 
   NOTE
-    We need to remove the first local table after open_and_lock_tables,
-    because mysql_handle_derived uses local tables lists.
+    We need to remove the first local table after
+    open_normal_and_derived_tables(), because mysql_handle_derived
+    uses local tables lists.
 */
 
 static bool mysql_insert_select_prepare_tester(THD *thd)
@@ -1631,9 +1625,9 @@ static bool mysql_test_insert_select(Prepared_statement *stmt,
   DBUG_ASSERT(first_local_table != 0);
 
   res=
-    select_like_stmt_test_with_open_n_lock(stmt, tables,
-                                           &mysql_insert_select_prepare_tester,
-                                           OPTION_SETUP_TABLES_DONE);
+    select_like_stmt_test_with_open(stmt, tables,
+                                    &mysql_insert_select_prepare_tester,
+                                    OPTION_SETUP_TABLES_DONE);
   /* revert changes  made by mysql_insert_select_prepare_tester */
   lex->select_lex.table_list.first= (byte*) first_local_table;
   return res;
