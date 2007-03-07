@@ -1690,7 +1690,7 @@ void st_lex::cleanup_lex_after_parse_error(THD *thd)
     Sic: we must nullify the member of the main lex, not the
     current one that will be thrown away
   */
-  if (thd->lex->sphead);
+  if (thd->lex->sphead)
   {
     delete thd->lex->sphead;
     thd->lex->sphead= NULL;
