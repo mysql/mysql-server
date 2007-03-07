@@ -71,8 +71,15 @@ TODO:
 
 #define SHOW_VERSION "0.9"
 
-#define HUGE_STRING_LENGTH 8096
+#define HUGE_STRING_LENGTH 8196
 #define RAND_STRING_SIZE 126
+
+/* Types */
+#define SELECT_TYPE 0
+#define UPDATE_TYPE 1
+#define INSERT_TYPE 2
+#define UPDATE_TYPE_REQUERIES_PREFIX 3
+#define CREATE_TABLE_TYPE 4
 
 #include "client_priv.h"
 #ifdef HAVE_LIBPTHREAD
@@ -107,6 +114,9 @@ static char *shared_memory_base_name=0;
 
 static char **defaults_argv;
 
+char *primary_keys;
+unsigned long long primary_keys_number_of;
+
 static char *host= NULL, *opt_password= NULL, *user= NULL,
             *user_supplied_query= NULL,
             *default_engine= NULL,
@@ -127,6 +137,8 @@ static my_bool opt_slave;
 
 static my_bool opt_compress= FALSE, tty_password= FALSE,
                opt_silent= FALSE,
+               auto_generate_sql_autoincrement= FALSE,
+               auto_generate_sql_guid_primary= FALSE,
                auto_generate_sql= FALSE;
 const char *auto_generate_sql_type= "mixed";
 
@@ -159,6 +171,7 @@ typedef struct statement statement;
 struct statement {
   char *string;
   size_t length;
+  unsigned char type;
   statement *next;
 };
 
@@ -206,7 +219,10 @@ static int drop_schema(MYSQL *mysql, const char *db);
 uint get_random_string(char *buf);
 static statement *build_table_string(void);
 static statement *build_insert_string(void);
+static statement *build_update_string(void);
 static statement *build_query_string(void);
+static int generate_primary_key_list(MYSQL *mysql);
+static int drop_primary_key_list(void);
 static int create_schema(MYSQL *mysql, const char *db, statement *stmt, 
               statement *engine_stmt);
 static int run_scheduler(stats *sptr, statement *stmts, uint concur, 
@@ -343,6 +359,13 @@ int main(int argc, char **argv)
         /* First we create */
         if (create_statements)
           create_schema(&mysql, create_schema_string, create_statements, eptr);
+        
+        /*
+          If we generated GUID we need to build a list of them from creation that
+          we can later use.
+        */
+        if (auto_generate_sql_guid_primary)
+          generate_primary_key_list(&mysql);
 
         run_scheduler(sptr, query_statements, *current, client_limit); 
       }
@@ -359,6 +382,10 @@ int main(int argc, char **argv)
 
     if (!opt_preserve)
       drop_schema(&mysql, create_schema_string);
+
+    if (auto_generate_sql_guid_primary)
+      drop_primary_key_list();
+
   } while (eptr ? (eptr= eptr->next) : 0);
 
   if (!opt_only_print) 
@@ -397,8 +424,18 @@ static struct my_option my_long_options[] =
     "Generate SQL where not supplied by file or command line.",
     (gptr*) &auto_generate_sql, (gptr*) &auto_generate_sql,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"auto-generate-sql-add-autoincrement", OPT_SLAP_AUTO_GENERATE_ADD_AUTO,
+    "Add autoincrement to auto-generated tables.",
+    (gptr*) &auto_generate_sql_autoincrement, 
+    (gptr*) &auto_generate_sql_autoincrement,
+    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"auto-generate-sql-guid-primary", OPT_SLAP_AUTO_GENERATE_GUID_PRIMARY,
+    "Add GUID based primary keys to auto-generated tables.",
+    (gptr*) &auto_generate_sql_guid_primary, 
+    (gptr*) &auto_generate_sql_guid_primary,
+    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"auto-generate-sql-load-type", OPT_SLAP_AUTO_GENERATE_SQL_LOAD_TYPE,
-    "Load types are mixed, write, or read. Default is mixed\n",
+    "Load types are mixed, update, write, or read. Default is mixed\n",
     (gptr*) &auto_generate_sql_type, (gptr*) &auto_generate_sql_type,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"auto-generate-sql-write-number", OPT_SLAP_AUTO_GENERATE_WRITE_NUM,
@@ -614,7 +651,7 @@ get_random_string(char *buf)
 static statement *
 build_table_string(void)
 {
-  char       buf[512];
+  char       buf[HUGE_STRING_LENGTH];
   int        col_count;
   statement *ptr;
   DYNAMIC_STRING table_string;
@@ -626,28 +663,157 @@ build_table_string(void)
   init_dynamic_string(&table_string, "", 1024, 1024);
 
   dynstr_append(&table_string, "CREATE TABLE `t1` (");
-  for (col_count= 1; col_count <= num_int_cols; col_count++)
+
+  if (auto_generate_sql_autoincrement)
   {
-    sprintf(buf, "intcol%d INT(32)", col_count); 
+    if (snprintf(buf, HUGE_STRING_LENGTH, "id serial") > HUGE_STRING_LENGTH)
+    {
+        fprintf(stderr, "Memory Allocation error in create table\n");
+        exit(1);
+    }
     dynstr_append(&table_string, buf);
 
-    if (col_count < num_int_cols || num_char_cols > 0)
+    if (num_int_cols || num_char_cols)
       dynstr_append(&table_string, ",");
   }
-  for (col_count= 1; col_count <= num_char_cols; col_count++)
+
+  if (auto_generate_sql_guid_primary)
   {
-    sprintf(buf, "charcol%d VARCHAR(128)", col_count);
+    if (snprintf(buf, HUGE_STRING_LENGTH, "id varchar(32) primary key") > HUGE_STRING_LENGTH)
+    {
+        fprintf(stderr, "Memory Allocation error in create table\n");
+        exit(1);
+    }
     dynstr_append(&table_string, buf);
 
-    if (col_count < num_char_cols)
+    if (num_int_cols || num_char_cols)
       dynstr_append(&table_string, ",");
   }
+
+  if (num_int_cols)
+    for (col_count= 1; col_count <= num_int_cols; col_count++)
+    {
+      if (snprintf(buf, HUGE_STRING_LENGTH, "intcol%d INT(32)", col_count) 
+          > HUGE_STRING_LENGTH)
+      {
+        fprintf(stderr, "Memory Allocation error in create table\n");
+        exit(1);
+      }
+      dynstr_append(&table_string, buf);
+
+      if (col_count < num_int_cols || num_char_cols > 0)
+        dynstr_append(&table_string, ",");
+    }
+
+  if (num_char_cols)
+    for (col_count= 1; col_count <= num_char_cols; col_count++)
+    {
+      if (snprintf(buf, HUGE_STRING_LENGTH, "charcol%d VARCHAR(128)", col_count)
+          > HUGE_STRING_LENGTH)
+      {
+        fprintf(stderr, "Memory Allocation error in creating table\n");
+        exit(1);
+      }
+      dynstr_append(&table_string, buf);
+
+      if (col_count < num_char_cols)
+        dynstr_append(&table_string, ",");
+    }
+
   dynstr_append(&table_string, ")");
   ptr= (statement *)my_malloc(sizeof(statement), MYF(MY_ZEROFILL));
   ptr->string = (char *)my_malloc(table_string.length+1, MYF(MY_WME));
   ptr->length= table_string.length+1;
   strmov(ptr->string, table_string.str);
   dynstr_free(&table_string);
+  DBUG_RETURN(ptr);
+}
+
+/*
+  build_update_string()
+
+  This function builds insert statements when the user opts to not supply
+  an insert file or string containing insert data
+*/
+static statement *
+build_update_string(void)
+{
+  char       buf[HUGE_STRING_LENGTH];
+  int        col_count;
+  statement *ptr;
+  DYNAMIC_STRING update_string;
+  DBUG_ENTER("build_update_string");
+
+  init_dynamic_string(&update_string, "", 1024, 1024);
+
+  dynstr_append(&update_string, "UPDATE t1 SET ");
+
+  if (num_int_cols)
+    for (col_count= 1; col_count <= num_int_cols; col_count++)
+    {
+      if (snprintf(buf, HUGE_STRING_LENGTH, "intcol%d = %ld", col_count, 
+                   random()) > HUGE_STRING_LENGTH)
+      {
+        fprintf(stderr, "Memory Allocation error in creating update\n");
+        exit(1);
+      }
+      dynstr_append(&update_string, buf);
+
+      if (col_count < num_int_cols || num_char_cols > 0)
+        dynstr_append_mem(&update_string, ",", 1);
+    }
+
+  if (num_char_cols)
+    for (col_count= 1; col_count <= num_char_cols; col_count++)
+    {
+      char rand_buffer[RAND_STRING_SIZE];
+      int buf_len= get_random_string(rand_buffer);
+
+      if (snprintf(buf, HUGE_STRING_LENGTH, "charcol%d = '%.*s'", col_count, 
+                   buf_len, rand_buffer) 
+          > HUGE_STRING_LENGTH)
+      {
+        fprintf(stderr, "Memory Allocation error in creating update\n");
+        exit(1);
+      }
+      dynstr_append(&update_string, buf);
+
+      if (col_count < num_char_cols)
+        dynstr_append_mem(&update_string, ",", 1);
+    }
+
+  if (auto_generate_sql_autoincrement)
+  {
+    if (snprintf(buf, HUGE_STRING_LENGTH, " WHERE id = %ld", 
+                 (long int)(random() % auto_generate_sql_number) ) 
+        > HUGE_STRING_LENGTH)
+    {
+      fprintf(stderr, "Memory Allocation error in creating update_string\n");
+      exit(1);
+    }
+    dynstr_append(&update_string, buf);
+  }
+
+  if (auto_generate_sql_guid_primary)
+  {
+    if (snprintf(buf, HUGE_STRING_LENGTH, " WHERE id = ") > HUGE_STRING_LENGTH)
+    {
+      fprintf(stderr, "Memory Allocation error in creating update_string\n");
+      exit(1);
+    }
+    dynstr_append(&update_string, buf);
+  }
+
+
+  ptr= (statement *)my_malloc(sizeof(statement), MYF(MY_ZEROFILL));
+  ptr->string= (char *)my_malloc(update_string.length+1, MYF(MY_WME));
+  ptr->length= update_string.length+1;
+  if (auto_generate_sql_guid_primary)
+    ptr->type= UPDATE_TYPE_REQUERIES_PREFIX ;
+  else
+    ptr->type= UPDATE_TYPE;
+  strmov(ptr->string, update_string.str);
+  dynstr_free(&update_string);
   DBUG_RETURN(ptr);
 }
 
@@ -661,7 +827,7 @@ build_table_string(void)
 static statement *
 build_insert_string(void)
 {
-  char       buf[RAND_STRING_SIZE];
+  char       buf[HUGE_STRING_LENGTH];
   int        col_count;
   statement *ptr;
   DYNAMIC_STRING insert_string;
@@ -669,30 +835,66 @@ build_insert_string(void)
 
   init_dynamic_string(&insert_string, "", 1024, 1024);
 
-  dynstr_append_mem(&insert_string, "INSERT INTO t1 VALUES (", 23);
-  for (col_count= 1; col_count <= num_int_cols; col_count++)
+  dynstr_append(&insert_string, "INSERT INTO t1 VALUES (");
+
+  if (auto_generate_sql_autoincrement)
   {
-    sprintf(buf, "%ld", random());
+    if (snprintf(buf, HUGE_STRING_LENGTH, "NULL") > HUGE_STRING_LENGTH)
+    {
+      fprintf(stderr, "Memory Allocation error in creating insert\n");
+      exit(1);
+    }
     dynstr_append(&insert_string, buf);
 
-    if (col_count < num_int_cols || num_char_cols > 0)
-      dynstr_append_mem(&insert_string, ",", 1);
+    if (num_int_cols || num_char_cols)
+      dynstr_append(&insert_string, ",");
   }
-  for (col_count= 1; col_count <= num_char_cols; col_count++)
-  {
-    int buf_len= get_random_string(buf);
-    dynstr_append_mem(&insert_string, "'", 1);
-    dynstr_append_mem(&insert_string, buf, buf_len);
-    dynstr_append_mem(&insert_string, "'", 1);
 
-    if (col_count < num_char_cols)
-      dynstr_append_mem(&insert_string, ",", 1);
+  if (auto_generate_sql_guid_primary)
+  {
+    if (snprintf(buf, HUGE_STRING_LENGTH, "uuid()") > HUGE_STRING_LENGTH)
+    {
+        fprintf(stderr, "Memory Allocation error in create table\n");
+        exit(1);
+    }
+    dynstr_append(&insert_string, buf);
+
+    if (num_int_cols || num_char_cols)
+      dynstr_append(&insert_string, ",");
   }
+
+  if (num_int_cols)
+    for (col_count= 1; col_count <= num_int_cols; col_count++)
+    {
+      if (snprintf(buf, HUGE_STRING_LENGTH, "%ld", random()) > HUGE_STRING_LENGTH)
+      {
+        fprintf(stderr, "Memory Allocation error in creating insert\n");
+        exit(1);
+      }
+      dynstr_append(&insert_string, buf);
+
+      if (col_count < num_int_cols || num_char_cols > 0)
+        dynstr_append_mem(&insert_string, ",", 1);
+    }
+
+  if (num_char_cols)
+    for (col_count= 1; col_count <= num_char_cols; col_count++)
+    {
+      int buf_len= get_random_string(buf);
+      dynstr_append_mem(&insert_string, "'", 1);
+      dynstr_append_mem(&insert_string, buf, buf_len);
+      dynstr_append_mem(&insert_string, "'", 1);
+
+      if (col_count < num_char_cols)
+        dynstr_append_mem(&insert_string, ",", 1);
+    }
+
   dynstr_append_mem(&insert_string, ")", 1);
 
   ptr= (statement *)my_malloc(sizeof(statement), MYF(MY_ZEROFILL));
   ptr->string= (char *)my_malloc(insert_string.length+1, MYF(MY_WME));
   ptr->length= insert_string.length+1;
+  ptr->type= INSERT_TYPE;
   strmov(ptr->string, insert_string.str);
   dynstr_free(&insert_string);
   DBUG_RETURN(ptr);
@@ -708,7 +910,7 @@ build_insert_string(void)
 static statement *
 build_query_string(void)
 {
-  char       buf[512];
+  char       buf[HUGE_STRING_LENGTH];
   int        col_count;
   statement *ptr;
   static DYNAMIC_STRING query_string;
@@ -719,7 +921,12 @@ build_query_string(void)
   dynstr_append_mem(&query_string, "SELECT ", 7);
   for (col_count= 1; col_count <= num_int_cols; col_count++)
   {
-    sprintf(buf, "intcol%d", col_count);
+    if (snprintf(buf, HUGE_STRING_LENGTH, "intcol%d", col_count) 
+        > HUGE_STRING_LENGTH)
+    {
+      fprintf(stderr, "Memory Allocation error in creating select\n");
+      exit(1);
+    }
     dynstr_append(&query_string, buf);
 
     if (col_count < num_int_cols || num_char_cols > 0)
@@ -728,7 +935,12 @@ build_query_string(void)
   }
   for (col_count= 1; col_count <= num_char_cols; col_count++)
   {
-    sprintf(buf, "charcol%d", col_count);
+    if (snprintf(buf, HUGE_STRING_LENGTH, "charcol%d", col_count)
+        > HUGE_STRING_LENGTH)
+    {
+      fprintf(stderr, "Memory Allocation error in creating select\n");
+      exit(1);
+    }
     dynstr_append(&query_string, buf);
 
     if (col_count < num_char_cols)
@@ -739,6 +951,7 @@ build_query_string(void)
   ptr= (statement *)my_malloc(sizeof(statement), MYF(MY_ZEROFILL));
   ptr->string= (char *)my_malloc(query_string.length+1, MYF(MY_WME));
   ptr->length= query_string.length+1;
+  ptr->type= SELECT_TYPE;
   strmov(ptr->string, query_string.str);
   dynstr_free(&query_string);
   DBUG_RETURN(ptr);
@@ -769,6 +982,14 @@ get_options(int *argc,char ***argv)
   {
       fprintf(stderr,
               "%s: Can't use --auto-generate-sql when create and query strings are specified!\n",
+              my_progname);
+      exit(1);
+  }
+
+  if (auto_generate_sql && auto_generate_sql_guid_primary && auto_generate_sql_autoincrement)
+  {
+      fprintf(stderr,
+              "%s: Either auto-generate-sql-guid-primary or auto-generate-sql-add-autoincrement can be used!\n",
               my_progname);
       exit(1);
   }
@@ -834,6 +1055,23 @@ get_options(int *argc,char ***argv)
            x++, ptr_statement= ptr_statement->next)
       {
         ptr_statement->next= build_insert_string();
+      }
+    }
+    else if (auto_generate_sql_type[0] == 'u')
+    {
+      for (ptr_statement= create_statements, x= 0; 
+           x < auto_generate_sql_number; 
+           x++, ptr_statement= ptr_statement->next)
+      {
+        ptr_statement->next= build_insert_string();
+      }
+
+      query_statements= build_update_string();
+      for (ptr_statement= query_statements, x= 0; 
+           x < auto_generate_sql_number; 
+           x++, ptr_statement= ptr_statement->next)
+      {
+          ptr_statement->next= build_update_string();
       }
     }
     else /* Mixed mode is default */
@@ -943,6 +1181,59 @@ static int run_query(MYSQL *mysql, const char *query, int len)
 }
 
 
+static int
+generate_primary_key_list(MYSQL *mysql)
+{
+  char query[HUGE_STRING_LENGTH];
+  int len;
+  MYSQL_RES *result;
+  MYSQL_ROW row;
+  char *ptr;
+  DBUG_ENTER("create_schema");
+
+  len= snprintf(query, HUGE_STRING_LENGTH, "SELECT id from t1");
+
+  if (run_query(mysql, query, len))
+  {
+    fprintf(stderr,"%s: Cannot select GUID primary keys. (%s)\n", my_progname,
+            mysql_error(mysql));
+    exit(1);
+  }
+
+  if (opt_only_print)
+  {
+    primary_keys_number_of= 1;
+    primary_keys= (char *)my_malloc(sizeof(char) * primary_keys_number_of * 32, 
+                                    MYF(MY_ZEROFILL));
+    memcpy(primary_keys, "796c4422-1d94-102a-9d6d-00e0812d", 32); 
+    DBUG_RETURN(0);
+  }
+  result= mysql_store_result(mysql);
+  DBUG_ASSERT(result);
+  primary_keys_number_of= mysql_num_rows(result);
+  /*
+    We know the GUID are 32 characters in length, so we preallocate.
+  */
+  primary_keys= (char *)my_malloc(sizeof(char) * primary_keys_number_of * 32, 
+                                  MYF(MY_ZEROFILL));
+  ptr= primary_keys;
+  while ((row = mysql_fetch_row(result)))
+  {
+    memcpy(ptr, row[0], 32);
+    ptr+= 32;
+  }
+  DBUG_ASSERT(ptr == primary_keys + (primary_keys_number_of * 32));
+  mysql_free_result(result);
+
+  DBUG_RETURN(0);
+}
+
+static int
+drop_primary_key_list(void)
+{
+  my_free(primary_keys, MYF(0));
+  return 0;
+}
 
 static int
 create_schema(MYSQL *mysql, const char *db, statement *stmt, 
@@ -1219,11 +1510,33 @@ run_task(thread_context *con)
 limit_not_met:
     for (ptr= con->stmt; ptr && ptr->length; ptr= ptr->next)
     {
-      if (run_query(mysql, ptr->string, ptr->length))
+      /* 
+        We have to execute differently based on query type. This should become a function.
+      */
+      if (ptr->type == UPDATE_TYPE_REQUERIES_PREFIX)
       {
-        fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
-                my_progname, (uint)ptr->length, ptr->string, mysql_error(mysql));
-        goto end;
+        char buffer[HUGE_STRING_LENGTH];
+        char *key= primary_keys + (random() % primary_keys_number_of);
+        int length;
+
+        length= snprintf(buffer, HUGE_STRING_LENGTH, "%.*s '%.*s'", 
+                         (int)ptr->length, ptr->string, 32, key);
+        
+        if (run_query(mysql, buffer, length))
+        {
+          fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
+                  my_progname, (uint)length, buffer, mysql_error(mysql));
+          goto end;
+        }
+      }
+      else
+      {
+        if (run_query(mysql, ptr->string, ptr->length))
+        {
+          fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
+                  my_progname, (uint)ptr->length, ptr->string, mysql_error(mysql));
+          goto end;
+        }
       }
       if (mysql_field_count(mysql))
       {
