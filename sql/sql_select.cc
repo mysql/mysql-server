@@ -456,6 +456,17 @@ JOIN::prepare(Item ***rref_pointer_array,
 
   select_lex->fix_prepare_information(thd, &conds, &having);
 
+  if (order)
+  {
+    ORDER *ord;
+    for (ord= order; ord; ord= ord->next)
+    {
+      Item *item= *ord->item;
+      if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM)
+        item->split_sum_func(thd, ref_pointer_array, all_fields);
+    }
+  }
+
   if (having && having->with_sum_func)
     having->split_sum_func2(thd, ref_pointer_array, all_fields,
                             &having, TRUE);
