@@ -3685,9 +3685,6 @@ end_with_restore_list:
       clean up the environment.
     */
 create_sp_error:
-    lex->unit.cleanup();
-    delete lex->sphead;
-    lex->sphead= 0;
     if (sp_result != SP_OK )
       goto error;
     send_ok(thd);
@@ -4063,9 +4060,6 @@ create_sp_error:
     /* Conditionally writes to binlog. */
     res= mysql_create_or_drop_trigger(thd, all_tables, 1);
 
-    /* We don't care about trigger body after this point */
-    delete lex->sphead;
-    lex->sphead= 0;
     break;
   }
   case SQLCOM_DROP_TRIGGER:
@@ -5219,12 +5213,7 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
       else
 #endif
       {
-	if (thd->net.report_error)
-	{
-          delete lex->sphead;
-          lex->sphead= NULL;
-	}
-	else
+	if (! thd->net.report_error)
 	{
           /*
             Binlog logs a string starting from thd->query and having length
@@ -5244,7 +5233,6 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
 	  query_cache_end_of_result(thd);
 	}
       }
-      lex->unit.cleanup();
     }
     else
     {
@@ -5252,19 +5240,14 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
       DBUG_PRINT("info",("Command aborted. Fatal_error: %d",
 			 thd->is_fatal_error));
 
-      /*
-        The first thing we do after parse error is freeing sp_head to
-        ensure that we have restored original memroot.
-      */
-      if (lex->sphead)
-      {
-	/* Clean up after failed stored procedure/function */
-	delete lex->sphead;
-	lex->sphead= NULL;
-      }
       query_cache_abort(&thd->net);
-      lex->unit.cleanup();
     }
+    if (thd->lex->sphead)
+    {
+      delete thd->lex->sphead;
+      thd->lex->sphead= 0;
+    }
+    lex->unit.cleanup();
     thd->proc_info="freeing items";
     thd->end_statement();
     thd->cleanup_after_query();
