@@ -355,6 +355,8 @@ my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
 my_bool	opt_innodb;
+bool slave_warning_issued = false; 
+
 #ifdef HAVE_NDBCLUSTER_DB
 const char *opt_ndbcluster_connectstring= 0;
 const char *opt_ndb_connectstring= 0;
@@ -1596,18 +1598,6 @@ static void network_init(void)
 
 #endif /*!EMBEDDED_LIBRARY*/
 
-void MYSQLerror(const char *s)
-{
-  THD *thd=current_thd;
-  char *yytext= (char*) thd->lex->tok_start;
-  /* "parse error" changed into "syntax error" between bison 1.75 and 1.875 */
-  if (strcmp(s,"parse error") == 0 || strcmp(s,"syntax error") == 0)
-    s=ER(ER_SYNTAX_ERROR);
-  my_printf_error(ER_PARSE_ERROR,  ER(ER_PARSE_ERROR), MYF(0), s,
-                  (yytext ? (char*) yytext : ""),
-                  thd->lex->yylineno);
-}
-
 
 #ifndef EMBEDDED_LIBRARY
 /*
@@ -2435,6 +2425,14 @@ static int my_message_sql(uint error, const char *str, myf MyFlags)
   */
   if ((thd= current_thd))
   {
+    /*
+      TODO: There are two exceptions mechanism (THD and sp_rcontext),
+      this could be improved by having a common stack of handlers.
+    */
+    if (thd->handle_error(error,
+                          MYSQL_ERROR::WARN_LEVEL_ERROR))
+      DBUG_RETURN(0);
+
     if (thd->spcont &&
         thd->spcont->handle_error(error, MYSQL_ERROR::WARN_LEVEL_ERROR, thd))
     {
@@ -3198,7 +3196,7 @@ server.");
                                (TC_LOG *) &tc_log_mmap) :
            (TC_LOG *) &tc_log_dummy);
 
-  if (tc_log->open(opt_bin_logname))
+  if (tc_log->open(opt_bin_log ? opt_bin_logname : opt_tc_log_file))
   {
     sql_print_error("Can't init tc log");
     unireg_abort(1);
@@ -6936,6 +6934,29 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int) OPT_STANDALONE:		/* Dummy option for NT */
     break;
 #endif
+  /*
+    The following change issues a deprecation warning if the slave
+    configuration is specified either in the my.cnf file or on
+    the command-line. See BUG#21490.
+  */
+  case OPT_MASTER_HOST:
+  case OPT_MASTER_USER:
+  case OPT_MASTER_PASSWORD:
+  case OPT_MASTER_PORT:
+  case OPT_MASTER_CONNECT_RETRY:
+  case OPT_MASTER_SSL:          
+  case OPT_MASTER_SSL_KEY:
+  case OPT_MASTER_SSL_CERT:       
+  case OPT_MASTER_SSL_CAPATH:
+  case OPT_MASTER_SSL_CIPHER:
+  case OPT_MASTER_SSL_CA:
+    if (!slave_warning_issued)                 //only show the warning once
+    {
+      slave_warning_issued = true;   
+      WARN_DEPRECATED(NULL, "5.2", "for replication startup options", 
+        "'CHANGE MASTER'");
+    }
+    break;
   case OPT_CONSOLE:
     if (opt_console)
       opt_error_log= 0;			// Force logs to stdout
