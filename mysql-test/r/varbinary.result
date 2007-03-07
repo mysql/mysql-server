@@ -78,3 +78,4 @@ alter table t1 modify a varchar(255);
 select length(a) from t1;
 length(a)
 6
+drop table t1;

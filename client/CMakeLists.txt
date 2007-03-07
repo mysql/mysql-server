@@ -96,3 +96,6 @@ TARGET_LINK_LIBRARIES(mysqladmin mysqlclient mysys dbug yassl taocrypt zlib wsoc
 
 ADD_EXECUTABLE(mysqlslap mysqlslap.c)
 TARGET_LINK_LIBRARIES(mysqlslap mysqlclient mysys yassl taocrypt zlib wsock32 dbug)
+
+ADD_EXECUTABLE(echo echo.c)
+

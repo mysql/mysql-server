@@ -359,9 +359,21 @@ CREATE TRIGGER trg5 BEFORE DELETE ON t1
   FOR EACH ROW
     SET @a = 5;
 
---system grep -v '^definers=' $MYSQLTEST_VARDIR/master-data/mysqltest_db1/t1.TRG > $MYSQLTEST_VARDIR/tmp/t1.TRG
---system echo "definers='' '@' '@abc@def@@' '@hostname' '@abcdef@@@hostname'" >> $MYSQLTEST_VARDIR/tmp/t1.TRG
---system mv $MYSQLTEST_VARDIR/tmp/t1.TRG $MYSQLTEST_VARDIR/master-data/mysqltest_db1/t1.TRG
+# Replace definers with the "weird" definers
+perl;
+use strict;
+use warnings;
+my $fname= "$ENV{'MYSQLTEST_VARDIR'}/master-data/mysqltest_db1/t1.TRG";
+open(FILE, "<", $fname) or die;
+my @content= grep($_ !~ /^definers=/, <FILE>);
+close FILE;
+open(FILE, ">", $fname) or die;
+# Use binary file mode to avoid CR/LF's being added on windows
+binmode FILE;
+print FILE @content;
+print FILE "definers='' '\@' '\@abc\@def\@\@' '\@hostname' '\@abcdef\@\@\@hostname'\n";
+close FILE;
+EOF
 
 --echo
 

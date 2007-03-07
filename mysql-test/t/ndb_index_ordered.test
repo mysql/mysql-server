@@ -336,8 +336,8 @@ drop table t1;
 # bug#7798
 create table t1(a int primary key, b int not null, index(b));
 insert into t1 values (1,1), (2,2);
-connect (con1,localhost,,,test);
-connect (con2,localhost,,,test);
+connect (con1,localhost,root,,test);
+connect (con2,localhost,root,,test);
 connection con1;
 set autocommit=0;
 begin;

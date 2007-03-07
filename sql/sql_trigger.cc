@@ -336,7 +336,7 @@ end:
       tables       - table list containing one open table for which the
                      trigger is created.
       stmt_query   - [OUT] after successful return, this string contains
-                     well-formed statement for creation this trigger.
+                     well-formed statement for creating this trigger.
 
   NOTE
     - Assumes that trigger name is fully qualified.
@@ -376,7 +376,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   }
 
   /* We don't allow creation of several triggers of the same type yet */
-  if (bodies[lex->trg_chistics.event][lex->trg_chistics.action_time])
+  if (bodies[lex->trg_chistics.event][lex->trg_chistics.action_time] != 0)
   {
     my_error(ER_NOT_SUPPORTED_YET, MYF(0),
              "multiple triggers with the same action time"
@@ -669,7 +669,7 @@ static bool save_trigger_file(Table_triggers_list *triggers, const char *db,
       tables      - table list containing one open table for which trigger
                     is dropped.
       stmt_query  - [OUT] after successful return, this string contains
-                    well-formed statement for creation this trigger.
+                    well-formed statement for deleting this trigger.
 
   RETURN VALUE
     False - success

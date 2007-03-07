@@ -22,15 +22,17 @@ CALL mysqltest1.p1();
 SELECT * FROM mysqltest1.t1 ORDER BY a;
 a	users
 1	tester@localhost
-2	@localhost
+2	@localhost%
 3	tester@localhost
-4	@localhost
+4	@localhost%
 SELECT * FROM mysqltest1.t1 ORDER BY a;
 a	users
 1	tester@localhost
-2	@localhost
+2	@localhost%
 3	tester@localhost
-4	@localhost
+4	@localhost%
 DROP DATABASE mysqltest1;
 REVOKE ALL ON mysqltest1.* FROM 'tester'@'%';
 REVOKE ALL ON mysqltest1.* FROM ''@'localhost%';
+DROP USER tester@'%';
+DROP USER ''@'localhost%';

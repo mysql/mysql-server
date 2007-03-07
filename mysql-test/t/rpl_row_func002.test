@@ -90,6 +90,7 @@ connection master;
 # Cleanup
 DROP FUNCTION test.f1;
 DROP TABLE test.t1;
+DROP TABLE test.t2;
 sync_slave_with_master;
 
 # the test will show that the diff statement failed and no reject file
@@ -97,7 +98,7 @@ sync_slave_with_master;
 # the files your self to see what is not matching :-). The files are located
 # in mysql-test/var/tmp
 
-exec diff $MYSQLTEST_VARDIR/tmp/func002_master.sql $MYSQLTEST_VARDIR/tmp/func002_slave.sql;
+diff_files $MYSQLTEST_VARDIR/tmp/func002_master.sql $MYSQLTEST_VARDIR/tmp/func002_slave.sql;
 
 # End of 5.0 test case
 

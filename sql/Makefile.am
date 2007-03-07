@@ -26,7 +26,7 @@ INCLUDES =		@ZLIB_INCLUDES@ \
 WRAPLIBS=		@WRAPLIBS@
 SUBDIRS =		share
 libexec_PROGRAMS =	mysqld
-noinst_PROGRAMS =	gen_lex_hash
+EXTRA_PROGRAMS =	gen_lex_hash
 bin_PROGRAMS =		mysql_tzinfo_to_sql
 gen_lex_hash_LDFLAGS =  @NOINST_LDFLAGS@
 SUPPORTING_LIBS =			$(top_builddir)/vio/libvio.a \
@@ -130,6 +130,7 @@ EXTRA_DIST =		udf_example.c udf_example.def $(BUILT_MAINT_SRC) \
 			nt_servc.cc nt_servc.h message.mc CMakeLists.txt \
 			udf_example.c udf_example.def
 CLEANFILES =        	lex_hash.h sql_yacc.output
+DISTCLEANFILES =        $(EXTRA_PROGRAMS)
 MAINTAINERCLEANFILES =  $(BUILT_MAINT_SRC)
 AM_YFLAGS =		-d --verbose
 
@@ -152,11 +153,13 @@ link_sources: mysql_tzinfo_to_sql.cc
 mysql_tzinfo_to_sql.o:	$(mysql_tzinfo_to_sql_SOURCES)
 			$(CXXCOMPILE) -c $(INCLUDES) -DTZINFO2SQL $<
 
-# FIXME seems like now "lex_hash.h" differs depending on configure
-# flags, so can't pregenerate and include in source TAR. Revert to
-# dist pregenerated if this changes, so the file doesn't differ.
-lex_hash.h:	gen_lex_hash$(EXEEXT)
-		./gen_lex_hash$(EXEEXT) > $@
+# This generates lex_hash.h
+# NOTE Built sources should depend on their sources not the tool
+# this avoid the rebuild of the built files in a source dist
+lex_hash.h:	gen_lex_hash.cc lex.h
+		$(MAKE) $(AM_MAKEFLAGS) gen_lex_hash$(EXEEXT)
+		./gen_lex_hash$(EXEEXT) > $@-t
+		$(MV) $@-t $@
 
 # the following three should eventually be moved out of this directory
 ha_ndbcluster.o:ha_ndbcluster.cc ha_ndbcluster.h

@@ -2,6 +2,8 @@
 # Test of init_connect variable
 #
 
+--source include/add_anonymous_users.inc
+
 # should work with embedded server after mysqltest is fixed
 -- source include/not_embedded.inc
 connect (con0,localhost,root,,);
@@ -40,6 +42,8 @@ disconnect con2;
 disconnect con3;
 disconnect con4;
 disconnect con5;
+
+--source include/delete_anonymous_users.inc
 
 --echo End of 4.1 tests
 #

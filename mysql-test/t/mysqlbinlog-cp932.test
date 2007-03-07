@@ -1,0 +1,20 @@
+-- source include/have_binlog_format_mixed_or_statement.inc
+-- source include/have_cp932.inc
+
+# Bug#16217 (mysql client did not know how not switch its internal charset)
+flush logs;
+create table t3 (f text character set utf8);
+create table t4 (f text character set cp932); 
+--exec $MYSQL --default-character-set=utf8 test -e "insert into t3 values(_utf8'ã‚½')"
+--exec $MYSQL --default-character-set=cp932 test -e "insert into t4 values(_cp932'ƒ\');"
+flush logs;
+rename table t3 to t03, t4 to t04;
+--exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000002 | $MYSQL --default-character-set=utf8
+# original and recovered data must be equal
+select HEX(f) from t03;
+select HEX(f) from t3;
+select HEX(f) from t04;
+select HEX(f) from t4;
+
+drop table t3, t4, t03, t04;
+--echo End of 5.0 tests

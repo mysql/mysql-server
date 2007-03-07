@@ -99,7 +99,8 @@ SELECT a.x FROM (SELECT 1 AS x) AS a HAVING a.x = 1;
 #
 # Test for select if database is not selected.
 #
-# Connect without a database
+# Connect without a database as user mysqltest_1
+create user mysqltest_1;
 create table t1 select 1 as a;
 connect (con1,localhost,mysqltest_1,,*NO-ONE*,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection con1;
@@ -270,5 +271,9 @@ select A.* from (t1 inner join (select * from t2) as A on t1.ID = A.FID);
 select t2.* from ((select * from t1) as A inner join t2 on A.ID = t2.FID);
 select t2.* from (select * from t1) as A inner join t2 on A.ID = t2.FID;
 drop table t1, t2;
+
+disconnect con1;
+connection default;
+drop user mysqltest_1;
 
 # End of 4.1 tests

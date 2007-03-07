@@ -2271,8 +2271,10 @@ String *Item_func_repeat::val_str(String *str)
   if (args[0]->null_value || args[1]->null_value)
     goto err;				// string and/or delim are null
   null_value= 0;
-  if ((count <= 0) && !args[1]->unsigned_flag)	// For nicer SQL code
+
+  if (count == 0 || count < 0 && !args[1]->unsigned_flag)
     return &my_empty_string;
+
   /* Assumes that the maximum length of a String is < INT_MAX32. */
   /* Bounds check on count:  If this is triggered, we will error. */
   if ((ulonglong) count > INT_MAX32)
@@ -2799,6 +2801,11 @@ String *Item_load_file::val_str(String *str)
 
   (void) fn_format(path, file_name->c_ptr(), mysql_real_data_home, "",
 		   MY_RELATIVE_PATH | MY_UNPACK_FILENAME);
+
+  /* Read only allowed from within dir specified by secure_file_priv */
+  if (opt_secure_file_priv &&
+      strncmp(opt_secure_file_priv, path, strlen(opt_secure_file_priv)))
+    goto err;
 
   if (!my_stat(path, &stat_info, MYF(0)))
     goto err;

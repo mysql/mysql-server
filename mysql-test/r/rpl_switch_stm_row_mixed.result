@@ -7,6 +7,7 @@ start slave;
 drop database if exists mysqltest1;
 create database mysqltest1;
 use mysqltest1;
+set @my_binlog_format= @@global.binlog_format;
 set session binlog_format=mixed;
 show session variables like "binlog_format%";
 Variable_name	Value
@@ -1025,3 +1026,4 @@ master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE TABLE t12 (data LONG)
 master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t12)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 drop database mysqltest1;
+set global binlog_format =@my_binlog_format;

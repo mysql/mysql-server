@@ -96,6 +96,7 @@ DEFS =			-DUNDEF_THREADS_HACK \
 
 sql_src=log_event.h mysql_priv.h log_event.cc my_decimal.h my_decimal.cc
 strings_src=decimal.c
+EXTRA_DIST =		get_password.c CMakeLists.txt echo.c
 
 link_sources:
 	for f in $(sql_src) ; do \

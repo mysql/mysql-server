@@ -83,3 +83,4 @@ DROP TABLE table_2;
 DROP TABLE table_3;
 DROP TABLE table_4;
 DROP DATABASE events_test;
+SET GLOBAL event_scheduler=OFF;

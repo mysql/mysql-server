@@ -92,6 +92,8 @@ INSERT INTO t1 VALUES (7),(8),(9);
 sync_slave_with_master;
 SELECT * FROM t1;
 
+SET GLOBAL QUERY_CACHE_SIZE=0;
+
 # Bug#22550: Replication of BIT columns failing
 --echo ================ Test for BUG#22550 ================
 --disable_query_log
@@ -113,3 +115,7 @@ UPDATE t1 SET a=0 WHERE b=2;
 SELECT HEX(a),b FROM t1;
 sync_slave_with_master;
 SELECT HEX(a),b FROM t1;
+
+connection master;
+DROP TABLE t1;
+sync_slave_with_master;

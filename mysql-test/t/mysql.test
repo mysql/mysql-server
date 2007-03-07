@@ -44,20 +44,6 @@ unlock tables;
 drop table t1;
 
 #
-# BUG#16217 - MySQL client misinterprets multi-byte char as escape `\' 
-#
-
-# new command \C or charset
---exec $MYSQL --default-character-set=utf8 test -e "\C cp932 \g"
---exec $MYSQL --default-character-set=cp932 test -e "charset utf8;"
-
-# its usage to switch internally in mysql to requested charset
---exec $MYSQL --default-character-set=utf8 test -e "charset cp932; select 'ソ'; create table t1 (c_cp932 TEXT CHARACTER SET cp932); insert into t1 values('ソ'); select * from t1;  drop table t1;"
---exec $MYSQL --default-character-set=utf8 test -e "charset cp932; select 'ソ'"
---exec $MYSQL --default-character-set=utf8 test -e "/*charset cp932 */; set character_set_client= cp932; select 'ソ'"
---exec $MYSQL --default-character-set=utf8 test -e "/*!\C cp932 */; set character_set_client= cp932; select 'ソ'"
-
-#
 # Bug#16859 -- NULLs in columns must not truncate data as if a C-language "string".
 #
 --exec $MYSQL -t test -e "create table t1 (col1 binary(4), col2 varchar(10), col3 int); insert into t1 values ('a', 'b', 123421),('a ', '0123456789', 4), ('abcd', '', 4); select concat('>',col1,'<'), col2, col3 from t1; drop table t1;" 2>&1
@@ -138,9 +124,9 @@ drop table t1;
 #
 # Bug #20328: mysql client interprets commands in comments
 #
---exec $MYSQL -e 'help' > $MYSQLTEST_VARDIR/tmp/bug20328_1.result
---exec $MYSQL -e 'help ' > $MYSQLTEST_VARDIR/tmp/bug20328_2.result
---exec diff $MYSQLTEST_VARDIR/tmp/bug20328_1.result $MYSQLTEST_VARDIR/tmp/bug20328_2.result
+--exec $MYSQL -e "help" > $MYSQLTEST_VARDIR/tmp/bug20328_1.result
+--exec $MYSQL -e "help " > $MYSQLTEST_VARDIR/tmp/bug20328_2.result
+--diff_files $MYSQLTEST_VARDIR/tmp/bug20328_1.result $MYSQLTEST_VARDIR/tmp/bug20328_2.result
 
 #
 # Bug #19216: Client crashes on long SELECT
@@ -251,16 +237,22 @@ drop table t17583;
 #
 
 # This should work just fine...
---exec echo "DELIMITER /" > $MYSQLTEST_VARDIR/tmp/bug21412.sql
---exec echo "SELECT 1/"   >> $MYSQLTEST_VARDIR/tmp/bug21412.sql
+--write_file $MYSQLTEST_VARDIR/tmp/bug21412.sql
+DELIMITER /
+SELECT 1/
+EOF
 --exec $MYSQL             < $MYSQLTEST_VARDIR/tmp/bug21412.sql 2>&1
 
 # This should give an error...
---exec echo "DELIMITER \\" > $MYSQLTEST_VARDIR/tmp/bug21412.sql
+--write_file $MYSQLTEST_VARDIR/tmp/bug21412.sql
+DELIMITER \
+EOF
 --exec $MYSQL             < $MYSQLTEST_VARDIR/tmp/bug21412.sql 2>&1
 
 # As should this...
---exec echo "DELIMITER \\\\" > $MYSQLTEST_VARDIR/tmp/bug21412.sql
+--write_file $MYSQLTEST_VARDIR/tmp/bug21412.sql
+DELIMITER \\
+EOF
 --exec $MYSQL             < $MYSQLTEST_VARDIR/tmp/bug21412.sql 2>&1
 
 #

@@ -300,6 +300,8 @@ our $path_ndb_examples_dir;
 our $exe_ndb_example;
 our $path_ndb_testrun_log;
 
+our $path_sql_dir;
+
 our @data_dir_lst;
 
 our $used_binlog_format;
@@ -356,6 +358,7 @@ sub mysqld_arguments ($$$$$);
 sub stop_all_servers ();
 sub run_mysqltest ($);
 sub usage ($);
+
 
 ######################################################################
 #
@@ -766,7 +769,7 @@ sub command_line_setup () {
 
     foreach my $arg ( @opt_extra_mysqld_opt )
     {
-      if ( $arg =~ /binlog-format=(\S+)/ )
+      if ( $arg =~ /binlog[-_]format=(\S+)/ )
       {
 	$used_binlog_format= $1;
       }
@@ -1492,6 +1495,10 @@ sub executable_setup () {
 
   if (!$opt_extern)
   {
+  # Look for SQL scripts directory
+  $path_sql_dir= mtr_path_exists("$glob_basedir/share",
+				 "$glob_basedir/scripts");
+
     if ( $mysql_version_id >= 50100 )
     {
       $exe_mysqlslap=    mtr_exe_exists("$path_client_bindir/mysqlslap");
@@ -1585,7 +1592,8 @@ sub executable_setup () {
 sub generate_cmdline_mysqldump ($) {
   my($mysqld) = @_;
   return
-    "$exe_mysqldump --no-defaults --debug-info -uroot " .
+    mtr_native_path($exe_mysqldump) .
+      " --no-defaults -uroot --debug-info " .
       "--port=$mysqld->{'port'} " .
       "--socket=$mysqld->{'path_sock'} --password=";
 }
@@ -1727,7 +1735,7 @@ sub environment_setup () {
   my $deb_version;
   if (  $opt_valgrind and -d $debug_libraries_path and
         (! -e '/etc/debian_version' or
-         ($deb_version= mtr_grab_file('/etc/debian_version')) == 0 or
+	 ($deb_version= mtr_grab_file('/etc/debian_version')) !~ /^[0-9]+\.[0-9]$/ or
          $deb_version > 3.1 ) )
   {
     push(@ld_library_paths, $debug_libraries_path);
@@ -1831,7 +1839,8 @@ sub environment_setup () {
   # Setup env so childs can execute mysqlcheck
   # ----------------------------------------------------
   my $cmdline_mysqlcheck=
-    "$exe_mysqlcheck --no-defaults --debug-info -uroot " .
+    mtr_native_path($exe_mysqlcheck) .
+    " --no-defaults --debug-info -uroot " .
     "--port=$master->[0]->{'port'} " .
     "--socket=$master->[0]->{'path_sock'} --password=";
 
@@ -1865,7 +1874,8 @@ sub environment_setup () {
   if ( $exe_mysqlslap )
   {
     my $cmdline_mysqlslap=
-      "$exe_mysqlslap -uroot " .
+      mtr_native_path($exe_mysqlslap) .
+      " -uroot " .
       "--port=$master->[0]->{'port'} " .
       "--socket=$master->[0]->{'path_sock'} --password= " .
       "--lock-directory=$opt_tmpdir";
@@ -1882,7 +1892,8 @@ sub environment_setup () {
   # Setup env so childs can execute mysqlimport
   # ----------------------------------------------------
   my $cmdline_mysqlimport=
-    "$exe_mysqlimport --debug-info -uroot " .
+    mtr_native_path($exe_mysqlimport) .
+    " -uroot --debug-info " .
     "--port=$master->[0]->{'port'} " .
     "--socket=$master->[0]->{'path_sock'} --password=";
 
@@ -1898,7 +1909,8 @@ sub environment_setup () {
   # Setup env so childs can execute mysqlshow
   # ----------------------------------------------------
   my $cmdline_mysqlshow=
-    "$exe_mysqlshow --debug-info -uroot " .
+    mtr_native_path($exe_mysqlshow) .
+    " -uroot --debug-info " .
     "--port=$master->[0]->{'port'} " .
     "--socket=$master->[0]->{'path_sock'} --password=";
 
@@ -1913,7 +1925,7 @@ sub environment_setup () {
   # Setup env so childs can execute mysqlbinlog
   # ----------------------------------------------------
   my $cmdline_mysqlbinlog=
-    "$exe_mysqlbinlog" .
+    mtr_native_path($exe_mysqlbinlog) .
       " --no-defaults --disable-force-if-open --debug-info --local-load=$opt_tmpdir";
   if ( !$opt_extern && $mysql_version_id >= 50000 )
   {
@@ -1931,7 +1943,8 @@ sub environment_setup () {
   # Setup env so childs can execute mysql
   # ----------------------------------------------------
   my $cmdline_mysql=
-    "$exe_mysql --no-defaults --debug-info --host=localhost  --user=root --password= " .
+    mtr_native_path($exe_mysql) .
+    " --no-defaults --debug-info --host=localhost  --user=root --password= " .
     "--port=$master->[0]->{'port'} " .
     "--socket=$master->[0]->{'path_sock'} ".
     "--character-sets-dir=$path_charsetsdir";
@@ -1963,6 +1976,7 @@ sub environment_setup () {
       "--port=$master->[0]->{'port'} " .
       "--socket=$master->[0]->{'path_sock'}";
     $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  $cmdline_mysql_fix_system_tables;
+
   }
   if (!$opt_extern)
   {
@@ -1972,17 +1986,17 @@ sub environment_setup () {
   # ----------------------------------------------------
   # Setup env so childs can execute my_print_defaults
   # ----------------------------------------------------
-  $ENV{'MYSQL_MY_PRINT_DEFAULTS'}=  $exe_my_print_defaults;
+  $ENV{'MYSQL_MY_PRINT_DEFAULTS'}= mtr_native_path($exe_my_print_defaults);
 
   # ----------------------------------------------------
   # Setup env so childs can execute mysqladmin
   # ----------------------------------------------------
-  $ENV{'MYSQLADMIN'}=  $exe_mysqladmin;
+  $ENV{'MYSQLADMIN'}= mtr_native_path($exe_mysqladmin);
 
   # ----------------------------------------------------
   # Setup env so childs can execute perror  
   # ----------------------------------------------------
-  $ENV{'MY_PERROR'}=                 $exe_perror;
+  $ENV{'MY_PERROR'}= mtr_native_path($exe_perror);
 
   # ----------------------------------------------------
   # Add the path where mysqld will find udf_example.so
@@ -2141,6 +2155,16 @@ sub remove_stale_vardir () {
       mtr_verbose("Removing $opt_vardir/");
       rmtree("$opt_vardir/");
     }
+
+    if ( $opt_mem )
+    {
+      # A symlink from var/ to $opt_mem will be set up
+      # remove the $opt_mem dir to assure the symlink
+      # won't point at an old directory
+      mtr_verbose("Removing $opt_mem");
+      rmtree($opt_mem);
+    }
+
   }
   else
   {
@@ -2892,42 +2916,13 @@ sub install_db ($$) {
   my $type=      shift;
   my $data_dir=  shift;
 
-  my $init_db_sql=     "lib/init_db.sql";
-  my $init_db_sql_tmp= "/tmp/init_db.sql$$";
-  my $args;
-
   mtr_report("Installing \u$type Database");
 
-  open(IN, $init_db_sql)
-    or mtr_error("Can't open $init_db_sql: $!");
-  open(OUT, ">", $init_db_sql_tmp)
-    or mtr_error("Can't write to $init_db_sql_tmp: $!");
-  while (<IN>)
-  {
-    chomp;
-    s/\@HOSTNAME\@/$glob_hostname/;
-    if ( /^\s*$/ )
-    {
-      print OUT "\n";
-    }
-    elsif (/;$/)
-    {
-      print OUT "$_\n";
-    }
-    else
-    {
-      print OUT "$_ ";
-    }
-  }
-  close OUT;
-  close IN;
 
+  my $args;
   mtr_init_args(\$args);
-
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--bootstrap");
-  mtr_add_arg($args, "--console");
-  mtr_add_arg($args, "--skip-grant-tables");
   mtr_add_arg($args, "--basedir=%s", $path_my_basedir);
   mtr_add_arg($args, "--datadir=%s", $data_dir);
   mtr_add_arg($args, "--skip-innodb");
@@ -2954,21 +2949,55 @@ sub install_db ($$) {
   # --bootstrap, to accommodate this.
   my $exe_mysqld_bootstrap = $ENV{'MYSQLD_BOOTSTRAP'} || $exe_mysqld;
 
+  # ----------------------------------------------------------------------
+  # export MYSQLD_BOOTSTRAP_CMD variable containing <path>/mysqld <args>
+  # ----------------------------------------------------------------------
+  $ENV{'MYSQLD_BOOTSTRAP_CMD'}= "$exe_mysqld_bootstrap " . join(" ", @$args);
+
+  # ----------------------------------------------------------------------
+  # Create the bootstrap.sql file
+  # ----------------------------------------------------------------------
+  my $bootstrap_sql_file= "$opt_vardir/tmp/bootstrap.sql";
+
+  # Use the mysql database for system tables
+  mtr_tofile($bootstrap_sql_file, "use mysql");
+
+  # Add the offical mysql system tables
+  # for a production system
+  mtr_appendfile_to_file("$path_sql_dir/mysql_system_tables.sql",
+			 $bootstrap_sql_file);
+
+  # Add the mysql system tables initial data
+  # for a production system
+  mtr_appendfile_to_file("$path_sql_dir/mysql_system_tables_data.sql",
+			 $bootstrap_sql_file);
+
+  # Add test data for timezone - this is just a subset, on a real
+  # system these tables will be populated either by mysql_tzinfo_to_sql
+  # or by downloading the timezone table package from our website
+  mtr_appendfile_to_file("$path_sql_dir/mysql_test_data_timezone.sql",
+			 $bootstrap_sql_file);
+
+  # Fill help tables, just an empty file when running from bk repo
+  # but will be replaced by a real fill_help_tables.sql when
+  # building the source dist
+  mtr_appendfile_to_file("$path_sql_dir/fill_help_tables.sql",
+			 $bootstrap_sql_file);
+
   # Log bootstrap command
   my $path_bootstrap_log= "$opt_vardir/log/bootstrap.log";
   mtr_tofile($path_bootstrap_log,
 	     "$exe_mysqld_bootstrap " . join(" ", @$args) . "\n");
 
-  if ( mtr_run($exe_mysqld_bootstrap, $args, $init_db_sql_tmp,
+  if ( mtr_run($exe_mysqld_bootstrap, $args, $bootstrap_sql_file,
                $path_bootstrap_log, $path_bootstrap_log,
 	       "", { append_log_file => 1 }) != 0 )
 
   {
-    unlink($init_db_sql_tmp);
     mtr_error("Error executing mysqld --bootstrap\n" .
-              "Could not install $type test DBs");
+              "Could not install system database from $bootstrap_sql_file\n" .
+	      "see $path_bootstrap_log for errors");
   }
-  unlink($init_db_sql_tmp);
 }
 
 
@@ -3624,6 +3653,12 @@ sub mysqld_arguments ($$$$$) {
   mtr_add_arg($args, "%s--console", $prefix);
   mtr_add_arg($args, "%s--basedir=%s", $prefix, $path_my_basedir);
   mtr_add_arg($args, "%s--character-sets-dir=%s", $prefix, $path_charsetsdir);
+
+  if ( $mysql_version_id >= 50036)
+  {
+    # Prevent the started mysqld to access files outside of vardir
+    mtr_add_arg($args, "%s--secure-file-priv=%s", $prefix, $opt_vardir);
+  }
 
   if ( $mysql_version_id >= 50000 )
   {
@@ -4671,7 +4706,8 @@ sub run_mysqltest ($) {
   # ----------------------------------------------------------------------
   # export MYSQL_TEST variable containing <path>/mysqltest <args>
   # ----------------------------------------------------------------------
-  $ENV{'MYSQL_TEST'}= "$exe_mysqltest " . join(" ", @$args);
+  $ENV{'MYSQL_TEST'}=
+    mtr_native_path($exe_mysqltest) . " " . join(" ", @$args);
 
   # ----------------------------------------------------------------------
   # Add arguments that should not go into the MYSQL_TEST env var

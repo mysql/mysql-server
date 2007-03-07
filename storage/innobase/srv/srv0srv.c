@@ -317,6 +317,8 @@ ulint	srv_fast_shutdown	= 0;
 /* Generate a innodb_status.<pid> file */
 ibool	srv_innodb_status	= FALSE;
 
+ibool	srv_stats_on_metadata	= TRUE;
+
 ibool	srv_use_doublewrite_buf	= TRUE;
 ibool	srv_use_checksums = TRUE;
 
