@@ -1071,6 +1071,48 @@ public:
   SAVEPOINT *savepoints;
 };
 
+/**
+  This class represents the interface for internal error handlers.
+  Internal error handlers are exception handlers used by the server
+  implementation.
+*/
+class Internal_error_handler
+{
+protected:
+  Internal_error_handler() {}
+  virtual ~Internal_error_handler() {}
+
+public:
+  /**
+    Handle an error condition.
+    This method can be implemented by a subclass to achieve any of the
+    following:
+    - mask an error internally, prevent exposing it to the user,
+    - mask an error and throw another one instead.
+    When this method returns true, the error condition is considered
+    'handled', and will not be propagated to upper layers.
+    It is the responsability of the code installing an internal handler
+    to then check for trapped conditions, and implement logic to recover
+    from the anticipated conditions trapped during runtime.
+
+    This mechanism is similar to C++ try/throw/catch:
+    - 'try' correspond to <code>THD::push_internal_handler()</code>,
+    - 'throw' correspond to <code>my_error()</code>,
+    which invokes <code>my_message_sql()</code>,
+    - 'catch' correspond to checking how/if an internal handler was invoked,
+    before removing it from the exception stack with
+    <code>THD::pop_internal_handler()</code>.
+
+    @param sql_errno the error number
+    @param level the error level
+    @param thd the calling thread
+    @return true if the error is handled
+  */
+  virtual bool handle_error(uint sql_errno,
+                            MYSQL_ERROR::enum_warning_level level,
+                            THD *thd) = 0;
+};
+
 
 /*
   For each client connection we create a separate thread with THD serving as
@@ -1659,6 +1701,31 @@ public:
       *p_db_length= db_length;
     return FALSE;
   }
+
+public:
+  /**
+    Add an internal error handler to the thread execution context.
+    @param handler the exception handler to add
+  */
+  void push_internal_handler(Internal_error_handler *handler);
+
+  /**
+    Handle an error condition.
+    @param sql_errno the error number
+    @param level the error level
+    @return true if the error is handled
+  */
+  virtual bool handle_error(uint sql_errno,
+                            MYSQL_ERROR::enum_warning_level level);
+
+  /**
+    Remove the error handler last pushed.
+  */
+  void pop_internal_handler();
+
+private:
+  /** The current internal error handler for this thread, or NULL. */
+  Internal_error_handler *m_internal_handler;
 };
 
 

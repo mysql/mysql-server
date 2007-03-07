@@ -1765,8 +1765,18 @@ void Query_cache::free_cache()
 {
   DBUG_ENTER("Query_cache::free_cache");
   if (query_cache_size > 0)
-  {
     flush_cache();
+  /*
+    There may be two free_cache() calls in progress, because we
+    release 'structure_guard_mutex' in flush_cache().  When the second
+    flush_cache() wakes up from the wait on 'COND_flush_finished', the
+    first call to free_cache() has done its job.  So we have to test
+    'query_cache_size > 0' the second time to see if the cache wasn't
+    reset by other thread, or if it was reset and was re-enabled then.
+    If the cache was reset, then we have nothing to do here.
+  */
+  if (query_cache_size > 0)
+  {
 #ifndef DBUG_OFF
     if (bins[0].free_blocks == 0)
     {
@@ -1808,6 +1818,12 @@ void Query_cache::free_cache()
     flush_in_progress flag and releases the lock, so other threads may
     proceed skipping the cache as if it is disabled.  Concurrent
     flushes are performed in turn.
+
+    After flush_cache() call, the cache is flushed, all the freed
+    memory is accumulated in bin[0], and the 'structure_guard_mutex'
+    is locked.  However, since we could release the mutex during
+    execution, the rest of the cache state could have been changed,
+    and should not be relied on.
 */
 
 void Query_cache::flush_cache()

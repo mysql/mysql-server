@@ -2080,7 +2080,9 @@ void st_table_list::hide_view_error(THD *thd)
       thd->net.last_errno == ER_SP_DOES_NOT_EXIST ||
       thd->net.last_errno == ER_PROCACCESS_DENIED_ERROR ||
       thd->net.last_errno == ER_COLUMNACCESS_DENIED_ERROR ||
-      thd->net.last_errno == ER_TABLEACCESS_DENIED_ERROR)
+      thd->net.last_errno == ER_TABLEACCESS_DENIED_ERROR ||
+      thd->net.last_errno == ER_TABLE_NOT_LOCKED ||
+      thd->net.last_errno == ER_NO_SUCH_TABLE)
   {
     TABLE_LIST *top= top_table();
     thd->clear_error();

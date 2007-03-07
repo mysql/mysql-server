@@ -508,7 +508,7 @@ int Instance_options::add_option(const char* option)
     {"--pid-file=", 11, &mysqld_pid_file, SAVE_WHOLE_AND_ADD},
     {"--mysqld-path=", 14, &mysqld_path, SAVE_VALUE},
     {"--nonguarded", 9, &nonguarded, SAVE_WHOLE},
-    {"--shutdown_delay", 9, &shutdown_delay, SAVE_VALUE},
+    {"--shutdown-delay", 9, &shutdown_delay, SAVE_VALUE},
     {NULL, 0, NULL, 0}
   };
   struct selected_options_st *selected_options;
