@@ -1192,6 +1192,7 @@ void st_select_lex::init_select()
   is_correlated= 0;
   cur_pos_in_select_list= UNDEF_POS;
   non_agg_fields.empty();
+  cond_value= having_value= Item::COND_UNDEF;
 }
 
 /*
