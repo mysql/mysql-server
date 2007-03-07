@@ -102,7 +102,7 @@ sync_slave_with_master;
 # the files your self to see what is not matching :-) Failed test 
 # Will leave dump files in $MYSQLTEST_VARDIR/tmp
 
-exec diff $MYSQLTEST_VARDIR/tmp/sp011_master.sql $MYSQLTEST_VARDIR/tmp/sp011_slave.sql;
+diff_files $MYSQLTEST_VARDIR/tmp/sp011_master.sql $MYSQLTEST_VARDIR/tmp/sp011_slave.sql;
 
 # If all is good, when can cleanup our dump files.
 system rm $MYSQLTEST_VARDIR/tmp/sp011_master.sql;

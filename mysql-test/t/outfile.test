@@ -84,3 +84,15 @@ FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
 FROM schemata LIMIT 0, 5;
 enable_query_log;
 --exec rm $MYSQLTEST_VARDIR/tmp/outfile-test.4
+use test;
+
+#
+# Bug#18628 mysql-test-run: security problem
+#
+# It should not be possible to write to a file outside of vardir
+create table t1(a int);
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--error 1290
+eval select * into outfile "$MYSQL_TEST_DIR/outfile-test1" from t1;
+drop table t1;
+

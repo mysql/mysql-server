@@ -83,4 +83,5 @@ insert into t1 values("aaa   ");
 select length(a) from t1;
 alter table t1 modify a varchar(255);
 select length(a) from t1;
+drop table t1;
 

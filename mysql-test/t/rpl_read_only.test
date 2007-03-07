@@ -2,6 +2,11 @@
 -- source include/master-slave.inc
 -- source include/have_innodb.inc
 
+# Create a test and replicate it to slave
+connection master;
+create user test;
+sync_slave_with_master;
+
 # Setting the master readonly :
 # - the variable @@readonly is not replicated on the slave
 
@@ -99,7 +104,10 @@ insert into t2 values(2006);
 
 ## Cleanup
 connection master;
+drop user test;
 drop table t1;
 drop table t2;
 sync_slave_with_master;
+set global read_only=0;
+
 

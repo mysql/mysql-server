@@ -400,6 +400,7 @@ extern my_bool innobase_log_archive,
                innobase_use_native_aio,
                innobase_file_per_table, innobase_locks_unsafe_for_binlog,
                innobase_rollback_on_timeout,
+               innobase_stats_on_metadata,
                innobase_create_status_file;
 extern "C" {
 extern ulong srv_max_buf_pool_modified_pct;
@@ -437,6 +438,7 @@ extern enum ndb_distribution opt_ndb_distribution_id;
 my_bool opt_readonly, use_temp_pool, relay_log_purge;
 my_bool opt_sync_frm, opt_allow_suspicious_udfs;
 my_bool opt_secure_auth= 0;
+char* opt_secure_file_priv= 0;
 my_bool opt_log_slow_admin_statements= 0;
 my_bool lower_case_file_system= 0;
 my_bool opt_large_pages= 0;
@@ -1245,6 +1247,7 @@ void clean_up(bool print_message)
 #endif
   x_free(opt_bin_logname);
   x_free(opt_relay_logname);
+  x_free(opt_secure_file_priv);
   bitmap_free(&temp_pool);
   free_max_user_conn();
 #ifdef HAVE_REPLICATION
@@ -2170,7 +2173,10 @@ static void check_data_home(const char *path)
 
 extern "C" sig_handler handle_segfault(int sig)
 {
+  time_t curr_time;
+  struct tm tm;
   THD *thd=current_thd;
+
   /*
     Strictly speaking, one needs a mutex here
     but since we have got SIGSEGV already, things are a mess
@@ -2184,11 +2190,17 @@ extern "C" sig_handler handle_segfault(int sig)
   }
 
   segfaulted = 1;
+
+  curr_time= time(NULL);
+  localtime_r(&curr_time, &tm);
+
   fprintf(stderr,"\
-mysqld got signal %d;\n\
+%02d%02d%02d %2d:%02d:%02d - mysqld got signal %d;\n\
 This could be because you hit a bug. It is also possible that this binary\n\
 or one of the libraries it was linked against is corrupt, improperly built,\n\
 or misconfigured. This error can also be caused by malfunctioning hardware.\n",
+          tm.tm_year % 100, tm.tm_mon+1, tm.tm_mday,
+          tm.tm_hour, tm.tm_min, tm.tm_sec,
 	  sig);
   fprintf(stderr, "\
 We will try our best to scrape up some info that will hopefully help diagnose\n\
@@ -2747,9 +2759,15 @@ static int init_common_variables(const char *conf_file_name, int argc,
   */
   mysql_bin_log.init_pthread_objects();
 
-  if (gethostname(glob_hostname,sizeof(glob_hostname)-4) < 0)
-    strmov(glob_hostname,"mysql");
-  strmake(pidfile_name, glob_hostname, sizeof(pidfile_name)-5);
+  if (gethostname(glob_hostname,sizeof(glob_hostname)) < 0)
+  {
+    strmake(glob_hostname, STRING_WITH_LEN("localhost"));
+    sql_print_warning("gethostname failed, using '%s' as hostname",
+                      glob_hostname);
+    strmake(pidfile_name, STRING_WITH_LEN("mysql"));
+  }
+  else
+    strmake(pidfile_name, glob_hostname, sizeof(pidfile_name)-5);
   strmov(fn_ext(pidfile_name),".pid");		// Add proper extension
 
   /*
@@ -2846,10 +2864,33 @@ static int init_common_variables(const char *conf_file_name, int argc,
 #ifdef USE_REGEX
   my_regex_init(&my_charset_latin1);
 #endif
-  if (!(default_charset_info= get_charset_by_csname(default_character_set_name,
-						    MY_CS_PRIMARY,
-						    MYF(MY_WME))))
-    return 1;
+  /*
+    Process a comma-separated character set list and choose
+    the first available character set. This is mostly for
+    test purposes, to be able to start "mysqld" even if
+    the requested character set is not available (see bug#18743).
+  */
+  for (;;)
+  {
+    char *next_character_set_name= strchr(default_character_set_name, ',');
+    if (next_character_set_name)
+      *next_character_set_name++= '\0';
+    if (!(default_charset_info=
+          get_charset_by_csname(default_character_set_name,
+                                MY_CS_PRIMARY, MYF(MY_WME))))
+    {
+      if (next_character_set_name)
+      {
+        default_character_set_name= next_character_set_name;
+        default_collation_name= 0;          // Ignore collation
+      }
+      else
+        return 1;                           // Eof of the list
+    }
+    else
+      break;
+  }
+
   if (default_collation_name)
   {
     CHARSET_INFO *default_collation;
@@ -3184,7 +3225,7 @@ static int init_server_components()
   if (opt_error_log)
   {
     if (!log_error_file_ptr[0])
-      fn_format(log_error_file, glob_hostname, mysql_data_home, ".err",
+      fn_format(log_error_file, pidfile_name, mysql_data_home, ".err",
                 MY_REPLACE_EXT); /* replace '.<domain>' by '.err', bug#4997 */
     else
       fn_format(log_error_file, log_error_file_ptr, mysql_data_home, ".err",
@@ -4943,6 +4984,7 @@ enum options_mysqld
   OPT_INNODB_SYNC_SPIN_LOOPS,
   OPT_INNODB_CONCURRENCY_TICKETS,
   OPT_INNODB_THREAD_SLEEP_DELAY,
+  OPT_INNODB_STATS_ON_METADATA,
   OPT_BDB_CACHE_SIZE,
   OPT_BDB_CACHE_PARTS,
   OPT_BDB_LOG_BUFFER_SIZE,
@@ -4994,7 +5036,8 @@ enum options_mysqld
   OPT_SLOW_LOG,
   OPT_MERGE,
   OPT_THREAD_HANDLING,
-  OPT_INNODB_ROLLBACK_ON_TIMEOUT
+  OPT_INNODB_ROLLBACK_ON_TIMEOUT,
+  OPT_SECURE_FILE_PRIV
 };
 
 
@@ -5289,6 +5332,10 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    "Enable SHOW INNODB STATUS output in the innodb_status.<pid> file",
    (gptr*) &innobase_create_status_file, (gptr*) &innobase_create_status_file,
    0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"innodb_stats_on_metadata", OPT_INNODB_STATS_ON_METADATA,
+   "Enable statistics gathering for metadata commands such as SHOW TABLE STATUS (on by default)",
+   (gptr*) &innobase_stats_on_metadata, (gptr*) &innobase_stats_on_metadata,
+   0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"innodb_support_xa", OPT_INNODB_SUPPORT_XA,
    "Enable InnoDB support for the XA two-phase commit",
    (gptr*) &global_system_variables.innodb_support_xa,
@@ -5697,6 +5744,10 @@ Can't be set to 1 if --log-slave-updates is used.",
   {"secure-auth", OPT_SECURE_AUTH, "Disallow authentication for accounts that have old (pre-4.1) passwords.",
    (gptr*) &opt_secure_auth, (gptr*) &opt_secure_auth, 0, GET_BOOL, NO_ARG,
    my_bool(0), 0, 0, 0, 0, 0},
+  {"secure-file-priv", OPT_SECURE_FILE_PRIV,
+   "Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to files within specified directory",
+   (gptr*) &opt_secure_file_priv, (gptr*) &opt_secure_file_priv, 0,
+   GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-id",	OPT_SERVER_ID,
    "Uniquely identifies the server instance in the community of replication partners.",
    (gptr*) &server_id, (gptr*) &server_id, 0, GET_ULONG, REQUIRED_ARG, 0, 0, 0,
@@ -7073,6 +7124,7 @@ static void mysql_init_variables(void)
   opt_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname= 0;
   opt_tc_log_file= (char *)"tc.log";      // no hostname in tc_log file name !
   opt_secure_auth= 0;
+  opt_secure_file_priv= 0;
   opt_bootstrap= opt_myisam_log= 0;
   mqh_used= 0;
   segfaulted= kill_in_progress= 0;
@@ -8139,6 +8191,16 @@ static void fix_paths(void)
       exit(1);
   }
 #endif /* HAVE_REPLICATION */
+  /*
+    Convert the secure-file-priv option to system format, allowing
+    a quick strcmp to check if read or write is in an allowed dir
+   */
+  if (opt_secure_file_priv)
+  {
+    convert_dirname(buff, opt_secure_file_priv, NullS);
+    my_free(opt_secure_file_priv, MYF(0));
+    opt_secure_file_priv= my_strdup(buff, MYF(MY_FAE));
+  }
 }
 
 
@@ -8334,7 +8396,8 @@ my_bool innobase_log_archive,
         innobase_use_checksums,
         innobase_file_per_table,
         innobase_locks_unsafe_for_binlog,
-        innobase_rollback_on_timeout;
+        innobase_rollback_on_timeout,
+        innobase_stats_on_metadata;
 
 extern "C" {
 ulong srv_max_buf_pool_modified_pct;

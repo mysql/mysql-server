@@ -91,7 +91,7 @@ sync_slave_with_master;
 
 # If the test fails, you will need to diff the dumps to see why.
 
--- exec diff $MYSQLTEST_VARDIR/tmp/sp004_master.sql $MYSQLTEST_VARDIR/tmp/sp004_slave.sql
+diff_files $MYSQLTEST_VARDIR/tmp/sp004_master.sql $MYSQLTEST_VARDIR/tmp/sp004_slave.sql;
 
 
 # End of 5.0 test case

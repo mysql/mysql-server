@@ -5007,7 +5007,6 @@ Warnings:
 Error	1194	Table 'test_repair_table2' is marked as crashed and should be repaired
 SELECT * from test_repair_table2;
 val
-test_repair_table2.CSM
 CHECK TABLE test_repair_table2;
 Table	Op	Msg_type	Msg_text
 test.test_repair_table2	check	status	OK
@@ -5210,15 +5209,9 @@ create table bug22080_3 (id int,string varchar(64)) Engine=CSV;
 insert into bug22080_1 values(1,'string');
 insert into bug22080_1 values(2,'string');
 insert into bug22080_1 values(3,'string');
-1,"string"
-2","string"
-3,"string"
 check table bug22080_2;
 Table	Op	Msg_type	Msg_text
 test.bug22080_2	check	error	Corrupt
-1,"string"
-2,"string"
-3,"string"
 check table bug22080_3;
 Table	Op	Msg_type	Msg_text
 test.bug22080_3	check	error	Corrupt

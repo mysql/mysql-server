@@ -179,6 +179,7 @@ my_bool	innobase_file_per_table			= FALSE;
 my_bool innobase_locks_unsafe_for_binlog	= FALSE;
 my_bool innobase_rollback_on_timeout		= FALSE;
 my_bool innobase_create_status_file		= FALSE;
+my_bool innobase_stats_on_metadata		= TRUE;
 
 static char *internal_innobase_data_file_path	= NULL;
 
@@ -1563,6 +1564,8 @@ innobase_init(void *p)
 
 	srv_max_n_open_files = (ulint) innobase_open_files;
 	srv_innodb_status = (ibool) innobase_create_status_file;
+
+	srv_stats_on_metadata = (ibool) innobase_stats_on_metadata;
 
 	srv_print_verbose_log = mysqld_embedded ? 0 : 1;
 
@@ -5522,15 +5525,17 @@ ha_innobase::info(
 	ib_table = prebuilt->table;
 
 	if (flag & HA_STATUS_TIME) {
-		/* In sql_show we call with this flag: update then statistics
-		so that they are up-to-date */
+		if (srv_stats_on_metadata) {
+			/* In sql_show we call with this flag: update then statistics
+			so that they are up-to-date */
 
-		prebuilt->trx->op_info = (char*)"updating table statistics";
+			prebuilt->trx->op_info = (char*)"updating table statistics";
 
-		dict_update_statistics(ib_table);
+			dict_update_statistics(ib_table);
 
-		prebuilt->trx->op_info = (char*)
-					  "returning various info to MySQL";
+			prebuilt->trx->op_info = (char*)
+						  "returning various info to MySQL";
+		}
 
 		my_snprintf(path, sizeof(path), "%s/%s%s",
 				mysql_data_home, ib_table->name, reg_ext);

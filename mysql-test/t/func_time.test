@@ -571,6 +571,13 @@ union
 
 select last_day('0000-00-00');
 
+#
+# Bug 23616: datetime functions with double argumets
+#
+
+select isnull(week(now() + 0)), isnull(week(now() + 0.2)),
+  week(20061108), week(20061108.01), week(20061108085411.000002);
+
 --echo End of 4.1 tests
 
 explain extended select timestampdiff(SQL_TSI_WEEK, '2001-02-01', '2001-05-01') as a1,
@@ -694,6 +701,19 @@ set time_zone= @@global.time_zone;
 select str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE;
 
 #
+# Bug #21103: DATE column not compared as DATE
+#
+
+create table t1 (field DATE);
+insert into t1 values ('2006-11-06');
+select * from t1 where field < '2006-11-06 04:08:36.0'; 
+select * from t1 where field = '2006-11-06 04:08:36.0'; 
+select * from t1 where field = '2006-11-06'; 
+select * from t1 where CAST(field as DATETIME) < '2006-11-06 04:08:36.0';
+select * from t1 where CAST(field as DATE) < '2006-11-06 04:08:36.0';
+drop table t1;
+
+#
 # Bug #25643: SEC_TO_TIME function problem
 #
 CREATE TABLE t1 (a int, t1 time, t2 time, d date, PRIMARY KEY  (a));
@@ -704,6 +724,13 @@ SELECT t1, t2, SEC_TO_TIME( TIME_TO_SEC( t2 ) - TIME_TO_SEC( t1 ) ), QUARTER(d)
 SELECT t1, t2, SEC_TO_TIME( TIME_TO_SEC( t2 ) - TIME_TO_SEC( t1 ) ), QUARTER(d)
   FROM t1 ORDER BY a DESC;
 DROP TABLE t1;
+
+#
+# Bug #20293: group by cuts off value from time_format
+#
+# Check if using GROUP BY with TIME_FORMAT() produces correct results
+
+SELECT TIME_FORMAT(SEC_TO_TIME(a),"%H:%i:%s") FROM (SELECT 3020399 AS a UNION SELECT 3020398 ) x GROUP BY 1;
 --echo End of 5.0 tests
 
 #

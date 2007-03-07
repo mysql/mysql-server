@@ -450,7 +450,7 @@ ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert IGNORE into t1 (a) values ('Garbage');
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 drop table t1;
-create table t1 (pk integer primary key auto_increment, fl geometry);
+create table t1 (pk integer primary key auto_increment, fl geometry not null);
 insert into t1 (fl) values (1);
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 (fl) values (1.11);
@@ -458,7 +458,7 @@ ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 (fl) values ("qwerty");
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 (fl) values (pointfromtext('point(1,1)'));
-ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+ERROR 23000: Column 'fl' cannot be null
 drop table t1;
 set engine_condition_pushdown = on;
 DROP TABLE IF EXISTS t1, gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
@@ -912,7 +912,7 @@ ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert IGNORE into t1 (a) values ('Garbage');
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 drop table t1;
-create table t1 (pk integer primary key auto_increment, fl geometry);
+create table t1 (pk integer primary key auto_increment, fl geometry not null);
 insert into t1 (fl) values (1);
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 (fl) values (1.11);
@@ -920,5 +920,5 @@ ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 (fl) values ("qwerty");
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 (fl) values (pointfromtext('point(1,1)'));
-ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+ERROR 23000: Column 'fl' cannot be null
 drop table t1;

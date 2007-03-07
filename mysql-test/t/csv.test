@@ -1406,7 +1406,7 @@ DROP TABLE test_repair_table;
 #
 
 CREATE TABLE test_repair_table2 ( val integer ) ENGINE = CSV;
---exec rm $MYSQLTEST_VARDIR/master-data/test/test_repair_table2.CSM
+--remove_file $MYSQLTEST_VARDIR/master-data/test/test_repair_table2.CSM
 
 # Should give a warning and perform autorepair. We also disable ps-protocol
 # here, as mysql-test eats up warnings in ps-protocol mode
@@ -1416,15 +1416,19 @@ SELECT * from test_repair_table2;
 --enable_ps_protocol
 # this should work ok, as the table is already repaired
 SELECT * from test_repair_table2;
-# check that the metafile appeared again. chop the path to it
---exec ls $MYSQLTEST_VARDIR/master-data/test/test_repair_table2.CSM | perl -pi -e "s/.*\///"
+# check that the metafile appeared again.
+--file_exists $MYSQLTEST_VARDIR/master-data/test/test_repair_table2.CSM
 CHECK TABLE test_repair_table2;
 DROP TABLE test_repair_table2;
 
 
 # Corrupt csv file and see if we can repair it
 CREATE TABLE test_repair_table3 ( val integer ) ENGINE = CSV;
---exec perl -e 'print "\"1\"\n\"4\"\n\"3";' > $MYSQLTEST_VARDIR/master-data/test/test_repair_table3.CSV
+--write_file $MYSQLTEST_VARDIR/master-data/test/test_repair_table3.CSV
+"1"
+"4"
+"3
+EOF
 CHECK TABLE test_repair_table3;
 REPAIR TABLE test_repair_table3;
 SELECT * FROM test_repair_table3;
@@ -1439,7 +1443,7 @@ CREATE TABLE test_repair_table4 (
   founded char(4) DEFAULT '' NOT NULL
 ) ENGINE = CSV;
 
---exec rm $MYSQLTEST_VARDIR/master-data/test/test_repair_table4.CSM
+--remove_file $MYSQLTEST_VARDIR/master-data/test/test_repair_table4.CSM
 --disable_ps_protocol
 SELECT * FROM test_repair_table4;
 --enable_ps_protocol
@@ -1472,7 +1476,9 @@ CREATE TABLE test_repair_table5 (
 ) ENGINE = CSV;
 
 # Corrupt a table -- put a file with wrong # of columns
---exec perl -e 'print "\"1\",\"101\",\"IBM\"\n";' > $MYSQLTEST_VARDIR/master-data/test/test_repair_table5.CSV
+--write_file $MYSQLTEST_VARDIR/master-data/test/test_repair_table5.CSV
+"1","101","IBM"
+EOF
 
 CHECK TABLE test_repair_table5;
 REPAIR TABLE test_repair_table5;
@@ -1481,7 +1487,9 @@ INSERT INTO test_repair_table5 VALUES (1, 102, "CORRECT", 1876);
 SELECT * FROM test_repair_table5;
 
 # Corrupt a table -- put a row with wrong # of columns at end of file
---exec perl -e 'print "\"1\",\"101\",\"IBM\"\n";' >> $MYSQLTEST_VARDIR/master-data/test/test_repair_table5.CSV
+--append_file $MYSQLTEST_VARDIR/master-data/test/test_repair_table5.CSV
+"1","101","IBM"
+EOF
 
 FLUSH TABLES;
 CHECK TABLE test_repair_table5;
@@ -1492,7 +1500,9 @@ INSERT INTO test_repair_table5 VALUES (1, 102, "CORRECT2", 1876);
 SELECT * FROM test_repair_table5;
 
 # Corrupt table again -- put a row with wrong # of columns at end of file
---exec perl -e 'print "\"1\",\"101\",\"IBM\"\n";' >> $MYSQLTEST_VARDIR/master-data/test/test_repair_table5.CSV
+--append_file $MYSQLTEST_VARDIR/master-data/test/test_repair_table5.CSV
+"1","101","IBM"
+EOF
 
 FLUSH TABLES;
 CHECK TABLE test_repair_table5;
@@ -1573,13 +1583,15 @@ drop table t1;
 
 create table bug15205 (val int(11) default null) engine=csv;
 create table bug15205_2 (val int(11) default null) engine=csv;
---exec rm $MYSQLTEST_VARDIR/master-data/test/bug15205.CSV
+--remove_file $MYSQLTEST_VARDIR/master-data/test/bug15205.CSV
 # system error (can't open the datafile)
 --replace_result $MYSQLTEST_VARDIR . master-data/ ''
 --error 13
 select * from bug15205;
 select * from bug15205_2;
---exec touch $MYSQLTEST_VARDIR/master-data/test/bug15205.CSV
+# Create empty file
+--write_file $MYSQLTEST_VARDIR/master-data/test/bug15205.CSV
+EOF
 select * from bug15205;
 drop table bug15205;
 drop table bug15205_2;
@@ -1595,14 +1607,22 @@ insert into bug22080_1 values(1,'string');
 insert into bug22080_1 values(2,'string');
 insert into bug22080_1 values(3,'string');
 
-# Currupt the file as described in the bug report
---exec sed -e 's/2/2"/' $MYSQLTEST_VARDIR/master-data/test/bug22080_1.CSV > $MYSQLTEST_VARDIR/master-data/test/bug22080_2.CSV
---exec sed -e 's/2","/2",/' $MYSQLTEST_VARDIR/master-data/test/bug22080_1.CSV > $MYSQLTEST_VARDIR/master-data/test/bug22080_3.CSV
+# Create first corrupt file as described in bug report
+--write_file $MYSQLTEST_VARDIR/master-data/test/bug22080_2.CSV
+1,"string"
+2","string"
+3,"string"
+EOF
 
---exec cat $MYSQLTEST_VARDIR/master-data/test/bug22080_2.CSV
+# Create second corrupt file as described in bug report
+--write_file $MYSQLTEST_VARDIR/master-data/test/bug22080_3.CSV
+1,"string"
+"2",string"
+3,"string"
+EOF
+
 check table bug22080_2;
 
---exec cat $MYSQLTEST_VARDIR/master-data/test/bug22080_3.CSV
 check table bug22080_3;
 
 drop tables bug22080_1,bug22080_2,bug22080_3;

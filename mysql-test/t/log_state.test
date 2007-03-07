@@ -70,12 +70,19 @@ show variables like 'general_log_file';
 show variables like 'slow_query_log_file';
 show variables like 'log_output';
 
+# Can't set general_log_file to a non existing file
 --error 1231
 set global general_log_file='/not exiting path/log.master';
+
+# Can't set general_log_file to a directory
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error 1231
-set global general_log_file='/tmp';
+eval set global general_log_file='$MYSQLTEST_VARDIR';
+
+# Can't set general_log_file to empty string
 --error 1231
 set global general_log_file='';
+
 --replace_column 2 #
 show variables like 'general_log_file';
 set global general_log= OFF;

@@ -114,6 +114,29 @@ truncate table t1;
 load data infile '../std_data_ln/rpl_loaddata.dat' into table t1 (@dummy,@n) set a= @n, c= (select str from t2 where num=@n);
 select * from t1;
 
+#
+# Bug#18628 mysql-test-run: security problem
+#
+# It should not be possible to load from a file outside of vardir
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+show variables like "secure_file_pri%";
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+select @@secure_file_priv;
+--error 1238
+set @@secure_file_priv= 0;
+
+# Test "load data"
+truncate table t1;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--error 1290
+eval load data infile '$MYSQL_TEST_DIR/Makefile' into table t1;
+select * from t1;
+
+# Test "load_file" returns NULL
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+eval select load_file("$MYSQL_TEST_DIR/Makefile");
+
 # cleanup
 drop table t1, t2;
 

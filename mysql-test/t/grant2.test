@@ -395,6 +395,8 @@ delete from mysql.user where user like 'mysqltest\_1';
 flush privileges;
 drop database mysqltest_1;
 
+--source include/add_anonymous_users.inc
+
 # But anonymous users can't change their password
 connect (n5,localhost,test,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection n5;
@@ -402,6 +404,8 @@ connection n5;
 set password = password("changed");
 disconnect n5;
 connection default;
+
+--source include/delete_anonymous_users.inc
 
 
 # Bug #12423 "Deadlock when doing FLUSH PRIVILEGES and GRANT in 

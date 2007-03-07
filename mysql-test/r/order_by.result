@@ -874,6 +874,30 @@ num	(select num + 2 FROM t1 LIMIT 1)
 SELECT a.a + 1 AS num FROM t1 a JOIN t1 b ON num = b.a;
 ERROR 42S22: Unknown column 'num' in 'on clause'
 DROP TABLE t1;
+CREATE TABLE bug25126 (
+val int unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY
+);
+UPDATE bug25126 SET MissingCol = MissingCol;
+ERROR 42S22: Unknown column 'MissingCol' in 'field list'
+UPDATE bug25126 SET val = val ORDER BY MissingCol;
+ERROR 42S22: Unknown column 'MissingCol' in 'order clause'
+UPDATE bug25126 SET val = val ORDER BY val;
+UPDATE bug25126 SET val = 1 ORDER BY val;
+UPDATE bug25126 SET val = 1 ORDER BY MissingCol;
+ERROR 42S22: Unknown column 'MissingCol' in 'order clause'
+UPDATE bug25126 SET val = 1 ORDER BY val, MissingCol;
+ERROR 42S22: Unknown column 'MissingCol' in 'order clause'
+UPDATE bug25126 SET val = MissingCol ORDER BY MissingCol;
+ERROR 42S22: Unknown column 'MissingCol' in 'order clause'
+UPDATE bug25126 SET MissingCol = 1 ORDER BY val, MissingCol;
+ERROR 42S22: Unknown column 'MissingCol' in 'order clause'
+UPDATE bug25126 SET MissingCol = 1 ORDER BY MissingCol;
+ERROR 42S22: Unknown column 'MissingCol' in 'order clause'
+UPDATE bug25126 SET MissingCol = val ORDER BY MissingCol;
+ERROR 42S22: Unknown column 'MissingCol' in 'order clause'
+UPDATE bug25126 SET MissingCol = MissingCol ORDER BY MissingCol;
+ERROR 42S22: Unknown column 'MissingCol' in 'order clause'
+DROP TABLE bug25126;
 CREATE TABLE t1 (a int);
 SELECT p.a AS val, q.a AS val1 FROM t1 p, t1 q ORDER BY val > 1;
 val	val1
