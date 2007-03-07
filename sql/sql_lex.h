@@ -487,6 +487,8 @@ public:
   Item *where, *having;                         /* WHERE & HAVING clauses */
   Item *prep_where; /* saved WHERE clause for prepared statement processing */
   Item *prep_having;/* saved HAVING clause for prepared statement processing */
+  /* Saved values of the WHERE and HAVING clauses*/
+  Item::cond_result cond_value, having_value;
   /* point on lex in which it was created, used in view subquery detection */
   st_lex *parent_lex;
   enum olap_type olap;

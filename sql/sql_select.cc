@@ -681,7 +681,6 @@ JOIN::optimize()
   }
 
   {
-    Item::cond_result having_value;
     having= optimize_cond(this, having, join_list, &having_value);
     if (thd->net.report_error)
     {
@@ -689,6 +688,10 @@ JOIN::optimize()
       DBUG_PRINT("error",("Error from optimize_cond"));
       DBUG_RETURN(1);
     }
+    if (select_lex->where)
+      select_lex->cond_value= cond_value;
+    if (select_lex->having)
+      select_lex->having_value= having_value;
 
     if (cond_value == Item::COND_FALSE || having_value == Item::COND_FALSE || 
         (!unit->select_limit_cnt && !(select_options & OPTION_FOUND_ROWS)))
@@ -829,6 +832,7 @@ JOIN::optimize()
     conds->update_used_tables();
     DBUG_EXECUTE("where", print_where(conds, "after substitute_best_equal"););
   }
+
   /*
     Permorm the the optimization on fields evaluation mentioned above
     for all on expressions.
@@ -7535,6 +7539,9 @@ static COND* substitute_for_best_equal_field(COND *cond,
           break;
       }
     }
+    if (!((Item_cond*)cond)->argument_list()->elements)
+      cond= new Item_int(cond->val_bool());
+
   }
   else if (cond->type() == Item::FUNC_ITEM && 
            ((Item_cond*) cond)->functype() == Item_func::MULT_EQUAL_FUNC)
@@ -15259,10 +15266,13 @@ void st_select_lex::print(THD *thd, String *str)
   Item *cur_where= where;
   if (join)
     cur_where= join->conds;
-  if (cur_where)
+  if (cur_where || cond_value != Item::COND_UNDEF)
   {
     str->append(STRING_WITH_LEN(" where "));
-    cur_where->print(str);
+    if (cur_where)
+      cur_where->print(str);
+    else
+      str->append(cond_value != Item::COND_FALSE ? "1" : "0");
   }
 
   // group by & olap
@@ -15288,10 +15298,13 @@ void st_select_lex::print(THD *thd, String *str)
   if (join)
     cur_having= join->having;
 
-  if (cur_having)
+  if (cur_having || having_value != Item::COND_UNDEF)
   {
     str->append(STRING_WITH_LEN(" having "));
-    cur_having->print(str);
+    if (cur_having)
+      cur_having->print(str);
+    else
+      str->append(having_value != Item::COND_FALSE ? "1" : "0");
   }
 
   if (order_list.elements)
