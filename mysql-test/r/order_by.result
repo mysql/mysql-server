@@ -926,3 +926,11 @@ NULL
 2
 3
 DROP TABLE t1,t2,t3,t4;
+create table t1 (a int, b int, c int);
+insert into t1 values (1,2,3), (9,8,3), (19,4,3), (1,4,9);
+select a,(sum(b)/sum(c)) as ratio from t1 group by a order by sum(b)/sum(c) asc;
+a	ratio
+1	0.5000
+19	1.3333
+9	2.6667
+drop table t1;
