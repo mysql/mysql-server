@@ -463,8 +463,9 @@ int main(int argc, char **argv)
   char *forced_defaults_file;
   char *forced_extra_defaults;
   char *local_defaults_group_suffix;
-
+  int no_defaults;
   char path[FN_REFLEN], upgrade_defaults_path[FN_REFLEN];
+
   DYNAMIC_STRING cmdline;
 
   MY_INIT(argv[0]);
@@ -586,7 +587,9 @@ int main(int argc, char **argv)
     instruct mysqlcheck to only read options from that file
   */
   dynstr_append(&cmdline, " ");
-  dynstr_append_os_quoted(&cmdline, "--defaults-file=",
+  dynstr_append_os_quoted(&cmdline,
+                          (no_defaults ? "--defaults-file=" :
+                           "--defaults-extra-file="),
                           upgrade_defaults_path, NullS);
   dynstr_append(&cmdline, " ");
   dynstr_append_os_quoted(&cmdline, "--check-upgrade", NullS);
@@ -661,7 +664,9 @@ fix_priv_tables:
     instruct mysql to only read options from that file
   */
   dynstr_append(&cmdline, " ");
-  dynstr_append_os_quoted(&cmdline, "--defaults-file=",
+  dynstr_append_os_quoted(&cmdline,
+                          (no_defaults ? "--defaults-file=" :
+                           "--defaults-extra-file="),
                           upgrade_defaults_path, NullS);
   dynstr_append(&cmdline, " ");
   dynstr_append_os_quoted(&cmdline, "--force", NullS);
