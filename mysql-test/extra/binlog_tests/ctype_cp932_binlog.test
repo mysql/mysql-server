@@ -28,7 +28,7 @@ SET @var1= x'8300';
 EXECUTE stmt1 USING @var1;
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 102;
+SHOW BINLOG EVENTS FROM 105;
 SELECT HEX(f1) FROM t1;
 DROP table t1;
 # end test for bug#11338
