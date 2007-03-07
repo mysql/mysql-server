@@ -99,9 +99,12 @@ public:
 #endif
 };
 
-/******************************************************************************
-  Prepared_statement: a statement that can contain placeholders
-******************************************************************************/
+/****************************************************************************/
+
+/**
+  @class Prepared_statement
+  @brief Prepared_statement: a statement that can contain placeholders
+*/
 
 class Prepared_statement: public Statement
 {
@@ -141,6 +144,16 @@ public:
   bool execute(String *expanded_query, bool open_cursor);
   /* Destroy this statement */
   bool deallocate();
+private:
+  /**
+    Store the parsed tree of a prepared statement here.
+  */
+  LEX main_lex;
+  /**
+    The memory root to allocate parsed tree elements (instances of Item,
+    SELECT_LEX and other classes).
+  */
+  MEM_ROOT main_mem_root;
 };
 
 
@@ -2034,6 +2047,7 @@ void mysql_sql_stmt_prepare(THD *thd)
     delete stmt;
     DBUG_VOID_RETURN;
   }
+
   if (thd->stmt_map.insert(thd, stmt))
   {
     /* The statement is deleted and an error is set if insert fails */
@@ -2629,17 +2643,18 @@ Select_fetch_protocol_prep::send_data(List<Item> &fields)
 ****************************************************************************/
 
 Prepared_statement::Prepared_statement(THD *thd_arg, Protocol *protocol_arg)
-  :Statement(INITIALIZED, ++thd_arg->statement_id_counter,
-             thd_arg->variables.query_alloc_block_size,
-             thd_arg->variables.query_prealloc_size),
+  :Statement(&main_lex, &main_mem_root,
+             INITIALIZED, ++thd_arg->statement_id_counter),
   thd(thd_arg),
   result(thd_arg),
   protocol(protocol_arg),
   param_array(0),
   param_count(0),
   last_errno(0),
-   flags((uint) IS_IN_USE)
+  flags((uint) IS_IN_USE)
 {
+  init_alloc_root(&main_mem_root, thd_arg->variables.query_alloc_block_size,
+                  thd_arg->variables.query_prealloc_size);
   *last_error= '\0';
 }
 
@@ -2688,6 +2703,7 @@ Prepared_statement::~Prepared_statement()
   */
   free_items();
   delete lex->result;
+  free_root(&main_mem_root, MYF(0));
   DBUG_VOID_RETURN;
 }
 
@@ -2703,6 +2719,7 @@ void Prepared_statement::cleanup_stmt()
   DBUG_ENTER("Prepared_statement::cleanup_stmt");
   DBUG_PRINT("enter",("stmt: %p", this));
 
+  DBUG_ASSERT(lex->sphead == 0);
   /* The order is important */
   lex->unit.cleanup();
   cleanup_items(free_list);
@@ -2790,15 +2807,6 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
       thd->net.report_error || init_param_array(this);
 
   /*
-    The first thing we do after parse error is freeing sp_head to
-    ensure that we have restored original memroot.
-  */
-  if (error && lex->sphead)
-  {
-    delete lex->sphead;
-    lex->sphead= NULL;
-  }
-  /*
     While doing context analysis of the query (in check_prepared_statement)
     we allocate a lot of additional memory: for open tables, JOINs, derived
     tables, etc.  Let's save a snapshot of current parse tree to the
@@ -2823,12 +2831,18 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   if (error == 0)
     error= check_prepared_statement(this, name.str != 0);
 
-  /* Free sp_head if check_prepared_statement() failed. */
-  if (error && lex->sphead)
+  /*
+    Currently CREATE PROCEDURE/TRIGGER/EVENT are prohibited in prepared
+    statements: ensure we have no memory leak here if by someone tries
+    to PREPARE stmt FROM "CREATE PROCEDURE ..."
+  */
+  DBUG_ASSERT(lex->sphead == NULL || error != 0);
+  if (lex->sphead)
   {
     delete lex->sphead;
     lex->sphead= NULL;
   }
+
   lex_end(lex);
   cleanup_stmt();
   thd->restore_backup_statement(this, &stmt_backup);
