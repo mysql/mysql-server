@@ -506,6 +506,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       share->data_file_type = DYNAMIC_RECORD;
     my_afree((gptr) disk_cache);
     mi_setup_functions(share);
+#ifdef HAVE_MMAP
     if (open_flags & HA_OPEN_MMAP)
     {
       info.s= share;
@@ -522,6 +523,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
         share->file_write= mi_mmap_pwrite;
       }
     }
+#endif /* HAVE_MMAP */
     share->is_log_table= FALSE;
 #ifdef THREAD
     thr_lock_init(&share->lock);
