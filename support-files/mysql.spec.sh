@@ -441,15 +441,21 @@ fi
 
 %doc %attr(644, root, man) %{_mandir}/man1/isamchk.1*
 %doc %attr(644, root, man) %{_mandir}/man1/isamlog.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysqlman.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisamchk.1*
+%doc %attr(644, root, man) %{_mandir}/man1/myisam_ftdump.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisamlog.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisampack.1*
+%doc %attr(644, root, man) %{_mandir}/man1/my_print_defaults.1*
 %doc %attr(644, root, man) %{_mandir}/man8/mysqld.8*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_multi.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_safe.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysql_explain_log.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_fix_privilege_tables.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlhotcopy.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysql_install_db.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.server.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysqltest.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_zap.1*
 %doc %attr(644, root, man) %{_mandir}/man1/pack_isam.1*
 %doc %attr(644, root, man) %{_mandir}/man1/perror.1*
@@ -578,6 +584,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Fri Mar 02 2007 Joerg Bruehe <joerg@mysql.com>
+
+- Add several man pages which are now created.
+
 * Tue Jun 27 2006 Joerg Bruehe <joerg@mysql.com>
 
 - move "mysqldumpslow" from the client RPM to the server RPM (bug#20216)
