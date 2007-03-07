@@ -1139,7 +1139,6 @@ static int mysql_test_update(Prepared_statement *stmt,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint          want_privilege;
 #endif
-  bool need_reopen;
   DBUG_ENTER("mysql_test_update");
 
   if (update_precheck(thd, table_list) ||
