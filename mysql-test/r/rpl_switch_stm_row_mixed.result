@@ -404,7 +404,7 @@ CREATE TABLE t12 (data LONG);
 LOCK TABLES t12 WRITE;
 INSERT INTO t12 VALUES(UUID());
 UNLOCK TABLES;
-show binlog events from 102;
+show binlog events from 105;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	drop database if exists mysqltest1
 master-bin.000001	#	Query	1	#	create database mysqltest1
@@ -714,7 +714,7 @@ master-bin.000001	#	Query	1	#	use `mysqltest1`; DROP TABLE IF EXISTS t12
 master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE TABLE t12 (data LONG)
 master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t12)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
-show binlog events from 102;
+show binlog events from 105;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	drop database if exists mysqltest1
 master-bin.000001	#	Query	1	#	create database mysqltest1
