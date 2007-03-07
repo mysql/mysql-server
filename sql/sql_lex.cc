@@ -1666,6 +1666,36 @@ void st_select_lex::print_limit(THD *thd, String *str)
   }
 }
 
+/**
+  @brief Restore the LEX and THD in case of a parse error.
+
+  This is a clean up call that is invoked by the Bison generated
+  parser before returning an error from MYSQLparse. If your
+  semantic actions manipulate with the global thread state (which
+  is a very bad practice and should not normally be employed) and
+  need a clean-up in case of error, and you can not use %destructor
+  rule in the grammar file itself, this function should be used
+  to implement the clean up.
+*/
+
+void st_lex::cleanup_lex_after_parse_error(THD *thd)
+{
+  /*
+    Delete sphead for the side effect of restoring of the original
+    LEX state, thd->lex, thd->mem_root and thd->free_list if they
+    were replaced when parsing stored procedure statements.  We
+    will never use sphead object after a parse error, so it's okay
+    to delete it only for the sake of the side effect.
+    TODO: make this functionality explicit in sp_head class.
+    Sic: we must nullify the member of the main lex, not the
+    current one that will be thrown away
+  */
+  if (thd->lex->sphead);
+  {
+    delete thd->lex->sphead;
+    thd->lex->sphead= NULL;
+  }
+}
 
 /*
   Initialize (or reset) Query_tables_list object.
