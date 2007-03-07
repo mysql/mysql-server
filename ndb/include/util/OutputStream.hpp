@@ -34,7 +34,8 @@ class FileOutputStream : public OutputStream {
   FILE * f;
 public:
   FileOutputStream(FILE * file = stdout);
-  
+  FILE *getFile() { return f; }
+
   int print(const char * fmt, ...);
   int println(const char * fmt, ...);
   void flush() { fflush(f); }
