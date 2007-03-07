@@ -249,10 +249,15 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     else
       conf.isMgmConnection= false;
 
-    if (nodeId == nodeIdServer && !conf.isMgmConnection) {
-      tr.add_transporter_interface(remoteNodeId, localHostName, server_port);
-    }
+    Uint32 bindInAddrAny = 0;
+    iter.get(CFG_TCP_BIND_INADDR_ANY, &bindInAddrAny);
 
+    if (nodeId == nodeIdServer && !conf.isMgmConnection) {
+      tr.add_transporter_interface(remoteNodeId, 
+				   !bindInAddrAny ? localHostName : "", 
+				   server_port);
+    }
+    
     DBUG_PRINT("info", ("Transporter between this node %d and node %d using port %d, signalId %d, checksum %d",
                nodeId, remoteNodeId, server_port, sendSignalId, checksum));
     /*

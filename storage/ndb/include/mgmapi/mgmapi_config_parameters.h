@@ -152,6 +152,7 @@
 #define CFG_TCP_SEND_BUFFER_SIZE      454
 #define CFG_TCP_RECEIVE_BUFFER_SIZE   455
 #define CFG_TCP_PROXY                 456
+#define CFG_TCP_BIND_INADDR_ANY       460
 
 #define CFG_SHM_SEND_SIGNAL_ID        500
 #define CFG_SHM_CHECKSUM              501
