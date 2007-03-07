@@ -303,7 +303,10 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
   Uint32 sumlen = 0; // Needed len
   const NdbTableImpl* impl = &NdbTableImpl::getImpl(*table);
   const NdbColumnImpl* const * cols = impl->m_columns.getBase();
-  
+  Uint32 len;
+  NdbTransaction* trans;
+  char* pos;
+
   Uint32 colcnt = impl->m_columns.size();
   Uint32 parts = impl->m_noOfDistributionKeys;
   if (parts == 0)
@@ -378,7 +381,7 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
     assert((UintPtr(buf) & 7) == 0);
   }
   
-  char* pos = (char*)buf;
+  pos = (char*)buf;
   for (Uint32 i = 0; i<parts; i++)
   {
     Uint32 lb, len;
@@ -422,10 +425,10 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
       pos += len;
     }
   }
-  Uint32 len = UintPtr(pos) - UintPtr(buf);
+  len = UintPtr(pos) - UintPtr(buf);
   assert((len & 3) == 0);
     
-  NdbTransaction* trans = startTransaction(table, (char*)buf, len);
+  trans = startTransaction(table, (char*)buf, len);
 
   if (bufLen == 0)
     free(buf);
