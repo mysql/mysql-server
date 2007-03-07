@@ -1162,7 +1162,6 @@ pthread_handler_t handle_one_connection(void *arg)
     thd->version= refresh_version;
     thd->proc_info= 0;
     thd->command= COM_SLEEP;
-    thd->set_time();
     thd->init_for_queries();
 
     if (sys_init_connect.value_length && !(sctx->master_access & SUPER_ACL))
@@ -1178,7 +1177,6 @@ pthread_handler_t handle_one_connection(void *arg)
         sql_print_warning("%s", net->last_error);
       }
       thd->proc_info=0;
-      thd->set_time();
       thd->init_for_queries();
     }
 
@@ -1313,6 +1311,7 @@ pthread_handler_t handle_bootstrap(void *arg)
       mode we have only one thread.
     */
     thd->query_id=next_query_id();
+    thd->set_time();
     mysql_parse(thd,thd->query,length);
     close_thread_tables(thd);			// Free tables
 
