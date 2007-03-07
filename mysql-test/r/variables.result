@@ -9,12 +9,11 @@ set @my_key_buffer_size           =@@global.key_buffer_size;
 set @my_max_binlog_cache_size     =@@global.max_binlog_cache_size;
 set @my_max_binlog_size           =@@global.max_binlog_size;
 set @my_max_connect_errors        =@@global.max_connect_errors;
+set @my_max_connections           =@@global.max_connections;
 set @my_max_delayed_threads       =@@global.max_delayed_threads;
 set @my_max_heap_table_size       =@@global.max_heap_table_size;
 set @my_max_insert_delayed_threads=@@global.max_insert_delayed_threads;
 set @my_max_join_size             =@@global.max_join_size;
-set @my_max_user_connections      =@@global.max_user_connections;
-set @my_max_write_lock_count      =@@global.max_write_lock_count;
 set @my_myisam_data_pointer_size  =@@global.myisam_data_pointer_size;
 set @my_net_buffer_length         =@@global.net_buffer_length;
 set @my_net_write_timeout         =@@global.net_write_timeout;
@@ -903,6 +902,14 @@ select @@&;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '&' at line 1
 select @@@;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@' at line 1
+select @@hostname;
+@@hostname
+#
+set @@hostname= "anothername";
+ERROR HY000: Variable 'hostname' is a read only variable
+show variables like 'hostname';
+Variable_name	Value
+hostname	#
 End of 5.0 tests
 set global binlog_cache_size         =@my_binlog_cache_size;
 set global connect_timeout           =@my_connect_timeout;
@@ -914,12 +921,13 @@ set global key_buffer_size           =@my_key_buffer_size;
 set global max_binlog_cache_size     =default;
 set global max_binlog_size           =@my_max_binlog_size;
 set global max_connect_errors        =@my_max_connect_errors;
+set global max_connections           =@my_max_connections;
 set global max_delayed_threads       =@my_max_delayed_threads;
 set global max_heap_table_size       =@my_max_heap_table_size;
 set global max_insert_delayed_threads=@my_max_insert_delayed_threads;
 set global max_join_size             =@my_max_join_size;
-set global max_user_connections      =@my_max_user_connections;
-set global max_write_lock_count      =@my_max_write_lock_count;
+set global max_user_connections      =default;
+set global max_write_lock_count      =default;
 set global myisam_data_pointer_size  =@my_myisam_data_pointer_size;
 set global net_buffer_length         =@my_net_buffer_length;
 set global net_write_timeout         =@my_net_write_timeout;

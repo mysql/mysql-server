@@ -49,6 +49,7 @@ show slave status;
 # Cleanup (Note that slave IO thread is not running)
 connection slave;
 drop table t1;
+delete from mysql.user where user='rpl';
 connection master;
 drop table t1;
 

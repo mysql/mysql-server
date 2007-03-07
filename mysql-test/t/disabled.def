@@ -35,7 +35,6 @@ synchronization          : Bug#24529  	Test 'synchronization' fails on Mac pushb
 #ndb_binlog_discover      : bug#21806 2006-08-24
 #ndb_autodiscover3        : bug#21806
 
-mysql_upgrade            : Bug#25074 mysql_upgrade gives inconsisten results
 plugin                   : Bug#25659 memory leak via "plugins" test
 rpl_ndb_dd_advance	 : Bug#25913 rpl_ndb_dd_advance fails randomly
 ndb_alter_table		 : Bug##25774 ndb_alter_table.test fails in DBUG_ASSERT() on Linux x64

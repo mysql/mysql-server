@@ -5,6 +5,7 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 STOP SLAVE;
+SET @my_sql_mode= @@global.sql_mode;
 SET GLOBAL SQL_MODE='STRICT_ALL_TABLES';
 START SLAVE;
 CREATE TABLE t1_int (a INT PRIMARY KEY, b INT) ENGINE='InnoDB';
@@ -379,3 +380,4 @@ a	b	x
 **** Cleanup ****
 DROP TABLE IF EXISTS t1_int,t1_bit,t1_char,t1_nodef;
 DROP TABLE IF EXISTS t2,t3,t4,t5,t6,t7,t8,t9;
+SET @@global.sql_mode= @my_sql_mode;

@@ -78,7 +78,8 @@ extern my_bool innobase_log_archive,
                innobase_use_checksums,
                innobase_file_per_table,
                innobase_locks_unsafe_for_binlog,
-               innobase_rollback_on_timeout;
+               innobase_rollback_on_timeout,
+               innobase_stats_on_metadata;
 
 extern "C" {
 extern ulong srv_max_buf_pool_modified_pct;
@@ -415,6 +416,8 @@ sys_query_cache_wlock_invalidate("query_cache_wlock_invalidate",
 				 &SV::query_cache_wlock_invalidate);
 #endif /* HAVE_QUERY_CACHE */
 sys_var_bool_ptr	sys_secure_auth("secure_auth", &opt_secure_auth);
+sys_var_const_str_ptr   sys_secure_file_priv("secure_file_priv",
+                                             &opt_secure_file_priv);
 sys_var_long_ptr	sys_server_id("server_id", &server_id, fix_server_id);
 sys_var_bool_ptr	sys_slave_compressed_protocol("slave_compressed_protocol",
 						      &opt_slave_compressed_protocol);
@@ -661,6 +664,10 @@ sys_var_thd_time_zone            sys_time_zone("time_zone");
 
 /* Read only variables */
 
+/* Global read-only variable containing hostname */
+sys_var_const_str		sys_hostname("hostname", glob_hostname);
+
+
 sys_var_have_variable sys_have_compress("have_compress", &have_compress);
 sys_var_have_variable sys_have_crypt("have_crypt", &have_crypt);
 sys_var_have_variable sys_have_csv_db("have_csv", &have_csv_db);
@@ -677,7 +684,6 @@ sys_var_have_variable sys_have_rtree_keys("have_rtree_keys", &have_rtree_keys);
 sys_var_have_variable sys_have_symlink("have_symlink", &have_symlink);
 /* Global read-only variable describing server license */
 sys_var_const_str		sys_license("license", STRINGIFY_ARG(LICENSE));
-
 /* Global variables which enable|disable logging */
 sys_var_log_state sys_var_general_log("general_log", &opt_log,
                                       QUERY_LOG_GENERAL);
@@ -786,6 +792,7 @@ SHOW_VAR init_vars[]= {
   {sys_var_general_log.name, (char*) &opt_log,                      SHOW_MY_BOOL},
   {sys_var_general_log_path.name, (char*) &sys_var_general_log_path,  SHOW_SYS},
   {sys_group_concat_max_len.name, (char*) &sys_group_concat_max_len,  SHOW_SYS},
+  {sys_hostname.name,         (char*) &sys_hostname,                SHOW_SYS},
   {sys_have_compress.name,    (char*) &have_compress,               SHOW_HAVE},
   {sys_have_crypt.name,       (char*) &have_crypt,                  SHOW_HAVE},
   {sys_have_csv_db.name,      (char*) &have_csv_db,                 SHOW_HAVE},
@@ -829,6 +836,7 @@ SHOW_VAR init_vars[]= {
   {"innodb_mirrored_log_groups", (char*) &innobase_mirrored_log_groups, SHOW_LONG},
   {"innodb_open_files", (char*) &innobase_open_files, SHOW_LONG },
   {"innodb_rollback_on_timeout", (char*) &innobase_rollback_on_timeout, SHOW_MY_BOOL},
+  {"innodb_stats_on_metadata", (char*) &innobase_stats_on_metadata, SHOW_MY_BOOL},
   {sys_innodb_support_xa.name, (char*) &sys_innodb_support_xa, SHOW_SYS},
   {sys_innodb_sync_spin_loops.name, (char*) &sys_innodb_sync_spin_loops, SHOW_SYS},
   {sys_innodb_table_locks.name, (char*) &sys_innodb_table_locks, SHOW_SYS},
@@ -967,6 +975,7 @@ SHOW_VAR init_vars[]= {
 #endif
   {sys_rpl_recovery_rank.name,(char*) &sys_rpl_recovery_rank,       SHOW_SYS},
   {"secure_auth",             (char*) &sys_secure_auth,             SHOW_SYS},
+  {"secure_file_priv",        (char*) &sys_secure_file_priv,        SHOW_SYS},
 #ifdef HAVE_SMEM
   {"shared_memory",           (char*) &opt_enable_shared_memory,    SHOW_MY_BOOL},
   {"shared_memory_base_name", (char*) &shared_memory_base_name,     SHOW_CHAR_PTR},

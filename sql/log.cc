@@ -66,7 +66,7 @@ sql_print_message_func sql_print_message_handlers[3] =
 
 char *make_default_log_name(char *buff,const char* log_ext)
 {
-  strmake(buff, glob_hostname, FN_REFLEN-5);
+  strmake(buff, pidfile_name, FN_REFLEN-5);
   return fn_format(buff, buff, mysql_data_home, log_ext,
                    MYF(MY_UNPACK_FILENAME|MY_APPEND_EXT));
 }
@@ -2290,7 +2290,7 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
       TODO: The following should be using fn_format();  We just need to
       first change fn_format() to cut the file name if it's too long.
     */
-    strmake(buff, glob_hostname, FN_REFLEN - 5);
+    strmake(buff, pidfile_name, FN_REFLEN - 5);
     strmov(fn_ext(buff), suffix);
     return (const char *)buff;
   }

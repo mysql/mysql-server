@@ -305,6 +305,15 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       if ((stat_info.st_mode & S_IFIFO) == S_IFIFO)
 	is_fifo = 1;
 #endif
+
+      if (opt_secure_file_priv &&
+          strncmp(opt_secure_file_priv, name, strlen(opt_secure_file_priv)))
+      {
+        /* Read only allowed from within dir specified by secure_file_priv */
+        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
+        DBUG_RETURN(TRUE);
+      }
+
     }
     if ((file=my_open(name,O_RDONLY,MYF(MY_WME))) < 0)
       DBUG_RETURN(TRUE);

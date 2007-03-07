@@ -80,7 +80,7 @@ SET AUTOCOMMIT=1;
 --exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/func003_master.sql
 --exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/func003_slave.sql
 
-# First lets cleanupi
+# First lets cleanup
 DROP FUNCTION test.f1;
 DROP TABLE test.t1;
 
@@ -90,7 +90,7 @@ DROP TABLE test.t1;
 # the files yourself to see what is not matching :-) File are located
 # in $MYSQLTEST_VARDIR/tmp
 
-exec diff $MYSQLTEST_VARDIR/tmp/func003_master.sql $MYSQLTEST_VARDIR/tmp/func003_slave.sql;
+diff_files $MYSQLTEST_VARDIR/tmp/func003_master.sql $MYSQLTEST_VARDIR/tmp/func003_slave.sql;
 
 
 # End of 5.0 test case

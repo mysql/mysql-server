@@ -4718,20 +4718,6 @@ Handler
 Inner
 drop procedure bug15011|
 drop table t3|
-drop function if exists bug17615|
-create table t3 (a varchar(256) unicode)|
-create function bug17615() returns varchar(256) unicode
-begin
-declare tmp_res varchar(256) unicode;
-set tmp_res= 'foo string';
-return tmp_res;
-end|
-insert into t3 values(bug17615())|
-select * from t3|
-a
-foo string
-drop function bug17615|
-drop table t3|
 drop procedure if exists bug17476|
 create table t3 ( d date )|
 insert into t3 values
@@ -5819,6 +5805,7 @@ bug23760_rc_test(ROW_COUNT())
 DROP TABLE bug23760, bug23760_log|
 DROP PROCEDURE bug23760_update_log|
 DROP PROCEDURE bug23760_test_row_count|
+DROP PROCEDURE bug23760_test_row_count2|
 DROP FUNCTION bug23760_rc_test|
 DROP PROCEDURE IF EXISTS bug24117|
 DROP TABLE IF EXISTS t3|

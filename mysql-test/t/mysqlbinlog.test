@@ -111,34 +111,24 @@ select "--- reading stdin --" as "";
 drop table t1,t2;
 
 #
-# Bug#16217 (mysql client did not know how not switch its internal charset)
-#
-flush logs;
-create table t3 (f text character set utf8);
-create table t4 (f text character set cp932); 
---exec $MYSQL --default-character-set=utf8 test -e "insert into t3 values(_utf8'ד‚½')"
---exec $MYSQL --default-character-set=cp932 test -e "insert into t4 values(_cp932'ƒ\');"
-flush logs;
-rename table t3 to t03, t4 to t04;
---exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000004 | $MYSQL --default-character-set=utf8
-# original and recovered data must be equal
-select HEX(f) from t03;
-select HEX(f) from t3;
-select HEX(f) from t04;
-select HEX(f) from t4;
-drop table t3,t4,t03,t04;
-
-#
 #BUG#14157: utf8 encoding in binlog without set character_set_client
 #
 flush logs;
---exec $MYSQL test -e 'create table if not exists t5 (a int); set names latin1; create temporary table `הצüִײÜ` (a int); insert into `הצüִײÜ` values (1); insert into t5 select * from `הצüִײÜ`'
+--write_file $MYSQLTEST_VARDIR/tmp/bug14157.sql
+create table if not exists t5 (a int);
+set names latin1;
+create temporary table `הצüִײÜ` (a int);
+insert into `הצüִײÜ` values (1);
+insert into t5 select * from `הצüִײÜ`
+EOF
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/bug14157.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/bug14157.sql
 
 # resulted binlog, parly consisting of multi-byte utf8 chars, 
 # must be digestable for both client and server. In 4.1 the client 
 # should use default-character-set same as the server.
 flush logs;
---exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000006 | $MYSQL
+--exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000004 | $MYSQL
 select * from t5  /* must be (1),(1) */;
 drop table t5;
 
@@ -157,7 +147,7 @@ insert into t5 values (3, date_format('2001-01-01','%W'));
 select * from t5 order by c1;
 flush logs;
 drop table t5;
---exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000008 | $MYSQL
+--exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000006 | $MYSQL
 select * from t5 order by c1;
 drop table t5;
 
@@ -180,8 +170,8 @@ call p1();
 drop procedure p1;
 --error 1305
 call p1();
---exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000010
---exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000010 | $MYSQL
+--exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000008
+--exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000008 | $MYSQL
 call p1();
 drop procedure p1;
 
@@ -215,9 +205,9 @@ select hex(a) from t1;
 drop table t1;
 flush logs;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
---exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000012
+--exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000010
 
-# End of 5.0 tests
+--echo End of 5.0 tests
 
 #
 # Test --disable-force-if-open and --force-if-open
@@ -225,6 +215,6 @@ flush logs;
 flush logs;
 --error 1
 --exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000014 >/dev/null 2>/dev/null
---exec $MYSQL_BINLOG --force-if-open $MYSQLTEST_VARDIR/log/master-bin.000014 >/dev/null 2>/dev/null
+--exec $MYSQL_BINLOG --force-if-open $MYSQLTEST_VARDIR/log/master-bin.000012 >/dev/null 2>/dev/null
 
-# End of 5.1 tests
+--echo End of 5.1 tests

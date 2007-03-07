@@ -3800,7 +3800,18 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
              use the field from the Item_field in the select list and leave
              the Item_field instance in place.
             */
-            set_field((*((Item_field**)res))->field);
+
+            Field *field= (*((Item_field**)res))->field;
+
+            if (field == NULL)
+            {
+              /* The column to which we link isn't valid. */
+              my_error(ER_BAD_FIELD_ERROR, MYF(0), (*res)->name, 
+                       current_thd->where);
+              return(1);
+            }
+
+            set_field(field);
             return 0;
           }
           else

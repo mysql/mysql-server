@@ -1,3 +1,5 @@
+# Test need anonymous user when connection are made as "zedjzlcsjhd"
+source include/add_anonymous_users.inc;
 
 -- source include/master-slave.inc
 
@@ -191,7 +193,14 @@ drop table t1;
 #
 #14157: utf8 encoding in binlog without set character_set_client
 #
---exec $MYSQL --character-sets-dir=../sql/share/charsets/ --default-character-set=latin1 test -e 'create table t1 (a int); set names latin1; create temporary table `äöüÄÖÜ` (a int); insert into `äöüÄÖÜ` values (1); insert into t1 select * from `äöüÄÖÜ`'
+--write_file $MYSQLTEST_VARDIR/tmp/bug14157.sql
+create table t1 (a int);
+set names latin1;
+create temporary table `äöüÄÖÜ` (a int);
+insert into `äöüÄÖÜ` values (1);
+insert into t1 select * from `äöüÄÖÜ`
+EOF
+--exec $MYSQL --character-sets-dir=../sql/share/charsets/ --default-character-set=latin1 test < $MYSQLTEST_VARDIR/tmp/bug14157.sql
 
 sync_slave_with_master;
 #connection slave;
@@ -199,5 +208,8 @@ select * from t1;
 
 connection master; 
 drop table t1;
+
+# Delete the anonymous users
+source include/delete_anonymous_users.inc;
 
 # End of 5.1 tests

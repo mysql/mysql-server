@@ -1,3 +1,5 @@
+-- source include/have_ucs2.inc
+
 #
 # MySQL Bug#15276: MySQL ignores collation-server
 #

@@ -369,6 +369,7 @@ pthread_handler_t handle_bootstrap(void *arg)
     thd->query= thd->memdup_w_gap(buff, length+1, 
 				  thd->db_length+1+QUERY_CACHE_FLAGS_SIZE);
     thd->query[length] = '\0';
+    DBUG_PRINT("query",("%-.4096s",thd->query));
     /*
       We don't need to obtain LOCK_thread_count here because in bootstrap
       mode we have only one thread.
@@ -377,16 +378,26 @@ pthread_handler_t handle_bootstrap(void *arg)
     thd->set_time();
     mysql_parse(thd,thd->query,length);
     close_thread_tables(thd);			// Free tables
+
     if (thd->is_fatal_error)
       break;
+
+    if (thd->net.report_error)
+    {
+      /* The query failed, send error to log and abort bootstrap */
+      net_send_error(thd);
+      thd->fatal_error();
+      break;
+    }
+
     free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
 #ifdef USING_TRANSACTIONS
     free_root(&thd->transaction.mem_root,MYF(MY_KEEP_PREALLOC));
 #endif
   }
 
-  /* thd->fatal_error should be set in case something went wrong */
 end:
+  /* Remember the exit code of bootstrap */
   bootstrap_error= thd->is_fatal_error;
 
   net_end(&thd->net);

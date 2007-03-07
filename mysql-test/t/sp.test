@@ -12,6 +12,8 @@
 # Tests that destroys system tables (e.g. mysql.proc) for error testing
 #   go to sp-destruct.
 # Tests that require --with-geometry go into sp_gis.test
+# Tests that require multibyte character sets, which are not always available,
+#   go into separate files (e.g. sp-ucs2.test)
 
 use test;
 
@@ -5544,29 +5546,6 @@ drop table t3|
 
 
 #
-# BUG#17615: problem with character set
-#
---disable_warnings
-drop function if exists bug17615|
---enable_warnings
-
-create table t3 (a varchar(256) unicode)|
-
-create function bug17615() returns varchar(256) unicode
-begin
-  declare tmp_res varchar(256) unicode;
-  set tmp_res= 'foo string';
-  return tmp_res;
-end|
-
-insert into t3 values(bug17615())|
-select * from t3|
-
-drop function bug17615|
-drop table t3|
-
-
-#
 # BUG#17476: Stored procedure not returning data when it is called first
 #            time per connection
 #
@@ -6774,6 +6753,7 @@ SELECT bug23760_rc_test(ROW_COUNT())|
 DROP TABLE bug23760, bug23760_log|
 DROP PROCEDURE bug23760_update_log|
 DROP PROCEDURE bug23760_test_row_count|
+DROP PROCEDURE bug23760_test_row_count2|
 DROP FUNCTION bug23760_rc_test|
 
 #
