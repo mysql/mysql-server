@@ -3335,8 +3335,8 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 
       ex.skip_lines = skip_lines;
       List<Item> field_list;
-      thd->main_lex.select_lex.context.resolve_in_table_list_only(&tables);
-      set_fields(tables.db, field_list, &thd->main_lex.select_lex.context);
+      thd->lex->select_lex.context.resolve_in_table_list_only(&tables);
+      set_fields(tables.db, field_list, &thd->lex->select_lex.context);
       thd->variables.pseudo_thread_id= thread_id;
       if (net)
       {

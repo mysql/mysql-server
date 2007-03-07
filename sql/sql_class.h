@@ -452,8 +452,10 @@ public:
 
 class Server_side_cursor;
 
-/*
-  State of a single command executed against this connection.
+/**
+  @class Statement
+  @brief State of a single command executed against this connection.
+
   One connection can contain a lot of simultaneously running statements,
   some of which could be:
    - prepared, that is, contain placeholders,
@@ -471,10 +473,6 @@ class Statement: public ilink, public Query_arena
   Statement(const Statement &rhs);              /* not implemented: */
   Statement &operator=(const Statement &rhs);   /* non-copyable */
 public:
-  /* FIXME: these must be protected */
-  MEM_ROOT main_mem_root;
-  LEX     main_lex;
-
   /*
     Uniquely identifies each statement object in thread scope; change during
     statement lifetime. FIXME: must be const
@@ -525,10 +523,10 @@ public:
 public:
 
   /* This constructor is called for backup statements */
-  Statement() { clear_alloc_root(&main_mem_root); }
+  Statement() {}
 
-  Statement(enum enum_state state_arg, ulong id_arg,
-            ulong alloc_block_size, ulong prealloc_size);
+  Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,
+            enum enum_state state_arg, ulong id_arg);
   virtual ~Statement();
 
   /* Assign execution context (note: not all members) of given stmt to self */
@@ -540,7 +538,7 @@ public:
 };
 
 
-/*
+/**
   Container for all statements created/used in a connection.
   Statements in Statement_map have unique Statement::id (guaranteed by id
   assignment in Statement::Statement)
@@ -620,6 +618,10 @@ bool xid_cache_insert(XID *xid, enum xa_states xa_state);
 bool xid_cache_insert(XID_STATE *xid_state);
 void xid_cache_delete(XID_STATE *xid_state);
 
+/**
+  @class Security_context
+  @brief A set of THD members describing the current authenticated user.
+*/
 
 class Security_context {
 public:
@@ -651,7 +653,7 @@ public:
 };
 
 
-/*
+/**
   A registry for item tree transformations performed during
   query optimization. We register only those changes which require
   a rollback to re-execute a prepared statement or stored procedure
@@ -662,7 +664,7 @@ struct Item_change_record;
 typedef I_List<Item_change_record> Item_change_list;
 
 
-/*
+/**
   Type of prelocked mode.
   See comment for THD::prelocked_mode for complete description.
 */
@@ -671,7 +673,7 @@ enum prelocked_mode_type {NON_PRELOCKED= 0, PRELOCKED= 1,
                           PRELOCKED_UNDER_LOCK_TABLES= 2};
 
 
-/*
+/**
   Class that holds information about tables which were opened and locked
   by the thread. It is also used to save/restore this information in
   push_open_tables_state()/pop_open_tables_state().
@@ -774,13 +776,16 @@ public:
   }
 };
 
-
-/* class to save context when executing a function or trigger */
+/**
+  @class Sub_statement_state
+  @brief Used to save context when executing a function or trigger
+*/
 
 /* Defines used for Sub_statement_state::in_sub_stmt */
 
 #define SUB_STMT_TRIGGER 1
 #define SUB_STMT_FUNCTION 2
+
 
 class Sub_statement_state
 {
@@ -856,7 +861,8 @@ public:
 };
 
 
-/*
+/**
+  @class THD
   For each client connection we create a separate thread with THD serving as
   a thread/connection descriptor
 */
@@ -1700,6 +1706,22 @@ public:
 private:
   /** The current internal error handler for this thread, or NULL. */
   Internal_error_handler *m_internal_handler;
+  /**
+    The lex to hold the parsed tree of conventional (non-prepared) queries.
+    Whereas for prepared and stored procedure statements we use an own lex
+    instance for each new query, for conventional statements we reuse
+    the same lex. (@see mysql_parse for details).
+  */
+  LEX main_lex;
+  /**
+    This memory root is used for two purposes:
+    - for conventional queries, to allocate structures stored in main_lex
+    during parsing, and allocate runtime data (execution plan, etc.)
+    during execution.
+    - for prepared queries, only to allocate runtime data. The parsed
+    tree itself is reused between executions and thus is stored elsewhere.
+  */
+  MEM_ROOT main_mem_root;
 };
 
 
