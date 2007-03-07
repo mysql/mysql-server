@@ -5601,8 +5601,7 @@ unpack_row(RELAY_LOG_INFO *rli,
            MY_BITMAP* const rw_set, Log_event_type const event_type)
 {
   DBUG_ENTER("unpack_row");
-  DBUG_ASSERT(record && row_data);
-  my_ptrdiff_t const offset= record - (byte*) table->record[0];
+  DBUG_ASSERT(row_data);
   my_size_t const master_null_byte_count= (bitmap_bits_set(cols) + 7) / 8;
   int error= 0;
 
@@ -5611,7 +5610,7 @@ unpack_row(RELAY_LOG_INFO *rli,
 
   bitmap_clear_all(rw_set);
 
-  memcpy(record, table->s->default_values, table->s->null_bytes);
+  memcpy(table->record[0], table->s->default_values, table->s->null_bytes);
 
   Field **const begin_ptr = table->field;
   Field **field_ptr;
@@ -5642,17 +5641,15 @@ unpack_row(RELAY_LOG_INFO *rli,
       DBUG_ASSERT(pack_ptr != NULL);
 
       if ((null_bits & null_mask) && f->maybe_null())
-        f->set_null(offset);
+        f->set_null();
       else
       {
-        f->set_notnull(offset);
+        f->set_notnull();
 
         /*
           We only unpack the field if it was non-null
         */
-        f->move_field_offset(offset);
         pack_ptr= f->unpack(f->ptr, pack_ptr);
-        f->move_field_offset(-offset);
       }
 
       bitmap_set_bit(rw_set, field_ptr - begin_ptr);
@@ -6994,15 +6991,19 @@ static int find_and_fetch_row(TABLE *table, byte *key)
     while (record_compare(table))
     {
       int error;
+
       /*
         We need to set the null bytes to ensure that the filler bit
         are all set when returning.  There are storage engines that
         just set the necessary bits on the bytes and don't set the
         filler bits correctly.
       */
-      my_ptrdiff_t const pos=
-        table->s->null_bytes > 0 ? table->s->null_bytes - 1 : 0;
-      table->record[1][pos]= 0xFF;
+      if (table->s->null_bytes > 0)
+      {
+        table->record[1][table->s->null_bytes - 1]|=
+          256U - (1U << table->s->last_null_bit_pos);
+      }
+
       if ((error= table->file->index_next(table->record[1])))
       {
 	table->file->print_error(error, MYF(0));
@@ -7028,15 +7029,17 @@ static int find_and_fetch_row(TABLE *table, byte *key)
     /* Continue until we find the right record or have made a full loop */
     do
     {
-      error= table->file->rnd_next(table->record[1]);
-
       /*
-        Patching the returned record since some storage engines do
-        not set the filler bits correctly.
+        Patching the record before calling rnd_next() since some
+        storage engines do not set the filler bits correctly.
       */
-      my_ptrdiff_t const pos=
-        table->s->null_bytes > 0 ? table->s->null_bytes - 1 : 0;
-      table->record[1][pos]|= 256U - (1U << table->s->last_null_bit_pos);
+      if (table->s->null_bytes > 0)
+      {
+        table->record[1][table->s->null_bytes - 1]|=
+          256U - (1U << table->s->last_null_bit_pos);
+      }
+
+      error= table->file->rnd_next(table->record[1]);
 
       DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
       DBUG_DUMP("record[1]", table->record[1], table->s->reclength);
