@@ -20,7 +20,7 @@ EXTRA_DIST =		$(noinst_SCRIPTS) mysql.info INSTALL-BINARY
 
 all:			txt_files
 
-txt_files:		../INSTALL-SOURCE ../EXCEPTIONS-CLIENT \
+txt_files:		../INSTALL-SOURCE \
 			INSTALL-BINARY ../support-files/MacOSX/ReadMe.txt
 
 # make sure that "make install" installs the info page, too
@@ -43,9 +43,6 @@ GT = $(srcdir)/Support/generate-text-files.pl
 # the toplevel by the script that makes the binary tar files.
 INSTALL-BINARY:	mysql.info $(GT)
 	perl -w $(GT) mysql.info "installing-binary" "installing-source" > $@
-
-../EXCEPTIONS-CLIENT: mysql.info $(GT)
-	perl -w $(GT) mysql.info "mysql-floss-license-exception" "function-index" > $@
 
 ../support-files/MacOSX/ReadMe.txt:	mysql.info $(GT)
 	perl -w $(GT) mysql.info "mac-os-x-installation" "netware-installation" > $@
