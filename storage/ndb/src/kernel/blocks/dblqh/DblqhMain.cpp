@@ -18538,6 +18538,9 @@ Dblqh::match_and_print(Signal* signal, Ptr<TcConnectionrec> tcRec)
     case TcConnectionrec::WAIT_TUP:
       BaseString::snprintf(state, sizeof(state), "Running");
       break;
+    case TcConnectionrec::WAIT_TUP_COMMIT:
+      BaseString::snprintf(state, sizeof(state), "Committing");
+      break;
     case TcConnectionrec::PREPARED:
       BaseString::snprintf(state, sizeof(state), "Prepared");
       break;
