@@ -313,5 +313,6 @@ DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
-flush logs;
 End of 5.0 tests
+flush logs;
+End of 5.1 tests

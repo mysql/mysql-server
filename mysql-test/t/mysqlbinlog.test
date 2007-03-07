@@ -214,7 +214,7 @@ flush logs;
 #
 flush logs;
 --error 1
---exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000014 >/dev/null 2>/dev/null
+--exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000012 >/dev/null 2>/dev/null
 --exec $MYSQL_BINLOG --force-if-open $MYSQLTEST_VARDIR/log/master-bin.000012 >/dev/null 2>/dev/null
 
 --echo End of 5.1 tests
