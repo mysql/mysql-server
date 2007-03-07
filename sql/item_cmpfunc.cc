@@ -793,6 +793,59 @@ int Arg_comparator::compare_e_row()
 }
 
 
+void Item_func_truth::fix_length_and_dec()
+{
+  maybe_null= 0;
+  null_value= 0;
+  decimals= 0;
+  max_length= 1;
+}
+
+
+void Item_func_truth::print(String *str)
+{
+  str->append('(');
+  args[0]->print(str);
+  str->append(STRING_WITH_LEN(" is "));
+  if (! affirmative)
+    str->append(STRING_WITH_LEN("not "));
+  if (value)
+    str->append(STRING_WITH_LEN("true"));
+  else
+    str->append(STRING_WITH_LEN("false"));
+  str->append(')');
+}
+
+
+bool Item_func_truth::val_bool()
+{
+  bool val= args[0]->val_bool();
+  if (args[0]->null_value)
+  {
+    /*
+      NULL val IS {TRUE, FALSE} --> FALSE
+      NULL val IS NOT {TRUE, FALSE} --> TRUE
+    */
+    return (! affirmative);
+  }
+
+  if (affirmative)
+  {
+    /* {TRUE, FALSE} val IS {TRUE, FALSE} value */
+    return (val == value);
+  }
+
+  /* {TRUE, FALSE} val IS NOT {TRUE, FALSE} value */
+  return (val != value);
+}
+
+
+longlong Item_func_truth::val_int()
+{
+  return (val_bool() ? 1 : 0);
+}
+
+
 bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
 {
   if (!args[0]->fixed && args[0]->fix_fields(thd, args) ||
@@ -1529,6 +1582,7 @@ Item_func_if::fix_length_and_dec()
 {
   maybe_null=args[1]->maybe_null || args[2]->maybe_null;
   decimals= max(args[1]->decimals, args[2]->decimals);
+  unsigned_flag=args[1]->unsigned_flag && args[2]->unsigned_flag;
 
   enum Item_result arg1_type=args[1]->result_type();
   enum Item_result arg2_type=args[2]->result_type();
@@ -1558,12 +1612,20 @@ Item_func_if::fix_length_and_dec()
       collation.set(&my_charset_bin);	// Number
     }
   }
-  max_length=
-    (cached_result_type == DECIMAL_RESULT || cached_result_type == INT_RESULT) ?
-    (max(args[1]->max_length - args[1]->decimals,
-         args[2]->max_length - args[2]->decimals) + decimals +
-         (unsigned_flag ? 0 : 1) ) :
-    max(args[1]->max_length, args[2]->max_length);
+
+  if ((cached_result_type == DECIMAL_RESULT )
+      || (cached_result_type == INT_RESULT))
+  {
+    int len1= args[1]->max_length - args[1]->decimals
+      - (args[1]->unsigned_flag ? 0 : 1);
+
+    int len2= args[2]->max_length - args[2]->decimals
+      - (args[2]->unsigned_flag ? 0 : 1);
+
+    max_length=max(len1, len2) + decimals + (unsigned_flag ? 0 : 1);
+  }
+  else
+    max_length= max(args[1]->max_length, args[2]->max_length);
 }
 
 

@@ -41,3 +41,37 @@ select * from t1;
 ts
 2005-08-12 00:00:00
 drop table t1;
+*** master ***
+create table t1 (a int, b int);
+create trigger trg1 before insert on t1 for each row set new.b=2;
+create table t2 (a int, b int);
+create trigger trg2 before insert on t2 for each row set new.b=2;
+show tables;
+Tables_in_test
+t1
+t2
+show triggers;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
+trg1	INSERT	t1	set new.b=2	BEFORE	NULL		root@localhost
+trg2	INSERT	t2	set new.b=2	BEFORE	NULL		root@localhost
+*** slave ***
+show tables;
+Tables_in_test
+t1
+show triggers;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
+trg1	INSERT	t1	set new.b=2	BEFORE	NULL		root@localhost
+*** master ***
+drop trigger trg1;
+drop trigger trg2;
+show triggers;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
+*** slave ***
+show tables;
+Tables_in_test
+t1
+show triggers;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
+*** master ***
+drop table t1;
+drop table t2;

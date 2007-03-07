@@ -6144,9 +6144,9 @@ int Field_string::cmp(const char *a_ptr, const char *b_ptr)
 
 void Field_string::sort_string(char *to,uint length)
 {
-  uint tmp=my_strnxfrm(field_charset,
-		       (unsigned char *) to, length,
-		       (unsigned char *) ptr, field_length);
+  IF_DBUG(uint tmp=) my_strnxfrm(field_charset,
+                                 (unsigned char *) to, length,
+                                 (unsigned char *) ptr, field_length);
   DBUG_ASSERT(tmp == length);
 }
 
@@ -7014,7 +7014,7 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
                               cannot_convert_error_pos, from + length))
     return 2;
 
-  if (copy_length < length)
+  if (from_end_pos < from + length)
   {
     report_data_too_long(this);
     return 2;

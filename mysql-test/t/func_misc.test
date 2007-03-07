@@ -132,4 +132,61 @@ set global query_cache_size=default;
 create table t1 select INET_ATON('255.255.0.1') as `a`;
 show create table t1;
 drop table t1;
+
+#
+# Bug#26093 (SELECT BENCHMARK() for SELECT statements does not produce
+#   valid results)
+#
+
+--disable_warnings
+drop table if exists table_26093;
+drop function if exists func_26093_a;
+drop function if exists func_26093_b;
+--enable_warnings
+
+create table table_26093(a int);
+insert into table_26093 values
+(1), (2), (3), (4), (5),
+(6), (7), (8), (9), (10);
+
+delimiter //;
+
+create function func_26093_a(x int) returns int
+begin
+  set @invoked := @invoked + 1;
+  return x;
+end//
+
+create function func_26093_b(x int, y int) returns int
+begin
+  set @invoked := @invoked + 1;
+  return x;
+end//
+
+delimiter ;//
+
+select avg(a) from table_26093;
+
+select benchmark(100, (select avg(a) from table_26093));
+
+set @invoked := 0;
+select benchmark(100, (select avg(func_26093_a(a)) from table_26093));
+# Returns only 10, since intermediate results are cached.
+select @invoked;
+
+set @invoked := 0;
+select benchmark(100, (select avg(func_26093_b(a, rand())) from table_26093));
+# Returns 1000, due to rand() preventing caching.
+select @invoked;
+
+--error ER_SUBQUERY_NO_1_ROW
+select benchmark(100, (select (a) from table_26093));
+
+--error ER_OPERAND_COLUMNS
+select benchmark(100, (select 1, 1));
+
+drop table table_26093;
+drop function func_26093_a;
+drop function func_26093_b;
+
 --echo End of 5.0 tests
