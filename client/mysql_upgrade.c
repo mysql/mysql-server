@@ -171,7 +171,7 @@ void set_extra_default(int id, const struct my_option *opt)
       }
 
       d= (extra_default_t *)my_malloc(sizeof(extra_default_t), 
-                           MYF(MY_FAE|MY_ZEROFILL));
+                                      MYF(MY_FAE | MY_ZEROFILL));
       d->id= id;
       d->name= opt->name;
       d->n_len= strlen(opt->name);
@@ -345,15 +345,17 @@ static int create_defaults_file(const char *path, const char *forced_path)
       }
       dynstr_set(&buf, NULL);
     }
-    if (dynstr_append_mem(&buf, "\n", 1)
-       || dynstr_append_mem(&buf, d->name, d->n_len)
-       || (d->v_len && (dynstr_append_mem(&buf, "=", 1)
-       || dynstr_append_mem(&buf, d->value, d->v_len))))
+    if (dynstr_append_mem(&buf, "\n", 1) ||
+        dynstr_append_mem(&buf, d->name, d->n_len) ||
+        (d->v_len && (dynstr_append_mem(&buf, "=", 1) ||
+                      dynstr_append_mem(&buf, d->value, d->v_len))))
     {
       ret= 1;
       goto error;
     }
     my_delete((gptr)d, MYF(0));
+    my_free((gptr) d, MYF(0));
+
     list_pop(extra_defaults);                   /* pop off the head */
   }
   if (my_write(defaults_file, buf.str, buf.length, MYF(MY_FNABP | MY_WME)))
@@ -451,10 +453,10 @@ int main(int argc, char **argv)
   char *forced_extra_defaults;
   char *local_defaults_group_suffix;
   const char *script_line;
-  char *upgrade_defaults_path; 
+  char *upgrade_defaults_path= NULL; 
   char *defaults_to_use= NULL;
   int upgrade_defaults_created= 0;
-  
+  int no_defaults;
   char path[FN_REFLEN];
   DYNAMIC_STRING cmdline;
 
@@ -464,6 +466,10 @@ int main(int argc, char **argv)
 #endif
 
   /* Check if we are forced to use specific defaults */
+  no_defaults= 0;
+  if (argc >= 2 && !strcmp(argv[1],"--no-defaults"))
+    no_defaults= 1;
+
   get_defaults_options(argc, argv,
                        &forced_defaults_file, &forced_extra_defaults,
                        &local_defaults_group_suffix);
@@ -578,7 +584,9 @@ int main(int argc, char **argv)
   if (defaults_to_use)
   {
     dynstr_append(&cmdline, " ");
-    dynstr_append_os_quoted(&cmdline, "--defaults-extra-file=", 
+    dynstr_append_os_quoted(&cmdline,
+                            (no_defaults ? "--defaults-file=" :
+                             "--defaults-extra-file="),
                             defaults_to_use, NullS);
   }
 
@@ -652,7 +660,9 @@ fix_priv_tables:
   if (defaults_to_use)
   {
     dynstr_append(&cmdline, " ");
-    dynstr_append_os_quoted(&cmdline, "--defaults-extra-file=", 
+    dynstr_append_os_quoted(&cmdline,
+                            (no_defaults ? "--defaults-file=" :
+                             "--defaults-extra-file="),
                             defaults_to_use, NullS);
   }
   dynstr_append(&cmdline, " ");
@@ -684,6 +694,7 @@ error:
   if (upgrade_defaults_created)
     my_delete(upgrade_defaults_path, MYF(0));
   
+  my_free(upgrade_defaults_path, MYF(MY_ALLOW_ZERO_PTR));
   my_end(info_flag ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   return ret;
 }

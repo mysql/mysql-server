@@ -22,7 +22,9 @@
 
 int max_binlog_dump_events = 0; // unlimited
 my_bool opt_sporadic_binlog_dump_fail = 0;
+#ifndef DBUG_OFF
 static int binlog_dump_count = 0;
+#endif
 
 /*
     fake_rotate_event() builds a fake (=which does not exist physically in any
@@ -882,12 +884,14 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
 
 int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report )
 {
+  DBUG_ENTER("stop_slave");
+  
   int slave_errno;
   if (!thd)
     thd = current_thd;
 
   if (check_access(thd, SUPER_ACL, any_db,0,0,0,0))
-    return 1;
+    DBUG_RETURN(1);
   thd->proc_info = "Killing slave";
   int thread_mask;
   lock_slave_threads(mi);
@@ -921,12 +925,12 @@ int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report )
   {
     if (net_report)
       my_message(slave_errno, ER(slave_errno), MYF(0));
-    return 1;
+    DBUG_RETURN(1);
   }
   else if (net_report)
     send_ok(thd);
 
-  return 0;
+  DBUG_RETURN(0);
 }
 
 

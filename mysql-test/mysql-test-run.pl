@@ -3012,6 +3012,7 @@ language            = $path_language
 character-sets-dir  = $path_charsetsdir
 basedir             = $path_my_basedir
 server_id           = $server_id
+shutdown-delay      = 10
 skip-stack-trace
 skip-innodb
 skip-ndbcluster

@@ -59,3 +59,35 @@ drop table t1;
 sync_slave_with_master;
 
 # End of 4.1 tests
+
+#
+# Bug#24478 DROP TRIGGER is not caught by replicate-*-table filters
+#
+--echo *** master ***
+connection master;
+create table t1 (a int, b int);
+create trigger trg1 before insert on t1 for each row set new.b=2;
+create table t2 (a int, b int);
+create trigger trg2 before insert on t2 for each row set new.b=2;
+show tables;
+show triggers;
+sync_slave_with_master;
+--echo *** slave ***
+connection slave;
+show tables;
+show triggers;
+--echo *** master ***
+connection master;
+drop trigger trg1;
+drop trigger trg2;
+show triggers;
+sync_slave_with_master;
+--echo *** slave ***
+connection slave;
+show tables;
+show triggers;
+--echo *** master ***
+connection master;
+drop table t1;
+drop table t2;
+sync_slave_with_master;

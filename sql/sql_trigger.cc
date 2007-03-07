@@ -106,10 +106,6 @@ const LEX_STRING trg_event_type_names[]=
 };
 
 
-static int
-add_table_for_trigger(THD *thd, sp_name *trig, bool if_exists,
-                      TABLE_LIST ** table);
-
 class Handle_old_incorrect_sql_modes_hook: public Unknown_key_hook
 {
 private:
@@ -987,11 +983,8 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 	thd->spcont= 0;
         if (MYSQLparse((void *)thd) || thd->is_fatal_error)
         {
-          /*
-            Free lex associated resources.
-            QQ: Do we really need all this stuff here ?
-          */
-          delete lex.sphead;
+          /* Currently sphead is always deleted in case of a parse error */
+          DBUG_ASSERT(lex.sphead == 0);
           goto err_with_lex_cleanup;
         }
 
@@ -1182,7 +1175,7 @@ bool Table_triggers_list::get_trigger_info(THD *thd, trg_event_type event,
     1 Error
 */
 
-static int
+int
 add_table_for_trigger(THD *thd, sp_name *trig, bool if_exists,
                       TABLE_LIST **table)
 {
