@@ -27,6 +27,7 @@ class TransporterFacade;
 class ConfigRetriever;
 class NdbThread;
 class ndb_mgm_configuration;
+class Ndb;
 
 extern "C" {
   void* run_ndb_cluster_connection_connect_thread(void*);
@@ -80,6 +81,11 @@ private:
   int m_run_connect_thread;
   NdbMutex *m_event_add_drop_mutex;
   Uint64 m_latest_trans_gci;
+
+  NdbMutex* m_new_delete_ndb_mutex;
+  Ndb* m_first_ndb_object;
+  void link_ndb_object(Ndb*);
+  void unlink_ndb_object(Ndb*);
 };
 
 #endif
