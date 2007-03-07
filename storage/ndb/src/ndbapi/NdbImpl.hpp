@@ -57,7 +57,8 @@ public:
   int send_event_report(Uint32 *data, Uint32 length);
 
   Ndb &m_ndb;
-
+  Ndb * m_next_ndb_object, * m_prev_ndb_object;
+  
   Ndb_cluster_connection_impl &m_ndb_cluster_connection;
   TransporterFacade *m_transporter_facade;
 
