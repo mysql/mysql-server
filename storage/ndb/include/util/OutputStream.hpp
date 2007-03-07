@@ -36,6 +36,7 @@ class FileOutputStream : public OutputStream {
 public:
   FileOutputStream(FILE * file = stdout);
   virtual ~FileOutputStream() {}
+  FILE *getFile() { return f; }
 
   int print(const char * fmt, ...);
   int println(const char * fmt, ...);
