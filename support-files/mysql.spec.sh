@@ -562,6 +562,7 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_install_db.1
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlhotcopy.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.server.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysqltest.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_tzinfo_to_sql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_zap.1*
 %doc %attr(644, root, man) %{_mandir}/man1/pack_isam.1*
@@ -651,23 +652,33 @@ fi
 
 %files ndb-tools
 %defattr(-,root,root,0755)
+%attr(755, root, root) %{_bindir}/ndb_config
+%attr(755, root, root) %{_bindir}/ndb_desc
 %attr(755, root, root) %{_bindir}/ndb_mgm
 %attr(755, root, root) %{_bindir}/ndb_restore
-%attr(755, root, root) %{_bindir}/ndb_waiter
 %attr(755, root, root) %{_bindir}/ndb_select_all
 %attr(755, root, root) %{_bindir}/ndb_select_count
-%attr(755, root, root) %{_bindir}/ndb_desc
 %attr(755, root, root) %{_bindir}/ndb_show_tables
-%attr(755, root, root) %{_bindir}/ndb_test_platform
-%attr(755, root, root) %{_bindir}/ndb_config
 %attr(755, root, root) %{_bindir}/ndb_size.pl
+%attr(755, root, root) %{_bindir}/ndb_test_platform
+%attr(755, root, root) %{_bindir}/ndb_waiter
 %attr(-, root, root) %{_datadir}/mysql/ndb_size.tmpl
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_config.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_desc.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_select_all.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_select_count.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_show_tables.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_size.pl.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_waiter.1*
 
 %files ndb-extra
 %defattr(-,root,root,0755)
+%attr(755, root, root) %{_bindir}/ndb_delete_all
 %attr(755, root, root) %{_bindir}/ndb_drop_index
 %attr(755, root, root) %{_bindir}/ndb_drop_table
-%attr(755, root, root) %{_bindir}/ndb_delete_all
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_delete_all.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_index.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_table.1*
 
 %files devel
 %defattr(-, root, root, 0755)
@@ -713,6 +724,8 @@ fi
 %attr(755, root, root) %{_bindir}/mysqlmanager
 %attr(755, root, root) %{_bindir}/mysqlmanagerc
 %attr(755, root, root) %{_bindir}/mysqlmanager-pwgen
+%doc %attr(644, root, man) %{_mandir}/man1/mysql_client_test.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysql-test-run.pl.1*
 
 %files Max
 %defattr(-, root, root, 0755)
@@ -727,6 +740,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Fri Mar 02 2007 Joerg Bruehe <joerg@mysql.com>
+
+- Add several man pages for NDB which are now created.
+
 * Fri Jan 05 2007 Kent Boortz <kent@mysql.com>
 
 - Add CFLAGS to gcc call with --print-libgcc-file, to make sure the
