@@ -1598,18 +1598,6 @@ static void network_init(void)
 
 #endif /*!EMBEDDED_LIBRARY*/
 
-void MYSQLerror(const char *s)
-{
-  THD *thd=current_thd;
-  char *yytext= (char*) thd->lex->tok_start;
-  /* "parse error" changed into "syntax error" between bison 1.75 and 1.875 */
-  if (strcmp(s,"parse error") == 0 || strcmp(s,"syntax error") == 0)
-    s=ER(ER_SYNTAX_ERROR);
-  my_printf_error(ER_PARSE_ERROR,  ER(ER_PARSE_ERROR), MYF(0), s,
-                  (yytext ? (char*) yytext : ""),
-                  thd->lex->yylineno);
-}
-
 
 #ifndef EMBEDDED_LIBRARY
 /*
