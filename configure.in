@@ -7,7 +7,7 @@ AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
 # remember to also update version.c in ndb
-AM_INIT_AUTOMAKE(mysql, 5.1.16-ndb-6.2.0)
+AM_INIT_AUTOMAKE(mysql, 5.1.17-ndb-6.2.0)
 AM_CONFIG_HEADER(config.h)
 
 NDB_VERSION_MAJOR=6
@@ -720,7 +720,7 @@ AC_CHECK_HEADERS(fcntl.h float.h floatingpoint.h ieeefp.h limits.h \
  sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
  unistd.h utime.h sys/utime.h termio.h termios.h sched.h crypt.h alloca.h \
  sys/ioctl.h malloc.h sys/malloc.h sys/ipc.h sys/shm.h linux/config.h \
- sys/resource.h sys/param.h)
+ sys/resource.h sys/param.h port.h)
 
 AC_CHECK_HEADERS([xfs/xfs.h])
 
@@ -988,7 +988,7 @@ case $SYSTEM_TYPE in
     AC_DEFINE([DEFAULT_SKIP_THREAD_PRIORITY], [1], [default to skip thread priority])
     if test "$ac_cv_prog_gcc" = "yes"
     then
-      FLAGS="-D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DIGNORE_SIGHUP_SIGQUIT"
+      FLAGS="-D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DIGNORE_SIGHUP_SIGQUIT  -DDONT_DECLARE_CXA_PURE_VIRTUAL"
       CFLAGS="$CFLAGS $FLAGS"
       CXXFLAGS="$CXXFLAGS $FLAGS"
       MAX_C_OPTIMIZE="-O"
@@ -1888,9 +1888,9 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   pthread_setprio_np pthread_setschedparam pthread_sigmask readlink \
   realpath rename rint rwlock_init setupterm \
   shmget shmat shmdt shmctl sigaction sigemptyset sigaddset \
-  sighold sigset sigthreadmask sleep \
-  snprintf socket stpcpy strcasecmp strerror strsignal strnlen strpbrk strstr strtol \
-  strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr \
+  sighold sigset sigthreadmask port_create sleep \
+  snprintf socket stpcpy strcasecmp strerror strsignal strnlen strpbrk strstr \
+  strtol strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr \
   posix_fallocate)
 
 #

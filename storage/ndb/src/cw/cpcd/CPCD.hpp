@@ -62,6 +62,7 @@ struct CPCEvent {
 
 struct EventSubscriber {
   virtual void report(const CPCEvent &) = 0;
+  EventSubscriber() {}
   virtual ~EventSubscriber() {}
 };
 

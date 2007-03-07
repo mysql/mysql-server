@@ -1843,9 +1843,14 @@ private:
 			Uint32 transid2);
   void removeMarkerForFailedAPI(Signal* signal, Uint32 nodeId, Uint32 bucket);
 
-  bool getAllowStartTransaction() const {
-    if(getNodeState().getSingleUserMode())
-      return true;
+  bool getAllowStartTransaction(Uint32 nodeId) const {
+    if (unlikely(getNodeState().getSingleUserMode()))
+    {
+      if (getNodeState().getSingleUserApi() == nodeId)
+        return true;
+      else
+        return false;
+    }
     return getNodeState().startLevel < NodeState::SL_STOPPING_2;
   }
   

@@ -138,8 +138,24 @@ NdbRecAttr::receive_data(const Uint32 * data, Uint32 sz)
   return false;
 }
 
+NdbRecordPrintFormat::NdbRecordPrintFormat()
+{
+  fields_terminated_by= ";";
+  start_array_enclosure= "[";
+  end_array_enclosure= "]";
+  fields_enclosed_by= "";
+  fields_optionally_enclosed_by= "\"";
+  lines_terminated_by= "\n";
+  hex_prefix= "H'";
+  null_string= "[NULL]";
+  hex_format= 0;
+}
+NdbRecordPrintFormat::~NdbRecordPrintFormat() {}
+static const NdbRecordPrintFormat default_print_format;
+
 static void
-ndbrecattr_print_string(NdbOut& out, const char *type,
+ndbrecattr_print_string(NdbOut& out, const NdbRecordPrintFormat &f,
+                        const char *type, bool is_binary,
 			const char *aref, unsigned sz)
 {
   const unsigned char* ref = (const unsigned char*)aref;
@@ -148,6 +164,25 @@ ndbrecattr_print_string(NdbOut& out, const char *type,
   for (i=sz-1; i >= 0; i--)
     if (ref[i] == 0) sz--;
     else break;
+  if (!is_binary)
+  {
+    // trailing spaces are not printed
+    for (i=sz-1; i >= 0; i--)
+      if (ref[i] == 32) sz--;
+      else break;
+  }
+  if (is_binary && f.hex_format)
+  {
+    if (sz == 0)
+    {
+      out.print("0x0");
+      return;
+    }
+    out.print("0x");
+    for (len = 0; len < (int)sz; len++)
+      out.print("%02X", (int)ref[len]);
+    return;
+  }
   if (sz == 0) return; // empty
 
   for (len=0; len < (int)sz && ref[i] != 0; len++)
@@ -168,37 +203,56 @@ ndbrecattr_print_string(NdbOut& out, const char *type,
     for (i= len+1; ref[i] != 0; i++)
     out.print("%u]",len-i);
     assert((int)sz > i);
-    ndbrecattr_print_string(out,type,aref+i,sz-i);
+    ndbrecattr_print_string(out,f,type,is_binary,aref+i,sz-i);
   }
 }
 
-NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
+NdbOut&
+ndbrecattr_print_formatted(NdbOut& out, const NdbRecAttr &r,
+                           const NdbRecordPrintFormat &f)
 {
   if (r.isNULL())
   {
-    out << "[NULL]";
+    out << f.null_string;
     return out;
   }
   
   const NdbDictionary::Column* c = r.getColumn();
   uint length = c->getLength();
-  if (length > 1)
-    out << "[";
-
-  for (Uint32 j = 0; j < length; j++) 
   {
-    if (j > 0)
-      out << " ";
-
+    const char *fields_optionally_enclosed_by;
+    if (f.fields_enclosed_by[0] == '\0')
+      fields_optionally_enclosed_by=
+        f.fields_optionally_enclosed_by;
+    else
+      fields_optionally_enclosed_by= "";
+    out << f.fields_enclosed_by;
+    Uint32 j;
     switch(r.getType()){
     case NdbDictionary::Column::Bigunsigned:
       out << r.u_64_value();
       break;
     case NdbDictionary::Column::Bit:
-      out << hex << "H'" << r.u_32_value() << dec;
+      for (j = (length-1)/32 + 1; j > 0; j--)
+        if (*((Uint32*)r.aRef() + j - 1))
+          break;
+      if (j == 0)
+      {
+        out << "0x0";
+        break;
+      }
+      out << f.hex_prefix << "0x";
+      for (; j > 0; j--)
+        out.print("%X", *((Uint32*)r.aRef() + j - 1));
       break;
     case NdbDictionary::Column::Unsigned:
-      out << *((Uint32*)r.aRef() + j);
+      if (length > 1)
+        out << f.start_array_enclosure;
+      out << *(Uint32*)r.aRef();
+      for (j = 1; j < length; j++)
+        out << " " << *((Uint32*)r.aRef() + j);
+      if (length > 1)
+        out << f.end_array_enclosure;
       break;
     case NdbDictionary::Column::Smallunsigned:
       out << r.u_short_value();
@@ -219,25 +273,37 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
       out << (int) r.char_value();
       break;
     case NdbDictionary::Column::Binary:
+      if (!f.hex_format)
+        out << fields_optionally_enclosed_by;
       j = r.get_size_in_bytes();
-      ndbrecattr_print_string(out,"Binary", r.aRef(), j);
+      ndbrecattr_print_string(out,f,"Binary", true, r.aRef(), j);
+      if (!f.hex_format)
+        out << fields_optionally_enclosed_by;
       break;
     case NdbDictionary::Column::Char:
+      out << fields_optionally_enclosed_by;
       j = r.get_size_in_bytes();
-      ndbrecattr_print_string(out,"Char", r.aRef(), j);
+      ndbrecattr_print_string(out,f,"Char", false, r.aRef(), j);
+      out << fields_optionally_enclosed_by;
       break;
     case NdbDictionary::Column::Varchar:
     {
+      out << fields_optionally_enclosed_by;
       unsigned len = *(const unsigned char*)r.aRef();
-      ndbrecattr_print_string(out,"Varchar", r.aRef()+1,len);
+      ndbrecattr_print_string(out,f,"Varchar", false, r.aRef()+1,len);
       j = length;
+      out << fields_optionally_enclosed_by;
     }
     break;
     case NdbDictionary::Column::Varbinary:
     {
+      if (!f.hex_format)
+        out << fields_optionally_enclosed_by;
       unsigned len = *(const unsigned char*)r.aRef();
-      ndbrecattr_print_string(out,"Varbinary", r.aRef()+1,len);
+      ndbrecattr_print_string(out,f,"Varbinary", true, r.aRef()+1,len);
       j = length;
+      if (!f.hex_format)
+        out << fields_optionally_enclosed_by;
     }
     break;
     case NdbDictionary::Column::Float:
@@ -366,16 +432,28 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
     break;
     case NdbDictionary::Column::Longvarchar:
     {
+      out << fields_optionally_enclosed_by;
       unsigned len = uint2korr(r.aRef());
-      ndbrecattr_print_string(out,"Longvarchar", r.aRef()+2,len);
+      ndbrecattr_print_string(out,f,"Longvarchar", false, r.aRef()+2,len);
       j = length;
+      out << fields_optionally_enclosed_by;
+    }
+    break;
+    case NdbDictionary::Column::Longvarbinary:
+    {
+      if (!f.hex_format)
+        out << fields_optionally_enclosed_by;
+      unsigned len = uint2korr(r.aRef());
+      ndbrecattr_print_string(out,f,"Longvarbinary", true, r.aRef()+2,len);
+      j = length;
+      if (!f.hex_format)
+        out << fields_optionally_enclosed_by;
     }
     break;
 
     case NdbDictionary::Column::Undefined:
     case NdbDictionary::Column::Mediumint:
     case NdbDictionary::Column::Mediumunsigned:
-    case NdbDictionary::Column::Longvarbinary:
     unknown:
     //default: /* no print functions for the rest, just print type */
     out << (int) r.getType();
@@ -384,14 +462,15 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
       out << " " << j << " times";
     break;
     }
-  }
-
-  if (length > 1)
-  {
-    out << "]";
+    out << f.fields_enclosed_by;
   }
 
   return out;
+}
+
+NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
+{
+  return ndbrecattr_print_formatted(out, r, default_print_format);
 }
 
 Int64

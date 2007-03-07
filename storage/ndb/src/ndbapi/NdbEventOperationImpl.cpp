@@ -1338,6 +1338,7 @@ operator<<(NdbOut& out, const Gci_container& gci)
   return out;
 }
 
+#ifdef VM_TRACE
 static
 NdbOut&
 operator<<(NdbOut& out, const Gci_container_pod& gci)
@@ -1346,7 +1347,7 @@ operator<<(NdbOut& out, const Gci_container_pod& gci)
   out << *ptr;
   return out;
 }
-
+#endif
 
 static
 Gci_container*
@@ -1586,7 +1587,7 @@ NdbEventBuffer::complete_outof_order_gcis()
       ndbout_c(" moved %ld rows -> %ld", (long) bucket->m_data.m_count,
 	       (long) m_complete_data.m_data.m_count);
 #else
-      ndbout_c("");
+      ndbout_c(" ");
 #endif
     }
     bzero(bucket, sizeof(Gci_container));

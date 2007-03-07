@@ -260,6 +260,7 @@ Ndbd_mem_manager::init(bool alloc_less_memory)
   while (cnt < MAX_CHUNKS && allocated < pages)
   {
     InitChunk chunk; 
+    LINT_INIT(chunk.m_start);
     
 #if defined(_lint) || defined(FORCE_INIT_OF_VARS)
     memset((char*) &chunk, 0 , sizeof(chunk));

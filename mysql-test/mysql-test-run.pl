@@ -409,24 +409,24 @@ sub main () {
     {
       next if $test->{skip};
 
-      $need_ndbcluster||= $test->{ndb_test};
-      $need_im||= $test->{component_id} eq 'im';
-
-      # Count max number of slaves used by a test case
-      if ( $test->{slave_num} > $max_slave_num)
+      if (!$opt_extern)
       {
-	$max_slave_num= $test->{slave_num};
-	mtr_error("Too many slaves") if $max_slave_num > 3;
-      }
+	$need_ndbcluster||= $test->{ndb_test};
+	$need_im||= $test->{component_id} eq 'im';
 
-      # Count max number of masters used by a test case
-      if ( $test->{master_num} > $max_master_num)
-      {
-	$max_master_num= $test->{master_num};
-	mtr_error("Too many masters") if $max_master_num > 2;
-	mtr_error("Too few masters") if $max_master_num < 1;
-      }
+	# Count max number of slaves used by a test case
+	if ( $test->{slave_num} > $max_slave_num) {
+	  $max_slave_num= $test->{slave_num};
+	  mtr_error("Too many slaves") if $max_slave_num > 3;
+	}
 
+	# Count max number of masters used by a test case
+	if ( $test->{master_num} > $max_master_num) {
+	  $max_master_num= $test->{master_num};
+	  mtr_error("Too many masters") if $max_master_num > 2;
+	  mtr_error("Too few masters") if $max_master_num < 1;
+	}
+      }
       $use_innodb||= $test->{'innodb_test'};
     }
 
@@ -700,7 +700,9 @@ sub command_line_setup () {
 				       "$glob_basedir/client",
 				       "$glob_basedir/bin");
 
-  $exe_mysqld=         mtr_exe_exists (vs_config_dirs('sql', 'mysqld'),
+  if (!$opt_extern)
+  {
+    $exe_mysqld=       mtr_exe_exists (vs_config_dirs('sql', 'mysqld'),
 				       "$glob_basedir/sql/mysqld",
 				       "$path_client_bindir/mysqld-max-nt",
 				       "$path_client_bindir/mysqld-max",
@@ -712,8 +714,16 @@ sub command_line_setup () {
 				       "$glob_basedir/bin/mysqld",
 				       "$glob_basedir/sbin/mysqld");
 
-  # Use the mysqld found above to find out what features are available
-  collect_mysqld_features();
+    # Use the mysqld found above to find out what features are available
+    collect_mysqld_features();
+  }
+  else
+  {
+    $mysqld_variables{'port'}= 3306;
+    $mysqld_variables{'master-port'}= 3306;
+    $opt_skip_ndbcluster= 1;
+    $opt_skip_im= 1;
+  }
 
   if ( $opt_comment )
   {
@@ -750,7 +760,7 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   # NOTE if the default binlog format is changed, this has to be changed
   $used_binlog_format= "stmt";
-  if ( $mysql_version_id >= 50100 )
+  if (!$opt_extern && $mysql_version_id >= 50100 )
   {
     $used_binlog_format= "mixed"; # Default value for binlog format
 
@@ -836,19 +846,20 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   # Check im suport
   # --------------------------------------------------------------------------
-  if ( $mysql_version_id < 50000 )
+  if (!$opt_extern)
   {
-    # Instance manager is not supported until 5.0
-    $opt_skip_im= 1;
+    if ( $mysql_version_id < 50000 ) {
+      # Instance manager is not supported until 5.0
+      $opt_skip_im= 1;
+
+    }
+
+    if ( $glob_win32 ) {
+      mtr_report("Disable Instance manager - not supported on Windows");
+      $opt_skip_im= 1;
+    }
 
   }
-
-  if ( $glob_win32 )
-  {
-    mtr_report("Disable Instance manager - not supported on Windows");
-    $opt_skip_im= 1;
-  }
-
   # --------------------------------------------------------------------------
   # Record flag
   # --------------------------------------------------------------------------
@@ -1212,7 +1223,7 @@ sub command_line_setup () {
     $opt_skip_rpl= 1;
 
     # Setup master->[0] with the settings for the extern server
-    $master->[0]->{'path_sock'}=  $opt_socket if $opt_socket;
+    $master->[0]->{'path_sock'}=  $opt_socket ? $opt_socket : "/tmp/mysql.sock";
     mtr_report("Using extern server at '$master->[0]->{path_sock}'");
   }
   else
@@ -1478,61 +1489,66 @@ sub executable_setup () {
   $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");
   $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
   $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
-  if ( $mysql_version_id >= 50100 )
-  {
-    $exe_mysqlslap=    mtr_exe_exists("$path_client_bindir/mysqlslap");
-  }
-  if ( $mysql_version_id >= 50000 and !$glob_use_embedded_server )
-  {
-    $exe_mysql_upgrade= mtr_exe_exists("$path_client_bindir/mysql_upgrade")
-  }
-  else
-  {
-    $exe_mysql_upgrade= "";
-  }
 
-  if ( ! $glob_win32 )
+  if (!$opt_extern)
   {
-    # Look for mysql_fix_system_table script
-    $exe_mysql_fix_system_tables=
-      mtr_script_exists("$glob_basedir/scripts/mysql_fix_privilege_tables",
-			"$path_client_bindir/mysql_fix_privilege_tables");
-  }
-
-  # Look for mysql_fix_privilege_tables.sql script
-  $file_mysql_fix_privilege_tables=
-    mtr_file_exists("$glob_basedir/scripts/mysql_fix_privilege_tables.sql",
-		    "$glob_basedir/share/mysql_fix_privilege_tables.sql");
-
-  if ( ! $opt_skip_ndbcluster and executable_setup_ndb())
-  {
-    mtr_warning("Could not find all required ndb binaries, " .
-		"all ndb tests will fail, use --skip-ndbcluster to " .
-		"skip testing it.");
-
-    foreach my $cluster (@{$clusters})
+    if ( $mysql_version_id >= 50100 )
     {
-      $cluster->{"executable_setup_failed"}= 1;
+      $exe_mysqlslap=    mtr_exe_exists("$path_client_bindir/mysqlslap");
     }
+    if ( $mysql_version_id >= 50000 and !$glob_use_embedded_server )
+    {
+      $exe_mysql_upgrade= mtr_exe_exists("$path_client_bindir/mysql_upgrade")
+    }
+    else
+    {
+      $exe_mysql_upgrade= "";
+    }
+
+    if ( ! $glob_win32 )
+    {
+      # Look for mysql_fix_system_table script
+      $exe_mysql_fix_system_tables=
+        mtr_script_exists("$glob_basedir/scripts/mysql_fix_privilege_tables",
+  			"$path_client_bindir/mysql_fix_privilege_tables");
+    }
+
+    # Look for mysql_fix_privilege_tables.sql script
+    $file_mysql_fix_privilege_tables=
+      mtr_file_exists("$glob_basedir/scripts/mysql_fix_privilege_tables.sql",
+  		    "$glob_basedir/share/mysql_fix_privilege_tables.sql");
+
+    if ( ! $opt_skip_ndbcluster and executable_setup_ndb())
+    {
+      mtr_warning("Could not find all required ndb binaries, " .
+  		"all ndb tests will fail, use --skip-ndbcluster to " .
+  		"skip testing it.");
+
+      foreach my $cluster (@{$clusters})
+      {
+        $cluster->{"executable_setup_failed"}= 1;
+      }
+    }
+
+    if ( ! $opt_skip_im and executable_setup_im())
+    {
+      mtr_warning("Could not find all required instance manager binaries, " .
+  		"all im tests will fail, use --skip-im to " .
+  		"continue without instance manager");
+      $instance_manager->{"executable_setup_failed"}= 1;
+    }
+
+    # Look for the udf_example library
+    $lib_udf_example=
+      mtr_file_exists(vs_config_dirs('sql', 'udf_example.dll'),
+                      "$glob_basedir/sql/.libs/udf_example.so",);
+
+    # Look for the ha_example library
+    $lib_example_plugin=
+      mtr_file_exists(vs_config_dirs('storage/example', 'ha_example.dll'),
+                      "$glob_basedir/storage/example/.libs/ha_example.so",);
+
   }
-
-  if ( ! $opt_skip_im and executable_setup_im())
-  {
-    mtr_warning("Could not find all required instance manager binaries, " .
-		"all im tests will fail, use --skip-im to " .
-		"continue without instance manager");
-    $instance_manager->{"executable_setup_failed"}= 1;
-  }
-
-  # Look for the udf_example library
-  $lib_udf_example=
-    mtr_file_exists(vs_config_dirs('sql', 'udf_example.dll'),
-                    "$glob_basedir/sql/.libs/udf_example.so",);
-
-  # Look for the ha_example library
-  $lib_example_plugin=
-    mtr_file_exists(vs_config_dirs('storage/example', 'ha_example.dll'),
-                    "$glob_basedir/storage/example/.libs/ha_example.so",);
 
   # Look for mysqltest executable
   if ( $glob_use_embedded_server )
@@ -1599,7 +1615,7 @@ sub mysql_client_test_arguments()
   mtr_add_arg($args, "--port=$master->[0]->{'port'}");
   mtr_add_arg($args, "--socket=$master->[0]->{'path_sock'}");
 
-  if ( $mysql_version_id >= 50000 )
+  if ( $opt_extern || $mysql_version_id >= 50000 )
   {
     mtr_add_arg($args, "--vardir=$opt_vardir")
   }
@@ -1718,7 +1734,7 @@ sub environment_setup () {
   }
 
   $ENV{'LD_LIBRARY_PATH'}= join(":", @ld_library_paths,
-				$ENV{'LD_LIBRARY_PATHS'} ?
+				$ENV{'LD_LIBRARY_PATH'} ?
 				split(':', $ENV{'LD_LIBRARY_PATH'}) : ());
   mtr_debug("LD_LIBRARY_PATH: $ENV{'LD_LIBRARY_PATH'}");
 
@@ -1899,7 +1915,7 @@ sub environment_setup () {
   my $cmdline_mysqlbinlog=
     "$exe_mysqlbinlog" .
       " --no-defaults --disable-force-if-open --debug-info --local-load=$opt_tmpdir";
-  if ( $mysql_version_id >= 50000 )
+  if ( !$opt_extern && $mysql_version_id >= 50000 )
   {
     $cmdline_mysqlbinlog .=" --character-sets-dir=$path_charsetsdir";
   }
@@ -1930,7 +1946,7 @@ sub environment_setup () {
   # ----------------------------------------------------
   # Setup env so childs can execute mysql_upgrade
   # ----------------------------------------------------
-  if ( $mysql_version_id >= 50000 )
+  if ( !$opt_extern && $mysql_version_id >= 50000 )
   {
     $ENV{'MYSQL_UPGRADE'}= mysql_upgrade_arguments();
   }
@@ -1938,7 +1954,7 @@ sub environment_setup () {
   # ----------------------------------------------------
   # Setup env so childs can execute mysql_fix_system_tables
   # ----------------------------------------------------
-  if ( ! $glob_win32 )
+  if ( !$opt_extern && ! $glob_win32 )
   {
     my $cmdline_mysql_fix_system_tables=
       "$exe_mysql_fix_system_tables --no-defaults --host=localhost " .
@@ -1948,7 +1964,10 @@ sub environment_setup () {
       "--socket=$master->[0]->{'path_sock'}";
     $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  $cmdline_mysql_fix_system_tables;
   }
-  $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
+  if (!$opt_extern)
+  {
+    $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
+  }
 
   # ----------------------------------------------------
   # Setup env so childs can execute my_print_defaults
@@ -2253,7 +2272,10 @@ sub check_ssl_support ($) {
 
   if ($opt_skip_ssl || $opt_extern)
   {
-    mtr_report("Skipping SSL");
+    if (!$opt_extern)
+    {
+      mtr_report("Skipping SSL");
+    }
     $opt_ssl_supported= 0;
     $opt_ssl= 0;
     return;
@@ -2328,9 +2350,12 @@ sub vs_config_dirs ($$) {
 sub check_ndbcluster_support ($) {
   my $mysqld_variables= shift;
 
-  if ($opt_skip_ndbcluster)
+  if ($opt_skip_ndbcluster || $opt_extern)
   {
-    mtr_report("Skipping ndbcluster");
+    if (!$opt_extern)
+    {
+      mtr_report("Skipping ndbcluster");
+    }
     $opt_skip_ndbcluster_slave= 1;
     return;
   }
@@ -2746,7 +2771,10 @@ sub initialize_servers () {
     }
     else
     {
-      mtr_report("No need to create '$opt_vardir' it already exists");
+      if ($opt_verbose)
+      {
+	mtr_report("No need to create '$opt_vardir' it already exists");
+      }
     }
   }
   else
@@ -3143,17 +3171,17 @@ sub do_before_run_mysqltest($)
   unlink("$result_dir/$tname.log");
   unlink("$result_dir/$tname.warnings");
 
-  if ( $mysql_version_id < 50000 )
+  if (!$opt_extern)
   {
-    # Set environment variable NDB_STATUS_OK to 1
-    # if script decided to run mysqltest cluster _is_ installed ok
-    $ENV{'NDB_STATUS_OK'} = "1";
-  }
-  elsif ( $mysql_version_id < 50100 )
-  {
-    # Set environment variable NDB_STATUS_OK to YES
-    # if script decided to run mysqltest cluster _is_ installed ok
-    $ENV{'NDB_STATUS_OK'} = "YES";
+    if ( $mysql_version_id < 50000 ) {
+      # Set environment variable NDB_STATUS_OK to 1
+      # if script decided to run mysqltest cluster _is_ installed ok
+      $ENV{'NDB_STATUS_OK'} = "1";
+    } elsif ( $mysql_version_id < 50100 ) {
+      # Set environment variable NDB_STATUS_OK to YES
+      # if script decided to run mysqltest cluster _is_ installed ok
+      $ENV{'NDB_STATUS_OK'} = "YES";
+    }
   }
 }
 
@@ -4934,10 +4962,10 @@ sub usage ($) {
 
   if ( $message )
   {
-    print STDERR "$message \n";
+    print STDERR "$message\n";
   }
 
-  print STDERR <<HERE;
+  print <<HERE;
 
 $0 [ OPTIONS ] [ TESTCASE ]
 

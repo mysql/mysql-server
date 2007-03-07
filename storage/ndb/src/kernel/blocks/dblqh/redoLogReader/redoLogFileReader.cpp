@@ -53,8 +53,8 @@ Uint32 startAtPageIndex = 0;
 Uint32 *redoLogPage;
 
 NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read a redo log file", 16384) { 
-  int wordIndex = 0;
-  int oldWordIndex = 0;
+  Uint32 wordIndex = 0;
+  Uint32 oldWordIndex = 0;
   Uint32 recordType = 1234567890;
 
   PageHeader *thePageHeader;

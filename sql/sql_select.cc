@@ -268,6 +268,70 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
 
 
 /*
+  Fix fields referenced from inner selects.
+
+  SYNOPSIS
+    fix_inner_refs()
+    thd               Thread handle
+    all_fields        List of all fields used in select
+    select            Current select
+    ref_pointer_array Array of references to Items used in current select
+
+  DESCRIPTION
+    The function fixes fields referenced from inner selects and
+    also fixes references (Item_ref objects) to these fields. Each field
+    is fixed as a usual hidden field of the current select - it is added
+    to the all_fields list and the pointer to it is saved in the
+    ref_pointer_array if latter is provided.
+    After the field has been fixed we proceed with fixing references
+    (Item_ref objects) to this field from inner subqueries. If the
+    ref_pointer_array is provided then Item_ref objects is set to
+    reference element in that array with the pointer to the field.
+
+  RETURN
+    TRUE  an error occured
+    FALSE ok
+*/
+
+bool
+fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
+                 Item **ref_pointer_array)
+{
+  Item_outer_ref *ref;
+  bool res= FALSE;
+  List_iterator<Item_outer_ref> ref_it(select->inner_refs_list);
+  while ((ref= ref_it++))
+  {
+    Item_field *item= ref->outer_field;
+    /*
+      TODO: this field item already might be present in the select list.
+      In this case instead of adding new field item we could use an
+      existing one. The change will lead to less operations for copying fields,
+      smaller temporary tables and less data passed through filesort.
+    */
+    if (ref_pointer_array)
+    {
+      int el= all_fields.elements;
+      ref_pointer_array[el]= (Item*)item;
+      /* Add the field item to the select list of the current select. */
+      all_fields.push_front((Item*)item);
+      /*
+        If it's needed reset each Item_ref item that refers this field with
+        a new reference taken from ref_pointer_array.
+      */
+      ref->ref= ref_pointer_array + el;
+    }
+    if (!ref->fixed && ref->fix_fields(thd, 0))
+    {
+      res= TRUE;
+      break;
+    }
+    thd->used_tables|= item->used_tables();
+  }
+  return res;
+}
+
+/*
   Function to setup clauses without sum functions
 */
 inline int setup_without_group(THD *thd, Item **ref_pointer_array,
@@ -394,6 +458,10 @@ JOIN::prepare(Item ***rref_pointer_array,
   if (having && having->with_sum_func)
     having->split_sum_func2(thd, ref_pointer_array, all_fields,
                             &having, TRUE);
+  if (select_lex->inner_refs_list.elements &&
+      fix_inner_refs(thd, all_fields, select_lex, ref_pointer_array))
+    DBUG_RETURN(-1);
+
   if (select_lex->inner_sum_func_list)
   {
     Item_sum *end=select_lex->inner_sum_func_list;
@@ -474,6 +542,9 @@ JOIN::prepare(Item ***rref_pointer_array,
     }
   }
 
+  if (!procedure && result && result->prepare(fields_list, unit_arg))
+    goto err;					/* purecov: inspected */
+
   /* Init join struct */
   count_field_types(&tmp_table_param, all_fields, 0);
   ref_pointer_array_size= all_fields.elements*sizeof(Item*);
@@ -487,9 +558,6 @@ JOIN::prepare(Item ***rref_pointer_array,
     goto err;
   }
 #endif
-  if (!procedure && result && result->prepare(fields_list, unit_arg))
-    goto err;					/* purecov: inspected */
-
   if (select_lex->olap == ROLLUP_TYPE && rollup_init())
     goto err;
   if (alloc_func_list())
@@ -2884,15 +2952,9 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
           /*
             We can't use indexes if the effective collation
             of the operation differ from the field collation.
-
-            We also cannot use index on a text column, as the column may
-            contain 'x' 'x\t' 'x ' and 'read_next_same' will stop after
-            'x' when searching for WHERE col='x '
           */
           if (field->cmp_type() == STRING_RESULT &&
-              (((Field_str*)field)->charset() != cond->compare_collation() ||
-               ((*value)->type() != Item::NULL_ITEM &&
-                (field->flags & BLOB_FLAG) && !field->binary())))
+              ((Field_str*)field)->charset() != cond->compare_collation())
             return;
         }
       }
@@ -5287,13 +5349,15 @@ get_store_key(THD *thd, KEYUSE *keyuse, table_map used_tables,
 				    key_part->length,
 				    keyuse->val);
   }
-  else if (keyuse->val->type() == Item::FIELD_ITEM)
+  else if (keyuse->val->type() == Item::FIELD_ITEM ||
+           (keyuse->val->type() == Item::REF_ITEM &&
+            ((Item_ref*)keyuse->val)->ref_type() == Item_ref::OUTER_REF) )
     return new store_key_field(thd,
 			       key_part->field,
 			       key_buff + maybe_null,
 			       maybe_null ? key_buff : 0,
 			       key_part->length,
-			       ((Item_field*) keyuse->val)->field,
+			       ((Item_field*) keyuse->val->real_item())->field,
 			       keyuse->val->full_name());
   return new store_key_item(thd,
 			    key_part->field,
@@ -8264,7 +8328,7 @@ static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
       */
       if (nested_join->join_list.elements != 1)
       {
-        nested_join->nj_map= 1 << first_unused++;
+        nested_join->nj_map= (nested_join_map) 1 << first_unused++;
         first_unused= build_bitmap_for_nested_joins(&nested_join->join_list,
                                                     first_unused);
       }
@@ -8887,7 +8951,8 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
       type they needed to be handled separately.
     */
     if ((type= item->field_type()) == MYSQL_TYPE_DATETIME ||
-        type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE)
+        type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE ||
+        type == MYSQL_TYPE_TIMESTAMP)
       new_field= item->tmp_table_field_from_field_type(table, 1);
     /* 
       Make sure that the blob fits into a Field_varstring which has 
@@ -9003,8 +9068,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   Item *orig_item= 0;
 
   if (type != Item::FIELD_ITEM &&
-      item->real_item()->type() == Item::FIELD_ITEM &&
-      !((Item_ref *) item)->depended_from)
+      item->real_item()->type() == Item::FIELD_ITEM)
   {
     orig_item= item;
     item= item->real_item();
@@ -9166,7 +9230,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   uint  hidden_null_count, hidden_null_pack_length, hidden_field_count;
   uint  blob_count,group_null_items, string_count;
   uint  temp_pool_slot=MY_BIT_NONE;
-  ulong reclength, string_total_length, fieldnr= 0;
+  uint fieldnr= 0;
+  ulong reclength, string_total_length;
   bool  using_unique_constraint= 0;
   bool  use_packed_rows= 0;
   bool  not_all_columns= !(select_options & TMP_TABLE_ALL_COLUMNS);
@@ -10332,7 +10397,6 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   else
   {
     DBUG_ASSERT(join->tables);
-    DBUG_ASSERT(join_tab);
     error= sub_select(join,join_tab,0);
     if (error == NESTED_LOOP_OK || error == NESTED_LOOP_NO_MORE_ROWS)
       error= sub_select(join,join_tab,1);
@@ -13719,10 +13783,8 @@ count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
   param->quick_group=1;
   while ((field=li++))
   {
-    Item::Type type=field->type();
     Item::Type real_type= field->real_item()->type();
-    if (type == Item::FIELD_ITEM || (real_type == Item::FIELD_ITEM &&
-        !((Item_ref *) field)->depended_from))
+    if (real_type == Item::FIELD_ITEM)
       param->field_count++;
     else if (real_type == Item::SUM_FUNC_ITEM)
     {
@@ -15196,7 +15258,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         Item_float *filtered;
         float f; 
         if (examined_rows)
-          f= 100.0 * join->best_positions[i].records_read / examined_rows;
+          f= (float) (100.0 * join->best_positions[i].records_read /
+                      examined_rows);
         else
           f= 0.0;
         item_list.push_back((filtered= new Item_float(f)));

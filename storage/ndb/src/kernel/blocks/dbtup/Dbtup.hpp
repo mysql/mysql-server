@@ -516,6 +516,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
       return (m_key.m_file_no << 16) ^ m_key.m_page_idx;
     }
 
+    Extent_info() {}
     bool equal(const Extent_info & rec) const {
       return m_key.m_file_no == rec.m_key.m_file_no &&
 	m_key.m_page_idx == rec.m_key.m_page_idx;
@@ -667,6 +668,7 @@ struct Operationrec {
     Uint32 currentAttrinbufLen; //Used until copyAttrinfo
   };
 
+  Operationrec() {}
   bool is_first_operation() const { return prevActiveOp == RNIL;}
   bool is_last_operation() const { return nextActiveOp == RNIL;}
 
@@ -1241,6 +1243,7 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     STATIC_CONST( LCP_KEEP    = 0x02000000 ); // Should be returned in LCP
     STATIC_CONST( FREE        = 0x02800000 ); // Is free
     
+    Tuple_header() {}
     Uint32 get_tuple_version() const { 
       return m_header_bits & TUP_VERSION_MASK;
     }

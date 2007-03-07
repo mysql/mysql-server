@@ -41,7 +41,7 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
 
 static bool prepare_blob_field(THD *thd, create_field *sql_field);
 static bool check_engine(THD *thd, const char *table_name,
-                         HA_CREATE_INFO *create_info);                             
+                         HA_CREATE_INFO *create_info);
 static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
                                List<create_field> *fields,
                                List<Key> *keys, bool tmp_table,
@@ -460,10 +460,10 @@ static bool write_ddl_log_header()
             global_ddl_log.num_entries);
   const_var= FN_LEN;
   int4store(&global_ddl_log.file_entry_buf[DDL_LOG_NAME_LEN_POS],
-            const_var);
+            (ulong) const_var);
   const_var= IO_SIZE;
   int4store(&global_ddl_log.file_entry_buf[DDL_LOG_IO_SIZE_POS],
-            const_var);
+            (ulong) const_var);
   if (write_ddl_log_file_entry(0UL))
   {
     sql_print_error("Error writing ddl log header");
@@ -3416,16 +3416,11 @@ bool mysql_create_table_internal(THD *thd,
   {
  #ifdef FN_DEVCHAR
     /* check if the table name contains FN_DEVCHAR when defined */
-    const char *start= alias;
-    while (*start != '\0')
+    if (strchr(alias, FN_DEVCHAR))
     {
-      if (*start == FN_DEVCHAR)
-      {
-        my_error(ER_WRONG_TABLE_NAME, MYF(0), alias);
-        DBUG_RETURN(TRUE);
-      }
-      start++;
-    }	  
+      my_error(ER_WRONG_TABLE_NAME, MYF(0), alias);
+      DBUG_RETURN(TRUE);
+    }
 #endif
     path_length= build_table_filename(path, sizeof(path), db, alias, reg_ext,
                                       internal_tmp_table ? FN_IS_TMP : 0);
@@ -4602,7 +4597,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
                              Table_ident *table_ident)
 {
   TABLE *tmp_table;
-  char src_path[FN_REFLEN], dst_path[FN_REFLEN], tmp_path[FN_REFLEN];
+  char src_path[FN_REFLEN], dst_path[FN_REFLEN];
   char src_table_name_buff[FN_REFLEN], src_db_name_buff[FN_REFLEN];
   uint dst_path_length;
   char *db= table->db;
@@ -4613,7 +4608,9 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   bool res= TRUE, unlock_dst_table= FALSE;
   enum legacy_db_type not_used;
   HA_CREATE_INFO *create_info;
-
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  char tmp_path[FN_REFLEN];
+#endif
   TABLE_LIST src_tables_list, dst_tables_list;
   DBUG_ENTER("mysql_create_like_table");
 
@@ -4821,7 +4818,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
         else
           unlock_dst_table= TRUE;
 
-        int result= store_create_info(thd, table, &query, create_info);
+        IF_DBUG(int result=) store_create_info(thd, table, &query,
+                                               create_info);
 
         DBUG_ASSERT(result == 0); // store_create_info() always return 0
         write_bin_log(thd, TRUE, query.ptr(), query.length());
@@ -6648,7 +6646,8 @@ view_err:
                       thd->query, thd->query_length,
                       db, table_name);
 
-  DBUG_ASSERT(!(mysql_bin_log.is_open() && thd->current_stmt_binlog_row_based &&
+  DBUG_ASSERT(!(mysql_bin_log.is_open() &&
+                thd->current_stmt_binlog_row_based &&
                 (create_info->options & HA_LEX_CREATE_TMP_TABLE)));
   write_bin_log(thd, TRUE, thd->query, thd->query_length);
 
