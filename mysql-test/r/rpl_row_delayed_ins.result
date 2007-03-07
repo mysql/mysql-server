@@ -5,7 +5,9 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 create table t1(a int not null primary key) engine=myisam;
-insert delayed into t1 values (1),(2),(3);
+insert delayed into t1 values (1);
+insert delayed into t1 values (2);
+insert delayed into t1 values (3);
 flush tables;
 SELECT * FROM t1 ORDER BY a;
 a
@@ -19,8 +21,10 @@ master-bin.000001	105	Query	1	225	use `test`; create table t1(a int not null pri
 master-bin.000001	225	Table_map	1	264	table_id: # (test.t1)
 master-bin.000001	264	Write_rows	1	298	table_id: # flags: STMT_END_F
 master-bin.000001	298	Table_map	1	337	table_id: # (test.t1)
-master-bin.000001	337	Write_rows	1	376	table_id: # flags: STMT_END_F
-master-bin.000001	376	Query	1	451	use `test`; flush tables
+master-bin.000001	337	Write_rows	1	371	table_id: # flags: STMT_END_F
+master-bin.000001	371	Table_map	1	410	table_id: # (test.t1)
+master-bin.000001	410	Write_rows	1	444	table_id: # flags: STMT_END_F
+master-bin.000001	444	Query	1	519	use `test`; flush tables
 SELECT * FROM t1 ORDER BY a;
 a
 1
