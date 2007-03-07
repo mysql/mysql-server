@@ -68,6 +68,12 @@ sub mtr_short_hostname () {
 sub mtr_native_path($)
 {
   my $path= shift;
+
+  # MySQL version before 5.0 still use cygwin, no need
+  # to convert path
+  return $path
+    if ($::mysql_version_id < 50000);
+
   $path=~ s/\//\\/g
     if ($::glob_win32);
   return $path;
