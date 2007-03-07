@@ -22,7 +22,7 @@
 RWPool::RWPool() 
 {
   bzero(this, sizeof(* this));
-  m_current_pos = GLOBAL_PAGE_SIZE_WORDS;
+  m_current_pos = RWPage::RWPAGE_WORDS;
   m_current_first_free = REC_NIL;
   m_first_free_page = RNIL;
 }
@@ -57,7 +57,7 @@ seize_free:
     m_current_first_free = pageP->m_data[pos+m_record_info.m_offset_next_pool];
     return true;
   }
-  else if (pos + size < GLOBAL_PAGE_SIZE_WORDS)
+  else if (pos + size < RWPage::RWPAGE_WORDS)
   {
 seize_first:
     ptr.i = (m_current_page_no << POOL_RECORD_BITS) + pos;
@@ -81,11 +81,14 @@ seize_first:
   {
     pageP = m_current_page = m_memroot + m_first_free_page;
     m_current_page_no = m_first_free_page;
-    m_current_pos = GLOBAL_PAGE_SIZE_WORDS;
+    m_current_pos = RWPage::RWPAGE_WORDS;
     m_current_first_free = m_current_page->m_first_free;
     m_first_free_page = m_current_page->m_next_page;
     m_current_ref_count = m_current_page->m_ref_count;
-    (m_memroot + m_first_free_page)->m_prev_page = RNIL;
+    if (m_first_free_page != RNIL)
+    {
+      (m_memroot + m_first_free_page)->m_prev_page = RNIL;
+    }
     goto seize_free;
   }
 
@@ -105,7 +108,7 @@ seize_first:
 
   m_current_page = 0;
   m_current_page_no = RNIL;
-  m_current_pos = GLOBAL_PAGE_SIZE_WORDS;
+  m_current_pos = RWPage::RWPAGE_WORDS;
   m_current_first_free = REC_NIL;
   
   return false;
@@ -154,6 +157,7 @@ RWPool::release(Ptr<void> ptr)
       }
       page->m_next_page = ffp;
       page->m_prev_page = RNIL;
+      m_first_free_page = ptr_page;
       return;
     }
     else if(ref_cnt == 1)
