@@ -32,7 +32,7 @@
   Holyfoot
 */
 
-#define MTEST_VERSION "3.1"
+#define MTEST_VERSION "3.2"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -59,6 +59,11 @@
 # else
 #  define WEXITSTATUS(stat_val) ((unsigned)(stat_val) >> 8)
 # endif
+#endif
+
+/* Use cygwin for --exec and --system before 5.0 */
+#if MYSQL_VERSION_ID < 50000
+#define USE_CYGWIN
 #endif
 
 #define MAX_VAR_NAME_LENGTH    256
@@ -103,7 +108,7 @@ static my_bool disable_query_log= 0, disable_result_log= 0;
 static my_bool disable_warnings= 0, disable_ps_warnings= 0;
 static my_bool disable_info= 1;
 static my_bool abort_on_error= 1;
-
+static my_bool is_windows= 0;
 static char **default_argv;
 static const char *load_default_groups[]= { "mysqltest", "client", 0 };
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos= line_buffer;
@@ -273,7 +278,7 @@ enum enum_commands {
   Q_DISABLE_PARSING, Q_ENABLE_PARSING,
   Q_REPLACE_REGEX, Q_REMOVE_FILE, Q_FILE_EXIST,
   Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT,
-  Q_CHMOD_FILE,
+  Q_CHMOD_FILE, Q_APPEND_FILE, Q_CAT_FILE, Q_DIFF_FILES,
 
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
@@ -357,6 +362,9 @@ const char *command_names[]=
   /* Don't execute any more commands, compare result */
   "exit",
   "chmod",
+  "append_file",
+  "cat_file",
+  "diff_files",
   0
 };
 
@@ -407,6 +415,8 @@ TYPELIB command_typelib= {array_elements(command_names),"",
 
 DYNAMIC_STRING ds_res, ds_progress, ds_warning_messages;
 
+char builtin_echo[FN_REFLEN];
+
 void die(const char *fmt, ...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
 void abort_not_supported_test(const char *fmt, ...)
@@ -414,6 +424,8 @@ void abort_not_supported_test(const char *fmt, ...)
 void verbose_msg(const char *fmt, ...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
 void warning_msg(const char *fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 1, 2);
+void log_msg(const char *fmt, ...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
 
 VAR* var_from_env(const char *, const char *);
@@ -432,6 +444,7 @@ void dump_progress();
 void do_eval(DYNAMIC_STRING *query_eval, const char *query,
              const char *query_end, my_bool pass_through_escape_chars);
 void str_to_file(const char *fname, char *str, int size);
+void str_to_file2(const char *fname, char *str, int size, my_bool append);
 
 #ifdef __WIN__
 void free_tmp_sh_file();
@@ -578,6 +591,7 @@ void do_eval(DYNAMIC_STRING *query_eval, const char *query,
 	dynstr_append_mem(query_eval, p, 1);
       break;
     default:
+      escaped= 0;
       dynstr_append_mem(query_eval, p, 1);
       break;
     }
@@ -913,12 +927,31 @@ void warning_msg(const char *fmt, ...)
     dynstr_append_mem(&ds_warning_messages,
                       buff, len);
   }
-#ifndef __WIN__
-  len= vsnprintf(buff, sizeof(buff), fmt, args);
+
+  len= my_vsnprintf(buff, sizeof(buff), fmt, args);
   dynstr_append_mem(&ds_warning_messages, buff, len);
-#endif
+
   dynstr_append(&ds_warning_messages, "\n");
   va_end(args);
+
+  DBUG_VOID_RETURN;
+}
+
+
+void log_msg(const char *fmt, ...)
+{
+  va_list args;
+  char buff[512];
+  size_t len;
+  DBUG_ENTER("log_msg");
+
+  memset(buff, 0, sizeof(buff));
+  va_start(args, fmt);
+  len= my_vsnprintf(buff, sizeof(buff)-1, fmt, args);
+  va_end(args);
+
+  dynstr_append_mem(&ds_res, buff, len);
+  dynstr_append(&ds_res, "\n");
 
   DBUG_VOID_RETURN;
 }
@@ -1497,35 +1530,100 @@ void do_source(struct st_command *command)
 }
 
 
-#ifdef __WIN__
+#if defined __WIN__
+
+#ifdef USE_CYGWIN
 /* Variables used for temporary sh files used for emulating Unix on Windows */
 char tmp_sh_name[64], tmp_sh_cmd[70];
+#endif
 
 void init_tmp_sh_file()
 {
+#ifdef USE_CYGWIN
   /* Format a name for the tmp sh file that is unique for this process */
   my_snprintf(tmp_sh_name, sizeof(tmp_sh_name), "tmp_%d.sh", getpid());
   /* Format the command to execute in order to run the script */
   my_snprintf(tmp_sh_cmd, sizeof(tmp_sh_cmd), "sh %s", tmp_sh_name);
+#endif
 }
 
 
 void free_tmp_sh_file()
 {
+#ifdef USE_CYGWIN
   my_delete(tmp_sh_name, MYF(0));
+#endif
 }
 #endif
 
 
 FILE* my_popen(DYNAMIC_STRING *ds_cmd, const char *mode)
 {
-#ifdef __WIN__
+#if defined __WIN__ && defined USE_CYGWIN
   /* Dump the command into a sh script file and execute with popen */
   str_to_file(tmp_sh_name, ds_cmd->str, ds_cmd->length);
   return popen(tmp_sh_cmd, mode);
 #else
   return popen(ds_cmd->str, mode);
 #endif
+}
+
+
+static void init_builtin_echo(void)
+{
+#ifdef __WIN__
+
+  /* Look for "echo.exe" in same dir as mysqltest was started from */
+  dirname_part(builtin_echo, my_progname);
+  fn_format(builtin_echo, ".\\echo.exe",
+            builtin_echo, "", MYF(MY_REPLACE_DIR));
+
+  /* Make sure echo.exe exists */
+  if (access(builtin_echo, F_OK) != 0)
+    builtin_echo[0]= 0;
+  return;
+
+#else
+
+  builtin_echo[0]= 0;
+  return;
+
+#endif
+}
+
+
+/*
+  Replace a substring
+
+  SYNOPSIS
+    replace
+    ds_str      The string to search and perform the replace in
+    search_str  The string to search for
+    search_len  Length of the string to search for
+    replace_str The string to replace with
+    replace_len Length of the string to replace with
+
+  RETURN
+    0 String replaced
+    1 Could not find search_str in str
+*/
+
+static int replace(DYNAMIC_STRING *ds_str,
+                   const char *search_str, ulong search_len,
+                   const char *replace_str, ulong replace_len)
+{
+  DYNAMIC_STRING ds_tmp;
+  const char *start= strstr(ds_str->str, search_str);
+  if (!start)
+    return 1;
+  init_dynamic_string(&ds_tmp, "",
+                      ds_str->length + replace_len, 256);
+  dynstr_append_mem(&ds_tmp, ds_str->str, start - ds_str->str);
+  dynstr_append_mem(&ds_tmp, replace_str, replace_len);
+  dynstr_append(&ds_tmp, start + search_len);
+  dynstr_set(ds_str, ds_tmp.str);
+  dynstr_free(&ds_tmp);
+  return 0;
 }
 
 
@@ -1547,13 +1645,13 @@ FILE* my_popen(DYNAMIC_STRING *ds_cmd, const char *mode)
   NOTE
   Although mysqltest is executed from cygwin shell, the command will be
   executed in "cmd.exe". Thus commands like "rm" etc can NOT be used, use
-  system for those commands.
+  mysqltest commmand(s) like "remove_file" for that
 */
 
 void do_exec(struct st_command *command)
 {
   int error;
-  char buf[1024];
+  char buf[512];
   FILE *res_file;
   char *cmd= command->first_argument;
   DYNAMIC_STRING ds_cmd;
@@ -1569,10 +1667,28 @@ void do_exec(struct st_command *command)
 
   init_dynamic_string(&ds_cmd, 0, command->query_len+256, 256);
   /* Eval the command, thus replacing all environment variables */
-  do_eval(&ds_cmd, cmd, command->end, TRUE);
+  do_eval(&ds_cmd, cmd, command->end, !is_windows);
+
+  /* Check if echo should be replaced with "builtin" echo */
+  if (builtin_echo[0] && strncmp(cmd, "echo", 4) == 0)
+  {
+    /* Replace echo with our "builtin" echo */
+    replace(&ds_cmd, "echo", 4, builtin_echo, strlen(builtin_echo));
+  }
+
+#ifdef __WIN__
+#ifndef USE_CYGWIN
+  /* Replace /dev/null with NUL */
+  while(replace(&ds_cmd, "/dev/null", 9, "NUL", 3) == 0)
+    ;
+  /* Replace "closed stdout" with non existing output fd */
+  while(replace(&ds_cmd, ">&-", 3, ">&4", 3) == 0)
+    ;
+#endif
+#endif
 
   DBUG_PRINT("info", ("Executing '%s' as '%s'",
-                      command->first_argument, cmd));
+                      command->first_argument, ds_cmd.str));
 
   if (!(res_file= my_popen(&ds_cmd, "r")) && command->abort_on_error)
     die("popen(\"%s\", \"r\") failed", command->first_argument);
@@ -1596,7 +1712,11 @@ void do_exec(struct st_command *command)
     my_bool ok= 0;
 
     if (command->abort_on_error)
+    {
+      log_msg("exec of '%s failed, error: %d, status: %d, errno: %d",
+              ds_cmd.str, error, status, errno);
       die("command \"%s\" failed", command->first_argument);
+    }
 
     DBUG_PRINT("info",
                ("error: %d, status: %d", error, status));
@@ -1620,6 +1740,8 @@ void do_exec(struct st_command *command)
            command->expected_errors.err[0].code.errnum != 0)
   {
     /* Error code we wanted was != 0, i.e. not an expected success */
+    log_msg("exec of '%s failed, error: %d, errno: %d",
+            ds_cmd.str, error, errno);
     die("command \"%s\" succeeded - should have failed with errno %d...",
         command->first_argument, command->expected_errors.err[0].code.errnum);
   }
@@ -1690,7 +1812,7 @@ int do_modify_var(struct st_command *command,
 
 int my_system(DYNAMIC_STRING* ds_cmd)
 {
-#ifdef __WIN__
+#if defined __WIN__ && defined USE_CYGWIN
   /* Dump the command into a sh script file and execute with system */
   str_to_file(tmp_sh_name, ds_cmd->str, ds_cmd->length);
   return system(tmp_sh_cmd);
@@ -1724,7 +1846,16 @@ void do_system(struct st_command *command)
   init_dynamic_string(&ds_cmd, 0, command->query_len + 64, 256);
 
   /* Eval the system command, thus replacing all environment variables */
-  do_eval(&ds_cmd, command->first_argument, command->end, TRUE);
+  do_eval(&ds_cmd, command->first_argument, command->end, !is_windows);
+
+#ifdef __WIN__
+#ifndef USE_CYGWIN
+   /* Replace /dev/null with NUL */
+   while(replace(&ds_cmd, "/dev/null", 9, "NUL", 3) == 0)
+     ;
+#endif
+#endif
+
 
   DBUG_PRINT("info", ("running system command '%s' as '%s'",
                       command->first_argument, ds_cmd.str));
@@ -1945,6 +2076,38 @@ void read_until_delimiter(DYNAMIC_STRING *ds,
 }
 
 
+void do_write_file_command(struct st_command *command, my_bool append)
+{
+  static DYNAMIC_STRING ds_content;
+  static DYNAMIC_STRING ds_filename;
+  static DYNAMIC_STRING ds_delimiter;
+  const struct command_arg write_file_args[] = {
+    "filename", ARG_STRING, TRUE, &ds_filename, "File to write to",
+    "delimiter", ARG_STRING, FALSE, &ds_delimiter, "Delimiter to read until"
+  };
+  DBUG_ENTER("do_write_file");
+
+  check_command_args(command,
+                     command->first_argument,
+                     write_file_args,
+                     sizeof(write_file_args)/sizeof(struct command_arg),
+                     ' ');
+
+  /* If no delimiter was provided, use EOF */
+  if (ds_delimiter.length == 0)
+    dynstr_set(&ds_delimiter, "EOF");
+
+  init_dynamic_string(&ds_content, "", 1024, 1024);
+  read_until_delimiter(&ds_content, &ds_delimiter);
+  DBUG_PRINT("info", ("Writing to file: %s", ds_filename.str));
+  str_to_file2(ds_filename.str, ds_content.str, ds_content.length, append);
+  dynstr_free(&ds_content);
+  dynstr_free(&ds_filename);
+  dynstr_free(&ds_delimiter);
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   SYNOPSIS
   do_write_file
@@ -1974,35 +2137,173 @@ void read_until_delimiter(DYNAMIC_STRING *ds,
 
 void do_write_file(struct st_command *command)
 {
-  static DYNAMIC_STRING ds_content;
+  do_write_file_command(command, FALSE);
+}
+
+
+/*
+  SYNOPSIS
+  do_append_file
+  command	called command
+
+  DESCRIPTION
+  append_file <file_name> [<delimiter>];
+  <what to write line 1>
+  <...>
+  < what to write line n>
+  EOF
+
+  --append_file <file_name>;
+  <what to write line 1>
+  <...>
+  < what to write line n>
+  EOF
+
+  Append everything between the "append_file" command
+  and 'delimiter' to "file_name"
+
+  Default <delimiter> is EOF
+
+*/
+
+void do_append_file(struct st_command *command)
+{
+  do_write_file_command(command, TRUE);
+}
+
+
+/*
+  SYNOPSIS
+  do_cat_file
+  command	called command
+
+  DESCRIPTION
+  cat_file <file_name>;
+
+  Print the given file to result log
+
+*/
+
+void do_cat_file(struct st_command *command)
+{
+  int fd;
+  uint len;
+  char buff[512];
   static DYNAMIC_STRING ds_filename;
-  static DYNAMIC_STRING ds_delimiter;
-  const struct command_arg write_file_args[] = {
-    "filename", ARG_STRING, TRUE, &ds_filename, "File to write to",
-    "delimiter", ARG_STRING, FALSE, &ds_delimiter, "Delimiter to read until"
+  const struct command_arg cat_file_args[] = {
+    "filename", ARG_STRING, TRUE, &ds_filename, "File to read from"
   };
-  DBUG_ENTER("do_write_file");
+  DBUG_ENTER("do_cat_file");
 
   check_command_args(command,
                      command->first_argument,
-                     write_file_args,
-                     sizeof(write_file_args)/sizeof(struct command_arg),
+                     cat_file_args,
+                     sizeof(cat_file_args)/sizeof(struct command_arg),
                      ' ');
 
-  /* If no delimiter was provided, use EOF */
-  if (ds_delimiter.length == 0)
-    dynstr_set(&ds_delimiter, "EOF");
+  DBUG_PRINT("info", ("Reading from, file: %s", ds_filename.str));
 
-  init_dynamic_string(&ds_content, "", 1024, 1024);
-  read_until_delimiter(&ds_content, &ds_delimiter);
-  DBUG_PRINT("info", ("Writing to file: %s", ds_filename.str));
-  str_to_file(ds_filename.str, ds_content.str, ds_content.length);
-  dynstr_free(&ds_content);
+  if ((fd= my_open(ds_filename.str, O_RDONLY, MYF(0))) < 0)
+    die("Failed to open file %s", ds_filename.str);
+  while((len= my_read(fd, (byte*)&buff,
+                      sizeof(buff), MYF(0))) > 0)
+  {
+    char *p= buff, *start= buff;
+    while (p < buff+len)
+    {
+      /* Convert cr/lf to lf */
+      if (*p == '\r' && *(p+1) && *(p+1)== '\n')
+      {
+        /* Add fake newline instead of cr and output the line */
+        *p= '\n';
+        p++; /* Step past the "fake" newline */
+        dynstr_append_mem(&ds_res, start, p-start);
+        p++; /* Step past the "fake" newline */
+        start= p;
+      }
+      else
+        p++;
+    }
+    /* Output any chars that migh be left */
+    dynstr_append_mem(&ds_res, start, p-start);
+  }
+  my_close(fd, MYF(0));
   dynstr_free(&ds_filename);
-  dynstr_free(&ds_delimiter);
   DBUG_VOID_RETURN;
 }
 
+
+
+/*
+  SYNOPSIS
+  do_diff_files
+  command	called command
+
+  DESCRIPTION
+  diff_files <file1> <file2>;
+
+  Fails if the two files differ.
+
+*/
+
+void do_diff_files(struct st_command *command)
+{
+  int error= 0;
+  int fd, fd2;
+  uint len, len2;
+  char buff[512], buff2[512];
+  static DYNAMIC_STRING ds_filename;
+  static DYNAMIC_STRING ds_filename2;
+  const struct command_arg diff_file_args[] = {
+    "file1", ARG_STRING, TRUE, &ds_filename, "First file to diff",
+    "file2", ARG_STRING, TRUE, &ds_filename2, "Second file to diff"
+  };
+  DBUG_ENTER("do_diff_files");
+
+  check_command_args(command,
+                     command->first_argument,
+                     diff_file_args,
+                     sizeof(diff_file_args)/sizeof(struct command_arg),
+                     ' ');
+
+  if ((fd= my_open(ds_filename.str, O_RDONLY, MYF(0))) < 0)
+    die("Failed to open first file %s", ds_filename.str);
+  if ((fd2= my_open(ds_filename2.str, O_RDONLY, MYF(0))) < 0)
+  {
+    my_close(fd, MYF(0));
+    die("Failed to open second file %s", ds_filename2.str);
+  }
+  while((len= my_read(fd, (byte*)&buff,
+                      sizeof(buff), MYF(0))) > 0)
+  {
+    if ((len2= my_read(fd2, (byte*)&buff2,
+                       sizeof(buff2), MYF(0))) != len)
+    {
+      /* File 2 was smaller */
+      error= 1;
+      break;
+    }
+    if ((memcmp(buff, buff2, len)))
+    {
+      /* Content of this part differed */
+      error= 1;
+      break;
+    }
+  }
+  if (my_read(fd2, (byte*)&buff2,
+              sizeof(buff2), MYF(0)) > 0)
+  {
+    /* File 1 was smaller */
+    error= 1;
+  }
+
+  my_close(fd, MYF(0));
+  my_close(fd2, MYF(0));
+  dynstr_free(&ds_filename);
+  dynstr_free(&ds_filename2);
+  handle_command_error(command, error);
+  DBUG_VOID_RETURN;
+}
 
 /*
   SYNOPSIS
@@ -4153,6 +4454,40 @@ int parse_args(int argc, char **argv)
   return 0;
 }
 
+/*
+  Write the content of str into file
+
+  SYNOPSIS
+  str_to_file2
+  fname - name of file to truncate/create and write to
+  str - content to write to file
+  size - size of content witten to file
+  append - append to file instead of overwriting old file
+*/
+
+void str_to_file2(const char *fname, char *str, int size, my_bool append)
+{
+  int fd;
+  char buff[FN_REFLEN];
+  int flags= O_WRONLY | O_CREAT;
+  if (!test_if_hard_path(fname))
+  {
+    strxmov(buff, opt_basedir, fname, NullS);
+    fname= buff;
+  }
+  fn_format(buff, fname, "", "", MY_UNPACK_FILENAME);
+
+  if (!append)
+    flags|= O_TRUNC;
+  if ((fd= my_open(buff, flags,
+                   MYF(MY_WME | MY_FFNF))) < 0)
+    die("Could not open %s: errno = %d", buff, errno);
+  if (append && my_seek(fd, 0, SEEK_END, MYF(0)) == MY_FILEPOS_ERROR)
+    die("Could not find end of file %s: errno = %d", buff, errno);
+  if (my_write(fd, (byte*)str, size, MYF(MY_WME|MY_FNABP)))
+    die("write failed");
+  my_close(fd, MYF(0));
+}
 
 /*
   Write the content of str into file
@@ -4166,21 +4501,7 @@ int parse_args(int argc, char **argv)
 
 void str_to_file(const char *fname, char *str, int size)
 {
-  int fd;
-  char buff[FN_REFLEN];
-  if (!test_if_hard_path(fname))
-  {
-    strxmov(buff, opt_basedir, fname, NullS);
-    fname= buff;
-  }
-  fn_format(buff, fname, "", "", MY_UNPACK_FILENAME);
-
-  if ((fd= my_open(buff, O_WRONLY | O_CREAT | O_TRUNC,
-                   MYF(MY_WME | MY_FFNF))) < 0)
-    die("Could not open %s: errno = %d", buff, errno);
-  if (my_write(fd, (byte*)str, size, MYF(MY_WME|MY_FNABP)))
-    die("write failed");
-  my_close(fd, MYF(0));
+  str_to_file2(fname, str, size, FALSE);
 }
 
 
@@ -5020,8 +5341,9 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
   /*
     If we got here the statement succeeded and was expected to do so,
     get data. Note that this can still give errors found during execution!
+    Store the result of the query if if will return any fields
   */
-  if (mysql_stmt_store_result(stmt))
+  if (mysql_stmt_field_count(stmt) && mysql_stmt_store_result(stmt))
   {
     handle_error(command, mysql_stmt_errno(stmt),
                  mysql_stmt_error(stmt), mysql_stmt_sqlstate(stmt), ds);
@@ -5613,7 +5935,11 @@ int main(int argc, char **argv)
   parser.current_line= parser.read_lines= 0;
   memset(&var_reg, 0, sizeof(var_reg));
 
+  init_builtin_echo();
 #ifdef __WIN__
+#ifndef USE_CYGWIN
+  is_windows= 1;
+#endif
   init_tmp_sh_file();
   init_win_path_patterns();
 #endif
@@ -5747,6 +6073,9 @@ int main(int argc, char **argv)
       case Q_REMOVE_FILE: do_remove_file(command); break;
       case Q_FILE_EXIST: do_file_exist(command); break;
       case Q_WRITE_FILE: do_write_file(command); break;
+      case Q_APPEND_FILE: do_append_file(command); break;
+      case Q_DIFF_FILES: do_diff_files(command); break;
+      case Q_CAT_FILE: do_cat_file(command); break;
       case Q_COPY_FILE: do_copy_file(command); break;
       case Q_CHMOD_FILE: do_chmod_file(command); break;
       case Q_PERL: do_perl(command); break;

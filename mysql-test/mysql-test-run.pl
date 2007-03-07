@@ -347,6 +347,7 @@ sub stop_all_servers ();
 sub run_mysqltest ($);
 sub usage ($);
 
+
 ######################################################################
 #
 #  Main program
@@ -1518,7 +1519,8 @@ sub executable_setup () {
 sub generate_cmdline_mysqldump ($) {
   my($mysqld) = @_;
   return
-    "$exe_mysqldump --no-defaults -uroot " .
+    mtr_native_path($exe_mysqldump) .
+      " --no-defaults -uroot " .
       "--port=$mysqld->{'port'} " .
       "--socket=$mysqld->{'path_sock'} --password=";
 }
@@ -1624,7 +1626,7 @@ sub environment_setup () {
   my $deb_version;
   if (  $opt_valgrind and -d $debug_libraries_path and
         (! -e '/etc/debian_version' or
-         ($deb_version= mtr_grab_file('/etc/debian_version')) == 0 or
+	 ($deb_version= mtr_grab_file('/etc/debian_version')) !~ /^[0-9]+\.[0-9]$/ or
          $deb_version > 3.1 ) )
   {
     push(@ld_library_paths, $debug_libraries_path);
@@ -1721,9 +1723,10 @@ sub environment_setup () {
   # Setup env so childs can execute mysqlcheck
   # ----------------------------------------------------
   my $cmdline_mysqlcheck=
-    "$exe_mysqlcheck --no-defaults -uroot " .
-    "--port=$master->[0]->{'port'} " .
-    "--socket=$master->[0]->{'path_sock'} --password=";
+    mtr_native_path($exe_mysqlcheck) .
+      " --no-defaults -uroot " .
+      "--port=$master->[0]->{'port'} " .
+      "--socket=$master->[0]->{'path_sock'} --password=";
 
   if ( $opt_debug )
   {
@@ -1755,7 +1758,8 @@ sub environment_setup () {
   if ( $exe_mysqlslap )
   {
     my $cmdline_mysqlslap=
-      "$exe_mysqlslap -uroot " .
+      mtr_native_path($exe_mysqlslap) .
+      " -uroot " .
       "--port=$master->[0]->{'port'} " .
       "--socket=$master->[0]->{'path_sock'} --password= " .
       "--lock-directory=$opt_tmpdir";
@@ -1772,7 +1776,8 @@ sub environment_setup () {
   # Setup env so childs can execute mysqlimport
   # ----------------------------------------------------
   my $cmdline_mysqlimport=
-    "$exe_mysqlimport -uroot " .
+    mtr_native_path($exe_mysqlimport) .
+    " -uroot " .
     "--port=$master->[0]->{'port'} " .
     "--socket=$master->[0]->{'path_sock'} --password=";
 
@@ -1788,7 +1793,8 @@ sub environment_setup () {
   # Setup env so childs can execute mysqlshow
   # ----------------------------------------------------
   my $cmdline_mysqlshow=
-    "$exe_mysqlshow -uroot " .
+    mtr_native_path($exe_mysqlshow) .
+    " -uroot " .
     "--port=$master->[0]->{'port'} " .
     "--socket=$master->[0]->{'path_sock'} --password=";
 
@@ -1803,7 +1809,7 @@ sub environment_setup () {
   # Setup env so childs can execute mysqlbinlog
   # ----------------------------------------------------
   my $cmdline_mysqlbinlog=
-    "$exe_mysqlbinlog" .
+    mtr_native_path($exe_mysqlbinlog) .
       " --no-defaults --local-load=$opt_tmpdir";
   if ( $mysql_version_id >= 50000 )
   {
@@ -1821,7 +1827,8 @@ sub environment_setup () {
   # Setup env so childs can execute mysql
   # ----------------------------------------------------
   my $cmdline_mysql=
-    "$exe_mysql --no-defaults --host=localhost  --user=root --password= " .
+    mtr_native_path($exe_mysql) .
+    " --no-defaults --host=localhost  --user=root --password= " .
     "--port=$master->[0]->{'port'} " .
     "--socket=$master->[0]->{'path_sock'} ".
     "--character-sets-dir=$path_charsetsdir";
@@ -1850,17 +1857,17 @@ sub environment_setup () {
   # ----------------------------------------------------
   # Setup env so childs can execute my_print_defaults
   # ----------------------------------------------------
-  $ENV{'MYSQL_MY_PRINT_DEFAULTS'}=  $exe_my_print_defaults;
+  $ENV{'MYSQL_MY_PRINT_DEFAULTS'}= mtr_native_path($exe_my_print_defaults);
 
   # ----------------------------------------------------
   # Setup env so childs can execute mysqladmin
   # ----------------------------------------------------
-  $ENV{'MYSQLADMIN'}=  $exe_mysqladmin;
+  $ENV{'MYSQLADMIN'}= mtr_native_path($exe_mysqladmin);
 
   # ----------------------------------------------------
   # Setup env so childs can execute perror  
   # ----------------------------------------------------
-  $ENV{'MY_PERROR'}=                 $exe_perror;
+  $ENV{'MY_PERROR'}= mtr_native_path($exe_perror);
 
   # ----------------------------------------------------
   # Add the path where mysqld will find udf_example.so
@@ -2018,6 +2025,16 @@ sub remove_stale_vardir () {
       mtr_verbose("Removing $opt_vardir/");
       rmtree("$opt_vardir/");
     }
+
+    if ( $opt_mem )
+    {
+      # A symlink from var/ to $opt_mem will be set up
+      # remove the $opt_mem dir to assure the symlink
+      # won't point at an old directory
+      mtr_verbose("Removing $opt_mem");
+      rmtree($opt_mem);
+    }
+
   }
   else
   {
@@ -3634,7 +3651,7 @@ sub mysqld_arguments ($$$$$) {
     if ( $mysql_version_id <= 50106 )
     {
       # Force mysqld to use log files up until 5.1.6
-      mtr_add_arg($args, "%s--log=%s", $prefix, $master->[0]->{'path_mylog'});
+      mtr_add_arg($args, "%s--log=%s", $prefix, $slave->[0]->{'path_mylog'});
     }
     else
     {
@@ -4516,7 +4533,8 @@ sub run_mysqltest ($) {
   # ----------------------------------------------------------------------
   # export MYSQL_TEST variable containing <path>/mysqltest <args>
   # ----------------------------------------------------------------------
-  $ENV{'MYSQL_TEST'}= "$exe_mysqltest " . join(" ", @$args);
+  $ENV{'MYSQL_TEST'}=
+    mtr_native_path($exe_mysqltest) . " " . join(" ", @$args);
 
   # ----------------------------------------------------------------------
   # Add arguments that should not go into the MYSQL_TEST env var
