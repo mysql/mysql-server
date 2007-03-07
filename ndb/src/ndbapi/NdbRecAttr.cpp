@@ -235,17 +235,26 @@ ndbrecattr_print_formatted(NdbOut& out, const NdbRecAttr &r,
       out << r.u_64_value();
       break;
     case NdbDictionary::Column::Bit:
-      for (j = (length-1)/32 + 1; j > 0; j--)
-        if (*((Uint32*)r.aRef() + j - 1))
-          break;
-      if (j == 0)
-      {
-        out << "0x0";
-        break;
-      }
       out << f.hex_prefix << "0x";
-      for (; j > 0; j--)
-        out.print("%X", *((Uint32*)r.aRef() + j - 1));
+      if (length < 33)
+      {
+        out.print("%X", r.u_32_value());
+      }
+      else if (length < 65)
+      {
+        out.print("%llX", r.u_64_value());
+      }
+      else
+      {
+        const unsigned char *buf = (unsigned char *)r.aRef();
+        int k = 4*((length+31)/32);
+        while (k > 0 && (*(buf + --k) == 0));
+        do
+        {
+          out.print("%X", (Uint32)*(buf + k--));
+        }
+        while (k >= 0);
+      }
       break;
     case NdbDictionary::Column::Unsigned:
       if (length > 1)
