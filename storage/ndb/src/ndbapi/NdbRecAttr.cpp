@@ -150,7 +150,7 @@ NdbRecordPrintFormat::NdbRecordPrintFormat()
   null_string= "[NULL]";
   hex_format= 0;
 }
-NdbRecordPrintFormat::~NdbRecordPrintFormat() {};
+NdbRecordPrintFormat::~NdbRecordPrintFormat() {}
 static const NdbRecordPrintFormat default_print_format;
 
 static void
