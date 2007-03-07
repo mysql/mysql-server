@@ -52,21 +52,12 @@ const LEX_STRING null_lex_str={0,0};
 		      ER_WARN_DEPRECATED_SYNTAX,                    \
 		      ER(ER_WARN_DEPRECATED_SYNTAX), (A), (B));
 
-#define YYERROR_UNLESS(A)                  \
+#define YYABORT_UNLESS(A)                  \
   if (!(A))                             \
   {					\
     yyerror(ER(ER_SYNTAX_ERROR));	\
     YYABORT;				\
   }
-
-/* Helper for parsing "IS [NOT] truth_value" */
-inline Item *is_truth_value(Item *A, bool v1, bool v2)
-{
-  return new Item_func_if(create_func_ifnull(A,
-	new Item_int((char *) (v2 ? "TRUE" : "FALSE"), v2, 1)),
-	new Item_int((char *) (v1 ? "TRUE" : "FALSE"), v1, 1),
-	new Item_int((char *) (v1 ? "FALSE" : "TRUE"),!v1, 1));
-}
 
 #ifndef DBUG_OFF
 #define YYDEBUG 1
@@ -277,6 +268,81 @@ void case_stmt_action_end_case(LEX *lex, bool simple)
   lex->sphead->do_cont_backpatch();
 }
 
+/**
+  Helper to resolve the SQL:2003 Syntax exception 1) in <in predicate>.
+  See SQL:2003, Part 2, section 8.4 <in predicate>, Note 184, page 383.
+  This function returns the proper item for the SQL expression
+  <code>left [NOT] IN ( expr )</code>
+  @param thd the current thread
+  @param left the in predicand
+  @param equal true for IN predicates, false for NOT IN predicates
+  @param expr first and only expression of the in value list
+  @return an expression representing the IN predicate.
+*/
+Item* handle_sql2003_note184_exception(THD *thd, Item* left, bool equal,
+                                       Item *expr)
+{
+  /*
+    Relevant references for this issue:
+    - SQL:2003, Part 2, section 8.4 <in predicate>, page 383,
+    - SQL:2003, Part 2, section 7.2 <row value expression>, page 296,
+    - SQL:2003, Part 2, section 6.3 <value expression primary>, page 174,
+    - SQL:2003, Part 2, section 7.15 <subquery>, page 370,
+    - SQL:2003 Feature F561, "Full value expressions".
+
+    The exception in SQL:2003 Note 184 means:
+    Item_singlerow_subselect, which corresponds to a <scalar subquery>,
+    should be re-interpreted as an Item_in_subselect, which corresponds
+    to a <table subquery> when used inside an <in predicate>.
+
+    Our reading of Note 184 is reccursive, so that all:
+    - IN (( <subquery> ))
+    - IN ((( <subquery> )))
+    - IN '('^N <subquery> ')'^N
+    - etc
+    should be interpreted as a <table subquery>, no matter how deep in the
+    expression the <subquery> is.
+  */
+
+  Item *result;
+
+  DBUG_ENTER("handle_sql2003_note184_exception");
+
+  if (expr->type() == Item::SUBSELECT_ITEM)
+  {
+    Item_subselect *expr2 = (Item_subselect*) expr;
+
+    if (expr2->substype() == Item_subselect::SINGLEROW_SUBS)
+    {
+      Item_singlerow_subselect *expr3 = (Item_singlerow_subselect*) expr2;
+      st_select_lex *subselect;
+
+      /*
+        Implement the mandated change, by altering the semantic tree:
+          left IN Item_singlerow_subselect(subselect)
+        is modified to
+          left IN (subselect)
+        which is represented as
+          Item_in_subselect(left, subselect)
+      */
+      subselect= expr3->invalidate_and_restore_select_lex();
+      result= new (thd->mem_root) Item_in_subselect(left, subselect);
+
+      if (! equal)
+        result = negate_expression(thd, result);
+
+      DBUG_RETURN(result);
+    }
+  }
+
+  if (equal)
+    result= new (thd->mem_root) Item_func_eq(left, expr);
+  else
+    result= new (thd->mem_root) Item_func_ne(left, expr);
+
+  DBUG_RETURN(result);
+}
+
 %}
 %union {
   int  num;
@@ -323,6 +389,11 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %}
 
 %pure_parser					/* We have threads */
+/*
+  Currently there is 251 shift/reduce conflict. We should not introduce
+  new conflicts any more.
+*/
+%expect 251
 
 %token  END_OF_INPUT
 
@@ -4393,13 +4464,18 @@ bool_factor:
 	| bool_test ;
 
 bool_test:
-	bool_pri IS TRUE_SYM	{ $$= is_truth_value($1,1,0); }
-	| bool_pri IS not TRUE_SYM { $$= is_truth_value($1,0,0); }
-	| bool_pri IS FALSE_SYM	{ $$= is_truth_value($1,0,1); }
-	| bool_pri IS not FALSE_SYM { $$= is_truth_value($1,1,1); }
-	| bool_pri IS UNKNOWN_SYM { $$= new Item_func_isnull($1); }
-	| bool_pri IS not UNKNOWN_SYM { $$= new Item_func_isnotnull($1); }
-	| bool_pri ;
+          bool_pri IS TRUE_SYM
+          { $$= new (YYTHD->mem_root) Item_func_istrue($1); }
+        | bool_pri IS not TRUE_SYM
+          { $$= new (YYTHD->mem_root) Item_func_isnottrue($1); }
+        | bool_pri IS FALSE_SYM
+          { $$= new (YYTHD->mem_root) Item_func_isfalse($1); }
+        | bool_pri IS not FALSE_SYM
+          { $$= new (YYTHD->mem_root) Item_func_isnotfalse($1); }
+        | bool_pri IS UNKNOWN_SYM { $$= new Item_func_isnull($1); }
+        | bool_pri IS not UNKNOWN_SYM { $$= new Item_func_isnotnull($1); }
+        | bool_pri
+        ;
 
 bool_pri:
 	bool_pri IS NULL_SYM	{ $$= new Item_func_isnull($1); }
@@ -4412,31 +4488,37 @@ bool_pri:
 	| predicate ;
 
 predicate:
-        bit_expr IN_SYM '(' subselect ')'
-	  { $$= new Item_in_subselect($1, $4); }
-	| bit_expr not IN_SYM '(' subselect ')'
-          { $$= negate_expression(YYTHD, new Item_in_subselect($1, $5)); }
+          bit_expr IN_SYM '(' subselect ')'
+          {
+            $$= new (YYTHD->mem_root) Item_in_subselect($1, $4);
+          }
+        | bit_expr not IN_SYM '(' subselect ')'
+          {
+            THD *thd= YYTHD;
+            Item *item= new (thd->mem_root) Item_in_subselect($1, $5);
+            $$= negate_expression(thd, item);
+          }
         | bit_expr IN_SYM '(' expr ')'
           {
-              $$= new Item_func_eq($1, $4);
+            $$= handle_sql2003_note184_exception(YYTHD, $1, true, $4);
           }
-	| bit_expr IN_SYM '(' expr ',' expr_list ')'
-	  { 
-              $6->push_front($4);
-              $6->push_front($1);
-              $$= new Item_func_in(*$6);
+        | bit_expr IN_SYM '(' expr ',' expr_list ')'
+          { 
+            $6->push_front($4);
+            $6->push_front($1);
+            $$= new (YYTHD->mem_root) Item_func_in(*$6);
           }
         | bit_expr not IN_SYM '(' expr ')'
           {
-              $$= new Item_func_ne($1, $5);
+            $$= handle_sql2003_note184_exception(YYTHD, $1, false, $5);
           }
-	| bit_expr not IN_SYM '(' expr ',' expr_list ')'
+        | bit_expr not IN_SYM '(' expr ',' expr_list ')'
           {
-              $7->push_front($5);
-              $7->push_front($1);
-              Item_func_in *item = new Item_func_in(*$7);
-              item->negate();
-              $$= item;
+            $7->push_front($5);
+            $7->push_front($1);
+            Item_func_in *item = new (YYTHD->mem_root) Item_func_in(*$7);
+            item->negate();
+            $$= item;
           }
 	| bit_expr BETWEEN_SYM bit_expr AND_SYM predicate
 	  { $$= new Item_func_between($1,$3,$5); }
@@ -5408,7 +5490,7 @@ table_ref:
         ;
 
 join_table_list:
-	derived_table_list		{ YYERROR_UNLESS($$=$1); }
+	derived_table_list		{ YYABORT_UNLESS($$=$1); }
 	;
 
 /* Warning - may return NULL in case of incomplete SELECT */
@@ -5416,7 +5498,7 @@ derived_table_list:
         table_ref { $$=$1; }
         | derived_table_list ',' table_ref
           {
-            YYERROR_UNLESS($1 && ($$=$3));
+            YYABORT_UNLESS($1 && ($$=$3));
           }
         ;
 
@@ -5435,13 +5517,13 @@ join_table:
           left-associative joins.
         */
         table_ref %prec TABLE_REF_PRIORITY normal_join table_ref
-          { YYERROR_UNLESS($1 && ($$=$3)); }
+          { YYABORT_UNLESS($1 && ($$=$3)); }
 	| table_ref STRAIGHT_JOIN table_factor
-	  { YYERROR_UNLESS($1 && ($$=$3)); $3->straight=1; }
+	  { YYABORT_UNLESS($1 && ($$=$3)); $3->straight=1; }
 	| table_ref normal_join table_ref
           ON
           {
-            YYERROR_UNLESS($1 && $3);
+            YYABORT_UNLESS($1 && $3);
             /* Change the current name resolution context to a local context. */
             if (push_new_name_resolution_context(YYTHD, $1, $3))
               YYABORT;
@@ -5456,7 +5538,7 @@ join_table:
         | table_ref STRAIGHT_JOIN table_factor
           ON
           {
-            YYERROR_UNLESS($1 && $3);
+            YYABORT_UNLESS($1 && $3);
             /* Change the current name resolution context to a local context. */
             if (push_new_name_resolution_context(YYTHD, $1, $3))
               YYABORT;
@@ -5472,13 +5554,13 @@ join_table:
 	| table_ref normal_join table_ref
 	  USING
 	  {
-            YYERROR_UNLESS($1 && $3);
+            YYABORT_UNLESS($1 && $3);
 	  }
 	  '(' using_list ')'
           { add_join_natural($1,$3,$7,Select); $$=$3; }
 	| table_ref NATURAL JOIN_SYM table_factor
 	  {
-            YYERROR_UNLESS($1 && ($$=$4));
+            YYABORT_UNLESS($1 && ($$=$4));
             add_join_natural($1,$4,NULL,Select);
           }
 
@@ -5486,7 +5568,7 @@ join_table:
 	| table_ref LEFT opt_outer JOIN_SYM table_ref
           ON
           {
-            YYERROR_UNLESS($1 && $5);
+            YYABORT_UNLESS($1 && $5);
             /* Change the current name resolution context to a local context. */
             if (push_new_name_resolution_context(YYTHD, $1, $5))
               YYABORT;
@@ -5502,7 +5584,7 @@ join_table:
           }
 	| table_ref LEFT opt_outer JOIN_SYM table_factor
 	  {
-            YYERROR_UNLESS($1 && $5);
+            YYABORT_UNLESS($1 && $5);
 	  }
 	  USING '(' using_list ')'
           { 
@@ -5512,7 +5594,7 @@ join_table:
           }
 	| table_ref NATURAL LEFT opt_outer JOIN_SYM table_factor
 	  {
-            YYERROR_UNLESS($1 && $6);
+            YYABORT_UNLESS($1 && $6);
  	    add_join_natural($1,$6,NULL,Select);
 	    $6->outer_join|=JOIN_TYPE_LEFT;
 	    $$=$6;
@@ -5522,7 +5604,7 @@ join_table:
 	| table_ref RIGHT opt_outer JOIN_SYM table_ref
           ON
           {
-            YYERROR_UNLESS($1 && $5);
+            YYABORT_UNLESS($1 && $5);
             /* Change the current name resolution context to a local context. */
             if (push_new_name_resolution_context(YYTHD, $1, $5))
               YYABORT;
@@ -5539,7 +5621,7 @@ join_table:
           }
 	| table_ref RIGHT opt_outer JOIN_SYM table_factor
 	  {
-            YYERROR_UNLESS($1 && $5);
+            YYABORT_UNLESS($1 && $5);
 	  }
 	  USING '(' using_list ')'
           {
@@ -5550,7 +5632,7 @@ join_table:
           }
 	| table_ref NATURAL RIGHT opt_outer JOIN_SYM table_factor
 	  {
-            YYERROR_UNLESS($1 && $6);
+            YYABORT_UNLESS($1 && $6);
 	    add_join_natural($6,$1,NULL,Select);
 	    LEX *lex= Lex;
             if (!($$= lex->current_select->convert_right_join()))
@@ -5593,7 +5675,7 @@ table_factor:
           expr '}'
 	  {
 	    LEX *lex= Lex;
-            YYERROR_UNLESS($3 && $7);
+            YYABORT_UNLESS($3 && $7);
             add_join_on($7,$10);
             Lex->pop_context();
             $7->outer_join|=JOIN_TYPE_LEFT;
@@ -9645,21 +9727,21 @@ xa: XA_SYM begin_or_start xid opt_join_or_resume
 
 xid: text_string
      {
-       YYERROR_UNLESS($1->length() <= MAXGTRIDSIZE);
+       YYABORT_UNLESS($1->length() <= MAXGTRIDSIZE);
        if (!(Lex->xid=(XID *)YYTHD->alloc(sizeof(XID))))
          YYABORT;
        Lex->xid->set(1L, $1->ptr(), $1->length(), 0, 0);
      }
      | text_string ',' text_string
      {
-       YYERROR_UNLESS($1->length() <= MAXGTRIDSIZE && $3->length() <= MAXBQUALSIZE);
+       YYABORT_UNLESS($1->length() <= MAXGTRIDSIZE && $3->length() <= MAXBQUALSIZE);
        if (!(Lex->xid=(XID *)YYTHD->alloc(sizeof(XID))))
          YYABORT;
        Lex->xid->set(1L, $1->ptr(), $1->length(), $3->ptr(), $3->length());
      }
      | text_string ',' text_string ',' ulong_num
      {
-       YYERROR_UNLESS($1->length() <= MAXGTRIDSIZE && $3->length() <= MAXBQUALSIZE);
+       YYABORT_UNLESS($1->length() <= MAXGTRIDSIZE && $3->length() <= MAXBQUALSIZE);
        if (!(Lex->xid=(XID *)YYTHD->alloc(sizeof(XID))))
          YYABORT;
        Lex->xid->set($5, $1->ptr(), $1->length(), $3->ptr(), $3->length());

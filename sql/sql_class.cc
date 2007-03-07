@@ -277,6 +277,38 @@ THD::THD()
   substitute_null_with_insert_id = FALSE;
   thr_lock_info_init(&lock_info); /* safety: will be reset after start */
   thr_lock_owner_init(&main_lock_id, &lock_info);
+
+  m_internal_handler= NULL;
+}
+
+
+void THD::push_internal_handler(Internal_error_handler *handler)
+{
+  /*
+    TODO: The current implementation is limited to 1 handler at a time only.
+    THD and sp_rcontext need to be modified to use a common handler stack.
+  */
+  DBUG_ASSERT(m_internal_handler == NULL);
+  m_internal_handler= handler;
+}
+
+
+bool THD::handle_error(uint sql_errno,
+                       MYSQL_ERROR::enum_warning_level level)
+{
+  if (m_internal_handler)
+  {
+    return m_internal_handler->handle_error(sql_errno, level, this);
+  }
+
+  return FALSE;                                 // 'FALSE', as per coding style
+}
+
+
+void THD::pop_internal_handler()
+{
+  DBUG_ASSERT(m_internal_handler != NULL);
+  m_internal_handler= NULL;
 }
 
 
@@ -321,6 +353,7 @@ void THD::init(void)
 
 void THD::init_for_queries()
 {
+  set_time(); 
   ha_enable_transaction(this,TRUE);
 
   reset_root_defaults(mem_root, variables.query_alloc_block_size,

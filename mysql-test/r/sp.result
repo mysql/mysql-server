@@ -1155,9 +1155,13 @@ create function f12_2() returns int
 return (select count(*) from t3)|
 drop temporary table t3|
 select f12_1()|
-ERROR 42S02: Table 'test.t3' doesn't exist
+f12_1()
+3
+Warnings:
+Note	1051	Unknown table 't3'
 select f12_1() from t1 limit 1|
-ERROR 42S02: Table 'test.t3' doesn't exist
+f12_1()
+3
 drop function f0|
 drop function f1|
 drop function f2|
@@ -5727,4 +5731,38 @@ END|
 CALL bug24117()|
 DROP PROCEDURE bug24117|
 DROP TABLE t3|
+drop function if exists func_8407_a|
+drop function if exists func_8407_b|
+create function func_8407_a() returns int
+begin
+declare x int;
+declare continue handler for sqlexception
+begin
+end;
+select 1 from no_such_view limit 1 into x;
+return x;
+end|
+create function func_8407_b() returns int
+begin
+declare x int default 0;
+declare continue handler for sqlstate '42S02'
+  begin
+set x:= x+1000;
+end;
+case (select 1 from no_such_view limit 1)
+when 1 then set x:= x+1;
+when 2 then set x:= x+2;
+else set x:= x+100;
+end case;
+set x:=x + 500;
+return x;
+end|
+select func_8407_a()|
+func_8407_a()
+NULL
+select func_8407_b()|
+func_8407_b()
+1500
+drop function func_8407_a|
+drop function func_8407_b|
 drop table t1,t2;

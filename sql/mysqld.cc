@@ -2448,6 +2448,14 @@ static int my_message_sql(uint error, const char *str, myf MyFlags)
   */
   if ((thd= current_thd))
   {
+    /*
+      TODO: There are two exceptions mechanism (THD and sp_rcontext),
+      this could be improved by having a common stack of handlers.
+    */
+    if (thd->handle_error(error,
+                          MYSQL_ERROR::WARN_LEVEL_ERROR))
+      DBUG_RETURN(0);
+
     if (thd->spcont &&
         thd->spcont->handle_error(error, MYSQL_ERROR::WARN_LEVEL_ERROR, thd))
     {

@@ -99,6 +99,16 @@ void lex_free(void)
 }
 
 
+void
+st_parsing_options::reset()
+{
+  allows_variable= TRUE;
+  allows_select_into= TRUE;
+  allows_select_procedure= TRUE;
+  allows_derived= TRUE;
+}
+
+
 /*
   This is called before every query that is to be parsed.
   Because of this, it's critical to not do too much things here.
@@ -149,6 +159,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->safe_to_cache_query= 1;
   lex->time_zone_tables_used= 0;
   lex->leaf_tables_insert= 0;
+  lex->parsing_options.reset();
   lex->empty_field_list_on_rset= 0;
   lex->select_lex.select_number= 1;
   lex->next_state=MY_LEX_START;

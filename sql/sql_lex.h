@@ -891,10 +891,8 @@ struct st_parsing_options
   bool allows_select_procedure;
   bool allows_derived;
 
-  st_parsing_options()
-    : allows_variable(TRUE), allows_select_into(TRUE),
-      allows_select_procedure(TRUE), allows_derived(TRUE)
-  {}
+  st_parsing_options() { reset(); }
+  void reset();
 };
 
 
