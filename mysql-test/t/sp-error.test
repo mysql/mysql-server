@@ -1607,10 +1607,12 @@ create function bug11555_1() returns int return (select max(i) from t1);
 create function bug11555_2() returns int return bug11555_1();
 # It is OK to report name of implicitly used table which is missing
 # when we create view.
---error ER_NO_SUCH_TABLE
+# For stored functions however, because of exceptions handlers, there is
+# no easy way to find out if a missing table makes the view invalid.
 create view v1 as select bug11555_1();
---error ER_NO_SUCH_TABLE
+drop view v1;
 create view v2 as select bug11555_2();
+drop view v2;
 # But we should hide name of missing implicitly used table when we use view
 create table t1 (i int);
 create view v1 as select bug11555_1();
@@ -1625,9 +1627,8 @@ select * from v2;
 select * from v3;
 # Note that creation of view which depends on broken view is yet 
 # another form of view usage.
---error ER_VIEW_INVALID
 create view v4 as select * from v1;
-drop view v1, v2, v3;
+drop view v1, v2, v3, v4;
 # We also should hide details about broken triggers which are
 # invoked for view.
 drop function bug11555_1;
@@ -1637,12 +1638,14 @@ create table t2 (i int);
 create trigger t1_ai after insert on t1 for each row insert into t2 values (new.i);
 create view v1 as select * from t1;
 drop table t2;
---error ER_VIEW_INVALID
+# Limitation, the desired error is ER_VIEW_INVALID
+--error ER_TABLE_NOT_LOCKED
 insert into v1 values (1);
 drop trigger t1_ai;
 create function bug11555_1() returns int return (select max(i) from t2);
 create trigger t1_ai after insert on t1 for each row set @a:=bug11555_1();
---error ER_VIEW_INVALID
+# Limitation, the desired error is ER_VIEW_INVALID
+--error ER_TABLE_NOT_LOCKED
 insert into v1 values (2);
 drop function bug11555_1;
 drop table t1;
@@ -1839,6 +1842,184 @@ call bug24491();
 drop procedure bug24491;
 drop tables t1;
 
+#
+# BUG#18914: Calling certain SPs from triggers fail
+#
+# Failing to call a procedure that does implicit commit from a trigger
+# is a correct behaviour, however the error message was misleading.
+#
+# DROP TABLE IF EXISTS is also fixed to give correct error instead of
+# "Table doesn't exist". 
+#
+--disable_warnings
+DROP FUNCTION IF EXISTS bug18914_f1;
+DROP FUNCTION IF EXISTS bug18914_f2;
+DROP PROCEDURE IF EXISTS bug18914_p1;
+DROP PROCEDURE IF EXISTS bug18914_p2;
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+CREATE TABLE t1 (i INT);
+
+CREATE PROCEDURE bug18914_p1() CREATE TABLE t2 (i INT);
+CREATE PROCEDURE bug18914_p2() DROP TABLE IF EXISTS no_such_table;
+
+delimiter |;
+CREATE FUNCTION bug18914_f1() RETURNS INT
+BEGIN
+  CALL bug18914_p1();
+  RETURN 1;
+END |
+
+CREATE FUNCTION bug18914_f2() RETURNS INT
+BEGIN
+  CALL bug18914_p2();
+  RETURN 1;
+END |
+delimiter ;|
+
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+  CALL bug18914_p1();
+
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+INSERT INTO t1 VALUES (1);
+
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+SELECT bug18914_f1();
+
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+SELECT bug18914_f2();
+
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t2;
+
+DROP FUNCTION bug18914_f1;
+DROP FUNCTION bug18914_f2;
+DROP PROCEDURE bug18914_p1;
+DROP PROCEDURE bug18914_p2;
+DROP TABLE t1;
+
+#
+# Bug#20713 (Functions will not not continue for SQLSTATE VALUE '42S02')
+#
+
+--disable_warnings
+drop table if exists bogus_table_20713;
+drop function if exists func_20713_a;
+drop function if exists func_20713_b;
+--enable_warnings
+
+create table bogus_table_20713( id int(10) not null primary key);
+insert into bogus_table_20713 values (1), (2), (3);
+
+delimiter //;
+
+create function func_20713_a() returns int(11)
+begin
+  declare id int;
+
+  declare continue handler for sqlexception set id=null;
+
+  set @in_func := 1;
+  set id = (select id from bogus_table_20713 where id = 3);
+  set @in_func := 2;
+
+  return id;
+end//
+
+create function func_20713_b() returns int(11)
+begin
+  declare id int;
+
+  declare continue handler for sqlstate value '42S02' set id=null;
+
+  set @in_func := 1;
+  set id = (select id from bogus_table_20713 where id = 3);
+  set @in_func := 2;
+
+  return id;
+end//
+
+delimiter ;//
+
+set @in_func := 0;
+select func_20713_a();
+select @in_func;
+
+set @in_func := 0;
+select func_20713_b();
+select @in_func;
+
+drop table bogus_table_20713;
+
+set @in_func := 0;
+select func_20713_a();
+select @in_func;
+
+set @in_func := 0;
+select func_20713_b();
+select @in_func;
+
+drop function if exists func_20713_a;
+drop function if exists func_20713_b;
+
+#
+# Bug#25345 (Cursors from Functions)
+#
+
+--disable_warnings
+drop table if exists table_25345_a;
+drop table if exists table_25345_b;
+drop procedure if exists proc_25345;
+drop function if exists func_25345;
+drop function if exists func_25345_b;
+--enable_warnings
+
+create table table_25345_a (a int);
+create table table_25345_b (b int);
+
+delimiter ||;
+
+create procedure proc_25345()
+begin
+  declare c1 cursor for select a from table_25345_a;
+  declare c2 cursor for select b from table_25345_b;
+
+  select 1 as result;
+end ||
+
+create function func_25345() returns int(11)
+begin
+  call proc_25345();
+  return 1;
+end ||
+
+create function func_25345_b() returns int(11)
+begin
+  declare c1 cursor for select a from table_25345_a;
+  declare c2 cursor for select b from table_25345_b;
+
+  return 1;
+end ||
+
+delimiter ;||
+
+call proc_25345();
+--error ER_SP_NO_RETSET
+select func_25345();
+select func_25345_b();
+
+drop table table_25345_a;
+
+call proc_25345();
+--error ER_SP_NO_RETSET
+select func_25345();
+select func_25345_b();
+
+drop table table_25345_b;
+drop procedure proc_25345;
+drop function func_25345;
+drop function func_25345_b;
 
 #
 # BUG#NNNN: New bug synopsis

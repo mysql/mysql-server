@@ -272,3 +272,61 @@ call p1();
 1
 1
 drop procedure p1;
+flush logs;
+create table t1 (a varchar(64) character set utf8);
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+set character_set_database=koi8r;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+set character_set_database=latin1;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+set character_set_database=koi8r;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+set character_set_database=latin1;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+load data infile '../std_data_ln/loaddata6.dat' into table t1 character set koi8r;
+select hex(a) from t1;
+hex(a)
+C3BF
+D0AA
+C3BF
+C3BF
+D0AA
+C3BF
+D0AA
+drop table t1;
+flush logs;
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+use test/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1/*!*/;
+SET @@session.sql_mode=0/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+create table t1 (a varchar(64) character set utf8)/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+load data LOCAL INFILE 'MYSQL_TMP_DIR/SQL_LOAD_MB-6-0' INTO table t1/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.collation_database=7/*!*/;
+load data LOCAL INFILE 'MYSQL_TMP_DIR/SQL_LOAD_MB-7-0' INTO table t1/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+load data LOCAL INFILE 'MYSQL_TMP_DIR/SQL_LOAD_MB-8-0' INTO table t1/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+load data LOCAL INFILE 'MYSQL_TMP_DIR/SQL_LOAD_MB-9-0' INTO table t1/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.collation_database=7/*!*/;
+load data LOCAL INFILE 'MYSQL_TMP_DIR/SQL_LOAD_MB-a-0' INTO table t1/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+load data LOCAL INFILE 'MYSQL_TMP_DIR/SQL_LOAD_MB-b-0' INTO table t1/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+load data LOCAL INFILE 'MYSQL_TMP_DIR/SQL_LOAD_MB-c-0' INTO table t1 character set koi8r/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+drop table t1/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;

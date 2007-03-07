@@ -304,7 +304,7 @@ void setup_windows_event_source()
 
   /* Register EventMessageFile */
   dwError = RegSetValueEx(hRegKey, "EventMessageFile", 0, REG_EXPAND_SZ,
-                          (PBYTE) szPath, strlen(szPath)+1);
+                          (PBYTE) szPath, (DWORD) (strlen(szPath) + 1));
 
   /* Register supported event types */
   dwTypes= (EVENTLOG_ERROR_TYPE | EVENTLOG_WARNING_TYPE |
@@ -1578,13 +1578,13 @@ bool MYSQL_LOG::flush_and_sync()
   return err;
 }
 
-void MYSQL_LOG::start_union_events(THD *thd)
+void MYSQL_LOG::start_union_events(THD *thd, query_id_t query_id_param)
 {
   DBUG_ASSERT(!thd->binlog_evt_union.do_union);
   thd->binlog_evt_union.do_union= TRUE;
   thd->binlog_evt_union.unioned_events= FALSE;
   thd->binlog_evt_union.unioned_events_trans= FALSE;
-  thd->binlog_evt_union.first_query_id= thd->query_id;
+  thd->binlog_evt_union.first_query_id= query_id_param;
 }
 
 void MYSQL_LOG::stop_union_events(THD *thd)
@@ -1784,7 +1784,7 @@ void MYSQL_LOG::rotate_and_purge(uint flags)
 #ifdef HAVE_REPLICATION
     if (expire_logs_days)
     {
-      long purge_time= time(0) - expire_logs_days*24*60*60;
+      long purge_time= (long) (time(0) - expire_logs_days*24*60*60);
       if (purge_time >= 0)
         purge_logs_before_date(purge_time);
     }
@@ -2524,7 +2524,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
       goto err;
     if (using_heuristic_recover())
       return 1;
-    if ((fd= my_create(logname, O_RDWR, 0, MYF(MY_WME))) < 0)
+    if ((fd= my_create(logname, CREATE_MODE, O_RDWR, MYF(MY_WME))) < 0)
       goto err;
     inited=1;
     file_length= opt_tc_log_size;

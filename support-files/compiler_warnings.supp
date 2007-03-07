@@ -1,8 +1,25 @@
+integer.cpp: .*control reaches end of non-void function.*: 1288-1427
 DictTabInfo.cpp : .*invalid access to non-static.*
 DictTabInfo.cpp : .*macro was used incorrectly.*
-DbdihMain.cpp : .*unused variable.* : 6666-6705
-DbtupExecQuery.cpp : .*unused variable.* : 1448-1449
+DbdihMain.cpp : .*unused variable.* : 6666-7013
+DbtupExecQuery.cpp : .*unused variable.* : 1448-1449 
+kernel_types.h : .*only defines private constructors and has no friends.* : 51
+Dbtup.hpp:   .*only defines private constructors and has no friends.*
+diskpage.hpp:   .*only defines private constructors and has no friends.*
+tuppage.hpp:   .*only defines private constructors and has no friends.*
+NdbScanOperation.cpp: .*unused variable '__align'.* : 1190-1200
+sql_yacc.cc : .*label 'yyerrlab1' defined but not used.*
+kernel_types.h : .*'struct Local_key' only defines private constructors and has no friends.*
+lgman.hpp : .*'struct Lgman::Buffer_idx' only defines private constructors and has no friends.*
+SchemaFile.hpp : .*'struct SchemaFile::TableEntry' only defines private constructors and has no friends.*
 sql_yacc.cc : .*switch statement contains 'default' but no 'case' labels.*
+
+#
+# Things that can be ignored in InnoDB
+#
+pars0grm.tab.c: .*'yyerrorlab' : unreferenced label.*
+_flex_tmp.c: .*not enough actual parameters for macro 'yywrap'.*
+pars0lex.l: .*conversion from 'ulint' to 'int', possible loss of data.*
 
 #
 # bdb is not critical to keep up to date
@@ -11,16 +28,52 @@ sql_yacc.cc : .*switch statement contains 'default' but no 'case' labels.*
 .*/bdb/.* : .*unused parameter.*
 .*/bdb/.* : .*may be used uninitialized.*
 .*/bdb/.* : .*empty body in an if-statement.*
+.*/bdb/.* : .*conversion from 'u?lint' to 'int', possible loss of data.*
 db_vrfy.c : .*comparison is always false due to limited range of data type.*
+dbm.c : .*'item.dsize' is used uninitialized in this function.*
 
 #
 # Ignore all conversion warnings on windows 64
 # (Is safe as we are not yet supporting strings >= 2G)
 #
-.* : conversion from 'size_t' to .*int'.*
 .* : conversion from '__int64' to .*int'.*
+.* : conversion from '__int64' to 'uint8'.*
+.* : conversion from '__int64' to 'uint32'.*
+.* : conversion from '__int64' to 'u.*long'.*
+.* : conversion from '__int64' to 'long'.*
+.* : conversion from '__int64' to 'off_t'.*
+.* : conversion from '.*size_t' to .*int'.*
+.* : conversion from '.*size_t' to 'TaoCrypt::word32'.*
+.* : conversion from '.*size_t' to 'u.*long'.*
+.* : conversion from '.*size_t' to 'uint32'.*
+.* : conversion from '.*size_t' to 'off_t'.*
+.* : conversion from '.*size_t' to 'size_s'.*
+.* : conversion from 'u?lint' to 'int'.*
+ha_berkeley.cc : .*conversion from 'ulonglong' to 'char'.*
 
 #
 # The following should be fixed by the ndb team
 #
 .*/ndb/.* : .*used uninitialized in this function.*
+.*/ndb/.* : .*unused variable.*
+.*/ndb/.* : .*defined but not used.*
+
+#
+# Unexplanable (?) stuff
+#
+listener.cc : .*conversion from 'SOCKET' to 'int'.*
+net_serv.cc : .*conversion from 'SOCKET' to 'int'.*
+mi_packrec.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 567
+
+#
+# Wrong compiler warnings
+#
+.* : .*no matching operator delete found; memory will not be freed if initialization throws an exception.*
+
+#
+# Viossl warnings - fixed in 5.1, disabled in 5.0. Too large to be changed
+# in 5.0. Please do not merge upwards.
+#
+socket_wrapper.cpp : .*truncation of constant value.*
+socket_wrapper.hpp : .*truncation of constant value.*
+viossl.c : .*conversion from 'SOCKET' to 'socket_t'.*

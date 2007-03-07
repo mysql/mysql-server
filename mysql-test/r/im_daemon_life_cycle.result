@@ -21,6 +21,6 @@ Success: the process was restarted.
 Success: server is ready to accept connection on socket.
 SHOW INSTANCE STATUS mysqld1;
 instance_name	status	version
-mysqld1	online	VERSION
+mysqld1	STATE	VERSION
 STOP INSTANCE mysqld2;
 Success: the process has been stopped.

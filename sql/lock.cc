@@ -566,7 +566,7 @@ TABLE_LIST *mysql_lock_have_duplicate(THD *thd, TABLE_LIST *needle,
 
   for (; haystack; haystack= haystack->next_global)
   {
-    if (haystack->placeholder() || haystack->schema_table)
+    if (haystack->placeholder())
       continue;
     table2= haystack->table;
     if (table2->s->tmp_table == TMP_TABLE)
