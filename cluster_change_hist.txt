@@ -2,7 +2,16 @@
 mysql-5.1.15-ndb-6.1.X
 ==================================================
 
-mysql-5.1.15-ndb-6.1.3 (not released yet)
+mysql-5.1.15-ndb-6.1.4 (limited test release)
+
+  Bug #26899 - ndb_restore cannot restore selected tables and databases
+  Bug #26900 - ndb_restore printout option does not give structured data
+  Bug #26720 - Infinite loop on unknown signal in logging function
+  Bug #26741 - ndb_restore with only print_data seg faults
+  Bug #26739 - ndb_restore segfault on some 64-bit architectures
+  Bug #26663 - cluster have issues with api nodeids > 63
+
+mysql-5.1.15-ndb-6.1.3 (25 Feb 2007)
 
   Bug #26515 - Incorrect pointer after FSCLOSECONF in REDO invalidation
   Bug #26514 - Invalid memory access could occur during DD usage
