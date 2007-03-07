@@ -101,6 +101,92 @@ public:
   uint decimal_precision() const { return 1; }
 };
 
+
+/**
+  Abstract Item class, to represent <code>X IS [NOT] (TRUE | FALSE)</code>
+  boolean predicates.
+*/
+
+class Item_func_truth : public Item_bool_func
+{
+public:
+  virtual bool val_bool();
+  virtual longlong val_int();
+  virtual void fix_length_and_dec();
+  virtual void print(String *str);
+
+protected:
+  Item_func_truth(Item *a, bool a_value, bool a_affirmative)
+  : Item_bool_func(a), value(a_value), affirmative(a_affirmative)
+  {}
+
+  ~Item_func_truth()
+  {}
+private:
+  /**
+    True for <code>X IS [NOT] TRUE</code>,
+    false for <code>X IS [NOT] FALSE</code> predicates.
+  */
+  const bool value;
+  /**
+    True for <code>X IS Y</code>, false for <code>X IS NOT Y</code> predicates.
+  */
+  const bool affirmative;
+};
+
+
+/**
+  This Item represents a <code>X IS TRUE</code> boolean predicate.
+*/
+
+class Item_func_istrue : public Item_func_truth
+{
+public:
+  Item_func_istrue(Item *a) : Item_func_truth(a, true, true) {}
+  ~Item_func_istrue() {}
+  virtual const char* func_name() const { return "istrue"; }
+};
+
+
+/**
+  This Item represents a <code>X IS NOT TRUE</code> boolean predicate.
+*/
+
+class Item_func_isnottrue : public Item_func_truth
+{
+public:
+  Item_func_isnottrue(Item *a) : Item_func_truth(a, true, false) {}
+  ~Item_func_isnottrue() {}
+  virtual const char* func_name() const { return "isnottrue"; }
+};
+
+
+/**
+  This Item represents a <code>X IS FALSE</code> boolean predicate.
+*/
+
+class Item_func_isfalse : public Item_func_truth
+{
+public:
+  Item_func_isfalse(Item *a) : Item_func_truth(a, false, true) {}
+  ~Item_func_isfalse() {}
+  virtual const char* func_name() const { return "isfalse"; }
+};
+
+
+/**
+  This Item represents a <code>X IS NOT FALSE</code> boolean predicate.
+*/
+
+class Item_func_isnotfalse : public Item_func_truth
+{
+public:
+  Item_func_isnotfalse(Item *a) : Item_func_truth(a, false, false) {}
+  ~Item_func_isnotfalse() {}
+  virtual const char* func_name() const { return "isnotfalse"; }
+};
+
+
 class Item_cache;
 #define UNKNOWN ((my_bool)-1)
 

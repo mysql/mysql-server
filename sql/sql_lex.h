@@ -891,10 +891,8 @@ struct st_parsing_options
   bool allows_select_procedure;
   bool allows_derived;
 
-  st_parsing_options()
-    : allows_variable(TRUE), allows_select_into(TRUE),
-      allows_select_procedure(TRUE), allows_derived(TRUE)
-  {}
+  st_parsing_options() { reset(); }
+  void reset();
 };
 
 
@@ -1184,6 +1182,10 @@ typedef struct st_lex : public Query_tables_list
   {
     return context_stack.head();
   }
+  /*
+    Restore the LEX and THD in case of a parse error.
+  */
+  static void cleanup_lex_after_parse_error(THD *thd);
 
   void reset_n_backup_query_tables_list(Query_tables_list *backup);
   void restore_backup_query_tables_list(Query_tables_list *backup);

@@ -748,12 +748,14 @@ drop view v1;
 #
 # VIEWs with national characters
 #
-create table tü (cü char);
-create view vü as select cü from tü;
-insert into vü values ('ü');
-select * from vü;
-drop view vü;
-drop table tü;
+set names utf8;
+create table tÃ¼ (cÃ¼ char);
+create view vÃ¼ as select cÃ¼ from tÃ¼;
+insert into vÃ¼ values ('Ã¼');
+select * from vÃ¼;
+drop view vÃ¼;
+drop table tÃ¼;
+set names latin1;
 
 #
 # problem with used_tables() of outer reference resolved in VIEW
@@ -2991,7 +2993,7 @@ DROP VIEW v1;
 #
 
 CREATE TABLE t1 (mydate DATETIME);
-INSERT INTO t1 VALUES 
+INSERT INTO t1 VALUES
   ('2007-01-01'), ('2007-01-02'), ('2007-01-30'), ('2007-01-31');
 
 CREATE VIEW v1 AS SELECT mydate from t1;
@@ -3039,7 +3041,7 @@ drop view v1;
 drop table t1;
 
 #
-# Bug#26209: queries with GROUP BY and ORDER BY using views 
+# Bug#26209: queries with GROUP BY and ORDER BY using views
 #
 
 CREATE TABLE t1 (
@@ -3057,5 +3059,108 @@ SELECT code, COUNT(DISTINCT country) FROM v1 GROUP BY code ORDER BY MAX(id);
 
 DROP VIEW v1;
 DROP TABLE t1;
+
+#
+# BUG#25897: Some queries are no longer possible after a CREATE VIEW
+# fails 
+#
+--disable_warnings
+DROP VIEW IF EXISTS v1;
+--enable_warnings
+
+let $query = SELECT * FROM (SELECT 1) AS t;
+
+eval $query;
+--error ER_VIEW_SELECT_DERIVED
+eval CREATE VIEW v1 AS $query;
+--echo # Previously the following would fail.
+eval $query;
+
+#
+# Bug#24532: The return data type of IS TRUE is different from similar
+# operations
+#
+
+--disable_warnings
+drop view if exists view_24532_a;
+drop view if exists view_24532_b;
+drop table if exists table_24532;
+--enable_warnings
+
+create table table_24532 (
+  a int,
+  b bigint,
+  c int(4),
+  d bigint(48)
+);
+
+create view view_24532_a as
+select
+  a IS TRUE,
+  a IS NOT TRUE,
+  a IS FALSE,
+  a IS NOT FALSE,
+  a IS UNKNOWN,
+  a IS NOT UNKNOWN,
+  a is NULL,
+  a IS NOT NULL,
+  ISNULL(a),
+  b IS TRUE,
+  b IS NOT TRUE,
+  b IS FALSE,
+  b IS NOT FALSE,
+  b IS UNKNOWN,
+  b IS NOT UNKNOWN,
+  b is NULL,
+  b IS NOT NULL,
+  ISNULL(b),
+  c IS TRUE,
+  c IS NOT TRUE,
+  c IS FALSE,
+  c IS NOT FALSE,
+  c IS UNKNOWN,
+  c IS NOT UNKNOWN,
+  c is NULL,
+  c IS NOT NULL,
+  ISNULL(c),
+  d IS TRUE,
+  d IS NOT TRUE,
+  d IS FALSE,
+  d IS NOT FALSE,
+  d IS UNKNOWN,
+  d IS NOT UNKNOWN,
+  d is NULL,
+  d IS NOT NULL,
+  ISNULL(d)
+from table_24532;
+
+describe view_24532_a;
+
+create view view_24532_b as
+select
+  a IS TRUE,
+  if(ifnull(a, 0), 1, 0) as old_istrue,
+  a IS NOT TRUE,
+  if(ifnull(a, 0), 0, 1) as old_isnottrue,
+  a IS FALSE,
+  if(ifnull(a, 1), 0, 1) as old_isfalse,
+  a IS NOT FALSE,
+  if(ifnull(a, 1), 1, 0) as old_isnotfalse
+from table_24532;
+
+describe view_24532_b;
+
+show create view view_24532_b;
+
+insert into table_24532 values (0, 0, 0, 0);
+select * from view_24532_b;
+update table_24532 set a=1;
+select * from view_24532_b;
+update table_24532 set a=NULL;
+select * from view_24532_b;
+
+drop view view_24532_a;
+drop view view_24532_b;
+drop table table_24532;
 
 --echo End of 5.0 tests.
