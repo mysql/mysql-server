@@ -468,10 +468,23 @@ enum Log_event_type
   XID_EVENT= 16,
   BEGIN_LOAD_QUERY_EVENT= 17,
   EXECUTE_LOAD_QUERY_EVENT= 18,
+
   TABLE_MAP_EVENT = 19,
-  WRITE_ROWS_EVENT = 20,
-  UPDATE_ROWS_EVENT = 21,
-  DELETE_ROWS_EVENT = 22,
+
+  /*
+    These event numbers were used for 5.1.0 to 5.1.15 and are
+    therefore obsolete.
+   */
+  PRE_GA_WRITE_ROWS_EVENT = 20,
+  PRE_GA_UPDATE_ROWS_EVENT = 21,
+  PRE_GA_DELETE_ROWS_EVENT = 22,
+
+  /*
+    These event numbers are used from 5.1.16 and forward
+   */
+  WRITE_ROWS_EVENT = 23,
+  UPDATE_ROWS_EVENT = 24,
+  DELETE_ROWS_EVENT = 25,
 
   /*
     Add new events here - right above this comment!
