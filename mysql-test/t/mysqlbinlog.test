@@ -190,4 +190,29 @@ drop procedure p1;
 --exec $MYSQL_BINLOG --help 2>&1 > /dev/null
 --enable_query_log
 
+#
+# Bug#15126 character_set_database is not replicated
+# (LOAD DATA INFILE need it)
+#
+
+flush logs;
+create table t1 (a varchar(64) character set utf8);
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+set character_set_database=koi8r;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+set character_set_database=latin1;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+set character_set_database=koi8r;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+set character_set_database=latin1;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+load data infile '../std_data_ln/loaddata6.dat' into table t1 character set koi8r;
+select hex(a) from t1;
+drop table t1;
+flush logs;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000011
+
 # End of 5.0 tests
+
