@@ -729,6 +729,9 @@ static int ndbcluster_create_ndb_apply_status_table(THD *thd)
                    NDB_REP_DB "." NDB_APPLY_TABLE
                    " ( server_id INT UNSIGNED NOT NULL,"
                    " epoch BIGINT UNSIGNED NOT NULL, "
+                   " log_name VARCHAR(255) BINARY NOT NULL, "
+                   " start_pos BIGINT UNSIGNED NOT NULL, "
+                   " end_pos BIGINT UNSIGNED NOT NULL, "
                    " PRIMARY KEY USING HASH (server_id) ) ENGINE=NDB");
 
   run_query(thd, buf, end, TRUE, TRUE);
@@ -3899,6 +3902,9 @@ restart:
               bzero(table->record[0], table->s->null_bytes);
             table->field[0]->store((longlong)::server_id);
             table->field[1]->store((longlong)gci);
+            table->field[2]->store("", 0, &my_charset_bin);
+            table->field[3]->store((longlong)0);
+            table->field[4]->store((longlong)0);
             trans.write_row(::server_id,
                             injector::transaction::table(table, TRUE),
                             &table->s->all_set, table->s->fields,
