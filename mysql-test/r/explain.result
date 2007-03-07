@@ -85,4 +85,5 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
 Warnings:
 Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` having 1
+drop view v1;
 drop table t1;

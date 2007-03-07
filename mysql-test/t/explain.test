@@ -63,6 +63,7 @@ explain extended select * from t1 where 0;
 explain extended select * from t1 where 1;
 explain extended select * from t1 having 0;
 explain extended select * from t1 having 1;
+drop view v1;
 drop table t1;
 
 # End of 5.0 tests.
