@@ -350,6 +350,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       to nodegroup in new cluster.
     */
     opt_nodegroup_map_len= 0;
+
+    info.setLevel(254);
     info << "Analyse node group map" << endl;
     if (analyse_nodegroup_map(opt_nodegroup_map_str,
                               &opt_nodegroup_map[0]))
@@ -404,8 +406,8 @@ o verify nodegroup mapping
   exit(NDBT_ProgramExit(NDBT_WRONGARGS));
 #endif
 
-  BackupPrinter* g_printer = new BackupPrinter(opt_nodegroup_map,
-                                               opt_nodegroup_map_len);
+  g_printer = new BackupPrinter(opt_nodegroup_map,
+                                opt_nodegroup_map_len);
   if (g_printer == NULL)
     return false;
 
@@ -785,10 +787,10 @@ main(int argc, char** argv)
 	} 
     } else {
       for(Uint32 j= 0; j < g_consumers.size(); j++)
-        if (!g_consumers[j]->createSystable(* metaData[i]))
+        if (!g_consumers[j]->createSystable(* table))
         {
           err << "Restore: Failed to restore system table: ";
-          err << metaData[i]->getTableName() << " ... Exiting " << endl;
+          err << table->getTableName() << " ... Exiting " << endl;
           exitHandler(NDBT_FAILED);
         }
     }
