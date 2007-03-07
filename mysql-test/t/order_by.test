@@ -648,3 +648,18 @@ create table t1 (a int, b int, c int);
 insert into t1 values (1,2,3), (9,8,3), (19,4,3), (1,4,9);
 select a,(sum(b)/sum(c)) as ratio from t1 group by a order by sum(b)/sum(c) asc;
 drop table t1;
+
+#
+# Bug#26672: Incorrect SEC_TO_TIME() casting in ORDER BY
+#
+CREATE TABLE t1 (a INT UNSIGNED NOT NULL, b TIME);
+INSERT INTO t1 (a) VALUES (100000), (0), (100), (1000000),(10000), (1000), (10);
+UPDATE t1 SET b = SEC_TO_TIME(a);
+
+-- Correct ORDER
+SELECT a, b FROM t1 ORDER BY b DESC;
+
+-- must be ordered as the above
+SELECT a, b FROM t1 ORDER BY SEC_TO_TIME(a) DESC;
+
+DROP TABLE t1;
