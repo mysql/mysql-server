@@ -1840,6 +1840,7 @@ Tsman::execALLOC_PAGE_REQ(Signal* signal)
   ndbrequire(m_file_hash.find(file_ptr, file_key));
 
   struct req val = lookup_extent(req.key.m_page_no, file_ptr.p);
+  Uint32 page_no_in_extent = calc_page_no_in_extent(req.key.m_page_no, &val);
   
   Page_cache_client::Request preq;
   preq.m_page.m_page_no = val.m_extent_page_no;
@@ -1865,7 +1866,6 @@ Tsman::execALLOC_PAGE_REQ(Signal* signal)
     
     ndbrequire(header->m_table == req.request.table_id);
     
-    Uint32 page_no_in_extent = calc_page_no_in_extent(req.key.m_page_no, &val);
     Uint32 word = header->get_free_word_offset(page_no_in_extent);
     Uint32 shift = SZ * (page_no_in_extent & 7);
     
@@ -1925,8 +1925,7 @@ Tsman::execALLOC_PAGE_REQ(Signal* signal)
 found:
   header->update_free_bits(page_no, src_bits | UNCOMMITTED_MASK);
   rep->bits= (src_bits & UNCOMMITTED_MASK) >> UNCOMMITTED_SHIFT;
-  rep->key.m_page_no= 
-    val.m_extent_pages + val.m_extent_no * val.m_extent_size + page_no;
+  rep->key.m_page_no = req.key.m_page_no + page_no - page_no_in_extent;
   rep->reply.errorCode= 0;
   return;
 }
