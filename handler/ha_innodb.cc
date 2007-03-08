@@ -92,9 +92,6 @@ extern "C" {
 #include "../storage/innobase/include/ha_prototypes.h"
 }
 
-#define HA_INNOBASE_ROWS_IN_TABLE 10000 /* to get optimization right */
-#define HA_INNOBASE_RANGE_COUNT	  100
-
 ulong	innobase_large_page_size = 0;
 
 /* The default values for the following, type long or longlong, start-up
@@ -141,7 +138,7 @@ srv_active_wake_master_thread after each fetch or search, we only do
 it every INNOBASE_WAKE_INTERVAL'th step. */
 
 #define INNOBASE_WAKE_INTERVAL	32
-ulong	innobase_active_counter	= 0;
+static ulong	innobase_active_counter	= 0;
 
 static HASH	innobase_open_tables;
 
