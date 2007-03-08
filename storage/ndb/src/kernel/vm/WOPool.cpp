@@ -20,7 +20,7 @@
 WOPool::WOPool() 
 {
   bzero(this, sizeof(* this));
-  m_current_pos = GLOBAL_PAGE_SIZE_WORDS;
+  m_current_pos = WOPage::WOPAGE_WORDS;
 }
 
 void
