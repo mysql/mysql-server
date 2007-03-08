@@ -545,6 +545,8 @@ int insert_server_record(TABLE *table, FOREIGN_SERVER *server)
   DBUG_ENTER("insert_server_record");
   table->use_all_columns();
 
+  empty_record(table);
+
   /* set the field that's the PK to the value we're looking for */
   table->field[0]->store(server->server_name,
                          server->server_name_length,
