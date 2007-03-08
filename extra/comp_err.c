@@ -637,9 +637,9 @@ static struct message *find_message(struct errors *err, const char *lang,
       either.
 */
 
-static char checksum_format_specifier(const char* msg)
+static ha_checksum checksum_format_specifier(const char* msg)
 {
-  char chksum= 0;
+  ha_checksum chksum= 0;
   const char* p= msg;
   const char* start= 0;
   int num_format_specifiers= 0;
