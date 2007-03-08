@@ -899,7 +899,7 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
   bool is_command= FALSE;
   char user_host_buff[MAX_USER_HOST_SIZE];
 
-  my_time_t current_time;
+  time_t current_time;
   Security_context *sctx= thd->security_ctx;
   uint user_host_len= 0;
   longlong query_time= 0, lock_time= 0;

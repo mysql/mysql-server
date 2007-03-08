@@ -3981,20 +3981,21 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
   if (stat_info.create_time)
   {
     thd->variables.time_zone->gmt_sec_to_TIME(&time,
-                                              stat_info.create_time);
+                                              (my_time_t)stat_info.create_time);
     table->field[18]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
     table->field[18]->set_notnull();
   }
   if (stat_info.update_time)
   {
     thd->variables.time_zone->gmt_sec_to_TIME(&time,
-                                              stat_info.update_time);
+                                              (my_time_t)stat_info.update_time);
     table->field[19]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
     table->field[19]->set_notnull();
   }
   if (stat_info.check_time)
   {
-    thd->variables.time_zone->gmt_sec_to_TIME(&time, stat_info.check_time);
+    thd->variables.time_zone->gmt_sec_to_TIME(&time,
+                                              (my_time_t)stat_info.check_time);
     table->field[20]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
     table->field[20]->set_notnull();
   }
