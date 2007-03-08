@@ -778,7 +778,8 @@ void plugin_load(void)
   if (simple_open_n_lock_tables(new_thd, &tables))
   {
     DBUG_PRINT("error",("Can't open plugin table"));
-    sql_print_error("Can't open the mysql.plugin table. Please run the mysql_upgrade script to create it.");
+    sql_print_error("Can't open the mysql.plugin table. Please "
+                    "run mysql_upgrade to create it.");
     goto end;
   }
   table= tables.table;
