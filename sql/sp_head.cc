@@ -36,6 +36,7 @@ Item_result
 sp_map_result_type(enum enum_field_types type)
 {
   switch (type) {
+  case MYSQL_TYPE_BIT:
   case MYSQL_TYPE_TINY:
   case MYSQL_TYPE_SHORT:
   case MYSQL_TYPE_LONG:
@@ -58,6 +59,7 @@ Item::Type
 sp_map_item_type(enum enum_field_types type)
 {
   switch (type) {
+  case MYSQL_TYPE_BIT:
   case MYSQL_TYPE_TINY:
   case MYSQL_TYPE_SHORT:
   case MYSQL_TYPE_LONG:
@@ -2388,16 +2390,11 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
       m_lex->mark_as_requiring_prelocking(lex_query_tables_own_last);
     }
   }
-    
+
   reinit_stmt_before_use(thd, m_lex);
-  /*
-    If requested check whenever we have access to tables in LEX's table list
-    and open and lock them before executing instructtions core function.
-  */
-  if (open_tables &&
-      (check_table_access(thd, SELECT_ACL, m_lex->query_tables, 0) ||
-       open_and_lock_tables(thd, m_lex->query_tables)))
-      res= -1;
+
+  if (open_tables)
+    res= instr->exec_open_and_lock_tables(thd, m_lex->query_tables, nextp);
 
   if (!res)
     res= instr->exec_core(thd, nextp);
@@ -2445,6 +2442,33 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
 /*
   sp_instr class functions
 */
+
+int sp_instr::exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables,
+                                        uint *nextp)
+{
+  int result;
+
+  /*
+    Check whenever we have access to tables for this statement
+    and open and lock them before executing instructions core function.
+  */
+  if (check_table_access(thd, SELECT_ACL, tables, 0)
+      || open_and_lock_tables(thd, tables))
+  {
+    get_cont_dest(nextp);
+    result= -1;
+  }
+  else
+    result= 0;
+
+  return result;
+}
+
+void sp_instr::get_cont_dest(uint *nextp)
+{
+  *nextp= m_ip+1;
+}
+
 
 int sp_instr::exec_core(THD *thd, uint *nextp)
 {
@@ -2624,6 +2648,15 @@ sp_instr_set_trigger_field::print(String *str)
   trigger_field->print(str);
   str->append(STRING_WITH_LEN(":="));
   value->print(str);
+}
+
+/*
+  sp_instr_opt_meta
+*/
+
+void sp_instr_opt_meta::get_cont_dest(uint *nextp)
+{
+  *nextp= m_cont_dest;
 }
 
 

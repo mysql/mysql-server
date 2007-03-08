@@ -166,14 +166,10 @@ Open_tables_state::Open_tables_state(ulong version_arg)
 }
 
 
-/*
-  Pass nominal parameters to Statement constructor only to ensure that
-  the destructor works OK in case of error. The main_mem_root will be
-  re-initialized in init().
-*/
 
 THD::THD()
-  :Statement(CONVENTIONAL_EXECUTION, 0, ALLOC_ROOT_MIN_BLOCK_SIZE, 0),
+   :Statement(&main_lex, &main_mem_root, CONVENTIONAL_EXECUTION,
+              /* statement id */ 0),
    Open_tables_state(refresh_version),
    lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0), global_read_lock(0), is_fatal_error(0),
@@ -184,6 +180,12 @@ THD::THD()
 {
   ulong tmp;
 
+  /*
+    Pass nominal parameters to init_alloc_root only to ensure that
+    the destructor works OK in case of an error. The main_mem_root
+    will be re-initialized in init_for_queries().
+  */
+  init_sql_alloc(&main_mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
   stmt_arena= this;
   thread_stack= 0;
   db= 0;
@@ -226,7 +228,9 @@ THD::THD()
 #endif
   client_capabilities= 0;                       // minimalistic client
   net.last_error[0]=0;                          // If error on boot
+#ifdef HAVE_QUERY_CACHE
   query_cache_init_query(&net);                 // If error on boot
+#endif
   ull=0;
   system_thread= cleanup_done= abort_on_warning= no_warnings_for_error= 0;
   peer_port= 0;					// For SHOW PROCESSLIST
@@ -275,6 +279,38 @@ THD::THD()
   substitute_null_with_insert_id = FALSE;
   thr_lock_info_init(&lock_info); /* safety: will be reset after start */
   thr_lock_owner_init(&main_lock_id, &lock_info);
+
+  m_internal_handler= NULL;
+}
+
+
+void THD::push_internal_handler(Internal_error_handler *handler)
+{
+  /*
+    TODO: The current implementation is limited to 1 handler at a time only.
+    THD and sp_rcontext need to be modified to use a common handler stack.
+  */
+  DBUG_ASSERT(m_internal_handler == NULL);
+  m_internal_handler= handler;
+}
+
+
+bool THD::handle_error(uint sql_errno,
+                       MYSQL_ERROR::enum_warning_level level)
+{
+  if (m_internal_handler)
+  {
+    return m_internal_handler->handle_error(sql_errno, level, this);
+  }
+
+  return FALSE;                                 // 'FALSE', as per coding style
+}
+
+
+void THD::pop_internal_handler()
+{
+  DBUG_ASSERT(m_internal_handler != NULL);
+  m_internal_handler= NULL;
 }
 
 
@@ -319,6 +355,7 @@ void THD::init(void)
 
 void THD::init_for_queries()
 {
+  set_time(); 
   ha_enable_transaction(this,TRUE);
 
   reset_root_defaults(mem_root, variables.query_alloc_block_size,
@@ -442,6 +479,7 @@ THD::~THD()
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
 #endif  
+  free_root(&main_mem_root, MYF(0));
   DBUG_VOID_RETURN;
 }
 
@@ -1588,18 +1626,17 @@ void Query_arena::cleanup_stmt()
   Statement functions 
 */
 
-Statement::Statement(enum enum_state state_arg, ulong id_arg,
-                     ulong alloc_block_size, ulong prealloc_size)
-  :Query_arena(&main_mem_root, state_arg),
+Statement::Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,
+                     enum enum_state state_arg, ulong id_arg)
+  :Query_arena(mem_root_arg, state_arg),
   id(id_arg),
   set_query_id(1),
-  lex(&main_lex),
+  lex(lex_arg),
   query(0),
   query_length(0),
   cursor(0)
 {
   name.str= NULL;
-  init_sql_alloc(&main_mem_root, alloc_block_size, prealloc_size);
 }
 
 
@@ -1641,7 +1678,7 @@ void Statement::restore_backup_statement(Statement *stmt, Statement *backup)
 
 void THD::end_statement()
 {
-  /* Cleanup SQL processing state to resuse this statement in next query. */
+  /* Cleanup SQL processing state to reuse this statement in next query. */
   lex_end(lex);
   delete lex->result;
   lex->result= 0;
@@ -1682,12 +1719,6 @@ void THD::restore_active_arena(Query_arena *set, Query_arena *backup)
 
 Statement::~Statement()
 {
-  /*
-    We must free `main_mem_root', not `mem_root' (pointer), to work
-    correctly if this statement is used as a backup statement,
-    for which `mem_root' may point to some other statement.
-  */
-  free_root(&main_mem_root, MYF(0));
 }
 
 C_MODE_START

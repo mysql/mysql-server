@@ -1370,7 +1370,7 @@ end|
 select f11()|
 --error ER_CANT_REOPEN_TABLE
 select f11() from t1|
-# We don't handle temporary tables used by nested functions well
+# Test that using a single table instance at a time works
 create function f12_1() returns int
 begin
   drop temporary table if exists t3;
@@ -1380,11 +1380,9 @@ begin
 end|
 create function f12_2() returns int
   return (select count(*) from t3)|
-# We need clean start to get error
+
 drop temporary table t3|
---error ER_NO_SUCH_TABLE
 select f12_1()|
---error ER_NO_SUCH_TABLE
 select f12_1() from t1 limit 1|
 
 # Cleanup
@@ -6692,6 +6690,53 @@ END|
 CALL bug24117()|
 DROP PROCEDURE bug24117|
 DROP TABLE t3|
+
+#
+# Bug#8407(Stored functions/triggers ignore exception handler)
+#
+
+--disable_warnings
+drop function if exists func_8407_a|
+drop function if exists func_8407_b|
+--enable_warnings
+
+create function func_8407_a() returns int
+begin
+  declare x int;
+
+  declare continue handler for sqlexception
+  begin
+  end;
+
+  select 1 from no_such_view limit 1 into x;
+
+  return x;
+end|
+
+create function func_8407_b() returns int
+begin
+  declare x int default 0;
+
+  declare continue handler for sqlstate '42S02'
+  begin
+    set x:= x+1000;
+  end;
+
+  case (select 1 from no_such_view limit 1)
+    when 1 then set x:= x+1;
+    when 2 then set x:= x+2;
+    else set x:= x+100;
+  end case;
+  set x:=x + 500;
+  
+  return x;
+end|
+
+select func_8407_a()|
+select func_8407_b()|
+
+drop function func_8407_a|
+drop function func_8407_b|
 
 #
 # NOTE: The delimiter is `|`, and not `;`. It is changed to `;`

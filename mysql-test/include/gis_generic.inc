@@ -165,14 +165,14 @@ insert IGNORE into t1 values ('Garbage');
 
 drop table t1;
 
-create table t1 (fl geometry);
+create table t1 (fl geometry not null);
 --error 1416
 insert into t1 values (1);
 --error 1416
 insert into t1 values (1.11);
 --error 1416
 insert into t1 values ("qwerty");
---error 1416
+--error 1048
 insert into t1 values (pointfromtext('point(1,1)'));
 
 drop table t1;
