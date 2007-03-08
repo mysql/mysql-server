@@ -59,7 +59,12 @@ BackupFile::Twiddle(const AttributeDesc* attr_desc, AttributeData* attr_data, Ui
     return true;
   case 64:
     for(i = 0; i<arraySize; i++){
-      attr_data->u_int64_value[i] = Twiddle64(attr_data->u_int64_value[i]);
+      // allow unaligned
+      char* p = (char*)&attr_data->u_int64_value[i];
+      Uint64 x;
+      memcpy(&x, p, sizeof(Uint64));
+      x = Twiddle64(x);
+      memcpy(p, &x, sizeof(Uint64));
     }
     return true;
   default:

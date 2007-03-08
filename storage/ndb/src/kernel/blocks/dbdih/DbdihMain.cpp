@@ -2098,8 +2098,11 @@ void Dbdih::gcpBlockedLab(Signal* signal)
   /*-------------------------------------------------------------------------*/
   Uint32 startVersion = getNodeInfo(c_nodeStartMaster.startNode).m_version;
   
-  if ((getMajor(startVersion) == 4 && startVersion >= NDBD_INCL_NODECONF_VERSION_4) ||
-      (getMajor(startVersion) == 5 && startVersion >= NDBD_INCL_NODECONF_VERSION_5))
+  if ((getMajor(startVersion) == 4 && 
+       startVersion >= NDBD_INCL_NODECONF_VERSION_4) ||
+      (getMajor(startVersion) == 5 && 
+       startVersion >= NDBD_INCL_NODECONF_VERSION_5) ||
+      (getMajor(startVersion) > 5))
   {
     c_INCL_NODEREQ_Counter.setWaitingFor(c_nodeStartMaster.startNode);
   }
@@ -2342,8 +2345,11 @@ void Dbdih::execINCL_NODEREQ(Signal* signal)
     CRASH_INSERTION(7171);
     Uint32 masterVersion = getNodeInfo(refToNode(cmasterdihref)).m_version;
     
-    if ((NDB_VERSION_MAJOR == 4 && masterVersion >= NDBD_INCL_NODECONF_VERSION_4) ||
-	(NDB_VERSION_MAJOR == 5 && masterVersion >= NDBD_INCL_NODECONF_VERSION_5))
+    if ((NDB_VERSION_MAJOR == 4 && 
+	 masterVersion >= NDBD_INCL_NODECONF_VERSION_4) ||
+	(NDB_VERSION_MAJOR == 5 && 
+	 masterVersion >= NDBD_INCL_NODECONF_VERSION_5) ||
+	(NDB_VERSION_MAJOR > 5))
     {
       signal->theData[0] = getOwnNodeId();
       signal->theData[1] = getOwnNodeId();
@@ -14230,7 +14236,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   }
 
   if(arg == DumpStateOrd::EnableUndoDelayDataWrite){
-    g_eventLogger.info("Dbdih:: delay write of datapages for table = %s", 
+    g_eventLogger.info("Dbdih:: delay write of datapages for table = %d", 
                        dumpState->args[1]);
     // Send this dump to ACC and TUP
     EXECUTE_DIRECT(DBACC, GSN_DUMP_STATE_ORD, signal, 2);
