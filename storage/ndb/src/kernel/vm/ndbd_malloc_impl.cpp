@@ -25,16 +25,11 @@ extern EventLogger g_eventLogger;
 extern EventLogger g_eventLogger;
 #endif
 
-#ifdef NDBD_MALLOC_METHOD
-#if NDBD_MALLOC_METHOD == sbrk
-static const char * f_method = "sbrk";
+static int f_method_idx = 0;
+#ifdef NDBD_MALLOC_METHOD_SBRK
+static const char * f_method = "SMsm";
 #else
-static const char * f_method = "malloc";
-#endif
-#elif SIZEOF_CHARP == 8
-static const char * f_method = "sbrk";
-#else
-static const char * f_method = "malloc";
+static const char * f_method = "MSms";
 #endif
 #define MAX_CHUNKS 10
 
@@ -54,28 +49,42 @@ do_malloc(Uint32 pages, InitChunk* chunk)
   pages += 1;
   void * ptr = 0;
   Uint32 sz = pages;
-  if (strcmp(f_method, "sbrk") == 0)
+
+retry:
+  char method = f_method[f_method_idx];
+  switch(method){
+  case 0:
+    return false;
+  case 'S':
+  case 's':
   {
     ptr = 0;
     while (ptr == 0)
     {
       ptr = sbrk(sizeof(Alloc_page) * sz);
+      
       if (ptr == (void*)-1)
       {
+	if (method == 'S')
+	{
+	  f_method_idx++;
+	  goto retry;
+	}
+	
 	ptr = 0;
 	sz = 1 + (9 * sz) / 10;
 	if (pages >= 32 && sz < 32)
 	{
 	  sz = pages;
-	  f_method = "malloc";
-	  g_eventLogger.info("sbrk(%lld) failed, trying malloc",
-			     (Uint64)(sizeof(Alloc_page) * sz));
-	  break;
+	  f_method_idx++;
+	  goto retry;
 	}
       }
     }
+    break;
   }
-  if (strcmp(f_method, "malloc") == 0)
+  case 'M':
+  case 'm':
   {
     ptr = 0;
     while (ptr == 0)
@@ -83,15 +92,26 @@ do_malloc(Uint32 pages, InitChunk* chunk)
       ptr = malloc(sizeof(Alloc_page) * sz);
       if (ptr == 0)
       {
+	if (method == 'M')
+	{
+	  f_method_idx++;
+	  goto retry;
+	}
+
 	sz = 1 + (9 * sz) / 10;
 	if (pages >= 32 && sz < 32)
 	{
-	  return false;
+	  f_method_idx++;
+	  goto retry;
 	}
       }
     }
+    break;
   }
-
+  default:
+    return false;
+  }
+  
   chunk->m_cnt = sz;
   chunk->m_ptr = (Alloc_page*)ptr;
   const UintPtr align = sizeof(Alloc_page) - 1;
@@ -362,30 +382,39 @@ Ndbd_mem_manager::grow(Uint32 start, Uint32 cnt)
     cnt--; // last page is always marked as empty
   }
   
-  if (!m_used_bitmap_pages.get(start_bmp))
-  {
-    if (start != (start_bmp << BPP_2LOG))
-    {
-      ndbout_c("ndbd_malloc_impl.cpp:%d:grow(%d, %d) %d!=%d"
-	       " - Unable to use due to bitmap pages missaligned!!",
-	       __LINE__, start, cnt, start, (start_bmp << BPP_2LOG));
-      g_eventLogger.error("ndbd_malloc_impl.cpp:%d:grow(%d, %d)"
-			  " - Unable to use due to bitmap pages missaligned!!",
-			  __LINE__, start, cnt);
-      return;
-    }
+  for (Uint32 i = 0; i<m_used_bitmap_pages.size(); i++)
+    if (m_used_bitmap_pages[i] == start_bmp)
+      goto found;
 
-#ifdef UNIT_TEST
-    ndbout_c("creating bitmap page %d", start_bmp);
-#endif
+  if (start != (start_bmp << BPP_2LOG))
+  {
     
+    ndbout_c("ndbd_malloc_impl.cpp:%d:grow(%d, %d) %d!=%d not using %uMb"
+	     " - Unable to use due to bitmap pages missaligned!!",
+	     __LINE__, start, cnt, start, (start_bmp << BPP_2LOG),
+	     (cnt >> (20 - 15)));
+    g_eventLogger.error("ndbd_malloc_impl.cpp:%d:grow(%d, %d) not using %uMb"
+			" - Unable to use due to bitmap pages missaligned!!",
+			__LINE__, start, cnt,
+			(cnt >> (20 - 15)));
+
+    dump();
+    return;
+  }
+  
+#ifdef UNIT_TEST
+  ndbout_c("creating bitmap page %d", start_bmp);
+#endif
+  
+  {
     Alloc_page* bmp = m_base_page + start;
     memset(bmp, 0, sizeof(Alloc_page));
-    m_used_bitmap_pages.set(start_bmp);
     cnt--;
     start++;
   }
-
+  m_used_bitmap_pages.push_back(start_bmp);
+  
+found:
   if (cnt)
   {
     m_resource_limit[0].m_curr += cnt;
@@ -586,6 +615,15 @@ Ndbd_mem_manager::dump() const
       head = fd->m_next;
     }
     printf("EOL\n");
+  }
+
+  for (Uint32 i = 0; i<XX_RL_COUNT; i++)
+  {
+    printf("ri: %d min: %d curr: %d max: %d\n",
+	   i, 
+	   m_resource_limit[i].m_min,
+	   m_resource_limit[i].m_curr,
+	   m_resource_limit[i].m_max);
   }
 }
 
@@ -918,3 +956,5 @@ main(int argc, char** argv)
 template class Vector<Chunk>;
 
 #endif
+
+template class Vector<Uint32>;
