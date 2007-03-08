@@ -1233,6 +1233,10 @@ typedef struct st_lex : public Query_tables_list
   {
     return context_stack.head();
   }
+  /*
+    Restore the LEX and THD in case of a parse error.
+  */
+  static void cleanup_lex_after_parse_error(THD *thd);
 
   void reset_n_backup_query_tables_list(Query_tables_list *backup);
   void restore_backup_query_tables_list(Query_tables_list *backup);
