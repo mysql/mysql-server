@@ -1073,7 +1073,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
   {
     Item *fake_conds= 0;
     TABLE_LIST *duplicate;
-    if ((duplicate= unique_table(thd, table_list, table_list->next_global)))
+    if ((duplicate= unique_table(thd, table_list, table_list->next_global, 1)))
     {
       update_non_unique_table_error(table_list, "INSERT", duplicate);
       DBUG_RETURN(TRUE);
@@ -2453,7 +2453,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     query
   */
   if (!(lex->current_select->options & OPTION_BUFFER_RESULT) &&
-      unique_table(thd, table_list, table_list->next_global))
+      unique_table(thd, table_list, table_list->next_global, 0))
   {
     /* Using same table for INSERT and SELECT */
     lex->current_select->options|= OPTION_BUFFER_RESULT;

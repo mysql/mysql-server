@@ -1030,4 +1030,10 @@ SELECT REPEAT( '#', tire ) AS A,
 
 DROP TABLE t1;
 
+#
+# Bug #26537: UNHEX() IS NULL comparison fails
+#
+SELECT UNHEX('G');
+SELECT UNHEX('G') IS NULL;
+
 --echo End of 5.0 tests
