@@ -161,6 +161,27 @@ insert into t4 values (1,31),(2,32),(3,33),(4,34),(5,35);
 --exec rm -f $MYSQLTEST_VARDIR/tmp/t3.txt
 --exec rm -f $MYSQLTEST_VARDIR/tmp/t4.txt
 
+# now test some other datatypes
+drop table t1;
+create table t1
+ (pk int key
+  ,a1 MEDIUMINT, a2 MEDIUMINT UNSIGNED
+ ) engine ndb;
+
+# max values
+insert into t1 values(1, 8388607, 16777215);
+# min values
+insert into t1 values(2, -8388608, 0);
+# small values
+insert into t1 values(3, -1, 1);
+
+# backup and print
+--source include/ndb_backup.inc
+
+--let ndb_restore_filter=test t1
+--let ndb_restore_opts=--verbose=0 --print_data --hex --fields-terminated-by=";"
+--source include/ndb_backup_print.inc
+
 # clean up
 drop table t1;
 drop table t2;
