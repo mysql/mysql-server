@@ -458,6 +458,28 @@ public:
   
   virtual int execute(THD *thd, uint *nextp) = 0;
 
+  /**
+    Execute <code>open_and_lock_tables()</code> for this statement.
+    Open and lock the tables used by this statement, as a pre-requisite
+    to execute the core logic of this instruction with
+    <code>exec_core()</code>.
+    If this statement fails, the next instruction to execute is also returned.
+    This is useful when a user defined SQL continue handler needs to be
+    executed.
+    @param thd the current thread
+    @param tables the list of tables to open and lock
+    @param nextp the continuation instruction, returned to the caller if this
+    method fails.
+    @return zero on success, non zero on failure.
+  */
+  int exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables, uint *nextp);
+
+  /**
+    Get the continuation destination of this instruction.
+    @param nextp the continuation destination (output)
+  */
+  virtual void get_cont_dest(uint *nextp);
+
   /*
     Execute core function of instruction after all preparations (e.g.
     setting of proper LEX, saving part of the thread context have been
@@ -721,6 +743,8 @@ public:
 
   virtual void set_destination(uint old_dest, uint new_dest)
     = 0;
+
+  virtual void get_cont_dest(uint *nextp);
 
 protected:
 

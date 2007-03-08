@@ -787,7 +787,7 @@ reopen_tables:
       tl->lock_type= using_update_log ? TL_READ_NO_INSERT : TL_READ;
       tl->updating= 0;
       /* Update TABLE::lock_type accordingly. */
-      if (!tl->placeholder() && !tl->schema_table && !using_lock_tables)
+      if (!tl->placeholder() && !using_lock_tables)
         tl->table->reginfo.lock_type= tl->lock_type;
     }
   }

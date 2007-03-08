@@ -983,11 +983,8 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 	thd->spcont= 0;
         if (MYSQLparse((void *)thd) || thd->is_fatal_error)
         {
-          /*
-            Free lex associated resources.
-            QQ: Do we really need all this stuff here ?
-          */
-          delete lex.sphead;
+          /* Currently sphead is always deleted in case of a parse error */
+          DBUG_ASSERT(lex.sphead == 0);
           goto err_with_lex_cleanup;
         }
 

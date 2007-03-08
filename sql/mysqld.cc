@@ -1600,18 +1600,6 @@ static void network_init(void)
 
 #endif /*!EMBEDDED_LIBRARY*/
 
-void MYSQLerror(const char *s)
-{
-  THD *thd=current_thd;
-  char *yytext= (char*) thd->lex->tok_start;
-  /* "parse error" changed into "syntax error" between bison 1.75 and 1.875 */
-  if (strcmp(s,"parse error") == 0 || strcmp(s,"syntax error") == 0)
-    s=ER(ER_SYNTAX_ERROR);
-  my_printf_error(ER_PARSE_ERROR,  ER(ER_PARSE_ERROR), MYF(0), s,
-                  (yytext ? (char*) yytext : ""),
-                  thd->lex->yylineno);
-}
-
 
 #ifndef EMBEDDED_LIBRARY
 /*
@@ -2448,6 +2436,14 @@ static int my_message_sql(uint error, const char *str, myf MyFlags)
   */
   if ((thd= current_thd))
   {
+    /*
+      TODO: There are two exceptions mechanism (THD and sp_rcontext),
+      this could be improved by having a common stack of handlers.
+    */
+    if (thd->handle_error(error,
+                          MYSQL_ERROR::WARN_LEVEL_ERROR))
+      DBUG_RETURN(0);
+
     if (thd->spcont &&
         thd->spcont->handle_error(error, MYSQL_ERROR::WARN_LEVEL_ERROR, thd))
     {

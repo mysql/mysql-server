@@ -18,7 +18,7 @@
 
 struct Options;
 
-void manager(const Options &options);
+int manager(const Options &options);
 
 int create_pid_file(const char *pid_file_name, int pid);
 
