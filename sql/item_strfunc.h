@@ -601,7 +601,11 @@ class Item_func_unhex :public Item_str_func
 {
   String tmp_value;
 public:
-  Item_func_unhex(Item *a) :Item_str_func(a) {}
+  Item_func_unhex(Item *a) :Item_str_func(a) 
+  { 
+    /* there can be bad hex strings */
+    maybe_null= 1; 
+  }
   const char *func_name() const { return "unhex"; }
   String *val_str(String *);
   void fix_length_and_dec()
