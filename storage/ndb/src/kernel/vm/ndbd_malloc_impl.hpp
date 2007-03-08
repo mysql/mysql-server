@@ -20,6 +20,7 @@
 #include <Bitmask.hpp>
 #include <assert.h>
 #include "Pool.hpp"
+#include <Vector.hpp>
 
 /**
  * 13 -> 8192 words -> 32768 bytes
@@ -82,7 +83,7 @@ private:
    * Return pointer to free page data on page
    */
   static Free_page_data* get_free_page_data(Alloc_page*, Uint32 idx);
-  Bitmask<1> m_used_bitmap_pages;
+  Vector<Uint32> m_used_bitmap_pages;
   
   Uint32 m_buddy_lists[16];
   Resource_limit m_resource_limit[XX_RL_COUNT]; // RG_COUNT in record_types.hpp
