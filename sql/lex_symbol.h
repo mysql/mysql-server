@@ -25,7 +25,7 @@ typedef struct st_symbol {
   const char *name;
   uint	tok;
   uint length;
-  void *create_func;
+  void (*create_func)();
   struct st_sym_group *group;
 } SYMBOL;
 
