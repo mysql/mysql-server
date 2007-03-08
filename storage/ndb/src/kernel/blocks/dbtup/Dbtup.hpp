@@ -2438,15 +2438,8 @@ private:
   void returnCommonArea(Uint32 retPageRef, Uint32 retNo);
   void initializePage();
 
-// Private methods
-  void removeCommonArea(Uint32 remPageRef, Uint32 list);
-  void insertCommonArea(Uint32 insPageRef, Uint32 list);
-  void findFreeLeftNeighbours(Uint32& allocPageRef, Uint32& noPagesAllocated, Uint32 noPagesToAllocate);
-  void findFreeRightNeighbours(Uint32& allocPageRef, Uint32& noPagesAllocated, Uint32 noPagesToAllocate);
   Uint32 nextHigherTwoLog(Uint32 input);
 
-// Private data
-  Uint32 cfreepageList[16];
 
 //------------------------------------------------------------------------------------------------------
 // Page Mapper, convert logical page id's to physical page id's
@@ -2568,7 +2561,8 @@ private:
 
   ArrayPool<Page> c_page_pool;
   Uint32 cnoOfAllocatedPages;
-  
+  Uint32 c_no_of_pages;
+
   Tablerec *tablerec;
   Uint32 cnoOfTablerec;
 
