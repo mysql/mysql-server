@@ -442,10 +442,6 @@ int main(int argc,char *argv[])
     signal(SIGINT, handle_sigint);              // Catch SIGINT to clean up
   signal(SIGQUIT, mysql_end);			// Catch SIGQUIT to clean up
 
-  /*
-    Run in interactive mode like the ingres/postgres monitor
-  */
-
   put_info("Welcome to the MySQL monitor.  Commands end with ; or \\g.",
 	   INFO_INFO);
   sprintf((char*) glob_buffer.ptr(),
