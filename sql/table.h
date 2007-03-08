@@ -649,7 +649,7 @@ typedef struct st_table_list
   int view_check_option(THD *thd, bool ignore_failure);
   bool setup_underlying(THD *thd);
   void cleanup_items();
-  bool placeholder() {return derived || view; }
+  bool placeholder() {return derived || view || schema_table || !table; }
   void print(THD *thd, String *str);
   bool check_single_table(st_table_list **table, table_map map,
                           st_table_list *view);
