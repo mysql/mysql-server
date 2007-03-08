@@ -1115,4 +1115,10 @@ select repeat('a', cast(2 as unsigned int));
 select rpad('abc', cast(5 as unsigned integer), 'x');
 select lpad('abc', cast(5 as unsigned integer), 'x');
 
+#
+# Bug #26537: UNHEX() IS NULL comparison fails
+#
+SELECT UNHEX('G');
+SELECT UNHEX('G') IS NULL;
+
 --echo End of 5.0 tests

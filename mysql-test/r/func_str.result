@@ -2273,4 +2273,10 @@ abcxx
 select lpad('abc', cast(5 as unsigned integer), 'x');
 lpad('abc', cast(5 as unsigned integer), 'x')
 xxabc
+SELECT UNHEX('G');
+UNHEX('G')
+NULL
+SELECT UNHEX('G') IS NULL;
+UNHEX('G') IS NULL
+1
 End of 5.0 tests
