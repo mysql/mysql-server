@@ -642,6 +642,14 @@ ON (t1.a=t2.a AND t1.b=t3.b) order by t2.b;
 DROP TABLE t1,t2,t3,t4;
 
 #
+# Bug#25376: Incomplete setup of ORDER BY clause results in a wrong result.
+#
+create table t1 (a int, b int, c int);
+insert into t1 values (1,2,3), (9,8,3), (19,4,3), (1,4,9);
+select a,(sum(b)/sum(c)) as ratio from t1 group by a order by sum(b)/sum(c) asc;
+drop table t1;
+
+#
 # BUG#16590: Optimized does not do right "const" table pre-read
 #
 CREATE TABLE t1 (a INT, b INT, PRIMARY KEY (a), UNIQUE KEY b (b));
