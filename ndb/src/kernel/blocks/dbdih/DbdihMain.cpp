@@ -13686,7 +13686,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   }
 
   if(arg == DumpStateOrd::EnableUndoDelayDataWrite){
-    g_eventLogger.info("Dbdih:: delay write of datapages for table = %s", 
+    g_eventLogger.info("Dbdih:: delay write of datapages for table = %d", 
                        dumpState->args[1]);
     // Send this dump to ACC and TUP
     EXECUTE_DIRECT(DBACC, GSN_DUMP_STATE_ORD, signal, 2);
