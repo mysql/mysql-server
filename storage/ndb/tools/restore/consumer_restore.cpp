@@ -617,6 +617,7 @@ BackupRestore::update_apply_status(const RestoreMetaData &metaData)
     return true;
 
   bool result= false;
+  unsigned apply_table_format= 0;
 
   m_ndb->setDatabaseName(NDB_REP_DB);
   m_ndb->setSchemaName("def");
@@ -629,8 +630,33 @@ BackupRestore::update_apply_status(const RestoreMetaData &metaData)
 	<< dict->getNdbError() << endl;
     return false;
   }
+  if
+    (ndbtab->getColumn(0)->getType() == NdbDictionary::Column::Unsigned &&
+     ndbtab->getColumn(1)->getType() == NdbDictionary::Column::Bigunsigned)
+  {
+    if (ndbtab->getNoOfColumns() == 2)
+    {
+      apply_table_format= 1;
+    }
+    else if
+      (ndbtab->getColumn(2)->getType() == NdbDictionary::Column::Varchar &&
+       ndbtab->getColumn(3)->getType() == NdbDictionary::Column::Bigunsigned &&
+       ndbtab->getColumn(4)->getType() == NdbDictionary::Column::Bigunsigned)
+    {
+      apply_table_format= 2;
+    }
+  }
+  if (apply_table_format == 0)
+  {
+    err << Ndb_apply_table << " has wrong format\n";
+    return false;
+  }
+
   Uint32 server_id= 0;
   Uint64 epoch= metaData.getStopGCP();
+  Uint64 zero= 0;
+  char empty_string[1];
+  empty_string[0]= 0;
   NdbTransaction * trans= m_ndb->startTransaction();
   if (!trans)
   {
@@ -648,6 +674,15 @@ BackupRestore::update_apply_status(const RestoreMetaData &metaData)
   if (op->writeTuple() ||
       op->equal(0u, (const char *)&server_id, sizeof(server_id)) ||
       op->setValue(1u, (const char *)&epoch, sizeof(epoch)))
+  {
+    err << Ndb_apply_table << ": "
+	<< op->getNdbError() << endl;
+    goto err;
+  }
+  if ((apply_table_format == 2) &&
+      (op->setValue(2u, (const char *)&empty_string, 1) ||
+       op->setValue(3u, (const char *)&zero, sizeof(zero)) ||
+       op->setValue(4u, (const char *)&zero, sizeof(zero))))
   {
     err << Ndb_apply_table << ": "
 	<< op->getNdbError() << endl;
