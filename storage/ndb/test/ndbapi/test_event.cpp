@@ -500,6 +500,12 @@ int runEventMixedLoad(NDBT_Context* ctx, NDBT_Step* step)
   int records = ctx->getNumRecords();
   HugoTransactions hugoTrans(*ctx->getTab());
   
+  if(ctx->getPropertyWait("LastGCI", ~(Uint32)0))
+  {
+    g_err << "FAIL " << __LINE__ << endl;
+    return NDBT_FAILED;
+  }
+
   while(loops -- && !ctx->isTestStopped())
   {
     hugoTrans.clearTable(GETNDB(step), 0);
@@ -606,9 +612,11 @@ int runEventApplier(NDBT_Context* ctx, NDBT_Step* step)
     goto end;
   }
 
+  ctx->setProperty("LastGCI", ~(Uint32)0);
+  ctx->broadcast();
+
   while(!ctx->isTestStopped())
   {
-    int r;
     int count= 0;
     Uint32 stop_gci= ~0;
     Uint64 curr_gci = 0;
@@ -778,7 +786,7 @@ int runEventApplier(NDBT_Context* ctx, NDBT_Step* step)
 
 	  if (trans->getNdbError().status == NdbError::PermanentError)
 	  {
-	    g_err << "Ignoring execute " << r << " failed "
+	    g_err << "Ignoring execute failed "
 		  << trans->getNdbError().code << " "
 		  << trans->getNdbError().message << endl;
 	  
@@ -788,7 +796,7 @@ int runEventApplier(NDBT_Context* ctx, NDBT_Step* step)
 	  }
 	  else if (noRetries++ == 10)
 	  {
-	    g_err << "execute " << r << " failed "
+	    g_err << "execute failed "
 		  << trans->getNdbError().code << " "
 		  << trans->getNdbError().message << endl;
 	    trans->close();
