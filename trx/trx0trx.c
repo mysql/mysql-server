@@ -109,7 +109,7 @@ trx_create(
 
 	trx->op_info = "";
 
-	trx->type = TRX_USER;
+	trx->is_purge = 0;
 	trx->conc_state = TRX_NOT_STARTED;
 	trx->start_time = time(NULL);
 
@@ -667,7 +667,7 @@ trx_start_low(
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(trx->rseg == NULL);
 
-	if (trx->type == TRX_PURGE) {
+	if (trx->is_purge) {
 		trx->id = ut_dulint_zero;
 		trx->conc_state = TRX_ACTIVE;
 		trx->start_time = time(NULL);
@@ -1708,7 +1708,7 @@ trx_print(
 		fputs(trx->op_info, f);
 	}
 
-	if (trx->type != TRX_USER) {
+	if (trx->is_purge) {
 		fputs(" purge trx", f);
 	}
 
