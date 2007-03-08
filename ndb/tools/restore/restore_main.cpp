@@ -79,14 +79,10 @@ enum ndb_restore_options {
   OPT_APPEND,
   OPT_VERBOSE
 };
-/*
-  the below formatting options follow the formatting from mysqldump
-  do not change unless to adopt to changes in mysqldump
-*/
-static const char *opt_fields_enclosed_by= "";
-static const char *opt_fields_terminated_by= ";";
-static const char *opt_fields_optionally_enclosed_by= "";
-static const char *opt_lines_terminated_by= "\n";
+static const char *opt_fields_enclosed_by= NULL;
+static const char *opt_fields_terminated_by= NULL;
+static const char *opt_fields_optionally_enclosed_by= NULL;
+static const char *opt_lines_terminated_by= NULL;
 
 static const char *tab_path= NULL;
 static int opt_append;
@@ -321,13 +317,13 @@ readArguments(int *pargc, char*** pargv)
     do not change unless to adopt to changes in mysqldump
   */
   g_ndbrecord_print_format.fields_enclosed_by=
-    opt_fields_enclosed_by;
+    opt_fields_enclosed_by ? opt_fields_enclosed_by : "";
   g_ndbrecord_print_format.fields_terminated_by=
-    opt_fields_terminated_by;
+    opt_fields_terminated_by ? opt_fields_terminated_by : "\t";
   g_ndbrecord_print_format.fields_optionally_enclosed_by=
-    opt_fields_optionally_enclosed_by;
+    opt_fields_optionally_enclosed_by ? opt_fields_optionally_enclosed_by : "";
   g_ndbrecord_print_format.lines_terminated_by=
-    opt_lines_terminated_by;
+    opt_lines_terminated_by ? opt_lines_terminated_by : "\n";
   if (g_ndbrecord_print_format.fields_optionally_enclosed_by[0] == '\0')
     g_ndbrecord_print_format.null_string= "\\N";
   else
