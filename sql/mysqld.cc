@@ -571,7 +571,7 @@ CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
 CHARSET_INFO *character_set_filesystem;
 
-SHOW_COMP_OPTION have_openssl, have_symlink, have_dlopen, have_query_cache;
+SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
 
@@ -3159,12 +3159,12 @@ static void init_ssl()
     if (!ssl_acceptor_fd)
     {
       opt_use_ssl = 0;
-      have_openssl= SHOW_OPTION_DISABLED;
+      have_ssl= SHOW_OPTION_DISABLED;
     }
   }
   else
   {
-    have_openssl= SHOW_OPTION_DISABLED;
+    have_ssl= SHOW_OPTION_DISABLED;
   }
   if (des_key_file)
     load_des_key_file(des_key_file);
@@ -7257,9 +7257,9 @@ static void mysql_init_variables(void)
   have_ndbcluster=SHOW_OPTION_NO;
 #endif
 #ifdef HAVE_OPENSSL
-  have_openssl=SHOW_OPTION_YES;
+  have_ssl=SHOW_OPTION_YES;
 #else
-  have_openssl=SHOW_OPTION_NO;
+  have_ssl=SHOW_OPTION_NO;
 #endif
 #ifdef HAVE_BROKEN_REALPATH
   have_symlink=SHOW_OPTION_NO;
