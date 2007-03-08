@@ -636,14 +636,14 @@ static int rtree_insert_level(MI_INFO *info, uint keynr, uchar *key,
     int res;
 
     if ((old_root = _mi_new(info, keyinfo, DFLT_INIT_HITS)) == HA_OFFSET_ERROR)
-      return -1;
+      DBUG_RETURN(-1);
     info->buff_used = 1;
     mi_putint(info->buff, 2, 0);
     res = rtree_add_key(info, keyinfo, key, key_length, info->buff, NULL);
     if (_mi_write_keypage(info, keyinfo, old_root, DFLT_INIT_HITS, info->buff))
-      return 1;
+      DBUG_RETURN(1);
     info->s->state.key_root[keynr] = old_root;
-    return res;
+    DBUG_RETURN(res);
   }
 
   switch ((res = rtree_insert_req(info, keyinfo, key, key_length, 
