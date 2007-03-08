@@ -1,0 +1,60 @@
+source include/have_ssl.inc;
+source include/master-slave.inc;
+
+# create a user for replication that requires ssl encryption
+connection master;
+grant replication slave on *.* to replssl@localhost require ssl;
+create table t1 (t int auto_increment, KEY(t));
+
+sync_slave_with_master;
+
+# Set slave to use SSL for connection to master
+stop slave;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+eval change master to
+  master_user='replssl',
+  master_password='',
+  master_ssl=1,
+  master_ssl_ca ='$MYSQL_TEST_DIR/std_data/cacert.pem',
+  master_ssl_cert='$MYSQL_TEST_DIR/std_data/client-cert.pem',
+  master_ssl_key='$MYSQL_TEST_DIR/std_data/client-key.pem';
+start slave;
+
+# Switch to master and insert one record, then sync it to slave
+connection master;
+insert into t1 values(1);
+sync_slave_with_master;
+
+# The record should now be on slave
+select * from t1;
+
+# The slave is synced and waiting/reading from master
+# SHOW SLAVE STATUS will show "Waiting for master to send event"
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MASTER_MYPORT MASTER_MYPORT
+--replace_column 1 # 8 # 9 # 23 # 33 #
+query_vertical show slave status;
+
+# Stop the slave, as reported in bug#21871 it would hang
+STOP SLAVE;
+
+select * from t1;
+
+# Do the same thing a number of times
+disable_query_log;
+let $i= 100;
+while ($i)
+{
+  start slave;
+  connection master;
+  insert into t1 values (NULL);
+  connection slave;
+  stop slave;
+  dec $i;
+}
+start slave;
+enable_query_log;
+connection master;
+sync_slave_with_master;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MASTER_MYPORT MASTER_MYPORT
+--replace_column 1 # 8 # 9 # 23 # 33 #
+query_vertical show slave status;
