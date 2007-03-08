@@ -92,6 +92,7 @@ public:
     InvalidPrimaryKeySize  = 739,
     NullablePrimaryKey = 740,
     InvalidCharset = 743,
+    SingleUser = 299,
     InvalidTablespace = 755,
     VarsizeBitfieldNotSupported = 757,
     NotATablespace = 758,
