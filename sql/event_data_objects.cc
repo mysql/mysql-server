@@ -535,7 +535,7 @@ Event_parse_data::init_ends(THD *thd)
     Check whether ENDS is not in the past.
   */
   DBUG_PRINT("info", ("ENDS after NOW?"));
-  my_tz_UTC->gmt_sec_to_TIME(&ltime_now, thd->query_start());
+  my_tz_UTC->gmt_sec_to_TIME(&ltime_now, (my_time_t)thd->query_start());
   if (my_time_compare(&ltime_now, &ltime) == 1)
     goto error_bad_params;
 
@@ -1266,7 +1266,7 @@ Event_queue_element::compute_next_execution_time()
     goto ret;
   }
 
-  my_tz_UTC->gmt_sec_to_TIME(&time_now, current_thd->query_start());
+  my_tz_UTC->gmt_sec_to_TIME(&time_now, (my_time_t)current_thd->query_start());
 
   DBUG_PRINT("info",("NOW: [%lu]",
                      (ulong) TIME_to_ulonglong_datetime(&time_now)));
