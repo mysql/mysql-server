@@ -25,7 +25,7 @@
  *  since NodeId = 0 can not be used
  */
 #define MAX_NDB_NODES 49
-#define MAX_NODES     64
+#define MAX_NODES     256
 #define UNDEF_NODEGROUP 0xFFFF
 
 /**
