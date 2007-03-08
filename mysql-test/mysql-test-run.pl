@@ -4918,9 +4918,7 @@ sub debugger_arguments {
   my $exe=  shift;
   my $debugger= $opt_debugger || $opt_client_debugger;
 
-  # FIXME Need to change the below "eq"'s to
-  # "case unsensitive string contains"
-  if ( $debugger eq "vcexpress" or $debugger eq "vc")
+  if ( $debugger =~ /vcexpress|vc|devenv/ )
   {
     # vc[express] /debugexe exe arg1 .. argn
 
@@ -4928,22 +4926,37 @@ sub debugger_arguments {
     unshift(@$$args, "/debugexe");
     unshift(@$$args, "$$exe");
 
+    # Set exe to debuggername
+    $$exe= $debugger;
+
   }
-  elsif ( $debugger eq "windbg" )
+  elsif ( $debugger =~ /windbg/ )
   {
     # windbg exe arg1 .. argn
 
     # Add name of the exe before args
     unshift(@$$args, "$$exe");
 
+    # Set exe to debuggername
+    $$exe= $debugger;
+
+  }
+  elsif ( $debugger eq "dbx" )
+  {
+    # xterm -e dbx -r exe arg1 .. argn
+
+    unshift(@$$args, $$exe);
+    unshift(@$$args, "-r");
+    unshift(@$$args, $debugger);
+    unshift(@$$args, "-e");
+
+    $$exe= "xterm";
+
   }
   else
   {
     mtr_error("Unknown argument \"$debugger\" passed to --debugger");
   }
-
-  # Set exe to debuggername
-  $$exe= $debugger;
 }
 
 
