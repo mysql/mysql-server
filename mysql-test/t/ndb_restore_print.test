@@ -19,7 +19,7 @@ create table t1
   ,g1 VARCHAR(32) BINARY, g2 VARCHAR(255) BINARY, g3 VARCHAR(1000) BINARY
   ,h1 BINARY(1), h2 BINARY(8), h3 BINARY(255)
   ,i1 VARBINARY(32), i2 VARBINARY(255), i3 VARBINARY(1000)
- ) engine ndb;
+ ) engine myisam;
 
 # max values
 insert into t1 values
@@ -62,6 +62,34 @@ insert into t1 values
   ,NULL,NULL,NULL
   ,NULL,NULL,NULL
  );
+
+--vertical_results
+select pk
+  ,hex(a1), hex(a2), hex(a3), hex(a4), hex(a5)
+  ,b1, b2
+  ,c1 , c2
+  ,d1 , d2
+  ,e1 , e2 
+  ,f1 , f2, f3
+  ,g1 , g2, g3
+  ,hex(h1), hex(h2), hex(h3)
+  ,hex(i1), hex(i2), hex(i3)
+ from t1 order by pk;
+
+alter table t1 engine ndb;
+
+select pk
+  ,hex(a1), hex(a2), hex(a3), hex(a4), hex(a5)
+  ,b1, b2
+  ,c1 , c2
+  ,d1 , d2
+  ,e1 , e2 
+  ,f1 , f2, f3
+  ,g1 , g2, g3
+  ,hex(h1), hex(h2), hex(h3)
+  ,hex(i1), hex(i2), hex(i3)
+ from t1 order by pk;
+--horizontal_results
 
 --source include/ndb_backup.inc
 
