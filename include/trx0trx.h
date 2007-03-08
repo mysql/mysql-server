@@ -375,8 +375,6 @@ trx_is_interrupted(
 /* Signal to a transaction */
 struct trx_sig_struct{
 	ulint		type;		/* signal type */
-	ulint		state;		/* TRX_SIG_WAITING or
-					TRX_SIG_BEING_HANDLED */
 	ulint		sender;		/* TRX_SIG_SELF or
 					TRX_SIG_OTHER_SESS */
 	que_thr_t*	receiver;	/* non-NULL if the sender of the signal
@@ -742,9 +740,6 @@ struct trx_struct{
 					session */
 #define TRX_SIG_OTHER_SESS	2	/* sent by another session (which
 					must hold rights to this) */
-/* Signal states */
-#define	TRX_SIG_WAITING		1
-#define TRX_SIG_BEING_HANDLED	2
 
 /* Commit command node in a query graph */
 struct commit_node_struct{

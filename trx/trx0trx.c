@@ -1262,7 +1262,6 @@ trx_sig_send(
 	UT_LIST_ADD_LAST(signals, trx->signals, sig);
 
 	sig->type = type;
-	sig->state = TRX_SIG_WAITING;
 	sig->sender = sender;
 	sig->receiver = receiver_thr;
 
