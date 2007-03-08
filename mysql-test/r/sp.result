@@ -5631,6 +5631,32 @@ Called B
 Called B
 drop procedure proc_21462_a|
 drop procedure proc_21462_b|
+DROP PROCEDURE IF EXISTS p1|
+DROP VIEW IF EXISTS v1, v2|
+DROP TABLE IF EXISTS t3, t4|
+CREATE TABLE t3 (t3_id INT)|
+INSERT INTO t3 VALUES (0)|
+INSERT INTO t3 VALUES (1)|
+CREATE TABLE t4 (t4_id INT)|
+INSERT INTO t4 VALUES (2)|
+CREATE VIEW v1 AS
+SELECT t3.t3_id, t4.t4_id
+FROM t3 JOIN t4 ON t3.t3_id = 0|
+CREATE VIEW v2 AS
+SELECT t3.t3_id AS t3_id_1, v1.t3_id AS t3_id_2, v1.t4_id
+FROM t3 LEFT JOIN v1 ON t3.t3_id = 0|
+CREATE PROCEDURE p1() SELECT * FROM v2|
+CALL p1()|
+t3_id_1	t3_id_2	t4_id
+0	0	2
+1	NULL	NULL
+CALL p1()|
+t3_id_1	t3_id_2	t4_id
+0	0	2
+1	NULL	NULL
+DROP PROCEDURE p1|
+DROP VIEW v1, v2|
+DROP TABLE t3, t4|
 End of 5.0 tests
 Begin of 5.1 tests
 drop function if exists pi;
