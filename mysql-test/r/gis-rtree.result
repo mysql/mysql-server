@@ -1424,6 +1424,7 @@ UPDATE t1 set spatial_point=GeomFromText('POINT(41 46)') where  c1 like 'f%';
 CHECK TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+DROP TABLE t1;
 CREATE TABLE t1(foo GEOMETRY NOT NULL, SPATIAL INDEX(foo) );
 INSERT INTO t1(foo) VALUES (NULL);
 ERROR 23000: Column 'foo' cannot be null
