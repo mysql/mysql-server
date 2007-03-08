@@ -8166,9 +8166,14 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
 	*/ 
         expr= simplify_joins(join, &nested_join->join_list,
                              expr, FALSE);
-        table->on_expr= expr;
-        if (!table->prep_on_expr)
+
+        if (!table->prep_on_expr || expr != table->on_expr)
+        {
+          DBUG_ASSERT(expr);
+
+          table->on_expr= expr;
           table->prep_on_expr= expr->copy_andor_structure(join->thd);
+        }
       }
       nested_join->used_tables= (table_map) 0;
       nested_join->not_null_tables=(table_map) 0;
@@ -8178,7 +8183,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
     }
     else
     {
-      if (!(table->prep_on_expr))
+      if (!table->prep_on_expr)
         table->prep_on_expr= table->on_expr;
       used_tables= table->table->map;
       if (conds)
