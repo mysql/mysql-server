@@ -265,6 +265,9 @@ ndbrecattr_print_formatted(NdbOut& out, const NdbRecAttr &r,
       if (length > 1)
         out << f.end_array_enclosure;
       break;
+    case NdbDictionary::Column::Mediumunsigned:
+      out << r.u_medium_value();
+      break;
     case NdbDictionary::Column::Smallunsigned:
       out << r.u_short_value();
       break;
@@ -276,6 +279,9 @@ ndbrecattr_print_formatted(NdbOut& out, const NdbRecAttr &r,
       break;
     case NdbDictionary::Column::Int:
       out << r.int32_value();
+      break;
+    case NdbDictionary::Column::Mediumint:
+      out << r.medium_value();
       break;
     case NdbDictionary::Column::Smallint:
       out << r.short_value();
@@ -463,8 +469,6 @@ ndbrecattr_print_formatted(NdbOut& out, const NdbRecAttr &r,
     break;
 
     case NdbDictionary::Column::Undefined:
-    case NdbDictionary::Column::Mediumint:
-    case NdbDictionary::Column::Mediumunsigned:
     unknown:
     //default: /* no print functions for the rest, just print type */
     out << (int) r.getType();
