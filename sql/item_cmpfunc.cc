@@ -2155,9 +2155,100 @@ void Item_func_coalesce::fix_length_and_dec()
  Classes and function for the IN operator
 ****************************************************************************/
 
-static int cmp_longlong(void *cmp_arg, longlong *a,longlong *b)
+/*
+  Determine which of the signed longlong arguments is bigger
+
+  SYNOPSIS
+    cmp_longs()
+      a_val     left argument
+      b_val     right argument
+
+  DESCRIPTION
+    This function will compare two signed longlong arguments
+    and will return -1, 0, or 1 if left argument is smaller than,
+    equal to or greater than the right argument.
+
+  RETURN VALUE
+    -1          left argument is smaller than the right argument.
+    0           left argument is equal to the right argument.
+    1           left argument is greater than the right argument.
+*/
+static inline int cmp_longs (longlong a_val, longlong b_val)
 {
-  return *a < *b ? -1 : *a == *b ? 0 : 1;
+  return a_val < b_val ? -1 : a_val == b_val ? 0 : 1;
+}
+
+
+/*
+  Determine which of the unsigned longlong arguments is bigger
+
+  SYNOPSIS
+    cmp_ulongs()
+      a_val     left argument
+      b_val     right argument
+
+  DESCRIPTION
+    This function will compare two unsigned longlong arguments
+    and will return -1, 0, or 1 if left argument is smaller than,
+    equal to or greater than the right argument.
+
+  RETURN VALUE
+    -1          left argument is smaller than the right argument.
+    0           left argument is equal to the right argument.
+    1           left argument is greater than the right argument.
+*/
+static inline int cmp_ulongs (ulonglong a_val, ulonglong b_val)
+{
+  return a_val < b_val ? -1 : a_val == b_val ? 0 : 1;
+}
+
+
+/*
+  Compare two integers in IN value list format (packed_longlong) 
+
+  SYNOPSIS
+    cmp_longlong()
+      cmp_arg   an argument passed to the calling function (qsort2)
+      a         left argument
+      b         right argument
+
+  DESCRIPTION
+    This function will compare two integer arguments in the IN value list
+    format and will return -1, 0, or 1 if left argument is smaller than,
+    equal to or greater than the right argument.
+    It's used in sorting the IN values list and finding an element in it.
+    Depending on the signedness of the arguments cmp_longlong() will
+    compare them as either signed (using cmp_longs()) or unsigned (using
+    cmp_ulongs()).
+
+  RETURN VALUE
+    -1          left argument is smaller than the right argument.
+    0           left argument is equal to the right argument.
+    1           left argument is greater than the right argument.
+*/
+int cmp_longlong(void *cmp_arg, 
+                 in_longlong::packed_longlong *a,
+                 in_longlong::packed_longlong *b)
+{
+  if (a->unsigned_flag != b->unsigned_flag)
+  { 
+    /* 
+      One of the args is unsigned and is too big to fit into the 
+      positive signed range. Report no match.
+    */  
+    if (a->unsigned_flag && ((ulonglong) a->val) > LONGLONG_MAX ||
+        b->unsigned_flag && ((ulonglong) b->val) > LONGLONG_MAX)
+      return a->unsigned_flag ? 1 : -1;
+    /*
+      Although the signedness differs both args can fit into the signed 
+      positive range. Make them signed and compare as usual.
+    */  
+    return cmp_longs (a->val, b->val);
+  }
+  if (a->unsigned_flag)
+    return cmp_ulongs ((ulonglong) a->val, (ulonglong) b->val);
+  else
+    return cmp_longs (a->val, b->val);
 }
 
 static int cmp_double(void *cmp_arg, double *a,double *b)
@@ -2282,19 +2373,23 @@ void in_row::set(uint pos, Item *item)
 }
 
 in_longlong::in_longlong(uint elements)
-  :in_vector(elements,sizeof(longlong),(qsort2_cmp) cmp_longlong, 0)
+  :in_vector(elements,sizeof(packed_longlong),(qsort2_cmp) cmp_longlong, 0)
 {}
 
 void in_longlong::set(uint pos,Item *item)
 {
-  ((longlong*) base)[pos]=item->val_int();
+  struct packed_longlong *buff= &((packed_longlong*) base)[pos];
+  
+  buff->val= item->val_int();
+  buff->unsigned_flag= item->unsigned_flag;
 }
 
 byte *in_longlong::get_value(Item *item)
 {
-  tmp= item->val_int();
+  tmp.val= item->val_int();
   if (item->null_value)
     return 0;
+  tmp.unsigned_flag= item->unsigned_flag;
   return (byte*) &tmp;
 }
 
@@ -2615,6 +2710,31 @@ void Item_func_in::fix_length_and_dec()
   */
   if (const_itm && !nulls_in_row())
   {
+    /*
+      IN must compare INT/DATE/DATETIME/TIMESTAMP columns and constants
+      as int values (the same way as equality does).
+      So we must check here if the column on the left and all the constant 
+      values on the right can be compared as integers and adjust the 
+      comparison type accordingly.
+    */  
+    if (args[0]->real_item()->type() == FIELD_ITEM &&
+        thd->lex->sql_command != SQLCOM_CREATE_VIEW &&
+        thd->lex->sql_command != SQLCOM_SHOW_CREATE &&
+        cmp_type != INT_RESULT)
+    {
+      Field *field= ((Item_field*) (args[0]->real_item()))->field;
+      if (field->can_be_compared_as_longlong())
+      {
+        bool all_converted= TRUE;
+        for (arg=args+1, arg_end=args+arg_count; arg != arg_end ; arg++)
+        {
+          if (!convert_constant_item (thd, field, &arg[0]))
+            all_converted= FALSE;
+        }
+        if (all_converted)
+          cmp_type= INT_RESULT;
+      }
+    }
     switch (cmp_type) {
     case STRING_RESULT:
       array=new in_string(arg_count-1,(qsort2_cmp) srtcmp_in, 

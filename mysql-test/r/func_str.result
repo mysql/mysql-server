@@ -1954,4 +1954,10 @@ A	B	tire
 #	#	1
 ##	##	2
 DROP TABLE t1;
+SELECT UNHEX('G');
+UNHEX('G')
+NULL
+SELECT UNHEX('G') IS NULL;
+UNHEX('G') IS NULL
+1
 End of 5.0 tests
