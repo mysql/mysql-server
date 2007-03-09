@@ -1357,4 +1357,13 @@ do { doubleget_union _tmp; \
 #define NO_EMBEDDED_ACCESS_CHECKS
 #endif
 
+
+/* Length of decimal number represented by INT32. */
+
+#define MY_INT32_NUM_DECIMAL_DIGITS 11
+
+/* Length of decimal number represented by INT64. */
+
+#define MY_INT64_NUM_DECIMAL_DIGITS 21
+
 #endif /* my_global_h */

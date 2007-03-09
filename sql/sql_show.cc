@@ -205,7 +205,8 @@ bool mysqld_show_column_types(THD *thd)
   DBUG_ENTER("mysqld_show_column_types");
 
   field_list.push_back(new Item_empty_string("Type",30));
-  field_list.push_back(new Item_int("Size",(longlong) 1,21));
+  field_list.push_back(new Item_int("Size",(longlong) 1,
+                                    MY_INT64_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_empty_string("Min_Value",20));
   field_list.push_back(new Item_empty_string("Max_Value",20));
   field_list.push_back(new Item_return_int("Prec", 4, MYSQL_TYPE_SHORT));
@@ -1284,7 +1285,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_list_processes");
 
-  field_list.push_back(new Item_int("Id",0,11));
+  field_list.push_back(new Item_int("Id", 0, MY_INT32_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_empty_string("User",16));
   field_list.push_back(new Item_empty_string("Host",LIST_PROCESS_HOST_LEN));
   field_list.push_back(field=new Item_empty_string("db",NAME_LEN));
@@ -4038,20 +4039,25 @@ ST_FIELD_INFO tables_fields_info[]=
   {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Name"},
   {"TABLE_TYPE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"ENGINE", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, "Engine"},
-  {"VERSION", 21 , MYSQL_TYPE_LONG, 0, 1, "Version"},
+  {"VERSION", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 1, "Version"},
   {"ROW_FORMAT", 10, MYSQL_TYPE_STRING, 0, 1, "Row_format"},
-  {"TABLE_ROWS", 21 , MYSQL_TYPE_LONG, 0, 1, "Rows"},
-  {"AVG_ROW_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, "Avg_row_length"},
-  {"DATA_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, "Data_length"},
-  {"MAX_DATA_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, "Max_data_length"},
-  {"INDEX_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, "Index_length"},
-  {"DATA_FREE", 21 , MYSQL_TYPE_LONG, 0, 1, "Data_free"},
-  {"AUTO_INCREMENT", 21 , MYSQL_TYPE_LONG, 0, 1, "Auto_increment"},
+  {"TABLE_ROWS", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 1, "Rows"},
+  {"AVG_ROW_LENGTH", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 1,
+   "Avg_row_length"},
+  {"DATA_LENGTH", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 1,
+   "Data_length"},
+  {"MAX_DATA_LENGTH", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 1,
+   "Max_data_length"},
+  {"INDEX_LENGTH", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 1,
+   "Index_length"},
+  {"DATA_FREE", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 1, "Data_free"},
+  {"AUTO_INCREMENT", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 1,
+   "Auto_increment"},
   {"CREATE_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Create_time"},
   {"UPDATE_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Update_time"},
   {"CHECK_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Check_time"},
   {"TABLE_COLLATION", 64, MYSQL_TYPE_STRING, 0, 1, "Collation"},
-  {"CHECKSUM", 21 , MYSQL_TYPE_LONG, 0, 1, "Checksum"},
+  {"CHECKSUM", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 1, "Checksum"},
   {"CREATE_OPTIONS", 255, MYSQL_TYPE_STRING, 0, 1, "Create_options"},
   {"TABLE_COMMENT", 80, MYSQL_TYPE_STRING, 0, 0, "Comment"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
@@ -4064,14 +4070,15 @@ ST_FIELD_INFO columns_fields_info[]=
   {"TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"COLUMN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Field"},
-  {"ORDINAL_POSITION", 21 , MYSQL_TYPE_LONG, 0, 0, 0},
+  {"ORDINAL_POSITION", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 0, 0},
   {"COLUMN_DEFAULT", MAX_FIELD_VARCHARLENGTH, MYSQL_TYPE_STRING, 0, 1, "Default"},
   {"IS_NULLABLE", 3, MYSQL_TYPE_STRING, 0, 0, "Null"},
   {"DATA_TYPE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"CHARACTER_MAXIMUM_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
-  {"CHARACTER_OCTET_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
-  {"NUMERIC_PRECISION", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
-  {"NUMERIC_SCALE", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
+  {"CHARACTER_MAXIMUM_LENGTH", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 1,
+   0},
+  {"CHARACTER_OCTET_LENGTH", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 1, 0},
+  {"NUMERIC_PRECISION", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 1, 0},
+  {"NUMERIC_SCALE", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 1, 0},
   {"CHARACTER_SET_NAME", 64, MYSQL_TYPE_STRING, 0, 1, 0},
   {"COLLATION_NAME", 64, MYSQL_TYPE_STRING, 0, 1, "Collation"},
   {"COLUMN_TYPE", 65535, MYSQL_TYPE_STRING, 0, 0, "Type"},
@@ -4097,7 +4104,7 @@ ST_FIELD_INFO collation_fields_info[]=
 {
   {"COLLATION_NAME", 64, MYSQL_TYPE_STRING, 0, 0, "Collation"},
   {"CHARACTER_SET_NAME", 64, MYSQL_TYPE_STRING, 0, 0, "Charset"},
-  {"ID", 11, MYSQL_TYPE_LONG, 0, 0, "Id"},
+  {"ID", MY_INT32_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Id"},
   {"IS_DEFAULT", 3, MYSQL_TYPE_STRING, 0, 0, "Default"},
   {"IS_COMPILED", 3, MYSQL_TYPE_STRING, 0, 0, "Compiled"},
   {"SORTLEN", 3 ,MYSQL_TYPE_LONG, 0, 0, "Sortlen"},
@@ -4150,7 +4157,7 @@ ST_FIELD_INFO stat_fields_info[]=
   {"SEQ_IN_INDEX", 2, MYSQL_TYPE_LONG, 0, 0, "Seq_in_index"},
   {"COLUMN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Column_name"},
   {"COLLATION", 1, MYSQL_TYPE_STRING, 0, 1, "Collation"},
-  {"CARDINALITY", 21, MYSQL_TYPE_LONG, 0, 1, "Cardinality"},
+  {"CARDINALITY", MY_INT32_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 1, "Cardinality"},
   {"SUB_PART", 3, MYSQL_TYPE_LONG, 0, 1, "Sub_part"},
   {"PACKED", 10, MYSQL_TYPE_STRING, 0, 1, "Packed"},
   {"NULLABLE", 3, MYSQL_TYPE_STRING, 0, 0, "Null"},
