@@ -1758,9 +1758,10 @@ void Item_ident::print(String *str)
     }
   }
 
-  if (!table_name || !field_name)
+  if (!table_name || !field_name || !field_name[0])
   {
-    const char *nm= field_name ? field_name : name ? name : "tmp_field";
+    const char *nm= (field_name && field_name[0]) ?
+                      field_name : name ? name : "tmp_field";
     append_identifier(thd, str, nm, (uint) strlen(nm));
     return;
   }
@@ -4897,6 +4898,22 @@ Item *Item_field::update_value_transformer(byte *select_arg)
     return ref;
   }
   return this;
+}
+
+
+void Item_field::print(String *str)
+{
+  if (field && field->table->const_table)
+  {
+    char buff[MAX_FIELD_WIDTH];
+    String tmp(buff,sizeof(buff),str->charset());
+    field->val_str(&tmp);
+    str->append('\'');
+    str->append(tmp);
+    str->append('\'');
+    return;
+  }
+  Item_ident::print(str);
 }
 
 
