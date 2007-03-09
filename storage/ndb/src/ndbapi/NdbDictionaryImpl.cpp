@@ -1753,6 +1753,7 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
 	       m_transporter->sendSignal(sig, node));
     if(res != 0){
       DBUG_PRINT("info", ("dictSignal failed to send signal"));
+      m_error.code = 4007;
       continue;
     }    
     
@@ -1770,6 +1771,7 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
      */
     if(ret_val == -2) //WAIT_NODE_FAILURE
     {
+      m_error.code = 4013;
       continue;
     }
     if(m_waiter.m_state == WST_WAIT_TIMEOUT)
