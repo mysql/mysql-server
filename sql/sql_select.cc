@@ -396,6 +396,7 @@ JOIN::prepare(Item ***rref_pointer_array,
   join_list= &select_lex->top_join_list;
   union_part= (unit_arg->first_select()->next_select() != 0);
 
+  thd->lex->current_select->is_item_list_lookup= 1;
   /*
     If we have already executed SELECT, then it have not sense to prevent
     its table from update (see unique_table())
@@ -454,6 +455,17 @@ JOIN::prepare(Item ***rref_pointer_array,
   }
 
   select_lex->fix_prepare_information(thd, &conds, &having);
+
+  if (order)
+  {
+    ORDER *ord;
+    for (ord= order; ord; ord= ord->next)
+    {
+      Item *item= *ord->item;
+      if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM)
+        item->split_sum_func(thd, ref_pointer_array, all_fields);
+    }
+  }
 
   if (having && having->with_sum_func)
     having->split_sum_func2(thd, ref_pointer_array, all_fields,
@@ -738,7 +750,6 @@ JOIN::optimize()
   }
 
   {
-    Item::cond_result having_value;
     having= optimize_cond(this, having, join_list, &having_value);
     if (thd->net.report_error)
     {
@@ -746,6 +757,10 @@ JOIN::optimize()
       DBUG_PRINT("error",("Error from optimize_cond"));
       DBUG_RETURN(1);
     }
+    if (select_lex->where)
+      select_lex->cond_value= cond_value;
+    if (select_lex->having)
+      select_lex->having_value= having_value;
 
     if (cond_value == Item::COND_FALSE || having_value == Item::COND_FALSE || 
         (!unit->select_limit_cnt && !(select_options & OPTION_FOUND_ROWS)))
@@ -906,6 +921,7 @@ JOIN::optimize()
     conds->update_used_tables();
     DBUG_EXECUTE("where", print_where(conds, "after substitute_best_equal"););
   }
+
   /*
     Permorm the the optimization on fields evaluation mentioned above
     for all on expressions.
@@ -7772,6 +7788,9 @@ static COND* substitute_for_best_equal_field(COND *cond,
           break;
       }
     }
+    if (!((Item_cond*)cond)->argument_list()->elements)
+      cond= new Item_int((int32)cond->val_bool());
+
   }
   else if (cond->type() == Item::FUNC_ITEM && 
            ((Item_cond*) cond)->functype() == Item_func::MULT_EQUAL_FUNC)
@@ -13407,7 +13426,7 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   Item **select_item; /* The corresponding item from the SELECT clause. */
   Field *from_field;  /* The corresponding field from the FROM clause. */
   uint counter;
-  bool unaliased;
+  enum_resolution_type resolution;
 
   /*
     Local SP variables may be int but are expressions, not positions.
@@ -13430,7 +13449,7 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   }
   /* Lookup the current GROUP/ORDER field in the SELECT clause. */
   select_item= find_item_in_list(order_item, fields, &counter,
-                                 REPORT_EXCEPT_NOT_FOUND, &unaliased);
+                                 REPORT_EXCEPT_NOT_FOUND, &resolution);
   if (!select_item)
     return TRUE; /* The item is not unique, or some other error occured. */
 
@@ -13444,7 +13463,7 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
       original field name, we should additionaly check if we have conflict
       for this name (in case if we would perform lookup in all tables).
     */
-    if (unaliased && !order_item->fixed &&
+    if (resolution == RESOLVED_BEHIND_ALIAS && !order_item->fixed &&
         order_item->fix_fields(thd, order->item))
       return TRUE;
 
@@ -13514,16 +13533,11 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
     We check order_item->fixed because Item_func_group_concat can put
     arguments for which fix_fields already was called.
   */
-  thd->lex->current_select->is_item_list_lookup= 1;
   if (!order_item->fixed &&
       (order_item->fix_fields(thd, order->item) ||
        (order_item= *order->item)->check_cols(1) ||
        thd->is_fatal_error))
-  {
-    thd->lex->current_select->is_item_list_lookup= 0;
     return TRUE; /* Wrong field. */
-  }
-  thd->lex->current_select->is_item_list_lookup= 0;
 
   uint el= all_fields.elements;
   all_fields.push_front(order_item); /* Add new field to field list. */
@@ -13675,7 +13689,7 @@ setup_new_fields(THD *thd, List<Item> &fields,
 {
   Item	  **item;
   uint counter;
-  bool not_used;
+  enum_resolution_type not_used;
   DBUG_ENTER("setup_new_fields");
 
   thd->mark_used_columns= MARK_COLUMNS_READ;       // Not really needed, but...
@@ -15635,10 +15649,13 @@ void st_select_lex::print(THD *thd, String *str)
   Item *cur_where= where;
   if (join)
     cur_where= join->conds;
-  if (cur_where)
+  if (cur_where || cond_value != Item::COND_UNDEF)
   {
     str->append(STRING_WITH_LEN(" where "));
-    cur_where->print(str);
+    if (cur_where)
+      cur_where->print(str);
+    else
+      str->append(cond_value != Item::COND_FALSE ? "1" : "0");
   }
 
   // group by & olap
@@ -15664,10 +15681,13 @@ void st_select_lex::print(THD *thd, String *str)
   if (join)
     cur_having= join->having;
 
-  if (cur_having)
+  if (cur_having || having_value != Item::COND_UNDEF)
   {
     str->append(STRING_WITH_LEN(" having "));
-    cur_having->print(str);
+    if (cur_having)
+      cur_having->print(str);
+    else
+      str->append(having_value != Item::COND_FALSE ? "1" : "0");
   }
 
   if (order_list.elements)

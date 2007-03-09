@@ -306,6 +306,14 @@ create table t1(f1 int, `*f2` int);
 insert into t1 values (1,1);
 update t1 set `*f2`=1;
 drop table t1;
+
+#
+# Bug#25126: Wrongly resolved field leads to a crash
+#
+create table t1(f1 int);
+--error 1054
+update t1 set f2=1 order by f2;
+drop table t1;
 # End of 4.1 tests
 
 #
