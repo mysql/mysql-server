@@ -1090,7 +1090,6 @@ Dbdict::updateSchemaState(Signal* signal, Uint32 tableId,
 			  SchemaFile::TableEntry* te, Callback* callback,
                           bool savetodisk){
   jam();
-  ndbrequire(tableId < c_tableRecordPool.getSize());
   XSchemaFile * xsf = &c_schemaFile[c_schemaRecord.schemaPage != 0];
   SchemaFile::TableEntry * tableEntry = getTableEntry(xsf, tableId);
   
