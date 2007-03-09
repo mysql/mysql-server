@@ -2649,6 +2649,8 @@ public:
   void send_drop_fg(Signal*, SchemaOp*, DropFilegroupImplReq::RequestInfo);
 
   void drop_undofile_prepare_start(Signal* signal, SchemaOp*);
+
+  int checkSingleUserMode(Uint32 senderRef);
 };
 
 inline bool
