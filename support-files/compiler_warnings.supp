@@ -1,3 +1,8 @@
+#
+# This file contains compiler warnings that can
+# be ignored for various reasons.
+#
+
 integer.cpp: .*control reaches end of non-void function.*: 1288-1427
 DictTabInfo.cpp : .*invalid access to non-static.*
 DictTabInfo.cpp : .*macro was used incorrectly.*
