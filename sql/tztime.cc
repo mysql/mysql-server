@@ -1488,26 +1488,20 @@ extern "C" byte* my_offset_tzs_get_key(Time_zone_offset *entry, uint *length,
 
 
 /*
-  Prepare table list with time zone related tables from preallocated array
-  and add to global table list.
+  Prepare table list with time zone related tables from preallocated array.
 
   SYNOPSIS
     tz_init_table_list()
       tz_tabs         - pointer to preallocated array of MY_TZ_TABLES_COUNT
                         TABLE_LIST objects
-      global_next_ptr - pointer to variable which points to global_next member
-                        of last element of global table list (or list root
-                        then list is empty) (in/out).
 
   DESCRIPTION
     This function prepares list of TABLE_LIST objects which can be used
-    for opening of time zone tables from preallocated array. It also links
-    this list to the end of global table list (it will read and update
-    accordingly variable pointed by global_next_ptr for this).
+    for opening of time zone tables from preallocated array.
 */
 
 static void
-tz_init_table_list(TABLE_LIST *tz_tabs, TABLE_LIST ***global_next_ptr)
+tz_init_table_list(TABLE_LIST *tz_tabs)
 {
   bzero(tz_tabs, sizeof(TABLE_LIST) * MY_TZ_TABLES_COUNT);
 
@@ -1524,64 +1518,6 @@ tz_init_table_list(TABLE_LIST *tz_tabs, TABLE_LIST ***global_next_ptr)
     if (i != 0)
       tz_tabs[i].prev_global= &tz_tabs[i-1].next_global;
   }
-
-  /* Link into global list */
-  tz_tabs[0].prev_global= *global_next_ptr;
-  **global_next_ptr= tz_tabs;
-  /* Update last-global-pointer to point to pointer in last table */
-  *global_next_ptr= &tz_tabs[MY_TZ_TABLES_COUNT-1].next_global;
-}
-
-
-/*
-  Fake table list object, pointer to which is returned by
-  my_tz_get_tables_list() as indication of error.
-*/
-TABLE_LIST fake_time_zone_tables_list;
-
-/*
-  Create table list with time zone related tables and add it to the end
-  of global table list.
-
-  SYNOPSIS
-    my_tz_get_table_list()
-      thd             - current thread object
-      global_next_ptr - pointer to variable which points to global_next member
-                        of last element of global table list (or list root
-                        then list is empty) (in/out).
-
-  DESCRIPTION
-    This function creates list of TABLE_LIST objects allocated in thd's
-    memroot, which can be used for opening of time zone tables. It will also
-    link this list to the end of global table list (it will read and update
-    accordingly variable pointed by global_next_ptr for this).
-
-  NOTE
-    my_tz_check_n_skip_implicit_tables() function depends on fact that
-    elements of list created are allocated as TABLE_LIST[MY_TZ_TABLES_COUNT]
-    array.
-
-  RETURN VALUES
-    Returns pointer to first TABLE_LIST object, (could be 0 if time zone
-    tables don't exist) and &fake_time_zone_tables_list in case of error.
-*/
-
-TABLE_LIST *
-my_tz_get_table_list(THD *thd, TABLE_LIST ***global_next_ptr)
-{
-  TABLE_LIST *tz_tabs;
-  DBUG_ENTER("my_tz_get_table_list");
-
-  if (!time_zone_tables_exist)
-    DBUG_RETURN(0);
-
-  if (!(tz_tabs= (TABLE_LIST *)thd->alloc(sizeof(TABLE_LIST) *
-                                          MY_TZ_TABLES_COUNT)))
-    DBUG_RETURN(&fake_time_zone_tables_list);
-
-  tz_init_table_list(tz_tabs, global_next_ptr);
-
-  DBUG_RETURN(tz_tabs);
 }
 
 
@@ -1614,8 +1550,8 @@ my_bool
 my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
 {
   THD *thd;
-  TABLE_LIST *tables= 0;
-  TABLE_LIST tables_buff[1+MY_TZ_TABLES_COUNT], **last_global_next_ptr;
+  TABLE_LIST tz_tables[1+MY_TZ_TABLES_COUNT];
+  Open_tables_state open_tables_state_backup;
   TABLE *table;
   Tz_names_entry *tmp_tzname;
   my_bool return_val= 1;
@@ -1677,19 +1613,23 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   */
 
   thd->set_db(db, sizeof(db)-1);
-  bzero((char*) &tables_buff, sizeof(TABLE_LIST));
-  tables_buff[0].alias= tables_buff[0].table_name=
+  bzero((char*) &tz_tables[0], sizeof(TABLE_LIST));
+  tz_tables[0].alias= tz_tables[0].table_name=
     (char*)"time_zone_leap_second";
-  tables_buff[0].lock_type= TL_READ;
-  tables_buff[0].db= db;
-  /*
-    Fill TABLE_LIST for the rest of the time zone describing tables
-    and link it to first one.
-  */
-  last_global_next_ptr= &(tables_buff[0].next_global);
-  tz_init_table_list(tables_buff + 1, &last_global_next_ptr);
+  tz_tables[0].table_name_length= 21;
+  tz_tables[0].db= db;
+  tz_tables[0].db_length= sizeof(db)-1;
+  tz_tables[0].lock_type= TL_READ;
 
-  if (simple_open_n_lock_tables(thd, tables_buff))
+  tz_init_table_list(tz_tables+1);
+  tz_tables[0].next_global= tz_tables[0].next_local= &tz_tables[1];
+  tz_tables[1].prev_global= &tz_tables[0].next_global;
+
+  /*
+    We need to open only mysql.time_zone_leap_second, but we try to
+    open all time zone tables to see if they exist.
+  */
+  if (open_system_tables_for_read(thd, tz_tables, &open_tables_state_backup))
   {
     sql_print_warning("Can't open and lock time zone table: %s "
                       "trying to live without them", thd->net.last_error);
@@ -1697,7 +1637,6 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
     return_val= time_zone_tables_exist= 0;
     goto end_with_setting_default_tz;
   }
-  tables= tables_buff + 1;
 
   /*
     Now we are going to load leap seconds descriptions that are shared
@@ -1713,7 +1652,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
     goto end_with_close;
   }
 
-  table= tables_buff[0].table;
+  table= tz_tables[0].table;
   /*
     It is OK to ignore ha_index_init()/ha_index_end() return values since
     mysql.time_zone* tables are MyISAM and these operations always succeed
@@ -1770,7 +1709,12 @@ end_with_setting_default_tz:
   if (default_tzname)
   {
     String tmp_tzname2(default_tzname, &my_charset_latin1);
-    if (!(global_system_variables.time_zone= my_tz_find(&tmp_tzname2, tables)))
+    /*
+      Time zone tables may be open here, and my_tz_find() may open
+      most of them once more, but this is OK for system tables open
+      for READ.
+    */
+    if (!(global_system_variables.time_zone= my_tz_find(thd, &tmp_tzname2)))
     {
       sql_print_error("Fatal error: Illegal or unknown default time zone '%s'",
                       default_tzname);
@@ -1779,8 +1723,11 @@ end_with_setting_default_tz:
   }
 
 end_with_close:
-  thd->version--; /* Force close to free memory */
-  close_thread_tables(thd);
+  if (time_zone_tables_exist)
+  {
+    thd->version--; /* Force close to free memory */
+    close_system_tables(thd, &open_tables_state_backup);
+  }
 
 end_with_cleanup:
 
@@ -1889,7 +1836,6 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   */
   table= tz_tables->table;
   tz_tables= tz_tables->next_local;
-  table->use_all_columns();
   table->field[0]->store(tz_name->ptr(), tz_name->length(),
                          &my_charset_latin1);
   /*
@@ -1922,7 +1868,6 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
     using the only index in this table).
   */
   table= tz_tables->table;
-  table->use_all_columns();
   tz_tables= tz_tables->next_local;
   table->field[0]->store((longlong) tzid, TRUE);
   (void)table->file->ha_index_init(0, 1);
@@ -1950,7 +1895,6 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
     Right - using special index.
   */
   table= tz_tables->table;
-  table->use_all_columns();
   tz_tables= tz_tables->next_local;
   table->field[0]->store((longlong) tzid, TRUE);
   (void)table->file->ha_index_init(0, 1);
@@ -2024,7 +1968,6 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
     in ascending order by index scan also satisfies us.
   */
   table= tz_tables->table; 
-  table->use_all_columns();
   table->field[0]->store((longlong) tzid, TRUE);
   (void)table->file->ha_index_init(0, 1);
 
@@ -2234,8 +2177,8 @@ str_to_offset(const char *str, uint length, long *offset)
 
   SYNOPSIS
     my_tz_find()
+      thd  - pointer to thread THD structure
       name - time zone specification
-      tz_tables - list of opened'n'locked time zone describing tables
 
   DESCRIPTION
     This function checks if name is one of time zones described in db,
@@ -2257,11 +2200,10 @@ str_to_offset(const char *str, uint length, long *offset)
     values as parameter without additional external check and this property
     is used by @@time_zone variable handling code).
 
-    It will perform lookup in system tables (mysql.time_zone*) if needed
-    using tz_tables as list of already opened tables (for info about this
-    list look at tz_load_from_open_tables() description). It won't perform
-    such lookup if no time zone describing tables were found during server
-    start up.
+    It will perform lookup in system tables (mysql.time_zone*),
+    opening and locking them, and closing afterwards. It won't perform
+    such lookup if no time zone describing tables were found during
+    server start up.
 
   RETURN VALUE
     Pointer to corresponding Time_zone object. 0 - in case of bad time zone
@@ -2269,7 +2211,7 @@ str_to_offset(const char *str, uint length, long *offset)
 
 */
 Time_zone *
-my_tz_find(const String * name, TABLE_LIST *tz_tables)
+my_tz_find(THD *thd, const String *name)
 {
   Tz_names_entry *tmp_tzname;
   Time_zone *result_tz= 0;
@@ -2277,8 +2219,6 @@ my_tz_find(const String * name, TABLE_LIST *tz_tables)
   DBUG_ENTER("my_tz_find");
   DBUG_PRINT("enter", ("time zone name='%s'",
                        name ? ((String *)name)->c_ptr_safe() : "NULL"));
-  DBUG_ASSERT(!time_zone_tables_exist || tz_tables ||
-              current_thd->slave_thread);
 
   if (!name)
     DBUG_RETURN(0);
@@ -2310,8 +2250,19 @@ my_tz_find(const String * name, TABLE_LIST *tz_tables)
                                                    (const byte *)name->ptr(),
                                                    name->length())))
       result_tz= tmp_tzname->tz;
-    else if (time_zone_tables_exist && tz_tables)
-      result_tz= tz_load_from_open_tables(name, tz_tables);
+    else if (time_zone_tables_exist)
+    {
+      TABLE_LIST tz_tables[MY_TZ_TABLES_COUNT];
+      Open_tables_state open_tables_state_backup;
+
+      tz_init_table_list(tz_tables);
+      if (!open_system_tables_for_read(thd, tz_tables,
+                                       &open_tables_state_backup))
+      {
+        result_tz= tz_load_from_open_tables(name, tz_tables);
+        close_system_tables(thd, &open_tables_state_backup);
+      }
+    }
   }
 
   VOID(pthread_mutex_unlock(&tz_LOCK));
@@ -2319,58 +2270,6 @@ my_tz_find(const String * name, TABLE_LIST *tz_tables)
   DBUG_RETURN(result_tz);
 }
 
-
-/*
-  A more standalone version of my_tz_find(): will open tz tables if needed.
-  This is so far only used by replication, where time zone setting does not
-  happen in the usual query context.
-
-  SYNOPSIS
-    my_tz_find_with_opening_tz_tables()
-      thd  - pointer to thread's THD structure
-      name - time zone specification
-
-  DESCRIPTION
-    This function tries to find a time zone which matches the named passed in
-    argument. If it fails, it will open time zone tables and re-try the
-    search.
-    This function is needed for the slave SQL thread, which does not do the
-    addition of time zone tables which is usually done during query parsing
-    (as time zone setting by slave does not happen in mysql_parse() but
-    before). So it needs to open tz tables by itself if needed.
-    See notes of my_tz_find() as they also apply here.
-
-  RETURN VALUE
-    Pointer to corresponding Time_zone object. 0 - in case of bad time zone
-    specification or other error.
-*/
-
-Time_zone *my_tz_find_with_opening_tz_tables(THD *thd, const String *name)
-{
-  Time_zone *tz;
-  DBUG_ENTER("my_tz_find_with_opening_tables");
-  DBUG_ASSERT(thd);
-  DBUG_ASSERT(thd->slave_thread); // intended for use with slave thread only
-
-  if (!(tz= my_tz_find(name, 0)) && time_zone_tables_exist)
-  {
-    /*
-      Probably we have not loaded this time zone yet so let us look it up in
-      our time zone tables. Note that if we don't have tz tables on this
-      slave, we don't even try.
-    */
-    TABLE_LIST tables[MY_TZ_TABLES_COUNT];
-    TABLE_LIST *dummy;
-    TABLE_LIST **dummyp= &dummy;
-    tz_init_table_list(tables, &dummyp);
-    if (simple_open_n_lock_tables(thd, tables))
-      DBUG_RETURN(0);
-    tz= my_tz_find(name, tables);
-    /* We need to close tables _now_ to not pollute coming query */
-    close_thread_tables(thd);
-  }
-  DBUG_RETURN(tz);
-}
 
 #endif /* !defined(TESTTIME) && !defined(TZINFO2SQL) */
 

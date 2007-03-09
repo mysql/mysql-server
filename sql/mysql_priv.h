@@ -1408,6 +1408,12 @@ int abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt);
 void close_open_tables_and_downgrade(ALTER_PARTITION_PARAM_TYPE *lpt);
 void mysql_wait_completed_table(ALTER_PARTITION_PARAM_TYPE *lpt, TABLE *my_table);
 
+/* Functions to work with system tables. */
+bool open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
+                                 Open_tables_state *backup);
+void close_system_tables(THD *thd, Open_tables_state *backup);
+TABLE *open_system_table_for_update(THD *thd, TABLE_LIST *one_table);
+
 bool close_cached_tables(THD *thd, bool wait_for_refresh, TABLE_LIST *tables, bool have_lock = FALSE);
 void copy_field_from_tmp_record(Field *field,int offset);
 bool fill_record(THD *thd, Field **field, List<Item> &values,
