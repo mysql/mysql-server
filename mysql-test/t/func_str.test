@@ -1008,7 +1008,6 @@ select repeat('a', cast(2 as unsigned int));
 select rpad('abc', cast(5 as unsigned integer), 'x');
 select lpad('abc', cast(5 as unsigned integer), 'x');
 
-
 #
 # Bug #25197 :repeat function returns null when using table field directly as count
 #
@@ -1035,5 +1034,13 @@ DROP TABLE t1;
 #
 SELECT UNHEX('G');
 SELECT UNHEX('G') IS NULL;
+
+#
+# Bug #26281: INSERT() function mishandles NUL on boundary condition
+#
+SELECT INSERT('abc', 3, 3, '1234');
+SELECT INSERT('abc', 4, 3, '1234');
+SELECT INSERT('abc', 5, 3, '1234');
+SELECT INSERT('abc', 6, 3, '1234');
 
 --echo End of 5.0 tests

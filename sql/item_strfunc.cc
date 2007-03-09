@@ -967,18 +967,18 @@ String *Item_func_insert::val_str(String *str)
       args[3]->null_value)
     goto null; /* purecov: inspected */
 
-  if ((start < 0) || (start > res->length() + 1))
+  if ((start < 0) || (start > res->length()))
     return res;                                 // Wrong param; skip insert
-  if ((length < 0) || (length > res->length() + 1))
-    length= res->length() + 1;
+  if ((length < 0) || (length > res->length()))
+    length= res->length();
 
   /* start and length are now sufficiently valid to pass to charpos function */
   start= res->charpos((int) start);
   length= res->charpos((int) length, (uint32) start);
 
   /* Re-testing with corrected params */
-  if (start > res->length() + 1)
-    return res;                                 // Wrong param; skip insert
+  if (start > res->length())
+    return res; /* purecov: inspected */        // Wrong param; skip insert
   if (length > res->length() - start)
     length= res->length() - start;
 
