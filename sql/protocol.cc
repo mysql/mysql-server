@@ -818,7 +818,7 @@ bool Protocol_text::store(const char *from, uint length,
 
 
 bool Protocol_text::store(const char *from, uint length,
-			    CHARSET_INFO *fromcs)
+                          CHARSET_INFO *fromcs)
 {
   CHARSET_INFO *tocs= this->thd->variables.character_set_results;
 #ifndef DBUG_OFF
@@ -1062,7 +1062,8 @@ void Protocol_binary::prepare_for_resend()
 }
 
 
-bool Protocol_binary::store(const char *from, uint length, CHARSET_INFO *fromcs)
+bool Protocol_binary::store(const char *from, uint length,
+                            CHARSET_INFO *fromcs)
 {
   CHARSET_INFO *tocs= thd->variables.character_set_results;
   field_pos++;
@@ -1070,7 +1071,7 @@ bool Protocol_binary::store(const char *from, uint length, CHARSET_INFO *fromcs)
 }
 
 bool Protocol_binary::store(const char *from,uint length,
-			  CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
+                            CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
 {
   field_pos++;
   return store_string_aux(from, length, fromcs, tocs);
