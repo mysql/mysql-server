@@ -10272,14 +10272,7 @@ internal_variable_name:
 	      YYABORT;
 	    $$.var= tmp;
 	    $$.base_name= null_lex_str;
-            /*
-              If this is time_zone variable we should open time zone
-              describing tables 
-            */
-            if (tmp == &sys_time_zone &&
-                lex->add_time_zone_tables_to_query_tables(YYTHD))
-              YYABORT;
-            else if (spc && tmp == &sys_autocommit)
+            if (spc && tmp == &sys_autocommit)
             {
               /*
                 We don't allow setting AUTOCOMMIT from a stored function

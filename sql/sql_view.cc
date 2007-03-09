@@ -1302,8 +1302,6 @@ ok:
     (st_select_lex_node**)&old_lex->all_selects_list;
 
 ok2:
-  if (!old_lex->time_zone_tables_used && thd->lex->time_zone_tables_used)
-    old_lex->time_zone_tables_used= thd->lex->time_zone_tables_used;
   DBUG_ASSERT(lex == thd->lex);
   thd->lex= old_lex;                            // Needed for prepare_security
   result= !table->prelocking_placeholder && table->prepare_security(thd);

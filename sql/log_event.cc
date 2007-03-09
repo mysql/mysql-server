@@ -1974,8 +1974,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli,
       if (time_zone_len)
       {
         String tmp(time_zone_str, time_zone_len, &my_charset_bin);
-        if (!(thd->variables.time_zone=
-              my_tz_find_with_opening_tz_tables(thd, &tmp)))
+        if (!(thd->variables.time_zone= my_tz_find(thd, &tmp)))
         {
           my_error(ER_UNKNOWN_TIME_ZONE, MYF(0), tmp.c_ptr());
           thd->variables.time_zone= global_system_variables.time_zone;
