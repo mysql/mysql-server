@@ -46,7 +46,7 @@ private:
   } * m_map;
 
   NdbMutex * m_mutex;
-  void expand(Uint32 newSize);
+  int expand(Uint32 newSize);
 };
 
 inline
@@ -73,9 +73,8 @@ NdbObjectIdMap::map(void * object){
   
   //  lock();
   
-  if(m_firstFree == InvalidId){
-    expand(m_expandSize);
-  }
+  if(m_firstFree == InvalidId && expand(m_expandSize))
+    return InvalidId;
   
   Uint32 ff = m_firstFree;
   m_firstFree = m_map[ff].m_next;
@@ -130,7 +129,7 @@ NdbObjectIdMap::getObject(Uint32 id){
   return 0;
 }
 
-inline void
+inline int
 NdbObjectIdMap::expand(Uint32 incSize){
   NdbMutex_Lock(m_mutex);
   Uint32 newSize = m_size + incSize;
@@ -149,9 +148,11 @@ NdbObjectIdMap::expand(Uint32 incSize){
   }
   else
   {
-    ndbout_c("NdbObjectIdMap::expand unable to expand!!");
+    NdbMutex_Unlock(m_mutex);
+    return -1;
   }
   NdbMutex_Unlock(m_mutex);
+  return 0;
 }
 
 #endif

@@ -222,8 +222,9 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   String wrong_tables;
   int error;
   bool some_tables_deleted=0, tmp_table_deleted=0, foreign_key_error=0;
-
   DBUG_ENTER("mysql_rm_table_part2");
+
+  LINT_INIT(alias);
 
   if (!drop_temporary && lock_table_names(thd, tables))
     DBUG_RETURN(1);
@@ -773,14 +774,14 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 
         interval= sql_field->interval= typelib(stmt_root,
                                                sql_field->interval_list);
-        List_iterator<String> it(sql_field->interval_list);
+        List_iterator<String> int_it(sql_field->interval_list);
         String conv, *tmp;
         char comma_buf[2];
         int comma_length= cs->cset->wc_mb(cs, ',', (uchar*) comma_buf,
                                           (uchar*) comma_buf + 
                                           sizeof(comma_buf));
         DBUG_ASSERT(comma_length > 0);
-        for (uint i= 0; (tmp= it++); i++)
+        for (uint i= 0; (tmp= int_it++); i++)
         {
           uint lengthsp;
           if (String::needs_conversion(tmp->length(), tmp->charset(),
@@ -2160,7 +2161,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                                                             HA_CHECK_OPT *),
                               int (view_operator_func)(THD *, TABLE_LIST*))
 {
-  TABLE_LIST *table, *save_next_global, *save_next_local;
+  TABLE_LIST *table;
   SELECT_LEX *select= &thd->lex->select_lex;
   List<Item> field_list;
   Item *item;
@@ -2191,30 +2192,33 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     strxmov(table_name, db, ".", table->table_name, NullS);
     thd->open_options|= extra_open_options;
     table->lock_type= lock_type;
-    /* open only one table from local list of command */
-    save_next_global= table->next_global;
-    table->next_global= 0;
-    save_next_local= table->next_local;
-    table->next_local= 0;
-    select->table_list.first= (byte*)table;
-    /*
-      Time zone tables and SP tables can be add to lex->query_tables list,
-      so it have to be prepared.
-      TODO: Investigate if we can put extra tables into argument instead of
-      using lex->query_tables
-    */
-    lex->query_tables= table;
-    lex->query_tables_last= &table->next_global;
-    lex->query_tables_own_last= 0;
-    thd->no_warnings_for_error= no_warnings_for_error;
-    if (view_operator_func == NULL)
-      table->required_type=FRMTYPE_TABLE;
-    open_and_lock_tables(thd, table);
-    thd->no_warnings_for_error= 0;
-    table->next_global= save_next_global;
-    table->next_local= save_next_local;
-    thd->open_options&= ~extra_open_options;
 
+    /* open only one table from local list of command */
+    {
+      TABLE_LIST *save_next_global, *save_next_local;
+      save_next_global= table->next_global;
+      table->next_global= 0;
+      save_next_local= table->next_local;
+      table->next_local= 0;
+      select->table_list.first= (byte*)table;
+      /*
+        Time zone tables and SP tables can be add to lex->query_tables list,
+        so it have to be prepared.
+        TODO: Investigate if we can put extra tables into argument instead of
+        using lex->query_tables
+      */
+      lex->query_tables= table;
+      lex->query_tables_last= &table->next_global;
+      lex->query_tables_own_last= 0;
+      thd->no_warnings_for_error= no_warnings_for_error;
+      if (view_operator_func == NULL)
+        table->required_type=FRMTYPE_TABLE;
+      open_and_lock_tables(thd, table);
+      thd->no_warnings_for_error= 0;
+      table->next_global= save_next_global;
+      table->next_local= save_next_local;
+      thd->open_options&= ~extra_open_options;
+    }
     if (prepare_func)
     {
       switch ((*prepare_func)(thd, table, check_opt)) {
@@ -3011,7 +3015,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                        uint order_num, ORDER *order, bool ignore)
 {
   TABLE *table,*new_table=0;
-  int error;
+  int error= 0;
   char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN];
   char new_alias_buff[FN_REFLEN], *table_name, *db, *new_alias, *alias;
   char index_file[FN_REFLEN], data_file[FN_REFLEN];
@@ -3064,9 +3068,11 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       DBUG_RETURN(1);
     VOID(pthread_mutex_lock(&LOCK_open));
     if (lock_table_names(thd, table_list))
+    {
+      error= 1;
       goto view_err;
+    }
     
-    error=0;
     if (!do_rename(thd, table_list, new_db, new_name, new_name, 1))
     {
       if (mysql_bin_log.is_open())
@@ -3165,7 +3171,6 @@ view_err:
   {
     switch (alter_info->keys_onoff) {
     case LEAVE_AS_IS:
-      error= 0;
       break;
     case ENABLE:
       /*
@@ -3193,10 +3198,10 @@ view_err:
     }
     if (error == HA_ERR_WRONG_COMMAND)
     {
+      error= 0;
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			  ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
 			  table->alias);
-      error= 0;
     }
 
     VOID(pthread_mutex_lock(&LOCK_open));
@@ -3236,10 +3241,10 @@ view_err:
 
     if (error == HA_ERR_WRONG_COMMAND)
     {
+      error= 0;
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			  ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
 			  table->alias);
-      error= 0;
     }
 
     if (!error)

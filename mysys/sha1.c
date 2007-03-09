@@ -244,7 +244,7 @@ static void SHA1ProcessMessageBlock(SHA1_CONTEXT *context)
   uint32	temp;		   /* Temporary word value	  */
   uint32	W[80];		   /* Word sequence		  */
   uint32	A, B, C, D, E;	   /* Word buffers		  */
-  int index;
+  int idx;
 
   /*
     Initialize the first 16 words in the array W
@@ -252,11 +252,11 @@ static void SHA1ProcessMessageBlock(SHA1_CONTEXT *context)
 
   for (t = 0; t < 16; t++)
   {
-    index=t*4;
-    W[t] = context->Message_Block[index] << 24;
-    W[t] |= context->Message_Block[index + 1] << 16;
-    W[t] |= context->Message_Block[index + 2] << 8;
-    W[t] |= context->Message_Block[index + 3];
+    idx=t*4;
+    W[t] = context->Message_Block[idx] << 24;
+    W[t] |= context->Message_Block[idx + 1] << 16;
+    W[t] |= context->Message_Block[idx + 2] << 8;
+    W[t] |= context->Message_Block[idx + 3];
   }
 
 

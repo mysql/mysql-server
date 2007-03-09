@@ -11363,3 +11363,15 @@ c_cp932
 „ÇΩ
 É\
 É\
+set names utf8;
+create table t1 (a text) default character set cp932;
+insert into t1 values (_utf8 0xE38182);
+show warnings;
+Level	Code	Message
+select * from t1;
+a
+„ÅÇ
+select hex(a) from t1;
+hex(a)
+82A0
+drop table t1;

@@ -858,9 +858,9 @@ inline T1 SaturatingSubtract(T1 a, T2 b)
 
 
 // declares
-unsigned int  BytePrecision(unsigned long value);
-unsigned int  BitPrecision(unsigned long);
-unsigned long Crop(unsigned long value, unsigned int size);
+unsigned int  BytePrecision(word value);
+unsigned int  BitPrecision(word);
+word Crop(word value, unsigned int size);
 
 
 

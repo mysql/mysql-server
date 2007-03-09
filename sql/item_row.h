@@ -71,7 +71,7 @@ public:
   Item *transform(Item_transformer transformer, byte *arg);
 
   uint cols() { return arg_count; }
-  Item* el(uint i) { return items[i]; }
+  Item* element_index(uint i) { return items[i]; }
   Item** addr(uint i) { return items + i; }
   bool check_cols(uint c);
   bool null_inside() { return with_null; };

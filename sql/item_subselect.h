@@ -126,6 +126,12 @@ public:
   virtual void reset_value_registration() {}
   enum_parsing_place place() { return parsing_place; }
 
+  /**
+    Get the SELECT_LEX structure associated with this Item.
+    @return the SELECT_LEX structure associated with this Item
+  */
+  st_select_lex* get_select_lex();
+
   friend class select_subselect;
   friend class Item_in_optimizer;
   friend bool Item_field::fix_fields(THD *, Item **);
@@ -163,11 +169,25 @@ public:
   void fix_length_and_dec();
 
   uint cols();
-  Item* el(uint i) { return my_reinterpret_cast(Item*)(row[i]); }
+  Item* element_index(uint i) { return my_reinterpret_cast(Item*)(row[i]); }
   Item** addr(uint i) { return (Item**)row + i; }
   bool check_cols(uint c);
   bool null_inside();
   void bring_value();
+
+  /**
+    This method is used to implement a special case of semantic tree
+    rewriting, mandated by a SQL:2003 exception in the specification.
+    The only caller of this method is handle_sql2003_note184_exception(),
+    see the code there for more details.
+    Note that this method breaks the object internal integrity, by
+    removing it's association with the corresponding SELECT_LEX,
+    making this object orphan from the parse tree.
+    No other method, beside the destructor, should be called on this
+    object, as it is now invalid.
+    @return the SELECT_LEX structure that was given in the constructor.
+  */
+  st_select_lex* invalidate_and_restore_select_lex();
 
   friend class select_singlerow_subselect;
 };
@@ -531,10 +551,10 @@ class subselect_indexsubquery_engine: public subselect_uniquesubquery_engine
 public:
 
   // constructor can assign THD because it will be called after JOIN::prepare
-  subselect_indexsubquery_engine(THD *thd, st_join_table *tab_arg,
+  subselect_indexsubquery_engine(THD *thd_arg, st_join_table *tab_arg,
 				 Item_subselect *subs, Item *where,
                                  Item *having_arg, bool chk_null)
-    :subselect_uniquesubquery_engine(thd, tab_arg, subs, where),
+    :subselect_uniquesubquery_engine(thd_arg, tab_arg, subs, where),
      check_null(chk_null),
      having(having_arg)
   {}

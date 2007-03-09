@@ -52,7 +52,9 @@ ulonglong relay_log_space_limit = 0;
 
 int disconnect_slave_event_count = 0, abort_slave_event_count = 0;
 int events_till_abort = -1;
+#ifndef DBUG_OFF
 static int events_till_disconnect = -1;
+#endif
 
 typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL} SLAVE_THD_TYPE;
 
@@ -1695,7 +1697,7 @@ static int init_relay_log_info(RELAY_LOG_INFO* rli,
   char fname[FN_REFLEN+128];
   int info_fd;
   const char* msg = 0;
-  int error = 0;
+  int error;
   DBUG_ENTER("init_relay_log_info");
 
   if (rli->inited)                       // Set if this function called
@@ -1800,11 +1802,11 @@ file '%s', errno %d)", fname, my_errno);
   }
   else // file exists
   {
+    error= 0;
     if (info_fd >= 0)
       reinit_io_cache(&rli->info_file, READ_CACHE, 0L,0,0);
     else 
     {
-      int error=0;
       if ((info_fd = my_open(fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0)
       {
         sql_print_error("\
@@ -2514,12 +2516,12 @@ bool show_master_info(THD* thd, MASTER_INFO* mi)
     if ((mi->slave_running == MYSQL_SLAVE_RUN_CONNECT) &&
         mi->rli.slave_running)
     {
-      long tmp= (long)((time_t)time((time_t*) 0)
-                               - mi->rli.last_master_timestamp)
-        - mi->clock_diff_with_master;
+      long time_diff= ((long)((time_t)time((time_t*) 0)
+                              - mi->rli.last_master_timestamp)
+                       - mi->clock_diff_with_master);
       /*
-        Apparently on some systems tmp can be <0. Here are possible reasons
-        related to MySQL:
+        Apparently on some systems time_diff can be <0. Here are possible
+        reasons related to MySQL:
         - the master is itself a slave of another master whose time is ahead.
         - somebody used an explicit SET TIMESTAMP on the master.
         Possible reason related to granularity-to-second of time functions
@@ -2537,8 +2539,8 @@ bool show_master_info(THD* thd, MASTER_INFO* mi)
         last_master_timestamp == 0 (an "impossible" timestamp 1970) is a
         special marker to say "consider we have caught up".
       */
-      protocol->store((longlong)(mi->rli.last_master_timestamp ? max(0, tmp)
-                                 : 0));
+      protocol->store((longlong)(mi->rli.last_master_timestamp ?
+                                 max(0, time_diff) : 0));
     }
     else
       protocol->store_null();
@@ -3586,15 +3588,17 @@ after reconnect");
 
     while (!io_slave_killed(thd,mi))
     {
-      bool suppress_warnings= 0;
+      ulong event_len;
+
+      suppress_warnings= 0;
       /*
          We say "waiting" because read_event() will wait if there's nothing to
          read. But if there's something to read, it will not wait. The
          important thing is to not confuse users by saying "reading" whereas
          we're in fact receiving nothing.
       */
-      thd->proc_info = "Waiting for master to send event";
-      ulong event_len = read_event(mysql, mi, &suppress_warnings);
+      thd->proc_info= "Waiting for master to send event";
+      event_len= read_event(mysql, mi, &suppress_warnings);
       if (io_slave_killed(thd,mi))
       {
 	if (global_system_variables.log_warnings)
@@ -3757,8 +3761,13 @@ err:
   mi->abort_slave= 0;
   mi->slave_running= 0;
   mi->io_thd= 0;
-  pthread_mutex_unlock(&mi->run_lock);
+  /*
+    Note: the order of the two following calls (first broadcast, then unlock)
+    is important. Otherwise a killer_thread can execute between the calls and
+    delete the mi structure leading to a crash! (see BUG#25306 for details)
+   */ 
   pthread_cond_broadcast(&mi->stop_cond);       // tell the world we are done
+  pthread_mutex_unlock(&mi->run_lock);
 #ifndef DBUG_OFF
   if (abort_slave_event_count && !events_till_abort)
     goto slave_begin;
@@ -3976,8 +3985,13 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   THD_CHECK_SENTRY(thd);
   delete thd;
   pthread_mutex_unlock(&LOCK_thread_count);
-  pthread_cond_broadcast(&rli->stop_cond);
 
+ /*
+  Note: the order of the broadcast and unlock calls below (first broadcast, then unlock)
+  is important. Otherwise a killer_thread can execute between the calls and
+  delete the mi structure leading to a crash! (see BUG#25306 for details)
+ */ 
+  pthread_cond_broadcast(&rli->stop_cond);
 #ifndef DBUG_OFF
   /*
     Bug #19938 Valgrind error (race) in handle_slave_sql()
@@ -3985,9 +3999,8 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   */
   const int eta= rli->events_till_abort;
 #endif
-
-  // tell the world we are done
-  pthread_mutex_unlock(&rli->run_lock);
+  pthread_mutex_unlock(&rli->run_lock);  // tell the world we are done
+  
 #ifndef DBUG_OFF // TODO: reconsider the code below
   if (abort_slave_event_count && !eta)
     goto slave_begin;
@@ -4389,6 +4402,8 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
   pthread_mutex_t *log_lock= rli->relay_log.get_log_lock();
   DBUG_ENTER("queue_event");
 
+  LINT_INIT(inc_pos);
+
   if (mi->rli.relay_log.description_event_for_queue->binlog_version<4 &&
       buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT /* a way to escape */)
     DBUG_RETURN(queue_old_event(mi,buf,event_len));
@@ -4529,7 +4544,7 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
 
 err:
   pthread_mutex_unlock(&mi->data_lock);
-  DBUG_PRINT("info", ("error=%d", error));
+  DBUG_PRINT("info", ("error: %d", error));
   DBUG_RETURN(error);
 }
 
@@ -5169,6 +5184,70 @@ end:
   DBUG_VOID_RETURN;
 }
 
+
+/**
+   Detects, based on master's version (as found in the relay log), if master
+   has a certain bug.
+   @param rli RELAY_LOG_INFO which tells the master's version
+   @param bug_id Number of the bug as found in bugs.mysql.com
+   @return TRUE if master has the bug, FALSE if it does not.
+*/
+bool rpl_master_has_bug(RELAY_LOG_INFO *rli, uint bug_id)
+{
+  struct st_version_range_for_one_bug {
+    uint        bug_id;
+    const uchar introduced_in[3]; // first version with bug
+    const uchar fixed_in[3];      // first version with fix
+  };
+  static struct st_version_range_for_one_bug versions_for_all_bugs[]=
+  {
+    {24432, { 5, 0, 24 }, { 5, 0, 38 } },
+    {24432, { 5, 1, 12 }, { 5, 1, 17 } }
+  };
+  const uchar *master_ver=
+    rli->relay_log.description_event_for_exec->server_version_split;
+
+  DBUG_ASSERT(sizeof(rli->relay_log.description_event_for_exec->server_version_split) == 3);
+
+  for (uint i= 0;
+       i < sizeof(versions_for_all_bugs)/sizeof(*versions_for_all_bugs);i++)
+  {
+    const uchar *introduced_in= versions_for_all_bugs[i].introduced_in,
+      *fixed_in= versions_for_all_bugs[i].fixed_in;
+    if ((versions_for_all_bugs[i].bug_id == bug_id) &&
+        (memcmp(introduced_in, master_ver, 3) <= 0) &&
+        (memcmp(fixed_in,      master_ver, 3) >  0))
+    {
+      // a verbose message for the error log
+      slave_print_error(rli, ER_UNKNOWN_ERROR,
+                        "According to the master's version ('%s'),"
+                        " it is probable that master suffers from this bug:"
+                        " http://bugs.mysql.com/bug.php?id=%u"
+                        " and thus replicating the current binary log event"
+                        " may make the slave's data become different from the"
+                        " master's data."
+                        " To take no risk, slave refuses to replicate"
+                        " this event and stops."
+                        " We recommend that all updates be stopped on the"
+                        " master and slave, that the data of both be"
+                        " manually synchronized,"
+                        " that master's binary logs be deleted,"
+                        " that master be upgraded to a version at least"
+                        " equal to '%d.%d.%d'. Then replication can be"
+                        " restarted.",
+                        rli->relay_log.description_event_for_exec->server_version,
+                        bug_id,
+                        fixed_in[0], fixed_in[1], fixed_in[2]);
+      // a short message for SHOW SLAVE STATUS (message length constraints)
+      my_printf_error(ER_UNKNOWN_ERROR, "master may suffer from"
+                      " http://bugs.mysql.com/bug.php?id=%u"
+                      " so slave stops; check error log on slave"
+                      " for more info", MYF(0), bug_id);
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
 
 #ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 template class I_List_iterator<i_string>;

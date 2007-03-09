@@ -540,7 +540,7 @@ typedef unsigned short ushort;
   duplicate declaration of __cxa_pure_virtual, solved by declaring it a
   weak symbol.
 */
-#ifdef USE_MYSYS_NEW
+#if defined(USE_MYSYS_NEW) && ! defined(DONT_DECLARE_CXA_PURE_VIRTUAL)
 C_MODE_START
 int __cxa_pure_virtual () __attribute__ ((weak));
 C_MODE_END
@@ -846,6 +846,21 @@ typedef long long	my_ptrdiff_t;
 #define ADD_TO_PTR(ptr,size,type) (type) ((byte*) (ptr)+size)
 #define PTR_BYTE_DIFF(A,B) (my_ptrdiff_t) ((byte*) (A) - (byte*) (B))
 
+/*
+  Custom version of standard offsetof() macro which can be used to get
+  offsets of members in class for non-POD types (according to the current
+  version of C++ standard offsetof() macro can't be used in such cases and
+  attempt to do so causes warnings to be emitted, OTOH in many cases it is
+  still OK to assume that all instances of the class has the same offsets
+  for the same members).
+
+  This is temporary solution which should be removed once File_parser class
+  and related routines are refactored.
+*/
+
+#define my_offsetof(TYPE, MEMBER) \
+        ((size_t)((char *)&(((TYPE *)0x10)->MEMBER) - (char*)0x10))
+
 #define NullS		(char *) 0
 /* Nowdays we do not support MessyDos */
 #ifndef NEAR
@@ -1078,7 +1093,7 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 */
 #define uint3korr(A)	(long) (*((unsigned int *) (A)) & 0xFFFFFF)
 #endif
-#define uint4korr(A)	(*((unsigned long *) (A)))
+#define uint4korr(A)	(*((uint32 *) (A)))
 #define uint5korr(A)	((ulonglong)(((uint32) ((uchar) (A)[0])) +\
 				    (((uint32) ((uchar) (A)[1])) << 8) +\
 				    (((uint32) ((uchar) (A)[2])) << 16) +\

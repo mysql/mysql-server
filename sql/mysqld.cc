@@ -319,8 +319,13 @@ static char *my_bind_addr_str;
 static char *default_collation_name;
 static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
 static char mysql_data_home_buff[2];
-static struct passwd *user_info;
 static I_List<THD> thread_cache;
+
+#ifndef EMBEDDED_LIBRARY
+static struct passwd *user_info;
+static pthread_t select_thread;
+static uint thr_kill_signal;
+#endif
 
 static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
 
@@ -350,6 +355,8 @@ my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
 my_bool	opt_innodb;
+bool slave_warning_issued = false; 
+
 #ifdef HAVE_NDBCLUSTER_DB
 const char *opt_ndbcluster_connectstring= 0;
 const char *opt_ndb_connectstring= 0;
@@ -396,7 +403,7 @@ ulong slave_net_timeout, slave_trans_retries;
 ulong thread_cache_size=0, binlog_cache_size=0, max_binlog_cache_size=0;
 ulong query_cache_size=0;
 ulong refresh_version, flush_version;	/* Increments on each reload */
-query_id_t query_id;
+query_id_t global_query_id;
 ulong aborted_threads, aborted_connects;
 ulong delayed_insert_timeout, delayed_insert_limit, delayed_queue_size;
 ulong delayed_insert_threads, delayed_insert_writes, delayed_rows_in_use;
@@ -428,7 +435,7 @@ ulong rpl_recovery_rank=0;
 
 double log_10[32];			/* 10 potences */
 double log_01[32];
-time_t start_time;
+time_t server_start_time;
 
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];
 char *default_tz_name;
@@ -489,7 +496,7 @@ CHARSET_INFO *national_charset_info, *table_alias_charset;
 CHARSET_INFO *character_set_filesystem;
 
 SHOW_COMP_OPTION have_isam;
-SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_query_cache;
+SHOW_COMP_OPTION have_raid, have_ssl, have_symlink, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys, have_dlopen;
 SHOW_COMP_OPTION have_crypt, have_compress;
 
@@ -519,7 +526,6 @@ rw_lock_t	LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 pthread_cond_t COND_refresh,COND_thread_count, COND_global_read_lock;
 pthread_t signal_thread;
 pthread_attr_t connection_attrib;
-static uint thr_kill_signal;
 
 File_parser_dummy_hook file_parser_dummy_hook;
 
@@ -547,7 +553,6 @@ static char **defaults_argv;
 static char *opt_bin_logname;
 
 static my_socket unix_sock,ip_sock;
-static pthread_t select_thread;
 struct rand_struct sql_rand; // used by sql_class.cc:THD::THD()
 
 /* OS specific variables */
@@ -630,7 +635,6 @@ struct st_VioSSLFd *ssl_acceptor_fd;
 
 /* Function declarations */
 
-static void start_signal_handler(void);
 pthread_handler_t signal_hand(void *arg);
 static void mysql_init_variables(void);
 static void get_options(int argc,char **argv);
@@ -641,7 +645,6 @@ static void fix_paths(void);
 pthread_handler_t handle_connections_sockets(void *arg);
 pthread_handler_t kill_server_thread(void *arg);
 static void bootstrap(FILE *file);
-static void close_server_sock();
 static bool read_init_file(char *file_name);
 #ifdef __NT__
 pthread_handler_t handle_connections_namedpipes(void *arg);
@@ -652,10 +655,16 @@ pthread_handler_t handle_connections_shared_memory(void *arg);
 pthread_handler_t handle_slave(void *arg);
 static ulong find_bit_type(const char *x, TYPELIB *bit_lib);
 static void clean_up(bool print_message);
+static int test_if_case_insensitive(const char *dir_name);
+
+#ifndef EMBEDDED_LIBRARY
+static void start_signal_handler(void);
+static void close_server_sock();
 static void clean_up_mutexes(void);
 static void wait_for_signal_thread_to_end(void);
-static int test_if_case_insensitive(const char *dir_name);
 static void create_pid_file();
+#endif
+
 
 #ifndef EMBEDDED_LIBRARY
 /****************************************************************************
@@ -844,7 +853,6 @@ static void close_connections(void)
   DBUG_PRINT("quit",("close_connections thread"));
   DBUG_VOID_RETURN;
 }
-#endif /*EMBEDDED_LIBRARY*/
 
 
 static void close_server_sock()
@@ -887,12 +895,14 @@ static void close_server_sock()
 #endif
 }
 
+#endif /*EMBEDDED_LIBRARY*/
+
 
 void kill_mysql(void)
 {
   DBUG_ENTER("kill_mysql");
 
-#ifdef SIGNALS_DONT_BREAK_READ
+#if defined(SIGNALS_DONT_BREAK_READ) && !defined(EMBEDDED_LIBRARY)
   abort_loop=1;					// Break connection loops
   close_server_sock();				// Force accept to wake up
 #endif
@@ -972,7 +982,7 @@ static void __cdecl kill_server(int sig_ptr)
   kill_in_progress=TRUE;
   abort_loop=1;					// This should be set
   if (sig != 0) // 0 is not a valid signal number
-    my_sigset(sig,SIG_IGN);
+    my_sigset(sig, SIG_IGN);                    /* purify inspected */
   if (sig == MYSQL_KILL_SIGNAL || sig == 0)
     sql_print_information(ER(ER_NORMAL_SHUTDOWN),my_progname);
   else
@@ -1194,6 +1204,8 @@ void clean_up(bool print_message)
 } /* clean_up */
 
 
+#ifndef EMBEDDED_LIBRARY
+
 /*
   This is mainly needed when running with purify, but it's still nice to
   know that all child threads have died when mysqld exits
@@ -1262,6 +1274,9 @@ static void clean_up_mutexes()
   (void) pthread_cond_destroy(&COND_manager);
 }
 
+#endif /*EMBEDDED_LIBRARY*/
+
+
 /****************************************************************************
 ** Init IP and UNIX socket
 ****************************************************************************/
@@ -1296,7 +1311,7 @@ static void set_ports()
 static struct passwd *check_user(const char *user)
 {
 #if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
-  struct passwd *user_info;
+  struct passwd *tmp_user_info;
   uid_t user_id= geteuid();
 
   // Don't bother if we aren't superuser
@@ -1304,12 +1319,14 @@ static struct passwd *check_user(const char *user)
   {
     if (user)
     {
-      // Don't give a warning, if real user is same as given with --user
-      user_info= getpwnam(user);
-      if ((!user_info || user_id != user_info->pw_uid) &&
+      /* Don't give a warning, if real user is same as given with --user */
+      /* purecov: begin tested */
+      tmp_user_info= getpwnam(user);
+      if ((!tmp_user_info || user_id != tmp_user_info->pw_uid) &&
 	  global_system_variables.log_warnings)
         sql_print_warning(
                     "One can only use the --user switch if running as root\n");
+      /* purecov: end */    
     }
     return NULL;
   }
@@ -1322,23 +1339,25 @@ static struct passwd *check_user(const char *user)
     }
     return NULL;
   }
+  /* purecov: begin tested */
   if (!strcmp(user,"root"))
     return NULL;                        // Avoid problem with dynamic libraries
 
-  if (!(user_info= getpwnam(user)))
+  if (!(tmp_user_info= getpwnam(user)))
   {
     // Allow a numeric uid to be used
     const char *pos;
     for (pos= user; my_isdigit(mysqld_charset,*pos); pos++) ;
     if (*pos)                                   // Not numeric id
       goto err;
-    if (!(user_info= getpwuid(atoi(user))))
+    if (!(tmp_user_info= getpwuid(atoi(user))))
       goto err;
     else
-      return user_info;
+      return tmp_user_info;
   }
   else
-    return user_info;
+    return tmp_user_info;
+  /* purecov: end */    
 
 err:
   sql_print_error("Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n",user);
@@ -1347,10 +1366,11 @@ err:
   return NULL;
 }
 
-static void set_user(const char *user, struct passwd *user_info)
+static void set_user(const char *user, struct passwd *user_info_arg)
 {
+  /* purecov: begin tested */
 #if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
-  DBUG_ASSERT(user_info != 0);
+  DBUG_ASSERT(user_info_arg != 0);
 #ifdef HAVE_INITGROUPS
   /*
     We can get a SIGSEGV when calling initgroups() on some systems when NSS
@@ -1359,33 +1379,34 @@ static void set_user(const char *user, struct passwd *user_info)
     output a specific message to help the user resolve this problem.
   */
   calling_initgroups= TRUE;
-  initgroups((char*) user, user_info->pw_gid);
+  initgroups((char*) user, user_info_arg->pw_gid);
   calling_initgroups= FALSE;
 #endif
-  if (setgid(user_info->pw_gid) == -1)
+  if (setgid(user_info_arg->pw_gid) == -1)
   {
     sql_perror("setgid");
     unireg_abort(1);
   }
-  if (setuid(user_info->pw_uid) == -1)
+  if (setuid(user_info_arg->pw_uid) == -1)
   {
     sql_perror("setuid");
     unireg_abort(1);
   }
 #endif
+  /* purecov: end */    
 }
 
 
-static void set_effective_user(struct passwd *user_info)
+static void set_effective_user(struct passwd *user_info_arg)
 {
 #if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
-  DBUG_ASSERT(user_info != 0);
-  if (setregid((gid_t)-1, user_info->pw_gid) == -1)
+  DBUG_ASSERT(user_info_arg != 0);
+  if (setregid((gid_t)-1, user_info_arg->pw_gid) == -1)
   {
     sql_perror("setregid");
     unireg_abort(1);
   }
-  if (setreuid((uid_t)-1, user_info->pw_uid) == -1)
+  if (setreuid((uid_t)-1, user_info_arg->pw_uid) == -1)
   {
     sql_perror("setreuid");
     unireg_abort(1);
@@ -1579,18 +1600,6 @@ static void network_init(void)
 
 #endif /*!EMBEDDED_LIBRARY*/
 
-void MYSQLerror(const char *s)
-{
-  THD *thd=current_thd;
-  char *yytext= (char*) thd->lex->tok_start;
-  /* "parse error" changed into "syntax error" between bison 1.75 and 1.875 */
-  if (strcmp(s,"parse error") == 0 || strcmp(s,"syntax error") == 0)
-    s=ER(ER_SYNTAX_ERROR);
-  my_printf_error(ER_PARSE_ERROR,  ER(ER_PARSE_ERROR), MYF(0), s,
-                  (yytext ? (char*) yytext : ""),
-                  thd->lex->yylineno);
-}
-
 
 #ifndef EMBEDDED_LIBRARY
 /*
@@ -1731,6 +1740,7 @@ extern "C" sig_handler abort_thread(int sig __attribute__((unused)))
   Because Linux doesn't support schemas use a mutex to check that
   the signal thread is ready before continuing
 ******************************************************************************/
+
 
 #if defined(__WIN__) || defined(OS2)
 static void init_signals(void)
@@ -1972,6 +1982,7 @@ static void init_signals(void)
 
 }
 
+
 static void start_signal_handler(void)
 {
   // Save vm id of this process
@@ -2023,6 +2034,7 @@ static void init_signals(void)
   signal_thread = pthread_self();
 }
 
+
 static void start_signal_handler(void)
 {}
 
@@ -2037,7 +2049,10 @@ static void check_data_home(const char *path)
 
 extern "C" sig_handler handle_segfault(int sig)
 {
+  time_t curr_time;
+  struct tm tm;
   THD *thd=current_thd;
+
   /*
     Strictly speaking, one needs a mutex here
     but since we have got SIGSEGV already, things are a mess
@@ -2051,11 +2066,17 @@ extern "C" sig_handler handle_segfault(int sig)
   }
 
   segfaulted = 1;
+
+  curr_time= time(NULL);
+  localtime_r(&curr_time, &tm);
+
   fprintf(stderr,"\
-mysqld got signal %d;\n\
+%02d%02d%02d %2d:%02d:%02d - mysqld got signal %d;\n\
 This could be because you hit a bug. It is also possible that this binary\n\
 or one of the libraries it was linked against is corrupt, improperly built,\n\
 or misconfigured. This error can also be caused by malfunctioning hardware.\n",
+          tm.tm_year % 100, tm.tm_mon+1, tm.tm_mday,
+          tm.tm_hour, tm.tm_min, tm.tm_sec,
 	  sig);
   fprintf(stderr, "\
 We will try our best to scrape up some info that will hopefully help diagnose\n\
@@ -2145,6 +2166,8 @@ bugs.\n");
 #define SA_NODEFER 0
 #endif
 
+#ifndef EMBEDDED_LIBRARY
+
 static void init_signals(void)
 {
   sigset_t set;
@@ -2223,7 +2246,6 @@ static void init_signals(void)
 }
 
 
-#ifndef EMBEDDED_LIBRARY
 static void start_signal_handler(void)
 {
   int error;
@@ -2387,11 +2409,11 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
   }
   return(0);					/* purecov: deadcode */
 }
-#endif /*!EMBEDDED_LIBRARY*/
 
 static void check_data_home(const char *path)
 {}
 
+#endif /*!EMBEDDED_LIBRARY*/
 #endif	/* __WIN__*/
 
 
@@ -2414,6 +2436,14 @@ static int my_message_sql(uint error, const char *str, myf MyFlags)
   */
   if ((thd= current_thd))
   {
+    /*
+      TODO: There are two exceptions mechanism (THD and sp_rcontext),
+      this could be improved by having a common stack of handlers.
+    */
+    if (thd->handle_error(error,
+                          MYSQL_ERROR::WARN_LEVEL_ERROR))
+      DBUG_RETURN(0);
+
     if (thd->spcont &&
         thd->spcont->handle_error(error, MYSQL_ERROR::WARN_LEVEL_ERROR, thd))
     {
@@ -2454,6 +2484,7 @@ static int my_message_sql(uint error, const char *str, myf MyFlags)
 }
 
 
+#ifndef EMBEDDED_LIBRARY
 static void *my_str_malloc_mysqld(size_t size)
 {
   return my_malloc(size, MYF(MY_FAE));
@@ -2464,6 +2495,7 @@ static void my_str_free_mysqld(void *ptr)
 {
   my_free((gptr)ptr, MYF(MY_FAE));
 }
+#endif /* EMBEDDED_LIBRARY */
 
 
 #ifdef __WIN__
@@ -2596,7 +2628,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   tzset();			// Set tzname
 
   max_system_variables.pseudo_thread_id= (ulong)~0;
-  start_time=time((time_t*) 0);
+  server_start_time= time((time_t*) 0);
   if (init_thread_environment())
     return 1;
   mysql_init_variables();
@@ -2612,7 +2644,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
 #ifdef HAVE_TZNAME
   {
     struct tm tm_tmp;
-    localtime_r(&start_time,&tm_tmp);
+    localtime_r(&server_start_time,&tm_tmp);
     strmake(system_time_zone, tzname[tm_tmp.tm_isdst != 0 ? 1 : 0],
             sizeof(system_time_zone)-1);
 
@@ -2636,9 +2668,15 @@ static int init_common_variables(const char *conf_file_name, int argc,
   mysql_slow_log.init_pthread_objects();
   mysql_bin_log.init_pthread_objects();
 
-  if (gethostname(glob_hostname,sizeof(glob_hostname)-4) < 0)
-    strmov(glob_hostname,"mysql");
-  strmake(pidfile_name, glob_hostname, sizeof(pidfile_name)-5);
+  if (gethostname(glob_hostname,sizeof(glob_hostname)) < 0)
+  {
+    strmake(glob_hostname, STRING_WITH_LEN("localhost"));
+    sql_print_warning("gethostname failed, using '%s' as hostname",
+                      glob_hostname);
+    strmake(pidfile_name, STRING_WITH_LEN("mysql"));
+  }
+  else
+    strmake(pidfile_name, glob_hostname, sizeof(pidfile_name)-5);
   strmov(fn_ext(pidfile_name),".pid");		// Add proper extension
 
   load_defaults(conf_file_name, groups, &argc, &argv);
@@ -2989,6 +3027,8 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
 #endif /* HAVE_OPENSSL */
 
 
+#ifndef EMBEDDED_LIBRARY
+
 static void init_ssl()
 {
 #ifdef HAVE_OPENSSL
@@ -3002,18 +3042,19 @@ static void init_ssl()
     if (!ssl_acceptor_fd)
     {
       opt_use_ssl = 0;
-      have_openssl= SHOW_OPTION_DISABLED;
+      have_ssl= SHOW_OPTION_DISABLED;
     }
   }
   else
   {
-    have_openssl= SHOW_OPTION_DISABLED;
+    have_ssl= SHOW_OPTION_DISABLED;
   }
   if (des_key_file)
     load_des_key_file(des_key_file);
 #endif /* HAVE_OPENSSL */
 }
 
+#endif /* EMBEDDED_LIBRARY */
 
 static int init_server_components()
 {
@@ -3025,7 +3066,7 @@ static int init_server_components()
   query_cache_set_min_res_unit(query_cache_min_res_unit);
   query_cache_init();
   query_cache_resize(query_cache_size);
-  randominit(&sql_rand,(ulong) start_time,(ulong) start_time/2);
+  randominit(&sql_rand,(ulong) server_start_time,(ulong) server_start_time/2);
   reset_floating_point_exceptions();
   init_thr_lock();
 #ifdef HAVE_REPLICATION
@@ -3110,7 +3151,7 @@ server.");
   if (opt_error_log)
   {
     if (!log_error_file_ptr[0])
-      fn_format(log_error_file, glob_hostname, mysql_data_home, ".err",
+      fn_format(log_error_file, pidfile_name, mysql_data_home, ".err",
                 MY_REPLACE_EXT); /* replace '.<domain>' by '.err', bug#4997 */
     else
       fn_format(log_error_file, log_error_file_ptr, mysql_data_home, ".err",
@@ -3195,7 +3236,7 @@ server.");
                                (TC_LOG *) &tc_log_mmap) :
            (TC_LOG *) &tc_log_dummy);
 
-  if (tc_log->open(opt_bin_logname))
+  if (tc_log->open(opt_bin_log ? opt_bin_logname : opt_tc_log_file))
   {
     sql_print_error("Can't init tc log");
     unireg_abort(1);
@@ -3213,7 +3254,7 @@ server.");
 #ifdef HAVE_REPLICATION
   if (opt_bin_log && expire_logs_days)
   {
-    long purge_time= time(0) - expire_logs_days*24*60*60;
+    long purge_time= (long) (time(0) - expire_logs_days*24*60*60);
     if (purge_time >= 0)
       mysql_bin_log.purge_logs_before_date(purge_time);
   }
@@ -3254,6 +3295,7 @@ server.");
 }
 
 
+#ifndef EMBEDDED_LIBRARY
 static void create_maintenance_thread()
 {
   if (
@@ -3271,7 +3313,6 @@ static void create_maintenance_thread()
 
 static void create_shutdown_thread()
 {
-#if !defined(EMBEDDED_LIBRARY)
 #ifdef __WIN__
   hEventShutdown=CreateEvent(0, FALSE, FALSE, shutdown_event_name);
   pthread_t hThread;
@@ -3287,9 +3328,9 @@ static void create_shutdown_thread()
   if (pthread_create(&hThread,&connection_attrib,handle_shutdown,0))
     sql_print_warning("Can't create thread to handle shutdown requests");
 #endif
-#endif // EMBEDDED_LIBRARY
 }
 
+#endif /* EMBEDDED_LIBRARY */
 
 #if defined(__NT__) || defined(HAVE_SMEM)
 static void handle_connections_methods()
@@ -6463,7 +6504,7 @@ static void mysql_init_variables(void)
   protocol_version= PROTOCOL_VERSION;
   what_to_log= ~ (1L << (uint) COM_TIME);
   refresh_version= flush_version= 1L;	/* Increments on each reload */
-  query_id= thread_id= 1L;
+  global_query_id= thread_id= 1L;
   strmov(server_version, MYSQL_SERVER_VERSION);
   myisam_recover_options_str= sql_mode_str= "OFF";
   myisam_stats_method_str= "nulls_unequal";
@@ -6576,9 +6617,9 @@ static void mysql_init_variables(void)
   have_raid=SHOW_OPTION_NO;
 #endif
 #ifdef HAVE_OPENSSL
-  have_openssl=SHOW_OPTION_YES;
+  have_ssl=SHOW_OPTION_YES;
 #else
-  have_openssl=SHOW_OPTION_NO;
+  have_ssl=SHOW_OPTION_NO;
 #endif
 #ifdef HAVE_BROKEN_REALPATH
   have_symlink=SHOW_OPTION_NO;
@@ -6939,6 +6980,29 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int) OPT_STANDALONE:		/* Dummy option for NT */
     break;
 #endif
+  /*
+    The following change issues a deprecation warning if the slave
+    configuration is specified either in the my.cnf file or on
+    the command-line. See BUG#21490.
+  */
+  case OPT_MASTER_HOST:
+  case OPT_MASTER_USER:
+  case OPT_MASTER_PASSWORD:
+  case OPT_MASTER_PORT:
+  case OPT_MASTER_CONNECT_RETRY:
+  case OPT_MASTER_SSL:          
+  case OPT_MASTER_SSL_KEY:
+  case OPT_MASTER_SSL_CERT:       
+  case OPT_MASTER_SSL_CAPATH:
+  case OPT_MASTER_SSL_CIPHER:
+  case OPT_MASTER_SSL_CA:
+    if (!slave_warning_issued)                 //only show the warning once
+    {
+      slave_warning_issued = true;   
+      WARN_DEPRECATED(NULL, "5.2", "for replication startup options", 
+        "'CHANGE MASTER'");
+    }
+    break;
   case OPT_CONSOLE:
     if (opt_console)
       opt_error_log= 0;			// Force logs to stdout
@@ -7564,6 +7628,8 @@ static int test_if_case_insensitive(const char *dir_name)
 
 /* Create file to store pid number */
 
+#ifndef EMBEDDED_LIBRARY
+
 static void create_pid_file()
 {
   File file;
@@ -7583,7 +7649,7 @@ static void create_pid_file()
   sql_perror("Can't start server: can't create PID file");
   exit(1);
 }
-
+#endif /* EMBEDDED_LIBRARY */
 
 /* Clear most status variables */
 void refresh_status(THD *thd)

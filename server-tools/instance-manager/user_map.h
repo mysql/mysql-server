@@ -32,6 +32,7 @@
 class User_map
 {
 public:
+  User_map() {}
   ~User_map();
 
   int init();

@@ -82,10 +82,11 @@ static int read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                           List<Item> &set_values, READ_INFO &read_info,
 			  String &enclosed, ulong skip_lines,
 			  bool ignore_check_option_errors);
+#ifndef EMBEDDED_LIBRARY
 static bool write_execute_load_query_log_event(THD *thd,
 					       bool duplicates, bool ignore,
 					       bool transactional_table);
-
+#endif /* EMBEDDED_LIBRARY */
 
 /*
   Execute LOAD DATA query
@@ -322,7 +323,8 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   info.handle_duplicates=handle_duplicates;
   info.escape_char=escaped->length() ? (*escaped)[0] : INT_MAX;
 
-  READ_INFO read_info(file,tot_length,thd->variables.collation_database,
+  READ_INFO read_info(file,tot_length,
+                      ex->cs ? ex->cs : thd->variables.collation_database,
 		      *field_term,*ex->line_start, *ex->line_term, *enclosed,
 		      info.escape_char, read_file_from_client, is_fifo);
   if (read_info.error)
@@ -463,7 +465,6 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
   sprintf(name, ER(ER_LOAD_INFO), (ulong) info.records, (ulong) info.deleted,
 	  (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
-  send_ok(thd,info.copied+info.deleted,0L,name);
 
   if (!transactional_table)
     thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
@@ -484,6 +485,8 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   if (transactional_table)
     error=ha_autocommit_or_rollback(thd,error);
 
+  /* ok to client sent only after binlog write and engine commit */
+  send_ok(thd, info.copied + info.deleted, 0L, name);
 err:
   if (thd->lock)
   {
@@ -494,6 +497,8 @@ err:
   DBUG_RETURN(error);
 }
 
+
+#ifndef EMBEDDED_LIBRARY
 
 /* Not a very useful function; just to avoid duplication of code */
 static bool write_execute_load_query_log_event(THD *thd,
@@ -510,6 +515,7 @@ static bool write_execute_load_query_log_event(THD *thd,
   return mysql_bin_log.write(&e);
 }
 
+#endif
 
 /****************************************************************************
 ** Read of rows of fixed size + optional garage + optonal newline

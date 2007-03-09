@@ -34,6 +34,7 @@ Note:  this script is intended for internal use by MySQL developers.
 EOF
   * )
     echo "Unknown option '$1'"
+    echo "Use -h or --help for usage"
     exit 1
     break ;;
   esac
@@ -49,11 +50,14 @@ SSL_LIBRARY=--with-yassl
 
 # If you are not using codefusion add "-Wpointer-arith" to WARNINGS
 # The following warning flag will give too many warnings:
-# -Wshadow -Wunused  -Winline (The later isn't usable in C++ as
+# -Wunused  -Winline (The later isn't usable in C++ as
 # __attribute()__ doesn't work with gnu C++)
 
-global_warnings="-Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W -Wchar-subscripts -Wformat -Wparentheses -Wsign-compare -Wwrite-strings"
-#debug_extra_warnings="-Wuninitialized"
+global_warnings="-Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W -Wchar-subscripts -Wformat -Wparentheses -Wsign-compare -Wwrite-strings -Wunused-function -Wunused-label -Wunused-value -Wunused-variable"
+#
+# For more warnings, uncomment the following line
+# global_warnings="$global_warnings -Wshadow"
+
 c_warnings="$global_warnings -Wunused"
 cxx_warnings="$global_warnings -Woverloaded-virtual -Wsign-promo -Wreorder -Wctor-dtor-privacy -Wnon-virtual-dtor"
 base_max_configs="--with-innodb --with-ndbcluster --with-archive-storage-engine --with-big-tables --with-blackhole-storage-engine --with-federated-storage-engine --with-csv-storage-engine $SSL_LIBRARY"

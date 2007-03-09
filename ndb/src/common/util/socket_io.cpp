@@ -164,8 +164,8 @@ write_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
     FD_SET(socket, &writeset);
     timeout.tv_sec  = 1;
     timeout.tv_usec = 0;
-    const int selectRes = select(socket + 1, 0, &writeset, 0, &timeout);
-    if(selectRes != 1){
+    const int selectRes2 = select(socket + 1, 0, &writeset, 0, &timeout);
+    if(selectRes2 != 1){
       return -1;
     }
   }

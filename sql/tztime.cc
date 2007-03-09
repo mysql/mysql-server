@@ -780,6 +780,8 @@ gmt_sec_to_TIME(TIME *tmp, my_time_t sec_in_utc, const TIME_ZONE_INFO *sp)
 static my_time_t
 sec_since_epoch(int year, int mon, int mday, int hour, int min ,int sec)
 {
+  /* Guard against my_time_t overflow(on system with 32 bit my_time_t) */
+  DBUG_ASSERT(!(year == TIMESTAMP_MAX_YEAR && mon == 1 && mday > 17));
 #ifndef WE_WANT_TO_HANDLE_UNORMALIZED_DATES
   /*
     It turns out that only whenever month is normalized or unnormalized
@@ -948,12 +950,12 @@ TIME_to_gmt_sec(const TIME *t, const TIME_ZONE_INFO *sp,
   */
   if (shift)
   {
-    if (local_t > (my_time_t) (TIMESTAMP_MAX_VALUE - shift*86400L +
+    if (local_t > (my_time_t) (TIMESTAMP_MAX_VALUE - shift * SECS_PER_DAY +
                                sp->revtis[i].rt_offset - saved_seconds))
     {
       DBUG_RETURN(0);                           /* my_time_t overflow */
     }
-    local_t+= shift*86400L;
+    local_t+= shift * SECS_PER_DAY;
   }
 
   if (sp->revtis[i].rt_type)
@@ -1341,6 +1343,7 @@ my_time_t
 Time_zone_offset::TIME_to_gmt_sec(const TIME *t, my_bool *in_dst_time_gap) const
 {
   my_time_t local_t;
+  int shift= 0;
 
   /*
     Check timestamp range.we have to do this as calling function relies on
@@ -1349,9 +1352,23 @@ Time_zone_offset::TIME_to_gmt_sec(const TIME *t, my_bool *in_dst_time_gap) const
   if (!validate_timestamp_range(t))
     return 0;
 
-  local_t= sec_since_epoch(t->year, t->month, t->day,
+  /*
+    Do a temporary shift of the boundary dates to avoid
+    overflow of my_time_t if the time value is near it's
+    maximum range
+  */
+  if ((t->year == TIMESTAMP_MAX_YEAR) && (t->month == 1) && t->day > 4)
+    shift= 2;
+
+  local_t= sec_since_epoch(t->year, t->month, (t->day - shift),
                            t->hour, t->minute, t->second) -
            offset;
+
+  if (shift)
+  {
+    /* Add back the shifted time */
+    local_t+= shift * SECS_PER_DAY;
+  }
 
   if (local_t >= TIMESTAMP_MIN_VALUE && local_t <= TIMESTAMP_MAX_VALUE)
     return local_t;
@@ -1755,8 +1772,8 @@ end_with_setting_default_tz:
   /* If we have default time zone try to load it */
   if (default_tzname)
   {
-    String tmp_tzname(default_tzname, &my_charset_latin1);
-    if (!(global_system_variables.time_zone= my_tz_find(&tmp_tzname, tables)))
+    String tmp_tzname2(default_tzname, &my_charset_latin1);
+    if (!(global_system_variables.time_zone= my_tz_find(&tmp_tzname2, tables)))
     {
       sql_print_error("Fatal error: Illegal or unknown default time zone '%s'",
                       default_tzname);

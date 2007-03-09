@@ -456,6 +456,7 @@ void Dblqh::execCONTINUEB(Signal* signal)
     else
     {
       jam();
+      cstartRecReq = 2;
       StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
       conf->startingNodeId = getOwnNodeId();
       sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
@@ -7548,7 +7549,6 @@ Dblqh::get_acc_ptr_from_scan_record(ScanRecord* scanP,
                                     bool crash_flag)
 {
   Uint32* acc_ptr;
-  Uint32 attr_buf_rec, attr_buf_index;
   if (!((index < MAX_PARALLEL_OP_PER_SCAN) &&
        index < scanP->scan_acc_index)) {
     ndbrequire(crash_flag);
@@ -7593,7 +7593,6 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   const Uint32 scanLockMode = ScanFragReq::getLockMode(reqinfo);
   const Uint8 keyinfo = ScanFragReq::getKeyinfoFlag(reqinfo);
   const Uint8 rangeScan = ScanFragReq::getRangeScanFlag(reqinfo);
-  const Uint8 tupScan = ScanFragReq::getTupScanFlag(reqinfo);
   
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
   if(tabptr.p->tableStatus != Tablerec::TABLE_DEFINED){
@@ -8979,9 +8978,6 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
   const Uint32 scanOp = scanP->m_curr_batch_size_rows;
   const Uint32 nodeId = refToNode(ref);
   const bool connectedToNode = getNodeInfo(nodeId).m_connected;
-  const Uint32 type = getNodeInfo(nodeId).m_type;
-  const bool is_api = (type >= NodeInfo::API && type <= NodeInfo::REP);
-  const bool old_dest = (getNodeInfo(nodeId).m_version < MAKE_VERSION(3,5,0));
   const bool longable = true; // TODO is_api && !old_dest;
 
   Uint32 * dst = keyInfo->keyData;
@@ -9082,7 +9078,6 @@ void Dblqh::sendScanFragConf(Signal* signal, Uint32 scanCompleted)
     return;
   }
   ScanFragConf * conf = (ScanFragConf*)&signal->theData[0];
-  NodeId tc_node_id= refToNode(tcConnectptr.p->clientBlockref);
   Uint32 trans_id1= tcConnectptr.p->transid[0];
   Uint32 trans_id2= tcConnectptr.p->transid[1];
 
@@ -11368,7 +11363,6 @@ void Dblqh::sendAccContOp(Signal* signal)
 {
   LcpLocRecordPtr sacLcpLocptr;
 
-  int count = 0;
   sacLcpLocptr.i = lcpPtr.p->firstLcpLocAcc;
   do {
     ptrCheckGuard(sacLcpLocptr, clcpLocrecFileSize, lcpLocRecord);
@@ -11672,7 +11666,8 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
     return;
   }
 
-  if(getNodeState().getNodeRestartInProgress()){
+  if(getNodeState().getNodeRestartInProgress() && cstartRecReq < 2)
+  {
     GCPSaveRef * const saveRef = (GCPSaveRef*)&signal->theData[0];
     saveRef->dihPtr = dihPtr;
     saveRef->nodeId = getOwnNodeId();
@@ -11948,6 +11943,10 @@ void Dblqh::execFSCLOSECONF(Signal* signal)
     // Set the prev file to check if we shall close it.
     logFilePtr.i = logFilePtr.p->prevLogFile;
     ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
+
+    logPartPtr.i = logFilePtr.p->logPartRec;
+    ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
+
     exitFromInvalidate(signal);
     return;
   case LogFileRecord::CLOSING_INIT:
@@ -13816,7 +13815,7 @@ void Dblqh::srCompletedLab(Signal* signal)
        *  NO MORE FRAGMENTS ARE WAITING FOR SYSTEM RESTART.
        * -------------------------------------------------------------------- */
       lcpPtr.p->lcpState = LcpRecord::LCP_IDLE;
-      if (cstartRecReq == ZTRUE) {
+      if (cstartRecReq == 1) {
         jam();
 	/* ----------------------------------------------------------------
          *  WE HAVE ALSO RECEIVED AN INDICATION THAT NO MORE FRAGMENTS 
@@ -13886,7 +13885,7 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
   ndbrequire(req->receivingNodeId == cownNodeid);
 
   cnewestCompletedGci = cnewestGci;
-  cstartRecReq = ZTRUE;
+  cstartRecReq = 1;
   for (logPartPtr.i = 0; logPartPtr.i < 4; logPartPtr.i++) {
     ptrAss(logPartPtr, logPartRecord);
     logPartPtr.p->logPartNewestCompletedGCI = cnewestCompletedGci;
@@ -13907,6 +13906,7 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
   }//if
   if(cstartType == NodeState::ST_INITIAL_NODE_RESTART){
     jam();
+    cstartRecReq = 2;
     StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
     conf->startingNodeId = getOwnNodeId();
     sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
@@ -15070,8 +15070,6 @@ void Dblqh::execDEBUG_SIG(Signal* signal)
 2.5 TEMPORARY VARIABLES
 -----------------------
 */
-  UintR tdebug;
-
   jamEntry();
   //logPagePtr.i = signal->theData[0];
   //tdebug = logPagePtr.p->logPageWord[0];
@@ -15727,6 +15725,7 @@ void Dblqh::srFourthComp(Signal* signal)
     else
     {
       jam();
+      cstartRecReq = 2;
       StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
       conf->startingNodeId = getOwnNodeId();
       sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
@@ -16693,7 +16692,7 @@ void Dblqh::initialiseRecordsLab(Signal* signal, Uint32 data,
     cCommitBlocked = false;
     ccurrentGcprec = RNIL;
     caddNodeState = ZFALSE;
-    cstartRecReq = ZFALSE;
+    cstartRecReq = 0;
     cnewestGci = (UintR)-1;
     cnewestCompletedGci = (UintR)-1;
     crestartOldestGci = 0;
@@ -18901,30 +18900,6 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
   }
   
 }//Dblqh::execDUMP_STATE_ORD()
-
-void Dblqh::execSET_VAR_REQ(Signal* signal) 
-{
-#if 0
-  SetVarReq* const setVarReq = (SetVarReq*)&signal->theData[0];
-  ConfigParamId var = setVarReq->variable();
-
-  switch (var) {
-
-  case NoOfConcurrentCheckpointsAfterRestart:
-    sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
-    break;
-
-  case NoOfConcurrentCheckpointsDuringRestart:
-    // Valid only during start so value not set.
-    sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
-    break;
-
-  default:
-    sendSignal(CMVMI_REF, GSN_SET_VAR_REF, signal, 1, JBB);
-  } // switch
-#endif
-}//execSET_VAR_REQ()
-
 
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */

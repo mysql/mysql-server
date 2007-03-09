@@ -233,6 +233,7 @@ static int berkeley_close_connection(THD *thd)
   return 0;
 }
 
+
 bool berkeley_flush_logs()
 {
   int error;
@@ -436,6 +437,15 @@ ulong ha_berkeley::index_flags(uint idx, uint part, bool all_parts) const
     }
   }
   return flags;
+}
+
+
+void ha_berkeley::get_auto_primary_key(byte *to)
+{
+  pthread_mutex_lock(&share->mutex);
+  share->auto_ident++;
+  int5store(to,share->auto_ident);
+  pthread_mutex_unlock(&share->mutex);
 }
 
 
@@ -797,7 +807,7 @@ int ha_berkeley::pack_row(DBT *row, const byte *record, bool new_row)
     ptr+=BDB_HIDDEN_PRIMARY_KEY_LENGTH;
   }
   row->data=rec_buff;
-  row->size= (size_t) (ptr - rec_buff);
+  row->size= (u_int32_t) (ptr - rec_buff);
   return 0;
 }
 
@@ -892,7 +902,7 @@ DBT *ha_berkeley::create_key(DBT *key, uint keynr, char *buff,
 				   key_part->length);
     key_length-=key_part->length;
   }
-  key->size= (buff  - (char*) key->data);
+  key->size= (u_int32_t) (buff  - (char*) key->data);
   DBUG_DUMP("key",(char*) key->data, key->size);
   DBUG_RETURN(key);
 }
@@ -936,7 +946,7 @@ DBT *ha_berkeley::pack_key(DBT *key, uint keynr, char *buff,
     key_ptr+=key_part->store_length;
     key_length-=key_part->store_length;
   }
-  key->size= (buff  - (char*) key->data);
+  key->size= (u_int32_t) (buff  - (char*) key->data);
   DBUG_DUMP("key",(char*) key->data, key->size);
   DBUG_RETURN(key);
 }

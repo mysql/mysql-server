@@ -58,8 +58,8 @@
 #include "sp_head.h"
 #include "sql_trigger.h"
 #include "sql_select.h"
+#include "slave.h"
 
-static int check_null_fields(THD *thd,TABLE *entry);
 #ifndef EMBEDDED_LIBRARY
 static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list);
 static int write_delayed(THD *thd,TABLE *table, enum_duplicates dup, bool ignore,
@@ -189,11 +189,11 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (grant_option)
     {
-      Field_iterator_table fields;
-      fields.set_table(table);
+      Field_iterator_table field_it;
+      field_it.set_table(table);
       if (check_grant_all_columns(thd, INSERT_ACL, &table->grant,
                                   table->s->db, table->s->table_name,
-                                  &fields))
+                                  &field_it))
         return -1;
     }
 #endif
@@ -370,8 +370,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     By default, both logs are enabled (this won't cause problems if the server
     runs without --log-update or --log-bin).
   */
-  bool log_on= (thd->options & OPTION_BIN_LOG) ||
-    (!(thd->security_ctx->master_access & SUPER_ACL));
   bool transactional_table, joins_freed= FALSE;
   bool changed;
   uint value_count;
@@ -386,6 +384,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 #ifndef EMBEDDED_LIBRARY
   char *query= thd->query;
 #endif
+  bool log_on= (thd->options & OPTION_BIN_LOG) ||
+    (!(thd->security_ctx->master_access & SUPER_ACL));
   thr_lock_type lock_type = table_list->lock_type;
   Item *unused_conds= 0;
   DBUG_ENTER("mysql_insert");
@@ -406,11 +406,33 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       (duplic == DUP_UPDATE))
     lock_type=TL_WRITE;
 #endif
+  if ((lock_type == TL_WRITE_DELAYED) &&
+      log_on && mysql_bin_log.is_open() &&
+      (values_list.elements > 1))
+  {
+    /*
+      Statement-based binary logging does not work in this case, because:
+      a) two concurrent statements may have their rows intermixed in the
+      queue, leading to autoincrement replication problems on slave (because
+      the values generated used for one statement don't depend only on the
+      value generated for the first row of this statement, so are not
+      replicable)
+      b) if first row of the statement has an error the full statement is
+      not binlogged, while next rows of the statement may be inserted.
+      c) if first row succeeds, statement is binlogged immediately with a
+      zero error code (i.e. "no error"), if then second row fails, query
+      will fail on slave too and slave will stop (wrongly believing that the
+      master got no error).
+      So we fallback to non-delayed INSERT.
+    */
+    lock_type= TL_WRITE;
+  }
   table_list->lock_type= lock_type;
 
 #ifndef EMBEDDED_LIBRARY
   if (lock_type == TL_WRITE_DELAYED)
   {
+    res= 1;
     if (thd->locked_tables)
     {
       DBUG_ASSERT(table_list->db); /* Must be set in the parser */
@@ -518,6 +540,14 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 			    CHECK_FIELD_WARN);
   thd->cuted_fields = 0L;
   table->next_number_field=table->found_next_number_field;
+
+#ifdef HAVE_REPLICATION
+  if (thd->slave_thread &&
+      (info.handle_duplicates == DUP_UPDATE) &&
+      (table->next_number_field != NULL) &&
+      rpl_master_has_bug(&active_mi->rli, 24432))
+    goto abort;
+#endif
 
   error=0;
   id=0;
@@ -808,7 +838,6 @@ static bool check_view_insertability(THD * thd, TABLE_LIST *view)
   Field_translator *trans_start= view->field_translation,
 		   *trans_end= trans_start + num;
   Field_translator *trans;
-  Field **field_ptr= table->field;
   uint used_fields_buff_size= (table->s->fields + 7) / 8;
   uchar *used_fields_buff= (uchar*)thd->alloc(used_fields_buff_size);
   MY_BITMAP used_fields;
@@ -966,6 +995,8 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
   DBUG_PRINT("enter", ("table_list 0x%lx, table 0x%lx, view %d",
 		       (ulong)table_list, (ulong)table,
 		       (int)insert_into_view));
+  /* INSERT should have a SELECT or VALUES clause */
+  DBUG_ASSERT (!select_insert || !values);
 
   /*
     For subqueries in VALUES() we should not see the table in which we are
@@ -998,43 +1029,39 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
                                        select_insert))
     DBUG_RETURN(TRUE);
 
-  /* Save the state of the current name resolution context. */
-  ctx_state.save_state(context, table_list);
-
-  /*
-    Perform name resolution only in the first table - 'table_list',
-    which is the table that is inserted into.
-  */
-  table_list->next_local= 0;
-  context->resolve_in_table_list_only(table_list);
 
   /* Prepare the fields in the statement. */
-  if (values &&
-      !(res= check_insert_fields(thd, context->table_list, fields, *values,
-                                 !insert_into_view, &map) ||
-        setup_fields(thd, 0, *values, 0, 0, 0)) &&
-      duplic == DUP_UPDATE)
+  if (values)
   {
-    select_lex->no_wrap_view_item= TRUE;
-    res= check_update_fields(thd, context->table_list, update_fields, &map);
-    select_lex->no_wrap_view_item= FALSE;
+    /* if we have INSERT ... VALUES () we cannot have a GROUP BY clause */
+    DBUG_ASSERT (!select_lex->group_list.elements);
+
+    /* Save the state of the current name resolution context. */
+    ctx_state.save_state(context, table_list);
+
     /*
-      When we are not using GROUP BY we can refer to other tables in the
-      ON DUPLICATE KEY part.
-    */       
-    if (select_lex->group_list.elements == 0)
+      Perform name resolution only in the first table - 'table_list',
+      which is the table that is inserted into.
+     */
+    table_list->next_local= 0;
+    context->resolve_in_table_list_only(table_list);
+
+    if (!(res= check_insert_fields(thd, context->table_list, fields, *values,
+                                 !insert_into_view, &map) ||
+          setup_fields(thd, 0, *values, 0, 0, 0)) 
+        && duplic == DUP_UPDATE)
     {
-      context->table_list->next_local=       ctx_state.save_next_local;
-      /* first_name_resolution_table was set by resolve_in_table_list_only() */
-      context->first_name_resolution_table->
-        next_name_resolution_table=          ctx_state.save_next_local;
+      select_lex->no_wrap_view_item= TRUE;
+      res= check_update_fields(thd, context->table_list, update_fields, &map);
+      select_lex->no_wrap_view_item= FALSE;
     }
+
+    /* Restore the current context. */
+    ctx_state.restore_state(context, table_list);
+
     if (!res)
       res= setup_fields(thd, 0, update_values, 1, 0, 0);
   }
-
-  /* Restore the current context. */
-  ctx_state.restore_state(context, table_list);
 
   if (res)
     DBUG_RETURN(res);
@@ -1185,17 +1212,17 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
         if (res == VIEW_CHECK_ERROR)
           goto before_trg_err;
 
+        table->file->restore_auto_increment();
         if ((error=table->file->update_row(table->record[1],table->record[0])))
         {
           if ((error == HA_ERR_FOUND_DUPP_KEY) && info->ignore)
           {
-            table->file->restore_auto_increment();
             goto ok_or_after_trg_err;
           }
           goto err;
         }
         if ((table->file->table_flags() & HA_PARTIAL_COLUMN_READ) ||
-            compare_record(table, query_id))
+            compare_record(table, thd->query_id))
         {
           info->updated++;
 
@@ -2361,7 +2388,6 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   if (info.handle_duplicates == DUP_UPDATE)
   {
-    /* Save the state of the current name resolution context. */
     Name_resolution_context *context= &lex->select_lex.context;
     Name_resolution_context_state ctx_state;
 
@@ -2377,18 +2403,38 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
                                     *info.update_fields, &map);
     lex->select_lex.no_wrap_view_item= FALSE;
     /*
-      When we are not using GROUP BY we can refer to other tables in the
-      ON DUPLICATE KEY part
+      When we are not using GROUP BY and there are no ungrouped aggregate functions 
+      we can refer to other tables in the ON DUPLICATE KEY part.
+      We use next_name_resolution_table descructively, so check it first (views?)
     */       
-    if (lex->select_lex.group_list.elements == 0)
-    {
-      context->table_list->next_local=       ctx_state.save_next_local;
-      /* first_name_resolution_table was set by resolve_in_table_list_only() */
-      context->first_name_resolution_table->
-        next_name_resolution_table=          ctx_state.save_next_local;
-    }
-    res= res || setup_fields(thd, 0, *info.update_values, 1, 0, 0);
+    DBUG_ASSERT (!table_list->next_name_resolution_table);
+    if (lex->select_lex.group_list.elements == 0 &&
+        !lex->select_lex.with_sum_func)
+      /*
+        We must make a single context out of the two separate name resolution contexts :
+        the INSERT table and the tables in the SELECT part of INSERT ... SELECT.
+        To do that we must concatenate the two lists
+      */  
+      table_list->next_name_resolution_table= ctx_state.get_first_name_resolution_table();
 
+    res= res || setup_fields(thd, 0, *info.update_values, 1, 0, 0);
+    if (!res)
+    {
+      /*
+        Traverse the update values list and substitute fields from the
+        select for references (Item_ref objects) to them. This is done in
+        order to get correct values from those fields when the select
+        employs a temporary table.
+      */
+      List_iterator<Item> li(*info.update_values);
+      Item *item;
+
+      while ((item= li++))
+      {
+        item->transform(&Item::update_value_transformer,
+                        (byte*)lex->current_select);
+      }
+    }
     /* Restore the current context. */
     ctx_state.restore_state(context, table_list);
   }
@@ -2428,6 +2474,15 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   }
   restore_record(table,s->default_values);		// Get empty record
   table->next_number_field=table->found_next_number_field;
+
+#ifdef HAVE_REPLICATION
+  if (thd->slave_thread &&
+      (info.handle_duplicates == DUP_UPDATE) &&
+      (table->next_number_field != NULL) &&
+      rpl_master_has_bug(&active_mi->rli, 24432))
+    DBUG_RETURN(1);
+#endif
+
   thd->cuted_fields=0;
   if (info.ignore || info.handle_duplicates != DUP_ERROR)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);

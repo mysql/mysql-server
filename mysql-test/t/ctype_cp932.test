@@ -427,3 +427,14 @@ drop table t1;
 --exec $MYSQL --default-character-set=utf8 test -e "charset cp932; select 'ƒ\'"
 --exec $MYSQL --default-character-set=utf8 test -e "/*charset cp932 */; set character_set_client= cp932; select 'ƒ\'"
 --exec $MYSQL --default-character-set=utf8 test -e "/*!\C cp932 */; set character_set_client= cp932; select 'ƒ\'"
+
+#
+# Bug#25815 Data truncated for column TEXT
+#
+set names utf8;
+create table t1 (a text) default character set cp932;
+insert into t1 values (_utf8 0xE38182);
+show warnings;
+select * from t1;
+select hex(a) from t1;
+drop table t1;

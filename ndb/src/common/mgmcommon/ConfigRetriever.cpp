@@ -154,12 +154,13 @@ ConfigRetriever::getConfig() {
 }
 
 ndb_mgm_configuration *
-ConfigRetriever::getConfig(NdbMgmHandle m_handle)
+ConfigRetriever::getConfig(NdbMgmHandle m_handle_arg)
 {
-  ndb_mgm_configuration * conf = ndb_mgm_get_configuration(m_handle,m_version);
+  ndb_mgm_configuration * conf = ndb_mgm_get_configuration(m_handle_arg,
+                                                           m_version);
   if(conf == 0)
   {
-    setError(CR_ERROR, ndb_mgm_get_latest_error_desc(m_handle));
+    setError(CR_ERROR, ndb_mgm_get_latest_error_desc(m_handle_arg));
     return 0;
   }
   return conf;

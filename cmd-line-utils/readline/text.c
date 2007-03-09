@@ -1002,12 +1002,12 @@ _rl_rubout_char (count, key)
 	}
       else
 	{
-	  int orig_point;
+	  int orig_point2;
 
-	  orig_point = rl_point;
+	  orig_point2 = rl_point;
 	  rl_point = _rl_find_prev_mbchar (rl_line_buffer, rl_point, MB_FIND_NONZERO);
 	  c = rl_line_buffer[rl_point];
-	  rl_delete_text (rl_point, orig_point);
+	  rl_delete_text (rl_point, orig_point2);
 	}
 #endif /* HANDLE_MULTIBYTE */
 

@@ -210,7 +210,6 @@ source database
 "MySQL: The world's most popular ;open source database"
 echo message echo message
 
-mysqltest: At line 1: Empty variable
 mysqltest: At line 1: command "false" failed
 mysqltest: At line 1: Missing argument in exec
 MySQL
@@ -422,6 +421,8 @@ mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": At line 7: Con
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": At line 3: connection 'test_con1' not found in connection pool
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": At line 2: Connection test_con1 already exists
 connect(localhost,root,,test,MASTER_PORT,MASTER_SOCKET);
+show tables;
+ERROR 3D000: No database selected
 Output from mysqltest-x.inc
 Output from mysqltest-x.inc
 Output from mysqltest-x.inc
@@ -516,8 +517,10 @@ drop table t1;
 mysqltest: At line 1: Missing required argument 'filename' to command 'remove_file'
 mysqltest: At line 1: Missing required argument 'filename' to command 'write_file'
 mysqltest: At line 1: End of file encountered before 'EOF' delimiter was found
-mysqltest: At line 1: End of line junk detected: "write_file filename ";
-"
+Some data
+for cat_file command
+of mysqltest
+mysqltest: At line 1: Failed to open file non_existing_file
 mysqltest: At line 1: Missing required argument 'filename' to command 'file_exists'
 mysqltest: At line 1: Missing required argument 'from_file' to command 'copy_file'
 mysqltest: At line 1: Missing required argument 'to_file' to command 'copy_file'

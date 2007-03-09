@@ -55,20 +55,14 @@ private:
   void execSIZEALT_ACK(Signal* signal);
   void execTEST_ORD(Signal* signal);
 
-  void execSTATISTICS_REQ(Signal* signal);
   void execSTOP_ORD(Signal* signal);
   void execSTART_ORD(Signal* signal);
   void execTAMPER_ORD(Signal* signal);
-  void execSET_VAR_REQ(Signal* signal);
-  void execSET_VAR_CONF(Signal* signal);
-  void execSET_VAR_REF(Signal* signal);
 
   void execDUMP_STATE_ORD(Signal* signal);
 
   void execEVENT_SUBSCRIBE_REQ(Signal *);
   void cancelSubscription(NodeId nodeId);
-  
-  void handleSET_VAR_REQ(Signal* signal);
 
   void execTESTSIG(Signal* signal);
   void execNODE_START_REP(Signal* signal);

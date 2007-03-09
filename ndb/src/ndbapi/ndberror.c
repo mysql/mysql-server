@@ -264,6 +264,7 @@ ErrorBundle ErrorCodes[] = {
   /**
    * Application error
    */
+  { 299,  AE, "Operation not allowed or aborted due to single user mode" },
   { 763,  AE, "Alter table requires cluster nodes to have exact same version" },
   { 823,  AE, "Too much attrinfo from application in tuple manager" },
   { 831,  AE, "Too many nullable/bitfields in table definition" },

@@ -51,6 +51,10 @@ Item_subselect::Item_subselect():
 void Item_subselect::init(st_select_lex *select_lex,
 			  select_subselect *result)
 {
+  /*
+    Please see Item_singlerow_subselect::invalidate_and_restore_select_lex(),
+    which depends on alterations to the parse tree implemented here.
+  */
 
   DBUG_ENTER("Item_subselect::init");
   DBUG_PRINT("enter", ("select_lex: 0x%lx", (long) select_lex));
@@ -89,6 +93,12 @@ void Item_subselect::init(st_select_lex *select_lex,
       upper->subquery_in_having= 1;
   }
   DBUG_VOID_RETURN;
+}
+
+st_select_lex *
+Item_subselect::get_select_lex()
+{
+  return unit->first_select();
 }
 
 void Item_subselect::cleanup()
@@ -232,11 +242,11 @@ bool Item_subselect::const_item() const
   return const_item_cache;
 }
 
-Item *Item_subselect::get_tmp_table_item(THD *thd)
+Item *Item_subselect::get_tmp_table_item(THD *thd_arg)
 {
   if (!with_sum_func && !const_item())
     return new Item_field(result_field);
-  return copy_or_same(thd);
+  return copy_or_same(thd_arg);
 }
 
 void Item_subselect::update_used_tables()
@@ -266,6 +276,26 @@ Item_singlerow_subselect::Item_singlerow_subselect(st_select_lex *select_lex)
   maybe_null= 1;
   max_columns= UINT_MAX;
   DBUG_VOID_RETURN;
+}
+
+st_select_lex *
+Item_singlerow_subselect::invalidate_and_restore_select_lex()
+{
+  DBUG_ENTER("Item_singlerow_subselect::invalidate_and_restore_select_lex");
+  st_select_lex *result= get_select_lex();
+
+  DBUG_ASSERT(result);
+
+  /*
+    This code restore the parse tree in it's state before the execution of
+    Item_singlerow_subselect::Item_singlerow_subselect(),
+    and in particular decouples this object from the SELECT_LEX,
+    so that the SELECT_LEX can be used with a different flavor
+    or Item_subselect instead, as part of query rewriting.
+  */
+  unit->item= NULL;
+
+  DBUG_RETURN(result);
 }
 
 Item_maxmin_subselect::Item_maxmin_subselect(THD *thd_param,
@@ -551,13 +581,13 @@ void Item_exists_subselect::print(String *str)
 }
 
 
-bool Item_in_subselect::test_limit(SELECT_LEX_UNIT *unit)
+bool Item_in_subselect::test_limit(SELECT_LEX_UNIT *unit_arg)
 {
-  if (unit->fake_select_lex &&
-      unit->fake_select_lex->test_limit())
+  if (unit_arg->fake_select_lex &&
+      unit_arg->fake_select_lex->test_limit())
     return(1);
 
-  SELECT_LEX *sl= unit->first_select();
+  SELECT_LEX *sl= unit_arg->first_select();
   for (; sl; sl= sl->next_select())
   {
     if (sl->test_limit())
@@ -829,7 +859,6 @@ Item_subselect::trans_res
 Item_in_subselect::single_value_transformer(JOIN *join,
 					    Comp_creator *func)
 {
-  Item_subselect::trans_res result= RES_ERROR;
   SELECT_LEX *select_lex= join->select_lex;
   DBUG_ENTER("Item_in_subselect::single_value_transformer");
 
@@ -927,7 +956,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   if (!substitution)
   {
     /* We're invoked for the 1st (or the only) SELECT in the subquery UNION */
-    SELECT_LEX_UNIT *unit= select_lex->master_unit();
+    SELECT_LEX_UNIT *master_unit= select_lex->master_unit();
     substitution= optimizer;
 
     SELECT_LEX *current= thd->lex->current_select, *up;
@@ -950,7 +979,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 			      (char *)"<no matter>",
 			      (char *)in_left_expr_name);
 
-    unit->uncacheable|= UNCACHEABLE_DEPENDENT;
+    master_unit->uncacheable|= UNCACHEABLE_DEPENDENT;
   }
   if (!abort_on_null && left_expr->maybe_null && !pushed_cond_guards)
   {
@@ -1149,7 +1178,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
   if (!substitution)
   {
     //first call for this unit
-    SELECT_LEX_UNIT *unit= select_lex->master_unit();
+    SELECT_LEX_UNIT *master_unit= select_lex->master_unit();
     substitution= optimizer;
 
     SELECT_LEX *current= thd->lex->current_select, *up;
@@ -1165,7 +1194,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     optimizer->keep_top_level_cache();
 
     thd->lex->current_select= current;
-    unit->uncacheable|= UNCACHEABLE_DEPENDENT;
+    master_unit->uncacheable|= UNCACHEABLE_DEPENDENT;
 
     if (!abort_on_null && left_expr->maybe_null && !pushed_cond_guards)
     {
@@ -1198,7 +1227,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     {
       DBUG_ASSERT(left_expr->fixed && select_lex->ref_pointer_array[i]->fixed);
       if (select_lex->ref_pointer_array[i]->
-          check_cols(left_expr->el(i)->cols()))
+          check_cols(left_expr->element_index(i)->cols()))
         DBUG_RETURN(RES_ERROR);
       Item *item_eq=
         new Item_func_eq(new
@@ -1221,7 +1250,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
                                       (char *)"<list ref>")
                             );
       Item *col_item= new Item_cond_or(item_eq, item_isnull);
-      if (!abort_on_null && left_expr->el(i)->maybe_null)
+      if (!abort_on_null && left_expr->element_index(i)->maybe_null)
       {
         if (!(col_item= new Item_func_trig_cond(col_item, get_cond_guard(i))))
           DBUG_RETURN(RES_ERROR);
@@ -1235,7 +1264,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
                                                 ref_pointer_array + i,
                                                 (char *)"<no matter>",
                                                 (char *)"<list ref>"));
-      if (!abort_on_null && left_expr->el(i)->maybe_null)
+      if (!abort_on_null && left_expr->element_index(i)->maybe_null)
       {
         if (!(item_nnull_test= 
               new Item_func_trig_cond(item_nnull_test, get_cond_guard(i))))
@@ -1272,7 +1301,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
       Item *item, *item_isnull;
       DBUG_ASSERT(left_expr->fixed && select_lex->ref_pointer_array[i]->fixed);
       if (select_lex->ref_pointer_array[i]->
-          check_cols(left_expr->el(i)->cols()))
+          check_cols(left_expr->element_index(i)->cols()))
         DBUG_RETURN(RES_ERROR);
       item=
         new Item_func_eq(new
@@ -1312,7 +1341,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
           TODO: why we create the above for cases where the right part
                 cant be NULL?
         */
-        if (left_expr->el(i)->maybe_null)
+        if (left_expr->element_index(i)->maybe_null)
         {
           if (!(item= new Item_func_trig_cond(item, get_cond_guard(i))))
             DBUG_RETURN(RES_ERROR);
@@ -1474,14 +1503,14 @@ void Item_in_subselect::print(String *str)
 }
 
 
-bool Item_in_subselect::fix_fields(THD *thd, Item **ref)
+bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
 {
   bool result = 0;
   
-  if(thd->lex->view_prepare_mode && left_expr && !left_expr->fixed)
-    result = left_expr->fix_fields(thd, &left_expr);
+  if (thd_arg->lex->view_prepare_mode && left_expr && !left_expr->fixed)
+    result = left_expr->fix_fields(thd_arg, &left_expr);
 
-  return result || Item_subselect::fix_fields(thd, ref);
+  return result || Item_subselect::fix_fields(thd_arg, ref);
 }
 
 
@@ -1520,13 +1549,13 @@ void subselect_engine::set_thd(THD *thd_arg)
 
 subselect_single_select_engine::
 subselect_single_select_engine(st_select_lex *select,
-			       select_subselect *result,
-			       Item_subselect *item)
-  :subselect_engine(item, result),
+			       select_subselect *result_arg,
+			       Item_subselect *item_arg)
+  :subselect_engine(item_arg, result_arg),
    prepared(0), optimized(0), executed(0),
    select_lex(select), join(0)
 {
-  select_lex->master_unit()->item= item;
+  select_lex->master_unit()->item= item_arg;
 }
 
 
@@ -1763,7 +1792,6 @@ int subselect_single_select_engine::exec()
   if (!executed)
   {
     item->reset_value_registration();
-    bool have_changed_access= FALSE;
     JOIN_TAB *changed_tabs[MAX_TABLES];
     JOIN_TAB **last_changed_tab= changed_tabs;
     if (item->have_guarded_conds())

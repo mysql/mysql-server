@@ -82,9 +82,6 @@ TYPELIB delay_key_write_typelib=
   delay_key_write_type_names, NULL
 };
 
-static int sys_check_charset(THD *thd, set_var *var);
-static bool sys_update_charset(THD *thd, set_var *var);
-static void sys_set_default_charset(THD *thd, enum_var_type type);
 static int  sys_check_ftb_syntax(THD *thd,  set_var *var);
 static bool sys_update_ftb_syntax(THD *thd, set_var * var);
 static void sys_default_ftb_syntax(THD *thd, enum_var_type type);
@@ -590,6 +587,10 @@ sys_var_readonly                sys_have_innodb("have_innodb", OPT_GLOBAL,
 /* Global read-only variable describing server license */
 sys_var_const_str		sys_license("license", STRINGIFY_ARG(LICENSE));
 
+/* Global read-only variable containing hostname */
+sys_var_const_str		sys_hostname("hostname", glob_hostname);
+
+
 
 /*
   List of all variables for initialisation and storage in hash
@@ -642,6 +643,7 @@ sys_var *sys_variables[]=
   &sys_foreign_key_checks,
   &sys_group_concat_max_len,
   &sys_have_innodb,
+  &sys_hostname,
   &sys_identity,
   &sys_init_connect,
   &sys_init_slave,
@@ -869,11 +871,14 @@ struct show_var_st init_vars[]= {
   {"have_isam",		      (char*) &have_isam,		    SHOW_HAVE},
   {"have_merge_engine",       (char*) &have_merge_db,               SHOW_HAVE},
   {"have_ndbcluster",         (char*) &have_ndbcluster,             SHOW_HAVE},
-  {"have_openssl",	      (char*) &have_openssl,		    SHOW_HAVE},
+  /* have_openssl is just and alias for have_ssl */
+  {"have_openssl",	      (char*) &have_ssl,		    SHOW_HAVE},
+  {"have_ssl",	              (char*) &have_ssl,		    SHOW_HAVE},
   {"have_query_cache",        (char*) &have_query_cache,            SHOW_HAVE},
   {"have_raid",		      (char*) &have_raid,		    SHOW_HAVE},
   {"have_rtree_keys",         (char*) &have_rtree_keys,             SHOW_HAVE},
   {"have_symlink",            (char*) &have_symlink,                SHOW_HAVE},
+  {sys_hostname.name,         (char*) &sys_hostname,                SHOW_SYS},
   {"init_connect",            (char*) &sys_init_connect,            SHOW_SYS},
   {"init_file",               (char*) &opt_init_file,               SHOW_CHAR_PTR},
   {"init_slave",              (char*) &sys_init_slave,              SHOW_SYS},
@@ -1418,9 +1423,9 @@ static void fix_server_id(THD *thd, enum_var_type type)
 
 
 sys_var_long_ptr::
-sys_var_long_ptr(const char *name_arg, ulong *value_ptr,
+sys_var_long_ptr(const char *name_arg, ulong *value_ptr_arg,
                  sys_after_update_func after_update_arg)
-  :sys_var_long_ptr_global(name_arg, value_ptr,
+  :sys_var_long_ptr_global(name_arg, value_ptr_arg,
                            &LOCK_global_system_variables, after_update_arg)
 {}
 
@@ -1770,7 +1775,7 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
     /* As there was no local variable, return the global value */
     var_type= OPT_GLOBAL;
   }
-  switch (type()) {
+  switch (show_type()) {
   case SHOW_INT:
   {
     uint value;

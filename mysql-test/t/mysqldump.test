@@ -126,13 +126,13 @@ drop table t1;
 create table t1(a int);
 insert into t1 values (1),(2),(3);
 --exec $MYSQL_DUMP --skip-comments --tab=$MYSQLTEST_VARDIR/tmp/ test
---exec cat $MYSQLTEST_VARDIR/tmp/t1.sql
---exec cat $MYSQLTEST_VARDIR/tmp/t1.txt
---exec rm $MYSQLTEST_VARDIR/tmp/t1.sql
---exec rm $MYSQLTEST_VARDIR/tmp/t1.txt
+--cat_file $MYSQLTEST_VARDIR/tmp/t1.sql
+--cat_file $MYSQLTEST_VARDIR/tmp/t1.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.txt
 --exec $MYSQL_DUMP --tab=$MYSQLTEST_VARDIR/tmp/ test
---exec rm $MYSQLTEST_VARDIR/tmp/t1.sql
---exec rm $MYSQLTEST_VARDIR/tmp/t1.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.txt
 drop table t1;
 
 --echo #
@@ -710,7 +710,7 @@ drop table t1, t2, t3;
 
 create table t1 (a int);
 --error 2
---exec $MYSQL_DUMP --skip-comments --force test t1 --where='xx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' 2>&1
+--exec $MYSQL_DUMP --skip-comments --force test t1 --where="xx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" 2>&1
 drop table t1;
 
 --echo #
@@ -912,11 +912,13 @@ DROP TABLE t1, t2;
 --echo # Bugs #9136, #12917: problems with --defaults-extra-file option
 --echo #
 
---system echo '[mysqltest1]' > $MYSQLTEST_VARDIR/tmp/tmp.cnf
---system echo 'port=1234' >> $MYSQLTEST_VARDIR/tmp/tmp.cnf
+--write_file $MYSQLTEST_VARDIR/tmp/tmp.cnf
+[mysqltest1]
+port=1234
+EOF
 --exec $MYSQL_MY_PRINT_DEFAULTS -c $MYSQLTEST_VARDIR/tmp/tmp.cnf mysqltest1
 --exec $MYSQL_MY_PRINT_DEFAULTS -e $MYSQLTEST_VARDIR/tmp/tmp.cnf mysqltest1 mysqltest1
---system rm $MYSQLTEST_VARDIR/tmp/tmp.cnf
+--remov_file $MYSQLTEST_VARDIR/tmp/tmp.cnf
 
 --echo #
 --echo # Test of fix to BUG 12597
@@ -1190,9 +1192,9 @@ create view v1 as select qty, price, qty*price as value from t;
 create view v2 as select qty from v1;
 --echo mysqldump {
 --exec $MYSQL_DUMP --compact -F --tab $MYSQLTEST_VARDIR/tmp test
---exec cat $MYSQLTEST_VARDIR/tmp/v1.sql
+--cat_file $MYSQLTEST_VARDIR/tmp/v1.sql
 --echo } mysqldump {
---exec cat $MYSQLTEST_VARDIR/tmp/v2.sql
+--cat_file $MYSQLTEST_VARDIR/tmp/v2.sql
 --echo } mysqldump
 drop view v1;
 drop view v2;
@@ -1258,7 +1260,7 @@ create database mysqldump_views;
 use mysqldump_views;
 create view nasishnasifu as select mysqldump_tables.basetable.id from mysqldump_tables.basetable;
 
---exec $MYSQL_DUMP --skip-comments --compact --databases mysqldump_tables mysqldump_views;
+--exec $MYSQL_DUMP --skip-comments --compact --databases mysqldump_tables mysqldump_views
 
 drop view nasishnasifu;
 drop database mysqldump_views;
@@ -1281,7 +1283,7 @@ create table t1 (f1 int, f2 int);
 insert into t1 values (2,2);
 create view v1 as select f1, f2 from t1;
 
---exec $MYSQL_DUMP --skip-comments --add-drop-database --databases mysqldump_dba mysqldump_dbb > $MYSQLTEST_VARDIR/tmp/bug20221_backup;
+--exec $MYSQL_DUMP --skip-comments --add-drop-database --databases mysqldump_dba mysqldump_dbb > $MYSQLTEST_VARDIR/tmp/bug20221_backup
 
 drop view v1;
 drop table t1;
@@ -1291,7 +1293,7 @@ drop view v1;
 drop table t1;
 drop database mysqldump_dba;
 
---exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug20221_backup;
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug20221_backup
 
 select * from mysqldump_dba.v1;
 select * from mysqldump_dbb.v1;
@@ -1391,7 +1393,7 @@ flush privileges;
 --echo # Restore. Flush Privileges test ends.  
 --echo #
 
---exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug21527.sql;
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug21527.sql
 
 # Do as a user
 connection user1;

@@ -16,7 +16,8 @@
 INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include \
 			@ndbcluster_includes@ -I$(top_srcdir)/sql
 LDADD =			@CLIENT_EXTRA_LDFLAGS@ ../mysys/libmysys.a \
-			../dbug/libdbug.a ../strings/libmystrings.a
+			../dbug/libdbug.a ../strings/libmystrings.a \
+			$(ZLIB_LIBS)
 BUILT_SOURCES=		$(top_builddir)/include/mysqld_error.h \
                         $(top_builddir)/include/sql_state.h \
                         $(top_builddir)/include/mysqld_ername.h

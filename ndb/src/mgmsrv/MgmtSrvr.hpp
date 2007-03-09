@@ -49,6 +49,7 @@ class Ndb_mgmd_event_service : public EventLoggerBase
   friend class MgmtSrvr;
 public:
   struct Event_listener : public EventLoggerBase {
+    Event_listener() {}
     NDB_SOCKET_TYPE m_socket;
     Uint32 m_parsable;
   };
@@ -597,7 +598,6 @@ private:
    */
   enum WaitSignalType { 
     NO_WAIT,			// We don't expect to receive any signal
-    WAIT_SET_VAR,		// Accept SET_VAR_CONF and SET_VAR_REF
     WAIT_SUBSCRIBE_CONF 	// Accept event subscription confirmation
   };
   

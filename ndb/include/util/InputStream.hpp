@@ -26,6 +26,7 @@ class InputStream {
 public:
   virtual ~InputStream() {}
   virtual char* gets(char * buf, int bufLen) = 0;
+  InputStream() {}
 };
 
 class FileInputStream : public InputStream {

@@ -32,8 +32,7 @@ bin_SCRIPTS =		@server_scripts@ \
 			mysql_explain_log \
 			mysql_tableinfo \
 			mysql_upgrade_shell \
-			mysqld_multi \
-			mysql_create_system_tables
+			mysqld_multi
 
 noinst_SCRIPTS =	make_binary_distribution \
 			make_sharedlib_distribution \
@@ -60,18 +59,20 @@ EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			mysqld_multi.sh \
 			mysql_tableinfo.sh \
 			mysql_upgrade_shell.sh \
-			mysqld_safe.sh \
-			mysql_create_system_tables.sh
+			mysqld_safe.sh
 
 EXTRA_DIST =		$(EXTRA_SCRIPTS) \
 			mysqlaccess.conf \
 			mysqlbug \
-			make_win_bin_dist
+			make_win_bin_dist \
+			mysql_system_tables_fix.sql
 
-dist_pkgdata_DATA =		fill_help_tables.sql mysql_fix_privilege_tables.sql
+dist_pkgdata_DATA =	fill_help_tables.sql \
+			mysql_fix_privilege_tables.sql \
+			mysql_system_tables.sql \
+			mysql_system_tables_data.sql \
+			mysql_test_data_timezone.sql
 
-# mysqlbug should be distributed built so that people can report build
-# failures with it.
 CLEANFILES =		@server_scripts@ \
 			make_binary_distribution \
 			make_sharedlib_distribution \
@@ -92,12 +93,22 @@ CLEANFILES =		@server_scripts@ \
 			mysql_upgrade_shell \
 			mysqld_multi \
 			make_win_src_distribution \
-			mysql_create_system_tables
+			mysql_fix_privilege_tables.sql
 
+# mysqlbug should be distributed built so that people can report build
+# failures with it.
 DISTCLEANFILES =        mysqlbug
 
 # We want the right version and configure comand line in mysqlbug
 mysqlbug: ${top_builddir}/config.status mysqlbug.sh
+
+# Build mysql_fix_privilege_tables.sql from the files that contain
+# the system tables for this version of MySQL plus any commands
+# needed to upgrade the system tables from an older version
+mysql_fix_privilege_tables.sql: mysql_system_tables.sql \
+				mysql_system_tables_fix.sql
+	@echo "Building $@";
+	@cat mysql_system_tables.sql mysql_system_tables_fix.sql > $@
 
 SUFFIXES = .sh
 

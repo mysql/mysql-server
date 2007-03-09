@@ -1,5 +1,5 @@
 set timestamp=1000000000;
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3,t4,t5,t03,t04;
 create table t1 (word varchar(20));
 create table t2 (id int auto_increment not null primary key);
 insert into t1 values ("abirvalg");
@@ -23,7 +23,7 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-drop table if exists t1,t2/*!*/;
+drop table if exists t1,t2,t3,t4,t5,t03,t04/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 create table t1 (word varchar(20))/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
@@ -100,7 +100,7 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-drop table if exists t1,t2/*!*/;
+drop table if exists t1,t2,t3,t4,t5,t03,t04/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 create table t1 (word varchar(20))/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
@@ -192,13 +192,14 @@ DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+drop table t1,t2;
 flush logs;
 select * from t5  /* must be (1),(1) */;
 a
 1
 1
+drop table t5;
 flush logs;
-drop table if exists t5;
 create table t5 (c1 int, c2 varchar(128) character set latin1 not null);
 insert into t5 values (1, date_format('2001-01-01','%W'));
 set lc_time_names=de_DE;
@@ -217,6 +218,7 @@ c1	c2
 1	Monday
 2	Montag
 3	Monday
+drop table t5;
 drop procedure if exists p1;
 flush logs;
 create procedure p1()
@@ -252,5 +254,62 @@ call p1();
 1
 1
 drop procedure p1;
-drop table t1, t2, t5;
+flush logs;
+create table t1 (a varchar(64) character set utf8);
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+set character_set_database=koi8r;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+set character_set_database=latin1;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+set character_set_database=koi8r;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+set character_set_database=latin1;
+load data infile '../std_data_ln/loaddata6.dat' into table t1;
+load data infile '../std_data_ln/loaddata6.dat' into table t1 character set koi8r;
+select hex(a) from t1;
+hex(a)
+C3BF
+D0AA
+C3BF
+C3BF
+D0AA
+C3BF
+D0AA
+drop table t1;
+flush logs;
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+use test/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1/*!*/;
+SET @@session.sql_mode=0/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+create table t1 (a varchar(64) character set utf8)/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+load data LOCAL INFILE 'MYSQL_TMP_DIR/SQL_LOAD_MB-6-0' INTO table t1/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.collation_database=7/*!*/;
+load data LOCAL INFILE 'MYSQL_TMP_DIR/SQL_LOAD_MB-7-0' INTO table t1/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+load data LOCAL INFILE 'MYSQL_TMP_DIR/SQL_LOAD_MB-8-0' INTO table t1/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+load data LOCAL INFILE 'MYSQL_TMP_DIR/SQL_LOAD_MB-9-0' INTO table t1/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.collation_database=7/*!*/;
+load data LOCAL INFILE 'MYSQL_TMP_DIR/SQL_LOAD_MB-a-0' INTO table t1/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+load data LOCAL INFILE 'MYSQL_TMP_DIR/SQL_LOAD_MB-b-0' INTO table t1/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+load data LOCAL INFILE 'MYSQL_TMP_DIR/SQL_LOAD_MB-c-0' INTO table t1 character set koi8r/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+drop table t1/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 End of 5.0 tests

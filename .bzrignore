@@ -696,6 +696,7 @@ mysql-test/*.ds?
 mysql-test/*.vcproj
 mysql-test/gmon.out
 mysql-test/install_test_db
+mysql-test/lib/init_db.sql
 mysql-test/mtr
 mysql-test/mysql-test-run
 mysql-test/mysql-test-run-shell
@@ -1098,6 +1099,7 @@ scripts/mysql_explain_log
 scripts/mysql_find_rows
 scripts/mysql_fix_extensions
 scripts/mysql_fix_privilege_tables
+scripts/mysql_fix_privilege_tables.sql
 scripts/mysql_install_db
 scripts/mysql_secure_installation
 scripts/mysql_setpermission

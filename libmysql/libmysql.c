@@ -1367,7 +1367,7 @@ mysql_stat(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_stat");
   if (simple_command(mysql,COM_STATISTICS,0,0,0))
-    return mysql->net.last_error;
+    DBUG_RETURN(mysql->net.last_error);
   DBUG_RETURN((*mysql->methods->read_statistics)(mysql));
 }
 
@@ -1730,7 +1730,7 @@ static int stmt_read_row_no_result_set(MYSQL_STMT *stmt, unsigned char **row);
   STMT_ATTR_UPDATE_MAX_LENGTH attribute is set.
 */
 static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data);
-static my_bool setup_one_fetch_function(MYSQL_BIND *bind, MYSQL_FIELD *field);
+static my_bool setup_one_fetch_function(MYSQL_BIND *, MYSQL_FIELD *field);
 
 /* Auxilary function used to reset statement handle. */
 
@@ -2174,7 +2174,7 @@ static void update_stmt_fields(MYSQL_STMT *stmt)
   MYSQL_FIELD *field= stmt->mysql->fields;
   MYSQL_FIELD *field_end= field + stmt->field_count;
   MYSQL_FIELD *stmt_field= stmt->fields;
-  MYSQL_BIND *bind= stmt->bind_result_done ? stmt->bind : 0;
+  MYSQL_BIND *my_bind= stmt->bind_result_done ? stmt->bind : 0;
 
   DBUG_ASSERT(stmt->field_count == stmt->mysql->field_count);
 
@@ -2185,10 +2185,10 @@ static void update_stmt_fields(MYSQL_STMT *stmt)
     stmt_field->type     = field->type;
     stmt_field->flags    = field->flags;
     stmt_field->decimals = field->decimals;
-    if (bind)
+    if (my_bind)
     {
       /* Ignore return value: it should be 0 if bind_result succeeded. */
-      (void) setup_one_fetch_function(bind++, stmt_field);
+      (void) setup_one_fetch_function(my_bind++, stmt_field);
     }
   }
 }
@@ -3014,7 +3014,7 @@ static my_bool int_is_null_false= 0;
     mysql_stmt_bind_param()
     stmt    statement handle
             The statement must be prepared with mysql_stmt_prepare().
-    bind    Array of mysql_stmt_param_count() bind parameters.
+    my_bind Array of mysql_stmt_param_count() bind parameters.
             This function doesn't check that size of this argument
             is >= mysql_stmt_field_count(): it's user's responsibility.
 
@@ -3089,65 +3089,66 @@ static my_bool int_is_null_false= 0;
     to point to the buffer of given type. Finally, additional actions
     may be taken for some types or use cases:
 
-      Binding integer types.
-    For integer types you might also need to set MYSQL_BIND::is_unsigned
-    member. Set it to TRUE when binding unsigned char, unsigned short,
-    unsigned int, unsigned long, unsigned long long.
+    Binding integer types.
+      For integer types you might also need to set MYSQL_BIND::is_unsigned
+      member. Set it to TRUE when binding unsigned char, unsigned short,
+      unsigned int, unsigned long, unsigned long long.
 
-      Binding floating point types.
-    For floating point types you just need to set
-    MYSQL_BIND::buffer_type and MYSQL_BIND::buffer. The rest of the
-    members should be zero-initialized.
+    Binding floating point types.
+      For floating point types you just need to set
+      MYSQL_BIND::buffer_type and MYSQL_BIND::buffer. The rest of the
+      members should be zero-initialized.
 
-      Binding NULLs.
-    You might have a column always NULL, never NULL, or sometimes NULL.
-    For an always NULL column set MYSQL_BIND::buffer_type to
-    MYSQL_TYPE_NULL.  The rest of the members just need to be
-    zero-initialized.  For never NULL columns set MYSQL_BIND::is_null to
-    0, or this has already been done if you zero-initialized the entire
-    structure.  If you set MYSQL_TYPE::is_null to point to an
-    application buffer of type 'my_bool', then this buffer will be
-    checked on each execution: this way you can set the buffer to TRUE,
-    or any non-0 value for NULLs, and to FALSE or 0 for not NULL data.
+    Binding NULLs.
+      You might have a column always NULL, never NULL, or sometimes
+      NULL.  For an always NULL column set MYSQL_BIND::buffer_type to
+      MYSQL_TYPE_NULL.  The rest of the members just need to be
+      zero-initialized.  For never NULL columns set
+      MYSQL_BIND::is_null to 0, or this has already been done if you
+      zero-initialized the entire structure.  If you set
+      MYSQL_TYPE::is_null to point to an application buffer of type
+      'my_bool', then this buffer will be checked on each execution:
+      this way you can set the buffer to TRUE, or any non-0 value for
+      NULLs, and to FALSE or 0 for not NULL data.
 
-      Binding text strings and sequences of bytes.
-    For strings, in addition to MYSQL_BIND::buffer_type and
-    MYSQL_BIND::buffer you need to set MYSQL_BIND::length or
-    MYSQL_BIND::buffer_length.
-    If 'length' is set, 'buffer_length' is ignored. 'buffer_length'
-    member should be used when size of string doesn't change between
-    executions. If you want to vary buffer length for each value, set
-    'length' to point to an application buffer of type 'unsigned long'
-    and set this long to length of the string before each
-    mysql_stmt_execute().
+    Binding text strings and sequences of bytes.
+      For strings, in addition to MYSQL_BIND::buffer_type and
+      MYSQL_BIND::buffer you need to set MYSQL_BIND::length or
+      MYSQL_BIND::buffer_length.  If 'length' is set, 'buffer_length'
+      is ignored. 'buffer_length' member should be used when size of
+      string doesn't change between executions. If you want to vary
+      buffer length for each value, set 'length' to point to an
+      application buffer of type 'unsigned long' and set this long to
+      length of the string before each mysql_stmt_execute().
 
-      Binding dates and times.
-    For binding dates and times prepared statements API provides clients
-    with MYSQL_TIME structure. A pointer to instance of this structure
-    should be assigned to MYSQL_BIND::buffer whenever MYSQL_TYPE_TIME,
-    MYSQL_TYPE_DATE, MYSQL_TYPE_DATETIME typecodes are used.  When
-    typecode is MYSQL_TYPE_TIME, only members 'hour', 'minute', 'second'
-    and 'neg' (is time offset negative) are used. These members only
-    will be sent to the server.
-    MYSQL_TYPE_DATE implies use of 'year', 'month', 'day', 'neg'.
-    MYSQL_TYPE_DATETIME utilizes both parts of MYSQL_TIME structure.
-    You don't have to set MYSQL_TIME::time_type member: it's not used
-    when sending data to the server, typecode information is enough.
-    'second_part' member can hold microsecond precision of time value,
-    but now it's only supported on protocol level: you can't store
-    microsecond in a column, or use in temporal calculations. However,
-    if you send a time value with microsecond part for 'SELECT ?',
-    statement, you'll get it back unchanged from the server.
+    Binding dates and times.
+      For binding dates and times prepared statements API provides
+      clients with MYSQL_TIME structure. A pointer to instance of this
+      structure should be assigned to MYSQL_BIND::buffer whenever
+      MYSQL_TYPE_TIME, MYSQL_TYPE_DATE, MYSQL_TYPE_DATETIME typecodes
+      are used.  When typecode is MYSQL_TYPE_TIME, only members
+      'hour', 'minute', 'second' and 'neg' (is time offset negative)
+      are used. These members only will be sent to the server.
+      MYSQL_TYPE_DATE implies use of 'year', 'month', 'day', 'neg'.
+      MYSQL_TYPE_DATETIME utilizes both parts of MYSQL_TIME structure.
+      You don't have to set MYSQL_TIME::time_type member: it's not
+      used when sending data to the server, typecode information is
+      enough.  'second_part' member can hold microsecond precision of
+      time value, but now it's only supported on protocol level: you
+      can't store microsecond in a column, or use in temporal
+      calculations. However, if you send a time value with microsecond
+      part for 'SELECT ?', statement, you'll get it back unchanged
+      from the server.
 
-      Data conversion.
-    If conversion from host language type to data representation,
-    corresponding to SQL type, is required it's done on the server.
-    Data truncation is possible when conversion is lossy. For example,
-    if you supply MYSQL_TYPE_DATETIME value out of valid SQL type
-    TIMESTAMP range, the same conversion will be applied as if this
-    value would have been sent as string in the old protocol.
-    TODO: document how the server will behave in case of truncation/data
-    loss.
+    Data conversion.
+      If conversion from host language type to data representation,
+      corresponding to SQL type, is required it's done on the server.
+      Data truncation is possible when conversion is lossy. For
+      example, if you supply MYSQL_TYPE_DATETIME value out of valid
+      SQL type TIMESTAMP range, the same conversion will be applied as
+      if this value would have been sent as string in the old
+      protocol.  TODO: document how the server will behave in case of
+      truncation/data loss.
 
     After variables were bound, you can repeatedly set/change their
     values and mysql_stmt_execute() the statement.
@@ -3175,7 +3176,7 @@ static my_bool int_is_null_false= 0;
     1  error, can be retrieved with mysql_stmt_error.
 */
 
-my_bool STDCALL mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND *bind)
+my_bool STDCALL mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND *my_bind)
 {
   uint count=0;
   MYSQL_BIND *param, *end;
@@ -3192,7 +3193,7 @@ my_bool STDCALL mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND *bind)
   }
 
   /* Allocated on prepare */
-  memcpy((char*) stmt->params, (char*) bind,
+  memcpy((char*) stmt->params, (char*) my_bind,
 	 sizeof(MYSQL_BIND) * stmt->param_count);
 
   for (param= stmt->params, end= param+stmt->param_count;
@@ -3355,8 +3356,7 @@ mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number,
   }
 
   param= stmt->params+param_number;
-  if (param->buffer_type < MYSQL_TYPE_TINY_BLOB ||
-      param->buffer_type > MYSQL_TYPE_STRING)
+  if (!IS_LONGDATA(param->buffer_type))
   {
     /* Long data handling should be used only for string/binary types */
     strmov(stmt->sqlstate, unknown_sqlstate);
@@ -3520,7 +3520,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
     This function should support all target buffer types: the rest
     of conversion functions can delegate conversion to it.
   */
-  switch(param->buffer_type) {
+  switch (param->buffer_type) {
   case MYSQL_TYPE_NULL: /* do nothing */
     break;
   case MYSQL_TYPE_TINY:
@@ -3862,32 +3862,32 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
 
 static void fetch_datetime_with_conversion(MYSQL_BIND *param,
                                            MYSQL_FIELD *field,
-                                           MYSQL_TIME *time)
+                                           MYSQL_TIME *my_time)
 {
   switch (param->buffer_type) {
   case MYSQL_TYPE_NULL: /* do nothing */
     break;
   case MYSQL_TYPE_DATE:
-    *(MYSQL_TIME *)(param->buffer)= *time;
-    *param->error= time->time_type != MYSQL_TIMESTAMP_DATE;
+    *(MYSQL_TIME *)(param->buffer)= *my_time;
+    *param->error= my_time->time_type != MYSQL_TIMESTAMP_DATE;
     break;
   case MYSQL_TYPE_TIME:
-    *(MYSQL_TIME *)(param->buffer)= *time;
-    *param->error= time->time_type != MYSQL_TIMESTAMP_TIME;
+    *(MYSQL_TIME *)(param->buffer)= *my_time;
+    *param->error= my_time->time_type != MYSQL_TIMESTAMP_TIME;
     break;
   case MYSQL_TYPE_DATETIME:
   case MYSQL_TYPE_TIMESTAMP:
-    *(MYSQL_TIME *)(param->buffer)= *time;
+    *(MYSQL_TIME *)(param->buffer)= *my_time;
     /* No error: time and date are compatible with datetime */
     break;
   case MYSQL_TYPE_YEAR:
-    shortstore(param->buffer, time->year);
+    shortstore(param->buffer, my_time->year);
     *param->error= 1;
     break;
   case MYSQL_TYPE_FLOAT:
   case MYSQL_TYPE_DOUBLE:
   {
-    ulonglong value= TIME_to_ulonglong(time);
+    ulonglong value= TIME_to_ulonglong(my_time);
     fetch_float_with_conversion(param, field,
                                 ulonglong2double(value), DBL_DIG);
     break;
@@ -3898,7 +3898,7 @@ static void fetch_datetime_with_conversion(MYSQL_BIND *param,
   case MYSQL_TYPE_LONG:
   case MYSQL_TYPE_LONGLONG:
   {
-    longlong value= (longlong) TIME_to_ulonglong(time);
+    longlong value= (longlong) TIME_to_ulonglong(my_time);
     fetch_long_with_conversion(param, field, value, TRUE);
     break;
   }
@@ -3909,7 +3909,7 @@ static void fetch_datetime_with_conversion(MYSQL_BIND *param,
       fetch_string_with_conversion:
     */
     char buff[MAX_DATE_STRING_REP_LENGTH];
-    uint length= my_TIME_to_str(time, buff);
+    uint length= my_TIME_to_str(my_time, buff);
     /* Resort to string conversion */
     fetch_string_with_conversion(param, (char *)buff, length);
     break;
@@ -4275,6 +4275,8 @@ static my_bool is_binary_compatible(enum enum_field_types type1,
 
 static my_bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
 {
+  DBUG_ENTER("setup_one_fetch_function");
+
   /* Setup data copy functions for the different supported types */
   switch (param->buffer_type) {
   case MYSQL_TYPE_NULL: /* for dummy binds */
@@ -4339,7 +4341,9 @@ static my_bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
     param->fetch_result= fetch_result_str;
     break;
   default:
-    return TRUE;
+    DBUG_PRINT("error", ("Unknown param->buffer_type: %u",
+                         (uint) param->buffer_type));
+    DBUG_RETURN(TRUE);
   }
   if (! is_binary_compatible(param->buffer_type, field->type))
     param->fetch_result= fetch_result_with_conversion;
@@ -4408,9 +4412,10 @@ static my_bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
     param->skip_result= skip_result_string;
     break;
   default:
-    return TRUE;
+    DBUG_PRINT("error", ("Unknown field->type: %u", (uint) field->type));
+    DBUG_RETURN(TRUE);
   }
-  return FALSE;
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -4418,7 +4423,7 @@ static my_bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
   Setup the bind buffers for resultset processing
 */
 
-my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
+my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *my_bind)
 {
   MYSQL_BIND *param, *end;
   MYSQL_FIELD *field;
@@ -4442,8 +4447,9 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
     is called from mysql_stmt_store_result.
   */
 
-  if (stmt->bind != bind)
-    memcpy((char*) stmt->bind, (char*) bind, sizeof(MYSQL_BIND) * bind_count);
+  if (stmt->bind != my_bind)
+    memcpy((char*) stmt->bind, (char*) my_bind,
+           sizeof(MYSQL_BIND) * bind_count);
 
   for (param= stmt->bind, end= param + bind_count, field= stmt->fields ;
        param < end ;
@@ -4490,7 +4496,7 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
 
 static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
 {
-  MYSQL_BIND  *bind, *end;
+  MYSQL_BIND  *my_bind, *end;
   MYSQL_FIELD *field;
   uchar *null_ptr, bit;
   int truncation_count= 0;
@@ -4512,11 +4518,12 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
   bit= 4;					/* first 2 bits are reserved */
 
   /* Copy complete row to application buffers */
-  for (bind= stmt->bind, end= bind + stmt->field_count, field= stmt->fields ;
-       bind < end ;
-       bind++, field++)
+  for (my_bind= stmt->bind, end= my_bind + stmt->field_count,
+         field= stmt->fields ;
+       my_bind < end ;
+       my_bind++, field++)
   {
-    *bind->error= 0;
+    *my_bind->error= 0;
     if (*null_ptr & bit)
     {
       /*
@@ -4526,15 +4533,15 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
         mysql_stmt_fetch_column, and in this case nullness of column will be
         lost. See mysql_stmt_fetch_column for details.
       */
-      bind->row_ptr= NULL;
-      *bind->is_null= 1;
+      my_bind->row_ptr= NULL;
+      *my_bind->is_null= 1;
     }
     else
     {
-      *bind->is_null= 0;
-      bind->row_ptr= row;
-      (*bind->fetch_result)(bind, field, &row);
-      truncation_count+= *bind->error;
+      *my_bind->is_null= 0;
+      my_bind->row_ptr= row;
+      (*my_bind->fetch_result)(my_bind, field, &row);
+      truncation_count+= *my_bind->error;
     }
     if (!((bit<<=1) & 255))
     {
@@ -4591,7 +4598,7 @@ int STDCALL mysql_stmt_fetch(MYSQL_STMT *stmt)
   SYNOPSIS
     mysql_stmt_fetch_column()
     stmt		Prepared statement handler
-    bind		Where data should be placed. Should be filled in as
+    my_bind		Where data should be placed. Should be filled in as
 			when calling mysql_stmt_bind_result()
     column		Column to fetch (first column is 0)
     ulong offset	Offset in result data (to fetch blob in pieces)
@@ -4601,7 +4608,7 @@ int STDCALL mysql_stmt_fetch(MYSQL_STMT *stmt)
     1	error
 */
 
-int STDCALL mysql_stmt_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *bind,
+int STDCALL mysql_stmt_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *my_bind,
                                     uint column, ulong offset)
 {
   MYSQL_BIND *param= stmt->bind+column;
@@ -4618,26 +4625,26 @@ int STDCALL mysql_stmt_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *bind,
     DBUG_RETURN(1);
   }
 
-  if (!bind->error)
-    bind->error= &bind->error_value;
-  *bind->error= 0;
+  if (!my_bind->error)
+    my_bind->error= &my_bind->error_value;
+  *my_bind->error= 0;
   if (param->row_ptr)
   {
     MYSQL_FIELD *field= stmt->fields+column;
     uchar *row= param->row_ptr;
-    bind->offset= offset;
-    if (bind->is_null)
-      *bind->is_null= 0;
-    if (bind->length) /* Set the length if non char/binary types */
-      *bind->length= *param->length;
+    my_bind->offset= offset;
+    if (my_bind->is_null)
+      *my_bind->is_null= 0;
+    if (my_bind->length) /* Set the length if non char/binary types */
+      *my_bind->length= *param->length;
     else
-      bind->length= &param->length_value;       /* Needed for fetch_result() */
-    fetch_result_with_conversion(bind, field, &row);
+      my_bind->length= &param->length_value;       /* Needed for fetch_result() */
+    fetch_result_with_conversion(my_bind, field, &row);
   }
   else
   {
-    if (bind->is_null)
-      *bind->is_null= 1;
+    if (my_bind->is_null)
+      *my_bind->is_null= 1;
   }
   DBUG_RETURN(0);
 }
@@ -4709,7 +4716,7 @@ err:
 
 static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data)
 {
-  MYSQL_BIND  *bind, *end;
+  MYSQL_BIND  *my_bind, *end;
   MYSQL_FIELD *field;
   uchar *null_ptr, bit;
   uchar *row= (uchar*) data->data;
@@ -4722,12 +4729,12 @@ static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data)
   bit= 4;					/* first 2 bits are reserved */
 
   /* Go through all fields and calculate metadata */
-  for (bind= stmt->bind, end= bind + stmt->field_count, field= stmt->fields ;
-       bind < end ;
-       bind++, field++)
+  for (my_bind= stmt->bind, end= my_bind + stmt->field_count, field= stmt->fields ;
+       my_bind < end ;
+       my_bind++, field++)
   {
     if (!(*null_ptr & bit))
-      (*bind->skip_result)(bind, field, &row);
+      (*my_bind->skip_result)(my_bind, field, &row);
     DBUG_ASSERT(row <= row_end);
     if (!((bit<<=1) & 255))
     {
@@ -4791,16 +4798,17 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
       We must initalize the bind structure to be able to calculate
       max_length
     */
-    MYSQL_BIND  *bind, *end;
+    MYSQL_BIND  *my_bind, *end;
     MYSQL_FIELD *field;
     bzero((char*) stmt->bind, sizeof(*stmt->bind)* stmt->field_count);
 
-    for (bind= stmt->bind, end= bind + stmt->field_count, field= stmt->fields;
-	 bind < end ;
-	 bind++, field++)
+    for (my_bind= stmt->bind, end= my_bind + stmt->field_count,
+           field= stmt->fields;
+	 my_bind < end ;
+	 my_bind++, field++)
     {
-      bind->buffer_type= MYSQL_TYPE_NULL;
-      bind->buffer_length=1;
+      my_bind->buffer_type= MYSQL_TYPE_NULL;
+      my_bind->buffer_length=1;
     }
 
     if (mysql_stmt_bind_result(stmt, stmt->bind))

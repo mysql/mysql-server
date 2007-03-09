@@ -43,9 +43,11 @@ static struct my_option my_long_options[] =
 };
 static void usage()
 {
+#ifdef NOT_USED
   char desc[] = 
     "tabname\n"\
     "This program will delete all records in the specified table using scan delete.\n";
+#endif
   ndb_std_print_version();
   print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
   puts("");

@@ -626,8 +626,6 @@ static int rtree_insert_level(MI_INFO *info, uint keynr, uchar *key,
   
   if ((old_root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
   {
-    int res;
-
     if ((old_root = _mi_new(info, keyinfo, DFLT_INIT_HITS)) == HA_OFFSET_ERROR)
       return -1;
     info->buff_used = 1;
@@ -913,7 +911,6 @@ int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length)
       for (i = 0; i < ReinsertList.n_pages; ++i)
       {
         uchar *page_buf;
-        uint nod_flag;
         uchar *k;
         uchar *last;
 
