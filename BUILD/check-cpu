@@ -64,10 +64,11 @@ check_cpu () {
       ;;
 
     # Intel ia32
-    *X[eE][oO][nN]*)
+    *Intel*Core*|*X[eE][oO][nN]*)
       # a Xeon is just another pentium4 ...
       # ... unless it has the "lm" (long-mode) flag set, 
-      # in that case it's a Xeon with EM64T support 
+      # in that case it's a Xeon with EM64T support
+      # So is Intel Core.
           if [ -z "$cpu_flag_lm" ]; then
         cpu_arg="pentium4";
           else
