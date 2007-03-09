@@ -691,7 +691,7 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
     and generate a valid query for logging.
 
   NOTES
-    This function, along with other _withlog functions is called when one of
+    This function, along with other _with_log functions is called when one of
     binary, slow or general logs is open. Logging of prepared statements in
     all cases is performed by means of conventional queries: if parameter
     data was supplied from C API, each placeholder in the query is
@@ -715,9 +715,9 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
    0 if success, 1 otherwise
 */
 
-static bool insert_params_withlog(Prepared_statement *stmt, uchar *null_array,
-                                  uchar *read_pos, uchar *data_end,
-                                  String *query)
+static bool insert_params_with_log(Prepared_statement *stmt, uchar *null_array,
+                                   uchar *read_pos, uchar *data_end,
+                                   String *query)
 {
   THD  *thd= stmt->thd;
   Item_param **begin= stmt->param_array;
@@ -725,7 +725,7 @@ static bool insert_params_withlog(Prepared_statement *stmt, uchar *null_array,
   uint32 length= 0;
   String str;
   const String *res;
-  DBUG_ENTER("insert_params_withlog");
+  DBUG_ENTER("insert_params_with_log");
 
   if (query->copy(stmt->query, stmt->query_length, default_charset_info))
     DBUG_RETURN(1);
@@ -869,7 +869,8 @@ static bool emb_insert_params(Prepared_statement *stmt, String *expanded_query)
 }
 
 
-static bool emb_insert_params_withlog(Prepared_statement *stmt, String *query)
+static bool emb_insert_params_with_log(Prepared_statement *stmt,
+                                       String *query)
 {
   THD *thd= stmt->thd;
   Item_param **it= stmt->param_array;
@@ -880,7 +881,7 @@ static bool emb_insert_params_withlog(Prepared_statement *stmt, String *query)
   const String *res;
   uint32 length= 0;
 
-  DBUG_ENTER("emb_insert_params_withlog");
+  DBUG_ENTER("emb_insert_params_with_log");
 
   if (query->copy(stmt->query, stmt->query_length, default_charset_info))
     DBUG_RETURN(1);
@@ -2692,15 +2693,26 @@ Prepared_statement::Prepared_statement(THD *thd_arg, Protocol *protocol_arg)
 
 void Prepared_statement::setup_set_params()
 {
-  /* Setup binary logging */
+  /*
+    Note: BUG#25843 applies here too (query cache lookup uses thd->db, not
+    db from "prepare" time).
+  */
+  if (query_cache_maybe_disabled(thd)) // we won't expand the query
+    lex->safe_to_cache_query= FALSE;   // so don't cache it at Execution
+
+  /*
+    Decide if we have to expand the query (because we must write it to logs or
+    because we want to look it up in the query cache) or not.
+  */
   if (mysql_bin_log.is_open() && is_update_query(lex->sql_command) ||
-      opt_log || opt_slow_log)
+      opt_log || opt_slow_log ||
+      query_cache_is_cacheable_query(lex))
   {
     set_params_from_vars= insert_params_from_vars_with_log;
 #ifndef EMBEDDED_LIBRARY
-    set_params= insert_params_withlog;
+    set_params= insert_params_with_log;
 #else
-    set_params_data= emb_insert_params_withlog;
+    set_params_data= emb_insert_params_with_log;
 #endif
   }
   else
@@ -2837,7 +2849,6 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   error= MYSQLparse((void *)thd) || thd->is_fatal_error ||
       thd->net.report_error || init_param_array(this);
 
-  lex->safe_to_cache_query= FALSE;
   /*
     While doing context analysis of the query (in check_prepared_statement)
     we allocate a lot of additional memory: for open tables, JOINs, derived
@@ -2879,6 +2890,18 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   cleanup_stmt();
   thd->restore_backup_statement(this, &stmt_backup);
   thd->stmt_arena= old_stmt_arena;
+
+  if ((protocol->type() == Protocol::PROTOCOL_TEXT) && (param_count > 0))
+  {
+    /*
+      This is a mysql_sql_stmt_prepare(); query expansion will insert user
+      variable references, and user variables are uncacheable, thus we have to
+      mark this statement as uncacheable.
+      This has to be done before setup_set_params(), as it may make expansion
+      unneeded.
+    */
+    lex->safe_to_cache_query= FALSE;
+  }
 
   if (error == 0)
   {
@@ -2996,10 +3019,25 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   reinit_stmt_before_use(thd, lex);
 
   thd->protocol= protocol;                      /* activate stmt protocol */
-  error= (open_cursor ?
-          mysql_open_cursor(thd, (uint) ALWAYS_MATERIALIZED_CURSOR,
-                            &result, &cursor) :
-          mysql_execute_command(thd));
+
+  if (open_cursor)
+    error= mysql_open_cursor(thd, (uint) ALWAYS_MATERIALIZED_CURSOR,
+                             &result, &cursor);
+  else
+  {
+    /*
+      Try to find it in the query cache, if not, execute it.
+      Note that multi-statements cannot exist here (they are not supported in
+      prepared statements).
+    */
+    if (query_cache_send_result_to_client(thd, thd->query,
+                                          thd->query_length) <= 0)
+    {
+      error= mysql_execute_command(thd);
+      query_cache_end_of_result(thd);
+    }
+  }
+
   thd->protocol= &thd->protocol_text;         /* use normal protocol */
 
   /* Assert that if an error, no cursor is open */
