@@ -900,6 +900,7 @@ drop view v1;
 drop table t1;
 create table t1 (col1 int);
 create table t2 (col1 int);
+create table t3 (col1 datetime not null);
 create view v1 as select * from t1;
 create view v2 as select * from v1;
 create view v3 as select v2.col1 from v2,t2 where v2.col1 = t2.col1;
@@ -1004,8 +1005,8 @@ ERROR HY000: The definition of table 'v2' prevents operation INSERT on table 'v3
 insert into v3 (col1) values ((select CONVERT_TZ('20050101000000','UTC','MET') from v2));
 ERROR HY000: The definition of table 'v2' prevents operation INSERT on table 'v3'.
 insert into v3 (col1) values ((select CONVERT_TZ('20050101000000','UTC','MET') from t2));
-insert into mysql.time_zone values ('', (select CONVERT_TZ('20050101000000','UTC','MET') from t2));
-ERROR 23000: Column 'Use_leap_seconds' cannot be null
+insert into t3 values ((select CONVERT_TZ('20050101000000','UTC','MET') from t2));
+ERROR 23000: Column 'col1' cannot be null
 create algorithm=temptable view v4 as select * from t1;
 insert into t1 values (1),(2),(3);
 insert into t1 (col1) values ((select max(col1) from v4));
@@ -1017,7 +1018,7 @@ NULL
 3
 3
 drop view v4,v3,v2,v1;
-drop table t1,t2;
+drop table t1,t2,t3;
 create table t1 (s1 int);
 create view v1 as select * from t1;
 handler v1 open as xx;

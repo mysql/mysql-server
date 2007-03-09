@@ -62,7 +62,8 @@ class ha_myisam: public handler
 
   virtual bool check_if_locking_is_allowed(uint sql_command,
                                            ulong type, TABLE *table,
-                                           uint count,
+                                           uint count, uint current,
+                                           uint *system_count,
                                            bool called_by_logger_thread);
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);

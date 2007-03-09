@@ -5518,8 +5518,7 @@ ER_M_BIGGER_THAN_D 42000 S1009
         eng "For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column '%-.64s')."
         ger "Für FLOAT(M,D), DOUBLE(M,D) oder DECIMAL(M,D) muss M >= D sein (Feld '%-.64s')"
 ER_WRONG_LOCK_OF_SYSTEM_TABLE
-        eng "You can't combine write-locking of system '%-.64s.%-.64s' table with other tables"
-        ger "Sie können Schreibsperren auf der Systemtabelle '%-.64s.%-.64s' nicht mit anderen Tabellen kombinieren"
+        eng "You can't combine write-locking of system tables with other tables or lock types"
 ER_CONNECT_TO_FOREIGN_DATA_SOURCE
         eng "Unable to connect to foreign data source: %.64s"
         ger "Kann nicht mit Fremddatenquelle verbinden: %.64s"
