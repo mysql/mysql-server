@@ -6156,9 +6156,16 @@ int ndbcluster_discover(handlerton *hton, THD* thd, const char *db,
     {
       const NdbError err= dict->getNdbError();
       if (err.code == 709 || err.code == 723)
+      {
         error= -1;
+        DBUG_PRINT("info", ("ndb_error.code: %u", ndb_error.code));
+      }
       else
+      {
+        error= -1;
         ndb_error= err;
+        DBUG_PRINT("info", ("ndb_error.code: %u", ndb_error.code));
+      }
       goto err;
     }
     DBUG_PRINT("info", ("Found table %s", tab->getName()));
