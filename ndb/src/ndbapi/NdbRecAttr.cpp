@@ -55,7 +55,7 @@ NdbRecAttr::setup(const NdbColumnImpl* anAttrInfo, char* aValue)
 
   if (theStorageX)
     delete[] theStorageX;
-
+  
   // check alignment to signal data
   // a future version could check alignment per data type as well
   
@@ -181,7 +181,7 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
     out << "[NULL]";
     return out;
   }
-
+  
   const NdbDictionary::Column* c = r.getColumn();
   uint length = c->getLength();
   if (length > 1)
@@ -192,196 +192,200 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
     if (j > 0)
       out << " ";
 
-    switch(r.getType())
-      {
-      case NdbDictionary::Column::Bigunsigned:
-	out << r.u_64_value();
-	break;
-      case NdbDictionary::Column::Bit:
-	out << hex << "H'" << r.u_32_value() << dec;
-	break;
-      case NdbDictionary::Column::Unsigned:
-	out << r.u_32_value();
-	break;
-      case NdbDictionary::Column::Smallunsigned:
-	out << r.u_short_value();
-	break;
-      case NdbDictionary::Column::Tinyunsigned:
-	out << (unsigned) r.u_char_value();
-	break;
-      case NdbDictionary::Column::Bigint:
-	out << r.int64_value();
-	break;
-      case NdbDictionary::Column::Int:
-	out << r.int32_value();
-	break;
-      case NdbDictionary::Column::Smallint:
-	out << r.short_value();
-	break;
-      case NdbDictionary::Column::Tinyint:
-	out << (int) r.char_value();
-	break;
-      case NdbDictionary::Column::Binary:
-	ndbrecattr_print_string(out,"Binary",r.aRef(),r.arraySize());
-	j = r.arraySize();
-	break;
-      case NdbDictionary::Column::Char:
-	ndbrecattr_print_string(out,"Char",r.aRef(),r.arraySize());
-	j = length;
-	break;
-      case NdbDictionary::Column::Varchar:
-        {
-          unsigned len = *(const unsigned char*)r.aRef();
-          ndbrecattr_print_string(out,"Varchar", r.aRef()+1,len);
-          j = length;
-        }
-	break;
-      case NdbDictionary::Column::Varbinary:
-        {
-          unsigned len = *(const unsigned char*)r.aRef();
-          ndbrecattr_print_string(out,"Varbinary", r.aRef()+1,len);
-          j = length;
-        }
-	break;
-      case NdbDictionary::Column::Float:
-	out << r.float_value();
-	break;
-      case NdbDictionary::Column::Double:
-	out << r.double_value();
-	break;
-      case NdbDictionary::Column::Olddecimal:
-        {
-          short len = 1 + c->getPrecision() + (c->getScale() > 0);
-          out.print("%.*s", len, r.aRef());
-        }
-        break;
-      case NdbDictionary::Column::Olddecimalunsigned:
-        {
-          short len = 0 + c->getPrecision() + (c->getScale() > 0);
-          out.print("%.*s", len, r.aRef());
-        }
-	break;
-      case NdbDictionary::Column::Decimal:
-      case NdbDictionary::Column::Decimalunsigned:
-        goto unknown;   // TODO
-        break;
-      // for dates cut-and-paste from field.cc
-      case NdbDictionary::Column::Datetime:
-        {
-          ulonglong tmp=r.u_64_value();
-          long part1,part2,part3;
-          part1=(long) (tmp/LL(1000000));
-          part2=(long) (tmp - (ulonglong) part1*LL(1000000));
-          char buf[40];
-          char* pos=(char*) buf+19;
-          *pos--=0;
-          *pos--= (char) ('0'+(char) (part2%10)); part2/=10; 
-          *pos--= (char) ('0'+(char) (part2%10)); part3= (int) (part2 / 10);
-          *pos--= ':';
-          *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
-          *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
-          *pos--= ':';
-          *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
-          *pos--= (char) ('0'+(char) part3);
-          *pos--= '/';
-          *pos--= (char) ('0'+(char) (part1%10)); part1/=10;
-          *pos--= (char) ('0'+(char) (part1%10)); part1/=10;
-          *pos--= '-';
-          *pos--= (char) ('0'+(char) (part1%10)); part1/=10;
-          *pos--= (char) ('0'+(char) (part1%10)); part3= (int) (part1/10);
-          *pos--= '-';
-          *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
-          *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
-          *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
-          *pos=(char) ('0'+(char) part3);
-          out << buf;
-        }
-	break;
-      case NdbDictionary::Column::Date:
-        {
-          uint32 tmp=(uint32) uint3korr(r.aRef());
-          int part;
-          char buf[40];
-          char *pos=(char*) buf+10;
-          *pos--=0;
-          part=(int) (tmp & 31);
-          *pos--= (char) ('0'+part%10);
-          *pos--= (char) ('0'+part/10);
-          *pos--= '-';
-          part=(int) (tmp >> 5 & 15);
-          *pos--= (char) ('0'+part%10);
-          *pos--= (char) ('0'+part/10);
-          *pos--= '-';
-          part=(int) (tmp >> 9);
-          *pos--= (char) ('0'+part%10); part/=10;
-          *pos--= (char) ('0'+part%10); part/=10;
-          *pos--= (char) ('0'+part%10); part/=10;
-          *pos=   (char) ('0'+part);
-          out << buf;
-        }
-	break;
-      case NdbDictionary::Column::Time:
-        {
-          long tmp=(long) sint3korr(r.aRef());
-          int hour=(uint) (tmp/10000);
-          int minute=(uint) (tmp/100 % 100);
-          int second=(uint) (tmp % 100);
-          char buf[40];
-          sprintf(buf, "%02d:%02d:%02d", hour, minute, second);
-          out << buf;
-        }
-	break;
-      case NdbDictionary::Column::Year:
-        {
-          uint year = 1900 + r.u_char_value();
-          char buf[40];
-          sprintf(buf, "%04d", year);
-          out << buf;
-        }
-	break;
-      case NdbDictionary::Column::Timestamp:
-        {
-          time_t time = r.u_32_value();
-          out << (uint)time;
-        }
-	break;
-      case NdbDictionary::Column::Blob:
-      case NdbDictionary::Column::Text:
-      {
-        // user defined aRef() may not be aligned to Uint64
-        NdbBlob::Head head;
-        memcpy(&head, r.aRef(), sizeof(head));
-        out << head.length << ":";
-        const unsigned char* p = (const unsigned char*)r.aRef() + sizeof(head);
-        if (r.arraySize() < sizeof(head))
-          out << "***error***"; // really cannot happen
-        else {
-          unsigned n = r.arraySize() - sizeof(head);
-          for (unsigned k = 0; k < n && k < head.length; k++) {
-            if (r.getType() == NdbDictionary::Column::Blob)
-              out.print("%02X", (int)p[k]);
-            else
-              out.print("%c", (int)p[k]);
-          }
-        }
-        j = length;
-      }
+    switch(r.getType()){
+    case NdbDictionary::Column::Bigunsigned:
+      out << r.u_64_value();
       break;
-      case NdbDictionary::Column::Longvarchar:
-        {
-          unsigned len = uint2korr(r.aRef());
-          ndbrecattr_print_string(out,"Longvarchar", r.aRef()+2,len);
-          j = length;
+    case NdbDictionary::Column::Bit:
+      out << hex << "H'" << r.u_32_value() << dec;
+      break;
+    case NdbDictionary::Column::Unsigned:
+      out << r.u_32_value();
+      break;
+    case NdbDictionary::Column::Smallunsigned:
+      out << r.u_short_value();
+      break;
+    case NdbDictionary::Column::Tinyunsigned:
+      out << (unsigned) r.u_char_value();
+      break;
+    case NdbDictionary::Column::Bigint:
+      out << r.int64_value();
+      break;
+    case NdbDictionary::Column::Int:
+      out << r.int32_value();
+      break;
+    case NdbDictionary::Column::Smallint:
+      out << r.short_value();
+      break;
+    case NdbDictionary::Column::Tinyint:
+      out << (int) r.char_value();
+      break;
+    case NdbDictionary::Column::Binary:
+      j = r.arraySize();
+      ndbrecattr_print_string(out,"Binary", r.aRef(), j);
+      break;
+    case NdbDictionary::Column::Char:
+      j = length;
+      ndbrecattr_print_string(out,"Char", r.aRef(), r.arraySize());
+      break;
+    case NdbDictionary::Column::Varchar:
+    {
+      unsigned len = *(const unsigned char*)r.aRef();
+      ndbrecattr_print_string(out,"Varchar", r.aRef()+1,len);
+      j = length;
+    }
+    break;
+    case NdbDictionary::Column::Varbinary:
+    {
+      unsigned len = *(const unsigned char*)r.aRef();
+      ndbrecattr_print_string(out,"Varbinary", r.aRef()+1,len);
+      j = length;
+    }
+    break;
+    case NdbDictionary::Column::Float:
+      out << r.float_value();
+      break;
+    case NdbDictionary::Column::Double:
+      out << r.double_value();
+      break;
+    case NdbDictionary::Column::Olddecimal:
+    {
+      short len = 1 + c->getPrecision() + (c->getScale() > 0);
+      out.print("%.*s", len, r.aRef());
+    }
+    break;
+    case NdbDictionary::Column::Olddecimalunsigned:
+    {
+      short len = 0 + c->getPrecision() + (c->getScale() > 0);
+      out.print("%.*s", len, r.aRef());
+    }
+    break;
+    case NdbDictionary::Column::Decimal:
+    case NdbDictionary::Column::Decimalunsigned:
+      goto unknown;   // TODO
+      break;
+      // for dates cut-and-paste from field.cc
+    case NdbDictionary::Column::Datetime:
+    {
+      ulonglong tmp=r.u_64_value();
+      long part1,part2,part3;
+      part1=(long) (tmp/LL(1000000));
+      part2=(long) (tmp - (ulonglong) part1*LL(1000000));
+      char buf[40];
+      char* pos=(char*) buf+19;
+      *pos--=0;
+      *pos--= (char) ('0'+(char) (part2%10)); part2/=10; 
+      *pos--= (char) ('0'+(char) (part2%10)); part3= (int) (part2 / 10);
+      *pos--= ':';
+      *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
+      *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
+      *pos--= ':';
+      *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
+      *pos--= (char) ('0'+(char) part3);
+      *pos--= '/';
+      *pos--= (char) ('0'+(char) (part1%10)); part1/=10;
+      *pos--= (char) ('0'+(char) (part1%10)); part1/=10;
+      *pos--= '-';
+      *pos--= (char) ('0'+(char) (part1%10)); part1/=10;
+      *pos--= (char) ('0'+(char) (part1%10)); part3= (int) (part1/10);
+      *pos--= '-';
+      *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
+      *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
+      *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
+      *pos=(char) ('0'+(char) part3);
+      out << buf;
+    }
+    break;
+    case NdbDictionary::Column::Date:
+    {
+      uint32 tmp=(uint32) uint3korr(r.aRef());
+      int part;
+      char buf[40];
+      char *pos=(char*) buf+10;
+      *pos--=0;
+      part=(int) (tmp & 31);
+      *pos--= (char) ('0'+part%10);
+      *pos--= (char) ('0'+part/10);
+      *pos--= '-';
+      part=(int) (tmp >> 5 & 15);
+      *pos--= (char) ('0'+part%10);
+      *pos--= (char) ('0'+part/10);
+      *pos--= '-';
+      part=(int) (tmp >> 9);
+      *pos--= (char) ('0'+part%10); part/=10;
+      *pos--= (char) ('0'+part%10); part/=10;
+      *pos--= (char) ('0'+part%10); part/=10;
+      *pos=   (char) ('0'+part);
+      out << buf;
+    }
+    break;
+    case NdbDictionary::Column::Time:
+    {
+      long tmp=(long) sint3korr(r.aRef());
+      int hour=(uint) (tmp/10000);
+      int minute=(uint) (tmp/100 % 100);
+      int second=(uint) (tmp % 100);
+      char buf[40];
+      sprintf(buf, "%02d:%02d:%02d", hour, minute, second);
+      out << buf;
+    }
+    break;
+    case NdbDictionary::Column::Year:
+    {
+      uint year = 1900 + r.u_char_value();
+      char buf[40];
+      sprintf(buf, "%04d", year);
+      out << buf;
+    }
+    break;
+    case NdbDictionary::Column::Timestamp:
+    {
+      time_t time = r.u_32_value();
+      out << (uint)time;
+    }
+    break;
+    case NdbDictionary::Column::Blob:
+    case NdbDictionary::Column::Text:
+    {
+      // user defined aRef() may not be aligned to Uint64
+      NdbBlob::Head head;
+      memcpy(&head, r.aRef(), sizeof(head));
+      out << head.length << ":";
+      const unsigned char* p = (const unsigned char*)r.aRef() + sizeof(head);
+      if (r.arraySize() < sizeof(head))
+        out << "***error***"; // really cannot happen
+      else {
+        unsigned n = r.arraySize() - sizeof(head);
+        for (unsigned k = 0; k < n && k < head.length; k++) {
+          if (r.getType() == NdbDictionary::Column::Blob)
+            out.print("%02X", (int)p[k]);
+          else
+            out.print("%c", (int)p[k]);
         }
-        break;
-      unknown:
-      default: /* no print functions for the rest, just print type */
-	out << (int) r.getType();
-	j = length;
-	if (j > 1)
-	  out << " " << j << " times";
-	break;
       }
+      j = length;
+    }
+    break;
+    case NdbDictionary::Column::Longvarchar:
+    {
+      unsigned len = uint2korr(r.aRef());
+      ndbrecattr_print_string(out,"Longvarchar", r.aRef()+2,len);
+      j = length;
+    }
+    break;
+
+    case NdbDictionary::Column::Undefined:
+    case NdbDictionary::Column::Mediumint:
+    case NdbDictionary::Column::Mediumunsigned:
+    case NdbDictionary::Column::Longvarbinary:
+    unknown:
+    //default: /* no print functions for the rest, just print type */
+    out << (int) r.getType();
+    j = length;
+    if (j > 1)
+      out << " " << j << " times";
+    break;
+    }
   }
 
   if (length > 1)
