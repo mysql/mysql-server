@@ -3441,7 +3441,12 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
   */
   Name_resolution_context *last_checked_context= context;
   Item **ref= (Item **) not_found_item;
-  Name_resolution_context *outer_context= context->outer_context;
+  SELECT_LEX *current_sel= (SELECT_LEX *) thd->lex->current_select;
+  Name_resolution_context *outer_context= 0;
+  /* Currently derived tables cannot be correlated */
+  if (current_sel->master_unit()->first_select()->linkage !=
+      DERIVED_TABLE_TYPE)
+    outer_context= context->outer_context;
   for (;
        outer_context;
        outer_context= outer_context->outer_context)
