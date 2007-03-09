@@ -37,7 +37,7 @@ mysql-5.1.15-ndb-6.1.3 (25 Feb 2007)
 
 ---------------------------------------------------
 
-mysql-5.1.16-ndb-6.2.0 (unreleased)
+mysql-5.1.16-ndb-6.2.0 (2007-03-09)
 
   * WAN settings for TCP transporters
   * moved initialization of ndbd fs block first to ensure that it gets enough space for allocation of file system thread stacks
@@ -50,6 +50,10 @@ mysql-5.1.16-ndb-6.2.0 (unreleased)
   * ndb - add new dump commands for tracking hanging locks
   * Change level on StartREDOLog to make it default come up in cluster log
   * Make ndbd_redo_log_reader be build default
+  * Integrate mem-manager with TUP removing need for DataMemory2
+  * New interface(ndbapi) for iterating over ndb-object connected to a Ndb_cluster_connection
+  * New interface(ndbapi) for starting transaction with hints
+  * Different handling of AbortOption in ndbapi
 
 ---------------------------------------------------
 
