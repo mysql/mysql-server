@@ -1410,6 +1410,7 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
     thd                   thread handle
     table                 table which should be checked
     table_list            list of tables
+    check_alias           whether to check tables' aliases
 
   NOTE: to exclude derived tables from check we use following mechanism:
     a) during derived table processing set THD::derived_tables_processing
@@ -1437,10 +1438,11 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
     0 if table is unique
 */
 
-TABLE_LIST* unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list)
+TABLE_LIST* unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
+                         bool check_alias)
 {
   TABLE_LIST *res;
-  const char *d_name, *t_name;
+  const char *d_name, *t_name, *t_alias;
   DBUG_ENTER("unique_table");
   DBUG_PRINT("enter", ("table alias: %s", table->alias));
 
@@ -1468,6 +1470,7 @@ TABLE_LIST* unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list)
   }
   d_name= table->db;
   t_name= table->table_name;
+  t_alias= table->alias;
 
   DBUG_PRINT("info", ("real table: %s.%s", d_name, t_name));
   for (;;)
@@ -1475,6 +1478,9 @@ TABLE_LIST* unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list)
     if (((! (res= find_table_in_global_list(table_list, d_name, t_name))) &&
          (! (res= mysql_lock_have_duplicate(thd, table, table_list)))) ||
         ((!res->table || res->table != table->table) &&
+         (!check_alias || !(lower_case_table_names ?
+          my_strcasecmp(files_charset_info, t_alias, res->alias) :
+          strcmp(t_alias, res->alias))) &&
          res->select_lex && !res->select_lex->exclude_from_table_unique_test &&
          !res->prelocking_placeholder))
       break;
@@ -4577,10 +4583,13 @@ find_field_in_tables(THD *thd, Item_ident *item,
 				return not_found_item, report other errors,
 				return 0
       IGNORE_ERRORS		Do not report errors, return 0 if error
-    unaliased                   Set to true if item is field which was found
-                                by original field name and not by its alias
-                                in item list. Set to false otherwise.
-
+    resolution                  Set to the resolution type if the item is found 
+                                (it says whether the item is resolved 
+                                 against an alias name,
+                                 or as a field name without alias,
+                                 or as a field hidden by alias,
+                                 or ignoring alias)
+                                
   RETURN VALUES
     0			Item is not found or item is not unique,
 			error message is reported
@@ -4596,7 +4605,8 @@ Item **not_found_item= (Item**) 0x1;
 
 Item **
 find_item_in_list(Item *find, List<Item> &items, uint *counter,
-                  find_item_error_report_type report_error, bool *unaliased)
+                  find_item_error_report_type report_error,
+                  enum_resolution_type *resolution)
 {
   List_iterator<Item> li(items);
   Item **found=0, **found_unaliased= 0, *item;
@@ -4610,10 +4620,9 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
   */
   bool is_ref_by_name= 0;
   uint unaliased_counter;
-
   LINT_INIT(unaliased_counter);                 // Dependent on found_unaliased
 
-  *unaliased= FALSE;
+  *resolution= NOT_RESOLVED;
 
   is_ref_by_name= (find->type() == Item::FIELD_ITEM  || 
                    find->type() == Item::REF_ITEM);
@@ -4680,63 +4689,77 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
           }
           found_unaliased= li.ref();
           unaliased_counter= i;
+          *resolution= RESOLVED_IGNORING_ALIAS;
           if (db_name)
             break;                              // Perfect match
         }
       }
-      else if (!my_strcasecmp(system_charset_info, item_field->name,
-                              field_name))
+      else
       {
-        /*
-          If table name was not given we should scan through aliases
-          (or non-aliased fields) first. We are also checking unaliased
-          name of the field in then next else-if, to be able to find
-          instantly field (hidden by alias) if no suitable alias (or
-          non-aliased field) was found.
-        */
-        if (found)
+        int fname_cmp= my_strcasecmp(system_charset_info,
+                                     item_field->field_name,
+                                     field_name);
+        if (!my_strcasecmp(system_charset_info,
+                           item_field->name,field_name))
         {
-          if ((*found)->eq(item, 0))
-            continue;                           // Same field twice
-          if (report_error != IGNORE_ERRORS)
-            my_error(ER_NON_UNIQ_ERROR, MYF(0),
-                     find->full_name(), current_thd->where);
-          return (Item**) 0;
+          /*
+            If table name was not given we should scan through aliases
+            and non-aliased fields first. We are also checking unaliased
+            name of the field in then next  else-if, to be able to find
+            instantly field (hidden by alias) if no suitable alias or
+            non-aliased field was found.
+          */
+          if (found)
+          {
+            if ((*found)->eq(item, 0))
+              continue;                           // Same field twice
+            if (report_error != IGNORE_ERRORS)
+              my_error(ER_NON_UNIQ_ERROR, MYF(0),
+                       find->full_name(), current_thd->where);
+            return (Item**) 0;
+          }
+          found= li.ref();
+          *counter= i;
+          *resolution= fname_cmp ? RESOLVED_AGAINST_ALIAS:
+	                           RESOLVED_WITH_NO_ALIAS;
         }
-        found= li.ref();
-        *counter= i;
-      }
-      else if (!my_strcasecmp(system_charset_info, item_field->field_name,
-                              field_name))
-      {
-        /*
-          We will use un-aliased field or react on such ambiguities only if
-          we won't be able to find aliased field.
-          Again if we have ambiguity with field outside of select list
-          we should prefer fields from select list.
-        */
-        if (found_unaliased)
+        else if (!fname_cmp)
         {
-          if ((*found_unaliased)->eq(item, 0))
-            continue;                           // Same field twice
-          found_unaliased_non_uniq= 1;
-        }
-        else
-        {
+          /*
+            We will use non-aliased field or react on such ambiguities only if
+            we won't be able to find aliased field.
+            Again if we have ambiguity with field outside of select list
+            we should prefer fields from select list.
+          */
+          if (found_unaliased)
+          {
+            if ((*found_unaliased)->eq(item, 0))
+              continue;                           // Same field twice
+            found_unaliased_non_uniq= 1;
+          }
           found_unaliased= li.ref();
           unaliased_counter= i;
         }
       }
     }
-    else if (!table_name && (find->eq(item,0) ||
-			     is_ref_by_name && find->name && item->name &&
-			     !my_strcasecmp(system_charset_info, 
-					    item->name,find->name)))
-    {
-      found= li.ref();
-      *counter= i;
-      break;
-    }
+    else if (!table_name)
+    { 
+      if (is_ref_by_name && find->name && item->name &&
+	  !my_strcasecmp(system_charset_info,item->name,find->name))
+      {
+        found= li.ref();
+        *counter= i;
+        *resolution= RESOLVED_AGAINST_ALIAS;
+        break;
+      }
+      else if (find->eq(item,0))
+      {
+        found= li.ref();
+        *counter= i;
+        *resolution= RESOLVED_IGNORING_ALIAS;
+        break;
+      }
+    } 
   }
   if (!found)
   {
@@ -4751,7 +4774,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
     {
       found= found_unaliased;
       *counter= unaliased_counter;
-      *unaliased= TRUE;
+      *resolution= RESOLVED_BEHIND_ALIAS;
     }
   }
   if (found)
@@ -5533,6 +5556,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
   enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
   nesting_map save_allow_sum_func= thd->lex->allow_sum_func;
   List_iterator<Item> it(fields);
+  bool save_is_item_list_lookup;
   DBUG_ENTER("setup_fields");
 
   thd->mark_used_columns= mark_used_columns;
@@ -5540,6 +5564,8 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
   if (allow_sum_func)
     thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
   thd->where= THD::DEFAULT_WHERE;
+  save_is_item_list_lookup= thd->lex->current_select->is_item_list_lookup;
+  thd->lex->current_select->is_item_list_lookup= 0;
 
   /*
     To prevent fail on forward lookup we fill it with zerows,
@@ -5562,6 +5588,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
     if (!item->fixed && item->fix_fields(thd, it.ref()) ||
 	(item= *(it.ref()))->check_cols(1))
     {
+      thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
       thd->lex->allow_sum_func= save_allow_sum_func;
       thd->mark_used_columns= save_mark_used_columns;
       DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
@@ -5575,6 +5602,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
     thd->used_tables|= item->used_tables();
     thd->lex->current_select->cur_pos_in_select_list++;
   }
+  thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
   thd->lex->current_select->cur_pos_in_select_list= UNDEF_POS;
 
   thd->lex->allow_sum_func= save_allow_sum_func;
@@ -6068,6 +6096,8 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
   */
   bool it_is_update= (select_lex == &thd->lex->select_lex) &&
     thd->lex->which_check_option_applicable();
+  bool save_is_item_list_lookup= select_lex->is_item_list_lookup;
+  select_lex->is_item_list_lookup= 0;
   DBUG_ENTER("setup_conds");
 
   if (select_lex->conds_processed_with_permanent_arena ||
@@ -6143,9 +6173,11 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
     select_lex->where= *conds;
     select_lex->conds_processed_with_permanent_arena= 1;
   }
+  thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
   DBUG_RETURN(test(thd->net.report_error));
 
 err_no_arena:
+  select_lex->is_item_list_lookup= save_is_item_list_lookup;
   DBUG_RETURN(1);
 }
 
