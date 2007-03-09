@@ -761,7 +761,7 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   /* Check that we are not using table that we are updating in a sub select */
   {
     TABLE_LIST *duplicate;
-    if ((duplicate= unique_table(thd, table_list, table_list->next_global)))
+    if ((duplicate= unique_table(thd, table_list, table_list->next_global, 0)))
     {
       update_non_unique_table_error(table_list, "UPDATE", duplicate);
       my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
@@ -987,7 +987,7 @@ reopen_tables:
         tl->lock_type != TL_READ_NO_INSERT)
     {
       TABLE_LIST *duplicate;
-      if ((duplicate= unique_table(thd, tl, table_list)))
+      if ((duplicate= unique_table(thd, tl, table_list, 0)))
       {
         update_non_unique_table_error(table_list, "UPDATE", duplicate);
         DBUG_RETURN(TRUE);
@@ -1203,7 +1203,7 @@ static bool safe_update_on_fly(THD *thd, JOIN_TAB *join_tab,
                                TABLE_LIST *table_ref, TABLE_LIST *all_tables)
 {
   TABLE *table= join_tab->table;
-  if (unique_table(thd, table_ref, all_tables))
+  if (unique_table(thd, table_ref, all_tables, 0))
     return 0;
   switch (join_tab->type) {
   case JT_SYSTEM:
