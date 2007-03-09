@@ -35,7 +35,7 @@ static void write_eof_packet(THD *thd, NET *net);
 #ifndef EMBEDDED_LIBRARY
 bool Protocol::net_store_data(const char *from, uint length)
 #else
-bool Protocol_prep::net_store_data(const char *from, uint length)
+bool Protocol_binary::net_store_data(const char *from, uint length)
 #endif
 {
   ulong packet_length=packet->length();
@@ -557,7 +557,7 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
   Item *item;
   char buff[80];
   String tmp((char*) buff,sizeof(buff),&my_charset_bin);
-  Protocol_simple prot(thd);
+  Protocol_text prot(thd);
   String *local_packet= prot.storage_packet();
   CHARSET_INFO *thd_charset= thd->variables.character_set_results;
   DBUG_ENTER("send_fields");
@@ -760,7 +760,7 @@ bool Protocol::store(I_List<i_string>* str_list)
 ****************************************************************************/
 
 #ifndef EMBEDDED_LIBRARY
-void Protocol_simple::prepare_for_resend()
+void Protocol_text::prepare_for_resend()
 {
   packet->length(0);
 #ifndef DBUG_OFF
@@ -768,7 +768,7 @@ void Protocol_simple::prepare_for_resend()
 #endif
 }
 
-bool Protocol_simple::store_null()
+bool Protocol_text::store_null()
 {
 #ifndef DBUG_OFF
   field_pos++;
@@ -801,7 +801,7 @@ bool Protocol::store_string_aux(const char *from, uint length,
 }
 
 
-bool Protocol_simple::store(const char *from, uint length,
+bool Protocol_text::store(const char *from, uint length,
 			    CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
 {
 #ifndef DBUG_OFF
@@ -817,7 +817,7 @@ bool Protocol_simple::store(const char *from, uint length,
 }
 
 
-bool Protocol_simple::store(const char *from, uint length,
+bool Protocol_text::store(const char *from, uint length,
 			    CHARSET_INFO *fromcs)
 {
   CHARSET_INFO *tocs= this->thd->variables.character_set_results;
@@ -834,7 +834,7 @@ bool Protocol_simple::store(const char *from, uint length,
 }
 
 
-bool Protocol_simple::store_tiny(longlong from)
+bool Protocol_text::store_tiny(longlong from)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 || field_types[field_pos] == MYSQL_TYPE_TINY);
@@ -846,7 +846,7 @@ bool Protocol_simple::store_tiny(longlong from)
 }
 
 
-bool Protocol_simple::store_short(longlong from)
+bool Protocol_text::store_short(longlong from)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
@@ -860,7 +860,7 @@ bool Protocol_simple::store_short(longlong from)
 }
 
 
-bool Protocol_simple::store_long(longlong from)
+bool Protocol_text::store_long(longlong from)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
@@ -874,7 +874,7 @@ bool Protocol_simple::store_long(longlong from)
 }
 
 
-bool Protocol_simple::store_longlong(longlong from, bool unsigned_flag)
+bool Protocol_text::store_longlong(longlong from, bool unsigned_flag)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
@@ -889,7 +889,7 @@ bool Protocol_simple::store_longlong(longlong from, bool unsigned_flag)
 }
 
 
-bool Protocol_simple::store_decimal(const my_decimal *d)
+bool Protocol_text::store_decimal(const my_decimal *d)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
@@ -903,7 +903,7 @@ bool Protocol_simple::store_decimal(const my_decimal *d)
 }
 
 
-bool Protocol_simple::store(float from, uint32 decimals, String *buffer)
+bool Protocol_text::store(float from, uint32 decimals, String *buffer)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
@@ -915,7 +915,7 @@ bool Protocol_simple::store(float from, uint32 decimals, String *buffer)
 }
 
 
-bool Protocol_simple::store(double from, uint32 decimals, String *buffer)
+bool Protocol_text::store(double from, uint32 decimals, String *buffer)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
@@ -927,7 +927,7 @@ bool Protocol_simple::store(double from, uint32 decimals, String *buffer)
 }
 
 
-bool Protocol_simple::store(Field *field)
+bool Protocol_text::store(Field *field)
 {
   if (field->is_null())
     return store_null();
@@ -961,7 +961,7 @@ bool Protocol_simple::store(Field *field)
 */
 
 
-bool Protocol_simple::store(TIME *tm)
+bool Protocol_text::store(TIME *tm)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
@@ -984,7 +984,7 @@ bool Protocol_simple::store(TIME *tm)
 }
 
 
-bool Protocol_simple::store_date(TIME *tm)
+bool Protocol_text::store_date(TIME *tm)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
@@ -1003,7 +1003,7 @@ bool Protocol_simple::store_date(TIME *tm)
         we support 0-6 decimals for time.
 */
 
-bool Protocol_simple::store_time(TIME *tm)
+bool Protocol_text::store_time(TIME *tm)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
@@ -1043,7 +1043,7 @@ bool Protocol_simple::store_time(TIME *tm)
    [..]..[[length]data]              data
 ****************************************************************************/
 
-bool Protocol_prep::prepare_for_send(List<Item> *item_list)
+bool Protocol_binary::prepare_for_send(List<Item> *item_list)
 {
   Protocol::prepare_for_send(item_list);
   bit_fields= (field_count+9)/8;
@@ -1054,7 +1054,7 @@ bool Protocol_prep::prepare_for_send(List<Item> *item_list)
 }
 
 
-void Protocol_prep::prepare_for_resend()
+void Protocol_binary::prepare_for_resend()
 {
   packet->length(bit_fields+1);
   bzero((char*) packet->ptr(), 1+bit_fields);
@@ -1062,21 +1062,21 @@ void Protocol_prep::prepare_for_resend()
 }
 
 
-bool Protocol_prep::store(const char *from, uint length, CHARSET_INFO *fromcs)
+bool Protocol_binary::store(const char *from, uint length, CHARSET_INFO *fromcs)
 {
   CHARSET_INFO *tocs= thd->variables.character_set_results;
   field_pos++;
   return store_string_aux(from, length, fromcs, tocs);
 }
 
-bool Protocol_prep::store(const char *from,uint length,
+bool Protocol_binary::store(const char *from,uint length,
 			  CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
 {
   field_pos++;
   return store_string_aux(from, length, fromcs, tocs);
 }
 
-bool Protocol_prep::store_null()
+bool Protocol_binary::store_null()
 {
   uint offset= (field_pos+2)/8+1, bit= (1 << ((field_pos+2) & 7));
   /* Room for this as it's allocated in prepare_for_send */
@@ -1087,7 +1087,7 @@ bool Protocol_prep::store_null()
 }
 
 
-bool Protocol_prep::store_tiny(longlong from)
+bool Protocol_binary::store_tiny(longlong from)
 {
   char buff[1];
   field_pos++;
@@ -1096,7 +1096,7 @@ bool Protocol_prep::store_tiny(longlong from)
 }
 
 
-bool Protocol_prep::store_short(longlong from)
+bool Protocol_binary::store_short(longlong from)
 {
   field_pos++;
   char *to= packet->prep_append(2, PACKET_BUFFER_EXTRA_ALLOC);
@@ -1107,7 +1107,7 @@ bool Protocol_prep::store_short(longlong from)
 }
 
 
-bool Protocol_prep::store_long(longlong from)
+bool Protocol_binary::store_long(longlong from)
 {
   field_pos++;
   char *to= packet->prep_append(4, PACKET_BUFFER_EXTRA_ALLOC);
@@ -1118,7 +1118,7 @@ bool Protocol_prep::store_long(longlong from)
 }
 
 
-bool Protocol_prep::store_longlong(longlong from, bool unsigned_flag)
+bool Protocol_binary::store_longlong(longlong from, bool unsigned_flag)
 {
   field_pos++;
   char *to= packet->prep_append(8, PACKET_BUFFER_EXTRA_ALLOC);
@@ -1128,7 +1128,7 @@ bool Protocol_prep::store_longlong(longlong from, bool unsigned_flag)
   return 0;
 }
 
-bool Protocol_prep::store_decimal(const my_decimal *d)
+bool Protocol_binary::store_decimal(const my_decimal *d)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
@@ -1141,7 +1141,7 @@ bool Protocol_prep::store_decimal(const my_decimal *d)
   return store(str.ptr(), str.length(), str.charset());
 }
 
-bool Protocol_prep::store(float from, uint32 decimals, String *buffer)
+bool Protocol_binary::store(float from, uint32 decimals, String *buffer)
 {
   field_pos++;
   char *to= packet->prep_append(4, PACKET_BUFFER_EXTRA_ALLOC);
@@ -1152,7 +1152,7 @@ bool Protocol_prep::store(float from, uint32 decimals, String *buffer)
 }
 
 
-bool Protocol_prep::store(double from, uint32 decimals, String *buffer)
+bool Protocol_binary::store(double from, uint32 decimals, String *buffer)
 {
   field_pos++;
   char *to= packet->prep_append(8, PACKET_BUFFER_EXTRA_ALLOC);
@@ -1163,7 +1163,7 @@ bool Protocol_prep::store(double from, uint32 decimals, String *buffer)
 }
 
 
-bool Protocol_prep::store(Field *field)
+bool Protocol_binary::store(Field *field)
 {
   /*
     We should not increment field_pos here as send_binary() will call another
@@ -1175,7 +1175,7 @@ bool Protocol_prep::store(Field *field)
 }
 
 
-bool Protocol_prep::store(TIME *tm)
+bool Protocol_binary::store(TIME *tm)
 {
   char buff[12],*pos;
   uint length;
@@ -1201,15 +1201,15 @@ bool Protocol_prep::store(TIME *tm)
   return packet->append(buff, length+1, PACKET_BUFFER_EXTRA_ALLOC);
 }
 
-bool Protocol_prep::store_date(TIME *tm)
+bool Protocol_binary::store_date(TIME *tm)
 {
   tm->hour= tm->minute= tm->second=0;
   tm->second_part= 0;
-  return Protocol_prep::store(tm);
+  return Protocol_binary::store(tm);
 }
 
 
-bool Protocol_prep::store_time(TIME *tm)
+bool Protocol_binary::store_time(TIME *tm)
 {
   char buff[13], *pos;
   uint length;

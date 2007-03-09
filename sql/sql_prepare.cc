@@ -93,11 +93,11 @@ When one supplies long data for a placeholder:
 
 /* A result class used to send cursor rows using the binary protocol. */
 
-class Select_fetch_protocol_prep: public select_send
+class Select_fetch_protocol_binary: public select_send
 {
-  Protocol_prep protocol;
+  Protocol_binary protocol;
 public:
-  Select_fetch_protocol_prep(THD *thd);
+  Select_fetch_protocol_binary(THD *thd);
   virtual bool send_fields(List<Item> &list, uint flags);
   virtual bool send_data(List<Item> &items);
   virtual bool send_eof();
@@ -125,7 +125,7 @@ public:
   };
 
   THD *thd;
-  Select_fetch_protocol_prep result;
+  Select_fetch_protocol_binary result;
   Protocol *protocol;
   Item_param **param_array;
   uint param_count;
@@ -247,9 +247,9 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
   */
   DBUG_RETURN(my_net_write(net, buff, sizeof(buff)) ||
               (stmt->param_count &&
-               stmt->thd->protocol_simple.send_fields((List<Item> *)
-                                                      &stmt->lex->param_list,
-                                                      Protocol::SEND_EOF)));
+               stmt->thd->protocol_text.send_fields((List<Item> *)
+                                                    &stmt->lex->param_list,
+                                                    Protocol::SEND_EOF)));
 }
 #else
 static bool send_prep_stmt(Prepared_statement *stmt,
@@ -1882,7 +1882,7 @@ void mysql_stmt_prepare(THD *thd, const char *packet, uint packet_length)
   /* First of all clear possible warnings from the previous command */
   mysql_reset_thd_for_next_command(thd);
 
-  if (! (stmt= new Prepared_statement(thd, &thd->protocol_prep)))
+  if (! (stmt= new Prepared_statement(thd, &thd->protocol_binary)))
     DBUG_VOID_RETURN; /* out of memory: error is set in Sql_alloc */
 
   if (thd->stmt_map.insert(thd, stmt))
@@ -2054,8 +2054,8 @@ void mysql_sql_stmt_prepare(THD *thd)
   const char *query;
   uint query_len;
   DBUG_ENTER("mysql_sql_stmt_prepare");
-  DBUG_ASSERT(thd->protocol == &thd->protocol_simple);
   LINT_INIT(query_len);
+  DBUG_ASSERT(thd->protocol == &thd->protocol_text);
 
   if ((stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
   {
@@ -2068,7 +2068,7 @@ void mysql_sql_stmt_prepare(THD *thd)
   }
 
   if (! (query= get_dynamic_sql_string(lex, &query_len)) ||
-      ! (stmt= new Prepared_statement(thd, &thd->protocol_simple)))
+      ! (stmt= new Prepared_statement(thd, &thd->protocol_text)))
   {
     DBUG_VOID_RETURN;                           /* out of memory */
   }
@@ -2621,14 +2621,14 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 
 
 /***************************************************************************
- Select_fetch_protocol_prep
+ Select_fetch_protocol_binary
 ****************************************************************************/
 
-Select_fetch_protocol_prep::Select_fetch_protocol_prep(THD *thd_arg)
+Select_fetch_protocol_binary::Select_fetch_protocol_binary(THD *thd_arg)
   :protocol(thd_arg)
 {}
 
-bool Select_fetch_protocol_prep::send_fields(List<Item> &list, uint flags)
+bool Select_fetch_protocol_binary::send_fields(List<Item> &list, uint flags)
 {
   bool rc;
   Protocol *save_protocol= thd->protocol;
@@ -2646,7 +2646,7 @@ bool Select_fetch_protocol_prep::send_fields(List<Item> &list, uint flags)
   return rc;
 }
 
-bool Select_fetch_protocol_prep::send_eof()
+bool Select_fetch_protocol_binary::send_eof()
 {
   Protocol *save_protocol= thd->protocol;
 
@@ -2658,7 +2658,7 @@ bool Select_fetch_protocol_prep::send_eof()
 
 
 bool
-Select_fetch_protocol_prep::send_data(List<Item> &fields)
+Select_fetch_protocol_binary::send_data(List<Item> &fields)
 {
   Protocol *save_protocol= thd->protocol;
   bool rc;
@@ -3000,7 +3000,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
           mysql_open_cursor(thd, (uint) ALWAYS_MATERIALIZED_CURSOR,
                             &result, &cursor) :
           mysql_execute_command(thd));
-  thd->protocol= &thd->protocol_simple;         /* use normal protocol */
+  thd->protocol= &thd->protocol_text;         /* use normal protocol */
 
   /* Assert that if an error, no cursor is open */
   DBUG_ASSERT(! (error && cursor));
