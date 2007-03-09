@@ -1426,4 +1426,15 @@ select _utf8'12' union select _latin1'12345';
 12
 12
 12345
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (3),(1),(2),(4),(1);
+SELECT a FROM (SELECT a FROM t1 UNION SELECT a FROM t1 ORDER BY a) AS test;
+a
+1
+2
+3
+4
+SELECT a FROM (SELECT a FROM t1 UNION SELECT a FROM t1 ORDER BY c) AS test;
+ERROR 42S22: Unknown column 'c' in 'order clause'
+DROP TABLE t1;
 End of 5.0 tests
