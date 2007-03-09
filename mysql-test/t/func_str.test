@@ -1142,4 +1142,12 @@ DROP TABLE t1;
 SELECT UNHEX('G');
 SELECT UNHEX('G') IS NULL;
 
+#
+# Bug #26281: INSERT() function mishandles NUL on boundary condition
+#
+SELECT INSERT('abc', 3, 3, '1234');
+SELECT INSERT('abc', 4, 3, '1234');
+SELECT INSERT('abc', 5, 3, '1234');
+SELECT INSERT('abc', 6, 3, '1234');
+
 --echo End of 5.0 tests
