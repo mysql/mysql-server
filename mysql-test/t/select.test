@@ -3092,3 +3092,13 @@ SELECT t3.a FROM t1,t2,t3
         t3.c IN ('bb','ee');
 
 DROP TABLE t1,t2,t3;
+
+#
+# WL3527: Extend IGNORE INDEX so places where index is ignored can 
+#         be specified
+#       
+CREATE TABLE t1 (a INT, b INT, KEY (a)); INSERT INTO t1 VALUES (1,1),(2,2);
+EXPLAIN SELECT 1 FROM t1 WHERE a = 1;
+EXPLAIN SELECT 1 FROM t1 IGNORE INDEX FOR JOIN (a) WHERE a = 1;
+DROP TABLE t1;
+
