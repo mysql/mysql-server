@@ -380,15 +380,10 @@ const GsnName SignalNames [] = {
   ,{ GSN_TUP_WRITELOG_REQ,       "TUP_WRITELOG_REQ" }
   ,{ GSN_LQH_WRITELOG_REQ,       "LQH_WRITELOG_REQ" }
 
-  ,{ GSN_STATISTICS_REQ,         "STATISTICS_REQ" }
   ,{ GSN_START_ORD,              "START_ORD" }
   ,{ GSN_STOP_ORD,               "STOP_ORD" }
   ,{ GSN_TAMPER_ORD,             "TAMPER_ORD" }
-  ,{ GSN_SET_VAR_REQ,            "SET_VAR_REQ" }
-  ,{ GSN_SET_VAR_CONF,           "SET_VAR_CONF" }
-  ,{ GSN_SET_VAR_REF,            "SET_VAR_REF" }
-  ,{ GSN_STATISTICS_CONF,        "STATISTICS_CONF" }
-  
+
   ,{ GSN_EVENT_SUBSCRIBE_REQ,    "EVENT_SUBSCRIBE_REQ" }
   ,{ GSN_EVENT_SUBSCRIBE_CONF,   "EVENT_SUBSCRIBE_CONF" }
   ,{ GSN_EVENT_SUBSCRIBE_REF,    "EVENT_SUBSCRIBE_REF" }

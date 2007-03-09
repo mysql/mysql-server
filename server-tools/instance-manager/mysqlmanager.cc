@@ -110,8 +110,7 @@ int main(int argc, char *argv[])
   else
 #endif
 
-  manager(options);
-  return_value= 0;
+  return_value= manager(options);
 
 err:
   options.cleanup();
@@ -199,7 +198,7 @@ static void init_environment(char *progname)
   MY_INIT(progname);
   log_init();
   umask(0117);
-  srand(time(0));
+  srand((uint) time(0));
 }
 
 
@@ -254,26 +253,23 @@ static void daemonize(const char *log_file_name)
 enum { CHILD_OK= 0, CHILD_NEED_RESPAWN, CHILD_EXIT_ANGEL };
 
 static volatile sig_atomic_t child_status= CHILD_OK;
+static volatile sig_atomic_t child_exit_code= 0;
 
 /*
-  Signal handler for SIGCHLD: reap child, analyze child exit status, and set
+  Signal handler for SIGCHLD: reap child, analyze child exit code, and set
   child_status appropriately.
 */
 
 void reap_child(int __attribute__((unused)) signo)
 {
-  int child_exit_status;
-  /* As we have only one child, no need to cycle waitpid */
-  if (waitpid(0, &child_exit_status, WNOHANG) > 0)
+  /* NOTE: As we have only one child, no need to cycle waitpid(). */
+
+  int exit_code;
+
+  if (waitpid(0, &exit_code, WNOHANG) > 0)
   {
-    if (WIFSIGNALED(child_exit_status))
-      child_status= CHILD_NEED_RESPAWN;
-    else
-      /*
-        As reap_child is not called for SIGSTOP, we should be here only
-        if the child exited normally.
-      */
-      child_status= CHILD_EXIT_ANGEL;
+    child_exit_code= exit_code;
+    child_status= exit_code ? CHILD_NEED_RESPAWN : CHILD_EXIT_ANGEL;
   }
 }
 
@@ -353,10 +349,16 @@ spawn:
     else if (child_status == CHILD_NEED_RESPAWN)
     {
       child_status= CHILD_OK;
-      log_error("angel(): mysqlmanager exited abnormally: respawning...");
+      log_error("angel(): mysqlmanager exited abnormally (exit code: %d):"
+                "respawning...",
+                (int) child_exit_code);
       sleep(1); /* don't respawn too fast */
       goto spawn;
     }
+
+    /* Delete IM-angel pid file. */
+    my_delete(Options::angel_pid_file_name, MYF(0));
+
     /*
       mysqlmanager successfully exited, let's silently evaporate
       If we return to main we fall into the manager() function, so let's

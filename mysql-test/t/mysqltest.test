@@ -555,8 +555,8 @@ echo ;
 
 # Illegal use of echo
 
---error 1
---exec echo "echo \$;" | $MYSQL_TEST 2>&1
+#--error 1
+#--exec echo "echo \$;" | $MYSQL_TEST 2>&1
 
 
 # ----------------------------------------------------------------------------
@@ -902,9 +902,9 @@ echo $d;
 # ----------------------------------------------------------------------------
 # Test system
 # ----------------------------------------------------------------------------
-system ls > /dev/null;
+#system ls > /dev/null;
 system echo "hej" > /dev/null;
---system ls > /dev/null
+#--system ls > /dev/null
 --system echo "hej" > /dev/null;
 
 --error 1
@@ -1134,18 +1134,24 @@ EOF
 --error 1
 --exec echo "{;" | $MYSQL_TEST 2>&1
 
---system echo "while (0)" > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo "echo hej;" >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+while (0)
+echo hej;
+EOF
 --error 1
 --exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
 
---system echo "while (0)" > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo "{echo hej;" >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+while (0)
+{echo hej;
+EOF
 --error 1
 --exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
 
---system echo "while (0){" > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo "echo hej;" >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+while (0){
+ echo hej;
+EOF
 --error 1
 --exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
 
@@ -1244,28 +1250,34 @@ EOF
 --exec echo "source $MYSQLTEST_VARDIR/tmp/mysqltest.sql; echo OK;" | $MYSQL_TEST 2>&1
 
 # Repeat connect/disconnect, exceed max number of connections
---system echo "let \$i=200;"                              > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo "while (\$i)"                              >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo "{"                                        >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo " connect (test_con1,localhost,root,,); "  >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo " disconnect test_con1; "                  >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo " dec \$i;                               " >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo "}"                                        >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+let $i=200;
+while ($i)
+{
+ connect (test_con1,localhost,root,,);
+ disconnect test_con1;
+ dec $i;
+}
+EOF
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error 1
 --exec echo "source $MYSQLTEST_VARDIR/tmp/mysqltest.sql;" | $MYSQL_TEST 2>&1
 
 # Select disconnected connection
---system echo "connect (test_con1,localhost,root,,);"    > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo "disconnect test_con1; "                  >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo "connection test_con1;"                   >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+connect (test_con1,localhost,root,,);
+disconnect test_con1;
+connection test_con1;
+EOF
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error 1
 --exec echo "source $MYSQLTEST_VARDIR/tmp/mysqltest.sql;" | $MYSQL_TEST 2>&1
 
 # Connection name already used
---system echo "connect (test_con1,localhost,root,,);"    > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo "connect (test_con1,localhost,root,,);"   >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+connect (test_con1,localhost,root,,);
+connect (test_con1,localhost,root,,);
+EOF
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error 1
 --exec echo "source $MYSQLTEST_VARDIR/tmp/mysqltest.sql;" | $MYSQL_TEST 2>&1
@@ -1276,7 +1288,15 @@ EOF
 connect (con1,localhost,root,,);
 connection default;
 connection con1;
+disconnect con1;
 --enable_abort_on_error
+
+# Test connect without a database
+connect (con2,localhost,root,,*NO-ONE*);
+--error ER_NO_DB_ERROR
+show tables;
+disconnect con2;
+connection default;
 
 # ----------------------------------------------------------------------------
 # Test mysqltest arguments
@@ -1502,8 +1522,9 @@ remove_file non_existing_file;
 --error 1
 --exec echo "write_file filename ;" | $MYSQL_TEST 2>&1
 
---error 1
---exec echo "write_file filename \";" | $MYSQL_TEST 2>&1
+# Comment out this test as it confuses cmd.exe with unmatched "
+#--error 1
+#--exec echo "write_file filename \";" | $MYSQL_TEST 2>&1
 
 write_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
 Content for test_file1
@@ -1516,6 +1537,74 @@ Content for test_file1 contains EOF
 END_DELIMITER
 file_exists $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
 remove_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+
+# ----------------------------------------------------------------------------
+# test for append_file
+# ----------------------------------------------------------------------------
+
+write_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+Content for test_file1
+EOF
+file_exists $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+
+append_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+Appended text
+EOF
+file_exists $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+
+remove_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+append_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+Appended text on nonexisting file
+EOF
+
+# ----------------------------------------------------------------------------
+# test for cat_file
+# ----------------------------------------------------------------------------
+
+--write_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp
+Some data
+for cat_file command
+of mysqltest
+EOF
+cat_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+
+--error 1
+--exec echo "cat_file non_existing_file;" | $MYSQL_TEST 2>&1
+
+# ----------------------------------------------------------------------------
+# test for diff_files
+# ----------------------------------------------------------------------------
+
+--write_file $MYSQLTEST_VARDIR/tmp/diff1.tmp
+Some data
+for diff_file command
+of mysqltest
+EOF
+
+--write_file $MYSQLTEST_VARDIR/tmp/diff2.tmp
+Some data
+for diff_file command
+of mysqltest
+EOF
+
+--write_file $MYSQLTEST_VARDIR/tmp/diff3.tmp
+Some other data
+for diff_file command
+of mysqltest
+EOF
+
+# Compare equal files
+--diff_files $MYSQLTEST_VARDIR/tmp/diff1.tmp $MYSQLTEST_VARDIR/tmp/diff2.tmp
+--diff_files $MYSQLTEST_VARDIR/tmp/diff2.tmp $MYSQLTEST_VARDIR/tmp/diff1.tmp
+
+# Compare files that differ
+--error 1
+--diff_files $MYSQLTEST_VARDIR/tmp/diff3.tmp $MYSQLTEST_VARDIR/tmp/diff2.tmp
+--error 1
+--diff_files $MYSQLTEST_VARDIR/tmp/diff1.tmp $MYSQLTEST_VARDIR/tmp/diff3.tmp
+
+# Compare equal files, again...
+--diff_files $MYSQLTEST_VARDIR/tmp/diff1.tmp $MYSQLTEST_VARDIR/tmp/diff2.tmp
 
 # ----------------------------------------------------------------------------
 # test for file_exist
@@ -1635,5 +1724,17 @@ EOF
 
 --exec echo "echo Some output; exit; echo Not this;" | $MYSQL_TEST 2>&1
 
+# ----------------------------------------------------------------------------
+# Some coverage tests
+# ----------------------------------------------------------------------------
+
+--disable_query_log
+--exec $MYSQL_TEST --help 2>&1 > /dev/null
+--exec $MYSQL_TEST --version 2>&1 > /dev/null
+--enable_quary_log
+--disable_abort_on_error
+--error 1
+--exec $MYSQL_TEST a b c 2>&1 > /dev/null
+--enable_abort_on_error
 
 --echo End of tests

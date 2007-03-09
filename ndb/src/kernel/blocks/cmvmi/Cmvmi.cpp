@@ -77,11 +77,7 @@ Cmvmi::Cmvmi(const Configuration & conf) :
   addRecSignal(GSN_OPEN_COMREQ,  &Cmvmi::execOPEN_COMREQ);
   addRecSignal(GSN_TEST_ORD,  &Cmvmi::execTEST_ORD);
 
-  addRecSignal(GSN_STATISTICS_REQ,  &Cmvmi::execSTATISTICS_REQ);
   addRecSignal(GSN_TAMPER_ORD,  &Cmvmi::execTAMPER_ORD);
-  addRecSignal(GSN_SET_VAR_REQ,  &Cmvmi::execSET_VAR_REQ);
-  addRecSignal(GSN_SET_VAR_CONF,  &Cmvmi::execSET_VAR_CONF);
-  addRecSignal(GSN_SET_VAR_REF,  &Cmvmi::execSET_VAR_REF);
   addRecSignal(GSN_STOP_ORD,  &Cmvmi::execSTOP_ORD);
   addRecSignal(GSN_START_ORD,  &Cmvmi::execSTART_ORD);
   addRecSignal(GSN_EVENT_SUBSCRIBE_REQ, 
@@ -703,24 +699,6 @@ Cmvmi::execTEST_ORD(Signal * signal){
 #endif
 }
 
-void Cmvmi::execSTATISTICS_REQ(Signal* signal) 
-{
-  // TODO Note ! This is only a test implementation...
-
-  static int stat1 = 0;
-  jamEntry();
-
-  //ndbout << "data 1: " << signal->theData[1];
-
-  int x = signal->theData[0];
-  stat1++;
-  signal->theData[0] = stat1;
-  sendSignal(x, GSN_STATISTICS_CONF, signal, 7, JBB);
-
-}//execSTATISTICS_REQ()
-
-
-
 void Cmvmi::execSTOP_ORD(Signal* signal) 
 {
   jamEntry();
@@ -839,167 +817,13 @@ void Cmvmi::execTAMPER_ORD(Signal* signal)
   // to be able to indicate if we really introduced an error.
 #ifdef ERROR_INSERT
   TamperOrd* const tamperOrd = (TamperOrd*)&signal->theData[0];
-  
+  signal->theData[2] = 0;
   signal->theData[1] = tamperOrd->errorNo;
   signal->theData[0] = 5;
   sendSignal(DBDIH_REF, GSN_DIHNDBTAMPER, signal, 3,JBB);
 #endif
 
 }//execTAMPER_ORD()
-
-
-
-void Cmvmi::execSET_VAR_REQ(Signal* signal) 
-{
-#if 0
-
-  SetVarReq* const setVarReq = (SetVarReq*)&signal->theData[0];
-  ConfigParamId var = setVarReq->variable();
-  jamEntry();
-  switch (var) {
-    
-    // NDBCNTR_REF
-    
-    // DBTC
-  case TransactionDeadlockDetectionTimeout:
-  case TransactionInactiveTime:
-  case NoOfConcurrentProcessesHandleTakeover:
-    sendSignal(DBTC_REF, GSN_SET_VAR_REQ, signal, 3, JBB);
-    break;
-    
-    // DBDIH
-  case TimeBetweenLocalCheckpoints:
-  case TimeBetweenGlobalCheckpoints:
-    sendSignal(DBDIH_REF, GSN_SET_VAR_REQ, signal, 3, JBB);
-    break;
-
-    // DBLQH
-  case NoOfConcurrentCheckpointsDuringRestart:
-  case NoOfConcurrentCheckpointsAfterRestart:
-    sendSignal(DBLQH_REF, GSN_SET_VAR_REQ, signal, 3, JBB);
-    break;
-
-    // DBACC
-  case NoOfDiskPagesToDiskDuringRestartACC:
-  case NoOfDiskPagesToDiskAfterRestartACC:
-    sendSignal(DBACC_REF, GSN_SET_VAR_REQ, signal, 3, JBB);
-    break;
-
-    // DBTUP
-  case NoOfDiskPagesToDiskDuringRestartTUP:
-  case NoOfDiskPagesToDiskAfterRestartTUP:
-    sendSignal(DBTUP_REF, GSN_SET_VAR_REQ, signal, 3, JBB);
-    break;
-
-    // DBDICT
-
-    // NDBCNTR
-  case TimeToWaitAlive:
-
-    // QMGR
-  case HeartbeatIntervalDbDb: // TODO ev till Ndbcnt också
-  case HeartbeatIntervalDbApi:
-  case ArbitTimeout:
-    sendSignal(QMGR_REF, GSN_SET_VAR_REQ, signal, 3, JBB);
-    break;
-
-    // NDBFS
-
-    // CMVMI
-  case MaxNoOfSavedMessages:
-  case LockPagesInMainMemory:
-  case TimeBetweenWatchDogCheck:
-  case StopOnError:
-    handleSET_VAR_REQ(signal);
-    break;
-
-
-    // Not possible to update (this could of course be handled by each block
-    // instead but I havn't investigated where they belong)
-  case Id:
-  case ExecuteOnComputer:
-  case ShmKey:
-  case MaxNoOfConcurrentOperations:
-  case MaxNoOfConcurrentTransactions:
-  case MemorySpaceIndexes:
-  case MemorySpaceTuples:
-  case MemoryDiskPages:
-  case NoOfFreeDiskClusters:
-  case NoOfDiskClusters:
-  case NoOfFragmentLogFiles:
-  case NoOfDiskClustersPerDiskFile:
-  case NoOfDiskFiles:
-  case MaxNoOfSavedEvents:
-  default:
-
-    int mgmtSrvr = setVarReq->mgmtSrvrBlockRef();
-    sendSignal(mgmtSrvr, GSN_SET_VAR_REF, signal, 0, JBB);
-  } // switch
-
-#endif
-}//execSET_VAR_REQ()
-
-
-void Cmvmi::execSET_VAR_CONF(Signal* signal) 
-{
-  int mgmtSrvr = signal->theData[0];
-  sendSignal(mgmtSrvr, GSN_SET_VAR_CONF, signal, 0, JBB);
-
-}//execSET_VAR_CONF()
-
-
-void Cmvmi::execSET_VAR_REF(Signal* signal) 
-{
-  int mgmtSrvr = signal->theData[0];
-  sendSignal(mgmtSrvr, GSN_SET_VAR_REF, signal, 0, JBB);
-
-}//execSET_VAR_REF()
-
-
-void Cmvmi::handleSET_VAR_REQ(Signal* signal) {
-#if 0
-  SetVarReq* const setVarReq = (SetVarReq*)&signal->theData[0];
-  ConfigParamId var = setVarReq->variable();
-  int val = setVarReq->value();
-
-  switch (var) {
-  case MaxNoOfSavedMessages:
-    theConfig.maxNoOfErrorLogs(val);
-    sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
-    break;
-    
-  case LockPagesInMainMemory:
-    int result;
-    if (val == 0) {
-      result = NdbMem_MemUnlockAll();
-    }
-    else {
-      result = NdbMem_MemLockAll();
-    }
-    if (result == 0) {
-      sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
-    }
-    else {
-      sendSignal(CMVMI_REF, GSN_SET_VAR_REF, signal, 1, JBB);
-    }
-    break;
-
-  case TimeBetweenWatchDogCheck:
-    theConfig.timeBetweenWatchDogCheck(val);
-    sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
-    break;
-
-  case StopOnError:
-    theConfig.stopOnError(val);
-    sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
-    break;
-    
-  default:
-    sendSignal(CMVMI_REF, GSN_SET_VAR_REF, signal, 1, JBB);
-    return;
-  } // switch
-#endif
-}
 
 #ifdef VM_TRACE
 class RefSignalTest {
@@ -1105,6 +929,24 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     }
   }
   
+  if (arg == DumpStateOrd::CmvmiDumpSubscriptions)
+  {
+    SubscriberPtr ptr;
+    subscribers.first(ptr);  
+    g_eventLogger.info("List subscriptions:");
+    while(ptr.i != RNIL)
+    {
+      g_eventLogger.info("Subscription: %u, nodeId: %u, ref: 0x%x",
+                         ptr.i,  refToNode(ptr.p->blockRef), ptr.p->blockRef);
+      for(Uint32 i = 0; i < LogLevel::LOGLEVEL_CATEGORIES; i++)
+      {
+        Uint32 level = ptr.p->logLevel.getLogLevel((LogLevel::EventCategory)i);
+        g_eventLogger.info("Category %u Level %u", i, level);
+      }
+      subscribers.next(ptr);
+    }
+  }
+
   if (arg == DumpStateOrd::CmvmiDumpLongSignalMemory){
     infoEvent("Cmvmi: g_sectionSegmentPool size: %d free: %d",
 	      g_sectionSegmentPool.getSize(),
@@ -1261,7 +1103,7 @@ Cmvmi::execTESTSIG(Signal* signal){
     fprintf(stdout, "\n");
     
     for(i = 0; i<signal->header.m_noOfSections; i++){
-      SegmentedSectionPtr ptr = {0,0,0};
+      SegmentedSectionPtr ptr(0,0,0);
       ndbout_c("-- Section %d --", i);
       signal->getSection(ptr, i);
       ndbrequire(ptr.p != 0);
@@ -1319,7 +1161,7 @@ Cmvmi::execTESTSIG(Signal* signal){
     LinearSectionPtr ptr[3];
     const Uint32 secs = signal->getNoOfSections();
     for(i = 0; i<secs; i++){
-      SegmentedSectionPtr sptr = {0,0,0};
+      SegmentedSectionPtr sptr(0,0,0);
       signal->getSection(sptr, i);
       ptr[i].sz = sptr.sz;
       ptr[i].p = new Uint32[sptr.sz];
@@ -1368,7 +1210,7 @@ Cmvmi::execTESTSIG(Signal* signal){
     LinearSectionPtr ptr[3];
     const Uint32 secs = signal->getNoOfSections();
     for(i = 0; i<secs; i++){
-      SegmentedSectionPtr sptr = {0,0,0};
+      SegmentedSectionPtr sptr(0,0,0);
       signal->getSection(sptr, i);
       ptr[i].sz = sptr.sz;
       ptr[i].p = new Uint32[sptr.sz];
@@ -1434,7 +1276,7 @@ Cmvmi::execTESTSIG(Signal* signal){
     const Uint32 secs = signal->getNoOfSections();
     memset(g_test, 0, sizeof(g_test));
     for(i = 0; i<secs; i++){
-      SegmentedSectionPtr sptr  = {0,0,0};
+      SegmentedSectionPtr sptr(0,0,0);
       signal->getSection(sptr, i);
       g_test[i].sz = sptr.sz;
       g_test[i].p = new Uint32[sptr.sz];

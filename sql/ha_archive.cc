@@ -379,10 +379,8 @@ int ha_archive::write_meta_file(File meta_file, ha_rows rows, bool dirty)
 
   See ha_example.cc for a longer description.
 */
-ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, 
-                                     TABLE *table, int *rc)
+ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, int *rc)
 {
-  ARCHIVE_SHARE *share;
   char meta_file_name[FN_REFLEN];
   uint length;
   char *tmp_name;
@@ -410,8 +408,10 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name,
     share->table_name= tmp_name;
     share->crashed= FALSE;
     share->archive_write_open= FALSE;
-    fn_format(share->data_file_name,table_name,"",ARZ,MY_REPLACE_EXT|MY_UNPACK_FILENAME);
-    fn_format(meta_file_name,table_name,"",ARM,MY_REPLACE_EXT|MY_UNPACK_FILENAME);
+    fn_format(share->data_file_name,table_name,"",ARZ,
+              MY_REPLACE_EXT|MY_UNPACK_FILENAME);
+    fn_format(meta_file_name,table_name,"",ARM,
+              MY_REPLACE_EXT|MY_UNPACK_FILENAME);
     strmov(share->table_name,table_name);
     /*
       We will use this lock for rows.
@@ -447,7 +447,7 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name,
   Free the share.
   See ha_example.cc for a description.
 */
-int ha_archive::free_share(ARCHIVE_SHARE *share)
+int ha_archive::free_share()
 {
   int rc= 0;
   DBUG_ENTER("ha_archive::free_share");
@@ -527,12 +527,14 @@ int ha_archive::open(const char *name, int mode, uint open_options)
 
   DBUG_PRINT("info", ("archive table was opened for crash %s", 
                       (open_options & HA_OPEN_FOR_REPAIR) ? "yes" : "no"));
-  share= get_share(name, table, &rc);
+  share= get_share(name, &rc);
 
   if (rc == HA_ERR_CRASHED_ON_USAGE && !(open_options & HA_OPEN_FOR_REPAIR))
   {
-    free_share(share);
+    /* purecov: begin inspected */
+    free_share();
     DBUG_RETURN(rc);
+    /* purecov: end */    
   }
   else if (rc == HA_ERR_OUT_OF_MEM)
   {
@@ -585,7 +587,7 @@ int ha_archive::close(void)
   if (gzclose(archive) == Z_ERRNO)
     rc= 1;
   /* then also close share */
-  rc|= free_share(share);
+  rc|= free_share();
 
   DBUG_RETURN(rc);
 }
@@ -747,10 +749,12 @@ int ha_archive::write_row(byte *buf)
     DBUG_PRINT("archive",("MyPack is %d\n", (*field)->data_length((char*) buf + (*field)->offset())));
     if ((*field)->real_type() == MYSQL_TYPE_VARCHAR) 
     {
+#ifndef DBUG_OFF
       uint actual_length= (*field)->data_length((char*) buf + (*field)->offset());
       uint offset= (*field)->offset() + actual_length + 
         (actual_length > 255 ? 2 : 1);
       DBUG_PRINT("archive",("Offset is %d -> %d\n", actual_length, offset));
+#endif
       /*
       if ((*field)->pack_length() + (*field)->offset() != offset)
         bzero(buf + offset, (size_t)((*field)->pack_length() + (actual_length > 255 ? 2 : 1) - (*field)->data_length));

@@ -397,7 +397,8 @@ protected:
 
   select_result *result;
   ulonglong found_rows_for_union;
-  bool res;
+  bool saved_error;
+
 public:
   bool  prepared, // prepare phase already performed for UNION (unit)
     optimized, // optimize phase already performed for UNION (unit)
@@ -530,6 +531,11 @@ public:
   uint select_n_having_items;
   uint cond_count;    /* number of arguments of and/or/xor in where/having/on */
   uint between_count; /* number of between predicates in where/having/on      */   
+  /*
+    Number of fields used in select list or where clause of current select
+    and all inner subselects.
+  */
+  uint select_n_where_fields;
   enum_parsing_place parsing_place; /* where we are parsing expression */
   bool with_sum_func;   /* sum function indicator */
   /* 
@@ -547,7 +553,8 @@ public:
   bool  braces;   	/* SELECT ... UNION (SELECT ... ) <- this braces */
   /* TRUE when having fix field called in processing of this SELECT */
   bool having_fix_field;
-
+  /* List of references to fields referenced from inner selects */
+  List<Item_outer_ref> inner_refs_list;
   /* Number of Item_sum-derived objects in this SELECT */
   uint n_sum_items;
   /* Number of Item_sum-derived objects in children and descendant SELECTs */
@@ -884,10 +891,8 @@ struct st_parsing_options
   bool allows_select_procedure;
   bool allows_derived;
 
-  st_parsing_options()
-    : allows_variable(TRUE), allows_select_into(TRUE),
-      allows_select_procedure(TRUE), allows_derived(TRUE)
-  {}
+  st_parsing_options() { reset(); }
+  void reset();
 };
 
 
@@ -1177,6 +1182,10 @@ typedef struct st_lex : public Query_tables_list
   {
     return context_stack.head();
   }
+  /*
+    Restore the LEX and THD in case of a parse error.
+  */
+  static void cleanup_lex_after_parse_error(THD *thd);
 
   void reset_n_backup_query_tables_list(Query_tables_list *backup);
   void restore_backup_query_tables_list(Query_tables_list *backup);

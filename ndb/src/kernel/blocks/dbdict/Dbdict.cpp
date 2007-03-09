@@ -2910,6 +2910,15 @@ Dbdict::execCREATE_TABLE_REQ(Signal* signal){
       break;
     }
 
+    if(getNodeState().getSingleUserMode() &&
+       (refToNode(signal->getSendersBlockRef()) !=
+        getNodeState().getSingleUserApi()))
+    {
+      jam();
+      parseRecord.errorCode = CreateTableRef::SingleUser;
+      break;
+    }
+
     CreateTableRecordPtr createTabPtr;
     c_opCreateTable.seize(createTabPtr);
     
@@ -3072,6 +3081,15 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
     return;
   }
   
+  if(getNodeState().getSingleUserMode() &&
+     (refToNode(signal->getSendersBlockRef()) !=
+      getNodeState().getSingleUserApi()))
+  {
+    jam();
+    alterTableRef(signal, req, AlterTableRef::SingleUser);
+    return;
+  }
+
   const TableRecord::TabState tabState = tablePtr.p->tabState;
   bool ok = false;
   switch(tabState){
@@ -5067,11 +5085,6 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   tablePtr.p->minRowsLow = tableDesc.MinRowsLow;
   tablePtr.p->minRowsHigh = tableDesc.MinRowsHigh;
 
-  Uint64 maxRows =
-    (((Uint64)tablePtr.p->maxRowsHigh) << 32) + tablePtr.p->maxRowsLow;
-  Uint64 minRows =
-    (((Uint64)tablePtr.p->minRowsHigh) << 32) + tablePtr.p->minRowsLow;
-
   tablePtr.p->frmLen = tableDesc.FrmLen;
   memcpy(tablePtr.p->frmData, tableDesc.FrmData, tableDesc.FrmLen);  
 
@@ -5401,6 +5414,15 @@ Dbdict::execDROP_TABLE_REQ(Signal* signal){
     return;
   }
   
+  if(getNodeState().getSingleUserMode() &&
+     (refToNode(signal->getSendersBlockRef()) !=
+      getNodeState().getSingleUserApi()))
+  {
+    jam();
+    dropTableRef(signal, req, DropTableRef::SingleUser);
+    return;
+  }
+
   const TableRecord::TabState tabState = tablePtr.p->tabState;
   bool ok = false;
   switch(tabState){
@@ -6531,6 +6553,13 @@ Dbdict::execCREATE_INDX_REQ(Signal* signal)
         jam();
         tmperr = CreateIndxRef::Busy;
       }
+      else if(getNodeState().getSingleUserMode() &&
+              (refToNode(senderRef) !=
+               getNodeState().getSingleUserApi()))
+      {
+        jam();
+        tmperr = CreateIndxRef::SingleUser;
+      }
       if (tmperr != CreateIndxRef::NoError) {
 	releaseSections(signal);
 	OpCreateIndex opBusy;
@@ -7100,6 +7129,13 @@ Dbdict::execDROP_INDX_REQ(Signal* signal)
       } else if (c_blockState != BS_IDLE) {
         jam();
         tmperr = DropIndxRef::Busy;
+      }
+      else if(getNodeState().getSingleUserMode() &&
+              (refToNode(senderRef) !=
+               getNodeState().getSingleUserApi()))
+      {
+        jam();
+        tmperr = DropIndxRef::SingleUser;
       }
       if (tmperr != DropIndxRef::NoError) {
 	err = tmperr;

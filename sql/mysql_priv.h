@@ -60,10 +60,10 @@ typedef ulonglong nested_join_map;
 
 /* query_id */
 typedef ulonglong query_id_t;
-extern query_id_t query_id;
+extern query_id_t global_query_id;
 
 /* increment query_id and return it.  */
-inline query_id_t next_query_id() { return query_id++; }
+inline query_id_t next_query_id() { return global_query_id++; }
 
 /* useful constants */
 extern const key_map key_map_empty;
@@ -96,6 +96,18 @@ void net_set_read_timeout(NET *net, uint timeout);
 #define safeFree(x)	{ if(x) { my_free((gptr) x,MYF(0)); x = NULL; } }
 #define PREV_BITS(type,A)	((type) (((type) 1 << (A)) -1))
 #define all_bits_set(A,B) ((A) & (B) != (B))
+
+#define WARN_DEPRECATED(Thd,Ver,Old,New)                                             \
+  do {                                                                               \
+    DBUG_ASSERT(strncmp(Ver, MYSQL_SERVER_VERSION, sizeof(Ver)-1) > 0);              \
+    if (((gptr)Thd) != NULL)                                                         \
+      push_warning_printf(((THD *)Thd), MYSQL_ERROR::WARN_LEVEL_WARN,                \
+                        ER_WARN_DEPRECATED_SYNTAX, ER(ER_WARN_DEPRECATED_SYNTAX),    \
+                        (Old), (Ver), (New));                                        \
+    else                                                                             \
+      sql_print_warning("The syntax %s is deprecated and will be removed "           \
+                        "in MySQL %s. Please use %s instead.", (Old), (Ver), (New)); \
+  } while(0)
 
 extern CHARSET_INFO *system_charset_info, *files_charset_info ;
 extern CHARSET_INFO *national_charset_info, *table_alias_charset;
@@ -163,7 +175,7 @@ MY_LOCALE *my_locale_by_number(uint number);
  Feel free to raise this by the smallest amount you can to get the
  "execution_constants" test to pass.
  */
-#define STACK_MIN_SIZE          10788   // Abort if less stack during eval.
+#define STACK_MIN_SIZE          12000   // Abort if less stack during eval.
 
 #define STACK_MIN_SIZE_FOR_OPEN 1024*80
 #define STACK_BUFF_ALLOC	256	// For stack overrun checks
@@ -754,6 +766,8 @@ int setup_order(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 int setup_group(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 		List<Item> &fields, List<Item> &all_fields, ORDER *order,
 		bool *hidden_group_fields);
+bool fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
+                   Item **ref_pointer_array);
 
 bool handle_select(THD *thd, LEX *lex, select_result *result,
                    ulong setup_tables_done_option);
@@ -1201,7 +1215,7 @@ void my_dbopt_free(void);
   External variables
 */
 
-extern time_t start_time;
+extern time_t server_start_time;
 extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
 	    mysql_real_data_home[], *opt_mysql_tmpdir, mysql_charsets_dir[],
             def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
@@ -1383,7 +1397,7 @@ extern handlerton myisammrg_hton;
 #define have_merge_db myisammrg_hton.state
 
 extern SHOW_COMP_OPTION have_isam;
-extern SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_dlopen;
+extern SHOW_COMP_OPTION have_raid, have_ssl, have_symlink, have_dlopen;
 extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;

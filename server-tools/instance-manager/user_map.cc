@@ -29,6 +29,7 @@ struct User
   char user[USERNAME_LENGTH + 1];
   uint8 user_length;
   uint8 salt[SCRAMBLE_LENGTH];
+  User() {}
   int init(const char *line);
 };
 

@@ -87,13 +87,13 @@ where table_schema='test';
 table_name	table_type	table_comment
 t1	BASE TABLE	
 v1	VIEW	VIEW
-v2	VIEW	View 'test.v2' references invalid table(s) or column(s) or function(s) or define
+v2	VIEW	VIEW
 drop table t1;
 select table_name, table_type, table_comment from information_schema.tables
 where table_schema='test';
 table_name	table_type	table_comment
-v1	VIEW	View 'test.v1' references invalid table(s) or column(s) or function(s) or define
-v2	VIEW	View 'test.v2' references invalid table(s) or column(s) or function(s) or define
+v1	VIEW	VIEW
+v2	VIEW	VIEW
 drop function f1;
 drop function f2;
 drop view v1, v2;

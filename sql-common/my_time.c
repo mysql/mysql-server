@@ -206,7 +206,7 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
   digits= (uint) (pos-str);
   start_loop= 0;                                /* Start of scan loop */
   date_len[format_position[0]]= 0;              /* Length of year field */
-  if (pos == end)
+  if (pos == end || *pos == '.')
   {
     /* Found date in internal format (only numbers like YYYYMMDD) */
     year_length= (digits == 4 || digits == 8 || digits >= 14) ? 4 : 2;
@@ -680,24 +680,24 @@ fractional:
     1        time value is invalid
 */
 
-int check_time_range(struct st_mysql_time *time, int *warning) 
+int check_time_range(struct st_mysql_time *my_time, int *warning) 
 {
   longlong hour;
 
-  if (time->minute >= 60 || time->second >= 60)
+  if (my_time->minute >= 60 || my_time->second >= 60)
     return 1;
 
-  hour= time->hour + (24*time->day);
+  hour= my_time->hour + (24*my_time->day);
   if (hour <= TIME_MAX_HOUR &&
-      (hour != TIME_MAX_HOUR || time->minute != TIME_MAX_MINUTE ||
-       time->second != TIME_MAX_SECOND || !time->second_part))
+      (hour != TIME_MAX_HOUR || my_time->minute != TIME_MAX_MINUTE ||
+       my_time->second != TIME_MAX_SECOND || !my_time->second_part))
     return 0;
 
-  time->day= 0;
-  time->hour= TIME_MAX_HOUR;
-  time->minute= TIME_MAX_MINUTE;
-  time->second= TIME_MAX_SECOND;
-  time->second_part= 0;
+  my_time->day= 0;
+  my_time->hour= TIME_MAX_HOUR;
+  my_time->minute= TIME_MAX_MINUTE;
+  my_time->second= TIME_MAX_SECOND;
+  my_time->second_part= 0;
   *warning|= MYSQL_TIME_WARN_OUT_OF_RANGE;
   return 0;
 }
@@ -1148,22 +1148,23 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
 
 /* Convert time value to integer in YYYYMMDDHHMMSS format */
 
-ulonglong TIME_to_ulonglong_datetime(const MYSQL_TIME *time)
+ulonglong TIME_to_ulonglong_datetime(const MYSQL_TIME *my_time)
 {
-  return ((ulonglong) (time->year * 10000UL +
-                       time->month * 100UL +
-                       time->day) * ULL(1000000) +
-          (ulonglong) (time->hour * 10000UL +
-                       time->minute * 100UL +
-                       time->second));
+  return ((ulonglong) (my_time->year * 10000UL +
+                       my_time->month * 100UL +
+                       my_time->day) * ULL(1000000) +
+          (ulonglong) (my_time->hour * 10000UL +
+                       my_time->minute * 100UL +
+                       my_time->second));
 }
 
 
 /* Convert TIME value to integer in YYYYMMDD format */
 
-ulonglong TIME_to_ulonglong_date(const MYSQL_TIME *time)
+ulonglong TIME_to_ulonglong_date(const MYSQL_TIME *my_time)
 {
-  return (ulonglong) (time->year * 10000UL + time->month * 100UL + time->day);
+  return (ulonglong) (my_time->year * 10000UL + my_time->month * 100UL +
+                      my_time->day);
 }
 
 
@@ -1173,11 +1174,11 @@ ulonglong TIME_to_ulonglong_date(const MYSQL_TIME *time)
   it's assumed that days have been converted to hours already.
 */
 
-ulonglong TIME_to_ulonglong_time(const MYSQL_TIME *time)
+ulonglong TIME_to_ulonglong_time(const MYSQL_TIME *my_time)
 {
-  return (ulonglong) (time->hour * 10000UL +
-                      time->minute * 100UL +
-                      time->second);
+  return (ulonglong) (my_time->hour * 10000UL +
+                      my_time->minute * 100UL +
+                      my_time->second);
 }
 
 
@@ -1201,15 +1202,15 @@ ulonglong TIME_to_ulonglong_time(const MYSQL_TIME *time)
     valid date either.
 */
 
-ulonglong TIME_to_ulonglong(const MYSQL_TIME *time)
+ulonglong TIME_to_ulonglong(const MYSQL_TIME *my_time)
 {
-  switch (time->time_type) {
+  switch (my_time->time_type) {
   case MYSQL_TIMESTAMP_DATETIME:
-    return TIME_to_ulonglong_datetime(time);
+    return TIME_to_ulonglong_datetime(my_time);
   case MYSQL_TIMESTAMP_DATE:
-    return TIME_to_ulonglong_date(time);
+    return TIME_to_ulonglong_date(my_time);
   case MYSQL_TIMESTAMP_TIME:
-    return TIME_to_ulonglong_time(time);
+    return TIME_to_ulonglong_time(my_time);
   case MYSQL_TIMESTAMP_NONE:
   case MYSQL_TIMESTAMP_ERROR:
     return ULL(0);

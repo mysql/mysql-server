@@ -23,6 +23,8 @@
 #define NOT_FIXED_DEC			31
 #endif
 
+#define STRING_WITH_LEN(X)  ((const char*) X), ((uint) (sizeof(X) - 1))
+
 class String;
 int sortcmp(const String *a,const String *b, CHARSET_INFO *cs);
 String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);
@@ -76,13 +78,15 @@ public:
   { /* never called */ }
   ~String() { free(); }
 
-  inline void set_charset(CHARSET_INFO *charset) { str_charset= charset; }
+  inline void set_charset(CHARSET_INFO *charset_arg)
+  { str_charset= charset_arg; }
   inline CHARSET_INFO *charset() const { return str_charset; }
   inline uint32 length() const { return str_length;}
   inline uint32 alloced_length() const { return Alloced_length;}
   inline char& operator [] (uint32 i) const { return Ptr[i]; }
   inline void length(uint32 len) { str_length=len ; }
   inline bool is_empty() { return (str_length == 0); }
+  inline void mark_as_const() { Alloced_length= 0;}
   inline const char *ptr() const { return Ptr; }
   inline char *c_ptr()
   {

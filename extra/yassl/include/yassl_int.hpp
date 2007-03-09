@@ -228,6 +228,7 @@ struct BIGNUM {
       TaoCrypt::Integer), we need to explicitly state the namespace
       here to let gcc 2.96 deduce the correct type.
     */
+    BIGNUM() {}
     yaSSL::Integer int_;
     void assign(const byte* b, uint s) { int_.assign(b,s); }
 };

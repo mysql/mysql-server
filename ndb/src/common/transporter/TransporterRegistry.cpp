@@ -1413,8 +1413,6 @@ TransporterRegistry::add_transporter_interface(NodeId remoteNodeId,
 bool
 TransporterRegistry::start_service(SocketServer& socket_server)
 {
-  struct ndb_mgm_reply mgm_reply;
-
   DBUG_ENTER("TransporterRegistry::start_service");
   if (m_transporter_interface.size() > 0 && !nodeIdSpecified)
   {

@@ -533,8 +533,7 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   }//if
   const Uint32 totalSizeInWords = (sizeInBytes + 3)/4; // Including bits in last word
   const Uint32 sizeInWords = sizeInBytes / 4;          // Excluding bits in last word
-  AttributeHeader& ah = AttributeHeader::init(&ahValue, tAttrId, 
-					      totalSizeInWords);
+  (void) AttributeHeader::init(&ahValue, tAttrId, totalSizeInWords);
   insertATTRINFO( ahValue );
 
   /***********************************************************************

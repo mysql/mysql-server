@@ -135,7 +135,7 @@ int Mysql_connection_thread::init()
   /* Initialize random number generator */
   {
     ulong seed1= (ulong) &rand_st + rand();
-    ulong seed2= rand() + time(0);
+    ulong seed2= rand() + (ulong) time(0);
     randominit(&rand_st, seed1, seed2);
   }
   /* Fill scramble - server's random message used for handshake */
@@ -332,12 +332,12 @@ int Mysql_connection_thread::dispatch_command(enum enum_server_command command,
   {
     log_info("query for connection %lu : ----\n%s\n-------------------------",
 	     connection_id,packet);
-    if (Command *command= parse_command(&instance_map, packet))
+    if (Command *com= parse_command(&instance_map, packet))
     {
       int res= 0;
       log_info("query for connection %lu successefully parsed",connection_id);
-      res= command->execute(&net, connection_id);
-      delete command;
+      res= com->execute(&net, connection_id);
+      delete com;
       if (!res)
         log_info("query for connection %lu executed ok",connection_id);
       else

@@ -188,7 +188,7 @@ public:
     wkb_multilinestring= 5,
     wkb_multipolygon= 6,
     wkb_geometrycollection= 7,
-    wkb_end=7
+    wkb_last=7
   };
   enum wkbByteOrder
   {
@@ -217,7 +217,7 @@ public:
   virtual bool dimension(uint32 *dim, const char **end) const=0;
   virtual int get_x(double *x) const { return -1; }
   virtual int get_y(double *y) const { return -1; }
-  virtual int length(double *len) const  { return -1; }
+  virtual int geom_length(double *len) const  { return -1; }
   virtual int area(double *ar, const char **end) const { return -1;}
   virtual int is_closed(int *closed) const { return -1; }
   virtual int num_interior_ring(uint32 *n_int_rings) const { return -1; }
@@ -246,8 +246,8 @@ public:
   static Geometry *create_from_wkt(Geometry_buffer *buffer,
 				   Gis_read_stream *trs, String *wkt,
 				   bool init_stream=1);
-  static int create_from_wkb(Geometry_buffer *buffer,
-                             const char *wkb, uint32 len, String *res);
+  static Geometry *create_from_wkb(Geometry_buffer *buffer, const char *wkb, 
+                                   uint32 len, String *res);
   int as_wkt(String *wkt, const char **end)
   {
     uint32 len= get_class_info()->m_name.length;
@@ -273,12 +273,12 @@ public:
   }
 
   bool envelope(String *result) const;
-  static Class_info *ci_collection[wkb_end+1];
+  static Class_info *ci_collection[wkb_last+1];
 
 protected:
   static Class_info *find_class(int type_id)
   {
-    return ((type_id < wkb_point) || (type_id > wkb_end)) ?
+    return ((type_id < wkb_point) || (type_id > wkb_last)) ?
       NULL : ci_collection[type_id];
   }  
   static Class_info *find_class(const char *name, uint32 len);
@@ -359,7 +359,7 @@ public:
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
   bool get_data_as_wkt(String *txt, const char **end) const;
   bool get_mbr(MBR *mbr, const char **end) const;
-  int length(double *len) const;
+  int geom_length(double *len) const;
   int is_closed(int *closed) const;
   int num_points(uint32 *n_points) const;
   int start_point(String *point) const;
@@ -441,7 +441,7 @@ public:
   bool get_mbr(MBR *mbr, const char **end) const;
   int num_geometries(uint32 *num) const;
   int geometry_n(uint32 num, String *result) const;
-  int length(double *len) const;
+  int geom_length(double *len) const;
   int is_closed(int *closed) const;
   bool dimension(uint32 *dim, const char **end) const
   {

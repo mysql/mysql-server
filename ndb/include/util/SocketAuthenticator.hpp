@@ -19,6 +19,7 @@
 class SocketAuthenticator
 {
 public:
+  SocketAuthenticator() {}
   virtual ~SocketAuthenticator() {};
   virtual bool client_authenticate(int sockfd) = 0;
   virtual bool server_authenticate(int sockfd) = 0;

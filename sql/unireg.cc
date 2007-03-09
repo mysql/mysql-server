@@ -82,7 +82,7 @@ bool mysql_create_frm(THD *thd, my_string file_name,
   uchar fileinfo[64],forminfo[288],*keybuff;
   TYPELIB formnames;
   uchar *screen_buff;
-  char buff[2];
+  char buff[128];
   DBUG_ENTER("mysql_create_frm");
 
   formnames.type_names=0;
@@ -149,7 +149,6 @@ bool mysql_create_frm(THD *thd, my_string file_name,
                                               create_info->comment.length, 60);
   if (tmp_len < create_info->comment.length)
   {
-    char buff[128];
     (void) my_snprintf(buff, sizeof(buff), "Too long comment for table '%s'",
                        table);
     if ((thd->variables.sql_mode &
@@ -178,13 +177,13 @@ bool mysql_create_frm(THD *thd, my_string file_name,
     goto err;
 
   int2store(buff, create_info->connect_string.length);
-  if (my_write(file, (const byte*)buff, sizeof(buff), MYF(MY_NABP)) ||
+  if (my_write(file, (const byte*)buff, 2, MYF(MY_NABP)) ||
       my_write(file, (const byte*)create_info->connect_string.str,
                create_info->connect_string.length, MYF(MY_NABP)))
       goto err;
 
   int2store(buff, str_db_type.length);
-  if (my_write(file, (const byte*)buff, sizeof(buff), MYF(MY_NABP)) ||
+  if (my_write(file, (const byte*)buff, 2, MYF(MY_NABP)) ||
       my_write(file, (const byte*)str_db_type.str,
                str_db_type.length, MYF(MY_NABP)))
     goto err;
@@ -474,11 +473,11 @@ static bool pack_header(uchar *forminfo, enum db_type table_type,
   create_field *field;
   while ((field=it++))
   {
-
     uint tmp_len= system_charset_info->cset->charpos(system_charset_info,
                                                      field->comment.str,
                                                      field->comment.str +
-                                                     field->comment.length, 255);
+                                                     field->comment.length,
+                                                     255);
     if (tmp_len < field->comment.length)
     {
       char buff[128];
@@ -547,8 +546,9 @@ static bool pack_header(uchar *forminfo, enum db_type table_type,
         for (uint pos= 0; pos < field->interval->count; pos++)
         {
           char *dst;
-          uint length= field->save_interval->type_lengths[pos], hex_length;
           const char *src= field->save_interval->type_names[pos];
+          uint hex_length;
+          length= field->save_interval->type_lengths[pos];
           hex_length= length * 2;
           field->interval->type_lengths[pos]= hex_length;
           field->interval->type_names[pos]= dst= sql_alloc(hex_length + 1);
@@ -839,7 +839,10 @@ static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
 			       field->field_name,
 			       &table);
     if (!regfield)
+    {
+      error= 1;
       goto err;                                 // End of memory
+    }
 
     if (!(field->flags & NOT_NULL_FLAG))
     {

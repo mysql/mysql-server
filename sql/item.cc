@@ -25,10 +25,6 @@
 #include "sql_trigger.h"
 #include "sql_select.h"
 
-static void mark_as_dependent(THD *thd,
-			      SELECT_LEX *last, SELECT_LEX *current,
-			      Item_ident *item);
-
 const String my_null_string("NULL", 4, default_charset_info);
 
 /****************************************************************************/
@@ -1525,6 +1521,8 @@ bool agg_item_charsets(DTCollation &coll, const char *fname,
       doesn't display each argument's characteristics.
     - if nargs is 1, then this error cannot happen.
   */
+  LINT_INIT(safe_args[0]);
+  LINT_INIT(safe_args[1]);
   if (nargs >=2 && nargs <= 3)
   {
     safe_args[0]= args[0];
@@ -1609,7 +1607,7 @@ void Item_ident_for_show::make_field(Send_field *tmp_field)
 Item_field::Item_field(Field *f)
   :Item_ident(0, NullS, *f->table_name, f->field_name),
   item_equal(0), no_const_subst(0),
-   have_privileges(0), any_privileges(0)
+   have_privileges(0), any_privileges(0), fixed_as_field(0)
 {
   set_field(f);
   /*
@@ -1623,7 +1621,7 @@ Item_field::Item_field(THD *thd, Name_resolution_context *context_arg,
                        Field *f)
   :Item_ident(context_arg, f->table->s->db, *f->table_name, f->field_name),
    item_equal(0), no_const_subst(0),
-   have_privileges(0), any_privileges(0)
+   have_privileges(0), any_privileges(0), fixed_as_field(0)
 {
   /*
     We always need to provide Item_field with a fully qualified field
@@ -1662,9 +1660,12 @@ Item_field::Item_field(Name_resolution_context *context_arg,
                        const char *field_name_arg)
   :Item_ident(context_arg, db_arg,table_name_arg,field_name_arg),
    field(0), result_field(0), item_equal(0), no_const_subst(0),
-   have_privileges(0), any_privileges(0)
+   have_privileges(0), any_privileges(0), fixed_as_field(0)
 {
+  SELECT_LEX *select= current_thd->lex->current_select;
   collation.set(DERIVATION_IMPLICIT);
+  if (select && select->parsing_place != IN_HAVING)
+      select->select_n_where_fields++;
 }
 
 // Constructor need to process subselect with temporary tables (see Item)
@@ -1675,7 +1676,8 @@ Item_field::Item_field(THD *thd, Item_field *item)
    item_equal(item->item_equal),
    no_const_subst(item->no_const_subst),
    have_privileges(item->have_privileges),
-   any_privileges(item->any_privileges)
+   any_privileges(item->any_privileges),
+   fixed_as_field(item->fixed_as_field)
 {
   collation.set(DERIVATION_IMPLICIT);
 }
@@ -1685,7 +1687,7 @@ void Item_field::set_field(Field *field_par)
   field=result_field=field_par;			// for easy coding with fields
   maybe_null=field->maybe_null();
   decimals= field->decimals();
-  max_length= field_par->max_length();
+  max_length= field_par->max_display_length();
   table_name= *field_par->table_name;
   field_name= field_par->field_name;
   db_name= field_par->table->s->db;
@@ -2394,21 +2396,22 @@ void Item_param::set_decimal(const char *str, ulong length)
     the fact that even wrong value sent over binary protocol fits into
     MAX_DATE_STRING_REP_LENGTH buffer.
 */
-void Item_param::set_time(TIME *tm, timestamp_type type, uint32 max_length_arg)
+void Item_param::set_time(TIME *tm, timestamp_type time_type,
+                          uint32 max_length_arg)
 { 
   DBUG_ENTER("Item_param::set_time");
 
   value.time= *tm;
-  value.time.time_type= type;
+  value.time.time_type= time_type;
 
   if (value.time.year > 9999 || value.time.month > 12 ||
       value.time.day > 31 ||
-      type != MYSQL_TIMESTAMP_TIME && value.time.hour > 23 ||
+      time_type != MYSQL_TIMESTAMP_TIME && value.time.hour > 23 ||
       value.time.minute > 59 || value.time.second > 59)
   {
     char buff[MAX_DATE_STRING_REP_LENGTH];
     uint length= my_TIME_to_str(&value.time, buff);
-    make_truncated_value_warning(current_thd, buff, length, type, 0);
+    make_truncated_value_warning(current_thd, buff, length, time_type, 0);
     set_zero_time(&value.time, MYSQL_TIMESTAMP_ERROR);
   }
 
@@ -2873,7 +2876,7 @@ bool Item_param::basic_const_item() const
 
 
 Item *
-Item_param::new_item()
+Item_param::clone_item()
 {
   /* see comments in the header file */
   switch (state) {
@@ -3484,34 +3487,73 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
         }
         if (*from_field != view_ref_found)
         {
+
           prev_subselect_item->used_tables_cache|= (*from_field)->table->map;
           prev_subselect_item->const_item_cache= 0;
+          if (!last_checked_context->select_lex->having_fix_field &&
+              !fixed_as_field)
+          {
+            Item_outer_ref *rf;
+            Query_arena *arena= 0, backup;
+            /*
+              Each outer field is replaced for an Item_outer_ref object.
+              This is done in order to get correct results when the outer
+              select employs a temporary table.
+              The original fields are saved in the inner_fields_list of the
+              outer select. This list is created by the following reasons:
+              1. We can't add field items to the outer select list directly
+                 because the outer select hasn't been fully fixed yet.
+              2. We need a location to refer to in the Item_ref object
+                 so the inner_fields_list is used as such temporary
+                 reference storage.
+              The new Item_outer_ref object replaces the original field and is
+              also saved in the inner_refs_list of the outer select. Here
+              it is only created. It can be fixed only after the original
+              field has been fixed and this is done in the fix_inner_refs()
+              function.
+            */
+            set_field(*from_field);
+            arena= thd->activate_stmt_arena_if_needed(&backup);
+            rf= new Item_outer_ref(context, this);
+            if (!rf)
+            {
+              if (arena)
+                thd->restore_active_arena(arena, &backup);
+              return -1;
+            }
+            *reference= rf;
+            select->inner_refs_list.push_back(rf);
+            if (arena)
+              thd->restore_active_arena(arena, &backup);
+            fixed_as_field= 1;
+          }
           if (thd->lex->in_sum_func &&
               thd->lex->in_sum_func->nest_level == 
               thd->lex->current_select->nest_level)
           {
-            Item::Type type= (*reference)->type();
+            Item::Type ref_type= (*reference)->type();
             set_if_bigger(thd->lex->in_sum_func->max_arg_level,
                           select->nest_level);
             set_field(*from_field);
             fixed= 1;
             mark_as_dependent(thd, last_checked_context->select_lex,
                               context->select_lex, this,
-                              ((type == REF_ITEM || type == FIELD_ITEM) ?
+                              ((ref_type == REF_ITEM ||
+                                ref_type == FIELD_ITEM) ?
                                (Item_ident*) (*reference) : 0));
             return 0;
           }
         }
         else
         {
-          Item::Type type= (*reference)->type();
+          Item::Type ref_type= (*reference)->type();
           prev_subselect_item->used_tables_cache|=
             (*reference)->used_tables();
           prev_subselect_item->const_item_cache&=
             (*reference)->const_item();
           mark_as_dependent(thd, last_checked_context->select_lex,
                             context->select_lex, this,
-                            ((type == REF_ITEM || type == FIELD_ITEM) ?
+                            ((ref_type == REF_ITEM || ref_type == FIELD_ITEM) ?
                              (Item_ident*) (*reference) :
                              0));
           /*
@@ -3612,7 +3654,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
   {
     mark_as_dependent(thd, last_checked_context->select_lex,
                       context->select_lex,
-                      this, this);
+                      this, (Item_ident*)*reference);
     if (last_checked_context->select_lex->having_fix_field)
     {
       Item_ref *rf;
@@ -4049,7 +4091,7 @@ Item *Item_field::replace_equal_field(byte *arg)
 
 
 void Item::init_make_field(Send_field *tmp_field,
-			   enum enum_field_types field_type)
+			   enum enum_field_types field_type_arg)
 {
   char *empty_name= (char*) "";
   tmp_field->db_name=		empty_name;
@@ -4061,7 +4103,7 @@ void Item::init_make_field(Send_field *tmp_field,
   tmp_field->flags=             (maybe_null ? 0 : NOT_NULL_FLAG) | 
                                 (my_binary_compare(collation.collation) ?
                                  BINARY_FLAG : 0);
-  tmp_field->type=field_type;
+  tmp_field->type=              field_type_arg;
   tmp_field->length=max_length;
   tmp_field->decimals=decimals;
   if (unsigned_flag)
@@ -4076,12 +4118,12 @@ void Item::make_field(Send_field *tmp_field)
 
 void Item_empty_string::make_field(Send_field *tmp_field)
 {
-  enum_field_types type= FIELD_TYPE_VAR_STRING;
+  enum_field_types f_type= FIELD_TYPE_VAR_STRING;
   if (max_length >= 16777216)
-    type= FIELD_TYPE_LONG_BLOB;
+    f_type= FIELD_TYPE_LONG_BLOB;
   else if (max_length >= 65536)
-    type= FIELD_TYPE_MEDIUM_BLOB;
-  init_make_field(tmp_field, type);
+    f_type= FIELD_TYPE_MEDIUM_BLOB;
+  init_make_field(tmp_field, f_type);
 }
 
 
@@ -4416,7 +4458,7 @@ bool Item_int::eq(const Item *arg, bool binary_cmp) const
 }
 
 
-Item *Item_int_with_ref::new_item()
+Item *Item_int_with_ref::clone_item()
 {
   DBUG_ASSERT(ref->const_item());
   /*
@@ -4694,10 +4736,10 @@ bool Item_null::send(Protocol *protocol, String *packet)
 bool Item::send(Protocol *protocol, String *buffer)
 {
   bool result;
-  enum_field_types type;
+  enum_field_types f_type;
   LINT_INIT(result);                     // Will be set if null_value == 0
 
-  switch ((type=field_type())) {
+  switch ((f_type=field_type())) {
   default:
   case MYSQL_TYPE_NULL:
   case MYSQL_TYPE_DECIMAL:
@@ -4776,7 +4818,7 @@ bool Item::send(Protocol *protocol, String *buffer)
     get_date(&tm, TIME_FUZZY_DATE);
     if (!null_value)
     {
-      if (type == MYSQL_TYPE_DATE)
+      if (f_type == MYSQL_TYPE_DATE)
 	return protocol->store_date(&tm);
       else
 	result= protocol->store(&tm);
@@ -4820,6 +4862,51 @@ void Item_field::update_null_value()
 }
 
 
+/*
+  Add the field to the select list and substitute it for the reference to
+  the field.
+
+  SYNOPSIS
+    Item_field::update_value_transformer()
+    select_arg      current select
+
+  DESCRIPTION
+    If the field doesn't belong to the table being inserted into then it is
+    added to the select list, pointer to it is stored in the ref_pointer_array
+    of the select and the field itself is substituted for the Item_ref object.
+    This is done in order to get correct values from update fields that
+    belongs to the SELECT part in the INSERT .. SELECT .. ON DUPLICATE KEY
+    UPDATE statement.
+
+  RETURN
+    0             if error occured
+    ref           if all conditions are met
+    this field    otherwise
+*/
+
+Item *Item_field::update_value_transformer(byte *select_arg)
+{
+  SELECT_LEX *select= (SELECT_LEX*)select_arg;
+  DBUG_ASSERT(fixed);
+
+  if (field->table != select->context.table_list->table &&
+      type() != Item::TRIGGER_FIELD_ITEM)
+  {
+    List<Item> *all_fields= &select->join->all_fields;
+    Item **ref_pointer_array= select->ref_pointer_array;
+    int el= all_fields->elements;
+    Item_ref *ref;
+
+    ref_pointer_array[el]= (Item*)this;
+    all_fields->push_front((Item*)this);
+    ref= new Item_ref(&select->context, ref_pointer_array + el,
+                      table_name, field_name);
+    return ref;
+  }
+  return this;
+}
+
+
 Item_ref::Item_ref(Name_resolution_context *context_arg,
                    Item **item, const char *table_name_arg,
                    const char *field_name_arg)
@@ -4829,8 +4916,7 @@ Item_ref::Item_ref(Name_resolution_context *context_arg,
   /*
     This constructor used to create some internals references over fixed items
   */
-  DBUG_ASSERT(ref != 0);
-  if (*ref && (*ref)->fixed)
+  if (ref && *ref && (*ref)->fixed)
     set_properties();
 }
 
@@ -4989,7 +5075,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
             goto error;
           if (from_field == view_ref_found)
           {
-            Item::Type type= (*reference)->type();
+            Item::Type refer_type= (*reference)->type();
             prev_subselect_item->used_tables_cache|=
               (*reference)->used_tables();
             prev_subselect_item->const_item_cache&=
@@ -4997,7 +5083,8 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
             DBUG_ASSERT((*reference)->type() == REF_ITEM);
             mark_as_dependent(thd, last_checked_context->select_lex,
                               context->select_lex, this,
-                              ((type == REF_ITEM || type == FIELD_ITEM) ?
+                              ((refer_type == REF_ITEM ||
+                                refer_type == FIELD_ITEM) ?
                                (Item_ident*) (*reference) :
                                0));
             /*
@@ -5130,7 +5217,7 @@ void Item_ref::print(String *str)
   if (ref)
   {
     if ((*ref)->type() != Item::CACHE_ITEM && ref_type() != VIEW_REF &&
-        name && alias_name_used)
+        ref_type() != OUTER_REF && name && alias_name_used)
     {
       THD *thd= current_thd;
       append_identifier(thd, str, name, (uint) strlen(name));
@@ -5378,7 +5465,7 @@ bool Item_direct_ref::get_date(TIME *ltime,uint fuzzydate)
 
 
 /*
-  Prepare referenced view viewld then call usual Item_direct_ref::fix_fields
+  Prepare referenced field then call usual Item_direct_ref::fix_fields
 
   SYNOPSIS
     Item_direct_view_ref::fix_fields()
@@ -5398,6 +5485,31 @@ bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
   if (!(*ref)->fixed &&
       ((*ref)->fix_fields(thd, ref)))
     return TRUE;
+  return Item_direct_ref::fix_fields(thd, reference);
+}
+
+/*
+  Prepare referenced outer field then call usual Item_direct_ref::fix_fields
+
+  SYNOPSIS
+    Item_outer_ref::fix_fields()
+    thd         thread handler
+    reference   reference on reference where this item stored
+
+  RETURN
+    FALSE   OK
+    TRUE    Error
+*/
+
+bool Item_outer_ref::fix_fields(THD *thd, Item **reference)
+{
+  DBUG_ASSERT(*ref);
+  /* outer_field->check_cols() will be made in Item_direct_ref::fix_fields */
+  outer_field->fixed_as_field= 1;
+  if (!outer_field->fixed &&
+      (outer_field->fix_fields(thd, reference)))
+    return TRUE;
+  table_name= outer_field->table_name;
   return Item_direct_ref::fix_fields(thd, reference);
 }
 
@@ -5731,8 +5843,9 @@ bool Item_trigger_field::fix_fields(THD *thd, Item **items)
     {
       table_grants->want_privilege= want_privilege;
 
-      if (check_grant_column(thd, table_grants, triggers->table->s->db,
-                             triggers->table->s->table_name, field_name,
+      if (check_grant_column(thd, table_grants, triggers->trigger_table->s->db,
+                             triggers->trigger_table->s->table_name,
+                             field_name,
                              strlen(field_name), thd->security_ctx))
         return TRUE;
     }
@@ -5850,7 +5963,8 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     DBUG_ASSERT(item_row->cols() == comp_item_row->cols());
     col= item_row->cols();
     while (col-- > 0)
-      resolve_const_item(thd, item_row->addr(col), comp_item_row->el(col));
+      resolve_const_item(thd, item_row->addr(col),
+                         comp_item_row->element_index(col));
     break;
   }
   /* Fallthrough */
@@ -6118,7 +6232,7 @@ bool Item_cache_row::setup(Item * item)
     return 1;
   for (uint i= 0; i < item_count; i++)
   {
-    Item *el= item->el(i);
+    Item *el= item->element_index(i);
     Item_cache *tmp;
     if (!(tmp= values[i]= Item_cache::get_cache(el->result_type())))
       return 1;
@@ -6134,7 +6248,7 @@ void Item_cache_row::store(Item * item)
   item->bring_value();
   for (uint i= 0; i < item_count; i++)
   {
-    values[i]->store(item->el(i));
+    values[i]->store(item->element_index(i));
     null_value|= values[i]->null_value;
   }
 }

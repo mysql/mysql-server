@@ -37,15 +37,6 @@ C_MODE_END
 
 String my_empty_string("",default_charset_info);
 
-static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
-                              const char *fname)
-{
-  my_error(ER_CANT_AGGREGATE_2COLLATIONS, MYF(0),
-           c1.collation->name, c1.derivation_name(),
-           c2.collation->name, c2.derivation_name(),
-           fname);
-}
-
 
 String *Item_str_func::check_well_formed_result(String *str)
 {
@@ -2251,8 +2242,10 @@ String *Item_func_repeat::val_str(String *str)
   if (args[0]->null_value || args[1]->null_value)
     goto err;				// string and/or delim are null
   null_value= 0;
-  if ((count <= 0) && !args[1]->unsigned_flag)	// For nicer SQL code
+
+  if (count == 0 || count < 0 && !args[1]->unsigned_flag)
     return &my_empty_string;
+
   /* Assumes that the maximum length of a String is < INT_MAX32. */
   /* Bounds check on count:  If this is triggered, we will error. */
   if ((ulonglong) count > INT_MAX32)
@@ -3246,15 +3239,17 @@ String *Item_func_uuid::val_str(String *str)
     int i;
     if (my_gethwaddr(mac))
     {
+      /* purecov: begin inspected */
       /*
         generating random "hardware addr"
         and because specs explicitly specify that it should NOT correlate
         with a clock_seq value (initialized random below), we use a separate
         randominit() here
       */
-      randominit(&uuid_rand, tmp + (ulong) thd, tmp + (ulong)query_id);
+      randominit(&uuid_rand, tmp + (ulong) thd, tmp + (ulong)global_query_id);
       for (i=0; i < (int)sizeof(mac); i++)
         mac[i]=(uchar)(my_rnd(&uuid_rand)*255);
+      /* purecov: end */    
     }
     s=clock_seq_and_node_str+sizeof(clock_seq_and_node_str)-1;
     for (i=sizeof(mac)-1 ; i>=0 ; i--)
@@ -3262,7 +3257,7 @@ String *Item_func_uuid::val_str(String *str)
       *--s=_dig_vec_lower[mac[i] & 15];
       *--s=_dig_vec_lower[mac[i] >> 4];
     }
-    randominit(&uuid_rand, tmp + (ulong)start_time,
+    randominit(&uuid_rand, tmp + (ulong) server_start_time,
 	       tmp + thd->status_var.bytes_sent);
     set_clock_seq_str();
   }

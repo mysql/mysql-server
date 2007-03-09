@@ -346,27 +346,27 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
         }
 	break;
       case NdbDictionary::Column::Blob:
-        {
-          const NdbBlob::Head* h = (const NdbBlob::Head*)r.aRef();
-          out << h->length << ":";
-          const unsigned char* p = (const unsigned char*)(h + 1);
-          unsigned n = r.arraySize() - sizeof(*h);
-          for (unsigned k = 0; k < n && k < h->length; k++)
-            out.print("%02X", (int)p[k]);
-          j = length;
-        }
-        break;
       case NdbDictionary::Column::Text:
-        {
-          const NdbBlob::Head* h = (const NdbBlob::Head*)r.aRef();
-          out << h->length << ":";
-          const unsigned char* p = (const unsigned char*)(h + 1);
-          unsigned n = r.arraySize() - sizeof(*h);
-          for (unsigned k = 0; k < n && k < h->length; k++)
-            out.print("%c", (int)p[k]);
-          j = length;
+      {
+        // user defined aRef() may not be aligned to Uint64
+        NdbBlob::Head head;
+        memcpy(&head, r.aRef(), sizeof(head));
+        out << head.length << ":";
+        const unsigned char* p = (const unsigned char*)r.aRef() + sizeof(head);
+        if (r.arraySize() < sizeof(head))
+          out << "***error***"; // really cannot happen
+        else {
+          unsigned n = r.arraySize() - sizeof(head);
+          for (unsigned k = 0; k < n && k < head.length; k++) {
+            if (r.getType() == NdbDictionary::Column::Blob)
+              out.print("%02X", (int)p[k]);
+            else
+              out.print("%c", (int)p[k]);
+          }
         }
-        break;
+        j = length;
+      }
+      break;
       case NdbDictionary::Column::Longvarchar:
         {
           unsigned len = uint2korr(r.aRef());

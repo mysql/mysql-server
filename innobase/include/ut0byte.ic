@@ -388,8 +388,8 @@ ut_bit_set_nth(
 	ut_ad(TRUE == 1);
 
 	if (val) {
-		return((1 << n) | a);
+		return(((ulint) 1 << n) | a);
 	} else {
-		return(~(1 << n) & a);
+		return(~((ulint) 1 << n) & a);
 	}
 }

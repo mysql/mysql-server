@@ -299,6 +299,8 @@ our $path_ndb_examples_dir;
 our $exe_ndb_example;
 our $path_ndb_testrun_log;
 
+our $path_sql_dir;
+
 our @data_dir_lst;
 
 our $used_binlog_format;
@@ -355,6 +357,7 @@ sub mysqld_arguments ($$$$$);
 sub stop_all_servers ();
 sub run_mysqltest ($);
 sub usage ($);
+
 
 ######################################################################
 #
@@ -699,7 +702,9 @@ sub command_line_setup () {
 				       "$glob_basedir/client",
 				       "$glob_basedir/bin");
 
-  $exe_mysqld=         mtr_exe_exists (vs_config_dirs('sql', 'mysqld'),
+  if (!$opt_extern)
+  {
+    $exe_mysqld=       mtr_exe_exists (vs_config_dirs('sql', 'mysqld'),
 				       "$glob_basedir/sql/mysqld",
 				       "$path_client_bindir/mysqld-max-nt",
 				       "$path_client_bindir/mysqld-max",
@@ -711,8 +716,16 @@ sub command_line_setup () {
 				       "$glob_basedir/bin/mysqld",
 				       "$glob_basedir/sbin/mysqld");
 
-  # Use the mysqld found above to find out what features are available
-  collect_mysqld_features();
+    # Use the mysqld found above to find out what features are available
+    collect_mysqld_features();
+  }
+  else
+  {
+    $mysqld_variables{'port'}= 3306;
+    $mysqld_variables{'master-port'}= 3306;
+    $opt_skip_ndbcluster= 1;
+    $opt_skip_im= 1;
+  }
 
   if ( $opt_comment )
   {
@@ -749,7 +762,7 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   # NOTE if the default binlog format is changed, this has to be changed
   $used_binlog_format= "stmt";
-  if ( $mysql_version_id >= 50100 )
+  if (!$opt_extern && $mysql_version_id >= 50100 )
   {
     $used_binlog_format= "mixed"; # Default value for binlog format
 
@@ -835,19 +848,20 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   # Check im suport
   # --------------------------------------------------------------------------
-  if ( $mysql_version_id < 50000 )
+  if (!$opt_extern)
   {
-    # Instance manager is not supported until 5.0
-    $opt_skip_im= 1;
+    if ( $mysql_version_id < 50000 ) {
+      # Instance manager is not supported until 5.0
+      $opt_skip_im= 1;
+
+    }
+
+    if ( $glob_win32 ) {
+      mtr_report("Disable Instance manager - not supported on Windows");
+      $opt_skip_im= 1;
+    }
 
   }
-
-  if ( $glob_win32 )
-  {
-    mtr_report("Disable Instance manager - not supported on Windows");
-    $opt_skip_im= 1;
-  }
-
   # --------------------------------------------------------------------------
   # Record flag
   # --------------------------------------------------------------------------
@@ -1211,7 +1225,7 @@ sub command_line_setup () {
     $opt_skip_rpl= 1;
 
     # Setup master->[0] with the settings for the extern server
-    $master->[0]->{'path_sock'}=  $opt_socket if $opt_socket;
+    $master->[0]->{'path_sock'}=  $opt_socket ? $opt_socket : "/tmp/mysql.sock";
     mtr_report("Using extern server at '$master->[0]->{path_sock}'");
   }
   else
@@ -1477,56 +1491,58 @@ sub executable_setup () {
   $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");
   $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
   $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
-  if ( $mysql_version_id >= 50100 )
-  {
-    $exe_mysqlslap=    mtr_exe_exists("$path_client_bindir/mysqlslap");
-  }
-  if ( $mysql_version_id >= 50000 and !$glob_use_embedded_server )
-  {
-    $exe_mysql_upgrade= mtr_exe_exists("$path_client_bindir/mysql_upgrade")
-  }
-  else
-  {
-    $exe_mysql_upgrade= "";
-  }
 
-  if ( ! $glob_win32 )
+  if (!$opt_extern)
   {
-    # Look for mysql_fix_system_table script
-    $exe_mysql_fix_system_tables=
-      mtr_script_exists("$glob_basedir/scripts/mysql_fix_privilege_tables",
-			"$path_client_bindir/mysql_fix_privilege_tables");
-  }
 
-  # Look for mysql_fix_privilege_tables.sql script
-  $file_mysql_fix_privilege_tables=
-    mtr_file_exists("$glob_basedir/scripts/mysql_fix_privilege_tables.sql",
-		    "$glob_basedir/share/mysql_fix_privilege_tables.sql");
+  # Look for SQL scripts directory
+  $path_sql_dir= mtr_path_exists("$glob_basedir/share",
+				 "$glob_basedir/scripts");
 
-  if ( ! $opt_skip_ndbcluster and executable_setup_ndb())
-  {
-    mtr_warning("Could not find all required ndb binaries, " .
-		"all ndb tests will fail, use --skip-ndbcluster to " .
-		"skip testing it.");
-
-    foreach my $cluster (@{$clusters})
-    {
-      $cluster->{"executable_setup_failed"}= 1;
+    if ( $mysql_version_id >= 50100 ) {
+      $exe_mysqlslap=    mtr_exe_exists("$path_client_bindir/mysqlslap");
     }
-  }
+    if ( $mysql_version_id >= 50000 and !$glob_use_embedded_server ) {
+      $exe_mysql_upgrade= mtr_exe_exists("$path_client_bindir/mysql_upgrade")
+    } else {
+      $exe_mysql_upgrade= "";
+    }
 
-  if ( ! $opt_skip_im and executable_setup_im())
-  {
-    mtr_warning("Could not find all required instance manager binaries, " .
-		"all im tests will fail, use --skip-im to " .
-		"continue without instance manager");
-    $instance_manager->{"executable_setup_failed"}= 1;
-  }
+    if ( ! $glob_win32 ) {
+      # Look for mysql_fix_system_table script
+      $exe_mysql_fix_system_tables=
+	mtr_script_exists("$glob_basedir/scripts/mysql_fix_privilege_tables",
+			  "$path_client_bindir/mysql_fix_privilege_tables");
+    }
 
-  # Look for the udf_example library
-  $lib_udf_example=
-    mtr_file_exists(vs_config_dirs('sql', 'udf_example.dll'),
-                    "$glob_basedir/sql/.libs/udf_example.so",);
+    # Look for mysql_fix_privilege_tables.sql script
+    $file_mysql_fix_privilege_tables=
+      mtr_file_exists("$glob_basedir/scripts/mysql_fix_privilege_tables.sql",
+		      "$glob_basedir/share/mysql_fix_privilege_tables.sql");
+
+    if ( ! $opt_skip_ndbcluster and executable_setup_ndb()) {
+      mtr_warning("Could not find all required ndb binaries, " .
+		  "all ndb tests will fail, use --skip-ndbcluster to " .
+		  "skip testing it.");
+
+      foreach my $cluster (@{$clusters}) {
+	$cluster->{"executable_setup_failed"}= 1;
+      }
+    }
+
+    if ( ! $opt_skip_im and executable_setup_im()) {
+      mtr_warning("Could not find all required instance manager binaries, " .
+		  "all im tests will fail, use --skip-im to " .
+		  "continue without instance manager");
+      $instance_manager->{"executable_setup_failed"}= 1;
+    }
+
+    # Look for the udf_example library
+    $lib_udf_example=
+      mtr_file_exists(vs_config_dirs('sql', 'udf_example.dll'),
+		      "$glob_basedir/sql/.libs/udf_example.so",);
+
+  }
 
   # Look for mysqltest executable
   if ( $glob_use_embedded_server )
@@ -1563,7 +1579,8 @@ sub executable_setup () {
 sub generate_cmdline_mysqldump ($) {
   my($mysqld) = @_;
   return
-    "$exe_mysqldump --no-defaults -uroot " .
+    mtr_native_path($exe_mysqldump) .
+      " --no-defaults -uroot " .
       "--port=$mysqld->{'port'} " .
       "--socket=$mysqld->{'path_sock'} --password=";
 }
@@ -1593,7 +1610,7 @@ sub mysql_client_test_arguments()
   mtr_add_arg($args, "--port=$master->[0]->{'port'}");
   mtr_add_arg($args, "--socket=$master->[0]->{'path_sock'}");
 
-  if ( $mysql_version_id >= 50000 )
+  if ( $opt_extern || $mysql_version_id >= 50000 )
   {
     mtr_add_arg($args, "--vardir=$opt_vardir")
   }
@@ -1697,14 +1714,14 @@ sub environment_setup () {
   my $deb_version;
   if (  $opt_valgrind and -d $debug_libraries_path and
         (! -e '/etc/debian_version' or
-         ($deb_version= mtr_grab_file('/etc/debian_version')) == 0 or
+	 ($deb_version= mtr_grab_file('/etc/debian_version')) !~ /^[0-9]+\.[0-9]$/ or
          $deb_version > 3.1 ) )
   {
     push(@ld_library_paths, $debug_libraries_path);
   }
 
   $ENV{'LD_LIBRARY_PATH'}= join(":", @ld_library_paths,
-				$ENV{'LD_LIBRARY_PATHS'} ?
+				$ENV{'LD_LIBRARY_PATH'} ?
 				split(':', $ENV{'LD_LIBRARY_PATH'}) : ());
   mtr_debug("LD_LIBRARY_PATH: $ENV{'LD_LIBRARY_PATH'}");
 
@@ -1801,9 +1818,10 @@ sub environment_setup () {
   # Setup env so childs can execute mysqlcheck
   # ----------------------------------------------------
   my $cmdline_mysqlcheck=
-    "$exe_mysqlcheck --no-defaults -uroot " .
-    "--port=$master->[0]->{'port'} " .
-    "--socket=$master->[0]->{'path_sock'} --password=";
+    mtr_native_path($exe_mysqlcheck) .
+      " --no-defaults -uroot " .
+      "--port=$master->[0]->{'port'} " .
+      "--socket=$master->[0]->{'path_sock'} --password=";
 
   if ( $opt_debug )
   {
@@ -1835,7 +1853,8 @@ sub environment_setup () {
   if ( $exe_mysqlslap )
   {
     my $cmdline_mysqlslap=
-      "$exe_mysqlslap -uroot " .
+      mtr_native_path($exe_mysqlslap) .
+      " -uroot " .
       "--port=$master->[0]->{'port'} " .
       "--socket=$master->[0]->{'path_sock'} --password= " .
       "--lock-directory=$opt_tmpdir";
@@ -1852,7 +1871,8 @@ sub environment_setup () {
   # Setup env so childs can execute mysqlimport
   # ----------------------------------------------------
   my $cmdline_mysqlimport=
-    "$exe_mysqlimport -uroot " .
+    mtr_native_path($exe_mysqlimport) .
+    " -uroot " .
     "--port=$master->[0]->{'port'} " .
     "--socket=$master->[0]->{'path_sock'} --password=";
 
@@ -1868,7 +1888,8 @@ sub environment_setup () {
   # Setup env so childs can execute mysqlshow
   # ----------------------------------------------------
   my $cmdline_mysqlshow=
-    "$exe_mysqlshow -uroot " .
+    mtr_native_path($exe_mysqlshow) .
+    " -uroot " .
     "--port=$master->[0]->{'port'} " .
     "--socket=$master->[0]->{'path_sock'} --password=";
 
@@ -1883,9 +1904,9 @@ sub environment_setup () {
   # Setup env so childs can execute mysqlbinlog
   # ----------------------------------------------------
   my $cmdline_mysqlbinlog=
-    "$exe_mysqlbinlog" .
+    mtr_native_path($exe_mysqlbinlog) .
       " --no-defaults --local-load=$opt_tmpdir";
-  if ( $mysql_version_id >= 50000 )
+  if (!$opt_extern && $mysql_version_id >= 50000 )
   {
     $cmdline_mysqlbinlog .=" --character-sets-dir=$path_charsetsdir";
   }
@@ -1901,7 +1922,8 @@ sub environment_setup () {
   # Setup env so childs can execute mysql
   # ----------------------------------------------------
   my $cmdline_mysql=
-    "$exe_mysql --no-defaults --host=localhost  --user=root --password= " .
+    mtr_native_path($exe_mysql) .
+    " --no-defaults --host=localhost  --user=root --password= " .
     "--port=$master->[0]->{'port'} " .
     "--socket=$master->[0]->{'path_sock'} ".
     "--character-sets-dir=$path_charsetsdir";
@@ -1916,7 +1938,7 @@ sub environment_setup () {
   # ----------------------------------------------------
   # Setup env so childs can execute mysql_upgrade
   # ----------------------------------------------------
-  if ( $mysql_version_id >= 50000 )
+  if ( !$opt_extern && $mysql_version_id >= 50000 )
   {
     $ENV{'MYSQL_UPGRADE'}= mysql_upgrade_arguments();
   }
@@ -1924,7 +1946,7 @@ sub environment_setup () {
   # ----------------------------------------------------
   # Setup env so childs can execute mysql_fix_system_tables
   # ----------------------------------------------------
-  if ( ! $glob_win32 )
+  if ( !$opt_extern && ! $glob_win32 )
   {
     my $cmdline_mysql_fix_system_tables=
       "$exe_mysql_fix_system_tables --no-defaults --host=localhost " .
@@ -1933,23 +1955,27 @@ sub environment_setup () {
       "--port=$master->[0]->{'port'} " .
       "--socket=$master->[0]->{'path_sock'}";
     $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  $cmdline_mysql_fix_system_tables;
+
   }
-  $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
+  if (!$opt_extern)
+  {
+    $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
+  }
 
   # ----------------------------------------------------
   # Setup env so childs can execute my_print_defaults
   # ----------------------------------------------------
-  $ENV{'MYSQL_MY_PRINT_DEFAULTS'}=  $exe_my_print_defaults;
+  $ENV{'MYSQL_MY_PRINT_DEFAULTS'}= mtr_native_path($exe_my_print_defaults);
 
   # ----------------------------------------------------
   # Setup env so childs can execute mysqladmin
   # ----------------------------------------------------
-  $ENV{'MYSQLADMIN'}=  $exe_mysqladmin;
+  $ENV{'MYSQLADMIN'}= mtr_native_path($exe_mysqladmin);
 
   # ----------------------------------------------------
   # Setup env so childs can execute perror  
   # ----------------------------------------------------
-  $ENV{'MY_PERROR'}=                 $exe_perror;
+  $ENV{'MY_PERROR'}= mtr_native_path($exe_perror);
 
   # ----------------------------------------------------
   # Add the path where mysqld will find udf_example.so
@@ -2107,6 +2133,16 @@ sub remove_stale_vardir () {
       mtr_verbose("Removing $opt_vardir/");
       rmtree("$opt_vardir/");
     }
+
+    if ( $opt_mem )
+    {
+      # A symlink from var/ to $opt_mem will be set up
+      # remove the $opt_mem dir to assure the symlink
+      # won't point at an old directory
+      mtr_verbose("Removing $opt_mem");
+      rmtree($opt_mem);
+    }
+
   }
   else
   {
@@ -2238,7 +2274,10 @@ sub check_ssl_support ($) {
 
   if ($opt_skip_ssl || $opt_extern)
   {
-    mtr_report("Skipping SSL");
+    if (!$opt_extern)
+    {
+      mtr_report("Skipping SSL");
+    }
     $opt_ssl_supported= 0;
     $opt_ssl= 0;
     return;
@@ -2313,9 +2352,12 @@ sub vs_config_dirs ($$) {
 sub check_ndbcluster_support ($) {
   my $mysqld_variables= shift;
 
-  if ($opt_skip_ndbcluster)
+  if ($opt_skip_ndbcluster || $opt_extern)
   {
-    mtr_report("Skipping ndbcluster");
+    if (!$opt_extern)
+    {
+      mtr_report("Skipping ndbcluster");
+    }
     $opt_skip_ndbcluster_slave= 1;
     return;
   }
@@ -2731,7 +2773,10 @@ sub initialize_servers () {
     }
     else
     {
-      mtr_report("No need to create '$opt_vardir' it already exists");
+      if ($opt_verbose)
+      {
+	mtr_report("No need to create '$opt_vardir' it already exists");
+      }
     }
   }
   else
@@ -2849,42 +2894,13 @@ sub install_db ($$) {
   my $type=      shift;
   my $data_dir=  shift;
 
-  my $init_db_sql=     "lib/init_db.sql";
-  my $init_db_sql_tmp= "/tmp/init_db.sql$$";
-  my $args;
-
   mtr_report("Installing \u$type Database");
 
-  open(IN, $init_db_sql)
-    or mtr_error("Can't open $init_db_sql: $!");
-  open(OUT, ">", $init_db_sql_tmp)
-    or mtr_error("Can't write to $init_db_sql_tmp: $!");
-  while (<IN>)
-  {
-    chomp;
-    s/\@HOSTNAME\@/$glob_hostname/;
-    if ( /^\s*$/ )
-    {
-      print OUT "\n";
-    }
-    elsif (/;$/)
-    {
-      print OUT "$_\n";
-    }
-    else
-    {
-      print OUT "$_ ";
-    }
-  }
-  close OUT;
-  close IN;
 
+  my $args;
   mtr_init_args(\$args);
-
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--bootstrap");
-  mtr_add_arg($args, "--console");
-  mtr_add_arg($args, "--skip-grant-tables");
   mtr_add_arg($args, "--basedir=%s", $path_my_basedir);
   mtr_add_arg($args, "--datadir=%s", $data_dir);
   mtr_add_arg($args, "--skip-innodb");
@@ -2911,21 +2927,55 @@ sub install_db ($$) {
   # --bootstrap, to accommodate this.
   my $exe_mysqld_bootstrap = $ENV{'MYSQLD_BOOTSTRAP'} || $exe_mysqld;
 
+  # ----------------------------------------------------------------------
+  # export MYSQLD_BOOTSTRAP_CMD variable containing <path>/mysqld <args>
+  # ----------------------------------------------------------------------
+  $ENV{'MYSQLD_BOOTSTRAP_CMD'}= "$exe_mysqld_bootstrap " . join(" ", @$args);
+
+  # ----------------------------------------------------------------------
+  # Create the bootstrap.sql file
+  # ----------------------------------------------------------------------
+  my $bootstrap_sql_file= "$opt_vardir/tmp/bootstrap.sql";
+
+  # Use the mysql database for system tables
+  mtr_tofile($bootstrap_sql_file, "use mysql");
+
+  # Add the offical mysql system tables
+  # for a production system
+  mtr_appendfile_to_file("$path_sql_dir/mysql_system_tables.sql",
+			 $bootstrap_sql_file);
+
+  # Add the mysql system tables initial data
+  # for a production system
+  mtr_appendfile_to_file("$path_sql_dir/mysql_system_tables_data.sql",
+			 $bootstrap_sql_file);
+
+  # Add test data for timezone - this is just a subset, on a real
+  # system these tables will be populated either by mysql_tzinfo_to_sql
+  # or by downloading the timezone table package from our website
+  mtr_appendfile_to_file("$path_sql_dir/mysql_test_data_timezone.sql",
+			 $bootstrap_sql_file);
+
+  # Fill help tables, just an empty file when running from bk repo
+  # but will be replaced by a real fill_help_tables.sql when
+  # building the source dist
+  mtr_appendfile_to_file("$path_sql_dir/fill_help_tables.sql",
+			 $bootstrap_sql_file);
+
   # Log bootstrap command
   my $path_bootstrap_log= "$opt_vardir/log/bootstrap.log";
   mtr_tofile($path_bootstrap_log,
 	     "$exe_mysqld_bootstrap " . join(" ", @$args) . "\n");
 
-  if ( mtr_run($exe_mysqld_bootstrap, $args, $init_db_sql_tmp,
+  if ( mtr_run($exe_mysqld_bootstrap, $args, $bootstrap_sql_file,
                $path_bootstrap_log, $path_bootstrap_log,
 	       "", { append_log_file => 1 }) != 0 )
 
   {
-    unlink($init_db_sql_tmp);
     mtr_error("Error executing mysqld --bootstrap\n" .
-              "Could not install $type test DBs");
+              "Could not install system database from $bootstrap_sql_file\n" .
+	      "see $path_bootstrap_log for errors");
   }
-  unlink($init_db_sql_tmp);
 }
 
 
@@ -2993,6 +3043,7 @@ language            = $path_language
 character-sets-dir  = $path_charsetsdir
 basedir             = $path_my_basedir
 server_id           = $server_id
+shutdown-delay      = 10
 skip-stack-trace
 skip-innodb
 skip-ndbcluster
@@ -3128,17 +3179,17 @@ sub do_before_run_mysqltest($)
   unlink("$result_dir/$tname.log");
   unlink("$result_dir/$tname.warnings");
 
-  if ( $mysql_version_id < 50000 )
+  if (!$opt_extern)
   {
-    # Set environment variable NDB_STATUS_OK to 1
-    # if script decided to run mysqltest cluster _is_ installed ok
-    $ENV{'NDB_STATUS_OK'} = "1";
-  }
-  elsif ( $mysql_version_id < 50100 )
-  {
-    # Set environment variable NDB_STATUS_OK to YES
-    # if script decided to run mysqltest cluster _is_ installed ok
-    $ENV{'NDB_STATUS_OK'} = "YES";
+    if ( $mysql_version_id < 50000 ) {
+      # Set environment variable NDB_STATUS_OK to 1
+      # if script decided to run mysqltest cluster _is_ installed ok
+      $ENV{'NDB_STATUS_OK'} = "1";
+    } elsif ( $mysql_version_id < 50100 ) {
+      # Set environment variable NDB_STATUS_OK to YES
+      # if script decided to run mysqltest cluster _is_ installed ok
+      $ENV{'NDB_STATUS_OK'} = "YES";
+    }
   }
 }
 
@@ -3743,7 +3794,7 @@ sub mysqld_arguments ($$$$$) {
     if ( $mysql_version_id <= 50106 )
     {
       # Force mysqld to use log files up until 5.1.6
-      mtr_add_arg($args, "%s--log=%s", $prefix, $master->[0]->{'path_mylog'});
+      mtr_add_arg($args, "%s--log=%s", $prefix, $slave->[0]->{'path_mylog'});
     }
     else
     {
@@ -4629,7 +4680,8 @@ sub run_mysqltest ($) {
   # ----------------------------------------------------------------------
   # export MYSQL_TEST variable containing <path>/mysqltest <args>
   # ----------------------------------------------------------------------
-  $ENV{'MYSQL_TEST'}= "$exe_mysqltest " . join(" ", @$args);
+  $ENV{'MYSQL_TEST'}=
+    mtr_native_path($exe_mysqltest) . " " . join(" ", @$args);
 
   # ----------------------------------------------------------------------
   # Add arguments that should not go into the MYSQL_TEST env var
@@ -4840,9 +4892,7 @@ sub debugger_arguments {
   my $exe=  shift;
   my $debugger= $opt_debugger || $opt_client_debugger;
 
-  # FIXME Need to change the below "eq"'s to
-  # "case unsensitive string contains"
-  if ( $debugger eq "vcexpress" or $debugger eq "vc")
+  if ( $debugger =~ /vcexpress|vc|devenv/ )
   {
     # vc[express] /debugexe exe arg1 .. argn
 
@@ -4850,22 +4900,37 @@ sub debugger_arguments {
     unshift(@$$args, "/debugexe");
     unshift(@$$args, "$$exe");
 
+    # Set exe to debuggername
+    $$exe= $debugger;
+
   }
-  elsif ( $debugger eq "windbg" )
+  elsif ( $debugger =~ /windbg/ )
   {
     # windbg exe arg1 .. argn
 
     # Add name of the exe before args
     unshift(@$$args, "$$exe");
 
+    # Set exe to debuggername
+    $$exe= $debugger;
+
+  }
+  elsif ( $debugger eq "dbx" )
+  {
+    # xterm -e dbx -r exe arg1 .. argn
+
+    unshift(@$$args, $$exe);
+    unshift(@$$args, "-r");
+    unshift(@$$args, $debugger);
+    unshift(@$$args, "-e");
+
+    $$exe= "xterm";
+
   }
   else
   {
     mtr_error("Unknown argument \"$debugger\" passed to --debugger");
   }
-
-  # Set exe to debuggername
-  $$exe= $debugger;
 }
 
 
@@ -4919,10 +4984,10 @@ sub usage ($) {
 
   if ( $message )
   {
-    print STDERR "$message \n";
+    print STDERR "$message\n";
   }
 
-  print STDERR <<HERE;
+  print <<HERE;
 
 $0 [ OPTIONS ] [ TESTCASE ]
 

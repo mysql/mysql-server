@@ -2360,7 +2360,7 @@ longlong Item_func_locate::val_int()
                                             b->ptr(), b->length(),
                                             &match, 1))
     return 0;
-  return (longlong) match.mblen + start0 + 1;
+  return (longlong) match.mb_len + start0 + 1;
 }
 
 
@@ -3161,9 +3161,9 @@ longlong Item_master_pos_wait::val_int()
     null_value = 1;
     return 0;
   }
+#ifdef HAVE_REPLICATION
   longlong pos = (ulong)args[1]->val_int();
   longlong timeout = (arg_count==3) ? args[2]->val_int() : 0 ;
-#ifdef HAVE_REPLICATION
   if ((event_count = active_mi->rli.wait_for_pos(thd, log_name, pos, timeout)) == -2)
   {
     null_value = 1;
@@ -3459,6 +3459,7 @@ longlong Item_func_benchmark::val_int()
   DBUG_ASSERT(fixed == 1);
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff,sizeof(buff), &my_charset_bin);
+  my_decimal tmp_decimal;
   THD *thd=current_thd;
 
   for (ulong loop=0 ; loop < loop_count && !thd->killed; loop++)
@@ -3472,6 +3473,9 @@ longlong Item_func_benchmark::val_int()
       break;
     case STRING_RESULT:
       (void) args[0]->val_str(&tmp);
+      break;
+    case DECIMAL_RESULT:
+      (void) args[0]->val_decimal(&tmp_decimal);
       break;
     case ROW_RESULT:
     default:
@@ -3715,7 +3719,8 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
 
 
 bool
-Item_func_set_user_var::update_hash(void *ptr, uint length, Item_result type,
+Item_func_set_user_var::update_hash(void *ptr, uint length,
+                                    Item_result res_type,
                                     CHARSET_INFO *cs, Derivation dv,
                                     bool unsigned_arg)
 {
@@ -3724,9 +3729,9 @@ Item_func_set_user_var::update_hash(void *ptr, uint length, Item_result type,
     result type of the variable
   */
   if ((null_value= args[0]->null_value) && null_item)
-    type= entry->type;                          // Don't change type of item
+    res_type= entry->type;                      // Don't change type of item
   if (::update_hash(entry, (null_value= args[0]->null_value),
-                    ptr, length, type, cs, dv, unsigned_arg))
+                    ptr, length, res_type, cs, dv, unsigned_arg))
   {
     current_thd->fatal_error();     // Probably end of memory
     null_value= 1;
@@ -4226,7 +4231,14 @@ int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
   user_var_entry *var_entry;
   var_entry= get_variable(&thd->user_vars, name, 0);
 
-  if (!(opt_bin_log && is_update_query(sql_command)))
+  /*
+    Any reference to user-defined variable which is done from stored
+    function or trigger affects their execution and the execution of the
+    calling statement. We must log all such variables even if they are 
+    not involved in table-updating statements.
+  */
+  if (!(opt_bin_log && 
+       (is_update_query(sql_command) || thd->in_sub_stmt)))
   {
     *out_entry= var_entry;
     return 0;
@@ -4978,8 +4990,9 @@ longlong Item_func_row_count::val_int()
 }
 
 
-Item_func_sp::Item_func_sp(Name_resolution_context *context_arg, sp_name *name)
-  :Item_func(), context(context_arg), m_name(name), m_sp(NULL),
+Item_func_sp::Item_func_sp(Name_resolution_context *context_arg,
+                           sp_name *name_arg)
+  :Item_func(), context(context_arg), m_name(name_arg), m_sp(NULL),
    result_field(NULL)
 {
   maybe_null= 1;
@@ -4989,8 +5002,8 @@ Item_func_sp::Item_func_sp(Name_resolution_context *context_arg, sp_name *name)
 
 
 Item_func_sp::Item_func_sp(Name_resolution_context *context_arg,
-                           sp_name *name, List<Item> &list)
-  :Item_func(list), context(context_arg), m_name(name), m_sp(NULL),
+                           sp_name *name_arg, List<Item> &list)
+  :Item_func(list), context(context_arg), m_name(name_arg), m_sp(NULL),
    result_field(NULL)
 {
   maybe_null= 1;

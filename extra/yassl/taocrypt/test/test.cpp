@@ -139,20 +139,20 @@ const byte msgTmp[] = { // "now is the time for all " w/o trailing 0
     0x66,0x6f,0x72,0x20,0x61,0x6c,0x6c,0x20
 };
 
-byte* msg    = 0;   // for block cipher input
-byte* plain  = 0;   // for cipher decrypt comparison 
-byte* cipher = 0;   // block output
+byte* global_msg    = 0;   // for block cipher input
+byte* global_plain  = 0;   // for cipher decrypt comparison 
+byte* global_cipher = 0;   // block output
 
 
 void taocrypt_test(void* args)
 {
     ((func_args*)args)->return_code = -1; // error state
     
-    msg    = NEW_TC byte[24];
-    plain  = NEW_TC byte[24];
-    cipher = NEW_TC byte[24];
+    global_msg    = NEW_TC byte[24];
+    global_plain  = NEW_TC byte[24];
+    global_cipher = NEW_TC byte[24];
 
-    memcpy(msg, msgTmp, 24);
+    memcpy(global_msg, msgTmp, 24);
 
     int ret = 0;
     if ( (ret = sha_test()) ) 
@@ -237,9 +237,9 @@ void taocrypt_test(void* args)
         printf( "PKCS12   test passed!\n");
     */
 
-    tcArrayDelete(cipher);
-    tcArrayDelete(plain);
-    tcArrayDelete(msg);
+    tcArrayDelete(global_cipher);
+    tcArrayDelete(global_plain);
+    tcArrayDelete(global_msg);
 
     ((func_args*)args)->return_code = ret;
 }
@@ -606,11 +606,11 @@ int des_test()
     const byte iv[] =  { 0x12,0x34,0x56,0x78,0x90,0xab,0xcd,0xef };
 
     enc.SetKey(key, sizeof(key));
-    enc.Process(cipher, msg, sz);
+    enc.Process(global_cipher, global_msg, sz);
     dec.SetKey(key, sizeof(key));
-    dec.Process(plain, cipher, sz);
+    dec.Process(global_plain, global_cipher, sz);
 
-    if (memcmp(plain, msg, sz))
+    if (memcmp(global_plain, global_msg, sz))
         return -50;
 
     const byte verify1[] = 
@@ -620,7 +620,7 @@ int des_test()
         0x89,0x3d,0x51,0xec,0x4b,0x56,0x3b,0x53
     };
 
-    if (memcmp(cipher, verify1, sz))
+    if (memcmp(global_cipher, verify1, sz))
         return -51;
 
     // CBC mode
@@ -628,11 +628,11 @@ int des_test()
     DES_CBC_Decryption dec2;
 
     enc2.SetKey(key, sizeof(key), iv);
-    enc2.Process(cipher, msg, sz);
+    enc2.Process(global_cipher, global_msg, sz);
     dec2.SetKey(key, sizeof(key), iv);
-    dec2.Process(plain, cipher, sz);
+    dec2.Process(global_plain, global_cipher, sz);
 
-    if (memcmp(plain, msg, sz))
+    if (memcmp(global_plain, global_msg, sz))
         return -52;
 
     const byte verify2[] = 
@@ -642,7 +642,7 @@ int des_test()
         0x15,0x85,0xb3,0x22,0x4b,0x86,0x2b,0x4b
     };
 
-    if (memcmp(cipher, verify2, sz))
+    if (memcmp(global_cipher, verify2, sz))
         return -53;
 
     // EDE3 CBC mode
@@ -664,11 +664,11 @@ int des_test()
     };
 
     enc3.SetKey(key3, sizeof(key3), iv3);
-    enc3.Process(cipher, msg, sz);
+    enc3.Process(global_cipher, global_msg, sz);
     dec3.SetKey(key3, sizeof(key3), iv3);
-    dec3.Process(plain, cipher, sz);
+    dec3.Process(global_plain, global_cipher, sz);
 
-    if (memcmp(plain, msg, sz))
+    if (memcmp(global_plain, global_msg, sz))
         return -54;
 
     const byte verify3[] = 
@@ -678,7 +678,7 @@ int des_test()
         0x18,0xbc,0xbb,0x6d,0xd2,0xb1,0x16,0xda
     };
 
-    if (memcmp(cipher, verify3, sz))
+    if (memcmp(global_cipher, verify3, sz))
         return -55;
 
     return 0;
@@ -697,10 +697,10 @@ int aes_test()
     enc.SetKey(key, bs, iv);
     dec.SetKey(key, bs, iv);
 
-    enc.Process(cipher, msg, bs);
-    dec.Process(plain, cipher, bs);
+    enc.Process(global_cipher, global_msg, bs);
+    dec.Process(global_plain, global_cipher, bs);
 
-    if (memcmp(plain, msg, bs))
+    if (memcmp(global_plain, global_msg, bs))
         return -60;
 
     const byte verify[] = 
@@ -709,7 +709,7 @@ int aes_test()
         0x2c,0xcc,0x9d,0x46,0x77,0xa2,0x33,0xcb
     };
 
-    if (memcmp(cipher, verify, bs))
+    if (memcmp(global_cipher, verify, bs))
         return -61;
 
     AES_ECB_Encryption enc2;
@@ -718,10 +718,10 @@ int aes_test()
     enc2.SetKey(key, bs, iv);
     dec2.SetKey(key, bs, iv);
 
-    enc2.Process(cipher, msg, bs);
-    dec2.Process(plain, cipher, bs);
+    enc2.Process(global_cipher, global_msg, bs);
+    dec2.Process(global_plain, global_cipher, bs);
 
-    if (memcmp(plain, msg, bs))
+    if (memcmp(global_plain, global_msg, bs))
         return -62;
 
     const byte verify2[] = 
@@ -730,7 +730,7 @@ int aes_test()
         0xc8,0x8c,0x33,0x3b,0xb5,0x8f,0x85,0xd1
     };
 
-    if (memcmp(cipher, verify2, bs))
+    if (memcmp(global_cipher, verify2, bs))
         return -63;
 
     return 0;
@@ -749,10 +749,10 @@ int twofish_test()
     enc.SetKey(key, bs, iv);
     dec.SetKey(key, bs, iv);
 
-    enc.Process(cipher, msg, bs);
-    dec.Process(plain, cipher, bs);
+    enc.Process(global_cipher, global_msg, bs);
+    dec.Process(global_plain, global_cipher, bs);
 
-    if (memcmp(plain, msg, bs))
+    if (memcmp(global_plain, global_msg, bs))
         return -60;
 
     const byte verify[] = 
@@ -761,7 +761,7 @@ int twofish_test()
         0x21,0x03,0x58,0x79,0x5F,0x02,0x27,0x2C
     };
 
-    if (memcmp(cipher, verify, bs))
+    if (memcmp(global_cipher, verify, bs))
         return -61;
 
     Twofish_ECB_Encryption enc2;
@@ -770,10 +770,10 @@ int twofish_test()
     enc2.SetKey(key, bs, iv);
     dec2.SetKey(key, bs, iv);
 
-    enc2.Process(cipher, msg, bs);
-    dec2.Process(plain, cipher, bs);
+    enc2.Process(global_cipher, global_msg, bs);
+    dec2.Process(global_plain, global_cipher, bs);
 
-    if (memcmp(plain, msg, bs))
+    if (memcmp(global_plain, global_msg, bs))
         return -62;
 
     const byte verify2[] = 
@@ -782,7 +782,7 @@ int twofish_test()
         0xC4,0xCD,0x6B,0x91,0x14,0xC5,0x3A,0x09
     };
 
-    if (memcmp(cipher, verify2, bs))
+    if (memcmp(global_cipher, verify2, bs))
         return -63;
 
     return 0;
@@ -801,10 +801,10 @@ int blowfish_test()
     enc.SetKey(key, 16, iv);
     dec.SetKey(key, 16, iv);
 
-    enc.Process(cipher, msg, bs * 2);
-    dec.Process(plain, cipher, bs * 2);
+    enc.Process(global_cipher, global_msg, bs * 2);
+    dec.Process(global_plain, global_cipher, bs * 2);
 
-    if (memcmp(plain, msg, bs))
+    if (memcmp(global_plain, global_msg, bs))
         return -60;
 
     const byte verify[] = 
@@ -813,7 +813,7 @@ int blowfish_test()
         0xBC,0xD9,0x08,0xC4,0x94,0x6C,0x89,0xA3
     };
 
-    if (memcmp(cipher, verify, bs))
+    if (memcmp(global_cipher, verify, bs))
         return -61;
 
     Blowfish_ECB_Encryption enc2;
@@ -822,10 +822,10 @@ int blowfish_test()
     enc2.SetKey(key, 16, iv);
     dec2.SetKey(key, 16, iv);
 
-    enc2.Process(cipher, msg, bs * 2);
-    dec2.Process(plain, cipher, bs * 2);
+    enc2.Process(global_cipher, global_msg, bs * 2);
+    dec2.Process(global_plain, global_cipher, bs * 2);
 
-    if (memcmp(plain, msg, bs))
+    if (memcmp(global_plain, global_msg, bs))
         return -62;
 
     const byte verify2[] = 
@@ -834,7 +834,7 @@ int blowfish_test()
         0x8F,0xCE,0x39,0x32,0xDE,0xD7,0xBC,0x5B
     };
 
-    if (memcmp(cipher, verify2, bs))
+    if (memcmp(global_cipher, verify2, bs))
         return -63;
 
     return 0;

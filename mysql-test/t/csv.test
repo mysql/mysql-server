@@ -1398,12 +1398,14 @@ drop table t1;
 
 create table bug15205 (val int(11) default null) engine=csv;
 create table bug15205_2 (val int(11) default null) engine=csv;
---exec rm $MYSQLTEST_VARDIR/master-data/test/bug15205.CSV
+--remove_file $MYSQLTEST_VARDIR/master-data/test/bug15205.CSV
 # system error (can't open the datafile)
 --error ER_GET_ERRNO
 select * from bug15205;
 select * from bug15205_2;
---exec touch $MYSQLTEST_VARDIR/master-data/test/bug15205.CSV
+# Create empty file
+--write_file $MYSQLTEST_VARDIR/master-data/test/bug15205.CSV
+EOF
 select * from bug15205;
 drop table bug15205;
 drop table bug15205_2;

@@ -892,17 +892,17 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   if (share->blob_fields)
   {
     Field **ptr;
-    uint i, *save;
+    uint k, *save;
 
     /* Store offsets to blob fields to find them fast */
     if (!(share->blob_field= save=
 	  (uint*) alloc_root(&outparam->mem_root,
                              (uint) (share->blob_fields* sizeof(uint)))))
       goto err;
-    for (i=0, ptr= outparam->field ; *ptr ; ptr++, i++)
+    for (k=0, ptr= outparam->field ; *ptr ; ptr++, k++)
     {
       if ((*ptr)->flags & BLOB_FLAG)
-	(*save++)= i;
+	(*save++)= k;
     }
   }
 
@@ -2080,7 +2080,9 @@ void st_table_list::hide_view_error(THD *thd)
       thd->net.last_errno == ER_SP_DOES_NOT_EXIST ||
       thd->net.last_errno == ER_PROCACCESS_DENIED_ERROR ||
       thd->net.last_errno == ER_COLUMNACCESS_DENIED_ERROR ||
-      thd->net.last_errno == ER_TABLEACCESS_DENIED_ERROR)
+      thd->net.last_errno == ER_TABLEACCESS_DENIED_ERROR ||
+      thd->net.last_errno == ER_TABLE_NOT_LOCKED ||
+      thd->net.last_errno == ER_NO_SUCH_TABLE)
   {
     TABLE_LIST *top= top_table();
     thd->clear_error();
@@ -2161,19 +2163,17 @@ int st_table_list::view_check_option(THD *thd, bool ignore_failure)
 {
   if (check_option && check_option->val_int() == 0)
   {
-    TABLE_LIST *view= top_table();
+    TABLE_LIST *main_view= top_table();
     if (ignore_failure)
     {
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                           ER_VIEW_CHECK_FAILED, ER(ER_VIEW_CHECK_FAILED),
-                          view->view_db.str, view->view_name.str);
+                          main_view->view_db.str, main_view->view_name.str);
       return(VIEW_CHECK_SKIP);
     }
-    else
-    {
-      my_error(ER_VIEW_CHECK_FAILED, MYF(0), view->view_db.str, view->view_name.str);
-      return(VIEW_CHECK_ERROR);
-    }
+    my_error(ER_VIEW_CHECK_FAILED, MYF(0), main_view->view_db.str,
+             main_view->view_name.str);
+    return(VIEW_CHECK_ERROR);
   }
   return(VIEW_CHECK_OK);
 }
@@ -2185,19 +2185,20 @@ int st_table_list::view_check_option(THD *thd, bool ignore_failure)
 
   SYNOPSIS
     st_table_list::check_single_table()
-    table	reference on variable where to store found table
+    table_arg	reference on variable where to store found table
 		(should be 0 on call, to find table, or point to table for
 		unique test)
     map         bit mask of tables
-    view        view for which we are looking table
+    view_arg    view for which we are looking table
 
   RETURN
     FALSE table not found or found only one
     TRUE  found several tables
 */
 
-bool st_table_list::check_single_table(st_table_list **table, table_map map,
-                                       st_table_list *view)
+bool st_table_list::check_single_table(st_table_list **table_arg,
+                                       table_map map,
+                                       st_table_list *view_arg)
 {
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
   {
@@ -2205,13 +2206,13 @@ bool st_table_list::check_single_table(st_table_list **table, table_map map,
     {
       if (tbl->table->map & map)
       {
-	if (*table)
+	if (*table_arg)
 	  return TRUE;
-        *table= tbl;
-        tbl->check_option= view->check_option;
+        *table_arg= tbl;
+        tbl->check_option= view_arg->check_option;
       }
     }
-    else if (tbl->check_single_table(table, map, view))
+    else if (tbl->check_single_table(table_arg, map, view_arg))
       return TRUE;
   }
   return FALSE;
@@ -2536,18 +2537,19 @@ bool st_table_list::prepare_security(THD *thd)
   while ((tbl= tb++))
   {
     DBUG_ASSERT(tbl->referencing_view);
-    char *db, *table_name;
+    char *local_db, *local_table_name;
     if (tbl->view)
     {
-      db= tbl->view_db.str;
-      table_name= tbl->view_name.str;
+      local_db= tbl->view_db.str;
+      local_table_name= tbl->view_name.str;
     }
     else
     {
-      db= tbl->db;
-      table_name= tbl->table_name;
+      local_db= tbl->db;
+      local_table_name= tbl->table_name;
     }
-    fill_effective_table_privileges(thd, &tbl->grant, db, table_name);
+    fill_effective_table_privileges(thd, &tbl->grant, local_db,
+                                    local_table_name);
     if (tbl->table)
       tbl->table->grant= grant;
   }
@@ -2907,12 +2909,13 @@ Field_iterator_table_ref::get_or_create_column_ref(TABLE_LIST *parent_table_ref)
   uint field_count;
   TABLE_LIST *add_table_ref= parent_table_ref ?
                              parent_table_ref : table_ref;
-
+  LINT_INIT(field_count);
+  
   if (field_it == &table_field_it)
   {
     /* The field belongs to a stored table. */
-    Field *field= table_field_it.field();
-    nj_col= new Natural_join_column(field, table_ref);
+    Field *tmp_field= table_field_it.field();
+    nj_col= new Natural_join_column(tmp_field, table_ref);
     field_count= table_ref->table->s->fields;
   }
   else if (field_it == &view_field_it)
@@ -3023,16 +3026,16 @@ void st_table_list::reinit_before_use(THD *thd)
   schema_table_state= NOT_PROCESSED;
 
   TABLE_LIST *embedded; /* The table at the current level of nesting. */
-  TABLE_LIST *embedding= this; /* The parent nested table reference. */
+  TABLE_LIST *parent_embedding= this; /* The parent nested table reference. */
   do
   {
-    embedded= embedding;
+    embedded= parent_embedding;
     if (embedded->prep_on_expr)
       embedded->on_expr= embedded->prep_on_expr->copy_andor_structure(thd);
-    embedding= embedded->embedding;
+    parent_embedding= embedded->embedding;
   }
-  while (embedding &&
-         embedding->nested_join->join_list.head() == embedded);
+  while (parent_embedding &&
+         parent_embedding->nested_join->join_list.head() == embedded);
 }
 
 /*
