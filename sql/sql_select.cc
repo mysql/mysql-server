@@ -7788,7 +7788,8 @@ static COND* substitute_for_best_equal_field(COND *cond,
           break;
       }
     }
-    if (!((Item_cond*)cond)->argument_list()->elements)
+    if (cond->type() == Item::COND_ITEM &&
+        !((Item_cond*)cond)->argument_list()->elements)
       cond= new Item_int((int32)cond->val_bool());
 
   }
