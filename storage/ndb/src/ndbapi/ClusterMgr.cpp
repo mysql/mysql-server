@@ -389,7 +389,7 @@ ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
 
   node.m_state = apiRegConf->nodeState;
   if (node.compatible && (node.m_state.startLevel == NodeState::SL_STARTED  ||
-			  node.m_state.startLevel == NodeState::SL_SINGLEUSER)){
+			  node.m_state.getSingleUserMode())){
     set_node_alive(node, true);
   } else {
     set_node_alive(node, false);
