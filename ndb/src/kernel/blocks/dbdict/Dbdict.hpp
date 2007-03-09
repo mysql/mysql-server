@@ -2003,6 +2003,8 @@ private:
   int getMetaTable(MetaData::Table& table, const char* tableName);
   int getMetaAttribute(MetaData::Attribute& attribute, const MetaData::Table& table, Uint32 attributeId);
   int getMetaAttribute(MetaData::Attribute& attribute, const MetaData::Table& table, const char* attributeName);
+
+  int checkSingleUserMode(Uint32 senderRef);
 };
 
 #endif
