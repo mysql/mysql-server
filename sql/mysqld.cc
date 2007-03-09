@@ -5025,7 +5025,8 @@ enum options_mysqld
   OPT_MERGE,
   OPT_THREAD_HANDLING,
   OPT_INNODB_ROLLBACK_ON_TIMEOUT,
-  OPT_SECURE_FILE_PRIV
+  OPT_SECURE_FILE_PRIV,
+  OPT_OLD_MODE
 };
 
 
@@ -6256,6 +6257,10 @@ The minimum value for this variable is 4096.",
    (gptr*) &global_system_variables.net_write_timeout,
    (gptr*) &max_system_variables.net_write_timeout, 0, GET_ULONG,
    REQUIRED_ARG, NET_WRITE_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
+  { "old_mode", OPT_OLD_MODE, "Use compatible behaviour.", 
+    (gptr*) &global_system_variables.old_mode,
+    (gptr*) &max_system_variables.old_mode, 0, GET_BOOL, NO_ARG, 
+    0, 0, 0, 0, 0, 0},
   {"open_files_limit", OPT_OPEN_FILES_LIMIT,
    "If this is not 0, then mysqld will use this value to reserve file descriptors to use with setrlimit(). If this value is 0 then mysqld will reserve max_connections*5 or max_connections + table_cache*2 (whichever is larger) number of files.",
    (gptr*) &open_files_limit, (gptr*) &open_files_limit, 0, GET_ULONG,
