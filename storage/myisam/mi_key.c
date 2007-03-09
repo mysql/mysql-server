@@ -223,16 +223,43 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
   my_bool is_ft= info->s->keyinfo[keynr].flag & HA_FULLTEXT;
   DBUG_ENTER("_mi_pack_key");
 
-  for (keyseg=info->s->keyinfo[keynr].seg ;
-       keyseg->type && (int) k_length > 0;
+  for (keyseg=info->s->keyinfo[keynr].seg; (int) k_length > 0;
        old+=keyseg->length, keyseg++)
   {
     enum ha_base_keytype type=(enum ha_base_keytype) keyseg->type;
     uint length=min((uint) keyseg->length,(uint) k_length);
     uint char_length;
     uchar *pos;
-    CHARSET_INFO *cs=keyseg->charset;
+    CHARSET_INFO *cs;
+    
+    if (!type)
+    {
+      /*
+        Decode the ROWID value back to to file pointer. The if-check below is
+        needed to distinguish between the cases of 
+          a) when this function is called with k_length=USE_WHOLE_KEY (the
+             packed tuple doesn't have rowid), and 
+          b) when this function is called with tuple+rowid
 
+        The right check ought to be "k_length == length" but sergefp has
+        discovered that rowid key segment length may be inequal to 
+        ha_myisam->ref_length, which forces us to use the below ugly check:
+      */
+      if (k_length > 0 && k_length < MI_MAX_KEY_LENGTH)
+      {
+        pos=old;
+        my_off_t rowid;
+        rowid= my_get_ptr(pos, k_length);
+        _mi_dpointer(info, key, rowid);
+        pos+=length;
+        key+= keyseg->length;
+        k_length= 0;
+        keyseg++;
+      }
+      break;
+    }
+
+    cs=keyseg->charset;
     if (keyseg->null_bit)
     {
       k_length--;
@@ -505,6 +532,35 @@ int _mi_read_key_record(MI_INFO *info, my_off_t filepos, byte *buf)
     my_errno=HA_ERR_WRONG_INDEX;
   }
   return(-1);				/* Wrong data to read */
+}
+
+
+/*
+  Save current key tuple to record and call index condition check function
+
+  SYNOPSIS
+    mi_check_index_cond()
+      info    MyISAM handler
+      keynr   Index we're running a scan on
+      record  Record buffer to use (it is assumed that index check function 
+              will look for column values there)
+
+  RETURN
+    -1  Error 
+    0   Index condition is not satisfied, continue scanning
+    1   Index condition is satisfied
+    2   Index condition is not satisfied, end the scan. 
+*/
+
+int mi_check_index_cond(register MI_INFO *info, uint keynr, byte *record)
+{
+  if (_mi_put_key_in_record(info, keynr, record))
+  {
+    mi_print_error(info->s, HA_ERR_CRASHED);
+    my_errno=HA_ERR_CRASHED;
+    return -1;
+  }
+  return info->index_cond_func(info->index_cond_func_arg);
 }
 
 

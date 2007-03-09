@@ -220,11 +220,11 @@ MY_LOCALE *my_locale_by_number(uint number);
   The cost of average seek 
     DISK_SEEK_BASE_COST + DISK_SEEK_PROP_COST*BLOCKS_IN_AVG_SEEK =1.0.
 */
-#define DISK_SEEK_BASE_COST ((double)0.5)
+#define DISK_SEEK_BASE_COST ((double)0.9)
 
 #define BLOCKS_IN_AVG_SEEK  128
 
-#define DISK_SEEK_PROP_COST ((double)0.5/BLOCKS_IN_AVG_SEEK)
+#define DISK_SEEK_PROP_COST ((double)0.1/BLOCKS_IN_AVG_SEEK)
 
 
 /*
@@ -1470,6 +1470,7 @@ void mysql_print_status();
 int find_ref_key(KEY *key, uint key_count, byte *record, Field *field,
                  uint *key_length);
 void key_copy(byte *to_key, byte *from_record, KEY *key_info, uint key_length);
+void key_zero_nulls(byte *tuple, KEY *key_info);
 void key_restore(byte *to_record, byte *from_key, KEY *key_info,
                  uint key_length);
 bool key_cmp_if_same(TABLE *form,const byte *key,uint index,uint key_length);

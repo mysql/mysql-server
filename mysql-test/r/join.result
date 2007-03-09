@@ -774,7 +774,7 @@ insert into t3 select * from t2 where a < 800;
 explain select * from t2,t3 where t2.a < 200 and t2.b=t3.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	a,b	NULL	NULL	NULL	1000	Using where
-1	SIMPLE	t3	ref	b	b	5	test.t2.b	1	Using where
+1	SIMPLE	t3	ref	b	b	5	test.t2.b	1	
 drop table t1, t2, t3;
 create table t1 (a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);

@@ -752,7 +752,11 @@ public:
   */
   virtual ulong index_flags(uint inx, uint part, bool all_parts) const
   {
-    return m_file[0]->index_flags(inx, part, all_parts);
+    /* 
+      TODO: sergefp: Support Index Condition Pushdown in this table handler.
+    */
+    return m_file[0]->index_flags(inx, part, all_parts) &
+           ~HA_DO_INDEX_COND_PUSHDOWN;
   }
 
   /*

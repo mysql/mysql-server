@@ -60,7 +60,7 @@ class ha_innobase: public handler
 	ulong		upd_and_key_val_buff_len;
 					/* the length of each of the previous
 					two buffers */
-	ulong		int_table_flags;
+	ulonglong	int_table_flags;
 	uint		primary_key;
 	ulong		start_of_scan;	/* this is set to 1 when we are
 					starting a table scan but have not
@@ -97,7 +97,8 @@ class ha_innobase: public handler
 		  HA_READ_PREV |
 		  HA_READ_ORDER |
 		  HA_READ_RANGE |
-		  HA_KEYREAD_ONLY);
+		  HA_KEYREAD_ONLY | 
+                  ((idx == primary_key)? 0 : HA_DO_INDEX_COND_PUSHDOWN));
 	}
 	uint max_supported_keys()	   const { return MAX_KEY; }
 				/* An InnoDB page must store >= 2 keys;
@@ -200,6 +201,43 @@ class ha_innobase: public handler
 	int cmp_ref(const byte *ref1, const byte *ref2);
 	bool check_if_incompatible_data(HA_CREATE_INFO *info,
 					uint table_changes);
+public:
+  /**
+   * Multi Range Read interface
+   */
+  int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
+                            uint n_ranges, uint mode, HANDLER_BUFFER *buf);
+  int multi_range_read_next(char **range_info);
+  ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
+                                      void *seq_init_param, 
+                                      uint n_ranges, uint *bufsz,
+                                      uint *flags, COST_VECT *cost);
+  int multi_range_read_info(uint keyno, uint n_ranges, uint keys,
+                            uint *bufsz, uint *flags, COST_VECT *cost);
+  DsMrr_impl ds_mrr;
+
+  void add_explain_extra_info(uint keyno, String *extra);
+
+  /* Index Condition Pushdown implementation */
+  Item *idx_cond;   /* The pushed condition. Valid iff cond_keyno != MAX_KEY */
+  uint cond_keyno;  /* The index which the above condition is for */
+
+  /* 
+    TRUE <=> We're reading a range that is not equivalent to
+       "keypart1=const1 AND ... keypartK=constK"
+    if we're reading such range we should check if we've ran out of range
+    before checking the index condition
+  */ 
+  bool in_range_read;
+  void toggle_range_check(bool on)
+  {
+    in_range_read= on;
+  }
+
+  int read_range_first(const key_range *start_key, const key_range *end_key,
+                       bool eq_range_arg, bool sorted);
+  int read_range_next();
+  Item *idx_cond_push(uint keyno, Item* idx_cond);
 };
 
 extern SHOW_VAR innodb_status_variables[];

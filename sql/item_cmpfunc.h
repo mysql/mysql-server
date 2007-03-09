@@ -318,6 +318,8 @@ public:
   const char *func_name() const { return "trigcond"; };
   bool const_item() const { return FALSE; }
   bool *get_trig_var() { return trig_var; }
+  /* The following is needed for ICP: */
+  table_map used_tables() const { return args[0]->used_tables(); }
 };
 
 class Item_func_not_all :public Item_func_not

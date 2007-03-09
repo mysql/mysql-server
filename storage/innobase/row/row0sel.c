@@ -2581,8 +2581,10 @@ row_sel_store_mysql_rec(
 	rec_t*		rec,		/* in: Innobase record in the index
 					which was described in prebuilt's
 					template */
-	const ulint*	offsets)	/* in: array returned by
+	const ulint*	offsets, 	/* in: array returned by
 					rec_get_offsets() */
+        ulint start_field_no,
+        ulint end_field_no)
 {
 	mysql_row_templ_t*	templ;
 	mem_heap_t*		extern_field_heap	= NULL;
@@ -2599,7 +2601,7 @@ row_sel_store_mysql_rec(
 		prebuilt->blob_heap = NULL;
 	}
 
-	for (i = 0; i < prebuilt->n_template; i++) {
+	for (i = start_field_no; i < end_field_no /* prebuilt->n_template */ ; i++) {
 
 		templ = prebuilt->mysql_template + i;
 
@@ -3059,7 +3061,9 @@ row_sel_push_cache_row_for_mysql(
 /*=============================*/
 	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct */
 	rec_t*		rec,		/* in: record to push */
-	const ulint*	offsets)	/* in: rec_get_offsets() */
+	const ulint*	offsets,	/* in: rec_get_offsets() */
+        ulint           start_field_no, /* psergey: start from this field */
+        byte*           remainder_buf)  /* if above !=0 -> where to take prev fields */
 {
 	byte*	buf;
 	ulint	i;
@@ -3092,9 +3096,27 @@ row_sel_push_cache_row_for_mysql(
 	if (UNIV_UNLIKELY(!row_sel_store_mysql_rec(
 				  prebuilt->fetch_cache[
 					  prebuilt->n_fetch_cached],
-				  prebuilt, rec, offsets))) {
+				  prebuilt, rec, offsets, start_field_no,
+                                  prebuilt->n_template))) {
 		ut_error;
 	}
+        if (start_field_no) {
+          for (i=0; i < start_field_no; i++) {
+	    mysql_row_templ_t* templ;
+            templ = prebuilt->mysql_template + i;
+            register ulint offs;
+
+            if (templ->mysql_null_bit_mask) {
+              offs= templ->mysql_null_byte_offset;
+              *(prebuilt->fetch_cache[prebuilt->n_fetch_cached] + offs) ^= 
+                (*(remainder_buf + offs) & templ->mysql_null_bit_mask);
+            }
+            offs= templ->mysql_col_offset;
+            memcpy(prebuilt->fetch_cache[prebuilt->n_fetch_cached] + offs,
+                   remainder_buf + offs,
+                   templ->mysql_col_len);
+          }
+        }
 
 	prebuilt->n_fetch_cached++;
 }
@@ -3234,6 +3256,8 @@ row_search_for_mysql(
 	mem_heap_t*	heap				= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets				= offsets_;
+        ibool           some_fields_in_buffer;
+        ibool           get_clust_rec= 0;
 
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
@@ -3486,7 +3510,8 @@ row_search_for_mysql(
 							 rec, offsets));
 #endif
 				if (!row_sel_store_mysql_rec(buf, prebuilt,
-							     rec, offsets)) {
+							     rec, offsets, 0, 
+                                                             prebuilt->n_template)) {
 					err = DB_TOO_BIG_RECORD;
 
 					/* We let the main loop to do the
@@ -4059,8 +4084,8 @@ no_gap_lock:
 			information via the clustered index record. */
 
 			ut_ad(index != clust_index);
-
-			goto requires_clust_rec;
+                        get_clust_rec= TRUE;
+			goto idx_cond_check;
 		}
 	}
 
@@ -4104,18 +4129,35 @@ no_gap_lock:
 		goto next_rec;
 	}
 
+
+idx_cond_check:
+        if (prebuilt->idx_cond_func)
+        {
+          ut_ad(prebuilt->template_type != ROW_MYSQL_DUMMY_TEMPLATE);
+          offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+          row_sel_store_mysql_rec(buf, prebuilt, rec,
+                                  offsets, 0, prebuilt->n_index_fields);
+          int res= prebuilt->idx_cond_func(prebuilt->idx_cond_func_arg);
+          if (res == 0)
+            goto next_rec;
+          if (res == 2)
+          {
+            err = DB_RECORD_NOT_FOUND;
+            goto normal_return;
+          }
+        }
+
 	/* Get the clustered index record if needed, if we did not do the
 	search using the clustered index. */
+	if (get_clust_rec || (index != clust_index &&
+            prebuilt->need_to_access_clustered)) {
 
-	if (index != clust_index && prebuilt->need_to_access_clustered) {
-
-requires_clust_rec:
 		/* We use a 'goto' to the preceding label if a consistent
 		read of a secondary index record requires us to look up old
 		versions of the associated clustered index record. */
 
 		ut_ad(rec_offs_validate(rec, index, offsets));
-
+                
 		/* It was a non-clustered index and we must fetch also the
 		clustered index record */
 
@@ -4199,9 +4241,14 @@ requires_clust_rec:
 		are BLOBs in the fields to be fetched. In HANDLER we do
 		not cache rows because there the cursor is a scrollable
 		cursor. */
+                some_fields_in_buffer= (index != clust_index &&
+                                        prebuilt->idx_cond_func);
 
 		row_sel_push_cache_row_for_mysql(prebuilt, result_rec,
-						 offsets);
+						 offsets, 
+                                                 some_fields_in_buffer? 
+                                                 prebuilt->n_index_fields: 0,
+                                                 buf);
 		if (prebuilt->n_fetch_cached == MYSQL_FETCH_CACHE_SIZE) {
 
 			goto got_row;
@@ -4217,7 +4264,10 @@ requires_clust_rec:
 					rec_offs_extra_size(offsets) + 4);
 		} else {
 			if (!row_sel_store_mysql_rec(buf, prebuilt,
-						     result_rec, offsets)) {
+						     result_rec, offsets,
+                                                     prebuilt->idx_cond_func? 
+                                                     prebuilt->n_index_fields: 0,
+                                                     prebuilt->n_template)) {
 				err = DB_TOO_BIG_RECORD;
 
 				goto lock_wait_or_error;
@@ -4260,6 +4310,7 @@ got_row:
 
 next_rec:
 	/* Reset the old and new "did semi-consistent read" flags. */
+        get_clust_rec= FALSE;
 	if (UNIV_UNLIKELY(prebuilt->row_read_type
 			  == ROW_READ_DID_SEMI_CONSISTENT)) {
 		prebuilt->row_read_type = ROW_READ_TRY_SEMI_CONSISTENT;

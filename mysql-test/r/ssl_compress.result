@@ -189,37 +189,37 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	range	fld1	fld1	4	NULL	4	Using where; Using index
 select fld1,fld3 from t2 where companynr = 37 and fld3 like 'f%';
 fld1	fld3
-218401	faithful
-018007	fanatic
-228311	fated
-018017	featherweight
-218022	feed
-088303	feminine
-058004	Fenton
-038017	fetched
-018054	fetters
-208101	fiftieth
-238007	filial
-013606	fingerings
-218008	finishers
-038205	firearm
-188505	fitting
-202301	Fitzpatrick
-238008	fixedly
 012001	flanking
+013602	foldout
+013606	fingerings
+018007	fanatic
+018017	featherweight
+018054	fetters
 018103	flint
 018104	flopping
-188007	flurried
-013602	foldout
-226205	foothill
-232102	forgivably
-228306	forthcoming
-186002	freakish
-208113	freest
-231315	freezes
 036002	funereal
-226209	furnishings
+038017	fetched
+038205	firearm
+058004	Fenton
+088303	feminine
+186002	freakish
+188007	flurried
+188505	fitting
 198006	furthermore
+202301	Fitzpatrick
+208101	fiftieth
+208113	freest
+218008	finishers
+218022	feed
+218401	faithful
+226205	foothill
+226209	furnishings
+228306	forthcoming
+228311	fated
+231315	freezes
+232102	forgivably
+238007	filial
+238008	fixedly
 select fld3 from t2 where fld3 like "L%" and fld3 = "ok";
 fld3
 select fld3 from t2 where (fld3 like "C%" and fld3 = "Chantilly");

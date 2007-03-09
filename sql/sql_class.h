@@ -196,7 +196,6 @@ struct system_variables
   ulong max_sort_length;
   ulong max_tmp_tables;
   ulong max_insert_delayed_threads;
-  ulong multi_range_count;
   ulong myisam_repair_threads;
   ulong myisam_sort_buff_size;
   ulong myisam_stats_method;
@@ -208,6 +207,13 @@ struct system_variables
   ulong net_write_timeout;
   ulong optimizer_prune_level;
   ulong optimizer_search_depth;
+  /*
+    Controls use of Engine-MRR:
+      0 - auto, based on cost
+      1 - force MRR when the storage engine is capable of doing it
+      2 - disable MRR.
+  */
+  ulong optimizer_use_mrr; 
   ulong preload_buff_size;
   ulong query_cache_type;
   ulong read_buff_size;

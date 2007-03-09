@@ -1054,8 +1054,8 @@ t0.b=t1.b AND
 (t8.b=t9.b OR t8.c IS NULL) AND
 (t9.a=1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t0	ref	idx_a	idx_a	5	const	1	100.00	Using where
-1	SIMPLE	t1	ref	idx_b	idx_b	5	test.t0.b	2	100.00	Using where
+1	SIMPLE	t0	ref	idx_a	idx_a	5	const	1	100.00	
+1	SIMPLE	t1	ref	idx_b	idx_b	5	test.t0.b	2	100.00	
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t4	ref	idx_b	idx_b	5	test.t2.b	2	100.00	Using where
@@ -1447,12 +1447,12 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	X	
 1	SIMPLE	t3	ref	a	a	5	test.t2.b	X	
 1	SIMPLE	t5	ref	a	a	5	test.t3.b	X	
-1	SIMPLE	t4	ref	a	a	5	test.t3.b	X	Using where
+1	SIMPLE	t4	ref	a	a	5	test.t3.b	X	Using index condition
 explain select * from (t4 join t6 on t6.a=t4.b) right join t3 on t4.a=t3.b
 join t2 left join (t5 join t7 on t7.a=t5.b) on t5.a=t2.b where t3.a<=>t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	X	
-1	SIMPLE	t3	ref	a	a	5	test.t2.b	X	Using where
+1	SIMPLE	t3	ref	a	a	5	test.t2.b	X	Using index condition
 1	SIMPLE	t4	ref	a	a	5	test.t3.b	X	
 1	SIMPLE	t6	ref	a	a	5	test.t4.b	X	
 1	SIMPLE	t5	ref	a	a	5	test.t2.b	X	

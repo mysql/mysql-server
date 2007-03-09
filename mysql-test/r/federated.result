@@ -753,8 +753,8 @@ id	col1	col2	col3	col4
 10	10	Tenth ten TEN	1010101	1010
 SELECT * FROM federated.t1 WHERE col2 LIKE 's%';
 id	col1	col2	col3	col4
-7	7	seven Sevenseven	77777	7777
 6	6	six six Sixsix	6666	6
+7	7	seven Sevenseven	77777	7777
 SELECT * FROM federated.t1 WHERE col2 LIKE 'si%';
 id	col1	col2	col3	col4
 6	6	six six Sixsix	6666	6

@@ -166,6 +166,29 @@ void key_copy(byte *to_key, byte *from_record, KEY *key_info, uint key_length)
 
 
 /*
+  Zero the null components of key tuple
+  SYNOPSIS
+    key_zero_nulls()
+      tuple
+      key_info
+
+  DESCRIPTION
+*/
+
+void key_zero_nulls(byte *tuple, KEY *key_info)
+{
+  KEY_PART_INFO *key_part= key_info->key_part;
+  KEY_PART_INFO *key_part_end= key_part + key_info->key_parts;
+  for (; key_part != key_part_end; key_part++)
+  {
+    if (key_part->null_bit && *tuple)
+      bzero(tuple+1, key_part->store_length-1);
+    tuple+= key_part->store_length;
+  }
+}
+
+
+/*
   Restore a key from some buffer to record.
 
   SYNOPSIS

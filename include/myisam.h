@@ -128,7 +128,7 @@ extern "C" {
                             (_to_)= (mi_get_mask_all_keys_active(_maxkeys_) & \
                                      (_from_))
 
-	/* Param to/from mi_info */
+	/* Param to/from mi_status */
 
 typedef struct st_mi_isaminfo		/* Struct from h_info */
 {

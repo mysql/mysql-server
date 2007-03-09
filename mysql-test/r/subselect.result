@@ -720,7 +720,7 @@ id
 1
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE id IN (SELECT 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	ref	id	id	5	const	1	100.00	Using where; Using index
+1	PRIMARY	t2	ref	id	id	5	const	1	100.00	Using index
 Warnings:
 Note	1249	Select 2 was reduced during optimization
 Note	1003	select `test`.`t2`.`id` AS `id` from `test`.`t2` where (`test`.`t2`.`id` = 1)
@@ -732,7 +732,7 @@ id
 2
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE id IN (SELECT 1+(select 1));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	ref	id	id	5	const	1	100.00	Using where; Using index
+1	PRIMARY	t2	ref	id	id	5	const	1	100.00	Using index
 Warnings:
 Note	1249	Select 3 was reduced during optimization
 Note	1249	Select 2 was reduced during optimization
@@ -1232,7 +1232,7 @@ create table t1 (id int not null auto_increment primary key, salary int, key(sal
 insert into t1 (salary) values (100),(1000),(10000),(10),(500),(5000),(50000);
 explain extended SELECT id FROM t1 where salary = (SELECT MAX(salary) FROM t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ref	salary	salary	5	const	1	100.00	Using where
+1	PRIMARY	t1	ref	salary	salary	5	const	1	100.00	Using index condition
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
 Note	1003	select `test`.`t1`.`id` AS `id` from `test`.`t1` where (`test`.`t1`.`salary` = (select max(`test`.`t1`.`salary`) AS `MAX(salary)` from `test`.`t1`))
@@ -1315,7 +1315,7 @@ a
 explain extended select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	4	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using where
+2	DEPENDENT SUBQUERY	t1	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using index condition
 2	DEPENDENT SUBQUERY	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	Using where; Using index
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(select 1 AS `Not_used` from `test`.`t1` join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t1`.`b`) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`))))
@@ -1768,7 +1768,7 @@ explain extended select * from t1 a left join t2 b on (a.id=b.id or b.id is null
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	a	ALL	NULL	NULL	NULL	NULL	14	100.00	
 1	SIMPLE	b	eq_ref	PRIMARY	PRIMARY	4	test.a.id	2	100.00	
-1	SIMPLE	c	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using where
+1	SIMPLE	c	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using index condition
 Warnings:
 Note	1003	select `test`.`a`.`id` AS `id`,`test`.`a`.`text` AS `text`,`test`.`b`.`id` AS `id`,`test`.`b`.`text` AS `text`,`test`.`c`.`id` AS `id`,`test`.`c`.`text` AS `text` from `test`.`t1` `a` left join `test`.`t2` `b` on(((`test`.`b`.`id` = `test`.`a`.`id`) or isnull(`test`.`b`.`id`))) join `test`.`t1` `c` where (if(isnull(`test`.`b`.`id`),1000,`test`.`b`.`id`) = `test`.`c`.`id`)
 drop table t1,t2;
@@ -2946,7 +2946,7 @@ ORDER BY t2.c DESC, t2.b DESC LIMIT 1) WHERE t1.a = 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	PRIMARY	NULL	NULL	NULL	1	
 1	PRIMARY	r	const	PRIMARY	PRIMARY	4	const	1	
-2	DEPENDENT SUBQUERY	t2	range	b	b	40	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	range	b	b	40	NULL	2	Using index condition
 SELECT sql_no_cache t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r 
 ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899' 
 ORDER BY t2.c DESC, t2.b DESC LIMIT 1) WHERE t1.a = 10;
@@ -2958,7 +2958,7 @@ ORDER BY t2.c, t2.b LIMIT 1) WHERE t1.a = 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	PRIMARY	NULL	NULL	NULL	1	
 1	PRIMARY	r	const	PRIMARY	PRIMARY	4	const	1	
-2	DEPENDENT SUBQUERY	t2	range	b	b	40	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	range	b	b	40	NULL	2	Using index condition
 SELECT sql_no_cache t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r 
 ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899' 
 ORDER BY t2.c, t2.b LIMIT 1) WHERE t1.a = 10;

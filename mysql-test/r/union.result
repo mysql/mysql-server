@@ -505,7 +505,7 @@ NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL
 explain (select * from t1 where a=1) union (select * from t1 where b=1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	const	PRIMARY	PRIMARY	4	const	1	
-2	UNION	t1	ref	b	b	5	const	1	Using where
+2	UNION	t1	ref	b	b	5	const	1	
 NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	
 drop table t1,t2;
 create table t1 (   id int not null auto_increment, primary key (id)   ,user_name text );

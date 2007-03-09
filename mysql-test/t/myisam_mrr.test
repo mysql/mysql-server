@@ -1,0 +1,18 @@
+#
+# MRR/MyISAM tests.
+#
+
+--disable_warnings
+drop table if exists t1, t2, t3;
+--enable_warnings
+
+set @read_rnd_buffer_size_save= @@read_rnd_buffer_size;
+set read_rnd_buffer_size=79;
+select @@read_rnd_buffer_size;
+
+-- source include/mrr_tests.inc
+
+set @@read_rnd_buffer_size= @read_rnd_buffer_size_save;
+
+drop table t1, t2, t3, t4;
+

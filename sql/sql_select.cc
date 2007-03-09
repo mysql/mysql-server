@@ -212,7 +212,7 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab);
 static bool setup_sum_funcs(THD *thd, Item_sum **func_ptr);
 static bool init_sum_functions(Item_sum **func, Item_sum **end);
 static bool update_sum_func(Item_sum **func);
-static void select_describe(JOIN *join, bool need_tmp_table,bool need_order,
+void select_describe(JOIN *join, bool need_tmp_table,bool need_order,
 			    bool distinct, const char *message=NullS);
 static Item *remove_additional_cond(Item* conds);
 static void add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab);
@@ -2204,7 +2204,7 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
     select->head=table;
     table->reginfo.impossible_range=0;
     if ((error= select->test_quick_select(thd, *(key_map *)keys,(table_map) 0,
-                                          limit, 0)) == 1)
+                                          limit, 0, FALSE)) == 1)
       DBUG_RETURN(select->quick->records);
     if (error == -1)
     {
@@ -3951,9 +3951,7 @@ best_access_path(JOIN      *join,
             if (table->used_keys.is_set(key))
             {
               /* we can use only index tree */
-              uint keys_per_block= table->file->stats.block_size/2/
-                (keyinfo->key_length+table->file->ref_length)+1;
-              tmp= record_count*(tmp+keys_per_block-1)/keys_per_block;
+              tmp= record_count * table->file->index_only_read_time(key, tmp);
             }
             else
               tmp= record_count*min(tmp,s->worst_seeks);
@@ -4118,12 +4116,10 @@ best_access_path(JOIN      *join,
             if (table->used_keys.is_set(key))
             {
               /* we can use only index tree */
-              uint keys_per_block= table->file->stats.block_size/2/
-                (keyinfo->key_length+table->file->ref_length)+1;
-              tmp= record_count*(tmp+keys_per_block-1)/keys_per_block;
+              tmp= record_count * table->file->index_only_read_time(key, tmp);
             }
             else
-              tmp= record_count*min(tmp,s->worst_seeks);
+              tmp= record_count * min(tmp,s->worst_seeks);
           }
           else
             tmp= best_time;                    // Do nothing
@@ -4151,7 +4147,7 @@ best_access_path(JOIN      *join,
     This is because table scans uses index and we would not win
     anything by using a table scan.
 
-    A word for word translation of the below if-statement in psergey's
+    A word for word translation of the below if-statement in sergefp's
     understanding: we check if we should use table scan if:
     (1) The found 'ref' access produces more records than a table scan
         (or index scan, or quick select), or 'ref' is more expensive than
@@ -5824,7 +5820,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         }
 
       }
-      if (tmp || !cond)
+      if (tmp || !cond || tab->type == JT_REF || tab->type == JT_REF_OR_NULL ||
+          tab->type == JT_EQ_REF)
       {
 	DBUG_EXECUTE("where",print_where(tmp,tab->table->alias););
 	SQL_SELECT *sel= tab->select= ((SQL_SELECT*)
@@ -5838,7 +5835,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           The guard will turn the predicate on only after
           the first match for outer tables is encountered.
 	*/        
-        if (cond)
+        if (cond && tmp)
         {
           /*
             Because of QUICK_GROUP_MIN_MAX_SELECT there may be a select without
@@ -5930,7 +5927,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 				       (join->select_options &
 					OPTION_FOUND_ROWS ?
 					HA_POS_ERROR :
-					join->unit->select_limit_cnt), 0) < 0)
+					join->unit->select_limit_cnt), 0,
+                                        FALSE) < 0)
             {
 	      /*
 		Before reporting "Impossible WHERE" for the whole query
@@ -5943,7 +5941,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
                                          (join->select_options &
                                           OPTION_FOUND_ROWS ?
                                           HA_POS_ERROR :
-                                          join->unit->select_limit_cnt),0) < 0)
+                                          join->unit->select_limit_cnt),0,
+                                          FALSE) < 0)
 		DBUG_RETURN(1);			// Impossible WHERE
             }
             else
@@ -6055,6 +6054,298 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
   DBUG_RETURN(0);
 }
 
+
+/* 
+  Check if given expression uses only table fields covered by the given index
+
+  SYNOPSIS
+    uses_index_fields_only()
+      item           Expression to check
+      tbl            The table having the index
+      keyno          The index number
+      other_tbls_ok  TRUE <=> Fields of other non-const tables are allowed
+
+  DESCRIPTION
+    Check if given expression only uses fields covered by index #keyno in the
+    table tbl. The expression can use any fields in any other tables.
+    
+    The expression is guaranteed not to be AND or OR - those constructs are 
+    handled outside of this function.
+
+  RETURN
+    TRUE   Yes
+    FALSE  No
+*/
+
+bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno, 
+                            bool other_tbls_ok)
+{
+  if (item->const_item())
+    return TRUE;
+
+  /* 
+    Don't push down the triggered conditions. Nested outer joins execution 
+    code may need to evaluate a condition several times (both triggered and
+    untriggered), and there is no way to put thi
+    TODO: Consider cloning the triggered condition and using the copies for:
+      1. push the first copy down, to have most restrictive index condition
+         possible
+      2. Put the second copy into tab->select_cond. 
+  */
+  if (item->type() == Item::FUNC_ITEM && 
+      ((Item_func*)item)->functype() == Item_func::TRIG_COND_FUNC)
+    return FALSE;
+
+  if (!(item->used_tables() & tbl->map))
+    return other_tbls_ok;
+
+  Item::Type item_type= item->type();
+  switch (item_type) {
+  case Item::FUNC_ITEM:
+    {
+      /* This is a function, apply condition recursively to arguments */
+      Item_func *item_func= (Item_func*)item;
+      Item **child;
+      Item **item_end= (item_func->arguments()) + item_func->argument_count();
+      for (child= item_func->arguments(); child != item_end; child++)
+      {
+        if (!uses_index_fields_only(*child, tbl, keyno, other_tbls_ok))
+          return FALSE;
+      }
+      return TRUE;
+    }
+  case Item::COND_ITEM:
+    {
+      /* This is a function, apply condition recursively to arguments */
+      List_iterator<Item> li(*((Item_cond*)item)->argument_list());
+      Item *item;
+      while ((item=li++))
+      {
+        if (!uses_index_fields_only(item, tbl, keyno, other_tbls_ok))
+          return FALSE;
+      }
+      return TRUE;
+    }
+  case Item::FIELD_ITEM:
+    {
+      Item_field *item_field= (Item_field*)item;
+      if (item_field->field->table != tbl) 
+        return TRUE;
+      return item_field->field->part_of_key.is_set(keyno);
+    }
+  case Item::REF_ITEM:
+    return uses_index_fields_only(item->real_item(), tbl, keyno,
+                                  other_tbls_ok);
+  default:
+    return FALSE; /* Play it safe, don't push unknown non-const items */
+  }
+}
+
+
+#define ICP_COND_USES_INDEX_ONLY 10
+
+/*
+  Get a part of the condition that can be checked using only index fields
+
+  SYNOPSIS
+    make_cond_for_index()
+      cond           The source condition
+      table          The table that is partially available
+      keyno          The index in the above table. Only fields covered by the index
+                     are available
+      other_tbls_ok  TRUE <=> Fields of other non-const tables are allowed
+
+  DESCRIPTION
+    Get a part of the condition that can be checked when for the given table 
+    we have values only of fields covered by some index. The condition may
+    refer to other tables, it is assumed that we have values of all of their 
+    fields.
+
+    Example:
+      make_cond_for_index(
+         "cond(t1.field) AND cond(t2.key1) AND cond(t2.non_key) AND cond(t2.key2)",
+          t2, keyno(t2.key1)) 
+      will return
+        "cond(t1.field) AND cond(t2.key2)"
+
+  RETURN
+    Index condition, or NULL if no condition could be inferred.
+*/
+
+Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
+                          bool other_tbls_ok)
+{
+  if (!cond)
+    return NULL;
+  if (cond->type() == Item::COND_ITEM)
+  {
+    uint n_marked= 0;
+    if (((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
+    {
+      Item_cond_and *new_cond=new Item_cond_and;
+      if (!new_cond)
+	return (COND*) 0;
+      List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
+      Item *item;
+      while ((item=li++))
+      {
+	Item *fix= make_cond_for_index(item, table, keyno, other_tbls_ok);
+	if (fix)
+	  new_cond->argument_list()->push_back(fix);
+        n_marked += test(item->marker == ICP_COND_USES_INDEX_ONLY);
+      }
+      if (n_marked ==((Item_cond*)cond)->argument_list()->elements)
+        cond->marker= ICP_COND_USES_INDEX_ONLY;
+      switch (new_cond->argument_list()->elements) {
+      case 0:
+	return (COND*) 0;
+      case 1:
+	return new_cond->argument_list()->head();
+      default:
+	new_cond->quick_fix_field();
+	return new_cond;
+      }
+    }
+    else /* It's OR */
+    {
+      Item_cond_or *new_cond=new Item_cond_or;
+      if (!new_cond)
+	return (COND*) 0;
+      List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
+      Item *item;
+      while ((item=li++))
+      {
+	Item *fix= make_cond_for_index(item, table, keyno, other_tbls_ok);
+	if (!fix)
+	  return (COND*) 0;
+	new_cond->argument_list()->push_back(fix);
+        n_marked += test(item->marker == ICP_COND_USES_INDEX_ONLY);
+      }
+      if (n_marked ==((Item_cond*)cond)->argument_list()->elements)
+        cond->marker= ICP_COND_USES_INDEX_ONLY;
+      new_cond->quick_fix_field();
+      new_cond->top_level_item();
+      return new_cond;
+    }
+  }
+
+  if (!uses_index_fields_only(cond, table, keyno, other_tbls_ok))
+    return (COND*) 0;
+  cond->marker= ICP_COND_USES_INDEX_ONLY;
+  return cond;
+}
+
+
+Item *make_cond_remainder(Item *cond, bool exclude_index)
+{
+  if (exclude_index && cond->marker == ICP_COND_USES_INDEX_ONLY)
+    return 0; /* Already checked */
+
+  if (cond->type() == Item::COND_ITEM)
+  {
+    if (((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
+    {
+      /* Create new top level AND item */
+      Item_cond_and *new_cond=new Item_cond_and;
+      if (!new_cond)
+	return (COND*) 0;
+      List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
+      Item *item;
+      while ((item=li++))
+      {
+	Item *fix= make_cond_remainder(item, exclude_index);
+	if (fix)
+	  new_cond->argument_list()->push_back(fix);
+      }
+      switch (new_cond->argument_list()->elements) {
+      case 0:
+	return (COND*) 0;
+      case 1:
+	return new_cond->argument_list()->head();
+      default:
+	new_cond->quick_fix_field();
+	return new_cond;
+      }
+    }
+    else /* It's OR */
+    {
+      Item_cond_or *new_cond=new Item_cond_or;
+      if (!new_cond)
+	return (COND*) 0;
+      List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
+      Item *item;
+      while ((item=li++))
+      {
+	Item *fix= make_cond_remainder(item, FALSE);
+	if (!fix)
+	  return (COND*) 0;
+	new_cond->argument_list()->push_back(fix);
+      }
+      new_cond->quick_fix_field();
+      new_cond->top_level_item();
+      return new_cond;
+    }
+  }
+  return cond;
+}
+
+
+/*
+  Try to extract and push the index condition
+
+  SYNOPSIS
+    push_index_cond()
+      tab            A join tab that has tab->table->file and its condition
+                     in tab->select_cond
+      keyno          Index for which extract and push the condition
+      other_tbls_ok  TRUE <=> Fields of other non-const tables are allowed
+
+  DESCRIPTION
+    Try to extract and push the index condition down to table handler
+*/
+
+static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
+{
+  DBUG_ENTER("push_index_cond");
+  Item *idx_cond;
+  if (tab->table->file->index_flags(keyno, 0, 1) & HA_DO_INDEX_COND_PUSHDOWN &&
+      tab->join->thd->variables.engine_condition_pushdown)
+  {
+    DBUG_EXECUTE("where", print_where(tab->select_cond, "full cond"););
+    idx_cond= make_cond_for_index(tab->select_cond, tab->table, keyno,
+                                  other_tbls_ok);
+    DBUG_EXECUTE("where", print_where(idx_cond, "idx cond"););
+    if (idx_cond)
+    {
+      tab->pre_idx_push_select_cond= tab->select_cond;
+      Item *idx_remainder_cond= 
+        tab->table->file->idx_cond_push(keyno, idx_cond);
+      Item *row_cond= make_cond_remainder(tab->select_cond, TRUE);
+      DBUG_EXECUTE("where", print_where(row_cond, "remainder cond"););
+      
+      if (row_cond) 
+      {
+        if (!idx_remainder_cond)
+          tab->select_cond= row_cond;
+        else
+        {
+          tab->select_cond= new Item_cond_and(row_cond, idx_remainder_cond);
+	  tab->select_cond->quick_fix_field();
+        }
+      }
+      else
+        tab->select_cond= idx_remainder_cond;
+      if (tab->select)
+      {
+        DBUG_EXECUTE("where", print_where(tab->select->cond, "select_cond"););
+        tab->select->cond= tab->select_cond;
+      }
+    }
+  }
+  DBUG_VOID_RETURN;
+}
+
+
 static void
 make_join_readinfo(JOIN *join, ulonglong options)
 {
@@ -6068,6 +6359,7 @@ make_join_readinfo(JOIN *join, ulonglong options)
   {
     JOIN_TAB *tab=join->join_tab+i;
     TABLE *table=tab->table;
+    bool using_join_cache;
     tab->read_record.table= table;
     tab->read_record.file=table->file;
     tab->next_select=sub_select;		/* normal select */
@@ -6123,6 +6415,8 @@ make_join_readinfo(JOIN *join, ulonglong options)
 	table->key_read=1;
 	table->file->extra(HA_EXTRA_KEYREAD);
       }
+      else
+        push_index_cond(tab, tab->ref.key, TRUE);
       break;
     case JT_REF_OR_NULL:
     case JT_REF:
@@ -6140,6 +6434,8 @@ make_join_readinfo(JOIN *join, ulonglong options)
 	table->key_read=1;
 	table->file->extra(HA_EXTRA_KEYREAD);
       }
+      else
+        push_index_cond(tab, tab->ref.key, TRUE);
       if (tab->type == JT_REF)
       {
 	tab->read_first_record= join_read_always_key;
@@ -6162,6 +6458,7 @@ make_join_readinfo(JOIN *join, ulonglong options)
         If the incoming data set is already sorted don't use cache.
       */
       table->status=STATUS_NO_RECORD;
+      using_join_cache= FALSE;
       if (i != join->const_tables && !(options & SELECT_NO_JOIN_CACHE) &&
           tab->use_quick != 2 && !tab->first_inner && !ordered_set)
       {
@@ -6169,6 +6466,7 @@ make_join_readinfo(JOIN *join, ulonglong options)
 	    !join_init_cache(join->thd,join->join_tab+join->const_tables,
 			     i-join->const_tables))
 	{
+          using_join_cache= TRUE;
 	  tab[-1].next_select=sub_select_cache; /* Patch previous */
 	}
       }
@@ -6233,6 +6531,9 @@ make_join_readinfo(JOIN *join, ulonglong options)
 	    tab->type=JT_NEXT;		// Read with index_first / index_next
 	  }
 	}
+        if (tab->select && tab->select->quick &&
+            tab->select->quick->index != MAX_KEY && ! tab->table->key_read)
+          push_index_cond(tab, tab->select->quick->index, !using_join_cache);
       }
       break;
     default:
@@ -11270,7 +11571,8 @@ test_if_quick_select(JOIN_TAB *tab)
   delete tab->select->quick;
   tab->select->quick=0;
   return tab->select->test_quick_select(tab->join->thd, tab->keys,
-					(table_map) 0, HA_POS_ERROR, 0);
+					(table_map) 0, HA_POS_ERROR, 0,
+                                        FALSE);
 }
 
 
@@ -11923,6 +12225,14 @@ static bool test_if_ref(Item_field *left_item,Item *right_item)
 	  We can remove binary fields and numerical fields except float,
 	  as float comparison isn't 100 % secure
 	  We have to keep normal strings to be able to check for end spaces
+
+          sergefp: the above seems to be too restrictive. Counterexample:
+            create table t100 (v varchar(10), key(v)) default charset=latin1;
+            insert into t100 values ('a'),('a ');
+            explain select * from t100 where v='a';
+          The EXPLAIN shows 'using Where'. Running the query returns both
+          rows, so it seems there are no problems with endspace in the most
+          frequent case?
 	*/
 	if (field->binary() &&
 	    field->real_type() != MYSQL_TYPE_STRING &&
@@ -11937,6 +12247,38 @@ static bool test_if_ref(Item_field *left_item,Item *right_item)
   return 0;					// keep test
 }
 
+
+/*
+  Extract a condition that can be checked after reading given table
+  
+  SYNOPSIS
+    make_cond_for_table()
+      cond         Condition to analyze
+      tables       Tables for which "current field values" are available
+      used_table   Table that we're extracting the condition for (may 
+                   also include PSEUDO_TABLE_BITS
+
+  DESCRIPTION
+    Extract the condition that can be checked after reading the table
+    specified in 'used_table', given that current-field values for tables
+    specified in 'tables' bitmap are available.
+
+    The function assumes that
+      - Constant parts of the condition has already been checked.
+      - Condition that could be checked for tables in 'tables' has already 
+        been checked.
+        
+    The function takes into account that some parts of the condition are
+    guaranteed to be true by employed 'ref' access methods (the code that
+    does this is located at the end, search down for "EQ_FUNC").
+
+
+  SEE ALSO 
+    make_cond_for_info_schema uses similar algorithm
+
+  RETURN
+    Extracted condition
+*/
 
 static COND *
 make_cond_for_table(COND *cond, table_map tables, table_map used_table)
@@ -12012,6 +12354,10 @@ make_cond_for_table(COND *cond, table_map tables, table_map used_table)
   if (cond->marker == 2 || cond->eq_cmp_result() == Item::COND_OK)
     return cond;				// Not boolean op
 
+  /* 
+    Remove equalities that are guaranteed to be true by use of 'ref' access
+    method
+  */
   if (((Item_func*) cond)->functype() == Item_func::EQ_FUNC)
   {
     Item *left_item=	((Item_func*) cond)->arguments()[0];
@@ -12033,6 +12379,7 @@ make_cond_for_table(COND *cond, table_map tables, table_map used_table)
   return cond;
 }
 
+
 static Item *
 part_of_refkey(TABLE *table,Field *field)
 {
@@ -12047,7 +12394,7 @@ part_of_refkey(TABLE *table,Field *field)
 
     for (uint part=0 ; part < ref_parts ; part++,key_part++)
       if (field->eq(key_part->field) &&
-	  !(key_part->key_part_flag & (HA_PART_KEY_SEG | HA_NULL_PART)))
+	  !(key_part->key_part_flag & HA_PART_KEY_SEG))
 	return table->reginfo.join_tab->ref.items[part];
   }
   return (Item*) 0;
@@ -12434,6 +12781,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 				       &usable_keys)) < MAX_KEY)
       {
 	/* Found key that can be used to retrieve data in sorted order */
+        if (tab->pre_idx_push_select_cond)
+          tab->select_cond= tab->select->cond= tab->pre_idx_push_select_cond;
 	if (tab->ref.key >= 0)
 	{
           /*
@@ -12447,6 +12796,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           KEYUSE *keyuse= tab->keyuse;
           while (keyuse->key != new_ref_key && keyuse->table == tab->table)
             keyuse++;
+
           if (create_ref_for_key(tab->join, tab, keyuse, 
                                  tab->join->const_table_map))
             DBUG_RETURN(0);
@@ -12469,7 +12819,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
                                         (tab->join->select_options &
                                          OPTION_FOUND_ROWS) ?
                                         HA_POS_ERROR :
-                                        tab->join->unit->select_limit_cnt,0) <=
+                                        tab->join->unit->select_limit_cnt,0,
+                                        TRUE) <=
               0)
             DBUG_RETURN(0);
 	}
@@ -12492,6 +12843,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	  if (!select->quick->reverse_sorted())
 	  {
             QUICK_SELECT_DESC *tmp;
+            bool create_error= FALSE;
             int quick_type= select->quick->get_type();
             if (quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE ||
                 quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
@@ -12501,8 +12853,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             
             /* ORDER BY range_key DESC */
 	    tmp= new QUICK_SELECT_DESC((QUICK_RANGE_SELECT*)(select->quick),
-                                       used_key_parts);
-	    if (!tmp || tmp->error)
+                                       used_key_parts, &create_error);
+	    if (!tmp || create_error)
 	    {
 	      delete tmp;
 	      DBUG_RETURN(0);		// Reverse sort not supported
@@ -12525,7 +12877,16 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	}
       }
       else if (select && select->quick)
-	  select->quick->sorted= 1;
+      {
+        select->quick->sorted= 1;
+        if (tab->table->file->ha_table_flags() & HA_MRR_CANT_SORT && 
+            select->quick->get_type() == QUICK_SELECT_I::QS_TYPE_RANGE)
+        {
+          ((QUICK_RANGE_SELECT*)select->quick)->mrr_flags |= 
+            HA_MRR_USE_DEFAULT_IMPL;
+        }
+
+      }
       DBUG_RETURN(1);			/* No need to sort */
     }
   }
@@ -12675,7 +13036,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
 	field, quick will contain an empty record set.
       */
       if (!(select->quick= (tab->type == JT_FT ?
-			    new FT_SELECT(thd, table, tab->ref.key) :
+			    get_ft_select(thd, table, tab->ref.key) :
 			    get_quick_select_for_ref(thd, table, &tab->ref, 
                                                      tab->found_records))))
 	goto err;
@@ -14984,8 +15345,8 @@ void JOIN::clear()
   Send a description about what how the select will be done to stdout
 ****************************************************************************/
 
-static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
-			    bool distinct,const char *message)
+void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
+                     bool distinct,const char *message)
 {
   List<Item> field_list;
   List<Item> item_list;
@@ -15298,6 +15659,13 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       }
       else
       {
+        uint keyno= MAX_KEY;
+        if (tab->ref.key_parts)
+          keyno= tab->ref.key;
+        else if (tab->select && tab->select->quick)
+          keyno = tab->select->quick->index;
+
+        tab->table->file->add_explain_extra_info(keyno, &extra);
         if (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION || 
             quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
             quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
@@ -15342,6 +15710,14 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         }
 	if (table->reginfo.not_exists_optimize)
 	  extra.append(STRING_WITH_LEN("; Not exists"));
+          
+        if (quick_type == QUICK_SELECT_I::QS_TYPE_RANGE &&
+            !(((QUICK_RANGE_SELECT*)(tab->select->quick))->mrr_flags &
+             HA_MRR_USE_DEFAULT_IMPL))
+        {
+	  extra.append(STRING_WITH_LEN("; Using MRR"));
+        }
+
 	if (need_tmp_table)
 	{
 	  need_tmp_table=0;

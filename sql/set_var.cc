@@ -328,8 +328,6 @@ sys_var_thd_ulong	sys_max_tmp_tables("max_tmp_tables",
 					   &SV::max_tmp_tables);
 sys_var_long_ptr	sys_max_write_lock_count("max_write_lock_count",
 						 &max_write_lock_count);
-sys_var_thd_ulong       sys_multi_range_count("multi_range_count",
-                                              &SV::multi_range_count);
 sys_var_long_ptr	sys_myisam_data_pointer_size("myisam_data_pointer_size",
                                                     &myisam_data_pointer_size);
 sys_var_thd_ulonglong	sys_myisam_max_sort_file_size("myisam_max_sort_file_size", &SV::myisam_max_sort_file_size, fix_myisam_max_sort_file_size, 1);
@@ -342,7 +340,6 @@ sys_var_thd_enum        sys_myisam_stats_method("myisam_stats_method",
                                                 &SV::myisam_stats_method,
                                                 &myisam_stats_method_typelib,
                                                 NULL);
-
 sys_var_thd_ulong	sys_net_buffer_length("net_buffer_length",
 					      &SV::net_buffer_length);
 sys_var_thd_ulong	sys_net_read_timeout("net_read_timeout",
@@ -358,10 +355,23 @@ sys_var_thd_bool	sys_new_mode("new", &SV::new_mode);
 sys_var_thd_bool	sys_old_alter_table("old_alter_table",
 					    &SV::old_alter_table);
 sys_var_thd_bool	sys_old_passwords("old_passwords", &SV::old_passwords);
+
 sys_var_thd_ulong       sys_optimizer_prune_level("optimizer_prune_level",
                                                   &SV::optimizer_prune_level);
 sys_var_thd_ulong       sys_optimizer_search_depth("optimizer_search_depth",
                                                    &SV::optimizer_search_depth);
+
+const char *optimizer_use_mrr_names[] = {"auto", "force", "disable", NullS};
+TYPELIB optimizer_use_mrr_typelib= {
+  array_elements(optimizer_use_mrr_names) - 1, "",
+  optimizer_use_mrr_names, NULL
+};
+
+sys_var_thd_enum        sys_optimizer_use_mrr("optimizer_use_mrr",
+                                              &SV::optimizer_use_mrr,
+                                              &optimizer_use_mrr_typelib,
+                                              NULL);
+
 sys_var_thd_ulong       sys_preload_buff_size("preload_buffer_size",
                                               &SV::preload_buff_size);
 sys_var_thd_ulong	sys_read_buff_size("read_buffer_size",
@@ -894,7 +904,6 @@ SHOW_VAR init_vars[]= {
   {sys_max_tmp_tables.name,	(char*) &sys_max_tmp_tables,	    SHOW_SYS},
   {sys_max_user_connections.name,(char*) &sys_max_user_connections, SHOW_SYS},
   {sys_max_write_lock_count.name, (char*) &sys_max_write_lock_count,SHOW_SYS},
-  {sys_multi_range_count.name,  (char*) &sys_multi_range_count,     SHOW_SYS},
   {sys_myisam_data_pointer_size.name, (char*) &sys_myisam_data_pointer_size, SHOW_SYS},
   {sys_myisam_max_sort_file_size.name, (char*) &sys_myisam_max_sort_file_size,
    SHOW_SYS},
@@ -939,6 +948,7 @@ SHOW_VAR init_vars[]= {
    SHOW_SYS},
   {sys_optimizer_search_depth.name,(char*) &sys_optimizer_search_depth,
    SHOW_SYS},
+  {sys_optimizer_use_mrr.name, (char*) &sys_optimizer_use_mrr,       SHOW_SYS},
   {"pid_file",                (char*) pidfile_name,                 SHOW_CHAR},
   {"plugin_dir",              (char*) opt_plugin_dir,               SHOW_CHAR},
   {"port",                    (char*) &mysqld_port,                  SHOW_INT},
