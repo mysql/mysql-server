@@ -6874,3 +6874,122 @@ has_two_write_locked_tables_with_auto_increment(TABLE_LIST *tables)
   }
   return 0;
 }
+
+
+/*
+  Open and lock system tables for read.
+
+  SYNOPSIS
+    open_system_tables_for_read()
+      thd         Thread context.
+      table_list  List of tables to open.
+      backup      Pointer to Open_tables_state instance where
+                  information about currently open tables will be
+                  saved, and from which will be restored when we will
+                  end work with system tables.
+
+  NOTES
+    Thanks to restrictions which we put on opening and locking of
+    system tables for writing, we can open and lock them for reading
+    even when we already have some other tables open and locked.  One
+    must call close_system_tables() to close systems tables opened
+    with this call.
+
+  RETURN
+    FALSE   Success
+    TRUE    Error
+*/
+
+bool
+open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
+                            Open_tables_state *backup)
+{
+  DBUG_ENTER("open_system_tables_for_read");
+
+  thd->reset_n_backup_open_tables_state(backup);
+
+  uint count= 0;
+  bool not_used;
+  for (TABLE_LIST *tables= table_list; tables; tables= tables->next_global)
+  {
+    TABLE *table= open_table(thd, tables, thd->mem_root, &not_used,
+                             MYSQL_LOCK_IGNORE_FLUSH);
+    if (!table)
+      goto error;
+
+    DBUG_ASSERT(table->s->system_table);
+
+    table->use_all_columns();
+    table->reginfo.lock_type= tables->lock_type;
+    tables->table= table;
+    count++;
+  }
+
+  {
+    TABLE **list= (TABLE**) thd->alloc(sizeof(TABLE*) * count);
+    TABLE **ptr= list;
+    for (TABLE_LIST *tables= table_list; tables; tables= tables->next_global)
+      *(ptr++)= tables->table;
+
+    thd->lock= mysql_lock_tables(thd, list, count,
+                                 MYSQL_LOCK_IGNORE_FLUSH, &not_used);
+  }
+  if (thd->lock)
+    DBUG_RETURN(FALSE);
+
+error:
+  close_system_tables(thd, backup);
+
+  DBUG_RETURN(TRUE);
+}
+
+
+/*
+  Close system tables, opened with open_system_tables_for_read().
+
+  SYNOPSIS
+    close_system_tables()
+      thd     Thread context
+      backup  Pointer to Open_tables_state instance which holds
+              information about tables which were open before we
+              decided to access system tables.
+*/
+
+void
+close_system_tables(THD *thd, Open_tables_state *backup)
+{
+  close_thread_tables(thd);
+  thd->restore_backup_open_tables_state(backup);
+}
+
+
+/*
+  Open and lock one system table for update.
+
+  SYNOPSIS
+    open_system_table_for_update()
+      thd        Thread context.
+      one_table  Table to open.
+
+  NOTES
+    Table opened with this call should closed using close_thread_tables().
+
+  RETURN
+    0	Error
+    #	Pointer to TABLE object of system table
+*/
+
+TABLE *
+open_system_table_for_update(THD *thd, TABLE_LIST *one_table)
+{
+  DBUG_ENTER("open_system_table_for_update");
+
+  TABLE *table= open_ltable(thd, one_table, one_table->lock_type);
+  if (table)
+  {
+    DBUG_ASSERT(table->s->system_table);
+    table->use_all_columns();
+  }
+
+  DBUG_RETURN(table);
+}

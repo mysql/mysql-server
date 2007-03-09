@@ -1676,8 +1676,7 @@ mysql_execute_command(THD *thd)
     Don't reset warnings when executing a stored routine.
   */
   if ((all_tables || &lex->select_lex != lex->all_selects_list ||
-       lex->sroutines.records) && !thd->spcont ||
-      lex->time_zone_tables_used)
+       lex->sroutines.records) && !thd->spcont)
     mysql_reset_errors(thd, 0);
 
 #ifdef HAVE_REPLICATION
@@ -4726,9 +4725,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
      */
     tables->grant.orig_want_privilege= (want_access & ~SHOW_VIEW_ACL);
     if (tables->derived || tables->schema_table ||
-        (tables->table && (int)tables->table->s->tmp_table) ||
-        my_tz_check_n_skip_implicit_tables(&tables,
-                                           thd->lex->time_zone_tables_used))
+        (tables->table && (int)tables->table->s->tmp_table))
       continue;
     thd->security_ctx= sctx;
     if ((sctx->master_access & want_access) ==
@@ -6496,14 +6493,12 @@ bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
   /*
     Is there tables of subqueries?
   */
-  if (&lex->select_lex != lex->all_selects_list || lex->time_zone_tables_used)
+  if (&lex->select_lex != lex->all_selects_list)
   {
     DBUG_PRINT("info",("Checking sub query list"));
     for (table= tables; table; table= table->next_global)
     {
-      if (!my_tz_check_n_skip_implicit_tables(&table,
-                                              lex->time_zone_tables_used) &&
-          !table->table_in_first_from_clause)
+      if (!table->table_in_first_from_clause)
       {
 	if (check_access(thd, SELECT_ACL, table->db,
 			 &table->grant.privilege, 0, 0,
