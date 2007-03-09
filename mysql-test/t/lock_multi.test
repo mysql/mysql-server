@@ -138,6 +138,10 @@ DROP DATABASE mysqltest_1;
 #
 # Bug#16986 - Deadlock condition with MyISAM tables
 #
+
+# Need a matching user in mysql.user for multi-table select
+--source include/add_anonymous_users.inc
+
 connection locker;
 use mysql;
 LOCK TABLES columns_priv WRITE, db WRITE, host WRITE, user WRITE;
@@ -213,6 +217,8 @@ UNLOCK TABLES;
 #
 connection default;
 DROP TABLE t1;
+
+--source include/delete_anonymous_users.inc
 
 #
 # Bug #17264: MySQL Server freeze

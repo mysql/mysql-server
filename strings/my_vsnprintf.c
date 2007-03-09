@@ -21,6 +21,13 @@
 /*
   Limited snprintf() implementations
 
+  SYNOPSIS
+    my_vsnprintf()
+    to		Store result here
+    n		Store up to n-1 characters, followed by an end 0
+    fmt		printf format
+    ap		Arguments
+
   IMPLEMENTION:
     Supports following formats:
     %#[l]d

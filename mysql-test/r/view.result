@@ -834,14 +834,16 @@ show create view v1;
 View	Create View
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 99999999999999999999999999999999999999999999999999999 AS `col1`
 drop view v1;
-create table tü (cü char);
-create view vü as select cü from tü;
-insert into vü values ('ü');
-select * from vü;
-cü
-ü
-drop view vü;
-drop table tü;
+set names utf8;
+create table tÃ¼ (cÃ¼ char);
+create view vÃ¼ as select cÃ¼ from tÃ¼;
+insert into vÃ¼ values ('Ã¼');
+select * from vÃ¼;
+cÃ¼
+Ã¼
+drop view vÃ¼;
+drop table tÃ¼;
+set names latin1;
 create table t1 (a int, b int);
 insert into t1 values (1,2), (1,3), (2,4), (2,5), (3,10);
 create view v1(c) as select a+1 from t1 where b >= 4;
@@ -1933,11 +1935,11 @@ create function f1 () returns int return (select max(col1) from t1);
 DROP TABLE t1;
 CHECK TABLE v1, v2, v3, v4, v5, v6;
 Table	Op	Msg_type	Msg_text
-test.v1	check	error	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+test.v1	check	status	OK
 test.v2	check	status	OK
-test.v3	check	error	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+test.v3	check	status	OK
 test.v4	check	status	OK
-test.v5	check	error	View 'test.v5' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+test.v5	check	status	OK
 test.v6	check	status	OK
 drop function f1;
 drop function f2;
@@ -3035,7 +3037,7 @@ View	Create View
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select _latin1'The\ZEnd' AS `TheEnd`
 DROP VIEW v1;
 CREATE TABLE t1 (mydate DATETIME);
-INSERT INTO t1 VALUES 
+INSERT INTO t1 VALUES
 ('2007-01-01'), ('2007-01-02'), ('2007-01-30'), ('2007-01-31');
 CREATE VIEW v1 AS SELECT mydate from t1;
 SELECT * FROM t1 WHERE mydate BETWEEN '2007-01-01' AND '2007-01-31';
@@ -3135,4 +3137,139 @@ code	COUNT(DISTINCT country)
 100	2
 DROP VIEW v1;
 DROP TABLE t1;
+DROP VIEW IF EXISTS v1;
+SELECT * FROM (SELECT 1) AS t;
+1
+1
+CREATE VIEW v1 AS SELECT * FROM (SELECT 1) AS t;
+ERROR HY000: View's SELECT contains a subquery in the FROM clause
+# Previously the following would fail.
+SELECT * FROM (SELECT 1) AS t;
+1
+1
+drop view if exists view_24532_a;
+drop view if exists view_24532_b;
+drop table if exists table_24532;
+create table table_24532 (
+a int,
+b bigint,
+c int(4),
+d bigint(48)
+);
+create view view_24532_a as
+select
+a IS TRUE,
+a IS NOT TRUE,
+a IS FALSE,
+a IS NOT FALSE,
+a IS UNKNOWN,
+a IS NOT UNKNOWN,
+a is NULL,
+a IS NOT NULL,
+ISNULL(a),
+b IS TRUE,
+b IS NOT TRUE,
+b IS FALSE,
+b IS NOT FALSE,
+b IS UNKNOWN,
+b IS NOT UNKNOWN,
+b is NULL,
+b IS NOT NULL,
+ISNULL(b),
+c IS TRUE,
+c IS NOT TRUE,
+c IS FALSE,
+c IS NOT FALSE,
+c IS UNKNOWN,
+c IS NOT UNKNOWN,
+c is NULL,
+c IS NOT NULL,
+ISNULL(c),
+d IS TRUE,
+d IS NOT TRUE,
+d IS FALSE,
+d IS NOT FALSE,
+d IS UNKNOWN,
+d IS NOT UNKNOWN,
+d is NULL,
+d IS NOT NULL,
+ISNULL(d)
+from table_24532;
+describe view_24532_a;
+Field	Type	Null	Key	Default	Extra
+a IS TRUE	int(1)	NO		0	
+a IS NOT TRUE	int(1)	NO		0	
+a IS FALSE	int(1)	NO		0	
+a IS NOT FALSE	int(1)	NO		0	
+a IS UNKNOWN	int(1)	NO		0	
+a IS NOT UNKNOWN	int(1)	NO		0	
+a is NULL	int(1)	NO		0	
+a IS NOT NULL	int(1)	NO		0	
+ISNULL(a)	int(1)	NO		0	
+b IS TRUE	int(1)	NO		0	
+b IS NOT TRUE	int(1)	NO		0	
+b IS FALSE	int(1)	NO		0	
+b IS NOT FALSE	int(1)	NO		0	
+b IS UNKNOWN	int(1)	NO		0	
+b IS NOT UNKNOWN	int(1)	NO		0	
+b is NULL	int(1)	NO		0	
+b IS NOT NULL	int(1)	NO		0	
+ISNULL(b)	int(1)	NO		0	
+c IS TRUE	int(1)	NO		0	
+c IS NOT TRUE	int(1)	NO		0	
+c IS FALSE	int(1)	NO		0	
+c IS NOT FALSE	int(1)	NO		0	
+c IS UNKNOWN	int(1)	NO		0	
+c IS NOT UNKNOWN	int(1)	NO		0	
+c is NULL	int(1)	NO		0	
+c IS NOT NULL	int(1)	NO		0	
+ISNULL(c)	int(1)	NO		0	
+d IS TRUE	int(1)	NO		0	
+d IS NOT TRUE	int(1)	NO		0	
+d IS FALSE	int(1)	NO		0	
+d IS NOT FALSE	int(1)	NO		0	
+d IS UNKNOWN	int(1)	NO		0	
+d IS NOT UNKNOWN	int(1)	NO		0	
+d is NULL	int(1)	NO		0	
+d IS NOT NULL	int(1)	NO		0	
+ISNULL(d)	int(1)	NO		0	
+create view view_24532_b as
+select
+a IS TRUE,
+if(ifnull(a, 0), 1, 0) as old_istrue,
+a IS NOT TRUE,
+if(ifnull(a, 0), 0, 1) as old_isnottrue,
+a IS FALSE,
+if(ifnull(a, 1), 0, 1) as old_isfalse,
+a IS NOT FALSE,
+if(ifnull(a, 1), 1, 0) as old_isnotfalse
+from table_24532;
+describe view_24532_b;
+Field	Type	Null	Key	Default	Extra
+a IS TRUE	int(1)	NO		0	
+old_istrue	int(1)	NO		0	
+a IS NOT TRUE	int(1)	NO		0	
+old_isnottrue	int(1)	NO		0	
+a IS FALSE	int(1)	NO		0	
+old_isfalse	int(1)	NO		0	
+a IS NOT FALSE	int(1)	NO		0	
+old_isnotfalse	int(1)	NO		0	
+show create view view_24532_b;
+View	Create View
+view_24532_b	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_24532_b` AS select (`table_24532`.`a` is true) AS `a IS TRUE`,if(ifnull(`table_24532`.`a`,0),1,0) AS `old_istrue`,(`table_24532`.`a` is not true) AS `a IS NOT TRUE`,if(ifnull(`table_24532`.`a`,0),0,1) AS `old_isnottrue`,(`table_24532`.`a` is false) AS `a IS FALSE`,if(ifnull(`table_24532`.`a`,1),0,1) AS `old_isfalse`,(`table_24532`.`a` is not false) AS `a IS NOT FALSE`,if(ifnull(`table_24532`.`a`,1),1,0) AS `old_isnotfalse` from `table_24532`
+insert into table_24532 values (0, 0, 0, 0);
+select * from view_24532_b;
+a IS TRUE	old_istrue	a IS NOT TRUE	old_isnottrue	a IS FALSE	old_isfalse	a IS NOT FALSE	old_isnotfalse
+0	0	1	1	1	1	0	0
+update table_24532 set a=1;
+select * from view_24532_b;
+a IS TRUE	old_istrue	a IS NOT TRUE	old_isnottrue	a IS FALSE	old_isfalse	a IS NOT FALSE	old_isnotfalse
+1	1	0	0	0	0	1	1
+update table_24532 set a=NULL;
+select * from view_24532_b;
+a IS TRUE	old_istrue	a IS NOT TRUE	old_isnottrue	a IS FALSE	old_isfalse	a IS NOT FALSE	old_isnotfalse
+0	0	1	1	0	0	1	1
+drop view view_24532_a;
+drop view view_24532_b;
+drop table table_24532;
 End of 5.0 tests.

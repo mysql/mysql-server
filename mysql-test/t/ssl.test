@@ -1,7 +1,7 @@
 # Turn on ssl between the client and server
 # and run a number of tests
 
--- source include/have_openssl.inc
+-- source include/have_ssl.inc
 
 connect (ssl_con,localhost,root,,,,,SSL);
 

@@ -106,6 +106,8 @@ class AsyncFile;
 class Request
 {
 public:
+  Request() {}
+
   enum Action {
     open,
     close,

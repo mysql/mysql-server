@@ -247,6 +247,10 @@ bool String::copy(const char *str,uint32 arg_length, CHARSET_INFO *cs)
    0  No conversion needed
    1  Either character set conversion or adding leading  zeros
       (e.g. for UCS-2) must be done
+
+  NOTE
+  to_cs may be NULL for "no conversion" if the system variable
+  character_set_results is NULL.
 */
 
 bool String::needs_conversion(uint32 arg_length,
@@ -255,7 +259,8 @@ bool String::needs_conversion(uint32 arg_length,
 			      uint32 *offset)
 {
   *offset= 0;
-  if ((to_cs == &my_charset_bin) || 
+  if (!to_cs ||
+      (to_cs == &my_charset_bin) || 
       (to_cs == from_cs) ||
       my_charset_same(from_cs, to_cs) ||
       ((from_cs == &my_charset_bin) &&
@@ -612,10 +617,9 @@ skip:
 }
 
 /*
-** replace substring with string
-** If wrong parameter or not enough memory, do nothing
+  Replace substring with string
+  If wrong parameter or not enough memory, do nothing
 */
-
 
 bool String::replace(uint32 offset,uint32 arg_length,const String &to)
 {
@@ -623,16 +627,16 @@ bool String::replace(uint32 offset,uint32 arg_length,const String &to)
 }
 
 bool String::replace(uint32 offset,uint32 arg_length,
-                     const char *to,uint32 length)
+                     const char *to, uint32 to_length)
 {
-  long diff = (long) length-(long) arg_length;
+  long diff = (long) to_length-(long) arg_length;
   if (offset+arg_length <= str_length)
   {
     if (diff < 0)
     {
-      if (length)
-	memcpy(Ptr+offset,to,length);
-      bmove(Ptr+offset+length,Ptr+offset+arg_length,
+      if (to_length)
+	memcpy(Ptr+offset,to,to_length);
+      bmove(Ptr+offset+to_length,Ptr+offset+arg_length,
 	    str_length-offset-arg_length);
     }
     else
@@ -644,8 +648,8 @@ bool String::replace(uint32 offset,uint32 arg_length,
 	bmove_upp(Ptr+str_length+diff,Ptr+str_length,
 		  str_length-offset-arg_length);
       }
-      if (length)
-	memcpy(Ptr+offset,to,length);
+      if (to_length)
+	memcpy(Ptr+offset,to,to_length);
     }
     str_length+=(uint32) diff;
   }
@@ -818,8 +822,18 @@ copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs,
       from++;
       wc= '?';
     }
+    else if (cnvres > MY_CS_TOOSMALL)
+    {
+      /*
+        A correct multibyte sequence detected
+        But it doesn't have Unicode mapping.
+      */
+      error_count++;
+      from+= (-cnvres);
+      wc= '?';
+    }
     else
-      break;					// Impossible char.
+      break;  // Not enough characters
 
 outp:
     if ((cnvres= (*wc_mb)(to_cs, wc, (uchar*) to, to_end)) > 0)
@@ -847,22 +861,22 @@ void String::print(String *str)
     switch (c)
     {
     case '\\':
-      str->append("\\\\", 2);
+      str->append(STRING_WITH_LEN("\\\\"));
       break;
     case '\0':
-      str->append("\\0", 2);
+      str->append(STRING_WITH_LEN("\\0"));
       break;
     case '\'':
-      str->append("\\'", 2);
+      str->append(STRING_WITH_LEN("\\'"));
       break;
     case '\n':
-      str->append("\\n", 2);
+      str->append(STRING_WITH_LEN("\\n"));
       break;
     case '\r':
-      str->append("\\r", 2);
+      str->append(STRING_WITH_LEN("\\r"));
       break;
     case 26: //Ctrl-Z
-      str->append("\\z", 2);
+      str->append(STRING_WITH_LEN("\\z"));
       break;
     default:
       str->append(c);

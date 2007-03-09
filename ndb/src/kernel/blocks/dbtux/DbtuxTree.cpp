@@ -212,7 +212,6 @@ Dbtux::treeRemove(Frag& frag, TreePos treePos)
 void
 Dbtux::treeRemoveInner(Frag& frag, NodeHandle lubNode, unsigned pos)
 {
-  TreeHead& tree = frag.m_tree;
   TreeEnt ent;
   // find g.l.b node
   NodeHandle glbNode(frag);

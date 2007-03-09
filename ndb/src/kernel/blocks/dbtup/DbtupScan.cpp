@@ -89,7 +89,6 @@ Dbtup::execNEXT_SCANREQ(Signal* signal)
   FragrecordPtr fragPtr;
   fragPtr.i = scan.m_fragPtrI[0];
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
-  Fragrecord& frag = *fragPtr.p;
   switch (req->scanFlag) {
   case NextScanReq::ZSCAN_NEXT:
     jam();

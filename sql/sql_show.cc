@@ -28,11 +28,11 @@
 #include "ha_berkeley.h"			// For berkeley_show_logs
 #endif
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static const char *grant_names[]={
   "select","insert","update","delete","create","drop","reload","shutdown",
   "process","file","grant","references","index","alter"};
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
                                "grant_types",
                                grant_names, NULL};
@@ -462,10 +462,10 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 bool mysqld_show_create_db(THD *thd, char *dbname,
                            const HA_CREATE_INFO *create_info)
 {
-  Security_context *sctx= thd->security_ctx;
   char buff[2048];
   String buffer(buff, sizeof(buff), system_charset_info);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+  Security_context *sctx= thd->security_ctx;
   uint db_access;
 #endif
   HA_CREATE_INFO create;
@@ -794,7 +794,7 @@ static int
 store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
 {
   List<Item> field_list;
-  char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], *end;
+  char tmp[MAX_FIELD_WIDTH], *for_str, buff[128];
   const char *alias;
   String type(tmp, sizeof(tmp), system_charset_info);
   Field **ptr,*field;
@@ -1036,8 +1036,9 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
       but may extrapolate its existence from that of an AUTO_INCREMENT column.
     */
 
-    if(create_info.auto_increment_value > 1)
+    if (create_info.auto_increment_value > 1)
     {
+      char *end;
       packet->append(" AUTO_INCREMENT=", 16);
       end= longlong10_to_str(create_info.auto_increment_value, buff,10);
       packet->append(buff, (uint) (end - buff));
@@ -1059,6 +1060,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
 
     if (share->min_rows)
     {
+      char *end;
       packet->append(STRING_WITH_LEN(" MIN_ROWS="));
       end= longlong10_to_str(share->min_rows, buff, 10);
       packet->append(buff, (uint) (end- buff));
@@ -1066,6 +1068,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
 
     if (share->max_rows && !table_list->schema_table)
     {
+      char *end;
       packet->append(STRING_WITH_LEN(" MAX_ROWS="));
       end= longlong10_to_str(share->max_rows, buff, 10);
       packet->append(buff, (uint) (end - buff));
@@ -1073,6 +1076,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
 
     if (share->avg_row_length)
     {
+      char *end;
       packet->append(STRING_WITH_LEN(" AVG_ROW_LENGTH="));
       end= longlong10_to_str(share->avg_row_length, buff,10);
       packet->append(buff, (uint) (end - buff));
@@ -1443,7 +1447,7 @@ static bool show_status_array(THD *thd, const char *wild,
         long nr;
         if (show_type == SHOW_SYS)
         {
-          show_type= ((sys_var*) value)->type();
+          show_type= ((sys_var*) value)->show_type();
           value=     (char*) ((sys_var*) value)->value_ptr(thd, value_type,
                                                            &null_lex_str);
         }
@@ -1489,7 +1493,7 @@ static bool show_status_array(THD *thd, const char *wild,
           break;
         }
         case SHOW_STARTTIME:
-          nr= (long) (thd->query_start() - start_time);
+          nr= (long) (thd->query_start() - server_start_time);
           end= int10_to_str(nr, buff, 10);
           break;
         case SHOW_QUESTION:
@@ -2118,19 +2122,21 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   List<char> bases;
   List_iterator_fast<char> it(bases);
   COND *partial_cond;
-  Security_context *sctx= thd->security_ctx;
   uint derived_tables= lex->derived_tables; 
   int error= 1;
   db_type not_used;
   Open_tables_state open_tables_state_backup;
   bool save_view_prepare_mode= lex->view_prepare_mode;
   Query_tables_list query_tables_list_backup;
-  lex->view_prepare_mode= TRUE;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  Security_context *sctx= thd->security_ctx;
+#endif
   DBUG_ENTER("get_all_tables");
 
   LINT_INIT(end);
   LINT_INIT(len);
 
+  lex->view_prepare_mode= TRUE;
   lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
 
   /*
@@ -2368,7 +2374,9 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
   bool with_i_schema;
   HA_CREATE_INFO create;
   TABLE *table= tables->table;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *sctx= thd->security_ctx;
+#endif
   DBUG_ENTER("fill_schema_shemata");
 
   if (make_db_list(thd, &files, &idx_field_vals,
@@ -2507,20 +2515,21 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
     if (file->create_time)
     {
       thd->variables.time_zone->gmt_sec_to_TIME(&time,
-                                                file->create_time);
+                                                (my_time_t) file->create_time);
       table->field[14]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
       table->field[14]->set_notnull();
     }
     if (file->update_time)
     {
       thd->variables.time_zone->gmt_sec_to_TIME(&time,
-                                                file->update_time);
+                                                (my_time_t) file->update_time);
       table->field[15]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
       table->field[15]->set_notnull();
     }
     if (file->check_time)
     {
-      thd->variables.time_zone->gmt_sec_to_TIME(&time, file->check_time);
+      thd->variables.time_zone->gmt_sec_to_TIME(&time,
+                                                (my_time_t) file->check_time);
       table->field[16]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
       table->field[16]->set_notnull();
     }
@@ -2720,7 +2729,7 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
         field->real_type() == MYSQL_TYPE_VARCHAR ||  // For varbinary type
         field->real_type() == MYSQL_TYPE_STRING)     // For binary type
     {
-      uint32 octet_max_length= field->max_length();
+      uint32 octet_max_length= field->max_display_length();
       if (is_blob && octet_max_length != (uint32) 4294967295U)
         octet_max_length /= field->charset()->mbmaxlen;
       longlong char_max_len= is_blob ? 
@@ -2750,10 +2759,10 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
     case FIELD_TYPE_LONG:
     case FIELD_TYPE_LONGLONG:
     case FIELD_TYPE_INT24:
-      field_length= field->max_length() - 1;
+      field_length= field->max_display_length() - 1;
       break;
     case FIELD_TYPE_BIT:
-      field_length= field->max_length();
+      field_length= field->max_display_length();
       decimals= -1;                             // return NULL
       break;
     case FIELD_TYPE_FLOAT:  
@@ -3420,8 +3429,8 @@ static int get_schema_key_column_usage_record(THD *thd,
 
     show_table->file->get_foreign_key_list(thd, &f_key_list);
     FOREIGN_KEY_INFO *f_key_info;
-    List_iterator_fast<FOREIGN_KEY_INFO> it(f_key_list);
-    while ((f_key_info= it++))
+    List_iterator_fast<FOREIGN_KEY_INFO> fkey_it(f_key_list);
+    while ((f_key_info= fkey_it++))
     {
       LEX_STRING *f_info;
       LEX_STRING *r_info;

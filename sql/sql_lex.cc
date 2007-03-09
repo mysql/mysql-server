@@ -99,6 +99,16 @@ void lex_free(void)
 }
 
 
+void
+st_parsing_options::reset()
+{
+  allows_variable= TRUE;
+  allows_select_into= TRUE;
+  allows_select_procedure= TRUE;
+  allows_derived= TRUE;
+}
+
+
 /*
   This is called before every query that is to be parsed.
   Because of this, it's critical to not do too much things here.
@@ -149,6 +159,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->safe_to_cache_query= 1;
   lex->time_zone_tables_used= 0;
   lex->leaf_tables_insert= 0;
+  lex->parsing_options.reset();
   lex->empty_field_list_on_rset= 0;
   lex->select_lex.select_number= 1;
   lex->next_state=MY_LEX_START;
@@ -286,13 +297,15 @@ static char *get_text(LEX *lex)
   {
     c = yyGet();
 #ifdef USE_MB
-    int l;
-    if (use_mb(cs) &&
-        (l = my_ismbchar(cs,
-                         (const char *)lex->ptr-1,
-                         (const char *)lex->end_of_query))) {
+    {
+      int l;
+      if (use_mb(cs) &&
+          (l = my_ismbchar(cs,
+                           (const char *)lex->ptr-1,
+                           (const char *)lex->end_of_query))) {
 	lex->ptr += l-1;
 	continue;
+      }
     }
 #endif
     if (c == '\\' &&
@@ -759,8 +772,8 @@ int MYSQLlex(void *arg, void *yythd)
       lex->tok_start=lex->ptr;			// Skip first `
       while ((c=yyGet()))
       {
-	int length;
-	if ((length= my_mbcharlen(cs, c)) == 1)
+	int var_length;
+	if ((var_length= my_mbcharlen(cs, c)) == 1)
 	{
 	  if (c == (uchar) NAMES_SEP_CHAR)
 	    break; /* Old .frm format can't handle this char */
@@ -774,9 +787,9 @@ int MYSQLlex(void *arg, void *yythd)
 	  }
 	}
 #ifdef USE_MB
-	else if (length < 1)
+	else if (var_length < 1)
 	  break;				// Error
-	lex->ptr+= length-1;
+	lex->ptr+= var_length-1;
 #endif
       }
       if (double_quotes)
@@ -1151,6 +1164,7 @@ void st_select_lex::init_query()
   cond_count= between_count= with_wild= 0;
   conds_processed_with_permanent_arena= 0;
   ref_pointer_array= 0;
+  select_n_where_fields= 0;
   select_n_having_items= 0;
   subquery_in_having= explicit_limit= 0;
   is_item_list_lookup= 0;
@@ -1192,6 +1206,7 @@ void st_select_lex::init_select()
   is_correlated= 0;
   cur_pos_in_select_list= UNDEF_POS;
   non_agg_fields.empty();
+  inner_refs_list.empty();
 }
 
 /*
@@ -1549,6 +1564,7 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
           (Item **)arena->alloc(sizeof(Item*) * (n_child_sum_items +
                                                  item_list.elements +
                                                  select_n_having_items +
+                                                 select_n_where_fields +
                                                  order_group_num)*5)) == 0;
 }
 
@@ -1632,6 +1648,36 @@ void st_select_lex::print_limit(THD *thd, String *str)
   }
 }
 
+/**
+  @brief Restore the LEX and THD in case of a parse error.
+
+  This is a clean up call that is invoked by the Bison generated
+  parser before returning an error from MYSQLparse. If your
+  semantic actions manipulate with the global thread state (which
+  is a very bad practice and should not normally be employed) and
+  need a clean-up in case of error, and you can not use %destructor
+  rule in the grammar file itself, this function should be used
+  to implement the clean up.
+*/
+
+void st_lex::cleanup_lex_after_parse_error(THD *thd)
+{
+  /*
+    Delete sphead for the side effect of restoring of the original
+    LEX state, thd->lex, thd->mem_root and thd->free_list if they
+    were replaced when parsing stored procedure statements.  We
+    will never use sphead object after a parse error, so it's okay
+    to delete it only for the sake of the side effect.
+    TODO: make this functionality explicit in sp_head class.
+    Sic: we must nullify the member of the main lex, not the
+    current one that will be thrown away
+  */
+  if (thd->lex->sphead)
+  {
+    delete thd->lex->sphead;
+    thd->lex->sphead= NULL;
+  }
+}
 
 /*
   Initialize (or reset) Query_tables_list object.
@@ -1736,13 +1782,14 @@ bool st_lex::can_be_merged()
   bool selects_allow_merge= select_lex.next_select() == 0;
   if (selects_allow_merge)
   {
-    for (SELECT_LEX_UNIT *unit= select_lex.first_inner_unit();
-         unit;
-         unit= unit->next_unit())
+    for (SELECT_LEX_UNIT *tmp_unit= select_lex.first_inner_unit();
+         tmp_unit;
+         tmp_unit= tmp_unit->next_unit())
     {
-      if (unit->first_select()->parent_lex == this &&
-          (unit->item == 0 ||
-           (unit->item->place() != IN_WHERE && unit->item->place() != IN_ON)))
+      if (tmp_unit->first_select()->parent_lex == this &&
+          (tmp_unit->item == 0 ||
+           (tmp_unit->item->place() != IN_WHERE &&
+            tmp_unit->item->place() != IN_ON)))
       {
         selects_allow_merge= 0;
         break;
@@ -2039,12 +2086,12 @@ void st_lex::first_lists_tables_same()
    FALSE - success
 */
 
-bool st_lex::add_time_zone_tables_to_query_tables(THD *thd)
+bool st_lex::add_time_zone_tables_to_query_tables(THD *thd_arg)
 {
   /* We should not add these tables twice */
   if (!time_zone_tables_used)
   {
-    time_zone_tables_used= my_tz_get_table_list(thd, &query_tables_last);
+    time_zone_tables_used= my_tz_get_table_list(thd_arg, &query_tables_last);
     if (time_zone_tables_used == &fake_time_zone_tables_list)
       return TRUE;
   }

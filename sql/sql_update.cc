@@ -64,7 +64,6 @@ static bool check_fields(THD *thd, List<Item> &items)
   List_iterator<Item> it(items);
   Item *item;
   Item_field *field;
-  Name_resolution_context *context= &thd->lex->select_lex.context;
 
   while ((item= it++))
   {
@@ -134,6 +133,7 @@ int mysql_update(THD *thd,
   READ_RECORD	info;
   SELECT_LEX    *select_lex= &thd->lex->select_lex;
   bool need_reopen;
+  List<Item> all_fields;
   DBUG_ENTER("mysql_update");
 
   LINT_INIT(timestamp_query_id);
@@ -225,6 +225,10 @@ int mysql_update(THD *thd,
     free_underlaid_joins(thd, select_lex);
     DBUG_RETURN(1);				/* purecov: inspected */
   }
+
+  if (select_lex->inner_refs_list.elements &&
+    fix_inner_refs(thd, all_fields, select_lex, select_lex->ref_pointer_array))
+    DBUG_RETURN(-1);
 
   if (conds)
   {
@@ -783,7 +787,7 @@ reopen_tables:
       tl->lock_type= using_update_log ? TL_READ_NO_INSERT : TL_READ;
       tl->updating= 0;
       /* Update TABLE::lock_type accordingly. */
-      if (!tl->placeholder() && !tl->schema_table && !using_lock_tables)
+      if (!tl->placeholder() && !using_lock_tables)
         tl->table->reginfo.lock_type= tl->lock_type;
     }
   }

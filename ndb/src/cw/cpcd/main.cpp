@@ -74,8 +74,6 @@ extern "C" static void sig_child(int signo, siginfo_t*, void*);
 const char *progname = "ndb_cpcd";
 
 int main(int argc, char** argv){
-  int save_argc= argc;
-  char** save_argv= argv;
   const char *load_default_groups[]= { "ndb_cpcd",0 };
   MY_INIT(argv[0]);
 

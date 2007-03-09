@@ -1050,6 +1050,10 @@ H
 select last_day('0000-00-00');
 last_day('0000-00-00')
 NULL
+select isnull(week(now() + 0)), isnull(week(now() + 0.2)),
+week(20061108), week(20061108.01), week(20061108085411.000002);
+isnull(week(now() + 0))	isnull(week(now() + 0.2))	week(20061108)	week(20061108.01)	week(20061108085411.000002)
+0	0	45	45	45
 End of 4.1 tests
 explain extended select timestampdiff(SQL_TSI_WEEK, '2001-02-01', '2001-05-01') as a1,
 timestampdiff(SQL_TSI_FRAC_SECOND, '2001-02-01 12:59:59.120000', '2001-05-01 12:58:58.119999') as a2;
@@ -1207,6 +1211,23 @@ SET NAMES DEFAULT;
 select str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE;
 str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE
 NULL
+create table t1 (field DATE);
+insert into t1 values ('2006-11-06');
+select * from t1 where field < '2006-11-06 04:08:36.0';
+field
+2006-11-06
+select * from t1 where field = '2006-11-06 04:08:36.0';
+field
+select * from t1 where field = '2006-11-06';
+field
+2006-11-06
+select * from t1 where CAST(field as DATETIME) < '2006-11-06 04:08:36.0';
+field
+2006-11-06
+select * from t1 where CAST(field as DATE) < '2006-11-06 04:08:36.0';
+field
+2006-11-06
+drop table t1;
 CREATE TABLE t1 (a int, t1 time, t2 time, d date, PRIMARY KEY  (a));
 INSERT INTO t1 VALUES (1, '10:00:00', NULL, NULL), 
 (2, '11:00:00', '11:15:00', '1972-02-06');
@@ -1221,3 +1242,7 @@ t1	t2	SEC_TO_TIME( TIME_TO_SEC( t2 ) - TIME_TO_SEC( t1 ) )	QUARTER(d)
 11:00:00	11:15:00	00:15:00	1
 10:00:00	NULL	NULL	NULL
 DROP TABLE t1;
+SELECT TIME_FORMAT(SEC_TO_TIME(a),"%H:%i:%s") FROM (SELECT 3020399 AS a UNION SELECT 3020398 ) x GROUP BY 1;
+TIME_FORMAT(SEC_TO_TIME(a),"%H:%i:%s")
+838:59:58
+838:59:59

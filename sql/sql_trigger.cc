@@ -106,10 +106,6 @@ const LEX_STRING trg_event_type_names[]=
 };
 
 
-static int
-add_table_for_trigger(THD *thd, sp_name *trig, bool if_exists,
-                      TABLE_LIST ** table);
-
 class Handle_old_incorrect_sql_modes_hook: public Unknown_key_hook
 {
 private:
@@ -800,8 +796,8 @@ bool Table_triggers_list::prepare_record1_accessors(TABLE *table)
 
 void Table_triggers_list::set_table(TABLE *new_table)
 {
-  table= new_table;
-  for (Field **field= table->triggers->record1_field ; *field ; field++)
+  trigger_table= new_table;
+  for (Field **field= new_table->triggers->record1_field ; *field ; field++)
   {
     (*field)->table= (*field)->orig_table= new_table;
     (*field)->table_name= &new_table->alias;
@@ -987,11 +983,8 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 	thd->spcont= 0;
         if (MYSQLparse((void *)thd) || thd->is_fatal_error)
         {
-          /*
-            Free lex associated resources.
-            QQ: Do we really need all this stuff here ?
-          */
-          delete lex.sphead;
+          /* Currently sphead is always deleted in case of a parse error */
+          DBUG_ASSERT(lex.sphead == 0);
           goto err_with_lex_cleanup;
         }
 
@@ -1182,7 +1175,7 @@ bool Table_triggers_list::get_trigger_info(THD *thd, trg_event_type event,
     1 Error
 */
 
-static int
+int
 add_table_for_trigger(THD *thd, sp_name *trig, bool if_exists,
                       TABLE_LIST **table)
 {
@@ -1365,7 +1358,8 @@ Table_triggers_list::change_table_name_in_triggers(THD *thd,
       It is OK to allocate some memory on table's MEM_ROOT since this
       table instance will be thrown out at the end of rename anyway.
     */
-    new_def.str= memdup_root(&table->mem_root, buff.ptr(), buff.length());
+    new_def.str= memdup_root(&trigger_table->mem_root, buff.ptr(),
+                             buff.length());
     new_def.length= buff.length();
     on_table_name->str= new_def.str + before_on_len;
     on_table_name->length= on_q_table_name_len;
@@ -1545,17 +1539,17 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
     if (old_row_is_record1)
     {
       old_field= record1_field;
-      new_field= table->field;
+      new_field= trigger_table->field;
     }
     else
     {
       new_field= record1_field;
-      old_field= table->field;
+      old_field= trigger_table->field;
     }
 
     thd->reset_sub_statement_state(&statement_state, SUB_STMT_TRIGGER);
     err_status= sp_trigger->execute_trigger
-      (thd, table->s->db, table->s->table_name,
+      (thd, trigger_table->s->db, trigger_table->s->table_name,
        &subject_table_grants[event][time_type]);
     thd->restore_sub_statement_state(&statement_state);
   }
@@ -1591,7 +1585,7 @@ void Table_triggers_list::mark_fields_used(THD *thd, trg_event_type event)
     {
       /* We cannot mark fields which does not present in table. */
       if (trg_field->field_idx != (uint)-1)
-        table->field[trg_field->field_idx]->query_id = thd->query_id;
+        trigger_table->field[trg_field->field_idx]->query_id = thd->query_id;
     }
   }
 }
@@ -1622,7 +1616,7 @@ bool Table_triggers_list::is_updated_in_before_update_triggers(Field *fld)
   {
     if (trg_fld->get_settable_routine_parameter() &&
         trg_fld->field_idx != (uint)-1 &&
-        table->field[trg_fld->field_idx]->eq(fld))
+        trigger_table->field[trg_fld->field_idx]->eq(fld))
       return TRUE;
   }
   return FALSE;

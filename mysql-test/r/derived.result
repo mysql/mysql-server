@@ -202,6 +202,7 @@ drop table t1,t2;
 SELECT a.x FROM (SELECT 1 AS x) AS a HAVING a.x = 1;
 x
 1
+create user mysqltest_1;
 create table t1 select 1 as a;
 select 2 as a from (select * from t1) b;
 ERROR 3D000: No database selected
@@ -380,3 +381,4 @@ ID	DATA	FID
 select t2.* from (select * from t1) as A inner join t2 on A.ID = t2.FID;
 ID	DATA	FID
 drop table t1, t2;
+drop user mysqltest_1;

@@ -16,6 +16,7 @@
 #include <ndb_global.h>
 
 #include "EventLogger.hpp"
+#include <TransporterCallback.hpp>
 
 #include <NdbConfig.h>
 #include <kernel/BlockNumbers.h>
@@ -528,10 +529,100 @@ void getTextUndoLogBlocked(QQQQ) {
 		       theData[2]);
 }
 void getTextTransporterError(QQQQ) {
-  BaseString::snprintf(m_text, m_text_len, 
-		       "Transporter to node %d reported error 0x%x",
-		       theData[1],
-		       theData[2]);
+  struct myTransporterError{
+    Uint32 errorNum;
+    char   errorString[256];
+  };
+  int i = 0;
+  int lenth = 0;
+  static const struct myTransporterError TransporterErrorString[]=
+  {
+    //TE_NO_ERROR = 0
+    {TE_NO_ERROR,"No error"},
+    //TE_ERROR_CLOSING_SOCKET = 0x1
+    {TE_ERROR_CLOSING_SOCKET,"Error found during closing of socket"},
+    //TE_ERROR_IN_SELECT_BEFORE_ACCEPT = 0x2
+    {TE_ERROR_IN_SELECT_BEFORE_ACCEPT,"Error found before accept. The transporter will retry"},
+    //TE_INVALID_MESSAGE_LENGTH = 0x3 | TE_DO_DISCONNECT
+    {TE_INVALID_MESSAGE_LENGTH,"Error found in message (invalid message length)"},
+    //TE_INVALID_CHECKSUM = 0x4 | TE_DO_DISCONNECT
+    {TE_INVALID_CHECKSUM,"Error found in message (checksum)"},
+    //TE_COULD_NOT_CREATE_SOCKET = 0x5
+    {TE_COULD_NOT_CREATE_SOCKET,"Error found while creating socket(can't create socket)"},
+    //TE_COULD_NOT_BIND_SOCKET = 0x6
+    {TE_COULD_NOT_BIND_SOCKET,"Error found while binding server socket"},
+    //TE_LISTEN_FAILED = 0x7
+    {TE_LISTEN_FAILED,"Error found while listening to server socket"},
+    //TE_ACCEPT_RETURN_ERROR = 0x8
+    {TE_ACCEPT_RETURN_ERROR,"Error found during accept(accept return error)"},
+    //TE_SHM_DISCONNECT = 0xb | TE_DO_DISCONNECT
+    {TE_SHM_DISCONNECT,"The remote node has disconnected"},
+    //TE_SHM_IPC_STAT = 0xc | TE_DO_DISCONNECT
+    {TE_SHM_IPC_STAT,"Unable to check shm segment"},
+    //TE_SHM_UNABLE_TO_CREATE_SEGMENT = 0xd
+    {TE_SHM_UNABLE_TO_CREATE_SEGMENT,"Unable to create shm segment"},
+    //TE_SHM_UNABLE_TO_ATTACH_SEGMENT = 0xe
+    {TE_SHM_UNABLE_TO_ATTACH_SEGMENT,"Unable to attach shm segment"},
+    //TE_SHM_UNABLE_TO_REMOVE_SEGMENT = 0xf
+    {TE_SHM_UNABLE_TO_REMOVE_SEGMENT,"Unable to remove shm segment"},
+    //TE_TOO_SMALL_SIGID = 0x10
+    {TE_TOO_SMALL_SIGID,"Sig ID too small"},
+    //TE_TOO_LARGE_SIGID = 0x11
+    {TE_TOO_LARGE_SIGID,"Sig ID too large"},
+    //TE_WAIT_STACK_FULL = 0x12 | TE_DO_DISCONNECT
+    {TE_WAIT_STACK_FULL,"Wait stack was full"},
+    //TE_RECEIVE_BUFFER_FULL = 0x13 | TE_DO_DISCONNECT
+    {TE_RECEIVE_BUFFER_FULL,"Receive buffer was full"},
+    //TE_SIGNAL_LOST_SEND_BUFFER_FULL = 0x14 | TE_DO_DISCONNECT
+    {TE_SIGNAL_LOST_SEND_BUFFER_FULL,"Send buffer was full,and trying to force send fails"},
+    //TE_SIGNAL_LOST = 0x15
+    {TE_SIGNAL_LOST,"Send failed for unknown reason(signal lost)"},
+    //TE_SEND_BUFFER_FULL = 0x16
+    {TE_SEND_BUFFER_FULL,"The send buffer was full, but sleeping for a while solved"},
+    //TE_SCI_LINK_ERROR = 0x0017
+    {TE_SCI_LINK_ERROR,"There is no link from this node to the switch"},
+    //TE_SCI_UNABLE_TO_START_SEQUENCE = 0x18 | TE_DO_DISCONNECT
+    {TE_SCI_UNABLE_TO_START_SEQUENCE,"Could not start a sequence, because system resources are exumed or no sequence has been created"},
+    //TE_SCI_UNABLE_TO_REMOVE_SEQUENCE = 0x19 | TE_DO_DISCONNECT
+    {TE_SCI_UNABLE_TO_REMOVE_SEQUENCE,"Could not remove a sequence"},
+    //TE_SCI_UNABLE_TO_CREATE_SEQUENCE = 0x1a | TE_DO_DISCONNECT
+    {TE_SCI_UNABLE_TO_CREATE_SEQUENCE,"Could not create a sequence, because system resources are exempted. Must reboot"},
+    //TE_SCI_UNRECOVERABLE_DATA_TFX_ERROR = 0x1b | TE_DO_DISCONNECT
+    {TE_SCI_UNRECOVERABLE_DATA_TFX_ERROR,"Tried to send data on redundant link but failed"},
+    //TE_SCI_CANNOT_INIT_LOCALSEGMENT = 0x1c | TE_DO_DISCONNECT
+    {TE_SCI_CANNOT_INIT_LOCALSEGMENT,"Cannot initialize local segment"},
+    //TE_SCI_CANNOT_MAP_REMOTESEGMENT = 0x1d | TE_DO_DISCONNEC
+    {TE_SCI_CANNOT_MAP_REMOTESEGMENT,"Cannot map remote segment"},
+    //TE_SCI_UNABLE_TO_UNMAP_SEGMENT = 0x1e | TE_DO_DISCONNECT
+    {TE_SCI_UNABLE_TO_UNMAP_SEGMENT,"Cannot free the resources used by this segment (step 1)"},
+    //TE_SCI_UNABLE_TO_REMOVE_SEGMENT = 0x1f  | TE_DO_DISCONNEC
+    {TE_SCI_UNABLE_TO_REMOVE_SEGMENT,"Cannot free the resources used by this segment (step 2)"},
+    //TE_SCI_UNABLE_TO_DISCONNECT_SEGMENT = 0x20 | TE_DO_DISCONNECT
+    {TE_SCI_UNABLE_TO_DISCONNECT_SEGMENT,"Cannot disconnect from a remote segment"},
+    //TE_SHM_IPC_PERMANENT = 0x21
+    {TE_SHM_IPC_PERMANENT,"Shm ipc Permanent error"},
+    //TE_SCI_UNABLE_TO_CLOSE_CHANNEL = 0x22
+    {TE_SCI_UNABLE_TO_CLOSE_CHANNEL,"Unable to close the sci channel and the resources allocated"}
+  };
+
+  lenth = sizeof(TransporterErrorString)/sizeof(struct myTransporterError);
+  for(i=0; i<lenth; i++)
+  {
+    if(theData[2] == TransporterErrorString[i].errorNum)
+    {
+      BaseString::snprintf(m_text, m_text_len,
+                          "Transporter to node %d reported error 0x%x: %s",
+                          theData[1],
+			  theData[2],
+                          TransporterErrorString[i].errorString);
+      break;
+    }
+  }
+  if(i == lenth)
+    BaseString::snprintf(m_text, m_text_len,   
+                        "Transporter to node %d reported error 0x%x: unknown error",
+                          theData[1],
+			  theData[2]);
 }
 void getTextTransporterWarning(QQQQ) {
   getTextTransporterError(m_text, m_text_len, theData);
@@ -835,7 +926,7 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(NDBStopCompleted,        LogLevel::llStartUp,     1, Logger::LL_INFO ),
   ROW(NDBStopForced,           LogLevel::llStartUp,     1, Logger::LL_ALERT ),
   ROW(NDBStopAborted,          LogLevel::llStartUp,     1, Logger::LL_INFO ),
-  ROW(StartREDOLog,            LogLevel::llStartUp,    10, Logger::LL_INFO ),
+  ROW(StartREDOLog,            LogLevel::llStartUp,     4, Logger::LL_INFO ),
   ROW(StartLog,                LogLevel::llStartUp,    10, Logger::LL_INFO ),
   ROW(UNDORecordsExecuted,     LogLevel::llStartUp,    15, Logger::LL_INFO ),
   ROW(StartReport,             LogLevel::llStartUp,     4, Logger::LL_INFO ),
@@ -913,6 +1004,8 @@ EventLogger::close()
   removeAllHandlers();
 }
 
+#ifdef NOT_USED
+
 static NdbOut&
 operator<<(NdbOut& out, const LogLevel & ll)
 {
@@ -922,6 +1015,7 @@ operator<<(NdbOut& out, const LogLevel & ll)
   out << "]";
   return out;
 }
+#endif
 
 int
 EventLoggerBase::event_lookup(int eventType,

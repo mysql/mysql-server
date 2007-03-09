@@ -309,7 +309,7 @@ FILE *inf;
   unsigned long fn_ssz;
   unsigned long lastuse;
   unsigned int pos;
-  unsigned long time;
+  unsigned long local_time;
   unsigned int oldpos;
   unsigned long oldtime;
   unsigned long oldchild;
@@ -335,15 +335,15 @@ FILE *inf;
        */
       while (pop (&oldpos, &oldtime, &oldchild)) {
 	DBUG_PRINT ("popped", ("%lu %lu", oldtime, oldchild));
-	time = fn_time - oldtime;
+	local_time = fn_time - oldtime;
 	t = top ();
-	t -> children += time;
+	t -> children += local_time;
 	DBUG_PRINT ("update", ("%s", modules[t -> pos].name));
 	DBUG_PRINT ("update", ("%lu", t -> children));
-	time -= oldchild;
-	modules[oldpos].m_time += time;
+	local_time -= oldchild;
+	modules[oldpos].m_time += local_time;
 	modules[oldpos].m_calls++;
-	tot_time += time;
+	tot_time += local_time;
 	tot_calls++;
 	if (pos == oldpos) {
 	  goto next_line;	/* Should be a break2 */
@@ -355,11 +355,11 @@ FILE *inf;
        * it so that it works the next time too.
        */
       t = top ();
-      time = fn_time - t -> time - t -> children;
+      local_time = fn_time - t -> time - t -> children;
       t -> time = fn_time; t -> children = 0;
-      modules[pos].m_time += time;
+      modules[pos].m_time += local_time;
       modules[pos].m_calls++;
-      tot_time += time;
+      tot_time += local_time;
       tot_calls++;
       break;
     case 'S':
@@ -405,13 +405,13 @@ FILE *inf;
    * time of fn_time.
    */
   while (pop (&oldpos,&oldtime,&oldchild)) {
-    time = fn_time - oldtime;
+    local_time = fn_time - oldtime;
     t = top ();
-    t -> children += time;
-    time -= oldchild;
-    modules[oldpos].m_time += time;
+    t -> children += local_time;
+    local_time -= oldchild;
+    modules[oldpos].m_time += local_time;
     modules[oldpos].m_calls++;
-    tot_time += time;
+    tot_time += local_time;
     tot_calls++;
   }
   DBUG_VOID_RETURN;
@@ -472,17 +472,17 @@ unsigned long int *called, *timed;
 {
     char *name = m -> name;
     register unsigned int calls = m -> m_calls;
-    register unsigned long time = m -> m_time;
+    register unsigned long local_time = m -> m_time;
     register unsigned long stkuse = m -> m_stkuse;
     unsigned int import;
     double per_time = 0.0;
     double per_calls = 0.0;
-    double ms_per_call, ftime;
+    double ms_per_call, local_ftime;
 
     DBUG_ENTER ("out_item");
 
     if (tot_time > 0) {
-	per_time = (double) (time * 100) / (double) tot_time;
+	per_time = (double) (local_time * 100) / (double) tot_time;
     }
     if (tot_calls > 0) {
 	per_calls = (double) (calls * 100) / (double) tot_calls;
@@ -491,18 +491,18 @@ unsigned long int *called, *timed;
 
     if (verbose) {
 	fprintf (outf, "%6d\t%10.2f\t%11ld\t%10.2f  %10d\t%-15s\n",
-		calls, per_calls, time, per_time, import, name);
+		calls, per_calls, local_time, per_time, import, name);
     } else {
-	ms_per_call = time;
+	ms_per_call = local_time;
 	ms_per_call /= calls;
-	ftime = time;
-	ftime /= 1000;
+	local_ftime = local_time;
+	local_ftime /= 1000;
 	fprintf(outf, "%8.2f%8.3f%8u%8.3f%8.2f%8u%8lu  %-s\n",
-                per_time, ftime, calls, ms_per_call, per_calls, import,
+                per_time, local_ftime, calls, ms_per_call, per_calls, import,
                 stkuse, name);
     }
     *called = calls;
-    *timed = time;
+    *timed = local_time;
     DBUG_VOID_RETURN;
 }
 
@@ -517,7 +517,7 @@ FILE *outf;
 register unsigned int root;
 register unsigned long int *s_calls, *s_time;
 {
-    unsigned long int calls, time;
+    unsigned long int calls, local_time;
 
     DBUG_ENTER ("out_body");
     DBUG_PRINT ("out_body", ("%lu,%lu",*s_calls,*s_time));
@@ -526,10 +526,10 @@ register unsigned long int *s_calls, *s_time;
     } else {
 	while (root != MAXPROCS) {
 	    out_body (outf, s_table[root].lchild,s_calls,s_time);
-	    out_item (outf, &modules[s_table[root].pos],&calls,&time);
-	    DBUG_PRINT ("out_body", ("-- %lu -- %lu --", calls, time));
+	    out_item (outf, &modules[s_table[root].pos],&calls,&local_time);
+	    DBUG_PRINT ("out_body", ("-- %lu -- %lu --", calls, local_time));
 	    *s_calls += calls;
-	    *s_time += time;
+	    *s_time += local_time;
 	    root = s_table[root].rchild;
 	}
 	DBUG_PRINT ("out_body", ("%lu,%lu", *s_calls, *s_time));

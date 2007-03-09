@@ -30,7 +30,7 @@ password="$4"
 db="$5"
 total_timeout="$6"
 test_id="$7"
-log_file="$MYSQLTEST_VARDIR/log/$test_id.log"
+log_file="$MYSQLTEST_VARDIR/log/$test_id.script.log"
 
 log_debug "-- $basename: starting --"
 log_debug "client_exe: '$client_exe'"

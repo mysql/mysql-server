@@ -18,8 +18,6 @@
 #include <NdbOut.hpp>
 #include <NdbTCP.h>
 
-static Uint32 hash(Uint32 key, Uint32 size);
-static Uint32 nextHash(Uint32 key, Uint32 size, Uint32 pos, Uint32 count);
 static bool findKey(const Uint32 * vals, Uint32 sz, Uint32 key, Uint32 * pos);
 
 /**
@@ -90,18 +88,18 @@ bool
 ConfigValues::getByPos(Uint32 pos, Entry * result) const {
   assert(pos < (2 * m_size));
   Uint32 keypart = m_values[pos];
-  Uint32 val = m_values[pos+1];
+  Uint32 val2 = m_values[pos+1];
 
   switch(::getTypeOf(keypart)){
   case IntType:
   case SectionType:
-    result->m_int = val;
+    result->m_int = val2;
     break;
   case StringType:
-    result->m_string = * getString(val);
+    result->m_string = * getString(val2);
     break;
   case Int64Type:
-    result->m_int64 = * get64(val);
+    result->m_int64 = * get64(val2);
     break;
   case InvalidType: 
   default:

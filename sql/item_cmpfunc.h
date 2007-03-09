@@ -101,6 +101,92 @@ public:
   uint decimal_precision() const { return 1; }
 };
 
+
+/**
+  Abstract Item class, to represent <code>X IS [NOT] (TRUE | FALSE)</code>
+  boolean predicates.
+*/
+
+class Item_func_truth : public Item_bool_func
+{
+public:
+  virtual bool val_bool();
+  virtual longlong val_int();
+  virtual void fix_length_and_dec();
+  virtual void print(String *str);
+
+protected:
+  Item_func_truth(Item *a, bool a_value, bool a_affirmative)
+  : Item_bool_func(a), value(a_value), affirmative(a_affirmative)
+  {}
+
+  ~Item_func_truth()
+  {}
+private:
+  /**
+    True for <code>X IS [NOT] TRUE</code>,
+    false for <code>X IS [NOT] FALSE</code> predicates.
+  */
+  const bool value;
+  /**
+    True for <code>X IS Y</code>, false for <code>X IS NOT Y</code> predicates.
+  */
+  const bool affirmative;
+};
+
+
+/**
+  This Item represents a <code>X IS TRUE</code> boolean predicate.
+*/
+
+class Item_func_istrue : public Item_func_truth
+{
+public:
+  Item_func_istrue(Item *a) : Item_func_truth(a, true, true) {}
+  ~Item_func_istrue() {}
+  virtual const char* func_name() const { return "istrue"; }
+};
+
+
+/**
+  This Item represents a <code>X IS NOT TRUE</code> boolean predicate.
+*/
+
+class Item_func_isnottrue : public Item_func_truth
+{
+public:
+  Item_func_isnottrue(Item *a) : Item_func_truth(a, true, false) {}
+  ~Item_func_isnottrue() {}
+  virtual const char* func_name() const { return "isnottrue"; }
+};
+
+
+/**
+  This Item represents a <code>X IS FALSE</code> boolean predicate.
+*/
+
+class Item_func_isfalse : public Item_func_truth
+{
+public:
+  Item_func_isfalse(Item *a) : Item_func_truth(a, false, true) {}
+  ~Item_func_isfalse() {}
+  virtual const char* func_name() const { return "isfalse"; }
+};
+
+
+/**
+  This Item represents a <code>X IS NOT FALSE</code> boolean predicate.
+*/
+
+class Item_func_isnotfalse : public Item_func_truth
+{
+public:
+  Item_func_isnotfalse(Item *a) : Item_func_truth(a, false, false) {}
+  ~Item_func_isnotfalse() {}
+  virtual const char* func_name() const { return "isnotfalse"; }
+};
+
+
 class Item_cache;
 #define UNKNOWN ((my_bool)-1)
 
@@ -845,10 +931,10 @@ public:
     return (value_res ? (res ? sortcmp(value_res, res, cmp_charset) : 1) :
             (res ? -1 : 0));
   }
-  int compare(cmp_item *c)
+  int compare(cmp_item *ci)
   {
-    cmp_item_string *cmp= (cmp_item_string *)c;
-    return sortcmp(value_res, cmp->value_res, cmp_charset);
+    cmp_item_string *l_cmp= (cmp_item_string *) ci;
+    return sortcmp(value_res, l_cmp->value_res, cmp_charset);
   } 
   cmp_item *make_same();
 };
@@ -866,10 +952,10 @@ public:
   {
     return value != arg->val_int();
   }
-  int compare(cmp_item *c)
+  int compare(cmp_item *ci)
   {
-    cmp_item_int *cmp= (cmp_item_int *)c;
-    return (value < cmp->value) ? -1 : ((value == cmp->value) ? 0 : 1);
+    cmp_item_int *l_cmp= (cmp_item_int *)ci;
+    return (value < l_cmp->value) ? -1 : ((value == l_cmp->value) ? 0 : 1);
   }
   cmp_item *make_same();
 };
@@ -887,10 +973,10 @@ public:
   {
     return value != arg->val_real();
   }
-  int compare(cmp_item *c)
+  int compare(cmp_item *ci)
   {
-    cmp_item_real *cmp= (cmp_item_real *)c;
-    return (value < cmp->value)? -1 : ((value == cmp->value) ? 0 : 1);
+    cmp_item_real *l_cmp= (cmp_item_real *) ci;
+    return (value < l_cmp->value)? -1 : ((value == l_cmp->value) ? 0 : 1);
   }
   cmp_item *make_same();
 };
@@ -955,10 +1041,10 @@ public:
     DBUG_ASSERT(0);
     return 1;
   }
-  int compare(cmp_item *c)
+  int compare(cmp_item *ci)
   {
-    cmp_item_string *cmp= (cmp_item_string *)c;
-    return sortcmp(value_res, cmp->value_res, cmp_charset);
+    cmp_item_string *l_cmp= (cmp_item_string *) ci;
+    return sortcmp(value_res, l_cmp->value_res, cmp_charset);
   }
   cmp_item *make_same()
   {
@@ -1372,7 +1458,7 @@ public:
   Item_cond_and() :Item_cond() {}
   Item_cond_and(Item *i1,Item *i2) :Item_cond(i1,i2) {}
   Item_cond_and(THD *thd, Item_cond_and *item) :Item_cond(thd, item) {}
-  Item_cond_and(List<Item> &list): Item_cond(list) {}
+  Item_cond_and(List<Item> &list_arg): Item_cond(list_arg) {}
   enum Functype functype() const { return COND_AND_FUNC; }
   longlong val_int();
   const char *func_name() const { return "and"; }
@@ -1394,7 +1480,7 @@ public:
   Item_cond_or() :Item_cond() {}
   Item_cond_or(Item *i1,Item *i2) :Item_cond(i1,i2) {}
   Item_cond_or(THD *thd, Item_cond_or *item) :Item_cond(thd, item) {}
-  Item_cond_or(List<Item> &list): Item_cond(list) {}
+  Item_cond_or(List<Item> &list_arg): Item_cond(list_arg) {}
   enum Functype functype() const { return COND_OR_FUNC; }
   longlong val_int();
   const char *func_name() const { return "or"; }

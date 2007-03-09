@@ -41,7 +41,9 @@ static char *NAMEFILE= (char*) "mysqld_ername.h";
 static char *STATEFILE= (char*) "sql_state.h";
 static char *TXTFILE= (char*) "../sql/share/errmsg.txt";
 static char *DATADIRECTORY= (char*) "../sql/share/";
+#ifndef DBUG_OFF
 static char *default_dbug_option= (char*) "d:t:O,/tmp/comp_err.trace";
+#endif
 
 /* Header for errmsg.sys files */
 uchar file_head[]= { 254, 254, 2, 1 };
@@ -132,6 +134,8 @@ static struct message *parse_message_string(struct message *new_message,
 					    char *str);
 static struct message *find_message(struct errors *err, const char *lang,
                                     my_bool no_default);
+static int check_message_format(struct errors *err,
+                                const char* mess);
 static int parse_input_file(const char *file_name, struct errors **top_error,
 			    struct languages **top_language);
 static int get_options(int *argc, char ***argv);
@@ -402,6 +406,8 @@ static int parse_input_file(const char *file_name, struct errors **top_error,
   int rcount= 0;
   DBUG_ENTER("parse_input_file");
 
+  *top_error= 0;
+  *top_lang= 0;
   if (!(file= my_fopen(file_name, O_RDONLY | O_SHARE, MYF(MY_WME))))
     DBUG_RETURN(0);
 
@@ -455,6 +461,13 @@ static int parse_input_file(const char *file_name, struct errors **top_error,
       {
 	fprintf(stderr, "Duplicate message string for error '%s'"
                         " in language '%s'\n",
+		current_error->er_name, current_message.lang_short_name);
+	DBUG_RETURN(0);
+      }
+      if (check_message_format(current_error, current_message.text))
+      {
+	fprintf(stderr, "Wrong formatspecifier of error message string"
+                        " for error '%s' in language '%s'\n",
 		current_error->er_name, current_message.lang_short_name);
 	DBUG_RETURN(0);
       }
@@ -596,6 +609,116 @@ static struct message *find_message(struct errors *err, const char *lang,
     }
   }
   DBUG_RETURN(no_default ? NULL : return_val);
+}
+
+
+
+/*
+  Check message format specifiers against error message for
+  previous language
+
+  SYNOPSIS
+    checksum_format_specifier()
+    msg            String for which to generate checksum
+                   for the format specifiers
+
+  RETURN VALUE
+    Returns the checksum for all the characters of the
+    format specifiers
+
+    Ex.
+     "text '%-64.s' text part 2 %d'"
+            ^^^^^^              ^^
+            characters will be xored to form checksum
+
+    NOTE:
+      Does not support format specifiers with positional args
+      like "%2$s" but that is not yet supported by my_vsnprintf
+      either.
+*/
+
+static ha_checksum checksum_format_specifier(const char* msg)
+{
+  ha_checksum chksum= 0;
+  const char* p= msg;
+  const char* start= 0;
+  int num_format_specifiers= 0;
+  while (*p)
+  {
+
+    if (*p == '%')
+    {
+      start= p+1; /* Entering format specifier */
+      num_format_specifiers++;
+    }
+    else if (start)
+    {
+      switch(*p)
+      {
+      case 'd':
+      case 'u':
+      case 'x':
+      case 's':
+        chksum= my_checksum(chksum, start, p-start);
+        start= 0; /* Not in format specifier anymore */
+        break;
+
+      default:
+        break;
+      }
+    }
+
+    p++;
+  }
+
+  if (start)
+  {
+    /* Still inside a format specifier after end of string */
+
+    fprintf(stderr, "Still inside formatspecifier after end of string"
+                    " in'%s'\n", msg);
+    DBUG_ASSERT(start==0);
+  }
+
+  /* Add number of format specifiers to checksum as extra safeguard */
+  chksum+= num_format_specifiers;
+
+  return chksum;
+}
+
+
+/*
+  Check message format specifiers against error message for
+  previous language
+
+  SYNOPSIS
+    check_message_format()
+    err             Error to check message for
+    mess            Message to check
+
+  RETURN VALUE
+    Returns 0 if no previous error message or message format is ok
+*/
+static int check_message_format(struct errors *err,
+                                const char* mess)
+{
+  struct message *first;
+  DBUG_ENTER("check_message_format");
+
+  /*  Get first message(if any) */
+  if ((err->msg).elements == 0)
+    DBUG_RETURN(0); /* No previous message to compare against */
+
+  first= dynamic_element(&err->msg, 0, struct message*);
+  DBUG_ASSERT(first != NULL);
+
+  if (checksum_format_specifier(first->text) !=
+      checksum_format_specifier(mess))
+  {
+    /* Check sum of format specifiers failed, they should be equal */
+    DBUG_RETURN(1);
+  }
+  DBUG_RETURN(0);
 }
 
 

@@ -1,3 +1,6 @@
+# Test need anonymous user when connection are made as "zedjzlcsjhd"
+source include/add_anonymous_users.inc;
+
 source include/master-slave.inc;
 
 # Clean up old slave's binlogs.
@@ -20,8 +23,8 @@ connection master;
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 # We want to connect as an unprivileged user. But if we use user="" then this
-# will pick the Unix login, which will cause problems if you're running the test
-# as root.
+# will pick the Unix login, which will cause problems if you're running the
+# test as root.
 connect (con3,localhost,zedjzlcsjhd,,);
 
 # We are going to use SET PSEUDO_THREAD_ID in this test;
@@ -192,7 +195,14 @@ drop table t1;
 #
 #14157: utf8 encoding in binlog without set character_set_client
 #
---exec $MYSQL --character-sets-dir=../sql/share/charsets/ --default-character-set=latin1 test -e 'create table t1 (a int); set names latin1; create temporary table `הצüִײÜ` (a int); insert into `הצüִײÜ` values (1); insert into t1 select * from `הצüִײÜ`'
+--write_file $MYSQLTEST_VARDIR/tmp/bug14157.sql
+create table t1 (a int);
+set names latin1;
+create temporary table `הצüִײÜ` (a int);
+insert into `הצüִײÜ` values (1);
+insert into t1 select * from `הצüִײÜ`
+EOF
+--exec $MYSQL --character-sets-dir=../sql/share/charsets/ --default-character-set=latin1 test < $MYSQLTEST_VARDIR/tmp/bug14157.sql
 
 sync_slave_with_master;
 #connection slave;
@@ -200,5 +210,8 @@ select * from t1;
 
 connection master; 
 drop table t1;
+
+# Delete the anonymous users
+source include/delete_anonymous_users.inc;
 
 # End of 5.0 tests

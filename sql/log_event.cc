@@ -269,10 +269,13 @@ append_query_string(CHARSET_INFO *csinfo,
 }
 #endif
 
+
 /*
   Prints a "session_var=value" string. Used by mysqlbinlog to print some SET
   commands just before it prints a query.
 */
+
+#ifdef MYSQL_CLIENT
 
 static void print_set_option(FILE* file, uint32 bits_changed, uint32 option,
                              uint32 flags, const char* name, bool* need_comma) 
@@ -285,6 +288,7 @@ static void print_set_option(FILE* file, uint32 bits_changed, uint32 option,
     *need_comma= 1;
   }
 }
+#endif
 
 /**************************************************************************
 	Log_event methods (= the parent class of all events)
@@ -1088,7 +1092,8 @@ bool Query_log_event::write(IO_CACHE* file)
             1+4+           // code of autoinc and the 2 autoinc variables
             1+6+           // code of charset and charset
             1+1+MAX_TIME_ZONE_NAME_LENGTH+ // code of tz and tz length and tz name
-            1+2            // code of lc_time_names and lc_time_names_number
+            1+2+           // code of lc_time_names and lc_time_names_number
+            1+2            // code of charset_database and charset_database_number
             ], *start, *start_of_status;
   ulong event_length;
 
@@ -1207,6 +1212,13 @@ bool Query_log_event::write(IO_CACHE* file)
     int2store(start, lc_time_names_number);
     start+= 2;
   }
+  if (charset_database_number)
+  {
+    DBUG_ASSERT(charset_database_number <= 0xFFFF);
+    *start++= Q_CHARSET_DATABASE_CODE;
+    int2store(start, charset_database_number);
+    start+= 2;
+  }
   /*
     Here there could be code like
     if (command-line-option-which-says-"log_this_variable" && inited)
@@ -1272,7 +1284,8 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
    sql_mode(thd_arg->variables.sql_mode),
    auto_increment_increment(thd_arg->variables.auto_increment_increment),
    auto_increment_offset(thd_arg->variables.auto_increment_offset),
-   lc_time_names_number(thd_arg->variables.lc_time_names->number)
+   lc_time_names_number(thd_arg->variables.lc_time_names->number),
+   charset_database_number(0)
 {
   time_t end_time;
   time(&end_time);
@@ -1280,6 +1293,9 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   catalog_len = (catalog) ? (uint32) strlen(catalog) : 0;
   /* status_vars_len is set just before writing the event */
   db_len = (db) ? (uint32) strlen(db) : 0;
+  if (thd_arg->variables.collation_database != thd_arg->db_charset)
+    charset_database_number= thd_arg->variables.collation_database->number;
+  
   /*
     If we don't use flags2 for anything else than options contained in
     thd->options, it would be more efficient to flags2=thd_arg->options
@@ -1350,7 +1366,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
    db(NullS), catalog_len(0), status_vars_len(0),
    flags2_inited(0), sql_mode_inited(0), charset_inited(0),
    auto_increment_increment(1), auto_increment_offset(1),
-   time_zone_len(0), lc_time_names_number(0)
+   time_zone_len(0), lc_time_names_number(0), charset_database_number(0)
 {
   ulong data_len;
   uint32 tmp;
@@ -1453,6 +1469,10 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       break;
     case Q_LC_TIME_NAMES_CODE:
       lc_time_names_number= uint2korr(pos);
+      pos+= 2;
+      break;
+    case Q_CHARSET_DATABASE_CODE:
+      charset_database_number= uint2korr(pos);
       pos+= 2;
       break;
     default:
@@ -1652,6 +1672,16 @@ void Query_log_event::print_query_header(FILE* file,
             lc_time_names_number, print_event_info->delimiter);
     print_event_info->lc_time_names_number= lc_time_names_number;
   }
+  if (charset_database_number != print_event_info->charset_database_number)
+  {
+    if (charset_database_number)
+      fprintf(file, "SET @@session.collation_database=%d%s\n",
+              charset_database_number, print_event_info->delimiter);
+    else
+      fprintf(file, "SET @@session.collation_database=DEFAULT%s\n",
+              print_event_info->delimiter);
+    print_event_info->charset_database_number= charset_database_number;
+  }
 }
 
 
@@ -1817,7 +1847,21 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli,
       }
       else
         thd->variables.lc_time_names= &my_locale_en_US;
-
+      if (charset_database_number)
+      {
+        CHARSET_INFO *cs;
+        if (!(cs= get_charset(charset_database_number, MYF(0))))
+        {
+          char buf[20];
+          int10_to_str((int) charset_database_number, buf, -10);
+          my_error(ER_UNKNOWN_COLLATION, MYF(0), buf);
+          goto compare_errors;
+        }
+        thd->variables.collation_database= cs;
+      }
+      else
+        thd->variables.collation_database= thd->db_charset;
+      
       /* Execute the query (note that we bypass dispatch_command()) */
       mysql_parse(thd, thd->query, thd->query_length);
 
@@ -2047,6 +2091,8 @@ Start_log_event_v3::Start_log_event_v3(const char* buf,
   binlog_version= uint2korr(buf+ST_BINLOG_VER_OFFSET);
   memcpy(server_version, buf+ST_SERVER_VER_OFFSET,
 	 ST_SERVER_VER_LEN);
+  // prevent overrun if log is corrupted on disk
+  server_version[ST_SERVER_VER_LEN-1]= 0;
   created= uint4korr(buf+ST_CREATED_OFFSET);
   /* We use log_pos to mark if this was an artificial event or not */
   artificial_event= (log_pos == 0);
@@ -2170,6 +2216,8 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
   switch (binlog_ver) {
   case 4: /* MySQL 5.0 */
     memcpy(server_version, ::server_version, ST_SERVER_VER_LEN);
+    DBUG_EXECUTE_IF("pretend_version_50034_in_binlog",
+                    strmov(server_version, "5.0.34"););
     common_header_len= LOG_EVENT_HEADER_LEN;
     number_of_event_types= LOG_EVENT_TYPES;
     /* we'll catch my_malloc() error in is_valid() */
@@ -2241,6 +2289,7 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
     post_header_len= 0; /* will make is_valid() fail */
     break;
   }
+  calc_server_version_split();
 }
 
 
@@ -2280,6 +2329,7 @@ Format_description_log_event(const char* buf,
   post_header_len= (uint8*) my_memdup((byte*)buf+ST_COMMON_HEADER_LEN_OFFSET+1,
                                       number_of_event_types*
                                       sizeof(*post_header_len), MYF(0));
+  calc_server_version_split();
   DBUG_VOID_RETURN;
 }
 
@@ -2379,6 +2429,37 @@ int Format_description_log_event::exec_event(struct st_relay_log_info* rli)
   DBUG_RETURN(Start_log_event_v3::exec_event(rli));
 }
 #endif
+
+
+/**
+   Splits the event's 'server_version' string into three numeric pieces stored
+   into 'server_version_split':
+   X.Y.Zabc (X,Y,Z numbers, a not a digit) -> {X,Y,Z}
+   X.Yabc -> {X,Y,0}
+   Xabc -> {X,0,0}
+   'server_version_split' is then used for lookups to find if the server which
+   created this event has some known bug.
+*/
+void Format_description_log_event::calc_server_version_split()
+{
+  char *p= server_version, *r;
+  ulong number;
+  for (uint i= 0; i<=2; i++)
+  {
+    number= strtoul(p, &r, 10);
+    server_version_split[i]= (uchar)number;
+    DBUG_ASSERT(number < 256); // fit in uchar
+    p= r;
+    DBUG_ASSERT(!((i == 0) && (*r != '.'))); // should be true in practice
+    if (*r == '.')
+      p++; // skip the dot
+  }
+  DBUG_PRINT("info",("Format_description_log_event::server_version_split:"
+                     " '%s' %d %d %d", server_version,
+                     server_version_split[0],
+                     server_version_split[1], server_version_split[2]));
+}
+
 
   /**************************************************************************
         Load_log_event methods
@@ -3033,10 +3114,9 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 
       ex.skip_lines = skip_lines;
       List<Item> field_list;
-      thd->main_lex.select_lex.context.resolve_in_table_list_only(&tables);
-      set_fields(tables.db, field_list, &thd->main_lex.select_lex.context);
+      thd->lex->select_lex.context.resolve_in_table_list_only(&tables);
+      set_fields(tables.db, field_list, &thd->lex->select_lex.context);
       thd->variables.pseudo_thread_id= thread_id;
-      List<Item> set_fields;
       if (net)
       {
 	// mysql_load will use thd->net to read the file
@@ -3047,10 +3127,11 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 	thd->net.pkt_nr = net->pkt_nr;
       }
       /*
-        It is safe to use set_fields twice because we are not going to
+        It is safe to use tmp_list twice because we are not going to
         update it inside mysql_load().
       */
-      if (mysql_load(thd, &ex, &tables, field_list, set_fields, set_fields,
+      List<Item> tmp_list;
+      if (mysql_load(thd, &ex, &tables, field_list, tmp_list, tmp_list,
                      handle_dup, ignore, net != 0))
         thd->query_error= 1;
       if (thd->cuted_fields)

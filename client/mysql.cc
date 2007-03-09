@@ -131,7 +131,7 @@ typedef enum enum_info_type INFO_TYPE;
 static MYSQL mysql;			/* The connection */
 static my_bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
                connected=0,opt_raw_data=0,unbuffered=0,output_tables=0,
-	       rehash=1,skip_updates=0,safe_updates=0,one_database=0,
+	       opt_rehash=1,skip_updates=0,safe_updates=0,one_database=0,
 	       opt_compress=0, using_opt_local_infile=0,
 	       vertical=0, line_numbers=1, column_names=1,opt_html=0,
                opt_xml=0,opt_nopager=1, opt_outfile=0, named_cmds= 0,
@@ -443,10 +443,6 @@ int main(int argc,char *argv[])
     signal(SIGINT, mysql_sigint);		// Catch SIGINT to clean up
   signal(SIGQUIT, mysql_end);			// Catch SIGQUIT to clean up
 
-  /*
-    Run in interactive mode like the ingres/postgres monitor
-  */
-
   put_info("Welcome to the MySQL monitor.  Commands end with ; or \\g.",
 	   INFO_INFO);
   sprintf((char*) glob_buffer.ptr(),
@@ -585,7 +581,8 @@ static struct my_option my_long_options[] =
 #endif
   {"auto-rehash", OPT_AUTO_REHASH,
    "Enable automatic rehashing. One doesn't need to use 'rehash' to get table and field completion, but startup and reconnecting may take a longer time. Disable with --disable-auto-rehash.",
-   (gptr*) &rehash, (gptr*) &rehash, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+   (gptr*) &opt_rehash, (gptr*) &opt_rehash, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0,
+   0, 0},
   {"no-auto-rehash", 'A',
    "No automatic rehashing. One has to use 'rehash' to get table and field completion. This gives a quicker start of mysql and disables rehashing on reconnect. WARNING: options deprecated; use --disable-auto-rehash instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -888,7 +885,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   }
   break;
   case 'A':
-    rehash= 0;
+    opt_rehash= 0;
     break;
   case 'N':
     column_names= 0;
@@ -1768,15 +1765,17 @@ char *rindex(const char *s,int c)
 
 static int reconnect(void)
 {
+  /* purecov: begin tested */
   if (opt_reconnect)
   {
     put_info("No connection. Trying to reconnect...",INFO_INFO);
     (void) com_connect((String *) 0, 0);
-    if (rehash)
+    if (opt_rehash)
       com_rehash(NULL, NULL);
   }
   if (!connected)
     return put_info("Can't connect to the server\n",INFO_ERROR);
+  /* purecov: end */
   return 0;
 }
 
@@ -2941,7 +2940,7 @@ static int
 com_connect(String *buffer, char *line)
 {
   char *tmp, buff[256];
-  bool save_rehash= rehash;
+  bool save_rehash= opt_rehash;
   int error;
 
   bzero(buff, sizeof(buff));
@@ -2965,13 +2964,16 @@ com_connect(String *buffer, char *line)
       }
     }
     else
-      rehash= 0;				// Quick re-connect
+    {
+      /* Quick re-connect */
+      opt_rehash= 0;                            /* purecov: tested */
+    }
     buffer->length(0);				// command used
   }
   else
-    rehash= 0;
+    opt_rehash= 0;
   error=sql_connect(current_host,current_db,current_user,opt_password,0);
-  rehash= save_rehash;
+  opt_rehash= save_rehash;
 
   if (connected)
   {
@@ -3133,7 +3135,7 @@ com_use(String *buffer __attribute__((unused)), char *line)
     current_db=my_strdup(tmp,MYF(MY_WME));
 #ifdef HAVE_READLINE
     if (select_db > 1)
-      build_completion_hash(rehash, 1);
+      build_completion_hash(opt_rehash, 1);
 #endif
   }
 
@@ -3287,7 +3289,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   mysql.reconnect= 1;
 #endif
 #ifdef HAVE_READLINE
-  build_completion_hash(rehash, 1);
+  build_completion_hash(opt_rehash, 1);
 #endif
   return 0;
 }
@@ -3332,8 +3334,8 @@ static int
 com_status(String *buffer __attribute__((unused)),
 	   char *line __attribute__((unused)))
 {
-  const char *status;
-  char buff[22];
+  const char *status_str;
+  char buff[40];
   ulonglong id;
   MYSQL_RES *result;
   LINT_INIT(result);
@@ -3359,9 +3361,9 @@ com_status(String *buffer __attribute__((unused)),
       mysql_free_result(result);
     } 
 #ifdef HAVE_OPENSSL
-    if ((status= mysql_get_ssl_cipher(&mysql)))
+    if ((status_str= mysql_get_ssl_cipher(&mysql)))
       tee_fprintf(stdout, "SSL:\t\t\tCipher in use is %s\n",
-		  status);
+		  status_str);
     else
 #endif /* HAVE_OPENSSL */
       tee_puts("SSL:\t\t\tNot in use", stdout);
@@ -3420,23 +3422,20 @@ com_status(String *buffer __attribute__((unused)),
     tee_fprintf(stdout, "Protocol:\t\tCompressed\n");
 #endif
 
-  if ((status=mysql_stat(&mysql)) && !mysql_error(&mysql)[0])
+  if ((status_str= mysql_stat(&mysql)) && !mysql_error(&mysql)[0])
   {
     ulong sec;
-    char buff[40];
-    const char *pos= strchr(status,' ');
+    const char *pos= strchr(status_str,' ');
     /* print label */
-    tee_fprintf(stdout, "%.*s\t\t\t", (int) (pos-status), status);
-    if ((status=str2int(pos,10,0,LONG_MAX,(long*) &sec)))
+    tee_fprintf(stdout, "%.*s\t\t\t", (int) (pos-status_str), status_str);
+    if ((status_str= str2int(pos,10,0,LONG_MAX,(long*) &sec)))
     {
       nice_time((double) sec,buff,0);
       tee_puts(buff, stdout);			/* print nice time */
-      while (*status == ' ') status++;		/* to next info */
-    }
-    if (status)
-    {
+      while (*status_str == ' ')
+        status_str++;  /* to next info */
       tee_putc('\n', stdout);
-      tee_puts(status, stdout);
+      tee_puts(status_str, stdout);
     }
   }
   if (safe_updates)
@@ -3456,7 +3455,7 @@ select_limit, max_join_size);
 }
 
 static const char *
-server_version_string(MYSQL *mysql)
+server_version_string(MYSQL *con)
 {
   static char buf[MAX_SERVER_VERSION_LENGTH] = "";
 
@@ -3466,11 +3465,11 @@ server_version_string(MYSQL *mysql)
     char *bufp = buf;
     MYSQL_RES *result;
 
-    bufp = strnmov(buf, mysql_get_server_info(mysql), sizeof buf);
+    bufp= strnmov(buf, mysql_get_server_info(con), sizeof buf);
 
     /* "limit 1" is protection against SQL_SELECT_LIMIT=0 */
-    if (!mysql_query(mysql, "select @@version_comment limit 1") &&
-        (result = mysql_use_result(mysql)))
+    if (!mysql_query(con, "select @@version_comment limit 1") &&
+        (result = mysql_use_result(con)))
     {
       MYSQL_ROW cur = mysql_fetch_row(result);
       if (cur && cur[0])
@@ -3560,10 +3559,10 @@ put_info(const char *str,INFO_TYPE info_type, uint error, const char *sqlstate)
 
 
 static int
-put_error(MYSQL *mysql)
+put_error(MYSQL *con)
 {
-  return put_info(mysql_error(mysql), INFO_ERROR, mysql_errno(mysql),
-		  mysql_sqlstate(mysql));
+  return put_info(mysql_error(con), INFO_ERROR, mysql_errno(con),
+		  mysql_sqlstate(con));
 }  
 
 
@@ -3822,8 +3821,6 @@ static const char* construct_prompt()
 	break;
       case 'D':
 	char* dateTime;
-	time_t lclock;
-	lclock = time(NULL);
 	dateTime = ctime(&lclock);
 	processed_prompt.append(strtok(dateTime,"\n"));
 	break;

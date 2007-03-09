@@ -141,13 +141,7 @@ class ha_berkeley: public handler
 			     enum thr_lock_type lock_type);
 
   void get_status();
-  inline void get_auto_primary_key(byte *to)
-  {
-    pthread_mutex_lock(&share->mutex);
-    share->auto_ident++;
-    int5store(to,share->auto_ident);
-    pthread_mutex_unlock(&share->mutex);
-  }
+  void get_auto_primary_key(byte *to);
   ulonglong get_auto_increment();
   void print_error(int error, myf errflag);
   uint8 table_cache_type() { return HA_CACHE_TBL_TRANSACT; }

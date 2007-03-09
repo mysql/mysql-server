@@ -166,14 +166,10 @@ Open_tables_state::Open_tables_state(ulong version_arg)
 }
 
 
-/*
-  Pass nominal parameters to Statement constructor only to ensure that
-  the destructor works OK in case of error. The main_mem_root will be
-  re-initialized in init().
-*/
 
 THD::THD()
-  :Statement(CONVENTIONAL_EXECUTION, 0, ALLOC_ROOT_MIN_BLOCK_SIZE, 0),
+   :Statement(&main_lex, &main_mem_root, CONVENTIONAL_EXECUTION,
+              /* statement id */ 0),
    Open_tables_state(refresh_version),
    lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0), global_read_lock(0), is_fatal_error(0),
@@ -182,6 +178,14 @@ THD::THD()
    clear_next_insert_id(0), in_lock_tables(0), bootstrap(0),
    derived_tables_processing(FALSE), spcont(NULL)
 {
+  ulong tmp;
+
+  /*
+    Pass nominal parameters to init_alloc_root only to ensure that
+    the destructor works OK in case of an error. The main_mem_root
+    will be re-initialized in init_for_queries().
+  */
+  init_sql_alloc(&main_mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
   stmt_arena= this;
   thread_stack= 0;
   db= 0;
@@ -224,7 +228,9 @@ THD::THD()
 #endif
   client_capabilities= 0;                       // minimalistic client
   net.last_error[0]=0;                          // If error on boot
+#ifdef HAVE_QUERY_CACHE
   query_cache_init_query(&net);                 // If error on boot
+#endif
   ull=0;
   system_thread= cleanup_done= abort_on_warning= no_warnings_for_error= 0;
   peer_port= 0;					// For SHOW PROCESSLIST
@@ -268,11 +274,43 @@ THD::THD()
   protocol_prep.init(this);
 
   tablespace_op=FALSE;
-  ulong tmp=sql_rnd_with_mutex();
-  randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::query_id);
+  tmp= sql_rnd_with_mutex();
+  randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::global_query_id);
   substitute_null_with_insert_id = FALSE;
   thr_lock_info_init(&lock_info); /* safety: will be reset after start */
   thr_lock_owner_init(&main_lock_id, &lock_info);
+
+  m_internal_handler= NULL;
+}
+
+
+void THD::push_internal_handler(Internal_error_handler *handler)
+{
+  /*
+    TODO: The current implementation is limited to 1 handler at a time only.
+    THD and sp_rcontext need to be modified to use a common handler stack.
+  */
+  DBUG_ASSERT(m_internal_handler == NULL);
+  m_internal_handler= handler;
+}
+
+
+bool THD::handle_error(uint sql_errno,
+                       MYSQL_ERROR::enum_warning_level level)
+{
+  if (m_internal_handler)
+  {
+    return m_internal_handler->handle_error(sql_errno, level, this);
+  }
+
+  return FALSE;                                 // 'FALSE', as per coding style
+}
+
+
+void THD::pop_internal_handler()
+{
+  DBUG_ASSERT(m_internal_handler != NULL);
+  m_internal_handler= NULL;
 }
 
 
@@ -317,6 +355,7 @@ void THD::init(void)
 
 void THD::init_for_queries()
 {
+  set_time(); 
   ha_enable_transaction(this,TRUE);
 
   reset_root_defaults(mem_root, variables.query_alloc_block_size,
@@ -440,6 +479,7 @@ THD::~THD()
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
 #endif  
+  free_root(&main_mem_root, MYF(0));
   DBUG_VOID_RETURN;
 }
 
@@ -899,6 +939,7 @@ sql_exchange::sql_exchange(char *name,bool flag)
   enclosed=   line_start= &my_empty_string;
   line_term=  &default_line_term;
   escaped=    &default_escaped;
+  cs= NULL;
 }
 
 bool select_send::send_fields(List<Item> &list, uint flags)
@@ -1443,7 +1484,7 @@ bool select_max_min_finder_subselect::send_data(List<Item> &items)
 
 bool select_max_min_finder_subselect::cmp_real()
 {
-  Item *maxmin= ((Item_singlerow_subselect *)item)->el(0);
+  Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   double val1= cache->val_real(), val2= maxmin->val_real();
   if (fmax)
     return (cache->null_value && !maxmin->null_value) ||
@@ -1456,7 +1497,7 @@ bool select_max_min_finder_subselect::cmp_real()
 
 bool select_max_min_finder_subselect::cmp_int()
 {
-  Item *maxmin= ((Item_singlerow_subselect *)item)->el(0);
+  Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   longlong val1= cache->val_int(), val2= maxmin->val_int();
   if (fmax)
     return (cache->null_value && !maxmin->null_value) ||
@@ -1469,7 +1510,7 @@ bool select_max_min_finder_subselect::cmp_int()
 
 bool select_max_min_finder_subselect::cmp_decimal()
 {
-  Item *maxmin= ((Item_singlerow_subselect *)item)->el(0);
+  Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   my_decimal cval, *cvalue= cache->val_decimal(&cval);
   my_decimal mval, *mvalue= maxmin->val_decimal(&mval);
   if (fmax)
@@ -1484,7 +1525,7 @@ bool select_max_min_finder_subselect::cmp_decimal()
 bool select_max_min_finder_subselect::cmp_str()
 {
   String *val1, *val2, buf1, buf2;
-  Item *maxmin= ((Item_singlerow_subselect *)item)->el(0);
+  Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   /*
     as far as both operand is Item_cache buf1 & buf2 will not be used,
     but added for safety
@@ -1585,18 +1626,17 @@ void Query_arena::cleanup_stmt()
   Statement functions 
 */
 
-Statement::Statement(enum enum_state state_arg, ulong id_arg,
-                     ulong alloc_block_size, ulong prealloc_size)
-  :Query_arena(&main_mem_root, state_arg),
+Statement::Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,
+                     enum enum_state state_arg, ulong id_arg)
+  :Query_arena(mem_root_arg, state_arg),
   id(id_arg),
   set_query_id(1),
-  lex(&main_lex),
+  lex(lex_arg),
   query(0),
   query_length(0),
   cursor(0)
 {
   name.str= NULL;
-  init_sql_alloc(&main_mem_root, alloc_block_size, prealloc_size);
 }
 
 
@@ -1638,7 +1678,7 @@ void Statement::restore_backup_statement(Statement *stmt, Statement *backup)
 
 void THD::end_statement()
 {
-  /* Cleanup SQL processing state to resuse this statement in next query. */
+  /* Cleanup SQL processing state to reuse this statement in next query. */
   lex_end(lex);
   delete lex->result;
   lex->result= 0;
@@ -1679,12 +1719,6 @@ void THD::restore_active_arena(Query_arena *set, Query_arena *backup)
 
 Statement::~Statement()
 {
-  /*
-    We must free `main_mem_root', not `mem_root' (pointer), to work
-    correctly if this statement is used as a backup statement,
-    for which `mem_root' may point to some other statement.
-  */
-  free_root(&main_mem_root, MYF(0));
 }
 
 C_MODE_START
@@ -2056,6 +2090,10 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
 
   if (!lex->requires_prelocking() || is_update_query(lex->sql_command))
     options&= ~OPTION_BIN_LOG;
+
+  if ((backup->options & OPTION_BIN_LOG) && is_update_query(lex->sql_command))
+    mysql_bin_log.start_union_events(this, this->query_id);
+
   /* Disable result sets */
   client_capabilities &= ~CLIENT_MULTI_RESULTS;
   in_sub_stmt|= new_state;
@@ -2101,6 +2139,9 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   limit_found_rows= backup->limit_found_rows;
   sent_row_count=   backup->sent_row_count;
   client_capabilities= backup->client_capabilities;
+
+  if ((options & OPTION_BIN_LOG) && is_update_query(lex->sql_command))
+    mysql_bin_log.stop_union_events(this);
 
   /*
     The following is added to the old values as we are interested in the

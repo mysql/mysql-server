@@ -2002,7 +2002,7 @@ EXPLAIN SELECT a FROM t1 WHERE (SELECT 1 FROM DUAL WHERE 1=0) IS NULL;
 DROP TABLE t1;
 
 #
-# Bug 24653: sorting by expressions containing subselects 
+# Bug 24653: sorting by expressions containing subselects
 #            that return more than one row
 #
 
@@ -2014,12 +2014,12 @@ INSERT INTO t2 VALUES
   (2,1), (1,3), (2,1), (4,4), (2,2), (1,4);
 
 SELECT a FROM t1 ORDER BY (SELECT c FROM t2 WHERE b > 2 );
---error 1242   
-SELECT a FROM t1 ORDER BY (SELECT c FROM t2 WHERE b > 1);  
-SELECT a FROM t1 ORDER BY (SELECT c FROM t2 WHERE b > 2), a;  
---error 1242   
+--error 1242
+SELECT a FROM t1 ORDER BY (SELECT c FROM t2 WHERE b > 1);
+SELECT a FROM t1 ORDER BY (SELECT c FROM t2 WHERE b > 2), a;
+--error 1242
 SELECT a FROM t1 ORDER BY (SELECT c FROM t2 WHERE b > 1), a;
- 
+
 SELECT b, MAX(c) FROM t2 GROUP BY b, (SELECT c FROM t2 WHERE b > 2);
 --error 1242
 SELECT b, MAX(c) FROM t2 GROUP BY b, (SELECT c FROM t2 WHERE b > 1);
@@ -2036,28 +2036,28 @@ SELECT a FROM t1 GROUP BY a
 SELECT a FROM t1 GROUP BY a
   HAVING IFNULL((SELECT b FROM t2 WHERE b > 4),
                 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b)) > 3;
---error 1242 
+--error 1242
 SELECT a FROM t1 GROUP BY a
   HAVING IFNULL((SELECT b FROM t2 WHERE b > 4),
                 (SELECT c FROM t2 WHERE c=a AND b > 1 ORDER BY b)) > 3;
 
-SELECT a FROM t1 
+SELECT a FROM t1
   ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 2),
                   (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b));
 --error 1242
-SELECT a FROM t1 
+SELECT a FROM t1
   ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 1),
                   (SELECT c FROM t2 WHERE c=a AND b > 1 ORDER BY b));
 
-SELECT a FROM t1 
+SELECT a FROM t1
   ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 4),
                   (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b));
 --error 1242
-SELECT a FROM t1 
+SELECT a FROM t1
   ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 4),
                   (SELECT c FROM t2 WHERE c=a AND b > 1 ORDER BY b));
 
-DROP TABLE t1,t2; 
+DROP TABLE t1,t2;
 
 # End of 4.1 tests
 
@@ -2571,7 +2571,7 @@ DROP TABLE t1,t2;
 #
 # Bug #25219: EXIST subquery with UNION over a mix of
 #             correlated and uncorrelated selects
-#             
+#
 
 CREATE TABLE t1 (id char(4) PRIMARY KEY, c int);
 CREATE TABLE t2 (c int);
@@ -2579,25 +2579,153 @@ CREATE TABLE t2 (c int);
 INSERT INTO t1 VALUES ('aa', 1);
 INSERT INTO t2 VALUES (1);
 
-SELECT * FROM t1 
+SELECT * FROM t1
   WHERE EXISTS (SELECT c FROM t2 WHERE c=1
-                UNION 
+                UNION
                 SELECT c from t2 WHERE c=t1.c);
 
 INSERT INTO t1 VALUES ('bb', 2), ('cc', 3), ('dd',1);
 
-SELECT * FROM t1 
+SELECT * FROM t1
   WHERE EXISTS (SELECT c FROM t2 WHERE c=1
-                UNION 
+                UNION
                 SELECT c from t2 WHERE c=t1.c);
 
 INSERT INTO t2 VALUES (2);
 CREATE TABLE t3 (c int);
 INSERT INTO t3 VALUES (1);
 
-SELECT * FROM t1 
+SELECT * FROM t1
   WHERE EXISTS (SELECT t2.c FROM t2 JOIN t3 ON t2.c=t3.c WHERE t2.c=1
-                UNION 
+                UNION
                 SELECT c from t2 WHERE c=t1.c);
 
 DROP TABLE t1,t2,t3;
+
+#                                                                             
+# Bug#23800: Outer fields in correlated subqueries is used in a temporary     
+#            table created for sorting.                                       
+#                                                                             
+CREATE TABLE t1(f1 int);
+CREATE TABLE t2(f2 int, f21 int, f3 timestamp);
+INSERT INTO t1 VALUES (1),(1),(2),(2);
+INSERT INTO t2 VALUES (1,1,"2004-02-29 11:11:11"), (2,2,"2004-02-29 11:11:11");
+SELECT ((SELECT f2 FROM t2 WHERE f21=f1 LIMIT 1) * COUNT(f1)) AS sq FROM t1 GROUP BY f1;
+SELECT (SELECT SUM(1) FROM t2 ttt GROUP BY t2.f3 LIMIT 1) AS tt FROM t2;
+PREPARE stmt1 FROM 'SELECT ((SELECT f2 FROM t2 WHERE f21=f1 LIMIT 1) * COUNT(f1)) AS sq FROM t1 GROUP BY f1';
+EXECUTE stmt1;
+EXECUTE stmt1;
+DEALLOCATE PREPARE stmt1;
+SELECT f2, AVG(f21), 
+      (SELECT t.f3 FROM t2 AS t WHERE t2.f2=t.f2 AND t.f3=MAX(t2.f3)) AS test
+  FROM t2 GROUP BY f2;
+DROP TABLE t1,t2;                                                             
+CREATE TABLE t1 (a int, b INT, c CHAR(10) NOT NULL);                          
+INSERT INTO t1 VALUES                                                         
+  (1,1,'a'), (1,2,'b'), (1,3,'c'), (1,4,'d'), (1,5,'e'),                      
+  (2,1,'f'), (2,2,'g'), (2,3,'h'), (3,4,'i'), (3,3,'j'),                      
+  (3,2,'k'), (3,1,'l'), (1,9,'m');                                            
+SELECT a, MAX(b),                                                             
+      (SELECT t.c FROM t1 AS t WHERE t1.a=t.a AND t.b=MAX(t1.b)) AS test      
+  FROM t1 GROUP BY a;                                                         
+DROP TABLE t1;      
+
+#
+# Bug#21904 (parser problem when using IN with a double "(())")
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t1xt2;
+--enable_warnings
+
+CREATE TABLE t1 (
+  id_1 int(5) NOT NULL,
+  t varchar(4) DEFAULT NULL
+);
+
+CREATE TABLE t2 (
+  id_2 int(5) NOT NULL,
+  t varchar(4) DEFAULT NULL
+);
+
+CREATE TABLE t1xt2 (
+  id_1 int(5) NOT NULL,
+  id_2 int(5) NOT NULL
+);
+
+INSERT INTO t1 VALUES (1, 'a'), (2, 'b'), (3, 'c'), (4, 'd');
+
+INSERT INTO t2 VALUES (2, 'bb'), (3, 'cc'), (4, 'dd'), (12, 'aa');
+
+INSERT INTO t1xt2 VALUES (2, 2), (3, 3), (4, 4);
+
+# subselect returns 0 rows
+
+SELECT DISTINCT t1.id_1 FROM t1 WHERE
+(12 IN (SELECT t1xt2.id_2 FROM t1xt2 WHERE t1.id_1 = t1xt2.id_1));
+
+SELECT DISTINCT t1.id_1 FROM t1 WHERE
+(12 IN ((SELECT t1xt2.id_2 FROM t1xt2 WHERE t1.id_1 = t1xt2.id_1)));
+
+SELECT DISTINCT t1.id_1 FROM t1 WHERE
+(12 IN (((SELECT t1xt2.id_2 FROM t1xt2 WHERE t1.id_1 = t1xt2.id_1))));
+
+SELECT DISTINCT t1.id_1 FROM t1 WHERE
+(12 NOT IN (SELECT t1xt2.id_2 FROM t1xt2 WHERE t1.id_1 = t1xt2.id_1));
+
+SELECT DISTINCT t1.id_1 FROM t1 WHERE
+(12 NOT IN ((SELECT t1xt2.id_2 FROM t1xt2 where t1.id_1 = t1xt2.id_1)));
+
+SELECT DISTINCT t1.id_1 FROM t1 WHERE
+(12 NOT IN (((SELECT t1xt2.id_2 FROM t1xt2 where t1.id_1 = t1xt2.id_1))));
+
+insert INTO t1xt2 VALUES (1, 12);
+
+# subselect returns 1 row
+
+SELECT DISTINCT t1.id_1 FROM t1 WHERE
+(12 IN (SELECT t1xt2.id_2 FROM t1xt2 WHERE t1.id_1 = t1xt2.id_1));
+
+SELECT DISTINCT t1.id_1 FROM t1 WHERE
+(12 IN ((SELECT t1xt2.id_2 FROM t1xt2 WHERE t1.id_1 = t1xt2.id_1)));
+
+SELECT DISTINCT t1.id_1 FROM t1 WHERE
+(12 IN (((SELECT t1xt2.id_2 FROM t1xt2 WHERE t1.id_1 = t1xt2.id_1))));
+
+SELECT DISTINCT t1.id_1 FROM t1 WHERE
+(12 NOT IN (SELECT t1xt2.id_2 FROM t1xt2 WHERE t1.id_1 = t1xt2.id_1));
+
+SELECT DISTINCT t1.id_1 FROM t1 WHERE
+(12 NOT IN ((SELECT t1xt2.id_2 FROM t1xt2 WHERE t1.id_1 = t1xt2.id_1)));
+
+SELECT DISTINCT t1.id_1 FROM t1 WHERE
+(12 NOT IN (((SELECT t1xt2.id_2 FROM t1xt2 WHERE t1.id_1 = t1xt2.id_1))));
+
+insert INTO t1xt2 VALUES (2, 12);
+
+# subselect returns more than 1 row
+
+SELECT DISTINCT t1.id_1 FROM t1 WHERE
+(12 IN (SELECT t1xt2.id_2 FROM t1xt2 WHERE t1.id_1 = t1xt2.id_1));
+
+SELECT DISTINCT t1.id_1 FROM t1 WHERE
+(12 IN ((SELECT t1xt2.id_2 FROM t1xt2 WHERE t1.id_1 = t1xt2.id_1)));
+
+SELECT DISTINCT t1.id_1 FROM t1 WHERE
+(12 IN (((SELECT t1xt2.id_2 FROM t1xt2 WHERE t1.id_1 = t1xt2.id_1))));
+
+SELECT DISTINCT t1.id_1 FROM t1 WHERE
+(12 NOT IN (SELECT t1xt2.id_2 FROM t1xt2 WHERE t1.id_1 = t1xt2.id_1));
+
+SELECT DISTINCT t1.id_1 FROM t1 WHERE
+(12 NOT IN ((SELECT t1xt2.id_2 FROM t1xt2 WHERE t1.id_1 = t1xt2.id_1)));
+
+SELECT DISTINCT t1.id_1 FROM t1 WHERE
+(12 NOT IN (((SELECT t1xt2.id_2 FROM t1xt2 WHERE t1.id_1 = t1xt2.id_1))));
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t1xt2;
+

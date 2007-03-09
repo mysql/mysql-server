@@ -272,6 +272,7 @@ struct sql_ex_info
 
 #define Q_LC_TIME_NAMES_CODE    7
 
+#define Q_CHARSET_DATABASE_CODE 8
 /* Intvar event post-header */
 
 #define I_TYPE_OFFSET        0
@@ -509,10 +510,11 @@ typedef struct st_print_event_info
   char charset[6]; // 3 variables, each of them storable in 2 bytes
   char time_zone_str[MAX_TIME_ZONE_NAME_LENGTH];
   uint lc_time_names_number;
+  uint charset_database_number;
   st_print_event_info()
     :flags2_inited(0), sql_mode_inited(0),
      auto_increment_increment(1),auto_increment_offset(1), charset_inited(0),
-     lc_time_names_number(0)
+     lc_time_names_number(0), charset_database_number(0)
     {
       /*
         Currently we only use static PRINT_EVENT_INFO objects, so zeroed at
@@ -797,6 +799,7 @@ public:
   uint time_zone_len; /* 0 means uninited */
   const char *time_zone_str;
   uint lc_time_names_number; /* 0 means en_US */
+  uint charset_database_number;
 
 #ifndef MYSQL_CLIENT
 
@@ -854,6 +857,8 @@ public:
 
   bool write(IO_CACHE* file) { return(false); };
   virtual bool write_post_header_for_derived(IO_CACHE* file) { return FALSE; }
+#else
+  Muted_query_log_event() {}
 #endif
 };
 
@@ -1102,6 +1107,7 @@ public:
   uint8 number_of_event_types;
   /* The list of post-headers' lengthes */
   uint8 *post_header_len;
+  uchar server_version_split[3];
 
   Format_description_log_event(uint8 binlog_ver, const char* server_ver=0);
 
@@ -1133,6 +1139,7 @@ public:
     */
     return FORMAT_DESCRIPTION_HEADER_LEN;
   }
+  void calc_server_version_split();
 };
 
 
