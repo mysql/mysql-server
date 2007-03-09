@@ -8491,7 +8491,7 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 	if ((new_cond= new Item_func_eq(args[0],
 					new Item_int("last_insert_id()",
 						     thd->current_insert_id,
-						     21))))
+						     MY_INT64_NUM_DECIMAL_DIGITS))))
 	{
           /*
             Set THD::last_insert_id_used_bin_log manually, as this
@@ -8757,7 +8757,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     break;
   case INT_RESULT:
     /* Select an integer type with the minimal fit precision */
-    if (item->max_length > 11)
+    if (item->max_length > MY_INT32_NUM_DECIMAL_DIGITS)
       new_field=new Field_longlong(item->max_length, maybe_null,
                                    item->name, table, item->unsigned_flag);
     else
@@ -14964,7 +14964,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       /* Add "rows" field to item_list. */
       item_list.push_back(new Item_int((longlong) (ulonglong)
 				       join->best_positions[i]. records_read,
-				       21));
+				       MY_INT64_NUM_DECIMAL_DIGITS));
       /* Build "Extra" field and add it to item_list. */
       my_bool key_read=table->key_read;
       if ((tab->type == JT_NEXT || tab->type == JT_CONST) &&

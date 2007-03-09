@@ -6391,16 +6391,16 @@ innodb_mutex_show_status(
 #ifdef UNIV_DEBUG
   field_list.push_back(new Item_empty_string("Mutex", FN_REFLEN));
   field_list.push_back(new Item_empty_string("Module", FN_REFLEN));
-  field_list.push_back(new Item_uint("Count", 21));
-  field_list.push_back(new Item_uint("Spin_waits", 21));
-  field_list.push_back(new Item_uint("Spin_rounds", 21));
-  field_list.push_back(new Item_uint("OS_waits", 21));
-  field_list.push_back(new Item_uint("OS_yields", 21));
-  field_list.push_back(new Item_uint("OS_waits_time", 21));
+  field_list.push_back(new Item_uint("Count", MY_INT64_NUM_DECIMAL_DIGITS));
+  field_list.push_back(new Item_uint("Spin_waits", MY_INT64_NUM_DECIMAL_DIGITS));
+  field_list.push_back(new Item_uint("Spin_rounds", MY_INT64_NUM_DECIMAL_DIGITS));
+  field_list.push_back(new Item_uint("OS_waits", MY_INT64_NUM_DECIMAL_DIGITS));
+  field_list.push_back(new Item_uint("OS_yields", MY_INT64_NUM_DECIMAL_DIGITS));
+  field_list.push_back(new Item_uint("OS_waits_time", MY_INT64_NUM_DECIMAL_DIGITS));
 #else /* UNIV_DEBUG */
   field_list.push_back(new Item_empty_string("File", FN_REFLEN));
-  field_list.push_back(new Item_uint("Line", 21));
-  field_list.push_back(new Item_uint("OS_waits", 21));
+  field_list.push_back(new Item_uint("Line", MY_INT64_NUM_DECIMAL_DIGITS));
+  field_list.push_back(new Item_uint("OS_waits", MY_INT64_NUM_DECIMAL_DIGITS));
 #endif /* UNIV_DEBUG */
 
   if (protocol->send_fields(&field_list,
