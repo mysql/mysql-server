@@ -655,8 +655,9 @@ bool mysqld_help(THD *thd, const char *mask)
   tables[3].lock_type= TL_READ;
   tables[0].db= tables[1].db= tables[2].db= tables[3].db= (char*) "mysql";
 
-  if (open_and_lock_tables(thd, tables))
-    goto error;
+  Open_tables_state open_tables_state_backup;
+  if (open_system_tables_for_read(thd, tables, &open_tables_state_backup))
+    goto error2;
 
   /*
     Init tables and fields to be usable from items
@@ -779,8 +780,13 @@ bool mysqld_help(THD *thd, const char *mask)
   }
   send_eof(thd);
 
+  close_system_tables(thd, &open_tables_state_backup);
   DBUG_RETURN(FALSE);
+
 error:
+  close_system_tables(thd, &open_tables_state_backup);
+
+error2:
   DBUG_RETURN(TRUE);
 }
 

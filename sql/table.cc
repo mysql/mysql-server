@@ -245,6 +245,50 @@ void free_table_share(TABLE_SHARE *share)
 }
 
 
+/**
+  Return TRUE if a table name matches one of the system table names.
+  Currently these are:
+
+  help_category, help_keyword, help_relation, help_topic,
+  proc,
+  time_zone, time_zone_leap_second, time_zone_name, time_zone_transition,
+  time_zone_transition_type
+
+  This function trades accuracy for speed, so may return false
+  positives. Presumably mysql.* database is for internal purposes only
+  and should not contain user tables.
+*/
+
+inline bool is_system_table_name(const char *name, uint length)
+{
+  CHARSET_INFO *ci= system_charset_info;
+
+  return (
+          /* mysql.proc table */
+          length == 4 &&
+          my_tolower(ci, name[0]) == 'p' && 
+          my_tolower(ci, name[1]) == 'r' &&
+          my_tolower(ci, name[2]) == 'o' &&
+          my_tolower(ci, name[3]) == 'c' ||
+
+          length > 4 &&
+          (
+           /* one of mysql.help* tables */
+           my_tolower(ci, name[0]) == 'h' &&
+           my_tolower(ci, name[1]) == 'e' &&
+           my_tolower(ci, name[2]) == 'l' &&
+           my_tolower(ci, name[3]) == 'p' ||
+
+           /* one of mysql.time_zone* tables */
+           my_tolower(ci, name[0]) == 't' &&
+           my_tolower(ci, name[1]) == 'i' &&
+           my_tolower(ci, name[2]) == 'm' &&
+           my_tolower(ci, name[3]) == 'e'
+          )
+         );
+}
+
+
 /*
   Read table definition from a binary / text based .frm file
   
@@ -365,11 +409,9 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
         allow to lock such tables for writing with any other tables (even with
         other system tables) and some privilege tables need this.
       */
-      if (!(lower_case_table_names ?
-            my_strcasecmp(system_charset_info, share->table_name.str, "proc") :
-            strcmp(share->table_name.str, "proc")))
-        share->system_table= 1;
-      else
+      share->system_table= is_system_table_name(share->table_name.str,
+                                                share->table_name.length);
+      if (!share->system_table)
       {
         share->log_table= check_if_log_table(share->db.length, share->db.str,
                                              share->table_name.length,

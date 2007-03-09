@@ -1086,11 +1086,6 @@ typedef struct st_lex : public Query_tables_list
   bool prepared_stmt_code_is_varref;
   /* Names of user variables holding parameters (in EXECUTE) */
   List<LEX_STRING> prepared_stmt_params;
-  /*
-    Points to part of global table list which contains time zone tables
-    implicitly used by the statement.
-  */
-  TABLE_LIST *time_zone_tables_used;
   sp_head *sphead;
   sp_name *spname;
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
@@ -1177,7 +1172,6 @@ typedef struct st_lex : public Query_tables_list
   TABLE_LIST *unlink_first_table(bool *link_to_local);
   void link_first_table_back(TABLE_LIST *first, bool link_to_local);
   void first_lists_tables_same();
-  bool add_time_zone_tables_to_query_tables(THD *thd);
 
   bool can_be_merged();
   bool can_use_merged();

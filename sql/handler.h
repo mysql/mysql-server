@@ -974,7 +974,11 @@ public:
       check_if_locking_is_allowed()
         thd     Handler of the thread, trying to lock the table
         table   Table handler to check
-        count   Number of locks already granted to the table
+        count   Total number of tables to be locked
+        current Index of the current table in the list of the tables
+                to be locked.
+        system_count Pointer to the counter of system tables seen thus
+                     far.
         called_by_privileged_thread TRUE if called from a logger THD
                                     (general_log_thd or slow_log_thd)
                                     or by a privileged thread, which
@@ -993,7 +997,8 @@ public:
   */
   virtual bool check_if_locking_is_allowed(uint sql_command,
                                            ulong type, TABLE *table,
-                                           uint count,
+                                           uint count, uint current,
+                                           uint *system_count,
                                            bool called_by_privileged_thread)
   {
     return TRUE;

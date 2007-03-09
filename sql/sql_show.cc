@@ -3514,7 +3514,7 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, COND *cond)
 
 err:
   proc_table->file->ha_index_end();
-  close_proc_table(thd, &open_tables_state_backup);
+  close_system_tables(thd, &open_tables_state_backup);
   DBUG_RETURN(res);
 }
 

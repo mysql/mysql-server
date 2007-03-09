@@ -692,6 +692,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
 
   DBUG_PRINT("info", ("count %d", count));
   *write_lock_used=0;
+  uint system_count= 0;
   for (i=tables=lock_count=0 ; i < count ; i++)
   {
     if (table_ptr[i]->s->tmp_table != TMP_TABLE)
@@ -705,7 +706,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
     */
     if (!table_ptr[i]-> file->
           check_if_locking_is_allowed(thd->lex->sql_command, thd->lex->type,
-                                      table_ptr[i], count,
+                                      table_ptr[i], count, i, &system_count,
                                       (thd == logger.get_general_log_thd()) ||
                                       (thd == logger.get_slow_log_thd()) ||
                                       (thd == logger.get_privileged_thread())))
