@@ -2,11 +2,20 @@
 mysql-5.1.15-ndb-6.1.X
 ==================================================
 
-mysql-5.1.15-ndb-6.1.4 (limited test release)
+mysql-5.1.15-ndb-6.1.5 (not released yet)
 
+  Bug #25743 - If undo_buffer_size (for LG) greater than the inital shared memory (default 20M), ndbd nodes are crashed
   Bug #26899 - ndb_restore cannot restore selected tables and databases
   Bug #26900 - ndb_restore printout option does not give structured data
   Bug #26720 - Infinite loop on unknown signal in logging function
+
+  * ndb_apply_status schema change
+  * ndb_restore options for printing to file
+
+  Note: since ndb_apply_status schema change this version is not backwards compatible
+
+mysql-5.1.15-ndb-6.1.4 (limited test release)
+
   Bug #26741 - ndb_restore with only print_data seg faults
   Bug #26739 - ndb_restore segfault on some 64-bit architectures
   Bug #26663 - cluster have issues with api nodeids > 63
