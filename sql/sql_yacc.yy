@@ -492,7 +492,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
   Currently there is 287 shift/reduce conflict. We should not introduce
   new conflicts any more.
 */
-%expect 287
+%expect 286
 
 /*
    Comments for TOKENS.
@@ -1246,7 +1246,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	statement sp_suid
 	sp_c_chistics sp_a_chistics sp_chistic sp_c_chistic xa
         load_data opt_field_or_var_spec fields_or_vars opt_load_data_set_spec
-        definer view_replace_or_algorithm view_replace view_algorithm_opt
+        definer view_replace_or_algorithm view_replace
         view_algorithm view_or_trigger_or_sp_or_event
         view_or_trigger_or_sp_or_event_tail
         view_suid view_tail view_list_opt view_list view_select
@@ -5154,18 +5154,25 @@ alter:
 	    lex->sql_command= SQLCOM_ALTER_FUNCTION;
 	    lex->spname= $3;
 	  }
-        | ALTER view_algorithm_opt definer view_suid
-          VIEW_SYM table_ident
-	  {
-	    THD *thd= YYTHD;
-	    LEX *lex= thd->lex;
-	    lex->sql_command= SQLCOM_CREATE_VIEW;
-	    lex->create_view_mode= VIEW_ALTER;
-	    /* first table in list is target VIEW name */
-	    lex->select_lex.add_table_to_list(thd, $6, NULL, TL_OPTION_UPDATING);
-	  }
-	  view_list_opt AS view_select view_check_option
-	  {}
+        | ALTER view_algorithm definer
+          {
+            Lex->create_view_mode= VIEW_ALTER;
+          }
+          view_tail
+          {}
+        | ALTER definer
+          /*
+            We have two separate rules for ALTER VIEW rather that
+            optional view_algorithm above, to resolve the ambiguity
+            with the ALTER EVENT below.
+          */
+          {
+            LEX *lex= Lex;
+            lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
+            lex->create_view_mode= VIEW_ALTER;
+          }
+          view_tail
+          {}
 	| ALTER definer EVENT_SYM sp_name
           /*
             BE CAREFUL when you add a new rule to update the block where
@@ -11289,13 +11296,6 @@ view_algorithm:
 	{ Lex->create_view_algorithm= VIEW_ALGORITHM_MERGE; }
 	| ALGORITHM_SYM EQ TEMPTABLE_SYM
 	{ Lex->create_view_algorithm= VIEW_ALGORITHM_TMPTABLE; }
-	;
-
-view_algorithm_opt:
-	/* empty */
-	{ Lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED; }
-	| view_algorithm
-	{}
 	;
 
 view_suid:
