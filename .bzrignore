@@ -2937,3 +2937,4 @@ zlib/*.vcproj
 storage/archive/archive_reader
 storage/ndb/test/ndbapi/testIndexStat
 storage/ndb/test/ndbapi/testInterpreter
+storage/ndb/src/kernel/blocks/dblqh/ndbd_redo_log_reader
