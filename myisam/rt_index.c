@@ -976,7 +976,7 @@ int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length)
           }
           if (res)
           {
-            int j;
+            ulong j;
             DBUG_PRINT("rtree", ("root has been split, adjust levels"));
             for (j= i; j < ReinsertList.n_pages; j++)
             {
