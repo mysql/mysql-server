@@ -20,6 +20,7 @@
 #include <NdbTCP.h>
 #include <NdbMem.h>
 #include <NdbOut.hpp>
+#include <OutputStream.hpp>
 #include <NDBT_ReturnCodes.h>
 
 #include "consumer_restore.hpp"
@@ -34,13 +35,23 @@ static int ga_nParallelism = 128;
 static int ga_backupId = 0;
 static bool ga_dont_ignore_systab_0 = false;
 static Vector<class BackupConsumer *> g_consumers;
+static BackupPrinter* g_printer = NULL;
 
-static const char* ga_backupPath = "." DIR_SEPARATOR;
+static const char* default_backupPath = "." DIR_SEPARATOR;
+static const char* ga_backupPath = default_backupPath;
 
 static const char *opt_nodegroup_map_str= 0;
 static unsigned opt_nodegroup_map_len= 0;
 static NODE_GROUP_MAP opt_nodegroup_map[MAX_NODE_GROUP_MAPS];
 #define OPT_NDB_NODEGROUP_MAP 'z'
+
+const char *opt_ndb_database= NULL;
+const char *opt_ndb_table= NULL;
+unsigned int opt_verbose;
+unsigned int opt_hex_format;
+Vector<BaseString> g_databases;
+Vector<BaseString> g_tables;
+NdbRecordPrintFormat g_ndbrecord_print_format;
 
 NDB_STD_OPTS_VARS;
 
@@ -60,6 +71,28 @@ static int _no_restore_disk = 0;
 BaseString g_options("ndb_restore");
 
 const char *load_default_groups[]= { "mysql_cluster","ndb_restore",0 };
+
+enum ndb_restore_options {
+  OPT_PRINT= NDB_STD_OPTIONS_LAST,
+  OPT_PRINT_DATA,
+  OPT_PRINT_LOG,
+  OPT_PRINT_META,
+  OPT_BACKUP_PATH,
+  OPT_HEX_FORMAT,
+  OPT_FIELDS_ENCLOSED_BY,
+  OPT_FIELDS_TERMINATED_BY,
+  OPT_FIELDS_OPTIONALLY_ENCLOSED_BY,
+  OPT_LINES_TERMINATED_BY,
+  OPT_APPEND,
+  OPT_VERBOSE
+};
+static const char *opt_fields_enclosed_by= NULL;
+static const char *opt_fields_terminated_by= NULL;
+static const char *opt_fields_optionally_enclosed_by= NULL;
+static const char *opt_lines_terminated_by= NULL;
+
+static const char *tab_path= NULL;
+static int opt_append;
 
 static struct my_option my_long_options[] =
 {
@@ -96,19 +129,19 @@ static struct my_option my_long_options[] =
     "(parallelism can be 1 to 1024)", 
     (gptr*) &ga_nParallelism, (gptr*) &ga_nParallelism, 0,
     GET_INT, REQUIRED_ARG, 128, 1, 1024, 0, 1, 0 },
-  { "print", 256, "Print data and log to stdout",
+  { "print", OPT_PRINT, "Print data and log to stdout",
     (gptr*) &_print, (gptr*) &_print, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "print_data", 257, "Print data to stdout", 
+  { "print_data", OPT_PRINT_DATA, "Print data to stdout", 
     (gptr*) &_print_data, (gptr*) &_print_data, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "print_meta", 258, "Print meta data to stdout",
+  { "print_meta", OPT_PRINT_META, "Print meta data to stdout",
     (gptr*) &_print_meta, (gptr*) &_print_meta,  0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "print_log", 259, "Print log to stdout",
+  { "print_log", OPT_PRINT_LOG, "Print log to stdout",
     (gptr*) &_print_log, (gptr*) &_print_log,  0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "backup_path", 260, "Path to backup files",
+  { "backup_path", OPT_BACKUP_PATH, "Path to backup files",
     (gptr*) &ga_backupPath, (gptr*) &ga_backupPath, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "dont_ignore_systab_0", 'f',
@@ -121,6 +154,37 @@ static struct my_option my_long_options[] =
     (gptr*) &opt_nodegroup_map_str,
     0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "fields-enclosed-by", OPT_FIELDS_ENCLOSED_BY,
+    "Fields are enclosed by ...",
+    (gptr*) &opt_fields_enclosed_by, (gptr*) &opt_fields_enclosed_by, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "fields-terminated-by", OPT_FIELDS_TERMINATED_BY,
+    "Fields are terminated by ...",
+    (gptr*) &opt_fields_terminated_by,
+    (gptr*) &opt_fields_terminated_by, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "fields-optionally-enclosed-by", OPT_FIELDS_OPTIONALLY_ENCLOSED_BY,
+    "Fields are optionally enclosed by ...",
+    (gptr*) &opt_fields_optionally_enclosed_by,
+    (gptr*) &opt_fields_optionally_enclosed_by, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "hex", OPT_HEX_FORMAT, "print binary types in hex format", 
+    (gptr*) &opt_hex_format, (gptr*) &opt_hex_format, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "tab", 'T', "Creates tab separated textfile for each table to "
+    "given path. (creates .txt files)",
+   (gptr*) &tab_path, (gptr*) &tab_path, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  { "append", OPT_APPEND, "for --tab append data to file", 
+    (gptr*) &opt_append, (gptr*) &opt_append, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "lines-terminated-by", OPT_LINES_TERMINATED_BY, "",
+    (gptr*) &opt_lines_terminated_by, (gptr*) &opt_lines_terminated_by, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "verbose", OPT_VERBOSE,
+    "verbosity", 
+    (gptr*) &opt_verbose, (gptr*) &opt_verbose, 0,
+    GET_INT, REQUIRED_ARG, 1, 0, 255, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -255,20 +319,25 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #endif
   ndb_std_get_one_option(optid, opt, argument);
   switch (optid) {
+  case OPT_VERBOSE:
+    info.setThreshold(255-opt_verbose);
+    break;
   case 'n':
     if (ga_nodeId == 0)
     {
-      printf("Error in --nodeid,-n setting, see --help\n");
+      err << "Error in --nodeid,-n setting, see --help";
       exit(NDBT_ProgramExit(NDBT_WRONGARGS));
     }
+    info.setLevel(254);
     info << "Nodeid = " << ga_nodeId << endl;
     break;
   case 'b':
     if (ga_backupId == 0)
     {
-      printf("Error in --backupid,-b setting, see --help\n");
+      err << "Error in --backupid,-b setting, see --help";
       exit(NDBT_ProgramExit(NDBT_WRONGARGS));
     }
+    info.setLevel(254);
     info << "Backup Id = " << ga_backupId << endl;
     break;
   case OPT_NDB_NODEGROUP_MAP:
@@ -277,6 +346,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       to nodegroup in new cluster.
     */
     opt_nodegroup_map_len= 0;
+
+    info.setLevel(254);
     info << "Analyse node group map" << endl;
     if (analyse_nodegroup_map(opt_nodegroup_map_str,
                               &opt_nodegroup_map[0]))
@@ -331,9 +402,9 @@ o verify nodegroup mapping
   exit(NDBT_ProgramExit(NDBT_WRONGARGS));
 #endif
 
-  BackupPrinter* printer = new BackupPrinter(opt_nodegroup_map,
-                                             opt_nodegroup_map_len);
-  if (printer == NULL)
+  g_printer = new BackupPrinter(opt_nodegroup_map,
+                                opt_nodegroup_map_len);
+  if (g_printer == NULL)
     return false;
 
   BackupRestore* restore = new BackupRestore(opt_nodegroup_map,
@@ -341,7 +412,8 @@ o verify nodegroup mapping
                                              ga_nParallelism);
   if (restore == NULL) 
   {
-    delete printer;
+    delete g_printer;
+    g_printer = NULL;
     return false;
   }
 
@@ -349,22 +421,22 @@ o verify nodegroup mapping
   {
     ga_print = true;
     ga_restore = true;
-    printer->m_print = true;
+    g_printer->m_print = true;
   } 
   if (_print_meta) 
   {
     ga_print = true;
-    printer->m_print_meta = true;
+    g_printer->m_print_meta = true;
   }
   if (_print_data) 
   {
     ga_print = true;
-    printer->m_print_data = true;
+    g_printer->m_print_data = true;
   }
   if (_print_log) 
   {
     ga_print = true;
-    printer->m_print_log = true;
+    g_printer->m_print_log = true;
   }
 
   if (_restore_data)
@@ -390,19 +462,64 @@ o verify nodegroup mapping
   }
 
   {
-    BackupConsumer * c = printer;
+    BackupConsumer * c = g_printer;
     g_consumers.push_back(c);
   }
   {
     BackupConsumer * c = restore;
     g_consumers.push_back(c);
   }
-  // Set backup file path
-  if (*pargv[0] != NULL) 
+  for (;;)
   {
-    ga_backupPath = *pargv[0];
+    int i= 0;
+    if (ga_backupPath == default_backupPath)
+    {
+      // Set backup file path
+      if ((*pargv)[i] == NULL)
+        break;
+      ga_backupPath = (*pargv)[i++];
+    }
+    if ((*pargv)[i] == NULL)
+      break;
+    g_databases.push_back((*pargv)[i++]);
+    while ((*pargv)[i] != NULL)
+    {
+      g_tables.push_back((*pargv)[i++]);
+    }
+    break;
   }
+  info.setLevel(254);
   info << "backup path = " << ga_backupPath << endl;
+  if (g_databases.size() > 0)
+  {
+    info << "Restoring only from database " << g_databases[0].c_str() << endl;
+    if (g_tables.size() > 0)
+      info << "Restoring only tables:";
+    for (unsigned i= 0; i < g_tables.size(); i++)
+    {
+      info << " " << g_tables[i].c_str();
+    }
+    if (g_tables.size() > 0)
+      info << endl;
+  }
+  /*
+    the below formatting follows the formatting from mysqldump
+    do not change unless to adopt to changes in mysqldump
+  */
+  g_ndbrecord_print_format.fields_enclosed_by=
+    opt_fields_enclosed_by ? opt_fields_enclosed_by : "";
+  g_ndbrecord_print_format.fields_terminated_by=
+    opt_fields_terminated_by ? opt_fields_terminated_by : "\t";
+  g_ndbrecord_print_format.fields_optionally_enclosed_by=
+    opt_fields_optionally_enclosed_by ? opt_fields_optionally_enclosed_by : "";
+  g_ndbrecord_print_format.lines_terminated_by=
+    opt_lines_terminated_by ? opt_lines_terminated_by : "\n";
+  if (g_ndbrecord_print_format.fields_optionally_enclosed_by[0] == '\0')
+    g_ndbrecord_print_format.null_string= "\\N";
+  else
+    g_ndbrecord_print_format.null_string= "";
+  g_ndbrecord_print_format.hex_prefix= "";
+  g_ndbrecord_print_format.hex_format= opt_hex_format;
   return true;
 }
 
@@ -425,6 +542,70 @@ checkSysTable(const RestoreMetaData& metaData, uint i)
 {
   assert(i < metaData.getNoOfTables());
   return checkSysTable(metaData[i]);
+}
+
+static inline bool
+isBlobTable(const TableS* table)
+{
+  return table->getMainTable() != NULL;
+}
+
+static inline bool
+isIndex(const TableS* table)
+{
+  const NdbTableImpl & tmptab = NdbTableImpl::getImpl(* table->m_dictTable);
+  return (int) tmptab.m_indexType != (int) NdbDictionary::Index::Undefined;
+}
+
+static inline bool
+checkDbAndTableName(const TableS* table)
+{
+  if (g_tables.size() == 0 &&
+      g_databases.size() == 0)
+    return true;
+  if (g_databases.size() == 0)
+    g_databases.push_back("TEST_DB");
+
+  // Filter on the main table name for indexes and blobs
+  const char *table_name;
+  if (isBlobTable(table))
+    table_name= table->getMainTable()->getTableName();
+  else if (isIndex(table))
+    table_name=
+      NdbTableImpl::getImpl(*table->m_dictTable).m_primaryTable.c_str();
+  else
+    table_name= table->getTableName();
+
+  unsigned i;
+  for (i= 0; i < g_databases.size(); i++)
+  {
+    if (strncmp(table_name, g_databases[i].c_str(),
+                g_databases[i].length()) == 0 &&
+        table_name[g_databases[i].length()] == '/')
+    {
+      // we have a match
+      if (g_databases.size() > 1 || g_tables.size() == 0)
+        return true;
+      break;
+    }
+  }
+  if (i == g_databases.size())
+    return false; // no match found
+
+  while (*table_name != '/') table_name++;
+  table_name++;
+  while (*table_name != '/') table_name++;
+  table_name++;
+
+  for (i= 0; i < g_tables.size(); i++)
+  {
+    if (strcmp(table_name, g_tables[i].c_str()) == 0)
+    {
+      // we have a match
+      return true;
+    }
+  }
+  return false;
 }
 
 static void
@@ -484,9 +665,10 @@ main(int argc, char** argv)
   const Uint32 version = tmp.NdbVersion;
   
   char buf[NDB_VERSION_STRING_BUF_SZ];
+  info.setLevel(254);
   info << "Ndb version in backup files: " 
-	 <<  getVersionString(version, 0, buf, sizeof(buf)) << endl;
-
+       <<  getVersionString(version, 0, buf, sizeof(buf)) << endl;
+  
   /**
    * check wheater we can restore the backup (right version).
    */
@@ -554,27 +736,59 @@ main(int argc, char** argv)
 	exitHandler(NDBT_FAILED);
       } 
   }
-  debug << "Restoring tables" << endl; 
+
+  Vector<OutputStream *> table_output(metaData.getNoOfTables());
+  debug << "Restoring tables" << endl;
   for(i = 0; i<metaData.getNoOfTables(); i++)
   {
-    if (checkSysTable(metaData, i))
+    const TableS *table= metaData[i];
+    table_output.push_back(NULL);
+    if (!checkDbAndTableName(table))
+      continue;
+    if (checkSysTable(table))
     {
+      if (!tab_path || isBlobTable(table) || isIndex(table))
+      {
+        table_output[i]= ndbout.m_out;
+      }
+      else
+      {
+        FILE* res;
+        char filename[FN_REFLEN], tmp_path[FN_REFLEN];
+        const char *table_name;
+        table_name= table->getTableName();
+        while (*table_name != '/') table_name++;
+        table_name++;
+        while (*table_name != '/') table_name++;
+        table_name++;
+        convert_dirname(tmp_path, tab_path, NullS);
+        res= my_fopen(fn_format(filename, table_name, tmp_path, ".txt", 4),
+                      opt_append ?
+                      O_WRONLY|O_APPEND|O_CREAT :
+                      O_WRONLY|O_TRUNC|O_CREAT,
+                      MYF(MY_WME));
+        if (res == 0)
+        {
+          exitHandler(NDBT_FAILED);
+        }
+        FileOutputStream *f= new FileOutputStream(res);
+        table_output[i]= f;
+      }
       for(Uint32 j= 0; j < g_consumers.size(); j++)
-	if (!g_consumers[j]->table(* metaData[i]))
+	if (!g_consumers[j]->table(* table))
 	{
 	  err << "Restore: Failed to restore table: ";
-          err << metaData[i]->getTableName() << " ... Exiting " << endl;
+          err << table->getTableName() << " ... Exiting " << endl;
 	  exitHandler(NDBT_FAILED);
 	} 
     } else {
       for(Uint32 j= 0; j < g_consumers.size(); j++)
-        if (!g_consumers[j]->createSystable(* metaData[i]))
+        if (!g_consumers[j]->createSystable(* table))
         {
           err << "Restore: Failed to restore system table: ";
-          err << metaData[i]->getTableName() << " ... Exiting " << endl;
+          err << table->getTableName() << " ... Exiting " << endl;
           exitHandler(NDBT_FAILED);
         }
-
     }
   }
   debug << "Close tables" << endl; 
@@ -604,9 +818,15 @@ main(int argc, char** argv)
 	const TupleS* tuple;
 	while ((tuple = dataIter.getNextTuple(res= 1)) != 0)
 	{
-	  if (checkSysTable(tuple->getTable()))
-	    for(Uint32 j= 0; j < g_consumers.size(); j++) 
-	      g_consumers[j]->tuple(* tuple, fragmentId);
+          const TableS* table = tuple->getTable();
+          OutputStream *output = table_output[table->getLocalId()];
+          if (!output)
+            continue;
+          OutputStream *tmp = ndbout.m_out;
+          ndbout.m_out = output;
+          for(Uint32 j= 0; j < g_consumers.size(); j++) 
+            g_consumers[j]->tuple(* tuple, fragmentId);
+          ndbout.m_out =  tmp;
 	} // while (tuple != NULL);
 	
 	if (res < 0)
@@ -648,9 +868,12 @@ main(int argc, char** argv)
       const LogEntry * logEntry = 0;
       while ((logEntry = logIter.getNextLogEntry(res= 0)) != 0)
       {
-	if (checkSysTable(logEntry->m_table))
-	  for(Uint32 j= 0; j < g_consumers.size(); j++)
-	    g_consumers[j]->logEntry(* logEntry);
+        const TableS* table = logEntry->m_table;
+        OutputStream *output = table_output[table->getLocalId()];
+        if (!output)
+          continue;
+        for(Uint32 j= 0; j < g_consumers.size(); j++)
+          g_consumers[j]->logEntry(* logEntry);
       }
       if (res < 0)
       {
@@ -667,27 +890,27 @@ main(int argc, char** argv)
     {
       for(i = 0; i<metaData.getNoOfTables(); i++)
       {
-	if (checkSysTable(metaData, i))
-	{
-	  for(Uint32 j= 0; j < g_consumers.size(); j++)
-	    if (!g_consumers[j]->finalize_table(* metaData[i]))
-	    {
-	      err << "Restore: Failed to finalize restore table: %s. ";
-              err << "Exiting... " << metaData[i]->getTableName() << endl;
-	      exitHandler(NDBT_FAILED);
-	    } 
-	}
+        const TableS* table = metaData[i];
+        OutputStream *output = table_output[table->getLocalId()];
+        if (!output)
+          continue;
+        for(Uint32 j= 0; j < g_consumers.size(); j++)
+          if (!g_consumers[j]->finalize_table(*table))
+          {
+            err << "Restore: Failed to finalize restore table: %s. ";
+            err << "Exiting... " << metaData[i]->getTableName() << endl;
+            exitHandler(NDBT_FAILED);
+          }
       }
     }
   }
-
   if (ga_restore_epoch)
   {
     for (i= 0; i < g_consumers.size(); i++)
       if (!g_consumers[i]->update_apply_status(metaData))
       {
-	err << "Restore: Failed to restore epoch" << endl;
-	return -1;
+        err << "Restore: Failed to restore epoch" << endl;
+        return -1;
       }
   }
 
@@ -702,7 +925,23 @@ main(int argc, char** argv)
   }
   
   clearConsumers();
-  return NDBT_ProgramExit(NDBT_OK);
+
+  for(i = 0; i < metaData.getNoOfTables(); i++)
+  {
+    if (table_output[i] &&
+        table_output[i] != ndbout.m_out)
+    {
+      my_fclose(((FileOutputStream *)table_output[i])->getFile(), MYF(MY_WME));
+      delete table_output[i];
+      table_output[i] = NULL;
+    }
+  }
+
+  if (opt_verbose)
+    return NDBT_ProgramExit(NDBT_OK);
+  else
+    return 0;
 } // main
 
 template class Vector<BackupConsumer*>;
+template class Vector<OutputStream*>;
