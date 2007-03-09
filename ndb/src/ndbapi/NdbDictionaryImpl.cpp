@@ -880,6 +880,7 @@ NdbDictInterface::dictSignal(NdbApiSignal* signal,
 	r = m_transporter->sendSignal(signal, aNodeId);
       }
       if(r != 0){
+        m_error.code= 4007;
 	m_transporter->unlock_mutex();
 	continue;
       }
@@ -903,7 +904,10 @@ NdbDictInterface::dictSignal(NdbApiSignal* signal,
      * Handle error codes
      */
     if(m_waiter.m_state == WAIT_NODE_FAILURE)
+    {
+      m_error.code = 4013;
       continue;
+    }
 
     if(m_waiter.m_state == WST_WAIT_TIMEOUT)
     {
