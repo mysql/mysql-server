@@ -4,6 +4,8 @@ mysql-5.1.15-ndb-6.1.X
 
 mysql-5.1.15-ndb-6.1.5 (not released yet)
 
+  Bug #26997 - mysqld segfault when in single user mode
+  Bug #26825 - MySQL Server Crashes in high load
   Bug #25743 - If undo_buffer_size (for LG) greater than the inital shared memory (default 20M), ndbd nodes are crashed
   Bug #26899 - ndb_restore cannot restore selected tables and databases
   Bug #26900 - ndb_restore printout option does not give structured data
