@@ -2866,6 +2866,8 @@ static int init_common_variables(const char *conf_file_name, int argc,
   global_system_variables.character_set_client= default_charset_info;
   global_system_variables.collation_connection= default_charset_info;
 
+  global_system_variables.optimizer_use_mrr= 1;
+
   if (!(character_set_filesystem= 
         get_charset_by_csname(character_set_filesystem_name,
                               MY_CS_PRIMARY, MYF(MY_WME))))
@@ -6129,11 +6131,6 @@ The minimum value for this variable is 4096.",
    "After this many write locks, allow some read locks to run in between.",
    (gptr*) &max_write_lock_count, (gptr*) &max_write_lock_count, 0, GET_ULONG,
    REQUIRED_ARG, ~0L, 1, ~0L, 0, 1, 0},
-  {"multi_range_count", OPT_MULTI_RANGE_COUNT,
-   "Number of key ranges to request at once.",
-   (gptr*) &global_system_variables.multi_range_count,
-   (gptr*) &max_system_variables.multi_range_count, 0,
-   GET_ULONG, REQUIRED_ARG, 256, 1, ~0L, 0, 1, 0},
   {"myisam_block_size", OPT_MYISAM_BLOCK_SIZE,
    "Block size to be used for MyISAM index pages.",
    (gptr*) &opt_myisam_block_size,
@@ -6279,8 +6276,8 @@ The minimum value for this variable is 4096.",
    "When reading rows in sorted order after a sort, the rows are read through this buffer to avoid a disk seeks. If not set, then it's set to the value of record_buffer.",
    (gptr*) &global_system_variables.read_rnd_buff_size,
    (gptr*) &max_system_variables.read_rnd_buff_size, 0,
-   GET_ULONG, REQUIRED_ARG, 256*1024L, IO_SIZE*2+MALLOC_OVERHEAD,
-   SSIZE_MAX, MALLOC_OVERHEAD, IO_SIZE, 0},
+   GET_ULONG, REQUIRED_ARG, 256*1024L, 64 /*IO_SIZE*2+MALLOC_OVERHEAD*/ ,
+   SSIZE_MAX, MALLOC_OVERHEAD, 1 /* Small lower limit to be able to test MRR */, 0},
   {"record_buffer", OPT_RECORD_BUFFER,
    "Alias for read_buffer_size",
    (gptr*) &global_system_variables.read_buff_size,

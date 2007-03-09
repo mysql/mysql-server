@@ -28,6 +28,7 @@ int mi_rnext(MI_INFO *info, byte *buf, int inx)
 {
   int error,changed;
   uint flag;
+  int res= 0;
   DBUG_ENTER("mi_rnext");
 
   if ((inx = _mi_check_index(info,inx)) < 0)
@@ -81,23 +82,33 @@ int mi_rnext(MI_INFO *info, byte *buf, int inx)
     }
   }
 
-  if (info->s->concurrent_insert)
+  if (!error)
   {
-    if (!error)
+    while ((info->s->concurrent_insert &&
+            info->lastpos >= info->state->data_file_length) ||
+           (info->index_cond_func &&
+           !(res= mi_check_index_cond(info, inx, buf))))
     {
-      while (info->lastpos >= info->state->data_file_length)
-      {
-	/* Skip rows inserted by other threads since we got a lock */
-	if  ((error=_mi_search_next(info,info->s->keyinfo+inx,
-				    info->lastkey,
-				    info->lastkey_length,
-				    SEARCH_BIGGER,
-				    info->s->state.key_root[inx])))
-	  break;
-      }
+      /* Skip rows inserted by other threads since we got a lock */
+      if  ((error=_mi_search_next(info,info->s->keyinfo+inx,
+                                  info->lastkey,
+                                  info->lastkey_length,
+                                  SEARCH_BIGGER,
+                                  info->s->state.key_root[inx])))
+        break;
     }
-    rw_unlock(&info->s->key_root_lock[inx]);
+    if (!error && res == 2)
+    {
+      if (info->s->concurrent_insert)
+        rw_unlock(&info->s->key_root_lock[inx]);
+      info->lastpos= HA_OFFSET_ERROR;
+      DBUG_RETURN(my_errno= HA_ERR_END_OF_FILE);
+    }
   }
+  
+  if (info->s->concurrent_insert)
+    rw_unlock(&info->s->key_root_lock[inx]);
+
 	/* Don't clear if database-changed */
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   info->update|= HA_STATE_NEXT_FOUND;

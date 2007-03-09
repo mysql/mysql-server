@@ -19,7 +19,7 @@ Table	Op	Msg_type	Msg_text
 test.t0	analyze	status	OK
 explain select * from t0 where key1 < 3 or key1 > 1020;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	range	i1	i1	4	NULL	78	Using where
+1	SIMPLE	t0	range	i1	i1	4	NULL	78	Using index condition; Using MRR
 explain
 select * from t0 where key1 < 3 or key2 > 1020;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -72,7 +72,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t0	index_merge	i1,i2	i1,i2	4,4	NULL	17	Using sort_union(i1,i2); Using where
 explain select * from t0 where key2 = 45 or key1 <=> null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	range	i1,i2	i2	4	NULL	1	Using where
+1	SIMPLE	t0	range	i1,i2	i2	4	NULL	1	Using where; Using MRR
 explain select * from t0 where key2 = 45 or key1 is not null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t0	ALL	i1,i2	NULL	NULL	NULL	1024	Using where
@@ -115,7 +115,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select * from t0 where
 (key1 < 3 or key2 < 3) and (key3 < 100);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	range	i1,i2,i3	i3	4	NULL	95	Using where
+1	SIMPLE	t0	range	i1,i2,i3	i3	4	NULL	95	Using index condition; Using where; Using MRR
 explain select * from t0 where
 (key1 < 3 or key2 < 3) and (key3 < 1000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -275,7 +275,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select * from t0,t1 where t0.key1 < 3 and
 (t1.key1 = t0.key1 or t1.key8 = t0.key1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	range	i1	i1	4	NULL	3	Using where
+1	SIMPLE	t0	range	i1	i1	4	NULL	3	Using index condition; Using MRR
 1	SIMPLE	t1	ALL	i1,i8	NULL	NULL	NULL	1024	Range checked for each record (index map: 0x81)
 explain select * from t1 where key1=3 or key2=4
 union select * from t1 where key1<4 or key3=5;
@@ -396,13 +396,13 @@ Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 select count(*) from t1;
 count(*)
-8704
+41984
 explain select * from t1 WHERE cola = 'foo' AND colb = 'bar';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	cola,colb	cola,colb	3,3	NULL	32	Using intersect(cola,colb); Using where
+1	SIMPLE	t1	index_merge	cola,colb	cola,colb	3,3	NULL	7	Using intersect(cola,colb); Using where
 explain select * from t1 force index(cola,colb) WHERE cola = 'foo' AND colb = 'bar';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	cola,colb	cola,colb	3,3	NULL	32	Using intersect(cola,colb); Using where
+1	SIMPLE	t1	index_merge	cola,colb	cola,colb	3,3	NULL	7	Using intersect(cola,colb); Using where
 drop table t1;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -1201,19 +1201,19 @@ primary key (pk1, pk2)
 );
 explain select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY,key1	PRIMARY	8	NULL	7	Using where
+1	SIMPLE	t1	range	PRIMARY,key1	PRIMARY	8	NULL	7	Using index condition; Using where; Using MRR
 select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
 pk1	pk2	key1	key2	pktail1ok	pktail2ok	pktail3bad	pktail4bad	pktail5bad	pk2copy	badkey	filler1	filler2
-1	10	0	0	0	0	0	0	0	10	0	filler-data-10	filler2
-1	11	0	0	0	0	0	0	0	11	0	filler-data-11	filler2
-1	12	0	0	0	0	0	0	0	12	0	filler-data-12	filler2
-1	13	0	0	0	0	0	0	0	13	0	filler-data-13	filler2
-1	14	0	0	0	0	0	0	0	14	0	filler-data-14	filler2
-1	15	0	0	0	0	0	0	0	15	0	filler-data-15	filler2
 1	16	0	0	0	0	0	0	0	16	0	filler-data-16	filler2
-1	17	0	0	0	0	0	0	0	17	0	filler-data-17	filler2
-1	18	0	0	0	0	0	0	0	18	0	filler-data-18	filler2
+1	15	0	0	0	0	0	0	0	15	0	filler-data-15	filler2
+1	14	0	0	0	0	0	0	0	14	0	filler-data-14	filler2
+1	13	0	0	0	0	0	0	0	13	0	filler-data-13	filler2
+1	12	0	0	0	0	0	0	0	12	0	filler-data-12	filler2
+1	11	0	0	0	0	0	0	0	11	0	filler-data-11	filler2
+1	10	0	0	0	0	0	0	0	10	0	filler-data-10	filler2
 1	19	0	0	0	0	0	0	0	19	0	filler-data-19	filler2
+1	18	0	0	0	0	0	0	0	18	0	filler-data-18	filler2
+1	17	0	0	0	0	0	0	0	17	0	filler-data-17	filler2
 explain select pk1,pk2 from t1 where key1 = 10 and key2=10 and 2*pk1+1 < 2*96+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index_merge	key1,key2	key1,key2	4,4	NULL	1	Using intersect(key1,key2); Using where

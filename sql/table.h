@@ -318,7 +318,8 @@ struct st_table {
   byte *write_row_record;		/* Used as optimisation in
 					   THD::write_row */
   byte *insert_values;                  /* used by INSERT ... UPDATE */
-  key_map quick_keys, used_keys;
+  key_map quick_keys;
+  key_map used_keys;  /* Indexes that cover all fields used by the query */
 
   /*
     A set of keys that can be used in the query that references this

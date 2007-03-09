@@ -22,7 +22,7 @@
 drop table if exists t1,t2,t3,t4;
 drop database if exists mysqltest;
 --enable_warnings
-
+#set engine_condition_pushdown=0;
 create table t1 (id int unsigned not null auto_increment, code tinyint unsigned not null, name char(20) not null, primary key (id), key (code), unique (name)) engine=innodb;
 
 insert into t1 (code, name) values (1, 'Tim'), (1, 'Monty'), (2, 'David'), (2, 'Erik'), (3, 'Sasha'), (3, 'Jeremy'), (4, 'Matt');
@@ -439,7 +439,6 @@ select count(*) from t1 where sca_pic is null;
 alter table t1 drop index sca_pic, add index sca_pic (cat_code, sca_pic);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 select count(*) from t1 where cat_code='E';
-
 alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 select count(*) from t1 where sca_pic >= 'n';

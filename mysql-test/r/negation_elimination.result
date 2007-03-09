@@ -79,7 +79,7 @@ a
 19
 explain select * from t1 where not(a != 10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	5	const	1	Using where; Using index
+1	SIMPLE	t1	ref	a	a	5	const	1	Using index
 select * from t1 where not(a != 1);
 a
 1

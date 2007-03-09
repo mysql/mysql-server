@@ -460,9 +460,9 @@ def					key	253	64	7	Y	0	31	8
 def					key_len	253	4096	1	Y	128	31	63
 def					ref	253	1024	0	Y	0	31	8
 def					rows	8	10	1	Y	32928	0	63
-def					Extra	253	255	27	N	1	31	8
+def					Extra	253	255	48	N	1	31	8
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	Using where; Using filesort
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	Using index condition; Using MRR; Using filesort
 drop table if exists t2;
 create table t2 (id smallint, name varchar(20)) ;
 prepare stmt1 from ' insert into t2 values(?, ?) ' ;

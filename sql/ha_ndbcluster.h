@@ -665,12 +665,24 @@ class ha_ndbcluster: public handler
   int alter_tablespace(st_alter_tablespace *info);
 
   /**
-   * Multi range stuff
+   * Multi Range Read interface
    */
-  int read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
-                             KEY_MULTI_RANGE*ranges, uint range_count,
-                             bool sorted, HANDLER_BUFFER *buffer);
-  int read_multi_range_next(KEY_MULTI_RANGE **found_range_p);
+  int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
+                            uint n_ranges, uint mode, HANDLER_BUFFER *buf);
+  int multi_range_read_next(char **range_info);
+  ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
+                                      void *seq_init_param, 
+                                      uint n_ranges, uint *bufsz,
+                                      uint *flags, COST_VECT *cost);
+  int multi_range_read_info(uint keyno, uint n_ranges, uint keys,
+                            uint *bufsz, uint *flags, COST_VECT *cost);
+private:
+  uint first_running_range;
+  uint first_range_in_batch;
+  uint first_unstarted_range;
+  int multi_range_start_retrievals(int first_range);
+public:
+
   bool null_value_index_search(KEY_MULTI_RANGE *ranges,
 			       KEY_MULTI_RANGE *end_range,
 			       HANDLER_BUFFER *buffer);
@@ -977,8 +989,6 @@ private:
   Ndb_cond_stack *m_cond_stack;
   bool m_disable_multi_read;
   byte *m_multi_range_result_ptr;
-  KEY_MULTI_RANGE *m_multi_ranges;
-  KEY_MULTI_RANGE *m_multi_range_defined;
   const NdbOperation *m_current_multi_operation;
   NdbIndexScanOperation *m_multi_cursor;
   byte *m_multi_range_cursor_result_ptr;

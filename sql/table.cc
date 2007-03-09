@@ -1154,21 +1154,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                                 share->table_name.str,
                                 share->table_name.str);
             share->crashed= 1;                // Marker for CHECK TABLE
-            goto to_be_deleted;
+            continue;
           }
 #endif
           key_part->key_part_flag|= HA_PART_KEY_SEG;
         }
-
-	to_be_deleted:
-
-        /*
-          If the field can be NULL, don't optimize away the test
-          key_part_column = expression from the WHERE clause
-          as we need to test for NULL = NULL.
-        */
-        if (field->real_maybe_null())
-          key_part->key_part_flag|= HA_NULL_PART;
       }
       keyinfo->usable_key_parts= usable_parts; // Filesort
 

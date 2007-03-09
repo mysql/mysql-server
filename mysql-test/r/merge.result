@@ -625,7 +625,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN SELECT * FROM t1 WHERE fileset_id = 2
 AND file_code BETWEEN '0000000115' AND '0000000120' LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY,files	PRIMARY	35	NULL	5	Using where
+1	SIMPLE	t1	range	PRIMARY,files	PRIMARY	35	NULL	5	Using index condition; Using MRR
 EXPLAIN SELECT * FROM t2 WHERE fileset_id = 2
 AND file_code = '0000000115' LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra

@@ -1,0 +1,277 @@
+drop table if exists t1, t2, t3;
+set @read_rnd_buffer_size_save= @@read_rnd_buffer_size;
+set read_rnd_buffer_size=79;
+select @@read_rnd_buffer_size;
+@@read_rnd_buffer_size
+79
+create table t1(a int);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2(a int);
+insert into t2 select A.a + 10*(B.a + 10*C.a) from t1 A, t1 B, t1 C;
+create table t3 (
+a char(8) not null, b char(8) not null, filler char(200),
+key(a)
+);
+insert into t3 select @a:=concat('c-', 1000+ A.a, '=w'), @a, 'filler' from t2 A;
+insert into t3 select concat('c-', 1000+A.a, '=w'), concat('c-', 2000+A.a, '=w'), 
+'filler-1' from t2 A;
+insert into t3 select concat('c-', 1000+A.a, '=w'), concat('c-', 3000+A.a, '=w'), 
+'filler-2' from t2 A;
+select a,filler from t3 where a >= 'c-9011=w';
+a	filler
+select a,filler from t3 where a >= 'c-1011=w' and a <= 'c-1015=w';
+a	filler
+c-1011=w	filler
+c-1012=w	filler
+c-1013=w	filler
+c-1011=w	filler-1
+c-1012=w	filler-1
+c-1013=w	filler-1
+c-1011=w	filler-2
+c-1012=w	filler-2
+c-1013=w	filler-2
+c-1014=w	filler
+c-1015=w	filler
+c-1014=w	filler-1
+c-1015=w	filler-1
+c-1014=w	filler-2
+c-1015=w	filler-2
+select a,filler from t3 where (a>='c-1011=w' and a <= 'c-1013=w') or
+(a>='c-1014=w' and a <= 'c-1015=w');
+a	filler
+c-1011=w	filler
+c-1012=w	filler
+c-1013=w	filler
+c-1011=w	filler-1
+c-1012=w	filler-1
+c-1013=w	filler-1
+c-1011=w	filler-2
+c-1012=w	filler-2
+c-1013=w	filler-2
+c-1014=w	filler
+c-1015=w	filler
+c-1014=w	filler-1
+c-1015=w	filler-1
+c-1014=w	filler-2
+c-1015=w	filler-2
+insert into t3 values ('c-1013=z', 'c-1013=z', 'err');
+insert into t3 values ('a-1014=w', 'a-1014=w', 'err');
+select a,filler from t3 where (a>='c-1011=w' and a <= 'c-1013=w') or
+(a>='c-1014=w' and a <= 'c-1015=w');
+a	filler
+c-1011=w	filler
+c-1012=w	filler
+c-1013=w	filler
+c-1011=w	filler-1
+c-1012=w	filler-1
+c-1013=w	filler-1
+c-1011=w	filler-2
+c-1012=w	filler-2
+c-1013=w	filler-2
+c-1014=w	filler
+c-1015=w	filler
+c-1014=w	filler-1
+c-1015=w	filler-1
+c-1014=w	filler-2
+c-1015=w	filler-2
+delete from t3 where b in ('c-1013=z', 'a-1014=w');
+select a,filler from t3 where a='c-1011=w' or a='c-1012=w' or a='c-1013=w' or
+a='c-1014=w' or a='c-1015=w';
+a	filler
+c-1011=w	filler
+c-1012=w	filler
+c-1013=w	filler
+c-1011=w	filler-1
+c-1012=w	filler-1
+c-1013=w	filler-1
+c-1011=w	filler-2
+c-1012=w	filler-2
+c-1013=w	filler-2
+c-1014=w	filler
+c-1015=w	filler
+c-1014=w	filler-1
+c-1015=w	filler-1
+c-1014=w	filler-2
+c-1015=w	filler-2
+insert into t3 values ('c-1013=w', 'del-me', 'inserted');
+select a,filler from t3 where a='c-1011=w' or a='c-1012=w' or a='c-1013=w' or
+a='c-1014=w' or a='c-1015=w';
+a	filler
+c-1011=w	filler
+c-1012=w	filler
+c-1013=w	filler
+c-1011=w	filler-1
+c-1012=w	filler-1
+c-1013=w	filler-1
+c-1011=w	filler-2
+c-1012=w	filler-2
+c-1013=w	filler-2
+c-1014=w	filler
+c-1015=w	filler
+c-1014=w	filler-1
+c-1015=w	filler-1
+c-1014=w	filler-2
+c-1015=w	filler-2
+c-1013=w	inserted
+delete from t3 where b='del-me';
+alter table t3 add primary key(b);
+select b,filler from t3 where (b>='c-1011=w' and b<= 'c-1018=w') or 
+b IN ('c-1019=w', 'c-1020=w', 'c-1021=w', 
+'c-1022=w', 'c-1023=w', 'c-1024=w');
+b	filler
+c-1011=w	filler
+c-1012=w	filler
+c-1013=w	filler
+c-1014=w	filler
+c-1015=w	filler
+c-1016=w	filler
+c-1017=w	filler
+c-1018=w	filler
+c-1019=w	filler
+c-1020=w	filler
+c-1021=w	filler
+c-1022=w	filler
+c-1023=w	filler
+c-1024=w	filler
+select b,filler from t3 where (b>='c-1011=w' and b<= 'c-1020=w') or 
+b IN ('c-1021=w', 'c-1022=w', 'c-1023=w');
+b	filler
+c-1011=w	filler
+c-1012=w	filler
+c-1013=w	filler
+c-1014=w	filler
+c-1015=w	filler
+c-1016=w	filler
+c-1017=w	filler
+c-1018=w	filler
+c-1019=w	filler
+c-1020=w	filler
+c-1021=w	filler
+c-1022=w	filler
+c-1023=w	filler
+select b,filler from t3 where (b>='c-1011=w' and b<= 'c-1018=w') or 
+b IN ('c-1019=w', 'c-1020=w') or 
+(b>='c-1021=w' and b<= 'c-1023=w');
+b	filler
+c-1011=w	filler
+c-1012=w	filler
+c-1013=w	filler
+c-1014=w	filler
+c-1015=w	filler
+c-1016=w	filler
+c-1017=w	filler
+c-1018=w	filler
+c-1019=w	filler
+c-1020=w	filler
+c-1021=w	filler
+c-1022=w	filler
+c-1023=w	filler
+create table t4 (a varchar(10), b int, c char(10), filler char(200),
+key idx1 (a, b, c));
+insert into t4 (filler) select concat('NULL-', 15-a) from t2 order by a limit 15;
+insert into t4 (a,b,c,filler) 
+select 'b-1',NULL,'c-1', concat('NULL-', 15-a) from t2 order by a limit 15;
+insert into t4 (a,b,c,filler) 
+select 'b-1',NULL,'c-222', concat('NULL-', 15-a) from t2 order by a limit 15;
+insert into t4 (a,b,c,filler) 
+select 'bb-1',NULL,'cc-2', concat('NULL-', 15-a) from t2 order by a limit 15;
+insert into t4 (a,b,c,filler) 
+select 'zz-1',NULL,'cc-2', 'filler-data' from t2 order by a limit 500;
+explain 
+select * from t4 where a IS NULL and b IS NULL and (c IS NULL or c='no-such-row1'
+                                                      or c='no-such-row2');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	range	idx1	idx1	29	NULL	10	Using index condition; Using MRR
+select * from t4 where a IS NULL and b IS NULL and (c IS NULL or c='no-such-row1'
+                                                    or c='no-such-row2');
+a	b	c	filler
+NULL	NULL	NULL	NULL-15
+NULL	NULL	NULL	NULL-14
+NULL	NULL	NULL	NULL-13
+NULL	NULL	NULL	NULL-12
+NULL	NULL	NULL	NULL-11
+NULL	NULL	NULL	NULL-10
+NULL	NULL	NULL	NULL-9
+NULL	NULL	NULL	NULL-8
+NULL	NULL	NULL	NULL-7
+NULL	NULL	NULL	NULL-6
+NULL	NULL	NULL	NULL-5
+NULL	NULL	NULL	NULL-4
+NULL	NULL	NULL	NULL-3
+NULL	NULL	NULL	NULL-2
+NULL	NULL	NULL	NULL-1
+explain 
+select * from t4 where (a ='b-1' or a='bb-1') and b IS NULL and (c='c-1' or c='cc-2');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	range	idx1	idx1	29	NULL	21	Using index condition; Using MRR
+select * from t4 where (a ='b-1' or a='bb-1') and b IS NULL and (c='c-1' or c='cc-2');
+a	b	c	filler
+b-1	NULL	c-1	NULL-15
+b-1	NULL	c-1	NULL-14
+b-1	NULL	c-1	NULL-13
+b-1	NULL	c-1	NULL-12
+b-1	NULL	c-1	NULL-11
+b-1	NULL	c-1	NULL-10
+b-1	NULL	c-1	NULL-9
+b-1	NULL	c-1	NULL-8
+b-1	NULL	c-1	NULL-7
+b-1	NULL	c-1	NULL-6
+b-1	NULL	c-1	NULL-5
+b-1	NULL	c-1	NULL-4
+b-1	NULL	c-1	NULL-3
+b-1	NULL	c-1	NULL-2
+b-1	NULL	c-1	NULL-1
+bb-1	NULL	cc-2	NULL-15
+bb-1	NULL	cc-2	NULL-14
+bb-1	NULL	cc-2	NULL-13
+bb-1	NULL	cc-2	NULL-12
+bb-1	NULL	cc-2	NULL-11
+bb-1	NULL	cc-2	NULL-10
+bb-1	NULL	cc-2	NULL-9
+bb-1	NULL	cc-2	NULL-8
+bb-1	NULL	cc-2	NULL-7
+bb-1	NULL	cc-2	NULL-6
+bb-1	NULL	cc-2	NULL-5
+bb-1	NULL	cc-2	NULL-4
+bb-1	NULL	cc-2	NULL-3
+bb-1	NULL	cc-2	NULL-2
+bb-1	NULL	cc-2	NULL-1
+select * from t4 ignore index(idx1) where (a ='b-1' or a='bb-1') and b IS NULL and (c='c-1' or c='cc-2');
+a	b	c	filler
+b-1	NULL	c-1	NULL-15
+b-1	NULL	c-1	NULL-14
+b-1	NULL	c-1	NULL-13
+b-1	NULL	c-1	NULL-12
+b-1	NULL	c-1	NULL-11
+b-1	NULL	c-1	NULL-10
+b-1	NULL	c-1	NULL-9
+b-1	NULL	c-1	NULL-8
+b-1	NULL	c-1	NULL-7
+b-1	NULL	c-1	NULL-6
+b-1	NULL	c-1	NULL-5
+b-1	NULL	c-1	NULL-4
+b-1	NULL	c-1	NULL-3
+b-1	NULL	c-1	NULL-2
+b-1	NULL	c-1	NULL-1
+bb-1	NULL	cc-2	NULL-15
+bb-1	NULL	cc-2	NULL-14
+bb-1	NULL	cc-2	NULL-13
+bb-1	NULL	cc-2	NULL-12
+bb-1	NULL	cc-2	NULL-11
+bb-1	NULL	cc-2	NULL-10
+bb-1	NULL	cc-2	NULL-9
+bb-1	NULL	cc-2	NULL-8
+bb-1	NULL	cc-2	NULL-7
+bb-1	NULL	cc-2	NULL-6
+bb-1	NULL	cc-2	NULL-5
+bb-1	NULL	cc-2	NULL-4
+bb-1	NULL	cc-2	NULL-3
+bb-1	NULL	cc-2	NULL-2
+bb-1	NULL	cc-2	NULL-1
+set @@read_rnd_buffer_size= @read_rnd_buffer_size_save;
+drop table t1, t2, t3, t4;

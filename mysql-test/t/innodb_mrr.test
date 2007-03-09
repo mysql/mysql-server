@@ -1,0 +1,47 @@
+-- source include/have_innodb.inc
+
+--disable_warnings
+drop table if exists t1,t2,t3,t4;
+--enable_warnings
+
+set @save_storage_engine= @@storage_engine;
+set storage_engine=InnoDB;
+
+--source include/mrr_tests.inc 
+
+set storage_engine= @save_storage_engine;
+drop table t1, t2, t3, t4;
+
+# Try big rowid sizes
+set @read_rnd_buffer_size_save= @@read_rnd_buffer_size;
+set read_rnd_buffer_size=64;
+
+
+# By default InnoDB will fill values only for key parts used by the query,
+# which will cause DS-MRR to supply an invalid tuple on scan restoration. 
+# Verify that DS-MRR's code extra(HA_EXTRA_RETRIEVE_ALL_COLS) call has effect:
+create table t1(a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2(a char(8), b char(8), c char(8), filler char(100), key(a,b,c) ) engine=InnoDB;
+
+insert into t2 select 
+  concat('a-', 1000 + A.a, '-a'),
+  concat('b-', 1000 + B.a, '-b'),
+  concat('c-', 1000 + C.a, '-c'),
+  'filler'
+from t1 A, t1 B, t1 C;
+
+explain
+select count(length(a) + length(filler)) from t2 where a>='a-1000-a' and a <'a-1001-a';
+select count(length(a) + length(filler)) from t2 where a>='a-1000-a' and a <'a-1001-a';
+drop table t2;
+
+# Try a very big rowid
+create table t2 (a char(100), b char(100), c char(100), d int, 
+                 filler char(10), key(d), primary key (a,b,c)) engine= innodb;
+insert into t2 select A.a, B.a, B.a, A.a, 'filler' from t1 A, t1 B;
+explain select * from t2 force index (d) where d < 10;
+drop table t2;
+
+set @@read_rnd_buffer_size= @read_rnd_buffer_size_save;
+

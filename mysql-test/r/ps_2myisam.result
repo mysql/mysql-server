@@ -1509,8 +1509,8 @@ prepare stmt1 from 'insert into t1 values(?,?),(?,?)';
 execute stmt1 using @arg00, @arg01, @arg02, @arg03 ;
 select a,b from t1 where a in (@arg00,@arg02) ;
 a	b
-81	8-1
 82	8-2
+81	8-1
 set @arg00=9 ;
 set @arg01='nine' ;
 prepare stmt1 from 'insert into t1 set a=?, b=? ';
