@@ -3611,3 +3611,12 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	range	si,ai	si	5	NULL	2	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	Using where
 DROP TABLE t1,t2,t3;
+CREATE TABLE t1 (a INT, b INT, KEY (a));
+INSERT INTO t1 VALUES (1,1),(2,2);
+EXPLAIN SELECT 1 FROM t1 WHERE a = 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a	a	5	const	1	Using where; Using index
+EXPLAIN SELECT 1 FROM t1 IGNORE INDEX FOR JOIN (a) WHERE a = 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+DROP TABLE t1;
