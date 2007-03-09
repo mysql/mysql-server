@@ -1121,23 +1121,22 @@ int ha_myisam::assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt)
   KEY_CACHE *new_key_cache= check_opt->key_cache;
   const char *errmsg= 0;
   int error= HA_ADMIN_OK;
-  ulonglong map= ~(ulonglong) 0;
+  ulonglong map;
   TABLE_LIST *table_list= table->pos_in_table_list;
   DBUG_ENTER("ha_myisam::assign_to_keycache");
 
-  /* Check validity of the index references */
-  if (table_list->use_index)
+  table->keys_in_use_for_query.clear_all();
+
+  if (table_list->process_index_hints(table))
   {
-    /* We only come here when the user did specify an index map */
-    key_map kmap;
-    if (get_key_map_from_key_list(&kmap, table, table_list->use_index))
-    {
-      errmsg= thd->net.last_error;
-      error= HA_ADMIN_FAILED;
-      goto err;
-    }
-    map= kmap.to_ulonglong();
+    errmsg= thd->net.last_error;
+    error= HA_ADMIN_FAILED;
+    goto err;
   }
+  map= ~(ulonglong) 0;
+  if (!table->keys_in_use_for_query.is_clear_all())
+    /* use all keys if there's no list specified by the user through hints */
+    map= table->keys_in_use_for_query.to_ulonglong();
 
   if ((error= mi_assign_to_key_cache(file, map, new_key_cache)))
   { 
@@ -1173,26 +1172,26 @@ int ha_myisam::preload_keys(THD* thd, HA_CHECK_OPT *check_opt)
 {
   int error;
   const char *errmsg;
-  ulonglong map= ~(ulonglong) 0;
+  ulonglong map;
   TABLE_LIST *table_list= table->pos_in_table_list;
   my_bool ignore_leaves= table_list->ignore_leaves;
 
   DBUG_ENTER("ha_myisam::preload_keys");
 
-  /* Check validity of the index references */
-  if (table_list->use_index)
+  table->keys_in_use_for_query.clear_all();
+
+  if (table_list->process_index_hints(table))
   {
-    key_map kmap;
-    get_key_map_from_key_list(&kmap, table, table_list->use_index);
-    if (kmap.is_set_all())
-    {
-      errmsg= thd->net.last_error;
-      error= HA_ADMIN_FAILED;
-      goto err;
-    }
-    if (!kmap.is_clear_all())
-      map= kmap.to_ulonglong();
+    errmsg= thd->net.last_error;
+    error= HA_ADMIN_FAILED;
+    goto err;
   }
+
+  map= ~(ulonglong) 0;
+  /* Check validity of the index references */
+  if (!table->keys_in_use_for_query.is_clear_all())
+    /* use all keys if there's no list specified by the user through hints */
+    map= table->keys_in_use_for_query.to_ulonglong();
 
   mi_extra(file, HA_EXTRA_PRELOAD_BUFFER_SIZE,
            (void *) &thd->variables.preload_buff_size);
