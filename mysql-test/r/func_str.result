@@ -2293,4 +2293,16 @@ NULL
 SELECT UNHEX('G') IS NULL;
 UNHEX('G') IS NULL
 1
+SELECT INSERT('abc', 3, 3, '1234');
+INSERT('abc', 3, 3, '1234')
+ab1234
+SELECT INSERT('abc', 4, 3, '1234');
+INSERT('abc', 4, 3, '1234')
+abc1234
+SELECT INSERT('abc', 5, 3, '1234');
+INSERT('abc', 5, 3, '1234')
+abc
+SELECT INSERT('abc', 6, 3, '1234');
+INSERT('abc', 6, 3, '1234')
+abc
 End of 5.0 tests
