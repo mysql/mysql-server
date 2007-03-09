@@ -4157,7 +4157,7 @@ ST_FIELD_INFO stat_fields_info[]=
   {"SEQ_IN_INDEX", 2, MYSQL_TYPE_LONG, 0, 0, "Seq_in_index"},
   {"COLUMN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Column_name"},
   {"COLLATION", 1, MYSQL_TYPE_STRING, 0, 1, "Collation"},
-  {"CARDINALITY", MY_INT32_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 1, "Cardinality"},
+  {"CARDINALITY", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 1, "Cardinality"},
   {"SUB_PART", 3, MYSQL_TYPE_LONG, 0, 1, "Sub_part"},
   {"PACKED", 10, MYSQL_TYPE_STRING, 0, 1, "Packed"},
   {"NULLABLE", 3, MYSQL_TYPE_STRING, 0, 0, "Null"},
