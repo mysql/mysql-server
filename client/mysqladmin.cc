@@ -40,7 +40,7 @@ ulonglong last_values[MAX_MYSQL_VAR];
 static int interval=0;
 static my_bool option_force=0,interrupted=0,new_line=0,
                opt_compress=0, opt_relative=0, opt_verbose=0, opt_vertical=0,
-               tty_password= 0, info_flag= 0;
+               tty_password= 0, info_flag= 0, opt_nobeep;
 static uint tcp_port = 0, option_wait = 0, option_silent=0, nr_iterations,
             opt_count_iterations= 0;
 static ulong opt_connect_timeout, opt_shutdown_timeout;
@@ -54,6 +54,7 @@ static char *opt_ndb_connectstring=0;
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
+static myf error_flags; /* flags to pass to my_printf_error, like ME_BELL */
 
 /*
   When using extended-status relatively, ex_val_max_len is the estimated
@@ -154,6 +155,8 @@ static struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host.", (gptr*) &host, (gptr*) &host, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"no-beep", 'b', "Turn off beep on error.", (gptr*) &opt_nobeep,
+   (gptr*) &opt_nobeep, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0}, 
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -352,6 +355,8 @@ int main(int argc,char *argv[])
 #endif
   if (default_charset)
     mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
+  error_flags= (myf)(opt_nobeep ? 0 : ME_BELL);
+
   if (sql_connect(&mysql, option_wait))
   {
     unsigned int err= mysql_errno(&mysql);
@@ -450,7 +455,7 @@ static my_bool sql_connect(MYSQL *mysql, uint wait)
 	if (!host)
 	  host= (char*) LOCAL_HOST;
 	my_printf_error(0,"connect to server at '%s' failed\nerror: '%s'",
-			MYF(ME_BELL), host, mysql_error(mysql));
+			error_flags, host, mysql_error(mysql));
 	if (mysql_errno(mysql) == CR_CONNECTION_ERROR)
 	{
 	  fprintf(stderr,
@@ -525,14 +530,14 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       char buff[FN_REFLEN+20];
       if (argc < 2)
       {
-	my_printf_error(0,"Too few arguments to create",MYF(ME_BELL));
+	my_printf_error(0, "Too few arguments to create", error_flags);
 	return 1;
       }
       sprintf(buff,"create database `%.*s`",FN_REFLEN,argv[1]);
       if (mysql_query(mysql,buff))
       {
 	my_printf_error(0,"CREATE DATABASE failed; error: '%-.200s'",
-			MYF(ME_BELL), mysql_error(mysql));
+			error_flags, mysql_error(mysql));
 	return -1;
       }
       argc--; argv++;
@@ -542,7 +547,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     {
       if (argc < 2)
       {
-	my_printf_error(0,"Too few arguments to drop",MYF(ME_BELL));
+	my_printf_error(0, "Too few arguments to drop", error_flags);
 	return 1;
       }
       if (drop_db(mysql,argv[1]))
@@ -567,7 +572,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 
       if (mysql_shutdown(mysql, SHUTDOWN_DEFAULT))
       {
-	my_printf_error(0,"shutdown failed; error: '%s'",MYF(ME_BELL),
+	my_printf_error(0, "shutdown failed; error: '%s'", error_flags,
 			mysql_error(mysql));
 	return -1;
       }
@@ -588,7 +593,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     case ADMIN_RELOAD:
       if (mysql_query(mysql,"flush privileges"))
       {
-	my_printf_error(0,"reload failed; error: '%s'",MYF(ME_BELL),
+	my_printf_error(0, "reload failed; error: '%s'", error_flags,
 			mysql_error(mysql));
 	return -1;
       }
@@ -599,7 +604,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 				 REFRESH_READ_LOCK | REFRESH_SLAVE |
 				 REFRESH_MASTER)))
       {
-	my_printf_error(0,"refresh failed; error: '%s'",MYF(ME_BELL),
+	my_printf_error(0, "refresh failed; error: '%s'", error_flags,
 			mysql_error(mysql));
 	return -1;
       }
@@ -607,7 +612,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     case ADMIN_FLUSH_THREADS:
       if (mysql_refresh(mysql,(uint) REFRESH_THREADS))
       {
-	my_printf_error(0,"refresh failed; error: '%s'",MYF(ME_BELL),
+	my_printf_error(0, "refresh failed; error: '%s'", error_flags,
 			mysql_error(mysql));
 	return -1;
       }
@@ -651,7 +656,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 			      "show processlist")) ||
 	  !(result = mysql_store_result(mysql)))
       {
-	my_printf_error(0,"process list failed; error: '%s'",MYF(ME_BELL),
+	my_printf_error(0, "process list failed; error: '%s'", error_flags,
 			mysql_error(mysql));
 	return -1;
       }
@@ -674,7 +679,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 	char *pos;
 	if (argc < 2)
 	{
-	  my_printf_error(0,"Too few arguments to 'kill'",MYF(ME_BELL));
+	  my_printf_error(0, "Too few arguments to 'kill'", error_flags);
 	  return 1;
 	}
 	pos=argv[1];
@@ -682,7 +687,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 	{
 	  if (mysql_kill(mysql,(ulong) atol(pos)))
 	  {
-	    my_printf_error(0,"kill failed on %ld; error: '%s'",MYF(ME_BELL),
+	    my_printf_error(0, "kill failed on %ld; error: '%s'", error_flags,
 			    atol(pos), mysql_error(mysql));
 	    error=1;
 	  }
@@ -698,7 +703,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     case ADMIN_DEBUG:
       if (mysql_dump_debug_info(mysql))
       {
-	my_printf_error(0,"debug failed; error: '%s'",MYF(ME_BELL),
+	my_printf_error(0, "debug failed; error: '%s'", error_flags,
 			mysql_error(mysql));
 	return -1;
       }
@@ -712,7 +717,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       if (mysql_query(mysql,"show /*!40003 GLOBAL */ variables") ||
 	  !(res=mysql_store_result(mysql)))
       {
-	my_printf_error(0,"unable to show variables; error: '%s'",MYF(ME_BELL),
+	my_printf_error(0, "unable to show variables; error: '%s'", error_flags,
 			mysql_error(mysql));
 	return -1;
       }
@@ -734,7 +739,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       if (mysql_query(mysql, "show /*!50002 GLOBAL */ status") ||
 	  !(res = mysql_store_result(mysql)))
       {
-	my_printf_error(0, "unable to show status; error: '%s'", MYF(ME_BELL),
+	my_printf_error(0, "unable to show status; error: '%s'", error_flags,
 			mysql_error(mysql));
 	return -1;
       }
@@ -784,7 +789,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     {
       if (mysql_refresh(mysql,REFRESH_LOG))
       {
-	my_printf_error(0,"refresh failed; error: '%s'",MYF(ME_BELL),
+	my_printf_error(0, "refresh failed; error: '%s'", error_flags,
 			mysql_error(mysql));
 	return -1;
       }
@@ -794,7 +799,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     {
       if (mysql_query(mysql,"flush hosts"))
       {
-	my_printf_error(0,"refresh failed; error: '%s'",MYF(ME_BELL),
+	my_printf_error(0, "refresh failed; error: '%s'", error_flags,
 			mysql_error(mysql));
 	return -1;
       }
@@ -804,7 +809,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     {
       if (mysql_query(mysql,"flush tables"))
       {
-	my_printf_error(0,"refresh failed; error: '%s'",MYF(ME_BELL),
+	my_printf_error(0, "refresh failed; error: '%s'", error_flags,
 			mysql_error(mysql));
 	return -1;
       }
@@ -814,7 +819,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     {
       if (mysql_query(mysql,"flush status"))
       {
-	my_printf_error(0,"refresh failed; error: '%s'",MYF(ME_BELL),
+	my_printf_error(0, "refresh failed; error: '%s'", error_flags,
 			mysql_error(mysql));
 	return -1;
       }
@@ -831,7 +836,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 
       if (argc < 2)
       {
-	my_printf_error(0,"Too few arguments to change password",MYF(ME_BELL));
+	my_printf_error(0, "Too few arguments to change password", error_flags);
 	return 1;
       }
       if (argv[1][0])
@@ -854,7 +859,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
           if (mysql_query(mysql, "SHOW VARIABLES LIKE 'old_passwords'"))
           {
             my_printf_error(0, "Could not determine old_passwords setting from server; error: '%s'",
-                	    MYF(ME_BELL),mysql_error(mysql));
+                	    error_flags, mysql_error(mysql));
             return -1;
           }
           else
@@ -865,7 +870,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
               my_printf_error(0,
                               "Could not get old_passwords setting from "
                               "server; error: '%s'",
-        		      MYF(ME_BELL),mysql_error(mysql));
+        		      error_flags, mysql_error(mysql));
               return -1;
             }
             if (!mysql_num_rows(res))
@@ -890,7 +895,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       if (mysql_query(mysql,"set sql_log_off=1"))
       {
 	my_printf_error(0, "Can't turn off logging; error: '%s'",
-			MYF(ME_BELL),mysql_error(mysql));
+			error_flags, mysql_error(mysql));
 	return -1;
       }
       if (mysql_query(mysql,buff))
@@ -898,7 +903,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 	if (mysql_errno(mysql)!=1290)
 	{
 	  my_printf_error(0,"unable to change password; error: '%s'",
-			  MYF(ME_BELL),mysql_error(mysql));
+			  error_flags, mysql_error(mysql));
 	  return -1;
 	}
 	else
@@ -912,7 +917,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 			  " with grant tables disabled (was started with"
 			  " --skip-grant-tables).\n"
 			  "Use: \"mysqladmin flush-privileges password '*'\""
-			  " instead", MYF(ME_BELL));
+			  " instead", error_flags);
 	  return -1;
 	}
       }
@@ -923,7 +928,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     case ADMIN_START_SLAVE:
       if (mysql_query(mysql, "START SLAVE"))
       {
-	my_printf_error(0, "Error starting slave: %s", MYF(ME_BELL),
+	my_printf_error(0, "Error starting slave: %s", error_flags,
 			mysql_error(mysql));
 	return -1;
       }
@@ -933,7 +938,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     case ADMIN_STOP_SLAVE:
       if (mysql_query(mysql, "STOP SLAVE"))
       {
-	  my_printf_error(0, "Error stopping slave: %s", MYF(ME_BELL),
+	  my_printf_error(0, "Error stopping slave: %s", error_flags,
 			  mysql_error(mysql));
 	  return -1;
       }
@@ -959,7 +964,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 	else
 	{
 	  my_printf_error(0,"mysqld doesn't answer to ping, error: '%s'",
-			  MYF(ME_BELL),mysql_error(mysql));
+			  error_flags, mysql_error(mysql));
 	  return -1;
 	}
       }
@@ -970,7 +975,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     {
       if (argc < 2)
       {
-	my_printf_error(0,"Too few arguments to ndb-mgm",MYF(ME_BELL));
+	my_printf_error(0, "Too few arguments to ndb-mgm", error_flags);
 	return 1;
       }
       {
@@ -984,7 +989,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     break;
 #endif
     default:
-      my_printf_error(0,"Unknown command: '%-.60s'",MYF(ME_BELL),argv[0]);
+      my_printf_error(0, "Unknown command: '%-.60s'", error_flags, argv[0]);
       return 1;
     }
   }
@@ -1062,7 +1067,7 @@ static int drop_db(MYSQL *mysql, const char *db)
   sprintf(name_buff,"drop database `%.*s`",FN_REFLEN,db);
   if (mysql_query(mysql,name_buff))
   {
-    my_printf_error(0,"DROP DATABASE %s failed;\nerror: '%s'",MYF(ME_BELL),
+    my_printf_error(0, "DROP DATABASE %s failed;\nerror: '%s'", error_flags,
 		    db,mysql_error(mysql));
     return 1;
   }
@@ -1287,7 +1292,7 @@ static my_bool get_pidfile(MYSQL *mysql, char *pidfile)
 
   if (mysql_query(mysql, "SHOW VARIABLES LIKE 'pid_file'"))
   {
-    my_printf_error(0,"query failed; error: '%s'",MYF(ME_BELL),
+    my_printf_error(0, "query failed; error: '%s'", error_flags,
 		    mysql_error(mysql));
   }
   result = mysql_store_result(mysql);
