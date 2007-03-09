@@ -3759,9 +3759,7 @@ Dbdict::execCREATE_TABLE_REQ(Signal* signal){
       break;
     }
 
-    if(getNodeState().getSingleUserMode() &&
-       (refToNode(signal->getSendersBlockRef()) !=
-        getNodeState().getSingleUserApi()))
+    if (checkSingleUserMode(signal->getSendersBlockRef()))
     {
       jam();
       parseRecord.errorCode = CreateTableRef::SingleUser;
@@ -3960,9 +3958,7 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
     return;
   }
   
-  if(getNodeState().getSingleUserMode() &&
-     (refToNode(signal->getSendersBlockRef()) !=
-      getNodeState().getSingleUserApi()))
+  if (checkSingleUserMode(signal->getSendersBlockRef()))
   {
     jam();
     alterTableRef(signal, req, AlterTableRef::SingleUser);
@@ -6568,9 +6564,7 @@ Dbdict::execDROP_TABLE_REQ(Signal* signal){
     return;
   }
   
-  if(getNodeState().getSingleUserMode() &&
-     (refToNode(signal->getSendersBlockRef()) !=
-      getNodeState().getSingleUserApi()))
+  if (checkSingleUserMode(signal->getSendersBlockRef()))
   {
     jam();
     dropTableRef(signal, req, DropTableRef::SingleUser);
@@ -7785,9 +7779,7 @@ Dbdict::execCREATE_INDX_REQ(Signal* signal)
         jam();
         tmperr = CreateIndxRef::Busy;
       }
-      else if(getNodeState().getSingleUserMode() &&
-              (refToNode(senderRef) !=
-               getNodeState().getSingleUserApi()))
+      else if (checkSingleUserMode(senderRef))
       {
         jam();
         tmperr = CreateIndxRef::SingleUser;
@@ -8435,9 +8427,7 @@ Dbdict::execDROP_INDX_REQ(Signal* signal)
         jam();
         tmperr = DropIndxRef::Busy;
       }
-      else if(getNodeState().getSingleUserMode() &&
-              (refToNode(senderRef) !=
-               getNodeState().getSingleUserApi()))
+      else if (checkSingleUserMode(senderRef))
       {
         jam();
         tmperr = DropIndxRef::SingleUser;
@@ -16358,5 +16348,20 @@ Dbdict::send_drop_fg(Signal* signal, SchemaOp* op,
   
   sendSignal(ref, GSN_DROP_FILEGROUP_REQ, signal, 
 	     DropFilegroupImplReq::SignalLength, JBB);
+}
+
+/*
+  return 1 if all of the below is true
+  a) node in single user mode
+  b) senderRef is not a db node
+  c) senderRef nodeid is not the singleUserApi
+*/
+int Dbdict::checkSingleUserMode(Uint32 senderRef)
+{
+  Uint32 nodeId = refToNode(senderRef);
+  return
+    getNodeState().getSingleUserMode() &&
+    (getNodeInfo(nodeId).m_type != NodeInfo::DB) &&
+    (nodeId != getNodeState().getSingleUserApi());
 }
 
