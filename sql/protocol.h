@@ -103,11 +103,11 @@ public:
 
 /* Class used for the old (MySQL 4.0 protocol) */
 
-class Protocol_simple :public Protocol
+class Protocol_text :public Protocol
 {
 public:
-  Protocol_simple() {}
-  Protocol_simple(THD *thd_arg) :Protocol(thd_arg) {}
+  Protocol_text() {}
+  Protocol_text(THD *thd_arg) :Protocol(thd_arg) {}
   virtual void prepare_for_resend();
   virtual bool store_null();
   virtual bool store_tiny(longlong from);
@@ -130,13 +130,13 @@ public:
 };
 
 
-class Protocol_prep :public Protocol
+class Protocol_binary :public Protocol
 {
 private:
   uint bit_fields;
 public:
-  Protocol_prep() {}
-  Protocol_prep(THD *thd_arg) :Protocol(thd_arg) {}
+  Protocol_binary() {}
+  Protocol_binary(THD *thd_arg) :Protocol(thd_arg) {}
   virtual bool prepare_for_send(List<Item> *item_list);
   virtual void prepare_for_resend();
 #ifdef EMBEDDED_LIBRARY
