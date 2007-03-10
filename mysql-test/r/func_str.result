@@ -1946,4 +1946,15 @@ NULL
 SELECT UNHEX('G') IS NULL;
 UNHEX('G') IS NULL
 1
+create table t1(f1 longtext);
+insert into t1 values ("123"),("456");
+select substring(f1,1,1) from t1 group by 1;
+substring(f1,1,1)
+1
+4
+create table t2(f1 varchar(3));
+insert into t1 values ("123"),("456");
+select substring(f1,4,1), substring(f1,-4,1) from t2;
+substring(f1,4,1)	substring(f1,-4,1)
+drop table t1,t2;
 End of 5.0 tests
