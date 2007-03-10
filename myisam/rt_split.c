@@ -268,13 +268,15 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
                                    info->s->base.rec_reflength);
 
   int max_keys = (mi_getint(page)-2) / (full_length);
+  DBUG_ENTER("rtree_split_page");
+  DBUG_PRINT("rtree", ("splitting block"));
 
   n_dim = keyinfo->keysegs / 2;
   
   if (!(coord_buf= (double*) my_alloca(n_dim * 2 * sizeof(double) *
 				       (max_keys + 1 + 4) +
 				       sizeof(SplitStruct) * (max_keys + 1))))
-    return -1;
+    DBUG_RETURN(-1); /* purecov: inspected */
 
   task= (SplitStruct *)(coord_buf + n_dim * 2 * (max_keys + 1 + 4));
 
@@ -346,12 +348,13 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
   else
     err_code= _mi_write_keypage(info, keyinfo, *new_page_offs,
                                 DFLT_INIT_HITS, new_page);
+  DBUG_PRINT("rtree", ("split new block: %lu", (ulong) *new_page_offs));
 
   my_afree((byte*)new_page);
 
 split_err:
   my_afree((byte*) coord_buf);
-  return err_code;
+  DBUG_RETURN(err_code);
 }
 
 #endif /*HAVE_RTREE_KEYS*/
