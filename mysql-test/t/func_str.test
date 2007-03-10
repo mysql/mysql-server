@@ -1014,4 +1014,15 @@ select lpad('abc', cast(5 as unsigned integer), 'x');
 SELECT UNHEX('G');
 SELECT UNHEX('G') IS NULL;
 
+#
+# Bug#15757: Wrong SUBSTRING() result when a tmp table was employed.
+#
+create table t1(f1 longtext);
+insert into t1 values ("123"),("456");
+select substring(f1,1,1) from t1 group by 1;
+create table t2(f1 varchar(3));
+insert into t1 values ("123"),("456");
+select substring(f1,4,1), substring(f1,-4,1) from t2;
+drop table t1,t2;
+
 --echo End of 5.0 tests
