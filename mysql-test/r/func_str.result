@@ -1309,12 +1309,12 @@ explain extended select encode(f1,'zxcv') as 'enc' from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select encode(`test`.`t1`.`f1`,_latin1'zxcv') AS `enc` from `test`.`t1`
+Note	1003	select encode('',_latin1'zxcv') AS `enc` from `test`.`t1`
 explain extended select decode(f1,'zxcv') as 'enc' from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select decode(`test`.`t1`.`f1`,_latin1'zxcv') AS `enc` from `test`.`t1`
+Note	1003	select decode('',_latin1'zxcv') AS `enc` from `test`.`t1`
 drop table t1;
 End of 4.1 tests
 create table t1 (d decimal default null);
@@ -1378,7 +1378,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	const	PRIMARY	PRIMARY	12	const	1	100.00	Using index
 1	SIMPLE	t1	ref	code	code	13	const	3	100.00	Using where; Using index
 Warnings:
-Note	1003	select `test`.`t1`.`code` AS `code`,`test`.`t2`.`id` AS `id` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`code` = _latin1'a12') and (length(`test`.`t1`.`code`) = 5))
+Note	1003	select `test`.`t1`.`code` AS `code`,'a12' AS `id` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`code` = _latin1'a12') and (length(`test`.`t1`.`code`) = 5))
 DROP TABLE t1,t2;
 select encode(NULL, NULL);
 encode(NULL, NULL)
@@ -2273,6 +2273,17 @@ abcxx
 select lpad('abc', cast(5 as unsigned integer), 'x');
 lpad('abc', cast(5 as unsigned integer), 'x')
 xxabc
+create table t1(f1 longtext);
+insert into t1 values ("123"),("456");
+select substring(f1,1,1) from t1 group by 1;
+substring(f1,1,1)
+1
+4
+create table t2(f1 varchar(3));
+insert into t1 values ("123"),("456");
+select substring(f1,4,1), substring(f1,-4,1) from t2;
+substring(f1,4,1)	substring(f1,-4,1)
+drop table t1,t2;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE `t1` (
 `id` varchar(20) NOT NULL,
@@ -2293,4 +2304,16 @@ NULL
 SELECT UNHEX('G') IS NULL;
 UNHEX('G') IS NULL
 1
+SELECT INSERT('abc', 3, 3, '1234');
+INSERT('abc', 3, 3, '1234')
+ab1234
+SELECT INSERT('abc', 4, 3, '1234');
+INSERT('abc', 4, 3, '1234')
+abc1234
+SELECT INSERT('abc', 5, 3, '1234');
+INSERT('abc', 5, 3, '1234')
+abc
+SELECT INSERT('abc', 6, 3, '1234');
+INSERT('abc', 6, 3, '1234')
+abc
 End of 5.0 tests
