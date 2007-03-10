@@ -4705,7 +4705,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
 {
   uint found=0;
   ulong found_access=0;
-#ifndef EMBEDDED_LIBRARY
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   TABLE_LIST *org_tables= tables;
 #endif
   TABLE_LIST *first_not_own_table= thd->lex->first_not_own_table();
