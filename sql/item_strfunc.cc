@@ -1181,11 +1181,10 @@ void Item_func_substr::fix_length_and_dec()
   if (args[1]->const_item())
   {
     int32 start= (int32) args[1]->val_int();
-    start= (int32)((start < 0) ? max_length + start : start - 1);
-    if (start < 0 || start >= (int32) max_length)
-      max_length=0; /* purecov: inspected */
+    if (start < 0)
+      max_length= ((uint)(-start) > max_length) ? 0 : (uint)(-start);
     else
-      max_length-= (uint) start;
+      max_length-= min((uint)(start - 1), max_length);
   }
   if (arg_count == 3 && args[2]->const_item())
   {
