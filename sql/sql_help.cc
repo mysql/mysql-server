@@ -567,7 +567,7 @@ SQL_SELECT *prepare_simple_select(THD *thd, Item *cond,
     cond->fix_fields(thd, &cond);	// can never fail
 
   /* Assume that no indexes cover all required fields */
-  table->used_keys.clear_all();
+  table->covering_keys.clear_all();
 
   SQL_SELECT *res= make_select(table, 0, 0, cond, 0, error);
   if (*error || (res && res->check_quick(thd, 0, HA_POS_ERROR)) ||

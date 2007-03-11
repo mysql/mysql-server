@@ -1851,8 +1851,6 @@ bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   table->const_table=0;
   table->null_row= table->maybe_null= table->force_index= 0;
   table->status=STATUS_NO_RECORD;
-  table->keys_in_use_for_query= share->keys_in_use;
-  table->used_keys= share->keys_for_keyread;
   DBUG_RETURN(FALSE);
 }
 
@@ -2271,9 +2269,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->const_table=0;
   table->null_row= table->maybe_null= table->force_index= 0;
   table->status=STATUS_NO_RECORD;
-  table->keys_in_use_for_query= table->s->keys_in_use;
   table->insert_values= 0;
-  table->used_keys= table->s->keys_for_keyread;
   table->fulltext_searched= 0;
   table->file->ft_handler= 0;
   if (table->timestamp_field)
@@ -2358,8 +2354,6 @@ static bool reopen_table(TABLE *table)
   tmp.null_row=		table->null_row;
   tmp.maybe_null=	table->maybe_null;
   tmp.status=		table->status;
-  tmp.keys_in_use_for_query= tmp.s->keys_in_use;
-  tmp.used_keys= 	tmp.s->keys_for_keyread;
 
   tmp.s->table_map_id=  table->s->table_map_id;
 
@@ -3820,7 +3814,7 @@ static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
       been set for all fields (for example for view).
     */
       
-    table->used_keys.intersect(field->part_of_key);
+    table->covering_keys.intersect(field->part_of_key);
     table->merge_keys.merge(field->part_of_key);
 
     if (thd->mark_used_columns == MARK_COLUMNS_READ)
@@ -5060,7 +5054,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
         TABLE *table_1= nj_col_1->table_ref->table;
         /* Mark field_1 used for table cache. */
         bitmap_set_bit(table_1->read_set, field_1->field_index);
-        table_1->used_keys.intersect(field_1->part_of_key);
+        table_1->covering_keys.intersect(field_1->part_of_key);
         table_1->merge_keys.merge(field_1->part_of_key);
       }
       if (field_2)
@@ -5068,7 +5062,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
         TABLE *table_2= nj_col_2->table_ref->table;
         /* Mark field_2 used for table cache. */
         bitmap_set_bit(table_2->read_set, field_2->field_index);
-        table_2->used_keys.intersect(field_2->part_of_key);
+        table_2->covering_keys.intersect(field_2->part_of_key);
         table_2->merge_keys.merge(field_2->part_of_key);
       }
 
@@ -5704,30 +5698,8 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
       tablenr= 0;
     }
     setup_table_map(table, table_list, tablenr);
-    table->used_keys= table->s->keys_for_keyread;
-    table->merge_keys.clear_all();
-    if (table_list->use_index)
-    {
-      key_map map;
-      get_key_map_from_key_list(&map, table, table_list->use_index);
-      if (map.is_set_all())
-	DBUG_RETURN(1);
-      /* 
-	 Don't introduce keys in keys_in_use_for_query that weren't there 
-	 before. FORCE/USE INDEX should not add keys, it should only remove
-	 all keys except the key(s) specified in the hint.
-      */
-      table->keys_in_use_for_query.intersect(map);
-    }
-    if (table_list->ignore_index)
-    {
-      key_map map;
-      get_key_map_from_key_list(&map, table, table_list->ignore_index);
-      if (map.is_set_all())
-	DBUG_RETURN(1);
-      table->keys_in_use_for_query.subtract(map);
-    }
-    table->used_keys.intersect(table->keys_in_use_for_query);
+    if (table_list->process_index_hints(table))
+      DBUG_RETURN(1);
   }
   if (tablenr > MAX_TABLES)
   {
@@ -6009,7 +5981,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
         bitmap_set_bit(field->table->read_set, field->field_index);
         if (table)
         {
-          table->used_keys.intersect(field->part_of_key);
+          table->covering_keys.intersect(field->part_of_key);
           table->merge_keys.merge(field->part_of_key);
         }
         if (tables->is_natural_join)
@@ -6027,7 +5999,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
           if (field_table)
           {
             thd->used_tables|= field_table->map;
-            field_table->used_keys.intersect(field->part_of_key);
+            field_table->covering_keys.intersect(field->part_of_key);
             field_table->merge_keys.merge(field->part_of_key);
             field_table->used_fields++;
           }

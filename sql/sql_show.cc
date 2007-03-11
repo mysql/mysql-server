@@ -2266,8 +2266,7 @@ int make_table_list(THD *thd, SELECT_LEX *sel,
   ident_table.length= strlen(table);
   table_ident= new Table_ident(thd, ident_db, ident_table, 1);
   sel->init_query();
-  if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ,
-                             (List<String> *) 0, (List<String> *) 0))
+  if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ))
     return 1;
   return 0;
 }
@@ -5033,8 +5032,7 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
                   strlen(schema_table->table_name), 0);
   if (schema_table->old_format(thd, schema_table) ||   /* Handle old syntax */
       !sel->add_table_to_list(thd, new Table_ident(thd, db, table, 0),
-                              0, 0, TL_READ, (List<String> *) 0,
-                              (List<String> *) 0))
+                              0, 0, TL_READ))
   {
     DBUG_RETURN(1);
   }
