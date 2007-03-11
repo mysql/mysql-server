@@ -1303,6 +1303,7 @@ public:
   Item *safe_charset_converter(CHARSET_INFO *tocs);
   int fix_outer_field(THD *thd, Field **field, Item **reference);
   virtual Item *update_value_transformer(byte *select_arg);
+  void print(String *str);
   friend class Item_default_value;
   friend class Item_insert_value;
   friend class st_select_lex_unit;
