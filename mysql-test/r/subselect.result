@@ -50,7 +50,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Note	1276	Field or reference 'a' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'b.a' of SELECT #3 was resolved in SELECT #1
-Note	1003	select 1 AS `1` from (select 1 AS `a`) `b` having ((select `b`.`a` AS `a`) = 1)
+Note	1003	select 1 AS `1` from (select 1 AS `a`) `b` having ((select '1' AS `a`) = 1)
 SELECT 1 FROM (SELECT 1 as a) as b HAVING (SELECT a)=1;
 1
 1
@@ -204,7 +204,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using filesort
 Warnings:
-Note	1003	select (select `test`.`t3`.`a` AS `a` from `test`.`t3` where (`test`.`t3`.`a` < 8) order by 1 desc limit 1) AS `(select t3.a from t3 where a<8 order by 1 desc limit 1)`,`tt`.`a` AS `a` from (select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`a` > 1)) `tt`
+Note	1003	select (select `test`.`t3`.`a` AS `a` from `test`.`t3` where (`test`.`t3`.`a` < 8) order by 1 desc limit 1) AS `(select t3.a from t3 where a<8 order by 1 desc limit 1)`,'2' AS `a` from (select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`a` > 1)) `tt`
 select * from t1 where t1.a=(select t2.a from t2 where t2.b=(select max(a) from t3) order by 1 desc limit 1);
 a
 2
@@ -315,7 +315,7 @@ NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 Warnings:
 Note	1276	Field or reference 'test.t2.a' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t2.a' of SELECT #3 was resolved in SELECT #1
-Note	1003	select (select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`a`) union select `test`.`t5`.`a` AS `a` from `test`.`t5` where (`test`.`t5`.`a` = `test`.`t2`.`a`)) AS `(select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a)`,`test`.`t2`.`a` AS `a` from `test`.`t2`
+Note	1003	select (select '2' AS `a` from `test`.`t1` where ('2' = `test`.`t2`.`a`) union select `test`.`t5`.`a` AS `a` from `test`.`t5` where (`test`.`t5`.`a` = `test`.`t2`.`a`)) AS `(select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a)`,`test`.`t2`.`a` AS `a` from `test`.`t2`
 select (select a from t1 where t1.a=t2.a union all select a from t5 where t5.a=t2.a), a from t2;
 ERROR 21000: Subquery returns more than 1 row
 create table t6 (patient_uq int, clinic_uq int, index i1 (clinic_uq));
@@ -368,7 +368,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	SUBQUERY	t8	const	PRIMARY	PRIMARY	37	const	1	100.00	
 3	SUBQUERY	t8	const	PRIMARY	PRIMARY	37		1	100.00	Using index
 Warnings:
-Note	1003	select `test`.`t8`.`pseudo` AS `pseudo`,(select `test`.`t8`.`email` AS `email` from `test`.`t8` where 1) AS `(SELECT email FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce'))` from `test`.`t8` where 1
+Note	1003	select 'joce' AS `pseudo`,(select 'test' AS `email` from `test`.`t8` where 1) AS `(SELECT email FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce'))` from `test`.`t8` where 1
 SELECT pseudo FROM t8 WHERE pseudo=(SELECT pseudo,email FROM
 t8 WHERE pseudo='joce');
 ERROR 21000: Operand should contain 1 column(s)
@@ -547,7 +547,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	const	PRIMARY,numreponse	PRIMARY	7	const,const	1	100.00	Using index
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
-Note	1003	select `test`.`t1`.`numreponse` AS `numreponse` from `test`.`t1` where ((`test`.`t1`.`numeropost` = _latin1'1'))
+Note	1003	select '3' AS `numreponse` from `test`.`t1` where (('1' = _latin1'1'))
 drop table t1;
 CREATE TABLE t1 (a int(1));
 INSERT INTO t1 VALUES (1);
@@ -1430,7 +1430,7 @@ explain extended (select * from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 Warnings:
-Note	1003	(select `test`.`t1`.`s1` AS `s1` from `test`.`t1`)
+Note	1003	(select 'tttt' AS `s1` from `test`.`t1`)
 (select * from t1);
 s1
 tttt
@@ -1497,7 +1497,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>((`test`.`t3`.`a` < (select max(`test`.`t2`.`b`) from `test`.`t2`)))
+Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>((`test`.`t3`.`a` < (select max('0') from `test`.`t2`)))
 select * from t3 where a >= some (select b from t2);
 a
 explain extended select * from t3 where a >= some (select b from t2);
@@ -1505,7 +1505,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>((`test`.`t3`.`a` >= (select min(`test`.`t2`.`b`) from `test`.`t2`)))
+Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>((`test`.`t3`.`a` >= (select min('0') from `test`.`t2`)))
 select * from t3 where a >= all (select b from t2 group by 1);
 a
 6
@@ -1516,7 +1516,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>((`test`.`t3`.`a` < <max>(select `test`.`t2`.`b` AS `b` from `test`.`t2` group by 1)))
+Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>((`test`.`t3`.`a` < <max>(select '0' AS `b` from `test`.`t2` group by 1)))
 select * from t3 where a >= some (select b from t2 group by 1);
 a
 explain extended select * from t3 where a >= some (select b from t2 group by 1);
@@ -1524,7 +1524,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>((`test`.`t3`.`a` >= <min>(select `test`.`t2`.`b` AS `b` from `test`.`t2` group by 1)))
+Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>((`test`.`t3`.`a` >= <min>(select '0' AS `b` from `test`.`t2` group by 1)))
 select * from t3 where NULL >= any (select b from t2);
 a
 explain extended select * from t3 where NULL >= any (select b from t2);
@@ -1618,7 +1618,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 3	UNION	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
-Note	1003	select `test`.`t1`.`s1` AS `s1` from `test`.`t1` where 1
+Note	1003	select 'e' AS `s1` from `test`.`t1` where 1
 drop table t1;
 CREATE TABLE t1 (number char(11) NOT NULL default '') ENGINE=MyISAM CHARSET=latin1;
 INSERT INTO t1 VALUES ('69294728265'),('18621828126'),('89356874041'),('95895001874');
