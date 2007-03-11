@@ -481,6 +481,7 @@ Item* handle_sql2003_note184_exception(THD *thd, Item* left, bool equal,
   struct st_lex *lex;
   sp_head *sphead;
   struct p_elem_val *p_elem_value;
+  enum index_hint_type index_hint;
 }
 
 %{
@@ -1162,7 +1163,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	btree_or_rtree
 
 %type <string_list>
-	key_usage_list using_list
+	using_list
 
 %type <key_part>
 	key_part
@@ -1233,7 +1234,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	opt_column_list grant_privileges grant_ident grant_list grant_option
 	object_privilege object_privilege_list user_list rename_list
 	clear_privileges flush_options flush_option
-	equal optional_braces opt_key_definition key_usage_list2
+	equal optional_braces
 	opt_mi_check_type opt_to mi_check_types normal_join
 	db_to_db table_to_table_list table_to_table opt_table_list opt_as
 	handler_rkey_function handler_read_or_scan
@@ -1269,6 +1270,8 @@ END_OF_INPUT
 %type <spblock> sp_decls sp_decl
 %type <lex> sp_cursor_stmt
 %type <spname> sp_name
+%type <index_hint> index_hint_type
+%type <num> index_hint_clause
 
 %type <NONE>
 	'-' '+' '*' '/' '%' '(' ')'
@@ -5940,12 +5943,8 @@ keycache_list:
 assign_to_keycache:
         table_ident cache_keys_spec
         {
-          LEX *lex=Lex;
-          SELECT_LEX *sel= &lex->select_lex;
-          if (!sel->add_table_to_list(lex->thd, $1, NULL, 0,
-                                      TL_READ,
-                                      sel->get_use_index(),
-                                      (List<String> *)0))
+          if (!Select->add_table_to_list(YYTHD, $1, NULL, 0, TL_READ, 
+                                      Select->pop_index_hints()))
             MYSQL_YYABORT;
         }
         ;
@@ -5972,33 +5971,26 @@ preload_list:
 preload_keys:
 	table_ident cache_keys_spec opt_ignore_leaves
 	{
-	  LEX *lex=Lex;
-	  SELECT_LEX *sel= &lex->select_lex;
-	  if (!sel->add_table_to_list(lex->thd, $1, NULL, $3,
-                                      TL_READ,
-                                      sel->get_use_index(),
-                                      (List<String> *)0))
+	  if (!Select->add_table_to_list(YYTHD, $1, NULL, $3, TL_READ,
+                                      Select->pop_index_hints()))
             MYSQL_YYABORT;
 	}
 	;
 
 cache_keys_spec:
-        { Select->interval_list.empty(); }
-        cache_key_list_or_empty
-        {
-          LEX *lex=Lex;
-          SELECT_LEX *sel= &lex->select_lex;
-          sel->use_index= sel->interval_list;
+        { 
+          Lex->select_lex.alloc_index_hints(YYTHD);
+          Select->set_index_hint_type(INDEX_HINT_USE, 
+                                      global_system_variables.old_mode ? 
+                                        INDEX_HINT_MASK_JOIN : 
+                                        INDEX_HINT_MASK_ALL);
         }
+        cache_key_list_or_empty
         ;
 
 cache_key_list_or_empty:
-	/* empty */	{ Lex->select_lex.use_index_ptr= 0; }
-	| opt_key_or_index '(' key_usage_list2 ')'
-	  {
-            SELECT_LEX *sel= &Lex->select_lex;
-	    sel->use_index_ptr= &sel->use_index;
-	  }
+	/* empty */	{ }
+	| key_or_index '(' opt_key_usage_list ')'
 	;
 
 opt_ignore_leaves:
@@ -7371,20 +7363,16 @@ normal_join:
 table_factor:
 	{
 	  SELECT_LEX *sel= Select;
-	  sel->use_index_ptr=sel->ignore_index_ptr=0;
 	  sel->table_join_options= 0;
 	}
         table_ident opt_table_alias opt_key_definition
 	{
-	  LEX *lex= Lex;
-	  SELECT_LEX *sel= lex->current_select;
-	  if (!($$= sel->add_table_to_list(lex->thd, $2, $3,
-					   sel->get_table_join_options(),
-					   lex->lock_option,
-					   sel->get_use_index(),
-					   sel->get_ignore_index())))
+	  if (!($$= Select->add_table_to_list(YYTHD, $2, $3,
+					   Select->get_table_join_options(),
+					   Lex->lock_option,
+					   Select->pop_index_hints())))
 	    MYSQL_YYABORT;
-          sel->add_joined_table($$);
+          Select->add_joined_table($$);
 	}
 	| '{' ident table_ref LEFT OUTER JOIN_SYM table_ref
           ON
@@ -7453,8 +7441,7 @@ table_factor:
 	    lex->current_select= sel= unit->outer_select();
 	    if (!($$= sel->
                   add_table_to_list(lex->thd, new Table_ident(unit), $6, 0,
-				    TL_READ,(List<String> *)0,
-	                            (List<String> *)0)))
+				    TL_READ)))
 
 	      MYSQL_YYABORT;
             sel->add_joined_table($$);
@@ -7553,52 +7540,67 @@ opt_outer:
 	/* empty */	{}
 	| OUTER		{};
 
+index_hint_clause:
+       /* empty */             
+         { 
+            $$= global_system_variables.old_mode ? 
+                  INDEX_HINT_MASK_JOIN : INDEX_HINT_MASK_ALL; 
+         } 
+       | FOR_SYM JOIN_SYM      { $$= INDEX_HINT_MASK_JOIN;  }
+       | FOR_SYM ORDER_SYM BY  { $$= INDEX_HINT_MASK_ORDER; }
+       | FOR_SYM GROUP BY      { $$= INDEX_HINT_MASK_GROUP; }
+       ;
+
+index_hint_type:
+       FORCE_SYM  { $$= INDEX_HINT_FORCE; }
+       | IGNORE_SYM { $$= INDEX_HINT_IGNORE; } 
+       ;
+
+index_hint_definition:
+       index_hint_type key_or_index index_hint_clause
+       {
+         Select->set_index_hint_type($1, $3);
+       }
+       '(' key_usage_list ')';
+       | USE_SYM key_or_index index_hint_clause
+       {
+         Select->set_index_hint_type(INDEX_HINT_USE, $3);
+       }
+       '(' opt_key_usage_list ')';
+
+
+index_hints_list:
+       index_hint_definition         
+       | index_hints_list index_hint_definition
+       ;
+
+opt_index_hints_list:
+       /* empty */
+       | { Select->alloc_index_hints(YYTHD); } index_hints_list
+       ;
+
 opt_key_definition:
-	/* empty */	{}
-	| USE_SYM    key_usage_list
-          {
-	    SELECT_LEX *sel= Select;
-	    sel->use_index= *$2;
-	    sel->use_index_ptr= &sel->use_index;
-	  }
-	| FORCE_SYM key_usage_list
-          {
-	    SELECT_LEX *sel= Select;
-	    sel->use_index= *$2;
-	    sel->use_index_ptr= &sel->use_index;
-	    sel->table_join_options|= TL_OPTION_FORCE_INDEX;
-	  }
-	| IGNORE_SYM key_usage_list
-	  {
-	    SELECT_LEX *sel= Select;
-	    sel->ignore_index= *$2;
-	    sel->ignore_index_ptr= &sel->ignore_index;
-	  };
+       {  Select->clear_index_hints(); }
+       opt_index_hints_list
+       ;
+
+opt_key_usage_list:
+	/* empty */ 		{ Select->add_index_hint(YYTHD, NULL, 0); }
+	| key_usage_list	{}
+	;
+
+key_usage_element:
+	ident           { Select->add_index_hint(YYTHD, $1.str, $1.length); }
+	| PRIMARY_SYM   
+          { 
+            Select->add_index_hint(YYTHD, (char *)"PRIMARY", 7); 
+          }
+        ;
 
 key_usage_list:
-	key_or_index { Select->interval_list.empty(); }
-        '(' key_list_or_empty ')'
-        { $$= &Select->interval_list; }
-	;
-
-key_list_or_empty:
-	/* empty */ 		{}
-	| key_usage_list2	{}
-	;
-
-key_usage_list2:
-	key_usage_list2 ',' ident
-        { Select->
-	    interval_list.push_back(new (YYTHD->mem_root) String((const char*) $3.str, $3.length,
-				    system_charset_info)); }
-	| ident
-        { Select->
-	    interval_list.push_back(new (YYTHD->mem_root) String((const char*) $1.str, $1.length,
-				    system_charset_info)); }
-	| PRIMARY_SYM
-        { Select->
-	    interval_list.push_back(new (YYTHD->mem_root) String("PRIMARY", 7,
-				    system_charset_info)); };
+        key_usage_element
+	| key_usage_list ',' key_usage_element
+        ;
 
 using_list:
 	ident

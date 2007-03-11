@@ -2021,7 +2021,6 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->const_table= 0;
   table->null_row= 0;
   table->status= STATUS_NO_RECORD;
-  table->keys_in_use_for_query= table->s->keys_in_use;
   table->maybe_null= table_list->outer_join;
   TABLE_LIST *embedding= table_list->embedding;
   while (!table->maybe_null && embedding)
@@ -2032,6 +2031,8 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->tablenr= tablenr;
   table->map= (table_map) 1 << tablenr;
   table->force_index= table_list->force_index;
+  table->covering_keys= table->s->keys_for_keyread;
+  table->merge_keys.clear_all();
 }
 
 

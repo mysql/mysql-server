@@ -3907,7 +3907,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       {
         /* First usage of column */
         table->used_fields++;                     // Used to optimize loops
-        table->used_keys.intersect(field->part_of_key);
+        table->covering_keys.intersect(field->part_of_key);
       }
     }
   }

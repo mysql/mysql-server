@@ -1414,8 +1414,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
       /* 'parent_lex' is used in init_query() so it must be before it. */
       sel->parent_lex= lex;
       sel->init_query();
-      if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ, 
-                                 (List<String> *) 0, (List<String> *) 0))
+      if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ))
         DBUG_RETURN(1);
       lex->query_tables_last= query_tables_last;
       TABLE_LIST *table_list= (TABLE_LIST*) sel->table_list.first;
@@ -5458,8 +5457,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 					     LEX_STRING *alias,
 					     ulong table_options,
 					     thr_lock_type lock_type,
-					     List<String> *use_index_arg,
-					     List<String> *ignore_index_arg,
+					     List<index_hint> *index_hints_arg,
                                              LEX_STRING *option)
 {
   register TABLE_LIST *ptr;
@@ -5534,12 +5532,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   }
   ptr->select_lex=  lex->current_select;
   ptr->cacheable_table= 1;
-  if (use_index_arg)
-    ptr->use_index=(List<String> *) thd->memdup((gptr) use_index_arg,
-						sizeof(*use_index_arg));
-  if (ignore_index_arg)
-    ptr->ignore_index=(List<String> *) thd->memdup((gptr) ignore_index_arg,
-						   sizeof(*ignore_index_arg));
+  ptr->index_hints= index_hints_arg;
   ptr->option= option ? option->str : 0;
   /* check that used name is unique */
   if (lock_type != TL_IGNORE)
