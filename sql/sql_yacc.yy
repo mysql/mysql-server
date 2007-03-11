@@ -7548,7 +7548,7 @@ index_hint_clause:
          } 
        | FOR_SYM JOIN_SYM      { $$= INDEX_HINT_MASK_JOIN;  }
        | FOR_SYM ORDER_SYM BY  { $$= INDEX_HINT_MASK_ORDER; }
-       | FOR_SYM GROUP BY      { $$= INDEX_HINT_MASK_GROUP; }
+       | FOR_SYM GROUP_SYM BY  { $$= INDEX_HINT_MASK_GROUP; }
        ;
 
 index_hint_type:
