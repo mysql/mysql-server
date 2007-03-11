@@ -4272,11 +4272,11 @@ bool st_table_list::process_index_hints(TABLE *table)
 
     /* apply USE INDEX */
     if (!index_join[INDEX_HINT_USE].is_clear_all() || have_empty_use_join)
-      table->keys_in_use_for_query= index_join[INDEX_HINT_USE];
+      table->keys_in_use_for_query.intersect(index_join[INDEX_HINT_USE]);
     if (!index_order[INDEX_HINT_USE].is_clear_all() || have_empty_use_order)
-      table->keys_in_use_for_order_by= index_order[INDEX_HINT_USE];
+      table->keys_in_use_for_order_by.intersect (index_order[INDEX_HINT_USE]);
     if (!index_group[INDEX_HINT_USE].is_clear_all() || have_empty_use_group)
-      table->keys_in_use_for_group_by= index_group[INDEX_HINT_USE];
+      table->keys_in_use_for_group_by.intersect (index_group[INDEX_HINT_USE]);
 
     /* apply IGNORE INDEX */
     table->keys_in_use_for_query.subtract (index_join[INDEX_HINT_IGNORE]);

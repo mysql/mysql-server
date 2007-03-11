@@ -654,7 +654,7 @@ void JOIN::remove_subq_pushed_predicates(Item **where)
 static void save_index_subquery_explain_info(JOIN_TAB *join_tab, Item* where)
 {
   join_tab->packed_info= TAB_INFO_HAVE_VALUE;
-  if (join_tab->table->used_keys.is_set(join_tab->ref.key))
+  if (join_tab->table->covering_keys.is_set(join_tab->ref.key))
     join_tab->packed_info |= TAB_INFO_USING_INDEX;
   if (where)
     join_tab->packed_info |= TAB_INFO_USING_WHERE;
