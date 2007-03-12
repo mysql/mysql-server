@@ -138,6 +138,7 @@ printusage()
     << "  2           readData / writeData" << endl
     << "bug tests (no blob test)" << endl
     << "  -bug 4088   ndb api hang with mixed ops on index table" << endl
+    << "  -bug 27018  middle partial part write clobbers rest of part" << endl
     << "  -bug nnnn   delete + write gives 626" << endl
     << "  -bug nnnn   acc crash on delete and long key" << endl
     ;
@@ -1808,6 +1809,56 @@ bugtest_4088()
 }
 
 static int
+bugtest_27018()
+{
+  DBG("bug test 27018 - middle partial part write clobbers rest of part");
+
+  // insert rows
+  calcTups(false);
+  CHK(insertPk(false) == 0);
+  // new trans
+  for (unsigned k= 0; k < g_opt.m_rows; k++)
+  {
+    Tup& tup= g_tups[k];
+
+    CHK((g_con= g_ndb->startTransaction()) != 0);
+    CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
+    CHK(g_opr->updateTuple() == 0);
+    CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
+    if (g_opt.m_pk2len != 0)
+      CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
+    CHK(getBlobHandles(g_opr) == 0);
+    CHK(g_con->execute(NoCommit) == 0);
+
+    /* Update one byte in random position. */
+    Uint32 offset= urandom(tup.m_blob1.m_len);
+    tup.m_blob1.m_buf[0]= 0xff ^ tup.m_blob1.m_val[offset];
+    CHK(g_bh1->setPos(offset) == 0);
+    CHK(g_bh1->writeData(&(tup.m_blob1.m_buf[0]), 1) == 0);
+    CHK(g_con->execute(Commit) == 0);
+    g_ndb->closeTransaction(g_con);
+
+    CHK((g_con= g_ndb->startTransaction()) != 0);
+    CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
+    CHK(g_opr->readTuple() == 0);
+    CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
+    if (g_opt.m_pk2len != 0)
+      CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
+    CHK(getBlobHandles(g_opr) == 0);
+
+    CHK(g_bh1->getValue(tup.m_blob1.m_buf, tup.m_blob1.m_len) == 0);
+    CHK(g_con->execute(Commit) == 0);
+    Uint64 len= ~0;
+    CHK(g_bh1->getLength(len) == 0 && len == tup.m_blob1.m_len);
+    tup.m_blob1.m_buf[offset]^= 0xff;
+    CHK(memcmp(tup.m_blob1.m_buf, tup.m_blob1.m_val, tup.m_blob1.m_len) == 0);
+    g_ndb->closeTransaction(g_con);
+  }
+
+  return 0;
+}
+
+static int
 bugtest_2222()
 {
   return 0;
@@ -1823,7 +1874,8 @@ static struct {
   int m_bug;
   int (*m_test)();
 } g_bugtest[] = {
-  { 4088, bugtest_4088 }
+  { 4088, bugtest_4088 },
+  { 27018, bugtest_27018 }
 };
 
 NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
