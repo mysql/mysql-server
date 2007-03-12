@@ -845,6 +845,8 @@ AC_CHECK_FUNC(bind, , AC_CHECK_LIB(bind, bind))
 # Check if crypt() exists in libc or libcrypt, sets LIBS if needed
 AC_SEARCH_LIBS(crypt, crypt, AC_DEFINE(HAVE_CRYPT, 1, [crypt]))
 
+MYSQL_CHECK_ZLIB_WITH_COMPRESS
+
 #--------------------------------------------------------------------
 # Check for TCP wrapper support
 #--------------------------------------------------------------------
