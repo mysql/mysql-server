@@ -67,6 +67,7 @@ typedef byte	mysql_byte;
 /* Include necessary InnoDB headers */
 extern "C" {
 #include "../storage/innobase/include/univ.i"
+#include "../storage/innobase/include/buf0buddy.h"
 #include "../storage/innobase/include/os0file.h"
 #include "../storage/innobase/include/os0thread.h"
 #include "../storage/innobase/include/srv0start.h"
@@ -316,6 +317,7 @@ innobase_commit_low(
 /*================*/
 	trx_t*	trx);	/* in: transaction handle */
 
+static
 SHOW_VAR innodb_status_variables[]= {
   {"buffer_pool_pages_data",
   (char*) &export_vars.innodb_buffer_pool_pages_data,	  SHOW_LONG},
@@ -6512,7 +6514,7 @@ ha_innobase::transactional_table_lock(
 
 /****************************************************************************
 Here we export InnoDB status variables to MySQL.  */
-
+static
 int
 innodb_export_status()
 /*==================*/
@@ -7662,6 +7664,78 @@ bool ha_innobase::check_if_incompatible_data(
 	return COMPATIBLE_DATA_YES;
 }
 
+/***********************************************************************
+Fill the dynamic table information_schema.innodb_buddy. */
+static
+int
+innobase_is_buddy_fill(
+/*===================*/
+				/* out: 0 on success, 1 on failure */
+	THD*		thd,	/* in: thread */
+	TABLE_LIST*	tables,	/* in/out: tables to fill */
+	COND*		cond)	/* in: condition (ignored) */
+{
+	TABLE*	table	= (TABLE *) tables->table;
+	int	status	= 0;
+
+	DBUG_ENTER("innobase_is_buddy_fill");
+	mutex_enter_noninline(&buf_pool->mutex);
+
+	for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
+		table->field[0]->store(BUF_BUDDY_LOW << x);
+		table->field[1]->store(buf_buddy_relocated[x]);
+		table->field[2]->store(buf_buddy_used[x]);
+
+		if (schema_table_store_record(thd, table)) {
+			status = 1;
+			break;
+		}
+	}
+
+	mutex_exit_noninline(&buf_pool->mutex);
+	DBUG_RETURN(status);
+}
+
+/* Fields of the dynamic table information_schema.innodb_buddy. */
+static ST_FIELD_INFO innobase_is_buddy_fields[] =
+{
+  {"SIZE", 5, MYSQL_TYPE_LONG, 0, 0, "Block Size"},
+  {"RELOCATED", 21, MYSQL_TYPE_LONG, 0, 0, "Total Number of Relocations"},
+  {"USED", 21, MYSQL_TYPE_LONG, 0, 0, "Currently in Use"},
+  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
+};
+
+/***********************************************************************
+Bind the dynamic table information_schema.innodb_buddy. */
+static
+int
+innobase_is_buddy_init(
+/*===================*/
+			/* out: 0 on success */
+	void*	p)	/* in/out: table schema object */
+{
+	DBUG_ENTER("innobase_is_buddy_init");
+	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = innobase_is_buddy_fields;
+	schema->fill_table = innobase_is_buddy_fill;
+
+	DBUG_RETURN(0);
+}
+
+/***********************************************************************
+Unbind the dynamic table information_schema.innodb_buddy. */
+static
+int
+innobase_is_buddy_deinit(
+/*=====================*/
+			/* out: 0 on success */
+	void*	p)	/* in/out: table schema object */
+{
+	DBUG_ENTER("innobase_is_buddy_deinit");
+	DBUG_RETURN(0);
+}
+
 static int show_innodb_vars(THD *thd, SHOW_VAR *var, char *buff)
 {
   innodb_export_status();
@@ -7670,13 +7744,17 @@ static int show_innodb_vars(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
+static
 SHOW_VAR innodb_status_variables_export[]= {
   {"Innodb",                   (char*) &show_innodb_vars, SHOW_FUNC},
   {NullS, NullS, SHOW_LONG}
 };
 
-struct st_mysql_storage_engine innobase_storage_engine=
+static struct st_mysql_storage_engine innobase_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
+
+static struct st_mysql_information_schema innobase_is_buddy=
+{ MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION };
 
 mysql_declare_plugin(innobase)
 {
@@ -7692,6 +7770,18 @@ mysql_declare_plugin(innobase)
   innodb_status_variables_export,/* status variables             */
   NULL,                       /* system variables                */
   NULL                        /* config options                  */
+},
+{
+  MYSQL_INFORMATION_SCHEMA_PLUGIN,
+  &innobase_is_buddy,
+  "INNODB_BUDDY",
+  "Innobase Oy",
+  "Statistics for the InnoDB buddy allocator",
+  PLUGIN_LICENSE_GPL,
+  innobase_is_buddy_init,
+  innobase_is_buddy_deinit,
+  0x0100 /* 1.0 */,
+  NULL, NULL, NULL
 }
 mysql_declare_plugin_end;
 
