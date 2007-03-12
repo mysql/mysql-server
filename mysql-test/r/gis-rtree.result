@@ -10,7 +10,7 @@ t1	CREATE TABLE `t1` (
   `fid` int(11) NOT NULL AUTO_INCREMENT,
   `g` geometry NOT NULL,
   PRIMARY KEY (`fid`),
-  SPATIAL KEY `g` (`g`(32))
+  SPATIAL KEY `g` (`g`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 INSERT INTO t1 (g) VALUES (GeomFromText('LineString(150 150, 150 150)'));
 INSERT INTO t1 (g) VALUES (GeomFromText('LineString(149 149, 151 151)'));
@@ -293,7 +293,7 @@ t2	CREATE TABLE `t2` (
   `fid` int(11) NOT NULL AUTO_INCREMENT,
   `g` geometry NOT NULL,
   PRIMARY KEY (`fid`),
-  SPATIAL KEY `g` (`g`(32))
+  SPATIAL KEY `g` (`g`)
 ) ENGINE=MyISAM AUTO_INCREMENT=101 DEFAULT CHARSET=latin1
 SELECT count(*) FROM t2;
 count(*)
