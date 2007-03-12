@@ -476,6 +476,8 @@ sys_var_thd_bool
 sys_ndb_use_transactions("ndb_use_transactions", &SV::ndb_use_transactions);
 sys_var_long_ptr
 sys_ndb_cache_check_time("ndb_cache_check_time", &ndb_cache_check_time);
+sys_var_const_str
+sys_ndb_connectstring("ndb_connectstring", opt_ndb_constrbuf);
 #endif
 
 /* Time/date/datetime formats */
@@ -787,6 +789,7 @@ sys_var *sys_variables[]=
 #ifdef HAVE_NDBCLUSTER_DB
   &sys_ndb_autoincrement_prefetch_sz,
   &sys_ndb_cache_check_time,
+  &sys_ndb_connectstring,
   &sys_ndb_force_send,
   &sys_ndb_use_exact_count,
   &sys_ndb_use_transactions,
@@ -988,6 +991,7 @@ struct show_var_st init_vars[]= {
   {sys_ndb_use_exact_count.name,(char*) &sys_ndb_use_exact_count,   SHOW_SYS},
   {sys_ndb_use_transactions.name,(char*) &sys_ndb_use_transactions, SHOW_SYS},
   {sys_ndb_cache_check_time.name,(char*) &sys_ndb_cache_check_time, SHOW_SYS},
+  {sys_ndb_connectstring.name,(char*) &sys_ndb_connectstring,       SHOW_SYS},
 #endif
   {sys_net_buffer_length.name,(char*) &sys_net_buffer_length,       SHOW_SYS},
   {sys_net_read_timeout.name, (char*) &sys_net_read_timeout,        SHOW_SYS},
