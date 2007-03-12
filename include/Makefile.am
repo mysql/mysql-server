@@ -18,7 +18,7 @@
 BUILT_SOURCES =		mysql_version.h m_ctype.h my_config.h
 pkginclude_HEADERS =	my_dbug.h m_string.h my_sys.h my_list.h \
 			mysql.h mysql_com.h mysqld_error.h mysql_embed.h \
-		  	my_semaphore.h my_pthread.h my_no_pthread.h raid.h \
+		  	my_pthread.h my_no_pthread.h raid.h \
 			errmsg.h my_global.h my_net.h my_alloc.h \
 			my_getopt.h sslopt-longopts.h my_dir.h \
 			sslopt-vars.h sslopt-case.h $(BUILT_SOURCES)
