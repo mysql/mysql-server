@@ -28,3 +28,7 @@
 --exec $MYSQL_SLAP --silent --concurrency=5 --iterations=1 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --auto-generate-sql-add-autoincrement --auto-generate-sql-load-type=mixed
 
 --exec $MYSQL_SLAP --silent --concurrency=5 --iterations=1 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --auto-generate-sql-guid-primary --auto-generate-sql-load-type=update
+
+--exec $MYSQL_SLAP --silent --concurrency=5 --iterations=1 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --auto-generate-sql-guid-primary --auto-generate-sql-load-type=update --auto-generate-sql-execute-number=5
+
+--exec $MYSQL_SLAP --silent --concurrency=5 --iterations=1 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --auto-generate-sql-guid-primary --auto-generate-sql-load-type=key --auto-generate-sql-execute-number=5
