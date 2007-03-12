@@ -1067,7 +1067,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	256	Using index
 EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY,i2) ORDER BY a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	256	Using index
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	256	Using index; Using filesort
 EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY)
 IGNORE INDEX FOR GROUP BY (i2) GROUP BY a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
