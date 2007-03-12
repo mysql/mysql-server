@@ -12393,23 +12393,11 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   DBUG_ENTER("test_if_skip_sort_order");
   LINT_INIT(ref_key_parts);
 
-  /* Check which keys can be used to resolve ORDER BY. */
-  usable_keys= table->keys_in_use_for_query;
-
   /*
     Keys disabled by ALTER TABLE ... DISABLE KEYS should have already
     been taken into account.
   */
   usable_keys= *map;
-
-  /* 
-    If there is a covering index, and we have IGNORE INDEX FOR GROUP/ORDER
-    and this index is used for the JOIN part, then we have to ignore the
-    IGNORE INDEX FOR GROUP/ORDER
-  */  
-  if (table->key_read ||
-      (table->covering_keys.is_set(tab->index) && !table->no_keyread))
-    usable_keys.set_bit (tab->index);
 
   for (ORDER *tmp_order=order; tmp_order ; tmp_order=tmp_order->next)
   {
