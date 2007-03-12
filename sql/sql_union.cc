@@ -623,6 +623,12 @@ bool st_select_lex_unit::cleanup()
       join->tables= 0;
     }
     error|= fake_select_lex->cleanup();
+    if (fake_select_lex->order_list.elements)
+    {
+      ORDER *ord;
+      for (ord= (ORDER*)fake_select_lex->order_list.first; ord; ord= ord->next)
+        (*ord->item)->cleanup();
+    }
   }
 
   DBUG_RETURN(error);
