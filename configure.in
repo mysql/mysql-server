@@ -772,9 +772,6 @@ AC_CHECK_FUNC(bind, , AC_CHECK_LIB(bind, bind))
 AC_CHECK_LIB(crypt, crypt)
 AC_CHECK_FUNC(crypt, AC_DEFINE(HAVE_CRYPT)) 
 
-# For sem_xxx functions on Solaris 2.6
-AC_CHECK_FUNC(sem_init, , AC_CHECK_LIB(posix4, sem_init))
-
 # For compress in zlib
 case $SYSTEM_TYPE in
   *netware* | *modesto*)
