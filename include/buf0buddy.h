@@ -54,6 +54,12 @@ to the buddy system.  When this number is exceeded, the buddy allocator
 will not try to free clean compressed-only pages in order to satisfy
 an allocation request.  Protected by buf_pool->mutex. */
 extern ulint buf_buddy_min_n_frames;
+/** Counts of blocks allocated from the buddy system.
+Protected by buf_pool->mutex. */
+extern ulint buf_buddy_used[BUF_BUDDY_SIZES + 1];
+/** Counts of blocks relocated by the buddy system.
+Protected by buf_pool->mutex. */
+extern ib_uint64_t buf_buddy_relocated[BUF_BUDDY_SIZES + 1];
 
 #ifndef UNIV_NONINL
 # include "buf0buddy.ic"

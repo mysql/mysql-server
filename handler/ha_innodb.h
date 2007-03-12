@@ -202,7 +202,6 @@ class ha_innobase: public handler
 					uint table_changes);
 };
 
-extern SHOW_VAR innodb_status_variables[];
 extern ulong innobase_fast_shutdown;
 extern ulong innobase_large_page_size;
 extern long innobase_mirrored_log_groups, innobase_log_files_in_group;

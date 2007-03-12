@@ -24,10 +24,10 @@ Protected by buf_pool->mutex. */
 ulint buf_buddy_n_frames;
 /** Counts of blocks allocated from the buddy system.
 Protected by buf_pool->mutex. */
-static ulint buf_buddy_used[BUF_BUDDY_SIZES + 1];
+ulint buf_buddy_used[BUF_BUDDY_SIZES + 1];
 /** Counts of blocks relocated by the buddy system.
 Protected by buf_pool->mutex. */
-static ib_uint64_t buf_buddy_relocated[BUF_BUDDY_SIZES + 1];
+ib_uint64_t buf_buddy_relocated[BUF_BUDDY_SIZES + 1];
 
 /** Preferred minimum number of frames allocated from the buffer pool
 to the buddy system.  When this number is exceeded, the buddy allocator
