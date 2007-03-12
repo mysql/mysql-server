@@ -2884,6 +2884,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	}
 	else if (!f_is_geom(sql_field->pack_flag) &&
 		  (column->length > length ||
+                   !Field::type_can_have_key_part (sql_field->sql_type) ||
 		   ((f_is_packed(sql_field->pack_flag) ||
 		     ((file->ha_table_flags() & HA_NO_PREFIX_CHAR_KEYS) &&
 		      (key_info->flags & HA_NOSAME))) &&
@@ -5858,7 +5859,8 @@ view_err:
           checking whether cfield->length < key_part_length (in chars).
          */
         if (!Field::type_can_have_key_part(cfield->field->type()) ||
-            !Field::type_can_have_key_part(cfield->sql_type) ||
+            (!Field::type_can_have_key_part(cfield->sql_type) &&
+             !f_is_geom (cfield->pack_flag)) ||
             (cfield->field->field_length == key_part_length &&
              !f_is_blob(key_part->key_type)) ||
 	    (cfield->length && (cfield->length < key_part_length /
