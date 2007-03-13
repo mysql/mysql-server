@@ -112,6 +112,7 @@ Dbtup::Dbtup(Block_context& ctx, Pgman* pgman)
   cnoOfAllocatedPages = 0;
   
   initData();
+  CLEAR_ERROR_INSERT_VALUE;
 }//Dbtup::Dbtup()
 
 Dbtup::~Dbtup() 
@@ -262,7 +263,6 @@ void Dbtup::execSTTOR(Signal* signal)
   switch (startPhase) {
   case ZSTARTPHASE1:
     ljam();
-    CLEAR_ERROR_INSERT_VALUE;
     ndbrequire((c_lqh= (Dblqh*)globalData.getBlock(DBLQH)) != 0);
     ndbrequire((c_tsman= (Tsman*)globalData.getBlock(TSMAN)) != 0);
     ndbrequire((c_lgman= (Lgman*)globalData.getBlock(LGMAN)) != 0);
