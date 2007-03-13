@@ -14,6 +14,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #define DBTUP_C
+#define DBTUP_COMMIT_CPP
 #include "Dbtup.hpp"
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
@@ -21,16 +22,13 @@
 #include <signaldata/TupCommit.hpp>
 #include "../dblqh/Dblqh.hpp"
 
-#define ljam() { jamLine(5000 + __LINE__); }
-#define ljamEntry() { jamEntryLine(5000 + __LINE__); }
-
 void Dbtup::execTUP_DEALLOCREQ(Signal* signal)
 {
   TablerecPtr regTabPtr;
   FragrecordPtr regFragPtr;
   Uint32 frag_page_id, frag_id;
 
-  ljamEntry();
+  jamEntry();
 
   frag_id= signal->theData[0];
   regTabPtr.i= signal->theData[1];
@@ -62,7 +60,7 @@ void Dbtup::execTUP_DEALLOCREQ(Signal* signal)
     
     if (regTabPtr.p->m_attributes[MM].m_no_of_varsize)
     {
-      ljam();
+      jam();
       free_var_rec(regFragPtr.p, regTabPtr.p, &tmp, pagePtr);
     } else {
       free_fix_rec(regFragPtr.p, regTabPtr.p, &tmp, (Fix_page*)pagePtr.p);
@@ -78,7 +76,7 @@ void Dbtup::execTUP_WRITELOG_REQ(Signal* signal)
   Uint32 gci= signal->theData[1];
   c_operation_pool.getPtr(loopOpPtr);
   while (loopOpPtr.p->prevActiveOp != RNIL) {
-    ljam();
+    jam();
     loopOpPtr.i= loopOpPtr.p->prevActiveOp;
     c_operation_pool.getPtr(loopOpPtr);
   }
@@ -87,11 +85,11 @@ void Dbtup::execTUP_WRITELOG_REQ(Signal* signal)
     signal->theData[0]= loopOpPtr.p->userpointer;
     signal->theData[1]= gci;
     if (loopOpPtr.p->nextActiveOp == RNIL) {
-      ljam();
+      jam();
       EXECUTE_DIRECT(DBLQH, GSN_LQH_WRITELOG_REQ, signal, 2);
       return;
     }
-    ljam();
+    jam();
     EXECUTE_DIRECT(DBLQH, GSN_LQH_WRITELOG_REQ, signal, 2);
     jamEntry();
     loopOpPtr.i= loopOpPtr.p->nextActiveOp;
@@ -114,16 +112,16 @@ void Dbtup::removeActiveOpList(Operationrec*  const regOperPtr,
   if (regOperPtr->op_struct.in_active_list) {
     regOperPtr->op_struct.in_active_list= false;
     if (regOperPtr->nextActiveOp != RNIL) {
-      ljam();
+      jam();
       raoOperPtr.i= regOperPtr->nextActiveOp;
       c_operation_pool.getPtr(raoOperPtr);
       raoOperPtr.p->prevActiveOp= regOperPtr->prevActiveOp;
     } else {
-      ljam();
+      jam();
       tuple_ptr->m_operation_ptr_i = regOperPtr->prevActiveOp;
     }
     if (regOperPtr->prevActiveOp != RNIL) {
-      ljam();
+      jam();
       raoOperPtr.i= regOperPtr->prevActiveOp;
       c_operation_pool.getPtr(raoOperPtr);
       raoOperPtr.p->nextActiveOp= regOperPtr->nextActiveOp;
@@ -343,7 +341,7 @@ Dbtup::disk_page_commit_callback(Signal* signal,
   Uint32 gci;
   OperationrecPtr regOperPtr;
 
-  ljamEntry();
+  jamEntry();
   
   c_operation_pool.getPtr(regOperPtr, opPtrI);
   c_lqh->get_op_info(regOperPtr.p->userpointer, &hash_value, &gci);
@@ -379,7 +377,7 @@ Dbtup::disk_page_log_buffer_callback(Signal* signal,
   Uint32 gci;
   OperationrecPtr regOperPtr;
 
-  ljamEntry();
+  jamEntry();
   
   c_operation_pool.getPtr(regOperPtr, opPtrI);
   c_lqh->get_op_info(regOperPtr.p->userpointer, &hash_value, &gci);
@@ -447,7 +445,7 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
   TupCommitReq * const tupCommitReq= (TupCommitReq *)signal->getDataPtr();
 
   regOperPtr.i= tupCommitReq->opPtr;
-  ljamEntry();
+  jamEntry();
 
   c_operation_pool.getPtr(regOperPtr);
   if(!regOperPtr.p->is_first_operation())
@@ -603,7 +601,7 @@ skip_disk:
      *   why can't we instead remove "own version" (when approriate ofcourse)
      */
     if (!regTabPtr.p->tuxCustomTriggers.isEmpty()) {
-      ljam();
+      jam();
       OperationrecPtr loopPtr= regOperPtr;
       while(loopPtr.i != RNIL)
       {
@@ -656,18 +654,18 @@ Dbtup::set_change_mask_info(KeyReqStruct * const req_struct,
 {
   ChangeMaskState state = get_change_mask_state(regOperPtr);
   if (state == USE_SAVED_CHANGE_MASK) {
-    ljam();
+    jam();
     req_struct->changeMask.setWord(0, regOperPtr->saved_change_mask[0]);
     req_struct->changeMask.setWord(1, regOperPtr->saved_change_mask[1]);
   } else if (state == RECALCULATE_CHANGE_MASK) {
-    ljam();
+    jam();
     // Recompute change mask, for now set all bits
     req_struct->changeMask.set();
   } else if (state == SET_ALL_MASK) {
-    ljam();
+    jam();
     req_struct->changeMask.set();
   } else {
-    ljam();
+    jam();
     ndbrequire(state == DELETE_CHANGES);
     req_struct->changeMask.set();
   }
@@ -687,17 +685,17 @@ Dbtup::calculateChangeMask(Page* const pagePtr,
     ndbrequire(loopOpPtr.p->op_struct.op_type == ZUPDATE);
     ChangeMaskState change_mask= get_change_mask_state(loopOpPtr.p);
     if (change_mask == USE_SAVED_CHANGE_MASK) {
-      ljam();
+      jam();
       saved_word1|= loopOpPtr.p->saved_change_mask[0];
       saved_word2|= loopOpPtr.p->saved_change_mask[1];
     } else if (change_mask == RECALCULATE_CHANGE_MASK) {
-      ljam();
+      jam();
       //Recompute change mask, for now set all bits
       req_struct->changeMask.set();
       return;
     } else {
       ndbrequire(change_mask == SET_ALL_MASK);
-      ljam();
+      jam();
       req_struct->changeMask.set();
       return;
     }
