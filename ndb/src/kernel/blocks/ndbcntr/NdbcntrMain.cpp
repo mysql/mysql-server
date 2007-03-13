@@ -180,6 +180,7 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
     break;
 
   case SystemError::CopyFragRefError:
+    CRASH_INSERTION(1000);
     BaseString::snprintf(buf, sizeof(buf), 
 			 "Killed by node %d as "
 			 "copyfrag failed, error: %u",

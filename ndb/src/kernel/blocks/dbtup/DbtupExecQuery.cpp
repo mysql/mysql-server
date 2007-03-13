@@ -213,6 +213,30 @@ void Dbtup::execTUP_ALLOCREQ(Signal* signal)
 //---------------------------------------------------
   PagePtr pagePtr;
   Uint32 pageOffset;
+
+  if (ERROR_INSERTED(4025))
+  {
+    signal->theData[0] = 827;
+    return;
+  }
+  if (ERROR_INSERTED(4026))
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+    signal->theData[0] = 827;
+    return;
+  }
+  if (ERROR_INSERTED(4027) && (rand() % 100) > 25)
+  {
+    signal->theData[0] = 827;
+    return;
+  }
+  if (ERROR_INSERTED(4028) && (rand() % 100) > 25)
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+    signal->theData[0] = 827;
+    return;
+  }
+  
   if (!allocTh(regFragPtr.p,
                regTabPtr.p,
                NORMAL_PAGE,
