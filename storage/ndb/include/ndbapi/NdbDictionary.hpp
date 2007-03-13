@@ -111,6 +111,7 @@ public:
       IndexTrigger = 8,       ///< Index maintenance, internal
       SubscriptionTrigger = 9,///< Backup or replication, internal
       ReadOnlyConstraint = 10,///< Trigger, internal
+      TableEvent = 11,        ///< Table event
       Tablespace = 20,        ///< Tablespace
       LogfileGroup = 21,      ///< Logfile group
       Datafile = 22,          ///< Datafile
@@ -1752,6 +1753,14 @@ public:
      * @return an Event if successful, otherwise NULL.
      */
     const Event * getEvent(const char * eventName);
+
+    /**
+     * List defined events
+     * @param list   List of events returned in the dictionary
+     * @return 0 if successful otherwise -1.
+     */
+    int listEvents(List & list);
+    int listEvents(List & list) const;
 
     /** @} *******************************************************************/
 

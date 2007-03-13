@@ -43,9 +43,7 @@ public:
   const char * getText() const;
 
   SignalCounter& operator=(const NdbNodeBitmask & bitmask);
-  SignalCounter& operator=(const NodeReceiverGroup& rg) { 
-    return (* this) = rg.m_nodes;
-  }
+  SignalCounter& operator=(const NodeReceiverGroup& rg);
 
   /**
    * When sending to same node
@@ -149,7 +147,7 @@ inline
 const char *
 SignalCounter::getText() const {
   static char buf[255];
-  static char nodes[NodeBitmask::TextLength+1];
+  static char nodes[NdbNodeBitmask::TextLength+1];
   BaseString::snprintf(buf, sizeof(buf), "[SignalCounter: m_count=%d %s]", m_count, m_nodes.getText(nodes));
   return buf;
 }
@@ -159,6 +157,15 @@ SignalCounter&
 SignalCounter::operator=(const NdbNodeBitmask & bitmask){
   m_nodes = bitmask;
   m_count = bitmask.count();
+  return * this;
+}
+
+inline
+SignalCounter&
+SignalCounter::operator=(const NodeReceiverGroup & rg){
+  assert(rg.m_nodes.find(65) == NodeBitmask::NotFound);
+  memcpy(&m_nodes, &rg.m_nodes, sizeof(m_nodes));
+  m_count = m_nodes.count();
   return * this;
 }
 
