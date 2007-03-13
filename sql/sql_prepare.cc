@@ -1142,7 +1142,7 @@ static int mysql_test_update(Prepared_statement *stmt,
   DBUG_ENTER("mysql_test_update");
 
   if (update_precheck(thd, table_list) ||
-      open_normal_and_derived_tables(thd, table_list, 0))
+      open_tables(thd, &table_list, &table_count, 0))
     goto error;
 
   if (table_list->multitable_view)
@@ -1154,6 +1154,13 @@ static int mysql_test_update(Prepared_statement *stmt,
     /* convert to multiupdate */
     DBUG_RETURN(2);
   }
+
+  /*
+    thd->fill_derived_tables() is false here for sure (because it is
+    preparation of PS, so we even do not check it).
+  */
+  if (mysql_handle_derived(thd->lex, &mysql_derived_prepare))
+    goto error;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* TABLE_LIST contain right privilages request */
