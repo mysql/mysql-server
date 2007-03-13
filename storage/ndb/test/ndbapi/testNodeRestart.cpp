@@ -1332,7 +1332,7 @@ runBug27003(NDBT_Context* ctx, NDBT_Step* step)
 
   int node = res.getRandomNotMasterNodeId(rand());
   ndbout_c("node: %d", node);
-  if (res.restartOneDbNode(node, false, true, true))
+  if (res.restartOneDbNode(node, true, true, true))
     return NDBT_FAILED;
 
   Uint32 pos = 0;
@@ -1351,7 +1351,7 @@ runBug27003(NDBT_Context* ctx, NDBT_Step* step)
       if (res.insertErrorInNode(node, errnos[pos]))
 	return NDBT_FAILED;
       
-      int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+      int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 3 };
       if (res.dumpStateOneNode(node, val2, 2))
 	return NDBT_FAILED;
       
