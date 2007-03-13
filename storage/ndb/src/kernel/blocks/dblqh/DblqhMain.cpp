@@ -10574,6 +10574,15 @@ void Dblqh::copyCompletedLab(Signal* signal)
     closeCopyLab(signal);
     return;
   }//if
+
+  if (scanptr.p->scanState == ScanRecord::WAIT_LQHKEY_COPY &&
+      scanptr.p->scanErrorCounter)
+  {
+    jam();
+    closeCopyLab(signal);
+    return;
+  }
+  
   if (scanptr.p->scanState == ScanRecord::WAIT_LQHKEY_COPY) {
     jam();
 /*---------------------------------------------------------------------------*/
@@ -10662,13 +10671,16 @@ void Dblqh::continueCopyAfterBlockedLab(Signal* signal)
 void Dblqh::copyLqhKeyRefLab(Signal* signal) 
 {
   ndbrequire(tcConnectptr.p->transid[1] == signal->theData[4]);
-  tcConnectptr.p->copyCountWords -= signal->theData[3];
+  Uint32 copyWords = signal->theData[3];
   scanptr.i = tcConnectptr.p->tcScanRec;
   c_scanRecordPool.getPtr(scanptr);
   scanptr.p->scanErrorCounter++;
   tcConnectptr.p->errorCode = terrorCode;
-  closeCopyLab(signal);
-  return;
+  
+  LqhKeyConf* conf = (LqhKeyConf*)signal->getDataPtrSend();
+  conf->transId1 = copyWords;
+  conf->transId2 = tcConnectptr.p->transid[1];
+  copyCompletedLab(signal);
 }//Dblqh::copyLqhKeyRefLab()
 
 void Dblqh::closeCopyLab(Signal* signal) 
@@ -10679,6 +10691,7 @@ void Dblqh::closeCopyLab(Signal* signal)
 // Wait until all of those have arrived until we start the
 // close process.
 /*---------------------------------------------------------------------------*/
+    scanptr.p->scanState = ScanRecord::WAIT_LQHKEY_COPY;
     jam();
     return;
   }//if
