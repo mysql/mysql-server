@@ -14,13 +14,11 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #define DBTUP_C
+#define DBTUP_FIXALLOC_CPP
 #include "Dbtup.hpp"
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
 #include <pc.hpp>
-
-#define ljam() { jamLine(6000 + __LINE__); }
-#define ljamEntry() { jamEntryLine(6000 + __LINE__); }
 
 //
 // Fixed Allocator
@@ -79,7 +77,7 @@ Dbtup::alloc_fix_rec(Fragrecord* const regFragPtr,
 /* ---------------------------------------------------------------- */
     pagePtr.i = getEmptyPage(regFragPtr);
     if (pagePtr.i != RNIL) {
-      ljam();
+      jam();
 /* ---------------------------------------------------------------- */
 // We found empty pages on the fragment. Allocate an empty page and
 // convert it into a tuple header page and put it in thFreeFirst-list.
@@ -95,14 +93,14 @@ Dbtup::alloc_fix_rec(Fragrecord* const regFragPtr,
       LocalDLList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);    
       free_pages.add(pagePtr);
     } else {
-      ljam();
+      jam();
 /* ---------------------------------------------------------------- */
 /*       THERE ARE NO EMPTY PAGES. MEMORY CAN NOT BE ALLOCATED.     */
 /* ---------------------------------------------------------------- */
       return 0;
     }
   } else {
-    ljam();
+    jam();
 /* ---------------------------------------------------------------- */
 /*       THIS SHOULD BE THE COMMON PATH THROUGH THE CODE, FREE      */
 /*       COPY PAGE EXISTED.                                         */
@@ -194,7 +192,7 @@ void Dbtup::free_fix_rec(Fragrecord* regFragPtr,
   
   if(free == 1)
   {
-    ljam();
+    jam();
     PagePtr pagePtr = { (Page*)regPagePtr, key->m_page_no };
     LocalDLList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);    
     ndbrequire(regPagePtr->page_state == ZTH_MM_FULL);
