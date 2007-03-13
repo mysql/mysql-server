@@ -1199,7 +1199,7 @@ int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, File file_to_dup __attr
 int mi_open_keyfile(MYISAM_SHARE *share)
 {
   if ((share->kfile=my_open(share->unique_file_name, share->mode | O_SHARE,
-			    MYF(MY_WME))) < 0)
+                            MYF(MY_WME))) < 0)
     return 1;
   return 0;
 }
