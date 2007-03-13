@@ -2924,6 +2924,25 @@ Lgman::stop_run_undo_log(Signal* signal)
       ptr.p->m_file_pos[TAIL] = tail;
 
       init_logbuffer_pointers(ptr);
+
+      {
+	Buffer_idx head= ptr.p->m_file_pos[HEAD];
+	Ptr<Undofile> file;
+	m_file_pool.getPtr(file, head.m_ptr_i);
+	if (head.m_idx == file.p->m_file_size - 1)
+	{
+	  Local_undofile_list files(m_file_pool, ptr.p->m_files);
+	  if(!files.next(file))
+	  {
+	    jam();
+	    files.first(file);
+	  }
+	  head.m_idx = 0;
+	  head.m_ptr_i = file.i;
+	  ptr.p->m_file_pos[HEAD] = head;
+	}
+      }
+      
       ptr.p->m_free_file_words = (Uint64)File_formats::UNDO_PAGE_WORDS * 
 	(Uint64)compute_free_file_pages(ptr);
       ptr.p->m_next_reply_ptr_i = ptr.p->m_file_pos[HEAD].m_ptr_i;
