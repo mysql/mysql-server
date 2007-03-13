@@ -489,3 +489,15 @@ Dbdict:
 6003 Crash in participant @ CreateTabReq::Prepare
 6004 Crash in participant @ CreateTabReq::Commit
 6005 Crash in participant @ CreateTabReq::CreateDrop
+
+TUP:
+----
+
+4025: Fail all inserts with out of memory
+4026: Fail one insert with oom
+4027: Fail inserts randomly with oom
+4028: Fail one random insert with oom
+
+NDBCNTR:
+
+1000: Crash insertion on SystemError::CopyFragRef
