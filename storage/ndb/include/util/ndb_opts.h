@@ -101,7 +101,7 @@ const char *opt_debug= 0;
 static void ndb_std_print_version()
 {
   printf("MySQL distrib %s, for %s (%s)\n",
-	 MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
+	 NDB_VERSION_STRING,SYSTEM_TYPE,MACHINE_TYPE);
 }
 
 static void usage();

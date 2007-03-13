@@ -21,7 +21,7 @@
 
 struct Undo_buffer 
 {
-  Undo_buffer(class Dbtup*);
+  Undo_buffer(class Ndbd_mem_manager*);
   
   /**
    * Alloc space for a copy tuple of size <em>words</em>
@@ -49,7 +49,7 @@ struct Undo_buffer
   Uint32 * get_ptr(Local_key* key);
   
 private:
-  class Dbtup* m_tup;
+  class Ndbd_mem_manager* m_mm;
   Uint32 m_first_free;
 };
 

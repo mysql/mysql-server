@@ -19,21 +19,20 @@
 #include <ndb_global.h>
 #include <version.h>
 
-/* NDB build version */
-#define NDB_VERSION_BUILD @NDB_VERSION_BUILD@
-
-/* NDB major version */
 #define NDB_VERSION_MAJOR @NDB_VERSION_MAJOR@
-
-/* NDB minor version */
 #define NDB_VERSION_MINOR @NDB_VERSION_MINOR@
+#define NDB_VERSION_BUILD @NDB_VERSION_BUILD@
 
 /* NDB status version */
 #define NDB_VERSION_STATUS "@NDB_VERSION_STATUS@"
 
+#define NDB_MYSQL_VERSION_MAJOR @NDB_MYSQL_VERSION_MAJOR@
+#define NDB_MYSQL_VERSION_MINOR @NDB_MYSQL_VERSION_MINOR@
+#define NDB_MYSQL_VERSION_BUILD @NDB_MYSQL_VERSION_BUILD@
 
 #define MAKE_VERSION(A,B,C) (((A) << 16) | ((B) << 8)  | ((C) << 0))
 
+#define NDB_MYSQL_VERSION_D MAKE_VERSION(NDB_MYSQL_VERSION_MAJOR, NDB_MYSQL_VERSION_MINOR, NDB_MYSQL_VERSION_BUILD)
 #define NDB_VERSION_D MAKE_VERSION(NDB_VERSION_MAJOR, NDB_VERSION_MINOR, NDB_VERSION_BUILD)
 #define NDB_VERSION_STRING_BUF_SZ 100
 #ifdef __cplusplus
@@ -42,7 +41,8 @@ extern "C"
 extern
 #endif
 char ndb_version_string_buf[NDB_VERSION_STRING_BUF_SZ];
-#define NDB_VERSION_STRING (getVersionString(NDB_VERSION, NDB_VERSION_STATUS, \
+#define NDB_VERSION_STRING (getVersionString(NDB_VERSION, NDB_MYSQL_VERSION_D,\
+					     NDB_VERSION_STATUS, \
                                              ndb_version_string_buf, \
                                              sizeof(ndb_version_string_buf)))
 
@@ -71,7 +71,10 @@ char ndb_version_string_buf[NDB_VERSION_STRING_BUF_SZ];
 
 #define NDBD_QMGR_SINGLEUSER_VERSION_5 MAKE_VERSION(5,0,25)
 
+#define NDBD_SPLIT_VERSION MAKE_VERSION(6,1,0)
 #define NDBD_NODE_VERSION_REP MAKE_VERSION(6,1,1)
+
+#define NDBD_255_NODES_VERSION MAKE_VERSION(5,1,4)
 
 #endif
  

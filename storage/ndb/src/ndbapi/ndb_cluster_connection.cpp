@@ -269,14 +269,16 @@ Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(const char *
     m_name(0),
     m_run_connect_thread(0),
     m_event_add_drop_mutex(0),
-    m_latest_trans_gci(0)
+    m_latest_trans_gci(0),
+    m_first_ndb_object(0)
 {
   DBUG_ENTER("Ndb_cluster_connection");
   DBUG_PRINT("enter",("Ndb_cluster_connection this=0x%lx", (long) this));
 
   if (!m_event_add_drop_mutex)
     m_event_add_drop_mutex= NdbMutex_Create();
-
+  m_new_delete_ndb_mutex = NdbMutex_Create();
+  
   g_eventLogger.createConsoleHandler();
   g_eventLogger.setCategory("NdbApi");
   g_eventLogger.enable(Logger::LL_ON, Logger::LL_ERROR);
@@ -399,7 +401,74 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
   if (m_event_add_drop_mutex)
     NdbMutex_Destroy(m_event_add_drop_mutex);
 
+  NdbMutex_Destroy(m_new_delete_ndb_mutex);
+  m_new_delete_ndb_mutex = 0;
+  
   DBUG_VOID_RETURN;
+}
+
+void
+Ndb_cluster_connection::lock_ndb_objects()
+{
+  NdbMutex_Lock(m_impl.m_new_delete_ndb_mutex);
+}
+
+void
+Ndb_cluster_connection::unlock_ndb_objects()
+{
+  NdbMutex_Unlock(m_impl.m_new_delete_ndb_mutex);
+}
+
+const Ndb*
+Ndb_cluster_connection::get_next_ndb_object(const Ndb* p)
+{
+  if (p == 0)
+    return m_impl.m_first_ndb_object;
+  
+  return p->theImpl->m_next_ndb_object;
+}
+
+void
+Ndb_cluster_connection_impl::link_ndb_object(Ndb* p)
+{
+  lock_ndb_objects();
+  if (m_first_ndb_object != 0)
+  {
+    m_first_ndb_object->theImpl->m_prev_ndb_object = p;
+  }
+  
+  p->theImpl->m_next_ndb_object = m_first_ndb_object;
+  m_first_ndb_object = p;
+  
+  unlock_ndb_objects();
+}
+
+void
+Ndb_cluster_connection_impl::unlink_ndb_object(Ndb* p)
+{
+  lock_ndb_objects();
+  Ndb* prev = p->theImpl->m_prev_ndb_object;
+  Ndb* next = p->theImpl->m_next_ndb_object;
+
+  if (prev == 0)
+  {
+    assert(m_first_ndb_object == p);
+    m_first_ndb_object = next;
+  }
+  else
+  {
+    prev->theImpl->m_next_ndb_object = next;
+  }
+
+  if (next)
+  {
+    next->theImpl->m_prev_ndb_object = prev;
+  }
+  
+  p->theImpl->m_prev_ndb_object = 0;
+  p->theImpl->m_next_ndb_object = 0;
+
+  unlock_ndb_objects();  
 }
 
 void

@@ -128,7 +128,7 @@ Backup::execREAD_NODESCONF(Signal* signal)
   Uint32 count = 0;
   for (Uint32 i = 0; i<MAX_NDB_NODES; i++) {
     jam();
-    if(NodeBitmask::get(conf->allNodes, i)){
+    if(NdbNodeBitmask::get(conf->allNodes, i)){
       jam();
       count++;
 
@@ -136,7 +136,7 @@ Backup::execREAD_NODESCONF(Signal* signal)
       ndbrequire(c_nodes.seize(node));
       
       node.p->nodeId = i;
-      if(NodeBitmask::get(conf->inactiveNodes, i)) {
+      if(NdbNodeBitmask::get(conf->inactiveNodes, i)) {
         jam();
 	node.p->alive = 0;
       } else {
@@ -747,8 +747,8 @@ Backup::execNODE_FAILREP(Signal* signal)
   process is completed.
   */
   NodeId new_master_node_id = rep->masterNodeId;
-  Uint32 theFailedNodes[NodeBitmask::Size];
-  for (Uint32 i = 0; i < NodeBitmask::Size; i++)
+  Uint32 theFailedNodes[NdbNodeBitmask::Size];
+  for (Uint32 i = 0; i < NdbNodeBitmask::Size; i++)
     theFailedNodes[i] = rep->theNodes[i];
   
   c_masterNodeId = new_master_node_id;
@@ -756,7 +756,7 @@ Backup::execNODE_FAILREP(Signal* signal)
   NodePtr nodePtr;
   for(c_nodes.first(nodePtr); nodePtr.i != RNIL; c_nodes.next(nodePtr)) {
     jam();
-    if(NodeBitmask::get(theFailedNodes, nodePtr.p->nodeId)){
+    if(NdbNodeBitmask::get(theFailedNodes, nodePtr.p->nodeId)){
       if(nodePtr.p->alive){
 	jam();
 	ndbrequire(c_aliveNodes.get(nodePtr.p->nodeId));
@@ -815,7 +815,7 @@ void
 Backup::checkNodeFail(Signal* signal,
 		      BackupRecordPtr ptr,
 		      NodeId newCoord,
-		      Uint32 theFailedNodes[NodeBitmask::Size])
+		      Uint32 theFailedNodes[NdbNodeBitmask::Size])
 {
   NdbNodeBitmask mask;
   mask.assign(2, theFailedNodes);
@@ -826,7 +826,7 @@ Backup::checkNodeFail(Signal* signal,
   bool found = false;
   for(c_nodes.first(nodePtr); nodePtr.i != RNIL; c_nodes.next(nodePtr)) {
     jam();
-    if(NodeBitmask::get(theFailedNodes, nodePtr.p->nodeId)) {
+    if(NdbNodeBitmask::get(theFailedNodes, nodePtr.p->nodeId)) {
       jam();
       if (ptr.p->nodes.get(nodePtr.p->nodeId)) {
 	jam();
@@ -1788,7 +1788,7 @@ Backup::nextFragment(Signal* signal, BackupRecordPtr ptr)
   req->backupPtr = ptr.i;
   req->backupId = ptr.p->backupId;
 
-  NodeBitmask nodes = ptr.p->nodes;
+  NdbNodeBitmask nodes = ptr.p->nodes;
   Uint32 idleNodes = nodes.count();
   Uint32 saveIdleNodes = idleNodes;
   ndbrequire(idleNodes > 0);
@@ -1907,7 +1907,7 @@ Backup::execBACKUP_FRAGMENT_CONF(Signal* signal)
   }
   else
   {
-    NodeBitmask nodes = ptr.p->nodes;
+    NdbNodeBitmask nodes = ptr.p->nodes;
     nodes.clear(getOwnNodeId());
     if (!nodes.isclear())
     {
