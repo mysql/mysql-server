@@ -1037,7 +1037,7 @@ get_options(int *argc,char ***argv)
   if (auto_generate_sql && 
       ((auto_generate_sql_autoincrement == FALSE) ||
        (auto_generate_sql_guid_primary == FALSE)) &&
-      auto_generate_sql_type == 'k')
+      auto_generate_sql_type[0] == 'k')
   {
       fprintf(stderr,
               "%s: Can't perform key test without a primary key!\n",
@@ -1290,7 +1290,8 @@ generate_primary_key_list(MYSQL *mysql, statement *engine_stmt)
                          strstr(engine_stmt->string, "blackhole")))
   {
     primary_keys_number_of= 1;
-    primary_keys= (char **)my_malloc(sizeof(char *) * primary_keys_number_of, 
+    primary_keys= (char **)my_malloc((uint)(sizeof(char *) * 
+                                            primary_keys_number_of), 
                                     MYF(MY_ZEROFILL|MY_FAE|MY_WME));
     /* Yes, we strdup a const string to simplify the interface */
     primary_keys[0]= my_strdup("796c4422-1d94-102a-9d6d-00e0812d", MYF(0)); 
@@ -1315,7 +1316,8 @@ generate_primary_key_list(MYSQL *mysql, statement *engine_stmt)
       /*
         We create the structure and loop and create the items.
       */
-      primary_keys= (char **)my_malloc(sizeof(char *) * primary_keys_number_of, 
+      primary_keys= (char **)my_malloc((uint)(sizeof(char *) * 
+                                              primary_keys_number_of), 
                                        MYF(MY_ZEROFILL|MY_FAE|MY_WME));
       row= mysql_fetch_row(result);
       for (counter= 0; counter < primary_keys_number_of; 
@@ -1657,7 +1659,7 @@ limit_not_met:
           (ptr->type == SELECT_TYPE_REQUIRES_PREFIX))
       {
         int length;
-        long int key_val;
+        unsigned int key_val;
         char *key;
         char buffer[HUGE_STRING_LENGTH];
 
@@ -1671,7 +1673,7 @@ limit_not_met:
         DBUG_ASSERT(primary_keys_number_of);
         if (primary_keys_number_of)
         {
-          key_val= random() % primary_keys_number_of;
+          key_val= (unsigned int)(random() % primary_keys_number_of);
           key= primary_keys[key_val];
 
           DBUG_ASSERT(key);
