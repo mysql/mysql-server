@@ -4653,8 +4653,14 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 	new_field->length++;
     }
     break;
-  case FIELD_TYPE_STRING:
   case FIELD_TYPE_VAR_STRING:
+    if (new_field->length < 4)
+    {
+      new_field->sql_type= FIELD_TYPE_STRING;
+      break;
+    }
+    /* fall through */
+  case FIELD_TYPE_STRING:
     if (new_field->length <= MAX_FIELD_CHARLENGTH || default_value)
       break;
     /* Convert long CHAR() and VARCHAR columns to TEXT or BLOB */
