@@ -15,13 +15,11 @@
 
 
 #define DBTUP_C
+#define DBTUP_PAGE_MAP_CPP
 #include "Dbtup.hpp"
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
 #include <pc.hpp>
-
-#define ljam() { jamLine(14000 + __LINE__); }
-#define ljamEntry() { jamEntryLine(14000 + __LINE__); }
 
 //
 // PageMap is a service used by Dbtup to map logical page id's to physical
@@ -92,11 +90,11 @@ Uint32 Dbtup::getEmptyPage(Fragrecord* regFragPtr)
 {
   Uint32 pageId = regFragPtr->emptyPrimPage.firstItem;
   if (pageId == RNIL) {
-    ljam();
+    jam();
     allocMoreFragPages(regFragPtr);
     pageId = regFragPtr->emptyPrimPage.firstItem;
     if (pageId == RNIL) {
-      ljam();
+      jam();
       return RNIL;
     }//if
   }//if
@@ -122,11 +120,11 @@ Uint32 Dbtup::getRealpid(Fragrecord* regFragPtr, Uint32 logicalPageId)
     loopLimit = grpPageRangePtr.p->currentIndexPos;
     ndbrequire(loopLimit <= 3);
     for (Uint32 i = 0; i <= loopLimit; i++) {
-      ljam();
+      jam();
       if (grpPageRangePtr.p->startRange[i] <= logicalPageId) {
         if (grpPageRangePtr.p->endRange[i] >= logicalPageId) {
           if (grpPageRangePtr.p->type[i] == ZLEAF) {
-            ljam();
+            jam();
             Uint32 realPageId = (logicalPageId - grpPageRangePtr.p->startRange[i]) +
                                  grpPageRangePtr.p->basePageId[i];
             return realPageId;
@@ -167,12 +165,12 @@ bool Dbtup::insertPageRangeTab(Fragrecord*  const regFragPtr,
 {
   PageRangePtr currPageRangePtr;
   if (cfirstfreerange == RNIL) {
-    ljam();
+    jam();
     return false;
   }//if
   currPageRangePtr.i = regFragPtr->currentPageRange;
   if (currPageRangePtr.i == RNIL) {
-    ljam();
+    jam();
 /* ---------------------------------------------------------------- */
 /*       THE FIRST PAGE RANGE IS HANDLED WITH SPECIAL CODE          */
 /* ---------------------------------------------------------------- */
@@ -181,10 +179,10 @@ bool Dbtup::insertPageRangeTab(Fragrecord*  const regFragPtr,
     currPageRangePtr.p->currentIndexPos = 0;
     currPageRangePtr.p->parentPtr = RNIL;
   } else {
-    ljam();
+    jam();
     ptrCheckGuard(currPageRangePtr, cnoOfPageRangeRec, pageRange);
     if (currPageRangePtr.p->currentIndexPos < 3) {
-      ljam();
+      jam();
 /* ---------------------------------------------------------------- */
 /*       THE SIMPLE CASE WHEN IT IS ONLY NECESSARY TO FILL IN THE   */
 /*       NEXT EMPTY POSITION IN THE PAGE RANGE RECORD IS TREATED    */
@@ -192,7 +190,7 @@ bool Dbtup::insertPageRangeTab(Fragrecord*  const regFragPtr,
 /* ---------------------------------------------------------------- */
       currPageRangePtr.p->currentIndexPos++;
     } else {
-      ljam();
+      jam();
       ndbrequire(currPageRangePtr.p->currentIndexPos == 3);
       currPageRangePtr.i = leafPageRangeFull(regFragPtr, currPageRangePtr);
       if (currPageRangePtr.i == RNIL) {
@@ -223,15 +221,15 @@ bool Dbtup::insertPageRangeTab(Fragrecord*  const regFragPtr,
   PageRangePtr loopPageRangePtr;
   loopPageRangePtr = currPageRangePtr;
   while (true) {
-    ljam();
+    jam();
     loopPageRangePtr.i = loopPageRangePtr.p->parentPtr;
     if (loopPageRangePtr.i != RNIL) {
-      ljam();
+      jam();
       ptrCheckGuard(loopPageRangePtr, cnoOfPageRangeRec, pageRange);
       ndbrequire(loopPageRangePtr.p->currentIndexPos < 4);
       loopPageRangePtr.p->endRange[loopPageRangePtr.p->currentIndexPos] += noPages;
     } else {
-      ljam();
+      jam();
       break;
     }//if
   }//while
@@ -243,26 +241,26 @@ bool Dbtup::insertPageRangeTab(Fragrecord*  const regFragPtr,
 void Dbtup::releaseFragPages(Fragrecord* regFragPtr) 
 {
   if (regFragPtr->rootPageRange == RNIL) {
-    ljam();
+    jam();
     return;
   }//if
   PageRangePtr regPRPtr;
   regPRPtr.i = regFragPtr->rootPageRange;
   ptrCheckGuard(regPRPtr, cnoOfPageRangeRec, pageRange);
   while (true) {
-    ljam();
+    jam();
     const Uint32 indexPos = regPRPtr.p->currentIndexPos;
     ndbrequire(indexPos < 4);
 
     const Uint32 basePageId = regPRPtr.p->basePageId[indexPos];
     regPRPtr.p->basePageId[indexPos] = RNIL;
     if (basePageId == RNIL) {
-      ljam();
+      jam();
       /**
        * Finished with indexPos continue with next
        */
       if (indexPos > 0) {
-        ljam();
+        jam();
 	regPRPtr.p->currentIndexPos--;
 	continue;
       }//if
@@ -274,13 +272,13 @@ void Dbtup::releaseFragPages(Fragrecord* regFragPtr)
       releasePagerange(regPRPtr);
       
       if (parentPtr != RNIL) {
-	ljam();
+	jam();
 	regPRPtr.i = parentPtr;
 	ptrCheckGuard(regPRPtr, cnoOfPageRangeRec, pageRange);
 	continue;
       }//if
 
-      ljam();
+      jam();
       ndbrequire(regPRPtr.i == regFragPtr->rootPageRange);
       initFragRange(regFragPtr);
       for (Uint32 i = 0; i<MAX_FREE_LIST; i++)
@@ -364,7 +362,7 @@ Uint32 Dbtup::allocFragPages(Fragrecord* regFragPtr, Uint32 tafpNoAllocRequested
     Uint32 retPageRef = RNIL;
     allocConsPages(noPagesToAllocate, noOfPagesAllocated, retPageRef);
     if (noOfPagesAllocated == 0) {
-      ljam();
+      jam();
       return tafpPagesAllocated;
     }//if
 /* ---------------------------------------------------------------- */
@@ -373,7 +371,7 @@ Uint32 Dbtup::allocFragPages(Fragrecord* regFragPtr, Uint32 tafpNoAllocRequested
 /* ---------------------------------------------------------------- */
     Uint32 startRange = regFragPtr->nextStartRange;
     if (!insertPageRangeTab(regFragPtr, retPageRef, noOfPagesAllocated)) {
-      ljam();
+      jam();
       returnCommonArea(retPageRef, noOfPagesAllocated);
       return tafpPagesAllocated;
     }//if
@@ -388,7 +386,7 @@ Uint32 Dbtup::allocFragPages(Fragrecord* regFragPtr, Uint32 tafpNoAllocRequested
 /* ---------------------------------------------------------------- */
     Uint32 prev = RNIL;
     for (loopPagePtr.i = retPageRef; loopPagePtr.i < loopLimit; loopPagePtr.i++) {
-      ljam();
+      jam();
       c_page_pool.getPtr(loopPagePtr);
       loopPagePtr.p->page_state = ZEMPTY_MM;
       loopPagePtr.p->frag_page_id = startRange +
@@ -416,10 +414,10 @@ Uint32 Dbtup::allocFragPages(Fragrecord* regFragPtr, Uint32 tafpNoAllocRequested
 /*       WAS ENOUGH PAGES ALLOCATED OR ARE MORE NEEDED.             */
 /* ---------------------------------------------------------------- */
     if (tafpPagesAllocated < tafpNoAllocRequested) {
-      ljam();
+      jam();
     } else {
       ndbrequire(tafpPagesAllocated == tafpNoAllocRequested);
-      ljam();
+      jam();
       return tafpNoAllocRequested;
     }//if
   }//while
@@ -451,15 +449,15 @@ Uint32 Dbtup::leafPageRangeFull(Fragrecord*  const regFragPtr, PageRangePtr curr
   parentPageRangePtr = currPageRangePtr;
   Uint32 tiprNoLevels = 1;
   while (true) {
-    ljam();
+    jam();
     parentPageRangePtr.i = parentPageRangePtr.p->parentPtr;
     if (parentPageRangePtr.i == RNIL) {
-      ljam();
+      jam();
 /* ---------------------------------------------------------------- */
 /*       WE HAVE REACHED THE ROOT. A NEW ROOT MUST BE ALLOCATED.    */
 /* ---------------------------------------------------------------- */
       if (c_noOfFreePageRanges < tiprNoLevels) {
-        ljam();
+        jam();
         return RNIL;
       }//if
       PageRangePtr oldRootPRPtr;
@@ -482,10 +480,10 @@ Uint32 Dbtup::leafPageRangeFull(Fragrecord*  const regFragPtr, PageRangePtr curr
       foundPageRangePtr = newRootPRPtr;
       break;
     } else {
-      ljam();
+      jam();
       ptrCheckGuard(parentPageRangePtr, cnoOfPageRangeRec, pageRange);
       if (parentPageRangePtr.p->currentIndexPos < 3) {
-        ljam();
+        jam();
 /* ---------------------------------------------------------------- */
 /*       WE HAVE FOUND AN EMPTY ENTRY IN A PAGE RANGE RECORD.       */
 /*       ALLOCATE A NEW PAGE RANGE RECORD, FILL IN THE START RANGE, */
@@ -498,7 +496,7 @@ Uint32 Dbtup::leafPageRangeFull(Fragrecord*  const regFragPtr, PageRangePtr curr
         foundPageRangePtr = parentPageRangePtr;
         break;
       } else {
-        ljam();
+        jam();
         ndbrequire(parentPageRangePtr.p->currentIndexPos == 3);
 /* ---------------------------------------------------------------- */
 /*       THE PAGE RANGE RECORD WAS FULL. FIND THE PARENT RECORD     */
@@ -516,7 +514,7 @@ Uint32 Dbtup::leafPageRangeFull(Fragrecord*  const regFragPtr, PageRangePtr curr
   PageRangePtr prevPageRangePtr;
   prevPageRangePtr = foundPageRangePtr;
   if (c_noOfFreePageRanges < tiprNoLevels) {
-    ljam();
+    jam();
     return RNIL;
   }//if
 /* ---------------------------------------------------------------- */
@@ -527,7 +525,7 @@ Uint32 Dbtup::leafPageRangeFull(Fragrecord*  const regFragPtr, PageRangePtr curr
 /*       ARE ALSO PROPERLY UPDATED ON THE PATH TO THE LEAF LEVEL.   */
 /* ---------------------------------------------------------------- */
   while (true) {
-    ljam();
+    jam();
     seizePagerange(newPageRangePtr);
     tiprNoLevels--;
     ndbrequire(prevPageRangePtr.p->currentIndexPos < 4);
@@ -535,13 +533,13 @@ Uint32 Dbtup::leafPageRangeFull(Fragrecord*  const regFragPtr, PageRangePtr curr
     newPageRangePtr.p->parentPtr = prevPageRangePtr.i;
     newPageRangePtr.p->currentIndexPos = 0;
     if (tiprNoLevels > 0) {
-      ljam();
+      jam();
       newPageRangePtr.p->startRange[0] = regFragPtr->nextStartRange;
       newPageRangePtr.p->endRange[0] = regFragPtr->nextStartRange - 1;
       newPageRangePtr.p->type[0] = ZNON_LEAF;
       prevPageRangePtr = newPageRangePtr;
     } else {
-      ljam();
+      jam();
       break;
     }//if
   }//while
@@ -576,16 +574,16 @@ void Dbtup::errorHandler(Uint32 errorCode)
 {
   switch (errorCode) {
   case 0:
-    ljam();
+    jam();
     break;
   case 1:
-    ljam();
+    jam();
     break;
   case 2:
-    ljam();
+    jam();
     break;
   default:
-    ljam();
+    jam();
   }
   ndbrequire(false);
 }//Dbtup::errorHandler()

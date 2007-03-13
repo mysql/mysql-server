@@ -14,21 +14,19 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #define DBTUP_C
+#define DBTUP_ABORT_CPP
 #include "Dbtup.hpp"
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
 #include <pc.hpp>
 
-#define ljam() { jamLine(9000 + __LINE__); }
-#define ljamEntry() { jamEntryLine(9000 + __LINE__); }
-
 void Dbtup::freeAllAttrBuffers(Operationrec*  const regOperPtr)
 {
   if (regOperPtr->storedProcedureId == RNIL) {
-    ljam();
+    jam();
     freeAttrinbufrec(regOperPtr->firstAttrinbufrec);
   } else {
-    ljam();
+    jam();
     StoredProcPtr storedPtr;
     c_storedProcPool.getPtr(storedPtr, (Uint32)regOperPtr->storedProcedureId);
     ndbrequire(storedPtr.p->storedCode == ZSCAN_PROCEDURE);
@@ -46,7 +44,7 @@ void Dbtup::freeAttrinbufrec(Uint32 anAttrBuf)
   Uint32 RnoFree = cnoFreeAttrbufrec;
   localAttrBufPtr.i = anAttrBuf;
   while (localAttrBufPtr.i != RNIL) {
-    ljam();
+    jam();
     ptrCheckGuard(localAttrBufPtr, cnoOfAttrbufrec, attrbufrec);
     Ttemp = localAttrBufPtr.p->attrbuf[ZBUF_NEXT];
     localAttrBufPtr.p->attrbuf[ZBUF_NEXT] = cfirstfreeAttrbufrec;
@@ -62,7 +60,7 @@ void Dbtup::freeAttrinbufrec(Uint32 anAttrBuf)
  */
 void Dbtup::execTUP_ABORTREQ(Signal* signal) 
 {
-  ljamEntry();
+  jamEntry();
   do_tup_abortreq(signal, 0);
 }
 
@@ -80,7 +78,7 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
              (trans_state == TRANS_ERROR_WAIT_TUPKEYREQ) ||
              (trans_state == TRANS_IDLE));
   if (regOperPtr.p->op_struct.op_type == ZREAD) {
-    ljam();
+    jam();
     freeAllAttrBuffers(regOperPtr.p);
     initOpConnection(regOperPtr.p);
     return;
@@ -94,7 +92,7 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
 
   if (get_tuple_state(regOperPtr.p) == TUPLE_PREPARED)
   {
-    ljam();
+    jam();
     if (!regTabPtr.p->tuxCustomTriggers.isEmpty() &&
         (flags & ZSKIP_TUX_TRIGGERS) == 0)
       executeTuxAbortTriggers(signal,
@@ -105,12 +103,12 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
     OperationrecPtr loopOpPtr;
     loopOpPtr.i = regOperPtr.p->nextActiveOp;
     while (loopOpPtr.i != RNIL) {
-      ljam();
+      jam();
       c_operation_pool.getPtr(loopOpPtr);
       if (get_tuple_state(loopOpPtr.p) != TUPLE_ALREADY_ABORTED &&
 	  !regTabPtr.p->tuxCustomTriggers.isEmpty() &&
           (flags & ZSKIP_TUX_TRIGGERS) == 0) {
-        ljam();
+        jam();
         executeTuxAbortTriggers(signal,
                                 loopOpPtr.p,
                                 regFragPtr.p,
@@ -211,116 +209,116 @@ int Dbtup::TUPKEY_abort(Signal* signal, int error_type)
   case 1:
 //tmupdate_alloc_error:
     terrorCode= ZMEM_NOMEM_ERROR;
-    ljam();
+    jam();
     break;
 
   case 15:
-    ljam();
+    jam();
     terrorCode = ZREGISTER_INIT_ERROR;
     break;
 
   case 16:
-    ljam();
+    jam();
     terrorCode = ZTRY_TO_UPDATE_ERROR;
     break;
 
   case 17:
-    ljam();
+    jam();
     terrorCode = ZNO_ILLEGAL_NULL_ATTR;
     break;
 
   case 19:
-    ljam();
+    jam();
     terrorCode = ZTRY_TO_UPDATE_ERROR;
     break;
 
   case 20:
-    ljam();
+    jam();
     terrorCode = ZREGISTER_INIT_ERROR;
     break;
 
   case 22:
-    ljam();
+    jam();
     terrorCode = ZTOTAL_LEN_ERROR;
     break;
 
   case 23:
-    ljam();
+    jam();
     terrorCode = ZREGISTER_INIT_ERROR;
     break;
 
   case 24:
-    ljam();
+    jam();
     terrorCode = ZREGISTER_INIT_ERROR;
     break;
 
   case 26:
-    ljam();
+    jam();
     terrorCode = ZREGISTER_INIT_ERROR;
     break;
 
   case 27:
-    ljam();
+    jam();
     terrorCode = ZREGISTER_INIT_ERROR;
     break;
 
   case 28:
-    ljam();
+    jam();
     terrorCode = ZREGISTER_INIT_ERROR;
     break;
 
   case 29:
-    ljam();
+    jam();
     break;
 
   case 30:
-    ljam();
+    jam();
     terrorCode = ZCALL_ERROR;
     break;
 
   case 31:
-    ljam();
+    jam();
     terrorCode = ZSTACK_OVERFLOW_ERROR;
     break;
 
   case 32:
-    ljam();
+    jam();
     terrorCode = ZSTACK_UNDERFLOW_ERROR;
     break;
 
   case 33:
-    ljam();
+    jam();
     terrorCode = ZNO_INSTRUCTION_ERROR;
     break;
 
   case 34:
-    ljam();
+    jam();
     terrorCode = ZOUTSIDE_OF_PROGRAM_ERROR;
     break;
 
   case 35:
-    ljam();
+    jam();
     terrorCode = ZTOO_MANY_INSTRUCTIONS_ERROR;
     break;
 
   case 38:
-    ljam();
+    jam();
     terrorCode = ZTEMPORARY_RESOURCE_FAILURE;
     break;
 
   case 39:
     if (get_trans_state(operPtr.p) == TRANS_TOO_MUCH_AI) {
-      ljam();
+      jam();
       terrorCode = ZTOO_MUCH_ATTRINFO_ERROR;
     } else if (get_trans_state(operPtr.p) == TRANS_ERROR_WAIT_TUPKEYREQ) {
-      ljam();
+      jam();
       terrorCode = ZSEIZE_ATTRINBUFREC_ERROR;
     } else {
       ndbrequire(false);
     }//if
     break;
   case 40:
-    ljam();
+    jam();
     terrorCode = ZUNSUPPORTED_BRANCH;
     break;
   default:

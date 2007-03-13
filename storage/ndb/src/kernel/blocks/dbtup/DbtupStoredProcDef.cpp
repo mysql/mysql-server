@@ -15,13 +15,11 @@
 
 
 #define DBTUP_C
+#define DBTUP_STORE_PROC_DEF_CPP
 #include "Dbtup.hpp"
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
 #include <pc.hpp>
-
-#define ljam() { jamLine(18000 + __LINE__); }
-#define ljamEntry() { jamEntryLine(18000 + __LINE__); }
 
 /* ---------------------------------------------------------------- */
 /* ---------------------------------------------------------------- */
@@ -32,7 +30,7 @@ void Dbtup::execSTORED_PROCREQ(Signal* signal)
 {
   OperationrecPtr regOperPtr;
   TablerecPtr regTabPtr;
-  ljamEntry();
+  jamEntry();
   regOperPtr.i = signal->theData[0];
   c_operation_pool.getPtr(regOperPtr);
   regTabPtr.i = signal->theData[1];
@@ -46,17 +44,17 @@ void Dbtup::execSTORED_PROCREQ(Signal* signal)
   ndbrequire(regTabPtr.p->tableStatus == DEFINED);
   switch (requestInfo) {
   case ZSCAN_PROCEDURE:
-    ljam();
+    jam();
     scanProcedure(signal,
                   regOperPtr.p,
                   signal->theData[4]);
     break;
   case ZCOPY_PROCEDURE:
-    ljam();
+    jam();
     copyProcedure(signal, regTabPtr, regOperPtr.p);
     break;
   case ZSTORED_PROCEDURE_DELETE:
-    ljam();
+    jam();
     deleteScanProcedure(signal, regOperPtr.p);
     break;
   default:
@@ -124,14 +122,14 @@ void Dbtup::copyProcedure(Signal* signal,
     AttributeHeader::init(&signal->theData[length + 1], Ti, 0);
     length++;
     if (length == 24) {
-      ljam();
+      jam();
       ndbrequire(storedProcedureAttrInfo(signal, regOperPtr, 
 					 signal->theData+1, length, true));
       length = 0;
     }//if
   }//for
   if (length != 0) {
-    ljam();
+    jam();
     ndbrequire(storedProcedureAttrInfo(signal, regOperPtr, 
 				       signal->theData+1, length, true));
   }//if
@@ -155,7 +153,7 @@ bool Dbtup::storedProcedureAttrInfo(Signal* signal,
   ndbrequire(regOperPtr->currentAttrinbufLen <= regOperPtr->attrinbufLen);
   if ((RnoFree > MIN_ATTRBUF) ||
       (copyProcedure)) {
-    ljam();
+    jam();
     regAttrPtr.i = cfirstfreeAttrbufrec;
     ptrCheckGuard(regAttrPtr, cnoOfAttrbufrec, attrbufrec);
     regAttrPtr.p->attrbuf[ZBUF_DATA_LEN] = 0;
@@ -163,18 +161,18 @@ bool Dbtup::storedProcedureAttrInfo(Signal* signal,
     cnoFreeAttrbufrec = RnoFree - 1;
     regAttrPtr.p->attrbuf[ZBUF_NEXT] = RNIL;
   } else {
-    ljam();
+    jam();
     storedSeizeAttrinbufrecErrorLab(signal, regOperPtr);
     return false;
   }//if
   if (regOperPtr->firstAttrinbufrec == RNIL) {
-    ljam();
+    jam();
     regOperPtr->firstAttrinbufrec = regAttrPtr.i;
   }//if
   regAttrPtr.p->attrbuf[ZBUF_NEXT] = RNIL;
   if (regOperPtr->lastAttrinbufrec != RNIL) {
     AttrbufrecPtr tempAttrinbufptr;
-    ljam();
+    jam();
     tempAttrinbufptr.i = regOperPtr->lastAttrinbufrec;  
     ptrCheckGuard(tempAttrinbufptr, cnoOfAttrbufrec, attrbufrec);
     tempAttrinbufptr.p->attrbuf[ZBUF_NEXT] = regAttrPtr.i;
@@ -187,7 +185,7 @@ bool Dbtup::storedProcedureAttrInfo(Signal* signal,
                    length);
 
   if (regOperPtr->currentAttrinbufLen < regOperPtr->attrinbufLen) {
-    ljam();
+    jam();
     return true;
   }//if
   if (ERROR_INSERTED(4005) && !copyProcedure) {
