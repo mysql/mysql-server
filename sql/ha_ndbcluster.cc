@@ -4831,7 +4831,8 @@ int ha_ndbcluster::create(const char *name,
     if ((my_errno= create_ndb_column(col, field, create_info)))
       DBUG_RETURN(my_errno);
  
-    if (create_info->storage_media == HA_SM_DISK)
+    if (create_info->storage_media == HA_SM_DISK ||
+        create_info->tablespace)
       col.setStorageType(NdbDictionary::Column::StorageTypeDisk);
     else
       col.setStorageType(NdbDictionary::Column::StorageTypeMemory);
