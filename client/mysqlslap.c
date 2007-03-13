@@ -1034,16 +1034,19 @@ get_options(int *argc,char ***argv)
       exit(1);
   }
 
-  if (auto_generate_sql && 
-      ((auto_generate_sql_autoincrement == FALSE) ||
-       (auto_generate_sql_guid_primary == FALSE)) &&
-      auto_generate_sql_type[0] == 'k')
-  {
+  /* 
+    We are testing to make sure that if someone specified a key search
+    that we actually added a key!
+  */
+  if (auto_generate_sql && auto_generate_sql_type[0] == 'k')
+    if ( auto_generate_sql_autoincrement == FALSE &&
+         auto_generate_sql_guid_primary == FALSE)
+    {
       fprintf(stderr,
               "%s: Can't perform key test without a primary key!\n",
               my_progname);
       exit(1);
-  }
+    }
 
 
 
