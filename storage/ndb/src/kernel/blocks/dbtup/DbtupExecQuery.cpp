@@ -1261,6 +1261,28 @@ int Dbtup::handleInsertReq(Signal* signal,
   {  
     shrink_tuple(req_struct, sizes+2, regTabPtr, true);
   }
+
+  if (ERROR_INSERTED(4025))
+  {
+    goto mem_error;
+  }
+
+  if (ERROR_INSERTED(4026))
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+    goto mem_error;
+  }
+
+  if (ERROR_INSERTED(4027) && (rand() % 100) > 25)
+  {
+    goto mem_error;
+  }
+ 
+  if (ERROR_INSERTED(4028) && (rand() % 100) > 25)
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+    goto mem_error;
+  }
   
   /**
    * Alloc memory
