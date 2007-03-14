@@ -1080,7 +1080,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       Item *having= item, *orig_item= item;
       select_lex->item_list.empty();
       select_lex->item_list.push_back(new Item_int("Not_used",
-                                                   (longlong) 1, 21));
+                                                   (longlong) 1,
+                                                   MY_INT64_NUM_DECIMAL_DIGITS));
       select_lex->ref_pointer_array[0]= select_lex->item_list.head();
        
       item= func->create(expr, item);

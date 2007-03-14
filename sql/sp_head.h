@@ -107,8 +107,6 @@ public:
   /* Possible values of m_flags */
   enum {
     HAS_RETURN= 1,              // For FUNCTIONs only: is set if has RETURN
-    IN_SIMPLE_CASE= 2,          // Is set if parsing a simple CASE
-    IN_HANDLER= 4,              // Is set if the parser is in a handler body
     MULTI_RESULTS= 8,           // Is set if a procedure with SELECT(s)
     CONTAINS_DYNAMIC_SQL= 16,   // Is set if a procedure with PREPARE/EXECUTE
     IS_INVOKED= 32,             // Is set if this sp_head is being used

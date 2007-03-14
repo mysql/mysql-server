@@ -490,7 +490,7 @@ sp_head::init(LEX *lex)
 {
   DBUG_ENTER("sp_head::init");
 
-  lex->spcont= m_pcont= new sp_pcontext(NULL);
+  lex->spcont= m_pcont= new sp_pcontext();
 
   /*
     Altough trg_table_fields list is used only in triggers we init for all
