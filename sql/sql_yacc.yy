@@ -2404,6 +2404,9 @@ sp_decl:
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
+
+            lex->spcont= lex->spcont->push_context(LABEL_HANDLER_SCOPE);
+
 	    sp_pcontext *ctx= lex->spcont;
 	    sp_instr_hpush_jump *i=
               new sp_instr_hpush_jump(sp->instructions(), ctx, $2,
@@ -2411,7 +2414,6 @@ sp_decl:
 
 	    sp->add_instr(i);
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
-	    sp->m_flags|= sp_head::IN_HANDLER;
 	  }
 	  sp_hcond_list sp_proc_stmt
 	  {
@@ -2435,10 +2437,12 @@ sp_decl:
 	      sp->push_backpatch(i, lex->spcont->last_label()); /* Block end */
 	    }
 	    lex->sphead->backpatch(hlab);
-	    sp->m_flags&= ~sp_head::IN_HANDLER;
+
+            lex->spcont= ctx->pop_context();
+
 	    $$.vars= $$.conds= $$.curs= 0;
 	    $$.hndlrs= $6;
-	    ctx->add_handlers($6);
+	    lex->spcont->add_handlers($6);
 	  }
 	| DECLARE_SYM ident CURSOR_SYM FOR_SYM sp_cursor_stmt
 	  {
@@ -2504,11 +2508,18 @@ sp_handler_type:
 	;
 
 sp_hcond_list:
+          sp_hcond_element
+          { $$= 1; }
+        | sp_hcond_list ',' sp_hcond_element
+          { $$+= 1; }
+        ;
+
+sp_hcond_element:
 	  sp_hcond
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
-	    sp_pcontext *ctx= lex->spcont;
+	    sp_pcontext *ctx= lex->spcont->parent_context();
 
 	    if (ctx->find_handler($1))
 	    {
@@ -2522,28 +2533,6 @@ sp_hcond_list:
 
 	      i->add_condition($1);
 	      ctx->push_handler($1);
-	      $$= 1;
-	    }
-	  }
-	| sp_hcond_list ',' sp_hcond
-	  {
-	    LEX *lex= Lex;
-	    sp_head *sp= lex->sphead;
-	    sp_pcontext *ctx= lex->spcont;
-
-	    if (ctx->find_handler($3))
-	    {
-	      my_message(ER_SP_DUP_HANDLER, ER(ER_SP_DUP_HANDLER), MYF(0));
-	      MYSQL_YYABORT;
-	    }
-	    else
-	    {
-	      sp_instr_hpush_jump *i=
-	        (sp_instr_hpush_jump *)sp->last_instruction();
-
-	      i->add_condition($3);
-	      ctx->push_handler($3);
-	      $$= $1 + 1;
 	    }
 	  }
 	;
@@ -3122,7 +3111,7 @@ sp_unlabeled_control:
 	    sp_label_t *lab= lex->spcont->last_label();
 
 	    lab->type= SP_LAB_BEGIN;
-	    lex->spcont= lex->spcont->push_context();
+	    lex->spcont= lex->spcont->push_context(LABEL_DEFAULT_SCOPE);
 	  }
 	  sp_decls
 	  sp_proc_stmts

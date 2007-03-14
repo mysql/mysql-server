@@ -642,12 +642,13 @@ int Log_event::net_send(Protocol *protocol, const char* log_name, my_off_t pos)
 void Log_event::init_show_field_list(List<Item>* field_list)
 {
   field_list->push_back(new Item_empty_string("Log_name", 20));
-  field_list->push_back(new Item_return_int("Pos", 11,
+  field_list->push_back(new Item_return_int("Pos", MY_INT32_NUM_DECIMAL_DIGITS,
 					    MYSQL_TYPE_LONGLONG));
   field_list->push_back(new Item_empty_string("Event_type", 20));
   field_list->push_back(new Item_return_int("Server_id", 10,
 					    MYSQL_TYPE_LONG));
-  field_list->push_back(new Item_return_int("End_log_pos", 11,
+  field_list->push_back(new Item_return_int("End_log_pos",
+                                            MY_INT32_NUM_DECIMAL_DIGITS,
 					    MYSQL_TYPE_LONGLONG));
   field_list->push_back(new Item_empty_string("Info", 20));
 }
