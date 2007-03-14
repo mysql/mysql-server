@@ -506,24 +506,6 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       share->data_file_type = DYNAMIC_RECORD;
     my_afree((gptr) disk_cache);
     mi_setup_functions(share);
-#ifdef HAVE_MMAP
-    if (open_flags & HA_OPEN_MMAP)
-    {
-      info.s= share;
-      if (mi_dynmap_file(&info, share->state.state.data_file_length))
-      {
-        /* purecov: begin inspected */
-        /* Ignore if mmap fails. Use file I/O instead. */
-        DBUG_PRINT("warning", ("mmap failed: errno: %d", errno));
-        /* purecov: end */
-      }
-      else
-      {
-        share->file_read= mi_mmap_pread;
-        share->file_write= mi_mmap_pwrite;
-      }
-    }
-#endif /* HAVE_MMAP */
     share->is_log_table= FALSE;
 #ifdef THREAD
     thr_lock_init(&share->lock);
@@ -554,6 +536,14 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       }
     }
 #endif
+    /*
+      Memory mapping can only be requested after initializing intern_lock.
+    */
+    if (open_flags & HA_OPEN_MMAP)
+    {
+      info.s= share;
+      mi_extra(&info, HA_EXTRA_MMAP, 0);
+    }
   }
   else
   {
@@ -1235,7 +1225,7 @@ int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, File file_to_dup __attr
 int mi_open_keyfile(MYISAM_SHARE *share)
 {
   if ((share->kfile=my_open(share->unique_file_name, share->mode | O_SHARE,
-			    MYF(MY_WME))) < 0)
+                            MYF(MY_WME))) < 0)
     return 1;
   return 0;
 }

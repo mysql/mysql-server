@@ -243,3 +243,10 @@ SET             @@session.auto_increment_offset=
 @bug20830_old_session_auto_increment_offset;
 SET             @@session.auto_increment_increment=
 @bug20830_old_session_auto_increment_increment;
+CREATE TABLE t1(a BIT);
+INSERT DELAYED INTO t1 VALUES(1);
+FLUSH TABLE t1;
+SELECT HEX(a) FROM t1;
+HEX(a)
+1
+DROP TABLE t1;
