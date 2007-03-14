@@ -578,6 +578,18 @@ void Suma::execAPI_FAILREQ(Signal* signal)
     return;
   }
 
+  if (c_failedApiNodes.get(failedApiNode))
+  {
+    jam();
+    return;
+  }
+
+  if (!c_subscriber_nodes.get(failedApiNode))
+  {
+    jam();
+    return;
+  }
+
   c_failedApiNodes.set(failedApiNode);
   c_connected_nodes.clear(failedApiNode);
   bool found = removeSubscribersOnNode(signal, failedApiNode);
@@ -591,9 +603,12 @@ void Suma::execAPI_FAILREQ(Signal* signal)
   Ptr<Gcp_record> gcp;
   for(c_gcp_list.first(gcp); !gcp.isNull(); c_gcp_list.next(gcp))
   {
+    jam();
     ack->rep.gci = gcp.p->m_gci;
     if(gcp.p->m_subscribers.get(failedApiNode))
     {
+      jam();
+      gcp.p->m_subscribers.clear(failedApiNode);
       ack->rep.senderRef = numberToRef(0, failedApiNode);
       sendSignal(SUMA_REF, GSN_SUB_GCP_COMPLETE_ACK, signal, 
 		 SubGcpCompleteAck::SignalLength, JBB);
@@ -741,6 +756,17 @@ Suma::execNODE_FAILREP(Signal* signal){
     Restart.resetRestart(signal);
   }
 
+  if (ERROR_INSERTED(13032))
+  {
+    Uint32 node = c_subscriber_nodes.find(0);
+    if (node != NodeBitmask::NotFound)
+    {
+      ndbout_c("Inserting API_FAILREQ node: %u", node);
+      signal->theData[0] = node;
+      EXECUTE_DIRECT(QMGR, GSN_API_FAILREQ, signal, 1);
+    }
+  }
+  
   signal->theData[0] = SumaContinueB::RESEND_BUCKET;
 
   NdbNodeBitmask tmp;
@@ -3445,7 +3471,10 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
    */
   f_bufferLock = 0;
   b_bufferLock = 0;
-
+  
+  ndbrequire((tabPtr.p = c_tablePool.getPtr(tabPtr.i)) != 0);
+  Uint32 tableId = tabPtr.p->m_tableId;
+  
   Uint32 bucket= hashValue % c_no_of_buckets;
   m_max_seen_gci = (gci > m_max_seen_gci ? gci : m_max_seen_gci);
   if(m_active_buckets.get(bucket) || 
@@ -3468,7 +3497,7 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
     
     SubTableData * data = (SubTableData*)signal->getDataPtrSend();//trg;
     data->gci            = gci;
-    data->tableId        = tabPtr.p->m_tableId;
+    data->tableId        = tableId;
     data->requestInfo    = 0;
     SubTableData::setOperation(data->requestInfo, event);
     data->logType        = 0;
@@ -3491,10 +3520,11 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
   else 
   {
     Uint32* dst;
-    Uint32 sz = f_trigBufferSize + b_trigBufferSize + 2;
+    Uint32 sz = f_trigBufferSize + b_trigBufferSize + 3;
     if((dst = get_buffer_ptr(signal, bucket, gci, sz)))
     {
-      * dst++ = tabPtr.i;
+      * dst++ = tableId;
+      * dst++ = tabPtr.p->m_schemaVersion;
       * dst++ = (event << 16) | f_trigBufferSize;
       memcpy(dst, f_buffer, f_trigBufferSize << 2);
       dst += f_trigBufferSize;
@@ -3626,7 +3656,7 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
     
     if(c_buckets[i].m_buffer_tail != RNIL)
     {
-      Uint32* dst;
+      //Uint32* dst;
       get_buffer_ptr(signal, i, gci, 0);
     }
   }
@@ -3971,8 +4001,8 @@ void
 Suma::completeSubRemove(SubscriptionPtr subPtr)
 {
   DBUG_ENTER("Suma::completeSubRemove");
-  Uint32 subscriptionId  = subPtr.p->m_subscriptionId;
-  Uint32 subscriptionKey = subPtr.p->m_subscriptionKey;
+  //Uint32 subscriptionId  = subPtr.p->m_subscriptionId;
+  //Uint32 subscriptionKey = subPtr.p->m_subscriptionKey;
 
   c_subscriptions.release(subPtr);
   DBUG_PRINT("info",("c_subscriptionPool  size: %d free: %d",
@@ -4987,43 +5017,48 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint32 min_gci,
     {
       g_cnt++;
       Uint32 table = * src++ ;
+      Uint32 schemaVersion = * src++;
       Uint32 event = * src >> 16;
       Uint32 sz_1 = (* src ++) & 0xFFFF;
-
-      ndbassert(sz - 2 >= sz_1);
+      
+      ndbassert(sz - 3 >= sz_1);
       
       LinearSectionPtr ptr[3];
       const Uint32 nptr= reformat(signal, ptr, 
 				  src, sz_1, 
-				  src + sz_1, sz - 2 - sz_1);
+				  src + sz_1, sz - 3 - sz_1);
       Uint32 ptrLen= 0;
       for(Uint32 i =0; i < nptr; i++)
         ptrLen+= ptr[i].sz;
+
       /**
        * Signal to subscriber(s)
        */
       Ptr<Table> tabPtr;
-      ndbrequire((tabPtr.p = c_tablePool.getPtr(table)) != 0);
-      
-      SubTableData * data = (SubTableData*)signal->getDataPtrSend();//trg;
-      data->gci            = last_gci;
-      data->tableId        = tabPtr.p->m_tableId;
-      data->requestInfo    = 0;
-      SubTableData::setOperation(data->requestInfo, event);
-      data->logType        = 0;
-      data->changeMask     = 0;
-      data->totalLen       = ptrLen;
-      
+      if (c_tables.find(tabPtr, table) && 
+	  tabPtr.p->m_schemaVersion == schemaVersion)
       {
-	LocalDLList<Subscriber> list(c_subscriberPool,tabPtr.p->c_subscribers);
-	SubscriberPtr subbPtr;
-	for(list.first(subbPtr); !subbPtr.isNull(); list.next(subbPtr))
+	SubTableData * data = (SubTableData*)signal->getDataPtrSend();//trg;
+	data->gci            = last_gci;
+	data->tableId        = table;
+	data->requestInfo    = 0;
+	SubTableData::setOperation(data->requestInfo, event);
+	data->logType        = 0;
+	data->changeMask     = 0;
+	data->totalLen       = ptrLen;
+	
 	{
-	  DBUG_PRINT("info",("GSN_SUB_TABLE_DATA to node %d",
-			     refToNode(subbPtr.p->m_senderRef)));
-	  data->senderData = subbPtr.p->m_senderData;
-	  sendSignal(subbPtr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
-		     SubTableData::SignalLength, JBB, ptr, nptr);
+	  LocalDLList<Subscriber> 
+	    list(c_subscriberPool,tabPtr.p->c_subscribers);
+	  SubscriberPtr subbPtr;
+	  for(list.first(subbPtr); !subbPtr.isNull(); list.next(subbPtr))
+	  {
+	    DBUG_PRINT("info",("GSN_SUB_TABLE_DATA to node %d",
+			       refToNode(subbPtr.p->m_senderRef)));
+	    data->senderData = subbPtr.p->m_senderData;
+	    sendSignal(subbPtr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
+		       SubTableData::SignalLength, JBB, ptr, nptr);
+	  }
 	}
       }
     }
