@@ -3471,8 +3471,7 @@ view_err:
           checking whether cfield->length < key_part_length (in chars).
          */
         if (!Field::type_can_have_key_part(cfield->field->type()) ||
-            (!Field::type_can_have_key_part(cfield->sql_type) &&
-             !f_is_geom (cfield->pack_flag)) ||
+            !Field::type_can_have_key_part(cfield->sql_type) ||
             (cfield->field->field_length == key_part_length &&
              !f_is_blob(key_part->key_type)) ||
 	    (cfield->length && (cfield->length < key_part_length /
