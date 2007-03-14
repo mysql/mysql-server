@@ -107,9 +107,6 @@ btr_rec_free_updated_extern_fields(
 				part will be updated, or NULL */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	upd_t*		update,	/* in: update vector */
-	ibool		do_not_free_inherited,/* in: TRUE if called in a
-				rollback and we do not want to free
-				inherited fields */
 	mtr_t*		mtr);	/* in: mini-transaction handle which contains
 				an X-latch to record page and to the tree */
 /***************************************************************
@@ -2187,7 +2184,7 @@ btr_cur_pessimistic_update(
 		ut_a(big_rec_vec == NULL);
 
 		btr_rec_free_updated_extern_fields(index, rec, page_zip,
-						   offsets, update, TRUE, mtr);
+						   offsets, update, mtr);
 	}
 
 	/* We have to set appropriate extern storage bits in the new
@@ -3540,6 +3537,11 @@ btr_cur_unmark_extern_fields(
 	ut_ad(!rec_offs_comp(offsets) || !rec_get_node_ptr_flag(rec));
 	n = rec_offs_n_fields(offsets);
 
+	if (!rec_offs_any_extern(offsets)) {
+
+		return;
+	}
+
 	for (i = 0; i < n; i++) {
 		if (rec_offs_nth_extern(offsets, i)) {
 
@@ -3561,7 +3563,6 @@ btr_cur_unmark_dtuple_extern_fields(
 	ulint		n_ext_vec)	/* in: number of elements in ext_vec */
 {
 	dfield_t* dfield;
-	ulint	byte_val;
 	byte*	data;
 	ulint	len;
 	ulint	i;
@@ -3574,11 +3575,7 @@ btr_cur_unmark_dtuple_extern_fields(
 
 		len -= BTR_EXTERN_FIELD_REF_SIZE;
 
-		byte_val = mach_read_from_1(data + len + BTR_EXTERN_LEN);
-
-		byte_val = byte_val & (~BTR_EXTERN_OWNER_FLAG);
-
-		mach_write_to_1(data + len + BTR_EXTERN_LEN, byte_val);
+		data[len + BTR_EXTERN_LEN] &= ~BTR_EXTERN_OWNER_FLAG;
 	}
 }
 
@@ -4302,9 +4299,6 @@ btr_rec_free_updated_extern_fields(
 				part will be updated, or NULL */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	upd_t*		update,	/* in: update vector */
-	ibool		do_not_free_inherited,/* in: TRUE if called in a
-				rollback and we do not want to free
-				inherited fields */
 	mtr_t*		mtr)	/* in: mini-transaction handle which contains
 				an X-latch to record page and to the tree */
 {
@@ -4331,8 +4325,7 @@ btr_rec_free_updated_extern_fields(
 			btr_free_externally_stored_field(
 				index, data + len - BTR_EXTERN_FIELD_REF_SIZE,
 				rec, offsets, page_zip,
-				ufield->field_no,
-				do_not_free_inherited, mtr);
+				ufield->field_no, TRUE, mtr);
 		}
 	}
 }
