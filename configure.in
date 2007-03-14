@@ -772,6 +772,9 @@ AC_CHECK_FUNC(bind, , AC_CHECK_LIB(bind, bind))
 AC_CHECK_LIB(crypt, crypt)
 AC_CHECK_FUNC(crypt, AC_DEFINE(HAVE_CRYPT)) 
 
+# For the sched_yield() function on Solaris
+AC_CHECK_FUNC(sched_yield, , AC_CHECK_LIB(posix4, sched_yield))
+
 # For compress in zlib
 case $SYSTEM_TYPE in
   *netware* | *modesto*)
