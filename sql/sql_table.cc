@@ -5865,8 +5865,7 @@ view_err:
           checking whether cfield->length < key_part_length (in chars).
          */
         if (!Field::type_can_have_key_part(cfield->field->type()) ||
-            (!Field::type_can_have_key_part(cfield->sql_type) &&
-             !f_is_geom (cfield->pack_flag)) ||
+            !Field::type_can_have_key_part(cfield->sql_type) ||
             /* spatial keys can't have sub-key length */
             (key_info->flags & HA_SPATIAL) ||
             (cfield->field->field_length == key_part_length &&
