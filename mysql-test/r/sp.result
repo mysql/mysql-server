@@ -5896,4 +5896,169 @@ func_8407_b()
 1500
 drop function func_8407_a|
 drop function func_8407_b|
+drop table if exists table_26503|
+drop procedure if exists proc_26503_ok_1|
+drop procedure if exists proc_26503_ok_2|
+drop procedure if exists proc_26503_ok_3|
+drop procedure if exists proc_26503_ok_4|
+create table table_26503(a int unique)|
+create procedure proc_26503_ok_1(v int)
+begin
+declare i int default 5;
+declare continue handler for sqlexception
+begin
+select 'caught something';
+retry:
+while i > 0 do
+begin
+set i = i - 1;
+select 'looping', i;
+iterate retry;
+select 'dead code';
+end;
+end while retry;
+select 'leaving handler';
+end;
+select 'do something';
+insert into table_26503 values (v);
+select 'do something again';
+insert into table_26503 values (v);
+end|
+create procedure proc_26503_ok_2(v int)
+begin
+declare i int default 5;
+declare continue handler for sqlexception
+begin
+select 'caught something';
+retry:
+while i > 0 do
+begin
+set i = i - 1;
+select 'looping', i;
+leave retry;
+select 'dead code';
+end;
+end while;
+select 'leaving handler';
+end;
+select 'do something';
+insert into table_26503 values (v);
+select 'do something again';
+insert into table_26503 values (v);
+end|
+create procedure proc_26503_ok_3(v int)
+begin
+declare i int default 5;
+retry:
+begin
+declare continue handler for sqlexception
+begin
+select 'caught something';
+retry:
+while i > 0 do
+begin
+set i = i - 1;
+select 'looping', i;
+iterate retry;
+select 'dead code';
+end;
+end while retry;
+select 'leaving handler';
+end;
+select 'do something';
+insert into table_26503 values (v);
+select 'do something again';
+insert into table_26503 values (v);
+end;
+end|
+create procedure proc_26503_ok_4(v int)
+begin
+declare i int default 5;
+retry:
+begin
+declare continue handler for sqlexception
+begin
+select 'caught something';
+retry:
+while i > 0 do
+begin
+set i = i - 1;
+select 'looping', i;
+leave retry;
+select 'dead code';
+end;
+end while;
+select 'leaving handler';
+end;
+select 'do something';
+insert into table_26503 values (v);
+select 'do something again';
+insert into table_26503 values (v);
+end;
+end|
+call proc_26503_ok_1(1)|
+do something
+do something
+do something again
+do something again
+caught something
+caught something
+looping	i
+looping	4
+looping	i
+looping	3
+looping	i
+looping	2
+looping	i
+looping	1
+looping	i
+looping	0
+leaving handler
+leaving handler
+call proc_26503_ok_2(2)|
+do something
+do something
+do something again
+do something again
+caught something
+caught something
+looping	i
+looping	4
+leaving handler
+leaving handler
+call proc_26503_ok_3(3)|
+do something
+do something
+do something again
+do something again
+caught something
+caught something
+looping	i
+looping	4
+looping	i
+looping	3
+looping	i
+looping	2
+looping	i
+looping	1
+looping	i
+looping	0
+leaving handler
+leaving handler
+call proc_26503_ok_4(4)|
+do something
+do something
+do something again
+do something again
+caught something
+caught something
+looping	i
+looping	4
+leaving handler
+leaving handler
+drop table table_26503|
+drop procedure proc_26503_ok_1|
+drop procedure proc_26503_ok_2|
+drop procedure proc_26503_ok_3|
+drop procedure proc_26503_ok_4|
 drop table t1,t2;

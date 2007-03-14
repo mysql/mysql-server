@@ -6888,6 +6888,141 @@ drop function func_8407_a|
 drop function func_8407_b|
 
 #
+# Bug#26503 (Illegal SQL exception handler code causes the server to crash)
+#
+
+--disable_warnings
+drop table if exists table_26503|
+drop procedure if exists proc_26503_ok_1|
+drop procedure if exists proc_26503_ok_2|
+drop procedure if exists proc_26503_ok_3|
+drop procedure if exists proc_26503_ok_4|
+--enable_warnings
+
+create table table_26503(a int unique)|
+
+create procedure proc_26503_ok_1(v int)
+begin
+  declare i int default 5;
+
+  declare continue handler for sqlexception
+  begin
+    select 'caught something';
+    retry:
+    while i > 0 do
+      begin
+        set i = i - 1;
+        select 'looping', i;
+        iterate retry;
+        select 'dead code';
+      end;
+    end while retry;
+    select 'leaving handler';
+  end;
+
+  select 'do something';
+  insert into table_26503 values (v);
+  select 'do something again';
+  insert into table_26503 values (v);
+end|
+
+create procedure proc_26503_ok_2(v int)
+begin
+  declare i int default 5;
+
+  declare continue handler for sqlexception
+  begin
+    select 'caught something';
+    retry:
+    while i > 0 do
+      begin
+        set i = i - 1;
+        select 'looping', i;
+        leave retry;
+        select 'dead code';
+      end;
+    end while;
+    select 'leaving handler';
+  end;
+
+  select 'do something';
+  insert into table_26503 values (v);
+  select 'do something again';
+  insert into table_26503 values (v);
+end|
+
+## The outer retry label should not prevent using the inner label.
+
+create procedure proc_26503_ok_3(v int)
+begin
+  declare i int default 5;
+
+retry:
+  begin
+    declare continue handler for sqlexception
+    begin
+      select 'caught something';
+      retry:
+      while i > 0 do
+        begin
+          set i = i - 1;
+          select 'looping', i;
+          iterate retry;
+          select 'dead code';
+        end;
+      end while retry;
+      select 'leaving handler';
+    end;
+
+    select 'do something';
+    insert into table_26503 values (v);
+    select 'do something again';
+    insert into table_26503 values (v);
+  end;
+end|
+
+## The outer retry label should not prevent using the inner label.
+
+create procedure proc_26503_ok_4(v int)
+begin
+  declare i int default 5;
+
+retry:
+  begin
+    declare continue handler for sqlexception
+    begin
+      select 'caught something';
+      retry:
+      while i > 0 do
+        begin
+          set i = i - 1;
+          select 'looping', i;
+          leave retry;
+          select 'dead code';
+        end;
+      end while;
+      select 'leaving handler';
+    end;
+
+    select 'do something';
+    insert into table_26503 values (v);
+    select 'do something again';
+    insert into table_26503 values (v);
+  end;
+end|
+
+call proc_26503_ok_1(1)|
+call proc_26503_ok_2(2)|
+call proc_26503_ok_3(3)|
+call proc_26503_ok_4(4)|
+
+drop table table_26503|
+drop procedure proc_26503_ok_1|
+drop procedure proc_26503_ok_2|
+drop procedure proc_26503_ok_3|
+drop procedure proc_26503_ok_4|
+
+#
 # NOTE: The delimiter is `|`, and not `;`. It is changed to `;`
 #       at the end of the file!
 #
