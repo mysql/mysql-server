@@ -578,6 +578,18 @@ void Suma::execAPI_FAILREQ(Signal* signal)
     return;
   }
 
+  if (c_failedApiNodes.get(failedApiNode))
+  {
+    jam();
+    return;
+  }
+
+  if (!c_subscriber_nodes.get(failedApiNode))
+  {
+    jam();
+    return;
+  }
+
   c_failedApiNodes.set(failedApiNode);
   c_connected_nodes.clear(failedApiNode);
   bool found = removeSubscribersOnNode(signal, failedApiNode);
@@ -591,9 +603,12 @@ void Suma::execAPI_FAILREQ(Signal* signal)
   Ptr<Gcp_record> gcp;
   for(c_gcp_list.first(gcp); !gcp.isNull(); c_gcp_list.next(gcp))
   {
+    jam();
     ack->rep.gci = gcp.p->m_gci;
     if(gcp.p->m_subscribers.get(failedApiNode))
     {
+      jam();
+      gcp.p->m_subscribers.clear(failedApiNode);
       ack->rep.senderRef = numberToRef(0, failedApiNode);
       sendSignal(SUMA_REF, GSN_SUB_GCP_COMPLETE_ACK, signal, 
 		 SubGcpCompleteAck::SignalLength, JBB);
