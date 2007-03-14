@@ -1011,6 +1011,7 @@ bool Field::type_can_have_key_part(enum enum_field_types type)
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_GEOMETRY:
     return TRUE;
   default:
     return FALSE;
