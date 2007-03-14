@@ -172,7 +172,7 @@ CREATE TABLE t2 (geom GEOMETRY NOT NULL, SPATIAL KEY gk(geom));
 INSERT INTO t2 SELECT GeomFromText(st) FROM t1;
 drop table t1, t2;
 
-CREATE TABLE t1 (`geometry` geometry NOT NULL default '',SPATIAL KEY `gndx` (`geometry`(32))) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+CREATE TABLE t1 (`geometry` geometry NOT NULL default '',SPATIAL KEY `gndx` (`geometry`)) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
 INSERT INTO t1 (geometry) VALUES
 (PolygonFromText('POLYGON((-18.6086111000 -66.9327777000, -18.6055555000
@@ -192,7 +192,7 @@ drop table t1;
 #
 CREATE TABLE t1 (
   c1 geometry NOT NULL default '',
-  SPATIAL KEY i1 (c1(32))
+  SPATIAL KEY i1 (c1)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 INSERT INTO t1 (c1) VALUES (
   PolygonFromText('POLYGON((-18.6086111000 -66.9327777000,
@@ -206,7 +206,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (
   c1 geometry NOT NULL default '',
-  SPATIAL KEY i1 (c1(32))
+  SPATIAL KEY i1 (c1)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 INSERT INTO t1 (c1) VALUES (
   PolygonFromText('POLYGON((-18.6086111000 -66.9327777000,

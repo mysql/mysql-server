@@ -886,7 +886,7 @@ ALTER TABLE t1 ADD b GEOMETRY NOT NULL, ADD SPATIAL INDEX(b);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(500) default NULL,
+  `a` varchar(500) DEFAULT NULL,
   `b` geometry NOT NULL,
   SPATIAL KEY `b` (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
@@ -894,7 +894,7 @@ ALTER TABLE t1 ADD KEY(b(50));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(500) default NULL,
+  `a` varchar(500) DEFAULT NULL,
   `b` geometry NOT NULL,
   SPATIAL KEY `b` (`b`),
   KEY `b_2` (`b`(50))
@@ -903,9 +903,9 @@ ALTER TABLE t1 ADD c POINT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(500) default NULL,
+  `a` varchar(500) DEFAULT NULL,
   `b` geometry NOT NULL,
-  `c` point default NULL,
+  `c` point DEFAULT NULL,
   SPATIAL KEY `b` (`b`),
   KEY `b_2` (`b`(50))
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
@@ -913,6 +913,8 @@ CREATE TABLE t2 (a INT, KEY (a(20)));
 ERROR HY000: Incorrect sub part key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique sub keys
 ALTER TABLE t1 ADD d INT;
 ALTER TABLE t1 ADD KEY (d(20));
+ERROR HY000: Incorrect sub part key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique sub keys
+ALTER TABLE t1 ADD e GEOMETRY NOT NULL, ADD SPATIAL KEY (e(30));
 ERROR HY000: Incorrect sub part key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique sub keys
 DROP TABLE t1;
 CREATE TABLE t1 (s CHAR(8) BINARY);
