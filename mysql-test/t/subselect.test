@@ -2736,3 +2736,15 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t1xt2;
 
+#
+# Bug #26728: derived table with concatanation of literals in select list
+#  
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (3), (1), (2);           
+
+SELECT 'this is ' 'a test.' AS col1, a AS col2 FROM t1;
+SELECT * FROM (SELECT 'this is ' 'a test.' AS col1, a AS t2 FROM t1) t;
+
+DROP table t1;
+
