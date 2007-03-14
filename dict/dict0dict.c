@@ -689,7 +689,8 @@ dict_table_get_on_id(
 		if we are doing a rollback to handle an error in TABLE
 		CREATE, for example, we already have the mutex! */
 
-		ut_ad(mutex_own(&(dict_sys->mutex)));
+		ut_ad(mutex_own(&(dict_sys->mutex))
+		      || trx->dict_operation_lock_mode == RW_X_LATCH);
 
 		return(dict_table_get_on_id_low(table_id));
 	}

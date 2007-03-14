@@ -213,7 +213,7 @@ row_undo(
 	ulint	err;
 	trx_t*	trx;
 	dulint	roll_ptr;
-	ibool	froze_data_dict	= FALSE;
+	ibool	locked_data_dict;
 
 	ut_ad(node && thr);
 
@@ -266,13 +266,13 @@ row_undo(
 	/* Prevent DROP TABLE etc. while we are rolling back this row.
 	If we are doing a TABLE CREATE or some other dictionary operation,
 	then we already have dict_operation_lock locked in x-mode. Do not
-	try to lock again in s-mode, because that would cause a hang. */
+	try to lock again, because that would cause a hang. */
 
-	if (trx->dict_operation_lock_mode == 0) {
+	locked_data_dict = (trx->dict_operation_lock_mode == 0);
 
-		row_mysql_freeze_data_dictionary(trx);
+	if (locked_data_dict) {
 
-		froze_data_dict = TRUE;
+		row_mysql_lock_data_dictionary(trx);
 	}
 
 	if (node->state == UNDO_NODE_INSERT) {
@@ -285,9 +285,9 @@ row_undo(
 		err = row_undo_mod(node, thr);
 	}
 
-	if (froze_data_dict) {
+	if (locked_data_dict) {
 
-		row_mysql_unfreeze_data_dictionary(trx);
+		row_mysql_unlock_data_dictionary(trx);
 	}
 
 	/* Do some cleanup */
