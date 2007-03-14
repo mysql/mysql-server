@@ -304,6 +304,12 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
   RETURN VALUE
     0 - Equal definitions.
     1 - Different definitions.
+
+  TODO
+    - compare FULLTEXT keys;
+    - compare SPATIAL keys;
+    - compare FIELD_SKIP_ZERO which is converted to FIELD_NORMAL correctly
+      (should be corretly detected in table2myisam).
 */
 
 int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
@@ -329,6 +335,28 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
   {
     HA_KEYSEG *t1_keysegs= t1_keyinfo[i].seg;
     HA_KEYSEG *t2_keysegs= t2_keyinfo[i].seg;
+    if (t1_keyinfo[i].flag & HA_FULLTEXT && t2_keyinfo[i].flag & HA_FULLTEXT)
+      continue;
+    else if (t1_keyinfo[i].flag & HA_FULLTEXT ||
+             t2_keyinfo[i].flag & HA_FULLTEXT)
+    {
+       DBUG_PRINT("error", ("Key %d has different definition", i));
+       DBUG_PRINT("error", ("t1_fulltext= %d, t2_fulltext=%d",
+                            test(t1_keyinfo[i].flag & HA_FULLTEXT),
+                            test(t2_keyinfo[i].flag & HA_FULLTEXT)));
+       DBUG_RETURN(1);
+    }
+    if (t1_keyinfo[i].flag & HA_SPATIAL && t2_keyinfo[i].flag & HA_SPATIAL)
+      continue;
+    else if (t1_keyinfo[i].flag & HA_SPATIAL ||
+             t2_keyinfo[i].flag & HA_SPATIAL)
+    {
+       DBUG_PRINT("error", ("Key %d has different definition", i));
+       DBUG_PRINT("error", ("t1_spatial= %d, t2_spatial=%d",
+                            test(t1_keyinfo[i].flag & HA_SPATIAL),
+                            test(t2_keyinfo[i].flag & HA_SPATIAL)));
+       DBUG_RETURN(1);
+    }
     if (t1_keyinfo[i].keysegs != t2_keyinfo[i].keysegs ||
         t1_keyinfo[i].key_alg != t2_keyinfo[i].key_alg)
     {
@@ -365,7 +393,14 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
   {
     MI_COLUMNDEF *t1_rec= &t1_recinfo[i];
     MI_COLUMNDEF *t2_rec= &t2_recinfo[i];
-    if (t1_rec->type != t2_rec->type ||
+    /*
+      FIELD_SKIP_ZERO can be changed to FIELD_NORMAL in mi_create,
+      see NOTE1 in mi_create.c
+    */
+    if ((t1_rec->type != t2_rec->type &&
+         !(t1_rec->type == (int) FIELD_SKIP_ZERO &&
+           t1_rec->length == 1 &&
+           t2_rec->type == (int) FIELD_NORMAL)) ||
         t1_rec->length != t2_rec->length ||
         t1_rec->null_bit != t2_rec->null_bit)
     {
