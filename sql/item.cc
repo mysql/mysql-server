@@ -3907,7 +3907,9 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       {
         /* First usage of column */
         table->used_fields++;                     // Used to optimize loops
-        table->used_keys.intersect(field->part_of_key);
+        /* purecov: begin inspected */
+        table->covering_keys.intersect(field->part_of_key);
+        /* purecov: end */
       }
     }
   }
@@ -4125,7 +4127,9 @@ bool Item_field::set_no_const_sub(byte *arg)
   DESCRIPTION
     The function returns a pointer to an item that is taken from
     the very beginning of the item_equal list which the Item_field
-    object refers to (belongs to).  
+    object refers to (belongs to) unless item_equal contains  a constant
+    item. In this case the function returns this constant item, 
+    (if the substitution does not require conversion).   
     If the Item_field object does not refer any Item_equal object
     'this' is returned 
 
@@ -4134,7 +4138,8 @@ bool Item_field::set_no_const_sub(byte *arg)
     of the thransformer method.  
 
   RETURN VALUES
-    pointer to a replacement Item_field if there is a better equal item;
+    pointer to a replacement Item_field if there is a better equal item or
+    a pointer to a constant equal item;
     this - otherwise.
 */
 
@@ -4142,6 +4147,14 @@ Item *Item_field::replace_equal_field(byte *arg)
 {
   if (item_equal)
   {
+    Item *const_item= item_equal->get_const();
+    if (const_item)
+    {
+      if (cmp_context != (Item_result)-1 &&
+          const_item->cmp_context != cmp_context)
+        return this;
+      return const_item;
+    }
     Item_field *subst= item_equal->get_first();
     if (subst && !field->eq(subst->field))
       return subst;
