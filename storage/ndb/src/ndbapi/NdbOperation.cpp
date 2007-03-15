@@ -369,7 +369,19 @@ NdbOperation::subValue( const char* anAttrName, Uint32 aValue)
 }
 
 int
+NdbOperation::subValue( const char* anAttrName, Uint64 aValue)
+{
+  return subValue(m_currentTable->getColumn(anAttrName), aValue);
+}
+
+int
 NdbOperation::subValue(Uint32 anAttrId, Uint32 aValue)
+{
+  return subValue(m_currentTable->getColumn(anAttrId), aValue);
+}
+
+int
+NdbOperation::subValue(Uint32 anAttrId, Uint64 aValue)
 {
   return subValue(m_currentTable->getColumn(anAttrId), aValue);
 }
