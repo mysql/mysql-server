@@ -2739,8 +2739,8 @@ int set_var_collation_client::update(THD *thd)
   thd->variables.character_set_results= character_set_results;
   thd->variables.collation_connection= collation_connection;
   thd->update_charset();
-  thd->protocol_simple.init(thd);
-  thd->protocol_prep.init(thd);
+  thd->protocol_text.init(thd);
+  thd->protocol_binary.init(thd);
   return 0;
 }
 
