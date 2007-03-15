@@ -904,8 +904,8 @@ public:
   NET	  net;				// client connection descriptor
   MEM_ROOT warn_root;			// For warnings and errors
   Protocol *protocol;			// Current protocol
-  Protocol_simple protocol_simple;	// Normal protocol
-  Protocol_prep protocol_prep;		// Binary protocol
+  Protocol_text   protocol_text;	// Normal protocol
+  Protocol_binary protocol_binary;	// Binary protocol
   HASH    user_vars;			// hash for user variables
   String  packet;			// dynamic buffer for network I/O
   String  convert_buffer;               // buffer for charset conversions

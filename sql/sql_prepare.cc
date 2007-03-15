@@ -93,11 +93,11 @@ When one supplies long data for a placeholder:
 
 /* A result class used to send cursor rows using the binary protocol. */
 
-class Select_fetch_protocol_prep: public select_send
+class Select_fetch_protocol_binary: public select_send
 {
-  Protocol_prep protocol;
+  Protocol_binary protocol;
 public:
-  Select_fetch_protocol_prep(THD *thd);
+  Select_fetch_protocol_binary(THD *thd);
   virtual bool send_fields(List<Item> &list, uint flags);
   virtual bool send_data(List<Item> &items);
   virtual bool send_eof();
@@ -125,7 +125,7 @@ public:
   };
 
   THD *thd;
-  Select_fetch_protocol_prep result;
+  Select_fetch_protocol_binary result;
   Protocol *protocol;
   Item_param **param_array;
   uint param_count;
@@ -247,9 +247,9 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
   */
   DBUG_RETURN(my_net_write(net, buff, sizeof(buff)) ||
               (stmt->param_count &&
-               stmt->thd->protocol_simple.send_fields((List<Item> *)
-                                                      &stmt->lex->param_list,
-                                                      Protocol::SEND_EOF)));
+               stmt->thd->protocol_text.send_fields((List<Item> *)
+                                                    &stmt->lex->param_list,
+                                                    Protocol::SEND_EOF)));
 }
 #else
 static bool send_prep_stmt(Prepared_statement *stmt,
@@ -691,7 +691,7 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
     and generate a valid query for logging.
 
   NOTES
-    This function, along with other _withlog functions is called when one of
+    This function, along with other _with_log functions is called when one of
     binary, slow or general logs is open. Logging of prepared statements in
     all cases is performed by means of conventional queries: if parameter
     data was supplied from C API, each placeholder in the query is
@@ -715,9 +715,9 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
    0 if success, 1 otherwise
 */
 
-static bool insert_params_withlog(Prepared_statement *stmt, uchar *null_array,
-                                  uchar *read_pos, uchar *data_end,
-                                  String *query)
+static bool insert_params_with_log(Prepared_statement *stmt, uchar *null_array,
+                                   uchar *read_pos, uchar *data_end,
+                                   String *query)
 {
   THD  *thd= stmt->thd;
   Item_param **begin= stmt->param_array;
@@ -725,7 +725,7 @@ static bool insert_params_withlog(Prepared_statement *stmt, uchar *null_array,
   uint32 length= 0;
   String str;
   const String *res;
-  DBUG_ENTER("insert_params_withlog");
+  DBUG_ENTER("insert_params_with_log");
 
   if (query->copy(stmt->query, stmt->query_length, default_charset_info))
     DBUG_RETURN(1);
@@ -869,7 +869,8 @@ static bool emb_insert_params(Prepared_statement *stmt, String *expanded_query)
 }
 
 
-static bool emb_insert_params_withlog(Prepared_statement *stmt, String *query)
+static bool emb_insert_params_with_log(Prepared_statement *stmt,
+                                       String *query)
 {
   THD *thd= stmt->thd;
   Item_param **it= stmt->param_array;
@@ -880,7 +881,7 @@ static bool emb_insert_params_withlog(Prepared_statement *stmt, String *query)
   const String *res;
   uint32 length= 0;
 
-  DBUG_ENTER("emb_insert_params_withlog");
+  DBUG_ENTER("emb_insert_params_with_log");
 
   if (query->copy(stmt->query, stmt->query_length, default_charset_info))
     DBUG_RETURN(1);
@@ -1889,7 +1890,7 @@ void mysql_stmt_prepare(THD *thd, const char *packet, uint packet_length)
   /* First of all clear possible warnings from the previous command */
   mysql_reset_thd_for_next_command(thd);
 
-  if (! (stmt= new Prepared_statement(thd, &thd->protocol_prep)))
+  if (! (stmt= new Prepared_statement(thd, &thd->protocol_binary)))
     DBUG_VOID_RETURN; /* out of memory: error is set in Sql_alloc */
 
   if (thd->stmt_map.insert(thd, stmt))
@@ -2061,8 +2062,8 @@ void mysql_sql_stmt_prepare(THD *thd)
   const char *query;
   uint query_len;
   DBUG_ENTER("mysql_sql_stmt_prepare");
-  DBUG_ASSERT(thd->protocol == &thd->protocol_simple);
   LINT_INIT(query_len);
+  DBUG_ASSERT(thd->protocol == &thd->protocol_text);
 
   if ((stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
   {
@@ -2075,7 +2076,7 @@ void mysql_sql_stmt_prepare(THD *thd)
   }
 
   if (! (query= get_dynamic_sql_string(lex, &query_len)) ||
-      ! (stmt= new Prepared_statement(thd, &thd->protocol_simple)))
+      ! (stmt= new Prepared_statement(thd, &thd->protocol_text)))
   {
     DBUG_VOID_RETURN;                           /* out of memory */
   }
@@ -2628,14 +2629,14 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 
 
 /***************************************************************************
- Select_fetch_protocol_prep
+ Select_fetch_protocol_binary
 ****************************************************************************/
 
-Select_fetch_protocol_prep::Select_fetch_protocol_prep(THD *thd_arg)
+Select_fetch_protocol_binary::Select_fetch_protocol_binary(THD *thd_arg)
   :protocol(thd_arg)
 {}
 
-bool Select_fetch_protocol_prep::send_fields(List<Item> &list, uint flags)
+bool Select_fetch_protocol_binary::send_fields(List<Item> &list, uint flags)
 {
   bool rc;
   Protocol *save_protocol= thd->protocol;
@@ -2653,7 +2654,7 @@ bool Select_fetch_protocol_prep::send_fields(List<Item> &list, uint flags)
   return rc;
 }
 
-bool Select_fetch_protocol_prep::send_eof()
+bool Select_fetch_protocol_binary::send_eof()
 {
   Protocol *save_protocol= thd->protocol;
 
@@ -2665,7 +2666,7 @@ bool Select_fetch_protocol_prep::send_eof()
 
 
 bool
-Select_fetch_protocol_prep::send_data(List<Item> &fields)
+Select_fetch_protocol_binary::send_data(List<Item> &fields)
 {
   Protocol *save_protocol= thd->protocol;
   bool rc;
@@ -2699,15 +2700,26 @@ Prepared_statement::Prepared_statement(THD *thd_arg, Protocol *protocol_arg)
 
 void Prepared_statement::setup_set_params()
 {
-  /* Setup binary logging */
+  /*
+    Note: BUG#25843 applies here too (query cache lookup uses thd->db, not
+    db from "prepare" time).
+  */
+  if (query_cache_maybe_disabled(thd)) // we won't expand the query
+    lex->safe_to_cache_query= FALSE;   // so don't cache it at Execution
+
+  /*
+    Decide if we have to expand the query (because we must write it to logs or
+    because we want to look it up in the query cache) or not.
+  */
   if (mysql_bin_log.is_open() && is_update_query(lex->sql_command) ||
-      opt_log || opt_slow_log)
+      opt_log || opt_slow_log ||
+      query_cache_is_cacheable_query(lex))
   {
     set_params_from_vars= insert_params_from_vars_with_log;
 #ifndef EMBEDDED_LIBRARY
-    set_params= insert_params_withlog;
+    set_params= insert_params_with_log;
 #else
-    set_params_data= emb_insert_params_withlog;
+    set_params_data= emb_insert_params_with_log;
 #endif
   }
   else
@@ -2844,7 +2856,6 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   error= MYSQLparse((void *)thd) || thd->is_fatal_error ||
       thd->net.report_error || init_param_array(this);
 
-  lex->safe_to_cache_query= FALSE;
   /*
     While doing context analysis of the query (in check_prepared_statement)
     we allocate a lot of additional memory: for open tables, JOINs, derived
@@ -2886,6 +2897,18 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   cleanup_stmt();
   thd->restore_backup_statement(this, &stmt_backup);
   thd->stmt_arena= old_stmt_arena;
+
+  if ((protocol->type() == Protocol::PROTOCOL_TEXT) && (param_count > 0))
+  {
+    /*
+      This is a mysql_sql_stmt_prepare(); query expansion will insert user
+      variable references, and user variables are uncacheable, thus we have to
+      mark this statement as uncacheable.
+      This has to be done before setup_set_params(), as it may make expansion
+      unneeded.
+    */
+    lex->safe_to_cache_query= FALSE;
+  }
 
   if (error == 0)
   {
@@ -3003,11 +3026,26 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   reinit_stmt_before_use(thd, lex);
 
   thd->protocol= protocol;                      /* activate stmt protocol */
-  error= (open_cursor ?
-          mysql_open_cursor(thd, (uint) ALWAYS_MATERIALIZED_CURSOR,
-                            &result, &cursor) :
-          mysql_execute_command(thd));
-  thd->protocol= &thd->protocol_simple;         /* use normal protocol */
+
+  if (open_cursor)
+    error= mysql_open_cursor(thd, (uint) ALWAYS_MATERIALIZED_CURSOR,
+                             &result, &cursor);
+  else
+  {
+    /*
+      Try to find it in the query cache, if not, execute it.
+      Note that multi-statements cannot exist here (they are not supported in
+      prepared statements).
+    */
+    if (query_cache_send_result_to_client(thd, thd->query,
+                                          thd->query_length) <= 0)
+    {
+      error= mysql_execute_command(thd);
+      query_cache_end_of_result(thd);
+    }
+  }
+
+  thd->protocol= &thd->protocol_text;         /* use normal protocol */
 
   /* Assert that if an error, no cursor is open */
   DBUG_ASSERT(! (error && cursor));
