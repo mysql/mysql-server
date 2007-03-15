@@ -1338,7 +1338,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   if (!(outparam->alias= my_strdup(alias, MYF(MY_WME))))
     goto err;
   outparam->quick_keys.init();
-  outparam->used_keys.init();
+  outparam->covering_keys.init();
   outparam->keys_in_use_for_query.init();
 
   /* Allocate handler */
@@ -4118,6 +4118,175 @@ void st_table_list::reinit_before_use(THD *thd)
 Item_subselect *st_table_list::containing_subselect()
 {    
   return (select_lex ? select_lex->master_unit()->item : 0);
+}
+
+/*
+  Compiles the tagged hints list and fills up the bitmasks.
+
+  SYNOPSIS
+    process_index_hints()
+      table         the TABLE to operate on.
+
+  DESCRIPTION
+    The parser collects the index hints for each table in a "tagged list" 
+    (st_table_list::index_hints). Using the information in this tagged list
+    this function sets the members st_table::keys_in_use_for_query, 
+    st_table::keys_in_use_for_group_by, st_table::keys_in_use_for_order_by,
+    st_table::force_index and st_table::covering_keys.
+
+    Current implementation of the runtime does not allow mixing FORCE INDEX
+    and USE INDEX, so this is checked here. Then the FORCE INDEX list 
+    (if non-empty) is appended to the USE INDEX list and a flag is set.
+
+    Multiple hints of the same kind are processed so that each clause 
+    is applied to what is computed in the previous clause.
+    For example:
+        USE INDEX (i1) USE INDEX (i2)
+    is equivalent to
+        USE INDEX (i1,i2)
+    and means "consider only i1 and i2".
+        
+    Similarly
+        USE INDEX () USE INDEX (i1)
+    is equivalent to
+        USE INDEX (i1)
+    and means "consider only the index i1"
+
+    It is OK to have the same index several times, e.g. "USE INDEX (i1,i1)" is
+    not an error.
+        
+    Different kind of hints (USE/FORCE/IGNORE) are processed in the following
+    order:
+      1. All indexes in USE (or FORCE) INDEX are added to the mask.
+      2. All IGNORE INDEX
+
+    e.g. "USE INDEX i1, IGNORE INDEX i1, USE INDEX i1" will not use i1 at all
+    as if we had "USE INDEX i1, USE INDEX i1, IGNORE INDEX i1".
+
+    As an optimization if there is a covering index, and we have 
+    IGNORE INDEX FOR GROUP/ORDER, and this index is used for the JOIN part, 
+    then we have to ignore the IGNORE INDEX FROM GROUP/ORDER.
+
+  RETURN VALUE
+    FALSE                no errors found
+    TRUE                 found and reported an error.
+*/
+bool st_table_list::process_index_hints(TABLE *table)
+{
+  /* initialize the result variables */
+  table->keys_in_use_for_query= table->keys_in_use_for_group_by= 
+    table->keys_in_use_for_order_by= table->s->keys_in_use;
+
+  /* index hint list processing */
+  if (index_hints)
+  {
+    key_map index_join[INDEX_HINT_FORCE + 1];
+    key_map index_order[INDEX_HINT_FORCE + 1];
+    key_map index_group[INDEX_HINT_FORCE + 1];
+    index_hint *hint;
+    int type;
+    bool have_empty_use_join= FALSE, have_empty_use_order= FALSE, 
+         have_empty_use_group= FALSE;
+    List_iterator <index_hint> iter(*index_hints);
+
+    /* initialize temporary variables used to collect hints of each kind */
+    for (type= INDEX_HINT_IGNORE; type <= INDEX_HINT_FORCE; type++)
+    {
+      index_join[type].clear_all();
+      index_order[type].clear_all();
+      index_group[type].clear_all();
+    }
+
+    /* iterate over the hints list */
+    while ((hint= iter++))
+    {
+      uint pos;
+
+      /* process empty USE INDEX () */
+      if (hint->type == INDEX_HINT_USE && !hint->key_name.str)
+      {
+        if (hint->clause & INDEX_HINT_MASK_JOIN)
+        {
+          index_join[hint->type].clear_all();
+          have_empty_use_join= TRUE;
+        }
+        if (hint->clause & INDEX_HINT_MASK_ORDER)
+        {
+          index_order[hint->type].clear_all();
+          have_empty_use_order= TRUE;
+        }
+        if (hint->clause & INDEX_HINT_MASK_GROUP)
+        {
+          index_group[hint->type].clear_all();
+          have_empty_use_group= TRUE;
+        }
+        continue;
+      }
+
+      /* 
+        Check if an index with the given name exists and get his offset in 
+        the keys bitmask for the table 
+      */
+      if (table->s->keynames.type_names == 0 ||
+          (pos= find_type(&table->s->keynames, hint->key_name.str,
+                          hint->key_name.length, 1)) <= 0)
+      {
+        my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), hint->key_name.str, alias);
+        return 1;
+      }
+
+      pos--;
+
+      /* add to the appropriate clause mask */
+      if (hint->clause & INDEX_HINT_MASK_JOIN)
+        index_join[hint->type].set_bit (pos);
+      if (hint->clause & INDEX_HINT_MASK_ORDER)
+        index_order[hint->type].set_bit (pos);
+      if (hint->clause & INDEX_HINT_MASK_GROUP)
+        index_group[hint->type].set_bit (pos);
+    }
+
+    /* cannot mix USE INDEX and FORCE INDEX */
+    if ((!index_join[INDEX_HINT_FORCE].is_clear_all() ||
+         !index_order[INDEX_HINT_FORCE].is_clear_all() ||
+         !index_group[INDEX_HINT_FORCE].is_clear_all()) &&
+        (!index_join[INDEX_HINT_USE].is_clear_all() ||  have_empty_use_join ||
+         !index_order[INDEX_HINT_USE].is_clear_all() || have_empty_use_order ||
+         !index_group[INDEX_HINT_USE].is_clear_all() || have_empty_use_group))
+    {
+      my_error(ER_WRONG_USAGE, MYF(0), index_hint_type_name[INDEX_HINT_USE],
+               index_hint_type_name[INDEX_HINT_FORCE]);
+      return 1;
+    }
+
+    /* process FORCE INDEX as USE INDEX with a flag */
+    if (!index_join[INDEX_HINT_FORCE].is_clear_all() ||
+        !index_order[INDEX_HINT_FORCE].is_clear_all() ||
+        !index_group[INDEX_HINT_FORCE].is_clear_all())
+    {
+      table->force_index= TRUE;
+      index_join[INDEX_HINT_USE].merge(index_join[INDEX_HINT_FORCE]);
+      index_order[INDEX_HINT_USE].merge(index_order[INDEX_HINT_FORCE]);
+      index_group[INDEX_HINT_USE].merge(index_group[INDEX_HINT_FORCE]);
+    }
+
+    /* apply USE INDEX */
+    if (!index_join[INDEX_HINT_USE].is_clear_all() || have_empty_use_join)
+      table->keys_in_use_for_query.intersect(index_join[INDEX_HINT_USE]);
+    if (!index_order[INDEX_HINT_USE].is_clear_all() || have_empty_use_order)
+      table->keys_in_use_for_order_by.intersect (index_order[INDEX_HINT_USE]);
+    if (!index_group[INDEX_HINT_USE].is_clear_all() || have_empty_use_group)
+      table->keys_in_use_for_group_by.intersect (index_group[INDEX_HINT_USE]);
+
+    /* apply IGNORE INDEX */
+    table->keys_in_use_for_query.subtract (index_join[INDEX_HINT_IGNORE]);
+    table->keys_in_use_for_order_by.subtract (index_order[INDEX_HINT_IGNORE]);
+    table->keys_in_use_for_group_by.subtract (index_group[INDEX_HINT_IGNORE]);
+  }
+
+  /* make sure covering_keys don't include indexes disabled with a hint */
+  table->covering_keys.intersect(table->keys_in_use_for_query);
+  return 0;
 }
 
 /*****************************************************************************
