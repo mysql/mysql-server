@@ -899,7 +899,7 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   if ( $opt_with_ndbcluster and !$opt_bench)
   {
-    mtr_error("Can only use --with-ndbcluster togheter with --bench");
+    mtr_error("Can only use --with-ndbcluster together with --bench");
   }
 
   if ( $opt_ndbconnectstring )
