@@ -107,4 +107,131 @@ drop table second_db.t1;
 drop database first_db;
 drop database second_db;
 
+#
+# Bug#25671 - CREATE/DROP/ALTER SERVER should require privileges
+#
+# Changes to SERVER declarations should require SUPER privilege.
+# Based upon test case by Giuseppe Maxia
+
+create database db_legitimate;
+create database db_bogus;
+
+use db_legitimate;
+CREATE TABLE db_legitimate.t1 (
+    `id` int(20) NOT NULL,
+    `name` varchar(64) NOT NULL default ''
+    );
+INSERT INTO db_legitimate.t1 VALUES ('1','this is legitimate');
+
+use db_bogus;
+CREATE TABLE db_bogus.t1 (
+    `id` int(20) NOT NULL,
+    `name` varchar(64) NOT NULL default ''
+    )
+  ;
+INSERT INTO db_bogus.t1 VALUES ('2','this is bogus');
+
+connection master;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval create server 's1' foreign data wrapper 'mysql' options
+  (HOST '127.0.0.1',
+  DATABASE 'db_legitimate',
+  USER 'root',
+  PASSWORD '',
+  PORT $SLAVE_MYPORT,
+  SOCKET '',
+  OWNER 'root');
+
+create user guest_select@localhost;
+grant select on federated.* to guest_select@localhost;
+
+create user guest_super@localhost;
+grant select,SUPER,RELOAD on *.* to guest_super@localhost;
+
+create user guest_usage@localhost;
+grant usage on *.* to guest_usage@localhost;
+
+CREATE TABLE federated.t1 (
+    `id` int(20) NOT NULL,
+    `name` varchar(64) NOT NULL default ''
+    ) ENGINE = FEDERATED CONNECTION = 's1';
+
+select * from federated.t1;
+
+connect (conn_select,127.0.0.1,guest_select,,federated,$MASTER_MYPORT);
+connect (conn_usage,127.0.0.1,guest_usage,,,$MASTER_MYPORT);
+connect (conn_super,127.0.0.1,guest_super,,,$MASTER_MYPORT);
+
+connection conn_select;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+alter server s1 options (database 'db_bogus');
+
+connection master;
+flush tables;
+select * from federated.t1;
+
+connection conn_usage;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+alter server s1 options (database 'db_bogus');
+
+connection master;
+flush tables;
+select * from federated.t1;
+
+connection conn_super;
+alter server s1 options (database 'db_bogus');
+
+connection master;
+flush tables;
+select * from federated.t1;
+
+connection conn_select;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+drop server if exists 's1';
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+eval create server 's1' foreign data wrapper 'mysql' options
+  (HOST '127.0.0.1',
+  DATABASE 'db_legitimate',
+  USER 'root',
+  PASSWORD '',
+  PORT $SLAVE_MYPORT,
+  SOCKET '',
+  OWNER 'root');
+
+connection conn_super;
+drop server 's1';
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval create server 's1' foreign data wrapper 'mysql' options
+  (HOST '127.0.0.1',
+  DATABASE 'db_legitimate',
+  USER 'root',
+  PASSWORD '',
+  PORT $SLAVE_MYPORT,
+  SOCKET '',
+  OWNER 'root');
+
+connection master;
+flush tables;
+select * from federated.t1;
+
+# clean up test
+connection slave;
+drop database db_legitimate;
+drop database db_bogus;
+
+disconnect conn_select;
+disconnect conn_usage;
+disconnect conn_super;
+
+connection master;
+drop user guest_super@localhost;
+drop user guest_usage@localhost;
+drop user guest_select@localhost;
+drop table federated.t1;
+drop server 's1';
+
+
+--echo # End of 5.1 tests
+
 source include/federated_cleanup.inc;
