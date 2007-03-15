@@ -1428,6 +1428,19 @@ f1
 20101112000000.000014
 101112.000000
 drop table t1;
+select cast(19999999999999999999 as unsigned);
+cast(19999999999999999999 as unsigned)
+18446744073709551615
+Warnings:
+Error	1292	Truncated incorrect DECIMAL value: ''
+create table t1(a decimal(18));
+insert into t1 values(123456789012345678);
+alter table t1 modify column a decimal(19);
+select * from t1;
+a
+123456789012345678
+drop table t1;
+End of 5.0 tests
 select cast(143.481 as decimal(4,1));
 cast(143.481 as decimal(4,1))
 143.5
@@ -1455,8 +1468,3 @@ Error	1264	Out of range value for column 'cast(-13.4 as decimal(2,1))' at row 1
 select cast(98.6 as decimal(2,0));
 cast(98.6 as decimal(2,0))
 99
-select cast(19999999999999999999 as unsigned);
-cast(19999999999999999999 as unsigned)
-18446744073709551615
-Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
