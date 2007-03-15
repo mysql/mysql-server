@@ -4276,6 +4276,10 @@ create_sp_error:
     int error;
     LEX *lex= thd->lex;
     DBUG_PRINT("info", ("case SQLCOM_CREATE_SERVER"));
+
+    if (check_global_access(thd, SUPER_ACL))
+      break;
+
     if ((error= create_server(thd, &lex->server_options)))
     {
       DBUG_PRINT("info", ("problem creating server <%s>",
@@ -4291,6 +4295,10 @@ create_sp_error:
     int error;
     LEX *lex= thd->lex;
     DBUG_PRINT("info", ("case SQLCOM_ALTER_SERVER"));
+
+    if (check_global_access(thd, SUPER_ACL))
+      break;
+
     if ((error= alter_server(thd, &lex->server_options)))
     {
       DBUG_PRINT("info", ("problem altering server <%s>",
@@ -4306,6 +4314,10 @@ create_sp_error:
     int err_code;
     LEX *lex= thd->lex;
     DBUG_PRINT("info", ("case SQLCOM_DROP_SERVER"));
+
+    if (check_global_access(thd, SUPER_ACL))
+      break;
+
     if ((err_code= drop_server(thd, &lex->server_options)))
     {
       if (! lex->drop_if_exists && err_code == ER_FOREIGN_SERVER_EXISTS)
