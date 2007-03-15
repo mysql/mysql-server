@@ -1681,6 +1681,12 @@ void end_thread(THD *thd, bool put_in_cache)
       thd->real_id=pthread_self();
       thd->thread_stack= (char*) &thd;          // For store_globals
       (void) thd->store_globals();
+      /*
+        THD::mysys_var::abort is associated with physical thread rather
+        than with THD object. So we need to reset this flag before using
+        this thread for handling of new THD object/connection.
+      */
+      thd->mysys_var->abort= 0;
       thd->thr_create_time= time(NULL);
       threads.append(thd);
       pthread_mutex_unlock(&LOCK_thread_count);
