@@ -522,7 +522,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   /*
     Fill in the given fields and dump it to the table file
   */
-  info.records= info.deleted= info.copied= info.updated= 0;
+  info.records= info.deleted= info.copied= info.updated= info.touched= 0;
   info.ignore= ignore;
   info.handle_duplicates=duplic;
   info.update_fields= &update_fields;
@@ -767,8 +767,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       (!table->triggers || !table->triggers->has_delete_triggers()))
     table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
-  /* Reset value of LAST_INSERT_ID if no rows where inserted */
-  if (!info.copied && thd->insert_id_used)
+  /* Reset value of LAST_INSERT_ID if no rows were inserted or touched */
+  if (!info.copied && !info.touched && thd->insert_id_used)
   {
     thd->insert_id(0);
     id=0;
@@ -1221,14 +1221,16 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
           }
           goto err;
         }
+
+        if (table->next_number_field)
+          table->file->adjust_next_insert_id_after_explicit_value(
+            table->next_number_field->val_int());
+        info->touched++;
+
         if ((table->file->table_flags() & HA_PARTIAL_COLUMN_READ) ||
             compare_record(table, thd->query_id))
         {
           info->updated++;
-
-          if (table->next_number_field)
-            table->file->adjust_next_insert_id_after_explicit_value(
-              table->next_number_field->val_int());
 
           trg_error= (table->triggers &&
                       table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
