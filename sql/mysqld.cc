@@ -1804,6 +1804,12 @@ static bool cache_thread()
       thd= thread_cache.get();
       thd->thread_stack= (char*) &thd;          // For store_globals
       (void) thd->store_globals();
+      /*
+        THD::mysys_var::abort is associated with physical thread rather
+        than with THD object. So we need to reset this flag before using
+        this thread for handling of new THD object/connection.
+      */
+      thd->mysys_var->abort= 0;
       thd->thr_create_time= time(NULL);
       threads.append(thd);
       return(1);
