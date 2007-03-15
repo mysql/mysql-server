@@ -930,7 +930,7 @@ try_again:
 	file = CreateFile((LPCTSTR) name,
 			  access,
 			  FILE_SHARE_READ | FILE_SHARE_WRITE,
-			  /* file can be read ansd written also
+			  /* file can be read and written also
 			  by other processes */
 			  NULL,	/* default security attributes */
 			  create_flag,
