@@ -104,6 +104,91 @@ drop table first_db.t1;
 drop table second_db.t1;
 drop database first_db;
 drop database second_db;
+create database db_legitimate;
+create database db_bogus;
+use db_legitimate;
+CREATE TABLE db_legitimate.t1 (
+`id` int(20) NOT NULL,
+`name` varchar(64) NOT NULL default ''
+    );
+INSERT INTO db_legitimate.t1 VALUES ('1','this is legitimate');
+use db_bogus;
+CREATE TABLE db_bogus.t1 (
+`id` int(20) NOT NULL,
+`name` varchar(64) NOT NULL default ''
+    )
+;
+INSERT INTO db_bogus.t1 VALUES ('2','this is bogus');
+create server 's1' foreign data wrapper 'mysql' options
+(HOST '127.0.0.1',
+DATABASE 'db_legitimate',
+USER 'root',
+PASSWORD '',
+PORT SLAVE_PORT,
+SOCKET '',
+OWNER 'root');
+create user guest_select@localhost;
+grant select on federated.* to guest_select@localhost;
+create user guest_super@localhost;
+grant select,SUPER,RELOAD on *.* to guest_super@localhost;
+create user guest_usage@localhost;
+grant usage on *.* to guest_usage@localhost;
+CREATE TABLE federated.t1 (
+`id` int(20) NOT NULL,
+`name` varchar(64) NOT NULL default ''
+    ) ENGINE = FEDERATED CONNECTION = 's1';
+select * from federated.t1;
+id	name
+1	this is legitimate
+alter server s1 options (database 'db_bogus');
+ERROR 42000: Access denied; you need the SUPER privilege for this operation
+flush tables;
+select * from federated.t1;
+id	name
+1	this is legitimate
+alter server s1 options (database 'db_bogus');
+ERROR 42000: Access denied; you need the SUPER privilege for this operation
+flush tables;
+select * from federated.t1;
+id	name
+1	this is legitimate
+alter server s1 options (database 'db_bogus');
+flush tables;
+select * from federated.t1;
+id	name
+2	this is bogus
+drop server if exists 's1';
+ERROR 42000: Access denied; you need the SUPER privilege for this operation
+create server 's1' foreign data wrapper 'mysql' options
+(HOST '127.0.0.1',
+DATABASE 'db_legitimate',
+USER 'root',
+PASSWORD '',
+PORT SLAVE_PORT,
+SOCKET '',
+OWNER 'root');
+ERROR 42000: Access denied; you need the SUPER privilege for this operation
+drop server 's1';
+create server 's1' foreign data wrapper 'mysql' options
+(HOST '127.0.0.1',
+DATABASE 'db_legitimate',
+USER 'root',
+PASSWORD '',
+PORT SLAVE_PORT,
+SOCKET '',
+OWNER 'root');
+flush tables;
+select * from federated.t1;
+id	name
+1	this is legitimate
+drop database db_legitimate;
+drop database db_bogus;
+drop user guest_super@localhost;
+drop user guest_usage@localhost;
+drop user guest_select@localhost;
+drop table federated.t1;
+drop server 's1';
+# End of 5.1 tests
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE IF EXISTS federated;
 DROP TABLE IF EXISTS federated.t1;
