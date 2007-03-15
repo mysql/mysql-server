@@ -1120,3 +1120,14 @@ drop table t1;
 #
 select cast(19999999999999999999 as unsigned);
 
+#
+# Bug #24558: Increasing decimal column length causes data loss
+#
+
+create table t1(a decimal(18));
+insert into t1 values(123456789012345678);
+alter table t1 modify column a decimal(19);
+select * from t1;
+drop table t1;
+
+--echo End of 5.0 tests
