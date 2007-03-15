@@ -2,7 +2,7 @@
 mysql-5.1.15-ndb-6.1.X
 ==================================================
 
-mysql-5.1.15-ndb-6.1.5 (not released yet)
+mysql-5.1.15-ndb-6.1.5 (2007-03-15)
 
   Bug #26997 - mysqld segfault when in single user mode
   Bug #26825 - MySQL Server Crashes in high load
