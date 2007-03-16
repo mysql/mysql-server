@@ -62,7 +62,6 @@ TODO:
   Add language for better tests
   String length for files and those put on the command line are not
     setup to handle binary data.
-  Report results of each thread into the lock file we use.
   More stats
   Break up tests and run them on multiple hosts at once.
   Allow output to be fed into a database directly.
@@ -83,9 +82,7 @@ TODO:
 #define SELECT_TYPE_REQUIRES_PREFIX 5
 
 #include "client_priv.h"
-#ifdef HAVE_LIBPTHREAD
 #include <my_pthread.h>
-#endif
 #include <my_sys.h>
 #include <m_string.h>
 #include <mysql.h>
@@ -100,9 +97,6 @@ TODO:
 #endif
 #include <ctype.h>
 
-#define MYSLAPLOCK "/myslaplock.lck"
-#define MYSLAPLOCK_DIR "/tmp"
-
 #ifdef __WIN__
 #define srandom  srand
 #define random   rand
@@ -112,6 +106,14 @@ TODO:
 #ifdef HAVE_SMEM 
 static char *shared_memory_base_name=0;
 #endif
+
+/* Global Thread counter */
+uint thread_counter;
+pthread_mutex_t counter_mutex;
+pthread_cond_t count_threshhold;
+uint master_wakeup;
+pthread_mutex_t sleeper_mutex;
+pthread_cond_t sleep_threshhold;
 
 static char **defaults_argv;
 
@@ -127,14 +129,9 @@ const char *delimiter= "\n";
 
 const char *create_schema_string= "mysqlslap";
 
-const char *lock_directory;
-char lock_file_str[FN_REFLEN];
-
 static my_bool opt_preserve;
 
 static my_bool opt_only_print= FALSE;
-
-static my_bool opt_slave;
 
 static my_bool opt_compress= FALSE, tty_password= FALSE,
                opt_silent= FALSE,
@@ -175,7 +172,6 @@ static uint opt_protocol= 0;
 
 static int get_options(int *argc,char ***argv);
 static uint opt_mysql_port= 0;
-static my_bool opt_use_threads;
 
 static const char *load_default_groups[]= { "mysqlslap","client",0 };
 
@@ -213,7 +209,6 @@ typedef struct thread_context thread_context;
 struct thread_context {
   statement *stmt;
   ulonglong limit;
-  bool thread;
 };
 
 typedef struct conclusions conclusions;
@@ -256,6 +251,7 @@ static int run_scheduler(stats *sptr, statement *stmts, uint concur,
 int run_task(thread_context *con);
 void statement_cleanup(statement *stmt);
 void option_cleanup(option_string *stmt);
+void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr);
 
 static const char ALPHANUMERICS[]=
   "0123456789ABCDEFGHIJKLMNOPQRSTWXYZabcdefghijklmnopqrstuvwxyz";
@@ -289,13 +285,7 @@ static int gettimeofday(struct timeval *tp, void *tzp)
 int main(int argc, char **argv)
 {
   MYSQL mysql;
-  unsigned int x;
-  unsigned long long client_limit;
   option_string *eptr;
-
-#ifdef __WIN__
-  opt_use_threads= 1;
-#endif
 
   MY_INIT(argv[0]);
 
@@ -352,75 +342,33 @@ int main(int argc, char **argv)
     }
   }
 
+  VOID(pthread_mutex_init(&counter_mutex, NULL));
+  VOID(pthread_cond_init(&count_threshhold, NULL));
+  VOID(pthread_mutex_init(&sleeper_mutex, NULL));
+  VOID(pthread_cond_init(&sleep_threshhold, NULL));
+
   /* Main iterations loop */
   eptr= engine_options;
   do
   {
     /* For the final stage we run whatever queries we were asked to run */
     uint *current;
-    conclusions conclusion;
 
     if (verbose >= 2)
       printf("Starting Concurrency Test\n");
 
-    for (current= concurrency; current && *current; current++)
+    if (*concurrency)
     {
-      stats *head_sptr;
-      stats *sptr;
-
-      head_sptr= (stats *)my_malloc(sizeof(stats) * iterations, 
-                                    MYF(MY_ZEROFILL|MY_FAE|MY_WME));
-
-      bzero(&conclusion, sizeof(conclusions));
-
-      if (auto_actual_queries)
-        client_limit= auto_actual_queries;
-      else if (num_of_query)
-        client_limit=  num_of_query / *current;
-      else
-        client_limit= actual_queries;
-
-      for (x= 0, sptr= head_sptr; x < iterations; x++, sptr++)
-      {
-        /*
-          We might not want to load any data, such as when we are calling
-          a stored_procedure that doesn't use data, or we know we already have
-          data in the table.
-        */
-        if (!opt_preserve)
-          drop_schema(&mysql, create_schema_string);
-
-        /* First we create */
-        if (create_statements)
-          create_schema(&mysql, create_schema_string, create_statements, eptr);
-        
-        /*
-          If we generated GUID we need to build a list of them from creation that
-          we can later use.
-        */
-        if (verbose >= 2)
-          printf("Generating primary key list\n");
-        if (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary)
-          generate_primary_key_list(&mysql, eptr);
-
-        run_scheduler(sptr, query_statements, *current, client_limit); 
-
-        /* We are finished with this run */
-        if (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary)
-          drop_primary_key_list();
+      for (current= concurrency; current && *current; current++)
+        concurrency_loop(&mysql, *current, eptr);
+    }
+    else
+    {
+      uint infinite= 1;
+      do {
+        concurrency_loop(&mysql, infinite, eptr);
       }
-
-      if (verbose >= 2)
-        printf("Generating stats\n");
-
-      generate_stats(&conclusion, eptr, head_sptr);
-
-      if (!opt_silent)
-        print_conclusions(&conclusion);
-      if (opt_csv_str)
-        print_conclusions_csv(&conclusion);
-
-      my_free((gptr)head_sptr, MYF(0));
+      while (infinite++);
     }
 
     if (!opt_preserve)
@@ -428,12 +376,13 @@ int main(int argc, char **argv)
 
   } while (eptr ? (eptr= eptr->next) : 0);
 
+  VOID(pthread_mutex_destroy(&counter_mutex));
+  VOID(pthread_cond_destroy(&count_threshhold));
+  VOID(pthread_mutex_destroy(&sleeper_mutex));
+  VOID(pthread_cond_destroy(&sleep_threshhold));
+
   if (!opt_only_print) 
     mysql_close(&mysql); /* Close & free connection */
-
-
-  /* Remove lock file */
-  my_delete(lock_file_str, MYF(0));
 
   /* now free all the strings we created */
   if (opt_password)
@@ -453,6 +402,70 @@ int main(int argc, char **argv)
   my_end(0);
 
   return 0;
+}
+
+void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
+{
+  unsigned int x;
+  stats *head_sptr;
+  stats *sptr;
+  conclusions conclusion;
+  unsigned long long client_limit;
+
+  head_sptr= (stats *)my_malloc(sizeof(stats) * iterations, 
+                                MYF(MY_ZEROFILL|MY_FAE|MY_WME));
+
+  bzero(&conclusion, sizeof(conclusions));
+
+  if (auto_actual_queries)
+    client_limit= auto_actual_queries;
+  else if (num_of_query)
+    client_limit=  num_of_query / current;
+  else
+    client_limit= actual_queries;
+
+  for (x= 0, sptr= head_sptr; x < iterations; x++, sptr++)
+  {
+    /*
+      We might not want to load any data, such as when we are calling
+      a stored_procedure that doesn't use data, or we know we already have
+      data in the table.
+    */
+    if (!opt_preserve)
+      drop_schema(mysql, create_schema_string);
+
+    /* First we create */
+    if (create_statements)
+      create_schema(mysql, create_schema_string, create_statements, eptr);
+
+    /*
+      If we generated GUID we need to build a list of them from creation that
+      we can later use.
+    */
+    if (verbose >= 2)
+      printf("Generating primary key list\n");
+    if (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary)
+      generate_primary_key_list(mysql, eptr);
+
+    run_scheduler(sptr, query_statements, current, client_limit); 
+
+    /* We are finished with this run */
+    if (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary)
+      drop_primary_key_list();
+  }
+
+  if (verbose >= 2)
+    printf("Generating stats\n");
+
+  generate_stats(&conclusion, eptr, head_sptr);
+
+  if (!opt_silent)
+    print_conclusions(&conclusion);
+  if (opt_csv_str)
+    print_conclusions_csv(&conclusion);
+
+  my_free((gptr)head_sptr, MYF(0));
+
 }
 
 
@@ -534,9 +547,6 @@ static struct my_option my_long_options[] =
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"iterations", 'i', "Number of times too run the tests.", (gptr*) &iterations,
     (gptr*) &iterations, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
-  {"lock-directory", OPT_MYSQL_LOCK_DIRECTORY, "Directory to use to keep locks.", 
-    (gptr*) &lock_directory, (gptr*) &lock_directory, 0, GET_STR, 
-    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"number-char-cols", 'x', 
     "Number of VARCHAR columns to create table with if specifying --auto-generate-sql ",
     (gptr*) &num_char_cols_opt, (gptr*) &num_char_cols_opt, 0, GET_STR, REQUIRED_ARG,
@@ -584,17 +594,10 @@ static struct my_option my_long_options[] =
   {"silent", 's', "Run program in silent mode - no output.",
     (gptr*) &opt_silent, (gptr*) &opt_silent, 0, GET_BOOL,  NO_ARG,
     0, 0, 0, 0, 0, 0},
-  {"slave", OPT_MYSQL_SLAP_SLAVE, "Follow master locks for other slap clients",
-    (gptr*) &opt_slave, (gptr*) &opt_slave, 0, GET_BOOL,  NO_ARG,
-    0, 0, 0, 0, 0, 0},
   {"socket", 'S', "Socket file to use for connection.",
     (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
-  {"use-threads", OPT_USE_THREADS,
-    "Use pthread calls instead of fork() calls (default on Windows)",
-      (gptr*) &opt_use_threads, (gptr*) &opt_use_threads, 0, 
-      GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.", (gptr*) &user,
     (gptr*) &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1126,11 +1129,6 @@ get_options(int *argc,char ***argv)
 
   parse_comma(concurrency_str ? concurrency_str : "1", &concurrency);
 
-  if (lock_directory)
-    snprintf(lock_file_str, FN_REFLEN, "%s/%s", lock_directory, MYSLAPLOCK);
-  else
-    snprintf(lock_file_str, FN_REFLEN, "%s/%s", MYSLAPLOCK_DIR, MYSLAPLOCK);
-
   if (opt_csv_str)
   {
     opt_silent= TRUE;
@@ -1553,136 +1551,63 @@ drop_schema(MYSQL *mysql, const char *db)
 static int
 run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
 {
-#ifndef __WIN__
   uint x;
-#endif
-  File lock_file;
   struct timeval start_time, end_time;
   thread_context con;
   DBUG_ENTER("run_scheduler");
 
   con.stmt= stmts;
   con.limit= limit;
-  con.thread= opt_use_threads ? 1 :0;
 
-  lock_file= my_open(lock_file_str, O_CREAT|O_WRONLY|O_TRUNC, MYF(0));
+  pthread_t mainthread;            /* Thread descriptor */
+  pthread_attr_t attr;          /* Thread attributes */
 
-  if (!opt_slave)
-    if (my_lock(lock_file, F_WRLCK, 0, F_TO_EOF, MYF(0)))
+  pthread_mutex_lock(&counter_mutex);
+  thread_counter= 0;
+
+  pthread_mutex_lock(&sleeper_mutex);
+  master_wakeup= 1;
+  pthread_mutex_unlock(&sleeper_mutex);
+  for (x= 0; x < concur; x++)
+  {
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr,
+                                PTHREAD_CREATE_DETACHED);
+
+    /* now create the thread */
+    if (pthread_create(&mainthread, &attr, (void *)run_task, 
+                       (void *)&con) != 0)
     {
-      fprintf(stderr,"%s: Could not get lockfile\n",
+      fprintf(stderr,"%s: Could not create thread\n",
               my_progname);
       exit(0);
     }
-
-#ifdef HAVE_LIBPTHREAD
-  if (opt_use_threads)
-  {
-    pthread_t mainthread;            /* Thread descriptor */
-    pthread_attr_t attr;          /* Thread attributes */
-
-    for (x= 0; x < concur; x++)
-    {
-      pthread_attr_init(&attr);
-      pthread_attr_setdetachstate(&attr,
-                                   PTHREAD_CREATE_DETACHED);
-
-      /* now create the thread */
-      if (pthread_create(&mainthread, &attr, (void *)run_task, 
-                         (void *)&con) != 0)
-      {
-        fprintf(stderr,"%s: Could not create thread\n",
-                my_progname);
-        exit(0);
-      }
-    }
+    thread_counter++;
   }
-#endif
-#if !(defined(__WIN__) || defined(__NETWARE__))
-#ifdef HAVE_LIBPTHREAD
-  else
-#endif
-  {
-    fflush(NULL);
-    for (x= 0; x < concur; x++)
-    {
-      int pid;
-      DBUG_PRINT("info", ("x: %d  concurrency: %u", x, *concurrency));
-      pid= fork();
-      switch(pid)
-      {
-      case 0:
-        /* child */
-        DBUG_PRINT("info", ("fork returned 0, calling task(\"%s\"), pid %d gid %d",
-                            stmts ? stmts->string : "", pid, getgid()));
-        if (verbose >= 3)
-          printf("%s: fork returned 0, calling task pid %d gid %d\n",
-                 my_progname, pid, getgid());
-        run_task(&con);
-        exit(0);
-        break;
-      case -1:
-        /* error */
-        DBUG_PRINT("info",
-                   ("fork returned -1, failing pid %d gid %d", pid, getgid()));
-        fprintf(stderr,
-                "%s: Failed on fork: -1, max procs per parent exceeded.\n",
-                my_progname);
-        /*exit(1);*/
-        goto WAIT;
-      default:
-        /* parent, forked */
-        DBUG_PRINT("info", ("default, break: pid %d gid %d", pid, getgid()));
-        if (verbose >= 3)
-          printf("%s: fork returned %d, gid %d\n",
-                 my_progname, pid, getgid());
-        break;
-      }
-    }
-  }
-#endif
+  pthread_mutex_unlock(&counter_mutex);
 
-  /* Lets release use some clients! */
-  if (!opt_slave)
-    my_lock(lock_file, F_UNLCK, 0, F_TO_EOF, MYF(0));
+  pthread_mutex_lock(&sleeper_mutex);
+  master_wakeup= 0;
+  pthread_mutex_unlock(&sleeper_mutex);
+  pthread_cond_broadcast(&sleep_threshhold);
 
   gettimeofday(&start_time, NULL);
 
   /*
-    We look to grab a write lock at this point. Once we get it we know that
-    all clients have completed their work.
+    We loop until we know that all children have cleaned up.
   */
-  if (opt_use_threads)
+  pthread_mutex_lock(&counter_mutex);
+  while (thread_counter)
   {
-    if (my_lock(lock_file, F_WRLCK, 0, F_TO_EOF, MYF(0)))
-    {
-      fprintf(stderr,"%s: Could not get lockfile\n",
-              my_progname);
-      exit(0);
-    }
-    my_lock(lock_file, F_UNLCK, 0, F_TO_EOF, MYF(0));
+    struct timespec abstime;
+
+    set_timespec(abstime, 3);
+    pthread_cond_timedwait(&count_threshhold, &counter_mutex, &abstime);
   }
-#ifndef __WIN__
-  else
-  {
-WAIT:
-    while (x--)
-    {
-      int status, pid;
-      pid= wait(&status);
-      DBUG_PRINT("info", ("Parent: child %d status %d", pid, status));
-      if (status != 0)
-      {
-        printf("%s: Child %d died with the status %d\n",
-               my_progname, pid, status);
-        exit(0);
-      }
-    }
-  }
-#endif
+  pthread_mutex_unlock(&counter_mutex);
+
   gettimeofday(&end_time, NULL);
 
-  my_close(lock_file, MYF(0));
 
   sptr->timing= timedif(end_time, start_time);
   sptr->users= concur;
@@ -1696,7 +1621,6 @@ int
 run_task(thread_context *con)
 {
   ulonglong counter= 0, queries;
-  File lock_file= -1;
   MYSQL *mysql;
   MYSQL_RES *result;
   MYSQL_ROW row;
@@ -1705,6 +1629,13 @@ run_task(thread_context *con)
   DBUG_ENTER("run_task");
   DBUG_PRINT("info", ("task script \"%s\"", con->stmt ? con->stmt->string : ""));
 
+  pthread_mutex_lock(&sleeper_mutex);
+  while (master_wakeup)
+  {
+    pthread_cond_wait(&sleep_threshhold, &sleeper_mutex);
+  }
+  pthread_mutex_unlock(&sleeper_mutex);
+
   if (!(mysql= mysql_init(NULL)))
   {
     fprintf(stderr,"%s: mysql_init() failed ERROR : %s\n",
@@ -1712,7 +1643,7 @@ run_task(thread_context *con)
     exit(0);
   }
 
-  if (con->thread && mysql_thread_init())
+  if (mysql_thread_init())
   {
     fprintf(stderr,"%s: mysql_thread_init() failed ERROR : %s\n",
             my_progname, mysql_error(mysql));
@@ -1720,8 +1651,7 @@ run_task(thread_context *con)
   }
 
   DBUG_PRINT("info", ("trying to connect to host %s as user %s", host, user));
-  lock_file= my_open(lock_file_str, O_RDWR, MYF(0));
-  my_lock(lock_file, F_RDLCK, 0, F_TO_EOF, MYF(0));
+
   if (!opt_only_print)
   {
     /* Connect to server */
@@ -1821,17 +1751,16 @@ limit_not_met:
 
 end:
 
-  if (lock_file != -1)
-  {
-    my_lock(lock_file, F_UNLCK, 0, F_TO_EOF, MYF(0));
-    my_close(lock_file, MYF(0));
-  }
-
   if (!opt_only_print) 
     mysql_close(mysql);
 
-  if (con->thread)
-    my_thread_end();
+  my_thread_end();
+
+  pthread_mutex_lock(&counter_mutex);
+  thread_counter--;
+  pthread_cond_signal(&count_threshhold);
+  pthread_mutex_unlock(&counter_mutex);
+
   DBUG_RETURN(0);
 }
 
