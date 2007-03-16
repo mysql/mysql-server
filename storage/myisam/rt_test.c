@@ -323,7 +323,7 @@ static int run_test(const char *filename)
   range.key= record+1;
   range.length= 1000;                           /* Big enough */
   range.flag= HA_READ_MBR_INTERSECT;
-  hrows= mi_records_in_range(file,0, &range, (key_range*) 0);
+  hrows= mi_records_in_range(file, 0, &range, (key_range*) 0);
   printf("     %ld rows\n", (long) hrows);
 
   if (mi_close(file)) goto err;
