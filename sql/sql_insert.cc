@@ -1039,7 +1039,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
 
     res= check_insert_fields(thd, context->table_list, fields, *values,
                              !insert_into_view, &map) ||
-      setup_fields(thd, 0, *values, MARK_COLUMNS_READ, 0, 0)
+      setup_fields(thd, 0, *values, MARK_COLUMNS_READ, 0, 0);
 
     if (!res && check_fields)
     {
