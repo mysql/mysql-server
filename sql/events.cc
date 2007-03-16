@@ -347,7 +347,15 @@ Events::create_event(THD *thd, Event_parse_data *parse_data, bool if_not_exists)
     DBUG_RETURN(TRUE);
   }
 
+  /* 
+    Turn off row binlogging of this statement and use statement-based 
+    so that all supporting tables are updated for CREATE EVENT command.
+  */
+  if (thd->current_stmt_binlog_row_based)
+    thd->clear_current_stmt_binlog_row_based();
+
   pthread_mutex_lock(&LOCK_event_metadata);
+
   /* On error conditions my_error() is called so no need to handle here */
   if (!(ret= db_repository->create_event(thd, parse_data, if_not_exists)))
   {
@@ -356,6 +364,15 @@ Events::create_event(THD *thd, Event_parse_data *parse_data, bool if_not_exists)
     {
       DBUG_ASSERT(ret == OP_LOAD_ERROR);
       my_error(ER_EVENT_MODIFY_QUEUE_ERROR, MYF(0));
+    }
+    else /* Binlog the create event. */
+    {
+      if (mysql_bin_log.is_open())
+      {
+        thd->clear_error();
+        thd->binlog_query(THD::MYSQL_QUERY_TYPE,
+                          thd->query, thd->query_length, FALSE, FALSE);
+      }
     }
   }
   pthread_mutex_unlock(&LOCK_event_metadata);
@@ -396,7 +413,15 @@ Events::update_event(THD *thd, Event_parse_data *parse_data, sp_name *rename_to)
     DBUG_RETURN(TRUE);
   }
 
+  /* 
+    Turn off row binlogging of this statement and use statement-based 
+    so that all supporting tables are updated for UPDATE EVENT command.
+  */
+  if (thd->current_stmt_binlog_row_based)
+    thd->clear_current_stmt_binlog_row_based();
+
   pthread_mutex_lock(&LOCK_event_metadata);
+
   /* On error conditions my_error() is called so no need to handle here */
   if (!(ret= db_repository->update_event(thd, parse_data, new_dbname, new_name)))
   {
@@ -405,6 +430,15 @@ Events::update_event(THD *thd, Event_parse_data *parse_data, sp_name *rename_to)
     {
       DBUG_ASSERT(ret == OP_LOAD_ERROR);
       my_error(ER_EVENT_MODIFY_QUEUE_ERROR, MYF(0));
+    }
+    else /* Binlog the alter event. */
+    {
+      if (mysql_bin_log.is_open())
+      {
+        thd->clear_error();
+        thd->binlog_query(THD::MYSQL_QUERY_TYPE,
+                          thd->query, thd->query_length, FALSE, FALSE);
+      }
     }
   }
   pthread_mutex_unlock(&LOCK_event_metadata);
@@ -445,12 +479,27 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists,
     DBUG_RETURN(TRUE);
   }
 
+  /* 
+    Turn off row binlogging of this statement and use statement-based so 
+    that all supporting tables are updated for DROP EVENT command.
+  */
+  if (thd->current_stmt_binlog_row_based)
+    thd->clear_current_stmt_binlog_row_based();
+
   pthread_mutex_lock(&LOCK_event_metadata);
   /* On error conditions my_error() is called so no need to handle here */
   if (!(ret= db_repository->drop_event(thd, dbname, name, if_exists)))
   {
     if (!only_from_disk)
       event_queue->drop_event(thd, dbname, name);
+
+    /* Binlog the drop event. */
+    if (mysql_bin_log.is_open())
+    {
+      thd->clear_error();
+      thd->binlog_query(THD::MYSQL_QUERY_TYPE,
+                        thd->query, thd->query_length, FALSE, FALSE);
+    }
   }
   pthread_mutex_unlock(&LOCK_event_metadata);
   DBUG_RETURN(ret);

@@ -218,7 +218,8 @@ Event_queue::create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
 
   new_element= new Event_queue_element();
   res= db_repository->load_named_event(thd, dbname, name, new_element);
-  if (res || new_element->status == Event_queue_element::DISABLED)
+  if (res || new_element->status == Event_queue_element::DISABLED 
+      || new_element->status == Event_queue_element::SLAVESIDE_DISABLED)
     delete new_element;
   else
   {
@@ -231,7 +232,6 @@ Event_queue::create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
     pthread_cond_broadcast(&COND_queue_state);  
     UNLOCK_QUEUE_DATA();
   }
-
   DBUG_RETURN(res);
 }
 
@@ -271,7 +271,7 @@ Event_queue::update_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
     delete new_element;
     goto end;
   }
-  else if (new_element->status == Event_queue_element::DISABLED)
+  else if (new_element->status != Event_queue_element::ENABLED)
   {
     DBUG_PRINT("info", ("The event is disabled."));
     /*
