@@ -645,6 +645,7 @@ CREATE TABLE event (
                         'HIGH_NOT_PRECEDENCE'
                     ) DEFAULT '' NOT NULL,
   comment char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
+  time_zone char(64) CHARACTER SET latin1 NOT NULL DEFAULT 'SYSTEM',
   PRIMARY KEY  (db, name)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT 'Events';
 
