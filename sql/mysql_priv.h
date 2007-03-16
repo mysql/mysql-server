@@ -417,8 +417,9 @@ MY_LOCALE *my_locale_by_number(uint number);
   updated (to store more bytes on disk).
 
   NOTE: When adding new SQL_MODE types, make sure to also add them to
-  ../scripts/mysql_create_system_tables.sh and
-  ../scripts/mysql_fix_privilege_tables.sql
+  the scripts used for creating the MySQL system tables
+  in scripts/mysql_system_tables.sql and scripts/mysql_system_tables_fix.sql
+
 */
 
 #define RAID_BLOCK_SIZE 1024
