@@ -66,6 +66,7 @@ struct show_table_authors_st show_table_authors[]= {
     "Parser, port to OS/2, storage engines and some random stuff" },
   { "Yuri Dario", "", "OS/2 port" },
   { "Andrei Elkin", "Espoo, Finland", "Replication" },
+  { "Patrick Galbraith", "Sharon, NH", "Federated Engine, mysqlslap" },
   { "Sergei Golubchik", "Kerpen, Germany",
     "Full-text search, precision math" },
   { "Lenz Grimmer", "Hamburg, Germany",

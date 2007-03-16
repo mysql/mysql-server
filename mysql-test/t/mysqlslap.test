@@ -14,3 +14,23 @@
 --exec $MYSQL_SLAP --silent --concurrency=5 --iterations=20 --delimiter=";" --query="select * from t1;select * from t2" --create="CREATE TABLE t1 (id int, name varchar(64)); create table t2(foo1 varchar(32), foo2 varchar(32)); INSERT INTO t1 VALUES (1, 'This is a test'); insert into t2 values ('test', 'test2')"
 
 --exec $MYSQL_SLAP --silent --concurrency=5 --iterations=20 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --create-schema=test_env
+
+--exec $MYSQL_SLAP --silent --concurrency=5 --iterations=20 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --create-schema=test_env --auto-generate-sql-add-autoincrement 
+
+--exec $MYSQL_SLAP --silent --concurrency=5 --iterations=1 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --auto-generate-sql-add-autoincrement 
+
+--exec $MYSQL_SLAP --silent --concurrency=5 --iterations=1 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --auto-generate-sql-add-autoincrement --auto-generate-sql-load-type=update
+
+--exec $MYSQL_SLAP --silent --concurrency=5 --iterations=1 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --auto-generate-sql-add-autoincrement --auto-generate-sql-load-type=read
+
+--exec $MYSQL_SLAP --silent --concurrency=5 --iterations=1 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --auto-generate-sql-add-autoincrement --auto-generate-sql-load-type=write
+
+--exec $MYSQL_SLAP --silent --concurrency=5 --iterations=1 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --auto-generate-sql-add-autoincrement --auto-generate-sql-load-type=mixed
+
+--exec $MYSQL_SLAP --silent --concurrency=5 --iterations=1 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --auto-generate-sql-guid-primary --auto-generate-sql-load-type=update
+
+--exec $MYSQL_SLAP --silent --concurrency=5 --iterations=1 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --auto-generate-sql-guid-primary --auto-generate-sql-load-type=update --auto-generate-sql-execute-number=5
+
+--exec $MYSQL_SLAP --silent --concurrency=5 --iterations=1 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --auto-generate-sql-guid-primary --auto-generate-sql-load-type=key --auto-generate-sql-execute-number=5
+
+--exec $MYSQL_SLAP --silent --concurrency=5 --iterations=1 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --auto-generate-sql-guid-primary --auto-generate-sql-load-type=key --auto-generate-sql-execute-number=5 --auto-generate-sql-secondary-indexes=3
