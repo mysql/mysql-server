@@ -3109,11 +3109,15 @@ void ndb_unpack_record(TABLE *table, NdbValue *value,
   my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->write_set);
   DBUG_ENTER("ndb_unpack_record");
 
+ // Set filler bits
+  if (table->s->null_bytes > 0)
+       buf[table->s->null_bytes - 1]|= 256U - (1U <<
+					       table->s->last_null_bit_pos);
   // Set null flag(s)
-  bzero(buf, table->s->null_bytes);
   for ( ; field;
        p_field++, value++, field= *p_field)
   {
+    field->set_notnull(row_offset);       
     if ((*value).ptr)
     {
       if (!(field->flags & BLOB_FLAG))
@@ -3123,7 +3127,7 @@ void ndb_unpack_record(TABLE *table, NdbValue *value,
         {
           if (is_null > 0)
           {
-            DBUG_PRINT("info",("[%u] NULL",
+	    DBUG_PRINT("info",("[%u] NULL",
                                (*value).rec->getColumn()->getColumnNo()));
             field->set_null(row_offset);
           }
