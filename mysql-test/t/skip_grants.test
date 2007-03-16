@@ -108,3 +108,10 @@ DROP PROCEDURE p3;
 DROP FUNCTION f1;
 DROP FUNCTION f2;
 DROP FUNCTION f3;
+
+#
+# Bug #26807 "set global event_scheduler=1" and --skip-grant-tables crashes server
+#
+--error ER_OPTION_PREVENTS_STATEMENT
+set global event_scheduler=1;
+

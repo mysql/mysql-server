@@ -58,3 +58,5 @@ DROP PROCEDURE p3;
 DROP FUNCTION f1;
 DROP FUNCTION f2;
 DROP FUNCTION f3;
+set global event_scheduler=1;
+ERROR HY000: The MySQL server is running with the --event-scheduler=DISABLED or --skip-grant-tables option so it cannot execute this statement
