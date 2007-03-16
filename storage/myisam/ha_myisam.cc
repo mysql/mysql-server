@@ -1556,34 +1556,37 @@ int ha_myisam::delete_row(const byte * buf)
   return mi_delete(file,buf);
 }
 
-int ha_myisam::index_read(byte * buf, const byte * key,
-			  uint key_len, enum ha_rkey_function find_flag)
+int ha_myisam::index_read(byte *buf, const byte *key, ulonglong keypart_map,
+                          enum ha_rkey_function find_flag)
 {
   DBUG_ASSERT(inited==INDEX);
   statistic_increment(table->in_use->status_var.ha_read_key_count,
 		      &LOCK_status);
-  int error=mi_rkey(file,buf,active_index, key, key_len, find_flag);
+  int error=mi_rkey(file, buf, active_index, key, keypart_map, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 
-int ha_myisam::index_read_idx(byte * buf, uint index, const byte * key,
-			      uint key_len, enum ha_rkey_function find_flag)
+int ha_myisam::index_read_idx(byte *buf, uint index, const byte *key,
+                              ulonglong keypart_map,
+                              enum ha_rkey_function find_flag)
 {
   statistic_increment(table->in_use->status_var.ha_read_key_count,
 		      &LOCK_status);
-  int error=mi_rkey(file,buf,index, key, key_len, find_flag);
+  int error=mi_rkey(file, buf, index, key, keypart_map, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 
-int ha_myisam::index_read_last(byte * buf, const byte * key, uint key_len)
+int ha_myisam::index_read_last(byte *buf, const byte *key,
+                               ulonglong keypart_map)
 {
   DBUG_ENTER("ha_myisam::index_read_last");
   DBUG_ASSERT(inited==INDEX);
   statistic_increment(table->in_use->status_var.ha_read_key_count,
 		      &LOCK_status);
-  int error=mi_rkey(file,buf,active_index, key, key_len, HA_READ_PREFIX_LAST);
+  int error=mi_rkey(file, buf, active_index, key, keypart_map,
+                    HA_READ_PREFIX_LAST);
   table->status=error ? STATUS_NOT_FOUND: 0;
   DBUG_RETURN(error);
 }
@@ -1892,8 +1895,9 @@ void ha_myisam::get_auto_increment(ulonglong offset, ulonglong increment,
   key_copy(key, table->record[0],
            table->key_info + table->s->next_number_index,
            table->s->next_number_key_offset);
-  error= mi_rkey(file,table->record[1],(int) table->s->next_number_index,
-                 key,table->s->next_number_key_offset,HA_READ_PREFIX_LAST);
+  error= mi_rkey(file, table->record[1], (int) table->s->next_number_index,
+                 key, make_prev_keypart_map(table->s->next_number_keypart),
+                 HA_READ_PREFIX_LAST);
   if (error)
     nr= 1;
   else

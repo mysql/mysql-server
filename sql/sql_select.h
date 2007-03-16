@@ -202,6 +202,11 @@ typedef struct st_join_table {
   }
 } JOIN_TAB;
 
+static inline ulonglong tab_to_keypart_map(JOIN_TAB *tab)
+{
+  return (ULL(1) << tab->ref.key_parts) - 1;
+}
+
 enum_nested_loop_state sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool
                                         end_of_records);
 enum_nested_loop_state sub_select(JOIN *join,JOIN_TAB *join_tab, bool

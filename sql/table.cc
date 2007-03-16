@@ -1222,12 +1222,12 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     if ((int) (share->next_number_index= (uint)
 	       find_ref_key(share->key_info, share->keys,
                             share->default_values, reg_field,
-			    &share->next_number_key_offset)) < 0)
+			    &share->next_number_key_offset,
+                            &share->next_number_keypart)) < 0)
     {
       /* Wrong field definition */
-      DBUG_ASSERT(0);
-      reg_field->unireg_check= Field::NONE;	/* purecov: inspected */
-      share->found_next_number_field= 0;
+      error= 4;
+      goto err;
     }
     else
       reg_field->flags |= AUTO_INCREMENT_FLAG;
@@ -2244,6 +2244,30 @@ char *get_field(MEM_ROOT *mem, Field *field)
   return to;
 }
 
+/*
+  DESCRIPTION
+    given a buffer with a key value, and a map of keyparts
+    that are present in this value, returns the length of the value
+*/
+uint calculate_key_len(TABLE *table, uint key, const byte *buf,
+                       ulonglong keypart_map)
+{
+  /* works only with key prefixes */
+  DBUG_ASSERT(((keypart_map + 1) & keypart_map) == 0);
+
+  KEY *key_info= table->s->key_info+key;
+  KEY_PART_INFO *key_part= key_info->key_part;
+  KEY_PART_INFO *end_key_part= key_part + key_info->key_parts;
+  uint length= 0;
+
+  while (key_part < end_key_part && keypart_map)
+  {
+    length+= key_part->store_length;
+    keypart_map >>= 1;
+    key_part++;
+  }
+  return length;
+}
 
 /*
   Check if database name is valid
@@ -3938,7 +3962,7 @@ void st_table::mark_auto_increment_column()
   */
   bitmap_set_bit(read_set, found_next_number_field->field_index);
   bitmap_set_bit(write_set, found_next_number_field->field_index);
-  if (s->next_number_key_offset)
+  if (s->next_number_keypart)
     mark_columns_used_by_index_no_reset(s->next_number_index, read_set);
   file->column_bitmaps_signal();
 }

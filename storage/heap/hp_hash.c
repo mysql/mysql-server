@@ -784,30 +784,26 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, byte *key,
 
 
 uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old,
-                    uint k_len)
+                    ulonglong keypart_map)
 {
   HA_KEYSEG *seg, *endseg;
   uchar *start_key= key;
   
   for (seg= keydef->seg, endseg= seg + keydef->keysegs;
-       seg < endseg && (int) k_len > 0; old+= seg->length, seg++)
+       seg < endseg && keypart_map; old+= seg->length, seg++)
   {
     uint char_length;
+    keypart_map>>= 1;
     if (seg->null_bit)
     {
-      k_len--;
       if (!(*key++= (char) 1 - *old++))
-      {
-        k_len-= seg->length;
         continue;
       }
-    }
     if (seg->flag & HA_SWAP_KEY)
     {
       uint length= seg->length;
       byte *pos= (byte*) old + length;
       
-      k_len-= length;
       while (length--)
       {
 	*key++= *--pos;
@@ -822,7 +818,6 @@ uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old,
       CHARSET_INFO *cs= seg->charset;
       char_length= length/cs->mbmaxlen;
 
-      k_len-= 2+length;
       old+= 2;
       set_if_smaller(length,tmp_length);	/* Safety */
       FIX_LENGTH(cs, old, length, char_length);
@@ -843,7 +838,6 @@ uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old,
     }
     memcpy(key, old, (size_t) char_length);
     key+= seg->length;
-    k_len-= seg->length;
   }
   return (uint) (key - start_key);
 }

@@ -1917,9 +1917,9 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   (void)table->file->ha_index_init(0, 1);
 
   if (table->file->index_read(table->record[0], (byte*)table->field[0]->ptr,
-                              0, HA_READ_KEY_EXACT))
+                              ~(ulonglong)0, HA_READ_KEY_EXACT))
   {
-#ifdef EXTRA_DEBUG    
+#ifdef EXTRA_DEBUG
     /*
       Most probably user has mistyped time zone name, so no need to bark here
       unless we need it for debugging.
@@ -1945,7 +1945,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   (void)table->file->ha_index_init(0, 1);
 
   if (table->file->index_read(table->record[0], (byte*)table->field[0]->ptr,
-                              0, HA_READ_KEY_EXACT))
+                              ~(ulonglong)0, HA_READ_KEY_EXACT))
   {
     sql_print_error("Can't find description of time zone '%u'", tzid);
     goto end;
@@ -1972,9 +1972,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   table->field[0]->store((longlong) tzid, TRUE);
   (void)table->file->ha_index_init(0, 1);
 
-  // FIXME Is there any better approach than explicitly specifying 4 ???
   res= table->file->index_read(table->record[0], (byte*)table->field[0]->ptr,
-                               4, HA_READ_KEY_EXACT);
+                               (ulonglong)1, HA_READ_KEY_EXACT);
   while (!res)
   {
     ttid= (uint)table->field[1]->val_int();
@@ -2045,9 +2044,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   table->field[0]->store((longlong) tzid, TRUE);
   (void)table->file->ha_index_init(0, 1);
 
-  // FIXME Is there any better approach than explicitly specifying 4 ???
   res= table->file->index_read(table->record[0], (byte*)table->field[0]->ptr,
-                               4, HA_READ_KEY_EXACT);
+                               (ulonglong)1, HA_READ_KEY_EXACT);
   while (!res)
   {
     ttime= (my_time_t)table->field[1]->val_int();
