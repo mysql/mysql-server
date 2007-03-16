@@ -162,3 +162,24 @@ INSERT INTO t2 VALUES (1), (3);
 --error ER_BAD_FIELD_ERROR
 INSERT INTO t1 SELECT 1, COUNT(*) FROM t2 ON DUPLICATE KEY UPDATE j= a;
 DROP TABLE t1,t2;
+
+#
+# Bug #26261: Missing default value isn't noticed in 
+#   insert ... on duplicate key update
+#
+SET SQL_MODE = 'TRADITIONAL';
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT NOT NULL);
+
+--error 1364
+INSERT INTO t1 (a) VALUES (1);
+
+--error 1364
+INSERT INTO t1 (a) VALUES (1) ON DUPLICATE KEY UPDATE a = b;
+
+--error 1364
+INSERT INTO t1 (a) VALUES (1) ON DUPLICATE KEY UPDATE b = b;
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
