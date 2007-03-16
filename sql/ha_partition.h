@@ -384,9 +384,8 @@ public:
     any end processing needed.
   */
   virtual int index_read(byte * buf, const byte * key,
-			 uint key_len, enum ha_rkey_function find_flag);
-  virtual int index_read_idx(byte * buf, uint idx, const byte * key,
-			     uint key_len, enum ha_rkey_function find_flag);
+                             ulonglong keypart_map,
+                             enum ha_rkey_function find_flag);
   virtual int index_init(uint idx, bool sorted);
   virtual int index_end();
 
@@ -399,7 +398,8 @@ public:
   virtual int index_first(byte * buf);
   virtual int index_last(byte * buf);
   virtual int index_next_same(byte * buf, const byte * key, uint keylen);
-  virtual int index_read_last(byte * buf, const byte * key, uint keylen);
+  virtual int index_read_last(byte * buf, const byte * key,
+                                  ulonglong keypart_map);
 
   /*
     read_first_row is virtual method but is only implemented by
@@ -425,7 +425,7 @@ public:
 
 private:
   int common_index_read(byte * buf, const byte * key,
-			uint key_len, enum ha_rkey_function find_flag);
+                        ulonglong keypart_map, enum ha_rkey_function find_flag);
   int common_first_last(byte * buf);
   int partition_scan_set_up(byte * buf, bool idx_read_flag);
   int handle_unordered_next(byte * buf, bool next_same);

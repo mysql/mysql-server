@@ -1,5 +1,7 @@
+#! /bin/sh
+
 /bin/rm -f */.deps/*.P */*.o
-make -k clean
+make -k maintainer-clean
 /bin/rm -f */.deps/*.P */*.o
 /bin/rm -f */.deps/*.P config.cache storage/innobase/config.cache mysql-*.tar.gz
 
