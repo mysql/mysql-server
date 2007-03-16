@@ -21,7 +21,7 @@
 #include "myisamdef.h"
 #include "rt_index.h"
 
-static ha_rows _mi_record_pos(MI_INFO *, const byte *, ulonglong,
+static ha_rows _mi_record_pos(MI_INFO *, const byte *, key_part_map,
                               enum ha_rkey_function);
 static double _mi_search_pos(MI_INFO *,MI_KEYDEF *,uchar *, uint,uint,my_off_t);
 static uint _mi_keynr(MI_INFO *info,MI_KEYDEF *,uchar *, uchar *,uint *);
@@ -104,11 +104,11 @@ ha_rows mi_records_in_range(MI_INFO *info, int inx,
     if (start_pos == HA_POS_ERROR || end_pos == HA_POS_ERROR)
       res=HA_POS_ERROR;
   }
-  
+
   if (info->s->concurrent_insert)
     rw_unlock(&info->s->key_root_lock[inx]);
   fast_mi_writeinfo(info);
-  
+
   DBUG_PRINT("info",("records: %ld",(ulong) (res)));
   DBUG_RETURN(res);
 }
@@ -117,7 +117,7 @@ ha_rows mi_records_in_range(MI_INFO *info, int inx,
 	/* Find relative position (in records) for key in index-tree */
 
 static ha_rows _mi_record_pos(MI_INFO *info, const byte *key,
-                              ulonglong keypart_map,
+                              key_part_map keypart_map,
 			      enum ha_rkey_function search_flag)
 {
   uint inx=(uint) info->lastinx, nextflag, key_len;

@@ -395,7 +395,10 @@ enum ha_base_keytype {
 	/* Other constants */
 
 #define HA_NAMELEN 64			/* Max length of saved filename */
-#define NO_SUCH_KEY ((uint)~0)          /* used as a key no. */
+#define NO_SUCH_KEY (~(uint)0)          /* used as a key no. */
+
+typedef ulong key_part_map;
+#define HA_WHOLE_KEY  (~(key_part_map)0)
 
 	/* Intern constants in databases */
 
@@ -469,7 +472,7 @@ typedef struct st_key_range
 {
   const byte *key;
   uint length;
-  ulonglong keypart_map;
+  key_part_map keypart_map;
   enum ha_rkey_function flag;
 } key_range;
 

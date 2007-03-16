@@ -238,7 +238,7 @@ int ha_heap::delete_row(const byte * buf)
   return res;
 }
 
-int ha_heap::index_read(byte * buf, const byte * key, ulonglong keypart_map,
+int ha_heap::index_read(byte * buf, const byte * key, key_part_map keypart_map,
 			enum ha_rkey_function find_flag)
 {
   DBUG_ASSERT(inited==INDEX);
@@ -249,7 +249,7 @@ int ha_heap::index_read(byte * buf, const byte * key, ulonglong keypart_map,
   return error;
 }
 
-int ha_heap::index_read_last(byte *buf, const byte *key, ulonglong keypart_map)
+int ha_heap::index_read_last(byte *buf, const byte *key, key_part_map keypart_map)
 {
   DBUG_ASSERT(inited==INDEX);
   statistic_increment(table->in_use->status_var.ha_read_key_count,
@@ -261,7 +261,7 @@ int ha_heap::index_read_last(byte *buf, const byte *key, ulonglong keypart_map)
 }
 
 int ha_heap::index_read_idx(byte * buf, uint index, const byte * key,
-			    ulonglong keypart_map,
+			    key_part_map keypart_map,
                             enum ha_rkey_function find_flag)
 {
   statistic_increment(table->in_use->status_var.ha_read_key_count,

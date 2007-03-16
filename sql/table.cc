@@ -2250,7 +2250,7 @@ char *get_field(MEM_ROOT *mem, Field *field)
     that are present in this value, returns the length of the value
 */
 uint calculate_key_len(TABLE *table, uint key, const byte *buf,
-                       ulonglong keypart_map)
+                       key_part_map keypart_map)
 {
   /* works only with key prefixes */
   DBUG_ASSERT(((keypart_map + 1) & keypart_map) == 0);
