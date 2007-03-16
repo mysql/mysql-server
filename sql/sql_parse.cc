@@ -1604,7 +1604,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   DBUG_ENTER("dispatch_command");
 
   if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
+  {
     thd->killed= THD::NOT_KILLED;
+    thd->mysys_var->abort= 0;
+  }
 
   thd->command=command;
   /*
