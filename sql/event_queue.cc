@@ -65,13 +65,10 @@ struct event_queue_param
 static int 
 event_queue_element_compare_q(void *vptr, byte* a, byte *b)
 {
-  /*
-    Note that no overflow is possible here because both values are
-    non-negative, and subtraction is done in the signed my_time_t
-    type.
-  */
-  return (((Event_queue_element *)a)->execute_at
-          - ((Event_queue_element *)b)->execute_at);
+  my_time_t lhs = ((Event_queue_element *)a)->execute_at;
+  my_time_t rhs = ((Event_queue_element *)b)->execute_at;
+
+  return (lhs < rhs ? -1 : (lhs > rhs ? 1 : 0));
 }
 
 
@@ -580,8 +577,7 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
         time or until signaled. Release LOCK_queue while waiting.
       */
       struct timespec top_time;
-      top_time.tv_sec= next_activation_at;
-      top_time.tv_nsec= 0;
+      set_timespec(top_time, next_activation_at - thd->query_start());
       cond_wait(thd, &top_time, queue_wait_msg, SCHED_FUNC, __LINE__);
 
       continue;
