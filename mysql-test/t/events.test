@@ -122,43 +122,62 @@ set names utf8;
 # SHOW CREATE EVENT test begin
 #
 CREATE EVENT root6 ON SCHEDULE EVERY '10:20' MINUTE_SECOND ON COMPLETION PRESERVE ENABLE COMMENT 'some comment' DO select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root6;
 create event root7 on schedule every 2 year do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root7;
 create event root8 on schedule every '2:5' year_month do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root8;
 create event root8_1 on schedule every '2:15' year_month do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root8_1;
 create event root9 on schedule every 2 week ON COMPLETION PRESERVE DISABLE COMMENT 'ÐºÐ¾Ð¼ÐµÐ½Ñ‚Ð°Ñ€ Ð½Ð° ÐºÐ¸Ñ€Ð¸Ð»Ð¸Ñ†Ð°' do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root9;
 create event root10 on schedule every '20:5' day_hour do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root10;
 create event root11 on schedule every '20:25' day_hour do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root11;
 create event root12 on schedule every '20:25' hour_minute do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root12;
 create event root13 on schedule every '25:25' hour_minute do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root13;
 create event root13_1 on schedule every '11:65' hour_minute do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root13_1;
 create event root14 on schedule every '35:35' minute_second do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root14;
 create event root15 on schedule every '35:66' minute_second do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root15;
 create event root16 on schedule every '35:56' day_minute do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root16;
 create event root17 on schedule every '35:12:45' day_minute do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root17;
 create event root17_1 on schedule every '35:25:65' day_minute do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root17_1;
 create event root18 on schedule every '35:12:45' hour_second do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root18;
 create event root19 on schedule every '15:59:85' hour_second do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root19;
 create event root20 on schedule every '50:20:12:45' day_second do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root20;
 set names cp1251;
 create event ðóóò21 on schedule every '50:23:59:95' day_second COMMENT 'òîâà å 1251 êîìåíòàð' do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT ðóóò21;
 insert into mysql.event (db, name, body, definer, interval_value, interval_field) values (database(), "root22", "select 1", user(), 100, "SECOND_MICROSECOND");
 --error ER_NOT_SUPPORTED_YET

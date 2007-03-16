@@ -101,7 +101,7 @@ Event_parse_data::new_instance(THD *thd)
 */
 
 Event_parse_data::Event_parse_data()
-  :on_completion(ON_COMPLETION_DROP), status(ENABLED),
+  :on_completion(ON_COMPLETION_DROP), status(ENABLED), do_not_create(FALSE),
    item_starts(NULL), item_ends(NULL), item_execute_at(NULL),
    starts_null(TRUE), ends_null(TRUE), execute_at_null(TRUE),
    item_expression(NULL), expression(0)
@@ -109,9 +109,7 @@ Event_parse_data::Event_parse_data()
   DBUG_ENTER("Event_parse_data::Event_parse_data");
 
   /* Actually in the parser STARTS is always set */
-  set_zero_time(&starts, MYSQL_TIMESTAMP_DATETIME);
-  set_zero_time(&ends, MYSQL_TIMESTAMP_DATETIME);
-  set_zero_time(&execute_at, MYSQL_TIMESTAMP_DATETIME);
+  starts= ends= execute_at= 0;
 
   body.str= comment.str= NULL;
   body.length= comment.length= 0;
@@ -224,6 +222,55 @@ Event_parse_data::init_body(THD *thd)
 
 
 /*
+  This function is called on CREATE EVENT or ALTER EVENT.  When either
+  ENDS or AT is in the past, we are trying to create an event that
+  will never be executed.  If it has ON COMPLETION NOT PRESERVE
+  (default), then it would normally be dropped already, so on CREATE
+  EVENT we give a warning, and do not create anyting.  On ALTER EVENT
+  we give a error, and do not change the event.
+
+  If the event has ON COMPLETION PRESERVE, then we see if the event is
+  created or altered to the ENABLED (default) state.  If so, then we
+  give a warning, and change the state to DISABLED.
+
+  Otherwise it is a valid event in ON COMPLETION PRESERVE DISABLE
+  state.
+*/
+
+void
+Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc)
+{
+  if (ltime_utc >= (my_time_t) thd->query_start())
+    return;
+
+  if (on_completion == ON_COMPLETION_DROP)
+  {
+    switch (thd->lex->sql_command) {
+    case SQLCOM_CREATE_EVENT:
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                   ER_EVENT_CANNOT_CREATE_IN_THE_PAST,
+                   ER(ER_EVENT_CANNOT_CREATE_IN_THE_PAST));
+      break;
+    case SQLCOM_ALTER_EVENT:
+      my_error(ER_EVENT_CANNOT_ALTER_IN_THE_PAST, MYF(0));
+      break;
+    default:
+      DBUG_ASSERT(0);
+    }
+
+    do_not_create= TRUE;
+  }
+  else if (status == ENABLED)
+  {
+    status= DISABLED;
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                 ER_EVENT_EXEC_TIME_IN_THE_PAST,
+                 ER(ER_EVENT_EXEC_TIME_IN_THE_PAST));
+  }
+}
+
+
+/*
   Sets time for execution for one-time event.
 
   SYNOPSIS
@@ -240,8 +287,7 @@ Event_parse_data::init_execute_at(THD *thd)
 {
   my_bool not_used;
   TIME ltime;
-  my_time_t t;
-  TIME time_tmp;
+  my_time_t ltime_utc;
 
   DBUG_ENTER("Event_parse_data::init_execute_at");
 
@@ -256,35 +302,20 @@ Event_parse_data::init_execute_at(THD *thd)
                       (starts_null && ends_null)));
   DBUG_ASSERT(starts_null && ends_null);
 
-  /* let's check whether time is in the past */
-  thd->variables.time_zone->gmt_sec_to_TIME(&time_tmp,
-                                            (my_time_t) thd->query_start());
-
   if ((not_used= item_execute_at->get_date(&ltime, TIME_NO_ZERO_DATE)))
     goto wrong_value;
 
-  if (TIME_to_ulonglong_datetime(&ltime) <
-      TIME_to_ulonglong_datetime(&time_tmp))
-  {
-    my_error(ER_EVENT_EXEC_TIME_IN_THE_PAST, MYF(0));
-    DBUG_RETURN(ER_WRONG_VALUE);
-  }
-
-  /*
-    This may result in a 1970-01-01 date if ltime is > 2037-xx-xx.
-    CONVERT_TZ has similar problem.
-    mysql_priv.h currently lists 
-      #define TIMESTAMP_MAX_YEAR 2038 (see TIME_to_timestamp())
-  */
-  my_tz_UTC->gmt_sec_to_TIME(&ltime,t=TIME_to_timestamp(thd,&ltime,&not_used));
-  if (!t)
+  ltime_utc= TIME_to_timestamp(thd,&ltime,&not_used);
+  if (!ltime_utc)
   {
     DBUG_PRINT("error", ("Execute AT after year 2037"));
     goto wrong_value;
   }
 
+  check_if_in_the_past(thd, ltime_utc);
+
   execute_at_null= FALSE;
-  execute_at= ltime;
+  execute_at= ltime_utc;
   DBUG_RETURN(0);
 
 wrong_value:
@@ -424,8 +455,8 @@ int
 Event_parse_data::init_starts(THD *thd)
 {
   my_bool not_used;
-  TIME ltime, time_tmp;
-  my_time_t t;
+  TIME ltime;
+  my_time_t ltime_utc;
 
   DBUG_ENTER("Event_parse_data::init_starts");
   if (!item_starts)
@@ -437,36 +468,15 @@ Event_parse_data::init_starts(THD *thd)
   if ((not_used= item_starts->get_date(&ltime, TIME_NO_ZERO_DATE)))
     goto wrong_value;
 
-  /*
-    Let's check whether time is in the past.
-    Note: This call is not post year 2038 safe. That's because
-          thd->query_start() is of time_t, while gmt_sec_to_TIME()
-          wants my_time_t. In the case time_t is larger than my_time_t
-          an overflow might happen and events subsystem will not work as
-          expected.
-  */
-  thd->variables.time_zone->gmt_sec_to_TIME(&time_tmp,
-                                            (my_time_t) thd->query_start());
+  ltime_utc= TIME_to_timestamp(thd, &ltime, &not_used);
+  if (!ltime_utc)
+    goto wrong_value;
 
   DBUG_PRINT("info",("now: %ld  starts: %ld",
-                     (long) TIME_to_ulonglong_datetime(&time_tmp),
-                     (long) TIME_to_ulonglong_datetime(&ltime)));
-  if (TIME_to_ulonglong_datetime(&ltime) <
-      TIME_to_ulonglong_datetime(&time_tmp))
-    goto wrong_value;
+                     (long) thd->query_start(), (long) ltime_utc));
 
-  /*
-    Again, after 2038 this code won't work. As
-    mysql_priv.h currently lists
-      #define TIMESTAMP_MAX_YEAR 2038 (see TIME_to_timestamp())
-  */
-  my_tz_UTC->gmt_sec_to_TIME(&ltime,t=TIME_to_timestamp(thd, &ltime,
-                                                        &not_used));
-  if (!t)
-    goto wrong_value;
-
-  starts= ltime;
   starts_null= FALSE;
+  starts= ltime_utc;
   DBUG_RETURN(0);
 
 wrong_value:
@@ -498,9 +508,9 @@ wrong_value:
 int
 Event_parse_data::init_ends(THD *thd)
 {
-  TIME ltime, ltime_now;
   my_bool not_used;
-  my_time_t t;
+  TIME ltime;
+  my_time_t ltime_utc;
 
   DBUG_ENTER("Event_parse_data::init_ends");
   if (!item_ends)
@@ -513,34 +523,19 @@ Event_parse_data::init_ends(THD *thd)
   if ((not_used= item_ends->get_date(&ltime, TIME_NO_ZERO_DATE)))
     goto error_bad_params;
 
-  /*
-    Again, after 2038 this code won't work. As
-    mysql_priv.h currently lists
-      #define TIMESTAMP_MAX_YEAR 2038 (see TIME_to_timestamp())
-  */
-  DBUG_PRINT("info", ("get the UTC time"));
-  my_tz_UTC->gmt_sec_to_TIME(&ltime,t=TIME_to_timestamp(thd, &ltime,
-                                                        &not_used));
-  if (!t)
+  ltime_utc= TIME_to_timestamp(thd, &ltime, &not_used);
+  if (!ltime_utc)
     goto error_bad_params;
 
   /* Check whether ends is after starts */
   DBUG_PRINT("info", ("ENDS after STARTS?"));
-  if (!starts_null && my_time_compare(&starts, &ltime) != -1)
+  if (!starts_null && starts >= ltime_utc)
     goto error_bad_params;
 
-  /*
-    The parser forces starts to be provided but one day STARTS could be
-    set before NOW() and in this case the following check should be done.
-    Check whether ENDS is not in the past.
-  */
-  DBUG_PRINT("info", ("ENDS after NOW?"));
-  my_tz_UTC->gmt_sec_to_TIME(&ltime_now, thd->query_start());
-  if (my_time_compare(&ltime_now, &ltime) == 1)
-    goto error_bad_params;
+  check_if_in_the_past(thd, ltime_utc);
 
-  ends= ltime;
   ends_null= FALSE;
+  ends= ltime_utc;
   DBUG_RETURN(0);
 
 error_bad_params:
@@ -656,6 +651,7 @@ Event_basic::Event_basic()
   init_alloc_root(&mem_root, 256, 512);
   dbname.str= name.str= NULL;
   dbname.length= name.length= 0;
+  time_zone= NULL;
   DBUG_VOID_RETURN;
 }
 
@@ -716,6 +712,16 @@ Event_basic::load_string_fields(Field **fields, ...)
 }
 
 
+bool
+Event_basic::load_time_zone(THD *thd, const LEX_STRING tz_name)
+{
+  String str(tz_name.str, &my_charset_latin1);
+  time_zone= my_tz_find(thd, &str);
+
+  return (time_zone == NULL);
+}
+
+
 /*
   Constructor
 
@@ -730,10 +736,7 @@ Event_queue_element::Event_queue_element():
 {
   DBUG_ENTER("Event_queue_element::Event_queue_element");
 
-  set_zero_time(&starts, MYSQL_TIMESTAMP_DATETIME);
-  set_zero_time(&ends, MYSQL_TIMESTAMP_DATETIME);
-  set_zero_time(&execute_at, MYSQL_TIMESTAMP_DATETIME);
-  set_zero_time(&last_executed, MYSQL_TIMESTAMP_DATETIME);
+  starts= ends= execute_at= last_executed= 0;
   starts_null= ends_null= execute_at_null= TRUE;
 
   DBUG_VOID_RETURN;
@@ -833,7 +836,7 @@ Event_timed::init()
   Loads an event's body from a row from mysql.event
 
   SYNOPSIS
-    Event_job_data::load_from_row(MEM_ROOT *mem_root, TABLE *table)
+    Event_job_data::load_from_row(THD *thd, TABLE *table)
 
   RETURN VALUE
     0                      OK
@@ -846,7 +849,7 @@ Event_timed::init()
 */
 
 int
-Event_job_data::load_from_row(TABLE *table)
+Event_job_data::load_from_row(THD *thd, TABLE *table)
 {
   char *ptr;
   uint len;
@@ -858,9 +861,12 @@ Event_job_data::load_from_row(TABLE *table)
   if (table->s->fields != ET_FIELD_COUNT)
     goto error;
 
+  LEX_STRING tz_name;
   load_string_fields(table->field, ET_FIELD_DB, &dbname, ET_FIELD_NAME, &name,
                      ET_FIELD_BODY, &body, ET_FIELD_DEFINER, &definer,
-                     ET_FIELD_COUNT);
+                     ET_FIELD_TIME_ZONE, &tz_name, ET_FIELD_COUNT);
+  if (load_time_zone(thd, tz_name))
+    goto error;
 
   ptr= strchr(definer.str, '@');
 
@@ -887,7 +893,7 @@ error:
   Loads an event from a row from mysql.event
 
   SYNOPSIS
-    Event_queue_element::load_from_row(MEM_ROOT *mem_root, TABLE *table)
+    Event_queue_element::load_from_row(THD *thd, TABLE *table)
 
   RETURN VALUE
     0                      OK
@@ -900,10 +906,10 @@ error:
 */
 
 int
-Event_queue_element::load_from_row(TABLE *table)
+Event_queue_element::load_from_row(THD *thd, TABLE *table)
 {
   char *ptr;
-  bool res1, res2;
+  TIME time;
 
   DBUG_ENTER("Event_queue_element::load_from_row");
 
@@ -913,29 +919,44 @@ Event_queue_element::load_from_row(TABLE *table)
   if (table->s->fields != ET_FIELD_COUNT)
     goto error;
 
+  LEX_STRING tz_name;
   load_string_fields(table->field, ET_FIELD_DB, &dbname, ET_FIELD_NAME, &name,
-                     ET_FIELD_DEFINER, &definer, ET_FIELD_COUNT);
+                     ET_FIELD_DEFINER, &definer,
+                     ET_FIELD_TIME_ZONE, &tz_name, ET_FIELD_COUNT);
+  if (load_time_zone(thd, tz_name))
+    goto error;
 
   starts_null= table->field[ET_FIELD_STARTS]->is_null();
-  res1= table->field[ET_FIELD_STARTS]->get_date(&starts, TIME_NO_ZERO_DATE);
+  if (!starts_null)
+  {
+    table->field[ET_FIELD_STARTS]->get_date(&time, TIME_NO_ZERO_DATE);
+    starts= sec_since_epoch_TIME(&time);
+  }
 
   ends_null= table->field[ET_FIELD_ENDS]->is_null();
-  res2= table->field[ET_FIELD_ENDS]->get_date(&ends, TIME_NO_ZERO_DATE);
+  if (!ends_null)
+  {
+    table->field[ET_FIELD_ENDS]->get_date(&time, TIME_NO_ZERO_DATE);
+    ends= sec_since_epoch_TIME(&time);
+  }
 
   if (!table->field[ET_FIELD_INTERVAL_EXPR]->is_null())
     expression= table->field[ET_FIELD_INTERVAL_EXPR]->val_int();
   else
     expression= 0;
   /*
-    If res1 and res2 are TRUE then both fields are empty.
+    If neigher STARTS and ENDS is set, then both fields are empty.
     Hence, if ET_FIELD_EXECUTE_AT is empty there is an error.
   */
   execute_at_null= table->field[ET_FIELD_EXECUTE_AT]->is_null();
   DBUG_ASSERT(!(starts_null && ends_null && !expression && execute_at_null));
-  if (!expression &&
-      table->field[ET_FIELD_EXECUTE_AT]->get_date(&execute_at,
-                                                  TIME_NO_ZERO_DATE))
-    goto error;
+  if (!expression && !execute_at_null)
+  {
+    if (table->field[ET_FIELD_EXECUTE_AT]->get_date(&time,
+                                                    TIME_NO_ZERO_DATE))
+      goto error;
+    execute_at= sec_since_epoch_TIME(&time);
+  }
 
   /*
     We load the interval type from disk as string and then map it to
@@ -962,10 +983,13 @@ Event_queue_element::load_from_row(TABLE *table)
     interval= (interval_type) i;
   }
 
-  table->field[ET_FIELD_LAST_EXECUTED]->get_date(&last_executed,
-                                                 TIME_NO_ZERO_DATE);
+  if (!table->field[ET_FIELD_LAST_EXECUTED]->is_null())
+  {
+    table->field[ET_FIELD_LAST_EXECUTED]->get_date(&time,
+                                                   TIME_NO_ZERO_DATE);
+    last_executed= sec_since_epoch_TIME(&time);
+  }
   last_executed_changed= FALSE;
-
 
   if ((ptr= get_field(&mem_root, table->field[ET_FIELD_STATUS])) == NullS)
     goto error;
@@ -992,7 +1016,7 @@ error:
   Loads an event from a row from mysql.event
 
   SYNOPSIS
-    Event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
+    Event_timed::load_from_row(THD *thd, TABLE *table)
 
   RETURN VALUE
     0                      OK
@@ -1005,14 +1029,14 @@ error:
 */
 
 int
-Event_timed::load_from_row(TABLE *table)
+Event_timed::load_from_row(THD *thd, TABLE *table)
 {
   char *ptr;
   uint len;
 
   DBUG_ENTER("Event_timed::load_from_row");
 
-  if (Event_queue_element::load_from_row(table))
+  if (Event_queue_element::load_from_row(thd, table))
     goto error;
 
   load_string_fields(table->field, ET_FIELD_BODY, &body, ET_FIELD_COUNT);
@@ -1048,11 +1072,30 @@ error:
 
 
 /*
-  Computes the sum of a timestamp plus interval. Presumed is that at least one
-  previous execution has occured.
+  add_interval() adds a specified interval to time 'ltime' in time
+  zone 'time_zone', and returns the result converted to the number of
+  seconds since epoch (aka Unix time; in UTC time zone).  Zero result
+  means an error.
+*/
+static
+my_time_t
+add_interval(TIME *ltime, const Time_zone *time_zone,
+             interval_type scale, INTERVAL interval)
+{
+  if (date_add_interval(ltime, scale, interval))
+    return 0;
+
+  my_bool not_used;
+  return time_zone->TIME_to_gmt_sec(ltime, &not_used);
+}
+
+
+/*
+  Computes the sum of a timestamp plus interval.
 
   SYNOPSIS
-    get_next_time(TIME *start, int interval_value, interval_type interval)
+    get_next_time()
+      time_zone     event time zone
       next          the sum
       start         add interval_value to this time
       time_now      current time
@@ -1069,26 +1112,19 @@ error:
        seconds as resolution for computation.
     2) In all other cases - MONTH, QUARTER, YEAR we use MONTH as resolution
        and PERIOD_DIFF()'s implementation
-    3) We get the difference between time_now and `start`, then divide it
-       by the months, respectively seconds and round up. Then we multiply
-       monts/seconds by the rounded value and add it to `start` -> we get
-       the next execution time.
 */
 
 static
-bool get_next_time(TIME *next, TIME *start, TIME *time_now, TIME *last_exec,
+bool get_next_time(const Time_zone *time_zone, my_time_t *next,
+                   my_time_t start, my_time_t time_now,
                    int i_value, interval_type i_type)
 {
-  bool ret;
-  INTERVAL interval;
-  TIME tmp;
-  longlong months=0, seconds=0;
   DBUG_ENTER("get_next_time");
-  DBUG_PRINT("enter", ("start: %lu  now: %lu",
-                       (long) TIME_to_ulonglong_datetime(start),
-                       (long) TIME_to_ulonglong_datetime(time_now)));
+  DBUG_PRINT("enter", ("start: %lu  now: %lu", (long) start, (long) time_now));
 
-  bzero(&interval, sizeof(interval));
+  DBUG_ASSERT(start <= time_now);
+
+  longlong months=0, seconds=0;
 
   switch (i_type) {
   case INTERVAL_YEAR:
@@ -1135,84 +1171,151 @@ bool get_next_time(TIME *next, TIME *start, TIME *time_now, TIME *last_exec,
     DBUG_ASSERT(0);
   }
   DBUG_PRINT("info", ("seconds: %ld  months: %ld", (long) seconds, (long) months));
+
+  TIME local_start;
+  TIME local_now;
+
+  /* Convert times from UTC to local. */
+  {
+    time_zone->gmt_sec_to_TIME(&local_start, start);
+    time_zone->gmt_sec_to_TIME(&local_now, time_now);
+  }
+
+  INTERVAL interval;
+  bzero(&interval, sizeof(interval));
+  my_time_t next_time= 0;
+
   if (seconds)
   {
     longlong seconds_diff;
     long microsec_diff;
-
-    if (calc_time_diff(time_now, start, 1, &seconds_diff, &microsec_diff))
+    bool negative= calc_time_diff(&local_now, &local_start, 1,
+                                  &seconds_diff, &microsec_diff);
+    if (!negative)
     {
-      DBUG_PRINT("error", ("negative difference"));
-      DBUG_ASSERT(0);
+      /*
+        The formula below returns the interval that, when added to
+        local_start, will always give the time in the future.
+      */
+      interval.second= seconds_diff - seconds_diff % seconds + seconds;
+      next_time= add_interval(&local_start, time_zone,
+                              INTERVAL_SECOND, interval);
+      if (next_time == 0)
+        goto done;
     }
-    uint multiplier= (uint) (seconds_diff / seconds);
-    /*
-      Increase the multiplier is the modulus is not zero to make round up.
-      Or if time_now==start then we should not execute the same 
-      event two times for the same time
-      get the next exec if the modulus is not
-    */
-    DBUG_PRINT("info", ("multiplier: %d", multiplier));
-    if (seconds_diff % seconds || (!seconds_diff && last_exec->year) ||
-        TIME_to_ulonglong_datetime(time_now) ==
-          TIME_to_ulonglong_datetime(last_exec))
-      ++multiplier;
-    interval.second= seconds * multiplier;
-    DBUG_PRINT("info", ("multiplier: %lu  interval.second: %lu", (ulong) multiplier,
-                        (ulong) interval.second));
-    tmp= *start;
-    if (!(ret= date_add_interval(&tmp, INTERVAL_SECOND, interval)))
-      *next= tmp;
+
+    if (next_time <= time_now)
+    {
+      /*
+        If 'negative' is true above, then 'next_time == 0', and
+        'next_time <= time_now' is also true.  If negative is false,
+        then next_time was set, but perhaps to the value that is less
+        then time_now.  See below for elaboration.
+      */
+      DBUG_ASSERT(negative || next_time > 0);
+
+      /*
+        If local_now < local_start, i.e. STARTS time is in the future
+        according to the local time (it always in the past according
+        to UTC---this is a prerequisite of this function), then
+        STARTS is almost always in the past according to the local
+        time too.  However, in the time zone that has backward
+        Daylight Saving Time shift, the following may happen: suppose
+        we have a backward DST shift at certain date after 2:59:59,
+        i.e. local time goes 1:59:59, 2:00:00, ... , 2:59:59, (shift
+        here) 2:00:00 (again), ... , 2:59:59 (again), 3:00:00, ... .
+        Now suppose the time has passed the first 2:59:59, has been
+        shifted backward, and now is (the second) 2:20:00.  The user
+        does CREATE EVENT with STARTS 'current-date 2:40:00'.  Local
+        time 2:40:00 from create statement is treated by time
+        functions as the first such time, so according to UTC it comes
+        before the second 2:20:00.  But according to local time it is
+        obviously in the future, so we end up in this branch.
+
+        Since we are in the second pass through 2:00:00--2:59:59, and
+        any local time form this interval is treated by system
+        functions as the time from the first pass, we have to find the
+        time for the next execution that is past the DST-affected
+        interval (past the second 2:59:59 for our example,
+        i.e. starting from 3:00:00).  We do this in the loop until the
+        local time is mapped onto future UTC time.  'start' time is in
+        the past, so we may use 'do { } while' here, and add the first
+        interval right away.
+
+        Alternatively, it could be that local_now >= local_start.  Now
+        for the example above imagine we do CREATE EVENT with STARTS
+        'current-date 2:10:00'.  Local start 2:10 is in the past (now
+        is local 2:20), so we add an interval, and get next execution
+        time, say, 2:40.  It is in the future according to local time,
+        but, again, since we are in the second pass through
+        2:00:00--2:59:59, 2:40 will be converted into UTC time in the
+        past.  So we will end up in this branch again, and may add
+        intervals in a 'do { } while' loop.
+
+        Note that for any given event we may end up here only if event
+        next execution time will map to the time interval that is
+        passed twice, and only if the server was started during the
+        second pass, or the event is being created during the second
+        pass.  After that, we never will get here (unless we again
+        start the server during the second pass).  In other words,
+        such a condition is extremely rare.
+      */
+      interval.second= seconds;
+      do
+      {
+        next_time= add_interval(&local_start, time_zone,
+                                INTERVAL_SECOND, interval);
+        if (next_time == 0)
+          goto done;
+      }
+      while (next_time <= time_now);
+    }
   }
   else
   {
-    /* PRESUMED is that at least one execution took already place */
-    int diff_months= (time_now->year - start->year)*12 +
-                     (time_now->month - start->month);
+    long diff_months= (long) (local_now.year - local_start.year)*12 +
+                      (local_now.month - local_start.month);
     /*
-      Note: If diff_months is 0 that means we are in the same month as the
-      last execution which is also the first execution.
-    */
-    /*
-      First we try with the smaller if not then + 1, because if we try with
-      directly with +1 we will be after the current date but it could be that
-      we will be 1 month ahead, so 2 steps are necessary.
-    */
-    interval.month= (ulong) ((diff_months / months)*months);
-    /*
-      Check if the same month as last_exec (always set - prerequisite)
-      An event happens at most once per month so there is no way to
-      schedule it two times for the current month. This saves us from two
-      calls to date_add_interval() if the event was just executed.  But if
-      the scheduler is started and there was at least 1 scheduled date
-      skipped this one does not help and two calls to date_add_interval()
-      will be done, which is a bit more expensive but compared to the
-      rareness of the case is neglectable.
-    */
-    if (time_now->year == last_exec->year &&
-        time_now->month == last_exec->month)
-      interval.month+= (ulong) months;
+      Unlike for seconds above, the formula below returns the interval
+      that, when added to the local_start, will give the time in the
+      past, or somewhere in the current month.  We are interested in
+      the latter case, to see if this time has already passed, or is
+      yet to come this month.
 
-    tmp= *start;
-    if ((ret= date_add_interval(&tmp, INTERVAL_MONTH, interval)))
+      Note that the time is guaranteed to be in the past unless
+      (diff_months % months == 0), but no good optimization is
+      possible here, because (diff_months % months == 0) is what will
+      happen most of the time, as get_next_time() will be called right
+      after the execution of the event.  We could pass last_executed
+      time to this function, and see if the execution has already
+      happened this month, but for that we will have to convert
+      last_executed from seconds since epoch to local broken-down
+      time, and this will greatly reduce the effect of the
+      optimization.  So instead we keep the code simple and clean.
+    */
+    interval.month= diff_months - diff_months % months;
+    next_time= add_interval(&local_start, time_zone,
+                            INTERVAL_MONTH, interval);
+    if (next_time == 0)
       goto done;
 
-    /* If `tmp` is still before time_now just add one more time the interval */
-    if (my_time_compare(&tmp, time_now) == -1)
-    { 
-      interval.month+= (ulong) months;
-      tmp= *start;
-      if ((ret= date_add_interval(&tmp, INTERVAL_MONTH, interval)))
+    if (next_time <= time_now)
+    {
+      interval.month= months;
+      next_time= add_interval(&local_start, time_zone,
+                              INTERVAL_MONTH, interval);
+      if (next_time == 0)
         goto done;
     }
-    *next= tmp;
-    /* assert on that the next is after now */
-    DBUG_ASSERT(1==my_time_compare(next, time_now));
   }
 
+  DBUG_ASSERT(time_now < next_time);
+
+  *next= next_time;
+
 done:
-  DBUG_PRINT("info", ("next: %lu", (long) TIME_to_ulonglong_datetime(next)));
-  DBUG_RETURN(ret);
+  DBUG_PRINT("info", ("next_time: %ld", (long) next_time));
+  DBUG_RETURN(next_time == 0);
 }
 
 
@@ -1227,20 +1330,17 @@ done:
     TRUE   Error
 
   NOTES
-    The time is set in execute_at, if no more executions the latter is set to
-    0000-00-00.
+    The time is set in execute_at, if no more executions the latter is
+    set to 0.
 */
 
 bool
 Event_queue_element::compute_next_execution_time()
 {
-  TIME time_now;
-  int tmp;
+  my_time_t time_now;
   DBUG_ENTER("Event_queue_element::compute_next_execution_time");
   DBUG_PRINT("enter", ("starts: %lu  ends: %lu  last_executed: %lu  this: 0x%lx",
-                       (long) TIME_to_ulonglong_datetime(&starts),
-                       (long) TIME_to_ulonglong_datetime(&ends),
-                       (long) TIME_to_ulonglong_datetime(&last_executed),
+                       (long) starts, (long) ends, (long) last_executed,
                        (long) this));
 
   if (status == Event_queue_element::DISABLED)
@@ -1253,7 +1353,7 @@ Event_queue_element::compute_next_execution_time()
   if (!expression)
   {
     /* Let's check whether it was executed */
-    if (last_executed.year)
+    if (last_executed)
     {
       DBUG_PRINT("info",("One-time event %s.%s of was already executed",
                          dbname.str, name.str));
@@ -1266,17 +1366,16 @@ Event_queue_element::compute_next_execution_time()
     goto ret;
   }
 
-  my_tz_UTC->gmt_sec_to_TIME(&time_now, current_thd->query_start());
+  time_now= current_thd->query_start();
 
-  DBUG_PRINT("info",("NOW: [%lu]",
-                     (ulong) TIME_to_ulonglong_datetime(&time_now)));
+  DBUG_PRINT("info",("NOW: [%lu]", (ulong) time_now));
 
   /* if time_now is after ends don't execute anymore */
-  if (!ends_null && (tmp= my_time_compare(&ends, &time_now)) == -1)
+  if (!ends_null && ends < time_now)
   {
     DBUG_PRINT("info", ("NOW after ENDS, don't execute anymore"));
     /* time_now is after ends. don't execute anymore */
-    set_zero_time(&execute_at, MYSQL_TIMESTAMP_DATETIME);
+    execute_at= 0;
     execute_at_null= TRUE;
     if (on_completion == Event_queue_element::ON_COMPLETION_DROP)
       dropped= TRUE;
@@ -1293,12 +1392,11 @@ Event_queue_element::compute_next_execution_time()
     Let's check whether time_now is before starts.
     If so schedule for starts.
   */
-  if (!starts_null && (tmp= my_time_compare(&time_now, &starts)) < 1)
+  if (!starts_null && time_now <= starts)
   {
-    if (tmp == 0 && my_time_compare(&starts, &last_executed) == 0)
+    if (time_now == starts && starts == last_executed)
     {
       /*
-        time_now = starts = last_executed
         do nothing or we will schedule for second time execution at starts.
       */
     }
@@ -1324,26 +1422,25 @@ Event_queue_element::compute_next_execution_time()
       If not set then schedule for now.
     */
     DBUG_PRINT("info", ("Both STARTS & ENDS are set"));
-    if (!last_executed.year)
+    if (!last_executed)
     {
       DBUG_PRINT("info", ("Not executed so far."));
     }
 
     {
-      TIME next_exec;
+      my_time_t next_exec;
 
-      if (get_next_time(&next_exec, &starts, &time_now,
-                        last_executed.year? &last_executed:&starts,
+      if (get_next_time(time_zone, &next_exec, starts, time_now,
                         (int) expression, interval))
         goto err;
 
       /* There was previous execution */
-      if (my_time_compare(&ends, &next_exec) == -1)
+      if (ends < next_exec)
       {
         DBUG_PRINT("info", ("Next execution of %s after ENDS. Stop executing.",
                    name.str));
         /* Next execution after ends. No more executions */
-        set_zero_time(&execute_at, MYSQL_TIMESTAMP_DATETIME);
+        execute_at= 0;
         execute_at_null= TRUE;
         if (on_completion == Event_queue_element::ON_COMPLETION_DROP)
           dropped= TRUE;
@@ -1352,8 +1449,7 @@ Event_queue_element::compute_next_execution_time()
       }
       else
       {
-        DBUG_PRINT("info",("Next[%lu]",
-                           (ulong) TIME_to_ulonglong_datetime(&next_exec)));
+        DBUG_PRINT("info",("Next[%lu]", (ulong) next_exec));
         execute_at= next_exec;
         execute_at_null= FALSE;
       }
@@ -1368,15 +1464,14 @@ Event_queue_element::compute_next_execution_time()
       Both starts and m_ends are not set, so we schedule for the next
       based on last_executed.
     */
-    if (last_executed.year)
+    if (last_executed)
     {
-      TIME next_exec;
-      if (get_next_time(&next_exec, &starts, &time_now, &last_executed,
+      my_time_t next_exec;
+      if (get_next_time(time_zone, &next_exec, starts, time_now,
                         (int) expression, interval))
         goto err;
       execute_at= next_exec;
-      DBUG_PRINT("info",("Next[%lu]",
-                         (ulong) TIME_to_ulonglong_datetime(&next_exec)));
+      DBUG_PRINT("info",("Next[%lu]", (ulong) next_exec));
     }
     else
     {
@@ -1398,20 +1493,18 @@ Event_queue_element::compute_next_execution_time()
         Hence schedule for starts + m_expression in case last_executed
         is not set, otherwise to last_executed + m_expression
       */
-      if (!last_executed.year)
+      if (!last_executed)
       {
         DBUG_PRINT("info", ("Not executed so far."));
       }
 
       {
-        TIME next_exec;
-        if (get_next_time(&next_exec, &starts, &time_now,
-                          last_executed.year? &last_executed:&starts,
+        my_time_t next_exec;
+        if (get_next_time(time_zone, &next_exec, starts, time_now,
                           (int) expression, interval))
           goto err;
         execute_at= next_exec;
-        DBUG_PRINT("info",("Next[%lu]",
-                           (ulong) TIME_to_ulonglong_datetime(&next_exec)));
+        DBUG_PRINT("info",("Next[%lu]", (ulong) next_exec));
       }
       execute_at_null= FALSE;
     }
@@ -1426,20 +1519,20 @@ Event_queue_element::compute_next_execution_time()
         If last_executed is not set then schedule for now
       */
 
-      if (!last_executed.year)
+      if (!last_executed)
         execute_at= time_now;
       else
       {
-        TIME next_exec;
+        my_time_t next_exec;
 
-        if (get_next_time(&next_exec, &starts, &time_now, &last_executed,
+        if (get_next_time(time_zone, &next_exec, starts, time_now,
                           (int) expression, interval))
           goto err;
 
-        if (my_time_compare(&ends, &next_exec) == -1)
+        if (ends < next_exec)
         {
           DBUG_PRINT("info", ("Next execution after ENDS. Stop executing."));
-          set_zero_time(&execute_at, MYSQL_TIMESTAMP_DATETIME);
+          execute_at= 0;
           execute_at_null= TRUE;
           status= Event_queue_element::DISABLED;
           status_changed= TRUE;
@@ -1448,8 +1541,7 @@ Event_queue_element::compute_next_execution_time()
         }
         else
         {
-          DBUG_PRINT("info", ("Next[%lu]",
-                              (ulong) TIME_to_ulonglong_datetime(&next_exec)));
+          DBUG_PRINT("info", ("Next[%lu]", (ulong) next_exec));
           execute_at= next_exec;
           execute_at_null= FALSE;
         }
@@ -1458,8 +1550,7 @@ Event_queue_element::compute_next_execution_time()
     goto ret;
   }
 ret:
-  DBUG_PRINT("info", ("ret: 0 execute_at: %lu",
-                      (long) TIME_to_ulonglong_datetime(&execute_at)));
+  DBUG_PRINT("info", ("ret: 0 execute_at: %lu", (long) execute_at));
   DBUG_RETURN(FALSE);
 err:
   DBUG_PRINT("info", ("ret=1"));
@@ -1479,12 +1570,9 @@ err:
 void
 Event_queue_element::mark_last_executed(THD *thd)
 {
-  TIME time_now;
-
   thd->end_time();
-  my_tz_UTC->gmt_sec_to_TIME(&time_now, (my_time_t) thd->query_start());
 
-  last_executed= time_now; /* was execute_at */
+  last_executed= thd->query_start();
   last_executed_changed= TRUE;
   
   execution_count++;
@@ -1538,8 +1626,11 @@ Event_queue_element::update_timing_fields(THD *thd)
 
   if (last_executed_changed)
   {
+    TIME time;
+    my_tz_UTC->gmt_sec_to_TIME(&time, last_executed);
+
     fields[ET_FIELD_LAST_EXECUTED]->set_notnull();
-    fields[ET_FIELD_LAST_EXECUTED]->store_time(&last_executed,
+    fields[ET_FIELD_LAST_EXECUTED]->store_time(&time,
                                                MYSQL_TIMESTAMP_DATETIME);
     last_executed_changed= FALSE;
   }
@@ -1558,6 +1649,26 @@ done:
   thd->restore_backup_open_tables_state(&backup);
 
   DBUG_RETURN(ret);
+}
+
+
+static
+void
+append_datetime(String *buf, Time_zone *time_zone, my_time_t secs,
+                const char *name, uint len)
+{
+  char dtime_buff[20*2+32];/* +32 to make my_snprintf_{8bit|ucs2} happy */
+  buf->append(STRING_WITH_LEN(" "));
+  buf->append(name, len);
+  buf->append(STRING_WITH_LEN(" '"));
+  /*
+    Pass the buffer and the second param tells fills the buffer and
+    returns the number of chars to copy.
+  */
+  TIME time;
+  time_zone->gmt_sec_to_TIME(&time, secs);
+  buf->append(dtime_buff, my_datetime_to_str(&time, dtime_buff));
+  buf->append(STRING_WITH_LEN("'"));
 }
 
 
@@ -1600,17 +1711,17 @@ Event_timed::get_create_event(THD *thd, String *buf)
     buf->append(' ');
     LEX_STRING *ival= &interval_type_to_name[interval];
     buf->append(ival->str, ival->length);
+
+    if (!starts_null)
+      append_datetime(buf, time_zone, starts, STRING_WITH_LEN("STARTS"));
+
+    if (!ends_null)
+      append_datetime(buf, time_zone, ends, STRING_WITH_LEN("ENDS"));
   }
   else
   {
-    char dtime_buff[20*2+32];/* +32 to make my_snprintf_{8bit|ucs2} happy */
-    buf->append(STRING_WITH_LEN(" ON SCHEDULE AT '"));
-    /*
-      Pass the buffer and the second param tells fills the buffer and
-      returns the number of chars to copy.
-    */
-    buf->append(dtime_buff, my_datetime_to_str(&execute_at, dtime_buff));
-    buf->append(STRING_WITH_LEN("'"));
+    append_datetime(buf, time_zone, execute_at,
+                    STRING_WITH_LEN("ON SCHEDULE AT"));
   }
 
   if (on_completion == Event_timed::ON_COMPLETION_DROP)
@@ -1654,6 +1765,7 @@ int
 Event_job_data::get_fake_create_event(THD *thd, String *buf)
 {
   DBUG_ENTER("Event_job_data::get_create_event");
+  /* FIXME: "EVERY 3337 HOUR" is asking for trouble. */
   buf->append(STRING_WITH_LEN("CREATE EVENT anonymous ON SCHEDULE "
                               "EVERY 3337 HOUR DO "));
   buf->append(body.str, body.length);
@@ -1704,6 +1816,9 @@ Event_job_data::execute(THD *thd)
     if (thd->enable_slow_log)
       sphead->m_flags|= sp_head::LOG_SLOW_STATEMENTS;
     sphead->m_flags|= sp_head::LOG_GENERAL_LOG;
+
+    /* Execute the event in its time zone. */
+    thd->variables.time_zone= time_zone;
 
     ret= sphead->execute_procedure(thd, &empty_item_list);
   }
