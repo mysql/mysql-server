@@ -2119,6 +2119,7 @@ CommandInterpreter::executeStatus(int processId,
   }
   if (cl->node_states[i].node_type != NDB_MGM_NODE_TYPE_NDB){
     if (cl->node_states[i].version != 0){
+      version = cl->node_states[i].version;
       ndbout << "Node "<< cl->node_states[i].node_id <<": connected" ;
       ndbout_c(" (Version %d.%d.%d)",
              getMajor(version) ,
@@ -2128,7 +2129,7 @@ CommandInterpreter::executeStatus(int processId,
     }else
      ndbout << "Node "<< cl->node_states[i].node_id <<": not connected" << endl;
     return 0;
-  } 
+  }
   status = cl->node_states[i].node_status;
   startPhase = cl->node_states[i].start_phase;
   version = cl->node_states[i].version;
