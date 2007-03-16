@@ -2111,9 +2111,9 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     param.key_parts_end=key_parts;
 
     /* Calculate cost of full index read for the shortest covering index */
-    if (!head->used_keys.is_clear_all())
+    if (!head->covering_keys.is_clear_all())
     {
-      int key_for_use= find_shortest_key(head, &head->used_keys);
+      int key_for_use= find_shortest_key(head, &head->covering_keys);
       double key_read_time= (get_index_only_read_time(&param, records,
                                                      key_for_use) +
                              (double) records / TIME_FOR_COMPARE);
@@ -4646,7 +4646,7 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
         param->needed_reg->set_bit(keynr);
 
       bool read_index_only= index_read_must_be_used ? TRUE :
-                            (bool) param->table->used_keys.is_set(keynr);
+                            (bool) param->table->covering_keys.is_set(keynr);
 
       found_records= check_quick_select(param, idx, *key, update_tbl_stats);
       if (param->is_ror_scan)
@@ -9012,7 +9012,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
        cur_index_info++, cur_index++)
   {
     /* Check (B1) - if current index is covering. */
-    if (!table->used_keys.is_set(cur_index))
+    if (!table->covering_keys.is_set(cur_index))
       goto next_index;
 
     /*
