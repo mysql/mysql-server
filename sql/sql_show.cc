@@ -52,7 +52,8 @@ enum enum_i_s_events_fields
   ISE_CREATED,
   ISE_LAST_ALTERED,
   ISE_LAST_EXECUTED,
-  ISE_EVENT_COMMENT
+  ISE_EVENT_COMMENT,
+  ISE_ORIGINATOR
 };
 
 
@@ -4393,10 +4394,23 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
   }
 
   /* status */
-  if (et.status == Event_timed::ENABLED)
-    sch_table->field[ISE_STATUS]->store(STRING_WITH_LEN("ENABLED"), scs);
-  else
-    sch_table->field[ISE_STATUS]->store(STRING_WITH_LEN("DISABLED"), scs);
+
+  switch (et.status)
+  {
+    case Event_timed::ENABLED:
+      sch_table->field[ISE_STATUS]->store(STRING_WITH_LEN("ENABLED"), scs);
+      break;
+    case Event_timed::SLAVESIDE_DISABLED:
+      sch_table->field[ISE_STATUS]->store(STRING_WITH_LEN("SLAVESIDE_DISABLED"),
+                                          scs);
+      break;
+    case Event_timed::DISABLED:
+      sch_table->field[ISE_STATUS]->store(STRING_WITH_LEN("DISABLED"), scs);
+      break;
+    default:
+      DBUG_ASSERT(0);
+  }
+  sch_table->field[ISE_ORIGINATOR]->store(et.originator, TRUE);
 
   /* on_completion */
   if (et.on_completion == Event_timed::ON_COMPLETION_DROP)
@@ -4935,9 +4949,7 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
   TABLE *table;
   DBUG_ENTER("mysql_schema_table");
   if (!(table= table_list->schema_table->create_table(thd, table_list)))
-  {
     DBUG_RETURN(1);
-  }
   table->s->tmp_table= SYSTEM_TMP_TABLE;
   table->grant.privilege= SELECT_ACL;
   /*
@@ -5429,13 +5441,14 @@ ST_FIELD_INFO events_fields_info[]=
   {"SQL_MODE", 65535, MYSQL_TYPE_STRING, 0, 0, 0},
   {"STARTS", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Starts"},
   {"ENDS", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Ends"},
-  {"STATUS", 8, MYSQL_TYPE_STRING, 0, 0, "Status"},
+  {"STATUS", 18, MYSQL_TYPE_STRING, 0, 0, "Status"}, 
   {"ON_COMPLETION", 12, MYSQL_TYPE_STRING, 0, 0, 0},
   {"CREATED", 0, MYSQL_TYPE_TIMESTAMP, 0, 0, 0},
   {"LAST_ALTERED", 0, MYSQL_TYPE_TIMESTAMP, 0, 0, 0},
   {"LAST_EXECUTED", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, 0},
+  {"ORIGINATOR", 10, MYSQL_TYPE_LONG, 0, 0, "Originator"}, 
   {"EVENT_COMMENT", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
+  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0} 
 };
 
 
