@@ -3990,7 +3990,7 @@ sys_var_event_scheduler::update(THD *thd, set_var *var)
   DBUG_ENTER("sys_var_event_scheduler::update");
   if (Events::opt_event_scheduler == Events::EVENTS_DISABLED)
   {
-    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--event-scheduler=DISABLED");
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--event-scheduler=DISABLED or --skip-grant-tables");
     DBUG_RETURN(TRUE);
   }
 
