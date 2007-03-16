@@ -1431,6 +1431,8 @@ static uint dump_events_for_db(char *db)
   strcpy(delimiter, ";");
   if (mysql_num_rows(event_list_res) > 0)
   {
+    fprintf(sql_file, "/*!50106 SET @save_time_zone= @@TIME_ZONE */ ;\n");
+
     while ((event_list_row= mysql_fetch_row(event_list_res)) != NULL)
     {
       event_name= quote_name(event_list_row[1], name_buff, 0);
@@ -1447,13 +1449,13 @@ static uint dump_events_for_db(char *db)
           if the user has EXECUTE privilege he can see event names, but not the
           event body!
         */
-        if (strlen(row[2]) != 0)
+        if (strlen(row[3]) != 0)
         {
           if (opt_drop)
             fprintf(sql_file, "/*!50106 DROP EVENT IF EXISTS %s */%s\n", 
                 event_name, delimiter);
 
-          delimit_test= create_delimiter(row[2], delimiter, sizeof(delimiter)); 
+          delimit_test= create_delimiter(row[3], delimiter, sizeof(delimiter)); 
           if (delimit_test == NULL) {
             fprintf(stderr, "%s: Warning: Can't dump event '%s'\n", 
                 event_name, my_progname);
@@ -1461,11 +1463,15 @@ static uint dump_events_for_db(char *db)
           }
 
           fprintf(sql_file, "DELIMITER %s\n", delimiter);
-          fprintf(sql_file, "/*!50106 %s */ %s\n", row[2], delimiter);
+          fprintf(sql_file, "/*!50106 SET TIME_ZONE= '%s' */ %s\n",
+                  row[2], delimiter);
+          fprintf(sql_file, "/*!50106 %s */ %s\n", row[3], delimiter);
         }
       } /* end of event printing */
     } /* end of list of events */
     fprintf(sql_file, "DELIMITER ;\n");
+    fprintf(sql_file, "/*!50106 SET TIME_ZONE= @save_time_zone */ ;\n");
+
     mysql_free_result(event_res);
   }
   mysql_free_result(event_list_res);
