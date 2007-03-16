@@ -5873,8 +5873,7 @@ ER_EVENT_ENDS_BEFORE_STARTS
         eng "ENDS is either invalid or before STARTS"
         ger "ENDS ist entweder ungültig oder liegt vor STARTS"
 ER_EVENT_EXEC_TIME_IN_THE_PAST
-        eng "Activation (AT) time is in the past"
-        ger "Aktivierungszeit (AT) liegt in der Vergangenheit"
+        eng "Event execution time is in the past. Event has been disabled"
 ER_EVENT_OPEN_TABLE_FAILED
         eng "Failed to open mysql.event"
         ger "Öffnen von mysql.event fehlgeschlagen"
@@ -6052,3 +6051,7 @@ ER_DUP_ENTRY_WITH_KEY_NAME 23000 S1009
 ER_BINLOG_PURGE_EMFILE
         eng "Too many files opened, please execute the command again"
         ger "Zu viele offene Dateien, bitte führen Sie den Befehl noch einmal aus"
+ER_EVENT_CANNOT_CREATE_IN_THE_PAST
+        eng "Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. Event has not been created"
+ER_EVENT_CANNOT_ALTER_IN_THE_PAST
+        eng "Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. Event has not been altered"

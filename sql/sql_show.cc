@@ -38,6 +38,7 @@ enum enum_i_s_events_fields
   ISE_EVENT_SCHEMA,
   ISE_EVENT_NAME,
   ISE_DEFINER,
+  ISE_TIME_ZONE,
   ISE_EVENT_BODY,
   ISE_EVENT_DEFINITION,
   ISE_EVENT_TYPE,
@@ -4310,7 +4311,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 
   restore_record(sch_table, s->default_values);
 
-  if (et.load_from_row(event_table))
+  if (et.load_from_row(thd, event_table))
   {
     my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0));
     DBUG_RETURN(1);
@@ -4337,6 +4338,9 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
                                 store(et.name.str, et.name.length, scs);
   sch_table->field[ISE_DEFINER]->
                                 store(et.definer.str, et.definer.length, scs);
+  const String *tz_name= et.time_zone->get_name();
+  sch_table->field[ISE_TIME_ZONE]->
+                                store(tz_name->ptr(), tz_name->length(), scs);
   sch_table->field[ISE_EVENT_BODY]->
                                 store(STRING_WITH_LEN("SQL"), scs);
   sch_table->field[ISE_EVENT_DEFINITION]->
@@ -4352,6 +4356,8 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     sch_table->field[ISE_SQL_MODE]->
                                 store((const char*)sql_mode_str, sql_mode_len, scs);
   }
+
+  int not_used=0;
 
   if (et.expression)
   {
@@ -4372,15 +4378,17 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     sch_table->field[ISE_INTERVAL_FIELD]->store(ival->str, ival->length, scs);
 
     /* starts & ends . STARTS is always set - see sql_yacc.yy */
+    et.time_zone->gmt_sec_to_TIME(&time, et.starts);
     sch_table->field[ISE_STARTS]->set_notnull();
     sch_table->field[ISE_STARTS]->
-                                store_time(&et.starts, MYSQL_TIMESTAMP_DATETIME);
+                                store_time(&time, MYSQL_TIMESTAMP_DATETIME);
 
     if (!et.ends_null)
     {
+      et.time_zone->gmt_sec_to_TIME(&time, et.ends);
       sch_table->field[ISE_ENDS]->set_notnull();
       sch_table->field[ISE_ENDS]->
-                                store_time(&et.ends, MYSQL_TIMESTAMP_DATETIME);
+                                store_time(&time, MYSQL_TIMESTAMP_DATETIME);
     }
   }
   else
@@ -4388,9 +4396,10 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     /* type */
     sch_table->field[ISE_EVENT_TYPE]->store(STRING_WITH_LEN("ONE TIME"), scs);
 
+    et.time_zone->gmt_sec_to_TIME(&time, et.execute_at);
     sch_table->field[ISE_EXECUTE_AT]->set_notnull();
     sch_table->field[ISE_EXECUTE_AT]->
-                          store_time(&et.execute_at, MYSQL_TIMESTAMP_DATETIME);
+                          store_time(&time, MYSQL_TIMESTAMP_DATETIME);
   }
 
   /* status */
@@ -4407,7 +4416,6 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     sch_table->field[ISE_ON_COMPLETION]->
                                 store(STRING_WITH_LEN("PRESERVE"), scs);
     
-  int not_used=0;
   number_to_datetime(et.created, &time, 0, &not_used);
   DBUG_ASSERT(not_used==0);
   sch_table->field[ISE_CREATED]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
@@ -4417,11 +4425,12 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
   sch_table->field[ISE_LAST_ALTERED]->
                                 store_time(&time, MYSQL_TIMESTAMP_DATETIME);
 
-  if (et.last_executed.year)
+  if (et.last_executed)
   {
+    et.time_zone->gmt_sec_to_TIME(&time, et.last_executed);
     sch_table->field[ISE_LAST_EXECUTED]->set_notnull();
     sch_table->field[ISE_LAST_EXECUTED]->
-                       store_time(&et.last_executed, MYSQL_TIMESTAMP_DATETIME);
+                       store_time(&time, MYSQL_TIMESTAMP_DATETIME);
   }
 
   sch_table->field[ISE_EVENT_COMMENT]->
@@ -5427,6 +5436,7 @@ ST_FIELD_INFO events_fields_info[]=
   {"EVENT_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Db"},
   {"EVENT_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Name"},
   {"DEFINER", 77, MYSQL_TYPE_STRING, 0, 0, "Definer"},
+  {"TIME_ZONE", 64, MYSQL_TYPE_STRING, 0, 0, "Time zone"},
   {"EVENT_BODY", 8, MYSQL_TYPE_STRING, 0, 0, 0},
   {"EVENT_DEFINITION", 65535, MYSQL_TYPE_STRING, 0, 0, 0},
   {"EVENT_TYPE", 9, MYSQL_TYPE_STRING, 0, 0, "Type"},
