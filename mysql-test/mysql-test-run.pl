@@ -1877,8 +1877,7 @@ sub environment_setup () {
       mtr_native_path($exe_mysqlslap) .
       " -uroot " .
       "--port=$master->[0]->{'port'} " .
-      "--socket=$master->[0]->{'path_sock'} --password= " .
-      "--lock-directory=$opt_tmpdir";
+      "--socket=$master->[0]->{'path_sock'} --password= ";
 
     if ( $opt_debug )
    {
