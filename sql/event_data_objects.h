@@ -22,10 +22,8 @@
 #define EVEX_BAD_PARAMS         -5
 #define EVEX_MICROSECOND_UNSUP  -6
 
-
 class sp_head;
 class Sql_alloc;
-
 
 class Event_basic
 {
@@ -33,6 +31,24 @@ protected:
   MEM_ROOT mem_root;
 
 public:
+  /*
+    ENABLED = feature can function normally (is turned on)
+    SLAVESIDE_DISABLED = feature is turned off on slave
+    DISABLED = feature is turned off
+  */
+  enum enum_status
+  {
+    ENABLED = 1,
+    DISABLED,
+    SLAVESIDE_DISABLED  
+  };
+
+  enum enum_on_completion
+  {
+    ON_COMPLETION_DROP = 1,
+    ON_COMPLETION_PRESERVE
+  };
+
   LEX_STRING dbname;
   LEX_STRING name;
   LEX_STRING definer;// combination of user and host
@@ -57,20 +73,9 @@ protected:
   bool last_executed_changed;
 
 public:
-  enum enum_status
-  {
-    ENABLED = 1,
-    DISABLED
-  };
-
-  enum enum_on_completion
-  {
-    ON_COMPLETION_DROP = 1,
-    ON_COMPLETION_PRESERVE
-  };
-
-  enum enum_on_completion on_completion;
-  enum enum_status status;
+  int on_completion;
+  int status;
+  longlong originator;
   TIME last_executed;
 
   TIME execute_at;
@@ -194,19 +199,10 @@ private:
 class Event_parse_data : public Sql_alloc
 {
 public:
-  enum enum_status
-  {
-    ENABLED = 1,
-    DISABLED
-  };
 
-  enum enum_on_completion
-  {
-    ON_COMPLETION_DROP = 1,
-    ON_COMPLETION_PRESERVE
-  };
-  enum enum_on_completion on_completion;
-  enum enum_status status;
+  int on_completion;
+  int status;
+  longlong originator;
 
   const uchar *body_begin;
 
@@ -268,6 +264,7 @@ private:
   report_bad_value(const char *item_name, Item *bad_item);
 
   Event_parse_data(const Event_parse_data &);	/* Prevent use of these */
+  void Event_parse_data::check_originator_id(THD *thd);
   void operator=(Event_parse_data &);
 };
 

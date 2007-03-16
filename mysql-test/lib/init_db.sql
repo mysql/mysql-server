@@ -610,7 +610,7 @@ CREATE TABLE event (
   last_executed DATETIME default NULL,
   starts DATETIME default NULL,
   ends DATETIME default NULL,
-  status ENUM('ENABLED','DISABLED') NOT NULL default 'ENABLED',
+  status ENUM('ENABLED','DISABLED','SLAVESIDE_DISABLED') NOT NULL default 'ENABLED',
   on_completion ENUM('DROP','PRESERVE') NOT NULL default 'DROP',
   sql_mode          set(
                         'REAL_AS_FLOAT',
@@ -645,6 +645,7 @@ CREATE TABLE event (
                         'HIGH_NOT_PRECEDENCE'
                     ) DEFAULT '' NOT NULL,
   comment char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
+  originator int(10) NOT NULL,
   PRIMARY KEY  (db, name)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT 'Events';
 
