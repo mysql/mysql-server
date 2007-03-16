@@ -312,7 +312,7 @@ public:
     min_value=arg->max_value;
     min_flag=arg->max_flag & NEAR_MAX ? 0 : NEAR_MIN;
   }
-  void store_min(uint length,char **min_key,uint min_key_flag)
+  int store_min(uint length,char **min_key,uint min_key_flag)
   {
     if ((min_flag & GEOM_FLAG) ||
         (!(min_flag & NO_MIN_RANGE) &&
@@ -326,12 +326,12 @@ public:
       else
 	memcpy(*min_key,min_value,length);
       (*min_key)+= length;
+      return 1;
     }
+    return 0;
   }
-  void store(uint length,char **min_key,uint min_key_flag,
-	     char **max_key, uint max_key_flag)
+  int store_max(uint length,char **max_key, uint max_key_flag)
   {
-    store_min(length, min_key, min_key_flag);
     if (!(max_flag & NO_MAX_RANGE) &&
 	!(max_key_flag & (NO_MAX_RANGE | NEAR_MAX)))
     {
@@ -343,33 +343,45 @@ public:
       else
 	memcpy(*max_key,max_value,length);
       (*max_key)+= length;
+      return 1;
     }
+    return 0;
   }
+  /*void store(uint length,char **min_key,uint min_key_flag,
+	     char **max_key, uint max_key_flag)
+  {
+    store_min(length, min_key, min_key_flag);
+    store_max(length, max_key, max_key_flag);
+  }*/
 
-  void store_min_key(KEY_PART *key,char **range_key, uint *range_key_flag)
+  int store_min_key(KEY_PART *key,char **range_key, uint *range_key_flag)
   {
     SEL_ARG *key_tree= first();
-    key_tree->store(key[key_tree->part].store_length,
-		    range_key,*range_key_flag,range_key,NO_MAX_RANGE);
+    uint res= key_tree->store_min(key[key_tree->part].store_length,
+                                  range_key, *range_key_flag);
     *range_key_flag|= key_tree->min_flag;
     if (key_tree->next_key_part &&
 	key_tree->next_key_part->part == key_tree->part+1 &&
 	!(*range_key_flag & (NO_MIN_RANGE | NEAR_MIN)) &&
 	key_tree->next_key_part->type == SEL_ARG::KEY_RANGE)
-      key_tree->next_key_part->store_min_key(key,range_key, range_key_flag);
+      res+= key_tree->next_key_part->store_min_key(key, range_key,
+                                                   range_key_flag);
+    return res;
   }
 
-  void store_max_key(KEY_PART *key,char **range_key, uint *range_key_flag)
+  int store_max_key(KEY_PART *key,char **range_key, uint *range_key_flag)
   {
     SEL_ARG *key_tree= last();
-    key_tree->store(key[key_tree->part].store_length,
-		    range_key, NO_MIN_RANGE, range_key,*range_key_flag);
+    uint res=key_tree->store_max(key[key_tree->part].store_length,
+                                 range_key, *range_key_flag);
     (*range_key_flag)|= key_tree->max_flag;
     if (key_tree->next_key_part &&
 	key_tree->next_key_part->part == key_tree->part+1 &&
 	!(*range_key_flag & (NO_MAX_RANGE | NEAR_MAX)) &&
 	key_tree->next_key_part->type == SEL_ARG::KEY_RANGE)
-      key_tree->next_key_part->store_max_key(key,range_key, range_key_flag);
+      res+= key_tree->next_key_part->store_max_key(key, range_key,
+                                                   range_key_flag);
+    return res;
   }
 
   SEL_ARG *insert(SEL_ARG *key);
@@ -586,8 +598,8 @@ static bool is_key_scan_ror(PARAM *param, uint keynr, uint8 nparts);
 static ha_rows check_quick_select(PARAM *param,uint index,SEL_ARG *key_tree, 
                                   bool update_tbl_stats);
 static ha_rows check_quick_keys(PARAM *param,uint index,SEL_ARG *key_tree,
-				char *min_key,uint min_key_flag,
-				char *max_key, uint max_key_flag);
+                                char *min_key, uint min_key_flag, int,
+                                char *max_key, uint max_key_flag, int);
 
 QUICK_RANGE_SELECT *get_quick_select(PARAM *param,uint index,
                                      SEL_ARG *key_tree,
@@ -1453,6 +1465,7 @@ QUICK_ROR_UNION_SELECT::~QUICK_ROR_UNION_SELECT()
 
 QUICK_RANGE::QUICK_RANGE()
   :min_key(0),max_key(0),min_length(0),max_length(0),
+  min_keypart_map(0), max_keypart_map(0),
    flag(NO_MIN_RANGE | NO_MAX_RANGE)
 {}
 
@@ -4031,9 +4044,9 @@ void ror_intersect_cpy(ROR_INTERSECT_INFO *dst, const ROR_INTERSECT_INFO *src)
     The calculation is conducted as follows:
     Lets denote #records(keypart1, ... keypartK) as n_k. We need to calculate
 
-     n_{k1}      n_{k_2}
+     n_{k1}      n_{k2}
     --------- * ---------  * .... (3)
-     n_{k1-1}    n_{k2_1}
+     n_{k1-1}    n_{k2-1}
 
     where k1,k2,... are key parts which fields were not yet marked as fixed
     ( this is result of application of option b) of the recursion step for
@@ -4041,9 +4054,9 @@ void ror_intersect_cpy(ROR_INTERSECT_INFO *dst, const ROR_INTERSECT_INFO *src)
     Since it is reasonable to expect that most of the fields are not marked
     as fixed, we calculate (3) as
 
-                                  n_{i1}      n_{i_2}
+                                  n_{i1}      n_{i2}
     (3) = n_{max_key_part}  / (   --------- * ---------  * ....  )
-                                  n_{i1-1}    n_{i2_1}
+                                  n_{i1-1}    n_{i2-1}
 
     where i1,i2, .. are key parts that were already marked as fixed.
 
@@ -4052,7 +4065,6 @@ void ror_intersect_cpy(ROR_INTERSECT_INFO *dst, const ROR_INTERSECT_INFO *src)
 
   RETURN
     Selectivity of given ROR scan.
-    
 */
 
 static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info, 
@@ -4063,6 +4075,7 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
   byte key_val[MAX_KEY_LENGTH+MAX_FIELD_WIDTH]; /* key values tuple */
   char *key_ptr= (char*) key_val;
   SEL_ARG *sel_arg, *tuple_arg= NULL;
+  ulonglong keypart_map= 0;
   bool cur_covered;
   bool prev_covered= test(bitmap_is_set(&info->covered_fields,
                                         key_part->fieldnr-1));
@@ -4073,7 +4086,7 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
   max_range.key= (byte*) key_val;
   max_range.flag= HA_READ_AFTER_KEY;
   ha_rows prev_records= info->param->table->file->stats.records;
-  DBUG_ENTER("ror_intersect_selectivity");
+  DBUG_ENTER("ror_scan_selectivity");
 
   for (sel_arg= scan->sel_arg; sel_arg;
        sel_arg= sel_arg->next_key_part)
@@ -4090,13 +4103,17 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
         tuple_arg= scan->sel_arg;
         /* Here we use the length of the first key part */
         tuple_arg->store_min(key_part->store_length, &key_ptr, 0);
+        keypart_map= 1;
       }
       while (tuple_arg->next_key_part != sel_arg)
       {
         tuple_arg= tuple_arg->next_key_part;
-        tuple_arg->store_min(key_part[tuple_arg->part].store_length, &key_ptr, 0);
+        tuple_arg->store_min(key_part[tuple_arg->part].store_length,
+                             &key_ptr, 0);
+        keypart_map= (keypart_map << 1) | 1;
       }
       min_range.length= max_range.length= ((char*) key_ptr - (char*) key_val);
+      min_range.keypart_map= max_range.keypart_map= keypart_map;
       records= (info->param->table->file->
                 records_in_range(scan->keynr, &min_range, &max_range));
       if (cur_covered)
@@ -5305,12 +5322,11 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,COND *cond)
     */
     for (uint i= 1 ; i < cond_func->arg_count ; i++)
     {
-     
       if (cond_func->arguments()[i]->real_item()->type() == Item::FIELD_ITEM)
       {
         field_item= (Item_field*) (cond_func->arguments()[i]->real_item());
         SEL_TREE *tmp= get_full_func_mm_tree(param, cond_func, 
-                                    field_item, (Item*) i, inv);
+                                    field_item, (Item*)(intptr)i, inv);
         if (inv)
           tree= !tree ? tmp : tree_or(param, tree, tmp);
         else 
@@ -7057,7 +7073,9 @@ check_quick_select(PARAM *param,uint idx,SEL_ARG *tree, bool update_tbl_stats)
   }
   param->n_ranges= 0;
 
-  records=check_quick_keys(param,idx,tree,param->min_key,0,param->max_key,0);
+  records= check_quick_keys(param, idx, tree,
+                            param->min_key, 0, -1,
+                            param->max_key, 0, -1);
   if (records != HA_POS_ERROR)
   {
     if (update_tbl_stats)
@@ -7120,12 +7138,13 @@ check_quick_select(PARAM *param,uint idx,SEL_ARG *tree, bool update_tbl_stats)
 */
 
 static ha_rows
-check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
-		 char *min_key,uint min_key_flag, char *max_key,
-		 uint max_key_flag)
+check_quick_keys(PARAM *param, uint idx, SEL_ARG *key_tree,
+		 char *min_key, uint min_key_flag, int min_keypart,
+                 char *max_key, uint max_key_flag, int max_keypart)
 {
   ha_rows records=0, tmp;
   uint tmp_min_flag, tmp_max_flag, keynr, min_key_length, max_key_length;
+  uint tmp_min_keypart= min_keypart, tmp_max_keypart= max_keypart;
   char *tmp_min_key, *tmp_max_key;
   uint8 save_first_null_comp= param->first_null_comp;
 
@@ -7139,18 +7158,21 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
       This is not a ROR scan if the key is not Clustered Primary Key.
     */
     param->is_ror_scan= FALSE;
-    records=check_quick_keys(param,idx,key_tree->left,min_key,min_key_flag,
-			     max_key,max_key_flag);
+    records=check_quick_keys(param, idx, key_tree->left,
+                             min_key, min_key_flag, min_keypart,
+			     max_key, max_key_flag, max_keypart);
     if (records == HA_POS_ERROR)			// Impossible
       return records;
   }
 
   tmp_min_key= min_key;
   tmp_max_key= max_key;
-  key_tree->store(param->key[idx][key_tree->part].store_length,
-		  &tmp_min_key,min_key_flag,&tmp_max_key,max_key_flag);
-  min_key_length= (uint) (tmp_min_key- param->min_key);
-  max_key_length= (uint) (tmp_max_key- param->max_key);
+  tmp_min_keypart+= key_tree->store_min(param->key[idx][key_tree->part].store_length,
+                                        &tmp_min_key, min_key_flag);
+  tmp_max_keypart+= key_tree->store_max(param->key[idx][key_tree->part].store_length,
+                                        &tmp_max_key, max_key_flag);
+  min_key_length= (uint) (tmp_min_key - param->min_key);
+  max_key_length= (uint) (tmp_max_key - param->max_key);
 
   if (param->is_ror_scan)
   {
@@ -7173,12 +7195,13 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
       key_tree->next_key_part->type == SEL_ARG::KEY_RANGE)
   {						// const key as prefix
     if (min_key_length == max_key_length &&
-	!memcmp(min_key,max_key, (uint) (tmp_max_key - max_key)) &&
+	!memcmp(min_key, max_key, (uint) (tmp_max_key - max_key)) &&
 	!key_tree->min_flag && !key_tree->max_flag)
     {
-      tmp=check_quick_keys(param,idx,key_tree->next_key_part,
-			   tmp_min_key, min_key_flag | key_tree->min_flag,
-			   tmp_max_key, max_key_flag | key_tree->max_flag);
+      tmp=check_quick_keys(param,idx,key_tree->next_key_part, tmp_min_key,
+                           min_key_flag | key_tree->min_flag, tmp_min_keypart,
+                           tmp_max_key, max_key_flag | key_tree->max_flag,
+                           tmp_max_keypart);
       goto end;					// Ugly, but efficient
     }
     else
@@ -7190,18 +7213,20 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
     tmp_min_flag=key_tree->min_flag;
     tmp_max_flag=key_tree->max_flag;
     if (!tmp_min_flag)
+      tmp_min_keypart+=
       key_tree->next_key_part->store_min_key(param->key[idx], &tmp_min_key,
 					     &tmp_min_flag);
     if (!tmp_max_flag)
+      tmp_max_keypart+=
       key_tree->next_key_part->store_max_key(param->key[idx], &tmp_max_key,
 					     &tmp_max_flag);
-    min_key_length= (uint) (tmp_min_key- param->min_key);
-    max_key_length= (uint) (tmp_max_key- param->max_key);
+    min_key_length= (uint) (tmp_min_key - param->min_key);
+    max_key_length= (uint) (tmp_max_key - param->max_key);
   }
   else
   {
-    tmp_min_flag=min_key_flag | key_tree->min_flag;
-    tmp_max_flag=max_key_flag | key_tree->max_flag;
+    tmp_min_flag= min_key_flag | key_tree->min_flag;
+    tmp_max_flag= max_key_flag | key_tree->max_flag;
   }
 
   keynr=param->real_keynr[idx];
@@ -7209,9 +7234,8 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
   if (!tmp_min_flag && ! tmp_max_flag &&
       (uint) key_tree->part+1 == param->table->key_info[keynr].key_parts &&
       (param->table->key_info[keynr].flags & (HA_NOSAME | HA_END_SPACE_KEY)) ==
-      HA_NOSAME &&
-      min_key_length == max_key_length &&
-      !memcmp(param->min_key,param->max_key,min_key_length) &&
+      HA_NOSAME && min_key_length == max_key_length &&
+      !memcmp(param->min_key, param->max_key, min_key_length) &&
       !param->first_null_comp)
   {
     tmp=1;					// Max one record
@@ -7231,7 +7255,7 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
           first members of clustered primary key.
       */
       if (!(min_key_length == max_key_length &&
-            !memcmp(min_key,max_key, (uint) (tmp_max_key - max_key)) &&
+            !memcmp(min_key, max_key, (uint) (tmp_max_key - max_key)) &&
             !key_tree->min_flag && !key_tree->max_flag &&
             is_key_scan_ror(param, keynr, key_tree->part + 1)))
         param->is_ror_scan= FALSE;
@@ -7243,11 +7267,12 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
       key_range min_range;
       min_range.key=    (byte*) param->min_key;
       min_range.length= min_key_length;
+      min_range.keypart_map= make_keypart_map(tmp_min_keypart);
       /* In this case tmp_min_flag contains the handler-read-function */
       min_range.flag=   (ha_rkey_function) (tmp_min_flag ^ GEOM_FLAG);
 
-      tmp= param->table->file->records_in_range(keynr, &min_range,
-                                                (key_range*) 0);
+      tmp= param->table->file->records_in_range(keynr,
+                                                &min_range, (key_range*) 0);
     }
     else
     {
@@ -7257,10 +7282,12 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
       min_range.length= min_key_length;
       min_range.flag=   (tmp_min_flag & NEAR_MIN ? HA_READ_AFTER_KEY :
                          HA_READ_KEY_EXACT);
+      min_range.keypart_map= make_keypart_map(tmp_min_keypart);
       max_range.key=    (byte*) param->max_key;
       max_range.length= max_key_length;
       max_range.flag=   (tmp_max_flag & NEAR_MAX ?
                          HA_READ_BEFORE_KEY : HA_READ_AFTER_KEY);
+      max_range.keypart_map= make_keypart_map(tmp_max_keypart);
       tmp=param->table->file->records_in_range(keynr,
                                                (min_key_length ? &min_range :
                                                 (key_range*) 0),
@@ -7281,8 +7308,9 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
       This is not a ROR scan if the key is not Clustered Primary Key.
     */
     param->is_ror_scan= FALSE;
-    tmp=check_quick_keys(param,idx,key_tree->right,min_key,min_key_flag,
-			 max_key,max_key_flag);
+    tmp=check_quick_keys(param, idx, key_tree->right,
+                         min_key, min_key_flag, min_keypart,
+                         max_key, max_key_flag, max_keypart);
     if (tmp == HA_POS_ERROR)
       return tmp;
     records+=tmp;
@@ -7429,6 +7457,7 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
 {
   QUICK_RANGE *range;
   uint flag;
+  int min_part= key_tree->part-1, max_part=key_tree->part-1;
 
   if (key_tree->left != &null_element)
   {
@@ -7437,16 +7466,18 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
       return 1;
   }
   char *tmp_min_key=min_key,*tmp_max_key=max_key;
-  key_tree->store(key[key_tree->part].store_length,
-		  &tmp_min_key,min_key_flag,&tmp_max_key,max_key_flag);
+  min_part+= key_tree->store_min(key[key_tree->part].store_length,
+                                 &tmp_min_key,min_key_flag);
+  max_part+= key_tree->store_max(key[key_tree->part].store_length,
+                                 &tmp_max_key,max_key_flag);
 
   if (key_tree->next_key_part &&
       key_tree->next_key_part->part == key_tree->part+1 &&
       key_tree->next_key_part->type == SEL_ARG::KEY_RANGE)
   {						  // const key as prefix
-    if (!((tmp_min_key - min_key) != (tmp_max_key - max_key) ||
-	  memcmp(min_key,max_key, (uint) (tmp_max_key - max_key)) ||
-	  key_tree->min_flag || key_tree->max_flag))
+    if ((tmp_min_key - min_key) == (tmp_max_key - max_key) &&
+         memcmp(min_key, max_key, (uint)(tmp_max_key - max_key))==0 &&
+	 key_tree->min_flag==0 && key_tree->max_flag==0)
     {
       if (get_quick_keys(param,quick,key,key_tree->next_key_part,
 			 tmp_min_key, min_key_flag | key_tree->min_flag,
@@ -7457,11 +7488,15 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
     {
       uint tmp_min_flag=key_tree->min_flag,tmp_max_flag=key_tree->max_flag;
       if (!tmp_min_flag)
-	key_tree->next_key_part->store_min_key(key, &tmp_min_key,
+      {
+        min_part+= key_tree->next_key_part->store_min_key(key, &tmp_min_key,
 					       &tmp_min_flag);
+      }
       if (!tmp_max_flag)
-	key_tree->next_key_part->store_max_key(key, &tmp_max_key,
+      {
+        max_part+= key_tree->next_key_part->store_max_key(key, &tmp_max_key,
 					       &tmp_max_flag);
+      }
       flag=tmp_min_flag | tmp_max_flag;
     }
   }
@@ -7511,13 +7546,15 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
   /* Get range for retrieving rows in QUICK_SELECT::get_next */
   if (!(range= new QUICK_RANGE((const char *) param->min_key,
 			       (uint) (tmp_min_key - param->min_key),
+                               min_part >=0 ? make_keypart_map(min_part) : 0,
 			       (const char *) param->max_key,
 			       (uint) (tmp_max_key - param->max_key),
+                               max_part >=0 ? make_keypart_map(max_part) : 0,
 			       flag)))
     return 1;			// out of memory
 
-  set_if_bigger(quick->max_used_key_length,range->min_length);
-  set_if_bigger(quick->max_used_key_length,range->max_length);
+  set_if_bigger(quick->max_used_key_length, range->min_length);
+  set_if_bigger(quick->max_used_key_length, range->max_length);
   set_if_bigger(quick->used_key_parts, (uint) key_tree->part+1);
   if (insert_dynamic(&quick->ranges, (gptr)&range))
     return 1;
@@ -7659,6 +7696,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
 
   range->min_key=range->max_key=(char*) ref->key_buff;
   range->min_length=range->max_length=ref->key_length;
+  range->min_keypart_map= range->max_keypart_map= (1 << ref->key_parts) - 1;
   range->flag= ((ref->key_length == key_info->key_length &&
 		 (key_info->flags & (HA_NOSAME | HA_END_SPACE_KEY)) ==
 		 HA_NOSAME) ? EQ_RANGE : 0);
@@ -7692,8 +7730,10 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
     *ref->null_ref_key= 1;		// Set null byte then create a range
     if (!(null_range= new (alloc) QUICK_RANGE((char*)ref->key_buff,
                                               ref->key_length,
+                                              (1 << ref->key_parts) - 1,
                                               (char*)ref->key_buff,
                                               ref->key_length,
+                                              (1 << ref->key_parts) - 1,
                                               EQ_RANGE)))
       goto err;
     *ref->null_ref_key= 0;		// Clear null byte
@@ -8146,6 +8186,7 @@ int QUICK_RANGE_SELECT::get_next()
       start_key->flag=   ((last_range->flag & NEAR_MIN) ? HA_READ_AFTER_KEY :
                           (last_range->flag & EQ_RANGE) ?
                           HA_READ_KEY_EXACT : HA_READ_KEY_OR_NEXT);
+      start_key->keypart_map= last_range->min_keypart_map;
       end_key->key=      (const byte*) last_range->max_key;
       end_key->length=   last_range->max_length;
       /*
@@ -8154,6 +8195,7 @@ int QUICK_RANGE_SELECT::get_next()
       */
       end_key->flag=     (last_range->flag & NEAR_MAX ? HA_READ_BEFORE_KEY :
                           HA_READ_AFTER_KEY);
+      end_key->keypart_map= last_range->max_keypart_map;
 
       mrange_slot->range_flag= last_range->flag;
     }
@@ -8203,7 +8245,9 @@ end:
     other              if some error occurred
 */
 
-int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length, byte *cur_prefix)
+int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length,
+                                        ulonglong keypart_map,
+                                        byte *cur_prefix)
 {
   DBUG_ENTER("QUICK_RANGE_SELECT::get_next_prefix");
 
@@ -8215,8 +8259,7 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length, byte *cur_prefix)
     {
       /* Read the next record in the same range with prefix after cur_prefix. */
       DBUG_ASSERT(cur_prefix != 0);
-      result= file->index_read(record, cur_prefix, prefix_length,
-                               HA_READ_AFTER_KEY);
+      result= file->index_read(record, cur_prefix, keypart_map, HA_READ_AFTER_KEY);
       if (result || (file->compare_key(file->end_range) <= 0))
         DBUG_RETURN(result);
     }
@@ -8232,11 +8275,13 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length, byte *cur_prefix)
 
     start_key.key=    (const byte*) last_range->min_key;
     start_key.length= min(last_range->min_length, prefix_length);
+    start_key.keypart_map= last_range->min_keypart_map & keypart_map;
     start_key.flag=   ((last_range->flag & NEAR_MIN) ? HA_READ_AFTER_KEY :
 		       (last_range->flag & EQ_RANGE) ?
 		       HA_READ_KEY_EXACT : HA_READ_KEY_OR_NEXT);
     end_key.key=      (const byte*) last_range->max_key;
     end_key.length=   min(last_range->max_length, prefix_length);
+    end_key.keypart_map= last_range->max_keypart_map & keypart_map;
     /*
       We use READ_AFTER_KEY here because if we are reading on a key
       prefix we want to find all keys with this prefix
@@ -8244,8 +8289,8 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length, byte *cur_prefix)
     end_key.flag=     (last_range->flag & NEAR_MAX ? HA_READ_BEFORE_KEY :
 		       HA_READ_AFTER_KEY);
 
-    result= file->read_range_first(last_range->min_length ? &start_key : 0,
-				   last_range->max_length ? &end_key : 0,
+    result= file->read_range_first(last_range->min_keypart_map ? &start_key : 0,
+				   last_range->max_keypart_map ? &end_key : 0,
                                    test(last_range->flag & EQ_RANGE),
 				   sorted);
     if (last_range->flag == (UNIQUE_RANGE | EQ_RANGE))
@@ -8285,9 +8330,8 @@ int QUICK_RANGE_SELECT_GEOM::get_next()
     }
     last_range= *(cur_range++);
 
-    result= file->index_read(record,
-			     (byte*) last_range->min_key,
-			     last_range->min_length,
+    result= file->index_read(record, (byte*) last_range->min_key,
+			     last_range->min_keypart_map,
 			     (ha_rkey_function)(last_range->flag ^ GEOM_FLAG));
     if (result != HA_ERR_KEY_NOT_FOUND && result != HA_ERR_END_OF_FILE)
       DBUG_RETURN(result);
@@ -8419,15 +8463,15 @@ int QUICK_SELECT_DESC::get_next()
 
     if (last_range->flag & EQ_RANGE)
     {
-      result= file->index_read(record, (byte*) last_range->max_key,
-                               last_range->max_length, HA_READ_KEY_EXACT);
+      result = file->index_read(record, (byte*) last_range->max_key,
+				last_range->max_keypart_map, HA_READ_KEY_EXACT);
     }
     else
     {
       DBUG_ASSERT(last_range->flag & NEAR_MAX ||
                   range_reads_after_key(last_range));
       result=file->index_read(record, (byte*) last_range->max_key,
-			      last_range->max_length,
+			      last_range->max_keypart_map,
 			      ((last_range->flag & NEAR_MAX) ?
 			       HA_READ_BEFORE_KEY :
                                HA_READ_PREFIX_LAST_OR_PREV));
@@ -8747,8 +8791,7 @@ void QUICK_ROR_UNION_SELECT::add_keys_and_lengths(String *key_names,
 static inline uint get_field_keypart(KEY *index, Field *field);
 static inline SEL_ARG * get_index_range_tree(uint index, SEL_TREE* range_tree,
                                              PARAM *param, uint *param_idx);
-static bool
-get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
+static bool get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
                        KEY_PART_INFO *first_non_group_part,
                        KEY_PART_INFO *min_max_arg_part,
                        KEY_PART_INFO *last_part, THD *thd,
@@ -9146,7 +9189,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
                           NULL;
     first_non_infix_part= min_max_arg_part ?
                           (min_max_arg_part < last_part) ?
-                             min_max_arg_part + 1 :
+                             min_max_arg_part :
                              NULL :
                            NULL;
     if (first_non_group_part &&
@@ -9203,7 +9246,9 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
     */
     if (first_non_infix_part)
     {
-      for (cur_part= first_non_infix_part; cur_part != last_part; cur_part++)
+      cur_part= first_non_infix_part +
+                (min_max_arg_part && (min_max_arg_part < last_part));
+      for (; cur_part != last_part; cur_part++)
       {
         if (bitmap_is_set(table->read_set, cur_part->field->field_index))
           goto next_index;
@@ -9749,7 +9794,7 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
 
   RETURN
     New QUICK_GROUP_MIN_MAX_SELECT object if successfully created,
-    NULL o/w.
+    NULL otherwise.
 */
 
 QUICK_SELECT_I *
@@ -9762,10 +9807,10 @@ TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool retrieve_full_rows,
   quick= new QUICK_GROUP_MIN_MAX_SELECT(param->table,
                                         param->thd->lex->current_select->join,
                                         have_min, have_max, min_max_arg_part,
-                                        group_prefix_len, used_key_parts,
-                                        index_info, index, read_cost, records,
-                                        key_infix_len, key_infix,
-                                        parent_alloc);
+                                        group_prefix_len, group_key_parts,
+                                        used_key_parts, index_info, index,
+                                        read_cost, records, key_infix_len,
+                                        key_infix, parent_alloc);
   if (!quick)
     DBUG_RETURN(NULL);
 
@@ -9854,7 +9899,7 @@ QUICK_GROUP_MIN_MAX_SELECT::
 QUICK_GROUP_MIN_MAX_SELECT(TABLE *table, JOIN *join_arg, bool have_min_arg,
                            bool have_max_arg,
                            KEY_PART_INFO *min_max_arg_part_arg,
-                           uint group_prefix_len_arg,
+                           uint group_prefix_len_arg, uint group_key_parts_arg,
                            uint used_key_parts_arg, KEY *index_info_arg,
                            uint use_index, double read_cost_arg,
                            ha_rows records_arg, uint key_infix_len_arg,
@@ -9864,7 +9909,7 @@ QUICK_GROUP_MIN_MAX_SELECT(TABLE *table, JOIN *join_arg, bool have_min_arg,
    have_max(have_max_arg), seen_first_key(FALSE),
    min_max_arg_part(min_max_arg_part_arg), key_infix(key_infix_arg),
    key_infix_len(key_infix_len_arg), min_functions_it(NULL),
-   max_functions_it(NULL)
+   max_functions_it(NULL), group_key_parts(group_key_parts_arg)
 {
   head=       table;
   file=       head->file;
@@ -9874,6 +9919,7 @@ QUICK_GROUP_MIN_MAX_SELECT(TABLE *table, JOIN *join_arg, bool have_min_arg,
   read_time= read_cost_arg;
   records= records_arg;
   used_key_parts= used_key_parts_arg;
+  real_key_parts= used_key_parts_arg;
   real_prefix_len= group_prefix_len + key_infix_len;
   group_prefix= NULL;
   min_max_arg_len= min_max_arg_part ? min_max_arg_part->store_length : 0;
@@ -10040,7 +10086,9 @@ bool QUICK_GROUP_MIN_MAX_SELECT::add_range(SEL_ARG *sel_range)
       range_flag|= EQ_RANGE;  /* equality condition */
   }
   range= new QUICK_RANGE(sel_range->min_value, min_max_arg_len,
+                         make_keypart_map(sel_range->part),
                          sel_range->max_value, min_max_arg_len,
+                         make_keypart_map(sel_range->part),
                          range_flag);
   if (!range)
     return TRUE;
@@ -10279,7 +10327,8 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
       first sub-group with the extended prefix.
     */
     if (!have_min && !have_max && key_infix_len > 0)
-      result= file->index_read(record, group_prefix, real_prefix_len,
+      result= file->index_read(record, group_prefix,
+                               make_prev_keypart_map(real_key_parts),
                                HA_READ_KEY_EXACT);
 
     result= have_min ? min_res : have_max ? max_res : result;
@@ -10342,7 +10391,8 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min()
     /* Apply the constant equality conditions to the non-group select fields */
     if (key_infix_len > 0)
     {
-      if ((result= file->index_read(record, group_prefix, real_prefix_len,
+      if ((result= file->index_read(record, group_prefix,
+                                    make_prev_keypart_map(real_key_parts),
                                     HA_READ_KEY_EXACT)))
         DBUG_RETURN(result);
     }
@@ -10359,7 +10409,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min()
       /* Find the first subsequent record without NULL in the MIN/MAX field. */
       key_copy(tmp_record, record, index_info, 0);
       result= file->index_read(record, tmp_record,
-                               real_prefix_len + min_max_arg_len,
+                               make_keypart_map(real_key_parts),
                                HA_READ_AFTER_KEY);
       /*
         Check if the new record belongs to the current group by comparing its
@@ -10415,7 +10465,8 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max()
   if (min_max_ranges.elements > 0)
     result= next_max_in_range();
   else
-    result= file->index_read(record, group_prefix, real_prefix_len,
+    result= file->index_read(record, group_prefix,
+                             make_prev_keypart_map(real_key_parts),
                              HA_READ_PREFIX_LAST);
   DBUG_RETURN(result);
 }
@@ -10451,7 +10502,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_prefix()
   {
     byte *cur_prefix= seen_first_key ? group_prefix : NULL;
     if ((result= quick_prefix_select->get_next_prefix(group_prefix_len,
-                                                      cur_prefix)))
+                         (ULL(1) << group_key_parts) - 1, cur_prefix)))
       DBUG_RETURN(result);
     seen_first_key= TRUE;
   }
@@ -10467,7 +10518,8 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_prefix()
     else
     {
       /* Load the first key in this group into record. */
-      result= file->index_read(record, group_prefix, group_prefix_len,
+      result= file->index_read(record, group_prefix,
+                               make_prev_keypart_map(group_key_parts),
                                HA_READ_AFTER_KEY);
       if (result)
         DBUG_RETURN(result);
@@ -10510,6 +10562,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range()
 {
   ha_rkey_function find_flag;
   uint search_prefix_len;
+  ulonglong keypart_map;
   QUICK_RANGE *cur_range;
   bool found_null= FALSE;
   int result= HA_ERR_KEY_NOT_FOUND;
@@ -10531,8 +10584,9 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range()
 
     if (cur_range->flag & NO_MIN_RANGE)
     {
-      find_flag= HA_READ_KEY_EXACT;
       search_prefix_len= real_prefix_len;
+      keypart_map= (ULL(1) << real_key_parts) - 1;
+      find_flag= HA_READ_KEY_EXACT;
     }
     else
     {
@@ -10540,13 +10594,13 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range()
       memcpy(group_prefix + real_prefix_len, cur_range->min_key,
              cur_range->min_length);
       search_prefix_len= real_prefix_len + min_max_arg_len;
+      keypart_map= (ULL(2) << real_key_parts) - 1;
       find_flag= (cur_range->flag & (EQ_RANGE | NULL_RANGE)) ?
                  HA_READ_KEY_EXACT : (cur_range->flag & NEAR_MIN) ?
                  HA_READ_AFTER_KEY : HA_READ_KEY_OR_NEXT;
     }
 
-    result= file->index_read(record, group_prefix, search_prefix_len,
-                             find_flag);
+    result= file->index_read(record, group_prefix, keypart_map, find_flag);
     if (result)
     {
       if ((result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE) &&
@@ -10644,6 +10698,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range()
 {
   ha_rkey_function find_flag;
   uint search_prefix_len;
+  ulonglong keypart_map;
   QUICK_RANGE *cur_range;
   int result;
 
@@ -10665,8 +10720,9 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range()
 
     if (cur_range->flag & NO_MAX_RANGE)
     {
-      find_flag= HA_READ_PREFIX_LAST;
       search_prefix_len= real_prefix_len;
+      keypart_map= (ULL(1) << real_key_parts) - 1;
+      find_flag= HA_READ_PREFIX_LAST;
     }
     else
     {
@@ -10674,13 +10730,13 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range()
       memcpy(group_prefix + real_prefix_len, cur_range->max_key,
              cur_range->max_length);
       search_prefix_len= real_prefix_len + min_max_arg_len;
+      keypart_map= (ULL(2) << real_key_parts) - 1;
       find_flag= (cur_range->flag & EQ_RANGE) ?
                  HA_READ_KEY_EXACT : (cur_range->flag & NEAR_MAX) ?
                  HA_READ_BEFORE_KEY : HA_READ_PREFIX_LAST_OR_PREV;
     }
 
-    result= file->index_read(record, group_prefix, search_prefix_len,
-                             find_flag);
+    result= file->index_read(record, group_prefix, keypart_map, find_flag);
 
     if (result)
     {

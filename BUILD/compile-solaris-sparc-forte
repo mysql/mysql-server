@@ -5,7 +5,7 @@
 
 PATH=/opt/SUNWspro/bin/:/usr/ccs/bin:$PATH
 
-make -k clean || true
+make -k maintainer-clean || true
 /bin/rm -f */.deps/*.P config.cache
  
 path=`dirname $0`

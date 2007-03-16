@@ -44,6 +44,9 @@ pkgdata_DATA =		my-small.cnf \
 
 pkgdata_SCRIPTS =	mysql.server
 
+aclocaldir =		$(datadir)/aclocal
+aclocal_DATA =		mysql.m4
+
 noinst_DATA = mysql-@VERSION@.spec \
 			MySQL-shared-compat.spec
 
