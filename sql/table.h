@@ -197,9 +197,9 @@ typedef struct st_table_share
   uint rowid_field_offset;		/* Field_nr +1 to rowid field */
   /* Index of auto-updated TIMESTAMP field in field array */
   uint primary_key;
-  uint next_number_index;
-  uint next_number_key_offset;
-  uint next_number_keypart;
+  uint next_number_index;               /* autoincrement key number */
+  uint next_number_key_offset;          /* autoinc keypart offset in a key */
+  uint next_number_keypart;             /* autoinc keypart number in a key */
   uint error, open_errno, errarg;       /* error from open_table_def() */
   uint column_bitmap_size;
   uchar frm_version;

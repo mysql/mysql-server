@@ -87,7 +87,7 @@ extern int myrg_rnext(MYRG_INFO *file,byte *buf,int inx);
 extern int myrg_rprev(MYRG_INFO *file,byte *buf,int inx);
 extern int myrg_rnext_same(MYRG_INFO *file,byte *buf);
 extern int myrg_rkey(MYRG_INFO *info,byte *buf,int inx, const byte *key,
-                     ulonglong keypart_map, enum ha_rkey_function search_flag);
+                     key_part_map keypart_map, enum ha_rkey_function search_flag);
 extern int myrg_rrnd(MYRG_INFO *file,byte *buf,ulonglong pos);
 extern int myrg_rsame(MYRG_INFO *file,byte *record,int inx);
 extern int myrg_update(MYRG_INFO *file,const byte *old,byte *new_rec);

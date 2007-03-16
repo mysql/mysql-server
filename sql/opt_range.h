@@ -37,15 +37,16 @@ class QUICK_RANGE :public Sql_alloc {
  public:
   char *min_key,*max_key;
   uint16 min_length,max_length,flag;
-  ulonglong min_keypart_map, max_keypart_map;
+  key_part_map min_keypart_map, // bitmap of used keyparts in min_key
+               max_keypart_map; // bitmap of used keyparts in max_key
 #ifdef HAVE_purify
   uint16 dummy;					/* Avoid warnings on 'flag' */
 #endif
   QUICK_RANGE();				/* Full range */
   QUICK_RANGE(const char *min_key_arg, uint min_length_arg,
-              ulonglong min_keypart_map_arg,
+              key_part_map min_keypart_map_arg,
 	      const char *max_key_arg, uint max_length_arg,
-              ulonglong max_keypart_map_arg,
+              key_part_map max_keypart_map_arg,
 	      uint flag_arg)
     : min_key((char*) sql_memdup(min_key_arg,min_length_arg+1)),
       max_key((char*) sql_memdup(max_key_arg,max_length_arg+1)),
@@ -65,11 +66,11 @@ class QUICK_RANGE :public Sql_alloc {
 /*
   Quick select interface.
   This class is a parent for all QUICK_*_SELECT and FT_SELECT classes.
-  
+
   The usage scenario is as follows:
   1. Create quick select
     quick= new QUICK_XXX_SELECT(...);
-    
+
   2. Perform lightweight initialization. This can be done in 2 ways:
   2.a: Regular initialization
     if (quick->init())
@@ -80,29 +81,29 @@ class QUICK_RANGE :public Sql_alloc {
   2.b: Special initialization for quick selects merged by QUICK_ROR_*_SELECT
     if (quick->init_ror_merged_scan())
       delete quick;
-        
+
   3. Perform zero, one, or more scans.
     while (...)
     {
       // initialize quick select for scan. This may allocate
-      // buffers and/or prefetch rows. 
+      // buffers and/or prefetch rows.
       if (quick->reset())
       {
         //the only valid action after failed reset() call is delete
         delete quick;
         //abort query
       }
-      
+
       // perform the scan
       do
       {
         res= quick->get_next();
       } while (res && ...)
     }
-    
+
   4. Delete the select:
     delete quick;
-  
+
 */
 
 class QUICK_SELECT_I
@@ -128,6 +129,8 @@ public:
     Max. number of (first) key parts this quick select uses for retrieval.
     eg. for "(key1p1=c1 AND key1p2=c2) OR key1p1=c2" used_key_parts == 2.
     Applicable if index!= MAX_KEY.
+
+    For QUICK_GROUP_MIN_MAX_SELECT it includes MIN/MAX argument keyparts.
   */
   uint used_key_parts;
 
@@ -323,7 +326,7 @@ public:
   int reset(void);
   int get_next();
   void range_end();
-  int get_next_prefix(uint prefix_length, ulonglong keypart_map,
+  int get_next_prefix(uint prefix_length, key_part_map keypart_map,
                       byte *cur_prefix);
   bool reverse_sorted() { return 0; }
   bool unique_key_range();
@@ -611,7 +614,7 @@ private:
   byte *tmp_record;      /* Temporary storage for next_min(), next_max(). */
   byte *group_prefix;    /* Key prefix consisting of the GROUP fields. */
   uint group_prefix_len; /* Length of the group prefix. */
-  uint group_key_parts;
+  uint group_key_parts;  /* A number of keyparts in the group prefix */
   byte *last_prefix;     /* Prefix of the last group for detecting EOF. */
   bool have_min;         /* Specify whether we are computing */
   bool have_max;         /*   a MIN, a MAX, or both.         */
@@ -623,7 +626,7 @@ private:
   uint key_infix_len;
   DYNAMIC_ARRAY min_max_ranges; /* Array of range ptrs for the MIN/MAX field. */
   uint real_prefix_len; /* Length of key prefix extended with key_infix. */
-  uint real_key_parts;
+  uint real_key_parts;  /* A number of keyparts in the above value.      */
   List<Item_sum> *min_functions;
   List<Item_sum> *max_functions;
   List_iterator<Item_sum> *min_functions_it;

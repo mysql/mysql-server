@@ -275,7 +275,7 @@ extern struct st_myisam_info *mi_open(const char *name,int mode,
 extern int mi_panic(enum ha_panic_function function);
 extern int mi_rfirst(struct st_myisam_info *file,byte *buf,int inx);
 extern int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key,
-            ulonglong keypart_map, enum ha_rkey_function search_flag);
+                   key_part_map keypart_map, enum ha_rkey_function search_flag);
 extern int mi_rlast(struct st_myisam_info *file,byte *buf,int inx);
 extern int mi_rnext(struct st_myisam_info *file,byte *buf,int inx);
 extern int mi_rnext_same(struct st_myisam_info *info, byte *buf);

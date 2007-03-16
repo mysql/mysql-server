@@ -1214,7 +1214,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 	}
 	key_copy((byte*) key,table->record[0],table->key_info+key_nr,0);
 	if ((error=(table->file->index_read_idx(table->record[1],key_nr,
-						(byte*) key, ~ULL(0),
+                                                (byte*) key, HA_WHOLE_KEY,
 						HA_READ_KEY_EXACT))))
 	  goto err;
       }

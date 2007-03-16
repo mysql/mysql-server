@@ -3336,7 +3336,7 @@ int ha_partition::index_end()
 */
 
 int ha_partition::index_read(byte * buf, const byte * key,
-			     ulonglong keypart_map,
+                             key_part_map keypart_map,
                              enum ha_rkey_function find_flag)
 {
   DBUG_ENTER("ha_partition::index_read");
@@ -3357,7 +3357,7 @@ int ha_partition::index_read(byte * buf, const byte * key,
 */
 
 int ha_partition::common_index_read(byte *buf, const byte *key,
-                                    ulonglong keypart_map,
+                                    key_part_map keypart_map,
 				    enum ha_rkey_function find_flag)
 {
   int error;
@@ -3513,7 +3513,7 @@ int ha_partition::common_first_last(byte *buf)
 */
 
 int ha_partition::index_read_last(byte *buf, const byte *key,
-                                      ulonglong keypart_map)
+                                  key_part_map keypart_map)
 {
   DBUG_ENTER("ha_partition::index_read_last");
 

@@ -192,7 +192,7 @@ typedef struct st_join_table {
   JOIN		*join;
   /* Bitmap of nested joins this table is part of */
   nested_join_map embedding_map;
-  
+
   void cleanup();
   inline bool is_using_loose_index_scan()
   {
@@ -201,11 +201,6 @@ typedef struct st_join_table {
              QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX));
   }
 } JOIN_TAB;
-
-static inline ulonglong tab_to_keypart_map(JOIN_TAB *tab)
-{
-  return (ULL(1) << tab->ref.key_parts) - 1;
-}
 
 enum_nested_loop_state sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool
                                         end_of_records);

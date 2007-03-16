@@ -22,7 +22,7 @@
 	/* Ordinary search_flag is 0 ; Give error if no record with key */
 
 int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key,
-            ulonglong keypart_map, enum ha_rkey_function search_flag)
+            key_part_map keypart_map, enum ha_rkey_function search_flag)
 {
   uchar *key_buff;
   MYISAM_SHARE *share=info->s;

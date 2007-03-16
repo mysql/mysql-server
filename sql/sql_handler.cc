@@ -515,7 +515,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
       }
       List_iterator<Item> it_ke(*key_expr);
       Item *item;
-      ulonglong keypart_map;
+      key_part_map keypart_map;
       for (keypart_map= key_len=0 ; (item=it_ke++) ; key_part++)
       {
         my_bitmap_map *old_map;

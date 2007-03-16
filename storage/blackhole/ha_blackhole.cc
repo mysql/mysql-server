@@ -152,7 +152,7 @@ THR_LOCK_DATA **ha_blackhole::store_lock(THD *thd,
 
 
 int ha_blackhole::index_read(byte * buf, const byte * key,
-                             ulonglong keypart_map, uint key_len,
+                             key_part_map keypart_map,
                              enum ha_rkey_function find_flag)
 {
   DBUG_ENTER("ha_blackhole::index_read");
@@ -161,7 +161,7 @@ int ha_blackhole::index_read(byte * buf, const byte * key,
 
 
 int ha_blackhole::index_read_idx(byte * buf, uint idx, const byte * key,
-                                 ulonglong keypart_map, uint key_len,
+                                 key_part_map keypart_map,
                                  enum ha_rkey_function find_flag)
 {
   DBUG_ENTER("ha_blackhole::index_read_idx");
@@ -170,7 +170,7 @@ int ha_blackhole::index_read_idx(byte * buf, uint idx, const byte * key,
 
 
 int ha_blackhole::index_read_last(byte * buf, const byte * key,
-                                  ulonglong keypart_map)
+                                  key_part_map keypart_map)
 {
   DBUG_ENTER("ha_blackhole::index_read_last");
   DBUG_RETURN(HA_ERR_END_OF_FILE);

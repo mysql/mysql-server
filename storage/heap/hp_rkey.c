@@ -16,7 +16,7 @@
 #include "heapdef.h"
 
 int heap_rkey(HP_INFO *info, byte *record, int inx, const byte *key, 
-              ulonglong keypart_map, enum ha_rkey_function find_flag)
+              key_part_map keypart_map, enum ha_rkey_function find_flag)
 {
   byte *pos;
   HP_SHARE *share= info->s;

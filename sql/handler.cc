@@ -3282,8 +3282,8 @@ int handler::compare_key(key_range *range)
 
 
 int handler::index_read_idx(byte * buf, uint index, const byte * key,
-                             ulonglong keypart_map,
-                             enum ha_rkey_function find_flag)
+                            key_part_map keypart_map,
+                            enum ha_rkey_function find_flag)
 {
   int error, error1;
   error= index_init(index, 0);
