@@ -1293,7 +1293,7 @@ bool get_next_time(const Time_zone *time_zone, my_time_t *next,
       time, and this will greatly reduce the effect of the
       optimization.  So instead we keep the code simple and clean.
     */
-    interval.month= diff_months - diff_months % months;
+    interval.month= (ulong) (diff_months - diff_months % months);
     next_time= add_interval(&local_start, time_zone,
                             INTERVAL_MONTH, interval);
     if (next_time == 0)
@@ -1301,7 +1301,7 @@ bool get_next_time(const Time_zone *time_zone, my_time_t *next,
 
     if (next_time <= time_now)
     {
-      interval.month= months;
+      interval.month= (ulong) months;
       next_time= add_interval(&local_start, time_zone,
                               INTERVAL_MONTH, interval);
       if (next_time == 0)
