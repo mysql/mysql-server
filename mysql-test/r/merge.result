@@ -806,6 +806,24 @@ CREATE TABLE tm1(a SMALLINT, b SMALLINT, KEY(a)) ENGINE=MERGE UNION=(t1);
 SELECT * FROM tm1;
 ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 DROP TABLE t1, tm1;
+CREATE TABLE t1(c1 INT) ENGINE=MyISAM;
+CREATE TABLE t2(c1 INT) ENGINE=MERGE UNION=(t1);
+INSERT DELAYED INTO t2 VALUES(1);
+ERROR HY000: Table storage engine for 't2' doesn't have this option
+DROP TABLE t1, t2;
+CREATE TABLE t1(c1 VARCHAR(1));
+CREATE TABLE m1 LIKE t1;
+ALTER TABLE m1 ENGINE=MERGE UNION=(t1);
+SELECT * FROM m1;
+c1
+DROP TABLE t1, m1;
+CREATE TABLE t1(c1 VARCHAR(4), c2 TINYINT, c3 TINYINT, c4 TINYINT,
+c5 TINYINT, c6 TINYINT, c7 TINYINT, c8 TINYINT, c9 TINYINT);
+CREATE TABLE m1 LIKE t1;
+ALTER TABLE m1 ENGINE=MERGE UNION=(t1);
+SELECT * FROM m1;
+c1	c2	c3	c4	c5	c6	c7	c8	c9
+DROP TABLE t1, m1;
 create table t1 (b bit(1));
 create table t2 (b bit(1));
 create table tm (b bit(1)) engine = merge union = (t1,t2);
