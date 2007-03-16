@@ -317,20 +317,19 @@ PRIMARY KEY (auto)
 ) engine=ndb;
 CREATE TEMPORARY TABLE ndb_show_tables (id INT, type VARCHAR(20), state VARCHAR(20), logging VARCHAR(20), _database VARCHAR(255), _schema VARCHAR(20), name VARCHAR(255));
 LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
-set @t1_id = (select id from ndb_show_tables where name like '%t1%');
+set @t1_id = (select id from ndb_show_tables where name = 't1');
 truncate ndb_show_tables;
 alter table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL;
 LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
-select 'no_copy' from ndb_show_tables where id = @t1_id and name like '%t1%';
+select 'no_copy' from ndb_show_tables where id = @t1_id and name = 't1';
 no_copy
-set @t1_id = (select id from ndb_show_tables where name like '%t1%');
+set @t1_id = (select id from ndb_show_tables where name = 't1');
 truncate ndb_show_tables;
 create index i1 on t1(medium);
 alter table t1 add index i2(new_tiny);
 drop index i1 on t1;
 LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
-select 'no_copy' from ndb_show_tables where id = @t1_id and name like '%t1%';
-no_copy
+select 'no_copy' from ndb_show_tables where id = @t1_id and name = 't1';
 no_copy
 DROP TABLE t1, ndb_show_tables;
 create table t1 (a int primary key auto_increment, b int) engine=ndb;

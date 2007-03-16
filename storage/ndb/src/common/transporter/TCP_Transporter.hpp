@@ -45,17 +45,7 @@ class TCP_Transporter : public Transporter {
   friend class TransporterRegistry;
 private:
   // Initialize member variables
-  TCP_Transporter(TransporterRegistry&,
-		  int sendBufferSize, int maxReceiveSize,
-		  const char *lHostName,
-		  const char *rHostName, 
-		  int r_port,
-		  bool isMgmConnection,
-		  NodeId lHostId,
-		  NodeId rHostId,
-		  NodeId serverNodeId,
-		  bool checksum, bool signalId,
-		  Uint32 reportFreq = 4096);
+  TCP_Transporter(TransporterRegistry&, const TransporterConfiguration* conf);
   
   // Disconnect, delete send buffers and receive buffer
   virtual ~TCP_Transporter();
@@ -140,6 +130,7 @@ private:
   void setSocketOptions();
 
   static bool setSocketNonBlocking(NDB_SOCKET_TYPE aSocket);
+  virtual int pre_connect_options(NDB_SOCKET_TYPE aSocket);
   
   bool sendIsPossible(struct timeval * timeout);
 

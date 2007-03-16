@@ -1628,7 +1628,7 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
     if(tmp.get(i)){
       jam();
       nodeArray[index] = i;
-      if(NodeBitmask::get(readNodes->inactiveNodes, i) == false){
+      if(NdbNodeBitmask::get(readNodes->inactiveNodes, i) == false){
         jam();
         con_lineNodes++;        
       }//if      
@@ -4148,7 +4148,7 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   Uint32 index = 0;
   for (i = 1; i < MAX_NDB_NODES; i++) {
     jam();
-    if(NodeBitmask::get(nodeFail->theNodes, i)){
+    if(NdbNodeBitmask::get(nodeFail->theNodes, i)){
       jam();
       failedNodes[index] = i;
       index++;
@@ -11992,7 +11992,7 @@ void Dbdih::initRestartInfo()
   SYSFILE->oldestRestorableGCI = 1;
   SYSFILE->newestRestorableGCI = 1;
   SYSFILE->systemRestartBits   = 0;
-  for (i = 0; i < NodeBitmask::Size; i++) {
+  for (i = 0; i < NdbNodeBitmask::Size; i++) {
     SYSFILE->lcpActive[0]        = 0;
   }//for  
   for (i = 0; i < Sysfile::TAKE_OVER_SIZE; i++) {
@@ -12602,7 +12602,7 @@ void Dbdih::makePrnList(ReadNodesConf * readNodes, Uint32 nodeArray[])
     nodePtr.i = nodeArray[i];
     ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
     new (nodePtr.p) NodeRecord();
-    if (NodeBitmask::get(readNodes->inactiveNodes, nodePtr.i) == false){
+    if (NdbNodeBitmask::get(readNodes->inactiveNodes, nodePtr.i) == false){
       jam();
       nodePtr.p->nodeStatus = NodeRecord::ALIVE;
       nodePtr.p->useInTransactions = true;
@@ -13696,13 +13696,13 @@ void Dbdih::sendHOT_SPAREREP(Signal* signal)
   NodeRecordPtr locNodeptr;
   Uint32 Ti = 0;
   HotSpareRep * const hotSpare = (HotSpareRep*)&signal->theData[0];
-  NodeBitmask::clear(hotSpare->theHotSpareNodes);
+  NdbNodeBitmask::clear(hotSpare->theHotSpareNodes);
   for (locNodeptr.i = 1; locNodeptr.i < MAX_NDB_NODES; locNodeptr.i++) {
     ptrAss(locNodeptr, nodeRecord);
     switch (locNodeptr.p->activeStatus) {
     case Sysfile::NS_HotSpare:
       jam();
-      NodeBitmask::set(hotSpare->theHotSpareNodes, locNodeptr.i);
+      NdbNodeBitmask::set(hotSpare->theHotSpareNodes, locNodeptr.i);
       Ti++;
       break;
     default:
@@ -13724,7 +13724,7 @@ void Dbdih::setNodeLcpActiveStatus()
 {
   c_lcpState.m_lcpActiveStatus.clear();
   for (Uint32 i = 1; i < MAX_NDB_NODES; i++) {
-    if (NodeBitmask::get(SYSFILE->lcpActive, i)) {
+    if (NdbNodeBitmask::get(SYSFILE->lcpActive, i)) {
       jam();
       c_lcpState.m_lcpActiveStatus.set(i);
     }//if
@@ -13797,7 +13797,7 @@ void Dbdih::setNodeRestartInfoBits()
     Sysfile::setNodeGroup(nodePtr.i, SYSFILE->nodeGroups, tsnrNodeGroup);
     if (c_lcpState.m_participatingLQH.get(nodePtr.i)){
       jam();
-      NodeBitmask::set(SYSFILE->lcpActive, nodePtr.i);
+      NdbNodeBitmask::set(SYSFILE->lcpActive, nodePtr.i);
     }//if
   }//for
 }//Dbdih::setNodeRestartInfoBits()

@@ -37,7 +37,7 @@ public:
    * threshold - is in range [0-15]
    * severity  - DEBUG to ALERT (Type of log message)
    */  
-  typedef void (* EventTextFunction)(char *,size_t,const Uint32*);
+  typedef void (* EventTextFunction)(char *,size_t,const Uint32*, Uint32 len);
 
   struct EventRepLogLevelMatrix {
     Ndb_logevent_type       eventType;
@@ -131,7 +131,7 @@ public:
    * @param theData the event data.
    * @param nodeId the node id of event origin.
    */
-  virtual void log(int, const Uint32*, NodeId = 0,const class LogLevel * = 0);
+  virtual void log(int, const Uint32*, Uint32 len, NodeId = 0,const class LogLevel * = 0);
 
   
   /**
@@ -144,7 +144,8 @@ public:
    */
   static const char* getText(char * dst, size_t dst_len,
 			     EventTextFunction textF,
-			     const Uint32* theData, NodeId nodeId = 0);
+			     const Uint32* theData, Uint32 len, 
+			     NodeId nodeId = 0);
   
   /**
    * Returns the log level that is used to filter an event. The event will not

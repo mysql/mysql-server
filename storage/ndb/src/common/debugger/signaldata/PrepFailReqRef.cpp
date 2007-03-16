@@ -32,8 +32,8 @@ printPREPFAILREQREF(FILE * output,
   
   int hits = 0;
   fprintf(output, " Nodes: ");
-  for(int i = 0; i<MAX_NODES; i++){
-    if(NodeBitmask::get(cc->theNodes, i)){
+  for(int i = 0; i<MAX_NDB_NODES; i++){
+    if(NdbNodeBitmask::get(cc->theNodes, i)){
       hits++;
       fprintf(output, " %d", i);
     }
