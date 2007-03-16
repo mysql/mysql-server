@@ -65,8 +65,13 @@ struct event_queue_param
 static int 
 event_queue_element_compare_q(void *vptr, byte* a, byte *b)
 {
-  return my_time_compare(&((Event_queue_element *)a)->execute_at,
-                         &((Event_queue_element *)b)->execute_at);
+  /*
+    Note that no overflow is possible here because both values are
+    non-negative, and subtraction is done in the signed my_time_t
+    type.
+  */
+  return (((Event_queue_element *)a)->execute_at
+          - ((Event_queue_element *)b)->execute_at);
 }
 
 
@@ -84,7 +89,7 @@ Event_queue::Event_queue()
 {
   mutex_last_unlocked_in_func= mutex_last_locked_in_func=
     mutex_last_attempted_lock_in_func= "";
-  set_zero_time(&next_activation_at, MYSQL_TIMESTAMP_DATETIME);
+  next_activation_at= 0;
 }
 
 
@@ -504,15 +509,11 @@ Event_queue::dbug_dump_queue(time_t now)
     DBUG_PRINT("info", ("exec_at: %lu  starts: %lu  ends: %lu  execs_so_far: %u  "
                         "expr: %ld  et.exec_at: %ld  now: %ld  "
                         "(et.exec_at - now): %d  if: %d",
-                        (long) TIME_to_ulonglong_datetime(&et->execute_at),
-                        (long) TIME_to_ulonglong_datetime(&et->starts),
-                        (long) TIME_to_ulonglong_datetime(&et->ends),
-                        et->execution_count,
-                        (long) et->expression,
-                        (long) (sec_since_epoch_TIME(&et->execute_at)),
-                        (long) now,
-                        (int) (sec_since_epoch_TIME(&et->execute_at) - now),
-                        sec_since_epoch_TIME(&et->execute_at) <= now));
+                        (long) et->execute_at, (long) et->starts,
+                        (long) et->ends, et->execution_count,
+                        (long) et->expression, (long) et->execute_at,
+                        (long) now, (int) (et->execute_at - now),
+                        et->execute_at <= now));
   }
   DBUG_VOID_RETURN;
 #endif
@@ -541,7 +542,6 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
                 Event_queue_element_for_exec **event_name)
 {
   bool ret= FALSE;
-  struct timespec top_time;
   *event_name= NULL;
   DBUG_ENTER("Event_queue::get_top_for_execution_if_time");
 
@@ -560,7 +560,7 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
     if (!queue.elements)
     {
       /* There are no events in the queue */
-      set_zero_time(&next_activation_at, MYSQL_TIMESTAMP_DATETIME);
+      next_activation_at= 0;
 
       /* Wait on condition until signaled. Release LOCK_queue while waiting. */
       cond_wait(thd, NULL, queue_empty_msg, SCHED_FUNC, __LINE__);
@@ -572,16 +572,16 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
 
     thd->end_time(); /* Get current time */
 
-    time_t seconds_to_next_event= 
-      sec_since_epoch_TIME(&top->execute_at) - thd->query_start();
     next_activation_at= top->execute_at;
-    if (seconds_to_next_event > 0)
+    if (next_activation_at > thd->query_start())
     {
       /*
         Not yet time for top event, wait on condition with
         time or until signaled. Release LOCK_queue while waiting.
       */
-      set_timespec(top_time, seconds_to_next_event);
+      struct timespec top_time;
+      top_time.tv_sec= next_activation_at;
+      top_time.tv_nsec= 0;
       cond_wait(thd, &top_time, queue_wait_msg, SCHED_FUNC, __LINE__);
 
       continue;
@@ -759,10 +759,11 @@ Event_queue::dump_internal_status()
     printf("Last lock attempt at: %s:%u\n", mutex_last_attempted_lock_in_func,
                                             mutex_last_attempted_lock_at_line);
   printf("WOC             : %s\n", waiting_on_cond? "YES":"NO");
+
+  TIME time;
+  my_tz_UTC->gmt_sec_to_TIME(&time, next_activation_at);
   printf("Next activation : %04d-%02d-%02d %02d:%02d:%02d\n",
-         next_activation_at.year, next_activation_at.month,
-         next_activation_at.day, next_activation_at.hour,
-         next_activation_at.minute, next_activation_at.second);
+         time.year, time.month, time.day, time.hour, time.minute, time.second);
 
   DBUG_VOID_RETURN;
 }

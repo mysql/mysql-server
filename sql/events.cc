@@ -326,7 +326,8 @@ Events::create_event(THD *thd, Event_parse_data *parse_data, bool if_not_exists)
 
   pthread_mutex_lock(&LOCK_event_metadata);
   /* On error conditions my_error() is called so no need to handle here */
-  if (!(ret= db_repository->create_event(thd, parse_data, if_not_exists)))
+  if (!(ret= db_repository->create_event(thd, parse_data, if_not_exists)) &&
+      !parse_data->do_not_create)
   {
     Event_queue_element *new_element;
 
@@ -527,6 +528,10 @@ Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
 
     field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
 
+    const String *tz_name= et->time_zone->get_name();
+    field_list.push_back(new Item_empty_string("time_zone",
+                                               tz_name->length()));
+
     field_list.push_back(new Item_empty_string("Create Event",
                                                show_str.length()));
 
@@ -538,6 +543,8 @@ Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
     protocol->store(et->name.str, et->name.length, scs);
 
     protocol->store((char*) sql_mode_str, sql_mode_len, scs);
+
+    protocol->store((char*) tz_name->ptr(), tz_name->length(), scs);
 
     protocol->store(show_str.c_ptr(), show_str.length(), scs);
     ret= protocol->write();
@@ -942,7 +949,7 @@ Events::load_events_from_db(THD *thd)
     }
     DBUG_PRINT("info", ("Loading event from row."));
 
-    if ((ret= et->load_from_row(table)))
+    if ((ret= et->load_from_row(thd, table)))
     {
       sql_print_error("SCHEDULER: Error while loading from mysql.event. "
                       "Table probably corrupted");
@@ -967,7 +974,7 @@ Events::load_events_from_db(THD *thd)
       Event_job_data temp_job_data;
       DBUG_PRINT("info", ("Event %s loaded from row. ", et->name.str));
 
-      temp_job_data.load_from_row(table);
+      temp_job_data.load_from_row(thd, table);
 
       /*
         We load only on scheduler root just to check whether the body

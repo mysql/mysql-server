@@ -867,6 +867,7 @@ then
   c_ev="$c_ev                         'HIGH_NOT_PRECEDENCE'"
   c_ev="$c_ev                     ) DEFAULT '' NOT NULL,"
   c_ev="$c_ev   comment char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',"
+  c_ev="$c_ev   time_zone char(64) CHARACTER SET latin1 NOT NULL DEFAULT 'SYSTEM',"
   c_ev="$c_ev   PRIMARY KEY  (db, name)"
   c_ev="$c_ev ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT 'Events';"
 fi
