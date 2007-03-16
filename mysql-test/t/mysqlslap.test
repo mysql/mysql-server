@@ -4,7 +4,7 @@
 
 --exec $MYSQL_SLAP --silent --concurrency=5 --iterations=20 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql
 
---exec $MYSQL_SLAP --silent --concurrency=5 --iterations=20 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --use-threads
+--exec $MYSQL_SLAP --silent --concurrency=5 --iterations=20 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql
 
 --exec $MYSQL_SLAP --only-print --iterations=20  --query="select * from t1" --create="CREATE TABLE t1 (id int, name varchar(64)); INSERT INTO t1 VALUES (1, 'This is a test')" --delimiter=";"
 --exec $MYSQL_SLAP --silent --concurrency=5 --iterations=20 --query="select * from t1" --create="CREATE TABLE t1 (id int, name varchar(64)); INSERT INTO t1 VALUES (1, 'This is a test')" --delimiter=";"
