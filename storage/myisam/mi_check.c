@@ -532,7 +532,7 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
       mi_extra(info,HA_EXTRA_KEYREAD,0);
       bzero(info->lastkey,keyinfo->seg->length);
       if (!mi_rkey(info, info->rec_buff, key, (const byte*) info->lastkey,
-		   keyinfo->seg->length, HA_READ_KEY_EXACT))
+		   ULL(1), HA_READ_KEY_EXACT))
       {
 	/* Don't count this as a real warning, as myisamchk can't correct it */
 	uint save=param->warning_printed;

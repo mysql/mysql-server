@@ -1493,7 +1493,7 @@ void print_plan(JOIN* join,uint idx, double record_count, double read_time,
 void mysql_print_status();
 /* key.cc */
 int find_ref_key(KEY *key, uint key_count, byte *record, Field *field,
-                 uint *key_length);
+                 uint *key_length, uint *keypart);
 void key_copy(byte *to_key, byte *from_record, KEY *key_info, uint key_length);
 void key_restore(byte *to_record, byte *from_key, KEY *key_info,
                  uint key_length);
