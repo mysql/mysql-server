@@ -49,8 +49,8 @@ link_sources:
 	done
 else
 
-BUILT_SOURCES =                 libmysql.imp
-DISTCLEANFILES =                $(BUILT_SOURCES)
+BUILT_SOURCES =                 libmysql.imp init_db.sql test_db.sql
+CLEANFILES =                    $(BUILT_SOURCES)
 
 # Create the libmysql.imp from libmysql/libmysql.def
 libmysql.imp: $(top_srcdir)/libmysql/libmysql.def
@@ -60,7 +60,7 @@ libmysql.imp: $(top_srcdir)/libmysql/libmysql.def
              x>1 {printf(",\n %s", $$1); next} \
              /EXPORTS/{x=1}' $(top_srcdir)/libmysql/libmysql.def > libmysql.imp
 
-EXTRA_DIST=	$(BUILT_SOURCES) comp_err.def init_db.sql install_test_db.ncf \
+EXTRA_DIST=	$(BUILT_SOURCES) comp_err.def install_test_db.ncf \
 		libmysql.def \
 		libmysqlmain.c my_manage.c my_manage.h \
 		my_print_defaults.def myisam_ftdump.def myisamchk.def \
@@ -73,7 +73,7 @@ EXTRA_DIST=	$(BUILT_SOURCES) comp_err.def init_db.sql install_test_db.ncf \
 		mysqld_safe.c mysqld_safe.def mysqldump.def mysqlimport.def \
 		mysqlshow.def mysqltest.def mysql_upgrade.def perror.def \
 		mysql_client_test.def \
-		replace.def resolve_stack_dump.def resolveip.def test_db.sql \
+		replace.def resolve_stack_dump.def resolveip.def \
 		static_init_db.sql \
 		BUILD/apply-patch BUILD/compile-AUTOTOOLS \
 		BUILD/compile-linux-tools BUILD/compile-netware-END \
@@ -84,6 +84,26 @@ EXTRA_DIST=	$(BUILT_SOURCES) comp_err.def init_db.sql install_test_db.ncf \
 		BUILD/cron-build BUILD/crontab BUILD/knetware.imp \
 		BUILD/mwasmnlm BUILD/mwccnlm BUILD/mwenv BUILD/mwldnlm \
 		BUILD/nwbootstrap BUILD/openssl.imp BUILD/save-patch
+
+
+# Build init_db.sql from the files that contain
+# the system tables for this version of MySQL plus any commands
+init_db.sql: $(top_srcdir)/scripts/mysql_system_tables.sql \
+             $(top_srcdir)/scripts/mysql_system_tables_data.sql
+	@echo "Building $@";
+	@echo "CREATE DATABASE mysql;" > $@;
+	@echo "CREATE DATABASE test;" >> $@;
+	@echo "use mysql;" >> $@;
+	@cat $(top_srcdir)/scripts/mysql_system_tables.sql \
+             $(top_srcdir)/scripts/mysql_system_tables_fix.sql >> $@;
+
+# Build test_db.sql from init_db.sql plus
+# some test data
+test_db.sql: init_db.sql $(top_srcdir)/scripts/mysql_test_data_timezone.sql
+	@echo "Building $@";
+	@cat init_db.sql \
+             $(top_srcdir)/scripts/mysql_test_data_timezone.sql >> $@;
+
 endif
 
 # Don't update the files from bitkeeper
