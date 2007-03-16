@@ -118,6 +118,11 @@ const TABLE_FIELD_W_TYPE event_table_fields[ET_FIELD_COUNT] =
     { C_STRING_WITH_LEN("comment") },
     { C_STRING_WITH_LEN("char(64)") },
     { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("time_zone") },
+    { C_STRING_WITH_LEN("char(64)") },
+    { C_STRING_WITH_LEN("latin1") }
   }
 };
 
@@ -183,6 +188,14 @@ mysql_event_fill_row(THD *thd, TABLE *table, Event_parse_data *et,
 
   if (et->expression)
   {
+    const String *tz_name= thd->variables.time_zone->get_name();
+    if (!is_update || !et->starts_null)
+    {
+      fields[ET_FIELD_TIME_ZONE]->set_notnull();
+      fields[ET_FIELD_TIME_ZONE]->store(tz_name->ptr(), tz_name->length(),
+                                        tz_name->charset());
+    }
+
     fields[ET_FIELD_INTERVAL_EXPR]->set_notnull();
     fields[ET_FIELD_INTERVAL_EXPR]->store((longlong)et->expression, TRUE);
 
@@ -197,26 +210,40 @@ mysql_event_fill_row(THD *thd, TABLE *table, Event_parse_data *et,
 
     if (!et->starts_null)
     {
+      TIME time;
+      my_tz_UTC->gmt_sec_to_TIME(&time, et->starts);
+
       fields[ET_FIELD_STARTS]->set_notnull();
-      fields[ET_FIELD_STARTS]->store_time(&et->starts, MYSQL_TIMESTAMP_DATETIME);
+      fields[ET_FIELD_STARTS]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
     }
 
     if (!et->ends_null)
     {
+      TIME time;
+      my_tz_UTC->gmt_sec_to_TIME(&time, et->ends);
+
       fields[ET_FIELD_ENDS]->set_notnull();
-      fields[ET_FIELD_ENDS]->store_time(&et->ends, MYSQL_TIMESTAMP_DATETIME);
+      fields[ET_FIELD_ENDS]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
     }
   }
-  else if (et->execute_at.year)
+  else if (et->execute_at)
   {
+    const String *tz_name= thd->variables.time_zone->get_name();
+    fields[ET_FIELD_TIME_ZONE]->set_notnull();
+    fields[ET_FIELD_TIME_ZONE]->store(tz_name->ptr(), tz_name->length(),
+                                      tz_name->charset());
+
     fields[ET_FIELD_INTERVAL_EXPR]->set_null();
     fields[ET_FIELD_TRANSIENT_INTERVAL]->set_null();
     fields[ET_FIELD_STARTS]->set_null();
     fields[ET_FIELD_ENDS]->set_null();
     
+    TIME time;
+    my_tz_UTC->gmt_sec_to_TIME(&time, et->execute_at);
+
     fields[ET_FIELD_EXECUTE_AT]->set_notnull();
     fields[ET_FIELD_EXECUTE_AT]->
-                        store_time(&et->execute_at, MYSQL_TIMESTAMP_DATETIME);
+                        store_time(&time, MYSQL_TIMESTAMP_DATETIME);
   }
   else
   {
@@ -527,6 +554,8 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
 
   if (check_parse_params(thd, parse_data))
     goto err;
+  if (parse_data->do_not_create)
+    goto ok;
 
   DBUG_PRINT("info", ("open mysql.event for update"));
   if (open_event_table(thd, TL_WRITE, &table))
@@ -587,7 +616,7 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
     goto err;
   }
 
-  if (!(parse_data->expression) && !(parse_data->execute_at.year))
+  if (!(parse_data->expression) && !(parse_data->execute_at))
   {
     DBUG_PRINT("error", ("neither expression nor execute_at are set!"));
     my_error(ER_EVENT_NEITHER_M_EXPR_NOR_M_AT, MYF(0));
@@ -664,7 +693,7 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
     goto err;
   }
 
-  if (check_parse_params(thd, parse_data))
+  if (check_parse_params(thd, parse_data) || parse_data->do_not_create)
     goto err;
 
   DBUG_PRINT("info", ("dbname: %s", parse_data->dbname.str));
@@ -964,7 +993,7 @@ Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname,
     my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
   else if ((ret= find_named_event(thd, dbname, name, table)))
     my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), name.str);
-  else if ((ret= etn->load_from_row(table)))
+  else if ((ret= etn->load_from_row(thd, table)))
     my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0), "event");
 
   if (table)

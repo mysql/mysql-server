@@ -11,13 +11,28 @@
 #      SELECT c = 3 FROM t;
 #    --source include/wait_condition.inc
 #
+#   OR
+#
+#    let $wait_timeout= 60; # Override default 30 seconds with 60.
+#    let $wait_condition=
+#      SELECT c = 3 FROM t;
+#    --source include/wait_condition.inc
+#
 # EXAMPLE
-#    events_bugs.test
+#    events_bugs.test, events_time_zone.test
 #
 
 --disable_query_log
 
 let $wait_counter= 300;
+if ($wait_timeout)
+{
+  let $wait_counter= `SELECT $wait_timeout * 10`;
+}
+# Reset $wait_timeout so that its value won't be used on subsequent
+# calls, and default will be used instead.
+let $wait_timeout= 0;
+
 while ($wait_counter)
 {
     let $success= `$wait_condition`;
