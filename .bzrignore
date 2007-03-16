@@ -1337,3 +1337,5 @@ win/vs71cache.txt
 win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
+netware/init_db.sql
+netware/test_db.sql

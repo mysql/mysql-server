@@ -22,7 +22,7 @@ if [ x$1 = x"--bin" ]; then
   BINARY_DIST=1
 
   bindir=../bin
-  scriptdir=../bin
+  scriptdir=bin
   libexecdir=../libexec
 
   # Check if it's a binary distribution or a 'make install'
@@ -33,7 +33,7 @@ if [ x$1 = x"--bin" ]; then
   then
     execdir=../../sbin
     bindir=../../bin
-    scriptdir=../../bin
+    scriptdir=../bin
     libexecdir=../../libexec
   else
     execdir=../bin
@@ -43,7 +43,7 @@ else
   execdir=../sql
   bindir=../client
   fix_bin=.
-  scriptdir=../scripts
+  scriptdir=scripts
   libexecdir=../libexec
 fi
 
@@ -100,18 +100,14 @@ if [ x$BINARY_DIST = x1 ] ; then
 basedir=..
 else
 basedir=.
-EXTRA_ARG="--language=../sql/share/english/ --character-sets-dir=../sql/share/charsets/"
+EXTRA_ARG="--windows"
 fi
 
-mysqld_boot="${MYSQLD_BOOTSTRAP-$mysqld}"
+INSTALL_CMD="$scriptdir/mysql_install_db --no-defaults $EXTRA_ARG --basedir=$basedir --datadir=mysql-test/$ldata --srcdir=."
+echo "running $INSTALL_CMD"
 
-mysqld_boot="$mysqld_boot --no-defaults --bootstrap --skip-grant-tables \
-    --basedir=$basedir --datadir=$ldata \
-    --skip-innodb --skip-ndbcluster --skip-bdb \
-    $EXTRA_ARG"
-echo "running $mysqld_boot"
-
-if $scriptdir/mysql_create_system_tables test $mdata $hostname | $mysqld_boot
+cd ..
+if $INSTALL_CMD
 then
     exit 0
 else
