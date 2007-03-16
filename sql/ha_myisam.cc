@@ -902,6 +902,22 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
   ha_rows rows= file->state->records;
   DBUG_ENTER("ha_myisam::repair");
 
+  /*
+    Normally this method is entered with a properly opened table. If the
+    repair fails, it can be repeated with more elaborate options. Under
+    special circumstances it can happen that a repair fails so that it
+    closed the data file and cannot re-open it. In this case file->dfile
+    is set to -1. We must not try another repair without an open data
+    file. (Bug #25289)
+  */
+  if (file->dfile == -1)
+  {
+    sql_print_information("Retrying repair of: '%s' failed. "
+                          "Please try REPAIR EXTENDED or myisamchk",
+                          table->path);
+    DBUG_RETURN(HA_ADMIN_FAILED);
+  }
+
   param.db_name    = table->table_cache_key;
   param.table_name = table->table_name;
   param.tmpfile_createflag = O_RDWR | O_TRUNC;
