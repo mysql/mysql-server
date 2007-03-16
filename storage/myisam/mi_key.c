@@ -216,7 +216,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
 */
 
 uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
-                  ulonglong keypart_map, HA_KEYSEG **last_used_keyseg)
+                  key_part_map keypart_map, HA_KEYSEG **last_used_keyseg)
 {
   uchar *start_key=key;
   HA_KEYSEG *keyseg;
@@ -225,7 +225,7 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
 
   /* "one part" rtree key is 2*SPDIMS part key in MyISAM */
   if (info->s->keyinfo[keynr].key_alg == HA_KEY_ALG_RTREE)
-    keypart_map= (ULL(1) << (2*SPDIMS)) - 1;
+    keypart_map= (((key_part_map)1) << (2*SPDIMS)) - 1;
 
   /* only key prefixes are supported */
   DBUG_ASSERT(((keypart_map+1) & keypart_map) == 0);

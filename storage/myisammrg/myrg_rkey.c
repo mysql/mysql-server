@@ -36,7 +36,7 @@
 */
 
 int myrg_rkey(MYRG_INFO *info,byte *buf,int inx, const byte *key,
-            ulonglong keypart_map, enum ha_rkey_function search_flag)
+            key_part_map keypart_map, enum ha_rkey_function search_flag)
 {
   byte *key_buff;
   uint pack_key_length;

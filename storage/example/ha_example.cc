@@ -415,7 +415,7 @@ int ha_example::delete_row(const byte * buf)
 */
 
 int ha_example::index_read(byte * buf, const byte * key,
-                           ulonglong keypart_map __attribute__((unused)),
+                           key_part_map keypart_map __attribute__((unused)),
                            enum ha_rkey_function find_flag
                            __attribute__((unused)))
 {

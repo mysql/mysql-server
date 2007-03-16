@@ -191,7 +191,7 @@ public:
     skip it and and MySQL will treat it as not implemented.
   */
   int index_read(byte * buf, const byte * key,
-                 ulonglong keypart_map, enum ha_rkey_function find_flag);
+                 key_part_map keypart_map, enum ha_rkey_function find_flag);
 
   /** @brief
     We implement this in ha_example.cc. It's not an obligatory method;

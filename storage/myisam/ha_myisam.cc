@@ -1555,7 +1555,7 @@ int ha_myisam::delete_row(const byte * buf)
   return mi_delete(file,buf);
 }
 
-int ha_myisam::index_read(byte *buf, const byte *key, ulonglong keypart_map,
+int ha_myisam::index_read(byte *buf, const byte *key, key_part_map keypart_map,
                           enum ha_rkey_function find_flag)
 {
   DBUG_ASSERT(inited==INDEX);
@@ -1567,7 +1567,7 @@ int ha_myisam::index_read(byte *buf, const byte *key, ulonglong keypart_map,
 }
 
 int ha_myisam::index_read_idx(byte *buf, uint index, const byte *key,
-                              ulonglong keypart_map,
+                              key_part_map keypart_map,
                               enum ha_rkey_function find_flag)
 {
   statistic_increment(table->in_use->status_var.ha_read_key_count,
@@ -1578,7 +1578,7 @@ int ha_myisam::index_read_idx(byte *buf, uint index, const byte *key,
 }
 
 int ha_myisam::index_read_last(byte *buf, const byte *key,
-                               ulonglong keypart_map)
+                               key_part_map keypart_map)
 {
   DBUG_ENTER("ha_myisam::index_read_last");
   DBUG_ASSERT(inited==INDEX);

@@ -1813,7 +1813,7 @@ static bool update_user_table(THD *thd, TABLE *table,
            table->key_info->key_length);
 
   if (table->file->index_read_idx(table->record[0], 0,
-				  (byte *) user_key, ~ULL(0),
+				  (byte *) user_key, HA_WHOLE_KEY,
 				  HA_READ_KEY_EXACT))
   {
     my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH),
@@ -1904,7 +1904,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  if (table->file->index_read_idx(table->record[0], 0, user_key, ~ULL(0),
+  if (table->file->index_read_idx(table->record[0], 0, user_key, HA_WHOLE_KEY,
                                   HA_READ_KEY_EXACT))
   {
     /* what == 'N' means revoke */
@@ -2121,7 +2121,7 @@ static int replace_db_table(TABLE *table, const char *db,
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  if (table->file->index_read_idx(table->record[0],0, user_key, ~ULL(0),
+  if (table->file->index_read_idx(table->record[0],0, user_key, HA_WHOLE_KEY,
                                   HA_READ_KEY_EXACT))
   {
     if (what == 'N')
@@ -2339,7 +2339,7 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
 
     col_privs->file->ha_index_init(0, 1);
     if (col_privs->file->index_read(col_privs->record[0], (byte*) key,
-                                    (ulonglong)15, HA_READ_KEY_EXACT))
+                                    (key_part_map)15, HA_READ_KEY_EXACT))
     {
       cols = 0; /* purecov: deadcode */
       col_privs->file->ha_index_end();
@@ -2501,7 +2501,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
     key_copy(user_key, table->record[0], table->key_info,
              table->key_info->key_length);
 
-    if (table->file->index_read(table->record[0], user_key, ~(ulonglong)0,
+    if (table->file->index_read(table->record[0], user_key, HA_WHOLE_KEY,
                                 HA_READ_KEY_EXACT))
     {
       if (revoke_grant)
@@ -2577,7 +2577,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
     key_copy(user_key, table->record[0], table->key_info,
              key_prefix_length);
 
-    if (table->file->index_read(table->record[0], user_key, (ulonglong)15,
+    if (table->file->index_read(table->record[0], user_key, (key_part_map)15,
                                 HA_READ_KEY_EXACT))
       goto end;
 
@@ -2678,7 +2678,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  if (table->file->index_read_idx(table->record[0], 0, user_key, ~ULL(0),
+  if (table->file->index_read_idx(table->record[0], 0, user_key, HA_WHOLE_KEY,
 				  HA_READ_KEY_EXACT))
   {
     /*
@@ -2796,13 +2796,13 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
   table->field[2]->store(combo.user.str,combo.user.length, &my_charset_latin1);
   table->field[3]->store(routine_name,(uint) strlen(routine_name),
                          &my_charset_latin1);
-  table->field[4]->store((longlong)(is_proc ? 
+  table->field[4]->store((longlong)(is_proc ?
                                     TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION),
                          TRUE);
   store_record(table,record[1]);			// store at pos 1
 
   if (table->file->index_read_idx(table->record[0], 0,
-				  (byte*) table->field[0]->ptr, ~ULL(0),
+				  (byte*) table->field[0]->ptr, HA_WHOLE_KEY,
 				  HA_READ_KEY_EXACT))
   {
     /*
@@ -5001,7 +5001,7 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
     key_copy(user_key, table->record[0], table->key_info, key_prefix_length);
 
     if ((error= table->file->index_read_idx(table->record[0], 0,
-                                            user_key, ULL(3),
+                                            user_key, (key_part_map)3,
                                             HA_READ_KEY_EXACT)))
     {
       if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)

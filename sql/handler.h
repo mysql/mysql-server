@@ -867,17 +867,17 @@ public:
   {}
 };
 
-uint calculate_key_len(TABLE *, uint, const byte *, ulonglong);
+uint calculate_key_len(TABLE *, uint, const byte *, key_part_map);
 /*
   bitmap with first N+1 bits set
   (keypart_map for a key prefix of [0..N] keyparts)
 */
-#define make_keypart_map(N) (((ulonglong)2 << (N)) - 1)
+#define make_keypart_map(N) (((key_part_map)2 << (N)) - 1)
 /*
   bitmap with first N bits set
   (keypart_map for a key prefix of [0..N-1] keyparts)
 */
-#define make_prev_keypart_map(N) (((ulonglong)1 << (N)) - 1)
+#define make_prev_keypart_map(N) (((key_part_map)1 << (N)) - 1)
 
 /*
   The handler class is the interface for dynamically loadable
@@ -1219,14 +1219,26 @@ public:
                          enum ha_rkey_function find_flag)
    { return  HA_ERR_WRONG_COMMAND; }
   public:
-  virtual int index_read(byte * buf, const byte * key, ulonglong keypart_map,
+/**
+  @brief
+  Positions an index cursor to the index specified in the handle. Fetches the
+  row if available. If the key value is null, begin at the first key of the
+  index.
+*/
+  virtual int index_read(byte * buf, const byte * key, key_part_map keypart_map,
                          enum ha_rkey_function find_flag)
    {
      uint key_len= calculate_key_len(table, active_index, key, keypart_map);
      return  index_read(buf, key, key_len, find_flag);
    }
+/**
+  @brief
+  Positions an index cursor to the index specified in the handle. Fetches the
+  row if available. If the key value is null, begin at the first key of the
+  index.
+*/
   virtual int index_read_idx(byte * buf, uint index, const byte * key,
-                             ulonglong keypart_map,
+                             key_part_map keypart_map,
                              enum ha_rkey_function find_flag);
   virtual int index_next(byte * buf)
    { return  HA_ERR_WRONG_COMMAND; }
@@ -1241,8 +1253,13 @@ public:
   virtual int index_read_last(byte * buf, const byte * key, uint key_len)
    { return (my_errno=HA_ERR_WRONG_COMMAND); }
   public:
+/**
+  @brief
+  The following functions works like index_read, but it find the last
+  row with the current key value or prefix.
+*/
   virtual int index_read_last(byte * buf, const byte * key,
-                              ulonglong keypart_map)
+                              key_part_map keypart_map)
    {
      uint key_len= calculate_key_len(table, active_index, key, keypart_map);
      return  index_read_last(buf, key, key_len);
