@@ -2000,7 +2000,6 @@ static char *DbugMalloc(size_t size)
 
 static const char *DbugStrTok(const char *s)
 {
-  const char *start=s;
   while (s[0] && (s[0] != ':' ||
                   (s[1] == '\\' || s[1] == '/' || (s[1] == ':' && s++))))
     s++;
