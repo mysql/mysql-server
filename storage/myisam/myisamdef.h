@@ -604,8 +604,9 @@ extern int _mi_dispose(MI_INFO *info,MI_KEYDEF *keyinfo,my_off_t pos,
 extern my_off_t _mi_new(MI_INFO *info,MI_KEYDEF *keyinfo,int level);
 extern uint _mi_make_key(MI_INFO *info,uint keynr,uchar *key,
 			 const byte *record,my_off_t filepos);
-extern uint _mi_pack_key(MI_INFO *info,uint keynr,uchar *key,uchar *old,
-			 uint key_length, HA_KEYSEG **last_used_keyseg);
+extern uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key,
+                         uchar *old, key_part_map keypart_map,
+                         HA_KEYSEG **last_used_keyseg);
 extern int _mi_read_key_record(MI_INFO *info,my_off_t filepos,byte *buf);
 extern int _mi_read_cache(IO_CACHE *info,byte *buff,my_off_t pos,
 			  uint length,int re_read_if_possibly);
