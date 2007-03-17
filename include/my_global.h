@@ -1020,8 +1020,10 @@ typedef unsigned long long my_ulonglong;
 typedef int intptr;
 #elif SIZEOF_CHARP == SIZEOF_LONG
 typedef long intptr;
+#elif SIZEOF_CHARP == SIZEOF_LONG_LONG
+typedef long long intptr;
 #else
-#error sizeof(void *) is neither sizeof(int) nor sizeof(long)
+#error sizeof(void *) is neither sizeof(int) nor sizeof(long) nor sizeof(long long)
 #endif
 
 #ifdef USE_RAID

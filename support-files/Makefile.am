@@ -26,7 +26,7 @@ EXTRA_DIST =		mysql.spec.sh \
 			mysql-log-rotate.sh \
 			mysql.server.sh \
 			binary-configure.sh \
-			magic \
+			magic mysql.m4 \
 			MySQL-shared-compat.spec.sh \
 			ndb-config-2-node.ini.sh \
 			compiler_warnings.supp
