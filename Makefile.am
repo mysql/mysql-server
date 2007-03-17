@@ -97,7 +97,10 @@ tags:
 .PHONY:	init-db bin-dist \
   test    test-force    test-full    test-force-full    test-force-mem \
   test-pl test-force-pl test-full-pl test-force-full-pl test-force-pl-mem \
-  test-unit test-ps test-nr test-pr test-ns test-binlog-statement
+  test-unit test-ps test-nr test-pr test-ns test-binlog-statement \
+  test-ext-funcs test-ext-rpl test-ext-partitions test-ext \
+  test-fast test-fast-cursor test-fast-view test-fast-prepare \
+  test-full-qa
 
 # Target 'test' will run the regression test suite using the built server.
 #
@@ -120,11 +123,11 @@ test-nr:
 
 test-pr:
 	cd mysql-test ; \
-	@PERL@ ./mysql-test-run.pl $(force) --ps-protocol --mysqld=--binlog-format=row
+	@PERL@ ./mysql-test-run.pl $(force) $(mem) --ps-protocol --mysqld=--binlog-format=row
 
 test-ns:
 	cd mysql-test ; \
-	@PERL@ ./mysql-test-run.pl $(force) --mysqld=--binlog-format=mixed
+	@PERL@ ./mysql-test-run.pl $(force) $(mem) --mysqld=--binlog-format=mixed
 
 test-binlog-statement:
 	cd mysql-test ; \
@@ -142,7 +145,7 @@ test-force-full:
 
 #used by autopush.pl to run memory based tests
 test-force-mem:
-	$(MAKE) 'force=--force --mem' test
+	$(MAKE) force=--force mem=--mem test
 
 # Keep these for a while
 test-pl:	test
@@ -150,6 +153,44 @@ test-full-pl:	test-full
 test-force-pl:	test-force
 test-force-pl-mem:  test-force-mem
 test-force-full-pl: test-force-full
+
+test-ext-funcs:
+	cd mysql-test ; \
+	@PERL@ ./mysql-test-run.pl --force --suite=funcs_1 ; \
+	@PERL@ ./mysql-test-run.pl --force --suite=funcs_2
+
+test-ext-rpl:
+	cd mysql-test ; \
+	@PERL@ ./mysql-test-run.pl --force --suite=rpl
+
+test-ext-partitions:
+	cd mysql-test ; \
+	@PERL@ ./mysql-test-run.pl --force --suite=partitions
+
+test-ext-jp:
+	cd mysql-test ; \
+	@PERL@ ./mysql-test-run.pl --force --suite=jp
+
+test-ext:	test-ext-funcs test-ext-rpl test-ext-partitions test-ext-jp
+
+test-fast:
+	cd mysql-test ; \
+	@PERL@ ./mysql-test-run.pl $(subset) --force --skip-ndb --skip-innodb --skip-im --skip-rpl ; \
+	@PERL@ ./mysql-test-run.pl $(subset) --force --suite=funcs_1 --do-test=myisam
+
+test-fast-view:
+	$(MAKE) subset=--view-protocol test-fast
+
+test-fast-cursor:
+	$(MAKE) subset=--cursor-protocol test-fast
+
+test-fast-prepare:
+	$(MAKE) subset=--ps-protocol test-fast
+
+test-full-qa:
+	$(MAKE) force=--force test-pr \
+	test-binlog-statement test-ext test-fast-view \
+	test-fast-cursor test-unit
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
