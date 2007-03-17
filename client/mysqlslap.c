@@ -248,7 +248,7 @@ static int create_schema(MYSQL *mysql, const char *db, statement *stmt,
               option_string *engine_stmt);
 static int run_scheduler(stats *sptr, statement *stmts, uint concur, 
                          ulonglong limit);
-int run_task(thread_context *con);
+pthread_handler_t run_task(void *p);
 void statement_cleanup(statement *stmt);
 void option_cleanup(option_string *stmt);
 void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr);
@@ -1562,6 +1562,11 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
   pthread_t mainthread;            /* Thread descriptor */
   pthread_attr_t attr;          /* Thread attributes */
 
+  pthread_attr_init(&attr);
+  pthread_attr_setdetachstate(&attr,
+                              PTHREAD_CREATE_DETACHED);
+
+
   pthread_mutex_lock(&counter_mutex);
   thread_counter= 0;
 
@@ -1570,12 +1575,8 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
   pthread_mutex_unlock(&sleeper_mutex);
   for (x= 0; x < concur; x++)
   {
-    pthread_attr_init(&attr);
-    pthread_attr_setdetachstate(&attr,
-                                PTHREAD_CREATE_DETACHED);
-
-    /* now create the thread */
-    if (pthread_create(&mainthread, &attr, (void *)run_task, 
+    /* nowucreate the thread */
+    if (pthread_create(&mainthread, &attr, run_task, 
                        (void *)&con) != 0)
     {
       fprintf(stderr,"%s: Could not create thread\n",
@@ -1605,6 +1606,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
     pthread_cond_timedwait(&count_threshhold, &counter_mutex, &abstime);
   }
   pthread_mutex_unlock(&counter_mutex);
+  pthread_attr_destroy(&attr);
 
   gettimeofday(&end_time, NULL);
 
@@ -1617,14 +1619,14 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
 }
 
 
-int
-run_task(thread_context *con)
+pthread_handler_t run_task(void *p)
 {
   ulonglong counter= 0, queries;
   MYSQL *mysql;
   MYSQL_RES *result;
   MYSQL_ROW row;
   statement *ptr;
+  thread_context *con= (thread_context *)p;
 
   DBUG_ENTER("run_task");
   DBUG_PRINT("info", ("task script \"%s\"", con->stmt ? con->stmt->string : ""));
