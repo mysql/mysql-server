@@ -3773,7 +3773,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
                              nb_elements()));
           /*
             If the auto_increment was second in a table's index (possible with
-            MyISAM or BDB) (table->next_number_key_offset != 0), such event is
+            MyISAM or BDB) (table->next_number_keypart != 0), such event is
             in fact not necessary. We could avoid logging it.
           */
           Intvar_log_event e(thd, (uchar) INSERT_ID_EVENT,
