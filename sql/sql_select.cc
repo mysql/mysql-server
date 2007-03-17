@@ -10980,7 +10980,8 @@ int safe_index_read(JOIN_TAB *tab)
   TABLE *table= tab->table;
   if ((error=table->file->index_read(table->record[0],
 				     tab->ref.key_buff,
-				     tab->ref.key_length, HA_READ_KEY_EXACT)))
+                                     make_prev_keypart_map(tab->ref.key_parts),
+                                     HA_READ_KEY_EXACT)))
     return report_error(table, error);
   return 0;
 }
@@ -11118,7 +11119,8 @@ join_read_const(JOIN_TAB *tab)
     {
       error=table->file->index_read_idx(table->record[0],tab->ref.key,
 					(byte*) tab->ref.key_buff,
-					tab->ref.key_length,HA_READ_KEY_EXACT);
+                                        make_prev_keypart_map(tab->ref.key_parts),
+                                        HA_READ_KEY_EXACT);
     }
     if (error)
     {
@@ -11161,7 +11163,8 @@ join_read_key(JOIN_TAB *tab)
     }
     error=table->file->index_read(table->record[0],
 				  tab->ref.key_buff,
-				  tab->ref.key_length,HA_READ_KEY_EXACT);
+                                  make_prev_keypart_map(tab->ref.key_parts),
+                                  HA_READ_KEY_EXACT);
     if (error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       return report_error(table, error);
   }
@@ -11189,7 +11192,8 @@ join_read_always_key(JOIN_TAB *tab)
     return -1;
   if ((error=table->file->index_read(table->record[0],
 				     tab->ref.key_buff,
-				     tab->ref.key_length,HA_READ_KEY_EXACT)))
+                                     make_prev_keypart_map(tab->ref.key_parts),
+                                     HA_READ_KEY_EXACT)))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       return report_error(table, error);
@@ -11215,8 +11219,7 @@ join_read_last_key(JOIN_TAB *tab)
   if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
     return -1;
   if ((error=table->file->index_read_last(table->record[0],
-					  tab->ref.key_buff,
-					  tab->ref.key_length)))
+                tab->ref.key_buff, make_prev_keypart_map(tab->ref.key_parts))))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       return report_error(table, error);
@@ -11757,7 +11760,7 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       group->buff[-1]= (char) group->field->is_null();
   }
   if (!table->file->index_read(table->record[1],
-			       join->tmp_table_param.group_buff,0,
+			       join->tmp_table_param.group_buff, HA_WHOLE_KEY,
 			       HA_READ_KEY_EXACT))
   {						/* Update old record */
     restore_record(table,record[1]);

@@ -47,7 +47,6 @@ typedef Bitmap<64>  key_map;          /* Used for finding keys */
 #else
 typedef Bitmap<((MAX_INDEXES+7)/8*8)> key_map; /* Used for finding keys */
 #endif
-typedef ulong key_part_map;           /* Used for finding key parts */
 typedef ulong nesting_map;  /* Used for flags of nesting constructs */
 /*
   Used to identify NESTED_JOIN structures within a join (applicable only to
@@ -1493,7 +1492,7 @@ void print_plan(JOIN* join,uint idx, double record_count, double read_time,
 void mysql_print_status();
 /* key.cc */
 int find_ref_key(KEY *key, uint key_count, byte *record, Field *field,
-                 uint *key_length);
+                 uint *key_length, uint *keypart);
 void key_copy(byte *to_key, byte *from_record, KEY *key_info, uint key_length);
 void key_restore(byte *to_record, byte *from_key, KEY *key_info,
                  uint key_length);
