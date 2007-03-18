@@ -1560,6 +1560,10 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
   con.limit= limit;
 
   pthread_t mainthread;            /* Thread descriptor */
+  pthread_attr_t attr;          /* Thread attributes */
+  pthread_attr_init(&attr);
+  pthread_attr_setdetachstate(&attr,
+		  PTHREAD_CREATE_DETACHED);
 
   pthread_mutex_lock(&counter_mutex);
   thread_counter= 0;
@@ -1570,7 +1574,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
   for (x= 0; x < concur; x++)
   {
     /* nowucreate the thread */
-    if (pthread_create(&mainthread, NULL, run_task, 
+    if (pthread_create(&mainthread, &attr, run_task, 
                        (void *)&con) != 0)
     {
       fprintf(stderr,"%s: Could not create thread\n",
@@ -1580,6 +1584,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
     thread_counter++;
   }
   pthread_mutex_unlock(&counter_mutex);
+  pthread_attr_destroy(&attr);
 
   pthread_mutex_lock(&sleeper_mutex);
   master_wakeup= 0;
