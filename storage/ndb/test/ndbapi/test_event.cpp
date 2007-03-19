@@ -842,11 +842,12 @@ int runEventListenerUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
   int result = NDBT_OK;
   const NdbDictionary::Table * table= ctx->getTab();
   HugoTransactions hugoTrans(* table);
+  Ndb* ndb= GETNDB(step);
 
   char buf[1024];
   sprintf(buf, "%s_EVENT", table->getName());
   NdbEventOperation *pOp, *pCreate = 0;
-  pCreate = pOp = GETNDB(step)->createEventOperation(buf);
+  pCreate = pOp = ndb->createEventOperation(buf);
   if ( pOp == NULL ) {
     g_err << "Event operation creation failed on %s" << buf << endl;
     return NDBT_FAILED;
@@ -870,7 +871,6 @@ int runEventListenerUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
     goto end;
   }
   
-  Ndb* ndb= GETNDB(step);
   while(!ctx->isTestStopped())
   {
     Uint64 curr_gci = 0;
@@ -887,10 +887,10 @@ int runEventListenerUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
 end:
   if(pCreate)
   {
-    if (GETNDB(step)->dropEventOperation(pCreate)) {
+    if (ndb->dropEventOperation(pCreate)) {
       g_err << "dropEventOperation execution failed "
-	    << GETNDB(step)->getNdbError().code << " "
-	    << GETNDB(step)->getNdbError().message << endl;
+	    << ndb->getNdbError().code << " "
+	    << ndb->getNdbError().message << endl;
       result = NDBT_FAILED;
     }
   }
