@@ -132,7 +132,7 @@ trap 'echo "Clearning up and exiting..." ; rm -fr $DESTDIR; exit 1' ERR
 # Adjust target name if needed, release with debug info has another name
 # ----------------------------------------------------------------------
 
-if [ x"$TARGET" = x"release" -a "client/relwithdebinfo/mysql.exe" ]
+if [ x"$TARGET" = x"release" -a -f "client/relwithdebinfo/mysql.exe" ]
 then
   TARGET="relwithdebinfo"
 fi
