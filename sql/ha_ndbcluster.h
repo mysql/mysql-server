@@ -642,8 +642,6 @@ class ha_ndbcluster: public handler
   int index_end();
   int index_read(byte *buf, const byte *key, uint key_len, 
                  enum ha_rkey_function find_flag);
-  int index_read_idx(byte *buf, uint index, const byte *key, uint key_len, 
-                     enum ha_rkey_function find_flag);
   int index_next(byte *buf);
   int index_prev(byte *buf);
   int index_first(byte *buf);

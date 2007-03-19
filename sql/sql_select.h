@@ -192,7 +192,7 @@ typedef struct st_join_table {
   JOIN		*join;
   /* Bitmap of nested joins this table is part of */
   nested_join_map embedding_map;
-  
+
   void cleanup();
   inline bool is_using_loose_index_scan()
   {
@@ -331,7 +331,7 @@ public:
 
   bool need_tmp, hidden_group_fields;
   DYNAMIC_ARRAY keyuse;
-  Item::cond_result cond_value;
+  Item::cond_result cond_value, having_value;
   List<Item> all_fields; // to store all fields that used in query
   //Above list changed to use temporary table
   List<Item> tmp_all_fields1, tmp_all_fields2, tmp_all_fields3;
