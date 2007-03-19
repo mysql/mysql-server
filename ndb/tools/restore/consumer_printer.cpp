@@ -14,6 +14,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "consumer_printer.hpp"
+extern FilteredNdbOut info;
+extern NdbRecordPrintFormat g_ndbrecord_print_format;
+extern const char *tab_path;
 
 bool
 BackupPrinter::table(const TableS & tab)
@@ -21,7 +24,8 @@ BackupPrinter::table(const TableS & tab)
   if (m_print || m_print_meta) 
   {
     m_ndbout << tab;
-    ndbout_c("Successfully printed table: %s", tab.m_dictTable->getName());
+    info.setLevel(254);
+    info << "Successfully printed table: ", tab.m_dictTable->getName();
   }
   return true;
 }
@@ -31,7 +35,14 @@ BackupPrinter::tuple(const TupleS & tup)
 {
   m_dataCount++;
   if (m_print || m_print_data)
-    m_ndbout << tup << endl;  
+  {
+    if (m_ndbout.m_out == info.m_out)
+    {
+      info.setLevel(254);
+      info << tup.getTable()->getTableName() << "; ";
+    }
+    m_ndbout << tup << g_ndbrecord_print_format.lines_terminated_by;  
+  }
 }
 
 void
@@ -47,8 +58,9 @@ BackupPrinter::endOfLogEntrys()
 {
   if (m_print || m_print_log) 
   {
-    ndbout << "Printed " << m_dataCount << " tuples and "
-	   << m_logCount << " log entries" 
-	   << " to stdout." << endl;
+    info.setLevel(254);
+    info << "Printed " << m_dataCount << " tuples and "
+         << m_logCount << " log entries" 
+         << " to stdout." << endl;
   }
 }
