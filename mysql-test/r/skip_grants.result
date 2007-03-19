@@ -58,3 +58,15 @@ DROP PROCEDURE p3;
 DROP FUNCTION f1;
 DROP FUNCTION f2;
 DROP FUNCTION f3;
+select count(*) from information_schema.COLUMN_PRIVILEGES;
+count(*)
+0
+select count(*) from information_schema.SCHEMA_PRIVILEGES;
+count(*)
+0
+select count(*) from information_schema.TABLE_PRIVILEGES;
+count(*)
+0
+select count(*) from information_schema.USER_PRIVILEGES;
+count(*)
+0

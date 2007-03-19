@@ -3263,6 +3263,43 @@ a IS TRUE	old_istrue	a IS NOT TRUE	old_isnottrue	a IS FALSE	old_isfalse	a IS NOT
 drop view view_24532_a;
 drop view view_24532_b;
 drop table table_24532;
+CREATE TABLE t1 (
+lid int NOT NULL PRIMARY KEY,
+name char(10) NOT NULL
+);
+INSERT INTO t1 (lid, name) VALUES
+(1, 'YES'), (2, 'NO');
+CREATE TABLE t2 (
+id int NOT NULL PRIMARY KEY, 
+gid int NOT NULL,
+lid int NOT NULL,
+dt date
+);
+INSERT INTO t2 (id, gid, lid, dt) VALUES
+(1, 1, 1, '2007-01-01'),(2, 1, 2, '2007-01-02'),
+(3, 2, 2, '2007-02-01'),(4, 2, 1, '2007-02-02');
+SELECT DISTINCT t2.gid AS lgid,
+(SELECT t1.name FROM t1, t2
+WHERE t1.lid  = t2.lid AND t2.gid = lgid
+ORDER BY t2.dt DESC LIMIT 1
+) as clid
+FROM t2;
+lgid	clid
+1	NO
+2	YES
+CREATE VIEW v1 AS
+SELECT DISTINCT t2.gid AS lgid,
+(SELECT t1.name FROM t1, t2
+WHERE t1.lid  = t2.lid AND t2.gid = lgid
+ORDER BY t2.dt DESC LIMIT 1
+) as clid
+FROM t2;
+SELECT * FROM v1;
+lgid	clid
+1	NO
+2	YES
+DROP VIEW v1;
+DROP table t1,t2;
 End of 5.0 tests.
 DROP DATABASE IF EXISTS `d-1`;
 CREATE DATABASE `d-1`;

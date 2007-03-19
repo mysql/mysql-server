@@ -295,8 +295,7 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
   rkey_id->store((longlong) key_id, TRUE);
   rkey_id->get_key_image(buff, rkey_id->pack_length(), Field::itRAW);
   int key_res= relations->file->index_read(relations->record[0],
-                                           (byte *) buff,
-                                           rkey_id->pack_length(),
+                                           (byte *) buff, (key_part_map)1,
                                            HA_READ_KEY_EXACT);
 
   for ( ;
@@ -310,7 +309,7 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
     field->get_key_image(topic_id_buff, field->pack_length(), Field::itRAW);
 
     if (!topics->file->index_read(topics->record[0], (byte *)topic_id_buff,
-				  field->pack_length(), HA_READ_KEY_EXACT))
+				  (key_part_map)1, HA_READ_KEY_EXACT))
     {
       memorize_variant_topic(thd,topics,count,find_fields,
 			     names,name,description,example);
@@ -567,7 +566,7 @@ SQL_SELECT *prepare_simple_select(THD *thd, Item *cond,
     cond->fix_fields(thd, &cond);	// can never fail
 
   /* Assume that no indexes cover all required fields */
-  table->used_keys.clear_all();
+  table->covering_keys.clear_all();
 
   SQL_SELECT *res= make_select(table, 0, 0, cond, 0, error);
   if (*error || (res && res->check_quick(thd, 0, HA_POS_ERROR)) ||

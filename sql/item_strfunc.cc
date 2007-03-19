@@ -964,18 +964,18 @@ String *Item_func_insert::val_str(String *str)
       args[3]->null_value)
     goto null; /* purecov: inspected */
 
-  if ((start < 0) || (start > res->length() + 1))
+  if ((start < 0) || (start > res->length()))
     return res;                                 // Wrong param; skip insert
-  if ((length < 0) || (length > res->length() + 1))
-    length= res->length() + 1;
+  if ((length < 0) || (length > res->length()))
+    length= res->length();
 
   /* start and length are now sufficiently valid to pass to charpos function */
    start= res->charpos((int) start);
    length= res->charpos((int) length, (uint32) start);
 
   /* Re-testing with corrected params */
-  if (start > res->length() + 1)
-    return res;                                 // Wrong param; skip insert
+  if (start > res->length())
+    return res; /* purecov: inspected */        // Wrong param; skip insert
   if (length > res->length() - start)
     length= res->length() - start;
 
@@ -1181,11 +1181,10 @@ void Item_func_substr::fix_length_and_dec()
   if (args[1]->const_item())
   {
     int32 start= (int32) args[1]->val_int();
-    start= (int32)((start < 0) ? max_length + start : start - 1);
-    if (start < 0 || start >= (int32) max_length)
-      max_length=0; /* purecov: inspected */
+    if (start < 0)
+      max_length= ((uint)(-start) > max_length) ? 0 : (uint)(-start);
     else
-      max_length-= (uint) start;
+      max_length-= min((uint)(start - 1), max_length);
   }
   if (arg_count == 3 && args[2]->const_item())
   {
