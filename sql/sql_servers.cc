@@ -25,6 +25,7 @@
 #include "sp_head.h"
 #include "sp.h"
 
+static my_bool servers_load(THD *thd, TABLE_LIST *tables);
 HASH servers_cache;
 pthread_mutex_t servers_cache_mutex;                // To init the hash
 uint servers_cache_initialised=FALSE;
@@ -353,8 +354,7 @@ my_bool server_exists_in_table(THD *thd, LEX_SERVER_OPTIONS *server_options)
                          system_charset_info);
 
   if ((error= table->file->index_read_idx(table->record[0], 0,
-                                   (byte *)table->field[0]->ptr,
-                                   table->key_info[0].key_length,
+                                   (byte *)table->field[0]->ptr, HA_WHOLE_KEY,
                                    HA_READ_KEY_EXACT)))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
@@ -554,8 +554,7 @@ int insert_server_record(TABLE *table, FOREIGN_SERVER *server)
 
   /* read index until record is that specified in server_name */
   if ((error= table->file->index_read_idx(table->record[0], 0,
-                                   (byte *)table->field[0]->ptr,
-                                   table->key_info[0].key_length,
+                                   (byte *)table->field[0]->ptr, HA_WHOLE_KEY,
                                    HA_READ_KEY_EXACT)))
   {
     /* if not found, err */
@@ -873,8 +872,7 @@ int update_server_record(TABLE *table, FOREIGN_SERVER *server)
                          system_charset_info);
 
   if ((error= table->file->index_read_idx(table->record[0], 0,
-                                   (byte *)table->field[0]->ptr,
-                                   table->key_info[0].key_length,
+                                   (byte *)table->field[0]->ptr, ~(longlong)0,
                                    HA_READ_KEY_EXACT)))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
@@ -928,8 +926,7 @@ int delete_server_record(TABLE *table,
   table->field[0]->store(server_name, server_name_length, system_charset_info);
 
   if ((error= table->file->index_read_idx(table->record[0], 0,
-                                   (byte *)table->field[0]->ptr,
-                                   table->key_info[0].key_length,
+                                   (byte *)table->field[0]->ptr, HA_WHOLE_KEY,
                                    HA_READ_KEY_EXACT)))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)

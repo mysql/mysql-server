@@ -453,3 +453,51 @@ ALTER TABLE t1 DISABLE KEYS;
 EXPLAIN SELECT MAX(a) FROM t1 FORCE INDEX(a);
 
 drop table t1;
+
+#
+# Bug #24778: Innodb: No result when using ORDER BY
+#
+CREATE TABLE t1 (
+  a INTEGER auto_increment PRIMARY KEY,
+  b INTEGER NOT NULL,
+  c INTEGER NOT NULL,
+  d CHAR(64)
+);
+
+CREATE TABLE t2 (
+  a INTEGER auto_increment PRIMARY KEY,
+  b INTEGER NOT NULL,
+  c SMALLINT NOT NULL,
+  d DATETIME NOT NULL,
+  e SMALLINT NOT NULL,
+  f INTEGER NOT NULL,
+  g INTEGER NOT NULL,  
+  h SMALLINT NOT NULL,
+  i INTEGER NOT NULL,
+  j INTEGER NOT NULL,
+  UNIQUE INDEX (b),
+  INDEX (b, d, e, f, g, h, i, j, c),
+  INDEX (c)
+);
+
+INSERT INTO t2 VALUES 
+  (NULL, 1, 254, '1000-01-01 00:00:00', 257, 0, 0, 0, 0, 0),
+  (NULL, 2, 1, '2004-11-30 12:00:00', 1, 0, 0, 0, 0, 0),
+  (NULL, 3, 1, '2004-11-30 12:00:00', 1, 0, 0, 2, -21600, 0),
+  (NULL, 4, 1, '2004-11-30 12:00:00', 1, 0, 0, 2, -10800, 0),
+  (NULL, 5, 1, '2004-11-30 12:00:00', 1, 0, 0, 5, -10800, 0),
+  (NULL, 6, 1, '2004-11-30 12:00:00', 102, 0, 0, 0, 0, 0),
+  (NULL, 7, 1, '2004-11-30 12:00:00', 105, 2, 0, 0, 0, 0),
+  (NULL, 8, 1, '2004-11-30 12:00:00', 105, 10, 0, 0, 0, 0);
+
+INSERT INTO t1 (b, c, d) VALUES
+  (3388000, -553000, NULL),
+  (3388000, -553000, NULL);
+
+SELECT *
+FROM t2 c JOIN t1 pa ON c.b = pa.a 
+WHERE c.c = 1
+ORDER BY c.b, c.d
+;
+
+DROP TABLE t1, t2;
