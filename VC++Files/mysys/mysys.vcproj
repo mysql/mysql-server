@@ -591,9 +591,6 @@
 			RelativePath="my_windac.c">
 		</File>
 		<File
-			RelativePath="my_winsem.c">
-		</File>
-		<File
 			RelativePath="my_winthread.c">
 		</File>
 		<File
