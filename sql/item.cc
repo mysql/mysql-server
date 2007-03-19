@@ -1791,9 +1791,10 @@ void Item_ident::print(String *str)
     }
   }
 
-  if (!table_name || !field_name)
+  if (!table_name || !field_name || !field_name[0])
   {
-    const char *nm= field_name ? field_name : name ? name : "tmp_field";
+    const char *nm= (field_name && field_name[0]) ?
+                      field_name : name ? name : "tmp_field";
     append_identifier(thd, str, nm, (uint) strlen(nm));
     return;
   }
@@ -3354,7 +3355,7 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
   ORDER *group_list= (ORDER*) select->group_list.first;
   bool ambiguous_fields= FALSE;
   uint counter;
-  bool not_used;
+  enum_resolution_type resolution;
 
   /*
     Search for a column or derived column named as 'ref' in the SELECT
@@ -3362,8 +3363,10 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
   */
   if (!(select_ref= find_item_in_list(ref, *(select->get_item_list()),
                                       &counter, REPORT_EXCEPT_NOT_FOUND,
-                                      &not_used)))
+                                      &resolution)))
     return NULL; /* Some error occurred. */
+  if (resolution == RESOLVED_AGAINST_ALIAS)
+    ref->alias_name_used= TRUE;
 
   /* If this is a non-aggregated field inside HAVING, search in GROUP BY. */
   if (select->having_fix_field && !ref->with_sum_func && group_list)
@@ -3473,7 +3476,12 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
   */
   Name_resolution_context *last_checked_context= context;
   Item **ref= (Item **) not_found_item;
-  Name_resolution_context *outer_context= context->outer_context;
+  SELECT_LEX *current_sel= (SELECT_LEX *) thd->lex->current_select;
+  Name_resolution_context *outer_context= 0;
+  /* Currently derived tables cannot be correlated */
+  if (current_sel->master_unit()->first_select()->linkage !=
+      DERIVED_TABLE_TYPE)
+    outer_context= context->outer_context;
   for (;
        outer_context;
        outer_context= outer_context->outer_context)
@@ -3664,9 +3672,9 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
     *ref= NULL;                             // Don't call set_properties()
     rf= (place == IN_HAVING ?
          new Item_ref(context, ref, (char*) table_name,
-                      (char*) field_name) :
+                      (char*) field_name, alias_name_used) :
          new Item_direct_ref(context, ref, (char*) table_name,
-                             (char*) field_name));
+                             (char*) field_name, alias_name_used));
     *ref= save;
     if (!rf)
       return -1;
@@ -3784,12 +3792,14 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       if (thd->lex->current_select->is_item_list_lookup)
       {
         uint counter;
-        bool not_used;
+        enum_resolution_type resolution;
         Item** res= find_item_in_list(this, thd->lex->current_select->item_list,
                                       &counter, REPORT_EXCEPT_NOT_FOUND,
-                                      &not_used);
+                                      &resolution);
         if (!res)
           return 1;
+        if (resolution == RESOLVED_AGAINST_ALIAS)
+          alias_name_used= TRUE;
         if (res != (Item **)not_found_item)
         {
           if ((*res)->type() == Item::FIELD_ITEM)
@@ -4993,12 +5003,30 @@ Item *Item_field::update_value_transformer(byte *select_arg)
 }
 
 
+void Item_field::print(String *str)
+{
+  if (field && field->table->const_table)
+  {
+    char buff[MAX_FIELD_WIDTH];
+    String tmp(buff,sizeof(buff),str->charset());
+    field->val_str(&tmp);
+    str->append('\'');
+    str->append(tmp);
+    str->append('\'');
+    return;
+  }
+  Item_ident::print(str);
+}
+
+
 Item_ref::Item_ref(Name_resolution_context *context_arg,
                    Item **item, const char *table_name_arg,
-                   const char *field_name_arg)
+                   const char *field_name_arg,
+                   bool alias_name_used_arg)
   :Item_ident(context_arg, NullS, table_name_arg, field_name_arg),
    result_field(0), ref(item)
 {
+  alias_name_used= alias_name_used_arg;
   /*
     This constructor used to create some internals references over fixed items
   */
@@ -5281,11 +5309,13 @@ void Item_ref::set_properties()
   */
   with_sum_func= (*ref)->with_sum_func;
   unsigned_flag= (*ref)->unsigned_flag;
+  fixed= 1;
+  if (alias_name_used)
+    return;
   if ((*ref)->type() == FIELD_ITEM)
     alias_name_used= ((Item_ident *) (*ref))->alias_name_used;
   else
     alias_name_used= TRUE; // it is not field, so it is was resolved by alias
-  fixed= 1;
 }
 
 
@@ -5303,7 +5333,7 @@ void Item_ref::print(String *str)
   if (ref)
   {
     if ((*ref)->type() != Item::CACHE_ITEM && ref_type() != VIEW_REF &&
-        ref_type() != OUTER_REF && name && alias_name_used)
+        !table_name && name && alias_name_used)
     {
       THD *thd= current_thd;
       append_identifier(thd, str, name, (uint) strlen(name));

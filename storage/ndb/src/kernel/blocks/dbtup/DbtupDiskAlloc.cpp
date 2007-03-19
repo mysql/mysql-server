@@ -14,6 +14,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #define DBTUP_C
+#define DBTUP_DISK_ALLOC_CPP
 #include "Dbtup.hpp"
 
 static bool f_undo_done = true;

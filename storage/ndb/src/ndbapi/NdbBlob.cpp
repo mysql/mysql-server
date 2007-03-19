@@ -1031,7 +1031,9 @@ NdbBlob::writeDataPrivate(const char* buf, Uint32 bytes)
         DBUG_RETURN(-1);
       Uint32 n = thePartSize - off;
       if (n > len) {
-        memset(thePartBuf.data + off + len, theFillChar, n - len);
+        /* If we are adding data at the end, fill rest of part. */
+        if (pos + len >= theLength)
+          memset(thePartBuf.data + off + len, theFillChar, n - len);
         n = len;
       }
       memcpy(thePartBuf.data + off, buf, n);

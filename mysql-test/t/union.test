@@ -900,4 +900,17 @@ drop table t1, t2;
 #
 select _utf8'12' union select _latin1'12345';
 
+#
+# Bug #26661: UNION with ORDER BY undefined column in FROM list
+#
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (3),(1),(2),(4),(1);
+
+SELECT a FROM (SELECT a FROM t1 UNION SELECT a FROM t1 ORDER BY a) AS test;
+--error 1054 
+SELECT a FROM (SELECT a FROM t1 UNION SELECT a FROM t1 ORDER BY c) AS test;
+
+DROP TABLE t1;
+
 --echo End of 5.0 tests
