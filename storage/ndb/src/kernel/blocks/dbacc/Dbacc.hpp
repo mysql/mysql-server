@@ -760,7 +760,7 @@ private:
   void increaselistcont(Signal* signal);
   void seizeLeftlist(Signal* signal);
   void seizeRightlist(Signal* signal);
-  Uint32 readTablePk(Uint32 localkey1, Uint32 eh, const Operationrec*);
+  Uint32 readTablePk(Uint32 localkey1, Uint32 eh, OperationrecPtr);
   Uint32 getElement(Signal* signal, OperationrecPtr& lockOwner);
   void getdirindex(Signal* signal);
   void commitdelete(Signal* signal);
