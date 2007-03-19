@@ -106,7 +106,6 @@ int hp_rb_write_key(HP_INFO *info, HP_KEYDEF *keyinfo, const byte *record,
   heap_rb_param custom_arg;
   uint old_allocated;
 
-  info->last_pos= NULL; /* For heap_rnext/heap_rprev */
   custom_arg.keyseg= keyinfo->seg;
   custom_arg.key_length= hp_rb_make_key(keyinfo, info->recbuf, record, recpos);
   if (keyinfo->flag & HA_NOSAME)
