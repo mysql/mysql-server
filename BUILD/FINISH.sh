@@ -4,7 +4,7 @@ extra_configs="$extra_configs $local_infile_configs"
 configure="./configure $base_configs $extra_configs"
 
 commands="\
-$make -k distclean || true 
+$make -k maintainer-clean || true 
 /bin/rm -rf */.deps/*.P configure config.cache storage/*/configure storage/*/config.cache autom4te.cache storage/*/autom4te.cache;
 
 path=`dirname $0`

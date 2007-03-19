@@ -26,7 +26,7 @@ EXTRA_DIST =		mysql.spec.sh \
 			mysql-log-rotate.sh \
 			mysql.server.sh \
 			binary-configure.sh \
-			magic \
+			magic mysql.m4 \
 			MySQL-shared-compat.spec.sh \
 			ndb-config-2-node.ini.sh \
 			compiler_warnings.supp
@@ -43,6 +43,9 @@ pkgdata_DATA =		my-small.cnf \
 			ndb-config-2-node.ini
 
 pkgdata_SCRIPTS =	mysql.server
+
+aclocaldir =		$(datadir)/aclocal
+aclocal_DATA =		mysql.m4
 
 noinst_DATA = mysql-@VERSION@.spec \
 			MySQL-shared-compat.spec

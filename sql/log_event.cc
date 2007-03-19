@@ -6854,9 +6854,8 @@ replace_record(THD *thd, TABLE *table,
       }
 
       key_copy((byte*)key.get(), table->record[0], table->key_info + keynum, 0);
-      error= table->file->index_read_idx(table->record[1], keynum, 
-                                         (const byte*)key.get(),
-                                         table->key_info[keynum].key_length,
+      error= table->file->index_read_idx(table->record[1], keynum,
+                                         (const byte*)key.get(), HA_WHOLE_KEY,
                                          HA_READ_KEY_EXACT);
       if (error)
         DBUG_RETURN(error);
@@ -7040,8 +7039,7 @@ static int find_and_fetch_row(TABLE *table, byte *key)
     my_ptrdiff_t const pos=
       table->s->null_bytes > 0 ? table->s->null_bytes - 1 : 0;
     table->record[1][pos]= 0xFF;
-    if ((error= table->file->index_read(table->record[1], key,
-                                        table->key_info->key_length,
+    if ((error= table->file->index_read(table->record[1], key, HA_WHOLE_KEY,
                                         HA_READ_KEY_EXACT)))
     {
       table->file->print_error(error, MYF(0));
