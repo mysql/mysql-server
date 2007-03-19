@@ -1604,7 +1604,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   DBUG_ENTER("dispatch_command");
 
   if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
+  {
     thd->killed= THD::NOT_KILLED;
+    thd->mysys_var->abort= 0;
+  }
 
   thd->command=command;
   /*
@@ -3023,7 +3026,7 @@ mysql_execute_command(THD *thd)
         if (!(create_info.options & HA_LEX_CREATE_TMP_TABLE))
         {
           TABLE_LIST *duplicate;
-          if ((duplicate= unique_table(thd, create_table, select_tables)))
+          if ((duplicate= unique_table(thd, create_table, select_tables, 0)))
           {
             update_non_unique_table_error(create_table, "CREATE", duplicate);
             res= 1;
@@ -3039,7 +3042,7 @@ mysql_execute_command(THD *thd)
                tab= tab->next_local)
           {
             TABLE_LIST *duplicate;
-            if ((duplicate= unique_table(thd, tab, select_tables)))
+            if ((duplicate= unique_table(thd, tab, select_tables, 0)))
             {
               update_non_unique_table_error(tab, "CREATE", duplicate);
               res= 1;
@@ -5402,7 +5405,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
 {
   uint found=0;
   ulong found_access=0;
-#ifndef EMBEDDED_LIBRARY
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   TABLE_LIST *org_tables= tables;
 #endif
   TABLE_LIST *first_not_own_table= thd->lex->first_not_own_table();

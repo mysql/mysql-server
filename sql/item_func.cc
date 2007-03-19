@@ -409,8 +409,13 @@ bool Item_func::eq(const Item *item, bool binary_cmp) const
   if (item->type() != FUNC_ITEM)
     return 0;
   Item_func *item_func=(Item_func*) item;
-  if (arg_count != item_func->arg_count ||
-      func_name() != item_func->func_name())
+  Item_func::Functype func_type;
+  if ((func_type= functype()) != item_func->functype() ||
+      arg_count != item_func->arg_count ||
+      (func_type != Item_func::FUNC_SP &&
+       func_name() != item_func->func_name()) ||
+      (func_type == Item_func::FUNC_SP &&
+       my_strcasecmp(system_charset_info, func_name(), item_func->func_name())))
     return 0;
   for (uint i=0; i < arg_count ; i++)
     if (!args[i]->eq(item_func->args[i], binary_cmp))

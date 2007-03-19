@@ -225,7 +225,7 @@ public:
     ptr=ptr_arg; null_ptr=null_ptr_arg; null_bit=null_bit_arg;
   }
   inline void move_field(char *ptr_arg) { ptr=ptr_arg; }
-  inline void move_field(my_ptrdiff_t ptr_diff)
+  virtual inline void move_field(my_ptrdiff_t ptr_diff)
   {
     ptr=ADD_TO_PTR(ptr,ptr_diff,char*);
     if (null_ptr)
@@ -1407,6 +1407,11 @@ public:
   Field *new_key_field(MEM_ROOT *root, struct st_table *new_table,
                        char *new_ptr, uchar *new_null_ptr,
                        uint new_null_bit);
+  inline void move_field(my_ptrdiff_t ptr_diff)
+  {
+    Field::move_field(ptr_diff);
+    bit_ptr= ADD_TO_PTR(bit_ptr, ptr_diff, uchar*);
+  }
   void set_bit_ptr(uchar *bit_ptr_arg, uchar bit_ofs_arg)
   {
     bit_ptr= bit_ptr_arg;
