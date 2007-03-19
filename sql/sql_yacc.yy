@@ -7561,13 +7561,13 @@ index_hint_definition:
        {
          Select->set_index_hint_type($1, $3);
        }
-       '(' key_usage_list ')';
+       '(' key_usage_list ')'
        | USE_SYM key_or_index index_hint_clause
        {
          Select->set_index_hint_type(INDEX_HINT_USE, $3);
        }
-       '(' opt_key_usage_list ')';
-
+       '(' opt_key_usage_list ')'
+       ;
 
 index_hints_list:
        index_hint_definition         
