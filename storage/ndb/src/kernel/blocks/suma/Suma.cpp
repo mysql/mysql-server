@@ -4996,8 +4996,11 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint32 min_gci,
     {
       continue;
     }
+
+    ndbrequire(sz);
+    sz --; // remove *len* part of sz
     
-    if(sz == 1)
+    if(sz == 0)
     {
       SubGcpCompleteRep * rep = (SubGcpCompleteRep*)signal->getDataPtrSend();
       rep->gci = last_gci;
