@@ -1127,6 +1127,22 @@ select * from t1;
 drop table t1;
 
 #
+# Bug #8663 (cant use bigint as input to CAST)
+#
+select cast(19999999999999999999 as unsigned);
+
+#
+# Bug #24558: Increasing decimal column length causes data loss
+#
+create table t1(a decimal(18));
+insert into t1 values(123456789012345678);
+alter table t1 modify column a decimal(19);
+select * from t1;
+drop table t1;
+
+--echo End of 5.0 tests
+
+#
 # Bug#16172 DECIMAL data type processed incorrectly
 #
 select cast(143.481 as decimal(4,1));
@@ -1136,8 +1152,3 @@ select cast(-3.4 as decimal(2,1));
 select cast(99.6 as decimal(2,0));
 select cast(-13.4 as decimal(2,1));
 select cast(98.6 as decimal(2,0));
-
-# Bug #8663 (cant use bigint as input to CAST)
-#
-select cast(19999999999999999999 as unsigned);
-
