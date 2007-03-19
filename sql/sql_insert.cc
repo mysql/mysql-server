@@ -473,10 +473,15 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   thd->proc_info="init";
   thd->used_tables=0;
   values= its++;
+  value_count= values->elements;
 
   if (mysql_prepare_insert(thd, table_list, table, fields, values,
 			   update_fields, update_values, duplic, &unused_conds,
-                           FALSE))
+                           FALSE,
+                           (fields.elements || !value_count),
+                           !ignore && (thd->variables.sql_mode &
+                                       (MODE_STRICT_TRANS_TABLES |
+                                        MODE_STRICT_ALL_TABLES))))
     goto abort;
 
   /* mysql_prepare_insert set table_list->table if it was not set */
@@ -502,7 +507,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   table_list->next_local= 0;
   context->resolve_in_table_list_only(table_list);
 
-  value_count= values->elements;
   while ((values= its++))
   {
     counter++;
@@ -522,7 +526,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   /*
     Fill in the given fields and dump it to the table file
   */
-  info.records= info.deleted= info.copied= info.updated= 0;
+  info.records= info.deleted= info.copied= info.updated= info.touched= 0;
   info.ignore= ignore;
   info.handle_duplicates=duplic;
   info.update_fields= &update_fields;
@@ -581,17 +585,9 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     table->file->start_bulk_insert(values_list.elements);
 
   thd->no_trans_update= 0;
-  thd->abort_on_warning= (!ignore &&
-                          (thd->variables.sql_mode &
-                           (MODE_STRICT_TRANS_TABLES |
-                            MODE_STRICT_ALL_TABLES)));
-
-  if ((fields.elements || !value_count) &&
-      check_that_all_fields_are_given_values(thd, table, table_list))
-  {
-    /* thd->net.report_error is now set, which will abort the next loop */
-    error= 1;
-  }
+  thd->abort_on_warning= (!ignore && (thd->variables.sql_mode &
+                                       (MODE_STRICT_TRANS_TABLES |
+                                        MODE_STRICT_ALL_TABLES)));
 
   mark_fields_used_by_triggers_for_insert_stmt(thd, table, duplic);
 
@@ -767,8 +763,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       (!table->triggers || !table->triggers->has_delete_triggers()))
     table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
-  /* Reset value of LAST_INSERT_ID if no rows where inserted */
-  if (!info.copied && thd->insert_id_used)
+  /* Reset value of LAST_INSERT_ID if no rows were inserted or touched */
+  if (!info.copied && !info.touched && thd->insert_id_used)
   {
     thd->insert_id(0);
     id=0;
@@ -963,6 +959,10 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
 			be taken from table_list->table)    
     where		Where clause (for insert ... select)
     select_insert	TRUE if INSERT ... SELECT statement
+    check_fields        TRUE if need to check that all INSERT fields are 
+                        given values.
+    abort_on_warning    whether to report if some INSERT field is not 
+                        assigned as an error (TRUE) or as a warning (FALSE).
 
   TODO (in far future)
     In cases of:
@@ -983,7 +983,8 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
                           TABLE *table, List<Item> &fields, List_item *values,
                           List<Item> &update_fields, List<Item> &update_values,
                           enum_duplicates duplic,
-                          COND **where, bool select_insert)
+                          COND **where, bool select_insert,
+                          bool check_fields, bool abort_on_warning)
 {
   SELECT_LEX *select_lex= &thd->lex->select_lex;
   Name_resolution_context *context= &select_lex->context;
@@ -1046,10 +1047,22 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     table_list->next_local= 0;
     context->resolve_in_table_list_only(table_list);
 
-    if (!(res= check_insert_fields(thd, context->table_list, fields, *values,
-                                 !insert_into_view, &map) ||
-          setup_fields(thd, 0, *values, 0, 0, 0)) 
-        && duplic == DUP_UPDATE)
+    res= check_insert_fields(thd, context->table_list, fields, *values,
+                             !insert_into_view, &map) ||
+      setup_fields(thd, 0, *values, 0, 0, 0);
+
+    if (!res && check_fields)
+    {
+      bool saved_abort_on_warning= thd->abort_on_warning;
+      thd->abort_on_warning= abort_on_warning;
+      res= check_that_all_fields_are_given_values(thd, 
+                                                  table ? table : 
+                                                  context->table_list->table,
+                                                  context->table_list);
+      thd->abort_on_warning= saved_abort_on_warning;
+    }
+
+    if (!res && duplic == DUP_UPDATE)
     {
       select_lex->no_wrap_view_item= TRUE;
       res= check_update_fields(thd, context->table_list, update_fields, &map);
@@ -1073,7 +1086,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
   {
     Item *fake_conds= 0;
     TABLE_LIST *duplicate;
-    if ((duplicate= unique_table(thd, table_list, table_list->next_global)))
+    if ((duplicate= unique_table(thd, table_list, table_list->next_global, 1)))
     {
       update_non_unique_table_error(table_list, "INSERT", duplicate);
       DBUG_RETURN(TRUE);
@@ -1221,21 +1234,23 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
           }
           goto err;
         }
+
+        if (table->next_number_field)
+          table->file->adjust_next_insert_id_after_explicit_value(
+            table->next_number_field->val_int());
+
+        info->touched++;
         if ((table->file->table_flags() & HA_PARTIAL_COLUMN_READ) ||
             compare_record(table, thd->query_id))
         {
           info->updated++;
-
-          if (table->next_number_field)
-            table->file->adjust_next_insert_id_after_explicit_value(
-              table->next_number_field->val_int());
-
-          trg_error= (table->triggers &&
-                      table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                                        TRG_ACTION_AFTER,
-                                                        TRUE));
           info->copied++;
         }
+
+        trg_error= (table->triggers &&
+                    table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+                                                      TRG_ACTION_AFTER,
+                                                      TRUE));
         goto ok_or_after_trg_err;
       }
       else /* DUP_REPLACE */
@@ -2324,7 +2339,7 @@ bool mysql_insert_select_prepare(THD *thd)
                            lex->query_tables->table, lex->field_list, 0,
                            lex->update_list, lex->value_list,
                            lex->duplicates,
-                           &select_lex->where, TRUE))
+                           &select_lex->where, TRUE, FALSE, FALSE))
     DBUG_RETURN(TRUE);
 
   /*
@@ -2386,7 +2401,18 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
                            !insert_into_view, &map) ||
        setup_fields(thd, 0, values, 0, 0, 0);
 
-  if (info.handle_duplicates == DUP_UPDATE)
+  if (!res && fields->elements)
+  {
+    bool saved_abort_on_warning= thd->abort_on_warning;
+    thd->abort_on_warning= !info.ignore && (thd->variables.sql_mode &
+                                            (MODE_STRICT_TRANS_TABLES |
+                                             MODE_STRICT_ALL_TABLES));
+    res= check_that_all_fields_are_given_values(thd, table_list->table, 
+                                                table_list);
+    thd->abort_on_warning= saved_abort_on_warning;
+  }
+
+  if (info.handle_duplicates == DUP_UPDATE && !res)
   {
     Name_resolution_context *context= &lex->select_lex.context;
     Name_resolution_context_state ctx_state;
@@ -2453,7 +2479,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     query
   */
   if (!(lex->current_select->options & OPTION_BUFFER_RESULT) &&
-      unique_table(thd, table_list, table_list->next_global))
+      unique_table(thd, table_list, table_list->next_global, 0))
   {
     /* Using same table for INSERT and SELECT */
     lex->current_select->options|= OPTION_BUFFER_RESULT;
@@ -2497,9 +2523,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
                           (thd->variables.sql_mode &
                            (MODE_STRICT_TRANS_TABLES |
                             MODE_STRICT_ALL_TABLES)));
-  res= ((fields->elements &&
-         check_that_all_fields_are_given_values(thd, table, table_list)) ||
-        table_list->prepare_where(thd, 0, TRUE) ||
+  res= (table_list->prepare_where(thd, 0, TRUE) ||
         table_list->prepare_check_option(thd));
 
   if (!res)

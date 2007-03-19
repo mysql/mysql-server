@@ -538,10 +538,6 @@ SOURCE=.\my_wincond.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\my_winsem.c
-# End Source File
-# Begin Source File
-
 SOURCE=.\my_winthread.c
 # End Source File
 # Begin Source File
