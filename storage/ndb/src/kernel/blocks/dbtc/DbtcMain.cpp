@@ -7189,20 +7189,15 @@ Dbtc::nodeFailCheckTransactions(Signal* signal,
   for (transPtr.i = transPtrI; transPtr.i < capiConnectFilesize; transPtr.i++)
   {
     ptrCheckGuard(transPtr, capiConnectFilesize, apiConnectRecord); 
-    Uint32 state = transPtr.p->apiConnectstate;
     if (transPtr.p->m_transaction_nodes.get(failedNodeId))
     {
       jam();
       
-      // avoid assertion in timeoutfoundlab
-      if (state != CS_PREPARE_TO_COMMIT)
-      {
-	// Force timeout regardless of state      
-	c_appl_timeout_value = 1;
-	setApiConTimer(transPtr.i, TtcTimer - 2, __LINE__);
-	timeOutFoundLab(signal, transPtr.i, ZNODEFAIL_BEFORE_COMMIT);
-	c_appl_timeout_value = TapplTimeout;
-      }
+      // Force timeout regardless of state      
+      c_appl_timeout_value = 1;
+      setApiConTimer(transPtr.i, TtcTimer - 2, __LINE__);
+      timeOutFoundLab(signal, transPtr.i, ZNODEFAIL_BEFORE_COMMIT);
+      c_appl_timeout_value = TapplTimeout;
     }
     
     // Send CONTINUEB to continue later
