@@ -5899,16 +5899,16 @@ insert into examplebug20777 values (1, 9223372036854775806, 9223372036854775807,
 show create table examplebug20777;
 Table	Create Table
 examplebug20777	CREATE TABLE `examplebug20777` (
-  `i` int(1) NOT NULL default '0',
-  `2**63-2` bigint(20) unsigned default NULL,
-  `2**63-1` bigint(20) unsigned default NULL,
-  `2**63` bigint(20) unsigned default NULL,
-  `2**63+1` bigint(20) unsigned default NULL,
-  `2**64-2` bigint(20) unsigned default NULL,
-  `2**64-1` bigint(20) unsigned default NULL,
-  `2**64` bigint(20) unsigned default NULL,
-  `0` bigint(20) unsigned default NULL,
-  `-1` bigint(20) unsigned default NULL
+  `i` int(1) NOT NULL DEFAULT '0',
+  `2**63-2` bigint(20) unsigned DEFAULT NULL,
+  `2**63-1` bigint(20) unsigned DEFAULT NULL,
+  `2**63` bigint(20) unsigned DEFAULT NULL,
+  `2**63+1` bigint(20) unsigned DEFAULT NULL,
+  `2**64-2` bigint(20) unsigned DEFAULT NULL,
+  `2**64-1` bigint(20) unsigned DEFAULT NULL,
+  `2**64` bigint(20) unsigned DEFAULT NULL,
+  `0` bigint(20) unsigned DEFAULT NULL,
+  `-1` bigint(20) unsigned DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from examplebug20777 order by i;
 i	2**63-2	2**63-1	2**63	2**63+1	2**64-2	2**64-1	2**64	0	-1

@@ -5009,7 +5009,7 @@ Item_func_sp::cleanup()
     sp_result_field= NULL;
   }
   m_sp= NULL;
-  dummy_table->s= NULL;
+  dummy_table->alias= NULL;
   Item_func::cleanup();
 }
 
@@ -5057,13 +5057,13 @@ bool
 Item_func_sp::init_result_field(THD *thd)
 {
   DBUG_ENTER("Item_func_sp::init_result_field");
+
+  LEX_STRING empty_name= { STRING_WITH_LEN("") };
   
-  char *empty_name= (char *) "";
   TABLE_SHARE *share;
 
   DBUG_ASSERT(m_sp == NULL);
   DBUG_ASSERT(sp_result_field == NULL);
-  DBUG_ASSERT(dummy_table->s == NULL);  
 
   if (!(m_sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, m_name,
                                &thd->sp_func_cache, TRUE)))
@@ -5078,8 +5078,9 @@ Item_func_sp::init_result_field(THD *thd)
      Below we "create" a dummy table by initializing 
      the needed pointers.
    */
-  dummy_table->s= share= &dummy_table->share_not_to_be_used;
-  dummy_table->alias = empty_name;
+  
+  share= dummy_table->s;
+  dummy_table->alias = "";
   dummy_table->maybe_null = maybe_null;
   dummy_table->in_use= thd;
   dummy_table->copy_blobs= TRUE;
