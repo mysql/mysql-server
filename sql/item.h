@@ -1398,6 +1398,7 @@ public:
   Item *safe_charset_converter(CHARSET_INFO *tocs);
   int fix_outer_field(THD *thd, Field **field, Item **reference);
   virtual Item *update_value_transformer(byte *select_arg);
+  void print(String *str);
   friend class Item_default_value;
   friend class Item_insert_value;
   friend class st_select_lex_unit;
@@ -1810,7 +1811,11 @@ public:
     			   str_value.length(), collation.collation);
   }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
-  inline void append(char *str, uint length) { str_value.append(str, length); }
+  inline void append(char *str, uint length)
+  {
+    str_value.append(str, length);
+    max_length= str_value.numchars() * collation.collation->mbmaxlen;
+  }
   void print(String *str);
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
@@ -1876,7 +1881,10 @@ public:
   Item_hex_string(const char *str,uint str_length);
   enum Type type() const { return VARBIN_ITEM; }
   double val_real()
-    { DBUG_ASSERT(fixed == 1); return (double) Item_hex_string::val_int(); }
+  { 
+    DBUG_ASSERT(fixed == 1); 
+    return (double) (ulonglong) Item_hex_string::val_int();
+  }
   longlong val_int();
   bool basic_const_item() const { return 1; }
   String *val_str(String*) { DBUG_ASSERT(fixed == 1); return &str_value; }
@@ -1951,7 +1959,8 @@ public:
          with Bar, and if we have a more broader set of problems like this.
   */
   Item_ref(Name_resolution_context *context_arg, Item **item,
-           const char *table_name_arg, const char *field_name_arg);
+           const char *table_name_arg, const char *field_name_arg,
+           bool alias_name_used_arg= FALSE);
 
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_ref(THD *thd, Item_ref *item)
@@ -2026,8 +2035,11 @@ class Item_direct_ref :public Item_ref
 public:
   Item_direct_ref(Name_resolution_context *context_arg, Item **item,
                   const char *table_name_arg,
-                  const char *field_name_arg)
-    :Item_ref(context_arg, item, table_name_arg, field_name_arg) {}
+                  const char *field_name_arg,
+                  bool alias_name_used_arg= FALSE)
+    :Item_ref(context_arg, item, table_name_arg,
+              field_name_arg, alias_name_used_arg)
+  {}
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_direct_ref(THD *thd, Item_direct_ref *item) : Item_ref(thd, item) {}
 

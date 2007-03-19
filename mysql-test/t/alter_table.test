@@ -642,6 +642,33 @@ alter table t1 change t t text;
 drop table t1;
 
 #
+# Bug #26794: Adding an index with a prefix on a SPATIAL type breaks ALTER
+# TABLE
+#
+CREATE TABLE t1 (a varchar(500));
+
+ALTER TABLE t1 ADD b GEOMETRY NOT NULL, ADD SPATIAL INDEX(b);
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD KEY(b(50));
+SHOW CREATE TABLE t1;
+
+ALTER TABLE t1 ADD c POINT;
+SHOW CREATE TABLE t1;
+
+--error ER_WRONG_SUB_KEY
+CREATE TABLE t2 (a INT, KEY (a(20)));
+
+ALTER TABLE t1 ADD d INT;
+--error ER_WRONG_SUB_KEY
+ALTER TABLE t1 ADD KEY (d(20));
+
+# the 5.1 part of the test
+--error ER_WRONG_SUB_KEY
+ALTER TABLE t1 ADD e GEOMETRY NOT NULL, ADD SPATIAL KEY (e(30));
+
+DROP TABLE t1;
+
+#
 # Bug#18038  MySQL server corrupts binary columns data
 #
 
