@@ -31,7 +31,7 @@ do
   shift
 done
 
-make -k clean || true 
+make -k maintainer-clean || true 
 /bin/rm -f */.deps/*.P config.cache
  
 path=`dirname $0`

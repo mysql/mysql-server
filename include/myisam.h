@@ -274,9 +274,8 @@ extern struct st_myisam_info *mi_open(const char *name,int mode,
 				      uint wait_if_locked);
 extern int mi_panic(enum ha_panic_function function);
 extern int mi_rfirst(struct st_myisam_info *file,byte *buf,int inx);
-extern int mi_rkey(struct st_myisam_info *file,byte *buf,int inx,
-		   const byte *key,
-		   uint key_len, enum ha_rkey_function search_flag);
+extern int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key,
+                   key_part_map keypart_map, enum ha_rkey_function search_flag);
 extern int mi_rlast(struct st_myisam_info *file,byte *buf,int inx);
 extern int mi_rnext(struct st_myisam_info *file,byte *buf,int inx);
 extern int mi_rnext_same(struct st_myisam_info *info, byte *buf);
@@ -303,7 +302,7 @@ extern int mi_extra(struct st_myisam_info *file,
 		    enum ha_extra_function function,
 		    void *extra_arg);
 extern int mi_reset(struct st_myisam_info *file);
-extern ha_rows mi_records_in_range(struct st_myisam_info *info,int inx,
+extern ha_rows mi_records_in_range(MI_INFO *info, int inx,
                                    key_range *min_key, key_range *max_key);
 extern int mi_log(int activate_log);
 extern int mi_is_changed(struct st_myisam_info *info);

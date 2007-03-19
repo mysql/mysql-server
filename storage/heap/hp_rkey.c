@@ -16,7 +16,7 @@
 #include "heapdef.h"
 
 int heap_rkey(HP_INFO *info, byte *record, int inx, const byte *key, 
-              uint key_len, enum ha_rkey_function find_flag)
+              key_part_map keypart_map, enum ha_rkey_function find_flag)
 {
   byte *pos;
   HP_SHARE *share= info->s;
@@ -38,7 +38,7 @@ int heap_rkey(HP_INFO *info, byte *record, int inx, const byte *key,
     custom_arg.keyseg= info->s->keydef[inx].seg;
     custom_arg.key_length= info->lastkey_len= 
       hp_rb_pack_key(keyinfo, (uchar*) info->lastkey,
-		     (uchar*) key, key_len);
+		     (uchar*) key, keypart_map);
     custom_arg.search_flag= SEARCH_FIND | SEARCH_SAME;
     /* for next rkey() after deletion */
     if (find_flag == HA_READ_AFTER_KEY)

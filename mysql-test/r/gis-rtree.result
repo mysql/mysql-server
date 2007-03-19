@@ -10,7 +10,7 @@ t1	CREATE TABLE `t1` (
   `fid` int(11) NOT NULL AUTO_INCREMENT,
   `g` geometry NOT NULL,
   PRIMARY KEY (`fid`),
-  SPATIAL KEY `g` (`g`(32))
+  SPATIAL KEY `g` (`g`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 INSERT INTO t1 (g) VALUES (GeomFromText('LineString(150 150, 150 150)'));
 INSERT INTO t1 (g) VALUES (GeomFromText('LineString(149 149, 151 151)'));
@@ -293,7 +293,7 @@ t2	CREATE TABLE `t2` (
   `fid` int(11) NOT NULL AUTO_INCREMENT,
   `g` geometry NOT NULL,
   PRIMARY KEY (`fid`),
-  SPATIAL KEY `g` (`g`(32))
+  SPATIAL KEY `g` (`g`)
 ) ENGINE=MyISAM AUTO_INCREMENT=101 DEFAULT CHARSET=latin1
 SELECT count(*) FROM t2;
 count(*)
@@ -803,7 +803,7 @@ CREATE TABLE t2 (geom GEOMETRY NOT NULL, SPATIAL KEY gk(geom));
 INSERT INTO t2 SELECT GeomFromText(st) FROM t1;
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 drop table t1, t2;
-CREATE TABLE t1 (`geometry` geometry NOT NULL default '',SPATIAL KEY `gndx` (`geometry`(32))) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+CREATE TABLE t1 (`geometry` geometry NOT NULL default '',SPATIAL KEY `gndx` (`geometry`)) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 Warnings:
 Warning	1101	BLOB/TEXT column 'geometry' can't have a default value
 INSERT INTO t1 (geometry) VALUES
@@ -820,7 +820,7 @@ test.t1	check	status	OK
 drop table t1;
 CREATE TABLE t1 (
 c1 geometry NOT NULL default '',
-SPATIAL KEY i1 (c1(32))
+SPATIAL KEY i1 (c1)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 Warnings:
 Warning	1101	BLOB/TEXT column 'c1' can't have a default value
@@ -836,7 +836,7 @@ test.t1	check	status	OK
 DROP TABLE t1;
 CREATE TABLE t1 (
 c1 geometry NOT NULL default '',
-SPATIAL KEY i1 (c1(32))
+SPATIAL KEY i1 (c1)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 Warnings:
 Warning	1101	BLOB/TEXT column 'c1' can't have a default value
@@ -879,7 +879,7 @@ c1 varchar(15) collate utf8_bin default NULL,
 c3 varchar(10) collate utf8_bin default NULL,
 spatial_point point NOT NULL,
 PRIMARY KEY(id),
-SPATIAL KEY (spatial_point(32))
+SPATIAL KEY (spatial_point)
 )ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
 INSERT INTO t1 (c2, c1, c3, spatial_point) VALUES
 ('y', 's', 'j', GeomFromText('POINT(167 74)')),
