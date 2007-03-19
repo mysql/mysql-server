@@ -948,14 +948,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     remote_opt= 1;
     break;
   case OPT_MYSQL_PROTOCOL:
-  {
-    if ((opt_protocol= find_type(argument, &sql_protocol_typelib,0)) <= 0)
-    {
-      fprintf(stderr, "Unknown option to protocol: %s\n", argument);
-      exit(1);
-    }
+    opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
+                                    opt->name);
     break;
-  }
   case OPT_START_DATETIME:
     start_datetime= convert_str_to_timestamp(start_datetime_str);
     break;
