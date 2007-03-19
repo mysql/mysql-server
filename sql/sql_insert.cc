@@ -1262,6 +1262,10 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
              compare_record(table))
         {
           info->updated++;
+          trg_error= (table->triggers &&
+                      table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+                                                        TRG_ACTION_AFTER,
+                                                        TRUE));
           info->copied++;
         }
         /*
@@ -1278,6 +1282,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
         trg_error= (table->triggers &&
                     table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
                                                       TRG_ACTION_AFTER, TRUE));
+
         goto ok_or_after_trg_err;
       }
       else /* DUP_REPLACE */
