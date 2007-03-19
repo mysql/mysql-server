@@ -47,8 +47,7 @@
   don't forget to update
   1. static struct show_privileges_st sys_privileges[]
   2. static const char *command_array[] and static uint command_lengths[]
-  3. mysql_create_system_tables.sh, mysql_fix_privilege_tables.sql
-     and mysql-test/lib/init_db.sql
+  3. mysql_system_tables.sql and mysql_system_tables_fix.sql
   4. acl_init() or whatever - to define behaviour for old privilege tables
   5. sql_yacc.yy - for GRANT/REVOKE to work
 */

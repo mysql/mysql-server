@@ -1495,9 +1495,17 @@ sub executable_setup () {
 
   if (!$opt_extern)
   {
-  # Look for SQL scripts directory
-  $path_sql_dir= mtr_path_exists("$glob_basedir/share",
-				 "$glob_basedir/scripts");
+    # Look for SQL scripts directory
+    if ( mtr_file_exists("$path_share/mysql_system_tables.sql") ne "")
+    {
+      # The SQL scripts are in path_share
+      $path_sql_dir= $path_share;
+    }
+    else
+    {
+      $path_sql_dir= mtr_path_exists("$glob_basedir/share",
+				     "$glob_basedir/scripts");
+    }
 
     if ( $mysql_version_id >= 50100 )
     {
