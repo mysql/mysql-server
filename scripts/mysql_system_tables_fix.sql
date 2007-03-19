@@ -483,6 +483,7 @@ CREATE TABLE event (
                         'HIGH_NOT_PRECEDENCE'
                     ) DEFAULT '' NOT NULL,
   comment char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
+  time_zone char(64) CHARACTER SET latin1 NOT NULL DEFAULT 'SYSTEM',
   PRIMARY KEY  (db,name)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT 'Events';
 
@@ -534,9 +535,11 @@ ALTER TABLE event ADD sql_mode
                             'NO_AUTO_CREATE_USER',
                             'HIGH_NOT_PRECEDENCE'
                             ) DEFAULT '' NOT NULL AFTER on_completion;
-
 UPDATE user SET Event_priv=Super_priv WHERE @hadEventPriv = 0;
 ALTER TABLE event MODIFY name char(64) CHARACTER SET utf8 NOT NULL default '';
+
+ALTER TABLE event ADD COLUMN time_zone char(64) CHARACTER SET latin1
+        NOT NULL DEFAULT 'SYSTEM' AFTER comment;
 
 #
 # TRIGGER privilege

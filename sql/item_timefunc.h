@@ -641,8 +641,6 @@ class Time_zone;
 */
 class Item_func_convert_tz :public Item_date_func
 {
-  /* Cached pointer to list of pre-opened time zone tables. */
-  TABLE_LIST *tz_tables;
   /*
     If time zone parameters are constants we are caching objects that
     represent them (we use separate from_tz_cached/to_tz_cached members
@@ -658,7 +656,6 @@ class Item_func_convert_tz :public Item_date_func
   double val_real() { return (double) val_int(); }
   String *val_str(String *str);
   const char *func_name() const { return "convert_tz"; }
-  bool fix_fields(THD *, Item **);
   void fix_length_and_dec();
   bool get_date(TIME *res, uint fuzzy_date);
   void cleanup();

@@ -246,3 +246,31 @@ drop function f1;
 SET GLOBAL log_bin_trust_function_creators = 0;
 
 # End of 5.0 tests
+
+
+#
+# BUG#9953: CONVERT_TZ requires mysql.time_zone_name to be locked
+# BUG#19339: CONVERT_TZ(): overly aggressive in locking time_zone_name
+# table
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (t TIMESTAMP);
+INSERT INTO t1 VALUES (NULL), (NULL);
+
+LOCK TABLES t1 WRITE;
+
+# The following two queries should not return error that time zone
+# tables aren't locked.  We use IS NULL below to supress timestamp
+# result.
+SELECT CONVERT_TZ(NOW(), 'UTC', 'Europe/Moscow') IS NULL;
+UPDATE t1 SET t = CONVERT_TZ(t, 'UTC', 'Europe/Moscow');
+
+UNLOCK TABLES;
+
+DROP TABLE t1;
+
+
+--echo End of 5.1 tests
