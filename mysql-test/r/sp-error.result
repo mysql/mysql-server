@@ -292,9 +292,9 @@ call p()|
 unlock tables|
 drop procedure p|
 lock tables t1 read, mysql.proc write|
-ERROR HY000: You can't combine write-locking of system 'mysql.proc' table with other tables
+ERROR HY000: You can't combine write-locking of system tables with other tables or lock types
 lock tables mysql.proc write, mysql.user write|
-ERROR HY000: You can't combine write-locking of system 'mysql.proc' table with other tables
+ERROR HY000: You can't combine write-locking of system tables with other tables or lock types
 lock tables t1 read, mysql.proc read|
 unlock tables|
 lock tables mysql.proc write|
@@ -1414,3 +1414,55 @@ ERROR 42000: This version of MySQL doesn't yet support 'return value collation'
 create function bug20701() returns varchar(25) return "test";
 drop function bug20701;
 End of 5.1 tests
+create procedure proc_26503_error_1()
+begin
+retry:
+repeat
+begin
+declare continue handler for sqlexception
+begin
+iterate retry;
+end
+select "do something";
+end
+until true end repeat retry;
+end//
+ERROR 42000: ITERATE with no matching label: retry
+create procedure proc_26503_error_2()
+begin
+retry:
+repeat
+begin
+declare continue handler for sqlexception
+iterate retry;
+select "do something";
+end
+until true end repeat retry;
+end//
+ERROR 42000: ITERATE with no matching label: retry
+create procedure proc_26503_error_3()
+begin
+retry:
+repeat
+begin
+declare continue handler for sqlexception
+begin
+leave retry;
+end
+select "do something";
+end
+until true end repeat retry;
+end//
+ERROR 42000: LEAVE with no matching label: retry
+create procedure proc_26503_error_4()
+begin
+retry:
+repeat
+begin
+declare continue handler for sqlexception
+leave retry;
+select "do something";
+end
+until true end repeat retry;
+end//
+ERROR 42000: LEAVE with no matching label: retry
