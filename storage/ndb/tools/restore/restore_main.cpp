@@ -61,6 +61,7 @@ NDB_STD_OPTS_VARS;
 static bool ga_restore_epoch = false;
 static bool ga_restore = false;
 static bool ga_print = false;
+static bool ga_skip_table_check = false;
 static int _print = 0;
 static int _print_meta = 0;
 static int _print_data = 0;
@@ -124,6 +125,9 @@ static struct my_option my_long_options[] =
     NDB_REP_DB "." NDB_APPLY_TABLE " with id 0 will be updated/inserted.", 
     (gptr*) &ga_restore_epoch, (gptr*) &ga_restore_epoch,  0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "skip-table-check", 's', "Skip table structure check during restore of data",
+   (gptr*) &ga_skip_table_check, (gptr*) &ga_skip_table_check, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "parallelism", 'p',
     "No of parallel transactions during restore of data."
     "(parallelism can be 1 to 1024)", 
@@ -640,6 +644,8 @@ main(int argc, char** argv)
   g_options.appfmt(" -n %d", ga_nodeId);
   if (_restore_meta)
     g_options.appfmt(" -m");
+  if (ga_skip_table_check)
+    g_options.appfmt(" -s");
   if (_restore_data)
     g_options.appfmt(" -r");
   if (ga_restore_epoch)
@@ -803,6 +809,20 @@ main(int argc, char** argv)
   {
     if(_restore_data || _print_data)
     {
+      if (!ga_skip_table_check){
+        for(i=0; i < metaData.getNoOfTables(); i++){
+          if (checkSysTable(metaData, i))
+          {
+            for(Uint32 j= 0; j < g_consumers.size(); j++)
+              if (!g_consumers[j]->table_equal(* metaData[i]))
+              {
+                err << "Restore: Failed to restore data, ";
+                err << metaData[i]->getTableName() << " table structure doesn't match backup ... Exiting " << endl;
+                exitHandler(NDBT_FAILED);
+              }
+          }
+        }
+      }
       RestoreDataIterator dataIter(metaData, &free_data_callback);
       
       // Read data file header

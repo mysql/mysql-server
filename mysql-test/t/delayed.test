@@ -234,3 +234,11 @@ SET             @@session.auto_increment_offset=
 SET             @@session.auto_increment_increment=
     @bug20830_old_session_auto_increment_increment;
 
+#
+# BUG#26238 - inserted delayed always inserts 0 for BIT columns
+#
+CREATE TABLE t1(a BIT);
+INSERT DELAYED INTO t1 VALUES(1);
+FLUSH TABLE t1;
+SELECT HEX(a) FROM t1;
+DROP TABLE t1;
