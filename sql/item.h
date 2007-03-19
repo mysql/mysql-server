@@ -1495,11 +1495,14 @@ class Item_int :public Item_num
 {
 public:
   longlong value;
-  Item_int(int32 i,uint length=11) :value((longlong) i)
+  Item_int(int32 i,uint length= MY_INT32_NUM_DECIMAL_DIGITS)
+    :value((longlong) i)
     { max_length=length; fixed= 1; }
-  Item_int(longlong i,uint length=21) :value(i)
+  Item_int(longlong i,uint length= MY_INT64_NUM_DECIMAL_DIGITS)
+    :value(i)
     { max_length=length; fixed= 1; }
-  Item_int(ulonglong i, uint length= 21) :value((longlong)i)
+  Item_int(ulonglong i, uint length= MY_INT64_NUM_DECIMAL_DIGITS)
+    :value((longlong)i)
     { max_length=length; fixed= 1; unsigned_flag= 1; }
   Item_int(const char *str_arg,longlong i,uint length) :value(i)
     { max_length=length; name=(char*) str_arg; fixed= 1; }
