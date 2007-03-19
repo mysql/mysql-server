@@ -15,6 +15,7 @@
 
 
 #define DBTUP_C
+#define DBTUP_TRIGGER_CPP
 #include "Dbtup.hpp"
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
@@ -25,9 +26,6 @@
 #include <signaldata/FireTrigOrd.hpp>
 #include <signaldata/CreateTrig.hpp>
 #include <signaldata/TuxMaint.hpp>
-
-#define ljam() { jamLine(7000 + __LINE__); }
-#define ljamEntry() { jamEntryLine(7000 + __LINE__); }
 
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */
@@ -47,17 +45,17 @@ Dbtup::findTriggerList(Tablerec* table,
   case TriggerType::SUBSCRIPTION_BEFORE:
     switch (tevent) {
     case TriggerEvent::TE_INSERT:
-      ljam();
+      jam();
       if (ttime == TriggerActionTime::TA_DETACHED)
         tlist = &table->subscriptionInsertTriggers;
       break;
     case TriggerEvent::TE_UPDATE:
-      ljam();
+      jam();
       if (ttime == TriggerActionTime::TA_DETACHED)
         tlist = &table->subscriptionUpdateTriggers;
       break;
     case TriggerEvent::TE_DELETE:
-      ljam();
+      jam();
       if (ttime == TriggerActionTime::TA_DETACHED)
         tlist = &table->subscriptionDeleteTriggers;
       break;
@@ -68,17 +66,17 @@ Dbtup::findTriggerList(Tablerec* table,
   case TriggerType::SECONDARY_INDEX:
     switch (tevent) {
     case TriggerEvent::TE_INSERT:
-      ljam();
+      jam();
       if (ttime == TriggerActionTime::TA_AFTER)
         tlist = &table->afterInsertTriggers;
       break;
     case TriggerEvent::TE_UPDATE:
-      ljam();
+      jam();
       if (ttime == TriggerActionTime::TA_AFTER)
         tlist = &table->afterUpdateTriggers;
       break;
     case TriggerEvent::TE_DELETE:
-      ljam();
+      jam();
       if (ttime == TriggerActionTime::TA_AFTER)
         tlist = &table->afterDeleteTriggers;
       break;
@@ -89,7 +87,7 @@ Dbtup::findTriggerList(Tablerec* table,
   case TriggerType::ORDERED_INDEX:
     switch (tevent) {
     case TriggerEvent::TE_CUSTOM:
-      ljam();
+      jam();
       if (ttime == TriggerActionTime::TA_CUSTOM)
         tlist = &table->tuxCustomTriggers;
       break;
@@ -100,7 +98,7 @@ Dbtup::findTriggerList(Tablerec* table,
   case TriggerType::READ_ONLY_CONSTRAINT:
     switch (tevent) {
     case TriggerEvent::TE_UPDATE:
-      ljam();
+      jam();
       if (ttime == TriggerActionTime::TA_AFTER)
         tlist = &table->constraintUpdateTriggers;
       break;
@@ -118,7 +116,7 @@ Dbtup::findTriggerList(Tablerec* table,
 void
 Dbtup::execCREATE_TRIG_REQ(Signal* signal)
 {
-  ljamEntry();
+  jamEntry();
   BlockReference senderRef = signal->getSendersBlockRef();
   const CreateTrigReq reqCopy = *(const CreateTrigReq*)signal->getDataPtr();
   const CreateTrigReq* const req = &reqCopy;
@@ -131,13 +129,13 @@ Dbtup::execCREATE_TRIG_REQ(Signal* signal)
 
   if (tabPtr.p->tableStatus != DEFINED )
   {
-    ljam();
+    jam();
     error= CreateTrigRef::InvalidTable;
   }
   // Create trigger and associate it with the table
   else if (createTrigger(tabPtr.p, req))
   {
-    ljam();
+    jam();
     // Send conf
     CreateTrigConf* const conf = (CreateTrigConf*)signal->getDataPtrSend();
     conf->setUserRef(reference());
@@ -153,7 +151,7 @@ Dbtup::execCREATE_TRIG_REQ(Signal* signal)
   }
   else
   {
-    ljam();
+    jam();
     error= CreateTrigRef::TooManyTriggers;
   }
   ndbassert(error != CreateTrigRef::NoError);
@@ -174,7 +172,7 @@ Dbtup::execCREATE_TRIG_REQ(Signal* signal)
 void
 Dbtup::execDROP_TRIG_REQ(Signal* signal)
 {
-  ljamEntry();
+  jamEntry();
   BlockReference senderRef = signal->getSendersBlockRef();
   const DropTrigReq reqCopy = *(const DropTrigReq*)signal->getDataPtr();
   const DropTrigReq* const req = &reqCopy;
@@ -262,7 +260,7 @@ Dbtup::createTrigger(Tablerec* table, const CreateTrigReq* req)
   if ((tptr.p->triggerType == TriggerType::SUBSCRIPTION) &&
       ((tptr.p->triggerEvent == TriggerEvent::TE_UPDATE) ||
        (tptr.p->triggerEvent == TriggerEvent::TE_DELETE))) {
-    ljam();
+    jam();
     tptr.p->sendBeforeValues = false;
   }
   /*
@@ -270,7 +268,7 @@ Dbtup::createTrigger(Tablerec* table, const CreateTrigReq* req)
   if (((tptr.p->triggerType == TriggerType::SUBSCRIPTION) ||
       (tptr.p->triggerType == TriggerType::SUBSCRIPTION_BEFORE)) &&
       (tptr.p->triggerEvent == TriggerEvent::TE_UPDATE)) {
-    ljam();
+    jam();
     tptr.p->sendOnlyChangedAttributes = true;
   }
   */
@@ -282,16 +280,16 @@ Dbtup::createTrigger(Tablerec* table, const CreateTrigReq* req)
 
   tptr.p->attributeMask.clear();
   if (tptr.p->monitorAllAttributes) {
-    ljam();
+    jam();
     for(Uint32 i = 0; i < table->m_no_of_attributes; i++) {
       if (!primaryKey(table, i)) {
-        ljam();
+        jam();
         tptr.p->attributeMask.set(i);
       }
     }
   } else {
     // Set attribute mask
-    ljam();
+    jam();
     tptr.p->attributeMask = req->getAttributeMask();
   }
   return true;
@@ -336,7 +334,7 @@ Dbtup::dropTrigger(Tablerec* table, const DropTrigReq* req, BlockNumber sender)
 
   Ptr<TupTriggerData> ptr;
   for (tlist->first(ptr); !ptr.isNull(); tlist->next(ptr)) {
-    ljam();
+    jam();
     if (ptr.p->triggerId == triggerId) {
       if(ttype==TriggerType::SUBSCRIPTION && sender != ptr.p->m_receiverBlock)
       {
@@ -348,10 +346,10 @@ Dbtup::dropTrigger(Tablerec* table, const DropTrigReq* req, BlockNumber sender)
 	 *
 	 * Backup doesn't really care about the Ids though.
 	 */
-	ljam();
+	jam();
 	continue;
       }
-      ljam();
+      jam();
       tlist->release(ptr.i);
       return 0;
     }
@@ -379,7 +377,7 @@ Dbtup::checkImmediateTriggersAfterInsert(KeyReqStruct *req_struct,
 
   if ((regOperPtr->op_struct.primary_replica) &&
       (!(regTablePtr->afterInsertTriggers.isEmpty()))) {
-    ljam();
+    jam();
     fireImmediateTriggers(req_struct,
                           regTablePtr->afterInsertTriggers,
                           regOperPtr);
@@ -397,14 +395,14 @@ Dbtup::checkImmediateTriggersAfterUpdate(KeyReqStruct *req_struct,
 
   if ((regOperPtr->op_struct.primary_replica) &&
       (!(regTablePtr->afterUpdateTriggers.isEmpty()))) {
-    ljam();
+    jam();
     fireImmediateTriggers(req_struct,
                           regTablePtr->afterUpdateTriggers,
                           regOperPtr);
   }
   if ((regOperPtr->op_struct.primary_replica) &&
       (!(regTablePtr->constraintUpdateTriggers.isEmpty()))) {
-    ljam();
+    jam();
     fireImmediateTriggers(req_struct,
                           regTablePtr->constraintUpdateTriggers,
                           regOperPtr);
@@ -422,7 +420,7 @@ Dbtup::checkImmediateTriggersAfterDelete(KeyReqStruct *req_struct,
 
   if ((regOperPtr->op_struct.primary_replica) &&
       (!(regTablePtr->afterDeleteTriggers.isEmpty()))) {
-    ljam();
+    jam();
     executeTriggers(req_struct,
                     regTablePtr->afterDeleteTriggers,
                     regOperPtr);
@@ -443,7 +441,7 @@ void Dbtup::checkDeferredTriggers(Signal* signal,
                                   Operationrec* const regOperPtr,
                                   Tablerec* const regTablePtr)
 {
-  ljam();
+  jam();
   // NYI
 }//Dbtup::checkDeferredTriggers()
 #endif
@@ -479,7 +477,7 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
   if (save_ptr->m_header_bits & Tuple_header::ALLOC) {
     if (save_type == ZDELETE) {
       // insert + delete = nothing
-      ljam();
+      jam();
       return;
       goto end;
     }
@@ -495,10 +493,10 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
   
   switch(regOperPtr->op_struct.op_type) {
   case(ZINSERT):
-    ljam();
+    jam();
     if (regTablePtr->subscriptionInsertTriggers.isEmpty()) {
       // Table has no active triggers monitoring inserts at commit
-      ljam();
+      jam();
       goto end;
     }
 
@@ -508,10 +506,10 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
                          regOperPtr);
     break;
   case(ZDELETE):
-    ljam();
+    jam();
     if (regTablePtr->subscriptionDeleteTriggers.isEmpty()) {
       // Table has no active triggers monitoring deletes at commit
-      ljam();
+      jam();
       goto end;
     }
 
@@ -522,10 +520,10 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
 			 regOperPtr);
     break;
   case(ZUPDATE):
-    ljam();
+    jam();
     if (regTablePtr->subscriptionUpdateTriggers.isEmpty()) {
       // Table has no active triggers monitoring updates at commit
-      ljam();
+      jam();
       goto end;
     }
 
@@ -553,10 +551,10 @@ Dbtup::fireImmediateTriggers(KeyReqStruct *req_struct,
   TriggerPtr trigPtr;
   triggerList.first(trigPtr);
   while (trigPtr.i != RNIL) {
-    ljam();
+    jam();
     if (trigPtr.p->monitorAllAttributes ||
         trigPtr.p->attributeMask.overlaps(req_struct->changeMask)) {
-      ljam();
+      jam();
       executeTrigger(req_struct,
                      trigPtr.p,
                      regOperPtr);
@@ -575,10 +573,10 @@ Dbtup::fireDeferredTriggers(Signal* signal,
   TriggerPtr trigPtr;
   triggerList.first(trigPtr);
   while (trigPtr.i != RNIL) {
-    ljam();
+    jam();
     if (trigPtr.p->monitorAllAttributes ||
         trigPtr.p->attributeMask.overlaps(req_struct->changeMask)) {
-      ljam();
+      jam();
       executeTrigger(req_struct,
                      trigPtr,
                      regOperPtr);
@@ -604,12 +602,12 @@ Dbtup::fireDetachedTriggers(KeyReqStruct *req_struct,
   ndbrequire(regOperPtr->is_first_operation());
   triggerList.first(trigPtr);
   while (trigPtr.i != RNIL) {
-    ljam();
+    jam();
     if ((trigPtr.p->monitorReplicas ||
          regOperPtr->op_struct.primary_replica) &&
         (trigPtr.p->monitorAllAttributes ||
          trigPtr.p->attributeMask.overlaps(req_struct->changeMask))) {
-      ljam();
+      jam();
       executeTrigger(req_struct,
                      trigPtr.p,
                      regOperPtr);
@@ -625,7 +623,7 @@ void Dbtup::executeTriggers(KeyReqStruct *req_struct,
   TriggerPtr trigPtr;
   triggerList.first(trigPtr);
   while (trigPtr.i != RNIL) {
-    ljam();
+    jam();
     executeTrigger(req_struct,
                    trigPtr.p,
                    regOperPtr);
@@ -675,7 +673,7 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
   ptrCheckGuard(regFragPtr, cnoOfFragrec, fragrecord);
 
   if (ref == BACKUP) {
-    ljam();
+    jam();
     /*
     In order for the implementation of BACKUP to work even when changing
     primaries in the middle of the backup we need to set the trigger on
@@ -688,9 +686,9 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
     signal->theData[0] = trigPtr->triggerId;
     signal->theData[1] = regFragPtr.p->fragmentId;
     EXECUTE_DIRECT(BACKUP, GSN_BACKUP_TRIG_REQ, signal, 2);
-    ljamEntry();
+    jamEntry();
     if (signal->theData[0] == 0) {
-      ljam();
+      jam();
       return;
     }
   }
@@ -704,7 +702,7 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
                        noAfterWords,
                        beforeBuffer,
                        noBeforeWords)) {
-    ljam();
+    jam();
     return;
   }
 //--------------------------------------------------------------------
@@ -720,13 +718,13 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
 
   switch(trigPtr->triggerType) {
   case (TriggerType::SECONDARY_INDEX):
-    ljam();
+    jam();
     ref = req_struct->TC_ref;
     executeDirect = false;
     break;
   case (TriggerType::SUBSCRIPTION):
   case (TriggerType::SUBSCRIPTION_BEFORE):
-    ljam();
+    jam();
     // Since only backup uses subscription triggers we send to backup directly for now
     ref = trigPtr->m_receiverBlock;
     executeDirect = true;
@@ -747,22 +745,22 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
 
   switch(regOperPtr->op_struct.op_type) {
   case(ZINSERT):
-    ljam();
+    jam();
     // Send AttrInfo signals with new attribute values
     trigAttrInfo->setAttrInfoType(TrigAttrInfo::AFTER_VALUES);
     sendTrigAttrInfo(signal, afterBuffer, noAfterWords, executeDirect, ref);
     break;
   case(ZDELETE):
     if (trigPtr->sendBeforeValues) {
-      ljam();
+      jam();
       trigAttrInfo->setAttrInfoType(TrigAttrInfo::BEFORE_VALUES);
       sendTrigAttrInfo(signal, beforeBuffer, noBeforeWords, executeDirect,ref);
     }
     break;
   case(ZUPDATE):
-    ljam();
+    jam();
     if (trigPtr->sendBeforeValues) {
-      ljam();
+      jam();
       trigAttrInfo->setAttrInfoType(TrigAttrInfo::BEFORE_VALUES);
       sendTrigAttrInfo(signal, beforeBuffer, noBeforeWords, executeDirect,ref);
     }
@@ -788,9 +786,9 @@ Uint32 Dbtup::setAttrIds(Bitmask<MAXNROFATTRIBUTESINWORDS>& attributeMask,
 {
   Uint32 bufIndx = 0;
   for (Uint32 i = 0; i < m_no_of_attributesibutes; i++) {
-    ljam();
+    jam();
     if (attributeMask.get(i)) {
-      ljam();
+      jam();
       AttributeHeader::init(&inBuffer[bufIndx++], i, 0);
     }
   }
@@ -858,7 +856,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
   Uint32 numAttrsToRead;
   if ((regOperPtr->op_struct.op_type == ZUPDATE) &&
       (trigPtr->sendOnlyChangedAttributes)) {
-    ljam();
+    jam();
 //--------------------------------------------------------------------
 // Update that sends only changed information
 //--------------------------------------------------------------------
@@ -870,13 +868,13 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
     
   } else if ((regOperPtr->op_struct.op_type == ZDELETE) &&
              (!trigPtr->sendBeforeValues)) {
-    ljam();
+    jam();
 //--------------------------------------------------------------------
 // Delete without sending before values only read Primary Key
 //--------------------------------------------------------------------
     return true;
   } else {
-    ljam();
+    jam();
 //--------------------------------------------------------------------
 // All others send all attributes that are monitored, except:
 // Omit unchanged blob inlines on update i.e.
@@ -898,7 +896,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
 //--------------------------------------------------------------------
   if (regOperPtr->op_struct.op_type != ZDELETE)
   {
-    ljam();
+    jam();
     int ret = readAttributes(req_struct,
 			     &readBuffer[0],
 			     numAttrsToRead,
@@ -908,7 +906,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
     ndbrequire(ret != -1);
     noAfterWords= ret;
   } else {
-    ljam();
+    jam();
     noAfterWords = 0;
   }
 
@@ -920,7 +918,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
   if ((regOperPtr->op_struct.op_type == ZUPDATE || 
        regOperPtr->op_struct.op_type == ZDELETE) &&
       (trigPtr->sendBeforeValues)) {
-    ljam();
+    jam();
     
     Tuple_header *save= req_struct->m_tuple_ptr;
     PagePtr tmp;
@@ -956,7 +954,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
 // Although a trigger was fired it was not necessary since the old
 // value and the new value was exactly the same
 //--------------------------------------------------------------------
-      ljam();
+      jam();
       //XXX does this work with collations?
       return false;
     }
@@ -976,21 +974,21 @@ void Dbtup::sendTrigAttrInfo(Signal* signal,
   do {
     sigLen = dataLen - dataIndex;
     if (sigLen > TrigAttrInfo::DataLength) {
-      ljam();
+      jam();
       sigLen = TrigAttrInfo::DataLength;
     }
     MEMCOPY_NO_WORDS(trigAttrInfo->getData(), 
                      data + dataIndex,
                      sigLen);
     if (executeDirect) {
-      ljam();
+      jam();
       EXECUTE_DIRECT(receiverReference, 
                      GSN_TRIG_ATTRINFO,
                      signal,
 		     TrigAttrInfo::StaticLength + sigLen);
-      ljamEntry();
+      jamEntry();
     } else {
-      ljam();
+      jam();
       sendSignal(receiverReference, 
                  GSN_TRIG_ATTRINFO, 
                  signal, 
@@ -1018,15 +1016,15 @@ void Dbtup::sendFireTrigOrd(Signal* signal,
 
   switch(regOperPtr->op_struct.op_type) {
   case(ZINSERT):
-    ljam();
+    jam();
     fireTrigOrd->setTriggerEvent(TriggerEvent::TE_INSERT);
     break;
   case(ZDELETE):
-    ljam();
+    jam();
     fireTrigOrd->setTriggerEvent(TriggerEvent::TE_DELETE);
     break;
   case(ZUPDATE):
-    ljam();
+    jam();
     fireTrigOrd->setTriggerEvent(TriggerEvent::TE_UPDATE);
     break;
   default:
@@ -1040,12 +1038,12 @@ void Dbtup::sendFireTrigOrd(Signal* signal,
 
   switch(trigPtr->triggerType) {
   case (TriggerType::SECONDARY_INDEX):
-    ljam();
+    jam();
     sendSignal(req_struct->TC_ref, GSN_FIRE_TRIG_ORD, 
                signal, FireTrigOrd::SignalLength, JBB);
     break;
   case (TriggerType::SUBSCRIPTION_BEFORE): // Only Suma
-    ljam();
+    jam();
     // Since only backup uses subscription triggers we 
     // send to backup directly for now
     fireTrigOrd->setGCI(req_struct->gci);
@@ -1056,7 +1054,7 @@ void Dbtup::sendFireTrigOrd(Signal* signal,
 		   FireTrigOrd::SignalWithHashValueLength);
     break;
   case (TriggerType::SUBSCRIPTION):
-    ljam();
+    jam();
     // Since only backup uses subscription triggers we 
     // send to backup directly for now
     fireTrigOrd->setGCI(req_struct->gci);
@@ -1123,7 +1121,7 @@ Dbtup::addTuxEntries(Signal* signal,
                      Tablerec* regTabPtr)
 {
   if (ERROR_INSERTED(4022)) {
-    ljam();
+    jam();
     CLEAR_ERROR_INSERT_VALUE;
     terrorCode = 9999;
     return -1;
@@ -1134,12 +1132,12 @@ Dbtup::addTuxEntries(Signal* signal,
   Uint32 failPtrI;
   triggerList.first(triggerPtr);
   while (triggerPtr.i != RNIL) {
-    ljam();
+    jam();
     req->indexId = triggerPtr.p->indexId;
     req->errorCode = RNIL;
     if (ERROR_INSERTED(4023) &&
         ! triggerList.hasNext(triggerPtr)) {
-      ljam();
+      jam();
       CLEAR_ERROR_INSERT_VALUE;
       terrorCode = 9999;
       failPtrI = triggerPtr.i;
@@ -1147,9 +1145,9 @@ Dbtup::addTuxEntries(Signal* signal,
     }
     EXECUTE_DIRECT(DBTUX, GSN_TUX_MAINT_REQ,
         signal, TuxMaintReq::SignalLength);
-    ljamEntry();
+    jamEntry();
     if (req->errorCode != 0) {
-      ljam();
+      jam();
       terrorCode = req->errorCode;
       failPtrI = triggerPtr.i;
       goto fail;
@@ -1161,12 +1159,12 @@ fail:
   req->opInfo = TuxMaintReq::OpRemove;
   triggerList.first(triggerPtr);
   while (triggerPtr.i != failPtrI) {
-    ljam();
+    jam();
     req->indexId = triggerPtr.p->indexId;
     req->errorCode = RNIL;
     EXECUTE_DIRECT(DBTUX, GSN_TUX_MAINT_REQ,
         signal, TuxMaintReq::SignalLength);
-    ljamEntry();
+    jamEntry();
     ndbrequire(req->errorCode == 0);
     triggerList.next(triggerPtr);
   }
@@ -1197,15 +1195,15 @@ Dbtup::executeTuxCommitTriggers(Signal* signal,
   if (regOperPtr->op_struct.op_type == ZINSERT) {
     if (! regOperPtr->op_struct.delete_insert_flag)
       return;
-    ljam();
+    jam();
     tupVersion= decr_tup_version(regOperPtr->tupVersion);
   } else if (regOperPtr->op_struct.op_type == ZUPDATE) {
-    ljam();
+    jam();
     tupVersion= decr_tup_version(regOperPtr->tupVersion);
   } else if (regOperPtr->op_struct.op_type == ZDELETE) {
     if (regOperPtr->op_struct.delete_insert_flag)
       return;
-    ljam();
+    jam();
     tupVersion= regOperPtr->tupVersion;
   } else {
     ndbrequire(false);
@@ -1231,13 +1229,13 @@ Dbtup::executeTuxAbortTriggers(Signal* signal,
   // get version
   Uint32 tupVersion;
   if (regOperPtr->op_struct.op_type == ZINSERT) {
-    ljam();
+    jam();
     tupVersion = regOperPtr->tupVersion;
   } else if (regOperPtr->op_struct.op_type == ZUPDATE) {
-    ljam();
+    jam();
     tupVersion = regOperPtr->tupVersion;
   } else if (regOperPtr->op_struct.op_type == ZDELETE) {
-    ljam();
+    jam();
     return;
   } else {
     ndbrequire(false);
@@ -1262,12 +1260,12 @@ Dbtup::removeTuxEntries(Signal* signal,
   TriggerPtr triggerPtr;
   triggerList.first(triggerPtr);
   while (triggerPtr.i != RNIL) {
-    ljam();
+    jam();
     req->indexId = triggerPtr.p->indexId;
     req->errorCode = RNIL,
     EXECUTE_DIRECT(DBTUX, GSN_TUX_MAINT_REQ,
         signal, TuxMaintReq::SignalLength);
-    ljamEntry();
+    jamEntry();
     // must succeed
     ndbrequire(req->errorCode == 0);
     triggerList.next(triggerPtr);

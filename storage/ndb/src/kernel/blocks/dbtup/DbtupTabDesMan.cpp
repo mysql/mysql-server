@@ -15,13 +15,11 @@
 
 
 #define DBTUP_C
+#define DBTUP_TAB_DES_MAN_CPP
 #include "Dbtup.hpp"
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
 #include <pc.hpp>
-
-#define ljam() { jamLine(22000 + __LINE__); }
-#define ljamEntry() { jamEntryLine(22000 + __LINE__); }
 
 /*
  * TABLE DESCRIPTOR MEMORY MANAGER
@@ -65,30 +63,30 @@ Uint32 Dbtup::allocTabDescr(const Tablerec* regTabPtr, Uint32* offset)
   allocSize = (((allocSize - 1) >> 4) + 1) << 4;
   Uint32 list = nextHigherTwoLog(allocSize - 1);	/* CALCULATE WHICH LIST IT BELONGS TO     */
   for (Uint32 i = list; i < 16; i++) {
-    ljam();
+    jam();
     if (cfreeTdList[i] != RNIL) {
-      ljam();
+      jam();
       reference = cfreeTdList[i];
       removeTdArea(reference, i);	                /* REMOVE THE AREA FROM THE FREELIST      */
       Uint32 retNo = (1 << i) - allocSize;	        /* CALCULATE THE DIFFERENCE               */
       if (retNo >= ZTD_FREE_SIZE) {
-        ljam();
+        jam();
         // return unused words, of course without attempting left merge
         Uint32 retRef = reference + allocSize;
         freeTabDescr(retRef, retNo, false);
       } else {
-        ljam();
+        jam();
         allocSize = 1 << i;
       }//if
       break;
     }//if
   }//for
   if (reference == RNIL) {
-    ljam();
+    jam();
     terrorCode = ZMEM_NOTABDESCR_ERROR;
     return RNIL;
   } else {
-    ljam();
+    jam();
     setTabDescrWord((reference + allocSize) - ZTD_TR_TYPE, ZTD_TYPE_NORMAL);
     setTabDescrWord(reference + ZTD_DATASIZE, allocSize);
 
@@ -105,7 +103,7 @@ void Dbtup::freeTabDescr(Uint32 retRef, Uint32 retNo, bool normal)
 {
   itdaMergeTabDescr(retRef, retNo, normal);       /* MERGE WITH POSSIBLE NEIGHBOURS   */
   while (retNo >= ZTD_FREE_SIZE) {
-    ljam();
+    jam();
     Uint32 list = nextHigherTwoLog(retNo);
     list--;	/* RETURN TO NEXT LOWER LIST    */
     Uint32 sizeOfChunk = 1 << list;
@@ -136,7 +134,7 @@ void Dbtup::insertTdArea(Uint32 tabDesRef, Uint32 list)
   setTabDescrWord(tabDesRef + ZTD_FL_HEADER, ZTD_TYPE_FREE);
   setTabDescrWord(tabDesRef + ZTD_FL_NEXT, cfreeTdList[list]);
   if (cfreeTdList[list] != RNIL) {
-    ljam();                                                /* PREVIOUSLY EMPTY SLOT     */
+    jam();                                                /* PREVIOUSLY EMPTY SLOT     */
     setTabDescrWord(cfreeTdList[list] + ZTD_FL_PREV, tabDesRef);
   }//if
   cfreeTdList[list] = tabDesRef;	/* RELINK THE LIST           */
@@ -156,28 +154,28 @@ void Dbtup::itdaMergeTabDescr(Uint32& retRef, Uint32& retNo, bool normal)
 {
   // merge right
   while ((retRef + retNo) < cnoOfTabDescrRec) {
-    ljam();
+    jam();
     Uint32 tabDesRef = retRef + retNo;
     Uint32 headerWord = getTabDescrWord(tabDesRef + ZTD_FL_HEADER);
     if (headerWord == ZTD_TYPE_FREE) {
-      ljam();
+      jam();
       Uint32 sizeOfMergedPart = getTabDescrWord(tabDesRef + ZTD_FL_SIZE);
 
       retNo += sizeOfMergedPart;
       Uint32 list = nextHigherTwoLog(sizeOfMergedPart - 1);
       removeTdArea(tabDesRef, list);
     } else {
-      ljam();
+      jam();
       break;
     }
   }
   // merge left
   const bool mergeLeft = normal;
   while (mergeLeft && retRef > 0) {
-    ljam();
+    jam();
     Uint32 trailerWord = getTabDescrWord(retRef - ZTD_TR_TYPE);
     if (trailerWord == ZTD_TYPE_FREE) {
-      ljam();
+      jam();
       Uint32 sizeOfMergedPart = getTabDescrWord(retRef - ZTD_TR_SIZE);
       ndbrequire(retRef >= sizeOfMergedPart);
       retRef -= sizeOfMergedPart;
@@ -185,7 +183,7 @@ void Dbtup::itdaMergeTabDescr(Uint32& retRef, Uint32& retNo, bool normal)
       Uint32 list = nextHigherTwoLog(sizeOfMergedPart - 1);
       removeTdArea(retRef, list);
     } else {
-      ljam();
+      jam();
       break;
     }
   }
@@ -213,15 +211,15 @@ void Dbtup::removeTdArea(Uint32 tabDesRef, Uint32 list)
   setTabDescrWord((tabDesRef + (1 << list)) - ZTD_TR_TYPE, ZTD_TYPE_NORMAL);
 
   if (tabDesRef == cfreeTdList[list]) {
-    ljam();
+    jam();
     cfreeTdList[list] = tabDescrNextPtr;	/* RELINK THE LIST           */
   }//if
   if (tabDescrNextPtr != RNIL) {
-    ljam();
+    jam();
     setTabDescrWord(tabDescrNextPtr + ZTD_FL_PREV, tabDescrPrevPtr);
   }//if
   if (tabDescrPrevPtr != RNIL) {
-    ljam();
+    jam();
     setTabDescrWord(tabDescrPrevPtr + ZTD_FL_NEXT, tabDescrNextPtr);
   }//if
 }//Dbtup::removeTdArea()
