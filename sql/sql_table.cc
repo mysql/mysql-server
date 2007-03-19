@@ -1344,6 +1344,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	}
 	else if (!f_is_geom(sql_field->pack_flag) &&
 		  (column->length > length ||
+                   !Field::type_can_have_key_part (sql_field->sql_type) ||
 		   ((f_is_packed(sql_field->pack_flag) ||
 		     ((file->table_flags() & HA_NO_PREFIX_CHAR_KEYS) &&
 		      (key_info->flags & HA_NOSAME))) &&

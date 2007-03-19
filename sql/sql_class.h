@@ -356,13 +356,25 @@ public:
   inline uint32 get_open_count() { return open_count; }
 };
 
-
+/*
+  The COPY_INFO structure is used by INSERT/REPLACE code.
+  The schema of the row counting by the INSERT/INSERT ... ON DUPLICATE KEY
+  UPDATE code:
+    If a row is inserted then the copied variable is incremented.
+    If a row is updated by the INSERT ... ON DUPLICATE KEY UPDATE and the
+      new data differs from the old one then the copied and the updated
+      variables are incremented.
+    The touched variable is incremented if a row was touched by the update part
+      of the INSERT ... ON DUPLICATE KEY UPDATE no matter whether the row
+      was actually changed or not.
+*/
 typedef struct st_copy_info {
-  ha_rows records;
-  ha_rows deleted;
-  ha_rows updated;
-  ha_rows copied;
+  ha_rows records; /* Number of processed records */
+  ha_rows deleted; /* Number of deleted records */
+  ha_rows updated; /* Number of updated records */
+  ha_rows copied;  /* Number of copied records */
   ha_rows error_count;
+  ha_rows touched; /* Number of touched records */
   enum enum_duplicates handle_duplicates;
   int escape_char, last_errno;
   bool ignore;

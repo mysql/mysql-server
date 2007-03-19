@@ -7504,7 +7504,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
   if ((join->tables != 1) ||  /* The query must reference one table. */
       ((!join->group_list) && /* Neither GROUP BY nor a DISTINCT query. */
        (!join->select_distinct)) ||
-      (thd->lex->select_lex.olap == ROLLUP_TYPE)) /* Check (B3) for ROLLUP */
+      (join->select_lex->olap == ROLLUP_TYPE)) /* Check (B3) for ROLLUP */
     DBUG_RETURN(NULL);
   if (table->s->keys == 0)        /* There are no indexes to use. */
     DBUG_RETURN(NULL);
