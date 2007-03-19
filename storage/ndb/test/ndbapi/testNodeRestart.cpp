@@ -887,6 +887,9 @@ int runBug20185(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;
   
   NdbSleep_MilliSleep(3000);
+  Vector<int> nodes;
+  for (Uint32 i = 0; i<restarter.getNumDbNodes(); i++)
+    nodes.push_back(restarter.getDbNodeId(i));
   
 retry:
   if(hugoOps.startTransaction(pNdb) != 0)
@@ -910,11 +913,16 @@ retry:
     nodeId = restarter.getDbNodeId(rand() % restarter.getNumDbNodes());
   } while (nodeId == node);
   
-  if (restarter.insertErrorInAllNodes(7030))
-    return NDBT_FAILED;
-  
+  ndbout_c("7031 to %d", nodeId);
   if (restarter.insertErrorInNode(nodeId, 7031))
     return NDBT_FAILED;
+
+  for (Uint32 i = 0; i<nodes.size(); i++)
+  {
+    if (nodes[i] != nodeId)
+      if (restarter.insertErrorInNode(nodes[i], 7030))
+	return NDBT_FAILED;
+  }
   
   NdbSleep_MilliSleep(500);
   
