@@ -285,3 +285,14 @@ ldt	ldt2
 drop table t1;
 drop function f1;
 SET GLOBAL log_bin_trust_function_creators = 0;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (t TIMESTAMP);
+INSERT INTO t1 VALUES (NULL), (NULL);
+LOCK TABLES t1 WRITE;
+SELECT CONVERT_TZ(NOW(), 'UTC', 'Europe/Moscow') IS NULL;
+CONVERT_TZ(NOW(), 'UTC', 'Europe/Moscow') IS NULL
+0
+UPDATE t1 SET t = CONVERT_TZ(t, 'UTC', 'Europe/Moscow');
+UNLOCK TABLES;
+DROP TABLE t1;
+End of 5.1 tests
