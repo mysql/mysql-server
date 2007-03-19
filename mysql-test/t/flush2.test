@@ -3,7 +3,7 @@
 #
 flush logs;
 set global expire_logs_days = 3;
-show variables like 'log%';
+show variables like 'log_bin%';
 flush logs;
-show variables like 'log%';
+show variables like 'log_bin%';
 set global expire_logs_days = 0;

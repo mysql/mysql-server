@@ -1811,7 +1811,11 @@ public:
     			   str_value.length(), collation.collation);
   }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
-  inline void append(char *str, uint length) { str_value.append(str, length); }
+  inline void append(char *str, uint length)
+  {
+    str_value.append(str, length);
+    max_length= str_value.numchars() * collation.collation->mbmaxlen;
+  }
   void print(String *str);
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}

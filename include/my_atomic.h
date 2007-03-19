@@ -134,14 +134,6 @@ make_atomic_swap(ptr)
 #undef _atomic_h_cleanup_
 #endif
 
-#if SIZEOF_CHARP == SIZEOF_INT
-typedef int intptr;
-#elif SIZEOF_CHARP == SIZEOF_LONG
-typedef long intptr;
-#else
-#error
-#endif
-
 #define MY_ATOMIC_OK       0
 #define MY_ATOMIC_NOT_1CPU 1
 extern int my_atomic_initialize();
