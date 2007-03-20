@@ -1380,6 +1380,49 @@ runBug27003(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+
+int
+runBug27283(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  NdbRestarter res;
+
+  if (res.getNumDbNodes() < 2)
+  {
+    return NDBT_OK;
+  }
+
+  static const int errnos[] = { 7181, 7182, 0 };
+  
+  Uint32 pos = 0;
+  for (Uint32 i = 0; i<loops; i++)
+  {
+    while (errnos[pos] != 0)
+    {
+      int master = res.getMasterNodeId();
+      int next = res.getNextMasterNodeId(master);
+      int next2 = res.getNextMasterNodeId(next);
+      
+      int node = (i & 1) ? next : next2;
+      ndbout_c("Tesing err: %d", errnos[pos]);
+      if (res.insertErrorInNode(next, errnos[pos]))
+	return NDBT_FAILED;
+
+      NdbSleep_SecSleep(3);
+      
+      if (res.waitClusterStarted())
+	return NDBT_FAILED;
+      
+      pos++;
+    }
+    pos = 0;
+  }
+  
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -1727,6 +1770,9 @@ TESTCASE("Bug26450", ""){
 }
 TESTCASE("Bug27003", ""){
   INITIALIZER(runBug27003);
+}
+TESTCASE("Bug27283", ""){
+  INITIALIZER(runBug27283);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 
