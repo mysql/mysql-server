@@ -1398,18 +1398,19 @@ id	val
 1	test1
 2	test2
 INSERT INTO t1 VALUES (2,'test2') ON DUPLICATE KEY UPDATE val=VALUES(val);
-INSERT INTO t1 VALUES (3,'test3') ON DUPLICATE KEY UPDATE val=VALUES(val);
+INSERT INTO t1 VALUES (2,'test3') ON DUPLICATE KEY UPDATE val=VALUES(val);
+INSERT INTO t1 VALUES (3,'test4') ON DUPLICATE KEY UPDATE val=VALUES(val);
 SELECT * FROM t1;
 id	val
 1	test1
-2	test2
-3	test3
+2	test3
+3	test4
 SELECT * FROM t2;
 id	val
 1	test1
 2	test2
-3	test2
-4	test3
+3	test3
+4	test4
 DROP TRIGGER trg27006_a_insert;
 DROP TRIGGER trg27006_a_update;
 drop table t1,t2;
