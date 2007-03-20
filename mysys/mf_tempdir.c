@@ -64,7 +64,7 @@ my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
   DBUG_RETURN(FALSE);
 
 err:
-  delete_dynamic(&t_arr);                       /* Safe to free */
+  delete_dynamic(&tmpdir->full_list);           /* Safe to free */
   pthread_mutex_destroy(&tmpdir->mutex);
   DBUG_RETURN(TRUE);
 }
