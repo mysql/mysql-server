@@ -298,6 +298,24 @@ t4
 4	34
 5	35
 drop table t1;
+create table t1
+(pk int key
+,a1 MEDIUMINT, a2 MEDIUMINT UNSIGNED
+) engine ndb;
+insert into t1 values(1, 8388607, 16777215);
+insert into t1 values(2, -8388608, 0);
+insert into t1 values(3, -1, 1);
+CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
+DELETE FROM test.backup_info;
+LOAD DATA INFILE '../tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
+SELECT @the_backup_id:=backup_id FROM test.backup_info;
+@the_backup_id:=backup_id
+<the_backup_id>
+DROP TABLE test.backup_info;
+1;8388607;16777215
+2;-8388608;0
+3;-1;1
+drop table t1;
 drop table t2;
 drop table t3;
 drop table t4;
