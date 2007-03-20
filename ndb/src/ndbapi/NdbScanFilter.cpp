@@ -42,7 +42,9 @@ public:
 
   int m_label;
   State m_current;
+  Uint32 m_negative;    //used for translating NAND/NOR to AND/OR, equal 0 or 1 
   Vector<State> m_stack;
+  Vector<Uint32> m_stack2;    //to store info of m_negative
   NdbOperation * m_operation;
   Uint32 m_latestAttrib;
 
@@ -66,6 +68,7 @@ NdbScanFilter::NdbScanFilter(class NdbOperation * op)
   m_impl.m_label = 0;
   m_impl.m_latestAttrib = ~0;
   m_impl.m_operation = op;
+  m_impl.m_negative = 0;
 }
 
 NdbScanFilter::~NdbScanFilter(){
@@ -75,18 +78,39 @@ NdbScanFilter::~NdbScanFilter(){
 int
 NdbScanFilter::begin(Group group){
 
+  m_impl.m_stack2.push_back(m_impl.m_negative);
   switch(group){
   case NdbScanFilter::AND:
     INT_DEBUG(("Begin(AND)"));
+    if(m_impl.m_negative == 1){
+      group = NdbScanFilter::OR;
+    }
     break;
   case NdbScanFilter::OR:
     INT_DEBUG(("Begin(OR)"));
+    if(m_impl.m_negative == 1){
+      group = NdbScanFilter::AND;
+    }
     break;
   case NdbScanFilter::NAND:
     INT_DEBUG(("Begin(NAND)"));
+    if(m_impl.m_negative == 0){
+      group = NdbScanFilter::OR;
+      m_impl.m_negative = 1; 
+    }else{
+      group = NdbScanFilter::AND;
+      m_impl.m_negative = 0; 
+    }
     break;
   case NdbScanFilter::NOR:
     INT_DEBUG(("Begin(NOR)"));
+    if(m_impl.m_negative == 0){
+      group = NdbScanFilter::AND;
+      m_impl.m_negative = 1; 
+    }else{
+      group = NdbScanFilter::OR;
+      m_impl.m_negative = 0; 
+    }
     break;
   }
 
@@ -130,6 +154,13 @@ NdbScanFilter::begin(Group group){
 int
 NdbScanFilter::end(){
 
+  if(m_impl.m_stack2.size() == 0){
+    m_impl.m_operation->setErrorCodeAbort(4259);
+    return -1;
+  }
+  m_impl.m_negative = m_impl.m_stack2.back();
+  m_impl.m_stack2.erase(m_impl.m_stack2.size() - 1);
+
   switch(m_impl.m_current.m_group){
   case NdbScanFilter::AND:
     INT_DEBUG(("End(AND pc=%d)", m_impl.m_current.m_popCount));
@@ -151,6 +182,10 @@ NdbScanFilter::end(){
   }
   
   NdbScanFilterImpl::State tmp = m_impl.m_current;  
+  if(m_impl.m_stack.size() == 0){
+    m_impl.m_operation->setErrorCodeAbort(4259);
+    return -1;
+  }
   m_impl.m_current = m_impl.m_stack.back();
   m_impl.m_stack.erase(m_impl.m_stack.size() - 1);
   
@@ -395,8 +430,17 @@ NdbScanFilterImpl::cond_col_const(Interpreter::BinaryCondition op,
     m_operation->setErrorCodeAbort(4260);
     return -1;
   }
+
+  StrBranch2 branch;
+  if(m_negative == 1){  //change NdbOperation to its negative
+    if(m_current.m_group == NdbScanFilter::AND)
+      branch = table3[op].m_branches[(Uint32)(m_current.m_group) + 1];
+    if(m_current.m_group == NdbScanFilter::OR)
+      branch = table3[op].m_branches[(Uint32)(m_current.m_group) - 1];
+  }else{
+    branch = table3[op].m_branches[(Uint32)(m_current.m_group)];
+  }
   
-  StrBranch2 branch = table3[op].m_branches[m_current.m_group];
   const NdbDictionary::Column * col = 
     m_operation->m_currentTable->getColumn(AttrId);
   
