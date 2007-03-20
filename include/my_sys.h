@@ -322,15 +322,6 @@ struct st_my_file_info
 
 extern struct st_my_file_info *my_file_info;
 
-typedef struct st_my_tmpdir
-{
-  char **list;
-  uint cur, max;
-#ifdef THREAD
-  pthread_mutex_t mutex;
-#endif
-} MY_TMPDIR;
-
 typedef struct st_dynamic_array
 {
   char *buffer;
@@ -338,6 +329,16 @@ typedef struct st_dynamic_array
   uint alloc_increment;
   uint size_of_element;
 } DYNAMIC_ARRAY;
+
+typedef struct st_my_tmpdir
+{
+  DYNAMIC_ARRAY full_list;
+  char **list;
+  uint cur, max;
+#ifdef THREAD
+  pthread_mutex_t mutex;
+#endif
+} MY_TMPDIR;
 
 typedef struct st_dynamic_string
 {
