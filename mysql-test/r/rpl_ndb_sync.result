@@ -60,11 +60,11 @@ hex(c2)	hex(c3)	c1
 0	1	BCDEF
 1	0	CD
 0	0	DEFGHIJKL
-SELECT @the_epoch:=MAX(epoch) FROM mysql.apply_status;
+SELECT @the_epoch:=MAX(epoch) FROM mysql.ndb_apply_status;
 @the_epoch:=MAX(epoch)
 <the_epoch>
 SELECT @the_pos:=Position,@the_file:=SUBSTRING_INDEX(FILE, '/', -1)
-FROM mysql.binlog_index WHERE epoch > <the_epoch> ORDER BY epoch ASC LIMIT 1;
+FROM mysql.ndb_binlog_index WHERE epoch > <the_epoch> ORDER BY epoch ASC LIMIT 1;
 @the_pos:=Position	@the_file:=SUBSTRING_INDEX(FILE, '/', -1)
 <the_pos>	master-bin.000001
 CHANGE MASTER TO
@@ -89,8 +89,8 @@ hex(c2)	hex(c3)	c1
 DROP DATABASE ndbsynctest;
 STOP SLAVE;
 reset master;
-select * from mysql.binlog_index;
+select * from mysql.ndb_binlog_index;
 Position	File	epoch	inserts	updates	deletes	schemaops
 reset slave;
-select * from mysql.apply_status;
+select * from mysql.ndb_apply_status;
 server_id	epoch
