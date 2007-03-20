@@ -106,7 +106,7 @@ static my_bool parsing_disabled= 0;
 static my_bool info_flag;
 static my_bool display_result_vertically= FALSE, display_metadata= FALSE;
 static my_bool disable_query_log= 0, disable_result_log= 0;
-static my_bool disable_warnings= 0, disable_ps_warnings= 0;
+static my_bool disable_warnings= 0;
 static my_bool disable_info= 1;
 static my_bool abort_on_error= 1;
 static my_bool server_initialized= 0;
@@ -266,7 +266,6 @@ enum enum_commands {
   Q_ENABLE_RESULT_LOG, Q_DISABLE_RESULT_LOG,
   Q_WAIT_FOR_SLAVE_TO_STOP,
   Q_ENABLE_WARNINGS, Q_DISABLE_WARNINGS,
-  Q_ENABLE_PS_WARNINGS, Q_DISABLE_PS_WARNINGS,
   Q_ENABLE_INFO, Q_DISABLE_INFO,
   Q_ENABLE_METADATA, Q_DISABLE_METADATA,
   Q_EXEC, Q_DELIMITER,
@@ -330,8 +329,6 @@ const char *command_names[]=
   "wait_for_slave_to_stop",
   "enable_warnings",
   "disable_warnings",
-  "enable_ps_warnings",
-  "disable_ps_warnings",
   "enable_info",
   "disable_info",
   "enable_metadata",
@@ -6088,8 +6085,6 @@ int main(int argc, char **argv)
       case Q_DISABLE_RESULT_LOG: disable_result_log=1; break;
       case Q_ENABLE_WARNINGS:    disable_warnings=0; break;
       case Q_DISABLE_WARNINGS:   disable_warnings=1; break;
-      case Q_ENABLE_PS_WARNINGS:    disable_ps_warnings=0; break;
-      case Q_DISABLE_PS_WARNINGS:   disable_ps_warnings=1; break;
       case Q_ENABLE_INFO:        disable_info=0; break;
       case Q_DISABLE_INFO:       disable_info=1; break;
       case Q_ENABLE_METADATA:    display_metadata=1; break;
