@@ -2544,30 +2544,113 @@ my_size_t THD::max_row_length_blob(TABLE *table, const byte *data) const
 }
 
 
-my_size_t THD::pack_row(TABLE *table, MY_BITMAP const* cols, byte *row_data, 
-                        const byte *record) const
+/*
+  Pack a record of data for a table into a format suitable for
+  transfer via the binary log.
+
+  SYNOPSIS
+    THD::pack_row()
+    table     Table describing the format of the record
+    cols      Bitmap with a set bit for each column that should be
+              stored in the row
+    row_data  Pointer to memory where row will be written
+    record    Pointer to record that should be packed. It is assumed
+              that the pointer refers to either record[0] or
+              record[1], but no such check is made since the code does
+              not rely on that.
+
+  DESCRIPTION
+
+    The format for a row in transfer with N fields is the following:
+
+    ceil(N/8) null bytes:
+        One null bit for every column *regardless of whether it can be
+        null or not*. This simplifies the decoding. Observe that the
+        number of null bits is equal to the number of set bits in the
+        'cols' bitmap. The number of null bytes is the smallest number
+        of bytes necessary to store the null bits.
+
+        Padding bits are 1.
+
+    N packets:
+        Each field is stored in packed format.
+
+
+  RETURN VALUE
+
+    The number of bytes written at 'row_data'.
+ */
+my_size_t
+THD::pack_row(TABLE *table, MY_BITMAP const* cols,
+              byte *const row_data, const byte *record) const
 {
   Field **p_field= table->field, *field;
-  int n_null_bytes= table->s->null_bytes;
-  byte *ptr;
-  uint i;
+  int const null_byte_count= (bitmap_bits_set(cols) + 7) / 8;
+  byte *pack_ptr = row_data + null_byte_count;
+  byte *null_ptr = row_data;
   my_ptrdiff_t const rec_offset= record - table->record[0];
   my_ptrdiff_t const def_offset= table->s->default_values - table->record[0];
-  memcpy(row_data, record, n_null_bytes);
-  ptr= row_data+n_null_bytes;
 
-  for (i= 0 ; (field= *p_field) ; i++, p_field++)
+  /*
+    We write the null bits and the packed records using one pass
+    through all the fields. The null bytes are written little-endian,
+    i.e., the first fields are in the first byte.
+   */
+  unsigned int null_bits= (1U << 8) - 1;
+  // Mask to mask out the correct but among the null bits
+  unsigned int null_mask= 1U;
+  for ( ; (field= *p_field) ; p_field++)
   {
-    if (bitmap_is_set(cols,i))
+    DBUG_PRINT("debug", ("null_mask=%d; null_ptr=%p; row_data=%p; null_byte_count=%d",
+                         null_mask, null_ptr, row_data, null_byte_count));
+    if (bitmap_is_set(cols, p_field - table->field))
     {
-      my_ptrdiff_t const offset=
-        field->is_null((uint) rec_offset) ? def_offset : rec_offset;
-      field->move_field_offset(offset);
-      ptr= (byte*)field->pack((char *) ptr, field->ptr);
-      field->move_field_offset(-offset);
+      my_ptrdiff_t offset;
+      if (field->is_null(rec_offset))
+      {
+        offset= def_offset;
+        null_bits |= null_mask;
+      }
+      else
+      {
+        offset= rec_offset;
+        null_bits &= ~null_mask;
+
+        /*
+          We only store the data of the field if it is non-null
+         */
+        field->move_field_offset(offset);
+        pack_ptr= (byte*)field->pack((char *) pack_ptr, field->ptr);
+        field->move_field_offset(-offset);
+      }
+
+      null_mask <<= 1;
+      if ((null_mask & 0xFF) == 0)
+      {
+        DBUG_ASSERT(null_ptr < row_data + null_byte_count);
+        null_mask = 1U;
+        *null_ptr++ = null_bits;
+        null_bits= (1U << 8) - 1;
+      }
     }
   }
-  return (static_cast<my_size_t>(ptr - row_data));
+
+  /*
+    Write the last (partial) byte, if there is one
+  */
+  if ((null_mask & 0xFF) > 1)
+  {
+    DBUG_ASSERT(null_ptr < row_data + null_byte_count);
+    *null_ptr++ = null_bits;
+  }
+
+  /*
+    The null pointer should now point to the first byte of the
+    packed data. If it doesn't, something is very wrong.
+  */
+  DBUG_ASSERT(null_ptr == row_data + null_byte_count);
+
+  return static_cast<my_size_t>(pack_ptr - row_data);
 }
 
 
