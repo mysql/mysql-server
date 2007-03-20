@@ -465,6 +465,10 @@ max-time: 1000
 cmd: testNodeRestart
 args: -n Bug27003 T1
 
+max-time: 1000
+cmd: testNodeRestart
+args: -n Bug27283 T1
+
 max-time: 500
 cmd: testScan
 args: -n ScanVariants
