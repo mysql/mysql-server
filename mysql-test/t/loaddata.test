@@ -130,12 +130,12 @@ set @@secure_file_priv= 0;
 truncate table t1;
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --error 1290
-eval load data infile '$MYSQL_TEST_DIR/Makefile' into table t1;
+eval load data infile '$MYSQL_TEST_DIR/t/loaddata.test' into table t1;
 select * from t1;
 
 # Test "load_file" returns NULL
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
-eval select load_file("$MYSQL_TEST_DIR/Makefile");
+eval select load_file("$MYSQL_TEST_DIR/t/loaddata.test");
 
 # cleanup
 drop table t1, t2;
