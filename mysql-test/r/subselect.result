@@ -3880,3 +3880,28 @@ this is a test.	3
 this is a test.	1
 this is a test.	2
 DROP table t1;
+CREATE TABLE t1 (a int, b int);
+CREATE TABLE t2 (m int, n int);
+INSERT INTO t1 VALUES (2,2), (2,2), (3,3), (3,3), (3,3), (4,4);
+INSERT INTO t2 VALUES (1,11), (2,22), (3,32), (4,44), (4,44);
+SELECT COUNT(*), a,
+(SELECT m FROM t2 WHERE m = count(*) LIMIT 1)
+FROM t1 GROUP BY a;
+COUNT(*)	a	(SELECT m FROM t2 WHERE m = count(*) LIMIT 1)
+2	2	2
+3	3	3
+1	4	1
+SELECT COUNT(*), a,
+(SELECT MIN(m) FROM t2 WHERE m = count(*))
+FROM t1 GROUP BY a;
+COUNT(*)	a	(SELECT MIN(m) FROM t2 WHERE m = count(*))
+2	2	2
+3	3	3
+1	4	1
+SELECT COUNT(*), a       
+FROM t1 GROUP BY a
+HAVING (SELECT MIN(m) FROM t2 WHERE m = count(*)) > 1;
+COUNT(*)	a
+2	2
+3	3
+DROP TABLE t1,t2;
