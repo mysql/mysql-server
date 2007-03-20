@@ -25,6 +25,7 @@
 #include <thr_alarm.h>
 #include <my_dir.h>
 #include <sql_common.h>
+#include <errmsg.h>
 
 #ifdef HAVE_REPLICATION
 
@@ -2068,7 +2069,7 @@ after reconnect");
       if (event_len == packet_error)
       {
         uint mysql_error_number= mysql_errno(mysql);
-        if (mysql_error_number == ER_NET_PACKET_TOO_LARGE)
+        if (mysql_error_number == CR_NET_PACKET_TOO_LARGE)
         {
           sql_print_error("\
 Log entry on master is longer than max_allowed_packet (%ld) on \
