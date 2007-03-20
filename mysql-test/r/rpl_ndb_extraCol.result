@@ -28,9 +28,9 @@ a	b	c
 *** Select from slave ***
 SELECT * FROM t1 ORDER BY a;
 a	b	c	d	e
-1	2	TEXAS	2	TEST
-2	1	AUSTIN	2	TEST
-3	4	QA	2	TEST
+1	2	TEXAS	NULL	NULL
+2	1	AUSTIN	NULL	NULL
+3	4	QA	NULL	NULL
 *** Drop t1  ***
 DROP TABLE t1;
 *** Create t3 on slave  ***
@@ -289,9 +289,9 @@ a	b	c
 *** Select from slave ***
 SELECT * FROM t7 ORDER BY a;
 a	b	c	d	e
-1	b1b1	Kyle	0000-00-00 00:00:00	Extra Column Testing
-2	b1b1	JOE	0000-00-00 00:00:00	Extra Column Testing
-3	b1b1	QA	0000-00-00 00:00:00	Extra Column Testing
+1	b1b1	Kyle	NULL	NULL
+2	b1b1	JOE	NULL	NULL
+3	b1b1	QA	NULL	NULL
 *** Drop t7  ***
 DROP TABLE t7;
 *** Create t8 on slave  ***
@@ -447,9 +447,9 @@ a	b	c
 *** Select on Slave ***
 SELECT * FROM t12 ORDER BY a;
 a	b	f	c	e
-1	b1b1b1b1b1b1b1b1	Kyle	test	1
-2	b1b1b1b1b1b1b1b1	JOE	test	1
-3	b1b1b1b1b1b1b1b1	QA	test	1
+1	b1b1b1b1b1b1b1b1	Kyle	NULL	NULL
+2	b1b1b1b1b1b1b1b1	JOE	NULL	NULL
+3	b1b1b1b1b1b1b1b1	QA	NULL	NULL
 *** Drop t12  ***
 DROP TABLE t12;
 **** Extra Colums End ****
@@ -479,9 +479,9 @@ a	b	c
 *** Select on Slave ****
 SELECT * FROM t13 ORDER BY a;
 a	b	c	d	e
-1	b1b1b1b1b1b1b1b1	Kyle	1	CURRENT_TIMESTAMP
-2	b1b1b1b1b1b1b1b1	JOE	1	CURRENT_TIMESTAMP
-3	b1b1b1b1b1b1b1b1	QA	1	CURRENT_TIMESTAMP
+1	b1b1b1b1b1b1b1b1	Kyle	NULL	CURRENT_TIMESTAMP
+2	b1b1b1b1b1b1b1b1	JOE	NULL	CURRENT_TIMESTAMP
+3	b1b1b1b1b1b1b1b1	QA	NULL	CURRENT_TIMESTAMP
 *** Drop t13  ***
 DROP TABLE t13;
 *** 22117 END *** 
@@ -515,9 +515,9 @@ c1	c2	c3	c4	c5
 *** Select on Slave ****
 SELECT * FROM t14 ORDER BY c1;
 c1	c2	c3	c4	c5	c6	c7
-1	1.00	Replication Testing Extra Col	b1b1b1b1b1b1b1b1	Kyle	1	CURRENT_TIMESTAMP
-2	2.00	This Test Should work	b1b1b1b1b1b1b1b1	JOE	1	CURRENT_TIMESTAMP
-3	3.00	If is does not, I will open a bug	b1b1b1b1b1b1b1b1	QA	1	CURRENT_TIMESTAMP
+1	1.00	Replication Testing Extra Col	b1b1b1b1b1b1b1b1	Kyle	NULL	CURRENT_TIMESTAMP
+2	2.00	This Test Should work	b1b1b1b1b1b1b1b1	JOE	NULL	CURRENT_TIMESTAMP
+3	3.00	If is does not, I will open a bug	b1b1b1b1b1b1b1b1	QA	NULL	CURRENT_TIMESTAMP
 *** connect to master and drop columns ***
 ALTER TABLE t14 DROP COLUMN c2;
 ALTER TABLE t14 DROP COLUMN c4;
@@ -530,9 +530,9 @@ c1	c3	c5
 *** Select from Slave ***
 SELECT * FROM t14 ORDER BY c1;
 c1	c3	c5	c6	c7
-1	Replication Testing Extra Col	Kyle	1	CURRENT_TIMESTAMP
-2	This Test Should work	JOE	1	CURRENT_TIMESTAMP
-3	If is does not, I will open a bug	QA	1	CURRENT_TIMESTAMP
+1	Replication Testing Extra Col	Kyle	NULL	CURRENT_TIMESTAMP
+2	This Test Should work	JOE	NULL	CURRENT_TIMESTAMP
+3	If is does not, I will open a bug	QA	NULL	CURRENT_TIMESTAMP
 *** Drop t14  ***
 DROP TABLE t14;
 *** Create t15 on slave  ***
@@ -563,9 +563,9 @@ c1	c2	c3	c4	c5
 *** Select on Slave ****
 SELECT * FROM t15 ORDER BY c1;
 c1	c2	c3	c4	c5	c6	c7
-1	1.00	Replication Testing Extra Col	b1b1b1b1b1b1b1b1	Kyle	1	CURRENT_TIMESTAMP
-2	2.00	This Test Should work	b1b1b1b1b1b1b1b1	JOE	1	CURRENT_TIMESTAMP
-3	3.00	If is does not, I will open a bug	b1b1b1b1b1b1b1b1	QA	1	CURRENT_TIMESTAMP
+1	1.00	Replication Testing Extra Col	b1b1b1b1b1b1b1b1	Kyle	NULL	CURRENT_TIMESTAMP
+2	2.00	This Test Should work	b1b1b1b1b1b1b1b1	JOE	NULL	CURRENT_TIMESTAMP
+3	3.00	If is does not, I will open a bug	b1b1b1b1b1b1b1b1	QA	NULL	CURRENT_TIMESTAMP
 *** Add column on master that is a Extra on Slave ***
 ALTER TABLE t15 ADD COLUMN c6 INT AFTER c5;
 ********************************************
@@ -618,9 +618,9 @@ c1	c2	c3	c4	c5	c6
 *** Try to select from slave ****
 SELECT * FROM t15 ORDER BY c1;
 c1	c2	c3	c4	c5	c6	c7
-1	1.00	Replication Testing Extra Col	b1b1b1b1b1b1b1b1	Kyle	1	CURRENT_TIMESTAMP
-2	2.00	This Test Should work	b1b1b1b1b1b1b1b1	JOE	1	CURRENT_TIMESTAMP
-3	3.00	If is does not, I will open a bug	b1b1b1b1b1b1b1b1	QA	1	CURRENT_TIMESTAMP
+1	1.00	Replication Testing Extra Col	b1b1b1b1b1b1b1b1	Kyle	NULL	CURRENT_TIMESTAMP
+2	2.00	This Test Should work	b1b1b1b1b1b1b1b1	JOE	NULL	CURRENT_TIMESTAMP
+3	3.00	If is does not, I will open a bug	b1b1b1b1b1b1b1b1	QA	NULL	CURRENT_TIMESTAMP
 5	2.00	Replication Testing	b1b1b1b1b1b1b1b1	Buda	2	CURRENT_TIMESTAMP
 *** DROP TABLE t15 ***
 DROP TABLE t15;
@@ -652,9 +652,9 @@ c1	c2	c3	c4	c5
 *** Select on Slave ****
 SELECT * FROM t16 ORDER BY c1;
 c1	c2	c3	c4	c5	c6	c7
-1	1.00	Replication Testing Extra Col	b1b1b1b1b1b1b1b1	Kyle	1	CURRENT_TIMESTAMP
-2	2.00	This Test Should work	b1b1b1b1b1b1b1b1	JOE	1	CURRENT_TIMESTAMP
-3	3.00	If is does not, I will open a bug	b1b1b1b1b1b1b1b1	QA	1	CURRENT_TIMESTAMP
+1	1.00	Replication Testing Extra Col	b1b1b1b1b1b1b1b1	Kyle	NULL	CURRENT_TIMESTAMP
+2	2.00	This Test Should work	b1b1b1b1b1b1b1b1	JOE	NULL	CURRENT_TIMESTAMP
+3	3.00	If is does not, I will open a bug	b1b1b1b1b1b1b1b1	QA	NULL	CURRENT_TIMESTAMP
 *** Add Partition on master ***
 ALTER TABLE t16 PARTITION BY KEY(c1) PARTITIONS 4;
 INSERT INTO t16 () VALUES(4,1.00,'Replication Rocks',@b1,'Omer');

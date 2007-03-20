@@ -5641,7 +5641,7 @@ unpack_row(RELAY_LOG_INFO *rli,
 
   bitmap_clear_all(rw_set);
 
-  memcpy(table->record[0], table->s->default_values, table->s->null_bytes);
+  empty_record(table);
 
   Field **const begin_ptr = table->field;
   Field **field_ptr;
@@ -5657,6 +5657,10 @@ unpack_row(RELAY_LOG_INFO *rli,
   {
     Field *const f= *field_ptr;
 
+    /*
+      No need to bother about columns that does not exist: they have
+      gotten default values when being emptied above.
+     */
     if (bitmap_is_set(cols, field_ptr -  begin_ptr))
     {
       if ((null_mask & 0xFF) == 0)
@@ -5680,10 +5684,13 @@ unpack_row(RELAY_LOG_INFO *rli,
         /*
           We only unpack the field if it was non-null
         */
+        const char *const old_ptr= pack_ptr;
         pack_ptr= f->unpack(f->ptr, pack_ptr);
+        DBUG_PRINT("debug", ("Unpacking field '%s' from %d bytes",
+                             f->field_name, pack_ptr - old_ptr));
       }
 
-      bitmap_set_bit(rw_set, field_ptr - begin_ptr);
+      bitmap_set_bit(rw_set, f->field_index);
       null_mask <<= 1;
     }
   }
@@ -6784,6 +6791,15 @@ copy_extra_record_fields(TABLE *table,
   return 0;                                     // All OK
 }
 
+#define DBUG_PRINT_BITSET(N,FRM,BS)              \
+  do {         \
+    char buf[256];                                 \
+    for (uint i = 0 ; i < (BS)->n_bits ; ++i)      \
+      buf[i] = bitmap_is_set((BS), i) ? '1' : '0'; \
+    buf[(BS)->n_bits] = '\0';                      \
+    DBUG_PRINT((N), ((FRM), buf));                 \
+  } while (0)
+
 /*
   Replace the provided record in the database.
 
@@ -6815,6 +6831,12 @@ replace_record(THD *thd, TABLE *table,
   int error;
   int keynum;
   auto_afree_ptr<char> key(NULL);
+
+#ifndef DBUG_OFF
+  DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
+  DBUG_PRINT_BITSET("debug", "write_set = %s", table->write_set);
+  DBUG_PRINT_BITSET("debug", "read_set = %s", table->read_set);
+#endif
 
   while ((error= table->file->ha_write_row(table->record[0])))
   {
@@ -6937,20 +6959,75 @@ void Write_rows_log_event::print(FILE *file, PRINT_EVENT_INFO* print_event_info)
 */
 static bool record_compare(TABLE *table)
 {
+  /*
+    Need to set the X bit and the filler bits in both records since
+    there are engines that do not set it correctly.
+
+    In addition, since MyISAM checks that one hasn't tampered with the
+    record, it is necessary to restore the old bytes into the record
+    after doing the comparison.
+
+    TODO[record format ndb]: Remove it once NDB returns correct
+    records. Check that the other engines also return correct records.
+   */
+
+  bool result= FALSE;
+  byte saved_x[2], saved_filler[2];
+
+  if (table->s->null_bytes > 0)
+  {
+    for (int i = 0 ; i < 2 ; ++i)
+    {
+      saved_x[i]= table->record[i][0];
+      saved_filler[i]= table->record[i][table->s->null_bytes - 1];
+      table->record[i][0]|= 1U;
+      table->record[i][table->s->null_bytes - 1]|=
+        256U - (1U << table->s->last_null_bit_pos);
+    }
+  }
+
   if (table->s->blob_fields + table->s->varchar_fields == 0)
-    return cmp_record(table,record[1]);
+  {
+    result= cmp_record(table,record[1]);
+    goto record_compare_exit;
+  }
+
   /* Compare null bits */
   if (memcmp(table->null_flags,
 	     table->null_flags+table->s->rec_buff_length,
 	     table->s->null_bytes))
-    return TRUE;				// Diff in NULL value
+  {
+    result= TRUE;				// Diff in NULL value
+    goto record_compare_exit;
+  }
+
   /* Compare updated fields */
   for (Field **ptr=table->field ; *ptr ; ptr++)
   {
     if ((*ptr)->cmp_binary_offset(table->s->rec_buff_length))
-      return TRUE;
+    {
+      result= TRUE;
+      goto record_compare_exit;
+    }
   }
-  return FALSE;
+
+record_compare_exit:
+  /*
+    Restore the saved bytes.
+
+    TODO[record format ndb]: Remove this code once NDB returns the
+    correct record format.
+  */
+  if (table->s->null_bytes > 0)
+  {
+    for (int i = 0 ; i < 2 ; ++i)
+    {
+      table->record[i][0]= saved_x[i];
+      table->record[i][table->s->null_bytes - 1]= saved_filler[i];
+    }
+  }
+
+  return result;
 }
 
 
@@ -7094,6 +7171,9 @@ static int find_and_fetch_row(TABLE *table, byte *key)
         are all set when returning.  There are storage engines that
         just set the necessary bits on the bytes and don't set the
         filler bits correctly.
+
+        TODO[record format ndb]: Remove this code once NDB returns the
+        correct record format.
       */
       if (table->s->null_bytes > 0)
       {
@@ -7126,16 +7206,6 @@ static int find_and_fetch_row(TABLE *table, byte *key)
     /* Continue until we find the right record or have made a full loop */
     do
     {
-      /*
-        Patching the record before calling rnd_next() since some
-        storage engines do not set the filler bits correctly.
-      */
-      if (table->s->null_bytes > 0)
-      {
-        table->record[1][table->s->null_bytes - 1]|=
-          256U - (1U << table->s->last_null_bit_pos);
-      }
-
       error= table->file->rnd_next(table->record[1]);
 
       DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
@@ -7154,6 +7224,7 @@ static int find_and_fetch_row(TABLE *table, byte *key)
 
       default:
 	table->file->print_error(error, MYF(0));
+        DBUG_PRINT("info", ("Record not found"));
         table->file->ha_rnd_end();
 	DBUG_RETURN(error);
       }
@@ -7163,6 +7234,7 @@ static int find_and_fetch_row(TABLE *table, byte *key)
     /*
       Have to restart the scan to be able to fetch the next row.
     */
+    DBUG_PRINT("info", ("Record %sfound", restart_count == 2 ? "not " : ""));
     table->file->ha_rnd_end();
 
     DBUG_ASSERT(error == HA_ERR_END_OF_FILE || error == 0);
