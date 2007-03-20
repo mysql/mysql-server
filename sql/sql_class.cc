@@ -2619,9 +2619,7 @@ THD::pack_row(TABLE *table, MY_BITMAP const* cols,
         /*
           We only store the data of the field if it is non-null
          */
-        field->move_field_offset(offset);
-        pack_ptr= (byte*)field->pack((char *) pack_ptr, field->ptr);
-        field->move_field_offset(-offset);
+        pack_ptr= (byte*)field->pack((char *) pack_ptr, field->ptr + offset);
       }
 
       null_mask <<= 1;
