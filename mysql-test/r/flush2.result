@@ -6,7 +6,7 @@ log	ON
 log_bin	OFF
 log_bin_trust_function_creators	ON
 log_error	
-log_output	TABLE
+log_output	FILE,TABLE
 log_queries_not_using_indexes	OFF
 log_slave_updates	OFF
 log_slow_queries	OFF
@@ -18,7 +18,7 @@ log	ON
 log_bin	OFF
 log_bin_trust_function_creators	ON
 log_error	
-log_output	TABLE
+log_output	FILE,TABLE
 log_queries_not_using_indexes	OFF
 log_slave_updates	OFF
 log_slow_queries	OFF
