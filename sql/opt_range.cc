@@ -7516,7 +7516,8 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
       else
         DBUG_RETURN(NULL);
 
-      Item *expr= min_max_item->args[0];    /* The argument of MIN/MAX. */
+      /* The argument of MIN/MAX. */
+      Item *expr= min_max_item->args[0]->real_item();    
       if (expr->type() == Item::FIELD_ITEM) /* Is it an attribute? */
       {
         if (! min_max_arg_item)
@@ -7894,6 +7895,7 @@ check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
   DBUG_ENTER("check_group_min_max_predicates");
   DBUG_ASSERT(cond && min_max_arg_item);
 
+  cond= cond->real_item();
   Item::Type cond_type= cond->type();
   if (cond_type == Item::COND_ITEM) /* 'AND' or 'OR' */
   {
@@ -7931,7 +7933,7 @@ check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
   DBUG_PRINT("info", ("Analyzing: %s", pred->func_name()));
   for (uint arg_idx= 0; arg_idx < pred->argument_count (); arg_idx++)
   {
-    cur_arg= arguments[arg_idx];
+    cur_arg= arguments[arg_idx]->real_item();
     DBUG_PRINT("info", ("cur_arg: %s", cur_arg->full_name()));
     if (cur_arg->type() == Item::FIELD_ITEM)
     {

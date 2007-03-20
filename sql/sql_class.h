@@ -1432,6 +1432,9 @@ public:
     query_id_t first_query_id;
   } binlog_evt_union;
 
+  /* pass up the count of "leaf" tables in a JOIN out of setup_tables() */
+  byte leaf_count;
+
   THD();
   ~THD();
 
