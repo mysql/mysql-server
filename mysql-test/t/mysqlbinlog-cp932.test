@@ -1,3 +1,5 @@
+# disabled in embedded until tools running is fixed with embedded
+--source include/not_embedded.inc
 -- source include/have_cp932.inc
 
 # Bug#16217 (mysql client did not know how not switch its internal charset)
