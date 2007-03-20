@@ -1700,8 +1700,7 @@ DROP PROCEDURE bug22580_proc_1;
 DROP PROCEDURE bug22580_proc_2;
 
 #
-# Bug#27006: AFTER UPDATE triggers not fired with INSERT ... ON DUPLICATE KEY
-#            UPDATE if the row wasn't actually changed.
+# Bug#27006: AFTER UPDATE triggers not fired with INSERT ... ON DUPLICATE
 #
 --disable_warnings
 DROP TRIGGER IF EXISTS trg27006_a_update;
@@ -1730,7 +1729,8 @@ INSERT INTO t1(val) VALUES ('test1'),('test2');
 SELECT * FROM t1;
 SELECT * FROM t2;
 INSERT INTO t1 VALUES (2,'test2') ON DUPLICATE KEY UPDATE val=VALUES(val);
-INSERT INTO t1 VALUES (3,'test3') ON DUPLICATE KEY UPDATE val=VALUES(val);
+INSERT INTO t1 VALUES (2,'test3') ON DUPLICATE KEY UPDATE val=VALUES(val);
+INSERT INTO t1 VALUES (3,'test4') ON DUPLICATE KEY UPDATE val=VALUES(val);
 SELECT * FROM t1;
 SELECT * FROM t2;
 DROP TRIGGER trg27006_a_insert;
