@@ -112,7 +112,9 @@ tags:
 .PHONY:	init-db bin-dist \
   test    test-force    test-full    test-force-full    test-force-mem \
   test-pl test-force-pl test-full-pl test-force-full-pl test-force-pl-mem \
-  test-ps test-ns
+  test-ps test-ns test-ext-funcs test-ext \
+  test-fast test-fast-cursor test-fast-view test-fast-prepare \
+  test-full-qa
 
 # Target 'test' will run the regression test suite using the built server.
 #
@@ -124,11 +126,11 @@ tags:
 
 test-ps:
 	cd mysql-test ; \
-	@PERL@ ./mysql-test-run.pl $(force) --ps-protocol
+	@PERL@ ./mysql-test-run.pl $(force) $(mem) --ps-protocol
 
 test-ns:
 	cd mysql-test ; \
-	@PERL@ ./mysql-test-run.pl $(force)
+	@PERL@ ./mysql-test-run.pl $(force) $(mem)
 
 test:	test-ns test-ps
 
@@ -143,7 +145,7 @@ test-force-full:
 
 #used by autopush.pl to run memory based tests
 test-force-mem:
-	$(MAKE) 'force=--force --mem' test
+	$(MAKE) force=--force mem=--mem test
 
 # Keep these for a while
 test-pl:	test
@@ -151,6 +153,32 @@ test-full-pl:	test-full
 test-force-pl:	test-force
 test-force-pl-mem:  test-force-mem
 test-force-full-pl: test-force-full
+
+test-ext-funcs:
+	cd mysql-test ; \
+	@PERL@ ./mysql-test-run.pl --force --suite=funcs_1 ; \
+	@PERL@ ./mysql-test-run.pl --force --suite=funcs_2
+
+test-ext:	test-ext-funcs
+
+test-fast:
+	cd mysql-test ; \
+	@PERL@ ./mysql-test-run.pl $(subset) --force --skip-ndb --skip-innodb --skip-im --skip-rpl ; \
+	@PERL@ ./mysql-test-run.pl $(subset) --force --suite=funcs_1 --do-test=myisam
+
+test-fast-view:
+	$(MAKE) subset=--view-protocol test-fast
+
+test-fast-cursor:
+	$(MAKE) subset=--cursor-protocol test-fast
+
+test-fast-prepare:
+	$(MAKE) subset=--ps-protocol test-fast
+
+test-full-qa:
+	$(MAKE) force=--force test-pl \
+	test-ext test-fast-view \
+	test-fast-cursor
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
