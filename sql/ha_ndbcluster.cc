@@ -7650,7 +7650,9 @@ int handle_trailing_share(NDB_SHARE *share)
   /*
     Ndb share has not been released as it should
   */
+#ifdef NOT_YET
   DBUG_ASSERT(FALSE);
+#endif
 
   /*
     This is probably an error.  We can however save the situation
