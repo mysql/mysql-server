@@ -342,12 +342,15 @@ JOIN::prepare(Item ***rref_pointer_array,
 
   /* Check that all tables, fields, conds and order are ok */
 
-  if ((!(select_options & OPTION_SETUP_TABLES_DONE) &&
-       setup_tables_and_check_access(thd, &select_lex->context, join_list,
-                                     tables_list, &conds, 
-                                     &select_lex->leaf_tables, FALSE, 
-                                     SELECT_ACL, SELECT_ACL)) ||
-      setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
+  if (!(select_options & OPTION_SETUP_TABLES_DONE) &&
+      setup_tables_and_check_access(thd, &select_lex->context, join_list,
+                                    tables_list, &conds, 
+                                    &select_lex->leaf_tables, FALSE, 
+                                    SELECT_ACL, SELECT_ACL))
+      DBUG_RETURN(-1);
+  tables= thd->leaf_count;
+
+  if (setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
       select_lex->setup_ref_array(thd, og_num) ||
       setup_fields(thd, (*rref_pointer_array), fields_list, 1,
 		   &all_fields, 1) ||
@@ -437,11 +440,6 @@ JOIN::prepare(Item ***rref_pointer_array,
 	DBUG_RETURN(-1);
       }
     }
-    TABLE_LIST *table_ptr;
-    for (table_ptr= select_lex->leaf_tables;
-	 table_ptr;
-	 table_ptr= table_ptr->next_leaf)
-      tables++;
   }
   {
     /* Caclulate the number of groups */
@@ -6376,7 +6374,8 @@ static void update_depend_map(JOIN *join, ORDER *order)
     order->item[0]->update_used_tables();
     order->depend_map=depend_map=order->item[0]->used_tables();
     // Not item_sum(), RAND() and no reference to table outside of sub select
-    if (!(order->depend_map & (OUTER_REF_TABLE_BIT | RAND_TABLE_BIT)))
+    if (!(order->depend_map & (OUTER_REF_TABLE_BIT | RAND_TABLE_BIT))
+        && !order->item[0]->with_sum_func)
     {
       for (JOIN_TAB **tab=join->map2table;
 	   depend_map ;
