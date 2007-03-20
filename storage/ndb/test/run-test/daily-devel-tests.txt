@@ -204,17 +204,17 @@ cmd: testSystemRestart
 args: -l 1 -n SR9 T1 
 
 #
-max-time: 2500
+max-time: 3600
 cmd: test_event
 args: -n EventOperationApplier -l 2
 
 #
-max-time: 2500
+max-time: 3600
 cmd: test_event
 args: -n EventOperationApplier_NR -l 2
 
 #
-max-time: 2500
+max-time: 3600
 cmd: test_event
 args: -n MergeEventOperationApplier_NR -l 2
 
@@ -224,9 +224,9 @@ cmd: test_event
 args: -n Multi
 
 #
-max-time: 2500
+max-time: 3600
 cmd: test_event
-args: -n CreateDropNR -l 2
+args: -n CreateDropNR -l 1
 
 #
 max-time: 600
