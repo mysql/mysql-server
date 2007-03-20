@@ -68,7 +68,7 @@ char *make_default_log_name(char *buff,const char* log_ext)
 {
   strmake(buff, pidfile_name, FN_REFLEN-5);
   return fn_format(buff, buff, mysql_data_home, log_ext,
-                   MYF(MY_UNPACK_FILENAME|MY_APPEND_EXT));
+                   MYF(MY_UNPACK_FILENAME|MY_REPLACE_EXT));
 }
 
 /*
