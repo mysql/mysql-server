@@ -8505,9 +8505,28 @@ char *Field_bit::pack(char *to, const char *from, uint max_length)
 {
   DBUG_ASSERT(max_length);
   uint length;
-  if (bit_len)
+  if (bit_len > 0)
   {
-    uchar bits= get_rec_bits(bit_ptr, bit_ofs, bit_len);
+    /*
+      We have the following:
+
+      ptr        Points into a field in record R1
+      from       Points to a field in a record R2
+      bit_ptr    Points to the byte (in the null bytes) that holds the
+                 odd bits of R1
+      from_bitp  Points to the byte that holds the odd bits of R2
+
+      We have the following:
+
+          ptr - bit_ptr = from - from_bitp
+
+      We want to isolate 'from_bitp', so this gives:
+
+          ptr - bit_ptr - from = - from_bitp
+          - ptr + bit_ptr + from = from_bitp
+          bit_ptr + from - ptr = from_bitp
+     */
+    uchar bits= get_rec_bits(bit_ptr + (from - ptr), bit_ofs, bit_len);
     *to++= bits;
   }
   length= min(bytes_in_rec, max_length - (bit_len > 0));
@@ -8518,9 +8537,16 @@ char *Field_bit::pack(char *to, const char *from, uint max_length)
 
 const char *Field_bit::unpack(char *to, const char *from)
 {
-  if (bit_len)
+  if (bit_len > 0)
   {
-    set_rec_bits(*from, bit_ptr, bit_ofs, bit_len);
+    /*
+      set_rec_bits is a macro, don't put the post-increment in the
+      argument since that might cause strange side-effects.
+
+      For the choice of the second argument, see the explanation for
+      Field_bit::pack().
+    */
+    set_rec_bits(*from, bit_ptr + (to - ptr), bit_ofs, bit_len);
     from++;
   }
   memcpy(to, from, bytes_in_rec);
