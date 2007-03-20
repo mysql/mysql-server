@@ -1483,6 +1483,12 @@ Tsman::execALLOC_EXTENT_REQ(Signal* signal)
   {
     jam();
     err = AllocExtentReq::NoExtentAvailable;
+    Local_datafile_list full_tmp(m_file_pool, ts_ptr.p->m_full_files);
+    if (tmp.isEmpty() && full_tmp.isEmpty())
+    { 
+      jam();
+      err = AllocExtentReq::NoDatafile;
+    }
   }
   
   /**

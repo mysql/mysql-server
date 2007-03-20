@@ -186,6 +186,34 @@ INITIAL_SIZE 1000000000000K
 ENGINE = NDB;
 ERROR HY000: The size number was correct but we don't allow the digit part to be more than 2 billion
 DROP TABLE t1;
+create tablespace ts2
+add datafile 'datafile2_1.dat'
+use logfile group lg1
+initial_size 12M
+engine ndb;
+CREATE TABLE City (
+ID int(11) NOT NULL AUTO_INCREMENT,
+Name char(35) NOT NULL,
+CountryCode char(3) NOT NULL,
+District char(20) NOT NULL,
+Population int(11) NOT NULL,
+PRIMARY KEY (ID)
+) ENGINE=ndbcluster
+tablespace ts2
+storage disk;
+alter tablespace ts2
+drop datafile 'datafile2_1.dat'
+engine ndb;
+insert
+into City (Name,CountryCode,District,Population)
+values ('BeiJing','CN','Beijing',2000);
+ERROR HY000: Got error 1602 'No datafile in tablespace' from NDBCLUSTER
+drop tablespace ts2
+engine ndb;
+ERROR HY000: Failed to drop TABLESPACE
+drop table City;
+drop tablespace ts2
+engine ndb;
 CREATE TABLE t1 (a INT PRIMARY KEY, b CHAR(4) NOT NULL, c CHAR(4) NOT NULL, KEY(b)) TABLESPACE ts1 STORAGE DISK ENGINE = NDB;
 INSERT INTO t1 VALUES (1,'1','1'), (2,'2','2'), (3,'3','3');
 BEGIN;
