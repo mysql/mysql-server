@@ -73,7 +73,7 @@
 				Optimization="0"
 				OptimizeForProcessor="2"
 				AdditionalIncludeDirectories="../include,../extra/yassl/include"
-				PreprocessorDefinitions="_DEBUG;SAFEMALLOC;SAFE_MUTEX;_WINDOWS;USE_SYMDIR"
+				PreprocessorDefinitions="_DEBUG;SAFEMALLOC;SAFE_MUTEX;_WINDOWS"
 				RuntimeLibrary="1"
 				PrecompiledHeaderFile=".\debug_obj/vio.pch"
 				AssemblerListingLocation=".\debug_obj/"
