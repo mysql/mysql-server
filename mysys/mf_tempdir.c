@@ -26,12 +26,11 @@ my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
 {
   char *end, *copy;
   char buff[FN_REFLEN];
-  DYNAMIC_ARRAY t_arr;
   DBUG_ENTER("init_tmpdir");
   DBUG_PRINT("enter", ("pathlist: %s", pathlist ? pathlist : "NULL"));
 
   pthread_mutex_init(&tmpdir->mutex, MY_MUTEX_INIT_FAST);
-  if (my_init_dynamic_array(&t_arr, sizeof(char*), 1, 5))
+  if (my_init_dynamic_array(&tmpdir->full_list, sizeof(char*), 1, 5))
     goto err;
   if (!pathlist || !pathlist[0])
   {
@@ -53,14 +52,14 @@ my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
     strmake(buff, pathlist, (uint) (end-pathlist));
     length= cleanup_dirname(buff, buff);
     if (!(copy= my_strndup(buff, length, MYF(MY_WME))) ||
-        insert_dynamic(&t_arr, (gptr) &copy))
+        insert_dynamic(&tmpdir->full_list, (gptr) &copy))
       DBUG_RETURN(TRUE);
     pathlist=end+1;
   }
   while (*end);
-  freeze_size(&t_arr);
-  tmpdir->list=(char **)t_arr.buffer;
-  tmpdir->max=t_arr.elements-1;
+  freeze_size(&tmpdir->full_list);
+  tmpdir->list=(char **)tmpdir->full_list.buffer;
+  tmpdir->max=tmpdir->full_list.elements-1;
   tmpdir->cur=0;
   DBUG_RETURN(FALSE);
 
@@ -88,7 +87,7 @@ void free_tmpdir(MY_TMPDIR *tmpdir)
   uint i;
   for (i=0; i<=tmpdir->max; i++)
     my_free(tmpdir->list[i], MYF(0));
-  my_free((gptr)tmpdir->list, MYF(0));
+  delete_dynamic(&tmpdir->full_list);
   pthread_mutex_destroy(&tmpdir->mutex);
 }
 
