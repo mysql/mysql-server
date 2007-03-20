@@ -360,6 +360,9 @@ fi
 cp -pR sql-bench $DESTDIR/
 rm -f $DESTDIR/sql-bench/*.sh $DESTDIR/sql-bench/Makefile*
 
+# The SQL initiation code is really expected to be in "share"
+mv $DESTDIR/scripts/*.sql $DESTDIR/share/ || true
+
 # ----------------------------------------------------------------------
 # Copy other files specified on command line DEST=SOURCE
 # ----------------------------------------------------------------------
