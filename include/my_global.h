@@ -1489,11 +1489,24 @@ do { doubleget_union _tmp; \
 #define dlerror() ""
 #endif
 
+#ifndef __NETWARE__
 /*
-  Include standard definitions of operator new and delete.
+ *  Include standard definitions of operator new and delete.
  */
 #ifdef __cplusplus
 #include <new>
+#endif
+#else
+/*
+ *  Define placement versions of operator new and operator delete since
+ *  we don't have <new> when building for Netware.
+ */
+#ifdef __cplusplus
+inline void *operator new(size_t, void *ptr) { return ptr; }
+inline void *operator new[](size_t, void *ptr) { return ptr; }
+inline void  operator delete(void*, void*) { /* Do nothing */ }
+inline void  operator delete[](void*, void*) { /* Do nothing */ }
+#endif
 #endif
 
 #endif /* my_global_h */
