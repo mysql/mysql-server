@@ -1238,19 +1238,19 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
         if (table->next_number_field)
           table->file->adjust_next_insert_id_after_explicit_value(
             table->next_number_field->val_int());
-
         info->touched++;
+
         if ((table->file->table_flags() & HA_PARTIAL_COLUMN_READ) ||
             compare_record(table, thd->query_id))
         {
           info->updated++;
+          trg_error= (table->triggers &&
+                      table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+                                                        TRG_ACTION_AFTER,
+                                                        TRUE));
           info->copied++;
         }
 
-        trg_error= (table->triggers &&
-                    table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                                      TRG_ACTION_AFTER,
-                                                      TRUE));
         goto ok_or_after_trg_err;
       }
       else /* DUP_REPLACE */
