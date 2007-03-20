@@ -14,6 +14,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #define DBTUP_C
+#define DBTUP_INDEX_CPP
 #include "Dbtup.hpp"
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
@@ -23,9 +24,6 @@
 #include <AttributeHeader.hpp>
 #include <signaldata/TuxMaint.hpp>
 
-#define ljam() { jamLine(28000 + __LINE__); }
-#define ljamEntry() { jamEntryLine(28000 + __LINE__); }
-
 // methods used by ordered index
 
 void
@@ -34,7 +32,7 @@ Dbtup::tuxGetTupAddr(Uint32 fragPtrI,
                      Uint32 pageIndex,
                      Uint32& tupAddr)
 {
-  ljamEntry();
+  jamEntry();
   PagePtr pagePtr;
   c_page_pool.getPtr(pagePtr, pageId);
   Uint32 fragPageId= pagePtr.p->frag_page_id;
@@ -48,7 +46,7 @@ Dbtup::tuxAllocNode(Signal* signal,
                     Uint32& pageOffset,
                     Uint32*& node)
 {
-  ljamEntry();
+  jamEntry();
   FragrecordPtr fragPtr;
   fragPtr.i= fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
@@ -61,7 +59,7 @@ Dbtup::tuxAllocNode(Signal* signal,
   Uint32* ptr, frag_page_id;
   if ((ptr= alloc_fix_rec(fragPtr.p, tablePtr.p, &key, &frag_page_id)) == 0)
   {
-    ljam();
+    jam();
     terrorCode = ZMEM_NOMEM_ERROR; // caller sets error
     return terrorCode;
   }
@@ -82,7 +80,7 @@ Dbtup::tuxFreeNode(Signal* signal,
                    Uint32 pageOffset,
                    Uint32* node)
 {
-  ljamEntry();
+  jamEntry();
   FragrecordPtr fragPtr;
   fragPtr.i= fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
@@ -105,7 +103,7 @@ Dbtup::tuxGetNode(Uint32 fragPtrI,
                   Uint32 pageOffset,
                   Uint32*& node)
 {
-  ljamEntry();
+  jamEntry();
   FragrecordPtr fragPtr;
   fragPtr.i= fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
@@ -130,7 +128,7 @@ Dbtup::tuxReadAttrs(Uint32 fragPtrI,
                     Uint32 numAttrs,
                     Uint32* dataOut)
 {
-  ljamEntry();
+  jamEntry();
   // use own variables instead of globals
   FragrecordPtr fragPtr;
   fragPtr.i= fragPtrI;
@@ -150,21 +148,21 @@ Dbtup::tuxReadAttrs(Uint32 fragPtrI,
   Tuple_header *tuple_ptr= req_struct.m_tuple_ptr;
   if (tuple_ptr->get_tuple_version() != tupVersion)
   {
-    ljam();
+    jam();
     OperationrecPtr opPtr;
     opPtr.i= tuple_ptr->m_operation_ptr_i;
     Uint32 loopGuard= 0;
     while (opPtr.i != RNIL) {
       c_operation_pool.getPtr(opPtr);
       if (opPtr.p->tupVersion == tupVersion) {
-	ljam();
+	jam();
 	if (!opPtr.p->m_copy_tuple_location.isNull()) {
 	  req_struct.m_tuple_ptr= (Tuple_header*)
 	    c_undo_buffer.get_ptr(&opPtr.p->m_copy_tuple_location);
         }
 	break;
       }
-      ljam();
+      jam();
       opPtr.i= opPtr.p->prevActiveOp;
       ndbrequire(++loopGuard < (1 << ZTUP_VERSION_BITS));
     }
@@ -202,7 +200,7 @@ Dbtup::tuxReadAttrs(Uint32 fragPtrI,
 int
 Dbtup::tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageIndex, Uint32* dataOut, bool xfrmFlag)
 {
-  ljamEntry();
+  jamEntry();
   // use own variables instead of globals
   FragrecordPtr fragPtr;
   fragPtr.i= fragPtrI;
@@ -305,7 +303,7 @@ Dbtup::tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageIndex, Uint32* dataO
 int
 Dbtup::accReadPk(Uint32 tableId, Uint32 fragId, Uint32 fragPageId, Uint32 pageIndex, Uint32* dataOut, bool xfrmFlag)
 {
-  ljamEntry();
+  jamEntry();
   // get table
   TablerecPtr tablePtr;
   tablePtr.i = tableId;
@@ -329,7 +327,7 @@ Dbtup::tuxQueryTh(Uint32 fragPtrI,
                   Uint32 transId2,
                   Uint32 savePointId)
 {
-  ljamEntry();
+  jamEntry();
   FragrecordPtr fragPtr;
   fragPtr.i= fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
@@ -358,9 +356,9 @@ Dbtup::tuxQueryTh(Uint32 fragPtrI,
      * for this transaction and savepoint id.  If its tuple version
      * equals the requested then we have a visible tuple otherwise not.
      */
-    ljam();
+    jam();
     if (req_struct.m_tuple_ptr->get_tuple_version() == tupVersion) {
-      ljam();
+      jam();
       return true;
     }
   }
@@ -378,7 +376,7 @@ Dbtup::tuxQueryTh(Uint32 fragPtrI,
 void
 Dbtup::execBUILDINDXREQ(Signal* signal)
 {
-  ljamEntry();
+  jamEntry();
 #ifdef TIME_MEASUREMENT
   time_events= 0;
   tot_time_passed= 0;
@@ -387,7 +385,7 @@ Dbtup::execBUILDINDXREQ(Signal* signal)
   // get new operation
   BuildIndexPtr buildPtr;
   if (! c_buildIndexList.seize(buildPtr)) {
-    ljam();
+    jam();
     BuildIndexRec buildRec;
     memcpy(buildRec.m_request, signal->theData, sizeof(buildRec.m_request));
     buildRec.m_errorCode= BuildIndxRef::Busy;
@@ -402,7 +400,7 @@ Dbtup::execBUILDINDXREQ(Signal* signal)
   do {
     const BuildIndxReq* buildReq= (const BuildIndxReq*)buildPtr.p->m_request;
     if (buildReq->getTableId() >= cnoOfTablerec) {
-      ljam();
+      jam();
       buildPtr.p->m_errorCode= BuildIndxRef::InvalidPrimaryTable;
       break;
     }
@@ -410,7 +408,7 @@ Dbtup::execBUILDINDXREQ(Signal* signal)
     tablePtr.i= buildReq->getTableId();
     ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
     if (tablePtr.p->tableStatus != DEFINED) {
-      ljam();
+      jam();
       buildPtr.p->m_errorCode= BuildIndxRef::InvalidPrimaryTable;
       break;
     }
@@ -418,7 +416,7 @@ Dbtup::execBUILDINDXREQ(Signal* signal)
     buildPtr.p->m_build_vs =
       tablePtr.p->m_attributes[MM].m_no_of_varsize > 0;
     if (DictTabInfo::isOrderedIndex(buildReq->getIndexType())) {
-      ljam();
+      jam();
       const DLList<TupTriggerData>& triggerList = 
 	tablePtr.p->tuxCustomTriggers;
 
@@ -426,13 +424,13 @@ Dbtup::execBUILDINDXREQ(Signal* signal)
       triggerList.first(triggerPtr);
       while (triggerPtr.i != RNIL) {
 	if (triggerPtr.p->indexId == buildReq->getIndexId()) {
-	  ljam();
+	  jam();
 	  break;
 	}
 	triggerList.next(triggerPtr);
       }
       if (triggerPtr.i == RNIL) {
-	ljam();
+	jam();
 	// trigger was not created
 	buildPtr.p->m_errorCode = BuildIndxRef::InternalError;
 	break;
@@ -440,12 +438,12 @@ Dbtup::execBUILDINDXREQ(Signal* signal)
       buildPtr.p->m_indexId = buildReq->getIndexId();
       buildPtr.p->m_buildRef = DBTUX;
     } else if(buildReq->getIndexId() == RNIL) {
-      ljam();
+      jam();
       // REBUILD of acc
       buildPtr.p->m_indexId = RNIL;
       buildPtr.p->m_buildRef = DBACC;
     } else {
-      ljam();
+      jam();
       buildPtr.p->m_errorCode = BuildIndxRef::InvalidIndexType;
       break;
     }
@@ -490,7 +488,7 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
     // get fragment
     FragrecordPtr fragPtr;
     if (buildPtr.p->m_fragNo == MAX_FRAG_PER_NODE) {
-      ljam();
+      jam();
       // build ready
       buildIndexReply(signal, buildPtr.p);
       c_buildIndexList.release(buildPtr);
@@ -499,7 +497,7 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
     ndbrequire(buildPtr.p->m_fragNo < MAX_FRAG_PER_NODE);
     fragPtr.i= tablePtr.p->fragrec[buildPtr.p->m_fragNo];
     if (fragPtr.i == RNIL) {
-      ljam();
+      jam();
       buildPtr.p->m_fragNo++;
       buildPtr.p->m_pageId= 0;
       buildPtr.p->m_tupleNo= firstTupleNo;
@@ -509,7 +507,7 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
     // get page
     PagePtr pagePtr;
     if (buildPtr.p->m_pageId >= fragPtr.p->noOfPages) {
-      ljam();
+      jam();
       buildPtr.p->m_fragNo++;
       buildPtr.p->m_pageId= 0;
       buildPtr.p->m_tupleNo= firstTupleNo;
@@ -520,7 +518,7 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
     Uint32 pageState= pagePtr.p->page_state;
     // skip empty page
     if (pageState == ZEMPTY_MM) {
-      ljam();
+      jam();
       buildPtr.p->m_pageId++;
       buildPtr.p->m_tupleNo= firstTupleNo;
       break;
@@ -530,7 +528,7 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
     const Tuple_header* tuple_ptr = 0;
     pageIndex = buildPtr.p->m_tupleNo * tupheadsize;
     if (pageIndex + tupheadsize > Fix_page::DATA_WORDS) {
-      ljam();
+      jam();
       buildPtr.p->m_pageId++;
       buildPtr.p->m_tupleNo= firstTupleNo;
       break;
@@ -538,7 +536,7 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
     tuple_ptr = (Tuple_header*)&pagePtr.p->m_data[pageIndex];
     // skip over free tuple
     if (tuple_ptr->m_header_bits & Tuple_header::FREE) {
-      ljam();
+      jam();
       buildPtr.p->m_tupleNo++;
       break;
     }
@@ -581,7 +579,7 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
       tuple as a copy tuple. The original tuple is stable and is thus
       preferrable to store in TUX.
       */
-      ljam();
+      jam();
 
       /**
        * Since copy tuples now can't be found on real pages.
@@ -610,11 +608,11 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
       } while(req->errorCode == 0 && pageOperPtr.i != RNIL);
     } 
     
-    ljamEntry();
+    jamEntry();
     if (req->errorCode != 0) {
       switch (req->errorCode) {
       case TuxMaintReq::NoMemError:
-        ljam();
+        jam();
         buildPtr.p->m_errorCode= BuildIndxRef::AllocationFailure;
         break;
       default:
@@ -666,7 +664,7 @@ Dbtup::buildIndexReply(Signal* signal, const BuildIndexRec* buildPtrP)
   rep->setIndexId(buildReq->getIndexId());
   // conf
   if (buildPtrP->m_errorCode == BuildIndxRef::NoError) {
-    ljam();
+    jam();
     sendSignal(rep->getUserRef(), GSN_BUILDINDXCONF,
         signal, BuildIndxConf::SignalLength, JBB);
     return;

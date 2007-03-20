@@ -947,6 +947,63 @@ NDBT_TestSuite::executeOne(Ndb_cluster_connection& con,
   }
 }
 
+int 
+NDBT_TestSuite::executeOneCtx(Ndb_cluster_connection& con,
+			   const NdbDictionary::Table *ptab, const char* _testname){
+  
+  testSuiteTimer.doStart(); 
+  
+  do{
+    if(tests.size() == 0)
+      break;
+
+    Ndb ndb(&con, "TEST_DB");
+    ndb.init(1024);
+
+    int result = ndb.waitUntilReady(300); // 5 minutes
+    if (result != 0){
+      g_err << name <<": Ndb was not ready" << endl;
+      break;
+    }
+
+    ndbout << name << " started [" << getDate() << "]" << endl;
+    ndbout << "|- " << ptab->getName() << endl;
+
+    for (unsigned t = 0; t < tests.size(); t++){
+
+      if (_testname != NULL && 
+	      strcasecmp(tests[t]->getName(), _testname) != 0)
+        continue;
+
+      tests[t]->initBeforeTest();
+    
+      ctx = new NDBT_Context(con);
+      ctx->setTab(ptab);
+      ctx->setNumRecords(records);
+      ctx->setNumLoops(loops);
+      if(remote_mgm != NULL)
+        ctx->setRemoteMgm(remote_mgm);
+      ctx->setSuite(this);
+    
+      result = tests[t]->execute(ctx);
+      if (result != NDBT_OK)
+        numTestsFail++;
+      else
+        numTestsOk++;
+      numTestsExecuted++;
+
+    delete ctx;
+  }
+
+    if (numTestsFail > 0)
+      break;
+  }while(0);
+
+  testSuiteTimer.doStop();
+  int res = report(_testname);
+  return NDBT_ProgramExit(res);
+}
+
 int
 NDBT_TestSuite::createHook(Ndb* ndb, NdbDictionary::Table& tab, int when)
 {

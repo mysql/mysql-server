@@ -500,6 +500,12 @@ int runEventMixedLoad(NDBT_Context* ctx, NDBT_Step* step)
   int records = ctx->getNumRecords();
   HugoTransactions hugoTrans(*ctx->getTab());
   
+  if(ctx->getPropertyWait("LastGCI", ~(Uint32)0))
+  {
+    g_err << "FAIL " << __LINE__ << endl;
+    return NDBT_FAILED;
+  }
+
   while(loops -- && !ctx->isTestStopped())
   {
     hugoTrans.clearTable(GETNDB(step), 0);
@@ -606,9 +612,11 @@ int runEventApplier(NDBT_Context* ctx, NDBT_Step* step)
     goto end;
   }
 
+  ctx->setProperty("LastGCI", ~(Uint32)0);
+  ctx->broadcast();
+
   while(!ctx->isTestStopped())
   {
-    int r;
     int count= 0;
     Uint32 stop_gci= ~0;
     Uint64 curr_gci = 0;
@@ -778,7 +786,7 @@ int runEventApplier(NDBT_Context* ctx, NDBT_Step* step)
 
 	  if (trans->getNdbError().status == NdbError::PermanentError)
 	  {
-	    g_err << "Ignoring execute " << r << " failed "
+	    g_err << "Ignoring execute failed "
 		  << trans->getNdbError().code << " "
 		  << trans->getNdbError().message << endl;
 	  
@@ -788,7 +796,7 @@ int runEventApplier(NDBT_Context* ctx, NDBT_Step* step)
 	  }
 	  else if (noRetries++ == 10)
 	  {
-	    g_err << "execute " << r << " failed "
+	    g_err << "execute failed "
 		  << trans->getNdbError().code << " "
 		  << trans->getNdbError().message << endl;
 	    trans->close();
@@ -826,6 +834,67 @@ end:
   }
   ctx->stopTest();
   DBUG_RETURN(result);
+}
+
+int runEventListenerUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
+{
+  
+  int result = NDBT_OK;
+  const NdbDictionary::Table * table= ctx->getTab();
+  HugoTransactions hugoTrans(* table);
+  Ndb* ndb= GETNDB(step);
+
+  char buf[1024];
+  sprintf(buf, "%s_EVENT", table->getName());
+  NdbEventOperation *pOp, *pCreate = 0;
+  pCreate = pOp = ndb->createEventOperation(buf);
+  if ( pOp == NULL ) {
+    g_err << "Event operation creation failed on %s" << buf << endl;
+    return NDBT_FAILED;
+  }
+  
+  int i;
+  int n_columns= table->getNoOfColumns();
+  NdbRecAttr* recAttr[1024];
+  NdbRecAttr* recAttrPre[1024];
+  for (i = 0; i < n_columns; i++) {
+    recAttr[i]    = pOp->getValue(table->getColumn(i)->getName());
+    recAttrPre[i] = pOp->getPreValue(table->getColumn(i)->getName());
+  }
+
+  if (pOp->execute()) 
+  { // This starts changes to "start flowing"
+    g_err << "execute operation execution failed: \n";
+    g_err << pOp->getNdbError().code << " "
+	  << pOp->getNdbError().message << endl;
+    result = NDBT_FAILED;
+    goto end;
+  }
+  
+  while(!ctx->isTestStopped())
+  {
+    Uint64 curr_gci = 0;
+    while(!ctx->isTestStopped())
+    {
+      ndb->pollEvents(100, &curr_gci);
+      while ((pOp= ndb->nextEvent()) != 0)
+      {
+	assert(pOp == pCreate);
+      } 
+    }
+  }
+  
+end:
+  if(pCreate)
+  {
+    if (ndb->dropEventOperation(pCreate)) {
+      g_err << "dropEventOperation execution failed "
+	    << ndb->getNdbError().code << " "
+	    << ndb->getNdbError().message << endl;
+      result = NDBT_FAILED;
+    }
+  }
+  return result;
 }
 
 int runRestarter(NDBT_Context* ctx, NDBT_Step* step){
@@ -866,6 +935,51 @@ int runRestarter(NDBT_Context* ctx, NDBT_Step* step){
     i++;
   }
 
+  return result;
+}
+
+int runRestarterLoop(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  NdbRestarter restarter;
+  int i = 0;
+  int lastId = 0;
+
+  if (restarter.getNumDbNodes() < 2){
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  if(restarter.waitClusterStarted(60) != 0){
+    g_err << "Cluster failed to start" << endl;
+    return NDBT_FAILED;
+  }
+  
+  while(result != NDBT_FAILED 
+	&& !ctx->isTestStopped() 
+	&& i < loops)
+  {
+    int id = lastId % restarter.getNumDbNodes();
+    int nodeId = restarter.getDbNodeId(id);
+    ndbout << "Restart node " << nodeId << endl; 
+    if(restarter.restartOneDbNode(nodeId, false, false, true) != 0){
+      g_err << "Failed to restartNextDbNode" << endl;
+      result = NDBT_FAILED;
+      break;
+    }    
+    
+    if(restarter.waitClusterStarted(60) != 0){
+      g_err << "Cluster failed to start" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    
+    lastId++;
+    i++;
+  }
+
+  ctx->stopTest();
   return result;
 }
 
@@ -1608,6 +1722,42 @@ runSubscribeUnsubscribe(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int 
+runScanUpdateUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
+  int records = ctx->getNumRecords();
+  int parallelism = ctx->getProperty("Parallelism", (Uint32)0);
+  int abort = ctx->getProperty("AbortProb", (Uint32)0);
+  HugoTransactions hugoTrans(*ctx->getTab());
+  while (ctx->isTestStopped() == false) 
+  {
+    if (hugoTrans.scanUpdateRecords(GETNDB(step), records, abort, 
+				    parallelism) == NDBT_FAILED){
+      return NDBT_FAILED;
+    }
+  }
+  return NDBT_OK;
+}
+
+int 
+runInsertDeleteUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  int records = ctx->getNumRecords();
+  HugoTransactions hugoTrans(*ctx->getTab());
+  UtilTransactions utilTrans(*ctx->getTab());
+  while (ctx->isTestStopped() == false) 
+  {
+    if (hugoTrans.loadTable(GETNDB(step), records, 1) != 0){
+      return NDBT_FAILED;
+    }
+    if (utilTrans.clearTable(GETNDB(step),  records) != 0){
+      return NDBT_FAILED;
+    }
+  }
+  
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -1727,6 +1877,14 @@ TESTCASE("SubscribeUnsubscribe",
 	 "NOTE! No errors are allowed!" ){
   INITIALIZER(runCreateEvent);
   STEPS(runSubscribeUnsubscribe, 16);
+  FINALIZER(runDropEvent);
+}
+TESTCASE("Bug27169", ""){
+  INITIALIZER(runCreateEvent);
+  STEP(runEventListenerUntilStopped);
+  STEP(runInsertDeleteUntilStopped);
+  STEP(runScanUpdateUntilStopped);
+  STEP(runRestarterLoop);
   FINALIZER(runDropEvent);
 }
 NDBT_TESTSUITE_END(test_event);

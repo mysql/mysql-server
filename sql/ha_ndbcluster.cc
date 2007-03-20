@@ -4822,7 +4822,8 @@ int ha_ndbcluster::create(const char *name,
     if ((my_errno= create_ndb_column(col, field, create_info)))
       DBUG_RETURN(my_errno);
  
-    if (create_info->storage_media == HA_SM_DISK)
+    if (create_info->storage_media == HA_SM_DISK ||
+        create_info->tablespace)
       col.setStorageType(NdbDictionary::Column::StorageTypeDisk);
     else
       col.setStorageType(NdbDictionary::Column::StorageTypeMemory);
@@ -7607,7 +7608,9 @@ int handle_trailing_share(NDB_SHARE *share)
   /*
     Ndb share has not been released as it should
   */
+#ifdef NOT_YET
   DBUG_ASSERT(FALSE);
+#endif
 
   /*
     This is probably an error.  We can however save the situation
@@ -10614,10 +10617,23 @@ bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *create_info,
 
   int pk= 0;
   int ai= 0;
+
+  if (create_info->tablespace)
+    create_info->storage_media = HA_SM_DISK;
+  else
+    create_info->storage_media = HA_SM_MEMORY;
+
   for (i= 0; i < table->s->fields; i++) 
   {
     Field *field= table->field[i];
     const NDBCOL *col= tab->getColumn(i);
+    if (col->getStorageType() == NDB_STORAGETYPE_MEMORY && create_info->storage_media != HA_SM_MEMORY ||
+        col->getStorageType() == NDB_STORAGETYPE_DISK && create_info->storage_media != HA_SM_DISK)
+    {
+      DBUG_PRINT("info", ("Column storage media is changed"));
+      DBUG_RETURN(COMPATIBLE_DATA_NO);
+    }
+    
     if (field->flags & FIELD_IS_RENAMED)
     {
       DBUG_PRINT("info", ("Field has been renamed, copy table"));
