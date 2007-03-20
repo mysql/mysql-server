@@ -243,6 +243,11 @@ struct system_variables
 
   my_bool low_priority_updates;
   my_bool new_mode;
+  /* 
+    compatibility option:
+      - index usage hints (USE INDEX without a FOR clause) behave as in 5.0 
+  */
+  my_bool old_mode;
   my_bool query_cache_wlock_invalidate;
   my_bool engine_condition_pushdown;
   my_bool innodb_table_locks;
@@ -278,6 +283,7 @@ struct system_variables
   DATE_TIME_FORMAT *datetime_format;
   DATE_TIME_FORMAT *time_format;
   my_bool sysdate_is_now;
+
 };
 
 

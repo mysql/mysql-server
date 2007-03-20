@@ -1111,7 +1111,7 @@ int ha_ndbcluster::create_indexes(Ndb *ndb, TABLE *tab)
   KEY* key_info= tab->key_info;
   const char **key_name= tab->s->keynames.type_names;
   DBUG_ENTER("ha_ndbcluster::create_indexes");
-  
+
   for (i= 0; i < tab->s->keys; i++, key_info++, key_name++)
   {
     index_name= *key_name;
@@ -3377,19 +3377,6 @@ int ha_ndbcluster::index_read(byte *buf,
 }
 
 
-int ha_ndbcluster::index_read_idx(byte *buf, uint index_no, 
-                              const byte *key, uint key_len, 
-                              enum ha_rkey_function find_flag)
-{
-  statistic_increment(current_thd->status_var.ha_read_key_count, &LOCK_status);
-  DBUG_ENTER("ha_ndbcluster::index_read_idx");
-  DBUG_PRINT("enter", ("index_no: %u, key_len: %u", index_no, key_len));  
-  close_scan();
-  index_init(index_no, 0);  
-  DBUG_RETURN(index_read(buf, key, key_len, find_flag));
-}
-
-
 int ha_ndbcluster::index_next(byte *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_next");
@@ -3556,10 +3543,10 @@ int ha_ndbcluster::close_scan()
 
   m_multi_cursor= 0;
   if (!m_active_cursor && !m_multi_cursor)
-    DBUG_RETURN(1);
+    DBUG_RETURN(0);
 
   NdbScanOperation *cursor= m_active_cursor ? m_active_cursor : m_multi_cursor;
-  
+
   if (m_lock_tuple)
   {
     /*
