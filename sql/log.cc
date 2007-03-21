@@ -1548,7 +1548,7 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
     (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
   DBUG_ASSERT(mysql_bin_log.is_open());
 
-  if (all && trx_data->empty())
+  if (trx_data->empty())
   {
     // we're here because trans_log was flushed in MYSQL_BIN_LOG::log_xid()
     trx_data->reset();
