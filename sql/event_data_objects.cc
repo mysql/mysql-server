@@ -1366,7 +1366,7 @@ Event_queue_element::compute_next_execution_time()
     goto ret;
   }
 
-  time_now= current_thd->query_start();
+  time_now= (my_time_t) current_thd->query_start();
 
   DBUG_PRINT("info",("NOW: [%lu]", (ulong) time_now));
 
@@ -1572,7 +1572,7 @@ Event_queue_element::mark_last_executed(THD *thd)
 {
   thd->end_time();
 
-  last_executed= thd->query_start();
+  last_executed= (my_time_t) thd->query_start();
   last_executed_changed= TRUE;
   
   execution_count++;
