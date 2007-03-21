@@ -759,9 +759,9 @@ void getTextEventBufferStatus(QQQQ) {
 		       "Event buffer status: used=%d%s(%d%) alloc=%d%s(%d%) "
 		       "max=%d%s apply_gci=%lld latest_gci=%lld",
 		       used, used_unit,
-		       theData[2] ? (theData[1]*100)/theData[2] : 0,
+		       theData[2] ? (Uint32)((((Uint64)theData[1])*100)/theData[2]) : 0,
 		       alloc, alloc_unit,
-		       theData[3] ? (theData[2]*100)/theData[3] : 0,
+		       theData[3] ? (Uint32)((((Uint64)theData[2])*100)/theData[3]) : 0,
 		       max_, max_unit,
 		       theData[4]+(((Uint64)theData[5])<<32),
 		       theData[6]+(((Uint64)theData[7])<<32));
