@@ -703,7 +703,11 @@ err:
 }
 
 bool
-BackupRestore::table_equal(const TableS &tableS){
+BackupRestore::table_equal(const TableS &tableS)
+{
+  if (!m_restore)
+    return true;
+
   const char *tablename = tableS.getTableName();
 
   if(tableS.m_dictTable == NULL){
