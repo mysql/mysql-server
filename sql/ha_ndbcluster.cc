@@ -1011,7 +1011,7 @@ int ha_ndbcluster::get_metadata(const char *path)
   DBUG_ASSERT(m_table == NULL);
   DBUG_ASSERT(m_table_info == NULL);
 
-  const void *data, *pack_data;
+  const void *data= NULL, *pack_data= NULL;
   uint length, pack_length;
 
   /*
@@ -4749,7 +4749,7 @@ int ha_ndbcluster::create(const char *name,
   NDBTAB tab;
   NDBCOL col;
   uint pack_length, length, i, pk_length= 0;
-  const void *data, *pack_data;
+  const void *data= NULL, *pack_data= NULL;
   bool create_from_engine= (info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
   bool is_truncate= (thd->lex->sql_command == SQLCOM_TRUNCATE);
   char tablespace[FN_LEN];
@@ -5077,7 +5077,7 @@ int ha_ndbcluster::create_handler_files(const char *file,
   const char *name;
   Ndb* ndb;
   const NDBTAB *tab;
-  const void *data, *pack_data;
+  const void *data= NULL, *pack_data= NULL;
   uint length, pack_length;
   int error= 0;
 
