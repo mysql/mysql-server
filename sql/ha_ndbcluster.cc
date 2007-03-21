@@ -1008,7 +1008,7 @@ int ha_ndbcluster::get_metadata(const char *path)
   DBUG_ASSERT(m_table == NULL);
   DBUG_ASSERT(m_table_info == NULL);
 
-  const void *data, *pack_data;
+  const void *data= NULL, *pack_data= NULL;
   uint length, pack_length;
 
   /*
@@ -4732,7 +4732,7 @@ int ha_ndbcluster::create(const char *name,
   NDBTAB tab;
   NDBCOL col;
   uint pack_length, length, i, pk_length= 0;
-  const void *data, *pack_data;
+  const void *data= NULL, *pack_data= NULL;
   bool create_from_engine= (create_info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
   bool is_truncate= (thd->lex->sql_command == SQLCOM_TRUNCATE);
   char tablespace[FN_LEN];
@@ -5065,7 +5065,7 @@ int ha_ndbcluster::create_handler_files(const char *file,
 { 
   Ndb* ndb;
   const NDBTAB *tab;
-  const void *data, *pack_data;
+  const void *data= NULL, *pack_data= NULL;
   uint length, pack_length;
   int error= 0;
 
@@ -6108,7 +6108,7 @@ int ndbcluster_discover(handlerton *hton, THD* thd, const char *db,
   int error= 0;
   NdbError ndb_error;
   uint len;
-  const void* data;
+  const void* data= NULL;
   Ndb* ndb;
   char key[FN_REFLEN];
   DBUG_ENTER("ndbcluster_discover");
@@ -6187,6 +6187,7 @@ int ndbcluster_discover(handlerton *hton, THD* thd, const char *db,
 
   DBUG_RETURN(0);
 err:
+  my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
   if (share)
   {
     /* ndb_share reference temporary free */
@@ -7608,7 +7609,9 @@ int handle_trailing_share(NDB_SHARE *share)
   /*
     Ndb share has not been released as it should
   */
+#ifdef NOT_YET
   DBUG_ASSERT(FALSE);
+#endif
 
   /*
     This is probably an error.  We can however save the situation
