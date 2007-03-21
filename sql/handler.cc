@@ -1082,9 +1082,9 @@ bool mysql_xa_recover(THD *thd)
   XID_STATE *xs;
   DBUG_ENTER("mysql_xa_recover");
 
-  field_list.push_back(new Item_int("formatID",0,11));
-  field_list.push_back(new Item_int("gtrid_length",0,11));
-  field_list.push_back(new Item_int("bqual_length",0,11));
+  field_list.push_back(new Item_int("formatID", 0, MY_INT32_NUM_DECIMAL_DIGITS));
+  field_list.push_back(new Item_int("gtrid_length", 0, MY_INT32_NUM_DECIMAL_DIGITS));
+  field_list.push_back(new Item_int("bqual_length", 0, MY_INT32_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_empty_string("data",XIDDATASIZE));
 
   if (protocol->send_fields(&field_list,
