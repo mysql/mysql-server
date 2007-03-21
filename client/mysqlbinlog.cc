@@ -155,11 +155,7 @@ class Load_log_processor
 
 public:
   Load_log_processor() {}
-  ~Load_log_processor()
-  {
-    destroy();
-    delete_dynamic(&file_names);
-  }
+  ~Load_log_processor() {}
 
   int init()
   {
@@ -179,19 +175,21 @@ public:
       target_dir_name_len= strlen(target_dir_name);
     }
   void destroy()
+  {
+    File_name_record *ptr= (File_name_record *)file_names.buffer;
+    File_name_record *end= ptr + file_names.elements;
+    for (; ptr < end; ptr++)
     {
-      File_name_record *ptr= (File_name_record *)file_names.buffer;
-      File_name_record *end= ptr + file_names.elements;
-      for (; ptr<end; ptr++)
+      if (ptr->fname)
       {
-	if (ptr->fname)
-	{
-          my_free(ptr->fname, MYF(MY_WME));
-          delete ptr->event;
-          bzero((char *)ptr, sizeof(File_name_record));
-	}
+        my_free(ptr->fname, MYF(MY_WME));
+        delete ptr->event;
+        bzero((char *)ptr, sizeof(File_name_record));
       }
     }
+
+    delete_dynamic(&file_names);
+  }
 
   /*
     Obtain Create_file event for LOAD DATA statement by its file_id.
@@ -1517,6 +1515,7 @@ int main(int argc, char** argv)
   cleanup();
   free_defaults(defaults_argv);
   my_free_open_file_info();
+  load_processor.destroy();
   /* We cannot free DBUG, it is used in global destructors after exit(). */
   my_end(MY_DONT_FREE_DBUG);
   exit(exit_value);
