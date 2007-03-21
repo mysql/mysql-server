@@ -2147,6 +2147,8 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id, enum ndb_mgm_node_type type)
       {
         do_send = 1;
         nodeId = refToNode(ref->masterRef);
+	if (!theFacade->get_node_alive(nodeId))
+	  nodeId = 0;
         continue;
       }
       return ref->errorCode;
@@ -2637,6 +2639,8 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted)
 	ndbout_c("I'm not master resending to %d", nodeId);
 #endif
 	do_send = 1; // try again
+	if (!theFacade->get_node_alive(nodeId))
+	  m_master_node = nodeId = 0;
 	continue;
       }
       event.Event = BackupEvent::BackupFailedToStart;
