@@ -6063,7 +6063,7 @@ int ndbcluster_discover(handlerton *hton, THD* thd, const char *db,
   int error= 0;
   NdbError ndb_error;
   uint len;
-  const void* data;
+  const void* data= NULL;
   Ndb* ndb;
   char key[FN_REFLEN];
   DBUG_ENTER("ndbcluster_discover");
@@ -6131,6 +6131,7 @@ int ndbcluster_discover(handlerton *hton, THD* thd, const char *db,
 
   DBUG_RETURN(0);
 err:
+  my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
   if (share)
     free_share(&share);
   if (ndb_error.code)
