@@ -36,8 +36,8 @@ class ha_myisammrg: public handler
   {
     return (HA_REC_NOT_IN_SEQ | HA_AUTO_PART_KEY | HA_NO_TRANSACTIONS |
 	    HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS | HA_FILE_BASED |
-            HA_CAN_INSERT_DELAYED | HA_ANY_INDEX_MAY_BE_UNIQUE |
-            HA_CAN_BIT_FIELD | HA_NO_COPY_ON_ALTER);
+            HA_ANY_INDEX_MAY_BE_UNIQUE | HA_CAN_BIT_FIELD |
+            HA_NO_COPY_ON_ALTER);
   }
   ulong index_flags(uint inx, uint part, bool all_parts) const
   {
@@ -56,11 +56,11 @@ class ha_myisammrg: public handler
   int write_row(byte * buf);
   int update_row(const byte * old_data, byte * new_data);
   int delete_row(const byte * buf);
-  int index_read(byte * buf, const byte * key,
-		 uint key_len, enum ha_rkey_function find_flag);
-  int index_read_idx(byte * buf, uint idx, const byte * key,
-		     uint key_len, enum ha_rkey_function find_flag);
-  int index_read_last(byte * buf, const byte * key, uint key_len);
+  int index_read(byte * buf, const byte * key, key_part_map keypart_map,
+                 enum ha_rkey_function find_flag);
+  int index_read_idx(byte * buf, uint index, const byte * key,
+                     key_part_map keypart_map, enum ha_rkey_function find_flag);
+  int index_read_last(byte * buf, const byte * key, key_part_map keypart_map);
   int index_next(byte * buf);
   int index_prev(byte * buf);
   int index_first(byte * buf);

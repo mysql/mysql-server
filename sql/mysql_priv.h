@@ -47,7 +47,6 @@ typedef Bitmap<64>  key_map;          /* Used for finding keys */
 #else
 typedef Bitmap<((MAX_INDEXES+7)/8*8)> key_map; /* Used for finding keys */
 #endif
-typedef ulong key_part_map;           /* Used for finding key parts */
 typedef ulong nesting_map;  /* Used for flags of nesting constructs */
 /*
   Used to identify NESTED_JOIN structures within a join (applicable only to
@@ -992,7 +991,8 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
                           List<Item> &fields, List_item *values,
                           List<Item> &update_fields,
                           List<Item> &update_values, enum_duplicates duplic,
-                          COND **where, bool select_insert);
+                          COND **where, bool select_insert,
+                          bool check_fields, bool abort_on_warning);
 bool mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
                   List<List_item> &values, List<Item> &update_fields,
                   List<Item> &update_values, enum_duplicates flag,
@@ -1189,9 +1189,29 @@ SQL_SELECT *make_select(TABLE *head, table_map const_tables,
 			table_map read_tables, COND *conds,
                         bool allow_null_cond,  int *error);
 extern Item **not_found_item;
+
+/*
+  This enumeration type is used only by the function find_item_in_list
+  to return the info on how an item has been resolved against a list
+  of possibly aliased items.
+  The item can be resolved: 
+   - against an alias name of the list's element (RESOLVED_AGAINST_ALIAS)
+   - against non-aliased field name of the list  (RESOLVED_WITH_NO_ALIAS)
+   - against an aliased field name of the list   (RESOLVED_BEHIND_ALIAS)
+   - ignoring the alias name in cases when SQL requires to ignore aliases
+     (e.g. when the resolved field reference contains a table name or
+     when the resolved item is an expression)   (RESOLVED_IGNORING_ALIAS)    
+*/
+enum enum_resolution_type {
+  NOT_RESOLVED=0,
+  RESOLVED_IGNORING_ALIAS,
+  RESOLVED_BEHIND_ALIAS,
+  RESOLVED_WITH_NO_ALIAS,
+  RESOLVED_AGAINST_ALIAS
+};
 Item ** find_item_in_list(Item *item, List<Item> &items, uint *counter,
                           find_item_error_report_type report_error,
-                          bool *unaliased);
+                          enum_resolution_type *resolution);
 bool get_key_map_from_key_list(key_map *map, TABLE *table,
                                List<String> *index_list);
 bool insert_fields(THD *thd, Name_resolution_context *context,
@@ -1249,7 +1269,8 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
                                st_table_list *TABLE_LIST::*link,
                                const char *db_name,
                                const char *table_name);
-TABLE_LIST *unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list);
+TABLE_LIST *unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
+                         bool check_alias);
 TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name);
 TABLE *find_temporary_table(THD *thd, TABLE_LIST *table_list);
 bool close_temporary_table(THD *thd, TABLE_LIST *table_list);
@@ -1472,7 +1493,7 @@ void print_plan(JOIN* join,uint idx, double record_count, double read_time,
 void mysql_print_status();
 /* key.cc */
 int find_ref_key(KEY *key, uint key_count, byte *record, Field *field,
-                 uint *key_length);
+                 uint *key_length, uint *keypart);
 void key_copy(byte *to_key, byte *from_record, KEY *key_info, uint key_length);
 void key_restore(byte *to_record, byte *from_key, KEY *key_info,
                  uint key_length);
@@ -2001,7 +2022,6 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->const_table= 0;
   table->null_row= 0;
   table->status= STATUS_NO_RECORD;
-  table->keys_in_use_for_query= table->s->keys_in_use;
   table->maybe_null= table_list->outer_join;
   TABLE_LIST *embedding= table_list->embedding;
   while (!table->maybe_null && embedding)
@@ -2012,6 +2032,8 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->tablenr= tablenr;
   table->map= (table_map) 1 << tablenr;
   table->force_index= table_list->force_index;
+  table->covering_keys= table->s->keys_for_keyread;
+  table->merge_keys.clear_all();
 }
 
 

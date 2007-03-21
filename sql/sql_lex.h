@@ -217,6 +217,47 @@ enum tablespace_op_type
 };
 
 /* 
+  String names used to print a statement with index hints.
+  Keep in sync with index_hint_type.
+*/
+extern const char * index_hint_type_name[];
+typedef byte index_clause_map;
+
+/*
+  Bits in index_clause_map : one for each possible FOR clause in
+  USE/FORCE/IGNORE INDEX index hint specification
+*/
+#define INDEX_HINT_MASK_JOIN  (1)
+#define INDEX_HINT_MASK_GROUP (1 << 1)
+#define INDEX_HINT_MASK_ORDER (1 << 2)
+
+#define INDEX_HINT_MASK_ALL (INDEX_HINT_MASK_JOIN | INDEX_HINT_MASK_GROUP | \
+                             INDEX_HINT_MASK_ORDER)
+
+/* Single element of an USE/FORCE/IGNORE INDEX list specified as a SQL hint  */
+class index_hint : public Sql_alloc
+{
+public:
+  /* The type of the hint : USE/FORCE/IGNORE */
+  enum index_hint_type type;
+  /* Where the hit applies to. A bitmask of INDEX_HINT_MASK_<place> values */
+  index_clause_map clause;
+  /* 
+    The index name. Empty (str=NULL) name represents an empty list 
+    USE INDEX () clause 
+  */ 
+  LEX_STRING key_name;
+
+  index_hint (enum index_hint_type type_arg, index_clause_map clause_arg,
+              char *str, uint length) :
+    type(type_arg), clause(clause_arg)
+  {
+    key_name.str= str;
+    key_name.length= length;
+  }
+}; 
+
+/* 
   The state of the lex parsing for selects 
    
    master and slaves are pointers to select_lex.
@@ -394,15 +435,12 @@ public:
   virtual uint get_in_sum_expr();
   virtual TABLE_LIST* get_table_list();
   virtual List<Item>* get_item_list();
-  virtual List<String>* get_use_index();
-  virtual List<String>* get_ignore_index();
   virtual ulong get_table_join_options();
   virtual TABLE_LIST *add_table_to_list(THD *thd, Table_ident *table,
 					LEX_STRING *alias,
 					ulong table_options,
 					thr_lock_type flags= TL_UNLOCK,
-					List<String> *use_index= 0,
-					List<String> *ignore_index= 0,
+					List<index_hint> *hints= 0,
                                         LEX_STRING *option= 0);
   virtual void set_lock_for_tables(thr_lock_type lock_type) {}
 
@@ -523,6 +561,8 @@ public:
   Item *where, *having;                         /* WHERE & HAVING clauses */
   Item *prep_where; /* saved WHERE clause for prepared statement processing */
   Item *prep_having;/* saved HAVING clause for prepared statement processing */
+  /* Saved values of the WHERE and HAVING clauses*/
+  Item::cond_result cond_value, having_value;
   /* point on lex in which it was created, used in view subquery detection */
   st_lex *parent_lex;
   enum olap_type olap;
@@ -530,8 +570,7 @@ public:
   SQL_LIST	      table_list;
   SQL_LIST	      group_list; /* GROUP BY clause. */
   List<Item>          item_list;  /* list of fields & expressions */
-  List<String>        interval_list, use_index, *use_index_ptr,
-		      ignore_index, *ignore_index_ptr;
+  List<String>        interval_list;
   bool	              is_item_list_lookup;
   /* 
     Usualy it is pointer to ftfunc_list_alloc, but in union used to create fake
@@ -678,8 +717,7 @@ public:
 				LEX_STRING *alias,
 				ulong table_options,
 				thr_lock_type flags= TL_UNLOCK,
-				List<String> *use_index= 0,
-				List<String> *ignore_index= 0,
+				List<index_hint> *hints= 0,
                                 LEX_STRING *option= 0);
   TABLE_LIST* get_table_list();
   bool init_nested_join(THD *thd);
@@ -688,8 +726,6 @@ public:
   void add_joined_table(TABLE_LIST *table);
   TABLE_LIST *convert_right_join();
   List<Item>* get_item_list();
-  List<String>* get_use_index();
-  List<String>* get_ignore_index();
   ulong get_table_join_options();
   void set_lock_for_tables(thr_lock_type lock_type);
   inline void init_order()
@@ -729,6 +765,33 @@ public:
     select lexes.
   */
   void cleanup_all_joins(bool full);
+
+  void set_index_hint_type(enum index_hint_type type, index_clause_map clause);
+
+  /* 
+   Add a index hint to the tagged list of hints. The type and clause of the
+   hint will be the current ones (set by set_index_hint()) 
+  */
+  bool add_index_hint (THD *thd, char *str, uint length);
+
+  /* make a list to hold index hints */
+  void alloc_index_hints (THD *thd);
+  /* read and clear the index hints */
+  List<index_hint>* pop_index_hints(void) 
+  {
+    List<index_hint> *hints= index_hints;
+    index_hints= NULL;
+    return hints;
+  }
+
+  void clear_index_hints(void) { index_hints= NULL; }
+
+private:  
+  /* current index hint kind. used in filling up index_hints */
+  enum index_hint_type current_index_hint_type;
+  index_clause_map current_index_hint_clause;
+  /* a list of USE/FORCE/IGNORE INDEX */
+  List<index_hint> *index_hints;
 };
 typedef class st_select_lex SELECT_LEX;
 

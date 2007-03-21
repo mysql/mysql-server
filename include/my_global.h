@@ -986,7 +986,7 @@ typedef long int32;
 typedef unsigned long uint32;
 #endif
 #else
-#error "Neither int or long is of 4 bytes width"
+#error Neither int or long is of 4 bytes width
 #endif
 
 #if !defined(HAVE_ULONG) && !defined(__USE_MISC)
@@ -1014,6 +1014,16 @@ typedef unsigned long my_ulonglong;
 typedef unsigned __int64 my_ulonglong;
 #else
 typedef unsigned long long my_ulonglong;
+#endif
+
+#if SIZEOF_CHARP == SIZEOF_INT
+typedef int intptr;
+#elif SIZEOF_CHARP == SIZEOF_LONG
+typedef long intptr;
+#elif SIZEOF_CHARP == SIZEOF_LONG_LONG
+typedef long long intptr;
+#else
+#error sizeof(void *) is neither sizeof(int) nor sizeof(long) nor sizeof(long long)
 #endif
 
 #ifdef USE_RAID
@@ -1479,11 +1489,24 @@ do { doubleget_union _tmp; \
 #define dlerror() ""
 #endif
 
+#ifndef __NETWARE__
 /*
-  Include standard definitions of operator new and delete.
+ *  Include standard definitions of operator new and delete.
  */
 #ifdef __cplusplus
 #include <new>
+#endif
+#else
+/*
+ *  Define placement versions of operator new and operator delete since
+ *  we don't have <new> when building for Netware.
+ */
+#ifdef __cplusplus
+inline void *operator new(size_t, void *ptr) { return ptr; }
+inline void *operator new[](size_t, void *ptr) { return ptr; }
+inline void  operator delete(void*, void*) { /* Do nothing */ }
+inline void  operator delete[](void*, void*) { /* Do nothing */ }
+#endif
 #endif
 
 #endif /* my_global_h */

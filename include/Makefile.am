@@ -22,7 +22,7 @@ HEADERS_ABI =		mysql.h mysql_com.h mysql_time.h \
 			my_list.h my_alloc.h typelib.h
 pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
 			my_xml.h mysql_embed.h \
-		  	my_semaphore.h my_pthread.h my_no_pthread.h \
+		  	my_pthread.h my_no_pthread.h \
 			errmsg.h my_global.h my_net.h \
 			my_getopt.h sslopt-longopts.h my_dir.h \
 			sslopt-vars.h sslopt-case.h sql_common.h keycache.h \

@@ -514,8 +514,7 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   table->use_all_columns();
   table->field[0]->store(exact_name_str, exact_name_len, &my_charset_bin);
   if (!table->file->index_read_idx(table->record[0], 0,
-				   (byte*) table->field[0]->ptr,
-				   table->key_info[0].key_length,
+				   (byte*) table->field[0]->ptr, HA_WHOLE_KEY,
 				   HA_READ_KEY_EXACT))
   {
     int error;
@@ -524,7 +523,7 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   }
   close_thread_tables(thd);
 
-  rw_unlock(&THR_LOCK_udf);  
+  rw_unlock(&THR_LOCK_udf);
   DBUG_RETURN(0);
  err:
   rw_unlock(&THR_LOCK_udf);

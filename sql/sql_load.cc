@@ -175,7 +175,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     table is marked to be 'used for insert' in which case we should never
     mark this table as 'const table' (ie, one that has only one row).
   */
-  if (unique_table(thd, table_list, table_list->next_global))
+  if (unique_table(thd, table_list, table_list->next_global, 0))
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
     DBUG_RETURN(TRUE);

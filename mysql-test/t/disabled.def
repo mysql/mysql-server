@@ -16,8 +16,6 @@ concurrent_innodb        : BUG#21579 2006-08-11 mleich innodb_concurrent random 
 ndb_autodiscover         : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
 ndb_autodiscover2        : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
 ndb_load                 : BUG#17233 2006-05-04 tomas failed load data from infile causes mysqld dbug_assert, binlog not flushed
-ndb_restore_partition    : Problem with cluster/def/schema table that is in std_data/ndb_backup51; Pekka will schdule this to someone
-rpl_ndb_sync             : Problem with cluster/def/schema table that is in std_data/ndb_backup51; Pekka will schdule this to someone
 
 partition_03ndb          : BUG#16385 2006-03-24 mikael Partitions: crash when updating a range partitioned NDB table
 rpl_ndb_2innodb          : BUG#19227 2006-04-20 pekka pk delete apparently not replicated
@@ -37,4 +35,4 @@ synchronization          : Bug#24529  	Test 'synchronization' fails on Mac pushb
 
 plugin                   : Bug#25659 memory leak via "plugins" test
 rpl_ndb_dd_advance	 : Bug#25913 rpl_ndb_dd_advance fails randomly
-ndb_alter_table		 : Bug##25774 ndb_alter_table.test fails in DBUG_ASSERT() on Linux x64
+ndb_single_user          : Bug#27021 Error codes in mysqld in single user mode varies
