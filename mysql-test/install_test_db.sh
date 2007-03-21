@@ -104,6 +104,7 @@ fi
 
 INSTALL_CMD="$scriptdir/mysql_install_db --no-defaults $EXTRA_ARG --basedir=$basedir --datadir=mysql-test/$ldata --srcdir=."
 echo "running $INSTALL_CMD"
+
 cd ..
 if $INSTALL_CMD
 then
