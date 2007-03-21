@@ -1204,12 +1204,12 @@ static bool test_if_real(const char *str,int length, CHARSET_INFO *cs)
 String *Field::val_int_as_str(String *val_buffer, my_bool unsigned_val)
 {
   CHARSET_INFO *cs= &my_charset_bin;
-  uint length= 21;
+  uint length;
   longlong value= val_int();
-  if (val_buffer->alloc(length))
+  if (val_buffer->alloc(MY_INT64_NUM_DECIMAL_DIGITS))
     return 0;
   length= (uint) (*cs->cset->longlong10_to_str)(cs, (char*) val_buffer->ptr(),
-                                                length,
+                                                MY_INT64_NUM_DECIMAL_DIGITS,
                                                 unsigned_val ? 10 : -10,
                                                 value);
   val_buffer->length(length);
