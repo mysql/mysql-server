@@ -679,11 +679,22 @@ bool THD::store_globals()
 
 void THD::cleanup_after_query()
 {
+  /*
+    Reset rand_used so that detection of calls to rand() will save random 
+    seeds if needed by the slave.
+
+    Do not reset rand_used if inside a stored function or trigger because 
+    only the call to these operations is logged. Thus only the calling 
+    statement needs to detect rand() calls made by its substatements. These
+    substatements must not set rand_used to 0 because it would remove the
+    detection of rand() by the calling statement. 
+  */
   if (!in_sub_stmt) /* stored functions and triggers are a special case */
   {
     /* Forget those values, for next binlogger: */
     stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
     auto_inc_intervals_in_cur_stmt_for_binlog.empty();
+    rand_used= 0;
   }
   if (first_successful_insert_id_in_cur_stmt > 0)
   {
