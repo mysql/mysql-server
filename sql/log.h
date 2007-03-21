@@ -238,7 +238,7 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
      fix_max_relay_log_size).
   */
   ulong max_size;
-  ulong prepared_xids; /* for tc log - number of xids to remember */
+  long prepared_xids; /* for tc log - number of xids to remember */
   // current file sequence number for load data infile binary logging
   uint file_id;
   uint open_count;				// For replication

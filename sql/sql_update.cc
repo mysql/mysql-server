@@ -126,7 +126,7 @@ int mysql_update(THD *thd,
 #endif
   uint          table_count= 0;
   ha_rows	updated, found;
-  key_map	old_used_keys;
+  key_map	old_covering_keys;
   TABLE		*table;
   SQL_SELECT	*select;
   READ_RECORD	info;
@@ -165,8 +165,8 @@ int mysql_update(THD *thd,
   thd->proc_info="init";
   table= table_list->table;
 
-  /* Calculate "table->used_keys" based on the WHERE */
-  table->used_keys= table->s->keys_in_use;
+  /* Calculate "table->covering_keys" based on the WHERE */
+  table->covering_keys= table->s->keys_in_use;
   table->quick_keys.clear_all();
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -176,7 +176,7 @@ int mysql_update(THD *thd,
   if (mysql_prepare_update(thd, table_list, &conds, order_num, order))
     DBUG_RETURN(1);
 
-  old_used_keys= table->used_keys;		// Keys used in WHERE
+  old_covering_keys= table->covering_keys;		// Keys used in WHERE
   /* Check the fields we are going to modify */
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table_list->grant.want_privilege= table->grant.want_privilege= want_privilege;
@@ -229,7 +229,7 @@ int mysql_update(THD *thd,
       limit= 0;                                   // Impossible WHERE
   }
   // Don't count on usage of 'only index' when calculating which key to use
-  table->used_keys.clear_all();
+  table->covering_keys.clear_all();
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (prune_partitions(thd, table, conds))
@@ -304,7 +304,7 @@ int mysql_update(THD *thd,
       We can't update table directly;  We must first search after all
       matching rows before updating the table!
     */
-    if (used_index < MAX_KEY && old_used_keys.is_set(used_index))
+    if (used_index < MAX_KEY && old_covering_keys.is_set(used_index))
     {
       table->key_read=1;
       table->mark_columns_used_by_index(used_index);
@@ -761,7 +761,7 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   /* Check that we are not using table that we are updating in a sub select */
   {
     TABLE_LIST *duplicate;
-    if ((duplicate= unique_table(thd, table_list, table_list->next_global)))
+    if ((duplicate= unique_table(thd, table_list, table_list->next_global, 0)))
     {
       update_non_unique_table_error(table_list, "UPDATE", duplicate);
       my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
@@ -987,7 +987,7 @@ reopen_tables:
         tl->lock_type != TL_READ_NO_INSERT)
     {
       TABLE_LIST *duplicate;
-      if ((duplicate= unique_table(thd, tl, table_list)))
+      if ((duplicate= unique_table(thd, tl, table_list, 0)))
       {
         update_non_unique_table_error(table_list, "UPDATE", duplicate);
         DBUG_RETURN(TRUE);
@@ -1092,7 +1092,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   }
 
   /*
-    We have to check values after setup_tables to get used_keys right in
+    We have to check values after setup_tables to get covering_keys right in
     reference tables
   */
 
@@ -1119,7 +1119,7 @@ int multi_update::prepare(List<Item> &not_used_values,
       update.link_in_list((byte*) tl, (byte**) &tl->next_local);
       tl->shared= table_count++;
       table->no_keyread=1;
-      table->used_keys.clear_all();
+      table->covering_keys.clear_all();
       table->pos_in_table_list= tl;
     }
   }
@@ -1203,7 +1203,7 @@ static bool safe_update_on_fly(THD *thd, JOIN_TAB *join_tab,
                                TABLE_LIST *table_ref, TABLE_LIST *all_tables)
 {
   TABLE *table= join_tab->table;
-  if (unique_table(thd, table_ref, all_tables))
+  if (unique_table(thd, table_ref, all_tables, 0))
     return 0;
   switch (join_tab->type) {
   case JT_SYSTEM:

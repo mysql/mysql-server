@@ -471,3 +471,12 @@ SELECT COUNT(*) FROM t1 WHERE c=REPEAT('a',256);
 DROP TABLE t1;
 
 # End of 5.0 tests
+
+#
+# BUG#26080 - Memory Storage engine not working properly
+#
+CREATE TABLE t1(c1 VARCHAR(100), c2 INT) ENGINE=MEMORY;
+INSERT INTO t1 VALUES('', 0);
+ALTER TABLE t1 MODIFY c1 VARCHAR(101);
+SELECT c2 FROM t1;
+DROP TABLE t1;

@@ -1,0 +1,46 @@
+use test;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
+create table t1 (a int key, b int unique, c int) engine ndb;
+ERROR HY000: Can't create table 'test.t1' (errno: 4007)
+create table t1 (a int key, b int unique, c int) engine ndb;
+insert into t1 values (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0),(6,6,0),(7,7,0),(8,8,0),(9,9,0),(10,10,0);
+create table t2 as select * from t1;
+select * from t1 where a = 1;
+a	b	c
+1	1	0
+select * from t1 where b = 4;
+a	b	c
+4	4	0
+select * from t1 where a > 4 order by a;
+a	b	c
+5	5	0
+6	6	0
+7	7	0
+8	8	0
+9	9	0
+10	10	0
+update t1 set b=102 where a = 2;
+update t1 set b=103 where b = 3;
+update t1 set b=b+100;
+update t1 set b=b+100 where a > 7;
+delete from t1;
+insert into t1 select * from t2;
+drop table t1;
+ERROR 42S02: Unknown table 't1'
+create index new_index on t1 (c);
+ERROR 42S02: Table 'test.t1' doesn't exist
+insert into t1 values (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0),(6,6,0),(7,7,0),(8,8,0),(9,9,0),(10,10,0);
+ERROR 42S02: Table 'test.t1' doesn't exist
+select * from t1 where a = 1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+select * from t1 where b = 4;
+ERROR 42S02: Table 'test.t1' doesn't exist
+update t1 set b=102 where a = 2;
+ERROR 42S02: Table 'test.t1' doesn't exist
+update t1 set b=103 where b = 3;
+ERROR 42S02: Table 'test.t1' doesn't exist
+update t1 set b=b+100;
+ERROR 42S02: Table 'test.t1' doesn't exist
+update t1 set b=b+100 where a > 7;
+ERROR 42S02: Table 'test.t1' doesn't exist
+drop table t1;

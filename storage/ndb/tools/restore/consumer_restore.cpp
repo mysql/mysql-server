@@ -668,6 +668,66 @@ err:
 }
 
 bool
+BackupRestore::table_equal(const TableS &tableS)
+{
+  if (!m_restore)
+    return true;
+
+  const char *tablename = tableS.getTableName();
+
+  if(tableS.m_dictTable == NULL){
+    ndbout<<"Table %s has no m_dictTable " << tablename << endl;
+    return false;
+  }
+  /**
+   * Ignore blob tables
+   */
+  if(match_blob(tablename) >= 0)
+    return true;
+
+  const NdbTableImpl & tmptab = NdbTableImpl::getImpl(* tableS.m_dictTable);
+  if ((int) tmptab.m_indexType != (int) NdbDictionary::Index::Undefined){
+    return true;
+  }
+
+  BaseString tmp(tablename);
+  Vector<BaseString> split;
+  if(tmp.split(split, "/") != 3){
+    err << "Invalid table name format " << tablename << endl;
+    return false;
+  }
+
+  m_ndb->setDatabaseName(split[0].c_str());
+  m_ndb->setSchemaName(split[1].c_str());
+
+  NdbDictionary::Dictionary* dict = m_ndb->getDictionary();  
+  const NdbDictionary::Table* tab = dict->getTable(split[2].c_str());
+  if(tab == 0){
+    err << "Unable to find table: " << split[2].c_str() << endl;
+    return false;
+  }
+
+  if(tab->getNoOfColumns() != tableS.m_dictTable->getNoOfColumns())
+  {
+    ndbout_c("m_columns.size %d != %d",tab->getNoOfColumns(),
+                       tableS.m_dictTable->getNoOfColumns());
+    return false;
+  }
+
+ for(int i = 0; i<tab->getNoOfColumns(); i++)
+  {
+    if(!tab->getColumn(i)->equal(*(tableS.m_dictTable->getColumn(i))))
+    {
+      ndbout_c("m_columns %s != %s",tab->getColumn(i)->getName(),
+                tableS.m_dictTable->getColumn(i)->getName());
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool
 BackupRestore::createSystable(const TableS & tables){
   if (!m_restore && !m_restore_meta && !m_restore_epoch)
     return true;

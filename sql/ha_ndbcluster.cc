@@ -1104,7 +1104,7 @@ int ha_ndbcluster::create_indexes(Ndb *ndb, TABLE *tab)
   KEY* key_info= tab->key_info;
   const char **key_name= tab->s->keynames.type_names;
   DBUG_ENTER("ha_ndbcluster::create_indexes");
-  
+
   for (i= 0; i < tab->s->keys; i++, key_info++, key_name++)
   {
     index_name= *key_name;
@@ -3370,19 +3370,6 @@ int ha_ndbcluster::index_read(byte *buf,
 }
 
 
-int ha_ndbcluster::index_read_idx(byte *buf, uint index_no, 
-                              const byte *key, uint key_len, 
-                              enum ha_rkey_function find_flag)
-{
-  statistic_increment(current_thd->status_var.ha_read_key_count, &LOCK_status);
-  DBUG_ENTER("ha_ndbcluster::index_read_idx");
-  DBUG_PRINT("enter", ("index_no: %u, key_len: %u", index_no, key_len));  
-  close_scan();
-  index_init(index_no, 0);  
-  DBUG_RETURN(index_read(buf, key, key_len, find_flag));
-}
-
-
 int ha_ndbcluster::index_next(byte *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_next");
@@ -3549,10 +3536,10 @@ int ha_ndbcluster::close_scan()
 
   m_multi_cursor= 0;
   if (!m_active_cursor && !m_multi_cursor)
-    DBUG_RETURN(1);
+    DBUG_RETURN(0);
 
   NdbScanOperation *cursor= m_active_cursor ? m_active_cursor : m_multi_cursor;
-  
+
   if (m_lock_tuple)
   {
     /*
@@ -4835,7 +4822,8 @@ int ha_ndbcluster::create(const char *name,
     if ((my_errno= create_ndb_column(col, field, create_info)))
       DBUG_RETURN(my_errno);
  
-    if (create_info->storage_media == HA_SM_DISK)
+    if (create_info->storage_media == HA_SM_DISK ||
+        create_info->tablespace)
       col.setStorageType(NdbDictionary::Column::StorageTypeDisk);
     else
       col.setStorageType(NdbDictionary::Column::StorageTypeMemory);
@@ -6156,9 +6144,16 @@ int ndbcluster_discover(handlerton *hton, THD* thd, const char *db,
     {
       const NdbError err= dict->getNdbError();
       if (err.code == 709 || err.code == 723)
+      {
         error= -1;
+        DBUG_PRINT("info", ("ndb_error.code: %u", ndb_error.code));
+      }
       else
+      {
+        error= -1;
         ndb_error= err;
+        DBUG_PRINT("info", ("ndb_error.code: %u", ndb_error.code));
+      }
       goto err;
     }
     DBUG_PRINT("info", ("Found table %s", tab->getName()));
@@ -7613,7 +7608,9 @@ int handle_trailing_share(NDB_SHARE *share)
   /*
     Ndb share has not been released as it should
   */
+#ifdef NOT_YET
   DBUG_ASSERT(FALSE);
+#endif
 
   /*
     This is probably an error.  We can however save the situation
@@ -10620,10 +10617,23 @@ bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *create_info,
 
   int pk= 0;
   int ai= 0;
+
+  if (create_info->tablespace)
+    create_info->storage_media = HA_SM_DISK;
+  else
+    create_info->storage_media = HA_SM_MEMORY;
+
   for (i= 0; i < table->s->fields; i++) 
   {
     Field *field= table->field[i];
     const NDBCOL *col= tab->getColumn(i);
+    if (col->getStorageType() == NDB_STORAGETYPE_MEMORY && create_info->storage_media != HA_SM_MEMORY ||
+        col->getStorageType() == NDB_STORAGETYPE_DISK && create_info->storage_media != HA_SM_DISK)
+    {
+      DBUG_PRINT("info", ("Column storage media is changed"));
+      DBUG_RETURN(COMPATIBLE_DATA_NO);
+    }
+    
     if (field->flags & FIELD_IS_RENAMED)
     {
       DBUG_PRINT("info", ("Field has been renamed, copy table"));
