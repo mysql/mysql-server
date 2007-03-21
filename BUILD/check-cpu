@@ -170,20 +170,23 @@ check_cpu () {
         # different gcc backends (and versions) have different CPU flags
         case `gcc -dumpmachine` in
           i?86-*)
-                case "$cc_verno" in
-                      3.4*|3.5*|4.*)
-                            check_cpu_args='-mtune=$cpu_arg -march=$cpu_arg'
-                            ;;
-                      *)
-                            check_cpu_args='-mcpu=$cpu_arg -march=$cpu_arg'
-                            ;;
-            esac
+	    if test "$cc_verno" -lt "3.4"
+            then
+                            check_cpu_args='-mcpu=$cpu_arg'
+            else
+                            check_cpu_args='-mtune=$cpu_arg'
+            fi
             ;;
           ppc-*)
                     check_cpu_args='-mcpu=$cpu_arg -mtune=$cpu_arg'
             ;;
           x86_64-*)
-                    check_cpu_args='-mtune=$cpu_arg'
+	    if test "$cc_verno" -lt "3.4"
+            then
+                            check_cpu_args='-mcpu=$cpu_arg'
+            else
+                            check_cpu_args='-mtune=$cpu_arg'
+            fi
             ;;
           *)
             check_cpu_cflags=""
