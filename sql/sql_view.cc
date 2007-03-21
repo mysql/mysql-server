@@ -492,35 +492,46 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   /*
     Compare/check grants on view with grants of underlying tables
   */
+
+  fill_effective_table_privileges(thd, &view->grant, view->db,
+                                  view->table_name);
+
+  {
+    Item *report_item= NULL;
+    uint final_priv= VIEW_ANY_ACL;
+
   for (sl= select_lex; sl; sl= sl->next_select())
   {
     DBUG_ASSERT(view->db);                     /* Must be set in the parser */
     List_iterator_fast<Item> it(sl->item_list);
     Item *item;
-    fill_effective_table_privileges(thd, &view->grant, view->db,
-                                    view->table_name);
     while ((item= it++))
     {
-      Item_field *fld;
+        Item_field *fld= item->filed_for_view_update();
       uint priv= (get_column_grant(thd, &view->grant, view->db,
                                     view->table_name, item->name) &
                   VIEW_ANY_ACL);
-      if ((fld= item->filed_for_view_update()))
+
+        if (fld && !fld->field->table->s->tmp_table)
       {
-        /*
-          Do we have more privileges on view field then underlying table field?
-        */
-        if (!fld->field->table->s->tmp_table && (~fld->have_privileges & priv))
+          final_priv&= fld->have_privileges;
+
+          if (~fld->have_privileges & priv)
+            report_item= item;
+        }
+      }
+    }
+
+    if (!final_priv)
         {
-          /* VIEW column has more privileges */
+      DBUG_ASSERT(report_item);
+
           my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
                    "create view", thd->security_ctx->priv_user,
-                   thd->security_ctx->priv_host, item->name,
+               thd->security_ctx->priv_host, report_item->name,
                    view->table_name);
           res= TRUE;
           goto err;
-        }
-      }
     }
   }
 #endif
