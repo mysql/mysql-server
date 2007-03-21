@@ -1136,7 +1136,7 @@ holding any InnoDB semaphores. The calling thread is holding the
 query cache mutex, and this function will reserver the InnoDB kernel mutex.
 Thus, the 'rank' in sync0sync.h of the MySQL query cache mutex is above
 the InnoDB kernel mutex. */
-
+static
 my_bool
 innobase_query_caching_of_table_permitted(
 /*======================================*/
@@ -7305,6 +7305,33 @@ ha_innobase::cmp_ref(
 	}
 
 	return(0);
+}
+
+/***********************************************************************
+Ask InnoDB if a query to a table can be cached. */
+
+my_bool
+ha_innobase::register_query_cache_table(
+/*====================================*/
+					/* out: TRUE if query caching
+					of the table is permitted */
+	THD*		thd,		/* in: user thread handle */
+	char*		table_key,	/* in: concatenation of database name,
+					the null character '\0',
+					and the table name */
+	uint		key_length,	/* in: length of the full name, i.e.
+					len(dbname) + len(tablename) + 1 */
+	qc_engine_callback*
+			call_back,	/* out: pointer to function for
+					checking if query caching
+					is permitted */
+	ulonglong	*engine_data)	/* in/out: data to call_back */
+{
+	*call_back = innobase_query_caching_of_table_permitted;
+	*engine_data = 0;
+	return(innobase_query_caching_of_table_permitted(thd, table_key,
+							 key_length,
+							 engine_data));
 }
 
 char*
