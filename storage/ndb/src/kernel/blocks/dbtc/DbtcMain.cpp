@@ -6971,6 +6971,7 @@ next:
 void Dbtc::execGCP_NOMORETRANS(Signal* signal) 
 {
   jamEntry();
+  c_gcp_ref = signal->theData[0];
   tcheckGcpId = signal->theData[1];
   if (cfirstgcp != RNIL) {
     jam();
@@ -10123,6 +10124,7 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
 
 void Dbtc::gcpTcfinished(Signal* signal) 
 {
+  signal->theData[0] = c_gcp_ref;
   signal->theData[1] = tcheckGcpId;
   sendSignal(cdihblockref, GSN_GCP_TCFINISHED, signal, 2, JBB);
 }//Dbtc::gcpTcfinished()
