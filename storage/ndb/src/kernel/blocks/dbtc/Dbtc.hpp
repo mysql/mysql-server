@@ -1955,5 +1955,8 @@ private:
   // those variables should be removed and exchanged for stack
   // variable communication.
   /**************************************************************************/
+
+  Uint32 c_gcp_ref;
 };
+
 #endif
