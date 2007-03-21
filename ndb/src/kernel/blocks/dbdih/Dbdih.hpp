@@ -1628,6 +1628,8 @@ private:
   // NR
   Uint32 c_dictLockSlavePtrI_nodeRestart; // userPtr for NR
   void recvDictLockConf_nodeRestart(Signal* signal, Uint32 data, Uint32 ret);
+
+  Uint32 c_error_7181_ref;
 };
 
 #if (DIH_CDATA_SIZE < _SYSFILE_SIZE32)
