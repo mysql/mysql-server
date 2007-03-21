@@ -13,8 +13,8 @@
 	<Configurations>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory=".\Debug"
-			IntermediateDirectory=".\Debug"
+			OutputDirectory=".\debug_obj"
+			IntermediateDirectory=".\debug_obj"
 			ConfigurationType="1"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="FALSE"
@@ -22,18 +22,20 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
+				OptimizeForProcessor="2"
 				AdditionalIncludeDirectories="../include"
-				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
+				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
 				UsePrecompiledHeader="2"
-				PrecompiledHeaderFile=".\Debug/gen_lex_hash.pch"
-				AssemblerListingLocation=".\Debug/"
-				ObjectFile=".\Debug/"
-				ProgramDataBaseFileName=".\Debug/"
+				PrecompiledHeaderFile=".\debug_obj/gen_lex_hash.pch"
+				AssemblerListingLocation=".\debug_obj/"
+				ObjectFile=".\debug_obj/"
+				ProgramDataBaseFileName=".\debug_obj/"
 				WarningLevel="3"
 				SuppressStartupBanner="TRUE"
-				DebugInformationFormat="4"/>
+				DebugInformationFormat="1"
+				CompileAs="0"/>
 			<Tool
 				Name="VCCustomBuildTool"/>
 			<Tool
@@ -42,14 +44,14 @@
 				OutputFile="../sql/gen_lex_hash.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
-				AdditionalLibraryDirectories="../lib_release"
+				AdditionalLibraryDirectories=".\debug"
 				GenerateDebugInformation="TRUE"
-				ProgramDatabaseFile=".\Debug/gen_lex_hash.pdb"
+				ProgramDatabaseFile=".\debug_obj/gen_lex_hash.pdb"
 				SubSystem="1"
 				TargetMachine="1"/>
 			<Tool
 				Name="VCMIDLTool"
-				TypeLibraryName=".\Debug/gen_lex_hash.tlb"
+				TypeLibraryName=".\debug_obj/gen_lex_hash.tlb"
 				HeaderFileName=""/>
 			<Tool
 				Name="VCPostBuildEventTool"/>
@@ -59,7 +61,7 @@
 				Name="VCPreLinkEventTool"/>
 			<Tool
 				Name="VCResourceCompilerTool"
-				PreprocessorDefinitions="_DEBUG"
+				PreprocessorDefinitions="NDEBUG"
 				Culture="1049"/>
 			<Tool
 				Name="VCWebServiceProxyGeneratorTool"/>
@@ -74,8 +76,8 @@
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory=".\gen_lex_hash___Win32_Release"
-			IntermediateDirectory=".\gen_lex_hash___Win32_Release"
+			OutputDirectory=".\release_obj"
+			IntermediateDirectory=".\release_obj"
 			ConfigurationType="1"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="FALSE"
@@ -84,18 +86,21 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				InlineFunctionExpansion="1"
+				OptimizeForProcessor="2"
 				AdditionalIncludeDirectories="../include"
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
 				StringPooling="TRUE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="TRUE"
 				UsePrecompiledHeader="2"
-				PrecompiledHeaderFile=".\gen_lex_hash___Win32_Release/gen_lex_hash.pch"
-				AssemblerListingLocation=".\gen_lex_hash___Win32_Release/"
-				ObjectFile=".\gen_lex_hash___Win32_Release/"
-				ProgramDataBaseFileName=".\gen_lex_hash___Win32_Release/"
+				PrecompiledHeaderFile=".\release_obj/gen_lex_hash.pch"
+				AssemblerListingLocation=".\release_obj/"
+				ObjectFile=".\release_obj/"
+				ProgramDataBaseFileName=".\release_obj/"
 				WarningLevel="3"
-				SuppressStartupBanner="TRUE"/>
+				SuppressStartupBanner="TRUE"
+				DebugInformationFormat="1"
+				CompileAs="0"/>
 			<Tool
 				Name="VCCustomBuildTool"/>
 			<Tool
@@ -104,13 +109,13 @@
 				OutputFile="../sql/gen_lex_hash.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
-				AdditionalLibraryDirectories="../lib_release"
-				ProgramDatabaseFile=".\gen_lex_hash___Win32_Release/gen_lex_hash.pdb"
+				AdditionalLibraryDirectories=".\release"
+				ProgramDatabaseFile=".\release_obj/gen_lex_hash.pdb"
 				SubSystem="1"
 				TargetMachine="1"/>
 			<Tool
 				Name="VCMIDLTool"
-				TypeLibraryName=".\gen_lex_hash___Win32_Release/gen_lex_hash.tlb"
+				TypeLibraryName=".\release_obj/gen_lex_hash.tlb"
 				HeaderFileName=""/>
 			<Tool
 				Name="VCPostBuildEventTool"/>

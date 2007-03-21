@@ -126,11 +126,20 @@ if [ -e $DESTDIR ] ; then
   usage
 fi
 
+trap 'echo "Clearning up and exiting..." ; rm -fr $DESTDIR; exit 1' ERR
+
 # ----------------------------------------------------------------------
-# Copy executables, and client DLL (FIXME why?)
+# Adjust target name if needed, release with debug info has another name
 # ----------------------------------------------------------------------
 
-trap 'echo "Clearning up and exiting..." ; rm -fr $DESTDIR; exit 1' ERR
+if [ x"$TARGET" = x"release" -a -f "client/relwithdebinfo/mysql.exe" ]
+then
+  TARGET="relwithdebinfo"
+fi
+
+# ----------------------------------------------------------------------
+# Copy executables, and client DLL
+# ----------------------------------------------------------------------
 
 mkdir $DESTDIR
 mkdir $DESTDIR/bin
@@ -138,20 +147,36 @@ cp client/$TARGET/*.exe                        $DESTDIR/bin/
 cp extra/$TARGET/*.exe                         $DESTDIR/bin/
 cp myisam/$TARGET/*.exe                        $DESTDIR/bin/
 cp server-tools/instance-manager/$TARGET/*.exe $DESTDIR/bin/
+cp server-tools/instance-manager/$TARGET/*.pdb $DESTDIR/bin/ || true
+cp server-tools/instance-manager/$TARGET/*.map $DESTDIR/bin/ || true
 cp tests/$TARGET/*.exe                         $DESTDIR/bin/
-cp libmysql/$TARGET/*.exe                      $DESTDIR/bin/
 cp libmysql/$TARGET/libmysql.dll               $DESTDIR/bin/
 
 # FIXME really needed?!
 mv $DESTDIR/bin/comp_err.exe             $DESTDIR/bin/comp-err.exe
 
-cp sql/$TARGET/mysqld.exe                $DESTDIR/bin/mysqld$EXE_SUFFIX.exe
+if [ -f "sql/$TARGET/mysqld-nt.exe" ] ; then
+  BASENAME="mysqld-nt"     # Old style non CMake build 
+else
+  BASENAME="mysqld"        # New style CMake build
+fi
 
-if [ x"$PACK_DEBUG" = "" -a -f "sql/debug/mysqld.exe" -o \
+# Depending on Visual Studio target, the optimized server has symbols
+cp sql/$TARGET/$BASENAME.exe   $DESTDIR/bin/$BASENAME$EXE_SUFFIX.exe
+cp sql/$TARGET/$BASENAME.pdb   $DESTDIR/bin/$BASENAME$EXE_SUFFIX.pdb || true
+cp sql/$TARGET/$BASENAME.map   $DESTDIR/bin/$BASENAME$EXE_SUFFIX.map || true
+
+if [ -f "sql/debug/mysqld-debug.exe" ] ; then
+  BASENAME="mysqld-debug"  # Old style non CMake build 
+else
+  BASENAME="mysqld"        # New style CMake build
+fi
+
+if [ x"$PACK_DEBUG" = "" -a -f "sql/debug/$BASENAME.exe" -o \
      x"$PACK_DEBUG" = "yes" ] ; then
-  cp sql/debug/mysqld.exe                $DESTDIR/bin/mysqld-debug.exe
-  cp sql/debug/mysqld.pdb                $DESTDIR/bin/mysqld-debug.pdb
-  cp sql/debug/mysqld.map                $DESTDIR/bin/mysqld-debug.map
+  cp sql/debug/$BASENAME.exe   $DESTDIR/bin/mysqld-debug.exe
+  cp sql/debug/$BASENAME.pdb   $DESTDIR/bin/mysqld-debug.pdb
+  cp sql/debug/$BASENAME.map   $DESTDIR/bin/mysqld-debug.map || true
 fi
 
 # ----------------------------------------------------------------------
@@ -160,7 +185,9 @@ fi
 
 # FIXME is there ever a data directory to copy?
 if [ -d win/data ] ; then
-  cp -pR win/data $DESTDIR/data
+  cp -pR win/data $DESTDIR/
+elif [ -d data ] ; then
+  cp -pR data $DESTDIR/
 fi
 
 # FIXME maybe a flag to define "release build", or do the
@@ -211,27 +238,6 @@ if [ x"$PACK_EMBEDDED" = "" -a \
 fi
 
 # ----------------------------------------------------------------------
-# FIXME test stuff that is useless garbage?
-# ----------------------------------------------------------------------
-
-mkdir -p $DESTDIR/examples/libmysqltest/release
-cp libmysql/mytest.c libmysql/myTest.vcproj libmysql/$TARGET/myTest.exe \
-   $DESTDIR/examples/libmysqltest/
-cp libmysql/$TARGET/myTest.exe $DESTDIR/examples/libmysqltest/release/
-
-if [ x"$PACK_DEBUG" = "" -a -f "libmysql/debug/myTest.exe" -o \
-     x"$PACK_DEBUG" = "yes" ] ; then
-  mkdir -p $DESTDIR/examples/libmysqltest/debug
-  cp libmysql/debug/myTest.exe $DESTDIR/examples/libmysqltest/debug/
-fi
-
-mkdir -p $DESTDIR/examples/tests
-cp tests/*.res tests/*.tst tests/*.pl tests/*.c $DESTDIR/examples/tests/
-
-mkdir -p $DESTDIR/examples/udf_example
-cp sql/udf_example.def sql/udf_example.vcproj sql/udf_example.c $DESTDIR/examples/udf_example/
-
-# ----------------------------------------------------------------------
 # FIXME why not copy it all in "include"?!
 # ----------------------------------------------------------------------
 
@@ -271,14 +277,23 @@ if [ x"$PACK_DEBUG" = "" -a -f "libmysql/debug/libmysql.lib" -o \
   cp libmysql/debug/libmysql.dll \
      libmysql/debug/libmysql.lib \
      client/debug/mysqlclient.lib \
-     mysys/debug/mysys.lib \
      regex/debug/regex.lib \
      strings/debug/strings.lib \
      zlib/debug/zlib.lib $DESTDIR/lib/debug/
+
+  if [ -f "mysys/debug/mysys-nt.lib" ] ; then
+    cp mysys/debug/mysys-nt.lib $DESTDIR/lib/debug/
+  else
+    cp mysys/debug/mysys.lib $DESTDIR/lib/debug/mysys-nt.lib
+  fi
+
 fi
 
-# FIXME sort this out...
-cp mysys/$TARGET/mysys.lib $DESTDIR/lib/opt/mysys_tls.lib
+if [ -f "mysys/$TARGET/mysys-nt.lib" ] ; then
+  cp mysys/$TARGET/mysys-nt.lib $DESTDIR/lib/opt/
+else
+  cp mysys/$TARGET/mysys.lib $DESTDIR/lib/opt/mysys-nt.lib
+fi
 
 # ----------------------------------------------------------------------
 # Copy the test directory
@@ -291,7 +306,9 @@ cp mysql-test/mysql-test-run.pl $DESTDIR/mysql-test/
 cp mysql-test/README $DESTDIR/mysql-test/
 cp mysql-test/install_test_db.sh $DESTDIR/mysql-test/install_test_db
 cp mysql-test/include/*.inc $DESTDIR/mysql-test/include/
+cp mysql-test/include/*.test $DESTDIR/mysql-test/include/
 cp mysql-test/lib/*.pl $DESTDIR/mysql-test/lib/
+cp mysql-test/lib/*.sql $DESTDIR/mysql-test/lib/ || true
 cp mysql-test/r/*.require $DESTDIR/mysql-test/r/
 # Need this trick, or we get "argument list too long".
 ABS_DST=`pwd`/$DESTDIR
@@ -335,9 +352,16 @@ for i in `cd scripts && ls`; do \
   fi; \
 done
 
-cp -pR sql/share $DESTDIR/
+if [ -d "share" ] ; then
+  cp -pR share $DESTDIR/
+else
+  cp -pR sql/share $DESTDIR/
+fi
 cp -pR sql-bench $DESTDIR/
 rm -f $DESTDIR/sql-bench/*.sh $DESTDIR/sql-bench/Makefile*
+
+# The SQL initiation code is really expected to be in "share"
+mv $DESTDIR/scripts/*.sql $DESTDIR/share/ || true
 
 # ----------------------------------------------------------------------
 # Copy other files specified on command line DEST=SOURCE

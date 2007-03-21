@@ -13,8 +13,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-#SET(CMAKE_CXX_FLAGS_DEBUG "-DSAFEMALLOC -DSAFE_MUTEX")
-#SET(CMAKE_C_FLAGS_DEBUG "-DSAFEMALLOC -DSAFE_MUTEX")
+SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
+SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 ADD_DEFINITIONS(-DMYSQL_SERVER -D_WIN32 -DWIN32 -D_LIB)
 
 # Bug#19424 - InnoDB: Possibly a memory overrun of the buffer being freed (64-bit Visual C)

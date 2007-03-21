@@ -1068,7 +1068,9 @@ ndbcluster-1186/ndb_3.pid
 ndbcluster-1186/ndb_3_cluster.log
 ndbcluster-1186/ndb_3_out.log
 ndbcluster-1186/ndbcluster.pid
+netware/init_db.sql
 netware/libmysql.imp
+netware/test_db.sql
 pack_isam/*.ds?
 perror/*.ds?
 perror/*.vcproj
@@ -1337,5 +1339,3 @@ win/vs71cache.txt
 win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
-netware/init_db.sql
-netware/test_db.sql

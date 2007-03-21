@@ -12,8 +12,8 @@
 	<Configurations>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory=".\debug"
-			IntermediateDirectory=".\debug"
+			OutputDirectory=".\debug_obj"
+			IntermediateDirectory=".\debug_obj"
 			ConfigurationType="1"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="FALSE"
@@ -25,10 +25,10 @@
 				AdditionalIncludeDirectories="../include,../myisam"
 				PreprocessorDefinitions="_DEBUG;SAFEMALLOC;SAFE_MUTEX;_CONSOLE;_WINDOWS"
 				RuntimeLibrary="1"
-				PrecompiledHeaderFile=".\debug/myisam_ftdump.pch"
-				AssemblerListingLocation=".\debug/"
-				ObjectFile=".\debug/"
-				ProgramDataBaseFileName=".\debug/"
+				PrecompiledHeaderFile=".\debug_obj/myisam_ftdump.pch"
+				AssemblerListingLocation=".\debug_obj/"
+				ObjectFile=".\debug_obj/"
+				ProgramDataBaseFileName=".\debug_obj/"
 				WarningLevel="3"
 				SuppressStartupBanner="TRUE"
 				DebugInformationFormat="1"
@@ -37,17 +37,17 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="wsock32.lib odbc32.lib odbccp32.lib setargv.obj ..\lib_debug\zlib.lib"
-				OutputFile="../client_debug/myisam_ftdump.exe"
+				AdditionalDependencies="wsock32.lib odbc32.lib odbccp32.lib setargv.obj ..\zlib\debug\zlib.lib"
+				OutputFile="../myisam/debug/myisam_ftdump.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
 				GenerateDebugInformation="TRUE"
-				ProgramDatabaseFile=".\debug/myisam_ftdump.pdb"
+				ProgramDatabaseFile=".\debug_obj/myisam_ftdump.pdb"
 				SubSystem="1"
 				TargetMachine="1"/>
 			<Tool
 				Name="VCMIDLTool"
-				TypeLibraryName=".\debug/myisam_ftdump.tlb"
+				TypeLibraryName=".\debug_obj/myisam_ftdump.tlb"
 				HeaderFileName=""/>
 			<Tool
 				Name="VCPostBuildEventTool"/>
@@ -72,8 +72,8 @@
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory=".\release"
-			IntermediateDirectory=".\release"
+			OutputDirectory=".\release_obj"
+			IntermediateDirectory=".\release_obj"
 			ConfigurationType="1"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="FALSE"
@@ -88,10 +88,10 @@
 				StringPooling="TRUE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="TRUE"
-				PrecompiledHeaderFile=".\release/myisam_ftdump.pch"
-				AssemblerListingLocation=".\release/"
-				ObjectFile=".\release/"
-				ProgramDataBaseFileName=".\release/"
+				PrecompiledHeaderFile=".\release_obj/myisam_ftdump.pch"
+				AssemblerListingLocation=".\release_obj/"
+				ObjectFile=".\release_obj/"
+				ProgramDataBaseFileName=".\release_obj/"
 				BrowseInformation="1"
 				WarningLevel="3"
 				SuppressStartupBanner="TRUE"
@@ -100,16 +100,16 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="wsock32.lib setargv.obj ..\lib_release\zlib.lib"
-				OutputFile="../client_release/myisam_ftdump.exe"
+				AdditionalDependencies="wsock32.lib setargv.obj ..\zlib\release\zlib.lib"
+				OutputFile="../myisam/release/myisam_ftdump.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
-				ProgramDatabaseFile=".\release/myisam_ftdump.pdb"
+				ProgramDatabaseFile=".\release_obj/myisam_ftdump.pdb"
 				SubSystem="1"
 				TargetMachine="1"/>
 			<Tool
 				Name="VCMIDLTool"
-				TypeLibraryName=".\release/myisam_ftdump.tlb"
+				TypeLibraryName=".\release_obj/myisam_ftdump.tlb"
 				HeaderFileName=""/>
 			<Tool
 				Name="VCPostBuildEventTool"/>
@@ -141,23 +141,6 @@
 			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat">
 			<File
 				RelativePath="..\myisam\myisam_ftdump.c">
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-						BrowseInformation="1"/>
-				</FileConfiguration>
 			</File>
 		</Filter>
 		<Filter

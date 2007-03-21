@@ -65,6 +65,7 @@ void Dbtup::initData()
   undoPage = 0;
   totNoOfPagesAllocated = 0;
   cnoOfAllocatedPages = 0;
+  CLEAR_ERROR_INSERT_VALUE;
   
   // Records with constant sizes
 }//Dbtup::initData()
@@ -568,7 +569,6 @@ void Dbtup::execSTTOR(Signal* signal)
   switch (startPhase) {
   case ZSTARTPHASE1:
     ljam();
-    CLEAR_ERROR_INSERT_VALUE;
     cownref = calcTupBlockRef(0);
     break;
   default:

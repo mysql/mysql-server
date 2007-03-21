@@ -430,6 +430,23 @@ CREATE TABLE tm1(a SMALLINT, b SMALLINT, KEY(a)) ENGINE=MERGE UNION=(t1);
 SELECT * FROM tm1;
 DROP TABLE t1, tm1;
 
+
+# BUG#26881 - Large MERGE tables report incorrect specification when no
+#             differences in tables
+#
+CREATE TABLE t1(c1 VARCHAR(1));
+CREATE TABLE m1 LIKE t1;
+ALTER TABLE m1 ENGINE=MERGE UNION=(t1);
+SELECT * FROM m1;
+DROP TABLE t1, m1;
+
+CREATE TABLE t1(c1 VARCHAR(4), c2 TINYINT, c3 TINYINT, c4 TINYINT,
+                c5 TINYINT, c6 TINYINT, c7 TINYINT, c8 TINYINT, c9 TINYINT);
+CREATE TABLE m1 LIKE t1;
+ALTER TABLE m1 ENGINE=MERGE UNION=(t1);
+SELECT * FROM m1;
+DROP TABLE t1, m1;
+
 # End of 4.1 tests
 
 #
