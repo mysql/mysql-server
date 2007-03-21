@@ -328,12 +328,18 @@ NdbScanFilterImpl::cond_col(Interpreter::UnaryCondition op, Uint32 AttrId){
 
 int
 NdbScanFilter::isnull(int AttrId){
-  return m_impl.cond_col(Interpreter::IS_NULL, AttrId);
+  if(m_impl.m_negative == 1)
+    return m_impl.cond_col(Interpreter::IS_NOT_NULL, AttrId);
+  else
+    return m_impl.cond_col(Interpreter::IS_NULL, AttrId);
 }
 
 int
 NdbScanFilter::isnotnull(int AttrId){
-  return m_impl.cond_col(Interpreter::IS_NOT_NULL, AttrId);
+  if(m_impl.m_negative == 1)
+    return m_impl.cond_col(Interpreter::IS_NULL, AttrId);
+  else
+    return m_impl.cond_col(Interpreter::IS_NOT_NULL, AttrId);
 }
 
 struct tab3 {
