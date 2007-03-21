@@ -836,7 +836,8 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
                           List<Item> &fields, List_item *values,
                           List<Item> &update_fields,
                           List<Item> &update_values, enum_duplicates duplic,
-                          COND **where, bool select_insert);
+                          COND **where, bool select_insert,
+                          bool check_fields, bool abort_on_warning);
 bool mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
                   List<List_item> &values, List<Item> &update_fields,
                   List<Item> &update_values, enum_duplicates flag,
@@ -1021,9 +1022,29 @@ SQL_SELECT *make_select(TABLE *head, table_map const_tables,
 			table_map read_tables, COND *conds,
                         bool allow_null_cond,  int *error);
 extern Item **not_found_item;
+
+/*
+  This enumeration type is used only by the function find_item_in_list
+  to return the info on how an item has been resolved against a list
+  of possibly aliased items.
+  The item can be resolved: 
+   - against an alias name of the list's element (RESOLVED_AGAINST_ALIAS)
+   - against non-aliased field name of the list  (RESOLVED_WITH_NO_ALIAS)
+   - against an aliased field name of the list   (RESOLVED_BEHIND_ALIAS)
+   - ignoring the alias name in cases when SQL requires to ignore aliases
+     (e.g. when the resolved field reference contains a table name or
+     when the resolved item is an expression)   (RESOLVED_IGNORING_ALIAS)    
+*/
+enum enum_resolution_type {
+  NOT_RESOLVED=0,
+  RESOLVED_IGNORING_ALIAS,
+  RESOLVED_BEHIND_ALIAS,
+  RESOLVED_WITH_NO_ALIAS,
+  RESOLVED_AGAINST_ALIAS
+};
 Item ** find_item_in_list(Item *item, List<Item> &items, uint *counter,
                           find_item_error_report_type report_error,
-                          bool *unaliased);
+                          enum_resolution_type *resolution);
 bool get_key_map_from_key_list(key_map *map, TABLE *table,
                                List<String> *index_list);
 bool insert_fields(THD *thd, Name_resolution_context *context,
@@ -1079,7 +1100,8 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
                                st_table_list *TABLE_LIST::*link,
                                const char *db_name,
                                const char *table_name);
-TABLE_LIST *unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list);
+TABLE_LIST *unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
+                         bool check_alias);
 TABLE **find_temporary_table(THD *thd, const char *db, const char *table_name);
 bool close_temporary_table(THD *thd, const char *db, const char *table_name);
 void close_temporary(TABLE *table, bool delete_table);

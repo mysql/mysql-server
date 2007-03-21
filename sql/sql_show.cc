@@ -992,7 +992,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
       if (key_part->field &&
           (key_part->length !=
            table->field[key_part->fieldnr-1]->key_length() &&
-           !(key_info->flags & HA_FULLTEXT)))
+           !(key_info->flags & (HA_FULLTEXT | HA_SPATIAL))))
       {
         buff[0] = '(';
         char* end=int10_to_str((long) key_part->length /

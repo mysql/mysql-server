@@ -12,8 +12,8 @@
 	<Configurations>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory="..\lib_debug"
-			IntermediateDirectory=".\Debug"
+			OutputDirectory=".\debug_obj"
+			IntermediateDirectory=".\debug_obj"
 			ConfigurationType="4"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="FALSE"
@@ -21,15 +21,16 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="../include,../regex,../sql,../bdb/build_win32,libmysqld"
-				PreprocessorDefinitions="WIN32;_DEBUG;_LIB;HAVE_BERKELEY_DB;USE_SYMDIR;SIGNAL_WITH_VIO_CLOSE;HAVE_DLOPEN;EMBEDDED_LIBRARY;HAVE_INNOBASE_DB;USE_TLS"
+				OptimizeForProcessor="2"
+				AdditionalIncludeDirectories=""
+				PreprocessorDefinitions=""
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
 				UsePrecompiledHeader="2"
-				PrecompiledHeaderFile=".\Debug/mysqlserver.pch"
-				AssemblerListingLocation=".\Debug/"
-				ObjectFile=".\Debug/"
-				ProgramDataBaseFileName=".\Debug/"
+				PrecompiledHeaderFile=".\debug_obj/mysqlserver.pch"
+				AssemblerListingLocation=".\debug_obj/"
+				ObjectFile=".\debug_obj/"
+				ProgramDataBaseFileName=".\debug_obj/"
 				WarningLevel="3"
 				SuppressStartupBanner="TRUE"
 				DebugInformationFormat="1"
@@ -38,7 +39,7 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLibrarianTool"
-				OutputFile="$(OutDir)\mysqlserver.lib"
+				OutputFile=".\debug/mysqlserver.lib"
 				SuppressStartupBanner="TRUE"/>
 			<Tool
 				Name="VCMIDLTool"/>
@@ -63,8 +64,8 @@
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory="..\lib_release"
-			IntermediateDirectory=".\release"
+			OutputDirectory=".\release_obj"
+			IntermediateDirectory=".\release_obj"
 			ConfigurationType="4"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="FALSE"
@@ -73,16 +74,17 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				InlineFunctionExpansion="1"
-				AdditionalIncludeDirectories="../include,../regex,../sql,../bdb/build_win32,../libmysqld"
-				PreprocessorDefinitions="WIN32;NDEBUG;_LIB;HAVE_BERKELEY_DB;SIGNAL_WITH_VIO_CLOSE;HAVE_DLOPEN;EMBEDDED_LIBRARY;HAVE_INNOBASE_DB;DBUG_OFF;USE_TLS"
+				OptimizeForProcessor="2"
+				AdditionalIncludeDirectories=""
+				PreprocessorDefinitions=""
 				StringPooling="TRUE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="TRUE"
 				UsePrecompiledHeader="2"
-				PrecompiledHeaderFile=".\release/mysqlserver.pch"
-				AssemblerListingLocation=".\release/"
-				ObjectFile=".\release/"
-				ProgramDataBaseFileName=".\release/"
+				PrecompiledHeaderFile=".\release_obj/mysqlserver.pch"
+				AssemblerListingLocation=".\release_obj/"
+				ObjectFile=".\release_obj/"
+				ProgramDataBaseFileName=".\release_obj/"
 				WarningLevel="3"
 				SuppressStartupBanner="TRUE"
 				CompileAs="0"/>
@@ -90,7 +92,7 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLibrarianTool"
-				OutputFile="$(OutDir)\mysqlserver.lib"
+				OutputFile=".\release/mysqlserver.lib"
 				SuppressStartupBanner="TRUE"/>
 			<Tool
 				Name="VCMIDLTool"/>
