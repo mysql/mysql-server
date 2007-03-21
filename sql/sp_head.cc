@@ -470,7 +470,7 @@ sp_head::init(LEX *lex)
 {
   DBUG_ENTER("sp_head::init");
 
-  lex->spcont= m_pcont= new sp_pcontext(NULL);
+  lex->spcont= m_pcont= new sp_pcontext();
 
   /*
     Altough trg_table_fields list is used only in triggers we init for all
@@ -1078,7 +1078,7 @@ sp_head::execute(THD *thd)
       case SP_HANDLER_CONTINUE:
         thd->restore_active_arena(&execute_arena, &backup_arena);
         thd->set_n_backup_active_arena(&execute_arena, &backup_arena);
-        ctx->push_hstack(ip);
+        ctx->push_hstack(i->get_cont_dest());
         // Fall through
       default:
 	ip= hip;
@@ -2395,7 +2395,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
   reinit_stmt_before_use(thd, m_lex);
 
   if (open_tables)
-    res= instr->exec_open_and_lock_tables(thd, m_lex->query_tables, nextp);
+    res= instr->exec_open_and_lock_tables(thd, m_lex->query_tables);
 
   if (!res)
     res= instr->exec_core(thd, nextp);
@@ -2444,8 +2444,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
   sp_instr class functions
 */
 
-int sp_instr::exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables,
-                                        uint *nextp)
+int sp_instr::exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 {
   int result;
 
@@ -2455,19 +2454,16 @@ int sp_instr::exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables,
   */
   if (check_table_access(thd, SELECT_ACL, tables, 0)
       || open_and_lock_tables(thd, tables))
-  {
-    get_cont_dest(nextp);
     result= -1;
-  }
   else
     result= 0;
 
   return result;
 }
 
-void sp_instr::get_cont_dest(uint *nextp)
+uint sp_instr::get_cont_dest()
 {
-  *nextp= m_ip+1;
+  return (m_ip+1);
 }
 
 
@@ -2655,9 +2651,9 @@ sp_instr_set_trigger_field::print(String *str)
   sp_instr_opt_meta
 */
 
-void sp_instr_opt_meta::get_cont_dest(uint *nextp)
+uint sp_instr_opt_meta::get_cont_dest()
 {
-  *nextp= m_cont_dest;
+  return m_cont_dest;
 }
 
 
@@ -2749,7 +2745,6 @@ sp_instr_jump_if_not::exec_core(THD *thd, uint *nextp)
   if (! it)
   {
     res= -1;
-    *nextp = m_cont_dest;
   }
   else
   {
@@ -3318,7 +3313,6 @@ sp_instr_set_case_expr::exec_core(THD *thd, uint *nextp)
       spcont->clear_handler();
       thd->spcont= spcont;
     }
-    *nextp= m_cont_dest;        /* For continue handler */
   }
   else
     *nextp= m_ip+1;

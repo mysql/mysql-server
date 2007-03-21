@@ -2022,6 +2022,74 @@ drop function func_25345;
 drop function func_25345_b;
 
 #
+# Bug#26503 (Illegal SQL exception handler code causes the server to crash)
+#
+
+delimiter //;
+
+--error ER_SP_LILABEL_MISMATCH
+create procedure proc_26503_error_1()
+begin
+retry:
+  repeat
+    begin
+      declare continue handler for sqlexception
+      begin
+        iterate retry;
+      end
+
+      select "do something";
+    end
+  until true end repeat retry;
+end//
+
+--error ER_SP_LILABEL_MISMATCH
+create procedure proc_26503_error_2()
+begin
+retry:
+  repeat
+    begin
+      declare continue handler for sqlexception
+        iterate retry;
+
+      select "do something";
+    end
+  until true end repeat retry;
+end//
+
+--error ER_SP_LILABEL_MISMATCH
+create procedure proc_26503_error_3()
+begin
+retry:
+  repeat
+    begin
+      declare continue handler for sqlexception
+      begin
+        leave retry;
+      end
+
+      select "do something";
+    end
+  until true end repeat retry;
+end//
+
+--error ER_SP_LILABEL_MISMATCH
+create procedure proc_26503_error_4()
+begin
+retry:
+  repeat
+    begin
+      declare continue handler for sqlexception
+        leave retry;
+
+      select "do something";
+    end
+  until true end repeat retry;
+end//
+
+delimiter ;//
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
