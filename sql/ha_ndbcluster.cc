@@ -952,7 +952,7 @@ int ha_ndbcluster::get_metadata(const char *path)
   DBUG_PRINT("enter", ("m_tabname: %s, path: %s", m_tabname, path));
 
   do {
-    const void *data, *pack_data;
+    const void *data= NULL, *pack_data= NULL;
     uint length, pack_length;
 
     if (!(tab= dict->getTable(m_tabname)))
@@ -3755,7 +3755,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
         if ((my_errno= build_index_list(ndb, table, ILBP_OPEN)))
           DBUG_RETURN(my_errno);
 
-        const void *data, *pack_data;
+        const void *data= NULL, *pack_data= NULL;
         uint length, pack_length;
         if (readfrm(table->s->path, &data, &length) ||
             packfrm(data, length, &pack_data, &pack_length) ||
@@ -4343,7 +4343,7 @@ int ha_ndbcluster::create(const char *name,
   NDBTAB tab;
   NDBCOL col;
   uint pack_length, length, i, pk_length= 0;
-  const void *data, *pack_data;
+  const void *data= NULL, *pack_data= NULL;
   char name2[FN_HEADLEN];
   bool create_from_engine= (info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
 
@@ -4378,8 +4378,11 @@ int ha_ndbcluster::create(const char *name,
   if (readfrm(name, &data, &length))
     DBUG_RETURN(1);
   if (packfrm(data, length, &pack_data, &pack_length))
+  {
+    my_free((char*)data, MYF(0));
     DBUG_RETURN(2);
-  
+  }
+
   DBUG_PRINT("info", ("setFrm data: 0x%lx  len: %d", (long) pack_data, pack_length));
   tab.setFrm(pack_data, pack_length);      
   my_free((char*)data, MYF(0));
