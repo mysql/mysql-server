@@ -5033,6 +5033,7 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
   {
     ndbout_c("execGCP_TCFINISHED in MASTER_GCPREQ");
     CLEAR_ERROR_INSERT_VALUE;
+    signal->theData[0] = c_error_7181_ref;
     signal->theData[1] = coldgcp;
     execGCP_TCFINISHED(signal);
   }
@@ -5108,6 +5109,7 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
   {
     ndbout_c("execGCP_TCFINISHED in MASTER_GCPREQ");
     CLEAR_ERROR_INSERT_VALUE;
+    signal->theData[0] = c_error_7181_ref;
     signal->theData[1] = coldgcp;
     execGCP_TCFINISHED(signal);
   }
@@ -8010,6 +8012,7 @@ void Dbdih::execGCP_COMMIT(Signal* signal)
   cgckptflag = false;
   emptyverificbuffer(signal, true);
   cgcpParticipantState = GCP_PARTICIPANT_COMMIT_RECEIVED;
+  signal->theData[0] = calcDihBlockRef(masterNodeId);
   signal->theData[1] = coldgcp;
   sendSignal(clocaltcblockref, GSN_GCP_NOMORETRANS, signal, 2, JBB);
   return;
@@ -8019,11 +8022,13 @@ void Dbdih::execGCP_TCFINISHED(Signal* signal)
 {
   jamEntry();
   CRASH_INSERTION(7007);
+  Uint32 retRef = signal->theData[0];
   Uint32 gci = signal->theData[1];
   ndbrequire(gci == coldgcp);
 
   if (ERROR_INSERTED(7181) || ERROR_INSERTED(7182))
   {
+    c_error_7181_ref = retRef; // Save ref
     ndbout_c("killing %d", refToNode(cmasterdihref));
     signal->theData[0] = 9999;
     sendSignal(numberToRef(CMVMI, refToNode(cmasterdihref)),
@@ -8035,7 +8040,7 @@ void Dbdih::execGCP_TCFINISHED(Signal* signal)
   signal->theData[0] = cownNodeId;
   signal->theData[1] = coldgcp;
   signal->theData[2] = cfailurenr;
-  sendSignal(cmasterdihref, GSN_GCP_NODEFINISH, signal, 3, JBB);
+  sendSignal(retRef, GSN_GCP_NODEFINISH, signal, 3, JBB);
 }//Dbdih::execGCP_TCFINISHED()
 
 /*****************************************************************************/
