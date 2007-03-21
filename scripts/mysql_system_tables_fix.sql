@@ -424,83 +424,24 @@ END//
 delimiter ;
 CALL create_log_tables();
 DROP PROCEDURE create_log_tables;
-#
-# EVENT table
-#
-
-
-CREATE TABLE event (
-  db char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
-  name char(64) CHARACTER SET utf8 NOT NULL default '',
-  body longblob NOT NULL,
-  definer char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
-  execute_at DATETIME default NULL,
-  interval_value int(11) default NULL,
-  interval_field ENUM('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK',
-                       'SECOND','MICROSECOND', 'YEAR_MONTH','DAY_HOUR',
-                       'DAY_MINUTE','DAY_SECOND',
-                       'HOUR_MINUTE','HOUR_SECOND',
-                       'MINUTE_SECOND','DAY_MICROSECOND',
-                       'HOUR_MICROSECOND','MINUTE_MICROSECOND',
-                       'SECOND_MICROSECOND') default NULL,
-  created TIMESTAMP NOT NULL,
-  modified TIMESTAMP NOT NULL,
-  last_executed DATETIME default NULL,
-  starts DATETIME default NULL,
-  ends DATETIME default NULL,
-  status ENUM('ENABLED','DISABLED') NOT NULL default 'ENABLED',
-  on_completion ENUM('DROP','PRESERVE') NOT NULL default 'DROP',
-  sql_mode          set(
-                        'REAL_AS_FLOAT',
-                        'PIPES_AS_CONCAT',
-                        'ANSI_QUOTES',
-                        'IGNORE_SPACE',
-                        'NOT_USED',
-                        'ONLY_FULL_GROUP_BY',
-                        'NO_UNSIGNED_SUBTRACTION',
-                        'NO_DIR_IN_CREATE',
-                        'POSTGRESQL',
-                        'ORACLE',
-                        'MSSQL',
-                        'DB2',
-                        'MAXDB',
-                        'NO_KEY_OPTIONS',
-                        'NO_TABLE_OPTIONS',
-                        'NO_FIELD_OPTIONS',
-                        'MYSQL323',
-                        'MYSQL40',
-                        'ANSI',
-                        'NO_AUTO_VALUE_ON_ZERO',
-                        'NO_BACKSLASH_ESCAPES',
-                        'STRICT_TRANS_TABLES',
-                        'STRICT_ALL_TABLES',
-                        'NO_ZERO_IN_DATE',
-                        'NO_ZERO_DATE',
-                        'INVALID_DATES',
-                        'ERROR_FOR_DIVISION_BY_ZERO',
-                        'TRADITIONAL',
-                        'NO_AUTO_CREATE_USER',
-                        'HIGH_NOT_PRECEDENCE'
-                    ) DEFAULT '' NOT NULL,
-  comment char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
-  time_zone char(64) CHARACTER SET latin1 NOT NULL DEFAULT 'SYSTEM',
-  PRIMARY KEY  (db,name)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT 'Events';
-
 
 #
 # EVENT privilege
 #
-
 SET @hadEventPriv := 0;
 SELECT @hadEventPriv :=1 FROM user WHERE Event_priv LIKE '%';
 
 ALTER TABLE user add Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NOT NULL AFTER Create_user_priv;
 ALTER TABLE user MODIFY Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NOT NULL AFTER Create_user_priv;
 
+UPDATE user SET Event_priv=Super_priv WHERE @hadEventPriv = 0;
+
 ALTER TABLE db add Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NOT NULL;
 ALTER TABLE db MODIFY Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NOT NULL;
 
+#
+# EVENT table
+#
 ALTER TABLE event DROP PRIMARY KEY;
 ALTER TABLE event ADD PRIMARY KEY(db, name);
 ALTER TABLE event ADD sql_mode
@@ -535,7 +476,6 @@ ALTER TABLE event ADD sql_mode
                             'NO_AUTO_CREATE_USER',
                             'HIGH_NOT_PRECEDENCE'
                             ) DEFAULT '' NOT NULL AFTER on_completion;
-UPDATE user SET Event_priv=Super_priv WHERE @hadEventPriv = 0;
 ALTER TABLE event MODIFY name char(64) CHARACTER SET utf8 NOT NULL default '';
 
 ALTER TABLE event ADD COLUMN time_zone char(64) CHARACTER SET latin1
