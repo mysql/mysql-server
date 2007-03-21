@@ -132,7 +132,7 @@ trap 'echo "Clearning up and exiting..." ; rm -fr $DESTDIR; exit 1' ERR
 # Adjust target name if needed, release with debug info has another name
 # ----------------------------------------------------------------------
 
-if [ x"$TARGET" = x"release" -a "client/relwithdebinfo/mysql.exe" ]
+if [ x"$TARGET" = x"release" -a -f "client/relwithdebinfo/mysql.exe" ]
 then
   TARGET="relwithdebinfo"
 fi
@@ -359,6 +359,9 @@ else
 fi
 cp -pR sql-bench $DESTDIR/
 rm -f $DESTDIR/sql-bench/*.sh $DESTDIR/sql-bench/Makefile*
+
+# The SQL initiation code is really expected to be in "share"
+mv $DESTDIR/scripts/*.sql $DESTDIR/share/ || true
 
 # ----------------------------------------------------------------------
 # Copy other files specified on command line DEST=SOURCE
