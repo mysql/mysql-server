@@ -2406,6 +2406,8 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted)
 	ndbout_c("I'm not master resending to %d", nodeId);
 #endif
 	do_send = 1; // try again
+	if (!theFacade->get_node_alive(nodeId))
+	  m_master_node = nodeId = 0;
 	continue;
       }
       event.Event = BackupEvent::BackupFailedToStart;
