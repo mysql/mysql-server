@@ -36,7 +36,7 @@
 */
 
 int myrg_rkey(MYRG_INFO *info,byte *buf,int inx, const byte *key,
-            uint key_len, enum ha_rkey_function search_flag)
+            key_part_map keypart_map, enum ha_rkey_function search_flag)
 {
   byte *key_buff;
   uint pack_key_length;
@@ -56,7 +56,7 @@ int myrg_rkey(MYRG_INFO *info,byte *buf,int inx, const byte *key,
 
     if (table == info->open_tables)
     {
-      err=mi_rkey(mi,0,inx,key,key_len,search_flag);
+      err=mi_rkey(mi, 0, inx, key, keypart_map, search_flag);
       /* Get the saved packed key and packed key length. */
       key_buff=(byte*) mi->lastkey+mi->s->base.max_key_length;
       pack_key_length=mi->pack_key_length;
@@ -64,7 +64,7 @@ int myrg_rkey(MYRG_INFO *info,byte *buf,int inx, const byte *key,
     else
     {
       mi->once_flags|= USE_PACKED_KEYS;
-      err=mi_rkey(mi,0,inx,key_buff,pack_key_length,search_flag);
+      err=mi_rkey(mi, 0, inx, key_buff, pack_key_length, search_flag);
     }
     info->last_used_table=table+1;
 

@@ -116,7 +116,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   /* Update the table->file->stats.records number */
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
-  table->used_keys.clear_all();
+  table->covering_keys.clear_all();
   table->quick_keys.clear_all();		// Can't use 'only index'
   select=make_select(table, 0, 0, conds, 0, &error);
   if (error)
@@ -395,7 +395,7 @@ bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
   }
   {
     TABLE_LIST *duplicate;
-    if ((duplicate= unique_table(thd, table_list, table_list->next_global)))
+    if ((duplicate= unique_table(thd, table_list, table_list->next_global, 0)))
     {
       update_non_unique_table_error(table_list, "DELETE", duplicate);
       DBUG_RETURN(TRUE);
@@ -492,7 +492,7 @@ bool mysql_multi_delete_prepare(THD *thd)
     {
       TABLE_LIST *duplicate;
       if ((duplicate= unique_table(thd, target_tbl->correspondent_table,
-                                   lex->query_tables)))
+                                   lex->query_tables, 0)))
       {
         update_non_unique_table_error(target_tbl->correspondent_table,
                                       "DELETE", duplicate);
@@ -553,7 +553,7 @@ multi_delete::initialize_tables(JOIN *join)
       tbl->no_keyread=1;
       /* Don't use record cache */
       tbl->no_cache= 1;
-      tbl->used_keys.clear_all();
+      tbl->covering_keys.clear_all();
       if (tbl->file->has_transactions())
 	transactional_tables= 1;
       else

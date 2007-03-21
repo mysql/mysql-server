@@ -1548,7 +1548,7 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
     (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
   DBUG_ASSERT(mysql_bin_log.is_open());
 
-  if (all && trx_data->empty())
+  if (trx_data->empty())
   {
     // we're here because trans_log was flushed in MYSQL_BIN_LOG::log_xid()
     trx_data->reset();
@@ -3773,7 +3773,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
                              nb_elements()));
           /*
             If the auto_increment was second in a table's index (possible with
-            MyISAM or BDB) (table->next_number_key_offset != 0), such event is
+            MyISAM or BDB) (table->next_number_keypart != 0), such event is
             in fact not necessary. We could avoid logging it.
           */
           Intvar_log_event e(thd, (uchar) INSERT_ID_EVENT,

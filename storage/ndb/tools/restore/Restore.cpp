@@ -310,7 +310,8 @@ RestoreMetaData::markSysTables()
            "cluster_replication" -> "cluster" -> "mysql"
         */
         strcmp(tableName, "cluster_replication/def/" OLD_NDB_APPLY_TABLE) == 0 ||
-        strcmp(tableName, "cluster/def/" OLD_NDB_APPLY_TABLE) == 0 ||
+        strcmp(tableName, OLD_NDB_REP_DB "/def/" OLD_NDB_APPLY_TABLE) == 0 ||
+        strcmp(tableName, OLD_NDB_REP_DB "/def/" OLD_NDB_SCHEMA_TABLE) == 0 ||
         strcmp(tableName, NDB_REP_DB "/def/" NDB_APPLY_TABLE) == 0 ||
         strcmp(tableName, NDB_REP_DB "/def/" NDB_SCHEMA_TABLE)== 0 )
       table->isSysTable = true;

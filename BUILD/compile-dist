@@ -6,7 +6,7 @@
 # tree can then be picked up by "make dist" to create the "pristine source
 # package" that is used as the basis for all other binary builds.
 #
-test -f Makefile && make distclean
+test -f Makefile && make maintainer-clean
 (cd storage/innobase && aclocal && autoheader && \
     libtoolize --automake --force --copy && \
     automake --force --add-missing --copy && autoconf)

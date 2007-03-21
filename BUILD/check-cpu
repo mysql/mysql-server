@@ -115,6 +115,10 @@ check_cpu () {
     *i386*i486*)
       cpu_arg="pentium-m";
       ;;
+    #Core 2 Duo  
+    *Intel*Core\(TM\)2*)
+      cpu_arg="nocona";
+      ;;
 
     # Intel ia64
     *Itanium*)

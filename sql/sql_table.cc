@@ -2791,6 +2791,12 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       {
 	column->length*= sql_field->charset->mbmaxlen;
 
+        if (key->type == Key::SPATIAL && column->length)
+        {
+          my_error(ER_WRONG_SUB_KEY, MYF(0));
+	  DBUG_RETURN(-1);
+	}
+
 	if (f_is_blob(sql_field->pack_flag) ||
             (f_is_geom(sql_field->pack_flag) && key->type != Key::SPATIAL))
 	{
@@ -2884,6 +2890,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	}
 	else if (!f_is_geom(sql_field->pack_flag) &&
 		  (column->length > length ||
+                   !Field::type_can_have_key_part (sql_field->sql_type) ||
 		   ((f_is_packed(sql_field->pack_flag) ||
 		     ((file->ha_table_flags() & HA_NO_PREFIX_CHAR_KEYS) &&
 		      (key_info->flags & HA_NOSAME))) &&
@@ -5859,6 +5866,8 @@ view_err:
          */
         if (!Field::type_can_have_key_part(cfield->field->type()) ||
             !Field::type_can_have_key_part(cfield->sql_type) ||
+            /* spatial keys can't have sub-key length */
+            (key_info->flags & HA_SPATIAL) ||
             (cfield->field->field_length == key_part_length &&
              !f_is_blob(key_part->key_type)) ||
 	    (cfield->length && (cfield->length < key_part_length /

@@ -1322,7 +1322,6 @@ bool select_export::send_data(List<Item> &items)
   }
   row_count++;
   Item *item;
-  char *buff_ptr=buff;
   uint used_length=0,items_left=items.elements;
   List_iterator_fast<Item> li(items);
 
@@ -1422,19 +1421,18 @@ bool select_export::send_data(List<Item> &items)
 	  goto err;
       }
     }
-    buff_ptr=buff;				// Place separators here
     if (res && (!exchange->opt_enclosed || result_type == STRING_RESULT))
     {
-      memcpy(buff_ptr,exchange->enclosed->ptr(),exchange->enclosed->length());
-      buff_ptr+=exchange->enclosed->length();
+      if (my_b_write(&cache, (byte*) exchange->enclosed->ptr(),
+                     exchange->enclosed->length()))
+        goto err;
     }
     if (--items_left)
     {
-      memcpy(buff_ptr,exchange->field_term->ptr(),field_term_length);
-      buff_ptr+=field_term_length;
+      if (my_b_write(&cache, (byte*) exchange->field_term->ptr(),
+                     field_term_length))
+        goto err;
     }
-    if (my_b_write(&cache,(byte*) buff,(uint) (buff_ptr-buff)))
-      goto err;
   }
   if (my_b_write(&cache,(byte*) exchange->line_term->ptr(),
 		 exchange->line_term->length()))

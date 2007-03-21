@@ -46,6 +46,13 @@
 basedir=
 datadir=
 
+# Default value, in seconds, afterwhich the script should timeout waiting
+# for server start. 
+# Value here is overriden by value in my.cnf. 
+# 0 means don't wait at all
+# Negative numbers mean to wait indefinitely
+service_startup_timeout=900
+
 # The following variables are only set for letting mysql.server find things.
 
 # Set some defaults
@@ -126,6 +133,7 @@ parse_server_arguments() {
 	;;
       --user=*)  user=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --pid-file=*) server_pid_file=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      --service-startup-timeout=*) service_startup_timeout=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --use-mysqld_safe) use_mysqld_safe=1;;
       --use-manager)     use_mysqld_safe=0;;
     esac
@@ -143,7 +151,7 @@ parse_manager_arguments() {
 
 wait_for_pid () {
   i=0
-  while test $i -lt 900 ; do
+  while test $i -ne $service_startup_timeout ; do
     sleep 1
     case "$1" in
       'created')
