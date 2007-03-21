@@ -35,8 +35,8 @@ if [ -d ../sql ] ; then
    exec_mgmtsrvr=$ndbtop/src/mgmsrv/ndb_mgmd
    exec_waiter=$ndbtop/tools/ndb_waiter
    exec_test=$ndbtop/tools/ndb_test_platform
-   exec_test_ndberror=
    exec_test_ndberror=$ndbtop/src/ndbapi/ndberror_check
+   exec_mgmtclient=$ndbtop/src/mgmclient/ndb_mgm
 else
    BINARY_DIST=1
    if test -x "$BASEDIR/libexec/ndbd"
