@@ -1298,7 +1298,10 @@ sortlength(THD *thd, SORT_FIELD *sortorder, uint s_length,
     }
     else
     {
-      switch ((sortorder->result_type=sortorder->item->result_type())) {
+      sortorder->result_type= sortorder->item->result_type();
+      if (sortorder->item->result_as_longlong())
+        sortorder->result_type= INT_RESULT;
+      switch (sortorder->result_type) {
       case STRING_RESULT:
 	sortorder->length=sortorder->item->max_length;
         set_if_smaller(sortorder->length, thd->variables.max_sort_length);

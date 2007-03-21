@@ -1087,6 +1087,7 @@ sp_head::execute(THD *thd)
 	ctx->enter_handler(hip);
         thd->clear_error();
 	thd->killed= THD::NOT_KILLED;
+        thd->mysys_var->abort= 0;
 	continue;
       }
     }

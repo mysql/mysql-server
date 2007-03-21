@@ -11,9 +11,72 @@
 	</Platforms>
 	<Configurations>
 		<Configuration
+			Name="Debug|Win32"
+			OutputDirectory=".\debug_obj"
+			IntermediateDirectory=".\debug_obj"
+			ConfigurationType="1"
+			UseOfMFC="0"
+			ATLMinimizesCRunTimeLibraryUsage="FALSE"
+			CharacterSet="2">
+			<Tool
+				Name="VCCLCompilerTool"
+				Optimization="0"
+				OptimizeForProcessor="2"
+				AdditionalIncludeDirectories="..\..\include,../include,../../extra/yassl/include"
+				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE;DBUG_OFF"
+				StringPooling="TRUE"
+				RuntimeLibrary="1"
+				UsePrecompiledHeader="2"
+				PrecompiledHeaderFile=".\debug_obj/test_libmysqld.pch"
+				AssemblerListingLocation=".\debug_obj/"
+				ObjectFile=".\debug_obj/"
+				ProgramDataBaseFileName=".\debug_obj/"
+				WarningLevel="3"
+				SuppressStartupBanner="TRUE"
+				DebugInformationFormat="1"
+				CompileAs="0"/>
+			<Tool
+				Name="VCCustomBuildTool"/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalDependencies="odbc32.lib odbccp32.lib Wsock32.lib ..\..\extra\yassl\debug\yassl.lib"
+				OutputFile="..\test_libmysqld.exe"
+				LinkIncremental="1"
+				SuppressStartupBanner="TRUE"
+				IgnoreDefaultLibraryNames="LIBCMTD"
+				GenerateDebugInformation="TRUE"
+				ProgramDatabaseFile=".\debug_obj/test_libmysqld.pdb"
+				SubSystem="1"
+				TargetMachine="1"/>
+			<Tool
+				Name="VCMIDLTool"
+				TypeLibraryName=".\debug_obj/test_libmysqld.tlb"
+				HeaderFileName=""/>
+			<Tool
+				Name="VCPostBuildEventTool"/>
+			<Tool
+				Name="VCPreBuildEventTool"/>
+			<Tool
+				Name="VCPreLinkEventTool"/>
+			<Tool
+				Name="VCResourceCompilerTool"
+				PreprocessorDefinitions="NDEBUG"
+				Culture="1046"/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"/>
+			<Tool
+				Name="VCWebDeploymentTool"/>
+			<Tool
+				Name="VCManagedWrapperGeneratorTool"/>
+			<Tool
+				Name="VCAuxiliaryManagedWrapperGeneratorTool"/>
+		</Configuration>
+		<Configuration
 			Name="Release|Win32"
-			OutputDirectory=".\Release"
-			IntermediateDirectory=".\Release"
+			OutputDirectory=".\release_obj"
+			IntermediateDirectory=".\release_obj"
 			ConfigurationType="1"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="FALSE"
@@ -22,16 +85,17 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				InlineFunctionExpansion="1"
+				OptimizeForProcessor="2"
 				AdditionalIncludeDirectories="..\..\include,../include,../../extra/yassl/include"
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE;DBUG_OFF"
 				StringPooling="TRUE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="TRUE"
 				UsePrecompiledHeader="2"
-				PrecompiledHeaderFile=".\Release/test_libmysqld.pch"
-				AssemblerListingLocation=".\Release/"
-				ObjectFile=".\Release/"
-				ProgramDataBaseFileName=".\Release/"
+				PrecompiledHeaderFile=".\release_obj/test_libmysqld.pch"
+				AssemblerListingLocation=".\release_obj/"
+				ObjectFile=".\release_obj/"
+				ProgramDataBaseFileName=".\release_obj/"
 				WarningLevel="3"
 				SuppressStartupBanner="TRUE"
 				CompileAs="0"/>
@@ -39,17 +103,17 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="odbc32.lib odbccp32.lib Wsock32.lib ..\..\extra\yassl\Release\yassl.lib"
+				AdditionalDependencies="odbc32.lib odbccp32.lib Wsock32.lib ..\..\extra\yassl\release\yassl.lib"
 				OutputFile="..\test_libmysqld.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
 				IgnoreDefaultLibraryNames="LIBCMTD"
-				ProgramDatabaseFile=".\Release/test_libmysqld.pdb"
+				ProgramDatabaseFile=".\release_obj/test_libmysqld.pdb"
 				SubSystem="1"
 				TargetMachine="1"/>
 			<Tool
 				Name="VCMIDLTool"
-				TypeLibraryName=".\Release/test_libmysqld.tlb"
+				TypeLibraryName=".\release_obj/test_libmysqld.tlb"
 				HeaderFileName=""/>
 			<Tool
 				Name="VCPostBuildEventTool"/>
@@ -81,47 +145,15 @@
 			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat">
 			<File
 				RelativePath="..\..\client\completion_hash.cpp">
-				<FileConfiguration
-					Name="Release|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
 			</File>
 			<File
 				RelativePath="..\..\client\mysql.cpp">
-				<FileConfiguration
-					Name="Release|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
 			</File>
 			<File
 				RelativePath="..\..\client\readline.cpp">
-				<FileConfiguration
-					Name="Release|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
 			</File>
 			<File
 				RelativePath="..\..\client\sql_string.cpp">
-				<FileConfiguration
-					Name="Release|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
 			</File>
 		</Filter>
 	</Files>

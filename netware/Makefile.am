@@ -50,11 +50,12 @@ link_sources:
 else
 
 BUILT_SOURCES =                 libmysql.imp init_db.sql test_db.sql
-CLEANFILES =                    $(BUILT_SOURCES)
+DISTCLEANFILES =                libmysql.imp
+CLEANFILES =                    init_db.sql test_db.sql
 
 # Create the libmysql.imp from libmysql/libmysql.def
 libmysql.imp: $(top_srcdir)/libmysql/libmysql.def
-	awk 'BEGIN{x=0;} \
+	$(AWK) 'BEGIN{x=0;} \
              END{printf("\n");} \
              x==1 {printf(" %s",$$1); x++; next} \
              x>1 {printf(",\n %s", $$1); next} \

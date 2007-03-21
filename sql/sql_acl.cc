@@ -5882,6 +5882,8 @@ int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
   char *curr_host= thd->security_ctx->priv_host_name();
   DBUG_ENTER("fill_schema_user_privileges");
 
+  if (!initialized)
+    DBUG_RETURN(0);
   pthread_mutex_lock(&acl_cache->lock);
 
   for (counter=0 ; counter < acl_users.elements ; counter++)
@@ -5941,6 +5943,8 @@ int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
   char *curr_host= thd->security_ctx->priv_host_name();
   DBUG_ENTER("fill_schema_schema_privileges");
 
+  if (!initialized)
+    DBUG_RETURN(0);
   pthread_mutex_lock(&acl_cache->lock);
 
   for (counter=0 ; counter < acl_dbs.elements ; counter++)

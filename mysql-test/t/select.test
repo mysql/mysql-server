@@ -3103,7 +3103,16 @@ SELECT t3.a FROM t1,t2,t3
         t3.c IN ('bb','ee');
 
 DROP TABLE t1,t2,t3;
- 
+
+#
+# WL3527: Extend IGNORE INDEX so places where index is ignored can 
+#         be specified
+#       
+CREATE TABLE t1 (a INT, b INT, KEY (a)); INSERT INTO t1 VALUES (1,1),(2,2);
+EXPLAIN SELECT 1 FROM t1 WHERE a = 1;
+EXPLAIN SELECT 1 FROM t1 IGNORE INDEX FOR JOIN (a) WHERE a = 1;
+DROP TABLE t1;
+
 #
 # Bug#25172: Not checked buffer size leads to a server crash
 #
@@ -3296,6 +3305,53 @@ EXPLAIN SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%' ORDER BY nam
 SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%' ORDER BY name;
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
+
+DROP TABLE t1,t2;
+
+
+#
+# Bug #26963: join with predicates that contain fields from equalities evaluated
+#             to constants after constant table substitution
+#
+
+CREATE TABLE t1 (
+ access_id int NOT NULL default '0',
+ name varchar(20) default NULL,
+ rank int NOT NULL default '0',
+ KEY idx (access_id)
+);
+
+CREATE TABLE t2 (
+  faq_group_id int NOT NULL default '0',
+  faq_id int NOT NULL default '0',
+  access_id int default NULL,
+  UNIQUE KEY idx1 (faq_id),
+  KEY idx2 (faq_group_id,faq_id)
+);
+
+INSERT INTO t1 VALUES 
+  (1,'Everyone',2),(2,'Help',3),(3,'Technical Support',1),(4,'Chat User',4);
+INSERT INTO t2 VALUES
+  (261,265,1),(490,494,1);
+
+
+SELECT t2.faq_id 
+  FROM t1 INNER JOIN t2 IGNORE INDEX (idx1)
+       ON (t1.access_id = t2.access_id)
+       LEFT JOIN t2 t
+       ON (t.faq_group_id = t2.faq_group_id AND
+           find_in_set(t.access_id, '1,4') < find_in_set(t2.access_id, '1,4'))
+   WHERE
+     t2.access_id IN (1,4) AND t.access_id IS NULL AND t2.faq_id in (265);
+
+SELECT t2.faq_id 
+  FROM t1 INNER JOIN t2
+       ON (t1.access_id = t2.access_id)
+       LEFT JOIN t2 t
+       ON (t.faq_group_id = t2.faq_group_id AND
+           find_in_set(t.access_id, '1,4') < find_in_set(t2.access_id, '1,4'))
+   WHERE
+     t2.access_id IN (1,4) AND t.access_id IS NULL AND t2.faq_id in (265);
 
 DROP TABLE t1,t2;
 

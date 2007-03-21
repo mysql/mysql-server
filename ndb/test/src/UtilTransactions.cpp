@@ -1381,6 +1381,7 @@ UtilTransactions::compare(Ndb* pNdb, const char* tab_name2, int flags){
       goto error;
     }
   
+    row_count= 0;
     {
       int eof;
       while((eof = pOp->nextResult(true)) == 0)
