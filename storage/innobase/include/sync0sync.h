@@ -114,13 +114,20 @@ mutex_enter_func(
 	mutex_t*	mutex,		/* in: pointer to mutex */
 	const char*	file_name,	/* in: file name where locked */
 	ulint		line);		/* in: line where locked */
+/******************************************************************
+NOTE! The following macro should be used in mutex locking, not the
+corresponding function. */
+
+#define mutex_enter_nowait(M)	\
+	mutex_enter_nowait_func((M), __FILE__, __LINE__)
 /************************************************************************
-Tries to lock the mutex for the current thread. If the lock is not acquired
-immediately, returns with return value 1. */
+NOTE! Use the corresponding macro in the header file, not this function
+directly. Tries to lock the mutex for the current thread. If the lock is not
+acquired immediately, returns with return value 1. */
 
 ulint
-mutex_enter_nowait(
-/*===============*/
+mutex_enter_nowait_func(
+/*====================*/
 					/* out: 0 if succeed, 1 if not */
 	mutex_t*	mutex,		/* in: pointer to mutex */
 	const char*	file_name,	/* in: file name where mutex
@@ -170,7 +177,16 @@ Checks that the mutex has been initialized. */
 ibool
 mutex_validate(
 /*===========*/
-	mutex_t*	mutex);
+	const mutex_t*	mutex);
+/**********************************************************************
+Checks that the current thread owns the mutex. Works only
+in the debug version. */
+
+ibool
+mutex_own(
+/*======*/
+				/* out: TRUE if owns */
+	const mutex_t*	mutex);	/* in: mutex */
 #endif /* UNIV_DEBUG */
 #ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
@@ -215,15 +231,6 @@ sync_thread_levels_empty_gen(
 					also purge_is_running mutex is
 					allowed */
 /**********************************************************************
-Checks that the current thread owns the mutex. Works only
-in the debug version. */
-
-ibool
-mutex_own(
-/*======*/
-				/* out: TRUE if owns */
-	mutex_t*	mutex);	/* in: mutex */
-/**********************************************************************
 Gets the debug information for a reserved mutex. */
 
 void
@@ -248,7 +255,7 @@ UNIV_INLINE
 ulint
 mutex_get_lock_word(
 /*================*/
-	mutex_t*	mutex);	/* in: mutex */
+	const mutex_t*	mutex);	/* in: mutex */
 #ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
 NOT to be used outside this module except in debugging! Gets the waiters
@@ -258,7 +265,7 @@ ulint
 mutex_get_waiters(
 /*==============*/
 				/* out: value to set */
-	mutex_t*	mutex);	/* in: mutex */
+	const mutex_t*	mutex);	/* in: mutex */
 #endif /* UNIV_SYNC_DEBUG */
 
 /*
@@ -479,13 +486,13 @@ struct mutex_struct {
 #ifdef UNIV_SYNC_DEBUG
 	const char*	file_name;	/* File where the mutex was locked */
 	ulint	line;		/* Line where the mutex was locked */
-	os_thread_id_t thread_id; /* Debug version: The thread id of the
-				thread which locked the mutex. */
 	ulint	level;		/* Level in the global latching order */
 #endif /* UNIV_SYNC_DEBUG */
 	const char*	cfile_name;/* File name where mutex created */
 	ulint		cline;	/* Line where created */
 #ifdef UNIV_DEBUG
+	os_thread_id_t thread_id; /* The thread id of the thread
+				which locked the mutex. */
 	ulint		magic_n;
 # define MUTEX_MAGIC_N	(ulint)979585
 #endif /* UNIV_DEBUG */

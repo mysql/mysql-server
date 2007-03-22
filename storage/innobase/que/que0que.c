@@ -127,9 +127,7 @@ que_graph_publish(
 	que_t*	graph,	/* in: graph */
 	sess_t*	sess)	/* in: session */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
 	UT_LIST_ADD_LAST(graphs, sess->graphs, graph);
 }
@@ -238,9 +236,7 @@ que_thr_end_wait(
 {
 	ibool	was_active;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(thr);
 	ut_ad((thr->state == QUE_THR_LOCK_WAIT)
 	      || (thr->state == QUE_THR_PROCEDURE_WAIT)
@@ -280,9 +276,7 @@ que_thr_end_wait_no_next_thr(
 
 	ut_a(thr->state == QUE_THR_LOCK_WAIT);	/* In MySQL this is the
 						only possible state here */
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(thr);
 	ut_ad((thr->state == QUE_THR_LOCK_WAIT)
 	      || (thr->state == QUE_THR_PROCEDURE_WAIT)
@@ -419,9 +413,7 @@ que_fork_error_handle(
 {
 	que_thr_t*	thr;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(trx->sess->state == SESS_ERROR);
 	ut_ad(UT_LIST_GET_LEN(trx->reply_signals) == 0);
 	ut_ad(UT_LIST_GET_LEN(trx->wait_thrs) == 0);
@@ -698,9 +690,7 @@ que_graph_try_free(
 {
 	sess_t*	sess;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
 	sess = (graph->trx)->sess;
 
@@ -931,9 +921,7 @@ que_thr_stop(
 	que_t*	graph;
 	ibool	ret	= TRUE;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
 	graph = thr->graph;
 	trx = graph->trx;
@@ -1309,10 +1297,7 @@ que_run_threads_low(
 
 	ut_ad(thr->state == QUE_THR_RUNNING);
 	ut_a(thr_get_trx(thr)->error_state == DB_SUCCESS);
-
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
 	/* cumul_resource counts how much resources the OS thread (NOT the
 	query thread) has spent in this function */

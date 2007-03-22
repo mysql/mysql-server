@@ -63,8 +63,8 @@ row_vers_impl_x_locked_off_kernel(
 	mtr_t		mtr;
 	ulint		comp;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
 

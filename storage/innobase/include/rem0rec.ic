@@ -995,6 +995,9 @@ rec_offs_nth_size(
 {
 	ut_ad(rec_offs_validate(NULL, NULL, offsets));
 	ut_ad(n < rec_offs_n_fields(offsets));
+	if (!n) {
+		return(rec_offs_base(offsets)[1 + n] & REC_OFFS_MASK);
+	}
 	return((rec_offs_base(offsets)[1 + n] - rec_offs_base(offsets)[n])
 	       & REC_OFFS_MASK);
 }
