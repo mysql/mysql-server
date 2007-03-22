@@ -201,8 +201,10 @@ int mysql_update(THD *thd,
       table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     else
     {
-      bitmap_set_bit(table->write_set,
-                     table->timestamp_field->field_index);
+      if (table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_UPDATE ||
+          table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH)
+        bitmap_set_bit(table->write_set,
+                       table->timestamp_field->field_index);
     }
   }
 
