@@ -726,10 +726,9 @@ event_thread_run(void* p)
     do_event_thread= 1;
     char *tmp= 0;
     char buf[1024];
-    SocketInputStream in(fd,10);
     do {
-      if (tmp == 0) NdbSleep_MilliSleep(10);
-      if((tmp = in.gets(buf, 1024)))
+      SocketInputStream in(fd,2000);
+      if((tmp = in.gets(buf, sizeof(buf))))
       {
 	const char ping_token[]= "<PING>";
 	if (memcmp(ping_token,tmp,sizeof(ping_token)-1))
@@ -738,6 +737,10 @@ event_thread_run(void* p)
             Guard g(printmutex);
             ndbout << tmp;
           }
+      }
+      else if(in.timedout() && ndb_mgm_check_connection(handle)<0)
+      {
+        break;
       }
     } while(do_event_thread);
     NDB_CLOSE_SOCKET(fd);
