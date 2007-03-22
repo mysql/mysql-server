@@ -344,6 +344,9 @@ MgmApiSession::runSession()
   while(!stop) {
     NdbMutex_Lock(m_mutex);
 
+    m_input->reset_timeout();
+    m_output->reset_timeout();
+
     m_parser->run(ctx, *this);
 
     if(ctx.m_currentToken == 0)
