@@ -856,8 +856,14 @@ public:
   {
     return tmp_table_field_from_field_type(table, 0);
   }
+  void fix_length_and_dec()
+  {
+    Item_typecast_maybe_null::fix_length_and_dec();
+    decimals= DATETIME_DEC;
+  }
   bool result_as_longlong() { return TRUE; }
   longlong val_int();
+  double val() { return (double) val_int(); }
   my_decimal *val_decimal(my_decimal *decimal_value)
   {
     DBUG_ASSERT(fixed == 1);
