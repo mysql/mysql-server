@@ -1295,7 +1295,7 @@ bool show_master_info(THD* thd, MASTER_INFO* mi)
     rpl_filter->get_wild_ignore_table(&tmp);
     protocol->store(&tmp);
 
-    protocol->store((uint32) mi->rli.last_slave_errno);
+    protocol->store(mi->rli.last_slave_errno);
     protocol->store(mi->rli.last_slave_error, &my_charset_bin);
     protocol->store((uint32) mi->rli.slave_skip_counter);
     protocol->store((ulonglong) mi->rli.group_master_log_pos);
