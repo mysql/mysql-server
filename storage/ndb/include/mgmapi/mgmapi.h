@@ -515,6 +515,18 @@ extern "C" {
   int ndb_mgm_set_connectstring(NdbMgmHandle handle,
 				const char *connect_string);
 
+  /**
+   * Returns the number of management servers in the connect string
+   * (as set by ndb_mgm_set_connectstring()). This can be used
+   * to help work out how long the maximum amount of time that
+   * ndb_mgm_connect can take.
+   *
+   * @param   handle         Management handle
+   *
+   * @return                < 0 on error
+   */
+  int ndb_mgm_number_of_mgmd_in_connect_string(NdbMgmHandle handle);
+
   int ndb_mgm_set_configuration_nodeid(NdbMgmHandle handle, int nodeid);
   int ndb_mgm_get_configuration_nodeid(NdbMgmHandle handle);
   int ndb_mgm_get_connected_port(NdbMgmHandle handle);
@@ -569,6 +581,11 @@ extern "C" {
   /**
    * Connects to a management server. Connectstring is set by
    * ndb_mgm_set_connectstring().
+   *
+   * The timeout value is for connect to each management server.
+   * Use ndb_mgm_number_of_mgmd_in_connect_string to work out
+   * the approximate maximum amount of time that could be spent in this
+   * function.
    *
    * @param   handle        Management handle.
    * @param   no_retries    Number of retries to connect
