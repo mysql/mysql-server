@@ -288,6 +288,8 @@ struct PurgeStruct
   NDB_TICKS tick;
 };
 
+#define ERROR_INSERTED(x) (g_errorInsert == x || m_errorInsert == x)
+
 MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 session_id)
   : SocketServer::Session(sock), m_mgmsrv(mgm)
 {
@@ -300,6 +302,7 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 
   m_ctx= NULL;
   m_session_id= session_id;
   m_mutex= NdbMutex_Create();
+  m_errorInsert= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -613,11 +616,22 @@ void
 MgmApiSession::insertError(Parser<MgmApiSession>::Context &,
 			   Properties const &args) {
   Uint32 node = 0, error = 0;
+  int result= 0;
 
   args.get("node", &node);
   args.get("error", &error);
 
-  int result = m_mgmsrv.insertError(node, error);
+  if(node==m_mgmsrv.getOwnNodeId()
+     && error < MGM_ERROR_MAX_INJECT_SESSION_ONLY)
+  {
+    m_errorInsert= error;
+    if(error==0)
+      g_errorInsert= error;
+  }
+  else
+  {
+    result= m_mgmsrv.insertError(node, error);
+  }
 
   m_output->println("insert error reply");
   if(result != 0)
@@ -1602,6 +1616,10 @@ void
 MgmApiSession::check_connection(Parser_t::Context &ctx,
 				const class Properties &args)
 {
+  if(ERROR_INSERTED(1))
+  {
+    NdbSleep_SecSleep(10);
+  }
   m_output->println("check connection reply");
   m_output->println("result: Ok");
   m_output->println("");

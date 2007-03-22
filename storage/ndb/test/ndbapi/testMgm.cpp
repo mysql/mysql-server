@@ -207,6 +207,53 @@ int runTestApiSession(NDBT_Context* ctx, NDBT_Step* step)
   }
 }
 
+int runTestApiTimeout1(NDBT_Context* ctx, NDBT_Step* step)
+{
+  char *mgm= ctx->getRemoteMgm();
+  int result= NDBT_FAILED;
+  int cc= 0;
+
+  NdbMgmHandle h;
+  h= ndb_mgm_create_handle();
+  ndb_mgm_set_connectstring(h, mgm);
+  ndb_mgm_connect(h,0,0,0);
+
+  ndbout << "Connected" << endl;
+
+  if(ndb_mgm_check_connection(h) < 0)
+  {
+    result= NDBT_FAILED;
+    goto done;
+  }
+
+  ndbout << "Checked Connection" << endl;
+
+  ndb_mgm_reply reply;
+  reply.return_code= 0;
+
+  if(ndb_mgm_insert_error(h, 3, 1, &reply)< 0)
+  {
+    ndbout << "failed to insert error " << endl;
+    result= NDBT_FAILED;
+    goto done;
+  }
+
+  ndbout << "Inserted session error" << endl;
+
+  cc= ndb_mgm_check_connection(h);
+  if(cc < 0)
+    result= NDBT_OK;
+  else
+    result= NDBT_FAILED;
+
+  ndbout << "Tried check connection with result: " << cc << endl;
+done:
+  ndb_mgm_disconnect(h);
+  ndb_mgm_destroy_handle(&h);
+
+  return result;
+}
+
 
 NDBT_TESTSUITE(testMgm);
 TESTCASE("SingleUserMode", 
@@ -217,6 +264,11 @@ TESTCASE("SingleUserMode",
 TESTCASE("ApiSessionFailure",
 	 "Test failures in MGMAPI session"){
   INITIALIZER(runTestApiSession);
+
+}
+TESTCASE("ApiTimeout1",
+	 "Test timeout for MGMAPI"){
+  INITIALIZER(runTestApiTimeout1);
 
 }
 NDBT_TESTSUITE_END(testMgm);
