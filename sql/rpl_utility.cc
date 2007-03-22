@@ -108,7 +108,7 @@ field_length_from_packed(enum_field_types const field_type,
 
 */
 int
-table_def::compatible_with(RELAY_LOG_INFO *rli, TABLE *table)
+table_def::compatible_with(RELAY_LOG_INFO const *rli_arg, TABLE *table)
   const
 {
   /*
@@ -116,6 +116,7 @@ table_def::compatible_with(RELAY_LOG_INFO *rli, TABLE *table)
   */
   uint const cols_to_check= min(table->s->fields, size());
   int error= 0;
+  RELAY_LOG_INFO const *rli= const_cast<RELAY_LOG_INFO*>(rli_arg);
 
   TABLE_SHARE const *const tsh= table->s;
 
