@@ -58,6 +58,8 @@ public:
   String *storage_packet() { return packet; }
   inline void free() { packet->free(); }
   virtual bool write();
+  inline  bool store(int from)
+  { return store_long((longlong) from); }
   inline  bool store(uint32 from)
   { return store_long((longlong) from); }
   inline  bool store(longlong from)

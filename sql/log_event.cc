@@ -5478,13 +5478,13 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
   DBUG_ASSERT(m_rows_cur <= m_rows_end);
 
   /* The cast will always work since m_rows_cur <= m_rows_end */
-  if (static_cast<my_size_t>(m_rows_end - m_rows_cur) < length)
+  if (static_cast<my_size_t>(m_rows_end - m_rows_cur) <= length)
   {
     my_size_t const block_size= 1024;
     my_ptrdiff_t const old_alloc= m_rows_end - m_rows_buf;
     my_ptrdiff_t const cur_size= m_rows_cur - m_rows_buf;
     my_ptrdiff_t const new_alloc= 
-        block_size * ((cur_size + length) / block_size + block_size - 1);
+        block_size * ((cur_size + length + block_size - 1) / block_size);
 
     byte* const new_buf= (byte*)my_realloc((gptr)m_rows_buf, new_alloc,
                                            MYF(MY_ALLOW_ZERO_PTR|MY_WME));
@@ -5505,7 +5505,7 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
     m_rows_end= m_rows_buf + new_alloc;
   }
 
-  DBUG_ASSERT(m_rows_cur + length < m_rows_end);
+  DBUG_ASSERT(m_rows_cur + length <= m_rows_end);
   memcpy(m_rows_cur, row_data, length);
   m_rows_cur+= length;
   m_row_count++;
@@ -5717,9 +5717,26 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
     {
       if (!need_reopen)
       {
-        slave_print_msg(ERROR_LEVEL, rli, error,
-                        "Error in %s event: when locking tables",
-                        get_type_str());
+        if (thd->query_error || thd->is_fatal_error)
+        {
+          /*
+            Error reporting borrowed from Query_log_event with many excessive
+            simplifications (we don't honour --slave-skip-errors)
+          */
+          uint actual_error= thd->net.last_errno;
+          slave_print_msg(ERROR_LEVEL, rli, actual_error,
+                          "Error '%s' in %s event: when locking tables",
+                          (actual_error ? thd->net.last_error :
+                           "unexpected success or fatal error"),
+                          get_type_str());
+          thd->is_fatal_error= 1;
+        }
+        else
+        {
+          slave_print_msg(ERROR_LEVEL, rli, error,
+                         "Error in %s event: when locking tables",
+                         get_type_str());
+        }
         rli->clear_tables_to_lock();
         DBUG_RETURN(error);
       }
