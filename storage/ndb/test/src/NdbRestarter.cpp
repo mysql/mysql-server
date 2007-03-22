@@ -26,6 +26,8 @@
 #define MGMERR(h) \
   ndbout << "latest_error="<<ndb_mgm_get_latest_error(h) \
 	 << ", line="<<ndb_mgm_get_latest_error_line(h) \
+         << ", mesg="<<ndb_mgm_get_latest_error_msg(h) \
+         << ", desc="<<ndb_mgm_get_latest_error_desc(h) \
 	 << endl;
 
 
