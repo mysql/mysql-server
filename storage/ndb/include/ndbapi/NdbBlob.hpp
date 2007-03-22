@@ -142,12 +142,33 @@ public:
    * operation post/pre data blob.  Always succeeds.
    */
   void getVersion(int& version);
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
-   * Inline blob header.
+   * Blob head V1 is 8 bytes:
+   *   8 bytes blob length - native endian (of ndb apis)
+   *
+   * Blob head V2 is 16 bytes:
+   *   2 bytes head+inline length bytes (MEDIUM_VAR) - little-endian
+   *   2 bytes reserved (zero)
+   *   4 bytes NDB$PKID for blob events - little-endian
+   *   8 bytes blob length - litte-endian
+   *
+   * Following struct is for packing/unpacking the fields.  It must
+   * not be C-cast to/from the head+inline attribute value.
    */
   struct Head {
-    Uint64 length;
+    Uint16 varsize;     // length of head+inline minus the 2 length bytes
+    Uint16 reserved;    // must be 0  wl3717_todo checksum?
+    Uint32 pkid;        // connects part and row with same PK within tx
+    Uint64 length;      // blob length
+    //
+    uint headsize;    // for convenience, number of bytes in head
+    Head() :
+      varsize(0), reserved(0), pkid(0), length(0), headsize(0) {}
   };
+  static void packBlobHead(const Head& head, char* buf, int blobVersion);
+  static void unpackBlobHead(Head& head, const char* buf, int blobVersion);
+#endif
   /**
    * Prepare to read blob value.  The value is available after execute.
    * Use getNull() to check for NULL and getLength() to get the real length
@@ -264,6 +285,9 @@ private:
   friend class NdbEventBuffer;
   friend class NdbEventOperationImpl;
 #endif
+  int theBlobVersion;
+  uint theHeadSize;
+  uint theVarsizeBytes;
   // state
   State theState;
   void setState(State newState);
@@ -274,6 +298,15 @@ private:
   static void getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnImpl* c);
   static void getBlobEventName(char* bename, const NdbEventImpl* e, const NdbColumnImpl* c);
   static void getBlobEvent(NdbEventImpl& be, const NdbEventImpl* e, const NdbColumnImpl* c);
+  // compute blob table column number for faster access
+  enum {
+    BtColumnPk = 0,     /* V1 only */
+    BtColumnDist = 1,
+    BtColumnPart = 2,
+    BtColumnPkid = 3,  /* V2 only */
+    BtColumnData = 4
+  };
+  int theBtColumnNo[5];
   // ndb api stuff
   Ndb* theNdb;
   NdbTransaction* theNdbCon;
@@ -288,7 +321,7 @@ private:
   const NdbTableImpl* theAccessTable;
   const NdbTableImpl* theBlobTable;
   const NdbColumnImpl* theColumn;
-  char theFillChar;
+  unsigned char theFillChar;
   // sizes
   Uint32 theInlineSize;
   Uint32 thePartSize;
@@ -323,8 +356,9 @@ private:
   Buf thePartBuf;
   Buf theBlobEventDataBuf;
   Uint32 thePartNumber;         // for event
-  Head* theHead;
+  Head theHead;
   char* theInlineData;
+  char* thePartData;
   NdbRecAttr* theHeadInlineRecAttr;
   NdbOperation* theHeadInlineReadOp;
   bool theHeadInlineUpdateFlag;
@@ -354,20 +388,26 @@ private:
   bool isTakeOverOp();
   // computations
   Uint32 getPartNumber(Uint64 pos);
+  Uint32 getPartOffset(Uint64 pos);
   Uint32 getPartCount();
   Uint32 getDistKey(Uint32 part);
   // pack / unpack
   int packKeyValue(const NdbTableImpl* aTable, const Buf& srcBuf);
   int unpackKeyValue(const NdbTableImpl* aTable, Buf& dstBuf);
   // getters and setters
+  void packBlobHead();
+  void unpackBlobHead();
   int getTableKeyValue(NdbOperation* anOp);
   int setTableKeyValue(NdbOperation* anOp);
   int setAccessKeyValue(NdbOperation* anOp);
   int setPartKeyValue(NdbOperation* anOp, Uint32 part);
+  int setPartPkidValue(NdbOperation* anOp, Uint32 pkid);
   int getHeadInlineValue(NdbOperation* anOp);
   void getHeadFromRecAttr();
   int setHeadInlineValue(NdbOperation* anOp);
   // data operations
+  Uint32 getPartVarsize(const char* buf);
+  void setPartVarsize(char* buf, Uint32 sz);
   int readDataPrivate(char* buf, Uint32& bytes);
   int writeDataPrivate(const char* buf, Uint32 bytes);
   int readParts(char* buf, Uint32 part, Uint32 count);

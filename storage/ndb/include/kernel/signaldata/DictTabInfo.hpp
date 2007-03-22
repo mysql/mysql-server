@@ -506,8 +506,14 @@ public:
       case DictTabInfo::ExtBlob:
       case DictTabInfo::ExtText:
         AttributeSize = DictTabInfo::an8Bit;
-        // head + inline part (length in precision lower half)
-        AttributeArraySize = (NDB_BLOB_HEAD_SIZE << 2) + (AttributeExtPrecision & 0xFFFF);
+        if (unlikely(AttributeArrayType == NDB_ARRAYTYPE_FIXED)) {
+          // head + inline part (length in precision lower half)
+          AttributeArraySize = (NDB_BLOB_V1_HEAD_SIZE << 2) +
+                               (AttributeExtPrecision & 0xFFFF);
+        } else {
+          AttributeArraySize = (NDB_BLOB_V2_HEAD_SIZE << 2) +
+                               (AttributeExtPrecision & 0xFFFF);
+        }
         break;
       case DictTabInfo::ExtBit:
 	AttributeSize = DictTabInfo::aBit;

@@ -291,6 +291,18 @@ NdbDictionary::Column::getStorageType() const
   return (StorageType)m_impl.m_storageType;
 }
 
+int
+NdbDictionary::Column::getBlobVersion() const
+{
+  return m_impl.getBlobVersion();
+}
+
+void
+NdbDictionary::Column::setBlobVersion(int blobVersion)
+{
+  m_impl.setBlobVersion(blobVersion);
+}
+
 /*****************************************************************
  * Table facade
  */
