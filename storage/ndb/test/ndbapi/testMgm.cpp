@@ -223,8 +223,11 @@ int runTestApiTimeoutBasic(NDBT_Context* ctx, NDBT_Step* step)
   ndb_mgm_set_connectstring(h, mgm);
 
   ndbout << "TEST timout check_connection" << endl;
-  for(int error_ins=1; error_ins<=3; error_ins++)
+  int errs[] = { 1, 2, 3, -1};
+
+  for(int error_ins_no=0; errs[error_ins_no]!=-1; error_ins_no++)
   {
+    int error_ins= errs[error_ins_no];
     ndbout << "trying error " << error_ins << endl;
     ndb_mgm_connect(h,0,0,0);
 
@@ -289,7 +292,7 @@ int runTestApiTimeoutBasic(NDBT_Context* ctx, NDBT_Step* step)
   ndbout << "TEST end_session" << endl;
   ndb_mgm_connect(h,0,0,0);
 
-  if(ndb_mgm_insert_error(h, mgmd_nodeid, 1, &reply)< 0)
+  if(ndb_mgm_insert_error(h, mgmd_nodeid, 4, &reply)< 0)
   {
     ndbout << "FAILED: insert error 1" << endl;
     result= NDBT_FAILED;
@@ -338,8 +341,11 @@ int runTestApiGetStatusTimeout(NDBT_Context* ctx, NDBT_Step* step)
   h= ndb_mgm_create_handle();
   ndb_mgm_set_connectstring(h, mgm);
 
-  for(int error_ins=0; error_ins<=5; error_ins++)
+  int errs[] = { 0, 5, 6, 7, 8, 9, -1 };
+
+  for(int error_ins_no=0; errs[error_ins_no]!=-1; error_ins_no++)
   {
+    int error_ins= errs[error_ins_no];
     ndb_mgm_connect(h,0,0,0);
 
     if(ndb_mgm_check_connection(h) < 0)
@@ -381,19 +387,19 @@ int runTestApiGetStatusTimeout(NDBT_Context* ctx, NDBT_Step* step)
      * so we don't break any behaviour
      */
 
-    if(error_ins!=0 && error_ins!=5 && cl!=NULL)
+    if(error_ins!=0 && error_ins!=9 && cl!=NULL)
     {
       ndbout << "FAILED: got a ndb_mgm_cluster_state back" << endl;
       result= NDBT_FAILED;
     }
 
-    if(error_ins!=0 && error_ins!=5 && ndb_mgm_is_connected(h))
+    if(error_ins!=0 && error_ins!=9 && ndb_mgm_is_connected(h))
     {
       ndbout << "FAILED: is still connected after error" << endl;
       result= NDBT_FAILED;
     }
 
-    if(error_ins!=0 && error_ins!=5 && ndb_mgm_get_latest_error(h)!=ETIMEDOUT)
+    if(error_ins!=0 && error_ins!=9 && ndb_mgm_get_latest_error(h)!=ETIMEDOUT)
     {
       ndbout << "FAILED: Incorrect error code (" << ndb_mgm_get_latest_error(h)
              << " != expected " << ETIMEDOUT << ") desc: "
@@ -422,8 +428,11 @@ int runTestMgmApiGetConfigTimeout(NDBT_Context* ctx, NDBT_Step* step)
   h= ndb_mgm_create_handle();
   ndb_mgm_set_connectstring(h, mgm);
 
-  for(int error_ins=0; error_ins<=3; error_ins++)
+  int errs[] = { 0, 1, 2, 3, -1 };
+
+  for(int error_ins_no=0; errs[error_ins_no]!=-1; error_ins_no++)
   {
+    int error_ins= errs[error_ins_no];
     ndb_mgm_connect(h,0,0,0);
 
     if(ndb_mgm_check_connection(h) < 0)
@@ -499,8 +508,11 @@ int runTestMgmApiEventTimeout(NDBT_Context* ctx, NDBT_Step* step)
   h= ndb_mgm_create_handle();
   ndb_mgm_set_connectstring(h, mgm);
 
-  for(int error_ins=0; error_ins<=3; error_ins++)
+  int errs[] = { 0, -1 };
+
+  for(int error_ins_no=0; errs[error_ins_no]!=-1; error_ins_no++)
   {
+    int error_ins= errs[error_ins_no];
     ndb_mgm_connect(h,0,0,0);
 
     if(ndb_mgm_check_connection(h) < 0)
