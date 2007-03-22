@@ -89,12 +89,14 @@ INSERT INTO t1 VALUES (test_replication_sf());
 --exec diff $MYSQLTEST_VARDIR/tmp/rpl_rand_master.sql $MYSQLTEST_VARDIR/tmp/rpl_rand_slave.sql
 
 # Cleanup
+connection master;
 --disable_warnings
 DROP PROCEDURE IF EXISTS test_replication_sp1;
 DROP PROCEDURE IF EXISTS test_replication_sp2;
 DROP FUNCTION IF EXISTS test_replication_sf;
 DROP TABLE IF EXISTS t1;
 --enable_warnings
+--sync_slave_with_master
 
 # If all is good, when can cleanup our dump files.
 --system rm $MYSQLTEST_VARDIR/tmp/rpl_rand_master.sql

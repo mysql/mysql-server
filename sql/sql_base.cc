@@ -3752,7 +3752,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 
   tmp_table->reginfo.lock_type= TL_WRITE;	 // Simulate locked
   share->tmp_table= (tmp_table->file->has_transactions() ? 
-                     TRANSACTIONAL_TMP_TABLE : TMP_TABLE);
+                     TRANSACTIONAL_TMP_TABLE : NON_TRANSACTIONAL_TMP_TABLE);
 
   if (link_in_list)
   {
