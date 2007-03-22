@@ -48,10 +48,10 @@ extern FileInputStream Stdin;
 
 class SocketInputStream : public InputStream {
   NDB_SOCKET_TYPE m_socket;
-  unsigned m_timeout;
+  unsigned m_timeout_ms;
   bool m_startover;
 public:
-  SocketInputStream(NDB_SOCKET_TYPE socket, unsigned readTimeout = 1000);
+  SocketInputStream(NDB_SOCKET_TYPE socket, unsigned read_timeout_ms = 1000);
   virtual ~SocketInputStream() {}
   char* gets(char * buf, int bufLen);
 };
