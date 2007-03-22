@@ -45,21 +45,38 @@ SocketOutputStream::SocketOutputStream(NDB_SOCKET_TYPE socket,
 				       unsigned write_timeout_ms){
   m_socket = socket;
   m_timeout_ms = write_timeout_ms;
+  m_timedout= false;
 }
 
 int
 SocketOutputStream::print(const char * fmt, ...){
   va_list ap;
+
+  if(timedout())
+    return -1;
+
   va_start(ap, fmt);
   const int ret = vprint_socket(m_socket, m_timeout_ms, fmt, ap);
   va_end(ap);
+
+  if (errno==ETIMEDOUT)
+    m_timedout= true;
+
   return ret;
 }
 int
 SocketOutputStream::println(const char * fmt, ...){
   va_list ap;
+
+  if(timedout())
+    return -1;
+
   va_start(ap, fmt);
   const int ret = vprintln_socket(m_socket, m_timeout_ms, fmt, ap);
   va_end(ap);
+
+  if (errno==ETIMEDOUT)
+    m_timedout= true;
+
   return ret;
 }

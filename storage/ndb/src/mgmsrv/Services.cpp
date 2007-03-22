@@ -1641,7 +1641,12 @@ MgmApiSession::get_mgmd_nodeid(Parser_t::Context &ctx,
 			       Properties const &args)
 {
   m_output->println("get mgmd nodeid reply");
-  m_output->println("nodeid:%u",m_mgmsrv.getOwnNodeId());  
+  m_output->println("nodeid:%u",m_mgmsrv.getOwnNodeId());
+  if(ERROR_INSERTED(1))
+  {
+    NdbSleep_SecSleep(10);
+  }
+
   m_output->println("");
 }
 
