@@ -323,7 +323,7 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
   DBUG_ENTER("ndb_mgm_call");
   DBUG_PRINT("enter",("handle->socket: %d, cmd: %s",
 		      handle->socket, cmd));
-  SocketOutputStream out(handle->socket);
+  SocketOutputStream out(handle->socket, handle->write_timeout);
   SocketInputStream in(handle->socket, handle->read_timeout);
 
   out.println(cmd);
@@ -771,7 +771,7 @@ ndb_mgm_get_status(NdbMgmHandle handle)
   CHECK_HANDLE(handle, NULL);
   CHECK_CONNECTED(handle, NULL);
 
-  SocketOutputStream out(handle->socket);
+  SocketOutputStream out(handle->socket, handle->write_timeout);
   SocketInputStream in(handle->socket, handle->read_timeout);
 
   out.println("get status");
@@ -2405,7 +2405,7 @@ int
 ndb_mgm_check_connection(NdbMgmHandle handle){
   CHECK_HANDLE(handle, 0);
   CHECK_CONNECTED(handle, 0);
-  SocketOutputStream out(handle->socket);
+  SocketOutputStream out(handle->socket, handle->write_timeout);
   SocketInputStream in(handle->socket, handle->read_timeout);
   char buf[32];
   if (out.println("check connection"))
@@ -2535,7 +2535,7 @@ ndb_mgm_convert_to_transporter(NdbMgmHandle *handle)
   (*handle)->connected= 0;   // we pretend we're disconnected
   s= (*handle)->socket;
 
-  SocketOutputStream s_output(s);
+  SocketOutputStream s_output(s, (*handle)->write_timeout);
   s_output.println("transporter connect");
   s_output.println("");
 
@@ -2611,7 +2611,7 @@ int ndb_mgm_end_session(NdbMgmHandle handle)
   CHECK_CONNECTED(handle, 0);
   DBUG_ENTER("ndb_mgm_end_session");
 
-  SocketOutputStream s_output(handle->socket);
+  SocketOutputStream s_output(handle->socket, handle->write_timeout);
   s_output.println("end session");
   s_output.println("");
 
