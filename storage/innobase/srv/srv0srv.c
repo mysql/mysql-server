@@ -726,9 +726,7 @@ srv_suspend_thread(void)
 	ulint		slot_no;
 	ulint		type;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
 	slot_no = thr_local_get_slot_no(os_thread_get_curr_id());
 
@@ -780,9 +778,7 @@ srv_release_threads(
 	ut_ad(type >= SRV_WORKER);
 	ut_ad(type <= SRV_MASTER);
 	ut_ad(n > 0);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
 	for (i = 0; i < OS_THREAD_MAX_N; i++) {
 
@@ -1305,9 +1301,7 @@ srv_table_reserve_slot_for_mysql(void)
 	srv_slot_t*	slot;
 	ulint		i;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
 	i = 0;
 	slot = srv_mysql_table + i;
@@ -1387,9 +1381,7 @@ srv_suspend_mysql_thread(
 	ulint		sec;
 	ulint		ms;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
 	trx = thr_get_trx(thr);
 
@@ -1535,9 +1527,7 @@ srv_release_mysql_thread_if_suspended(
 	srv_slot_t*	slot;
 	ulint		i;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
 	for (i = 0; i < OS_THREAD_MAX_N; i++) {
 
@@ -1830,15 +1820,15 @@ srv_export_innodb_status(void)
 	export_vars.innodb_row_lock_waits = srv_n_lock_wait_count;
 	export_vars.innodb_row_lock_current_waits
 		= srv_n_lock_wait_current_count;
-	export_vars.innodb_row_lock_time = srv_n_lock_wait_time / 10000;
+	export_vars.innodb_row_lock_time = srv_n_lock_wait_time / 1000;
 	if (srv_n_lock_wait_count > 0) {
 		export_vars.innodb_row_lock_time_avg = (ulint)
-			(srv_n_lock_wait_time / 10000 / srv_n_lock_wait_count);
+			(srv_n_lock_wait_time / 1000 / srv_n_lock_wait_count);
 	} else {
 		export_vars.innodb_row_lock_time_avg = 0;
 	}
 	export_vars.innodb_row_lock_time_max
-		= srv_n_lock_max_wait_time / 10000;
+		= srv_n_lock_max_wait_time / 1000;
 	export_vars.innodb_rows_read = srv_n_rows_read;
 	export_vars.innodb_rows_inserted = srv_n_rows_inserted;
 	export_vars.innodb_rows_updated = srv_n_rows_updated;

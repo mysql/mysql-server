@@ -409,9 +409,7 @@ fil_space_is_flushed(
 {
 	fil_node_t*	node;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(fil_system->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	node = UT_LIST_GET_FIRST(space->chain);
 
@@ -514,9 +512,7 @@ fil_node_open_file(
 	ulint		space_id;
 #endif /* !UNIV_HOTBACKUP */
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_a(node->n_pending == 0);
 	ut_a(node->open == FALSE);
 
@@ -660,9 +656,7 @@ fil_node_close_file(
 	ibool	ret;
 
 	ut_ad(node && system);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_a(node->open);
 	ut_a(node->n_pending == 0);
 	ut_a(node->n_pending_flushes == 0);
@@ -705,9 +699,8 @@ fil_try_to_close_file_in_LRU(
 	fil_system_t*	system		= fil_system;
 	fil_node_t*	node;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
+
 	node = UT_LIST_GET_LAST(system->LRU);
 
 	if (print_info) {
@@ -765,9 +758,7 @@ fil_mutex_enter_and_prepare_for_io(
 	ulint		count		= 0;
 	ulint		count2		= 0;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&(system->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 retry:
 	mutex_enter(&(system->mutex));
 
@@ -881,9 +872,7 @@ fil_node_free(
 	fil_space_t*	space)	/* in: space where the file node is chained */
 {
 	ut_ad(node && system && space);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_a(node->magic_n == FIL_NODE_MAGIC_N);
 	ut_a(node->n_pending == 0);
 
@@ -3870,9 +3859,7 @@ fil_node_prepare_for_io(
 	fil_space_t*	space)	/* in: space */
 {
 	ut_ad(node && system && space);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	if (system->n_open > system->max_n_open + 5) {
 		ut_print_timestamp(stderr);
@@ -3917,9 +3904,7 @@ fil_node_complete_io(
 {
 	ut_ad(node);
 	ut_ad(system);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(node->n_pending > 0);
 

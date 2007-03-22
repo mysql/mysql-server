@@ -280,17 +280,6 @@ mem_strdupl(
 	ulint		len);	/* in: length of str, in bytes */
 
 /**************************************************************************
-Makes a NUL-terminated quoted copy of a NUL-terminated string. */
-UNIV_INLINE
-char*
-mem_strdupq(
-/*========*/
-				/* out, own: a quoted copy of the string,
-				must be deallocated with mem_free */
-	const char*	str,	/* in: string to be copied */
-	char		q);	/* in: quote character */
-
-/**************************************************************************
 Duplicates a NUL-terminated string, allocated from a memory heap. */
 
 char*
