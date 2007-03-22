@@ -1130,8 +1130,10 @@ void Item_sum_avg::fix_length_and_dec()
     f_scale=  args[0]->decimals;
     dec_bin_size= my_decimal_get_binary_size(f_precision, f_scale);
   }
-  else
+  else {
     decimals= min(args[0]->decimals + prec_increment, NOT_FIXED_DEC);
+    max_length= args[0]->max_length + prec_increment;
+  }
 }
 
 
