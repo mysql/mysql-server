@@ -470,4 +470,9 @@ a
 Warnings:
 Warning	1292	Incorrect date value: '19772-07-29' for column 'a' at row 1
 DROP TABLE t1,t2,t3,t4;
+CREATE TABLE t1 (id int not null);
+INSERT INTO t1 VALUES (1),(2);
+SELECT id FROM t1 WHERE id IN(4564, (SELECT IF(1=0,1,1/0)) );
+id
+DROP TABLE t1;
 End of 5.0 tests
