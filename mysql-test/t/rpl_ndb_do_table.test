@@ -27,6 +27,20 @@ INSERT INTO t2 VALUES(3, repeat('ghi',3000));
 SHOW TABLES;
 SELECT COUNT(*) FROM t1;
 
+#
+# Bug #27044 replicated with unique field ndb table allows dup key inserts
+#
+connection master;
+
+--error ER_DUP_ENTRY_WITH_KEY_NAME
+INSERT INTO t1 VALUES (3, repeat('bad',1));
+
+connection slave;
+--error ER_DUP_ENTRY_WITH_KEY_NAME
+INSERT INTO t1 VALUES (3, repeat('bad too',1));
+
+# cleanup
+
 connection master;
 DROP TABLE IF EXISTS t1, t2;
 --sync_slave_with_master
