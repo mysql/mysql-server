@@ -2489,6 +2489,7 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
   {
     flags = 0;
     result = ndb_mgm_start_backup(m_mgmsrv, 0, &backupId, &reply);
+    goto END_BACKUP;
   }
   else if (sz == 1 || (sz == 3 && args[1] == "WAIT" && args[2] == "COMPLETED"))
   {
@@ -2522,6 +2523,7 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
   }
   result = ndb_mgm_start_backup(m_mgmsrv, flags, &backupId, &reply);
 
+END_BACKUP:
   if (result != 0) {
     ndbout << "Backup failed" << endl;
     printError();
