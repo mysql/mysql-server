@@ -1334,20 +1334,21 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData, NodeId nodeId)
   {
     if(threshold <= m_clients[i].m_logLevel.getLogLevel(cat))
     {
-      NDB_SOCKET_TYPE fd= m_clients[i].m_socket;
-      if(fd != NDB_INVALID_SOCKET)
+      if(m_clients[i].m_socket==NDB_INVALID_SOCKET)
+        continue;
+
+      SocketOutputStream out(m_clients[i].m_socket);
+
+      int r;
+      if (m_clients[i].m_parsable)
+        r= out.println(str.c_str());
+      else
+        r= out.println(m_text);
+
+      if (r<0)
       {
-	int r;
-	if (m_clients[i].m_parsable)
-	  r= println_socket(fd,
-			    MAX_WRITE_TIMEOUT, str.c_str());
-	else
-	  r= println_socket(fd,
-			    MAX_WRITE_TIMEOUT, m_text);
-	if (r == -1) {
-	  copy.push_back(fd);
-	  m_clients.erase(i, false);
-	}
+        copy.push_back(m_clients[i].m_socket);
+        m_clients.erase(i, false);
       }
     }
   }
@@ -1398,14 +1399,16 @@ Ndb_mgmd_event_service::check_listeners()
   m_clients.lock();
   for(i= m_clients.size() - 1; i >= 0; i--)
   {
-    int fd= m_clients[i].m_socket;
-    DBUG_PRINT("info",("%d %d",i,fd));
-    char buf[1];
-    buf[0]=0;
-    if (fd != NDB_INVALID_SOCKET &&
-	println_socket(fd,MAX_WRITE_TIMEOUT,"<PING>") == -1)
+    if(m_clients[i].m_socket==NDB_INVALID_SOCKET)
+      continue;
+
+    SocketOutputStream out(m_clients[i].m_socket);
+
+    DBUG_PRINT("info",("%d %d",i,m_clients[i].m_socket));
+
+    if(out.println("<PING>") < 0)
     {
-      NDB_CLOSE_SOCKET(fd);
+      NDB_CLOSE_SOCKET(m_clients[i].m_socket);
       m_clients.erase(i, false);
       n=1;
     }

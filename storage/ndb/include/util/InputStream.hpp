@@ -49,6 +49,7 @@ extern FileInputStream Stdin;
 class SocketInputStream : public InputStream {
   NDB_SOCKET_TYPE m_socket;
   unsigned m_timeout_ms;
+  unsigned m_timeout_remain;
   bool m_startover;
   bool m_timedout;
 public:

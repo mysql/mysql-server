@@ -37,7 +37,8 @@ SocketInputStream::SocketInputStream(NDB_SOCKET_TYPE socket,
 				     unsigned read_timeout_ms)
   : m_socket(socket) {
   m_startover= true;
-  m_timeout_ms = read_timeout_ms;
+  m_timeout_remain= m_timeout_ms = read_timeout_ms;
+
   m_timedout= false;
 }
 
@@ -55,9 +56,13 @@ SocketInputStream::gets(char * buf, int bufLen) {
   else
     offset= strlen(buf);
 
-  int res = readln_socket(m_socket, m_timeout_ms, buf+offset, bufLen-offset, m_mutex);
+  int time= 0;
+  int res = readln_socket(m_socket, m_timeout_remain, &time,
+                          buf+offset, bufLen-offset, m_mutex);
 
-  if(res == 0)
+  if(res >= 0)
+    m_timeout_remain-=time;
+  if(res == 0 || m_timeout_remain<=0)
   {
     m_timedout= true;
     buf[0]=0;
