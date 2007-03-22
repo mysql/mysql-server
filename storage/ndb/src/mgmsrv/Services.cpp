@@ -760,7 +760,7 @@ MgmApiSession::endSession(Parser<MgmApiSession>::Context &,
 
   m_allocated_resources= new MgmtSrvr::Allocated_resources(m_mgmsrv);
 
-  SLEEP_ERROR_INSERTED(1);
+  SLEEP_ERROR_INSERTED(4);
   m_output->println("end session reply");
 }
 
@@ -1011,16 +1011,16 @@ MgmApiSession::getStatus(Parser<MgmApiSession>::Context &,
   while(m_mgmsrv.getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_MGM)){
     noOfNodes++;
   }
-  SLEEP_ERROR_INSERTED(1);
+  SLEEP_ERROR_INSERTED(5);
   m_output->println("node status");
-  SLEEP_ERROR_INSERTED(2);
+  SLEEP_ERROR_INSERTED(6);
   m_output->println("nodes: %d", noOfNodes);
-  SLEEP_ERROR_INSERTED(3);
+  SLEEP_ERROR_INSERTED(7);
   printNodeStatus(m_output, m_mgmsrv, NDB_MGM_NODE_TYPE_NDB);
   printNodeStatus(m_output, m_mgmsrv, NDB_MGM_NODE_TYPE_MGM);
-  SLEEP_ERROR_INSERTED(4);
+  SLEEP_ERROR_INSERTED(8);
   printNodeStatus(m_output, m_mgmsrv, NDB_MGM_NODE_TYPE_API);
-  SLEEP_ERROR_INSERTED(5);
+  SLEEP_ERROR_INSERTED(9);
 
   nodeId = 0;
 
