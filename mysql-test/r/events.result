@@ -118,81 +118,81 @@ drop table t_event3;
 set names utf8;
 CREATE EVENT root6 ON SCHEDULE EVERY '10:20' MINUTE_SECOND ON COMPLETION PRESERVE ENABLE COMMENT 'some comment' DO select 1;
 SHOW CREATE EVENT root6;
-Event	sql_mode	Create Event
-root6		CREATE EVENT `root6` ON SCHEDULE EVERY '10:20' MINUTE_SECOND ON COMPLETION PRESERVE ENABLE COMMENT 'some comment' DO select 1
+Event	sql_mode	time_zone	Create Event
+root6		SYSTEM	CREATE EVENT `root6` ON SCHEDULE EVERY '10:20' MINUTE_SECOND STARTS '#' ON COMPLETION PRESERVE ENABLE COMMENT 'some comment' DO select 1
 create event root7 on schedule every 2 year do select 1;
 SHOW CREATE EVENT root7;
-Event	sql_mode	Create Event
-root7		CREATE EVENT `root7` ON SCHEDULE EVERY 2 YEAR ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root7		SYSTEM	CREATE EVENT `root7` ON SCHEDULE EVERY 2 YEAR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root8 on schedule every '2:5' year_month do select 1;
 SHOW CREATE EVENT root8;
-Event	sql_mode	Create Event
-root8		CREATE EVENT `root8` ON SCHEDULE EVERY '2-5' YEAR_MONTH ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root8		SYSTEM	CREATE EVENT `root8` ON SCHEDULE EVERY '2-5' YEAR_MONTH STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root8_1 on schedule every '2:15' year_month do select 1;
 SHOW CREATE EVENT root8_1;
-Event	sql_mode	Create Event
-root8_1		CREATE EVENT `root8_1` ON SCHEDULE EVERY '3-3' YEAR_MONTH ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root8_1		SYSTEM	CREATE EVENT `root8_1` ON SCHEDULE EVERY '3-3' YEAR_MONTH STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root9 on schedule every 2 week ON COMPLETION PRESERVE DISABLE COMMENT 'ÐºÐ¾Ð¼ÐµÐ½Ñ‚Ð°Ñ€ Ð½Ð° ÐºÐ¸Ñ€Ð¸Ð»Ð¸Ñ†Ð°' do select 1;
 SHOW CREATE EVENT root9;
-Event	sql_mode	Create Event
-root9		CREATE EVENT `root9` ON SCHEDULE EVERY 2 WEEK ON COMPLETION PRESERVE DISABLE COMMENT 'ÐºÐ¾Ð¼ÐµÐ½Ñ‚Ð°Ñ€ Ð½Ð° ÐºÐ¸Ñ€Ð¸Ð»Ð¸Ñ†Ð°' DO select 1
+Event	sql_mode	time_zone	Create Event
+root9		SYSTEM	CREATE EVENT `root9` ON SCHEDULE EVERY 2 WEEK STARTS '#' ON COMPLETION PRESERVE DISABLE COMMENT 'ÐºÐ¾Ð¼ÐµÐ½Ñ‚Ð°Ñ€ Ð½Ð° ÐºÐ¸Ñ€Ð¸Ð»Ð¸Ñ†Ð°' DO select 1
 create event root10 on schedule every '20:5' day_hour do select 1;
 SHOW CREATE EVENT root10;
-Event	sql_mode	Create Event
-root10		CREATE EVENT `root10` ON SCHEDULE EVERY '20 5' DAY_HOUR ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root10		SYSTEM	CREATE EVENT `root10` ON SCHEDULE EVERY '20 5' DAY_HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root11 on schedule every '20:25' day_hour do select 1;
 SHOW CREATE EVENT root11;
-Event	sql_mode	Create Event
-root11		CREATE EVENT `root11` ON SCHEDULE EVERY '21 1' DAY_HOUR ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root11		SYSTEM	CREATE EVENT `root11` ON SCHEDULE EVERY '21 1' DAY_HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root12 on schedule every '20:25' hour_minute do select 1;
 SHOW CREATE EVENT root12;
-Event	sql_mode	Create Event
-root12		CREATE EVENT `root12` ON SCHEDULE EVERY '20:25' HOUR_MINUTE ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root12		SYSTEM	CREATE EVENT `root12` ON SCHEDULE EVERY '20:25' HOUR_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root13 on schedule every '25:25' hour_minute do select 1;
 SHOW CREATE EVENT root13;
-Event	sql_mode	Create Event
-root13		CREATE EVENT `root13` ON SCHEDULE EVERY '25:25' HOUR_MINUTE ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root13		SYSTEM	CREATE EVENT `root13` ON SCHEDULE EVERY '25:25' HOUR_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root13_1 on schedule every '11:65' hour_minute do select 1;
 SHOW CREATE EVENT root13_1;
-Event	sql_mode	Create Event
-root13_1		CREATE EVENT `root13_1` ON SCHEDULE EVERY '12:5' HOUR_MINUTE ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root13_1		SYSTEM	CREATE EVENT `root13_1` ON SCHEDULE EVERY '12:5' HOUR_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root14 on schedule every '35:35' minute_second do select 1;
 SHOW CREATE EVENT root14;
-Event	sql_mode	Create Event
-root14		CREATE EVENT `root14` ON SCHEDULE EVERY '35:35' MINUTE_SECOND ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root14		SYSTEM	CREATE EVENT `root14` ON SCHEDULE EVERY '35:35' MINUTE_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root15 on schedule every '35:66' minute_second do select 1;
 SHOW CREATE EVENT root15;
-Event	sql_mode	Create Event
-root15		CREATE EVENT `root15` ON SCHEDULE EVERY '36:6' MINUTE_SECOND ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root15		SYSTEM	CREATE EVENT `root15` ON SCHEDULE EVERY '36:6' MINUTE_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root16 on schedule every '35:56' day_minute do select 1;
 SHOW CREATE EVENT root16;
-Event	sql_mode	Create Event
-root16		CREATE EVENT `root16` ON SCHEDULE EVERY '1 11:56' DAY_MINUTE ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root16		SYSTEM	CREATE EVENT `root16` ON SCHEDULE EVERY '1 11:56' DAY_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root17 on schedule every '35:12:45' day_minute do select 1;
 SHOW CREATE EVENT root17;
-Event	sql_mode	Create Event
-root17		CREATE EVENT `root17` ON SCHEDULE EVERY '35 12:45' DAY_MINUTE ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root17		SYSTEM	CREATE EVENT `root17` ON SCHEDULE EVERY '35 12:45' DAY_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root17_1 on schedule every '35:25:65' day_minute do select 1;
 SHOW CREATE EVENT root17_1;
-Event	sql_mode	Create Event
-root17_1		CREATE EVENT `root17_1` ON SCHEDULE EVERY '36 2:5' DAY_MINUTE ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root17_1		SYSTEM	CREATE EVENT `root17_1` ON SCHEDULE EVERY '36 2:5' DAY_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root18 on schedule every '35:12:45' hour_second do select 1;
 SHOW CREATE EVENT root18;
-Event	sql_mode	Create Event
-root18		CREATE EVENT `root18` ON SCHEDULE EVERY '35:12:45' HOUR_SECOND ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root18		SYSTEM	CREATE EVENT `root18` ON SCHEDULE EVERY '35:12:45' HOUR_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root19 on schedule every '15:59:85' hour_second do select 1;
 SHOW CREATE EVENT root19;
-Event	sql_mode	Create Event
-root19		CREATE EVENT `root19` ON SCHEDULE EVERY '16:0:25' HOUR_SECOND ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root19		SYSTEM	CREATE EVENT `root19` ON SCHEDULE EVERY '16:0:25' HOUR_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root20 on schedule every '50:20:12:45' day_second do select 1;
 SHOW CREATE EVENT root20;
-Event	sql_mode	Create Event
-root20		CREATE EVENT `root20` ON SCHEDULE EVERY '50 20:12:45' DAY_SECOND ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root20		SYSTEM	CREATE EVENT `root20` ON SCHEDULE EVERY '50 20:12:45' DAY_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 set names cp1251;
 create event ðóóò21 on schedule every '50:23:59:95' day_second COMMENT 'òîâà å 1251 êîìåíòàð' do select 1;
 SHOW CREATE EVENT ðóóò21;
-Event	sql_mode	Create Event
-ðóóò21		CREATE EVENT `ðóóò21` ON SCHEDULE EVERY '51 0:0:35' DAY_SECOND ON COMPLETION NOT PRESERVE ENABLE COMMENT 'òîâà å 1251 êîìåíòàð' DO select 1
+Event	sql_mode	time_zone	Create Event
+ðóóò21		SYSTEM	CREATE EVENT `ðóóò21` ON SCHEDULE EVERY '51 0:0:35' DAY_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE COMMENT 'òîâà å 1251 êîìåíòàð' DO select 1
 insert into mysql.event (db, name, body, definer, interval_value, interval_field) values (database(), "root22", "select 1", user(), 100, "SECOND_MICROSECOND");
 show create event root22;
 ERROR 42000: This version of MySQL doesn't yet support 'MICROSECOND'
@@ -225,18 +225,18 @@ drop event ðóóò21;
 set names latin1;
 CREATE EVENT intact_check ON SCHEDULE EVERY 10 HOUR DO SELECT "nothing";
 SHOW EVENTS;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	intact_check	root@localhost	RECURRING	NULL	10	HOUR	#	#	ENABLED
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+events_test	intact_check	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED
 ALTER TABLE mysql.event ADD dummy INT FIRST;
 SHOW EVENTS;
-ERROR HY000: Column count of mysql.event is wrong. Expected 16, found 17. Table probably corrupted
+ERROR HY000: Column count of mysql.event is wrong. Expected 17, found 18. Table probably corrupted
 ALTER TABLE mysql.event DROP dummy, ADD dummy2 VARCHAR(64) FIRST;
 SHOW EVENTS;
-ERROR HY000: Column count of mysql.event is wrong. Expected 16, found 17. Table probably corrupted
+ERROR HY000: Column count of mysql.event is wrong. Expected 17, found 18. Table probably corrupted
 ALTER TABLE mysql.event DROP dummy2;
 SHOW EVENTS;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	intact_check	root@localhost	RECURRING	NULL	10	HOUR	#	#	ENABLED
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+events_test	intact_check	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED
 CREATE TABLE event_like LIKE mysql.event;
 INSERT INTO event_like SELECT * FROM mysql.event;
 ALTER TABLE mysql.event MODIFY db char(64) character set cp1251 default '';
@@ -262,6 +262,7 @@ event	CREATE TABLE `event` (
   `on_completion` enum('DROP','PRESERVE') NOT NULL DEFAULT 'DROP',
   `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE') NOT NULL DEFAULT '',
   `comment` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `time_zone` char(64) CHARACTER SET latin1 NOT NULL DEFAULT 'SYSTEM',
   PRIMARY KEY (`db`,`name`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Events'
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
@@ -269,8 +270,8 @@ ERROR HY000: Cannot load from mysql.event. Table probably corrupted. See error l
 ALTER TABLE mysql.event MODIFY db char(64) character set utf8 collate utf8_bin default '';
 "This should work"
 SHOW EVENTS;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	intact_check	root@localhost	RECURRING	NULL	10	HOUR	#	#	ENABLED
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+events_test	intact_check	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED
 ALTER TABLE mysql.event MODIFY db char(64) character set cp1251 default '';
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
 ERROR HY000: Cannot load from mysql.event. Table probably corrupted. See error log.
@@ -279,14 +280,14 @@ SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
 ERROR HY000: Cannot load from mysql.event. Table probably corrupted. See error log.
 ALTER TABLE mysql.event DROP comment, DROP starts;
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
-ERROR HY000: Column count of mysql.event is wrong. Expected 16, found 14. Table probably corrupted
+ERROR HY000: Column count of mysql.event is wrong. Expected 17, found 15. Table probably corrupted
 DROP TABLE mysql.event;
 CREATE TABLE mysql.event like event_like;
 INSERT INTO  mysql.event SELECT * FROM event_like;
 DROP TABLE event_like;
 SHOW EVENTS;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	intact_check	root@localhost	RECURRING	NULL	10	HOUR	#	#	ENABLED
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+events_test	intact_check	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED
 DROP EVENT intact_check;
 create event e_26 on schedule at '2017-01-01 00:00:00' disable do set @a = 5;
 select db, name, body, definer, convert_tz(execute_at, 'UTC', 'SYSTEM'), on_completion from mysql.event;
@@ -399,5 +400,5 @@ ERROR 42000: Incorrect database name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 SHOW EVENTS FROM ``;
 ERROR 42000: Incorrect database name ''
 SHOW EVENTS FROM `events\\test`;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
 drop database events_test;

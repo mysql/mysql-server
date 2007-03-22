@@ -2877,9 +2877,6 @@ Create_func_convert_tz Create_func_convert_tz::s_singleton;
 Item*
 Create_func_convert_tz::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
 {
-  if (thd->lex->add_time_zone_tables_to_query_tables(thd))
-    return NULL;
-
   return new (thd->mem_root) Item_func_convert_tz(arg1, arg2, arg3);
 }
 

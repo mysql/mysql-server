@@ -435,7 +435,7 @@ Field *Item_func::tmp_table_field(TABLE *table)
 
   switch (result_type()) {
   case INT_RESULT:
-    if (max_length > 11)
+    if (max_length > MY_INT32_NUM_DECIMAL_DIGITS)
       field= new Field_longlong(max_length, maybe_null, name, unsigned_flag);
     else
       field= new Field_long(max_length, maybe_null, name, unsigned_flag);
@@ -2338,7 +2338,8 @@ longlong Item_func_coercibility::val_int()
 
 void Item_func_locate::fix_length_and_dec()
 {
-  maybe_null=0; max_length=11;
+  maybe_null= 0;
+  max_length= MY_INT32_NUM_DECIMAL_DIGITS;
   agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV, 1);
 }
 
