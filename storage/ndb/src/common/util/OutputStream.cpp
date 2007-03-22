@@ -44,7 +44,7 @@ FileOutputStream::println(const char * fmt, ...){
 SocketOutputStream::SocketOutputStream(NDB_SOCKET_TYPE socket,
 				       unsigned write_timeout_ms){
   m_socket = socket;
-  m_timeout_ms = write_timeout_ms;
+  m_timeout_remain= m_timeout_ms = write_timeout_ms;
   m_timedout= false;
 }
 
@@ -55,12 +55,18 @@ SocketOutputStream::print(const char * fmt, ...){
   if(timedout())
     return -1;
 
+  int time= 0;
   va_start(ap, fmt);
-  const int ret = vprint_socket(m_socket, m_timeout_ms, fmt, ap);
+  int ret = vprint_socket(m_socket, m_timeout_ms, &time, fmt, ap);
   va_end(ap);
 
-  if (errno==ETIMEDOUT)
+  if(ret >= 0)
+    m_timeout_remain-=time;
+  if(errno==ETIMEDOUT || m_timeout_remain<=0)
+  {
     m_timedout= true;
+    ret= -1;
+  }
 
   return ret;
 }
@@ -71,12 +77,18 @@ SocketOutputStream::println(const char * fmt, ...){
   if(timedout())
     return -1;
 
+  int time= 0;
   va_start(ap, fmt);
-  const int ret = vprintln_socket(m_socket, m_timeout_ms, fmt, ap);
+  int ret = vprintln_socket(m_socket, m_timeout_ms, &time, fmt, ap);
   va_end(ap);
 
-  if (errno==ETIMEDOUT)
+  if(ret >= 0)
+    m_timeout_remain-=time;
+  if (errno==ETIMEDOUT || m_timeout_remain<=0)
+  {
     m_timedout= true;
+    ret= -1;
+  }
 
   return ret;
 }
