@@ -224,7 +224,9 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 {
   LEX *lex= thd->lex;
   bool link_to_local;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   bool definer_check_is_needed= mode != VIEW_ALTER || lex->definer;
+#endif
   /* first table in list is target VIEW name => cut off it */
   TABLE_LIST *view= lex->unlink_first_table(&link_to_local);
   TABLE_LIST *tables= lex->query_tables;
