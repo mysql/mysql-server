@@ -642,12 +642,13 @@ int Log_event::net_send(Protocol *protocol, const char* log_name, my_off_t pos)
 void Log_event::init_show_field_list(List<Item>* field_list)
 {
   field_list->push_back(new Item_empty_string("Log_name", 20));
-  field_list->push_back(new Item_return_int("Pos", 11,
+  field_list->push_back(new Item_return_int("Pos", MY_INT32_NUM_DECIMAL_DIGITS,
 					    MYSQL_TYPE_LONGLONG));
   field_list->push_back(new Item_empty_string("Event_type", 20));
   field_list->push_back(new Item_return_int("Server_id", 10,
 					    MYSQL_TYPE_LONG));
-  field_list->push_back(new Item_return_int("End_log_pos", 11,
+  field_list->push_back(new Item_return_int("End_log_pos",
+                                            MY_INT32_NUM_DECIMAL_DIGITS,
 					    MYSQL_TYPE_LONGLONG));
   field_list->push_back(new Item_empty_string("Info", 20));
 }
@@ -2006,8 +2007,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli,
       if (time_zone_len)
       {
         String tmp(time_zone_str, time_zone_len, &my_charset_bin);
-        if (!(thd->variables.time_zone=
-              my_tz_find_with_opening_tz_tables(thd, &tmp)))
+        if (!(thd->variables.time_zone= my_tz_find(thd, &tmp)))
         {
           my_error(ER_UNKNOWN_TIME_ZONE, MYF(0), tmp.c_ptr());
           thd->variables.time_zone= global_system_variables.time_zone;
