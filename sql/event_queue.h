@@ -86,7 +86,7 @@ protected:
   /* The sorted queue with the Event_queue_element objects */
   QUEUE queue;
 
-  TIME next_activation_at;
+  my_time_t next_activation_at;
 
   uint mutex_last_locked_at_line;
   uint mutex_last_unlocked_at_line;

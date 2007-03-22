@@ -2750,8 +2750,8 @@ int set_var_collation_client::update(THD *thd)
   thd->variables.character_set_results= character_set_results;
   thd->variables.collation_connection= collation_connection;
   thd->update_charset();
-  thd->protocol_simple.init(thd);
-  thd->protocol_prep.init(thd);
+  thd->protocol_text.init(thd);
+  thd->protocol_binary.init(thd);
   return 0;
 }
 
@@ -2880,8 +2880,7 @@ bool sys_var_thd_time_zone::check(THD *thd, set_var *var)
   String str(buff, sizeof(buff), &my_charset_latin1);
   String *res= var->value->val_str(&str);
 
-  if (!(var->save_result.time_zone=
-        my_tz_find(res, thd->lex->time_zone_tables_used)))
+  if (!(var->save_result.time_zone= my_tz_find(thd, res)))
   {
     my_error(ER_UNKNOWN_TIME_ZONE, MYF(0), res ? res->c_ptr() : "NULL");
     return 1;
@@ -2942,8 +2941,7 @@ void sys_var_thd_time_zone::set_default(THD *thd, enum_var_type type)
        We are guaranteed to find this time zone since its existence
        is checked during start-up.
      */
-     global_system_variables.time_zone=
-       my_tz_find(&str, thd->lex->time_zone_tables_used);
+     global_system_variables.time_zone= my_tz_find(thd, &str);
    }
    else
      global_system_variables.time_zone= my_tz_SYSTEM;
@@ -4013,7 +4011,7 @@ sys_var_event_scheduler::update(THD *thd, set_var *var)
   DBUG_ENTER("sys_var_event_scheduler::update");
   if (Events::opt_event_scheduler == Events::EVENTS_DISABLED)
   {
-    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--event-scheduler=DISABLED");
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--event-scheduler=DISABLED or --skip-grant-tables");
     DBUG_RETURN(TRUE);
   }
 
