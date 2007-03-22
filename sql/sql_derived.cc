@@ -179,7 +179,7 @@ exit:
       orig_table_list->table_name= (char*) table->s->table_name;
       orig_table_list->table_name_length= strlen((char*)table->s->table_name);
       table->derived_select_number= first_select->select_number;
-      table->s->tmp_table= TMP_TABLE;
+      table->s->tmp_table= NON_TRANSACTIONAL_TMP_TABLE;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       if (orig_table_list->referencing_view)
         table->grant= orig_table_list->grant;
