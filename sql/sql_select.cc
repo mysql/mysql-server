@@ -412,7 +412,12 @@ JOIN::prepare(Item ***rref_pointer_array,
                                     &select_lex->leaf_tables, FALSE, 
                                     SELECT_ACL, SELECT_ACL))
       DBUG_RETURN(-1);
-  tables= thd->leaf_count;
+ 
+  TABLE_LIST *table_ptr;
+  for (table_ptr= select_lex->leaf_tables;
+       table_ptr;
+       table_ptr= table_ptr->next_leaf)
+    tables++;
 
   if (setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
       select_lex->setup_ref_array(thd, og_num) ||
@@ -9191,7 +9196,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     Item::Type type=item->type();
     if (not_all_columns)
     {
-      if (item->with_sum_func && type != Item::SUM_FUNC_ITEM)
+      if (item->with_sum_func && type != Item::SUM_FUNC_ITEM &&
+          (type == Item::SUBSELECT_ITEM ||
+           (item->used_tables() & ~PSEUDO_TABLE_BITS)))
       {
 	/*
 	  Mark that the we have ignored an item that refers to a summary
