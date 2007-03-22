@@ -556,6 +556,17 @@ extern "C" {
   int ndb_mgm_set_connect_timeout(NdbMgmHandle handle, unsigned int seconds);
 
   /**
+   * Sets the number of milliseconds for timeout for read and write operations
+   * to the socket
+   * Default is 50,000 for read, 1000 for write
+   *
+   * @param handle  NdbMgmHandle
+   * @param rw_milliseconds number of milliseconds
+   * @return zero on success
+   */
+  int ndb_mgm_set_timeout(NdbMgmHandle handle, unsigned int rw_milliseconds);
+
+  /**
    * Connects to a management server. Connectstring is set by
    * ndb_mgm_set_connectstring().
    *

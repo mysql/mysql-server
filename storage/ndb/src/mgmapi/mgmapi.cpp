@@ -444,6 +444,16 @@ int ndb_mgm_set_connect_timeout(NdbMgmHandle handle, unsigned int seconds)
   return 0;
 }
 
+extern "C"
+int ndb_mgm_set_timeout(NdbMgmHandle handle, unsigned int rw_milliseconds)
+{
+  if(!handle)
+    return -1;
+
+  handle->read_timeout= handle->write_timeout= rw_milliseconds;
+  return 0;
+}
+
 /**
  * Connect to a management server
  */
