@@ -240,6 +240,8 @@ int runTestApiTimeout1(NDBT_Context* ctx, NDBT_Step* step)
 
   ndbout << "Inserted session error" << endl;
 
+  ndb_mgm_set_timeout(h,1000,1000);
+
   cc= ndb_mgm_check_connection(h);
   if(cc < 0)
     result= NDBT_OK;
