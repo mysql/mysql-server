@@ -22,6 +22,7 @@
 #include <random.h>
 #include <mgmapi.h>
 #include <mgmapi_debug.h>
+#include <ndb_logevent.h>
 #include <InputStream.hpp>
 #include <signaldata/EventReport.hpp>
 
@@ -609,6 +610,113 @@ done:
   return result;
 }
 
+int runTestMgmApiStructEventTimeout(NDBT_Context* ctx, NDBT_Step* step)
+{
+  char *mgm= ctx->getRemoteMgm();
+  int result= NDBT_OK;
+  int mgmd_nodeid= 0;
+
+  NdbMgmHandle h;
+  h= ndb_mgm_create_handle();
+  ndb_mgm_set_connectstring(h, mgm);
+
+  int errs[] = { 10000, 0, -1 };
+
+  for(int error_ins_no=0; errs[error_ins_no]!=-1; error_ins_no++)
+  {
+    int error_ins= errs[error_ins_no];
+    ndb_mgm_connect(h,0,0,0);
+
+    if(ndb_mgm_check_connection(h) < 0)
+    {
+      result= NDBT_FAILED;
+      goto done;
+    }
+
+    mgmd_nodeid= ndb_mgm_get_mgmd_nodeid(h);
+    if(mgmd_nodeid==0)
+    {
+      ndbout << "Failed to get mgmd node id to insert error" << endl;
+      result= NDBT_FAILED;
+      goto done;
+    }
+
+    ndb_mgm_reply reply;
+    reply.return_code= 0;
+
+    if(ndb_mgm_insert_error(h, mgmd_nodeid, error_ins, &reply)< 0)
+    {
+      ndbout << "failed to insert error " << error_ins << endl;
+      result= NDBT_FAILED;
+    }
+
+    ndbout << "trying error: " << error_ins << endl;
+
+    ndb_mgm_set_timeout(h,2500);
+
+    int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP,
+                     1, NDB_MGM_EVENT_CATEGORY_STARTUP,
+                     0 };
+    NdbLogEventHandle le_handle= ndb_mgm_create_logevent_handle(h, filter);
+
+    struct ndb_logevent le;
+    for(int i=0; i<20; i++)
+    {
+      if(error_ins==0 || (error_ins!=0 && i<5))
+      {
+        Uint32 theData[25];
+        EventReport *fake_event = (EventReport*)theData;
+        fake_event->setEventType(NDB_LE_NDBStopForced);
+        fake_event->setNodeId(42);
+        theData[2]= 0;
+        theData[3]= 0;
+        theData[4]= 0;
+        theData[5]= 0;
+
+        ndb_mgm_report_event(h, theData, 6);
+      }
+      int r= ndb_logevent_get_next(le_handle, &le, 2500);
+      if(r>0)
+      {
+        ndbout << "Receieved event" << endl;
+      }
+      else if(r<0)
+      {
+        ndbout << "ERROR" << endl;
+      }
+      else // no event
+      {
+        ndbout << "TIMED OUT READING EVENT at iteration " << i << endl;
+        if(error_ins==0)
+          result= NDBT_FAILED;
+        else
+          result= NDBT_OK;
+        break;
+      }
+    }
+
+    /*
+     * events go through a *DIFFERENT* socket than the NdbMgmHandle
+     * so we should still be connected (and be able to check_connection)
+     *
+     */
+
+    if(ndb_mgm_check_connection(h) && !ndb_mgm_is_connected(h))
+    {
+      ndbout << "FAILED: is still connected after error" << endl;
+      result= NDBT_FAILED;
+    }
+
+    ndb_mgm_disconnect(h);
+  }
+
+done:
+  ndb_mgm_disconnect(h);
+  ndb_mgm_destroy_handle(&h);
+
+  return result;
+}
+
 NDBT_TESTSUITE(testMgm);
 TESTCASE("SingleUserMode", 
 	 "Test single user mode"){
@@ -638,6 +746,11 @@ TESTCASE("ApiGetConfigTimeout",
 TESTCASE("ApiMgmEventTimeout",
 	 "Test timeouts for mgmapi get_configuration"){
   INITIALIZER(runTestMgmApiEventTimeout);
+
+}
+TESTCASE("ApiMgmStructEventTimeout",
+	 "Test timeouts for mgmapi get_configuration"){
+  INITIALIZER(runTestMgmApiStructEventTimeout);
 
 }
 NDBT_TESTSUITE_END(testMgm);
