@@ -2642,6 +2642,7 @@ storage/ndb/src/kernel/blocks/dbdict/ndb_print_schema_file
 storage/ndb/src/kernel/blocks/dbdih/libdbdih.dsp
 storage/ndb/src/kernel/blocks/dbdih/ndb_print_sys_file
 storage/ndb/src/kernel/blocks/dblqh/libdblqh.dsp
+storage/ndb/src/kernel/blocks/dblqh/ndbd_redo_log_reader
 storage/ndb/src/kernel/blocks/dbtc/libdbtc.dsp
 storage/ndb/src/kernel/blocks/dbtup/libdbtup.dsp
 storage/ndb/src/kernel/blocks/dbtup/test_varpage
@@ -2698,6 +2699,8 @@ storage/ndb/test/ndbapi/testDataBuffers
 storage/ndb/test/ndbapi/testDeadlock
 storage/ndb/test/ndbapi/testDict
 storage/ndb/test/ndbapi/testIndex
+storage/ndb/test/ndbapi/testIndexStat
+storage/ndb/test/ndbapi/testInterpreter
 storage/ndb/test/ndbapi/testLcp
 storage/ndb/test/ndbapi/testMgm
 storage/ndb/test/ndbapi/testNdbApi

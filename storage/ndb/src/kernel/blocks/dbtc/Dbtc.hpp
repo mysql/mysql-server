@@ -1386,6 +1386,9 @@ private:
                        TcConnectRecord * const regTcPtr);
   void sendTCKEY_FAILREF(Signal* signal, const ApiConnectRecord *);
   void sendTCKEY_FAILCONF(Signal* signal, ApiConnectRecord *);
+  void routeTCKEY_FAILREFCONF(Signal* signal, const ApiConnectRecord *, 
+			      Uint32 gsn, Uint32 len);
+  void execTCKEY_FAILREFCONF_R(Signal* signal);
   void checkStartTimeout(Signal* signal);
   void checkStartFragTimeout(Signal* signal);
   void timeOutFoundFragLab(Signal* signal, Uint32 TscanConPtr);
@@ -1840,9 +1843,14 @@ private:
 			Uint32 transid2);
   void removeMarkerForFailedAPI(Signal* signal, Uint32 nodeId, Uint32 bucket);
 
-  bool getAllowStartTransaction() const {
-    if(getNodeState().getSingleUserMode())
-      return true;
+  bool getAllowStartTransaction(Uint32 nodeId) const {
+    if (unlikely(getNodeState().getSingleUserMode()))
+    {
+      if (getNodeState().getSingleUserApi() == nodeId)
+        return true;
+      else
+        return false;
+    }
     return getNodeState().startLevel < NodeState::SL_STOPPING_2;
   }
   
@@ -1855,6 +1863,9 @@ private:
     Uint32 oldTimeOutValue;
   };
   AbortAllRecord c_abortRec;
+
+  bool validate_filter(Signal*);
+  bool match_and_print(Signal*, ApiConnectRecordPtr);
 
   /************************** API CONNECT RECORD ***********************/
   /* *******************************************************************/

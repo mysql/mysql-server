@@ -70,6 +70,7 @@
 
 #include <NdbOut.hpp>
 #include <DebuggerNames.hpp>
+#include <signaldata/CheckNodeGroups.hpp>
 
 #include <signaldata/RouteOrd.hpp>
 
@@ -871,11 +872,11 @@ void Dbtc::execREAD_NODESCONF(Signal* signal)
 
   for (unsigned i = 1; i < MAX_NDB_NODES; i++) {
     jam();
-    if (NodeBitmask::get(readNodes->allNodes, i)) {
+    if (NdbNodeBitmask::get(readNodes->allNodes, i)) {
       hostptr.i = i;
       ptrCheckGuard(hostptr, chostFilesize, hostRecord);
 
-      if (NodeBitmask::get(readNodes->inactiveNodes, i)) {
+      if (NdbNodeBitmask::get(readNodes->inactiveNodes, i)) {
         jam();
         hostptr.p->hostStatus = HS_DEAD;
       } else {
@@ -1202,16 +1203,14 @@ void Dbtc::execTCSEIZEREQ(Signal* signal)
   const NodeId senderNodeId = refToNode(tapiBlockref);
   const bool local = senderNodeId == getOwnNodeId() || senderNodeId == 0;
   
-  if(!(senderNodeId == getNodeState().getSingleUserApi()) &&
-      !getNodeState().getSingleUserMode()) {
-    if(!(sl==NodeState::SL_SINGLEUSER && 
-	 senderNodeId == getNodeState().getSingleUserApi())) {
+  {
+    {
       if (!(sl == NodeState::SL_STARTED ||
 	    (sl == NodeState::SL_STARTING && local == true))) {
 	jam();
 	
-	Uint32 errCode;
-	if(!(sl == NodeState::SL_SINGLEUSER && local))
+	Uint32 errCode = 0;
+	if(!local)
 	  {
 	    switch(sl){
 	    case NodeState::SL_STARTING:
@@ -1219,6 +1218,9 @@ void Dbtc::execTCSEIZEREQ(Signal* signal)
 	      break;
 	    case NodeState::SL_STOPPING_1:
 	    case NodeState::SL_STOPPING_2:
+              if (getNodeState().getSingleUserMode() &&
+                  getNodeState().getSingleUserApi() == senderNodeId)
+                break;
 	    case NodeState::SL_STOPPING_3:
 	    case NodeState::SL_STOPPING_4:
 	      if(getNodeState().stopping.systemShutdown)
@@ -1227,16 +1229,21 @@ void Dbtc::execTCSEIZEREQ(Signal* signal)
 		errCode = ZNODE_SHUTDOWN_IN_PROGRESS;
 	      break;
 	    case NodeState::SL_SINGLEUSER:
+              if (getNodeState().getSingleUserApi() == senderNodeId)
+                break;
 	      errCode = ZCLUSTER_IN_SINGLEUSER_MODE;
 	      break;
 	    default:
 	      errCode = ZWRONG_STATE;
 	      break;
 	    }
-	    signal->theData[0] = tapiPointer;
-	    signal->theData[1] = errCode;
-	    sendSignal(tapiBlockref, GSN_TCSEIZEREF, signal, 2, JBB);
-	    return;
+            if (errCode)
+            {
+              signal->theData[0] = tapiPointer;
+              signal->theData[1] = errCode;
+              sendSignal(tapiBlockref, GSN_TCSEIZEREF, signal, 2, JBB);
+              return;
+            }
 	  }//if (!(sl == SL_SINGLEUSER))
       } //if
     }
@@ -1724,8 +1731,14 @@ Dbtc::TCKEY_abort(Signal* signal, int place)
      * Initialize object before starting error handling
      */
     initApiConnectRec(signal, apiConnectptr.p, true);
+start_failure:
     switch(getNodeState().startLevel){
     case NodeState::SL_STOPPING_2:
+      if (getNodeState().getSingleUserMode())
+      {
+        terrorCode  = ZCLUSTER_IN_SINGLEUSER_MODE;
+        break;
+      }
     case NodeState::SL_STOPPING_3:
     case NodeState::SL_STOPPING_4:
       if(getNodeState().stopping.systemShutdown)
@@ -1736,6 +1749,12 @@ Dbtc::TCKEY_abort(Signal* signal, int place)
     case NodeState::SL_SINGLEUSER:
       terrorCode  = ZCLUSTER_IN_SINGLEUSER_MODE;
       break;
+    case NodeState::SL_STOPPING_1:
+      if (getNodeState().getSingleUserMode())
+      {
+        terrorCode  = ZCLUSTER_IN_SINGLEUSER_MODE;
+        break;
+      }
     default:
       terrorCode = ZWRONG_STATE;
       break;
@@ -1757,6 +1776,13 @@ Dbtc::TCKEY_abort(Signal* signal, int place)
     return;
   }
     
+  case 60:
+  {
+    jam();
+    initApiConnectRec(signal, apiConnectptr.p, true);
+    apiConnectptr.p->m_exec_flag = 1;
+    goto start_failure;
+  }
   default:
     jam();
     systemErrorLab(signal, __LINE__);
@@ -2486,6 +2512,7 @@ Dbtc::seizeCacheRecord(Signal* signal)
 /*****************************************************************************/
 void Dbtc::execTCKEYREQ(Signal* signal) 
 {
+  Uint32 sendersNodeId = refToNode(signal->getSendersBlockRef());
   UintR compare_transid1, compare_transid2;
   UintR titcLenAiInTckeyreq;
   UintR TkeyLength;
@@ -2531,7 +2558,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   regApiPtr->m_exec_flag |= TexecFlag;
   switch (regApiPtr->apiConnectstate) {
   case CS_CONNECTED:{
-    if (TstartFlag == 1 && getAllowStartTransaction() == true){
+    if (TstartFlag == 1 && getAllowStartTransaction(sendersNodeId) == true){
       //---------------------------------------------------------------------
       // Initialise API connect record if transaction is started.
       //---------------------------------------------------------------------
@@ -2539,7 +2566,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
       initApiConnectRec(signal, regApiPtr);
       regApiPtr->m_exec_flag = TexecFlag;
     } else {
-      if(getAllowStartTransaction() == true){
+      if(getAllowStartTransaction(sendersNodeId) == true){
 	/*------------------------------------------------------------------
 	 * WE EXPECTED A START TRANSACTION. SINCE NO OPERATIONS HAVE BEEN 
 	 * RECEIVED WE INDICATE THIS BY SETTING FIRST_TC_CONNECT TO RNIL TO 
@@ -2549,9 +2576,9 @@ void Dbtc::execTCKEYREQ(Signal* signal)
 	return;
       } else {
 	/**
-	 * getAllowStartTransaction() == false
+	 * getAllowStartTransaction(sendersNodeId) == false
 	 */
-	TCKEY_abort(signal, 57);
+	TCKEY_abort(signal, TexecFlag ? 60 : 57);
 	return;
       }//if
     }
@@ -6154,9 +6181,11 @@ and otherwise we spread it out 310 ms.
 void Dbtc::timeOutLoopStartLab(Signal* signal, Uint32 api_con_ptr) 
 {
   Uint32 end_ptr, time_passed, time_out_value, mask_value;
+  Uint32 old_mask_value= 0;
   const Uint32 api_con_sz= capiConnectFilesize;
   const Uint32 tc_timer= ctcTimer;
   const Uint32 time_out_param= ctimeOutValue;
+  const Uint32 old_time_out_param= c_abortRec.oldTimeOutValue;
 
   ctimeOutCheckHeartbeat = tc_timer;
 
@@ -6177,11 +6206,39 @@ void Dbtc::timeOutLoopStartLab(Signal* signal, Uint32 api_con_ptr)
     jam();
     mask_value= 31;
   }
+  if (time_out_param != old_time_out_param &&
+      getNodeState().getSingleUserMode())
+  {
+    // abort during single user mode, use old_mask_value as flag
+    // and calculate value to be used for connections with allowed api
+    if (old_time_out_param > 300) {
+      jam();
+      old_mask_value= 63;
+    } else if (old_time_out_param < 30) {
+      jam();
+      old_mask_value= 7;
+    } else {
+      jam();
+      old_mask_value= 31;
+    }
+  }
   for ( ; api_con_ptr < end_ptr; api_con_ptr++) {
     Uint32 api_timer= getApiConTimer(api_con_ptr);
     jam();
     if (api_timer != 0) {
       time_out_value= time_out_param + (api_con_ptr & mask_value);
+      if (unlikely(old_mask_value)) // abort during single user mode
+      {
+        apiConnectptr.i = api_con_ptr;
+        ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
+        if (getNodeState().getSingleUserApi() ==
+            refToNode(apiConnectptr.p->ndbapiBlockref))
+        {
+          // api allowed during single user, use original timeout
+          time_out_value=
+            old_time_out_param + (api_con_ptr & old_mask_value);
+        }
+      }
       time_passed= tc_timer - api_timer;
       if (time_passed > time_out_value) 
       {
@@ -6798,6 +6855,33 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
   c_scan_frag_pool.getPtr(ptr, TscanConPtr);
   DEBUG(TscanConPtr << " timeOutFoundFragLab: scanFragState = "<< ptr.p->scanFragState);
 
+  const Uint32 time_out_param= ctimeOutValue;
+  const Uint32 old_time_out_param= c_abortRec.oldTimeOutValue;
+  
+  if (unlikely(time_out_param != old_time_out_param && 
+	       getNodeState().getSingleUserMode()))
+  {
+    jam();
+    ScanRecordPtr scanptr;
+    scanptr.i = ptr.p->scanRec;
+    ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
+    ApiConnectRecordPtr TlocalApiConnectptr;
+    TlocalApiConnectptr.i = scanptr.p->scanApiRec;
+    ptrCheckGuard(TlocalApiConnectptr, capiConnectFilesize, apiConnectRecord);
+    
+    if (refToNode(TlocalApiConnectptr.p->ndbapiBlockref) == 
+	getNodeState().getSingleUserApi())
+    {
+      jam();
+      Uint32 val = ctcTimer - ptr.p->scanFragTimer;
+      if (val <= old_time_out_param)
+      {
+	jam();
+	goto next;
+      }
+    }
+  }
+
   /*-------------------------------------------------------------------------*/
   // The scan fragment has expired its timeout. Check its state to decide
   // what to do.
@@ -6859,6 +6943,7 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
     break;
   }//switch
   
+next:  
   signal->theData[0] = TcContinueB::ZCONTINUE_TIME_OUT_FRAG_CONTROL;
   signal->theData[1] = TscanConPtr + 1;
   sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
@@ -6951,7 +7036,7 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
   int index = 0;
   for (i = 1; i< MAX_NDB_NODES; i++) 
   {
-    if(NodeBitmask::get(nodeFail->theNodes, i))
+    if(NdbNodeBitmask::get(nodeFail->theNodes, i))
     {
       cdata[index] = i;
       index++;
@@ -7509,12 +7594,24 @@ Dbtc::sendTCKEY_FAILREF(Signal* signal, const ApiConnectRecord * regApiPtr){
   jam();
 
   const Uint32 ref = regApiPtr->ndbapiBlockref;
-  if(ref != 0){
+  const Uint32 nodeId = refToNode(ref);
+  if(ref != 0)
+  {
+    jam();
+    bool connectedToNode = getNodeInfo(nodeId).m_connected;
     signal->theData[0] = regApiPtr->ndbapiConnect;
     signal->theData[1] = regApiPtr->transid[0];
     signal->theData[2] = regApiPtr->transid[1];
-  
-    sendSignal(ref, GSN_TCKEY_FAILREF, signal, 3, JBB);
+    
+    if (likely(connectedToNode))
+    {
+      jam();
+      sendSignal(ref, GSN_TCKEY_FAILREF, signal, 3, JBB);
+    }
+    else
+    {
+      routeTCKEY_FAILREFCONF(signal, regApiPtr, GSN_TCKEY_FAILREF, 3);
+    }
   }
 }
 
@@ -7525,15 +7622,99 @@ Dbtc::sendTCKEY_FAILCONF(Signal* signal, ApiConnectRecord * regApiPtr){
   
   const Uint32 ref = regApiPtr->ndbapiBlockref;
   const Uint32 marker = regApiPtr->commitAckMarker;
-  if(ref != 0){
+  const Uint32 nodeId = refToNode(ref);
+  if(ref != 0)
+  {
+    jam()
     failConf->apiConnectPtr = regApiPtr->ndbapiConnect | (marker != RNIL);
     failConf->transId1 = regApiPtr->transid[0];
     failConf->transId2 = regApiPtr->transid[1];
     
-    sendSignal(regApiPtr->ndbapiBlockref,
-	       GSN_TCKEY_FAILCONF, signal, TcKeyFailConf::SignalLength, JBB);
+    bool connectedToNode = getNodeInfo(nodeId).m_connected;
+    if (likely(connectedToNode))
+    {
+      jam();
+      sendSignal(ref, GSN_TCKEY_FAILCONF, signal, 
+		 TcKeyFailConf::SignalLength, JBB);
+    }
+    else
+    {
+      routeTCKEY_FAILREFCONF(signal, regApiPtr,
+			     GSN_TCKEY_FAILCONF, TcKeyFailConf::SignalLength);
+    }
   }
   regApiPtr->commitAckMarker = RNIL;
+}
+
+void
+Dbtc::routeTCKEY_FAILREFCONF(Signal* signal, const ApiConnectRecord* regApiPtr,
+			     Uint32 gsn, Uint32 len)
+{
+  jam();
+
+  Uint32 ref = regApiPtr->ndbapiBlockref;
+
+  /**
+   * We're not connected
+   *   so we find another node in same node group as died node
+   *   and send to it, so that it can forward
+   */
+  tcNodeFailptr.i = regApiPtr->takeOverRec;
+  ptrCheckGuard(tcNodeFailptr, 1, tcFailRecord);
+
+  /**
+   * Save signal
+   */
+  Uint32 save[25];
+  ndbrequire(len <= 25);
+  memcpy(save, signal->theData, 4*len);
+  
+  Uint32 node = tcNodeFailptr.p->takeOverNode;
+  
+  CheckNodeGroups * sd = (CheckNodeGroups*)signal->getDataPtrSend();
+  sd->blockRef = reference();
+  sd->requestType =
+    CheckNodeGroups::Direct |
+    CheckNodeGroups::GetNodeGroupMembers;
+  sd->nodeId = node;
+  EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
+		 CheckNodeGroups::SignalLength);
+  jamEntry();
+  
+  NdbNodeBitmask mask;
+  mask.assign(sd->mask);
+  mask.clear(getOwnNodeId());
+  memcpy(signal->theData, save, 4*len);
+  
+  Uint32 i = 0;
+  while((i = mask.find(i + 1)) != NdbNodeBitmask::NotFound)
+  {
+    jam();
+    HostRecordPtr localHostptr;
+    localHostptr.i = i;
+    ptrCheckGuard(localHostptr, chostFilesize, hostRecord);
+    if (localHostptr.p->hostStatus == HS_ALIVE) 
+    {
+      jam();
+      signal->theData[len] = gsn;
+      signal->theData[len+1] = ref;
+      sendSignal(calcTcBlockRef(i), GSN_TCKEY_FAILREFCONF_R, 
+		 signal, len+2, JBB);
+      return;
+    }
+  }
+  
+  ndbrequire(getNodeInfo(refToNode(ref)).m_type == NodeInfo::DB);
+}
+
+void
+Dbtc::execTCKEY_FAILREFCONF_R(Signal* signal)
+{
+  jamEntry();
+  Uint32 len = signal->getLength();
+  Uint32 gsn = signal->theData[len-2];
+  Uint32 ref = signal->theData[len-1];
+  sendSignal(ref, gsn, signal, len-2, JBB);
 }
 
 /*------------------------------------------------------------*/
@@ -8689,6 +8870,14 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     }
   }
   
+  if (getNodeState().startLevel == NodeState::SL_SINGLEUSER &&
+      getNodeState().getSingleUserApi() !=
+      refToNode(apiConnectptr.p->ndbapiBlockref))
+  {
+    errCode = ZCLUSTER_IN_SINGLEUSER_MODE;
+    goto SCAN_TAB_error;
+  }
+
   seizeTcConnect(signal);
   tcConnectptr.p->apiConnect = apiConnectptr.i;
   tcConnectptr.p->tcConnectstate = OS_WAIT_SCAN;
@@ -10671,7 +10860,9 @@ void Dbtc::unlinkGcp(Signal* signal)
 void
 Dbtc::execDUMP_STATE_ORD(Signal* signal)
 {
+  jamEntry();
   DumpStateOrd * const dumpState = (DumpStateOrd *)&signal->theData[0];
+  Uint32 arg = signal->theData[0];
   if(signal->theData[0] == DumpStateOrd::CommitAckMarkersSize){
     infoEvent("TC: m_commitAckMarkerPool: %d free size: %d",
               m_commitAckMarkerPool.getNoOfFree(),
@@ -10998,7 +11189,241 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     sendSignalWithDelay(cownref, GSN_SYSTEM_ERROR, signal, 300, 1);    
     return;
   }
+
+  if (arg == 2550)
+  {
+    jam();
+    Uint32 len = signal->getLength() - 1;
+    if (len + 2 > 25)
+    {
+      jam();
+      infoEvent("Too long filter");
+      return;
+    }
+    if (validate_filter(signal))
+    {
+      jam();
+      memmove(signal->theData + 2, signal->theData + 1, 4 * len);
+      signal->theData[0] = 2551;
+      signal->theData[1] = 0;    // record
+      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, len + 2, JBB);
+      
+      infoEvent("Starting dump of transactions");
+    }
+    return;
+  }
+
+  if (arg == 2551)
+  {
+    jam();
+    Uint32 record = signal->theData[1];
+    Uint32 len = signal->getLength();
+    ndbassert(len > 1);
+
+    ApiConnectRecordPtr ap;
+    ap.i = record;
+    ptrAss(ap, apiConnectRecord);
+
+    bool print = false;
+    for (Uint32 i = 0; i<32; i++)
+    {
+      jam();
+      print = match_and_print(signal, ap);
+
+      ap.i++;
+      if (ap.i == capiConnectFilesize || print)
+      {
+	jam();
+	break;
+      }
+      
+      ptrAss(ap, apiConnectRecord);
+    }
+
+    if (ap.i == capiConnectFilesize)
+    {
+      jam();
+      infoEvent("End of transaction dump");
+      return;
+    }
+    
+    signal->theData[1] = ap.i;
+    if (print)
+    {
+      jam();
+      sendSignalWithDelay(reference(), GSN_DUMP_STATE_ORD, signal, 200, len);
+    }
+    else
+    {
+      jam();
+      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, len, JBB);
+    }
+    return;
+  }
 }//Dbtc::execDUMP_STATE_ORD()
+
+bool
+Dbtc::validate_filter(Signal* signal)
+{
+  Uint32 * start = signal->theData + 1;
+  Uint32 * end = signal->theData + signal->getLength();
+  if (start == end)
+  {
+    infoEvent("No filter specified, not listing...");
+    return false;
+  }
+
+  while(start < end)
+  {
+    switch(* start){
+    case 1: // API Node
+    case 4: // Inactive time
+      start += 2;
+      break;
+    case 2: // Transid
+      start += 3;
+      break;
+    default:
+      infoEvent("Invalid filter op: 0x%x pos: %d",
+		* start,
+		start - (signal->theData + 1));
+      return false;
+    }
+  }
+
+  if (start != end)
+  {
+    infoEvent("Invalid filter, unexpected end");
+    return false;
+  }
+
+  return true;
+}
+
+bool
+Dbtc::match_and_print(Signal* signal, ApiConnectRecordPtr apiPtr)
+{
+  Uint32 conState = apiPtr.p->apiConnectstate;
+  if (conState == CS_CONNECTED ||
+      conState == CS_DISCONNECTED ||
+      conState == CS_RESTART)
+    return false;
+
+  Uint32 len = signal->getLength();
+  Uint32* start = signal->theData + 2;
+  Uint32* end = signal->theData + len;
+  Uint32 apiTimer = getApiConTimer(apiPtr.i);
+  while (start < end)
+  {
+    jam();
+    switch(* start){
+    case 1:
+      jam();
+      if (refToNode(apiPtr.p->ndbapiBlockref) != * (start + 1))
+	return false;
+      start += 2;
+      break;
+    case 2:
+      jam();
+      if (apiPtr.p->transid[0] != * (start + 1) ||
+	  apiPtr.p->transid[1] != * (start + 2))
+	return false;
+      start += 3;
+      break;
+    case 4:{
+      jam();
+      if (apiTimer == 0 || ((ctcTimer - apiTimer) / 100) < * (start + 1))
+	return false;
+      start += 2;
+      break;
+    }
+    default:
+      ndbassert(false);
+      return false;
+    }
+  }
+  
+  if (start != end)
+  {
+    ndbassert(false);
+    return false;
+  }
+
+  /**
+   * Do print
+   */
+  Uint32 *temp = signal->theData + 25;
+  memcpy(temp, signal->theData, 4 * len);
+
+  char state[10];
+  const char *stateptr = "";
+  
+  switch(apiPtr.p->apiConnectstate){
+  case CS_STARTED:
+    stateptr = "Prepared";
+    break;
+  case CS_RECEIVING:
+  case CS_REC_COMMITTING:
+  case CS_START_COMMITTING:
+    stateptr = "Running";
+    break;
+  case CS_COMMITTING:
+    stateptr = "Committing";
+    break;
+  case CS_COMPLETING:
+    stateptr = "Completing";
+    break;
+  case CS_PREPARE_TO_COMMIT:
+    stateptr = "Prepare to commit";
+    break;
+  case CS_COMMIT_SENT:
+    stateptr = "Commit sent";
+    break;
+  case CS_COMPLETE_SENT:
+    stateptr = "Complete sent";
+    break;
+  case CS_ABORTING:
+    stateptr = "Aborting";
+    break;
+  case CS_START_SCAN:
+    stateptr = "Scanning";
+    break;
+  case CS_WAIT_ABORT_CONF:
+  case CS_WAIT_COMMIT_CONF:
+  case CS_WAIT_COMPLETE_CONF:
+  case CS_FAIL_PREPARED:
+  case CS_FAIL_COMMITTING:
+  case CS_FAIL_COMMITTED:
+  case CS_REC_PREPARING:
+  case CS_START_PREPARING:
+  case CS_PREPARED:
+  case CS_RESTART:
+  case CS_FAIL_ABORTED:
+  case CS_DISCONNECTED:
+  default:
+    BaseString::snprintf(state, sizeof(state), 
+			 "%u", apiPtr.p->apiConnectstate);
+    stateptr = state;
+    break;
+  }
+
+  char buf[100];
+  BaseString::snprintf(buf, sizeof(buf),
+		       "TRX[%u]: API: %d(0x%x)"
+		       "transid: 0x%x 0x%x inactive: %u(%d) state: %s",
+		       apiPtr.i,
+		       refToNode(apiPtr.p->ndbapiBlockref),
+		       refToBlock(apiPtr.p->ndbapiBlockref),
+		       apiPtr.p->transid[0],
+		       apiPtr.p->transid[1],
+		       apiTimer ? (ctcTimer - apiTimer) / 100 : 0,
+		       c_apiConTimer_line[apiPtr.i],
+		       stateptr);
+  infoEvent(buf);
+  
+  memcpy(signal->theData, temp, 4*len);
+  return true;
+}
 
 void Dbtc::execABORT_ALL_REQ(Signal* signal)
 {
@@ -11009,7 +11434,7 @@ void Dbtc::execABORT_ALL_REQ(Signal* signal)
   const Uint32 senderData = req->senderData;
   const BlockReference senderRef = req->senderRef;
   
-  if(getAllowStartTransaction() == true && !getNodeState().getSingleUserMode()){
+  if(getAllowStartTransaction(refToNode(senderRef)) == true && !getNodeState().getSingleUserMode()){
     jam();
 
     ref->senderData = senderData;
@@ -11436,6 +11861,17 @@ void Dbtc::execTCINDXREQ(Signal* signal)
     regApiPtr->transid[0] = tcIndxReq->transId1;
     regApiPtr->transid[1] = tcIndxReq->transId2;
   }//if
+
+  if (getNodeState().startLevel == NodeState::SL_SINGLEUSER &&
+      getNodeState().getSingleUserApi() !=
+      refToNode(regApiPtr->ndbapiBlockref))
+  {
+    terrorCode = ZCLUSTER_IN_SINGLEUSER_MODE;
+    regApiPtr->m_exec_flag |= TcKeyReq::getExecuteFlag(tcIndxRequestInfo);
+    apiConnectptr = transPtr;
+    abortErrorLab(signal);
+    return;
+  }
 
   if (ERROR_INSERTED(8036) || !seizeIndexOperation(regApiPtr, indexOpPtr)) {
     jam();
