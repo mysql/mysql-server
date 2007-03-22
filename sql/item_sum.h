@@ -215,7 +215,9 @@
   TODO: to catch queries where the limit is exceeded to make the
   code clean here.  
     
-*/        
+*/ 
+
+class st_select_lex;
 
 class Item_sum :public Item_result_field
 {
@@ -237,19 +239,26 @@ public:
   int8 max_sum_func_level;/* max level of aggregation for embedded functions */
   bool quick_group;			/* If incremental update of fields */
 
+protected:  
+  table_map used_tables_cache;
+  bool forced_const;
+  byte nest_level_tables_count;
+
+public:  
+
   void mark_as_sum_func();
-  Item_sum() :arg_count(0), quick_group(1) 
+  Item_sum() :arg_count(0), quick_group(1), forced_const(FALSE)
   {
     mark_as_sum_func();
   }
-  Item_sum(Item *a)
-    :args(tmp_args), arg_count(1), quick_group(1)
+  Item_sum(Item *a) :args(tmp_args), arg_count(1), quick_group(1), 
+    forced_const(FALSE)
   {
     args[0]=a;
     mark_as_sum_func();
   }
-  Item_sum( Item *a, Item *b )
-    :args(tmp_args), arg_count(2), quick_group(1)
+  Item_sum( Item *a, Item *b ) :args(tmp_args), arg_count(2), quick_group(1),
+    forced_const(FALSE)
   {
     args[0]=a; args[1]=b;
     mark_as_sum_func();
@@ -319,10 +328,20 @@ public:
   virtual const char *func_name() const= 0;
   virtual Item *result_item(Field *field)
     { return new Item_field(field); }
-  table_map used_tables() const { return ~(table_map) 0; } /* Not used */
-  bool const_item() const { return 0; }
+  table_map used_tables() const { return used_tables_cache; }
+  void update_used_tables ();
+  void cleanup() 
+  { 
+    Item::cleanup();
+    forced_const= FALSE; 
+  }
   bool is_null() { return null_value; }
-  void update_used_tables() { }
+  void make_const () 
+  { 
+    used_tables_cache= 0; 
+    forced_const= TRUE; 
+  }
+  virtual bool const_item() const { return forced_const; }
   void make_field(Send_field *field);
   void print(String *str);
   void fix_num_length_and_dec();
@@ -509,23 +528,23 @@ public:
 class Item_sum_count :public Item_sum_int
 {
   longlong count;
-  table_map used_table_cache;
 
   public:
   Item_sum_count(Item *item_par)
-    :Item_sum_int(item_par),count(0),used_table_cache(~(table_map) 0)
+    :Item_sum_int(item_par),count(0)
   {}
   Item_sum_count(THD *thd, Item_sum_count *item)
-    :Item_sum_int(thd, item), count(item->count),
-     used_table_cache(item->used_table_cache)
+    :Item_sum_int(thd, item), count(item->count)
   {}
-  table_map used_tables() const { return used_table_cache; }
-  bool const_item() const { return !used_table_cache; }
   enum Sumfunctype sum_func () const { return COUNT_FUNC; }
   void clear();
   void no_rows_in_result() { count=0; }
   bool add();
-  void make_const(longlong count_arg) { count=count_arg; used_table_cache=0; }
+  void make_const(longlong count_arg) 
+  { 
+    count=count_arg;
+    Item_sum::make_const();
+  }
   longlong val_int();
   void reset_field();
   void cleanup();
@@ -805,28 +824,22 @@ protected:
   Item_result hybrid_type;
   enum_field_types hybrid_field_type;
   int cmp_sign;
-  table_map used_table_cache;
   bool was_values;  // Set if we have found at least one row (for max/min only)
 
   public:
   Item_sum_hybrid(Item *item_par,int sign)
     :Item_sum(item_par), sum(0.0), sum_int(0),
     hybrid_type(INT_RESULT), hybrid_field_type(MYSQL_TYPE_LONGLONG),
-    cmp_sign(sign), used_table_cache(~(table_map) 0),
-    was_values(TRUE)
+    cmp_sign(sign), was_values(TRUE)
   { collation.set(&my_charset_bin); }
   Item_sum_hybrid(THD *thd, Item_sum_hybrid *item);
   bool fix_fields(THD *, Item **);
-  table_map used_tables() const { return used_table_cache; }
-  bool const_item() const { return !used_table_cache; }
-
   void clear();
   double val_real();
   longlong val_int();
   my_decimal *val_decimal(my_decimal *);
   void reset_field();
   String *val_str(String *);
-  void make_const() { used_table_cache=0; }
   bool keep_field_type(void) const { return 1; }
   enum Item_result result_type () const { return hybrid_type; }
   enum enum_field_types field_type() const { return hybrid_field_type; }
