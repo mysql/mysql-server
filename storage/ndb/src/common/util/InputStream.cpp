@@ -59,6 +59,7 @@ SocketInputStream::gets(char * buf, int bufLen) {
 
   if(res == 0)
   {
+    m_timedout= true;
     buf[0]=0;
     return buf;
   }
@@ -67,7 +68,6 @@ SocketInputStream::gets(char * buf, int bufLen) {
 
   if(res == -1)
   {
-    m_timedout= true;
     return 0;
   }
 
