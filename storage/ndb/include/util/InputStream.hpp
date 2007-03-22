@@ -50,10 +50,14 @@ class SocketInputStream : public InputStream {
   NDB_SOCKET_TYPE m_socket;
   unsigned m_timeout_ms;
   bool m_startover;
+  bool m_timedout;
 public:
   SocketInputStream(NDB_SOCKET_TYPE socket, unsigned read_timeout_ms = 1000);
   virtual ~SocketInputStream() {}
   char* gets(char * buf, int bufLen);
+  bool timedout() { return m_timedout; };
+  void reset_timeout() { m_timedout= false; };
+
 };
 
 #endif

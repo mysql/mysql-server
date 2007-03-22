@@ -45,9 +45,12 @@ public:
 class SocketOutputStream : public OutputStream {
   NDB_SOCKET_TYPE m_socket;
   unsigned m_timeout_ms;
+  bool m_timedout;
 public:
   SocketOutputStream(NDB_SOCKET_TYPE socket, unsigned write_timeout_ms = 1000);
   virtual ~SocketOutputStream() {}
+  bool timedout() { return m_timedout; };
+  void reset_timeout() { m_timedout= false; };
 
   int print(const char * fmt, ...);
   int println(const char * fmt, ...);

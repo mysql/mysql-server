@@ -38,10 +38,13 @@ SocketInputStream::SocketInputStream(NDB_SOCKET_TYPE socket,
   : m_socket(socket) {
   m_startover= true;
   m_timeout_ms = read_timeout_ms;
+  m_timedout= false;
 }
 
 char*
 SocketInputStream::gets(char * buf, int bufLen) {
+  if(timedout())
+    return 0;
   assert(bufLen >= 2);
   int offset= 0;
   if(m_startover)
@@ -63,7 +66,10 @@ SocketInputStream::gets(char * buf, int bufLen) {
   m_startover= true;
 
   if(res == -1)
+  {
+    m_timedout= true;
     return 0;
+  }
 
   return buf;
 }

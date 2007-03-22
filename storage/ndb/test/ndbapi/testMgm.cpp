@@ -218,15 +218,11 @@ int runTestApiTimeout1(NDBT_Context* ctx, NDBT_Step* step)
   ndb_mgm_set_connectstring(h, mgm);
   ndb_mgm_connect(h,0,0,0);
 
-  ndbout << "Connected" << endl;
-
   if(ndb_mgm_check_connection(h) < 0)
   {
     result= NDBT_FAILED;
     goto done;
   }
-
-  ndbout << "Checked Connection" << endl;
 
   ndb_mgm_reply reply;
   reply.return_code= 0;
@@ -238,9 +234,7 @@ int runTestApiTimeout1(NDBT_Context* ctx, NDBT_Step* step)
     goto done;
   }
 
-  ndbout << "Inserted session error" << endl;
-
-  ndb_mgm_set_timeout(h,1000,1000);
+  ndb_mgm_set_timeout(h,2500);
 
   cc= ndb_mgm_check_connection(h);
   if(cc < 0)
@@ -248,7 +242,29 @@ int runTestApiTimeout1(NDBT_Context* ctx, NDBT_Step* step)
   else
     result= NDBT_FAILED;
 
-  ndbout << "Tried check connection with result: " << cc << endl;
+  ndbout << "test 2" << endl;
+  ndb_mgm_connect(h,0,0,0);
+
+  cc= ndb_mgm_get_mgmd_nodeid(h);
+  if(cc==0)
+    result= NDBT_OK;
+  else
+    result= NDBT_FAILED;
+
+  if(ndb_mgm_insert_error(h, 3, 0, &reply)< 0)
+  {
+    ndbout << "failed to remove inserted error " << endl;
+    result= NDBT_FAILED;
+    goto done;
+  }
+
+  cc= ndb_mgm_get_mgmd_nodeid(h);
+  ndbout << "got node id: " << cc << endl;
+  if(cc==0)
+    result= NDBT_FAILED;
+  else
+    result= NDBT_OK;
+
 done:
   ndb_mgm_disconnect(h);
   ndb_mgm_destroy_handle(&h);
