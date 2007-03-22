@@ -62,6 +62,24 @@ public:
   void set_name(const char *name);
 
   /**
+   * Set timeout
+   *
+   * Used as a timeout when talking to the management server,
+   * helps limit the amount of time that we may block when connecting
+   *
+   * Basically just calls ndb_mgm_set_timeout(h,ms).
+   *
+   * The default is 30 seconds.
+   *
+   * @param timeout_ms millisecond timeout. As with ndb_mgm_set_timeout,
+   *                   only increments of 1000 are really supported,
+   *                   with not to much gaurentees about calls completing
+   *                   in any hard amount of time.
+   * @return 0 on success
+   */
+  int set_timeout(int timeout_ms);
+
+  /**
    * Connect to a cluster management server
    *
    * @param no_retries specifies the number of retries to attempt

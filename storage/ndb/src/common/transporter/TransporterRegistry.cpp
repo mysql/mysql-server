@@ -119,6 +119,7 @@ void TransporterRegistry::set_mgm_handle(NdbMgmHandle h)
   if (m_mgm_handle)
     ndb_mgm_destroy_handle(&m_mgm_handle);
   m_mgm_handle= h;
+  ndb_mgm_set_timeout(m_mgm_handle, 5000);
 #ifndef DBUG_OFF
   if (h)
   {
