@@ -389,13 +389,17 @@ int ndb_logevent_get_next(const NdbLogEventHandle h,
 			  struct ndb_logevent *dst,
 			  unsigned timeout_in_milliseconds)
 {
+  if (timeout_in_milliseconds == 0)
+  {
+    int res;
+    while ((res = ndb_logevent_get_next(h, dst, 60000))==0);
+    return res;
+  }
+
   SocketInputStream in(h->socket, timeout_in_milliseconds);
 
   Properties p;
   char buf[256];
-
-  struct timeval start_time;
-  gettimeofday(&start_time, 0);
 
   /* header */
   while (1) {
@@ -409,24 +413,15 @@ int ndb_logevent_get_next(const NdbLogEventHandle h,
       // timed out
       return 0;
     }
+
     if ( strcmp("log event reply\n", buf) == 0 )
       break;
 
     if ( strcmp("<PING>\n", buf) )
       ndbout_c("skipped: %s", buf);
 
-    struct timeval now;
-    gettimeofday(&now, 0);
-    unsigned elapsed_ms= (now.tv_sec-start_time.tv_sec)*1000 +
-      ((signed int)now.tv_usec-(signed int)start_time.tv_usec)/1000;
-
-    if (elapsed_ms >= timeout_in_milliseconds)
-    {
-      // timed out
-      return 0;
-    }
-
-    new (&in) SocketInputStream(h->socket, timeout_in_milliseconds-elapsed_ms);
+    if(in.timedout())
+        return 0;
   }
 
   /* read name-value pairs into properties object */
@@ -437,11 +432,9 @@ int ndb_logevent_get_next(const NdbLogEventHandle h,
       h->m_error= NDB_LEH_READ_ERROR;
       return -1;
     }
-    if ( buf[0] == 0 )
-    {
-      // timed out
+    if (in.timedout())
       return 0;
-    }
+
     if ( buf[0] == '\n' )
     {
       break;
