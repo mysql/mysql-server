@@ -288,18 +288,23 @@ struct PurgeStruct
   NDB_TICKS tick;
 };
 
+#define ERROR_INSERTED(x) (g_errorInsert == x || m_errorInsert == x)
+
+#define SLEEP_ERROR_INSERTED(x) if(ERROR_INSERTED(x)){NdbSleep_SecSleep(10);}
+
 MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 session_id)
   : SocketServer::Session(sock), m_mgmsrv(mgm)
 {
   DBUG_ENTER("MgmApiSession::MgmApiSession");
-  m_input = new SocketInputStream(sock);
-  m_output = new SocketOutputStream(sock);
+  m_input = new SocketInputStream(sock, 30000);
+  m_output = new SocketOutputStream(sock, 30000);
   m_parser = new Parser_t(commands, *m_input, true, true, true);
   m_allocated_resources= new MgmtSrvr::Allocated_resources(m_mgmsrv);
   m_stopSelf= 0;
   m_ctx= NULL;
   m_session_id= session_id;
   m_mutex= NdbMutex_Create();
+  m_errorInsert= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -338,6 +343,9 @@ MgmApiSession::runSession()
   bool stop= false;
   while(!stop) {
     NdbMutex_Lock(m_mutex);
+
+    m_input->reset_timeout();
+    m_output->reset_timeout();
 
     m_parser->run(ctx, *this);
 
@@ -596,13 +604,23 @@ MgmApiSession::getConfig(Parser_t::Context &,
   
   char *tmp_str = (char *) malloc(base64_needed_encoded_length(src.length()));
   (void) base64_encode(src.get_data(), src.length(), tmp_str);
-  
+
+  SLEEP_ERROR_INSERTED(1);
+
   m_output->println("get config reply");
   m_output->println("result: Ok");
   m_output->println("Content-Length: %d", strlen(tmp_str));
   m_output->println("Content-Type: ndbconfig/octet-stream");
+  SLEEP_ERROR_INSERTED(2);
   m_output->println("Content-Transfer-Encoding: base64");
   m_output->println("");
+  if(ERROR_INSERTED(3))
+  {
+    int l= strlen(tmp_str);
+    tmp_str[l/2]='\0';
+    m_output->println(tmp_str);
+    NdbSleep_SecSleep(10);
+  }
   m_output->println(tmp_str);
 
   free(tmp_str);
@@ -613,11 +631,22 @@ void
 MgmApiSession::insertError(Parser<MgmApiSession>::Context &,
 			   Properties const &args) {
   Uint32 node = 0, error = 0;
+  int result= 0;
 
   args.get("node", &node);
   args.get("error", &error);
 
-  int result = m_mgmsrv.insertError(node, error);
+  if(node==m_mgmsrv.getOwnNodeId()
+     && error < MGM_ERROR_MAX_INJECT_SESSION_ONLY)
+  {
+    m_errorInsert= error;
+    if(error==0)
+      g_errorInsert= error;
+  }
+  else
+  {
+    result= m_mgmsrv.insertError(node, error);
+  }
 
   m_output->println("insert error reply");
   if(result != 0)
@@ -738,6 +767,7 @@ MgmApiSession::endSession(Parser<MgmApiSession>::Context &,
 
   m_allocated_resources= new MgmtSrvr::Allocated_resources(m_mgmsrv);
 
+  SLEEP_ERROR_INSERTED(4);
   m_output->println("end session reply");
 }
 
@@ -989,12 +1019,16 @@ MgmApiSession::getStatus(Parser<MgmApiSession>::Context &,
   while(m_mgmsrv.getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_MGM)){
     noOfNodes++;
   }
-  
+  SLEEP_ERROR_INSERTED(5);
   m_output->println("node status");
+  SLEEP_ERROR_INSERTED(6);
   m_output->println("nodes: %d", noOfNodes);
+  SLEEP_ERROR_INSERTED(7);
   printNodeStatus(m_output, m_mgmsrv, NDB_MGM_NODE_TYPE_NDB);
   printNodeStatus(m_output, m_mgmsrv, NDB_MGM_NODE_TYPE_MGM);
+  SLEEP_ERROR_INSERTED(8);
   printNodeStatus(m_output, m_mgmsrv, NDB_MGM_NODE_TYPE_API);
+  SLEEP_ERROR_INSERTED(9);
 
   nodeId = 0;
 
@@ -1109,8 +1143,10 @@ MgmApiSession::enterSingleUser(Parser<MgmApiSession>::Context &,
 			  Properties const &args) {
   int stopped = 0;
   Uint32 nodeId = 0;
+  int result= 0;
   args.get("nodeId", &nodeId);
-  int result = m_mgmsrv.enterSingleUser(&stopped, nodeId);
+
+  result = m_mgmsrv.enterSingleUser(&stopped, nodeId);
   m_output->println("enter single user reply");
   if(result != 0) {
     m_output->println("result: %s", get_error_text(result));
@@ -1307,20 +1343,21 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData,
   {
     if(threshold <= m_clients[i].m_logLevel.getLogLevel(cat))
     {
-      NDB_SOCKET_TYPE fd= m_clients[i].m_socket;
-      if(fd != NDB_INVALID_SOCKET)
+      if(m_clients[i].m_socket==NDB_INVALID_SOCKET)
+        continue;
+
+      SocketOutputStream out(m_clients[i].m_socket);
+
+      int r;
+      if (m_clients[i].m_parsable)
+        r= out.println(str.c_str());
+      else
+        r= out.println(m_text);
+
+      if (r<0)
       {
-	int r;
-	if (m_clients[i].m_parsable)
-	  r= println_socket(fd,
-			    MAX_WRITE_TIMEOUT, str.c_str());
-	else
-	  r= println_socket(fd,
-			    MAX_WRITE_TIMEOUT, m_text);
-	if (r == -1) {
-	  copy.push_back(fd);
-	  m_clients.erase(i, false);
-	}
+        copy.push_back(m_clients[i].m_socket);
+        m_clients.erase(i, false);
       }
     }
   }
@@ -1371,14 +1408,16 @@ Ndb_mgmd_event_service::check_listeners()
   m_clients.lock();
   for(i= m_clients.size() - 1; i >= 0; i--)
   {
-    int fd= m_clients[i].m_socket;
-    DBUG_PRINT("info",("%d %d",i,fd));
-    char buf[1];
-    buf[0]=0;
-    if (fd != NDB_INVALID_SOCKET &&
-	println_socket(fd,MAX_WRITE_TIMEOUT,"<PING>") == -1)
+    if(m_clients[i].m_socket==NDB_INVALID_SOCKET)
+      continue;
+
+    SocketOutputStream out(m_clients[i].m_socket);
+
+    DBUG_PRINT("info",("%d %d",i,m_clients[i].m_socket));
+
+    if(out.println("<PING>") < 0)
     {
-      NDB_CLOSE_SOCKET(fd);
+      NDB_CLOSE_SOCKET(m_clients[i].m_socket);
       m_clients.erase(i, false);
       n=1;
     }
@@ -1608,8 +1647,11 @@ void
 MgmApiSession::check_connection(Parser_t::Context &ctx,
 				const class Properties &args)
 {
+  SLEEP_ERROR_INSERTED(1);
   m_output->println("check connection reply");
+  SLEEP_ERROR_INSERTED(2);
   m_output->println("result: Ok");
+  SLEEP_ERROR_INSERTED(3);
   m_output->println("");
 }
 
@@ -1629,7 +1671,9 @@ MgmApiSession::get_mgmd_nodeid(Parser_t::Context &ctx,
 			       Properties const &args)
 {
   m_output->println("get mgmd nodeid reply");
-  m_output->println("nodeid:%u",m_mgmsrv.getOwnNodeId());  
+  m_output->println("nodeid:%u",m_mgmsrv.getOwnNodeId());
+  SLEEP_ERROR_INSERTED(1);
+
   m_output->println("");
 }
 

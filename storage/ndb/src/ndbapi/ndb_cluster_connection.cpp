@@ -735,5 +735,12 @@ Ndb_cluster_connection::get_active_ndb_objects() const
 {
   return m_impl.m_transporter_facade->get_active_ndb_objects();
 }
+
+int Ndb_cluster_connection::set_timeout(int timeout_ms)
+{
+  return ndb_mgm_set_timeout(m_impl.m_config_retriever->get_mgmHandle(),
+                             timeout_ms);
+}
+
 template class Vector<Ndb_cluster_connection_impl::Node>;
 

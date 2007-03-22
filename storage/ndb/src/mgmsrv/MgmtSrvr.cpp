@@ -66,6 +66,9 @@
 #define DEBUG(x)
 #endif
 
+int g_errorInsert;
+#define ERROR_INSERTED(x) (g_errorInsert == x)
+
 #define INIT_SIGNAL_SENDER(ss,nodeId) \
   SignalSender ss(theFacade); \
   ss.lock(); /* lock will be released on exit */ \
@@ -177,6 +180,10 @@ MgmtSrvr::logLevelThreadRun()
       m_log_level_requests.lock();
     }      
     m_log_level_requests.unlock();
+
+    if(!ERROR_INSERTED(10000))
+      m_event_listner.check_listeners();
+
     NdbSleep_MilliSleep(_logLevelThreadSleep);  
   }
 }
@@ -1746,14 +1753,31 @@ MgmtSrvr::setNodeLogLevelImpl(int nodeId, const SetLogLevelOrd & ll)
 int 
 MgmtSrvr::insertError(int nodeId, int errorNo) 
 {
+  int block;
+
   if (errorNo < 0) {
     return INVALID_ERROR_NUMBER;
   }
 
-  INIT_SIGNAL_SENDER(ss,nodeId);
-  
+  SignalSender ss(theFacade);
+  ss.lock(); /* lock will be released on exit */
+
+  if(getNodeType(nodeId) == NDB_MGM_NODE_TYPE_NDB)
+  {
+    block= CMVMI;
+  }
+  else if(nodeId == _ownNodeId)
+  {
+    g_errorInsert= errorNo;
+    return 0;
+  }
+  else if(getNodeType(nodeId) == NDB_MGM_NODE_TYPE_MGM)
+    block= _blockNumber;
+  else
+    return WRONG_PROCESS_TYPE;
+
   SimpleSignal ssig;
-  ssig.set(ss,TestOrd::TraceAPI, CMVMI, GSN_TAMPER_ORD, 
+  ssig.set(ss,TestOrd::TraceAPI, block, GSN_TAMPER_ORD, 
 	   TamperOrd::SignalLength);
   TamperOrd* const tamperOrd = CAST_PTR(TamperOrd, ssig.getDataPtrSend());
   tamperOrd->errorNo = errorNo;
@@ -1986,6 +2010,10 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
   case GSN_NF_COMPLETEREP:
     break;
   case GSN_NODE_FAILREP:
+    break;
+
+  case GSN_TAMPER_ORD:
+    ndbout << "TAMPER ORD" << endl;
     break;
 
   default:
