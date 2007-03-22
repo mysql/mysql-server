@@ -1325,4 +1325,27 @@ start transaction;
 insert into t1(c1) select c1 from v1;
 drop table t1, t2, t3;
 drop view v1;
+create table t1(c1 int);
+insert into t1 values(1),(10),(100);
+select * from t1;
+c1
+1
+10
+100
+select * from t1;
+c1
+1
+10
+100
+select * from t1;
+c1
+1
+10
+100
+select * from t1;
+c1
+1
+10
+100
+drop table t1;
 set global query_cache_size=0;

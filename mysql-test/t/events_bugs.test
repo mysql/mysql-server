@@ -45,10 +45,17 @@ create event e_55 on schedule at 99990101000000 do drop table t;
 create event e_55 on schedule every 10 hour starts 99990101000000 do drop table t;
 --error ER_EVENT_ENDS_BEFORE_STARTS
 create event e_55 on schedule every 10 minute ends 99990101000000 do drop table t;
---error ER_EVENT_EXEC_TIME_IN_THE_PAST
+--error ER_WRONG_VALUE
 create event e_55 on schedule at 10000101000000 do drop table t;
---error ER_EVENT_EXEC_TIME_IN_THE_PAST
+
+# For the purpose of backup we allow times in the past.  Here, no
+# error will be given, but the event won't be created.  One may think
+# of that as if the event was created, then it turned out it's in the
+# past, so it was dropped because of implicit ON COMPLETION NOT
+# PRESERVE.
 create event e_55 on schedule at 20000101000000 do drop table t;
+show events;
+
 --error ER_PARSE_ERROR
 create event e_55 on schedule at 20200101000000 starts 10000101000000 do drop table t;
 --error ER_PARSE_ERROR

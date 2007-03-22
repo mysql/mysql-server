@@ -169,7 +169,6 @@ void lex_start(THD *thd, const uchar *buf, uint length)
   lex->lock_option= TL_READ;
   lex->found_semicolon= 0;
   lex->safe_to_cache_query= 1;
-  lex->time_zone_tables_used= 0;
   lex->leaf_tables_insert= 0;
   lex->parsing_options.reset();
   lex->empty_field_list_on_rset= 0;
@@ -2087,31 +2086,6 @@ void st_lex::first_lists_tables_same()
 
 
 /*
-  Add implicitly used time zone description tables to global table list
-  (if needed).
-
-  SYNOPSYS
-    st_lex::add_time_zone_tables_to_query_tables()
-      thd - pointer to current thread context
-
-  RETURN VALUE
-   TRUE  - error
-   FALSE - success
-*/
-
-bool st_lex::add_time_zone_tables_to_query_tables(THD *thd_arg)
-{
-  /* We should not add these tables twice */
-  if (!time_zone_tables_used)
-  {
-    time_zone_tables_used= my_tz_get_table_list(thd_arg, &query_tables_last);
-    if (time_zone_tables_used == &fake_time_zone_tables_list)
-      return TRUE;
-  }
-  return FALSE;
-}
-
-/*
   Link table back that was unlinked with unlink_first_table()
 
   SYNOPSIS
@@ -2180,7 +2154,6 @@ void st_lex::cleanup_after_one_table_open()
     /* remove underlying units (units of VIEW) subtree */
     select_lex.cut_subtree();
   }
-  time_zone_tables_used= 0;
 }
 
 
