@@ -6024,7 +6024,7 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
           mysql_unlock_tables(thd, thd->lock);
           thd->lock= 0;
           thd->query_error= 1;
-          rli->clear_tables_to_lock();
+          const_cast<RELAY_LOG_INFO*>(rli)->clear_tables_to_lock();
           DBUG_RETURN(ERR_BAD_TABLE_DEF);
         }
       }
