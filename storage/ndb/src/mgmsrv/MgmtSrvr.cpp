@@ -181,6 +181,9 @@ MgmtSrvr::logLevelThreadRun()
     }      
     m_log_level_requests.unlock();
 
+    if(!ERROR_INSERTED(10000))
+      m_event_listner.check_listeners();
+
     NdbSleep_MilliSleep(_logLevelThreadSleep);  
   }
 }
@@ -1749,6 +1752,11 @@ MgmtSrvr::insertError(int nodeId, int errorNo)
     if(!theFacade->theClusterMgr->getNodeInfo(nodeId).connected
        || !theFacade->get_node_alive(nodeId))
       return NO_CONTACT_WITH_PROCESS;
+  }
+  else if(nodeId == _ownNodeId)
+  {
+    g_errorInsert= errorNo;
+    return 0;
   }
   else if(getNodeType(nodeId) == NDB_MGM_NODE_TYPE_MGM)
     block= _blockNumber;

@@ -296,8 +296,8 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 
   : SocketServer::Session(sock), m_mgmsrv(mgm)
 {
   DBUG_ENTER("MgmApiSession::MgmApiSession");
-  m_input = new SocketInputStream(sock);
-  m_output = new SocketOutputStream(sock);
+  m_input = new SocketInputStream(sock, 30000);
+  m_output = new SocketOutputStream(sock, 30000);
   m_parser = new Parser_t(commands, *m_input, true, true, true);
   m_allocated_resources= new MgmtSrvr::Allocated_resources(m_mgmsrv);
   m_stopSelf= 0;

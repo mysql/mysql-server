@@ -1,5 +1,5 @@
 Next Session 10
-Next Global  10000
+Next Global  10001
 
 
 #define MGM_ERROR_MAX_INJECT_SESSION_ONLY 10000
@@ -25,3 +25,5 @@ num	where		type		testing
 7	node status	sleep		after parsable, before status reply
 8	node status	sleep		partway through status reporting
 9	node status	sleep		end of status printing
+
+10000	events PING	no ping		don't send pings to event listeners
