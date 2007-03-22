@@ -11075,7 +11075,7 @@ union_list:
 	UNION_SYM union_option
 	{
 	  LEX *lex=Lex;
-	  if (lex->exchange)
+	  if (lex->result)
 	  {
 	    /* Only the last SELECT can have  INTO...... */
 	    my_error(ER_WRONG_USAGE, MYF(0), "UNION", "INTO");
