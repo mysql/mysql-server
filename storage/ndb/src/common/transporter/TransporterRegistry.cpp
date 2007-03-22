@@ -119,6 +119,7 @@ void TransporterRegistry::set_mgm_handle(NdbMgmHandle h)
   if (m_mgm_handle)
     ndb_mgm_destroy_handle(&m_mgm_handle);
   m_mgm_handle= h;
+  ndb_mgm_set_timeout(m_mgm_handle, 5000);
 #ifndef DBUG_OFF
   if (h)
   {
@@ -1062,9 +1063,16 @@ TransporterRegistry::update_connections()
 void
 TransporterRegistry::start_clients_thread()
 {
+  int persist_mgm_count= 0;
   DBUG_ENTER("TransporterRegistry::start_clients_thread");
   while (m_run_start_clients_thread) {
     NdbSleep_MilliSleep(100);
+    persist_mgm_count++;
+    if(persist_mgm_count==50)
+    {
+      ndb_mgm_check_connection(m_mgm_handle);
+      persist_mgm_count= 0;
+    }
     for (int i= 0, n= 0; n < nTransporters && m_run_start_clients_thread; i++){
       Transporter * t = theTransporters[i];
       if (!t)
@@ -1122,7 +1130,12 @@ TransporterRegistry::start_clients_thread()
 	      {
 		g_eventLogger.info("Management server closed connection early. "
 			 "It is probably being shut down (or has problems). "
-			 "We will retry the connection.");
+			 "We will retry the connection. %d %s %s line: %d",
+                                   ndb_mgm_get_latest_error(m_mgm_handle),
+                                   ndb_mgm_get_latest_error_desc(m_mgm_handle),
+                                   ndb_mgm_get_latest_error_msg(m_mgm_handle),
+                                   ndb_mgm_get_latest_error_line(m_mgm_handle)
+                                   );
 	      }
 	    }
 	    /** else

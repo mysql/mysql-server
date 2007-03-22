@@ -18,6 +18,7 @@
 #include <NdbTCP.h>
 #include <socket_io.h>
 #include <NdbOut.hpp>
+#include <NdbTick.h>
 
 extern "C"
 int
@@ -47,7 +48,7 @@ read_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
 
 extern "C"
 int
-readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
+readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
 	      char * buf, int buflen, NdbMutex *mutex){
   if(buflen <= 1)
     return 0;
@@ -62,7 +63,10 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
 
   if(mutex)
     NdbMutex_Unlock(mutex);
+  Uint64 tick= NdbTick_CurrentMillisecond();
   const int selectRes = select(socket + 1, &readset, 0, 0, &timeout);
+
+  *time= NdbTick_CurrentMillisecond() - tick;
   if(mutex)
     NdbMutex_Lock(mutex);
 
@@ -126,9 +130,13 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
 
     FD_ZERO(&readset);
     FD_SET(socket, &readset);
-    timeout.tv_sec  = (timeout_millis / 1000);
-    timeout.tv_usec = (timeout_millis % 1000) * 1000;
+    timeout.tv_sec  = ((timeout_millis - *time) / 1000);
+    timeout.tv_usec = ((timeout_millis - *time) % 1000) * 1000;
+
+    tick= NdbTick_CurrentMillisecond();
     const int selectRes = select(socket + 1, &readset, 0, 0, &timeout);
+    *time= NdbTick_CurrentMillisecond() - tick;
+
     if(selectRes != 1){
       return -1;
     }
@@ -139,7 +147,7 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
 
 extern "C"
 int
-write_socket(NDB_SOCKET_TYPE socket, int timeout_millis, 
+write_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
 	     const char buf[], int len){
   fd_set writeset;
   FD_ZERO(&writeset);
@@ -148,7 +156,11 @@ write_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
   timeout.tv_sec  = (timeout_millis / 1000);
   timeout.tv_usec = (timeout_millis % 1000) * 1000;
 
+
+  Uint64 tick= NdbTick_CurrentMillisecond();
   const int selectRes = select(socket + 1, 0, &writeset, 0, &timeout);
+  *time= NdbTick_CurrentMillisecond() - tick;
+
   if(selectRes != 1){
     return -1;
   }
@@ -167,9 +179,13 @@ write_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
     
     FD_ZERO(&writeset);
     FD_SET(socket, &writeset);
-    timeout.tv_sec  = 1;
-    timeout.tv_usec = 0;
+    timeout.tv_sec  = ((timeout_millis - *time) / 1000);
+    timeout.tv_usec = ((timeout_millis - *time) % 1000) * 1000;
+
+    Uint64 tick= NdbTick_CurrentMillisecond();
     const int selectRes2 = select(socket + 1, 0, &writeset, 0, &timeout);
+    *time= NdbTick_CurrentMillisecond() - tick;
+
     if(selectRes2 != 1){
       return -1;
     }
@@ -180,11 +196,11 @@ write_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
 
 extern "C"
 int
-print_socket(NDB_SOCKET_TYPE socket, int timeout_millis, 
+print_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
 	     const char * fmt, ...){
   va_list ap;
   va_start(ap, fmt);
-  int ret = vprint_socket(socket, timeout_millis, fmt, ap);
+  int ret = vprint_socket(socket, timeout_millis, time, fmt, ap);
   va_end(ap);
 
   return ret;
@@ -192,18 +208,18 @@ print_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
 
 extern "C"
 int
-println_socket(NDB_SOCKET_TYPE socket, int timeout_millis, 
+println_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
 	       const char * fmt, ...){
   va_list ap;
   va_start(ap, fmt);
-  int ret = vprintln_socket(socket, timeout_millis, fmt, ap);
+  int ret = vprintln_socket(socket, timeout_millis, time, fmt, ap);
   va_end(ap);
   return ret;
 }
 
 extern "C"
 int
-vprint_socket(NDB_SOCKET_TYPE socket, int timeout_millis, 
+vprint_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
 	      const char * fmt, va_list ap){
   char buf[1000];
   char *buf2 = buf;
@@ -221,7 +237,7 @@ vprint_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
   } else
     return 0;
 
-  int ret = write_socket(socket, timeout_millis, buf2, size);
+  int ret = write_socket(socket, timeout_millis, time, buf2, size);
   if(buf2 != buf)
     free(buf2);
   return ret;
@@ -229,7 +245,7 @@ vprint_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
 
 extern "C"
 int
-vprintln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, 
+vprintln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
 		const char * fmt, va_list ap){
   char buf[1000];
   char *buf2 = buf;
@@ -249,7 +265,7 @@ vprintln_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
   }
   buf2[size-1]='\n';
 
-  int ret = write_socket(socket, timeout_millis, buf2, size);
+  int ret = write_socket(socket, timeout_millis, time, buf2, size);
   if(buf2 != buf)
     free(buf2);
   return ret;

@@ -70,8 +70,6 @@ private:
   char *host;
   int port;
   NDB_SOCKET_TYPE cpc_sock;
-  InputStream *cpc_in;
-  OutputStream *cpc_out;
 
 public:  
   int connect();
