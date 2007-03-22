@@ -34,10 +34,10 @@ FileInputStream::gets(char * buf, int bufLen){
 }
 
 SocketInputStream::SocketInputStream(NDB_SOCKET_TYPE socket, 
-				     unsigned readTimeout) 
+				     unsigned read_timeout_ms)
   : m_socket(socket) {
   m_startover= true;
-  m_timeout = readTimeout;
+  m_timeout_ms = read_timeout_ms;
 }
 
 char*
@@ -52,7 +52,7 @@ SocketInputStream::gets(char * buf, int bufLen) {
   else
     offset= strlen(buf);
 
-  int res = readln_socket(m_socket, m_timeout, buf+offset, bufLen-offset, m_mutex);
+  int res = readln_socket(m_socket, m_timeout_ms, buf+offset, bufLen-offset, m_mutex);
 
   if(res == 0)
   {
