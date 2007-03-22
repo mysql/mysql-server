@@ -2230,4 +2230,12 @@ private:
 #endif
 };
 
+static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
+                                                       FILE *file)
+{
+  return         
+    my_b_copy_to_file(cache, file) ||
+    reinit_io_cache(cache, WRITE_CACHE, 0, FALSE, TRUE);
+}
+
 #endif /* _log_event_h */
