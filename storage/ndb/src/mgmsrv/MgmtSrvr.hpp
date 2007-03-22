@@ -38,6 +38,10 @@
  */
 #define MGMSRV 1
 
+#define MGM_ERROR_MAX_INJECT_SESSION_ONLY 10000
+
+extern int g_errorInsert;
+
 class ConfigInfoServer;
 class NdbApiSignal;
 class Config;
