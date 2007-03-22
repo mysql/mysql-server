@@ -69,10 +69,14 @@ void embedded_get_error(MYSQL *mysql)
 
 static void emb_free_rows(THD *thd)
 {
+  if (!thd->data)
+    return;
+
   if (thd->current_stmt)
     free_root(&thd->data->alloc,MYF(0));
   else
     free_rows(thd->data);
+  thd->data= NULL;
 }
 
 
@@ -86,11 +90,8 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   THD *thd=(THD *) mysql->thd;
   NET *net= &mysql->net;
 
-  if (thd->data)
-  {
-    emb_free_rows(thd);
-    thd->data= 0;
-  }
+  emb_free_rows(thd);
+
   /* Check that we are calling the client functions in right order */
   if (mysql->status != MYSQL_STATUS_READY)
   {
@@ -143,13 +144,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 
 static void emb_flush_use_result(MYSQL *mysql)
 {
-  MYSQL_DATA *data= ((THD*)(mysql->thd))->data;
-
-  if (data)
-  {
-    free_rows(data);
-    ((THD*)(mysql->thd))->data= NULL;
-  }
+  emb_free_rows((THD*) (mysql->thd));
 }
 
 static MYSQL_DATA *
@@ -304,8 +299,7 @@ int emb_unbuffered_fetch(MYSQL *mysql, char **row)
 static void emb_free_embedded_thd(MYSQL *mysql)
 {
   THD *thd= (THD*)mysql->thd;
-  if (thd->data)
-    emb_free_rows(thd);
+  emb_free_rows(thd);
   thread_count--;
   delete thd;
   mysql->thd=0;
