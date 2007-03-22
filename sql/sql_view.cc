@@ -224,6 +224,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 {
   LEX *lex= thd->lex;
   bool link_to_local;
+  bool definer_check_is_needed= mode != VIEW_ALTER || lex->definer;
   /* first table in list is target VIEW name => cut off it */
   TABLE_LIST *view= lex->unlink_first_table(&link_to_local);
   TABLE_LIST *tables= lex->query_tables;
@@ -256,8 +257,9 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     /*
       DEFINER-clause is missing; we have to create default definer in
       persistent arena to be PS/SP friendly.
+      If this is an ALTER VIEW then the current user should be set as
+      the definer.
     */
-
     Query_arena original_arena;
     Query_arena *ps_arena = thd->activate_stmt_arena_if_needed(&original_arena);
 
@@ -277,11 +279,11 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       - same as current user
       - current user has SUPER_ACL
   */
-  if (strcmp(lex->definer->user.str,
-             thd->security_ctx->priv_user) != 0 ||
-      my_strcasecmp(system_charset_info,
-                    lex->definer->host.str,
-                    thd->security_ctx->priv_host) != 0)
+  if (definer_check_is_needed &&
+      (strcmp(lex->definer->user.str, thd->security_ctx->priv_user) != 0 ||
+       my_strcasecmp(system_charset_info,
+                     lex->definer->host.str,
+                     thd->security_ctx->priv_host) != 0))
   {
     if (!(thd->security_ctx->master_access & SUPER_ACL))
     {
