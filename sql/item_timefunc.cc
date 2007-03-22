@@ -1927,19 +1927,6 @@ void Item_func_convert_tz::fix_length_and_dec()
 }
 
 
-bool
-Item_func_convert_tz::fix_fields(THD *thd_arg, Item **ref)
-{
-  String str;
-  if (Item_date_func::fix_fields(thd_arg, ref))
-    return TRUE;
-
-  tz_tables= thd_arg->lex->time_zone_tables_used;
-
-  return FALSE;
-}
-
-
 String *Item_func_convert_tz::val_str(String *str)
 {
   TIME time_tmp;
@@ -1974,16 +1961,17 @@ bool Item_func_convert_tz::get_date(TIME *ltime,
 {
   my_time_t my_time_tmp;
   String str;
+  THD *thd= current_thd;
 
   if (!from_tz_cached)
   {
-    from_tz= my_tz_find(args[1]->val_str(&str), tz_tables);
+    from_tz= my_tz_find(thd, args[1]->val_str(&str));
     from_tz_cached= args[1]->const_item();
   }
 
   if (!to_tz_cached)
   {
-    to_tz= my_tz_find(args[2]->val_str(&str), tz_tables);
+    to_tz= my_tz_find(thd, args[2]->val_str(&str));
     to_tz_cached= args[2]->const_item();
   }
 

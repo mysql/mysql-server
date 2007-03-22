@@ -647,6 +647,7 @@ struct Query_cache_query_flags
 {
   unsigned int client_long_flag:1;
   unsigned int client_protocol_41:1;
+  unsigned int result_in_binary_protocol:1;
   unsigned int more_results_exists:1;
   unsigned int pkt_nr;
   uint character_set_client_num;
@@ -673,6 +674,11 @@ struct Query_cache_query_flags
   query_cache.send_result_to_client(A, B, C)
 #define query_cache_invalidate_by_MyISAM_filename_ref \
   &query_cache_invalidate_by_MyISAM_filename
+/* note the "maybe": it's a read without mutex */
+#define query_cache_maybe_disabled(T)                                 \
+  (T->variables.query_cache_type == 0 || query_cache.query_cache_size == 0)
+#define query_cache_is_cacheable_query(L) \
+  (((L)->sql_command == SQLCOM_SELECT) && (L)->safe_to_cache_query)
 #else
 #define QUERY_CACHE_FLAGS_SIZE 0
 #define query_cache_store_query(A, B)
@@ -689,6 +695,8 @@ struct Query_cache_query_flags
 #define query_cache_abort(A)
 #define query_cache_end_of_result(A)
 #define query_cache_invalidate_by_MyISAM_filename_ref NULL
+#define query_cache_maybe_disabled(T) 1
+#define query_cache_is_cacheable_query(L) 0
 #endif /*HAVE_QUERY_CACHE*/
 
 /*
@@ -1429,6 +1437,12 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags);
 int abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt);
 void close_open_tables_and_downgrade(ALTER_PARTITION_PARAM_TYPE *lpt);
 void mysql_wait_completed_table(ALTER_PARTITION_PARAM_TYPE *lpt, TABLE *my_table);
+
+/* Functions to work with system tables. */
+bool open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
+                                 Open_tables_state *backup);
+void close_system_tables(THD *thd, Open_tables_state *backup);
+TABLE *open_system_table_for_update(THD *thd, TABLE_LIST *one_table);
 
 bool close_cached_tables(THD *thd, bool wait_for_refresh, TABLE_LIST *tables, bool have_lock = FALSE);
 void copy_field_from_tmp_record(Field *field,int offset);

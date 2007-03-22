@@ -100,7 +100,6 @@ extern "C" byte* sp_sroutine_key(const byte *ptr, uint *plen, my_bool first);
   we already have some tables open and locked.
 */
 TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup);
-void close_proc_table(THD *thd, Open_tables_state *backup);
 
 
 /*

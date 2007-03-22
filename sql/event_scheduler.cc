@@ -574,6 +574,14 @@ Event_scheduler::execute_top(THD *thd, Event_queue_element_for_exec *event_name)
   DBUG_PRINT("info", ("Event %s@%s ready for start",
              event_name->dbname.str, event_name->name.str));
 
+  /*
+    TODO: should use thread pool here, preferably with an upper limit
+    on number of threads: if too many events are scheduled for the
+    same time, starting all of them at once won't help them run truly
+    in parallel (because of the great amount of synchronization), so
+    we may as well execute them in sequence, keeping concurrency at a
+    reasonable level.
+  */
   /* Major failure */
   if ((res= pthread_create(&th, &connection_attrib, event_worker_thread,
                            event_name)))

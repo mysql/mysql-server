@@ -6564,6 +6564,46 @@ call proc_21462_b(1)|
 drop procedure proc_21462_a|
 drop procedure proc_21462_b|
 
+
+#
+# BUG#20492: Subsequent calls to stored procedure yeild incorrect
+# result if join is used 
+#
+# Optimized ON expression in join wasn't properly saved for reuse.
+#
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1|
+DROP VIEW IF EXISTS v1, v2|
+DROP TABLE IF EXISTS t3, t4|
+--enable_warnings
+
+CREATE TABLE t3 (t3_id INT)|
+
+INSERT INTO t3 VALUES (0)|
+INSERT INTO t3 VALUES (1)|
+
+CREATE TABLE t4 (t4_id INT)|
+
+INSERT INTO t4 VALUES (2)|
+
+CREATE VIEW v1 AS
+SELECT t3.t3_id, t4.t4_id
+FROM t3 JOIN t4 ON t3.t3_id = 0|
+
+CREATE VIEW v2 AS
+SELECT t3.t3_id AS t3_id_1, v1.t3_id AS t3_id_2, v1.t4_id
+FROM t3 LEFT JOIN v1 ON t3.t3_id = 0|
+
+CREATE PROCEDURE p1() SELECT * FROM v2|
+
+# Results should not differ.
+CALL p1()|
+CALL p1()|
+
+DROP PROCEDURE p1|
+DROP VIEW v1, v2|
+DROP TABLE t3, t4|
+
 --echo End of 5.0 tests
 
 --echo Begin of 5.1 tests
@@ -6826,6 +6866,141 @@ select func_8407_b()|
 
 drop function func_8407_a|
 drop function func_8407_b|
+
+#
+# Bug#26503 (Illegal SQL exception handler code causes the server to crash)
+#
+
+--disable_warnings
+drop table if exists table_26503|
+drop procedure if exists proc_26503_ok_1|
+drop procedure if exists proc_26503_ok_2|
+drop procedure if exists proc_26503_ok_3|
+drop procedure if exists proc_26503_ok_4|
+--enable_warnings
+
+create table table_26503(a int unique)|
+
+create procedure proc_26503_ok_1(v int)
+begin
+  declare i int default 5;
+
+  declare continue handler for sqlexception
+  begin
+    select 'caught something';
+    retry:
+    while i > 0 do
+      begin
+        set i = i - 1;
+        select 'looping', i;
+        iterate retry;
+        select 'dead code';
+      end;
+    end while retry;
+    select 'leaving handler';
+  end;
+
+  select 'do something';
+  insert into table_26503 values (v);
+  select 'do something again';
+  insert into table_26503 values (v);
+end|
+
+create procedure proc_26503_ok_2(v int)
+begin
+  declare i int default 5;
+
+  declare continue handler for sqlexception
+  begin
+    select 'caught something';
+    retry:
+    while i > 0 do
+      begin
+        set i = i - 1;
+        select 'looping', i;
+        leave retry;
+        select 'dead code';
+      end;
+    end while;
+    select 'leaving handler';
+  end;
+
+  select 'do something';
+  insert into table_26503 values (v);
+  select 'do something again';
+  insert into table_26503 values (v);
+end|
+
+## The outer retry label should not prevent using the inner label.
+
+create procedure proc_26503_ok_3(v int)
+begin
+  declare i int default 5;
+
+retry:
+  begin
+    declare continue handler for sqlexception
+    begin
+      select 'caught something';
+      retry:
+      while i > 0 do
+        begin
+          set i = i - 1;
+          select 'looping', i;
+          iterate retry;
+          select 'dead code';
+        end;
+      end while retry;
+      select 'leaving handler';
+    end;
+
+    select 'do something';
+    insert into table_26503 values (v);
+    select 'do something again';
+    insert into table_26503 values (v);
+  end;
+end|
+
+## The outer retry label should not prevent using the inner label.
+
+create procedure proc_26503_ok_4(v int)
+begin
+  declare i int default 5;
+
+retry:
+  begin
+    declare continue handler for sqlexception
+    begin
+      select 'caught something';
+      retry:
+      while i > 0 do
+        begin
+          set i = i - 1;
+          select 'looping', i;
+          leave retry;
+          select 'dead code';
+        end;
+      end while;
+      select 'leaving handler';
+    end;
+
+    select 'do something';
+    insert into table_26503 values (v);
+    select 'do something again';
+    insert into table_26503 values (v);
+  end;
+end|
+
+call proc_26503_ok_1(1)|
+call proc_26503_ok_2(2)|
+call proc_26503_ok_3(3)|
+call proc_26503_ok_4(4)|
+
+drop table table_26503|
+drop procedure proc_26503_ok_1|
+drop procedure proc_26503_ok_2|
+drop procedure proc_26503_ok_3|
+drop procedure proc_26503_ok_4|
 
 #
 # Bug#25373: Stored functions wasn't compared correctly which leads to a wrong
