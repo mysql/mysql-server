@@ -258,7 +258,8 @@ static int del(register N_INFO *info, register N_KEYDEF *keyinfo, uchar *key,
   ISAM_SHARE *share=info->s;
   S_PARAM s_temp;
   DBUG_ENTER("del");
-  DBUG_PRINT("enter",("leaf_page: %ld   keypos: %lx",leaf_page,keypos));
+  DBUG_PRINT("enter",("leaf_page: %ld   keypos: 0x%lx",
+                      (long) leaf_page, (long) keypos));
   DBUG_DUMP("leaf_buff",(byte*) leaf_buff,getint(leaf_buff));
 
   endpos=leaf_buff+getint(leaf_buff);
@@ -349,7 +350,8 @@ static int underflow(register N_INFO *info, register N_KEYDEF *keyinfo,
   S_PARAM s_temp;
   ISAM_SHARE *share=info->s;
   DBUG_ENTER("underflow");
-  DBUG_PRINT("enter",("leaf_page: %ld   keypos: %lx",leaf_page,keypos));
+  DBUG_PRINT("enter",("leaf_page: %ld keypos: 0x%lx",
+                      leaf_page, (long) keypos));
   DBUG_DUMP("anc_buff",(byte*) anc_buff,getint(anc_buff));
   DBUG_DUMP("leaf_buff",(byte*) leaf_buff,getint(leaf_buff));
 
@@ -558,7 +560,8 @@ static uint remove_key(N_KEYDEF *keyinfo, uint nod_flag,
   int r_length,s_length,first,diff_flag;
   uchar *start;
   DBUG_ENTER("remove_key");
-  DBUG_PRINT("enter",("keypos: %lx  page_end: %lx",keypos,page_end));
+  DBUG_PRINT("enter",("keypos: 0x%lx  page_end: 0x%lx",
+                      (long) keypos, (long) page_end));
 
   start=keypos;
   if (!(keyinfo->base.flag & (HA_PACK_KEY | HA_SPACE_PACK_USED)))

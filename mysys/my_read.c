@@ -39,7 +39,7 @@ uint my_read(File Filedes, byte *Buffer, uint Count, myf MyFlags)
   uint readbytes, save_count;
   DBUG_ENTER("my_read");
   DBUG_PRINT("my",("Fd: %d  Buffer: 0x%lx  Count: %u  MyFlags: %d",
-                   Filedes, Buffer, Count, MyFlags));
+                   Filedes, (long) Buffer, Count, MyFlags));
   save_count= Count;
 
   for (;;)
@@ -48,7 +48,7 @@ uint my_read(File Filedes, byte *Buffer, uint Count, myf MyFlags)
     if ((readbytes= (uint) read(Filedes, Buffer, Count)) != Count)
     {
       my_errno= errno ? errno : -1;
-      DBUG_PRINT("warning",("Read only %ld bytes off %ld from %d, errno: %d",
+      DBUG_PRINT("warning",("Read only %u bytes off %u from %d, errno: %d",
                             readbytes, Count, Filedes, my_errno));
 #ifdef THREAD
       if ((readbytes == 0 || (int) readbytes == -1) && errno == EINTR)

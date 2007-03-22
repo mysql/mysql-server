@@ -54,8 +54,9 @@ int mi_assign_to_key_cache(MI_INFO *info,
   int error= 0;
   MYISAM_SHARE* share= info->s;
   DBUG_ENTER("mi_assign_to_key_cache");
-  DBUG_PRINT("enter",("old_key_cache_handle: %lx  new_key_cache_handle: %lx",
-		      share->key_cache, key_cache));
+  DBUG_PRINT("enter",
+             ("old_key_cache_handle: 0x%lx  new_key_cache_handle: 0x%lx",
+              (long) share->key_cache, (long) key_cache));
 
   /*
     Skip operation if we didn't change key cache. This can happen if we

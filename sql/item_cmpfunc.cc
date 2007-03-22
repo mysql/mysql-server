@@ -1738,7 +1738,7 @@ byte *in_row::get_value(Item *item)
 void in_row::set(uint pos, Item *item)
 {
   DBUG_ENTER("in_row::set");
-  DBUG_PRINT("enter", ("pos %u item 0x%lx", pos, (ulong) item));
+  DBUG_PRINT("enter", ("pos: %u  item: 0x%lx", pos, (ulong) item));
   ((cmp_item_row*) base)[pos].store_value_by_template(&tmp, item);
   DBUG_VOID_RETURN;
 }
@@ -1820,7 +1820,7 @@ cmp_item* cmp_item_row::make_same()
 cmp_item_row::~cmp_item_row()
 {
   DBUG_ENTER("~cmp_item_row");
-  DBUG_PRINT("enter",("this: %lx", this));
+  DBUG_PRINT("enter",("this: 0x%lx", (long) this));
   if (comparators)
   {
     for (uint i= 0; i < n; i++)
@@ -2413,7 +2413,7 @@ longlong Item_is_not_null_test::val_int()
   if (!used_tables_cache && !with_subselect)
   {
     owner->was_null|= (!cached_value);
-    DBUG_PRINT("info", ("cached :%d", cached_value));
+    DBUG_PRINT("info", ("cached :%ld", (long) cached_value));
     DBUG_RETURN(cached_value);
   }
   if (args[0]->is_null())
