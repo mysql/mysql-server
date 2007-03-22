@@ -1437,4 +1437,12 @@ a
 SELECT a FROM (SELECT a FROM t1 UNION SELECT a FROM t1 ORDER BY c) AS test;
 ERROR 42S22: Unknown column 'c' in 'order clause'
 DROP TABLE t1;
+(select 1 into @var) union (select 1);
+ERROR HY000: Incorrect usage of UNION and INTO
+(select 1) union (select 1 into @var);
+select @var;
+@var
+1
+(select 2) union (select 1 into @var);
+ERROR 42000: Result consisted of more than one row
 End of 5.0 tests
