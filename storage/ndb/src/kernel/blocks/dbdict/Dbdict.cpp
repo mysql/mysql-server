@@ -1806,7 +1806,7 @@ void Dbdict::initRestartRecord()
 void Dbdict::initNodeRecords() 
 {
   jam();
-  for (unsigned i = 1; i < MAX_NODES; i++) {
+  for (unsigned i = 1; i < MAX_NDB_NODES; i++) {
     NodeRecordPtr nodePtr;
     c_nodes.getPtr(nodePtr, i);
     nodePtr.p->hotSpare = false;
@@ -2053,7 +2053,7 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_attributeRecordPool.setSize(attributesize);
   c_attributeRecordHash.setSize(64);
   c_fsConnectRecordPool.setSize(ZFS_CONNECT_SIZE);
-  c_nodes.setSize(MAX_NODES);
+  c_nodes.setSize(MAX_NDB_NODES);
   c_pageRecordArray.setSize(ZNUMBER_OF_PAGES);
   c_schemaPageRecordArray.setSize(2 * NDB_SF_MAX_PAGES);
   c_tableRecordPool.setSize(tablerecSize);
@@ -2238,10 +2238,10 @@ void Dbdict::execREAD_NODESCONF(Signal* signal)
     NodeRecordPtr nodePtr;
     c_nodes.getPtr(nodePtr, i);
 
-    if (NodeBitmask::get(readNodes->allNodes, i)) {
+    if (NdbNodeBitmask::get(readNodes->allNodes, i)) {
       jam();
       nodePtr.p->nodeState = NodeRecord::NDB_NODE_ALIVE;
-      if (NodeBitmask::get(readNodes->inactiveNodes, i)) {
+      if (NdbNodeBitmask::get(readNodes->inactiveNodes, i)) {
 	jam();
 	/**-------------------------------------------------------------------
 	 *
@@ -2270,7 +2270,7 @@ void Dbdict::execHOT_SPAREREP(Signal* signal)
   jamEntry();
   HotSpareRep * const hotSpare = (HotSpareRep*)&signal->theData[0];
   for (unsigned i = 1; i < MAX_NDB_NODES; i++) {
-    if (NodeBitmask::get(hotSpare->theHotSpareNodes, i)) {
+    if (NdbNodeBitmask::get(hotSpare->theHotSpareNodes, i)) {
       NodeRecordPtr nodePtr;
       c_nodes.getPtr(nodePtr, i);
       nodePtr.p->hotSpare = true;
@@ -3611,7 +3611,7 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
   c_masterNodeId = nodeFail->masterNodeId;
 
   c_noNodesFailed += numberOfFailedNodes;
-  Uint32 theFailedNodes[NodeBitmask::Size];
+  Uint32 theFailedNodes[NdbNodeBitmask::Size];
   memcpy(theFailedNodes, nodeFail->theNodes, sizeof(theFailedNodes));
 
   c_counterMgr.execNODE_FAILREP(signal);
@@ -3651,7 +3651,7 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
   
   for(unsigned i = 1; i < MAX_NDB_NODES; i++) {
     jam();
-    if(NodeBitmask::get(theFailedNodes, i)) {
+    if(NdbNodeBitmask::get(theFailedNodes, i)) {
       jam();
       NodeRecordPtr nodePtr;
       c_nodes.getPtr(nodePtr, i);

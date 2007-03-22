@@ -31,6 +31,8 @@ private:
   unsigned char cur_pos;
 };
 
+class Ndb;
+
 /**
  * @class Ndb_cluster_connection
  * @brief Represents a connection to a cluster of storage nodes.
@@ -99,6 +101,26 @@ public:
   int wait_until_ready(int timeout_for_first_alive,
 		       int timeout_after_first_alive);
 
+  /**
+   * Lock creation of ndb-objects
+   *   Needed to iterate over created ndb objects
+   */
+  void lock_ndb_objects();
+
+  /**
+   * Unlock creation of ndb-objects
+   */
+  void unlock_ndb_objects();
+
+  /**
+   * Iterator of ndb-objects
+   * @param p Pointer to last returned ndb-object
+   *          NULL - returns first object
+   * @note lock_ndb_objects should be used before using this function
+   *       and unlock_ndb_objects should be used after
+   */
+  const Ndb* get_next_ndb_object(const Ndb* p);
+  
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   int get_no_ready();
   const char *get_connectstring(char *buf, int buf_sz) const;

@@ -46,15 +46,15 @@ bool theCheckFlag = true;
 bool onlyPageHeaders = false;
 bool onlyMbyteHeaders = false;
 bool onlyFileDesc = false;
-bool firstLap = true;
+bool onlyLap = false;
 Uint32 startAtMbyte = 0;
 Uint32 startAtPage = 0;
 Uint32 startAtPageIndex = 0;
 Uint32 *redoLogPage;
 
 NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read a redo log file", 16384) { 
-  int wordIndex = 0;
-  int oldWordIndex = 0;
+  Uint32 wordIndex = 0;
+  Uint32 oldWordIndex = 0;
   Uint32 recordType = 1234567890;
 
   PageHeader *thePageHeader;
@@ -88,24 +88,34 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
   bool lastPage = false;
   for (Uint32 j = startAtMbyte; j < NO_MBYTE_IN_FILE && !lastPage; j++) {
 
+    ndbout_c("mb: %d", j);
     readFromFile(f, redoLogPage, PAGESIZE*NO_PAGES_IN_MBYTE);
 
     words_from_previous_page = 0;
 
     // Loop for every page.
-    for (int i = 0; i < NO_PAGES_IN_MBYTE; i++) {
+    for (int i = 0; i < NO_PAGES_IN_MBYTE; i++) 
+    {
       wordIndex = 0;
       thePageHeader = (PageHeader *) &redoLogPage[i*PAGESIZE];
       // Print out mbyte number, page number and page index.
       ndbout << j << ":" << i << ":" << wordIndex << endl 
 	     << " " << j*32 + i << ":" << wordIndex << " ";
       if (thePrintFlag) ndbout << (*thePageHeader);
+      if (onlyLap)
+      {
+	ndbout_c("lap: %d maxgcicompleted: %d maxgcistarted: %d",
+		 thePageHeader->m_lap,
+		 thePageHeader->m_max_gci_completed,
+		 thePageHeader->m_max_gci_started);
+	continue;
+      }
       if (theCheckFlag) {
 	if(!thePageHeader->check()) {
 	  ndbout << "Error in thePageHeader->check()" << endl;
 	  doExit();
 	}
-
+	
 	Uint32 checkSum = 37;
 	for (int ps = 1; ps < PAGESIZE; ps++)
 	  checkSum = redoLogPage[i*PAGESIZE+ps] ^ checkSum;
@@ -287,7 +297,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
       } while(wordIndex < lastWord && i < NO_PAGES_IN_MBYTE);
 
 
-      if (lastPage)
+      if (false && lastPage)
       {
 	if (theDumpFlag)
 	{
@@ -373,6 +383,9 @@ void readArguments(int argc, const char** argv)
 	onlyPageHeaders = true;
       } else if (strcmp(argv[i], "-filedescriptors") == 0) {
 	onlyFileDesc = true;
+      } else if (strcmp(argv[i], "-lap") == 0) {
+	thePrintFlag = false;
+	onlyLap = true;
       } else if (strcmp(argv[i], "-mbyte") == 0) {
 	startAtMbyte = atoi(argv[i+1]);
 	if (startAtMbyte > 15) {

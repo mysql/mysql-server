@@ -38,22 +38,35 @@ Uint32 makeVersion(Uint32 major, Uint32 minor, Uint32 build) {
 }
 
 char ndb_version_string_buf[NDB_VERSION_STRING_BUF_SZ];
-const char * getVersionString(Uint32 version, const char * status,
+const char * getVersionString(Uint32 version, Uint32 mysql_version, 
+			      const char * status,
 			      char *buf, unsigned sz)
 {
+  char tmp[100];
   if (status && status[0] != 0)
-	  basestring_snprintf(buf, sz,
-	     "Version %d.%d.%d (%s)",
-	     getMajor(version),
-	     getMinor(version),
-	     getBuild(version),
-	     status);
+    basestring_snprintf(tmp, sizeof(tmp), "%s", status);
   else
-    basestring_snprintf(buf, sz,
-	     "Version %d.%d.%d",
-	     getMajor(version),
-	     getMinor(version),
-	     getBuild(version));
+    tmp[0] = 0;
+
+  if (mysql_version)
+  {
+    basestring_snprintf(buf, sz, "mysql-%d.%d.%d ndb-%d.%d.%d%s",
+			getMajor(mysql_version),
+			getMinor(mysql_version),
+			getBuild(mysql_version),
+			getMajor(version),
+			getMinor(version),
+			getBuild(version),
+			tmp);
+  }
+  else
+  {
+    basestring_snprintf(buf, sz, "ndb-%d.%d.%d%s",
+			getMajor(version),
+			getMinor(version),
+			getBuild(version),
+			tmp);
+  }
   return buf;
 }
 
@@ -91,6 +104,9 @@ void ndbSetOwnVersion() {}
 
 #ifndef TEST_VERSION
 struct NdbUpGradeCompatible ndbCompatibleTable_full[] = {
+  { MAKE_VERSION(6,1,NDB_VERSION_BUILD), MAKE_VERSION(6,1,5), UG_Range},
+  /* ndb_apply_status table changed, and no compatability code written */
+  { MAKE_VERSION(6,1,4), MAKE_VERSION(6,1,2), UG_Range},
   { MAKE_VERSION(5,1,NDB_VERSION_BUILD), MAKE_VERSION(5,1,0), UG_Range},
   { MAKE_VERSION(5,0,NDB_VERSION_BUILD), MAKE_VERSION(5,0,12), UG_Range},
   { MAKE_VERSION(5,0,11), MAKE_VERSION(5,0,2), UG_Range},
