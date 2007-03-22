@@ -1749,9 +1749,6 @@ MgmtSrvr::insertError(int nodeId, int errorNo)
   if(getNodeType(nodeId) == NDB_MGM_NODE_TYPE_NDB)
   {
     block= CMVMI;
-    if(!theFacade->theClusterMgr->getNodeInfo(nodeId).connected
-       || !theFacade->get_node_alive(nodeId))
-      return NO_CONTACT_WITH_PROCESS;
   }
   else if(nodeId == _ownNodeId)
   {
