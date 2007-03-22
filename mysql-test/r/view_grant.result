@@ -775,4 +775,25 @@ DROP DATABASE mysqltest_db1;
 DROP DATABASE mysqltest_db2;
 DROP USER mysqltest_u1@localhost;
 DROP USER mysqltest_u2@localhost;
+CREATE DATABASE db26813;
+USE db26813;
+CREATE TABLE t1(f1 INT, f2 INT);
+CREATE VIEW v1 AS SELECT f1 FROM t1;
+CREATE VIEW v2 AS SELECT f1 FROM t1;
+CREATE VIEW v3 AS SELECT f1 FROM t1;
+CREATE USER u26813@localhost;
+GRANT DROP ON db26813.v1 TO u26813@localhost;
+GRANT CREATE VIEW ON db26813.v2 TO u26813@localhost;
+GRANT DROP, CREATE VIEW ON db26813.v3 TO u26813@localhost;
+GRANT SELECT ON db26813.t1 TO u26813@localhost;
+ALTER VIEW v1 AS SELECT f2 FROM t1;
+ERROR 42000: CREATE VIEW command denied to user 'u26813'@'localhost' for table 'v1'
+ALTER VIEW v2 AS SELECT f2 FROM t1;
+ERROR 42000: DROP command denied to user 'u26813'@'localhost' for table 'v2'
+ALTER VIEW v3 AS SELECT f2 FROM t1;
+SHOW CREATE VIEW v3;
+View	Create View
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `t1`.`f2` AS `f2` from `t1`
+DROP USER u26813@localhost;
+DROP DATABASE db26813;
 End of 5.0 tests.
