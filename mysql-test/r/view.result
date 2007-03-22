@@ -3338,8 +3338,6 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such`@`user_1` SQL SECURITY DEFINER VI
 Warnings:
 Note	1449	There is no 'no_such'@'user_1' registered
 ALTER ALGORITHM=MERGE VIEW v1 AS SELECT * FROM t1;
-Warnings:
-Note	1449	There is no 'no_such'@'user_1' registered
 SHOW CREATE VIEW v1;
 View	Create View
 v1	CREATE ALGORITHM=MERGE DEFINER=`no_such`@`user_1` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`i` AS `i` from `t1`

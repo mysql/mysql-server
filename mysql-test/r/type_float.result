@@ -91,10 +91,10 @@ col1	col2	col3	col4
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col1` double default NULL,
-  `col2` double(22,5) default NULL,
-  `col3` double default NULL,
-  `col4` double default NULL
+  `col1` double DEFAULT NULL,
+  `col2` double(22,5) DEFAULT NULL,
+  `col3` double DEFAULT NULL,
+  `col4` double DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1,t2;
 create table t1 (a float);
@@ -237,7 +237,7 @@ d
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `d` double default NULL
+  `d` double DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1, t2, t3;
 create table t1 select  105213674794682365.00 + 0.0 x;
