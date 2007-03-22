@@ -1458,7 +1458,7 @@ runBug27003(NDBT_Context* ctx, NDBT_Step* step)
 	return NDBT_FAILED;
       
       res.startNodes(&node, 1);
-      res.waitNodesStartPhase(&node, 1, 2);
+      NdbSleep_SecSleep(3);
       pos++;
     }
     pos = 0;
