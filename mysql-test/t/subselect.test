@@ -2602,13 +2602,6 @@ SELECT * FROM t1
 
 DROP TABLE t1,t2,t3;
 
-#
-# Bug#20835 (literal string with =any values)
-#
-CREATE TABLE t1 (s1 char(1));
-INSERT INTO t1 VALUES ('a');
-SELECT * FROM t1 WHERE _utf8'a' = ANY (SELECT s1 FROM t1);
-DROP TABLE t1;
 #                                                                             
 # Bug#23800: Outer fields in correlated subqueries is used in a temporary     
 #            table created for sorting.                                       
@@ -2748,3 +2741,33 @@ SELECT * FROM (SELECT 'this is ' 'a test.' AS col1, a AS t2 FROM t1) t;
 
 DROP table t1;
 
+#
+# Bug #27257: COUNT(*) aggregated in outer query
+#  
+
+CREATE TABLE t1 (a int, b int);
+CREATE TABLE t2 (m int, n int);
+INSERT INTO t1 VALUES (2,2), (2,2), (3,3), (3,3), (3,3), (4,4);
+INSERT INTO t2 VALUES (1,11), (2,22), (3,32), (4,44), (4,44);
+
+SELECT COUNT(*), a,
+       (SELECT m FROM t2 WHERE m = count(*) LIMIT 1)
+  FROM t1 GROUP BY a;
+
+SELECT COUNT(*), a,
+       (SELECT MIN(m) FROM t2 WHERE m = count(*))
+  FROM t1 GROUP BY a;
+
+SELECT COUNT(*), a       
+  FROM t1 GROUP BY a
+    HAVING (SELECT MIN(m) FROM t2 WHERE m = count(*)) > 1;
+
+DROP TABLE t1,t2;
+
+#
+# Bug#20835 (literal string with =any values)
+#
+CREATE TABLE t1 (s1 char(1));
+INSERT INTO t1 VALUES ('a');
+SELECT * FROM t1 WHERE _utf8'a' = ANY (SELECT s1 FROM t1);
+DROP TABLE t1;
