@@ -23,6 +23,7 @@
 #include <mgmapi.h>
 #include <mgmapi_debug.h>
 #include <InputStream.hpp>
+#include <signaldata/EventReport.hpp>
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
@@ -508,7 +509,7 @@ int runTestMgmApiEventTimeout(NDBT_Context* ctx, NDBT_Step* step)
   h= ndb_mgm_create_handle();
   ndb_mgm_set_connectstring(h, mgm);
 
-  int errs[] = { 0, -1 };
+  int errs[] = { 10000, 0, -1 };
 
   for(int error_ins_no=0; errs[error_ins_no]!=-1; error_ins_no++)
   {
@@ -553,14 +554,26 @@ int runTestMgmApiEventTimeout(NDBT_Context* ctx, NDBT_Step* step)
       result= NDBT_FAILED;
     }
 
+    Uint32 theData[25];
+    EventReport *fake_event = (EventReport*)theData;
+    fake_event->setEventType(NDB_LE_NDBStopForced);
+    fake_event->setNodeId(42);
+    theData[2]= 0;
+    theData[3]= 0;
+    theData[4]= 0;
+    theData[5]= 0;
+
+    ndb_mgm_report_event(h, theData, 6);
+
     char *tmp= 0;
     char buf[512];
-    SocketInputStream in(fd,20000);
-    do {
+    SocketInputStream in(fd,2000);
+    for(int i=0; i<20; i++)
+    {
       if((tmp = in.gets(buf, sizeof(buf))))
       {
-        const char ping_token[]="<PING>";
-        if(memcmp(ping_token,tmp,sizeof(ping_token)-1))
+//        const char ping_token[]="<PING>";
+//        if(memcmp(ping_token,tmp,sizeof(ping_token)-1))
           if(tmp && strlen(tmp))
             ndbout << tmp;
       }
@@ -568,28 +581,25 @@ int runTestMgmApiEventTimeout(NDBT_Context* ctx, NDBT_Step* step)
       {
         if(in.timedout())
         {
-          ndbout << "TIMED OUT READING EVENT" << endl;
+          ndbout << "TIMED OUT READING EVENT at iteration " << i << endl;
           break;
         }
       }
-    } while(true);
+    }
 
-    if(error_ins!=0 && ndb_mgm_is_connected(h))
+    /*
+     * events go through a *DIFFERENT* socket than the NdbMgmHandle
+     * so we should still be connected (and be able to check_connection)
+     *
+     */
+
+    if(ndb_mgm_check_connection(h) && !ndb_mgm_is_connected(h))
     {
       ndbout << "FAILED: is still connected after error" << endl;
       result= NDBT_FAILED;
     }
 
-    if(error_ins!=0 && ndb_mgm_get_latest_error(h)!=ETIMEDOUT)
-    {
-      ndbout << "FAILED: Incorrect error code (" << ndb_mgm_get_latest_error(h)
-             << " != expected " << ETIMEDOUT << ") desc: "
-             << ndb_mgm_get_latest_error_desc(h)
-             << " line: " << ndb_mgm_get_latest_error_line(h)
-             << " msg: " << ndb_mgm_get_latest_error_msg(h)
-             << endl;
-      result= NDBT_FAILED;
-    }
+    ndb_mgm_disconnect(h);
   }
 
 done:
