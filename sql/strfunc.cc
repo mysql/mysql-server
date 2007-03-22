@@ -150,7 +150,7 @@ uint find_type2(TYPELIB *typelib, const char *x, uint length, CHARSET_INFO *cs)
   int find,pos;
   const char *j;
   DBUG_ENTER("find_type2");
-  DBUG_PRINT("enter",("x: '%s'  lib: 0x%lx",x,typelib));
+  DBUG_PRINT("enter",("x: '%s'  lib: 0x%lx",x, (long) typelib));
 
   if (!typelib->count)
   {

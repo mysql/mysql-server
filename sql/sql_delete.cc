@@ -272,7 +272,7 @@ cleanup:
   else
   {
     send_ok(thd,deleted);
-    DBUG_PRINT("info",("%d records deleted",deleted));
+    DBUG_PRINT("info",("%lu records deleted", (ulong) deleted));
   }
        DBUG_RETURN(0);
 }

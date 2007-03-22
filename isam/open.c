@@ -116,7 +116,7 @@ N_INFO *nisam_open(const char *name, int mode, uint handle_locking)
 	  HA_OPTION_TEMP_COMPRESS_RECORD))
     {
       DBUG_PRINT("error",("wrong options: 0x%lx",
-			  uint2korr(share->state.header.options)));
+                          (long) uint2korr(share->state.header.options)));
       my_errno=HA_ERR_OLD_FILE;
       goto err;
     }

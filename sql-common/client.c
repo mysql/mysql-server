@@ -601,7 +601,7 @@ net_safe_read(MYSQL *mysql)
 
   if (len == packet_error || len == 0)
   {
-    DBUG_PRINT("error",("Wrong connection or packet. fd: %s  len: %d",
+    DBUG_PRINT("error",("Wrong connection or packet. fd: %s  len: %lu",
 			vio_description(net->vio),len));
 #ifdef MYSQL_SERVER
     if (vio_was_interrupted(net->vio))
@@ -858,7 +858,7 @@ void STDCALL
 mysql_free_result(MYSQL_RES *result)
 {
   DBUG_ENTER("mysql_free_result");
-  DBUG_PRINT("enter",("mysql_res: %lx",result));
+  DBUG_PRINT("enter",("mysql_res: 0x%lx", (ulong) result));
   if (result)
   {
     MYSQL *mysql= result->handle;
@@ -1174,7 +1174,7 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
     {
       uchar *pos;
       /* fields count may be wrong */
-      DBUG_ASSERT ((field - result) < fields);
+      DBUG_ASSERT ((uint) (field - result) < fields);
       cli_fetch_lengths(&lengths[0], row->data, default_value ? 8 : 7);
       field->catalog  = strdup_root(alloc,(char*) row->data[0]);
       field->db       = strdup_root(alloc,(char*) row->data[1]);
@@ -1350,7 +1350,7 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
     DBUG_PRINT("info",("status: %u  warning_count:  %u",
 		       mysql->server_status, mysql->warning_count));
   }
-  DBUG_PRINT("exit",("Got %d rows",result->rows));
+  DBUG_PRINT("exit",("Got %lu rows", (ulong) result->rows));
   DBUG_RETURN(result);
 }
 
@@ -2178,7 +2178,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     goto error;
 #endif
 
-  DBUG_PRINT("exit",("Mysql handler: %lx",mysql));
+  DBUG_PRINT("exit",("Mysql handler: 0x%lx", (ulong) mysql));
   reset_sigpipe(mysql);
   DBUG_RETURN(mysql);
 
@@ -2533,7 +2533,7 @@ int STDCALL
 mysql_real_query(MYSQL *mysql, const char *query, ulong length)
 {
   DBUG_ENTER("mysql_real_query");
-  DBUG_PRINT("enter",("handle: %lx",mysql));
+  DBUG_PRINT("enter",("handle: 0x%lx", (ulong) mysql));
   DBUG_PRINT("query",("Query = '%-.4096s'",query));
 
   if (mysql_send_query(mysql,query,length))

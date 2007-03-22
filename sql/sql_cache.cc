@@ -383,7 +383,7 @@ inline Query_cache_block * Query_cache_block_table::block()
 void Query_cache_block::init(ulong block_length)
 {
   DBUG_ENTER("Query_cache_block::init");
-  DBUG_PRINT("qcache", ("init block 0x%lx  length: %lu", (ulong) this,
+  DBUG_PRINT("qcache", ("init block: 0x%lx  length: %lu", (ulong) this,
 			block_length));
   length = block_length;
   used = 0;
@@ -528,7 +528,8 @@ void Query_cache_query::init_n_lock()
   my_rwlock_init(&lock, NULL);
   lock_writing();
   DBUG_PRINT("qcache", ("inited & locked query for block 0x%lx",
-			((byte*) this)-ALIGN_SIZE(sizeof(Query_cache_block))));
+			(long) ((byte*) this) -
+                        ALIGN_SIZE(sizeof(Query_cache_block))));
   DBUG_VOID_RETURN;
 }
 
@@ -537,7 +538,8 @@ void Query_cache_query::unlock_n_destroy()
 {
   DBUG_ENTER("Query_cache_query::unlock_n_destroy");
   DBUG_PRINT("qcache", ("destroyed & unlocked query for block 0x%lx",
-			((byte*)this)-ALIGN_SIZE(sizeof(Query_cache_block))));
+			(long) ((byte*) this) -
+                        ALIGN_SIZE(sizeof(Query_cache_block))));
   /*
     The following call is not needed on system where one can destroy an
     active semaphore
@@ -1140,7 +1142,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 #ifndef EMBEDDED_LIBRARY
   do
   {
-    DBUG_PRINT("qcache", ("Results  (len %lu, used %lu, headers %lu)",
+    DBUG_PRINT("qcache", ("Results  (len: %lu  used: %lu  headers: %u)",
 			  result_block->length, result_block->used,
 			  result_block->headers_len()+
 			  ALIGN_SIZE(sizeof(Query_cache_result))));
@@ -1832,8 +1834,8 @@ Query_cache::append_result_data(Query_cache_block **current_block,
 				Query_cache_block *query_block)
 {
   DBUG_ENTER("Query_cache::append_result_data");
-  DBUG_PRINT("qcache", ("append %lu bytes to 0x%lx query",
-		      data_len, query_block));
+  DBUG_PRINT("qcache", ("append: %lu  bytes to:  0x%lx query",
+                        data_len, (ulong) query_block));
 
   if (query_block->query()->add(data_len) > query_cache_limit)
   {
@@ -3336,10 +3338,10 @@ void Query_cache::queries_dump()
       Query_cache_query_flags flags;
       memcpy(&flags, str+len, QUERY_CACHE_FLAGS_SIZE);
       str[len]= 0; // make zero ending DB name
-      DBUG_PRINT("qcache", ("F:%u C:%u L:%lu T:'%s' (%u) '%s' '%s'",
+      DBUG_PRINT("qcache", ("F: %u  C: %u  L: %lu  T: '%s'  (%u)  '%s'  '%s'",
 			    flags.client_long_flag,
 			    flags.character_set_client_num, 
-                            (ulong)flags.limit, flags.time_zone->get_name(),
+                            (ulong)flags.limit, flags.time_zone->get_name()->ptr(),
 			    len, str, strend(str)+1));
       DBUG_PRINT("qcache", ("-b- 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", (ulong) block,
 			    (ulong) block->next, (ulong) block->prev,
@@ -3569,7 +3571,7 @@ my_bool Query_cache::check_integrity(bool not_locked)
     default:
       DBUG_PRINT("error",
 		 ("block 0x%lx have incorrect type %u",
-		  block, block->type));
+		  (ulong) block, block->type));
       result = 1;
     }
     
@@ -3668,7 +3670,7 @@ my_bool Query_cache::check_integrity(bool not_locked)
       if (count != bins[i].number)
       {
 	DBUG_PRINT("error", ("bin[%d].number is %d, but bin have %d blocks",
-			     bins[i].number,  count));
+			     i, bins[i].number, count));
 	result = 1;
       }
     }

@@ -306,9 +306,9 @@ int check_user(THD *thd, enum enum_server_command command,
     if (!(thd->master_access & NO_ACCESS)) // authentification is OK 
     {
       DBUG_PRINT("info",
-                 ("Capabilities: %d  packet_length: %ld  Host: '%s'  "
+                 ("Capabilities: %lu  packet_length: %ld  Host: '%s'  "
                   "Login user: '%s' Priv_user: '%s'  Using password: %s "
-                  "Access: %u  db: '%s'",
+                  "Access: %lu  db: '%s'",
                   thd->client_capabilities, thd->max_client_packet_length,
                   thd->host_or_ip, thd->user, thd->priv_user,
                   passwd_len ? "yes": "no",
@@ -857,7 +857,7 @@ static int check_connection(THD *thd)
   if (thd->client_capabilities & CLIENT_IGNORE_SPACE)
     thd->variables.sql_mode|= MODE_IGNORE_SPACE;
 #ifdef HAVE_OPENSSL
-  DBUG_PRINT("info", ("client capabilities: %d", thd->client_capabilities));
+  DBUG_PRINT("info", ("client capabilities: %lu", thd->client_capabilities));
   if (thd->client_capabilities & CLIENT_SSL)
   {
     /* Do the SSL layering. */
@@ -1003,7 +1003,7 @@ pthread_handler_decl(handle_one_connection,arg)
     of handle_one_connection, which is thd. We need to know the
     start of the stack so that we could check for stack overruns.
   */
-  DBUG_PRINT("info", ("handle_one_connection called by thread %d\n",
+  DBUG_PRINT("info", ("handle_one_connection called by thread %lu\n",
 		      thd->thread_id));
   // now that we've called my_thread_init(), it is safe to call DBUG_*
 

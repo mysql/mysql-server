@@ -491,7 +491,7 @@ static int search_default_file_with_ext(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
           ext= fn_ext(search_file->name);
 
           /* check extension */
-          for (tmp_ext= (char**) f_extensions; *tmp_ext; *tmp_ext++)
+          for (tmp_ext= (char**) f_extensions; *tmp_ext; tmp_ext++)
           {
             if (!strcmp(ext, *tmp_ext))
               break;

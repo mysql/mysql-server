@@ -27,8 +27,8 @@ uint32 my_lread(int Filedes, byte *Buffer, uint32 Count, myf MyFlags)
 {
   uint32 readbytes;
   DBUG_ENTER("my_lread");
-  DBUG_PRINT("my",("Fd: %d  Buffer: %ld  Count: %ld  MyFlags: %d",
-		   Filedes, Buffer, Count, MyFlags));
+  DBUG_PRINT("my",("Fd: %d  Buffer: 0x%lx  Count: %u  MyFlags: %d",
+		   Filedes, (long) Buffer, Count, MyFlags));
 
   DBUG_PRINT("error", ("Deprecated my_lread() function should not be used."));
 

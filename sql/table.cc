@@ -87,7 +87,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   SQL_CRYPT *crypted=0;
   MEM_ROOT **root_ptr, *old_root;
   DBUG_ENTER("openfrm");
-  DBUG_PRINT("enter",("name: '%s'  form: %lx",name,outparam));
+  DBUG_PRINT("enter",("name: '%s'  form: 0x%lx", name, (ulong) outparam));
 
   bzero((char*) outparam,sizeof(*outparam));
   outparam->blob_ptr_size=sizeof(char*);
