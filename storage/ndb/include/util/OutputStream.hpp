@@ -29,6 +29,7 @@ public:
   virtual int print(const char * fmt, ...) = 0;
   virtual int println(const char * fmt, ...) = 0;
   virtual void flush() {};
+  virtual void reset_timeout() {};
 };
 
 class FileOutputStream : public OutputStream {
@@ -51,7 +52,7 @@ public:
   SocketOutputStream(NDB_SOCKET_TYPE socket, unsigned write_timeout_ms = 1000);
   virtual ~SocketOutputStream() {}
   bool timedout() { return m_timedout; };
-  void reset_timeout() { m_timedout= false; };
+  void reset_timeout() { m_timedout= false; m_timeout_remain= m_timeout_ms;};
 
   int print(const char * fmt, ...);
   int println(const char * fmt, ...);

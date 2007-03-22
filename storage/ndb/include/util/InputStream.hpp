@@ -32,6 +32,7 @@ public:
    * Set the mutex to be UNLOCKED when blocking (e.g. select(2))
    */
   void set_mutex(NdbMutex *m) { m_mutex= m; };
+  virtual void reset_timeout() {};
 protected:
   NdbMutex *m_mutex;
 };
@@ -57,7 +58,7 @@ public:
   virtual ~SocketInputStream() {}
   char* gets(char * buf, int bufLen);
   bool timedout() { return m_timedout; };
-  void reset_timeout() { m_timedout= false; };
+  void reset_timeout() { m_timedout= false; m_timeout_remain= m_timeout_ms;};
 
 };
 
