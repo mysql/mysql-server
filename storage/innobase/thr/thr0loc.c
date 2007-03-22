@@ -64,9 +64,7 @@ thr_local_get(
 
 try_again:
 	ut_ad(thr_local_hash);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&thr_local_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
 	/* Look for the local struct in the hash table */
 

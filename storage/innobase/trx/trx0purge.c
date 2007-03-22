@@ -197,9 +197,7 @@ void
 trx_purge_sys_create(void)
 /*======================*/
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
 	purge_sys = mem_alloc(sizeof(trx_purge_t));
 
@@ -260,9 +258,8 @@ trx_purge_add_update_undo_to_history(
 	ut_ad(undo);
 
 	rseg = undo->rseg;
-#ifdef UNIV_SYNC_DEBUG
+
 	ut_ad(mutex_own(&(rseg->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	rseg_header = trx_rsegf_get(rseg->space, rseg->page_no, mtr);
 
@@ -341,9 +338,7 @@ trx_purge_free_segment(
 
 	/*	fputs("Freeing an update undo log segment\n", stderr); */
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(purge_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 loop:
 	mtr_start(&mtr);
 	mutex_enter(&(rseg->mutex));
@@ -445,9 +440,7 @@ trx_purge_truncate_rseg_history(
 	ulint		n_removed_logs	= 0;
 	mtr_t		mtr;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(purge_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	mtr_start(&mtr);
 	mutex_enter(&(rseg->mutex));
@@ -537,9 +530,7 @@ trx_purge_truncate_history(void)
 	dulint		limit_trx_no;
 	dulint		limit_undo_no;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(purge_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	trx_purge_arr_get_biggest(purge_sys->arr, &limit_trx_no,
 				  &limit_undo_no);
@@ -579,9 +570,7 @@ trx_purge_truncate_if_arr_empty(void)
 /*=================================*/
 			/* out: TRUE if array empty */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(purge_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	if (purge_sys->arr->n_used == 0) {
 
@@ -610,9 +599,7 @@ trx_purge_rseg_get_next_history_log(
 	ibool		del_marks;
 	mtr_t		mtr;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(purge_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	mutex_enter(&(rseg->mutex));
 
@@ -715,9 +702,7 @@ trx_purge_choose_next_log(void)
 	ulint		offset = 0;  /* remove warning (??? bug ???) */
 	mtr_t		mtr;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(purge_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(purge_sys->next_stored == FALSE);
 
 	rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
@@ -818,9 +803,7 @@ trx_purge_get_next_rec(
 	ulint		cmpl_info;
 	mtr_t		mtr;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(purge_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(purge_sys->next_stored);
 
 	space = purge_sys->rseg->space;

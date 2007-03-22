@@ -128,9 +128,7 @@ buf_pool_clock_tic(void)
 /*====================*/
 			/* out: new clock value */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	buf_pool->ulint_clock++;
 
@@ -456,7 +454,7 @@ buf_frame_modify_clock_inc(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad((mutex_own(&(buf_pool->mutex)) && (block->buf_fix_count == 0))
 	      || rw_lock_own(&(block->lock), RW_LOCK_EXCLUSIVE));
-#endif /*UNIV_SYNC_DEBUG */
+#endif /* UNIV_SYNC_DEBUG */
 
 	UT_DULINT_INC(block->modify_clock);
 
@@ -513,14 +511,12 @@ buf_block_buf_fix_inc_debug(
 	const char*	file __attribute__ ((unused)),	/* in: file name */
 	ulint		line __attribute__ ((unused)))	/* in: line */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ibool	ret;
 
 	ret = rw_lock_s_lock_func_nowait(&(block->debug_latch), file, line);
 
 	ut_ad(ret == TRUE);
 	ut_ad(mutex_own(&block->mutex));
-#endif
 	block->buf_fix_count++;
 }
 #else /* UNIV_SYNC_DEBUG */
@@ -532,9 +528,8 @@ buf_block_buf_fix_inc(
 /*==================*/
 	buf_block_t*	block)	/* in: block to bufferfix */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&block->mutex));
-#endif
+
 	block->buf_fix_count++;
 }
 #endif /* UNIV_SYNC_DEBUG */
@@ -552,9 +547,7 @@ buf_page_hash_get(
 	ulint		fold;
 
 	ut_ad(buf_pool);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	/* Look for the page in the hash table */
 

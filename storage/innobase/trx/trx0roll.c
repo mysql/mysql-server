@@ -785,10 +785,8 @@ trx_roll_try_truncate(
 	dulint		limit;
 	dulint		biggest;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(trx->undo_mutex)));
 	ut_ad(mutex_own(&((trx->rseg)->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	trx->pages_undone = 0;
 
@@ -831,9 +829,7 @@ trx_roll_pop_top_rec(
 	trx_undo_rec_t*	prev_rec;
 	page_t*		prev_rec_page;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(trx->undo_mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	undo_page = trx_undo_page_get_s_latched(undo->space,
 						undo->top_page_no, mtr);
@@ -1060,9 +1056,7 @@ trx_rollback(
 	que_thr_t*	thr;
 	/*	que_thr_t*	thr2; */
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad((trx->undo_no_arr == NULL) || ((trx->undo_no_arr)->n_used == 0));
 
 	/* Initialize the rollback field in the transaction */
@@ -1131,9 +1125,7 @@ trx_roll_graph_build(
 	que_thr_t*	thr;
 	/*	que_thr_t*	thr2; */
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
 	heap = mem_heap_create(512);
 	fork = que_fork_create(NULL, NULL, QUE_FORK_ROLLBACK, heap);
@@ -1160,9 +1152,7 @@ trx_finish_error_processing(
 	trx_sig_t*	sig;
 	trx_sig_t*	next_sig;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
 	sig = UT_LIST_GET_FIRST(trx->signals);
 
@@ -1195,9 +1185,7 @@ trx_finish_partial_rollback_off_kernel(
 {
 	trx_sig_t*	sig;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
 	sig = UT_LIST_GET_FIRST(trx->signals);
 
@@ -1228,9 +1216,7 @@ trx_finish_rollback_off_kernel(
 	trx_sig_t*	sig;
 	trx_sig_t*	next_sig;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(trx->undo_no_arr == NULL || trx->undo_no_arr->n_used == 0);
 

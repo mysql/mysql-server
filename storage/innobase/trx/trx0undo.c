@@ -395,9 +395,7 @@ trx_undo_seg_create(
 	ibool		success;
 
 	ut_ad(mtr && id && rseg_hdr);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(rseg->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	/*	fputs(type == TRX_UNDO_INSERT
 	? "Creating insert undo log segment\n"
@@ -836,11 +834,9 @@ trx_undo_add_page(
 	ulint		n_reserved;
 	ibool		success;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(trx->undo_mutex)));
 	ut_ad(!mutex_own(&kernel_mutex));
 	ut_ad(mutex_own(&(trx->rseg->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	rseg = trx->rseg;
 
@@ -911,10 +907,8 @@ trx_undo_free_page(
 	ulint		hist_size;
 
 	ut_a(hdr_page_no != page_no);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&kernel_mutex));
 	ut_ad(mutex_own(&(rseg->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	undo_page = trx_undo_page_get(space, page_no, mtr);
 
@@ -961,9 +955,7 @@ trx_undo_free_page_in_rollback(
 	ulint	last_page_no;
 
 	ut_ad(undo->hdr_page_no != page_no);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(trx->undo_mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	last_page_no = trx_undo_free_page(undo->rseg, FALSE, undo->space,
 					  undo->hdr_page_no, page_no, mtr);
@@ -1016,10 +1008,8 @@ trx_undo_truncate_end(
 	trx_rseg_t*	rseg;
 	mtr_t		mtr;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(trx->undo_mutex)));
 	ut_ad(mutex_own(&(trx->rseg->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	rseg = trx->rseg;
 
@@ -1096,9 +1086,7 @@ trx_undo_truncate_start(
 	ulint		page_no;
 	mtr_t		mtr;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(rseg->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	if (0 == ut_dulint_cmp(limit, ut_dulint_zero)) {
 
@@ -1164,9 +1152,9 @@ trx_undo_seg_free(
 	while (!finished) {
 
 		mtr_start(&mtr);
-#ifdef UNIV_SYNC_DEBUG
+
 		ut_ad(!mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
+
 		mutex_enter(&(rseg->mutex));
 
 		seg_header = trx_undo_page_get(undo->space, undo->hdr_page_no,
@@ -1389,9 +1377,7 @@ trx_undo_mem_create(
 {
 	trx_undo_t*	undo;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(rseg->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	if (id >= TRX_RSEG_N_SLOTS) {
 		fprintf(stderr,
@@ -1437,11 +1423,9 @@ trx_undo_mem_init_for_reuse(
 	XID*		xid,	/* in: X/Open XA transaction identification*/
 	ulint		offset)	/* in: undo log header byte offset on page */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&((undo->rseg)->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
-	if (undo->id >= TRX_RSEG_N_SLOTS) {
+	if (UNIV_UNLIKELY(undo->id >= TRX_RSEG_N_SLOTS)) {
 		fprintf(stderr, "InnoDB: Error: undo->id is %lu\n",
 			(ulong) undo->id);
 
@@ -1501,9 +1485,7 @@ trx_undo_create(
 	trx_undo_t*	undo;
 	page_t*		undo_page;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(rseg->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	if (rseg->curr_size == rseg->max_size) {
 
@@ -1561,9 +1543,7 @@ trx_undo_reuse_cached(
 	page_t*		undo_page;
 	ulint		offset;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(rseg->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	if (type == TRX_UNDO_INSERT) {
 
@@ -1671,15 +1651,12 @@ trx_undo_assign_undo(
 
 	rseg = trx->rseg;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(trx->undo_mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	mtr_start(&mtr);
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
+
 	mutex_enter(&(rseg->mutex));
 
 	undo = trx_undo_reuse_cached(trx, rseg, type, trx->id, &trx->xid,
@@ -1836,9 +1813,8 @@ trx_undo_update_cleanup(
 	undo = trx->update_undo;
 	rseg = trx->rseg;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(rseg->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
+
 	trx_purge_add_update_undo_to_history(trx, undo_page, mtr);
 
 	UT_LIST_REMOVE(undo_list, rseg->update_undo_list, undo);
