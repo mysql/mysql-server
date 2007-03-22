@@ -46,6 +46,7 @@ class SocketOutputStream : public OutputStream {
   NDB_SOCKET_TYPE m_socket;
   unsigned m_timeout_ms;
   bool m_timedout;
+  unsigned m_timeout_remain;
 public:
   SocketOutputStream(NDB_SOCKET_TYPE socket, unsigned write_timeout_ms = 1000);
   virtual ~SocketOutputStream() {}
