@@ -697,9 +697,11 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
         (struct st_mysql_ftparser *)parser->plugin->info;
     table->key_info[i].block_size= file->s->keyinfo[i].block_length;
   }
-  return (0);
-err:
+  my_errno= 0;
+  goto end;
+ err:
   this->close();
+ end:
   /*
     Both recinfo and keydef are allocated by my_multi_malloc(), thus only
     recinfo must be freed.
