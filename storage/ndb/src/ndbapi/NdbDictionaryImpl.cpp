@@ -114,6 +114,7 @@ NdbColumnImpl::operator=(const NdbColumnImpl& col)
   m_arraySize = col.m_arraySize;
   m_arrayType = col.m_arrayType;
   m_storageType = col.m_storageType;
+  m_blobVersion = col.m_blobVersion;
   m_keyInfoPos = col.m_keyInfoPos;
   if (col.m_blobTable == NULL)
     m_blobTable = NULL;
@@ -134,6 +135,7 @@ NdbColumnImpl::init(Type t)
   // do not use default_charset_info as it may not be initialized yet
   // use binary collation until NDB tests can handle charsets
   CHARSET_INFO* default_cs = &my_charset_bin;
+  m_blobVersion = 0;
   m_type = t;
   switch (m_type) {
   case Tinyint:
@@ -205,14 +207,16 @@ NdbColumnImpl::init(Type t)
     m_scale = 8000;
     m_length = 4;
     m_cs = NULL;
-    m_arrayType = NDB_ARRAYTYPE_FIXED;
+    m_arrayType = NDB_ARRAYTYPE_MEDIUM_VAR;
+    m_blobVersion = NDB_BLOB_V2;
     break;
   case Text:
     m_precision = 256;
     m_scale = 8000;
     m_length = 4;
     m_cs = default_cs;
-    m_arrayType = NDB_ARRAYTYPE_FIXED;
+    m_arrayType = NDB_ARRAYTYPE_MEDIUM_VAR;
+    m_blobVersion = NDB_BLOB_V2;
     break;
   case Time:
   case Year:
@@ -312,6 +316,9 @@ NdbColumnImpl::equal(const NdbColumnImpl& col) const
   }
 
   if (m_arrayType != col.m_arrayType || m_storageType != col.m_storageType){
+    DBUG_RETURN(false);
+  }
+  if (m_blobVersion != col.m_blobVersion) {
     DBUG_RETURN(false);
   }
 
@@ -2169,6 +2176,18 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
       col->m_arraySize = (attrDesc.AttributeArraySize + 31) >> 5;
     }
     col->m_storageType = attrDesc.AttributeStorageType;
+
+    if (col->getBlobType()) {
+      if (unlikely(col->m_arrayType) == NDB_ARRAYTYPE_FIXED)
+        col->m_blobVersion = NDB_BLOB_V1;
+      else if (col->m_arrayType == NDB_ARRAYTYPE_MEDIUM_VAR)
+        col->m_blobVersion = NDB_BLOB_V2;
+      else {
+        delete impl;
+        NdbMem_Free((void*)tableDesc);
+        DBUG_RETURN(4263);
+      }
+    }
     
     col->m_pk = attrDesc.AttributeKeyFlag;
     col->m_distributionKey = (attrDesc.AttributeDKey != 0);

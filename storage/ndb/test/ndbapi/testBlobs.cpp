@@ -20,6 +20,7 @@
 #include <ndb_global.h>
 #include <NdbMain.h>
 #include <NdbOut.hpp>
+#include <OutputStream.hpp>
 #include <NdbTest.hpp>
 #include <NdbTick.h>
 
@@ -41,16 +42,16 @@ struct Opt {
   unsigned m_batch;
   bool m_core;
   bool m_dbg;
-  bool m_dbgall;
   const char* m_dbug;
   bool m_fac;
   bool m_full;
   unsigned m_loop;
   unsigned m_parts;
   unsigned m_rows;
-  unsigned m_seed;
+  int m_seed;
   const char* m_skip;
   const char* m_test;
+  int m_blob_version;
   // metadata
   const char* m_tname;
   const char* m_x1name;  // hash index
@@ -70,27 +71,27 @@ struct Opt {
     m_batch(7),
     m_core(false),
     m_dbg(false),
-    m_dbgall(false),
     m_dbug(0),
     m_fac(false),
     m_full(false),
     m_loop(1),
     m_parts(10),
     m_rows(100),
-    m_seed(0),
+    m_seed(-1),
     m_skip(0),
     m_test(0),
+    m_blob_version(2),
     // metadata
-    m_tname("TBLOB1"),
-    m_x1name("TBLOB1X1"),
-    m_x2name("TBLOB1X2"),
+    m_tname("TB1"),
+    m_x1name("TB1X1"),
+    m_x2name("TB1X2"),
     m_pk1off(0x12340000),
     m_pk2len(55),
     m_oneblob(false),
-    m_blob1(false, 7, 1137, 10),
+    m_blob1(false, 240, 2000, 4), // head+inline=256 bytes
     m_blob2(true, 99, 55, 1),
     // perf
-    m_tnameperf("TBLOB2"),
+    m_tnameperf("TB2"),
     m_rowsperf(10000),
     // bugs
     m_bug(0),
@@ -108,18 +109,18 @@ printusage()
     << "usage: testBlobs options [default/max]" << endl
     << "  -batch N    number of pk ops in batch [" << d.m_batch << "]" << endl
     << "  -core       dump core on error" << endl
-    << "  -dbg        print debug" << endl
-    << "  -dbgall     print also NDB API debug (if compiled in)" << endl
-    << "  -dbug opt   dbug options" << endl
+    << "  -dbg        print program debug" << endl
+    << "  -dbug opt   print program debug and ndb api DBUG" << endl
     << "  -fac        fetch across commit in scan delete [" << d.m_fac << "]" << endl
     << "  -full       read/write only full blob values" << endl
     << "  -loop N     loop N times 0=forever [" << d.m_loop << "]" << endl
     << "  -parts N    max parts in blob value [" << d.m_parts << "]" << endl
     << "  -rows N     number of rows [" << d.m_rows << "]" << endl
     << "  -rowsperf N rows for performace test [" << d.m_rowsperf << "]" << endl
-    << "  -seed N     random seed 0=loop number [" << d.m_seed << "]" << endl
+    << "  -seed N     random seed 0=loop number -1=random [" << d.m_seed << "]" << endl
     << "  -skip xxx   skip given tests (see list) [no tests]" << endl
     << "  -test xxx   only given tests (see list) [all tests]" << endl
+    << "  -version N  blob version 1 or 2 [" << d.m_blob_version << "]" << endl
     << "metadata" << endl
     << "  -pk2len N   length of PK2 [" << d.m_pk2len << "/" << g_max_pk2len <<"]" << endl
     << "  -oneblob    only 1 blob attribute [default 2]" << endl
@@ -245,6 +246,7 @@ createTable()
   { NdbDictionary::Column col("BL1");
     const Bcol& b = g_opt.m_blob1;
     col.setType(NdbDictionary::Column::Blob);
+    col.setBlobVersion(g_opt.m_blob_version);
     col.setInlineSize(b.m_inline);
     col.setPartSize(b.m_partsize);
     col.setStripeSize(b.m_stripe);
@@ -263,6 +265,7 @@ createTable()
   { NdbDictionary::Column col("BL2");
     const Bcol& b = g_opt.m_blob2;
     col.setType(NdbDictionary::Column::Text);
+    col.setBlobVersion(g_opt.m_blob_version);
     col.setNullable(true);
     col.setInlineSize(b.m_inline);
     col.setPartSize(b.m_partsize);
@@ -710,10 +713,11 @@ verifyHeadInline(const Bcol& c, const Bval& v, NdbRecAttr* ra)
     CHK(ra->isNULL() == 1);
   } else {
     CHK(ra->isNULL() == 0);
-    const NdbBlob::Head* head = (const NdbBlob::Head*)ra->aRef();
-    CHK(head->length == v.m_len);
-    const char* data = (const char*)(head + 1);
-    for (unsigned i = 0; i < head->length && i < c.m_inline; i++)
+    NdbBlob::Head head;
+    NdbBlob::unpackBlobHead(head, ra->aRef(), g_opt.m_blob_version);
+    CHK(head.length == v.m_len);
+    const char* data = ra->aRef() + head.headsize;
+    for (unsigned i = 0; i < head.length && i < c.m_inline; i++)
       CHK(data[i] == v.m_val[i]);
   }
   return 0;
@@ -752,19 +756,36 @@ verifyHeadInline(const Tup& tup)
   return 0;
 }
 
+static unsigned
+getvarsize(const char* buf)
+{
+  const unsigned char* p = (const unsigned char*)buf;
+  return p[0] + (p[1] << 8);
+}
+
 static int
 verifyBlobTable(const Bcol& b, const Bval& v, Uint32 pk1, bool exists)
 {
   DBG("verify " << b.m_btname << " pk1=" << hex << pk1);
-  NdbRecAttr* ra_pk;
-  NdbRecAttr* ra_part;
-  NdbRecAttr* ra_data;
+  NdbRecAttr* ra_pk = 0; // V1
+  NdbRecAttr* ra_pk1 = 0; // V2
+  NdbRecAttr* ra_pk2 = 0; // V2
+  NdbRecAttr* ra_part = 0;
+  NdbRecAttr* ra_data = 0;
   CHK((g_con = g_ndb->startTransaction()) != 0);
   CHK((g_ops = g_con->getNdbScanOperation(b.m_btname)) != 0);
   CHK(g_ops->readTuples() == 0);
-  CHK((ra_pk = g_ops->getValue("PK")) != 0);
-  CHK((ra_part = g_ops->getValue("PART")) != 0);
-  CHK((ra_data = g_ops->getValue("DATA")) != 0);
+  if (g_opt.m_blob_version == 1) {
+    CHK((ra_pk = g_ops->getValue("PK")) != 0);
+    CHK((ra_part = g_ops->getValue("PART")) != 0);
+    CHK((ra_data = g_ops->getValue("DATA")) != 0);
+  } else {
+    CHK((ra_pk1 = g_ops->getValue("PK1")) != 0);
+    if (g_opt.m_pk2len != 0)
+      CHK((ra_pk2 = g_ops->getValue("PK2")) != 0);
+    CHK((ra_part = g_ops->getValue("NDB$PART")) != 0);
+    CHK((ra_data = g_ops->getValue("NDB$DATA")) != 0);
+  }
   CHK(g_con->execute(NoCommit) == 0);
   unsigned partcount;
   if (! exists || v.m_len <= b.m_inline)
@@ -778,11 +799,15 @@ verifyBlobTable(const Bcol& b, const Bval& v, Uint32 pk1, bool exists)
     CHK((ret = g_ops->nextResult()) == 0 || ret == 1);
     if (ret == 1)
       break;
-    if (pk1 != ra_pk->u_32_value())
-      continue;
+    if (g_opt.m_blob_version == 1) {
+      if (pk1 != ra_pk->u_32_value())
+        continue;
+    } else {
+      if (pk1 != ra_pk1->u_32_value())
+        continue;
+    }
     Uint32 part = ra_part->u_32_value();
     DBG("part " << part << " of " << partcount);
-    const char* data = ra_data->aRef();
     CHK(part < partcount && ! seen[part]);
     seen[part] = 1;
     unsigned n = b.m_inline + part * b.m_partsize;
@@ -790,10 +815,23 @@ verifyBlobTable(const Bcol& b, const Bval& v, Uint32 pk1, bool exists)
     unsigned m = v.m_len - n;
     if (m > b.m_partsize)
       m = b.m_partsize;
+    const char* data = ra_data->aRef();
+    if (g_opt.m_blob_version == 1)
+      ;
+    else {
+      unsigned sz = getvarsize(data);
+      CHK(sz <= b.m_partsize);
+      data += 2;
+      if (part + 1 < partcount)
+        CHK(sz == b.m_partsize);
+      else
+        CHK(sz == m);
+    }
     CHK(memcmp(data, v.m_val + n, m) == 0);
   }
   for (unsigned i = 0; i < partcount; i++)
     CHK(seen[i] == 1);
+  delete [] seen;
   g_ndb->closeTransaction(g_con);
   g_ops = 0;
   g_con = 0;
@@ -1347,11 +1385,6 @@ testmain()
   g_tups = new Tup [g_opt.m_rows];
   CHK(dropTable() == 0);
   CHK(createTable() == 0);
-  if (g_opt.m_bugtest != 0) {
-    // test a general bug instead of blobs
-    CHK((*g_opt.m_bugtest)() == 0);
-    return 0;
-  }
   Bcol& b1 = g_opt.m_blob1;
   CHK(NdbBlob::getBlobTableName(b1.m_btname, g_ndb, g_opt.m_tname, "BL1") == 0);
   DBG("BL1: inline=" << b1.m_inline << " part=" << b1.m_partsize << " table=" << b1.m_btname);
@@ -1360,13 +1393,22 @@ testmain()
     CHK(NdbBlob::getBlobTableName(b2.m_btname, g_ndb, g_opt.m_tname, "BL2") == 0);
     DBG("BL2: inline=" << b2.m_inline << " part=" << b2.m_partsize << " table=" << b2.m_btname);
   }
-  if (g_opt.m_seed != 0)
+  if (g_opt.m_seed == -1)
+    g_opt.m_seed = getpid();
+  if (g_opt.m_seed != 0) {
+    DBG("random seed = " << g_opt.m_seed);
     srandom(g_opt.m_seed);
+  }
   for (g_loop = 0; g_opt.m_loop == 0 || g_loop < g_opt.m_loop; g_loop++) {
     int style;
     DBG("=== loop " << g_loop << " ===");
     if (g_opt.m_seed == 0)
       srandom(g_loop);
+    if (g_opt.m_bugtest != 0) {
+      // test some bug# instead
+      CHK((*g_opt.m_bugtest)() == 0);
+      continue;
+    }
     // pk
     for (style = 0; style <= 2; style++) {
       if (! testcase('k') || ! testcase(style))
@@ -1553,6 +1595,7 @@ testperf()
   // col C - text
   { NdbDictionary::Column col("C");
     col.setType(NdbDictionary::Column::Text);
+    col.setBlobVersion(g_opt.m_blob_version);
     col.setInlineSize(20);
     col.setPartSize(512);
     col.setStripeSize(1);
@@ -1821,6 +1864,14 @@ bugtest_27018()
   {
     Tup& tup= g_tups[k];
 
+    /* Update one byte in random position. */
+    Uint32 offset= urandom(tup.m_blob1.m_len + 1);
+    if (offset == tup.m_blob1.m_len) {
+      // testing write at end is another problem..
+      continue;
+    }
+    //DBG("len=" << tup.m_blob1.m_len << " offset=" << offset);
+
     CHK((g_con= g_ndb->startTransaction()) != 0);
     CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
     CHK(g_opr->updateTuple() == 0);
@@ -1830,8 +1881,6 @@ bugtest_27018()
     CHK(getBlobHandles(g_opr) == 0);
     CHK(g_con->execute(NoCommit) == 0);
 
-    /* Update one byte in random position. */
-    Uint32 offset= urandom(tup.m_blob1.m_len);
     tup.m_blob1.m_buf[0]= 0xff ^ tup.m_blob1.m_val[offset];
     CHK(g_bh1->setPos(offset) == 0);
     CHK(g_bh1->writeData(&(tup.m_blob1.m_buf[0]), 1) == 0);
@@ -1848,12 +1897,15 @@ bugtest_27018()
 
     CHK(g_bh1->getValue(tup.m_blob1.m_buf, tup.m_blob1.m_len) == 0);
     CHK(g_con->execute(Commit) == 0);
+
     Uint64 len= ~0;
     CHK(g_bh1->getLength(len) == 0 && len == tup.m_blob1.m_len);
     tup.m_blob1.m_buf[offset]^= 0xff;
     CHK(memcmp(tup.m_blob1.m_buf, tup.m_blob1.m_val, tup.m_blob1.m_len) == 0);
+
     g_ndb->closeTransaction(g_con);
   }
+  CHK(deletePk() == 0);
 
   return 0;
 }
@@ -1881,6 +1933,17 @@ static struct {
 NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
 {
   ndb_init();
+  // log the invocation
+  char cmdline[512];
+  {
+    const char* progname =
+      strchr(argv[0], '/') ? strrchr(argv[0], '/') + 1 : argv[0];
+    strcpy(cmdline, progname);
+    for (uint i = 0; i < argc; i++) {
+      strcat(cmdline, " ");
+      strcat(cmdline, argv[i]);
+    }
+  }
   while (++argv, --argc > 0) {
     const char* arg = argv[0];
     if (strcmp(arg, "-batch") == 0) {
@@ -1897,14 +1960,9 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
       g_opt.m_dbg = true;
       continue;
     }
-    if (strcmp(arg, "-dbgall") == 0) {
-      g_opt.m_dbg = true;
-      g_opt.m_dbgall = true;
-      putenv(strdup("NDB_BLOB_DEBUG=1"));
-      continue;
-    }
     if (strcmp(arg, "-dbug") == 0) {
       if (++argv, --argc > 0) {
+        g_opt.m_dbg = true;
         g_opt.m_dbug = strdup(argv[0]);
 	continue;
       }
@@ -1959,6 +2017,13 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
 	continue;
       }
     }
+    if (strcmp(arg, "-version") == 0) {
+      if (++argv, --argc > 0) {
+	g_opt.m_blob_version = atoi(argv[0]);
+        if (g_opt.m_blob_version == 1 || g_opt.m_blob_version == 2)
+          continue;
+      }
+    }
     // metadata
     if (strcmp(arg, "-pk2len") == 0) {
       if (++argv, --argc > 0) {
@@ -1991,6 +2056,7 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
   }
   if (g_opt.m_dbug != 0) {
     DBUG_PUSH(g_opt.m_dbug);
+    ndbout.m_out = new FileOutputStream(DBUG_FILE);
   }
   if (g_opt.m_pk2len == 0) {
     char b[100];
@@ -2001,6 +2067,7 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
     strcat(b, "r");
     g_opt.m_skip = strdup(b);
   }
+  ndbout << cmdline << endl;
   g_ncc = new Ndb_cluster_connection();
   if (g_ncc->connect(30) != 0 || testmain() == -1 || testperf() == -1) {
     ndbout << "line " << __LINE__ << " FAIL loop=" << g_loop << endl;

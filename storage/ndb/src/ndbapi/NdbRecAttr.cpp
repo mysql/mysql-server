@@ -426,15 +426,14 @@ ndbrecattr_print_formatted(NdbOut& out, const NdbRecAttr &r,
     case NdbDictionary::Column::Blob:
     case NdbDictionary::Column::Text:
     {
-      // user defined aRef() may not be aligned to Uint64
       NdbBlob::Head head;
-      memcpy(&head, r.aRef(), sizeof(head));
+      NdbBlob::unpackBlobHead(head, r.aRef(), c->getBlobVersion());
       out << head.length << ":";
-      const unsigned char* p = (const unsigned char*)r.aRef() + sizeof(head);
-      if (r.get_size_in_bytes() < sizeof(head))
+      const unsigned char* p = (const unsigned char*)r.aRef() + head.headsize;
+      if (r.get_size_in_bytes() < head.headsize)
         out << "***error***"; // really cannot happen
       else {
-        unsigned n = r.get_size_in_bytes() - sizeof(head);
+        unsigned n = r.get_size_in_bytes() - head.headsize;
         for (unsigned k = 0; k < n && k < head.length; k++) {
           if (r.getType() == NdbDictionary::Column::Blob)
             out.print("%02X", (int)p[k]);

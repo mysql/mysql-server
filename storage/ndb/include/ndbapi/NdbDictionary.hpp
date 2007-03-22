@@ -537,6 +537,9 @@ public:
     static const Column * ROW_GCI;
     
     int getSizeInBytes() const;
+
+    int getBlobVersion() const; // NDB_BLOB_V1 or NDB_BLOB_V2
+    void setBlobVersion(int blobVersion); // default NDB_BLOB_V2
 #endif
     
   private:

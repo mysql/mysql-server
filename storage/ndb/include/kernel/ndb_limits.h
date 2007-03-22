@@ -121,7 +121,10 @@
 /*
  * Blobs.
  */
-#define NDB_BLOB_HEAD_SIZE 2        /* sizeof(NdbBlob::Head) >> 2 */
+#define NDB_BLOB_V1 1
+#define NDB_BLOB_V2 2
+#define NDB_BLOB_V1_HEAD_SIZE 2     /* sizeof(Uint64) >> 2 */
+#define NDB_BLOB_V2_HEAD_SIZE 4     /* 2 + 2 + 4 + 8 bytes, see NdbBlob.hpp */
 
 /*
  * Character sets.

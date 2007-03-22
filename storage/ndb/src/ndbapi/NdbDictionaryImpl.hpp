@@ -109,6 +109,10 @@ public:
   bool getStringType() const;
   bool getBlobType() const;
 
+  int m_blobVersion;            // if blob, NDB_BLOB_V1 or NDB_BLOB_V2
+  int getBlobVersion() const;
+  void setBlobVersion(int blobVersion);
+
   /**
    * Equality/assign
    */
@@ -729,22 +733,45 @@ NdbColumnImpl::getBlobType() const {
 }
 
 inline
+int
+NdbColumnImpl::getBlobVersion() const {
+  return m_blobVersion;
+}
+
+inline
+void
+NdbColumnImpl::setBlobVersion(int blobVersion) {
+  if (blobVersion == NDB_BLOB_V1) {
+    m_arrayType = NDB_ARRAYTYPE_FIXED;
+  } else if (blobVersion == NDB_BLOB_V2) {
+    // always 2 length bytes for head+inline
+    m_arrayType = NDB_ARRAYTYPE_MEDIUM_VAR;
+  }
+  // invalid value should be detected at validate
+  m_blobVersion = blobVersion;
+}
+
+inline
 bool
 NdbColumnImpl::get_var_length(const void* value, Uint32& len) const
 {
+  DBUG_ENTER("NdbColumnImpl::get_var_length");
   Uint32 max_len = m_attrSize * m_arraySize;
   switch (m_arrayType) {
   case NDB_ARRAYTYPE_SHORT_VAR:
     len = 1 + *((Uint8*)value);
+    DBUG_PRINT("info", ("SHORT_VAR: len=%u max_len=%u", len, max_len));
     break;
   case NDB_ARRAYTYPE_MEDIUM_VAR:
     len = 2 + uint2korr((char*)value);
+    DBUG_PRINT("info", ("MEDIUM_VAR: len=%u max_len=%u", len, max_len));
     break;
   default:
     len = max_len;
-    return true;
+    DBUG_PRINT("info", ("FIXED: len=%u max_len=%u", len, max_len));
+    DBUG_RETURN(true);
   }
-  return (len <= max_len);
+  DBUG_RETURN(len <= max_len);
 }
 
 inline
