@@ -148,7 +148,7 @@ void
 Hybrid_type_traits_integer::fix_length_and_dec(Item *item, Item *arg) const
 {
   item->decimals= 0;
-  item->max_length= 21;
+  item->max_length= MY_INT64_NUM_DECIMAL_DIGITS;
   item->unsigned_flag= 0;
 }
 
@@ -2525,7 +2525,7 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
       item_result_type= REAL_RESULT;
       break;
     case INT_RESULT:
-      set_int(*(longlong*)entry->value, 21);
+      set_int(*(longlong*)entry->value, MY_INT64_NUM_DECIMAL_DIGITS);
       item_type= Item::INT_ITEM;
       item_result_type= INT_RESULT;
       break;
@@ -6676,7 +6676,7 @@ uint32 Item_type_holder::display_length(Item *item)
   case MYSQL_TYPE_SHORT:
     return 6;
   case MYSQL_TYPE_LONG:
-    return 11;
+    return MY_INT32_NUM_DECIMAL_DIGITS;
   case MYSQL_TYPE_FLOAT:
     return 25;
   case MYSQL_TYPE_DOUBLE:

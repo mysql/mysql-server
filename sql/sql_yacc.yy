@@ -493,7 +493,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
   Currently there is 287 shift/reduce conflict. We should not introduce
   new conflicts any more.
 */
-%expect 287
+%expect 286
 
 /*
    Comments for TOKENS.
@@ -1247,7 +1247,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	statement sp_suid
 	sp_c_chistics sp_a_chistics sp_chistic sp_c_chistic xa
         load_data opt_field_or_var_spec fields_or_vars opt_load_data_set_spec
-        definer view_replace_or_algorithm view_replace view_algorithm_opt
+        definer view_replace_or_algorithm view_replace
         view_algorithm view_or_trigger_or_sp_or_event
         view_or_trigger_or_sp_or_event_tail
         view_suid view_tail view_list_opt view_list view_select
@@ -2407,6 +2407,9 @@ sp_decl:
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
+
+            lex->spcont= lex->spcont->push_context(LABEL_HANDLER_SCOPE);
+
 	    sp_pcontext *ctx= lex->spcont;
 	    sp_instr_hpush_jump *i=
               new sp_instr_hpush_jump(sp->instructions(), ctx, $2,
@@ -2414,7 +2417,6 @@ sp_decl:
 
 	    sp->add_instr(i);
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
-	    sp->m_flags|= sp_head::IN_HANDLER;
 	  }
 	  sp_hcond_list sp_proc_stmt
 	  {
@@ -2438,10 +2440,12 @@ sp_decl:
 	      sp->push_backpatch(i, lex->spcont->last_label()); /* Block end */
 	    }
 	    lex->sphead->backpatch(hlab);
-	    sp->m_flags&= ~sp_head::IN_HANDLER;
+
+            lex->spcont= ctx->pop_context();
+
 	    $$.vars= $$.conds= $$.curs= 0;
 	    $$.hndlrs= $6;
-	    ctx->add_handlers($6);
+	    lex->spcont->add_handlers($6);
 	  }
 	| DECLARE_SYM ident CURSOR_SYM FOR_SYM sp_cursor_stmt
 	  {
@@ -2507,11 +2511,18 @@ sp_handler_type:
 	;
 
 sp_hcond_list:
+          sp_hcond_element
+          { $$= 1; }
+        | sp_hcond_list ',' sp_hcond_element
+          { $$+= 1; }
+        ;
+
+sp_hcond_element:
 	  sp_hcond
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
-	    sp_pcontext *ctx= lex->spcont;
+	    sp_pcontext *ctx= lex->spcont->parent_context();
 
 	    if (ctx->find_handler($1))
 	    {
@@ -2525,28 +2536,6 @@ sp_hcond_list:
 
 	      i->add_condition($1);
 	      ctx->push_handler($1);
-	      $$= 1;
-	    }
-	  }
-	| sp_hcond_list ',' sp_hcond
-	  {
-	    LEX *lex= Lex;
-	    sp_head *sp= lex->sphead;
-	    sp_pcontext *ctx= lex->spcont;
-
-	    if (ctx->find_handler($3))
-	    {
-	      my_message(ER_SP_DUP_HANDLER, ER(ER_SP_DUP_HANDLER), MYF(0));
-	      MYSQL_YYABORT;
-	    }
-	    else
-	    {
-	      sp_instr_hpush_jump *i=
-	        (sp_instr_hpush_jump *)sp->last_instruction();
-
-	      i->add_condition($3);
-	      ctx->push_handler($3);
-	      $$= $1 + 1;
 	    }
 	  }
 	;
@@ -3125,7 +3114,7 @@ sp_unlabeled_control:
 	    sp_label_t *lab= lex->spcont->last_label();
 
 	    lab->type= SP_LAB_BEGIN;
-	    lex->spcont= lex->spcont->push_context();
+	    lex->spcont= lex->spcont->push_context(LABEL_DEFAULT_SCOPE);
 	  }
 	  sp_decls
 	  sp_proc_stmts
@@ -5157,18 +5146,25 @@ alter:
 	    lex->sql_command= SQLCOM_ALTER_FUNCTION;
 	    lex->spname= $3;
 	  }
-        | ALTER view_algorithm_opt definer view_suid
-          VIEW_SYM table_ident
-	  {
-	    THD *thd= YYTHD;
-	    LEX *lex= thd->lex;
-	    lex->sql_command= SQLCOM_CREATE_VIEW;
-	    lex->create_view_mode= VIEW_ALTER;
-	    /* first table in list is target VIEW name */
-	    lex->select_lex.add_table_to_list(thd, $6, NULL, TL_OPTION_UPDATING);
-	  }
-	  view_list_opt AS view_select view_check_option
-	  {}
+        | ALTER view_algorithm definer
+          {
+            Lex->create_view_mode= VIEW_ALTER;
+          }
+          view_tail
+          {}
+        | ALTER definer
+          /*
+            We have two separate rules for ALTER VIEW rather that
+            optional view_algorithm above, to resolve the ambiguity
+            with the ALTER EVENT below.
+          */
+          {
+            LEX *lex= Lex;
+            lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
+            lex->create_view_mode= VIEW_ALTER;
+          }
+          view_tail
+          {}
 	| ALTER definer EVENT_SYM sp_name
           /*
             BE CAREFUL when you add a new rule to update the block where
@@ -10359,14 +10355,7 @@ internal_variable_name:
 	      MYSQL_YYABORT;
 	    $$.var= tmp;
 	    $$.base_name= null_lex_str;
-            /*
-              If this is time_zone variable we should open time zone
-              describing tables 
-            */
-            if (tmp == &sys_time_zone &&
-                lex->add_time_zone_tables_to_query_tables(YYTHD))
-              MYSQL_YYABORT;
-            else if (spc && tmp == &sys_autocommit)
+            if (spc && tmp == &sys_autocommit)
             {
               /*
                 We don't allow setting AUTOCOMMIT from a stored function
@@ -11298,13 +11287,6 @@ view_algorithm:
 	{ Lex->create_view_algorithm= VIEW_ALGORITHM_MERGE; }
 	| ALGORITHM_SYM EQ TEMPTABLE_SYM
 	{ Lex->create_view_algorithm= VIEW_ALGORITHM_TMPTABLE; }
-	;
-
-view_algorithm_opt:
-	/* empty */
-	{ Lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED; }
-	| view_algorithm
-	{}
 	;
 
 view_suid:

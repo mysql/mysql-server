@@ -600,7 +600,8 @@ err:
 
 bool ha_myisam::check_if_locking_is_allowed(uint sql_command,
                                             ulong type, TABLE *table,
-                                            uint count,
+                                            uint count, uint current,
+                                            uint *system_count,
                                             bool called_by_privileged_thread)
 {
   /*
@@ -609,11 +610,13 @@ bool ha_myisam::check_if_locking_is_allowed(uint sql_command,
     we have to disallow write-locking of these tables with any other tables.
   */
   if (table->s->system_table &&
-      table->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE &&
-      count != 1)
+      table->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE)
+    (*system_count)++;
+
+  /* 'current' is an index, that's why '<=' below. */
+  if (*system_count > 0 && *system_count <= current)
   {
-    my_error(ER_WRONG_LOCK_OF_SYSTEM_TABLE, MYF(0), table->s->db.str,
-             table->s->table_name.str);
+    my_error(ER_WRONG_LOCK_OF_SYSTEM_TABLE, MYF(0));
     return FALSE;
   }
 

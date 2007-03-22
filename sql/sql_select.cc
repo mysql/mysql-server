@@ -8193,9 +8193,14 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
 	*/ 
         expr= simplify_joins(join, &nested_join->join_list,
                              expr, FALSE);
-        table->on_expr= expr;
-        if (!table->prep_on_expr)
+
+        if (!table->prep_on_expr || expr != table->on_expr)
+        {
+          DBUG_ASSERT(expr);
+
+          table->on_expr= expr;
           table->prep_on_expr= expr->copy_andor_structure(join->thd);
+        }
       }
       nested_join->used_tables= (table_map) 0;
       nested_join->not_null_tables=(table_map) 0;
@@ -8205,7 +8210,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
     }
     else
     {
-      if (!(table->prep_on_expr))
+      if (!table->prep_on_expr)
         table->prep_on_expr= table->on_expr;
       used_tables= table->table->map;
       if (conds)
@@ -8697,7 +8702,7 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 	if ((new_cond= new Item_func_eq(args[0],
 					new Item_int("last_insert_id()",
                                                      thd->read_first_successful_insert_id_in_prev_stmt(),
-						     21))))
+                                                     MY_INT64_NUM_DECIMAL_DIGITS))))
 	{
 	  cond=new_cond;
           /*
@@ -8962,7 +8967,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     break;
   case INT_RESULT:
     /* Select an integer type with the minimal fit precision */
-    if (item->max_length > 11)
+    if (item->max_length > MY_INT32_NUM_DECIMAL_DIGITS)
       new_field=new Field_longlong(item->max_length, maybe_null,
                                    item->name, item->unsigned_flag);
     else
@@ -15277,7 +15282,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         examined_rows=(ha_rows)join->best_positions[i].records_read; 
  
       item_list.push_back(new Item_int((longlong) (ulonglong) examined_rows, 
-                                       21));
+                                       MY_INT64_NUM_DECIMAL_DIGITS));
 
       /* Add "filtered" field to item_list. */
       if (join->thd->lex->describe & DESCRIBE_EXTENDED)

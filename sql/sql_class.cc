@@ -303,9 +303,9 @@ THD::THD()
     bzero((char*) &user_var_events, sizeof(user_var_events));
 
   /* Protocol */
-  protocol= &protocol_simple;			// Default protocol
-  protocol_simple.init(this);
-  protocol_prep.init(this);
+  protocol= &protocol_text;			// Default protocol
+  protocol_text.init(this);
+  protocol_binary.init(this);
 
   tablespace_op=FALSE;
   tmp= sql_rnd_with_mutex();

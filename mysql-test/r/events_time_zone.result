@@ -1,0 +1,291 @@
+DROP DATABASE IF EXISTS mysqltest_db1;
+CREATE DATABASE mysqltest_db1;
+USE mysqltest_db1;
+SET GLOBAL EVENT_SCHEDULER= OFF;
+SET @save_time_zone= @@TIME_ZONE;
+SET TIME_ZONE= '+00:00';
+SET TIMESTAMP= UNIX_TIMESTAMP('2005-12-31 23:58:59');
+CREATE EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+mysqltest_db1	e1	root@localhost	+00:00	RECURRING	NULL	1	DAY	2005-12-31 23:58:59	NULL	ENABLED
+SET TIME_ZONE= '-01:00';
+ALTER EVENT e1 ON SCHEDULE EVERY 1 DAY STARTS '2000-01-01 00:00:00';
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+mysqltest_db1	e1	root@localhost	-01:00	RECURRING	NULL	1	DAY	2000-01-01 00:00:00	NULL	ENABLED
+SET TIME_ZONE= '+02:00';
+ALTER EVENT e1 ON SCHEDULE AT '2000-01-02 00:00:00'
+  ON COMPLETION PRESERVE DISABLE;
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+mysqltest_db1	e1	root@localhost	+02:00	ONE TIME	2000-01-02 00:00:00	NULL	NULL	NULL	NULL	DISABLED
+SET TIME_ZONE= '-03:00';
+ALTER EVENT e1 ON SCHEDULE EVERY 1 DAY ENDS '2030-01-03 00:00:00'
+  ON COMPLETION PRESERVE DISABLE;
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+mysqltest_db1	e1	root@localhost	-03:00	RECURRING	NULL	1	DAY	2005-12-31 20:58:59	2030-01-03 00:00:00	DISABLED
+SET TIME_ZONE= '+04:00';
+ALTER EVENT e1 DO SELECT 2;
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+mysqltest_db1	e1	root@localhost	-03:00	RECURRING	NULL	1	DAY	2005-12-31 20:58:59	2030-01-03 00:00:00	ENABLED
+DROP EVENT e1;
+SET TIME_ZONE='+05:00';
+CREATE EVENT e1 ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' DO
+SELECT 1;
+SET TIMESTAMP= @@TIMESTAMP + 1;
+SET TIME_ZONE='-05:00';
+CREATE EVENT e2 ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' DO
+SELECT 1;
+SET TIMESTAMP= @@TIMESTAMP + 1;
+SET TIME_ZONE='+00:00';
+CREATE EVENT e3 ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' DO
+SELECT 1;
+SELECT * FROM INFORMATION_SCHEMA.EVENTS;
+EVENT_CATALOG	EVENT_SCHEMA	EVENT_NAME	DEFINER	TIME_ZONE	EVENT_BODY	EVENT_DEFINITION	EVENT_TYPE	EXECUTE_AT	INTERVAL_VALUE	INTERVAL_FIELD	SQL_MODE	STARTS	ENDS	STATUS	ON_COMPLETION	CREATED	LAST_ALTERED	LAST_EXECUTED	EVENT_COMMENT
+NULL	mysqltest_db1	e1	root@localhost	+05:00	SQL	SELECT 1	RECURRING	NULL	1	DAY		2006-01-01 00:00:00	NULL	ENABLED	NOT PRESERVE	2005-12-31 23:58:59	2005-12-31 23:58:59	NULL	
+NULL	mysqltest_db1	e2	root@localhost	-05:00	SQL	SELECT 1	RECURRING	NULL	1	DAY		2006-01-01 00:00:00	NULL	ENABLED	NOT PRESERVE	2005-12-31 23:59:00	2005-12-31 23:59:00	NULL	
+NULL	mysqltest_db1	e3	root@localhost	+00:00	SQL	SELECT 1	RECURRING	NULL	1	DAY		2006-01-01 00:00:00	NULL	ENABLED	NOT PRESERVE	2005-12-31 23:59:01	2005-12-31 23:59:01	NULL	
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+mysqltest_db1	e1	root@localhost	+05:00	RECURRING	NULL	1	DAY	2006-01-01 00:00:00	NULL	ENABLED
+mysqltest_db1	e2	root@localhost	-05:00	RECURRING	NULL	1	DAY	2006-01-01 00:00:00	NULL	ENABLED
+mysqltest_db1	e3	root@localhost	+00:00	RECURRING	NULL	1	DAY	2006-01-01 00:00:00	NULL	ENABLED
+SHOW CREATE EVENT e1;
+Event	sql_mode	time_zone	Create Event
+e1		+05:00	CREATE EVENT `e1` ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 1
+SHOW CREATE EVENT e2;
+Event	sql_mode	time_zone	Create Event
+e2		-05:00	CREATE EVENT `e2` ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 1
+SHOW CREATE EVENT e3;
+Event	sql_mode	time_zone	Create Event
+e3		+00:00	CREATE EVENT `e3` ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 1
+The following should fail, and nothing should be altered.
+ALTER EVENT e1 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
+  ENDS '1999-01-02 00:00:00';
+ERROR HY000: Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. Event has not been altered
+ALTER EVENT e1 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
+  ENDS '1999-01-02 00:00:00' DISABLE;
+ERROR HY000: Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. Event has not been altered
+The following should give warnings, and nothing should be created.
+CREATE EVENT e4 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
+  ENDS '1999-01-02 00:00:00'
+DO
+SELECT 1;
+Warnings:
+Note	1584	Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. Event has not been created
+CREATE EVENT e4 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
+  ENDS '1999-01-02 00:00:00' DISABLE
+DO
+SELECT 1;
+Warnings:
+Note	1584	Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. Event has not been created
+CREATE EVENT e4 ON SCHEDULE AT '1999-01-01 00:00:00' DO
+SELECT 1;
+Warnings:
+Note	1584	Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. Event has not been created
+CREATE EVENT e4 ON SCHEDULE AT '1999-01-01 00:00:00' DISABLE
+DO
+SELECT 1;
+Warnings:
+Note	1584	Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. Event has not been created
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+mysqltest_db1	e1	root@localhost	+05:00	RECURRING	NULL	1	DAY	2006-01-01 00:00:00	NULL	ENABLED
+mysqltest_db1	e2	root@localhost	-05:00	RECURRING	NULL	1	DAY	2006-01-01 00:00:00	NULL	ENABLED
+mysqltest_db1	e3	root@localhost	+00:00	RECURRING	NULL	1	DAY	2006-01-01 00:00:00	NULL	ENABLED
+The following should succeed giving a warning.
+ALTER EVENT e1 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
+  ENDS '1999-01-02 00:00:00' ON COMPLETION PRESERVE;
+Warnings:
+Note	1533	Event execution time is in the past. Event has been disabled
+CREATE EVENT e4 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
+  ENDS '1999-01-02 00:00:00' ON COMPLETION PRESERVE
+DO
+SELECT 1;
+Warnings:
+Note	1533	Event execution time is in the past. Event has been disabled
+CREATE EVENT e5 ON SCHEDULE AT '1999-01-01 00:00:00'
+  ON COMPLETION PRESERVE
+DO
+SELECT 1;
+Warnings:
+Note	1533	Event execution time is in the past. Event has been disabled
+The following should succeed without warnings.
+ALTER EVENT e2 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00';
+ALTER EVENT e3 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
+  ENDS '1999-01-02 00:00:00' ON COMPLETION PRESERVE DISABLE;
+CREATE EVENT e6 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00' DO
+SELECT 1;
+CREATE EVENT e7 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
+  ENDS '1999-01-02 00:00:00' ON COMPLETION PRESERVE DISABLE
+DO
+SELECT 1;
+CREATE EVENT e8 ON SCHEDULE AT '1999-01-01 00:00:00'
+  ON COMPLETION PRESERVE DISABLE
+DO
+SELECT 1;
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+mysqltest_db1	e1	root@localhost	+00:00	RECURRING	NULL	1	HOUR	1999-01-01 00:00:00	1999-01-02 00:00:00	DISABLED
+mysqltest_db1	e2	root@localhost	+00:00	RECURRING	NULL	1	HOUR	1999-01-01 00:00:00	NULL	ENABLED
+mysqltest_db1	e3	root@localhost	+00:00	RECURRING	NULL	1	HOUR	1999-01-01 00:00:00	1999-01-02 00:00:00	DISABLED
+mysqltest_db1	e4	root@localhost	+00:00	RECURRING	NULL	1	HOUR	1999-01-01 00:00:00	1999-01-02 00:00:00	DISABLED
+mysqltest_db1	e5	root@localhost	+00:00	ONE TIME	1999-01-01 00:00:00	NULL	NULL	NULL	NULL	DISABLED
+mysqltest_db1	e6	root@localhost	+00:00	RECURRING	NULL	1	HOUR	1999-01-01 00:00:00	NULL	ENABLED
+mysqltest_db1	e7	root@localhost	+00:00	RECURRING	NULL	1	HOUR	1999-01-01 00:00:00	1999-01-02 00:00:00	DISABLED
+mysqltest_db1	e8	root@localhost	+00:00	ONE TIME	1999-01-01 00:00:00	NULL	NULL	NULL	NULL	DISABLED
+DROP EVENT e8;
+DROP EVENT e7;
+DROP EVENT e6;
+DROP EVENT e5;
+DROP EVENT e4;
+DROP EVENT e3;
+DROP EVENT e2;
+DROP EVENT e1;
+CREATE TABLE t_step (step INT);
+INSERT INTO t_step VALUES (@step);
+CREATE FUNCTION round_to_step(i INT, n INT) RETURNS INT
+BEGIN
+DECLARE step INT;
+SELECT * INTO step FROM t_step;
+# We add 0.1 as a protection from inexact division.
+RETURN FLOOR((i % (step * n) + 0.1) / step);
+END//
+SET @step3= @step * 3;
+SET @step6= @step * 6;
+SET @unix_time= @unix_time - @unix_time % @step6;
+INSERT INTO mysql.time_zone VALUES (NULL, 'N');
+SET @tzid= LAST_INSERT_ID();
+INSERT INTO mysql.time_zone_transition_type
+VALUES (@tzid, 0, 0, 0, 'b16420_0');
+INSERT INTO mysql.time_zone_transition_type
+VALUES (@tzid, 1, @step3 - @step, 1, 'b16420_1');
+INSERT INTO mysql.time_zone_name VALUES ('bug16420', @tzid);
+CREATE TABLE t1 (count INT, unix_time INT, local_time INT, comment CHAR(80));
+CREATE TABLE t2 (count INT);
+INSERT INTO t2 VALUES (1);
+CREATE FUNCTION f1(comment CHAR(80)) RETURNS INT
+BEGIN
+DECLARE orig_tz CHAR(64);
+DECLARE unix_time INT;
+DECLARE local_now DATETIME;
+DECLARE utc_now DATETIME;
+DECLARE local_time INT;
+SET unix_time= UNIX_TIMESTAMP();
+SET local_now= FROM_UNIXTIME(unix_time);
+SET orig_tz= @@TIME_ZONE;
+SET TIME_ZONE = '+00:00';
+SET utc_now= FROM_UNIXTIME(unix_time);
+SET TIME_ZONE= orig_tz;
+SET local_time = unix_time + TIMESTAMPDIFF(SECOND, utc_now, local_now);
+SET unix_time= round_to_step(unix_time, 6);
+SET local_time= round_to_step(local_time, 6);
+INSERT INTO t1 VALUES ((SELECT count FROM t2),
+unix_time, local_time, comment);
+RETURN 0;
+END//
+SET TIME_ZONE= '+00:00';
+CREATE EVENT e1 ON SCHEDULE EVERY @step SECOND
+STARTS FROM_UNIXTIME(@unix_time) DO SELECT f1("<e1>");
+SET TIME_ZONE= 'bug16420';
+CREATE EVENT e2 ON SCHEDULE EVERY @step SECOND
+STARTS FROM_UNIXTIME(@unix_time) DO SELECT f1("<e2>");
+SET GLOBAL EVENT_SCHEDULER= ON;
+SELECT SLEEP(@step / 2);
+SLEEP(@step / 2)
+0
+SET GLOBAL EVENT_SCHEDULER= OFF;
+SELECT * FROM t1 ORDER BY count, comment;
+count	unix_time	local_time	comment
+1	1	1	<e1>
+1	1	3	<e2>
+1	1	3	e2 should be executed
+2	2	2	<e1>
+2	2	4	<e2>
+2	2	4	e2 should be executed
+3	3	3	<e1>
+3	3	3	Second pass after backward -2 step shift, e2 should not be executed
+4	4	4	<e1>
+4	4	4	Second pass after backward -2 step shift, e2 should not be executed
+5	5	5	<e1>
+5	5	5	<e2>
+5	5	5	e2 should be executed
+6	0	0	<e1>
+6	0	2	<e2>
+6	0	2	Forward +2 step shift, local 0, 1 are skipped, e2 should be executed
+7	1	1	<e1>
+7	1	3	<e2>
+7	1	3	e2 should be executed
+SET TIME_ZONE= @save_time_zone;
+DROP EVENT e2;
+DROP EVENT e1;
+DROP FUNCTION f1;
+DROP TABLE t1, t2;
+DELETE FROM mysql.time_zone_name            WHERE time_zone_id = @tzid;
+DELETE FROM mysql.time_zone_transition_type WHERE time_zone_id = @tzid;
+DELETE FROM mysql.time_zone_transition      WHERE time_zone_id = @tzid;
+DELETE FROM mysql.time_zone                 WHERE time_zone_id = @tzid;
+SET TIME_ZONE= '+00:00';
+CREATE TABLE t1 (event CHAR(2), dt DATE, offset INT);
+INSERT INTO mysql.time_zone VALUES (NULL, 'N');
+SET @tzid= LAST_INSERT_ID();
+SET @now= UNIX_TIMESTAMP();
+SET @offset_month_01= UNIX_TIMESTAMP('2030-01-31 12:00:00') - @now;
+SET @offset_month_02= UNIX_TIMESTAMP('2030-02-28 12:00:00') - @now - 5*@step;
+SET @offset_month_03= UNIX_TIMESTAMP('2030-03-31 12:00:00') - @now - 5*@step;
+SET @offset_month_04= UNIX_TIMESTAMP('2030-04-30 12:00:00') - @now - 13*@step;
+INSERT INTO mysql.time_zone_transition_type
+VALUES (@tzid, 0, @offset_month_01, 0, 'b16420_0');
+INSERT INTO mysql.time_zone_transition_type
+VALUES (@tzid, 1, @offset_month_02, 1, 'b16420_1');
+INSERT INTO mysql.time_zone_transition_type
+VALUES (@tzid, 2, @offset_month_03, 1, 'b16420_2');
+INSERT INTO mysql.time_zone_transition_type
+VALUES (@tzid, 3, @offset_month_04, 1, 'b16420_3');
+INSERT INTO mysql.time_zone_transition
+VALUES (@tzid, @now, 0);
+INSERT INTO mysql.time_zone_transition
+VALUES (@tzid, @now + 3 * @step, 1);
+INSERT INTO mysql.time_zone_transition
+VALUES (@tzid, @now + 7 * @step, 2);
+INSERT INTO mysql.time_zone_transition
+VALUES (@tzid, @now + 12 * @step, 3);
+INSERT INTO mysql.time_zone_name VALUES ('bug16420_2', @tzid);
+SET TIME_ZONE= 'bug16420_2';
+SET GLOBAL EVENT_SCHEDULER= ON;
+SET GLOBAL EVENT_SCHEDULER= OFF;
+Below we should see the following:
+- On Jan 31 only e2 is executed, because we started later than
+e1 should have been executed.  Offset of e2 is 0 because of
+the late start, not 1.
+- The next execution is on Feb 28 (last day of Feb).  Both events
+are executed in their times, offsets are -1 and 1.
+- The next time is Mar 31.  Because the time of event
+execution was skipped over, events are executed right away,
+offsets are 2 and 2.
+- The next time is Apr 30.  Events are again executed in their
+appointed times, offsets are -1 and 1.
+SELECT * FROM t1 ORDER BY dt, event;
+event	dt	offset
+e2	2030-01-31	0
+e1	2030-02-28	-1
+e2	2030-02-28	1
+e1	2030-03-31	2
+e2	2030-03-31	2
+e1	2030-04-30	-1
+e2	2030-04-30	1
+DROP EVENT e2;
+DROP EVENT e1;
+DROP TABLE t1;
+SET TIME_ZONE= @save_time_zone;
+DELETE FROM mysql.time_zone_name            WHERE time_zone_id = @tzid;
+DELETE FROM mysql.time_zone_transition_type WHERE time_zone_id = @tzid;
+DELETE FROM mysql.time_zone_transition      WHERE time_zone_id = @tzid;
+DELETE FROM mysql.time_zone                 WHERE time_zone_id = @tzid;
+DROP FUNCTION round_to_step;
+DROP TABLE t_step;
+DROP DATABASE mysqltest_db1;
+End of 5.1 tests.

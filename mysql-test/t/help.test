@@ -114,4 +114,25 @@ delete from mysql.help_relation where help_keyword_id=@keyword2_id and help_topi
 delete from mysql.help_relation where help_keyword_id=@keyword3_id and help_topic_id=@topic3_id;
 delete from mysql.help_relation where help_keyword_id=@keyword3_id and help_topic_id=@topic4_id;
 
-# End of 4.1 tests
+--echo End of 4.1 tests.
+
+#
+# Test that we can use HELP even under LOCK TABLES.  See bug#9953:
+# CONVERT_TZ requires mysql.time_zone_name to be locked.
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (i INT);
+
+LOCK TABLES t1 WRITE;
+
+HELP no_such_topic;
+
+UNLOCK TABLES;
+
+DROP TABLE t1;
+
+
+--echo End of 5.1 tests.
