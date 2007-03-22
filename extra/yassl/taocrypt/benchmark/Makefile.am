@@ -1,5 +1,5 @@
 INCLUDES = -I$(srcdir)/../include -I$(srcdir)/../mySTL
-bin_PROGRAMS       = benchmark
+noinst_PROGRAMS    = benchmark
 benchmark_SOURCES  = benchmark.cpp
 benchmark_LDADD    = $(top_builddir)/extra/yassl/taocrypt/src/libtaocrypt.la
 benchmark_CXXFLAGS = -DYASSL_PURE_C
