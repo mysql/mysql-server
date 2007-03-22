@@ -479,6 +479,22 @@ int ndb_mgm_set_timeout(NdbMgmHandle handle, unsigned int timeout_ms)
   return 0;
 }
 
+extern "C"
+int ndb_mgm_number_of_mgmd_in_connect_string(NdbMgmHandle handle)
+{
+  int count=0;
+  int i;
+  LocalConfig &cfg= handle->cfg;
+
+  for (i = 0; i < cfg.ids.size(); i++)
+  {
+    if (cfg.ids[i].type != MgmId_TCP)
+      continue;
+    count++;
+  }
+  return count;
+}
+
 /**
  * Connect to a management server
  */
