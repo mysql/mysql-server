@@ -82,10 +82,6 @@ TODO:
 #define SELECT_TYPE_REQUIRES_PREFIX 5
 
 #include "client_priv.h"
-#include <my_pthread.h>
-#include <my_sys.h>
-#include <m_string.h>
-#include <mysql.h>
 #include <mysqld_error.h>
 #include <my_dir.h>
 #include <signal.h>
@@ -1554,13 +1550,13 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
   uint x;
   struct timeval start_time, end_time;
   thread_context con;
+  pthread_t mainthread;            /* Thread descriptor */
+  pthread_attr_t attr;          /* Thread attributes */
   DBUG_ENTER("run_scheduler");
 
   con.stmt= stmts;
   con.limit= limit;
 
-  pthread_t mainthread;            /* Thread descriptor */
-  pthread_attr_t attr;          /* Thread attributes */
   pthread_attr_init(&attr);
   pthread_attr_setdetachstate(&attr,
 		  PTHREAD_CREATE_DETACHED);
