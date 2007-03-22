@@ -455,21 +455,21 @@ create table t2 select ifnull(a,a), ifnull(b,b), ifnull(c,c), ifnull(d,d), ifnul
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `ifnull(a,a)` tinyint(4) DEFAULT NULL,
-  `ifnull(b,b)` smallint(6) DEFAULT NULL,
-  `ifnull(c,c)` mediumint(8) DEFAULT NULL,
-  `ifnull(d,d)` int(11) DEFAULT NULL,
-  `ifnull(e,e)` bigint(20) DEFAULT NULL,
-  `ifnull(f,f)` float(24,2) DEFAULT NULL,
-  `ifnull(g,g)` double(53,3) DEFAULT NULL,
-  `ifnull(h,h)` decimal(5,4) DEFAULT NULL,
-  `ifnull(i,i)` year(4) DEFAULT NULL,
-  `ifnull(j,j)` date DEFAULT NULL,
-  `ifnull(k,k)` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
-  `ifnull(l,l)` datetime DEFAULT NULL,
-  `ifnull(m,m)` varchar(1) DEFAULT NULL,
-  `ifnull(n,n)` varchar(3) DEFAULT NULL,
-  `ifnull(o,o)` varchar(10) DEFAULT NULL
+  `ifnull(a,a)` tinyint(4) default NULL,
+  `ifnull(b,b)` smallint(6) default NULL,
+  `ifnull(c,c)` mediumint(8) default NULL,
+  `ifnull(d,d)` int(11) default NULL,
+  `ifnull(e,e)` bigint(20) default NULL,
+  `ifnull(f,f)` float(3,2) default NULL,
+  `ifnull(g,g)` double(4,3) default NULL,
+  `ifnull(h,h)` decimal(5,4) default NULL,
+  `ifnull(i,i)` year(4) default NULL,
+  `ifnull(j,j)` date default NULL,
+  `ifnull(k,k)` timestamp NOT NULL default '0000-00-00 00:00:00',
+  `ifnull(l,l)` datetime default NULL,
+  `ifnull(m,m)` varchar(1) default NULL,
+  `ifnull(n,n)` varchar(3) default NULL,
+  `ifnull(o,o)` varchar(10) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1,t2;
 create table t1(str varchar(10) default 'def',strnull varchar(10),intg int default '10',rel double default '3.14');
