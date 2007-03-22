@@ -3282,8 +3282,7 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
     break;
   case HA_EXTRA_RESET:                 /* Reset database to after open */
     DBUG_PRINT("info", ("HA_EXTRA_RESET"));
-    DBUG_PRINT("info", ("Clearing condition stack"));
-    cond_clear();
+    reset();
     break;
   case HA_EXTRA_CACHE:                 /* Cash record in HA_rrnd() */
     DBUG_PRINT("info", ("HA_EXTRA_CACHE"));
@@ -3404,6 +3403,21 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
   
   DBUG_RETURN(0);
 }
+
+
+int ha_ndbcluster::reset()
+{
+  DBUG_ENTER("ha_ndbcluster::reset");
+  cond_clear();
+
+  /* reset flags set by extra calls */
+  m_retrieve_all_fields= FALSE;
+  m_retrieve_primary_key= FALSE;
+  m_ignore_dup_key= FALSE;
+  m_use_write= FALSE;
+  DBUG_RETURN(0);
+}
+
 
 /* 
    Start of an insert, remember number of rows to be inserted, it will
