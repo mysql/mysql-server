@@ -546,8 +546,7 @@ extern "C" {
   const char *ndb_mgm_get_connectstring(NdbMgmHandle handle, char *buf, int buf_sz);
 
   /**
-   * Sets the number of seconds to wait for connect(2) during ndb_mgm_connect
-   * Default is no timeout
+   * DEPRICATED: use ndb_mgm_set_timeout instead.
    *
    * @param handle  NdbMgmHandle
    * @param seconds number of seconds
@@ -556,15 +555,16 @@ extern "C" {
   int ndb_mgm_set_connect_timeout(NdbMgmHandle handle, unsigned int seconds);
 
   /**
-   * Sets the number of milliseconds for timeout for read and write operations
-   * to the socket
-   * Default is 50,000 for read, 1000 for write
+   * Sets the number of milliseconds for timeout of network operations
+   * Default is 60 seconds.
+   * Only increments of 1000 ms are supported. No function is gaurenteed
+   * to return in a fraction of a second.
    *
    * @param handle  NdbMgmHandle
-   * @param rw_milliseconds number of milliseconds
+   * @param timeout_ms number of milliseconds
    * @return zero on success
    */
-  int ndb_mgm_set_timeout(NdbMgmHandle handle, unsigned int rw_milliseconds);
+  int ndb_mgm_set_timeout(NdbMgmHandle handle, unsigned int timeout_ms);
 
   /**
    * Connects to a management server. Connectstring is set by
