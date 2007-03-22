@@ -832,6 +832,7 @@ drop table t1;
 #
 create table t1 (col1 int);
 create table t2 (col1 int);
+create table t3 (col1 datetime not null);
 create view v1 as select * from t1;
 create view v2 as select * from v1;
 create view v3 as select v2.col1 from v2,t2 where v2.col1 = t2.col1;
@@ -938,7 +939,7 @@ insert into v3 (col1) values ((select max(col1) from v2));
 insert into v3 (col1) values ((select CONVERT_TZ('20050101000000','UTC','MET') from v2));
 insert into v3 (col1) values ((select CONVERT_TZ('20050101000000','UTC','MET') from t2));
 -- error 1048
-insert into mysql.time_zone values ('', (select CONVERT_TZ('20050101000000','UTC','MET') from t2));
+insert into t3 values ((select CONVERT_TZ('20050101000000','UTC','MET') from t2));
 # temporary table algorithm view should be equal to subquery in the from clause
 create algorithm=temptable view v4 as select * from t1;
 insert into t1 values (1),(2),(3);
@@ -946,7 +947,7 @@ insert into t1 (col1) values ((select max(col1) from v4));
 select * from t1;
 
 drop view v4,v3,v2,v1;
-drop table t1,t2;
+drop table t1,t2,t3;
 
 #
 # HANDLER with VIEW
@@ -3214,3 +3215,30 @@ DROP TABLE `t-2`;
 DROP VIEW  `v-2`;
 DROP DATABASE `d-1`;
 USE test;
+
+
+#
+# Test that ALTER VIEW accepts DEFINER and ALGORITHM, see bug#16425.
+#
+--disable_warnings
+DROP VIEW IF EXISTS v1;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (i INT);
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+ALTER VIEW v1 AS SELECT * FROM t1;
+SHOW CREATE VIEW v1;
+ALTER DEFINER=no_such@user_1 VIEW v1 AS SELECT * FROM t1;
+SHOW CREATE VIEW v1;
+ALTER ALGORITHM=MERGE VIEW v1 AS SELECT * FROM t1;
+SHOW CREATE VIEW v1;
+ALTER ALGORITHM=TEMPTABLE DEFINER=no_such@user_2 VIEW v1 AS SELECT * FROM t1;
+SHOW CREATE VIEW v1;
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+
+--echo End of 5.1 tests.

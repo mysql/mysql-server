@@ -58,15 +58,20 @@ public:
   LEX_STRING name;
   LEX_STRING definer;// combination of user and host
 
+  Time_zone *time_zone;
+
   Event_basic();
   virtual ~Event_basic();
 
   virtual int
-  load_from_row(TABLE *table) = 0;
+  load_from_row(THD *thd, TABLE *table) = 0;
 
 protected:
   bool
   load_string_fields(Field **fields, ...);
+
+  bool
+  load_time_zone(THD *thd, const LEX_STRING tz_name);
 };
 
 
@@ -92,11 +97,11 @@ public:
 
   enum enum_on_completion on_completion;
   enum enum_status status;
-  TIME last_executed;
 
-  TIME execute_at;
-  TIME starts;
-  TIME ends;
+  my_time_t last_executed;
+  my_time_t execute_at;
+  my_time_t starts;
+  my_time_t ends;
   my_bool starts_null;
   my_bool ends_null;
   my_bool execute_at_null;
@@ -112,7 +117,7 @@ public:
   virtual ~Event_queue_element();
 
   virtual int
-  load_from_row(TABLE *table);
+  load_from_row(THD *thd, TABLE *table);
 
   bool
   compute_next_execution_time();
@@ -168,7 +173,7 @@ public:
   init();
 
   virtual int
-  load_from_row(TABLE *table);
+  load_from_row(THD *thd, TABLE *table);
 
   int
   get_create_event(THD *thd, String *buf);
@@ -192,7 +197,7 @@ public:
   virtual ~Event_job_data();
 
   virtual int
-  load_from_row(TABLE *table);
+  load_from_row(THD *thd, TABLE *table);
 
   int
   execute(THD *thd);
@@ -224,6 +229,11 @@ public:
   };
   enum enum_on_completion on_completion;
   enum enum_status status;
+  /*
+    do_not_create will be set if STARTS time is in the past and
+    on_completion == ON_COMPLETION_DROP.
+  */
+  bool do_not_create;
 
   const uchar *body_begin;
 
@@ -237,9 +247,9 @@ public:
   Item* item_ends;
   Item* item_execute_at;
 
-  TIME starts;
-  TIME ends;
-  TIME execute_at;
+  my_time_t starts;
+  my_time_t ends;
+  my_time_t execute_at;
   my_bool starts_null;
   my_bool ends_null;
   my_bool execute_at_null;
@@ -283,6 +293,9 @@ private:
 
   void
   report_bad_value(const char *item_name, Item *bad_item);
+
+  void
+  check_if_in_the_past(THD *thd, my_time_t ltime_utc);
 
   Event_parse_data(const Event_parse_data &);	/* Prevent use of these */
   void operator=(Event_parse_data &);

@@ -3807,6 +3807,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     udf_init();
 #endif
   }
+
   init_status_vars();
   if (opt_bootstrap) /* If running with bootstrap, do not start replication. */
     opt_skip_slave_start= 1;
@@ -3852,6 +3853,10 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   {
     if (Events::get_instance()->init())
       unireg_abort(1);
+  }
+  else
+  {
+    Events::opt_event_scheduler = Events::EVENTS_DISABLED; 
   }
 
   /* Signal threads waiting for server to be started */

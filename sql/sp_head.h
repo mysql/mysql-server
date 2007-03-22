@@ -107,8 +107,6 @@ public:
   /* Possible values of m_flags */
   enum {
     HAS_RETURN= 1,              // For FUNCTIONs only: is set if has RETURN
-    IN_SIMPLE_CASE= 2,          // Is set if parsing a simple CASE
-    IN_HANDLER= 4,              // Is set if the parser is in a handler body
     MULTI_RESULTS= 8,           // Is set if a procedure with SELECT(s)
     CONTAINS_DYNAMIC_SQL= 16,   // Is set if a procedure with PREPARE/EXECUTE
     IS_INVOKED= 32,             // Is set if this sp_head is being used
@@ -468,13 +466,15 @@ public:
          thd        Thread handle
          nextp  OUT index of the next instruction to execute. (For most
                     instructions this will be the instruction following this
-                    one).
- 
-     RETURN 
-       0      on success, 
-       other  if some error occured
+                    one). Note that this parameter is undefined in case of
+                    errors, use get_cont_dest() to find the continuation
+                    instruction for CONTINUE error handlers.
+
+     RETURN
+       0      on success,
+       other  if some error occurred
   */
-  
+
   virtual int execute(THD *thd, uint *nextp) = 0;
 
   /**
@@ -482,22 +482,17 @@ public:
     Open and lock the tables used by this statement, as a pre-requisite
     to execute the core logic of this instruction with
     <code>exec_core()</code>.
-    If this statement fails, the next instruction to execute is also returned.
-    This is useful when a user defined SQL continue handler needs to be
-    executed.
     @param thd the current thread
     @param tables the list of tables to open and lock
-    @param nextp the continuation instruction, returned to the caller if this
-    method fails.
     @return zero on success, non zero on failure.
   */
-  int exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables, uint *nextp);
+  int exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables);
 
   /**
     Get the continuation destination of this instruction.
-    @param nextp the continuation destination (output)
+    @return the continuation destination
   */
-  virtual void get_cont_dest(uint *nextp);
+  virtual uint get_cont_dest();
 
   /*
     Execute core function of instruction after all preparations (e.g.
@@ -763,7 +758,7 @@ public:
   virtual void set_destination(uint old_dest, uint new_dest)
     = 0;
 
-  virtual void get_cont_dest(uint *nextp);
+  virtual uint get_cont_dest();
 
 protected:
 
