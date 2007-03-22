@@ -811,7 +811,7 @@ do not trust column Seconds_Behind_Master of SHOW SLAVE STATUS");
   {
     if ((master_row= mysql_fetch_row(master_res)) &&
         (::server_id == strtoul(master_row[1], 0, 10)) &&
-        !replicate_same_server_id)
+        !mi->rli.replicate_same_server_id)
       errmsg= "The slave I/O thread stops because master and slave have equal \
 MySQL server ids; these ids must be different for replication to work (or \
 the --replicate-same-server-id option must be used on slave but this does \
@@ -1721,20 +1721,9 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
   if (ev)
   {
     int type_code = ev->get_type_code();
-    int exec_res;
+    int exec_res= 0;
 
     /*
-      Queries originating from this server must be skipped.
-      Low-level events (Format_desc, Rotate, Stop) from this server
-      must also be skipped. But for those we don't want to modify
-      group_master_log_pos, because these events did not exist on the master.
-      Format_desc is not completely skipped.
-      Skip queries specified by the user in slave_skip_counter.
-      We can't however skip events that has something to do with the
-      log files themselves.
-      Filtering on own server id is extremely important, to ignore execution of
-      events created by the creation/rotation of the relay log (remember that
-      now the relay log starts with its Format_desc, has a Rotate etc).
     */
 
     DBUG_PRINT("info",("type_code=%d (%s), server_id=%d",
@@ -1742,8 +1731,27 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
 
 
     /*
-      Execute the event, but first we set some data that is needed for
+      Execute the event to change the database and update the binary
+      log coordinates, but first we set some data that is needed for
       the thread.
+
+      The event will be executed unless it is supposed to be skipped.
+
+      Queries originating from this server must be skipped.  Low-level
+      events (Format_description_log_event, Rotate_log_event,
+      Stop_log_event) from this server must also be skipped. But for
+      those we don't want to modify 'group_master_log_pos', because
+      these events did not exist on the master.
+      Format_description_log_event is not completely skipped.
+
+      Skip queries specified by the user in 'slave_skip_counter'.  We
+      can't however skip events that has something to do with the log
+      files themselves.
+
+      Filtering on own server id is extremely important, to ignore
+      execution of events created by the creation/rotation of the relay
+      log (remember that now the relay log starts with its Format_desc,
+      has a Rotate etc).
     */
 
     thd->server_id = ev->server_id; // use the original server id for logging
@@ -1753,9 +1761,62 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
       ev->when = time(NULL);
     ev->thd = thd; // because up to this point, ev->thd == 0
 
-    exec_res= ev->exec_event(rli);
-    DBUG_PRINT("info", ("exec_event result = %d", exec_res));
-    DBUG_ASSERT(rli->sql_thd==thd);
+    int reason= ev->shall_skip(rli);
+    if (reason == Log_event::EVENT_SKIP_COUNT)
+      --rli->slave_skip_counter;
+    pthread_mutex_unlock(&rli->data_lock);
+    if (reason == Log_event::EVENT_SKIP_NOT)
+      exec_res= ev->apply_event(rli);
+#ifndef DBUG_OFF
+    else
+    {
+      /*
+        This only prints information to the debug trace.
+
+        TODO: Print an informational message to the error log?
+       */
+      static const char *const explain[] = {
+        "event was not skipped",                  // EVENT_SKIP_NOT,
+        "event originated from this server",      // EVENT_SKIP_IGNORE,
+        "event skip counter was non-zero"         // EVENT_SKIP_COUNT
+      };
+      DBUG_PRINT("info", ("%s was skipped because %s",
+                          ev->get_type_str(), explain[reason]));
+    }
+#endif
+
+    DBUG_PRINT("info", ("apply_event error = %d", exec_res));
+    if (exec_res == 0)
+    {
+      int error= ev->update_pos(rli);
+      char buf[22];
+      DBUG_PRINT("info", ("update_pos error = %d", error));
+      DBUG_PRINT("info", ("group %s %s",
+                          llstr(rli->group_relay_log_pos, buf),
+                          rli->group_relay_log_name));
+      DBUG_PRINT("info", ("event %s %s",
+                          llstr(rli->event_relay_log_pos, buf),
+                          rli->event_relay_log_name));
+      /*
+        The update should not fail, so print an error message and
+        return an error code.
+
+        TODO: Replace this with a decent error message when merged
+        with BUG#24954 (which adds several new error message).
+      */
+      if (error)
+      {
+        slave_print_msg(ERROR_LEVEL, rli, ER_UNKNOWN_ERROR,
+                        "It was not possible to update the positions"
+                        " of the relay log information: the slave may"
+                        " be in an inconsistent state."
+                        " Stopped in %s position %s",
+                        rli->group_relay_log_name,
+                        llstr(rli->group_relay_log_pos, buf));
+        DBUG_RETURN(1);
+      }
+    }
+
     /*
        Format_description_log_event should not be deleted because it will be
        used to read info about the relay log's format; it will be deleted when
@@ -2902,7 +2963,7 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
   pthread_mutex_lock(log_lock);
 
   if ((uint4korr(buf + SERVER_ID_OFFSET) == ::server_id) &&
-      !replicate_same_server_id)
+      !mi->rli.replicate_same_server_id)
   {
     /*
       Do not write it to the relay log.

@@ -596,14 +596,20 @@ int Log_event::do_update_pos(RELAY_LOG_INFO *rli)
 
 
 Log_event::enum_skip_reason
-Log_event::shall_skip(RELAY_LOG_INFO *rli)
+Log_event::do_shall_skip(RELAY_LOG_INFO *rli)
 {
-  if (this->server_id == ::server_id && !replicate_same_server_id)
-    return EVENT_SKIP_SAME_SID;
+  DBUG_PRINT("info", ("ev->server_id=%lu, ::server_id=%lu,"
+                      " rli->replicate_same_server_id=%d,"
+                      " rli->slave_skip_counter=%d",
+                      (ulong) server_id, (ulong) ::server_id,
+                      rli->replicate_same_server_id,
+                      rli->slave_skip_counter));
+  if (server_id == ::server_id && !rli->replicate_same_server_id)
+    return EVENT_SKIP_IGNORE;
   else if (rli->slave_skip_counter > 0)
     return EVENT_SKIP_COUNT;
   else
-    return EVENT_NOT_SKIPPED;
+    return EVENT_SKIP_NOT;
 }
 
 
@@ -2566,9 +2572,9 @@ int Format_description_log_event::do_update_pos(RELAY_LOG_INFO *rli)
 }
 
 Log_event::enum_skip_reason
-Format_description_log_event::shall_skip(RELAY_LOG_INFO *rli)
+Format_description_log_event::do_shall_skip(RELAY_LOG_INFO *rli)
 {
-  return Log_event::EVENT_NOT_SKIPPED;
+  return Log_event::EVENT_SKIP_NOT;
 }
 
 #endif
@@ -3077,7 +3083,7 @@ void Load_log_event::set_fields(const char* affected_db,
 */
 
 int Load_log_event::do_apply_event(NET* net, RELAY_LOG_INFO const *rli,
-                                     bool use_rli_only_for_errors)
+                                   bool use_rli_only_for_errors)
 {
   LEX_STRING new_db;
   new_db.length= db_len;
@@ -3416,6 +3422,7 @@ Rotate_log_event::Rotate_log_event(const char* buf, uint event_len,
   ident_offset = post_header_len; 
   set_if_smaller(ident_len,FN_REFLEN-1);
   new_log_ident= my_strndup(buf + ident_offset, (uint) ident_len, MYF(MY_WME));
+  DBUG_PRINT("debug", ("new_log_ident: '%s'", new_log_ident));
   DBUG_VOID_RETURN;
 }
 
@@ -3438,11 +3445,13 @@ bool Rotate_log_event::write(IO_CACHE* file)
 /**
    Helper function to detect if the event is inside a group.
  */
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 static bool is_in_group(THD *const thd, RELAY_LOG_INFO *const rli)
 {
   return (thd->options & OPTION_BEGIN) != 0 ||
          (rli->last_event_start_time > 0);
 }
+#endif
 
 
 /*
@@ -3470,7 +3479,8 @@ int Rotate_log_event::do_update_pos(RELAY_LOG_INFO *rli)
   char buf[32];
 #endif
 
-  DBUG_PRINT("info", ("server_id=%lu; ::server_id=%lu", this->server_id, ::server_id));
+  DBUG_PRINT("info", ("server_id=%lu; ::server_id=%lu",
+                      (ulong) this->server_id, (ulong) ::server_id));
   DBUG_PRINT("info", ("new_log_ident: %s", this->new_log_ident));
   DBUG_PRINT("info", ("pos: %s", llstr(this->pos, buf)));
 
@@ -3490,10 +3500,15 @@ int Rotate_log_event::do_update_pos(RELAY_LOG_INFO *rli)
     In that case, we don't want to touch the coordinates which
     correspond to the beginning of the transaction.  Starting from
     5.0.0, there also are some rotates from the slave itself, in the
-    relay log.
+    relay log, which shall not change the group positions.
   */
-  if (!is_in_group(thd, rli))
+  if ((server_id != ::server_id || rli->replicate_same_server_id) &&
+      !is_in_group(thd, rli))
   {
+    DBUG_PRINT("info", ("old group_master_log_name: '%s'  "
+                        "old group_master_log_pos: %lu",
+                        rli->group_master_log_name,
+                        (ulong) rli->group_master_log_pos));
     memcpy(rli->group_master_log_name, new_log_ident, ident_len+1);
     rli->notify_group_master_log_name_update();
     rli->group_master_log_pos= pos;
@@ -3524,18 +3539,17 @@ int Rotate_log_event::do_update_pos(RELAY_LOG_INFO *rli)
 
 
 Log_event::enum_skip_reason
-Rotate_log_event::shall_skip(RELAY_LOG_INFO *rli)
+Rotate_log_event::do_shall_skip(RELAY_LOG_INFO *rli)
 {
-  
-  enum_skip_reason reason= Log_event::shall_skip(rli);
+  enum_skip_reason reason= Log_event::do_shall_skip(rli);
 
   switch (reason) {
-  case Log_event::EVENT_NOT_SKIPPED:
+  case Log_event::EVENT_SKIP_NOT:
   case Log_event::EVENT_SKIP_COUNT:
-    return Log_event::EVENT_NOT_SKIPPED;
+    return Log_event::EVENT_SKIP_NOT;
 
-  case Log_event::EVENT_SKIP_SAME_SID:
-    return Log_event::EVENT_SKIP_SAME_SID;
+  case Log_event::EVENT_SKIP_IGNORE:
+    return Log_event::EVENT_SKIP_IGNORE;
   }
   DBUG_ASSERT(0);
 }
@@ -3671,21 +3685,20 @@ int Intvar_log_event::do_update_pos(RELAY_LOG_INFO *rli)
 
 
 Log_event::enum_skip_reason
-Intvar_log_event::shall_skip(RELAY_LOG_INFO *rli)
+Intvar_log_event::do_shall_skip(RELAY_LOG_INFO *rli)
 {
   /*
-    It is a common error to set the slave skip counter to 1 instead
-    of 2 when recovering from an insert which used a auto increment,
-    rand, or user var.  Therefore, if the slave skip counter is 1,
-    we just say that this event should be skipped because of the
-    slave skip count, but we do not change the value of the slave
-    skip counter since it will be decreased by the following insert
-    event.
+    It is a common error to set the slave skip counter to 1 instead of
+    2 when recovering from an insert which used a auto increment,
+    rand, or user var.  Therefore, if the slave skip counter is 1, we
+    just say that this event should be skipped by ignoring it, meaning
+    that we do not change the value of the slave skip counter since it
+    will be decreased by the following insert event.
   */
   if (rli->slave_skip_counter == 1)
-    return Log_event::EVENT_SKIP_COUNT;
+    return Log_event::EVENT_SKIP_IGNORE;
   else
-    return Log_event::shall_skip(rli);
+    return Log_event::do_shall_skip(rli);
 }
 
 #endif
@@ -3764,21 +3777,20 @@ int Rand_log_event::do_update_pos(RELAY_LOG_INFO *rli)
 
 
 Log_event::enum_skip_reason
-Rand_log_event::shall_skip(RELAY_LOG_INFO *rli)
+Rand_log_event::do_shall_skip(RELAY_LOG_INFO *rli)
 {
   /*
-    It is a common error to set the slave skip counter to 1 instead
-    of 2 when recovering from an insert which used a auto increment,
-    rand, or user var.  Therefore, if the slave skip counter is 1,
-    we just say that this event should be skipped because of the
-    slave skip count, but we do not change the value of the slave
-    skip counter since it will be decreased by the following insert
-    event.
+    It is a common error to set the slave skip counter to 1 instead of
+    2 when recovering from an insert which used a auto increment,
+    rand, or user var.  Therefore, if the slave skip counter is 1, we
+    just say that this event should be skipped by ignoring it, meaning
+    that we do not change the value of the slave skip counter since it
+    will be decreased by the following insert event.
   */
   if (rli->slave_skip_counter == 1)
-    return Log_event::EVENT_SKIP_COUNT;
+    return Log_event::EVENT_SKIP_IGNORE;
   else
-    return Log_event::shall_skip(rli);
+    return Log_event::do_shall_skip(rli);
 }
 
 #endif /* !MYSQL_CLIENT */
@@ -4204,22 +4216,21 @@ int User_var_log_event::do_update_pos(RELAY_LOG_INFO *rli)
 }
 
 Log_event::enum_skip_reason
-User_var_log_event::shall_skip(RELAY_LOG_INFO *rli)
-  {
-    /*
-      It is a common error to set the slave skip counter to 1 instead
-      of 2 when recovering from an insert which used a auto increment,
-      rand, or user var.  Therefore, if the slave skip counter is 1,
-      we just say that this event should be skipped because of the
-      slave skip count, but we do not change the value of the slave
-      skip counter since it will be decreased by the following insert
-      event.
-    */
-    if (rli->slave_skip_counter == 1)
-      return Log_event::EVENT_SKIP_COUNT;
-    else
-      return Log_event::shall_skip(rli);
-  }
+User_var_log_event::do_shall_skip(RELAY_LOG_INFO *rli)
+{
+  /*
+    It is a common error to set the slave skip counter to 1 instead
+    of 2 when recovering from an insert which used a auto increment,
+    rand, or user var.  Therefore, if the slave skip counter is 1, we
+    just say that this event should be skipped by ignoring it, meaning
+    that we do not change the value of the slave skip counter since it
+    will be decreased by the following insert event.
+  */
+  if (rli->slave_skip_counter == 1)
+    return Log_event::EVENT_SKIP_IGNORE;
+  else
+    return Log_event::do_shall_skip(rli);
+}
 #endif /* !MYSQL_CLIENT */
 
 
@@ -5920,7 +5931,7 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
       default:
 	slave_print_msg(ERROR_LEVEL, rli, thd->net.last_errno,
                         "Error in %s event: row application failed",
-                        get_type_str(), error);
+                        get_type_str());
 	thd->query_error= 1;
 	break;
       }
