@@ -607,6 +607,12 @@ NdbBlob::getHeadInlineValue(NdbOperation* anOp)
     setErrorCode(anOp);
     DBUG_RETURN(-1);
   }
+  /*
+   * If we get no data from this op then the operation is aborted
+   * one way or other.  Following hack in 5.0 makes sure we don't read
+   * garbage.  The proper fix exists only in version >= 5.1.
+   */
+  theHead->length = 0;
   DBUG_RETURN(0);
 }
 
