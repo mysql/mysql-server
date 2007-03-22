@@ -91,9 +91,7 @@ struct ndb_mgm_handle {
   int last_error;
   int last_error_line;
   char last_error_desc[NDB_MGM_MAX_ERR_DESC_SIZE];
-  int read_timeout;
-  int write_timeout;
-  unsigned int connect_timeout;
+  unsigned int timeout;
 
   NDB_SOCKET_TYPE socket;
 
@@ -187,9 +185,7 @@ ndb_mgm_create_handle()
   h->last_error      = 0;
   h->last_error_line = 0;
   h->socket          = NDB_INVALID_SOCKET;
-  h->read_timeout    = 50000;
-  h->write_timeout   = 100;
-  h->connect_timeout = 0;
+  h->timeout         = 60000;
   h->cfg_i           = -1;
   h->errstream       = stdout;
   h->m_name          = 0;
@@ -346,8 +342,8 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
   DBUG_ENTER("ndb_mgm_call");
   DBUG_PRINT("enter",("handle->socket: %d, cmd: %s",
 		      handle->socket, cmd));
-  SocketOutputStream out(handle->socket, handle->write_timeout);
-  SocketInputStream in(handle->socket, handle->read_timeout);
+  SocketOutputStream out(handle->socket, handle->timeout);
+  SocketInputStream in(handle->socket, handle->timeout);
 
   out.println(cmd);
 #ifdef MGMAPI_LOG
@@ -469,20 +465,17 @@ int ndb_mgm_is_connected(NdbMgmHandle handle)
 extern "C"
 int ndb_mgm_set_connect_timeout(NdbMgmHandle handle, unsigned int seconds)
 {
-  if(!handle)
-    return -1;
-
-  handle->connect_timeout= seconds;
+  return ndb_mgm_set_timeout(handle, seconds*1000);
   return 0;
 }
 
 extern "C"
-int ndb_mgm_set_timeout(NdbMgmHandle handle, unsigned int rw_milliseconds)
+int ndb_mgm_set_timeout(NdbMgmHandle handle, unsigned int timeout_ms)
 {
   if(!handle)
     return -1;
 
-  handle->read_timeout= handle->write_timeout= rw_milliseconds;
+  handle->timeout= timeout_ms;
   return 0;
 }
 
@@ -515,7 +508,7 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
   NDB_SOCKET_TYPE sockfd= NDB_INVALID_SOCKET;
   Uint32 i;
   SocketClient s(0, 0);
-  s.set_connect_timeout(handle->connect_timeout);
+  s.set_connect_timeout(handle->timeout);
   if (!s.init())
   {
     fprintf(handle->errstream, 
@@ -825,8 +818,8 @@ ndb_mgm_get_status(NdbMgmHandle handle)
   CHECK_HANDLE(handle, NULL);
   CHECK_CONNECTED(handle, NULL);
 
-  SocketOutputStream out(handle->socket, handle->write_timeout);
-  SocketInputStream in(handle->socket, handle->read_timeout);
+  SocketOutputStream out(handle->socket, handle->timeout);
+  SocketInputStream in(handle->socket, handle->timeout);
 
   out.println("get status");
   out.println("");
@@ -1226,10 +1219,10 @@ ndb_mgm_restart3(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
     args.put("initialstart", initial);
     args.put("nostart", nostart);
     const Properties *reply;
-    const int timeout = handle->read_timeout;
-    handle->read_timeout= 5*60*1000; // 5 minutes
+    const int timeout = handle->timeout;
+    handle->timeout= 5*60*1000; // 5 minutes
     reply = ndb_mgm_call(handle, restart_reply_v1, "restart all", &args);
-    handle->read_timeout= timeout;
+    handle->timeout= timeout;
     CHECK_REPLY(handle, reply, -1);
 
     BaseString result;
@@ -1262,13 +1255,13 @@ ndb_mgm_restart3(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
   args.put("nostart", nostart);
 
   const Properties *reply;
-  const int timeout = handle->read_timeout;
-  handle->read_timeout= 5*60*1000; // 5 minutes
+  const int timeout = handle->timeout;
+  handle->timeout= 5*60*1000; // 5 minutes
   if(use_v2)
     reply = ndb_mgm_call(handle, restart_reply_v2, "restart node v2", &args);
   else
     reply = ndb_mgm_call(handle, restart_reply_v1, "restart node", &args);
-  handle->read_timeout= timeout;
+  handle->timeout= timeout;
   if(reply != NULL) {
     BaseString result;
     reply->get("result", result);
@@ -2038,13 +2031,13 @@ ndb_mgm_start_backup(NdbMgmHandle handle, int wait_completed,
   args.put("completed", wait_completed);
   const Properties *reply;
   { // start backup can take some time, set timeout high
-    Uint64 old_timeout= handle->read_timeout;
+    Uint64 old_timeout= handle->timeout;
     if (wait_completed == 2)
-      handle->read_timeout= 48*60*60*1000; // 48 hours
+      handle->timeout= 48*60*60*1000; // 48 hours
     else if (wait_completed == 1)
-      handle->read_timeout= 10*60*1000; // 10 minutes
+      handle->timeout= 10*60*1000; // 10 minutes
     reply = ndb_mgm_call(handle, start_backup_reply, "start backup", &args);
-    handle->read_timeout= old_timeout;
+    handle->timeout= old_timeout;
   }
   CHECK_REPLY(handle, reply, -1);
 
@@ -2151,7 +2144,7 @@ ndb_mgm_get_configuration(NdbMgmHandle handle, unsigned int version) {
     int read = 0;
     size_t start = 0;
     do {
-      if((read = read_socket(handle->socket, handle->read_timeout, 
+      if((read = read_socket(handle->socket, handle->timeout,
 			     &buf64[start], len-start)) < 1){
 	delete[] buf64;
 	buf64 = 0;
@@ -2484,8 +2477,8 @@ int
 ndb_mgm_check_connection(NdbMgmHandle handle){
   CHECK_HANDLE(handle, 0);
   CHECK_CONNECTED(handle, 0);
-  SocketOutputStream out(handle->socket, handle->write_timeout);
-  SocketInputStream in(handle->socket, handle->read_timeout);
+  SocketOutputStream out(handle->socket, handle->timeout);
+  SocketInputStream in(handle->socket, handle->timeout);
   char buf[32];
   if (out.println("check connection"))
     goto ndb_mgm_check_connection_error;
@@ -2614,7 +2607,7 @@ ndb_mgm_convert_to_transporter(NdbMgmHandle *handle)
   (*handle)->connected= 0;   // we pretend we're disconnected
   s= (*handle)->socket;
 
-  SocketOutputStream s_output(s, (*handle)->write_timeout);
+  SocketOutputStream s_output(s, (*handle)->timeout);
   s_output.println("transporter connect");
   s_output.println("");
 
@@ -2690,11 +2683,11 @@ int ndb_mgm_end_session(NdbMgmHandle handle)
   CHECK_CONNECTED(handle, 0);
   DBUG_ENTER("ndb_mgm_end_session");
 
-  SocketOutputStream s_output(handle->socket, handle->write_timeout);
+  SocketOutputStream s_output(handle->socket, handle->timeout);
   s_output.println("end session");
   s_output.println("");
 
-  SocketInputStream in(handle->socket, handle->read_timeout);
+  SocketInputStream in(handle->socket, handle->timeout);
   char buf[32];
   in.gets(buf, sizeof(buf));
   CHECK_TIMEDOUT_RET(handle, in, s_output, -1);
