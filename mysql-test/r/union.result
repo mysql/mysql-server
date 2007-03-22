@@ -554,7 +554,7 @@ aa
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varbinary(2) NOT NULL default ''
+  `a` varbinary(2) NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT 12 as a UNION select 12.2 as a;
@@ -655,7 +655,7 @@ f
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f` varbinary(12) default NULL
+  `f` varbinary(12) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT y from t2 UNION select da from t2;
