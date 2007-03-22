@@ -2139,9 +2139,12 @@ dict_foreign_find_index(
 	ulint		n_cols,	/* in: number of columns */
 	dict_index_t*	types_idx, /* in: NULL or an index to whose types the
 				   column types must match */
-	ibool		check_charsets)	/* in: whether to check charsets.
+	ibool		check_charsets,	/* in: whether to check charsets.
 					only has an effect if types_idx !=
 					NULL. */
+	ulint		check_null)
+				/* in: nonzero if none of the columns must
+				be declared NOT NULL */
 {
 #ifndef UNIV_HOTBACKUP
 	dict_index_t*	index;
@@ -2154,10 +2157,11 @@ dict_foreign_find_index(
 		if (dict_index_get_n_fields(index) >= n_cols) {
 
 			for (i = 0; i < n_cols; i++) {
-				col_name = dict_index_get_nth_field(index, i)
-							->col->name;
-				if (dict_index_get_nth_field(index, i)
-						->prefix_len != 0) {
+				dict_field_t*	field
+					= dict_index_get_nth_field(index, i);
+
+				col_name = field->col->name;
+				if (field->prefix_len != 0) {
 					/* We do not accept column prefix
 					indexes here */
 					
@@ -2167,6 +2171,13 @@ dict_foreign_find_index(
 				if (0 != innobase_strcasecmp(columns[i],
 								col_name)) {
 				  	break;
+				}
+
+				if (check_null
+				    && (field->col->type.prtype
+					& DATA_NOT_NULL)) {
+
+					return(NULL);
 				}
 
 				if (types_idx && !cmp_types_are_equal(
@@ -2290,7 +2301,7 @@ dict_foreign_add_to_cache(
 		index = dict_foreign_find_index(ref_table,
 			(const char**) for_in_cache->referenced_col_names,
 			for_in_cache->n_fields,
-			for_in_cache->foreign_index, check_charsets);
+			for_in_cache->foreign_index, check_charsets, FALSE);
 
 		if (index == NULL) {
 			dict_foreign_error_report(ef, for_in_cache,
@@ -2317,13 +2328,17 @@ dict_foreign_add_to_cache(
 		index = dict_foreign_find_index(for_table,
 			(const char**) for_in_cache->foreign_col_names,
 			for_in_cache->n_fields,
-			for_in_cache->referenced_index, check_charsets);
+			for_in_cache->referenced_index, check_charsets,
+			for_in_cache->type
+			& (DICT_FOREIGN_ON_DELETE_SET_NULL
+			   | DICT_FOREIGN_ON_UPDATE_SET_NULL));
 
 		if (index == NULL) {
 			dict_foreign_error_report(ef, for_in_cache,
 "there is no index in the table which would contain\n"
 "the columns as the first columns, or the data types in the\n"
-"table do not match to the ones in the referenced table.");
+"table do not match to the ones in the referenced table\n"
+"or one of the ON ... SET NULL columns is declared NOT NULL.");
 
 			if (for_in_cache == foreign) {
 				if (added_to_referenced_list) {
@@ -3125,7 +3140,8 @@ col_loop1:
 	/* Try to find an index which contains the columns
 	as the first fields and in the right order */
 
-	index = dict_foreign_find_index(table, column_names, i, NULL, TRUE);
+	index = dict_foreign_find_index(table, column_names, i,
+					NULL, TRUE, FALSE);
 
 	if (!index) {
 		mutex_enter(&dict_foreign_err_mutex);
@@ -3390,7 +3406,7 @@ try_find_index:
 
 	if (referenced_table) {
 		index = dict_foreign_find_index(referenced_table,
-			column_names, i, foreign->foreign_index, TRUE);
+			column_names, i, foreign->foreign_index, TRUE, FALSE);
 		if (!index) {
 			dict_foreign_free(foreign);
 			mutex_enter(&dict_foreign_err_mutex);
