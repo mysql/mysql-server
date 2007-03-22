@@ -290,6 +290,8 @@ struct PurgeStruct
 
 #define ERROR_INSERTED(x) (g_errorInsert == x || m_errorInsert == x)
 
+#define SLEEP_ERROR_INSERTED(x) if(ERROR_INSERTED(x)){NdbSleep_SecSleep(10);}
+
 MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 session_id)
   : SocketServer::Session(sock), m_mgmsrv(mgm)
 {
@@ -599,13 +601,23 @@ MgmApiSession::getConfig(Parser_t::Context &,
   
   char *tmp_str = (char *) malloc(base64_needed_encoded_length(src.length()));
   (void) base64_encode(src.get_data(), src.length(), tmp_str);
-  
+
+  SLEEP_ERROR_INSERTED(1);
+
   m_output->println("get config reply");
   m_output->println("result: Ok");
   m_output->println("Content-Length: %d", strlen(tmp_str));
   m_output->println("Content-Type: ndbconfig/octet-stream");
+  SLEEP_ERROR_INSERTED(2);
   m_output->println("Content-Transfer-Encoding: base64");
   m_output->println("");
+  if(ERROR_INSERTED(3))
+  {
+    int l= strlen(tmp_str);
+    tmp_str[l/2]='\0';
+    m_output->println(tmp_str);
+    NdbSleep_SecSleep(10);
+  }
   m_output->println(tmp_str);
 
   free(tmp_str);
@@ -748,6 +760,7 @@ MgmApiSession::endSession(Parser<MgmApiSession>::Context &,
 
   m_allocated_resources= new MgmtSrvr::Allocated_resources(m_mgmsrv);
 
+  SLEEP_ERROR_INSERTED(1);
   m_output->println("end session reply");
 }
 
@@ -998,12 +1011,16 @@ MgmApiSession::getStatus(Parser<MgmApiSession>::Context &,
   while(m_mgmsrv.getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_MGM)){
     noOfNodes++;
   }
-  
+  SLEEP_ERROR_INSERTED(1);
   m_output->println("node status");
+  SLEEP_ERROR_INSERTED(2);
   m_output->println("nodes: %d", noOfNodes);
+  SLEEP_ERROR_INSERTED(3);
   printNodeStatus(m_output, m_mgmsrv, NDB_MGM_NODE_TYPE_NDB);
   printNodeStatus(m_output, m_mgmsrv, NDB_MGM_NODE_TYPE_MGM);
+  SLEEP_ERROR_INSERTED(4);
   printNodeStatus(m_output, m_mgmsrv, NDB_MGM_NODE_TYPE_API);
+  SLEEP_ERROR_INSERTED(5);
 
   nodeId = 0;
 
@@ -1118,8 +1135,10 @@ MgmApiSession::enterSingleUser(Parser<MgmApiSession>::Context &,
 			  Properties const &args) {
   int stopped = 0;
   Uint32 nodeId = 0;
+  int result= 0;
   args.get("nodeId", &nodeId);
-  int result = m_mgmsrv.enterSingleUser(&stopped, nodeId);
+
+  result = m_mgmsrv.enterSingleUser(&stopped, nodeId);
   m_output->println("enter single user reply");
   if(result != 0) {
     m_output->println("result: %s", get_error_text(result));
@@ -1616,12 +1635,11 @@ void
 MgmApiSession::check_connection(Parser_t::Context &ctx,
 				const class Properties &args)
 {
-  if(ERROR_INSERTED(1))
-  {
-    NdbSleep_SecSleep(10);
-  }
+  SLEEP_ERROR_INSERTED(1);
   m_output->println("check connection reply");
+  SLEEP_ERROR_INSERTED(2);
   m_output->println("result: Ok");
+  SLEEP_ERROR_INSERTED(3);
   m_output->println("");
 }
 
@@ -1642,10 +1660,7 @@ MgmApiSession::get_mgmd_nodeid(Parser_t::Context &ctx,
 {
   m_output->println("get mgmd nodeid reply");
   m_output->println("nodeid:%u",m_mgmsrv.getOwnNodeId());
-  if(ERROR_INSERTED(1))
-  {
-    NdbSleep_SecSleep(10);
-  }
+  SLEEP_ERROR_INSERTED(1);
 
   m_output->println("");
 }
