@@ -558,6 +558,33 @@ typedef struct st_print_event_info
 class Log_event
 {
 public:
+  /**
+     Enumeration of what kinds of skipping (and non-skipping) that can
+     occur when the slave executes an event.
+
+     @see shall_skip
+     @see do_shall_skip
+   */
+  enum enum_skip_reason {
+    /**
+       Don't skip event.
+    */
+    EVENT_SKIP_NOT,
+
+    /**
+       Skip event by ignoring it.
+
+       This means that the slave skip counter will not be changed.
+    */
+    EVENT_SKIP_IGNORE,
+
+    /**
+       Skip event and decrease skip counter.
+    */
+    EVENT_SKIP_COUNT
+  };
+
+
   /*
     The offset in the log where this event originally appeared (it is
     preserved in relay logs, making SHOW SLAVE STATUS able to print
@@ -632,40 +659,6 @@ public:
   static void init_show_field_list(List<Item>* field_list);
 #ifdef HAVE_REPLICATION
   int net_send(Protocol *protocol, const char* log_name, my_off_t pos);
-
-
-  /**
-     Execute the event to change the database and update the binary
-     log coordinates.
-
-     @param rli Pointer to relay log information
-
-     @retval 0     The event was successfully executed.
-     @retval errno Error code when the execution failed
-   */
-
-  int exec_event(RELAY_LOG_INFO *rli)
-  {
-    // !!! Just chaining the calls in this first patch
-    return apply_event_impl(rli);
-  }
-
-
-  /**
-     Skip the event by just updating the binary log coordinates.
-
-     @param rli Pointer to relay log information
-
-     @retval 0     The event was successfully executed.
-     @retval errno Error code when the execution failed
-   */
-
-  int skip_event(RELAY_LOG_INFO *rli)
-  {
-    // !!! Nothing yet. This is just the reorgainization patch.
-    return 0;
-  }
-
 
   /*
     pack_info() is used by SHOW BINLOG EVENTS; as print() it prepares and sends
@@ -747,36 +740,125 @@ public:
   /* returns the human readable name of the event's type */
   const char* get_type_str();
 
-protected:        /* !!! Protected in this patch to allow old usage */
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+public:
+
+  /**
+     Apply the event to the database.
+
+     This function represents the public interface for applying an
+     event.
+
+     @see do_apply_event
+   */
+  int apply_event(RELAY_LOG_INFO const *rli) {
+    return do_apply_event(rli);
+  }
+
+
+  /**
+     Update the relay log position.
+
+     This function represents the public interface for "stepping over"
+     the event and will update the relay log information.
+
+     @see do_update_pos
+   */
+  int update_pos(RELAY_LOG_INFO *rli)
+  {
+    return do_update_pos(rli);
+  }
+
+  /**
+     Decide if the event shall be skipped, and the reason for skipping
+     it.
+
+     @see do_shall_skip
+   */
+  enum_skip_reason shall_skip(RELAY_LOG_INFO *rli)
+  {
+    return do_shall_skip(rli);
+  }
+
+protected:
   /**
     Primitive to apply an event to the database.
 
     This is where the change to the database is made.
+
+    @note The primitive is protected instead of private, since there
+    is a hierarchy of actions to be performed in some cases.
+
+    @see Format_description_log_event::do_apply_event()
 
     @param rli Pointer to relay log info structure
 
     @retval 0     Event applied successfully
     @retval errno Error code if event application failed
   */
-  virtual int apply_event_impl(RELAY_LOG_INFO *rli);
+  virtual int do_apply_event(RELAY_LOG_INFO const *rli)
+  {
+    return 0;                /* Default implementation does nothing */
+  }
+
 
   /**
-     Advance binary log coordinates.
+     Advance relay log coordinates.
 
-     This function is called to advance the binary log or relay log
-     coordinates to just after the event.
+     This function is called to advance the relay log coordinates to
+     just after the event.  It is essential that both the relay log
+     coordinate and the group log position is updated correctly, since
+     this function is used also for skipping events.
+
+     Normally, each implementation of do_update_pos() shall:
+
+     - Update the event position to refer to the position just after
+       the event.
+
+     - Update the group log position to refer to the position just
+       after the event <em>if the event is last in a group</em>
 
      @param rli Pointer to relay log info structure
 
      @retval 0     Coordinates changed successfully
-     @retval errno Error code if advancing failed
+     @retval errno Error code if advancing failed (usually just
+                   1). Observe that handler errors are returned by the
+                   do_apply_event() function, and not by this one.
    */
-  virtual int advance_coord_impl(RELAY_LOG_INFO *rli)
-  {
-    // !!! Dummy implementation for this patch only
-    return 0;
-  }
+  virtual int do_update_pos(RELAY_LOG_INFO *rli);
+
+
+  /**
+     Decide if this event shall be skipped or not and the reason for
+     skipping it.
+
+     The default implementation decide that the event shall be skipped
+     if either:
+
+     - the server id of the event is the same as the server id of the
+       server and <code>rli->replicate_same_server_id</code> is true,
+       or
+
+     - if <code>rli->slave_skip_counter</code> is greater than zero.
+
+     @see do_apply_event
+     @see do_update_pos
+
+     @retval Log_event::EVENT_SKIP_NOT
+     The event shall not be skipped and should be applied.
+
+     @retval Log_event::EVENT_SKIP_IGNORE
+     The event shall be skipped by just ignoring it, i.e., the slave
+     skip counter shall not be changed. This happends if, for example,
+     the originating server id of the event is the same as the server
+     id of the slave.
+
+     @retval Log_event::EVENT_SKIP_COUNT
+     The event shall be skipped because the slave skip counter was
+     non-zero. The caller shall decrease the counter by one.
+   */
+  virtual enum_skip_reason do_shall_skip(RELAY_LOG_INFO *rli);
+
 #endif
 };
 
@@ -818,8 +900,8 @@ public:
   uint16 error_code;
   ulong thread_id;
   /*
-    For events created by Query_log_event::apply_event_impl (and
-    Load_log_event::apply_event_impl()) we need the *original* thread
+    For events created by Query_log_event::do_apply_event (and
+    Load_log_event::do_apply_event()) we need the *original* thread
     id, to be able to log the event with the original (=master's)
     thread id (fix for BUG#1686).
   */
@@ -913,8 +995,10 @@ public:
 
 public:        /* !!! Public in this patch to allow old usage */
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
-  int apply_event_impl(RELAY_LOG_INFO* rli,
+  virtual int do_apply_event(RELAY_LOG_INFO const *rli);
+  virtual int do_update_pos(RELAY_LOG_INFO *rli);
+
+  int do_apply_event(RELAY_LOG_INFO const *rli,
                        const char *query_arg,
                        uint32 q_len_arg);
 #endif /* HAVE_REPLICATION */
@@ -981,7 +1065,7 @@ public:
 
 private:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+  virtual int do_apply_event(RELAY_LOG_INFO const* rli);
 #endif
 };
 
@@ -1086,13 +1170,13 @@ public:
 
 public:        /* !!! Public in this patch to allow old usage */
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual int apply_event_impl(RELAY_LOG_INFO* rli)
+  virtual int do_apply_event(RELAY_LOG_INFO const* rli)
   {
-    return apply_event_impl(thd->slave_net,rli,0);
+    return do_apply_event(thd->slave_net,rli,0);
   }
 
-  int apply_event_impl(NET* net, RELAY_LOG_INFO* rli,
-                       bool use_rli_only_for_errors);
+  int do_apply_event(NET *net, RELAY_LOG_INFO const *rli,
+                     bool use_rli_only_for_errors);
 #endif
 };
 
@@ -1171,9 +1255,20 @@ public:
   }
   virtual bool is_artificial_event() { return artificial_event; }
 
-protected:        /* !!! Protected in this patch to allow old usage */
+protected:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+  virtual int do_apply_event(RELAY_LOG_INFO const *rli);
+  virtual enum_skip_reason do_shall_skip(RELAY_LOG_INFO*)
+  {
+    /*
+      Events from ourself should be skipped, but they should not
+      decrease the slave skip counter.
+     */
+    if (this->server_id == ::server_id)
+      return Log_event::EVENT_SKIP_IGNORE;
+    else
+      return Log_event::EVENT_SKIP_NOT;
+  }
 #endif
 };
 
@@ -1222,9 +1317,11 @@ public:
     return FORMAT_DESCRIPTION_HEADER_LEN;
   }
 
-private:
+protected:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+  virtual int do_apply_event(RELAY_LOG_INFO const *rli);
+  virtual int do_update_pos(RELAY_LOG_INFO *rli);
+  virtual enum_skip_reason do_shall_skip(RELAY_LOG_INFO *rli);
 #endif
 };
 
@@ -1266,7 +1363,9 @@ public:
 
 private:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+  virtual int do_apply_event(RELAY_LOG_INFO const *rli);
+  virtual int do_update_pos(RELAY_LOG_INFO *rli);
+  virtual enum_skip_reason do_shall_skip(RELAY_LOG_INFO *rli);
 #endif
 };
 
@@ -1310,7 +1409,9 @@ class Rand_log_event: public Log_event
 
 private:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+  virtual int do_apply_event(RELAY_LOG_INFO const *rli);
+  virtual int do_update_pos(RELAY_LOG_INFO *rli);
+  virtual enum_skip_reason do_shall_skip(RELAY_LOG_INFO *rli);
 #endif
 };
 
@@ -1351,7 +1452,7 @@ class Xid_log_event: public Log_event
 
 private:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+  virtual int do_apply_event(RELAY_LOG_INFO const *rli);
 #endif
 };
 
@@ -1396,7 +1497,9 @@ public:
 
 private:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+  virtual int do_apply_event(RELAY_LOG_INFO const *rli);
+  virtual int do_update_pos(RELAY_LOG_INFO *rli);
+  virtual enum_skip_reason do_shall_skip(RELAY_LOG_INFO *rli);
 #endif
 };
 
@@ -1425,7 +1528,18 @@ public:
 
 private:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+  virtual int do_update_pos(RELAY_LOG_INFO *rli);
+  virtual enum_skip_reason do_shall_skip(RELAY_LOG_INFO *rli)
+  {
+    /*
+      Events from ourself should be skipped, but they should not
+      decrease the slave skip counter.
+     */
+    if (this->server_id == ::server_id)
+      return Log_event::EVENT_SKIP_IGNORE;
+    else
+      return Log_event::EVENT_SKIP_NOT;
+  }
 #endif
 };
 
@@ -1474,7 +1588,8 @@ public:
 
 private:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+  virtual int do_update_pos(RELAY_LOG_INFO *rli);
+  virtual enum_skip_reason do_shall_skip(RELAY_LOG_INFO *rli);
 #endif
 };
 
@@ -1546,7 +1661,7 @@ public:
 
 private:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+  virtual int do_apply_event(RELAY_LOG_INFO const *rli);
 #endif
 };
 
@@ -1600,7 +1715,7 @@ public:
 
 private:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+  virtual int do_apply_event(RELAY_LOG_INFO const *rli);
 #endif
 };
 
@@ -1640,7 +1755,7 @@ public:
 
 private:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+  virtual int do_apply_event(RELAY_LOG_INFO const *rli);
 #endif
 };
 
@@ -1679,7 +1794,7 @@ public:
 
 private:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+  virtual int do_apply_event(RELAY_LOG_INFO const *rli);
 #endif
 };
 
@@ -1771,7 +1886,7 @@ public:
 
 private:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+  virtual int do_apply_event(RELAY_LOG_INFO const *rli);
 #endif
 };
 
@@ -1880,7 +1995,8 @@ public:
 
 private:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+  virtual int do_apply_event(RELAY_LOG_INFO const *rli);
+  virtual int do_update_pos(RELAY_LOG_INFO *rli);
 #endif
 
 #ifndef MYSQL_CLIENT
@@ -2037,7 +2153,7 @@ protected:
 private:
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual int apply_event_impl(RELAY_LOG_INFO* rli);
+  virtual int do_apply_event(RELAY_LOG_INFO const *rli);
 
   /*
     Primitive to prepare for a sequence of row executions.
@@ -2086,7 +2202,7 @@ private:
     RETURN VALUE
       Error code, if something went wrong, 0 otherwise.
    */
-  virtual int do_prepare_row(THD*, RELAY_LOG_INFO*, TABLE*,
+  virtual int do_prepare_row(THD*, RELAY_LOG_INFO const*, TABLE*,
                              char const *row_start, char const **row_end) = 0;
 
   /*
@@ -2157,7 +2273,7 @@ private:
 
   virtual int do_before_row_operations(TABLE *table);
   virtual int do_after_row_operations(TABLE *table, int error);
-  virtual int do_prepare_row(THD*, RELAY_LOG_INFO*, TABLE*,
+  virtual int do_prepare_row(THD*, RELAY_LOG_INFO const*, TABLE*,
                              char const *row_start, char const **row_end);
   virtual int do_exec_row(TABLE *table);
 #endif
@@ -2222,7 +2338,7 @@ private:
 
   virtual int do_before_row_operations(TABLE *table);
   virtual int do_after_row_operations(TABLE *table, int error);
-  virtual int do_prepare_row(THD*, RELAY_LOG_INFO*, TABLE*,
+  virtual int do_prepare_row(THD*, RELAY_LOG_INFO const*, TABLE*,
                              char const *row_start, char const **row_end);
   virtual int do_exec_row(TABLE *table);
 #endif /* !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION) */
@@ -2293,7 +2409,7 @@ private:
 
   virtual int do_before_row_operations(TABLE *table);
   virtual int do_after_row_operations(TABLE *table, int error);
-  virtual int do_prepare_row(THD*, RELAY_LOG_INFO*, TABLE*,
+  virtual int do_prepare_row(THD*, RELAY_LOG_INFO const*, TABLE*,
                              char const *row_start, char const **row_end);
   virtual int do_exec_row(TABLE *table);
 #endif

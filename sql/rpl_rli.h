@@ -57,6 +57,15 @@ typedef struct st_relay_log_info
   */
   bool no_storage;
 
+  /*
+    If true, events with the same server id should be replicated. This
+    field is set on creation of a relay log info structure by copying
+    the value of ::replicate_same_server_id and can be overridden if
+    necessary. For example of when this is done, check sql_binlog.cc,
+    where the BINLOG statement can be used to execute "raw" events.
+   */
+  bool replicate_same_server_id;
+
   /*** The following variables can only be read when protect by data lock ****/
 
   /*
