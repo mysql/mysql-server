@@ -3893,6 +3893,12 @@ int ha_ndbcluster::reset()
   */
   if (m_part_info)
     bitmap_set_all(&m_part_info->used_partitions);
+
+  /* reset flags set by extra calls */
+  m_ignore_dup_key= FALSE;
+  m_use_write= FALSE;
+  m_ignore_no_key= FALSE;
+
   DBUG_RETURN(0);
 }
 
