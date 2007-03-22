@@ -488,15 +488,11 @@ extern "C" int refpos_order_cmp(void* arg, const void *a,const void *b);
 
 class store_key :public Sql_alloc
 {
- protected:
-  Field *to_field;				// Store data here
-  char *null_ptr;
-  char err;
 public:
   bool null_key; /* TRUE <=> the value of the key has a null part */
   enum store_key_result { STORE_KEY_OK, STORE_KEY_FATAL, STORE_KEY_CONV };
   store_key(THD *thd, Field *field_arg, char *ptr, char *null, uint length)
-    :null_ptr(null), err(0), null_key(0)
+    :null_key(0), null_ptr(null), err(0)
   {
     if (field_arg->type() == FIELD_TYPE_BLOB)
     {
@@ -510,8 +506,35 @@ public:
                                         ptr, (uchar*) null, 1);
   }
   virtual ~store_key() {}			/* Not actually needed */
-  virtual enum store_key_result copy()=0;
   virtual const char *name() const=0;
+
+  /**
+    @brief sets ignore truncation warnings mode and calls the real copy method
+
+    @details this function makes sure truncation warnings when preparing the
+    key buffers don't end up as errors (because of an enclosing INSERT/UPDATE).
+  */
+  enum store_key_result copy()
+  {
+    enum store_key_result result;
+    enum_check_fields saved_count_cuted_fields= 
+      to_field->table->in_use->count_cuted_fields;
+
+    to_field->table->in_use->count_cuted_fields= CHECK_FIELD_IGNORE;
+
+    result= copy_inner();
+
+    to_field->table->in_use->count_cuted_fields= saved_count_cuted_fields;
+
+    return result;
+  }
+
+ protected:
+  Field *to_field;				// Store data here
+  char *null_ptr;
+  char err;
+
+  virtual enum store_key_result copy_inner()=0;
 };
 
 
@@ -531,13 +554,15 @@ class store_key_field: public store_key
       copy_field.set(to_field,from_field,0);
     }
   }
-  enum store_key_result copy()
+  const char *name() const { return field_name; }
+
+ protected: 
+  enum store_key_result copy_inner()
   {
     copy_field.do_copy(&copy_field);
     null_key= to_field->is_null();
     return err != 0 ? STORE_KEY_FATAL : STORE_KEY_OK;
   }
-  const char *name() const { return field_name; }
 };
 
 
@@ -552,13 +577,15 @@ public:
 	       null_ptr_arg ? null_ptr_arg : item_arg->maybe_null ?
 	       &err : NullS, length), item(item_arg)
   {}
-  enum store_key_result copy()
+  const char *name() const { return "func"; }
+
+ protected:  
+  enum store_key_result copy_inner()
   {
     int res= item->save_in_field(to_field, 1);
     null_key= to_field->is_null() || item->null_value;
     return (err != 0 || res > 2 ? STORE_KEY_FATAL : (store_key_result) res); 
   }
-  const char *name() const { return "func"; }
 };
 
 
@@ -574,7 +601,10 @@ public:
 		    &err : NullS, length, item_arg), inited(0)
   {
   }
-  enum store_key_result copy()
+  const char *name() const { return "const"; }
+
+protected:  
+  enum store_key_result copy_inner()
   {
     int res;
     if (!inited)
@@ -589,7 +619,6 @@ public:
     null_key= to_field->is_null() || item->null_value;
     return (err > 2 ?  STORE_KEY_FATAL : (store_key_result) err);
   }
-  const char *name() const { return "const"; }
 };
 
 bool cp_buffer_from_ref(THD *thd, TABLE_REF *ref);
