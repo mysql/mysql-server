@@ -89,10 +89,12 @@ DROP EVENT long_event;
 SET GLOBAL long_query_time=1;
 CREATE EVENT long_event2 ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(2);
 --echo "Sleep some more time than the actual event run will take"
---sleep 2.5
+let $wait_timeout= 30;
+let $wait_condition= SELECT COUNT(*) = 1 FROM mysql.slow_log; 
+--source include/wait_condition.inc
 --echo "Check our table. Should see 2 rows"
 SELECT * FROM slow_event_test;
---echo "Check slow log. Should see 1 row because 4 is over the threshold of 3 for GLOBAL, though under SESSION which is 10"
+--echo "Check slow log. Should see 1 row because 2 is over the threshold of 1 for GLOBAL, though under SESSION which is 10"
 --replace_column 1 USER_HOST 2 SLEEPVAL
 SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
 DROP EVENT long_event2;

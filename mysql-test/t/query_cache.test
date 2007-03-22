@@ -907,4 +907,24 @@ start transaction;
 insert into t1(c1) select c1 from v1;
 drop table t1, t2, t3;
 drop view v1;
+
+
+#
+# If running with --ps-protocol:
+# see if a query from the text protocol is served with results cached
+# from a query which used the binary (which would be wrong, results
+# are in different formats); if that happens, the results will
+# be incorrect and the test will fail.
+#
+
+create table t1(c1 int);
+insert into t1 values(1),(10),(100);
+select * from t1;
+-- disable_ps_protocol
+select * from t1;
+select * from t1;
+-- enable_ps_protocol
+select * from t1;
+drop table t1;
+
 set global query_cache_size=0;

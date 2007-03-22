@@ -822,7 +822,7 @@ int Protocol::begin_dataset()
   remove last row of current recordset
 
   SYNOPSIS
-  Protocol_simple::remove_last_row()
+  Protocol_text::remove_last_row()
 
   NOTES
     does the loop from the beginning of the current recordset to
@@ -830,12 +830,12 @@ int Protocol::begin_dataset()
     Not supposed to be frequently called.
 */
 
-void Protocol_simple::remove_last_row()
+void Protocol_text::remove_last_row()
 {
   MYSQL_DATA *data= thd->cur_data;
   MYSQL_ROWS **last_row_hook= &data->data;
   uint count= data->rows;
-  DBUG_ENTER("Protocol_simple::remove_last_row");
+  DBUG_ENTER("Protocol_text::remove_last_row");
   while (--count)
     last_row_hook= &(*last_row_hook)->next;
 
@@ -964,7 +964,7 @@ bool Protocol::write()
   return false;
 }
 
-bool Protocol_prep::write()
+bool Protocol_binary::write()
 {
   MYSQL_ROWS *cur;
   MYSQL_DATA *data= thd->cur_data;
@@ -1031,7 +1031,7 @@ void net_send_error_packet(THD *thd, uint sql_errno, const char *err)
 }
 
 
-void Protocol_simple::prepare_for_resend()
+void Protocol_text::prepare_for_resend()
 {
   MYSQL_ROWS *cur;
   MYSQL_DATA *data= thd->cur_data;
@@ -1056,7 +1056,7 @@ void Protocol_simple::prepare_for_resend()
   DBUG_VOID_RETURN;
 }
 
-bool Protocol_simple::store_null()
+bool Protocol_text::store_null()
 {
   *(next_field++)= NULL;
   ++next_mysql_field;
