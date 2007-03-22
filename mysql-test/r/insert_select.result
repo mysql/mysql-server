@@ -744,3 +744,32 @@ f1	f2
 2	2
 10	10
 DROP TABLE t1, t2;
+SET SQL_MODE='STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+CREATE TABLE t1 (c VARCHAR(30), INDEX ix_c (c(10)));
+CREATE TABLE t2 (d VARCHAR(10));
+INSERT INTO t1 (c) VALUES ('7_chars'), ('13_characters');
+EXPLAIN
+SELECT (SELECT SUM(LENGTH(c)) FROM t1 WHERE c='13_characters') FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t1	ref	ix_c	ix_c	13	const	1	Using where
+SELECT (SELECT SUM(LENGTH(c)) FROM t1 WHERE c='13_characters') FROM t1;
+(SELECT SUM(LENGTH(c)) FROM t1 WHERE c='13_characters')
+13
+13
+INSERT INTO t2 (d) 
+SELECT (SELECT SUM(LENGTH(c)) FROM t1 WHERE c='13_characters') FROM t1;
+INSERT INTO t2 (d) 
+SELECT (SELECT SUM(LENGTH(c)) FROM t1 WHERE c='7_chars') FROM t1;
+INSERT INTO t2 (d)
+SELECT (SELECT SUM(LENGTH(c)) FROM t1 WHERE c IN (SELECT t1.c FROM t1)) 
+FROM t1;
+SELECT * FROM t2;
+d
+13
+13
+7
+7
+20
+20
+DROP TABLE t1,t2;
