@@ -2101,15 +2101,17 @@ NdbEventBuffer::alloc_mem(EventBufData* data,
 
     NdbMem_Free((char*)data->memory);
     assert(m_total_alloc >= data->sz);
-    m_total_alloc -= data->sz;
     data->memory = 0;
     data->sz = 0;
 
     data->memory = (Uint32*)NdbMem_Allocate(alloc_size);
     if (data->memory == 0)
+    {
+      m_total_alloc -= data->sz;
       DBUG_RETURN(-1);
+    }
     data->sz = alloc_size;
-    m_total_alloc += data->sz;
+    m_total_alloc += add_sz;
 
     if (change_sz != NULL)
       *change_sz += add_sz;
@@ -2781,7 +2783,7 @@ NdbEventBuffer::reportStatus()
   else
     apply_gci= latest_gci;
 
-  if (100*m_free_data_sz < m_min_free_thresh*m_total_alloc &&
+  if (100*(Uint64)m_free_data_sz < m_min_free_thresh*(Uint64)m_total_alloc &&
       m_total_alloc > 1024*1024)
   {
     /* report less free buffer than m_free_thresh,
@@ -2792,7 +2794,7 @@ NdbEventBuffer::reportStatus()
     goto send_report;
   }
   
-  if (100*m_free_data_sz > m_max_free_thresh*m_total_alloc &&
+  if (100*(Uint64)m_free_data_sz > m_max_free_thresh*(Uint64)m_total_alloc &&
       m_total_alloc > 1024*1024)
   {
     /* report more free than 2 * m_free_thresh
