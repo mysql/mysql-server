@@ -91,10 +91,10 @@ col1	col2	col3	col4
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col1` double DEFAULT NULL,
-  `col2` double(53,5) DEFAULT NULL,
-  `col3` double DEFAULT NULL,
-  `col4` double DEFAULT NULL
+  `col1` double default NULL,
+  `col2` double(22,5) default NULL,
+  `col3` double default NULL,
+  `col4` double default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1,t2;
 create table t1 (a float);
@@ -232,12 +232,12 @@ insert into t2 values ("1.23456780");
 create table t3 select * from t2 union select * from t1;
 select * from t3;
 d
-1.234567800
-100000000.000000000
+1.2345678
+100000000
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `d` double(22,9) DEFAULT NULL
+  `d` double default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1, t2, t3;
 create table t1 select  105213674794682365.00 + 0.0 x;
