@@ -4864,7 +4864,6 @@ bool setup_tables_and_check_access(THD *thd,
   TABLE_LIST *leaves_tmp = NULL;
   bool first_table= true;
 
-  thd->leaf_count= 0;
   if (setup_tables (thd, context, from_clause, tables, conds, 
                     &leaves_tmp, select_insert))
     return TRUE;
@@ -4882,7 +4881,6 @@ bool setup_tables_and_check_access(THD *thd,
       return TRUE;
     }
     first_table= false;
-    thd->leaf_count++;
   }
   return FALSE;
 }

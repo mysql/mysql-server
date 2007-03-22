@@ -1261,15 +1261,18 @@ void Item::split_sum_func2(THD *thd, Item **ref_pointer_array,
       Exception is Item_direct_view_ref which we need to convert to
       Item_ref to allow fields from view being stored in tmp table.
     */
+    Item_aggregate_ref *item_ref;
     uint el= fields.elements;
-    Item *new_item, *real_itm= real_item();
+    Item *real_itm= real_item();
 
     ref_pointer_array[el]= real_itm;
-    if (!(new_item= new Item_aggregate_ref(&thd->lex->current_select->context,
+    if (!(item_ref= new Item_aggregate_ref(&thd->lex->current_select->context,
                                            ref_pointer_array + el, 0, name)))
       return;                                   // fatal_error is set
+    if (type() == SUM_FUNC_ITEM)
+      item_ref->depended_from= ((Item_sum *) this)->depended_from(); 
     fields.push_front(real_itm);
-    thd->change_item_tree(ref, new_item);
+    thd->change_item_tree(ref, item_ref);
   }
 }
 
