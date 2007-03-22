@@ -553,6 +553,7 @@ class ha_ndbcluster: public handler
   int info(uint);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
+  int reset();
   int external_lock(THD *thd, int lock_type);
   void unlock_row();
   int start_stmt(THD *thd, thr_lock_type lock_type);
