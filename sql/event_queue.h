@@ -34,7 +34,7 @@ public:
 
   bool
   init_queue(THD *thd);
-  
+
   void
   deinit_queue();
 
