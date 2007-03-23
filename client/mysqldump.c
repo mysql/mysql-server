@@ -1699,8 +1699,9 @@ static uint dump_routines_for_db(char *db)
             my_free(query_str, MYF(MY_ALLOW_ZERO_PTR));
           }
         } /* end of routine printing */
+        mysql_free_result(routine_res);
+
       } /* end of list of routines */
-      mysql_free_result(routine_res);
     }
     mysql_free_result(routine_list_res);
   } /* end of for i (0 .. 1)  */
@@ -3794,7 +3795,7 @@ char check_if_ignore_table(const char *table_name, char *table_type)
 {
   char result= IGNORE_NONE;
   char buff[FN_REFLEN+80], show_name_buff[FN_REFLEN];
-  MYSQL_RES *res;
+  MYSQL_RES *res= NULL;
   MYSQL_ROW row;
   DBUG_ENTER("check_if_ignore_table");
 
