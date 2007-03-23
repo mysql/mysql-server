@@ -375,6 +375,11 @@ public:
 
     Uint32 fragmentCount;
     Uint32 m_tablespace_id;
+
+    /*
+     * Access rights to table during single user mode
+     */
+    Uint8 singleUserMode;
   };
 
   typedef Ptr<TableRecord> TableRecordPtr;
