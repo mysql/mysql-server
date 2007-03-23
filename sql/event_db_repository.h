@@ -62,7 +62,7 @@ public:
   update_event(THD *thd, Event_parse_data *parse_data, LEX_STRING *new_dbname,
                LEX_STRING *new_name);
 
-  bool 
+  bool
   drop_event(THD *thd, LEX_STRING db, LEX_STRING name, bool drop_if_exists);
 
   void
@@ -98,5 +98,5 @@ private:
   Event_db_repository(const Event_db_repository &);
   void operator=(Event_db_repository &);
 };
- 
+
 #endif /* _EVENT_DB_REPOSITORY_H_ */
