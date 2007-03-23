@@ -4749,6 +4749,7 @@ int ha_ndbcluster::create(const char *name,
   bool create_from_engine= (create_info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
   bool is_truncate= (thd->lex->sql_command == SQLCOM_TRUNCATE);
   char tablespace[FN_LEN];
+  NdbDictionary::Table::SingleUserMode single_user_mode= NdbDictionary::Table::SingleUserModeLocked;
 
   DBUG_ENTER("ha_ndbcluster::create");
   DBUG_PRINT("enter", ("name: %s", name));
@@ -4800,19 +4801,23 @@ int ha_ndbcluster::create(const char *name,
     schema distribution table is setup
     ( unless it is a creation of the schema dist table itself )
   */
-  if (!ndb_schema_share &&
-      !(strcmp(m_dbname, NDB_REP_DB) == 0 &&
-        strcmp(m_tabname, NDB_SCHEMA_TABLE) == 0))
+  if (!ndb_schema_share)
   {
-    DBUG_PRINT("info", ("Schema distribution table not setup"));
-    DBUG_RETURN(HA_ERR_NO_CONNECTION);
+    if (!(strcmp(m_dbname, NDB_REP_DB) == 0 &&
+          strcmp(m_tabname, NDB_SCHEMA_TABLE) == 0))
+    {
+      DBUG_PRINT("info", ("Schema distribution table not setup"));
+      DBUG_RETURN(HA_ERR_NO_CONNECTION);
+    }
+    single_user_mode = NdbDictionary::Table::SingleUserModeReadWrite;
   }
 #endif /* HAVE_NDB_BINLOG */
 
   DBUG_PRINT("table", ("name: %s", m_tabname));  
   tab.setName(m_tabname);
   tab.setLogging(!(create_info->options & HA_LEX_CREATE_TMP_TABLE));    
-   
+  tab.setSingleUserMode(single_user_mode);
+
   // Save frm data for this table
   if (readfrm(name, &data, &length))
     DBUG_RETURN(1);
@@ -5576,6 +5581,7 @@ retry_temporary_error1:
     {
       ndb_table_id= h->m_table->getObjectId();
       ndb_table_version= h->m_table->getObjectVersion();
+      DBUG_PRINT("info", ("success 1"));
     }
     else
     {
@@ -5589,6 +5595,7 @@ retry_temporary_error1:
           break;
       }
       res= ndb_to_mysql_error(&dict->getNdbError());
+      DBUG_PRINT("info", ("error(1) %u", res));
     }
     h->release_metadata(thd, ndb);
   }
@@ -5605,6 +5612,8 @@ retry_temporary_error1:
         {
           ndb_table_id= ndbtab_g.get_table()->getObjectId();
           ndb_table_version= ndbtab_g.get_table()->getObjectVersion();
+          DBUG_PRINT("info", ("success 2"));
+          break;
         }
         else
         {
@@ -5624,8 +5633,8 @@ retry_temporary_error1:
           }
         }
       }
-      else
-        res= ndb_to_mysql_error(&dict->getNdbError());
+      res= ndb_to_mysql_error(&dict->getNdbError());
+      DBUG_PRINT("info", ("error(2) %u", res));
       break;
     }
   }

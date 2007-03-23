@@ -331,19 +331,21 @@ void Dbtc::execTC_SCHVERREQ(Signal* signal)
   tabptr.i = signal->theData[0];
   ptrCheckGuard(tabptr, ctabrecFilesize, tableRecord);
   tabptr.p->currentSchemaVersion = signal->theData[1];
-  tabptr.p->storedTable = (bool)signal->theData[2];
+  tabptr.p->m_flags = 0;
+  tabptr.p->set_storedTable((bool)signal->theData[2]);
   BlockReference retRef = signal->theData[3];
   tabptr.p->tableType = (Uint8)signal->theData[4];
   BlockReference retPtr = signal->theData[5];
   Uint32 noOfKeyAttr = signal->theData[6];
+  tabptr.p->singleUserMode = (Uint8)signal->theData[7];
   ndbrequire(noOfKeyAttr <= MAX_ATTRIBUTES_IN_INDEX);
 
   const KeyDescriptor* desc = g_key_descriptor_pool.getPtr(tabptr.i);
   ndbrequire(noOfKeyAttr == desc->noOfKeyAttr);
 
-  ndbrequire(tabptr.p->enabled == false);
-  tabptr.p->enabled = true;
-  tabptr.p->dropping = false;
+  ndbrequire(tabptr.p->get_enabled() == false);
+  tabptr.p->set_enabled(true);
+  tabptr.p->set_dropping(false);
   tabptr.p->noOfKeyAttr = desc->noOfKeyAttr;
   tabptr.p->hasCharAttr = desc->hasCharAttr;
   tabptr.p->noOfDistrKeys = desc->noOfDistrKeys;
@@ -367,7 +369,7 @@ Dbtc::execPREP_DROP_TAB_REQ(Signal* signal)
   Uint32 senderRef = req->senderRef;
   Uint32 senderData = req->senderData;
   
-  if(!tabPtr.p->enabled){
+  if(!tabPtr.p->get_enabled()){
     jam();
     PrepDropTabRef* ref = (PrepDropTabRef*)signal->getDataPtrSend();
     ref->senderRef = reference();
@@ -379,7 +381,7 @@ Dbtc::execPREP_DROP_TAB_REQ(Signal* signal)
     return;
   }
 
-  if(tabPtr.p->dropping){
+  if(tabPtr.p->get_dropping()){
     jam();
     PrepDropTabRef* ref = (PrepDropTabRef*)signal->getDataPtrSend();
     ref->senderRef = reference();
@@ -391,7 +393,7 @@ Dbtc::execPREP_DROP_TAB_REQ(Signal* signal)
     return;
   }
   
-  tabPtr.p->dropping = true;
+  tabPtr.p->set_dropping(true);
   tabPtr.p->dropTable.senderRef = senderRef;
   tabPtr.p->dropTable.senderData = senderData;
 
@@ -427,7 +429,7 @@ Dbtc::execWAIT_DROP_TAB_CONF(Signal* signal)
   tabPtr.i = conf->tableId;
   ptrCheckGuard(tabPtr, ctabrecFilesize, tableRecord);
   
-  ndbrequire(tabPtr.p->dropping == true);
+  ndbrequire(tabPtr.p->get_dropping() == true);
   Uint32 nodeId = refToNode(conf->senderRef);
   tabPtr.p->dropTable.waitDropTabCount.clearWaitingFor(nodeId);
   
@@ -457,7 +459,7 @@ Dbtc::execWAIT_DROP_TAB_REF(Signal* signal)
   tabPtr.i = ref->tableId;
   ptrCheckGuard(tabPtr, ctabrecFilesize, tableRecord);
   
-  ndbrequire(tabPtr.p->dropping == true);
+  ndbrequire(tabPtr.p->get_dropping() == true);
   Uint32 nodeId = refToNode(ref->senderRef);
   tabPtr.p->dropTable.waitDropTabCount.clearWaitingFor(nodeId);
   
@@ -494,7 +496,7 @@ Dbtc::checkWaitDropTabFailedLqh(Signal* signal, Uint32 nodeId, Uint32 tableId)
   for(Uint32 i = 0; i<RT_BREAK && tabPtr.i < ctabrecFilesize; i++, tabPtr.i++){
     jam();
     ptrAss(tabPtr, tableRecord);
-    if(tabPtr.p->enabled && tabPtr.p->dropping){
+    if(tabPtr.p->get_enabled() && tabPtr.p->get_dropping()){
       if(tabPtr.p->dropTable.waitDropTabCount.isWaitingFor(nodeId)){
         jam();
 	conf->senderRef = calcLqhBlockRef(nodeId);
@@ -535,7 +537,7 @@ Dbtc::execDROP_TAB_REQ(Signal* signal)
   Uint32 senderData = req->senderData;
   DropTabReq::RequestType rt = (DropTabReq::RequestType)req->requestType;
   
-  if(!tabPtr.p->enabled && rt == DropTabReq::OnlineDropTab){
+  if(!tabPtr.p->get_enabled() && rt == DropTabReq::OnlineDropTab){
     jam();
     DropTabRef* ref = (DropTabRef*)signal->getDataPtrSend();
     ref->senderRef = reference();
@@ -547,7 +549,7 @@ Dbtc::execDROP_TAB_REQ(Signal* signal)
     return;
   }
 
-  if(!tabPtr.p->dropping && rt == DropTabReq::OnlineDropTab){
+  if(!tabPtr.p->get_dropping() && rt == DropTabReq::OnlineDropTab){
     jam();
     DropTabRef* ref = (DropTabRef*)signal->getDataPtrSend();
     ref->senderRef = reference();
@@ -559,8 +561,8 @@ Dbtc::execDROP_TAB_REQ(Signal* signal)
     return;
   }
   
-  tabPtr.p->enabled = false;
-  tabPtr.p->dropping = false;
+  tabPtr.p->set_enabled(false);
+  tabPtr.p->set_dropping(false);
   
   DropTabConf * conf = (DropTabConf*)signal->getDataPtrSend();
   conf->tableId = tabPtr.i;
@@ -1218,8 +1220,7 @@ void Dbtc::execTCSEIZEREQ(Signal* signal)
 	      break;
 	    case NodeState::SL_STOPPING_1:
 	    case NodeState::SL_STOPPING_2:
-              if (getNodeState().getSingleUserMode() &&
-                  getNodeState().getSingleUserApi() == senderNodeId)
+              if (getNodeState().getSingleUserMode())
                 break;
 	    case NodeState::SL_STOPPING_3:
 	    case NodeState::SL_STOPPING_4:
@@ -1229,9 +1230,6 @@ void Dbtc::execTCSEIZEREQ(Signal* signal)
 		errCode = ZNODE_SHUTDOWN_IN_PROGRESS;
 	      break;
 	    case NodeState::SL_SINGLEUSER:
-              if (getNodeState().getSingleUserApi() == senderNodeId)
-                break;
-	      errCode = ZCLUSTER_IN_SINGLEUSER_MODE;
 	      break;
 	    default:
 	      errCode = ZWRONG_STATE;
@@ -2403,6 +2401,7 @@ void Dbtc::initApiConnectRec(Signal* signal,
   regApiPtr->buddyPtr = RNIL;
   regApiPtr->currSavePointId = 0;
   regApiPtr->m_transaction_nodes.clear();
+  regApiPtr->singleUserMode = 0;
   // Trigger data
   releaseFiredTriggerData(&regApiPtr->theFiredTriggers),
   // Index data
@@ -2556,9 +2555,12 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   bool isIndexOpReturn = regApiPtr->indexOpReturn;
   regApiPtr->isIndexOp = false; // Reset marker
   regApiPtr->m_exec_flag |= TexecFlag;
+  TableRecordPtr localTabptr;
+  localTabptr.i = TtabIndex;
+  localTabptr.p = &tableRecord[TtabIndex];
   switch (regApiPtr->apiConnectstate) {
   case CS_CONNECTED:{
-    if (TstartFlag == 1 && getAllowStartTransaction(sendersNodeId) == true){
+    if (TstartFlag == 1 && getAllowStartTransaction(sendersNodeId, localTabptr.p->singleUserMode) == true){
       //---------------------------------------------------------------------
       // Initialise API connect record if transaction is started.
       //---------------------------------------------------------------------
@@ -2566,7 +2568,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
       initApiConnectRec(signal, regApiPtr);
       regApiPtr->m_exec_flag = TexecFlag;
     } else {
-      if(getAllowStartTransaction(sendersNodeId) == true){
+      if(getAllowStartTransaction(sendersNodeId, localTabptr.p->singleUserMode) == true){
 	/*------------------------------------------------------------------
 	 * WE EXPECTED A START TRANSACTION. SINCE NO OPERATIONS HAVE BEEN 
 	 * RECEIVED WE INDICATE THIS BY SETTING FIRST_TC_CONNECT TO RNIL TO 
@@ -2593,6 +2595,13 @@ void Dbtc::execTCKEYREQ(Signal* signal)
        *  the state will be CS_STARTED
        */
       jam();
+      if (unlikely(getNodeState().getSingleUserMode()) &&
+          getNodeState().getSingleUserApi() != sendersNodeId &&
+          !localTabptr.p->singleUserMode)
+      {
+	TCKEY_abort(signal, TexecFlag ? 60 : 57);
+        return;
+      }
       initApiConnectRec(signal, regApiPtr);
       regApiPtr->m_exec_flag = TexecFlag;
     } else { 
@@ -2613,6 +2622,10 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   case CS_ABORTING:
     if (regApiPtr->abortState == AS_IDLE) {
       if (TstartFlag == 1) {
+        if(getAllowStartTransaction(sendersNodeId, localTabptr.p->singleUserMode) == false){
+          TCKEY_abort(signal, TexecFlag ? 60 : 57);
+          return;
+        }
 	//--------------------------------------------------------------------
 	// Previous transaction had been aborted and the abort was completed. 
 	// It is then OK to start a new transaction again.
@@ -2676,9 +2689,6 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     return;
   }//switch
   
-  TableRecordPtr localTabptr;
-  localTabptr.i = TtabIndex;
-  localTabptr.p = &tableRecord[TtabIndex];
   if (localTabptr.p->checkTable(tcKeyReq->tableSchemaVersion)) {
     ;
   } else {
@@ -2736,6 +2746,8 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   regTcPtr->indexOp = regApiPtr->executingIndexOp;
   regTcPtr->savePointId = regApiPtr->currSavePointId;
   regApiPtr->executingIndexOp = RNIL;
+
+  regApiPtr->singleUserMode |= 1 << localTabptr.p->singleUserMode;
 
   if (TcKeyReq::getExecutingTrigger(Treqinfo)) {
     // Save the TcOperationPtr for fireing operation
@@ -2868,7 +2880,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
      *   THIS VARIABLE CONTROLS THE INTERVAL BETWEEN LCP'S AND 
      *   TEMP TABLES DON'T PARTICIPATE.
      * -------------------------------------------------------------------- */
-    if (localTabptr.p->storedTable) {
+    if (localTabptr.p->get_storedTable()) {
       coperationsize = ((Toperationsize + TattrLen) + TkeyLength) + 17;
     }
     c_counters.cwriteCount = TwriteCount + 1;
@@ -4701,6 +4713,7 @@ void Dbtc::copyApi(Signal* signal)
   regApiPtr->lqhkeyconfrec = Tlqhkeyconfrec;
   regApiPtr->commitAckMarker = TcommitAckMarker;
   regApiPtr->m_transaction_nodes = Tnodes;
+  regApiPtr->singleUserMode = 0;
 
   gcpPtr.i = TgcpPointer;
   ptrCheckGuard(gcpPtr, TgcpFilesize, localGcpRecord);
@@ -4712,6 +4725,7 @@ void Dbtc::copyApi(Signal* signal)
   regTmpApiPtr->firstTcConnect = RNIL;
   regTmpApiPtr->lastTcConnect = RNIL;
   regTmpApiPtr->m_transaction_nodes.clear();
+  regTmpApiPtr->singleUserMode = 0;
   releaseAllSeizedIndexOperations(regTmpApiPtr);
 }//Dbtc::copyApi()
 
@@ -6226,24 +6240,30 @@ void Dbtc::timeOutLoopStartLab(Signal* signal, Uint32 api_con_ptr)
     Uint32 api_timer= getApiConTimer(api_con_ptr);
     jam();
     if (api_timer != 0) {
+      Uint32 error= ZTIME_OUT_ERROR;
       time_out_value= time_out_param + (api_con_ptr & mask_value);
       if (unlikely(old_mask_value)) // abort during single user mode
       {
         apiConnectptr.i = api_con_ptr;
         ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
-        if (getNodeState().getSingleUserApi() ==
-            refToNode(apiConnectptr.p->ndbapiBlockref))
+        if ((getNodeState().getSingleUserApi() ==
+             refToNode(apiConnectptr.p->ndbapiBlockref)) ||
+            !(apiConnectptr.p->singleUserMode & (1 << NDB_SUM_LOCKED)))
         {
           // api allowed during single user, use original timeout
           time_out_value=
             old_time_out_param + (api_con_ptr & old_mask_value);
+        }
+        else
+        {
+          error= ZCLUSTER_IN_SINGLEUSER_MODE;
         }
       }
       time_passed= tc_timer - api_timer;
       if (time_passed > time_out_value) 
       {
         jam();
-        timeOutFoundLab(signal, api_con_ptr, ZTIME_OUT_ERROR);
+        timeOutFoundLab(signal, api_con_ptr, error);
 	api_con_ptr++;
 	break;
       }
@@ -6283,7 +6303,8 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
 	<< " code: " << errCode);
   switch (apiConnectptr.p->apiConnectstate) {
   case CS_STARTED:
-    if(apiConnectptr.p->lqhkeyreqrec == apiConnectptr.p->lqhkeyconfrec){
+    if(apiConnectptr.p->lqhkeyreqrec == apiConnectptr.p->lqhkeyconfrec &&
+       errCode != ZCLUSTER_IN_SINGLEUSER_MODE){
       jam();
       /*
       We are waiting for application to continue the transaction. In this
@@ -8258,6 +8279,7 @@ void Dbtc::initApiConnectFail(Signal* signal)
   apiConnectptr.p->ndbapiConnect = 0;
   apiConnectptr.p->buddyPtr = RNIL;
   apiConnectptr.p->m_transaction_nodes.clear();
+  apiConnectptr.p->singleUserMode = 0;
   setApiConTimer(apiConnectptr.i, 0, __LINE__);
   switch(ttransStatus){
   case LqhTransConf::Committed:
@@ -10173,6 +10195,7 @@ void Dbtc::initApiConnect(Signal* signal)
     apiConnectptr.p->buddyPtr = RNIL;
     apiConnectptr.p->currSavePointId = 0;
     apiConnectptr.p->m_transaction_nodes.clear();
+    apiConnectptr.p->singleUserMode = 0;
   }//for
   apiConnectptr.i = tiacTmp - 1;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
@@ -10201,6 +10224,7 @@ void Dbtc::initApiConnect(Signal* signal)
       apiConnectptr.p->buddyPtr = RNIL;
       apiConnectptr.p->currSavePointId = 0;
       apiConnectptr.p->m_transaction_nodes.clear();
+      apiConnectptr.p->singleUserMode = 0;
     }//for
   apiConnectptr.i = (2 * tiacTmp) - 1;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
@@ -10229,6 +10253,7 @@ void Dbtc::initApiConnect(Signal* signal)
     apiConnectptr.p->buddyPtr = RNIL;
     apiConnectptr.p->currSavePointId = 0;
     apiConnectptr.p->m_transaction_nodes.clear();
+    apiConnectptr.p->singleUserMode = 0;
   }//for
   apiConnectptr.i = (3 * tiacTmp) - 1;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
@@ -10413,10 +10438,11 @@ void Dbtc::initTable(Signal* signal)
     refresh_watch_dog();
     ptrAss(tabptr, tableRecord);
     tabptr.p->currentSchemaVersion = 0;
-    tabptr.p->storedTable = true;
+    tabptr.p->m_flags = 0;
+    tabptr.p->set_storedTable(true);
     tabptr.p->tableType = 0;
-    tabptr.p->enabled = false;
-    tabptr.p->dropping = false;
+    tabptr.p->set_enabled(false);
+    tabptr.p->set_dropping(false);
     tabptr.p->noOfKeyAttr = 0;
     tabptr.p->hasCharAttr = 0;
     tabptr.p->noOfDistrKeys = 0;
@@ -10550,6 +10576,7 @@ void Dbtc::releaseAbortResources(Signal* signal)
   apiConnectptr.p->firstTcConnect = RNIL;
   apiConnectptr.p->lastTcConnect = RNIL;
   apiConnectptr.p->m_transaction_nodes.clear();
+  apiConnectptr.p->singleUserMode = 0;
 
   // MASV let state be CS_ABORTING until all 
   // signals in the "air" have been received. Reset to CS_CONNECTED
@@ -11434,7 +11461,7 @@ void Dbtc::execABORT_ALL_REQ(Signal* signal)
   const Uint32 senderData = req->senderData;
   const BlockReference senderRef = req->senderRef;
   
-  if(getAllowStartTransaction(refToNode(senderRef)) == true && !getNodeState().getSingleUserMode()){
+  if(getAllowStartTransaction(refToNode(senderRef), 0) == true && !getNodeState().getSingleUserMode()){
     jam();
 
     ref->senderData = senderData;
@@ -13711,9 +13738,9 @@ void Dbtc::deleteFromIndexTable(Signal* signal,
 
 Uint32 
 Dbtc::TableRecord::getErrorCode(Uint32 schemaVersion) const {
-  if(!enabled)
+  if(!get_enabled())
     return ZNO_SUCH_TABLE;
-  if(dropping)
+  if(get_dropping())
     return ZDROP_TABLE_IN_PROGRESS;
   if(table_version_major(schemaVersion) != table_version_major(currentSchemaVersion))
     return ZWRONG_SCHEMA_VERSION_ERROR;
