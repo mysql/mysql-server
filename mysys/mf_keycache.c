@@ -52,8 +52,8 @@
   '*next' and '**prev' pointer. These pointers are used to insert the
   thread into a wait queue.
 
-  NOTE: Since there is only one pair of queue pointers per thread, a
-  thread can be in one wait queue only.
+  A thread can wait for one block and thus be in one wait queue at a
+  time only.
 
   Before starting to wait on its condition variable with
   pthread_cond_wait(), the thread enters itself to a specific wait queue
@@ -69,13 +69,18 @@
   unlink_from_queue() or release_whole_queue() respectively, or the waiting
   thread removes itself.
 
-  There is one exception from this locking scheme. Each block has a
+  There is one exception from this locking scheme when one thread wants
+  to reuse a block for some other address. This works by first marking
+  the block reserved (status= BLOCK_IN_SWITCH) and then waiting for all
+  threads that are reading the block to finish. Each block has a
   reference to a condition variable (condvar). It holds a reference to
-  the thread->suspend condition variable, if that thread is waiting for
-  the block. When that thread is signalled, the reference is cleared.
-  This is similar to the above, but it clearly means that only one
-  thread can wait for a particular block. There is no queue in this
-  case. Strangely enough block->convar is used for waiting for the
+  the thread->suspend condition variable for the waiting thread (if such
+  a thread exists). When that thread is signaled, the reference is
+  cleared. The number of readers of a block is registered in
+  block->hash_link->requests. See wait_for_readers() / remove_reader()
+  for details. This is similar to the above, but it clearly means that
+  only one thread can wait for a particular block. There is no queue in
+  this case. Strangely enough block->convar is used for waiting for the
   assigned hash_link only. More precisely it is used to wait for all
   requests to be unregistered from the assigned hash_link.
 
@@ -219,8 +224,8 @@ static void wait_on_queue(KEYCACHE_WQUEUE *wqueue,
                           pthread_mutex_t *mutex);
 static void release_whole_queue(KEYCACHE_WQUEUE *wqueue);
 #else
-#define wait_on_queue(wqueue, mutex)    KEYCACHE_DBUG_ASSERT(0);
-#define release_whole_queue(wqueue)     /* release_whole_queue() */
+#define wait_on_queue(wqueue, mutex)    do {} while (0)
+#define release_whole_queue(wqueue)     do {} while (0)
 #endif
 static void free_block(KEY_CACHE *keycache, BLOCK_LINK *block);
 #if !defined(DBUG_OFF)
@@ -378,6 +383,7 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
   keycache->disk_blocks= -1;
   if (! keycache->key_cache_inited)
   {
+    keycache->key_cache_inited= 1;
     /*
       Initialize these variables once only.
       Their value must survive re-initialization during resizing.
@@ -389,8 +395,6 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
     keycache->in_init= 0;
     pthread_mutex_init(&keycache->cache_lock, MY_MUTEX_INIT_FAST);
     keycache->resize_queue.last_thread= NULL;
-    /* Initialize this after the mutex. It is read asynchronously. */
-    keycache->key_cache_inited= 1;
   }
 
   keycache->key_cache_mem_size= use_mem;
@@ -402,7 +406,6 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
   blocks= (uint) (use_mem / (sizeof(BLOCK_LINK) + 2 * sizeof(HASH_LINK) +
 			     sizeof(HASH_LINK*) * 5/4 + key_cache_block_size));
   /* It doesn't make sense to have too few blocks (less than 8) */
-  /* Comment to be deleted: disk_blocks is set to -1 above unconditionally. */
   if (blocks >= 8)
   {
     for ( ; ; )
@@ -623,9 +626,7 @@ int resize_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
     run in parallel with normal cache operation.
   */
   while (keycache->cnt_for_resize_op)
-  {
     wait_on_queue(&keycache->waiting_for_resize_cnt, &keycache->cache_lock);
-  }
 #else
   KEYCACHE_DBUG_ASSERT(keycache->cnt_for_resize_op == 0);
 #endif
@@ -648,10 +649,8 @@ finish:
   */
   keycache->in_resize= 0;
 
-#ifdef THREAD
   /* Signal waiting threads. */
   release_whole_queue(&keycache->resize_queue);
-#endif
 
   keycache_pthread_mutex_unlock(&keycache->cache_lock);
   DBUG_RETURN(blocks);
@@ -673,12 +672,8 @@ static inline void inc_counter_for_resize_op(KEY_CACHE *keycache)
 */
 static inline void dec_counter_for_resize_op(KEY_CACHE *keycache)
 {
-#ifdef THREAD
   if (!--keycache->cnt_for_resize_op)
     release_whole_queue(&keycache->waiting_for_resize_cnt);
-#else
-  keycache->cnt_for_resize_op--;
-#endif
 }
 
 /*
@@ -785,9 +780,6 @@ void end_key_cache(KEY_CACHE *keycache, my_bool cleanup)
     Queue is represented by a circular list of the thread structures
     The list is double-linked of the type (**prev,*next), accessed by
     a pointer to the last element.
-
-    Since there is only one pair of queue pointers per thread, a
-    thread can be part of one wait queue only.
 */
 
 static void link_into_queue(KEYCACHE_WQUEUE *wqueue,
@@ -870,9 +862,6 @@ static void unlink_from_queue(KEYCACHE_WQUEUE *wqueue,
     The list is single-linked of the type (*next), accessed by a pointer
     to the last element.
 
-    Since there is only one pair of queue pointers per thread, a
-    thread can be part of one wait queue only.
-
     The function protects against stray signals by verifying that the
     current thread is unlinked from the queue when awaking. However,
     since several threads can wait for the same event, it might be
@@ -907,7 +896,7 @@ static void wait_on_queue(KEYCACHE_WQUEUE *wqueue,
     KEYCACHE_DBUG_PRINT("wait", ("suspend thread %ld", thread->id));
     keycache_pthread_cond_wait(&thread->suspend, mutex);
   }
-  while(thread->next);
+  while (thread->next);
 }
 
 
@@ -1448,9 +1437,6 @@ static void wait_for_readers(KEY_CACHE *keycache,
     block->condvar= &thread->suspend;
     keycache_pthread_cond_wait(&thread->suspend, &keycache->cache_lock);
     block->condvar= NULL;
-    /* The other thread might have freed the block in between. */
-    if (!block->hash_link)
-      break;
   }
 #else
   KEYCACHE_DBUG_ASSERT(block->hash_link->requests == 0);
@@ -1738,12 +1724,13 @@ restart:
         we did not release cache_lock since increasing it. So no other
         thread can wait for our request to become released.
       */
-      if (!--hash_link->requests)
+      if (hash_link->requests == 1)
       {
         /*
           We are the only one to request this hash_link (this file/pos).
           Free the hash_link.
         */
+        hash_link->requests--;
         unlink_hash(keycache, hash_link);
         DBUG_RETURN(0);
       }
@@ -1759,7 +1746,6 @@ restart:
         Refresh the request on the hash-link so that it cannot be reused
         for another file/pos.
       */
-      hash_link->requests++;
       thread= my_thread_var;
       thread->opt_info= (void *) hash_link;
       link_into_queue(&keycache->waiting_for_block, thread);
@@ -1936,14 +1922,10 @@ restart:
 
       /*
         The block is still assigned to the hash_link (the file/pos that
-        we are goig to write to). Wait until the eviction/free is
+        we are going to write to). Wait until the eviction/free is
         complete. Otherwise the direct write could complete before all
         readers are done with the block. So they could read outdated
         data.
-
-        Comment to be deleted: This was the reason why I experienced
-        index corruptions during resize. Since I introduced the wait
-        loop here, they are gone.
 
         Since we released our request on the hash_link, it can be reused
         for another file/pos. Hence we cannot just check for
@@ -2052,12 +2034,6 @@ restart:
           block= keycache->free_block_list;
           keycache->free_block_list= block->next_used;
           block->next_used= NULL;
-          DBUG_ASSERT(!block->prev_used);
-          DBUG_ASSERT(!block->next_changed);
-          DBUG_ASSERT(!block->prev_changed);
-          DBUG_ASSERT(!block->hash_link);
-          DBUG_ASSERT(!block->status);
-          DBUG_ASSERT(!block->requests);
         }
         else
         {
@@ -2070,13 +2046,13 @@ restart:
                                     byte*);
           keycache->blocks_used++;
           DBUG_ASSERT(!block->next_used);
-          DBUG_ASSERT(!block->prev_used);
-          DBUG_ASSERT(!block->next_changed);
-          DBUG_ASSERT(!block->prev_changed);
-          DBUG_ASSERT(!block->hash_link);
-          DBUG_ASSERT(!block->status);
-          DBUG_ASSERT(!block->requests);
         }
+        DBUG_ASSERT(!block->prev_used);
+        DBUG_ASSERT(!block->next_changed);
+        DBUG_ASSERT(!block->prev_changed);
+        DBUG_ASSERT(!block->hash_link);
+        DBUG_ASSERT(!block->status);
+        DBUG_ASSERT(!block->requests);
         keycache->blocks_unused--;
         block->status= BLOCK_IN_USE;
         block->length= 0;
@@ -2192,7 +2168,7 @@ restart:
                 it could happen that we write the block, reassign it to
                 another file block, then, before the new owner can read
                 the new file block, the flusher writes the cache block
-                (wich still has the old contents) to the new file block!
+                (which still has the old contents) to the new file block!
               */
               wait_on_queue(&block->wqueue[COND_FOR_SAVED],
                             &keycache->cache_lock);
@@ -2326,11 +2302,6 @@ restart:
                         PAGE_READ : PAGE_WAIT_TO_BE_READ);
         }
       }
-      /*
-        Comment to be deleted: keycache->global_cache_read++; moved to
-        read_block(). At this place it was counted for primary and
-        secondary requests. Better count it where the actual read is done.
-      */
     }
     else
     {
@@ -2448,11 +2419,6 @@ static void read_block(KEY_CACHE *keycache,
     KEYCACHE_DBUG_PRINT("read_block",
                         ("page to be read by primary request"));
 
-    /*
-      Comment to be deleted: keycache->global_cache_read++; moved here
-      from find_key_block(). At this place it counts primary requests
-      only.
-    */
     keycache->global_cache_read++;
     /* Page is not in buffer yet, is to be read from disk */
     keycache_pthread_mutex_unlock(&keycache->cache_lock);
@@ -2479,7 +2445,6 @@ static void read_block(KEY_CACHE *keycache,
       block->status|= BLOCK_ERROR;
     else
     {
-      /* Comment to be deleted: Do not kill other block status flags. */
       block->status|= BLOCK_READ;
       block->length= got_length;
       /*
@@ -2548,7 +2513,7 @@ byte *key_cache_read(KEY_CACHE *keycache,
 		     uint block_length __attribute__((unused)),
 		     int return_buffer __attribute__((unused)))
 {
-  my_bool incremented= FALSE;
+  my_bool locked_and_incremented= FALSE;
   int error=0;
   byte *start= buff;
   DBUG_ENTER("key_cache_read");
@@ -2589,7 +2554,7 @@ byte *key_cache_read(KEY_CACHE *keycache,
       wait_on_queue(&keycache->resize_queue, &keycache->cache_lock);
     /* Register the I/O for the next resize. */
     inc_counter_for_resize_op(keycache);
-    incremented= TRUE;
+    locked_and_incremented= TRUE;
     /* Requested data may not always be aligned to cache blocks. */
     offset= (uint) (filepos & (keycache->key_cache_block_size-1));
     /* Read data in key_cache_block_size increments */
@@ -2622,15 +2587,12 @@ byte *key_cache_read(KEY_CACHE *keycache,
         */
         keycache->global_cache_read++;
         keycache_pthread_mutex_unlock(&keycache->cache_lock);
-        if (my_pread(file, (byte*) buff, read_length,
-                     filepos + offset, MYF(MY_NABP)))
-        {
-          error= 1;
-        }
+        error= (my_pread(file, (byte*) buff, read_length,
+                         filepos + offset, MYF(MY_NABP)) != 0);
         keycache_pthread_mutex_lock(&keycache->cache_lock);
         goto next_block;
       }
-      if (block->status != BLOCK_ERROR)
+      if (!(block->status & BLOCK_ERROR))
       {
         if (page_st != PAGE_READ)
         {
@@ -2661,7 +2623,7 @@ byte *key_cache_read(KEY_CACHE *keycache,
       }
 
       /* block status may have added BLOCK_ERROR in the above 'if'. */
-      if (! ((status= block->status) & BLOCK_ERROR))
+      if (!((status= block->status) & BLOCK_ERROR))
       {
 #ifndef THREAD
         if (! return_buffer)
@@ -2716,23 +2678,17 @@ byte *key_cache_read(KEY_CACHE *keycache,
 no_key_cache:
   /* Key cache is not used */
 
-  if (keycache->key_cache_inited && !incremented)
-  {
-    keycache_pthread_mutex_lock(&keycache->cache_lock);
-    inc_counter_for_resize_op(keycache);
-    incremented= TRUE;
-  }
   keycache->global_cache_r_requests++;
   keycache->global_cache_read++;
-  if (incremented)
+  if (locked_and_incremented)
     keycache_pthread_mutex_unlock(&keycache->cache_lock);
   if (my_pread(file, (byte*) buff, length, filepos, MYF(MY_NABP)))
     error= 1;
-  if (incremented)
+  if (locked_and_incremented)
     keycache_pthread_mutex_lock(&keycache->cache_lock);
 
 end:
-  if (incremented)
+  if (locked_and_incremented)
   {
     dec_counter_for_resize_op(keycache);
     keycache_pthread_mutex_unlock(&keycache->cache_lock);
@@ -2777,7 +2733,7 @@ int key_cache_insert(KEY_CACHE *keycache,
     uint read_length;
     uint offset;
     int page_st;
-    my_bool incremented= FALSE;
+    my_bool locked_and_incremented= FALSE;
 
     /*
       When the keycache is once initialized, we use the cache_lock to
@@ -2794,7 +2750,7 @@ int key_cache_insert(KEY_CACHE *keycache,
 	goto no_key_cache;
     /* Register the pseudo I/O for the next resize. */
     inc_counter_for_resize_op(keycache);
-    incremented= TRUE;
+    locked_and_incremented= TRUE;
     /* Loaded data may not always be aligned to cache blocks. */
     offset= (uint) (filepos & (keycache->key_cache_block_size-1));
     /* Load data in key_cache_block_size increments. */
@@ -2824,7 +2780,7 @@ int key_cache_insert(KEY_CACHE *keycache,
         */
         goto no_key_cache;
       }
-      if (block->status != BLOCK_ERROR)
+      if (!(block->status & BLOCK_ERROR))
       {
         if ((page_st == PAGE_WAIT_TO_BE_READ) ||
             ((page_st == PAGE_TO_BE_READ) &&
@@ -2857,14 +2813,6 @@ int key_cache_insert(KEY_CACHE *keycache,
             Though reading again what the caller did read already is an
             expensive operation, we need to do this for correctness.
           */
-#if !defined(INGO_TEST_LOADIDX_OFF)
-          /*
-            Note that this happen only for key_cache_block_size >
-            MI_MIN_KEY_BLOCK_LENGTH *and* LOAD INDEX INTO CACHE ...
-            IGNORE LEAVES. Otherwise mi_preload() supplies this function
-            with aligned blocks.
-          */
-#endif
           read_block(keycache, block, keycache->key_cache_block_size,
                      read_length + offset, (page_st == PAGE_TO_BE_READ));
           /*
@@ -2950,7 +2898,7 @@ int key_cache_insert(KEY_CACHE *keycache,
         DBUG_ASSERT(block->hash_link->file == file);
         DBUG_ASSERT(block->hash_link->diskpos == filepos);
         DBUG_ASSERT(block->status & (BLOCK_READ | BLOCK_IN_USE));
-      } /* end of if (block->status != BLOCK_ERROR) */
+      } /* end of if (!(block->status & BLOCK_ERROR)) */
 
       remove_reader(block);
 
@@ -2972,7 +2920,7 @@ int key_cache_insert(KEY_CACHE *keycache,
     } while ((length-= read_length));
 
   no_key_cache:
-    if (incremented)
+    if (locked_and_incremented)
       dec_counter_for_resize_op(keycache);
     keycache_pthread_mutex_unlock(&keycache->cache_lock);
   }
@@ -3016,7 +2964,7 @@ int key_cache_write(KEY_CACHE *keycache,
                     uint block_length  __attribute__((unused)),
                     int dont_write)
 {
-  my_bool incremented= FALSE;
+  my_bool locked_and_incremented= FALSE;
   int error=0;
   DBUG_ENTER("key_cache_write");
   DBUG_PRINT("enter",
@@ -3075,7 +3023,7 @@ int key_cache_write(KEY_CACHE *keycache,
       wait_on_queue(&keycache->resize_queue, &keycache->cache_lock);
     /* Register the I/O for the next resize. */
     inc_counter_for_resize_op(keycache);
-    incremented= TRUE;
+    locked_and_incremented= TRUE;
     /* Requested data may not always be aligned to cache blocks. */
     offset= (uint) (filepos & (keycache->key_cache_block_size-1));
     /* Write data in key_cache_block_size increments. */
@@ -3133,7 +3081,7 @@ int key_cache_write(KEY_CACHE *keycache,
         wait for the other thread to complete the read of this block.
         read_block() takes care for the wait.
       */
-      if (block->status != BLOCK_ERROR &&
+      if (!(block->status & BLOCK_ERROR) &&
           ((page_st == PAGE_TO_BE_READ &&
             (offset || read_length < keycache->key_cache_block_size)) ||
            (page_st == PAGE_WAIT_TO_BE_READ)))
@@ -3197,7 +3145,7 @@ int key_cache_write(KEY_CACHE *keycache,
         the buffer would be read/written. An attempt to flush during
         memcpy() is prevented with BLOCK_FOR_UPDATE.
       */
-      if (! (block->status & BLOCK_ERROR))
+      if (!(block->status & BLOCK_ERROR))
       {
 #if !defined(SERIALIZED_READ_FROM_CACHE)
         keycache_pthread_mutex_unlock(&keycache->cache_lock);
@@ -3271,25 +3219,19 @@ no_key_cache:
   if (dont_write)
   {
     /* Used in the server. */
-    if (keycache->key_cache_inited && !incremented)
-    {
-      keycache_pthread_mutex_lock(&keycache->cache_lock);
-      inc_counter_for_resize_op(keycache);
-      incremented= TRUE;
-    }
     keycache->global_cache_w_requests++;
     keycache->global_cache_write++;
-    if (incremented)
+    if (locked_and_incremented)
       keycache_pthread_mutex_unlock(&keycache->cache_lock);
     if (my_pwrite(file, (byte*) buff, length, filepos,
 		  MYF(MY_NABP | MY_WAIT_IF_FULL)))
       error=1;
-    if (incremented)
+    if (locked_and_incremented)
       keycache_pthread_mutex_lock(&keycache->cache_lock);
   }
 
 end:
-  if (incremented)
+  if (locked_and_incremented)
   {
     dec_counter_for_resize_op(keycache);
     keycache_pthread_mutex_unlock(&keycache->cache_lock);
@@ -3585,6 +3527,10 @@ static int flush_cached_blocks(KEY_CACHE *keycache,
     from flush_key_blocks and flush_all_key_blocks (the later one does the
     mutex lock in the resize_key_cache() function).
 
+    We do only care about changed blocks that exist when the function is
+    entered. We do not guarantee that all changed blocks of the file are
+    flushed if more blocks change while this function is running.
+
   RETURN
     0   ok
     1  error
@@ -3644,14 +3590,16 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
         Assure that we always have some entries for the case that new
         changed blocks appear while we need to wait for something.
       */
-      if ((count <= FLUSH_CACHE) ||
-          ((count > FLUSH_CACHE) &&
-           !(cache= (BLOCK_LINK**) my_malloc(sizeof(BLOCK_LINK*)*count,
-                                             MYF(0)))))
-      {
+      if ((count > FLUSH_CACHE) &&
+          !(cache= (BLOCK_LINK**) my_malloc(sizeof(BLOCK_LINK*)*count,
+                                            MYF(0))))
         cache= cache_buff;
-        count= FLUSH_CACHE;
-      }
+      /*
+        After a restart there could be more changed blocks than now.
+        So we should not let count become smaller than the fixed buffer.
+      */
+      if (cache == cache_buff)
+        count == FLUSH_CACHE;
     }
 
     /* Retrieve the blocks and write them to a buffer to be flushed */
@@ -3704,7 +3652,7 @@ restart:
                 if ((error= flush_cached_blocks(keycache, file, cache,
                                                 end,type)))
                 {
-                  /* Do not loop infnitely trying to flush in vain. */
+                  /* Do not loop infinitely trying to flush in vain. */
                   if ((last_errno == error) && (++last_errcnt > 5))
                     goto err;
                   last_errno= error;
@@ -3795,21 +3743,22 @@ restart:
         last_errno= error;
       }
       /*
-        While releasing the lock for writing, new blocks may be changed.
-        This should not happen during resize as no new changed blocks
-        are accepted. But it can happen during other flushes. Anyway
-        check again.
+        Do not restart here. We have now flushed at least all blocks
+        that were changed when entering this function.
       */
-      goto restart;
     }
     if (last_in_flush)
     {
       /*
         There are no blocks to be flushed by this thread, but blocks in
         flush by other threads. Wait until one of the blocks is flushed.
-       */
-      wait_on_queue(&last_in_flush->wqueue[COND_FOR_SAVED],
-                    &keycache->cache_lock);
+        Re-check the condition for last_in_flush. We may have unlocked
+        the cache_lock in flush_cached_blocks(). The state of the block
+        could have changed.
+      */
+      if (last_in_flush->status & BLOCK_IN_FLUSH)
+        wait_on_queue(&last_in_flush->wqueue[COND_FOR_SAVED],
+                      &keycache->cache_lock);
       /* Be sure not to lose a block. They may be flushed in random order. */
       goto restart;
     }
@@ -3818,9 +3767,13 @@ restart:
       /*
         There are no blocks to be flushed by this thread, but blocks for
         update by other threads. Wait until one of the blocks is updated.
-       */
-      wait_on_queue(&last_for_update->wqueue[COND_FOR_REQUESTED],
-                    &keycache->cache_lock);
+        Re-check the condition for last_for_update. We may have unlocked
+        the cache_lock in flush_cached_blocks(). The state of the block
+        could have changed.
+      */
+      if (last_for_update->status & BLOCK_FOR_UPDATE)
+        wait_on_queue(&last_for_update->wqueue[COND_FOR_REQUESTED],
+                      &keycache->cache_lock);
       /* The block is now changed. Flush it. */
       goto restart;
     }
@@ -3841,8 +3794,12 @@ restart:
       cnt++;
       KEYCACHE_DBUG_ASSERT(cnt <= keycache->blocks_used);
 #endif
-      /* While waiting here, we might have got another changed block. */
-      goto restart;
+      /*
+        Do not restart here. We have flushed all blocks that were
+        changed when entering this function and were not marked for
+        eviction. Other threads have now flushed all remaining blocks in
+        the course of their eviction.
+      */
     }
 
     if (! (type == FLUSH_KEEP || type == FLUSH_FORCE_WRITE))
@@ -3956,7 +3913,7 @@ restart:
         goto restart;
 
       /*
-        To avoid an infinite loop wait until one of the blocks marked
+        To avoid an infinite loop, wait until one of the blocks marked
         for update is updated.
       */
       if (last_for_update)
@@ -4409,11 +4366,10 @@ void keycache_debug_log_close(void)
 #endif /* defined(KEYCACHE_DEBUG) */
 
 #if !defined(DBUG_OFF)
-#define F_B_PRT(_f_, _v_) fprintf(stderr, "Assert fails: " _f_, _v_)
+#define F_B_PRT(_f_, _v_) DBUG_PRINT("assert_fail", (_f_, _v_))
 
 static int fail_block(BLOCK_LINK *block)
 {
-  fprintf(stderr, "\n");
   F_B_PRT("block->next_used:    %lx\n", (ulong) block->next_used);
   F_B_PRT("block->prev_used:    %lx\n", (ulong) block->prev_used);
   F_B_PRT("block->next_changed: %lx\n", (ulong) block->next_changed);
@@ -4424,19 +4380,16 @@ static int fail_block(BLOCK_LINK *block)
   F_B_PRT("block->offset:       %u\n", block->offset);
   F_B_PRT("block->requests:     %u\n", block->requests);
   F_B_PRT("block->temperature:  %u\n", block->temperature);
-  fprintf(stderr, "\n");
   return 0; /* Let the assert fail. */
 }
 
 static int fail_hlink(HASH_LINK *hlink)
 {
-  fprintf(stderr, "\n");
   F_B_PRT("hlink->next:    %lx\n", (ulong) hlink->next);
   F_B_PRT("hlink->prev:    %lx\n", (ulong) hlink->prev);
   F_B_PRT("hlink->block:   %lx\n", (ulong) hlink->block);
   F_B_PRT("hlink->diskpos: %lu\n", (ulong) hlink->diskpos);
   F_B_PRT("hlink->file:    %d\n", hlink->file);
-  fprintf(stderr, "\n");
   return 0; /* Let the assert fail. */
 }
 
