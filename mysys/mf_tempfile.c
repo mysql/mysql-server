@@ -22,15 +22,36 @@
 #include <paths.h>
 #endif
 
-#ifdef HAVE_TEMPNAM
-#if !defined(__NETWARE__)
-extern char **environ;
-#endif
-#endif
+
 
 /*
-  Create a temporary file in a given directory
-  This function should be used instead of my_tempnam() !
+  @brief
+  Create a temporary file with unique name in a given directory
+
+  @details
+  create_temp_file
+    to             pointer to buffer where temporary filename will be stored
+    dir            directory where to create the file
+    prefix         prefix the filename with this
+    mode           Flags to use for my_create/my_open
+    MyFlags        Magic flags
+
+  @return
+    File descriptor of opened file if success
+    -1 and sets errno if fails.
+
+  @note
+    The behaviour of this function differs a lot between
+    implementation, it's main use is to generate a file with
+    a name that does not already exist.
+
+    When passing O_TEMPORARY flag in "mode" the file should
+    be automatically deleted
+
+    The implementation using mkstemp should be considered the
+    reference implementation when adding a new or modifying an
+    existing one
+
 */
 
 File create_temp_file(char *to, const char *dir, const char *prefix,
@@ -38,41 +59,33 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
 		      myf MyFlags __attribute__((unused)))
 {
   File file= -1;
+
   DBUG_ENTER("create_temp_file");
-#if defined(_MSC_VER)
+  DBUG_PRINT("enter", ("dir: %s, prefix: %s", dir, prefix));
+#if defined (__WIN__)
+
+   /*
+     Use GetTempFileName to generate a unique filename, create
+     the file and release it's handle
+      - uses up to the first three letters from prefix
+   */
+  if (GetTempFileName(dir, prefix, 0, to) == 0)
+    DBUG_RETURN(-1);
+
+  DBUG_PRINT("info", ("name: %s", to));
+
+  /*
+    Open the file without the "open only if file doesn't already exist"
+    since the file has already been created by GetTempFileName
+  */
+  if ((file= my_open(to,  (mode & ~O_EXCL), MyFlags)) < 0)
   {
-    char temp[FN_REFLEN],*end,*res,**old_env,*temp_env[1];
-    old_env=environ;
-    if (dir)
-    {
-      end=strend(dir)-1;
-      if (!dir[0])
-      {				/* Change empty string to current dir */
-	to[0]= FN_CURLIB;
-	to[1]= 0;
-	dir=to;
-      }
-      else if (*end == FN_DEVCHAR)
-      {				/* Get current dir for drive */
-	_fullpath(temp,dir,FN_REFLEN);
-	dir=to;
-      }
-      else if (*end == FN_LIBCHAR && dir < end && end[-1] != FN_DEVCHAR)
-      {
-	strmake(to,dir,(uint) (end-dir));	/* Copy and remove last '\' */
-	dir=to;
-      }
-      environ=temp_env;		/* Force use of dir (dir not checked) */
-      temp_env[0]=0;
-    }
-    if ((res=tempnam((char*) dir,(char *) prefix)))
-    {
-      strmake(to,res,FN_REFLEN-1);
-      (*free)(res);
-      file=my_create(to,0, mode | O_EXCL | O_NOFOLLOW, MyFlags);
-    }
-    environ=old_env;
+    /* Open failed, remove the file created by GetTempFileName */
+    int tmp= my_errno;
+    (void) my_delete(to, MYF(0));
+    my_errno= tmp;
   }
+
 #elif defined(_ZTC__)
   if (!dir)
     dir=getenv("TMPDIR");
@@ -101,6 +114,8 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     }
     strmov(convert_dirname(to,dir,NullS),prefix_buff);
     org_file=mkstemp(to);
+    if (mode & O_TEMPORARY)
+      (void) my_delete(to, MYF(MY_WME | ME_NOINPUT));
     file=my_register_filename(org_file, to, FILE_BY_MKSTEMP,
 			      EE_CANTCREATEFILE, MyFlags);
     /* If we didn't manage to register the name, remove the temp file */
@@ -113,6 +128,10 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
   }
 #elif defined(HAVE_TEMPNAM)
   {
+#if !defined(__NETWARE__)
+    extern char **environ;
+#endif
+
     char *res,**old_env,*temp_env[1];
     if (dir && !dir[0])
     {				/* Change empty string to current dir */
@@ -147,40 +166,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
 #endif
   }
 #else
-  {
-    register long uniq;
-    register int length;
-    my_string pos,end_pos;
-    /* Make an unique number */
-    pthread_mutex_lock(&THR_LOCK_open);
-    uniq= ((long) getpid() << 20) + (long) _my_tempnam_used++ ;
-    pthread_mutex_unlock(&THR_LOCK_open);
-    if (!dir && !(dir=getenv("TMPDIR")))	/* Use this if possibly */
-      dir=P_tmpdir;			/* Use system default */
-    length=strlen(dir)+strlen(pfx)+1;
-
-    DBUG_PRINT("test",("mallocing %d byte",length+8+sizeof(TMP_EXT)+1));
-    if (length+8+sizeof(TMP_EXT)+1 > FN_REFLENGTH)
-      errno=my_errno= ENAMETOOLONG;
-    else
-    {
-      end_pos=strmov(to,dir);
-      if (end_pos != to && end_pos[-1] != FN_LIBCHAR)
-	*end_pos++=FN_LIBCHAR;
-      end_pos=strmov(end_pos,pfx);
-
-      for (length=0 ; length < 8 && uniq ; length++)
-      {
-	*end_pos++= _dig_vec_upper[(int) (uniq & 31)];
-	uniq >>= 5;
-      }
-      (void) strmov(end_pos,TMP_EXT);
-      file=my_create(to,0,
-		     (int) (O_RDWR | O_BINARY | O_TRUNC | O_EXCL | O_NOFOLLOW |
-			    O_TEMPORARY | O_SHORT_LIVED),
-		     MYF(MY_WME));
-    }
-  }
+#error No implementation found for create_temp_file
 #endif
   if (file >= 0)
     thread_safe_increment(my_tmp_file_created,&THR_LOCK_open);
