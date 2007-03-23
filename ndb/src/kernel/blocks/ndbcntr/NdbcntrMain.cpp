@@ -1644,6 +1644,7 @@ void Ndbcntr::createSystableLab(Signal* signal, unsigned index)
   //w.add(DictTabInfo::NoOfVariable, (Uint32)0);
   //w.add(DictTabInfo::KeyLength, 1);
   w.add(DictTabInfo::TableTypeVal, (Uint32)table.tableType);
+  w.add(DictTabInfo::SingleUserMode, (Uint32)NDB_SUM_READ_WRITE);
 
   for (unsigned i = 0; i < table.columnCount; i++) {
     const SysColumn& column = table.columnList[i];

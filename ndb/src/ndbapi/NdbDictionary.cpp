@@ -430,6 +430,18 @@ NdbDictionary::Table::getFrmLength() const {
   return m_impl.m_frm.length();
 }
 
+enum NdbDictionary::Table::SingleUserMode
+NdbDictionary::Table::getSingleUserMode() const
+{
+  return (enum SingleUserMode)m_impl.m_single_user_mode;
+}
+
+void
+NdbDictionary::Table::setSingleUserMode(enum NdbDictionary::Table::SingleUserMode mode)
+{
+  m_impl.m_single_user_mode = (Uint8)mode;
+}
+
 void
 NdbDictionary::Table::setFrm(const void* data, Uint32 len){
   m_impl.m_frm.assign(data, len);

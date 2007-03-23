@@ -238,6 +238,11 @@ public:
     char frmData[MAX_FRM_DATA_SIZE];
 
     Uint32 fragmentCount;
+
+    /*
+     * Access rights to table during single user mode
+     */
+    Uint8 singleUserMode;
   };
 
   typedef Ptr<TableRecord> TableRecordPtr;

@@ -318,6 +318,7 @@ NdbTableImpl::init(){
   m_replicaCount= 0;
   m_min_rows = 0;
   m_max_rows = 0;
+  m_single_user_mode = 0;
 }
 
 bool
@@ -378,6 +379,14 @@ NdbTableImpl::equal(const NdbTableImpl& obj) const
     DBUG_RETURN(false);
   }
   
+  if(m_single_user_mode != obj.m_single_user_mode)
+  {
+    DBUG_PRINT("info",("m_single_user_mode %d != %d",
+                       (int32)m_single_user_mode,
+                       (int32)obj.m_single_user_mode));
+    DBUG_RETURN(false);
+  }
+
    DBUG_RETURN(true);
 }
 
@@ -403,7 +412,8 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_kvalue = org.m_kvalue;
   m_minLoadFactor = org.m_minLoadFactor;
   m_maxLoadFactor = org.m_maxLoadFactor;
-  
+  m_single_user_mode = org.m_single_user_mode;
+
   if (m_index != 0)
     delete m_index;
   m_index = org.m_index;
@@ -1195,6 +1205,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   impl->m_kvalue = tableDesc.TableKValue;
   impl->m_minLoadFactor = tableDesc.MinLoadFactor;
   impl->m_maxLoadFactor = tableDesc.MaxLoadFactor;
+  impl->m_single_user_mode = tableDesc.SingleUserMode;
 
   impl->m_indexType = (NdbDictionary::Index::Type)
     getApiConstant(tableDesc.TableType,
@@ -1523,7 +1534,9 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
   tmpTab.MaxRowsLow = (Uint32)(impl.m_max_rows & 0xFFFFFFFF);
   tmpTab.MinRowsHigh = (Uint32)(impl.m_min_rows >> 32);
   tmpTab.MinRowsLow = (Uint32)(impl.m_min_rows & 0xFFFFFFFF);
-  
+
+  tmpTab.SingleUserMode = impl.m_single_user_mode;
+
   tmpTab.FragmentType = getKernelConstant(impl.m_fragmentType,
 					  fragmentTypeMapping,
 					  DictTabInfo::AllNodesSmallTable);
