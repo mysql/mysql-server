@@ -1202,16 +1202,14 @@ void Dbtc::execTCSEIZEREQ(Signal* signal)
   const NodeId senderNodeId = refToNode(tapiBlockref);
   const bool local = senderNodeId == getOwnNodeId() || senderNodeId == 0;
   
-  if(!(senderNodeId == getNodeState().getSingleUserApi()) &&
-      !getNodeState().getSingleUserMode()) {
-    if(!(sl==NodeState::SL_SINGLEUSER && 
-	 senderNodeId == getNodeState().getSingleUserApi())) {
+  {
+    {
       if (!(sl == NodeState::SL_STARTED ||
 	    (sl == NodeState::SL_STARTING && local == true))) {
 	jam();
 	
-	Uint32 errCode;
-	if(!(sl == NodeState::SL_SINGLEUSER && local))
+	Uint32 errCode = 0;
+	if(!local)
 	  {
 	    switch(sl){
 	    case NodeState::SL_STARTING:
@@ -1219,6 +1217,9 @@ void Dbtc::execTCSEIZEREQ(Signal* signal)
 	      break;
 	    case NodeState::SL_STOPPING_1:
 	    case NodeState::SL_STOPPING_2:
+              if (getNodeState().getSingleUserMode() &&
+                  getNodeState().getSingleUserApi() == senderNodeId)
+                break;
 	    case NodeState::SL_STOPPING_3:
 	    case NodeState::SL_STOPPING_4:
 	      if(getNodeState().stopping.systemShutdown)
@@ -1227,16 +1228,21 @@ void Dbtc::execTCSEIZEREQ(Signal* signal)
 		errCode = ZNODE_SHUTDOWN_IN_PROGRESS;
 	      break;
 	    case NodeState::SL_SINGLEUSER:
+              if (getNodeState().getSingleUserApi() == senderNodeId)
+                break;
 	      errCode = ZCLUSTER_IN_SINGLEUSER_MODE;
 	      break;
 	    default:
 	      errCode = ZWRONG_STATE;
 	      break;
 	    }
-	    signal->theData[0] = tapiPointer;
-	    signal->theData[1] = errCode;
-	    sendSignal(tapiBlockref, GSN_TCSEIZEREF, signal, 2, JBB);
-	    return;
+            if (errCode)
+            {
+              signal->theData[0] = tapiPointer;
+              signal->theData[1] = errCode;
+              sendSignal(tapiBlockref, GSN_TCSEIZEREF, signal, 2, JBB);
+              return;
+            }
 	  }//if (!(sl == SL_SINGLEUSER))
       } //if
     }
@@ -1724,8 +1730,14 @@ Dbtc::TCKEY_abort(Signal* signal, int place)
      * Initialize object before starting error handling
      */
     initApiConnectRec(signal, apiConnectptr.p, true);
+start_failure:
     switch(getNodeState().startLevel){
     case NodeState::SL_STOPPING_2:
+      if (getNodeState().getSingleUserMode())
+      {
+        terrorCode  = ZCLUSTER_IN_SINGLEUSER_MODE;
+        break;
+      }
     case NodeState::SL_STOPPING_3:
     case NodeState::SL_STOPPING_4:
       if(getNodeState().stopping.systemShutdown)
@@ -1736,6 +1748,12 @@ Dbtc::TCKEY_abort(Signal* signal, int place)
     case NodeState::SL_SINGLEUSER:
       terrorCode  = ZCLUSTER_IN_SINGLEUSER_MODE;
       break;
+    case NodeState::SL_STOPPING_1:
+      if (getNodeState().getSingleUserMode())
+      {
+        terrorCode  = ZCLUSTER_IN_SINGLEUSER_MODE;
+        break;
+      }
     default:
       terrorCode = ZWRONG_STATE;
       break;
@@ -1757,6 +1775,13 @@ Dbtc::TCKEY_abort(Signal* signal, int place)
     return;
   }
     
+  case 60:
+  {
+    jam();
+    initApiConnectRec(signal, apiConnectptr.p, true);
+    apiConnectptr.p->m_exec_flag = 1;
+    goto start_failure;
+  }
   default:
     jam();
     systemErrorLab(signal, __LINE__);
@@ -2486,6 +2511,7 @@ Dbtc::seizeCacheRecord(Signal* signal)
 /*****************************************************************************/
 void Dbtc::execTCKEYREQ(Signal* signal) 
 {
+  Uint32 sendersNodeId = refToNode(signal->getSendersBlockRef());
   UintR compare_transid1, compare_transid2;
   UintR titcLenAiInTckeyreq;
   UintR TkeyLength;
@@ -2531,7 +2557,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   regApiPtr->m_exec_flag |= TexecFlag;
   switch (regApiPtr->apiConnectstate) {
   case CS_CONNECTED:{
-    if (TstartFlag == 1 && getAllowStartTransaction() == true){
+    if (TstartFlag == 1 && getAllowStartTransaction(sendersNodeId) == true){
       //---------------------------------------------------------------------
       // Initialise API connect record if transaction is started.
       //---------------------------------------------------------------------
@@ -2539,7 +2565,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
       initApiConnectRec(signal, regApiPtr);
       regApiPtr->m_exec_flag = TexecFlag;
     } else {
-      if(getAllowStartTransaction() == true){
+      if(getAllowStartTransaction(sendersNodeId) == true){
 	/*------------------------------------------------------------------
 	 * WE EXPECTED A START TRANSACTION. SINCE NO OPERATIONS HAVE BEEN 
 	 * RECEIVED WE INDICATE THIS BY SETTING FIRST_TC_CONNECT TO RNIL TO 
@@ -2549,9 +2575,9 @@ void Dbtc::execTCKEYREQ(Signal* signal)
 	return;
       } else {
 	/**
-	 * getAllowStartTransaction() == false
+	 * getAllowStartTransaction(sendersNodeId) == false
 	 */
-	TCKEY_abort(signal, 57);
+	TCKEY_abort(signal, TexecFlag ? 60 : 57);
 	return;
       }//if
     }
@@ -6154,9 +6180,11 @@ and otherwise we spread it out 310 ms.
 void Dbtc::timeOutLoopStartLab(Signal* signal, Uint32 api_con_ptr) 
 {
   Uint32 end_ptr, time_passed, time_out_value, mask_value;
+  Uint32 old_mask_value= 0;
   const Uint32 api_con_sz= capiConnectFilesize;
   const Uint32 tc_timer= ctcTimer;
   const Uint32 time_out_param= ctimeOutValue;
+  const Uint32 old_time_out_param= c_abortRec.oldTimeOutValue;
 
   ctimeOutCheckHeartbeat = tc_timer;
 
@@ -6177,11 +6205,39 @@ void Dbtc::timeOutLoopStartLab(Signal* signal, Uint32 api_con_ptr)
     jam();
     mask_value= 31;
   }
+  if (time_out_param != old_time_out_param &&
+      getNodeState().getSingleUserMode())
+  {
+    // abort during single user mode, use old_mask_value as flag
+    // and calculate value to be used for connections with allowed api
+    if (old_time_out_param > 300) {
+      jam();
+      old_mask_value= 63;
+    } else if (old_time_out_param < 30) {
+      jam();
+      old_mask_value= 7;
+    } else {
+      jam();
+      old_mask_value= 31;
+    }
+  }
   for ( ; api_con_ptr < end_ptr; api_con_ptr++) {
     Uint32 api_timer= getApiConTimer(api_con_ptr);
     jam();
     if (api_timer != 0) {
       time_out_value= time_out_param + (api_con_ptr & mask_value);
+      if (unlikely(old_mask_value)) // abort during single user mode
+      {
+        apiConnectptr.i = api_con_ptr;
+        ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
+        if (getNodeState().getSingleUserApi() ==
+            refToNode(apiConnectptr.p->ndbapiBlockref))
+        {
+          // api allowed during single user, use original timeout
+          time_out_value=
+            old_time_out_param + (api_con_ptr & old_mask_value);
+        }
+      }
       time_passed= tc_timer - api_timer;
       if (time_passed > time_out_value) 
       {
@@ -6798,6 +6854,33 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
   c_scan_frag_pool.getPtr(ptr, TscanConPtr);
   DEBUG(TscanConPtr << " timeOutFoundFragLab: scanFragState = "<< ptr.p->scanFragState);
 
+  const Uint32 time_out_param= ctimeOutValue;
+  const Uint32 old_time_out_param= c_abortRec.oldTimeOutValue;
+  
+  if (unlikely(time_out_param != old_time_out_param && 
+	       getNodeState().getSingleUserMode()))
+  {
+    jam();
+    ScanRecordPtr scanptr;
+    scanptr.i = ptr.p->scanRec;
+    ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
+    ApiConnectRecordPtr TlocalApiConnectptr;
+    TlocalApiConnectptr.i = scanptr.p->scanApiRec;
+    ptrCheckGuard(TlocalApiConnectptr, capiConnectFilesize, apiConnectRecord);
+    
+    if (refToNode(TlocalApiConnectptr.p->ndbapiBlockref) == 
+	getNodeState().getSingleUserApi())
+    {
+      jam();
+      Uint32 val = ctcTimer - ptr.p->scanFragTimer;
+      if (val <= old_time_out_param)
+      {
+	jam();
+	goto next;
+      }
+    }
+  }
+
   /*-------------------------------------------------------------------------*/
   // The scan fragment has expired its timeout. Check its state to decide
   // what to do.
@@ -6859,6 +6942,7 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
     break;
   }//switch
   
+next:  
   signal->theData[0] = TcContinueB::ZCONTINUE_TIME_OUT_FRAG_CONTROL;
   signal->theData[1] = TscanConPtr + 1;
   sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
@@ -8689,6 +8773,14 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     }
   }
   
+  if (getNodeState().startLevel == NodeState::SL_SINGLEUSER &&
+      getNodeState().getSingleUserApi() !=
+      refToNode(apiConnectptr.p->ndbapiBlockref))
+  {
+    errCode = ZCLUSTER_IN_SINGLEUSER_MODE;
+    goto SCAN_TAB_error;
+  }
+
   seizeTcConnect(signal);
   tcConnectptr.p->apiConnect = apiConnectptr.i;
   tcConnectptr.p->tcConnectstate = OS_WAIT_SCAN;
@@ -11009,7 +11101,7 @@ void Dbtc::execABORT_ALL_REQ(Signal* signal)
   const Uint32 senderData = req->senderData;
   const BlockReference senderRef = req->senderRef;
   
-  if(getAllowStartTransaction() == true && !getNodeState().getSingleUserMode()){
+  if(getAllowStartTransaction(refToNode(senderRef)) == true && !getNodeState().getSingleUserMode()){
     jam();
 
     ref->senderData = senderData;
@@ -11436,6 +11528,17 @@ void Dbtc::execTCINDXREQ(Signal* signal)
     regApiPtr->transid[0] = tcIndxReq->transId1;
     regApiPtr->transid[1] = tcIndxReq->transId2;
   }//if
+
+  if (getNodeState().startLevel == NodeState::SL_SINGLEUSER &&
+      getNodeState().getSingleUserApi() !=
+      refToNode(regApiPtr->ndbapiBlockref))
+  {
+    terrorCode = ZCLUSTER_IN_SINGLEUSER_MODE;
+    regApiPtr->m_exec_flag |= TcKeyReq::getExecuteFlag(tcIndxRequestInfo);
+    apiConnectptr = transPtr;
+    abortErrorLab(signal);
+    return;
+  }
 
   if (ERROR_INSERTED(8036) || !seizeIndexOperation(regApiPtr, indexOpPtr)) {
     jam();

@@ -131,6 +131,13 @@ public:
 
   /**
    * Get value stored in NdbRecAttr object.
+   * 
+   * @return  Medium value.
+   */
+  Int32 medium_value() const;
+
+  /**
+   * Get value stored in NdbRecAttr object.
    *
    * @return  Short value.
    */
@@ -156,6 +163,13 @@ public:
    * @return  32 bit unsigned value.
    */
   Uint32 u_32_value() const;          
+
+  /**
+   * Get value stored in NdbRecAttr object.
+   * 
+   * @return  Unsigned medium value.
+   */
+  Uint32 u_medium_value() const;
 
   /**
    * Get value stored in NdbRecAttr object.
@@ -288,6 +302,16 @@ NdbRecAttr::int32_value() const
 }
 
 inline
+Int32
+NdbRecAttr::medium_value() const
+{
+  Uint32 tmp = *(Uint32*)theRef;
+  if (tmp & (0x1<<23))
+    tmp|= (0xFF<<24);
+  return (Int32)tmp;
+}
+
+inline
 short
 NdbRecAttr::short_value() const
 {
@@ -304,6 +328,13 @@ NdbRecAttr::char_value() const
 inline
 Uint32
 NdbRecAttr::u_32_value() const
+{
+  return *(Uint32*)theRef;
+}
+
+inline
+Uint32
+NdbRecAttr::u_medium_value() const
 {
   return *(Uint32*)theRef;
 }
@@ -408,6 +439,25 @@ NdbRecAttr::setUNDEFINED()
 }
 
 class NdbOut& operator <<(class NdbOut&, const NdbRecAttr &);
+
+class NdbRecordPrintFormat
+{
+public:
+  NdbRecordPrintFormat();
+  virtual ~NdbRecordPrintFormat();
+  const char *lines_terminated_by;
+  const char *fields_terminated_by;
+  const char *start_array_enclosure;
+  const char *end_array_enclosure;
+  const char *fields_enclosed_by;
+  const char *fields_optionally_enclosed_by;
+  const char *hex_prefix;
+  const char *null_string;
+  int hex_format;
+};
+NdbOut&
+ndbrecattr_print_formatted(NdbOut& out, const NdbRecAttr &r,
+                           const NdbRecordPrintFormat &f);
 
 #endif // ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
 
