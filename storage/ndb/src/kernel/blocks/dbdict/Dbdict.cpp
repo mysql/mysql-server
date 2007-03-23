@@ -6140,7 +6140,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   tablePtr.p->minRowsHigh = c_tableDesc.MinRowsHigh;
   tablePtr.p->defaultNoPartFlag = c_tableDesc.DefaultNoPartFlag; 
   tablePtr.p->linearHashFlag = c_tableDesc.LinearHashFlag; 
-  tablePtr.p->singleUserMode = tableDesc.SingleUserMode;
+  tablePtr.p->singleUserMode = c_tableDesc.SingleUserMode;
   
   Uint64 maxRows =
     (((Uint64)tablePtr.p->maxRowsHigh) << 32) + tablePtr.p->maxRowsLow;
