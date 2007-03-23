@@ -167,18 +167,25 @@ Open_tables_state::Open_tables_state(ulong version_arg)
   reset_open_tables_state();
 }
 
+/*
+  The following functions form part of the C plugin API
+*/
+
+extern "C"
 int thd_in_lock_tables(const THD *thd)
 {
   return test(thd->in_lock_tables);
 }
 
 
+extern "C"
 int thd_tablespace_op(const THD *thd)
 {
   return test(thd->tablespace_op);
 }
 
 
+extern "C"
 const char *thd_proc_info(THD *thd, const char *info)
 {
   const char *old_info= thd->proc_info;
@@ -186,16 +193,19 @@ const char *thd_proc_info(THD *thd, const char *info)
   return old_info;
 }
 
+extern "C"
 void **thd_ha_data(const THD *thd, const struct handlerton *hton)
 {
   return (void **) thd->ha_data + hton->slot;
 }
 
+extern "C"
 long long thd_test_options(const THD *thd, long long test_options)
 {
   return thd->options & test_options;
 }
 
+extern "C"
 int thd_sql_command(const THD *thd)
 {
   return (int) thd->lex->sql_command;
@@ -216,6 +226,7 @@ int thd_sql_command(const THD *thd)
   RETURN VALUES
     pointer to string
 */
+extern "C"
 char *thd_security_context(THD *thd, char *buffer, int length,
                            int max_query_len)
 {
@@ -267,6 +278,7 @@ char *thd_security_context(THD *thd, char *buffer, int length,
     return buffer;
   return thd->strmake(str.ptr(), str.length());
 }
+
 
 /*
   Pass nominal parameters to Statement constructor only to ensure that

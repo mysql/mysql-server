@@ -54,7 +54,7 @@ struct my_option
   longlong   max_value;                 /* Max allowed value */
   longlong   sub_size;                  /* Subtract this from given value */
   long       block_size;                /* Value should be a mult. of this */
-  long       app_type;                  /* To be used by an application */
+  void       *app_type;                 /* To be used by an application */
 };
 
 typedef my_bool (* my_get_one_option) (int, const struct my_option *, char * );
