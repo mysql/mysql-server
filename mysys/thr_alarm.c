@@ -78,10 +78,6 @@ void init_thr_alarm(uint max_alarms)
   sigfillset(&full_signal_set);			/* Neaded to block signals */
   pthread_mutex_init(&LOCK_alarm,MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND_alarm,NULL);
-  if (thd_lib_detected == THD_LIB_LT)
-    thr_client_alarm= SIGALRM;
-  else
-    thr_client_alarm= SIGUSR1;
 #ifndef USE_ALARM_THREAD
   if (thd_lib_detected != THD_LIB_LT)
 #endif
