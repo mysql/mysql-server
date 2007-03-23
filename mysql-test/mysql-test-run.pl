@@ -1064,7 +1064,6 @@ sub command_line_setup () {
    idx           => 0,
    path_myddir   => "$opt_vardir/master-data",
    path_myerr    => "$opt_vardir/log/master.err",
-   path_mylog    => "$opt_vardir/log/master.log",
    path_pid    => "$opt_vardir/run/master.pid",
    path_sock   => "$sockdir/master.sock",
    port   =>  $opt_master_myport,
@@ -1080,7 +1079,6 @@ sub command_line_setup () {
    idx           => 1,
    path_myddir   => "$opt_vardir/master1-data",
    path_myerr    => "$opt_vardir/log/master1.err",
-   path_mylog    => "$opt_vardir/log/master1.log",
    path_pid    => "$opt_vardir/run/master1.pid",
    path_sock   => "$sockdir/master1.sock",
    port   => $opt_master_myport + 1,
@@ -1096,7 +1094,6 @@ sub command_line_setup () {
    idx           => 0,
    path_myddir   => "$opt_vardir/slave-data",
    path_myerr    => "$opt_vardir/log/slave.err",
-   path_mylog    => "$opt_vardir/log/slave.log",
    path_pid    => "$opt_vardir/run/slave.pid",
    path_sock   => "$sockdir/slave.sock",
    port   => $opt_slave_myport,
@@ -1113,7 +1110,6 @@ sub command_line_setup () {
    idx           => 1,
    path_myddir   => "$opt_vardir/slave1-data",
    path_myerr    => "$opt_vardir/log/slave1.err",
-   path_mylog    => "$opt_vardir/log/slave1.log",
    path_pid    => "$opt_vardir/run/slave1.pid",
    path_sock   => "$sockdir/slave1.sock",
    port   => $opt_slave_myport + 1,
@@ -1129,7 +1125,6 @@ sub command_line_setup () {
    idx           => 2,
    path_myddir   => "$opt_vardir/slave2-data",
    path_myerr    => "$opt_vardir/log/slave2.err",
-   path_mylog    => "$opt_vardir/log/slave2.log",
    path_pid    => "$opt_vardir/run/slave2.pid",
    path_sock   => "$sockdir/slave2.sock",
    port   => $opt_slave_myport + 2,
@@ -3683,8 +3678,10 @@ sub mysqld_arguments ($$$$) {
     mtr_add_arg($args, "%s--log-output=table,file", $prefix);
   }
 
-  mtr_add_arg($args, "%s--log=%s", $prefix, $mysqld->{'path_mylog'});
-
+  my $log_base_path= "$opt_vardir/log/$mysqld->{'type'}$sidx";
+  mtr_add_arg($args, "%s--log=%s.log", $prefix, $log_base_path);
+  mtr_add_arg($args,
+	      "%s--log-slow-queries=%s-slow.log", $prefix, $log_base_path);
 
   # Check if "extra_opt" contains --skip-log-bin
   my $skip_binlog= grep(/^--skip-log-bin/, @$extra_opt);
