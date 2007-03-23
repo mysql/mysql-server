@@ -20,6 +20,8 @@
 #include <m_ctype.h>
 
 
+static const char field_separator=',';
+
 /*
   Search after a string in a list of strings. Endspace in x is not compared.
 
@@ -31,6 +33,7 @@
 			If & 1 accept only whole names
 			If & 2 don't expand if half field
 			If & 4 allow #number# as type
+			If & 8 use ',' as string terminator
 
   NOTES
     If part, uniq field is found and full_name == 0 then x is expanded
@@ -60,16 +63,18 @@ int find_type(my_string x, TYPELIB *typelib, uint full_name)
   for (pos=0 ; (j=typelib->type_names[pos]) ; pos++)
   {
     for (i=x ; 
-    	*i && my_toupper(&my_charset_latin1,*i) == 
+    	*i && (!(full_name & 8) || *i != field_separator) &&
+        my_toupper(&my_charset_latin1,*i) == 
     		my_toupper(&my_charset_latin1,*j) ; i++, j++) ;
     if (! *j)
     {
       while (*i == ' ')
 	i++;					/* skip_end_space */
-      if (! *i)
+      if (! *i || ((full_name & 8) && *i == field_separator))
 	DBUG_RETURN(pos+1);
     }
-    if (! *i && (!*j || !(full_name & 1)))
+    if ((!*i && (!(full_name & 8) || *i != field_separator)) && 
+        (!*j || !(full_name & 1)))
     {
       find++;
       findpos=pos;
@@ -120,8 +125,6 @@ const char *get_type(TYPELIB *typelib, uint nr)
 }
 
 
-static const char field_separator=',';
-
 /*
   Create an integer value to represent the supplied comma-seperated
   string where each string in the TYPELIB denotes a bit position.
@@ -157,9 +160,7 @@ my_ulonglong find_typeset(my_string x, TYPELIB *lib, int *err)
     (*err)++;
     i= x;
     while (*x && *x != field_separator) x++;
-    if (*x)
-      *x++= 0;
-    if ((find= find_type(i, lib, 2) - 1) < 0)
+    if ((find= find_type(i, lib, 2 | 8) - 1) < 0)
       DBUG_RETURN(0);
     result|= (ULL(1) << find);
   }

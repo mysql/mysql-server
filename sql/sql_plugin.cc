@@ -161,9 +161,8 @@ public:
   { TRASH(ptr_arg, size); }
 
   sys_var_pluginvar(const char *name_arg,
-                    struct st_plugin_int *plugin_arg,
                     struct st_mysql_sys_var *plugin_var_arg)
-    :sys_var(name_arg), plugin(plugin_arg), plugin_var(plugin_var_arg) {}
+    :sys_var(name_arg), plugin_var(plugin_var_arg) {}
   sys_var_pluginvar *cast_pluginvar() { return this; }
   bool is_readonly() const { return plugin_var->flags & PLUGIN_VAR_READONLY; }
   bool check_type(enum_var_type type)
@@ -631,11 +630,6 @@ static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref rc CALLER_INFO_PROTO)
 #else
     if (!(plugin= (plugin_ref) my_malloc_ci(sizeof(pi), MYF(MY_WME))))
       DBUG_RETURN(NULL);
-    //if (0x4620a20L == (long) plugin)
-    if (0x4656b10L == (long) plugin)
-    {
-      DBUG_PRINT("debug",("trap"));
-    }
 
     *plugin= pi;
 #endif
@@ -656,6 +650,10 @@ plugin_ref plugin_lock(THD *thd, plugin_ref *ptr CALLER_INFO_PROTO)
   LEX *lex= NULL;
   plugin_ref rc;
   DBUG_ENTER("plugin_lock");
+  /*
+    thd->lex may point to a nested LEX or a stored procedure LEX.
+    main_lex is tightly coupled to the thread.
+  */
   if (thd)
     lex= !thd->lex ? &thd->main_lex : thd->lex;
   pthread_mutex_lock(&LOCK_plugin);
@@ -767,11 +765,9 @@ static bool plugin_add(MEM_ROOT *tmp_root,
             DBUG_RETURN(FALSE);
           }
           tmp_plugin_ptr->state= PLUGIN_IS_FREED;
-          goto err;
         }
         mysql_del_sys_var_chain(tmp.system_vars);
-        plugin_dl_del(dl);
-        DBUG_RETURN(TRUE);
+        goto err;
       }
       /* plugin was disabled */
       plugin_dl_del(dl);
@@ -939,7 +935,11 @@ static void intern_plugin_unlock(LEX *lex, plugin_ref plugin)
                      pi->name.str, pi->ref_count));
   if (lex)
   {
-    /* remove one instance of this plugin from the use list */
+    /*
+      Remove one instance of this plugin from the use list.
+      We are searching backwards so that plugins locked last
+      could be unlocked faster - optimizing for LIFO semantics.
+    */
     for (i= lex->plugins.elements - 1; i >= 0; i--)
       if (plugin == *dynamic_element(&lex->plugins, i, plugin_ref*))
       {
@@ -1283,6 +1283,7 @@ bool plugin_register_builtin(THD *thd, struct st_mysql_plugin *plugin)
   bzero(&tmp, sizeof(tmp));
   tmp.plugin= plugin;
 
+  pthread_mutex_lock(&LOCK_plugin);
   rw_wrlock(&LOCK_system_variables_hash);
 
   if (test_plugin_options(thd->mem_root, &tmp, &dummy_argc, NULL, true))
@@ -1293,6 +1294,7 @@ bool plugin_register_builtin(THD *thd, struct st_mysql_plugin *plugin)
 
 end:
   rw_unlock(&LOCK_system_variables_hash);
+  pthread_mutex_unlock(&LOCK_plugin);
 
   DBUG_RETURN(result);;
 }
@@ -1445,6 +1447,11 @@ void plugin_shutdown(void)
   {
     pthread_mutex_lock(&LOCK_plugin);
 
+    /*
+      release any plugin references held but don't yet free
+      memory for dynamic variables as some plugins may still
+      want to reference their global variables.
+    */
     cleanup_variables(NULL, &global_system_variables, false);
     cleanup_variables(NULL, &max_system_variables, false);
 
@@ -1470,6 +1477,9 @@ void plugin_shutdown(void)
       }
       reap_plugins();
     }
+
+    if (count > 0)
+      sql_print_warning("Forcing shutdown of %d plugins", count);
     
     plugins= (struct st_plugin_int **) my_alloca(sizeof(void*) * (count+1));
 
@@ -1496,7 +1506,6 @@ void plugin_shutdown(void)
         plugin_deinitialize(plugins[i], false);
       }
 
-    pthread_mutex_lock(&LOCK_plugin);
     
     /*
       We defer checking ref_counts until after all plugins are deinitialized
@@ -1511,15 +1520,24 @@ void plugin_shutdown(void)
       if (plugins[i]->state & PLUGIN_IS_UNINITIALIZED)
         plugin_del(plugins[i]);
 
+    /*
+      Now we can deallocate all memory.
+    */
+#if defined(SAFE_MUTEX) && !defined(DBUG_OFF)
+    /* neccessary to avoid safe_mutex_assert_owner() trap */
+    pthread_mutex_lock(&LOCK_plugin);
+#endif
     cleanup_variables(NULL, &global_system_variables, true);
     cleanup_variables(NULL, &max_system_variables, true);
+#if defined(SAFE_MUTEX) && !defined(DBUG_OFF)
+    pthread_mutex_unlock(&LOCK_plugin);
+#endif
 
     initialized= 0;
-    pthread_mutex_unlock(&LOCK_plugin);
     pthread_mutex_destroy(&LOCK_plugin);
 
+    my_afree(plugins);
   }
-  my_afree(plugins);
 
   /* Dispose of the memory */
   
@@ -2007,12 +2025,13 @@ sys_var *find_sys_var(THD *thd, const char *str, uint length)
   plugin_ref plugin;
   DBUG_ENTER("find_sys_var");
   
+  pthread_mutex_lock(&LOCK_plugin);
   rw_rdlock(&LOCK_system_variables_hash);
   if ((var= intern_find_sys_var(str, length, false)) &&
       (pi= var->cast_pluginvar()))
   {
+    rw_unlock(&LOCK_system_variables_hash);
     LEX *lex= thd ? ( !thd->lex ? &thd->main_lex : thd->lex ) : NULL;
-    pthread_mutex_lock(&LOCK_plugin);
     if (!(plugin= my_intern_plugin_lock(lex, plugin_int_to_ref(pi->plugin))))
       var= NULL; /* failed to lock it, it must be uninstalling */
     else
@@ -2022,9 +2041,10 @@ sys_var *find_sys_var(THD *thd, const char *str, uint length)
       var= NULL;
       intern_plugin_unlock(lex, plugin);
     }
-    pthread_mutex_unlock(&LOCK_plugin);
   }
-  rw_unlock(&LOCK_system_variables_hash);
+  else
+    rw_unlock(&LOCK_system_variables_hash);
+  pthread_mutex_unlock(&LOCK_plugin);
   
   /*
     If the variable exists but the plugin it is associated with is not ready
@@ -2183,7 +2203,7 @@ static byte *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
     return (byte*) global_system_variables.dynamic_variables_ptr + offset;
   
   /*
-    dynamic_variables_size points to the largest valid offset
+    dynamic_variables_head points to the largest valid offset
   */
   if (!thd->variables.dynamic_variables_ptr ||
       (uint)offset > thd->variables.dynamic_variables_head)
@@ -2208,8 +2228,6 @@ static byte *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
              thd->variables.dynamic_variables_size,
            global_system_variables.dynamic_variables_size -
              thd->variables.dynamic_variables_size);
-    if (global_lock)
-      pthread_mutex_unlock(&LOCK_global_system_variables);
 
     /*
       now we need to iterate through any newly copied 'defaults'
@@ -2232,18 +2250,16 @@ static byte *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
       if ((pi->plugin_var->flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_STR &&
           pi->plugin_var->flags & PLUGIN_VAR_MEMALLOC)
       {
-         char **pp;
-         if (global_lock)
-           pthread_mutex_lock(&LOCK_global_system_variables);
-         pp= (char**) (thd->variables.dynamic_variables_ptr + 
+         char **pp= (char**) (thd->variables.dynamic_variables_ptr + 
                              *(int*)(pi->plugin_var + 1));         
          if ((*pp= *(char**) (global_system_variables.dynamic_variables_ptr + 
                              *(int*)(pi->plugin_var + 1))))
            *pp= my_strdup(*pp, MYF(MY_WME|MY_FAE));
-         if (global_lock)
-           pthread_mutex_unlock(&LOCK_global_system_variables);
       }
     }       
+
+    if (global_lock)
+      pthread_mutex_unlock(&LOCK_global_system_variables);
 
     thd->variables.dynamic_variables_version= 
            global_system_variables.dynamic_variables_version;
@@ -2817,7 +2833,7 @@ static int construct_options(MEM_ROOT *mem_root,
 
     options->name= optname;
     options->comment= opt->comment;
-    options->app_type= (long) opt;
+    options->app_type= opt;
     options->id= (options-1)->id + 1;
     
     if (opt->flags & PLUGIN_VAR_THDLOCAL)
@@ -2950,7 +2966,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
         continue;
       
       if ((var= find_bookmark(tmp->plugin->name, o->name, o->flags)))
-        v= new (mem_root) sys_var_pluginvar(var->name + 1, tmp, o);
+        v= new (mem_root) sys_var_pluginvar(var->name + 1, o);
       else
       {
         len= strlen(tmp->plugin->name) + strlen(o->name) + 2;
@@ -2962,10 +2978,15 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
           if (*p == '-')
             *p= '_';
 
-        v= new (mem_root) sys_var_pluginvar(varname, tmp, o);
+        v= new (mem_root) sys_var_pluginvar(varname, o);
       }
       DBUG_ASSERT(v); /* check that an object was actually constructed */
 
+      /*
+        Add to the chain of variables.
+        Done like this for easier debugging so that the 
+        pointer to v is not lost on optimized builds.
+      */
       v->chain_sys_var(&chain);
     }
     if (chain.first)
