@@ -51,6 +51,7 @@ DictTabInfo::TableMapping[] = {
   DTIMAP(Table, MaxRowsHigh, MaxRowsHigh),
   DTIMAP(Table, MinRowsLow, MinRowsLow),
   DTIMAP(Table, MinRowsHigh, MinRowsHigh),
+  DTIMAP(Table, SingleUserMode, SingleUserMode),
   DTIBREAK(AttributeName)
 };
 
@@ -131,6 +132,8 @@ DictTabInfo::Table::init(){
   MaxRowsHigh = 0;
   MinRowsLow = 0;
   MinRowsHigh = 0;
+
+  SingleUserMode = 0;
 }
 
 void
