@@ -7,7 +7,7 @@
 typedef unsigned char byte;
 
 void taocrypt_test(void*);
-void file_test(char*, byte*);
+void file_test(const char*, byte*);
 
 void client_test(void*);
 void echoclient_test(void*);
