@@ -483,7 +483,7 @@ extern "C"
 int ndb_mgm_number_of_mgmd_in_connect_string(NdbMgmHandle handle)
 {
   int count=0;
-  int i;
+  Uint32 i;
   LocalConfig &cfg= handle->cfg;
 
   for (i = 0; i < cfg.ids.size(); i++)
