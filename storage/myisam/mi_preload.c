@@ -55,42 +55,20 @@ int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
 
   block_length= keyinfo[0].block_length;
 
-  /* Check whether all indexes use the same block size */
-  for (i= 1 ; i < keys ; i++)
+  if (ignore_leaves)
   {
-#if !defined(INGO_TEST_LOADIDX_OFF)
-    /* Allow non-IGNORE-LEAVES index loading even with different block sizes. */
-    if (ignore_leaves && (keyinfo[i].block_length != block_length))
-      DBUG_RETURN(my_errno= HA_ERR_NON_UNIQUE_BLOCK_SIZE);
-    set_if_bigger(block_length, keyinfo[i].block_length);
-#else
-    if (keyinfo[i].block_length != block_length)
-      DBUG_RETURN(my_errno= HA_ERR_NON_UNIQUE_BLOCK_SIZE);
-#endif
-  }
-
-#if !defined(INGO_TEST_LOADIDX_OFF)
-  /* Align non-IGNORE-LEAVES index loads. */
-  if (!ignore_leaves)
-  {
-    /* Round up to the next multiple of key_cache_block_size. */
-    length= ((info->preload_buff_size +
-              share->key_cache->key_cache_block_size - 1) /
-             share->key_cache->key_cache_block_size *
-             share->key_cache->key_cache_block_size);
-    /* Round down to the next multiple of key_cache_block_size. */
-    pos= (share->base.keystart / share->key_cache->key_cache_block_size *
-          share->key_cache->key_cache_block_size);
+    /* Check whether all indexes use the same block size */
+    for (i= 1 ; i < keys ; i++)
+    {
+      if (keyinfo[i].block_length != block_length)
+        DBUG_RETURN(my_errno= HA_ERR_NON_UNIQUE_BLOCK_SIZE);
+    }
   }
   else
-  {
-    length= info->preload_buff_size/block_length * block_length;
-    set_if_bigger(length, block_length);
-  }
-#else
+    block_length= share->key_cache->key_cache_block_size;
+
   length= info->preload_buff_size/block_length * block_length;
   set_if_bigger(length, block_length);
-#endif
 
   if (!(buff= (uchar *) my_malloc(length, MYF(MY_WME))))
     DBUG_RETURN(my_errno= HA_ERR_OUT_OF_MEM);
