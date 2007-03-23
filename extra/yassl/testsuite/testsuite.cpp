@@ -86,8 +86,8 @@ int main(int argc, char** argv)
             // input output compare
     byte input[TaoCrypt::MD5::DIGEST_SIZE];
     byte output[TaoCrypt::MD5::DIGEST_SIZE];
-    file_test((char*) "input", input);
-    file_test((char*) "output", output);
+    file_test("input", input);
+    file_test("output", output);
     assert(memcmp(input, output, sizeof(input)) == 0);
 
     printf("\nAll tests passed!\n");
@@ -141,17 +141,16 @@ int test_openSSL_des()
     /* test des encrypt/decrypt */
     char data[] = "this is my data ";
     int  dataSz = strlen(data);
-    DES_key_schedule local_key[3];
+    DES_key_schedule key[3];
     byte iv[8];
     EVP_BytesToKey(EVP_des_ede3_cbc(), EVP_md5(), NULL, (byte*)data, dataSz, 1,
-                   (byte*)local_key, iv);
+                   (byte*)key, iv);
 
     byte cipher[16];
-    DES_ede3_cbc_encrypt((byte*)data, cipher, dataSz,
-                         &local_key[0], &local_key[1],
-                         &local_key[2], &iv, true);
+    DES_ede3_cbc_encrypt((byte*)data, cipher, dataSz, &key[0], &key[1],
+                         &key[2], &iv, true);
     byte plain[16];
-    DES_ede3_cbc_encrypt(cipher, plain, 16, &local_key[0], &local_key[1],
-                         &local_key[2], &iv, false);
+    DES_ede3_cbc_encrypt(cipher, plain, 16, &key[0], &key[1], &key[2],
+                         &iv, false);
     return 0;
 }
