@@ -1073,3 +1073,30 @@ DROP DATABASE db26813;
 disconnect u1;
 
 --echo End of 5.0 tests.
+
+
+#
+# Test that ALTER VIEW accepts DEFINER and ALGORITHM, see bug#16425.
+#
+connection default;
+--disable_warnings
+DROP VIEW IF EXISTS v1;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (i INT);
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+ALTER VIEW v1 AS SELECT * FROM t1;
+SHOW CREATE VIEW v1;
+ALTER DEFINER=no_such@user_1 VIEW v1 AS SELECT * FROM t1;
+SHOW CREATE VIEW v1;
+ALTER ALGORITHM=MERGE VIEW v1 AS SELECT * FROM t1;
+SHOW CREATE VIEW v1;
+ALTER ALGORITHM=TEMPTABLE DEFINER=no_such@user_2 VIEW v1 AS SELECT * FROM t1;
+SHOW CREATE VIEW v1;
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo End of 5.1 tests.

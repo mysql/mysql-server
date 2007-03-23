@@ -5,7 +5,7 @@
 
 -- source include/have_query_cache.inc
 
-connect (con1,127.0.0.1,root,,test,$MASTER_MYPORT,);
+connect (con1,localhost,root,,test,$MASTER_MYPORT,);
 connection default;
 
 set global query_cache_size=100000;
