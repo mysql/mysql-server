@@ -89,5 +89,12 @@
  */
 #define NDB_TEMP_TAB_PERMANENT          0
 #define NDB_TEMP_TAB_TEMPORARY          1
+ 
+/*
+ * Table single user mode
+ */
+#define NDB_SUM_LOCKED       0
+#define NDB_SUM_READONLY     1
+#define NDB_SUM_READ_WRITE   2
 
 #endif
