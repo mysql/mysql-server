@@ -1486,10 +1486,7 @@ static uint dump_events_for_db(char *db)
     mysql_query(mysql, "LOCK TABLES mysql.event READ");
 
   if (mysql_query_with_error_report(mysql, &event_list_res, "show events"))
-  {
-    safe_exit(EX_MYSQLERR);
     DBUG_RETURN(0);
-  }
 
   strcpy(delimiter, ";");
   if (mysql_num_rows(event_list_res) > 0)
@@ -2928,25 +2925,25 @@ static int dump_tablespaces_for_tables(char *db, char **table_names, int tables)
 
   mysql_real_escape_string(mysql, name_buff, db, strlen(db));
 
-  init_dynamic_string(&where, " AND TABLESPACE_NAME IN ("
+  init_dynamic_string_checked(&where, " AND TABLESPACE_NAME IN ("
                       "SELECT DISTINCT TABLESPACE_NAME FROM"
                       " INFORMATION_SCHEMA.PARTITIONS"
                       " WHERE"
                       " TABLE_SCHEMA='", 256, 1024);
-  dynstr_append(&where, name_buff);
-  dynstr_append(&where, "' AND TABLE_NAME IN (");
+  dynstr_append_checked(&where, name_buff);
+  dynstr_append_checked(&where, "' AND TABLE_NAME IN (");
 
   for (i=0 ; i<tables ; i++)
   {
     mysql_real_escape_string(mysql, name_buff,
                              table_names[i], strlen(table_names[i]));
 
-    dynstr_append(&where, "'");
-    dynstr_append(&where, name_buff);
-    dynstr_append(&where, "',");
+    dynstr_append_checked(&where, "'");
+    dynstr_append_checked(&where, name_buff);
+    dynstr_append_checked(&where, "',");
   }
   dynstr_trunc(&where, 1);
-  dynstr_append(&where,"))");
+  dynstr_append_checked(&where,"))");
 
   DBUG_PRINT("info",("Dump TS for Tables where: %s",where.str));
   r= dump_tablespaces(where.str);
@@ -2960,7 +2957,7 @@ static int dump_tablespaces_for_databases(char** databases)
   int r;
   int i;
 
-  init_dynamic_string(&where, " AND TABLESPACE_NAME IN ("
+  init_dynamic_string_checked(&where, " AND TABLESPACE_NAME IN ("
                       "SELECT DISTINCT TABLESPACE_NAME FROM"
                       " INFORMATION_SCHEMA.PARTITIONS"
                       " WHERE"
@@ -2971,12 +2968,12 @@ static int dump_tablespaces_for_databases(char** databases)
     char db_name_buff[NAME_LEN*2+3];
     mysql_real_escape_string(mysql, db_name_buff,
                              databases[i], strlen(databases[i]));
-    dynstr_append(&where, "'");
-    dynstr_append(&where, db_name_buff);
-    dynstr_append(&where, "',");
+    dynstr_append_checked(&where, "'");
+    dynstr_append_checked(&where, db_name_buff);
+    dynstr_append_checked(&where, "',");
   }
   dynstr_trunc(&where, 1);
-  dynstr_append(&where,"))");
+  dynstr_append_checked(&where,"))");
 
   DBUG_PRINT("info",("Dump TS for DBs where: %s",where.str));
   r= dump_tablespaces(where.str);
@@ -2998,7 +2995,7 @@ static int dump_tablespaces(char* ts_where)
   char *ubs;
   char *endsemi;
 
-  init_dynamic_string(&sqlbuf,
+  init_dynamic_string_checked(&sqlbuf,
                       "SELECT LOGFILE_GROUP_NAME,"
                       " FILE_NAME,"
                       " TOTAL_EXTENTS,"
@@ -3011,16 +3008,16 @@ static int dump_tablespaces(char* ts_where)
                       256, 1024);
   if(ts_where)
   {
-    dynstr_append(&sqlbuf,
+    dynstr_append_checked(&sqlbuf,
                   " AND LOGFILE_GROUP_NAME IN ("
                   "SELECT DISTINCT LOGFILE_GROUP_NAME"
                   " FROM INFORMATION_SCHEMA.FILES"
                   " WHERE FILE_TYPE = 'DATAFILE'"
                   );
-    dynstr_append(&sqlbuf, ts_where);
-    dynstr_append(&sqlbuf, ")");
+    dynstr_append_checked(&sqlbuf, ts_where);
+    dynstr_append_checked(&sqlbuf, ")");
   }
-  dynstr_append(&sqlbuf,
+  dynstr_append_checked(&sqlbuf,
                 " GROUP BY LOGFILE_GROUP_NAME, FILE_NAME"
                 ", ENGINE"
                 " ORDER BY LOGFILE_GROUP_NAME");
@@ -3093,7 +3090,7 @@ static int dump_tablespaces(char* ts_where)
     }
   }
   dynstr_free(&sqlbuf);
-  init_dynamic_string(&sqlbuf,
+  init_dynamic_string_checked(&sqlbuf,
                       "SELECT DISTINCT TABLESPACE_NAME,"
                       " FILE_NAME,"
                       " LOGFILE_GROUP_NAME,"
@@ -3105,9 +3102,9 @@ static int dump_tablespaces(char* ts_where)
                       256, 1024);
 
   if(ts_where)
-    dynstr_append(&sqlbuf, ts_where);
+    dynstr_append_checked(&sqlbuf, ts_where);
 
-  dynstr_append(&sqlbuf, " ORDER BY TABLESPACE_NAME, LOGFILE_GROUP_NAME");
+  dynstr_append_checked(&sqlbuf, " ORDER BY TABLESPACE_NAME, LOGFILE_GROUP_NAME");
 
   if (mysql_query_with_error_report(mysql, &tableres, sqlbuf.str))
     return 1;
