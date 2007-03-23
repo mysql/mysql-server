@@ -140,6 +140,8 @@ public:
     RowGCIFlag         = 150,
     RowChecksumFlag    = 151,
     
+    SingleUserMode     = 152,
+
     TableEnd           = 999,
     
     AttributeName          = 1000, // String, Mandatory
@@ -344,6 +346,7 @@ public:
     
     Uint32 RowGCIFlag;
     Uint32 RowChecksumFlag;
+    Uint32 SingleUserMode;
     
     Table() {}
     void init();
