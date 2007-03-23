@@ -875,4 +875,87 @@ GRANT PROCESS ON * TO user@localhost;
 disconnect con1;
 connection default;
 
+
+#
+# BUG#9504: Stored procedures: execute privilege doesn't make 'use database'
+# okay.
+#
+
+# Prepare.
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest1;
+DROP DATABASE IF EXISTS mysqltest2;
+DROP DATABASE IF EXISTS mysqltest3;
+DROP DATABASE IF EXISTS mysqltest4;
+--enable_warnings
+
+CREATE DATABASE mysqltest1;
+CREATE DATABASE mysqltest2;
+CREATE DATABASE mysqltest3;
+CREATE DATABASE mysqltest4;
+
+CREATE PROCEDURE mysqltest1.p_def() SQL SECURITY DEFINER
+  SELECT 1;
+
+CREATE PROCEDURE mysqltest2.p_inv() SQL SECURITY INVOKER
+  SELECT 1;
+
+CREATE FUNCTION mysqltest3.f_def() RETURNS INT SQL SECURITY DEFINER
+  RETURN 1;                                                        
+                                                                   
+CREATE FUNCTION mysqltest4.f_inv() RETURNS INT SQL SECURITY INVOKER
+  RETURN 1;
+
+GRANT EXECUTE ON PROCEDURE mysqltest1.p_def TO mysqltest_1@localhost;
+GRANT EXECUTE ON PROCEDURE mysqltest2.p_inv TO mysqltest_1@localhost;
+GRANT EXECUTE ON FUNCTION mysqltest3.f_def TO mysqltest_1@localhost;
+GRANT EXECUTE ON FUNCTION mysqltest4.f_inv TO mysqltest_1@localhost;
+
+GRANT ALL PRIVILEGES ON test.* TO mysqltest_1@localhost;
+
+# Test.
+
+--connect (bug9504_con1,localhost,mysqltest_1,,)
+--echo
+--echo ---> connection: bug9504_con1
+
+# - Check that we can switch to the db;
+
+use mysqltest1;
+
+use mysqltest2;
+
+use mysqltest3;
+
+use mysqltest4;
+
+# - Check that we can call stored routines;
+
+use test;
+
+CALL mysqltest1.p_def();
+
+CALL mysqltest2.p_inv();
+
+SELECT mysqltest3.f_def();
+
+SELECT mysqltest4.f_inv();
+
+# Cleanup.
+
+--connection default
+--echo
+--echo ---> connection: default
+
+--disconnect bug9504_con1
+
+DROP DATABASE mysqltest1;
+DROP DATABASE mysqltest2;
+DROP DATABASE mysqltest3;
+DROP DATABASE mysqltest4;
+
+DROP USER mysqltest_1@localhost;
+
+
 --echo End of 5.0 tests
