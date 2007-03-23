@@ -2046,6 +2046,17 @@ static void init_signals(void)
   struct sigaction sa;
   DBUG_ENTER("init_signals");
 
+  if (thd_lib_detected == THD_LIB_LT)
+  {
+    thr_client_alarm= SIGALRM;
+    thr_kill_signal= SIGINT;
+  }
+  else
+  {
+    thr_client_alarm= SIGUSR1;
+    thr_kill_signal= SIGUSR2;
+  }
+
   if (test_flags & TEST_SIGINT)
   {
     my_sigset(thr_kill_signal, end_thread_signal);
@@ -3139,9 +3150,6 @@ int main(int argc, char **argv)
   DEBUGGER_OFF;
 
   MY_INIT(argv[0]);		// init my_sys library & pthreads
-
-  /* Set signal used to kill MySQL */
-  thr_kill_signal= thd_lib_detected == THD_LIB_LT ? SIGINT : SIGUSR2;
 
 #ifdef _CUSTOMSTARTUPCONFIG_
   if (_cust_check_startup())
