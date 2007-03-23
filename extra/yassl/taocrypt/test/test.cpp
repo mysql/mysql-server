@@ -94,7 +94,6 @@ struct testVector {
                output_((byte*)out), inLen_(strlen(in)), outLen_(strlen(out)) {}
 };
 
-void file_test(int, char**);
 int  sha_test();
 int  sha256_test();
 #ifdef WORD64_AVAILABLE
@@ -300,7 +299,7 @@ void taocrypt_test(void* args)
 #endif // NO_MAIN_DRIVER
 
 
-void file_test(char* file, byte* check)
+void file_test(const char* file, byte* check)
 {
     FILE* f;
     int   i(0);

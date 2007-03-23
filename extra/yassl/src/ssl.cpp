@@ -954,7 +954,7 @@ void ERR_print_errors_fp(FILE* /*fp*/)
 
 char* ERR_error_string(unsigned long errNumber, char* buffer)
 {
-    static char* msg = "Please supply a buffer for error string";
+  static char* msg = (char*)"Please supply a buffer for error string";
 
     if (buffer) {
         SetErrorString(YasslError(errNumber), buffer);
