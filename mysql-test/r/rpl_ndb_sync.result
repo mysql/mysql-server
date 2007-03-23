@@ -93,4 +93,4 @@ select * from mysql.ndb_binlog_index;
 Position	File	epoch	inserts	updates	deletes	schemaops
 reset slave;
 select * from mysql.ndb_apply_status;
-server_id	epoch
+server_id	epoch	log_name	start_pos	end_pos
