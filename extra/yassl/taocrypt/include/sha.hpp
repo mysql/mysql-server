@@ -64,6 +64,103 @@ inline void swap(SHA& a, SHA& b)
     a.Swap(b);
 }
 
+// SHA-256 digest
+class SHA256 : public HASHwithTransform {
+public:
+    enum { BLOCK_SIZE = 64, DIGEST_SIZE = 32, PAD_SIZE = 56,
+           TAO_BYTE_ORDER = BigEndianOrder};   // in Bytes
+    SHA256() : HASHwithTransform(DIGEST_SIZE / sizeof(word32), BLOCK_SIZE)
+                { Init(); }
+    ByteOrder getByteOrder()  const { return ByteOrder(TAO_BYTE_ORDER); }
+    word32    getBlockSize()  const { return BLOCK_SIZE; }
+    word32    getDigestSize() const { return DIGEST_SIZE; }
+    word32    getPadSize()    const { return PAD_SIZE; }
+
+    void Init();
+
+    SHA256(const SHA256&);
+    SHA256& operator= (const SHA256&);
+
+    void Swap(SHA256&);
+private:
+    void Transform();
+};
+
+
+// SHA-224 digest
+class SHA224 : public HASHwithTransform {
+public:
+    enum { BLOCK_SIZE = 64, DIGEST_SIZE = 28, PAD_SIZE = 56,
+           TAO_BYTE_ORDER = BigEndianOrder};   // in Bytes
+    SHA224() : HASHwithTransform(SHA256::DIGEST_SIZE /sizeof(word32),BLOCK_SIZE)
+                { Init(); }
+    ByteOrder getByteOrder()  const { return ByteOrder(TAO_BYTE_ORDER); }
+    word32    getBlockSize()  const { return BLOCK_SIZE; }
+    word32    getDigestSize() const { return DIGEST_SIZE; }
+    word32    getPadSize()    const { return PAD_SIZE; }
+
+    void Init();
+
+    SHA224(const SHA224&);
+    SHA224& operator= (const SHA224&);
+
+    void Swap(SHA224&);
+private:
+    void Transform();
+};
+
+
+#ifdef WORD64_AVAILABLE
+
+// SHA-512 digest
+class SHA512 : public HASH64withTransform {
+public:
+    enum { BLOCK_SIZE = 128, DIGEST_SIZE = 64, PAD_SIZE = 112,
+           TAO_BYTE_ORDER = BigEndianOrder};   // in Bytes
+    SHA512() : HASH64withTransform(DIGEST_SIZE / sizeof(word64), BLOCK_SIZE)
+                { Init(); }
+    ByteOrder getByteOrder()  const { return ByteOrder(TAO_BYTE_ORDER); }
+    word32    getBlockSize()  const { return BLOCK_SIZE; }
+    word32    getDigestSize() const { return DIGEST_SIZE; }
+    word32    getPadSize()    const { return PAD_SIZE; }
+
+    void Init();
+
+    SHA512(const SHA512&);
+    SHA512& operator= (const SHA512&);
+
+    void Swap(SHA512&);
+private:
+    void Transform();
+};
+
+
+// SHA-384 digest
+class SHA384 : public HASH64withTransform {
+public:
+    enum { BLOCK_SIZE = 128, DIGEST_SIZE = 48, PAD_SIZE = 112,
+           TAO_BYTE_ORDER = BigEndianOrder};   // in Bytes
+    SHA384() : HASH64withTransform(SHA512::DIGEST_SIZE/ sizeof(word64),
+                                   BLOCK_SIZE)
+                { Init(); }
+    ByteOrder getByteOrder()  const { return ByteOrder(TAO_BYTE_ORDER); }
+    word32    getBlockSize()  const { return BLOCK_SIZE; }
+    word32    getDigestSize() const { return DIGEST_SIZE; }
+    word32    getPadSize()    const { return PAD_SIZE; }
+
+    void Init();
+
+    SHA384(const SHA384&);
+    SHA384& operator= (const SHA384&);
+
+    void Swap(SHA384&);
+private:
+    void Transform();
+};
+
+#endif // WORD64_AVAILABLE
+
+
 } // namespace
 
 
