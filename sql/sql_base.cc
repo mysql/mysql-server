@@ -4490,14 +4490,35 @@ find_field_in_tables(THD *thd, Item_ident *item,
   {
     Field *cur_field= find_field_in_table_ref(thd, cur_table, name, length,
                                               item->name, db, table_name, ref,
-                                              check_privileges, allow_rowid,
+                                              check_privileges,
+                                              allow_rowid,
                                               &(item->cached_field_index),
                                               register_tree_change,
                                               &actual_table);
     if (cur_field)
     {
       if (cur_field == WRONG_GRANT)
-	return (Field*) 0;
+      {
+        if (thd->lex->sql_command != SQLCOM_SHOW_FIELDS)
+          return (Field*) 0;
+
+        thd->clear_error();
+        cur_field= find_field_in_table_ref(thd, cur_table, name, length,
+                                           item->name, db, table_name, ref,
+                                           false,
+                                           allow_rowid,
+                                           &(item->cached_field_index),
+                                           register_tree_change,
+                                           &actual_table);
+        if (cur_field)
+        {
+          Field *nf=new Field_null(NULL,0,Field::NONE,
+                                   cur_field->field_name,
+                                   cur_field->table,
+                                   &my_charset_bin);
+          cur_field= nf;
+        }
+      }
 
       /*
         Store the original table of the field, which may be different from
@@ -4520,7 +4541,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
             report_error == IGNORE_EXCEPT_NON_UNIQUE)
           my_error(ER_NON_UNIQ_ERROR, MYF(0),
                    table_name ? item->full_name() : name, thd->where);
-	return (Field*) 0;
+        return (Field*) 0;
       }
       found= cur_field;
     }
