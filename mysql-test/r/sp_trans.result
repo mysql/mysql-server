@@ -530,3 +530,35 @@ count(*)
 drop table t3, t4|
 drop procedure bug14210|
 set @@session.max_heap_table_size=default|
+drop function if exists bug23333|
+drop table if exists t1,t2|
+CREATE TABLE t1 (a int  NOT NULL auto_increment primary key) ENGINE=MyISAM|
+CREATE TABLE t2 (a int  NOT NULL auto_increment, b int, PRIMARY KEY (a)) ENGINE=InnoDB|
+reset master|
+insert into t2 values (1,1)|
+create function bug23333() 
+RETURNS int(11)
+DETERMINISTIC
+begin
+insert into t1 values (null);
+select count(*) from t1 into @a;
+return @a;
+end|
+insert into t2 values (bug23333(),1)|
+ERROR 23000: Duplicate entry '1' for key 1
+show binlog events /* must show the insert */|
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	4	Format_desc	1	98	Server ver: 5.0.40-debug-log, Binlog ver: 4
+master-bin.000001	98	Query	1	90	use `test`; insert into t2 values (1,1)
+master-bin.000001	188	Xid	1	215	COMMIT /* xid=1165 */
+master-bin.000001	215	Query	1	446	use `test`; CREATE DEFINER=`root`@`localhost` function bug23333() 
+RETURNS int(11)
+DETERMINISTIC
+begin
+insert into t1 values (null);
+select count(*) from t1 into @a;
+return @a;
+end
+select count(*),@a from t1 /* must be 1,1 */|
+count(*)	@a
+1	1
