@@ -69,11 +69,6 @@ my_bool my_use_large_pages= 0;
 uint    my_large_page_size= 0;
 #endif
 
-	/* from my_tempnam */
-#if !defined(HAVE_TEMPNAM) || defined(HPUX11)
-int _my_tempnam_used=0;
-#endif
-
 	/* from safe_malloc */
 uint sf_malloc_prehunc=0,		/* If you have problem with core- */
      sf_malloc_endhunc=0,		/* dump when malloc-message.... */
