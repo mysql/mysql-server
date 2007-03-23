@@ -12,4 +12,3 @@
 
 ndb_load        : Bug#17233
 user_limits     : Bug#23921 random failure of user_limits.test
-ndb_single_user : Bug#27021 Error codes in mysqld in single user mode varies

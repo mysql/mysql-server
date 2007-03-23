@@ -43,4 +43,14 @@ update t1 set b=b+100;
 ERROR HY000: Got error 299 'Operation not allowed or aborted due to single user mode' from ndbcluster
 update t1 set b=b+100 where a > 7;
 ERROR HY000: Got error 299 'Operation not allowed or aborted due to single user mode' from ndbcluster
+BEGIN;
+update t1 set b=b+100 where a=1;
+BEGIN;
+update t1 set b=b+100 where a=2;
+update t1 set b=b+100 where a=3;
+COMMIT;
+update t1 set b=b+100 where a=4;
+ERROR HY000: Got error 299 'Operation not allowed or aborted due to single user mode' from ndbcluster
+COMMIT;
+ERROR HY000: Got error 4350 'Transaction already aborted' from ndbcluster
 drop table t1;
