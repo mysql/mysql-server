@@ -8,22 +8,29 @@ create procedure db1_secret.dummy() begin end;
 drop procedure db1_secret.dummy;
 use db1_secret;
 create table t1 ( u varchar(64), i int );
+insert into t1 values('test', 0);
 create procedure stamp(i int)
 insert into db1_secret.t1 values (user(), i);
 show procedure status like 'stamp';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment
 db1_secret	stamp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
-create function db() returns varchar(64) return database();
+create function db() returns varchar(64)
+begin
+declare v varchar(64);
+select u into v from t1 limit 1;
+return v;
+end|
 show function status like 'db';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment
 db1_secret	db	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
 call stamp(1);
 select * from t1;
 u	i
+test	0
 root@localhost	1
 select db();
 db()
-db1_secret
+test
 grant execute on procedure db1_secret.stamp to user1@'%';
 grant execute on function db1_secret.db to user1@'%';
 grant execute on procedure db1_secret.stamp to ''@'%';
@@ -31,25 +38,34 @@ grant execute on function db1_secret.db to ''@'%';
 call db1_secret.stamp(2);
 select db1_secret.db();
 db1_secret.db()
-db1_secret
+test
 select * from db1_secret.t1;
 ERROR 42000: SELECT command denied to user 'user1'@'localhost' for table 't1'
 create procedure db1_secret.dummy() begin end;
 ERROR 42000: Access denied for user 'user1'@'localhost' to database 'db1_secret'
 drop procedure db1_secret.dummy;
 ERROR 42000: PROCEDURE db1_secret.dummy does not exist
+drop procedure db1_secret.stamp;
+ERROR 42000: alter routine command denied to user 'user1'@'localhost' for routine 'db1_secret.stamp'
+drop function db1_secret.db;
+ERROR 42000: alter routine command denied to user 'user1'@'localhost' for routine 'db1_secret.db'
 call db1_secret.stamp(3);
 select db1_secret.db();
 db1_secret.db()
-db1_secret
+test
 select * from db1_secret.t1;
 ERROR 42000: SELECT command denied to user ''@'localhost' for table 't1'
 create procedure db1_secret.dummy() begin end;
 ERROR 42000: Access denied for user ''@'%' to database 'db1_secret'
 drop procedure db1_secret.dummy;
 ERROR 42000: PROCEDURE db1_secret.dummy does not exist
+drop procedure db1_secret.stamp;
+ERROR 42000: alter routine command denied to user ''@'%' for routine 'db1_secret.stamp'
+drop function db1_secret.db;
+ERROR 42000: alter routine command denied to user ''@'%' for routine 'db1_secret.db'
 select * from t1;
 u	i
+test	0
 root@localhost	1
 user1@localhost	2
 anon@localhost	3
@@ -64,21 +80,22 @@ db1_secret	db	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	IN
 call stamp(4);
 select * from t1;
 u	i
+test	0
 root@localhost	1
 user1@localhost	2
 anon@localhost	3
 root@localhost	4
 select db();
 db()
-db1_secret
+test
 call db1_secret.stamp(5);
-ERROR 42000: Access denied for user 'user1'@'localhost' to database 'db1_secret'
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for table 't1'
 select db1_secret.db();
-ERROR 42000: Access denied for user 'user1'@'localhost' to database 'db1_secret'
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for table 't1'
 call db1_secret.stamp(6);
-ERROR 42000: Access denied for user ''@'%' to database 'db1_secret'
+ERROR 42000: INSERT command denied to user ''@'localhost' for table 't1'
 select db1_secret.db();
-ERROR 42000: Access denied for user ''@'%' to database 'db1_secret'
+ERROR 42000: SELECT command denied to user ''@'localhost' for table 't1'
 drop database if exists db2;
 create database db2;
 use db2;
