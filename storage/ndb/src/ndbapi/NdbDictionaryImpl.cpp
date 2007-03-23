@@ -51,7 +51,7 @@
 
 #define ERR_RETURN(a,b) \
 {\
-   DBUG_PRINT("exit", ("error %d", (a).code));\
+   DBUG_PRINT("exit", ("error %d  return %d", (a).code, b));\
    DBUG_RETURN(b);\
 }
 
