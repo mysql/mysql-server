@@ -346,6 +346,7 @@ public:
     
     Uint32 RowGCIFlag;
     Uint32 RowChecksumFlag;
+
     Uint32 SingleUserMode;
     
     Table() {}
