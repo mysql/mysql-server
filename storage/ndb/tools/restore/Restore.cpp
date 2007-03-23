@@ -27,6 +27,7 @@
 #include <NdbAutoPtr.hpp>
 
 #include "../../../../sql/ha_ndbcluster_tables.h"
+extern NdbRecordPrintFormat g_ndbrecord_print_format;
 
 Uint16 Twiddle16(Uint16 in); // Byte shift 16-bit data
 Uint32 Twiddle32(Uint32 in); // Byte shift 32-bit data
@@ -298,6 +299,7 @@ RestoreMetaData::markSysTables()
   Uint32 i;
   for (i = 0; i < getNoOfTables(); i++) {
     TableS* table = allTables[i];
+    table->m_local_id = i;
     const char* tableName = table->getTableName();
     if ( // XXX should use type
         strcmp(tableName, "SYSTAB_0") == 0 ||
@@ -314,6 +316,7 @@ RestoreMetaData::markSysTables()
         strcmp(tableName, OLD_NDB_REP_DB "/def/" OLD_NDB_SCHEMA_TABLE) == 0 ||
         strcmp(tableName, NDB_REP_DB "/def/" NDB_APPLY_TABLE) == 0 ||
         strcmp(tableName, NDB_REP_DB "/def/" NDB_SCHEMA_TABLE)== 0 )
+
       table->isSysTable = true;
   }
   for (i = 0; i < getNoOfTables(); i++) {
@@ -331,6 +334,7 @@ RestoreMetaData::markSysTables()
         if (table->getTableId() == (Uint32) id1) {
           if (table->isSysTable)
             blobTable->isSysTable = true;
+          blobTable->m_main_table = table;
           break;
         }
       }
@@ -428,6 +432,7 @@ TableS::TableS(Uint32 version, NdbTableImpl* tableImpl)
   m_noOfRecords= 0;
   backupVersion = version;
   isSysTable = false;
+  m_main_table = NULL;
   
   for (int i = 0; i < tableImpl->getNoOfColumns(); i++)
     createAttr(tableImpl->getColumn(i));
@@ -897,6 +902,7 @@ bool RestoreDataIterator::readFragmentHeader(int & ret, Uint32 *fragmentId)
     return false;
   }
 
+  info.setLevel(254);
   info << "_____________________________________________________" << endl
        << "Processing data in table: " << m_currentTable->getTableName() 
        << "(" << Header.TableId << ") fragment " 
@@ -1154,14 +1160,14 @@ operator<<(NdbOut& ndbout, const AttributeS& attr){
 
   if (data.null)
   {
-    ndbout << "<NULL>";
+    ndbout << g_ndbrecord_print_format.null_string;
     return ndbout;
   }
   
   NdbRecAttr tmprec(0);
-  tmprec.setup(desc.m_column, (char *)data.void_value);
+  tmprec.setup(desc.m_column, 0);
   tmprec.receive_data((Uint32*)data.void_value, data.size);
-  ndbout << tmprec;
+  ndbrecattr_print_formatted(ndbout, tmprec, g_ndbrecord_print_format);
 
   return ndbout;
 }
@@ -1170,17 +1176,15 @@ operator<<(NdbOut& ndbout, const AttributeS& attr){
 NdbOut& 
 operator<<(NdbOut& ndbout, const TupleS& tuple)
 {
-  ndbout << tuple.getTable()->getTableName() << "; ";
   for (int i = 0; i < tuple.getNoOfAttributes(); i++) 
   {
+    if (i > 0)
+      ndbout << g_ndbrecord_print_format.fields_terminated_by;
     AttributeData * attr_data = tuple.getData(i);
     const AttributeDesc * attr_desc = tuple.getDesc(i);
     const AttributeS attr = {attr_desc, *attr_data};
     debug << i << " " << attr_desc->m_column->getName();
     ndbout << attr;
-    
-    if (i != (tuple.getNoOfAttributes() - 1))
-      ndbout << delimiter << " ";
   } // for
   return ndbout;
 }

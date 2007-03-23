@@ -461,6 +461,7 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
   w.add(DictTabInfo::FragmentCount, tablePtr.p->fragmentCount);
   w.add(DictTabInfo::MinRowsLow, tablePtr.p->minRowsLow);
   w.add(DictTabInfo::MinRowsHigh, tablePtr.p->minRowsHigh);
+  w.add(DictTabInfo::SingleUserMode, tablePtr.p->singleUserMode);
 
   if(signal)
   {
@@ -1871,6 +1872,7 @@ void Dbdict::initialiseTableRecord(TableRecordPtr tablePtr)
   tablePtr.p->m_bits = 0;
   tablePtr.p->minRowsLow = 0;
   tablePtr.p->minRowsHigh = 0;
+  tablePtr.p->singleUserMode = 0;
   tablePtr.p->tableType = DictTabInfo::UserTable;
   tablePtr.p->primaryTableId = RNIL;
   // volatile elements
@@ -5698,7 +5700,9 @@ Dbdict::execTAB_COMMITCONF(Signal* signal){
     signal->theData[4] = (Uint32)tabPtr.p->tableType;
     signal->theData[5] = createTabPtr.p->key;
     signal->theData[6] = (Uint32)tabPtr.p->noOfPrimkey;
-    sendSignal(DBTC_REF, GSN_TC_SCHVERREQ, signal, 7, JBB);
+    signal->theData[7] = (Uint32)tabPtr.p->singleUserMode;
+
+    sendSignal(DBTC_REF, GSN_TC_SCHVERREQ, signal, 8, JBB);
     return;
   }
   
@@ -6128,6 +6132,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   tablePtr.p->minRowsHigh = c_tableDesc.MinRowsHigh;
   tablePtr.p->defaultNoPartFlag = c_tableDesc.DefaultNoPartFlag; 
   tablePtr.p->linearHashFlag = c_tableDesc.LinearHashFlag; 
+  tablePtr.p->singleUserMode = c_tableDesc.SingleUserMode;
   
   {
     Rope frm(c_rope_pool, tablePtr.p->frmData);
