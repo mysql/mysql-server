@@ -57,9 +57,10 @@ my_bool init_dynamic_array2(DYNAMIC_ARRAY *array, uint element_size,
   }
 
   if (!init_alloc)
+  {
     init_alloc=alloc_increment;
-  else
     init_buffer= 0;
+  }
   array->elements=0;
   array->max_element=init_alloc;
   array->alloc_increment=alloc_increment;

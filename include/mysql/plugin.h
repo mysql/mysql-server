@@ -122,9 +122,43 @@ typedef int (*mysql_show_var_func)(MYSQL_THD, struct st_mysql_show_var*, char *)
 struct st_mysql_sys_var;
 struct st_mysql_value;
 
+/*
+  SYNOPSIS
+    (*mysql_var_check_func)()
+      thd               thread handle
+      var               dynamic variable being altered
+      save              pointer to temporary storage
+      value             user provided value
+  RETURN
+    0   user provided value is OK and the update func may be called.
+    any other value indicates error.
+  
+  This function should parse the user provided value and store in the
+  provided temporary storage any data as required by the update func.
+  There is sufficient space in the temporary storage to store a double.
+  Note that the update func may not be called if any other error occurs
+  so any memory allocated should be thread-local so that it may be freed
+  automatically at the end of the statement.
+*/
+
 typedef int (*mysql_var_check_func)(MYSQL_THD thd,
                                     struct st_mysql_sys_var *var,
                                     void *save, struct st_mysql_value *value);
+
+/*
+  SYNOPSIS
+    (*mysql_var_update_func)()
+      thd               thread handle
+      var               dynamic variable being altered
+      var_ptr           pointer to dynamic variable
+      save              pointer to temporary storage
+   RETURN
+     NONE
+   
+   This function should use the validated value stored in the temporary store
+   and persist it in the provided pointer to the dynamic variable.
+   For example, strings may require memory to be allocated.
+*/
 typedef void (*mysql_var_update_func)(MYSQL_THD thd,
                                       struct st_mysql_sys_var *var,
                                       void *var_ptr, void *save);
@@ -582,6 +616,10 @@ struct st_mysql_information_schema
   st_mysql_value struct for reading values from mysqld.
   Used by server variables framework to parse user-provided values.
   Will be used for arguments when implementing UDFs.
+
+  Note that val_str() returns a string in temporary memory
+  that will be freed at the end of statement. Copy the string
+  if you need it to persist.
 */
 
 #define MYSQL_VALUE_TYPE_STRING 0

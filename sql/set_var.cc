@@ -2838,7 +2838,6 @@ int set_var_init()
 
 error:
   fprintf(stderr, "failed to initialize system variables");
-  pthread_mutex_unlock(&LOCK_global_system_variables);
   DBUG_RETURN(1);
 }
 

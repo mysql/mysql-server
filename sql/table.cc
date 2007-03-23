@@ -425,7 +425,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   Field  **field_ptr, *reg_field;
   const char **interval_array;
   enum legacy_db_type legacy_db_type;
-  handlerton *hton;
   my_bitmap_map *bitmaps;
   DBUG_ENTER("open_binary_frm");
 
@@ -456,11 +455,15 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   DBUG_PRINT("info", ("default_part_db_type = %u", head[61]));
 #endif
   legacy_db_type= (enum legacy_db_type) (uint) *(head+3);
-  if ((hton= ha_checktype(thd, legacy_db_type, 0, 0)) != share->db_type())
-  {
-    plugin_unlock(NULL, share->db_plugin);
-    share->db_plugin= ha_lock_engine(NULL, hton);
-  }
+  DBUG_ASSERT(share->db_plugin == NULL);
+  /*
+    if the storage engine is dynamic, no point in resolving it by its
+    dynamically allocated legacy_db_type. We will resolve it later by name.
+  */
+  if (legacy_db_type > DB_TYPE_UNKNOWN && 
+      legacy_db_type < DB_TYPE_FIRST_DYNAMIC)
+    share->db_plugin= ha_lock_engine(NULL, 
+                                     ha_checktype(thd, legacy_db_type, 0, 0));
   share->db_create_options= db_create_options= uint2korr(head+30);
   share->db_options_in_use= share->db_create_options;
   share->mysql_version= uint4korr(head+51);
@@ -620,8 +623,17 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       uint str_db_type_length= uint2korr(next_chunk);
       LEX_STRING name= { next_chunk + 2, str_db_type_length };
       plugin_ref tmp_plugin= ha_resolve_by_name(thd, &name);
-      if (tmp_plugin != NULL)
+      if (tmp_plugin != NULL && !plugin_equals(tmp_plugin, share->db_plugin))
       {
+        if (legacy_db_type > DB_TYPE_UNKNOWN &&
+            legacy_db_type < DB_TYPE_FIRST_DYNAMIC &&
+            legacy_db_type != ha_legacy_type(
+                plugin_data(tmp_plugin, handlerton *)))
+        {
+          /* bad file, legacy_db_type did not match the name */
+          my_free(buff, MYF(0));
+          goto err;
+        }
         /*
           tmp_plugin is locked with a local lock.
           we unlock the old value of share->db_plugin before
