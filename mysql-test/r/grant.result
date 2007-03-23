@@ -972,4 +972,51 @@ REVOKE EXECUTE ON PROCEDURE t1 FROM some_user_name@1234567890abcdefghij123456789
 ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY' is too long for host name (should be no longer than 60)
 GRANT PROCESS ON * TO user@localhost;
 ERROR 3D000: No database selected
+DROP DATABASE IF EXISTS mysqltest1;
+DROP DATABASE IF EXISTS mysqltest2;
+DROP DATABASE IF EXISTS mysqltest3;
+DROP DATABASE IF EXISTS mysqltest4;
+CREATE DATABASE mysqltest1;
+CREATE DATABASE mysqltest2;
+CREATE DATABASE mysqltest3;
+CREATE DATABASE mysqltest4;
+CREATE PROCEDURE mysqltest1.p_def() SQL SECURITY DEFINER
+SELECT 1;
+CREATE PROCEDURE mysqltest2.p_inv() SQL SECURITY INVOKER
+SELECT 1;
+CREATE FUNCTION mysqltest3.f_def() RETURNS INT SQL SECURITY DEFINER
+RETURN 1;
+CREATE FUNCTION mysqltest4.f_inv() RETURNS INT SQL SECURITY INVOKER
+RETURN 1;
+GRANT EXECUTE ON PROCEDURE mysqltest1.p_def TO mysqltest_1@localhost;
+GRANT EXECUTE ON PROCEDURE mysqltest2.p_inv TO mysqltest_1@localhost;
+GRANT EXECUTE ON FUNCTION mysqltest3.f_def TO mysqltest_1@localhost;
+GRANT EXECUTE ON FUNCTION mysqltest4.f_inv TO mysqltest_1@localhost;
+GRANT ALL PRIVILEGES ON test.* TO mysqltest_1@localhost;
+
+---> connection: bug9504_con1
+use mysqltest1;
+use mysqltest2;
+use mysqltest3;
+use mysqltest4;
+use test;
+CALL mysqltest1.p_def();
+1
+1
+CALL mysqltest2.p_inv();
+1
+1
+SELECT mysqltest3.f_def();
+mysqltest3.f_def()
+1
+SELECT mysqltest4.f_inv();
+mysqltest4.f_inv()
+1
+
+---> connection: default
+DROP DATABASE mysqltest1;
+DROP DATABASE mysqltest2;
+DROP DATABASE mysqltest3;
+DROP DATABASE mysqltest4;
+DROP USER mysqltest_1@localhost;
 End of 5.0 tests
