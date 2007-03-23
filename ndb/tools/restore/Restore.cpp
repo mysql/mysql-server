@@ -23,6 +23,8 @@
 #include <SimpleProperties.hpp>
 #include <signaldata/DictTabInfo.hpp>
 
+extern NdbRecordPrintFormat g_ndbrecord_print_format;
+
 Uint16 Twiddle16(Uint16 in); // Byte shift 16-bit data
 Uint32 Twiddle32(Uint32 in); // Byte shift 32-bit data
 Uint64 Twiddle64(Uint64 in); // Byte shift 64-bit data
@@ -118,6 +120,8 @@ RestoreMetaData::loadContent()
       return 0;
     }
   }
+  if (! markSysTables())
+    return 0;
   if(!readGCPEntry())
     return 0;
 
@@ -173,6 +177,49 @@ RestoreMetaData::readMetaTableDesc() {
   } // if
   
   return parseTableDescriptor((Uint32*)ptr, len);	     
+}
+
+bool
+RestoreMetaData::markSysTables()
+{
+  Uint32 i;
+  for (i = 0; i < getNoOfTables(); i++) {
+    TableS* table = allTables[i];
+    table->m_local_id = i;
+    const char* tableName = table->getTableName();
+    if ( // XXX should use type
+        strcmp(tableName, "SYSTAB_0") == 0 ||
+        strcmp(tableName, "NDB$EVENTS_0") == 0 ||
+        strcmp(tableName, "sys/def/SYSTAB_0") == 0 ||
+        strcmp(tableName, "sys/def/NDB$EVENTS_0") == 0)
+      table->isSysTable = true;
+  }
+  for (i = 0; i < getNoOfTables(); i++) {
+    TableS* blobTable = allTables[i];
+    const char* blobTableName = blobTable->getTableName();
+    // yet another match blob
+    int cnt, id1, id2;
+    char buf[256];
+    cnt = sscanf(blobTableName, "%[^/]/%[^/]/NDB$BLOB_%d_%d",
+                 buf, buf, &id1, &id2);
+    if (cnt == 4) {
+      Uint32 j;
+      for (j = 0; j < getNoOfTables(); j++) {
+        TableS* table = allTables[j];
+        if (table->getTableId() == (Uint32) id1) {
+          if (table->isSysTable)
+            blobTable->isSysTable = true;
+          blobTable->m_main_table = table;
+          break;
+        }
+      }
+      if (j == getNoOfTables()) {
+        err << "Restore: Bad primary table id in " << blobTableName << endl;
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 bool
@@ -259,6 +306,8 @@ TableS::TableS(Uint32 version, NdbTableImpl* tableImpl)
   m_max_auto_val= 0;
   m_noOfRecords= 0;
   backupVersion = version;
+  isSysTable = false;
+  m_main_table = NULL;
   
   for (int i = 0; i < tableImpl->getNoOfColumns(); i++)
     createAttr(tableImpl->getColumn(i));
@@ -704,6 +753,7 @@ bool RestoreDataIterator::readFragmentHeader(int & ret)
     return false;
   }
 
+  info.setLevel(254);
   info << "_____________________________________________________" << endl
        << "Processing data in table: " << m_currentTable->getTableName() 
        << "(" << Header.TableId << ") fragment " 
@@ -924,13 +974,13 @@ operator<<(NdbOut& ndbout, const AttributeS& attr){
 
   if (data.null)
   {
-    ndbout << "<NULL>";
+    ndbout << g_ndbrecord_print_format.null_string;
     return ndbout;
   }
   
   NdbRecAttr tmprec(0);
   tmprec.setup(desc.m_column, (char *)data.void_value);
-  ndbout << tmprec;
+  ndbrecattr_print_formatted(ndbout, tmprec, g_ndbrecord_print_format);
 
   return ndbout;
 }
@@ -939,17 +989,15 @@ operator<<(NdbOut& ndbout, const AttributeS& attr){
 NdbOut& 
 operator<<(NdbOut& ndbout, const TupleS& tuple)
 {
-  ndbout << tuple.getTable()->getTableName() << "; ";
   for (int i = 0; i < tuple.getNoOfAttributes(); i++) 
   {
+    if (i > 0)
+      ndbout << g_ndbrecord_print_format.fields_terminated_by;
     AttributeData * attr_data = tuple.getData(i);
     const AttributeDesc * attr_desc = tuple.getDesc(i);
     const AttributeS attr = {attr_desc, *attr_data};
     debug << i << " " << attr_desc->m_column->getName();
     ndbout << attr;
-    
-    if (i != (tuple.getNoOfAttributes() - 1))
-      ndbout << delimiter << " ";
   } // for
   return ndbout;
 }
