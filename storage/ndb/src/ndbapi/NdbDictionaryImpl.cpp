@@ -470,6 +470,7 @@ NdbTableImpl::init(){
   m_tablespace_name.clear();
   m_tablespace_id = ~0;
   m_tablespace_version = ~0;
+  m_single_user_mode = 0;
 }
 
 bool
@@ -663,6 +664,15 @@ NdbTableImpl::equal(const NdbTableImpl& obj) const
       DBUG_RETURN(false);
     }
   }
+  
+  if(m_single_user_mode != obj.m_single_user_mode)
+  {
+    DBUG_PRINT("info",("m_single_user_mode %d != %d",
+                       (int32)m_single_user_mode,
+                       (int32)obj.m_single_user_mode));
+    DBUG_RETURN(false);
+  }
+
   DBUG_RETURN(true);
 }
 
@@ -726,6 +736,8 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_keyLenInWords = org.m_keyLenInWords;
   m_fragmentCount = org.m_fragmentCount;
   
+  m_single_user_mode = org.m_single_user_mode;
+
   if (m_index != 0)
     delete m_index;
   m_index = org.m_index;
@@ -2101,6 +2113,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   impl->m_kvalue = tableDesc->TableKValue;
   impl->m_minLoadFactor = tableDesc->MinLoadFactor;
   impl->m_maxLoadFactor = tableDesc->MaxLoadFactor;
+  impl->m_single_user_mode = tableDesc->SingleUserMode;
 
   impl->m_indexType = (NdbDictionary::Object::Type)
     getApiConstant(tableDesc->TableType,
@@ -2562,6 +2575,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
   tmpTab->MinRowsLow = (Uint32)(impl.m_min_rows & 0xFFFFFFFF);
   tmpTab->DefaultNoPartFlag = impl.m_default_no_part_flag;
   tmpTab->LinearHashFlag = impl.m_linear_flag;
+  tmpTab->SingleUserMode = impl.m_single_user_mode;
 
   if (impl.m_ts_name.length())
   {
