@@ -622,7 +622,7 @@ static void close_connections(void)
     DBUG_PRINT("info",("Waiting for select thread"));
 
 #ifndef DONT_USE_THR_ALARM
-    if (pthread_kill(select_thread, thr_client_alarm))
+    if (pthread_kill(select_thread, THR_SERVER_ALARM))
       break;					// allready dead
 #endif
     set_timespec(abstime, 2);
@@ -2062,17 +2062,6 @@ static void init_signals(void)
   struct sigaction sa;
   DBUG_ENTER("init_signals");
 
-  if (thd_lib_detected == THD_LIB_LT)
-  {
-    thr_client_alarm= SIGALRM;
-    thr_kill_signal= SIGINT;
-  }
-  else
-  {
-    thr_client_alarm= SIGUSR1;
-    thr_kill_signal= SIGUSR2;
-  }
-
   if (test_flags & TEST_SIGINT)
   {
     my_sigset(thr_kill_signal, end_thread_signal);
@@ -2131,14 +2120,11 @@ static void init_signals(void)
 #ifdef SIGTSTP
   sigaddset(&set,SIGTSTP);
 #endif
-  sigaddset(&set,THR_SERVER_ALARM);
   if (test_flags & TEST_SIGINT)
   {
     // May be SIGINT
     sigdelset(&set, thr_kill_signal);
   }
-  // For alarms
-  sigdelset(&set, thr_client_alarm);
   sigprocmask(SIG_SETMASK,&set,NULL);
   pthread_sigmask(SIG_SETMASK,&set,NULL);
   DBUG_VOID_RETURN;
@@ -3167,6 +3153,13 @@ int main(int argc, char **argv)
 
   MY_INIT(argv[0]);		// init my_sys library & pthreads
 
+  /* Set signal used to kill MySQL */
+#if defined(SIGUSR2)
+  thr_kill_signal= thd_lib_detected == THD_LIB_LT ? SIGINT : SIGUSR2;
+#else
+  thr_kill_signal= thd_lib_detected == SIGINT;
+#endif
+  
 #ifdef _CUSTOMSTARTUPCONFIG_
   if (_cust_check_startup())
   {
