@@ -49,7 +49,7 @@
   counterpart.
   1. CREATE EVENT the_name ON SCHEDULE EVERY 1 SECOND DISABLE DO SELECT 1;
   2. DROP EVENT the_name
-  
+
   In other words, the first one will create a row in mysql.event . In the
   second step because there will be a line, disk based drop will pass and
   the scheduler will remove the memory counterpart. The reason is that
@@ -309,7 +309,7 @@ Events::Events()
     TRUE   Error (Reported)
 
   NOTES
-    In case there is an event with the same name (db) and 
+    In case there is an event with the same name (db) and
     IF NOT EXISTS is specified, an warning is put into the stack.
 */
 
@@ -346,7 +346,6 @@ Events::create_event(THD *thd, Event_parse_data *parse_data, bool if_not_exists)
   pthread_mutex_unlock(&LOCK_event_metadata);
 
   DBUG_RETURN(ret);
-  
 }
 
 
@@ -364,7 +363,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data, bool if_not_exists)
     TRUE   Error
 
   NOTES
-    et contains data about dbname and event name. 
+    et contains data about dbname and event name.
     new_name is the new name of the event, if not null this means
     that RENAME TO was specified in the query
 */
@@ -396,7 +395,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data, sp_name *rename_to)
                                                    new_element)))
     {
       DBUG_ASSERT(ret == OP_LOAD_ERROR);
-      delete new_element;   
+      delete new_element;
     }
     else
       event_queue->update_event(thd, parse_data->dbname, parse_data->name,
@@ -444,7 +443,7 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
 }
 
 
-/*
+/**
   Drops all events from a schema
 
   SYNOPSIS
@@ -457,8 +456,8 @@ void
 Events::drop_schema_events(THD *thd, char *db)
 {
   LEX_STRING const db_lex= { db, strlen(db) };
-  
-  DBUG_ENTER("Events::drop_schema_events");  
+
+  DBUG_ENTER("Events::drop_schema_events");
   DBUG_PRINT("enter", ("dropping events from %s", db));
   if (unlikely(check_system_tables_error))
   {
@@ -697,7 +696,7 @@ Events::deinit()
 }
 
 
-/*
+/**
   Inits Events mutexes
 
   SYNOPSIS
@@ -755,7 +754,7 @@ Events::dump_internal_status()
 }
 
 
-/*
+/**
   Starts execution of events by the scheduler
 
   SYNOPSIS
@@ -912,7 +911,7 @@ Events::check_system_tables(THD *thd)
 
   RETURN VALUE
     0  OK
-   !0  Error (EVEX_OPEN_TABLE_FAILED, EVEX_MICROSECOND_UNSUP, 
+   !0  Error (EVEX_OPEN_TABLE_FAILED, EVEX_MICROSECOND_UNSUP,
               EVEX_COMPILE_ERROR) - in all these cases mysql.event was
               tampered.
 

@@ -240,7 +240,7 @@ event_scheduler_thread(void *arg)
 
 
 /*
-  Function that executes an event in a child thread. Setups the 
+  Function that executes an event in a child thread. Setups the
   environment for the event execution and cleans after that.
 
   SYNOPSIS
@@ -254,7 +254,7 @@ event_scheduler_thread(void *arg)
 pthread_handler_t
 event_worker_thread(void *arg)
 {
-  THD *thd; 
+  THD *thd;
   Event_queue_element_for_exec *event= (Event_queue_element_for_exec *)arg;
 
   thd= event->thd;
@@ -267,7 +267,7 @@ event_worker_thread(void *arg)
 
 
 /*
-  Function that executes an event in a child thread. Setups the 
+  Function that executes an event in a child thread. Setups the
   environment for the event execution and cleans after that.
 
   SYNOPSIS
@@ -458,7 +458,7 @@ Event_scheduler::start()
   scheduler_thd= new_thd;
   DBUG_PRINT("info", ("Setting state go RUNNING"));
   state= RUNNING;
-  DBUG_PRINT("info", ("Forking new thread for scheduduler. THD: 0x%lx", (long) new_thd));
+  DBUG_PRINT("info", ("Forking new thread for scheduler. THD: 0x%lx", (long) new_thd));
   if (pthread_create(&th, &connection_attrib, event_scheduler_thread,
                     (void*)scheduler_param_value))
   {
@@ -525,7 +525,7 @@ Event_scheduler::run(THD *thd)
                         "event_name=0x%lx", (long) event_name));
     if (event_name)
     {
-      if ((res= execute_top(thd, event_name)))
+      if ((res= execute_top(event_name)))
         break;
     }
     else
@@ -559,7 +559,7 @@ Event_scheduler::run(THD *thd)
 */
 
 bool
-Event_scheduler::execute_top(THD *thd, Event_queue_element_for_exec *event_name)
+Event_scheduler::execute_top(Event_queue_element_for_exec *event_name)
 {
   THD *new_thd;
   pthread_t th;
@@ -631,7 +631,7 @@ Event_scheduler::is_running()
 }
 
 
-/*
+/**
   Stops the scheduler (again). Waits for acknowledgement from the
   scheduler that it has stopped - synchronous stopping.
 
@@ -715,7 +715,7 @@ Event_scheduler::workers_count()
 {
   THD *tmp;
   uint count= 0;
-  
+
   DBUG_ENTER("Event_scheduler::workers_count");
   pthread_mutex_lock(&LOCK_thread_count);       // For unlink from list
   I_List_iterator<THD> it(threads);
