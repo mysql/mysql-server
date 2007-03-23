@@ -1528,11 +1528,11 @@ static uint dump_events_for_db(char *db)
           fprintf(sql_file, "/*!50106 %s */ %s\n", row[3], delimiter);
         }
       } /* end of event printing */
+      mysql_free_result(event_res);
+
     } /* end of list of events */
     fprintf(sql_file, "DELIMITER ;\n");
     fprintf(sql_file, "/*!50106 SET TIME_ZONE= @save_time_zone */ ;\n");
-
-    mysql_free_result(event_res);
   }
   mysql_free_result(event_list_res);
 
