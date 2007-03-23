@@ -577,6 +577,15 @@ public:
    */
   class Table : public Object {
   public:
+    /*
+     * Single user mode specifies access rights to table during single user mode
+     */
+    enum SingleUserMode {
+      SingleUserModeLocked    = NDB_SUM_LOCKED,
+      SingleUserModeReadOnly  = NDB_SUM_READONLY,
+      SingleUserModeReadWrite = NDB_SUM_READ_WRITE
+    };
+
     /** 
      * @name General
      * @{
@@ -895,6 +904,13 @@ public:
      */
     void setMinRows(Uint64 minRows);
     Uint64 getMinRows() const;
+
+    /**
+     * Set/Get SingleUserMode
+     */
+    void setSingleUserMode(enum SingleUserMode);
+    enum SingleUserMode getSingleUserMode() const;
+
 
     /** @} *******************************************************************/
 
