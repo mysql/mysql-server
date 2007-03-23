@@ -289,7 +289,7 @@ Dbdict::packTableIntoPagesImpl(SimpleProperties::Writer & w,
   w.add(DictTabInfo::MaxRowsHigh, tablePtr.p->maxRowsHigh);
   w.add(DictTabInfo::MinRowsLow, tablePtr.p->minRowsLow);
   w.add(DictTabInfo::MinRowsHigh, tablePtr.p->minRowsHigh);
-  
+  w.add(DictTabInfo::SingleUserMode, tablePtr.p->singleUserMode);
   if(!signal)
   {
     w.add(DictTabInfo::FragmentCount, tablePtr.p->fragmentCount);
@@ -1500,6 +1500,7 @@ void Dbdict::initialiseTableRecord(TableRecordPtr tablePtr)
   tablePtr.p->maxRowsHigh = 0;
   tablePtr.p->minRowsLow = 0;
   tablePtr.p->minRowsHigh = 0;
+  tablePtr.p->singleUserMode = 0;
   tablePtr.p->storedTable = true;
   tablePtr.p->tableType = DictTabInfo::UserTable;
   tablePtr.p->primaryTableId = RNIL;
@@ -4718,8 +4719,9 @@ Dbdict::execTAB_COMMITCONF(Signal* signal){
     signal->theData[4] = (Uint32)tabPtr.p->tableType;
     signal->theData[5] = createTabPtr.p->key;
     signal->theData[6] = (Uint32)tabPtr.p->noOfPrimkey;
-    
-    sendSignal(DBTC_REF, GSN_TC_SCHVERREQ, signal, 7, JBB);
+    signal->theData[7] = (Uint32)tabPtr.p->singleUserMode;
+
+    sendSignal(DBTC_REF, GSN_TC_SCHVERREQ, signal, 8, JBB);
     return;
   }
   
@@ -5084,6 +5086,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   tablePtr.p->maxRowsHigh = tableDesc.MaxRowsHigh;
   tablePtr.p->minRowsLow = tableDesc.MinRowsLow;
   tablePtr.p->minRowsHigh = tableDesc.MinRowsHigh;
+  tablePtr.p->singleUserMode = tableDesc.SingleUserMode;
 
   Uint64 maxRows =
     (((Uint64)tablePtr.p->maxRowsHigh) << 32) + tablePtr.p->maxRowsLow;

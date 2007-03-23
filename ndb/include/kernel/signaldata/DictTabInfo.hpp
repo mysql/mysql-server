@@ -126,6 +126,8 @@ public:
     MinRowsLow         = 143,
     MinRowsHigh        = 144,
 
+    SingleUserMode     = 152,
+
     TableEnd           = 999,
     
     AttributeName          = 1000, // String, Mandatory
@@ -273,7 +275,8 @@ public:
     Uint32 MaxRowsHigh;
     Uint32 MinRowsLow;
     Uint32 MinRowsHigh;
-    
+    Uint32 SingleUserMode;
+
     void init();
   };
 

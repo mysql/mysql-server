@@ -138,6 +138,7 @@ public:
   int m_maxLoadFactor;
   Uint16 m_keyLenInWords;
   Uint16 m_fragmentCount;
+  Uint8 m_single_user_mode;
 
   NdbDictionaryImpl * m_dictionary;
   NdbIndexImpl * m_index;
