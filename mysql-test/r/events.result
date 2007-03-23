@@ -229,10 +229,10 @@ Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	E
 events_test	intact_check	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED
 ALTER TABLE mysql.event ADD dummy INT FIRST;
 SHOW EVENTS;
-ERROR HY000: Column count of mysql.event is wrong. Expected 17, found 18. Table probably corrupted
+ERROR HY000: Column count of mysql.event is wrong. Expected 17, found 18. The table is probably corrupted
 ALTER TABLE mysql.event DROP dummy, ADD dummy2 VARCHAR(64) FIRST;
 SHOW EVENTS;
-ERROR HY000: Column count of mysql.event is wrong. Expected 17, found 18. Table probably corrupted
+ERROR HY000: Column count of mysql.event is wrong. Expected 17, found 18. The table is probably corrupted
 ALTER TABLE mysql.event DROP dummy2;
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
@@ -241,7 +241,7 @@ CREATE TABLE event_like LIKE mysql.event;
 INSERT INTO event_like SELECT * FROM mysql.event;
 ALTER TABLE mysql.event MODIFY db char(64) character set cp1251 default '';
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
-ERROR HY000: Cannot load from mysql.event. Table probably corrupted. See error log.
+ERROR HY000: Cannot load from mysql.event. The table is probably corrupted. Please see the error log for details
 ALTER TABLE mysql.event MODIFY db char(20) character set utf8 collate utf8_bin default '';
 SHOW CREATE TABLE mysql.event;
 Table	Create Table
@@ -266,7 +266,7 @@ event	CREATE TABLE `event` (
   PRIMARY KEY (`db`,`name`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Events'
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
-ERROR HY000: Cannot load from mysql.event. Table probably corrupted. See error log.
+ERROR HY000: Cannot load from mysql.event. The table is probably corrupted. Please see the error log for details
 ALTER TABLE mysql.event MODIFY db char(64) character set utf8 collate utf8_bin default '';
 "This should work"
 SHOW EVENTS;
@@ -274,13 +274,13 @@ Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	E
 events_test	intact_check	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED
 ALTER TABLE mysql.event MODIFY db char(64) character set cp1251 default '';
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
-ERROR HY000: Cannot load from mysql.event. Table probably corrupted. See error log.
+ERROR HY000: Cannot load from mysql.event. The table is probably corrupted. Please see the error log for details
 ALTER TABLE mysql.event MODIFY db varchar(64) character set utf8 collate utf8_bin default '';
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
-ERROR HY000: Cannot load from mysql.event. Table probably corrupted. See error log.
+ERROR HY000: Cannot load from mysql.event. The table is probably corrupted. Please see the error log for details
 ALTER TABLE mysql.event DROP comment, DROP starts;
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
-ERROR HY000: Column count of mysql.event is wrong. Expected 17, found 15. Table probably corrupted
+ERROR HY000: Column count of mysql.event is wrong. Expected 17, found 15. The table is probably corrupted
 DROP TABLE mysql.event;
 CREATE TABLE mysql.event like event_like;
 INSERT INTO  mysql.event SELECT * FROM event_like;

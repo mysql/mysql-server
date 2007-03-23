@@ -1926,9 +1926,10 @@ Event_job_data::compile(THD *thd, MEM_ROOT *mem_root)
                           thd->is_fatal_error));
     lex.unit.cleanup();
 
-    sql_print_error("SCHEDULER: Error during compilation of %s.%s or "
-                    "thd->is_fatal_error: %d",
-                    dbname.str, name.str, thd->is_fatal_error);
+    sql_print_error("Event Scheduler: "
+                    "%serror during compilation of %s.%s",
+                    thd->is_fatal_error ? "fatal " : "",
+                    dbname.str, name.str);
 
     ret= EVEX_COMPILE_ERROR;
     goto done;

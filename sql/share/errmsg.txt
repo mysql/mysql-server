@@ -5881,10 +5881,10 @@ ER_EVENT_NEITHER_M_EXPR_NOR_M_AT
         eng "No datetime expression provided"
         ger "Kein DATETIME-Ausdruck angegeben"
 ER_COL_COUNT_DOESNT_MATCH_CORRUPTED
-        eng "Column count of mysql.%s is wrong. Expected %d, found %d. Table probably corrupted"
+        eng "Column count of mysql.%s is wrong. Expected %d, found %d. The table is probably corrupted"
         ger "Spaltenanzahl von mysql.%s falsch. %d erwartet, aber %d gefunden. Tabelle ist wahrscheinlich beschädigt"
 ER_CANNOT_LOAD_FROM_TABLE
-        eng "Cannot load from mysql.%s. Table probably corrupted. See error log."
+        eng "Cannot load from mysql.%s. The table is probably corrupted. Please see the error log for details"
         ger "Kann mysql.%s nicht einlesen. Tabelle ist wahrscheinlich beschädigt, siehe Fehlerlog"
 ER_EVENT_CANNOT_DELETE
         eng "Failed to delete the event from mysql.event"
@@ -5982,7 +5982,7 @@ ER_EVENT_RECURSIVITY_FORBIDDEN
         eng "Recursivity of EVENT DDL statements is forbidden when body is present"
         ger "Rekursivität von EVENT-DDL-Anweisungen ist unzulässig wenn ein Hauptteil (Body) existiert"
 ER_EVENTS_DB_ERROR
-        eng "Cannot proceed because the tables used by events were found damaged at server start"
+        eng "Cannot proceed because system tables used by Event Scheduler were found damaged at server start"
         ger "Kann nicht weitermachen, weil die Tabellen, die von Events verwendet werden, beim Serverstart als beschädigt markiert wurden"
 ER_ONLY_INTEGERS_ALLOWED
         eng "Only integers allowed as number here"
