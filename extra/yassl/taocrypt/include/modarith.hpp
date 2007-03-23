@@ -37,8 +37,8 @@ public:
     typedef int RandomizationParameter;
     typedef Integer Element;
 
-    ModularArithmetic(const Integer &modulus_arg = Integer::One())
-        : modulus(modulus_arg), result((word)0, modulus_arg.reg_.size()) {}
+    ModularArithmetic(const Integer &modulus = Integer::One())
+        : modulus(modulus), result((word)0, modulus.reg_.size()) {}
 
     ModularArithmetic(const ModularArithmetic &ma)
         : AbstractRing(),
