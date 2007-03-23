@@ -204,6 +204,7 @@ public:
   int m_maxLoadFactor;
   Uint16 m_keyLenInWords;
   Uint16 m_fragmentCount;
+  Uint8 m_single_user_mode;
 
   NdbIndexImpl * m_index;
   NdbColumnImpl * getColumn(unsigned attrId);

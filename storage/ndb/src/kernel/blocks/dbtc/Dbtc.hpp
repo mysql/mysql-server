@@ -710,6 +710,7 @@ public:
     Uint8 tckeyrec; // Ändrad från R
     Uint8 tcindxrec;
     Uint8 apiFailState; // Ändrad från R
+    Uint8 singleUserMode;
     ReturnSignal returnsignal;
     Uint8 timeOutCounter;
     
@@ -961,10 +962,21 @@ public:
   struct TableRecord {
     TableRecord() {}
     Uint32 currentSchemaVersion;
-    Uint8 enabled;
-    Uint8 dropping;
+    Uint16 m_flags;
     Uint8 tableType;
-    Uint8 storedTable;
+    Uint8 singleUserMode;
+
+    enum {
+      TR_ENABLED      = 1 << 0,
+      TR_DROPPING     = 1 << 1,
+      TR_STORED_TABLE = 1 << 2
+    };
+    Uint8 get_enabled()     const { return (m_flags & TR_ENABLED)      != 0; }
+    Uint8 get_dropping()    const { return (m_flags & TR_DROPPING)     != 0; }
+    Uint8 get_storedTable() const { return (m_flags & TR_STORED_TABLE) != 0; }
+    void set_enabled(Uint8 f)     { f ? m_flags |= (Uint16)TR_ENABLED      : m_flags &= ~(Uint16)TR_ENABLED; }
+    void set_dropping(Uint8 f)    { f ? m_flags |= (Uint16)TR_DROPPING     : m_flags &= ~(Uint16)TR_DROPPING; }
+    void set_storedTable(Uint8 f) { f ? m_flags |= (Uint16)TR_STORED_TABLE : m_flags &= ~(Uint16)TR_STORED_TABLE; }
 
     Uint8 noOfKeyAttr;
     Uint8 hasCharAttr;
@@ -972,7 +984,7 @@ public:
     Uint8 hasVarKeys;
 
     bool checkTable(Uint32 schemaVersion) const {
-      return enabled && !dropping && 
+      return get_enabled() && !get_dropping() && 
 	(table_version_major(schemaVersion) == table_version_major(currentSchemaVersion));
     }
 
@@ -1840,9 +1852,14 @@ private:
 			Uint32 transid2);
   void removeMarkerForFailedAPI(Signal* signal, Uint32 nodeId, Uint32 bucket);
 
-  bool getAllowStartTransaction() const {
-    if(getNodeState().getSingleUserMode())
-      return true;
+  bool getAllowStartTransaction(Uint32 nodeId, Uint32 table_single_user_mode) const {
+    if (unlikely(getNodeState().getSingleUserMode()))
+    {
+      if (getNodeState().getSingleUserApi() == nodeId || table_single_user_mode)
+        return true;
+      else
+        return false;
+    }
     return getNodeState().startLevel < NodeState::SL_STOPPING_2;
   }
   
