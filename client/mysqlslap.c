@@ -62,7 +62,6 @@ TODO:
   Add language for better tests
   String length for files and those put on the command line are not
     setup to handle binary data.
-  Report results of each thread into the lock file we use.
   More stats
   Break up tests and run them on multiple hosts at once.
   Allow output to be fed into a database directly.
@@ -71,16 +70,18 @@ TODO:
 
 #define SHOW_VERSION "0.9"
 
-#define HUGE_STRING_LENGTH 8096
+#define HUGE_STRING_LENGTH 8196
 #define RAND_STRING_SIZE 126
 
+/* Types */
+#define SELECT_TYPE 0
+#define UPDATE_TYPE 1
+#define INSERT_TYPE 2
+#define UPDATE_TYPE_REQUIRES_PREFIX 3
+#define CREATE_TABLE_TYPE 4
+#define SELECT_TYPE_REQUIRES_PREFIX 5
+
 #include "client_priv.h"
-#ifdef HAVE_LIBPTHREAD
-#include <my_pthread.h>
-#endif
-#include <my_sys.h>
-#include <m_string.h>
-#include <mysql.h>
 #include <mysqld_error.h>
 #include <my_dir.h>
 #include <signal.h>
@@ -92,9 +93,6 @@ TODO:
 #endif
 #include <ctype.h>
 
-#define MYSLAPLOCK "/myslaplock.lck"
-#define MYSLAPLOCK_DIR "/tmp"
-
 #ifdef __WIN__
 #define srandom  srand
 #define random   rand
@@ -105,7 +103,18 @@ TODO:
 static char *shared_memory_base_name=0;
 #endif
 
+/* Global Thread counter */
+uint thread_counter;
+pthread_mutex_t counter_mutex;
+pthread_cond_t count_threshhold;
+uint master_wakeup;
+pthread_mutex_t sleeper_mutex;
+pthread_cond_t sleep_threshhold;
+
 static char **defaults_argv;
+
+char **primary_keys;
+unsigned long long primary_keys_number_of;
 
 static char *host= NULL, *opt_password= NULL, *user= NULL,
             *user_supplied_query= NULL,
@@ -116,26 +125,35 @@ const char *delimiter= "\n";
 
 const char *create_schema_string= "mysqlslap";
 
-const char *lock_directory;
-char lock_file_str[FN_REFLEN];
-
 static my_bool opt_preserve;
 
 static my_bool opt_only_print= FALSE;
 
-static my_bool opt_slave;
-
 static my_bool opt_compress= FALSE, tty_password= FALSE,
                opt_silent= FALSE,
+               auto_generate_sql_autoincrement= FALSE,
+               auto_generate_sql_guid_primary= FALSE,
                auto_generate_sql= FALSE;
 const char *auto_generate_sql_type= "mixed";
 
 static unsigned long connect_flags= CLIENT_MULTI_RESULTS;
 
-static int verbose, num_int_cols, num_char_cols, delimiter_length;
-static int iterations;
+static int verbose, delimiter_length;
+const char *num_int_cols_opt;
+const char *num_char_cols_opt;
+/* Yes, we do set defaults here */
+static unsigned int num_int_cols= 1;
+static unsigned int num_char_cols= 1;
+static unsigned int num_int_cols_index= 0; 
+static unsigned int num_char_cols_index= 0;
+
+static unsigned int iterations;
 static char *default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
 static ulonglong actual_queries= 0;
+static ulonglong auto_actual_queries;
+static ulonglong auto_generate_sql_unique_write_number;
+static ulonglong auto_generate_sql_unique_query_number;
+static unsigned int auto_generate_sql_secondary_indexes;
 static ulonglong num_of_query;
 static ulonglong auto_generate_sql_number;
 const char *concurrency_str= NULL;
@@ -150,7 +168,6 @@ static uint opt_protocol= 0;
 
 static int get_options(int *argc,char ***argv);
 static uint opt_mysql_port= 0;
-static uint opt_use_threads;
 
 static const char *load_default_groups[]= { "mysqlslap","client",0 };
 
@@ -159,7 +176,20 @@ typedef struct statement statement;
 struct statement {
   char *string;
   size_t length;
+  unsigned char type;
+  char *option;
+  size_t option_length;
   statement *next;
+};
+
+typedef struct option_string option_string;
+
+struct option_string {
+  char *string;
+  size_t length;
+  char *option;
+  size_t option_length;
+  option_string *next;
 };
 
 typedef struct stats stats;
@@ -175,7 +205,6 @@ typedef struct thread_context thread_context;
 struct thread_context {
   statement *stmt;
   ulonglong limit;
-  bool thread;
 };
 
 typedef struct conclusions conclusions;
@@ -192,27 +221,33 @@ struct conclusions {
   unsigned long long min_rows;
 };
 
+static option_string *engine_options= NULL;
 static statement *create_statements= NULL, 
-                 *engine_statements= NULL, 
                  *query_statements= NULL;
 
 /* Prototypes */
 void print_conclusions(conclusions *con);
 void print_conclusions_csv(conclusions *con);
-void generate_stats(conclusions *con, statement *eng, stats *sptr);
+void generate_stats(conclusions *con, option_string *eng, stats *sptr);
 uint parse_comma(const char *string, uint **range);
 uint parse_delimiter(const char *script, statement **stmt, char delm);
+uint parse_option(const char *origin, option_string **stmt, char delm);
 static int drop_schema(MYSQL *mysql, const char *db);
 uint get_random_string(char *buf);
 static statement *build_table_string(void);
 static statement *build_insert_string(void);
-static statement *build_query_string(void);
+static statement *build_update_string(void);
+static statement * build_select_string(my_bool key);
+static int generate_primary_key_list(MYSQL *mysql, option_string *engine_stmt);
+static int drop_primary_key_list(void);
 static int create_schema(MYSQL *mysql, const char *db, statement *stmt, 
-              statement *engine_stmt);
+              option_string *engine_stmt);
 static int run_scheduler(stats *sptr, statement *stmts, uint concur, 
                          ulonglong limit);
-int run_task(thread_context *con);
+pthread_handler_t run_task(void *p);
 void statement_cleanup(statement *stmt);
+void option_cleanup(option_string *stmt);
+void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr);
 
 static const char ALPHANUMERICS[]=
   "0123456789ABCDEFGHIJKLMNOPQRSTWXYZabcdefghijklmnopqrstuvwxyz";
@@ -246,13 +281,7 @@ static int gettimeofday(struct timeval *tp, void *tzp)
 int main(int argc, char **argv)
 {
   MYSQL mysql;
-  int x;
-  unsigned long long client_limit;
-  statement *eptr;
-
-#ifdef __WIN__
-  opt_use_threads= 1;
-#endif
+  option_string *eptr;
 
   MY_INIT(argv[0]);
 
@@ -309,83 +338,130 @@ int main(int argc, char **argv)
     }
   }
 
+  VOID(pthread_mutex_init(&counter_mutex, NULL));
+  VOID(pthread_cond_init(&count_threshhold, NULL));
+  VOID(pthread_mutex_init(&sleeper_mutex, NULL));
+  VOID(pthread_cond_init(&sleep_threshhold, NULL));
+
   /* Main iterations loop */
-  eptr= engine_statements;
+  eptr= engine_options;
   do
   {
     /* For the final stage we run whatever queries we were asked to run */
     uint *current;
-    conclusions conclusion;
 
-    for (current= concurrency; current && *current; current++)
+    if (verbose >= 2)
+      printf("Starting Concurrency Test\n");
+
+    if (*concurrency)
     {
-      stats *head_sptr;
-      stats *sptr;
-
-      head_sptr= (stats *)my_malloc(sizeof(stats) * iterations, MYF(MY_ZEROFILL));
-
-      bzero(&conclusion, sizeof(conclusions));
-
-      if (num_of_query)
-        client_limit=  num_of_query / *current;
-      else
-        client_limit= actual_queries;
-
-      for (x= 0, sptr= head_sptr; x < iterations; x++, sptr++)
-      {
-        /*
-          We might not want to load any data, such as when we are calling
-          a stored_procedure that doesn't use data, or we know we already have
-          data in the table.
-        */
-        if (!opt_preserve)
-          drop_schema(&mysql, create_schema_string);
-        /* First we create */
-        if (create_statements)
-          create_schema(&mysql, create_schema_string, create_statements, eptr);
-
-        run_scheduler(sptr, query_statements, *current, client_limit); 
+      for (current= concurrency; current && *current; current++)
+        concurrency_loop(&mysql, *current, eptr);
+    }
+    else
+    {
+      uint infinite= 1;
+      do {
+        concurrency_loop(&mysql, infinite, eptr);
       }
-
-      generate_stats(&conclusion, eptr, head_sptr);
-
-      if (!opt_silent)
-        print_conclusions(&conclusion);
-      if (opt_csv_str)
-        print_conclusions_csv(&conclusion);
-
-      my_free((byte *)head_sptr, MYF(0));
+      while (infinite++);
     }
 
     if (!opt_preserve)
       drop_schema(&mysql, create_schema_string);
+
   } while (eptr ? (eptr= eptr->next) : 0);
+
+  VOID(pthread_mutex_destroy(&counter_mutex));
+  VOID(pthread_cond_destroy(&count_threshhold));
+  VOID(pthread_mutex_destroy(&sleeper_mutex));
+  VOID(pthread_cond_destroy(&sleep_threshhold));
 
   if (!opt_only_print) 
     mysql_close(&mysql); /* Close & free connection */
 
-
-  /* Remove lock file */
-  my_delete(lock_file_str, MYF(0));
-
   /* now free all the strings we created */
   if (opt_password)
-    my_free(opt_password, MYF(0));
+    my_free((gptr)opt_password, MYF(0));
 
-  my_free((byte *)concurrency, MYF(0));
+  my_free((gptr)concurrency, MYF(0));
 
   statement_cleanup(create_statements);
-  statement_cleanup(engine_statements);
   statement_cleanup(query_statements);
+  option_cleanup(engine_options);
 
 #ifdef HAVE_SMEM
   if (shared_memory_base_name)
-    my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
+    my_free((gptr)shared_memory_base_name, MYF(MY_ALLOW_ZERO_PTR));
 #endif
   free_defaults(defaults_argv);
   my_end(0);
 
   return 0;
+}
+
+void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
+{
+  unsigned int x;
+  stats *head_sptr;
+  stats *sptr;
+  conclusions conclusion;
+  unsigned long long client_limit;
+
+  head_sptr= (stats *)my_malloc(sizeof(stats) * iterations, 
+                                MYF(MY_ZEROFILL|MY_FAE|MY_WME));
+
+  bzero(&conclusion, sizeof(conclusions));
+
+  if (auto_actual_queries)
+    client_limit= auto_actual_queries;
+  else if (num_of_query)
+    client_limit=  num_of_query / current;
+  else
+    client_limit= actual_queries;
+
+  for (x= 0, sptr= head_sptr; x < iterations; x++, sptr++)
+  {
+    /*
+      We might not want to load any data, such as when we are calling
+      a stored_procedure that doesn't use data, or we know we already have
+      data in the table.
+    */
+    if (!opt_preserve)
+      drop_schema(mysql, create_schema_string);
+
+    /* First we create */
+    if (create_statements)
+      create_schema(mysql, create_schema_string, create_statements, eptr);
+
+    /*
+      If we generated GUID we need to build a list of them from creation that
+      we can later use.
+    */
+    if (verbose >= 2)
+      printf("Generating primary key list\n");
+    if (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary)
+      generate_primary_key_list(mysql, eptr);
+
+    run_scheduler(sptr, query_statements, current, client_limit); 
+
+    /* We are finished with this run */
+    if (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary)
+      drop_primary_key_list();
+  }
+
+  if (verbose >= 2)
+    printf("Generating stats\n");
+
+  generate_stats(&conclusion, eptr, head_sptr);
+
+  if (!opt_silent)
+    print_conclusions(&conclusion);
+  if (opt_csv_str)
+    print_conclusions_csv(&conclusion);
+
+  my_free((gptr)head_sptr, MYF(0));
+
 }
 
 
@@ -397,10 +473,42 @@ static struct my_option my_long_options[] =
     "Generate SQL where not supplied by file or command line.",
     (gptr*) &auto_generate_sql, (gptr*) &auto_generate_sql,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"auto-generate-sql-add-autoincrement", OPT_SLAP_AUTO_GENERATE_ADD_AUTO,
+    "Add autoincrement to auto-generated tables.",
+    (gptr*) &auto_generate_sql_autoincrement, 
+    (gptr*) &auto_generate_sql_autoincrement,
+    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"auto-generate-sql-execute-number", OPT_SLAP_AUTO_GENERATE_EXECUTE_QUERIES,
+    "Set this number to generate a set number of queries to run.\n",
+    (gptr*) &auto_actual_queries, (gptr*) &auto_actual_queries,
+    0, GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"auto-generate-sql-guid-primary", OPT_SLAP_AUTO_GENERATE_GUID_PRIMARY,
+    "Add GUID based primary keys to auto-generated tables.",
+    (gptr*) &auto_generate_sql_guid_primary, 
+    (gptr*) &auto_generate_sql_guid_primary,
+    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"auto-generate-sql-load-type", OPT_SLAP_AUTO_GENERATE_SQL_LOAD_TYPE,
-    "Load types are mixed, write, or read. Default is mixed\n",
+    "Load types are mixed, update, write, key, or read. Default is mixed\n",
     (gptr*) &auto_generate_sql_type, (gptr*) &auto_generate_sql_type,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"auto-generate-sql-secondary-indexes", 
+    OPT_SLAP_AUTO_GENERATE_SECONDARY_INDEXES, 
+    "Number of secondary indexes to add auto-generated tables.",
+    (gptr*) &auto_generate_sql_secondary_indexes, 
+    (gptr*) &auto_generate_sql_secondary_indexes, 0,
+    GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"auto-generate-sql-unique-query-number", 
+    OPT_SLAP_AUTO_GENERATE_UNIQUE_QUERY_NUM,
+    "Number of unique queries auto tests",
+    (gptr*) &auto_generate_sql_unique_query_number, 
+    (gptr*) &auto_generate_sql_unique_query_number,
+    0, GET_ULL, REQUIRED_ARG, 10, 0, 0, 0, 0, 0},
+  {"auto-generate-sql-unique-write-number", 
+    OPT_SLAP_AUTO_GENERATE_UNIQUE_WRITE_NUM,
+    "Number of unique queries for auto-generate-sql-write-number",
+    (gptr*) &auto_generate_sql_unique_write_number, 
+    (gptr*) &auto_generate_sql_unique_write_number,
+    0, GET_ULL, REQUIRED_ARG, 10, 0, 0, 0, 0, 0},
   {"auto-generate-sql-write-number", OPT_SLAP_AUTO_GENERATE_WRITE_NUM,
     "Number of rows to insert to used in read and write loads (default is 100).\n",
     (gptr*) &auto_generate_sql_number, (gptr*) &auto_generate_sql_number,
@@ -435,17 +543,14 @@ static struct my_option my_long_options[] =
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"iterations", 'i', "Number of times too run the tests.", (gptr*) &iterations,
     (gptr*) &iterations, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
-  {"lock-directory", OPT_MYSQL_LOCK_DIRECTORY, "Directory to use to keep locks.", 
-    (gptr*) &lock_directory, (gptr*) &lock_directory, 0, GET_STR, 
-    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"number-char-cols", 'x', 
     "Number of VARCHAR columns to create table with if specifying --auto-generate-sql ",
-    (gptr*) &num_char_cols, (gptr*) &num_char_cols, 0, GET_UINT, REQUIRED_ARG,
-    1, 0, 0, 0, 0, 0},
+    (gptr*) &num_char_cols_opt, (gptr*) &num_char_cols_opt, 0, GET_STR, REQUIRED_ARG,
+    0, 0, 0, 0, 0, 0},
   {"number-int-cols", 'y', 
     "Number of INT columns to create table with if specifying --auto-generate-sql.",
-    (gptr*) &num_int_cols, (gptr*) &num_int_cols, 0, GET_UINT, REQUIRED_ARG, 
-    1, 0, 0, 0, 0, 0},
+    (gptr*) &num_int_cols_opt, (gptr*) &num_int_cols_opt, 0, GET_STR, REQUIRED_ARG, 
+    0, 0, 0, 0, 0, 0},
   {"number-of-queries", OPT_MYSQL_NUMBER_OF_QUERY, 
     "Limit each client to this number of queries (this is not exact).",
     (gptr*) &num_of_query, (gptr*) &num_of_query, 0,
@@ -485,17 +590,10 @@ static struct my_option my_long_options[] =
   {"silent", 's', "Run program in silent mode - no output.",
     (gptr*) &opt_silent, (gptr*) &opt_silent, 0, GET_BOOL,  NO_ARG,
     0, 0, 0, 0, 0, 0},
-  {"slave", OPT_MYSQL_SLAP_SLAVE, "Follow master locks for other slap clients",
-    (gptr*) &opt_slave, (gptr*) &opt_slave, 0, GET_BOOL,  NO_ARG,
-    0, 0, 0, 0, 0, 0},
   {"socket", 'S', "Socket file to use for connection.",
     (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
-  {"use-threads", OPT_USE_THREADS,
-    "Use pthread calls instead of fork() calls (default on Windows)",
-      (gptr*) &opt_use_threads, (gptr*) &opt_use_threads, 0, 
-      GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.", (gptr*) &user,
     (gptr*) &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -552,7 +650,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     if (argument)
     {
       char *start= argument;
-      my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
+      my_free((gptr)opt_password, MYF(MY_ALLOW_ZERO_PTR));
       opt_password= my_strdup(argument,MYF(MY_FAE));
       while (*argument) *argument++= 'x';		/* Destroy argument */
       if (*start)
@@ -614,40 +712,193 @@ get_random_string(char *buf)
 static statement *
 build_table_string(void)
 {
-  char       buf[512];
-  int        col_count;
+  char       buf[HUGE_STRING_LENGTH];
+  unsigned int        col_count;
   statement *ptr;
   DYNAMIC_STRING table_string;
   DBUG_ENTER("build_table_string");
 
-  DBUG_PRINT("info", ("num int cols %d num char cols %d",
+  DBUG_PRINT("info", ("num int cols %u num char cols %u",
                       num_int_cols, num_char_cols));
 
   init_dynamic_string(&table_string, "", 1024, 1024);
 
   dynstr_append(&table_string, "CREATE TABLE `t1` (");
-  for (col_count= 1; col_count <= num_int_cols; col_count++)
-  {
-    sprintf(buf, "intcol%d INT(32)", col_count); 
-    dynstr_append(&table_string, buf);
 
-    if (col_count < num_int_cols || num_char_cols > 0)
+  if (auto_generate_sql_autoincrement)
+  {
+    dynstr_append(&table_string, "id serial");
+
+    if (num_int_cols || num_char_cols)
       dynstr_append(&table_string, ",");
   }
-  for (col_count= 1; col_count <= num_char_cols; col_count++)
-  {
-    sprintf(buf, "charcol%d VARCHAR(128)", col_count);
-    dynstr_append(&table_string, buf);
 
-    if (col_count < num_char_cols)
+  if (auto_generate_sql_guid_primary)
+  {
+    dynstr_append(&table_string, "id varchar(32) primary key");
+
+    if (num_int_cols || num_char_cols || auto_generate_sql_guid_primary)
       dynstr_append(&table_string, ",");
   }
+
+  if (auto_generate_sql_secondary_indexes)
+  {
+    unsigned int count;
+
+    for (count= 0; count < auto_generate_sql_secondary_indexes; count++)
+    {
+      if (count) /* Except for the first pass we add a comma */
+        dynstr_append(&table_string, ",");
+
+      if (snprintf(buf, HUGE_STRING_LENGTH, "id%d varchar(32) unique key", count) 
+          > HUGE_STRING_LENGTH)
+      {
+        fprintf(stderr, "Memory Allocation error in create table\n");
+        exit(1);
+      }
+      dynstr_append(&table_string, buf);
+    }
+
+    if (num_int_cols || num_char_cols)
+      dynstr_append(&table_string, ",");
+  }
+
+  if (num_int_cols)
+    for (col_count= 1; col_count <= num_int_cols; col_count++)
+    {
+      if (num_int_cols_index)
+      {
+        if (snprintf(buf, HUGE_STRING_LENGTH, "intcol%d INT(32), INDEX(intcol%d)", 
+                     col_count, col_count) > HUGE_STRING_LENGTH)
+        {
+          fprintf(stderr, "Memory Allocation error in create table\n");
+          exit(1);
+        }
+      }
+      else
+      {
+        if (snprintf(buf, HUGE_STRING_LENGTH, "intcol%d INT(32) ", col_count) 
+            > HUGE_STRING_LENGTH)
+        {
+          fprintf(stderr, "Memory Allocation error in create table\n");
+          exit(1);
+        }
+      }
+      dynstr_append(&table_string, buf);
+
+      if (col_count < num_int_cols || num_char_cols > 0)
+        dynstr_append(&table_string, ",");
+    }
+
+  if (num_char_cols)
+    for (col_count= 1; col_count <= num_char_cols; col_count++)
+    {
+      if (num_char_cols_index)
+      {
+        if (snprintf(buf, HUGE_STRING_LENGTH, 
+                     "charcol%d VARCHAR(128), INDEX(charcol%d) ", 
+                     col_count, col_count) > HUGE_STRING_LENGTH)
+        {
+          fprintf(stderr, "Memory Allocation error in creating table\n");
+          exit(1);
+        }
+      }
+      else
+      {
+        if (snprintf(buf, HUGE_STRING_LENGTH, "charcol%d VARCHAR(128)", 
+                     col_count) > HUGE_STRING_LENGTH)
+        {
+          fprintf(stderr, "Memory Allocation error in creating table\n");
+          exit(1);
+        }
+      }
+      dynstr_append(&table_string, buf);
+
+      if (col_count < num_char_cols)
+        dynstr_append(&table_string, ",");
+    }
+
   dynstr_append(&table_string, ")");
-  ptr= (statement *)my_malloc(sizeof(statement), MYF(MY_ZEROFILL));
-  ptr->string = (char *)my_malloc(table_string.length+1, MYF(MY_WME));
+  ptr= (statement *)my_malloc(sizeof(statement), 
+                              MYF(MY_ZEROFILL|MY_FAE|MY_WME));
+  ptr->string = (char *)my_malloc(table_string.length+1,
+                                  MYF(MY_ZEROFILL|MY_FAE|MY_WME));
   ptr->length= table_string.length+1;
+  ptr->type= CREATE_TABLE_TYPE;
   strmov(ptr->string, table_string.str);
   dynstr_free(&table_string);
+  DBUG_RETURN(ptr);
+}
+
+/*
+  build_update_string()
+
+  This function builds insert statements when the user opts to not supply
+  an insert file or string containing insert data
+*/
+static statement *
+build_update_string(void)
+{
+  char       buf[HUGE_STRING_LENGTH];
+  unsigned int        col_count;
+  statement *ptr;
+  DYNAMIC_STRING update_string;
+  DBUG_ENTER("build_update_string");
+
+  init_dynamic_string(&update_string, "", 1024, 1024);
+
+  dynstr_append(&update_string, "UPDATE t1 SET ");
+
+  if (num_int_cols)
+    for (col_count= 1; col_count <= num_int_cols; col_count++)
+    {
+      if (snprintf(buf, HUGE_STRING_LENGTH, "intcol%d = %ld", col_count, 
+                   random()) > HUGE_STRING_LENGTH)
+      {
+        fprintf(stderr, "Memory Allocation error in creating update\n");
+        exit(1);
+      }
+      dynstr_append(&update_string, buf);
+
+      if (col_count < num_int_cols || num_char_cols > 0)
+        dynstr_append_mem(&update_string, ",", 1);
+    }
+
+  if (num_char_cols)
+    for (col_count= 1; col_count <= num_char_cols; col_count++)
+    {
+      char rand_buffer[RAND_STRING_SIZE];
+      int buf_len= get_random_string(rand_buffer);
+
+      if (snprintf(buf, HUGE_STRING_LENGTH, "charcol%d = '%.*s'", col_count, 
+                   buf_len, rand_buffer) 
+          > HUGE_STRING_LENGTH)
+      {
+        fprintf(stderr, "Memory Allocation error in creating update\n");
+        exit(1);
+      }
+      dynstr_append(&update_string, buf);
+
+      if (col_count < num_char_cols)
+        dynstr_append_mem(&update_string, ",", 1);
+    }
+
+  if (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary)
+    dynstr_append(&update_string, " WHERE id = ");
+
+
+  ptr= (statement *)my_malloc(sizeof(statement), 
+                              MYF(MY_ZEROFILL|MY_FAE|MY_WME));
+
+  ptr->string= (char *)my_malloc(update_string.length + 1,
+                                  MYF(MY_ZEROFILL|MY_FAE|MY_WME));
+  ptr->length= update_string.length+1;
+  if (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary)
+    ptr->type= UPDATE_TYPE_REQUIRES_PREFIX ;
+  else
+    ptr->type= UPDATE_TYPE;
+  strmov(ptr->string, update_string.str);
+  dynstr_free(&update_string);
   DBUG_RETURN(ptr);
 }
 
@@ -661,38 +912,82 @@ build_table_string(void)
 static statement *
 build_insert_string(void)
 {
-  char       buf[RAND_STRING_SIZE];
-  int        col_count;
+  char       buf[HUGE_STRING_LENGTH];
+  unsigned int        col_count;
   statement *ptr;
   DYNAMIC_STRING insert_string;
   DBUG_ENTER("build_insert_string");
 
   init_dynamic_string(&insert_string, "", 1024, 1024);
 
-  dynstr_append_mem(&insert_string, "INSERT INTO t1 VALUES (", 23);
-  for (col_count= 1; col_count <= num_int_cols; col_count++)
-  {
-    sprintf(buf, "%ld", random());
-    dynstr_append(&insert_string, buf);
+  dynstr_append(&insert_string, "INSERT INTO t1 VALUES (");
 
-    if (col_count < num_int_cols || num_char_cols > 0)
-      dynstr_append_mem(&insert_string, ",", 1);
-  }
-  for (col_count= 1; col_count <= num_char_cols; col_count++)
+  if (auto_generate_sql_autoincrement)
   {
-    int buf_len= get_random_string(buf);
-    dynstr_append_mem(&insert_string, "'", 1);
-    dynstr_append_mem(&insert_string, buf, buf_len);
-    dynstr_append_mem(&insert_string, "'", 1);
+    dynstr_append(&insert_string, "NULL");
 
-    if (col_count < num_char_cols)
-      dynstr_append_mem(&insert_string, ",", 1);
+    if (num_int_cols || num_char_cols)
+      dynstr_append(&insert_string, ",");
   }
+
+  if (auto_generate_sql_guid_primary)
+  {
+    dynstr_append(&insert_string, "uuid()");
+
+    if (num_int_cols || num_char_cols)
+      dynstr_append(&insert_string, ",");
+  }
+
+  if (auto_generate_sql_secondary_indexes)
+  {
+    unsigned int count;
+
+    for (count= 0; count < auto_generate_sql_secondary_indexes; count++)
+    {
+      if (count) /* Except for the first pass we add a comma */
+        dynstr_append(&insert_string, ",");
+
+      dynstr_append(&insert_string, "uuid()");
+    }
+
+    if (num_int_cols || num_char_cols)
+      dynstr_append(&insert_string, ",");
+  }
+
+  if (num_int_cols)
+    for (col_count= 1; col_count <= num_int_cols; col_count++)
+    {
+      if (snprintf(buf, HUGE_STRING_LENGTH, "%ld", random()) > HUGE_STRING_LENGTH)
+      {
+        fprintf(stderr, "Memory Allocation error in creating insert\n");
+        exit(1);
+      }
+      dynstr_append(&insert_string, buf);
+
+      if (col_count < num_int_cols || num_char_cols > 0)
+        dynstr_append_mem(&insert_string, ",", 1);
+    }
+
+  if (num_char_cols)
+    for (col_count= 1; col_count <= num_char_cols; col_count++)
+    {
+      int buf_len= get_random_string(buf);
+      dynstr_append_mem(&insert_string, "'", 1);
+      dynstr_append_mem(&insert_string, buf, buf_len);
+      dynstr_append_mem(&insert_string, "'", 1);
+
+      if (col_count < num_char_cols)
+        dynstr_append_mem(&insert_string, ",", 1);
+    }
+
   dynstr_append_mem(&insert_string, ")", 1);
 
-  ptr= (statement *)my_malloc(sizeof(statement), MYF(MY_ZEROFILL));
-  ptr->string= (char *)my_malloc(insert_string.length+1, MYF(MY_WME));
+  ptr= (statement *)my_malloc(sizeof(statement),
+                              MYF(MY_ZEROFILL|MY_FAE|MY_WME));
+  ptr->string= (char *)my_malloc(insert_string.length + 1,
+                              MYF(MY_ZEROFILL|MY_FAE|MY_WME));
   ptr->length= insert_string.length+1;
+  ptr->type= INSERT_TYPE;
   strmov(ptr->string, insert_string.str);
   dynstr_free(&insert_string);
   DBUG_RETURN(ptr);
@@ -700,26 +995,31 @@ build_insert_string(void)
 
 
 /*
-  build_query_string()
+  build_select_string()
 
   This function builds a query if the user opts to not supply a query
   statement or file containing a query statement
 */
 static statement *
-build_query_string(void)
+build_select_string(my_bool key)
 {
-  char       buf[512];
-  int        col_count;
+  char       buf[HUGE_STRING_LENGTH];
+  unsigned int        col_count;
   statement *ptr;
   static DYNAMIC_STRING query_string;
-  DBUG_ENTER("build_query_string");
+  DBUG_ENTER("build_select_string");
 
   init_dynamic_string(&query_string, "", 1024, 1024);
 
   dynstr_append_mem(&query_string, "SELECT ", 7);
   for (col_count= 1; col_count <= num_int_cols; col_count++)
   {
-    sprintf(buf, "intcol%d", col_count);
+    if (snprintf(buf, HUGE_STRING_LENGTH, "intcol%d", col_count) 
+        > HUGE_STRING_LENGTH)
+    {
+      fprintf(stderr, "Memory Allocation error in creating select\n");
+      exit(1);
+    }
     dynstr_append(&query_string, buf);
 
     if (col_count < num_int_cols || num_char_cols > 0)
@@ -728,17 +1028,34 @@ build_query_string(void)
   }
   for (col_count= 1; col_count <= num_char_cols; col_count++)
   {
-    sprintf(buf, "charcol%d", col_count);
+    if (snprintf(buf, HUGE_STRING_LENGTH, "charcol%d", col_count)
+        > HUGE_STRING_LENGTH)
+    {
+      fprintf(stderr, "Memory Allocation error in creating select\n");
+      exit(1);
+    }
     dynstr_append(&query_string, buf);
 
     if (col_count < num_char_cols)
       dynstr_append_mem(&query_string, ",", 1);
 
   }
-  dynstr_append_mem(&query_string, " FROM t1", 8);
-  ptr= (statement *)my_malloc(sizeof(statement), MYF(MY_ZEROFILL));
-  ptr->string= (char *)my_malloc(query_string.length+1, MYF(MY_WME));
+  dynstr_append(&query_string, " FROM t1");
+
+  if ((key) && 
+      (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary))
+    dynstr_append(&query_string, " WHERE id = ");
+
+  ptr= (statement *)my_malloc(sizeof(statement),
+                              MYF(MY_ZEROFILL|MY_FAE|MY_WME));
+  ptr->string= (char *)my_malloc(query_string.length + 1,
+                              MYF(MY_ZEROFILL|MY_FAE|MY_WME));
   ptr->length= query_string.length+1;
+  if ((key) && 
+      (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary))
+    ptr->type= SELECT_TYPE_REQUIRES_PREFIX;
+  else
+    ptr->type= SELECT_TYPE;
   strmov(ptr->string, query_string.str);
   dynstr_free(&query_string);
   DBUG_RETURN(ptr);
@@ -773,12 +1090,40 @@ get_options(int *argc,char ***argv)
       exit(1);
   }
 
-  parse_comma(concurrency_str ? concurrency_str : "1", &concurrency);
+  if (auto_generate_sql && auto_generate_sql_guid_primary && 
+      auto_generate_sql_autoincrement)
+  {
+      fprintf(stderr,
+              "%s: Either auto-generate-sql-guid-primary or auto-generate-sql-add-autoincrement can be used!\n",
+              my_progname);
+      exit(1);
+  }
 
-  if (lock_directory)
-    snprintf(lock_file_str, FN_REFLEN, "%s/%s", lock_directory, MYSLAPLOCK);
-  else
-    snprintf(lock_file_str, FN_REFLEN, "%s/%s", MYSLAPLOCK_DIR, MYSLAPLOCK);
+  /* 
+    We are testing to make sure that if someone specified a key search
+    that we actually added a key!
+  */
+  if (auto_generate_sql && auto_generate_sql_type[0] == 'k')
+    if ( auto_generate_sql_autoincrement == FALSE &&
+         auto_generate_sql_guid_primary == FALSE)
+    {
+      fprintf(stderr,
+              "%s: Can't perform key test without a primary key!\n",
+              my_progname);
+      exit(1);
+    }
+
+
+
+  if (auto_generate_sql && num_of_query && auto_actual_queries)
+  {
+      fprintf(stderr,
+              "%s: Either auto-generate-sql-execute-number or number-of-queries can be used!\n",
+              my_progname);
+      exit(1);
+  }
+
+  parse_comma(concurrency_str ? concurrency_str : "1", &concurrency);
 
   if (opt_csv_str)
   {
@@ -803,23 +1148,76 @@ get_options(int *argc,char ***argv)
   if (opt_only_print)
     opt_silent= TRUE;
 
+  if (num_int_cols_opt)
+  {
+    option_string *str;
+    parse_option(num_int_cols_opt, &str, ',');
+    num_int_cols= atoi(str->string);
+    if (str->option)
+      num_int_cols_index= atoi(str->option);
+    option_cleanup(str);
+  }
+
+  if (num_char_cols_opt)
+  {
+    option_string *str;
+    parse_option(num_char_cols_opt, &str, ',');
+    num_char_cols= atoi(str->string);
+    if (str->option)
+      num_char_cols_index= atoi(str->option);
+    else
+      num_char_cols_index= 0;
+    option_cleanup(str);
+  }
+
+
   if (auto_generate_sql)
   {
     unsigned long long x= 0;
     statement *ptr_statement;
 
+    if (verbose >= 2)
+      printf("Building Create Statements for Auto\n");
+
     create_statements= build_table_string();
+    /* 
+      Pre-populate table 
+    */
+    for (ptr_statement= create_statements, x= 0; 
+         x < auto_generate_sql_unique_write_number; 
+         x++, ptr_statement= ptr_statement->next)
+    {
+      ptr_statement->next= build_insert_string();
+    }
+
+    if (verbose >= 2)
+      printf("Building Query Statements for Auto\n");
 
     if (auto_generate_sql_type[0] == 'r')
     {
-      for (ptr_statement= create_statements, x= 0; 
-           x < auto_generate_sql_number; 
+      if (verbose >= 2)
+        printf("Generating SELECT Statements for Auto\n");
+
+      query_statements= build_select_string(FALSE);
+      for (ptr_statement= query_statements, x= 0; 
+           x < auto_generate_sql_unique_query_number; 
            x++, ptr_statement= ptr_statement->next)
       {
-        ptr_statement->next= build_insert_string();
+        ptr_statement->next= build_select_string(FALSE);
       }
+    }
+    else if (auto_generate_sql_type[0] == 'k')
+    {
+      if (verbose >= 2)
+        printf("Generating SELECT for keys Statements for Auto\n");
 
-      query_statements= build_query_string();
+      query_statements= build_select_string(TRUE);
+      for (ptr_statement= query_statements, x= 0; 
+           x < auto_generate_sql_unique_query_number; 
+           x++, ptr_statement= ptr_statement->next)
+      {
+        ptr_statement->next= build_select_string(TRUE);
+      }
     }
     else if (auto_generate_sql_type[0] == 'w')
     {
@@ -828,12 +1226,24 @@ get_options(int *argc,char ***argv)
         Archive (since strings which were identical one after another
         would be too easily optimized).
       */
+      if (verbose >= 2)
+        printf("Generating INSERT Statements for Auto\n");
       query_statements= build_insert_string();
       for (ptr_statement= query_statements, x= 0; 
-           x < auto_generate_sql_number; 
+           x < auto_generate_sql_unique_query_number; 
            x++, ptr_statement= ptr_statement->next)
       {
         ptr_statement->next= build_insert_string();
+      }
+    }
+    else if (auto_generate_sql_type[0] == 'u')
+    {
+      query_statements= build_update_string();
+      for (ptr_statement= query_statements, x= 0; 
+           x < auto_generate_sql_unique_query_number; 
+           x++, ptr_statement= ptr_statement->next)
+      {
+          ptr_statement->next= build_update_string();
       }
     }
     else /* Mixed mode is default */
@@ -846,7 +1256,7 @@ get_options(int *argc,char ***argv)
         at the moment it results in "every other".
       */
       for (ptr_statement= query_statements, x= 0; 
-           x < 4; 
+           x < auto_generate_sql_unique_query_number; 
            x++, ptr_statement= ptr_statement->next)
       {
         if (coin)
@@ -856,7 +1266,7 @@ get_options(int *argc,char ***argv)
         }
         else
         {
-          ptr_statement->next= build_query_string();
+          ptr_statement->next= build_select_string(TRUE);
           coin= 1;
         }
       }
@@ -878,12 +1288,13 @@ get_options(int *argc,char ***argv)
         fprintf(stderr,"%s: Could not open create file\n", my_progname);
         exit(1);
       }
-      tmp_string= (char *)my_malloc(sbuf.st_size+1, MYF(MY_WME));
+      tmp_string= (char *)my_malloc(sbuf.st_size + 1,
+                              MYF(MY_ZEROFILL|MY_FAE|MY_WME));
       my_read(data_file, tmp_string, sbuf.st_size, MYF(0));
       tmp_string[sbuf.st_size]= '\0';
       my_close(data_file,MYF(0));
       parse_delimiter(tmp_string, &create_statements, delimiter[0]);
-      my_free(tmp_string, MYF(0));
+      my_free((gptr)tmp_string, MYF(0));
     }
     else if (create_string)
     {
@@ -904,14 +1315,15 @@ get_options(int *argc,char ***argv)
         fprintf(stderr,"%s: Could not open query supplied file\n", my_progname);
         exit(1);
       }
-      tmp_string= (char *)my_malloc(sbuf.st_size+1, MYF(MY_WME));
+      tmp_string= (char *)my_malloc(sbuf.st_size + 1,
+                                    MYF(MY_ZEROFILL|MY_FAE|MY_WME));
       my_read(data_file, tmp_string, sbuf.st_size, MYF(0));
       tmp_string[sbuf.st_size]= '\0';
       my_close(data_file,MYF(0));
       if (user_supplied_query)
         actual_queries= parse_delimiter(tmp_string, &query_statements,
                                         delimiter[0]);
-      my_free(tmp_string, MYF(0));
+      my_free((gptr)tmp_string, MYF(0));
     } 
     else if (user_supplied_query)
     {
@@ -920,8 +1332,11 @@ get_options(int *argc,char ***argv)
     }
   }
 
+  if (verbose >= 2)
+    printf("Parsing engines to use.\n");
+
   if (default_engine)
-    parse_delimiter(default_engine, &engine_statements, ',');
+    parse_option(default_engine, &engine_options, ',');
 
   if (tty_password)
     opt_password= get_tty_password(NullS);
@@ -937,23 +1352,98 @@ static int run_query(MYSQL *mysql, const char *query, int len)
     return 0;
   }
 
-  if (verbose >= 2)
+  if (verbose >= 3)
     printf("%.*s;\n", len, query);
   return mysql_real_query(mysql, query, len);
 }
 
 
+static int
+generate_primary_key_list(MYSQL *mysql, option_string *engine_stmt)
+{
+  MYSQL_RES *result;
+  MYSQL_ROW row;
+  unsigned long long counter;
+  DBUG_ENTER("create_schema");
+
+  /* 
+    Blackhole is a special case, this allows us to test the upper end 
+    of the server during load runs.
+  */
+  if (opt_only_print || (engine_stmt && 
+                         strstr(engine_stmt->string, "blackhole")))
+  {
+    primary_keys_number_of= 1;
+    primary_keys= (char **)my_malloc((uint)(sizeof(char *) * 
+                                            primary_keys_number_of), 
+                                    MYF(MY_ZEROFILL|MY_FAE|MY_WME));
+    /* Yes, we strdup a const string to simplify the interface */
+    primary_keys[0]= my_strdup("796c4422-1d94-102a-9d6d-00e0812d", MYF(0)); 
+  }
+  else
+  {
+    if (run_query(mysql, "SELECT id from t1", strlen("SELECT id from t1")))
+    {
+      fprintf(stderr,"%s: Cannot select GUID primary keys. (%s)\n", my_progname,
+              mysql_error(mysql));
+      exit(1);
+    }
+
+    result= mysql_store_result(mysql);
+    primary_keys_number_of= mysql_num_rows(result);
+
+    /* So why check this? Blackhole :) */
+    if (primary_keys_number_of)
+    {
+      /*
+        We create the structure and loop and create the items.
+      */
+      primary_keys= (char **)my_malloc((uint)(sizeof(char *) * 
+                                              primary_keys_number_of), 
+                                       MYF(MY_ZEROFILL|MY_FAE|MY_WME));
+      row= mysql_fetch_row(result);
+      for (counter= 0; counter < primary_keys_number_of; 
+           counter++, row= mysql_fetch_row(result))
+        primary_keys[counter]= my_strdup(row[0], MYF(0));
+    }
+
+    mysql_free_result(result);
+  }
+
+  DBUG_RETURN(0);
+}
+
+static int
+drop_primary_key_list(void)
+{
+  unsigned long long counter;
+
+  if (primary_keys_number_of)
+  {
+    for (counter= 0; counter < primary_keys_number_of; counter++)
+      my_free((gptr)primary_keys[counter], MYF(0));
+
+    my_free((gptr)primary_keys, MYF(0));
+  }
+
+  return 0;
+}
 
 static int
 create_schema(MYSQL *mysql, const char *db, statement *stmt, 
-              statement *engine_stmt)
+              option_string *engine_stmt)
 {
   char query[HUGE_STRING_LENGTH];
   statement *ptr;
+  statement *after_create;
   int len;
+  ulonglong count;
   DBUG_ENTER("create_schema");
 
   len= snprintf(query, HUGE_STRING_LENGTH, "CREATE SCHEMA `%s`", db);
+
+  if (verbose >= 2)
+    printf("Loading Pre-data\n");
 
   if (run_query(mysql, query, len))
   {
@@ -968,8 +1458,9 @@ create_schema(MYSQL *mysql, const char *db, statement *stmt,
   }
   else
   {
-    if (verbose >= 2)
+    if (verbose >= 3)
       printf("%s;\n", query);
+
     if (mysql_select_db(mysql,  db))
     {
       fprintf(stderr,"%s: Cannot select schema '%s': %s\n",my_progname, db,
@@ -990,14 +1481,44 @@ create_schema(MYSQL *mysql, const char *db, statement *stmt,
     }
   }
 
-  for (ptr= stmt; ptr && ptr->length; ptr= ptr->next)
+  count= 0;
+  after_create= stmt;
+
+limit_not_met:
+  for (ptr= after_create; ptr && ptr->length; ptr= ptr->next, count++)
   {
-    if (run_query(mysql, ptr->string, ptr->length))
+    if (auto_generate_sql && ( auto_generate_sql_number == count))
+      break;
+
+    if (engine_stmt && engine_stmt->option && ptr->type == CREATE_TABLE_TYPE)
     {
-      fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
-              my_progname, (uint)ptr->length, ptr->string, mysql_error(mysql));
-      exit(1);
+      char buffer[HUGE_STRING_LENGTH];
+
+      snprintf(buffer, HUGE_STRING_LENGTH, "%s %s", ptr->string, 
+               engine_stmt->option);
+      if (run_query(mysql, buffer, strlen(buffer)))
+      {
+        fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
+                my_progname, (uint)ptr->length, ptr->string, mysql_error(mysql));
+        exit(1);
+      }
     }
+    else
+    {
+      if (run_query(mysql, ptr->string, ptr->length))
+      {
+        fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
+                my_progname, (uint)ptr->length, ptr->string, mysql_error(mysql));
+        exit(1);
+      }
+    }
+  }
+
+  if (auto_generate_sql && (auto_generate_sql_number > count ))
+  {
+    /* Special case for auto create, we don't want to create tables twice */
+    after_create= stmt->next;
+    goto limit_not_met;
   }
 
   DBUG_RETURN(0);
@@ -1026,134 +1547,63 @@ drop_schema(MYSQL *mysql, const char *db)
 static int
 run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
 {
-#ifndef __WIN__
   uint x;
-#endif
-  File lock_file;
   struct timeval start_time, end_time;
   thread_context con;
+  pthread_t mainthread;            /* Thread descriptor */
+  pthread_attr_t attr;          /* Thread attributes */
   DBUG_ENTER("run_scheduler");
 
   con.stmt= stmts;
   con.limit= limit;
-  con.thread= opt_use_threads ? 1 :0;
 
-  lock_file= my_open(lock_file_str, O_CREAT|O_WRONLY|O_TRUNC, MYF(0));
+  pthread_attr_init(&attr);
+  pthread_attr_setdetachstate(&attr,
+		  PTHREAD_CREATE_DETACHED);
 
-  if (!opt_slave)
-    if (my_lock(lock_file, F_WRLCK, 0, F_TO_EOF, MYF(0)))
+  pthread_mutex_lock(&counter_mutex);
+  thread_counter= 0;
+
+  pthread_mutex_lock(&sleeper_mutex);
+  master_wakeup= 1;
+  pthread_mutex_unlock(&sleeper_mutex);
+  for (x= 0; x < concur; x++)
+  {
+    /* nowucreate the thread */
+    if (pthread_create(&mainthread, &attr, run_task, 
+                       (void *)&con) != 0)
     {
-      fprintf(stderr,"%s: Could not get lockfile\n",
+      fprintf(stderr,"%s: Could not create thread\n",
               my_progname);
       exit(0);
     }
-
-#ifdef HAVE_LIBPTHREAD
-  if (opt_use_threads)
-  {
-    pthread_t mainthread;            /* Thread descriptor */
-    pthread_attr_t attr;          /* Thread attributes */
-
-    for (x= 0; x < concur; x++)
-    {
-      pthread_attr_init(&attr);
-      pthread_attr_setdetachstate(&attr,
-                                   PTHREAD_CREATE_DETACHED);
-
-      /* now create the thread */
-      if (pthread_create(&mainthread, &attr, (void *)run_task, 
-                         (void *)&con) != 0)
-      {
-        fprintf(stderr,"%s: Could not create thread\n",
-                my_progname);
-        exit(0);
-      }
-    }
+    thread_counter++;
   }
-#endif
-#if !(defined(__WIN__) || defined(__NETWARE__))
-#ifdef HAVE_LIBPTHREAD
-  else
-#endif
-  {
-    fflush(NULL);
-    for (x= 0; x < concur; x++)
-    {
-      int pid;
-      DBUG_PRINT("info", ("x: %d  concurrency: %u", x, *concurrency));
-      pid= fork();
-      switch(pid)
-      {
-      case 0:
-        /* child */
-        DBUG_PRINT("info", ("fork returned 0, calling task(\"%s\"), pid %d gid %d",
-                            stmts ? stmts->string : "", pid, getgid()));
-        if (verbose >= 2)
-          fprintf(stderr,
-                  "%s: fork returned 0, calling task pid %d gid %d\n",
-                  my_progname, pid, getgid());
-        run_task(&con);
-        exit(0);
-        break;
-      case -1:
-        /* error */
-        DBUG_PRINT("info",
-                   ("fork returned -1, failing pid %d gid %d", pid, getgid()));
-        fprintf(stderr,
-                "%s: Failed on fork: -1, max procs per parent exceeded.\n",
-                my_progname);
-        /*exit(1);*/
-        goto WAIT;
-      default:
-        /* parent, forked */
-        DBUG_PRINT("info", ("default, break: pid %d gid %d", pid, getgid()));
-        if (verbose >= 2)
-          fprintf(stderr,"%s: fork returned %d, gid %d\n",
-                  my_progname, pid, getgid());
-        break;
-      }
-    }
-  }
-#endif
+  pthread_mutex_unlock(&counter_mutex);
+  pthread_attr_destroy(&attr);
 
-  /* Lets release use some clients! */
-  if (!opt_slave)
-    my_lock(lock_file, F_UNLCK, 0, F_TO_EOF, MYF(0));
+  pthread_mutex_lock(&sleeper_mutex);
+  master_wakeup= 0;
+  pthread_mutex_unlock(&sleeper_mutex);
+  pthread_cond_broadcast(&sleep_threshhold);
 
   gettimeofday(&start_time, NULL);
 
   /*
-    We look to grab a write lock at this point. Once we get it we know that
-    all clients have completed their work.
+    We loop until we know that all children have cleaned up.
   */
-  if (opt_use_threads)
+  pthread_mutex_lock(&counter_mutex);
+  while (thread_counter)
   {
-    if (my_lock(lock_file, F_WRLCK, 0, F_TO_EOF, MYF(0)))
-    {
-      fprintf(stderr,"%s: Could not get lockfile\n",
-              my_progname);
-      exit(0);
-    }
-    my_lock(lock_file, F_UNLCK, 0, F_TO_EOF, MYF(0));
+    struct timespec abstime;
+
+    set_timespec(abstime, 3);
+    pthread_cond_timedwait(&count_threshhold, &counter_mutex, &abstime);
   }
-#ifndef __WIN__
-  else
-  {
-WAIT:
-    while (x--)
-    {
-      int status, pid;
-      pid= wait(&status);
-      DBUG_PRINT("info", ("Parent: child %d status %d", pid, status));
-      if (status != 0)
-        printf("%s: Child %d died with the status %d\n",
-               my_progname, pid, status);
-    }
-  }
-#endif
+  pthread_mutex_unlock(&counter_mutex);
+
   gettimeofday(&end_time, NULL);
 
-  my_close(lock_file, MYF(0));
 
   sptr->timing= timedif(end_time, start_time);
   sptr->users= concur;
@@ -1163,28 +1613,41 @@ WAIT:
 }
 
 
-int
-run_task(thread_context *con)
+pthread_handler_t run_task(void *p)
 {
   ulonglong counter= 0, queries;
-  File lock_file= -1;
   MYSQL *mysql;
   MYSQL_RES *result;
   MYSQL_ROW row;
   statement *ptr;
+  thread_context *con= (thread_context *)p;
 
   DBUG_ENTER("run_task");
   DBUG_PRINT("info", ("task script \"%s\"", con->stmt ? con->stmt->string : ""));
 
-  if (!(mysql= mysql_init(NULL)))
-    goto end;
+  pthread_mutex_lock(&sleeper_mutex);
+  while (master_wakeup)
+  {
+    pthread_cond_wait(&sleep_threshhold, &sleeper_mutex);
+  }
+  pthread_mutex_unlock(&sleeper_mutex);
 
-  if (con->thread && mysql_thread_init())
-    goto end;
+  if (!(mysql= mysql_init(NULL)))
+  {
+    fprintf(stderr,"%s: mysql_init() failed ERROR : %s\n",
+            my_progname, mysql_error(mysql));
+    exit(0);
+  }
+
+  if (mysql_thread_init())
+  {
+    fprintf(stderr,"%s: mysql_thread_init() failed ERROR : %s\n",
+            my_progname, mysql_error(mysql));
+    exit(0);
+  }
 
   DBUG_PRINT("info", ("trying to connect to host %s as user %s", host, user));
-  lock_file= my_open(lock_file_str, O_RDWR, MYF(0));
-  my_lock(lock_file, F_RDLCK, 0, F_TO_EOF, MYF(0));
+
   if (!opt_only_print)
   {
     /* Connect to server */
@@ -1213,18 +1676,59 @@ run_task(thread_context *con)
   }
   DBUG_PRINT("info", ("connected."));
   if (verbose >= 3)
-    fprintf(stderr, "connected!\n");
+    printf("connected!\n");
   queries= 0;
 
 limit_not_met:
     for (ptr= con->stmt; ptr && ptr->length; ptr= ptr->next)
     {
-      if (run_query(mysql, ptr->string, ptr->length))
+      /* 
+        We have to execute differently based on query type. This should become a function.
+      */
+      if ((ptr->type == UPDATE_TYPE_REQUIRES_PREFIX) ||
+          (ptr->type == SELECT_TYPE_REQUIRES_PREFIX))
       {
-        fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
-                my_progname, (uint)ptr->length, ptr->string, mysql_error(mysql));
-        goto end;
+        int length;
+        unsigned int key_val;
+        char *key;
+        char buffer[HUGE_STRING_LENGTH];
+
+        /* 
+          This should only happen if some sort of new engine was
+          implemented that didn't properly handle UPDATEs.
+
+          Just in case someone runs this under an experimental engine we don't
+          want a crash so the if() is placed here.
+        */
+        DBUG_ASSERT(primary_keys_number_of);
+        if (primary_keys_number_of)
+        {
+          key_val= (unsigned int)(random() % primary_keys_number_of);
+          key= primary_keys[key_val];
+
+          DBUG_ASSERT(key);
+
+          length= snprintf(buffer, HUGE_STRING_LENGTH, "%.*s '%s'", 
+                           (int)ptr->length, ptr->string, key);
+
+          if (run_query(mysql, buffer, length))
+          {
+            fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
+                    my_progname, (uint)length, buffer, mysql_error(mysql));
+            exit(0);
+          }
+        }
       }
+      else
+      {
+        if (run_query(mysql, ptr->string, ptr->length))
+        {
+          fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
+                  my_progname, (uint)ptr->length, ptr->string, mysql_error(mysql));
+          exit(0);
+        }
+      }
+
       if (mysql_field_count(mysql))
       {
         result= mysql_store_result(mysql);
@@ -1243,18 +1747,95 @@ limit_not_met:
 
 end:
 
-  if (lock_file != -1)
-  {
-    my_lock(lock_file, F_UNLCK, 0, F_TO_EOF, MYF(0));
-    my_close(lock_file, MYF(0));
-  }
-
   if (!opt_only_print) 
     mysql_close(mysql);
 
-  if (con->thread)
-    my_thread_end();
+  my_thread_end();
+
+  pthread_mutex_lock(&counter_mutex);
+  thread_counter--;
+  pthread_cond_signal(&count_threshhold);
+  pthread_mutex_unlock(&counter_mutex);
+
   DBUG_RETURN(0);
+}
+
+uint
+parse_option(const char *origin, option_string **stmt, char delm)
+{
+  char *retstr;
+  char *ptr= (char *)origin;
+  option_string **sptr= stmt;
+  option_string *tmp;
+  uint length= strlen(origin);
+  uint count= 0; /* We know that there is always one */
+
+  for (tmp= *sptr= (option_string *)my_malloc(sizeof(option_string),
+                                          MYF(MY_ZEROFILL|MY_FAE|MY_WME));
+       (retstr= strchr(ptr, delm)); 
+       tmp->next=  (option_string *)my_malloc(sizeof(option_string),
+                                          MYF(MY_ZEROFILL|MY_FAE|MY_WME)),
+       tmp= tmp->next)
+  {
+    char buffer[HUGE_STRING_LENGTH];
+    char *buffer_ptr;
+
+    count++;
+    strncpy(buffer, ptr, (size_t)(retstr - ptr));
+    if ((buffer_ptr= strchr(buffer, ':')))
+    {
+      char *option_ptr;
+
+      tmp->length= (size_t)(buffer_ptr - buffer);
+      tmp->string= my_strndup(ptr, (uint)tmp->length, MYF(MY_FAE));
+
+      option_ptr= ptr + 1 + tmp->length;
+
+      /* Move past the : and the first string */
+      tmp->option_length= (size_t)(retstr - option_ptr);
+      tmp->option= my_strndup(option_ptr, (uint)tmp->option_length,
+                              MYF(MY_FAE));
+    }
+    else
+    {
+      tmp->string= my_strndup(ptr, (size_t)(retstr - ptr), MYF(MY_FAE));
+      tmp->length= (size_t)(retstr - ptr);
+    }
+
+    ptr+= retstr - ptr + 1;
+    if (isspace(*ptr))
+      ptr++;
+    count++;
+  }
+
+  if (ptr != origin+length)
+  {
+    char *origin_ptr;
+
+    if ((origin_ptr= strchr(ptr, ':')))
+    {
+      char *option_ptr;
+
+      tmp->length= (size_t)(origin_ptr - ptr);
+      tmp->string= my_strndup(origin, tmp->length, MYF(MY_FAE));
+
+      option_ptr= (char *)ptr + 1 + tmp->length;
+
+      /* Move past the : and the first string */
+      tmp->option_length= (size_t)((ptr + length) - option_ptr);
+      tmp->option= my_strndup(option_ptr, tmp->option_length,
+                              MYF(MY_FAE));
+    }
+    else
+    {
+      tmp->length= (size_t)((ptr + length) - ptr);
+      tmp->string= my_strndup(ptr, tmp->length, MYF(MY_FAE));
+    }
+
+    count++;
+  }
+
+  return count;
 }
 
 
@@ -1268,13 +1849,15 @@ parse_delimiter(const char *script, statement **stmt, char delm)
   uint length= strlen(script);
   uint count= 0; /* We know that there is always one */
 
-  for (tmp= *sptr= (statement *)my_malloc(sizeof(statement), MYF(MY_ZEROFILL));
+  for (tmp= *sptr= (statement *)my_malloc(sizeof(statement),
+                                          MYF(MY_ZEROFILL|MY_FAE|MY_WME));
        (retstr= strchr(ptr, delm)); 
-       tmp->next=  (statement *)my_malloc(sizeof(statement), MYF(MY_ZEROFILL)),
+       tmp->next=  (statement *)my_malloc(sizeof(statement),
+                                          MYF(MY_ZEROFILL|MY_FAE|MY_WME)),
        tmp= tmp->next)
   {
     count++;
-    tmp->string= my_strndup(ptr, (size_t)(retstr - ptr), MYF(MY_FAE));
+    tmp->string= my_strndup(ptr, (uint)(retstr - ptr), MYF(MY_FAE));
     tmp->length= (size_t)(retstr - ptr);
     ptr+= retstr - ptr + 1;
     if (isspace(*ptr))
@@ -1284,7 +1867,7 @@ parse_delimiter(const char *script, statement **stmt, char delm)
 
   if (ptr != script+length)
   {
-    tmp->string= my_strndup(ptr, (size_t)((script + length) - ptr), 
+    tmp->string= my_strndup(ptr, (uint)((script + length) - ptr), 
                                        MYF(MY_FAE));
     tmp->length= (size_t)((script + length) - ptr);
     count++;
@@ -1306,7 +1889,8 @@ parse_comma(const char *string, uint **range)
     if (*ptr == ',') count++;
   
   /* One extra spot for the NULL */
-  nptr= *range= (uint *)my_malloc(sizeof(uint) * (count + 1), MYF(MY_ZEROFILL));
+  nptr= *range= (uint *)my_malloc(sizeof(uint) * (count + 1), 
+                                  MYF(MY_ZEROFILL|MY_FAE|MY_WME));
 
   ptr= (char *)string;
   x= 0;
@@ -1341,23 +1925,25 @@ void
 print_conclusions_csv(conclusions *con)
 {
   char buffer[HUGE_STRING_LENGTH];
+  const char *ptr= auto_generate_sql_type ? auto_generate_sql_type : "query";
   snprintf(buffer, HUGE_STRING_LENGTH, 
-           "%s,query,%ld.%03ld,%ld.%03ld,%ld.%03ld,%d,%llu\n",
+           "%s,%s,%ld.%03ld,%ld.%03ld,%ld.%03ld,%d,%llu\n",
            con->engine ? con->engine : "", /* Storage engine we ran against */
+           ptr, /* Load type */
            con->avg_timing / 1000, con->avg_timing % 1000, /* Time to load */
            con->min_timing / 1000, con->min_timing % 1000, /* Min time */
            con->max_timing / 1000, con->max_timing % 1000, /* Max time */
            con->users, /* Children used */
            con->avg_rows  /* Queries run */
           );
-  my_write(csv_file, buffer, strlen(buffer), MYF(0));
+  my_write(csv_file, buffer, (uint)strlen(buffer), MYF(0));
 }
 
 void
-generate_stats(conclusions *con, statement *eng, stats *sptr)
+generate_stats(conclusions *con, option_string *eng, stats *sptr)
 {
   stats *ptr;
-  int x;
+  unsigned int x;
 
   con->min_timing= sptr->timing; 
   con->max_timing= sptr->timing;
@@ -1387,6 +1973,24 @@ generate_stats(conclusions *con, statement *eng, stats *sptr)
 }
 
 void
+option_cleanup(option_string *stmt)
+{
+  option_string *ptr, *nptr;
+  if (!stmt)
+    return;
+
+  for (ptr= stmt; ptr; ptr= nptr)
+  {
+    nptr= ptr->next;
+    if (ptr->string)
+      my_free((gptr)ptr->string, MYF(0)); 
+    if (ptr->option)
+      my_free((gptr)ptr->option, MYF(0)); 
+    my_free((gptr)(byte *)ptr, MYF(0));
+  }
+}
+
+void
 statement_cleanup(statement *stmt)
 {
   statement *ptr, *nptr;
@@ -1397,7 +2001,7 @@ statement_cleanup(statement *stmt)
   {
     nptr= ptr->next;
     if (ptr->string)
-      my_free(ptr->string, MYF(0)); 
-    my_free((byte *)ptr, MYF(0));
+      my_free((gptr)ptr->string, MYF(0)); 
+    my_free((gptr)(byte *)ptr, MYF(0));
   }
 }
