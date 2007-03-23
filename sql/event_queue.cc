@@ -138,7 +138,7 @@ Event_queue::init_queue(THD *thd)
                     0 /*max_on_top*/, event_queue_element_compare_q,
                     NULL, EVENT_QUEUE_EXTENT))
   {
-    sql_print_error("SCHEDULER: Can't initialize the execution queue");
+    sql_print_error("Event Scheduler: Can't initialize the execution queue");
     goto err;
   }
 
@@ -453,7 +453,8 @@ Event_queue::empty_queue()
   uint i;
   DBUG_ENTER("Event_queue::empty_queue");
   DBUG_PRINT("enter", ("Purging the queue. %u element(s)", queue.elements));
-  sql_print_information("SCHEDULER: Purging queue. %u events", queue.elements);
+  sql_print_information("Event Scheduler: Purging the queue. %u events",
+                        queue.elements);
   /* empty the queue */
   for (i= 0; i < queue.elements; ++i)
   {
@@ -586,7 +587,7 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
     if (top->status == Event_queue_element::DISABLED)
     {
       DBUG_PRINT("info", ("removing from the queue"));
-      sql_print_information("SCHEDULER: Last execution of %s.%s. %s",
+      sql_print_information("Event Scheduler: Last execution of %s.%s. %s",
                             top->dbname.str, top->name.str,
                             top->dropped? "Dropping.":"");
       delete top;
