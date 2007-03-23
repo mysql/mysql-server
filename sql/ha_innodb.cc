@@ -6066,6 +6066,15 @@ ha_innobase::external_lock(
 		        trx->isolation_level = innobase_map_isolation_level(
 						(enum_tx_isolation)
 						thd->variables.tx_isolation);
+
+	                      if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
+				  && trx->global_read_view) {
+
+				/* At low transaction isolation levels we let
+				each consistent read set its own snapshot */
+
+				read_view_close_for_mysql(trx);
+                        }
 		}
 
 		if (trx->isolation_level == TRX_ISO_SERIALIZABLE
