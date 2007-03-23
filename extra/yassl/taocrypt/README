@@ -1,4 +1,15 @@
-TaoCrypt release 0.9.0   09/18/2006
+TaoCrypt release 0.9.2   02/5/2007
+
+
+This release includes bug fixes, portability enhancements, and some 
+optimiations.
+
+See 0.9.0 for build instructions.
+
+
+
+
+******************TaoCrypt release 0.9.0   09/18/2006
 
 This is the first release of TaoCrypt, it was previously only included with
 yaSSL. TaoCrypt is highly portable and fast, its features include:
