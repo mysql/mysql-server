@@ -147,7 +147,8 @@ static bool end_active_trans(THD *thd)
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (ha_commit(thd))
       error=1;
-    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+    thd->options&= ~(ulong) OPTION_BEGIN;
+    thd->no_trans_update.all= FALSE;
   }
   DBUG_RETURN(error);
 }
@@ -171,8 +172,8 @@ static bool begin_trans(THD *thd)
   else
   {
     LEX *lex= thd->lex;
-    thd->options= ((thd->options & (ulong) ~(OPTION_STATUS_NO_TRANS_UPDATE)) |
-		   OPTION_BEGIN);
+    thd->no_trans_update.all= FALSE;
+    thd->options|= (ulong) OPTION_BEGIN;
     thd->server_status|= SERVER_STATUS_IN_TRANS;
     if (lex->start_transaction_opt & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT)
       error= ha_start_consistent_snapshot(thd);
@@ -1463,7 +1464,8 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
     */
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     res= ha_commit(thd);
-    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+    thd->options&= ~(ulong) OPTION_BEGIN;
+    thd->no_trans_update.all= FALSE;
     break;
   case COMMIT_RELEASE:
     do_release= 1; /* fall through */
@@ -1480,7 +1482,8 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (ha_rollback(thd))
       res= -1;
-    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+    thd->options&= ~(ulong) OPTION_BEGIN;
+    thd->no_trans_update.all= FALSE;
     if (!res && (completion == ROLLBACK_AND_CHAIN))
       res= begin_trans(thd);
     break;
@@ -2933,7 +2936,7 @@ mysql_execute_command(THD *thd)
     else 
     {
       /* So that CREATE TEMPORARY TABLE gets to binlog at commit/rollback */
-      thd->options|= OPTION_STATUS_NO_TRANS_UPDATE;
+      thd->no_trans_update.all= TRUE;
     }
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     bool link_to_local;
@@ -3707,10 +3710,10 @@ end_with_restore_list:
 	we silently add IF EXISTS if TEMPORARY was used.
       */
       if (thd->slave_thread)
-	lex->drop_if_exists= 1;
+        lex->drop_if_exists= 1;
 
       /* So that DROP TEMPORARY TABLE gets to binlog at commit/rollback */
-      thd->options|= OPTION_STATUS_NO_TRANS_UPDATE;
+      thd->no_trans_update.all= TRUE;
     }
     /* DDL and binlog write order protected by LOCK_open */
     res= mysql_rm_table(thd, first_table, lex->drop_if_exists,
@@ -4296,7 +4299,7 @@ end_with_restore_list:
         res= TRUE; // cannot happen
       else
       {
-        if ((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) &&
+        if (thd->no_trans_update.all &&
             !thd->slave_thread)
           push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                        ER_WARNING_NOT_COMPLETE_ROLLBACK,
@@ -4939,8 +4942,8 @@ create_sp_error:
     thd->transaction.xid_state.xa_state=XA_ACTIVE;
     thd->transaction.xid_state.xid.set(thd->lex->xid);
     xid_cache_insert(&thd->transaction.xid_state);
-    thd->options= ((thd->options & (ulong) ~(OPTION_STATUS_NO_TRANS_UPDATE)) |
-                   OPTION_BEGIN);
+    thd->no_trans_update.all= FALSE;
+    thd->options|= (ulong) OPTION_BEGIN;
     thd->server_status|= SERVER_STATUS_IN_TRANS;
     send_ok(thd);
     break;
@@ -5033,7 +5036,8 @@ create_sp_error:
                xa_state_names[thd->transaction.xid_state.xa_state]);
       break;
     }
-    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+    thd->options&= ~(ulong) OPTION_BEGIN;
+    thd->no_trans_update.all= FALSE;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     xid_cache_delete(&thd->transaction.xid_state);
     thd->transaction.xid_state.xa_state=XA_NOTR;
@@ -5063,7 +5067,8 @@ create_sp_error:
       my_error(ER_XAER_RMERR, MYF(0));
     else
       send_ok(thd);
-    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+    thd->options&= ~(ulong) OPTION_BEGIN;
+    thd->no_trans_update.all= FALSE;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     xid_cache_delete(&thd->transaction.xid_state);
     thd->transaction.xid_state.xa_state=XA_NOTR;
