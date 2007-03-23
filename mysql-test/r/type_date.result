@@ -110,3 +110,29 @@ select 1 from t1 where cast('2000-01-01 12:01:01' as datetime) between start_dat
 1
 1
 drop table t1;
+select @d:=1111, year(@d), month(@d), day(@d), cast(@d as date);
+@d:=1111	year(@d)	month(@d)	day(@d)	cast(@d as date)
+1111	2000	11	11	2000-11-11
+select @d:=011111, year(@d), month(@d), day(@d), cast(@d as date);
+@d:=011111	year(@d)	month(@d)	day(@d)	cast(@d as date)
+11111	2001	11	11	2001-11-11
+select @d:=1311, year(@d), month(@d), day(@d), cast(@d as date);
+@d:=1311	year(@d)	month(@d)	day(@d)	cast(@d as date)
+1311	NULL	NULL	NULL	NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '1311'
+Warning	1292	Incorrect datetime value: '1311'
+Warning	1292	Incorrect datetime value: '1311'
+Warning	1292	Incorrect datetime value: '1311'
+create table t1 (d  date , dt datetime , ts timestamp);
+insert into t1 values (9912101,9912101,9912101);
+Warnings:
+Warning	1264	Out of range value for column 'd' at row 1
+Warning	1264	Out of range value for column 'dt' at row 1
+Warning	1265	Data truncated for column 'ts' at row 1
+insert into t1 values (11111,11111,11111);
+select * from t1;
+d	dt	ts
+0000-00-00	0000-00-00 00:00:00	0000-00-00 00:00:00
+2001-11-11	2001-11-11 00:00:00	2001-11-11 00:00:00
+drop table t1;
