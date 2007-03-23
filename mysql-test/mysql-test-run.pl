@@ -3663,8 +3663,16 @@ sub mysqld_arguments ($$$$) {
 
   if ( $mysql_version_id >= 50036)
   {
-    # Prevent the started mysqld to access files outside of vardir
-    mtr_add_arg($args, "%s--secure-file-priv=%s", $prefix, $opt_vardir);
+    # By default, prevent the started mysqld to access files outside of vardir
+    my $secure_file_dir= $opt_vardir;
+    if ( $opt_suite ne "main" )
+    {
+      # When running a suite other than default allow the mysqld
+      # access to subdirs of mysql-test/ in order to make it possible
+      # to "load data" from the suites data/ directory.
+      $secure_file_dir= $glob_mysql_test_dir;
+    }
+    mtr_add_arg($args, "%s--secure-file-priv=%s", $prefix, $secure_file_dir);
   }
 
   if ( $mysql_version_id >= 50000 )
