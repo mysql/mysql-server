@@ -1822,14 +1822,14 @@ srv_export_innodb_status(void)
         export_vars.innodb_pages_written= buf_pool->n_pages_written;
         export_vars.innodb_row_lock_waits= srv_n_lock_wait_count;
         export_vars.innodb_row_lock_current_waits= srv_n_lock_wait_current_count;
-        export_vars.innodb_row_lock_time= srv_n_lock_wait_time / 10000;
+        export_vars.innodb_row_lock_time= srv_n_lock_wait_time / 1000;
 	if (srv_n_lock_wait_count > 0) {
 		export_vars.innodb_row_lock_time_avg = (ulint)
-			(srv_n_lock_wait_time / 10000 / srv_n_lock_wait_count);
+			(srv_n_lock_wait_time / 1000 / srv_n_lock_wait_count);
 	} else {
 		export_vars.innodb_row_lock_time_avg = 0;
 	}
-        export_vars.innodb_row_lock_time_max= srv_n_lock_max_wait_time / 10000;
+        export_vars.innodb_row_lock_time_max= srv_n_lock_max_wait_time / 1000;
         export_vars.innodb_rows_read= srv_n_rows_read;
         export_vars.innodb_rows_inserted= srv_n_rows_inserted;
         export_vars.innodb_rows_updated= srv_n_rows_updated;
