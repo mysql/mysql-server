@@ -3390,7 +3390,7 @@ void Integer::DivideByPowerOf2(Integer &r, Integer &q, const Integer &a,
         CopyWords(r.reg_.get_buffer(), a.reg_.get_buffer(), wordCount);
         SetWords(r.reg_+wordCount, 0, r.reg_.size()-wordCount);
         if (n % WORD_BITS != 0)
-            r.reg_[wordCount-1] %= (1 << (n % WORD_BITS));
+          r.reg_[wordCount-1] %= (word(1) << (n % WORD_BITS));
     }
     else
     {
