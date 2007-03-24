@@ -2085,7 +2085,7 @@ void st_table_list::hide_view_error(THD *thd)
       thd->net.last_errno == ER_NO_SUCH_TABLE)
   {
     TABLE_LIST *top= top_table();
-    thd->clear_error();
+    thd->clear_error(); 
     my_error(ER_VIEW_INVALID, MYF(0), top->view_db.str, top->view_name.str);
   }
   else if (thd->net.last_errno == ER_NO_DEFAULT_FOR_FIELD)
@@ -2441,7 +2441,8 @@ bool st_table_list::prepare_view_securety_context(THD *thd)
                                 definer.host.str,
                                 thd->db))
     {
-      if (thd->lex->sql_command == SQLCOM_SHOW_CREATE)
+      if ((thd->lex->sql_command == SQLCOM_SHOW_CREATE) ||
+          (thd->lex->sql_command == SQLCOM_SHOW_FIELDS))
       {
         push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, 
                             ER_NO_SUCH_USER, 

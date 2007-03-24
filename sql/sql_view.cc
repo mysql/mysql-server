@@ -1018,6 +1018,11 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     CHARSET_INFO *save_cs= thd->variables.character_set_client;
     thd->variables.character_set_client= system_charset_info;
     res= MYSQLparse((void *)thd);
+
+    if ((old_lex->sql_command == SQLCOM_SHOW_FIELDS) ||
+        (old_lex->sql_command == SQLCOM_SHOW_CREATE))
+        lex->sql_command= old_lex->sql_command;
+
     thd->variables.character_set_client= save_cs;
     thd->variables.sql_mode= save_mode;
   }
@@ -1043,7 +1048,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       }
     }
     else if (!table->prelocking_placeholder &&
-             old_lex->sql_command == SQLCOM_SHOW_CREATE &&
+             (old_lex->sql_command == SQLCOM_SHOW_CREATE) &&
              !table->belong_to_view)
     {
       if (check_table_access(thd, SHOW_VIEW_ACL, table, 0))
