@@ -4320,7 +4320,7 @@ create_sp_error:
 
     if ((err_code= drop_server(thd, &lex->server_options)))
     {
-      if (! lex->drop_if_exists && err_code == ER_FOREIGN_SERVER_EXISTS)
+      if (! lex->drop_if_exists && err_code == ER_FOREIGN_SERVER_DOESNT_EXIST)
       {
         DBUG_PRINT("info", ("problem dropping server %s",
                             lex->server_options.server_name));

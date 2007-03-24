@@ -234,4 +234,39 @@ drop server 's1';
 
 --echo # End of 5.1 tests
 
+
+#
+# Bug#25721 - deadlock with ALTER/CREATE SERVER
+#
+connect (other,localhost,root,,);
+connection master;
+use test;
+delimiter //;
+create procedure p1 ()
+begin
+  DECLARE v INT DEFAULT 0;
+  DECLARE e INT DEFAULT 0;
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET e = e + 1;
+  WHILE v < 10000 do
+    CREATE SERVER s
+      FOREIGN DATA WRAPPER mysql
+      OPTIONS (USER 'Remote', HOST '192.168.1.106', DATABASE 'test');
+    ALTER SERVER s OPTIONS (USER 'Remote');
+	DROP SERVER s;
+    SET v = v + 1;
+  END WHILE;
+  SELECT e > 0;
+END//
+delimiter ;//
+connection other;
+use test;
+send call p1();
+connection master;
+call p1();
+connection other;
+reap;
+drop procedure p1;
+drop server if exists s;
+
+
 source include/federated_cleanup.inc;
