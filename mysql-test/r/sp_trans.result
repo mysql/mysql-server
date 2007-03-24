@@ -534,7 +534,6 @@ drop function if exists bug23333|
 drop table if exists t1,t2|
 CREATE TABLE t1 (a int  NOT NULL auto_increment primary key) ENGINE=MyISAM|
 CREATE TABLE t2 (a int  NOT NULL auto_increment, b int, PRIMARY KEY (a)) ENGINE=InnoDB|
-reset master|
 insert into t2 values (1,1)|
 create function bug23333() 
 RETURNS int(11)
@@ -544,20 +543,11 @@ insert into t1 values (null);
 select count(*) from t1 into @a;
 return @a;
 end|
+reset master|
 insert into t2 values (bug23333(),1)|
 ERROR 23000: Duplicate entry '1' for key 1
-show binlog events from 98 /* must show the insert */|
+show binlog events from 98 /* with fixes for #23333 will show there is the query */|
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	1	#	use `test`; insert into t2 values (1,1)
-master-bin.000001	#	Xid	1	#	COMMIT /* xid=1165 */
-master-bin.000001	#	Query	1	#	use `test`; CREATE DEFINER=`root`@`localhost` function bug23333() 
-RETURNS int(11)
-DETERMINISTIC
-begin
-insert into t1 values (null);
-select count(*) from t1 into @a;
-return @a;
-end
 select count(*),@a from t1 /* must be 1,1 */|
 count(*)	@a
 1	1
