@@ -580,7 +580,8 @@ end|
 
 --error ER_DUP_ENTRY
 insert into t2 values (bug23333(),1)| 
-show binlog events /* must show the insert */|
+--replace_column 2 # 5 #
+show binlog events from 98 /* must show the insert */|
 select count(*),@a from t1 /* must be 1,1 */|
 
 #
