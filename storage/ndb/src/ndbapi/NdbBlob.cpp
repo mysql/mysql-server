@@ -170,16 +170,17 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
   } else {
     {
       // table PK attributes
-      uint i;
       const uint columns = t->m_columns.size();
-      unsigned n = t->m_noOfKeys;
-      assert(n != 0);
-      for (i = 0; i < columns && n != 0; i++) {
+      const uint noOfKeys = t->m_noOfKeys;
+      uint n = 0;
+      uint i;
+      for (i = 0; n < noOfKeys; i++) {
+        assert(i < columns);
         NdbColumnImpl* c = t->m_columns[i];
         assert(c != NULL);
         if (c->m_pk) {
           bt.addColumn(*c);
-          n--;
+          n++;
         }
       }
     }
@@ -193,7 +194,12 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
     { NdbDictionary::Column bc("NDB$PART");
       bc.setType(NdbDictionary::Column::Unsigned);
       bc.setPrimaryKey(true);
-      bc.setDistributionKey(false);
+      /*
+       * Cannot allow partial distribution key now because
+       * primary table PK may contain unsupported types.
+       * Must be fixed.  All PK types must be supported.
+       */
+      bc.setDistributionKey(true);
       bt.addColumn(bc);
     }
     // in V2 add id sequence for use in blob event code
@@ -310,6 +316,7 @@ NdbBlob::init()
   theBlobEventPkRecAttr = NULL;
   theBlobEventDistRecAttr = NULL;
   theBlobEventPartRecAttr = NULL;
+  theBlobEventPkidRecAttr = NULL;
   theBlobEventDataRecAttr = NULL;
   theTable = NULL;
   theAccessTable = NULL;
@@ -700,7 +707,8 @@ NdbBlob::setTableKeyValue(NdbOperation* anOp)
   uint n = 0;
   const uint noOfKeys = theTable->m_noOfKeys;
   unsigned pos = 0;
-  for (unsigned i = 0; i < columns && n < noOfKeys; i++) {
+  for (unsigned i = 0;  n < noOfKeys; i++) {
+    assert(i < columns);
     NdbColumnImpl* c = theTable->m_columns[i];
     assert(c != NULL);
     if (c->m_pk) {
@@ -715,8 +723,10 @@ NdbBlob::setTableKeyValue(NdbOperation* anOp)
       n++;
     }
   }
+#if wl3717_todo // decide partition stuff later
   if (theNdbOp->theDistrKeyIndicator_)
     anOp->setPartitionId(theNdbOp->getPartitionId());
+#endif
   assert(pos == theKeyBuf.size / 4);
   DBUG_RETURN(0);
 }
@@ -1203,6 +1213,8 @@ NdbBlob::readDataPrivate(char* buf, Uint32& bytes)
          *
          * Suggested fix is a new getValue() method which
          * returns length bytes and data into separate buffers.
+         *
+         * Reading event data must be adjusted similarly.
          */
         for (unsigned i = 0; i < count; i++) {
           if (readParts(thePartBuf.data, part + i, 1) == -1)
@@ -1757,7 +1769,7 @@ NdbBlob::atPrepare(NdbEventOperationImpl* anOp, NdbEventOperationImpl* aBlobOp, 
   // tinyblob sanity
   assert((theBlobEventOp == NULL) == (theBlobTable == NULL));
   // extra buffers
-  theBlobEventDataBuf.alloc(thePartSize);
+  theBlobEventDataBuf.alloc(theVarsizeBytes + thePartSize);
   // prepare receive of head+inline
   theHeadInlineRecAttr = theEventOp->getValue(aColumn, theHeadInlineBuf.data, version);
   if (theHeadInlineRecAttr == NULL) {
@@ -1766,20 +1778,79 @@ NdbBlob::atPrepare(NdbEventOperationImpl* anOp, NdbEventOperationImpl* aBlobOp, 
   }
   // prepare receive of blob part
   if (theBlobEventOp != NULL) {
-    if ((theBlobEventPkRecAttr =
-           theBlobEventOp->getValue(theBlobTable->getColumn((Uint32)0),
-                                    thePackKeyBuf.data, version)) == NULL ||
-        (theBlobEventDistRecAttr =
-           theBlobEventOp->getValue(theBlobTable->getColumn((Uint32)1),
-                                    (char*)0, version)) == NULL ||
-        (theBlobEventPartRecAttr =
-           theBlobEventOp->getValue(theBlobTable->getColumn((Uint32)2),
-                                    (char*)&thePartNumber, version)) == NULL ||
-        (theBlobEventDataRecAttr =
-           theBlobEventOp->getValue(theBlobTable->getColumn((Uint32)3),
-                                    theBlobEventDataBuf.data, version)) == NULL) {
-      setErrorCode(theBlobEventOp);
-      DBUG_RETURN(-1);
+    const NdbColumnImpl* bc;
+    char* buf;
+    // one must subscribe to all primary keys
+    if (unlikely(theBlobVersion == NDB_BLOB_V1)) {
+      bc = theBlobTable->getColumn(theBtColumnNo[BtColumnPk]);
+      buf = thePackKeyBuf.data;
+      theBlobEventPkRecAttr = theBlobEventOp->getValue(bc, buf, version);
+      //
+      bc = theBlobTable->getColumn(theBtColumnNo[BtColumnDist]);
+      buf = (char*)&theBlobEventDistValue;
+      theBlobEventDistRecAttr = theBlobEventOp->getValue(bc, buf, version);
+      //
+      bc = theBlobTable->getColumn(theBtColumnNo[BtColumnPart]);
+      buf = (char*)&theBlobEventPartValue;
+      theBlobEventPartRecAttr = theBlobEventOp->getValue(bc, buf, version);
+      //
+      bc = theBlobTable->getColumn(theBtColumnNo[BtColumnData]);
+      buf = theBlobEventDataBuf.data;
+      theBlobEventDataRecAttr = theBlobEventOp->getValue(bc, buf, version);
+      if (unlikely(
+            theBlobEventPkRecAttr == NULL ||
+            theBlobEventDistRecAttr == NULL ||
+            theBlobEventPartRecAttr == NULL ||
+            theBlobEventDataRecAttr == NULL
+         )) {
+        setErrorCode(theBlobEventOp);
+        DBUG_RETURN(-1);
+      }
+    } else {
+      const uint columns = theTable->m_columns.size();
+      const uint noOfKeys = theTable->m_noOfKeys;
+      uint n = 0;
+      uint i;
+      for (i = 0; n < noOfKeys; i++) {
+        assert(i < columns);
+        const NdbColumnImpl* c = theTable->m_columns[i];
+        assert(c != NULL);
+        if (c->m_pk) {
+          bc = theBlobTable->m_columns[n];
+          assert(bc != NULL && bc->m_pk);
+          NdbRecAttr* ra;
+          ra = theBlobEventOp->getValue(bc, (char*)0, version);
+          if (unlikely(ra == NULL)) {
+            setErrorCode(theBlobEventOp);
+            DBUG_RETURN(-1);
+          }
+          n++;
+        }
+      }
+      bc = theBlobTable->getColumn(theBtColumnNo[BtColumnDist]);
+      buf = (char*)&theBlobEventDistValue;
+      theBlobEventDistRecAttr = theBlobEventOp->getValue(bc, buf, version);
+      //
+      bc = theBlobTable->getColumn(theBtColumnNo[BtColumnPart]);
+      buf = (char*)&theBlobEventPartValue;
+      theBlobEventPartRecAttr = theBlobEventOp->getValue(bc, buf, version);
+      //
+      bc = theBlobTable->getColumn(theBtColumnNo[BtColumnPkid]);
+      buf = (char*)&theBlobEventPkidValue;
+      theBlobEventPkidRecAttr = theBlobEventOp->getValue(bc, buf, version);
+      //
+      bc = theBlobTable->getColumn(theBtColumnNo[BtColumnData]);
+      buf = theBlobEventDataBuf.data;
+      theBlobEventDataRecAttr = theBlobEventOp->getValue(bc, buf, version);
+      if (unlikely(
+            theBlobEventDistRecAttr == NULL ||
+            theBlobEventPartRecAttr == NULL ||
+            theBlobEventPkidRecAttr == NULL ||
+            theBlobEventDataRecAttr == NULL
+         )) {
+        setErrorCode(theBlobEventOp);
+        DBUG_RETURN(-1);
+      }
     }
   }
   setState(Prepared);

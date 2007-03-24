@@ -66,16 +66,6 @@ print_std(const SubTableData * sdata, LinearSectionPtr ptr[3])
 
 // EventBufData
 
-Uint32
-EventBufData::get_blob_part_no() const
-{
-  assert(ptr[0].sz > 2);
-  Uint32 pos = AttributeHeader(ptr[0].p[0]).getDataSize() +
-              AttributeHeader(ptr[0].p[1]).getDataSize();
-  Uint32 no = ptr[1].p[pos];
-  return no;
-}
-
 void
 EventBufData::add_part_size(Uint32 & full_count, Uint32 & full_sz) const
 {
@@ -173,6 +163,7 @@ NdbEventOperationImpl::init(NdbEventImpl& evnt)
   theBlobList = NULL;
   theBlobOpList = NULL;
   theMainOp = NULL;
+  theBlobVersion = 0;
 
   m_data_item= NULL;
   m_eventImpl = NULL;
@@ -433,6 +424,7 @@ NdbEventOperationImpl::getBlobHandle(const NdbColumnImpl *tAttrInfo, int n)
       // pointer to main table op
       tBlobOp->theMainOp = this;
       tBlobOp->m_mergeEvents = m_mergeEvents;
+      tBlobOp->theBlobVersion = tAttrInfo->m_blobVersion;
 
       // to hide blob op it is linked under main op, not under m_ndb
       if (tLastBlopOp == NULL)
@@ -463,6 +455,34 @@ NdbEventOperationImpl::getBlobHandle(const NdbColumnImpl *tAttrInfo, int n)
     tLastBlob->theNext = tBlob;
   tBlob->theNext = NULL;
   DBUG_RETURN(tBlob);
+}
+
+Uint32
+NdbEventOperationImpl::get_blob_part_no()
+{
+  assert(theBlobVersion == 1 || theBlobVersion == 2);
+  assert(theMainOp != NULL);
+  const NdbTableImpl* mainTable = theMainOp->m_eventImpl->m_tableImpl;
+  assert(m_data_item != NULL);
+  LinearSectionPtr (&ptr)[3] = m_data_item->ptr;
+
+  uint pos = 0; // PK and DIST to skip
+
+  if (unlikely(theBlobVersion == 1)) {
+    pos += AttributeHeader(ptr[0].p[0]).getDataSize();
+    pos += AttributeHeader(ptr[0].p[1]).getDataSize();
+  } else {
+    uint n = mainTable->m_noOfKeys;
+    uint i;
+    for (i = 0; i < n; i++) {
+      pos += AttributeHeader(ptr[0].p[i]).getDataSize();
+    }
+    pos += AttributeHeader(ptr[0].p[n]).getDataSize();
+  }
+
+  assert(pos < ptr[1].sz);
+  Uint32 no = ptr[1].p[pos];
+  return no;
 }
 
 int
@@ -506,9 +526,23 @@ NdbEventOperationImpl::readBlobParts(char* buf, NdbBlob* blob,
     blob_op->m_data_item = data;
     int r = blob_op->receive_event();
     assert(r > 0);
-    Uint32 no = data->get_blob_part_no();
-    Uint32 sz = blob->thePartSize;
+    // XXX should be: no = blob->theBlobEventPartValue
+    Uint32 no = blob_op->get_blob_part_no();
+
+    /*
+     * wl3717_todo
+     * NdbBlob::readData V2 wants one part at a time, including
+     * length bytes.  This will be fixed later.
+     */
     const char* src = blob->theBlobEventDataBuf.data;
+    Uint32 sz = 0;
+    if (unlikely(blob_op->theBlobVersion == 1)) {
+      sz = blob->thePartSize;
+    } else {
+      const uchar* p = (const uchar*)blob->theBlobEventDataBuf.data;
+      sz = 2 + p[0] + (p[1] << 8);
+      assert(count == 1);
+    }
 
     DBUG_PRINT_EVENT("info", ("part_data=%p part no=%u part sz=%u", data, no, sz));
 
@@ -2456,6 +2490,9 @@ NdbEventBuffer::get_main_data(Gci_container* bucket,
 {
   DBUG_ENTER_EVENT("NdbEventBuffer::get_main_data");
 
+  int blobVersion = blob_data->m_event_op->theBlobVersion;
+  assert(blobVersion == 1 || blobVersion == 2);
+
   NdbEventOperationImpl* main_op = blob_data->m_event_op->theMainOp;
   assert(main_op != NULL);
   const NdbTableImpl* mainTable = main_op->m_eventImpl->m_tableImpl;
@@ -2463,13 +2500,30 @@ NdbEventBuffer::get_main_data(Gci_container* bucket,
   // create LinearSectionPtr for main table key
   LinearSectionPtr ptr[3];
   Uint32 ah_buffer[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY];
-  ptr[0].sz = mainTable->m_noOfKeys;
-  ptr[0].p = ah_buffer;
-  ptr[1].sz = AttributeHeader(blob_data->ptr[0].p[0]).getDataSize();
-  ptr[1].p = blob_data->ptr[1].p;
+
+  if (unlikely(blobVersion == 1)) {
+    ptr[0].sz = mainTable->m_noOfKeys;
+    ptr[0].p = ah_buffer;
+    // get sz of PK Unsigned [sz]
+    ptr[1].sz = AttributeHeader(blob_data->ptr[0].p[0]).getDataSize();
+    // get pointer to PK
+    ptr[1].p = blob_data->ptr[1].p;
+    split_concatenated_pk(mainTable, ptr[0].p, ptr[1].p, ptr[1].sz);
+  } else {
+    // blob part key is table key + dist + part
+    ptr[0].sz = mainTable->m_noOfKeys;
+    ptr[0].p = blob_data->ptr[0].p;
+    // count size of table PK
+    uint sz = 0;
+    uint i;
+    for (i = 0; i < mainTable->m_noOfKeys; i++) {
+      sz += AttributeHeader(blob_data->ptr[0].p[i]).getDataSize();
+    }
+    ptr[1].sz = sz;
+    ptr[1].p = blob_data->ptr[1].p;
+  }
   ptr[2].sz = 0;
   ptr[2].p = 0;
-  split_concatenated_pk(mainTable, ptr[0].p, ptr[1].p, ptr[1].sz);
 
   DBUG_DUMP_EVENT("ah", (char*)ptr[0].p, ptr[0].sz << 2);
   DBUG_DUMP_EVENT("pk", (char*)ptr[1].p, ptr[1].sz << 2);

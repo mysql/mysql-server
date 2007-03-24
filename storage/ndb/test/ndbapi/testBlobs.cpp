@@ -38,14 +38,20 @@ struct Bcol {
     {}
 };
 
+#define TEST_BLOBS_SIZE1        false, 240, 2000, 4
+#define TEST_BLOBS_SIZE2        true, 99, 55, 1
+#define TEST_BLOBS_MIN_SIZE1    false, 8, 8, 4
+#define TEST_BLOBS_MIN_SIZE2    true, 9, 5, 1
+
 struct Opt {
   unsigned m_batch;
   bool m_core;
   bool m_dbg;
-  const char* m_dbug;
+  const char* m_debug;
   bool m_fac;
   bool m_full;
   unsigned m_loop;
+  bool m_min;
   unsigned m_parts;
   unsigned m_rows;
   int m_seed;
@@ -71,10 +77,11 @@ struct Opt {
     m_batch(7),
     m_core(false),
     m_dbg(false),
-    m_dbug(0),
+    m_debug(0),
     m_fac(false),
     m_full(false),
     m_loop(1),
+    m_min(false),
     m_parts(10),
     m_rows(100),
     m_seed(-1),
@@ -88,8 +95,8 @@ struct Opt {
     m_pk1off(0x12340000),
     m_pk2len(55),
     m_oneblob(false),
-    m_blob1(false, 240, 2000, 4), // head+inline=256 bytes
-    m_blob2(true, 99, 55, 1),
+    m_blob1(TEST_BLOBS_SIZE1), // head+inline=256 bytes
+    m_blob2(TEST_BLOBS_SIZE2),
     // perf
     m_tnameperf("TB2"),
     m_rowsperf(10000),
@@ -110,10 +117,11 @@ printusage()
     << "  -batch N    number of pk ops in batch [" << d.m_batch << "]" << endl
     << "  -core       dump core on error" << endl
     << "  -dbg        print program debug" << endl
-    << "  -dbug opt   print program debug and ndb api DBUG" << endl
+    << "  -debug opt  print program debug and ndb api DBUG" << endl
     << "  -fac        fetch across commit in scan delete [" << d.m_fac << "]" << endl
     << "  -full       read/write only full blob values" << endl
     << "  -loop N     loop N times 0=forever [" << d.m_loop << "]" << endl
+    << "  -min        small blob sizes" << endl
     << "  -parts N    max parts in blob value [" << d.m_parts << "]" << endl
     << "  -rows N     number of rows [" << d.m_rows << "]" << endl
     << "  -rowsperf N rows for performace test [" << d.m_rowsperf << "]" << endl
@@ -242,10 +250,10 @@ createTable()
     col.setPrimaryKey(true);
     tab.addColumn(col);
   }
-  // col BL1 - Blob not-nullable
+  // col BL1 - Text not-nullable
   { NdbDictionary::Column col("BL1");
     const Bcol& b = g_opt.m_blob1;
-    col.setType(NdbDictionary::Column::Blob);
+    col.setType(NdbDictionary::Column::Text);
     col.setBlobVersion(g_opt.m_blob_version);
     col.setInlineSize(b.m_inline);
     col.setPartSize(b.m_partsize);
@@ -260,11 +268,11 @@ createTable()
     col.setPrimaryKey(true);
     tab.addColumn(col);
   }
-  // col BL2 - Text nullable
+  // col BL2 - Blob nullable
   if (! g_opt.m_oneblob)
   { NdbDictionary::Column col("BL2");
     const Bcol& b = g_opt.m_blob2;
-    col.setType(NdbDictionary::Column::Text);
+    col.setType(NdbDictionary::Column::Blob);
     col.setBlobVersion(g_opt.m_blob_version);
     col.setNullable(true);
     col.setInlineSize(b.m_inline);
@@ -333,6 +341,17 @@ private:
   Bval(const Bval&);
   Bval& operator=(const Bval&);
 };
+
+NdbOut&
+operator<<(NdbOut& out, const Bval& v)
+{
+  if (g_opt.m_min && v.m_val != 0) {
+    out << "[" << v.m_len << "]";
+    for (uint i = 0; i < v.m_len; i++)
+      out.print("%c", v.m_val[i]);
+  }
+  return out;
+}
 
 struct Tup {
   bool m_exists;        // exists in table
@@ -469,7 +488,7 @@ setBlobValue(NdbBlob* h, const Bval& v, int error_code = 0)
   bool null = (v.m_val == 0);
   bool isNull;
   unsigned len;
-  DBG("setValue " <<  h->getColumn()->getName() << " len=" << v.m_len << " null=" << null);
+  DBG("setValue " <<  h->getColumn()->getName() << " len=" << v.m_len << " null=" << null << " " << v);
   if (null) {
     CHK(h->setNull() == 0 || h->getNdbError().code == error_code);
     if (error_code)
@@ -1939,7 +1958,7 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
     const char* progname =
       strchr(argv[0], '/') ? strrchr(argv[0], '/') + 1 : argv[0];
     strcpy(cmdline, progname);
-    for (uint i = 0; i < argc; i++) {
+    for (uint i = 1; i < argc; i++) {
       strcat(cmdline, " ");
       strcat(cmdline, argv[i]);
     }
@@ -1960,10 +1979,10 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
       g_opt.m_dbg = true;
       continue;
     }
-    if (strcmp(arg, "-dbug") == 0) {
+    if (strcmp(arg, "-debug") == 0) {
       if (++argv, --argc > 0) {
         g_opt.m_dbg = true;
-        g_opt.m_dbug = strdup(argv[0]);
+        g_opt.m_debug = strdup(argv[0]);
 	continue;
       }
     }
@@ -1980,6 +1999,12 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
 	g_opt.m_loop = atoi(argv[0]);
 	continue;
       }
+    }
+    if (strcmp(arg, "-min") == 0) {
+      g_opt.m_min = true;
+      new (&g_opt.m_blob1) Bcol(TEST_BLOBS_MIN_SIZE1);
+      new (&g_opt.m_blob2) Bcol(TEST_BLOBS_MIN_SIZE2);
+      continue;
     }
     if (strcmp(arg, "-parts") == 0) {
       if (++argv, --argc > 0) {
@@ -2054,8 +2079,8 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
     printusage();
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
-  if (g_opt.m_dbug != 0) {
-    DBUG_PUSH(g_opt.m_dbug);
+  if (g_opt.m_debug != 0) {
+    DBUG_PUSH(g_opt.m_debug);
     ndbout.m_out = new FileOutputStream(DBUG_FILE);
   }
   if (g_opt.m_pk2len == 0) {
