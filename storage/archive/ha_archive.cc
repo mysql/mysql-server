@@ -210,7 +210,8 @@ ha_archive::ha_archive(handlerton *hton, TABLE_SHARE *table_arg)
   buffer.set((char *)byte_buffer, IO_SIZE, system_charset_info);
 
   /* The size of the offset value we will use for position() */
-  ref_length = sizeof(my_off_t);
+  ref_length= sizeof(my_off_t);
+  archive_reader_open= FALSE;
 }
 
 int archive_discover(handlerton *hton, THD* thd, const char *db, 
@@ -434,6 +435,29 @@ int ha_archive::init_archive_writer()
 }
 
 
+int ha_archive::init_archive_reader()
+{
+  DBUG_ENTER("ha_archive::init_archive_reader");
+  /* 
+    It is expensive to open and close the data files and since you can't have
+    a gzip file that can be both read and written we keep a writer open
+    that is shared amoung all open tables.
+  */
+  if (!archive_reader_open)
+  {
+    if (!(azopen(&archive, share->data_file_name, O_RDONLY|O_BINARY)))
+    {
+      DBUG_PRINT("ha_archive", ("Could not open archive read file"));
+      share->crashed= TRUE;
+      DBUG_RETURN(1);
+    }
+    archive_reader_open= TRUE;
+  }
+
+  DBUG_RETURN(0);
+}
+
+
 /*
   We just implement one additional file extension.
 */
@@ -477,7 +501,6 @@ int ha_archive::open(const char *name, int mode, uint open_options)
 
   DBUG_ASSERT(share);
 
-
   record_buffer= create_record_buffer(table->s->reclength + 
                                       ARCHIVE_ROW_HEADER_SIZE);
 
@@ -488,14 +511,6 @@ int ha_archive::open(const char *name, int mode, uint open_options)
   }
 
   thr_lock_data_init(&share->lock, &lock, NULL);
-
-  DBUG_PRINT("ha_archive", ("archive data_file_name %s", share->data_file_name));
-  if (!(azopen(&archive, share->data_file_name, O_RDONLY|O_BINARY)))
-  {
-    if (errno == EROFS || errno == EACCES)
-      DBUG_RETURN(my_errno= errno);
-    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
-  }
 
   DBUG_PRINT("ha_archive", ("archive table was crashed %s", 
                       rc == HA_ERR_CRASHED_ON_USAGE ? "yes" : "no"));
@@ -533,8 +548,11 @@ int ha_archive::close(void)
   destroy_record_buffer(record_buffer);
 
   /* First close stream */
-  if (azclose(&archive))
-    rc= 1;
+  if (archive_reader_open)
+  {
+    if (azclose(&archive))
+      rc= 1;
+  }
   /* then also close share */
   rc|= free_share();
 
@@ -978,6 +996,8 @@ int ha_archive::rnd_init(bool scan)
   
   if (share->crashed)
       DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+
+  init_archive_reader();
 
   /* We rewind the file so that we can read from the beginning if scan */
   if (scan)
