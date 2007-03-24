@@ -4514,8 +4514,8 @@ find_field_in_tables(THD *thd, Item_ident *item,
         {
           Field *nf=new Field_null(NULL,0,Field::NONE,
                                    cur_field->field_name,
-                                   cur_field->table,
                                    &my_charset_bin);
+          nf->init(cur_table->table);
           cur_field= nf;
         }
       }
