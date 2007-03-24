@@ -737,6 +737,8 @@ pthread_handler_t handle_connections_shared_memory(void *arg);
 #endif
 pthread_handler_t handle_slave(void *arg);
 static ulong find_bit_type(const char *x, TYPELIB *bit_lib);
+static ulong find_bit_type_or_exit(const char *x, TYPELIB *bit_lib,
+                                   const char *option);
 static void clean_up(bool print_message);
 static int test_if_case_insensitive(const char *dir_name);
 
@@ -7427,11 +7429,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int) OPT_INIT_RPL_ROLE:
   {
     int role;
-    if ((role=find_type(argument, &rpl_role_typelib, 2)) <= 0)
-    {
-      fprintf(stderr, "Unknown replication role: %s\n", argument);
-      exit(1);
-    }
+    role= find_type_or_exit(argument, &rpl_role_typelib, opt->name);
     rpl_status = (role == 1) ?  RPL_AUTH_MASTER : RPL_IDLE_SLAVE;
     break;
   }
@@ -7487,17 +7485,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_BINLOG_FORMAT:
   {
     int id;
-    if ((id= find_type(argument, &binlog_format_typelib, 2)) <= 0)
-    {
-      fprintf(stderr, 
-	      "Unknown binary log format: '%s' "
-	      "(should be one of '%s', '%s', '%s')\n", 
-	      argument,
-              binlog_format_names[BINLOG_FORMAT_STMT],
-              binlog_format_names[BINLOG_FORMAT_ROW],
-              binlog_format_names[BINLOG_FORMAT_MIXED]);
-      exit(1);
-    }
+    id= find_type_or_exit(argument, &binlog_format_typelib, opt->name);
     global_system_variables.binlog_format= opt_binlog_format_id= id - 1;
     break;
   }
@@ -7557,13 +7545,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
     {
       log_output_str= argument;
-      if ((log_output_options=
-           find_bit_type(argument, &log_output_typelib)) == ~(ulong) 0)
-      {
-        fprintf(stderr, "Unknown option to log-output: %s\n", argument);
-        exit(1);
-      }
-    }
+      log_output_options=
+        find_bit_type_or_exit(argument, &log_output_typelib, opt->name);
+  }
     break;
   }
 #endif
@@ -7577,10 +7561,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
         type=     5          1   2      3   4
              (DISABLE ) - (OFF | ON) - (0 | 1)
       */
-      switch ((type=find_type(argument, &Events::opt_typelib, 1))) {
-      case 0:
-	fprintf(stderr, "Unknown option to event-scheduler: %s\n",argument);
-	exit(1);
+      type= find_type_or_exit(argument, &Events::opt_typelib, opt->name);
+      switch (type) {
       case 5: /* OPT_DISABLED */
         Events::opt_event_scheduler= Events::EVENTS_DISABLED;
         break;
@@ -7730,11 +7712,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
     {
       int type;
-      if ((type=find_type(argument, &delay_key_write_typelib, 2)) <= 0)
-      {
-	fprintf(stderr,"Unknown delay_key_write type: %s\n",argument);
-	exit(1);
-      }
+      type= find_type_or_exit(argument, &delay_key_write_typelib, opt->name);
       delay_key_write_options= (uint) type-1;
     }
     break;
@@ -7745,11 +7723,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_TX_ISOLATION:
   {
     int type;
-    if ((type=find_type(argument, &tx_isolation_typelib, 2)) <= 0)
-    {
-      fprintf(stderr,"Unknown transaction isolation type: %s\n",argument);
-      exit(1);
-    }
+    type= find_type_or_exit(argument, &tx_isolation_typelib, opt->name);
     global_system_variables.tx_isolation= (type-1);
     break;
   }
@@ -7790,16 +7764,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case OPT_NDB_DISTRIBUTION:
     int id;
-    if ((id= find_type(argument, &ndb_distribution_typelib, 2)) <= 0)
-    {
-      fprintf(stderr, 
-	      "Unknown ndb distribution type: '%s' "
-	      "(should be '%s' or '%s')\n", 
-	      argument,
-              ndb_distribution_names[ND_KEYHASH],
-              ndb_distribution_names[ND_LINHASH]);
-      exit(1);
-    }
+    id= find_type_or_exit(argument, &ndb_distribution_typelib, opt->name);
     opt_ndb_distribution_id= (enum ndb_distribution)(id-1);
     break;
   case OPT_NDB_EXTRA_LOGGING:
@@ -7839,12 +7804,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
     {
       myisam_recover_options_str=argument;
-      if ((myisam_recover_options=
-	   find_bit_type(argument, &myisam_recover_typelib)) == ~(ulong) 0)
-      {
-	fprintf(stderr, "Unknown option to myisam-recover: %s\n",argument);
-	exit(1);
-      }
+      myisam_recover_options=
+        find_bit_type_or_exit(argument, &myisam_recover_typelib, opt->name);
     }
     ha_open_options|=HA_OPEN_ABORT_IF_CRASHED;
     break;
@@ -7857,14 +7818,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       myisam_concurrent_insert= 0;      /* --skip-concurrent-insert */
     break;
   case OPT_TC_HEURISTIC_RECOVER:
-  {
-    if ((tc_heuristic_recover=find_type(argument,
-                                        &tc_heuristic_recover_typelib, 2)) <=0)
-    {
-      fprintf(stderr, "Unknown option to tc-heuristic-recover: %s\n",argument);
-      exit(1);
-    }
-  }
+    tc_heuristic_recover= find_type_or_exit(argument,
+                                            &tc_heuristic_recover_typelib,
+                                            opt->name);
+    break;
   case OPT_MYISAM_STATS_METHOD:
   {
     ulong method_conv;
@@ -7872,11 +7829,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     LINT_INIT(method_conv);
 
     myisam_stats_method_str= argument;
-    if ((method=find_type(argument, &myisam_stats_method_typelib, 2)) <= 0)
-    {
-      fprintf(stderr, "Invalid value of myisam_stats_method: %s.\n", argument);
-      exit(1);
-    }
+    method= find_type_or_exit(argument, &myisam_stats_method_typelib,
+                              opt->name);
     switch (method-1) {
     case 2:
       method_conv= MI_STATS_METHOD_IGNORE_NULLS;
@@ -7895,12 +7849,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_SQL_MODE:
   {
     sql_mode_str= argument;
-    if ((global_system_variables.sql_mode=
-         find_bit_type(argument, &sql_mode_typelib)) == ~(ulong) 0)
-    {
-      fprintf(stderr, "Unknown option to sql-mode: %s\n", argument);
-      exit(1);
-    }
+    global_system_variables.sql_mode=
+      find_bit_type_or_exit(argument, &sql_mode_typelib, opt->name);
     global_system_variables.sql_mode= fix_sql_mode(global_system_variables.
 						   sql_mode);
     break;
@@ -8205,6 +8155,30 @@ static void fix_paths(void)
     my_free(opt_secure_file_priv, MYF(0));
     opt_secure_file_priv= my_strdup(buff, MYF(MY_FAE));
   }
+}
+
+
+static ulong find_bit_type_or_exit(const char *x, TYPELIB *bit_lib,
+                                   const char *option)
+{
+  ulong res;
+
+  const char **ptr;
+  
+  if ((res= find_bit_type(x, bit_lib)) == ~(ulong) 0)
+  {
+    ptr= bit_lib->type_names;
+    if (!*x)
+      fprintf(stderr, "No option given to %s\n", option);
+    else
+      fprintf(stderr, "Wrong option to %s. Option(s) given: %s\n", option, x);
+    fprintf(stderr, "Alternatives are: '%s'", *ptr);
+    while (*++ptr)
+      fprintf(stderr, ",'%s'", *ptr);
+    fprintf(stderr, "\n");
+    exit(1);
+  }
+  return res;
 }
 
 
