@@ -546,12 +546,11 @@ return @a;
 end|
 insert into t2 values (bug23333(),1)|
 ERROR 23000: Duplicate entry '1' for key 1
-show binlog events /* must show the insert */|
+show binlog events from 98 /* must show the insert */|
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	98	Server ver: 5.0.40-debug-log, Binlog ver: 4
-master-bin.000001	98	Query	1	90	use `test`; insert into t2 values (1,1)
-master-bin.000001	188	Xid	1	215	COMMIT /* xid=1165 */
-master-bin.000001	215	Query	1	446	use `test`; CREATE DEFINER=`root`@`localhost` function bug23333() 
+master-bin.000001	#	Query	1	#	use `test`; insert into t2 values (1,1)
+master-bin.000001	#	Xid	1	#	COMMIT /* xid=1165 */
+master-bin.000001	#	Query	1	#	use `test`; CREATE DEFINER=`root`@`localhost` function bug23333() 
 RETURNS int(11)
 DETERMINISTIC
 begin
