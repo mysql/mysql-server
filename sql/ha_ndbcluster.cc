@@ -3636,7 +3636,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     {
       m_transaction_on= FALSE;
       /* Would be simpler if has_transactions() didn't always say "yes" */
-      thd->no_trans_update= {TRUE, TRUE};
+      thd->no_trans_update.all= thd->no_trans_update.stmt= TRUE;
     }
     else if (!thd->transaction.on)
       m_transaction_on= FALSE;
