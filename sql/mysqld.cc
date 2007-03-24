@@ -622,7 +622,7 @@ static void close_connections(void)
     DBUG_PRINT("info",("Waiting for select thread"));
 
 #ifndef DONT_USE_THR_ALARM
-    if (pthread_kill(select_thread, THR_SERVER_ALARM))
+    if (pthread_kill(select_thread, thr_client_alarm))
       break;					// allready dead
 #endif
     set_timespec(abstime, 2);
@@ -2120,6 +2120,8 @@ static void init_signals(void)
 #ifdef SIGTSTP
   sigaddset(&set,SIGTSTP);
 #endif
+  if (thd_lib_detected != THD_LIB_LT)
+    sigaddset(&set,THR_SERVER_ALARM);
   if (test_flags & TEST_SIGINT)
   {
     // May be SIGINT
@@ -3157,7 +3159,7 @@ int main(int argc, char **argv)
 #if defined(SIGUSR2)
   thr_kill_signal= thd_lib_detected == THD_LIB_LT ? SIGINT : SIGUSR2;
 #else
-  thr_kill_signal= thd_lib_detected == SIGINT;
+  thr_kill_signal= SIGINT;
 #endif
   
 #ifdef _CUSTOMSTARTUPCONFIG_
