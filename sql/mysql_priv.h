@@ -1430,6 +1430,9 @@ void close_open_tables_and_downgrade(ALTER_PARTITION_PARAM_TYPE *lpt);
 void mysql_wait_completed_table(ALTER_PARTITION_PARAM_TYPE *lpt, TABLE *my_table);
 
 bool close_cached_tables(THD *thd, bool wait_for_refresh, TABLE_LIST *tables, bool have_lock = FALSE);
+bool close_cached_connection_tables(THD *thd, bool wait_for_refresh,
+                                    LEX_STRING *connect_string,
+                                    bool have_lock = FALSE);
 void copy_field_from_tmp_record(Field *field,int offset);
 bool fill_record(THD *thd, Field **field, List<Item> &values,
                  bool ignore_errors);

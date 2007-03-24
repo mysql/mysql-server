@@ -16,6 +16,21 @@
 
 /*
   The servers are saved in the system table "servers"
+  
+  Currently, when the user performs an ALTER SERVER or a DROP SERVER
+  operation, it will cause all open tables which refer to the named
+  server connection to be flushed. This may cause some undesirable
+  behaviour with regard to currently running transactions. It is 
+  expected that the DBA knows what s/he is doing when s/he performs
+  the ALTER SERVER or DROP SERVER operation.
+  
+  TODO:
+  It is desirable for us to implement a callback mechanism instead where
+  callbacks can be registered for specific server protocols. The callback
+  will be fired when such a server name has been created/altered/dropped
+  or when statistics are to be gathered such as how many actual connections.
+  Storage engines etc will be able to make use of the callback so that
+  currently running transactions etc will not be disrupted.
 */
 
 #include "mysql_priv.h"
@@ -557,6 +572,8 @@ int drop_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
   int error;
   TABLE_LIST tables;
   TABLE *table;
+  LEX_STRING name= { server_options->server_name, 
+                     server_options->server_name_length };
 
   DBUG_ENTER("drop_server");
   DBUG_PRINT("info", ("server name server->server_name %s",
@@ -578,14 +595,16 @@ int drop_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
     goto end;
   }
 
-  error= delete_server_record(table,
-                              server_options->server_name,
-                              server_options->server_name_length);
+  error= delete_server_record(table, name.str, name.length);
 
-  /*
-	Perform a reload so we don't have a 'hole' in our mem_root
-  */
-  servers_load(thd, &tables);
+  /* close the servers table before we call closed_cached_connection_tables */
+  close_thread_tables(thd);
+
+  if (close_cached_connection_tables(thd, TRUE, &name))
+  {
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_UNKNOWN_ERROR, "Server connection in use");
+  }
 
 end:
   rw_unlock(&THR_LOCK_servers);
@@ -975,6 +994,8 @@ int alter_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
 {
   int error= ER_FOREIGN_SERVER_DOESNT_EXIST;
   FOREIGN_SERVER *altered, *existing;
+  LEX_STRING name= { server_options->server_name, 
+                     server_options->server_name_length };
   DBUG_ENTER("alter_server");
   DBUG_PRINT("info", ("server_options->server_name %s",
                       server_options->server_name));
@@ -982,8 +1003,8 @@ int alter_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
   rw_wrlock(&THR_LOCK_servers);
 
   if (!(existing= (FOREIGN_SERVER *) hash_search(&servers_cache,
-                                                 (byte*) server_options->server_name,
-                                               server_options->server_name_length)))
+                                                 (byte*) name.str,
+                                                 name.length)))
     goto end;
 
   altered= (FOREIGN_SERVER *)alloc_root(&mem,
@@ -992,6 +1013,15 @@ int alter_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
   prepare_server_struct_for_update(server_options, existing, altered);
 
   error= update_server(thd, existing, altered);
+
+  /* close the servers table before we call closed_cached_connection_tables */
+  close_thread_tables(thd);
+
+  if (close_cached_connection_tables(thd, FALSE, &name))
+  {
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_UNKNOWN_ERROR, "Server connection in use");
+  }
 
 end:
   DBUG_PRINT("info", ("error returned %d", error));
@@ -1143,10 +1173,61 @@ void servers_free(bool end)
   DBUG_ENTER("servers_free");
   if (!hash_inited(&servers_cache))
     DBUG_VOID_RETURN;
+  if (!end)
+  {
+    free_root(&mem, MYF(MY_MARK_BLOCKS_FREE));
+	my_hash_reset(&servers_cache);
+    DBUG_VOID_RETURN;
+  }
   rwlock_destroy(&THR_LOCK_servers);
   free_root(&mem,MYF(0));
   hash_free(&servers_cache);
   DBUG_VOID_RETURN;
+}
+
+
+/*
+  SYNOPSIS
+
+  clone_server(MEM_ROOT *mem_root, FOREIGN_SERVER *orig, FOREIGN_SERVER *buff)
+
+  Create a clone of FOREIGN_SERVER. If the supplied mem_root is of
+  thd->mem_root then the copy is automatically disposed at end of statement.
+
+  NOTES
+
+  ARGS
+   MEM_ROOT pointer (strings are copied into this mem root) 
+   FOREIGN_SERVER pointer (made a copy of)
+   FOREIGN_SERVER buffer (if not-NULL, this pointer is returned)
+
+  RETURN VALUE
+   FOREIGN_SEVER pointer (copy of one supplied FOREIGN_SERVER)
+*/
+
+static FOREIGN_SERVER *clone_server(MEM_ROOT *mem, const FOREIGN_SERVER *server,
+                                    FOREIGN_SERVER *buffer)
+{
+  DBUG_ENTER("sql_server.cc:clone_server");
+
+  if (!buffer)
+    buffer= (FOREIGN_SERVER *) alloc_root(mem, sizeof(FOREIGN_SERVER));
+
+  buffer->server_name= strmake_root(mem, server->server_name,
+                                    server->server_name_length);
+  buffer->port= server->port;
+  buffer->server_name_length= server->server_name_length;
+  
+  /* TODO: We need to examine which of these can really be NULL */
+  buffer->db= server->db ? strdup_root(mem, server->db) : NULL;
+  buffer->scheme= server->scheme ? strdup_root(mem, server->scheme) : NULL;
+  buffer->username= server->username? strdup_root(mem, server->username): NULL;
+  buffer->password= server->password? strdup_root(mem, server->password): NULL;
+  buffer->socket= server->socket ? strdup_root(mem, server->socket) : NULL;
+  buffer->owner= server->owner ? strdup_root(mem, server->owner) : NULL;
+  buffer->host= server->host ? strdup_root(mem, server->host) : NULL;
+
+ DBUG_RETURN(buffer);
 }
 
 
@@ -1163,11 +1244,11 @@ void servers_free(bool end)
 
 */
 
-FOREIGN_SERVER *get_server_by_name(const char *server_name)
+FOREIGN_SERVER *get_server_by_name(MEM_ROOT *mem, const char *server_name,
+                                   FOREIGN_SERVER *buff)
 {
-  ulong error_num=0;
   uint server_name_length;
-  FOREIGN_SERVER *server= 0;
+  FOREIGN_SERVER *server;
   DBUG_ENTER("get_server_by_name");
   DBUG_PRINT("info", ("server_name %s", server_name));
 
@@ -1176,7 +1257,6 @@ FOREIGN_SERVER *get_server_by_name(const char *server_name)
   if (! server_name || !strlen(server_name))
   {
     DBUG_PRINT("info", ("server_name not defined!"));
-    error_num= 1;
     DBUG_RETURN((FOREIGN_SERVER *)NULL);
   }
 
@@ -1190,6 +1270,10 @@ FOREIGN_SERVER *get_server_by_name(const char *server_name)
                         server_name, server_name_length));
     server= (FOREIGN_SERVER *) NULL;
   }
+  /* otherwise, make copy of server */
+  else
+    server= clone_server(mem, server, buff);
+
   DBUG_PRINT("info", ("unlocking servers_cache"));
   rw_unlock(&THR_LOCK_servers);
   DBUG_RETURN(server);
