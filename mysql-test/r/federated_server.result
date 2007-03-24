@@ -20,11 +20,27 @@ CREATE TABLE first_db.t1 (
 `name` varchar(64) NOT NULL default ''
     )
 DEFAULT CHARSET=latin1;
+DROP TABLE IF EXISTS first_db.t2;
+Warnings:
+Note	1051	Unknown table 't2'
+CREATE TABLE first_db.t2 (
+`id` int(20) NOT NULL,
+`name` varchar(64) NOT NULL default ''
+    )
+DEFAULT CHARSET=latin1;
 use second_db;
 DROP TABLE IF EXISTS second_db.t1;
 Warnings:
 Note	1051	Unknown table 't1'
 CREATE TABLE second_db.t1 (
+`id` int(20) NOT NULL,
+`name` varchar(64) NOT NULL default ''
+    )
+DEFAULT CHARSET=latin1;
+DROP TABLE IF EXISTS second_db.t2;
+Warnings:
+Note	1051	Unknown table 't2'
+CREATE TABLE second_db.t2 (
 `id` int(20) NOT NULL,
 `name` varchar(64) NOT NULL default ''
     )
@@ -60,10 +76,10 @@ CREATE TABLE federated.old (
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/first_db/t1';
-INSERT INTO federated.old (id, name) values (1, 'federated.old url');
+INSERT INTO federated.old (id, name) values (1, 'federated.old-> first_db.t1, url format');
 SELECT * FROM federated.old;
 id	name
-1	federated.old url
+1	federated.old-> first_db.t1, url format
 DROP TABLE IF EXISTS federated.old2;
 Warnings:
 Note	1051	Unknown table 'old2'
@@ -72,8 +88,37 @@ CREATE TABLE federated.old2 (
 `name` varchar(64) NOT NULL default ''
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/first_db/t2';
+INSERT INTO federated.old2 (id, name) values (1, 'federated.old2-> first_db.t2, url format');
+SELECT * FROM federated.old2;
+id	name
+1	federated.old2-> first_db.t2, url format
+DROP TABLE IF EXISTS federated.urldb2t1;
+Warnings:
+Note	1051	Unknown table 'urldb2t1'
+CREATE TABLE federated.urldb2t1 (
+`id` int(20) NOT NULL,
+`name` varchar(64) NOT NULL default ''
+    )
+ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/second_db/t1';
-INSERT INTO federated.old2 (id, name) values (1, 'federated.old2 url');
+INSERT INTO federated.urldb2t1 (id, name) values (1, 'federated.urldb2t1 -> second_db.t1, url format');
+SELECT * FROM federated.urldb2t1;
+id	name
+1	federated.urldb2t1 -> second_db.t1, url format
+DROP TABLE IF EXISTS federated.urldb2t2;
+Warnings:
+Note	1051	Unknown table 'urldb2t2'
+CREATE TABLE federated.urldb2t2 (
+`id` int(20) NOT NULL,
+`name` varchar(64) NOT NULL default ''
+    )
+ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/second_db/t2';
+INSERT INTO federated.urldb2t2 (id, name) values (1, 'federated.urldb2t2 -> second_db.t2, url format');
+SELECT * FROM federated.urldb2t2;
+id	name
+1	federated.urldb2t2 -> second_db.t2, url format
 DROP TABLE IF EXISTS federated.t1;
 Warnings:
 Note	1051	Unknown table 't1'
@@ -83,18 +128,38 @@ CREATE TABLE federated.t1 (
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='server_one';
-INSERT INTO federated.t1 (id, name) values (1, 'server_one, new scheme');
+INSERT INTO federated.t1 (id, name) values (1, 'server_one, new scheme, first_db.t1');
 SELECT * FROM federated.t1;
 id	name
-1	federated.old url
-1	server_one, new scheme
+1	federated.old-> first_db.t1, url format
+1	server_one, new scheme, first_db.t1
+DROP TABLE IF EXISTS federated.whatever;
+Warnings:
+Note	1051	Unknown table 'whatever'
+CREATE TABLE federated.whatever (
+`id` int(20) NOT NULL,
+`name` varchar(64) NOT NULL default ''
+    )
+ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+CONNECTION='server_one/t1';
+INSERT INTO federated.whatever (id, name) values (1, 'server_one, new scheme, whatever, first_db.t1');
+SELECT * FROM federated.whatever;
+id	name
+1	federated.old-> first_db.t1, url format
+1	server_one, new scheme, first_db.t1
+1	server_one, new scheme, whatever, first_db.t1
 ALTER SERVER 'server_one' options(DATABASE 'second_db');
-flush tables;
-INSERT INTO federated.t1 (id, name) values (1, 'server_two, new scheme');
+INSERT INTO federated.t1 (id, name) values (1, 'server_two, new scheme, second_db.t1');
 SELECT * FROM federated.t1;
 id	name
-1	federated.old2 url
-1	server_two, new scheme
+1	federated.urldb2t1 -> second_db.t1, url format
+1	server_two, new scheme, second_db.t1
+INSERT INTO federated.whatever (id, name) values (1, 'server_two, new scheme, whatever, second_db.t1');
+SELECT * FROM federated.whatever;
+id	name
+1	federated.urldb2t1 -> second_db.t1, url format
+1	server_two, new scheme, second_db.t1
+1	server_two, new scheme, whatever, second_db.t1
 drop table federated.t1;
 drop server 'server_one';
 drop server 'server_two';
