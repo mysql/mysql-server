@@ -65,6 +65,7 @@
 
 struct Opts {
   my_bool abort_on_error;
+  int blob_version;
   int loglevel;
   uint loop;
   uint maxops;
@@ -315,12 +316,14 @@ createtable(Tab& t)
       col.setCharset(cs);
       break;
     case NdbDictionary::Column::Text:
+      col.setBlobVersion(g_opts.blob_version);
       col.setInlineSize(g_blobinlinesize);
       col.setPartSize(g_blobpartsize);
       col.setStripeSize(g_blobstripesize);
       col.setCharset(cs);
       break;
     case NdbDictionary::Column::Blob:
+      col.setBlobVersion(g_opts.blob_version);
       col.setInlineSize(g_blobinlinesize);
       col.setPartSize(0);
       col.setStripeSize(0);
@@ -1554,7 +1557,7 @@ selecttables()
       cnt++;
     }
   }
-  ll1("use " << cnt << "/" << maxrun() << " tables in this loop");
+  ll0("selecttables: use " << cnt << "/" << maxrun() << " in this loop");
 }
 
 static void
@@ -1564,7 +1567,7 @@ makeops()
   for (uint i = 0; i < maxrun(); i++)
     if (! run(i).skip)
       makeops(run(i));
-  ll1("makeops: used recs = " << g_usedops << " com recs = " << g_gciops);
+  ll0("makeops: used records = " << g_usedops);
 }
 
 static int
@@ -2236,6 +2239,9 @@ my_long_options[] =
   { "use-table", 1017, "Use existing tables",
     (gptr*)&g_opts.use_table, (gptr*)&g_opts.use_table, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "blob-version", 1018, "Blob version 1 or 2 (default 2)",
+    (gptr*)&g_opts.blob_version, (gptr*)&g_opts.blob_version, 0,
+    GET_INT, REQUIRED_ARG, 2, 0, 0, 0, 0, 0 },
   { 0, 0, 0,
     0, 0, 0,
     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }
@@ -2250,6 +2256,9 @@ usage()
 static int
 checkopts()
 {
+  if (g_opts.blob_version < 1 || g_opts.blob_version > 2) {
+    return -1;
+  }
   if (g_opts.separate_events) {
     g_opts.no_blobs = true;
   }

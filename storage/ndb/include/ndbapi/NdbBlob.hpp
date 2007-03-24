@@ -300,7 +300,7 @@ private:
   static void getBlobEvent(NdbEventImpl& be, const NdbEventImpl* e, const NdbColumnImpl* c);
   // compute blob table column number for faster access
   enum {
-    BtColumnPk = 0,     /* V1 only */
+    BtColumnPk = 0,    /* V1 only */
     BtColumnDist = 1,
     BtColumnPart = 2,
     BtColumnPkid = 3,  /* V2 only */
@@ -316,6 +316,7 @@ private:
   NdbRecAttr* theBlobEventPkRecAttr;
   NdbRecAttr* theBlobEventDistRecAttr;
   NdbRecAttr* theBlobEventPartRecAttr;
+  NdbRecAttr* theBlobEventPkidRecAttr;
   NdbRecAttr* theBlobEventDataRecAttr;
   const NdbTableImpl* theTable;
   const NdbTableImpl* theAccessTable;
@@ -355,7 +356,9 @@ private:
   Buf theHeadInlineCopyBuf;     // for writeTuple
   Buf thePartBuf;
   Buf theBlobEventDataBuf;
-  Uint32 thePartNumber;         // for event
+  Uint32 theBlobEventDistValue;
+  Uint32 theBlobEventPartValue;
+  Uint32 theBlobEventPkidValue;
   Head theHead;
   char* theInlineData;
   char* thePartData;
