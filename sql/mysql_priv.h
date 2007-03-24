@@ -347,9 +347,6 @@ MY_LOCALE *my_locale_by_number(uint number);
    in the user query has requested */
 #define SELECT_ALL              (ULL(1) << 24)    // SELECT, user, parser
 
-/* Set if we are updating a non-transaction safe table */
-#define OPTION_STATUS_NO_TRANS_UPDATE   (ULL(1) << 25) // THD, intern
-
 /* The following can be set when importing tables in a 'wrong order'
    to suppress foreign key checks */
 #define OPTION_NO_FOREIGN_KEY_CHECKS    (ULL(1) << 26) // THD, user, binlog
