@@ -751,12 +751,19 @@ public:
   String *val_str(String *str);
   const char *cast_type() const { return "datetime"; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
+  void fix_length_and_dec()
+  {
+    Item_typecast_maybe_null::fix_length_and_dec();
+    decimals= DATETIME_DEC;
+  }
+
   Field *tmp_table_field(TABLE *t_arg)
   {
     return (new Field_datetime(maybe_null, name, t_arg, &my_charset_bin));
   }
   bool result_as_longlong() { return TRUE; }
   longlong val_int();
+  double val() { return (double) val_int(); }
 };
 
 class Item_func_makedate :public Item_str_func
