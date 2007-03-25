@@ -6246,6 +6246,7 @@ void Dbtc::timeOutLoopStartLab(Signal* signal, Uint32 api_con_ptr)
     Uint32 api_timer= getApiConTimer(api_con_ptr);
     jam();
     if (api_timer != 0) {
+      Uint32 error= ZTIME_OUT_ERROR;
       time_out_value= time_out_param + (api_con_ptr & mask_value);
       if (unlikely(old_mask_value)) // abort during single user mode
       {
@@ -6259,12 +6260,16 @@ void Dbtc::timeOutLoopStartLab(Signal* signal, Uint32 api_con_ptr)
           time_out_value=
             old_time_out_param + (api_con_ptr & old_mask_value);
         }
+        else
+        {
+          error= ZCLUSTER_IN_SINGLEUSER_MODE;
+        }
       }
       time_passed= tc_timer - api_timer;
       if (time_passed > time_out_value) 
       {
         jam();
-        timeOutFoundLab(signal, api_con_ptr, ZTIME_OUT_ERROR);
+        timeOutFoundLab(signal, api_con_ptr, error);
 	api_con_ptr++;
 	break;
       }
@@ -6304,7 +6309,8 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
 	<< " code: " << errCode);
   switch (apiConnectptr.p->apiConnectstate) {
   case CS_STARTED:
-    if(apiConnectptr.p->lqhkeyreqrec == apiConnectptr.p->lqhkeyconfrec){
+    if(apiConnectptr.p->lqhkeyreqrec == apiConnectptr.p->lqhkeyconfrec &&
+       errCode != ZCLUSTER_IN_SINGLEUSER_MODE){
       jam();
       /*
       We are waiting for application to continue the transaction. In this
