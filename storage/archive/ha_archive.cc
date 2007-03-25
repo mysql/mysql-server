@@ -81,6 +81,7 @@
 
   TODO:
    Allow users to set compression level.
+   Allow adjustable block size.
    Implement versioning, should be easy.
    Allow for errors, find a way to mark bad rows.
    Add optional feature so that rows can be flushed at interval (which will cause less
@@ -1303,6 +1304,8 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   azio_stream writer;
   char writer_filename[FN_REFLEN];
 
+  init_archive_reader();
+
   // now we close both our writer and our reader for the rename
   if (share->archive_write_open)
   {
@@ -1577,6 +1580,8 @@ int ha_archive::check(THD* thd, HA_CHECK_OPT* check_opt)
     Now we will rewind the archive file so that we are positioned at the 
     start of the file.
   */
+  init_archive_reader();
+
   if (!rc)
     read_data_header(&archive);
 
