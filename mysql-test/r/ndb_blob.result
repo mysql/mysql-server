@@ -76,6 +76,8 @@ commit;
 select a from t1 where d is null;
 a
 1
+delete from t1 where a=45567;
+commit;
 delete from t1 where a=1;
 delete from t1 where a=2;
 commit;
