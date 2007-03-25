@@ -1509,7 +1509,7 @@ os_file_rename(
 		return(TRUE);
 	}
 
-	os_file_handle_error(oldpath, "rename");
+	os_file_handle_error_no_exit(oldpath, "rename");
 
 	return(FALSE);
 #else
@@ -1518,7 +1518,7 @@ os_file_rename(
 	ret = rename((const char*)oldpath, (const char*)newpath);
 
 	if (ret != 0) {
-		os_file_handle_error(oldpath, "rename");
+		os_file_handle_error_no_exit(oldpath, "rename");
 
 		return(FALSE);
 	}
