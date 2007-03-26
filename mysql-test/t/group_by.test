@@ -755,7 +755,8 @@ SET SQL_MODE = '';
 
 #
 # Bug #21174: Index degrades sort performance and 
-#             optimizer does not honor IGNORE INDEX
+#             optimizer does not honor IGNORE INDEX.
+#             a.k.a WL3527.
 #
 CREATE TABLE t1 (a INT, b INT,
                  PRIMARY KEY (a),
@@ -818,5 +819,9 @@ EXPLAIN SELECT a, SUM(b) FROM t2 IGNORE INDEX (a) GROUP BY a LIMIT 2;
 
 EXPLAIN SELECT 1 FROM t2 WHERE a IN
   (SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
+
+SHOW VARIABLES LIKE 'old';  
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@old = off;  
 
 DROP TABLE t1, t2;
