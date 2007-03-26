@@ -330,7 +330,7 @@ public:
   enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
   String *val_str(String *str);
   longlong val_int();
-  double val_real() { DBUG_ASSERT(fixed == 1); return (double) val_int(); }
+  double val_real() { return val_real_from_decimal(); }
   const char *func_name() const { return "date"; }
   void fix_length_and_dec()
   { 
@@ -368,6 +368,7 @@ public:
     return (new Field_datetime(maybe_null, name, t_arg, &my_charset_bin));
   }
   bool result_as_longlong() { return TRUE; }
+  double val_real() { return (double) val_int(); }
   my_decimal *val_decimal(my_decimal *decimal_value)
   {
     DBUG_ASSERT(fixed == 1);
@@ -390,13 +391,14 @@ public:
   enum_field_types field_type() const { return MYSQL_TYPE_TIME; }
   void fix_length_and_dec()
   {
-    decimals=0;
+    decimals= DATETIME_DEC;
     max_length=MAX_TIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
   }
   Field *tmp_table_field(TABLE *t_arg)
   {
     return (new Field_time(maybe_null, name, t_arg, &my_charset_bin));
   }
+  double val_real() { return val_real_from_decimal(); }
   my_decimal *val_decimal(my_decimal *decimal_value)
   {
     DBUG_ASSERT(fixed == 1);
@@ -504,7 +506,6 @@ public:
   Item_func_now() :Item_date_func() {}
   Item_func_now(Item *a) :Item_date_func(a) {}
   enum Item_result result_type () const { return STRING_RESULT; }
-  double val_real() { DBUG_ASSERT(fixed == 1); return (double) value; }
   longlong val_int() { DBUG_ASSERT(fixed == 1); return value; }
   int save_in_field(Field *to, bool no_conversions);
   String *val_str(String *str);
@@ -592,11 +593,6 @@ class Item_func_from_unixtime :public Item_date_func
   THD *thd;
  public:
   Item_func_from_unixtime(Item *a) :Item_date_func(a) {}
-  double val_real()
-  {
-    DBUG_ASSERT(fixed == 1);
-    return (double) Item_func_from_unixtime::val_int();
-  }
   longlong val_int();
   String *val_str(String *str);
   const char *func_name() const { return "from_unixtime"; }
@@ -635,7 +631,6 @@ class Item_func_convert_tz :public Item_date_func
   Item_func_convert_tz(Item *a, Item *b, Item *c):
     Item_date_func(a, b, c), from_tz_cached(0), to_tz_cached(0) {}
   longlong val_int();
-  double val_real() { return (double) val_int(); }
   String *val_str(String *str);
   const char *func_name() const { return "convert_tz"; }
   bool fix_fields(THD *, Item **);
@@ -661,7 +656,6 @@ public:
     Item_str_timefunc::fix_length_and_dec();
     collation.set(&my_charset_bin);
     maybe_null=1;
-    decimals= DATETIME_DEC;
   }
   const char *func_name() const { return "sec_to_time"; }
   bool result_as_longlong() { return TRUE; }
@@ -699,7 +693,6 @@ public:
   const char *func_name() const { return "date_add_interval"; }
   void fix_length_and_dec();
   enum_field_types field_type() const { return cached_field_type; }
-  double val_real() { DBUG_ASSERT(fixed == 1); return (double) val_int(); }
   longlong val_int();
   bool get_date(TIME *res, uint fuzzy_date);
   bool eq(const Item *item, bool binary_cmp) const;
@@ -800,6 +793,7 @@ public:
   }
   bool result_as_longlong() { return TRUE; }
   longlong val_int();
+  double val_real() { return (double) val_int(); }
   my_decimal *val_decimal(my_decimal *decimal_value)
   {
     DBUG_ASSERT(fixed == 1);
@@ -827,6 +821,7 @@ public:
   }
   bool result_as_longlong() { return TRUE; }
   longlong val_int();
+  double val_real() { return val_real_from_decimal(); }
   my_decimal *val_decimal(my_decimal *decimal_value)
   {
     DBUG_ASSERT(fixed == 1);
@@ -847,12 +842,20 @@ public:
   String *val_str(String *str);
   const char *cast_type() const { return "datetime"; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
+  void fix_length_and_dec()
+  {
+    Item_typecast_maybe_null::fix_length_and_dec();
+    decimals= DATETIME_DEC;
+  }
+
   Field *tmp_table_field(TABLE *t_arg)
   {
     return (new Field_datetime(maybe_null, name, t_arg, &my_charset_bin));
   }
   bool result_as_longlong() { return TRUE; }
   longlong val_int();
+  double val_real() { return val_real_from_decimal(); }
+  double val() { return (double) val_int(); }
   my_decimal *val_decimal(my_decimal *decimal_value)
   {
     DBUG_ASSERT(fixed == 1);
@@ -921,6 +924,7 @@ public:
   }
   void print(String *str);
   const char *func_name() const { return "add_time"; }
+  double val_real() { return val_real_from_decimal(); }
   my_decimal *val_decimal(my_decimal *decimal_value)
   {
     DBUG_ASSERT(fixed == 1);
