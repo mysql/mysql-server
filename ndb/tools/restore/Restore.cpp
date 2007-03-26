@@ -454,6 +454,7 @@ RestoreDataIterator::getNextTuple(int  & res)
 
     attr_data->null = false;
     attr_data->void_value = ptr;
+    attr_data->size = 4*sz;
 
     if(!Twiddle(attr_desc, attr_data))
       {
@@ -475,6 +476,7 @@ RestoreDataIterator::getNextTuple(int  & res)
 
     attr_data->null = false;
     attr_data->void_value = ptr;
+    attr_data->size = 4*sz;
 
     if(!Twiddle(attr_desc, attr_data))
       {
@@ -511,6 +513,7 @@ RestoreDataIterator::getNextTuple(int  & res)
     
     attr_data->null = false;
     attr_data->void_value = &data->Data[0];
+    attr_data->size = sz*4;
 
     /**
      * Compute array size
@@ -979,7 +982,8 @@ operator<<(NdbOut& ndbout, const AttributeS& attr){
   }
   
   NdbRecAttr tmprec(0);
-  tmprec.setup(desc.m_column, (char *)data.void_value);
+  tmprec.setup(desc.m_column, 0);
+  tmprec.receive_data((Uint32*)data.void_value, (data.size+3)/4);
   ndbrecattr_print_formatted(ndbout, tmprec, g_ndbrecord_print_format);
 
   return ndbout;
