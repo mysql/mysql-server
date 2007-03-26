@@ -208,14 +208,15 @@ int _nisam_seq_search(N_INFO *info, register N_KEYDEF *keyinfo, uchar *page, uch
     if ((flag=_nisam_key_cmp(keyinfo->seg,t_buff,key,key_len,comp_flag)) >= 0)
       break;
 #ifdef EXTRA_DEBUG
-    DBUG_PRINT("loop",("page: %lx  key: '%s'  flag: %d",page,t_buff,flag));
+    DBUG_PRINT("loop",("page: 0x%lx  key: '%s'  flag: %d",
+                       (long) page, t_buff, flag));
 #endif
     memcpy(buff,t_buff,length);
     *ret_pos=page;
   }
   if (flag == 0)
     memcpy(buff,t_buff,length);			/* Result is first key */
-  DBUG_PRINT("exit",("flag: %d  ret_pos: %lx",flag,*ret_pos));
+  DBUG_PRINT("exit",("flag: %d  ret_pos: 0x%lx", flag, (long) *ret_pos));
   DBUG_RETURN(flag);
 } /* _nisam_seq_search */
 
@@ -754,8 +755,8 @@ int _nisam_search_next(register N_INFO *info, register N_KEYDEF *keyinfo,
   uint nod_flag;
   uchar lastkey[N_MAX_KEY_BUFF];
   DBUG_ENTER("_nisam_search_next");
-  DBUG_PRINT("enter",("nextflag: %d  lastpos: %d  int_keypos: %lx",
-		       nextflag,info->lastpos,info->int_keypos));
+  DBUG_PRINT("enter",("nextflag: %u  lastpos: %lu  int_keypos: 0x%lx",
+                       nextflag, info->lastpos, (long) info->int_keypos));
   DBUG_EXECUTE("key",_nisam_print_key(DBUG_FILE,keyinfo->seg,key););
 
   if ((nextflag & SEARCH_BIGGER && info->int_keypos >= info->int_maxpos) ||
@@ -807,7 +808,7 @@ int _nisam_search_next(register N_INFO *info, register N_KEYDEF *keyinfo,
   VOID(_nisam_move_key(keyinfo,info->lastkey,lastkey));
   VOID((*keyinfo->get_key)(keyinfo,nod_flag,&info->int_keypos,info->lastkey));
   info->lastpos=_nisam_dpos(info,nod_flag,info->int_keypos);
-  DBUG_PRINT("exit",("found key at %d",info->lastpos));
+  DBUG_PRINT("exit",("found key at %lu", info->lastpos));
   DBUG_RETURN(0);
 } /* _nisam_search_next */
 
@@ -845,7 +846,7 @@ int _nisam_search_first(register N_INFO *info, register N_KEYDEF *keyinfo, regis
   info->page_changed=info->buff_used=0;
   info->last_search_keypage=info->int_pos;
 
-  DBUG_PRINT("exit",("found key at %d",info->lastpos));
+  DBUG_PRINT("exit",("found key at %lu", info->lastpos));
   DBUG_RETURN(0);
 } /* _nisam_search_first */
 
@@ -884,6 +885,6 @@ int _nisam_search_last(register N_INFO *info, register N_KEYDEF *keyinfo, regist
   info->page_changed=info->buff_used=0;
   info->last_search_keypage=info->int_pos;
 
-  DBUG_PRINT("exit",("found key at %d",info->lastpos));
+  DBUG_PRINT("exit",("found key at %lu", info->lastpos));
   DBUG_RETURN(0);
 } /* _nisam_search_last */

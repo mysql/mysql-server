@@ -87,7 +87,7 @@ int heap_check_heap(HP_INFO *info, my_bool print_status)
 
   if (records != share->records || deleted != share->deleted)
   {
-    DBUG_PRINT("error",("Found rows: %lu (%lu)  deleted %lu (%lu)",
+    DBUG_PRINT("error",("Found rows: %lu (%u)  deleted %lu (%u)",
 			records, share->records, deleted, share->deleted));
     error= 1;
   }
@@ -123,7 +123,7 @@ static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
 			        blength, records))
 	    != i)
 	{
-	  DBUG_PRINT("error",("Record in wrong link: Link %d  Record: %lx  Record-link %d", i,hash_info->ptr_to_rec,rec_link));
+	  DBUG_PRINT("error",("Record in wrong link: Link %d  Record: %lx  Record-link %d", i, (ulong) hash_info->ptr_to_rec, rec_link));
 	  error=1;
 	}
 	else
@@ -135,12 +135,12 @@ static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
   }
   if (found != records)
   {
-    DBUG_PRINT("error",("Found %ld of %ld records", found, records));
+    DBUG_PRINT("error",("Found %u of %ld records", found, records));
     error=1;
   }
   if (keydef->hash_buckets != hash_buckets_found)
   {
-    DBUG_PRINT("error",("Found %ld buckets, stats shows %ld buckets",
+    DBUG_PRINT("error",("Found %u buckets, stats shows %ld buckets",
                         hash_buckets_found, keydef->hash_buckets));
     error=1;
   }
@@ -181,7 +181,7 @@ static int check_one_rb_key(HP_INFO *info, uint keynr, ulong records,
       {
 	error= 1;
 	DBUG_PRINT("error",("Record in wrong link:  key: %d  Record: %lx\n", 
-			    keynr, recpos));
+			    keynr, (ulong) recpos));
       }
       else
 	found++;

@@ -27,7 +27,7 @@ uchar *_mi_fetch_keypage(register MI_INFO *info, MI_KEYDEF *keyinfo,
   uchar *tmp;
   uint page_size;
   DBUG_ENTER("_mi_fetch_keypage");
-  DBUG_PRINT("enter",("page: %ld",page));
+  DBUG_PRINT("enter",("page: %ld", (long) page));
 
   tmp=(uchar*) key_cache_read(info->s->key_cache,
                              info->s->kfile, page, level, (byte*) buff,
@@ -78,7 +78,7 @@ int _mi_write_keypage(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     my_errno=EINVAL;
     DBUG_RETURN((-1));
   }
-  DBUG_PRINT("page",("write page at: %lu",(long) page,buff));
+  DBUG_PRINT("page",("write page at: %lu",(long) page));
   DBUG_DUMP("buff",(byte*) buff,mi_getint(buff));
 #endif
 

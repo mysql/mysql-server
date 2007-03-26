@@ -152,7 +152,7 @@ static int _mi_ck_real_delete(register MI_INFO *info, MI_KEYDEF *keyinfo,
     DBUG_PRINT("error",("Couldn't allocate memory"));
     DBUG_RETURN(my_errno=ENOMEM);
   }
-  DBUG_PRINT("info",("root_page: %ld",old_root));
+  DBUG_PRINT("info",("root_page: %lu", (ulong) old_root));
   if (!_mi_fetch_keypage(info,keyinfo,old_root,DFLT_INIT_HITS,root_buff,0))
   {
     error= -1;
@@ -392,7 +392,7 @@ static int del(register MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *key,
   MYISAM_SHARE *share=info->s;
   MI_KEY_PARAM s_temp;
   DBUG_ENTER("del");
-  DBUG_PRINT("enter",("leaf_page: %ld  keypos: 0x%lx", leaf_page,
+  DBUG_PRINT("enter",("leaf_page: %lu  keypos: 0x%lx", (ulong) leaf_page,
 		      (ulong) keypos));
   DBUG_DUMP("leaf_buff",(byte*) leaf_buff,mi_getint(leaf_buff));
 
@@ -579,7 +579,8 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     else
     {						/* Page is full */
       endpos=anc_buff+anc_length;
-      DBUG_PRINT("test",("anc_buff: %lx  endpos: %lx",anc_buff,endpos));
+      DBUG_PRINT("test",("anc_buff: 0x%lx  endpos: 0x%lx", (long) anc_buff,
+                         (long) endpos));
       if (keypos != anc_buff+2+key_reflength &&
 	  !_mi_get_last_key(info,keyinfo,anc_buff,anc_key,keypos,&length))
 	goto err;
@@ -756,8 +757,8 @@ static uint remove_key(MI_KEYDEF *keyinfo, uint nod_flag,
   int s_length;
   uchar *start;
   DBUG_ENTER("remove_key");
-  DBUG_PRINT("enter",("keypos: %lx  page_end: %lx",keypos,page_end));
-
+  DBUG_PRINT("enter",("keypos: 0x%lx  page_end: 0x%lx", (long) keypos,
+                      (long) page_end));
   start=keypos;
   if (!(keyinfo->flag &
 	(HA_PACK_KEY | HA_SPACE_PACK_USED | HA_VAR_LENGTH_KEY |

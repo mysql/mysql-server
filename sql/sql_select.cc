@@ -6052,6 +6052,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   JOIN_TAB *join_tab;
   int (*end_select)(JOIN *, struct st_join_table *,bool);
   DBUG_ENTER("do_select");
+  LINT_INIT(join_tab);
   List<Item> *columns_list= procedure ? &join->procedure_fields_list : fields;
   join->procedure=procedure;
   /*

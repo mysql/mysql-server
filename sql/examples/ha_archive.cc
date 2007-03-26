@@ -573,7 +573,8 @@ int ha_archive::write_row(byte * buf)
     table->timestamp_field->set_time();
   pthread_mutex_lock(&share->mutex);
   written= gzwrite(share->archive_write, buf, table->reclength);
-  DBUG_PRINT("ha_archive::get_row", ("Wrote %d bytes expected %d", written, table->reclength));
+  DBUG_PRINT("ha_archive::get_row", ("Wrote %d bytes expected %d", (int) written,
+                                     table->reclength));
   share->dirty= TRUE;
   if (written != (z_off_t)table->reclength)
     goto error;
