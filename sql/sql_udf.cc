@@ -403,6 +403,13 @@ int mysql_create_function(THD *thd,udf_func *udf)
     DBUG_RETURN(1);
   }
 
+  /* 
+    Turn off row binlogging of this statement and use statement-based 
+    so that all supporting tables are updated for CREATE FUNCTION command.
+  */
+  if (thd->current_stmt_binlog_row_based)
+    thd->clear_current_stmt_binlog_row_based();
+
   rw_wrlock(&THR_LOCK_udf);
   if ((hash_search(&udf_hash,(byte*) udf->name.str, udf->name.length)))
   {
@@ -466,6 +473,15 @@ int mysql_create_function(THD *thd,udf_func *udf)
     goto err;
   }
   rw_unlock(&THR_LOCK_udf);
+
+  /* Binlog the create function. */
+  if (mysql_bin_log.is_open())
+  {
+    thd->clear_error();
+    thd->binlog_query(THD::MYSQL_QUERY_TYPE,
+                      thd->query, thd->query_length, FALSE, FALSE);
+  }
+
   DBUG_RETURN(0);
 
  err:
@@ -484,11 +500,20 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   char *exact_name_str;
   uint exact_name_len;
   DBUG_ENTER("mysql_drop_function");
+
   if (!initialized)
   {
     my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
     DBUG_RETURN(1);
   }
+
+  /* 
+    Turn off row binlogging of this statement and use statement-based
+    so that all supporting tables are updated for DROP FUNCTION command.
+  */
+  if (thd->current_stmt_binlog_row_based)
+    thd->clear_current_stmt_binlog_row_based();
+
   rw_wrlock(&THR_LOCK_udf);  
   if (!(udf=(udf_func*) hash_search(&udf_hash,(byte*) udf_name->str,
 				    (uint) udf_name->length)))
@@ -525,6 +550,15 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   close_thread_tables(thd);
 
   rw_unlock(&THR_LOCK_udf);  
+
+  /* Binlog the drop function. */
+  if (mysql_bin_log.is_open())
+  {
+    thd->clear_error();
+    thd->binlog_query(THD::MYSQL_QUERY_TYPE,
+                      thd->query, thd->query_length, FALSE, FALSE);
+  }
+
   DBUG_RETURN(0);
  err:
   rw_unlock(&THR_LOCK_udf);
