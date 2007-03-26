@@ -160,7 +160,7 @@ SHOW CREATE EVENT root20;
 set names cp1251;
 create event руут21 on schedule every '50:23:59:95' day_second COMMENT 'това е 1251 коментар' do select 1;
 SHOW CREATE EVENT руут21;
-insert into mysql.event (db, name, body, definer, interval_value, interval_field) values (database(), "root22", "select 1", user(), 100, "SECOND_MICROSECOND");
+insert into mysql.event (db, name, body, definer, interval_value, interval_field, originator) values (database(), "root22", "select 1", user(), 100, "SECOND_MICROSECOND", 1);
 --error ER_NOT_SUPPORTED_YET
 show create event root22;
 --error ER_NOT_SUPPORTED_YET

@@ -197,7 +197,8 @@ Event_queue::create_event(THD *thd, Event_queue_element *new_element)
   DBUG_PRINT("enter", ("thd: 0x%lx et=%s.%s", (long) thd,
              new_element->dbname.str, new_element->name.str));
 
-  if (new_element->status == Event_queue_element::DISABLED)
+  if (res || new_element->status == Event_queue_element::DISABLED 
+      || new_element->status == Event_queue_element::SLAVESIDE_DISABLED)
     delete new_element;
   else
   {
