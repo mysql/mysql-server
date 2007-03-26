@@ -1116,7 +1116,7 @@ inline Item_result Item_splocal::result_type() const
 class Item_case_expr :public Item_sp_variable
 {
 public:
-  Item_case_expr(int case_expr_id);
+  Item_case_expr(uint case_expr_id);
 
 public:
   Item *this_item();
@@ -1135,7 +1135,7 @@ public:
   void print(String *str);
 
 private:
-  int m_case_expr_id;
+  uint m_case_expr_id;
 };
 
 /*****************************************************************************
